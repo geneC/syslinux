@@ -21,7 +21,7 @@
 DNS_PORT	equ htons(53)		; Default DNS port 
 DNS_MAX_PACKET	equ 512			; Defined by protocol
 ; TFTP uses the range 49152-57343; avoid that range
-DNS_LOCAL_PORT	equ htons(5353)		; All local DNS queries come from this port #
+DNS_LOCAL_PORT	equ htons(35000)	; All local DNS queries come from this port #
 DNS_MAX_SERVERS equ 4			; Max no of DNS servers
 
 		section .text
@@ -66,7 +66,7 @@ dns_mangle:
 
 ;
 ; Compare two sets of DNS labels, in DS:SI and ES:DI; the one in SI
-; is allowed pointers relative to a packet address in BX.
+; is allowed pointers relative to a packet in DNSRecvBuf.
 ;
 ; Assumes DS == ES.  ZF = 1 if same; no registers changed.
 ; (Note: change reference to [di] to [es:di] to remove DS == ES assumption)
@@ -81,7 +81,7 @@ dns_compare:
 		and al,03Fh			; Get pointer value
 		mov ah,al			; ... in network byte order!
 		lodsb
-		mov si,bx
+		mov si,DNSRecvBuf
 		add si,ax
 		jmp .label
 .noptr:
@@ -164,7 +164,7 @@ pxe_udp_write_pkt_dns:
 .lport:		dw DNS_LOCAL_PORT	; Local port
 .rport:		dw DNS_PORT		; Remote port
 .buffersize:	dw 0			; Size of packet
-.buffer:	dw 0, DNSSendBuf	; seg:off of buffer
+.buffer:	dw DNSSendBuf, 0	; off, seg of buffer
 
 pxe_udp_read_pkt_dns:
 .status:	dw 0			; Status
@@ -173,12 +173,13 @@ pxe_udp_read_pkt_dns:
 .rport:		dw DNS_PORT		; Remote port
 .lport:		dw DNS_LOCAL_PORT	; Local port
 .buffersize:	dw DNS_MAX_PACKET	; Max packet size
-.buffer:	dw 0, DNSRecvBuf	; seg:off of buffer
+.buffer:	dw DNSRecvBuf, 0	; off, seg of buffer
 
 LastDNSServer	dw DNSServers
 
 		section .text
 dns_resolv:
+		push si
 		push di
 		push cx
 		push dx
@@ -214,7 +215,7 @@ dns_resolv:
 		mov dx,PKT_TIMEOUT
 		mov cx,PKT_RETRY
 .backoff:
-		mov di,[DNSServers]
+		mov di,DNSServers
 .servers:
 		cmp di,[LastDNSServer]
 		jb .moreservers
@@ -228,6 +229,7 @@ dns_resolv:
 		pop dx
 		pop cx
 		pop di
+		pop si
 		ret
 
 .moreservers:
@@ -271,7 +273,7 @@ dns_resolv:
 		jnz .waitrecv
 
 		; Got a packet, deal with it...
-		mov di,DNSRecvBuf
+		mov si,DNSRecvBuf
 		lodsw
 		cmp ax,[DNSSendBuf]		; ID
 		jne .waitrecv			; Not ours
@@ -282,10 +284,10 @@ dns_resolv:
 		jnz .badness
 		
 		lodsw
-		xchg ah,al
+		xchg ah,al			; ntohs
 		mov cx,ax			; Questions echoed
 		lodsw
-		xchg ah,al
+		xchg ah,al			; ntohs
 		push ax				; Replies
 		lodsw				; NS records
 		lodsw				; Authority records
@@ -293,7 +295,7 @@ dns_resolv:
 		jcxz .qskipped
 .skipq:
 		call dns_skiplabel		; Skip name
-		add di,4			; Skip question trailer
+		add si,4			; Skip question trailer
 		loop .skipq
 
 .qskipped:
@@ -301,12 +303,12 @@ dns_resolv:
 		jcxz .badness
 
 .parseanswer:
-		mov si,DNSSendBuf+dnshdr_size
+		mov di,DNSSendBuf+dnshdr_size
 		call dns_compare
 		pushf
 		call dns_skiplabel
 		mov ax,[si+8]			; RDLENGHT
-		xchg ah,al			; Convert to host byte order
+		xchg ah,al			; ntohs
 		popf
 		jnz .notsame
 		cmp word [si],htons(1)		; TYPE = A?
