@@ -2,6 +2,9 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 2.09:
+	* SYSLINUX: Remove residual setuid crap from syslinux-nomtools.
+
 Changes in 2.08:
 	* Add new configuration command "ontimeout" to allow timeout
 	  to have a different action than just pressing Enter.
