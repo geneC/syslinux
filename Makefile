@@ -121,7 +121,7 @@ prerel:
 	-rm -rf $(PRERELDIR)/$(PREREL)
 	-rm -f $(PRERELDIR)/$(PREREL).*
 	mkdir -p $(PRERELDIR)/$(PREREL)
-	cp $(SOURCES) $(DOCS) $(OTHER) release/syslinux-$(VERSION)-$(DATE)
+	cp $(SOURCES) $(DOCS) $(OTHER) $(PRERELDIR)/$(PREREL)
 	make -C $(PRERELDIR)/$(PREREL) clean
 	make -C $(PRERELDIR)/$(PREREL) HEXDATE="$(DATE)"
 	make -C $(PRERELDIR)/$(PREREL) dist
