@@ -1540,7 +1540,6 @@ getcachesector:
 		pop cx
 		ret
 
-
 .hit:		; We have it; get the pointer
 		sub si,CachePtrs
 		shl si,SECTOR_SHIFT-2
