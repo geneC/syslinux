@@ -30,8 +30,12 @@ explains the differences.
 
 PXELINUX currently requires that the boot server has a TFTP server
 which supports the "tsize" TFTP option (RFC 1784/RFC 2349).  The
-source for such a TFTP server is available from the Netboot home page
-at <http://www.han.de/~gero/netboot/english/download.html>.
+"tftp-hpa" TFTP server, which support options, is available at:
+
+	http://www.kernel.org/pub/software/network/tftp/
+	ftp://www.kernel.org/pub/software/network/tftp/
+
+... and on any kernel.org mirror (see http://www.kernel.org/mirrors/).
 
 On the TFTP server, create the directory "/tftpboot", and copy the
 following files to it:
@@ -99,6 +103,10 @@ configuration:
                 fixed-address <hostname>;
         }
 
+Note that if your particular TFTP daemon runs under chroot (tftp-hpa
+will do this if you specify the -s (secure) option; this is
+recommended), you most likely should not include the /tftpboot prefix.
+
 If the DHCP and TFTP servers are not on the same machine, you are
 supposed to set up a DHCP server on port 4011 on the TFTP server; this
 is the "PXE boot server", which uses the DHCP protocol.  If this is
@@ -106,9 +114,6 @@ not possible, you can try adding the directive "server-identifier
 <TFTP-server>;"  Unfortunately this is a violation of DHCP
 protocol, but some PXE implementations do not accept the next-server
 directive without it or the "boot server".
-
-Note that if your particular TFTP daemon runs under chroot, it may be
-that the filename parameter should not include the /tftpboot prefix.
 
 I have successfully booted an Intel N440BX ("Nightshade") motherboard
 with onboard Ethernet and "Intel LANDesk(R) Service Agent II version
@@ -127,14 +132,9 @@ workarounds for this bug:
 
    Unfortunately, PXELINUX requires the "tsize" option to be
    supported, and it is very unusual for TFTP servers to implement one
-   and not the other.  I have therefore produced a TFTP server which
-   supports options, but let them be disabled with an option (-r
-   <optionname>).  This TFTP server is available at:
-
-	http://www.kernel.org/pub/software/network/tftp/
-	ftp://www.kernel.org/pub/software/network/tftp/
-
-   ... and on any kernel.org mirror (see http://www.kernel.org/mirrors/).
+   and not the other.  The "tftp-hpa" TFTP server (see above) therefore 
+   can be configured to disable individual options with a command-line
+   option (-r <optionname>).  In this case, use "-r blksize".
 
 2. Use MTFTP for the initial bootstrap.  You need an MTFTP server to
    do this.
