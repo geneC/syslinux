@@ -581,7 +581,7 @@ IPAppends	dw IPOption
 numIPAppends	equ ($-IPAppends)/2
 
 %else
-comboot_ipappend equ comapi_err
+comapi_ipappend equ comapi_err
 %endif
 		
 		section .bss
