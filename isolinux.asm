@@ -805,7 +805,6 @@ err_bootfailed	db CR, LF, 'Boot failed: press a key to retry...'
 bailmsg		equ err_bootfailed
 crlf_msg	db CR, LF, 0
 
-		alignb 8, db 0
 ;
 ; El Torito spec packet
 ;
