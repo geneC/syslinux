@@ -8,6 +8,10 @@ Changes in 1.62:
 	* PXELINUX: Documentation fixes.
 	* PXELINUX: Fix the "ipappend" option; the last two values
 	  were reversed vs. what the kernel expected.
+	* Introduce a way to return to text mode once we are already
+	  in graphics mode.  This may be useful for F-key help
+	  screens.
+	* Fix several bugs in the way return to text mode was handled.
 
 Changes in 1.61:
 	* ISOLINUX: Support full pathname searches.  Max length for a

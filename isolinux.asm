@@ -2994,7 +2994,79 @@ strcpy:		push ax
 		and al,al
 		jnz .loop
 		pop ax
-		ret
+lf_ret:		ret
+
+;
+; loadfont:	Load a .psf font file and install it onto the VGA console
+;		(if we're not on a VGA screen then ignore.)  It is called with
+;		SI and DX:AX set by routine searchdir
+;
+loadfont:
+		mov bx,trackbuf			; The trackbuf is >= 16K; the part
+		mov cx,[BufSafe]		; of a PSF file we care about is no
+		call getfssec			; more than 8K+4 bytes
+
+		mov ax,[trackbuf]		; Magic number
+		cmp ax,0436h
+		jne lf_ret
+
+		mov al,[trackbuf+2]		; File mode
+		cmp al,5			; Font modes 0-5 supported
+		ja lf_ret
+
+		mov bh,byte [trackbuf+3]	; Height of font
+		cmp bh,2			; VGA minimum
+		jb lf_ret
+		cmp bh,32			; VGA maximum
+		ja lf_ret
+
+		; Copy to font buffer
+		mov si,trackbuf+4		; Start of font data
+		mov [VGAFontSize],bh
+		mov di,vgafontbuf
+		mov cx,(32*256) >> 2		; Maximum size
+		rep movsd
+
+		; Fall through to use_font
+
+;
+; use_font:
+; 	This routine activates whatever font happens to be in the
+;	vgafontbuf, and updates the adjust_screen data.
+;
+use_font:
+		mov bp,vgafontbuf
+		mov bh,[VGAFontSize]
+
+		xor bl,bl			; Needed by both INT 10h calls
+		cmp [UsingVGA], byte 1		; Are we in graphics mode?
+		jne .text
+
+.graphics:
+		xor cx,bx
+		mov cl,bh			; CX = bytes/character
+		mov ax,480
+		div cl				; Compute char rows per screen
+		mov dl,al
+		dec al
+		mov [VidRows],al
+		mov ax,1121h			; Set user character table
+		int 10h
+		mov [VidRows], byte 79		; Always 80 bytes/line
+		mov [TextPage], byte 0		; Always page 0
+		ret	; No need to call adjust_screen
+
+.text:
+		mov cx,256
+		xor dx,dx
+		mov ax,1110h
+		int 10h				; Load into VGA RAM
+
+		xor bl,bl
+		mov ax,1103h			; Select page 0
+		int 10h
+
+		; Fall through to adjust_screen
 
 ;
 ; adjust_screen: Set the internal variables associated with the screen size.
@@ -3012,67 +3084,7 @@ vidrows_is_ok:  mov [VidRows],al
                 mov [TextPage],bh
                 dec ah                          ; Store count-1 (same as rows)
                 mov [VidCols],ah
-bf_ret:		ret
-
-;
-; loadfont:	Load a .psf font file and install it onto the VGA console
-;		(if we're not on a VGA screen then ignore.)  It is called with
-;		SI and DX:AX set by routine searchdir
-;
-loadfont:
-		mov bx,trackbuf			; The trackbuf is >= 16K; the part
-		mov cx,[BufSafe]		; of a PSF file we care about is no
-		call getfssec			; more than 8K+4 bytes
-
-		mov ax,[trackbuf]		; Magic number
-		cmp ax,0436h
-		jne bf_ret
-
-		mov al,[trackbuf+2]		; File mode
-		cmp al,5			; Font modes 0-5 supported
-		ja bf_ret
-
-		mov bh,byte [trackbuf+3]	; Height of font
-		cmp bh,2			; VGA minimum
-		jb bf_ret
-		cmp bh,32			; VGA maximum
-		ja bf_ret
-
-		; Copy to font buffer
-		mov si,trackbuf+4		; Start of font data
-		mov [VGAFontSize],bh
-		mov di,vgafontbuf
-		mov bp,di			; Address of font data for INT 10h
-		mov cx,(32*256) >> 2		; Maximum size
-		rep movsd
-
-		xor bl,bl			; Needed by both INT 10h calls
-		cmp [UsingVGA], byte 1		; Are we in graphics mode?
-		je .graphics
-
-		mov cx,256
-		xor dx,dx
-		mov ax,1110h
-		int 10h				; Load into VGA RAM
-
-		xor bl,bl
-		mov ax,1103h			; Select page 0
-		int 10h
-
-		jmp short adjust_screen
-
-.graphics:
-		; CX = 0 on entry
-		mov cl,bh			; CX = bytes/character
-		mov ax,480
-		div cl				; Compute char rows per screen
-		mov dl,al
-		dec al
-		mov [VidRows],al
-		mov ax,1121h			; Set user character table
-		int 10h
-		; VidCols = 80, TextPage = 0 set by graphics mode select
-		ret	; No need to call adjust_screen
+		ret
 
 ;
 ; loadkeys:	Load a LILO-style keymap; SI and DX:AX set by searchdir
@@ -3151,6 +3163,8 @@ msg_putchar:                                    ; Normal character
                 je msg_newline
                 cmp al,0Ch                      ; <FF> = clear screen
                 je msg_formfeed
+		cmp al,19h			; <EM> = return to text mode
+		je near msg_novga
 		cmp al,18h			; <CAN> = VGA filename follows
 		je near msg_vga
 		jnb .not_modectl
@@ -3253,6 +3267,10 @@ msg_filename:					; Getting VGA filename
 msg_setvgafileptr:
 		mov [VGAFilePtr],di
 msg_ret:	ret
+
+msg_novga:
+		call vgaclearmode
+		jmp short msg_initvars
 
 msg_viewimage:
 		push es
@@ -4115,19 +4133,7 @@ vgasetmode:
 		int 10h
 		mov [UsingVGA], byte 1
 
-		mov [VidCols], byte 79	; Always 80 chars/screen
-		mov [TextPage], byte 0	; Always page 0
-
-		mov cx,[VGAFontSize]
-		mov ax,480
-		div cl
-		mov dl,al
-		dec al			; VidRows is stored -1
-		mov [VidRows],al
-		mov bp,vgafontbuf
-		xor bx,bx
-		mov ax,1121h		; Set graphics font
-		int 10h
+		call use_font		; Set graphics font/data
 		mov byte [ScrollAttribute], 00h
 
 		xor ax,ax		; Set ZF
@@ -4139,17 +4145,24 @@ vgasetmode:
 ;	Disable VGA graphics.  It is not safe to assume any value for DS.
 ;
 vgaclearmode:
+		push ds
+		push cs
+		pop ds			; DS <- CS
 		pushad
-		cmp [cs:UsingVGA], byte 1
+		cmp [UsingVGA], byte 1
 		jne .done
 		mov ax,0003h		; Return to normal video mode
 		int 10h
 ;		mov dx,TextColorReg	; Restore color registers
 ;		mov ax,1002h
 ;		int 10h
+
+
+		call use_font		; Restore text font/data
 		mov byte [ScrollAttribute], 07h
 .done:
 		popad
+		pop ds
 		ret
 
 ;

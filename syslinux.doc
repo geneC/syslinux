@@ -352,6 +352,9 @@ are interpreted:
 	care: 0 is the background color, and 7 is the color used for
 	the text printed by SYSLINUX itself.
 
+<EM>					<EM> = <Ctrl-Y> = ASCII 25
+	If we are currently in graphics mode, return to text mode.
+
 <DLE>..<ETB>				<Ctrl-P>..<Ctrl-W> = ASCII 16-23
 	These codes can be used to select which modes to print a
 	certain part of the message file in.  Each of these control
