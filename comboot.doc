@@ -458,7 +458,7 @@ AX=000Dh [2.08]	Cleanup and replace bootstrap code
 	Input:	AX	000Dh
 		DX	derivative-specific flags (see previous function)
 		EDI	bootstrap code (linear address, can be in high memory)
-		ECX	bootstrap code length in bytes (max 
+		ECX	bootstrap code length in bytes (must fit in low mem)
 		EBX(!)	initial value of EDX after bootstrap
 		ESI	initial value of ESI after bootstrap
 		DS	initial value of DS after bootstrap
