@@ -109,26 +109,26 @@ sub getrgb($) {
     my($form) = @_;
     my($rgb,$r,$g,$b);
 
-    if ( $form eq 'P6' ) {
+    if ( $form == 6 ) {
 	# Raw PPM, most common
 	return undef unless ( read(STDIN,$rgb,3) == 3 );
 	return unpack("CCC", $rgb);
-    } elsif ( $form eq 'P3' ) {
+    } elsif ( $form == 3 ) {
 	# Plain PPM
 	$r = get_numeric_token();
 	$g = get_numeric_token();
 	$b = get_numeric_token();
 	return ($r,$g,$b);
-    } elsif  ( $form eq 'P5' ) {
+    } elsif  ( $form == 5 ) {
 	# Raw PGM
 	return undef unless ( read(STDIN,$rgb,1) == 1 );
 	$r = unpack("C", $rgb);
 	return ($r,$r,$r);
-    } elsif ( $form eq 'P2' ) {
+    } elsif ( $form == 2 ) {
 	# Plain PGM
 	$r = get_numeric_token();
 	return ($r,$r,$r);
-    } elsif ( $form eq 'P4' ) {
+    } elsif ( $form == 4 ) {
 	# Raw PBM
 	if ( !$getrgb_leftover_bit_cnt ) {
 	    return undef unless ( read(STDIN,$rgb,1) == 1 );
@@ -140,7 +140,7 @@ sub getrgb($) {
 	$getrgb_leftover_bit_cnt--;
 	
 	return ($r,$r,$r);
-    } elsif ( $form eq 'P1' ) {
+    } elsif ( $form == 1 ) {
 	# Plain PBM
 	my($ch);
 	
@@ -215,14 +215,15 @@ foreach $arg ( @ARGV ) {
 }
 
 $form = get_token();
-die "$0: stdin is not a PNM file" if ( $form !~ /^P[1-6]$/ );
+die "$0: stdin is not a PNM file" if ( $form !~ /^P([1-6])$/ );
+$form = $1+0;
 
 $xsize = get_numeric_token();
 $ysize = get_numeric_token();
-if ( $form =~ /^P[2356]$/ ) {
-    $maxcol = get_numeric_token();
-} else {
+if ( $form == 1 || $form == 4 ) {
     $maxcol = 255;		# Internal convention
+} else {
+    $maxcol = get_numeric_token();
 }
 $maxmult = 64/($maxcol+1); 	# Equal buckets conversion
 
