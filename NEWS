@@ -12,6 +12,10 @@ Changes in 2.20:
           built in its own subdirectory.  In particular, "mtools" is
 	  the unprivileged installer which uses mtools; "unix" is the
 	  privileged installer which uses system calls.
+	* ALL: "label" statement information is now stored in a
+	  compressed format, which means that a lot more labels are
+	  permitted (500-1000 in a typical configuration, but depends
+	  on the complexity.)
 
 Changes in 2.13:
 	* MEMDISK: Fix command-line parsing "brown paper bag" class
