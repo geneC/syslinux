@@ -112,21 +112,14 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
 		; ends at 5000h
 
-		alignb 8
-
-		; Expanded superblock
-SuperInfo	equ $
-		resq 16			; The first 16 bytes expanded 8 times
-FAT		resd 1			; Location of (first) FAT
-RootDirArea	resd 1			; Location of root directory area
-RootDir		resd 1			; Location of root directory proper
-DataArea	resd 1			; Location of data area
-RootDirSize	resd 1			; Root dir size in sectors
-TotalSectors	resd 1			; Total number of sectors
-EndSector	resd 1			; Location of filesystem end
-ClustSize	resd 1			; Bytes/cluster
+SuperBlock	resb 1024		; ext2 superblock
+SuperInfo	resd 16			; DOS superblock expanded
+ClustSize	resd 1			; Bytes/cluster ("block")
+SecPerClust	resd 1			; Sectors/cluster
 ClustMask	resd 1			; Sectors/cluster - 1
-CopySuper	resb 1			; Distinguish .bs versus .bss
+PtrsPerBlock1	resd 1			; Pointers/cluster
+PtrsPerBlock2	resd 1			; (Pointers/cluster)^2
+PtrsPerBlock3	resd 1			; (Pointers/cluster)^3
 DriveNumber	resb 1			; BIOS drive number
 ClustShift	resb 1			; Shift count for sectors/cluster
 ClustByteShift	resb 1			; Shift count for bytes/cluster
@@ -212,7 +205,6 @@ superinfo_size	equ ($-superblock)-1	; How much to expand
 					; FAT32 need 54 more bytes
 superblock_len	equ $-superblock
 
-SecPerClust	equ bxSecPerClust
 ;
 ; Note we don't check the constraints above now; we did that at install
 ; time (we hope!)
@@ -580,6 +572,7 @@ LDLDwords	dw 0		; Total dwords starting at ldlinux_sys
 LDLSectors	dw 0		; Number of sectors - (bootsec+this sec)
 CheckSum	dd 0		; Checksum starting at ldlinux_sys
 				; value = LDLINUX_MAGIC - [sum of dwords]
+CurrentDir	dd 2		; "Current" directory inode number
 
 ; Space for up to 64 sectors, the theoretical maximum
 SectorPtrs	times 64 dd 0
@@ -750,39 +743,52 @@ expand_super:
 		loop .loop
 
 ;
-; Compute some information about this filesystem.
+; Load the real (ext2) superblock; 1024 bytes long at offset 1024
 ;
+		mov bx,SuperBlock
+		mov eax,1024 >> SECTOR_SHIFT
+		mov cx,ax
+		call getlinsec
+
+;
+; Compute some values...
+;
+		xor edx,edx
+		inc edx
+
+		; s_log_block_size = log2(blocksize) - 10
+		mov cl,[SuperBlock+s_log_block_size]
+		add cl,10
+		mov [ClustByteShift],cl
+		mov eax,edx
+		shl eax,cl
+		mov [ClustSize],eax
+
+		sub cl,2			; 4 bytes/pointer
+		shl edx,cl
+		mov [PtrsPerBlock1],edx
+		shl edx,cl
+		mov [PtrsPerBlock2],edx
+		shl edx,cl
+		mov [PtrsPerBlock3],eax
+
+		sub cl,SECTOR_SHIFT-2
+		mov [ClustShift],cl
+		shr eax,SECTOR_SHIFT
+		mov [SecPerClust],eax
+		dec eax
+		mov [ClustMask],eax
 
 ;
 ; Common initialization code
 ;
+%include "init.inc"
 %include "cpuinit.inc"
-
-;
-; Clear Files structures
-;
-		mov di,Files
-		mov cx,(MAX_OPEN*open_file_t_size)/4
-		xor eax,eax
-		rep stosd
 
 ;
 ; Initialize the metadata cache
 ;
 		call initcache
-
-;
-; Initialization that does not need to go into the any of the pre-load
-; areas
-;
-		; Now set up screen parameters
-		call adjust_screen
-
-		; Wipe the F-key area
-		mov al,NULLFILE
-		mov di,FKeyName
-		mov cx,10*(1 << FILENAME_MAX_LG2)
-		rep stosb
 
 ;
 ; Now, everything is "up and running"... patch kaboom for more
@@ -804,22 +810,12 @@ expand_super:
 ; to take'm out.  In fact, we may want to put them back if we're going
 ; to boot ELKS at some point.
 ;
-		mov si,linuxauto_cmd		; Default command: "linux auto"
-		mov di,default_cmd
-                mov cx,linuxauto_len
-		rep movsb
-
-		mov di,KbdMap			; Default keymap 1:1
-		xor al,al
-		inc ch				; CX <- 256
-mkkeymap:	stosb
-		inc al
-		loop mkkeymap
 
 ;
 ; Load configuration file
 ;
-		mov di,syslinux_cfg
+load_config:
+		mov di,ConfigName
 		call open
 		jz no_config_file
 
@@ -944,20 +940,20 @@ open_inode:
 				
 		shl eax, ext2_group_desc_lg2size ; Get byte offset in desc table
 		xor edx,edx
-		div dword [BlockSize]
+		div dword [ClustSize]
 		; eax = block #, edx = offset in block
 		add eax,dword [SuperBlock+s_first_data_block]
 		inc eax				; s_first_data_block+1
 		mov cl,[ClustShift]
 		shl eax,cl
-		call getcachesec		; Get the group descriptor
+		call getcachesector		; Get the group descriptor
 		add si,dx
 		mov esi,[gs:si+bg_inode_table]	; Get inode table block #
 		pop eax				; Get inode within group
 		movzx edx, word [SuperBlock+s_inode_size]
 		mul edx
 		; edx:eax = byte offset in inode table
-		div dword [BlockSize]
+		div dword [ClustSize]
 		; eax = block # versus inode table, edx = offset in block
 		add eax,esi
 		shl eax,cl			; Turn into sector
@@ -969,7 +965,7 @@ open_inode:
 		and dx,SECTOR_SIZE-1
 		mov [bx+file_in_off],dx
 
-		call getcachesec
+		call getcachesector
 		add si,dx
 		mov eax,[gs:si+i_size]
 		push eax
@@ -1027,7 +1023,7 @@ searchdir:
 .readdir:
 		mov bx,trackbuf
 		push bx
-		mov cx,[SecPerBlock]
+		mov cx,[SecPerClust]
 		call getfssec
 		pop bx
 		pushf			; Save EOF flag
@@ -1201,7 +1197,7 @@ linsector:
 		jb .direct
 		mov ebx,[gs:si+i_block+4*EXT2_IND_BLOCK]
 		sub eax,EXT2_NDIR_BLOCKS
-		mov ebp,[PtrsPerBlk1]
+		mov ebp,[PtrsPerBlock1]
 		jb .ind1
 		mov ebx,[gs:si+i_block+4*EXT2_DIND_BLOCK]
 		sub eax,ebp
@@ -1323,7 +1319,7 @@ getfssec:
 		inc ebx				; Sector index
 		inc edx				; Linearly next sector
 		mov eax,ebx
-		call nextsector
+		call linsector
 		jc .do_read
 		cmp edx,eax
 		je .getseccnt
@@ -1333,7 +1329,7 @@ getfssec:
 		lea eax,[eax+ebp-1]		; This is the last sector actually read
 		shl bp,9
 		add bx,bp			; Adjust buffer pointer
-		call nextsector
+		call linsector
 		jc .eof
 		mov edx,eax
 		and cx,cx
@@ -1397,6 +1393,7 @@ err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
                 db CR, LF, 0
 err_notdos	db ': attempted DOS system call', CR, LF, 0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
+err_bssimage	db 'BSS images not supported.', CR, LF, 0
 err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: please change disks and press '
 		db 'a key to continue.', CR, LF, 0
@@ -1409,7 +1406,7 @@ aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
 crlf_msg	db CR, LF
 null_msg	db 0
 crff_msg	db CR, FF, 0
-ConfigName	db 'syslinux.cfg',0		; Unmangled form
+ConfigName	db 'extlinux.cfg',0		; Unmangled form
 
 ;
 ; Command line options we'd like to take a look at

@@ -276,15 +276,15 @@ vk_check:
 %endif
 		xor bx,bx			; Try only one version
 
-%if IS_SYSLINUX || IS_MDSLINUX
-		jmp get_kernel
-%else
+%if IS_PXELINUX || IS_ISOLINUX
 		; Is this a "localboot" pseudo-kernel?
 		cmp byte [VKernelBuf+vk_rname], 0
 		jne get_kernel		; No, it's real, go get it
 
 		mov ax, [VKernelBuf+vk_rname+1]
 		jmp local_boot
+%else
+		jmp get_kernel
 %endif
 
 .not_vk:
