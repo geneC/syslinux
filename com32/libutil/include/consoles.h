@@ -32,11 +32,11 @@
  * Utility functions for common console configurations
  */
 
-#ifndef _LIBUTIL_CONSOLES_H
-#define _LIBUTIL_CONSOLES_H
+#ifndef LIBUTIL_CONSOLES_H
+#define LIBUTIL_CONSOLES_H
 
 void console_ansi_std(void);
 void console_ansi_raw(void);
 
-#endif /* _LIBUTIL_CONSOLES_H */
+#endif /* LIBUTIL_CONSOLES_H */
 

@@ -27,66 +27,40 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * ansiraw.c
+ * getkey.h
  *
- * Configures the console for ANSI output in raw mode; versions
- * for COM32 and Linux support.
+ * Function to get a key symbol and parse it
  */
 
-#ifdef __COM32__
+#ifndef LIBUTIL_GETKEY_H
+#define LIBUTIL_GETKEY_H
 
 #include <stdio.h>
-#include <unistd.h>
-#include <console.h>
 
-static void __attribute__((destructor)) console_cleanup(void)
-{
-  /* For the serial console, be nice and clean up */
-  fputs("\033[0m\033[20l", stdout);
-}
+#define KEY_F1		0x0100
+#define KEY_F2		0x0101
+#define KEY_F3		0x0102
+#define KEY_F4		0x0103
+#define KEY_F5		0x0104
+#define KEY_F6		0x0105
+#define KEY_F7		0x0106
+#define KEY_F8		0x0107
+#define KEY_F9		0x0108
+#define KEY_F10		0x0109
+#define KEY_F11		0x010A /* NOT SUPPORTED BY MOST BIOSES!!! */
+#define KEY_F12		0x010B /* NOT SUPPORTED BY MOST BIOSES!!! */
 
-void console_ansi_raw(void)
-{
-  openconsole(&dev_rawcon_r, &dev_ansiserial_w);
-  fputs("\033[0m\033[20h", stdout);
-}
+#define KEY_UP		0x0120
+#define KEY_DOWN	0x0121
+#define KEY_LEFT	0x0122
+#define KEY_RIGHT	0x0123
+#define KEY_PGUP	0x0124
+#define KEY_PGDN	0x0125
+#define KEY_HOME	0x0126
+#define KEY_END		0x0127
+#define KEY_INS		0x0128
+#define KEY_DEL		0x0129
 
-#else 
+int get_key(FILE *);
 
-#include <stdio.h>
-#include <termios.h>
-
-static struct termios original_termios_settings;
-
-static void __attribute__((constructor)) console_init(void)
-{
-  tcgetattr(0, &original_termios_settings);
-}
-
-static void __attribute__((destructor)) console_cleanup(void)
-{
-  fputs("\033[0m\033[20l", stdout);
-  tcsetattr(0, TCSANOW, &original_termios_settings);
-}
-  
-
-void console_ansi_raw(void)
-{
-  struct termios tio;
-
-  /* Disable stdio buffering */
-  setbuf(stdin,  NULL);
-  setbuf(stdout, NULL);
-  setbuf(stderr, NULL);
-
-  /* Set the termios flag so we behave the same as libcom32 */
-  tcgetattr(0, &tio);
-  tio.c_iflag &= ~ICRNL;
-  tio.c_iflag |= IGNCR;
-  tio.c_lflag &= ~(ISIG|ICANON|ECHO);
-  tcsetattr(0, TCSANOW, &tio);
-  fputs("\033[0m\033[20h", stdout);
-}
-
-#endif
-
+#endif /* LIBUTIL_GETKEY_H */

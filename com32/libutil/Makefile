@@ -25,14 +25,14 @@ LD         = ld -m elf_i386
 AR	   = ar
 NASM	   = nasm
 RANLIB	   = ranlib
-CFLAGS     = -D__COM32__ -W -Wall -march=i386 -Os -fomit-frame-pointer -I../include
+CFLAGS     = -D__COM32__ -W -Wall -march=i386 -Os -fomit-frame-pointer -I./include -I../include
 SFLAGS     = -D__COM32__ -march=i386
 LDFLAGS    = -T ../lib/com32.ld
-LNXCFLAGS  = -W -Wall -march=i386 -Os -g
+LNXCFLAGS  = -I./include -W -Wall -march=i386 -Os -g
 LNXSFLAGS  = -march=i386
 LNXLDFLAGS = -g
 OBJCOPY    = objcopy
-LIBOBJS	   = ansiline.o ansiraw.o
+LIBOBJS	   = ansiline.o ansiraw.o get_key.o
 LNXLIBOBJS = $(patsubst %.o,%.lo,$(LIBOBJS))
 
 .SUFFIXES: .lss .c .lo .o .elf .c32 .lnx
