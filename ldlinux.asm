@@ -1136,6 +1136,29 @@ is_386:
 		jmp kaboom
 enough_ram:
 skip_checks:
+;
+; Check if we're 386 (as opposed to 486+); if so we need to blank out
+; the WBINVD instruction
+;
+; We check for 486 by setting EFLAGS.AC
+;
+		pushfd				; Save the good flags
+		pushfd
+		pop eax
+		mov ebx,eax
+		xor eax,(1 << 18)		; AC bit
+		push eax
+		popfd
+		pushfd
+		pop eax
+		popfd				; Restore the original flags
+		xor eax,ebx
+		jnz is_486
+;
+; 386 - Looks like we better blot out the WBINVD instruction
+;
+		mov byte [try_wbinvd],0c3h		; Near RET		
+is_486:
 
 ;
 ; Initialization that does not need to go into the any of the pre-load
@@ -2264,13 +2287,15 @@ bcopy_gdt:	dd 0			; Null descriptor
 		dd 00009300h		; present, dpl 0, cover 64K
 bcopy_gdt_size:	equ $-bcopy_gdt
 
-bcopy:
-		push eax
+bcopy:		push eax
 		pushf			; Saves, among others, the IF flag
 		push gs
 		push fs
 		push ds
 		push es
+
+		mov al,'<'		; DEBUG DEBUG DEBUG
+		call writechr		
 
 		cli
 		call enable_a20
@@ -2308,6 +2333,9 @@ bcopy:
 		pop gs
 		call disable_a20
 
+		mov al,'>'		; DEBUG DEBUG DEBUG
+		call writechr		
+
 		popf			; Re-enables interrupts
 		pop eax
 		ret
@@ -2326,13 +2354,18 @@ bcopy:
 
 enable_a20:
 ;
-; First, enable the "fast A20 gate"
+; Flush the caches
+;
+		call try_wbinvd
+
+;
+; Enable the "fast A20 gate"
 ;
 		in al, 92h
 		or al,02h
 		out 92h, al
 ;
-; Second, enable the keyboard controller A20 gate
+; Enable the keyboard controller A20 gate
 ;
 		call empty_8042
 		mov al,0D1h		; Command write
@@ -2351,6 +2384,7 @@ enable_a20:
 		mov ax,0FFFFh		; HMA
 		mov es,ax
 .a20_wait:	inc word [ss:A20test]
+		call try_wbinvd
 		mov ax,[es:A20test+10h]
 		cmp ax,[ss:A20test]
 		je .a20_wait
@@ -2359,13 +2393,17 @@ enable_a20:
 
 disable_a20:
 ;
-; First, disable the "fast A20 gate"
+; Flush the caches
+;
+		call try_wbinvd
+;
+; Disable the "fast A20 gate"
 ;
 		in al, 92h
 		and al,~02h
 		out 92h, al
 ;
-; Second, disable the keyboard controller A20 gate
+; Disable the keyboard controller A20 gate
 ;
 		call empty_8042
 		mov al,0D1h
@@ -2396,6 +2434,13 @@ empty_8042:
 		jnz empty_8042
 		io_delay
 		ret	
+
+;
+; WBINVD instruction; gets auto-eliminated on 386 CPUs
+;
+try_wbinvd:
+		wbinvd
+		ret
 
 ;
 ; Load RAM disk into high memory
