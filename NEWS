@@ -8,6 +8,7 @@ Changes in 1.63:
 	  exists.
 	* SYSLINUX: Fix stack-smash bug identified by Steffen
 	  Winterfeldt.
+	* Hopefully fix return-to-text-mode on some graphics cards.
 
 Changes in 1.62:
 	* PXELINUX: Allow the DHCP server to override the

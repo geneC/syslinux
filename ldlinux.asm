@@ -1150,24 +1150,6 @@ is_486:
 ; Initialization that does not need to go into the any of the pre-load
 ; areas
 ;
-
-		; Get ROM 8x16 font in case we switch to graphics mode
-		xor cx,cx
-		mov ax,1130h
-		mov bh,6			; Get ROM 8x16 font
-		int 10h
-		push es
-		pop fs
-		push ds
-		pop es
-		cmp cx,16
-		jne not_vga			; If not VGA we don't care
-		mov si,bp
-		mov di,vgafontbuf
-		mov cx,(16*256) >> 2
-		fs rep movsd
-not_vga:
-
 		; Now set up screen parameters
 		call adjust_screen
 ;
@@ -2974,6 +2956,8 @@ loadfont:
 		mov cx,(32*256) >> 2		; Maximum size
 		rep movsd
 
+		mov [UserFont], byte 1		; Set font flag
+
 		; Fall through to use_font
 
 ;
@@ -2982,6 +2966,9 @@ loadfont:
 ;	vgafontbuf, and updates the adjust_screen data.
 ;
 use_font:
+		test [UserFont], byte 1		; Are we using a user-specified font?
+		jz adjust_screen		; If not, just do the normal stuff
+
 		mov bp,vgafontbuf
 		mov bh,[VGAFontSize]
 
@@ -4291,6 +4278,7 @@ A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
 A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
 A20Type		dw A20_DUNNO		; A20 type unknown
 VGAFontSize	dw 16			; Defaults to 16 byte font
+UserFont	db 0			; Using a user-specified font
 ScrollAttribute	db 07h			; White on black (for text mode)
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
