@@ -36,10 +36,10 @@ enter_command:
 ; out, or receive a character press at this time.  Some dorky BIOSes stuff
 ; a return in the buffer on bootup, so wipe the keyboard buffer first.
 ;
-clear_buffer:	mov ah,1			; Check for pending char
+clear_buffer:	mov ah,11h			; Check for pending char
 		int 16h
 		jz get_char_time
-		xor ax,ax			; Get char
+		mov ah,10h			; Get char
 		int 16h
 		jmp short clear_buffer
 get_char_time:	

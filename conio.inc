@@ -323,7 +323,7 @@ getchar:
 		RESET_IDLE
 .again:
 		DO_IDLE
-		mov ah,1		; Poll keyboard
+		mov ah,11h		; Poll keyboard
 		int 16h
 		jnz .kbd		; Keyboard input?
 		mov bx,[SerialPort]
@@ -343,8 +343,12 @@ getchar:
 		xchg dx,bx		; Data port
 		in al,dx
 		ret
-.kbd:		xor ax,ax		; Get keyboard input
+.kbd:		mov ah,10h		; Get keyboard input
 		int 16h
+		cmp al,0E0h
+		jz .not_ext
+		xor al,al
+.not_ext:
 		and al,al
 		jz .func_key
 		mov bx,KbdMap		; Convert character sets
