@@ -517,6 +517,12 @@ have_entrypoint:
 		pop es				; Restore CS == DS == ES
 
 ;
+; Network-specific initialization
+;
+		xor ax,ax
+		mov [LocalDomain],al		; No LocalDomain received
+
+;
 ; Now attempt to get the BOOTP/DHCP packet that brought us life (and an IP
 ; address).  This lives in the DHCPACK packet (query info 2).
 ;
@@ -2051,6 +2057,7 @@ gendotquad:
 ; Gateway	- default gateway router IP
 ; BootFile	- boot file name
 ; DNSServers	- DNS server IPs
+; LocalDomain	- Local domain name
 ;
 ; This assumes the DHCP packet is in "trackbuf" and the length
 ; of the packet in in CX on entry.
@@ -2156,6 +2163,7 @@ parse_some_dhcp_options:
 		cmp dl,6	; DNS SERVERS option
 		jne .not_dns
 		pusha
+		mov cx,ax
 		shr cx,2
 		cmp cl,DNS_MAX_SERVERS
 		jna .oklen
@@ -2167,6 +2175,20 @@ parse_some_dhcp_options:
 		popa
 		jmp .opt_done
 .not_dns:
+
+		cmp dl,15	; DNS LOCAL DOMAIN option
+		jne .not_localdomain
+		pusha
+		mov bx,si
+		add bx,ax
+		xor ax,ax
+		xchg [bx],al	; Zero-terminate option
+		mov di,LocalDomain
+		call dns_mangle	; Convert to DNS label set
+		mov [bx],al	; Restore ending byte
+		popa
+		jmp .opt_done
+.not_localdomain:
 
 		cmp dl,43	; VENDOR ENCAPSULATED option
 		jne .not_vendor

@@ -34,11 +34,14 @@ DNS_MAX_SERVERS equ 4			; Max no of DNS servers
 ; Assumes DS == ES.  Change references to [bx] to [es:bx] to remove
 ; that assumption.
 ;
+; On return, DX contains the number of dots encountered.
+;
 dns_mangle:
 		push ax
 		push bx
-.nostart:
+		xor dx,dx
 .isdot:
+		inc dx
 		xor al,al
 		mov bx,di
 		stosb
@@ -55,6 +58,7 @@ dns_mangle:
 		jmp .getbyte
 .endstring:
 		dec si
+		dec dx			; We always counted one high
 		cmp byte [bx],0
 		jz .done
 		xor al,al
@@ -158,6 +162,7 @@ dns_skiplabel:
 		alignb 2, db 0
 DNSSendBuf	resb DNS_MAX_PACKET
 DNSRecvBuf	resb DNS_MAX_PACKET
+LocalDomain	resb 256		; Max possible length
 DNSServers	resd DNS_MAX_SERVERS
 
 		section .data
@@ -204,8 +209,14 @@ dns_resolv:
 		stosw
 		
 		call dns_mangle		; Convert name to DNS labels
-
 		push si			; Save pointer to after DNS string
+
+		and dx,dx
+		jnz .fqdn		; If we have dots, assume it's FQDN
+		dec di			; Remove final null
+		mov si,LocalDomain
+		call strcpy		; Uncompressed DNS label set so it ends in null
+.fqdn:
 
 		mov ax,htons(1)
 		stosw			; QTYPE  = 1 = A

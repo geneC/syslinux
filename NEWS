@@ -12,6 +12,7 @@ Changes in 3.00:
           built in its own subdirectory.  In particular, "mtools" is
 	  the unprivileged installer which uses mtools; "unix" is the
 	  privileged installer which uses system calls.
+	* SYSLINUX: Completely rewritten DOS installer in C.
 	* ALL: "label" statement information is now stored in a
 	  compressed format, which means that a lot more labels are
 	  permitted (500-1000 in a typical configuration, but depends
