@@ -60,8 +60,14 @@ tick_loop:	push dx
 		je tick_loop
 		pop cx
 		loop time_loop			; If so, decrement counter
+
+		; Timeout!!!!
 		call vgahidecursor
-		jmp command_done		; Timeout!
+		mov si,TimeOutCmd		; Copy timeoutcommand if we have one...
+		mov cx,TimeOutCmdLen
+		rep movsb
+.stddefault:
+		jmp command_done
 
 get_char_pop:	pop eax				; Clear stack
 get_char:

@@ -27,6 +27,15 @@ pc_default:	mov di,default_cmd
 		ret
 
 ;
+; "timeoutcmd" command
+;
+pc_timeoutcmd:	mov di,TimeOutCmd
+		call getline
+		sub di,TimeOutCmd
+		mov [TimeOutCmdLen],di
+		ret
+
+;
 ; "append" command
 ;
 pc_append:      cmp word [VKernelCtr],byte 0

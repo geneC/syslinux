@@ -198,6 +198,7 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
+TimeOutCmd	resb max_cmd_len+1	; timeoutcmd
 KbdMap		resb 256		; Keyboard map
 BootFile	resb 256		; Boot file from DHCP packet
 PathPrefix	resb 256		; Path prefix derived from the above
@@ -2460,6 +2461,7 @@ pxe_udp_read_pkt:
 BaseStack	dd StackBuf		; SS:ESP of base stack
 		dw 0
 AppendLen       dw 0                    ; Bytes in append= command
+TimeOutCmdLen	dw 0			; Bytes in timeoutcmd command
 KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
 CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
 initrd_flag	equ $
@@ -2468,10 +2470,14 @@ VKernelCtr	dw 0			; Number of registered vkernels
 ForcePrompt	dw 0			; Force prompt
 AllowImplicit   dw 1                    ; Allow implicit kernels
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
-NextSocket	dw 49152		; Counter for allocating socket numbers
 VGAFontSize	dw 16			; Defaults to 16 byte font
 UserFont	db 0			; Using a user-specified font
 ScrollAttribute	db 07h			; White on black (for text mode)
+
+;
+; PXELINUX-specific variables
+; 
+NextSocket	dw 49152		; Counter for allocating socket numbers
 KeepPXE		db 0			; Should PXE be kept around?
 
 ;

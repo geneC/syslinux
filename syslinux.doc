@@ -222,6 +222,12 @@ TIMEOUT timeout
         NOTE: The maximum possible timeout value is 35996; corresponding to
         just below one hour.
 
+TIMEOUTCMD kernel options...
+	Sets the command line invoked on a timeout.  Normally this is
+	the same thing as invoked by "DEFAULT".  If this is specified,
+	then "DEFAULT" is used only if the user presses <Enter> to
+	boot.
+
 SERIAL port [[baudrate] flowcontrol]
 	Enables a serial port to act as the console.  "port" is a
 	number (0 = /dev/ttyS0 = COM1, etc.) or an I/O port address

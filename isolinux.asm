@@ -126,6 +126,7 @@ dir_clust	resd 1			; Length in clusters
 VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
+TimeOutCmd	resb max_cmd_len+1	; timeoutcmd
 KbdMap		resb 256		; Keyboard map
 FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
 NumBuf		resb 15			; Buffer to load number
@@ -1600,6 +1601,7 @@ img_table:
 ; Misc initialized (data) variables
 ;
 AppendLen       dw 0                    ; Bytes in append= command
+TimeOutCmdLen	dw 0			; Bytes in timeoutcmd command
 KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
 CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
 initrd_flag	equ $
@@ -1608,7 +1610,6 @@ VKernelCtr	dw 0			; Number of registered vkernels
 ForcePrompt	dw 0			; Force prompt
 AllowImplicit   dw 1                    ; Allow implicit kernels
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
-NextSocket	dw 49152		; Counter for allocating socket numbers
 VGAFontSize	dw 16			; Defaults to 16 byte font
 UserFont	db 0			; Using a user-specified font
 ScrollAttribute	db 07h			; White on black (for text mode)

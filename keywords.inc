@@ -57,6 +57,7 @@ keywd_table:
 		keyword say,       pc_say
 		keyword serial,    pc_serial
 		keyword timeout,   pc_timeout
+		keyword timeoutcmd, pc_timeoutcmd
 		keyword f1,        pc_fkey,     FKeyName+(0<<FILENAME_MAX_LG2)
 		keyword f2,        pc_fkey,     FKeyName+(1<<FILENAME_MAX_LG2)
 		keyword f3,        pc_fkey,     FKeyName+(2<<FILENAME_MAX_LG2)
