@@ -1,8 +1,8 @@
 			       SYSLINUX
 
-              A bootloader for Linux using MS-DOS floppies
+		   A suite of bootloaders for Linux
 
-		Copyright (C) 1994-2003 H. Peter Anvin
+		Copyright (C) 1994-2004 H. Peter Anvin
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -15,29 +15,19 @@ program.  Please see the included file COPYING for details.
 
 ----------------------------------------------------------------------
 
-SYSLINUX is a boot loader for the Linux operating system which
-operates off an MS-DOS/Windows FAT filesystem.  It is intended to
-simplify first-time installation of Linux, and for creation of rescue-
-and other special-purpose boot disks.
+The SYSLINUX suite contains the following boot loaders
+("derivatives"), for their respective boot media:
 
-SYSLINUX can be used, when properly set up, completely eliminate the
-need for distribution of raw diskette images for boot floppies.  A
-SYSLINUX floppy can be manipulated using standard MS-DOS (or any other
-OS that can access an MS-DOS filesystem) tools once it has been
-created.
+	SYSLINUX - MS-DOS/Windows FAT filesystem
+	PXELINUX - PXE network booting
+	ISOLINUX - ISO9660 CD-ROM
+	EXTLINUX - Linux ext2/ext3 filesystem
 
+For historical reasons, some of the sections in this document applies
+to the FAT loader only; see pxelinux.doc, isolinux.doc and
+extlinux.doc for what differs in these versions.
 
-   ++++ WHAT SYSLINUX IS NOT ++++
-
-SYSLINUX is probably not suitable as a general purpose boot loader.
-It can only boot Linux from a FAT filesystem, and not, for example,
-ext2.  Since a native Linux implementation will typically use ext2,
-another boot loader (e.g. LILO) is probably more suitable.  In a
-system which actually contains DOS or Windows, LOADLIN may be simpler
-to use.
-
-However, SYSLINUX has shown itself to be quite useful in a number of
-special-purpose applications.
+Help with cleaning up the docs would be greatly appreciated.
 
 
    ++++ CREATING A BOOTABLE LINUX FLOPPY +++
@@ -50,11 +40,11 @@ it, then execute the DOS command:
 
 (or whichever drive letter is appropriate; the [] meaning -s is optional) 
 
-If you're running in a Win95/98/ME DOS box, you should execute the
-command "lock a:" first.  If you're running in a WinNT/2K DOS box, you
-will probably get a dialog box about not getting exclusive access and
-with Abort/Retry/Ignore buttons; people have reported that selecting
-"Ignore" makes the command complete correctly.
+Use "syslinux.com" (in the dos subdirectory of the distribution) for
+plain DOS (MS-DOS, DR-DOS, PC-DOS, FreeDOS...) or Win9x/ME.
+
+Use "syslinux.exe" (in the win32 subdirectory of the distribution) for
+WinNT/2000/XP.
 
 Under Linux, execute the command:
 
@@ -86,6 +76,12 @@ The SYSLINUX loader does not need to know about the kernel file in
 advance; all that is required is that it is a file located in the root
 directory on the disk.
 
+There are two versions of the Linux installer; one in the "mtools"
+directory which requires no special privilege (other than write
+permission to the device where you are installing) but requires the
+mtools program suite to be available, and one in the "unix" directory
+which requires root privilege.
+
 
    ++++ CONFIGURATION FILE ++++
 
@@ -95,9 +91,8 @@ is a text file in either UNIX or DOS format, containing one or more of
 the following items (case is insensitive for keywords; upper case is used
 here to indicate that a word should be typed verbatim):
 
-All options here applies to PXELINUX as well as SYSLINUX unless
-otherwise noted.  See pxelinux.doc for additional information on
-PXELINUX.
+All options here applies to PXELINUX, ISOLINUX and EXTLINUX as well as
+SYSLINUX unless otherwise noted.  See the respective .doc files.
 
 # comment
 	A comment line.  The whitespace after the hash mark is mandatory.
@@ -353,39 +348,6 @@ different from the one described above may still work correctly in this
 version of SYSLINUX, but may break in a future one.
 
 
-   ++++ LARGE KERNELS AND INITIAL RAMDISK SUPPORT ++++
-
-This version of SYSLINUX supports large kernels (bzImage format),
-eliminating the 500K size limit of the zImage kernel format.  bzImage
-format kernels are detected automatically and handled transparently to
-the user.
-
-This version of SYSLINUX also supports a boot-time-loaded ramdisk
-(initrd).  An initrd is loaded from a DOS file if the option
-"initrd=filename" (where filename is the filename of the initrd image;
-the file must be located in the root directory on the boot floppy) is
-present on the processed command line (after APPEND's have been added,
-etc.).  If several initrd options are present, the last one has
-precedence; this permits user-entered options to override a config
-file APPEND.  Specifying "initrd=" without a filename inhibits initrd
-loading.  The file specified by the initrd= option will typically be a
-gzipped filesystem image.
-
-NOTE: One of the main advantages with SYSLINUX is that it makes it
-very easy to support users with new or unexpected configurations,
-especially in a distribution setting.  If initrd is used to
-extensively modularize the distribution kernel, it is strongly
-recommended that a simple way of adding drivers to the boot floppy be
-provided.  The suggested manner is to let the initrd system mount the
-boot floppy and look for additional drivers in a predetermined
-location.
-
-To bzImage and recent zImage kernels, SYSLINUX 1.30 and higher will
-identify using the ID byte 0x31.  PXELINUX identifies using the ID
-byte 0x32, and ISOLINUX 0x33.  The ID range 0x34-0x3f is reserved for
-future versions or derivatives of SYSLINUX.
-
-
    ++++ DISPLAY FILE FORMAT ++++
 
 DISPLAY and function-key help files are text files in either DOS or UNIX
@@ -583,19 +545,15 @@ programs.
 
    ++++ NOVICE PROTECTION ++++
 
-SYSLINUX will attempt to detect if the user is trying to boot on a 286
-or lower class machine, or a machine with less than 608K of low ("DOS")
-RAM (which means the Linux boot sequence cannot complete).  If so, a
+SYSLINUX will attempt to detect booting on a machine with too little
+memory, which means the Linux boot sequence cannot complete.  If so, a
 message is displayed and the boot sequence aborted.  Holding down the
 Ctrl key while booting disables this feature.
 
-The compile time and date of a specific SYSLINUX version can be obtained
-by the DOS command "type ldlinux.sys".  This is also used as the
-signature for the LDLINUX.SYS file, which must match the boot sector.
-
-Any file that SYSLINUX uses can be marked hidden, system or readonly if
-so is convenient; SYSLINUX ignores all file attributes.  The SYSLINUX
-installed automatically sets the readonly attribute on LDLINUX.SYS.
+Any file that SYSLINUX uses can be marked hidden, system or readonly
+if so is convenient; SYSLINUX ignores all file attributes.  The
+SYSLINUX installed automatically sets the readonly/hidden/system
+attributes on LDLINUX.SYS.
 
 
    ++++ NOTES ON BOOTABLE CD-ROMS ++++
@@ -613,17 +571,17 @@ that is bootable on the largest possible number of machines:
 A CD-ROM is so much faster than a floppy that the -s option shouldn't
 matter from a speed perspective.
 
-Of course, you may want to use ISOLINUX instead.  See isolinux.doc.
+Of course, you probably want to use ISOLINUX instead.  See isolinux.doc.
 
 
    ++++ BOOTING FROM A FAT FILESYSTEM PARTITION ON A HARD DISK ++++
 
-SYSLINUX can boot from a FAT12 or FAT16 filesystem partition on a hard
-disk (FAT32, introduced in Windows 95 OSR-2, is not supported,
-however.)  The installation procedure is identical to the procedure
-for installing it on a floppy, and should work under either DOS or
-Linux.  To boot from a partition, SYSLINUX needs to be launched from a
-Master Boot Record or another boot loader, just like DOS itself would.
+SYSLINUX can boot from a FAT filesystem partition on a hard disk
+(including FAT32).  The installation procedure is identical to the
+procedure for installing it on a floppy, and should work under either
+DOS or Linux.  To boot from a partition, SYSLINUX needs to be launched
+from a Master Boot Record or another boot loader, just like DOS itself
+would.
 
 Under DOS, you can install a standard simple MBR on the primary hard
 disk by running the command:
@@ -633,20 +591,12 @@ disk by running the command:
 Then use the FDISK command to mark the appropriate partition active.
 
 A simple MBR, roughly on par with the one installed by DOS (but
-unencumbered), is included in the SYSLINUX distribution
+unencumbered), is included in the SYSLINUX distribution.  To install
+it under Linux, simply type:
 
+	cat mbr.bin > /dev/XXX
 
-   ++++ KNOWN BUGS ++++
-
-SYSLINUX is unsafe to use on any filesystem that extends past cylinder
-1024.  This is a fundamental limitation of the standard BIOS API.  The
-"extended" BIOS API can *sometimes* be used to work around it, but
-there simply is not enough space in the SYSLINUX boot sector to
-support both APIs.
-
-SYSLINUX will not work (and will refuse to install) on filesystems
-with a cluster size of more than 16K (typically means a filesystem of
-more than 1 GB.)
+... where /dev/XXX is the device you wish to install it on.
 
 
    ++++ HARDWARE INFORMATION +++
