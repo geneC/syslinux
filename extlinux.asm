@@ -22,6 +22,7 @@
 %include "kernel.inc"
 %include "bios.inc"
 %include "tracers.inc"
+%include "layout.inc"
 
 %include "ext2_fs.inc"
 
@@ -107,14 +108,13 @@ file_mode	resw 1
 ;
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
-BSS_START	equ 0800h
-		section .earlybss nobits start=BSS_START
+		section .earlybss
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
 		; ends at 4800h
 
-		section .bss nobits align=256 follows=.earlybss
+		section .bss
 SuperBlock	resb 1024		; ext2 superblock
 SuperInfo	resq 16			; DOS superblock expanded
 ClustSize	resd 1			; Bytes/cluster ("block")
@@ -142,8 +142,6 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 
 
 		section .text
-TEXT_START	equ 7C00h
-                org TEXT_START
 ;
 ; Some of the things that have to be saved very early are saved
 ; "close" to the initial stack pointer offset, in order to

@@ -27,11 +27,11 @@
 ; segments, but this stuff is painful enough as it is without having to rely
 ; on everything happening "as it ought to."
 ;
-; IMPORTANT: This code must be capable of operating when copied to the
-; trackbuf area (1000h).  The routine bcopy_over_self handles this mode
-; of operation, including any necessary adjustments.
+; NOTE: this code is relocated into low memory, just after the .earlybss
+; segment, in order to support to "bcopy over self" operation.
 ;
-		section .text
+
+		section .bcopy32
 		align 8
 __bcopy_start:
 
@@ -39,7 +39,7 @@ __bcopy_start:
 		; contiguous with the rest of the bcopy stuff
 
 bcopy_gdt:	dw bcopy_gdt_size-1	; Null descriptor - contains GDT
-.adj1:		dd bcopy_gdt		; pointer for LGDT instruction
+		dd bcopy_gdt		; pointer for LGDT instruction
 		dw 0
 		dd 0000ffffh		; Code segment, use16, readable,
 		dd 00009b00h		; present, dpl 0, cover 64K
@@ -81,11 +81,11 @@ bcopy:		push eax
 		cli
 		call enable_a20
 
-.adj2:		o32 lgdt [cs:bcopy_gdt]
+		o32 lgdt [cs:bcopy_gdt]
 		mov eax,cr0
 		or al,1
 		mov cr0,eax		; Enter protected mode
-.adj3a:		jmp 08h:.in_pm
+		jmp 08h:.in_pm
 
 .in_pm:		mov ax,10h		; Data segment selector
 		mov es,ax
@@ -112,7 +112,7 @@ bcopy:		push eax
 		mov eax,cr0
 		and al,~1
 		mov cr0,eax		; Disable protected mode
-.adj3b:		jmp 0:.in_rm
+		jmp 0:.in_rm
 
 .in_rm:		; Back in real mode
 		lss sp,[cs:SavedSSSP]
@@ -145,11 +145,6 @@ bcopy:		push eax
 %define A20_KBC		3		; A20 through KBC
 %define A20_FAST	4		; A20 through port 92h
 
-		align 2
-A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
-A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
-a20_adjust_cnt	equ ($-A20List)/2
-
 slow_out:	out dx, al		; Fall through
 
 _io_delay:	out IO_DELAY_PORT,al
@@ -173,7 +168,7 @@ try_enable_a20:
 ;
 		mov bp,[cs:A20Type]
 		add bp,bp			; Convert to word offset
-.adj4:		jmp word [cs:bp+A20List]
+		jmp word [cs:bp+A20List]
 
 ;
 ; First, see if we are on a system with no A20 gate
@@ -299,7 +294,7 @@ disable_a20:
 
 		mov bp,[cs:A20Type]
 		add bp,bp			; Convert to word offset
-.adj5:		jmp word [cs:bp+A20DList]
+		jmp word [cs:bp+A20DList]
 
 a20d_bios:
 		mov ax,2400h
@@ -396,52 +391,7 @@ try_wbinvd:
 ;	ESI, EDI, ECX	- same as bcopy
 ;	On stack	- initial state (fd, ad, ds, es, fs, gs)
 ;
-ADJUST		equ (__bcopy_start - $$) + TEXT_START - BSS_START
-
-		align 2
-adjlist		dw bcopy_gdt.adj1 - ADJUST
-		dw bcopy.adj2 + 5 - ADJUST
-		dw bcopy.adj3a + 1 - ADJUST
-		dw bcopy.adj3b + 1 - ADJUST
-		dw try_enable_a20.adj4 + 3 - ADJUST
-		dw disable_a20.adj5 + 3 - ADJUST
-adjlist_cnt	equ ($-adjlist)/2
-
 bcopy_over_self:
-		push esi	
-		push edi
-		push ecx
-
-		xor bx,bx
-		mov es,bx
-		mov ds,bx
-
-		mov si,__bcopy_start
-		mov di,trackbuf		; == BSS_START
-		mov cx,(__bcopy_end - __bcopy_start + 3) >> 2
-		rep movsd
-
-		mov si,A20List - ADJUST
-		mov cx,a20_adjust_cnt
-.adjust1:
-		sub word [si], ADJUST
-		inc si
-		inc si
-		loop .adjust1
-
-		mov si, adjlist
-		mov cx, adjlist_cnt
-.adjust2:
-		lodsw
-		xchg di,ax
-		sub word [di], ADJUST
-		loop .adjust2
-
-		jmp .next-ADJUST
-.next:
-		pop ecx
-		pop edi
-		pop esi
 		call bcopy
 		
 		pop gs
@@ -451,9 +401,17 @@ bcopy_over_self:
 		popad
 		popfd
 		jmp 0:7c00h
-__bcopy_end:
 
-		section .earlybss
-A20Test		resw 1			; Counter for testing status of A20
-A20Type		resw 1			; A20 type
-A20Tries	resb 1			; Times until giving up on A20
+		align 2
+A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
+A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
+a20_adjust_cnt	equ ($-A20List)/2
+
+A20Type		dw A20_NONE		; A20 type
+A20Test		dw 0			; Counter for testing status of A20
+A20Tries	db 0			; Times until giving up on A20
+
+		; Total size of .bcopy32 section
+		alignb 4, db 0		; Even number of dwords
+__bcopy_size	equ $-__bcopy_start
+

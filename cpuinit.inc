@@ -41,6 +41,14 @@ enough_ram:
 skip_checks:
 
 ;
+; Initialize the bcopy32 code in low memory
+;
+		mov si,section..bcopy32.start
+		mov di,__bcopy_start
+		mov cx,__bcopy_size >> 2
+		rep movsd
+
+;
 ; Check if we're 386 (as opposed to 486+); if so we need to blank out
 ; the WBINVD instruction
 ;
@@ -65,10 +73,4 @@ skip_checks:
 		mov byte [try_wbinvd],0c3h		; Near RET
 is_486:
 %endif	; DO_WBINVD
-;
-; Mark A20 type as unknown.  This particular word needs to be in BSS,
-; so it needs to be initialized.
-;
-		mov word [A20Type],0
-
 

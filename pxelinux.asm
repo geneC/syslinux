@@ -25,6 +25,7 @@
 %include "bios.inc"
 %include "tracers.inc"
 %include "pxe.inc"
+%include "layout.inc"
 
 ;
 ; Some semi-configurable constants... change on your own risk.
@@ -175,8 +176,7 @@ tftp_pktbuf	resw 1			; Packet buffer offset
 ;
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
-BSS_START	equ 0800h
- 		section .earlybss nobits start=BSS_START
+ 		section .earlybss
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
@@ -203,7 +203,7 @@ IPOption	resb 80			; ip= option buffer
 ; writing a received ARP packet into low memory.
 RBFG_brainfuck	resb 0E00h
 
-		section .bss nobits align=256 follows=.earlybss
+		section .bss
 		alignb 4
 InitStack	resd 1			; Pointer to reset stack
 RebootTime	resd 1			; Reboot timeout, if set by option
@@ -255,8 +255,6 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 		; PXELINUX needs more BSS than the other derivatives;
 		; therefore we relocate it from 7C00h on startup
 		;
-TEXT_START	equ 9000h
-                org TEXT_START
 StackBuf	equ $-44		; Base of stack if we use our own
 
 ;
@@ -271,20 +269,21 @@ _start:
 		push fs
 		push gs
 
+		xor ax,ax
+		mov ds,ax
+		mov es,ax	
+
 		mov si,ldlinux_end-(TEXT_START-7C00h)-4
 		mov di,ldlinux_end-4
 		mov cx,ldlinux_end-TEXT_START
 		shr cx,2
 		std			; Overlapping areas, copy backwards
-		rep movsb
+		rep movsd
 
 		jmp 0:_start1		; Canonicalize address
 _start1:
 		mov bp,sp
 		les bx,[bp+48]		; ES:BX -> !PXE or PXENV+ structure
-
-		mov ax,cs
-		mov ds,ax
 
 		; That is all pushed onto the PXE stack.  Save the pointer
 		; to it and switch to an internal stack.

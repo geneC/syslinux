@@ -118,30 +118,31 @@ kwdhash.gen: keywords genhash.pl
 
 ldlinux.bin: ldlinux.asm kwdhash.gen version.gen
 	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
-		-l ldlinux.lst -o ldlinux.bin ldlinux.asm
+		-DMAP=ldlinux.map -l ldlinux.lst -o ldlinux.bin ldlinux.asm
 
 pxelinux.bin: pxelinux.asm kwdhash.gen version.gen
 	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
-		-l pxelinux.lst -o pxelinux.bin pxelinux.asm
+		-DMAP=pxelinux.map -l pxelinux.lst -o pxelinux.bin pxelinux.asm
 
 isolinux.bin: isolinux.asm kwdhash.gen version.gen checksumiso.pl
 	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
-		-l isolinux.lst -o isolinux.bin isolinux.asm
+		-DMAP=isolinux.map -l isolinux.lst -o isolinux.bin isolinux.asm
 	$(PERL) checksumiso.pl isolinux.bin
-
-extlinux.bin: extlinux.asm kwdhash.gen version.gen
-	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
-		-l extlinux.lst -o extlinux.bin extlinux.asm
-
-pxelinux.0: pxelinux.bin
-	cp pxelinux.bin pxelinux.0
 
 # Special verbose version of isolinux.bin
 isolinux-debug.bin: isolinux.asm kwdhash.gen version.gen checksumiso.pl
 	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-DDEBUG_MESSAGES \
-		-l isolinux-debug.lst -o isolinux-debug.bin isolinux.asm
+		-DMAP=isolinux-debug.map -l isolinux-debug.lst \
+		-o isolinux-debug.bin isolinux.asm
 	$(PERL) checksumiso.pl $@
+
+extlinux.bin: extlinux.asm kwdhash.gen version.gen
+	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
+		-DMAP=extlinux.map -l extlinux.lst -o extlinux.bin extlinux.asm
+
+pxelinux.0: pxelinux.bin
+	cp pxelinux.bin pxelinux.0
 
 ldlinux.bss: ldlinux.bin
 	dd if=$< of=$@ bs=512 count=1
@@ -209,7 +210,7 @@ install-all: install install-lib
 
 local-tidy:
 	rm -f *.o *_bin.c stupid.* patch.offset
-	rm -f *.lst
+	rm -f *.lst *.map
 	rm -f $(OBSOLETE)
 
 tidy: local-tidy

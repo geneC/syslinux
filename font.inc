@@ -120,7 +120,7 @@ vidrows_ok:	mov [VidRows],al
 		
 ; VGA font buffer at the end of memory (so loading a font works even
 ; in graphics mode, but don't put too much pressure on the .bss)
-		section vgafont nobits start=0E000h
+		section .latebss
 vgafontbuf	resb 8192
 
 		section .data
