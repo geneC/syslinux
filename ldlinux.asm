@@ -16,7 +16,7 @@
 ;  then the first sector (cluster, really, but we can only assume 1 sector)
 ;  of LDLINUX.SYS at 7E00h and finally the remainder of LDLINUX.SYS at 8000h.
 ;
-;   Copyright (C) 1994-2000  H. Peter Anvin
+;   Copyright (C) 1994-2001  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ BAUD_DIVISOR	equ 115200		; Serial port parameter
 ;
 %define	version_str	VERSION		; Must be 4 characters long!
 %define date		DATE_STR	; Defined from the Makefile
-%define	year		'2000'
+%define	year		'2001'
 ;
 ; Debgging stuff
 ;
@@ -231,69 +231,6 @@ fdctab		equ $
 fdctab1		resw 1
 fdctab2		resw 1
 
-%ifdef debug
-		org 0100h
-..start:	
-;
-; Hook for debugger stuff.  This gets automatically removed when
-; generating the real thing.
-;
-; Initialize the registers for debugger operation
-;
-		cli
-		mov ax,cs
-		mov ds,ax
-		mov es,ax
-		mov ss,ax
-		mov sp,StackBuf
-		sti
-		cld
-;
-; Load the actual boot sector so we can copy the data block
-;
-		xor ax,ax		; Reset floppy
-		xor dx,dx
-		int 13h
-		mov cx,6		; Retry count...
-debug_tryloop:	push cx
-		mov bx,trackbuf
-		mov cx,0001h
-		xor dx,dx
-		mov ax,0201h
-		int 13h
-		pop cx
-		jnc debug_okay
-		loop debug_tryloop
-		int 3			; Halt! (Breakpoint)
-debug_okay:	mov si,trackbuf+0bh
-		mov di,bsBytesPerSec
-		mov cx,33h
-		rep movsb
-;
-; Save bogus "BIOS floppy block" info to the stack in case we hit kaboom
-;
-		push si
-		push si
-		push si			; Writing to the trackbuf is harmless
-;
-; Copy the BIOS data area
-;
-                push ds
-                xor ax,ax
-                mov ds,ax
-                mov si,0400h
-                mov di,si
-                mov cx,0100h
-                rep movsw
-                pop ds
-;
-;
-; A NOP where we can breakpoint, then jump into the code *after*
-; the segment register initialization section
-;
-		nop
-		jmp debugentrypt
-%endif
 		absolute 0400h
 serial_base	resw 4			; Base addresses for 4 serial ports
 
@@ -1825,19 +1762,19 @@ kernel_sane:	push ax
 ;
 get_e820:
 		push es
-		push ds
-		pop es
-		xor ebx,ebx
-.int_loop:	mov eax,0000e820h
-		mov edx,'SMAP'
+		xor ebx,ebx			; Start with first record
+		mov es,bx			; Need ES = DS = 0 for now
+		jmp short .do_e820		; Skip "at end" check first time!
+.int_loop:	and ebx,ebx			; If we're back at beginning...
+		jz no_e820			; ... bail; nothing found
+.do_e820:	mov eax,0000E820h
+		mov edx,534D4150h		; "SMAP" backwards
 		mov ecx,20
 		mov di,E820Buf
 		int 15h
 		jc no_e820
-		cmp eax,'SMAP'
+		cmp eax,534D4150h
 		jne no_e820
-		and ebx,ebx			; Did we not find anything?
-		jz no_e820
 ;
 ; Look for a memory block starting at <= 1 MB and continuing upward
 ;
@@ -1859,7 +1796,7 @@ get_e820:
 
 		; We're good!
 		pop es
-		jmp short got_highmem
+		jmp short got_highmem_add1mb	; Still need to add low 1 MB
 
 ;
 ; INT 15:E820 failed.  Try INT 15:E801.
@@ -1890,9 +1827,11 @@ no_e801:
 e801_hole:
 		and eax,0ffffh
 		shl eax,10			; Convert from kilobytes
+got_highmem_add1mb:
 		add eax,(1 << 20)		; First megabyte
 got_highmem:
 		mov [HighMemSize],eax
+
 ;
 ; Construct the command line (append options have already been copied)
 ;
@@ -1913,11 +1852,10 @@ got_highmem:
                 push ds                         ; DEBUG DEBUG DEBUG
                 push es
                 pop ds
-                mov si,offset cmd_line_here
+                mov si,cmd_line_here
                 call cwritestr
                 pop ds
-                mov si,offset crlf_msg
-                call cwritestr
+		call crlf
 %endif
 ;
 ; Scan through the command line for anything that looks like we might be
@@ -2031,12 +1969,13 @@ new_kernel:
 		movzx dx,dl
 		add ax,dx
 		mov [InitRDClust],ax		; Ramdisk clusters
-		mov edx,[HighMemSize]		; End of memory
+		mov edx,[HighMemSize]		; End of memory (64K chunks)
 		mov eax,HIGHMEM_MAX		; Limit imposed by kernel
 		cmp edx,eax
 		jna memsize_ok
 		mov edx,eax			; Adjust to fit inside limit
 memsize_ok:
+                xor dx,dx			; Round down to 64K boundary
 		sub edx,[es:su_ramdisklen]	; Subtract size of ramdisk
                 xor dx,dx			; Round down to 64K boundary
                 mov [InitRDat],edx		; Load address
@@ -3147,7 +3086,8 @@ msg_color_bad:
 ; write_serial:	If serial output is enabled, write character on serial port
 ;
 write_serial:
-		pusha
+		pushfd
+		pushad
 		mov bx,[SerialPort]
 		and bx,bx
 		je .noserial
@@ -3159,7 +3099,8 @@ write_serial:
 		xchg dx,bx
 		pop ax
 		call slow_out			; Send data
-.noserial:	popa
+.noserial:	popad
+		popfd
 		ret
 
 ;
@@ -3179,11 +3120,13 @@ write_serial_str:
 ;
 writechr:
 		call write_serial	; write to serial port if needed
-		pusha
+		pushfd
+		pushad
 		mov ah,0Eh
 		mov bx,0007h		; white text on this page
 		int 10h
-		popa
+		popad
+		popfd
 		ret
 
 ;
@@ -3191,20 +3134,72 @@ writechr:
 ;            registers on entry.
 ;
 cwritestr:
-                pusha
+		pushfd
+                pushad
 .top:		lodsb
 		and al,al
                 jz .end
 		call writechr
                 jmp short .top
-.end:		popa
+.end:		popad
+		popfd
                 ret
+
+%ifdef debug
+
+;
+; writehex[248]: Write a hex number in (AL, AX, EAX) to the console
+;
+writehex2:
+		pushfd
+		pushad
+		rol eax,24
+		mov cx,2
+		jmp short writehex_common
+writehex4:
+		pushfd
+		pushad
+		rol eax,16
+		mov cx,4
+		jmp short writehex_common
+writehex8:
+		pushfd
+		pushad
+		mov cx,8
+writehex_common:
+.loop:		rol eax,4
+		push eax
+		and al,0Fh
+		cmp al,10
+		jae .high
+.low:		add al,'0'
+		jmp short .ischar
+.high:		add al,'A'-10
+.ischar:	call writechr
+		pop eax
+		loop .loop
+		popad
+		popfd
+		ret
+
+;
+; crlf: write CR LF
+;
+crlf:		push ax
+		mov al, 13
+		call writechr
+		mov al, 10
+		call writechr
+		pop ax
+		ret
+
+%endif
 
 ;
 ; pollchar: check if we have an input character pending (ZF = 0)
 ;
 pollchar:
-		pusha
+		pushad
 		mov ah,1		; Poll keyboard
 		int 16h
 		jnz .done		; Keyboard response
@@ -3214,7 +3209,7 @@ pollchar:
 		add dx,byte 5		; Serial status register
 		in al,dx
 		test al,1		; ZF = 0 if traffic
-.done:		popa
+.done:		popad
 		ret
 
 ;
@@ -3574,88 +3569,6 @@ gl_xret:	popf
 		ret
 
 
-%ifdef debug		; This code for debugging only
-;
-; dumpregs:	Dumps the contents of all registers
-;
-                assume ds:_text, es:NOTHING, fs:NOTHING, gs:NOTHING
-dumpregs	proc near		; When calling, IP is on stack
-		pushf			; Store flags
-		pusha
-		push ds
-		push es
-		push fs
-		push gs
-		push cs			; Set DS <- CS
-		pop ds
-		cld			; Clear direction flag
-		mov si,offset crlf_msg
-		call cwritestr
-		mov bx,sp
-		add bx,byte 26
-		mov si,offset regnames
-		mov cx,2		; 2*7 registers to dump
-dump_line:	push cx
-		mov cx,7		; 7 registers per line
-dump_reg:	push cx
-		mov cx,4		; 4 characters/register name
-wr_reg_name:	lodsb
-		call writechr
-		loop wr_reg_name
-		mov ax,ss:[bx]
-		dec bx
-		dec bx
-		call writehex
-		pop cx
-		loop dump_reg
-		mov al,0Dh		; <CR>
-		call writechr
-		mov al,0Ah		; <LF>
-		call writechr
-		pop cx
-		loop dump_line
-		pop gs
-		pop fs
-		pop es
-		pop ds
-		popa			; Restore the remainder
-		popf			; Restore flags
-		ret
-dumpregs	endp
-
-regnames	db ' IP: FL: AX: CX: DX: BX: SP: BP: SI: DI: DS: ES: FS: GS:'
-
-;
-; writehex:	Writes a 16-bit hexadecimal number (in AX)
-;
-writehex	proc near
-		push bx
-		push cx
-		mov cx,4		; 4 numbers
-write_hexdig:	xor bx,bx
-		push cx
-		mov cx,4		; 4 bits/digit
-xfer_digit:	shl ax,1
-		rcl bx,1
-		loop xfer_digit
-		push ax
-		mov ax,bx
-		or al,'0'
-		cmp al,'9'
-		jna ok_digit
-		add al,'A'-'0'-10
-ok_digit:	call writechr
-		pop ax
-		pop cx
-		loop write_hexdig
-		pop cx
-		pop bx
-		ret
-writehex	endp
-
-debug_magic	dw 0D00Dh
-
-%endif ; debug
 ;
 ; mangle_name: Mangle a DOS filename pointed to by DS:SI into a buffer pointed
 ;	       to by ES:DI; ends on encountering any whitespace
@@ -3877,6 +3790,9 @@ exten_count	equ (($-exten_table) >> 2) - 1	; Number of alternates
 ;
 ; Misc initialized (data) variables
 ;
+%ifdef debug				; This code for debugging only
+debug_magic	dw 0D00Dh		; Debug code sentinel
+%endif
 AppendLen       dw 0                    ; Bytes in append= command
 KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
 FKeyMap		dw 0			; Bitmap for F-keys loaded

@@ -8,7 +8,7 @@
 ;  network booting API.  It is based on the SYSLINUX boot loader for
 ;  MS-DOS floppies.
 ;
-;   Copyright (C) 1994-2000  H. Peter Anvin
+;   Copyright (C) 1994-2001  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ TFTP_OACK	equ htons(6)		; OACK packet
 ;
 %define	version_str	VERSION		; Must be 4 characters long!
 %define date		DATE_STR	; Defined from the Makefile
-%define	year		'1999'
+%define	year		'2001'
 ;
 ; Debgging stuff
 ;
@@ -1445,19 +1445,19 @@ kernel_sane:	push ax
 ;
 get_e820:
 		push es
-		push ds
-		pop es
-		xor ebx,ebx
-.int_loop:	mov eax,0000e820h
-		mov edx,'SMAP'
+		xor ebx,ebx			; Start with first record
+		mov es,bx			; Need ES = DS = 0 for now
+		jmp short .do_e820		; Skip "at end" check first time!
+.int_loop:	and ebx,ebx			; If we're back at beginning...
+		jz no_e820			; ... bail; nothing found
+.do_e820:	mov eax,0000E820h
+		mov edx,534D4150h		; "SMAP" backwards
 		mov ecx,20
 		mov di,E820Buf
 		int 15h
 		jc no_e820
-		cmp eax,'SMAP'
+		cmp eax,534D4150h
 		jne no_e820
-		and ebx,ebx			; Did we not find anything?
-		jz no_e820
 ;
 ; Look for a memory block starting at <= 1 MB and continuing upward
 ;
@@ -1479,7 +1479,7 @@ get_e820:
 
 		; We're good!
 		pop es
-		jmp short got_highmem
+		jmp short got_highmem_add1mb	; Still need to add low 1 MB
 
 ;
 ; INT 15:E820 failed.  Try INT 15:E801.
@@ -1510,6 +1510,7 @@ no_e801:
 e801_hole:
 		and eax,0ffffh
 		shl eax,10			; Convert from kilobytes
+got_highmem_add1mb:
 		add eax,(1 << 20)		; First megabyte
 got_highmem:
 		sub eax,HIGHMEM_SLOP
@@ -3033,7 +3034,8 @@ msg_color_bad:
 ; write_serial:	If serial output is enabled, write character on serial port
 ;
 write_serial:
-		pusha
+		pushfd
+		pushad
 		mov bx,[SerialPort]
 		and bx,bx
 		je .noserial
@@ -3045,7 +3047,8 @@ write_serial:
 		xchg dx,bx
 		pop ax
 		call slow_out			; Send data
-.noserial:	popa
+.noserial:	popad
+		popfd
 		ret
 
 ;
@@ -3066,6 +3069,7 @@ write_serial_str:
 ;
 writechr:
 		call write_serial	; write to serial port if needed
+		pushfd
 		pushad
 		mov bh,[TextPage]
                 mov ah,03h              ; Read cursor position
@@ -3093,7 +3097,8 @@ writechr:
 .curxyok:	mov bh,[TextPage]
 		mov ah,02h		; Set cursor position
 		int 10h			
-		popad
+.ret:		popad
+		popfd
 		ret
 .scroll:	dec dh
 		mov bh,[TextPage]
@@ -3104,8 +3109,7 @@ writechr:
 		xor cx,cx
 		mov dx,[ScreenSize]	; The whole screen
 		int 10h
-		popad
-		ret
+		jmp short .ret
 .cr:		xor dl,dl
 		jmp short .curxyok
 .bs:		sub dl,1
@@ -3129,6 +3133,7 @@ crlf:		mov si,crlf_msg
 ; Note: writestr and cwritestr are distinct in SYSLINUX, not in PXELINUX
 ;
 cwritestr:
+		pushfd
                 pushad
 .top:		lodsb
 		and al,al
@@ -3136,6 +3141,7 @@ cwritestr:
 		call writechr
                 jmp short .top
 .end:		popad
+		popfd
                 ret
 
 writestr	equ cwritestr
@@ -3144,16 +3150,19 @@ writestr	equ cwritestr
 ; writehex[248]: Write a hex number in (AL, AX, EAX) to the console
 ;
 writehex2:
+		pushfd
 		pushad
 		rol eax,24
 		mov cx,2
 		jmp short writehex_common
 writehex4:
+		pushfd
 		pushad
 		rol eax,16
 		mov cx,4
 		jmp short writehex_common
 writehex8:
+		pushfd
 		pushad
 		mov cx,8
 writehex_common:
@@ -3169,6 +3178,7 @@ writehex_common:
 		pop eax
 		loop .loop
 		popad
+		popfd
 		ret
 
 ;
