@@ -5,6 +5,7 @@ them.
 Changes in 3.07:
 	* Fix chainloading (chain.c32).
 	* Fix zlib build problem.
+	* Use a private copy of <linux/ext2_fs.h>.
 
 Changes in 3.06:
 	* Fix typo that caused the ramdisk to load in the wrong place.

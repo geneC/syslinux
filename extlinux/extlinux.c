@@ -36,11 +36,11 @@ typedef uint64_t u64;
 #include <sys/types.h>
 #include <sys/mount.h>
 
-#include <linux/ext2_fs.h>
 #include <linux/fd.h>		/* Floppy geometry */
 #include <linux/hdreg.h>	/* Hard disk geometry */
 #include <linux/fs.h>		/* FIGETBSZ, FIBMAP */
 
+#include "ext2_fs.h"
 #include "../version.h"
 
 #ifdef DEBUG
