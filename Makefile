@@ -84,19 +84,16 @@ ifndef DATE
 DATE    := $(HEXDATE)
 endif
 
-all:	$(BTARGET) $(ITARGET) samples memdisk
+BSUBDIRS = memdisk win32
+ISUBDIRS = sample com32
+
+all:	$(BTARGET) $(ITARGET)
+	for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 	ls -l $(BTARGET) $(ITARGET) memdisk/memdisk
 
-installer: $(ITARGET) samples
+installer: $(ITARGET)
+	$(MAKE) -C $(ISUBDIRS) all
 	ls -l $(BTARGET) $(ITARGET)
-
-.PHONY: samples
-samples:
-	$(MAKE) -C sample all
-
-.PHONY: memdisk
-memdisk:
-	$(MAKE) -C memdisk all
 
 version.gen: version version.pl
 	$(PERL) version.pl version
@@ -198,17 +195,13 @@ local-tidy:
 	rm -f $(OBSOLETE)
 
 tidy: local-tidy
-	$(MAKE) -C memdisk tidy
-	$(MAKE) -C win32 tidy
-	$(MAKE) -C sample tidy
+	for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 local-clean:
 	rm -f $(ITARGET)
 
 clean: local-tidy local-clean
-	$(MAKE) -C sample clean
-	$(MAKE) -C memdisk clean
-	$(MAKE) -C win32 clean
+	for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 dist: tidy
 	for dir in . sample memdisk ; do \
@@ -219,9 +212,7 @@ local-spotless:
 	rm -f $(BTARGET) .depend *.so.*
 
 spotless: local-clean dist local-spotless
-	$(MAKE) -C sample spotless
-	$(MAKE) -C memdisk spotless
-	$(MAKE) -C win32 spotless
+	for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 .depend:
 	rm -f .depend
