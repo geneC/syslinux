@@ -43,7 +43,7 @@ NASMSRC  = ldlinux.asm syslinux.asm copybs.asm \
 SOURCES = $(CSRC) $(NASMSRC) *.inc
 BTARGET = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
 	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin
-ITARGET = syslinux.com syslinux copybs.com gethostip
+ITARGET = syslinux.com syslinux copybs.com gethostip mkdiskimage
 DOCS    = COPYING NEWS README TODO *.doc sample com32/include
 OTHER   = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
 	  keytab-lilo.pl version version.pl sys2ansi.pl \
@@ -142,6 +142,10 @@ syslinux.o: syslinux.c patch.offset
 gethostip.o: gethostip.c
 
 gethostip: gethostip.o
+
+mkdiskimage: mkdiskimage.in mbr.bin bin2hex.pl
+	$(PERL) bin2hex.pl < mbr.bin | cat mkdiskimage.in - > $@
+	chmod a+x $@
 
 install: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR) $(INSTALLROOT)$(LIBDIR)

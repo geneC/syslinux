@@ -30,6 +30,7 @@
 ; Note: The MBR is actually loaded at 0:7C00h, but we quickly move it down to
 ; 0600h.
 ;
+		cpu 8086
 
 		org 0600h
 _start:		cli
@@ -148,7 +149,10 @@ common_tail:
 		cmp word [7C00h+510],0AA55h
 		jne missing_os
 		cli
-		jmp 7C00h			; Jump to boot sector
+		jmp 0:7C00h			; Jump to boot sector; far
+						; jump is speculation barrier
+						; (Probably not neecessary, but
+						; there is plenty of space.)
 
 not_one_partition:
 		ja too_many_os
