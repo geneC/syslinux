@@ -202,9 +202,6 @@ chstolba:
 		add eax,ebx
 		ret
 
-bcopy:
-		; Do something here
-
 		; Set up registers as for a "Read", and compares against disk size
 setup_regs:
 		call chstolba
@@ -219,6 +216,7 @@ setup_regs:
 		add esi,[DiskBuf]
 		cmp ebx,[DiskSize]
 		jae .overrun
+		shr ecx,SECTORSIZE_LG2-1
 		ret
 
 .overrun:	pop ax			; Drop return address
@@ -241,7 +239,7 @@ int15_e820:
 		mov di,cs
 		shr di,4
 		add edi,E820Buf
-		mov ecx,24/4
+		mov ecx,24/2
 		call bcopy
 		add ebx, byte 12
 		pop edi
@@ -285,7 +283,7 @@ Int15Start:
 		cmp ah,88h
 		je int15_88
 oldint15:	pop bp
-		jmp far [OldInt15]
+		jmp far [cs:OldInt15]
 		
 int15_e801:
 		mov ax,[cs:Mem1MB]
@@ -304,6 +302,58 @@ int15_e881:
 int15_88:
 		mov ax,[cs:MemInt1588]
 		jmp short int15_success
+
+;
+; Routine to copy in/out of high memory
+; esi = linear source address
+; edi = linear target address
+; ecx = 16-bit word count 
+;
+; Assumes cs = ds = es
+;
+bcopy:
+		push eax
+		push ebx
+		push edx
+		push ebp
+		push esi
+		push edi
+.copy_loop:
+		push ecx
+		cmp ecx,8000h
+		jna .safe_size
+		mov ecx,8000h
+.safe_size:
+		push ecx
+		mov eax, esi
+		mov [Mover_src1], si
+		shr eax, 16
+		mov [Mover_src1+2], al
+		mov [Mover_src2], ah
+		mov eax, edi
+		mov [Mover_dst1], di
+		shr eax, 16
+		mov [Mover_dst1+2], al
+		mov [Mover_dst2], ah
+		mov si,Mover
+		mov ah, 87h
+		int 15h
+		pop eax
+		pop ecx
+		pop edi
+		pop esi
+		jc .error
+		lea esi,[esi+2*eax]
+		lea edi,[edi+2*eax]
+		sub ecx, eax
+		jnz .copy_loop
+		; CF = 0
+.error:
+		pop ebp
+		pop edx
+		pop ebx
+		pop eax
+		ret
 
 		section .data
 Int13Funcs	dw Reset		; 00h - RESET
@@ -347,6 +397,18 @@ E820Table	dd 0			; E820 table in high memory
 Mem1MB		dd 0			; 1MB-16MB memory amount (1K)
 Mem16MB		dd 0			; 16MB-4G memory amount (64K)
 MemInt1588	dw 0			; 1MB-65MB memory amount (1K)
+
+		alignb 8, db 0
+Mover		dd 0, 0, 0, 0		; Must be zero
+		dw 0ffffh		; 64 K segment size
+Mover_src1:	db 0, 0, 0		; Low 24 bits of source addy
+		db 93h			; Access rights
+		db 00h			; Extended access rights
+Mover_src2:	db 0			; High 8 bits of source addy
+Mover_dst1:	db 0, 0, 0		; Low 24 bits of target addy
+		db 93h			; Access rights
+		db 00h			; Extended access rights
+Mover_dst2:	db 0			; High 8 bits of source addy
 
 		section .bss
 OldInt13	resd 1			; INT 13h in chain
