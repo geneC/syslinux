@@ -622,6 +622,18 @@ prompt 1
 display bootmsg.txt
 
 
+   ++++ HARDWARE INFORMATION +++
+
+I have started to maintain a web page of hardware with known
+problems.  There are, unfortunately, lots of broken hardware out
+there; especially early PXE stacks (for PXELINUX) have lots of
+problems.
+
+A list of problems, and workarounds (if known), is maintained at:
+
+	http://syslinux.zytor.com/hardware.php
+
+
    ++++ BUG REPORTS ++++
 
 I would appreciate hearing of any problems you have with SYSLINUX.  I
