@@ -24,6 +24,8 @@
 ##
 
 eval { use bytes; };
+eval { binmode STDIN; };
+eval { binmode STDOUT; };
 
 $map = 0;
 foreach $arg ( @ARGV ) {

@@ -16,6 +16,7 @@
 #
 
 eval { use bytes; };
+eval { binmode STDIN; };
 
 if ( $#ARGV != 0 ) {
     print STDERR "Usage: $0 table_name < input_file > output_file\n";

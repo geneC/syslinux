@@ -6,6 +6,7 @@
 eval { use bytes; };
 
 open(SYS, "< ldlinux.sys") or die "$0: Cannot open ldlinux.sys\n";
+eval { binmode SYS; };
 if ( read(SYS,$sec1,512) != 512 ) {
     die "$0: ldlinux.sys: short read\n";
 }

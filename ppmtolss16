@@ -47,6 +47,8 @@
 ##
 
 eval { use bytes; };
+eval { binmode STDIN; };
+eval { binmode STDOUT; };
 
 $magic = 0x1413f33d;
 
