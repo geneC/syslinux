@@ -1,14 +1,16 @@
 # -*- rpm -*-
+%define RPMVERSION @@RPMVERSION@@
+%define VERSION    @@VERSION@@
 Summary: Kernel loader which uses a FAT or iso9660 filesystem or a PXE network
 Name: syslinux
-Version: @@VERSION@@
+Version: %{RPMVERSION}
 Release: 1
 License: GPL
 Group: Applications/System
-Source0: ftp://ftp.kernel.org/pub/linux/utils/boot/syslinux/%{name}-%{version}.tar.gz
+Source0: ftp://ftp.kernel.org/pub/linux/utils/boot/syslinux/%{name}-%{VERSION}.tar.gz
 ExclusiveArch: i386 x86_64
 Packager: H. Peter Anvin <hpa@zytor.com>
-Buildroot: %{_tmppath}/%{name}-%{version}-root
+Buildroot: %{_tmppath}/%{name}-%{VERSION}-root
 BuildPrereq: nasm >= 0.98.35, perl
 Autoreq: 0
 %ifarch i386
@@ -25,7 +27,7 @@ PXE bootloader during network boots (PXELINUX), or for booting from
 ISO 9660 CD-ROMs (ISOLINUX).
 
 %prep
-%setup -q -n syslinux-%{version}
+%setup -q -n syslinux-%{VERSION}
 
 %build
 make clean
@@ -55,6 +57,12 @@ rm -rf %{buildroot}
 %{_prefix}/lib/syslinux
 %{_prefix}/lib/libsyslinux.*
 %{_prefix}/include/syslinux.h
+
+%postin
+/sbin/ldconfig
+
+%postun
+/sbin/ldconfig
 
 %changelog
 * Wed Apr 16 2003 H. Peter Anvin <hpa@zytor.com> 2.04-1

@@ -48,7 +48,7 @@ release:
 		xargs -0rt rm -f
 	find release/syslinux-$(VERSION) -name CVS -type d -print0 | \
 		xargs -0rt rm -rf
-	sed -e 's/@@VERSION@@/$(VERSION)/g' \
+	sed -e 's/@@VERSION@@/$(VERSION)/g' -e 's/@@RPMVERSION@@/$(VERSION)/g' \
 		< release/syslinux-$(VERSION)/syslinux.spec.in \
 		> release/syslinux-$(VERSION)/syslinux.spec
 	rm -f release/syslinux-$(VERSION)/syslinux.spec.in
@@ -79,7 +79,8 @@ prerel:
 		xargs -0rt rm -f
 	find $(PRERELDIR)/$(PREREL) -name CVS -type d -print0 | \
 		xargs -0rt rm -rf
-	sed -e 's/@@VERSION@@/$(RPMPREREL)/g' \
+	sed -e 's/@@VERSION@@/$(VERSION)-pre$(PRERELNO)/g' \
+	    -e 's/@@RPMVERSION@@/$(RPMPREREL)/g' \
 		< $(PRERELDIR)/$(PREREL)/syslinux.spec.in \
 		> $(PRERELDIR)/$(PREREL)/syslinux.spec
 	rm -f $(PRERELDIR)/$(PREREL)/syslinux.spec.in
