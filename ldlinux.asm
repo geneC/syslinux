@@ -2124,6 +2124,7 @@ comboot_return:	cli			; Don't trust anyone
 		mov ds,ax
 		mov es,ax
 		sti
+		cld
 		jmp short cb_enter
 
 ; Attempted to execute DOS system call
@@ -2134,6 +2135,7 @@ comboot_bogus:	cli			; Don't trust anyone
 		mov ds,ax
 		mov es,ax
 		sti
+		cld
 		mov si,KernelCName
 		call writestr
 		mov si,err_notdos
