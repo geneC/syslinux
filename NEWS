@@ -5,6 +5,7 @@ Changes in 2.00:
 	* ALL: Add support for "COM32" (32-bit COMBOOT) images.
 	* ALL: Add an API for COMBOOT/COM32 images.  See comboot.doc
 	  for details.
+	* Fix mbr.asm so that it actually works.
 
 Changes in 1.75:
 	* ALL: NASM 0.98.32 or later is now required to build

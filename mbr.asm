@@ -48,7 +48,8 @@ _start:		cli
 ;
 ; Now, jump to the copy at 0600h so we can load the boot sector at 7C00h.
 ; Since some BIOSes seem to think 0000:7C00h and 07C0:0000h are the same
-; thing, use a far jump to canonicalize the address.
+; thing, use a far jump to canonicalize the address.  This also makes
+; sure that it is a code speculation barrier.
 ;
 
 		jmp 0:next		; Jump to copy at 0600h
@@ -61,16 +62,14 @@ next:
 ;
 		mov ah,08h			; Get drive parameters
 		int 13h
-		mov [Heads],dh
-		mov dh,cl
-		and dh,3Fh			; Max sector number
-		dec dh				; Sector count
-		mov [Sectors],dh
-		mov dx,cx
-		xchg dh,dl
-		mov cl,6
-		shr dh,cl
-		mov [Cylinders],dx
+		xor ax,ax
+		mov al,dh
+		inc ax				; From 0-based to count
+		mov [Heads],ax
+		and cl,3Fh			; Max sector number
+		mov [Sectors],cl
+		; Note: we actually don't care about the number of
+		; cylinders, since that's the highest-order division
 
 ;
 ; Now look for one (and only one) active partition.
@@ -138,15 +137,15 @@ no_ebios:
 		mov dh,dl			; Head #
 		mov dl,[DriveNo]
 		mov bx,7C00h
-		mov ah,02h			; Read
+		mov ax,0201h			; Read one sector
 common_tail:
 		int 13h
 		jc disk_error
-		pop di
+		pop si				; DS:SI -> partition table entry
 ;
 ; Verify that we have a boot sector, jump
 ;
-		test word [7C00h+510],0AA55h
+		cmp word [7C00h+510],0AA55h
 		jne missing_os
 		cli
 		jmp 7C00h			; Jump to boot sector
@@ -187,7 +186,6 @@ dapa:
 ; CHS information
 Heads:		dw 0
 Sectors:	dw 0
-Cylinders:	dw 0
 
 ; Error messages
 missing_os_msg	db 'Missing operating system', 13, 10, 0
