@@ -4,6 +4,18 @@
 #
 
 use Fcntl;
+use Errno;
+use Cwd;
+
+sub absolute_path($) {
+    my($f) = @_;
+    my($c);
+
+    return $f if ( $f =~ /^\// );
+    $c = cwd();
+    $c = '' if ( $c eq '/' );
+    return $c.'/'.$f;
+}
 
 %opt = ();
 @args = ();
@@ -79,15 +91,30 @@ for ( $i = 1 ; $i < $tracks ; $i++ ) {
 }
 
 # Print mtools temp file
-$tmpfile = "/tmp/mconfig.$$";
+$n = 0;
+while ( !defined($tmpdir) ) {
+    $tmpdir = "/tmp/mkdiskimage.$$.".($n++);
+    if ( !mkdir($tmpdir, 0700) ) {
+	die "$0: Failed to make temp directory: $tmpdir\n"
+	    if ( $! != EEXIST );
+	undef $tmpdir;
+    }
+}
+
+$cfgfile = $tmpdir.'/mtools.conf';
+$imglink = $tmpdir.'/disk.img';
+die "$0: Failed to create symlink $imglink\n"
+    if ( !symlink(absolute_path($file), $imglink) );
+
 $offset = $s*512;
-open(MCONFIG, "> ${tmpfile}") or die "$0: Cannot make mtools config\n";
+open(MCONFIG, "> ${cfgfile}") or die "$0: Cannot make mtools config\n";
 print MCONFIG "drive z:\n";
-print MCONFIG "file=\"\Q${file}\E\"\n";
+print MCONFIG "file=\"${imglink}\"\n";
 print MCONFIG "cylinders=${c}\n";
 print MCONFIG "heads=${h}\n";
 print MCONFIG "sectors=${s}\n";
 print MCONFIG "offset=${offset}\n";
+print MCONFIG "mformat_only\n";
 close(MCONFIG);
 
 # Output the filesystem offset to stdout if appropriate
@@ -95,10 +122,13 @@ if ( $opt{'o'} ) {
     print $offset, "\n";
 }
 
-$ENV{'MTOOLSRC'} = $tmpfile;
+$ENV{'MTOOLSRC'} = $cfgfile;
 system('mformat', 'z:');
 
-unlink($tmpfile);
+# Clean up in /tmp
+unlink($cfgfile);
+unlink($imglink);
+rmdir($tmpdir);
 
 seek(OUTPUT, $s*512+0x36, 0);
 read(OUTPUT, $fsname, 8);
