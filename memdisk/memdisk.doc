@@ -59,3 +59,20 @@ line options (currently untested):
 If you want to recompile it from sources, you will need to make sure that
 you have a fairly recent binutils installed.  I have been using the
 binutils-2.11.90.0.8-9 RPM from RedHat.
+
+
+Some interesting things to note:
+
+If you're using MEMDISK to boot DOS from a CD-ROM (using ISOLINUX),
+you might find the generic El Torito CD-ROM driver by Gary Tong and
+Bart Lagerweij useful:
+
+	http://www.nu2.nu/eltorito/
+
+
+Similarly, if you're booting DOS over the network using PXELINUX, you
+can use the "keeppxe" option and use the generic PXE (UNDI) NDIS
+network driver, which is part of the PROBOOT.EXE distribution from
+Intel:
+
+	http://www.intel.com/support/network/adapter/1000/software.htm
