@@ -116,11 +116,11 @@ su_bsklugeseg	resw 1			; 0222
 su_heapend	resw 1			; 0224
 su_pad1		resw 1			; 0226
 su_cmd_line_ptr	resd 1			; 0228
-		resb (8000h-12)-($-$$)	; Were bootsect.S puts it...
-linux_stack	equ $			; 7FF4
+		resb (9000h-12)-($-$$)	; Were bootsect.S puts it...
+linux_stack	equ $			; 8FF4
 linux_fdctab	equ $
-		resb 8000h-($-$$)
-cmd_line_here	equ $			; 8000 Should be out of the way
+		resb 9000h-($-$$)
+cmd_line_here	equ $			; 9000 Should be out of the way
 		endstruc
 
 ;
