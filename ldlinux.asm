@@ -565,12 +565,10 @@ sd_nextentry:	cmp byte [si],0		; Directory high water mark
 ; kaboom: write a message and bail out.
 ;
 kaboom:
-		mov sp,StackBuf-2*3 	; Reset stack
-		pop si			; BIOS floppy block address
-		cli
-		pop word [si]		; Restore location
-		pop word [si+2]
-		sti
+		xor si,si
+		mov ss,si		
+		mov sp,StackBuf 	; Reset stack
+		mov ds,si		; Reset data segment
 		mov si,bailmsg
 		call writestr		; Returns with AL = 0
 		cbw			; AH <- 0
@@ -666,7 +664,6 @@ getlinsec:
 		xchg cx,ax		; CX <- LSW of LBA
 		xchg ax,dx
 		xor dx,dx		; DX:AX now == MSW of LBA
-		push dx
 		div si			; Obtain MSW of track #
 		xchg ax,cx		; Remainder -> MSW of new dividend
 					; LSW of LBA -> LSW of new dividend
@@ -771,9 +768,8 @@ magic_len	equ $-bs_magic
 
 ldlinux_sys:
 
-; The 1Ah is ^Z, which is an end-of-file marker if we "type" this file in DOS
-syslinux_banner	db 0Dh, 0Ah, 'SYSLINUX ', version_str, ' ', date, 0
-		db 0Dh, 0Ah, 1Ah
+syslinux_banner	db 0Dh, 0Ah, 'SYSLINUX ', version_str, ' ', date, ' ', 0
+		db 0Dh, 0Ah, 1Ah	; EOF if we "type" this in DOS
 
 ldlinux_magic	db 'LDLINUX SYS'
 		dd HEXDATE
@@ -854,8 +850,8 @@ fat_load_done:
 		mov [BufSafeSec],ax
 		mul di
 		mov [BufSafeBytes],ax
-		add ax,getcbuf			; getcbuf is same size as
-		mov [EndOfGetCBuf],ax		; trackbuf, for simplicity
+		add ax,getcbuf			; Size of getcbuf is the same
+		mov [EndOfGetCBuf],ax		; as for trackbuf
 ;
 ; FAT12 or FAT16?  This computation is fscking ridiculous...
 ;
@@ -900,7 +896,7 @@ have_fat_type:	mov word [NextCluster],ax
 ;
 load_rest:
 		mov cx,[ClustSize]
-		mov bx,ldlinux_magic
+		mov bx,ldlinux_sys
 		add bx,cx
 		mov si,[RunLinClust]
 		call [NextCluster]
@@ -997,7 +993,9 @@ getlinsecsr:	push ax
 		push cx
 		push bp
 		push si
+		push di
 		call getlinsec
+		pop di
 		pop si
 		pop bp
 		pop cx
@@ -3250,7 +3248,7 @@ lcase_tab       db 135, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138
 ;
 ; Various initialized or semi-initialized variables
 ;
-copyright_str   db '  Copyright (C) 1994-', year, ' H. Peter Anvin'
+copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
 		db 0Dh, 0Ah, 0
 boot_prompt	db 'boot: ',0
 wipe_char	db 08h, ' ', 08h, 0
