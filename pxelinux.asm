@@ -1007,6 +1007,9 @@ pc_serial:	call getint			; "serial" command
 		jc .nobaud
 .valid_baud:	
 		push ebx
+		call skipspace
+		jc .parse_baud
+		call ungetc
 		call getint			; Hardware flow control?
 		jnc .valid_flow
 		xor bl,bl			; Default -> no flow control
