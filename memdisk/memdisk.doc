@@ -30,7 +30,7 @@ Note the following:
 a) The disk image can be uncompressed or compressed with gzip or zip.
 
 b) If the disk image is one of the following sizes, it's assumed to be a
-floppy image:
+   floppy image:
 
      368,640 bytes -  360K floppy
      737,280 bytes -  720K floppy
@@ -40,16 +40,16 @@ floppy image:
    1,763,328 bytes - 1722K floppy (common extended format)
    2,949,120 bytes - 2880K floppy
 
-For any other size, the image is assumed to be a hard disk image, and
-should typically have an MBR and a partition table.  It may optionally
-have a DOSEMU geometry header; in which case the header is used to
-determine the C/H/S geometry of the disk.  Otherwise, the geometry is
-determined by examining the partition table, so the entire image
-should be partitioned for proper operation (it may be divided between
-multiple partitions, however.)
+   For any other size, the image is assumed to be a hard disk image,
+   and should typically have an MBR and a partition table.  It may
+   optionally have a DOSEMU geometry header; in which case the header
+   is used to determine the C/H/S geometry of the disk.  Otherwise,
+   the geometry is determined by examining the partition table, so the
+   entire image should be partitioned for proper operation (it may be
+   divided between multiple partitions, however.)
 
-You can also specify the geometry manually with the following command
-line options (currently untested):
+   You can also specify the geometry manually with the following command
+   line options:
 
    c=<number>	Specify number of cylinders (max 1024[*])
    h=<number>	Specify number of heads (max 256[*])
@@ -57,16 +57,25 @@ line options (currently untested):
    floppy	The image is a floppy image
    harddisk	The image is a hard disk image
 
-
-[*] MS-DOS only allows max 255 heads, and only allows 255 cylinders
-    on floppy disks.
+   [*] MS-DOS only allows max 255 heads, and only allows 255 cylinders
+       on floppy disks.
 
 c) The disk is normally writable (although, of course, there is
-nothing backing it up, so it only lasts until reset.)  If you want,
-you can mimic a write-protected disk by specifying the command line
-option:
+   nothing backing it up, so it only lasts until reset.)  If you want,
+   you can mimic a write-protected disk by specifying the command line
+   option:
 
    ro		Disk is readonly
+
+d) MEMDISK normally uses the BIOS "INT 15h mover" API to access high
+   memory.  This is well-behaved with extended memory managers which load
+   later.  Unfortunately it appears that the "DOS boot disk" from
+   WinME/XP *deliberately* crash the system when this API is invoked.
+   The following command-line option tells MEMDISK to enter protected
+   mode directly, whenever possible:
+
+   raw		Use raw access to protected mode memory
+
 
 
 Some interesting things to note:

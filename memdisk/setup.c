@@ -84,6 +84,7 @@ struct patch_area {
   uint8_t  drivecnt;
   uint8_t  configflags;
 #define CONFIG_READONLY	0x01
+#define CONFIG_RAW	0x02
 
   uint16_t mystack;
   uint16_t statusptr;
@@ -491,7 +492,7 @@ void __attribute__((noreturn)) die(void)
     asm volatile("hlt");
 }
 
-#define STACK_NEEDED	256	/* Number of bytes of stack */
+#define STACK_NEEDED	512	/* Number of bytes of stack */
 
 /*
  * Actual setup routine
@@ -571,10 +572,14 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   pptr->statusptr = (geometry->driveno & 0x80) ? 0x474 : 0x441;
   pptr->configflags = 0;
 
-  /* Readonly? */
+  /* Set config flags */
   if ( getcmditem("ro") != CMD_NOTFOUND ) {
-    printf("Marking disk readonly\n");
+    puts("Marking disk readonly\n");
     pptr->configflags |= CONFIG_READONLY;
+  }
+  if ( getcmditem("raw") != CMD_NOTFOUND ) {
+    puts("Using raw access to high memory\n");
+    pptr->configflags |= CONFIG_RAW;
   }
 
   /* Set up a drive parameter table */

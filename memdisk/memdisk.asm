@@ -226,14 +226,22 @@ GetStatus:
 		mov ah,[bx]		; Copy last status
 		ret
 
+ReadMult:
+		TRACER 'm'
 Read:
+		TRACER 'R'
 		call setup_regs
 do_copy:
+		TRACER '<'
 		call bcopy
+		TRACER '>'
 		movzx ax,P_AL		; AH = 0, AL = transfer count
 		ret
 
+WriteMult:
+		TRACER 'M'
 Write:
+		TRACER 'W'
 		test byte [ConfigFlags],01h
 		jnz .readonly
 		call setup_regs
@@ -243,6 +251,7 @@ Write:
 		ret
 
 		; Verify integrity; just bounds-check
+Seek:
 Verify:
 		call setup_regs		; Returns error if appropriate
 		; And fall through to success
@@ -251,7 +260,7 @@ CheckIfReady:				; These are always-successful noop functions
 Recalibrate:
 InitWithParms:
 DetectChange:
-Seek:
+SetMode:
 success:
 		xor ax,ax		; Always successful
 		ret
@@ -341,7 +350,7 @@ setup_regs:
 		add esi,[DiskBuf]	; Get address in high memory
 		cmp eax,[DiskSize]	; Check the high mark against limit
 		ja .overrun
-		shl ecx,SECTORSIZE_LG2-1 ; Convert count to 16-bit words
+		shl ecx,SECTORSIZE_LG2-2 ; Convert count to 32-bit words
 		ret
 
 .overrun:	pop ax			; Drop setup_regs return address
@@ -429,7 +438,7 @@ int15_88:
 ; Routine to copy in/out of high memory
 ; esi = linear source address
 ; edi = linear target address
-; ecx = 16-bit word count 
+; ecx = 32-bit word count 
 ;
 ; Assumes cs = ds = es
 ;
@@ -438,13 +447,94 @@ bcopy:
 		push ebx
 		push edx
 		push ebp
+
+		test byte [ConfigFlags],02h
+		jz .anymode
+
+		smsw ax			; Unprivileged!
+		test al,01h
+		jnz .protmode
+
+.realmode:
+		TRACER 'r'
+		; We're in real mode, do it outselves
+
+		pushfd
+		push ds
+		push es
+
+		cli
+		cld
+
+		xor ebx,ebx
+		mov bx,cs
+		shl ebx,4
+		lea edx,[Shaker+ebx]
+		mov [Shaker+2],edx
+
+		; Test to see if A20 is enabled or not
+		xor ax,ax
+		mov ds,ax
+		dec ax
+		mov es,ax
+
+		mov ax,[0]
+		mov bx,ax
+		xor bx,[es:10h]
+		not ax
+		mov [0],ax
+		mov dx,ax
+		xor dx,[es:10h]
+		not ax
+		mov [0],ax
+
+		or dx,bx
+		jnz .skip_a20e
+
+		mov ax,2401h		; Enable A20
+		int 15h
+.skip_a20e:
+
+		lgdt [cs:Shaker]
+		mov eax,cr0
+		or al,01h
+		mov cr0,eax
+
+		mov bx,8
+		mov ds,bx
+		mov es,bx
+
+		a32 rep movsd
+
+		add bx,bx		; BX <- 16
+		mov ds,bx
+		mov es,bx
+
+		and al,~01h
+		mov cr0,eax
+
+		pop es
+		pop ds
+
+		and dx,dx
+		jnz .skip_a20d
+		mov ax,2400h		; Disable A20
+		int 15h
+.skip_a20d:
+		popfd
+		jmp .done
+
+.protmode:
+		TRACER 'p'
+.anymode:
+
 .copy_loop:
 		push esi
 		push edi
 		push ecx
-		cmp ecx,8000h
+		cmp ecx,4000h
 		jna .safe_size
-		mov ecx,8000h
+		mov ecx,4000h
 .safe_size:
 		push ecx	; Transfer size this cycle
 		mov eax, esi
@@ -459,6 +549,7 @@ bcopy:
 		mov [Mover_dst2], ah
 		mov si,Mover
 		mov ah, 87h
+		shl cx,1	; Convert to 16-bit words
 		int 15h
 		cli		; Some BIOSes enable interrupts on INT 15h
 		pop eax		; Transfer size this cycle
@@ -466,12 +557,13 @@ bcopy:
 		pop edi
 		pop esi
 		jc .error
-		lea esi,[esi+2*eax]
-		lea edi,[edi+2*eax]
+		lea esi,[esi+4*eax]
+		lea edi,[edi+4*eax]
 		sub ecx, eax
 		jnz .copy_loop
 		; CF = 0
 .error:
+.done:
 		pop ebp
 		pop edx
 		pop ebx
@@ -518,10 +610,78 @@ Int13Funcs	dw Reset		; 00h - RESET
 		dw Invalid		; 14h
 		dw GetDriveType		; 15h - GET DRIVE TYPE
 		dw DetectChange		; 16h - DETECT DRIVE CHANGE
+%if 0
+		dw Invalid		; 17h
+		dw Invalid		; 18h
+		dw Invalid		; 19h
+		dw Invalid		; 1Ah
+		dw Invalid		; 1Bh
+		dw Invalid		; 1Ch
+		dw Invalid		; 1Dh
+		dw Invalid		; 1Eh
+		dw Invalid		; 1Fh
+		dw Invalid		; 20h
+		dw ReadMult		; 21h - READ MULTIPLE
+		dw WriteMult		; 22h - WRITE MULTIPLE
+		dw SetMode		; 23h - SET CONTROLLER FEATURES
+		dw SetMode		; 24h - SET MULTIPLE MODE
+		dw Invalid		; 25h - IDENTIFY DRIVE
+		dw Invalid		; 26h
+		dw Invalid		; 27h
+		dw Invalid		; 28h
+		dw Invalid		; 29h
+		dw Invalid		; 2Ah
+		dw Invalid		; 2Bh
+		dw Invalid		; 2Ch
+		dw Invalid		; 2Dh
+		dw Invalid		; 2Eh
+		dw Invalid		; 2Fh
+		dw Invalid		; 30h
+		dw Invalid		; 31h
+		dw Invalid		; 32h
+		dw Invalid		; 33h
+		dw Invalid		; 34h
+		dw Invalid		; 35h
+		dw Invalid		; 36h
+		dw Invalid		; 37h
+		dw Invalid		; 38h
+		dw Invalid		; 39h
+		dw Invalid		; 3Ah
+		dw Invalid		; 3Bh
+		dw Invalid		; 3Ch
+		dw Invalid		; 3Dh
+		dw Invalid		; 3Eh
+		dw Invalid		; 3Fh
+		dw Invalid		; 40h
+		dw EDDPresence		; 41h - EDD PRESENCE DETECT
+		dw EDDRead		; 42h - EDD READ
+		dw EDDWrite		; 43h - EDD WRITE
+		dw EDDVerify		; 44h - EDD VERIFY
+		dw Invalid		; 45h - EDD LOCK/UNLOCK MEDIA
+		dw Invalid		; 46h - EDD EJECT
+		dw EDDSeek		; 47h - EDD SEEK
+		dw EDDGetParms		; 48h - EDD GET PARAMETERS
+%endif
+
 Int13FuncsEnd	equ $
 Int13FuncsMax	equ (Int13FuncsEnd-Int13Funcs) >> 1
 
 		alignb 8, db 0
+Shaker		dw ShakerEnd-$
+		dd 0			; Pointer to self
+		dw 0
+
+Shaker_DS:	dd 0x0000ffff
+		dd 0x008f9300
+
+Shaker_RMDS:	dd 0x0000ffff
+		dd 0x00009300
+
+ShakerEnd	equ $
+
+		alignb 8, db 0
+
+
 Mover		dd 0, 0, 0, 0		; Must be zero
 		dw 0ffffh		; 64 K segment size
 Mover_src1:	db 0, 0, 0		; Low 24 bits of source addy

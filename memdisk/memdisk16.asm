@@ -41,7 +41,7 @@ BOUNCE_SEG	equ (MY_CS+0x1000)
 		section .text		; Must be first in image
 		bits 16
 
-		times 497 db 0		; Start of header
+cmdline		times 497 db 0		; We put the command line here
 setup_sects	db 0
 root_flags	dw 0
 syssize		dw 0
@@ -116,7 +116,7 @@ copy_cmdline:
 		mov gs,ax
 		mov cx,496		; Max number of bytes
 .copycmd:
-		lodsb
+		gs lodsb
 		and al,al
 		jz .endcmd
 		stosb

@@ -2,6 +2,13 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 2.13:
+	* MEMDISK: Fix command-line parsing "brown paper bag" class
+	  bug.
+	* MEMDISK: Add "raw" mode to support the DOS boot disk from
+	  WinME/XP, which seems to deliberately crash the system
+	  when someone uses the "INT 15h mover" highmem API.
+
 Changes in 2.12:
 	* Simple C library, based on klibc, for writing COM32
 	  programs.
