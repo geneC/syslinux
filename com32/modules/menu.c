@@ -29,21 +29,7 @@
 #include <com32.h>
 #endif
 
-struct menu_entry {
-  char *displayname;
-  char *cmdline;
-};
-
-#define MAX_CMDLINE_LEN	 256
-
-#define MAX_ENTRIES	4096	/* Oughta be enough for anybody */
-struct menu_entry menu_entries[MAX_ENTRIES];
-
-int nentries  = 0;
-int defentry  = 0;
-int allowedit = 1;		/* Allow edits of the command line */
-
-char *menu_title = "This is the menu title";
+#include "menu.h"
 
 struct menu_attrib {
   const char *border;		/* Border area */
@@ -145,15 +131,6 @@ void draw_menu(int sel, int top)
   if ( allowedit )
     printf("%s\033[%d;1H%s", menu_attrib->tabmsg, TABMSG_ROW,
 	   pad_line("Press [Tab] to edit options", 1, WIDTH));
-
-  /* sel == -1 is a valid way of saying "draw nothing" */
-  if ( sel >= 0 ) {
-    printf("\033[%d;1H%s> %s%s\033[%d;1H",
-	   CMDLINE_ROW, menu_attrib->cmdmark,
-	   menu_attrib->cmdline,
-	   pad_line(menu_entries[sel].cmdline, 0, 255),
-	   END_ROW);
-  }
 }
 
 char *edit_cmdline(char *input)
@@ -242,7 +219,7 @@ const char *run_menu(void)
       entry = nentries-1;
 
     if ( top < 0 || top < entry-MENU_ROWS+1 )
-      top = max(0,entry-MENU_ROWS+1);
+      top = max(0, entry-MENU_ROWS+1);
     else if ( top > entry )
       top = entry;
 
@@ -284,21 +261,24 @@ const char *run_menu(void)
       top++;
       break;
     case KEY_TAB:
-      draw_menu(-1, top);	/* Disable bar */
-      cmdline = edit_cmdline(menu_entries[entry].cmdline);
-      if ( cmdline )
-	return cmdline;
+      if ( allowedit ) {
+	draw_menu(-1, top);	/* Disable bar */
+	cmdline = edit_cmdline(menu_entries[entry].cmdline);
+	if ( cmdline )
+	  return cmdline;
+      }
       break;
     case KEY_CTRL('C'):		/* Ctrl-C */
     case KEY_ESC:		/* Esc */
-      exit(1);			/* FIX THIS... do something sane here */
+      if ( allowedit )
+	return NULL;
     default:
       break;
     }
   }
 
-  printf("\033[%d;1H\033[0m", END_ROW);
-  return menu_entries[defentry].cmdline;
+  /* Return the label name so localboot and ipappend work */
+  return menu_entries[entry].displayname;
 }
 
 
@@ -320,21 +300,21 @@ void __attribute__((noreturn)) execute(const char *cmdline)
 #endif
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
   const char *cmdline;
-  int i;
+
+  (void)argc;
 
   console_ansi_raw();
-
   fputs("\033%@\033(U", stdout); /* Enable CP 437 graphics on a real console */
 
-  for ( i = 1 ; i < 30 ; i++ ) {
-    asprintf(&menu_entries[nentries].displayname, "entry %2d", i);
-    asprintf(&menu_entries[nentries].cmdline, "runentry n=%d", i);
-    nentries++;
-  }
+  parse_config(argv[1]);
 
   cmdline = run_menu();
-  execute(cmdline);
+  printf("\033[%d;1H\033[0m", END_ROW);
+  if ( cmdline )
+    execute(cmdline);
+  else
+    return 0;
 }

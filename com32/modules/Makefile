@@ -76,6 +76,12 @@ all: $(MODULES)
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
 
+menu.elf : menu.o readconfig.o $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ $^
+
+menu.lnx : menu.lo readconfig.lo $(LNXLIBS)
+	$(CC) $(LNXLDFLAGS) -o $@ $^
+
 tidy:
 	rm -f *.o *.lo *.a *.lst *.elf
 
