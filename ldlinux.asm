@@ -270,7 +270,6 @@ NumBufEnd	resb 1			; Last byte in NumBuf
 		alignb 4
 PartInfo	resb 16			; Partition table entry
 E820Buf		resd 5			; INT 15:E820 data buffer
-InitRDat	resd 1			; Load address (linear) for initrd
 HiLoadAddr      resd 1			; Address pointer for high load loop
 HighMemSize	resd 1			; End of memory pointer (bytes)
 RamdiskMax	resd 1			; Highest address for a ramdisk
@@ -299,7 +298,6 @@ BufSafeSec	resw 1			; = how many sectors?
 BufSafeBytes	resw 1			; = how many bytes?
 EndOfGetCBuf	resw 1			; = getcbuf+BufSafeBytes
 KernelClust	resw 1			; Kernel size in clusters
-InitRDClust	resw 1			; Ramdisk size in clusters
 ClustPerMoby	resw 1			; Clusters per 64K
 FClust		resw 1			; Number of clusters in open/getc file
 FNextClust	resw 1			; Pointer to next cluster in d:o
@@ -2052,15 +2050,8 @@ new_kernel:
                 call searchdir                  ; Look for it in directory
                 pop es
 		jz initrd_notthere
-		mov [initrd_ptr],si		; Save cluster pointer
 		mov [es:su_ramdisklen1],ax	; Ram disk length
 		mov [es:su_ramdisklen2],dx
-		div word [ClustSize]
-		and dx,dx			; Round up
-		setnz dl
-		movzx dx,dl
-		add ax,dx
-		mov [InitRDClust],ax		; Ramdisk clusters
 		mov edx,[HighMemSize]		; End of memory
 		dec edx
 		mov eax,[RamdiskMax]		; Highest address allowed by kernel
@@ -2071,7 +2062,7 @@ memsize_ok:
 		inc edx
 		sub edx,[es:su_ramdisklen]	; Subtract size of ramdisk
                 xor dx,dx			; Round down to 64K boundary
-                mov [InitRDat],edx		; Load address
+                mov [es:su_ramdiskat],edx	; Load address
 		call loadinitrd			; Load initial ramdisk
 		jmp short initrd_end
 
@@ -2114,48 +2105,31 @@ read_kernel:
 		movzx esi,word [SetupSecs]	; Setup sectors
 		inc esi				; plus 1 boot sector
                 shl esi,9			; Convert to bytes
-                mov ecx,108000h			; 108000h = 1M + 32K
-                sub ecx,esi			; Adjust pointer to 2nd block
-                mov [HiLoadAddr],ecx
-		sub ecx,100000h			; Turn into a counter
+                mov ecx,8000h			; 32K
+                sub ecx,esi			; Number of bytes to copy
+		push ecx
 		shr ecx,2			; Convert to dwords
 		add esi,(real_mode_seg << 4)	; Pointer to source
                 mov edi,100000h                 ; Copy to address 100000h
                 call bcopy			; Transfer to high memory
 
-                push word xfer_buf_seg		; Transfer buffer segment
-                pop es
-high_load_loop: 
+		; On exit EDI -> where to load the rest
+
                 mov si,dot_msg			; Progress report
                 call cwritestr
                 call abort_check
-                mov cx,[KernelClust]
-		and cx,cx
-		jz high_load_done		; Zero left (tiny kernel?)
-		cmp cx,[ClustPerMoby]
-		jna high_last_moby
-		mov cx,[ClustPerMoby]
-high_last_moby:
-		sub [KernelClust],cx
-		xor bx,bx			; Load at offset 0
-                pop si                          ; Restore cluster pointer
-                call getfssec
-                push si                         ; Save cluster pointer
-                pushf                           ; Save EOF
-                xor bx,bx
-		mov esi,(xfer_buf_seg << 4)
-                mov edi,[HiLoadAddr]		; Destination address
-                mov ecx,4000h			; Cheating - transfer 64K
-                call bcopy			; Transfer to high memory
-		mov [HiLoadAddr],edi		; Point to next target area
-                popf                            ; Restore EOF
-                jc high_load_done               ; If EOF we are done
-                cmp word [KernelClust],byte 0	; Are we done?
-		jne high_load_loop		; Apparently not
+
+		pop ecx				; Number of bytes in the initial portion
+		pop si				; Restore file handle/cluster pointer
+		mov eax,[KernelSize]
+		sub eax,ecx			; Amount of kernel left over
+		jbe high_load_done		; Zero left (tiny kernel)
+
+		call load_high			; Copy the file
+
 high_load_done:
-		pop si				; No longer needed
                 mov ax,real_mode_seg		; Set to real mode seg
-                mov es,ax
+                mov fs,ax			; FS -> real_mode_seg
 
                 mov si,dot_msg
                 call cwritestr
@@ -2173,8 +2147,7 @@ high_load_done:
 ; and the real mode stuff to 90000h.  We assume that all bzImage kernels are
 ; capable of starting their setup from a different address.
 ;
-		mov bx,real_mode_seg		; Real mode segment
-		mov fs,bx			; FS -> real_mode_seg
+
 ;
 ; Copy command line.  Unfortunately, the kernel boot protocol requires
 ; the command line to exist in the 9xxxxh range even if the rest of the
@@ -2206,8 +2179,10 @@ need_high_cmdline:
 		shr cx,2			; Convert to dwords
 		fs rep movsd
 
+		push fs
+		pop es
+
 		test byte [LoadFlags],LOAD_HIGH
-		; Note bx -> real_mode_seg still
 		jnz in_proper_place		; If high load, we're done
 
 ;
@@ -2215,8 +2190,6 @@ need_high_cmdline:
 ;
 ; Copy real_mode stuff up to 90000h
 ;
-		mov ax,real_mode_seg
-		mov fs,ax
 		mov ax,9000h
 		mov es,ax
 		mov cx,[SetupSecs]
@@ -2242,6 +2215,8 @@ need_high_cmdline:
 		xor eax,eax
 		rep stosd			; Clear region
 ;
+; Copy the kernel down to the "low" location
+;
 		mov ecx,[KernelSize]
 		add ecx,3			; Round upwards
 		shr ecx,2			; Bytes -> dwords
@@ -2249,13 +2224,14 @@ need_high_cmdline:
 		mov edi,10000h
 		call bcopy
 
-		mov bx,9000h			; Real mode segment
-
 ;
 ; Now everything is where it needs to be...
 ;
+; When we get here, es points to the final segment, either
+; 9000h or real_mode_seg
+;
 in_proper_place:
-		mov es,bx			; Real mode segment
+
 ;
 ; If the default root device is set to FLOPPY (0000h), change to
 ; /dev/fd0 (0200h)
@@ -2304,10 +2280,10 @@ kill_motor:
 %endif
 ;
 ; Set up segment registers and the Linux real-mode stack
-; Note: bx == the real mode segment
+; Note: es == the real mode segment
 ;
 		cli
-		; es is already == real mode segment
+		mov bx,es
 		mov ds,bx
 		mov fs,bx
 		mov gs,bx
@@ -2527,7 +2503,7 @@ bcopy:		push eax
 		cli
 		call enable_a20
 
-		o32 lgdt [bcopy_gdt]
+		o32 lgdt [cs:bcopy_gdt]
 		mov eax,cr0
 		or al,1
 		mov cr0,eax		; Enter protected mode
@@ -2805,51 +2781,107 @@ try_wbinvd:
 ;
 ; Load RAM disk into high memory
 ;
+; Need to be set:
+;	su_ramdiskat	- Where in memory to load
+;	su_ramdisklen	- Size of file
+;	SI		- initrd filehandle/cluster pointer
+;
 loadinitrd:
                 push es                         ; Save ES on entry
-                mov ax,real_mode_seg
+		mov ax,real_mode_seg
                 mov es,ax
-                mov si,[initrd_ptr]
-                mov edi,[InitRDat]		; initrd load address
-		mov [es:su_ramdiskat],edi	; Offset for ram disk
+                mov edi,[es:su_ramdiskat]	; initrd load address
 		push si
                 mov si,InitRDCName		; Write ramdisk name
                 call cwritestr
                 mov si,dotdot_msg		; Write dots
                 call cwritestr
-rd_load_loop:	
-		mov si,dot_msg			; Progress report
-                call cwritestr
-		pop si				; Restore cluster pointer
-                call abort_check
-                mov cx,[InitRDClust]
-		cmp cx,[ClustPerMoby]
-		jna rd_last_moby
-		mov cx,[ClustPerMoby]
-rd_last_moby:
-		sub [InitRDClust],cx
-		xor bx,bx			; Load at offset 0
-                push word xfer_buf_seg		; Bounce buffer segment
-		pop es
-		push cx
-		call getfssec
-		pop cx
-                push si				; Save cluster pointer
-		mov esi,(xfer_buf_seg << 4)
-		mov edi,[InitRDat]
-		mov ecx,4000h			; Copy 64K
-		call bcopy			; Does not change flags!!
-                jc rd_load_done                 ; EOF?
-                add dword [InitRDat],10000h	; Point to next 64K
-		cmp word [InitRDClust],byte 0	; Are we done?
-		jne rd_load_loop		; Apparently not
-rd_load_done:
-                pop si                          ; Clean up the stack
+		pop si
+
+		mov eax,[es:su_ramdisklen]
+		call load_high			; Load the file
+
 		call crlf
                 mov si,loading_msg		; Write new "Loading " for
                 call cwritestr                  ; the benefit of the kernel
                 pop es                          ; Restore original ES
                 ret
+
+;
+; load_high:	loads (the remainder of) a file into high memory.
+;		This routine prints dots for each 64K transferred, and
+;		calls abort_check periodically.
+; 
+;		The xfer_buf_seg is used as a bounce buffer.
+;
+;		The input address (EDI) should be dword aligned, and the final
+;		dword written is padded with zeroes if necessary.
+;
+; Inputs:	SI  = file handle/cluster pointer
+;		EDI = target address in high memory
+;		EAX = size of remaining file in bytes
+;
+; Outputs:	SI  = file handle/cluster pointer
+;		EDI = first untouched address (not including padding)
+;
+load_high:
+		push es
+
+		mov bx,xfer_buf_seg
+		mov es,bx
+
+.read_loop:
+		push si
+		mov si,dot_msg
+		call cwritestr
+		pop si
+		call abort_check
+
+		push eax			; Total chunk to transfer
+		cmp eax,(1 << 16)		; Max 64K in one transfer
+		jna .size_ok
+		mov eax,(1 << 16)
+.size_ok:
+		cdq				; EDX <- 0
+		push eax			; Bytes transferred this chunk
+		div dword [ClustSize]		; Convert to clusters
+		; Round up...
+		add edx,byte -1			; Sets CF if EDX >= 1
+		adc eax,byte 0			; Add 1 to EAX if CF set
+
+		; Now (e)ax contains the number of clusters to get
+		push edi
+		mov cx,ax
+		xor bx,bx			; ES:0
+		call getfssec			; Load the data into xfer_buf_seg
+		pop edi
+		pop ecx				; Byte count this round
+		push ecx
+		push edi
+.fix_slop:
+		test cl,3
+		jz .noslop
+		; The last dword fractional - pad with zeroes
+		; Zero-padding is critical for multi-file initramfs.
+		mov bx,cx
+		mov byte [es:bx],0
+		inc ecx
+		jmp short .fix_slop
+.noslop:
+		shr ecx,2			; Convert to dwords
+		push esi
+		mov esi,(xfer_buf_seg << 4)	; Source address
+		call bcopy			; Copy to high memory
+		pop edi
+		pop esi
+		pop ecx
+		pop eax
+		add edi,ecx
+		sub eax,ecx
+		jnz .read_loop			; More to read...
+		
+		pop es
+		ret
 
 ;
 ; abort_check: let the user abort with <ESC> or <Ctrl-C>
