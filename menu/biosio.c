@@ -68,7 +68,7 @@ static inline char asm_getdisppage(void)
 {
   register char page asm("%bh");
 
-  asm("movb $0x0f,%%ah ; int $0x10" : "=r" (page) : : "eax", "ebx");
+  asm("movb $0x0f,%%ah ; int $0x10" : "=r" (page) : : "eax");
   return page;
 }
 
