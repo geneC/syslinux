@@ -40,13 +40,19 @@ int close(int fd)
   struct file_info *fp = &__file_info[fd];
   int rv = 0;
 
-  if ( fd >= NFILES || !fp->ops ) {
+  if ( fd >= NFILES || !fp->iop || !fp->oop ) {
     errno = EBADF;
     return -1;
   }
 
-  if ( fp->ops->close ) {
-    rv = fp->ops->close(fp);
+  if ( fp->iop->close ) {
+    rv = fp->iop->close(fp);
+    if ( rv )
+      return rv;
+  }
+  
+  if ( fp->oop->close ) {
+    rv = fp->oop->close(fp);
     if ( rv )
       return rv;
   }

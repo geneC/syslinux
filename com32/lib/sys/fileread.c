@@ -51,12 +51,12 @@ ssize_t __file_read(struct file_info *fp, void *buf, size_t count)
   ireg.es = SEG(__com32.cs_bounce);
 
   while ( count ) {
-    if ( fp->p.f.nbytes == 0 ) {
-      if ( fp->p.f.offset >= fp->p.f.length || !fp->p.f.filedes )
+    if ( fp->i.nbytes == 0 ) {
+      if ( fp->i.offset >= fp->i.length || !fp->i.filedes )
 	return n;		/* As good as it gets... */
 
-      ireg.esi.w[0] = fp->p.f.filedes;
-      ireg.ecx.w[0] = MAXBLOCK >> fp->p.f.blocklg2;
+      ireg.esi.w[0] = fp->i.filedes;
+      ireg.ecx.w[0] = MAXBLOCK >> fp->i.blocklg2;
       
       __intcall(0x22, &ireg, &oreg);
 
@@ -65,21 +65,21 @@ ssize_t __file_read(struct file_info *fp, void *buf, size_t count)
 	return -1;
       }
 
-      fp->p.f.filedes = ireg.esi.w[0];
-      fp->p.f.nbytes = min(fp->p.f.length-fp->p.f.offset, (unsigned)MAXBLOCK);
-      fp->p.f.datap = fp->p.f.buf;
-      memcpy(fp->p.f.buf, __com32.cs_bounce, fp->p.f.nbytes);
+      fp->i.filedes = ireg.esi.w[0];
+      fp->i.nbytes = min(fp->i.length-fp->i.offset, (unsigned)MAXBLOCK);
+      fp->i.datap = fp->i.buf;
+      memcpy(fp->i.buf, __com32.cs_bounce, fp->i.nbytes);
     }
 
-    ncopy = min(count, fp->p.f.nbytes);
-    memcpy(bufp, fp->p.f.datap, ncopy);
+    ncopy = min(count, fp->i.nbytes);
+    memcpy(bufp, fp->i.datap, ncopy);
 
     n += ncopy;
     bufp += ncopy;
     count -= ncopy;
-    fp->p.f.datap += ncopy;
-    fp->p.f.offset += ncopy;
-    fp->p.f.nbytes -= ncopy;
+    fp->i.datap += ncopy;
+    fp->i.offset += ncopy;
+    fp->i.nbytes -= ncopy;
   }
 
   return n;

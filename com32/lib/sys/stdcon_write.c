@@ -38,7 +38,7 @@
 #include <minmax.h>
 #include "file.h"
 
-ssize_t __stdcon_write(struct file_info *fp, const void *buf, size_t count)
+static ssize_t __stdcon_write(struct file_info *fp, const void *buf, size_t count)
 {
   com32sys_t ireg;
   const char *bufp = buf;
@@ -61,3 +61,11 @@ ssize_t __stdcon_write(struct file_info *fp, const void *buf, size_t count)
 
   return n;
 }
+
+const struct output_dev dev_stdcon_w = {
+  .dev_magic  = __DEV_MAGIC,
+  .flags      = __DEV_TTY | __DEV_OUTPUT,
+  .fileflags  = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
+  .write      = __stdcon_write,
+  .close      = NULL,
+};

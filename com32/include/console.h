@@ -36,14 +36,16 @@
 #define _CONSOLE_H
 
 #include <klibc/extern.h>
+#include <dev.h>
 
-struct dev_info;
-__extern int openconsole(const struct dev_info *);
+__extern int openconsole(const struct input_dev *, const struct output_dev *);
 
 /* Standard line-oriented console */
-extern const struct dev_info dev_stdcon;
+extern const struct input_dev  dev_stdcon_r;
+extern const struct output_dev dev_stdcon_w;
 /* Raw character-oriented console */
-extern const struct dev_info dev_rawcon;
+extern const struct input_dev  dev_rawcon_r;
+extern const struct output_dev dev_rawcon_w;
 
 #endif /* _CONSOLE_H */
 

@@ -27,27 +27,27 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * rawcon.c
+ * null_read.c
  *
- * Raw console
+ * Reading null device
  */
 
 #include <errno.h>
 #include <string.h>
 #include <com32.h>
 #include <minmax.h>
-#include <fcntl.h>
-#include <console.h>
 #include "file.h"
 
-extern ssize_t __rawcon_read(struct file_info *, void *, size_t);
-extern ssize_t __rawcon_write(struct file_info *, const void *, size_t);
+static ssize_t __null_read(struct file_info *fp, void *buf, size_t count)
+{
+  (void)fp; (void)buf; (void)count;
+  return 0;
+}
 
-const struct dev_info dev_rawcon = {
-  .dev_magic  = __DEV_MAGIC,
-  .flags      = __DEV_TTY,
-  .fileflags  = O_RDWR|O_CREAT|O_TRUNC|O_APPEND,
-  .read       = __rawcon_read,
-  .write      = __rawcon_write,
-  .close      = NULL,
+const struct input_dev dev_null_r = {
+  .dev_magic = __DEV_MAGIC,
+  .flags     = __DEV_INPUT | __DEV_NULL,
+  .fileflags = O_RDONLY,
+  .read      = __null_read,
+  .close     = NULL,
 };

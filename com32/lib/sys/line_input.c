@@ -39,6 +39,8 @@ ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
 {
   size_t n = 0;
   char ch;
+  ssize_t (* const Write)(struct file_info *, const void *, size_t) =
+    fp->oop->write;
 
   for(;;) {
     if ( get_char(fp, &ch, 1) != 1 )
@@ -47,27 +49,27 @@ ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
     switch ( ch ) {
     case '\r':
       *buf = '\n';
-      fp->ops->write(fp, "\n", 1);
+      Write(fp, "\n", 1);
       return n+1;
     
     case '\b':
       if ( n > 0 ) {
 	n--; buf--;
-	fp->ops->write(fp, "\b \b", 3);
+	Write(fp, "\b \b", 3);
       }
       break;
 
     case '\x15':		/* Ctrl-U */
       while ( n ) {
 	n--; buf--;
-	fp->ops->write(fp, "\b \b", 3);
+	Write(fp, "\b \b", 3);
       }
       break;
       
     default:
       if ( n < bufsize-1 ) {
 	*buf = ch;
-	fp->ops->write(fp, buf, 1);
+	Write(fp, buf, 1);
 	n++;
 	buf++;
       }

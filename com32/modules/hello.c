@@ -25,7 +25,7 @@ int main(void)
 {
   char buffer[1024];
 
-  openconsole(&dev_stdcon);
+  openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
   printf("Hello, World!\n");
 

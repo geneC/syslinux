@@ -20,9 +20,11 @@ LIBOBJS = abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o	\
 	libgcc/__moddi3.o sys/entry.o sys/exit.o sys/fileinfo.o		\
 	sys/opendev.o sys/read.o sys/write.o sys/close.o sys/open.o	\
 	sys/fileread.o sys/fileclose.o sys/isatty.o sys/openconsole.o	\
-	sys/line_input.o sys/stdcon.o sys/stdcon_write.o		\
-	sys/stdcon_read.o sys/rawcon.o sys/rawcon_write.o		\
-	sys/rawcon_read.o
+	sys/line_input.o 						\
+	sys/stdcon_read.o sys/stdcon_write.o				\
+	sys/rawcon_read.o sys/rawcon_write.o				\
+	sys/err_read.o    sys/err_write.o				\
+	sys/null_read.o   sys/null_write.o				\
 
 
 all: libcom32.a

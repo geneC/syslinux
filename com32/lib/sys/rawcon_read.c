@@ -38,6 +38,7 @@
 #include <minmax.h>
 #include "file.h"
 
+/* Global, since it's used by stdcon_read */
 ssize_t __rawcon_read(struct file_info *fp, void *buf, size_t count)
 {
   com32sys_t ireg, oreg;
@@ -66,3 +67,11 @@ ssize_t __rawcon_read(struct file_info *fp, void *buf, size_t count)
 
   return n;
 }
+
+const struct input_dev dev_rawcon_r = {
+  .dev_magic  = __DEV_MAGIC,
+  .flags      = __DEV_TTY | __DEV_INPUT,
+  .fileflags  = O_RDONLY,
+  .read       = __rawcon_read,
+  .close      = NULL,
+};

@@ -13,8 +13,6 @@
 __extern __noreturn _exit(int);
 
 __extern int open(const char *, int, ...);
-struct dev_info;
-__extern int opendev(const struct dev_info *, int);
 __extern int close(int);
 
 __extern ssize_t read(int, void *, size_t);

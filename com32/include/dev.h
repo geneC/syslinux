@@ -27,27 +27,28 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * stdcon.c
+ * console.h
  *
- * Default console
+ * Alternative consoles
  */
 
-#include <errno.h>
-#include <string.h>
-#include <com32.h>
-#include <minmax.h>
-#include <fcntl.h>
-#include <console.h>
-#include "file.h"
+#ifndef _DEV_H
+#define _DEV_H
 
-extern ssize_t __stdcon_read(struct file_info *, void *, size_t);
-extern ssize_t __stdcon_write(struct file_info *, const void *, size_t);
+#include <klibc/extern.h>
+#include <stdint.h>
 
-const struct dev_info dev_stdcon = {
-  .dev_magic  = __DEV_MAGIC,
-  .flags      = __DEV_TTY,
-  .fileflags  = O_RDWR|O_CREAT|O_TRUNC|O_APPEND,
-  .read       = __stdcon_read,
-  .write      = __stdcon_write,
-  .close      = NULL,
-};
+struct input_dev;
+struct output_dev;
+
+__extern int opendev(const struct input_dev *, const struct output_dev *, int);
+
+/* Common generic devices */
+extern const struct input_dev  dev_null_r;
+extern const struct output_dev dev_null_w;
+
+extern const struct input_dev  dev_error_r;
+extern const struct output_dev dev_error_w;
+
+#endif /* _DEV_H */
+

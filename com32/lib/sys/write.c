@@ -43,15 +43,10 @@ ssize_t write(int fd, void *buf, size_t count)
 {
   struct file_info *fp = &__file_info[fd];
 
-  if ( fd >= NFILES || !fp->ops ) {
+  if ( fd >= NFILES || !fp->oop ) {
     errno = EBADF;
     return -1;
   }
 
-  if ( __unlikely(!fp->ops->write) ) {
-    errno = EINVAL;
-    return -1;
-  }
-
-  return fp->ops->write(fp, buf, count);
+  return fp->oop->write(fp, buf, count);
 }

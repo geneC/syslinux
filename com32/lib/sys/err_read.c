@@ -27,9 +27,9 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * stdcon_read.c
+ * err_read.c
  *
- * Line-oriented reading from the standard console
+ * Reading from a device which doesn't support reading
  */
 
 #include <errno.h>
@@ -38,40 +38,17 @@
 #include <minmax.h>
 #include "file.h"
 
-extern ssize_t __rawcon_read(struct file_info *fp, void *buf, size_t count);
-
-static ssize_t __stdcon_read(struct file_info *fp, void *buf, size_t count)
+static ssize_t __err_read(struct file_info *fp, void *buf, size_t count)
 {
-  char *bufp = buf;
-  size_t n = 0;
-  char ch;
-
-  (void)fp;
-
-  while ( n < count ) {
-    if ( fp->i.nbytes ) {
-      ch = *bufp++ = *fp->i.datap++;
-      fp->i.nbytes--;
-      n++;
-      if ( ch == '\n' )
-	return n;
-    } else {
-      fp->i.nbytes = __line_input(fp, fp->i.buf, MAXBLOCK,
-				    __rawcon_read);
-      fp->i.datap = fp->i.buf;
-
-      if ( fp->i.nbytes == 0 )
-	return n;
-    }
-  }
-
-  return n;
+  (void)fp; (void)buf; (void)count;
+  errno = -EINVAL;
+  return -1;
 }
 
-const struct input_dev dev_stdcon_r = {
-  .dev_magic  = __DEV_MAGIC,
-  .flags      = __DEV_TTY | __DEV_INPUT,
-  .fileflags  = O_RDONLY,
-  .read       = __stdcon_read,
-  .close      = NULL,
+const struct input_dev dev_error_r = {
+  .dev_magic = __DEV_MAGIC,
+  .flags     = __DEV_INPUT | __DEV_ERROR,
+  .fileflags = O_RDONLY,
+  .read      = __err_read,
+  .close     = NULL,
 };

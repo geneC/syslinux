@@ -36,16 +36,16 @@
 #include <console.h>
 #include <fcntl.h>
 
-int openconsole(const struct dev_info *dev)
+int openconsole(const struct input_dev *idev, const struct output_dev *odev)
 {
   close(0);
-  if ( opendev(dev, O_RDONLY) != 0 )
+  if ( opendev(idev, odev, O_RDONLY) != 0 )
     return -1;
   close(1);
-  if ( opendev(dev, O_WRONLY) != 1 )
+  if ( opendev(idev, odev, O_WRONLY) != 1 )
     return -1;
   close(2);
-  if ( opendev(dev, O_WRONLY) != 2 )
+  if ( opendev(idev, odev, O_WRONLY) != 2 )
     return -1;
 
   return 0;

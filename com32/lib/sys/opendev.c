@@ -37,18 +37,21 @@
  * Open a special device
  */
 
-int opendev(const struct dev_info *dev, int flags)
+int opendev(const struct input_dev *idev, const struct output_dev *odev, int flags)
 {
   int fd;
   struct file_info *fp;
-  
-  if ( !(flags & 3) || (flags & ~dev->fileflags) ) {
+  int okflags;
+
+  okflags = (idev ? idev->fileflags : 0) | (odev ? odev->fileflags : 0);
+
+  if ( !(flags & 3) || (flags & ~okflags) ) {
     errno = EINVAL;
     return -1;
   }
 
   for ( fd = 0, fp = __file_info ; fd < NFILES ; fd++, fp++ )
-    if ( !fp->ops )
+    if ( !fp->iop && !fp->oop )
       break;
 
   if ( fd >= NFILES ) {
@@ -56,10 +59,11 @@ int opendev(const struct dev_info *dev, int flags)
     return -1;
   }
 
-  fp->ops = dev;
-  fp->p.f.offset    = 0;
-  fp->p.f.nbytes    = 0;
-  fp->p.f.datap     = fp->p.f.buf;
+  fp->iop         = idev ? idev : &dev_error_r;
+  fp->oop         = odev ? odev : &dev_error_w;
+  fp->i.offset    = 0;
+  fp->i.nbytes    = 0;
+  fp->i.datap     = fp->i.buf;
 
   return fd;
 }

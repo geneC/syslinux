@@ -44,10 +44,10 @@ int isatty(int fd)
 {
   struct file_info *fp = &__file_info[fd];
 
-  if ( fd >= NFILES || !fp->ops ) {
+  if ( fd >= NFILES || !fp->iop ) {
     errno = EBADF;
     return -1;
   }
 
-  return (fp->ops->flags & __DEV_TTY);
+  return (fp->iop->flags & __DEV_TTY);
 }

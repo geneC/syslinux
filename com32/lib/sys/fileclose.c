@@ -41,10 +41,10 @@ int __file_close(struct file_info *fp)
 {
   com32sys_t regs;
 
-  if ( fp->p.f.filedes ) {
+  if ( fp->i.filedes ) {
     memset(&regs, 0, sizeof regs);
     regs.eax.w[0] = 0x0008;	/* Close file */
-    regs.esi.w[0] = fp->p.f.filedes;
+    regs.esi.w[0] = fp->i.filedes;
 
     __com32.cs_intcall(0x22, &regs, NULL);
   }
