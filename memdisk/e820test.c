@@ -36,7 +36,7 @@ void printranges(void) {
   int i;
 
   for ( i = 0 ; i < nranges ; i++ ) {
-    printf("%016Lx %016Lx %d\n",
+    printf("%016llx %016llx %d\n",
 	   ranges[i].start,
 	   ranges[i+1].start - ranges[i].start,
 	   ranges[i].type);
@@ -48,11 +48,12 @@ int main(int argc, char *argv[])
   uint64_t start, len;
   uint32_t type;
 
+  e820map_init();
   printranges();
 
-  while ( scanf("%Lx %Lx %d", &start, &len, &type) == 3 ) {
+  while ( scanf("%llx %llx %d", &start, &len, &type) == 3 ) {
     putchar('\n'); 
-    printf("%016Lx %016Lx %d <-\n", start, len, type);
+    printf("%016llx %016llx %d <-\n", start, len, type);
     putchar('\n'); 
     insertrange(start, len, type);
     printranges(); 
