@@ -513,6 +513,7 @@ load_old_kernel:
 ;	su_ramdisklen	- Size of file
 ;	SI		- initrd filehandle/cluster pointer
 ;
+		section .text
 loadinitrd:
                 push es                         ; Save ES on entry
 		mov ax,real_mode_seg
@@ -533,3 +534,12 @@ loadinitrd:
 		call crlf
                 pop es                          ; Restore original ES
                 ret
+
+		section .bss
+		alignb 4
+RamdiskMax	resd 1			; Highest address for ramdisk
+KernelSize	resd 1			; Size of kernel in bytes
+KernelSects	resd 1			; Size of kernel in sectors
+CmdLineLen	resw 1			; Length of command line including null
+SetupSecs	resw 1			; Number of setup sectors
+LoadFlags	resb 1			; Loadflags from kernel

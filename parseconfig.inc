@@ -17,6 +17,7 @@
 ;; Configuration file operations
 ;;
 
+		section .text
 ;
 ; "default" command
 ; 

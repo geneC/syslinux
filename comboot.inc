@@ -17,6 +17,8 @@
 ;; Common code for running a COMBOOT image
 ;;
 
+		section .text
+
 ; Parameter registers definition; this is the definition
 ; of the stack frame used by INT 21h and INT 22h.
 %define		P_FLAGS		word [bp+44]
@@ -561,9 +563,10 @@ comapi_configfile:
 		clc
 		ret
 
-;
-; This stuff should really be in the data section...
-;
+		section .bss
+SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
+
+		section .data
 %macro 		int21 2
 		db %1
 		dw %2

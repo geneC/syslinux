@@ -17,6 +17,8 @@
 ;; Load a file into high memory
 ;;
 
+		section .text
+
 ;
 ; load_high:	loads (the remainder of) a file into high memory.
 ;		This routine prints dots for each 64K transferred, and

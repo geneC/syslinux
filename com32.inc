@@ -31,7 +31,8 @@ pm_idt:		equ 0x100000
 pm_entry:	equ 0x101000
 
 		bits 16
-		align 2
+		section .data
+		align 2, db 0
 com32_pmidt:
 		dw 8*256		; Limit
 		dd pm_idt		; Address
@@ -40,6 +41,7 @@ com32_rmidt:
 		dw 0ffffh		; Limit
 		dd 0			; Address
 
+		section .text
 is_com32_image:
 		push si			; Save file handle
 		push dx			; File length held in DX:AX
@@ -347,3 +349,10 @@ com32_sys_resume:
 		ret			; Return to 32-bit program
 
 		bits 16
+
+		section .bss
+		alignb 4
+PMESP		resd 1			; Protected-mode ESP
+Com32SysSP	resw 1			; SP saved during COM32 syscall
+
+		section .text

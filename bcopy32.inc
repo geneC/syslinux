@@ -31,8 +31,12 @@
 ; trackbuf area (1000h).  The routine bcopy_over_self handles this mode
 ; of operation, including any necessary adjustments.
 ;
-		align 4
+		section .text
+		align 8
 __bcopy_start:
+
+		; This is in the .text segment since it needs to be
+		; contiguous with the rest of the bcopy stuff
 
 bcopy_gdt:	dw bcopy_gdt_size-1	; Null descriptor - contains GDT
 .adj1:		dd bcopy_gdt		; pointer for LGDT instruction
@@ -445,3 +449,8 @@ bcopy_over_self:
 		popfd
 		jmp 0:7c00h
 __bcopy_end:
+
+		section .bss
+A20Test		resw 1			; Counter for testing status of A20
+A20Type		resw 1			; A20 type
+A20Tries	resb 1			; Times until giving up on A20

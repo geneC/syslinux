@@ -470,3 +470,15 @@ kernel_good:
 %endif
 		; Otherwise Linux kernel
 
+		section .bss
+		alignb 2
+KernelExtPtr	resw 1			; During search, final null pointer
+CmdOptPtr       resw 1			; Pointer to first option on cmd line
+KbdFlags	resb 1			; Check for keyboard escapes
+FuncFlag	resb 1			; Escape sequences received from keyboard
+                alignb 4		; For the good of REP MOVSD
+command_line	resb max_cmd_len+2	; Command line buffer
+		alignb 4
+default_cmd	resb max_cmd_len+1	; "default" command line
+
+		section .text

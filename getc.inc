@@ -33,11 +33,11 @@
 ;
 open:
 		call searchdir
-		jz open_return
+		jz openfd.ret
 openfd:
 		pushf
-		mov [FBytes1],ax
-		mov [FBytes2],dx
+		mov [FBytes],ax
+		mov [FBytes+2],dx
 		mov eax,[FBytes]
 		add eax,SECTOR_SIZE-1
 		shr eax,SECTOR_SHIFT
@@ -46,21 +46,21 @@ openfd:
 		mov ax,[EndOfGetCBuf]	; Pointer at end of buffer ->
 		mov [FPtr],ax		;  nothing loaded yet
 		popf			; Restore no ZF
-open_return:	ret
+.ret:		ret
 
 getc:
 		stc			; If we exit here -> EOF
 		mov ecx,[FBytes]
-		jecxz getc_ret
+		jecxz .ret
 		mov si,[FPtr]
 		cmp si,[EndOfGetCBuf]
-		jb getc_loaded
+		jb .loaded
 		; Buffer empty -- load another set
 		mov ecx,[FSectors]
 		cmp ecx,trackbufsize >> SECTOR_SHIFT
-		jna getc_oksize
+		jna .oksize
 		mov ecx,trackbufsize >> SECTOR_SHIFT
-getc_oksize:	sub [FSectors],ecx	; Reduce remaining clusters
+.oksize:	sub [FSectors],ecx	; Reduce remaining clusters
 		mov si,[FNextClust]
 		push es			; ES may be != DS, save old ES
 		push ds
@@ -71,11 +71,11 @@ getc_oksize:	sub [FSectors],ecx	; Reduce remaining clusters
 		mov [FNextClust],si	; Store new next pointer
 		pop si			; SI -> newly loaded data
 		pop es			; Restore ES
-getc_loaded:	lodsb			; Load a byte, increment SI
+.loaded:	lodsb			; Load a byte, increment SI
 		mov [FPtr],si		; Update next byte pointer
 		dec dword [FBytes]	; Update bytes left counter
 		clc			; Not EOF
-getc_ret:	ret
+.ret:		ret
 
 ;
 ; ungetc:	Push a character (in AL) back into the getc buffer
@@ -100,19 +100,19 @@ ungetc:
 ;		Otherwise AL = first character after whitespace
 ;
 skipspace:
-skipspace_loop: call getc
-		jc skipspace_eof
+.loop:		call getc
+		jc .eof
 		cmp al,1Ah			; DOS EOF
-		je skipspace_eof
+		je .eof
 		cmp al,0Ah
-		je skipspace_eoln
+		je .eoln
 		cmp al,' '
-		jbe skipspace_loop
+		jbe .loop
 		ret				; CF = ZF = 0
-skipspace_eof:	cmp al,al			; Set ZF
+.eof:		cmp al,al			; Set ZF
 		stc				; Set CF
 		ret
-skipspace_eoln: add al,0FFh			; Set CF, clear ZF
+.eoln:		add al,0FFh			; Set CF, clear ZF
 		ret
 
 ;
@@ -121,17 +121,17 @@ skipspace_eoln: add al,0FFh			; Set CF, clear ZF
 ;
 getint:
 		mov di,NumBuf
-gi_getnum:	cmp di,NumBufEnd	; Last byte in NumBuf
-		jae gi_loaded
+.getnum:	cmp di,NumBufEnd	; Last byte in NumBuf
+		jae .loaded
 		push di
 		call getc
 		pop di
-		jc gi_loaded
+		jc .loaded
 		stosb
 		cmp al,'-'
-		jnb gi_getnum
+		jnb .getnum
 		call ungetc		; Unget non-numeric
-gi_loaded:	mov byte [di],0
+.loaded:	mov byte [di],0
 		mov si,NumBuf
 		; Fall through to parseint
 
@@ -151,86 +151,97 @@ parseint:
 		mov ebx,eax		; Accumulator
 		mov ecx,ebx		; Base
                 xor bp,bp               ; Used for negative flag
-pi_begin:	lodsb
+.begin:		lodsb
 		cmp al,'-'
-		jne pi_not_minus
+		jne .not_minus
 		xor bp,1		; Set unary minus flag
-		jmp short pi_begin
-pi_not_minus:
+		jmp short .begin
+.not_minus:
 		cmp al,'0'
-		jb pi_err
-		je pi_octhex
+		jb .err
+		je .octhex
 		cmp al,'9'
-		ja pi_err
+		ja .err
 		mov cl,10		; Base = decimal
-		jmp short pi_foundbase
-pi_octhex:
+		jmp short .foundbase
+.octhex:
 		lodsb
 		cmp al,'0'
-		jb pi_km		; Value is zero
+		jb .km		; Value is zero
 		or al,20h		; Downcase
 		cmp al,'x'
-		je pi_ishex
+		je .ishex
 		cmp al,'7'
-		ja pi_err
+		ja .err
 		mov cl,8		; Base = octal
-		jmp short pi_foundbase
-pi_ishex:
+		jmp short .foundbase
+.ishex:
 		mov al,'0'		; No numeric value accrued yet
 		mov cl,16		; Base = hex
-pi_foundbase:
+.foundbase:
                 call unhexchar
-                jc pi_km                ; Not a (hex) digit
+                jc .km                ; Not a (hex) digit
                 cmp al,cl
-		jae pi_km		; Invalid for base
+		jae .km		; Invalid for base
 		imul ebx,ecx		; Multiply accumulated by base
                 add ebx,eax             ; Add current digit
 		lodsb
-		jmp short pi_foundbase
-pi_km:
+		jmp short .foundbase
+.km:
 		dec si			; Back up to last non-numeric
 		lodsb
 		or al,20h
 		cmp al,'k'
-		je pi_isk
+		je .isk
 		cmp al,'m'
-		je pi_ism
+		je .ism
 		dec si			; Back up
-pi_fini:	and bp,bp
-		jz pi_ret		; CF=0!
+.fini:		and bp,bp
+		jz .ret		; CF=0!
 		neg ebx			; Value was negative
-pi_done:	clc
-pi_ret:		pop bp
+.done:		clc
+.ret:		pop bp
                 pop ecx
                 pop eax
 		ret
-pi_err:		stc
-		jmp short pi_ret
-pi_isk:		shl ebx,10		; x 2^10
-		jmp short pi_done
-pi_ism:		shl ebx,20		; x 2^20
-		jmp short pi_done
+.err:		stc
+		jmp short .ret
+.isk:		shl ebx,10		; x 2^10
+		jmp short .done
+.ism:		shl ebx,20		; x 2^20
+		jmp short .done
+
+
+		section .bss
+		alignb 4
+NumBuf		resb 15			; Buffer to load number
+NumBufEnd	resb 1			; Last byte in NumBuf
+FBytes		resd 1			; Number of bytes left in getc file
+FSectors	resd 1			; Number of sectors in getc file
+FNextClust	resw 1			; Pointer to next cluster in d:o
+FPtr		resw 1			; Pointer to next char in buffer
 
 ;
 ; unhexchar:    Convert a hexadecimal digit in AL to the equivalent number;
 ;               return CF=1 if not a hex digit
 ;
+		section .text
 unhexchar:
                 cmp al,'0'
-		jb uxc_ret		; If failure, CF == 1 already
+		jb .ret			; If failure, CF == 1 already
                 cmp al,'9'
-                ja uxc_1
+                ja .notdigit
 		sub al,'0'		; CF <- 0
 		ret
-uxc_1:          or al,20h		; upper case -> lower case
+.notdigit:	or al,20h		; upper case -> lower case
 		cmp al,'a'
-                jb uxc_ret		; If failure, CF == 1 already
+                jb .ret			; If failure, CF == 1 already
                 cmp al,'f'
-                ja uxc_err
+                ja .err
                 sub al,'a'-10           ; CF <- 0
                 ret
-uxc_err:        stc
-uxc_ret:	ret
+.err:        	stc
+.ret:		ret
 
 ;
 ;
@@ -244,36 +255,36 @@ uxc_ret:	ret
 getline:
 		call skipspace
                 mov dl,1                ; Empty line -> empty string.
-                jz gl_eof               ; eof
-                jc gl_eoln              ; eoln
+                jz .eof               ; eof
+                jc .eoln              ; eoln
 		call ungetc
-gl_fillloop:	push dx
+.fillloop:	push dx
 		push di
 		call getc
 		pop di
 		pop dx
-		jc gl_ret		; CF set!
+		jc .ret		; CF set!
 		cmp al,' '
-		jna gl_ctrl
+		jna .ctrl
 		xor dx,dx
-gl_store:	stosb
-		jmp short gl_fillloop
-gl_ctrl:	cmp al,10
-		je gl_ret		; CF clear!
+.store:		stosb
+		jmp short .fillloop
+.ctrl:		cmp al,10
+		je .ret		; CF clear!
 		cmp al,26
-		je gl_eof
+		je .eof
 		and dl,dl
-		jnz gl_fillloop		; Ignore multiple spaces
+		jnz .fillloop		; Ignore multiple spaces
 		mov al,' '		; Ctrl -> space
 		inc dx
-		jmp short gl_store
-gl_eoln:        clc                     ; End of line is not end of file
-                jmp short gl_ret
-gl_eof:         stc
-gl_ret:		pushf			; We want the last char to be space!
+		jmp short .store
+.eoln:		clc                     ; End of line is not end of file
+                jmp short .ret
+.eof:		stc
+.ret:		pushf			; We want the last char to be space!
 		and dl,dl
-		jnz gl_xret
+		jnz .xret
 		mov al,' '
 		stosb
-gl_xret:	popf
+.xret:		popf
 		ret

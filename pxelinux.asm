@@ -203,98 +203,27 @@ getcbuf		resb trackbufsize
 ; writing a received ARP packet into low memory.
 RBFB_brainfuck	resb 800h
 
-VKernelBuf:	resb vk_size		; "Current" vkernel
-		alignb 4
-AppendBuf       resb max_cmd_len+1	; append=
-Ontimeout	resb max_cmd_len+1	; ontimeout
-Onerror		resb max_cmd_len+1	; onerror
-KbdMap		resb 256		; Keyboard map
-PathPrefix	resb 256		; Path prefix derived from the above
+		alignb FILENAME_MAX
 BootFile	resb 256		; Boot file from DHCP packet
 ConfigName	resb 256		; Configuration file from DHCP option
-FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
-		alignb FILENAME_MAX
-KernelName      resb FILENAME_MAX       ; Mangled name for kernel
-KernelCName     resb FILENAME_MAX	; Unmangled kernel name
-InitRDCName     resb FILENAME_MAX       ; Unmangled initrd name
-MNameBuf	resb FILENAME_MAX
-InitRD		resb FILENAME_MAX
-NumBuf		resb 15			; Buffer to load number
-NumBufEnd	resb 1			; Last byte in NumBuf
+PathPrefix	resb 256		; Path prefix derived from boot file
 DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
 IPOption	resb 80			; ip= option buffer
-MACLen		resb 1			; MAC address len
-MACType		resb 1			; MAC address type
 MAC		resb 16			; Actual MAC address
 MACStr		resb 3*17		; MAC address as a string
-PartInfo	resb 16			; Partition table entry
-E820Buf		resd 5			; INT 15:E820 data buffer
-E820Mem		resd 1			; Memory detected by E820
-E820Max		resd 1			; Is E820 memory capped?
-HiLoadAddr      resd 1			; Address pointer for high load loop
-HighMemSize	resd 1			; End of memory pointer (bytes)
-RamdiskMax	resd 1			; Highest address for a ramdisk
-KernelSize	resd 1			; Size of kernel (bytes)
-SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
-PMESP		resd 1			; Protected-mode ESP
-FSectors	resd 1			; Number of sectors in getc file
+		alignb 4
 InitStack	resd 1			; Pointer to reset stack
 RebootTime	resd 1			; Reboot timeout, if set by option
-KernelSects	resd 1			; Kernel size in clusters
 StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure
-FBytes		equ $			; Used by open/getc
-FBytes1		resw 1
-FBytes2		resw 1
-FNextClust	resw 1			; Pointer to next cluster in d:o
-FPtr		resw 1			; Pointer to next char in buffer
-CmdOptPtr       resw 1			; Pointer to first option on cmd line
-KernelCNameLen  resw 1			; Length of unmangled kernel name
-InitRDCNameLen  resw 1			; Length of unmangled initrd name
-NextCharJump    resw 1			; Routine to interpret next print char
-SetupSecs	resw 1			; Number of setup sectors
-A20Test		resw 1			; Counter for testing status of A20
-A20Type		resw 1			; A20 type
-CmdLineLen	resw 1			; Length of command line including null
-GraphXSize	resw 1			; Width of splash screen file
-VGAPos		resw 1			; Pointer into VGA memory
-VGACluster	resw 1			; Cluster pointer for VGA image file
-VGAFilePtr	resw 1			; Pointer into VGAFileBuf
-Com32SysSP	resw 1			; SP saved during COM32 syscall
-ConfigFile	resw 1			; Socket for config file
-PktTimeout	resw 1			; Timeout for current packet
-KernelExtPtr	resw 1			; During search, final null pointer
-IPOptionLen	resw 1			; Length of IPOption
-LocalBootType	resw 1			; Local boot return code
-RealBaseMem	resw 1			; Amount of DOS memory after freeing
 APIVer		resw 1			; PXE API version found
+IPOptionLen	resw 1			; Length of IPOption
 IdleTimer	resw 1			; Time to check for ARP?
-CursorDX        equ $
-CursorCol       resb 1			; Cursor column for message file
-CursorRow       resb 1			; Cursor row for message file
-ScreenSize      equ $
-VidCols         resb 1			; Columns on screen-1
-VidRows         resb 1			; Rows on screen-1
-BaudDivisor	resw 1			; Baud rate divisor
-FlowControl	equ $
-FlowOutput	resb 1			; Outputs to assert for serial flow
-FlowInput	resb 1			; Input bits for serial flow
-FlowIgnore	resb 1			; Ignore input unless these bits set
-TextAttribute   resb 1			; Text attribute for message file
-RetryCount      resb 1			; Used for disk access retries
-KbdFlags	resb 1			; Check for keyboard escapes
-LoadFlags	resb 1			; Loadflags from kernel
-A20Tries	resb 1			; Times until giving up on A20
-FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
-DisplayMask	resb 1			; Display modes mask
+LocalBootType	resw 1			; Local boot return code
+PktTimeout	resw 1			; Timeout for current packet
+RealBaseMem	resw 1			; Amount of DOS memory after freeing
+MACLen		resb 1			; MAC address len
+MACType		resb 1			; MAC address type
 OverLoad	resb 1			; Set if DHCP packet uses "overloading"
-TextColorReg	resb 17			; VGA color registers for text mode
-VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
-VGAFileBufEnd	equ $
-VGAFileMBuf	resb FILENAME_MAX	; Mangled VGA image name
-                alignb 4		; For the good of REP MOVSD
-command_line	resb max_cmd_len+2	; Command line buffer
-		alignb 4
-default_cmd	resb max_cmd_len+1	; "default" command line
 
 ;
 ; PXE packets which don't need static initialization
@@ -2305,6 +2234,8 @@ writestr	equ cwritestr
 ;  Begin data section
 ; -----------------------------------------------------------------------------
 
+		section .data
+
 hextbl_lower	db '0123456789abcdef'
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
 		db CR, LF, 0
@@ -2560,14 +2491,3 @@ linuxauto_len   equ $-linuxauto_cmd
 boot_image      db 'BOOT_IMAGE='
 boot_image_len  equ $-boot_image
 ldlinux_end     equ $
-
-; VGA font buffer at the end of memory (so loading a font works even
-; in graphics mode.)
-vgafontbuf	equ 0E000h
-
-; This is a compile-time assert that we didn't run out of space
-%ifndef DEPEND
-%if (ldlinux_end-bootsec+7C00h) > vgafontbuf
-%error "Out of memory, better reorganize something..."
-%endif
-%endif

@@ -132,21 +132,11 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
 		; ends at 5000h
 
-VKernelBuf:	resb vk_size		; "Current" vkernel
-		alignb 4
-AppendBuf       resb max_cmd_len+1	; append=
-Ontimeout	resb max_cmd_len+1	; ontimeout
-Onerror		resb max_cmd_len+1	; onerror
-KbdMap		resb 256		; Keyboard map
-FKeyName	resb 10*16		; File names for F-key help
-NumBuf		resb 15			; Buffer to load number
-NumBufEnd	resb 1			; Last byte in NumBuf
 		alignb 8
 
 		; Expanded superblock
 SuperInfo	equ $
 		resq 16			; The first 16 bytes expanded 8 times
-
 FAT		resd 1			; Location of (first) FAT
 RootDirArea	resd 1			; Location of root directory area
 RootDir		resd 1			; Location of root directory proper
@@ -154,82 +144,14 @@ DataArea	resd 1			; Location of data area
 RootDirSize	resd 1			; Root dir size in sectors
 TotalSectors	resd 1			; Total number of sectors
 EndSector	resd 1			; Location of filesystem end
-
-		alignb 4
-E820Buf		resd 5			; INT 15:E820 data buffer
-E820Mem		resd 1			; Memory detected by E820
-E820Max		resd 1			; Is E820 memory capped?
-HiLoadAddr      resd 1			; Address pointer for high load loop
-HighMemSize	resd 1			; End of memory pointer (bytes)
-RamdiskMax	resd 1			; Highest address for a ramdisk
-KernelSize	resd 1			; Size of kernel (bytes)
-SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
-PMESP		resd 1			; Protected-mode ESP
-FSectors	resd 1			; Number of sectors in getc file
 ClustSize	resd 1			; Bytes/cluster
 ClustMask	resd 1			; Sectors/cluster - 1
-KernelName      resb 12		        ; Mangled name for kernel
-					; (note the spare byte after!)
-OrigKernelExt	resd 1			; Original kernel extension
-FBytes		equ $			; Used by open/getc
-FBytes1		resw 1
-FBytes2		resw 1
-DirBlocksLeft	resw 1			; Ditto
-RunLinClust	resw 1			; Cluster # for LDLINUX.SYS
-KernelSects	resw 1			; Kernel size in clusters
-FNextClust	resw 1			; Pointer to next cluster in d:o
-FPtr		resw 1			; Pointer to next char in buffer
-CmdOptPtr       resw 1			; Pointer to first option on cmd line
-KernelCNameLen  resw 1			; Length of unmangled kernel name
-InitRDCNameLen  resw 1			; Length of unmangled initrd name
-NextCharJump    resw 1			; Routine to interpret next print char
-SetupSecs	resw 1			; Number of setup sectors
-A20Test		resw 1			; Counter for testing status of A20
-A20Type		resw 1			; A20 type
-CmdLineLen	resw 1			; Length of command line including null
-GraphXSize	resw 1			; Width of splash screen file
-VGAPos		resw 1			; Pointer into VGA memory
-VGACluster	resw 1			; Cluster pointer for VGA image file
-VGAFilePtr	resw 1			; Pointer into VGAFileBuf
-Com32SysSP	resw 1			; SP saved during COM32 syscall
-DirScanCtr	resw 1			; OBSOLETE FIX THIS
-EndofDirSec	resw 1			; OBSOLETE FIX THIS
-CachePtrs	times (65536/SECTOR_SIZE) resw 1
-NextCacheSlot	resw 1
-CursorDX        equ $
-CursorCol       resb 1			; Cursor column for message file
-CursorRow       resb 1			; Cursor row for message file
-ScreenSize      equ $
-VidCols         resb 1			; Columns on screen-1
-VidRows         resb 1			; Rows on screen-1
-BaudDivisor	resw 1			; Baud rate divisor
-FlowControl	equ $
-FlowOutput	resb 1			; Outputs to assert for serial flow
-FlowInput	resb 1			; Input bits for serial flow
-FlowIgnore	resb 1			; Ignore input unless these bits set
-TextAttribute   resb 1			; Text attribute for message file
-RetryCount      resb 1			; Used for disk access retries
-KbdFlags	resb 1			; Check for keyboard escapes
-LoadFlags	resb 1			; Loadflags from kernel
-A20Tries	resb 1			; Times until giving up on A20
-FuncFlag	resb 1			; Escape sequences received from keyboard
-DisplayMask	resb 1			; Display modes mask
+CachePtrs	resw 65536/SECTOR_SIZE	; Cached sector pointers
+NextCacheSlot	resw 1			; Next cache slot to occupy
 CopySuper	resb 1			; Distinguish .bs versus .bss
 DriveNumber	resb 1			; BIOS drive number
 ClustShift	resb 1			; Shift count for sectors/cluster
 ClustByteShift	resb 1			; Shift count for bytes/cluster
-MNameBuf        resb 11            	; Generic mangled file name buffer
-InitRD          resb 11                 ; initrd= mangled name
-KernelCName     resb 13                 ; Unmangled kernel name
-InitRDCName     resb 13            	; Unmangled initrd name
-TextColorReg	resb 17			; VGA color registers for text mode
-VGAFileBuf	resb 13			; Unmangled VGA image name
-VGAFileBufEnd	equ $
-VGAFileMBuf	resb 11			; Mangled VGA image name
-                alignb 4		; For the good of REP MOVSD
-command_line	resb max_cmd_len+2	; Command line buffer
-		alignb 4
-default_cmd	resb max_cmd_len+1	; "default" command line
 
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
@@ -1603,6 +1525,7 @@ getcachesector:
 ;  Begin data section
 ; -----------------------------------------------------------------------------
 
+		section .data
 ;
 ; Lower-case table for codepage 865
 ;
@@ -1720,15 +1643,3 @@ boot_image_len  equ $-boot_image
 
 		align 4, db 0		; Pad out any unfinished dword
 ldlinux_end	equ $
-ldlinux_len	equ $-ldlinux_magic
-
-; VGA font buffer at the end of memory (so loading a font works even
-; in graphics mode.)
-vgafontbuf	equ 0E000h
-
-; This is a compile-time assert that we didn't run out of space
-%ifndef DEPEND
-%if (ldlinux_end-bootsec+7C00h) > vgafontbuf
-%error "Out of memory, better reorganize something..."
-%endif
-%endif

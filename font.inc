@@ -17,6 +17,8 @@
 ;; VGA font handling code
 ;;
 
+		section .text
+
 ;
 ; loadfont:	Load a .psf font file and install it onto the VGA console
 ;		(if we're not on a VGA screen then ignore.)  It is called with
@@ -114,4 +116,12 @@ vidrows_ok:	mov [VidRows],al
                 mov [VidCols],ah
 		popa
 		ret
+
+		
+; VGA font buffer at the end of memory (so loading a font works even
+; in graphics mode, but don't put too much pressure on the .bss)
+		section vgafont nobits start=0E000h
+vgafontbuf	resb 8192
+
+		section .text
 

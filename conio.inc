@@ -23,6 +23,8 @@
 ;
 ; loadkeys:	Load a LILO-style keymap; SI and DX:AX set by searchdir
 ;
+		section .text
+
 loadkeys:
 		and dx,dx			; Should be 256 bytes exactly
 		jne loadkeys_ret
@@ -370,3 +372,23 @@ debug_tracer:	pushad
 		popad
 		ret
 %endif	; DEBUG_TRACERS
+
+		section .bss
+		alignb 2
+NextCharJump    resw 1			; Routine to interpret next print char
+CursorDX        equ $
+CursorCol       resb 1			; Cursor column for message file
+CursorRow       resb 1			; Cursor row for message file
+ScreenSize      equ $
+VidCols         resb 1			; Columns on screen-1
+VidRows         resb 1			; Rows on screen-1
+
+; Serial console stuff...
+BaudDivisor	resw 1			; Baud rate divisor
+FlowControl	equ $
+FlowOutput	resb 1			; Outputs to assert for serial flow
+FlowInput	resb 1			; Input bits for serial flow
+FlowIgnore	resb 1			; Ignore input unless these bits set
+
+TextAttribute   resb 1			; Text attribute for message file
+DisplayMask	resb 1			; Display modes mask

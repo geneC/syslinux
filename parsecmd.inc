@@ -17,6 +17,8 @@
 ;; Command line parser code
 ;;
 
+		section .text
+
 ; -------------------------------------------------------------------------
 ;  getcommand:	Get a keyword from the current "getc" file and match it
 ;		against a list of keywords (keywd_table).  Each entry in
@@ -87,3 +89,25 @@ getcommand:
 		call getc
 		jc .eof
 		jmp short .skipline
+
+		section .bss
+		alignb 32
+VKernelBuf:	resb vk_size		; "Current" vkernel
+AppendBuf       resb max_cmd_len+1	; append=
+Ontimeout	resb max_cmd_len+1	; ontimeout
+Onerror		resb max_cmd_len+1	; onerror
+KbdMap		resb 256		; Keyboard map
+FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
+KernelCNameLen	resw 1			; Length of unmangled kernel name
+InitRDCNameLen	resw 1			; Length of unmangled initrd name
+%if IS_SYSLINUX
+KernelName      resb FILENAME_MAX+1	; Mangled name for kernel
+KernelCName     resb FILENAME_MAX+2	; Unmangled kernel name
+InitRDCName     resb FILENAME_MAX+2	; Unmangled initrd name
+%else
+KernelName      resb FILENAME_MAX	; Mangled name for kernel
+KernelCName     resb FILENAME_MAX	; Unmangled kernel name
+InitRDCName     resb FILENAME_MAX	; Unmangled initrd name
+%endif
+MNameBuf        resb FILENAME_MAX
+InitRD          resb FILENAME_MAX

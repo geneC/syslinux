@@ -122,93 +122,20 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
 ;		ends at 5000h
 
-VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
-AppendBuf       resb max_cmd_len+1	; append=
-Ontimeout	resb max_cmd_len+1	; ontimeout
-Onerror		resb max_cmd_len+1	; onerror
-KbdMap		resb 256		; Keyboard map
-FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
-NumBuf		resb 15			; Buffer to load number
-NumBufEnd	resb 1			; Last byte in NumBuf
 ISOFileName	resb 64			; ISO filename canonicalization buffer
 ISOFileNameEnd	equ $
-		alignb 32
-KernelName      resb FILENAME_MAX       ; Mangled name for kernel
-KernelCName     resb FILENAME_MAX	; Unmangled kernel name
-InitRDCName     resb FILENAME_MAX       ; Unmangled initrd name
-MNameBuf	resb FILENAME_MAX
-InitRD		resb FILENAME_MAX
-PartInfo	resb 16			; Partition table entry
-E820Buf		resd 5			; INT 15:E820 data buffer
-E820Mem		resd 1			; Memory detected by E820
-E820Max		resd 1			; Is E820 memory capped?
-HiLoadAddr      resd 1			; Address pointer for high load loop
-HighMemSize	resd 1			; End of memory pointer (bytes)
-RamdiskMax	resd 1			; Highest address for a ramdisk
-KernelSize	resd 1			; Size of kernel (bytes)
-SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
-PMESP		resd 1			; Protected-mode ESP
-FSectors	resd 1			; Number of sectors in getc file
-RootDir		resb dir_t_size		; Root directory
 CurDir		resb dir_t_size		; Current directory
-KernelSects	resd 1			; Kernel size in clusters
-InitStack	resd 1			; Initial stack pointer (SS:SP)
+RootDir		resb dir_t_size		; Root directory
 FirstSecSum	resd 1			; Checksum of bytes 64-2048
 ImageDwords	resd 1			; isolinux.bin size, dwords
-FBytes		equ $			; Used by open/getc
-FBytes1		resw 1
-FBytes2		resw 1
-FNextClust	resw 1			; Pointer to next cluster in d:o
-FPtr		resw 1			; Pointer to next char in buffer
-CmdOptPtr       resw 1			; Pointer to first option on cmd line
-KernelCNameLen  resw 1			; Length of unmangled kernel name
-InitRDCNameLen  resw 1			; Length of unmangled initrd name
-NextCharJump    resw 1			; Routine to interpret next print char
-SetupSecs	resw 1			; Number of setup sectors
-A20Test		resw 1			; Counter for testing status of A20
-A20Type		resw 1			; A20 type
-CmdLineLen	resw 1			; Length of command line including null
-GraphXSize	resw 1			; Width of splash screen file
-VGAPos		resw 1			; Pointer into VGA memory
-VGACluster	resw 1			; Cluster pointer for VGA image file
-VGAFilePtr	resw 1			; Pointer into VGAFileBuf
-Com32SysSP	resw 1			; SP saved during COM32 syscall
-ConfigFile	resw 1			; Socket for config file
-PktTimeout	resw 1			; Timeout for current packet
-KernelExtPtr	resw 1			; During search, final null pointer
-LocalBootType	resw 1			; Local boot return code
-ImageSectors	resw 1			; isolinux.bin size, sectors
+InitStack	resd 1			; Initial stack pointer (SS:SP)
 DiskSys		resw 1			; Last INT 13h call
-CursorDX        equ $
-CursorCol       resb 1			; Cursor column for message file
-CursorRow       resb 1			; Cursor row for message file
-ScreenSize      equ $
-VidCols         resb 1			; Columns on screen-1
-VidRows         resb 1			; Rows on screen-1
-BaudDivisor	resw 1			; Baud rate divisor
-FlowControl	equ $
-FlowOutput	resb 1			; Outputs to assert for serial flow
-FlowInput	resb 1			; Input bits for serial flow
-FlowIgnore	resb 1			; Ignore input unless these bits set
-TextAttribute   resb 1			; Text attribute for message file
-RetryCount      resb 1			; Used for disk access retries
-KbdFlags	resb 1			; Check for keyboard escapes
-LoadFlags	resb 1			; Loadflags from kernel
-A20Tries	resb 1			; Times until giving up on A20
-FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
-DisplayMask	resb 1			; Display modes mask
-ISOFlags	resb 1			; Flags for ISO directory search
+ImageSectors	resw 1			; isolinux.bin size, sectors
 DiskError	resb 1			; Error code for disk I/O
 DriveNo		resb 1			; CD-ROM BIOS drive number
-TextColorReg	resb 17			; VGA color registers for text mode
-VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
-VGAFileBufEnd	equ $
-VGAFileMBuf	resb FILENAME_MAX	; Mangled VGA image name
-                alignb 4		; For the good of REP MOVSD
-command_line	resb max_cmd_len+2	; Command line buffer
-		alignb 4
-default_cmd	resb max_cmd_len+1	; "default" command line
+ISOFlags	resb 1			; Flags for ISO directory search
+RetryCount      resb 1			; Used for disk access retries
 
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
@@ -1597,6 +1524,8 @@ getfssec:
 ;  Begin data section
 ; -----------------------------------------------------------------------------
 
+		section .data
+
 boot_prompt	db 'boot: ', 0
 wipe_char	db BS, ' ', BS, 0
 err_notfound	db 'Could not find kernel image: ',0
@@ -1757,14 +1686,3 @@ linuxauto_len   equ $-linuxauto_cmd
 boot_image      db 'BOOT_IMAGE='
 boot_image_len  equ $-boot_image
 ldlinux_end     equ $
-
-; VGA font buffer at the end of memory (so loading a font works even
-; in graphics mode.)
-vgafontbuf	equ 0E000h
-
-; This is a compile-time assert that we didn't run out of space
-%ifndef DEPEND
-%if (ldlinux_end-bootsec+7C00h) > vgafontbuf
-%error "Out of memory, better reorganize something..."
-%endif
-%endif

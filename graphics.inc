@@ -23,6 +23,8 @@
 ;
 ; SI	= cluster/socket pointer
 ;
+		section .text
+
 vgadisplayfile:
 		mov [VGACluster],si
 		push es
@@ -312,7 +314,23 @@ vgacursorcommon:
 		ret
 
 
+		section .data
 		; Map colors to consecutive DAC registers
 linear_color	db 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0
 UsingVGA	db 0
+
+		section .bss
+		alignb 2
+GraphXSize	resw 1			; Width of splash screen file
+VGAPos		resw 1			; Pointer into VGA memory
+VGACluster	resw 1			; Cluster pointer for VGA image file
+VGAFilePtr	resw 1			; Pointer into VGAFileBuf
+TextColorReg	resb 17			; VGA color registers for text mode
+%if IS_SYSLINUX
+VGAFileBuf	resb FILENAME_MAX+2	; Unmangled VGA image name
+%else
+VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
+%endif
+VGAFileBufEnd	equ $
+VGAFileMBuf	resb FILENAME_MAX	; Mangled VGA image name
 

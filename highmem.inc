@@ -18,6 +18,8 @@
 ;; mem= command on the command line while booting a new kernel.
 ;;
 
+		section .text
+
 ;
 ; This is set up as a subroutine; it will set up the global variable
 ; HighMemSize.  All registers are preserved.  Assumes DS == CS.
@@ -134,3 +136,10 @@ got_highmem:
 		popad
 		pop es
 		ret				; Done!
+
+		section .bss
+		alignb 4
+E820Buf		resd 5			; INT 15:E820 data buffer
+E820Mem		resd 1			; Memory detected by E820
+E820Max		resd 1			; Is E820 memory capped?
+HighMemSize	resd 1			; End of memory pointer (bytes)
