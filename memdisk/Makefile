@@ -13,19 +13,25 @@
 
 VERSION := $(shell cat ../version)
 
-CC      = gcc
-CFLAGS  = -Wall -O2 -fomit-frame-pointer -march=i386 \
-	  -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
-	  -DVERSION='"$(VERSION)"' -DDATE='"$(DATE)"'
-LDFLAGS = 
-AS      = as
-LD	= ld
-NASM    = nasm
-OBJCOPY = objcopy
-PERL    = perl
+CC       = gcc
+CFLAGS   = -Wall -O2 -fomit-frame-pointer -march=i386 \
+	   -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
+	   -DVERSION='"$(VERSION)"' -DDATE='"$(DATE)"'
+LDFLAGS  = 
+INCLUDE  =
+AS       = as
+LD	 = ld
+NASM     = nasm
+NINCLUDE = 
+OBJCOPY  = objcopy
+PERL     = perl
 
 # Important: init.o16 must be first!!
-OBJS    = init.o16 setup.o16 msetup.o16 e820func.o16 conio.o16 memdisk.o
+OBJS     = init.o16 setup.o16 msetup.o16 e820func.o16 conio.o16 memdisk.o
+
+CSRC     = setup.c msetup.c e820func.c conio.c
+SSRC     = init.S16
+NASMSRC  = memdisk.asm
 
 all: memdisk e820test
 
@@ -37,7 +43,7 @@ clean: tidy
 
 # spotless also removes the product binary
 spotless: clean
-	rm -f memdisk
+	rm -f memdisk .depend
 
 %.o16: %.s16
 	$(AS) -o $@ $<
@@ -46,22 +52,22 @@ spotless: clean
 	echo '.code16gcc' | cat - $< > $@
 
 %.s: %.S
-	$(CC) -x c $(CFLAGS) -traditional -E -o $@ $<
+	$(CC) -x c $(INCLUDE) $(CFLAGS) -traditional -E -o $@ $<
 
 %.s16: %.S16
-	$(CC) -x c $(CFLAGS) -traditional -E -o $@ $<
+	$(CC) -x c $(INCLUDE) $(CFLAGS) -traditional -E -o $@ $<
 
 %.s: %.c
-	$(CC) $(CFLAGS) -S -o $@ $<
+	$(CC) $(INCLUDE) $(CFLAGS) -S -o $@ $<
 
 %.i: %.c
-	$(CC) $(CFLAGS) -E -o $@ $<
+	$(CC) $(INCLUDE) $(CFLAGS) -E -o $@ $<
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(INCLUDE) $(CFLAGS) -c -o $@ $<
 
 %.bin: %.asm
-	$(NASM) -f bin -o $@ -l $*.lst $<
+	$(NASM) -f bin $(NINCLUDE) -o $@ -l $*.lst $<
 
 memdisk.elf: $(OBJS)
 	$(LD) -Ttext 0 -o $@ $^
@@ -75,3 +81,12 @@ e820test: e820func.o msetup.o e820test.o memdisk.o
 
 memdisk.o: memdisk.bin
 	$(LD) -r -b binary -o $@ $<
+
+.depend:
+	rm -f .depend
+	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -M $$csrc >> .depend ; done
+	for ssrc in $(SSRC) ; do $(CC) $(INCLUDE) -x c -traditional -M $$ssrc | sed -e 's/\.S16\.o/\.o16/' >> .depend ; done
+	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc >> .depend ; done
+
+# Include dependencies file
+include .depend

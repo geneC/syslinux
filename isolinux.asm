@@ -155,8 +155,10 @@ vk_append:	resb max_cmd_len+1	; Command line
 vk_end:		equ $			; Should be <= vk_size
 		endstruc
 
+%ifndef DEPEND
 %if (vk_end > vk_size) || (vk_size*max_vk > 65536)
 %error "Too many vkernels defined, reduce vk_power"
+%endif
 %endif
 
 ;
@@ -176,8 +178,10 @@ file_sector	resd 1			; Sector pointer (0 = structure free)
 file_left	resd 1			; Number of sectors left
 		endstruc
 
+%ifndef DEPEND
 %if (open_file_t_size & (open_file_t_size-1))
 %error "open_file_t is not a power of 2"
+%endif
 %endif
 
 ;
@@ -890,8 +894,10 @@ Stack		dw _start, 0		; SS:SP for stack reset
 rl_checkpt	equ $				; Must be <= 800h
 
 rl_checkpt_off	equ ($-$$)
+%ifndef DEPEND
 %if rl_checkpt_off > 0x800
 %error "Sector 0 overflow"
+%endif
 %endif
 
 ; ----------------------------------------------------------------------------
@@ -4631,8 +4637,10 @@ BufSafe		dw trackbufsize/SECTORSIZE	; Clusters we can load into trackbuf
 BufSafeSec	dw trackbufsize/SECTORSIZE	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
+%ifndef DEPEND
 %if ( trackbufsize % SECTORSIZE ) != 0
 %error trackbufsize must be a multiple of SECTORSIZE
+%endif
 %endif
 
 ;
@@ -4659,6 +4667,8 @@ getcbuf		equ (end_of_code + 511) & 0FE00h
 vgafontbuf	equ 0E000h
 
 ; This is a compile-time assert that we didn't run out of space
+%ifndef DEPEND
 %if (getcbuf+trackbufsize) > vgafontbuf
 %error "Out of memory, better reorganize something..."
+%endif
 %endif

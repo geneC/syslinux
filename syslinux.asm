@@ -18,7 +18,7 @@
 ;	DOS installer for SYSLINUX
 ;
 
-		absolute 0
+			absolute 0
 pspInt20:		resw 1
 pspNextParagraph:	resw 1
 			resb 1		; reserved
@@ -443,9 +443,11 @@ die_common:
 ; This includes a small subroutine make_stupid to patch up the boot sector
 ; in case we give the -s (stupid) option
 ;
-		%include "stupid.inc"
+%ifndef DEPEND	; Generated file
+%include "stupid.inc"
+%endif
 
-		section .data
+			section .data
 msg_error_sp:		db 'ERROR $'
 msg_colon:		db ': $'
 msg_error:		db 'ERROR: $'

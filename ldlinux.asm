@@ -140,8 +140,10 @@ vk_append:	resb max_cmd_len+1	; Command line
 vk_end:		equ $			; Should be <= vk_size
 		endstruc
 
+%ifndef DEPEND
 %if (vk_end > vk_size) || (vk_size*max_vk > 65536)
 %error "Too many vkernels defined, reduce vk_power"
+%endif
 %endif
 
 ;
@@ -745,8 +747,10 @@ bailmsg:	db 'Boot failed', 0Dh, 0Ah, 0
 bs_checkpt	equ $			; Must be <= 7DEFh
 
 bs_checkpt_off	equ ($-$$)
+%ifndef DEPEND
 %if bs_checkpt_off > 1EFh
 %error "Boot sector overflow"
+%endif
 %endif
 
 		zb 1EFh-($-$$)
@@ -1057,8 +1061,10 @@ safedumpregs:
 rl_checkpt	equ $				; Must be <= 8000h
 
 rl_checkpt_off	equ ($-$$)
+%ifndef DEPEND
 %if rl_checkpt_off > 400h
 %error "Sector 1 overflow"
+%endif
 %endif
 
 ; ----------------------------------------------------------------------------
@@ -4435,6 +4441,8 @@ getcbuf		equ (end_of_code + 511) & 0FE00h
 vgafontbuf	equ 0E000h
 
 ; This is a compile-time assert that we didn't run out of space
+%ifndef DEPEND
 %if (getcbuf+trackbufsize) > vgafontbuf
 %error "Out of memory, better reorganize something..."
+%endif
 %endif

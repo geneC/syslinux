@@ -166,8 +166,10 @@ vk_append:	resb max_cmd_len+1	; Command line
 vk_end:		equ $			; Should be <= vk_size
 		endstruc
 
+%ifndef DEPEND
 %if (vk_end > vk_size) || (vk_size*max_vk > 65536)
 %error "Too many vkernels defined, reduce vk_power"
+%endif
 %endif
 
 ;
@@ -216,8 +218,10 @@ tftp_filepos	resd 1			; Position within file
 tftp_filesize	resd 1			; Total file size
 		endstruc
 
+%ifndef DEPEND
 %if (tftp_port_t_size & (tftp_port_t_size-1))
 %error "tftp_port_t is not a power of 2"
+%endif
 %endif
 
 ;
@@ -5111,8 +5115,10 @@ BufSafe		dw trackbufsize/TFTP_BLOCKSIZE	; Clusters we can load into trackbuf
 BufSafeSec	dw trackbufsize/512	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
+%ifndef DEPEND
 %if ( trackbufsize % TFTP_BLOCKSIZE ) != 0
 %error trackbufsize must be a multiple of TFTP_BLOCKSIZE
+%endif
 %endif
 IPAppend	db 0			; Default IPAPPEND option
 DHCPMagic	db 0			; DHCP site-specific option info
@@ -5141,6 +5147,8 @@ getcbuf		equ (end_of_code + 511) & 0FE00h
 vgafontbuf	equ 0E000h
 
 ; This is a compile-time assert that we didn't run out of space
+%ifndef DEPEND
 %if (getcbuf+trackbufsize) > vgafontbuf
 %error "Out of memory, better reorganize something..."
+%endif
 %endif

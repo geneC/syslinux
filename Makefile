@@ -15,27 +15,30 @@
 # Main Makefile for SYSLINUX
 #
 
-NASM	= nasm
-CC	= gcc
-CFLAGS	= -Wall -O2 -fomit-frame-pointer
-LDFLAGS	= -O2 -s
+CC	 = gcc
+INCLUDE  =
+CFLAGS	 = -Wall -O2 -fomit-frame-pointer
+LDFLAGS	 = -O2 -s
 
-BINDIR  = /usr/bin
-LIBDIR  = /usr/lib/syslinux
+NASM	 = nasm
+NINCLUDE = 
+BINDIR   = /usr/bin
+LIBDIR   = /usr/lib/syslinux
 
-VERSION = $(shell cat version)
+VERSION  = $(shell cat version)
 
 .c.o:
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(INCLUDE) $(CFLAGS) -c $<
 
 #
 # The BTARGET refers to objects that are derived from ldlinux.asm; we
 # like to keep those uniform for debugging reasons; however, distributors 
 # want to recompile the installers (ITARGET).
 #
-SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm \
-	  pxelinux.asm pxe.inc mbr.asm gethostip.c \
-	  isolinux.asm
+CSRC    = syslinux.c gethostip.c
+NASMSRC  = ldlinux.asm syslinux.asm copybs.asm \
+	  pxelinux.asm mbr.asm isolinux.asm
+SOURCES = $(CSRC) $(NASMSRC) *.inc
 BTARGET = ldlinux.bss ldlinux.sys ldlinux.bin ldlinux.lst \
 	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin
 ITARGET = syslinux.com syslinux copybs.com gethostip
@@ -162,13 +165,19 @@ dist: tidy
 	done
 
 local-spotless:
-	rm -f $(BTARGET)
+	rm -f $(BTARGET) .depend
 
 spotless: local-clean dist local-spotless
 	$(MAKE) -C sample spotless
 	$(MAKE) -C memdisk spotless
 
-#
+.depend:
+	rm -f .depend
+	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -M $$csrc >> .depend ; done
+	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc >> .depend ; done
+
 # Hook to add private Makefile targets for the maintainer.
-#
 -include Makefile.private
+
+# Include dependencies file
+-include .depend
