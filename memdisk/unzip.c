@@ -122,6 +122,7 @@ static void *malloc(int size)
 static void free(void *where)
 {
   /* Don't care */
+  (void)where;
 }
 
 static void gzip_mark(void **ptr)

@@ -17,7 +17,6 @@
 #include "version.h"
 #include "memdisk.h"
 
-/* A pointer to this is stored in the header */
 const char memdisk_version[] =
 "MEMDISK " VERSION " " DATE;
 const char copyright[] = 
@@ -369,6 +368,8 @@ struct dosemu_header {
   uint8_t pad[105];
 } __attribute__((packed));
 
+#define FOUR(a,b,c,d) (((a) << 24)|((b) << 16)|((c) << 8)|(d))
+
 const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 {
   static struct geometry hd_geometry = { 0, 0, 0, 0, 0, 0, 0x80 };
@@ -400,7 +401,8 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 
   /* Do we have a DOSEMU header? */
   memcpy(&dosemu, (char *)where+hd_geometry.offset, sizeof dosemu);
-  if ( !__builtin_memcmp("DOSEMU", dosemu.magic, 7) ) {
+  if ( ((unsigned long *)dosemu.magic)[0] == FOUR('D','O','S','E') &&
+       (((unsigned long *)dosemu.magic)[1] & 0xffffff) == FOUR('M','U',0,0) ) {
     /* Always a hard disk unless overruled by command-line options */
     hd_geometry.driveno = 0x80;
     hd_geometry.type = 0;

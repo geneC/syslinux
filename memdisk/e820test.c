@@ -44,7 +44,7 @@ void printranges(void) {
   }
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
   uint64_t start, len;
   uint32_t type;

@@ -2,7 +2,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2003 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -13,17 +13,18 @@
 ;; -----------------------------------------------------------------------
 
 ;;
-;; init32.asm
-;; 
-;; Routine to trampoline into 32-bit protected memory.  This code is
-;; derived from bcopy32.inc and com32.inc in the main SYSLINUX distribution.
+;; init16.asm
+;;
+;; Routine to initialize and to trampoline into 32-bit
+;; protected memory.  This code is derived from bcopy32.inc and
+;; com32.inc in the main SYSLINUX distribution.
 ;;
 
-%define MY_CS 0x0800
-%define CS_BASE (MY_CS << 4)
+MY_CS		equ 0x0800		; Segment address to use
+CS_BASE		equ (MY_CS << 4)	; Corresponding address
 
 ; Low memory bounce buffer
-%define BOUNCE_SEG	(MY_CS+0x1000)
+BOUNCE_SEG	equ (MY_CS+0x1000)
 
 %define DO_WBINVD 0
 
@@ -33,8 +34,121 @@
 		section .data   align=16
 		section .bss    align=16
 
-		global init32
-		
+;; -----------------------------------------------------------------------
+;;  Kernel image header
+;; -----------------------------------------------------------------------
+
+		section .text		; Must be first in image
+		bits 16
+
+		times 497 db 0		; Start of header
+setup_sects	db 0
+root_flags	dw 0
+syssize		dw 0
+swap_dev	dw 0
+ram_size	dw 0
+vid_mode	dw 0
+root_dev	dw 0
+boot_flag	dw 0xAA55
+
+_start:		jmp short start
+
+		db "HdrS"		; Header signature
+		dw 0x0203		; Header version number
+
+realmode_swtch	dw 0, 0			; default_switch, SETUPSEG
+start_sys_seg	dw 0x1000		; obsolete
+version_ptr	dw memdisk_version-0x200	; version string ptr
+type_of_loader	db 0			; Filled in by boot loader
+loadflags	db 1			; Please load high
+setup_move_size	dw 0			; Unused
+code32_start	dd 0x100000		; 32-bit start address
+ramdisk_image	dd 0			; Loaded ramdisk image address
+ramdisk_size	dd 0			; Size of loaded ramdisk
+bootsect_kludge	dw 0, 0
+heap_end_ptr	dw 0
+pad1		dw 0
+cmd_line_ptr	dd 0			; Command line
+ramdisk_max	dd 0xffffffff		; Highest allowed ramdisk address
+
+		section .rodata
+memdisk_version:
+		db "MEMDISK ", VERSION, " ", DATE, 0
+
+;; -----------------------------------------------------------------------
+;;  End kernel image header
+;; -----------------------------------------------------------------------
+
+;
+; Move ourselves down into memory to reduce the risk of conflicts;
+; then canonicalize CS to match the other segments.
+;
+		section .text
+		bits 16
+start:
+		mov ax,MY_CS
+		mov es,ax
+		movzx cx,byte [setup_sects]
+		inc cx			; Add one for the boot sector
+		shl cx,7		; Convert to dwords
+		xor si,si
+		xor di,di
+		mov fs,si		; fs <- 0
+		cld
+		rep movsd
+		mov ds,ax
+		mov ss,ax
+		xor esp,esp		; Stack at top of 64K segment
+		jmp MY_CS:.next
+.next:
+
+;
+; Copy the command line, if there is one
+;
+copy_cmdline:
+		xor di,di		; Bottom of our own segment (= "boot sector")
+		mov eax,[cmd_line_ptr]
+		and eax,eax
+		jz .endcmd		; No command line
+		mov si,ax
+		shr eax,4		; Convert to segment
+		and si,0x000F		; Starting offset only
+		mov gs,ax
+		mov cx,496		; Max number of bytes
+.copycmd:
+		lodsb
+		and al,al
+		jz .endcmd
+		stosb
+		loop .copycmd
+.endcmd:
+		xor al,al
+		stosb
+
+;
+; Now jump to 32-bit code
+;
+		sti
+		call init32
+;
+; When init32 returns, we have been set up, the new boot sector loaded,
+; and we should go and and run the newly loaded boot sector
+;
+; The setup function returns (in AL) the drive number which should be
+; put into DL
+;
+		mov dx,ax
+
+		cli
+		xor esi,esi		; No partition table involved
+		mov ds,si		; Make all the segments consistent
+		mov es,si
+		mov fs,si
+		mov gs,si
+		mov ss,si
+		mov esp,0x7C00		; Good place for SP to start out
+		jmp 0:0x7C00
+
 ;
 ; We enter protected mode, set up a flat 32-bit environment, run rep movsd
 ; and then exit.  IMPORTANT: This code assumes cs == MY_CS.
@@ -51,7 +165,7 @@
 	dd (%1 & 0xff000000) | (%2 & 0xf0000) | ((%3 & 0xf0ff) << 8) | ((%1 & 0x00ff0000) >> 16)
 %endmacro
 	
-		align 4
+		align 8, db 0
 call32_gdt:	dw call32_gdt_size-1	; Null descriptor - contains GDT
 .adj1:		dd call32_gdt+CS_BASE	; pointer for LGDT instruction
 		dw 0
@@ -75,7 +189,6 @@ call32_gdt_size:	equ $-call32_gdt
 
 err_a20:	db 'ERROR: A20 gate not responding!',13,10,0
 	
-		bits 16
 		section .bss
 		alignb 4
 SavedSSSP	resd 1			; Place to save SS:SP
@@ -91,6 +204,7 @@ Target_Seg	dw 20h			; Target CS
 A20Type		dw 0			; Default = unknown
 		
 		section .text
+		bits 16
 ;
 ; Routines to enable and disable (yuck) A20.  These routines are gathered
 ; from tips from a couple of sources, including the Linux kernel and
@@ -110,7 +224,7 @@ A20Type		dw 0			; Default = unknown
 %define A20_KBC		3		; A20 through KBC
 %define A20_FAST	4		; A20 through port 92h
 
-		align 2
+		align 2, db 0
 A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
 A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
 a20_adjust_cnt	equ ($-A20List)/2
@@ -360,7 +474,7 @@ try_wbinvd:
 		alignb 4
 PMESP		resd 1			; Protected mode %esp
 
-		section .idt nobits alloc exec write align=4096
+		section .idt nobits align=4096
 		alignb 4096
 pm_idt		resb 4096		; Protected-mode IDT, followed by interrupt stubs
 

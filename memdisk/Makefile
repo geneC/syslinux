@@ -20,12 +20,13 @@ M32     := $(call gcc_ok,-m32,)
 ALIGN   := $(call gcc_ok,-falign-functions=0 -falign-jumps=0 -falign-loops=0,-malign-functions=0 -malign-jumps=0 -malign-loops=0)
 
 CC       = gcc $(M32)
-CFLAGS   = -g -W -Wall -Os -fomit-frame-pointer -march=i386 $(ALIGN) \
+CFLAGS   = -g -W -Wall -Wno-sign-compare \
+	   -Os -fomit-frame-pointer -march=i386 $(ALIGN) \
 	   -DVERSION='"$(VERSION)"' -DDATE='"$(DATE)"'
 LDFLAGS  = -g
 INCLUDE  = -I../com32/include
 LD	 = ld -m elf_i386
-NASM     = nasm -O99
+NASM     = nasm -O99 -dVERSION='"$(VERSION)"' -dDATE='"$(DATE)"'
 NINCLUDE = 
 OBJCOPY  = objcopy
 PERL     = perl
