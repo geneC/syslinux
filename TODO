@@ -1,14 +1,20 @@
 - Clean up the command-line parsing.
+
 - Cleaned up documentation, with a real man page.
+
 - Support for clusters larger than 16K.  This would require changing
   a lot of the SYSLINUX internals so we can read partial clusters;
   change the current "cluster pointers" to become
   "cluster:sector pointers".  (32K may be doable.)  Microsoft
   documentation claims that 32K is the maximum legal value although
   "some versions of some systems allow 64K".
+
 - EBIOS support.
+
 - FAT32 support?
+
 - Support initrd that span multiple input media?
+
 - Support a small set of DOS system calls for COMBOOT images?  Serial
   console support makes this particularly desirable; otherwise the
   user could just use the BIOS I/O calls, but that won't work with the
@@ -23,3 +29,7 @@
     4Ch	   - Terminate program
 
   ... in addition to INT 20h (Terminate program), of course.
+
+- Factor out common and filesystem-specific code into files, even if
+  they have to be %includes rather than genuine modules.
+
