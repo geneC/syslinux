@@ -21,7 +21,9 @@ eval { use bytes; };
 ($out,$file16,$file32) = @ARGV;
 
 open(OUT, "> $out\0") or die "$0: Cannot create file: $out\n";
+eval { binmode OUT; };
 open(FILE, "< $file16\0") or die "$0: Cannot open file: $file16\n";
+eval { binmode FILE };
 
 @info = stat(FILE);
 $size = $info[7];
