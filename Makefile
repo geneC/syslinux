@@ -1,7 +1,7 @@
 ## -----------------------------------------------------------------------
 ##  $Id$
 ##
-##   Copyright 1998-2001 H. Peter Anvin - All Rights Reserved
+##   Copyright 1998-2003 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -187,7 +187,7 @@ spotless: local-clean dist local-spotless
 
 .depend:
 	rm -f .depend
-	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -M $$csrc >> .depend ; done
+	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -MM $$csrc >> .depend ; done
 	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc >> .depend ; done
 
 local-depend:
