@@ -738,6 +738,10 @@ bailmsg:	db 'Boot failed', 0Dh, 0Ah, 0
 
 bs_checkpt	equ $			; Must be <= 1EFh
 
+%if (bs_checkpt-$$) > 0x1EF
+%error "Boot sector overflow"
+%endif
+
 		zb 1EFh-($-$$)
 bs_magic	equ $			; From here to the magic_len equ
 					; must match ldlinux_magic
@@ -1044,6 +1048,10 @@ safedumpregs:
 %endif
 
 rl_checkpt	equ $				; Must be <= 400h
+
+%if (rl_checkpt-$$) > 0x400
+%error "Sector 1 overflow"
+%endif
 
 ; ----------------------------------------------------------------------------
 ;  End of code and data that have to be in the first sector
