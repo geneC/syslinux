@@ -1,3 +1,5 @@
+$Id$
+
 *** To do in the short term:
 
 - PXELINUX: Support changing the default server and downloading files
