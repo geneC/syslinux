@@ -20,26 +20,34 @@ gcc_ok   = $(shell if gcc $(1) -c -x c /dev/null -o /dev/null 2>/dev/null; \
 
 M32     := $(call gcc_ok,-m32,)
 
-CC         = gcc $(M32)
+CC         = gcc $(M32) 
 LD         = ld -m elf_i386
 AR	   = ar
 NASM	   = nasm
 RANLIB	   = ranlib
-CFLAGS     = -W -Wall -march=i386 -Os -fomit-frame-pointer -I../libutil/include -I../include  -D__COM32__
-LNXCFLAGS  = -W -Wall -march=i386 -Os -g -I../libutil/include
-LNXSFLAGS  = -march=i386
-LNXLDFLAGS = -g
+CFLAGS     = -D__COM32__ -W -Wall -march=i386 -Os -fomit-frame-pointer -I../include
 SFLAGS     = -D__COM32__ -march=i386
 LDFLAGS    = -T ../lib/com32.ld
+LNXCFLAGS  = -W -Wall -march=i386 -Os -g
+LNXSFLAGS  = -march=i386
+LNXLDFLAGS = -g
 OBJCOPY    = objcopy
-PPMTOLSS16 = 	../ppmtolss16
-LIBGCC    := $(shell $(CC) --print-libgcc)
-LIBS	   = ../libutil/libutil_com.a ../lib/libcom32.a $(LIBGCC)
-LNXLIBS	   = ../libutil/libutil_lnx.a
+LIBOBJS	   = ansiline.o ansiraw.o
+LNXLIBOBJS = $(patsubst %.o,%.lo,$(LIBOBJS))
 
-.SUFFIXES: .lss .c .o .elf .c32 .lnx
+.SUFFIXES: .lss .c .lo .o .elf .c32 .lnx
 
-all: hello.c32 fancyhello.c32 fancyhello.lnx
+all: libutil_com.a libutil_lnx.a
+
+libutil_com.a: $(LIBOBJS)
+	rm -f $@
+	$(AR) cq $@ $(LIBOBJS)
+	$(RANLIB) $@
+
+libutil_lnx.a: $(LNXLIBOBJS)
+	rm -f $@
+	$(AR) cq $@ $(LNXLIBOBJS)
+	$(RANLIB) $@
 
 .PRECIOUS: %.o
 %.o: %.S
@@ -50,8 +58,8 @@ all: hello.c32 fancyhello.c32 fancyhello.lnx
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.elf
-%.elf: %.o $(LIBS)
-	$(LD) $(LDFLAGS) -o $@ $^
+%.elf: %.o $(LIB)
+	$(LD) $(LDFLAGS) -o $@ $^ $(LIBGCC)
 
 .PRECIOUS: %.lo
 %.lo: %.S
@@ -62,17 +70,17 @@ all: hello.c32 fancyhello.c32 fancyhello.lnx
 	$(CC) $(LNXCFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.lnx
-%.lnx: %.lo $(LNXLIBS)
-	$(CC) $(LNXLDFLAGS) -o $@ $^
+%.lnx: %.lo
+	$(CC) $(LNXCFLAGS) -o $@ $^
 
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
 
 tidy:
-	rm -f *.o *.lo *.a *.lst *.elf
+	rm -f *.o *.lo *.lst *.elf
 
 clean: tidy
-	rm -f *.lss *.c32 *.lnx *.com
+	rm -f *.lss *.a *.c32 *.lnx *.com
 
 spotless: clean
 	rm -f *~ \#*
