@@ -285,6 +285,7 @@ AppendBuf       resb max_cmd_len+1	; append=
 FKeyName	resb 10*16		; File names for F-key help
 NumBuf		resb 16			; Buffer to load number
 NumBufEnd	equ NumBuf+15		; Pointer to last byte in NumBuf
+InitRDat	resd 1			; Load address (linear) for initrd
 RootDir		equ $			; Location of root directory
 RootDir1	resw 1
 RootDir2	resw 1
@@ -310,7 +311,6 @@ HighMemSize	resw 1			; High memory (K)
 KernelClust	resw 1			; Kernel size in clusters
 KernelK		resw 1			; Kernel size in kilobytes
 InitRDClust	resw 1			; Ramdisk size in clusters
-InitRDat	resw 1			; Load address (x256)
 ClustPerMoby	resw 1			; Clusters per 64K
 FClust		resw 1			; Number of clusters in open/getc file
 FNextClust	resw 1			; Pointer to next cluster in d:o
@@ -1666,14 +1666,12 @@ new_kernel:
 		movzx dx,dl
 		add ax,dx
 		mov [InitRDClust],ax		; Ramdisk clusters
-                mov eax,[es:su_ramdisklen]
-                shr eax,10                      ; Convert to kilobytes
-                mov dx,[HighMemSize]		; End of memory
-                add dx,1024                     ; Add "low" memory
-                sub dx,ax                       ; Subtract size of ramdisk
-                and dx,0ffc0h                   ; Round down to 64K boundary
-                shl dx,2                        ; Convert to 256-byte blocks
-                mov [InitRDat],dx		; Load address
+		movzx edx,word [HighMemSize]	; End of memory
+		add edx,1024			; Add "low" memory
+		shl edx,10			; Convert to bytes
+		sub edx,[es:su_ramdisklen]	; Subtract size of ramdisk
+                xor dx,dx			; Round down to 64K boundary
+                mov [InitRDat],edx		; Load address
 		call loadinitrd			; Load initial ramdisk
 		jmp short initrd_end
 
@@ -1968,10 +1966,8 @@ loadinitrd:
                 mov es,ax
                 mov si,[initrd_ptr]
 		and si,si
-                mov di,[InitRDat]		; initrd load address
-                movzx eax,di
-                shl eax,8                       ; Convert to bytes
-		mov [es:su_ramdiskat],eax	; Offset for ram disk
+                mov edi,[InitRDat]		; initrd load address
+		mov [es:su_ramdiskat],edi	; Offset for ram disk
 		push si
                 mov si,InitRDCName		; Write ramdisk name
                 call cwritestr
@@ -1991,17 +1987,19 @@ rd_last_moby:
 		xor bx,bx			; Load at offset 0
                 push word xfer_buf_seg		; Bounce buffer segment
 		pop es
+		push cx
 		call getfssec
-                push si                         ; Save cluster pointer
+		pop cx
+                push si				; Save cluster pointer
                 pushf                           ; Remember EOF
-		mov si,prot_xfer_gdt
-                xor bx,bx
-                mov di,[InitRDat]
-                mov cx,8000h                    ; Always transfer 64K
-                call upload
+		mov esi,(xfer_buf_seg << 4)
+		mov edi,[InitRDat]
+		mov ecx,4000h			; Copy 64K
+		call bcopy
                 popf
+		pop si
                 jc rd_load_done                 ; EOF?
-                add word [InitRDat],100h	; Point to next 64K
+                add dword [InitRDat],10000h	; Point to next 64K
 		cmp word [InitRDClust],byte 0	; Are we done?
 		jne rd_load_loop		; Apparently not
 rd_load_done:
@@ -2542,25 +2540,20 @@ pi_ism:		shl ebx,20		; x 2^20
 ;
 unhexchar:
                 cmp al,'0'
-                jb uxc_err
+		jb uxc_ret		; If failure, CF == 1 already
                 cmp al,'9'
                 ja uxc_1
-                sub al,'0'              ; CF=0
-                ret
-uxc_1:          cmp al,'A'
-                jb uxc_err
-                cmp al,'F'
-                ja uxc_2
-                sub al,'A'-10           ; CF=0
-                ret
-uxc_2:          cmp al,'a'
-                jb uxc_err
+		sub al,'0'		; CF <- 0
+		ret
+uxc_1:          or al,20h		; upper case -> lower case
+		cmp al,'a'
+                jb uxc_ret		; If failure, CF == 1 already
                 cmp al,'f'
                 ja uxc_err
-                sub al,'a'-10           ; CF=0
+                sub al,'a'-10           ; CF <- 0
                 ret
 uxc_err:        stc
-                ret
+uxc_ret:	ret
 
 ;
 ;
