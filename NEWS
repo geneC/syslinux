@@ -7,6 +7,10 @@ Changes in 2.00:
 	  for details.
 	* Fix mbr.asm so that it actually works.
 
+Changes in 1.76:
+	* ISOLINUX: Remove code no longer used which caused hangs on
+	  some Toshiba laptops.
+
 Changes in 1.75:
 	* ALL: NASM 0.98.32 or later is now required to build
 	  SYSLINUX from sources.

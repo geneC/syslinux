@@ -299,35 +299,6 @@ initial_csum:	xor edi,edi
 %endif
 
 found_drive:
-		; Get drive information
-		mov ah,48h
-		mov dl,[DriveNo]
-		mov si,drive_params
-		int 13h
-		jnc params_ok
-
-		mov si,nosecsize_msg
-		call writemsg
-
-params_ok:
-		; Check for the sector size (should be 2048, but
-		; some BIOSes apparently think we're 512-byte media)
-		;
-		; FIX: We need to check what the proper behaviour
-		; is for getlinsec when the BIOS thinks the sector
-		; size is 512!!!  For now, we ignore what the BIOS
-		; says and assume it's using 2048-byte sectors
-		; anyway.  This is correct for at least one BIOS
-		; with this particular pathology.
-%ifdef DEBUG_MESSAGES
-		mov si,secsize_msg
-		call writemsg
-		mov ax,[dp_secsize]
-		call writehex4
-		call crlf
-%endif
-
-load_image:
 		; Some BIOSes apparently have limitations on the size 
 		; that may be loaded (despite the El Torito spec being very
 		; clear on the fact that it must all be loaded.)  Therefore,
