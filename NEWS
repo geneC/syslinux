@@ -7,6 +7,7 @@ Changes in 2.11:
 	* SYSLINUX: Fix bug in 2.10 that prevented it from working
 	  correctly for a lot of people.
 	* SYSLINUX: In the installer, make mtools a bit less fussy.
+	* Make the menu system compile with newer gcc's.
 
 Changes in 2.10:
 	* MEMDISK: Handle images compressed with zip as well as with
