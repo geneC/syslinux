@@ -55,15 +55,25 @@ enum bs_offsets {
 /*
  * Access functions for littleendian numbers, possibly misaligned.
  */
-static inline uint16_t get_16(unsigned char *p)
+static inline uint16_t get_16(const unsigned char *p)
 {
+#if defined(__i386__) || defined(__x86_64__)
+  /* Littleendian and unaligned-capable */
+  return *(uint16_t *)p;
+#else
   return (uint16_t)p[0] + ((uint16_t)p[1] << 8);
+#endif
 }
 
-static inline uint32_t get_32(unsigned char *p)
+static inline uint32_t get_32(const unsigned char *p)
 {
+#if defined(__i386__) || defined(__x86_64__)
+  /* Littleendian and unaligned-capable */
+  return *(uint32_t *)p;
+#else
   return (uint32_t)p[0] + ((uint32_t)p[1] << 8) +
     ((uint32_t)p[2] << 16) + ((uint32_t)p[3] << 24);
+#endif
 }
 
 static inline void set_16(unsigned char *p, uint16_t v)
