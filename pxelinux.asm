@@ -18,6 +18,9 @@
 ; 
 ; ****************************************************************************
 
+
+%include "pxe.inc"
+
 ;
 ; Macros for byte order
 ;
@@ -465,7 +468,7 @@ query_bootp:	mov ax,0DEADh			; Something bogus
 		mov ax,ds
 		mov es,ax
 		mov di,pxe_bootp_query_pkt
-		mov bx,0071h			; PXENV_GET_CACHED_INFO
+		mov bx,PXENV_GET_CACHED_INFO
 
 		call far [PXENVEntry]
 		jc .pxe_err
@@ -516,7 +519,7 @@ udp_init:
 		mov eax,[bootp.yip]
 		mov [pxe_udp_open_pkt.sip],eax
 		mov di,pxe_udp_open_pkt
-		mov bx,0030h			; PXENV_UDP_OPEN
+		mov bx,PXENV_UDP_OPEN
 		call far [PXENVEntry]
 		jc .failed
 		cmp word [pxe_udp_open_pkt.status], byte 0
@@ -1339,17 +1342,6 @@ got_highmem:
 		mov cx,(kern_cmd_len+3) >> 2
 		rep movsd
 ;
-%ifdef debug
-                push ds                         ; DEBUG DEBUG DEBUG
-                push es
-                pop ds
-                mov si,offset cmd_line_here
-                call cwritestr
-                pop ds
-                mov si,offset crlf_msg
-                call cwritestr
-%endif
-;
 ; Scan through the command line for anything that looks like we might be
 ; interested in.  The original version of this code automatically assumed
 ; the first option was BOOT_IMAGE=, but that is no longer certain.
@@ -1380,7 +1372,7 @@ get_next_opt:   lodsb
                 push si                         ; mangle_dir mangles si
                 call mangle_name                ; Mangle ramdisk name
                 pop si
-		cmp byte [es:InitRD],' '	; Null filename?
+		cmp byte [es:InitRD],0		; Null filename?
                 seta byte [es:initrd_flag]	; Set flag if not
 not_initrd:	pop es                          ; Restore ES -> real_mode_seg
 skip_this_opt:  lodsb                           ; Load from command line
@@ -1434,8 +1426,83 @@ new_kernel:
 		movzx ax,byte [es:bs_setupsecs]	; Variable # of setup sectors
 		mov [SetupSecs],ax
 ;
-; Now see if we have an initial RAMdisk; if so, do requisite computation
+; About to load the kernel.  This is a modern kernel, so use the boot flags
+; we were provided.
 ;
+                mov al,[es:su_loadflags]
+		mov [LoadFlags],al
+;
+; Load the kernel.  We always load it at 100000h even if we're supposed to
+; load it "low"; for a "low" load we copy it down to low memory right before
+; jumping to it.
+;
+read_kernel:
+                mov si,KernelCName		; Print kernel name part of
+                call cwritestr                  ; "Loading" message
+                mov si,dotdot_msg		; Print dots
+                call cwritestr
+
+                mov eax,[HighMemSize]
+		sub eax,100000h			; Load address
+		cmp eax,[KernelSize]
+		jb near no_high_mem		; Not enough high memory
+;
+; Move the stuff beyond the setup code to high memory at 100000h
+;
+		movzx esi,word [SetupSecs]	; Setup sectors
+		inc esi				; plus 1 boot sector
+                shl esi,9			; Convert to bytes
+                mov ecx,108000h			; 108000h = 1M + 32K
+                sub ecx,esi			; Adjust pointer to 2nd block
+                mov [HiLoadAddr],ecx
+		sub ecx,100000h			; Turn into a counter
+		shr ecx,2			; Convert to dwords
+		add esi,(real_mode_seg << 4)	; Pointer to source
+                mov edi,100000h                 ; Copy to address 100000h
+                call bcopy			; Transfer to high memory
+
+                push word xfer_buf_seg		; Transfer buffer segment
+                pop es
+high_load_loop: 
+                mov si,dot_msg			; Progress report
+                call cwritestr
+                call abort_check
+                mov cx,[KernelClust]
+		cmp cx,[ClustPerMoby]
+		jna high_last_moby
+		mov cx,[ClustPerMoby]
+high_last_moby:
+		sub [KernelClust],cx
+		xor bx,bx			; Load at offset 0
+                pop si                          ; Restore cluster pointer
+		call getfssec
+                push si                         ; Save cluster pointer
+                pushf                           ; Save EOF
+                xor bx,bx
+		mov esi,(xfer_buf_seg << 4)
+                mov edi,[HiLoadAddr]		; Destination address
+                mov ecx,4000h			; Cheating - transfer 64K
+                call bcopy			; Transfer to high memory
+		mov [HiLoadAddr],edi		; Point to next target area
+                popf                            ; Restore EOF
+                jc high_load_done               ; If EOF we are done
+                cmp word [KernelClust],byte 0	; Are we done?
+		jne high_load_loop		; Apparently not
+high_load_done:
+		pop si				; No longer needed
+                mov ax,real_mode_seg		; Set to real mode seg
+                mov es,ax
+
+                mov si,dot_msg
+                call cwritestr
+
+		call crlf
+;
+; Now see if we have an initial RAMdisk; if so, do requisite computation
+; We know we have a new kernel; the old_kernel code already will have objected
+; if we tried to load initrd using an old kernel
+;
+load_initrd:
                 test byte [initrd_flag],1
                 jz nk_noinitrd
                 push es                         ; ES->real_mode_seg
@@ -1481,87 +1548,35 @@ initrd_notthere:
 
 no_high_mem:    mov si,err_nohighmem		; Error routine
                 jmp abort_load
-;
-; About to load the kernel.  This is a modern kernel, so use the boot flags
-; we were provided.
-;
-nk_noinitrd:
+
 initrd_end:
-                mov al,[es:su_loadflags]
-		mov [LoadFlags],al
-;
-; Load the kernel.  We always load it at 100000h even if we're supposed to
-; load it "low"; for a "low" load we copy it down to low memory right before
-; jumping to it.
-;
-read_kernel:
-                mov si,KernelCName		; Print kernel name part of
-                call cwritestr                  ; "Loading" message
-                mov si,dotdot_msg		; Print dots
-                call cwritestr
-
-                mov eax,[HighMemSize]
-		sub eax,100000h			; Load address
-		cmp eax,[KernelSize]
-		jb no_high_mem			; Not enough high memory
-;
-; Move the stuff beyond the setup code to high memory at 100000h
-;
-		movzx esi,word [SetupSecs]	; Setup sectors
-		inc esi				; plus 1 boot sector
-                shl esi,9			; Convert to bytes
-                mov ecx,108000h			; 108000h = 1M + 32K
-                sub ecx,esi			; Adjust pointer to 2nd block
-                mov [HiLoadAddr],ecx
-		sub ecx,100000h			; Turn into a counter
-		shr ecx,2			; Convert to dwords
-		add esi,(real_mode_seg << 4)	; Pointer to source
-                mov edi,100000h                 ; Copy to address 100000h
-                call bcopy			; Transfer to high memory
-;
-                push word xfer_buf_seg		; Transfer buffer segment
-                pop es
-high_load_loop: 
-                mov si,dot_msg			; Progress report
-                call cwritestr
-                call abort_check
-                mov cx,[KernelClust]
-		cmp cx,[ClustPerMoby]
-		jna high_last_moby
-		mov cx,[ClustPerMoby]
-high_last_moby:
-		sub [KernelClust],cx
-		xor bx,bx			; Load at offset 0
-                pop si                          ; Restore cluster pointer
-		call getfssec
-                push si                         ; Save cluster pointer
-                pushf                           ; Save EOF
-                xor bx,bx
-		mov esi,(xfer_buf_seg << 4)
-                mov edi,[HiLoadAddr]		; Destination address
-                mov ecx,4000h			; Cheating - transfer 64K
-                call bcopy			; Transfer to high memory
-		mov [HiLoadAddr],edi		; Point to next target area
-                popf                            ; Restore EOF
-                jc high_load_done               ; If EOF we are done
-                cmp word [KernelClust],byte 0	; Are we done?
-		jne high_load_loop		; Apparently not
-high_load_done:
-		pop si				; No longer needed
-                mov ax,real_mode_seg		; Set to real mode seg
-                mov es,ax
-
-                mov si,dot_msg
-                call cwritestr
+nk_noinitrd:
 ;
 ; Abandon hope, ye that enter here!  We do no longer permit aborts.
 ;
                 call abort_check        	; Last chance!!
 
 ;
+; Now we're as close to be done as we can be and still use our normal
+; routines, print a CRLF to end the row of dots
+;
+;		mov si,crlf_msg
+;		call cwritestr
+		mov si,ready_msg
+		call cwritestr
+;
 ; Unload PXE stack
 ;
+		mov al,'U'
+		call writechr
 		call unload_pxe
+		cli
+		xor ax,ax
+		mov ss,ax
+		mov sp,7C00h			; Set up a more normal stack
+		mov al,'L'
+		call writechr
+		
 ;
 ; Copy real_mode stuff up to 90000h
 ;
@@ -1573,6 +1588,8 @@ high_load_done:
 		mov cx,[SetupSecs]
 		inc cx				; Setup + boot sector
 		shl cx,7			; Sectors -> dwords
+		xor si,si
+		xor di,di
 		fs rep movsd
 ;
 ; Some kernels in the 1.2 ballpark but pre-bzImage have more than 4
@@ -1620,21 +1637,9 @@ kill_motor:
 		xor al,al
 		call slow_out
 ;
-; Now we're as close to be done as we can be and still use our normal
-; routines, print a CRLF to end the row of dots
-;
-		mov si,crlf_msg
-		call cwritestr
-;
-; If we're debugging, wait for a keypress so we can read any debug messages
-;
-%ifdef debug
-                xor ax,ax
-                int 16h
-%endif
-;
 ; Set up segment registers and the Linux real-mode stack
 ;
+		cli
 		mov ax,9000h
 		mov ds,ax
                 mov es,ax
@@ -1645,6 +1650,9 @@ kill_motor:
 ;
 ; We're done... now RUN THAT KERNEL!!!!
 ;
+		mov ax,0E00h + 'X'
+		mov bx,0007h
+		int 10h
 		jmp setup_seg:setup_entry
 ;
 ; Load an older kernel.  Older kernels always have 4 setup sectors, can't have
@@ -1667,7 +1675,7 @@ load_old_kernel:
 ;
 is_comboot_image:
 		and dx,dx
-		jnz comboot_too_large
+		jnz short comboot_too_large
 		cmp ax,0ff00h		; Max size in bytes
 		jae comboot_too_large
 
@@ -2136,7 +2144,7 @@ searchdir:
 		call writechr
 
 		mov di,pxe_udp_write_pkt
-		mov bx,0033h		; PXENV_UDP_WRITE
+		mov bx,PXENV_UDP_WRITE
 		call far [PXENVEntry]
 		jc near .failure
 		cmp word [pxe_udp_write_pkt.status],byte 0
@@ -2163,7 +2171,7 @@ searchdir:
 		mov [pxe_udp_read_pkt.dip],eax
 		mov [pxe_udp_read_pkt.lport],bx
 		mov di,pxe_udp_read_pkt
-		mov bx,0032h			; PXENV_UDP_READ
+		mov bx,PXENV_UDP_READ
 		call far [PXENVEntry]
 		and ax,ax
 		jz .got_packet			; Wait for packet
@@ -2277,7 +2285,7 @@ searchdir:
 		mov word [pxe_udp_write_pkt.buffer],tftp_opt_err
 		mov word [pxe_udp_write_pkt.buffersize],tftp_opt_err_len
 		mov di,pxe_udp_write_pkt
-		mov bx,0033h		; PXENV_UDP_WRITE
+		mov bx,PXENV_UDP_WRITE
 		call far [PXENVEntry]
 
 .no_tsize:	mov si,err_oldtftp
@@ -3172,9 +3180,9 @@ getfssec:
 		mov al,'G'
 		call writechr
 
-.packet_loop:	push cx				; Save count
-		push es				; Save buffer pointer
-		push bx
+.packet_loop:	push cx				; <A> Save count
+		push es				; <B> Save buffer pointer
+		push bx				; <C>
 	
 		mov ax,ds
 		mov es,ax
@@ -3183,7 +3191,7 @@ getfssec:
 		; next packet to be sent.
 		mov cx,PKT_RETRY
 
-.send_ack:	push cx
+.send_ack:	push cx				; <D>
 
 		mov al,'a'
 		call writechr
@@ -3194,7 +3202,7 @@ getfssec:
 		call ack_packet			; Send ACK
 		jz .send_ok
 
-		pop cx
+		pop cx				; <D>
 		loop .send_ack
 		jmp kaboom			; Failed to send ACK
 
@@ -3203,8 +3211,8 @@ getfssec:
 		int 1Ah				; Get current time
 
 		mov cx,PKT_TIMEOUT
-.send_loop:	push cx
-		push dx
+.send_loop:	push cx				; <E>
+		push dx				; <F>
 
 		mov bx,packet_buf
 		mov [pxe_udp_read_pkt.buffer],bx
@@ -3218,10 +3226,10 @@ getfssec:
 		mov ax,[si+tftp_localport]
 		mov [pxe_udp_read_pkt.lport],ax
 		mov di,pxe_udp_read_pkt
-		mov bx,0032h			; PXE_UDP_READ
-		push si
+		mov bx,PXENV_UDP_READ
+		push si				; <G>
 		call far [PXENVEntry]
-		pop si
+		pop si				; <G>
 		cmp ax,byte 0
 		je .recv_ok
 
@@ -3238,8 +3246,8 @@ getfssec:
 		loop .send_ack
 		jmp kaboom			; Forget it...
 
-.recv_ok:	pop dx
-		pop cx
+.recv_ok:	pop dx				; <F>
+		pop cx				; <E>
 
 		mov al,'r'
 		call writechr
@@ -3269,19 +3277,21 @@ getfssec:
 		jmp .send_ok			; Reset timeout
 
 .right_packet:	; It's the packet we want.  We're also EOF if the size < 512.
-		pop cx				; Don't need the retry count anymore
-		mov al,'*'
-		call writechr
+		pop cx				; <D> Don't need the retry count anymore
 		movzx ecx,word [pxe_udp_read_pkt.buffersize]
-		sub cx,4
+		sub cx,byte 4
 		add [si+tftp_filepos],ecx
 
 		cmp cx,TFTP_BLOCKSIZE		; Is it a full block
 		jb .last_block
 
-		pop di				; Get target buffer
-		pop es
+		mov al,'+'
+		call writechr
 
+		pop di				; <C> Get target buffer
+		pop es				; <B>
+
+		cld
 		push si
 		mov si,packet_buf+4
 		mov cx,TFTP_BLOCKSIZE >> 2
@@ -3289,13 +3299,12 @@ getfssec:
 		mov bx,di
 		pop si
 
-		pop cx
+		pop cx				; <A>
 		loop .packet_loop_jmp
 
 		; If we had the exact right number of bytes, always get
-		; one more packet to get the EOF packet and close the
-		; socket.
-
+		; one more packet to get the (zero-byte) EOF packet and
+		; close the socket.
 		mov eax,[si+tftp_filepos]
 		cmp [si+tftp_filesize],eax
 		je .packet_loop_jmp
@@ -3310,19 +3319,21 @@ getfssec:
 		call ack_packet
 		mov word [si],0			; Socket closed
 	
-		pop di
-		pop es
+		mov al,'*'
+		call writechr
 
+		; Copy data
+		pop di				; <C>
+		pop es				; <B>
+
+		cld
 		mov si,packet_buf+4
-		sub cx,byte 4
-		movzx ecx,cx
-		add dword [si+tftp_filepos],ecx
 		rep movsb
 		mov bx,di
 
 		xor si,si
 		
-		pop cx				; Not used
+		pop cx				; <A> Not used
 		stc				; EOF
 		ret
 
@@ -3352,7 +3363,7 @@ ack_packet:
 		mov [pxe_udp_write_pkt.buffer],word ack_packet_buf
 		mov [pxe_udp_write_pkt.buffersize], word 4
 		mov di,pxe_udp_write_pkt
-		mov bx,0033h			; PXE_UDP_WRITE
+		mov bx,PXENV_UDP_WRITE
 		call far [PXENVEntry]
 		cmp ax,byte 0			; ZF = 1 if write OK
 		popad
@@ -3364,21 +3375,14 @@ ack_packet:
 ; This function unloads the PXE and UNDI stacks.
 ;
 unload_pxe:
-		ret				; Are these safe or will we die?
 		mov di,pxe_udp_close_pkt
-		mov bx,0031h			; PXE_UDP_CLOSE
+		mov bx,PXENV_UDP_CLOSE
 		call far [PXENVEntry]
 		mov di,pxe_undi_shutdown_pkt
-		mov bx,0005h			; PXE_UNDI_SHUTDOWN
-		call far [PXENVEntry]
-		mov di,pxe_undi_shutdown_pkt
-		mov bx,0076h			; PXE_STOP_BASE
+		mov bx,PXENV_UNDI_SHUTDOWN
 		call far [PXENVEntry]
 		mov di,pxe_unload_stack_pkt
-		mov bx,0070h			; PXE_UNLOAD_STACK
-		call far [PXENVEntry]
-		mov di,pxe_undi_shutdown_pkt
-		mov bx,0015h			; PXE_STOP_UNDI
+		mov bx,PXENV_UNLOAD_STACK
 		call far [PXENVEntry]
 		ret
 
@@ -3434,6 +3438,7 @@ using_pxenv_msg db 'Old PXE API detected, using PXENV+ structure', 0Dh, 0Ah, 0
 apiver_str	db 'PXE API version is ',0
 pxeentry_msg	db 'PXE entry point found (we hope) at ', 0
 myipaddr_msg	db 'My IP address seems to be ',0
+ready_msg	db 13, 10, 'Ready to start kernel...', 13, 10, 0
 trying_msg	db 'Trying to load: ', 0
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
