@@ -39,7 +39,7 @@ all:	$(TARGETS)
 # official release.  Otherwise, substitute a hex string that is pretty much
 # guaranteed to be unique to be unique from build to build.
 ifndef DATE
-DATE = $(shell perl now.pl)
+DATE = $(shell perl now.pl ldlinux.asm)
 endif
 
 ldlinux.bin: ldlinux.asm genstupid.pl

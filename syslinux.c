@@ -208,6 +208,8 @@ int main(int argc, char *argv[])
 		device);
 	exit(1);
       }
+    } else if ( !memcmp(sectbuf+bsFileSysType, "FAT     ", 8) ) {
+      /* OS/2 sets up the filesystem as just `FAT'. */
     } else {
       fprintf(stderr, "%s: filesystem type \"%8.8s\" not supported\n",
 	      device, sectbuf+bsFileSysType);
@@ -225,11 +227,6 @@ int main(int argc, char *argv[])
     sectors = get_16(sectbuf+bsSectors);
     sectors = sectors ? sectors : get_32(sectbuf+bsHugeSectors);
     clusters = sectors / sectbuf[bsSecPerClust];
-    
-    if ( clusters > 4086 ) {
-      fprintf(stderr, "%s: Only FAT12 filesystems supported\n", device);
-      exit(1);
-    }
   }
 
   if ( get_16(sectbuf+bsBytesPerSec) != 512 ) {

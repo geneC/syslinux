@@ -1619,8 +1619,6 @@ kernel_sane:	push ax
 		jc kernel_corrupt		; Failure in first 32K
                 cmp word [es:bs_bootsign],0AA55h
 		jne kernel_corrupt		; Boot sec signature missing
-		cmp byte [es:su_jump],0EBh	; Jump opcode
-		jne kernel_corrupt
 ;
 ; Get the BIOS' idea of what the size of high memory is
 ;
@@ -1666,7 +1664,7 @@ hms_ok:		mov [HighMemSize],ax
 ;
 		mov si,cmd_line_here
                 mov byte [initrd_flag],0
-                push es
+                push es				; Set DS <- real_mode_seg
                 pop ds
 get_next_opt:   lodsb
 		and al,al
@@ -1679,8 +1677,8 @@ get_next_opt:   lodsb
 		je is_vga_cmd
                 cmp eax,'mem='
 		je is_mem_cmd
-                push es                         ; Save ES->real_mode_seg
-                push cs
+                push es                         ; Save ES -> real_mode_seg
+                push ss
                 pop es                          ; Set ES <- normal DS
                 mov di,initrd_cmd
 		mov cx,initrd_cmd_len
@@ -1692,7 +1690,7 @@ get_next_opt:   lodsb
                 pop si
 		cmp byte [es:InitRD],' '	; Null filename?
                 seta byte [es:initrd_flag]	; Set flag if not
-not_initrd:     pop es                          ; Restore ES->real_mode_seg
+not_initrd:	pop es                          ; Restore ES -> real_mode_seg
 skip_this_opt:  lodsb                           ; Load from command line
                 cmp al,' '
                 ja skip_this_opt
@@ -1724,10 +1722,10 @@ is_mem_cmd:
 		cmp ebx,14*1024			; Only trust < 15M point
                 jna memcmd_fair
 		mov bx,14*1024
-memcmd_fair:    mov [es:HighMemSize],bx
+memcmd_fair:    mov [ss:HighMemSize],bx
 		jmp short skip_this_opt
 cmdline_end:
-                push cs                         ; Restore standard DS
+                push ss                         ; Restore standard DS
                 pop ds
 ;
 ; Now check if we have a large kernel, which needs to be loaded high
@@ -1739,7 +1737,7 @@ cmdline_end:
                 cmp word [es:su_version],0201h	; Version 2.01+?
                 jb new_kernel                   ; If 2.00, skip this step
                 mov word [es:su_heapend],linux_stack	; Set up the heap
-                or byte [es:su_loadflags],80h	; Let the kernel know we cared
+                or byte [es:su_loadflags],80h	; Let the kernel know we care
 ;
 ; We definitely have a new-style kernel.  Let the kernel know who we are,
 ; and that we are clueful
@@ -1866,6 +1864,26 @@ high_load_done:
                 call cwritestr
 ;
 ; Abandon hope, ye that enter here!  We do no longer permit aborts.
+;
+                call abort_check        	; Last chance!!
+
+;
+; Some kernels in the 1.2 ballpark but pre-bzImage have more than 4
+; setup sectors, but the boot protocol had not yet been defined.  They
+; rely on a signature to figure out if they need to copy stuff from
+; the "protected mode" kernel area.  Unfortunately, we used that area
+; as a transfer buffer, so it's going to find the signature there.
+; Hence, zero the low 32K beyond the setup area.
+;
+		mov di,[SetupSecs]
+		inc di				; Setup + boot sector
+		mov cx,32768/512		; Sectors/32K
+		sub cx,di			; Remaining sectors
+		shl di,9			; Sectors -> bytes
+		shl cx,7			; Sectors -> dwords
+		xor eax,eax
+		rep stosd			; Clear region
+;
 ; Now, if we were supposed to load "low", copy the kernel down to 10000h
 ;
 		test byte [LoadFlags],LOAD_HIGH
@@ -1889,7 +1907,8 @@ root_not_floppy:
 ; Copy the disk table to high memory, then re-initialize the floppy
 ; controller
 ;
-		mov si,floppy_table
+		push ds
+		lds si,[fdctab]
 		mov di,linux_fdctab
 		mov cx,3			; 12 bytes
 		push di
@@ -1902,6 +1921,7 @@ root_not_floppy:
 		xor ax,ax
 		xor dx,dx
 		int 13h
+		pop ds
 ;
 ; Linux wants the floppy motor shut off before starting the kernel,
 ; at least bootsect.S seems to imply so
@@ -1914,7 +1934,6 @@ kill_motor:
 ; Now we're as close to be done as we can be and still use our normal
 ; routines, print a CRLF to end the row of dots
 ;
-                call abort_check        ; Last chance!!
 		mov si,crlf
 		call writestr
 ;
@@ -1952,7 +1971,7 @@ old_kernel:
 load_old_kernel:
 		mov word [SetupSecs],4		; Always 4 setup sectors
 		mov byte [LoadFlags],0		; Always low
-		jmp load_kernel
+		jmp read_kernel
 ;
 ; cwritestr: write a null-terminated string to the console, saving
 ;            registers on entry (we can't use this in the boot sector,
@@ -2995,7 +3014,7 @@ copyright_str   db '  Copyright (C) 1994-', year, ' H. Peter Anvin'
 boot_prompt	db 'boot: ',0
 wipe_char	db 08h, ' ', 08h, 0
 err_notfound	db 'Could not find kernel image: ',0
-err_notkernel	db 0Dh, 0Ah, 'Invalid or corrupt kernel image: ',0
+err_notkernel	db 0Dh, 0Ah, 'Invalid or corrupt kernel image: ', 0
 err_not386	db 'It appears your computer uses a 286 or lower CPU.'
 		db 0Dh, 0Ah
 		db 'You cannot run Linux unless you have a 386 or higher CPU'
