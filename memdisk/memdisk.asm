@@ -308,8 +308,12 @@ setup_regs:
 		movzx ebx,cl		; Sector number
 		and bl,3Fh
 		dec ebx			; Sector number is 1-based
+		cmp bx,[Sectors]
+		jae .overrun
 		movzx edi,P_DH		; Head number
 		movzx eax,word [Heads]
+		cmp di,ax
+		jae .overrun
 		shr cl,6
 		xchg cl,ch		; Now (E)CX <- cylinder number
 		mul ecx			; eax <- Heads*cyl# (edx <- 0)
