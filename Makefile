@@ -21,6 +21,7 @@ CFLAGS	= -Wall -O2 -fomit-frame-pointer
 LDFLAGS	= -O2 -s
 
 BINDIR  = /usr/bin
+LIBDIR  = /usr/lib/syslinux
 
 VERSION = $(shell cat version)
 
@@ -44,7 +45,10 @@ OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version \
 OBSOLETE = pxelinux.bin
 
 # Things to install in /usr/bin
-INSTALL_BIN = syslinux gethostip ppmtolss16 lss16toppm
+INSTALL_BIN   =	syslinux gethostip ppmtolss16 lss16toppm
+# Things to install in /usr/lib/syslinux
+INSTALL_LIB   =	pxelinux.0 isolinux.bin isolinux-debug.bin \
+		syslinux.com copybs.com memdisk/memdisk
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
@@ -133,7 +137,9 @@ gethostip.o: gethostip.c
 gethostip: gethostip.o
 
 install: all
-	install -c $(INSTALL_BIN) $(INSTALLROOT)$(BINDIR)
+	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR) $(INSTALLROOT)$(LIBDIR)
+	install -m 755 -c $(INSTALL_BIN) $(INSTALLROOT)$(BINDIR)
+	install -m 644 -c $(INSTALL_LIB) $(INSTALLROOT)$(LIBDIR)
 
 local-tidy:
 	rm -f *.o *_bin.c stupid.*
