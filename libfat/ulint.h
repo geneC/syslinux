@@ -37,7 +37,7 @@ read8(le8_t *_p)
 }
 
 static inline void
-write8(le8_t *_p, unsigned char _v)
+write8(le8_t *_p, uint8_t _v)
 {
   *_p = _v;
 }
@@ -47,27 +47,27 @@ write8(le8_t *_p, unsigned char _v)
 /* Littleendian architectures which support unaligned memory accesses */
 
 static inline unsigned short
-read16(le16_t *_p)
+read16(const le16_t *_p)
 {
-  return *((unsigned short *)_p);
+  return *((const uint16_t *)_p);
 }
 
 static inline void
 write16(le16_t *_p, unsigned short _v)
 {
-  *((unsigned short *)_p) = _v;
+  *((uint16_t *)_p) = _v;
 }
 
 static inline unsigned int
-read32(le32_t *_p)
+read32(const le32_t *_p)
 {
-  return *((unsigned int *)_p);
+  return *((const uint32_t *)_p);
 }
 
 static inline void
-write32(le32_t *_p, unsigned int _v)
+write32(le32_t *_p, uint32_t _v)
 {
-  *((unsigned int *)_p) = _v;
+  *((uint32_t *)_p) = _v;
 }
 
 #else 
@@ -75,9 +75,9 @@ write32(le32_t *_p, unsigned int _v)
 /* Generic, mostly portable versions */
 
 static inline unsigned short
-read16(le16_t *_p)
+read16(const le16_t *_p)
 {
-  unsigned short _v;
+  uint16_t _v;
 
   _v  = p[0];
   _v |= p[1] << 8;
@@ -85,14 +85,14 @@ read16(le16_t *_p)
 }
 
 static inline void
-write16(le16_t *_p, unsigned short _v)
+write16(le16_t *_p, uint16_t _v)
 {
   _p[0] = _v & 0xFF;
   _p[1] = (_v >> 8) & 0xFF;
 }
 
 static inline unsigned int
-read32(le32_t *_p)
+read32(const le32_t *_p)
 {
   _v  = _p[0];
   _v |= _p[1] << 8;
@@ -102,7 +102,7 @@ read32(le32_t *_p)
 }
 
 static inline void
-write32(le32_t *_p, unsigned int _v)
+write32(le32_t *_p, uint32_t _v)
 {
   _p[0] = _v & 0xFF;
   _p[1] = (_v >> 8) & 0xFF;

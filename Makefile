@@ -60,7 +60,7 @@ SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
 BTARGET  = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
 	   pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin \
 	   extlinux.bin extlinux.bss extlinux.sys \
-	   bootsect_bin.c ldlinux_bin.c
+	   bootsect_bin.c ldlinux_bin.c extlinux_bss_bin.c extlinux_sys_bin.c
 	   # libsyslinux.a $(LIB_SO)
 BOBJECTS = $(BTARGET) dos/syslinux.com win32/syslinux.exe memdisk/memdisk
 BSUBDIRS = memdisk dos win32
@@ -166,10 +166,16 @@ copybs.com: copybs.asm
 	$(NASM) -f bin -l copybs.lst -o copybs.com copybs.asm
 
 bootsect_bin.c: ldlinux.bss bin2c.pl
-	$(PERL) bin2c.pl syslinux_bootsect < ldlinux.bss > bootsect_bin.c
+	$(PERL) bin2c.pl syslinux_bootsect < $< > $@
 
 ldlinux_bin.c: ldlinux.sys bin2c.pl
-	$(PERL) bin2c.pl syslinux_ldlinux < ldlinux.sys > ldlinux_bin.c
+	$(PERL) bin2c.pl syslinux_ldlinux < $< > $@
+
+extlinux_bss_bin.c: extlinux.bss bin2c.pl
+	$(PERL) bin2c.pl extlinux_bootsect < $< > $@
+
+extlinux_sys_bin.c: extlinux.sys bin2c.pl
+	$(PERL) bin2c.pl extlinux_image < $< > $@
 
 libsyslinux.a: bootsect_bin.o ldlinux_bin.o syslxmod.o
 	rm -f $@
