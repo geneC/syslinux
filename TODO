@@ -1,3 +1,9 @@
+- Serial support:
+  - Need ^C/Esc to work
+  - Error messages need to be redirected to the serial port
+  - Clean up the option
+  - Disable serial support (or do something at least) on timeout
+  - Straight to hardware?
 - Cleaned up documentation, with a real man page.
 - Support for clusters larger than 16K.  This would require changing
   a lot of the SYSLINUX internals so we can read partial clusters;

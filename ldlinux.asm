@@ -34,7 +34,7 @@ max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
 retry_count	equ 6			; How patient are we with the disk?
 HIGHMEM_MAX	equ 038000000h		; Highest address for an initrd
 DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
-
+BAUD_DIVISOR	equ 115200		; Serial port parameter
 ;
 ; Should be updated with every release to avoid bootsector/SYS file mismatch
 ;
@@ -282,9 +282,11 @@ debug_okay:	mov si,trackbuf+0bh
 		nop
 		jmp debugentrypt
 %endif
+		absolute 0400h
+serial_base	resw 4			; Base addresses for 4 serial ports
 
                 absolute 0484h
-BIOS_vidrows    resb 1                    ; Number of screen rows
+BIOS_vidrows    resb 1			; Number of screen rows
 
 ;
 ; Memory below this point is reserved for the BIOS and the MBR
@@ -345,7 +347,6 @@ NextCharJump    resw 1			; Routine to interpret next print char
 SetupSecs	resw 1			; Number of setup sectors
 SavedSP		resw 1			; Our SP while running a COMBOOT image
 A20Test		resw 1			; Counter for testing status of A20
-SerialPort	resw 1			; Serial port no (or -1 for no serial port)
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -1287,23 +1288,47 @@ pc_implicit:    call getint                     ; "implicit" command
 
 pc_serial:	call getint			; "serial" command
 		jc parse_config_2
-		mov [SerialPort],bx
+		push bx				; Serial port #
 		call skipspace
+		jc parse_config_2
+		call ungetc
 		call getint
-;		jnc .valid_baud
-;		mov ebx,DEFAULT_BAUD		; No baud rate given
-;.valid_baud:	mov ecx,9600
+		jnc .valid_baud
+		mov ebx,DEFAULT_BAUD		; No baud rate given
+.valid_baud:	pop di				; Serial port #
+		cmp ebx,byte 75
+		jb parse_config_2		; < 75 baud == bogus
+		mov eax,BAUD_DIVISOR
+		cdq
+		div ebx
+		push ax				; Baud rate divisor
+		mov dx,di
+		shl di,1
+		mov ax,[di+serial_base]
+		mov [SerialPort],ax
+		push ax				; Serial port base
 		mov ax,00e3h			; INT 14h init parameters
-;.baud_loop:	cmp ebx,ecx
-;		jae .this_baud
-;		sub al,020h
-;		shr ecx,1
-;		jmp short .baud_loop
-.this_baud:	mov dx,[SerialPort]
-		int 14h				; Initialize serial port
+		int 14h				; Init serial port
+		pop bx				; Serial port base
+		lea dx,[bx+3]
+		mov al,83h			; Enable DLAB
+		call slow_out
+		pop ax				; Divisor
+		mov dx,bx
+		call slow_out
+		inc dx
+		mov al,ah
+		call slow_out
+		mov al,03h			; Disable DLAB
+		add dx,byte 2
+		call slow_out
+		sub dx,byte 2
+		xor al,al			; IRQ disable
+		call slow_out
+
 		mov al,'>'
 		call write_serial
-		jmp short parse_config_2		
+		jmp short parse_config_3
 
 pc_fkey:	sub ah,'1'
 		jnb pc_fkey1
@@ -1322,7 +1347,7 @@ pc_fkey1:	xor cx,cx
 		shl di,4			; Multiply number by 16
 		add di,FKeyName
 		call mangle_name		; Mangle file name
-		jmp short parse_config_2
+		jmp short parse_config_3
 
 pc_label:	call commit_vk			; Commit any current vkernel
 		mov di,trackbuf			; Get virtual filename
@@ -1433,11 +1458,11 @@ tick_loop:	push dx
 		int 16h
 		jnz get_char_pop
 		mov dx,[SerialPort]		; Check for serial port input
-		cmp dx,byte -1
+		and dx,dx
 		je .noserial
-		mov ax,0300h
-		int 14h
-		test ah,1			; Receive data ready
+		add dx,byte 5
+		in al,dx
+		test al,1			; Receive data ready
 		jnz get_char_pop
 .noserial:	xor ax,ax
 		int 1Ah				; Get time "of day"
@@ -1453,16 +1478,15 @@ get_char:	mov ah,1			; Keyboard char ready?
 		int 16h
 		jnz get_kbd
 		mov dx,[SerialPort]		; Serial port input?
-		cmp dx,byte -1
-		je get_char
-		mov ax,0300h
-		int 14h
-		test ah,1
+		and dx,dx
+		jz get_char
+		add dx,byte 5
+		in al,dx
+		test al,1
 		jz get_char
 
-get_serial:	mov ax,0200h			; Get char from serial port
-		mov dx,[SerialPort]
-		int 14h
+get_serial:	mov dx,[SerialPort]		; Valid only when we have already
+		in al,dx			; tested for input!!
 		jmp short got_ascii
 
 get_kbd:	xor ax,ax			; Get char
@@ -1512,7 +1536,7 @@ set_func_flag:
 
 ctrl_f_0:	add al,10			; <Ctrl-F>0 == F10
 ctrl_f:		push di
-		sub al,'0'
+		sub al,'1'
 		xor ah,ah
 		jmp short show_help
 
@@ -2123,7 +2147,7 @@ root_not_floppy:
 kill_motor:
 		mov dx,03F2h
 		xor al,al
-		out dx,al
+		call slow_out
 ;
 ; Now we're as close to be done as we can be and still use our normal
 ; routines, print a CRLF to end the row of dots
@@ -2421,6 +2445,8 @@ bcopy:		push eax
 %define IO_DELAY_PORT	80h		; Invalid port (we hope!)
 %define delaytime 	1024		; 4 x ISA bus cycles (@ 1.5 µs)
 
+slow_out:	out dx, al		; Fall through
+
 _io_delay:	push ax
 		in ax,IO_DELAY_PORT
 		in ax,IO_DELAY_PORT
@@ -2598,11 +2624,12 @@ abort_check:
 ac1:
 		mov ah,1			; Check for pending keystroke
 		int 16h
-                jz ac_ret                       ; If no pending keystroke
+                jz ac_nokbd                     ; If no pending keystroke
 		xor ax,ax			; Load pending keystroke
 		int 16h
 		mov bx,KbdMap
 		xlatb
+ac_char:					; Character received
 		cmp al,27			; <ESC> aborts (DOS geeks)
 		je ac2
 		cmp al,3			; So does Ctrl-C (UNIX geeks)
@@ -2629,6 +2656,20 @@ abort_load:
                 sti
                 call cwritestr                  ; Expects SI -> error msg
 al_ok:          jmp enter_command               ; Return to command prompt
+;
+; Check for serial port abort
+;
+ac_nokbd:
+		mov bx,[SerialPort]
+		and bx,bx
+		jz ac_ret			; No serial port
+		lea dx,[bx+5]
+		in al,dx
+		and al,01h
+		jz ac_ret			; Nothing on the serial port
+		xchg dx,bx
+		in al,dx
+		jmp short ac_char		; Character received!
 ;
 ; End of abort_check
 ;
@@ -2943,11 +2984,17 @@ msg_color_bad:
 ;
 write_serial:
 		pusha
-		mov dx,[SerialPort]
-		cmp dx,byte -1
+		mov bx,[SerialPort]
+		and bx,bx
 		je .noserial
-		mov ah,01h
-		int 14h
+		push ax
+.waitspace:	lea dx,[bx+5]			; Wait for space in transmit reg
+		in al,dx
+		test al,20h
+		jz .waitspace
+		xchg dx,bx
+		pop ax
+		call slow_out			; Send data
 .noserial:	popa
 		ret
 
@@ -3571,6 +3618,7 @@ initrd_ptr	dw 0			; Initial ramdisk pointer/flag
 VKernelCtr	dw 0			; Number of registered vkernels
 ForcePrompt	dw 0			; Force prompt
 AllowImplicit   dw 1                    ; Allow implicit kernels
+SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
 ; tons of zeros appended to our file and wasting space
