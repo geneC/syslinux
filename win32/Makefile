@@ -77,5 +77,6 @@ tidy:
 
 clean: tidy
 
-spotless:
-	rm -f ../syslinux.exe
+spotless: clean
+	rm -f ../syslinux.exe *~
+

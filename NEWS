@@ -9,6 +9,7 @@ Changes in 2.05:
 	  example, the Ethernet (type 1) address 88:99:AA:BB:CC:DD
 	  would query the file pxelinux.cfg/01-88-99-aa-bb-cc-dd.
         * PXELINUX: Fix bug involving non-IP-based config file names.
+	* SYSLINUX: New installer for WinNT-based systems, from Lars Munch.
 
 Changes in 2.04:
 	* ALL: Reclaim even more low memory by observing that

@@ -15,11 +15,12 @@
 # Main Makefile for SYSLINUX
 #
 
+OSTYPE   = $(shell uname -msr)
 CC	 = gcc
 INCLUDE  =
-CFLAGS	 = -Wall -O2 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+CFLAGS   = -Wall -O2 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 PIC      = -fPIC
-LDFLAGS	 = -O2 -s
+LDFLAGS  = -O2 -s
 AR	 = ar
 RANLIB   = ranlib
 
@@ -50,9 +51,11 @@ CSRC    = syslinux.c syslinux-nomtools.c syslxmod.c gethostip.c
 NASMSRC  = ldlinux.asm syslinux.asm copybs.asm \
 	  pxelinux.asm mbr.asm isolinux.asm isolinux-debug.asm
 SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
+# syslinux.exe is BTARGET so as to not require everyone to have the
+# mingw suite installed
 BTARGET = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
 	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin \
-	  libsyslinux.a $(LIB_SO)
+	  libsyslinux.a syslinux.exe $(LIB_SO) 
 ITARGET = syslinux.com syslinux syslinux-nomtools copybs.com gethostip \
 	  mkdiskimage
 DOCS    = COPYING NEWS README TODO *.doc sample com32
@@ -65,7 +68,7 @@ OBSOLETE = pxelinux.bin
 INSTALL_BIN   =	syslinux gethostip ppmtolss16 lss16toppm
 # Things to install in /usr/lib/syslinux
 INSTALL_AUX   =	pxelinux.0 isolinux.bin isolinux-debug.bin \
-		syslinux.com copybs.com memdisk/memdisk
+		syslinux.com syslinux.exe copybs.com memdisk/memdisk
 # Things to install in /usr/lib
 INSTALL_LIB   = $(LIB_SO) libsyslinux.a
 # Things to install in /usr/include
@@ -164,6 +167,9 @@ syslxmod.o: syslxmod.c patch.offset
 	$(CC) $(INCLUDE) $(CFLAGS) $(PIC) -DPATCH_OFFSET=`cat patch.offset` \
 		-c -o $@ $<
 
+syslinux.exe: win32/syslinux-mingw.c libsyslinux.a
+	$(MAKE) -C win32 all
+
 gethostip.o: gethostip.c
 
 gethostip: gethostip.o
@@ -193,6 +199,7 @@ local-tidy:
 
 tidy: local-tidy
 	$(MAKE) -C memdisk tidy
+	$(MAKE) -C win32 tidy
 
 local-clean:
 	rm -f $(ITARGET)
@@ -200,6 +207,7 @@ local-clean:
 clean: local-tidy local-clean
 	$(MAKE) -C sample clean
 	$(MAKE) -C memdisk clean
+	$(MAKE) -C win32 clean
 
 dist: tidy
 	for dir in . sample memdisk ; do \
@@ -212,6 +220,7 @@ local-spotless:
 spotless: local-clean dist local-spotless
 	$(MAKE) -C sample spotless
 	$(MAKE) -C memdisk spotless
+	$(MAKE) -C win32 spotless
 
 .depend:
 	rm -f .depend

@@ -486,10 +486,12 @@ appropriate drive designator.
 
 	umount /mnt
  
-   ---- DOS procedure ----
+   ---- DOS/Windows procedure ----
 
 To make this installation in DOS only, you need the utility copybs.com
-(included with SYSLINUX) as well as the syslinux.com installer.
+(included with SYSLINUX) as well as the syslinux.com installer.  If
+you are on an WinNT-based system (WinNT, Win2k, WinXP or later), use
+syslinux.exe instead.
 
 1. Make a DOS bootable disk.  This can be done either by specifying
    the /s option when formatting the disk in DOS, or by running the
@@ -506,7 +508,6 @@ To make this installation in DOS only, you need the utility copybs.com
 
 3. Run SYSLINUX on the disk:
 
-	[lock a: if you're running under Win95/98/ME]
 	syslinux a:
 
 4. Copy the Linux kernel image(s), initrd(s), etc to the disk, and

@@ -17,18 +17,9 @@
 
 #define _XOPEN_SOURCE 500	/* Required on glibc 2.x */
 #define _BSD_SOURCE
-#include <alloca.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <mntent.h>
-#include <paths.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 
 #include "syslinux.h"
 
@@ -64,25 +55,25 @@ enum bs_offsets {
 /*
  * Access functions for littleendian numbers, possibly misaligned.
  */
-static inline u_int16_t get_16(unsigned char *p)
+static inline uint16_t get_16(unsigned char *p)
 {
-  return (u_int16_t)p[0] + ((u_int16_t)p[1] << 8);
+  return (uint16_t)p[0] + ((uint16_t)p[1] << 8);
 }
 
-static inline u_int32_t get_32(unsigned char *p)
+static inline uint32_t get_32(unsigned char *p)
 {
-  return (u_int32_t)p[0] + ((u_int32_t)p[1] << 8) +
-    ((u_int32_t)p[2] << 16) + ((u_int32_t)p[3] << 24);
+  return (uint32_t)p[0] + ((uint32_t)p[1] << 8) +
+    ((uint32_t)p[2] << 16) + ((uint32_t)p[3] << 24);
 }
 
-static inline void set_16(unsigned char *p, u_int16_t v)
+static inline void set_16(unsigned char *p, uint16_t v)
 {
   p[0] = (v & 0xff);
   p[1] = ((v >> 8) & 0xff);
 }
 
 #if 0				/* Not needed */
-static inline void set_32(unsigned char *p, u_int32_t v)
+static inline void set_32(unsigned char *p, uint32_t v)
 {
   p[0] = (v & 0xff);
   p[1] = ((v >> 8) & 0xff);
@@ -104,4 +95,70 @@ void syslinux_make_bootsect(void *bs)
 
   memcpy(bootsect+bsHead, syslinux_bootsect+bsHead, bsHeadLen);
   memcpy(bootsect+bsCode, syslinux_bootsect+bsCode, bsCodeLen);
+}
+
+/*
+ * Check to see that what we got was indeed an MS-DOS boot sector/superblock
+ */
+int syslinux_check_bootsect(void *bs, char* device)
+{
+  int veryold;
+  unsigned int sectors, clusters;
+  unsigned char *sectbuf = bs;
+
+  if ( sectbuf[bsBootSignature] == 0x29 ) {
+    /* It's DOS, and it has all the new nice fields */
+
+    veryold = 0;
+
+    sectors = get_16(sectbuf+bsSectors);
+    sectors = sectors ? sectors : get_32(sectbuf+bsHugeSectors);
+    clusters = sectors / sectbuf[bsSecPerClust];
+
+    if ( !memcmp(sectbuf+bsFileSysType, "FAT12   ", 8) ) {
+      if ( clusters > 4086 ) {
+	fprintf(stderr, "%s: ERROR: FAT12 but claims more than 4086 clusters\n",
+		device);
+	return 0;
+      }
+    } else if ( !memcmp(sectbuf+bsFileSysType, "FAT16   ", 8) ) {
+      if ( clusters <= 4086 ) {
+	fprintf(stderr, "%s: ERROR: FAT16 but claims less than 4086 clusters\n",
+		device);
+	return 0;
+      }
+    } else if ( !memcmp(sectbuf+bsFileSysType, "FAT     ", 8) ) {
+      /* OS/2 sets up the filesystem as just `FAT'. */
+    } else {
+      fprintf(stderr, "%s: filesystem type \"%8.8s\" not supported\n",
+	      device, sectbuf+bsFileSysType);
+      return 0;
+    }
+  } else {
+    veryold = 1;
+
+    if ( sectbuf[bsSecPerClust] & (sectbuf[bsSecPerClust] - 1) ||
+	 sectbuf[bsSecPerClust] == 0 ) {
+      fprintf(stderr, "%s: This doesn't look like a FAT filesystem\n",
+	      device);
+    }
+
+    sectors = get_16(sectbuf+bsSectors);
+    sectors = sectors ? sectors : get_32(sectbuf+bsHugeSectors);
+    clusters = sectors / sectbuf[bsSecPerClust];
+  }
+
+  if ( get_16(sectbuf+bsBytesPerSec) != 512 ) {
+    fprintf(stderr, "%s: Sector sizes other than 512 not supported\n",
+	    device);
+    return 0;
+  }
+
+  if ( sectbuf[bsSecPerClust] > 32 ) {
+    fprintf(stderr, "%s: Cluster sizes larger than 16K not supported\n",
+	    device);
+    return 0;
+  }
+
+  return 1;
 }

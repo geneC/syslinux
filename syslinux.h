@@ -29,4 +29,7 @@ void syslinux_make_stupid(void);
 /* This takes a boot sector and merges in the syslinux fields */
 void syslinux_make_bootsect(void *);
 
+/* Check to see that what we got was indeed an MS-DOS boot sector/superblock */
+int syslinux_check_bootsect(void *bs, char* device);
+
 #endif
