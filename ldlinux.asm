@@ -2490,7 +2490,7 @@ _io_delay:	out IO_DELAY_PORT,al
 
 enable_a20:
 		pushad
-		mov byte [ss:A20Tries],255 ; Times to try to make this work
+		mov byte [cs:A20Tries],255 ; Times to try to make this work
 
 try_enable_a20:
 ;
@@ -2501,16 +2501,16 @@ try_enable_a20:
 ;
 ; If the A20 type is known, jump straight to type
 ;
-		mov bp,[ss:A20Type]
+		mov bp,[cs:A20Type]
 		add bp,bp			; Convert to word offset
-		jmp word [bp+A20List]		; Implicit ss: because of bp
+		jmp word [cs:bp+A20List]
 
 ;
 ; First, see if we are on a system with no A20 gate
 ;
 a20_dunno:
 a20_none:
-		mov byte [ss:A20Type], A20_NONE
+		mov byte [cs:A20Type], A20_NONE
 		call a20_test
 		jnz a20_done
 
@@ -2518,7 +2518,7 @@ a20_none:
 ; Next, try the BIOS (INT 15h AX=2401h)
 ;
 a20_bios:
-		mov byte [ss:A20Type], A20_BIOS
+		mov byte [cs:A20Type], A20_BIOS
 		mov ax,2401h
 		pushf				; Some BIOSes muck with IF
 		int 15h
@@ -2535,7 +2535,7 @@ a20_kbc:
 		call empty_8042
 		jnz a20_done			; A20 live, no need to use KBC
 
-		mov byte [ss:A20Type], A20_KBC	; Starting KBC command sequence
+		mov byte [cs:A20Type], A20_KBC	; Starting KBC command sequence
 
 		mov al,0D1h			; Command write
 		out 064h, al
@@ -2563,7 +2563,7 @@ a20_kbc:
 ; Running out of options here.  Final attempt: enable the "fast A20 gate"
 ;
 a20_fast:
-		mov byte [ss:A20Type], A20_FAST	; Haven't used the KBC yet
+		mov byte [cs:A20Type], A20_FAST	; Haven't used the KBC yet
 		in al, 092h
 		or al,02h
 		and al,~01h			; Don't accidentally reset the machine!
@@ -2584,7 +2584,7 @@ a20_fast:
 ;
 
 
-		dec byte [ss:A20Tries]
+		dec byte [cs:A20Tries]
 		jnz try_enable_a20
 
 		mov si, err_a20
@@ -2607,9 +2607,9 @@ a20_test:
 		mov cx,0FFFFh		; HMA = segment 0FFFFh
 		mov es,cx
 		mov cx,32		; Loop count
-		mov ax,[ss:A20Test]
+		mov ax,[cs:A20Test]
 .a20_wait:	inc ax
-		mov [ss:A20Test],ax
+		mov [cs:A20Test],ax
 		io_delay		; Serialize, and fix delay
 		cmp ax,[es:A20Test+10h]
 		loopz .a20_wait
@@ -2625,9 +2625,9 @@ disable_a20:
 ;
 ;		call try_wbinvd
 
-		mov bp,[ss:A20Type]
+		mov bp,[cs:A20Type]
 		add bp,bp			; Convert to word offset
-		jmp word [bp+A20DList]		; Implicit ss: because of bp
+		jmp word [cs:bp+A20DList]
 
 a20d_bios:
 		mov ax,2400h
