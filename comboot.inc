@@ -175,6 +175,8 @@ comboot_int21:	cli
 		mov es,bp
 		mov bp,sp			; Set up stack frame
 
+		call adjust_screen		; The COMBOOT program might have changed the screen
+
 		mov cx,int21_count
 		mov si,int21_table
 .again:		lodsb
@@ -211,6 +213,7 @@ comboot_exit_special:
 		lss sp,[SavedSSSP]
 		sti
 		cld
+		call adjust_screen	; The COMBOOT program might have changed the screen
 		and ax,ax
 		je .nomsg
 		mov si,KernelCName
@@ -308,6 +311,8 @@ comboot_int22:
 		mov ds,bp
 		mov es,bp
 		mov bp,sp			; Set up stack frame
+
+		call adjust_screen		; The COMBOOT program might have changed the screen
 
 		cmp ax,int22_count
 		jb .ok

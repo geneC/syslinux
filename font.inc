@@ -101,6 +101,7 @@ lf_ret		equ use_font.lf_ret
 ;		This is a subroutine in case we're loading a custom font.
 ;
 adjust_screen:
+		pusha
                 mov al,[BIOS_vidrows]
                 and al,al
                 jnz vidrows_ok
@@ -111,5 +112,6 @@ vidrows_ok:	mov [VidRows],al
                 int 10h                         ; Read video state
                 dec ah                          ; Store count-1 (same as rows)
                 mov [VidCols],ah
+		popa
 		ret
 

@@ -9,6 +9,8 @@ Changes in 2.09:
 	* Handle compiling on an x86-64 platform correctly.
 	* Menu system from Murali Krishnan Ganapathy; see the menu
 	  directory for information.
+	* Allow COMBOOT programs to change screen text mode.
+	* Correct the documentation of how to detect SYSLINUX from COMBOOT!!!!
 
 Changes in 2.08:
 	* Add new configuration command "ontimeout" to allow timeout
