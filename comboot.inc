@@ -330,7 +330,7 @@ comapi_open:
 		xchg eax,edx
 		shr eax,16
 		xchg ax,dx
-		mov cx,[SecPerClust]
+		mov cx,[ClustSize]
 		clc
 		ret
 .err:

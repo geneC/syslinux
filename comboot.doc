@@ -131,8 +131,42 @@ supported INT 20h - terminate program.
 
 	++++ DOS-COMPATIBLE API CALLS ++++
 
-INT 20h:	Terminate program
+INT 20h		Terminate program
 INT 21h AH=00h	Terminate program
+INT 21h AH=4Ch	Terminate program
+
+	All of these terminate the program.
+
+INT 21h AH=01h	Get Key with Echo
+
+	Reads a key from the console input, with echo to the console
+	output.  The read character is returned in AL.
+
+INT 21h AH=02h	Write Character
+
+	Writes a character in DL to the console output.
+
+INT 21h AH=08h	Get Key without Echo
+
+	Reads a key fron the console input, without echoing it to the
+	console output.  The read character is returned in AL.
+
+INT 21h AH=0Bh	Check Keyboard
+
+	Returns AL=FFh if there is a keystroke waiting (which can then
+	be read with INT 21h, AH=01h or AH=08h), otherwise AL=00h.
+
+INT 21h AH=30h	Check DOS Version
+
+	This function returns AX=BX=CX=DX=0, corresponding to a
+	hypothetical "DOS 0.0", but the high parts of EAX-EBX-ECX-EDX
+	spell "SYSLINUX":
+
+	EAX=53590000h EBX=534C0000h ECX=494E0000h EDX=55580000h
+
+	This function can thus be used to distinguish running on
+	SYSLINUX from running on DOS.
+
 
 	++++ SYSLINUX-SPECIFIC API CALLS ++++
 
