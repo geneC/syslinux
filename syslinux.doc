@@ -1,6 +1,6 @@
 			       SYSLINUX
 			     Version 1.40
-			      May 6, 1998
+			      May 7, 1998
 
               A bootloader for Linux using MS-DOS floppies
 
@@ -24,13 +24,15 @@ created.
 
    ++++ WHAT SYSLINUX IS NOT ++++
 
-SYSLINUX is *not* intended to be used as a general purpose boot
-loader, since it neither has the ability to boot another operating
-system (e.g. DOS/Windows), nor can it boot Linux from a non-FAT
-filesystem, such as ext2.  Since a native Linux implementation will
-typically use ext2, and a mixed DOS/Linux implementation probably
-wants to be able to boot either filesystem, another boot loader such
-as LILO or LOADLIN may be more appropriate.
+SYSLINUX is probably not suitable as a general purpose boot loader.
+It can only boot Linux from a FAT filesystem, and not, for example,
+ext2.  Since a native Linux implementation will typically use ext2,
+another boot loader (e.g. LILO) is probably more suitable.  In a
+system which actually contains DOS or Windows, LOADLIN may be simpler
+to use.
+
+However, SYSLINUX has shown itself to be quite useful in a number of
+special-purpose applications.
 
    ++++ CREATING A BOOTABLE LINUX FLOPPY +++
 
@@ -38,7 +40,7 @@ In order to create a bootable Linux floppy using SYSLINUX, prepare a
 normal MS-DOS formatted floppy.  Copy one or more Linux kernel files to
 it, then execute the DOS command:
 
-        SYSLINUX [-s] a:
+        syslinux [-s] a:
 
 (or whichever drive letter is appropriate; the [] meaning -s is optional) 
 
@@ -205,7 +207,7 @@ eliminating the 500K size limit of the zImage kernel format.  bzImage
 format kernels are detected automatically and handled transparently to
 the user.
 
-This version of SYSLINUX also supports a boottime-loaded ramdisk
+This version of SYSLINUX also supports a boot-time-loaded ramdisk
 (initrd).  An initrd is loaded from a DOS file if the option
 "initrd=filename" (where filename is the filename of the initrd image;
 the file must be located in the root directory on the boot floppy) is
@@ -433,8 +435,15 @@ disk by running the command:
 
 Then use the FDISK command to mark the appropriate partition active.
 
-SYSLINUX, like DOS, requires that the partition which contains it
-lives entirely below cylinder 1024 for proper operation.
+   ++++ KNOWN BUGS ++++
+
+SYSLINUX will have problems with disks with more than 65536 tracks
+(cylinders * heads) or 1024 cylinders if the filesystem on which
+SYSLINUX is installed extends beyond either of these two maxima.
+
+Furthermore, SYSLINUX will not work (and will refuse to install) on
+filesystems with a cluster size of more than 16K (typically means a
+filesystem of more than 1 GB.)
 
    ++++ COMPATIBILITY WITH SYSLINUX 1.0 ++++
 
@@ -447,12 +456,6 @@ prompt 1
 
 # Mimic SYSLINUX 1.0 with BOOTMSG.TXT file present:
 display bootmsg.txt
-
-   ++++ KNOWN BUGS ++++
-
-SYSLINUX will have problems with disks with more than 65536 tracks
-(cylinders * heads) or 1024 cylinders if the filesystem on which
-SYSLINUX is installed extends beyond either of these two maxima.
 
    ++++ BUG REPORTS ++++
 

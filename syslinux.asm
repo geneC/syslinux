@@ -197,8 +197,8 @@ read_bootsect:
 		mov cx,1			; One sector
 		jmp short .common
 .new:
-		mov [diBuffer+2],ax		; == DS
 		mov bx,DISKIO
+		mov [bx+8],ax			; Buffer segment
 		mov cx,-1
 .common:
 		xor dx,dx			; Absolute sector 0
@@ -211,9 +211,14 @@ read_bootsect:
 		mov di,BootSector+11
 		mov cx,51			; Superblock = 51 bytes
 		rep movsb			; Copy the superblock
+		jmp short write_file
+disk_read_error:
+		mov dx,msg_read_err
+		jmp die
 ;
 ; Writing LDLINUX.SYS
 ;
+write_file:
 		; 0. Set the correct filename
 
 		mov al,[DriveNo]
@@ -275,11 +280,12 @@ write_bootsect:
 		cmp word [DOSVersion],0400h	; DOS 4.00 has a new interface
 		jae .new
 .old:
-		mov bx,SectorBuffer
+		mov bx,BootSector
 		mov cx,1			; One sector
 		jmp short .common
 .new:
 		mov bx,DISKIO
+		mov word [bx+6],BootSector
 		mov cx,-1
 .common:
 		xor dx,dx			; Absolute sector 0
@@ -288,15 +294,11 @@ write_bootsect:
 		pop ax				; Remove flags from stack
 		jc disk_write_error
 
-
 all_done:	mov ax,4C00h			; Exit good status
 		int 21h
 ;
 ; Error routine jump
 ;
-disk_read_error:
-		mov dx,msg_read_err
-		jmp short die
 disk_write_error:
 file_write_error:
 		mov dx,msg_write_err
