@@ -594,9 +594,9 @@ query_bootp:
 .goodip:
 		mov di,DotQuadBuf
 		push di
-		call gendotquad			; This takes host byte order input
+		call gendotquad			; This takes network byte order input
 
-		xchg ah,al			; Host byte order
+		xchg ah,al			; Convert to host byte order
 		ror eax,16			; (BSWAP doesn't work on 386)
 		xchg ah,al
 
@@ -786,7 +786,7 @@ find_config:	mov di,trackbuf
 		rep movsb
 		mov cx,8
 		mov eax,[MyIP]
-		xchg ah,al			; Host byte order
+		xchg ah,al			; Convert to host byte order
 		ror eax,16
 		xchg ah,al
 .hexify_loop:	rol eax,4
@@ -3857,7 +3857,7 @@ unload_pxe:
 ;
 ; gendotquad
 ;
-; Take an IP address (in host byte order) in EAX and
+; Take an IP address (in network byte order) in EAX and
 ; output a dotted quad string to ES:DI.
 ; DI points to terminal null at end of string on exit.
 ;
