@@ -46,7 +46,7 @@ release:
 	ln -f $(PRIVATE) release/syslinux-$(VERSION)
 	cd release/syslinux-$(VERSION) && $(MAKE) depend
 	cd release/syslinux-$(VERSION) && $(MAKE) official
-	cd release/syslinux-$(VERSION) && rm -f $(PRIVATE)
+	cd release/syslinux-$(VERSION) && rm -rf $(PRIVATE)
 	cd release && tar cvvf - syslinux-$(VERSION) | \
 		gzip -9 > syslinux-$(VERSION).tar.gz
 	cd release/syslinux-$(VERSION) && \
@@ -70,7 +70,7 @@ prerel:
 	make -C $(PRERELDIR)/$(PREREL) all DATE=`printf '%s-pre%d          ' $(VERSION) $(PRERELNO) | dd bs=10 count=1 2>/dev/null`
 	make -C $(PRERELDIR)/$(PREREL) dist
 	cd $(PRERELDIR)/$(PREREL) && \
-		rm -f $(PRIVATE)
+		rm -rf $(PRIVATE)
 	cd $(PRERELDIR) && tar cvvf - $(PREREL) | \
 		gzip -9 > $(PREREL).tar.gz 
 	cd $(PRERELDIR) && \
