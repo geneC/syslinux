@@ -25,11 +25,10 @@ Summary: Development environment for SYSLINUX add-on modules
 Group: Development/Libraries
 
 %description
-SYSLINUX is a simple kernel loader. It normally loads the kernel (and an 
-optional initrd image) from a FAT filesystem. It can also be used as a
-PXE bootloader during network boots (PXELINUX), or for booting from
-ISO 9660 CD-ROMs (ISOLINUX).  It also includes a tool, MEMDISK, which
-loads legacy operating systems from these media.
+SYSLINUX is a suite of bootloaders, currently supporting DOS FAT
+filesystems, Linux ext2/ext3 filesystems (EXTLINUX), PXE network boots
+(PXELINUX), or ISO 9660 CD-ROMs (ISOLINUX).  It also includes a tool,
+MEMDISK, which loads legacy operating systems from these media.
 
 %description devel
 The SYSLINUX boot loader contains an API, called COM32, for writing
@@ -60,7 +59,7 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root)
-%doc NEWS README *.doc memdisk/*.doc COPYING
+%doc NEWS README* *.doc memdisk/*.doc COPYING
 %doc sample
 %{_bindir}/syslinux
 %{_bindir}/ppmtolss16
@@ -81,12 +80,14 @@ rm -rf %{buildroot}
 %{_libdir}/syslinux/com32
 
 %post
-/sbin/ldconfig
 
 %postun
-/sbin/ldconfig
 
 %changelog
+* Thu Dec 30 2004 H. Peter Anvin <hpa@zytor.com>
+- libsyslinux dropped in syslinux 3.00.
+- Additional documentation.
+
 * Tue Dec 14 2004 H. Peter Anvin <hpa@zytor.com>
 - Add a devel package for the com32 library added in 2.12.
 
