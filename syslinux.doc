@@ -1,6 +1,6 @@
 			       SYSLINUX
-			     Version 1.43
-			    March 19, 1999
+			     Version 1.44
+			    March ??, 1999
 
               A bootloader for Linux using MS-DOS floppies
 
@@ -55,7 +55,10 @@ LDLINUX.SYS into its root directory.
 
 The -s option, if given, will install a "safe, slow and stupid"
 version of SYSLINUX.  This version may work on some very buggy BIOSes
-on which SYSLINUX would otherwise fail.
+on which SYSLINUX would otherwise fail.  If you find a machine on
+which the -s option is required to make it boot reliably, please send
+as much info about your machine as you can, and include the failure
+mode.
 
 WARNING: There seems to be a bug in some recent experimental Linux
 	 kernels that causes floppy disk corruption when using the
