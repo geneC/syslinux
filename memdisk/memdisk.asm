@@ -17,6 +17,22 @@
 ; 
 ; ****************************************************************************
 
+%define DEBUG_TRACERS			; Uncomment to get debugging tracers
+
+%ifdef DEBUG_TRACERS
+
+%macro TRACER	1
+	call debug_tracer
+	db %1
+%endmacro
+
+%else	; DEBUG_TRACERS
+
+%macro	TRACER	1
+%endmacro
+
+%endif	; DEBUG_TRACERS
+
 		org 0h
 
 %define SECTORSIZE_LG2	9		; log2(sector size)
@@ -64,6 +80,8 @@ Int13Start:
 		pop dx
 		js .nomatch		; If SF=0, we have a class match here
 		jz .our_drive		; If ZF=1, we have an exact match
+		cmp ah,08h		; Is it Get Drive Parameters?
+		je .our_drive		; If so always handle for our own class
 		cmp dl,[cs:DriveNo]
 		jb .nomatch		; Drive < Our drive
 		dec dl			; Drive > Our drive, adjust drive #
@@ -85,9 +103,10 @@ Int13Start:
 		mov ax,[SavedAX]
 		pushad
 		mov bp,sp		; Point BP to the entry stack frame
+		TRACER 'F'
 		; Note: AH == P_AH here
 		cmp ah,Int13FuncsMax
-		jae Invalid
+		jae Invalid_jump
 		xor al,al		; AL = 0 is standard entry condition
 		mov di,ax
 		shr di,7		; Convert AH to an offset in DI
@@ -96,6 +115,7 @@ Int13Start:
 Done:		; Standard routine for return
 		mov P_AX,ax
 DoneWeird:
+		TRACER 'D'
 		mov [LastStatus],ah
 		and ah,ah
 
@@ -112,6 +132,7 @@ DoneWeird:
 
 Reset:
 		; Reset affects multiple drives, so we need to pass it on
+		TRACER 'R'
 		mov [LastStatus],al 	; Clear the status (AL = 0)
 		pop ax			; Drop return address
 		popad			; Restore all registers
@@ -121,9 +142,13 @@ Reset:
 		and dl,80h		; Clear all but the type bit
 		jmp far [cs:OldInt13]
 
+
 Invalid:
-		mov ax,0100h		; Unsupported function
-		ret
+		pop dx			; Drop return address
+Invalid_jump:
+		TRACER 'I'
+		mov ah,01h		; Unsupported function
+		jmp short Done
 
 GetDriveType:
 		mov ah,[DriveNo]
@@ -176,27 +201,60 @@ success:
 		ret
 
 GetParms:
-		; We need to get the "number of drives" from the BIOS
-		mov dl,P_DL
-		inc dl			; The drive whose number we're stealing
-		mov ah,08h
-		int 13h
-		inc dl			; Add ourselves to the count
-		mov P_DL,dl		; Drive count
-		mov P_DI,di		; Steal the diskette parameter table if applicable
-		mov ax,es
+		; This gets invoked even for other drives, so that
+		; we can modify the drive count on return
+		TRACER 'G'
+		mov dx,P_DX		; The drive whose number we're stealing
+		cmp dl,[DriveNo]
+		jb .belowdrive
+		ja .abovedrive
+		TRACER 'M'
+		mov dl,[DriveCnt]	; Cached data
+		mov P_DL,dl
+		test byte [DriveNo],80h
+		jnz .hd
+		mov di,[BPT]
+		mov P_DI,di
+		mov ax,[BPT+2]
 		mov P_ES,ax
 		mov bl,[DriveType]
 		mov P_BL,bl
+.hd:
 		mov ax,[Cylinders]
 		dec ax			; We report the highest #, not the count
-		or ah,[Sectors]
 		xchg al,ah
+		shl al,6
+		or al,[Sectors]
 		mov P_CX,ax
-		mov al,[Heads]
-		dec al
+		mov ax,[Heads]
+		dec ax
 		mov P_DH,al
 		xor ax,ax
+		ret
+		
+		; If another disk, just mangle DL on return
+.abovedrive:
+		TRACER 'A'
+		dec dl			; Adjust drive # to what the BIOS believes
+.belowdrive:
+		TRACER 'B'
+		mov di,P_DI
+		mov ax,P_ES
+		mov es,ax
+		mov bx,P_BX
+		mov cx,P_CX
+		mov ax,P_AX
+		pushf
+		call far [OldInt13]
+		inc dl			; Add ourselves to the count
+		mov P_AX,ax
+		mov P_BX,bx
+		mov P_CX,cx
+		mov P_DX,dx
+		mov P_DI,di
+		mov cx,es
+		mov P_ES,cx
+		TRACER 'R'
 		ret
 
 		; Set up registers as for a "Read", and compares against disk size
@@ -239,8 +297,8 @@ setup_regs:
 		ret
 
 .overrun:	pop ax			; Drop setup_regs return address
-		mov ax,0400h		; Sector not found
-		ret
+		mov ax,0200h		; Missing address mark
+		ret			; Return to Done
 
 int15_e820:
 		cmp edx,534D4150h	; "SMAP"
@@ -372,8 +430,23 @@ bcopy:
 		pop eax
 		ret
 
+%ifdef DEBUG_TRACERS
+debug_tracer:	pushad
+		pushfd
+		mov bp,sp
+		mov bx,[bp+9*4]
+		mov al,[cs:bx]
+		inc word [bp+9*4]
+		mov ah,0Eh
+		mov bx,7
+		int 10h
+		popfd
+		popad
+		ret
+%endif
+
 		section .data
-		alignb 8
+		alignb 2
 Int13Funcs	dw Reset		; 00h - RESET
 		dw GetStatus		; 01h - GET STATUS
 		dw Read			; 02h - READ
@@ -434,6 +507,9 @@ OldDosMem	dw 0			; Old position of DOS mem end
 
 DriveNo		db 0			; Our drive number
 DriveType	db 0			; Our drive type (floppies)
+DriveCnt	db 0			; Drive count (from the BIOS)
+		db 0			; Pad
+BPT		dd 0			; BIOS parameter table pointer (floppies)
 
 MyStack		dw 0			; Offset of stack
 

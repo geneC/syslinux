@@ -45,8 +45,21 @@ struct patch_area {
 
   uint8_t  driveno;
   uint8_t  drivetype;
+  uint8_t  drivecnt;
+  uint8_t  _pad1;
+
+  uint16_t bpt_offs, bpt_seg;
 
   uint16_t mystack;
+};
+
+/* The Disk Parameter Table is required on hard disks */
+struct dpt {
+  uint16_t max_cyl;		/* Max cylinder */
+  uint8_t max_head;		/* Max head */
+  uint8_t junk1[5];		/* Obsolete junk, leave at zero */
+  uint8_t ctrl;			/* Control byte */
+  uint8_t junk2[7];		/* More obsolete junk */
 };
 
 /* This is the header in the boot sector/setup area */
@@ -183,8 +196,12 @@ rdz_32(uint32_t addr)
 
 /* Addresses in the zero page */
 #define BIOS_INT13	(0x13*4) /* INT 13h vector */
-#define BIOS_INT15	(0x15*4) /* INT 13h vector */
+#define BIOS_INT15	(0x15*4) /* INT 15h vector */
+#define BIOS_INT41      (0x41*4) /* INT 41h vector */
+#define BIOS_INT46      (0x46*4) /* INT 46h vector */
 #define BIOS_BASEMEM	0x413	 /* Amount of DOS memory */
+#define BIOS_EQUIP	0x410	 /* BIOS equipment list */
+#define BIOS_HD_COUNT   0x475	 /* Number of hard drives present */
 
 /*
  * Routine to seek for a command-line item and return a pointer
@@ -514,6 +531,34 @@ uint32_t setup(void)
 	       "D" (0)
 	       : "esi", "edi", "ecx");
 
+  /* Query drive parameters of this type */
+  {
+    uint16_t bpt_es, bpt_di;
+    uint8_t cf, dl;
+
+    asm volatile("pushw %%es ; "
+		 "xorw %1,%1 ; "
+		 "movw %1,%%es ; "
+		 "movb $0x08,%%ah ; "
+		 "int $0x13 ; "
+		 "setc %2 ; "
+		 "movw %%es,%0 ;"
+		 "popw %%es"
+		 : "=a" (bpt_es), "=D" (bpt_di),
+		 "=c" (cf), "=d" (dl)
+		 : "d" (geometry->driveno & 0x80)
+		 : "esi", "ebx", "ebp");
+
+    if ( cf ) {
+      pptr->drivecnt = 1;
+      pptr->bpt_offs = pptr->bpt_seg = 0;
+    } else {
+      pptr->drivecnt = dl+1;
+      pptr->bpt_offs = bpt_di;
+      pptr->bpt_seg  = bpt_es;
+    }
+  }
+
   /* Install the interrupt handlers */
   printf("old: int13 = %08x  int15 = %08x\n",
 	 rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
@@ -523,6 +568,25 @@ uint32_t setup(void)
 
   printf("new: int13 = %08x  int15 = %08x\n",
 	 rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
+
+  /* Update various BIOS magic data areas (gotta love this shit) */
+
+  if ( geometry->driveno & 0x80 ) {
+    /* Update BIOS hard disk count */
+    wrz_8(BIOS_HD_COUNT, rdz_8(BIOS_HD_COUNT)+1);
+  } else {
+    /* Update BIOS floppy disk count */
+    uint16_t equip = rdz_16(BIOS_EQUIP);
+    if ( equip & 1 ) {
+      if ( (equip & (3 << 6)) != (3 << 6) ) {
+	equip += (1 << 6);
+      }
+    } else {
+      equip |= 1;
+      equip &= ~(3 << 6);
+    }
+    wrz_16(BIOS_EQUIP, equip);
+  }
 
   /* Reboot into the new "disk" */
   asm volatile("pushw %%es ; "
