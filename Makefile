@@ -16,6 +16,12 @@
 #
 
 NASM	= nasm
+CC	= gcc
+CFLAGS	= -Wall -O2 -fomit-frame-pointer
+LDFLAGS	= -O2 -s
+
+.c.o:
+	$(CC) $(CFLAGS) -c $<
 
 all:	bootsect.bin ldlinux.sys syslinux.com syslinux
 
@@ -34,15 +40,17 @@ syslinux.com: syslinux.asm bootsect.bin ldlinux.sys
 	$(NASM) -f bin -l syslinux.lst -o syslinux.com syslinux.asm
 	ls -l syslinux.com
 
-syslinux: syslinux.pl.in bootsect.bin ldlinux.sys
-	@if [ ! -x `which perl` ]; then \
-		echo 'ERROR: cannot find perl'; exit 1 ; fi
-	echo '#!' `which perl` > syslinux
-	cat syslinux.pl.in bootsect.bin ldlinux.sys >> syslinux
-	chmod a+x syslinux
+bootsect_bin.c: bootsect.bin bin2c.pl
+	perl bin2c.pl bootsect < bootsect.bin > bootsect_bin.c
+
+ldlinux_bin.c: ldlinux.sys bin2c.pl
+	perl bin2c.pl ldlinux < ldlinux.sys > ldlinux_bin.c
+
+syslinux: syslinux.o bootsect_bin.o ldlinux_bin.o
+	$(CC) $(LDFLAGS) -o syslinux syslinux.o bootsect_bin.o ldlinux_bin.o
 
 clean:
-	rm -f *.bin *.lst *.sys
+	rm -f *.bin *.lst *.sys *_bin.c syslinux syslinux.com
 
 distclean: clean
 	rm -f *~ \#*
