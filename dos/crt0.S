@@ -17,45 +17,21 @@ _start:
 	rep ; stosl
 
 	# Compute argc and argv
-	movzbw 0x80,%cx
-	movl $0x81,%esi
-	movw $argv,%di
-
-	xorl %eax,%eax		# Dummy argv[0]
-	stosl
-
-1:
-	# Skip any space or control character
-	jcxz 2f
-	lodsb
-	decw %cx
-	cmp $0x20,%al
-	ja 3f
-5:
-	movb $0,-1(%si)
-	jmp 1b
-
-3:
-	movl %esi,%eax
-	stosl
-4:
-	# Skip this word
-	jcxz 2f
-	lodsb
-	decw %cx
-	cmp $0x20,%al
-	ja 4b
-	jmp 5b
-2:
-	xorl %eax,%eax		# Final null argv entry
-	stosl	
+	xorl %edx,%edx
+	movzbw 80,%bx
+	movb %dl,81(%bx)	# Zero-terminate string
+	movb $81,%dl
+	pushl %eax		# Make space for argv
+	movl %esp,%eax
+	calll __parse_argv
+	pushl %eax		# argc
 
 	# Initialize malloc
 	calll __init_memory_arena
 
 	# Now call main...
-	movl $argv,%edx		# argv
-	xorl %eax,%eax		# dummy argc (we dont use it)
+	popl %eax		# argc
+	popl %edx		# argv
 	calll main
 
 	# Here %eax is the exit code, fall through into exit

@@ -29,13 +29,14 @@ static inline size_t sp(void)
   return sp;
 }
 
+extern void *__mem_end;
+
 void __init_memory_arena(void)
 {
-  extern char _end[];		/* Symbol created by the linker */
   struct free_arena_header *fp;
   size_t start, total_space;
 
-  start = (size_t)ARENA_ALIGN_UP(_end);
+  start = (size_t)ARENA_ALIGN_UP(__mem_end);
   total_space = sp() - start;
 
   fp = (struct free_arena_header *)start;
