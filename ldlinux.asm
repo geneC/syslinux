@@ -2341,7 +2341,7 @@ bcopy:		push eax
 ;
 ; We typically toggle A20 twice for every 64K transferred.
 ; 
-%define	io_delay  times 4 out 0EDh,al	; Invalid port (we hope)
+%define	io_delay  times 4 in al,080h	; Invalid port (we hope)
 %define delaytime 1024			; 4 x ISA bus cycles (@ 1.5 µs)
 
 

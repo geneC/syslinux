@@ -1,3 +1,7 @@
+Changes in 1.43:
+	* Add sys2ansi.pl script to display the contents of a
+	  colorized SYSLINUX file.
+
 Changes in 1.42:
 	* Frob the "fast A20 gate" port as well as the keyboard
 	  controller; will this help systems with problems?
