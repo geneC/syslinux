@@ -282,7 +282,8 @@ int main(int argc, char *argv[])
 	   !hasmntopt(mnt, "ro") &&
 	   mnt->mnt_dir[0] == '/' &&
 	   !!hasmntopt(mnt, "loop") == !!S_ISREG(st.st_mode) &&
-	   atol(hasmntopt(mnt, "offset")) == offset) {
+	   ( (!hasmntopt(mnt,"offset") && offset == 0) ||
+	     (atol(hasmntopt(mnt, "offset")) == offset) ) ) {
 	/* Okay, this is an fstab entry we should be able to live with. */
 
 	mntpath = mnt->mnt_dir;
