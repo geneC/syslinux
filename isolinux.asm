@@ -953,16 +953,16 @@ mkkeymap:	stosb
 		inc al
 		loop mkkeymap
 
-;;
-;; ISOLINUX:: NEED TO LOCATE AND OPEN THE CONFIGURATION FILE HERE
-;;
-
-		jmp no_config_file		; If not found
+;
+; Locate the configuration file
+;
+		mov di,isolinux_cfg
+		call open
+		jz near no_config_file		; Not found or empty
 
 ;
 ; Now we have the config file open
 ;
-.success:	add sp,byte 16			; Adjust stack
 parse_config:
 		call getkeyword
                 jc near end_config_file		; Config file loaded
@@ -3944,20 +3944,7 @@ err_bootsec	db 'Invalid or corrupt boot sector image.', CR, LF, 0
 err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: press a key to retry, or wait for reset...', CR, LF, 0
 bailmsg		equ err_bootfailed
-err_nopxe	db "No !PXE or PXENV+ API found; we're dead...", CR, LF, 0
-err_pxefailed	db 'PXE API call failed, error ', 0
-err_udpinit	db 'Failed to initialize UDP stack', CR, LF, 0
-err_oldtftp	db 'TFTP server does not support the tsize option', CR, LF, 0
-found_pxenv	db 'Found PXENV+ structure', CR, LF, 0
-using_pxenv_msg db 'Old PXE API detected, using PXENV+ structure', CR, LF, 0
-apiver_str	db 'PXE API version is ',0
-pxeentry_msg	db 'PXE entry point found (we hope) at ', 0
-pxenventry_msg	db 'PXENV entry point found (we hope) at ', 0
-trymempxe_msg	db 'Scanning memory for !PXE structure... ', 0
-trymempxenv_msg	db 'Scanning memory for PXENV+ structure... ', 0
 notfound_msg	db 'not found', CR, LF, 0
-myipaddr_msg	db 'My IP address seems to be ',0
-tftpprefix_msg	db 'TFTP prefix: ', 0
 localboot_msg	db 'Booting from local disk...', CR, LF, 0
 cmdline_msg	db 'Command line: ', CR, LF, 0
 ready_msg	db ' ready.', CR, LF, 0
@@ -3971,8 +3958,7 @@ crlf_msg	db CR, LF, 0
 crff_msg	db CR, FF, 0
 default_str	db 'default', 0
 default_len	equ ($-default_str)
-cfgprefix	db 'pxelinux.cfg/'		; No final null!
-cfgprefix_len	equ ($-cfgprefix)
+isolinux_cfg	db 'isolinux.cfg', 0
 
 ;
 ; Command line options we'd like to take a look at
