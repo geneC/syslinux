@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 1998 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1998-1999 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -119,6 +119,7 @@ int main(int argc, char *argv[])
   char *mntpath = NULL, mntname[64];
   char *ldlinux_name, **argp, *opt;
   int my_umask;
+  int force = 0;		/* -f (force) option */
 
   program = argv[0];
   
@@ -133,6 +134,8 @@ int main(int argc, char *argv[])
       while ( *opt ) {
 	if ( *opt == 's' ) {
 	  make_stupid();	/* Use "safe, slow and stupid" code */
+	} else if ( *opt == 'f' ) {
+	  force = 1;
 	} else {
 	  usage();
 	}
@@ -159,7 +162,7 @@ int main(int argc, char *argv[])
   }
 
   if ( !S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode) ) {
-    fprintf(stderr, "%s: not a block device or regular file\n", device);
+    fprintf(stderr, "%s: not a block device or regular file (use -f to override)\n", device);
     exit(1);
   }
 
