@@ -90,7 +90,13 @@ pc_localboot:	call getint
 		xor ax,ax
 		mov cx,FILENAME_MAX
 		rep stosb			; Null kernel name
+%if IS_PXELINUX
+		; PXELINUX uses the first 4 bytes of vk_rname for the
+		; mangled IP address
+		mov [VKernelBuf+vk_rname+5], bx	; Return type
+%else
 		mov [VKernelBuf+vk_rname+1], bx	; Return type
+%endif
 .err:		ret
 %endif
 

@@ -26,6 +26,12 @@ Changes in 3.00:
 	  key to display the prompt" behaviour.
 	* New simple menu system, as an alternative to the advanced
 	  menu system already present.  See README.menu for details.
+	* PXELINUX: Filenames can now be prefixed with an IP address
+	  plus :: (e.g. 192.0.2.1::filename), which downloads a file
+	  from an alternate TFTP server, or just a ::
+	  (e.g. ::filename), which suppresses the common pathname
+	  prefix.  See pxelinux.doc.
+
 
 Changes in 2.13:
 	* MEMDISK: Fix command-line parsing "brown paper bag" class

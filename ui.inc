@@ -278,7 +278,11 @@ vk_check:
 
 %if IS_PXELINUX || IS_ISOLINUX
 		; Is this a "localboot" pseudo-kernel?
+%if IS_PXELINUX
+		cmp byte [VKernelBuf+vk_rname+4], 0
+%else
 		cmp byte [VKernelBuf+vk_rname], 0
+%endif
 		jne get_kernel		; No, it's real, go get it
 
 		mov ax, [VKernelBuf+vk_rname+1]
@@ -315,7 +319,7 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
 		mov eax,[KernelName+8]		; Save initial extension
 		mov [exten_table_end],eax	; Last case == initial ext.
 %else
-		mov di,KernelName
+		mov di,KernelName+4*IS_PXELINUX
 		xor al,al
 		mov cx,FILENAME_MAX-5		; Need 4 chars + null
 		repne scasb			; Scan for final null
@@ -429,7 +433,7 @@ kernel_good:
 %else
 		push di
 		push ax
-		mov di,KernelName
+		mov di,KernelName+4*IS_PXELINUX
 		xor al,al
 		mov cx,FILENAME_MAX
 		repne scasb

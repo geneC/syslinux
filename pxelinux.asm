@@ -189,7 +189,8 @@ RBFB_brainfuck	resb 800h
 
 		alignb FILENAME_MAX
 BootFile	resb 256		; Boot file from DHCP packet
-ConfigName	resb 256		; Configuration file from DHCP option
+ConfigServer	resd 1			; Null prefix for mangled config name
+ConfigName	resb 256-4		; Configuration file from DHCP option
 PathPrefix	resb 256		; Path prefix derived from boot file
 DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
 IPOption	resb 80			; ip= option buffer
@@ -720,16 +721,21 @@ find_config:
 ; Begin looking for configuration file
 ;
 config_scan:
+		mov di,ConfigServer
+		xor eax,eax
+		stosd				; The config file is always from the server
+
 		test byte [DHCPMagic], 02h
 		jz .no_option
 
 		; We got a DHCP option, try it first
 		mov si,trying_msg
 		call writestr
-		mov di,ConfigName
+		; mov di,ConfigName		; - already the case
 		mov si,di
 		call writestr
 		call crlf
+		mov di,ConfigServer
 		call open
 		jnz .success
 
@@ -751,6 +757,7 @@ config_scan:
 		mov si,di
 		call writestr
 		call crlf
+		mov di,ConfigServer
 		call open
 		pop di
 		jnz .success
@@ -790,6 +797,7 @@ config_scan:
 		mov si,di
 		call writestr
 		call crlf
+		mov di,ConfigServer
 		call open
 		popa
 		jnz .success
@@ -1071,7 +1079,7 @@ memory_scan_for_pxenv_struct:
 ;	Open a TFTP connection to the server 
 ;
 ;	     On entry:
-;		DS:DI	= filename
+;		DS:DI	= mangled filename
 ;	     If successful:
 ;		ZF clear
 ;		SI	= socket pointer
@@ -1096,28 +1104,46 @@ searchdir:
 	
 .sendreq:	push ax			; [bp-2]  - Retry counter
 		push si			; [bp-4]  - File name 
-		push bx			; [bp-6]  - TFTP block
-		mov bx,[bx]
-		push bx			; [bp-8]  - TID (local port no)
 
-		mov eax,[ServerIP]	; Server IP
-		mov [pxe_udp_write_pkt.status],byte 0
-		mov [pxe_udp_write_pkt.sip],eax
-		mov eax,[UseGW]
-		mov [pxe_udp_write_pkt.gip],eax
-		mov [pxe_udp_write_pkt.lport],bx
-		mov ax,[ServerPort]
-		mov [pxe_udp_write_pkt.rport],ax
 		mov di,packet_buf
 		mov [pxe_udp_write_pkt.buffer],di
+
 		mov ax,TFTP_RRQ		; TFTP opcode
 		stosw
+
+		lodsd			; EAX <- server override (if any)
+		and eax,eax
+		jnz .noprefix		; No prefix, and we have the server
+
 		push si			; Add common prefix
 		mov si,PathPrefix
 		call strcpy
 		dec di
 		pop si
+
+		mov eax,[ServerIP]	; Get default server
+
+.noprefix:
 		call strcpy		; Filename
+
+		mov [bx+tftp_remoteip],eax
+
+		push bx			; [bp-6]  - TFTP block
+		mov bx,[bx]
+		push bx			; [bp-8]  - TID (local port no)
+
+		mov [pxe_udp_write_pkt.status],byte 0
+		mov [pxe_udp_write_pkt.sip],eax
+		; Now figure out the gateway
+		xor eax,[MyIP]
+		and eax,[Netmask]
+		jz .nogwneeded
+		mov eax,[Gateway]
+.nogwneeded:
+		mov [pxe_udp_write_pkt.gip],eax
+		mov [pxe_udp_write_pkt.lport],bx
+		mov ax,[ServerPort]
+		mov [pxe_udp_write_pkt.rport],ax
 		mov si,tftp_tail
 		mov cx,tftp_tail_len
 		rep movsb
@@ -1170,10 +1196,9 @@ searchdir:
 		mov si,[bp-6]			; TFTP pointer
 		mov bx,[bp-8]			; TID
 
-		mov eax,[ServerIP]
+		mov eax,[si+tftp_remoteip]
 		cmp [pxe_udp_read_pkt.sip],eax	; This is technically not to the TFTP spec?
 		jne .no_packet
-		mov [si+tftp_remoteip],eax
 
 		; Got packet - reset timeout
 		mov word [PktTimeout],PKT_TIMEOUT
@@ -1382,6 +1407,50 @@ free_socket:
 		ret
 
 ;
+; parse_dotquad:
+;	       Read a dot-quad pathname in DS:SI and output an IP
+;	       address in EAX, with SI pointing to the first
+;	       nonmatching character.
+;
+;	       Return CF=1 on error.
+;
+parse_dotquad:
+		push cx
+		mov cx,4
+		xor eax,eax
+.parseloop:
+		mov ch,ah
+		mov ah,al
+		lodsb
+		sub al,'0'
+		jb .notnumeric
+		cmp al,9
+		ja .notnumeric
+		aad				; AL += 10 * AH; AH = 0;
+		xchg ah,ch
+		jmp .parseloop
+.notnumeric:
+		cmp al,'.'-'0'
+		pushf
+		mov al,ah
+		mov ah,ch
+		xor ch,ch
+		ror eax,8
+		popf
+		jne .error
+		loop .parseloop
+		jmp .done
+.error:
+		loop .realerror			; If CX := 1 then we're done
+		clc
+		jmp .done
+.realerror:
+		stc
+.done:
+		dec si				; CF unchanged!
+		pop cx
+		ret
+;
 ; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
 ;	       to by ES:DI; ends on encountering any whitespace.
 ;
@@ -1389,8 +1458,32 @@ free_socket:
 ;	       and doesn't contain whitespace, and zero-pads the output buffer,
 ;	       so "repe cmpsb" can do a compare.
 ;
+;	       The first four bytes of the manged name is the IP address of
+;	       the download host.
+;
 mangle_name:
-		mov cx,FILENAME_MAX-1
+		push si
+		mov eax,[ServerIP]
+		cmp word [si],'::'		; Leading ::?
+		je .gotprefix
+		call parse_dotquad
+		jc .noip
+		cmp word [si],'::'
+		je .gotprefix
+.noip:
+		pop si
+		xor eax,eax
+		jmp .prefix_done
+
+.gotprefix:
+		pop cx				; Adjust stack
+		inc si				; Skip double colon
+		inc si
+
+.prefix_done:
+		stosd				; Save IP address prefix
+		mov cx,FILENAME_MAX-5
+
 .mn_loop:
 		lodsb
 		cmp al,' '			; If control or space, end
@@ -1416,8 +1509,18 @@ mangle_name:
 ;                On return, DI points to the first byte after the output name,
 ;                which is set to a null byte.
 ;
-unmangle_name:	call strcpy
+unmangle_name:
+		push eax
+		lodsd
+		and eax,eax
+		jz .noip
+		call gendotquad
+		mov ax,'::'
+		stosw
+.noip:
+		call strcpy
 		dec di				; Point to final null byte
+		pop eax
 		ret
 
 ;
@@ -1848,10 +1951,9 @@ reset_pxe:
 ; output a dotted quad string to ES:DI.
 ; DI points to terminal null at end of string on exit.
 ;
-; CX is destroyed.
-;
 gendotquad:
 		push eax
+		push cx
 		mov cx,4
 .genchar:
 		push eax
@@ -1884,6 +1986,7 @@ gendotquad:
 		loop .genchar
 		dec di
 		mov [es:di], byte 0
+		pop cx
 		pop eax
 		ret
 
@@ -1900,7 +2003,6 @@ gendotquad:
 ; ServerIP	- boot server IP address
 ; Netmask	- network mask
 ; Gateway	- default gateway router IP
-; UseGW		- zero if ServerIP local, otherwise Gateway
 ; BootFile	- boot file name
 ;
 ; This assumes the DHCP packet is in "trackbuf" and the length
@@ -1952,14 +2054,6 @@ parse_dhcp:
 		mov cx,64
 		call parse_dhcp_options
 .nosnameoverload:
-		; Now adjust the gateway
-		mov eax,[MyIP]
-		xor eax,[ServerIP]
-		and eax,[Netmask]
-		jz .nogwneeded
-		mov eax,[Gateway]
-.nogwneeded:
-		mov [UseGW],eax
 		ret
 
 ;
@@ -2402,7 +2496,6 @@ MyIP		dd 0			; My IP address
 ServerIP	dd 0			; IP address of boot server
 Netmask		dd 0			; Netmask of this subnet
 Gateway		dd 0			; Default router
-UseGW		dd 0			; Router to use to get to ServerIP
 ServerPort	dw TFTP_PORT		; TFTP server port
 
 ;

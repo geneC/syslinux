@@ -308,6 +308,26 @@ If you used this from a client whose Ethernet address was
 "/tftpboot/pxelinux.cfg/1:58:fa:84:cf:55:e".
 
 
+    ++++ ALTERNATE TFTP SERVERS ++++
+
+PXELINUX supports the following special pathname conventions:
+
+::filename
+
+	Suppresses the common filename prefix, i.e. passes the string
+	"filename" unmodified to the server.
+
+IP address::filename		(e.g. 192.0.2.1::filename)
+
+	Suppresses the common filename prefix, *and* sends a request
+	to an alternate TFTP server.
+
+:: was chosen because it is unlikely to conflict with operating system
+usage.  However, if you happen to have an environment for which the
+special treatment of :: is a problem, please contact the SYSLINUX
+mailing list.
+
+
     ++++ SOME NOTES ++++
 
 If the boot fails, PXELINUX (unlike SYSLINUX) will not wait forever;
