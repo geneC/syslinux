@@ -230,7 +230,7 @@ void unzip_if_needed(uint32_t *where_p, uint32_t *size_p)
 {
   uint32_t where = *where_p;
   uint32_t size = *size_p;
-  uint64_t startrange, endrange;
+  uint32_t startrange, endrange;
   uint32_t gzdatasize, gzwhere;
   uint32_t target = 0;
   int i, okmem;
@@ -243,49 +243,62 @@ void unzip_if_needed(uint32_t *where_p, uint32_t *size_p)
        until we find one that is legal and fits */
     okmem = 0;
     for ( i = nranges-1 ; i >= 0 ; i-- ) {
-      /* Don't use > 4G memory */
-      if ( ranges[i].start >= 0x100000000ULL )
+      /* We can't use > 4G memory (32 bits only.)  Truncate to 2^32-1
+	 so we don't have to deal with funny wraparound issues. */
+      
+      /* Must be memory */
+      if ( ranges[i].type != 1 )
 	continue;
-      startrange = ranges[i].start;
 
-      /* Truncate range at 4G if needed */
-      endrange = ((ranges[i+1].start >= 0x100000000ULL ||
-		   ranges[i+1].start == 0ULL)
-		  ? 100000000ULL : ranges[i+1].start);
+      /* Range start */
+      if ( ranges[i].start >= 0xFFFFFFFF )
+	continue;
+      startrange = (uint32_t)ranges[i].start;
+
+      /* Range end (0 for end means 2^64) */
+      endrange = ((ranges[i+1].start >= 0xFFFFFFFF ||
+		   ranges[i+1].start == 0)
+		  ? 0xFFFFFFFF : (uint32_t)ranges[i+1].start);
 
       /* Make sure we don't overwrite ourselves */
       if ( startrange < (uint32_t)&_end )
-	startrange = (uint64_t)&_end;
+	startrange = (uint32_t)&_end;
 
       /* Allow for alignment */
       startrange = (ranges[i].start + (UNZIP_ALIGN-1)) & ~(UNZIP_ALIGN-1);
 
+      /* In case we just killed the whole range... */
+      if ( startrange >= endrange )
+	continue;
+
+      /* Must be large enough... don't rely on gzwhere for this (wraparound) */
+      if ( endrange-startrange < gzdatasize )
+	continue;
+
       /* This is where the gz image should be put if we put it in this range */
       gzwhere = (endrange - gzdatasize) & ~(UNZIP_ALIGN-1);
 
-      /* Must be memory and large enough */
-      if ( ranges[i].type == 1 && gzwhere >= startrange ) {
-        if ( where+size >= gzwhere && where < endrange ) {
-	  /* Need to move source data to avoid compressed/uncompressed overlap */
-	  uint32_t newwhere;
-
-	  if ( gzwhere-startrange < size )
-	    continue;		/* Can't fit both old and new */
-
-	  newwhere = (gzwhere - size) & ~(UNZIP_ALIGN-1);
-	  printf("Moving compressed data from 0x%08x to 0x%08x\n",
-		 where, newwhere);
-
-	  /* Our memcpy() is OK, because we always move from a higher
-	     address to a lower one */
-	  memcpy((void *)newwhere, (void *)where, size);
-	  where = newwhere;
-	}
-
-	target = gzwhere;
-	okmem = 1;
-	break;
+      /* Cast to uint64_t just in case we're flush with the top byte */
+      if ( (uint64_t)where+size >= gzwhere && where < endrange ) {
+	/* Need to move source data to avoid compressed/uncompressed overlap */
+	uint32_t newwhere;
+	
+	if ( gzwhere-startrange < size )
+	  continue;		/* Can't fit both old and new */
+	
+	newwhere = (gzwhere - size) & ~(UNZIP_ALIGN-1);
+	printf("Moving compressed data from 0x%08x to 0x%08x\n",
+	       where, newwhere);
+	
+	/* Our memcpy() is OK, because we always move from a higher
+	   address to a lower one */
+	memcpy((void *)newwhere, (void *)where, size);
+	where = newwhere;
       }
+
+      target = gzwhere;
+      okmem = 1;
+      break;
     }
 
     if ( !okmem ) {
