@@ -472,7 +472,7 @@ comapi_pxecall	equ comapi_err			; Not available
 ;
 comapi_derinfo:
 		mov P_AL,my_id
-%if IS_SYSLINUX || IS_MDSLINUX
+%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
 		mov al,[DriveNumber]
 		mov P_DL,al
 		mov P_ES,cs

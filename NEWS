@@ -2,6 +2,9 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 3.03:
+	* EXTLINUX: Fix API function 000Ah (get derivative-specific info).
+
 Changes in 3.02:
 	* SYSLINUX: The "unix" installer now sets the MS-DOS
 	  attributes (hidden, system, readonly.)

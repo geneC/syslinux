@@ -354,11 +354,13 @@ AX=0009h [2.00] Call PXE Stack [PXELINUX ONLY]
 
 AX=000Ah [2.00]	Get Derivative-Specific Information
 
-	[SYSLINUX]
+	[SYSLINUX, EXTLINUX]
 	Input:	AX	000Ah
-	Output:	AL	31h (SYSLINUX)
+	Output:	AL	31h (SYSLINUX), 34h (EXTLINUX)
 		DL	drive number
 		ES:BX	pointer to partition table entry (if DL >= 80h)
+
+		Note: This function was broken in EXTLINUX 3.00-3.02.
 
 
 	[PXELINUX]
