@@ -2829,14 +2829,13 @@ searchdir_iso:
 		cmp cl,'/'
 		jne .scan
 		mov [di-1],byte 0		; Terminate at directory name
-		xchg ax,di
 		mov cl,02h			; Search for directory
 		xchg cl,[ISOFlags]
-		push ax
+		push di
 		push cx
 		push word .resume		; Where to "return" to
 		push es
-.isfile:
+.isfile:	xchg ax,di
 
 .getsome:
 		; Get a chunk of the directory
