@@ -473,6 +473,9 @@ uint32_t setup(void)
   dosmem_k = rdz_16(BIOS_BASEMEM);
   pptr->olddosmem = dosmem_k;
   stddosmem = dosmem_k << 10;
+  /* If INT 15 E820 and INT 12 disagree, go with the most conservative */
+  if ( stddosmem > dos_mem )
+    stddosmem = dos_mem;
 
   pptr->driveno   = geometry->driveno;
   pptr->drivetype = geometry->type;

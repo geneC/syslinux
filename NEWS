@@ -14,6 +14,9 @@ Changes in 1.65:
 	  See memdisk/memdisk.doc for more info.
 	* PXELINUX, ISOLINUX: Correctly handle files larger than 65535
 	  blocks (32 MB for PXELINUX, 128 MB for ISOLINUX.)
+	* PXELINUX: Make a best-effort attempt at freeing all memory
+	  claimed.  From the looks of it, it will fail on most PXE
+	  stacks.
 
 Changes in 1.64:
 	* Limited support for hardware flow control when using a

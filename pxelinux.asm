@@ -376,6 +376,7 @@ PktTimeout	resw 1			; Timeout for current packet
 KernelExtPtr	resw 1			; During search, final null pointer
 IPOptionLen	resw 1			; Length of IPOption
 LocalBootType	resw 1			; Local boot return code
+RealBaseMem	resw 1			; Amount of DOS memory after freeing
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -476,7 +477,7 @@ _start1:
 
 		; Nothing there either.  Last-ditch: scan memory
 		call memory_scan_for_pxe_struct		; !PXE scan
-		jnc have_pxe
+		jnc near have_pxe
 		call memory_scan_for_pxenv_struct	; PXENV+ scan
 		jnc have_pxenv
 
@@ -500,12 +501,12 @@ have_pxenv:
 		mov ax,es
 		les bx,[es:bx+28h]		; !PXE structure pointer
 		cmp dword [es:bx],'!PXE'
-		je have_pxe
+		je near have_pxe
 
 		; Nope, !PXE structure missing despite API 2.1+, or at least
 		; the pointer is missing.  Do a last-ditch attempt to find it.
 		call memory_scan_for_pxe_struct
-		jnc have_pxe
+		jnc near have_pxe
 
 		; Otherwise, no dice, use PXENV+ structure
 		mov bx,si
@@ -518,6 +519,43 @@ old_api:	; Need to use a PXENV+ structure
 		mov eax,[es:bx+0Ah]		; PXE RM API
 		mov [PXENVEntry],eax
 
+		mov si,undi_data_msg		; ***
+		call writestr
+		mov ax,[es:bx+20h]
+		call writehex4
+		call crlf
+		mov si,undi_data_len_msg
+		call writestr
+		mov ax,[es:bx+22h]
+		call writehex4
+		call crlf
+		mov si,undi_code_msg
+		call writestr
+		mov ax,[es:bx+24h]
+		call writehex4
+		call crlf
+		mov si,undi_code_len_msg
+		call writestr
+		mov ax,[es:bx+26h]
+		call writehex4
+		call crlf
+
+		; Compute base memory size from PXENV+ structure
+		xor esi,esi
+		movzx eax,word [es:bx+20h]	; UNDI data seg
+		cmp ax,[es:bx+24h]		; UNDI code seg
+		ja .use_data
+		mov ax,[es:bx+24h]
+		mov si,[es:bx+26h]
+		jmp short .combine
+.use_data:
+		mov si,[es:bx+22h]
+.combine:
+		shl eax,4
+		add eax,esi
+		shr eax,10			; Convert to kilobytes
+		mov [RealBaseMem],ax
+
 		mov si,pxenventry_msg
 		call writestr
 		mov ax,[PXENVEntry+2]
@@ -527,11 +565,47 @@ old_api:	; Need to use a PXENV+ structure
 		mov ax,[PXENVEntry]
 		call writehex4
 		call crlf
-		jmp short have_entrypoint
+		jmp near have_entrypoint
 
 have_pxe:
 		mov eax,[es:bx+10h]
 		mov [PXEEntry],eax
+
+		mov si,undi_data_msg		; ***
+		call writestr
+		mov eax,[es:bx+2Ah]
+		call writehex8
+		call crlf
+		mov si,undi_data_len_msg
+		call writestr
+		mov ax,[es:bx+2Eh]
+		call writehex4
+		call crlf
+		mov si,undi_code_msg
+		call writestr
+		mov ax,[es:bx+32h]
+		call writehex8
+		call crlf
+		mov si,undi_code_len_msg
+		call writestr
+		mov ax,[es:bx+36h]
+		call writehex4
+		call crlf
+
+		; Compute base memory size from !PXE structure
+		xor esi,esi
+		mov eax,[es:bx+2Ah]
+		cmp eax,[es:bx+32h]
+		ja .use_data
+		mov eax,[es:bx+32h]
+		mov si,[es:bx+36h]
+		jmp short .combine
+.use_data:
+		mov si,[es:bx+2Eh]
+.combine:
+		add eax,esi
+		shr eax,10
+		mov [RealBaseMem],ax
 
 		mov si,pxeentry_msg
 		call writestr
@@ -4161,7 +4235,8 @@ ack_packet:
 ;
 ; unload_pxe:
 ;
-; This function unloads the PXE and UNDI stacks.
+; This function unloads the PXE and UNDI stacks and unclaims
+; the memory.
 ;
 unload_pxe:
 		mov di,pxe_udp_close_pkt
@@ -4173,7 +4248,32 @@ unload_pxe:
 		mov di,pxe_unload_stack_pkt
 		mov bx,PXENV_UNLOAD_STACK
 		call far [PXENVEntry]
+		jc .cant_free
+		cmp word [pxe_unload_stack_pkt.status],byte PXENV_STATUS_SUCCESS
+		jne .cant_free
+
+		mov ax,[RealBaseMem]
+		cmp ax,[BIOS_fbm]		; Sanity check
+		jna .cant_free
+
+		; Check that PXE actually unhooked the INT 1Ah chain
+		movzx ebx,word [4*0x1a]
+		movzx ecx,word [4*0x1a+2]
+		shl ecx,4
+		add ebx,ecx
+		shr ebx,10
+		cmp bx,ax			; Not in range
+		jae .ok
+		cmp bx,[BIOS_fbm]
+		jae .cant_free		
+
+.ok:
+		mov [BIOS_fbm],ax
 		ret
+		
+.cant_free:
+		mov si,cant_free_msg
+		jmp writestr
 
 ;
 ; gendotquad
@@ -4786,6 +4886,11 @@ pxeentry_msg	db 'PXE entry point found (we hope) at ', 0
 pxenventry_msg	db 'PXENV entry point found (we hope) at ', 0
 trymempxe_msg	db 'Scanning memory for !PXE structure... ', 0
 trymempxenv_msg	db 'Scanning memory for PXENV+ structure... ', 0
+undi_data_msg	  db 'UNDI data segment at:   ',0
+undi_data_len_msg db 'UNDI data segment size: ',0 
+undi_code_msg	  db 'UNDI code segment at:   ',0
+undi_code_len_msg db 'UNDI code segment size: ',0 
+cant_free_msg	db 'Failed to free base memory, sorry...', CR, LF, 0
 notfound_msg	db 'not found', CR, LF, 0
 myipaddr_msg	db 'My IP address seems to be ',0
 tftpprefix_msg	db 'TFTP prefix: ', 0
