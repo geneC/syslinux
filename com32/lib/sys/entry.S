@@ -57,6 +57,13 @@ _start:
 		movl (%esi),%ecx
 1:		rep ; movsl
 
+		# Parse the command line (assumes REGPARM)
+		movl $__com32+4,%edx		# Command line
+		pushl %edx			# Make space for argv
+		movl %esp,%eax
+		call __parse_argv
+		pushl %eax			# Save argc
+
 		# Look for library initialization functions
 		movl $__ctors_start, %esi
 2:
@@ -65,13 +72,13 @@ _start:
 		call *(%esi)
 		addl $4,%esi
 		jmp 2b
-
 #
-# Run program.  Note that we dont actually pass argc, argv to main...
+# Actually run main.  This assumes REGPARM is used!!!!
 #
 3:
+		popl %eax			# argc
+		popl %edx			# argv
 		call main
-		pushl %eax
 		call *(__exit_handler)
 		hlt
 		.size _start, .-_start
