@@ -10,12 +10,6 @@
  *
  * ----------------------------------------------------------------------- */
 
-/* This program can be compiled for DOS with the OpenWatcom compiler
- * (http://www.openwatcom.org/):
- *
- * wcl -3 -osx -mt <filename>.c
- */
-
 #ifndef __MENU_H__
 #define __MENU_H__
 
@@ -41,7 +35,7 @@
 #define NORMALATTR   0x70
 #define REVERSEATTR  0x87
 #define INACTATTR    0x74
-#define REVINACTATTR 0x87
+#define REVINACTATTR 0x1F
 #define STATUSATTR   0xF0
 #define FILLCHAR     178
 #define FILLATTR     0x07
@@ -50,7 +44,7 @@
 
 #define TFILLCHAR ' '
 #define TITLEATTR 0x70
-#define TITLESTR  "COMBOOT Menu System for SYSLINUX developed by Murali Krishnan Ganapathy$" // Must be $ terminated
+#define TITLESTR  "COMBOOT Menu System for SYSLINUX developed by Murali Krishnan Ganapathy"
 
 // Single line Box drawing Chars
 
@@ -172,5 +166,8 @@ int add_menu(const char *title);
 
 // Add item to the "current" menu
 t_menuitem * add_item(const char *item, const char *status, t_action action, const char *data, char itemdata); 
+
+// Main function for the user's config file
+int menumain(void);
 
 #endif

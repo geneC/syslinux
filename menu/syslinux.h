@@ -2,10 +2,12 @@
 #ifndef _SYSLINUX_H_
 #define _SYSLINUX_H_
 
-char issyslinux(); // Check if syslinux is running
+extern int syslinux;		/* Syslinux flag */
 
-void runcommand(char *cmd); // Run specified command
+char issyslinux(void);		/* Check if syslinux is running */
 
-void gototxtmode(); // Change mode to text mode
+void runcommand(const char *cmd); /* Run specified command */
+
+void gototxtmode(void);		/* Change mode to text mode */
 
 #endif

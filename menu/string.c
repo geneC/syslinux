@@ -44,15 +44,6 @@ char *strcat(char *dst, const char * src)
   return r;
 }
 
-void dstrcpy(char *dst, const char *src) // DOS strcpy: Make it $ terminated and null terminated
-{
-  while ( *src )
-    *dst++ = *src++;
-
-  *dst++ = '$';
-  *dst = '\0';
-}
-
 int strcmp(const char *a, const char*b)
 {
     while (*a)

@@ -24,22 +24,22 @@ static inline int asm_issyslinux(void)
     (ecx == 0x494e0000) && (edx == 0x55580000);
 }
 
-char issyslinux()
+char issyslinux(void)
 {
    return asm_issyslinux();
 }
 
-static inline void asm_runcommand(char *cmd)
+static inline void asm_runcommand(const char *cmd)
 {
   asm volatile("int $0x22" : : "a" (0x0003), "b" (cmd));
 }
 
-void runcommand(char *cmd)
+void runcommand(const char *cmd)
 {
    asm_runcommand(cmd); 
 }
 
-static inline void asm_gototxtmode()
+static inline void asm_gototxtmode(void)
 {
   asm volatile("int $0x22" : : "a" (0x0005));
 }

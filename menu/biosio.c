@@ -13,34 +13,9 @@
 #include "string.h"
 #include "biosio.h"
 
-static inline void asm_putchar(char x)
-{
-  asm volatile("int $0x21" : : "a" (x + 0x0200));
-}
-
-static inline void asm_sprint(const char *str)
-{
-  asm volatile("movb $0x09,%%ah ; int $0x21" : : "d" (str) : "eax");
-}
- 
 /* BIOS Assisted output routines */
-void csprint(char *str) // Print a C str (NULL terminated)
-{
-    int o,l;
 
-    o = (long)(str) & 0xffff; // Offset of location
-    l = strlen(str);
-    str[l] = '$'; // Replace \0 with $
-    asm_sprint(str);
-    str[l] = '\0'; // Change it back.
-}
-
-void sprint(const char *str)
-{
-    asm_sprint(str);
-}
-
-
+/* Print character and attribute at cursor */
 static inline void asm_cprint(char chr, char attr, int times, char disppage)
 {
   asm volatile("movb $0x09,%%ah ; int $0x10"
@@ -66,9 +41,11 @@ void setdisppage(char num) // Set the display page to specified number
 
 static inline char asm_getdisppage(void)
 {
-  register char page asm("%bh");
+  char page;
 
-  asm("movb $0x0f,%%ah ; int $0x10" : "=r" (page) : : "eax");
+  asm("movb $0x0f,%%ah ; "
+      "int $0x10 ; "
+      "movb %%bh,%0" : "=rm" (page) : : "eax", "ebp");
   return page;
 }
 
@@ -77,7 +54,26 @@ char getdisppage() // Get current display page
     return asm_getdisppage();
 }
 
-void clearwindow(char top,char left,char bot,char right, char page,char fillchar, char fillattr)
+static inline void asm_putchar(char x, char page)
+{
+    asm volatile("movb %1,%%bh ; movb $0x0e,%%ah ; int $0x10"
+		 : "+a" (x)
+		 : "g" (page)
+		 : "ebx", "ebp");
+}
+
+/* Print a C string (NUL-terminated) */
+void csprint(const char *str)
+{
+    char page = asm_getdisppage();
+
+    while ( *str ) {
+	asm_putchar(*str, page);
+	str++;
+    }
+}
+
+void clearwindow(char top, char left, char bot, char right, char page, char fillchar, char fillattr)
 {
     char x;
     for (x=top; x < bot+1; x++)
@@ -94,10 +90,11 @@ void cls(void)
 
 static inline void asm_gotoxy(char row,char col, char page)
 {
-  asm volatile("movb $0x02,%%ah ; "
+  asm volatile("movb %1,%%bh ; "
+	       "movb $0x02,%%ah ; "
 	       "int $0x10"
-	       : : "d" ((row << 8) + col), "b" (page << 8)
-	       : "eax");
+	       : : "d" ((row << 8) + col), "g" (page)
+	       : "eax", "ebx");
 }
    
 void gotoxy(char row,char col, char page)
@@ -107,13 +104,14 @@ void gotoxy(char row,char col, char page)
 
 static inline void asm_getpos(char *row, char *col, char page)
 {
-  asm("movb $0x03,%%ah ; "
+  asm("movb %2,%%bh ; "
+      "movb $0x03,%%ah ; "
       "int $0x10 ; "
       "movb %%dh,%0 ; "
       "movb %%dl,%1"
       : "=m" (*row), "=m" (*col)
-      : "b" (page << 8)
-      : "eax", "ecx", "edx");
+      : "g" (page)
+      : "eax", "ebx", "ecx", "edx");
 }
    
 void getpos(char * row, char * col, char page)
@@ -140,7 +138,7 @@ char inputc(char * scancode)
     return asm_inputc(scancode);
 }
 
-void asm_cursorshape(char start, char end)
+static inline void asm_cursorshape(char start, char end)
 {
   asm volatile("movb $0x01,%%ah ; int $0x10"
 	       : : "c" ((start << 8) + end) : "eax");
@@ -148,7 +146,7 @@ void asm_cursorshape(char start, char end)
    
 void cursoroff(void)
 {
-    asm_cursorshape(31,31);
+    asm_cursorshape(32,32);
 }
 
 void cursoron(void)
@@ -174,6 +172,7 @@ void getstring(char *str, unsigned int size)
 {
   char c;
   char *p = str;
+  char page = asm_getdisppage();
 
   while ( (c = asm_getchar()) != '\r' ) {
     switch (c) {
@@ -183,19 +182,19 @@ void getstring(char *str, unsigned int size)
     case '\b':
       if ( p > str ) {
 	p--;
-	sprint("\b \b$");
+	csprint("\b \b");
       }
       break;
     case '\x15':		/* Ctrl-U: kill input */
       while ( p > str ) {
 	p--;
-	sprint("\b \b$");
+	csprint("\b \b");
       }
       break;
     default:
       if ( c >= ' ' && (unsigned int)(p-str) < size-1 ) {
 	*p++ = c;
-	asm_putchar(c);
+	asm_putchar(c, page);
       }
       break;
     }

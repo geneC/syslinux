@@ -21,7 +21,6 @@
 
 /* Global variables */
 char infoline[160];
-char syslinux; // Is syslinux running?
 
 struct {
     unsigned int baseurl : 1; // Do we need to specify by url
@@ -59,7 +58,7 @@ void msys_handler(t_menusystem *ms, t_menuitem *mi)
     gotoxy(21,0,ms->menupage);
     cprint(ms->spacechar,ms->statusattr,80,ms->menupage);
     gotoxy(20,0,ms->menupage);
-    sprint("Kernel Arguments:$");
+    csprint("Kernel Arguments:");
     gotoxy(20,17,ms->menupage);
     csprint(infoline);
 }
@@ -111,7 +110,7 @@ void checkbox_handler(t_menusystem *ms, t_menuitem *mi)
     if (strcmp(mi->data,"dhcp") == 0) flags.dhcp    = (mi->itemdata.checked ? 1 : 0);
 }
 
-int main(void)
+int menumain(void)
 {
   t_menuitem * curr;
   char cmdline[160];
@@ -167,10 +166,6 @@ int main(void)
   add_item("Testing...","Options to test hardware",OPT_SUBMENU,NULL,TESTING);
   add_item("Exit to prompt", "Exit the menu system", OPT_EXITMENU, "exit", 0);
 
-  syslinux = issyslinux(); // Find if syslinux is running
-  //if (syslinux) sprint("Syslinux is running!\r\n$"); else sprint("Nope its not.\r\n$");
-
-  if (syslinux) gototxtmode(); // Else assume we are running in a DOS box  
   curr = showmenus(MAIN);
   if (curr)
   {
@@ -183,7 +178,7 @@ int main(void)
                 strcat(cmdline,infoline);
                 if (flags.network && !flags.dhcp) // We want static
                 {
-                    sprint("Enter IP address (last two octets only): $");
+                    csprint("Enter IP address (last two octets only): ");
                     getstring(ip, sizeof ip);
                     strcat(cmdline,"ipaddr=128.135.");
                     strcat(cmdline,ip);

@@ -25,9 +25,7 @@
 
 /* BIOS Assisted output routines */
 
-void csprint(char *str); // Print a C str (NULL terminated)
-
-void sprint(const char *str); // Print a $ terminated string
+void csprint(const char *str); // Print a C str (NUL-terminated)
 
 void cprint(char chr,char attr,int times,char disppage); // Print a char 
 
@@ -37,7 +35,7 @@ char getdisppage(); // Get current display page
 
 void clearwindow(char top,char left,char bot,char right, char page,char fillchar, char fillattr);
 
-void cls();
+void cls(void);
 
 void gotoxy(char row,char col, char page);
 

@@ -19,10 +19,9 @@
 #include "string.h"
 #include "syslinux.h"
 
-int syslinux;
 char TESTING,RESCUE,MAIN,PREP;
 
-int main(void)
+int menumain(void)
 {
   t_menuitem * curr;
 
@@ -60,9 +59,6 @@ int main(void)
   add_item("Testing...","Options to test hardware",OPT_SUBMENU,NULL,TESTING);
   add_item("Exit to prompt", "Exit the menu system", OPT_EXITMENU, "exit", 0);
 
-  syslinux = issyslinux(); // Find if syslinux is running
-
-  if (syslinux) gototxtmode(); // Else assume we are running in a DOS box  
   curr = showmenus(MAIN); // Initial menu is the one with index MAIN
   if (curr)
   {
@@ -73,7 +69,7 @@ int main(void)
             else csprint(curr->data);
             return 1;
         }
-        sprint("Error in programming!$"); // Must be $ terminated
+        csprint("Error in programming!");
   }
   return 0;
 }

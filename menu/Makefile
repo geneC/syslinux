@@ -12,7 +12,7 @@ LD      = ld -m elf_i386
 OBJCOPY = objcopy
 RANLIB  = ranlib
 
-LIBMENU = biosio.o16 string.o16 menu.o16 syslinux.o16
+LIBMENU = main.o16 biosio.o16 string.o16 menu.o16 syslinux.o16
 
 MENUS   = simple.com complex.com
 
