@@ -198,7 +198,6 @@ RamdiskMax	resd 1			; Highest address for a ramdisk
 KernelSize	resd 1			; Size of kernel (bytes)
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
 Stack		resd 1			; Pointer to reset stack
-InitESBX	resd 1			; Initial ES:BX pointer
 PXEEntry	resd 1			; !PXE API entry point
 RebootTime	resd 1			; Reboot timeout, if set by option
 KernelClust	resd 1			; Kernel size in clusters
@@ -275,10 +274,6 @@ _start1:
 		push es
 		push fs
 		push gs
-
-		mov [cs:InitESBX],bx
-		mov bx,es
-		mov [cs:InitESBX+2],bx
 
 		mov bp,sp
 		les bx,[bp+48]		; Initial !PXE structure pointer

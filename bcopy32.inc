@@ -381,10 +381,7 @@ try_wbinvd:
 ;
 ; Inputs:
 ;	ESI, EDI, ECX	- same as bcopy
-;	EDX		- edx on invocation
-;	EAX		- esi on invocation
-;	EBX		- ebx on invocation
-;	ES		- es on invocation
+;	On stack	- initial state (ad, fd, ds, es, fs, gs)
 ;
 %define ADJUST	(__bcopy_start - trackbuf)
 
@@ -397,10 +394,6 @@ adjlist		dw bcopy_gdt.adj1 - ADJUST
 adjlist_cnt	equ ($-adjlist)/2
 
 bcopy_over_self:
-		push es
-		push ebx
-		push eax
-		push edx
 		push esi	
 		push edi
 		push ecx
@@ -408,8 +401,6 @@ bcopy_over_self:
 		xor bx,bx
 		mov es,bx
 		mov ds,bx
-		mov fs,bx
-		mov gs,bx
 
 		mov si,__bcopy_start
 		mov di,trackbuf
@@ -439,9 +430,11 @@ bcopy_over_self:
 		pop esi
 		call bcopy
 		
-		pop edx
-		pop esi
-		pop ebx
+		pop gs
+		pop fs
 		pop es
+		pop ds
+		popfd
+		popad
 		jmp 0:7c00h
 __bcopy_end:

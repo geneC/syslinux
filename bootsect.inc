@@ -73,25 +73,33 @@ load_bootsec:
 		push di
 		mov cx,8		; 16 bytes
 		rep movsw
-		pop ax			; DS:SI points to partition info
+		pop si			; DS:SI points to partition info
 %elif IS_ISOLINUX
 		mov dl,[DriveNo]
 %endif
 
-		mov esi,7C00h
-		mov edi,100000h
-		pop ecx			; Byte count
+		pop ecx			; Byte count to copy
 
 		cli
-		xor ebx,ebx
-		mov ds,bx
 %if IS_PXELINUX
 		lss sp,[Stack]		; Reset stack to PXE original
-		les bx,[InitESBX]	; ES:BX -> PXENV+
+		pop es
 %else
+		xor ebx,ebx
+		mov ds,bx
 		mov es,bx
-		mov esp,esi
+		mov esp,7C00h
+		pushad
+		pushfd
+		push bx	; ds
+		push bx ; es
+		push bx ; fs
+		push bx	; gs
 %endif
+
+		mov esi,100000h		; Copy from...
+		mov edi,7C00h		; Copy to...
+
 		jmp bcopy_over_self
 
 %if IS_SYSLINUX = 0
