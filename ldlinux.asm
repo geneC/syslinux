@@ -2552,6 +2552,7 @@ _io_delay:	out IO_DELAY_PORT,al
 		ret
 
 enable_a20:
+		pushad
 		mov byte [ss:A20Tries],255 ; Times to try to make this work
 
 try_enable_a20:
@@ -2563,7 +2564,8 @@ try_enable_a20:
 ;
 ; If the A20 type is known, jump straight to type
 ;
-		movzx bp,byte [ss:A20Type]
+		mov bp,[ss:A20Type]
+		add bp,bp			; Convert to word offset
 		jmp word [bp+A20List]		; Implicit ss: because of bp
 
 ;
@@ -2581,7 +2583,9 @@ a20_none:
 a20_bios:
 		mov byte [ss:A20Type], A20_BIOS
 		mov ax,2401h
+		pushf				; Some BIOSes muck with IF
 		int 15h
+		popf
 
 		call a20_test
 		jnz a20_done
@@ -2652,7 +2656,8 @@ a20_fast:
 ; A20 unmasked, proceed...
 ;
 a20_done_pop:	pop cx
-a20_done:	ret
+a20_done:	popad
+		ret
 
 ;
 ; This routine tests if A20 is enabled (ZF = 0).  This routine
@@ -2677,17 +2682,21 @@ a20_test:
 		ret
 
 disable_a20:
+		pushad
 ;
 ; Flush the caches
 ;
 ;		call try_wbinvd
 
-		movzx bp,byte [ss:A20Type]
+		mov bp,[ss:A20Type]
+		add bp,bp			; Convert to word offset
 		jmp word [bp+A20DList]		; Implicit ss: because of bp
 
 a20d_bios:
 		mov ax,2400h
+		pushf				; Some BIOSes muck with IF
 		int 15h
+		popf
 		jmp short a20d_snooze
 
 ;
@@ -2720,6 +2729,7 @@ a20d_snooze:
 .disabled:	pop cx
 a20d_dunno:
 a20d_none:
+		popad
 		ret
 
 ;
@@ -3879,7 +3889,7 @@ AllowImplicit   dw 1                    ; Allow implicit kernels
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
 A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
-A20Type		db A20_DUNNO		; A20 type unknown
+A20Type		dw A20_DUNNO		; A20 type unknown
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
 ; tons of zeros appended to our file and wasting space
