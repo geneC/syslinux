@@ -44,7 +44,7 @@ PRERELNO  := $(shell cat $(PRERELDIR)/.prerel 2>/dev/null || echo 1)
 PREREL    := syslinux-$(VERSION)-pre$(PRERELNO)
 
 prerel:
-	mkdir -p $(PRERELDIR)
+	mkdir -p $(PRERELDIR) $(PRERELDIR)/uu
 	-rm -rf $(PRERELDIR)/$(PREREL)
 	-rm -f $(PRERELDIR)/$(PREREL).*
 	mkdir -p $(PRERELDIR)/$(PREREL)
@@ -57,7 +57,7 @@ prerel:
 	cd $(PRERELDIR) && tar cvvf - $(PREREL) | \
 		gzip -9 > $(PREREL).tar.gz 
 	cd $(PRERELDIR) && \
-		uuencode $(PREREL).tar.gz $(PREREL).tar.gz > $(PREREL).uu
+		uuencode $(PREREL).tar.gz $(PREREL).tar.gz > uu/$(PREREL).uu
 	cd $(PRERELDIR)/$(PREREL) && \
 		zip -9r ../$(PREREL).zip *
 	expr $(PRERELNO) + 1 > $(PRERELDIR)/.prerel
