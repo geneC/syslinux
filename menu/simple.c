@@ -49,6 +49,7 @@ int menumain(char *cmdline)
   //         unused otherwise.
 
   TESTING = add_menu(" Testing ");
+  add_item("Self Loop","Go to testing",OPT_SUBMENU,NULL,TESTING);
   add_item("Memory Test","Perform extensive memory testing",OPT_RUN, "memtest",0);
   add_item("Exit this menu","Go one level up",OPT_EXITMENU,"exit",0);
 
@@ -78,4 +79,3 @@ int menumain(char *cmdline)
   }
   return 0;
 }
-

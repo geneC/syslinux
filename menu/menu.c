@@ -217,7 +217,7 @@ pt_menuitem runmenusystem(char top, char left, pt_menu cmenu)
 {
     pt_menuitem opt,choice;
     int numitems;
-    char startopt;
+    char startopt,row,col;
 
     startopt = 0;
     if (cmenu == NULL) return NULL;
@@ -245,7 +245,11 @@ startover:
     // Call recursively for submenu
     // Position the submenu below the current item,
     // covering half the current window (horizontally)
-    choice = runmenusystem(top+opt->index+2, left+3+(cmenu->menuwidth >> 1), ms->menus[opt->itemdata.submenunum]);
+    row = ms->menus[opt->itemdata.submenunum]->row;
+    col = ms->menus[opt->itemdata.submenunum]->col;
+    if (row == 0xFF) row = top+opt->index+2;
+    if (col == 0xFF) col = left+3+(cmenu->menuwidth >> 1);
+    choice = runmenusystem(row, col, ms->menus[opt->itemdata.submenunum]);
     if (choice==NULL) // User hit Esc in submenu
     {
        // Startover
@@ -402,6 +406,8 @@ char add_menu(const char *title) // Create a new menu and return its position
    if (m == NULL) return -1;
    ms->menus[num] = m;
    m->numitems = 0;
+   m->row = 0xFF;
+   m->col = 0xFF;
    for (i=0; i < MAXMENUSIZE; i++) m->items[i] = NULL;
    
    if (title)
@@ -416,6 +422,14 @@ char add_menu(const char *title) // Create a new menu and return its position
    return ms->nummenus - 1;
 }
 
+void set_menu_pos(char row,char col) // Set the position of this menu.
+{
+pt_menu m;
+
+    m = ms->menus[ms->nummenus-1];
+    m->row = row;
+    m->col = col;
+}
 
 pt_menuitem add_sep() // Add a separator to current menu
 {

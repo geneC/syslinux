@@ -140,6 +140,7 @@ typedef struct s_menu {
     const char *title;
     char numitems;
     char menuwidth;
+    char row,col; // Position where this menu should be displayed
 } t_menu;
 
 typedef t_menu *pt_menu; // Pointer to type menu
@@ -207,6 +208,8 @@ char add_menu(const char *title); // This pointer value is stored internally
 
 // Add item to the "current" menu // pointer values are stored internally
 pt_menuitem add_item(const char *item, const char *status, t_action action, const char *data, char itemdata);
+
+void set_menu_pos(char row,char col); // Set the position of this menu.
 
 // Add a separator to the "current" menu
 pt_menuitem add_sep();
