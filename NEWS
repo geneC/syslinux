@@ -12,6 +12,8 @@ Changes in 1.65:
 	* MEMDISK: New subsystem; this is a driver which allows
 	  legacy OSes to boot using an in-memory simulated disk.
 	  See memdisk/memdisk.doc for more info.
+	* PXELINUX, ISOLINUX: Correctly handle files larger than 65535
+	  blocks (32 MB for PXELINUX, 128 MB for ISOLINUX.)
 
 Changes in 1.64:
 	* Limited support for hardware flow control when using a

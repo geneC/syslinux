@@ -352,11 +352,11 @@ Stack		resd 1			; Pointer to reset stack
 PXEEntry	resd 1			; !PXE API entry point
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
 RebootTime	resd 1			; Reboot timeout, if set by option
+KernelClust	resd 1			; Kernel size in clusters
+InitRDClust	resd 1			; Ramdisk size in clusters
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
 FBytes2		resw 1
-KernelClust	resw 1			; Kernel size in clusters
-InitRDClust	resw 1			; Ramdisk size in clusters
 FClust		resw 1			; Number of clusters in open/getc file
 FNextClust	resw 1			; Pointer to next cluster in d:o
 FPtr		resw 1			; Pointer to next char in buffer
@@ -1548,27 +1548,23 @@ kernel_sane:	push ax
 		push word real_mode_seg
 		pop es
 
-		push ax
-		push dx
-		div word [ClustSize]		; # of clusters total
-		and dx,dx			; Round up
-		setnz dl
-		movzx dx,dl
-		add ax,dx
-                mov [KernelClust],ax
-		pop dx
-		pop ax
-		mov [KernelSize],ax
-		mov [KernelSize+2],dx
+		movzx eax,ax			; Fix this by using a 32-bit
+		shl edx,16			; register for the kernel size
+		or eax,edx
+		mov [KernelSize],eax
+		xor edx,edx
+		div dword [ClustSize]		; # of clusters total
+		; Round up...
+		add edx,byte -1			; Sets CF if EDX >= 1
+		adc eax,byte 0			; Add 1 to EAX if CF set
+                mov [KernelClust],eax
+
 ;
 ; Now, if we transfer these straight, we'll hit 64K boundaries.	 Hence we
 ; have to see if we're loading more than 64K, and if so, load it step by
 ; step.
 ;
-		mov dx,1			; 10000h
-		xor ax,ax
-		div word [ClustSize]
-		mov [ClustPerMoby],ax		; Clusters/64K
+
 ;
 ; Start by loading the bootsector/setup code, to see if we need to
 ; do something funky.  It should fit in the first 32K (loading 64K won't
@@ -1576,13 +1572,13 @@ kernel_sane:	push ax
 ; If we have larger than 32K clusters, yes, we're hosed.
 ;
 		call abort_check		; Check for abort key
-		mov cx,[ClustPerMoby]
-		shr cx,1			; Half a moby
-		cmp cx,[KernelClust]
+		mov ecx,[ClustPerMoby]
+		shr ecx,1			; Half a moby
+		cmp ecx,[KernelClust]
 		jna .normalkernel
-		mov cx,[KernelClust]
+		mov ecx,[KernelClust]
 .normalkernel:
-		sub [KernelClust],cx
+		sub [KernelClust],ecx
 		xor bx,bx
                 pop si                          ; Cluster pointer on stack
 		call getfssec
@@ -1829,14 +1825,14 @@ high_load_loop:
                 mov si,dot_msg			; Progress report
                 call cwritestr
                 call abort_check
-                mov cx,[KernelClust]
-		and cx,cx
+                mov ecx,[KernelClust]
+		and ecx,ecx
 		jz high_load_done		; Zero left (tiny kernel?)
-		cmp cx,[ClustPerMoby]
+		cmp ecx,[ClustPerMoby]
 		jna high_last_moby
-		mov cx,[ClustPerMoby]
+		mov ecx,[ClustPerMoby]
 high_last_moby:
-		sub [KernelClust],cx
+		sub [KernelClust],ecx
 		xor bx,bx			; Load at offset 0
                 pop si                          ; Restore cluster pointer
 		call getfssec
@@ -1850,7 +1846,7 @@ high_last_moby:
 		mov [HiLoadAddr],edi		; Point to next target area
                 popf                            ; Restore EOF
                 jc high_load_done               ; If EOF we are done
-                cmp word [KernelClust],byte 0	; Are we done?
+                cmp dword [KernelClust],byte 0	; Are we done?
 		jne high_load_loop		; Apparently not
 high_load_done:
 		pop si				; No longer needed
@@ -1868,7 +1864,7 @@ high_load_done:
 ;
 load_initrd:
                 test byte [initrd_flag],1
-                jz nk_noinitrd
+                jz near nk_noinitrd
                 push es                         ; ES->real_mode_seg
                 push ds
                 pop es                          ; We need ES==DS
@@ -1884,12 +1880,15 @@ load_initrd:
 		mov [initrd_ptr],si		; Save cluster pointer
 		mov [es:su_ramdisklen1],ax	; Ram disk length
 		mov [es:su_ramdisklen2],dx
-		div word [ClustSize]
-		and dx,dx			; Round up
-		setnz dl
-		movzx dx,dl
-		add ax,dx
-		mov [InitRDClust],ax		; Ramdisk clusters
+		movzx eax,ax
+		shl edx,16
+		or eax,edx
+		xor edx,edx
+		div dword [ClustSize]
+		; Round up...
+		add edx,byte -1			; Sets CF if EDX >= 1
+		adc eax,byte 0			; Add 1 to EAX if CF set
+		mov [InitRDClust],eax		; Ramdisk clusters
 		mov edx,[HighMemSize]		; End of memory
 		dec edx
 		mov eax,[RamdiskMax]		; Highest address allowed by kernel
@@ -2564,12 +2563,12 @@ rd_load_loop:
                 call cwritestr
 		pop si				; Restore cluster pointer
                 call abort_check
-                mov cx,[InitRDClust]
-		cmp cx,[ClustPerMoby]
+                mov ecx,[InitRDClust]
+		cmp ecx,[ClustPerMoby]
 		jna rd_last_moby
-		mov cx,[ClustPerMoby]
+		mov ecx,[ClustPerMoby]
 rd_last_moby:
-		sub [InitRDClust],cx
+		sub [InitRDClust],ecx
 		xor bx,bx			; Load at offset 0
                 push word xfer_buf_seg		; Bounce buffer segment
 		pop es
@@ -2583,7 +2582,7 @@ rd_last_moby:
 		call bcopy			; Does not change flags!!
                 jc rd_load_done                 ; EOF?
                 add dword [InitRDat],10000h	; Point to next 64K
-		cmp word [InitRDClust],byte 0	; Are we done?
+		cmp dword [InitRDClust],byte 0	; Are we done?
 		jne rd_load_loop		; Apparently not
 rd_load_done:
                 pop si                          ; Clean up the stack
@@ -4061,7 +4060,6 @@ getfssec:
 		mov eax,[si+tftp_filepos]
 		shr eax,TFTP_BLOCKSIZE_LG2
 		inc ax				; Which packet are we waiting for?
-	
 		xchg ah,al			; Network byte order
 		cmp word [packet_buf+2],ax
 		je .right_packet
@@ -4966,13 +4964,14 @@ ServerPort	dw TFTP_PORT		; TFTP server port
 ;
 ; Variables that are uninitialized in SYSLINUX but initialized here
 ;
-ClustSize	dw TFTP_BLOCKSIZE	; Bytes/cluster
+		alignb 4, db 0
+ClustSize	dd TFTP_BLOCKSIZE	; Bytes/cluster
+ClustPerMoby	dd 65536/TFTP_BLOCKSIZE	; Clusters per 64K
 SecPerClust	dw TFTP_BLOCKSIZE/512	; Same as bsSecPerClust, but a word
 BufSafe		dw trackbufsize/TFTP_BLOCKSIZE	; Clusters we can load into trackbuf
 BufSafeSec	dw trackbufsize/512	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
-ClustPerMoby	dw 65536/TFTP_BLOCKSIZE	; Clusters per 64K
 %if ( trackbufsize % TFTP_BLOCKSIZE ) != 0
 %error trackbufsize must be a multiple of TFTP_BLOCKSIZE
 %endif
