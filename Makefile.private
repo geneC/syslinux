@@ -20,6 +20,13 @@
 
 PRIVATE = Makefile.private
 
+isolinux.iso: isolinux-debug.bin
+	cp isolinux-debug.bin isolinux-test/isolinux/isolinux.bin
+	mkisofs -v -r -J -o isolinux.iso isolinux-test
+
+burn: isolinux.iso
+	cdrecord -v blank=fast isolinux.iso
+
 official:
 	$(MAKE) spotless
 	$(MAKE) all DATE=`date +'%Y-%m-%d'`
