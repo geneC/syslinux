@@ -13,6 +13,7 @@
 #define _COM32_H
 
 #include <stdint.h>
+#include <klibc/compiler.h>	/* For __cdecl */
 
 /*
  * This structure defines the register frame used by the
@@ -69,10 +70,10 @@ typedef struct {
 extern struct com32_sys_args {
   uint32_t cs_sysargs;
   char *cs_cmdline;
-  void (*cs_intcall)(uint8_t, const com32sys_t *, com32sys_t *);
+  void __cdecl (*cs_intcall)(uint8_t, const com32sys_t *, com32sys_t *);
   void *cs_bounce;
   uint32_t cs_bounce_size;
-  void (*cs_farcall)(uint32_t, const com32sys_t *, com32sys_t *);
+  void __cdecl (*cs_farcall)(uint32_t, const com32sys_t *, com32sys_t *);
 } __com32;
 
 /*

@@ -92,7 +92,7 @@ file_left	resd 1			; Number of sectors left (0 = free)
 file_sector	resd 1			; Next linear sector to read
 file_in_sec	resd 1			; Sector where inode lives
 file_in_off	resw 1
-		resw 1
+file_mode	resw 1
 		endstruc
 
 %ifndef DEPEND
@@ -970,6 +970,8 @@ open_inode:
 
 		call getcachesector
 		add si,dx
+		mov ax,[gs:si+i_mode]
+		mov [bx+file_mode],ax
 		mov eax,[gs:si+i_size]
 		push eax
 		add eax,SECTOR_SIZE-1
@@ -1011,6 +1013,9 @@ close:
 ;	     Assumes CS == DS == ES; *** IS THIS CORRECT ***?
 ;
 searchdir:
+		push bx
+		push cx
+		push di
 		mov eax,[CurrentDir]
 .leadingslash:
 		cmp byte [di],'/'	; Absolute filename?
@@ -1035,11 +1040,9 @@ searchdir:
 		je .endblock
 		
 		push di
-		push si
-		mov cx,[bx+d_name_len]
+		movzx cx,byte [bx+d_name_len]
 		lea si,[bx+d_name]
 		repe cmpsb
-		pop si
 		je .maybe
 .nope:
 		pop di
@@ -1052,9 +1055,9 @@ searchdir:
 		jnc .readdir		; There is more
 .failure:
 		xor eax,eax
-		ret
+		jmp .done
 .maybe:
-		mov eax,[si+d_inode]
+		mov eax,[bx+d_inode]
 		
 		cmp byte [di],0
 		je .finish		; It's a real file; done
@@ -1075,6 +1078,10 @@ searchdir:
 		pop si			; Adjust stack (di)
 		pop si			; Adjust stack (flags)
 		call open_inode
+.done:
+		pop di
+		pop cx
+		pop bx
 		ret
 
 ;
@@ -1297,10 +1304,10 @@ linsector:
 getfssec:
 		push ebp
 		push eax
-		push ebx
 		push edx
 .getfragment:
-		mov eax,[si]			; Current start index
+		mov eax,[si+file_sector]	; Current start index
+		push ebx			; Buffer pointer
 		mov ebx,eax
 		call linsector
 		push eax			; Fragment start sector
@@ -1328,27 +1335,25 @@ getfssec:
 		je .getseccnt
 .do_read:
 		pop eax				; Linear start sector
+		pop ebx				; Buffer pointer
 		call getlinsecsr
-		lea eax,[eax+ebp-1]		; This is the last sector actually read
+		push bp
 		shl bp,9
 		add bx,bp			; Adjust buffer pointer
-		call linsector
-		jc .eof
-		mov edx,eax
-		and cx,cx
-		jnz .getfragment
+		pop bp
+		sub cx,bp
+		add [si+file_sector],ebp	; Next sector index
+		sub [si],ebp			; Sectors consumed
+		jz .done
+		jcxz .done
+		jmp .getfragment
 .done:
+		cmp dword [si],1		; Did we run out of file?
+		; CF set if [SI] < 1, i.e. == 0
 		pop edx
-		pop ebx
 		pop eax
 		pop ebp
 		ret
-.eof:
-		xor edx,edx
-		stc
-		jmp .done
-
-
 
 ; -----------------------------------------------------------------------------
 ;  Common modules
@@ -1409,7 +1414,7 @@ aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
 crlf_msg	db CR, LF
 null_msg	db 0
 crff_msg	db CR, FF, 0
-ConfigName	db 'extlinux.cfg',0		; Unmangled form
+ConfigName	db 'extlinux.conf',0		; Unmangled form
 
 ;
 ; Command line options we'd like to take a look at
