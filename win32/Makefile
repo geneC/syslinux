@@ -36,54 +36,46 @@ CC       = mingw-gcc
 AR	 = mingw-ar
 RANLIB   = mingw-ranlib
 endif
-CC_IS_GOOD := $(shell $(CC) $(CFLAGS) $(LDFLAGS) -o hello.exe hello.c >/dev/null 2>&1 ; echo $$?)
 
 CFLAGS   = -W -Wall -O2 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 PIC      =
 LDFLAGS  = -O2 -s
 endif
-INCLUDE += -I..
+CFLAGS += -I. -I.. -I../libfat
 
-PERL     = perl
+CC_IS_GOOD := $(shell $(CC) $(CFLAGS) $(LDFLAGS) -o hello.exe hello.c >/dev/null 2>&1 ; echo $$?)
 
-VERSION  = $(shell cat ../version)
+.SUFFIXES: .c .o .i .s .S
 
-.c.o:
-	$(CC) $(INCLUDE) $(CFLAGS) -c -o $@ $<
+SRCS     = syslinux.c ../syslxmod.c ../bootsect_bin.c ../ldlinux_bin.c $(wildcard ../libfat/*.c)
+OBJS     = $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
-.c.i:
-	$(CC) $(INCLUDE) $(CFLAGS) -E -o $@ $<
+VPATH = .:..:../libfat
 
-ifeq ($(CC_IS_GOOD),0)
-all: ../syslinux.exe
-else
-all:	# We don't have a working win32 compiler
-	rm -f ../syslinux.exe
-endif
-
-libsyslinux.a: bootsect_bin.o ldlinux_bin.o syslxmod.o
-	rm -f $@
-	$(AR) cq $@ $^
-	$(RANLIB) $@
-
-../syslinux.exe: syslinux-mingw.o libsyslinux.a
-	$(CC) $(LDFLAGS) -o $@ $^
-
-syslxmod.o: ../syslxmod.c ../patch.offset
-	$(CC) $(INCLUDE) $(CFLAGS) $(PIC) -DPATCH_OFFSET=`cat ../patch.offset` \
-		-c -o $@ $<
-
-bootsect_bin.o: ../bootsect_bin.c
-	$(CC) $(INCLUDE) $(CFLAGS) -c -o $@ $<
-
-ldlinux_bin.o: ../ldlinux_bin.c
-	$(CC) $(INCLUDE) $(CFLAGS) -c -o $@ $<
+all: installer
 
 tidy:
-	rm -f *.o *.a hello.exe
+	-rm -f *.o *.i *.s *.a .*.d
 
 clean: tidy
+	-rm -f syslinux.exe
 
 spotless: clean
-	rm -f ../syslinux.exe *~
+	-rm -f *~
+
+installer: syslinux.exe
+
+syslinux.exe: $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^
+
+%.o: %.c
+	$(CC) -Wp,-MT,$@,-MMD,.$@.d $(CFLAGS) -c -o $@ $<
+%.i: %.c
+	$(CC) $(CFLAGS) -E -o $@ $<
+%.s: %.c
+	$(CC) $(CFLAGS) -S -o $@ $<
+
+-include .*.d
+
+
 
