@@ -1158,8 +1158,8 @@ searchdir:
 		add edx,[DataArea]
 		mov [bx],edx			; Starting sector
 
-		mov edx,eax
-		shr edx,16			; 16-bitism, sigh
+		mov eax,[gs:si+28]		; File length again
+		mov dx,[gs:si+30]		; 16-bitism, sigh
 		mov si,bx
 		and eax,eax			; ZF <- 0
 
