@@ -287,16 +287,20 @@ debug_okay:	mov si,trackbuf+0bh
                 absolute 0484h
 BIOS_vidrows    resb 1                    ; Number of screen rows
 
-		absolute 0600h
+;
+; Memory below this point is reserved for the BIOS and the MBR
+;
+ 		absolute 1000h
 trackbuf	equ $			; Track buffer goes here
 trackbufsize	equ 16384		; Safe size of track buffer
-;		trackbuf ends at 4600h
+;		trackbuf ends at 5000h
 
                 absolute 6000h          ; Here we keep our BSS stuff
-StackBuf	equ $			; Start the stack here (grow down)
+StackBuf	equ $			; Start the stack here (grow down - 4K)
 VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
+KbdMap		resb 256		; Keyboard map
 FKeyName	resb 10*16		; File names for F-key help
 NumBuf		resb 16			; Buffer to load number
 NumBufEnd	equ NumBuf+15		; Pointer to last byte in NumBuf
@@ -397,13 +401,21 @@ floppy_table	equ $			; No sense in wasting memory, overwrite start
 
 start:
 		cli			; No interrupts yet, please
-		jmp 0:start1		; Stupid Intel BIOS jumps to 07C0:0000 not 0000:7C00
-start1:		xor ax,ax
-		mov ds,ax
-		mov es,ax
+		jmp 0:start1		; Some stupid BIOSes jumps to 07C0:0000 not 0000:7C00
+start1:
+;
+; Set up ES and SS, and the stack
+;
+		xor ax,ax
 		mov ss,ax
 		mov sp,StackBuf		; Just below BSS
 ;
+; DS:SI may contain a partition table entry.  Preserve it for us.
+;
+		mov dh,[si]		; "Active flag" (sanity check)
+		mov bp,[si+8]		; LSW of linear offset
+		mov bx,[si+10]		; MSW of linear offset
+
 ; Now sautee the BIOS floppy info block to that it will support decent-
 ; size transfers; the floppy block is 11 bytes and is stored in the
 ; INT 1Eh vector (brilliant waste of resources, eh?)
@@ -411,8 +423,10 @@ start1:		xor ax,ax
 ; Of course, if BIOSes had been properly programmed, we wouldn't have
 ; had to waste precious boot sector space with this code.
 ;
-		mov bx,fdctab
-		lds si,[ss:bx]		; DS:SI -> original
+; This code no longer fits.  Hope that noone really needs it anymore.
+;
+%ifdef SUPPORT_BROKEN_BIOSES
+		lds si,[ss:fdctab]	; DS:SI -> original
 		push ds			; Save on stack in case
 		push si			; we have to bail
 		push bx
@@ -425,18 +439,53 @@ start1:		xor ax,ax
 		mov ds,ax		; Now we can point DS to here, too
 		mov cl,[bsSecPerTrack]  ; Patch the sector count
 		mov [di+4],cl
-;		 mov byte ptr [di+9],0Fh ; I have no clue what this does???
-		mov [bx+2],ax		; Segment 0
-		mov [bx],di		; offset floppy_block
+		mov [fdctab+2],ax	; Segment 0
+		mov [fdctab],di		; offset floppy_block
+%else
+		mov ds,ax
+%endif
 ;
 ; Ready to enable interrupts, captain
 ;
 		sti
 ;
-; Reset floppy system to load new parameter block
+; Reset floppy system
 ;
 		xor dx,dx
 		int 13h			; AH = 00h already
+;
+; The drive number and possibly partition information was passed to us
+; by the BIOS or previous boot loader (MBR).  Current "best practice" is to
+; trust that rather than what the superblock contains.
+;
+; Would it be better to zero out bsHidden if we don't have a partition table?
+;
+		push dx
+		mov [bsDriveNumber],dl
+		test dl,80h		; If floppy disk (00-7F), assume no
+		jz not_harddisk		; partition table
+		test dh,7Fh		; Sanity check: "active flag" should
+		jnz no_partition	; be 00 or 80
+		mov [bsHidden1],bp
+		mov [bsHidden2],bx
+no_partition:
+;
+; Get disk drive parameters (don't trust the superblock.)  Don't do this for
+; floppy drives -- INT 13:08 on floppy drives will return info about what the
+; *drive* supports, not about the *media*...
+;
+		pop dx			; Restore DL = drive #
+		mov ah,08h
+		int 13h
+		jc no_driveparm
+		and ah,ah
+		jnz no_driveparm
+		inc dh			; Contains # of heads - 1
+		mov [bsHeads],dh
+		and cx,3fh
+		mov [bsSecPerTrack],cx
+no_driveparm:
+not_harddisk:
 ;
 ; Now we have to do some arithmetric to figure out where things are located.
 ; If Microsoft had had brains they would already have done this for us,
@@ -444,15 +493,16 @@ start1:		xor ax,ax
 ; wasting precious boot sector space again...
 ;
 debugentrypt:
-		mov al,[bsFATs]		; Number of FATs
-		jmpc kaboom		; If the floppy init failed
-					; (too far to be above the mov)
-		cbw			; Clear AH (we WILL have < 128 FATs)
+		xor si,si		; Some BIOSes destroy ES for INT 13:08
+		mov es,si		; so we clear it this late
+
+		mov al,[bsFATs]		; Number of FATs (AH == 0)
+		jc kaboom		; If the floppy init failed
 		mul word [bsFATsecs]	; Get the size of the FAT area
 		add ax,[bsHidden1]	; Add hidden sectors
 		adc dx,[bsHidden2]
-		add ax,[bsResSectors]	; And reserved sectors (why two?)
-		adc dx,byte 0
+		add ax,[bsResSectors]	; And reserved sectors
+		adc dx,si		; SI == 0
 
 		mov [RootDir1],ax	; Location of root directory
 		mov [RootDir2],dx
@@ -473,7 +523,7 @@ debugentrypt:
 		mov [EndofDirSec],bx	; End of a single directory sector
 
 		add [DataArea1],ax
-		adc word [DataArea2],byte 0
+		adc word [DataArea2],si	; SI == 0
 
 		pop dx			; Reload root directory starting point
 		pop ax
@@ -510,17 +560,18 @@ sd_nextentry:	cmp byte [si],0		; Directory high water mark
 ; kaboom: write a message and bail out.
 ;
 kaboom:
-		mov si,bailmsg
-		call writestr		; Returns with AL = 0
-		cbw			; Sets AH = 0 (shorter than XOR)
-		int 16h			; Wait for keypress
 		mov sp,StackBuf-2*3 	; Reset stack
 		pop si			; BIOS floppy block address
 		cli
 		pop word [si]		; Restore location
 		pop word [si+2]
 		sti
-		int 19h			; And try once more to boot...
+;		mov si,bailmsg
+;		call writestr		; Returns with AL = 0
+;		cbw			; AH <- 0
+;		int 16h			; Wait for keypress
+;		int 19h			; And try once more to boot...
+		int 18h			; Bail.  Hope this does something useful.
 norge:		jmp short norge		; If int 19h returned; this is the end
 
 ;
@@ -566,9 +617,9 @@ wstr_1:         lodsb
 disk_error:	dec si			; SI holds the disk retry counter
 		jz kaboom
 		xchg ax,bx		; Shorter than MOV
-		pop bx
-		pop cx
-		pop dx
+		pop bx			; <I>
+		pop cx			; <H>
+		pop dx			; <G>
 		jmp short disk_try_again
 ;
 ; getonesec: like getlinsec, but pre-sets the count to 1
@@ -587,6 +638,9 @@ getonesec:
 ;	     On return, BX points to the first byte after the transferred
 ;	     block.
 ;
+;	     When compiling with the STUPID option, this is replaced by a
+;	     routine which loads one sector at a time.
+;
 getlinsec:
 		mov si,[bsSecPerTrack]
 		div si			; Convert linear to sector/track
@@ -594,24 +648,36 @@ getlinsec:
 		xor dx,dx		; 32-bit track number
 		div word [bsHeads]	; Convert track to head/cyl
 		;
-		; Now we have AX = cyl, DX = head, CX = sector (0-based)
-		; for the very first sector, SI = bsSecPerTrack
+		; Now we have AX = cyl, DX = head, CX = sector (0-based),
+		; BP = sectors to transfer, SI = bsSecPerTrack,
+		; ES:BX = data target
 		;
-gls_nexttrack:	push si
-		push bp
+gls_nextchunk:	push si			; <A> bsSecPerTrack
+		push bp			; <B> Sectors to transfer
+%ifdef STUPID
+		mov bp,1
+		nop			; Minimize size of patch
+		nop
+		nop
+		nop
+		nop
+%else
 		sub si,cx		; Sectors left on track
 		cmp bp,si
-		jna gls_lasttrack
+		jna gls_lastchunk
 		mov bp,si		; No more than a trackful, please!
-gls_lasttrack:	push ax			; Cylinder #
-		push dx			; Head #
-		push bp			; Number of sectors we're transferring
+gls_lastchunk:	
+%endif
+		push ax			; <C> Cylinder #
+		push dx			; <D> Head #
+		push bp			; <E> Number of sectors we're transferring
 
-		push cx
+		push cx			; <F> Sector #
 		mov cl,6		; Because IBM was STOOPID
 		shl ah,cl		; and thought 8 bits were enough
 					; then thought 10 bits were enough...
-		pop cx			; Sector #
+		pop cx			; <F> Sector #
+		push cx
 		inc cx			; Sector numbers are 1-based
 		or cl,ah
 		mov ch,al
@@ -624,46 +690,45 @@ gls_lasttrack:	push ax			; Cylinder #
 ; Do the disk transfer... save the registers in case we fail :(
 ;
 		mov si,retry_count	; # of times to retry a disk access
-disk_try_again: push dx
-		push cx
-		push bx
-		push ax
-		push si
+disk_try_again: push dx			; <G>
+		push cx			; <H>
+		push bx			; <I>
+		push ax			; <J>
+		push si			; <K>
 		int 13h
-		pop si
-		pop bx
+		pop si			; <K>
+		pop bx			; <J>
 		jc disk_error
-;
-; It seems the following test fails on some machines (buggy BIOS?)
-; Especially Phoenix BIOS 4.03 seems to fail if this is enabled
-;
-;		 cmp al,bl		 ; Check that we got what we asked for
-;		 jne disk_error
 ;
 ; Disk access successful
 ;
-		pop bx			; Buffer location
-		pop si			; Not needed anymore
-		pop si			; Neither is this
-		pop si			; Sector transferred count
-		mov ax,si		; Reduce sector left count
+		pop bx			; <I> Buffer location
+		pop ax			; <H> No longer needed
+		pop ax			; <G> No longer needed
+		pop cx			; <F> Sector #
+		pop di			; <E> Sector transferred count
+		mov ax,di		; Reduce sector left count
 		mul word [bsBytesPerSec] ; Figure out how much to advance ptr
 		add bx,ax		; Update buffer location
-		pop dx			; Head #
-		pop ax			; Cyl #
+		pop dx			; <D> Head #
+		pop ax			; <C> Cyl #
+		pop bp			; <B> Sectors left to transfer
+		pop si			; <A> Number of sectors/track
+		sub bp,di		; Reduce with # of sectors just read
+		jz return		; Done!
+		add cx,di
+		cmp cx,si
+		jb gls_nextchunk
 		inc dx			; Next track on cyl
 		cmp dx,[bsHeads]	; Was this the last one?
 		jb gls_nonewcyl
 		inc ax			; If so, new cylinder
 		xor dx,dx		; First head on new cylinder
-gls_nonewcyl:	pop bp			; Sectors left to transfer
-		xor cx,cx		; First sector on new track
-		sub bp,si		; Reduce with # of sectors just read
-		pop si
-		ja gls_nexttrack
+gls_nonewcyl:	sub cx,si		; First sector on new track
+		jmp short gls_nextchunk
 return:		ret
 
-bailmsg		db 'Boot failed: press any key to retry', 0Dh, 0Ah, 0
+; bailmsg		db 'Error!', 0Dh, 0Ah, 0
 
 bs_checkpt	equ $			; Must be <= 1E3h
 
@@ -1059,12 +1124,21 @@ skip_checks:
 ; they probably won't be trying to install Linux on them...
 ;
 ; The code is still ripe with 16-bitisms, though.  Not worth the hassle
-; to take'm out.
+; to take'm out.  In fact, we may want to put them back if we're going
+; to boot ELKS at some point.
 ;
 		mov si,linuxauto_cmd		; Default command: "linux auto"
 		mov di,default_cmd
                 mov cx,linuxauto_len
 		rep movsb
+
+		mov di,KbdMap			; Default keymap 1:1
+		xor al,al
+		mov cx,256
+mkkeymap:	stosb
+		inc al
+		loop mkkeymap
+
 ;
 ; Load configuration file
 ;
@@ -1084,6 +1158,8 @@ parse_config:
 		je near pc_prompt
 		cmp ax,'fo'			; FOnt
 		je near pc_font
+		cmp ax,'kb'			; KBd
+		je near pc_kbd
 		cmp ax,'di'			; DIsplay
 		je near pc_display
 		cmp ax,'la'			; LAbel
@@ -1151,15 +1227,7 @@ pc_timeout:	call getint			; "timeout" command
 		mov [KbdTimeOut],bx
 		jmp short parse_config_2
 
-pc_display:	mov di,trackbuf
-		push di
-		call getline			; Get filename to display
-		pop si
-		mov di,MNameBuf			; Mangled name buffer
-		push di
-		call mangle_name		; Mangle file name
-		pop di
-		call searchdir			; Search for file
+pc_display:	call pc_getfile			; "display" command
 		jz parse_config_2		; File not found?
 		call get_msg_file		; Load and display file
 parse_config_2: jmp parse_config
@@ -1214,18 +1282,29 @@ pc_label:	call commit_vk			; Commit any current vkernel
                 rep movsb
 		jmp short parse_config_2
 
-pc_font:	mov di,trackbuf			; "font" command
-		push di
-		call getline			; Get font filename
-		pop si
-		mov di,MNameBuf			; Mangled name buffer
-		push di
-		call mangle_name		; Mangle file name
-		pop di
-		call searchdir			; Search for file
-		jz parse_config_3		; File not found?
+pc_font:	call pc_getfile			; "font" command
+		jz parse_config_2		; File not found?
 		call loadfont			; Load and install font
+		jmp short parse_config_3
+
+pc_kbd:		call pc_getfile			; "kbd" command
+		jz parse_config_3
+		call loadkeys
 parse_config_3:	jmp parse_config
+
+;
+; pc_getfile:	For command line options that take file argument, this
+; 		routine decodes the file argument and runs it through searchdir
+;
+pc_getfile:	mov di,trackbuf
+		push di
+		call getline
+		pop si
+		mov di,MNameBuf
+		push di
+		call mangle_name
+		pop di
+		jmp searchdir			; Tailcall
 
 ;
 ; commit_vk: Store the current VKernelBuf into buffer segment
@@ -1304,6 +1383,8 @@ get_char:	xor ax,ax			; Get char
 		int 16h
 		and al,al
 		jz func_key
+		mov bx,KbdMap			; Keyboard map translation
+		xlatb
 		cmp al,' '			; ASCII?
 		jb not_ascii
 		ja enter_char
@@ -2096,6 +2177,8 @@ ac1:
                 jz ac_ret                       ; If no pending keystroke
 		xor ax,ax			; Load pending keystroke
 		int 16h
+		mov bx,KbdMap
+		xlatb
 		cmp al,27			; <ESC> aborts (DOS geeks)
 		je ac2
 		cmp al,3			; So does Ctrl-C (UNIX geeks)
@@ -2279,6 +2362,26 @@ loadfont:
 
 		jmp short adjust_screen
 
+;
+; loadkeys:	Load a LILO-style keymap; SI and DX:AX set by searchdir
+;
+loadkeys:
+		and dx,dx			; Should be 256 bytes exactly
+		jne loadkeys_ret
+		cmp ax,256
+		jne loadkeys_ret
+
+		mov bx,trackbuf
+		mov cx,1			; 1 cluster should be >= 256 bytes
+		call getfssec
+
+		mov si,trackbuf
+		mov di,KbdMap
+		mov cx,256 >> 2
+		rep movsd
+
+loadkeys_ret:	ret
+		
 ;
 ; get_msg_file: Load a text file and write its contents to the screen,
 ;               interpreting color codes.  Is called with SI and DX:AX
@@ -2965,6 +3068,7 @@ keywd_table	db 'ap' ; append
 		db 'de' ; default
 		db 'ti' ; timeout
 		db 'fo'	; font
+		db 'kb' ; kbd
 		db 'di' ; display
 		db 'pr' ; prompt
 		db 'la' ; label
@@ -3012,12 +3116,7 @@ ldlinux_end	equ default_cmd+(max_cmd_len+1)
 kern_cmd_len    equ ldlinux_end-command_line
 ldlinux_len	equ ldlinux_end-ldlinux_magic
 ;
-; Put the FAT right after the code, aligned on a sector boundary
+; Put the getcbuf right after the code, aligned on a sector boundary
 ;
 end_of_code	equ (ldlinux_end-bootsec)+7C00h
-FAT		equ (end_of_code + 511) & 0FE00h
-;
-; Put getc buffer right after FAT (the FAT buffer is 6K, the max size
-; of a 12-bit FAT)
-;
-getcbuf		equ FAT+6*1024
+getcbuf		equ (end_of_code + 511) & 0FE00h
