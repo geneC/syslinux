@@ -11,6 +11,8 @@ Changes in 2.07:
 	  command-line option.
 	* mkdiskimage: fix the generation of the end limit.
 	* PXELINUX: Fix bug in chainloading of other NBPs.
+	* MEMDISK: Fix bug that would occationally cause "ran out of
+	  input data" when using compressed disk images.
 
 Changes in 2.06:
 	* ALL: Fix problem that would occationally cause a
