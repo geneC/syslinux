@@ -3,6 +3,11 @@ apply to that specific program only; other changes apply to all of
 them.
 
 Changes in 2.05:
+	* PXELINUX: Add a default query based on the hardware address
+	  of the boot device.  This is in lower case hexadecimal form
+	  separated by dashes and including the hardware type, for
+	  example, the Ethernet (type 1) address 88:99:AA:BB:CC:DD
+	  would query the file pxelinux.cfg/01-88-99-aa-bb-cc-dd.
 
 Changes in 2.04:
 	* ALL: Reclaim even more low memory by observing that

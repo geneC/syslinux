@@ -203,6 +203,10 @@ NumBuf		resb 15			; Buffer to load number
 NumBufEnd	resb 1			; Last byte in NumBuf
 DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
 IPOption	resb 80			; ip= option buffer
+MACLen		resb 1			; MAC address len
+MACType		resb 1			; MAC address type
+MAC		resb 16			; Actual MAC address
+MACStr		resb 51			; MAC address as a string
 		alignb 32
 KernelName      resb FILENAME_MAX       ; Mangled name for kernel
 KernelCName     resb FILENAME_MAX	; Unmangled kernel name
@@ -598,6 +602,44 @@ query_bootp:
 		pop cx				; Forget status
 		mov cx,[pxe_bootp_query_pkt_2.buffersize]
 		call parse_dhcp			; Parse DHCP packet
+;
+; Save away MAC address (assume this is in query info 2.  If this
+; turns out to be problematic it might be better getting it from
+; the query info 1 packet.)
+;
+.save_mac:
+		movzx cx,byte [trackbuf+bootp.hardlen]
+		mov [MACLen],cl
+		mov al,[trackbuf+bootp.hardware]
+		mov [MACType],al
+		mov si,trackbuf+bootp.macaddr
+		mov di,MAC
+		push cx
+		rep movsb
+		mov cx,MAC+16
+		sub cx,di
+		xor ax,ax
+		rep stosb
+		pop cx
+		
+		mov si,MACType
+		mov di,MACStr
+		inc cx
+		mov bx,hextbl_lower
+.hexify_mac:
+		lodsb
+		mov ah,al
+		shr al,4
+		xlatb
+		stosb
+		mov al,ah
+		and al,0Fh
+		xlatb
+		stosb
+		mov al,'-'
+		stosb
+		loop .hexify_mac
+		mov [di-1],byte 0		; Null-terminate and strip final colon
 
 ;
 ; Now, get the boot file and other info.  This lives in the CACHED_REPLY
@@ -644,9 +686,9 @@ query_bootp:
 		call writestr
 		call crlf
 
-		mov si,IPOption			; ***
-		call writestr			; ***
-		call crlf			; ***
+		mov si,IPOption
+		call writestr
+		call crlf
 
 ;
 ; Check to see if we got any PXELINUX-specific DHCP options; in particular,
@@ -747,27 +789,11 @@ prefix:		test byte [DHCPMagic], 04h	; Did we get a path prefix option
 ;
 ; Load configuration file
 ;
-find_config:	mov di,trackbuf
+find_config:
+		mov di,trackbuf
 		mov si,cfgprefix
 		mov cx,cfgprefix_len
 		rep movsb
-		mov cx,8
-		mov eax,[MyIP]
-		xchg ah,al			; Convert to host byte order
-		ror eax,16
-		xchg ah,al
-.hexify_loop:	rol eax,4
-		push eax
-		and al,0Fh
-		cmp al,10
-		jae .high
-.low:		add al,'0'
-		jmp short .char
-.high:		add al,'A'-10
-.char:		stosb
-		pop eax
-		loop .hexify_loop
-
 ;
 ; Begin looking for configuration file
 ;
@@ -787,7 +813,39 @@ config_scan:
 		pop di
 		jnz .success
 
-.no_option:		; Have to guess config file name
+.no_option:	; Have to guess config file name
+		; Try loading by MAC address
+		push di
+		mov si,MACStr
+		mov cx,(3*17+1)/2
+		rep movsw
+		mov si,trying_msg
+		call writestr
+		mov di,trackbuf
+		mov si,di
+		call writestr
+		call crlf
+		call open
+		pop di
+		jnz .success
+
+.scan_ip:
+		mov cx,8
+		mov eax,[MyIP]
+		xchg ah,al			; Convert to host byte order
+		ror eax,16
+		xchg ah,al
+.hexify_loop:	rol eax,4
+		push eax
+		and al,0Fh
+		cmp al,10
+		jae .high
+.low:		add al,'0'
+		jmp short .char
+.high:		add al,'A'-10
+.char:		stosb
+		pop eax
+		loop .hexify_loop
 
 		mov cx,9			; Up to 9 attempts
 
@@ -2203,6 +2261,7 @@ LF		equ 10		; Line Feed
 FF		equ 12		; Form Feed
 BS		equ  8		; Backspace
 
+hextbl_lower	db '0123456789abcdef'
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
 		db CR, LF, 0
 boot_prompt	db 'boot: ', 0
