@@ -5,7 +5,7 @@
 
 use Fcntl;
 
-($vfile, $vout, $def) = $ARGV[0];
+($vfile, $vout, $def) = @ARGV;
 sysopen(VERSION, $vfile, O_RDONLY) or die "$0: Cannot open $vfile\n";
 $version = <VERSION>;
 chomp $version;

@@ -49,6 +49,8 @@
 
 /* Global option handling */
 
+const char *program;
+
 /* These are the options we can set and their values */
 struct my_options {
   unsigned int sectors;
@@ -434,7 +436,6 @@ patch_file_and_bootblock(int fd, int dirfd, int devfd)
   unsigned char *p, *patcharea;
   int i, dw;
   uint32_t csum;
-  unsigned int sectors, heads;
 
   if ( fstat(dirfd, &dirst) ) {
     perror("fstat dirfd");
@@ -538,7 +539,7 @@ install_bootblock(int fd, const char *device)
 }
 
 int
-install_file(char *path, int devfd, struct stat *rst)
+install_file(const char *path, int devfd, struct stat *rst)
 {
   char *file;
   int fd = -1, dirfd = -1, flags;
@@ -626,7 +627,7 @@ install_file(char *path, int devfd, struct stat *rst)
 }
 
 int
-install_loader(const char *path, unsigned int sectors, unsigned int heads)
+install_loader(const char *path)
 {
   struct stat st, dst, fst;
   struct mntent *mnt = NULL;
@@ -703,14 +704,14 @@ install_loader(const char *path, unsigned int sectors, unsigned int heads)
 int
 main(int argc, char *argv[])
 {
-  program = argv[0];
-  int opt;
-  unsigned long a;
+  int o;
   const char *directory;
 
-  while ( (opt = getopt_long(argc, argv, short_options,
+  program = argv[0];
+
+  while ( (o = getopt_long(argc, argv, short_options,
 			     long_options, NULL)) != EOF ) {
-    switch ( opt ) {
+    switch ( o ) {
     case 'z':
       opt.heads = 64;
       opt.sectors = 32;
@@ -738,7 +739,7 @@ main(int argc, char *argv[])
       fputs("extlinux " VERSION "\n", stderr);
       exit(0);
     default:
-      fprintf(stderr, "%s: Unknown option: %c\n", optopt);
+      fprintf(stderr, "%s: Unknown option: %c\n", program, optopt);
       exit(EX_USAGE);
     }
   }
