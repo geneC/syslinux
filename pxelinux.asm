@@ -386,6 +386,7 @@ VidRows         resb 1			; Rows on screen-1
 FlowControl	equ $
 FlowOutput	resb 1			; Outputs to assert for serial flow
 FlowInput	resb 1			; Input bits for serial flow
+FlowIgnore	resb 1			; Ignore input unless these bits set
 RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
@@ -1012,8 +1013,11 @@ pc_serial:	call getint			; "serial" command
 		call ungetc
 		call getint			; Hardware flow control?
 		jnc .valid_flow
-		xor bl,bl			; Default -> no flow control
+		xor bx,bx			; Default -> no flow control
 .valid_flow:
+		and bh,0Fh			; FlowIgnore
+		shl bh,4
+		mov [FlowIgnore],bh
 		mov bh,bl
 		and bx,0F003h			; Valid bits
 		mov [FlowControl],bx
@@ -1052,8 +1056,7 @@ pc_serial:	call getint			; "serial" command
 
 		add dx,byte 3			; DX -> MCR
 		in al,dx
-		mov ah,[FlowOutput]		; DTR and RTS control
-		or al,ah			; Assert bits
+		or al,[FlowOutput]		; Assert bits
 		call slow_out
 
 		; Show some life
@@ -3516,6 +3519,14 @@ pollchar:
 		add dx,byte 5		; DX -> LSR
 		in al,dx
 		test al,1		; ZF = 0 if data pending
+		jz .done
+		inc dx			; DX -> MSR
+		mov ah,[FlowIgnore]	; Required status bits
+		in al,dx
+		and al,ah
+		cmp al,ah
+		setne al
+		dec al			; Set ZF = 0 if equal
 .done:		popad
 		ret
 
@@ -3529,10 +3540,16 @@ getchar:
 		mov bx,[SerialPort]
 		and bx,bx
 		jz .again
-		lea dx,[bx+5]		; Serial status register
+		lea dx,[bx+5]		; DX -> LSR
 		in al,dx
 		test al,1
 		jz .again
+		inc dx			; DX -> MSR
+		mov ah,[FlowIgnore]
+		in al,dx
+		and al,ah
+		cmp al,ah
+		jne .again
 .serial:	xor ah,ah		; Avoid confusion
 		xchg dx,bx		; Data port
 		in al,dx
