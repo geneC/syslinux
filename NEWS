@@ -5,6 +5,9 @@ Changes in 1.51:
 	* PXELINUX: Not all PXE stacks fill in the IP address for a
 	  type 3 cached info query.  Use a type 2 cached info query
 	  for this information (only.)
+	* Yet another attempt at A20 coding.  Now support BIOS call
+	  15:2401 as well, and handle machines which always have A20
+	  on separately.
 
 Changes in 1.50:
 	* Yet another A20-code update.  It seems some "legacy-free"

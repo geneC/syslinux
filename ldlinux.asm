@@ -373,7 +373,6 @@ RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
-A20KBCflag	resb 1			; Did we use KBC to access A20?
 FuncFlag	resb 1			; Escape sequences received from keyboard
 MNameBuf        resb 11            	; Generic mangled file name buffer
 InitRD          resb 11                 ; initrd= mangled name
@@ -2487,7 +2486,13 @@ bcopy:		push eax
 ; 
 %define	io_delay	call _io_delay
 %define IO_DELAY_PORT	80h		; Invalid port (we hope!)
-%define delaytime 	1024		; 4 x ISA bus cycles (@ 1.5 µs)
+%define disable_wait 	256		; How long to wait for a disable
+
+%define A20_DUNNO	0		; A20 type unknown
+%define A20_NONE	1		; A20 always on?
+%define A20_BIOS	2		; A20 BIOS enable
+%define A20_KBC		3		; A20 through KBC
+%define A20_FAST	4		; A20 through port 92h
 
 slow_out:	out dx, al		; Fall through
 
@@ -2500,33 +2505,53 @@ _io_delay:	out IO_DELAY_PORT,al
 enable_a20:
 		mov byte [ss:A20Tries],255 ; Times to try to make this work
 
-.try_enable_a20:
+try_enable_a20:
 ;
 ; Flush the caches
 ;
-		call try_wbinvd
+;		call try_wbinvd
 
 ;
-; Enable the "fast A20 gate"
+; If the A20 type is known, jump straight to type
 ;
-		mov byte [ss:A20KBCflag], 0	; Haven't used the KBC yet
-		in al, 092h
-		or al,02h
-		and al,~01h			; Don't accidentally reset the machine!
-		out 092h, al
+		movzx si,byte [ss:A20Type]
+		jmp word [si+A20List]
+
+;
+; First, see if we are on a system with no A20 gate
+;
+a20_dunno:
+a20_none:
+		mov byte [ss:A20Type], A20_NONE
+		call a20_test
+		jnz a20_done
+
+;
+; Next, try the BIOS (INT 15h AX=2401h)
+;
+a20_bios:
+		mov byte [ss:A20Type], A20_BIOS
+		mov ax,2401h
+		int 15h
+
+		call a20_test
+		jnz a20_done
+
 ;
 ; Enable the keyboard controller A20 gate
 ;
+a20_kbc:
 		mov dl, 1			; Allow early exit
 		call empty_8042
-		jnz .a20_wait			; A20 live, no need to use KBC
+		jnz a20_done			; A20 live, no need to use KBC
 
-		mov byte [ss:A20KBCflag], 1	; We touched the KBC
+		mov byte [ss:A20Type], A20_KBC	; Starting KBC command sequence
+
 		mov al,0D1h			; Command write
 		out 064h, al
 		call empty_8042_uncond
 
-		mov al,0DFh		; A20 on
+		mov al,0DFh			; A20 on
 		out 060h, al
 		call empty_8042_uncond
 
@@ -2536,27 +2561,49 @@ enable_a20:
 		; we don't do the same check in the disable case, because
 		; we don't want to *require* A20 masking (SYSLINUX should
 		; work fine without it, if the BIOS does.)
-.a20_wait:	push cx
-		mov cx, 0FFFFh
-.a20_wait_loop:
+.kbc_wait:	push cx
+		xor cx,cx
+.kbc_wait_loop:
 		call a20_test
-		jnz .a20_done
-		loop .a20_wait_loop
+		jnz a20_done_pop
+		loop .kbc_wait_loop
+
+		pop cx
+;
+; Running out of options here.  Final attempt: enable the "fast A20 gate"
+;
+a20_fast:
+		mov byte [ss:A20Type], A20_FAST	; Haven't used the KBC yet
+		in al, 092h
+		or al,02h
+		and al,~01h			; Don't accidentally reset the machine!
+		out 092h, al
+
+.fast_wait:	push cx
+		xor cx,cx
+.fast_wait_loop:
+		call a20_test
+		jnz a20_done_pop
+		loop .fast_wait_loop
+
+		pop cx
+
 ;
 ; Oh bugger.  A20 is not responding.  Try frobbing it again; eventually give up
 ; and report failure to the user.
 ;
-		pop cx
+
+
 		dec byte [ss:A20Tries]
-		jnz .try_enable_a20
+		jnz try_enable_a20
 
 		mov si, err_a20
 		jmp abort_load
 ;
 ; A20 unmasked, proceed...
 ;
-.a20_done:	pop cx
-		ret
+a20_done_pop:	pop cx
+a20_done:	ret
 
 ;
 ; This routine tests if A20 is enabled (ZF = 0).  This routine
@@ -2572,7 +2619,7 @@ a20_test:
 		mov ax,[ss:A20Test]
 .a20_wait:	inc ax
 		mov [ss:A20Test],ax
-		call try_wbinvd
+;		call try_wbinvd
 		cmp ax,[es:A20Test+10h]
 		loopz .a20_wait
 .a20_done:	pop ax
@@ -2584,20 +2631,29 @@ disable_a20:
 ;
 ; Flush the caches
 ;
-		call try_wbinvd
+;		call try_wbinvd
+
+		movzx si,[ss:A20Type]
+		jmp word [si+A20DList]
+
+a20d_bios:
+		mov ax,2400h
+		int 15h
+		jmp short a20d_snooze
+
 ;
 ; Disable the "fast A20 gate"
 ;
+a20d_fast:
 		in al, 092h
 		and al,~03h
 		out 092h, al
+		jmp short a20d_snooze
+
 ;
 ; Disable the keyboard controller A20 gate
 ;
-		test [ss:A20KBCflag], byte 01h
-		jz .snooze		; Never messed with the KBC
-
-		; We did mess with the KBC, so we have to do this..
+a20d_kbc:
 		call empty_8042_uncond
 		mov al,0D1h
 		out 064h, al		; Command write
@@ -2606,11 +2662,15 @@ disable_a20:
 		out 060h, al
 		call empty_8042_uncond
 		; Wait a bit for it to take effect
-.snooze:	push cx
-		mov cx, delaytime
-.delayloop:	io_delay
+a20d_snooze:
+		push cx
+		mov cx, disable_wait
+.delayloop:	call a20_test
+		jz .disabled
 		loop .delayloop
-		pop cx
+.disabled:	pop cx
+a20d_dunno:
+a20d_none:
 		ret
 
 ;
@@ -3768,6 +3828,9 @@ VKernelCtr	dw 0			; Number of registered vkernels
 ForcePrompt	dw 0			; Force prompt
 AllowImplicit   dw 1                    ; Allow implicit kernels
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
+A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
+A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
+A20Type		db A20_DUNNO		; A20 type unknown
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
 ; tons of zeros appended to our file and wasting space
