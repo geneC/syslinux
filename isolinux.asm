@@ -292,8 +292,6 @@ InitRDat	resd 1			; Load address (linear) for initrd
 HiLoadAddr      resd 1			; Address pointer for high load loop
 HighMemSize	resd 1			; End of memory pointer (bytes)
 KernelSize	resd 1			; Size of kernel (bytes)
-Stack		resd 1			; Pointer to reset stack
-PXEEntry	resd 1			; !PXE API entry point
 SavedSSSP	resw 1			; Our SS:SP while running a COMBOOT image
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
@@ -317,7 +315,6 @@ VGAFilePtr	resw 1			; Pointer into VGAFileBuf
 ConfigFile	resw 1			; Socket for config file
 PktTimeout	resw 1			; Timeout for current packet
 KernelExtPtr	resw 1			; During search, final null pointer
-IPOptionLen	resw 1			; Length of IPOption
 LocalBootType	resw 1			; Local boot return code
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
@@ -351,10 +348,9 @@ Files		resb MAX_OPEN*open_file_t_size
 ;;
 bootsec		equ $
 _start:		; Far jump makes sure we canonicalize the address
-		cli			; 1 byte
-		jmp 0:_start1		; 5 bytes
-		nop
-		nop
+		cli
+		jmp 0:_start1
+		times 8-($-$$) nop		; Pad to file offset 8
 
 		; This table gets filled in by mkisofs using the
 		; -boot-info-table option
@@ -382,6 +378,10 @@ initial_csum:	xor edi,edi
 		add edi,eax
 		loop .loop
 		mov [FirstSecSum],edi
+
+		; Show signs of life
+		mov si,isolinux_banner
+		call writestr
 
 		; Set up boot file sizes
 		mov eax,[bi_length]
@@ -434,7 +434,6 @@ params_ok:
 		mov si,secsize_msg
 		call writemsg
 		mov ax,[dp_secsize]
-		mov [bdib_secsize],ax
 		call writehex4
 		call crlf
 
@@ -453,7 +452,7 @@ load_image:
 
 		; Just in case some BIOSes have problems with
 		; segment wraparound, use the normalized address
-		mov bx,(REALOFF >> 4)
+		mov bx,((7C00h+2048) >> 4)
 		mov es,bx
 		xor bx,bx
 		mov bp,[ImageSectors]
@@ -464,7 +463,7 @@ load_image:
 		call writehex4
 		call crlf
 		pop ax
-		call getlinsec_cdrom
+		call getlinsec
 
 		mov ax,ds
 		mov es,ax
@@ -474,7 +473,7 @@ load_image:
 
 		; Verify the checksum on the loaded image.
 verify_image:
-		mov si,REALOFF
+		mov si,7C00h+2048
 		mov bx,es
 		mov ecx,[ImageDwords]
 		mov edi,[FirstSecSum]		; First sector checksum
@@ -497,18 +496,6 @@ verify_image:
 		call writestr
 
 integrity_ok:
-		; Copy relevant data to BDIB
-		movzx ax,byte [sp_drive]
-		mov [bdib_unit],ax
-		mov ebx,[bi_pvd]
-		mov [bdib_offset],ebx
-		
-		; Now point to the BDIB and run
-		mov bx,bdib			; Set up BDIB pointer in ES:BX
-
-		mov si,ready_msg
-		call writemsg
-
 		jmp all_read			; Jump to main code
 
 		; INT 13h, AX=4B01h, DL=7Fh failed.  Try to scan the entire 80h-FFh from
@@ -552,63 +539,95 @@ fatal_error:
 .norge:		jmp short .norge
 
 		; Information message (DS:SI) output
-		; Prefix with "isoboot: "; first byte is flag if
-		; we should set the pause in bdib_flags
+		; Prefix with "isolinux: "
+		;
 writemsg:	push ax
 		push si
-		mov si,isoboot_str
+		mov si,isolinux_str
 		call writestr
 		pop si
-		lodsb
-		or [bdib_flags],al
 		call writestr
 		pop ax				
 		ret
 
-		; Information string (DS:SI) output
-writestr:	pushad
-		pushfd
-.loop:		lodsb
-		and al,al
-		jz .done
-		mov ah,0Eh
-		int 10h
-		jmp short .loop
-.done:		popfd
-		popad
-		ret
+;
+; crlf: Print a newline
+;
+crlf:		mov si,crlf_msg
+		; Fall through
 
-		; Write value in AL, AX or EAX as hex
-writehex2:	pushad
-		mov cx,2
+;
+; cwritestr: write a null-terminated string to the console, saving
+;            registers on entry.
+;
+; Note: writestr and cwritestr are distinct in SYSLINUX, not in ISOLINUX
+;
+cwritestr:
+		pushfd
+                pushad
+.top:		lodsb
+		and al,al
+                jz .end
+		call writechr
+                jmp short .top
+.end:		popad
+		popfd
+                ret
+
+writestr	equ cwritestr
+
+;
+; writehex[248]: Write a hex number in (AL, AX, EAX) to the console
+;
+writehex2:
+		pushfd
+		pushad
 		shl eax,24
+		mov cx,2
 		jmp short writehex_common
-writehex4:	pushad
-		mov cx,4
+writehex4:
+		pushfd
+		pushad
 		shl eax,16
+		mov cx,4
 		jmp short writehex_common
-writehex8:	pushad
+writehex8:
+		pushfd
+		pushad
 		mov cx,8
 writehex_common:
-		pushfd
-		mov bx,hex_table
-.loop:		rol eax,4	; Move bits in question into bottom bits
+.loop:		rol eax,4
 		push eax
 		and al,0Fh
-		xlatb
-		mov ah,0Eh
-		int 10h
+		cmp al,10
+		jae .high
+.low:		add al,'0'
+		jmp short .ischar
+.high:		add al,'A'-10
+.ischar:	call writechr
 		pop eax
 		loop .loop
-		popfd
 		popad
+		popfd
 		ret
 
-		; Print newline
-crlf:		push si
-		mov si,crlf_str
-		call writestr
-		pop si
+;
+; Write a character to the screen.  There is a more "sophisticated"
+; version of this in the subsequent code, so we patch the pointer
+; when appropriate.
+;
+
+writechr:
+		jmp near writechr_simple	; NOT "short"!!!!
+
+writechr_simple:
+		pushfd
+		popad
+		mov ah,0Eh
+		xor bx,bx
+		int 10h
+		popad
+		popfd
 		ret
 
 ;
@@ -618,7 +637,7 @@ crlf:		push si
 ; Phoenix BIOSes has a 127-sector limit.  To be on the safe side, stick
 ; to 32 sectors (64K) per request.
 ;
-getlinsec_cdrom:
+getlinsec:
 		mov si,dapa			; Load up the DAPA
 		mov [si+4],bx
 		mov bx,es
@@ -666,9 +685,86 @@ xint13:		mov byte [RetryCount], 6
 .norge:		jmp short .norge
 
 
-rl_checkpt	equ $				; Must be <= 400h
+;
+; Data that needs to be in the first sector
+;
+isolinux_banner	db CR, LF, 'ISOLINUX ', version_str, ' ', date, ' ', 0
+isolinux_str	db 'isolinux: ', 0
+startup_msg:	db 'Starting up, DL = ', 0
+spec_ok_msg:	db 'Loaded spec packet OK, drive = ', 0
+spec_err_msg:	db 'Loading spec packet failed, trying to wing it...', CR, LF, 0
+maybe_msg:	db 'Found something at drive = ', 0
+secsize_msg:	db 'Sector size appears to be ', 0
+nosecsize_msg:	db 'Failed to get sector size, assuming 0800', CR, LF, 0
+nothing_msg:	db 'Failed to access CD-ROM device; boot failed.', CR, LF, 0
+alright_msg:	db 'Looks like it might be right, continuing...', CR, LF, 0
+offset_msg:	db 'Loading main image from LBA = ', 0
+size_msg:	db 'Sectors to load = ', 0
+loaded_msg:	db 'Loaded boot image, verifying...', CR, LF, 0
+verify_msg:	db 'Image checksum verified.', CR, LF, 0
+checkerr_msg:	db 'Load checksum error, goodbye...', CR, LF, 0
+diskerr_msg:	db 'CD-ROM disk error ', 0
 
-%if (rl_checkpt-$$) > 0x800
+
+		alignb 8, db 0
+FirstSecSum:	dd 0				; Checksum of bytes 64-2048
+ImageDwords:	dd 0				; image.bin size, dwords
+ImageSectors:	dw 0				; image.bin size, sectors
+DriveNo:	db 0
+
+;
+; El Torito spec packet
+;
+		align 8, db 0
+spec_packet:	db 13				; Size of packet
+sp_media:	db 0				; Media type
+sp_drive:	db 0				; Drive number
+sp_controller:	db 0				; Controller index
+sp_lba:		dd 0				; LBA for emulated disk image
+sp_devspec:	dw 0				; IDE/SCSI information
+sp_buffer:	dw 0				; User-provided buffer
+sp_loadseg:	dw 0				; Load segment
+sp_sectors:	dw 0				; Sector count
+sp_chs:		db 0,0,0			; Simulated CHS geometry
+
+;
+; EBIOS drive parameter packet
+;
+		align 8, db 0
+drive_params:	dw 30				; Buffer size
+dp_flags:	dw 0				; Information flags
+dp_cyl:		dd 0				; Physical cylinders
+dp_head:	dd 0				; Physical heads
+dp_sec:		dd 0				; Physical sectors/track
+dp_totalsec:	dd 0,0				; Total sectors
+dp_secsize:	dw 0				; Bytes per sector
+dp_dpte:	dd 0				; Device Parameter Table
+dp_dpi_key:	dw 0				; 0BEDDh if rest valid
+dp_dpi_len:	db 0				; DPI len
+		db 0
+		dw 0
+dp_bus:		times 4 db 0			; Host bus type
+dp_interface:	times 8 db 0			; Interface type
+db_i_path:	dd 0,0				; Interface path
+db_d_path:	dd 0,0				; Device path
+		db 0
+db_dpi_csum:	db 0				; Checksum for DPI info
+
+;
+; EBIOS disk address packet
+;
+		align 8, db 0
+dapa:		dw 16				; Packet size
+.count:		dw 0				; Block count
+.off:		dw 0				; Offset of buffer
+.seg:		dw 0				; Segment of buffer
+.lba:		dd 0				; LBA (LSW)
+		dd 0				; LBA (MSW)
+
+rl_checkpt	equ $				; Must be <= 800h
+
+rl_checkpt_off	equ ($-$$)
+%if rl_checkpt_off > 0x800
 %error "Sector 0 overflow"
 %endif
 
@@ -676,28 +772,10 @@ rl_checkpt	equ $				; Must be <= 400h
 ;  End of code and data that have to be in the first sector
 ; ----------------------------------------------------------------------------
 
-	;;; ********** THIS STUFF HASN'T BEEN UNIFIED PROPERLY ***********
-
 all_read:
-		pushad			; Paranoia... in case of return to PXE
-		pushfd			; ... save as much state as possible
-		push ds
-		push es
-		push fs
-		push gs
+		; Patch the writechr routine to point to the full code
+		mov word [writechr+1], writechr_full-(writechr+3)
 
-		mov bp,sp
-		les bx,[bp+48]		; Initial !PXE structure pointer
-
-		mov ax,cs
-		mov ds,ax
-		sti			; Stack already set up by PXE
-		cld			; Copy upwards
-
-		push ds
-		mov [Stack],sp
-		mov ax,ss
-		mov [Stack+2],ax
 ;
 ; Initialize screen (if we're using one)
 ;
@@ -721,106 +799,12 @@ not_vga:
 
 		; Now set up screen parameters
 		call adjust_screen
+
 ;
 ; Tell the user we got this far
 ;
-		mov si,pxelinux_banner
-		call writestr
-
 		mov si,copyright_str
 		call writestr
-
-;
-; Now we need to find the !PXE structure.  It's *supposed* to be pointed
-; to by SS:[SP+4], but support INT 1Ah, AX=5650h method as well.
-;
-		cmp dword [es:bx], '!PXE'
-		je near have_pxe
-
-		; Uh-oh, not there... try plan B
-		mov ax, 5650h
-		int 1Ah
-		jc no_pxe
-		cmp ax,564Eh
-		jne no_pxe
-
-		; Okay, that gave us the PXENV+ structure, find !PXE
-		; structure from that (if available)
-		cmp dword [es:bx], 'PXEN'
-		jne no_pxe
-		cmp word [es:bx+4], 'V+'
-		je have_pxenv
-
-		; Nothing there either.  Last-ditch: scan memory
-		call memory_scan_for_pxe_struct		; !PXE scan
-		jnc have_pxe
-		call memory_scan_for_pxenv_struct	; PXENV+ scan
-		jnc have_pxenv
-
-no_pxe:		mov si,err_nopxe
-		call writestr
-		jmp kaboom
-
-have_pxenv:
-		mov si,found_pxenv
-		call writestr
-
-		mov si,apiver_str
-		call writestr
-		mov ax,[es:bx+6]
-		call writehex4
-		call crlf
-
-		cmp word [es:bx+6], 0201h	; API version 2.1 or higher
-		jb old_api
-		mov si,bx
-		mov ax,es
-		les bx,[es:bx+28h]		; !PXE structure pointer
-		cmp dword [es:bx],'!PXE'
-		je have_pxe
-
-		; Nope, !PXE structure missing despite API 2.1+, or at least
-		; the pointer is missing.  Do a last-ditch attempt to find it.
-		call memory_scan_for_pxe_struct
-		jnc have_pxe
-
-		; Otherwise, no dice, use PXENV+ structure
-		mov bx,si
-		mov es,ax
-
-old_api:	; Need to use a PXENV+ structure
-		mov si,using_pxenv_msg
-		call writestr
-
-		mov eax,[es:bx+0Ah]		; PXE RM API
-		mov [PXENVEntry],eax
-
-		mov si,pxenventry_msg
-		call writestr
-		mov ax,[PXENVEntry+2]
-		call writehex4
-		mov al,':'
-		call writechr
-		mov ax,[PXENVEntry]
-		call writehex4
-		call crlf
-		jmp short have_entrypoint
-
-have_pxe:
-		mov eax,[es:bx+10h]
-		mov [PXEEntry],eax
-
-		mov si,pxeentry_msg
-		call writestr
-		mov ax,[PXEEntry+2]
-		call writehex4
-		mov al,':'
-		call writechr
-		mov ax,[PXEEntry]
-		call writehex4
-		call crlf
-
-have_entrypoint:
 
 ;
 ; Clear Files structures
@@ -829,114 +813,6 @@ have_entrypoint:
 		mov cx,(MAX_OPEN*open_file_t_size)/4
 		xor eax,eax
 		rep stosd
-
-;
-; Now attempt to get the BOOTP/DHCP packet that brought us life (and an IP
-; address).  This lives in the DHCPACK packet (query info 2).
-;
-query_bootp:
-		mov ax,ds
-		mov es,ax
-		mov di,pxe_bootp_query_pkt_2
-		mov bx,PXENV_GET_CACHED_INFO
-
-		call far [PXENVEntry]
-		push word [pxe_bootp_query_pkt_2.status]
-		jc .pxe_err1
-		cmp ax,byte 0
-		je .pxe_ok
-.pxe_err1:
-		mov di,pxe_bootp_size_query_pkt
-		mov bx,PXENV_GET_CACHED_INFO
-
-		call far [PXENVEntry]
-		jc .pxe_err
-.pxe_size:
-		mov ax,[pxe_bootp_size_query_pkt.buffersize]
-		call writehex4
-		call crlf
-
-.pxe_err:
-		mov si,err_pxefailed
-		call writestr
-		call writehex4
-		mov al, ' '
-		call writechr
-		pop ax				; Status
-		call writehex4
-		call crlf
-		jmp kaboom			; We're dead
-
-.pxe_ok:
-		pop cx				; Forget status
-		mov cx,[pxe_bootp_query_pkt_2.buffersize]
-		call parse_dhcp			; Parse DHCP packet
-
-;
-; Now, get the boot file and other info.  This lives in the CACHED_REPLY
-; packet (query info 3).
-;
-		mov [pxe_bootp_size_query_pkt.packettype], byte 3
-
-		mov di,pxe_bootp_query_pkt_3
-		mov bx,PXENV_GET_CACHED_INFO
-
-		call far [PXENVEntry]
-		push word [pxe_bootp_query_pkt_3.status]
-		jc .pxe_err1
-		cmp ax,byte 0
-		jne .pxe_err1
-
-		; Packet loaded OK...
-		pop cx				; Forget status
-		mov cx,[pxe_bootp_query_pkt_3.buffersize]
-		call parse_dhcp			; Parse DHCP packet
-;
-; Generate ip= option
-;
-		call genipopt
-
-;
-; Print IP address
-;
-		mov eax,[MyIP]
-		mov di,DotQuadBuf
-		push di
-		call gendotquad			; This takes network byte order input
-
-		xchg ah,al			; Convert to host byte order
-		ror eax,16			; (BSWAP doesn't work on 386)
-		xchg ah,al
-
-		mov si,myipaddr_msg
-		call writestr
-		call writehex8
-		mov al,' '
-		call writechr
-		pop si				; DotQuadBuf
-		call writestr
-		call crlf
-
-		mov si,IPOption			; ***
-		call writestr			; ***
-		call crlf			; ***
-
-;
-; Initialize UDP stack
-;
-udp_init:
-		mov eax,[MyIP]
-		mov [pxe_udp_open_pkt.sip],eax
-		mov di,pxe_udp_open_pkt
-		mov bx,PXENV_UDP_OPEN
-		call far [PXENVEntry]
-		jc .failed
-		cmp word [pxe_udp_open_pkt.status], byte 0
-		je .success
-.failed:	mov si,err_udpinit
-		call writestr
-		jmp kaboom
-.success:
 
 ; 
 ; Check that no moron is trying to boot Linux on a 286 or so.  According
@@ -1042,93 +918,11 @@ mkkeymap:	stosb
 		inc al
 		loop mkkeymap
 
-;
-; Store standard filename prefix
-;
-prefix:		mov si,BootFile
-		mov di,PathPrefix
-		cld
-		call strcpy
-		lea cx,[di-PathPrefix-1]
-		std
-		lea si,[di-2]			; Skip final null!
-.find_alnum:	lodsb
-		or al,20h
-		cmp al,'.'			; Count . or - as alphanum
-		je .alnum
-		cmp al,'-'
-		je .alnum
-		cmp al,'0'
-		jb .notalnum
-		cmp al,'9'
-		jbe .alnum
-		cmp al,'a'
-		jb .notalnum
-		cmp al,'z'
-		ja .notalnum
-.alnum:		loop .find_alnum
-		dec si
-.notalnum:	mov byte [si+2],0		; Zero-terminate after delimiter
-		cld
-		mov si,tftpprefix_msg
-		call writestr
-		mov si,PathPrefix
-		call writestr
-		call crlf
+;;
+;; ISOLINUX:: NEED TO LOCATE AND OPEN THE CONFIGURATION FILE HERE
+;;
 
-;
-; Load configuration file
-;
-find_config:	mov di,trackbuf
-		mov si,cfgprefix
-		mov cx,cfgprefix_len
-		rep movsb
-		mov cx,8
-		mov eax,[MyIP]
-		xchg ah,al			; Convert to host byte order
-		ror eax,16
-		xchg ah,al
-.hexify_loop:	rol eax,4
-		push eax
-		and al,0Fh
-		cmp al,10
-		jae .high
-.low:		add al,'0'
-		jmp short .char
-.high:		add al,'A'-10
-.char:		stosb
-		pop eax
-		loop .hexify_loop
-
-;
-; Begin looking for configuration file
-;
-config_scan:
-		mov cx,9			; Up to 9 attempts
-
-.tryagain:	mov byte [di],0
-		cmp cx,byte 1
-		jne .not_default
-		pusha
-		mov si,default_str
-		mov cx,default_len
-		rep movsb			; Copy "default" string
-		popa
-.not_default:	pusha
-		mov si,trying_msg
-		call writestr
-		mov di,trackbuf
-		mov si,di
-		call writestr
-		call crlf
-		call open
-		jnz .success
-
-.badness:	popa
-		dec di
-		loop .tryagain
-
-		jmp no_config_file
+		jmp no_config_file		; If not found
 
 ;
 ; Now we have the config file open
@@ -1161,8 +955,6 @@ parse_config:
 		je near pc_serial
 		cmp ax,'sa'			; SAy
 		je near pc_say
-		cmp ax,'ip'			; IPappend
-		je pc_ipappend
 		cmp ax,'lo'			; LOcalboot
 		je pc_localboot
 		cmp al,'f'			; F-key
@@ -1192,17 +984,6 @@ pc_append_vk:	mov di,VKernelBuf+vk_append	; "append" command (vkernel)
                 mov di,0                        ; If "append -" -> null string
 pc_app2:        mov [VKernelBuf+vk_appendlen],di
 		jmp short parse_config_2	
-
-pc_ipappend:	call getint			; "ipappend" command
-		jc parse_config_2
-		and bx,bx
-		setnz bl
-		cmp word [VKernelCtr], byte 0
-		jne .vk
-		mov [IPAppend],bl
-		jmp short parse_config_2
-.vk:		mov [VKernelBuf+vk_ipappend],bl
-		jmp short parse_config_2
 
 pc_localboot:	call getint			; "localboot" command
 		cmp word [VKernelCtr],byte 0	; ("label" section only)
@@ -1285,7 +1066,7 @@ pc_serial:	call getint			; "serial" command
 		call slow_out
 
 		; Show some life
-		mov si,pxelinux_banner
+		mov si,isolinux_banner
 		call write_serial_str
 		mov si,copyright_str
 		call write_serial_str
@@ -1884,14 +1665,6 @@ construct_cmdline:
                 mov al,' '                      ; Space
                 stosb
 
-		mov al,[IPAppend]		; ip=
-		and al,al
-		jz .noipappend
-		mov si,IPOption
-		mov cx,[IPOptionLen]
-		rep movsb
-		mov al,' '
-		stosb
 .noipappend:
                 mov si,[CmdOptPtr]              ; Options from user input
 		mov cx,(kern_cmd_len+3) >> 2
@@ -2118,10 +1891,7 @@ nk_noinitrd:
 		call cwritestr
 
 		call vgaclearmode		; We can't trust ourselves after this
-;
-; Unload PXE stack
-;
-		call unload_pxe
+
 		cli
 		xor ax,ax
 		mov ss,ax
@@ -2827,150 +2597,23 @@ ac_ret1:	ret
 ;
 kaboom:
 		lss sp,[cs:Stack]
-		pop ds
-		push ds
-		sti
-.patch:		mov si,bailmsg
-		call writestr		; Returns with AL = 0
-.drain:		call pollchar
-		jz .drained
-		call getchar
-		jmp short .drain
-.drained:
-		mov cx,18
-.wait1:		push cx
-		mov cx,REBOOT_TIME
-.wait2:		mov dx,[BIOS_timer]
-.wait3:		call pollchar
-		jnz .keypress
-		cmp dx,[BIOS_timer]
-		je .wait3
-		loop .wait2
-		mov al,'.'
-		call writechr
-		pop cx
-		loop .wait1
-.keypress:
-		call crlf
-		mov word [BIOS_magic],0	; Cold reboot
-		jmp 0F000h:0FFF0h	; Reset vector address
-
-;
-; memory_scan_for_pxe_struct:
-;
-;	If none of the standard methods find the !PXE structure, look for it
-;	by scanning memory.
-;
-;	On exit, if found:
-;		CF = 0, ES:BX -> !PXE structure
-;	Otherwise CF = 1, all registers saved
-;	
-memory_scan_for_pxe_struct:
-		push ds
-		pusha
-		xor ax,ax
+		mov ax,cs
 		mov ds,ax
-		mov si,trymempxe_msg
-		call writestr
-		mov ax,[BIOS_fbm]	; Starting segment
-		shl ax,(10-4)		; Kilobytes -> paragraphs
-;		mov ax,01000h		; Start to look here
-		dec ax			; To skip inc ax
-.mismatch:
-		inc ax
-		cmp ax,0A000h		; End of memory
-		jae .not_found
-		call writehex4
-		mov si,fourbs_msg
-		call writestr
 		mov es,ax
-		mov edx,[es:0]
-		cmp edx,'!PXE'
-		jne .mismatch
-		movzx cx,byte [es:4]	; Length of structure
-		cmp cl,08h		; Minimum length
-		jb .mismatch
-		push ax
-		xor ax,ax
-		xor si,si
-.checksum:	es lodsb
-		add ah,al
-		loop .checksum
-		pop ax
-		jnz .mismatch		; Checksum must == 0
-.found:		mov bp,sp
-		xor bx,bx
-		mov [bp+8],bx		; Save BX into stack frame (will be == 0)
-		mov ax,es
-		call writehex4
-		call crlf
-		popa
-		pop ds
-		clc
-		ret
-.not_found:	mov si,notfound_msg
-		call writestr
-		popa
-		pop ds
-		stc
-		ret
+		mov fs,ax
+		mov gs,ax
+		sti
+		mov si,err_bootfailed
+		call cwritestr
+		call getchar
+		int 19h
+.norge:		jmp short .norge
 
-;
-; memory_scan_for_pxenv_struct:
-;
-;	If none of the standard methods find the PXENV+ structure, look for it
-;	by scanning memory.
-;
-;	On exit, if found:
-;		CF = 0, ES:BX -> PXENV+ structure
-;	Otherwise CF = 1, all registers saved
-;	
-memory_scan_for_pxenv_struct:
-		pusha
-		mov si,trymempxenv_msg
-		call writestr
-;		mov ax,[BIOS_fbm]	; Starting segment
-;		shl ax,(10-4)		; Kilobytes -> paragraphs
-		mov ax,01000h		; Start to look here
-		dec ax			; To skip inc ax
-.mismatch:
-		inc ax
-		cmp ax,0A000h		; End of memory
-		jae .not_found
-		mov es,ax
-		mov edx,[es:0]
-		cmp edx,'PXEN'
-		jne .mismatch
-		mov dx,[es:4]
-		cmp dx,'V+'
-		jne .mismatch
-		movzx cx,byte [es:8]	; Length of structure
-		cmp cl,26h		; Minimum length
-		jb .mismatch
-		xor ax,ax
-		xor si,si
-.checksum:	es lodsb
-		add ah,al
-		loop .checksum
-		and ah,ah
-		jnz .mismatch		; Checksum must == 0
-.found:		mov bp,sp
-		mov [bp+8],bx		; Save BX into stack frame
-		mov ax,bx
-		call writehex4
-		call crlf
-		clc
-		ret
-.not_found:	mov si,notfound_msg
-		call writestr
-		popad
-		stc
-		ret
 
 ;
 ; searchdir:
 ;
-;	Open a TFTP connection to the server 
+;	Open a file
 ;
 ;	     On entry:
 ;		DS:DI	= filename
@@ -2983,243 +2626,9 @@ memory_scan_for_pxenv_struct:
 ;
 
 searchdir:
-		mov si,di
-		push bp
-		mov bp,sp
-
-		call allocate_socket
-		jz near .error
-
-		mov ax,PKT_RETRY	; Retry counter
-		mov word [PktTimeout],PKT_TIMEOUT	; Initial timeout
-	
-.sendreq:	push ax			; [bp-2]  - Retry counter
-		push si			; [bp-4]  - File name 
-		push bx			; [bp-6]  - TFTP block
-		mov bx,[bx]
-		push bx			; [bp-8]  - TID (socket port no)
-
-		mov eax,[ServerIP]	; Server IP
-		mov [pxe_udp_write_pkt.sip],eax
-		mov [pxe_udp_write_pkt.lport],bx
-		mov ax,[ServerPort]
-		mov [pxe_udp_write_pkt.rport],ax
-		mov di,packet_buf
-		mov [pxe_udp_write_pkt.buffer],di
-		mov ax,TFTP_RRQ		; TFTP opcode
-		stosw
-		push si			; Add common prefix
-		mov si,PathPrefix
-		call strcpy
-		dec di
-		pop si
-		call strcpy		; Filename
-		mov si,tftp_tail
-		mov cx,tftp_tail_len
-		rep movsb
-		sub di,packet_buf	; Get packet size
-		mov [pxe_udp_write_pkt.buffersize],di
-
-		mov di,pxe_udp_write_pkt
-		mov bx,PXENV_UDP_WRITE
-		call far [PXENVEntry]
-		jc near .failure
-		cmp word [pxe_udp_write_pkt.status],byte 0
-		jne near .failure
-
-		;
-		; Danger, Will Robinson!  We need to support timeout
-		; and retry lest we just lost a packet...
-		;
-
-		; Packet transmitted OK, now we need to receive
-.getpacket:	push word [PktTimeout]	; [bp-10]
-		push word [BIOS_timer]	; [bp-12]
-
-.pkt_loop:	mov bx,[bp-8]		; TID
-		mov di,packet_buf
-		mov [pxe_udp_read_pkt.buffer],di
-		mov di,packet_buf_size
-		mov [pxe_udp_read_pkt.buffersize],di
-		mov eax,[MyIP]
-		mov [pxe_udp_read_pkt.dip],eax
-		mov [pxe_udp_read_pkt.lport],bx
-		mov di,pxe_udp_read_pkt
-		mov bx,PXENV_UDP_READ
-		call far [PXENVEntry]
-		and ax,ax
-		jz .got_packet			; Wait for packet
-.no_packet:
-		mov dx,[BIOS_timer]
-		cmp dx,[bp-12]
-		je .pkt_loop
-		mov [bp-12],dx
-		dec word [bp-10]		; Timeout
-		jnz .pkt_loop
-		pop ax	; Adjust stack
-		pop ax
-		shl word [PktTimeout],1		; Exponential backoff
-		jmp .failure
-		
-.got_packet:
-		mov si,[bp-6]			; TFTP pointer
-		mov bx,[bp-8]			; TID
-
-		mov eax,[ServerIP]
-		cmp [pxe_udp_read_pkt.sip],eax
-		jne .no_packet
-		mov [si+tftp_remoteip],eax
-
-		; Got packet - reset timeout
-		mov word [PktTimeout],PKT_TIMEOUT
-
-		pop ax	; Adjust stack
-		pop ax
-
-		mov ax,[pxe_udp_read_pkt.rport]
-		mov [si+tftp_remoteport],ax
-
-		movzx eax,word [pxe_udp_read_pkt.buffersize]
-		sub eax, byte 2
-		jb near .failure		; Garbled reply
-
-		cmp word [packet_buf], TFTP_ERROR
-		je near .bailnow		; ERROR reply: don't try again
-
-		cmp word [packet_buf], TFTP_OACK
-		jne .err_reply
-
-		; Now we need to parse the OACK packet to get the transfer
-		; size.
-.parse_oack:	mov cx,[pxe_udp_read_pkt.buffersize]
-		mov si,packet_buf+2
-		sub cx,byte 2
-		jz .no_tsize			; No options acked
-.get_opt_name:	mov di,si
-		mov bx,si
-.opt_name_loop:	lodsb
-		and al,al
-		jz .got_opt_name
-		or al,20h			; Convert to lowercase
-		stosb
-		loop .opt_name_loop
-		; We ran out, and no final null
-		jmp short .err_reply
-.got_opt_name:	dec cx
-		jz .err_reply			; Option w/o value
-		push cx
-		mov si,bx
-		mov di,tsize_str
-		mov cx,tsize_len
-		repe cmpsb
-		pop cx
-		jne .err_reply			; Bad option -> error
-.get_value:	xor eax,eax
-		xor edx,edx
-.value_loop:	lodsb
-		and al,al
-		jz .got_value
-		sub al,'0'
-		cmp al, 9
-		ja .err_reply
-		imul edx,10
-		add edx,eax
-		loop .value_loop
-		; Ran out before final null
-		jmp short .err_reply
-.got_value:	dec cx
-		jnz .err_reply			; Not end of packet
-		; Move size into DX:AX (old calling convention)
-		; but let EAX == DX:AX
-		mov eax,edx
-		shr edx,16
-
-		xor edi,edi		; ZF <- 1
-
-		; Success, done!
-
-		pop si			; Junk	
-		pop si			; We want the packet ptr in SI
-
-		mov [si+tftp_filesize],eax
-		mov [si+tftp_filepos],edi
-
-		inc di			; ZF <- 0
-		pop bp			; Junk
-		pop bp			; Junk (retry counter)
-		pop bp
+		; ISOLINUX:: Do stuff
 		ret
 
-.err_reply:	; Option negotiation error.  Send ERROR reply.
-		mov ax,[pxe_udp_read_pkt.rport]
-		mov word [pxe_udp_write_pkt.rport],ax
-		mov word [pxe_udp_write_pkt.buffer],tftp_opt_err
-		mov word [pxe_udp_write_pkt.buffersize],tftp_opt_err_len
-		mov di,pxe_udp_write_pkt
-		mov bx,PXENV_UDP_WRITE
-		call far [PXENVEntry]
-
-.no_tsize:	mov si,err_oldtftp
-		call writestr
-		jmp kaboom
-
-.bailnow:	add sp,byte 8		; Immediate error - no retry
-		jmp short .error
-
-.failure:	pop bx			; Junk
-		pop bx
-		pop si
-		pop ax
-		dec ax			; Retry counter
-		jnz near .sendreq	; Try again
-
-.error:		xor si,si		; ZF <- 1
-		pop bp
-		ret
-
-;
-; allocate_socket: Allocate a local UDP port structure
-;
-;		If successful:
-;		  ZF set
-;		  BX     = socket pointer
-;               If unsuccessful:
-;                 ZF clear
-;
-allocate_socket:
-		push cx
-		mov bx,Files
-		mov cx,MAX_OPEN
-.check:		cmp word [bx], byte 0
-		je .found
-		add bx,open_file_t_size
-		loop .check
-		xor cx,cx			; ZF = 1
-		pop cx
-		ret
-		; Allocate a socket number.  Socket numbers are made
-		; guaranteed unique by including the socket slot number
-		; (inverted, because we use the loop counter cx); add a
-		; counter value to keep the numbers from being likely to
-		; get immediately reused.
-		;
-		; The NextSocket variable also contains the top two bits
-		; set.  This generates a value in the range 49152 to
-		; 57343.
-.found:
-		dec cx
-		push ax
-		mov ax,[NextSocket]
-		inc ax
-		and ax,((1 << (13-MAX_OPEN_LG2))-1) | 0xC000
-		mov [NextSocket],ax
-		shl cx,13-MAX_OPEN_LG2
-		add cx,ax			; ZF = 0
-		xchg ch,cl			; Convert to network byte order
-		mov [bx],cx			; Socket in use
-		pop ax
-		pop cx
-		ret
 
 ;
 ; strcpy: Copy DS:SI -> ES:DI up to and including a null byte
@@ -3533,7 +2942,7 @@ write_serial_str:
 ;		mangling any registers.  This does raw console writes,
 ;		since some PXE BIOSes seem to interfere regular console I/O.
 ;
-writechr:
+writechr_full:
 		call write_serial	; write to serial port if needed
 		pushfd
 		pushad
@@ -3585,67 +2994,6 @@ writechr:
 		jnc .curxyok
 		xor dh,dh
 		jmp short .curxyok
-
-;
-; crlf: Print a newline
-;
-crlf:		mov si,crlf_msg
-		; Fall through
-
-;
-; cwritestr: write a null-terminated string to the console, saving
-;            registers on entry.
-;
-; Note: writestr and cwritestr are distinct in SYSLINUX, not in PXELINUX
-;
-cwritestr:
-		pushfd
-                pushad
-.top:		lodsb
-		and al,al
-                jz .end
-		call writechr
-                jmp short .top
-.end:		popad
-		popfd
-                ret
-
-writestr	equ cwritestr
-
-;
-; writehex[248]: Write a hex number in (AL, AX, EAX) to the console
-;
-writehex2:
-		pushfd
-		pushad
-		rol eax,24
-		mov cx,2
-		jmp short writehex_common
-writehex4:
-		pushfd
-		pushad
-		rol eax,16
-		mov cx,4
-		jmp short writehex_common
-writehex8:
-		pushfd
-		pushad
-		mov cx,8
-writehex_common:
-.loop:		rol eax,4
-		push eax
-		and al,0Fh
-		cmp al,10
-		jae .high
-.low:		add al,'0'
-		jmp short .ischar
-.high:		add al,'A'-10
-.ischar:	call writechr
-		pop eax
-		loop .loop
-		popad
-		popfd
-		ret
 
 ;
 ; pollchar: check if we have an input character pending (ZF = 0)
@@ -4019,6 +3367,8 @@ gl_xret:	popf
 ;	       and doesn't contain whitespace, and zero-pads the output buffer,
 ;	       so "repe cmpsb" can do a compare.
 ;
+; ISOLINUX:: This needs to capitalize the filename.
+;
 mangle_name:
 		mov cx,FILENAME_MAX-1
 .mn_loop:
@@ -4046,27 +3396,11 @@ mangle_name:
 ;                On return, DI points to the first byte after the output name,
 ;                which is set to a null byte.
 ;
+; ISOLINUX:: This should lower-case the filename.
+;
 unmangle_name:	call strcpy
 		dec di				; Point to final null byte
 		ret
-
-;
-; pxe_thunk
-;
-; Convert from the PXENV+ calling convention (BX, ES, DI) to the !PXE
-; calling convention (using the stack.)
-;
-; This is called as a far routine so that we can just stick it into
-; the PXENVEntry variable.
-;
-pxe_thunk:	push es
-		push di
-		push bx
-		call far [cs:PXEEntry]
-		add sp,byte 6
-		cmp ax,byte 1
-		cmc				; Set CF unless ax == 0
-		retf
 
 ;
 ; getfssec: Get multiple clusters from a file, given the starting cluster.
@@ -4075,414 +3409,14 @@ pxe_thunk:	push es
 ;
 ;  On entry:
 ;	ES:BX	-> Buffer
-;	SI	-> TFTP block pointer
-;	CX	-> 512-byte block pointer; 0FFFFh = until end of file
+;	SI	-> File pointer
+;	CX	-> Cluster count; 0FFFFh = until end of file
 ;  On exit:
-;	SI	-> TFTP block pointer (or 0 on EOF)
+;	SI	-> File pointer (or 0 on EOF)
 ;	CF = 1	-> Hit EOF
 ;
 getfssec:
-
-.packet_loop:	push cx				; <A> Save count
-		push es				; <B> Save buffer pointer
-		push bx				; <C> Block pointer
-	
-		mov ax,ds
-		mov es,ax
-
-		; Start by ACKing the previous packet; this should cause the
-		; next packet to be sent.
-		mov cx,PKT_RETRY
-		mov word [PktTimeout],PKT_TIMEOUT
-
-.send_ack:	push cx				; <D> Retry count
-
-		mov eax,[si+tftp_filepos]
-		shr eax,TFTP_BLOCKSIZE_LG2
-		xchg ah,al			; Network byte order
-		call ack_packet			; Send ACK
-
-		; We used to test the error code here, but sometimes
-		; PXE would return negative status even though we really
-		; did send the ACK.  Now, just treat a failed send as
-		; a normally lost packet, and let it time out in due
-		; course of events.
-
-.send_ok:	; Now wait for packet.
-		mov dx,[BIOS_timer]		; Get current time
-
-		mov cx,[PktTimeout]
-.wait_data:	push cx				; <E> Timeout
-		push dx				; <F> Old time
-
-		mov bx,packet_buf
-		mov [pxe_udp_read_pkt.buffer],bx
-		mov [pxe_udp_read_pkt.buffersize],word packet_buf_size
-		mov eax,[bx+tftp_remoteip]
-		mov [pxe_udp_read_pkt.sip],eax
-		mov eax,[MyIP]
-		mov [pxe_udp_read_pkt.dip],eax
-		mov ax,[si+tftp_remoteport]
-		mov [pxe_udp_read_pkt.rport],ax
-		mov ax,[si+tftp_localport]
-		mov [pxe_udp_read_pkt.lport],ax
-		mov di,pxe_udp_read_pkt
-		mov bx,PXENV_UDP_READ
-		push si				; <G>
-		call far [PXENVEntry]
-		pop si				; <G>
-		cmp ax,byte 0
-		je .recv_ok
-
-		; No packet, or receive failure
-		mov dx,[BIOS_timer]
-		pop ax				; <F> Old time
-		pop cx				; <E> Timeout
-		cmp ax,dx			; Same time -> don't advance timeout
-		je .wait_data			; Same clock tick
-		loop .wait_data			; Decrease timeout
-		
-		pop cx				; <D> Didn't get any, send another ACK
-		shl word [PktTimeout],1		; Exponential backoff
-		loop .send_ack
-		jmp kaboom			; Forget it...
-
-.recv_ok:	pop dx				; <F>
-		pop cx				; <E>
-
-		cmp word [pxe_udp_read_pkt.buffersize],byte 4
-		jb .wait_data			; Bad size for a DATA packet
-
-		cmp word [packet_buf],TFTP_DATA	; Not a data packet?
-		jne .wait_data			; Then wait for something else
-
-		mov eax,[si+tftp_filepos]
-		shr eax,TFTP_BLOCKSIZE_LG2
-		inc ax				; Which packet are we waiting for?
-	
-		xchg ah,al			; Network byte order
-		cmp word [packet_buf+2],ax
-		je .right_packet
-
-		; Wrong packet, ACK the packet and then try again
-		; This is presumably because the ACK got lost,
-		; so the server just resent the previous packet
-		mov ax,[packet_buf+2]
-		call ack_packet
-		jmp .send_ok			; Reset timeout
-
-.right_packet:	; It's the packet we want.  We're also EOF if the size < 512.
-		pop cx				; <D> Don't need the retry count anymore
-		movzx ecx,word [pxe_udp_read_pkt.buffersize]
-		sub cx,byte 4
-		add [si+tftp_filepos],ecx
-
-		cmp cx,TFTP_BLOCKSIZE		; Is it a full block
-		jb .last_block
-
-		pop di				; <C> Get target buffer
-		pop es				; <B>
-
-		cld
-		push si
-		mov si,packet_buf+4
-		mov cx,TFTP_BLOCKSIZE >> 2
-		rep movsd
-		mov bx,di
-		pop si
-
-		pop cx				; <A>
-		loop .packet_loop_jmp
-
-		; If we had the exact right number of bytes, always get
-		; one more packet to get the (zero-byte) EOF packet and
-		; close the socket.
-		mov eax,[si+tftp_filepos]
-		cmp [si+tftp_filesize],eax
-		je .packet_loop_jmp
-
-		clc				; Not EOF
-		ret				; Mission accomplished
-
-.packet_loop_jmp: jmp .packet_loop
-
-.last_block:	; Last block - ACK packet immediately and free socket
-		mov ax,[packet_buf+2]
-		call ack_packet
-		mov word [si],0			; Socket closed
-	
-		; Copy data
-		pop di				; <C>
-		pop es				; <B>
-
-		cld
-		mov si,packet_buf+4
-		rep movsb
-		mov bx,di
-
-		xor si,si
-		
-		pop cx				; <A> Not used
-		stc				; EOF
-		ret
-
-;
-; ack_packet:
-;
-; Send ACK packet.  This is a common operation and so is worth canning.
-;
-; Entry:
-;	SI 	= TFTP block
-;	AX 	= Packet # to ack (network byte order)
-; Exit:
-;	ZF = 0 -> Error
-;	All registers preserved
-;
-; This function uses the pxe_udp_write_pkt but not the packet_buf.
-;
-ack_packet:
-		pushad
-		mov [ack_packet_buf+2],ax	; Packet number to ack
-		mov ax,[si]
-		mov [pxe_udp_write_pkt.lport],ax
-		mov ax,[si+tftp_remoteport]
-		mov [pxe_udp_write_pkt.rport],ax
-		mov eax,[si+tftp_remoteip]
-		mov [pxe_udp_write_pkt.sip],eax
-		mov [pxe_udp_write_pkt.buffer],word ack_packet_buf
-		mov [pxe_udp_write_pkt.buffersize], word 4
-		mov di,pxe_udp_write_pkt
-		mov bx,PXENV_UDP_WRITE
-		call far [PXENVEntry]
-		cmp ax,byte 0			; ZF = 1 if write OK
-		popad
-		ret
-
-;
-; unload_pxe:
-;
-; This function unloads the PXE and UNDI stacks.
-;
-unload_pxe:
-		mov di,pxe_udp_close_pkt
-		mov bx,PXENV_UDP_CLOSE
-		call far [PXENVEntry]
-		mov di,pxe_undi_shutdown_pkt
-		mov bx,PXENV_UNDI_SHUTDOWN
-		call far [PXENVEntry]
-		mov di,pxe_unload_stack_pkt
-		mov bx,PXENV_UNLOAD_STACK
-		call far [PXENVEntry]
-		ret
-
-;
-; gendotquad
-;
-; Take an IP address (in network byte order) in EAX and
-; output a dotted quad string to ES:DI.
-; DI points to terminal null at end of string on exit.
-;
-; CX is destroyed.
-;
-gendotquad:
-		push eax
-		mov cx,4
-.genchar:
-		push eax
-		aam 100
-		; Now AH = 100-digit; AL = remainder
-		cmp ah, 0
-		je .lt100
-		add ah,'0'
-		mov [es:di],ah
-		inc di
-		aam 10
-		; Now AH = 10-digit; AL = remainder
-		jmp short .tendigit
-.lt100:
-		aam 10
-		; Now AH = 10-digit; AL = remainder
-		cmp ah, 0
-		je .lt10
-.tendigit:
-		add ah,'0'
-		mov [es:di],ah		
-		inc di
-.lt10:
-		add al,'0'
-		stosb
-		mov al,'.'
-		stosb
-		pop eax
-		ror eax,8	; Move next char into LSB
-		loop .genchar
-		dec di
-		mov [es:di], byte 0
-		pop eax
-		ret
-
-;
-; parse_dhcp
-;
-; Parse a DHCP packet.  This includes dealing with "overloaded"
-; option fields (see RFC 2132, section 9.3)
-;
-; This should fill in the following global variables, if the
-; information is present:
-;
-; MyIP		- client IP address
-; ServerIP	- boot server IP address
-; Netmask	- network mask
-; Gateway	- default gateway router IP
-; BootFile	- boot file name
-;
-; This assumes the DHCP packet is in "trackbuf" and the length
-; of the packet in in CX on entry.
-;
-
-parse_dhcp:
-		mov byte [OverLoad],0		; Assume no overload
-		mov eax, [trackbuf+bootp.yip]
-		and eax, eax
-		jz .noyip
-		cmp al,224			; Class D or higher -> bad
-		jae .noyip
-		mov [MyIP], eax
-.noyip:
-		mov eax, [trackbuf+bootp.sip]
-		and eax, eax
-		jz .nosip
-		cmp al,224			; Class D or higher -> bad
-		jae .nosip
-		mov [ServerIP], eax
-.nosip:
-		sub cx, bootp.options
-		jbe .nooptions
-		mov si, trackbuf+bootp.option_magic
-		lodsd
-		cmp eax, BOOTP_OPTION_MAGIC
-		jne .nooptions
-		call parse_dhcp_options
-.nooptions:
-		mov si, trackbuf+bootp.bootfile
-		test byte [OverLoad],1
-		jz .nofileoverload
-		mov cx,128
-		call parse_dhcp_options
-		jmp short .parsed_file
-.nofileoverload:
-		cmp byte [si], 0
-		jz .parsed_file			; No bootfile name
-		mov di,BootFile
-		mov cx,32
-		rep movsd
-		xor al,al
-		stosb				; Null-terminate
-.parsed_file:
-		mov si, trackbuf+bootp.sname
-		test byte [OverLoad],2
-		jz .nosnameoverload
-		mov cx,64
-		call parse_dhcp_options
-.nosnameoverload:
-		ret
-
-;
-; Parse a sequence of DHCP options, pointed to by DS:SI; the field
-; size is CX -- some DHCP servers leave option fields unterminated
-; in violation of the spec.
-;
-parse_dhcp_options:
-.loop:
-		and cx,cx
-		jz .done
-
-		lodsb
-		dec cx
-		jz .done	; Last byte; must be PAD, END or malformed
-		cmp al, 0	; PAD option
-		je .loop
-		cmp al,255	; END option
-		je .done
-
-		; Anything else will have a length field
-		mov dl,al	; DL <- option number
-		xor ax,ax
-		lodsb		; AX <- option length
-		dec cx
-		sub cx,ax	; Decrement bytes left counter
-		jb .done	; Malformed option: length > field size
-
-		cmp dl,1	; SUBNET MASK option
-		jne .not_subnet
-		mov edx,[si]
-		mov [Netmask],edx
-		jmp short .opt_done
-
-.not_subnet:
-		cmp dl,3	; ROUTER option
-		jne .not_router
-		mov edx,[si]
-		mov [Gateway],edx
-		jmp short .opt_done
-
-.not_router:
-		cmp dl,52	; OPTION OVERLOAD option
-		jne .not_overload
-		mov dl,[si]
-		mov [OverLoad],dl
-		jmp short .opt_done
-
-.not_overload:
-		mov dl,67	; BOOTFILE NAME option
-		jne .not_bootfile
-		push cx
-		mov di,BootFile
-		mov cx,ax
-		rep movsb
-		mov byte [di],0	; Null-terminate
-		pop cx
-		jmp short .opt_done_noskip
-
-.not_bootfile:
-		; Unknown option.  Skip to the next one.
-.opt_done:
-		add si,ax
-.opt_done_noskip:
-		jmp short .loop
-.done:
-		ret
-
-;
-; genipopt
-;
-; Generate an ip=<client-ip>:<boot-server-ip>:<gw-ip>:<netmask>
-; option into IPOption based on a DHCP packet in trackbuf.
-; Assumes CS == DS == ES.
-;
-genipopt:
-		pushad
-		mov di,IPOption
-		mov eax,'ip='
-		stosd
-		dec di
-		mov eax,[MyIP]
-		call gendotquad
-		mov al,':'
-		stosb
-		mov eax,[ServerIP]
-		call gendotquad
-		mov al,':'
-		stosb
-		mov eax,[Netmask]
-		call gendotquad
-		mov al,':'
-		stosb
-		mov eax,[Gateway]
-		call gendotquad	; Zero-terminates its output
-		sub di,IPOption
-		mov [IPOptionLen],di
-		popad
+		;; ISOLINUX:: DO STUFF
 		ret
 
 ; ----------------------------------------------------------------------------------
@@ -4858,7 +3792,6 @@ crlf_msg	db CR, LF, 0
 crff_msg	db CR, FF, 0
 default_str	db 'default', 0
 default_len	equ ($-default_str)
-pxelinux_banner	db CR, LF, 'PXELINUX ', version_str, ' ', date, ' ', 0
 cfgprefix	db 'pxelinux.cfg/'		; No final null!
 cfgprefix_len	equ ($-cfgprefix)
 
@@ -4911,68 +3844,6 @@ exten_table_end:
 		dd 0, 0			; Need 8 null bytes here
 
 ;
-; PXENV entry point.  If we use the !PXE API, this will point to a thunk
-; function that converts to the !PXE calling convention.
-;
-PXENVEntry	dw pxe_thunk,0
-
-;
-; PXE query packets partially filled in
-;
-pxe_bootp_query_pkt_2:
-.status:	dw 0			; Status
-.packettype:	dw 2			; DHCPACK packet
-.buffersize:	dw trackbufsize		; Packet size
-.buffer:	dw trackbuf, 0		; seg:off of buffer
-.bufferlimit:	dw trackbufsize		; Unused
-
-pxe_bootp_query_pkt_3:
-.status:	dw 0			; Status
-.packettype:	dw 3			; Boot server packet
-.buffersize:	dw trackbufsize		; Packet size
-.buffer:	dw trackbuf, 0		; seg:off of buffer
-.bufferlimit:	dw trackbufsize		; Unused
-
-pxe_bootp_size_query_pkt:
-.status:	dw 0			; Status
-.packettype:	dw 2			; DHCPACK packet
-.buffersize:	dw 0			; Packet size
-.buffer:	dw 0, 0			; seg:off of buffer
-.bufferlimit:	dw 0			; Unused
-
-pxe_udp_open_pkt:
-.status:	dw 0			; Status
-.sip:		dd 0			; Source (our) IP
-
-pxe_udp_close_pkt:
-.status:	dw 0			; Status
-
-pxe_udp_write_pkt:
-.status:	dw 0			; Status
-.sip:		dd 0			; Server IP
-.gip:		dd 0			; Gateway IP
-.lport:		dw 0			; Local port
-.rport:		dw 0			; Remote port
-.buffersize:	dw 0			; Size of packet
-.buffer:	dw 0, 0			; seg:off of buffer
-
-pxe_udp_read_pkt:
-.status:	dw 0			; Status
-.sip:		dd 0			; Source IP
-.dip:		dd 0			; Destination (our) IP
-.rport:		dw 0			; Remote port
-.lport:		dw 0			; Local port
-.buffersize:	dw 0			; Max packet size
-.buffer:	dw 0, 0			; seg:off of buffer
-
-pxe_unload_stack_pkt:
-.status:	dw 0			; Status
-.reserved:	times 10 db 0		; Reserved
-
-pxe_undi_shutdown_pkt:
-.status:	dw 0			; Status
-
-;
 ; Misc initialized (data) variables
 ;
 AppendLen       dw 0                    ; Bytes in append= command
@@ -4990,41 +3861,23 @@ A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
 A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
 A20Type		dw A20_DUNNO		; A20 type unknown
 VGAFontSize	dw 16			; Defaults to 16 byte font
-;
-; TFTP commands
-;
-tftp_tail	db 'octet', 0, 'tsize' ,0, '0', 0	; Octet mode, request size
-tftp_tail_len	equ ($-tftp_tail)
-tsize_str	db 'tsize', 0
-tsize_len	equ ($-tsize_str)
-tftp_opt_err	dw TFTP_ERROR				; ERROR packet
-		dw htons(8)				; ERROR 8: bad options
-		db 'tsize option required', 0		; Error message
-tftp_opt_err_len equ ($-tftp_opt_err)
-
-		alignb 4, db 0
-ack_packet_buf:	dw TFTP_ACK, 0				; TFTP ACK packet
-
-;
-; IP information (initialized to "unknown" values)
-MyIP		dd 0			; My IP address
-ServerIP	dd 0			; IP address of boot server
-Netmask		dd 0			; Netmask of this subnet
-Gateway		dd 0			; Default router
-ServerPort	dw TFTP_PORT		; TFTP server port
+Stack		dw _start, 0		; SS:SP for stack reset
 
 ;
 ; Variables that are uninitialized in SYSLINUX but initialized here
 ;
-ClustSize	dw TFTP_BLOCKSIZE	; Bytes/cluster
-SecPerClust	dw TFTP_BLOCKSIZE/512	; Same as bsSecPerClust, but a word
-BufSafe		dw trackbufsize/TFTP_BLOCKSIZE	; Clusters we can load into trackbuf
+; **** ISOLINUX:: We may have to make this flexible, based on what the
+; **** BIOS expects our "sector size" to be.
+;
+ClustSize	dw SECTORSIZE		; Bytes/cluster
+SecPerClust	dw SECTORSIZE/512	; Same as bsSecPerClust, but a word
+BufSafe		dw trackbufsize/SECTORSIZE	; Clusters we can load into trackbuf
 BufSafeSec	dw trackbufsize/512	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
-ClustPerMoby	dw 65536/TFTP_BLOCKSIZE	; Clusters per 64K
-%if ( trackbufsize % TFTP_BLOCKSIZE ) != 0
-%error trackbufsize must be a multiple of TFTP_BLOCKSIZE
+ClustPerMoby	dw 65536/SECTORSIZE	; Clusters per 64K
+%if ( trackbufsize % SECTORSIZE ) != 0
+%error trackbufsize must be a multiple of SECTORSIZE
 %endif
 IPAppend	db 0			; Default IPAPPEND option
 
