@@ -11,12 +11,12 @@
 ##
 ## -----------------------------------------------------------------------
 
-VERSION := $(shell cat ../version)
+VERSION := $(shell ../version)
 
 CC      = gcc
 CFLAGS  = -Wall -O2 -fomit-frame-pointer -march=i386 \
 	  -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
-	  -DVERSION=\"$(VERSION)\" -DDATE=\"$(DATE)\"
+	  -DVERSION='"$(VERSION)"' -DDATE='"$(DATE)"'
 LDFLAGS = 
 AS      = as
 LD	= ld
