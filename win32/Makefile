@@ -80,7 +80,7 @@ ldlinux_bin.o: ../ldlinux_bin.c
 	$(CC) $(INCLUDE) $(CFLAGS) -c -o $@ $<
 
 tidy:
-	rm -f *.o *.a
+	rm -f *.o *.a hello.exe
 
 clean: tidy
 
