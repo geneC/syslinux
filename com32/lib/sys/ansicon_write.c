@@ -72,6 +72,7 @@ static struct {
   int reverse;
   int fg;
   int bg;
+  int autocr;
   struct curxy saved_xy;
   enum ansi_state state;
   int nparms;			/* Number of parameters seen */
@@ -84,6 +85,7 @@ static struct {
   .reverse = 0,
   .fg = 7,
   .bg = 0,
+  .autocr = 0,
   .saved_xy = { 0, 0 },
   .state = st_init,
   .nparms = 0,
@@ -114,9 +116,6 @@ static void ansicon_putchar(int ch)
   switch ( st.state ) {
   case st_init:
     switch ( ch ) {
-    case '\a':
-      /* Ignore beep */
-      break;
     case '\b':
       if ( xy.x > 0 ) xy.x--;
       break;
@@ -131,44 +130,58 @@ static void ansicon_putchar(int ch)
     case '\v':
     case '\f':
       xy.y++;
+      if ( st.autocr )
+	xy.x = 0;
       break;
     case '\r':
       xy.x = 0;
       break;
-    case '\0':
     case 127:
-      /* Ignore null or delete */
+      /* Ignore delete */
       break;
     case 27:
       st.state = st_esc;
       break;
     default:
       /* Print character */
-      ireg.eax.b[1] = 0x09;
-      ireg.eax.b[0] = ch;
-      ireg.ebx.b[1] = page;
-      ireg.ebx.b[0] = st.attr;
-      ireg.ecx.w[0] = 1;
-      __intcall(0x10, &ireg, NULL);
-      xy.x++;
+      if ( ch >= 32 ) {
+	ireg.eax.b[1] = 0x09;
+	ireg.eax.b[0] = ch;
+	ireg.ebx.b[1] = page;
+	ireg.ebx.b[0] = st.attr;
+	ireg.ecx.w[0] = 1;
+	__intcall(0x10, &ireg, NULL);
+	xy.x++;
+      }
       break;
     }
     break;
       
   case st_esc:
-    if ( ch == '[' ) {
+    switch ( ch ) {
+    case '%':
+    case '(':
+    case ')':
+    case '#':
+      /* Ignore this plus the subsequent character, allows
+	 compatibility with Linux sequence to set charset */
+      break;
+    case '[':
       st.state = st_csi;
       st.nparms = 0;
       memset(st.parms, 0, sizeof st.parms);
-    } else {
-      st.state = st_init;	/* Discard ESC+other symbol */
+      break;
+    default:
+      /* Ignore sequence */
+      st.state = st_init;
+      break;
     }
     break;
       
   case st_csi:
     {
       int p0 = st.parms[0] ? st.parms[0] : 1;
-      
+
       if ( ch >= '0' && ch <= '9' ) {
 	st.parms[st.nparms] = st.parms[st.nparms]*10 + (ch-'0');
       } else if ( ch == ';' ) {
@@ -268,6 +281,20 @@ static void ansicon_putchar(int ch)
 	      ansicon_erase(0, xy.y, cols-1, xy.y);
 	      break;
 	  
+	    default:
+	      /* Ignore */
+	      break;
+	    }
+	  }
+	  break;
+	case 'h':
+	case 'l':
+	  {
+	    int set = (ch == 'h');
+	    switch ( st.parms[0] ) {
+	    case 20:
+	      st.autocr = set;
+	      break;
 	    default:
 	      /* Ignore */
 	      break;
@@ -375,6 +402,8 @@ static void ansicon_putchar(int ch)
 	case 'u':
 	  xy = st.saved_xy;
 	  break;
+	default:		/* Includes CAN and SUB */
+	  break;		/* Drop unknown sequence */
 	}
 	st.state = st_init;
       }
