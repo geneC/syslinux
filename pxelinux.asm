@@ -893,8 +893,7 @@ config_scan:
 ; Handle "ipappend" option
 %define HAVE_SPECIAL_APPEND
 %macro	SPECIAL_APPEND 0
-		mov al,[IPAppend]		; ip=
-		test al,01h			; IP append
+		test byte [IPAppend],01h	; ip=
 		jz .noipappend1
 		mov si,IPOption
 		mov cx,[IPOptionLen]
@@ -902,7 +901,7 @@ config_scan:
 		mov al,' '
 		stosb
 .noipappend1:
-		test al,02h
+		test byte [IPAppend],02h
 		jz .noipappend2
 		mov si,bootif_str
 		mov cx,bootif_str_len
