@@ -1,3 +1,18 @@
+*** To do in the short term:
+
+- PXELINUX: Support changing the default server and downloading files
+  from a non-default server.
+
+- MEMDISK: Support read only mode.
+
+
+*** Debugging projects:
+
+- Figure out why MEMDISK croaks on the WinME/WinXP DOS startup disk.
+
+
+*** Future projects:
+
 - Clean up the command-line parsing.
 
 - Cleaned up documentation, with a real man page.
@@ -11,10 +26,17 @@
 
 - EBIOS support.
 
-- FAT32 support?
+- FAT32 support.
 
-- Support files that span multiple input media
+- ext2/ext3 support.
+
+- Subdirectory support in SYSLINUX.
+
+- Support files that span multiple input media (SYSLINUX)
+  -> Seems to be getting less important; floppies are dying?
 
 - Clean up the handling of sections
 
-- Add "localboot" support to SYSLINUX (using the ISOLINUX feature set.)
+- Add "localboot" support to SYSLINUX (using the ISOLINUX feature
+  set.)
+  -> chain.c32 is probably sufficient.
