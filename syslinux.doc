@@ -623,5 +623,6 @@ archive, go to:
 
    http://www.zytor.com/mailman/listinfo/syslinux
 
-The mailing list changed in early 2002.  The old mailing list at
-kernel.org is no longer in use.
+Please DO NOT send HTML messages or attachments to the mailing list
+(including multipart/alternative or similar.)  All such messages will
+be bounced.

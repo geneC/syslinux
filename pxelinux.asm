@@ -1662,21 +1662,36 @@ unload_pxe:
 		; We need to switch to our local stack here...
 		pusha
 		pushf
+		push gs
 
 		mov si,sp
+		mov ax,ss
+		mov gs,ax
+		sub ax,[BaseStack+4]		; Are we using the base stack
+						; (as opposed to the COMBOOT stack)?
+		je .is_base_stack
+
+		lgs si,[SavedSSSP]		; COMBOOT stack
+.is_base_stack:
+
 		mov cx,[InitStack]
 		mov di,StackBuf
 		mov [BaseStack],di
 		mov [BaseStack+4],es
 		sub cx,si
 		sub di,cx
-		mov dx,cx			; New SP
-		ss rep movsb
+		mov [SavedSSSP],cx		; New SP
+		mov [SavedSSSP+2],es
+		gs rep movsb
 
-		cli
-		mov ss,cx			; CX == 0 here
-		mov sp,dx
+		and ax,ax			; Remeber which stack
+		jne .combootstack
+
+		; Update the base stack pointer since it's in use
+		lss sp,[SavedSSSP]
 		
+.combootstack:
+		pop gs
 		popf
 		popa
 %endif
