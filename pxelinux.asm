@@ -870,9 +870,8 @@ abort_load:
                 mov ax,cs                       ; Restore CS = DS = ES
                 mov ds,ax
                 mov es,ax
-                cli
-		lss sp,[cs:Stack]		; Reset the stack
-                sti
+		lss sp,[Stack]			; Reset the stack
+		sti
                 call cwritestr                  ; Expects SI -> error msg
 al_ok:          jmp enter_command               ; Return to command prompt
 ;
@@ -883,13 +882,14 @@ ac_ret1:	ret
 
 
 ;
-; kaboom: write a message and bail out.  Wait for quite a while, or a user keypress,
-;	  then do a hard reboot.
+; kaboom: write a message and bail out.  Wait for quite a while,
+;	  or a user keypress, then do a hard reboot.
 ;
 kaboom:
-		lss sp,[cs:Stack]
-		pop ds
-		push ds
+		mov ax,cs
+		mov es,ax
+		mov ds,ax
+		lss sp,[Stack]
 		sti
 .patch:		mov si,bailmsg
 		call writestr		; Returns with AL = 0
@@ -902,9 +902,9 @@ kaboom:
 		mov al,[DHCPMagic]
 		and al,09h		; Magic+Timeout
 		cmp al,09h
-		jne .not_set
+		je .time_set
 		mov edi,REBOOT_TIME
-.not_set:
+.time_set:
 		mov cx,18
 .wait1:		push cx
 		mov ecx,edi
@@ -913,12 +913,18 @@ kaboom:
 		jnz .keypress
 		cmp dx,[BIOS_timer]
 		je .wait3
-		a32 loop .wait2		; a32 means use ecx as counter
+		loop .wait2,ecx
 		mov al,'.'
 		call writechr
 		pop cx
 		loop .wait1
 .keypress:
+		mov ax,[SerialPort]
+		call writehex4
+		call crlf
+		mov ax,0100h
+		int 16h
+		call writehex4
 		call crlf
 		mov word [BIOS_magic],0	; Cold reboot
 		jmp 0F000h:0FFF0h	; Reset vector address
