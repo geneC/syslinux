@@ -2,35 +2,14 @@ $Id$
 
 *** To do in the short term:
 
-- PXELINUX: Support changing the default server and downloading files
-  from a non-default server.
+- PXELINUX: Support changing the default server and boot file prefix?
 
-- Allow the boot sector to be written to a file instead of the actual
-  boot sector.
-
-- Better memory management of the vkernel area, in particular for
-  pxelinux/isolinux.  This should allow more vkernels inside the 64K
-  vkernel segment.
-
-
-*** Debugging projects:
-
-- DONE: Figure out why MEMDISK croaks on the WinME/WinXP DOS startup disk.
-
-
-*** In progress, but for
 
 *** Future projects:
 
 - Clean up the command-line parsing.
 
 - Cleaned up documentation, with a real man page.
-
-- IN PROGRESS: Major rewrite of SYSLINUX to support EBIOS/EDD, FAT32 and large
-  clusters.  This should also enable code to be shared with the
-  ext2/ext3 version.
-
-- ext2/ext3 support (EXTLINUX.)
 
 - Subdirectory support in SYSLINUX.
 
@@ -41,4 +20,4 @@ $Id$
 
 - Add "localboot" support to SYSLINUX (using the ISOLINUX feature
   set.)
-  OBSOLETE: chain.c32 is probably sufficient.
+  OBSOLETE: chain.c32 is probably better.
