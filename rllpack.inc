@@ -24,23 +24,26 @@
 ; 0		= end of data
 ;
 
+		section .text
+
 ;
 ; rllpack:
 ;	Pack CX bytes from DS:SI into ES:DI
-;	Returns updated SI, DI and DX = number of bytes output
+;	Returns updated SI, DI and CX = number of bytes output
 ;
 rllpack:
 		push ax
 		push bx
+		push cx
 		push bp
-		mov dx,di
+		push di
 .startseq:
-		xor ax,ax
+		xor ax,ax		; Zero byte
+		xor bx,bx		; Run length zero
 		mov bp,di		; Pointer to header byte
 		stosb			; Store header byte (might be zero)
-		xor bx,bx		; No bytes emitted yet
+		jcxz .done_null
 .stdbyte:
-		jcxz .done
 		lodsb
 		stosb
 		dec cx
@@ -52,13 +55,17 @@ rllpack:
 .plainbyte:
 		inc bx
 		inc byte [es:bp]
-		js .startseq
-		jmp .stdbyte
+		jcxz .done
+		jns .stdbyte
+		jmp .startseq
 .same:
 		cmp bl,2
 		jb .plainbyte
 		; 3 bytes or more in a row, time to convert sequence
 		sub byte [es:bp],bl
+		jnz .normal
+		dec di			; We killed a whole stretch, remove start byte
+.normal:
 		inc bx	
 		sub di,bx
 		mov bp,di
@@ -82,14 +89,14 @@ rllpack:
 		dec si
 		jmp .startseq
 .done:
-		and bx,bx
-		jz .nullok
 		xor al,al
 		stosb
-.nullok:
+.done_null:
+		pop dx
 		sub dx,di
 		neg dx
 		pop bp
+		pop cx
 		pop bx
 		pop ax
 		ret

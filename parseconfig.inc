@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -325,3 +325,5 @@ commit_vk:
 cvk_ret:	ret
 cvk_overflow:	mov word [VKernelCtr],max_vk	; No more than max_vk, please
 		ret
+
+%include "rllpack.inc"
