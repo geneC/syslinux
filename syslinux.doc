@@ -259,20 +259,20 @@ KBDMAP keymap
 	can be used to create such keymaps.  The file keytab-lilo.doc
 	contains the documentation for this program.
 
-DISPLAY filename
-        Displays the indicated file on the screen at boot time (before
-        the boot: prompt, if displayed).  This option takes the place of
-        the LINUXMSG.TXT and BOOTMSG.TXT files in SYSLINUX 1.0.  Please
-        see the section below on DISPLAY files.
+DISPLAY filename 
+	Displays the indicated file on the screen at boot time (before
+        the boot: prompt, if displayed).  Please see the section below
+        on DISPLAY files.
 
         NOTE: If the file is missing, this option is simply ignored.
+
+SAY message
+	Prints the message on the screen.
 
 PROMPT flag_val
         If flag_val is 0, display the boot: prompt only if the Shift or Alt
         key is pressed, or Caps Lock or Scroll lock is set (this is the
-        default).  If flag_val is 1, always display the boot: prompt.  This
-        option takes the place of testing for the LINUXMSG.TXT file in
-        SYSLINUX 1.0.
+        default).  If flag_val is 1, always display the boot: prompt.
 
 F1 filename
 F2 filename
@@ -608,19 +608,6 @@ SYSLINUX is unsafe to use on any filesystem that extends past cylinder
 SYSLINUX will not work (and will refuse to install) on filesystems
 with a cluster size of more than 16K (typically means a filesystem of
 more than 1 GB.)
-
-
-   ++++ COMPATIBILITY WITH SYSLINUX 1.0 ++++
-
-The following combinations of options can be used to mimic the behaviour
-of SYSLINUX 1.0 with LINUXMSG.TXT or BOOTMSG.TXT present, respectively:
-
-# Mimic SYSLINUX 1.0 with LINUXMSG.TXT file present:
-display linuxmsg.txt
-prompt 1
-
-# Mimic SYSLINUX 1.0 with BOOTMSG.TXT file present:
-display bootmsg.txt
 
 
    ++++ HARDWARE INFORMATION +++
