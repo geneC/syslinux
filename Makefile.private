@@ -39,7 +39,7 @@ release:
 		zip -9r ../syslinux-$(VERSION).zip *
 
 
-PRERELDIR := release/syslinux-$(VERSION)-prerel
+PRERELDIR := release/syslinux-$(VERSION)-pre
 PRERELNO  := $(shell cat $(PRERELDIR)/.prerel 2>/dev/null || echo 1)
 PREREL    := syslinux-$(VERSION)-pre$(PRERELNO)
 
