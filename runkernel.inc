@@ -527,20 +527,18 @@ root_not_floppy:
 		pop di
 		mov [fdctab1],di		; Save new floppy tab pos
 		mov [fdctab2],es
-		xor ax,ax
-		xor dx,dx
-		int 13h
 		pop bx
 		pop ds
 %endif
 ;
 ; Linux wants the floppy motor shut off before starting the kernel,
-; at least bootsect.S seems to imply so
+; at least bootsect.S seems to imply so.
 ;
 kill_motor:
-		mov dx,03F2h
-		xor al,al
-		call slow_out
+		xor ax,ax
+		xor dx,dx
+		int 13h
+
 ;
 ; If we're debugging, wait for a keypress so we can read any debug messages
 ;
