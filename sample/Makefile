@@ -17,7 +17,7 @@
 
 CC         = gcc
 LD         = ld
-CFLAGS     = -O2 -fomit-frame-pointer -I..
+CFLAGS     = -march=i386 -O2 -fomit-frame-pointer -I../com32/include
 LDFLAGS    = -s
 OBJCOPY    = objcopy
 PPMTOLSS16 = 	../ppmtolss16
