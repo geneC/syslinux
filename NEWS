@@ -53,7 +53,7 @@ Changes in 1.31:
 	* Now compiles under Linux, using NASM, rather than using
 	  Turbo Assembler under DOS.  See http://www.cryogen.com/Nasm
 	  for information about NASM.
-	* Perl script to install SYSLINUX under Linux, as well as a
+	* Linux-hosted SYSLINUX installer, as well as a
 	  rewritten DOS installer (now is written in assembler, so we
 	  don't need Turbo C.)
 
