@@ -19,6 +19,7 @@
 ; 
 ; ****************************************************************************
 
+%define IS_ISOLINUX 1
 %include "macros.inc"
 %include "kernel.inc"
 %include "bios.inc"

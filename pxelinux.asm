@@ -18,6 +18,7 @@
 ; 
 ; ****************************************************************************
 
+%define IS_PXELINUX 1
 %include "macros.inc"
 %include "kernel.inc"
 %include "bios.inc"

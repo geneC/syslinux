@@ -21,6 +21,20 @@
 %define _MACROS_INC
 
 ;
+; Identify the module we're compiling; the "correct" should be defined
+; in the module itself to 1
+;
+%ifndef IS_SYSLINUX
+%define IS_SYSLINUX 0
+%endif
+%ifndef IS_PXELINUX
+%define IS_PXELINUX 0
+%endif
+%ifndef IS_ISOLINUX
+%define IS_ISOLINUX 0
+%endif
+
+;
 ; For our convenience: define macros for jump-over-unconditinal jumps
 ;
 %macro	jmpz	1

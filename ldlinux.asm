@@ -26,6 +26,7 @@
 ; 
 ; ****************************************************************************
 
+%define IS_SYSLINUX 1
 %include "macros.inc"
 %include "kernel.inc"
 %include "bios.inc"

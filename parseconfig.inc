@@ -58,7 +58,7 @@ pc_append:      cmp word [VKernelCtr],byte 0
 ;
 ; "ipappend" command (PXELINUX only)
 ;
-%if my_id == pxelinux_id
+%if IS_PXELINUX
 pc_ipappend:	call getint
 		jc .err
 		and bx,bx
@@ -74,7 +74,7 @@ pc_ipappend:	call getint
 ;
 ; "localboot" command (PXELINUX, ISOLINUX)
 ;
-%if my_id == pxelinux_id || my_id == isolinux_id
+%if IS_PXELINUX || IS_ISOLINUX
 pc_localboot:	call getint
 		cmp word [VKernelCtr],byte 0	; ("label" section only)
 		je .err
@@ -265,7 +265,7 @@ pc_label:	call commit_vk			; Commit any current vkernel
                 mov cx,[AppendLen]
                 mov [VKernelBuf+vk_appendlen],cx
                 rep movsb
-%if my_id == pxelinux_id			; Applies to pxelinux only
+%if IS_PXELINUX					; PXELINUX only
 		mov al,[IPAppend]		; Default ipappend==global ipappend
 		mov [VKernelBuf+vk_ipappend],al
 %endif
