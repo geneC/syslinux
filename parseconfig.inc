@@ -18,14 +18,6 @@
 ;;
 
 ;
-; Main loop for configuration file parsing
-;
-parse_config:
-		call getcommand
-                jnc parse_config		; If not EOF do it again
-		ret				; Return on EOF
-
-;
 ; "default" command
 ; 
 pc_default:	mov di,default_cmd
@@ -314,6 +306,16 @@ pc_getfile:	mov di,trackbuf
 		jmp searchdir			; tailcall
 
 ;
+; Main loop for configuration file parsing
+;
+parse_config:
+		call getcommand
+                jnc parse_config		; If not EOF do it again
+		;
+		; The fall through to commit_vk to commit any final
+		; VKernel being read
+		;
+;
 ; commit_vk: Store the current VKernelBuf into buffer segment
 ;
 commit_vk:
@@ -334,11 +336,3 @@ commit_vk:
 cvk_ret:	ret
 cvk_overflow:	mov word [VKernelCtr],max_vk	; No more than max_vk, please
 		ret
-
-;
-; End of configuration file
-;
-; Commit vkernel and then return
-;
-end_config_file	equ commit_vk
-	
