@@ -86,7 +86,10 @@ pc_ipappend:	call getint
 pc_localboot:	call getint
 		cmp word [VKernelCtr],byte 0	; ("label" section only)
 		je .err
-		mov [VKernelBuf+vk_rname], byte 0	; Null kernel name
+		mov di,VKernelBuf+vk_rname
+		xor ax,ax
+		mov cx,FILENAME_MAX
+		rep stosb			; Null kernel name
 		mov [VKernelBuf+vk_rname+1], bx	; Return type
 .err:		ret
 %endif
@@ -236,6 +239,10 @@ pc_fkey:	push ax
 ; "label" command
 ;
 pc_label:	call commit_vk			; Commit any current vkernel
+		mov di,VKernelBuf		; Erase the vkernelbuf for better compression
+		mov cx,vk_size >> 1
+		xor ax,ax
+		rep stosw
 		call pc_getline
 		mov di,VKernelBuf+vk_vname
 		call mangle_name		; Mangle virtual name
@@ -292,6 +299,15 @@ parse_config:
 ; commit_vk: Store the current VKernelBuf into buffer segment
 ;
 commit_vk:
+		; For better compression, clean up the append field
+		mov ax,[VKernelBuf+vk_appendlen]
+		mov di,VKernelBuf+vk_append
+		add di,ax
+		mov cx,max_cmd_len+1
+		sub cx,ax
+		xor ax,ax
+		rep stosb
+
 		cmp word [VKernelCtr],byte 0
 		je cvk_ret			; No VKernel = return
 		cmp word [VKernelCtr],max_vk	; Above limit?
