@@ -4,9 +4,7 @@ that specific program only; other changes apply to both.
 Changes in 1.53:
 	* PXELINUX: Rename pxelinux.bin to pxelinux.0, to match what
 	  most PXE servers seem to expect.
-	* PXELINUX: Update the docs to outline how to work with the
-	  kano.org.uk pxe server daemon.  A more complete example
-	  setup still needs to be written.
+	* PXELINUX: Update the DHCP/boot server setup documentation.
 	* PXELINUX: Support new "localboot" option for "label"
 	  sections.
 	* PXELINUX: More robust parsing of DHCP/boot server packets.

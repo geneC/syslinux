@@ -63,7 +63,7 @@ if you have such a setup.  MTFTP server setup is beyond the scope of
 this document.
 
 
-    ++++ SOME NOTES ON THE TFTP SERVER ++++
+    ++++ SETTING UP THE TFTP SERVER ++++
 
 PXELINUX currently requires that the boot server has a TFTP server
 which supports the "tsize" TFTP option (RFC 1784/RFC 2349).  The
@@ -105,21 +105,19 @@ workarounds for this bug:
     ++++ SETTING UP THE DHCP SERVER ++++
 
 The PXE protocol uses a very complex set of extensions to DHCP or
-BOOTP.  The best is probably to set up a "PXE boot server" on port
-4011 of your TFTP server; a free PXE boot server is available at:
+BOOTP.  However, most PXE implementations -- this includes all Intel
+ones version 0.99n and later -- seem to be able to boot in a
+"conventional" DHCP/TFTP configuration.  Assuming you don't have to
+support any very old or otherwise severely broken clients, this is
+probably the best configuration unless you already have a PXE boot
+server on your network.
 
-	http://www.kano.org.uk/projects/pxe/
-
-With such a boot server defined, you should be able to use the
-following DHCP set up, using ISC dhcp 2.0 dhcpd.conf syntax:
+A sample DHCP setup, using the "conventional TFTP" configuration,
+would look something like the following, using ISC dhcp 2.0 dhcpd.conf
+syntax:
 
         allow booting;
         allow bootp;
-
-	# PXE-specific configuration directives...
-
-        option dhcp-class-identifier "PXEClient";
-	next-server <pxe-boot-server>;
 
 	# Standard configuration directives...
 
@@ -129,58 +127,91 @@ following DHCP set up, using ISC dhcp 2.0 dhcpd.conf syntax:
         option domain-name-servers <dns servers>;
         option routers <default router>;
 
-	# Skip everything below if you want to use dynamic IP
-	# address assignment
-        host <hostname> {
-                hardware ethernet <ethernet address>;
-                fixed-address <hostname>;
-        }
+	# Group the PXE bootable hosts together
+	group {
+		# PXE-specific configuration directives...
+		next-server <TFTP server address>;
 
+		# You need an entry like this for every host
+		# unless you're using dynamic addresses
+	        host <hostname> {
+        	        hardware ethernet <ethernet address>;
+               		fixed-address <hostname>;
+        	}
+	}
 
-Some PXE implementations can be coaxed to operate with a normal DHCP
-server; unfortunately so far no "magic bullet" which works with all
-PXE implementations work.
+If this does not work for your configuration, you probably should set
+up a "PXE boot server" on port 4011 of your TFTP server; a free PXE
+boot server is available at:
 
-The best one currently known, using ISC dhcp 2.0 dhcpd.conf syntax:
+	http://www.kano.org.uk/projects/pxe/
+
+With such a boot server defined, your DHCP configuration should look
+the same except for an "option dhcp-class-identifier":
 
         allow booting;
         allow bootp;
 
-	# PXE-specific configuration directives...
+	# Standard configuration directives...
 
-        filename "/tftpboot/pxelinux.0" ;
-        option dhcp-class-identifier "PXEClient";
-	option vendor-encapsulated-options 09:0f:80:00:0c:4e:65:74:77:6f:72:6b:20:62:6f:6f:74:0a:07:00:50:72:6f:6d:70:74:06:01:02:08:03:80:00:00:47:04:80:00:00:00:ff;
-	next-server <TFTP-server>;
-	# server-identifier <TFTP-server>;	# Illegal! See below
+        option domain-name "<domain name>";
+        option subnet-mask <subnet mask>;
+        option broadcast-address <broadcast address>;
+        option domain-name-servers <dns servers>;
+        option routers <default router>;
+
+	# Group the PXE bootable hosts together
+	group {
+		# PXE-specific configuration directives...
+	        option dhcp-class-identifier "PXEClient";
+		next-server <pxe boot server address>;
+
+		# You need an entry like this for every host
+		# unless you're using dynamic addresses
+	        host <hostname> {
+        	        hardware ethernet <ethernet address>;
+               		fixed-address <hostname>;
+        	}
+	}
+
+If the "conventional TFTP" configuration doesn't work on your clients,
+and setting up a PXE boot server is not an option, you can attempt the
+following configuration.  It has been known to boot some
+configurations correctly; however, there are no guarantees:
+
+        allow booting;
+        allow bootp;
 
 	# Standard configuration directives...
-	# Same as above
 
-However, some PXE implementations will only work this way if the
-"dhcp-class-identifier" and "vendor-encapsulated-options" are *not*
-present.  Intel Boot Client 3.0 and later are known to fall into this
-category.  Arguably, that would have been the right thing from the
-beginning.
+        option domain-name "<domain name>";
+        option subnet-mask <subnet mask>;
+        option broadcast-address <broadcast address>;
+        option domain-name-servers <dns servers>;
+        option routers <default router>;
+
+	# Group the PXE bootable hosts together
+	group {
+		# PXE-specific configuration directives...
+	        option dhcp-class-identifier "PXEClient";
+		option vendor-encapsulated-options 09:0f:80:00:0c:4e:65:74:77:6f:72:6b:20:62:6f:6f:74:0a:07:00:50:72:6f:6d:70:74:06:01:02:08:03:80:00:00:47:04:80:00:00:00:ff;
+		next-server <TFTP server>;
+
+		# You need an entry like this for every host
+		# unless you're using dynamic addresses
+	        host <hostname> {
+        	        hardware ethernet <ethernet address>;
+               		fixed-address <hostname>;
+        	}
+	}
+
+Note that this *will not* boot some clients that *will* boot with the
+"conventional TFTP" configuration; Intel Boot Client 3.0 and later are
+known to fall into this category.
 
 Note that if your particular TFTP daemon runs under chroot (tftp-hpa
 will do this if you specify the -s (secure) option; this is
 recommended), you most likely should not include the /tftpboot prefix.
-
-If the DHCP and TFTP servers are not on the same machine, you are
-supposed to set up a PXE boot server (see above) on port 4011 on the
-TFTP server; the "PXE boot server" is basically a modified DHCP server
-on a nonstandard port.  If this is not possible, you can try adding
-the directive "server-identifier <TFTP-server>;" Unfortunately this is
-a violation of DHCP protocol, but some PXE implementations do not
-accept the next-server directive without it or the "boot server".
-
-I have successfully booted an Intel N440BX ("Nightshade") motherboard
-with onboard Ethernet and "Intel LANDesk(R) Service Agent II version
-0.99c" (derived from the Intel PXE PDK V2.0) and the Intel PRO/100+
-Management Adapter "Boot agent 2.6 (build 071)" (derived from the
-Intel PXE PDK V3.0 bld 071) using the configuration above and ISC
-dhcpd 2.0.
 
 
     ++++ SOME NOTES ++++
@@ -192,14 +223,9 @@ This allows an unattended machine to recover in case it had bad enough
 luck of trying to boot at the same time the TFTP server goes down.
 
 
-    ++++ PXELINUX IS STILL BETA ++++
+    ++++ CURRENTLY KNOWN PROBLEMS ++++
 
-PXELINUX is still very much beta; however, I'd be interested in
-hearing about any experiences you might have with it, good or bad.  If
-you have any comments, please use the SYSLINUX mailing list mentioned
-at the end of syslinux.doc.  Thanks!
-
-Currently known problems:
+The following problems are known with PXELINUX, so far:
 
 + Requires a TFTP server which supports the "tsize" option.
 + The error recovery routine doesn't work quite right.  For right now,
@@ -216,4 +242,6 @@ Currently known problems:
   entry loop, so that we answer ARP requests.
 + Boot sectors don't work yet... they probably need auxilliary information
   (such as device) to work at all.
-* No way to chain-load onto a hard disk.
+
+If you have additional problems, please contact the SYSLINUX mailing
+list (see syslinux.doc for the address.)
