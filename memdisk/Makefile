@@ -84,8 +84,8 @@ memdisk.o: memdisk.bin
 
 .depend:
 	rm -f .depend
-	for csrc in *.c ; do $(CC) $(INCLUDE) -M $$csrc | sed -e 's/\.o/\.s/' >> .depend ; done
-	for ssrc in $(SSRC) ; do $(CC) $(INCLUDE) -x c -traditional -M $$ssrc | sed -e 's/\.S16\.o/\.o16/' >> .depend ; done
+	for csrc in *.c ; do $(CC) $(INCLUDE) -MM $$csrc | sed -e 's/\.o/\.s/' >> .depend ; done
+	for ssrc in $(SSRC) ; do $(CC) $(INCLUDE) -x c -traditional -MM $$ssrc | sed -e 's/\.S16\.o/\.o16/' >> .depend ; done
 	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc >> .depend ; done
 
 depend:
