@@ -19,28 +19,16 @@
 ; 
 ; ****************************************************************************
 
-; Note: The Makefile builds one version with DEBUG_MESSAGES automatically.
-; %define DEBUG_TRACERS			; Uncomment to get debugging tracers
-; %define DEBUG_MESSAGES		; Uncomment to get debugging messages
-
-%ifdef DEBUG_TRACERS
-
-%macro TRACER	1
-	call debug_tracer
-	db %1
-%endmacro
-
-%else	; DEBUG_TRACERS
-
-%macro	TRACER	1
-%endmacro
-
-%endif	; DEBUG_TRACERS
+%include "macros.inc"
+%include "kernel.inc"
+%include "bios.inc"
+%include "tracers.inc"
 
 ;
 ; Some semi-configurable constants... change on your own risk.  Most are imposed
 ; by the kernel.
 ;
+my_id		equ isolinux_id
 max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
 FILENAME_MAX_LG2 equ 8			; log2(Max filename size Including final null)
 FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
@@ -59,78 +47,6 @@ SECTORSIZE	equ (1 << SECTORSIZE_LG2)
 %define	version_str	VERSION		; Must be 4 characters long!
 %define date		DATE_STR	; Defined from the Makefile
 %define	year		'2002'
-;
-; Debgging stuff
-;
-; %define debug 1			; Uncomment to enable debugging
-;
-; ID for SYSLINUX (reported to kernel)
-;
-syslinux_id	equ 033h		; SYSLINUX (3) 3 = ISOLINUX
-
-;
-; Segments used by Linux
-;
-real_mode_seg	equ 5000h
-fake_setup_seg	equ real_mode_seg+020h
-
-		struc real_mode_seg_t
-		resb 20h-($-$$)		; org 20h
-kern_cmd_magic	resw 1			; 0020 Magic # for command line
-kern_cmd_offset resw 1			; 0022 Offset for kernel command line
-		resb 497-($-$$)		; org 497d
-bs_setupsecs	resb 1			; 01F1 Sectors for setup code (0 -> 4)
-bs_rootflags	resw 1			; 01F2 Root readonly flag
-bs_syssize	resw 1			; 01F4
-bs_swapdev	resw 1			; 01F6 Swap device (obsolete)
-bs_ramsize	resw 1			; 01F8 Ramdisk flags, formerly ramdisk size
-bs_vidmode	resw 1			; 01FA Video mode
-bs_rootdev	resw 1			; 01FC Root device
-bs_bootsign	resw 1			; 01FE Boot sector signature (0AA55h)
-su_jump		resb 1			; 0200 0EBh
-su_jump2	resb 1			; 0201 Size of following header
-su_header	resd 1			; 0202 New setup code: header
-su_version	resw 1			; 0206 See linux/arch/i386/boot/setup.S
-su_switch	resw 1			; 0208
-su_setupseg	resw 1			; 020A
-su_startsys	resw 1			; 020C
-su_kver		resw 1			; 020E Kernel version pointer
-su_loader	resb 1			; 0210 Loader ID
-su_loadflags	resb 1			; 0211 Load high flag
-su_movesize	resw 1			; 0212
-su_code32start	resd 1			; 0214 Start of code loaded high
-su_ramdiskat	resd 1			; 0218 Start of initial ramdisk
-su_ramdisklen	equ $			; Length of initial ramdisk
-su_ramdisklen1	resw 1			; 021C
-su_ramdisklen2	resw 1			; 021E
-su_bsklugeoffs	resw 1			; 0220
-su_bsklugeseg	resw 1			; 0222
-su_heapend	resw 1			; 0224
-su_pad1		resw 1			; 0226
-su_cmd_line_ptr	resd 1			; 0228
-su_ramdisk_max	resd 1			; 022C
-		resb (9000h-12)-($-$$)	; Were bootsect.S puts it...
-linux_stack	equ $			; 8FF4
-linux_fdctab	equ $
-		resb 9000h-($-$$)
-cmd_line_here	equ $			; 9000 Should be out of the way
-		endstruc
-
-;
-; Kernel command line signature
-;
-CMD_MAGIC	equ 0A33Fh		; Command line magic
-
-;
-; Magic number of su_header field
-;
-HEADER_ID       equ 'HdrS'		; HdrS (in littleendian hex)
-
-;
-; Flags for the su_loadflags field
-;
-LOAD_HIGH	equ 01h			; Large kernel, load high
-CAN_USE_HEAP    equ 80h                 ; Boot loader reports heap size
 
 ;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
@@ -164,8 +80,8 @@ vk_end:		equ $			; Should be <= vk_size
 ;
 ; Segment assignments in the bottom 640K
 ; 0000h - main code/data segment (and BIOS segment)
-; 5000h - real_mode_seg
 ;
+real_mode_seg	equ 5000h
 vk_seg          equ 4000h		; Virtual kernels
 xfer_buf_seg	equ 3000h		; Bounce buffer for I/O to high mem
 comboot_seg	equ 2000h		; COMBOOT image loading zone
@@ -184,87 +100,9 @@ file_left	resd 1			; Number of sectors left
 %endif
 %endif
 
-;
-; For our convenience: define macros for jump-over-unconditinal jumps
-;
-%macro	jmpz	1
-	jnz %%skip
-	jmp %1
-%%skip:
-%endmacro
-
-%macro	jmpnz	1
-	jz %%skip
-	jmp %1
-%%skip:
-%endmacro
-
-%macro	jmpe	1
-	jne %%skip
-	jmp %1
-%%skip:
-%endmacro
-
-%macro	jmpne	1
-	je %%skip
-	jmp %1
-%%skip:
-%endmacro
-
-%macro	jmpc	1
-	jnc %%skip
-	jmp %1
-%%skip:
-%endmacro
-
-%macro	jmpnc	1
-	jc %%skip
-	jmp %1
-%%skip:
-%endmacro
-
-%macro	jmpb	1
-	jnb %%skip
-	jmp %1
-%%skip:
-%endmacro
-
-%macro	jmpnb	1
-	jb %%skip
-	jmp %1
-%%skip:
-%endmacro
-
-;
-; Macros similar to res[bwd], but which works in the code segment (after
-; section .text)
-;
-%macro	zb	1
-	times %1 db 0
-%endmacro
-
-%macro	zw	1
-	times %1 dw 0
-%endmacro
-
-%macro	zd	1
-	times %1 dd 0
-%endmacro
-
 ; ---------------------------------------------------------------------------
-;   BEGIN THE BIOS/CODE/DATA SEGMENT
+;   BEGIN CODE
 ; ---------------------------------------------------------------------------
-
-		absolute 0400h
-serial_base	resw 4			; Base addresses for 4 serial ports
-		absolute 0413h
-BIOS_fbm	resw 1			; Free Base Memory (kilobytes)
-		absolute 046Ch
-BIOS_timer	resw 1			; Timer ticks
-		absolute 0472h
-BIOS_magic	resw 1			; BIOS reset magic
-                absolute 0484h
-BIOS_vidrows    resb 1			; Number of screen rows
 
 ;
 ; Memory below this point is reserved for the BIOS and the MBR
@@ -1979,7 +1817,7 @@ cmdline_end:
 ; and that we are clueful
 ;
 new_kernel:
-		mov byte [es:su_loader],syslinux_id	; Show some ID
+		mov byte [es:su_loader],my_id	; Show some ID
 		movzx ax,byte [es:bs_setupsecs]	; Variable # of setup sectors
 		mov [SetupSecs],ax
 ;

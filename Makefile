@@ -176,6 +176,10 @@ spotless: local-clean dist local-spotless
 	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -M $$csrc >> .depend ; done
 	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc >> .depend ; done
 
+depend:
+	rm -f .depend
+	$(MAKE) .depend
+
 # Hook to add private Makefile targets for the maintainer.
 -include Makefile.private
 
