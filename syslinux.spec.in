@@ -58,7 +58,7 @@ rm -rf %{buildroot}
 %{_prefix}/lib/libsyslinux.*
 %{_prefix}/include/syslinux.h
 
-%postin
+%post
 /sbin/ldconfig
 
 %postun
