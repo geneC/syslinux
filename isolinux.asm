@@ -19,8 +19,10 @@
 ; 
 ; ****************************************************************************
 
-; NOTE TO SELF: Last PXELINUX merge pxelinux.asm,v 1.49 2001/04/05 06:20:48 hpa
-; Integrate PXELINUX changes since that version, please
+%macro TRACER	1
+;	call debug_tracer
+;	db %1
+%endmacro
 
 ;
 ; Some semi-configurable constants... change on your own risk.  Most are imposed
@@ -294,6 +296,7 @@ HighMemSize	resd 1			; End of memory pointer (bytes)
 KernelSize	resd 1			; Size of kernel (bytes)
 RootDir		resd 1			; Root directory location (LBA)
 RootDirLen	resd 1			; Root directory length
+RootDirClust	resd 1			; Root directory length in clusters
 SavedSSSP	resw 1			; Our SS:SP while running a COMBOOT image
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
@@ -318,7 +321,6 @@ ConfigFile	resw 1			; Socket for config file
 PktTimeout	resw 1			; Timeout for current packet
 KernelExtPtr	resw 1			; During search, final null pointer
 LocalBootType	resw 1			; Local boot return code
-RootDirClust	resw 1			; Root directory length in clusters
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -364,13 +366,20 @@ bi_csum:	dd 0xdeadbeef			; Checksum of boot file
 bi_reserved:	times 10 dd 0xdeadbeef		; Reserved
 
 _start1:	xor ax,ax
-		mov es,ax
 		mov ss,ax
-		mov ds,ax
 		mov sp,_start			; Set up stack
+		mov ds,ax
+		mov es,ax
+		mov fs,ax
+		mov gs,ax
 		sti
 
 		cld
+		; Show signs of life
+		mov si,isolinux_banner
+		call writestr
+		call crlf			; For now...
+
 		;
 		; Before modifying any memory, get the checksum of bytes 64-2048
 		;
@@ -381,11 +390,6 @@ initial_csum:	xor edi,edi
 		add edi,eax
 		loop .loop
 		mov [FirstSecSum],edi
-
-		; Show signs of life
-		mov si,isolinux_banner
-		call writestr
-		call crlf			; For now...
 
 		; Set up boot file sizes
 		mov eax,[bi_length]
@@ -500,10 +504,12 @@ verify_image:
 		call writestr
 
 integrity_ok:
+		mov si,allread_msg
+		call writemsg
 		jmp all_read			; Jump to main code
 
-		; INT 13h, AX=4B01h, DL=7Fh failed.  Try to scan the entire 80h-FFh from
-		; the end.
+		; INT 13h, AX=4B01h, DL=7Fh failed.  Try to scan the
+		; entire 80h-FFh from the end.
 spec_query_failed:
 		mov si,spec_err_msg
 		call writemsg
@@ -626,7 +632,7 @@ writechr:
 
 writechr_simple:
 		pushfd
-		popad
+		pushad
 		mov ah,0Eh
 		xor bx,bx
 		int 10h
@@ -720,7 +726,8 @@ loaded_msg:	db 'Loaded boot image, verifying...', CR, LF, 0
 verify_msg:	db 'Image checksum verified.', CR, LF, 0
 checkerr_msg:	db 'Load checksum error, goodbye...', CR, LF, 0
 diskerr_msg:	db 'CD-ROM disk error ', 0
-
+allread_msg	db 'Main image read, jumping to main code...', CR, LF, 0
+crlf_msg	db CR, LF, 0
 
 		alignb 8, db 0
 FirstSecSum:	dd 0				; Checksum of bytes 64-2048
@@ -789,9 +796,6 @@ rl_checkpt_off	equ ($-$$)
 ; ----------------------------------------------------------------------------
 
 all_read:
-		; Patch the writechr routine to point to the full code
-		mov word [writechr+1], writechr_full-(writechr+3)
-
 ;
 ; Now, we need to sniff out the actual filesystem data structures.
 ; mkisofs gave us a pointer to the primary volume descriptor
@@ -803,18 +807,21 @@ get_fs_structures:
 		mov bx,trackbuf
 		call getonesec
 
+		mov si,dbg_rootdir_msg			; ***
+		call writemsg				; ***
 		mov eax,[trackbuf+156+2]
 		mov [RootDir],eax
+		call writehex8				; ***
+		call crlf				; ***
 		mov eax,[trackbuf+156+10]
 		mov [RootDirLen],eax		
 		add eax,SECTORSIZE-1
 		shr eax,SECTORSIZE_LG2
-		mov [RootDirClust],ax
+		mov [RootDirClust],eax
 
 ;
 ; Initialize screen (if we're using one)
 ;
-
 		; Get ROM 8x16 font in case we switch to graphics mode
 		xor cx,cx
 		mov ax,1130h
@@ -835,11 +842,18 @@ not_vga:
 		; Now set up screen parameters
 		call adjust_screen
 
+		; Patch the writechr routine to point to the full code
+		mov word [writechr+1], writechr_full-(writechr+3)
+
 ;
 ; Tell the user we got this far
 ;
 		mov si,copyright_str
 		call writestr
+
+; Test tracers
+		TRACER 'T'
+		TRACER '>'
 
 ;
 ; Clear Files structures
@@ -956,9 +970,15 @@ mkkeymap:	stosb
 ;
 ; Locate the configuration file
 ;
+		mov si,dbg_config_msg		; ***
+		call writemsg			; ***
+
 		mov di,isolinux_cfg
 		call open
 		jz near no_config_file		; Not found or empty
+
+		mov si,dbg_configok_msg		; ***
+		call writemsg			; ***
 
 ;
 ; Now we have the config file open
@@ -2661,60 +2681,61 @@ kaboom:
 ;
 
 searchdir:
+		TRACER 'S'
 		push es
 		push ds
-		pop es				; DS = ES
+		pop es				; ES = DS
 		call allocate_file		; Temporary file structure for directory
 		jnz .failure
 		mov si,bx
-		movzx eax,word [RootDirClust]
+		mov eax,[RootDirClust]
 		mov [bx+file_left],eax
 		mov eax,[RootDir]
 		mov [bx+file_sector],eax
 		mov edx,[RootDirLen]
-		mov si,trackbuf+SECTORSIZE
 
 .getsome:
 		; Get a chunk of the directory
+		mov si,trackbuf
+		TRACER 'g'
 		pushad
-		mov si,bx
-		mov bx,trackbuf+SECTORSIZE
+		xchg bx,si
 		mov cx,[BufSafe]
 		dec cx				; ... minus one sector
 		call getfssec
 		popad
 
 .compare:
+		movzx eax,byte [si]		; Length of directory entry
+		cmp al,33
+		jb .next_sector
+		TRACER 'c'
 		test [si+25], byte 8Eh		; Unwanted file attributes!
 		jnz .not_file
+		pusha
 		movzx cx,byte [si+32]		; File identifier length
-		push si
-		lea si,[si+33]			; File identifier offset
+		add si,byte 33			; File identifier offset
+		TRACER 'i'
 		call iso_compare_names
-		pop si
+		popa
 		je .success
 .not_file:
-		xor eax,eax
-		mov al,[si]
 		sub edx,eax			; Decrease bytes left
 		jbe .failure
 		add si,ax			; Advance pointer
 
-		; Are we getting close to the end of the buffer
-		cmp si,trackbuf+trackbufsize-SECTORSIZE
+.check_overrun:
+		; Did we finish the buffer?
+		cmp si,trackbuf+trackbufsize
 		jb .compare			; No, keep going
 
-		; Close to end of buffer.  Copy fractional sector to top of
-		; buffer, and load another chunk.
-		push di
-		lea di,[si-(trackbufsize-SECTORSIZE)]
-		mov cx,trackbuf+trackbufsize
-		sub cx,si
-		push di
-		rep movsb
-		pop si				; SI <- new pointer location
-		pop di
-		jmp short .getsome		; Get another chunk
+		jmp short .getsome		; Get some more directory
+
+.next_sector:
+		; Advance to the beginning of next sector
+		add si,SECTORSIZE-1
+		and si,~(SECTORSIZE-1)
+		jmp short .check_overrun
 
 .failure:	xor ax,ax			; ZF = 1
 		pop es
@@ -2732,6 +2753,7 @@ searchdir:
 		mov edx,eax
 		shr edx,16
 		and bx,bx			; ZF = 0
+		mov si,bx
 		pop es
 		ret
 
@@ -2745,14 +2767,15 @@ searchdir:
 ;		  ZF clear
 ;
 allocate_file:
+		TRACER 'a'
 		push cx
 		mov bx,Files
 		mov cx,MAX_OPEN
 .check:		cmp dword [bx], byte 0
 		je .found
-		add bx,open_file_t_size
+		add bx,open_file_t_size		; ZF = 0
 		loop .check
-		xor cx,cx			; ZF = 1
+		; ZF = 0 if we fell out of the loop
 .found:		pop cx
 		ret
 
@@ -2763,25 +2786,28 @@ allocate_file:
 ;	the filesystem; CX indicates its length, and ';' terminates.
 ;	DI is expected to end with a null.
 ;
+;	Note: clobbers AX, CX, SI, DI
+;
 iso_compare_names:
-		push ax
 .loop:		jcxz .si_end
 		lodsb
 		dec cx
 		mov ah,[di]
 		inc di
+		and al,al
+		jz .si_end_dec_di
+		cmp al,';'
+		je .si_end_dec_di
 		or ax,2020h			; Convert both to lowercase
 		cmp ah,al
-		jne .done			; ZF = 0
-		cmp al,';'
-		je .si_end
-		and al,al
-		jnz .loop
+		je .loop
+		ret				; Failure, ZF = 0
+.si_end_dec_di:
+		dec di				; Re-read "current" character
 .si_end:
 		cmp [di], byte 0
 		; Now ZF is set according to the final result
 .done:
-		pop ax
 		ret
 
 ;
@@ -3148,6 +3174,20 @@ writechr_full:
 		jnc .curxyok
 		xor dh,dh
 		jmp short .curxyok
+
+;
+; debug hack to print a character with minimal code impact
+;
+debug_tracer:	pushad
+		pushfd
+		mov bp,sp
+		mov bx,[bp+9*4]		; Get return address
+		mov al,[cs:bx]		; Get data byte
+		inc word [bp+9*4]	; Return to after data byte
+		call writechr
+		popfd
+		popad
+		ret
 
 ;
 ; pollchar: check if we have an input character pending (ZF = 0)
@@ -3568,6 +3608,8 @@ unmangle_name:	call strcpy
 ;	CF = 1	-> Hit EOF
 ;
 getfssec:
+		TRACER 'F'
+
 		push ds
 		push cs
 		pop ds				; DS <- CS
@@ -3579,9 +3621,12 @@ getfssec:
 
 		mov bp,cx
 		push cx
+		push si
 		mov eax,[si+file_sector]
-		call getfssec
+		TRACER 'l'
+		call getlinsec
 		xor ecx,ecx
+		pop si
 		pop cx
 
 		add [si+file_sector],ecx
@@ -3595,6 +3640,7 @@ getfssec:
 
 .not_eof:
 		pop ds
+		TRACER 'f'
 		ret
 
 
@@ -3912,7 +3958,7 @@ BS		equ  8		; Backspace
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
 		db CR, LF, 0
 boot_prompt	db 'boot: ', 0
-wipe_char	db 08h, ' ', 08h, 0
+wipe_char	db BS, ' ', BS, 0
 err_notfound	db 'Could not find kernel image: ',0
 err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
 err_not386	db 'It appears your computer uses a 286 or lower CPU.'
@@ -3954,12 +4000,14 @@ dotdot_msg      db '.'
 dot_msg         db '.', 0
 fourbs_msg	db BS, BS, BS, BS, 0
 aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
-crlf_msg	db CR, LF, 0
 crff_msg	db CR, FF, 0
 default_str	db 'default', 0
 default_len	equ ($-default_str)
 isolinux_cfg	db 'isolinux.cfg', 0
 
+dbg_rootdir_msg	db 'Root directory at LBA = ', 0
+dbg_config_msg	db 'About to load config file...', CR, LF, 0
+dbg_configok_msg	db 'Configuration file opened...', CR, LF, 0
 ;
 ; Command line options we'd like to take a look at
 ;
@@ -4035,9 +4083,9 @@ Stack		dw _start, 0		; SS:SP for stack reset
 ; **** BIOS expects our "sector size" to be.
 ;
 ClustSize	dw SECTORSIZE		; Bytes/cluster
-SecPerClust	dw SECTORSIZE/512	; Same as bsSecPerClust, but a word
+SecPerClust	dw 1			; Same as bsSecPerClust, but a word
 BufSafe		dw trackbufsize/SECTORSIZE	; Clusters we can load into trackbuf
-BufSafeSec	dw trackbufsize/512	; = how many sectors?
+BufSafeSec	dw trackbufsize/SECTORSIZE	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 ClustPerMoby	dw 65536/SECTORSIZE	; Clusters per 64K
