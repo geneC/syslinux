@@ -2,6 +2,13 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 3.02:
+	* SYSLINUX: The "unix" installer now sets the MS-DOS
+	  attributes (hidden, system, readonly.)
+	* COM32 library: build the .lnx (test modules for running
+	  under Linux) as architecture native modules, in case
+	  i386 devel libraries aren't installed.
+
 Changes in 3.01:
 	* EXTLINUX, SYSLINUX: Fix compile errors on some systems.
 	* EXTLINUX: Default to zipdrive geometry (64 heads, 32
