@@ -248,8 +248,8 @@ add, for example:
 	site-option-space "pxelinux";
 	option pxelinux.magic f1:00:74:7e;
 	if exists dhcp-parameter-request-list {
-		# Always send the PXELINUX options
-		append dhcp-parameter-request-list 208, 209, 210, 211;
+		# Always send the PXELINUX options (specified in hexadecimal)
+		option dhcp-parameter-request-list = concat(option dhcp-parameter-request-list,d0,d1,d2,d3);
 	}
 	# These lines should be customized to your setup
 	option pxelinux.configfile "configs/common";
@@ -261,10 +261,10 @@ Note that the configfile is relative to the pathprefix: this will look
 for a config file called /tftpboot/pxelinux/files/configs/common on
 the TFTP server.
 
-The "append dhcp-parameter-request-list" is an undocumented (as of
-DHCP 3.0rc2pl1) option which forces the DHCP server to send the
-PXELINUX-specific options, even though they are not explicitly
-requested.
+The "option dhcp-parameter-request-list" statement forces the DHCP
+server to send the PXELINUX-specific options, even though they are not
+explicitly requested.  Since the DHCP request is done before PXELINUX
+is loaded, the PXE client won't know to request them.
 
 Using ISC dhcp 3.0 you can create a lot of these strings on the fly.
 For example, to use the hexadecimal form of the hardware address as
