@@ -198,6 +198,7 @@ Stack		resd 1			; Pointer to reset stack
 PXEEntry	resd 1			; !PXE API entry point
 RebootTime	resd 1			; Reboot timeout, if set by option
 KernelClust	resd 1			; Kernel size in clusters
+StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
 FBytes2		resw 1
@@ -356,6 +357,9 @@ no_pxe:		mov si,err_nopxe
 		jmp kaboom
 
 have_pxenv:
+		mov [StrucPtr],bx
+		mov [StrucPtr+2],es
+
 		mov si,found_pxenv
 		call writestr
 
@@ -439,6 +443,9 @@ old_api:	; Need to use a PXENV+ structure
 		jmp have_entrypoint
 
 have_pxe:
+		mov [StrucPtr],bx
+		mov [StrucPtr+2],es
+
 		mov eax,[es:bx+10h]
 		mov [PXEEntry],eax
 

@@ -22,6 +22,8 @@
 %define		P_FLAGS		word [bp+40]
 %define		P_FLAGSL	byte [bp+40]
 %define		P_FLAGSH	byte [bp+41]
+%define		P_CS		word [bp+38]
+%define		P_IP		word [bp+36]
 %define		P_DS		word [bp+34]
 %define		P_ES		word [bp+32]
 %define		P_EAX		dword [bp+28]
@@ -146,6 +148,7 @@ comboot_int21:	cli
 		push ds
 		push es
 		pushad
+		cld
 		mov bp,cs
 		mov ds,bp
 		mov es,bp
@@ -275,6 +278,7 @@ comboot_int22:
 		push ds
 		push es
 		pushad
+		cld
 		mov bp,cs
 		mov ds,bp
 		mov es,bp
@@ -432,6 +436,32 @@ comapi_pxecall	equ comapi_err			; Not available
 %endif
 
 ;
+; INT 22h AX=000Ah	Get Derivative-Specific Info
+;
+comapi_derinfo:
+		mov P_AL,my_id
+%if IS_SYSLINUX
+		mov al,[bsDriveNumber]
+		mov P_DL,al
+		mov P_ES,cs
+		mov P_BX,PartInfo
+%elif IS_PXELINUX
+		mov ax,[APIVer]
+		mov P_DX,ax
+		mov ax,[StrucPtr]
+		mov P_BX,ax
+		mov ax,[StrucPtr+2]
+		mov P_ES,ax
+%elif IS_ISOLINUX
+		mov al,[DriveNo]
+		mov P_DL,al
+		mov P_ES,cs
+		mov P_BX,spec_packet
+%endif
+		clc
+		ret
+
+;
 ; This stuff should really be in the data section...
 ;
 %macro 		int21 2
@@ -464,6 +494,7 @@ int22_table:
 		dw comapi_read			; 0007 read file
 		dw comapi_close			; 0008 close file
 		dw comapi_pxecall		; 0009 call PXE stack
+		dw comapi_derinfo		; 000A derivative-specific info
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

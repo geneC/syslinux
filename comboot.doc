@@ -193,12 +193,14 @@ do not execute INT 22h under DOS.
 DOS-compatible function INT 21h, AH=30h can be used to detect if the
 SYSLINUX API calls are available.
 
-All INT 22h API calls may clobber the general-purpose registers (EAX,
-EBX, ECX, EDX, EBP, ESI and EDI).  Segment registers are left
-unchanged unless otherwise noted.
+Any register not specifically listed as modified is preserved;
+however, future versions of SYSLINUX may add additional output
+registers to existing calls.
 
 All calls return CF=0 on success, CF=1 on failure.  The noted outputs
-apply if CF=0 only unless otherwise noted.
+apply if CF=0 only unless otherwise noted.  All calls clobber the
+arithmetric flags (CF, PF, AF, ZF, SF and OF) but leave all other
+flags unchanged unless otherwise noted.
 
 
 AX=0001h	Get Version
@@ -317,3 +319,47 @@ AX=0009h	Call PXE Stack [PXELINUX ONLY]
 	this function returns with an error (CF=1) and no action is
 	taken.
 
+
+AX=000Ah	Get Derivative-Specific Information
+
+	[SYSLINUX]
+	Input:	AX	000Ah
+	Output:	AL	31h (SYSLINUX)
+		DL	drive number
+		ES:BX	pointer to partition table entry (if DL >= 80h)
+
+
+	[PXELINUX]
+	Input:	AX	000Ah
+	Output:	AL	32h (PXELINUX)
+		DX	PXE API version detected (DH=major, DL=minor)
+		ES:BX	pointer to PXENV+ or !PXE structure
+
+		Note: DX notes the API version detected by PXELINUX,
+		which may be more conservative than the actual version
+		available.  For exact information examine the API
+		version entry in the PXENV+ structure, or the API
+		version entries in the ROMID structures pointed from
+		the !PXE structure.
+
+		PXELINUX will use, and provide, the !PXE structure
+		over the PXENV+ structure.  Examine the structure
+		signature to determine which particular structure was
+		provided.
+
+
+	[ISOLINUX]
+	Input:	AX	000Ah
+	Output:	AL	33h (ISOLINUX)
+		DL	drive number
+		ES:BX	pointer to El Torito spec packet
+
+		Note: Some very broken El Torito implementations do
+		not provide the spec packet information.  If so, ES:BX
+		may point to all zeroes or to garbage.  Call INT 13h,
+		AX=4B01h to obtain the spec packet directly from the
+		BIOS if necessary.
+
+	This call gives information specific to a particular SYSLINUX
+	derivative.  The value returned in AL is the same as is
+	returned in DL by INT 22h AX=0001h.
