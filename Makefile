@@ -99,7 +99,7 @@ install: all
 	install -c syslinux $(BINDIR)
 
 tidy:
-	rm -f syslinux.lst copybs.lst *.o *_bin.c stupid.*
+	rm -f syslinux.lst copybs.lst *.o *_bin.c stupid.* pxelinux.lst
 
 clean: tidy
 	rm -f $(ITARGET)
