@@ -1,6 +1,6 @@
 			       SYSLINUX
-			     Version 1.44
-			    March ??, 1999
+			     Version 1.45
+			    June 14, 1999
 
               A bootloader for Linux using MS-DOS floppies
 
@@ -22,6 +22,7 @@ SYSLINUX floppy can be manipulated using standard MS-DOS (or any other
 OS that can access an MS-DOS filesystem) tools once it has been
 created.
 
+
    ++++ WHAT SYSLINUX IS NOT ++++
 
 SYSLINUX is probably not suitable as a general purpose boot loader.
@@ -33,6 +34,7 @@ to use.
 
 However, SYSLINUX has shown itself to be quite useful in a number of
 special-purpose applications.
+
 
    ++++ CREATING A BOOTABLE LINUX FLOPPY +++
 
@@ -75,6 +77,7 @@ user can then type a kernel file name followed by any kernel parameters.
 The SYSLINUX loader does not need to know about the kernel file in
 advance; all that is required is that it is a file located in the root
 directory on the disk.
+
 
    ++++ CONFIGURATION FILE ++++
 
@@ -148,6 +151,15 @@ TIMEOUT timeout
         NOTE: The maximum possible timeout value is 35996; corresponding to
         just below one hour.
 
+SERIAL port [baudrate]
+	Enables a serial port to act as the console.  "port" is a
+	number (0 = /dev/ttyS0 = COM1, etc.); if "baudrate" is
+	omitted, the baud rate defaults to 9600 bps.  The serial
+	parameters are hardcoded to be 8 bits, no parity, 1 stop bit.
+
+	For this directive to be guaranteed to work properly, it
+	should be the first directive in the configuration file.
+
 FONT filename
 	Load a font in .psf format before displaying any output
 	(except the copyright line, which is output as ldlinux.sys
@@ -197,11 +209,17 @@ F0 filename
         file names to F11 and F12.  Please see the section below on
         DISPLAY files.
 
-Blank lines, and comment lines beginning with a hash mark (#) are ignored.
+	When using the serial console, press <Ctrl-F><digit> to get to
+	the help screens, e.g. <Ctrl-F><2> to get to the F2 screen,
+	and <Ctrl-F><0> for the F10 one.
+
+In the configuration file blank lines and comment lines beginning
+with a hash mark (#) are ignored.
 
 Note that the configuration file is not completely decoded.  Syntax
 different from the one described above may still work correctly in this
 version of SYSLINUX, but may break in a future one.
+
 
    ++++ LARGE KERNELS AND INITIAL RAMDISK SUPPORT ++++
 
@@ -234,6 +252,7 @@ To bzImage and recent zImage kernels, SYSLINUX 1.30 and higher will
 identify using the ID byte 0x31.  The ID range 0x32-0x3f is reserved
 for future versions of SYSLINUX.
 
+
    ++++ DISPLAY FILE FORMAT ++++
 
 DISPLAY and function-key help files are text files in either DOS or UNIX
@@ -261,8 +280,11 @@ are interpreted:
         Picking a bright color (8-f) for the background results in the
         corresponding dark color (0-7), with the foreground flashing.
 
+	Colors are not visible over the serial console.
+
 <SUB>                                   <SUB> = <Ctrl-Z> = ASCII 26
         End of file (DOS convention).
+
 
    ++++ COMBOOT IMAGES AND OTHER OPERATING SYSTEMS ++++
 
@@ -288,7 +310,8 @@ file by adding extensions in the order listed above if the plain
 filename is not found.  Filenames in KERNEL statements must be fully
 qualified.
 
-   ++++ BOOTING DOS ++++
+
+   ++++ BOOTING DOS (OR OTHER SIMILAR OPERATING SYSTEMS) ++++
 
 This is the recommended procedure for creating a SYSLINUX disk that
 can boot either DOS or Linux.  This example assumes the drive is A: in
@@ -357,6 +380,7 @@ To make this installation in DOS only, you need the utility copybs.com
 
 	copy vmlinux a:
 	copy initrd.gz a:
+
  
    ++++ COMBOOT EXECUTABLES ++++
 
@@ -391,6 +415,7 @@ COMBOOT files.  If there is need, a future version may contain an INT
 interface to some SYSLINUX functions; please contact me if you have a
 need or ideas for such an API.
 
+
    ++++ NOVICE PROTECTION ++++
 
 SYSLINUX will attempt to detect if the user is trying to boot on a 286
@@ -407,6 +432,7 @@ Any file that SYSLINUX uses can be marked hidden, system or readonly if
 so is convenient; SYSLINUX ignores all file attributes.  The SYSLINUX
 installed automatically sets the readonly attribute on LDLINUX.SYS.
 
+
    ++++ NOTES ON BOOTABLE CD-ROMS ++++
 
 SYSLINUX can be used to create bootdisk images for El
@@ -421,6 +447,7 @@ that is bootable on the largest possible number of machines:
 
 A CD-ROM is so much faster than a floppy that the -s option shouldn't
 matter from a speed perspective.
+
 
    ++++ BOOTING FROM A FAT FILESYSTEM PARTITION ON A HARD DISK ++++
 
@@ -438,6 +465,7 @@ disk by running the command:
 
 Then use the FDISK command to mark the appropriate partition active.
 
+
    ++++ KNOWN BUGS ++++
 
 SYSLINUX is unsafe to use on any filesystem that extends past cylinder
@@ -446,6 +474,7 @@ SYSLINUX is unsafe to use on any filesystem that extends past cylinder
 SYSLINUX will not work (and will refuse to install) on filesystems
 with a cluster size of more than 16K (typically means a filesystem of
 more than 1 GB.)
+
 
    ++++ COMPATIBILITY WITH SYSLINUX 1.0 ++++
 
@@ -458,6 +487,7 @@ prompt 1
 
 # Mimic SYSLINUX 1.0 with BOOTMSG.TXT file present:
 display bootmsg.txt
+
 
    ++++ BUG REPORTS ++++
 

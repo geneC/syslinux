@@ -579,12 +579,12 @@ kaboom:
 		mov ss,si		
 		mov sp,StackBuf 	; Reset stack
 		mov ds,si		; Reset data segment
-		mov si,bailmsg
+.patch:		mov si,bailmsg
 		call writestr		; Returns with AL = 0
 		cbw			; AH <- 0
 		int 16h			; Wait for keypress
 		int 19h			; And try once more to boot...
-norge:		jmp short norge		; If int 19h returned; this is the end
+.norge:		jmp short .norge	; If int 19h returned; this is the end
 
 ;
 ; found_it: now we compute the location of the first sector, then
@@ -1169,6 +1169,13 @@ is_486:
 ;
 		call adjust_screen
 ;
+; Now, everything is "up and running"... patch kaboom for more
+; verbosity and using the full screen system
+;
+		mov byte [kaboom.patch],0e9h		; JMP NEAR
+		mov word [kaboom.patch+1],kaboom2-(kaboom.patch+3)
+
+;
 ; Now we're all set to start with our *real* business.	First load the
 ; configuration file (if any) and parse it.
 ;
@@ -1326,8 +1333,12 @@ pc_serial:	call getint			; "serial" command
 		xor al,al			; IRQ disable
 		call slow_out
 
-		mov al,'>'
-		call write_serial
+		; Show some life
+		mov si,syslinux_banner
+		call write_serial_str
+		mov si,copyright_str
+		call write_serial_str
+
 		jmp short parse_config_3
 
 pc_fkey:	sub ah,'1'
@@ -1454,17 +1465,9 @@ get_char_time:	mov cx,[KbdTimeOut]
 						; know the appropriate DX value
 time_loop:	push cx
 tick_loop:	push dx
-		mov ah,1			; Check for pending keystroke
-		int 16h
+		call pollchar
 		jnz get_char_pop
-		mov dx,[SerialPort]		; Check for serial port input
-		and dx,dx
-		je .noserial
-		add dx,byte 5
-		in al,dx
-		test al,1			; Receive data ready
-		jnz get_char_pop
-.noserial:	xor ax,ax
+		xor ax,ax
 		int 1Ah				; Get time "of day"
 		pop ax
 		cmp dx,ax			; Has the timer advanced?
@@ -1474,27 +1477,9 @@ tick_loop:	push dx
 		jmp command_done		; Timeout!
 
 get_char_pop:	pop eax				; Clear stack
-get_char:	mov ah,1			; Keyboard char ready?
-		int 16h
-		jnz get_kbd
-		mov dx,[SerialPort]		; Serial port input?
-		and dx,dx
-		jz get_char
-		add dx,byte 5
-		in al,dx
-		test al,1
-		jz get_char
-
-get_serial:	mov dx,[SerialPort]		; Valid only when we have already
-		in al,dx			; tested for input!!
-		jmp short got_ascii
-
-get_kbd:	xor ax,ax			; Get char
-		int 16h
+get_char:	call getchar
 		and al,al
 		jz func_key
-		mov bx,KbdMap			; Keyboard map translation
-		xlatb
 
 got_ascii:	cmp al,7Fh			; <DEL> == <BS>
 		je backspace
@@ -2346,24 +2331,6 @@ bad_bootsec:
 		jmp enter_command
 
 ;
-; cwritestr: write a null-terminated string to the console, saving
-;            registers on entry (we can't use this in the boot sector,
-;            since we haven't verified 386-ness yet)
-;
-cwritestr:
-                pusha
-.top:		lodsb
-		and al,al
-                jz .end
-		call write_serial	; Write to serial port if enabled
-		mov ah,0Eh		; Write to screen as TTY
-		mov bx,0007h		; White on black, current page
-		int 10h
-                jmp short .top
-.end:		popa
-                ret
-
-;
 ; 32-bit bcopy routine for real mode
 ;
 ; We enter protected mode, set up a flat 32-bit environment, run rep movsd
@@ -2620,23 +2587,16 @@ rd_load_done:
 ; abort_check: let the user abort with <ESC> or <Ctrl-C>
 ;
 abort_check:
-                pusha
-ac1:
-		mov ah,1			; Check for pending keystroke
-		int 16h
-                jz ac_nokbd                     ; If no pending keystroke
-		xor ax,ax			; Load pending keystroke
-		int 16h
-		mov bx,KbdMap
-		xlatb
-ac_char:					; Character received
-		cmp al,27			; <ESC> aborts (DOS geeks)
-		je ac2
-		cmp al,3			; So does Ctrl-C (UNIX geeks)
-		jne ac1				; Unknown key... try again
-ac2:						; If we get here, ABORT!
-                mov si,aborted_msg
-                ; Fall through to abort_load
+		call pollchar
+		jz ac_ret1
+		pusha
+		call getchar
+		cmp al,27			; <ESC>
+		je ac_kill
+		cmp al,3			; <Ctrl-C>
+		jne ac_ret2
+ac_kill:	mov si,aborted_msg
+
 ;
 ; abort_load: Called by various routines which wants to print a fatal
 ;             error message and return to the command prompt.  Since this
@@ -2657,24 +2617,10 @@ abort_load:
                 call cwritestr                  ; Expects SI -> error msg
 al_ok:          jmp enter_command               ; Return to command prompt
 ;
-; Check for serial port abort
-;
-ac_nokbd:
-		mov bx,[SerialPort]
-		and bx,bx
-		jz ac_ret			; No serial port
-		lea dx,[bx+5]
-		in al,dx
-		and al,01h
-		jz ac_ret			; Nothing on the serial port
-		xchg dx,bx
-		in al,dx
-		jmp short ac_char		; Character received!
-;
 ; End of abort_check
 ;
-ac_ret:         popa
-                ret
+ac_ret2:	popa
+ac_ret1:	ret
 
 ;
 ; searchdir: Search the root directory for a pre-mangled filename in
@@ -2764,19 +2710,6 @@ dir_success:
 		mov bx,ax
 		or bx,dx		; Sets ZF iff DX:AX is zero
 dir_return:
-		ret
-
-;
-; writechr:	Write a single character in AL to the screen without
-;		mangling any registers
-;
-writechr:
-		call write_serial	; write to serial port if needed
-		pusha
-		mov ah,0Eh
-		mov bx,0007h		; white text on this page
-		int 10h
-		popa
 		ret
 
 ;
@@ -2931,10 +2864,10 @@ msg_ctrl_o:                                     ; ^O = color code follows
                 mov word [NextCharJump],msg_setbg
                 ret
 msg_newline:                                    ; Newline char or end of line
-		mov al,0Dh
-		call write_serial
-		mov al,0Ah
-		call write_serial
+		push si
+		mov si,crlf_msg
+		call write_serial_str
+		pop si
                 mov byte [CursorCol],0
                 mov al,[CursorRow]
                 inc ax
@@ -2950,10 +2883,10 @@ msg_scroll:     xor cx,cx                       ; Upper left hand corner
                 int 10h
                 jmp short msg_gotoxy
 msg_formfeed:                                   ; Form feed character
-		mov al,0Dh
-		call write_serial
-		mov al,0Ch
-		call write_serial
+		push si
+		mov si,crff_msg
+		call write_serial_str
+		pop si
                 xor cx,cx
                 mov [CursorDX],cx		; Upper lefthand corner
                 mov dx,[ScreenSize]
@@ -2997,6 +2930,99 @@ write_serial:
 		call slow_out			; Send data
 .noserial:	popa
 		ret
+
+;
+; write_serial_str: write_serial for strings
+;
+write_serial_str:
+.loop		lodsb
+		and al,al
+		jz .end
+		call write_serial
+		jmp short .loop
+.end:		ret
+
+;
+; writechr:	Write a single character in AL to the console without
+;		mangling any registers
+;
+writechr:
+		call write_serial	; write to serial port if needed
+		pusha
+		mov ah,0Eh
+		mov bx,0007h		; white text on this page
+		int 10h
+		popa
+		ret
+
+;
+; cwritestr: write a null-terminated string to the console, saving
+;            registers on entry.
+;
+cwritestr:
+                pusha
+.top:		lodsb
+		and al,al
+                jz .end
+		call writechr
+                jmp short .top
+.end:		popa
+                ret
+
+;
+; pollchar: check if we have an input character pending (ZF = 0)
+;
+pollchar:
+		pusha
+		mov ah,1		; Poll keyboard
+		int 16h
+		jnz .done		; Keyboard response
+		mov dx,[SerialPort]
+		and dx,dx
+		jz .done		; No serial port -> no input
+		add dx,byte 5		; Serial status register
+		in al,dx
+		test al,1		; ZF = 0 if traffic
+.done:		popa
+		ret
+
+;
+; getchar: Read a character from keyboard or serial port
+;
+getchar:
+.again:		mov ah,1		; Poll keyboard
+		int 16h
+		jnz .kbd		; Keyboard input?
+		mov bx,[SerialPort]
+		and bx,bx
+		jz .again
+		lea dx,[bx+5]		; Serial status register
+		in al,dx
+		test al,1
+		jz .again
+.serial:	xor ah,ah		; Avoid confusion
+		xchg dx,bx		; Data port
+		in al,dx
+		ret
+.kbd:		xor ax,ax		; Get keyboard input
+		int 16h
+		and al,al
+		jz .func_key
+		mov bx,KbdMap		; Convert character sets
+		xlatb
+.func_key:	ret
+
+;
+;
+; kaboom2: once everything is loaded, replace the part of kaboom
+;	   starting with "kaboom.patch" with this part
+
+kaboom2:
+		mov si,err_bootfailed
+		call cwritestr
+		call getchar
+		int 19h			; And try once more to boot...
+.norge:		jmp short .norge	; If int 19h returned; this is the end
 
 ;
 ; open,getc:	Load a file a character at a time for parsing in a manner
@@ -3523,7 +3549,7 @@ lcase_tab       db 135, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138
 ;
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
 		db 0Dh, 0Ah, 0
-boot_prompt	db 'boot: ',0
+boot_prompt	db 'boot: ', 0
 wipe_char	db 08h, ' ', 08h, 0
 err_notfound	db 'Could not find kernel image: ',0
 err_notkernel	db 0Dh, 0Ah, 'Invalid or corrupt kernel image.', 0Dh, 0Ah, 0
@@ -3554,11 +3580,14 @@ err_notdos	db ': attempted DOS system call', 0Dh, 0Ah, 0
 err_comlarge	db 'COMBOOT image too large.', 0Dh, 0Ah, 0
 err_bootsec	db 'Invalid or corrupt boot sector image.', 0Dh, 0Ah, 0
 err_a20		db 0Dh, 0Ah, 'A20 gate not responding!', 0Dh, 0Ah, 0
+err_bootfailed	db 0Dh, 0Ah, 'Boot failed: please change disks and press '
+		db 'a key to continue.', 0Dh, 0Ah, 0
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
 dot_msg         db '.', 0
 aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
 crlf_msg	db 0Dh, 0Ah, 0
+crff_msg	db 0Dh, 0Ch, 0
 syslinux_cfg	db 'SYSLINUXCFG'
 ;
 ; Command line options we'd like to take a look at
