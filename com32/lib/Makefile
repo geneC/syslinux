@@ -19,7 +19,7 @@ LIBOBJS = abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o	\
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
 	libgcc/__divdi3.o libgcc/__moddi3.o 				\
 	sys/entry.o sys/exit.o sys/argv.o sys/times.o			\
-	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o		\
+	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
 	sys/isatty.o sys/openconsole.o sys/line_input.o			\
 	sys/stdcon_read.o sys/stdcon_write.o sys/rawcon_read.o		\
@@ -27,7 +27,10 @@ LIBOBJS = abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o	\
 	sys/null_read.o sys/null_write.o sys/serial_write.o		\
 	sys/ansicon_write.o sys/ansiserial_write.o			\
 	pci/cfgtype.o pci/readb.o pci/readw.o pci/readl.o 		\
-	pci/writeb.o pci/writew.o pci/writel.o
+	pci/writeb.o pci/writew.o pci/writel.o				\
+	zlib/adler32.o zlib/compress.o zlib/crc32.o zlib/gzio.o 	\
+	zlib/uncompr.o zlib/deflate.o zlib/trees.o zlib/zutil.o 	\
+	zlib/inflate.o zlib/infback.o zlib/inftrees.o zlib/inffast.o
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib

@@ -9,7 +9,8 @@ STRIP	= strip --strip-all -R .comment -R .note
 OBJCOPY	= objcopy
 
 REQFLAGS  = -g -m32 -mregparm=3 -DREGPARM=3 -D__COM32__ -I. -I./sys -I../include
-OPTFLAGS  = -Os -march=i386 -falign-functions=0 -falign-jumps=0 -falign-labels=0
+OPTFLAGS  = -Os -march=i386 -falign-functions=0 -falign-jumps=0 \
+	    -falign-labels=0 -DDYNAMIC_CRC_TABLE
 WARNFLAGS = -W -Wall -Wpointer-arith -Wwrite-strings -Wstrict-prototypes -Winline
 
 CFLAGS  = -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d $(OPTFLAGS) \
