@@ -30,8 +30,15 @@ TARGETS=bootsect.bin ldlinux.sys syslinux.com syslinux
 all:	$(TARGETS)
 	ls -l $(TARGETS)
 
+# The DATE is set on the make command line when building binaries for
+# official release.  Otherwise, substitute a hex string that is pretty much
+# guaranteed to be unique to be unique from build to build.
+ifndef DATE
+DATE = $(shell perl now.pl)
+endif
+
 ldlinux.bin: ldlinux.asm
-	$(NASM) -f bin -dHEX_TIME="`perl now.pl`" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
+	$(NASM) -f bin -dDATE_STR="'$(DATE)'" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
 
 bootsect.bin: ldlinux.bin
 	dd if=ldlinux.bin of=bootsect.bin bs=512 count=1
@@ -62,3 +69,13 @@ clean: tidy
 
 dist: tidy
 	rm -f *~ \#*
+
+#
+# This should only be used by the maintainer to generate official binaries
+# for release.  Please do not "make official" and distribute the binaries,
+# please.
+#
+official:
+	$(MAKE) clean
+	$(MAKE) all DATE=`date +'%Y-%m-%d'`
+	$(MAKE) dist

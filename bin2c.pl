@@ -22,7 +22,7 @@ if ( $#ARGV != 0 ) {
 
 ($table_name) = @ARGV;
 
-printf "const unsigned char %s[] = {\n", $table_name;
+printf "unsigned char %s[] = {\n", $table_name;
 
 $pos = 0;
 $linelen = 8;
@@ -46,5 +46,5 @@ while ( ($n = read(STDIN, $data, 4096)) > 0 ) {
     }
 }
 
-printf "\n};\n\nconst unsigned int %s_len = %u;\n", $table_name, $total_len;
+printf "\n};\n\nunsigned int %s_len = %u;\n", $table_name, $total_len;
 

@@ -1,0 +1,6 @@
+Please read the file syslinux.doc for information on how to use
+SYSLINUX.
+
+SYSLINUX now builds in a Linux environment, using nasm.  You need nasm
+version 0.97 or later to build SYSLINUX from source.  See
+http://www.cryogen.com/Nasm for information about nasm.

@@ -4,4 +4,4 @@
 # Print the time as a hexadecimal integer
 #
 
-printf "\'0x%08x\'\n", time;
+printf "0x%08x\n", time;

@@ -32,19 +32,25 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 #ifndef _PATH_MOUNT
 #define _PATH_MOUNT "/bin/mount"
 #endif
 
-extern const unsigned char bootsect[];
-extern const unsigned int  bootsect_len;
+#ifndef _PATH_UMOUNT
+#define _PATH_UMOUNT "/bin/umount"
+#endif
 
-extern const unsigned char ldlinux[];
-extern const unsigned int  ldlinux_len;
+extern unsigned char bootsect[];
+extern unsigned int  bootsect_len;
+
+extern unsigned char ldlinux[];
+extern unsigned int  ldlinux_len;
 
 char *program;			/* Name of program */
 char *device;			/* Device to install to */
+uid_t euid;			/* Our current euid */
 
 enum bs_offsets {
   bsJump          = 0x00,
@@ -90,15 +96,22 @@ static u_int32_t get_32(unsigned char *p)
 
 int main(int argc, char *argv[])
 {
-  static unsigned char sectbuf[512], *dp;
-  int dev_fd;
+  static unsigned char sectbuf[512];
+  unsigned char *dp;
+  const unsigned char *cdp;
+  int dev_fd, fd;
   struct stat st;
   int nb, left, veryold;
   unsigned int sectors, clusters;
+  int err = 0;
+  pid_t f, w;
+  int status;
+  char *mntpath = NULL, mntname[64];
+  int my_umask;
 
   program = argv[0];
 
-  if ( argc != 2 ) {
+  if ( argc != 2 || argv[1][0] == '-' ) {
     fprintf(stderr, "Usage: %s device\n", program);
     exit(1);
   }
@@ -115,7 +128,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  if ( !S_ISBLK(st.st_mode) || !S_ISREG(st.st_mode) ) {
+  if ( !S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode) ) {
     fprintf(stderr, "%s: not a block device or regular file\n", device);
     exit(1);
   }
@@ -193,9 +206,10 @@ int main(int argc, char *argv[])
 
   /*
    * Now mount the device.  If we are non-root we need to find an fstab
-   * entry for this device which has the user flag set.
+   * entry for this device which has the user flag and the appropriate
+   * options set.
    */
-  if ( geteuid() ) {
+  if ( (euid = geteuid()) ) {
     FILE *fstab;
     struct mntent *mnt;
 
@@ -204,16 +218,168 @@ int main(int argc, char *argv[])
     }
     
     while ( (mnt = getmntent(fstab)) ) {
-      if ( !strcmp(device, mnt->mnt_fsname) ) {
-	if ( !strcmp(mnt->mnt_type, "msdos") ||
+      if ( !strcmp(device, mnt->mnt_fsname) &&
+	   ( !strcmp(mnt->mnt_type, "msdos") ||
 	     !strcmp(mnt->mnt_type, "umsdos") ||
 	     !strcmp(mnt->mnt_type, "vfat") ||
 	     !strcmp(mnt->mnt_type, "uvfat") ||
-	     !strcmp(mnt->mnt_type, "auto") ) {
-	}
+	     !strcmp(mnt->mnt_type, "auto") ) &&
+	   hasmntopt(mnt, "user") &&
+	   !hasmntopt(mnt, "ro") &&
+	   !!hasmntopt(mnt, "loop") == !!S_ISREG(st.st_mode)) {
+	/* Okay, this is an fstab entry we should be able to live with. */
+
+	mntpath = mnt->mnt_dir;
+	break;
       }
     }
+    endmntent(fstab);
+
+    if ( !mntpath ) {
+      fprintf(stderr, "%s: not root and no appropriate entry for %s in "
+	      MNTTAB "\n", program, device);
+      exit(1);
+    }
+  
+    f = fork();
+    if ( f < 0 ) {
+      perror(program);
+      exit(1);
+    } else if ( f == 0 ) {
+      execl(_PATH_MOUNT, _PATH_MOUNT, mntpath, NULL);
+      _exit(255);		/* If execl failed, trouble... */
+    }
+  } else {
+    int i = 0;
+
+    /* We're root.  Make a temp dir and pass all the gunky options to mount. */
+
+    do {
+      sprintf(mntname, "/tmp/syslinux.mnt.%lu.%d", (unsigned long)getpid(), i++);
+    } while ( (errno = 0, mkdir(mntname, 0700) == -1) &&
+	      (errno == EEXIST || errno == EINTR) );
+    if ( errno ) {
+      perror(program);
+      exit(1);
+    }
+    
+    mntpath = mntname;
+
+    f = fork();
+    if ( f < 0 ) {
+      perror(program);
+      rmdir(mntpath);
+      exit(1);
+    } else if ( f == 0 ) {
+      if ( S_ISREG(st.st_mode) )
+	execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-o", "loop", "-w",
+	      device, mntpath);
+      else
+	execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-w", device, mntpath);
+      _exit(255);		/* execl failed */
+    }
   }
+
+  w = waitpid(f, &status, 0);
+  if ( w != f || status ) {
+    if ( !euid )
+      rmdir(mntpath);
+    exit(1);			/* Mount failed */
+  }
+
+  if ( chdir(mntpath) ) {
+    perror("chdir");
+    if ( !euid )
+      rmdir(mntpath);
+    exit(1);
+  }
+
+  unlink("ldlinux.sys");
+  fd = open("ldlinux.sys", O_WRONLY|O_CREAT|O_TRUNC, 0444);
+  if ( fd < 0 ) {
+    perror(device);
+    err = 1;
+    goto umount;
+  }
+
+  cdp = ldlinux;
+  left = ldlinux_len;
+  while ( left ) {
+    nb = write(fd, cdp, left);
+    if ( nb == -1 && errno == EINTR )
+      continue;
+    else if ( nb <= 0 ) {
+      perror(device);
+      err = 1;
+      goto umount;
+    }
+
+    dp += nb;
+    left -= nb;
+  }
+
+  /*
+   * I don't understand why I need this.  Does the DOS filesystems
+   * not honour the mode passed to open()?
+   */
+  my_umask = umask(0777);
+  umask(my_umask);
+  fchmod(fd, 0444 & ~my_umask);
+
+  close(fd);
+
+umount:
+  chdir("/");
+
+  f = fork();
+  if ( f < 0 ) {
+    perror("fork");
+    exit(1);
+  } else if ( f == 0 ) {
+    execl(_PATH_UMOUNT, _PATH_UMOUNT, mntpath, NULL);
+  }
+
+  w = waitpid(f, &status, 0);
+  if ( w != f || status ) {
+    exit(1);
+  }
+
+  if ( !euid )
+    rmdir(mntpath);
+
+  if ( err )
+    exit(err);
+
+  /*
+   * To finish up, write the boot sector
+   */
+
+  dev_fd = open(device, O_RDWR);
+  if ( dev_fd < 0 ) {
+    perror(device);
+    exit(1);
+  }
+
+  /* Copy the old superblock into the new boot sector */
+  memcpy(bootsect+bsCopyStart, sectbuf+bsCopyStart, bsCopyLen);
+  
+  dp = bootsect;
+  left = bootsect_len;
+  while ( left ) {
+    nb = write(dev_fd, dp, left);
+    if ( nb == -1 && errno == EINTR )
+      continue;
+    else if ( nb <= 0 ) {
+      perror(device);
+      exit(1);
+    }
+    
+    dp += nb;
+    left -= nb;
+  }
+  close(dev_fd);
+
+  /* Done! */
 
   return 0;
 }
