@@ -11,7 +11,7 @@
 ##
 ## -----------------------------------------------------------------------
 
-VERSION := $(shell ../version)
+VERSION := $(shell cat ../version)
 
 CC      = gcc
 CFLAGS  = -Wall -O2 -fomit-frame-pointer -march=i386 \
