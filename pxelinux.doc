@@ -171,4 +171,5 @@ Currently known problems:
   problem.
 + We should probably call the UDP receive function in the keyboard
   entry loop, so that we answer ARP requests.
-+ COMBOOT images or boot sectors don't work yet.
++ Boot sectors don't work yet... they probably need auxilliary information
+  (such as device) to work at all.

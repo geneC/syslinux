@@ -123,6 +123,30 @@ setup_seg	equ 9020h
 setup_entry	equ 0h			; Entry point 9020:0000
 
 ;
+; BOOTP/DHCP packet pattern
+;
+		struc bootp_t		
+bootp:
+.opcode		resb 1			; BOOTP/DHCP "opcode"
+.hardware	resb 1			; ARP hardware type
+.hardlen	resb 1			; Hardware address length
+.gatehops	resb 1			; Used by forwarders
+.ident		resd 1			; Transaction ID
+.seconds	resw 1			; Seconds elapsed
+.flags		resw 1			; Broadcast flags
+.cip		resd 1			; Client IP
+.yip		resd 1			; "Your" IP
+.sip		resd 1			; Next server IP
+.gip		resd 1			; Relay agent IP
+.macaddr	resb 16			; Client MAC address
+.sname		resb 64			; Server name (optional)
+.bootfile	resb 128		; Boot file name
+.v_magic	resd 1			; DHCP magic cookie
+.v_flags	resd 1			; DHCP flags
+.v_pad		resb 56			; Vendor options padding
+		endstruc		
+
+;
 ; Magic number of su_header field
 ;
 HEADER_ID       equ 'HdrS'		; HdrS (in littleendian hex)
@@ -287,6 +311,7 @@ FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
 NumBuf		resb 16			; Buffer to load number
 NumBufEnd	equ NumBuf+15		; Pointer to last byte in NumBuf
 		alignb 32
+BootFile	resb 128		; Boot file name from DHCP query
 KernelName      resb FILENAME_MAX       ; Mangled name for kernel
 KernelCName     resb FILENAME_MAX	; Unmangled kernel name
 InitRDCName     resb FILENAME_MAX       ; Unmangled initrd name
@@ -299,6 +324,7 @@ HighMemSize	resd 1			; End of memory pointer (bytes)
 KernelSize	resd 1			; Size of kernel (bytes)
 Stack		resd 1			; Pointer to reset stack
 PXEEntry	resd 1			; !PXE API entry point
+MyIP		resd 1			; My IP address
 ServerIP	resd 1			; IP address of boot server
 SavedSSSP	resw 1			; Our SS:SP while running a COMBOOT image
 FBytes		equ $			; Used by open/getc
@@ -340,28 +366,6 @@ Sockets		resb MAX_SOCKETS*tftp_port_t_size
 
 		alignb 16
 		; BOOTP/DHCP packet buffer
-bootp:
-.opcode		resb 1			; BOOTP/DHCP "opcode"
-.hardware	resb 1			; ARP hardware type
-.hardlen	resb 1			; Hardware address length
-.gatehops	resb 1			; Used by forwarders
-.ident		resd 1			; Transaction ID
-.seconds	resw 1			; Seconds elapsed
-.flags		resw 1			; Broadcast flags
-.cip		resd 1			; Client IP
-.yip		resd 1			; "Your" IP
-.sip		resd 1			; Next server IP
-.gip		resd 1			; Relay agent IP
-.macaddr	resb 16			; Client MAC address
-.sname		resb 64			; Server name (optional)
-.bootfile	resb 128		; Boot file name
-.v_magic	resd 1			; DHCP magic cookie
-.v_flags	resd 1			; DHCP flags
-.v_pad		resb 56			; Vendor options padding
-
-.options	resb 0500h		; Additional option space
-
-bootp_size	equ $-bootp
 
 		alignb 16
 packet_buf	resb 2048		; Transfer packet
@@ -537,9 +541,15 @@ query_bootp:	mov ax,ds
 		call writehex4
 		call crlf
 
-.pxe_ok:	mov si,myipaddr_msg
+.pxe_ok:	mov si,trackbuf+bootp.bootfile
+		mov di,BootFile
+		mov cx,128 >> 2
+		rep movsd			; Copy bootfile name
+
+		mov si,myipaddr_msg
 		call writestr
-		mov eax,[bootp.yip]		; "Your" IP address
+		mov eax,[trackbuf+bootp.yip]	; "Your" IP address
+		mov [MyIP],eax
 		xchg ah,al			; Host byte order
 		ror eax,16
 		xchg ah,al
@@ -555,7 +565,7 @@ query_bootp:	mov ax,ds
 ;
 ; Save away the server IP and port number
 ;
-		mov eax,[bootp.sip]
+		mov eax,[trackbuf+bootp.sip]
 		mov [ServerIP],eax
 		mov [ServerPort], word TFTP_PORT
 
@@ -563,7 +573,7 @@ query_bootp:	mov ax,ds
 ; Initialize UDP stack
 ;
 udp_init:
-		mov eax,[bootp.yip]
+		mov eax,[MyIP]
 		mov [pxe_udp_open_pkt.sip],eax
 		mov di,pxe_udp_open_pkt
 		mov bx,PXENV_UDP_OPEN
@@ -678,7 +688,7 @@ mkkeymap:	stosb
 ;
 ; Store standard filename prefix
 ;
-prefix:		mov si,bootp.bootfile
+prefix:		mov si,BootFile
 		mov di,PathPrefix
 		cld
 		call strcpy
@@ -717,7 +727,7 @@ find_config:	mov di,trackbuf
 		mov cx,cfgprefix_len
 		rep movsb
 		mov cx,8
-		mov eax,[bootp.yip]
+		mov eax,[MyIP]
 		xchg ah,al			; Host byte order
 		ror eax,16
 		xchg ah,al
@@ -1293,6 +1303,14 @@ kernel_corrupt: mov si,err_notkernel
 ; Anything else is assumed to be a Linux kernel.
 ;
 kernel_good:
+		pusha
+		mov si,KernelName
+		mov di,KernelCName
+		call unmangle_name
+		sub di,KernelCName
+		mov [KernelCNameLen],di
+		popa
+		
 		push di
 		push ax
 		mov di,KernelName
@@ -2374,7 +2392,7 @@ searchdir:
 		mov [pxe_udp_read_pkt.buffer],di
 		mov di,packet_buf_size
 		mov [pxe_udp_read_pkt.buffersize],di
-		mov eax,[bootp.yip]	; Our own IP
+		mov eax,[MyIP]
 		mov [pxe_udp_read_pkt.dip],eax
 		mov [pxe_udp_read_pkt.lport],bx
 		mov di,pxe_udp_read_pkt
@@ -3365,7 +3383,7 @@ getfssec:
 		mov [pxe_udp_read_pkt.buffersize],word packet_buf_size
 		mov eax,[bx+tftp_remoteip]
 		mov [pxe_udp_read_pkt.sip],eax
-		mov eax,[bootp.yip]
+		mov eax,[MyIP]
 		mov [pxe_udp_read_pkt.dip],eax
 		mov ax,[si+tftp_remoteport]
 		mov [pxe_udp_read_pkt.rport],ax
@@ -3642,9 +3660,9 @@ PXENVEntry	dw pxe_thunk,0
 pxe_bootp_query_pkt:
 .status:	dw 0			; Status
 .packettype:	dw 3			; DHCPACK packet
-.buffersize:	dw bootp_size		; Packet size
-.buffer:	dw bootp, 0		; seg:off of buffer
-.bufferlimit:	dw bootp_size		; Unused
+.buffersize:	dw trackbufsize		; Packet size
+.buffer:	dw trackbuf, 0		; seg:off of buffer
+.bufferlimit:	dw trackbufsize		; Unused
 
 pxe_bootp_size_query_pkt:
 .status:	dw 0			; Status
