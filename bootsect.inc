@@ -36,7 +36,7 @@ load_bootsec:
 		push cx
 %endif
 		xchg dx,ax
-		shr eax,16
+		shl eax,16
 		xchg dx,ax		; Now EAX = file length
 		mov edi, 100000h
 		call load_high

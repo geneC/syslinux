@@ -379,7 +379,9 @@ _start1:
 ;
 ; Now we need to find the !PXE structure.  It's *supposed* to be pointed
 ; to by SS:[SP+4], but support INT 1Ah, AX=5650h method as well.
-;
+; FIX: ES:BX should point to the PXENV+ structure on entry as well.
+; We should make that the second test, and not trash ES:BX...
+; 
 		cmp dword [es:bx], '!PXE'
 		je have_pxe
 
