@@ -62,7 +62,8 @@ ldlinux_bin.c: ldlinux.sys bin2c.pl
 	perl bin2c.pl ldlinux < ldlinux.sys > ldlinux_bin.c
 
 syslinux: syslinux.o bootsect_bin.o ldlinux_bin.o stupid.o
-	$(CC) $(LDFLAGS) -o syslinux syslinux.o bootsect_bin.o ldlinux_bin.o
+	$(CC) $(LDFLAGS) -o syslinux \
+		syslinux.o bootsect_bin.o ldlinux_bin.o stupid.o
 
 stupid.o: stupid.c
 
