@@ -25,6 +25,11 @@ LIBOBJS = abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o	\
 	sys/null_read.o sys/null_write.o sys/serial_write.o		\
 	sys/ansicon_write.o sys/ansiserial_write.o
 
+BINDIR   = /usr/bin
+LIBDIR   = /usr/lib
+AUXDIR   = $(LIBDIR)/syslinux
+INCDIR   = /usr/include
+COM32DIR = $(AUXDIR)/com32
 
 all: libcom32.a
 
@@ -41,5 +46,11 @@ clean: tidy
 
 spotless: clean
 	rm -f *~ \#* */*~ */\#*
+
+install: all
+	mkdir -m 755 -p $(INSTALLROOT)$(COM32DIR)
+	install -m 644 libcom32.a com32.ld $(INSTALLROOT)$(COM32DIR)
+	-rm -rf $(INSTALLROOT)$(COM32DIR)/include
+	cp -r ../include $(INSTALLDOOR)$(COM32DIR)
 
 -include .*.d

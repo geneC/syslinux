@@ -52,6 +52,12 @@ LNXLIBOBJS = $(patsubst %.o,%.lo,$(LIBOBJS))
 
 .SUFFIXES: .lss .c .lo .o .elf .c32 .lnx
 
+BINDIR   = /usr/bin
+LIBDIR   = /usr/lib
+AUXDIR   = $(LIBDIR)/syslinux
+INCDIR   = /usr/include
+COM32DIR = $(AUXDIR)/com32
+
 all: libutil_com.a libutil_lnx.a
 
 libutil_com.a: $(LIBOBJS)
@@ -99,3 +105,8 @@ clean: tidy
 
 spotless: clean
 	rm -f *~ \#*
+
+install: all
+	mkdir -m 755 -p $(INSTALLROOT)$(COM32DIR)
+	install -m 644 libutil_com.a libutil_lnx.a $(INSTALLROOT)$(COM32DIR)
+

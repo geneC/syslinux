@@ -39,7 +39,7 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_libdir}/syslinux
 mkdir -p %{buildroot}%{_includedir}
-make install install-lib \
+make install-all \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} \
 	LIBDIR=%{_libdir} INCDIR=%{_includedir}
 make -C sample tidy

@@ -188,6 +188,7 @@ install: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR) $(INSTALLROOT)$(AUXDIR)
 	install -m 755 -c $(INSTALL_BIN) $(INSTALLROOT)$(BINDIR)
 	install -m 644 -c $(INSTALL_AUX) $(INSTALLROOT)$(AUXDIR)
+	$(MAKE) -C com32 install
 
 install-lib: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(LIBDIR) $(INSTALLDIR)$(INCDIR)
@@ -196,7 +197,7 @@ install-lib: installer
 	cd $(INSTALLROOT)$(LIBDIR) && ln -sf $(LIB_SO) libsyslinux.so
 	if [ -z '$(INSTALLROOT)' ]; then ldconfig; fi
 
-install-all: install install-all
+install-all: install install-lib
 
 local-tidy:
 	rm -f *.o *_bin.c stupid.* patch.offset

@@ -78,3 +78,5 @@ clean: tidy
 
 spotless: clean
 	rm -f *~ \#*
+
+install:	# Don't install samples

@@ -39,7 +39,15 @@ LNXLIBS	   = ../libutil/libutil_lnx.a
 
 .SUFFIXES: .lss .c .o .elf .c32 .lnx
 
-all: chain.c32
+BINDIR   = /usr/bin
+LIBDIR   = /usr/lib
+AUXDIR   = $(LIBDIR)/syslinux
+INCDIR   = /usr/include
+COM32DIR = $(AUXDIR)/com32
+
+MODULES	= chain.c32
+
+all: $(MODULES)
 
 .PRECIOUS: %.o
 %.o: %.S
@@ -76,3 +84,8 @@ clean: tidy
 
 spotless: clean
 	rm -f *~ \#*
+
+install: all
+	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)
+	install -m 644 $(MODULES) $(INSTALLROOT)$(AUXDIR)
+
