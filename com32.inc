@@ -42,6 +42,8 @@ com32_rmidt:
 
 is_com32_image:
 		push si			; Save file handle
+		push dx			; File length held in DX:AX
+		push ax
 
 		call make_plain_cmdline
 		; Copy the command line into the low cmdline buffer
@@ -58,9 +60,7 @@ is_com32_image:
 		call comboot_setup_api	; Set up the COMBOOT-style API
 
 		mov edi,pm_entry	; Load address
-		xchg eax,edx		; Gotta fix this insanity...
-		shl eax,16
-		mov ax,dx
+		pop eax			; File length
 		pop si			; File handle
 		call load_high
 		call crlf
