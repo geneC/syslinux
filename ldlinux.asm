@@ -397,7 +397,9 @@ floppy_table	equ $			; No sense in wasting memory, overwrite start
 
 start:
 		cli			; No interrupts yet, please
-		xor ax,ax
+		jmp 0:start1		; Stupid Intel BIOS jumps to 07C0:0000 not 0000:7C00
+start1:		xor ax,ax
+		mov ds,ax
 		mov es,ax
 		mov ss,ax
 		mov sp,StackBuf		; Just below BSS
@@ -633,6 +635,7 @@ disk_try_again: push dx
 		jc disk_error
 ;
 ; It seems the following test fails on some machines (buggy BIOS?)
+; Especially Phoenix BIOS 4.03 seems to fail if this is enabled
 ;
 ;		 cmp al,bl		 ; Check that we got what we asked for
 ;		 jne disk_error
@@ -660,7 +663,7 @@ gls_nonewcyl:	pop bp			; Sectors left to transfer
 		ja gls_nexttrack
 return:		ret
 
-bailmsg		db 'Boot failed: change disks and press any key', 0Dh, 0Ah, 0
+bailmsg		db 'Boot failed: press any key to retry', 0Dh, 0Ah, 0
 
 bs_checkpt	equ $			; Must be <= 1E3h
 

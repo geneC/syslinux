@@ -1,5 +1,8 @@
 Changes in 1.33:
 	* Bug fix in the Linux installer.
+	* Added a workaround for a bug in certain AMI/Intel BIOSes
+	  when booting from CD-ROM.
+	* Documentation changes.
 
 Changes in 1.32:
 	* FAT16 filesystems are now supported.
