@@ -132,7 +132,7 @@ install: all
 
 tidy:
 	rm -f *.o *_bin.c stupid.*
-	rm -f syslinux.lst copybs.lst pxelinux.lst isolinux.lst
+	rm -f syslinux.lst copybs.lst pxelinux.lst isolinux*.lst
 	rm -f $(OBSOLETE)
 
 clean: tidy
