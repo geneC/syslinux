@@ -72,6 +72,11 @@ which supports the "tsize" TFTP option (RFC 1784/RFC 2349).  The
 
 ... and on any kernel.org mirror (see http://www.kernel.org/mirrors/).
 
+Another TFTP server which supports this is atftp by Jean-Pierre
+Lefebvre:
+
+	ftp://ftp.mamalinux.com/pub/atftp/
+
 Unfortunately, the Intel LANDesk Service Agent II prior to version
 0.99h (PXE PDK V2.4) seems to have a rather serious bug: it requests
 the TFTP "blksize" option, but will be mortally confused if this
@@ -82,9 +87,9 @@ workarounds for this bug:
 
    Unfortunately, PXELINUX requires the "tsize" option to be
    supported, and it is very unusual for TFTP servers to implement one
-   and not the other.  The "tftp-hpa" TFTP server (see above) therefore 
-   can be configured to disable individual options with a command-line
-   option (-r <optionname>).  In this case, use "-r blksize".
+   and not the other.  Both the tftp-hpa and atftp TFTP servers (see
+   above) therefore can be configured to disable the blksize option.
+   Use "-r blksize" for tftp-hpa, "--no-blksize" for atftp.
 
 2. Use MTFTP for the initial bootstrap.  You need an MTFTP server with
    the appropriate DHCP setup to do this.
@@ -98,13 +103,11 @@ workarounds for this bug:
     ++++ SETTING UP THE DHCP SERVER ++++
 
 The PXE protocol uses a very complex set of extensions to DHCP or
-BOOTP.  ISC dhcp 3.0, currently in beta, appears to have enough smarts
-to support at least most of the full protocol.
+BOOTP.  Some PXE implementations can be coaxed to operate with a
+normal DHCP server; unfortunately so far no "magic bullet" which works
+with all PXE implementations work.
 
-However, I believe I have found a magic cookie set of options which is
-adequate to make all or most existing PXE client boot.
-
-Using ISC dhcp 2.0 dhcpd.conf syntax:
+The best one currently known, using ISC dhcp 2.0 dhcpd.conf syntax:
 
         allow booting;
         allow bootp;
@@ -128,6 +131,9 @@ Using ISC dhcp 2.0 dhcpd.conf syntax:
                 fixed-address <hostname>;
         }
 
+However, some PXE implementations will only work this way if the
+"dhcp-class-identifier" and "vendor-encapsulated-options" are *not*
+present...
 
 Note that if your particular TFTP daemon runs under chroot (tftp-hpa
 will do this if you specify the -s (secure) option; this is
