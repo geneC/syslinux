@@ -701,14 +701,13 @@ __END_STUPID_PATCH_AREA:
 gls_lastchunk:	
 		push ax			; <C> Cylinder #
 		push dx			; <D> Head #
-		push bp			; <E> Number of sectors we're transferring
 
-		push cx			; <F> Sector #
+		push cx			; <E> Sector #
 		mov cl,6		; Because IBM was STOOPID
 		shl ah,cl		; and thought 8 bits were enough
 					; then thought 10 bits were enough...
-		pop cx			; <F> Sector #
-		push cx
+		pop cx			; <E> Sector #
+		push cx			; <E> Sector #
 		inc cx			; Sector numbers are 1-based
 		or cl,ah
 		mov ch,al
@@ -716,6 +715,7 @@ gls_lastchunk:
 		mov dl,[bsDriveNumber]
 		xchg ax,bp		; Sector to transfer count
 					; (xchg shorter than mov)
+		push ax			; <F> Number of sectors we're transferring
 		mov ah,02h		; Read it!
 ;
 ; Do the disk transfer... save the registers in case we fail :(
@@ -736,8 +736,8 @@ disk_try_again: push dx			; <G>
 		pop bx			; <I> Buffer location
 		pop ax			; <H> No longer needed
 		pop ax			; <G> No longer needed
-		pop cx			; <F> Sector #
-		pop di			; <E> Sector transferred count
+		pop di			; <F> Sector transferred count
+		pop cx			; <E> Sector #
 		mov ax,di		; Reduce sector left count
 		mul word [bsBytesPerSec] ; Figure out how much to advance ptr
 		add bx,ax		; Update buffer location
