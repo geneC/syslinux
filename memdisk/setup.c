@@ -34,11 +34,11 @@ struct patch_area {
 
   uint32_t mem1mb;
   uint32_t mem16mb;
-  uint32_t memint1588;
 
   uint32_t oldint13;
   uint32_t oldint15;
 
+  uint16_t memint1588;
   uint16_t olddosmem;
 
   uint8_t  driveno;
@@ -285,9 +285,17 @@ uint32_t setup(void)
 
   pptr->mem1mb     = low_mem  >> 10;
   pptr->mem16mb    = high_mem >> 16;
-  pptr->memint1588 = (low_mem == 0xf00000)
-    ? ((high_mem > 0x30ffc00) ? 0xffff : (high_mem >> 10)+0x3c00)
-    : (low_mem >> 10);
+  if ( low_mem == (15 << 20) ) {
+    /* lowmem maxed out */
+    uint32_t int1588mem = (high_mem >> 10)+(low_mem >> 10);
+    pptr->memint1588 = (int1588mem > 0xffff) ? 0xffff: int1588mem;
+  } else {
+    pptr->memint1588 = low_mem >> 10;
+  }
+
+  printf("mem1mb  = %5u (0x%04x)\n", pptr->mem1mb, pptr->mem1mb);
+  printf("mem16mb = %5u (0x%04x)\n", pptr->mem16mb, pptr->mem16mb);
+  printf("mem1588 = %5u (0x%04x)\n", pptr->memint1588, pptr->memint1588);
 
   driverseg = driveraddr >> 4;
   driverptr = driverseg  << 16;
@@ -306,18 +314,29 @@ uint32_t setup(void)
     ranges[--nranges].type = -1;
   }
 
+  /* Dump the ranges table for debugging */
+  {
+    uint32_t *r = (uint32_t *)&ranges;
+    while ( 1 ) {
+      printf("%08x%08x %d\n", r[1], r[0], r[2]);
+      if ( r[2] == (uint32_t)-1 )
+	break;
+      r += 3;
+    }
+  }
+
   /* Copy driver followed by E820 table */
   asm volatile("pushw %%es ; "
 	       "movw %0,%%es ; "
 	       "cld ; "
 	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
-	       "movw %2,%%cx ; "
-	       "movw %1,%%si ; "
+	       "movw %1,%%cx ; "
+	       "movw %2,%%si ; "
 	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
 	       "popw %%es"
 	       :: "r" (driverseg),
 	       "r" ((uint16_t)((nranges+1)*3)), /* 3 dwords/range */
-	       "r" ((uint16_t)ranges),
+	       "r" ((uint16_t)&ranges),
 	       "c" (bin_size >> 2),
 	       "S" (&_binary_memdisk_bin_start),
 	       "D" (0)

@@ -250,7 +250,6 @@ int15_e820:
 		push ds
 		push cs
 		pop ds
-		push edx		; "SMAP"
 		and ebx,ebx
 		jne .renew
 		mov ebx,E820Table
@@ -274,7 +273,7 @@ int15_e820:
 		jne .notdone
 		xor ebx,ebx		; Done with table
 .notdone:
-		pop eax			; "SMAP"
+		mov eax,edx		; "SMAP"
 		pop ds
 		mov ecx,20		; Bytes loaded
 int15_success:
@@ -306,14 +305,14 @@ int15_e801:
 		mov ax,[cs:Mem1MB]
 		mov cx,ax
 		mov bx,[cs:Mem16MB]
-		mov dx,ax
+		mov dx,bx
 		jmp short int15_success
 
 int15_e881:
 		mov eax,[cs:Mem1MB]
 		mov ecx,eax
 		mov ebx,[cs:Mem16MB]
-		mov edx,eax
+		mov edx,ebx
 		jmp short int15_success
 
 int15_88:
@@ -415,8 +414,6 @@ Mover_dst1:	db 0, 0, 0		; Low 24 bits of target addy
 Mover_dst2:	db 0			; High 8 bits of source addy
 Mover_dummy2:	dd 0, 0, 0, 0		; More space for the BIOS
 
-LastStatus	db 0			; Last return status
-
 		alignb 4, db 0
 PatchArea	equ $			; This gets filled in by the installer
 
@@ -428,11 +425,11 @@ DiskBuf		dd 0			; Linear address of high memory disk
 
 Mem1MB		dd 0			; 1MB-16MB memory amount (1K)
 Mem16MB		dd 0			; 16MB-4G memory amount (64K)
-MemInt1588	dd 0			; 1MB-65MB memory amount (1K)
 
 OldInt13	dd 0			; INT 13h in chain
 OldInt15	dd 0			; INT 15h in chain
 
+MemInt1588	dw 0			; 1MB-65MB memory amount (1K)
 OldDosMem	dw 0			; Old position of DOS mem end
 
 DriveNo		db 0			; Our drive number
@@ -445,6 +442,8 @@ MyStack		dw 0			; Offset of stack
 Stack		dd 0			; Saved SS:ESP on invocation
 		dw 0
 SavedAX		dw 0			; AX saved on invocation
+
+LastStatus	db 0			; Last return status
 
 		alignb 4, db 0		; We *MUST* end on a dword boundary
 

@@ -35,7 +35,6 @@ static inline int get_e820(void)
   int range_count = 0;
   
   do {
-    puts("Calling INT 15 E820...\n");
     asm volatile("int $0x15 ; "
 		 "jc 1f ; "
 		 "cmpl $0x534d4150, %%eax ; "
@@ -51,13 +50,6 @@ static inline int get_e820(void)
     if ( copied < 20 )
       break;
 
-    printf("BIOS e820: %08x%08x %08x%08x %u\n",
-	   (uint32_t)(buf.base >> 32),
-	   (uint32_t)buf.base,
-	   (uint32_t)(buf.len >> 32),
-	   (uint32_t)buf.len,
-	   buf.type);
-
     insertrange(buf.base, buf.len, buf.type);
     range_count++;
 
@@ -70,12 +62,9 @@ static inline void get_dos_mem(void)
 {
   uint16_t dos_kb;
 
-  puts("Calling INT 12...\n");
   asm volatile("int $0x12" : "=a" (dos_kb)
 	       :: "ebx", "ecx", "edx", "esi", "edi", "ebp");
 
-  printf("BIOS 12:   %u K DOS memory\n", dos_kb);
-  
   insertrange(0, (uint64_t)((uint32_t)dos_kb << 10), 1);
 }
 
@@ -85,7 +74,6 @@ static inline int get_e801(void)
   uint16_t high_mem;
   uint8_t err;
 
-  puts("Calling INT 15 E801...\n");
   asm volatile("movw $0xe801, %%ax ; "
 	       "int $0x15 ; "
 	       "setc %2"
@@ -93,9 +81,6 @@ static inline int get_e801(void)
 	       :: "ecx", "esi", "edi", "ebp");
 
   if ( !err ) {
-    printf("BIOS e801: %u K low mem, %u K high mem\n",
-	   low_mem, high_mem << 6);
-
     if ( low_mem ) {
       insertrange(0x100000, (uint64_t)((uint32_t)low_mem << 10), 1);
     }
@@ -112,7 +97,6 @@ static inline int get_88(void)
   uint16_t low_mem;
   uint8_t err;
 
-  puts("Calling INT 15 88...\n");
   asm volatile("movb $0x88,%%ah ; "
 	       "int $0x15 ; "
 	       "setc %1"
@@ -120,8 +104,6 @@ static inline int get_88(void)
 	       :: "ebx", "ecx", "esi", "edi", "ebp");
 
   if ( !err ) {
-    printf("BIOS 88:    %u K extended memory\n", low_mem);
-
     if ( low_mem ) {
       insertrange(0x100000, (uint64_t)((uint32_t)low_mem << 10), 1);
     }
