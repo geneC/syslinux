@@ -270,6 +270,12 @@ xbs_textbuf	equ 0			; Also hard-coded, do not change
 xbs_vgabuf	equ trackbufsize
 xbs_vgatmpbuf	equ 2*trackbufsize
 
+		struc dir_t
+dir_lba		resd 1			; Directory start (LBA)
+dir_len		resd 1			; Length in bytes
+dir_clust	resd 1			; Length in clusters
+		endstruc
+
                 absolute 5000h          ; Here we keep our BSS stuff
 VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
@@ -292,13 +298,10 @@ InitRDat	resd 1			; Load address (linear) for initrd
 HiLoadAddr      resd 1			; Address pointer for high load loop
 HighMemSize	resd 1			; End of memory pointer (bytes)
 KernelSize	resd 1			; Size of kernel (bytes)
-RootDir		resd 1			; Root directory location (LBA)
-RootDirLen	resd 1			; Root directory length
-RootDirClust	resd 1			; Root directory length in clusters
-CurDir		resd 1			; Current directory location (LBA)
-CurDirLen	resd 1			; Current directory length
-CurDirClust	resd 1			; Current directory length in clusters
-SavedSSSP	resw 1			; Our SS:SP while running a COMBOOT image
+RootDir		resb dir_t_size		; Root directory
+CurDir		resb dir_t_size		; Current directory
+SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
+InitStack	resd 1			; Initial stack pointer (SS:SP)
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
 FBytes2		resw 1
@@ -366,7 +369,10 @@ bi_length:	dd 0xdeadbeef			; Length of boot file
 bi_csum:	dd 0xdeadbeef			; Checksum of boot file
 bi_reserved:	times 10 dd 0xdeadbeef		; Reserved
 
-_start1:	xor ax,ax
+_start1:	mov [cs:InitStack],sp		; Save initial stack pointer
+		mov ax,ss
+		mov [cs:InitStack+2],ax
+		xor ax,ax
 		mov ss,ax
 		mov sp,_start			; Set up stack
 		mov ds,ax
@@ -959,17 +965,17 @@ get_fs_structures:
 		mov si,dbg_rootdir_msg			; ***
 		call writemsg				; ***
 		mov eax,[trackbuf+156+2]
-		mov [RootDir],eax
-		mov [CurDir],eax
+		mov [RootDir+dir_lba],eax
+		mov [CurDir+dir_lba],eax
 		call writehex8				; ***
 		call crlf				; ***
 		mov eax,[trackbuf+156+10]
-		mov [RootDirLen],eax		
-		mov [CurDirLen],eax
+		mov [RootDir+dir_len],eax		
+		mov [CurDir+dir_len],eax
 		add eax,SECTORSIZE-1
 		shr eax,SECTORSIZE_LG2
-		mov [RootDirClust],eax
-		mov [CurDirClust],eax
+		mov [RootDir+dir_clust],eax
+		mov [CurDir+dir_clust],eax
 
 		; Look for an "isolinux" directory, and if found,
 		; make it the current directory instead of the root
@@ -978,16 +984,18 @@ get_fs_structures:
 		mov al,02h			; Search for a directory
 		call searchdir_iso
 		jz .no_isolinux_dir
-
-		mov [CurDirLen],eax
-		mov eax,[si+file_sector]
-		mov [CurDir],eax
+		mov [CurDir+dir_len],eax
 		mov eax,[si+file_left]
-		mov [CurDirClust],eax
-
-		xor eax,eax
-		mov [si+file_sector],eax	; Free this file pointer entry
-
+		mov [CurDir+dir_clust],eax
+		push si
+		mov si,dbg_isodir_msg		; ***
+		call writemsg			; ***
+		pop si
+		xor eax,eax			; Free this file pointer entry
+		xchg eax,[si+file_sector]
+		mov [CurDir+dir_lba],eax
+		call writehex8			; ***
+		call crlf			; ***
 .no_isolinux_dir:
 
 ;
@@ -2253,24 +2261,44 @@ is_bss_sector:
 .badness:	jmp short .badness
 
 ;
-; Boot to the local disk by returning the appropriate PXE magic.
-; AX contains the appropriate return code.
+; Boot a specified local disk.  AX specifies the BIOS disk number; or
+; 0xFFFF in case we should execute INT 18h ("next device.")
 ;
 local_boot:
+		call vgaclearmode
 		lss sp,[cs:Stack]		; Restore stack pointer
-		pop ds				; Restore DS
-		mov [LocalBootType],ax
+		xor dx,dx
+		mov ds,dx
+		mov es,dx
+		mov fs,dx
+		mov gs,dx
 		mov si,localboot_msg
 		call writestr
-		; Restore the environment we were called with
-		pop gs
-		pop fs
-		pop es
-		pop ds
-		popfd
-		popad
-		mov ax,[cs:LocalBootType]
-		retf				; Return to PXE
+		cmp ax,-1
+		je .int18
+		
+		; Load boot sector from the specified BIOS device and jump to it.
+		mov dl,al
+		xor dh,dh
+		push dx
+		xor ax,ax			; Reset drive
+		call xint13
+		mov ax,0201h			; Read one sector
+		mov cx,0001h			; C/H/S = 0/0/1 (first sector)
+		mov bx,trackbuf
+		call xint13
+		pop dx
+		cli				; Abandon hope, ye who enter here
+		mov si,trackbuf
+		mov di,07C00h
+		mov cx,512			; Probably overkill, but should be safe
+		rep movsd
+		lss sp,[cs:InitStack]
+		jmp 0:07C00h			; Jump to new boot sector
+
+.int18:
+		int 18h				; Hope this does the right thing...
+		jmp kaboom			; If we returned, oh boy...
 
 ;
 ; 32-bit bcopy routine for real mode
@@ -2719,12 +2747,17 @@ searchdir_iso:
 		pop es				; ES = DS
 		call allocate_file		; Temporary file structure for directory
 		jnz .failure
-		mov si,bx
-		mov eax,[RootDirClust]
+		mov si,CurDir
+		cmp byte [di],'/'		; If filename begins with slash
+		jne .not_rooted
+		inc di				; Skip leading slash
+		mov si,RootDir			; Reference root directory instead
+.not_rooted:
+		mov eax,[si+dir_clust]
 		mov [bx+file_left],eax
-		mov eax,[RootDir]
+		mov eax,[si+dir_lba]
 		mov [bx+file_sector],eax
-		mov edx,[RootDirLen]
+		mov edx,[si+dir_len]
 
 .getsome:
 		; Get a chunk of the directory
@@ -2742,9 +2775,9 @@ searchdir_iso:
 		cmp al,33
 		jb .next_sector
 		TRACER 'c'
-		mov al,[si+25]
-		xor al,[ISOFlags]
-		test al, byte 8Eh		; Unwanted file attributes!
+		mov cl,[si+25]
+		xor cl,[ISOFlags]
+		test cl, byte 8Eh		; Unwanted file attributes!
 		jnz .not_file
 		pusha
 		movzx cx,byte [si+32]		; File identifier length
@@ -2946,6 +2979,7 @@ loadfont:
 		mov ax,640
 		div cl				; Compute char rows per screen
 		mov dl,al
+		dec al
 		mov [VidRows],al
 		mov ax,1121h			; Set user character table
 		int 10h
@@ -3181,8 +3215,10 @@ writechr_full:
 		pushfd
 		pushad
 		mov bh,[TextPage]
+		push ax
                 mov ah,03h              ; Read cursor position
                 int 10h
+		pop ax
 		cmp al,8
 		je .bs
 		cmp al,13
@@ -3947,12 +3983,13 @@ vgasetmode:
 		int 10h
 		mov [UsingVGA], byte 1
 
-		mov [VidCols], byte 80	; Always 80 chars/screen
+		mov [VidCols], byte 79	; Always 80 chars/screen
 		mov [TextPage], byte 0	; Always page 0
 
 		mov cx,[VGAFontSize]
 		mov ax,640
 		div cl
+		dec al			; VidRows is stored -1
 		mov [VidRows],al
 		mov dl,al
 		mov bp,vgafontbuf
@@ -4065,10 +4102,11 @@ aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
 crff_msg	db CR, FF, 0
 default_str	db 'default', 0
 default_len	equ ($-default_str)
-isolinux_dir	db 'isolinux', 0
+isolinux_dir	db '/isolinux', 0
 isolinux_cfg	db 'isolinux.cfg', 0
 
 dbg_rootdir_msg	db 'Root directory at LBA = ', 0
+dbg_isodir_msg	db 'isolinux directory at LBA = ', 0
 dbg_config_msg	db 'About to load config file...', CR, LF, 0
 dbg_configok_msg	db 'Configuration file opened...', CR, LF, 0
 ;

@@ -3012,6 +3012,7 @@ loadfont:
 		mov ax,640
 		div cl				; Compute char rows per screen
 		mov dl,al
+		dec al
 		mov [VidRows],al
 		mov ax,1121h			; Set user character table
 		int 10h
@@ -4043,12 +4044,13 @@ vgasetmode:
 		int 10h
 		mov [UsingVGA], byte 1
 
-		mov [VidCols], byte 80	; Always 80 chars/screen
+		mov [VidCols], byte 79	; Always 80 chars/screen
 		mov [TextPage], byte 0	; Always page 0
 
 		mov cx,[VGAFontSize]
 		mov ax,640
 		div cl
+		dec al			; VidRows is stored -1
 		mov [VidRows],al
 		mov dl,al
 		mov bp,vgafontbuf

@@ -347,7 +347,7 @@ HighMemSize	resd 1			; End of memory pointer (bytes)
 KernelSize	resd 1			; Size of kernel (bytes)
 Stack		resd 1			; Pointer to reset stack
 PXEEntry	resd 1			; !PXE API entry point
-SavedSSSP	resw 1			; Our SS:SP while running a COMBOOT image
+SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
 FBytes2		resw 1
@@ -3036,6 +3036,7 @@ loadfont:
 		mov ax,640
 		div cl				; Compute char rows per screen
 		mov dl,al
+		dec al
 		mov [VidRows],al
 		mov ax,1121h			; Set user character table
 		int 10h
@@ -3271,8 +3272,10 @@ writechr:
 		pushfd
 		pushad
 		mov bh,[TextPage]
+		push ax
                 mov ah,03h              ; Read cursor position
                 int 10h
+		pop ax
 		cmp al,8
 		je .bs
 		cmp al,13
@@ -4459,12 +4462,13 @@ vgasetmode:
 		int 10h
 		mov [UsingVGA], byte 1
 
-		mov [VidCols], byte 80	; Always 80 chars/screen
+		mov [VidCols], byte 79	; Always 80 chars/screen
 		mov [TextPage], byte 0	; Always page 0
 
 		mov cx,[VGAFontSize]
 		mov ax,640
 		div cl
+		dec al			; VidRows is stored -1
 		mov [VidRows],al
 		mov dl,al
 		mov bp,vgafontbuf

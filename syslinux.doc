@@ -176,6 +176,13 @@ LABEL label
 	UNDI or PXE stacks are, don't worry -- you don't want them,
 	just specify 0.
 
+	On ISOLINUX, the "type" specifies the local drive number to
+	boot from; 0x00 is the primary floppy drive and 0x80 is the
+	primary hard drive.  The special value -1 causes ISOLINUX to
+	report failure to the BIOS, which, on recent BIOSes, should
+	mean that the next boot device in the boot sequence should be
+	activated.
+
 IMPLICIT flag_val
         If flag_val is 0, do not load a kernel image unless it has been
         explicitly named in a LABEL statement.  The default is 1.
