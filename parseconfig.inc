@@ -27,12 +27,12 @@ pc_default:	mov di,default_cmd
 		ret
 
 ;
-; "timeoutcmd" command
+; "ontimeout" command
 ;
-pc_timeoutcmd:	mov di,TimeOutCmd
+pc_ontimeout:	mov di,Ontimeout
 		call getline
-		sub di,TimeOutCmd
-		mov [TimeOutCmdLen],di
+		sub di,Ontimeout
+		mov [OntimeoutLen],di
 		ret
 
 ;

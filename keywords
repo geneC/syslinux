@@ -13,7 +13,7 @@ prompt
 say
 serial
 timeout
-timeoutcmd
+ontimeout
 f0
 f1
 f2

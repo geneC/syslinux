@@ -133,7 +133,7 @@ dir_clust	resd 1			; Length in clusters
 VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
-TimeOutCmd	resb max_cmd_len+1	; timeoutcmd
+Ontimeout	resb max_cmd_len+1	; ontimeout
 KbdMap		resb 256		; Keyboard map
 FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
 NumBuf		resb 15			; Buffer to load number
@@ -1609,7 +1609,7 @@ img_table:
 ; Misc initialized (data) variables
 ;
 AppendLen       dw 0                    ; Bytes in append= command
-TimeOutCmdLen	dw 0			; Bytes in timeoutcmd command
+OntimeoutLen	dw 0			; Bytes in ontimeout command
 KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
 CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
 initrd_flag	equ $

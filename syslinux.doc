@@ -222,7 +222,7 @@ TIMEOUT timeout
         NOTE: The maximum possible timeout value is 35996; corresponding to
         just below one hour.
 
-TIMEOUTCMD kernel options...
+ONTIMEOUT kernel options...
 	Sets the command line invoked on a timeout.  Normally this is
 	the same thing as invoked by "DEFAULT".  If this is specified,
 	then "DEFAULT" is used only if the user presses <Enter> to

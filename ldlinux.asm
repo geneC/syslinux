@@ -123,7 +123,7 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
-TimeOutCmd	resb max_cmd_len+1	; timeoutcmd
+Ontimeout	resb max_cmd_len+1	; ontimeout
 KbdMap		resb 256		; Keyboard map
 FKeyName	resb 10*16		; File names for F-key help
 NumBuf		resb 15			; Buffer to load number
@@ -1431,7 +1431,7 @@ exten_table_end:
 debug_magic	dw 0D00Dh		; Debug code sentinel
 %endif
 AppendLen       dw 0                    ; Bytes in append= command
-TimeOutCmdLen	dw 0			; Bytes in timeoutcmd command
+OntimeoutLen	dw 0			; Bytes in ontimeout command
 KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
 CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
 initrd_flag	equ $

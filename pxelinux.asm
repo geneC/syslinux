@@ -205,7 +205,7 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
-TimeOutCmd	resb max_cmd_len+1	; timeoutcmd
+Ontimeout	resb max_cmd_len+1	; ontimeout
 KbdMap		resb 256		; Keyboard map
 BootFile	resb 256		; Boot file from DHCP packet
 PathPrefix	resb 256		; Path prefix derived from the above
@@ -2507,7 +2507,7 @@ pxe_udp_read_pkt:
 BaseStack	dd StackBuf		; SS:ESP of base stack
 		dw 0
 AppendLen       dw 0                    ; Bytes in append= command
-TimeOutCmdLen	dw 0			; Bytes in timeoutcmd command
+OntimeoutLen	dw 0			; Bytes in ontimeout command
 KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
 CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
 initrd_flag	equ $
