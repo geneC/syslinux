@@ -153,7 +153,7 @@ install: installer
 	install -m 644 -c $(INSTALL_LIB) $(INSTALLROOT)$(LIBDIR)
 
 local-tidy:
-	rm -f *.o *_bin.c stupid.* *.gen
+	rm -f *.o *_bin.c stupid.*
 	rm -f syslinux.lst copybs.lst pxelinux.lst isolinux*.lst
 	rm -f $(OBSOLETE)
 
