@@ -209,8 +209,6 @@ ConfigName	resb 256		; Configuration file from DHCP option
 PathPrefix	resb 256		; Path prefix derived from boot file
 DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
 IPOption	resb 80			; ip= option buffer
-MAC		resb 16			; Actual MAC address
-MACStr		resb 3*17		; MAC address as a string
 		alignb 4
 InitStack	resd 1			; Pointer to reset stack
 RebootTime	resd 1			; Reboot timeout, if set by option
@@ -221,9 +219,13 @@ IdleTimer	resw 1			; Time to check for ARP?
 LocalBootType	resw 1			; Local boot return code
 PktTimeout	resw 1			; Timeout for current packet
 RealBaseMem	resw 1			; Amount of DOS memory after freeing
+OverLoad	resb 1			; Set if DHCP packet uses "overloading"
+
+; The relative position of these fields matter!
 MACLen		resb 1			; MAC address len
 MACType		resb 1			; MAC address type
-OverLoad	resb 1			; Set if DHCP packet uses "overloading"
+MAC		resb 16			; Actual MAC address
+MACStr		resb 3*17		; MAC address as a string
 
 ;
 ; PXE packets which don't need static initialization
