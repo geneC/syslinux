@@ -691,7 +691,7 @@ ldlinux_ent:
 		mov ax,[bsHidden1]		; Hidden sectors
 		mov dx,[bsHidden2]
 		add ax,[bsResSectors]		; plus reserved sectors = FAT
-		adc dx,0
+		adc dx,byte 0
 		mov bp,[bsFATsecs]		; Sectors/FAT
 		call getlinsec			; Load it in...
 ;
@@ -996,7 +996,7 @@ pc_app1:        mov [AppendLen],di
 pc_append_vk:	mov di,VKernelBuf+vk_append	; "append" command (vkernel)
 		call getline
 		sub di,VKernelBuf+vk_append
-                cmp di,2
+                cmp di,byte 2
                 jne pc_app2
                 cmp byte [VKernelBuf+vk_append],'-'
                 jne pc_app2
@@ -1357,7 +1357,7 @@ kernel_good:
 ; more than 8M, we need to change the logic for loading it anyway...)
 ;
 load_it:
-                cmp dx,80h                      ; 8 megs
+                cmp dx,byte 80h			; 8 megs
 		ja kernel_corrupt
 		and dx,dx
 		jz kernel_corrupt
@@ -1853,7 +1853,7 @@ rd_last_moby:
                 popf
                 jc rd_load_done                 ; EOF?
                 add word [InitRDat],100h	; Point to next 64K
-		cmp word [InitRDClust],0	; Are we done?
+		cmp word [InitRDClust],byte 0	; Are we done?
 		jne rd_load_loop		; Apparently not
 rd_load_done:
                 pop si                          ; Clean up the stack
@@ -2053,13 +2053,13 @@ dir_test_name:	cmp byte [si],0		; Directory high water mark
 		pop si
 		pop di
 		je dir_success
-dir_not_this:   add si,32
+dir_not_this:   add si,byte 32
 		dec word [DirScanCtr]
 		jz dir_return		; Out of it...
 		cmp si,[EndofDirSec]
 		jb dir_test_name
 		add ax,bp		; Increment linear sector number
-		adc dx,0
+		adc dx,byte 0
 		jmp short scan_group
 dir_success:
 		mov ax,[si+28]		; Length of file
@@ -2116,8 +2116,8 @@ print_msg_file: push cx
 		pop dx
 		pop ax
                 pop cx
-		sub ax,1
-		sbb dx,0
+		sub ax,byte 1
+		sbb dx,byte 0
 		mov bx,ax
 		or bx,dx
 		jz msg_done
@@ -2125,7 +2125,7 @@ print_msg_file: push cx
 		pop si
 		jmp short get_msg_chunk
 msg_done_pop:
-                add sp,6                        ; Lose 3 words on the stack
+                add sp,byte 6			; Lose 3 words on the stack
 msg_done:
 		pop si
 		ret
@@ -2214,9 +2214,9 @@ open:
 		mov [FBytes1],ax
 		mov [FBytes2],dx
 		add ax,[ClustSize]
-		adc dx,0
-		sub ax,1
-		sbb dx,0
+		adc dx,byte 0
+		sub ax,byte 1
+		sbb dx,byte 0
 		div word [ClustSize]
 		mov [FClust],ax		; Number of clusters
 		mov [FNextClust],si	; Cluster pointer
@@ -2537,7 +2537,7 @@ dumpregs	proc near		; When calling, IP is on stack
 		mov si,offset crlf
 		call writestr
 		mov bx,sp
-		add bx,26
+		add bx,byte 26
 		mov si,offset regnames
 		mov cx,2		; 2*7 registers to dump
 dump_line:	push cx

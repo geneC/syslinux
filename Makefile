@@ -21,12 +21,14 @@ all:	bootsect.bin ldlinux.sys
 
 ldlinux.bin: ldlinux.asm
 	$(NASM) -f bin -dHEX_TIME="`perl now.pl`" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
+	ls -l ldlinux.bin
 
 bootsect.bin: ldlinux.bin
 	dd if=ldlinux.bin of=bootsect.bin bs=512 count=1
 
 ldlinux.sys: ldlinux.bin
 	dd if=ldlinux.bin of=ldlinux.sys  bs=512 skip=1
+	ls -l ldlinux.sys
 
 clean:
 	rm -f *.bin *.lst *.sys
