@@ -62,7 +62,7 @@ prerel:
 	-rm -rf $(PRERELDIR)/$(PREREL)
 	-rm -f $(PRERELDIR)/$(PREREL).*
 	mkdir -p $(PRERELDIR)/$(PREREL)
-	cp -r $(SOURCES) $(DOCS) $(OTHER) $(PRERELDIR)/$(PREREL)
+	cp -rP $(SOURCES) $(DOCS) $(OTHER) $(PRERELDIR)/$(PREREL)
 	find $(PRERELDIR)/$(PREREL) -name CVS -type d -print0 | \
 		xargs -0rt rm -rf
 	make -C $(PRERELDIR)/$(PREREL) spotless
