@@ -59,7 +59,8 @@ BINFILES = bootsect_bin.c ldlinux_bin.c mbr_bin.c \
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
-BTARGET  = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
+BTARGET  = kwdhash.gen version.gen version.h \
+	   ldlinux.bss ldlinux.sys ldlinux.bin \
 	   pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin \
 	   extlinux.bin extlinux.bss extlinux.sys
 BOBJECTS = $(BTARGET) dos/syslinux.com win32/syslinux.exe memdisk/memdisk
@@ -113,7 +114,10 @@ installer: installer-local
 installer-local: $(ITARGET) $(BINFILES)
 
 version.gen: version version.pl
-	$(PERL) version.pl version
+	$(PERL) version.pl $< $@ '%define'
+
+version.h: version version.pl
+	$(PERL) version.pl $< $@ '#define'
 
 kwdhash.gen: keywords genhash.pl
 	$(PERL) genhash.pl < keywords > kwdhash.gen

@@ -14,7 +14,12 @@ Changes in 3.02:
 	  work better over a serial console (speed, and readability on
 	  monochrome terminal emulators.)
 	* New CONSOLE directive to control output on the video console
-	  (useful for dealing with some broken serial-forwarding BIOSes.)
+	  (useful for dealing with some broken serial-forwarding
+	  BIOSes.)
+	* New com32 module "ethersel" for searching for an Ethernet
+	  card and selecting the proper version of Etherboot.
+	* EXTLINUX: Allow the user to override the detected geometry.
+	  Add help.
 
 Changes in 3.01:
 	* EXTLINUX, SYSLINUX: Fix compile errors on some systems.

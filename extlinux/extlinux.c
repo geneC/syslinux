@@ -27,6 +27,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <getopt.h>
+#include <sysexits.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -37,11 +39,57 @@
 #include <linux/hdreg.h>	/* Hard disk geometry */
 #include <linux/fs.h>		/* FIGETBSZ, FIBMAP */
 
+#include "../version.h"
+
 #ifdef DEBUG
 # define dprintf printf
 #else
 # define dprintf(...) ((void)0)
 #endif
+
+/* Global option handling */
+
+/* These are the options we can set and their values */
+struct my_options {
+  unsigned int sectors;
+  unsigned int heads;
+} opt = {
+  .sectors = 0,
+  .heads = 0,
+};
+
+static void __attribute__((noreturn)) usage(int rv)
+{
+  fprintf(stderr,
+	  "Usage: %s [options] directory\n"
+	  "  --zip        -z  Force zipdrive geometry (-H 64 -S 32)\n"
+	  "  --sectors=#  -S  Force the number of sectors per track\n"
+	  "  --heads=#    -H  Force number of heads\n"
+	  "\n"
+	  "  Note: geometry is determined at boot time for devices which\n"
+	  "  are considered hard disks by the BIOS.  Unfortunately, this is\n"
+	  "  not possible for devices which are considered floppy disks,\n"
+	  "  which includes zipdisks and LS-120 superfloppies.\n"
+	  "\n"
+	  "  The -z option is useful for USB devices which are considered\n"
+	  "  hard disks by some BIOSes and zipdrives by other BIOSes.\n",
+	  program);
+
+  exit(rv);
+}
+
+static const struct option long_options[] = {
+  { "zipdrive", 0, NULL, 'z' },
+  { "sectors",  1, NULL, 'S' },
+  { "heads",    1, NULL, 'H' },
+  { "version",  0, NULL, 'v' },
+  { "help",     0, NULL, 'h' },
+  { 0, 0, 0, 0 }
+};
+    
+static const char short_options[] = "zS:H:vh";
+
+
 
 #if defined(__linux__) && !defined(BLKGETSIZE64)
 /* This takes a u64, but the size field says size_t.  Someone screwed big. */
@@ -358,12 +406,14 @@ get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
      what zipdisks use, so this would help if someone has a USB key that
      they're booting in USB-ZIP mode. */
 
-  geo->heads     = 64;
-  geo->sectors   = 32;
-  geo->cylinders = totalbytes/(64*32*512);
+  geo->heads     = opt.heads ?: 64;
+  geo->sectors   = opt.sectors ?: 32;
+  geo->cylinders = totalbytes/(geo->heads*geo->sectors << SECTOR_SHIFT);
   geo->start     = 0;
-  fprintf(stderr, "Warning: unable to obtain device geometry (defaulting to %d heads, %d sectors)\n",
-	  geo->heads, geo->sectors);
+
+  if ( !opt.sectors && !opt.heads )
+    fprintf(stderr, "Warning: unable to obtain device geometry (defaulting to %d heads, %d sectors)\n",
+	    geo->heads, geo->sectors);
 
   return 1;
 }
@@ -384,6 +434,7 @@ patch_file_and_bootblock(int fd, int dirfd, int devfd)
   unsigned char *p, *patcharea;
   int i, dw;
   uint32_t csum;
+  unsigned int sectors, heads;
 
   if ( fstat(dirfd, &dirst) ) {
     perror("fstat dirfd");
@@ -393,10 +444,15 @@ patch_file_and_bootblock(int fd, int dirfd, int devfd)
   totalbytes = get_size(devfd);
   get_geometry(devfd, totalbytes, &geo);
 
+  if ( opt.heads )
+    geo.heads = opt.heads;
+  if ( opt.sectors )
+    geo.sectors = opt.sectors;
+
   /* Patch this into a fake FAT superblock.  This isn't because
      FAT is a good format in any way, it's because it lets the
      early bootstrap share code with the FAT version. */
-  dprintf("cyl = %u, heads = %u, sect = %u\n", geo.cylinders, geo.heads, geo.sectors);
+  dprintf("heads = %u, sect = %u\n", geo.heads, geo.sectors);
 
   totalsectors = totalbytes >> SECTOR_SHIFT;
   if ( totalsectors >= 65536 ) {
@@ -570,7 +626,7 @@ install_file(char *path, int devfd, struct stat *rst)
 }
 
 int
-install_loader(char *path)
+install_loader(const char *path, unsigned int sectors, unsigned int heads)
 {
   struct stat st, dst, fst;
   struct mntent *mnt = NULL;
@@ -648,11 +704,49 @@ int
 main(int argc, char *argv[])
 {
   program = argv[0];
+  int opt;
+  unsigned long a;
+  const char *directory;
 
-  if ( argc != 2 ) {
-    fprintf(stderr, "Usage: %s directory\n", program);
-    exit(1);
+  while ( (opt = getopt_long(argc, argv, short_options,
+			     long_options, NULL)) != EOF ) {
+    switch ( opt ) {
+    case 'z':
+      opt.heads = 64;
+      opt.sectors = 32;
+      break;
+    case 'S':
+      opt.sectors = strtoul(optarg, NULL, 0);
+      if ( opt.sectors < 1 || opt.sectors > 63 ) {
+	fprintf(stderr, "%s: invalid number of sectors: %u (must be 1-63)\n",
+		program, opt.sectors);
+	exit(EX_USAGE);
+      }
+      break;
+    case 'H':
+      opt.heads = strtoul(optarg, NULL, 0);
+      if ( opt.heads < 1 || opt.heads > 256 ) {
+	fprintf(stderr, "%s: invalid number of heads: %u (must be 1-256)\n",
+		program, opt.heads);
+	exit(EX_USAGE);
+      }
+      break;
+    case 'h':
+      usage(0);
+      break;
+    case 'v':
+      fputs("extlinux " VERSION "\n", stderr);
+      exit(0);
+    default:
+      fprintf(stderr, "%s: Unknown option: %c\n", optopt);
+      exit(EX_USAGE);
+    }
   }
 
-  return install_loader(argv[1]);
+  directory = argv[optind];
+
+  if ( !directory )
+    usage(EX_USAGE);
+
+  return install_loader(directory);
 }
