@@ -42,7 +42,7 @@
 ; by the kernel.
 ;
 max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
-FILENAME_MAX_LG2 equ 6			; log2(Max filename size Including final null)
+FILENAME_MAX_LG2 equ 8			; log2(Max filename size Including final null)
 FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
 HIGHMEM_MAX	equ 038000000h		; Highest address for an initrd
 HIGHMEM_SLOP	equ 128*1024		; Avoid this much memory near the top
@@ -139,7 +139,7 @@ CAN_USE_HEAP    equ 80h                 ; Boot loader reports heap size
 ;
 ; Note: this structure can be added to, but it must 
 ;
-%define vk_power	7		; log2(max number of vkernels)
+%define vk_power	6		; log2(max number of vkernels)
 %define	max_vk		(1 << vk_power)	; Maximum number of vkernels
 %define vk_shift	(16-vk_power)	; Number of bits to shift
 %define vk_size		(1 << vk_shift)	; Size of a vkernel buffer
@@ -2793,16 +2793,20 @@ ac_ret1:	ret
 ; to the above, searchdir_iso passes a file flag mask in AL.  This is useful
 ; for searching for directories.
 ;
+alloc_failure:
+		xor ax,ax			; ZF <- 1
+		ret
+
 searchdir:
 		xor al,al
 searchdir_iso:
 		mov [ISOFlags],al
 		TRACER 'S'
+		call allocate_file		; Temporary file structure for directory
+		jnz alloc_failure
 		push es
 		push ds
 		pop es				; ES = DS
-		call allocate_file		; Temporary file structure for directory
-		jnz .failure
 		mov si,CurDir
 		cmp byte [di],'/'		; If filename begins with slash
 		jne .not_rooted
@@ -2814,6 +2818,25 @@ searchdir_iso:
 		mov eax,[si+dir_lba]
 		mov [bx+file_sector],eax
 		mov edx,[si+dir_len]
+
+.look_for_slash:
+		mov ax,di
+.scan:
+		mov cl,[di]
+		inc di
+		and cl,cl
+		jz .isfile
+		cmp cl,'/'
+		jne .scan
+		mov [di-1],byte 0		; Terminate at directory name
+		xchg ax,di
+		mov cl,02h			; Search for directory
+		xchg cl,[ISOFlags]
+		push ax
+		push cx
+		push word .resume		; Where to "return" to
+		push es
+.isfile:
 
 .getsome:
 		; Get a chunk of the directory
@@ -2861,7 +2884,8 @@ searchdir_iso:
 		sub ax,si
 		jmp short .not_file		; We still need to do length checks
 
-.failure:	xor ax,ax			; ZF = 1
+.failure:	xor eax,eax			; ZF = 1
+		mov [bx+file_sector],eax
 		pop es
 		ret
 
@@ -2880,6 +2904,15 @@ searchdir_iso:
 		mov si,bx
 		pop es
 		ret
+
+.resume:	; We get here if we were only doing part of a lookup
+		; This relies on the fact that .success returns bx == si
+		xchg edx,eax			; Directory length in edx
+		pop cx				; Old ISOFlags
+		pop di				; Next filename pointer
+		mov [ISOFlags],cl		; Restore the flags
+		jz .failure			; Did we fail?  If so fail for real!
+		jmp .look_for_slash		; Otherwise, next level
 
 ;
 ; allocate_file: Allocate a file structure
@@ -3736,12 +3769,15 @@ gl_xret:	popf
 ; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
 ;	       to by ES:DI; ends on encountering any whitespace.
 ;
-;	       This verifies that a filename is < FILENAME_MAX characters
-;	       and doesn't contain whitespace, and zero-pads the output buffer,
-;	       so "repe cmpsb" can do a compare.
-;
+;	       This verifies that a filename is < FILENAME_MAX characters,
+;	       doesn't contain whitespace, zero-pads the output buffer,
+;	       and removes trailing dots and redundant slashes,
+;	       so "repe cmpsb" can do a compare, and the
+;	       path-searching routine gets a bit of an easier job.
+;	       
 mangle_name:
 		push bx
+		xor ax,ax
 		mov cx,FILENAME_MAX-1
 		mov bx,di
 
@@ -3749,14 +3785,22 @@ mangle_name:
 		lodsb
 		cmp al,' '			; If control or space, end
 		jna .mn_end
-		stosb
-		loop .mn_loop
+		cmp al,ah			; Repeated slash?
+		je .mn_skip
+		xor ah,ah
+		cmp al,'/'
+		jne .mn_ok
+		mov ah,al
+.mn_ok		stosb
+.mn_skip:	loop .mn_loop
 .mn_end:
 		cmp bx,di			; At the beginning of the buffer?
 		jbe .mn_zero
-		cmp byte [di-1], '.'		; Terminal dot?
+		cmp byte [di-1],'.'		; Terminal dot?
+		je .mn_kill
+		cmp byte [di-1],'/'		; Terminal slash?
 		jne .mn_zero
-		dec di				; If so, remove it
+.mn_kill:	dec di				; If so, remove it
 		inc cx
 		jmp short .mn_end
 .mn_zero:
