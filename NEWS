@@ -1,3 +1,10 @@
+Changes in 1.40:
+	* Increase A20M delay to avoid problems on certain IBM
+	  Thinkpads (thanks to Donnie Barnes of RedHat for vital info
+	  on this one.)
+	* Support COMBOOT style boot command images.
+	* Support chain loading (foreign operating systems, e.g. DOS).
+
 Changes in 1.37:
 	* Fix a bug that caused "label" statements in syslinux.cfg to
 	  not be handled properly.
