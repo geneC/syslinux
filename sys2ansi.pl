@@ -1,13 +1,16 @@
 #!/usr/bin/perl
+# $Id$
 #
 # Perl script to convert a Syslinux-format screen to PC-ANSI
 #
 @ansicol = (0,4,2,6,1,5,3,7);
 
 while ( read(STDIN, $ch, 1) > 0 ) {
-    if ( $ch == '\x1A' ) {	# <SUB> <Ctrl-Z> EOF
+    if ( $ch eq "\x1A" ) {	# <SUB> <Ctrl-Z> EOF
 	last;
-    } elsif ( $ch == '\x13' ) {	# <SI>  <Ctrl-O> Attribute change
+    } elsif ( $ch eq "\x0C" ) {	# <FF>  <Ctrl-L> Clear screen
+	print "\x1b[2J";
+    } elsif ( $ch eq "\x0F" ) {	# <SI>  <Ctrl-O> Attribute change
 	if ( read(STDIN, $attr, 2) == 2 ) {
 	    $attr = hex $attr;
 	    print "\x1b[0;";
