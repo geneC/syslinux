@@ -33,6 +33,21 @@ sub absolute_path($) {
     return $c.'/'.$f;
 }
 
+sub is_linux() {
+    return !!eval '{ '.
+	'use POSIX; '.
+	'($sysname, $nodename, $release, $version, $machine) = POSIX::uname(); '.
+	"return \$sysname eq \'Linux\'; }";
+}
+
+
+$is_linux = is_linux();
+if ( $is_linux ) {
+    # IOCTL numbers
+    $BLKRRPART    = 0x125f;
+    $BLKGETSIZE   = 0x1260;
+}
+
 %opt = ();
 @args = ();
 
@@ -54,20 +69,53 @@ $pentry = 2 if ( $opt{'2'} );
 $pentry = 3 if ( $opt{'3'} );
 $pentry = 4 if ( $opt{'4'} );
 
+if ( $opt{'M'} ) {
+    # Specify size in megabytes, not in cylinders
+    $c = ($c*1024*2)/($h*$s);
+}
+
+$is_open = 0;
+
+if ( $c == 0 ) {
+    $len = 0;
+    if ( sysopen(OUTPUT, $file, O_RDWR, 0666) ) {
+	$is_open = 1;
+
+	if ( (@filestat = stat(OUTPUT)) && S_ISREG($filestat[2]) ) {
+	    $len = $filestat[7];
+	} elsif ( $is_linux && S_ISBLK($filestat[2]) ) {
+	    $blksize = pack("L!", 0);
+	    if ( ioctl(OUTPUT, $BLKGETSIZE, $blksize) == 0 ) {
+		$len = unpack("L!", $blksize); # In 512-byte sectors!
+	    }
+	}
+    }
+
+    if ( !$len ) {
+	print STDERR "$0: $file: don't know how to determine the size of this device\n";
+	exit 1;
+    }
+
+    $c = $len/($h*$s);
+}
+
 if ( !$file || $c < 1 || $c > 1024 ||
      $h < 1 || $h > 256 || $s < 1 || $s > 63 ) {
     print STDERR "Usage: $0 [-doF4] file c h s (max: 1024 256 63)\n";
     print STDERR "    -d    add DOSEMU header\n";
     print STDERR "    -o    print filesystem offset to stdout\n";
     print STDERR "    -F    format partition as FAT32\n";
+    print STDERR "    -M    \"c\" argument is megabytes, calculate cylinders\n";
     print STDERR "    -4    use partition entry 4 (standard for zipdisks)\n";
     exit 1;
 }
 
 $cylsize = $h*$s*512;
 
-sysopen(OUTPUT, $file, O_CREAT|O_RDWR|O_TRUNC, 0666)
-    or die "$0: Cannot open: $file\n";
+if ( !$is_open ) {
+    sysopen(OUTPUT, $file, O_CREAT|O_RDWR|O_TRUNC, 0666)
+	or die "$0: Cannot open: $file\n";
+}
 binmode OUTPUT;
 
 # Print out DOSEMU header, if requested
@@ -207,13 +255,8 @@ print OUTPUT pack("C", $fstype);
 flush OUTPUT;
 
 # Just in case this is a block device, try to flush the partition table
-eval {
-    use POSIX;
-    ($sysname, $nodename, $release, $version, $machine) = POSIX::uname();
-    if ( $sysname eq 'Linux' ) {
-	$BLKRRPART = 0x125f;
-	ioctl(OUTPUT, $BLKRRPART, 0);
-    }
+if ( $is_linux ) {
+    ioctl(OUTPUT, $BLKRRPART, 0);
 };
 
 exit 0;

@@ -37,7 +37,10 @@ example above), and, if your USB key is /dev/sda (CHECK THE KERNEL
 MESSAGES CAREFULLY - IF YOU ENTER THE WRONG DISK DRIVE IT CANNOT BE
 RECOVERED), run:
 
-	mkdiskimage -4 /dev/sda 31 64 32
+	mkdiskimage -4 /dev/sda 0 64 32
+
+(The 0 means automatically determine the size of the device, and -4
+means mimic a zipdisk by using partition 4.)
 
 Then you should be able to run
 
