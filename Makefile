@@ -86,7 +86,6 @@ ldlinux.bin: ldlinux.asm kwdhash.gen
 	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" \
 		-dHEXDATE="$(HEXDATE)" \
 		-l ldlinux.lst -o ldlinux.bin ldlinux.asm
-	$(PERL) genstupid.pl < ldlinux.lst
 
 pxelinux.bin: pxelinux.asm kwdhash.gen
 	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" \
