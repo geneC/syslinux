@@ -147,8 +147,10 @@ INT 21h AH=4Ch	Terminate program
 INT 21h AH=01h	Get Key with Echo
 
 	Reads a key from the console input, with echo to the console
-	output.  The read character is returned in AL.
-
+	output.  The read character is returned in AL.  Extended
+	characters received from the keyboard are returned as NUL (00h)
+	+ the extended character code.
+	
 INT 21h AH=02h	Write Character
 
 	Writes a character in DL to the console (video and serial)
@@ -157,7 +159,8 @@ INT 21h AH=02h	Write Character
 INT 21h AH=04h	Write Character to Serial Port
 
 	Writes a character in DL to the serial console output
-	(if enabled) only.
+	(if enabled.)  If no serial port is configured, this routine
+	does nothing.
 
 INT 21h AH=08h	Get Key without Echo
 

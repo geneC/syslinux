@@ -17,6 +17,43 @@
 ;; Common code for running a COMBOOT image
 ;;
 
+; Parameter registers definition; this is the definition
+; of the stack frame used by INT 21h and INT 22h.
+%define		P_FLAGS		word [bp+40]
+%define		P_FLAGSL	byte [bp+40]
+%define		P_FLAGSH	byte [bp+41]
+%define		P_DS		word [bp+34]
+%define		P_ES		word [bp+32]
+%define		P_EAX		dword [bp+28]
+%define		P_AX		word [bp+28]
+%define		P_HAX		word [bp+30]
+%define		P_AL		byte [bp+28]
+%define		P_AH		byte [bp+29]
+%define		P_ECX		dword [bp+24]
+%define		P_CX		word [bp+24]
+%define		P_HCX		word [bp+26]
+%define		P_CL		byte [bp+24]
+%define		P_CH		byte [bp+25]
+%define		P_EDX		dword [bp+20]
+%define		P_DX		word [bp+20]
+%define		P_HDX		word [bp+22]
+%define		P_DL		byte [bp+20]
+%define		P_DH		byte [bp+21]
+%define		P_EBX		dword [bp+16]
+%define		P_BX		word [bp+16]
+%define		P_HBX		word [bp+18]
+%define		P_BL		byte [bp+16]
+%define		P_BH		byte [bp+17]
+%define		P_EBP		dword [bp+8]
+%define		P_BP		word [bp+8]
+%define		P_HBP		word [bp+10]
+%define		P_ESI		dword [bp+4]
+%define		P_SI		word [bp+4]
+%define		P_HSI		word [bp+6]
+%define		P_EDI		dword [bp]
+%define		P_DI		word [bp]
+%define		P_HDI		word [bp+2]
+
 ; Looks like a COMBOOT image but too large
 comboot_too_large:
 		mov si,err_comlarge
@@ -105,26 +142,31 @@ comboot_setup_api:
 		ret
 
 ; INT 21h: generic DOS system call
-comboot_int21:	push ds
-		push cs
-		pop ds			; Set DS <- CS
-		and ah,ah		; 00 = return
-		je comboot_return
-		cmp ah,02h
-		jb comboot_getkeyecho	; 01 = get key with echo
-		je comboot_writechr	; 02 = writechr
-		cmp ah,08h		; 08 = get key w/o echo
-		je comboot_getkey
-		cmp ah,09h		; 09 = writestr
-		je comboot_writestr
-		cmp ah,0Bh		; 0B = check keyboard
-		je comboot_checkkey
-		cmp ah,30h		; 30 = check version
-		je comboot_checkver
-		cmp ah,4Ch		; 4C = return with status
-		je comboot_return
+comboot_int21:	cli
+		push ds
+		push es
+		pushad
+		mov bp,cs
+		mov ds,bp
+		mov es,bp
+		mov bp,sp			; Set up stack frame
 
-		; Otherwise fall through to comboot_bogus
+		mov cx,int21_count
+		mov si,int21_table
+.again:		lodsb
+		cmp al,P_AH
+		lodsw
+		loopne .again
+		; The last function in the list is the
+		; "no such function" function
+
+		call ax			; Call the invoked function
+comboot_resume:
+		setc P_FLAGSL		; Propagate CF->error
+		popad
+		pop es
+		pop ds
+		iret
 
 ; Attempted to execute non-21h DOS system call
 comboot_bogus:	cli			; Don't trust anyone
@@ -154,76 +196,89 @@ comboot_exit_special:
 ;
 ; INT 21h system calls
 ;
-comboot_getkeyecho:			; 01 = get key with echo
+comboot_getkey:				; 01 = get key with echo
 		call vgashowcursor
-		call getchar
+		call comboot_getchar
 		call vgahidecursor
 		call writechr
-		jmp comboot_resume_ok
+		clc
+		ret
 
 comboot_writechr:			; 02 = writechr
-		xchg ax,dx
+		mov al,P_DL
 		call writechr
-		xchg ax,dx
-		jmp comboot_resume_ok
+		clc
+		ret
 
-comboot_getkey:				; 08 = get key w/o echo
-		call vgashowcursor
-		call getchar
-		call vgahidecursor
-		jmp comboot_resume_ok
+comboot_writeserial:			; 04 = write serial port
+		mov al,P_DL
+		call write_serial
+		clc
+		ret
+
+comboot_getkeynoecho:			; 08 = get key w/o echo
+		call comboot_getchar
+		clc
+		ret
 
 comboot_writestr:			; 09 = write string
-		pusha
-		push es
-		mov bp,sp
-		mov es,[bp-20]		; Old DS
-		mov si,dx
+		mov es,P_DS
+		mov si,P_DX
 .loop:		es lodsb
 		cmp al,'$'		; End string with $ - bizarre
 		je .done
 		call writechr
 		jmp short .loop
-.done:		pop es
-		popa
-		jmp comboot_resume_ok
+.done:		clc
+		ret
 
 comboot_checkkey:			; 0B = check keyboard status
+		cmp byte [APIKeyFlag],00h
+		jnz .waiting
 		call pollchar
-		setz al
+.waiting:	setz al
 		dec al			; AL = 0FFh if present, 0 if not
-		jmp comboot_resume_ok
+		mov P_AL,al
+		clc
+		ret
 
 comboot_checkver:			; 30 = check DOS version
 		; We return 0 in all DOS-compatible version registers,
 		; but the high part of eax-ebx-ecx-edx spell "SYSLINUX"
-		mov eax,'SY' << 16
-		mov ebx,'SL' << 16
-		mov ecx,'IN' << 16
-		mov edx,'UX' << 16
-		;jmp comboot_resume_ok
-
-;
-; Resume comboot execution
-;
-comboot_resume_ok:
+		mov P_EAX,'SY' << 16
+		mov P_EBX,'SL' << 16
+		mov P_ECX,'IN' << 16
+		mov P_EDX,'UX' << 16
 		clc
-comboot_resume:
-		pop ds
-		iret
+		ret
 
-comboot_apierr:
-		stc
-		jmp comboot_resume
+comboot_getchar:
+		cmp byte [APIKeyFlag],00h
+		jne .queued
+		call getchar		; If not queued get input
+		and al,al		; Function key?
+		jnz .done
+		mov [APIKeyWait],ah	; High part of key
+		inc byte [APIKeyFlag]	; Set flag
+.done:		mov P_AL,al
+		ret
+.queued:	mov al,[APIKeyWait]
+		dec byte [APIKeyFlag]
+		jmp .done
 
 ;
 ; INT 22h - SYSLINUX-specific system calls
 ;           System call number in ax
 ;
 comboot_int22:
+		cli
 		push ds
-		push cs
-		pop ds
+		push es
+		pushad
+		mov bp,cs
+		mov ds,bp
+		mov es,bp
+		mov bp,sp			; Set up stack frame
 
 		cmp ax,int22_count
 		jb .ok
@@ -246,20 +301,19 @@ comapi_err:
 ;
 comapi_get_version:
 		; Number of API functions supported
-		mov ax,int22_count
+		mov P_AX,int22_count
 		; SYSLINUX version
-		mov cx,(VER_MAJOR << 8)+VER_MINOR
+		mov P_CX,(VER_MAJOR << 8)+VER_MINOR
 		; SYSLINUX derivative ID byte
-		mov dx,my_id
+		mov P_DX,my_id
 		; For future use
-		xor bx,bx
+		mov P_BX,cs	; cs == 0
 
-		push cs
-		pop es
+		mov P_ES,ds
 		; ES:SI -> version banner
-		mov si,syslinux_banner
+		mov P_SI,syslinux_banner
 		; ES:DI -> copyright string
-		mov di,copyright_str
+		mov P_DI,copyright_str
 
 comapi_nop:
 		clc
@@ -271,10 +325,11 @@ comapi_nop:
 ; Write null-terminated string in ES:BX
 ;
 comapi_writestr:
-		push es
-		pop ds
-		mov si,ax
-		jmp writestr			; Write string from ES:BX
+		mov ds,P_ES
+		mov si,P_BX
+		call writestr
+		clc
+		ret
 
 ;
 ; INT 22h AX=0003h	Run command
@@ -283,11 +338,8 @@ comapi_writestr:
 ; ES:BX as if it had been entered by the user.
 ;
 comapi_run:
-		push es
-		push ds
-		pop es
-		pop ds
-		mov si,ax
+		mov ds,P_ES
+		mov si,P_BX
 		mov di,command_line
 .copyloop:
 		lodsb
@@ -323,10 +375,8 @@ comapi_textmode:
 ;
 comapi_open:
 		push ds
-		push ds
-		push es
-		pop ds
-		pop es
+		mov ds,P_ES
+		mov si,P_SI
 		mov di,InitRD
 		push di
 		call mangle_name
@@ -334,10 +384,10 @@ comapi_open:
 		pop ds
 		call searchdir
 		jz .err
-		xchg eax,edx
-		shr eax,16
-		xchg ax,dx
-		mov cx,[ClustSize]
+		mov P_AX,ax
+		mov P_HAX,dx
+		mov ax,[ClustSize]
+		mov P_CX,ax
 		clc
 		ret
 .err:
@@ -349,11 +399,13 @@ comapi_open:
 ; INT 22h AX=0007h	Read file
 ;
 comapi_read:
-		xchg ax,bx
+		mov ax,P_BX
+		mov si,P_SI
 		call getfssec
 		jnc .noteof
 		xor si,si		; SI <- 0 on EOF, CF <- 0
-.noteof:	ret
+.noteof:	mov P_SI,si
+		ret
 
 ;
 ; INT 22h AX=0008h	Close file
@@ -369,12 +421,36 @@ comapi_close:
 ;
 %if IS_PXELINUX
 comapi_pxecall:
+		mov bx,P_BX
+		mov es,P_ES
+		mov di,P_DI
 		call far [PXENVEntry]
 		clc
 		ret
 %else
 comapi_pxecall	equ comapi_err			; Not available
 %endif
+
+;
+; This stuff should really be in the data section...
+;
+%macro 		int21 2
+		db %1
+		dw %2
+%endmacro
+
+int21_table:
+		int21	00h, comboot_return
+		int21	01h, comboot_getkey
+		int21	02h, comboot_writechr
+		int21	04h, comboot_writeserial
+		int21	08h, comboot_getkey
+		int21	09h, comboot_writestr
+		int21	0Bh, comboot_checkkey
+		int21	30h, comboot_checkver
+		int21	4Ch, comboot_return
+		int21	00h, comboot_bogus
+int21_count	equ ($-int21_table)/3
 
 		align 2, db 0
 int22_table:
@@ -389,3 +465,6 @@ int22_table:
 		dw comapi_close			; 0008 close file
 		dw comapi_pxecall		; 0009 call PXE stack
 int22_count	equ ($-int22_table)/2
+
+APIKeyWait	db 0
+APIKeyFlag	db 0

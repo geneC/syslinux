@@ -176,24 +176,23 @@ skip_this_opt:  lodsb                           ; Load from command line
                 dec si
                 jmp short get_next_opt
 is_vga_cmd:
-                add si,byte 4
-                mov eax,[si]
+                add si,4
+                mov eax,[si-1]
                 mov bx,-1
-                cmp eax, 'norm'                 ; vga=normal
+                cmp eax,'=nor'			; vga=normal
                 je vc0
-                and eax,0ffffffh		; 3 bytes
-                mov bx,-2
-                cmp eax, 'ext'                  ; vga=ext
+		dec bx				; bx <- -2
+                cmp eax,'=ext'			; vga=ext
                 je vc0
-                mov bx,-3
-                cmp eax, 'ask'                  ; vga=ask
+                dec bx				; bx <- -3
+                cmp eax,'=ask'			; vga=ask
                 je vc0
                 call parseint                   ; vga=<number>
 		jc skip_this_opt		; Not an integer
 vc0:		mov [bs_vidmode],bx		; Set video mode
 		jmp short skip_this_opt
 is_mem_cmd:
-                add si,byte 4
+                add si,4
                 call parseint
 		jc skip_this_opt		; Not an integer
 %if HIGHMEM_SLOP != 0
