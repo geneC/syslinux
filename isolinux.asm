@@ -110,9 +110,10 @@ file_left	resd 1			; Number of sectors left
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
  		absolute 1000h
-trackbuf	resb 8192		; Track buffer goes here
-trackbufsize	equ $-trackbuf
-;		trackbuf ends at 3000h
+trackbufsize	equ 8192
+trackbuf	resb trackbufsize	; Track buffer goes here
+getcbuf		resb trackbufsize
+;		ends at 5000h
 
 
 ;
@@ -1761,19 +1762,13 @@ boot_image      db 'BOOT_IMAGE='
 boot_image_len  equ $-boot_image
 ldlinux_end     equ $
 
-;
-; Put the getcbuf right after the code, aligned on a sector boundary
-;
-end_of_code	equ (ldlinux_end-bootsec)+7C00h
-getcbuf		equ (end_of_code + 511) & 0FE00h
-
 ; VGA font buffer at the end of memory (so loading a font works even
 ; in graphics mode.)
 vgafontbuf	equ 0E000h
 
 ; This is a compile-time assert that we didn't run out of space
 %ifndef DEPEND
-%if (getcbuf+trackbufsize) > vgafontbuf
+%if (ldlinux_end-bootsec+7C00h) > vgafontbuf
 %error "Out of memory, better reorganize something..."
 %endif
 %endif

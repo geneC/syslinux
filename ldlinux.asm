@@ -109,9 +109,10 @@ comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
  		absolute 1000h
-trackbuf	equ $			; Track buffer goes here
-trackbufsize	equ 16384		; Safe size of track buffer
-;		trackbuf ends at 5000h
+trackbufsize	equ 8192
+trackbuf	resb trackbufsize	; Track buffer goes here
+getcbuf		resb trackbufsize
+;		ends at 5000h
 
 
 ;
@@ -141,14 +142,13 @@ NumBufEnd	resb 1			; Last byte in NumBuf
 		; Expanded superblock
 SuperInfo	equ $
 		resq 16			; The first 16 bytes expanded 8 times
-		;
-		; These need to follow SuperInfo
-		;
+
+FAT		resd 1			; Location of (first) FAT
 RootDir		resd 1			; Location of root directory
 DataArea	resd 1			; Location of data area
-RootDirSize	resw 1			; Root dir size in sectors
-DirScanCtr	resw 1			; Used while searching directory
-EndofDirSec	resw 1			; = trackbuf+bsBytesPerSec-31
+RootDirSize	resd 1			; Root dir size in sectors
+TotalSectors	resd 1			; Total number of sectors
+EndSector	resd 1			; Location of filesystem end
 
 		alignb 4
 E820Buf		resd 5			; INT 15:E820 data buffer
@@ -162,6 +162,7 @@ SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
 PMESP		resd 1			; Protected-mode ESP
 ClustPerMoby	resd 1			; Clusters per 64K
 ClustSize	resd 1			; Bytes/cluster
+ClustMask	resd 1			; Sectors/cluster - 1
 KernelName      resb 12		        ; Mangled name for kernel
 					; (note the spare byte after!)
 OrigKernelExt	resd 1			; Original kernel extension
@@ -191,6 +192,8 @@ VGAPos		resw 1			; Pointer into VGA memory
 VGACluster	resw 1			; Cluster pointer for VGA image file
 VGAFilePtr	resw 1			; Pointer into VGAFileBuf
 Com32SysSP	resw 1			; SP saved during COM32 syscall
+DirScanCtr	resw 1			; OBSOLETE FIX THIS
+EndofDirSec	resw 1			; OBSOLETE FIX THIS
 CachePtrs	times (65536/SECTOR_SIZE) resw 1
 NextCacheSlot	resw 1
 CursorDX        equ $
@@ -213,6 +216,8 @@ FuncFlag	resb 1			; Escape sequences received from keyboard
 DisplayMask	resb 1			; Display modes mask
 CopySuper	resb 1			; Distinguish .bs versus .bss
 DriveNumber	resb 1			; BIOS drive number
+ClustShift	resb 1			; Shift count for sectors/cluster
+ClustByteShift	resb 1			; Shift count for bytes/cluster
 MNameBuf        resb 11            	; Generic mangled file name buffer
 InitRD          resb 11                 ; initrd= mangled name
 KernelCName     resb 13                 ; Unmangled kernel name
@@ -255,7 +260,7 @@ bsOemName	db 'SYSLINUX'		; The SYS command sets this, so...
 ; These are the fields we actually care about.  We end up expanding them
 ; all to dword size early in the code, so generate labels for both
 ; the expanded and unexpanded versions.
-;;
+;
 %macro		superb 1
 bx %+ %1	equ SuperInfo+($-superblock)*8+4
 bs %+ %1	equ $
@@ -663,10 +668,10 @@ ldlinux_magic	dd LDLINUX_MAGIC
 ; LDLINUX_MAGIC, plus 4 bytes.
 ;
 patch_area:
-TotalDwords	dw 0			; Total dwords starting at ldlinux_sys
-TotalSectors	dw 0			; Number of sectors minus bootsec, this sec
-CheckSum	dd 0			; Checksum starting at ldlinux_sys
-					; value = LDLINUX_MAGIC - [sum of dwords]
+LDLDwords	dw 0		; Total dwords starting at ldlinux_sys
+LDLSectors	dw 0		; Number of sectors - (bootsec+this sec)
+CheckSum	dd 0		; Checksum starting at ldlinux_sys
+				; value = LDLINUX_MAGIC - [sum of dwords]
 
 ; Space for up to 64 sectors, the theoretical maximum
 SectorPtrs	times 64 dd 0
@@ -700,7 +705,7 @@ ldlinux_ent:
 load_rest:
 		mov si,SectorPtrs
 		mov bx,7C00h+2*SECTOR_SIZE	; Where we start loading
-		mov cx,[TotalSectors]
+		mov cx,[LDLSectors]
 
 .get_chunk:
 		jcxz .done
@@ -732,7 +737,7 @@ load_rest:
 ;
 verify_checksum:
 		mov si,ldlinux_sys
-		mov cx,[TotalDwords]
+		mov cx,[LDLDwords]
 		mov edx,-LDLINUX_MAGIC
 .checksum:
 		lodsd
@@ -837,7 +842,10 @@ expand_super:
 
 ;
 ; How big is a cluster, really?  Also figure out how many clusters
-; will fit in an 8K buffer, and how many sectors and bytes that is
+; will fit in the trackbuf, and how many sectors and bytes that is
+;
+; FIX THIS: We shouldn't rely on integral sectors in the trackbuf
+; anymore...
 ;
 		mov edi,[bxBytesPerSec]		; Used a lot below
 		mov eax,[SecPerClust]
@@ -855,32 +863,72 @@ expand_super:
 		mov [BufSafeBytes],ax
 		add ax,getcbuf			; Size of getcbuf is the same
 		mov [EndOfGetCBuf],ax		; as for trackbuf
+
 ;
-; FAT12, FAT16 or FAT28^H^H32?  This computation is fscking ridiculous...
+; Compute some information about this filesystem.
+;
+
+; First, generate the map of regions
+genfatinfo:
+		mov edx,[bxSectors]
+		and dx,dx
+		jz .have_secs
+		mov edx,[bsHugeSectors]
+.have_secs:
+		mov [TotalSectors],edx
+
+		mov eax,[bsHidden]		; Hidden sectors aren't included
+		add edx,eax
+		mov [EndSector],edx
+
+		add eax,[bxResSectors]
+		mov [FAT],eax			; Beginning of FAT
+		mov edx,[bxFATsecs]
+		and dx,dx
+		jz .have_fatsecs
+		mov edx,[bootsec+36]		; FAT32 BPB_FATsz32
+.have_fatsecs:
+		imul edx,[bxFATs]
+		add eax,edx
+		mov [RootDir],eax		; Beginning of root directory
+
+		mov edx,[bxRootDirEnts]
+		add dx,512-32
+		shr dx,9-5
+		mov [RootDirSize],edx
+		add eax,edx
+		mov [DataArea],eax		; Beginning of data area
+
+; Next, generate a cluster size shift count and mask
+		mov eax,[bxSecPerClust]
+		bsr cx,ax
+		mov [ClustShift],cl
+		push cx
+		add cl,9
+		mov [ClustByteShift],cl
+		pop cx
+		dec ax
+		mov [ClustMask],eax
+		inc ax
+		shl eax,9
+		mov [ClustSize],eax
+
+;
+; FAT12, FAT16 or FAT28^H^H32?  This computation is fscking ridiculous.
 ;
 getfattype:
-		mov eax,[bxSectors]
-		and ax,ax
-		jnz .have_secs
-		mov eax,[bsHugeSectors]
-.have_secs:	add eax,[bsHidden]		; These are not included
-		sub eax,[RootDir]		; Start of root directory
-		movzx ebx,word [RootDirSize]
-		sub eax,ebx			; Subtract root directory size
-		xor edx,edx
-		div esi				; Convert to clusters
+		mov eax,[EndSector]
+		sub eax,[DataArea]
+		shr eax,cl			; cl == ClustShift
 		mov cl,nextcluster_fat12-(nextcluster+2)
-		cmp eax,4086			; FAT12 limit
-		jna .setsize
+		cmp eax,4085			; FAT12 limit
+		jb .setsize
 		mov cl,nextcluster_fat16-(nextcluster+2)
-		cmp eax,65526			; FAT16 limit
-		jna .setsize
+		cmp eax,65525			; FAT16 limit
+		jb .setsize
 		mov cl,nextcluster_fat28-(nextcluster+2)
 .setsize:
 		mov byte [nextcluster+1],cl
-
-
-
 
 ;
 ; Common initialization code
@@ -1011,18 +1059,8 @@ ac_ret2:	popa
 ac_ret1:	ret
 
 ;
-; searchdir: Search the root directory for a pre-mangled filename in
-;	     DS:DI.  This routine is similar to the one in the boot
-;	     sector, but is a little less Draconian when it comes to
-;	     error handling, plus it reads the root directory in
-;	     larger chunks than a sector at a time (which is probably
-;	     a waste of coding effort, but I like to do things right).
-;
-;	     FIXME: usually we can load the entire root dir in memory,
-;	     and files are usually at the beginning anyway.  It probably
-;	     would be worthwhile to remember if we have the first chunk
-;	     in memory and skip the load if that (it would speed up online
-;	     help, mainly.)
+; searchdir:
+;	     Search the root directory for a pre-mangled filename in DS:DI.
 ;
 ;	     NOTE: This file considers finding a zero-length file an
 ;	     error.  This is so we don't have to deal with that special
@@ -1555,13 +1593,10 @@ linuxauto_cmd	db 'linux auto',0
 linuxauto_len   equ $-linuxauto_cmd
 boot_image      db 'BOOT_IMAGE='
 boot_image_len  equ $-boot_image
+
+		align 4, db 0		; Pad out any unfinished dword
 ldlinux_end	equ $
 ldlinux_len	equ $-ldlinux_magic
-;
-; Put the getcbuf right after the code, aligned on a sector boundary
-;
-end_of_code	equ (ldlinux_end-bootsec)+7C00h
-getcbuf		equ (end_of_code + 511) & 0FE00h
 
 ; VGA font buffer at the end of memory (so loading a font works even
 ; in graphics mode.)
@@ -1569,7 +1604,7 @@ vgafontbuf	equ 0E000h
 
 ; This is a compile-time assert that we didn't run out of space
 %ifndef DEPEND
-%if (getcbuf+trackbufsize) > vgafontbuf
+%if (ldlinux_end-bootsec+7C00h) > vgafontbuf
 %error "Out of memory, better reorganize something..."
 %endif
 %endif
