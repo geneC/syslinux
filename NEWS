@@ -1,3 +1,7 @@
+Changes in 1.41:
+	* Don't get confused by directories, volume labels, or VFAT
+	  long names.
+
 Changes in 1.40:
 	* Increase A20M delay and put in a test to avoid problems on
 	  certain IBM Thinkpads (thanks to Donnie Barnes of RedHat

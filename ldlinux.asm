@@ -547,13 +547,15 @@ sd_nextsec:	push ax
 		pop si
 sd_nextentry:	cmp byte [si],0		; Directory high water mark
 		je kaboom
+		test byte [si+11],18h	; Must be a file
+		jnz sd_not_file
 		mov di,ldlinux_name
 		mov cx,11
 		push si
 		repe cmpsb
 		pop si
 		je found_it
-		add si,byte 32		; Distance to next
+sd_not_file:	add si,byte 32		; Distance to next
 		cmp si,[EndofDirSec]
 		jb sd_nextentry
 		pop dx
@@ -2518,7 +2520,7 @@ load_last:
 		mov si,trackbuf
 dir_test_name:	cmp byte [si],0		; Directory high water mark
 		je dir_return		; Failed
-                test byte [si+11],018h	; Check it really is a file
+                test byte [si+11],18h	; Check it really is a file
                 jnz dir_not_this
 		push di
 		push si
