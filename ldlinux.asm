@@ -1208,6 +1208,7 @@ getfssec_edx:
 		push eax
 .getfragment:
 		xor ebp,ebp			; Fragment sector count
+		push edx			; Starting sector pointer
 .getseccnt:
 		inc bp
 		dec cx
@@ -1215,19 +1216,20 @@ getfssec_edx:
 		xor eax,eax
 		mov ax,es
 		shl ax,4
-		add ax,bx			; Now DI = how far into 64K block we are
+		add ax,bx			; Now AX = how far into 64K block we are
 		not ax				; Bytes left in 64K block
 		inc eax
 		shr eax,SECTOR_SHIFT		; Sectors left in 64K block
 		cmp bp,ax
 		jnb .do_read			; Unless there is at least 1 more sector room...
-		lea eax,[edx+1]			; Linearly next sector
+		mov eax,edx			; Current sector
+		inc edx				; Predict it's the linearly next sector
 		call nextsector
 		jc .do_read
-		cmp edx,eax
+		cmp edx,eax			; Did it match?
 		jz .getseccnt
 .do_read:
-		mov eax,edx
+		pop eax				; Starting sector pointer
 		call getlinsecsr
 		lea eax,[eax+ebp-1]		; This is the last sector actually read
 		shl bp,9

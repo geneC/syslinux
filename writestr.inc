@@ -21,8 +21,13 @@
 ;
 ; crlf: Print a newline
 ;
-crlf:		mov si,crlf_msg
-		; Fall through
+crlf:		push ax
+		mov al,CR
+		call writechr
+		mov al,LF
+		call writechr
+		pop ax
+		ret
 
 ;
 ; cwritestr: write a null-terminated string to the console, saving

@@ -43,6 +43,7 @@ getcachesector:
 		loop .search
 
 .miss:
+		TRACER 'M'
 		; Need to load it.  Highly inefficient cache replacement
 		; algorithm: Least Recently Written (LRW)
 		push bx
@@ -66,6 +67,7 @@ getcachesector:
 		ret
 
 .hit:		; We have it; get the pointer
+		TRACER 'H'
 		sub si,CachePtrs
 		shl si,SECTOR_SHIFT-2
 		pop cx

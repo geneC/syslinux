@@ -17,6 +17,7 @@
 ;; Write hexadecimal numbers to the console
 ;;
 
+		section .text
 ;
 ; writehex[248]: Write a hex number in (AL, AX, EAX) to the console
 ;
