@@ -24,6 +24,11 @@ Changes in 2.08:
 	* PXELINUX: Change pathname length max from 63 to 127; change
 	  max vkernels from 128 to 64.
 	* Support Ctrl-U -> kill entire command line input.
+	* The "samples" directory contains a (barely at all tested)
+	  chain loading example, chain.c32, which may be used to
+	  chainload local floppy disks and hard disks.  Use with
+	  "chain fdN" or "chain hdN [partition]"; N = 0 for the first
+	  drive of each type.
 
 Changes in 2.07:
 	* MEMDISK: Workaround for BIOSes which go into a snit when
