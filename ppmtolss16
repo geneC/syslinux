@@ -51,15 +51,11 @@ $magic = 0x1413f33d;
 sub rgbconvert($$) {
     my($rgb,$maxmult) = @_;
     my($r,$g,$b);
-    my($seen) = $seen_cols{$rgb};
-    $seen_cols{$rgb}++;
 
     ($r, $g, $b) = unpack("CCC", $rgb);
-    printf STDERR "Converting %02x%02x%02x ", $r, $g, $b unless ($seen);
     $r = int($r*$maxmult+0.5);
     $g = int($g*$maxmult+0.5);
     $b = int($b*$maxmult+0.5);
-    printf STDERR "-> %02x%02x%02x\n", $r, $g, $b unless ($seen);
     $rgb = pack("CCC", $r, $g, $b);
     return $rgb;
 }
@@ -86,19 +82,19 @@ foreach $arg ( @ARGV ) {
 	$b = hex($3) >> 8;
 	$i = $4 + 0;
     } else {
-	# print STDERR "$0: Unknown argument: $arg\n";
+	print STDERR "$0: Unknown argument: $arg\n";
 	next;
     }
 
     if ( $i > 15 ) {
-	# print STDERR "$0: Color index out of range: $arg\n";
+	print STDERR "$0: Color index out of range: $arg\n";
 	next;
     }
 
     $rgb = rgbconvert(pack("CCC", $r, $g, $b), 64/256);
 
     if ( defined($index_forced{$i}) ) {
-	# print STDERR "$0: More than one color index $i\n";
+	print STDERR "$0: More than one color index $i\n";
 	exit(1);
     }
     $index_forced{$i} = $rgb;
@@ -194,18 +190,6 @@ while ( scalar(@icolors) ) {
 if ( $lost ) {
     printf STDERR
 	"$0: Warning: color palette truncated (%d colors ignored)\n", $lost;
-	scalar(@icolors);
-
-    foreach $rgb ( @colors ) {
-	($r,$g,$b) = unpack("CCC", $rgb);
-	printf STDERR "#%02x%02x%02x ", $r, $g, $b;
-    }
-    print STDERR "\n";
-    foreach $rgb ( @icolors ) {
-	($r,$g,$b) = unpack("CCC", $rgb);
-	printf STDERR "#%02x%02x%02x ", $r, $g, $b;
-    }
-    print STDERR "\n";
 }
 
 undef @icolors;
@@ -236,8 +220,6 @@ sub output_nybble($) {
 
     $ny = $ny & 0x0F;
 
-    # printf STDERR "%x", $ny;
-
     if ( defined($nybble_tmp) ) {
 	$ny = ($ny << 4) | $nybble_tmp;
 	print chr($ny);
@@ -250,8 +232,6 @@ sub output_nybble($) {
 
 sub output_run($$$) {
     my($last,$this,$run) = @_;
-
-    # printf STDERR "Color %2d Run %3d = ", $this, $run;
 
     if ( $this != $last ) {
 	output_nybble($this);
@@ -276,7 +256,6 @@ sub output_run($$$) {
 	    $run = 0;
 	}
     }
-    # print STDERR "\n";
 }
     
 $bytes  = 0;
@@ -285,7 +264,6 @@ undef $nybble_tmp;
 for ( $y = 0 ; $y < $ysize ; $y++ ) {
     $last = $prev = 0;
     $run = 0;
-    # printf STDERR "*** Row %3d ***\n", $y;
     for ( $x = 0 ; $x < $xsize ; $x++ ) {
 	$rgb = shift(@data);
 	$i   = $color_index{$rgb} + 0;
@@ -300,9 +278,7 @@ for ( $y = 0 ; $y < $ysize ; $y++ ) {
     }
     # Output final datum for row; we're always at least one pixel behind
     output_run($prev, $last, $run);
-    # printf STDERR "Row termination  = ";
     output_nybble(undef);	# Flush row
-    # print STDERR "\n";
 }
 
 $pixels = $xsize * $ysize;
