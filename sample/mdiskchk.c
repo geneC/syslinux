@@ -1,6 +1,6 @@
 /* -*- c -*- ------------------------------------------------------------- *
  *   
- *   Copyright 2003 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2003-2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -27,7 +27,8 @@
 #include <i86.h>		/* For MK_FP() */
 
 typedef unsigned long  uint32_t;
-typedef unsigned int   uint16_t;
+typedef unsigned short uint16_t;
+typedef unsigned char  uint8_t;
 
 struct memdiskinfo {
   uint16_t bytes;		/* Bytes from memdisk */
@@ -38,6 +39,9 @@ struct memdiskinfo {
   void far * oldint13;		/* Old INT 13h */
   void far * oldint15;		/* Old INT 15h */
   uint16_t olddosmem;
+  uint8_t  bootloaderid;
+
+  uint8_t _pad;
 
   /* We add our own fields at the end */
   int cylinders;
@@ -82,6 +86,32 @@ struct memdiskinfo * query_memdisk(int drive)
   return &mm;
 }
 
+const char *bootloadername(uint8_t id)
+{
+  static const struct {
+    uint8_t id, mask;
+    const char *name;
+  } *lp, list[] =
+    {
+      { 0x10, 0xf0, "LILO" },
+      { 0x20, 0xf0, "LOADLIN" },
+      { 0x31, 0xff, "SYSLINUX" },
+      { 0x32, 0xff, "PXELINUX" },
+      { 0x33, 0xff, "ISOLINUX" },
+      { 0x34, 0xff, "EXTLINUX" },
+      { 0x30, 0xf0, "SYSLINUX family" },
+      { 0x40, 0xf0, "Etherboot" },
+      { 0x50, 0xf0, "ELILO" },
+      { 0x70, 0xf0, "GRuB" },
+      { 0x80, 0xf0, "U-Boot" },
+      { 0x00, 0x00, "unknown" }
+    };
+
+  for ( lp = list ; ; lp++ ) {
+    if ( ((id ^ lp->id) & lp->mask) == 0 )
+      return lp->name;
+  }
+}
 
 int main(int argc, char *argv[])
 {
@@ -92,10 +122,12 @@ int main(int argc, char *argv[])
   for ( d = 0 ; d <= 0xff ; d++ ) {
     if ( (m = query_memdisk(d)) != NULL ) {
       printf("Drive %02X is MEMDISK %u.%02u:\n"
-	     "\tAddress = 0x%08lx, len = %lu sectors, chs = %u/%u/%u\n"
+	     "\tAddress = 0x%08lx, len = %lu sectors, chs = %u/%u/%u,\n"
+	     "\tloader = 0x%02x (%s),\n"
 	     "\tCmdline = %Fs\n",
 	     d, m->version >> 8, m->version & 0xff,
 	     m->base, m->size, m->cylinders, m->heads, m->sectors,
+	     m->bootloaderid, bootloadername(m->bootloaderid),
 	     m->cmdline);
       found++;
     }

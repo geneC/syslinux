@@ -624,6 +624,18 @@ A list of problems, and workarounds (if known), is maintained at:
 	http://syslinux.zytor.com/hardware.php
 
 
+   ++++ BOOT LOADER IDS USED ++++
+
+The Linux boot protocol supports a "boot loader ID", a single byte
+where the upper nybble specifies a boot loader family (3 = SYSLINUX)
+and the lower nybble is version or, in the case of SYSLINUX, media:
+
+	0x31 = SYSLINUX
+	0x32 = PXELINUX
+	0x33 = ISOLINUX
+	0x34 = EXTLINUX
+
+
    ++++ BUG REPORTS ++++
 
 I would appreciate hearing of any problems you have with SYSLINUX.  I

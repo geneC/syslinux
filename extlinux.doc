@@ -30,6 +30,10 @@ It works the same way as SYSLINUX, with a few slight modifications.
    limited to 255 characters.
 
 
+4. EXTLINUX currently doesn't support symlinks; it does, however,
+   support hard links.  This will be fixed in a future version.
+
+
 
 Note that EXTLINUX installs in the filesystem partition like a
 well-behaved bootloader :)  Thus, it needs a master boot record in the
