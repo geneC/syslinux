@@ -278,16 +278,22 @@ int main(int argc, char *argv[])
 	usage();
 
       while ( *opt ) {
-	if ( *opt == 's' ) {
-	  syslinux_make_stupid();	/* Use "safe, slow and stupid" code */
-	} else if ( *opt == 'f' ) {
-	  force = 1;                    /* Force install */
-	} else if ( *opt == 'm' ) {
-	  mbr = 1;                      /* Install MBR */
-	} else if ( *opt == 'a' ) {
-	  setactive = 1;		/* Mark this partition active */
-	} else {
+	switch ( *opt ) {
+	case 's':		/* Use "safe, slow and stupid" code */
+	  syslinux_make_stupid();
+	  break;
+	case 'f':		/* Force install */
+	  force = 1;   
+	  break;
+	case 'm':		/* Install MBR */
+	  mbr = 1;
+	  break;
+	case 'a':		/* Mark this partition active */
+	  setactive = 1;
+	  break;
+	default:
 	  usage();
+	  break;
 	}
 	opt++;
       }

@@ -1,4 +1,4 @@
-CC	 = gcc -m32 -mregparm=3 -DREGPARM=3
+CC	 = gcc -m32 -mregparm=3 -DREGPARM=3 -DDEBUG
 LD       = ld -m elf_i386
 OBJCOPY  = objcopy
 OPTFLAGS = -g -Os -march=i386 -falign-functions=0 -falign-jumps=0 -falign-loops=0 -fomit-frame-pointer
@@ -10,7 +10,7 @@ RANLIB   = ranlib
 LIBGCC  := $(shell $(CC) --print-libgcc)
 
 SRCS     = syslinux.c \
-	   ../syslxmod.c ../bootsect_bin.c ../ldlinux_bin.c \
+	   ../syslxmod.c ../bootsect_bin.c ../ldlinux_bin.c ../mbr_bin.c \
            $(wildcard ../libfat/*.c)
 OBJS	 = crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
 LIBOBJS	 = conio.o memcpy.o memset.o  skipatou.o atou.o malloc.o free.o \

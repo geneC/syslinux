@@ -37,7 +37,7 @@ uint16_t dos_version;
 
 void __attribute__((noreturn)) usage(void)
 {
-  puts("Usage: syslinux [-sf] <drive>: [bootsecfile]\n");
+  puts("Usage: syslinux [-sfma] <drive>: [bootsecfile]\n");
   exit(1);
 }
 
@@ -111,15 +111,27 @@ ssize_t write_file(int fd, const void *buf, size_t count)
   return done;
 }
 
+struct diskio {
+  uint32_t startsector;
+  uint16_t sectors;
+  uint16_t bufoffs, bufseg;
+} __attribute__((packed));
+
 void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 {
   uint8_t err;
+  struct diskio dio;
 
   dprintf("write_device(%d,%p,%u,%u)\n", drive, buf, nsecs, sector);
 
+  dio.startsector = sector;
+  dio.sectors     = nsecs;
+  dio.bufoffs     = (uintptr_t)buf;
+  asm("movw %%ds,%0" : "=m" (dio.bufseg));
+
   asm volatile("int $0x26 ; setc %0 ; popfw"
 	       : "=abcdm" (err)
-	       : "a" (drive-1), "b" (buf), "c" (nsecs), "d" (sector));
+	       : "a" (drive-1), "b" (&dio), "c" (-1), "d" (buf));
 
   if ( err )
     die("sector write error");
@@ -128,16 +140,146 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 {
   uint8_t err;
+  struct diskio dio;
 
   dprintf("read_device(%d,%p,%u,%u)\n", drive, buf, nsecs, sector);
 
+  dio.startsector = sector;
+  dio.sectors     = nsecs;
+  dio.bufoffs     = (uintptr_t)buf;
+  asm("movw %%ds,%0" : "=m" (dio.bufseg));
+
   asm volatile("int $0x25 ; setc %0 ; popfw"
 	       : "=abcdm" (err)
-	       : "a" (drive-1), "b" (buf), "c" (nsecs), "d" (sector));
+	       : "a" (drive-1), "b" (&dio), "c" (-1), "d" (buf));
 
   if ( err )
-    die("sector write error");
+    die("sector read error");
 }  
+
+/* Both traditional DOS and FAT32 DOS return this structure, but
+   FAT32 return a lot more data, so make sure we have plenty of space */
+struct deviceparams {
+  uint8_t specfunc;
+  uint8_t devtype;
+  uint16_t devattr;
+  uint16_t cylinders;
+  uint8_t mediatype;
+  uint16_t bytespersec;
+  uint8_t secperclust;
+  uint16_t ressectors;
+  uint8_t fats;
+  uint16_t rootdirents;
+  uint16_t sectors;
+  uint8_t media;
+  uint16_t fatsecs;
+  uint16_t secpertrack;
+  uint16_t heads;
+  uint32_t hiddensecs;
+  uint32_t hugesectors;
+  uint8_t lotsofpadding[224];
+} __attribute__((packed));
+
+uint32_t get_partition_offset(int drive)
+{
+  uint8_t err;
+  uint16_t rv;
+  struct deviceparams dp;
+
+  dp.specfunc = 1;		/* Get current information */
+  
+  rv = 0x440d;
+  asm volatile("int $0x21 ; setc %0"
+	       : "=abcdm" (err), "+a" (rv)
+	       : "b" (drive), "c" (0x0860), "d" (&dp));
+
+  if ( !err )
+    return dp.hiddensecs;
+    
+  rv = 0x440d;
+  asm volatile("int $0x21 ; setc %0"
+	       : "=abcdm" (err), "+a" (rv)
+	       : "b" (drive), "c" (0x4860), "d" (&dp));
+
+  if ( !err )
+    return dp.hiddensecs;
+
+  die("could not find partition start offset");
+}
+
+struct rwblock {
+  uint8_t special;
+  uint16_t head;
+  uint16_t cylinder;
+  uint16_t firstsector;
+  uint16_t sectors;
+  uint16_t bufferoffset;
+  uint16_t bufferseg;
+} __attribute__((packed));
+
+static struct rwblock mbr = {
+  .special = 0,
+  .head = 0,
+  .cylinder = 0,
+  .firstsector = 0,		/* MS-DOS, unlike the BIOS, zero-base sectors */
+  .sectors = 1,
+  .bufferoffset = 0,
+  .bufferseg = 0
+};
+
+void write_mbr(int drive, const void *buf)
+{
+  uint16_t rv;
+  uint8_t err;
+
+  dprintf("write_mbr(%d,%p)\n", drive, buf);
+
+  mbr.bufferoffset = (uintptr_t)buf;
+  asm("movw %%ds,%0" : "=m" (mbr.bufferseg));
+
+  rv = 0x440d;
+  asm volatile("int $0x21 ; setc %0"
+	       : "=abcdm" (err), "+a" (rv)
+	       : "c" (0x0841), "d" (&mbr), "b" (drive));
+
+  if ( !err )
+    return;
+
+  rv = 0x440d;
+  asm volatile("int $0x21 ; setc %0"
+	       : "=abcdm" (err), "+a" (rv)
+	       : "c" (0x4841), "d" (&mbr), "b" (drive));
+  
+  if ( err )
+    die("mbr write error");
+}
+
+void read_mbr(int drive, const void *buf)
+{
+  uint16_t rv;
+  uint8_t err;
+
+  dprintf("read_mbr(%d,%p)\n", drive, buf);
+
+  mbr.bufferoffset = (uintptr_t)buf;
+  asm("movw %%ds,%0" : "=m" (mbr.bufferseg));
+
+  rv = 0x440d;
+  asm volatile("int $0x21 ; setc %0"
+	       : "=abcdm" (err), "+a" (rv)
+	       : "c" (0x0861), "d" (&mbr), "b" (drive));
+
+  if ( !err )
+    return;
+
+  rv = 0x440d;
+  asm volatile("int $0x21 ; setc %0"
+	       : "=abcdm" (err), "+a" (rv)
+	       : "c" (0x4861), "d" (&mbr), "b" (drive));
+  
+  if ( err )
+    die("mbr read error");
+}
 
 /* This call can legitimately fail, and we don't care, so ignore error return */
 void set_attributes(const char *file, int attributes)
@@ -239,6 +381,62 @@ void unlock_device(int level)
   }
 }
 
+
+/*
+ * This function does any desired MBR manipulation; called with the device lock held.
+ */
+struct mbr_entry {
+  uint8_t active;		/* Active flag */
+  uint8_t bhead;		/* Begin head */
+  uint8_t bsector;		/* Begin sector */
+  uint8_t bcylinder;		/* Begin cylinder */
+  uint8_t filesystem;		/* Filesystem value */
+  uint8_t ehead;		/* End head */
+  uint8_t esector;		/* End sector */
+  uint8_t ecylinder;		/* End cylinder */
+  uint32_t startlba;		/* Start sector LBA */
+  uint32_t sectors;		/* Length in sectors */
+} __attribute__((packed));
+
+static void adjust_mbr(int device, int writembr, int set_active)
+{
+  static unsigned char sectbuf[512];
+  int i;
+
+  if ( !writembr && !set_active )
+    return;			/* Nothing to do */
+
+  read_mbr(device, sectbuf);
+
+  if ( writembr ) {
+    memcpy(sectbuf, syslinux_mbr, syslinux_mbr_len);
+    *(uint16_t *)(sectbuf+510) = 0xaa55;
+  }
+    
+  if ( set_active ) {
+    uint32_t offset = get_partition_offset(device);
+    struct mbr_entry *me = (struct mbr_entry *)(sectbuf+446);
+    int found = 0;
+    
+    for ( i = 0 ; i < 4 ; i++ ) {
+      if ( me->startlba == offset ) {
+	me->active = 0x80;
+	found++;
+      } else {
+	me->active = 0;
+      }
+    }
+
+    if ( found < 1 ) {
+      die("partition not found");
+    } else if ( found > 1 ) {
+      die("multiple aliased partitions found");
+    }
+  }
+    
+  write_mbr(device, sectbuf);
+}
+
 int main(int argc, char *argv[])
 {
   static unsigned char sectbuf[512];
@@ -253,6 +451,8 @@ int main(int argc, char *argv[])
   const char *device = NULL, *bootsecfile = NULL;
   const char *errmsg;
   int i;
+  int writembr = 0;		/* -m (write MBR) option */
+  int set_active = 0;		/* -a (set partition active) option */
 
   dprintf("argv = %p\n", argv);
   for ( i = 0 ; i <= argc ; i++ )
@@ -269,11 +469,20 @@ int main(int argc, char *argv[])
 	usage();
 
       while ( *opt ) {
-	if ( *opt == 's' ) {
-	  syslinux_make_stupid();	/* Use "safe, slow and stupid" code */
-	} else if ( *opt == 'f' ) {
-	  force = 1;		/* Force install */
-	} else {
+	switch ( *opt ) {
+	case 's':		/* Use "safe, slow and stupid" code */
+	  syslinux_make_stupid();
+	  break;
+	case 'f':		/* Force install */
+	  force = 1;
+	  break;
+	case 'm':		/* Write MBR */
+	  writembr = 1;
+	  break;
+	case 'a':		/* Set partition active */
+	  set_active = 1;
+	  break;
+	default:
 	  usage();
 	}
 	opt++;
@@ -294,8 +503,8 @@ int main(int argc, char *argv[])
   /*
    * Figure out which drive we're talking to
    */
-  dev_fd = device[0] & 0x1F;
-  if ( !(device[0] & 0x40) || device[1] != ':' || device[2] )
+  dev_fd = (device[0] & ~0x20) - 0x40;
+  if ( dev_fd < 1 || dev_fd > 26 || device[1] != ':' || device[2] )
     usage();
 
   set_lock_device(dev_fd);
@@ -350,6 +559,11 @@ int main(int argc, char *argv[])
    */
   lock_device(3);
   write_device(dev_fd, syslinux_ldlinux, 1, sectors[0]);
+
+  /*
+   * Muck with the MBR, if desired, while we hold the lock
+   */
+  adjust_mbr(dev_fd, writembr, set_active);
 
   /*
    * To finish up, write the boot sector

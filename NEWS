@@ -32,10 +32,9 @@ Changes in 3.00:
 	  server.domain.com::filename), which downloads a file from an
 	  alternate TFTP server, or just a :: (e.g. ::filename), which
 	  suppresses the common pathname prefix.  See pxelinux.doc.
-	* SYSLINUX: Add an -m option to the Win32 installer (only!)
+	* SYSLINUX: Add an -m option to the DOS and Win32 installers
 	  to write an MBR and -a to mark the partition SYSLINUX is
-	  being installed on active.  This will hopefully be added
-	  to the DOS installer later.
+	  being installed on active.
 
 Changes in 2.13:
 	* MEMDISK: Fix command-line parsing "brown paper bag" class
