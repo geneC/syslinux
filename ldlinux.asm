@@ -866,7 +866,7 @@ expand_super:
 genfatinfo:
 		mov edx,[bxSectors]
 		and dx,dx
-		jz .have_secs
+		jnz .have_secs
 		mov edx,[bsHugeSectors]
 .have_secs:
 		mov [TotalSectors],edx
@@ -879,7 +879,7 @@ genfatinfo:
 		mov [FAT],eax			; Beginning of FAT
 		mov edx,[bxFATsecs]
 		and dx,dx
-		jz .have_fatsecs
+		jnz .have_fatsecs
 		mov edx,[bootsec+36]		; FAT32 BPB_FATsz32
 .have_fatsecs:
 		imul edx,[bxFATs]
