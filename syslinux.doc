@@ -583,7 +583,10 @@ unencumbered), is included in the SYSLINUX distribution
    ++++ KNOWN BUGS ++++
 
 SYSLINUX is unsafe to use on any filesystem that extends past cylinder
-1024.  This is a fundamental limitation of the standard BIOS API.
+1024.  This is a fundamental limitation of the standard BIOS API.  The
+"extended" BIOS API can *sometimes* be used to work around it, but
+there simply is not enough space in the SYSLINUX boot sector to
+support both APIs.
 
 SYSLINUX will not work (and will refuse to install) on filesystems
 with a cluster size of more than 16K (typically means a filesystem of
