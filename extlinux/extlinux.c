@@ -352,8 +352,8 @@ get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
   geo->sectors   = 32;
   geo->cylinders = totalbytes/(64*32*512);
   geo->start     = 0;
-  fprintf(stderr, "Warning: unable to obtain device geometry (defaulting to %s/%s/%s)\n",
-	  geo->cylinders, geo->heads, geo->sectors);
+  fprintf(stderr, "Warning: unable to obtain device geometry (defaulting to %d heads, %d sectors)\n",
+	  geo->heads, geo->sectors);
 
   return 1;
 }
