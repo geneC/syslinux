@@ -18,6 +18,9 @@
 ; this should be the normal thing for client-serving DNS servers.)
 ;
 
+%include "macros.inc"
+%include "pxe.inc"
+
 DNS_PORT	equ htons(53)		; Default DNS port 
 DNS_MAX_PACKET	equ 512			; Defined by protocol
 ; TFTP uses the range 49152-57343; avoid that range
@@ -201,7 +204,7 @@ dns_resolv:
 		stosw			; QCLASS = 1 = IN
 
 		sub di,DNSSendBuf
-		mov [pxe_udp_write_pkt_dns.bufsize],di
+		mov [pxe_udp_write_pkt_dns.buffersize],di
 
 		; Now, send it to the nameserver(s)
 		; Outer loop: exponential backoff
@@ -221,7 +224,7 @@ dns_resolv:
 
 		mov eax,[di]
 
-		mov [pxe_udp_write_pkt_dns.status],0	
+		mov word [pxe_udp_write_pkt_dns.status],0	
 
 		mov [pxe_udp_write_pkt_dns.sip],eax
 		mov [pxe_udp_read_pkt_dns.sip],eax
@@ -235,9 +238,9 @@ dns_resolv:
 		mov di,pxe_udp_write_pkt_dns
 		mov bx,PXENV_UDP_WRITE
 		call pxenv
-		jc .failure
-		cmp word [pxe_udp_write_pkt.status],0
-		jne .failure
+		jc .timeout				; Treat failed transmit as timeout
+		cmp word [pxe_udp_write_pkt_dns.status],0
+		jne .timeout
 
 		mov cx,[BIOS_timer]
 .waitrecv:
@@ -246,7 +249,8 @@ dns_resolv:
 		cmp ax,dx
 		jae .timeout
 
-		mov [pxe_udp_read_pkt_dns.status],0
+		mov word [pxe_udp_read_pkt_dns.status],0
+		mov word [pxe_udp_read_pkt_dns.buffersize],DNS_MAX_PACKET
 		mov di,pxe_udp_read_pkt_dns
 		mov bx,PXENV_UDP_READ
 		call pxenv
