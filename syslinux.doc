@@ -290,9 +290,12 @@ can boot either DOS or Linux.  This example assumes the drive is A: in
 DOS and /dev/fd0 in Linux; for other drives, substitute the
 appropriate drive designator.
 
+   ---- Linux procedure ----
+
 1. Make a DOS bootable disk.  This can be done either by specifying
    the /s option when formatting the disk in DOS, or by running the
-   DOS command SYS:
+   DOS command SYS (this can be done under DOSEMU if DOSEMU has
+   direct device access to the relevant drive):
 
 	format a: /s
    or
@@ -318,10 +321,38 @@ appropriate drive designator.
 	cp vmlinux /mnt
 	cp initrd.gz /mnt
 
-6. Unmount the disk.
+6. Unmount the disk (if applicable.)
 
 	umount /mnt
+ 
+   ---- DOS procedure ----
 
+To make this installation in DOS only, you need the utility copybs.com
+(included with SYSLINUX) as well as the syslinux.com installer.
+
+1. Make a DOS bootable disk.  This can be done either by specifying
+   the /s option when formatting the disk in DOS, or by running the
+   DOS command SYS:
+
+	format a: /s
+   or
+	sys a:
+
+2. Copy the DOS boot sector from the disk into a file.  The file
+   *must* have extension .bss:
+
+	copybs a: a:dos.bss
+
+3. Run SYSLINUX on the disk:
+
+	syslinux a:
+
+4. Copy the Linux kernel image(s), initrd(s), etc to the disk, and
+   create/edit syslinux.cfg and help files if desired:
+
+	copy vmlinux a:
+	copy initrd.gz a:
+ 
    ++++ COMBOOT EXECUTABLES ++++
 
 A COMBOOT file is a standalone executable in DOS .COM format.  They
