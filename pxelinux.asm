@@ -243,6 +243,7 @@ HiLoadAddr      resd 1			; Address pointer for high load loop
 HighMemSize	resd 1			; End of memory pointer (bytes)
 KernelSize	resd 1			; Size of kernel (bytes)
 Stack		resd 1			; Pointer to reset stack
+PXEEntry	resd 1			; !PXE API entry point
 RootDir		equ $			; Location of root directory
 RootDir1	resw 1
 RootDir2	resw 1
@@ -296,6 +297,30 @@ InitRDCName     resb MAX_FILENAME       ; Unmangled initrd name
 MNameBuf	resb 11			; OBSOLETE
 InitRD		resb 11			; OBSOLETE
 
+		alignb 16
+		; BOOTP/DHCP packet buffer
+bootp:
+.opcode		resb 1			; BOOTP/DHCP "opcode"
+.hardware	resb 1			; ARP hardware type
+.hardlen	resb 1			; Hardware address length
+.gatehops	resb 1			; Used by forwarders
+.ident		resd 1			; Transaction ID
+.seconds	resw 1			; Seconds elapsed
+.flags		resw 1			; Broadcast flags
+.cip		resd 1			; Client IP
+.yip		resd 1			; "Your" IP
+.sip		resd 1			; Next server IP
+.gip		resd 1			; Relay agent IP
+.macaddr	resb 16			; Client MAC address
+.sname		resb 64			; Server name (optional)
+.bootfile	resb 128		; Boot file name
+.v_magic	resd 1			; DHCP magic cookie
+.v_flags	resd 1			; DHCP flags
+.v_pad		resb 56			; Vendor options padding
+
+bootp_size	equ $-bootp
+
+
 		section .text
                 org 7C00h
 ;
@@ -332,17 +357,24 @@ _start1:
 		cmp ax,564Eh
 		jne no_pxe
 
-		mov si,found_pxenv
-		call writestr
-
 		; Okay, that gave us the PXENV+ structure, find !PXE
 		; structure from that
 		cmp dword [es:bx], 'PXEN'
 		jne no_pxe
 		cmp word [es:bx+4], 'V+'
 		jne no_pxe
+
+		mov si,found_pxenv
+		call writestr
+
+		mov si,apiver_str
+		call writestr
+		mov ax,[es:bx+6]
+		call writehex4
+		call crlf
+
 		cmp word [es:bx+6], 0201h	; API version 2.1 or higher
-		jb no_pxe
+		jb old_api
 		les bx,[es:bx+26h]		; !PXE structure pointer
 		cmp dword [es:bx],'!PXE'
 		je have_pxe
@@ -351,7 +383,26 @@ no_pxe:		mov si,err_nopxe
 		call writestr
 		jmp kaboom
 
+old_api:	; Need to use a PXENV+ structure
+		mov si,using_pxenv_msg
+		call writestr
+
+		mov eax,[es:bx+0Ah]		; PXE RM API
+		mov [PXENVEntry],eax
+		jmp short have_pxe_entry
 have_pxe:
+		mov eax,[es:bx+10h]
+		mov [PXEEntry],eax
+
+have_pxe_entry:	mov si,pxeentry_msg
+		call writestr
+		mov ax,[PXENVEntry+2]
+		call writehex4
+		mov al,':'
+		call writechr
+		mov ax,[PXENVEntry]
+		call writehex4
+		call crlf
 
 ;
 ; Tell the user we got this far
@@ -359,12 +410,135 @@ have_pxe:
 		mov si,pxelinux_banner
 		call writestr
 
-.enough:	jmp short .enough
+		mov si,copyright_str
+		call writestr
+		
+;
+; Now attempt to get the BOOTP/DHCP packet that brought us life (and an IP
+; address)
+;
+query_bootp:	mov ax,0DEADh			; Something bogus
+	
+		mov ax,ds
+		mov es,ax
+		mov di,pxe_bootp_query_pkt
+		mov bx,0071h			; PXENV_GET_CACHED_INFO
+
+		call far [PXENVEntry]
+		jc .pxe_err
+		cmp ax,byte 0
+		je .pxe_ok
+.pxe_err:
+		mov si,err_pxefailed
+		call writestr
+		call writehex4
+		call crlf
+
+.pxe_ok:	mov si,myipaddr_msg
+		call writestr
+		mov eax,[bootp.yip]		; "Your" IP address
+		call writehex8
+		mov al,' '
+		call writechr
+		mov eax,[bootp.sip]		; Server IP address(?)
+		call writehex8
+		mov al,' '
+		call writechr
+		mov eax,[bootp.gip]		; Gateway IP address(?)
+		call writehex8
+		call crlf
+
+		; Print the boot file
+		mov si,bootp.bootfile
+		call writestr
+		call crlf
+;
+; Normalize ES = DS
+;
+		mov ax,ds
+		mov es,ax
+;
+; Now, prepare some of the data structures
+;
+		mov eax,[bootp.sip]
+		mov [pxe_tftp_open_pkt.sip],eax
+
+filename_cp:	mov si,bootp.bootfile
+		mov di,pxe_tftp_open_pkt.filename
+		cld
+		xor cx,cx
+.strcpy:	lodsb
+		stosb
+		inc cx
+		and al,al
+		jnz .strcpy
+		std
+		dec di
+		mov si,di
+		mov al,'.'
+		repne scasb
+		jne .nodot
+		inc di
+		jmp short .dot
+.nodot:		mov di,si
+.dot:		cld
+		; Now di points to where we want to add stuff to the filename
+		mov al,'/'
+		stosb
+		mov cx,8
+		mov eax,[bootp.yip]
+		bswap eax			; Convert to native byte order
+.hexify_loop:	rol eax,4
+		push eax
+		and al,0Fh
+		cmp al,10
+		jae .high
+.low:		add al,'0'
+		jmp short .char
+.high:		add al,'A'-10
+.char:		stosb
+		pop eax
+		loop .hexify_loop
 
 ;
-; -----------------------------------------------------------------------------
-; Subroutines that have to be in the first sector
-; -----------------------------------------------------------------------------
+; Begin looking for configuration file
+;
+config_scan:
+		mov cx,9			; Up to 9 attempts
+
+.tryagain:	mov byte [di],0
+		cmp cx,byte 1
+		jne .not_default
+		pusha
+		mov si,default_str
+		mov cx,default_len
+		rep movsb			; Copy "default" string
+		popa
+.not_default:	pusha
+		mov di,pxe_tftp_open_pkt
+		mov bx,0020h			; PXENV_TFTP_OPEN
+		call far [PXENVEntry]
+		jc .badness
+		cmp ax,byte 0
+		jne .badness
+		cmp word [pxe_tftp_open_pkt.status],0
+		je .success
+.badness:	popa
+		dec di
+		loop .tryagain
+
+;
+; If we get here, no configuration file
+;
+
+.success:	popa
+		; If we get here, we have an open TFTP connection to the config file
+
+enough:		mov si,enough_msg
+		call writestr
+		jmp kaboom
+enough_msg:	db 13,10,10,'End of implemented code.', 13, 10, 0
+
 ;
 ; getfssec: Get multiple clusters from a file, given the starting cluster.
 ;
@@ -377,156 +551,7 @@ have_pxe:
 ;	CX	-> Cluster count (0FFFFh = until end of file)
 ;
 						; 386 check
-getfssec:
-%if 0
-getfragment:	xor bp,bp			; Fragment sector count
-		mov ax,si			; Get sector address
-		dec ax				; Convert to 0-based
-		dec ax
-		mul word [SecPerClust]
-		add ax,[DataArea1]
-		adc dx,[DataArea2]
-getseccnt:					; See if we can read > 1 clust
-		add bp,[SecPerClust]
-		dec cx				; Reduce clusters left to find
-		mov di,si			; Predict next cluster
-		inc di
-		call [NextCluster]
-		jc gfs_eof			; At EOF?
-		jcxz endfragment		; Or was it the last we wanted?
-		cmp si,di			; Is file continuous?
-		jz getseccnt			; Yes, we can get
-endfragment:	clc				; Not at EOF
-gfs_eof:	pushf				; Remember EOF or not
-		push si
-		push cx
-gfs_getchunk:
-		push ax
-		push dx
-		mov ax,es			; Check for 64K boundaries.
-		mov cl,4
-		shl ax,cl
-		add ax,bx
-		xor dx,dx
-		neg ax
-		jnz gfs_partseg
-		inc dx				; Full 64K segment
-gfs_partseg:
-		div word [bsBytesPerSec]	; How many sectors fit?
-		mov si,bp
-		sub si,ax			; Compute remaining sectors
-		jbe gfs_lastchunk
-		mov bp,ax
-		pop dx
-		pop ax
-		call getlinsecsr
-		add ax,bp
-		adc dx,byte 0
-		mov bp,si			; Remaining sector count
-		jmp short gfs_getchunk
-gfs_lastchunk:	pop dx
-		pop ax		
-		call getlinsec
-		pop cx
-		pop si
-		popf
-		jcxz gfs_return			; If we hit the count limit
-		jnc getfragment			; If we didn't hit EOF
-gfs_return:	ret
-
-;
-; getlinsecsr: save registers, call getlinsec, restore registers
-;
-getlinsecsr:	push ax
-		push dx
-		push cx
-		push bp
-		push si
-		push di
-		call getlinsec
-		pop di
-		pop si
-		pop bp
-		pop cx
-		pop dx
-		pop ax
-		ret
-%endif
-
-;
-; nextcluster: Advance a cluster pointer in SI to the next cluster
-;	       pointed at in the FAT tables (note: FAT12 assumed)
-;	       Sets CF on return if end of file.
-;
-;	       The variable NextCluster gets set to the appropriate
-;	       value here.
-;
-nextcluster_fat12:
-		push ax
-		push ds
-		mov ax,fat_seg
-		mov ds,ax
-		mov ax,si			; Multiply by 3/2
-		shr ax,1
-		pushf				; CF now set if odd
-		add si,ax
-		mov si,[si]
-		popf
-		jnc nc_even
-		shr si,1			; Needed for odd only
-		shr si,1
-		shr si,1
-		shr si,1
-nc_even:
-		and si,0FFFh
-		cmp si,0FF0h			; Clears CF if at end of file
-		cmc				; But we want it SET...
-		pop ds
-		pop ax
-nc_return:	ret
-
-;
-; FAT16 decoding routine.  Note that a 16-bit FAT can be up to 128K,
-; so we have to decide if we're in the "low" or the "high" 64K-segment...
-;
-nextcluster_fat16:
-		push ax
-		push ds
-		mov ax,fat_seg
-		shl si,1
-		jnc .seg0
-		mov ax,fat_seg+1000h
-.seg0:		mov ds,ax
-		mov si,[si]
-		cmp si,0FFF0h
-		cmc
-		pop ds
-		pop ax
-		ret
-;
-; Debug routine
-;
-%ifdef debug
-safedumpregs:
-		cmp word [Debug_Magic],0D00Dh
-		jnz nc_return
-		jmp dumpregs
-%endif
-
-rl_checkpt	equ $				; Must be <= 400h
-
-; ----------------------------------------------------------------------------
-;  End of code and data that have to be in the first sector
-; ----------------------------------------------------------------------------
-
-all_read:
-;
-; Let the user (and programmer!) know we got this far.  This used to be
-; in Sector 1, but makes a lot more sense here.
-;
-		mov si,copyright_str
-		call writestr
-;
+; 
 ; Check that no moron is trying to boot Linux on a 286 or so.  According
 ; to Intel, the way to check is to see if the high 4 bits of the FLAGS
 ; register are either all stuck at 1 (8086/8088) or all stuck at 0
@@ -610,13 +635,6 @@ is_486:
 ; areas
 ;
 		call adjust_screen
-;
-; Now, everything is "up and running"... patch kaboom for more
-; verbosity and using the full screen system
-;
-		mov byte [kaboom.patch],0e9h		; JMP NEAR
-		mov word [kaboom.patch+1],kaboom2-(kaboom.patch+3)
-
 ;
 ; Now we're all set to start with our *real* business.	First load the
 ; configuration file (if any) and parse it.
@@ -945,7 +963,7 @@ enter_char:	test byte [FuncFlag],1
 get_char_2:	jmp short get_char
 not_ascii:	mov byte [FuncFlag],0
 		cmp al,0Dh			; Enter
-		je command_done
+		je near command_done
 		cmp al,06h			; <Ctrl-F>
 		je set_func_flag
 		cmp al,08h			; Backspace
@@ -1241,7 +1259,7 @@ kernel_sane:	push ax
 		sub [KernelClust],cx
 		xor bx,bx
                 pop si                          ; Cluster pointer on stack
-		call getfssec
+;		call getfssec
 		jc near kernel_corrupt		; Failure in first 32K
                 cmp word [es:bs_bootsign],0AA55h
 		jne near kernel_corrupt		; Boot sec signature missing
@@ -1486,7 +1504,7 @@ high_last_moby:
 		sub [KernelClust],cx
 		xor bx,bx			; Load at offset 0
                 pop si                          ; Restore cluster pointer
-                call getfssec
+;		call getfssec
                 push si                         ; Save cluster pointer
                 pushf                           ; Save EOF
                 xor bx,bx
@@ -1625,7 +1643,7 @@ is_comboot_image:
 		mov bx,100h		; Load at <seg>:0100h
 
 		mov cx,[ClustPerMoby]	; Absolute maximum # of clusters
-		call getfssec
+;		call getfssec
 
 		xor di,di
 		mov cx,64		; 256 bytes (size of PSP)
@@ -1935,7 +1953,7 @@ rd_last_moby:
                 push word xfer_buf_seg		; Bounce buffer segment
 		pop es
 		push cx
-		call getfssec
+;		call getfssec
 		pop cx
                 push si				; Save cluster pointer
 		mov esi,(xfer_buf_seg << 4)
@@ -2009,20 +2027,6 @@ kaboom:
 .norge:		jmp short .norge	; If int 19h returned; this is the end
 
 ;
-;
-; writestr: write a null-terminated string to the console
-;
-writestr:
-wstr_1:         lodsb
-		and al,al
-                jz .return
-		mov ah,0Eh		; Write to screen as TTY
-		mov bx,0007h		; White on black, current page
-		int 10h
-		jmp short wstr_1
-.return:	ret
-
-;
 ; searchdir: Search the root directory for a pre-mangled filename in
 ;	     DS:DI.  This routine is similar to the one in the boot
 ;	     sector, but is a little less Draconian when it comes to
@@ -2080,7 +2084,7 @@ bf_ret:		ret
 loadfont:
 		mov bx,trackbuf			; The trackbuf is >= 16K; the part
 		mov cx,[BufSafe]		; of a PSF file we care about is no
-		call getfssec			; more than 8K+4 bytes
+;		call getfssec			; more than 8K+4 bytes
 
 		mov ax,[trackbuf]		; Magic number
 		cmp ax,0436h
@@ -2120,7 +2124,7 @@ loadkeys:
 
 		mov bx,trackbuf
 		mov cx,1			; 1 cluster should be >= 256 bytes
-		call getfssec
+;		call getfssec
 
 		mov si,trackbuf
 		mov di,KbdMap
@@ -2147,7 +2151,7 @@ get_msg_chunk:  push ax                         ; DX:AX = length of file
                 push dx
 		mov bx,trackbuf
 		mov cx,[BufSafe]
-		call getfssec
+;		call getfssec
                 pop dx
                 pop ax
 		push si				; Save current cluster
@@ -2290,26 +2294,67 @@ write_serial_str:
 ;
 writechr:
 		call write_serial	; write to serial port if needed
-		pusha
+		pushad
 		mov ah,0Eh
 		mov bx,0007h		; white text on this page
 		int 10h
-		popa
+		popad
 		ret
+
+;
+; crlf: Print a newline
+;
+crlf:		mov si,crlf_msg
+		; Fall through
 
 ;
 ; cwritestr: write a null-terminated string to the console, saving
 ;            registers on entry.
 ;
+; Note: writestr and cwritestr are distinct in SYSLINUX, not in PXELINUX
+;
 cwritestr:
-                pusha
+                pushad
 .top:		lodsb
 		and al,al
                 jz .end
 		call writechr
                 jmp short .top
-.end:		popa
+.end:		popad
                 ret
+
+writestr	equ cwritestr
+
+;
+; writehex[248]: Write a hex number in (AL, AX, EAX) to the console
+;
+writehex2:
+		pushad
+		rol eax,24
+		mov cx,2
+		jmp short writehex_common
+writehex4:
+		pushad
+		rol eax,16
+		mov cx,4
+		jmp short writehex_common
+writehex8:
+		pushad
+		mov cx,8
+writehex_common:
+.loop:		rol eax,4
+		push eax
+		and al,0Fh
+		cmp al,10
+		jae .high
+.low:		add al,'0'
+		jmp short .ischar
+.high:		add al,'A'-10
+.ischar:	call writechr
+		pop eax
+		loop .loop
+		popad
+		ret
 
 ;
 ; pollchar: check if we have an input character pending (ZF = 0)
@@ -2371,13 +2416,17 @@ kaboom2:
 ;		similar to the C library getc routine.	Only one simultaneous
 ;		use is supported.  Note: "open" trashes the trackbuf.
 ;
-;		open:	Input:	mangled filename in DS:DI
+;		open:	Input:	filename in DS:DI
 ;			Output: ZF set on file not found or zero length
 ;
 ;		getc:	Output: CF set on end of file
 ;				Character loaded in AL
 ;
 open:
+		mov di,pxe_tftp_open_pkt
+		mov bx,0020h		; PXENV_TFTP_OPEN
+		call far [PXENVEntry]
+
 		call searchdir
 		jz open_return
 		pushf
@@ -2415,7 +2464,7 @@ getc_oksize:	sub [FClust],cx		; Reduce remaining clusters
 		push es			; ES may be != DS, save old ES
 		push ds			; Trackbuf is in DS, not ES
 		pop es
-		call getfssec		; Load a trackbuf full of data
+;		call getfssec		; Load a trackbuf full of data
 		mov [FNextClust],si	; Store new next pointer
 		pop es			; Restore ES
 		pop si			; SI -> newly loaded data
@@ -2684,89 +2733,6 @@ gl_ret:		pushf			; We want the last char to be space!
 gl_xret:	popf
 		ret
 
-
-%ifdef debug		; This code for debugging only
-;
-; dumpregs:	Dumps the contents of all registers
-;
-                assume ds:_text, es:NOTHING, fs:NOTHING, gs:NOTHING
-dumpregs	proc near		; When calling, IP is on stack
-		pushf			; Store flags
-		pusha
-		push ds
-		push es
-		push fs
-		push gs
-		push cs			; Set DS <- CS
-		pop ds
-		cld			; Clear direction flag
-		mov si,offset crlf_msg
-		call cwritestr
-		mov bx,sp
-		add bx,byte 26
-		mov si,offset regnames
-		mov cx,2		; 2*7 registers to dump
-dump_line:	push cx
-		mov cx,7		; 7 registers per line
-dump_reg:	push cx
-		mov cx,4		; 4 characters/register name
-wr_reg_name:	lodsb
-		call writechr
-		loop wr_reg_name
-		mov ax,ss:[bx]
-		dec bx
-		dec bx
-		call writehex
-		pop cx
-		loop dump_reg
-		mov al,0Dh		; <CR>
-		call writechr
-		mov al,0Ah		; <LF>
-		call writechr
-		pop cx
-		loop dump_line
-		pop gs
-		pop fs
-		pop es
-		pop ds
-		popa			; Restore the remainder
-		popf			; Restore flags
-		ret
-dumpregs	endp
-
-regnames	db ' IP: FL: AX: CX: DX: BX: SP: BP: SI: DI: DS: ES: FS: GS:'
-
-;
-; writehex:	Writes a 16-bit hexadecimal number (in AX)
-;
-writehex	proc near
-		push bx
-		push cx
-		mov cx,4		; 4 numbers
-write_hexdig:	xor bx,bx
-		push cx
-		mov cx,4		; 4 bits/digit
-xfer_digit:	shl ax,1
-		rcl bx,1
-		loop xfer_digit
-		push ax
-		mov ax,bx
-		or al,'0'
-		cmp al,'9'
-		jna ok_digit
-		add al,'A'-'0'-10
-ok_digit:	call writechr
-		pop ax
-		pop cx
-		loop write_hexdig
-		pop cx
-		pop bx
-		ret
-writehex	endp
-
-debug_magic	dw 0D00Dh
-
-%endif ; debug
 ;
 ; mangle_name: Mangle a DOS filename pointed to by DS:SI into a buffer pointed
 ;	       to by ES:DI; ends on encountering any whitespace
@@ -2878,6 +2844,29 @@ lc_1:           cmp al,lcase_low
 lc_ret:         ret
 
 ;
+; pxe_thunk
+;
+; Convert from the PXENV+ calling convention (BX, ES, DI) to the !PXE
+; calling convention (using the stack.)
+;
+; This is called as a far routine so that we can just stick it into
+; the PXENVEntry variable.
+;
+pxe_thunk:	push es
+		push di
+		push bx
+		call far [PXEEntry]
+		add sp,byte 6
+		cmp ax,byte 1
+		cmc				; Set CF unless ax == 0
+		retf
+
+; ----------------------------------------------------------------------------------
+;  Begin data section
+; ----------------------------------------------------------------------------------
+
+
+;
 ; Lower-case table for codepage 865
 ;
 lcase_low       equ 128
@@ -2926,7 +2915,12 @@ err_bootfailed	db 0Dh, 0Ah, 'Boot failed: please change disks and press '
 		db 'a key to continue.', 0Dh, 0Ah, 0
 bailmsg		equ err_bootfailed
 err_nopxe	db 'Cannot find !PXE structure, I want my mommy!' ,0Dh, 0Ah, 0
+err_pxefailed	db 'PXE API call failed, error ', 0
 found_pxenv	db 'Found PXENV+ structure', 0Dh, 0Ah, 0
+using_pxenv_msg db 'PXE API 2.0 detected, using PXENV+ structure', 0Dh, 0Ah, 0
+apiver_str	db 'PXE API version is ',0
+pxeentry_msg	db 'PXE entry point found (we hope) at ', 0
+myipaddr_msg	db 'My IP address seems to be ',0
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
 dot_msg         db '.', 0
@@ -2934,8 +2928,9 @@ aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
 crlf_msg	db 0Dh, 0Ah, 0
 crff_msg	db 0Dh, 0Ch, 0
 syslinux_cfg	db 'SYSLINUXCFG'
+default_str	db 'default', 0
+default_len	equ ($-default_str)
 pxelinux_banner	db 0Dh, 0Ah, 'PXELINUX ', version_str, ' ', date, ' ', 0
-		db 0Dh, 0Ah, 1Ah	; EOF if we "type" this in DOS
 
 ;
 ; Command line options we'd like to take a look at
@@ -2946,7 +2941,8 @@ initrd_cmd_len	equ 7
 ;
 ; Config file keyword table
 ;
-		align 2
+		align 2, db 0
+
 keywd_table	db 'ap' ; append
 		db 'de' ; default
 		db 'ti' ; timeout
@@ -2975,6 +2971,7 @@ keywd_table	db 'ap' ; append
 ; extension, needed for error messages.  The exten_table is shifted so
 ; the table is 1-based; this is because a "loop" cx is used as index.
 ;
+		align 4, db 0
 exten_table:
 OrigKernelExt:	dd 0			; Original extension
 		db 'COM',0		; COMBOOT (same as DOS)
@@ -2983,6 +2980,31 @@ OrigKernelExt:	dd 0			; Original extension
 		db 'CBT',0		; COMBOOT (specific)
 
 exten_count	equ (($-exten_table) >> 2) - 1	; Number of alternates
+
+;
+; PXENV entry point.  If we use the !PXE API, this will point to a thunk
+; function that converts to the !PXE calling convention.
+;
+PXENVEntry	dw pxe_thunk,0
+
+;
+; PXE query packets partially filled in
+;
+pxe_bootp_query_pkt:
+.status:	dw 0			; Status
+.packettype:	dw 2			; DHCPACK packet
+.buffersize:	dw bootp_size		; Packet size
+.buffer:	dw bootp, 0		; seg:off of buffer
+.bufferlimit:	dw 0			; Unused
+
+pxe_tftp_open_pkt:
+.status:	dw 0			; Status
+.sip		dd 0			; Server IP
+.gip		dd 0			; Gateway IP
+.filename	times 128 db 0		; Input filename
+.tftpport	dw 69			; TFTP port
+.packetsize	dw 1024			; Packet size
+
 ;
 ; Misc initialized (data) variables
 ;
