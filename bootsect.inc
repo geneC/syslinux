@@ -86,13 +86,12 @@ load_bootsec:
 		pop ecx			; Byte count to copy
 
 		cli
-%if IS_PXELINUX
-		lss sp,[Stack]		; Reset stack to PXE original
-		pop es
-%else
 		xor ebx,ebx
 		mov ds,bx
 		mov es,bx
+%if IS_PXELINUX
+		lss sp,[InitStack]	; Reset stack to PXE original
+%else
 		mov esp,7C00h
 		pushad
 		pushfd

@@ -194,7 +194,7 @@ RamdiskMax	resd 1			; Highest address for a ramdisk
 KernelSize	resd 1			; Size of kernel (bytes)
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
 PMESP		resd 1			; Protected-mode ESP
-Stack		resd 1			; Pointer to reset stack
+InitStack	resd 1			; Pointer to reset stack
 PXEEntry	resd 1			; !PXE API entry point
 RebootTime	resd 1			; Reboot timeout, if set by option
 KernelClust	resd 1			; Kernel size in clusters
@@ -271,6 +271,8 @@ packet_buf_size	equ $-packet_buf
 
 		section .text
                 org 7C00h
+StackBuf	equ $
+
 ;
 ; Primary entry point.
 ;
@@ -290,12 +292,19 @@ _start1:
 
 		mov ax,cs
 		mov ds,ax
-		sti			; Stack already set up by PXE
+
+		; That is all pushed onto the PXE stack.  Save the pointer
+		; to it and switch to an internal stack.
+		mov [InitStack],sp
+		mov [InitStack+2],ss
+
+		cli			; Paranoia
+		mov ss,ax
+		mov sp,StackBuf
+
+		sti			; Stack set up and ready
 		cld			; Copy upwards
 
-		push ds
-		mov [Stack],sp
-		mov [Stack+2],ss
 ;
 ; Initialize screen (if we're using one)
 ;
@@ -803,10 +812,6 @@ config_scan:
 %define HAVE_UNLOAD_PREP
 %macro	UNLOAD_PREP 0
 		call unload_pxe
-		cli
-		xor ax,ax
-		mov ss,ax
-		mov sp,7C00h			; Set up a conventional stack
 %endmacro
 
 %include "runkernel.inc"
@@ -828,12 +833,15 @@ config_scan:
 ;
 local_boot:
 		call vgaclearmode
-		lss sp,[cs:Stack]		; Restore stack pointer
-		pop ds				; Restore DS
+		xor si,si
+		mov ds,si			; Restore DI
+		mov ss,si
+		mov sp,StackBuf			; Reset the stack
 		mov [LocalBootType],ax
 		mov si,localboot_msg
 		call writestr
 		; Restore the environment we were called with
+		lss sp,[InitStack]
 		pop gs
 		pop fs
 		pop es
@@ -870,7 +878,8 @@ abort_load:
                 mov ax,cs                       ; Restore CS = DS = ES
                 mov ds,ax
                 mov es,ax
-		lss sp,[Stack]			; Reset the stack
+		mov ss,ax
+		mov sp,StackBuf			; Reset the stack
 		sti
                 call cwritestr                  ; Expects SI -> error msg
 al_ok:          jmp enter_command               ; Return to command prompt
@@ -889,7 +898,8 @@ kaboom:
 		mov ax,cs
 		mov es,ax
 		mov ds,ax
-		lss sp,[Stack]
+		mov ss,ax
+		mov sp,StackBuf
 		sti
 .patch:		mov si,bailmsg
 		call writestr		; Returns with AL = 0

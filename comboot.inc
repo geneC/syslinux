@@ -19,13 +19,15 @@
 
 ; Parameter registers definition; this is the definition
 ; of the stack frame used by INT 21h and INT 22h.
-%define		P_FLAGS		word [bp+40]
-%define		P_FLAGSL	byte [bp+40]
-%define		P_FLAGSH	byte [bp+41]
-%define		P_CS		word [bp+38]
-%define		P_IP		word [bp+36]
-%define		P_DS		word [bp+34]
-%define		P_ES		word [bp+32]
+%define		P_FLAGS		word [bp+44]
+%define		P_FLAGSL	byte [bp+44]
+%define		P_FLAGSH	byte [bp+45]
+%define		P_CS		word [bp+42]
+%define		P_IP		word [bp+40]
+%define		P_DS		word [bp+38]
+%define		P_ES		word [bp+36]
+%define		P_FS		word [bp+34]
+%define		P_GS		word [bp+32]
 %define		P_EAX		dword [bp+28]
 %define		P_AX		word [bp+28]
 %define		P_HAX		word [bp+30]
@@ -147,6 +149,8 @@ comboot_setup_api:
 comboot_int21:	cli
 		push ds
 		push es
+		push fs
+		push gs
 		pushad
 		cld
 		mov bp,cs
@@ -167,6 +171,8 @@ comboot_int21:	cli
 comboot_resume:
 		setc P_FLAGSL		; Propagate CF->error
 		popad
+		pop gs
+		pop fs
 		pop es
 		pop ds
 		iret
@@ -277,6 +283,8 @@ comboot_int22:
 		cli
 		push ds
 		push es
+		push fs
+		push gs
 		pushad
 		cld
 		mov bp,cs
@@ -453,6 +461,10 @@ comapi_derinfo:
 		mov P_BX,ax
 		mov ax,[StrucPtr+2]
 		mov P_ES,ax
+		mov ax,[InitStack]
+		mov P_SI,ax
+		mov ax,[InitStack+2]
+		mov P_FS,ax
 %elif IS_ISOLINUX
 		mov al,[DriveNo]
 		mov P_DL,al
