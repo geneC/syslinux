@@ -9,6 +9,7 @@ Changes in 2.07:
 	* PXELINUX: Add "ipappend 2", which passes the hardware
 	  address of the boot interface to the kernel as a
 	  command-line option.
+	* mkdiskimage: fix the generation of the end limit.
 
 Changes in 2.06:
 	* ALL: Fix problem that would occationally cause a
