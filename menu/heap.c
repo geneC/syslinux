@@ -21,17 +21,17 @@ static unsigned int heap_curr  = (unsigned int)_end;
 
 static inline unsigned int currsp(void)
 {
-    unsigned int stkptr;
+    unsigned int esp;
     
-    asm("movl %%esp,%0 " : "=rm" (stkptr) );
-    return stkptr;
+    asm("movl %%esp,%0 " : "=rm" (esp));
+    return esp;
 }
 
 static inline void _checkheap(void)
 {
     if (currsp() < heap_curr) // Heap corrupted
     {
-	csprint("Heap Corrupted, bailing out\n");
+	csprint("\r\nHeap overflow, aborting!\r\n");
 	asm volatile("int $0x21" : : "a" (0x4C7f)); /* Exit with error */
 	return;
     }
@@ -41,14 +41,16 @@ void * malloc(unsigned int num) // Allocate so much space
 {
     unsigned int ans, heap_max;
 
-   _checkheap();
-   heap_max = currsp() - STACKSIZE;
+    _checkheap();
+    heap_max = currsp() - STACKSIZE;
 
-   if ( heap_curr+num > heap_max )
-       return NULL;
-   ans = heap_curr;
-   heap_curr += num;
-   return (void *) ans;
+    ans = (heap_curr+3) & ~3;	// Align to 4-byte boundary
+
+    if ( ans+num > heap_max )
+	return NULL;
+
+    heap_curr = ans+num;
+    return (void *) ans;
 }
 
 /* We don't actually ever use these; if enabled,
@@ -57,8 +59,8 @@ void * malloc(unsigned int num) // Allocate so much space
 
 int checkalloc(unsigned int num)
 {
-   _checkheap();
-   return (heap_curr + num < heap_max);
+    _checkheap();
+    return (heap_curr + num < heap_max);
 }
 
 
