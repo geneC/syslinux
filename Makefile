@@ -115,43 +115,6 @@ spotless: clean dist
 	rm -f $(BTARGET)
 
 #
-# This should only be used by the maintainer to generate official binaries
-# for release.  Please do not "make official" and distribute the binaries,
-# please.
+# Hook to add private Makefile targets for the maintainer.
 #
-.PHONY: official release
-
-official:
-	$(MAKE) spotless
-	$(MAKE) all DATE=`date +'%Y-%m-%d'`
-	$(MAKE) dist
-
-release:
-	-rm -rf release/syslinux-$(VERSION)
-	-rm -f release/syslinux-$(VERSION).*
-	mkdir -p release/syslinux-$(VERSION)
-	cp $(SOURCES) $(DOCS) $(OTHER) release/syslinux-$(VERSION)
-	make -C release/syslinux-$(VERSION) official
-	cd release ; tar cvvf - syslinux-$(VERSION) | \
-		gzip -9 > syslinux-$(VERSION).tar.gz
-	cd release/syslinux-$(VERSION) ; \
-		zip -9r ../syslinux-$(VERSION).zip *
-
-
-PREREL    := syslinux-$(VERSION)-$(DATE)
-PRERELDIR := release/syslinux-$(VERSION)-prerel
- 
-prerel:
-	mkdir -p $(PRERELDIR)
-	-rm -rf $(PRERELDIR)/$(PREREL)
-	-rm -f $(PRERELDIR)/$(PREREL).*
-	mkdir -p $(PRERELDIR)/$(PREREL)
-	cp $(SOURCES) $(DOCS) $(OTHER) $(PRERELDIR)/$(PREREL)
-	make -C $(PRERELDIR)/$(PREREL) spotless
-	make -C $(PRERELDIR)/$(PREREL) HEXDATE="$(DATE)"
-	make -C $(PRERELDIR)/$(PREREL) dist
-	cd $(PRERELDIR) && tar cvvf - $(PREREL) | \
-		gzip -9 > $(PREREL).tar.gz 
-	cd $(PRERELDIR) && uuencode $(PREREL).tar.gz $(PREREL).tar.gz > $(PREREL).uu
-	cd $(PRERELDIR)/$(PREREL) && \
-		zip -9r ../$(PREREL).zip *
+-include Makefile.private
