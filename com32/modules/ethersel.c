@@ -21,7 +21,7 @@
  *
  * PROMPT 0
  * DEFAULT ethersel.c32
- * # DEV [DID xxxx:yyyy] [RID zz-zz] [SID uuuu:vvvv] commandline
+ * # DEV [DID xxxx:yyyy[/mask]] [RID zz-zz] [SID uuuu:vvvv[/mask]] commandline
  * # ...
  * 
  * DID = PCI device ID
@@ -36,6 +36,12 @@
 #include <console.h>
 #include <sys/pci.h>
 #include <com32.h>
+
+#ifdef DEBUG
+# define dprintf printf
+#else
+# define dprintf(...) ((void)0)
+#endif
 
 struct match {
   struct match *next;
@@ -86,18 +92,32 @@ static int looking_at(const char *line, const char *kwd)
   return *p <= ' ';             /* Must be EOL or whitespace */
 }
 
-static uint32_t
-get_did(char **ptr)
+static char *
+get_did(char *p, uint32_t *idptr, uint32_t *maskptr)
 {
-  unsigned long vid, did;
+  unsigned long vid, did, m1, m2;
 
-  vid = strtoul(*ptr, ptr, 16);
-  if ( **ptr != ':' )
-    return -1;			/* Bogus ID */
-  (*ptr)++;
-  did = strtoul(*ptr, ptr, 16);
+  *idptr   = -1;
+  *maskptr = 0xffffffff;
 
-  return (did << 16) + vid;
+  vid = strtoul(p, &p, 16);
+  if ( *p != ':' )
+    return p;			/* Bogus ID */
+  did = strtoul(p+1, &p, 16);
+
+  *idptr = (did << 16) + vid;
+
+  if ( *p == '/' ) {
+    m1 = strtoul(p+1, &p, 16);
+    if ( *p != ':' ) {
+      *maskptr = (m1 << 16) | 0xffff;
+    } else {
+      m2 = strtoul(p+1, &p, 16);
+      *maskptr = (m1 << 16) | m2;
+    }
+  }
+
+  return p;
 }
 
 static struct match *
@@ -121,11 +141,11 @@ parse_config(const char *filename)
 
     if ( !looking_at(p, "#") )
       continue;
-  
     p = skipspace(p+1);
 
     if ( !looking_at(p, "dev") )
       continue;
+    p = skipspace(p+3);
 
     m = malloc(sizeof(struct match));
     if ( !m )
@@ -134,17 +154,14 @@ parse_config(const char *filename)
     memset(m, 0, sizeof *m);
     m->rid_max = 0xff;
 
-    p += 3;
-
     for(;;) {
       p = skipspace(p);
 
       if ( looking_at(p, "did") ) {
-	m->did = get_did(&p);
+	p = get_did(p+3, &m->did, &m->did_mask);
 	m->did_mask = 0xffffffff;
       } else if ( looking_at(p, "sid") ) {
-	m->sid = get_did(&p);
-	m->sid_mask = 0xffffffff;
+	p = get_did(p+3, &m->sid, &m->sid_mask);
       } else if ( looking_at(p, "rid") ) {
 	unsigned long r0, r1;
 
@@ -173,6 +190,10 @@ parse_config(const char *filename)
 	break;			/* Done with this line */
       }
     }
+
+    dprintf("DEV DID %08x/%08x SID %08x/%08x RID %02x-%02x CMD %s\n",
+	    m->did, m->did_mask, m->sid, m->sid_mask,
+	    m->rid_min, m->rid_max, m->filename);
 
     *ep = m;
     ep = &m->next;
@@ -212,6 +233,8 @@ pciscan(struct match *list)
 
 	rid = pci_readb(a + 0x08);
 	sid = pci_readl(a + 0x2c);
+
+	dprintf("Scanning: DID %08x SID %08x RID %02x\n", did, sid, rid);
 
 	for ( m = list ; m ; m = m->next ) {
 	  if ( ((did ^ m->did) & m->did_mask) == 0 &&
