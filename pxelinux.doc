@@ -80,10 +80,10 @@ Lefebvre:
 	ftp://ftp.mamalinux.com/pub/atftp/
 
 Unfortunately, the Intel LANDesk Service Agent II prior to version
-0.99h (PXE PDK V2.4) seems to have a rather serious bug: it requests
-the TFTP "blksize" option, but will be mortally confused if this
-option is actually accepted by the server!  There are three possible
-workarounds for this bug:
+0.99h (PXE PDK V2.4) seems to have a host of serious bugs.  Among
+other things, it requests the TFTP "blksize" option, but will be
+mortally confused if this option is actually accepted by the server!
+There are three possible workarounds for this bug:
 
 1. Use a TFTP server with doesn't support "blksize".
 
@@ -100,6 +100,14 @@ workarounds for this bug:
    before trying conventional TFTP.  It seems that the client will not
    request the "blksize" option if it has tried MTFTP and failed.
    These DHCP options are beyond the scope of this document.
+
+These systems also break if PMTU discovery is enabled on the TFTP
+server.  This has to be disabled in the kernel on the TFTP server.  On
+Linux, you can disable PMTU discovery by setting:
+
+	echo 1 > /proc/sys/net/ipv4/ip_no_pmtu_disc
+
+Note that this may cause bad performance for other services on the machine.
 
 
     ++++ SETTING UP THE DHCP SERVER ++++
