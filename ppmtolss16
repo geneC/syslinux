@@ -2,7 +2,7 @@
 ## $Id$
 ## -----------------------------------------------------------------------
 ##   
-##   Copyright 2001 H. Peter Anvin - All Rights Reserved
+##   Copyright 2001-2003 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 ##
 ## ppmtolss16
 ##
-## Convert a "raw" PPM file with max 16 colors to a simple RLE-based format:
+## Convert a PNM file with max 16 colors to a simple RLE-based format:
 ##
 ## uint32 0x1413f33d    ; magic (littleendian)
 ## uint16 xsize		; littleendian
@@ -35,11 +35,9 @@
 ##
 ## At the start of row, the "previous pixel" is assumed to be zero.
 ##
-## BUG: This program does not handle "plain" ppm format.
-##
 ## Usage:
 ##
-##	ppmtorle16 [#rrggbb=i ...] < input.ppm > output.rle
+##	ppmtolss16 [#rrggbb=i ...] < input.ppm > output.rle
 ##
 ## Command line options of the form #rrggbb=i indicate that
 ## the color #rrggbb (hex) should be assigned index i (decimal)
@@ -88,11 +86,86 @@ sub get_token() {
     return $token;
 }
 
-sub rgbconvert($$) {
-    my($rgb,$maxmult) = @_;
-    my($r,$g,$b);
+# Get a token, and make sure it is numeric (and exists)
+sub get_numeric_token() {
+    my($token) = get_token();
 
-    ($r, $g, $b) = unpack("CCC", $rgb);
+    if ( $token !~ /^[0-9]+$/ ) {
+	print STDERR "Format error on input\n";
+	exit 1;
+    }
+
+    return $token + 0;
+}
+
+# Must be called before each pixel row is read
+sub start_new_row() {
+    $getrgb_leftover_bit_cnt = 0;
+    $getrgb_leftover_bit_val = 0;
+}
+
+# Get a single RGB token depending on the PNM type
+sub getrgb($) {
+    my($form) = @_;
+    my($rgb,$r,$g,$b);
+
+    if ( $form eq 'P6' ) {
+	# Raw PPM, most common
+	return undef unless ( read(STDIN,$rgb,3) == 3 );
+	return unpack("CCC", $rgb);
+    } elsif ( $form eq 'P3' ) {
+	# Plain PPM
+	$r = get_numeric_token();
+	$g = get_numeric_token();
+	$b = get_numeric_token();
+	return ($r,$g,$b);
+    } elsif  ( $form eq 'P5' ) {
+	# Raw PGM
+	return undef unless ( read(STDIN,$rgb,1) == 1 );
+	$r = unpack("C", $rgb);
+	return ($r,$r,$r);
+    } elsif ( $form eq 'P2' ) {
+	# Plain PGM
+	$r = get_numeric_token();
+	return ($r,$r,$r);
+    } elsif ( $form eq 'P4' ) {
+	# Raw PBM
+	if ( !$getrgb_leftover_bit_cnt ) {
+	    return undef unless ( read(STDIN,$rgb,1) == 1 );
+	    $getrgb_leftover_bit_val = unpack("C", $rgb);
+	    $getrgb_leftover_bit_cnt = 8;
+	}
+	$r = ( $getrgb_leftover_bit_val & 0x80 ) ? 0x00 : 0xff;
+	$getrgb_leftover_bit_val <<= 1;
+	$getrgb_leftover_bit_cnt--;
+	
+	return ($r,$r,$r);
+    } elsif ( $form eq 'P1' ) {
+	# Plain PBM
+	my($ch);
+	
+	do {
+	    $ch = getc(STDIN);
+	    return undef if ( !defined($ch) );
+	    return (255,255,255) if ( $ch eq '0' ); # White
+	    return (0,0,0) if ( $ch eq '1'); # Black
+	    if ( $ch eq '#' ) {
+		do {
+		    $ch = getc(STDIN);
+		    return undef if ( !defined($ch) );
+		} while ( $ch ne "\n" );
+	    }
+	} while ( $ch =~ /^[ \t\n\v\f\r]$/ );
+	return undef;
+    } else {
+	die "Internal error: unknown format: $form\n";
+    }
+}
+
+sub rgbconvert($$$$) {
+    my($r,$g,$b,$maxmult) = @_;
+    my($rgb);
+
     $r = int($r*$maxmult);
     $g = int($g*$maxmult);
     $b = int($b*$maxmult);
@@ -131,7 +204,7 @@ foreach $arg ( @ARGV ) {
 	next;
     }
 
-    $rgb = rgbconvert(pack("CCC", $r, $g, $b), 64/256);
+    $rgb = rgbconvert($r, $g, $b, 64/256);
 
     if ( defined($index_forced{$i}) ) {
 	print STDERR "$0: More than one color index $i\n";
@@ -142,31 +215,26 @@ foreach $arg ( @ARGV ) {
 }
 
 $form = get_token();
-die "$0: stdin is not a raw PPM file" if ( $form ne 'P6' );
+die "$0: stdin is not a PNM file" if ( $form !~ /^P[1-6]$/ );
 
-$xsize = get_token();
-$ysize = get_token();
-if ( $xsize !~ /^([0-9]+)$/ || $ysize !~ /^([0-9]+)$/ ) {
-    die "$0: Input format error 1\n";
+$xsize = get_numeric_token();
+$ysize = get_numeric_token();
+if ( $form =~ /^P[2356]$/ ) {
+    $maxcol = get_numeric_token();
+} else {
+    $maxcol = 255;		# Internal convention
 }
-$xsize += 0; $ysize += 0;	# Convert to number
-
-$maxcol = get_token();
-chomp $maxcol;
-if ( $maxcol !~ /^([0-9]+)$/ ) {
-    die "$0: Input format error 2\n";
-}
-$maxcol += 0;
 $maxmult = 64/($maxcol+1); 	# Equal buckets conversion
 
 @data = ();
 
 for ( $y = 0 ; $y < $ysize ; $y++ ) {
+    start_new_row();
     for ( $x = 0 ; $x < $xsize ; $x++ ) {
 	die "$0: Premature EOF at ($x,$y) of ($xsize,$ysize)\n"
-	    if ( read(STDIN, $rgb, 3) != 3 );
+	    if ( !defined(@pnmrgb = getrgb($form)) );
 	# Convert to 6-bit representation
-	$rgb = rgbconvert($rgb, $maxmult);
+	$rgb = rgbconvert($pnmrgb[0], $pnmrgb[1], $pnmrgb[2], $maxmult);
 	$color_count{$rgb}++;
 	push(@data, $rgb);
     }

@@ -8,9 +8,10 @@ Changes in 2.06:
 	* ISOLINUX: Fix problem that would occationally cause a
 	  boot failure, depending on the length of directories.
 	* SYSLINUX: Win32 installer now flushes buffers.
-	* ppmtolss16: Try to be compliant with the PPM spec;
+	* ppmtolss16: Be fully compliant with the PPM spec;
 	  actually process comments in the header and odd
-	  alignments of the various parameters.
+	  alignments of the various parameters, as well as
+	  "plain" (not raw) files and PBM and PGM files.
 
 Changes in 2.05:
 	* PXELINUX: Add a default query based on the hardware address
