@@ -40,14 +40,6 @@
 #include <klibc/compiler.h>
 #include "file.h"
 
-static void __constructor ansicon_init(void)
-{
-  static com32sys_t ireg;	/* Auto-initalized to all zero */
-
-  ireg.eax.w[0] = 0x0005;	/* Force text mode */
-  __intcall(0x22, &ireg, NULL);
-}
-
 struct curxy {
   uint8_t x, y;
 } __attribute__((packed));
@@ -74,7 +66,9 @@ static struct {
   int bg;
   int autocr;
   struct curxy saved_xy;
+  uint16_t cursor_type;
   enum ansi_state state;
+  int pvt;			/* Private code? */
   int nparms;			/* Number of parameters seen */
   int parms[MAX_PARMS];
 } st = {
@@ -87,9 +81,27 @@ static struct {
   .bg = 0,
   .autocr = 0,
   .saved_xy = { 0, 0 },
+  .cursor_type = 0x0607,
   .state = st_init,
+  .pvt = 0,
   .nparms = 0,
 };
+
+/* Common setup */
+static void __constructor ansicon_init(void)
+{
+  static com32sys_t ireg;	/* Auto-initalized to all zero */
+
+  /* Force text mode */
+  ireg.eax.w[0] = 0x0005;
+  __intcall(0x22, &ireg, NULL);
+
+  /* Get cursor shape */
+  ireg.eax.b[1] = 0x03;
+  ireg.ebx.b[1] = BIOS_PAGE;
+  __intcall(0x10, &ireg, &ireg);
+  st.cursor_type = ireg.ecx.w[0];
+}
 
 /* Erase a region of the screen */
 static void ansicon_erase(int x0, int y0, int x1, int y1)
@@ -102,6 +114,16 @@ static void ansicon_erase(int x0, int y0, int x1, int y1)
   ireg.ecx.b[1] = y0;
   ireg.edx.b[0] = x1;
   ireg.edx.b[1] = y1;
+  __intcall(0x10, &ireg, NULL);
+}
+
+/* Show or hide the cursor */
+static void showcursor(int yes)
+{
+  static com32sys_t ireg;
+
+  ireg.eax.b[1] = 0x01;
+  ireg.ecx.w[0] = yes ? st.cursor_type : 0x2020;
   __intcall(0x10, &ireg, NULL);
 }
 
@@ -168,7 +190,7 @@ static void ansicon_putchar(int ch)
       break;
     case '[':
       st.state = st_csi;
-      st.nparms = 0;
+      st.nparms = st.pvt = 0;
       memset(st.parms, 0, sizeof st.parms);
       break;
     default:
@@ -189,6 +211,8 @@ static void ansicon_putchar(int ch)
 	if ( st.nparms >= MAX_PARMS )
 	  st.nparms = MAX_PARMS-1;
 	break;
+      } else if ( ch == '?' ) {
+	st.pvt = 1;
       } else {
 	switch ( ch ) {
 	case 'A':
@@ -227,6 +251,13 @@ static void ansicon_putchar(int ch)
 	    int y = xy.y - p0;
 	    xy.y = (y < 0) ? 0 : y;
 	    xy.x = 0;
+	  }
+	  break;
+	case 'G':
+	case '\'':
+	  {
+	    int x = st.parms[0] - 1;
+	    xy.x = (x >= cols) ? cols-1 : (x < 0) ? 0 : x;
 	  }
 	  break;
 	case 'H':
@@ -294,6 +325,9 @@ static void ansicon_putchar(int ch)
 	    switch ( st.parms[0] ) {
 	    case 20:
 	      st.autocr = set;
+	      break;
+	    case 25:
+	      showcursor(set);
 	      break;
 	    default:
 	      /* Ignore */

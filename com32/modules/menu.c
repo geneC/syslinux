@@ -142,7 +142,7 @@ void draw_menu(int sel, int top)
   printf("%s\033[%d;1H", menu_attrib->screen, END_ROW);
 }
 
-char *edit_cmdline(char *input, int top)
+const char *edit_cmdline(char *input, int top)
 {
   static char cmdline[MAX_CMDLINE_LEN];
   int key, len;
@@ -228,12 +228,14 @@ const char *run_menu(void)
   int entry = defentry;
   int top = 0;
   int clear = 1;
-  char *cmdline;
+  const char *cmdline = NULL;
   clock_t key_timeout;
 
   /* Convert timeout from deciseconds to clock ticks */
   /* Note: for both key_timeout and timeout == 0 means no limit */
   key_timeout = (clock_t)(CLK_TCK*timeout+9)/10;
+
+  printf("\033[?25l");		/* Hide cursor */
 
   while ( !done ) {
     if ( entry < 0 )
@@ -261,14 +263,17 @@ const char *run_menu(void)
 	 e.g. on serial ports. */
       if ( entry != defentry )
 	entry = defentry;
-      else
+      else {
+	cmdline = menu_entries[defentry].label;
 	done = 1;
+      }
       break;
     case KEY_CTRL('L'):
       clear = 1;
       break;
     case KEY_ENTER:
     case KEY_CTRL('J'):
+      cmdline = menu_entries[entry].label;
       done = 1;
       break;
     case 'P':
@@ -302,24 +307,27 @@ const char *run_menu(void)
       break;
     case KEY_TAB:
       if ( allowedit ) {
+	printf("\033[?25h");		/* Show cursor */
 	cmdline = edit_cmdline(menu_entries[entry].cmdline, top);
-	if ( cmdline )
-	  return cmdline;
-	else
-	  clear = 1;
+	printf("\033[?25l");		/* Hide cursor */
+	done = !!cmdline;
+	clear = 1;		/* In case we hit [Esc] and done is null */
       }
       break;
     case KEY_CTRL('C'):		/* Ctrl-C */
     case KEY_ESC:		/* Esc */
       if ( allowedit )
-	return NULL;
+	done = 1;
+      break;
     default:
       break;
     }
   }
 
+  printf("\033[?25h");		/* Show cursor */
+
   /* Return the label name so localboot and ipappend work */
-  return menu_entries[entry].label;
+  return cmdline;
 }
 
 
@@ -353,7 +361,7 @@ int main(int argc, char *argv[])
   parse_config(argv[1]);
 
   cmdline = run_menu();
-  printf("\033[%d;1H\033[0m", END_ROW);
+  printf("\033[?25h\033[%d;1H\033[0m", END_ROW);
   if ( cmdline )
     execute(cmdline);
   else
