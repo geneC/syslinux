@@ -813,27 +813,25 @@ all_read_jmp:
 ;	Returns CF=1 on EOF
 ;
 getfssec:
-getfragment:	xor ebp,ebp			; Fragment sector count
-		movzx eax,si			; Get sector address
-		dec ax				; Convert to 0-based
-		dec ax
+.getfragment:	xor ebp,ebp			; Fragment sector count
+		lea eax,[si-2]			; Get 0-based sector address
 		mul dword [SecPerClust]
 		add eax,[DataArea]
-getseccnt:					; See if we can read > 1 clust
+.getseccnt:					; See if we can read > 1 clust
 		add bp,[SecPerClust]
 		dec cx				; Reduce clusters left to find
 		lea di,[si+1]
 		call nextcluster
 		cmc
-		jc gfs_eof			; At EOF?
-		jcxz endfragment		; Or was it the last we wanted?
+		jc .eof				; At EOF?
+		jcxz .endfragment		; Or was it the last we wanted?
 		cmp si,di			; Is file continuous?
-		jz getseccnt			; Yes, we can get
-endfragment:	clc				; Not at EOF
-gfs_eof:	pushf				; Remember EOF or not
+		je .getseccnt			; Yes, we can get
+.endfragment:	clc				; Not at EOF
+.eof:		pushf				; Remember EOF or not
 		push si
 		push cx
-gfs_getchunk:
+.getchunk:
 		push eax
 		mov ax,es			; Check for 64K boundaries.
 		shl ax,4
@@ -844,21 +842,21 @@ gfs_getchunk:
 		div word [bsBytesPerSec]	; How many sectors fit?
 		mov si,bp
 		sub si,ax			; Compute remaining sectors
-		jbe gfs_lastchunk
+		jbe .lastchunk
 		mov bp,ax
 		pop eax
 		call getlinsecsr
 		add eax,ebp			; EBP<31:16> == 0
 		mov bp,si			; Remaining sector count
-		jmp short gfs_getchunk
-gfs_lastchunk:	pop eax
+		jmp short .getchunk
+.lastchunk:	pop eax
 		call getlinsec
 		pop cx
 		pop si
 		popf
-		jcxz gfs_return			; If we hit the count limit
-		jnc getfragment			; If we didn't hit EOF
-gfs_return:	ret
+		jcxz .return			; If we hit the count limit
+		jnc .getfragment		; If we didn't hit EOF
+.return:	ret
 
 ;
 ; getlinsecsr: save registers, call getlinsec, restore registers
