@@ -298,3 +298,13 @@ AX=0008h	Close file
 	will probably crash the system.
 
 
+AX=0009h	Call PXE Stack [PXELINUX ONLY]
+
+	Input:	AX	0009h
+		BX	PXE function number
+		ES:DI	PXE data buffer
+	Output:	AX	PXE return status code
+
+	Invoke an arbitrary PXE stack function.  On SYSLINUX/ISOLINUX,
+	this function returns with an error (CF=1) and no action is
+	taken.

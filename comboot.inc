@@ -357,6 +357,17 @@ comapi_close:
 		clc
 		ret
 
+;
+; INT 22h AX=0009h	Call PXE stack
+;
+%if IS_PXELINUX
+		call far [PXENVEntry]
+		clc
+		ret
+%else
+		stc				; Function not available
+		ret
+%endif
 
 		align 2, db 0
 int22_table:
@@ -369,4 +380,5 @@ int22_table:
 		dw comapi_open			; 0006 open file
 		dw comapi_read			; 0007 read file
 		dw comapi_close			; 0008 close file
+		dw comapi_pxecall		; 0009 call PXE stack
 int22_count	equ ($-int22_table)/2
