@@ -1268,70 +1268,81 @@ lc_1:           cmp al,lcase_low
 lc_ret:         ret
 
 ;
-; getfssec: Get multiple sectors from a file
+; getfssec_edx: Get multiple sectors from a file
 ;
 ;	This routine makes sure the subtransfers do not cross a 64K boundary,
 ;	and will correct the situation if it does, UNLESS *sectors* cross
 ;	64K boundaries.
 ;
 ;	ES:BX	-> Buffer
-;	SI	-> Pointer to structure:
-;		   0 - dword - Starting cluster number (2-based)
-;		   4 - word  - Sector number within cluster
-;		   8 - dword - Absolute sector number
+;	EDX	-> Current sector number
 ;	CX	-> Sector count (0FFFFh = until end of file)
 ;                  Must not exceed the ES segment
-;	Returns CF=1 on EOF
+;	Returns EDX=0, CF=1 on EOF (not necessarily error)
+;	All arguments are advanced to reflect data read.
+;
+getfssec_edx:
+		push ebp
+		push eax
+.getfragment:
+		xor ebp,ebp			; Fragment sector count
+.getseccnt:
+		inc bp
+		dec cx
+		jz .do_read
+		mov ax,es
+		shl ax,4
+		add ax,bx			; Now DI = how far into 64K block we are
+		neg ax				; Bytes left in 64K block
+		shr ax,9			; Sectors left in 64K block
+		cmp bp,ax
+		jnb .do_read			; Unless there is at least 1 more sector room...
+		lea eax,[edx+1]			; Linearly next sector
+		call nextsector
+		jc .do_read
+		cmp edx,eax
+		jz .getseccnt
+
+.do_read:
+		mov eax,edx
+		call getlinsecsr
+		lea eax,[eax+ebp-1]		; This is the last sector actually read
+		shl bp,9
+		add bx,bp			; Adjust buffer pointer
+		call nextsector
+		jc .eof
+		mov edx,eax
+		and cx,cx
+		jnz .getfragment
+.done:
+		pop eax
+		pop ebp
+		ret
+
+.eof:
+		xor edx,edx
+		stc
+		jmp .done
+
+;
+; getfssec: Get multiple sectors from a file
+;
+;	Same as above, except SI is a pointer to a dword with the current sector.
+;
+;	ES:BX	-> Buffer
+;	DS:SI	-> Pointer to current sector number
+;	CX	-> Sector count (0FFFFh = until end of file)
+;                  Must not exceed the ES segment
+;	Returns CF=1 on EOF (not necessarily error)
+;	All arguments are advanced to reflect data read.
 ;
 getfssec:
-.getfragment:	xor ebp,ebp			; Fragment sector count
-		mov edi,[si]
-		lea eax,[edi-2]
-		; mov eax,ebx
-		; sub eax,2
-		; jc .isrootdir			; Use cluster 1 for the root directory
-		mul dword [SecPerClust]
-		add eax,[DataArea]
-		sub bp,[si+4]			; Sectors already read
-.getseccnt:					; See if we can read > 1 clust
-		add bp,[SecPerClust]
-		cmp cx,bp
-		jna .endfragment		; Done?
-		lea eax,[edi+1]
-		call nextcluster
-		jc .eof				; At EOF?
-		cmp eax,edi			; Is file continuous?
-		je .getseccnt			; Yes, we can get
-.endfragment:	clc				; Not at EOF
-.eof:		pushf				; Remember EOF or not
-		push si
-		push cx
-.getchunk:
-		push eax
-		mov ax,es			; Check for 64K boundaries.
-		shl ax,4
-		add ax,bx
-		xor dx,dx
-		neg ax
-		setz dl				; DX <- 1 if full 64K segment
-		div word [bsBytesPerSec]	; How many sectors fit?
-		mov si,bp
-		sub si,ax			; Compute remaining sectors
-		jbe .lastchunk
-		mov bp,ax
-		pop eax
-		call getlinsecsr
-		add eax,ebp			; EBP<31:16> == 0
-		mov bp,si			; Remaining sector count
-		jmp short .getchunk
-.lastchunk:	pop eax
-		call getlinsec
-		pop cx
-		pop si
-		popf
-		jcxz .return			; If we hit the count limit
-		jnc .getfragment		; If we didn't hit EOF
-.return:	ret
+		push edx
+		mov edx,[si]
+		call getfssec_edx
+		mov [si],edx
+		pop edx
+		ret
 
 ;
 ; nextcluster: Advance a cluster pointer in EDI to the next cluster
@@ -1414,6 +1425,61 @@ nextcluster_fat28:
 		pop bx
 		pop si
 		pop eax
+		ret
+
+;
+; nextsector:	Given a sector in EAX on input, return the next sector
+;	     	of the same filesystem object, which may be the root
+;              	directory or a cluster chain.  Returns  EOF.
+;
+;	      	Assumes CS == DS.
+;
+nextsector:
+		push edi
+		push edx
+		mov edx,[DataArea]
+		mov edi,eax
+		sub edi,edx
+		jae .isdata
+
+		; Root directory
+		inc eax
+		cmp eax,edx
+		cmc
+		jmp .done
+
+.isdata:
+		not edi
+		test edi,[ClustMask]
+		jz .endcluster
+
+		; It's not the final sector in a cluster
+		inc eax
+		jmp .done
+
+.endcluster:
+		push gs			; nextcluster trashes gs
+		push cx
+		not edi
+		mov cl,[ClustShift]
+		shr edi,cl
+		add edi,2
+
+		; Now EDI contains the cluster number
+		call nextcluster
+		cmc
+		jc .exit		; There isn't anything else...
+
+		; New cluster number now in EDI
+		sub edi,2
+		shl edi,cl		; CF <- 0, unless something is very wrong
+		lea eax,[edi+edx]
+.exit:
+		pop cx
+		pop gs
+.done:
+		pop edx
+		pop edi
 		ret
 
 ;
