@@ -33,3 +33,6 @@
 - Factor out common and filesystem-specific code into files, even if
   they have to be %includes rather than genuine modules.
 
+- Add "localboot" support to SYSLINUX (using the ISOLINUX feature set.)
+
+- Support booting foreign OS disk images in PXELINUX/ISOLINUX.
