@@ -25,6 +25,8 @@ Changes in 1.75:
 	* ALL: Fix the return from COMBOOT.
 	* ALL: Do some of the early groundwork for supporting DOS
 	  system calls in COMBOOT.
+	* Get rid of unnecessary "near" directives, making the code
+	  bigger.
 
 Changes in 1.74:
 	* SYSLINUX: fix bug that would cause valid kernel images to be
