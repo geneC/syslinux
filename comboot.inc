@@ -92,7 +92,11 @@ is_comboot_image:
 
 		mov word [es:0], 020CDh	; INT 20h instruction
 		; First non-free paragraph
-		mov word [es:02h], comboot_seg+1000h
+		; This is valid because comboot_seg == real_mode_seg
+		; == the highest segment used by all derivatives
+		int 12h			; Get DOS memory size
+		shl ax,6		; Kilobytes -> paragraphs
+		mov word [es:02h],ax
 
 		; Copy the command line from high memory
 		mov cx,125		; Max cmdline len (minus space and CR)
