@@ -35,6 +35,7 @@
 
 #include <inttypes.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #define ALIGN_UP(p,t)       ((t *)(((uintptr_t)(p) + (sizeof(t)-1)) & ~(sizeof(t)-1)))
 
@@ -67,19 +68,22 @@ int __parse_argv(char ***argv, const char *str)
     }
 
     /* This test is AFTER we have processed the null byte;
-       we treat it as a whitespace character */
+       we treat it as a whitespace character so it terminates
+       the last argument */
     if ( ! *p )
       break;
   }
-  q--;				/* Point to final null */
 
   /* Now create argv */
-  *argv = arg = ALIGN_UP(q,char *);
+  arg = ALIGN_UP(q,char *);
+  *argv = arg;
   *arg++ = mem;			/* argv[0] */
 
+  q--;				/* Point q to final null */
   for ( r = mem ; r < q ; r++ ) {
-    if ( *r == '\0' )
+    if ( *r == '\0' ) {
       *arg++ = r+1;
+    }
   }
 
   *arg++ = NULL;		/* Null pointer at the end */
