@@ -3,8 +3,8 @@ apply to that specific program only; other changes apply to all of
 them.
 
 Changes in 2.06:
-	* SYSLINUX: Fix problem that would occationally cause a boot
-	  failure, depending on the length of the kernel.
+	* ALL: Fix problem that would occationally cause a
+	  boot failure, depending on the length of the kernel.
 
 Changes in 2.05:
 	* PXELINUX: Add a default query based on the hardware address
