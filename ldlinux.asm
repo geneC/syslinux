@@ -714,17 +714,20 @@ ldlinux_ent:
 		push es
 		mov bx,fat_seg			; Load into fat_seg:0000
 		mov es,bx
-
+		
 		mov ax,[bsHidden1]		; Hidden sectors
 		mov dx,[bsHidden2]
 		add ax,[bsResSectors]		; plus reserved sectors = FAT
 		adc dx,byte 0
 		mov cx,[bsFATsecs]		; Sectors/FAT
-fat_load_loop:	mov bp,cx
+fat_load_loop:	
+		mov bp,cx
 		cmp bp,si
 		jna fat_load
 		mov bp,si			; A full 64K moby
-fat_load:	call getlinsecsr
+fat_load:	
+		xor bx,bx			; Offset 0 in the current ES
+		call getlinsecsr
 		sub cx,bp
 		jz fat_load_done		; Last moby?
 		add ax,bp			; Advance sector count
@@ -732,7 +735,6 @@ fat_load:	call getlinsecsr
 		mov bx,es			; Next 64K moby
 		add bx,1000h
 		mov es,bx
-		xor bx,bx	
 		jmp short fat_load_loop
 fat_load_done:
 		pop es
@@ -779,10 +781,12 @@ sec_fat_loop:	sub ax,[bsFATsecs]
 		push ax
 		push dx
 		mov ax,[bsRootDirEnts]
-		add ax,di
-		dec ax
 		mov bx,32			; Smaller than shift since we
 		mul bx				; need the doubleword product
+		add ax,di
+		adc dx,byte 0
+		sub ax,byte 1
+		sbb dx,byte 0
 		div di
 		mov bx,ax
 		pop dx
@@ -791,10 +795,10 @@ sec_fat_loop:	sub ax,[bsFATsecs]
 		sbb dx,byte 0
 		div si
 		cmp ax,4086			; Right value?
-		ja have_fat16
-have_fat12:	mov word [NextCluster],nextcluster_fat12
-		jmp short load_rest
-have_fat16:	mov word [NextCluster],nextcluster_fat16
+		mov ax,nextcluster_fat16
+		ja have_fat_type
+have_fat12:	mov ax,nextcluster_fat12
+have_fat_type:	mov word [NextCluster],ax
 
 ;
 ; Now we read the rest of LDLINUX.SYS.	Don't bother loading the first
@@ -842,12 +846,11 @@ getfragment:	xor bp,bp			; Fragment sector count
 		mov ax,si			; Get sector address
 		dec ax				; Convert to 0-based
 		dec ax
-		mov bx,[SecPerClust]
-		mul bx
+		mul word [SecPerClust]
 		add ax,[DataArea1]
 		adc dx,[DataArea2]
 getseccnt:					; See if we can read > 1 clust
-		add bp,bx
+		add bp,[SecPerClust]
 		dec cx				; Reduce clusters left to find
 		mov di,si			; Predict next cluster
 		inc di
@@ -1020,7 +1023,7 @@ not_386:
 		call writestr
 		jmp kaboom
 is_386:
-		.386				; Now we know it's a 386
+		; Now we know it's a 386 or higher
 ;
 ; Now check that there is at least 608K of low (DOS) memory
 ; (608K = 9800h segments)
@@ -1033,6 +1036,26 @@ is_386:
 		jmp kaboom
 enough_ram:
 skip_checks:
+
+;
+; We still need to check if this is a 486 or higher, and if it isn't, blank
+; out the WBINVD subroutine
+;
+		pushfd
+		pushfd
+		pop eax
+		mov ebx,eax
+		xor eax,(1 << 18)		; Toggle EFLAGS.AC
+		push eax
+		popfd
+		pushfd
+		pop eax
+		popfd
+		cmp eax,ebx
+		jne is_486			; Is a 486 or higher, assume WBINVD works
+		mov word [flush_cache.wbinvd],09090h	; NOP out
+is_486:
+
 ;
 ; Initialization that does not need to go into the any of the pre-load
 ; areas
@@ -1738,14 +1761,15 @@ read_kernel:
 ;
 ; Move the stuff beyond the setup code to high memory at 100000h
 ;
-		movzx ecx,word [SetupSecs]	; Setup sectors
-		inc ecx				; plus 1 boot sector
-                shl ecx,9			; Convert to bytes
-                mov esi,108000h			; 108000h = 1M + 32K
-                sub esi,ecx			; Adjust pointer to 2nd block
-                mov [HiLoadAddr],esi
-		sub esi,70000h			; Pointer to source
+		movzx esi,word [SetupSecs]	; Setup sectors
+		inc esi				; plus 1 boot sector
+                shl esi,9			; Convert to bytes
+                mov ecx,108000h			; 108000h = 1M + 32K
+                sub ecx,esi			; Adjust pointer to 2nd block
+                mov [HiLoadAddr],ecx
+		sub ecx,100000h			; Turn into a counter
 		shr ecx,2			; Convert to dwords
+		add esi,90000h			; Pointer to source
                 mov edi,100000h                 ; Copy to address 100000h
                 call bcopy			; Transfer to high memory
 ;
@@ -1916,36 +1940,34 @@ bcopy_gdt_size:	equ $-bcopy_gdt
 
 bcopy:
 		push eax
+		pushf			; Saves, among others, the IF flag
 		push gs
 		push fs
 		push ds
 		push es
-		pushf			; Saves, among others, the IF flag
+
+		cli
+		call enable_a20
 
 		o32 lgdt [bcopy_gdt_ptr]
 		mov eax,cr0
 		or al,1
-		cli
 		mov cr0,eax		; Enter protected mode
 		jmp 8:.in_pm
 
-.in_pm:		xor ax,ax		; Null selector
-		mov fs,ax
-		mov gs,ax
-
-		mov al,16		; Data segment selector
+.in_pm:		mov ax,16		; Data segment selector
 		mov es,ax
 		mov ds,ax
 
 		mov al,24		; "Real-mode-like" data segment
 		mov ss,ax
+		mov fs,ax
+		mov gs,ax	
 	
 		a32 rep movsd		; Do our business
 		
 		mov es,ax		; Set to "real-mode-like"
 		mov ds,ax
-		mov fs,ax
-		mov gs,ax	
 	
 		mov eax,cr0
 		and al,0feh
@@ -1954,12 +1976,64 @@ bcopy:
 
 .in_rm:		xor ax,ax		; Back in real mode
 		mov ss,ax
-		popf
 		pop es
 		pop ds
 		pop fs
 		pop gs
+		call disable_a20
+
+		popf			; Re-enables interrupts
 		pop eax
+		ret
+
+;
+; Routines to enable and disable (yuck) A20
+; These routines are largely cut-and-paste from the Linux setup code
+; 
+%define	io_delay out 0EDh, ax		; Invalid port
+
+enable_a20:
+		call flush_cache
+		call empty_8042
+		mov al,0D1h		; Command write
+		out 064h, al
+		call empty_8042
+		mov al,0DFh		; A20 on
+		out 060h, al
+kbc_delay:	call empty_8042
+		push cx
+		mov cx,14h
+.delayloop:	io_delay
+		loop .delayloop
+		pop cx
+		ret
+
+disable_a20:
+		call flush_cache
+		call empty_8042
+		mov al,0D1h
+		out 064h, al		; Command write
+		call empty_8042
+		mov al,0DDh		; A20 off
+		out 060h, al
+		jmp short kbc_delay
+
+empty_8042:
+		io_delay
+		in al, 064h		; Status port
+		test al,1
+		jz .no_output
+		io_delay
+		in al, 060h		; Read input
+		jmp short empty_8042
+.no_output:
+		test al,2
+		jnz empty_8042
+		io_delay
+		ret	
+
+flush_cache:
+.wbinvd:	wbinvd			; Gets NOP'd out on a 386
 		ret
 
 ;
@@ -1970,7 +2044,6 @@ loadinitrd:
                 mov ax,real_mode_seg
                 mov es,ax
                 mov si,[initrd_ptr]
-		and si,si
                 mov edi,[InitRDat]		; initrd load address
 		mov [es:su_ramdiskat],edi	; Offset for ram disk
 		push si
@@ -1996,13 +2069,10 @@ rd_last_moby:
 		call getfssec
 		pop cx
                 push si				; Save cluster pointer
-                pushf                           ; Remember EOF
 		mov esi,(xfer_buf_seg << 4)
 		mov edi,[InitRDat]
 		mov ecx,4000h			; Copy 64K
-		call bcopy
-                popf
-		pop si
+		call bcopy			; Does not change flags!!
                 jc rd_load_done                 ; EOF?
                 add dword [InitRDat],10000h	; Point to next 64K
 		cmp word [InitRDClust],byte 0	; Are we done?
@@ -2878,7 +2948,7 @@ linuxauto_len   equ $-linuxauto_cmd
 auto_len        equ $-auto_cmd
 boot_image      db 'BOOT_IMAGE='
 boot_image_len  equ $-boot_image
-                align 4			; For the good of REP MOVSD
+                align 4, db 0		; For the good of REP MOVSD
 command_line	equ $
 default_cmd	equ $+(max_cmd_len+2)
 ldlinux_end	equ default_cmd+(max_cmd_len+1)
