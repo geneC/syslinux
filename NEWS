@@ -4,6 +4,8 @@ them.
 
 Changes in 3.01:
 	* EXTLINUX, SYSLINUX: Fix compile errors on some systems.
+	* EXTLINUX: Default to zipdrive geometry (64 heads, 32
+	  sectors) if no other geometry can be detected.
 
 Changes in 3.00:
 	* SYSLINUX: Support FAT32 and EDD.  As an unfortunate
