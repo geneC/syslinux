@@ -25,22 +25,22 @@ BINDIR  = /usr/bin
 .c.o:
 	$(CC) $(CFLAGS) -c $<
 
-all:	bootsect.bin ldlinux.sys syslinux.com syslinux
+TARGETS=bootsect.bin ldlinux.sys syslinux.com syslinux
+
+all:	$(TARGETS)
+	ls -l $(TARGETS)
 
 ldlinux.bin: ldlinux.asm
 	$(NASM) -f bin -dHEX_TIME="`perl now.pl`" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
-	ls -l ldlinux.bin
 
 bootsect.bin: ldlinux.bin
 	dd if=ldlinux.bin of=bootsect.bin bs=512 count=1
 
 ldlinux.sys: ldlinux.bin
 	dd if=ldlinux.bin of=ldlinux.sys  bs=512 skip=1
-	ls -l ldlinux.sys
 
 syslinux.com: syslinux.asm bootsect.bin ldlinux.sys
 	$(NASM) -f bin -l syslinux.lst -o syslinux.com syslinux.asm
-	ls -l syslinux.com
 
 bootsect_bin.c: bootsect.bin bin2c.pl
 	perl bin2c.pl bootsect < bootsect.bin > bootsect_bin.c

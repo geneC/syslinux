@@ -1560,8 +1560,7 @@ cmdline_end:
 ;
 new_kernel:
 		mov byte [es:su_loader],syslinux_id	; Show some ID
-		xor ax,ax
-		mov al,[es:bs_setupsecs]	; Variable # of setup sectors
+		movzx ax,byte [es:bs_setupsecs]	; Variable # of setup sectors
 		mov [SetupSecs],ax
 ;
 ; Now see if we have an initial RAMdisk; if so, do requisite computation
