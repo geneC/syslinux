@@ -919,12 +919,6 @@ kaboom:
 		pop cx
 		loop .wait1
 .keypress:
-		mov ax,[SerialPort]
-		call writehex4
-		call crlf
-		mov ax,0100h
-		int 16h
-		call writehex4
 		call crlf
 		mov word [BIOS_magic],0	; Cold reboot
 		jmp 0F000h:0FFF0h	; Reset vector address
