@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2001 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2001-2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -52,7 +52,6 @@ int main(int argc, char *argv[])
   int output = 0;
   int i;
   char *sep;
-  char dotquad[16];
   int err = 0;
 
   struct hostent *host;
@@ -109,23 +108,20 @@ int main(int argc, char *argv[])
     }
 
     if ( output & 2 ) {
-      sprintf(dotquad, "%u.%u.%u.%u",
-	      ((unsigned char *)host->h_addr)[0],
-	      ((unsigned char *)host->h_addr)[1],
-	      ((unsigned char *)host->h_addr)[2],
-	      ((unsigned char *)host->h_addr)[3]);
-      printf("%s%s", sep, dotquad);
+      printf("%s%u.%u.%u.%u", sep,
+	     ((unsigned char *)host->h_addr)[0],
+	     ((unsigned char *)host->h_addr)[1],
+	     ((unsigned char *)host->h_addr)[2],
+	     ((unsigned char *)host->h_addr)[3]);
       sep = " ";
     }
 
     if ( output & 4 ) {
-      unsigned long addr = 
-	(((unsigned char *)host->h_addr)[0] << 24UL) +
-	(((unsigned char *)host->h_addr)[1] << 16UL) +
-	(((unsigned char *)host->h_addr)[2] <<  8UL) +
-	(((unsigned char *)host->h_addr)[3]);
-
-      printf("%s%08lX", sep, addr);
+      printf("%s%02X%02X%02X%02X", sep,
+	     ((unsigned char *)host->h_addr)[0],
+	     ((unsigned char *)host->h_addr)[1],
+	     ((unsigned char *)host->h_addr)[2],
+	     ((unsigned char *)host->h_addr)[3]);
       sep = " ";
     }
 
