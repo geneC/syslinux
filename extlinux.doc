@@ -54,3 +54,14 @@ preferred way to boot is:
 - Run "extlinux /boot" to install extlinux.  This will install it on
   all the drives in the RAID-1 set, which means you can boot any
   combination of drives in any order.
+
+
+
+It is not required to re-run the extlinux installer after installing
+new kernels.  If you are using ext3 journalling, however, it might be
+desirable to do so, since running the extlinux installer will flush
+the log.  Otherwise a dirty shutdown could cause some of the new
+kernel image to still be in the log.  This is a general problem for
+boot loaders on journalling filesystems; it is not specific to
+extlinux.  The "sync" command does not flush the log on the ext3
+filesystem.
