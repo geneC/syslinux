@@ -14,6 +14,8 @@ Changes in 2.12:
 	* ISOLINUX: Support non-mkisofs mastering programs, at least
 	  as long as the image is single-session.  For best results,
 	  ISOLINUX should be the only boot loader installed.
+	* MEMDISK: Allow the user to specify that the simulated disk
+	  should be write-protected.
 
 Changes in 2.11:
 	* ALL: Add an API call to get the configuration file name.
