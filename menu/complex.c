@@ -37,12 +37,17 @@ char TESTING,RESCUE,MAIN,PREP;
 
 /* End globals */
 
+#define INFLINE 22
+
 void msys_handler(t_menusystem *ms, t_menuitem *mi)
 {
+    char nc;
+    nc = getnumcols(); // Get number of columns
+
     if (mi->parindex != PREP) // If we are not in the PREP MENU
     {
-        gotoxy(21,0,ms->menupage);
-        cprint(ms->fillchar,ms->fillattr,80,ms->menupage);
+        gotoxy(INFLINE,0,ms->menupage);
+        cprint(' ',0x07,nc,ms->menupage);
         return;
     }
     strcpy (infoline," ");
@@ -53,13 +58,13 @@ void msys_handler(t_menusystem *ms, t_menuitem *mi)
     else if (!flags.dhcp) strcat(infoline,"network=static ");
     if (flags.winrep) strcat(infoline,"repair=win ");
     if (flags.linrep) strcat(infoline,"repair=lin ");
-    gotoxy(20,0,ms->menupage);
-    cprint(ms->spacechar,ms->statusattr,80,ms->menupage);
-    gotoxy(21,0,ms->menupage);
-    cprint(ms->spacechar,ms->statusattr,80,ms->menupage);
-    gotoxy(20,0,ms->menupage);
+    gotoxy(INFLINE,0,ms->menupage);
+    cprint(' ',0x07,nc,ms->menupage);
+    gotoxy(INFLINE+1,0,ms->menupage);
+    cprint(' ',0x07,nc,ms->menupage);
+    gotoxy(INFLINE,0,ms->menupage);
     csprint("Kernel Arguments:");
-    gotoxy(20,17,ms->menupage);
+    gotoxy(INFLINE,17,ms->menupage);
     csprint(infoline);
 }
 
@@ -123,12 +128,12 @@ int menumain(char *cmdline)
 
   // Choose the default title and setup default values for all attributes....
   init_menusystem(NULL);
-  set_window_size(1,1,23,79); // Leave one row/col all around
+  set_window_size(1,1,20,78); // Leave some space around
   
   // Choose the default values for all attributes and char's
   // -1 means choose defaults (Actually the next 4 lines are not needed)
   //set_normal_attr (-1,-1,-1,-1); 
-  //set_status_info (-1,-1); 
+  //set_status_info (-1,-1); // Display status on the last line
   //set_title_info  (-1,-1); 
   //set_misc_info(-1,-1,-1,-1);
 

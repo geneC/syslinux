@@ -10,12 +10,6 @@
  *
  * ----------------------------------------------------------------------- */
 
-/* This program can be compiled for DOS with the OpenWatcom compiler
- * (http://www.openwatcom.org/):
- *
- * wcl -3 -osx -mt <filename>.c
- */
-
 #ifndef __BIOSIO_H__
 #define __BIOSIO_H__
 
@@ -35,7 +29,7 @@ char getdisppage(); // Get current display page
 
 void clearwindow(char top,char left,char bot,char right, char page,char fillchar, char fillattr);
 
-void cls(void);
+void cls(void);			/* Clears the entire current screen page */
 
 void gotoxy(char row,char col, char page);
 

@@ -47,6 +47,6 @@ clean:
 	-rm -f *.s *.s16 *.o16 *.elf *.com *.a *.d
 
 spotless: clean
-	-rm -f *~ \#*
+	-rm -f *~ \#* .\#*
 
 -include *.d
