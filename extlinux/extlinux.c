@@ -416,7 +416,8 @@ get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
   geo->start     = 0;
 
   if ( !opt.sectors && !opt.heads )
-    fprintf(stderr, "Warning: unable to obtain device geometry (defaulting to %d heads, %d sectors)\n",
+    fprintf(stderr, "Warning: unable to obtain device geometry (defaulting to %d heads, %d sectors)\n"
+	    "         (on hard disks, this is usually harmless.)\n",
 	    geo->heads, geo->sectors);
 
   return 1;

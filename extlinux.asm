@@ -853,7 +853,7 @@ getonesec_ext:
 		mov bp,1
 
 getlinsec_ext:
-		cmp eax,[ClustSize]
+		cmp eax,[SecPerClust]
 		jae getlinsec			; Nothing fancy
 
 		; If we get here, at least part of what we want is in the
@@ -976,6 +976,11 @@ open_inode:
 		inc eax				; s_first_data_block+1
 		mov cl,[ClustShift]
 		shl eax,cl
+		push edx
+		shr edx,SECTOR_SHIFT
+		add eax,edx
+		pop edx
+		and dx,SECTOR_SIZE-1
 		call getcachesector		; Get the group descriptor
 		add si,dx
 		mov esi,[gs:si+bg_inode_table]	; Get inode table block #
@@ -1062,6 +1067,7 @@ searchdir:
 		call getfssec
 		pop bx
 		pushf			; Save EOF flag
+		push si			; Save filesystem pointer
 .getent:
 		cmp dword [bx+d_inode],0
 		je .endblock
@@ -1078,6 +1084,7 @@ searchdir:
 		jmp .getent
 
 .endblock:
+		pop si
 		popf
 		jnc .readdir		; There is more
 .failure:
@@ -1093,17 +1100,19 @@ searchdir:
 		
 		; It's a match, but it's a directory.
 		; Repeat operation.
+		pop bx			; Adjust stack (di)
+		pop si
 		call close
-		pop si			; Adjust stack (di)
-		pop si			; Adjust stack (flags)
+		pop bx			; Adjust stack (flags)
 		inc di			; Skip slash
 		jmp .searchloop
 		
 
 .finish:	; We found it; now we need to open the file
+		pop bx			; Adjust stack (di)
+		pop si
 		call close		; Close directory
-		pop si			; Adjust stack (di)
-		pop si			; Adjust stack (flags)
+		pop bx			; Adjust stack (flags)
 		call open_inode
 .done:
 		pop di
@@ -1331,6 +1340,12 @@ getfssec:
 		push eax
 		push edx
 		push edi
+
+		movzx ecx,cx
+		cmp ecx,[si]			; Number of sectors left
+		jbe .lenok
+		mov cx,[si]
+.lenok:
 .getfragment:
 		mov eax,[si+file_sector]	; Current start index
 		mov edi,eax
@@ -1369,9 +1384,9 @@ getfssec:
 		pop bp
 		add [si+file_sector],ebp	; Next sector index
 		sub [si],ebp			; Sectors consumed
-		jz .done
 		jcxz .done
-		jmp .getfragment
+		jnz .getfragment
+		; Fall through
 .done:
 		cmp dword [si],1		; Did we run out of file?
 		; CF set if [SI] < 1, i.e. == 0
