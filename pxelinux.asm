@@ -310,7 +310,6 @@ trackbufsize	equ $-trackbuf
 ;		trackbuf ends at 5000h
 
                 absolute 5000h          ; Here we keep our BSS stuff
-StackBuf	equ $			; Start the stack here (grow down - 4K)
 VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
@@ -392,7 +391,14 @@ packet_buf_size	equ $-packet_buf
 bootsec		equ $
 _start:
 		jmp 0:_start1		; Canonicalize address
-_start1:	
+_start1:
+		pushad			; Paranoia... in case of return to PXE
+		pushfd			; ... save as much state as possible
+		push ds
+		push es
+		push fs
+		push gs
+	
 		mov bp,sp
 		les bx,[bp+4]		; Initial !PXE structure pointer
 
@@ -864,6 +870,8 @@ parse_config:
 		je near pc_say
 		cmp ax,'ip'			; IPappend
 		je pc_ipappend
+		cmp ax,'lo'			; LOcalboot
+		je pc_localboot
 		cmp al,'f'			; F-key
 		jne parse_config
 		jmp pc_fkey
@@ -904,8 +912,13 @@ pc_ipappend:	call getint			; "ipappend" command
 .vk:		mov [VKernelBuf+vk_ipappend],bl
 		jmp short parse_config_2
 
+pc_localboot:	cmp word [VKernelCtr],byte 0	; "localboot" command
+		je parse_config_2		; ("label" section only)
+		mov [VKernelBuf+vk_rname], byte 0	; Null kernel name
+		jmp short parse_config_2
+
 pc_kernel:	cmp word [VKernelCtr],byte 0	; "kernel" command
-		je near parse_config		; ("label" section only)
+		je parse_config_2		; ("label" section only)
 		mov di,trackbuf
 		push di
 		call getline
@@ -1302,7 +1315,7 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
                 mov di,KernelName	      	; Search on disk
                 call searchdir
 		pop bx
-                jnz kernel_good
+                jnz near kernel_good
 		mov eax,[bx]			; Try a different extension
 		mov si,[KernelExtPtr]
 		mov [si],eax
@@ -1356,7 +1369,12 @@ vk_found:	popa
 		mov al,[VKernelBuf+vk_ipappend]
 		mov [IPAppend],al
 		xor bx,bx			; Try only one version
-		jmp get_kernel
+
+		; Is this a "localboot" pseudo-kernel?
+		cmp byte [VKernelBuf+vk_rname], 0
+		jne near get_kernel		; No, it's real, go get it
+
+		jmp local_boot
 ;
 ; kernel_corrupt: Called if the kernel file does not seem healthy
 ;
@@ -2081,6 +2099,24 @@ is_bss_sector:
 .badness:	jmp short .badness
 
 ;
+; Boot to the local disk by returning the appropriate PXE magic
+;
+local_boot:
+		lss sp,[cs:Stack]		; Restore stack pointer
+		pop ds				; Restore DS
+		mov si,localboot_msg
+		call writestr
+		; Restore the environment we were called with
+		pop gs
+		pop fs
+		pop es
+		pop ds
+		popfd
+		popad
+		xor ax,ax			; Unload PXE and local boot
+		retf				; Return to PXE
+
+;
 ; 32-bit bcopy routine for real mode
 ;
 ; We enter protected mode, set up a flat 32-bit environment, run rep movsd
@@ -2467,8 +2503,7 @@ abort_load:
                 mov ds,ax
                 mov es,ax
                 cli
-                mov sp,StackBuf-2*3    		; Reset stack
-                mov ss,ax                       ; Just in case...
+		lss sp,[cs:Stack]		; Reset the stack
                 sti
                 call cwritestr                  ; Expects SI -> error msg
 al_ok:          jmp enter_command               ; Return to command prompt
@@ -2486,6 +2521,7 @@ ac_ret1:	ret
 kaboom:
 		lss sp,[cs:Stack]
 		pop ds
+		push ds
 		sti
 .patch:		mov si,bailmsg
 		call writestr		; Returns with AL = 0
@@ -4024,6 +4060,7 @@ trymempxenv_msg	db 'Scanning memory for PXENV+ structure... ', 0
 notfound_msg	db 'not found', CR, LF, 0
 myipaddr_msg	db 'My IP address seems to be ',0
 tftpprefix_msg	db 'TFTP prefix: ', 0
+localboot_msg	db 'Booting from local disk...', CR, LF, 0
 cmdline_msg	db 'Command line: ', CR, LF, 0
 ready_msg	db ' ready.', CR, LF, 0
 trying_msg	db 'Trying to load: ', 0
@@ -4052,7 +4089,6 @@ initrd_cmd_len	equ 7
 		align 2, db 0
 
 keywd_table	db 'ap' ; append
-		db 'ip' ; ipappend
 		db 'de' ; default
 		db 'ti' ; timeout
 		db 'fo'	; font
@@ -4074,6 +4110,9 @@ keywd_table	db 'ap' ; append
 		db 'f8' ; F8
 		db 'f9' ; F9
 		db 'f0' ; F10
+		; PXELINUX specific options...
+		db 'ip' ; ipappend
+		db 'lo' ; localboot
 		dw 0
 ;
 ; Extensions to search for (in *forward* order).

@@ -154,6 +154,11 @@ LABEL label
         Append nothing.  APPEND with a single hyphen as argument in a
         LABEL section can be used to override a global APPEND.
 
+  LOCALBOOT flag_val
+	On PXELINUX, specifying "LOCALBOOT 1" instead of a "KERNEL"
+	option means invoking this particular label will cause a local
+	disk boot instead of booting a kernel.
+
 IMPLICIT flag_val
         If flag_val is 0, do not load a kernel image unless it has been
         explicitly named in a LABEL statement.  The default is 1.

@@ -7,6 +7,8 @@ Changes in 1.53:
 	* PXELINUX: Update the docs to outline how to work with the
 	  kano.org.uk pxe server daemon.  A more complete example
 	  setup still needs to be written.
+	* PXELINUX: Support new "localboot" option for "label"
+	  sections.
 
 Changes in 1.52:
 	* PXELINUX: Fix bugs introduced by new A20 code.  (SYSLINUX
