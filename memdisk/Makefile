@@ -33,7 +33,8 @@ clean:
 	$(AS) -o $@ $<
 
 %.s16: %.s
-	echo '.code16' | cat - $< > $@
+	echo '.code16' > $@
+	sed -e 's/\bcall\b/calll/g' -e 's/\bret\b/retl/g' < $< >> $@
 
 %.s: %.S
 	$(CC) -x c $(CFLAGS) -Wp,-traditional -E -o $@ $<

@@ -127,7 +127,7 @@ start:
 
 main:
 		sti
-		call setup		# Call the C code
+		calll setup		# Call the C code
 		# The setup function returns the drive number,
 		# which should be returned in %dl
 		movw %ax,%dx

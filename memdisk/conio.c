@@ -17,6 +17,7 @@
  * Output to the screen
  */
 
+#include <stdint.h>
 #include "conio.h"
 
 int putchar(int ch)
@@ -25,8 +26,8 @@ int putchar(int ch)
     putchar('\r');		/* \n -> \r\n */
 
   asm volatile("int $0x10"
-	       :: "a" (0x1400|(ch&0xff)),
-	       "b" (0x07)
+	       :: "a" ((uint16_t)(0x0e00|(ch&0xff))),
+	       "b" ((uint16_t)0x07)
 	       : "eax", "ebx", "ecx", "edx",
 	       "esi", "edi", "ebp");
 
@@ -40,6 +41,7 @@ int puts(const char *s)
   while ( *s ) {
     putchar(*s);
     count++;
+    s++;
   }
 
   return count;
