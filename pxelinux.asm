@@ -332,6 +332,9 @@ _start1:
 		cmp ax,564Eh
 		jne no_pxe
 
+		mov si,found_pxenv
+		call writestr
+
 		; Okay, that gave us the PXENV+ structure, find !PXE
 		; structure from that
 		cmp dword [es:bx], 'PXEN'
@@ -340,7 +343,7 @@ _start1:
 		jne no_pxe
 		cmp word [es:bx+6], 0201h	; API version 2.1 or higher
 		jb no_pxe
-		les bx,[es:bx+26]		; !PXE structure pointer
+		les bx,[es:bx+26h]		; !PXE structure pointer
 		cmp dword [es:bx],'!PXE'
 		je have_pxe
 
@@ -2923,6 +2926,7 @@ err_bootfailed	db 0Dh, 0Ah, 'Boot failed: please change disks and press '
 		db 'a key to continue.', 0Dh, 0Ah, 0
 bailmsg		equ err_bootfailed
 err_nopxe	db 'Cannot find !PXE structure, I want my mommy!' ,0Dh, 0Ah, 0
+found_pxenv	db 'Found PXENV+ structure', 0Dh, 0Ah, 0
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
 dot_msg         db '.', 0
