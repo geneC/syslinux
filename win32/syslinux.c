@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  if ( !drive )
+  if ( !drive || !isalpha(drive[0]) || drive[1] != ':' || drive[2] )
     usage();
 
   /* Test if drive exists */
