@@ -297,7 +297,7 @@ uint64_t get_size(int devfd)
  * Get device geometry and partition offset
  */
 struct geometry_table {
-  off_t bytes;
+  uint64_t bytes;
   struct hd_big_geometry g;
 };
 
@@ -309,7 +309,8 @@ static const struct geometry_table standard_geometries[] = {
   { 1440*1024, {  2, 18, 80, 0 } },
   { 1680*1024, {  2, 21, 80, 0 } },
   { 1722*1024, {  2, 21, 80, 0 } },
-  { 3840*1024, {  2, 36, 80, 0 } },
+  { 2880*1024, {  2, 36, 80, 0 } },
+  { 3840*1024, {  2, 48, 80, 0 } },
   { 0, {0,0,0,0} }
 };
 
@@ -335,6 +336,7 @@ get_geometry(int devfd, uint64_t totalbytes, struct hd_big_geometry *geo)
     geo->sectors   = fd_str.sect;
     geo->cylinders = fd_str.track;
     geo->start     = 0;
+    return 0;
   } 
 
   /* Didn't work.  Let's see if this is one of the standard geometries */
@@ -555,7 +557,7 @@ int
 install_loader(char *path)
 {
   struct stat st, dst, fst;
-  struct mntent *mnt;
+  struct mntent *mnt = NULL;
   int devfd, rv;
   FILE *mtab;
 
@@ -564,28 +566,45 @@ install_loader(char *path)
     return 1;
   }
   
-  if ( !(mtab = setmntent("/etc/mtab", "r")) ) {
-    fprintf(stderr, "%s: cannot open /etc/mtab\n", program);
-    return 1;
-  }
-
   devfd = -1;
-  while ( (mnt = getmntent(mtab)) ) {
-    if ( (!strcmp(mnt->mnt_type, "ext2") ||
-	  !strcmp(mnt->mnt_type, "ext3")) &&
-	 !stat(mnt->mnt_fsname, &dst) &&
-	 dst.st_rdev == st.st_dev ) {
-      fprintf(stderr, "%s is device %s\n", path, mnt->mnt_fsname);
-      if ( (devfd = open(mnt->mnt_fsname, O_RDWR|O_SYNC)) < 0 ) {
-	fprintf(stderr, "%s: cannot open device %s\n", program, mnt->mnt_fsname);
-	return 1;
+
+  if ( (mtab = setmntent("/proc/mounts", "r")) ) {
+    while ( (mnt = getmntent(mtab)) ) {
+      if ( (!strcmp(mnt->mnt_type, "ext2") ||
+	    !strcmp(mnt->mnt_type, "ext3")) &&
+	   !stat(mnt->mnt_fsname, &dst) &&
+	   dst.st_rdev == st.st_dev ) {
+	fprintf(stderr, "%s is device %s\n", path, mnt->mnt_fsname);
+	if ( (devfd = open(mnt->mnt_fsname, O_RDWR|O_SYNC)) < 0 ) {
+	  fprintf(stderr, "%s: cannot open device %s\n", program, mnt->mnt_fsname);
+	  return 1;
+	}
+	break;
       }
-      break;
     }
   }
 
   if ( devfd < 0 ) {
-    fprintf(stderr, "%s: cannot find device for path %s", program, path);
+    /* Didn't find it in /proc/mounts, try /etc/mtab */
+    if ( (mtab = setmntent("/etc/mtab", "r")) ) {
+      while ( (mnt = getmntent(mtab)) ) {
+	if ( (!strcmp(mnt->mnt_type, "ext2") ||
+	      !strcmp(mnt->mnt_type, "ext3")) &&
+	     !stat(mnt->mnt_fsname, &dst) &&
+	     dst.st_rdev == st.st_dev ) {
+	  fprintf(stderr, "%s is device %s\n", path, mnt->mnt_fsname);
+	  if ( (devfd = open(mnt->mnt_fsname, O_RDWR|O_SYNC)) < 0 ) {
+	    fprintf(stderr, "%s: cannot open device %s\n", program, mnt->mnt_fsname);
+	    return 1;
+	  }
+	  break;
+	}
+      }
+    }
+  }
+
+  if ( devfd < 0 ) {
+    fprintf(stderr, "%s: cannot find device for path %s\n", program, path);
     return 1;
   }
 

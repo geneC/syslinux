@@ -47,7 +47,7 @@ write8(le8_t *_p, uint8_t _v)
 /* Littleendian architectures which support unaligned memory accesses */
 
 static inline unsigned short
-read16(const le16_t *_p)
+read16(le16_t *_p)
 {
   return *((const uint16_t *)_p);
 }
@@ -59,7 +59,7 @@ write16(le16_t *_p, unsigned short _v)
 }
 
 static inline unsigned int
-read32(const le32_t *_p)
+read32(le32_t *_p)
 {
   return *((const uint32_t *)_p);
 }
@@ -75,7 +75,7 @@ write32(le32_t *_p, uint32_t _v)
 /* Generic, mostly portable versions */
 
 static inline unsigned short
-read16(const le16_t *_p)
+read16(le16_t *_p)
 {
   uint16_t _v;
 
@@ -92,7 +92,7 @@ write16(le16_t *_p, uint16_t _v)
 }
 
 static inline unsigned int
-read32(const le32_t *_p)
+read32(le32_t *_p)
 {
   _v  = _p[0];
   _v |= _p[1] << 8;
