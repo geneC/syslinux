@@ -8,6 +8,8 @@ Changes in 1.64:
 	* Make DOS installer hopefully behave more nicely when used on
 	  recent Windows versions.
 	* Fix returning to text mode when a font has been specified.
+	* Attempt to detect missing serial port hardware and disable
+	  the serial port if there is nothing there.
 
 Changes in 1.63:
 	* Make the ppmtolss16 program handle color conversion more
