@@ -18,6 +18,8 @@
 #
 .PHONY: official release
 
+CVS     = cvs -d hpa@terminus.zytor.com:/home/hpa/cvsroot
+
 PRIVATE = Makefile.private .depend memdisk/.depend com32/lib
 
 isolinux.iso: all
@@ -36,19 +38,17 @@ official:
 	$(MAKE) dist
 
 release:
-	cvs tag -F `echo syslinux-$(VERSION) | sed -e 's/\./_/g'`
+	$(CVS) tag -F `echo syslinux-$(VERSION) | sed -e 's/\./_/g'`
 	-rm -rf release/syslinux-$(VERSION)
 	-rm -f release/syslinux-$(VERSION).*
 	mkdir -p release/syslinux-$(VERSION)
-	cp -dR $(SOURCES) $(DOCS) $(OTHER) release/syslinux-$(VERSION)
-	find release/syslinux-$(VERSION) -name CVS -type d -print0 | \
-		xargs -0rt rm -rf
+	cd release && $(CVS) export -r `echo syslinux-$(VERSION) | sed -e 's/\./_/g'` -d syslinux-$(VERSION) syslinux
 	find release/syslinux-$(VERSION) \
 		\( -name '*~' -or -name '#*' \) -type f -print0 | \
 		xargs -0rt rm -f
-	cp -a $(PRIVATE) release/syslinux-$(VERSION)
-	cd release/syslinux-$(VERSION) && $(MAKE) depend
-	cd release/syslinux-$(VERSION) && $(MAKE) official
+	$(MAKE) -C release/syslinux-$(VERSION) spotless
+	$(MAKE) -C release/syslinux-$(VERSION) depend
+	$(MAKE) -C release/syslinux-$(VERSION) official
 	cd release/syslinux-$(VERSION) && rm -rf $(PRIVATE)
 	cd release && tar cvvf - syslinux-$(VERSION) | \
 		gzip -9 > syslinux-$(VERSION).tar.gz
@@ -61,20 +61,19 @@ PRERELNO  := $(shell cat $(PRERELDIR)/.prerel 2>/dev/null || echo 1)
 PREREL    := syslinux-$(VERSION)-pre$(PRERELNO)
 
 prerel:
-	cvs tag -F `echo $(PREREL) | sed -e 's/\./_/g'`
+	$(CVS) tag -F `echo $(PREREL) | sed -e 's/\./_/g'`
 	mkdir -p $(PRERELDIR) $(PRERELDIR)/uu
 	-rm -rf $(PRERELDIR)/$(PREREL)
 	-rm -f $(PRERELDIR)/$(PREREL).*
 	mkdir -p $(PRERELDIR)/$(PREREL)
-	cp -dR $(SOURCES) $(DOCS) $(OTHER) $(PRERELDIR)/$(PREREL)
-	find $(PRERELDIR)/$(PREREL) -name CVS -type d -print0 | \
-		xargs -0rt rm -rf
+	cd $(PRERELDIR) && $(CVS) export -r `echo $(PREREL) | sed -e 's/\./_/g'` -d $(PREREL) syslinux
 	find $(PRERELDIR)/$(PREREL) \
 		\( -name '*~' -or -name '#*' \) -type f -print0 | \
 		xargs -0rt rm -f
-	make -C $(PRERELDIR)/$(PREREL) spotless
-	make -C $(PRERELDIR)/$(PREREL) all DATE=`printf '%s-pre%d          ' $(VERSION) $(PRERELNO) | dd bs=10 count=1 2>/dev/null`
-	make -C $(PRERELDIR)/$(PREREL) dist
+	$(MAKE) -C $(PRERELDIR)/$(PREREL) spotless
+	$(MAKE) -C $(PRERELDIR)/$(PREREL) depend
+	$(MAKE) -C $(PRERELDIR)/$(PREREL) all DATE=`printf '%s-pre%d          ' $(VERSION) $(PRERELNO) | dd bs=10 count=1 2>/dev/null`
+	$(MAKE) -C $(PRERELDIR)/$(PREREL) dist
 	cd $(PRERELDIR)/$(PREREL) && rm -rf $(PRIVATE)
 	cd $(PRERELDIR) && tar cvvf - $(PREREL) | \
 		gzip -9 > $(PREREL).tar.gz 
