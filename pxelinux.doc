@@ -54,7 +54,7 @@ search for its config file on the boot server in the following way:
 
 It should be noted that all filename references are relative to the
 directory pxelinux.0 lives in (usually /tftpboot).  PXELINUX
-generally requires that filenames (including any relative path) are 31
+generally requires that filenames (including any relative path) are 63
 characters or shorter in length.
 
 PXELINUX does not support MTFTP, and I have no immediate plans of
