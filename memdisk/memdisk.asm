@@ -62,7 +62,7 @@ Int13Start:
 		push dx
 		xor dl,[cs:DriveNo]
 		pop dx
-		js .nomatch		; If SF=0, we have a match here
+		js .nomatch		; If SF=0, we have a class match here
 		jz .our_drive		; If ZF=1, we have an exact match
 		cmp dl,[cs:DriveNo]
 		jb .nomatch		; Drive < Our drive
@@ -111,12 +111,12 @@ DoneWeird:
 
 Reset:
 		; Reset affects multiple drives, so we need to pass it on
+		mov [LastStatus],al 	; Clear the status (AL = 0)
 		pop ax			; Drop return address
-		mov [LastStatus], byte 0
-		popad
+		popad			; Restore all registers
 		pop es
 		pop ds
-		lss esp,[cs:Stack]
+		lss esp,[cs:Stack]	; Restore the stack
 		and dl,80h		; Clear all but the type bit
 		jmp far [cs:OldInt13]
 
@@ -128,7 +128,7 @@ GetDriveType:
 		mov ah,[DriveNo]
 		shr ah,7
 		pushf
-		or ah,02h		; CF = 0
+		or ah,02h
 		mov P_AH,ah
 		popf
 		jz .floppy
@@ -332,9 +332,9 @@ bcopy:
 		push ebx
 		push edx
 		push ebp
+.copy_loop:
 		push esi
 		push edi
-.copy_loop:
 		push ecx
 		cmp ecx,8000h
 		jna .safe_size
