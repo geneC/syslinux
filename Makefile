@@ -66,7 +66,7 @@ BOBJECTS = $(BTARGET) dos/syslinux.com win32/syslinux.exe memdisk/memdisk
 BSUBDIRS = memdisk dos win32
 ITARGET  = copybs.com gethostip mkdiskimage
 IOBJECTS = $(ITARGET) mtools/syslinux unix/syslinux 
-ISUBDIRS = mtools unix sample com32
+ISUBDIRS = mtools unix extlinux sample com32
 DOCS     = COPYING NEWS README TODO BUGS *.doc sample menu com32
 OTHER    = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
 	   keytab-lilo.pl version version.pl sys2ansi.pl \

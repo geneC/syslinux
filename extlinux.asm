@@ -29,8 +29,11 @@
 ; Some semi-configurable constants... change on your own risk.
 ;
 my_id		equ extlinux_id
-FILENAME_MAX_LG2 equ 8			; log2(Max filename size Including final null)
-FILENAME_MAX	equ (1 << FILENAME_MAX)	; Max mangled filename size
+; NASM 0.98.38 croaks if these are equ's rather than macros...
+;FILENAME_MAX_LG2 equ 8			; log2(Max filename size Including final null)
+;FILENAME_MAX	equ (1 << FILENAME_MAX)	; Max mangled filename size
+%define FILENAME_MAX_LG2 8
+%define FILENAME_MAX	 (1 << FILENAME_MAX_LG2)
 NULLFILE	equ ' '			; First char space == null filename
 retry_count	equ 6			; How patient are we with the disk?
 %assign HIGHMEM_SLOP 0			; Avoid this much memory near the top
@@ -747,7 +750,7 @@ expand_super:
 ;
 		mov bx,SuperBlock
 		mov eax,1024 >> SECTOR_SHIFT
-		mov cx,ax
+		mov bp,ax
 		call getlinsec
 
 ;
