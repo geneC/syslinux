@@ -194,9 +194,6 @@ uint32_t setup(void)
 
   for(;;);
 
-  /* Point %fs to the zero page */
-  asm volatile("movw %0,%%fs" :: "r" (0));
-
   geometry = get_disk_image_geometry(shdr->ramdisk_image, shdr->ramdisk_size);
 
   get_mem();

@@ -115,18 +115,27 @@ ramdisk_max:	.long 0xffffffff	# Load ramdisk as high as
 /* ------------------- End of setup header --------------------------- */
 
 /*
- * Canonicalize CS to match the other segments; also, the C
- * code uses 32-bit registers to make sure the high part of
- * %esp is zero.
+ * Canonicalize CS to match the other segments
  */
 start:
-		.byte 0x66,0x0f,0xb7,0xe4	# movzwl %sp,%esp
 		pushw %ds
-		pushw $main
+		pushw $start2
 		lret
 
-main:
-		sti
+start2:
+/*
+ * Set up the operating environment expected by the C code.
+ * The C code uses 32-bit registers to make sure the high part of
+ * %esp is zero.
+ *
+ * The C code expects %cs == %ds == %es, and %fs == 0.
+ */
+		.byte 0x66,0x0f,0xb7,0xe4	# movzwl %sp,%esp
+		pushw %ds
+		popw %es
+		xorw %ax,%ax
+		movw %ax,%fs
+		sti			# We may want to kill this?
 		calll setup		# Call the C code
 		# The setup function returns the drive number,
 		# which should be returned in %dl
