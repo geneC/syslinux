@@ -138,7 +138,8 @@ vk_end:		equ $			; Should be <= vk_size
 ;
 vk_seg          equ 8000h		; This is where we stick'em
 xfer_buf_seg	equ 7000h		; Bounce buffer for I/O to high mem
-fat_seg		equ 1000h		; 128K area for FAT (2x64K)
+fat_seg		equ 5000h		; 128K area for FAT (2x64K)
+comboot_seg	equ 1000h		; COMBOOT image loading zone
 
 ;
 ; For our convenience: define macros for jump-over-unconditinal jumps
@@ -302,6 +303,8 @@ NumBufEnd	equ NumBuf+15		; Pointer to last byte in NumBuf
 		alignb 4
 InitRDat	resd 1			; Load address (linear) for initrd
 HiLoadAddr      resd 1			; Address pointer for high load loop
+KernelName      resb 12		        ; Mangled name for kernel
+					; (note the spare byte after!)
 RootDir		equ $			; Location of root directory
 RootDir1	resw 1
 RootDir2	resw 1
@@ -336,6 +339,7 @@ KernelCNameLen  resw 1			; Length of unmangled kernel name
 InitRDCNameLen  resw 1			; Length of unmangled initrd name
 NextCharJump    resw 1			; Routine to interpret next print char
 SetupSecs	resw 1			; Number of setup sectors
+SavedSP		resw 1			; Our SP while running a COMBOOT image
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -349,7 +353,6 @@ RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
 MNameBuf        resb 11            	; Generic mangled file name buffer
-KernelName      resb 11		        ; Mangled name for kernel
 InitRD          resb 11                 ; initrd= mangled name
 KernelCName     resb 13                 ; Unmangled kernel name
 InitRDCName     resb 13            	; Unmangled initrd name
@@ -364,6 +367,7 @@ bootsec		equ $
 ; loaded and ready for us
 ;
 bsOemName	db 'SYSLINUX'		; The SYS command sets this, so...
+superblock	equ $
 bsBytesPerSec	zw 1
 bsSecPerClust	zb 1
 bsResSectors	zw 1
@@ -386,12 +390,13 @@ bsBootSignature zb 1			; 29h if the following fields exist
 bsVolumeID	zd 1
 bsVolumeLabel	zb 11
 bsFileSysType	zb 8			; Must be FAT12 for this version
+superblock_len	equ $-superblock
 ;
 ; Note we don't check the constraints above now; we did that at install
 ; time (we hope!)
 ;
 
-floppy_table	equ $			; No sense in wasting memory, overwrite start
+;floppy_table	equ $			; No sense in wasting memory, overwrite start
 
 start:
 		cli			; No interrupts yet, please
@@ -1462,7 +1467,7 @@ clin_opt_ptr:   dec si                          ; Point to first nonblank
 vk_check:	pusha
 		mov cx,11
 		repe cmpsb			; Is this it?
-		je vk_found
+		je near vk_found
 		popa
 		add si,vk_size
 		loop vk_check
@@ -1485,17 +1490,26 @@ not_vk:		pop ds
                 pop di
                 pop si
                 pop es
+		mov bx,exten_count << 2		; Alternates to try
 ;
 ; Find the kernel on disk
 ;
-get_kernel:     mov si,KernelName
+get_kernel:     mov eax,[KernelName+8]		; Save initial extension
+		mov [OrigKernelExt],eax
+.search_loop:	push bx
+		mov si,KernelName
                 mov di,KernelCName
                 call unmangle_name              ; Get human form
                 sub di,KernelCName
                 mov [KernelCNameLen],di
-                mov di,KernelName        	; Search on disk
+                mov di,KernelName	      	; Search on disk
                 call searchdir
+		pop bx
                 jnz kernel_good
+		mov eax,[exten_table+bx]	; Try a different extension
+		mov [KernelName+8],eax
+		sub bx,byte 4
+		jnb .search_loop
 bad_kernel:     mov si,err_notfound		; Complain about missing kernel
 		call writestr
                 mov si,KernelCName
@@ -1531,19 +1545,41 @@ vk_found:	popa
                 pop di                          ; DI -> KernelName
 		push di	
 		mov si,VKernelBuf+vk_rname
-		mov cx,11
+		mov cx,11			; We need ECX == CX later
 		rep movsb
 		pop di
-		jmp short get_kernel
+		xor bx,bx			; Try only one version
+		jmp get_kernel
 ;
 ; kernel_corrupt: Called if the kernel file does not seem healthy
 ;
 kernel_corrupt: mov si,err_notkernel
                 jmp abort_load
-kernel_good:
 ;
 ; This is it!  We have a name (and location on the disk)... let's load
-; that sucker!!
+; that sucker!!  First we have to decide what kind of file this is; base
+; that decision on the file extension.  The following extensions are
+; recognized:
+;
+; .COM 	- COMBOOT image
+; .CBT	- COMBOOT image
+; .BS	- Boot sector
+; .BSS	- Boot sector, but transfer over DOS superblock
+;
+; Anything else is assumed to be a Linux kernel.
+;
+kernel_good:
+		mov ecx,[KernelName+8]		; Get (mangled) extension
+		and ecx,00ffffffh		; 3 bytes
+		cmp ecx,'COM'
+		je near is_comboot_image
+		cmp ecx,'CBT'
+		je near is_comboot_image
+		cmp ecx,'BS '
+		je near is_bootsector
+		cmp ecx,'BSS'
+		je near is_bss_sector
+		; Otherwise Linux kernel
 ;
 ; A Linux kernel consists of three parts: boot sector, setup code, and
 ; kernel code.	The boot sector is never executed when using an external
@@ -1563,7 +1599,7 @@ kernel_good:
 ; First check that our kernel is at least 64K and less than 8M (if it is
 ; more than 8M, we need to change the logic for loading it anyway...)
 ;
-load_it:
+is_linux_kernel:
                 cmp dx,80h			; 8 megs
 		ja kernel_corrupt
 		and dx,dx
@@ -1616,9 +1652,9 @@ kernel_sane:	push ax
 		xor bx,bx
                 pop si                          ; Cluster pointer on stack
 		call getfssec
-		jc kernel_corrupt		; Failure in first 32K
+		jc near kernel_corrupt		; Failure in first 32K
                 cmp word [es:bs_bootsign],0AA55h
-		jne kernel_corrupt		; Boot sec signature missing
+		jne near kernel_corrupt		; Boot sec signature missing
 ;
 ; Get the BIOS' idea of what the size of high memory is
 ;
@@ -1972,6 +2008,148 @@ load_old_kernel:
 		mov word [SetupSecs],4		; Always 4 setup sectors
 		mov byte [LoadFlags],0		; Always low
 		jmp read_kernel
+
+;
+; Load a COMBOOT image.  A COMBOOT image is basically a DOS .COM file,
+; except that it may, of course, not contain any DOS system calls.  We
+; do, however, allow the execution of INT 20h to return to SYSLINUX.
+;
+is_comboot_image:
+		and dx,dx
+		jnz comboot_too_large
+		cmp ax,0ff00h		; Max size in bytes
+		jae comboot_too_large
+
+		;
+		; Set up the DOS vectors in the IVT (INT 20h-3fh)
+		;
+		mov dword [4*0x20],comboot_return	; INT 20h vector
+		mov eax,comboot_bogus
+		mov di,4*0x21
+		mov cx,31		; All remaining DOS vectors
+		rep stosd
+	
+		mov cx,comboot_seg
+		mov es,cx
+
+		mov bx,100h		; Load at <seg>:0100h
+
+		mov cx,[ClustPerMoby]	; Absolute maximum # of clusters
+		call getfssec
+
+		xor di,di
+		mov cx,64		; 256 bytes (size of PSP)
+		xor eax,eax		; Clear PSP
+		rep stosd
+
+		mov word [es:0], 020CDh	; INT 20h instruction
+
+		; Copy the command line from high memory
+		mov cx,125		; Max cmdline len (minus space and CR)
+		mov si,[CmdOptPtr]
+		mov di,081h		; Offset in PSP for command line
+		mov al,' '		; DOS command lines begin with a space
+		stosb
+
+comboot_cmd_cp:	lodsb
+		and al,al
+		jz comboot_end_cmd
+		stosb
+		loop comboot_cmd_cp
+comboot_end_cmd: mov al,0Dh		; CR after last character
+		stosb
+		mov al,126		; Include space but not CR
+		sub al,cl
+		mov [es:80h], al	; Store command line length
+
+		mov ax,es
+		mov ds,ax
+		mov ss,ax
+		xor sp,sp
+		push word 0		; Return to address 0 -> exit
+
+		jmp comboot_seg:100h	; Run it
+
+; Looks like a COMBOOT image but too large
+comboot_too_large:
+		mov si,err_comlarge
+		call writestr
+cb_enter:	jmp enter_command
+
+; Proper return vector
+comboot_return:	cli			; Don't trust anyone
+		xor ax,ax
+		mov ss,ax
+		mov sp,[ss:SavedSP]
+		mov ds,ax
+		mov es,ax
+		sti
+		jmp short cb_enter
+
+; Attempted to execute DOS system call
+comboot_bogus:	cli			; Don't trust anyone
+		xor ax,ax
+		mov ss,ax
+		mov sp,[ss:SavedSP]
+		mov ds,ax
+		mov es,ax
+		sti
+		mov si,KernelCName
+		call writestr
+		mov si,err_notdos
+		call writestr
+		jmp short cb_enter
+
+;
+; Load a boot sector
+;
+is_bootsector:
+		; Transfer zero bytes
+		push word 0
+		jmp short load_bootsec
+is_bss_sector:
+		; Transfer the superblock
+		push word superblock_len
+load_bootsec:
+		and dx,dx
+		jnz bad_bootsec
+		cmp ax,[bsBytesPerSec]
+		jne bad_bootsec
+
+		mov bx,trackbuf
+		mov cx,1		; 1 cluster >= 1 sector
+		call getfssec
+
+		mov bx,[bsBytesPerSec]
+		mov ax,[bx+trackbuf-2]
+		cmp ax,0AA55h		; Boot sector signature
+		jne bad_bootsec
+
+		mov si,superblock
+		mov di,trackbuf+(superblock-bootsec)
+		pop cx			; Transfer count
+		rep movsb
+;
+; Okay, here we go... copy over our own boot sector and run the new one
+;
+		cli			; Point of no return
+	
+		mov dl,[bsDriveNumber]	; May not be in new bootsector!
+
+		mov si,trackbuf
+		mov di,bootsec
+		mov cx,[bsBytesPerSec]
+		rep movsb
+		
+		xor si,si		; BUG: should point to partition info
+
+		jmp bootsec
+
+bad_bootsec:
+		mov si,err_bootsec
+		call writestr
+		jmp enter_command
+
 ;
 ; cwritestr: write a null-terminated string to the console, saving
 ;            registers on entry (we can't use this in the boot sector,
@@ -2063,10 +2241,16 @@ bcopy:
 		ret
 
 ;
-; Routines to enable and disable (yuck) A20
-; These routines are largely cut-and-paste from the Linux setup code
+; Routines to enable and disable (yuck) A20.  These routines are gathered
+; from tips from a couple of sources, including the Linux kernel and
+; http://www.x86.org/.  The need for the delay to be as large as given here
+; is indicated by Donnie Barnes of RedHat, the problematic system being an
+; IBM ThinkPad 760EL.
+;
+; We typically toggle A20 twice for every 64K transferred.
 ; 
-%define	io_delay out 0EDh, ax		; Invalid port (we hope)
+%define	io_delay  out 080h,al		; Invalid port (we hope)
+%define delaytime 1024			; ISA bus cycles (1.5 µs)
 
 enable_a20:
 		call empty_8042
@@ -3014,7 +3198,7 @@ copyright_str   db '  Copyright (C) 1994-', year, ' H. Peter Anvin'
 boot_prompt	db 'boot: ',0
 wipe_char	db 08h, ' ', 08h, 0
 err_notfound	db 'Could not find kernel image: ',0
-err_notkernel	db 0Dh, 0Ah, 'Invalid or corrupt kernel image: ', 0
+err_notkernel	db 0Dh, 0Ah, 'Invalid or corrupt kernel image.', 0Dh, 0Ah, 0
 err_not386	db 'It appears your computer uses a 286 or lower CPU.'
 		db 0Dh, 0Ah
 		db 'You cannot run Linux unless you have a 386 or higher CPU'
@@ -3038,6 +3222,9 @@ err_nohighmem   db 'Not enough memory to load specified kernel.', 0Dh, 0Ah, 0
 err_highload    db 0Dh, 0Ah, 'Kernel transfer failure.', 0Dh, 0Ah, 0
 err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
                 db 0Dh, 0Ah, 0
+err_notdos	db ': attempted DOS system call', 0Dh, 0Ah, 0
+err_comlarge	db 'COMBOOT image too large.', 0Dh, 0Ah, 0
+err_bootsec	db 'Invalid or corrupt boot sector image.', 0Dh, 0Ah, 0
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
 dot_msg         db '.', 0
@@ -3075,6 +3262,20 @@ keywd_table	db 'ap' ; append
 		db 'f9' ; F9
 		db 'f0' ; F10
 		dw 0
+;
+; Extensions to search for (in *reverse* order).  Note that the last
+; (lexically first) entry in the table is a placeholder for the original
+; extension, needed for error messages.  The exten_table is shifted so
+; the table is 1-based; this is because a "loop" cx is used as index.
+;
+exten_table:
+OrigKernelExt:	dd 0			; Original extension
+		db 'COM',0		; COMBOOT (same as DOS)
+		db 'BS ',0		; Boot Sector 
+		db 'BSS',0		; Boot Sector (add superblock)
+		db 'CBT',0		; COMBOOT (specific)
+
+exten_count	equ (($-exten_table) >> 2) - 1	; Number of alternates
 ;
 ; Misc initialized (data) variables
 ;

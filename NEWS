@@ -1,3 +1,9 @@
+Changes in 1.37:
+	* Fix a bug that caused "label" statements in syslinux.cfg to
+	  not be handled properly.
+	* Updated the documentation.  Among other things, we now allow
+	  up to 128 "label" statements.
+
 Changes in 1.36:
 	* Fix for booting old (pre-initrd) kernels.
 	* It seems at least some versions of OS/2 doesn't set up all
