@@ -274,7 +274,7 @@ read_kernel:
 		pop ecx				; Number of bytes in the initial portion
 		pop si				; Restore file handle/cluster pointer
 		mov eax,[KernelSize]
-		sub eax,ecx			; Amount of kernel left over
+		sub eax,8000h			; Amount of kernel not yet loaded
 		jbe high_load_done		; Zero left (tiny kernel)
 
 		call load_high			; Copy the file
