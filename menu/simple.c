@@ -72,10 +72,10 @@ int menumain(char *cmdline)
         if (curr->action == OPT_RUN)
         {
             if (syslinux) runcommand(curr->data);
-            else csprint(curr->data);
+            else csprint(curr->data,0x07);
             return 1;
         }
-        csprint("Error in programming!");
+        csprint("Error in programming!",0x07);
   }
   return 0;
 }

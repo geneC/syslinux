@@ -99,18 +99,26 @@
 #define STATLINE      23 // Line number where status line starts (relative to window)
 
 // Other Chars
-#define SUBMENUCHAR  175 // This is >> symbol
-#define EXITMENUCHAR 174 // This is << symbol
-#define CHECKED      251 // Check mark
-#define UNCHECKED    250 // Light bullet
+#define SUBMENUCHAR   175 // This is >> symbol
+#define RADIOMENUCHAR '>' // > symbol for radio menu? 
+#define EXITMENUCHAR  174 // This is << symbol
+#define CHECKED       251 // Check mark
+#define UNCHECKED     250 // Light bullet
+#define RADIOSEL      '.' // Current Radio Selection 
+#define RADIOUNSEL    ' ' // Radio option not selected
+
+// Types of menu's
+#define NORMALMENU 1 
+#define RADIOMENU  2
 
 typedef enum {OPT_INACTIVE, OPT_SUBMENU, OPT_RUN, OPT_EXITMENU, OPT_CHECKBOX,
-    OPT_RADIOBTN, OPT_EXIT, OPT_SEP} t_action;
+	      OPT_RADIOMENU, OPT_EXIT, OPT_SEP, OPT_INVISIBLE,
+	      OPT_RADIOITEM} t_action;
 
 typedef union {
-    char submenunum;
-    char checked; // For check boxes
-    char choice; // For Radio buttons
+  char submenunum; // For submenu's
+  char checked; // For check boxes
+  char radiomenunum; // Item mapping to a radio menu
 } t_itemdata;
 
 struct s_menuitem;
@@ -121,50 +129,51 @@ typedef void (*t_item_handler)(struct s_menusystem *, struct s_menuitem *);
 typedef void (*t_menusystem_handler)(struct s_menusystem *, struct s_menuitem *);
 
 typedef struct s_menuitem {
-    const char *item;
-    const char *status;
-    const char *data; 
-    void * extra_data; // Any other data user can point to
-    t_item_handler handler; // Pointer to function of type menufn
-    char active; // Is this item active or not
-    t_action action;
-    t_itemdata itemdata; // Data depends on action value
-    char index; // Index within the menu array
-    char parindex; // Index of the menu in which this item appears. 
+  const char *item;
+  const char *status;
+  const char *data; // string containing kernel to run.. but... 
+  // for radio menu's this is a pointer to the item selected or NULL (initially)
+  void * extra_data; // Any other data user can point to
+  t_item_handler handler; // Pointer to function of type menufn
+  t_action action;
+  t_itemdata itemdata; // Data depends on action value
+  char index; // Index within the menu array
+  char parindex; // Index of the menu in which this item appears. 
 } t_menuitem;
 
 typedef t_menuitem *pt_menuitem; // Pointer to type menuitem
 
 typedef struct s_menu {
-    pt_menuitem items[MAXMENUSIZE];
-    const char *title;
-    char numitems;
-    char menuwidth;
-    char row,col; // Position where this menu should be displayed
+  pt_menuitem items[MAXMENUSIZE];
+  const char *title;
+  char numitems;
+  char numvisible;
+  char menuwidth;
+  char row,col; // Position where this menu should be displayed
 } t_menu;
 
 typedef t_menu *pt_menu; // Pointer to type menu
 
 typedef struct s_menusystem {
-    pt_menu menus[MAXMENUS];
-    const char *title; 
-    t_menusystem_handler handler; // Handler function called every time a menu is re-printed.
-    char nummenus;
-    char normalattr; 
-    char reverseattr;
-    char inactattr;
-    char revinactattr;
-    char statusattr;
-    char fillchar;
-    char fillattr;
-    char spacechar;
-    char tfillchar;
-    char titleattr;
-    char shadowattr;
-    char statline;
-    char menupage;
-    char maxrow,minrow,numrows; // Number of rows in the window 
-    char maxcol,mincol,numcols; // Number of columns in the window
+  pt_menu menus[MAXMENUS];
+  const char *title; 
+  t_menusystem_handler handler; // Handler function called every time a menu is re-printed.
+  char nummenus;
+  char normalattr; 
+  char reverseattr;
+  char inactattr;
+  char revinactattr;
+  char statusattr;
+  char fillchar;
+  char fillattr;
+  char spacechar;
+  char tfillchar;
+  char titleattr;
+  char shadowattr;
+  char statline;
+  char menupage;
+  char maxrow,minrow,numrows; // Number of rows in the window 
+  char maxcol,mincol,numcols; // Number of columns in the window
 } t_menusystem;
 
 typedef t_menusystem *pt_menusystem; // Pointer to type menusystem
@@ -213,6 +222,9 @@ void set_menu_pos(char row,char col); // Set the position of this menu.
 
 // Add a separator to the "current" menu
 pt_menuitem add_sep();
+
+// Calculate the number of visible items
+void calc_visible(pt_menu menu);
 
 // Main function for the user's config file
 int menumain(char *cmdline);

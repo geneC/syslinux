@@ -19,7 +19,7 @@
 
 /* BIOS Assisted output routines */
 
-void csprint(const char *str); // Print a C str (NUL-terminated)
+void csprint(const char *str, char attr); // Print a C str (NUL-terminated)
 
 void cprint(char chr,char attr,int times,char disppage); // Print a char 
 
@@ -58,11 +58,20 @@ static inline char getnumrows()
 {
     return readbiosb(0x484);
 }
+
 static inline char getnumcols(void)
 {
     return readbiosb(0x44a);
 }
  
 void setvideomode(char mode); // Set the video mode.
+
+unsigned char sleep(unsigned int msec); // Sleep for specified time
+
+void beep(); // A Bell
+
+unsigned char checkkbdbuf(); // Check to see if there is kbd buffer is non-empty?
+
+void clearkbdbuf(); // Clear the kbd buffer (how many chars removed?)
 
 #endif

@@ -31,7 +31,7 @@ static inline void _checkheap(void)
 {
     if (currsp() < heap_curr) // Heap corrupted
     {
-	csprint("\r\nHeap overflow, aborting!\r\n");
+	csprint("\r\nHeap overflow, aborting!\r\n",0x07);
 	asm volatile("int $0x21" : : "a" (0x4C7f)); /* Exit with error */
 	return;
     }

@@ -38,7 +38,6 @@ void setdisppage(char num) // Set the display page to specified number
     asm_setdisppage(num);
 }
 
-
 static inline char asm_getdisppage(void)
 {
     char page;
@@ -52,55 +51,6 @@ static inline char asm_getdisppage(void)
 char getdisppage() // Get current display page 
 {
     return asm_getdisppage();
-}
-
-static inline void asm_putchar(char x, char page)
-{
-    asm volatile("movb %1,%%bh ; movb $0x0e,%%ah ; int $0x10"
-		 : "+a" (x)
-		 : "g" (page)
-		 : "ebx", "ebp");
-}
-
-/* Print a C string (NUL-terminated) */
-void csprint(const char *str)
-{
-    char page = asm_getdisppage();
-    
-    while ( *str ) {
-	asm_putchar(*str, page);
-	str++;
-    }
-}
-
-void clearwindow(char top, char left, char bot, char right, char page, char fillchar, char fillattr)
-{
-    char x;
-    for (x=top; x < bot+1; x++)
-    {
-        gotoxy(x,left,page);
-        asm_cprint(fillchar,fillattr,right-left+1,page);
-    }
-}
-
-void cls(void)
-{
-    gotoxy(0,0,getdisppage());
-    asm_cprint(' ',0x07,getnumrows()*getnumcols(),getdisppage());    
-}
-
-static inline void asm_gotoxy(char row,char col, char page)
-{
-    asm volatile("movb %1,%%bh ; "
-		 "movb $0x02,%%ah ; "
-		 "int $0x10"
-		 : : "d" ((row << 8) + col), "g" (page)
-		 : "eax", "ebx");
-}
-
-void gotoxy(char row,char col, char page)
-{
-    asm_gotoxy(row,col,page);
 }
 
 static inline void asm_getpos(char *row, char *col, char page)
@@ -118,6 +68,134 @@ static inline void asm_getpos(char *row, char *col, char page)
 void getpos(char * row, char * col, char page)
 {
     asm_getpos(row,col,page);
+}
+
+static inline void asm_gotoxy(char row,char col, char page)
+{
+    asm volatile("movb %1,%%bh ; "
+		 "movb $0x02,%%ah ; "
+		 "int $0x10"
+		 : : "d" ((row << 8) + col), "g" (page)
+		 : "eax", "ebx");
+}
+
+void gotoxy(char row,char col, char page)
+{
+    asm_gotoxy(row,col,page);
+}
+
+static inline unsigned char asm_sleep(unsigned int milli)
+{ // ah = 86, int 15, cx:dx = microseconds
+  // mul op16 : dx:ax = ax * op16
+  unsigned char ans;
+  asm volatile ("mul  %%cx; "
+		"xchg %%dx, %%ax; "
+		"movw %%ax, %%cx; "
+		"movb $0x86, %%ah;"
+		"int $0x15;"
+		"setnc %0"
+		: "=r" (ans) 
+		: "a" (milli), "c" (1000)
+		: "edx");
+  return ans;
+}
+
+unsigned char sleep(unsigned int msec)
+{
+ return asm_sleep(msec);
+}
+
+void asm_beep()
+{
+  // For a beep the page number (bh) does not matter, so set it to zero
+  asm volatile("movb $0x0E07, %%ax;"
+	       "xor  %%bh,%%bh;"
+	       "int $0x10"
+	       : : : "eax","ebx");
+}
+
+void beep()
+{
+  asm_beep();
+}
+
+static inline void asm_putchar(char x, char attr,char page)
+{
+    asm volatile("movb %1,%%bh;"
+		 "movb %2,%%bl;"
+		 "movb $0x09,%%ah;"
+		 "movw $0x1, %%cx;"
+		 "int $0x10"
+		 : "+a" (x)
+		 : "g" (page), "g" (attr)
+		 : "ebx", "ecx", "ebp");
+}
+
+static inline void scrollup()
+{
+  asm volatile("movw $0x0601, %%ax;"
+	       "movb $0x07, %%bh;"
+	       "xor %%cx, %%cx;"
+	       "int $0x10"
+	       : "+d"((getnumrows()<< 8) + getnumcols())
+	       : : "eax","ebx","ecx");
+}
+
+/* Print a C string (NUL-terminated) */
+void csprint(const char *str,char attr)
+{
+    char page = asm_getdisppage();
+    char row,col;
+
+    asm_getpos(&row,&col,page);
+    while ( *str ) {
+      switch (*str) 
+	{
+	case '\b':
+	  --col;
+	  break;
+	case '\n':
+	  ++row;
+	  break;
+	case '\r':
+	  col=0;
+	  break;
+	case 0x07: // Bell Char
+	  asm_beep();
+	  break;
+	default:
+	  asm_putchar(*str, attr, page);
+	  ++col;
+	}
+      if (col > getnumcols())
+	{
+	  ++row;
+	  col=0;
+	}
+      if (row > getnumrows())
+	{
+	  scrollup();
+	  row= getnumrows();
+	}
+      asm_gotoxy(row,col,page);
+      str++;
+    }
+}
+
+void clearwindow(char top, char left, char bot, char right, char page, char fillchar, char fillattr)
+{
+    char x;
+    for (x=top; x < bot+1; x++)
+    {
+        gotoxy(x,left,page);
+        asm_cprint(fillchar,fillattr,right-left+1,page);
+    }
+}
+
+void cls(void)
+{
+    gotoxy(0,0,getdisppage());
+    asm_cprint(' ',0x07,getnumrows()*getnumcols(),getdisppage());
 }
 
 char asm_inputc(char *scancode)
@@ -168,13 +246,16 @@ static inline char asm_getchar(void)
     return v;
 }
 
+#define GETSTRATTR 0x07
+
 // Reads a line of input from stdin. Replace CR with NUL byte
 void getstring(char *str, unsigned int size)
 {
     char c;
     char *p = str;
     char page = asm_getdisppage();
-    
+    char row,col;
+
     while ( (c = asm_getchar()) != '\r' ) {
 	switch (c) {
 	case '\0':		/* Extended char prefix */
@@ -183,25 +264,27 @@ void getstring(char *str, unsigned int size)
 	case '\b':
 	    if ( p > str ) {
 		p--;
-		csprint("\b \b");
+		csprint("\b \b",GETSTRATTR);
 	    }
 	    break;
 	case '\x15':		/* Ctrl-U: kill input */
 	    while ( p > str ) {
 		p--;
-		csprint("\b \b");
+		csprint("\b \b",GETSTRATTR);
 	    }
 	    break;
 	default:
 	    if ( c >= ' ' && (unsigned int)(p-str) < size-1 ) {
-		*p++ = c;
-		asm_putchar(c, page);
+	      *p++ = c;
+	      asm_getpos(&row,&col,page);
+	      asm_putchar(c, GETSTRATTR, page);
+	      asm_gotoxy(row,col+1,page);
 	    }
 	    break;
 	}
     }
     *p = '\0';
-    csprint("\r\n");
+    csprint("\r\n",GETSTRATTR);
 }
 
 static inline void asm_setvideomode(char mode)
@@ -215,4 +298,27 @@ static inline void asm_setvideomode(char mode)
 void setvideomode(char mode)
 {
     asm_setvideomode(mode);
+}
+
+static inline unsigned char asm_checkkbdbuf()
+{
+  unsigned char ans;
+
+  asm volatile("movb $0x11, %%ah;"
+	       "int $0x16 ;"
+	       "setnz %0;"
+	       : "=r" (ans)
+	       : 
+	       : "%eax");
+  return ans;
+}
+
+unsigned char checkkbdbuf()
+{
+  return asm_checkkbdbuf();
+}
+
+void clearkbdbuf()
+{
+  while (asm_checkkbdbuf()) asm_inputc(NULL);
 }
