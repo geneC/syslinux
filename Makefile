@@ -33,7 +33,7 @@ VERSION = $(shell cat version)
 # want to recompile the installers (ITARGET).
 #
 SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm
-BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst
+BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst pxelinux.bin
 ITARGET = syslinux.com syslinux copybs.com
 DOCS    = COPYING NEWS README TODO *.doc
 OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version \
@@ -58,6 +58,9 @@ endif
 ldlinux.bin: ldlinux.asm
 	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" -dHEXDATE="$(HEXDATE)" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
 	perl genstupid.pl < ldlinux.lst
+
+pxelinux.bin: pxelinux.asm
+	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" -dHEXDATE="$(HEXDATE)" -l pxelinux.lst -o pxelinux.bin pxelinux.asm
 
 bootsect.bin: ldlinux.bin
 	dd if=ldlinux.bin of=bootsect.bin bs=512 count=1
@@ -101,11 +104,11 @@ tidy:
 clean: tidy
 	rm -f $(ITARGET)
 
-spotless: clean
-	rm -f $(BTARGET)
-
 dist: tidy
 	rm -f *~ \#*
+
+spotless: clean dist
+	rm -f $(BTARGET)
 
 #
 # This should only be used by the maintainer to generate official binaries
