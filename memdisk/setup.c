@@ -27,14 +27,34 @@ struct memdisk_header {
   uint16_t total_size;
 };
 
-/* The Disk Parameter Table is required on hard disks */
-struct dpt {
-  uint16_t max_cyl;		/* Max cylinder */
-  uint8_t max_head;		/* Max head */
-  uint8_t junk1[5];		/* Obsolete junk, leave at zero */
-  uint8_t ctrl;			/* Control byte */
-  uint8_t junk2[7];		/* More obsolete junk */
-};
+/* The Disk Parameter Table may be required */
+typedef union {
+  struct hd_dpt {
+    uint16_t max_cyl;		/* Max cylinder */
+    uint8_t max_head;		/* Max head */
+    uint8_t junk1[5];		/* Obsolete junk, leave at zero */
+    uint8_t ctrl;		/* Control byte */
+    uint8_t junk2[7];		/* More obsolete junk */
+  } hd;
+  struct fd_dpt {
+    uint8_t specify1;		/* "First specify byte" */
+    uint8_t specify2;		/* "Second specify byte" */
+    uint8_t delay;		/* Delay until motor turn off */
+    uint8_t sectors;		/* Sectors/track */
+
+    uint8_t bps;		/* Bytes/sector (02h = 512) */
+    uint8_t isgap;		/* Length of intersector gap */
+    uint8_t dlen;		/* Data length (0FFh) */
+    uint8_t fgap;		/* Formatting gap */
+
+    uint8_t ffill;		/* Format fill byte */
+    uint8_t settle;		/* Head settle time (ms) */
+    uint8_t mstart;		/* Motor start time */
+    uint8_t _pad1;		/* Padding */
+
+    uint32_t old_fd_dpt;	/* Extension: pointer to old INT 1Eh */
+  } fd;
+} dpt_t;
 
 struct patch_area {
   uint16_t cylinders;
@@ -57,10 +77,10 @@ struct patch_area {
   uint8_t  drivecnt;
   uint8_t  _pad1;
 
-  uint16_t bpt_offs, bpt_seg;
+  uint16_t mystack;
   uint16_t statusptr;
 
-  uint16_t mystack;
+  dpt_t dpt;
 };
 
 /* This is the header in the boot sector/setup area */
@@ -198,6 +218,7 @@ rdz_32(uint32_t addr)
 /* Addresses in the zero page */
 #define BIOS_INT13	(0x13*4) /* INT 13h vector */
 #define BIOS_INT15	(0x15*4) /* INT 15h vector */
+#define BIOS_INT1E      (0x1E*4) /* INT 1Eh vector */
 #define BIOS_INT40	(0x40*4) /* INT 13h vector */
 #define BIOS_INT41      (0x41*4) /* INT 41h vector */
 #define BIOS_INT46      (0x46*4) /* INT 46h vector */
@@ -462,6 +483,30 @@ uint32_t setup(void)
   pptr->diskbuf   = shdr->ramdisk_image;
   pptr->statusptr = (geometry->driveno & 0x80) ? 0x474 : 0x441;
 
+  /* Set up a drive parameter table */
+  if ( geometry->driveno & 0x80 ) {
+    /* Hard disk */
+    pptr->dpt.hd.max_cyl  = geometry->c-1;
+    pptr->dpt.hd.max_head = geometry->h-1;
+    pptr->dpt.hd.ctrl     = (geometry->h > 8) ? 0x08: 0;
+  } else {
+    /* Floppy - most of these fields are bogus and mimic
+       a 1.44 MB floppy drive */
+    pptr->dpt.fd.specify1 = 0xdf;
+    pptr->dpt.fd.specify2 = 0x02;
+    pptr->dpt.fd.delay    = 0x25;
+    pptr->dpt.fd.sectors  = geometry->s;
+    pptr->dpt.fd.bps      = 0x02;
+    pptr->dpt.fd.isgap    = 0x12;
+    pptr->dpt.fd.dlen     = 0xff;
+    pptr->dpt.fd.fgap     = 0x6c;
+    pptr->dpt.fd.ffill    = 0xf6;
+    pptr->dpt.fd.settle   = 0x0f;
+    pptr->dpt.fd.mstart   = 0x05;
+
+    pptr->dpt.fd.old_fd_dpt = rdz_32(BIOS_INT1E);
+  }
+
   /* The size is given by hptr->total_size plus the size of the
      E820 map -- 12 bytes per range; we may need as many as
      2 additional ranges plus the terminating range, over what
@@ -538,13 +583,10 @@ uint32_t setup(void)
     if ( cf ) {
       printf("INT 13 08: Failure\n");
       pptr->drivecnt = 1;
-      pptr->bpt_offs = pptr->bpt_seg = 0;
     } else {
       printf("INT 13 08: Success, count = %u, BPT = %04x:%04x\n",
 	     dl, bpt_es, bpt_di);
       pptr->drivecnt = dl+1;
-      pptr->bpt_offs = bpt_di;
-      pptr->bpt_seg  = bpt_es;
     }
   }
 
@@ -583,9 +625,9 @@ uint32_t setup(void)
     /* Update BIOS hard disk count */
     wrz_8(BIOS_HD_COUNT, rdz_8(BIOS_HD_COUNT)+1);
   } else {
-#if 0				/* Apparently this is NOT wanted... */
+#if 1				/* Apparently this is NOT wanted... */
     /* Update BIOS floppy disk count */
-    uint16_t equip = rdz_16(BIOS_EQUIP);
+    uint8_t equip = rdz_8(BIOS_EQUIP);
     if ( equip & 1 ) {
       if ( (equip & (3 << 6)) != (3 << 6) ) {
 	equip += (1 << 6);
@@ -594,7 +636,7 @@ uint32_t setup(void)
       equip |= 1;
       equip &= ~(3 << 6);
     }
-    wrz_16(BIOS_EQUIP, equip);
+    wrz_8(BIOS_EQUIP, equip);
 #endif
   }
 

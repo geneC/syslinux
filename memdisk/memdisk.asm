@@ -87,6 +87,7 @@ Int13Start:
 		jmp far [cs:OldInt13]
 
 .our_drive:
+		; Swap stack
 		mov [cs:Stack],esp
 		mov [cs:SavedAX],ax
 		mov ax,ss
@@ -99,6 +100,7 @@ Int13Start:
 		mov ds,ax
 		mov es,ax
 		mov ax,[SavedAX]
+
 		pushad
 		mov bp,sp		; Point BP to the entry stack frame
 		TRACER 'F'
@@ -151,18 +153,17 @@ Invalid_jump:
 		jmp short Done
 
 GetDriveType:
-		mov ah,[DriveNo]
-		shr ah,7
-		pushf
-		or ah,02h
-		mov P_AH,ah
-		popf
+		test byte [DriveNo],80h
+		mov bl,02h		; Type 02h = floppy with changeline
 		jz .floppy
-		mov ax,[DiskSize]	; For hard disk return the size
-		mov P_DX,ax
-		mov ax,[DiskSize+2]
-		mov P_CX,ax
+		; Hard disks only...
+		inc bx			; Type = 03h
+		mov dx,[DiskSize]	; Return the disk size in sectors
+		mov P_DX,dx
+		mov cx,[DiskSize+2]
+		mov P_CX,cx
 .floppy:
+		mov P_AH,bl		; 02h floppy, 03h hard disk
 		pop ax			; Drop return address
 		xor ax,ax		; Success...
 		jmp short DoneWeird	; But don't stick it into P_AX
@@ -186,10 +187,6 @@ Write:
 		xchg esi,edi		; Opposite direction of a Read!
 		jmp short do_copy
 
-		; These verify one sector only
-Seek:
-		mov P_AL,1
-
 		; Verify integrity; just bounds-check
 Verify:
 		call setup_regs		; Returns error if appropriate
@@ -199,6 +196,7 @@ CheckIfReady:				; These are always-successful noop functions
 Recalibrate:
 InitWithParms:
 DetectChange:
+Seek:
 success:
 		xor ax,ax		; Always successful
 		ret
@@ -209,9 +207,8 @@ GetParms:
 		mov P_DL,dl
 		test byte [DriveNo],80h
 		jnz .hd
-		mov di,[BPT]
-		mov P_DI,di
-		mov ax,[BPT+2]
+		mov P_DI,DPT
+		mov ax,cs
 		mov P_ES,ax
 		mov bl,[DriveType]
 		mov P_BL,bl
@@ -481,16 +478,16 @@ DriveType	db 0			; Our drive type (floppies)
 DriveCnt	db 0			; Drive count (from the BIOS)
 		db 0			; Pad
 
-BPT		dd 0			; BIOS parameter table pointer (floppies)
-
 MyStack		dw 0			; Offset of stack
+StatusPtr	dw 0			; Where to save status (zeroseg ptr)
+
+DPT		times 16 db 0		; BIOS parameter table pointer (floppies)
 
 		; End patch area
 
 Stack		dd 0			; Saved SS:ESP on invocation
 		dw 0
 SavedAX		dw 0			; AX saved on invocation
-StatusPtr	dw 0			; Where to save status (zeroseg ptr)
 
 		alignb 4, db 0		; We *MUST* end on a dword boundary
 
