@@ -7,6 +7,8 @@ Changes in 2.09:
 	  syslinux-nomtools.
 	* Handle video pages correctly when using the API functions.
 	* Handle compiling on an x86-64 platform correctly.
+	* Menu system from Murali Krishnan Ganapathy; see the menu
+	  directory for information.
 
 Changes in 2.08:
 	* Add new configuration command "ontimeout" to allow timeout
