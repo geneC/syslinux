@@ -16,10 +16,9 @@ VERSION := $(shell cat ../version)
 CC       = gcc
 CFLAGS   = -g -Wall -O2 -fomit-frame-pointer -march=i386 \
 	   -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
-	  -I../com32/include \
 	   -DVERSION='"$(VERSION)"' -DDATE='"$(DATE)"'
 LDFLAGS  = -g
-INCLUDE  =
+INCLUDE  = -I../com32/include
 AS       = as
 LD	 = ld
 NASM     = nasm -O99
