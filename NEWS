@@ -7,6 +7,8 @@ Changes in 1.65:
 	  correctly; unfortunately many BIOSes apparently don't.
 	* Support Linux boot protocol version 2.03 (explicitly
 	  specify the initrd address limit.)
+	* Handle small "pseudo-kernels"; images that use the Linux
+	  kernel boot protocols but are less than 64K in size.
 
 Changes in 1.64:
 	* Limited support for hardware flow control when using a

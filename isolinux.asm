@@ -1726,14 +1726,20 @@ kernel_good:
 ; kernel code.	The boot sector is never executed when using an external
 ; booting utility, but it contains some status bytes that are necessary.
 ;
-; First check that our kernel is at least 64K and less than 8M (if it is
+; First check that our kernel is at least 1K and less than 8M (if it is
 ; more than 8M, we need to change the logic for loading it anyway...)
+;
+; We used to require the kernel to be 64K or larger, but it has gotten
+; popular to use the Linux kernel format for other things, which may
+; not be so large.
 ;
 is_linux_kernel:
                 cmp dx,80h			; 8 megs
 		ja kernel_corrupt
 		and dx,dx
-		jz kernel_corrupt
+		jnz kernel_sane
+		cmp ax,1024			; Bootsect + 1 setup sect
+		jb near kernel_corrupt
 kernel_sane:	push ax
 		push dx
 		push si
@@ -1775,6 +1781,10 @@ kernel_sane:	push ax
 		call abort_check		; Check for abort key
 		mov cx,[ClustPerMoby]
 		shr cx,1			; Half a moby
+		cmp cx,[KernelClust]
+		jna .normalkernel
+		mov cx,[KernelClust]
+.normalkernel:
 		sub [KernelClust],cx
 		xor bx,bx
                 pop si                          ; Cluster pointer on stack
@@ -2016,6 +2026,8 @@ high_load_loop:
                 call cwritestr
                 call abort_check
                 mov cx,[KernelClust]
+		and cx,cx
+		jz high_load_done		; Zero left (tiny kernel?)
 		cmp cx,[ClustPerMoby]
 		jna high_last_moby
 		mov cx,[ClustPerMoby]
