@@ -8,6 +8,7 @@ Changes in 2.03:
 	* PXELINUX: Handle PXE stacks with broken routing.
 	  With these workarounds, the remote install PXE boot floppy
 	  (rbfg.exe) from Argon Technologies should work correctly.
+	* Fix problems with Perl scripts in UTF-8 locales.
 
 Changes in 2.02:
 	* SYSLINUX: Security flaws have been found in the SYSLINUX
