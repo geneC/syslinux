@@ -4,7 +4,9 @@
 ;   
 ;   NOT Copyright 2000 H. Peter Anvin
 ;
-;   This file is in the public domain.  Enjoy.
+;   This file is in the public domain.  Enjoy.  However, I would
+;   appreciate it if modified versions were marked as such, and
+;   please don't bug me about any version not released by me.
 ;
 ; -----------------------------------------------------------------------
 
