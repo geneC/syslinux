@@ -13,26 +13,8 @@
 
 - FAT32 support?
 
-- Support initrd that span multiple input media?
+- Support files that span multiple input media
 
-- Support a small set of DOS system calls for COMBOOT images?  Serial
-  console support makes this particularly desirable; otherwise the
-  user could just use the BIOS I/O calls, but that won't work with the
-  serial port.  A feasible set would be the following:
-    00h	   - Terminate program
-    01h	   - Read char with echo (return char AL)
-    02h	   - Display character (in DL)
-    08h	   - Read Keyboard Without Echo (return char in AL)
-    09h	   - Display string (DS:DX -> end string in $)
-    0Bh	   - Check keyboard status (AL = 0FFh if char avail; AL = 00h if not)
-    30h	   - Get version number (return AX=0000h BX=0000h CX=0000h)
-    4Ch	   - Terminate program
-
-  ... in addition to INT 20h (Terminate program), of course.
-
-- Factor out common and filesystem-specific code into files, even if
-  they have to be %includes rather than genuine modules.
+- Clean up the handling of sections
 
 - Add "localboot" support to SYSLINUX (using the ISOLINUX feature set.)
-
-- Support booting foreign OS disk images in PXELINUX/ISOLINUX.

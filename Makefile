@@ -58,7 +58,7 @@ BTARGET = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
 	  libsyslinux.a syslinux.exe $(LIB_SO) 
 ITARGET = syslinux.com syslinux syslinux-nomtools copybs.com gethostip \
 	  mkdiskimage
-DOCS    = COPYING NEWS README TODO *.doc sample com32
+DOCS    = COPYING NEWS README TODO BUGS *.doc sample com32
 OTHER   = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
 	  keytab-lilo.pl version version.pl sys2ansi.pl \
 	  ppmtolss16 lss16toppm memdisk bin2hex.pl mkdiskimage.in
