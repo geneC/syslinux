@@ -12,9 +12,9 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * hello.c
+ * fancyhello.c
  *
- * Hello, World! using libcom32
+ * Hello, World! using libcom32 and ASI console
  */
 
 #include <string.h>
@@ -25,17 +25,20 @@ int main(void)
 {
   char buffer[1024];
 
-  openconsole(&dev_stdcon_r, &dev_stdcon_w);
+  /* Write both to the ANSI console and the serial port, if configured */
+  openconsole(&dev_stdcon_r, &dev_ansiserial_w);
 
-  printf("Hello, World!\n");
+  printf("(lifesign)\r\n(another)\r\n(another)\r\n");
+  printf("\033[1;33;44m *** \033[37mHello, World!\033[33m *** \033[0m\r\n");
 
   for (;;) {
-    printf("> ");
+    printf("\033[1;36m>\033[0m ");
     fgets(buffer, sizeof buffer, stdin);
+    /* fgets() prints an \n for us, but not \r */
+    putchar('\r');
     if ( !strncmp(buffer, "exit", 4) )
       break;
-    printf(": %s", buffer);
+    printf("\033[1m:\033[0m %s\r", buffer);
   }
-    
   return 0;
 }

@@ -35,7 +35,7 @@ LIBGCC    := $(shell $(CC) --print-libgcc)
 
 .SUFFIXES: .lss .c .o .elf .c32
 
-all: hello.c32
+all: hello.c32 fancyhello.c32
 
 .PRECIOUS: %.o
 %.o: %.S

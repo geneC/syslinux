@@ -47,5 +47,14 @@ extern const struct output_dev dev_stdcon_w;
 extern const struct input_dev  dev_rawcon_r;
 extern const struct output_dev dev_rawcon_w;
 
+/* These are output-only consoles; combine with one of the input methods */
+
+/* Serial port only */
+extern const struct output_dev dev_serial_w;
+/* ANSI console (output only; combine with one of the input methods) */
+extern const struct output_dev dev_ansicon_w;
+/* ANSI plus serial port */
+extern const struct output_dev dev_ansiserial_w;
+
 #endif /* _CONSOLE_H */
 

@@ -25,7 +25,7 @@ LIBOBJS = abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o	\
 	sys/rawcon_read.o sys/rawcon_write.o				\
 	sys/err_read.o    sys/err_write.o				\
 	sys/null_read.o   sys/null_write.o				\
-	sys/ansicon_write.o
+	sys/serial_write.o sys/ansicon_write.o sys/ansiserial_write.o
 
 
 all: libcom32.a

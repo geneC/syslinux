@@ -27,9 +27,9 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * serial_write.c
+ * ansiserial_write.c
  *
- * Raw writing to the serial port; no \n -> \r\n translation
+ * Write to both to the ANSI console and the serial port
  */
 
 #include <errno.h>
@@ -38,30 +38,19 @@
 #include <minmax.h>
 #include "file.h"
 
-ssize_t __serial_write(struct file_info *fp, const void *buf, size_t count)
+extern ssize_t __ansicon_write(struct file_info *, const void *, size_t);
+extern ssize_t __serial_write(struct file_info *, const void *, size_t);
+
+static ssize_t __ansiserial_write(struct file_info *fp, const void *buf, size_t count)
 {
-  com32sys_t ireg;
-  const char *bufp = buf;
-  size_t n = 0;
-
-  (void)fp;
-
-  memset(&ireg, 0, sizeof ireg); 
-  ireg.eax.b[1] = 0x04;
-
-  while ( count-- ) {
-    ireg.edx.b[0] = *bufp++;
-    __intcall(0x21, &ireg, NULL);
-    n++;
-  }
-
-  return n;
+  __ansicon_write(fp, buf, count);
+  return __serial_write(fp, buf, count);
 }
 
-const struct output_dev dev_serial_w = {
+const struct output_dev dev_ansiserial_w = {
   .dev_magic  = __DEV_MAGIC,
   .flags      = __DEV_TTY | __DEV_OUTPUT,
   .fileflags  = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
-  .write      = __serial_write,
+  .write      = __ansiserial_write,
   .close      = NULL,
 };
