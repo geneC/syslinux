@@ -344,6 +344,13 @@ AX=0009h [2.00] Call PXE Stack [PXELINUX ONLY]
 	the status code in AX and in the first word of the data buffer
 	to determine if the PXE call succeeded or not.
 
+	The PXE stack will have the UDP stack OPEN; if you change that
+	you cannot call any of the file-related API functions, and
+	must restore UDP OPEN before returning to PXELINUX.
+
+	PXELINUX reserves UDP port numbers from 49152 to 65535 for its
+	own use; port numbers below that range is available.
+
 
 AX=000Ah [2.00]	Get Derivative-Specific Information
 
@@ -486,6 +493,7 @@ AX=000Eh [2.11]	Get configuration file name
 	Returns the name of the configuration file.  Note that it is
 	possible that the configuration file doesn't actually exist.
 
+
 AX=000Fh [3.00] Get IPAPPEND strings [PXELINUX]
 	Input:  AX	000Fh
 	Output:	CX	Number of strings (currently 2)
@@ -497,3 +505,22 @@ AX=000Fh [3.00] Get IPAPPEND strings [PXELINUX]
 	added to the command line, one for each bit of the "ipappend"
 	flag value, so entry 0 is the "ip=" string and entry 1 is the
 	"BOOTIF=" string.
+
+
+AX=0010h [3.00] Resolve hostname [PXELINUX]
+	Input:  ES:BX	Pointer to null-terminated hostname
+	Output:	EAX	IP address of hostname (zero if not found)
+
+	Queries the DNS server(s) for a specific hostname.  If the
+	hostname does not contain a dot (.), the local domain name
+	is automatically appended.
+
+	This function only return CF=1 if the function is not
+	supported.  If the function is supported, but the hostname did
+	not resolve, it returns with CF=0, EAX=0.
+
+	The IP address is returned in network byte order, i.e. if the
+	IP address is 1.2.3.4, EAX will contain 0x04030201.  Note that
+	all uses of IP addresses in PXE are also in network byte order.
+
+

@@ -20,8 +20,8 @@
 
 DNS_PORT	equ htons(53)		; Default DNS port 
 DNS_MAX_PACKET	equ 512			; Defined by protocol
-; TFTP uses the range 49152-57343; avoid that range
-DNS_LOCAL_PORT	equ htons(35000)	; All local DNS queries come from this port #
+; TFTP uses the range 49152-57343
+DNS_LOCAL_PORT	equ htons(60053)	; All local DNS queries come from this port #
 DNS_MAX_SERVERS equ 4			; Max no of DNS servers
 
 		section .text

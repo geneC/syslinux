@@ -579,6 +579,20 @@ numIPAppends	equ ($-IPAppends)/2
 %else
 comapi_ipappend equ comapi_err
 %endif
+
+;
+; INT 22h AX=0010h	Resolve hostname
+;
+%if IS_PXELINUX
+comapi_dnsresolv:
+		mov ds,P_ES
+		mov si,P_BX
+		call dns_resolv
+		mov P_EAX,eax
+		ret
+%else
+comapi_dnsresolv equ comapi_err
+%endif
 		
 		section .data
 %macro 		int21 2
@@ -617,6 +631,7 @@ int22_table:
 		dw comapi_chainboot		; 000D clean up then bootstrap
 		dw comapi_configfile		; 000E get name of config file
 		dw comapi_ipappend		; 000F get ipappend strings
+		dw comapi_dnsresolv		; 0010 resolve hostname
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0
