@@ -773,8 +773,9 @@ kaboom:
 		mov si,err_bootfailed
 		call cwritestr
 		call getchar
-		int 19h
-.norge:		jmp short .norge
+		cli
+		mov word [BIOS_magic],0	; Cold reboot
+		jmp 0F000h:0FFF0h	; Reset vector address
 
 ;
 ; Data that needs to be in the first sector
@@ -854,6 +855,9 @@ dapa:		dw 16				; Packet size
 .seg:		dw 0				; Segment of buffer
 .lba:		dd 0				; LBA (LSW)
 		dd 0				; LBA (MSW)
+
+		alignb 4, db 0
+Stack		dw _start, 0		; SS:SP for stack reset
 
 rl_checkpt	equ $				; Must be <= 800h
 
@@ -4258,7 +4262,7 @@ A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
 A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
 A20Type		dw A20_DUNNO		; A20 type unknown
 VGAFontSize	dw 16			; Defaults to 16 byte font
-Stack		dw _start, 0		; SS:SP for stack reset
+ScrollAttribute	db 07h			; White on black (for text mode)
 
 ;
 ; Variables that are uninitialized in SYSLINUX but initialized here
@@ -4266,6 +4270,7 @@ Stack		dw _start, 0		; SS:SP for stack reset
 ; **** ISOLINUX:: We may have to make this flexible, based on what the
 ; **** BIOS expects our "sector size" to be.
 ;
+		alignb 2, db 0
 ClustSize	dw SECTORSIZE		; Bytes/cluster
 SecPerClust	dw 1			; Same as bsSecPerClust, but a word
 BufSafe		dw trackbufsize/SECTORSIZE	; Clusters we can load into trackbuf
@@ -4276,8 +4281,6 @@ ClustPerMoby	dw 65536/SECTORSIZE	; Clusters per 64K
 %if ( trackbufsize % SECTORSIZE ) != 0
 %error trackbufsize must be a multiple of SECTORSIZE
 %endif
-ScrollAttribute	db 07h			; White on black (for text mode)
-
 
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
