@@ -58,34 +58,90 @@ server in the following way:
   case).
 
 It should be noted that all filename references are relative to the
-/tftpboot directory, or whatever directory the pxelinux.bin lives in.
-PXELINUX generally requires that filenames are 31 characters or
-shorter in length.
+directory pxelinux.bin lives in (usually /tftpboot).  PXELINUX
+generally requires that filenames are 31 characters or shorter in
+length.
 
 PXELINUX does not support MTFTP, and I have no immediate plans of
 doing so.
 
 
-    ++++ SETTING UP A BOOTP SERVER ++++
+    ++++ SETTING UP A DHCP SERVER ++++
 
-The PXE protocol is very complex, but I have successfully booted an
-Intel Nightshade-based PXE host (with "Intel LANDesk(R) Service Agent
-II"), using a DHCP-enabled BOOTP server with the following
-configuration in /etc/bootptab:
+The PXE protocol uses a very complex set of extensions to DHCP or
+BOOTP, but it seems that at least existing implementations don't
+really require all of them; in fact, the only necessary option appears
+to be the dhcp-class-identifier "PXEClient".
 
-<hostname>:hn:ht=ether:ha=<ethernet_address>:ip=<ip>:\
-	:bf=/tftpboot/pxelinux.bin:\
-	:T60=505845436c69656e74:\
-	:T43=0603:\
-	:T43=08000001ssssssss:\
-	:sm=<netmask>:\
-	:gw=<default_gateway>:\
-	:ds=<dns_servers>:
+Using ISC dhcpd.conf syntax:
 
-... where "ssssssss" is the IP address of the boot server, in
-hexadecimal.
+configuration:
 
-Your mileage may vary.
+        allow booting;
+        allow bootp;
+
+        filename "/tftpboot/pxelinux.bin" ;
+        next-server <TFTP server>;
+        option dhcp-class-identifier "PXEClient";
+
+        option domain-name "<domain name>";
+        option subnet-mask <subnet mask>;
+        option broadcast-address <broadcast address>;
+        option domain-name-servers <dns servers>;
+        option routers <default router>;
+
+        host <hostname> {
+                hardware ethernet <ethernet address>;
+                fixed-address <hostname>;
+        }
+
+
+The configuration above works even if the DHCP and TFTP servers are
+not the same machine.
+
+Note that if your particular TFTP daemon runs under chroot, it may be
+that the filename parameter should not include the /tftpboot prefix.
+
+I have successfully booted an Intel N440BX ("Nightshade") motherboard
+with onboard Ethernet and "Intel LANDesk(R) Service Agent II version
+0.99c", using ISC dhcpd 2.0.
+
+Unfortunately, this particular version of Intel LANDesk Service Agent
+II seems to have a rather serious bug: it requests the TFTP "blksize"
+option, but will be mortally confused if this option is actually
+accepted!  There are two possible workarounds for this bug:
+
+1. Use a TFTP server with doesn't support "blksize".
+
+   Unfortunately, PXELINUX requires the "tsize" option to be
+   supported, and it is very unusual for TFTP servers to implement one
+   and not the other.  I have therefore produced a TFTP server which
+   supports options, but let them be disabled with an option (-r
+   <optionname>).  This TFTP server is available at:
+
+	http://www.kernel.org/pub/software/network/tftp/
+	ftp://www.kernel.org/pub/software/network/tftp/
+
+   ... and on any kernel.org mirror (see http://www.kernel.org/mirrors/).
+
+2. Add the following DHCP option:
+
+   "option vendor-encapsulated-options 08:00:00:01:7f:00:00:01 ;"
+
+   That line is not supposed to be necessary, and in fact makes
+   booting significantly slower, since it will attempt (and fail) an
+   MTFTP transfer before falling back to TFTP.  For some reason, the
+   boot PROM doesn't request the "blksize" option if it has already
+   failed an MTFTP transfer, and thus the bug is avoided.
+
+
+    ++++ SOME NOTES ++++
+
+If the boot fails, PXELINUX (unlike SYSLINUX) will not wait forever;
+rather, if it has not received any input for approximately five
+minutes after displaying an error message, it will reset the machine.
+This allows the machine to recover in case it had bad enough luck of
+trying to boot at the same time the TFTP server goes down.
 
 
     ++++ PXELINUX IS STILL BETA ++++
@@ -98,10 +154,16 @@ at the end of syslinux.doc.  Thanks!
 Currently known problems:
 
 + Requires a TFTP server which supports the "tsize" option.
-+ Probably doesn't work if the BOOTP/DHCP server and the TFTP server
-  aren't the same.
-+ The error recovery routine doesn't work quite right.
++ The error recovery routine doesn't work quite right.  For right now,
+  just do a hard reset.
 + There may be funnies with memory management.  The PXE spec has no
   decent way of telling it to free up all memory and unchain any
   interrupts; it allows the base stack to be unloaded, but not the
   UNDI driver.
++ There seems to be a problem with sending ACK "storms"; a number of
+  ACK packets fired off without the proper delay in between.  I
+  suspect this is a PXE firmware problem, rather than a PXELINUX
+  problem.
++ We should probably call the UDP receive function in the keyboard
+  entry loop, so that we answer ARP requests.
++ COMBOOT images or boot sectors don't work yet.

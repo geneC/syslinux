@@ -1,7 +1,17 @@
+Changes in 1.47:
+	* PXELINUX: RFC 1123 states that a TFTP implementation MUST
+	  use adaptive timeout, "at least an exponential backoff of
+          retransmission timeout is necessary."  Implement a very
+	  simple exponential backoff for retransmits.
+	* PXELINUX: Updated documentation, including pointer to new
+	  TFTP server.
+	* PXELINUX: When sending ERROR due to bad OACK, use the proper
+	  destination port number (why are TFTP port numbers so odd?)
+
 Changes in 1.46:
-	* New program PXELINUX to do network booting over the PXE
-	  (Pre-Execution Environment) network booting protocol.  See
-	  pxelinux.doc for details.
+	* New program PXELINUX to do network booting using a
+	  PXE-compliant (Pre-Execution Environment) network booting
+	  PROM.  See pxelinux.doc for details.
 
 Changes in 1.45:
 	* Serial console support.  See syslinux.doc for details.

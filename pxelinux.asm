@@ -35,15 +35,15 @@
 ;
 max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
 FILENAME_MAX	equ 32			; Including final null; should be a power of 2
-retry_count	equ 6			; How patient are we with the disk?
+REBOOT_TIME	equ 5*60		; If failure, time until full reset
 HIGHMEM_MAX	equ 038000000h		; Highest address for an initrd
 HIGHMEM_SLOP	equ 128*1024		; Avoid this much memory near the top
 DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
 BAUD_DIVISOR	equ 115200		; Serial port parameter
 MAX_SOCKETS	equ 64			; Max number of open sockets
 TFTP_PORT	equ htons(69)		; Default TFTP port 
-PKT_RETRY	equ 8			; Packet transmit retry count
-PKT_TIMEOUT	equ 20			; Timer ticks @ 55 ms
+PKT_RETRY	equ 6			; Packet transmit retry count
+PKT_TIMEOUT	equ 8			; Initial timeout, timer ticks @ 55 ms
 TFTP_BLOCKSIZE	equ 512			; Bytes/block
 LOG_TFTP_BLOCKSIZE equ 9		; log2(TFTP_BLOCKSIZE)
 
@@ -257,7 +257,10 @@ tftp_filesize	resd 1			; Total file size
 
 		absolute 0400h
 serial_base	resw 4			; Base addresses for 4 serial ports
-
+		absolute 046Ch
+BIOS_timer	resw 1			; Timer ticks
+		absolute 0472h
+BIOS_magic	resw 1			; BIOS reset magic
                 absolute 0484h
 BIOS_vidrows    resb 1			; Number of screen rows
 
@@ -311,6 +314,7 @@ SetupSecs	resw 1			; Number of setup sectors
 A20Test		resw 1			; Counter for testing status of A20
 ServerPort	resw 1			; TFTP server port
 ConfigFile	resw 1			; Socket for config file
+PktTimeout	resw 1			; Timeout for current packet
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -983,8 +987,7 @@ time_loop:	push cx
 tick_loop:	push dx
 		call pollchar
 		jnz get_char_pop
-		xor ax,ax
-		int 1Ah				; Get time "of day"
+		mov dx,[BIOS_timer]		; Get time "of day"
 		pop ax
 		cmp dx,ax			; Has the timer advanced?
 		je tick_loop
@@ -2076,25 +2079,37 @@ ac_ret1:	ret
 
 
 ;
-; kaboom: write a message and bail out.
+; kaboom: write a message and bail out.  Wait for quite a while, or a user keypress,
+;	  then do a hard reboot.
 ;
 kaboom:
 		lss sp,[cs:Stack]
 		pop ds
+		sti
 .patch:		mov si,bailmsg
 		call writestr		; Returns with AL = 0
-		call unload_pxe
-.drain:		mov ah,1
-		int 16h			; Keypress there?
+.drain:		call pollchar
 		jz .drained
-		xor ah,ah
-		int 16h
+		call getchar
 		jmp short .drain
-.drained:	xor ah,ah
-		int 16h			; Wait for keypress
-		int 19h			; And try once more to boot...
-.norge:		jmp short .norge	; If int 19h returned; this is the end
-
+.drained:
+		mov cx,18
+.wait1:		push cx
+		mov cx,REBOOT_TIME
+.wait2:		mov dx,[BIOS_timer]
+.wait3:		call pollchar
+		jnz .keypress
+		cmp dx,[BIOS_timer]
+		je .wait3
+		loop .wait2
+		mov al,'.'
+		call writechr
+		pop cx
+		loop .wait1
+.keypress:
+		call crlf
+		mov word [BIOS_magic],0	; Cold reboot
+		jmp 0F000h:0FFF0h	; Reset vector address
 ;
 ; searchdir:
 ;
@@ -2119,6 +2134,7 @@ searchdir:
 		jz near .error
 
 		mov ax,PKT_RETRY	; Retry counter
+		mov word [PktTimeout],PKT_TIMEOUT	; Initial timeout
 	
 .sendreq:	push ax			; [bp-2]  - Retry counter
 		push si			; [bp-4]  - File name 
@@ -2160,11 +2176,8 @@ searchdir:
 		;
 
 		; Packet transmitted OK, now we need to receive
-.getpacket:	push word PKT_TIMEOUT	; [bp-10]
-
-		xor ax,ax
-		int 1Ah
-		push dx			; [bp-12]
+.getpacket:	push word [PktTimeout]	; [bp-10]
+		push word [BIOS_timer]	; [bp-12]
 
 .pkt_loop:	mov bx,[bp-8]		; TID
 		mov di,packet_buf
@@ -2180,8 +2193,7 @@ searchdir:
 		and ax,ax
 		jz .got_packet			; Wait for packet
 .no_packet:
-		xor ax,ax
-		int 1Ah
+		mov dx,[BIOS_timer]
 		cmp dx,[bp-12]
 		je .pkt_loop
 		mov [bp-12],dx
@@ -2189,6 +2201,7 @@ searchdir:
 		jnz .pkt_loop
 		pop ax	; Adjust stack
 		pop ax
+		shl word [PktTimeout],1		; Exponential backoff
 		jmp .failure
 		
 .got_packet:
@@ -2199,6 +2212,9 @@ searchdir:
 		cmp [pxe_udp_read_pkt.sip],eax
 		jne .no_packet
 		mov [si+tftp_remoteip],eax
+
+		; Got packet - reset timeout
+		mov word [PktTimeout],PKT_TIMEOUT
 
 		pop ax	; Adjust stack
 		pop ax
@@ -2278,6 +2294,8 @@ searchdir:
 		ret
 
 .err_reply:	; Option negotiation error.  Send ERROR reply.
+		mov ax,[pxe_udp_read_pkt.rport]
+		mov word [pxe_udp_write_pkt.rport],ax
 		mov word [pxe_udp_write_pkt.buffer],tftp_opt_err
 		mov word [pxe_udp_write_pkt.buffersize],tftp_opt_err_len
 		mov di,pxe_udp_write_pkt
@@ -2688,7 +2706,7 @@ writehex_common:
 ; pollchar: check if we have an input character pending (ZF = 0)
 ;
 pollchar:
-		pusha
+		pushad
 		mov ah,1		; Poll keyboard
 		int 16h
 		jnz .done		; Keyboard response
@@ -2698,7 +2716,7 @@ pollchar:
 		add dx,byte 5		; Serial status register
 		in al,dx
 		test al,1		; ZF = 0 if traffic
-.done:		popa
+.done:		popad
 		ret
 
 ;
@@ -2726,18 +2744,6 @@ getchar:
 		mov bx,KbdMap		; Convert character sets
 		xlatb
 .func_key:	ret
-
-;
-;
-; kaboom2: once everything is loaded, replace the part of kaboom
-;	   starting with "kaboom.patch" with this part
-
-kaboom2:
-		mov si,err_bootfailed
-		call cwritestr
-		call getchar
-		int 19h			; And try once more to boot...
-.norge:		jmp short .norge	; If int 19h returned; this is the end
 
 ;
 ; open,getc:	Load a file a character at a time for parsing in a manner
@@ -3134,7 +3140,7 @@ getfssec:
 
 .packet_loop:	push cx				; <A> Save count
 		push es				; <B> Save buffer pointer
-		push bx				; <C>
+		push bx				; <C> Block pointer
 	
 		mov ax,ds
 		mov es,ax
@@ -3142,26 +3148,27 @@ getfssec:
 		; Start by ACKing the previous packet; this should cause the
 		; next packet to be sent.
 		mov cx,PKT_RETRY
+		mov word [PktTimeout],PKT_TIMEOUT
 
-.send_ack:	push cx				; <D>
+.send_ack:	push cx				; <D> Retry count
 
 		mov eax,[si+tftp_filepos]
 		shr eax,LOG_TFTP_BLOCKSIZE
 		xchg ah,al			; Network byte order
 		call ack_packet			; Send ACK
-		jz .send_ok
 
-		pop cx				; <D>
-		loop .send_ack
-		jmp kaboom			; Failed to send ACK
+		; We used to test the error code here, but sometimes
+		; PXE would return negative status even though we really
+		; did send the ACK.  Now, just treat a failed send as
+		; a normally lost packet, and let it time out in due
+		; course of events.
 
 .send_ok:	; Now wait for packet.
-		xor ax,ax
-		int 1Ah				; Get current time
+		mov dx,[BIOS_timer]		; Get current time
 
-		mov cx,PKT_TIMEOUT
-.send_loop:	push cx				; <E>
-		push dx				; <F>
+		mov cx,[PktTimeout]
+.wait_data:	push cx				; <E> Timeout
+		push dx				; <F> Old time
 
 		mov bx,packet_buf
 		mov [pxe_udp_read_pkt.buffer],bx
@@ -3183,15 +3190,15 @@ getfssec:
 		je .recv_ok
 
 		; No packet, or receive failure
-		xor ax,ax
-		int 1Ah				; Get time
-		pop ax				; Old time
-		pop cx
+		mov dx,[BIOS_timer]
+		pop ax				; <F> Old time
+		pop cx				; <E> Timeout
 		cmp ax,dx			; Same time -> don't advance timeout
-		je .send_loop
-		loop .send_loop			; Decrease timeout
+		je .wait_data			; Same clock tick
+		loop .wait_data			; Decrease timeout
 		
-		pop cx				; Didn't get any, send another ACK
+		pop cx				; <D> Didn't get any, send another ACK
+		shl word [PktTimeout],1		; Exponential backoff
 		loop .send_ack
 		jmp kaboom			; Forget it...
 
@@ -3199,10 +3206,10 @@ getfssec:
 		pop cx				; <E>
 
 		cmp word [pxe_udp_read_pkt.buffersize],byte 4
-		jb .send_loop			; Bad size for a DATA packet
+		jb .wait_data			; Bad size for a DATA packet
 
 		cmp word [packet_buf],TFTP_DATA	; Not a data packet?
-		jne .send_loop			; Then wait for something else
+		jne .wait_data			; Then wait for something else
 
 		mov eax,[si+tftp_filepos]
 		shr eax,LOG_TFTP_BLOCKSIZE
@@ -3331,40 +3338,39 @@ unload_pxe:
 ; Various initialized or semi-initialized variables
 ;
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
-		db 0Dh, 0Ah, 0
+		db 13, 10, 0
 boot_prompt	db 'boot: ', 0
 wipe_char	db 08h, ' ', 08h, 0
 err_notfound	db 'Could not find kernel image: ',0
-err_notkernel	db 0Dh, 0Ah, 'Invalid or corrupt kernel image.', 0Dh, 0Ah, 0
+err_notkernel	db 13, 10, 'Invalid or corrupt kernel image.', 13, 10, 0
 err_not386	db 'It appears your computer uses a 286 or lower CPU.'
-		db 0Dh, 0Ah
+		db 13, 10
 		db 'You cannot run Linux unless you have a 386 or higher CPU'
-		db 0Dh, 0Ah
+		db 13, 10
 		db 'in your machine.  If you get this message in error, hold'
-		db 0Dh, 0Ah
+		db 13, 10
 		db 'down the Ctrl key while booting, and I will take your'
-		db 0Dh, 0Ah
-		db 'word for it.', 0Dh, 0Ah, 0
-err_badcfg      db 'Unknown keyword in config file.', 0Dh, 0Ah, 0
-err_noparm      db 'Missing parameter in config file.', 0Dh, 0Ah, 0
-err_noinitrd    db 0Dh, 0Ah, 'Could not find ramdisk image: ', 0
-err_nohighmem   db 'Not enough memory to load specified kernel.', 0Dh, 0Ah, 0
-err_highload    db 0Dh, 0Ah, 'Kernel transfer failure.', 0Dh, 0Ah, 0
+		db 13, 10
+		db 'word for it.', 13, 10, 0
+err_badcfg      db 'Unknown keyword in config file.', 13, 10, 0
+err_noparm      db 'Missing parameter in config file.', 13, 10, 0
+err_noinitrd    db 13, 10, 'Could not find ramdisk image: ', 0
+err_nohighmem   db 'Not enough memory to load specified kernel.', 13, 10, 0
+err_highload    db 13, 10, 'Kernel transfer failure.', 13, 10, 0
 err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
-                db 0Dh, 0Ah, 0
-err_notdos	db ': attempted DOS system call', 0Dh, 0Ah, 0
-err_comlarge	db 'COMBOOT image too large.', 0Dh, 0Ah, 0
-err_bootsec	db 'Invalid or corrupt boot sector image.', 0Dh, 0Ah, 0
-err_a20		db 0Dh, 0Ah, 'A20 gate not responding!', 0Dh, 0Ah, 0
-err_bootfailed	db 0Dh, 0Ah, 'Boot failed: please change disks and press '
-		db 'a key to continue.', 0Dh, 0Ah, 0
+                db 13, 10, 0
+err_notdos	db ': attempted DOS system call', 13, 10, 0
+err_comlarge	db 'COMBOOT image too large.', 13, 10, 0
+err_bootsec	db 'Invalid or corrupt boot sector image.', 13, 10, 0
+err_a20		db 13, 10, 'A20 gate not responding!', 13, 10, 0
+err_bootfailed	db 13, 10, 'Boot failed: press a key to retry, or wait for reset...', 13, 10, 0
 bailmsg		equ err_bootfailed
-err_nopxe	db 'Cannot find !PXE structure, I want my mommy!' ,0Dh, 0Ah, 0
+err_nopxe	db 'Cannot find !PXE structure, I want my mommy!' ,13, 10, 0
 err_pxefailed	db 'PXE API call failed, error ', 0
-err_udpinit	db 'Failed to initialize UDP stack', 0Dh, 0Ah, 0
-err_oldtftp	db 'TFTP server does not support the tsize option', 0Dh, 0Ah, 0
-found_pxenv	db 'Found PXENV+ structure', 0Dh, 0Ah, 0
-using_pxenv_msg db 'Old PXE API detected, using PXENV+ structure', 0Dh, 0Ah, 0
+err_udpinit	db 'Failed to initialize UDP stack', 13, 10, 0
+err_oldtftp	db 'TFTP server does not support the tsize option', 13, 10, 0
+found_pxenv	db 'Found PXENV+ structure', 13, 10, 0
+using_pxenv_msg db 'Old PXE API detected, using PXENV+ structure', 13, 10, 0
 apiver_str	db 'PXE API version is ',0
 pxeentry_msg	db 'PXE entry point found (we hope) at ', 0
 myipaddr_msg	db 'My IP address seems to be ',0
@@ -3375,11 +3381,11 @@ loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
 dot_msg         db '.', 0
 aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
-crlf_msg	db 0Dh, 0Ah, 0
-crff_msg	db 0Dh, 0Ch, 0
+crlf_msg	db 13, 10, 0
+crff_msg	db 13, 0Ch, 0
 default_str	db 'default', 0
 default_len	equ ($-default_str)
-pxelinux_banner	db 0Dh, 0Ah, 'PXELINUX ', version_str, ' ', date, ' ', 0
+pxelinux_banner	db 13, 10, 'PXELINUX ', version_str, ' ', date, ' ', 0
 cfgprefix	db 'pxelinux.cfg/'		; No final null!
 cfgprefix_len	equ ($-cfgprefix)
 
