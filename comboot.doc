@@ -1,4 +1,4 @@
-$Id$
+	 $Id$
 
 		       COMBOOT and COM32 files
 
@@ -363,3 +363,14 @@ AX=000Ah	Get Derivative-Specific Information
 	This call gives information specific to a particular SYSLINUX
 	derivative.  The value returned in AL is the same as is
 	returned in DL by INT 22h AX=0001h.
+
+
+AX=000Bh	Get Serial Console Configuration
+
+	Input:	AX	000Bh
+	Output:	DX	Serial port I/O base (e.g. 3F8h = COM1...)
+		CX	Baud rate divisor (1 = 115200 bps, 2 = 57600 bps...)
+		BX	Flow control configuration bits (see syslinux.doc)
+
+	If no serial port is configured, DX will be set to 0 and the
+	other registers are undefined.

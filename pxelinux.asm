@@ -233,6 +233,7 @@ CursorRow       resb 1			; Cursor row for message file
 ScreenSize      equ $
 VidCols         resb 1			; Columns on screen-1
 VidRows         resb 1			; Rows on screen-1
+BaudDivisor	resw 1			; Baud rate divisor
 FlowControl	equ $
 FlowOutput	resb 1			; Outputs to assert for serial flow
 FlowInput	resb 1			; Input bits for serial flow

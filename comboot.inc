@@ -462,6 +462,22 @@ comapi_derinfo:
 		ret
 
 ;
+; INT 22h AX=000Bh	Get Serial Console Configuration
+;
+comapi_serialcfg:
+		mov ax,[SerialPort]
+		mov P_DX,ax
+		mov ax,[BaudDivisor]
+		mov P_CX,ax
+		mov ax,[FlowControl]
+		or al,ah
+		mov ah,[FlowIgnore]
+		shr ah,4
+		mov P_BX,ax
+		clc
+		ret
+
+;
 ; This stuff should really be in the data section...
 ;
 %macro 		int21 2
@@ -495,6 +511,7 @@ int22_table:
 		dw comapi_close			; 0008 close file
 		dw comapi_pxecall		; 0009 call PXE stack
 		dw comapi_derinfo		; 000A derivative-specific info
+		dw comapi_serialcfg		; 000B get serial port config
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

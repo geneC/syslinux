@@ -170,6 +170,7 @@ pc_serial:	call getint
 		mov eax,BAUD_DIVISOR
 		cdq
 		div ebx
+		mov [BaudDivisor],ax
 		push ax				; Baud rate divisor
 		cmp di,3
 		ja .port_is_io			; If port > 3 then port is I/O addr
