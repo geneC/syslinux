@@ -33,7 +33,7 @@ _start:
 	# Initialize malloc
 	calll __init_memory_arena
 
-	# Now call main...
+	# Now call main... (NOTE: gcc forces main to be regparm 0)
 	popl %eax		# argc
 	popl %edx		# argv
 	calll main

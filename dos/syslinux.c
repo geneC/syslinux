@@ -29,6 +29,12 @@
 const char *program = "syslinux"; /* Name of program */
 uint16_t dos_version;
 
+#ifdef DEBUG
+# define dprintf printf
+#else
+# define dprintf(...) ((void)0)
+#endif
+
 void __attribute__((noreturn)) usage(void)
 {
   puts("Usage: syslinux [-sf] drive:\n");
@@ -49,17 +55,21 @@ void __attribute__((noreturn)) die(const char *msg)
 /*
  * read/write wrapper functions
  */
-int open(const char *filename, int mode)
+int creat(const char *filename, int mode)
 {
   uint16_t rv;
   uint8_t err;
 
-  rv = 0x3D00 | mode;
+  dprintf("creat(\"%s\", 0x%x)\n", filename, mode);
+
+  rv = 0x3C00;
   asm volatile("int $0x21 ; setc %0"
 	       : "=abcdm" (err), "+a" (rv)
-	       : "d" (filename));
-  if ( err )
+	       : "c" (mode), "d" (filename));
+  if ( err ) {
+    dprintf("rv = %d\n", rv);
     die("cannot open ldlinux.sys");
+  }
 
   return rv;
 }
@@ -67,6 +77,8 @@ int open(const char *filename, int mode)
 void close(int fd)
 {
   uint16_t rv = 0x3E00;
+
+  dprintf("close(%d)\n", fd);
 
   asm volatile("int $0x21"
 	       : "+a" (rv)
@@ -81,6 +93,8 @@ ssize_t write_file(int fd, const void *buf, size_t count)
   uint16_t rv;
   ssize_t done = 0;
   uint8_t err;
+
+  dprintf("write_file(%d,%p,%u)\n", fd, buf, count);
 
   while ( count ) {
     rv = 0x4000;
@@ -101,9 +115,11 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 {
   uint8_t err;
 
+  dprintf("write_device(%d,%p,%u,%u)\n", drive, buf, nsecs, sector);
+
   asm volatile("int $0x26 ; setc %0 ; popfw"
 	       : "=abcdm" (err)
-	       : "a" (drive), "b" (buf), "c" (nsecs), "d" (sector));
+	       : "a" (drive-1), "b" (buf), "c" (nsecs), "d" (sector));
 
   if ( err )
     die("sector write error");
@@ -113,25 +129,26 @@ void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 {
   uint8_t err;
 
+  dprintf("read_device(%d,%p,%u,%u)\n", drive, buf, nsecs, sector);
+
   asm volatile("int $0x25 ; setc %0 ; popfw"
 	       : "=abcdm" (err)
-	       : "a" (drive), "b" (buf), "c" (nsecs), "d" (sector));
+	       : "a" (drive-1), "b" (buf), "c" (nsecs), "d" (sector));
 
   if ( err )
     die("sector write error");
 }  
 
+/* This call can legitimately fail, and we don't care, so ignore error return */
 void set_attributes(const char *file, int attributes)
 {
-  uint8_t err;
   uint16_t rv = 0x4301;
 
-  asm volatile("int $0x21 ; setc %0"
-	       : "=abcdm" (err), "+a" (rv)
-	       : "c" (attributes), "d" (file));
+  dprintf("set_attributes(\"%s\", 0x%02x)\n", file, attributes);
 
-  if ( err )
-    die("set attribute error");
+  asm volatile("int $0x21"
+	       : "+a" (rv)
+	       : "c" (attributes), "d" (file));
 }
 
 /*
@@ -148,14 +165,15 @@ static inline void get_dos_version(void)
   uint16_t ver = 0x3001;
   asm("int $0x21 ; xchgb %%ah,%%al" : "+a" (ver) : : "ebx", "ecx");
   dos_version = ver;
+  dprintf("DOS version %d.%d\n", (dos_version >> 8), dos_version & 0xff);
 }
 
 /* The locking interface relies on static variables.  A massive hack :( */
 static uint16_t lock_level;
 
-static inline void set_lock_device(int device)
+static inline void set_lock_device(uint8_t device)
 {
-  lock_level = device << 8;
+  lock_level = device;
 }
 
 void lock_device(int level)
@@ -174,15 +192,23 @@ void lock_device(int level)
   lock_call = 0x084A;		/* MSDN says this is OK for all filesystems */
 #endif
 
-  while ( (uint8_t)lock_level < level ) {
+  while ( (lock_level >> 8) < level ) {
+    uint16_t new_level = lock_level + 0x0100;
+    dprintf("Trying lock %04x...\n", new_level);
     rv = 0x444d;
     asm volatile("int $0x21 ; setc %0"
 		 : "=abcdm" (err), "+a" (rv)
-		 : "b" (lock_level+1), "c" (lock_call), "d"(0x0001));
-    if ( err ) 
-      die("could not lock device");
+		 : "b" (new_level), "c" (lock_call), "d"(0x0001));
+    if ( err ) {
+      /* rv == 0x0001 means this call is not supported, if so we
+	 assume locking isn't needed (e.g. Win9x in DOS-only mode) */
+      if ( rv == 0x0001 )
+	return;
+      else
+	die("could not lock device");
+    }
 
-    lock_level++;
+    lock_level = new_level;
   }
   return;
 }
@@ -203,12 +229,13 @@ void unlock_device(int level)
   unlock_call = 0x086A;		/* MSDN says this is OK for all filesystems */
 #endif
 
-  while ( (uint8_t)lock_level > level ) {
+  while ( (lock_level >> 8) > level ) {
+    uint16_t new_level = lock_level - 0x0100;
     rv = 0x440d;
     asm volatile("int $0x21 ; setc %0"
 		 : "=abcdm" (err), "+a" (rv)
-		 : "b" (lock_level-1), "c" (unlock_call));
-    lock_level--;
+		 : "b" (new_level), "c" (unlock_call));
+    lock_level = new_level;
   }
 }
 
@@ -225,6 +252,11 @@ int main(int argc, char *argv[])
   int nsectors;
   char *device = NULL;
   const char *errmsg;
+  int i;
+
+  dprintf("argv = %p\n", argv);
+  for ( i = 0 ; i <= argc ; i++ )
+    dprintf("argv[%d] = %p = \"%s\"\n", i, argv[i], argv[i]);
 
   (void)argc;			/* Unused */
   
@@ -282,10 +314,9 @@ int main(int argc, char *argv[])
   ldlinux_name[0] = dev_fd | 0x40;
 
   set_attributes(ldlinux_name, 0);
-  fd = open(ldlinux_name, 2);	/* Open for read/write access */
+  fd = creat(ldlinux_name, 0x27); /* ARCHIVE SYSTEM HIDDEN READONLY */
   write_file(fd, syslinux_ldlinux, syslinux_ldlinux_len);
   close(fd);
-  set_attributes(ldlinux_name, 0x27); /* ARCHIVE SYSTEM HIDDEN READONLY */
 
   /*
    * Now, use libfat to create a block map.  This probably
