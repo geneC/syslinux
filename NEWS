@@ -15,6 +15,9 @@ Changes in 2.04:
 	* MEMDISK: Fix a memory offset computation error when
 	  installing compressed disks which generally would cause
 	  1 MB of memory to be wasted.
+	* MEMDISK: Fix installing the E820 memory map.  Calling
+	  INT 15h AX=0E820h with MEMDISK 2.03 loaded would give a
+	  completely corrupt memory map.
 
 Changes in 2.03:
 	* Actually support comment lines in the configuration file.
