@@ -341,10 +341,10 @@ InitRDCNameLen  resw 1			; Length of unmangled initrd name
 NextCharJump    resw 1			; Routine to interpret next print char
 SetupSecs	resw 1			; Number of setup sectors
 A20Test		resw 1			; Counter for testing status of A20
+CmdLineLen	resw 1			; Length of command line including null
 ServerPort	resw 1			; TFTP server port
 ConfigFile	resw 1			; Socket for config file
 PktTimeout	resw 1			; Timeout for current packet
-CmdLineLen	resw 1			; Length of command line including null
 KernelExtPtr	resw 1			; During search, final null pointer
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
@@ -1682,7 +1682,7 @@ nk_noinitrd:
 ;
 ; Copy real_mode stuff up to 90000h
 ;
-		cli				; In case UNDI didn't unload
+		cli				; In case of hooked interrupts
 		mov ax,real_mode_seg
 		mov fs,ax
 		mov ax,9000h

@@ -52,7 +52,11 @@ syslinux_id	equ 031h		; SYSLINUX (3) version 1.x (1)
 ;
 ; Segments used by Linux
 ;
-real_mode_seg	equ 9000h
+; Note: the real_mode_seg is supposed to be 9000h, but some device drivers
+; hog some of high memory.  Therefore, we load it at 7000:0000h and copy
+; it before starting the Linux kernel.
+;
+real_mode_seg	equ 5000h
 		struc real_mode_seg_t
 		resb 20h-($-$$)		; org 20h
 kern_cmd_magic	resw 1			; Magic # for command line
@@ -136,12 +140,15 @@ vk_end:		equ $			; Should be <= vk_size
 
 ;
 ; Segment assignments in the bottom 640K
-; 0000h - main code/data segment (and BIOS segment)
-; 9000h - real_mode_seg
+; Stick to the low 512K in case we're using something like M-systems flash
+; which load a driver into low RAM (evil!!)
 ;
-vk_seg          equ 8000h		; This is where we stick'em
-xfer_buf_seg	equ 7000h		; Bounce buffer for I/O to high mem
-fat_seg		equ 5000h		; 128K area for FAT (2x64K)
+; 0000h - main code/data segment (and BIOS segment)
+; 7000h - real_mode_seg
+;
+vk_seg          equ 6000h		; This is where we stick'em
+xfer_buf_seg	equ 5000h		; Bounce buffer for I/O to high mem
+fat_seg		equ 3000h		; 128K area for FAT (2x64K)
 comboot_seg	equ 2000h		; COMBOOT image loading zone
 
 ;
@@ -347,6 +354,7 @@ NextCharJump    resw 1			; Routine to interpret next print char
 SetupSecs	resw 1			; Number of setup sectors
 SavedSP		resw 1			; Our SP while running a COMBOOT image
 A20Test		resw 1			; Counter for testing status of A20
+CmdLineLen	resw 1			; Length of command line including null
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -1128,11 +1136,10 @@ not_386:
 is_386:
 		; Now we know it's a 386 or higher
 ;
-; Now check that there is at least 608K of low (DOS) memory
-; (608K = 9800h segments)
+; Now check that there is at least 512K of low (DOS) memory
 ;
 		int 12h
-		cmp ax,608
+		cmp ax,512
 		jae enough_ram
 		mov si,err_noram
 		call writestr
@@ -1925,6 +1932,8 @@ is_mem_cmd:
 cmdline_end:
                 push ss                         ; Restore standard DS
                 pop ds
+		sub di,cmd_line_here
+		mov [CmdLineLen],di		; Length including final null
 ;
 ; Now check if we have a large kernel, which needs to be loaded high
 ;
@@ -2070,6 +2079,26 @@ high_load_done:
                 call abort_check        	; Last chance!!
 
 ;
+; Copy real_mode stuff up to 90000h
+;
+		cli				; In case of hooked interrupts
+		mov ax,real_mode_seg
+		mov fs,ax
+		mov ax,9000h
+		mov es,ax
+		mov cx,[SetupSecs]
+		inc cx				; Setup + boot sector
+		shl cx,7			; Sectors -> dwords
+		xor si,si
+		xor di,di
+		fs rep movsd			; Copy setup + boot sector
+		mov si,cmd_line_here
+		mov di,si
+		mov cx,[CmdLineLen]
+		add cx,byte 3
+		shr cx,2			; Convert to dwords
+		fs rep movsd
+;
 ; Some kernels in the 1.2 ballpark but pre-bzImage have more than 4
 ; setup sectors, but the boot protocol had not yet been defined.  They
 ; rely on a signature to figure out if they need to copy stuff from
@@ -2149,15 +2178,14 @@ kill_motor:
 ;
 ; Set up segment registers and the Linux real-mode stack
 ;
-		mov ax,real_mode_seg
+		cli
+		mov ax,9000h
 		mov ds,ax
                 mov es,ax
 		mov fs,ax
 		mov gs,ax
-		cli
 		mov ss,ax
 		mov sp,linux_stack
-		sti
 ;
 ; We're done... now RUN THAT KERNEL!!!!
 ;
@@ -3562,7 +3590,7 @@ err_not386	db 'It appears your computer uses a 286 or lower CPU.'
 		db 'down the Ctrl key while booting, and I will take your'
 		db 0Dh, 0Ah
 		db 'word for it.', 0Dh, 0Ah, 0
-err_noram	db 'It appears your computer has less than 608K of low ("DOS")'
+err_noram	db 'It appears your computer has less than 512K of low ("DOS")'
 		db 0Dh, 0Ah
 		db 'RAM.  Linux needs at least this amount to boot.  If you get'
 		db 0Dh, 0Ah
