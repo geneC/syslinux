@@ -1,4 +1,7 @@
 #!/usr/bin/perl
+
+eval { use bytes; };
+
 $len = 0;
 while ( read(STDIN,$ch,1) ) {
     $cc = ord($ch);

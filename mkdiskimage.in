@@ -16,6 +16,7 @@
 # Creates a blank MS-DOS formatted hard disk image
 #
 
+eval { use bytes; };
 use Fcntl;
 use Errno;
 use Cwd;

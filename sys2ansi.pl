@@ -4,6 +4,8 @@
 # Perl script to convert a Syslinux-format screen to PC-ANSI
 # to display in a color xterm or on the Linux console
 #
+eval { use bytes; };
+
 @ansicol = (0,4,2,6,1,5,3,7);
 
 $getting_file = 0;

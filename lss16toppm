@@ -23,6 +23,8 @@
 ## The -map causes the color map to be output on stderr.
 ##
 
+eval { use bytes; };
+
 $map = 0;
 foreach $arg ( @ARGV ) {
     if ( $arg eq '-map' ) {

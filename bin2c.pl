@@ -15,6 +15,8 @@
 # bin2c.pl: binary file to C source converter
 #
 
+eval { use bytes; };
+
 if ( $#ARGV != 0 ) {
     print STDERR "Usage: $0 table_name < input_file > output_file\n";
     exit 1;

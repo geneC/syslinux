@@ -15,6 +15,8 @@
 # is provided "as is" and without any express or implied warranties.
 # --------------------------------------------------------------------------
 
+eval { use bytes; };
+
 $DEFAULT_PATH = "/usr/lib/kbd/keytables";
 $DEFAULT_MAP = "us";
 $DEFAULT_EXT = ".map";

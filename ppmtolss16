@@ -46,6 +46,8 @@
 ## the color #rrggbb (hex) should be assigned index i (decimal)
 ##
 
+eval { use bytes; };
+
 $magic = 0x1413f33d;
 
 sub rgbconvert($$) {

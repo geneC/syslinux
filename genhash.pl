@@ -3,6 +3,8 @@
 # Generate hash values for keywords
 #
 
+eval { use bytes; };
+
 while ( defined($keywd = <STDIN>) ) {
     chomp $keywd;
     
