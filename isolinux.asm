@@ -20,7 +20,7 @@
 ; ****************************************************************************
 
 ; Note: The Makefile builds one version with DEBUG_MESSAGES automatically.
-%define DEBUG_TRACERS			; Uncomment to get debugging tracers
+; %define DEBUG_TRACERS			; Uncomment to get debugging tracers
 ; %define DEBUG_MESSAGES		; Uncomment to get debugging messages
 
 %ifdef DEBUG_TRACERS
