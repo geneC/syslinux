@@ -3009,7 +3009,7 @@ loadfont:
 .graphics:
 		; CX = 0 on entry
 		mov cl,bh			; CX = bytes/character
-		mov ax,640
+		mov ax,480
 		div cl				; Compute char rows per screen
 		mov dl,al
 		dec al
@@ -4048,11 +4048,11 @@ vgasetmode:
 		mov [TextPage], byte 0	; Always page 0
 
 		mov cx,[VGAFontSize]
-		mov ax,640
+		mov ax,480
 		div cl
+		mov dl,al
 		dec al			; VidRows is stored -1
 		mov [VidRows],al
-		mov dl,al
 		mov bp,vgafontbuf
 		xor bx,bx
 		mov ax,1121h		; Set graphics font
