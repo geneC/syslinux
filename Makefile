@@ -41,13 +41,14 @@ VERSION  = $(shell cat version)
 # like to keep those uniform for debugging reasons; however, distributors 
 # want to recompile the installers (ITARGET).
 #
-CSRC    = syslinux.c syslxmod.c gethostip.c
+CSRC    = syslinux.c syslinux-nomtools.c syslxmod.c gethostip.c
 NASMSRC  = ldlinux.asm syslinux.asm copybs.asm \
 	  pxelinux.asm mbr.asm isolinux.asm isolinux-debug.asm
 SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
 BTARGET = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
 	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin libsyslinux.a
-ITARGET = syslinux.com syslinux copybs.com gethostip mkdiskimage
+ITARGET = syslinux.com syslinux syslinux-nomtools copybs.com gethostip \
+	  mkdiskimage
 DOCS    = COPYING NEWS README TODO *.doc sample com32
 OTHER   = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
 	  keytab-lilo.pl version version.pl sys2ansi.pl \
@@ -145,6 +146,9 @@ libsyslinux.a: bootsect_bin.o ldlinux_bin.o syslxmod.o
 	$(RANLIB) $@
 
 syslinux: syslinux.o libsyslinux.a
+	$(CC) $(LDFLAGS) -o $@ $^
+
+syslinux-nomtools: syslinux-nomtools.o libsyslinux.a
 	$(CC) $(LDFLAGS) -o $@ $^
 
 syslxmod.o: syslxmod.c patch.offset

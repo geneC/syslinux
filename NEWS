@@ -9,6 +9,9 @@ Changes in 2.04:
 	  derivatives...
 	* PXELINUX: Attempt to negotiate full Ethernet-sized blocks
 	  (1468 bytes) using the blksize option.
+	* SYSLINUX: Resurrect the old no-mtools version of the
+	  installer, although as a root-only tool.  Some distributors
+	  have indicated that they need a small standalone installer.
 
 Changes in 2.03:
 	* Actually support comment lines in the configuration file.
