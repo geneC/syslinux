@@ -486,7 +486,7 @@ AX=000Eh [2.11]	Get configuration file name
 	Returns the name of the configuration file.  Note that it is
 	possible that the configuration file doesn't actually exist.
 
-AX=000Fh [2.20] Get IPAPPEND strings [PXELINUX]
+AX=000Fh [3.00] Get IPAPPEND strings [PXELINUX]
 	Input:  AX	000Fh
 	Output:	CX	Number of strings (currently 2)
 		ES:BX	Pointer to an array of NEAR pointers in
