@@ -48,26 +48,42 @@
 
 $magic = 0x1413f33d;
 
+sub rgbconvert($$) {
+    my($rgb,$maxmult) = @_;
+    my($r,$g,$b);
+    my($seen) = $seen_cols{$rgb};
+    $seen_cols{$rgb}++;
+
+    ($r, $g, $b) = unpack("CCC", $rgb);
+    printf STDERR "Converting %02x%02x%02x ", $r, $g, $b unless ($seen);
+    $r = int($r*$maxmult+0.5);
+    $g = int($g*$maxmult+0.5);
+    $b = int($b*$maxmult+0.5);
+    printf STDERR "-> %02x%02x%02x\n", $r, $g, $b unless ($seen);
+    $rgb = pack("CCC", $r, $g, $b);
+    return $rgb;
+}
+
 foreach $arg ( @ARGV ) {
     if ( $arg =~ /^\#([0-9a-f])([0-9a-f])([0-9a-f])=([0-9]+)$/i ) {
-	$r = hex($1) << 2;
-	$g = hex($2) << 2;
-	$b = hex($3) << 2;
+	$r = hex($1) << 4;
+	$g = hex($2) << 4;
+	$b = hex($3) << 4;
 	$i = $4 + 0;
     } elsif ( $arg =~ /^\#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})=([0-9]+)$/i ) {
-	$r = hex($1) >> 2;
-	$g = hex($2) >> 2;
-	$b = hex($3) >> 2;
+	$r = hex($1);
+	$g = hex($2);
+	$b = hex($3);
 	$i = $4 + 0;
     } elsif ( $arg =~ /^\#([0-9a-f]{3})([0-9a-f]{3})([0-9a-f]{3})=([0-9]+)$/i ) {
-	$r = hex($1) >> 6;
-	$g = hex($2) >> 6;
-	$b = hex($3) >> 6;
+	$r = hex($1) >> 4;
+	$g = hex($2) >> 4;
+	$b = hex($3) >> 4;
 	$i = $4 + 0;
     } elsif ( $arg =~ /^\#([0-9a-f]{4})([0-9a-f]{4})([0-9a-f]{4})=([0-9]+)$/i ) {
-	$r = hex($1) >> 10;
-	$g = hex($2) >> 10;
-	$b = hex($3) >> 10;
+	$r = hex($1) >> 8;
+	$g = hex($2) >> 8;
+	$b = hex($3) >> 8;
 	$i = $4 + 0;
     } else {
 	# print STDERR "$0: Unknown argument: $arg\n";
@@ -79,7 +95,7 @@ foreach $arg ( @ARGV ) {
 	next;
     }
 
-    $rgb = pack("CCC", $r, $g, $b);
+    $rgb = rgbconvert(pack("CCC", $r, $g, $b), 64/256);
 
     if ( defined($index_forced{$i}) ) {
 	# print STDERR "$0: More than one color index $i\n";
@@ -99,12 +115,12 @@ if ( $sizes !~ /^([0-9]+)\s+([0-9]+)\s*$/ ) {
 $xsize = $1 + 0;
 $ysize = $2 + 0;
 $maxcol = <STDIN>;
+$maxmult = 64/($maxcol+1); 	# Equal buckets conversion
 chomp $maxcol;
 if ( $maxcol !~ /^([0-9]+)\s*$/ ) {
     die "$0: Input format error 2\n";
 }
 $maxcol = $1 + 0;
-$maxmult = 64/($maxcol+1);	# Equal buckets conversion
 
 @data = ();
 
@@ -113,11 +129,7 @@ for ( $y = 0 ; $y < $ysize ; $y++ ) {
 	die "$0: Premature EOF at ($x,$y) of ($xsize,$ysize)\n"
 	    if ( read(STDIN, $rgb, 3) != 3 );
 	# Convert to 6-bit representation
-	($r, $g, $b) = unpack("CCC", $rgb);
-	$r = int($r*$maxmult+0.5);
-	$g = int($g*$maxmult+0.5);
-	$b = int($b*$maxmult+0.5);
-	$rgb = pack("CCC", $r, $g, $b);
+	$rgb = rgbconvert($rgb, $maxmult);
 	$color_count{$rgb}++;
 	push(@data, $rgb);
     }
@@ -125,11 +137,6 @@ for ( $y = 0 ; $y < $ysize ; $y++ ) {
 
 # Sort list of colors according to freqency
 @colors = sort { $color_count{$b} <=> $color_count{$a} } keys(%color_count);
-
-if ( scalar(@colors) > 16 ) {
-    # print STDERR "$0: Warning: input > 16 colors\n";
-    @colors = @colors[0..15];
-}
 
 # Now we have our pick of colors.  Sort according to intensity;
 # this is more or less an ugly hack to cover for the fact that
@@ -157,29 +164,51 @@ sub by_intensity() {
 
 # Insert forced colors into "final" array
 @colors = (undef) x 16;
-foreach $rgb ( @icolors ) {
-    if ( defined($force_index{$rgb}) ) {
-	$colors[$force_index{$rgb}] = $rgb;
-    }
+foreach $rgb ( keys(%force_index) ) {
+    $i = $force_index{$rgb};
+    $colors[$i] = $rgb;
+    $color_index{$rgb} = $i;
 }
+
+undef %force_index;
 
 # Insert remaining colors in the remaining slots,
 # in luminosity-sorted order
 $nix = 0;
-foreach $rgb ( @icolors ) {
-    if ( ! defined($force_index{$rgb}) ) {
-	# Advance to the next free slot
-	$nix++ while ( defined($colors[$nix]) );
+while ( scalar(@icolors) ) {
+    # Advance to the next free slot
+    $nix++ while ( defined($colors[$nix]) && $nix < 16 );
+    last if ( $nix >= 16 );
+    $rgb = shift @icolors;
+    if ( !defined($color_index{$rgb}) ) {
 	$colors[$nix] = $rgb;
+	$color_index{$rgb} = $nix;
     }
 }
 
-undef @icolors;
-
-# Generate color index hash
-for ( $i = 0 ; $i < scalar @colors ; $i++ ) {
-    $color_index{$colors[$i]} = $i;
+while ( scalar(@icolors) ) {
+    $rgb = shift @icolors;
+    $lost++ if ( !defined($color_index{$rgb}) );
 }
+
+if ( $lost ) {
+    printf STDERR
+	"$0: Warning: color palette truncated (%d colors ignored)\n", $lost;
+	scalar(@icolors);
+
+    foreach $rgb ( @colors ) {
+	($r,$g,$b) = unpack("CCC", $rgb);
+	printf STDERR "#%02x%02x%02x ", $r, $g, $b;
+    }
+    print STDERR "\n";
+    foreach $rgb ( @icolors ) {
+	($r,$g,$b) = unpack("CCC", $rgb);
+	printf STDERR "#%02x%02x%02x ", $r, $g, $b;
+    }
+    print STDERR "\n";
+}
+
+undef @icolors;
 
 # Output header
 print pack("Vvv", $magic, $xsize, $ysize);
