@@ -37,7 +37,7 @@ AR	 = mingw-ar
 RANLIB   = mingw-ranlib
 endif
 
-CFLAGS   = -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+CFLAGS   = -W -Wall -Wno-sign-compare -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 PIC      =
 LDFLAGS  = -Os -s
 endif

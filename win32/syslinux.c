@@ -21,6 +21,7 @@
 #include <ctype.h>
 
 #include "syslinux.h"
+#include "libfat.h"
 
 char *program;			/* Name of program */
 char *drive;			/* Drive to install to */
@@ -66,6 +67,28 @@ void error(char* msg)
   LocalFree(lpMsgBuf);
 }
 
+/*
+ * Wrapper for ReadFile suitable for libfat
+ */
+int libfat_readfile(intptr_t pp, void *buf, size_t secsize, libfat_sector_t sector)
+{
+  uint64_t offset = (uint64_t)sector * secsize;
+  LONG loword = (LONG)offset;
+  LONG hiword  = (LONG)(offset >> 32);
+  LONG hiwordx = hiword;
+  DWORD bytes_read;
+
+  if ( SetFilePointer((HANDLE)pp, loword, &hiwordx, FILE_BEGIN) != loword ||
+       hiword != hiwordx ||
+       !ReadFile((HANDLE)pp, buf, secsize, &bytes_read, NULL) ||
+       bytes_read != secsize ) {
+    fprintf(stderr, "Cannot read sector %u\n", sector);
+    exit(1);
+  }
+
+  return secsize;
+}
+
 void usage(void)
 {
   fprintf(stderr, "Usage: syslinux.exe [-sf] <drive>:\n");
@@ -74,7 +97,7 @@ void usage(void)
 
 int main(int argc, char *argv[])
 {
-  HANDLE f_handle;
+  HANDLE f_handle, d_handle;
   DWORD bytes_read;
   DWORD bytes_written;
   DWORD drives;
@@ -82,17 +105,22 @@ int main(int argc, char *argv[])
 
   static unsigned char sectbuf[512];
   char **argp, *opt;
-  char drive_name[128];
-  char ldlinux_name[128];
+  static char drive_name[] = "\\\\.\\?:";
+  static char drive_root[] = "?:\\";
+  static char ldlinux_name[] = "?:\\ldlinux.sys" ;
   const char *errmsg;
+  struct libfat_filesystem *fs;
+  libfat_sector_t s, *secp, sectors[65]; /* 65 is maximum possible */
+  uint32_t ldlinux_cluster;
+  int nsectors;
 
   int force = 0;		/* -f (force) option */
 
   (void)argc;
 
   if (!checkver()) {
-    fprintf(stderr, "You need to be running at least Windows NT\n");
-    exit(1);	    
+    fprintf(stderr, "You need to be running at least Windows NT; use syslinux.com instead.\n");
+    exit(1);
   }
 
   program = argv[0];
@@ -132,8 +160,10 @@ int main(int argc, char *argv[])
   }
 
   /* Determines the drive type */
-  sprintf(drive_name, "%c:\\", drive[0]);
-  drive_type = GetDriveType(drive_name);
+  drive_name[4]   = drive[0];
+  ldlinux_name[0] = drive[0];
+  drive_root[0]   = drive[0];
+  drive_type = GetDriveType(drive_root);
 
   /* Test for removeable media */
   if ((drive_type == DRIVE_FIXED) && (force == 0)) {
@@ -150,20 +180,19 @@ int main(int argc, char *argv[])
   /*
    * First open the drive
    */
-  sprintf(drive_name, "\\\\.\\%c:", drive[0]);
-  f_handle = CreateFile(drive_name, GENERIC_READ | GENERIC_WRITE,
+  d_handle = CreateFile(drive_name, GENERIC_READ | GENERIC_WRITE,
 			 FILE_SHARE_READ | FILE_SHARE_WRITE,
 			 NULL, OPEN_EXISTING, 0, NULL );
 
-  if(f_handle == INVALID_HANDLE_VALUE) {
+  if(d_handle == INVALID_HANDLE_VALUE) {
     error("Could not open drive");
     exit(1);
   }
 
   /*
-   * Read the boot sector
+   * Make sure we can read the boot sector
    */  
-  ReadFile(f_handle, sectbuf, 512, &bytes_read, NULL);
+  ReadFile(d_handle, sectbuf, 512, &bytes_read, NULL);
   if(bytes_read != 512) {
     fprintf(stderr, "Could not read the whole boot sector\n");
     exit(1);
@@ -174,24 +203,6 @@ int main(int argc, char *argv[])
     fprintf(stderr, "%s\n", errmsg);
     exit(1);
   }
-
-  /* Make the syslinux boot sector */
-  syslinux_make_bootsect(sectbuf);
-
-  /* Write the syslinux boot sector into the boot sector */
-  SetFilePointer(f_handle, 0, NULL, FILE_BEGIN);
-  WriteFile( (HANDLE) f_handle, sectbuf, 512, &bytes_written, NULL ) ;
-
-  if(bytes_written != 512) {
-    fprintf(stderr, "Could not write the whole boot sector\n");
-    exit(1);
-  }
-
-  /* Close file */ 
-  CloseHandle(f_handle);
-
-  /* Create the filename */
-  sprintf(ldlinux_name, "%s%s", drive_name, "\\ldlinux.sys"); 
 
   /* Change to normal attributes to enable deletion */
   /* Just ignore error if the file do not exists */
@@ -205,7 +216,8 @@ int main(int argc, char *argv[])
   f_handle = CreateFile(ldlinux_name, GENERIC_READ | GENERIC_WRITE,
 			FILE_SHARE_READ | FILE_SHARE_WRITE,
 			NULL, CREATE_ALWAYS, 
-			FILE_ATTRIBUTE_ARCHIVE | FILE_ATTRIBUTE_READONLY,
+			FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_SYSTEM |
+			FILE_ATTRIBUTE_HIDDEN,
 			NULL );
   
   if(f_handle == INVALID_HANDLE_VALUE) {
@@ -214,7 +226,8 @@ int main(int argc, char *argv[])
   }
 
   /* Write ldlinux.sys file */
-  if (!WriteFile(f_handle, syslinux_ldlinux, syslinux_ldlinux_len, &bytes_written, NULL)) {
+  if (!WriteFile(f_handle, syslinux_ldlinux, syslinux_ldlinux_len, &bytes_written, NULL) ||
+      bytes_written != syslinux_ldlinux_len ) {
     error("Could not write ldlinux.sys");
     exit(1);
   }
@@ -229,9 +242,52 @@ int main(int argc, char *argv[])
     error("FlushFileBuffers failed");
     exit(1);
   }
-    
+
+  /* Map the file (is there a better way to do this?) */
+  fs = libfat_open(libfat_readfile, (intptr_t)d_handle);
+  ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
+  secp = sectors;
+  nsectors = 0;
+  s = libfat_clustertosector(fs, ldlinux_cluster);
+  while ( s && nsectors < 65 ) {
+    *secp++ = s;
+    nsectors++;
+    s = libfat_nextsector(fs, s);
+  }
+  libfat_close(fs);
+
+  /*
+   * Patch ldlinux.sys and the boot sector
+   */
+  syslinux_patch(sectors, nsectors);
+
+  /*
+   * Rewrite the file
+   */
+  if ( SetFilePointer(f_handle, 0, NULL, FILE_BEGIN) != 0 ||
+       !WriteFile(f_handle, syslinux_ldlinux, syslinux_ldlinux_len, &bytes_written, NULL) ||
+       bytes_written != syslinux_ldlinux_len ) {
+    error("Could not write ldlinux.sys");
+    exit(1);
+  }
+
   /* Close file */ 
   CloseHandle(f_handle);
+
+  /* Make the syslinux boot sector */
+  syslinux_make_bootsect(sectbuf);
+
+  /* Write the syslinux boot sector into the boot sector */
+  SetFilePointer(d_handle, 0, NULL, FILE_BEGIN);
+  WriteFile( d_handle, sectbuf, 512, &bytes_written, NULL ) ;
+
+  if(bytes_written != 512) {
+    fprintf(stderr, "Could not write the whole boot sector\n");
+    exit(1);
+  }
+
+  /* Close file */ 
+  CloseHandle(d_handle);
 
   /* Done! */
   return 0;
