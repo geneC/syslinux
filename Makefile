@@ -46,14 +46,19 @@ OBSOLETE = pxelinux.bin
 # Things to install in /usr/bin
 INSTALL_BIN = syslinux gethostip ppmtolss16 lss16toppm
 
-all:	$(BTARGET) $(ITARGET) samples
-	ls -l $(BTARGET) $(ITARGET)
+all:	$(BTARGET) $(ITARGET) samples memdisk
+	ls -l $(BTARGET) $(ITARGET) memdisk/memdisk
 
 installer: $(ITARGET) samples
 	ls -l $(BTARGET) $(ITARGET)
 
+.PHONY: samples
 samples:
 	$(MAKE) -C sample all
+
+.PHONY: memdisk
+memdisk:
+	$(MAKE) -C memdisk all
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
