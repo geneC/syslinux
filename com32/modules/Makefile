@@ -45,7 +45,7 @@ AUXDIR   = $(LIBDIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-MODULES	= chain.c32
+MODULES	= chain.c32 menu.c32 menu.lnx
 
 all: $(MODULES)
 
