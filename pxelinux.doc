@@ -2,7 +2,7 @@
 
     A bootloader for Linux using the PXE network booting protocol
 
-		Copyright (C) 1994-2003 H. Peter Anvin
+		Copyright (C) 1994-2004 H. Peter Anvin
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -42,7 +42,7 @@ search for its config file on the boot server in the following way:
 
   First, it will search for the config file using the hardware type
   (using its ARP type code) and address, all in lower case hexadecimal
-  with dash separators; for example, for an Ethernet (ARP type 01 hex)
+  with dash separators; for example, for an Ethernet (ARP type 1)
   with address 88:99:AA:BB:CC:DD it would search for the filename
   01-88-99-aa-bb-cc-dd.
   
