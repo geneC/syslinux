@@ -1,0 +1,57 @@
+                               ISOLINUX
+
+       A bootloader for Linux using ISO 9660/El Torito CD-ROMs
+
+		Copyright (C) 1994-2001 H. Peter Anvin
+
+This program is provided under the terms of the GNU General Public
+License, version 2 or, at your option, any later version.  There is no
+warranty, neither expressed nor implied, to the function of this
+program.  Please see the included file COPYING for details.
+
+----------------------------------------------------------------------
+
+ISOLINUX is a boot loader for Linux/i386 that operates off ISO 9660/El
+Torito CD-ROMs in "no emulation" mode.  This avoids the need to create
+an "emulation disk image" with limited space (for "floppy emulation")
+or compatibility problems (for "hard disk emulation".)
+
+This documentation isn't here yet, but here is enough that you should
+be able to test it out:
+
+Make sure you have a recent enough version of mkisofs.  I recommend
+mkisofs 1.13 (distributed with the cdrecord distribution), but 1.12
+might work as well (not tested.)
+
+To create an image, put isolinux.bin, a config file called
+"isolinux.cfg" (see syslinux.doc for details on the configuration
+file), and all necessary files (kernels, initrd, display files, etc.)
+in the root directory of your ISO master file tree.  Then use the
+following command to create your ISO image (add additional options as
+appropriate):
+
+	mkisofs -o <isoimage> -b isolinux.bin -c .boot.cat \
+		-no-emul-boot -boot-load-size 4 -boot-info-table \
+		<root-of-iso-tree>
+
+The real release version of ISOLINUX will probably look for a
+directory named "isolinux" in the root, and use it instead of the root
+directory if present.
+
+Like SYSLINUX, ISOLINUX does not support subdirectories.  Unlike
+SYSLINUX, there isn't a fundamental reason for this, so if this is
+something desirable, let me know and I'll add it on my list of things
+to do.
+
+Note that ISOLINUX only uses the "plain" ISO 9660 filenames, i.e. it
+does not support Rock Ridge or Joliet filenames.  It can still be used
+on a disk which uses Rock Ridge and/or Joliet extensions, of course.
+Under Linux, you can verify the plain filenames by mounting with the
+"-o norock,nojoliet" option to the mount command.  Note, however, that
+ISOLINUX does support "long" (level 2) ISO 9660 plain filenames, so if
+compatibility with short-names-only operating systems like MS-DOS is
+not an issue, you can use the "-l" or "-iso-level 2" option to mkisofs
+to generate long (up to 31 characters) plain filenames.
+
+
+ 
