@@ -1,6 +1,11 @@
 Starting with 1.47, changes marked with SYSLINUX/PXELINUX apply to
 that specific program only; other changes apply to both.
 
+Changes in 1.51:
+	* PXELINUX: Not all PXE stacks fill in the IP address for a
+	  type 3 cached info query.  Use a type 2 cached info query
+	  for this information (only.)
+
 Changes in 1.50:
 	* Yet another A20-code update.  It seems some "legacy-free"
 	  machines and embedded gear simply don't have a KBC to talk
