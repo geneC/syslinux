@@ -97,7 +97,7 @@ static void ansicon_erase(int x0, int y0, int x1, int y1)
   static com32sys_t ireg;
   
   ireg.eax.w[0] = 0x0600;	/* Clear window */
-  ireg.eax.b[1] = st.attr;	/* Fill with current attribute */
+  ireg.ebx.b[1] = st.attr;	/* Fill with current attribute */
   ireg.ecx.b[0] = x0;
   ireg.ecx.b[1] = y0;
   ireg.edx.b[0] = x1;
