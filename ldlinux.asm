@@ -556,7 +556,6 @@ kaboom:
 		call writestr		; Returns with AL = 0
 		cbw			; AH <- 0
 		int 16h			; Wait for keypress
-		call vgaclearmode
 		int 19h			; And try once more to boot...
 .norge:		jmp short .norge	; If int 19h returned; this is the end
 
@@ -3412,6 +3411,7 @@ kaboom2:
 		mov si,err_bootfailed
 		call cwritestr
 		call getchar
+		call vgaclearmode
 		int 19h			; And try once more to boot...
 .norge:		jmp short .norge	; If int 19h returned; this is the end
 
