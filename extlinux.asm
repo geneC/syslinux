@@ -772,6 +772,7 @@ expand_super:
 		dec eax
 		mov [ClustMask],eax
 
+		add cl,SECTOR_SHIFT-2		; 4 bytes/pointer
 		shl edx,cl
 		mov [PtrsPerBlock1],edx
 		shl edx,cl
