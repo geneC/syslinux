@@ -11,7 +11,7 @@ Source0: ftp://ftp.kernel.org/pub/linux/utils/boot/syslinux/%{name}-%{VERSION}.t
 ExclusiveArch: i386 x86_64
 Packager: H. Peter Anvin <hpa@zytor.com>
 Buildroot: %{_tmppath}/%{name}-%{VERSION}-root
-BuildPrereq: nasm >= 0.98.35, perl
+BuildPrereq: nasm >= 0.98.38, perl
 Autoreq: 0
 %ifarch i386
 Requires: mtools, libc.so.6
@@ -21,10 +21,18 @@ Requires: mtools, libc.so.6()(64bit)
 %endif
 
 %description
-Syslinux is a simple kernel loader. It normally loads the kernel (and an 
+SYSLINUX is a simple kernel loader. It normally loads the kernel (and an 
 optional initrd image) from a FAT filesystem. It can also be used as a
 PXE bootloader during network boots (PXELINUX), or for booting from
-ISO 9660 CD-ROMs (ISOLINUX).
+ISO 9660 CD-ROMs (ISOLINUX).  It also includes a tool, MEMDISK, which
+loads legacy operating systems from these media.
+
+Package: devel
+
+%description devel
+The SYSLINUX boot loader contains an API, called COM32, for writing
+sophisticated add-on modules.  This package contains the libraries
+necessary to compile such modules.
 
 %prep
 %setup -q -n syslinux-%{VERSION}
@@ -56,9 +64,17 @@ rm -rf %{buildroot}
 %{_bindir}/ppmtolss16
 %{_bindir}/lss16toppm
 %{_bindir}/gethostip
-%{_libdir}/syslinux
+%{_libdir}/syslinux/*.com
+%{_libdir}/syslinux/*.exe
+%{_libdir}/syslinux/*.c32
+%{_libdir}/syslinux/*.bin
+%{_libdir}/syslinux/*.0
+%{_libdir}/syslinux/memdisk
 %{_libdir}/libsyslinux.*
 %{_includedir}/syslinux.h
+
+%files devel
+%{_libdir}/syslinux/com32
 
 %post
 /sbin/ldconfig
@@ -67,6 +83,9 @@ rm -rf %{buildroot}
 /sbin/ldconfig
 
 %changelog
+* Tue Dec 14 2004 H. Peter Anvin <hpa@zytor.com>
+- Add a devel package for the com32 library added in 2.12.
+
 * Wed Apr 16 2003 H. Peter Anvin <hpa@zytor.com> 2.04-1
 - 2.04 release
 - Add support for libsyslinux.so*
