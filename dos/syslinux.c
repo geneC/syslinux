@@ -167,8 +167,12 @@ void lock_device(int level)
   if ( dos_version < 0x0700 )
     return;			/* Win9x/NT only */
 
+#if 0
   /* DOS 7.10 = Win95 OSR2 = first version with FAT32 */
   lock_call = (dos_version >= 0x0710) ? 0x484A : 0x084A;
+#else
+  lock_call = 0x084A;		/* MSDN says this is OK for all filesystems */
+#endif
 
   while ( (uint8_t)lock_level < level ) {
     rv = 0x444d;
@@ -192,8 +196,12 @@ void unlock_device(int level)
   if ( dos_version < 0x0700 )
     return;			/* Win9x/NT only */
 
+#if 0
   /* DOS 7.10 = Win95 OSR2 = first version with FAT32 */
   unlock_call = (dos_version >= 0x0710) ? 0x486A : 0x086A;
+#else
+  unlock_call = 0x086A;		/* MSDN says this is OK for all filesystems */
+#endif
 
   while ( (uint8_t)lock_level > level ) {
     rv = 0x440d;
