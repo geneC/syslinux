@@ -143,7 +143,8 @@ invoked via a FAR CALL.
 	++++ SYSLINUX API CALLS +++
 
 SYSLINUX provides the following API calls.  SYSLINUX 1.xx only
-supported INT 20h - terminate program.
+supported INT 20h - terminate program. [] indicates the first version
+of SYSLINUX which supported this feature (correctly.)
 
 NOTE: Most of the API functionality is still experimental.  Expect to
 find bugs.
@@ -151,45 +152,45 @@ find bugs.
 
 	++++ DOS-COMPATIBLE API CALLS ++++
 
-INT 20h		Terminate program
-INT 21h AH=00h	Terminate program
-INT 21h AH=4Ch	Terminate program
+INT 20h		[1.48] Terminate program
+INT 21h AH=00h	[2.00] Terminate program
+INT 21h AH=4Ch	[2.00] Terminate program
 
 	All of these terminate the program.
 
-INT 21h AH=01h	Get Key with Echo
+INT 21h AH=01h	[2.01] Get Key with Echo
 
 	Reads a key from the console input, with echo to the console
 	output.  The read character is returned in AL.  Extended
 	characters received from the keyboard are returned as NUL (00h)
 	+ the extended character code.
 	
-INT 21h AH=02h	Write Character
+INT 21h AH=02h	[2.01] Write Character
 
 	Writes a character in DL to the console (video and serial)
 	output.
 
-INT 21h AH=04h	Write Character to Serial Port
+INT 21h AH=04h	[2.01] Write Character to Serial Port
 
 	Writes a character in DL to the serial console output
 	(if enabled.)  If no serial port is configured, this routine
 	does nothing.
 
-INT 21h AH=08h	Get Key without Echo
+INT 21h AH=08h	[2.09] Get Key without Echo
 
 	Reads a key fron the console input, without echoing it to the
 	console output.  The read character is returned in AL.
 
-INT 21h AH=09h	Write DOS String to Console
+INT 21h AH=09h	[2.01] Write DOS String to Console
 
 	Writes a DOS $-terminated string in DS:DX to the console.
 
-INT 21h AH=0Bh	Check Keyboard
+INT 21h AH=0Bh	[2.00] Check Keyboard
 
 	Returns AL=FFh if there is a keystroke waiting (which can then
 	be read with INT 21h, AH=01h or AH=08h), otherwise AL=00h.
 
-INT 21h AH=30h	Check DOS Version
+INT 21h AH=30h	[2.00] Check DOS Version
 
 	This function returns AX=BX=CX=DX=0, corresponding to a
 	hypothetical "DOS 0.0", but the high parts of EAX-EBX-ECX-EDX
@@ -220,7 +221,7 @@ arithmetric flags (CF, PF, AF, ZF, SF and OF) but leave all other
 flags unchanged unless otherwise noted.
 
 
-AX=0001h	Get Version
+AX=0001h [2.00]	Get Version
 
 	Input:	AX	0001h
 	Output:	AX	number of INT 22h API functions available
@@ -234,7 +235,7 @@ AX=0001h	Get Version
 	information.
 
 
-AX=0002h	Write String
+AX=0002h [2.01] Write String
 
 	Input:	AX	0002h
 		ES:BX	null-terminated string
@@ -243,7 +244,7 @@ AX=0002h	Write String
 	Writes a null-terminated string on the console.
 
 
-AX=0003h	Run command
+AX=0003h [2.01] Run command
 
 	Input:	AX	0003h
 		ES:BX	null-terminated command string
@@ -254,7 +255,7 @@ AX=0003h	Run command
 	line.  This API call does not return.
 
 
-AX=0004h	Run default command
+AX=0004h [2.01] Run default command
 
 	Input:	AX	0004h
 	Output:	Does not return
@@ -264,7 +265,7 @@ AX=0004h	Run default command
 	SYSLINUX command line.  This API call does not return.
 
 
-AX=0005h	Force text mode
+AX=0005h [2.00] Force text mode
 
 	Input:	AX	0005h
 	Output:	None
@@ -274,7 +275,7 @@ AX=0005h	Force text mode
 	similar), return to text mode.
 
 
-AX=0006h	Open file
+AX=0006h [2.08] Open file
 
 	Input:	AX	0006h
 		ES:SI	null-terminated filename
@@ -291,7 +292,7 @@ AX=0006h	Open file
 	Note: SYSLINUX considers a zero-length file to be nonexistent.
 
 
-AX=0007h	Read file
+AX=0007h [2.08] Read file
 
 	Input:	AX	0007h
 		SI	file handle
@@ -317,7 +318,7 @@ AX=0007h	Read file
 	will probably crash the system.
 
 
-AX=0008h	Close file
+AX=0008h [2.08] Close file
 
 	Input:	AX	0008h
 		SI	file handle
@@ -329,7 +330,7 @@ AX=0008h	Close file
 	will probably crash the system.
 
 
-AX=0009h	Call PXE Stack [PXELINUX ONLY]
+AX=0009h [2.00] Call PXE Stack [PXELINUX ONLY]
 
 	Input:	AX	0009h
 		BX	PXE function number
@@ -344,7 +345,7 @@ AX=0009h	Call PXE Stack [PXELINUX ONLY]
 	to determine if the PXE call succeeded or not.
 
 
-AX=000Ah	Get Derivative-Specific Information
+AX=000Ah [2.00]	Get Derivative-Specific Information
 
 	[SYSLINUX]
 	Input:	AX	000Ah
@@ -410,7 +411,7 @@ AX=000Ah	Get Derivative-Specific Information
 	returned in DL by INT 22h AX=0001h.
 
 
-AX=000Bh	Get Serial Console Configuration
+AX=000Bh [2.00]	Get Serial Console Configuration
 
 	Input:	AX	000Bh
 	Output:	DX	Serial port I/O base (e.g. 3F8h = COM1...)
@@ -421,7 +422,7 @@ AX=000Bh	Get Serial Console Configuration
 	other registers are undefined.
 
 
-AX=000Ch	Perform final cleanup
+AX=000Ch [2.00]	Perform final cleanup
 	Input:	AX	000Ch
 		DX	derivative-specific flags (0000h = clean up all)
 	Output:	Does not return
@@ -453,7 +454,7 @@ AX=000Ch	Perform final cleanup
 	meanings in future versions of SYSLINUX.
 
 
-AX=000Dh	Cleanup and replace bootstrap code
+AX=000Dh [2.08]	Cleanup and replace bootstrap code
 	Input:	AX	000Dh
 		DX	derivative-specific flags (see previous function)
 		EDI	bootstrap code (linear address, can be in high memory)
@@ -478,7 +479,7 @@ AX=000Dh	Cleanup and replace bootstrap code
 	were set up by the PXE ROM.
 
 
-AX=000Eh	Get configuration file name
+AX=000Eh [2.11]	Get configuration file name
 	Input:	AX	0000Eh
 	Output:	ES:BX	null-terminated file name string
 
