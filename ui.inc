@@ -64,8 +64,8 @@ tick_loop:	push dx
 
 		; Timeout!!!!
 		call vgahidecursor
-		mov si,TimeOutCmd		; Copy timeoutcommand if we have one...
-		mov cx,[TimeOutCmdLen]
+		mov si,Ontimeout		; Copy ontimeout command
+		mov cx,[OntimeoutLen]		; if we have one...
 		rep movsb
 .stddefault:
 		jmp command_done
