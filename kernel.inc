@@ -50,7 +50,7 @@ su_loadflags	resb 1			; 0211 Load high flag
 su_movesize	resw 1			; 0212
 su_code32start	resd 1			; 0214 Start of code loaded high
 su_ramdiskat	resd 1			; 0218 Start of initial ramdisk
-su_ramdisklen	equ $			; Length of initial ramdisk
+su_ramdisklen	resd 1			; 021C Length of initial ramdisk
 su_bsklugeoffs	resw 1			; 0220
 su_bsklugeseg	resw 1			; 0222
 su_heapend	resw 1			; 0224
