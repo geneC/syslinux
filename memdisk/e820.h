@@ -26,5 +26,8 @@ struct e820range {
 
 extern struct e820range ranges[];
 extern int nranges;
+extern uint32_t dos_mem, low_mem, high_mem;
 
 extern void insertrange(uint64_t, uint64_t, uint32_t);
+extern void get_mem(void);
+extern void parse_mem(void);

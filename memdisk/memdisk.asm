@@ -127,8 +127,16 @@ GetDriveType:
 		pop ax			; Drop return address
 		mov ah,[DriveNo]
 		shr ah,7
+		pushf
 		or ah,02h		; CF = 0
 		mov P_AH,ah
+		popf
+		jz .floppy
+		mov ax,[DiskSize]	; For hard disk return the size
+		mov P_DX,ax
+		mov ax,[DiskSize+2]
+		mov P_CX,ax
+.floppy:
 		mov [LastStatus],byte 0	; Success, but AH returns a value
 		jmp short DoneWeird
 
@@ -402,14 +410,11 @@ Mover_dst1:	db 0, 0, 0		; Low 24 bits of target addy
 		db 00h			; Extended access rights
 Mover_dst2:	db 0			; High 8 bits of source addy
 
+LastStatus	db 0			; Last return status
+
 		section .bss
 		alignb 4
 PatchArea	equ $			; This gets filled in by the installer
-
-DriveNo		resb 1			; Our drive number
-DriveType	resb 1			; Our drive type (floppies)
-LastStatus	resb 1			; Last return status
-		resb 1			; pad
 
 Cylinders	resw 1			; Cylinder count
 Heads		resw 1			; Head count
@@ -424,6 +429,11 @@ MemInt1588	resd 1			; 1MB-65MB memory amount (1K)
 
 OldInt13	resd 1			; INT 13h in chain
 OldInt15	resd 1			; INT 15h in chain
+
+OldDosMem	resw 1			; Old position of DOS mem end
+
+DriveNo		resb 1			; Our drive number
+DriveType	resb 1			; Our drive type (floppies)
 
 		; End patch area
 

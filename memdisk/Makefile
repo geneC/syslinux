@@ -12,16 +12,21 @@
 ## -----------------------------------------------------------------------
 
 CC      = gcc
-CFLAGS  = -g -O2 -fomit-frame-pointer -march=i386 -malign-functions=0 -malign-jumps=0 -malign-loops=0
+CFLAGS  = -g -O2 -fomit-frame-pointer -march=i386 \
+	  -malign-functions=0 -malign-jumps=0 -malign-loops=0
 LDFLAGS = 
 AS      = as
 LD	= ld
 NASM    = nasm
+OBJCOPY = objcopy
 
-all: e820func.o16 msetup.o16 e820test memdisk.bin
+# Important: init.o16 must be first!!
+OBJS    = init.o16 setup.o16 msetup.o16 e820func.o16 memdisk.o
+
+all: memdisk e820test
 
 clean:
-	rm -f *.o *.s *.o16 *.s16 *.bin *.lst e820test
+	rm -f *.o *.s *.o16 *.s16 *.bin *.lst *.elf e820test memdisk
 
 %.o16: %.s16
 	$(AS) -o $@ $<
@@ -29,14 +34,29 @@ clean:
 %.s16: %.s
 	echo '.code16' | cat - $< > $@
 
+%.s: %.S
+	$(CC) -x c $(CFLAGS) -Wp,-traditional -E -o $@ $<
+
+%.s16: %.S16
+	$(CC) -x c $(CFLAGS) -Wp,-traditional -E -o $@ $<
+
 %.s: %.c
 	$(CC) $(CFLAGS) -S -o $@ $<
+
+%.i: %.c
+	$(CC) $(CFLAGS) -E -o $@ $<
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 %.bin: %.asm
 	$(NASM) -f bin -o $@ -l $*.lst $<
+
+memdisk.elf: $(OBJS)
+	$(LD) -Ttext 0 -o $@ $^
+
+memdisk: memdisk.elf
+	$(OBJCOPY) -O binary $< $@
 
 e820test: e820func.o msetup.o e820test.o memdisk.o
 	$(CC) $(LDFLAGS) -o $@ $^
