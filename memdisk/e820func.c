@@ -18,6 +18,7 @@
  */
 
 #include <stdint.h>
+#include "memdisk.h"		/* For memset() */
 #include "e820.h"
 
 #define MAXRANGES	64
@@ -28,14 +29,8 @@ int nranges;
 
 void e820map_init(void)
 {
-  struct e820range *rp = ranges;
-  unsigned int rdw = sizeof(ranges) >> 2;
+  memset(ranges, 0, sizeof(ranges));
   nranges = 1;
-  
-  asm volatile("cld ; rep ; stosl %2,%%es:(%0)"
-	       : "+D" (rp), "+c" (rdw)
-	       : "a" (0)
-	       : "memory");
   ranges[1].type = -1;
 }
 

@@ -28,7 +28,7 @@ PERL     = perl
 
 # Important: init.o16 must be first!!
 OBJS16   = init.o16 init32.o
-OBJS32   = start32.o setup.o msetup.o e820func.o conio.o memcpy.o \
+OBJS32   = start32.o setup.o msetup.o e820func.o conio.o memcpy.o memset.o \
            unzip.o memdisk.o
 
 CSRC     = setup.c msetup.c e820func.c conio.c unzip.c
