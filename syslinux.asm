@@ -460,7 +460,7 @@ msg_lock_err:		db 'Unable to lock drive for exclusive access', 0Dh, 0Ah, '$'
 
 		section .data
 		align 16, db 0
-BootSector:	incbin "bootsect.bin"
+BootSector:	incbin "ldlinux.bss"
 LDLinuxSYS:	incbin "ldlinux.sys"
 ldlinux_size:	equ $-LDLinuxSYS
 

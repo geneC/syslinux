@@ -36,7 +36,7 @@ VERSION = $(shell cat version)
 SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm \
 	  pxelinux.asm pxe.inc mbr.asm gethostip.c \
 	  isolinux.asm
-BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst \
+BTARGET = ldlinux.bss ldlinux.sys ldlinux.bin ldlinux.lst \
 	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin
 ITARGET = syslinux.com syslinux copybs.com gethostip
 DOCS    = COPYING NEWS README TODO *.doc sample
@@ -96,8 +96,8 @@ isolinux-debug.bin: isolinux.asm
 		-dHEXDATE="$(HEXDATE)" -dDEBUG_MESSAGES \
 		-l isolinux-debug.lst -o isolinux-debug.bin isolinux.asm
 
-bootsect.bin: ldlinux.bin
-	dd if=ldlinux.bin of=bootsect.bin bs=512 count=1
+ldlinux.bss: ldlinux.bin
+	dd if=ldlinux.bin of=ldlinux.bss bs=512 count=1
 
 ldlinux.sys: ldlinux.bin
 	dd if=ldlinux.bin of=ldlinux.sys  bs=512 skip=1
@@ -105,14 +105,14 @@ ldlinux.sys: ldlinux.bin
 mbr.bin: mbr.asm
 	$(NASM) -f bin -l mbr.lst -o mbr.bin mbr.asm
 
-syslinux.com: syslinux.asm bootsect.bin ldlinux.sys stupid.inc
+syslinux.com: syslinux.asm ldlinux.bss ldlinux.sys stupid.inc
 	$(NASM) -f bin -l syslinux.lst -o syslinux.com syslinux.asm
 
 copybs.com: copybs.asm
 	$(NASM) -f bin -l copybs.lst -o copybs.com copybs.asm
 
-bootsect_bin.c: bootsect.bin bin2c.pl
-	perl bin2c.pl bootsect < bootsect.bin > bootsect_bin.c
+bootsect_bin.c: ldlinux.bss bin2c.pl
+	perl bin2c.pl bootsect < ldlinux.bss > bootsect_bin.c
 
 ldlinux_bin.c: ldlinux.sys bin2c.pl
 	perl bin2c.pl ldlinux < ldlinux.sys > ldlinux_bin.c
