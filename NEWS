@@ -7,12 +7,21 @@ Changes in 1.49:
 	  had this modification.  SYSLINUX does still require that the
 	  low 512K is available; PXELINUX requires 384K.  Machines
 	  with a physical memory hole in the low 640K cannot boot
-	  Linux no matter what.)
+	  Linux no matter what.)  Depending what the reason is for the
+	  memory hole, a new kernel (2.4.0-test3 or later) may be
+	  required.
 	* SYSLINUX: Default installer binary now compiled against
 	  glibc 2.1.  If this is inappropriate for your system and you
 	  still want to use the offical version of SYSLINUX, please
 	  follow the instructions in "distrib.doc" to rebuild the
 	  installer.
+	* SYSLINUX: Linux installer program now supports -o <offset>
+	  option which does a loopback mount with the
+	  -o loop,offset=<> option.  Useful to run SYSLINUX on an
+	  individual partition of a whole-harddisk image.
+	* Include the source code to a Master Boot Record (MBR)
+	  functionally equivalent to the one installed DOS except it
+	  includes EBIOS support.  The MBR code is public domain.
 
 Changes in 1.48:
 	* PXELINUX: Workaround for PXE ROMs based on the Intel PXE PDK

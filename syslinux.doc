@@ -4,7 +4,7 @@
 
               A bootloader for Linux using MS-DOS floppies
 
-		Copyright (C) 1994-1999 H. Peter Anvin
+		Copyright (C) 1994-2000 H. Peter Anvin
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -50,7 +50,7 @@ it, then execute the DOS command:
 
 or the Linux command:
 
-	syslinux [-s] /dev/fd0
+	syslinux [-s] [-o offset] /dev/fd0
 
 (or, again, whichever device is the correct one.)
 
@@ -63,6 +63,9 @@ on which SYSLINUX would otherwise fail.  If you find a machine on
 which the -s option is required to make it boot reliably, please send
 as much info about your machine as you can, and include the failure
 mode.
+
+The -o option is used with a disk image file and specifies the byte
+offset of the filesystem image in the file.
 
 WARNING: There seems to be a bug in some recent experimental Linux
 	 kernels that causes floppy disk corruption when using the
@@ -251,8 +254,9 @@ boot floppy and look for additional drivers in a predetermined
 location.
 
 To bzImage and recent zImage kernels, SYSLINUX 1.30 and higher will
-identify using the ID byte 0x31.  The ID range 0x32-0x3f is reserved
-for future versions of SYSLINUX.
+identify using the ID byte 0x31.  PXELINUX identifies using the ID
+byte 0x32.  The ID range 0x33-0x3f is reserved for future versions of
+SYSLINUX.
 
 
    ++++ DISPLAY FILE FORMAT ++++
@@ -466,6 +470,9 @@ disk by running the command:
 	FDISK /MBR
 
 Then use the FDISK command to mark the appropriate partition active.
+
+A simple MBR, roughly on par with the one installed by DOS (but
+unencumbered), is included in the SYSLINUX distribution
 
 
    ++++ KNOWN BUGS ++++
