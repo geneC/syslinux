@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
 {
   static unsigned char sectbuf[512];
   int dev_fd, fd;
-  static char ldlinux_name[] = "@:LDLINUX.SYS";
+  static char ldlinux_name[] = "@:\\LDLINUX.SYS";
   char **argp, *opt;
   int force = 0;		/* -f (force) option */
   struct libfat_filesystem *fs;
