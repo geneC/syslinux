@@ -18,6 +18,10 @@ Changes in 2.20:
 	  on the complexity.)
 	* EXTLINUX: New derivative, which boots from an ext2/ext3
 	  filesystem.
+	* SYSLINUX: The DOS installer can now optionally write the
+	  boot sector to a file instead of the real boot sector.  This
+	  is currently not supported in any of the other installers,
+	  but should be added to the Win32 installer at some point.
 
 Changes in 2.13:
 	* MEMDISK: Fix command-line parsing "brown paper bag" class

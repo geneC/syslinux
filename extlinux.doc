@@ -1,0 +1,32 @@
+EXTLINUX is a new syslinux derivative, which boots from a Linux
+ext2/ext3 filesystem.
+
+It works the same way as SYSLINUX, with a few slight modifications.
+
+1. The installer is run on a *mounted* filesystem.  Run the extlinux
+   installer on the directory in which you want extlinux installed:
+
+	extlinux /boot
+
+   NOTE: this doesn't have to be the root directory of a filesystem.
+   If /boot is a filesystem, you can do:
+
+	mkdir -p /boot/extlinux
+	extlinux /boot/extlinux
+
+   ... to create a subdirectory and install extlinux in it. 
+
+
+2. The configuration file is called "extlinux.conf", and is expected
+   to be found in the same directory as extlinux is installed in.
+
+
+3. Pathnames can be absolute or relative; if absolute (with a leading
+   slash), they are relative to the root of the filesystem on which
+   extlinux is installed (/boot in the example above), if relative,
+   they are relative to the extlinux directory.
+
+   extlinux supports subdirectories, but the total path length is
+   limited to 255 characters.
+
+
