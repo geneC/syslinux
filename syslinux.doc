@@ -516,36 +516,13 @@ To make this installation in DOS only, you need the utility copybs.com
  
    ++++ COMBOOT EXECUTABLES ++++
 
-A COMBOOT file is a standalone executable in DOS .COM format.  They
-can, among other things, be produced by the Etherboot package by
-Markus Gutschke and Ken Yap.  The following requirements apply for
-these files to be sufficiently "standalone" for SYSLINUX to be able to
-load and run them:
+SYSLINUX supports simple standalone programs, using a file format
+similar to DOS ".com" files.  A 32-bit version, called COM32, is also
+provided.  A simple API provides access to a limited set of filesystem
+and console functions.
 
-  * The program must not execute any DOS calls (since there is no
-    DOS), although it may call the BIOS.  The only exception is that
-    the program may execute INT 20h (Terminate Program) to return to
-    the SYSLINUX prompt.  Note especially that INT 21h AH=4Ch, INT 21h
-    AH=31h or INT 27h are *not* supported.
-  * Only the following fields in the PSP are supported:
-    - pspInt20 at offset 00h;
-    - pspNextParagraph at offset 02h;
-    - pspCommandTail at offset 80h (contains the arguments from the
-      SYSLINUX command line).
-
-    All other fields will contain zero.
-  * The program must not modify any main memory outside its 64K
-    segment if it returns to SYSLINUX via INT 20h.
-
-SYSLINUX requires that COMBOOT files end in ".COM" or ".CBT".  Files
-ending in .COM can be run from the DOS command line, files ending in
-.CBT cannot, otherwise there is no difference.  SYSLINUX will prefer a
-.CBT file over a similarly named .COM.
-
-SYSLINUX currently doesn't provide any form of API for the use of
-COMBOOT files.  If there is need, a future version may contain an INT
-interface to some SYSLINUX functions; please contact me if you have a
-need or ideas for such an API.
+See the file comboot.doc for more information on COMBOOT and COM32
+programs.
 
 
    ++++ NOVICE PROTECTION ++++
