@@ -1,6 +1,6 @@
 			       SYSLINUX
-			     Version 1.35
-			    April 13, 1998
+			     Version 1.37
+			    April 20, 1998
 
               A bootloader for Linux using MS-DOS floppies
 
@@ -12,20 +12,25 @@ warranty, neither expressed nor implied, to the function of this
 program.  Please see the included file COPYING for details.
 
 SYSLINUX is a boot loader for the Linux operating system which
-operates off MS-DOS floppies.  It is intended to simplify first-time
-installation of Linux, and for creation of rescue- and other
-special-purpose boot floppies.  It is *not* intended to be used as a
-general purpose boot loader; once the operating system is installed I
-recommend LILO as the boot loader, except for people whose root
-filesystem is a UMSDOS filesystem (where a DOS defragmenter could
-wreck havoc with LILO's carefully set up block tables) -- for them I
-recommend Loadlin (which loads Linux from the DOS command line).
+operates off an MS-DOS/Windows FAT filesystem.  It is intended to
+simplify first-time installation of Linux, and for creation of rescue-
+and other special-purpose boot disks.
 
-SYSLINUX could, however, in conjunction with the UMSDOS filesystem,
-completely eliminate the need for distribution of raw diskette images
-for boot floppies.  A SYSLINUX floppy can be manipulated using standard
-MS-DOS (or any other OS that can access an MS-DOS filesystem) tools once
-it has been created.
+SYSLINUX can be used, when properly set up, completely eliminate the
+need for distribution of raw diskette images for boot floppies.  A
+SYSLINUX floppy can be manipulated using standard MS-DOS (or any other
+OS that can access an MS-DOS filesystem) tools once it has been
+created.
+
+   ++++ WHAT SYSLINUX IS NOT ++++
+
+SYSLINUX is *not* intended to be used as a general purpose boot
+loader, since it neither has the ability to boot another operating
+system (e.g. DOS/Windows), nor can it boot Linux from a non-FAT
+filesystem, such as ext2.  Since a native Linux implementation will
+typically use ext2, and a mixed DOS/Linux implementation probably
+wants to be able to boot either filesystem, another boot loader such
+as LILO or LOADLIN may be more appropriate.
 
    ++++ CREATING A BOOTABLE LINUX FLOPPY +++
 
@@ -100,7 +105,7 @@ LABEL label
         global section of the file (before the first LABEL command.)
         The default for "kernel" is the same as "label", and if no
         APPEND is given the default is to use the global entry (if any).
-        Up to 16 LABEL entries are permitted.
+        Up to 128 LABEL entries are permitted.
 
         Note that LILO uses the syntax:
         image = mykernel
@@ -292,7 +297,7 @@ that is bootable on the largest possible number of machines:
 A CD-ROM is so much faster than a floppy that the -s option shouldn't
 matter from a speed perspective.
 
-   ++++ BOOTING FROM A FAT FILESYSTEM PARTITION ++++
+   ++++ BOOTING FROM A FAT FILESYSTEM PARTITION ON A HARD DISK ++++
 
 SYSLINUX can boot from a FAT12 or FAT16 filesystem partition on a hard
 disk (FAT32, introduced in Windows 95 OSR-2, is not supported,

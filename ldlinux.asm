@@ -114,8 +114,8 @@ CAN_USE_HEAP    equ 80h                 ; Boot loader reports heap size
 ;
 %define vk_power	7		; log2(max number of vkernels)
 %define	max_vk		(1 << vk_power)	; Maximum number of vkernels
-%define vk_shift	(16-vk_power)
-
+%define vk_shift	(16-vk_power)	; Number of bits to shift
+%define vk_size		(1 << vk_shift)	; Size of a vkernel buffer
 
 		struc vkernel
 vk_vname:	resb 11			; Virtual name **MUST BE FIRST!**
@@ -124,11 +124,11 @@ vk_appendlen:	resw 1
 		alignb 4
 vk_append:	resb max_cmd_len+1	; Command line
 		alignb 4
-vk_size:	equ $			; Should == 1 << vk_shift
+vk_end:		equ $			; Should be <= vk_size
 		endstruc
 
-%if vk_size*max_vk > 65536
-%error Too many vkernels defined
+%if (vk_end > vk_size) || (vk_size*max_vk > 65536)
+%error "Too many vkernels defined, reduce vk_power"
 %endif
 
 ;
