@@ -134,8 +134,6 @@ CAN_USE_HEAP    equ 80h                 ; Boot loader reports heap size
 		struc vkernel
 vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
 vk_rname:	resb FILENAME_MAX	; Real name
-vk_ipappend:	resb 1			; "IPAPPEND" flag
-		resb 1			; Pad
 vk_appendlen:	resw 1
 		alignb 4
 vk_append:	resb max_cmd_len+1	; Command line
@@ -1194,8 +1192,6 @@ pc_label:	call commit_vk			; Commit any current vkernel
                 mov cx,[AppendLen]
                 mov [VKernelBuf+vk_appendlen],cx
                 rep movsb
-		mov al,[IPAppend]		; Default ipappend==global ipappend
-		mov [VKernelBuf+vk_ipappend],al
 		jmp near parse_config_3
 
 pc_font:	call pc_getfile			; "font" command
@@ -1532,8 +1528,6 @@ vk_found:	popa
 		mov cx,FILENAME_MAX		; We need ECX == CX later
 		rep movsb
 		pop di
-		mov al,[VKernelBuf+vk_ipappend]
-		mov [IPAppend],al
 		xor bx,bx			; Try only one version
 
 		; Is this a "localboot" pseudo-kernel?
@@ -2974,7 +2968,7 @@ loadfont:
 .graphics:
 		; CX = 0 on entry
 		mov cl,bh			; CX = bytes/character
-		mov ax,640
+		mov ax,480
 		div cl				; Compute char rows per screen
 		mov dl,al
 		dec al
@@ -3248,7 +3242,7 @@ writechr_full:
 		mov ah,02h
 		int 10h
 		mov ax,0601h		; Scroll up one line
-		mov bh,07h		; White on black
+		mov bh,[ScrollAttribute]
 		xor cx,cx
 		mov dx,[ScreenSize]	; The whole screen
 		int 10h
@@ -3985,15 +3979,16 @@ vgasetmode:
 		mov [TextPage], byte 0	; Always page 0
 
 		mov cx,[VGAFontSize]
-		mov ax,640
+		mov ax,480
 		div cl
+		mov dl,al
 		dec al			; VidRows is stored -1
 		mov [VidRows],al
-		mov dl,al
 		mov bp,vgafontbuf
 		xor bx,bx
 		mov ax,1121h		; Set graphics font
 		int 10h
+		mov byte [ScrollAttribute], 00h
 
 		xor ax,ax		; Set ZF
 .error:
@@ -4012,6 +4007,7 @@ vgaclearmode:
 ;		mov dx,TextColorReg	; Restore color registers
 ;		mov ax,1002h
 ;		int 10h
+		mov byte [ScrollAttribute], 07h
 .done:
 		popad
 		ret
@@ -4189,7 +4185,8 @@ ClustPerMoby	dw 65536/SECTORSIZE	; Clusters per 64K
 %if ( trackbufsize % SECTORSIZE ) != 0
 %error trackbufsize must be a multiple of SECTORSIZE
 %endif
-IPAppend	db 0			; Default IPAPPEND option
+ScrollAttribute	db 07h			; White on black (for text mode)
+
 
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
