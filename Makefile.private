@@ -30,10 +30,9 @@ release:
 	-rm -f release/syslinux-$(VERSION).*
 	mkdir -p release/syslinux-$(VERSION)
 	cp $(SOURCES) $(DOCS) $(OTHER) release/syslinux-$(VERSION)
-	cd release/syslinux-$(VERSION)/Makefile.private
-	make -C release/syslinux-$(VERSION) official
-	cd release/syslinux-$(VERSION) && \
-		rm -f $(PRIVATE)
+	ln $(PRIVATE) release/syslinux-$(VERSION)
+	cd release/syslinux-$(VERSION) && $(MAKE) official
+	cd release/syslinux-$(VERSION) && rm -f $(PRIVATE)
 	cd release && tar cvvf - syslinux-$(VERSION) | \
 		gzip -9 > syslinux-$(VERSION).tar.gz
 	cd release/syslinux-$(VERSION) && \
