@@ -33,7 +33,8 @@ VERSION = $(shell cat version)
 # want to recompile the installers (ITARGET).
 #
 SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm \
-	  pxelinux.asm pxe.inc mbr.asm gethostip.c
+	  pxelinux.asm pxe.inc mbr.asm gethostip.c \
+	  isolinux.asm
 BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst \
 	  pxelinux.0 mbr.bin isolinux.bin
 ITARGET = syslinux.com syslinux copybs.com gethostip
