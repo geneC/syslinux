@@ -51,8 +51,6 @@
 #define TFILLCHAR    ' '
 #define TITLEATTR    0x70
 
-#define TITLESTR  "COMBOOT Menu System for SYSLINUX developed by Murali Krishnan Ganapathy"
-
 // Single line Box drawing Chars
 
 #define TOPLEFT  218
@@ -63,6 +61,9 @@
 #define BOT      196
 #define LEFT     179
 #define RIGHT    179
+#define HORIZ    196
+#define LTRT     195 // The |- char
+#define RTLT     180 // The -| char
 
 // Double line Box Drawing Chars
 /*
@@ -74,27 +75,37 @@
 #define BOT      205
 #define LEFT     186
 #define RIGHT    186
+#define HORIZ    205
+#define LTRT     199 // The ||- char
+#define RTLT     182 // The -|| char
 */
 
 // Attributes of the menu system
-#define MAXMENUS      10 // Maximum number of menu's allowed
-#define MAXMENUSIZE   10 // Maximum number of entries in each menu
-#define MENULEN       30 // Each menu entry is atmost MENULEN chars including the terminating $
-#define STATLEN       70 // Maximum length of status string
+#define MAXMENUS      8 // Maximum number of menu's allowed
+#define MAXMENUSIZE   12 // Maximum number of entries in each menu
+
+// Upper bounds on lengths
+// Now that the onus of allocating space is with the user, these numbers
+// are only for sanity checks. You may increase these values without
+// affecting the memory footprint of this program
+#define MENULEN       30 // Each menu entry is atmost MENULEN chars
+#define STATLEN       80 // Maximum length of status string
 #define ACTIONLEN     80 // Maximum length of an action string
 
 // Layout of menu
-#define MENUROW       3  // Row where menu is displayed
-#define MENUCOL       4  // Col where menu is displayed
+#define MENUROW       3  // Row where menu is displayed (relative to window)
+#define MENUCOL       4  // Col where menu is displayed (relative to window)
 #define MENUPAGE      1  // show in display page 1
-#define STATLINE      23 // Line number where status line starts
+#define STATLINE      23 // Line number where status line starts (relative to window)
 
 // Other Chars
-#define SUBMENUCHAR  175 // This is >> symbol, << is 174
+#define SUBMENUCHAR  175 // This is >> symbol
+#define EXITMENUCHAR 174 // This is << symbol
 #define CHECKED      251 // Check mark
 #define UNCHECKED    250 // Light bullet
 
-typedef enum {OPT_INACTIVE, OPT_SUBMENU, OPT_RUN, OPT_EXITMENU, OPT_CHECKBOX, OPT_RADIOBTN, OPT_EXIT} t_action;
+typedef enum {OPT_INACTIVE, OPT_SUBMENU, OPT_RUN, OPT_EXITMENU, OPT_CHECKBOX,
+    OPT_RADIOBTN, OPT_EXIT, OPT_SEP} t_action;
 
 typedef union {
     char submenunum;
@@ -110,9 +121,9 @@ typedef void (*t_item_handler)(struct s_menusystem *, struct s_menuitem *);
 typedef void (*t_menusystem_handler)(struct s_menusystem *, struct s_menuitem *);
 
 typedef struct s_menuitem {
-    char item[MENULEN+2];
-    char status[STATLEN+2];
-    char data[ACTIONLEN+2];
+    const char *item; //char item[MENULEN+2];
+    const char *status; //char status[STATLEN+2];
+    const char *data; //char data[ACTIONLEN+2];
     void * extra_data; // Any other data user can point to
     t_item_handler handler; // Pointer to function of type menufn
     char active; // Is this item active or not
@@ -124,14 +135,14 @@ typedef struct s_menuitem {
 
 typedef struct s_menu {
     t_menuitem items[MAXMENUSIZE];
-    char title[MENULEN+2];
+    const char *title; //char title[MENULEN+2];
     char numitems;
     char menuwidth;
 } t_menu;
 
 typedef struct s_menusystem {
-    t_menu menus[MAXMENUS];    
-    char title[80]; // Maximum title length
+    t_menu menus[MAXMENUS];
+    const char *title; //char title[80]; // Maximum title length
     t_menusystem_handler handler; // Handler function called every time a menu is re-printed.
     char nummenus;
     char normalattr; 
@@ -147,15 +158,29 @@ typedef struct s_menusystem {
     char shadowattr;
     char statline;
     char menupage;
-    char maxrow,minrow,numrows; // Number of rows in the current text mode
-    char maxcol,mincol,numcols; // Number of columns in the current text mode
+    char maxrow,minrow,numrows; // Number of rows in the window 
+    char maxcol,mincol,numcols; // Number of columns in the window
 } t_menusystem;
 
-// User callable Functions
+/************************************************************************
+ * IMPORTANT INFORMATION
+ *
+ * All functions which take a string as argument store the pointer
+ * for later use. So if you have alloc'ed a space for the string
+ * and are passing it to any of these functions, DO NOT deallocate it.
+ *
+ * If they are constant strings, you may receive warning from the compiler
+ * about "converting from char const * to char *". Ignore these errors.
+ *
+ * This hack/trick of storing these pointers will help in reducing the size
+ * of the internal structures by a lot.
+ *
+ ***************************************************************************
+ */
 
 t_menuitem * showmenus(char startmenu);
 
-void init_menusystem(const char *title);
+void init_menusystem(const char *title); // This pointer value is stored internally
 
 void set_normal_attr(char normal, char selected, char inactivenormal, char inactiveselected);
 
@@ -172,10 +197,13 @@ void reg_handler( t_menusystem_handler handler); // Register handler
 void unreg_handler(); 
 
 // Create a new menu and return its position
-int add_menu(const char *title);
+char add_menu(const char *title); // This pointer value is stored internally
 
-// Add item to the "current" menu
-t_menuitem * add_item(const char *item, const char *status, t_action action, const char *data, char itemdata); 
+// Add item to the "current" menu // pointer values are stored internally
+t_menuitem * add_item(const char *item, const char *status, t_action action, const char *data, char itemdata);
+
+// Add a separator to the "current" menu
+void add_sep();
 
 // Main function for the user's config file
 int menumain(char *cmdline);

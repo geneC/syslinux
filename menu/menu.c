@@ -20,10 +20,14 @@
 #include "string.h"
 #include "menu.h"
 
-// Structures
-
-// Declare a menusystem here
+// Local Variables
 static t_menusystem menusystem;
+static char TITLESTR[] = "COMBOOT Menu System for SYSLINUX developed by Murali Krishnan Ganapathy";
+static char TITLELONG[] = " TITLE too long ";
+static char ITEMLONG[] = " ITEM too long ";
+static char ACTIONLONG[] = " ACTION too long ";
+static char STATUSLONG[] = " STATUS too long ";
+static char EMPTYSTR[] = "";
 
 /* Basic Menu routines */
 
@@ -60,39 +64,58 @@ void printmenu(t_menu * menu, int curr, char top, char left)
     int x;
     int numitems,menuwidth;
     t_menusystem *ms;
-    char attr;
+    char fchar[5],lchar[5]; // The first and last char in for each entry
+    const char *str;  // and inbetween the item or a seperator is printed
+    char attr;  // all in the attribute attr
+    char sep[MENULEN];// and inbetween the item or a seperator is printed
 
     ms = & menusystem;
     numitems = menu->numitems;
-    menuwidth = menu->menuwidth+2;
-    clearwindow(top,left-1,top+numitems+1,left+menuwidth+1,ms->menupage,ms->fillchar,ms->shadowattr);
-    drawbox(top-1,left-2,top+numitems,left+menuwidth,ms->normalattr,ms->menupage);
+    menuwidth = menu->menuwidth+3;
+    clearwindow(top,left-2,top+numitems+1,left+menuwidth+1,ms->menupage,ms->fillchar,ms->shadowattr);
+    drawbox(top-1,left-3,top+numitems,left+menuwidth,ms->normalattr,ms->menupage);
+    memset(sep,HORIZ,menuwidth); // String containing the seperator string
+    sep[menuwidth-1] = 0; 
     // Menu title
     x = (menuwidth - strlen(menu->title) - 1) >> 1;
     gotoxy(top-1,left+x,ms->menupage);
     csprint(menu->title);
     for (x=0; x < numitems; x++)
     {
-        gotoxy(top+x,left-1,ms->menupage);
-        if (menu->items[x].action == OPT_INACTIVE)
+        // Setup the defaults now
+        lchar[0] = fchar[0] = ' '; 
+        lchar[1] = fchar[1] = '\0'; // fchar and lchar are just spaces
+        str = menu->items[x].item; // Pointer to item string
+        attr = (x==curr ? ms->reverseattr : ms->normalattr); // Normal attributes
+        switch (menu->items[x].action) // set up attr,str,fchar,lchar for everything
         {
-            attr = (x==curr? ms->revinactattr : ms->inactattr);
-        } else {
-            attr = (x==curr ? ms->reverseattr : ms->normalattr);
+            case OPT_INACTIVE:
+                 attr = (x==curr? ms->revinactattr : ms->inactattr);
+                 break;
+            case OPT_SUBMENU:
+                 lchar[0] = SUBMENUCHAR; lchar[1] = 0;
+                 break;
+            case OPT_CHECKBOX:
+                 lchar[0] = (menu->items[x].itemdata.checked ? CHECKED : UNCHECKED);
+                 lchar[1] = 0;
+                 break;
+            case OPT_SEP:
+                 fchar[0] = '\b'; fchar[1] = LTRT; fchar[2] = HORIZ; fchar[3] = HORIZ; fchar[4] = 0;
+                 lchar[0] = HORIZ; lchar[1] = RTLT; lchar[3] = 0;
+                 str = sep;
+                 break;
+            case OPT_EXITMENU:
+                 fchar[0] = EXITMENUCHAR; fchar[1] = 0;
+            //default:
         }
-        cprint(ms->spacechar,attr,menuwidth+1,ms->menupage);        
+        gotoxy(top+x,left-2,ms->menupage);
+        cprint(ms->spacechar,attr,menuwidth+2,ms->menupage); // Wipe area with spaces
+        gotoxy(top+x,left-2,ms->menupage);
+        csprint(fchar); // Print first part
         gotoxy(top+x,left,ms->menupage);
-        csprint(menu->items[x].item);
+        csprint(str); // Print main part
         gotoxy(top+x,left+menuwidth-1,ms->menupage); // Last char if any
-        switch (menu->items[x].action)
-        {
-           case OPT_SUBMENU:
-                cprint(SUBMENUCHAR,attr,1,ms->menupage);
-                break;
-           case OPT_CHECKBOX:
-                cprint( (menu->items[x].itemdata.checked ? CHECKED : UNCHECKED),attr,1,ms->menupage);
-                break;
-        }
+        csprint(lchar); // Print last part
     }
     if (menusystem.handler) menusystem.handler(&menusystem,menu->items+curr);
 }
@@ -100,8 +123,8 @@ void printmenu(t_menu * menu, int curr, char top, char left)
 void cleanupmenu(t_menu *menu, char top,char left)
 {
     t_menusystem *ms = &menusystem;
-    clearwindow(top,left-1,top+menu->numitems+1,left+menu->menuwidth+3,ms->menupage,ms->fillchar,ms->fillattr); // Clear the shadow
-    clearwindow(top-1,left-2,top+menu->numitems,left+menu->menuwidth+2,ms->menupage,ms->fillchar,ms->fillattr); // clear the main window
+    clearwindow(top,left-2,top+menu->numitems+1,left+menu->menuwidth+4,ms->menupage,ms->fillchar,ms->fillattr); // Clear the shadow
+    clearwindow(top-1,left-3,top+menu->numitems,left+menu->menuwidth+3,ms->menupage,ms->fillchar,ms->fillattr); // clear the main window
 }
 
 /* Handle one menu */
@@ -141,25 +164,27 @@ t_menuitem * getmenuoption( t_menu *menu, char top, char left, char startopt)
                   break;
             case PAGEDN:
                   curr += 5;
-                  break; 
+                  break;
             case PAGEUP:
                   curr -= 5;
-                  break; 
+                  break;
             case UPARROW:
-                  curr --;
+                  while((curr > 0) && (menu->items[--curr].action == OPT_SEP)) ;
                   break;
             case DNARROW:
-                  curr++;
+                  while((curr < numitems-1) && (menu->items[++curr].action == OPT_SEP)) ;
+                  //curr++;
                   break;
             case LTARROW:
             case ESCAPE:
                   return NULL;
                   break;
-            case ENTERA:
             case RTARROW:
+            case ENTERA:
             case ENTERB:
                   if (ci->action == OPT_INACTIVE) break;
                   if (ci->action == OPT_CHECKBOX) break;
+                  if (ci->action == OPT_SEP) break;
                   if (ci->action == OPT_EXITMENU) return NULL; // As if we hit Esc
                   return ci;
                   break;
@@ -276,8 +301,8 @@ void init_menusystem(const char *title)
 {
     menusystem.nummenus = 0;
     if (title == NULL)
-        strcpy(menusystem.title,TITLESTR);
-    else strcpy(menusystem.title,title);
+        menusystem.title = TITLESTR; // Copy pointers
+    else menusystem.title = title;
 
     menusystem.normalattr = NORMALATTR; 
     menusystem.reverseattr= REVERSEATTR;
@@ -366,26 +391,40 @@ void unreg_handler()
     menusystem.handler = NULL;
 }
 
-int add_menu(const char *title) // Create a new menu and return its position
+char add_menu(const char *title) // Create a new menu and return its position
 {
    char num = menusystem.nummenus;
    t_menu *m;
 
    if (num >= MAXMENUS) return -1;
-   m = &(menusystem.menus[(int)num]);
+   m = &(menusystem.menus[num]);
    m->numitems = 0;
    if (title)
    {
        if (strlen(title) > MENULEN - 2)
-             strcpy(m->title," TITLE TOO LONG ");
-       else strcpy(m->title,title);
+          m->title = TITLELONG;              //strcpy(m->title," TITLE TOO LONG ");
+       else m->title = title; //strcpy(m->title,title);
    }
-   else strcpy(m->title,"");
+   else m->title = EMPTYSTR; //strcpy(m->title,"");
    m ->menuwidth = strlen(m->title);
    menusystem.nummenus += 1;
    return menusystem.nummenus - 1;
 }
 
+
+void add_sep() // Add a separator to current menu
+{
+    t_menuitem *mi;
+    t_menu *m;
+
+    m = &(menusystem.menus[menusystem.nummenus-1]);
+    mi = &(m->items[m->numitems]);
+    mi->handler = NULL; // No handler
+    mi->item = mi->status = mi->data = EMPTYSTR;
+    mi->action = OPT_SEP;
+    mi->index = m->numitems++;
+    mi->parindex = menusystem.nummenus-1;    
+}
 
 t_menuitem * add_item(const char *item, const char *status, t_action action, const char *data, char itemdata) // Add item to the "current" menu
 {
@@ -393,34 +432,34 @@ t_menuitem * add_item(const char *item, const char *status, t_action action, con
     t_menu *m;
 
     m = &(menusystem.menus[menusystem.nummenus-1]);
-    mi = &(m->items[(int)m->numitems]);
+    mi = &(m->items[m->numitems]);
     mi->handler = NULL; // No handler
     if (item) {
       if (strlen(item) > MENULEN - 2) {
-        strcpy(mi->item,"ITEM TOO LONG");
+        mi->item = ITEMLONG; //strcpy(mi->item,"ITEM TOO LONG");
       } else {
-        strcpy(mi->item,item);
+        mi->item = item; //strcpy(mi->item,item);
         if (strlen(item) > m->menuwidth) m->menuwidth = strlen(item);
       }
-    } else strcpy(mi->item,"");
+    } else mi->item = EMPTYSTR; //strcpy(mi->item,"");
 
     if (status) {
       if (strlen(status) > STATLEN - 2) {
-          strcpy(mi->status,"STATUS STRING TOO LONG");
+          mi->status = STATUSLONG; //strcpy(mi->status,"STATUS STRING TOO LONG");
       } else {
-      strcpy(mi->status,status);
+      mi->status = status; //strcpy(mi->status,status);
       }
-    } else strcpy(mi->status,"");
+    } else mi->status = EMPTYSTR; //strcpy(mi->status,"");
     
     mi->action = action;
 
     if (data) {
       if (strlen(data) > ACTIONLEN - 2) {
-          strcpy(mi->data,"ACTION STRING LONG");
+          mi->data = ACTIONLONG; //strcpy(mi->data,"ACTION STRING LONG");
       } else {
-         strcpy(mi->data,data); // This is only null terminated
+         mi->data = data; //strcpy(mi->data,data); // This is only null terminated
       }
-    } else strcpy(mi->data,"");
+    } else mi->data = EMPTYSTR; //strcpy(mi->data,"");
 
     switch (action)
     {

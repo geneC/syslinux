@@ -152,11 +152,15 @@ int menumain(char *cmdline)
   PREP = add_menu(" Prep options ");
   baseurl = add_item("baseurl by IP?","Specify gui baseurl by IP address",OPT_CHECKBOX,"baseurl",0);
   mountcd = add_item("mountcd?","Mount the cdrom drive?",OPT_CHECKBOX,"mountcd",0);
+  add_sep();
   network = add_item("network?","Try to initialise network device?",OPT_CHECKBOX,"network",1);
   dhcp    = add_item("dhcp?","Use dhcp to get ipaddr?",OPT_CHECKBOX,"dhcp",1);
+  add_sep();
   winrep  = add_item("Reinstall windows","Re-install the windows side of a dual boot setup",OPT_CHECKBOX,"winrepair",0);
   linrep  = add_item("Reinstall linux","Re-install the linux side of a dual boot setup",OPT_CHECKBOX,"linrepair",0);
+  add_sep();
   runprep = add_item("Run prep now","Execute prep with the above options",OPT_RUN,"prep",0);
+  add_item("Exit this menu","Go up one level",OPT_EXITMENU,"exitmenu",0);
   baseurl->handler = &checkbox_handler;
   mountcd->handler = &checkbox_handler;
   network->handler = &checkbox_handler;
