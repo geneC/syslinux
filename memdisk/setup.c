@@ -387,7 +387,6 @@ uint32_t setup(void)
   uint32_t driverptr, driveraddr;
   uint16_t dosmem_k;
   uint32_t stddosmem;
-  uint8_t driveno = 0;
   uint8_t status;
   uint16_t exitcode;
   const struct geometry *geometry;
@@ -472,7 +471,7 @@ uint32_t setup(void)
   if ( low_mem == (15 << 20) ) {
     /* lowmem maxed out */
     uint32_t int1588mem = (high_mem >> 10)+(low_mem >> 10);
-    pptr->memint1588 = (int1588mem > 0xffff) ? 0xffff: int1588mem;
+    pptr->memint1588 = (int1588mem > 0xffff) ? 0xffff : int1588mem;
   } else {
     pptr->memint1588 = low_mem >> 10;
   }
@@ -536,7 +535,7 @@ uint32_t setup(void)
 	       "popw %%es ; "
 	       "setc %0 "
 	       : "=rm" (status), "=a" (exitcode)
-	       : "d" ((uint16_t)driveno)
+	       : "d" ((uint16_t)geometry->driveno)
 	       : "ebx", "ecx", "edx", "esi", "edi", "ebp");
 
   if ( status ) {
@@ -547,5 +546,5 @@ uint32_t setup(void)
   puts("Booting...\n");
 
   /* On return the assembly code will jump to the boot vector */
-  return driveno;
+  return geometry->driveno;
 }
