@@ -5,8 +5,13 @@ SYSLINUX now builds in a Linux environment, using nasm.  You need nasm
 version 0.97 or later to build SYSLINUX from source.  See
 http://www.cryogen.com/Nasm for information about nasm.
 
+There is now a mailing list for SYSLINUX.  See the end of syslinux.doc
+for details.
+
+**** WARNING: READ THIS IF YOU'RE USING A 2.1.x EXPERIMENTAL KERNEL ****
+
 WARNING: There seems to be a bug in some recent experimental Linux
 kernels that causes floppy disk corruption when using the Linux
 syslinux installer.  This bug was introduced in 2.1.79 or 2.1.80; as
-of 2.1.85 the bug is still there.
+of 2.1.86 the bug is still there.
 
