@@ -23,6 +23,8 @@ Changes in 2.00:
 	* ISOLINUX: Search for a /boot/isolinux directory as well as
 	  /isolinux.
 	* ALL: Fix a bug related to very long configuration files.
+	* PXELINUX: Work around a NASM bug which would result in no
+	  delay before reset if an error occurs.
 
 Changes in 1.76:
 	* ISOLINUX: Remove code no longer used which caused hangs on
