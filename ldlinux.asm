@@ -401,10 +401,8 @@ floppy_table	equ $			; No sense in wasting memory, overwrite start
 
 start:
 		cli			; No interrupts yet, please
-		jmp 0:start1		; Some stupid BIOSes jumps to 07C0:0000 not 0000:7C00
-start1:
 ;
-; Set up ES and SS, and the stack
+; Set up the stack
 ;
 		xor ax,ax
 		mov ss,ax
@@ -424,8 +422,10 @@ start1:
 ; had to waste precious boot sector space with this code.
 ;
 ; This code no longer fits.  Hope that noone really needs it anymore.
+; In fact, some indications is that this code does more harm than good
+; with all the new kinds of drives and media.
 ;
-%ifdef SUPPORT_BROKEN_BIOSES
+%ifdef SUPPORT_REALLY_BROKEN_BIOSES
 		lds si,[ss:fdctab]	; DS:SI -> original
 		push ds			; Save on stack in case
 		push si			; we have to bail
@@ -448,11 +448,6 @@ start1:
 ; Ready to enable interrupts, captain
 ;
 		sti
-;
-; Reset floppy system
-;
-		xor dx,dx
-		int 13h			; AH = 00h already
 ;
 ; The drive number and possibly partition information was passed to us
 ; by the BIOS or previous boot loader (MBR).  Current "best practice" is to
@@ -493,16 +488,15 @@ not_harddisk:
 ; wasting precious boot sector space again...
 ;
 debugentrypt:
-		xor si,si		; Some BIOSes destroy ES for INT 13:08
-		mov es,si		; so we clear it this late
-
+		xor ax,ax		; INT 13:08 destroys ES
+		mov es,ax		; so we clear it this late
 		mov al,[bsFATs]		; Number of FATs (AH == 0)
 		jc kaboom		; If the floppy init failed
 		mul word [bsFATsecs]	; Get the size of the FAT area
 		add ax,[bsHidden1]	; Add hidden sectors
 		adc dx,[bsHidden2]
 		add ax,[bsResSectors]	; And reserved sectors
-		adc dx,si		; SI == 0
+		adc dx,byte 0
 
 		mov [RootDir1],ax	; Location of root directory
 		mov [RootDir2],dx
@@ -523,7 +517,7 @@ debugentrypt:
 		mov [EndofDirSec],bx	; End of a single directory sector
 
 		add [DataArea1],ax
-		adc word [DataArea2],si	; SI == 0
+		adc word [DataArea2],byte 0
 
 		pop dx			; Reload root directory starting point
 		pop ax
@@ -566,12 +560,11 @@ kaboom:
 		pop word [si]		; Restore location
 		pop word [si+2]
 		sti
-;		mov si,bailmsg
-;		call writestr		; Returns with AL = 0
-;		cbw			; AH <- 0
-;		int 16h			; Wait for keypress
-;		int 19h			; And try once more to boot...
-		int 18h			; Bail.  Hope this does something useful.
+		mov si,bailmsg
+		call writestr		; Returns with AL = 0
+		cbw			; AH <- 0
+		int 16h			; Wait for keypress
+		int 19h			; And try once more to boot...
 norge:		jmp short norge		; If int 19h returned; this is the end
 
 ;
@@ -580,12 +573,12 @@ norge:		jmp short norge		; If int 19h returned; this is the end
 ;
 found_it:	; Note: we actually leave two words on the stack here
 		; (who cares?)
+		xor ax,ax
 		mov al,[bsSecPerClust]
-		xor ah,ah
 		mov bp,ax		; Load an entire cluster
 		mov bx,[si+26]		; First cluster
 		mov [RunLinClust],bx	; Save for later use
-		dec bx			; First cluster is cluster 2
+		dec bx			; First cluster is "cluster 2"
 		dec bx
 		mul bx
 		add ax,[DataArea1]
@@ -598,7 +591,12 @@ found_it:	; Note: we actually leave two words on the stack here
 		mov cx,magic_len
 		repe cmpsb		; Make sure that the bootsector
 		jne kaboom		; matches LDLINUX.SYS
-		jmp ldlinux_ent
+;
+; Some BIOSes are buggy and don't jump to 0000:7C00 but to an alias address.
+; We depend on CS == 0 later in the program, but in order to conserve space
+; we don't do this until here.
+;
+		jmp 0:ldlinux_ent
 ;
 ; writestr: write a null-terminated string to the console
 ;
@@ -610,7 +608,6 @@ wstr_1:         lodsb
 		mov bx,0007h		; White on black, current page
 		int 10h
 		jmp short wstr_1
-
 ;
 ; disk_error: decrement the retry count and bail if zero
 ;
@@ -621,6 +618,9 @@ disk_error:	dec si			; SI holds the disk retry counter
 		pop cx			; <H>
 		pop dx			; <G>
 		jmp short disk_try_again
+
+return:		ret
+
 ;
 ; getonesec: like getlinsec, but pre-sets the count to 1
 ;
@@ -726,9 +726,8 @@ disk_try_again: push dx			; <G>
 		xor dx,dx		; First head on new cylinder
 gls_nonewcyl:	sub cx,si		; First sector on new track
 		jmp short gls_nextchunk
-return:		ret
 
-; bailmsg		db 'Error!', 0Dh, 0Ah, 0
+bailmsg		db 'Boot failed!', 0Dh, 0Ah, 0
 
 bs_checkpt	equ $			; Must be <= 1E3h
 
