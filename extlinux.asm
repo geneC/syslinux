@@ -120,9 +120,10 @@ SuperInfo	resd 16			; DOS superblock expanded
 ClustSize	resd 1			; Bytes/cluster ("block")
 SecPerClust	resd 1			; Sectors/cluster
 ClustMask	resd 1			; Sectors/cluster - 1
+PtrsPerSector1	resd 1			; Pointers/sector
+PtrsPerSector2	resd 1			; (Pointers/cluster) * (Pointers/sector)
 PtrsPerBlock1	resd 1			; Pointers/cluster
 PtrsPerBlock2	resd 1			; (Pointers/cluster)^2
-PtrsPerBlock3	resd 1			; (Pointers/cluster)^3
 DriveNumber	resb 1			; BIOS drive number
 ClustShift	resb 1			; Shift count for sectors/cluster
 ClustByteShift	resb 1			; Shift count for bytes/cluster
@@ -767,20 +768,23 @@ expand_super:
 		shl eax,cl
 		mov [ClustSize],eax
 
-		sub cl,2			; 4 bytes/pointer
-		shl edx,cl
-		mov [PtrsPerBlock1],edx
-		shl edx,cl
-		mov [PtrsPerBlock2],edx
-		shl edx,cl
-		mov [PtrsPerBlock3],eax
-
-		sub cl,SECTOR_SHIFT-2
+		sub cl,SECTOR_SHIFT
 		mov [ClustShift],cl
 		shr eax,SECTOR_SHIFT
 		mov [SecPerClust],eax
 		dec eax
 		mov [ClustMask],eax
+
+		add cl,SECTOR_SHIFT-2		; 4 bytes/pointer
+		mov eax,SECTOR_SIZE/4
+		mov [PtrsPerSector1],eax
+		shl eax,cl
+		mov [PtrsPerSector2],eax
+
+		shl edx,cl
+		mov [PtrsPerBlock1],edx
+		shl edx,cl
+		mov [PtrsPerBlock2],edx
 
 ;
 ; Common initialization code
@@ -1193,7 +1197,7 @@ linsector:
 		push edx
 		push ebp
 
-		push eax
+		push eax		; Save sector index
 		mov cl,[ClustShift]
 		shr eax,cl		; Convert to block number
 		push eax
@@ -1205,16 +1209,17 @@ linsector:
 		lea ebx,[i_block+4*eax]
 		cmp eax,EXT2_NDIR_BLOCKS
 		jb .direct
-		mov ebx,[gs:si+i_block+4*EXT2_IND_BLOCK]
+		mov ebx,i_block+4*EXT2_IND_BLOCK
 		sub eax,EXT2_NDIR_BLOCKS
 		mov ebp,[PtrsPerBlock1]
+		cmp eax,ebp
 		jb .ind1
-		mov ebx,[gs:si+i_block+4*EXT2_DIND_BLOCK]
+		mov ebx,i_block+4*EXT2_DIND_BLOCK
 		sub eax,ebp
 		mov ebp,[PtrsPerBlock2]
 		cmp eax,ebp
 		jb .ind2
-		mov ebx,[gs:si+i_block+4*EXT2_TIND_BLOCK]
+		mov ebx,i_block+4*EXT2_TIND_BLOCK
 		sub eax,ebp
 
 .ind3:
@@ -1222,55 +1227,50 @@ linsector:
 		; with respect to the start of the tind area;
 		; ebx contains the pointer to the tind block.
 		xor edx,edx
-		div dword [PtrsPerBlock3]
-		; EAX = which dind block, EDX = block no in dind block
-
-		shl ebx,cl		; Sector # for tind block
-		push ax
-		shr eax,SECTOR_SHIFT-2	; Sector within tind block
-		add eax,ebx
+		div dword [PtrsPerSector2]
+		; EAX = which dind block, EDX = pointer within dind block
+		push eax
+		mov ebp,[gs:si+bx]
+		shr eax,SECTOR_SHIFT-2
+		shl ebp,cl
+		add eax,ebp
 		call getcachesector
-		pop bx
-		shl bx,2		; Convert to byte offset
-		and bx,SECTOR_SIZE-1
+		pop eax
+		and eax,(SECTOR_SIZE >> 2)-1
+		lea ebx,[4*eax]
+		mov eax,edx		; The ind2 code wants the remainder...
 
-		mov ebx,[gs:bx+si]	; Get the pointer
-		mov eax,edx		; The int2 code wants the remainder...
 .ind2:
 		; Double indirect; eax contains the block no
 		; with respect to the start of the dind area;
 		; ebx contains the pointer to the dind block.
 		xor edx,edx
-		div dword [PtrsPerBlock2]
-		; EAX = which dind block, EDX = block no in dind block
-
-		shl ebx,cl		; Sector # for tind block
-		push ax
-		shr eax,SECTOR_SHIFT-2	; Sector within tind block
-		add eax,ebx
+		div dword [PtrsPerSector1]
+		; EAX = which ind block, EDX = pointer within ind block
+		push eax
+		mov ebp,[gs:si+bx]
+		shr eax,SECTOR_SHIFT-2
+		shl ebp,cl
+		add eax,ebp
 		call getcachesector
-		pop bx
-		shl bx,2		; Convert to byte offset
-		and bx,SECTOR_SIZE-1
+		pop eax
+		and eax,(SECTOR_SIZE >> 2)-1
+		lea ebx,[4*eax]
+		mov eax,edx		; The int1 code wants the remainder...
 
-		mov ebx,[gs:bx+si]	; Get the pointer
-		mov eax,edx		; The ind1 code wants the remainder...
 .ind1:
 		; Single indirect; eax contains the block no
 		; with respect to the start of the ind area;
 		; ebx contains the pointer to the ind block.
-		xor edx,edx
-		div dword [PtrsPerBlock1]
-		; EAX = which dind block, EDX = block no in dind block
-
-		shl ebx,cl		; Sector # for tind block
-		push ax
-		shr eax,SECTOR_SHIFT-2	; Sector within tind block
-		add eax,ebx
+		push eax
+		mov ebp,[gs:si+bx]
+		shr eax,SECTOR_SHIFT-2
+		shl ebp,cl
+		add eax,ebp
 		call getcachesector
-		pop bx
-		shl bx,2		; Convert to byte offset
-		and bx,SECTOR_SIZE-1
+		pop eax
+		and eax,(SECTOR_SIZE >> 2)-1
+		lea ebx,[4*eax]
 
 .direct:
 		mov ebx,[gs:bx+si]	; Get the pointer
@@ -1305,10 +1305,10 @@ getfssec:
 		push ebp
 		push eax
 		push edx
+		push edi
 .getfragment:
 		mov eax,[si+file_sector]	; Current start index
-		push ebx			; Buffer pointer
-		mov ebx,eax
+		mov edi,eax
 		call linsector
 		push eax			; Fragment start sector
 		mov edx,eax
@@ -1326,22 +1326,20 @@ getfssec:
 		shr eax,SECTOR_SHIFT		; Sectors left in 64K block
 		cmp bp,ax
 		jnb .do_read			; Unless there is at least 1 more sector room...
-		inc ebx				; Sector index
+		inc edi				; Sector index
 		inc edx				; Linearly next sector
-		mov eax,ebx
+		mov eax,edi
 		call linsector
-		jc .do_read
+		; jc .do_read
 		cmp edx,eax
 		je .getseccnt
 .do_read:
 		pop eax				; Linear start sector
-		pop ebx				; Buffer pointer
 		call getlinsecsr
 		push bp
 		shl bp,9
 		add bx,bp			; Adjust buffer pointer
 		pop bp
-		sub cx,bp
 		add [si+file_sector],ebp	; Next sector index
 		sub [si],ebp			; Sectors consumed
 		jz .done
@@ -1350,6 +1348,7 @@ getfssec:
 .done:
 		cmp dword [si],1		; Did we run out of file?
 		; CF set if [SI] < 1, i.e. == 0
+		pop edi
 		pop edx
 		pop eax
 		pop ebp
