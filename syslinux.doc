@@ -421,14 +421,17 @@ files; see separate section below.)
 Chain loading requires the boot sector of the foreign operating system
 to be stored in a file in the root directory of the filesystem.
 Because neither Linux kernels, boot sector images, nor COMBOOT files
-have reliable magic numbers, SYSLINUX will look at the file
-extension.  The following extensions are recognized:
+have reliable magic numbers, SYSLINUX will look at the file extension.
+The following extensions are recognized (case insensitive):
 
-	none or other	Linux kernel image
-	.CBT		COMBOOT image (not runnable from DOS)
-	.BSS		Boot sector (DOS superblock will be patched in)
-	.BS		Boot sector
-	.COM		COMBOOT image (runnable from DOS)
+  none or other	Linux kernel image
+  .cbt		COMBOOT image (not runnable from DOS)
+  .bss		Boot sector, DOS superblock will be patched in [SYSLINUX only]
+  .bs		Boot sector [SYSLINUX only]
+  .bin		"CD boot sector" [ISOLINUX only]
+  .com		COMBOOT image (runnable from DOS)
+  .img		Disk image [ISOLINUX only]
+  .0		PXE bootstrap program (NBP) [PXELINUX only]
 
 For filenames given on the command line, SYSLINUX will search for the
 file by adding extensions in the order listed above if the plain
