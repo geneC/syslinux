@@ -1222,8 +1222,9 @@ pc_serial:	call getint			; "serial" command
 		cmp di,3
 		ja .port_is_io			; If port > 3 then port is I/O addr
 		shl di,1
-		mov di,[di+serial_base]
-.port_is_io:	mov [SerialPort],di
+		mov di,[di+serial_base]		; Get the I/O port from the BIOS
+.port_is_io:
+		mov [SerialPort],di
 		lea dx,[di+3]			; DX -> LCR
 		mov al,83h			; Enable DLAB
 		call slow_out
@@ -1236,6 +1237,9 @@ pc_serial:	call getint			; "serial" command
 		mov al,03h			; Disable DLAB
 		add dx,byte 2			; DX -> LCR
 		call slow_out
+		in al,dx			; Read back LCR (detect missing hw)
+		cmp al,03h			; If nothing here we'll read 00 or FF
+		jne .serial_port_bad		; Assume serial port busted
 		sub dx,byte 2			; DX -> IER
 		xor al,al			; IRQ disable
 		call slow_out
@@ -1251,6 +1255,10 @@ pc_serial:	call getint			; "serial" command
 		mov si,copyright_str
 		call write_serial_str
 
+		jmp short parse_config_3
+
+.serial_port_bad:
+		mov [SerialPort], word 0
 		jmp short parse_config_3
 
 pc_fkey:	sub ah,'1'

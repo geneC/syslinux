@@ -234,6 +234,10 @@ SERIAL port [[baudrate] flowcontrol]
 	For the SERIAL directive to be guaranteed to work properly, it
 	should be the first directive in the configuration file.
 
+	NOTE: "port" values from 0 to 3 means the first four serial
+	ports detected by the BIOS.  They may or may not correspond to
+	the legacy port values 0x3F8, 0x2F8, 0x3E8, 0x2E8.
+
 FONT filename
 	Load a font in .psf format before displaying any output
 	(except the copyright line, which is output as ldlinux.sys
