@@ -67,8 +67,7 @@ bcopy:		push eax
 		push ds
 		push es
 		mov [cs:SavedSSSP],sp
-		mov ax,ss
-		mov [cs:SavedSSSP+2],ax
+		mov [cs:SavedSSSP+2],ss
 
 		cli
 		call enable_a20

@@ -282,8 +282,7 @@ _start1:
 
 		push ds
 		mov [Stack],sp
-		mov ax,ss
-		mov [Stack+2],ax
+		mov [Stack+2],ss
 ;
 ; Initialize screen (if we're using one)
 ;

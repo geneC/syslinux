@@ -227,8 +227,7 @@ bi_csum:	dd 0xdeadbeef			; Checksum of boot file
 bi_reserved:	times 10 dd 0xdeadbeef		; Reserved
 
 _start1:	mov [cs:InitStack],sp		; Save initial stack pointer
-		mov ax,ss
-		mov [cs:InitStack+2],ax
+		mov [cs:InitStack+2],ss
 		xor ax,ax
 		mov ss,ax
 		mov sp,_start			; Set up stack
