@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <console.h>
 #include <sys/pci.h>
 #include <com32.h>
 
@@ -242,6 +243,8 @@ int main(int argc, char *argv[])
 {
   struct match *list, *match;
 
+  openconsole(&dev_null_r, &dev_stdcon_w);
+
   list = parse_config(argc < 2 ? NULL : argv[1]);
 
   match = pciscan(list);
@@ -249,8 +252,8 @@ int main(int argc, char *argv[])
   if ( match )
     execute(match->filename);
 
-  fputs("Error: no recognized network card found\n", stderr);
-
+  /* On error, return to the command line */
+  fputs("Error: no recognized network card found!\n", stderr);
   return 1;
 }
 
