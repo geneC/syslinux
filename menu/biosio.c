@@ -200,4 +200,5 @@ void getstring(char *str, unsigned int size)
     }
   }
   *p = '\0';
+  csprint("\r\n");
 }
