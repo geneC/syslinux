@@ -302,8 +302,13 @@ pc_getline:	mov di,trackbuf
 ; Main loop for configuration file parsing
 ;
 parse_config:
+		mov di,VKernelBuf		; Clear VKernelBuf at start
+		xor ax,ax
+		mov cx,vk_size
+		rep stosb
+.again:
 		call getcommand
-                jnc parse_config		; If not EOF do it again
+                jnc .again			; If not EOF do it again
 		;
 		; The fall through to commit_vk to commit any final
 		; VKernel being read
