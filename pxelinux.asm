@@ -2129,8 +2129,6 @@ slow_out:	out dx, al		; Fall through
 
 _io_delay:	out IO_DELAY_PORT,al
 		out IO_DELAY_PORT,al
-		out IO_DELAY_PORT,al
-		out IO_DELAY_PORT,al
 		ret
 
 enable_a20:
