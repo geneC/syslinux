@@ -128,7 +128,7 @@ void draw_row(int y, int sel, int top, int sbtop, int sbbot)
 {
   int i = (y-4)+top;
   
-  printf("\033[%d;%dH%s\272%s ",
+  printf("\033[%d;%dH%s\016x\017%s ",
 	 y, MARGIN+1, menu_attrib->border,
 	 (i == sel) ? menu_attrib->sel : menu_attrib->unsel);
   
@@ -142,12 +142,12 @@ void draw_row(int y, int sel, int top, int sbtop, int sbbot)
   }
 
   if ( nentries <= MENU_ROWS ) {
-    printf(" %s\272", menu_attrib->border);
+    printf(" %s\016x\017", menu_attrib->border);
   } else if ( sbtop > 0 ) {
     if ( y >= sbtop && y <= sbbot )
-      printf(" %s\262", menu_attrib->scrollbar);
+      printf(" %s\016a\017", menu_attrib->scrollbar);
     else
-      printf(" %s\260", menu_attrib->scrollbar);
+      printf(" %s\016x\017", menu_attrib->border);
   } else {
     putchar(' ');		/* Don't modify the scrollbar */
   }
@@ -166,30 +166,29 @@ void draw_menu(int sel, int top)
     sbtop += 4;  sbbot += 4;	/* Starting row of scrollbar */
   }
   
-  printf("\033[1;%dH%s\311", MARGIN+1, menu_attrib->border);
+  printf("\033[1;%dH%s\016l", MARGIN+1, menu_attrib->border);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
-    putchar('\315');
-  putchar('\273');
+    putchar('q');
   
-  printf("\033[2;%dH%s\272%s %s %s\272",
+  printf("k\033[2;%dH%sx\017%s %s %s\016x",
 	 MARGIN+1,
 	 menu_attrib->border,
 	 menu_attrib->title,
 	 pad_line(menu_title, 1, WIDTH-2*MARGIN-4),
 	 menu_attrib->border);
   
-  printf("\033[3;%dH%s\307", MARGIN+1, menu_attrib->border);
+  printf("\033[3;%dH%st", MARGIN+1, menu_attrib->border);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
-    putchar('\304');
-  putchar('\266');
+    putchar('q');
+  fputs("u\017", stdout);
   
   for ( y = 4 ; y < 4+MENU_ROWS ; y++ )
     draw_row(y, sel, top, sbtop, sbbot);
 
-  printf("\033[%d;%dH%s\310", y, MARGIN+1, menu_attrib->border);
+  printf("\033[%d;%dH%s\016m", y, MARGIN+1, menu_attrib->border);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
-    putchar('\315');
-  putchar('\274');
+    putchar('q');
+  fputs("j\017", stdout);
 
   if ( allowedit )
     printf("%s\033[%d;1H%s", menu_attrib->tabmsg, TABMSG_ROW,
@@ -202,7 +201,7 @@ const char *edit_cmdline(char *input, int top)
 {
   static char cmdline[MAX_CMDLINE_LEN];
   int key, len;
-  int redraw = 2;
+  int redraw = 1;		/* We enter with the menu already drawn */
 
   strncpy(cmdline, input, MAX_CMDLINE_LEN);
   cmdline[MAX_CMDLINE_LEN-1] = '\0';
@@ -212,13 +211,15 @@ const char *edit_cmdline(char *input, int top)
   for (;;) {
     if ( redraw > 1 ) {
       /* Clear and redraw whole screen */
-      printf("%s\033[2J", menu_attrib->screen);
+      /* Enable ASCII on G0 and DEC VT on G1; do it in this order
+	 to avoid confusing the Linux console */
+      printf("\033e\033%%@\033)0\033(B%s\033[?25l\033[2J", menu_attrib->screen);
       draw_menu(-1, top);
     }
 
     if ( redraw > 0 ) {
       /* Redraw the command line */
-      printf("\033[%d;1H%s> %s%s",
+      printf("\033[?25h\033[%d;1H%s> %s%s",
 	     CMDLINE_ROW, menu_attrib->cmdmark,
 	     menu_attrib->cmdline, pad_line(cmdline, 0, MAX_CMDLINE_LEN-1));
       printf("%s\033[%d;3H%s",
@@ -291,8 +292,6 @@ const char *run_menu(void)
   /* Note: for both key_timeout and timeout == 0 means no limit */
   key_timeout = (clock_t)(CLK_TCK*timeout+9)/10;
 
-  printf("\033[?25l");		/* Hide cursor */
-
   while ( !done ) {
     if ( entry < 0 )
       entry = 0;
@@ -306,7 +305,10 @@ const char *run_menu(void)
 
     /* Start with a clear screen */
     if ( clear ) {
-      printf("%s\033[2J", menu_attrib->screen);
+      /* Clear and redraw whole screen */
+      /* Enable ASCII on G0 and DEC VT on G1; do it in this order
+	 to avoid confusing the Linux console */
+      printf("\033e\033%%@\033)0\033(B%s\033[?25l\033[2J", menu_attrib->screen);
       clear = 0;
       prev_entry = prev_top = -1;
     }
@@ -391,9 +393,8 @@ const char *run_menu(void)
       break;
     case KEY_TAB:
       if ( allowedit ) {
-	printf("\033[?25h");		/* Show cursor */
+	draw_row(entry-top+4, -1, top, 0, 0);
 	cmdline = edit_cmdline(menu_entries[entry].cmdline, top);
-	printf("\033[?25l");		/* Hide cursor */
 	done = !!cmdline;
 	clear = 1;		/* In case we hit [Esc] and done is null */
       }
@@ -448,7 +449,6 @@ int main(int argc, char *argv[])
   (void)argc;
 
   console_ansi_raw();
-  fputs("\033%@\033(U", stdout); /* Enable CP 437 graphics on a real console */
 
   parse_config(argv[1]);
 
