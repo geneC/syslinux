@@ -3039,6 +3039,7 @@ loadfont:
 ; use_font:
 ; 	This routine activates whatever font happens to be in the
 ;	vgafontbuf, and updates the adjust_screen data.
+;       Must be called with CS = DS = ES
 ;
 use_font:
 		test [UserFont], byte 1		; Are we using a user-specified font?
@@ -4134,7 +4135,7 @@ packedpixel2vga:
 ;
 ; vgasetmode:
 ;	Enable VGA graphics, if possible; return ZF=1 on success
-;	DS must be set to the base segment.
+;	DS must be set to the base segment; ES is set to DS.
 ;
 vgasetmode:
 		push ds
@@ -4163,13 +4164,16 @@ vgasetmode:
 
 ;
 ; vgaclearmode:
-;	Disable VGA graphics.  It is not safe to assume any value for DS.
+;	Disable VGA graphics.  It is not safe to assume any value
+;	for DS or ES.
 ;
 vgaclearmode:
 		push ds
-		push cs
-		pop ds			; DS <- CS
+		push es
 		pushad
+		mov ax,cs
+		mov ds,ax
+		mov es,ax
 		cmp [UsingVGA], byte 1
 		jne .done
 		mov ax,0003h		; Return to normal video mode
@@ -4183,6 +4187,7 @@ vgaclearmode:
 		mov byte [ScrollAttribute], 07h
 .done:
 		popad
+		pop es
 		pop ds
 		ret
 

@@ -7,6 +7,7 @@ Changes in 1.64:
 	* Support specifying the serial port I/O address explicitly.
 	* Make DOS installer hopefully behave more nicely when used on
 	  recent Windows versions.
+	* Fix returning to text mode when a font has been specified.
 
 Changes in 1.63:
 	* Make the ppmtolss16 program handle color conversion more
