@@ -1,11 +1,11 @@
-gcc_ok   = $(shell if gcc $(1) -c -x c /dev/null -o /dev/null 2>/dev/null; \
+gcc_ok   = $(shell if $(CC) $(1) -c -x c /dev/null -o /dev/null 2>/dev/null; \
 	           then echo $(1); else echo $(2); fi)
 
 M32     := $(call gcc_ok,-m32,)
 ALIGN   := $(call gcc_ok,-falign-functions=0 -falign-jumps=0 -falign-loops=0,-malign-functions=0 -malign-jumps=0 -malign-loops=0)
 
-CC	= gcc $(M32) -funsigned-char
-CFLAGS  = -g -W -Wall -march=i386 $(ALIGN) -Os
+CC	= gcc
+CFLAGS  =  $(M32) -funsigned-char -g -W -Wall -march=i386 $(ALIGN) -Os
 AR      = ar
 AS      = as
 LD      = ld -m elf_i386

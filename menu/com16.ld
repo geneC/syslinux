@@ -63,11 +63,11 @@ SECTIONS
   PROVIDE (__etext = .);
   PROVIDE (_etext = .);
   PROVIDE (etext = .);
-  .rodata         : { *(.rodata .rodata.* .gnu.linkonce.r.*) }
-  .rodata1        : { *(.rodata1) }
-  .eh_frame_hdr : { *(.eh_frame_hdr) }
-  .eh_frame       : ONLY_IF_RO { KEEP (*(.eh_frame)) }
-  .gcc_except_table   : ONLY_IF_RO { *(.gcc_except_table) }
+  .rodata             : { *(.rodata .rodata.* .gnu.linkonce.r.*) }
+  .rodata1            : { *(.rodata1) }
+  .eh_frame_hdr       : { *(.eh_frame_hdr) }
+  .eh_frame           : { KEEP (*(.eh_frame)) }
+  .gcc_except_table   : { *(.gcc_except_table) }
   /* For backward-compatibility with tools that don't support the
      *_array_* sections below, our glibc's crt files contain weak
      definitions of symbols that they reference.  We don't want to use
@@ -100,8 +100,6 @@ SECTIONS
   .data1          : { *(.data1) }
   .tdata	  : { *(.tdata .tdata.* .gnu.linkonce.td.*) }
   .tbss		  : { *(.tbss .tbss.* .gnu.linkonce.tb.*) *(.tcommon) }
-  .eh_frame       : ONLY_IF_RW { KEEP (*(.eh_frame)) }
-  .gcc_except_table   : ONLY_IF_RW { *(.gcc_except_table) }
   .dynamic        : { *(.dynamic) }
   .ctors          :
   {
