@@ -1329,16 +1329,17 @@ kernel_good:
 		popa
 
 		mov ecx,[KernelName+8]		; Get (mangled) extension
+		and ecx,00ffffffh		; 3 bytes only
 		cmp ecx,'COM'
-		je near is_comboot_image
+		je is_comboot_image
 		cmp ecx,'CBT'
-		je near is_comboot_image
+		je is_comboot_image
 		cmp ecx,'BS '
-		je near is_bootsector
+		je is_bootsector
 		cmp ecx,'BIN'
-		je near is_bootsector
+		je is_bootsector
 		cmp ecx,'BSS'
-		je near is_bss_sector
+		je is_bss_sector
 		; Otherwise Linux kernel
 
 ;

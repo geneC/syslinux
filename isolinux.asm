@@ -1199,18 +1199,21 @@ kernel_good:
 		or ecx,20202000h		; Force lower case
 
 		cmp ecx,'.com'
-		je near is_comboot_image
+		je is_comboot_image
 		cmp ecx,'.cbt'
-		je near is_comboot_image
+		je is_comboot_image
 		cmp ecx,'.img'
-		je near is_disk_image
+		je is_disk_image
 		cmp ecx,'.bss'
-		je near is_bss_image
-		and ecx, 00ffffffh
+		je is_bss_image
+		cmp ecx,'.bin'
+		je is_bootsector
+		shr ecx,8
 		cmp ecx,'.bs'
-		je near is_bootsector
+		je is_bootsector
+		shr ecx,8
 		cmp cx,'.0'
-		je near is_bootsector
+		je is_bootsector
 		; Otherwise Linux kernel
 
 ;

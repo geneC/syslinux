@@ -1069,21 +1069,26 @@ kernel_good:
 		pop ax
 		pop di
 
+;
+; At this point, DX:AX contains the size of the kernel, and SI contains
+; the file handle/cluster pointer.
+;
 		or ecx,20202000h		; Force lower case
 
 		cmp ecx,'.com'
-		je near is_comboot_image
+		je is_comboot_image
 		cmp ecx,'.cbt'
-		je near is_comboot_image
+		je is_comboot_image
 		cmp ecx,'.bss'
-		je near is_bss_image
+		je is_bss_image
 		cmp ecx,'.bin'
-		je near is_bootsector
-		and ecx, 00ffffffh
+		je is_bootsector
+		shr ecx,8
 		cmp ecx,'.bs'
-		je near is_bootsector
+		je is_bootsector
+		shr ecx,8
 		cmp cx,'.0'
-		je near is_bootsector
+		je is_bootsector
 		; Otherwise Linux kernel
 ;
 ; Linux kernel loading code is common.  However, we need to define
