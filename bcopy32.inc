@@ -139,11 +139,12 @@ bcopy:		push eax
 %define IO_DELAY_PORT	80h		; Invalid port (we hope!)
 %define disable_wait 	32		; How long to wait for a disable
 
+; Note the skip of 2 here
 %define A20_DUNNO	0		; A20 type unknown
-%define A20_NONE	1		; A20 always on?
-%define A20_BIOS	2		; A20 BIOS enable
-%define A20_KBC		3		; A20 through KBC
-%define A20_FAST	4		; A20 through port 92h
+%define A20_NONE	2		; A20 always on?
+%define A20_BIOS	4		; A20 BIOS enable
+%define A20_KBC		6		; A20 through KBC
+%define A20_FAST	8		; A20 through port 92h
 
 slow_out:	out dx, al		; Fall through
 
@@ -167,7 +168,6 @@ try_enable_a20:
 ; If the A20 type is known, jump straight to type
 ;
 		mov bp,[cs:A20Type]
-		add bp,bp			; Convert to word offset
 		jmp word [cs:bp+A20List]
 
 ;
@@ -293,7 +293,6 @@ disable_a20:
 %endif
 
 		mov bp,[cs:A20Type]
-		add bp,bp			; Convert to word offset
 		jmp word [cs:bp+A20DList]
 
 a20d_bios:
