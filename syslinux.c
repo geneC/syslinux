@@ -193,6 +193,8 @@ int main(int argc, char *argv[])
     exit(1);
   }
   fprintf(mtc,
+	  "MTOOLS_NO_VFAT=1\n"
+	  "MTOOLS_SKIP_CHECK=1\n" /* Needed for some flash memories */
 	  "drive s:\n"
 	  "  file=\"/proc/%lu/fd/%d\"\n"
 	  "  offset=%lld\n",
@@ -212,7 +214,7 @@ int main(int argc, char *argv[])
   /* This command may fail legitimately */
   system("mattrib -h -r -s s:ldlinux.sys 2>/dev/null");
 
-  mtp = popen("mcopy -o - s:ldlinux.sys", "w");
+  mtp = popen("mcopy -D o -D O -o - s:ldlinux.sys", "w");
   if ( !mtp ||
        (fwrite(syslinux_ldlinux, 1, syslinux_ldlinux_len, mtp) 
 	!= syslinux_ldlinux_len) ||
