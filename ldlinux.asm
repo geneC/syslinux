@@ -412,9 +412,6 @@ start:
 ;
 ; DS:SI may contain a partition table entry.  Preserve it for us.
 ;
-;		mov dh,[si]		; "Active flag" (sanity check)
-;		mov bp,[si+8]		; LSW of linear offset
-;		mov bx,[si+10]		; MSW of linear offset
 		mov cl,8		; Save partition info (CH == 0)
 		mov di,PartInfo
 		rep movsw
@@ -468,12 +465,10 @@ start:
 		jz not_harddisk		; partition table
 		test byte [di-16],7Fh	; Sanity check: "active flag" should
 		jnz no_partition	; be 00 or 80
-		lea si,[di-8]
+		lea si,[di-8]		; Partition offset (dword)
 		mov di,bsHidden1
 		mov cl,2		; CH == 0
 		rep movsw
-;		mov [bsHidden1],bp
-;		mov [bsHidden2],bx
 no_partition:
 ;
 ; Get disk drive parameters (don't trust the superblock.)  Don't do this for
@@ -495,15 +490,14 @@ no_driveparm:
 not_harddisk:
 ;
 ; Now we have to do some arithmetric to figure out where things are located.
-; If Microsoft had had brains they would already have done this for us,
+; If Micro$oft had had brains they would already have done this for us,
 ; and stored it in the superblock at format time, but here we go,
 ; wasting precious boot sector space again...
 ;
 debugentrypt:
-		push ss
-		pop es
+		xor ax,ax		; INT 13:08 destroys ES
+		mov es,ax
 		mov al,[bsFATs]		; Number of FATs (AH == 0)
-		jc kaboom		; If the floppy init failed
 		mul word [bsFATsecs]	; Get the size of the FAT area
 		add ax,[bsHidden1]	; Add hidden sectors
 		adc dx,[bsHidden2]
