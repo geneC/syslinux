@@ -159,7 +159,7 @@ comboot_seg	equ 2000h		; COMBOOT image loading zone
 ;
 		struc open_file_t
 file_sector	resd 1			; Sector pointer (0 = structure free)
-file_sectors	resd 1			; Number of sectors left
+file_left	resd 1			; Number of sectors left
 		endstruc
 
 %if (open_file_t_size & (open_file_t_size-1))
@@ -292,6 +292,8 @@ InitRDat	resd 1			; Load address (linear) for initrd
 HiLoadAddr      resd 1			; Address pointer for high load loop
 HighMemSize	resd 1			; End of memory pointer (bytes)
 KernelSize	resd 1			; Size of kernel (bytes)
+RootDir		resd 1			; Root directory location (LBA)
+RootDirLen	resd 1			; Root directory length
 SavedSSSP	resw 1			; Our SS:SP while running a COMBOOT image
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
@@ -316,6 +318,7 @@ ConfigFile	resw 1			; Socket for config file
 PktTimeout	resw 1			; Timeout for current packet
 KernelExtPtr	resw 1			; During search, final null pointer
 LocalBootType	resw 1			; Local boot return code
+RootDirClust	resw 1			; Root directory length in clusters
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -382,6 +385,7 @@ initial_csum:	xor edi,edi
 		; Show signs of life
 		mov si,isolinux_banner
 		call writestr
+		call crlf			; For now...
 
 		; Set up boot file sizes
 		mov eax,[bi_length]
@@ -631,11 +635,23 @@ writechr_simple:
 		ret
 
 ;
+; Get one sector.  Convenience entry point.
+;
+getonesec:
+		mov bp,1
+		; Fall through to getlinsec
+
+;
 ; Get linear sectors - EBIOS LBA addressing, 2048-byte sectors.
 ;
 ; Note that we can't always do this as a single request, because at least
 ; Phoenix BIOSes has a 127-sector limit.  To be on the safe side, stick
 ; to 32 sectors (64K) per request.
+;
+; Input:
+;	EAX	- Linear sector number
+;	ES:BX	- Target buffer
+;	BP	- Sector count
 ;
 getlinsec:
 		mov si,dapa			; Load up the DAPA
@@ -775,6 +791,25 @@ rl_checkpt_off	equ ($-$$)
 all_read:
 		; Patch the writechr routine to point to the full code
 		mov word [writechr+1], writechr_full-(writechr+3)
+
+;
+; Now, we need to sniff out the actual filesystem data structures.
+; mkisofs gave us a pointer to the primary volume descriptor
+; (which will be at 16 only for a single-session disk!); from the PVD
+; we should be able to find the rest of what we need to know.
+; 
+get_fs_structures:
+		mov eax,[bi_pvd]
+		mov bx,trackbuf
+		call getonesec
+
+		mov eax,[trackbuf+156+2]
+		mov [RootDir],eax
+		mov eax,[trackbuf+156+10]
+		mov [RootDirLen],eax		
+		add eax,SECTORSIZE-1
+		shr eax,SECTORSIZE_LG2
+		mov [RootDirClust],ax
 
 ;
 ; Initialize screen (if we're using one)
@@ -2619,16 +2654,135 @@ kaboom:
 ;		DS:DI	= filename
 ;	     If successful:
 ;		ZF clear
-;		SI	= socket pointer
+;		SI	= file pointer
 ;		DX:AX	= file length in bytes
 ;	     If unsuccessful
 ;		ZF set
 ;
 
 searchdir:
-		; ISOLINUX:: Do stuff
+		push es
+		push ds
+		pop es				; DS = ES
+		call allocate_file		; Temporary file structure for directory
+		jnz .failure
+		mov si,bx
+		movzx eax,word [RootDirClust]
+		mov [bx+file_left],eax
+		mov eax,[RootDir]
+		mov [bx+file_sector],eax
+		mov edx,[RootDirLen]
+		mov si,trackbuf+SECTORSIZE
+
+.getsome:
+		; Get a chunk of the directory
+		pushad
+		mov si,bx
+		mov bx,trackbuf+SECTORSIZE
+		mov cx,[BufSafe]
+		dec cx				; ... minus one sector
+		call getfssec
+		popad
+
+.compare:
+		test [si+25], byte 8Eh		; Unwanted file attributes!
+		jnz .not_file
+		movzx cx,byte [si+32]		; File identifier length
+		push si
+		lea si,[si+33]			; File identifier offset
+		call iso_compare_names
+		pop si
+		je .success
+.not_file:
+		xor eax,eax
+		mov al,[si]
+		sub edx,eax			; Decrease bytes left
+		jbe .failure
+		add si,ax			; Advance pointer
+
+		; Are we getting close to the end of the buffer
+		cmp si,trackbuf+trackbufsize-SECTORSIZE
+		jb .compare			; No, keep going
+
+		; Close to end of buffer.  Copy fractional sector to top of
+		; buffer, and load another chunk.
+		push di
+		lea di,[si-(trackbufsize-SECTORSIZE)]
+		mov cx,trackbuf+trackbufsize
+		sub cx,si
+		push di
+		rep movsb
+		pop si				; SI <- new pointer location
+		pop di
+		jmp short .getsome		; Get another chunk
+
+.failure:	xor ax,ax			; ZF = 1
+		pop es
 		ret
 
+.success:
+		mov eax,[si+2]			; Location of extent
+		mov [bx+file_sector],eax
+		mov eax,[si+10]			; Data length
+		push eax
+		add eax,SECTORSIZE-1
+		shr eax,SECTORSIZE_LG2
+		mov [bx+file_left],eax
+		pop eax
+		mov edx,eax
+		shr edx,16
+		and bx,bx			; ZF = 0
+		pop es
+		ret
+
+;
+; allocate_file: Allocate a file structure
+;
+;		If successful:
+;		  ZF set
+;		  BX = file pointer
+;		In unsuccessful:
+;		  ZF clear
+;
+allocate_file:
+		push cx
+		mov bx,Files
+		mov cx,MAX_OPEN
+.check:		cmp dword [bx], byte 0
+		je .found
+		add bx,open_file_t_size
+		loop .check
+		xor cx,cx			; ZF = 1
+.found:		pop cx
+		ret
+
+;
+; iso_compare_names: 
+;	Compare the names DS:SI and DS:DI and report if they are
+;	equal from an ISO 9660 perspective.  SI is the name from
+;	the filesystem; CX indicates its length, and ';' terminates.
+;	DI is expected to end with a null.
+;
+iso_compare_names:
+		push ax
+.loop:		jcxz .si_end
+		lodsb
+		dec cx
+		mov ah,[di]
+		inc di
+		or ax,2020h			; Convert both to lowercase
+		cmp ah,al
+		jne .done			; ZF = 0
+		cmp al,';'
+		je .si_end
+		and al,al
+		jnz .loop
+.si_end:
+		cmp [di], byte 0
+		; Now ZF is set according to the final result
+.done:
+		pop ax
+		ret
 
 ;
 ; strcpy: Copy DS:SI -> ES:DI up to and including a null byte
@@ -3403,9 +3557,7 @@ unmangle_name:	call strcpy
 		ret
 
 ;
-; getfssec: Get multiple clusters from a file, given the starting cluster.
-;
-;	In this case, get multiple blocks from a specific TCP connection.
+; getfssec: Get multiple clusters from a file, given the file pointer.
 ;
 ;  On entry:
 ;	ES:BX	-> Buffer
@@ -3416,8 +3568,35 @@ unmangle_name:	call strcpy
 ;	CF = 1	-> Hit EOF
 ;
 getfssec:
-		;; ISOLINUX:: DO STUFF
+		push ds
+		push cs
+		pop ds				; DS <- CS
+
+		cmp cx,[si+file_left]
+		jna .ok_size
+		mov cx,[si+file_left]
+.ok_size:
+
+		mov bp,cx
+		push cx
+		mov eax,[si+file_sector]
+		call getfssec
+		xor ecx,ecx
+		pop cx
+
+		add [si+file_sector],ecx
+		sub [si+file_left],ecx
+		ja .not_eof			; CF = 0
+
+		xor ecx,ecx
+		mov [si+file_sector],ecx	; Mark as unused
+		xor si,si
+		stc
+
+.not_eof:
+		pop ds
 		ret
+
 
 ; ----------------------------------------------------------------------------------
 ;  VGA splash screen code
