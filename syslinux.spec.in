@@ -20,6 +20,10 @@ Requires: mtools, libc.so.6
 Requires: mtools, libc.so.6()(64bit)
 %endif
 
+# NOTE: extlinux belongs in /sbin, not in /usr/sbin, since it is typically
+# a system bootloader, and may be necessary for system recovery.
+%define _sbindir /sbin
+
 %package devel
 Summary: Development environment for SYSLINUX add-on modules
 Group: Development/Libraries

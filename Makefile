@@ -27,7 +27,7 @@ RANLIB   = ranlib
 NASM	 = nasm -O99
 NINCLUDE = 
 BINDIR   = /usr/bin
-SBINDIR  = /usr/sbin
+SBINDIR  = /sbin
 LIBDIR   = /usr/lib
 AUXDIR   = $(LIBDIR)/syslinux
 INCDIR   = /usr/include
@@ -75,7 +75,7 @@ OBSOLETE = pxelinux.bin
 
 # Things to install in /usr/bin
 INSTALL_BIN   =	mtools/syslinux gethostip ppmtolss16 lss16toppm
-# Things to install in /usr/sbin
+# Things to install in /sbin
 INSTALL_SBIN  = extlinux/extlinux
 # Things to install in /usr/lib/syslinux
 INSTALL_AUX   =	pxelinux.0 isolinux.bin isolinux-debug.bin \
