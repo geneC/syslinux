@@ -35,6 +35,8 @@ Changes in 3.00:
 	* SYSLINUX: Add an -m option to the DOS and Win32 installers
 	  to write an MBR and -a to mark the partition SYSLINUX is
 	  being installed on active.
+	* MEMDISK: Give a way to query the boot loader type while
+	  running MEMDISK; see memdisk/memdisk.doc and sample/mdiskchk.c.
 
 Changes in 2.13:
 	* MEMDISK: Fix command-line parsing "brown paper bag" class
