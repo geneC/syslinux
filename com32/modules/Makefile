@@ -27,7 +27,7 @@ NASM	   = nasm
 RANLIB	   = ranlib
 CFLAGS     = -W -Wall -march=i386 -Os -fomit-frame-pointer -I../include
 SFLAGS     = -march=i386
-LDFLAGS    = -s -T ../lib/com32.ld
+LDFLAGS    = -T ../lib/com32.ld
 OBJCOPY    = objcopy
 PPMTOLSS16 = 	../ppmtolss16
 LIB	   = ../lib/libcom32.a
