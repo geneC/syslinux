@@ -119,7 +119,7 @@ display_entry(const struct menu_entry *entry, const char *attrib,
     if ( *p ) {
       if ( *p == '^' ) {
 	p++;
-	if ( *p && (unsigned char)*p & ~0x20 == entry->hotkey ) {
+	if ( *p && ((unsigned char)*p & ~0x20) == entry->hotkey ) {
 	  fputs(hotattrib, stdout);
 	  putchar(*p++);
 	  fputs(attrib, stdout);
