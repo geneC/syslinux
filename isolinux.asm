@@ -555,8 +555,8 @@ integrity_ok:
 %endif
 		jmp all_read			; Jump to main code
 
-		; INT 13h, AX=4B01h, DL=7Fh failed.  Try to scan the
-		; entire 80h-FFh from the end.
+		; INT 13h, AX=4B01h, DL=<passed in value> failed.
+		; Try to scan the entire 80h-FFh from the end.
 spec_query_failed:
 		mov si,spec_err_msg
 		call writemsg
@@ -577,13 +577,20 @@ spec_query_failed:
 		call crlf
 
 		cmp byte [sp_drive],dl
-		jne .still_broken
+		jne .maybe_broken
 
 		; Okay, good enough...
 		mov si,alright_msg
 		call writemsg
 		mov [DriveNo],dl
 		jmp found_drive
+
+		; Award BIOS 4.51 apparently passes garbage in sp_drive,
+		; but if this was the drive number originally passed in
+		; DL then consider it "good enough"
+.maybe_broken:
+		cmp byte [DriveNo],dl
+		je found_drive
 
 .still_broken:	dec dx
 		cmp dl, 80h
@@ -800,7 +807,7 @@ alright_msg:	db 'Looks like it might be right, continuing...', CR, LF, 0
 nosecsize_msg:	db 'Failed to get sector size, assuming 0800', CR, LF, 0
 diskerr_msg:	db 'Disk error ', 0
 ondrive_str:	db ', drive ', 0
-nothing_msg:	db 'Failed to access CD-ROM device; boot failed.', CR, LF, 0
+nothing_msg:	db 'Failed to locate CD-ROM device; boot failed.', CR, LF, 0
 checkerr_msg:	db 'Image checksum error, sorry...', CR, LF, 0
 
 err_bootfailed	db CR, LF, 'Boot failed: press a key to retry...'

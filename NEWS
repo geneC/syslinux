@@ -9,6 +9,7 @@ Changes in 1.63:
 	* SYSLINUX: Fix stack-smash bug identified by Steffen
 	  Winterfeldt.
 	* Hopefully fix return-to-text-mode on some graphics cards.
+	* ISOLINUX: Bug workaround for Award BIOS 4.51.
 
 Changes in 1.62:
 	* PXELINUX: Allow the DHCP server to override the
