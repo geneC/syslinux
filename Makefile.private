@@ -77,3 +77,7 @@ prerel:
 	cd $(PRERELDIR)/$(PREREL) && \
 		zip -9r ../$(PREREL).zip *
 	expr $(PRERELNO) + 1 > $(PRERELDIR)/.prerel
+
+unprerel:
+	expr $(PRERELNO) - 1 > $(PRERELDIR)/.prerel
+	echo Next release will be syslinux-$(VERSION)-pre`cat $(PRERELDIR)/.prerel`
