@@ -5,12 +5,24 @@
 
 use Fcntl;
 
-($file,$c,$h,$s) = @ARGV;
+%opt = ();
+@args = ();
+
+for $a ( @ARGV ) {
+    if ( $a =~ /^\-/ ) {
+	$opt{$'} = 1;
+    } else {
+	push(@args, $a);
+    }
+}
+
+($file,$c,$h,$s) = @args;
 $c += 0;  $h += 0;  $s += 0;
 
 if ( !$file || $c < 1 || $c > 1024 ||
      $h < 1 || $h > 256 || $s < 1 || $s > 63 ) {
-    print STDERR "Usage: $0 file c h s (max: 1024 256 63)\n";
+    print STDERR "Usage: $0 [-o] file c h s (max: 1024 256 63)\n";
+    print STDERR "    -o    print filesystem offset to stdout\n";
     exit 1;
 }
 
@@ -77,6 +89,11 @@ print MCONFIG "heads=${h}\n";
 print MCONFIG "sectors=${s}\n";
 print MCONFIG "offset=${offset}\n";
 close(MCONFIG);
+
+# Output the filesystem offset to stdout if appropriate
+if ( $opt{'o'} ) {
+    print $offset, "\n";
+}
 
 $ENV{'MTOOLSRC'} = $tmpfile;
 system('mformat', 'z:');
