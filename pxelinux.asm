@@ -2022,25 +2022,25 @@ gendotquad:
 		mov cx,4
 .genchar:
 		push eax
+		cmp al,100
+		jb .lt100
+
 		aam 100
 		; Now AH = 100-digit; AL = remainder
-		cmp ah, 0
-		je .lt100
 		add ah,'0'
 		mov [es:di],ah
 		inc di
-		aam 10
-		; Now AH = 10-digit; AL = remainder
-		jmp short .tendigit
+
 .lt100:
+		cmp al,10
+		jb .lt10
+
 		aam 10
 		; Now AH = 10-digit; AL = remainder
-		cmp ah, 0
-		je .lt10
-.tendigit:
 		add ah,'0'
 		mov [es:di],ah		
 		inc di
+
 .lt10:
 		add al,'0'
 		stosb
