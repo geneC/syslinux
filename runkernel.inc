@@ -162,7 +162,7 @@ get_next_opt:   lodsb
                 push si                         ; mangle_dir mangles si
                 call mangle_name                ; Mangle ramdisk name
                 pop si
-		cmp byte [es:InitRD],NULLFILE	; Null filename?
+		cmp byte [es:InitRD+NULLOFFSET],NULLFILE ; Null filename?
                 seta byte [es:initrd_flag]	; Set flag if not
 not_initrd:	pop es                          ; Restore ES -> real_mode_seg
 skip_this_opt:  lodsb                           ; Load from command line

@@ -143,7 +143,7 @@ show_help:	; AX = func key # (0 = F1, 9 = F10)
 		shl ax,FILENAME_MAX_LG2		; Convert to pointer
 		add ax,FKeyName
 		xchg di,ax
-		cmp byte [di],NULLFILE
+		cmp byte [di+NULLOFFSET],NULLFILE
 		je short fk_nofile		; Undefined F-key
 		call searchdir
 		jz short fk_nofile		; File not found

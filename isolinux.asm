@@ -33,6 +33,7 @@ my_id		equ isolinux_id
 FILENAME_MAX_LG2 equ 8			; log2(Max filename size Including final null)
 FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
 NULLFILE	equ 0			; Zero byte == null file name
+NULLOFFSET	equ 0			; Position in which to look
 retry_count	equ 6			; How patient are we with the BIOS?
 %assign HIGHMEM_SLOP 128*1024		; Avoid this much memory near the top
 MAX_OPEN_LG2	equ 6			; log2(Max number of open files)

@@ -33,6 +33,7 @@ my_id		equ pxelinux_id
 FILENAME_MAX_LG2 equ 7			; log2(Max filename size Including final null)
 FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
 NULLFILE	equ 0			; Zero byte == null file name
+NULLOFFSET	equ 4			; Position in which to look
 REBOOT_TIME	equ 5*60		; If failure, time until full reset
 %assign HIGHMEM_SLOP 128*1024		; Avoid this much memory near the top
 MAX_OPEN_LG2	equ 5			; log2(Max number of open sockets)

@@ -38,6 +38,7 @@ my_id		equ syslinux_id
 FILENAME_MAX_LG2 equ 4			; log2(Max filename size Including final null)
 FILENAME_MAX	equ 11			; Max mangled filename size
 NULLFILE	equ ' '			; First char space == null filename
+NULLOFFSET	equ 0			; Position in which to look
 retry_count	equ 6			; How patient are we with the disk?
 %assign HIGHMEM_SLOP 0			; Avoid this much memory near the top
 LDLINUX_MAGIC	equ 0x3eb202fe		; A random number to identify ourselves with
