@@ -45,8 +45,8 @@ BTARGET = ldlinux.bss ldlinux.sys ldlinux.bin ldlinux.lst \
 	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin
 ITARGET = syslinux.com syslinux copybs.com gethostip
 DOCS    = COPYING NEWS README TODO *.doc sample
-OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version \
-	  sys2ansi.pl ppmtolss16 lss16toppm memdisk
+OTHER   = Makefile bin2c.pl now.pl genhash.pl keywords genstupid.pl \
+	  keytab-lilo.pl version sys2ansi.pl ppmtolss16 lss16toppm memdisk
 OBSOLETE = pxelinux.bin
 
 # Things to install in /usr/bin
@@ -79,7 +79,7 @@ samples:
 memdisk:
 	$(MAKE) -C memdisk all
 
-kwdhash.inc: keywords
+kwdhash.inc: keywords genhash.pl
 	$(PERL) genhash.pl < keywords > kwdhash.inc
 
 ldlinux.bin: ldlinux.asm kwdhash.inc

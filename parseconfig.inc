@@ -168,7 +168,7 @@ pc_serial:	call getint
 .parse_baud:
 		pop di				; Serial port #
 		cmp ebx,byte 75
-		jb parse_config_2		; < 75 baud == bogus
+		jb .err				; < 75 baud == bogus
 		mov eax,BAUD_DIVISOR
 		cdq
 		div ebx
@@ -204,7 +204,7 @@ pc_serial:	call getint
 		call slow_out
 
 		; Show some life
-		mov si,pxelinux_banner
+		mov si,syslinux_banner
 		call write_serial_str
 		mov si,copyright_str
 		call write_serial_str
@@ -265,8 +265,10 @@ pc_label:	call commit_vk			; Commit any current vkernel
                 mov cx,[AppendLen]
                 mov [VKernelBuf+vk_appendlen],cx
                 rep movsb
+%if my_id == pxelinux_id			; Applies to pxelinux only
 		mov al,[IPAppend]		; Default ipappend==global ipappend
 		mov [VKernelBuf+vk_ipappend],al
+%endif
 		ret
 
 ;

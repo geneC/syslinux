@@ -62,6 +62,12 @@ getcommand:
 
 		; Otherwise unrecognized keyword
 		mov si,err_badcfg
+		jmp short .error
+
+		; No parameter
+.noparm:
+		mov si,err_noparm
+.error:
 		call cwritestr
 		jmp short .find
 

@@ -293,7 +293,7 @@ _start1:
 ;
 ; Tell the user we got this far
 ;
-		mov si,pxelinux_banner
+		mov si,syslinux_banner
 		call writestr
 
 		mov si,copyright_str
@@ -2774,64 +2774,6 @@ writechr:
 		jmp short .curxyok
 
 ;
-; getkeyword:	Get a keyword from the current "getc" file; only the two
-;		first characters are considered significant.
-;
-;		Lines beginning with ASCII characters 33-47 are treated
-;		as comments and ignored; other lines are checked for
-;		validity by scanning through the keywd_table.
-;
-;		The keyword and subsequent whitespace is skipped.
-;
-;		On EOF, CF = 1; otherwise, CF = 0, AL:AH = lowercase char pair
-;
-getkeyword:
-gkw_find:	call skipspace
-		jz gkw_eof		; end of file
-		jc gkw_find		; end of line: try again
-		cmp al,'0'
-		jb gkw_skipline		; skip comment line
-		push ax
-		call getc
-		pop bx
-		jc gkw_eof
-		mov bh,al		; Move character pair into BL:BH
-		or bx,2020h		; Lower-case it
-		mov si,keywd_table
-gkw_check:	lodsw
-		and ax,ax
-		jz gkw_badline		; Bad keyword, write message
-		cmp ax,bx
-		jne gkw_check
-		push ax
-gkw_skiprest:
-		call getc
-		jc gkw_eof_pop
-		cmp al,'0'
-		ja gkw_skiprest
-		call ungetc
-		call skipspace
-		jz gkw_eof_pop
-                jc gkw_missingpar       ; Missing parameter after keyword
-		call ungetc		; Return character to buffer
-		clc			; Successful return
-gkw_eof_pop:	pop ax
-gkw_eof:	ret			; CF = 1 on all EOF conditions
-gkw_missingpar: pop ax
-                mov si,err_noparm
-                call cwritestr
-                jmp gkw_find
-gkw_badline_pop: pop ax
-gkw_badline:	mov si,err_badcfg
-		call cwritestr
-		jmp short gkw_find
-gkw_skipline:	cmp al,10		; Scan for LF
-		je gkw_find
-		call getc
-		jc gkw_eof
-		jmp short gkw_skipline
-
-;
 ; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
 ;	       to by ES:DI; ends on encountering any whitespace.
 ;
@@ -3461,7 +3403,7 @@ crlf_msg	db CR, LF, 0
 crff_msg	db CR, FF, 0
 default_str	db 'default', 0
 default_len	equ ($-default_str)
-pxelinux_banner	db CR, LF, 'PXELINUX ', version_str, ' ', date, ' ', 0
+syslinux_banner	db CR, LF, 'PXELINUX ', version_str, ' ', date, ' ', 0
 cfgprefix	db 'pxelinux.cfg/'		; No final null!
 cfgprefix_len	equ ($-cfgprefix)
 
@@ -3471,37 +3413,42 @@ cfgprefix_len	equ ($-cfgprefix)
 ; mem= and vga= are handled as normal 32-bit integer values
 initrd_cmd	db 'initrd='
 initrd_cmd_len	equ 7
+
 ;
 ; Config file keyword table
 ;
+%include "keywords.inc"
 		align 2, db 0
 
-keywd_table	db 'ap' ; append
-		db 'de' ; default
-		db 'ti' ; timeout
-		db 'fo'	; font
-		db 'kb' ; kbd
-		db 'di' ; display
-		db 'pr' ; prompt
-		db 'la' ; label
-                db 'im' ; implicit
-		db 'ke' ; kernel
-		db 'se' ; serial
-		db 'sa' ; say
-		db 'f1' ; F1
-		db 'f2' ; F2
-		db 'f3' ; F3
-		db 'f4' ; F4
-		db 'f5' ; F5
-		db 'f6' ; F6
-		db 'f7' ; F7
-		db 'f8' ; F8
-		db 'f9' ; F9
-		db 'f0' ; F10
-		; PXELINUX specific options...
-		db 'ip' ; ipappend
-		db 'lo' ; localboot
-		dw 0
+keywd_table:
+		keyword append, pc_append
+		keyword default, pc_default
+		keyword timeout, pc_timeout
+		keyword font, pc_font
+		keyword kbd, pc_kbd
+		keyword display, pc_display
+		keyword prompt, pc_prompt
+		keyword label, pc_label
+		keyword implicit, pc_implicit
+		keyword kernel, pc_kernel
+		keyword serial, pc_serial
+		keyword say, pc_say
+		keyword f1, pc_f1
+		keyword f2, pc_f2
+		keyword f3, pc_f3
+		keyword f4, pc_f4
+		keyword f5, pc_f5
+		keyword f6, pc_f6
+		keyword f7, pc_f7
+		keyword f8, pc_f8
+		keyword f9, pc_f9
+		keyword f10, pc_f10
+		keyword f0, pc_f10
+		keyword ipappend, pc_ipappend
+		keyword localboot, pc_localboot
+
+keywd_count	equ ($-keywd_table)/keywd_size
+
 ;
 ; Extensions to search for (in *forward* order).
 ; (.bs and .bss are disabled for PXELINUX, since they are not supported)

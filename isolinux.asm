@@ -246,7 +246,7 @@ _start1:	mov [cs:InitStack],sp		; Save initial stack pointer
 
 		cld
 		; Show signs of life
-		mov si,isolinux_banner
+		mov si,syslinux_banner
 		call writestr
 %ifdef DEBUG_MESSAGES
 		mov si,copyright_str
@@ -581,7 +581,7 @@ writestr	equ cwritestr
 ; Data that needs to be in the first sector
 ; -----------------------------------------------------------------------------
 
-isolinux_banner	db CR, LF, 'ISOLINUX ', version_str, ' ', date, ' ', 0
+syslinux_banner	db CR, LF, 'ISOLINUX ', version_str, ' ', date, ' ', 0
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
 		db CR, LF, 0
 isolinux_str	db 'isolinux: ', 0
@@ -894,281 +894,7 @@ load_config:
 ;
 ; Now we have the config file open
 ;
-parse_config:
-		call getkeyword
-                jc near end_config_file		; Config file loaded
-		cmp ax,'de'			; DEfault
-		je pc_default
-		cmp ax,'ap'			; APpend
-		je pc_append
-		cmp ax,'ti'			; TImeout
-		je near pc_timeout
-		cmp ax,'pr'			; PRompt
-		je near pc_prompt
-		cmp ax,'fo'			; FOnt
-		je near pc_font
-		cmp ax,'kb'			; KBd
-		je near pc_kbd
-		cmp ax,'di'			; DIsplay
-		je near pc_display
-		cmp ax,'la'			; LAbel
-		je near pc_label
-		cmp ax,'ke'			; KErnel
-		je near pc_kernel
-                cmp ax,'im'                     ; IMplicit
-                je near pc_implicit
-		cmp ax,'se'			; SErial
-		je near pc_serial
-		cmp ax,'sa'			; SAy
-		je near pc_say
-		cmp ax,'lo'			; LOcalboot
-		je pc_localboot
-		cmp al,'f'			; F-key
-		jne parse_config
-		jmp pc_fkey
-
-pc_default:	mov di,default_cmd		; "default" command
-		call getline
-		xor al,al
-		stosb				; null-terminate
-		jmp short parse_config
-
-pc_append:      cmp word [VKernelCtr],byte 0	; "append" command
-		ja pc_append_vk
-                mov di,AppendBuf
-		call getline
-                sub di,AppendBuf
-pc_app1:        mov [AppendLen],di
-                jmp short parse_config_2
-pc_append_vk:	mov di,VKernelBuf+vk_append	; "append" command (vkernel)
-		call getline
-		sub di,VKernelBuf+vk_append
-                cmp di,byte 2
-                jne pc_app2
-                cmp byte [VKernelBuf+vk_append],'-'
-                jne pc_app2
-                mov di,0                        ; If "append -" -> null string
-pc_app2:        mov [VKernelBuf+vk_appendlen],di
-		jmp short parse_config_2	
-
-pc_localboot:	call getint			; "localboot" command
-		cmp word [VKernelCtr],byte 0	; ("label" section only)
-		je parse_config_2
-		mov [VKernelBuf+vk_rname], byte 0	; Null kernel name
-		mov [VKernelBuf+vk_rname+1], bx	; Return type
-		jmp short parse_config_2
-
-pc_kernel:	cmp word [VKernelCtr],byte 0	; "kernel" command
-		je parse_config_2		; ("label" section only)
-		mov di,trackbuf
-		push di
-		call getline
-		pop si
-		mov di,VKernelBuf+vk_rname
-		call mangle_name
-		jmp short parse_config_2
-
-pc_timeout:	call getint			; "timeout" command
-		jc parse_config_2
-		mov ax,0D215h			; There are approx 1.D215h
-		mul bx				; clock ticks per 1/10 s
-		add bx,dx
-		mov [KbdTimeOut],bx
-parse_config_2:	jmp parse_config
-
-pc_display:	call pc_getfile			; "display" command
-		jz parse_config_2		; File not found?
-		call get_msg_file		; Load and display file
-		jmp short parse_config_2
-
-pc_prompt:	call getint			; "prompt" command
-		jc parse_config_2
-		mov [ForcePrompt],bx
-		jmp short parse_config_2
-
-pc_implicit:    call getint                     ; "implicit" command
-                jc parse_config_2
-                mov [AllowImplicit],bx
-                jmp short parse_config_2
-
-pc_serial:	call getint			; "serial" command
-		jc parse_config_2
-		push bx				; Serial port #
-		call skipspace
-		jc parse_config_2
-		call ungetc
-		call getint
-		mov [FlowControl], word 0	; Default to no flow control
-		jc .nobaud
-.valid_baud:	
-		push ebx
-		call skipspace
-		jc .no_flow
-		call ungetc
-		call getint			; Hardware flow control?
-		jnc .valid_flow
-.no_flow:
-		xor bx,bx			; Default -> no flow control
-.valid_flow:
-		and bh,0Fh			; FlowIgnore
-		shl bh,4
-		mov [FlowIgnore],bh
-		mov bh,bl
-		and bx,0F003h			; Valid bits
-		mov [FlowControl],bx
-		pop ebx				; Baud rate
-		jmp short .parse_baud
-.nobaud:
-		mov ebx,DEFAULT_BAUD		; No baud rate given
-.parse_baud:
-		pop di				; Serial port #
-		cmp ebx,byte 75
-		jb parse_config_2		; < 75 baud == bogus
-		mov eax,BAUD_DIVISOR
-		cdq
-		div ebx
-		push ax				; Baud rate divisor
-		cmp di,3
-		ja .port_is_io			; If port > 3 then port is I/O addr
-		shl di,1
-		mov di,[di+serial_base]		; Get the I/O port from the BIOS
-.port_is_io:
-		mov [SerialPort],di
-		lea dx,[di+3]			; DX -> LCR
-		mov al,83h			; Enable DLAB
-		call slow_out
-		pop ax				; Divisor
-		mov dx,di			; DX -> LS
-		call slow_out
-		inc dx				; DX -> MS
-		mov al,ah
-		call slow_out
-		mov al,03h			; Disable DLAB
-		add dx,byte 2			; DX -> LCR
-		call slow_out
-		in al,dx			; Read back LCR (detect missing hw)
-		cmp al,03h			; If nothing here we'll read 00 or FF
-		jne .serial_port_bad		; Assume serial port busted
-		sub dx,byte 2			; DX -> IER
-		xor al,al			; IRQ disable
-		call slow_out
-
-		add dx,byte 3			; DX -> MCR
-		in al,dx
-		or al,[FlowOutput]		; Assert bits
-		call slow_out
-
-		; Show some life
-		mov si,isolinux_banner
-		call write_serial_str
-		mov si,copyright_str
-		call write_serial_str
-
-		jmp short parse_config_3
-
-.serial_port_bad:
-		mov [SerialPort], word 0
-		jmp short parse_config_3
-
-pc_fkey:	sub ah,'1'
-		jnb pc_fkey1
-		mov ah,9			; F10
-pc_fkey1:	xor cx,cx
-		mov cl,ah
-		push cx
-		mov ax,1
-		shl ax,cl
-		or [FKeyMap], ax		; Mark that we have this loaded
-		mov di,trackbuf
-		push di
-		call getline			; Get filename to display
-		pop si
-		pop di
-		shl di,FILENAME_MAX_LG2		; Convert to offset
-		add di,FKeyName
-		call mangle_name		; Mangle file name
-		jmp short parse_config_3
-
-pc_label:	call commit_vk			; Commit any current vkernel
-		mov di,trackbuf			; Get virtual filename
-		push di
-		call getline
-		pop si
-		mov di,VKernelBuf+vk_vname
-		call mangle_name		; Mangle virtual name
-		inc word [VKernelCtr]		; One more vkernel
-		mov si,VKernelBuf+vk_vname 	; By default, rname == vname
-		mov di,VKernelBuf+vk_rname
-		mov cx,FILENAME_MAX
-		rep movsb
-                mov si,AppendBuf         	; Default append==global append
-                mov di,VKernelBuf+vk_append
-                mov cx,[AppendLen]
-                mov [VKernelBuf+vk_appendlen],cx
-                rep movsb
-		jmp near parse_config_3
-
-pc_font:	call pc_getfile			; "font" command
-		jz parse_config_3		; File not found?
-		call loadfont			; Load and install font
-		jmp short parse_config_3
-
-pc_kbd:		call pc_getfile			; "kbd" command
-		jz parse_config_3
-		call loadkeys
-parse_config_3:	jmp parse_config
-
-pc_say:		mov di,trackbuf			; "say" command
-		push di
-		call getline
-		xor al,al
-		stosb				; Null-terminate
-		pop si
-		call writestr
-		call crlf
-		jmp short parse_config_3
-
-;
-; pc_getfile:	For command line options that take file argument, this
-; 		routine decodes the file argument and runs it through searchdir
-;
-pc_getfile:	mov di,trackbuf
-		push di
-		call getline
-		pop si
-		mov di,MNameBuf
-		push di
-		call mangle_name
-		pop di
-		jmp searchdir			; Tailcall
-
-;
-; commit_vk: Store the current VKernelBuf into buffer segment
-;
-commit_vk:
-		cmp word [VKernelCtr],byte 0
-		je cvk_ret			; No VKernel = return
-		cmp word [VKernelCtr],max_vk	; Above limit?
-		ja cvk_overflow
-		mov di,[VKernelCtr]
-		dec di
-		shl di,vk_shift
-		mov si,VKernelBuf
-		mov cx,(vk_size >> 2)
-		push es
-		push word vk_seg
-		pop es
-		rep movsd			; Copy to buffer segment
-		pop es
-cvk_ret:	ret
-cvk_overflow:	mov word [VKernelCtr],max_vk	; No more than max_vk, please
-		ret
-
-;
-; End of configuration file
-;
-end_config_file:
-		call commit_vk			; Commit any current vkernel
+		call parse_config		; Parse configuration file
 no_config_file:
 ;
 ; Check whether or not we are supposed to display the boot prompt.
@@ -3081,64 +2807,6 @@ writechr_full:
 		jmp short .curxyok
 
 ;
-; getkeyword:	Get a keyword from the current "getc" file; only the two
-;		first characters are considered significant.
-;
-;		Lines beginning with ASCII characters 33-47 are treated
-;		as comments and ignored; other lines are checked for
-;		validity by scanning through the keywd_table.
-;
-;		The keyword and subsequent whitespace is skipped.
-;
-;		On EOF, CF = 1; otherwise, CF = 0, AL:AH = lowercase char pair
-;
-getkeyword:
-gkw_find:	call skipspace
-		jz gkw_eof		; end of file
-		jc gkw_find		; end of line: try again
-		cmp al,'0'
-		jb gkw_skipline		; skip comment line
-		push ax
-		call getc
-		pop bx
-		jc gkw_eof
-		mov bh,al		; Move character pair into BL:BH
-		or bx,2020h		; Lower-case it
-		mov si,keywd_table
-gkw_check:	lodsw
-		and ax,ax
-		jz gkw_badline		; Bad keyword, write message
-		cmp ax,bx
-		jne gkw_check
-		push ax
-gkw_skiprest:
-		call getc
-		jc gkw_eof_pop
-		cmp al,'0'
-		ja gkw_skiprest
-		call ungetc
-		call skipspace
-		jz gkw_eof_pop
-                jc gkw_missingpar       ; Missing parameter after keyword
-		call ungetc		; Return character to buffer
-		clc			; Successful return
-gkw_eof_pop:	pop ax
-gkw_eof:	ret			; CF = 1 on all EOF conditions
-gkw_missingpar: pop ax
-                mov si,err_noparm
-                call cwritestr
-                jmp gkw_find
-gkw_badline_pop: pop ax
-gkw_badline:	mov si,err_badcfg
-		call cwritestr
-		jmp short gkw_find
-gkw_skipline:	cmp al,10		; Scan for LF
-		je gkw_find
-		call getc
-		jc gkw_eof
-		jmp short gkw_skipline
-
-;
 ; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
 ;	       to by ES:DI; ends on encountering any whitespace.
 ;
@@ -3253,6 +2921,8 @@ getfssec:
 
 %include "getc.inc"		; getc et al
 %include "conio.inc"		; Console I/O
+%include "parseconfig.inc"	; High-level config file handling
+%include "parsecmd.inc"		; Low-level config file handling
 %include "font.inc"		; VGA font stuff
 %include "graphics.inc"		; VGA graphics
 
@@ -3326,37 +2996,41 @@ dbg_configok_msg	db 'Configuration file opened...', CR, LF, 0
 ; mem= and vga= are handled as normal 32-bit integer values
 initrd_cmd	db 'initrd='
 initrd_cmd_len	equ 7
+
 ;
 ; Config file keyword table
 ;
+%include "keywords.inc"
 		align 2, db 0
 
-keywd_table	db 'ap' ; append
-		db 'de' ; default
-		db 'ti' ; timeout
-		db 'fo'	; font
-		db 'kb' ; kbd
-		db 'di' ; display
-		db 'pr' ; prompt
-		db 'la' ; label
-                db 'im' ; implicit
-		db 'ke' ; kernel
-		db 'se' ; serial
-		db 'sa' ; say
-		db 'f1' ; F1
-		db 'f2' ; F2
-		db 'f3' ; F3
-		db 'f4' ; F4
-		db 'f5' ; F5
-		db 'f6' ; F6
-		db 'f7' ; F7
-		db 'f8' ; F8
-		db 'f9' ; F9
-		db 'f0' ; F10
-		; PXELINUX specific options...
-		db 'ip' ; ipappend
-		db 'lo' ; localboot
-		dw 0
+keywd_table:
+		keyword append, pc_append
+		keyword default, pc_default
+		keyword timeout, pc_timeout
+		keyword font, pc_font
+		keyword kbd, pc_kbd
+		keyword display, pc_display
+		keyword prompt, pc_prompt
+		keyword label, pc_label
+		keyword implicit, pc_implicit
+		keyword kernel, pc_kernel
+		keyword serial, pc_serial
+		keyword say, pc_say
+		keyword f1, pc_f1
+		keyword f2, pc_f2
+		keyword f3, pc_f3
+		keyword f4, pc_f4
+		keyword f5, pc_f5
+		keyword f6, pc_f6
+		keyword f7, pc_f7
+		keyword f8, pc_f8
+		keyword f9, pc_f9
+		keyword f10, pc_f10
+		keyword f0, pc_f10
+		keyword localboot, pc_localboot
+
+keywd_count	equ ($-keywd_table)/keywd_size
+
 ;
 ; Extensions to search for (in *forward* order).
 ;
