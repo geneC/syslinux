@@ -19,7 +19,7 @@
 ; 
 ; ****************************************************************************
 
-; NOTE TO SELF: Based on pxelinux.asm,v 1.48 2001/03/30 02:52:17 hpa
+; NOTE TO SELF: Last PXELINUX merge pxelinux.asm,v 1.49 2001/04/05 06:20:48 hpa
 ; Integrate PXELINUX changes since that version, please
 
 ;
@@ -148,7 +148,7 @@ vk_end:		equ $			; Should be <= vk_size
 ; 0000h - main code/data segment (and BIOS segment)
 ; 5000h - real_mode_seg
 ;
-vk_seg          equ 4000h		; This is where we stick'em
+vk_seg          equ 4000h		; Virtual kernels
 xfer_buf_seg	equ 3000h		; Bounce buffer for I/O to high mem
 comboot_seg	equ 2000h		; COMBOOT image loading zone
 
@@ -250,10 +250,21 @@ BIOS_vidrows    resb 1			; Number of screen rows
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
  		absolute 1000h
-trackbuf	resb 16384		; Track buffer goes here
+trackbuf	resb 8192		; Track buffer goes here
 trackbufsize	equ $-trackbuf
+;		trackbuf ends at 3000h
 
-;		trackbuf ends at 5000h
+
+;
+; Constants for the xfer_buf_seg
+;
+; The xfer_buf_seg is also used to store message file buffers.  We
+; need two trackbuffers (text and graphics), plus a work buffer
+; for the graphics decompressor.
+;
+xbs_textbuf	equ 0			; Also hard-coded, do not change
+xbs_vgabuf	equ trackbufsize
+xbs_vgatmpbuf	equ 2*trackbufsize
 
                 absolute 5000h          ; Here we keep our BSS stuff
 VKernelBuf:	resb vk_size		; "Current" vkernel
@@ -297,6 +308,10 @@ NextCharJump    resw 1			; Routine to interpret next print char
 SetupSecs	resw 1			; Number of setup sectors
 A20Test		resw 1			; Counter for testing status of A20
 CmdLineLen	resw 1			; Length of command line including null
+GraphXSize	resw 1			; Width of splash screen file
+VGAPos		resw 1			; Pointer into VGA memory
+VGACluster	resw 1			; Cluster pointer for VGA image file
+VGAFilePtr	resw 1			; Pointer into VGAFileBuf
 ConfigFile	resw 1			; Socket for config file
 PktTimeout	resw 1			; Timeout for current packet
 KernelExtPtr	resw 1			; During search, final null pointer
@@ -317,6 +332,10 @@ LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
 FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
 OverLoad	resb 1			; Set if DHCP packet uses "overloading"
+TextColorReg	resb 17			; VGA color registers for text mode
+VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
+VGAFileBufEnd	equ $
+VGAFileMBuf	resb FILENAME_MAX	; Mangled VGA image name
 
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
@@ -680,6 +699,25 @@ all_read:
 ;
 ; Initialize screen (if we're using one)
 ;
+
+		; Get ROM 8x16 font in case we switch to graphics mode
+		xor cx,cx
+		mov ax,1130h
+		mov bh,6			; Get ROM 8x16 font
+		int 10h
+		push es
+		pop fs
+		push ds
+		pop es
+		cmp cx,16
+		jne not_vga			; If not VGA we don't care
+		mov si,bp
+		mov di,vgafontbuf
+		mov cx,(16*256) >> 2
+		fs rep movsd
+not_vga:
+
+		; Now set up screen parameters
 		call adjust_screen
 ;
 ; Tell the user we got this far
@@ -1380,7 +1418,9 @@ clear_buffer:	mov ah,1			; Check for pending char
 		xor ax,ax			; Get char
 		int 16h
 		jmp short clear_buffer
-get_char_time:	mov cx,[KbdTimeOut]
+get_char_time:	
+		call vgashowcursor
+		mov cx,[KbdTimeOut]
 		and cx,cx
 		jz get_char			; Timeout == 0 -> no timeout
 		inc cx				; The first loop will happen
@@ -1396,10 +1436,14 @@ tick_loop:	push dx
 		je tick_loop
 		pop cx
 		loop time_loop			; If so, decrement counter
+		call vgahidecursor
 		jmp command_done		; Timeout!
 
 get_char_pop:	pop eax				; Clear stack
-get_char:	call getchar
+get_char:
+		call vgashowcursor
+		call getchar
+		call vgahidecursor
 		and al,al
 		jz func_key
 
@@ -2070,6 +2114,8 @@ nk_noinitrd:
 
 		mov si,ready_msg
 		call cwritestr
+
+		call vgaclearmode		; We can't trust ourselves after this
 ;
 ; Unload PXE stack
 ;
@@ -2306,6 +2352,8 @@ comboot_end_cmd: mov al,0Dh		; CR after last character
 		mov [SavedSSSP],sp
 		mov ax,ss		; Save away SS:SP
 		mov [SavedSSSP+2],ax
+
+		call vgaclearmode	; Reset video
 
 		mov ax,es
 		mov ds,ax
@@ -3215,7 +3263,7 @@ loadfont:
 		jne bf_ret
 
 		mov al,[trackbuf+2]		; File mode
-		cmp al,3			; Font modes 0-3 supported
+		cmp al,5			; Font modes 0-5 supported
 		ja bf_ret
 
 		mov bh,byte [trackbuf+3]	; Height of font
@@ -3224,8 +3272,18 @@ loadfont:
 		cmp bh,32			; VGA maximum
 		ja bf_ret
 
-		mov bp,trackbuf+4		; Address of font data
-		xor bl,bl
+		; Copy to font buffer
+		mov si,trackbuf+4		; Start of font data
+		mov [VGAFontSize],bh
+		mov di,vgafontbuf
+		mov bp,di			; Address of font data for INT 10h
+		mov cx,(32*256) >> 2		; Maximum size
+		rep movsd
+
+		xor bl,bl			; Needed by both INT 10h calls
+		cmp [UsingVGA], byte 1		; Are we in graphics mode?
+		je .graphics
+
 		mov cx,256
 		xor dx,dx
 		mov ax,1110h
@@ -3236,6 +3294,18 @@ loadfont:
 		int 10h
 
 		jmp short adjust_screen
+
+.graphics:
+		; CX = 0 on entry
+		mov cl,bh			; CX = bytes/character
+		mov ax,640
+		div cl				; Compute char rows per screen
+		mov dl,al
+		mov [VidRows],al
+		mov ax,1121h			; Set user character table
+		int 10h
+		; VidCols = 80, TextPage = 0 set by graphics mode select
+		ret	; No need to call adjust_screen
 
 ;
 ; loadkeys:	Load a LILO-style keymap; SI and DX:AX set by searchdir
@@ -3263,46 +3333,43 @@ loadkeys_ret:	ret
 ;               set by routine searchdir
 ;
 get_msg_file:
-                mov word [NextCharJump],msg_putchar ; State machine for color
-                mov byte [TextAttribute],07h	; Default grey on white
-                pusha
-                mov bh,[TextPage]
-                mov ah,03h                      ; Read cursor position
-                int 10h
-                mov [CursorDX],dx
-                popa
-get_msg_chunk:  push ax                         ; DX:AX = length of file
-                push dx
-		mov bx,trackbuf
+		push es
+		shl edx,16			; EDX <- DX:AX (length of file)
+		mov dx,ax
+		mov ax,xfer_buf_seg		; Use for temporary storage
+		mov es,ax
+
+		call msg_initvars
+
+get_msg_chunk:  push edx			; EDX = length of file
+		xor bx,bx			; == xbs_textbuf
 		mov cx,[BufSafe]
 		call getfssec
-                pop dx
-                pop ax
+		pop edx
 		push si				; Save current cluster
-		mov si,trackbuf
-		mov cx,[BufSafeBytes]		; No more than many bytes
-print_msg_file: push cx
-                push ax
-		push dx
-		lodsb
-                cmp al,1Ah                      ; ASCII EOF?
+		xor si,si			; == xbs_textbuf
+		mov cx,[BufSafeBytes]		; Number of bytes left in chunk
+print_msg_file:
+		push cx
+		push edx
+		es lodsb
+                cmp al,1Ah                      ; DOS EOF?
 		je msg_done_pop
+		push si
                 call [NextCharJump]		; Do what shall be done
-		pop dx
-		pop ax
+		pop si
+		pop edx
                 pop cx
-		sub ax,byte 1
-		sbb dx,byte 0
-		mov bx,ax
-		or bx,dx
+		dec edx
 		jz msg_done
 		loop print_msg_file
 		pop si
 		jmp short get_msg_chunk
 msg_done_pop:
-                add sp,byte 6			; Lose 3 words on the stack
+                add sp,byte 6			; Drop pushed EDX, CX
 msg_done:
 		pop si
+		pop es
 		ret
 msg_putchar:                                    ; Normal character
                 cmp al,0Fh                      ; ^O = color code follows
@@ -3313,6 +3380,8 @@ msg_putchar:                                    ; Normal character
                 je msg_newline
                 cmp al,0Ch                      ; <FF> = clear screen
                 je msg_formfeed
+		cmp al,18h			; <CAN> = VGA filename follows
+		je near msg_vga
 
 msg_normal:	call write_serial		; Write to serial port
                 mov bx,[TextAttrBX]
@@ -3334,10 +3403,8 @@ msg_ctrl_o:                                     ; ^O = color code follows
                 mov word [NextCharJump],msg_setbg
                 ret
 msg_newline:                                    ; Newline char or end of line
-		push si
 		mov si,crlf_msg
 		call write_serial_str
-		pop si
 msg_line_wrap:					; Screen wraparound
                 mov byte [CursorCol],0
                 mov al,[CursorRow]
@@ -3354,10 +3421,8 @@ msg_scroll:     xor cx,cx                       ; Upper left hand corner
                 int 10h
                 jmp short msg_gotoxy
 msg_formfeed:                                   ; Form feed character
-		push si
 		mov si,crff_msg
 		call write_serial_str
-		pop si
                 xor cx,cx
                 mov [CursorDX],cx		; Upper lefthand corner
                 mov dx,[ScreenSize]
@@ -3376,12 +3441,58 @@ msg_setfg:                                      ; Color foreground character
                 call unhexchar
                 jc msg_color_bad
                 or [TextAttribute],al		; setbg set foreground to 0
-                mov word [NextCharJump],msg_putchar
-                ret
+		jmp short msg_putcharnext
+msg_vga:
+		mov word [NextCharJump],msg_filename
+		mov di, VGAFileBuf
+		jmp short msg_setvgafileptr
+
 msg_color_bad:
                 mov byte [TextAttribute],07h	; Default attribute
+msg_putcharnext:
                 mov word [NextCharJump],msg_putchar
-                ret
+		ret
+
+msg_filename:					; Getting VGA filename
+		cmp al,0Ah			; <LF> = end of filename
+		je msg_viewimage
+		cmp al,' '
+		jbe msg_ret			; Ignore space/control char
+		mov di,[VGAFilePtr]
+		cmp di,VGAFileBufEnd
+		jnb msg_ret
+		mov [di],al			; Can't use stosb (DS:)
+		inc di
+msg_setvgafileptr:
+		mov [VGAFilePtr],di
+msg_ret:	ret
+
+msg_viewimage:
+		push es
+		push ds
+		pop es				; ES <- DS
+		mov si,VGAFileBuf
+		mov di,VGAFileMBuf
+		push di
+		call mangle_name
+		pop di
+		call searchdir
+		pop es
+		jz msg_putcharnext		; Not there
+		call vgadisplayfile
+		; Fall through
+
+		; Subroutine to initialize variables, also needed
+		; after loading a graphics file
+msg_initvars:
+                mov byte [TextAttribute],07h	; Default grey on white
+                pusha
+                mov bh,[TextPage]
+                mov ah,03h                      ; Read cursor position
+                int 10h
+                mov [CursorDX],dx
+                popa
+		jmp short msg_putcharnext	; Initialize state machine
 
 ;
 ; write_serial:	If serial output is enabled, write character on serial port
@@ -4373,6 +4484,308 @@ genipopt:
 		ret
 
 ; ----------------------------------------------------------------------------------
+;  VGA splash screen code
+; ----------------------------------------------------------------------------------
+
+;
+; vgadisplayfile:
+;	Display a graphical splash screen.
+;
+; Input:
+;
+; SI	= cluster/socket pointer
+;
+vgadisplayfile:
+		mov [VGACluster],si
+		push es
+
+		; This is a cheap and easy way to make sure the screen is
+		; cleared in case we were in graphics mode already
+		call vgaclearmode
+		call vgasetmode
+		jnz .error_nz
+
+.graphalready:
+		mov ax,xfer_buf_seg		; Use as temporary storage
+		mov es,ax
+		mov fs,ax
+
+		call vgagetchunk		; Get the first chunk
+
+		; The header WILL be in the first chunk.
+		cmp dword [es:xbs_vgabuf],0x1413f33d	; Magic number
+.error_nz:	jne near .error
+		mov ax,[es:xbs_vgabuf+4]
+		mov [GraphXSize],ax
+
+		mov dx,xbs_vgabuf+8		; Color map offset
+		mov ax,1012h			; Set RGB registers
+		xor bx,bx			; First register number
+		mov cx,16			; 16 registers
+		int 10h
+	
+.movecursor:
+		mov ax,[es:xbs_vgabuf+6]	; Number of pixel rows
+		mov dx,[VGAFontSize]
+		add ax,dx
+		dec ax
+		div dl
+		xor dx,dx			; Set column to 0
+		cmp al,[VidRows]
+		jb .rowsok
+		mov al,[VidRows]
+		dec al
+.rowsok:
+		mov dh,al
+		mov ah,2
+		xor bx,bx
+		int 10h				; Set cursor below image
+
+		mov cx,[es:xbs_vgabuf+6]	; Number of graphics rows
+
+		mov si,xbs_vgabuf+8+3*16	; Beginning of pixel data
+		mov word [VGAPos],0
+
+.drawpixelrow:
+		push cx
+		mov cx,[GraphXSize]
+		mov di,xbs_vgatmpbuf		; Row buffer
+		call rledecode			; Decode one row
+		push si
+		mov si,xbs_vgatmpbuf
+		mov di,si
+		add di,[GraphXSize]
+		mov cx,640/4
+		xor eax,eax
+		rep stosd			; Clear rest of row
+		mov di,0A000h			; VGA segment
+		mov es,di
+		mov di,[VGAPos]
+		mov bp,640
+		call packedpixel2vga
+		add word [VGAPos],byte 80	; Advance to next pixel row
+		push fs
+		pop es
+		pop si
+		pop cx
+		loop .drawpixelrow
+
+.error:
+		pop es
+		ret
+
+;
+; rledecode:
+;	Decode a pixel row in RLE16 format.
+;
+; FS:SI	-> input
+; CX -> pixel count
+; ES:DI -> output (packed pixel)
+;
+rledecode:
+		shl esi,1		; Nybble pointer
+		xor dl,dl		; Last pixel
+.loop:
+		call .getnybble
+		cmp al,dl
+		je .run			; Start of run sequence
+		stosb
+		mov dl,al
+		dec cx
+		jnz .loop
+.done:
+		shr esi,1
+		adc si,byte 0
+		ret
+.run:
+		xor bx,bx
+		call .getnybble
+		and al,al
+		jz .longrun
+		mov bl,al
+.dorun:
+		push cx
+		mov cx,bx
+		mov al,dl
+		rep stosb
+		pop cx
+		sub cx,bx
+		ja .loop
+		jmp short .done
+.longrun:
+		call .getnybble
+		mov ah,al
+		call .getnybble
+		shl al,4
+		or al,ah
+		mov bl,al
+		add bx,16
+		jmp short .dorun
+.getnybble:
+		shr esi,1
+		fs lodsb
+		jc .high
+		dec si
+		and al,0Fh
+		stc
+		rcl esi,1
+		ret
+.high:
+		shr al,4
+		cmp si,xbs_vgabuf+trackbufsize	; Chunk overrun
+		jb .nonewchunk
+		call vgagetchunk
+		mov si,xbs_vgabuf		; Start at beginning of buffer
+.nonewchunk:
+		shl esi,1
+		ret
+
+;
+; vgagetchunk:
+;	Get a new trackbufsize chunk of VGA image data
+;
+; On input, ES is assumed to point to the buffer segment.
+;
+vgagetchunk:
+		pushad
+		mov si,[VGACluster]
+		and si,si
+		jz .eof				; EOF overrun, not much to do...
+
+		mov cx,[BufSafe]		; One trackbuf worth of data
+		mov bx,xbs_vgabuf
+		call getfssec
+
+		jnc .noteof
+		xor si,si
+.noteof:	mov [VGACluster],si
+
+.eof:		popad
+		ret
+
+;
+; packedpixel2vga:
+;	Convert packed-pixel to VGA bitplanes
+;
+; FS:SI -> packed pixel string
+; BP    -> pixel count (multiple of 8)
+; ES:DI -> output
+;
+packedpixel2vga:
+		mov dx,3C4h	; VGA Sequencer Register select port
+		mov al,2	; Sequencer mask
+		out dx,al	; Select the sequencer mask
+		inc dx		; VGA Sequencer Register data port
+		mov al,1
+		mov bl,al
+.planeloop:
+		pusha
+		out dx,al
+.loop1:
+		mov cx,8
+.loop2:
+		xchg cx,bx
+		fs lodsb
+		shr al,cl
+		rcl ch,1	; VGA is bigendian.  Sigh.
+		xchg cx,bx
+		loop .loop2
+		mov al,bh
+		stosb
+		sub bp,byte 8
+		ja .loop1
+		popa
+		inc bl
+		shl al,1
+		cmp bl,4
+		jbe .planeloop
+		ret
+
+;
+; vgasetmode:
+;	Enable VGA graphics, if possible; return ZF=1 on success
+;	DS must be set to the base segment.
+;
+vgasetmode:
+		push ds
+		pop es
+		mov ax,1A00h		; Get video card and monitor
+		xor bx,bx
+		int 10h
+		cmp bl, 8		; If not VGA card/VGA monitor, give up
+		jne .error		; ZF=0
+;		mov bx,TextColorReg
+;		mov dx,1009h		; Read color registers
+;		int 10h
+		mov ax,0012h		; Set mode = 640x480 VGA 16 colors
+		int 10h
+		mov dx,linear_color
+		mov ax,1002h		; Write color registers
+		int 10h
+		mov [UsingVGA], byte 1
+
+		mov [VidCols], byte 80	; Always 80 chars/screen
+		mov [TextPage], byte 0	; Always page 0
+
+		mov cx,[VGAFontSize]
+		mov ax,640
+		div cl
+		mov [VidRows],al
+		mov dl,al
+		mov bp,vgafontbuf
+		xor bx,bx
+		mov ax,1121h		; Set graphics font
+		int 10h
+
+		xor ax,ax		; Set ZF
+.error:
+		ret
+
+;
+; vgaclearmode:
+;	Disable VGA graphics.  It is not safe to assume any value for DS.
+;
+vgaclearmode:
+		pushad
+		cmp [cs:UsingVGA], byte 1
+		jne .done
+		mov ax,0003h		; Return to normal video mode
+		int 10h
+;		mov dx,TextColorReg	; Restore color registers
+;		mov ax,1002h
+;		int 10h
+.done:
+		popad
+		ret
+
+;
+; vgashowcursor/vgahidecursor:
+;	If VGA graphics is enabled, draw a cursor/clear a cursor
+;
+vgashowcursor:
+		pushad
+		mov al,'_'
+		jmp short vgacursorcommon
+vgahidecursor:
+		pushad
+		mov al,' '
+vgacursorcommon:
+		cmp [UsingVGA], byte 1
+		jne .done
+		mov ah,09h
+		mov bx,0007h
+		mov cx,1
+		int 10h
+.done:
+		popad
+		ret
+
+
+		; Map colors to consecutive DAC registers
+linear_color	db 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0
+UsingVGA	db 0
+
+; ----------------------------------------------------------------------------------
 ;  Begin data section
 ; ----------------------------------------------------------------------------------
 
@@ -4574,6 +4987,7 @@ NextSocket	dw 49152		; Counter for allocating socket numbers
 A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
 A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
 A20Type		dw A20_DUNNO		; A20 type unknown
+VGAFontSize	dw 16			; Defaults to 16 byte font
 ;
 ; TFTP commands
 ;
@@ -4630,3 +5044,13 @@ kern_cmd_len    equ ldlinux_end-command_line
 ;
 end_of_code	equ (ldlinux_end-bootsec)+7C00h
 getcbuf		equ (end_of_code + 511) & 0FE00h
+
+; VGA font buffer at the end of memory (so loading a font works even
+; in graphics mode.)
+vgafontbuf	equ 0E000h
+
+; This is a compile-time assert that we didn't run out of space
+%if (getcbuf+trackbufsize) > vgafontbuf
+%error "Out of memory, better reorganize something..."
+%endif
+
