@@ -36,7 +36,7 @@ SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm \
 	  pxelinux.asm pxe.inc mbr.asm gethostip.c \
 	  isolinux.asm
 BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst \
-	  pxelinux.0 mbr.bin isolinux.bin
+	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin
 ITARGET = syslinux.com syslinux copybs.com gethostip
 DOCS    = COPYING NEWS README TODO *.doc sample
 OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version \
@@ -80,6 +80,12 @@ isolinux.bin: isolinux.asm
 	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" \
 		-dHEXDATE="$(HEXDATE)" \
 		-l isolinux.lst -o isolinux.bin isolinux.asm
+
+# Special verbose version of isolinux.bin
+isolinux-debug.bin: isolinux.asm
+	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" \
+		-dHEXDATE="$(HEXDATE)" -dDEBUG_MESSAGES \
+		-l isolinux-debug.lst -o isolinux-debug.bin isolinux.asm
 
 bootsect.bin: ldlinux.bin
 	dd if=ldlinux.bin of=bootsect.bin bs=512 count=1

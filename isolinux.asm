@@ -19,10 +19,23 @@
 ; 
 ; ****************************************************************************
 
+; Note: The Makefile builds one version with DEBUG_MESSAGES automatically.
+; %define DEBUG_TRACERS			; Uncomment to get debugging tracers
+; %define DEBUG_MESSAGES		; Uncomment to get debugging messages
+
+%ifdef DEBUG_TRACERS
+
 %macro TRACER	1
-;	call debug_tracer
-;	db %1
+	call debug_tracer
+	db %1
 %endmacro
+
+%else	; DEBUG_TRACERS
+
+%macro	TRACER	1
+%endmacro
+
+%endif	; DEBUG_TRACERS
 
 ;
 ; Some semi-configurable constants... change on your own risk.  Most are imposed
@@ -300,6 +313,8 @@ RootDir		resb dir_t_size		; Root directory
 CurDir		resb dir_t_size		; Current directory
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
 InitStack	resd 1			; Initial stack pointer (SS:SP)
+FirstSecSum	resd 1			; Checksum of bytes 64-2048
+ImageDwords	resd 1			; isolinux.bin size, dwords
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
 FBytes2		resw 1
@@ -323,6 +338,7 @@ ConfigFile	resw 1			; Socket for config file
 PktTimeout	resw 1			; Timeout for current packet
 KernelExtPtr	resw 1			; During search, final null pointer
 LocalBootType	resw 1			; Local boot return code
+ImageSectors	resw 1			; isolinux.bin size, sectors
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -339,6 +355,7 @@ A20Tries	resb 1			; Times until giving up on A20
 FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
 ISOFlags	resb 1			; Flags for ISO directory search
 DiskError	resb 1			; Error code for disk I/O
+DriveNo		resb 1			; CD-ROM BIOS drive number
 TextColorReg	resb 17			; VGA color registers for text mode
 VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
 VGAFileBufEnd	equ $
@@ -384,8 +401,10 @@ _start1:	mov [cs:InitStack],sp		; Save initial stack pointer
 		; Show signs of life
 		mov si,isolinux_banner
 		call writestr
+%ifdef DEBUG_MESSAGES
 		mov si,copyright_str
 		call writestr
+%endif
 
 		;
 		; Before modifying any memory, get the checksum of bytes
@@ -408,12 +427,14 @@ initial_csum:	xor edi,edi
 		shr eax,9			; dwords->sectors
 		mov [ImageSectors],ax		; boot file sectors
 
+		mov [DriveNo],dl
+%ifdef DEBUG_MESSAGES
 		mov si,startup_msg
 		call writemsg
-		mov [DriveNo],dl
 		mov al,dl
 		call writehex2
 		call crlf
+%endif
 
 		; Now figure out what we're actually doing
 		; Note: use passed-in DL value rather than 7Fh because
@@ -427,11 +448,13 @@ initial_csum:	xor edi,edi
 		cmp [sp_drive],dl		; Should contain the drive number
 		jne near spec_query_failed
 
+%ifdef DEBUG_MESSAGES
 		mov si,spec_ok_msg
 		call writemsg
 		mov al,byte [sp_drive]
 		call writehex2
 		call crlf
+%endif
 
 found_drive:
 		; Get drive information
@@ -447,11 +470,17 @@ found_drive:
 params_ok:
 		; Check for the sector size (should be 2048, but
 		; some BIOSes apparently think we're 512-byte media)
+		;
+		; FIX: We need to check what the proper behaviour
+		; is for getlinsec when the BIOS thinks the sector
+		; size is 512!!!  For that, we need such a BIOS, though...
+%ifdef DEBUG_MESSAGES
 		mov si,secsize_msg
 		call writemsg
 		mov ax,[dp_secsize]
 		call writehex4
 		call crlf
+%endif
 
 load_image:
 		; Some BIOSes apparently have limitations on the size 
@@ -461,10 +490,12 @@ load_image:
 
 		mov eax,[bi_file]		; Address of code to load
 		inc eax				; Don't reload bootstrap code
+%ifdef DEBUG_MESSAGES
 		mov si,offset_msg
 		call writemsg
 		call writehex8
 		call crlf
+%endif
 
 		; Just in case some BIOSes have problems with
 		; segment wraparound, use the normalized address
@@ -472,6 +503,7 @@ load_image:
 		mov es,bx
 		xor bx,bx
 		mov bp,[ImageSectors]
+%ifdef DEBUG_MESSAGES
 		push ax
 		mov si,size_msg
 		call writemsg
@@ -479,13 +511,16 @@ load_image:
 		call writehex4
 		call crlf
 		pop ax
+%endif
 		call getlinsec
 
-		mov ax,ds
-		mov es,ax
+		push ds
+		pop es
 
+%ifdef DEBUG_MESSAGES
 		mov si,loaded_msg
 		call writemsg
+%endif
 
 		; Verify the checksum on the loaded image.
 verify_image:
@@ -509,11 +544,14 @@ verify_image:
 		je integrity_ok
 
 		mov si,checkerr_msg
-		call writestr
+		call writemsg
+		jmp kaboom
 
 integrity_ok:
+%ifdef DEBUG_MESSAGES
 		mov si,allread_msg
 		call writemsg
+%endif
 		jmp all_read			; Jump to main code
 
 		; INT 13h, AX=4B01h, DL=7Fh failed.  Try to scan the
@@ -744,30 +782,30 @@ isolinux_banner	db CR, LF, 'ISOLINUX ', version_str, ' ', date, ' ', 0
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
 		db CR, LF, 0
 isolinux_str	db 'isolinux: ', 0
+%ifdef DEBUG_MESSAGES
 startup_msg:	db 'Starting up, DL = ', 0
 spec_ok_msg:	db 'Loaded spec packet OK, drive = ', 0
-spec_err_msg:	db 'Loading spec packet failed, trying to wing it...', CR, LF, 0
-maybe_msg:	db 'Found something at drive = ', 0
 secsize_msg:	db 'Sector size appears to be ', 0
-nosecsize_msg:	db 'Failed to get sector size, assuming 0800', CR, LF, 0
-nothing_msg:	db 'Failed to access CD-ROM device; boot failed.', CR, LF, 0
-alright_msg:	db 'Looks like it might be right, continuing...', CR, LF, 0
 offset_msg:	db 'Loading main image from LBA = ', 0
 size_msg:	db 'Sectors to load = ', 0
 loaded_msg:	db 'Loaded boot image, verifying...', CR, LF, 0
 verify_msg:	db 'Image checksum verified.', CR, LF, 0
-checkerr_msg:	db 'Load checksum error, goodbye...', CR, LF, 0
+allread_msg	db 'Main image read, jumping to main code...', CR, LF, 0
+%endif
+spec_err_msg:	db 'Loading spec packet failed, trying to wing it...', CR, LF, 0
+maybe_msg:	db 'Found something at drive = ', 0
+alright_msg:	db 'Looks like it might be right, continuing...', CR, LF, 0
+nosecsize_msg:	db 'Failed to get sector size, assuming 0800', CR, LF, 0
 diskerr_msg:	db 'Disk error ', 0
 ondrive_str:	db ', drive ', 0
-allread_msg	db 'Main image read, jumping to main code...', CR, LF, 0
+nothing_msg:	db 'Failed to access CD-ROM device; boot failed.', CR, LF, 0
+checkerr_msg:	db 'Image checksum error, sorry...', CR, LF, 0
+
+err_bootfailed	db CR, LF, 'Boot failed: press a key to retry...'
+bailmsg		equ err_bootfailed
 crlf_msg	db CR, LF, 0
 
 		alignb 8, db 0
-FirstSecSum:	dd 0				; Checksum of bytes 64-2048
-ImageDwords:	dd 0				; image.bin size, dwords
-ImageSectors:	dw 0				; image.bin size, sectors
-DriveNo:	db 0
-
 ;
 ; El Torito spec packet
 ;
@@ -854,6 +892,12 @@ not_vga:
 
 		; Patch the writechr routine to point to the full code
 		mov word [writechr+1], writechr_full-(writechr+3)
+
+; Tell the user we got this far...
+%ifndef DEBUG_MESSAGES			; Gets messy with debugging on
+		mov si,copyright_str
+		call writestr
+%endif
 
 ; Test tracers
 		TRACER 'T'
@@ -4084,8 +4128,6 @@ err_notdos	db ': attempted DOS system call', CR, LF, 0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
 err_bootsec	db 'Invalid or corrupt boot sector image.', CR, LF, 0
 err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
-err_bootfailed	db CR, LF, 'Boot failed: press a key to retry, or wait for reset...', CR, LF, 0
-bailmsg		equ err_bootfailed
 notfound_msg	db 'not found', CR, LF, 0
 localboot_msg	db 'Booting from local disk...', CR, LF, 0
 cmdline_msg	db 'Command line: ', CR, LF, 0
