@@ -37,6 +37,12 @@
 
 #include <stdio.h>
 
+#define KEY_CTRL(x)	((x) & 0x001f)
+#define KEY_BACKSPACE	0x0008
+#define KEY_TAB		0x0009
+#define KEY_ENTER	0x000d
+#define KEY_ESC		0x001b
+
 #define KEY_F1		0x0100
 #define KEY_F2		0x0101
 #define KEY_F3		0x0102

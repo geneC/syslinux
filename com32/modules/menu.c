@@ -18,6 +18,7 @@
  * a command line and/or edit it.
  */
 
+#define _GNU_SOURCE		/* Needed for asprintf() on Linux */
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -29,35 +30,16 @@
 #endif
 
 struct menu_entry {
-  const char *displayname;
-  const char *cmdline;
+  char *displayname;
+  char *cmdline;
 };
 
-struct menu_entry menu_entries[] =
-  {
-    { "Test", "vmlinux root=/dev/zero" },
-    { "this", "chain.c32 hd0 2" },
-    { "entry 3", "runentry val=3" },
-    { "entry 4", "runentry val=3" },
-    { "entry 5", "runentry val=3" },
-    { "entry 6", "runentry val=3" },
-    { "entry 7", "runentry val=3" },
-    { "entry 8", "runentry val=3" },
-    { "entry 9", "runentry val=3" },
-    { "entry 10", "runentry val=10" },
-    { "entry 11", "runentry val=11" },
-    { "entry 12", "runentry val=12" },
-    { "entry 13", "runentry val=13" },
-    { "entry 14", "runentry val=14" },
-    { "entry 15", "runentry val=15" },
-    { "entry 16", "runentry val=16" },
-    { "entry 17", "runentry val=17" },
-    { "entry 18", "runentry val=18" },
-    { "entry 19", "runentry val=19" },
-    { "entry 20", "runentry val=20" },
-  };
+#define MAX_CMDLINE_LEN	 256
 
-int nentries  = sizeof menu_entries / sizeof(struct menu_entry);
+#define MAX_ENTRIES	4096	/* Oughta be enough for anybody */
+struct menu_entry menu_entries[MAX_ENTRIES];
+
+int nentries  = 0;
 int defentry  = 0;
 int allowedit = 1;		/* Allow edits of the command line */
 
@@ -68,6 +50,7 @@ struct menu_attrib {
   const char *title;		/* Title bar */
   const char *unsel;		/* Unselected menu item */
   const char *sel;		/* Selected */
+  const char *more;		/* [More] tag */
   const char *tabmsg;		/* Press [Tab] message */
   const char *cmdmark;		/* Command line marker */
   const char *cmdline;		/* Command line */
@@ -79,6 +62,7 @@ const struct menu_attrib default_attrib = {
   .title   = "\033[1;36;44m",
   .unsel   = "\033[0;37;44m",
   .sel     = "\033[0;30;47m",
+  .more    = "\033[0;37;44m",
   .tabmsg  = "\033[0;31;40m",
   .cmdmark = "\033[1;36;40m",
   .cmdline = "\033[0;37;40m",
@@ -134,6 +118,11 @@ void draw_menu(int sel, int top)
     putchar('\304');
   putchar('\266');
 
+  if ( top != 0 )
+    printf("%s\033[3;%dH[-]%s",
+	   menu_attrib->more, WIDTH-MARGIN-5,
+	   menu_attrib->border);
+
   for ( y = 4 ; y < 4+MENU_ROWS ; y++ ) {
     int i = (y-4)+top;
     const char *txt = (i >= nentries) ? "" : menu_entries[i].displayname;
@@ -150,15 +139,89 @@ void draw_menu(int sel, int top)
     putchar('\315');
   putchar('\274');
 
+  if ( top < nentries-MENU_ROWS )
+    printf("%s\033[%d;%dH[+]", menu_attrib->more, y, WIDTH-MARGIN-5);
+
   if ( allowedit )
     printf("%s\033[%d;1H%s", menu_attrib->tabmsg, TABMSG_ROW,
 	   pad_line("Press [Tab] to edit options", 1, WIDTH));
 
-  printf("\033[%d;1H%s> %s%s\033[%d;1H",
-	 CMDLINE_ROW, menu_attrib->cmdmark,
-	 menu_attrib->cmdline,
-	 pad_line(menu_entries[sel].cmdline, 0, 255),
-	 END_ROW);
+  /* sel == -1 is a valid way of saying "draw nothing" */
+  if ( sel >= 0 ) {
+    printf("\033[%d;1H%s> %s%s\033[%d;1H",
+	   CMDLINE_ROW, menu_attrib->cmdmark,
+	   menu_attrib->cmdline,
+	   pad_line(menu_entries[sel].cmdline, 0, 255),
+	   END_ROW);
+  }
+}
+
+char *edit_cmdline(char *input)
+{
+  static char cmdline[MAX_CMDLINE_LEN];
+  int key, len;
+  int redraw = 1;
+
+  strncpy(cmdline, input, MAX_CMDLINE_LEN);
+  cmdline[MAX_CMDLINE_LEN-1] = '\0';
+
+  len = strlen(cmdline);
+
+  for (;;) {
+    if ( redraw ) {
+      printf("\033[%d;1H%s> %s%s",
+	     CMDLINE_ROW, menu_attrib->cmdmark,
+	     menu_attrib->cmdline, pad_line(cmdline, 0, MAX_CMDLINE_LEN-1));
+      printf("%s\033[%d;3H%s",
+	     menu_attrib->cmdline, CMDLINE_ROW, cmdline);
+      redraw = 0;
+    }
+
+    key = get_key(stdin);
+
+    /* FIX: should handle arrow keys and edit-in-middle */
+
+    switch( key ) {
+    case KEY_ENTER:
+    case KEY_CTRL('J'):
+      return cmdline;
+    case KEY_ESC:
+    case KEY_CTRL('C'):
+      return NULL;
+    case KEY_BACKSPACE:
+    case KEY_DEL:
+    case '\x7F':
+      if ( len ) {
+	cmdline[--len] = '\0';
+	redraw = 1;
+      }
+      break;
+    case KEY_CTRL('U'):
+      if ( len ) {
+	len = 0;
+	cmdline[len] = 0;
+	redraw = 1;
+      }
+      break;
+    case KEY_CTRL('W'):
+      if ( len ) {
+	int wasbs = (cmdline[len-1] <= ' ');
+	while ( len && (cmdline[len-1] <= ' ' || !wasbs) ) {
+	  len--;
+	  wasbs = wasbs || (cmdline[len-1] <= ' ');
+	}
+	redraw = 1;
+      }
+      break;
+    default:
+      if ( key >= ' ' && key <= 0xFF && len < MAX_CMDLINE_LEN-1 ) {
+	cmdline[len] = key;
+	cmdline[++len] = '\0';
+	putchar(key);
+      }
+      break;
+    }
+  }
 }
 
 const char *run_menu(void)
@@ -167,38 +230,70 @@ const char *run_menu(void)
   int done = 0;
   int entry = defentry;
   int top = 0;
+  char *cmdline;
 
   /* Start with a clear screen */
   printf("%s\033[2J", menu_attrib->screen);
 
   while ( !done ) {
-    if ( top < entry-MENU_ROWS+1 )
-      top = max(entry-MENU_ROWS+1, 0);
+    if ( entry < 0 )
+      entry = 0;
+    else if ( entry >= nentries )
+      entry = nentries-1;
+
+    if ( top < 0 || top < entry-MENU_ROWS+1 )
+      top = max(0,entry-MENU_ROWS+1);
     else if ( top > entry )
-      top = min(entry, nentries-MENU_ROWS+1);
+      top = entry;
 
     draw_menu(entry, top);
 
-  gkey:
     key = get_key(stdin);
     switch ( key ) {
-    case '\r':
+    case KEY_ENTER:
+    case KEY_CTRL('J'):
       done = 1;
       break;
+    case 'P':
+    case 'p':
     case KEY_UP:
-      if ( entry > 0 )
-	entry--;
+      entry--;
       break;
+    case 'N':
+    case 'n':
     case KEY_DOWN:
-      if ( entry < nentries-1 )
-	entry++;
+      entry++;
       break;
-    case '\003':		/* Ctrl-C */
-    case '\033':		/* Esc */
+    case KEY_CTRL('P'):
+    case KEY_PGUP:
+      entry -= MENU_ROWS;
+      top   -= MENU_ROWS;
+      break;
+    case KEY_CTRL('N'):
+    case KEY_PGDN:
+    case ' ':
+      entry += MENU_ROWS;
+      top   += MENU_ROWS;
+      break;
+    case '-':
+      entry--;
+      top--;
+      break;
+    case '+':
+      entry++;
+      top++;
+      break;
+    case KEY_TAB:
+      draw_menu(-1, top);	/* Disable bar */
+      cmdline = edit_cmdline(menu_entries[entry].cmdline);
+      if ( cmdline )
+	return cmdline;
+      break;
+    case KEY_CTRL('C'):		/* Ctrl-C */
+    case KEY_ESC:		/* Esc */
       exit(1);			/* FIX THIS... do something sane here */
     default:
-      printf("[%04x]", key);
-      goto gkey;
+      break;
     }
   }
 
@@ -228,13 +323,18 @@ void __attribute__((noreturn)) execute(const char *cmdline)
 int main(void)
 {
   const char *cmdline;
+  int i;
 
   console_ansi_raw();
 
   fputs("\033%@\033(U", stdout); /* Enable CP 437 graphics on a real console */
 
+  for ( i = 1 ; i < 30 ; i++ ) {
+    asprintf(&menu_entries[nentries].displayname, "entry %2d", i);
+    asprintf(&menu_entries[nentries].cmdline, "runentry n=%d", i);
+    nentries++;
+  }
+
   cmdline = run_menu();
   execute(cmdline);
 }
-
-  
