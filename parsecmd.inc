@@ -91,7 +91,8 @@ getcommand:
 		jmp short .skipline
 
 		section .bss
-		alignb 32
+		alignb 4
+vk_size		equ (vk_end + 3) & ~3
 VKernelBuf:	resb vk_size		; "Current" vkernel
 AppendBuf       resb max_cmd_len+1	; append=
 Ontimeout	resb max_cmd_len+1	; ontimeout

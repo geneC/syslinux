@@ -240,7 +240,7 @@ pc_fkey:	push ax
 ;
 pc_label:	call commit_vk			; Commit any current vkernel
 		mov di,VKernelBuf		; Erase the vkernelbuf for better compression
-		mov cx,vk_size >> 1
+		mov cx,(vk_size >> 1)
 		xor ax,ax
 		rep stosw
 		call pc_getline

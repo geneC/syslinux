@@ -94,13 +94,6 @@ TFTP_EOPTNEG	equ htons(8)		; Option negotiation failure
 ; Since there is no room in the bottom 64K for all of these, we
 ; stick them at vk_seg:0000 and copy them down before we need them.
 ;
-; Note: this structure can be added to, but it must 
-;
-%define vk_power	6		; log2(max number of vkernels)
-%define	max_vk		(1 << vk_power)	; Maximum number of vkernels
-%define vk_shift	(16-vk_power)	; Number of bits to shift
-%define vk_size		(1 << vk_shift)	; Size of a vkernel buffer
-
 		struc vkernel
 vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
 vk_rname:	resb FILENAME_MAX	; Real name
@@ -112,12 +105,6 @@ vk_append:	resb max_cmd_len+1	; Command line
 		alignb 4
 vk_end:		equ $			; Should be <= vk_size
 		endstruc
-
-%ifndef DEPEND
-%if (vk_end > vk_size) || (vk_size*max_vk > 65536)
-%error "Too many vkernels defined, reduce vk_power"
-%endif
-%endif
 
 ;
 ; Segment assignments in the bottom 640K
@@ -503,6 +490,8 @@ have_pxe:
 		call crlf
 
 have_entrypoint:
+		push cs
+		pop es				; Restore CS == DS == ES
 
 ;
 ; Now attempt to get the BOOTP/DHCP packet that brought us life (and an IP
