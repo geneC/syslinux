@@ -33,7 +33,7 @@ my_id		equ isolinux_id
 FILENAME_MAX_LG2 equ 8			; log2(Max filename size Including final null)
 FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
 NULLFILE	equ 0			; Zero byte == null file name
-retry_count	equ 6			; How patient are we wirh the BIOS?
+retry_count	equ 6			; How patient are we with the BIOS?
 %assign HIGHMEM_SLOP 128*1024		; Avoid this much memory near the top
 MAX_OPEN_LG2	equ 6			; log2(Max number of open files)
 MAX_OPEN	equ (1 << MAX_OPEN_LG2)
@@ -1144,12 +1144,12 @@ searchdir_iso:
 
 .getsome:
 		; Get a chunk of the directory
+		; This relies on the fact that ISOLINUX doesn't change SI
 		mov si,trackbuf
 		TRACER 'g'
 		pushad
 		xchg bx,si
 		mov cx,[BufSafe]
-		dec cx				; ... minus one sector
 		call getfssec
 		popad
 
@@ -1250,6 +1250,7 @@ allocate_file:
 ;
 ;	Note: clobbers AX, CX, SI, DI; assumes DS == ES == base segment
 ;
+
 iso_compare_names:
 		; First, terminate and canonicalize input filename
 		push di
