@@ -275,13 +275,11 @@ VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
 KbdMap		resb 256		; Keyboard map
-BootFile	resb 256		; Boot file from DHCP packet
-PathPrefix	resb 256		; Path prefix derived from the above
 FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
 NumBuf		resb 15			; Buffer to load number
 NumBufEnd	resb 1			; Last byte in NumBuf
-DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
-IPOption	resb 80			; ip= option buffer
+ISOFileName	resb 64			; ISO filename canonicalization buffer
+ISOFileNameEnd	equ $
 		alignb 32
 KernelName      resb FILENAME_MAX       ; Mangled name for kernel
 KernelCName     resb FILENAME_MAX	; Unmangled kernel name
@@ -335,7 +333,6 @@ KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
 FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
-OverLoad	resb 1			; Set if DHCP packet uses "overloading"
 TextColorReg	resb 17			; VGA color registers for text mode
 VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
 VGAFileBufEnd	equ $
@@ -2787,29 +2784,48 @@ allocate_file:
 ;	the filesystem; CX indicates its length, and ';' terminates.
 ;	DI is expected to end with a null.
 ;
-;	Note: clobbers AX, CX, SI, DI
+;	Note: clobbers AX, CX, SI, DI; assumes DS == ES == base segment
 ;
 iso_compare_names:
-.loop:		jcxz .si_end
+		; First, terminate and canonicalize input filename
+		push di
+		mov di,ISOFileName
+.canon_loop:	jcxz .canon_end
 		lodsb
 		dec cx
+		cmp al,';'
+		je .canon_end
+		and al,al
+		je .canon_end
+		stosb
+		cmp di,ISOFileNameEnd-1		; Guard against buffer overrun
+		jb .canon_loop
+.canon_end:
+		cmp di,ISOFileName
+		jbe .canon_done
+		cmp byte [di-1],'.'		; Remove terminal dots
+		jne .canon_done
+		dec di
+		jmp short .canon_end
+.canon_done:
+		mov [di],byte 0			; Null-terminate string
+		pop di
+		mov si,ISOFileName
+.compare:
+		lodsb
 		mov ah,[di]
 		inc di
-		and al,al
-		jz .si_end_dec_di
-		cmp al,';'
-		je .si_end_dec_di
-		or ax,2020h			; Convert both to lowercase
-		cmp ah,al
-		je .loop
-		ret				; Failure, ZF = 0
-.si_end_dec_di:
-		dec di				; Re-read "current" character
-.si_end:
-		cmp [di], byte 0
-		; Now ZF is set according to the final result
-.done:
-		ret
+		and ax,ax
+		jz .success			; End of string for both
+		and al,al			; Is either one end of string?
+		jz .failure			; If so, failure
+		and ah,ah
+		jz .failure
+		or ax,2020h			; Convert to lower case
+		cmp al,ah
+		je .compare
+.failure:	and ax,ax			; ZF = 0 (at least one will be nonzero)
+.success:	ret
 
 ;
 ; strcpy: Copy DS:SI -> ES:DI up to and including a null byte
@@ -3562,31 +3578,30 @@ gl_xret:	popf
 ;	       and doesn't contain whitespace, and zero-pads the output buffer,
 ;	       so "repe cmpsb" can do a compare.
 ;
-; ISOLINUX:: This probably should capitalize the filename?
-;
 mangle_name:
-		mov cx,FILENAME_MAX-2
-		mov ah,'.'			; No dot encountered
+		push bx
+		mov cx,FILENAME_MAX-1
+		mov bx,di
 
 .mn_loop:
 		lodsb
 		cmp al,' '			; If control or space, end
 		jna .mn_end
-		cmp al,ah
-		jne .mn_normal
-		xor ah,ah			; Found dot
-		inc cx				; We're now allowed one more char
-.mn_normal:	stosb
+		stosb
 		loop .mn_loop
 .mn_end:
-		and ah,ah			; Did we find the dot?
-		jz .mn_nodot
-		mov al,ah			; No, need to append dot
-		stosb
-		dec cx
-.mn_nodot:	inc cx				; At least one null byte
+		cmp bx,di			; At the beginning of the buffer?
+		jbe .mn_zero
+		cmp byte [di-1], '.'		; Terminal dot?
+		jne .mn_zero
+		dec di				; If so, remove it
+		inc cx
+		jmp short .mn_end
+.mn_zero:
+		inc cx				; At least one null byte
 		xor ax,ax			; Zero-fill name
 		rep stosb
+		pop bx
 		ret				; Done
 
 ;
@@ -3601,8 +3616,6 @@ mangle_name:
 ;
 ;                On return, DI points to the first byte after the output name,
 ;                which is set to a null byte.
-;
-; ISOLINUX:: This needs to strip the trailing dot, if there is one.
 ;
 unmangle_name:	call strcpy
 		dec di				; Point to final null byte
