@@ -10,6 +10,8 @@ Changes in 2.10:
 	* Major menu improvement from Murali Ganapathy.
 	* ISOLINUX: Wonderfully sick and brilliant workaround for
 	  severe bugs in certain Award BIOSes; from Knut Petersen.
+	* SYSLINUX: Fix for the nomtools installed, from Frederic
+	  Pasteleurs.
 
 Changes in 2.09:
 	* SYSLINUX: Remove residual setuid crap from

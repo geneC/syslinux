@@ -130,6 +130,7 @@ int main(int argc, char *argv[])
   off_t offset = 0;		/* -o (offset) option */
 
   program = argv[0];
+  mypid = getpid();
   
   device = NULL;
 
