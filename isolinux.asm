@@ -301,7 +301,7 @@ initial_csum:	xor edi,edi
 		mov dl,[DriveNo]
 		mov si,spec_packet
 		int 13h
-		jc spec_query_failed	; Shouldn't happen (BIOS bug)
+		jc award_hack			; changed for BrokenAwardHack
 		mov dl,[DriveNo]
 		cmp [sp_drive],dl		; Should contain the drive number
 		jne spec_query_failed
@@ -386,11 +386,135 @@ integrity_ok:
 %endif
 		jmp all_read			; Jump to main code
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Start of BrokenAwardHack --- 10-nov-2002           Knut_Petersen@t-online.de
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; There is a problem with certain versions of the AWARD BIOS ... 
+;; the boot sector will be loaded and executed correctly, but, because the
+;; int 13 vector points to the wrong code in the BIOS, every attempt to
+;; load the spec packet will fail. We scan for the equivalent of
+;;
+;;	mov	ax,0201h
+;;	mov	bx,7c00h
+;;	mov	cx,0006h
+;;	mov	dx,0180h
+;;	pushf
+;;	call	<direct far>
+;;
+;; and use <direct far> as the new vector for int 13. The code above is
+;; used to load the boot code into ram, and there should be no reason
+;; for anybody to change it now or in the future. There are no opcodes
+;; that use encodings relativ to IP, so scanning is easy. If we find the
+;; code above in the BIOS code we can be pretty sure to run on a machine
+;; with an broken AWARD BIOS ... 
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+									     ;;
+%ifdef DEBUG_MESSAGES							     ;;
+									     ;;
+award_notice	db	"Trying BrokenAwardHack first ...",CR,LF,0	     ;;
+award_not_orig	db	"BAH: Original Int 13 vector   : ",0		     ;;
+award_not_new	db	"BAH: Int 13 vector changed to : ",0		     ;;
+award_not_succ	db	"BAH: SUCCESS",CR,LF,0				     ;;
+award_not_fail	db	"BAH: FAILURE"					     ;;
+award_not_crlf	db	CR,LF,0						     ;;
+									     ;;
+%endif									     ;;
+									     ;;
+award_oldint13	dd	0						     ;;
+award_string	db	0b8h,1,2,0bbh,0,7ch,0b9h,6,0,0bah,80h,1,09ch,09ah    ;;
+									     ;;
+						;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+award_hack:	mov 	si,spec_err_msg		; Moved to this place from
+		call 	writemsg		; spec_query_faild
+						;
+%ifdef DEBUG_MESSAGES				;
+						;
+		mov	si,award_notice		; display our plan
+		call	writemsg		;
+		mov	si,award_not_orig	; display original int 13
+		call	writemsg		; vector
+%endif						;
+		mov	eax,[13h*4]		;
+		mov	[award_oldint13],eax	;
+						;
+%ifdef DEBUG_MESSAGES				;
+						;
+		call	writehex8		;
+		mov	si,award_not_crlf	; 
+		call	writestr		;
+%endif						;
+		push	es			; save ES
+		mov 	ax,0f000h		; ES = BIOS Seg
+		mov 	es,ax			;
+	    	cld				;
+		xor 	di,di			; start at ES:DI = f000:0
+award_loop:	push 	di			; save DI
+		mov 	si,award_string		; scan for award_string
+		mov	cx,7			; length of award_string = 7dw
+		repz 	cmpsw			; compare
+		pop 	di			; restore DI
+		jcxz 	award_found		; jmp if found
+		inc 	di			; not found, inc di
+		jno	award_loop		; 
+						;
+award_failed:	pop	es			; No, not this way :-((
+award_fail2:					;
+						;
+%ifdef DEBUG_MESSAGES				;
+						;
+		mov	si,award_not_fail	; display failure ...
+		call	writemsg		;
+%endif						;
+		mov	eax,[award_oldint13]	; restore the original int
+		or	eax,eax			; 13 vector if there is one
+		jz	spec_query_failed	; and try other workarounds
+		mov	[13h*4],eax		;
+		jmp	spec_query_failed	;
+						;
+award_found:	mov	eax,[es:di+0eh]		; load possible int 13 addr
+		pop	es			; restore ES
+						;
+		cmp	eax,[award_oldint13]	; give up if this is the
+		jz	award_failed		; active int 13 vector,
+		mov	[13h*4],eax		; otherwise change 0:13h*4
+						;
+						;
+%ifdef DEBUG_MESSAGES				;
+						;
+		push	eax			; display message and 
+		mov	si,award_not_new	; new vector address
+		call	writemsg		;
+		pop	eax			;
+		call	writehex8		;
+		mov	si,award_not_crlf	;
+		call	writestr		;
+%endif						;
+		mov 	ax,4B01h		; try to read the spec packet
+		mov 	dl,[DriveNo]		; now ... it should not fail
+		mov 	si,spec_packet		; any longer
+		int 	13h			; 
+		jc	award_fail2		;
+						;
+%ifdef DEBUG_MESSAGES				;
+						;
+		mov	si,award_not_succ	; display our SUCCESS
+		call	writemsg		;
+%endif						;
+		jmp	found_drive		; and leave error recovery code
+						;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; End of BrokenAwardHack ----            10-nov-2002 Knut_Petersen@t-online.de
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 		; INT 13h, AX=4B01h, DL=<passed in value> failed.
 		; Try to scan the entire 80h-FFh from the end.
+
 spec_query_failed:
-		mov si,spec_err_msg
-		call writemsg
+
+		; some code moved to BrokenAwardHack
 
 		mov dl,0FFh
 .test_loop:	pusha
