@@ -2140,6 +2140,7 @@ is_bss_sector:
 ; AX contains the appropriate return code.
 ;
 local_boot:
+		call vgaclearmode
 		lss sp,[cs:Stack]		; Restore stack pointer
 		pop ds				; Restore DS
 		mov [LocalBootType],ax
