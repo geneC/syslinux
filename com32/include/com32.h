@@ -20,7 +20,8 @@
  *
  * The syscall interface is:
  *
- * __syscall(<interrupt #>, <source regs>, <return regs>)
+ * __intcall(interrupt_#, source_regs, return_regs)
+ * __farcall(seg, offs, source_regs, return_regs)
  */
 typedef union {
   uint32_t l;
@@ -75,6 +76,22 @@ extern struct com32_sys_args {
 } __com32;
 
 /*
+ * System call macros
+ */
+static inline void
+__intcall(uint8_t __i, const com32sys_t *__sr, com32sys_t *__dr)
+{
+  __com32.cs_intcall(__i, __sr, __dr);
+}
+
+static inline void
+__farcall(uint16_t __es, uint16_t __eo,
+	  const com32sys_t *__sr, com32sys_t *__dr)
+{
+  __com32.cs_farcall((__es << 16) + __eo, __sr, __dr);
+}
+
+/*
  * These functions convert between linear pointers in the range
  * 0..0xFFFFF and real-mode style SEG:OFFS pointers.  Note that a
  * 32-bit linear pointer is not compatible with a SEG:OFFS pointer
@@ -82,18 +99,18 @@ extern struct com32_sys_args {
  */
 static inline uint16_t SEG(void *__p)
 {
-  return (uint16_t)(((uint32_t)__p) >> 4);
+  return (uint16_t)(((uintptr_t)__p) >> 4);
 }
 
 static inline uint16_t OFFS(void *__p)
 {
   /* The double cast here is to shut up gcc */
-  return (uint16_t)(uint32_t)__p & 0x000F;
+  return (uint16_t)(uintptr_t)__p & 0x000F;
 }
 
 static inline void *MK_PTR(uint16_t __seg, uint16_t __offs)
 {
-  return (void *)( ((uint32_t)__seg << 4) + (uint32_t)__offs );
+  return (void *)((__seg << 4) + __offs);
 }
 
 #endif /* _COM32_H */
