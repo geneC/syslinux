@@ -1586,7 +1586,6 @@ kernel_sane:	push ax
 		xor bx,bx
                 pop si                          ; Cluster pointer on stack
 		call getfssec
-		jc near kernel_corrupt		; Failure in first 32K
                 cmp word [es:bs_bootsign],0AA55h
 		jne near kernel_corrupt		; Boot sec signature missing
 ;

@@ -13,6 +13,7 @@
 
 #include <stdint.h>
 #include "e820.h"
+#include "conio.h"
 
 extern const char _binary_memdisk_bin_start[], _binary_memdisk_bin_end[];
 extern const char _binary_memdisk_bin_size[]; /* Weird, I know */
@@ -187,6 +188,11 @@ uint32_t setup(void)
   uint8_t status;
   uint16_t exitcode;
   const struct geometry *geometry;
+
+  /* Show signs of life */
+  puts("Memdisk: hello, world!\n");
+
+  for(;;);
 
   /* Point %fs to the zero page */
   asm volatile("movw %0,%%fs" :: "r" (0));

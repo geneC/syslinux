@@ -22,7 +22,7 @@ OBJCOPY = objcopy
 PERL    = perl
 
 # Important: init.o16 must be first!!
-OBJS    = init.o16 setup.o16 msetup.o16 e820func.o16 memdisk.o
+OBJS    = init.o16 setup.o16 msetup.o16 e820func.o16 conio.o16 memdisk.o
 
 all: memdisk e820test
 
