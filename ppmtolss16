@@ -35,8 +35,7 @@
 ##
 ## At the start of row, the "previous pixel" is assumed to be zero.
 ##
-## BUG: This program does not handle comments in the header, nor
-## "plain" ppm format.
+## BUG: This program does not handle "plain" ppm format.
 ##
 ## Usage:
 ##
@@ -46,11 +45,48 @@
 ## the color #rrggbb (hex) should be assigned index i (decimal)
 ##
 
+
+use IO::Handle;
+
 eval { use bytes; };
 eval { binmode STDIN; };
 eval { binmode STDOUT; };
 
 $magic = 0x1413f33d;
+
+# Get a token from the PPM header.  Ignore comments and leading
+# and trailing whitespace, as is required by the spec.
+# This routine eats exactly one character of trailing whitespace,
+# unless it is a comment (in which case it eats the comment up
+# to and including the end of line.)
+sub get_token() {
+    my($token, $ch);
+    my($ch);
+
+    do {
+	$ch = getc(STDIN);
+	return undef if ( !defined($ch) ); # EOF
+	if ( $ch eq '#' ) {
+	    do {
+		$ch = getc(STDIN);
+		return undef if ( !defined($ch) );
+	    } while ( $ch ne "\n" );
+	}
+    } while ( $ch =~ /^[ \t\n\v\f\r]$/ );
+
+    $token = $ch;
+    while ( 1 ) {
+	$ch = getc(STDIN);
+	last if ( $ch =~ /^[ \t\n\v\f\r\#]$/ );
+	$token .= $ch;
+    }
+    if ( $ch eq '#' ) {
+	do {
+	    $ch = getc(STDIN);
+	} while ( defined($ch) && $ch ne "\n" );
+    }
+    return $token;
+}
 
 sub rgbconvert($$) {
     my($rgb,$maxmult) = @_;
@@ -105,22 +141,23 @@ foreach $arg ( @ARGV ) {
     $force_index{$rgb} = $i;
 }
 
-$form = <STDIN>;
-die "$0: stdin is not a raw PPM file" if ( $form ne "P6\n" );
-$sizes = <STDIN>;
-chomp $sizes;
-if ( $sizes !~ /^([0-9]+)\s+([0-9]+)\s*$/ ) {
+$form = get_token();
+die "$0: stdin is not a raw PPM file" if ( $form ne 'P6' );
+
+$xsize = get_token();
+$ysize = get_token();
+if ( $xsize !~ /^([0-9]+)$/ || $ysize !~ /^([0-9]+)$/ ) {
     die "$0: Input format error 1\n";
 }
-$xsize = $1 + 0;
-$ysize = $2 + 0;
-$maxcol = <STDIN>;
-$maxmult = 64/($maxcol+1); 	# Equal buckets conversion
+$xsize += 0; $ysize += 0;	# Convert to number
+
+$maxcol = get_token();
 chomp $maxcol;
-if ( $maxcol !~ /^([0-9]+)\s*$/ ) {
+if ( $maxcol !~ /^([0-9]+)$/ ) {
     die "$0: Input format error 2\n";
 }
-$maxcol = $1 + 0;
+$maxcol += 0;
+$maxmult = 64/($maxcol+1); 	# Equal buckets conversion
 
 @data = ();
 
