@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2003 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -39,18 +39,52 @@
 
 ;
 ; Macros similar to res[bwd], but which works in the code segment (after
-; section .text)
+; section .text) or the data segment (section .data)
 ;
-%macro	zb	1
+%macro	zb	1.nolist
 	times %1 db 0
 %endmacro
 
-%macro	zw	1
+%macro	zw	1.nolist
 	times %1 dw 0
 %endmacro
 
-%macro	zd	1
+%macro	zd	1.nolist
 	times %1 dd 0
+%endmacro
+
+;
+; Macro to emit an unsigned decimal number as a string
+;
+%macro asciidec	1.nolist
+%if %1 >= 1000000000
+	db ((%1/1000000000) % 10) + '0'
+%endif
+%if %1 >= 100000000
+	db ((%1/100000000) % 10) + '0'
+%endif
+%if %1 >= 10000000
+	db ((%1/10000000) % 10) + '0'
+%endif
+%if %1 >= 1000000
+	db ((%1/1000000) % 10) + '0'
+%endif
+%if %1 >= 100000
+	db ((%1/100000) % 10) + '0'
+%endif
+%if %1 >= 10000
+	db ((%1/10000) % 10) + '0'
+%endif
+%if %1 >= 1000
+	db ((%1/1000) % 10) + '0'
+%endif
+%if %1 >= 100
+	db ((%1/100) % 10) + '0'
+%endif
+%if %1 >= 10
+	db ((%1/10) % 10) + '0'
+%endif
+	db (%1 % 10) + '0'
 %endmacro
 
 ;

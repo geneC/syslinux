@@ -35,7 +35,7 @@ FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
 NULLFILE	equ 0			; Zero byte == null file name
 REBOOT_TIME	equ 5*60		; If failure, time until full reset
 %assign HIGHMEM_SLOP 128*1024		; Avoid this much memory near the top
-MAX_SOCKETS_LG2	equ 6			; log2(Max number of open sockets)
+MAX_SOCKETS_LG2	equ 5			; log2(Max number of open sockets)
 MAX_SOCKETS	equ (1 << MAX_SOCKETS_LG2)
 TFTP_PORT	equ htons(69)		; Default TFTP port 
 PKT_RETRY	equ 6			; Packet transmit retry count
@@ -89,10 +89,11 @@ vk_end:		equ $			; Should be <= vk_size
 ; Segment assignments in the bottom 640K
 ; 0000h - main code/data segment (and BIOS segment)
 ;
-real_mode_seg	equ 5000h
-vk_seg          equ 4000h		; Virtual kernels
-xfer_buf_seg	equ 3000h		; Bounce buffer for I/O to high mem
-comboot_seg	equ 2000h		; COMBOOT image loading zone
+real_mode_seg	equ 4000h
+vk_seg          equ 3000h		; Virtual kernels
+xfer_buf_seg	equ 2000h		; Bounce buffer for I/O to high mem
+tftp_buf_seg	equ 1000h		; Packet buffers segments
+comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 
 ;
 ; BOOTP/DHCP packet pattern
@@ -129,6 +130,10 @@ tftp_remoteport	resw 1			; Remote port number
 tftp_remoteip	resd 1			; Remote IP address
 tftp_filepos	resd 1			; Position within file
 tftp_filesize	resd 1			; Total file size
+tftp_pktbuf	resw 1			; Packet buffer offset
+tftp_dataptr	resw 1			; Pointer to available data
+tftp_bytesleft	resw 1			; Unclaimed data bytes
+		resw 5			; Currently unusued
 		endstruc
 
 %ifndef DEPEND
@@ -2069,13 +2074,15 @@ boot_prompt	db 'boot: ', 0
 wipe_char	db BS, ' ', BS, 0
 err_notfound	db 'Could not find kernel image: ',0
 err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
-err_noram	db 'It appears your computer has less than 384K of low ("DOS")'
-		db 0Dh, 0Ah
+err_noram	db 'It appears your computer has less than '
+		asciidec dosram_k
+		db 'K of low ("DOS")'
+		db CR, LF
 		db 'RAM.  Linux needs at least this amount to boot.  If you get'
-		db 0Dh, 0Ah
+		db CR, LF
 		db 'this message in error, hold down the Ctrl key while'
-		db 0Dh, 0Ah
-		db 'booting, and I will take your word for it.', 0Dh, 0Ah, 0
+		db CR, LF
+		db 'booting, and I will take your word for it.', CR, LF, 0
 err_badcfg      db 'Unknown keyword in config file.', CR, LF, 0
 err_noparm      db 'Missing parameter in config file.', CR, LF, 0
 err_noinitrd    db CR, LF, 'Could not find ramdisk image: ', 0

@@ -73,10 +73,10 @@ vk_end:		equ $			; Should be <= vk_size
 ; Segment assignments in the bottom 640K
 ; 0000h - main code/data segment (and BIOS segment)
 ;
-real_mode_seg	equ 5000h
-vk_seg          equ 4000h		; Virtual kernels
-xfer_buf_seg	equ 3000h		; Bounce buffer for I/O to high mem
-comboot_seg	equ 2000h		; COMBOOT image loading zone
+real_mode_seg	equ 3000h
+vk_seg          equ 2000h		; Virtual kernels
+xfer_buf_seg	equ 1000h		; Bounce buffer for I/O to high mem
+comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 
 ;
 ; File structure.  This holds the information for each currently open file.
@@ -1502,13 +1502,15 @@ boot_prompt	db 'boot: ', 0
 wipe_char	db BS, ' ', BS, 0
 err_notfound	db 'Could not find kernel image: ',0
 err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
-err_noram	db 'It appears your computer has less than 360K of low ("DOS")'
-		db 0Dh, 0Ah
+err_noram	db 'It appears your computer has less than '
+		asciidec dosram_k
+		db 'K of low ("DOS")'
+		db CR, LF
 		db 'RAM.  Linux needs at least this amount to boot.  If you get'
-		db 0Dh, 0Ah
+		db CR, LF
 		db 'this message in error, hold down the Ctrl key while'
-		db 0Dh, 0Ah
-		db 'booting, and I will take your word for it.', 0Dh, 0Ah, 0
+		db CR, LF
+		db 'booting, and I will take your word for it.', CR, LF, 0
 err_badcfg      db 'Unknown keyword in config file.', CR, LF, 0
 err_noparm      db 'Missing parameter in config file.', CR, LF, 0
 err_noinitrd    db CR, LF, 'Could not find ramdisk image: ', 0

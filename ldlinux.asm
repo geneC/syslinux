@@ -81,11 +81,11 @@ vk_end:		equ $			; Should be <= vk_size
 ;
 ; 0000h - main code/data segment (and BIOS segment)
 ;
-real_mode_seg	equ 7000h
-fat_seg		equ 5000h		; 128K area for FAT (2x64K)
-vk_seg          equ 4000h		; Virtual kernels
-xfer_buf_seg	equ 3000h		; Bounce buffer for I/O to high mem
-comboot_seg	equ 2000h		; COMBOOT image loading zone
+real_mode_seg	equ 5000h
+fat_seg		equ 3000h		; 128K area for FAT (2x64K)
+vk_seg          equ 2000h		; Virtual kernels
+xfer_buf_seg	equ 1000h		; Bounce buffer for I/O to high mem
+comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 
 ; ---------------------------------------------------------------------------
 ;   BEGIN CODE
@@ -1360,7 +1360,9 @@ boot_prompt	db 'boot: ', 0
 wipe_char	db BS, ' ', BS, 0
 err_notfound	db 'Could not find kernel image: ',0
 err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
-err_noram	db 'It appears your computer has less than 488K of low ("DOS")'
+err_noram	db 'It appears your computer has less than '
+		asciidec dosram_k
+		db 'K of low ("DOS")'
 		db CR, LF
 		db 'RAM.  Linux needs at least this amount to boot.  If you get'
 		db CR, LF

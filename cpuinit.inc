@@ -27,8 +27,12 @@ check_escapes:
 ;
 ; Now check that there is sufficient low (DOS) memory
 ;
+; NOTE: Linux doesn't use all of real_mode_seg, but we use the same
+; segment for COMBOOT images, which can use all 64K
+;
+dosram_k	equ (real_mode_seg+0x1000) >> 6	; Minimum DOS memory (K)
 		int 12h
-		cmp ax,(real_mode_seg+0xa00) >> 6
+		cmp ax,dosram_k
 		jae enough_ram
 		mov si,err_noram
 		call writestr
