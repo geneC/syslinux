@@ -383,6 +383,9 @@ try_wbinvd:
 ; necessary code into the trackbuf area before doing the copy,
 ; and do adjustments to anything except BSS area references.
 ;
+; NOTE: Since PXELINUX relocates itself, put all these
+; references in the ".earlybss" segment.
+;
 ; After performing the copy, this routine resets the stack and
 ; jumps to 0:7c00.
 ;
@@ -393,7 +396,7 @@ try_wbinvd:
 ;	ESI, EDI, ECX	- same as bcopy
 ;	On stack	- initial state (fd, ad, ds, es, fs, gs)
 ;
-ADJUST		equ (__bcopy_start - $$) + 7C00h - BSS_START
+ADJUST		equ (__bcopy_start - $$) + TEXT_START - BSS_START
 
 		align 2
 adjlist		dw bcopy_gdt.adj1 - ADJUST
@@ -450,7 +453,7 @@ bcopy_over_self:
 		jmp 0:7c00h
 __bcopy_end:
 
-		section .bss
+		section .earlybss
 A20Test		resw 1			; Counter for testing status of A20
 A20Type		resw 1			; A20 type
 A20Tries	resb 1			; Times until giving up on A20

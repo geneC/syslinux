@@ -109,13 +109,14 @@ file_left	resd 1			; Number of sectors left
 ;
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
-BSS_START	equ 1000h
-		section .bss start=BSS_START
+BSS_START	equ 0800h
+		section .earlybss nobits start=BSS_START
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
-		; ends at 5000h
+		; ends at 4800h
 
+		section .bss nobits align=256 follows=.earlybss
 		alignb 8
 
 		; Expanded superblock
@@ -151,7 +152,8 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 
 
 		section .text
-                org 7C00h
+TEXT_START	equ 7C00h
+                org TEXT_START
 ;
 ; Some of the things that have to be saved very early are saved
 ; "close" to the initial stack pointer offset, in order to

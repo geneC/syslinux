@@ -103,13 +103,14 @@ dir_clust	resd 1			; Length in clusters
 ;
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
-BSS_START	equ 1000h
-		section .bss start=BSS_START
+BSS_START	equ 0800h
+		section .earlybss nobits start=BSS_START
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
-;		ends at 5000h
+;		ends at 4800h
 
+		section .bss nobits align=256 follows=.earlybss
 		alignb 4
 ISOFileName	resb 64			; ISO filename canonicalization buffer
 ISOFileNameEnd	equ $
@@ -140,7 +141,8 @@ xbs_vgabuf	equ trackbufsize
 xbs_vgatmpbuf	equ 2*trackbufsize
 
 		section .text
-                org 7C00h
+TEXT_START	equ 7C00h
+                org TEXT_START
 ;;
 ;; Primary entry point.  Because BIOSes are buggy, we only load the first
 ;; CD-ROM sector (2K) of the file, so the number one priority is actually

@@ -175,18 +175,19 @@ tftp_pktbuf	resw 1			; Packet buffer offset
 ;
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
-BSS_START	equ 1000h
- 		section .bss start=BSS_START
+BSS_START	equ 0800h
+ 		section .earlybss nobits start=BSS_START
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
-		; ends at 5000h
+		; ends at 4800h
 
-; Warning here: RBFG build 22 randomly overwrites memory location
-; [0x5680,0x576c), possibly more.  It seems that it gets confused and
-; screws up the pointer to its own internal packet buffer and starts
-; writing a received ARP packet into low memory.
-RBFB_brainfuck	resb 800h
+		; Put some large buffers here, before RBFG_brainfuck,
+		; where we can still carefully control the address
+		; assignments...
+
+		alignb open_file_t_size
+Files		resb MAX_OPEN*open_file_t_size
 
 		alignb FILENAME_MAX
 BootFile	resb 256		; Boot file from DHCP packet
@@ -195,6 +196,14 @@ ConfigName	resb 256-4		; Configuration file from DHCP option
 PathPrefix	resb 256		; Path prefix derived from boot file
 DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
 IPOption	resb 80			; ip= option buffer
+
+; Warning here: RBFG build 22 randomly overwrites memory location
+; [0x5680,0x576c), possibly more.  It seems that it gets confused and
+; screws up the pointer to its own internal packet buffer and starts
+; writing a received ARP packet into low memory.
+RBFG_brainfuck	resb 0E00h
+
+		section .bss nobits align=256 follows=.earlybss
 		alignb 4
 InitStack	resd 1			; Pointer to reset stack
 RebootTime	resd 1			; Reboot timeout, if set by option
@@ -223,9 +232,6 @@ pxe_unload_stack_pkt:
 .reserved:	resw 10			; Reserved
 pxe_unload_stack_pkt_len	equ $-pxe_unload_stack_pkt
 
-		alignb open_file_t_size
-Files		resb MAX_OPEN*open_file_t_size
-
 		alignb 16
 		; BOOTP/DHCP packet buffer
 
@@ -245,7 +251,12 @@ xbs_vgabuf	equ trackbufsize
 xbs_vgatmpbuf	equ 2*trackbufsize
 
 		section .text
-                org 7C00h
+		;
+		; PXELINUX needs more BSS than the other derivatives;
+		; therefore we relocate it from 7C00h on startup
+		;
+TEXT_START	equ 9000h
+                org TEXT_START
 StackBuf	equ $-44		; Base of stack if we use our own
 
 ;
@@ -253,8 +264,6 @@ StackBuf	equ $-44		; Base of stack if we use our own
 ;
 bootsec		equ $
 _start:
-		jmp 0:_start1		; Canonicalize address
-_start1:
 		pushfd			; Paranoia... in case of return to PXE
 		pushad			; ... save as much state as possible
 		push ds
@@ -262,6 +271,15 @@ _start1:
 		push fs
 		push gs
 
+		mov si,ldlinux_end-(TEXT_START-7C00h)-4
+		mov di,ldlinux_end-4
+		mov cx,ldlinux_end-TEXT_START
+		shr cx,2
+		std			; Overlapping areas, copy backwards
+		rep movsb
+
+		jmp 0:_start1		; Canonicalize address
+_start1:
 		mov bp,sp
 		les bx,[bp+48]		; ES:BX -> !PXE or PXENV+ structure
 
@@ -2283,6 +2301,7 @@ writestr	equ cwritestr
 %include "highmem.inc"		; High memory sizing
 %include "strcpy.inc"		; strcpy()
 %include "rawcon.inc"		; Console I/O w/o using the console functions
+%include "dnsresolv.inc"	; DNS resolver
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
