@@ -41,7 +41,7 @@ release:
 
 PRERELDIR := release/syslinux-$(VERSION)-prerel
 PRERELNO  := $(shell cat $(PRERELDIR)/.prerel 2>/dev/null || echo 1)
-PREREL    := syslinux-$(VERSION)-$(PRERELNO)
+PREREL    := syslinux-$(VERSION)-pre$(PRERELNO)
 
 prerel:
 	mkdir -p $(PRERELDIR)
@@ -50,7 +50,7 @@ prerel:
 	mkdir -p $(PRERELDIR)/$(PREREL)
 	cp $(SOURCES) $(DOCS) $(OTHER) $(PRERELDIR)/$(PREREL)
 	make -C $(PRERELDIR)/$(PREREL) spotless
-	make -C $(PRERELDIR)/$(PREREL) all DATE=`printf 'PR %s-%d          ' $(VERSION) $(PRERELNO) | dd bs=10 count=1 2>/dev/null`
+	make -C $(PRERELDIR)/$(PREREL) all DATE=`printf '%s-pre%d          ' $(VERSION) $(PRERELNO) | dd bs=10 count=1 2>/dev/null`
 	make -C $(PRERELDIR)/$(PREREL) dist
 	cd $(PRERELDIR)/$(PREREL) && \
 		rm -f $(PRIVATE)
