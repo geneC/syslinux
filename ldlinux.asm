@@ -742,6 +742,8 @@ load_rest:
 
 .chunk_ready:
 		call getlinsecsr
+		shl bp,SECTOR_SHIFT
+		add bx,bp
 		jmp .get_chunk
 
 .done:
@@ -757,7 +759,7 @@ verify_checksum:
 		mov edx,-LDLINUX_MAGIC
 .checksum:
 		lodsd
-		sub edx,eax
+		add edx,eax
 		loop .checksum
 
 		and edx,edx			; Should be zero
