@@ -44,7 +44,7 @@
 max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
 FILENAME_MAX_LG2 equ 8			; log2(Max filename size Including final null)
 FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
-HIGHMEM_MAX	equ 038000000h		; Highest address for an initrd
+HIGHMEM_MAX	equ 037FFFFFFh		; DEFAULT highest address for an initrd
 HIGHMEM_SLOP	equ 128*1024		; Avoid this much memory near the top
 DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
 BAUD_DIVISOR	equ 115200		; Serial port parameter
@@ -108,6 +108,7 @@ su_bsklugeseg	resw 1			; 0222
 su_heapend	resw 1			; 0224
 su_pad1		resw 1			; 0226
 su_cmd_line_ptr	resd 1			; 0228
+su_ramdisk_max	resd 1			; 022C
 		resb (9000h-12)-($-$$)	; Were bootsect.S puts it...
 linux_stack	equ $			; 8FF4
 linux_fdctab	equ $
@@ -308,6 +309,7 @@ E820Buf		resd 5			; INT 15:E820 data buffer
 InitRDat	resd 1			; Load address (linear) for initrd
 HiLoadAddr      resd 1			; Address pointer for high load loop
 HighMemSize	resd 1			; End of memory pointer (bytes)
+RamdiskMax	resd 1			; Highest address for a ramdisk
 KernelSize	resd 1			; Size of kernel (bytes)
 RootDir		resb dir_t_size		; Root directory
 CurDir		resb dir_t_size		; Current directory
@@ -1949,6 +1951,7 @@ cmdline_end:
 ;
 ; Now check if we have a large kernel, which needs to be loaded high
 ;
+		mov dword [RamdiskMax], HIGHMEM_MAX	; Default initrd limit
 		cmp dword [es:su_header],HEADER_ID	; New setup code ID
 		jne near old_kernel		; Old kernel, load low
 		cmp word [es:su_version],0200h	; Setup code version 2.0
@@ -1957,6 +1960,11 @@ cmdline_end:
                 jb new_kernel                   ; If 2.00, skip this step
                 mov word [es:su_heapend],linux_stack	; Set up the heap
                 or byte [es:su_loadflags],80h	; Let the kernel know we care
+		cmp word [es:su_version],0203h	; Version 2.03+?
+		jb new_kernel			; Not 2.03+
+		mov eax,[es:su_ramdisk_max]
+		mov [RamdiskMax],eax		; Set the ramdisk limit
+
 ;
 ; We definitely have a new-style kernel.  Let the kernel know who we are,
 ; and that we are clueful
@@ -2067,11 +2075,13 @@ load_initrd:
 		add ax,dx
 		mov [InitRDClust],ax		; Ramdisk clusters
 		mov edx,[HighMemSize]		; End of memory
-		mov eax,HIGHMEM_MAX		; Limit imposed by kernel
+		dec edx
+		mov eax,[RamdiskMax]		; Highest address allowed by kernel
 		cmp edx,eax
 		jna memsize_ok
 		mov edx,eax			; Adjust to fit inside limit
 memsize_ok:
+		inc edx
 		sub edx,[es:su_ramdisklen]	; Subtract size of ramdisk
                 xor dx,dx			; Round down to 64K boundary
                 mov [InitRDat],edx		; Load address

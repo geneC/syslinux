@@ -5,6 +5,8 @@ Changes in 1.65:
 	* ISOLINUX: Support booting disk image files (to boot DOS or
 	  other non-Linux operating systems), *IF* the BIOS works
 	  correctly; unfortunately many BIOSes apparently don't.
+	* Support Linux boot protocol version 2.03 (explicitly
+	  specify the initrd address limit.)
 
 Changes in 1.64:
 	* Limited support for hardware flow control when using a
