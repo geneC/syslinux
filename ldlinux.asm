@@ -1511,13 +1511,12 @@ getcachesector:
 		mov gs,si
 		mov si,CachePtrs	; Sector cache pointers
 		mov cx,65536/SECTOR_SIZE
-		repne scasd		; Do we have it?
-		jne .miss
-		; We have it; get the pointer
-		sub si,CachePtrs+4
-		shl si,SECTOR_SHIFT-2
-		pop cx
-		ret
+.search:
+		cmp eax,[si]
+		jz .hit
+		add si,4
+		loop .search
+
 .miss:
 		; Need to load it.  Highly inefficient cache replacement
 		; algorithm: Least Recently Written (LRW)
@@ -1538,6 +1537,13 @@ getcachesector:
 		popad
 		pop es
 		pop bx
+		pop cx
+		ret
+
+
+.hit:		; We have it; get the pointer
+		sub si,CachePtrs
+		shl si,SECTOR_SHIFT-2
 		pop cx
 		ret
 
