@@ -186,25 +186,26 @@ void __attribute__((noreturn)) die(const char *msg)
 }
 
 /*
- * pread() and pwrite() augmented with retry on short access or EINTR.
+ * read/write wrapper functions
  */
 ssize_t xpread(int fd, void *buf, size_t count, off_t offset)
 {
+  char *bufp = (char *)buf;
   ssize_t rv;
   ssize_t done = 0;
 
   while ( count ) {
-    rv = pread(fd, buf, count, offset);
+    rv = pread(fd, bufp, count, offset);
     if ( rv == 0 ) {
       die("short read");
     } else if ( rv == -1 ) {
       if ( errno == EINTR ) {
 	continue;
       } else {
-	perror(program);
-	exit(1);
+	die(strerror(errno));
       }
     } else {
+      bufp += rv;
       offset += rv;
       done += rv;
       count -= rv;
@@ -214,23 +215,24 @@ ssize_t xpread(int fd, void *buf, size_t count, off_t offset)
   return done;
 }
 
-ssize_t xpwrite(int fd, void *buf, size_t count, off_t offset)
+ssize_t xpwrite(int fd, const void *buf, size_t count, off_t offset)
 {
+  const char *bufp = (const char *)buf;
   ssize_t rv;
   ssize_t done = 0;
 
   while ( count ) {
-    rv = pwrite(fd, buf, count, offset);
+    rv = pwrite(fd, bufp, count, offset);
     if ( rv == 0 ) {
       die("short write");
     } else if ( rv == -1 ) {
       if ( errno == EINTR ) {
 	continue;
       } else {
-	perror(program);
-	exit(1);
+	die(strerror(errno));
       }
     } else {
+      bufp += rv;
       offset += rv;
       done += rv;
       count -= rv;

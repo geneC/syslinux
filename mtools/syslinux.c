@@ -44,9 +44,15 @@ char *device;			/* Device to install to */
 pid_t mypid;
 off_t filesystem_offset = 0;	/* Offset of filesystem */
 
-void usage(void)
+void __attribute__((noreturn)) usage(void)
 {
   fprintf(stderr, "Usage: %s [-sf] [-o offset] device\n", program);
+  exit(1);
+}
+
+void __attribute__((noreturn)) die(const char *msg)
+{
+  fprintf(stderr, "%s: %s\n", program, msg);
   exit(1);
 }
 
@@ -62,14 +68,12 @@ ssize_t xpread(int fd, void *buf, size_t count, off_t offset)
   while ( count ) {
     rv = pread(fd, bufp, count, offset);
     if ( rv == 0 ) {
-      fprintf(stderr, "%s: short read\n", program);
-      exit(1);
+      die("short read");
     } else if ( rv == -1 ) {
       if ( errno == EINTR ) {
 	continue;
       } else {
-	perror(program);
-	exit(1);
+	die(strerror(errno));
       }
     } else {
       bufp += rv;
@@ -82,23 +86,21 @@ ssize_t xpread(int fd, void *buf, size_t count, off_t offset)
   return done;
 }
 
-ssize_t xpwrite(int fd, void *buf, size_t count, off_t offset)
+ssize_t xpwrite(int fd, const void *buf, size_t count, off_t offset)
 {
-  char *bufp = (char *)buf;
+  const char *bufp = (const char *)buf;
   ssize_t rv;
   ssize_t done = 0;
 
   while ( count ) {
     rv = pwrite(fd, bufp, count, offset);
     if ( rv == 0 ) {
-      fprintf(stderr, "%s: short write\n", program);
-      exit(1);
+      die("short write");
     } else if ( rv == -1 ) {
       if ( errno == EINTR ) {
 	continue;
       } else {
-	perror(program);
-	exit(1);
+	die(strerror(errno));
       }
     } else {
       bufp += rv;
@@ -194,8 +196,7 @@ int main(int argc, char *argv[])
    * Check to see that what we got was indeed an MS-DOS boot sector/superblock
    */
   if( (errmsg = syslinux_check_bootsect(sectbuf)) ) {
-    fprintf(stderr, "%s: %s\n", program, errmsg);
-    exit(1);
+    die(errmsg);
   }
 
   /*
@@ -233,8 +234,7 @@ int main(int argc, char *argv[])
        (fwrite(syslinux_ldlinux, 1, syslinux_ldlinux_len, mtp) 
 	!= syslinux_ldlinux_len) ||
        (status = pclose(mtp), !WIFEXITED(status) || WEXITSTATUS(status)) ) {
-    fprintf(stderr, "%s: failed to create ldlinux.sys\n", program);
-    exit(1);
+    die("failed to create ldlinux.sys");
   }
 
   status = system("mattrib +r +h +s s:ldlinux.sys");
