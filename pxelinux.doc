@@ -273,8 +273,8 @@ the configuration file name, you could do something like:
 	site-option-space "pxelinux";
 	option pxelinux.magic f1:00:74:7e;
 	if exists dhcp-parameter-request-list {
-		# Always send the PXELINUX options
-		append dhcp-parameter-request-list 208, 209, 210, 211;
+		# Always send the PXELINUX options (specified in hexadecimal)
+		option dhcp-parameter-request-list = concat(option dhcp-parameter-request-list,d0,d1,d2,d3);
 	}
 	option pxelinux.configfile =
 		concat("pxelinux.cfg/", binary-to-ascii(16, 8, ":", hardware));
