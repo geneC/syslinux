@@ -2922,9 +2922,10 @@ load_high:
 		jna .size_ok
 		mov eax,(1 << 16)
 .size_ok:
-		cdq				; EDX <- 0
+		xor edx,edx
 		push eax			; Bytes transferred this chunk
-		div dword [ClustSize]		; Convert to clusters
+		movzx ecx,word [ClustSize]
+		div ecx				; Convert to clusters
 		; Round up...
 		add edx,byte -1			; Sets CF if EDX >= 1
 		adc eax,byte 0			; Add 1 to EAX if CF set
