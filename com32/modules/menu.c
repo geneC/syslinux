@@ -145,7 +145,7 @@ void draw_row(int y, int sel, int top, int sbtop, int sbbot)
     printf(" %s\272", menu_attrib->border);
   } else if ( sbtop > 0 ) {
     if ( y >= sbtop && y <= sbbot )
-      printf(" %s\261", menu_attrib->scrollbar);
+      printf(" %s\262", menu_attrib->scrollbar);
     else
       printf(" %s\260", menu_attrib->scrollbar);
   } else {
