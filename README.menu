@@ -24,8 +24,10 @@ com32/modules/menu.c32.  It uses the same configuration file as the
 regular SYSLINUX command line, and displays all the LABEL statements.
 
 To use the menu system, simply make sure menu.c32 is in the
-appropriate location for your boot medium, and put the following
-options in your configuration file:
+appropriate location for your boot medium (the same directory as the
+configuration file for SYSLINUX, EXTLINUX and ISOLINUX, and the same
+directory as pxelinux.0 for PXELINUX), and put the following options
+in your configuration file:
 
 DEFAULT menu.c32
 PROMPT 0
