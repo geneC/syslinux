@@ -24,45 +24,42 @@
 ; Turn a string in DS:SI into a DNS "label set" in ES:DI.
 ; On return, DI points to the first byte after the label set.
 ;
+; Assumes DS == ES.  Change references to [bx] to [es:bx] to remove
+; that assumption.
+;
 mangle_dnsname:
 		push ax
-		push cx
-		xor cx,cx
+		push bx
+.nostart:
+.isdot:
+		xor al,al
+		mov bx,di
+		stosb
 .getbyte:
-		jcxz .nostart	
-.gotstart:
 		lodsb
 		and al,al
 		jz .endstring
 		cmp al,'.'
 		je .isdot
-		inc byte [es:cx]
+		inc byte [bx]
 		stosb
-		jmp .getbyte
-.nostart:
-		xor al,al
-		mov cx,di
-		stosb
-		jmp .gotstart
-.isdot:
-		xor cx,cx
 		jmp .getbyte
 .endstring:
-		mov al,[es:cx]
-		and al,al
+		cmp byte [bx],0
 		jz .done
 		xor al,al
 		stosb
 .done:
-		pop cx
+		pop bx
 		pop ax
 		ret
 
 ;
-; Compare two sets of DNS labels, in DS:SI and DS:DI; the one in SI
+; Compare two sets of DNS labels, in DS:SI and ES:DI; the one in SI
 ; is allowed pointers relative to a packet address in BX.
 ;
 ; Assumes DS == ES.  ZF = 1 if same; no registers changed.
+; (Note: change reference to [di] to [es:di] to remove DS == ES assumption)
 ;
 dns_compare:
 		pusha
@@ -71,8 +68,8 @@ dns_compare:
 		lodsb
 		cmp al,0C0h
 		jb .noptr
-		and al,03Fh
-		mov ah,al
+		and al,03Fh			; Get pointer value
+		mov ah,al			; ... in network byte order!
 		lodsb
 		mov si,bx
 		add si,ax
@@ -101,14 +98,14 @@ dns_skiplabel:
 		xor ax,ax			; AH == 0
 .loop:
 		lodsb
-		cmp al,0C0h
+		cmp al,0C0h			; Pointer?
 		jae .ptr
 		and al,al
 		jz .done
 		add si,ax
 		jmp .loop
 .ptr:
-		inc si
+		inc si				; Pointer is two bytes
 .done:
 		pop ax
 		ret
