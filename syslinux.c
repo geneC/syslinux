@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 1998-1999 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1998-2000 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include <paths.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -120,6 +121,7 @@ int main(int argc, char *argv[])
   char *ldlinux_name, **argp, *opt;
   int my_umask;
   int force = 0;		/* -f (force) option */
+  off_t offset = 0;		/* -o (offset) option */
 
   program = argv[0];
   
@@ -135,7 +137,9 @@ int main(int argc, char *argv[])
 	if ( *opt == 's' ) {
 	  make_stupid();	/* Use "safe, slow and stupid" code */
 	} else if ( *opt == 'f' ) {
-	  force = 1;
+	  force = 1;		/* Force install */
+	} else if ( *opt == 'o' && argp[1] ) {
+	  offset = atol(*++argp); /* Byte offset */
 	} else {
 	  usage();
 	}
@@ -164,6 +168,18 @@ int main(int argc, char *argv[])
   if ( !force && !S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode) ) {
     fprintf(stderr, "%s: not a block device or regular file (use -f to override)\n", device);
     exit(1);
+  }
+
+  if ( !force && offset != 0 && !S_ISREG(st.st_mode) ) {
+    fprintf(stderr, "%s: not a regular file and an offset specified (use -f to override)\n", device);
+    exit(1);
+  }
+
+  if ( lseek(dev_fd, offset, SEEK_SET) != offset ) {
+    if ( !(force && errno == EBADF) ) {
+      fprintf(stderr, "%s: seek error", device);
+      exit(1);
+    }
   }
 
   left = 512;
@@ -265,7 +281,8 @@ int main(int argc, char *argv[])
 	   hasmntopt(mnt, "user") &&
 	   !hasmntopt(mnt, "ro") &&
 	   mnt->mnt_dir[0] == '/' &&
-	   !!hasmntopt(mnt, "loop") == !!S_ISREG(st.st_mode)) {
+	   !!hasmntopt(mnt, "loop") == !!S_ISREG(st.st_mode) &&
+	   atol(hasmntopt(mnt, "offset")) == offset) {
 	/* Okay, this is an fstab entry we should be able to live with. */
 
 	mntpath = mnt->mnt_dir;
@@ -310,12 +327,15 @@ int main(int argc, char *argv[])
       rmdir(mntpath);
       exit(1);
     } else if ( f == 0 ) {
-      if ( S_ISREG(st.st_mode) )
-	execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-o", "loop", "-w",
-	      device, mntpath, NULL);
-      else
+      if ( S_ISREG(st.st_mode) ) {
+	char loop_string[128];
+	sprintf(loop_string, "loop,offset=%ld", offset);
+	execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-o", loop_string,\
+	      "-w", device, mntpath, NULL);
+      } else {
 	execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-w", device, mntpath,
 	      NULL);
+      }
       _exit(255);		/* execl failed */
     }
   }
