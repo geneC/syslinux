@@ -8,6 +8,9 @@ Changes in 1.51:
 	* Yet another attempt at A20 coding.  Now support BIOS call
 	  15:2401 as well, and handle machines which always have A20
 	  on separately.
+	* Support memory detection using INT 15h, AX=0E820h.  BIOS
+	  manufacturers have apparently gotten sloppy about keeping
+	  INT 15h, AX=0E801h working properly.
 
 Changes in 1.50:
 	* Yet another A20-code update.  It seems some "legacy-free"

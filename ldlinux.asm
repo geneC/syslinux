@@ -319,6 +319,7 @@ NumBuf		resb 16			; Buffer to load number
 NumBufEnd	equ NumBuf+15		; Pointer to last byte in NumBuf
 		alignb 4
 PartInfo	resb 16			; Partition table entry
+E820Buf		resd 5			; INT 15:E820 data buffer
 InitRDat	resd 1			; Load address (linear) for initrd
 HiLoadAddr      resd 1			; Address pointer for high load loop
 HighMemSize	resd 1			; End of memory pointer (bytes)
@@ -1816,9 +1817,56 @@ kernel_sane:	push ax
                 cmp word [es:bs_bootsign],0AA55h
 		jne near kernel_corrupt		; Boot sec signature missing
 ;
-; Get the BIOS' idea of what the size of high memory is
+; Get the BIOS' idea of what the size of high memory is.
 ;
 		push si				; Save our cluster pointer!
+;
+; First, try INT 15:E820 (get BIOS memory map)
+;
+get_e820:
+		push es
+		push ds
+		pop es
+		xor ebx,ebx
+.int_loop:	mov eax,0000e820h
+		mov edx,'SMAP'
+		mov ecx,20
+		mov di,E820Buf
+		int 15h
+		jc no_e820
+		cmp eax,'SMAP'
+		jne no_e820
+		and ebx,ebx			; Did we not find anything?
+		jz no_e820
+;
+; Look for a memory block starting at <= 1 MB and continuing upward
+;
+		cmp dword [E820Buf+4], byte 0
+		ja .int_loop			; Start >= 4 GB
+		mov edx,[E820Buf]
+		cmp edx, (1 << 20)
+		ja .int_loop
+		mov eax, 0FFFFFFFFh		
+		cmp dword [E820Buf+12], byte 0
+		ja .huge			; Size >= 4 GB
+		mov eax, [E820Buf+8]
+.huge:		mov ecx, (1 << 20)
+		sub ecx, edx
+		sub eax, ecx			; Adjust size to start at 1 MB
+		jb .int_loop			; Completely below 1 MB
+
+		; Now EAX contains the size of memory 1 MB...up
+		cmp dword [E820Buf+16], byte 1
+		jne near err_nohighmem		; High memory isn't usable memory!!!!
+
+		; We're good!
+		pop es
+		jmp short got_highmem
+
+;
+; INT 15:E820 failed.  Try INT 15:E801.
+;
+no_e820:	pop es
 
 		mov ax,0e801h			; Query high memory (semi-recent)
 		int 15h
@@ -1832,6 +1880,9 @@ kernel_sane:	push ax
 		add eax,(16 << 20)		; Add first 16M
 		jmp short got_highmem				
 
+;
+; INT 15:E801 failed.  Try INT 15:88.
+;
 no_e801:
 		mov ah,88h			; Query high memory (oldest)
 		int 15h
