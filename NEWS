@@ -5,6 +5,8 @@ them.
 Changes in 2.08:
 	* Add new configuration command "ontimeout" to allow timeout
 	  to have a different action than just pressing Enter.
+	* Add new configuration command "onerror" to allow a custom
+	  command to be executed in case the kernel image is not found.
 	* Fix bugs in the COMBOOT/COM32 command-line parsing.  APPEND
 	  now works with COMBOOT/COM32 images.
 	* PXELINUX: Poll for ARP requests while sitting at the
@@ -15,7 +17,8 @@ Changes in 2.08:
 	* MEMDISK: Add an API to query for the existence of MEMDISK.
 	* SYSLINUX: Fix loading boot sectors (.bs/.bss) from floppy
 	  disk.
-	* .c32 is now one of the extensions searched for automatically.
+	* .c32 is now one of the extensions searched for
+	  automatically.
 
 Changes in 2.07:
 	* MEMDISK: Workaround for BIOSes which go into a snit when

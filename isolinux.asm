@@ -134,6 +134,7 @@ VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
 Ontimeout	resb max_cmd_len+1	; ontimeout
+Onerror		resb max_cmd_len+1	; onerror
 KbdMap		resb 256		; Keyboard map
 FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
 NumBuf		resb 15			; Buffer to load number
@@ -1614,6 +1615,7 @@ img_table:
 ;
 AppendLen       dw 0                    ; Bytes in append= command
 OntimeoutLen	dw 0			; Bytes in ontimeout command
+OnerrorLen	dw 0			; Bytes in onerror command
 KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
 CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
 initrd_flag	equ $

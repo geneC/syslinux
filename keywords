@@ -14,6 +14,7 @@ say
 serial
 timeout
 ontimeout
+onerror
 f0
 f1
 f2

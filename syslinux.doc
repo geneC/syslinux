@@ -228,6 +228,23 @@ ONTIMEOUT kernel options...
 	then "DEFAULT" is used only if the user presses <Enter> to
 	boot.
 
+ONERROR kernel options...
+	If a kernel image is not found (either due to it not existing,
+	or because IMPLICIT is set), run the specified command.  The
+	faulty command line is appended to the specified options, so
+	if the ONERROR directive reads as:
+
+		ONERROR xyzzy plugh
+
+	... and the command line as entered by the user is:
+
+		foo bar baz
+
+	... SYSLINUX will execute the following as if entered by the
+	user:
+	
+		xyzzy plugh foo bar baz
+
 SERIAL port [[baudrate] flowcontrol]
 	Enables a serial port to act as the console.  "port" is a
 	number (0 = /dev/ttyS0 = COM1, etc.) or an I/O port address

@@ -22,8 +22,7 @@
 ; 
 pc_default:	mov di,default_cmd
 		call getline
-		xor al,al
-		stosb				; null-terminate
+		mov byte [di-1],0		; null-terminate
 		ret
 
 ;
@@ -31,8 +30,17 @@ pc_default:	mov di,default_cmd
 ;
 pc_ontimeout:	mov di,Ontimeout
 		call getline
-		sub di,Ontimeout
+		sub di,Ontimeout+1		; Don't need final space
 		mov [OntimeoutLen],di
+		ret
+
+;
+; "onerror" command
+;
+pc_onerror:	mov di,Onerror
+		call getline
+		sub di,Onerror
+		mov [OnerrorLen],di
 		ret
 
 ;

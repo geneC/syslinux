@@ -276,7 +276,17 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
 		add bx,byte 4
 		cmp bx,exten_table_end
 		jna .search_loop		; allow == case (final case)
-bad_kernel:     
+		; Fall into bad_kernel
+;
+; bad_kernel: Kernel image not found
+; bad_implicit: The user entered a nonvirtual kernel name, with "implicit 0"
+;
+bad_implicit:
+bad_kernel:
+		mov cx,[OnerrorLen]
+		and cx,cx
+		jnz on_error
+.really:
 		mov si,KernelName
                 mov di,KernelCName
 		push di
@@ -287,13 +297,37 @@ bad_kernel:
                 call cwritestr
                 mov si,crlf_msg
                 jmp abort_load                  ; Ask user for clue
+
 ;
-; bad_implicit: The user entered a nonvirtual kernel name, with "implicit 0"
+; on_error: bad kernel, but we have onerror set
 ;
-bad_implicit:   mov si,KernelName		; For the error message
-                mov di,KernelCName
-                call unmangle_name
-                jmp short bad_kernel
+on_error:
+		mov si,Onerror
+		mov di,command_line
+		push si				; <A>
+		push di				; <B>
+		push cx				; <C>
+		push cx				; <D>
+		push di				; <E>
+		repe cmpsb
+		pop di				; <E> di == command_line
+		pop bx				; <D> bx == [OnerrorLen]
+		je bad_kernel.really		; Onerror matches command_line already
+		neg bx				; bx == -[OnerrorLen]
+		lea cx,[max_cmd_len+bx]
+		; CX == max_cmd_len-[OnerrorLen]
+		mov di,command_line+max_cmd_len-1
+		mov byte [di+1],0		; Enforce null-termination
+		lea si,[di+bx]
+		std
+		rep movsb			; Make space in command_line
+		cld
+		pop cx				; <C> cx == [OnerrorLen]
+		pop di				; <B> di == command_line
+		pop si				; <A> si  == Onerror
+		rep movsb
+		jmp load_kernel
+
 ;
 ; vk_found: We *are* using a "virtual kernel"
 ;
