@@ -15,7 +15,7 @@ while ( read(STDIN, $ch, 1) > 0 ) {
 	    $attr = hex $attr;
 	    print "\x1b[0;";
 	    if ( $attr & 0x80 ) {
-		print "7;";
+		print "5;";
 		$attr &= ~0x80;
 	    }
 	    if ( $attr & 0x08 ) {
