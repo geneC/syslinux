@@ -167,7 +167,7 @@ got_cmdline:
 		and al,al
 		jnz filesystem_error
 
-		mov ax,[bx+dpbSectorSize]
+		mov dx,[bx+dpbSectorSize]	; Save sector size
 ;
 ; Read the boot sector.
 ;
@@ -183,6 +183,8 @@ diBuffer:	dw SectorBuffer			; Buffer offset
 read_bootsect:
 		mov ax,cs			; Set DS <- CS
 		mov ds,ax
+
+		mov [SectorSize],dx		; Saved sector size from above
 
 		cmp word [DOSVersion],0400h	; DOS 4.00 has a new interface
 		jae .new
