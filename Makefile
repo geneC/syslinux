@@ -17,7 +17,7 @@
 
 NASM	= nasm
 
-all:	bootsect.bin ldlinux.sys syslinux.com
+all:	bootsect.bin ldlinux.sys syslinux.com syslinux
 
 ldlinux.bin: ldlinux.asm
 	$(NASM) -f bin -dHEX_TIME="`perl now.pl`" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
@@ -33,6 +33,13 @@ ldlinux.sys: ldlinux.bin
 syslinux.com: syslinux.asm bootsect.bin ldlinux.sys
 	$(NASM) -f bin -l syslinux.lst -o syslinux.com syslinux.asm
 	ls -l syslinux.com
+
+syslinux: syslinux.pl.in bootsect.bin ldlinux.sys
+	@if [ ! -x `which perl` ]; then \
+		echo 'ERROR: cannot find perl'; exit 1 ; fi
+	echo '#!' `which perl` > syslinux
+	cat syslinux.pl.in bootsect.bin ldlinux.sys >> syslinux
+	chmod a+x syslinux
 
 clean:
 	rm -f *.bin *.lst *.sys

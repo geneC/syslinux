@@ -129,7 +129,7 @@ vk_size:	equ $
 ;
 vk_seg          equ 8000h		; This is where we stick'em
 xfer_buf_seg	equ 7000h		; Bounce buffer for I/O to high mem
-
+fat_seg		equ 1000h		; 128K area for FAT (2x64K)
 
 ;
 ; For our convenience: define macros for jump-over-unconditinal jumps
