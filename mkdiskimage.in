@@ -59,6 +59,7 @@ $cylsize = $h*$s*512;
 
 sysopen(OUTPUT, $file, O_CREAT|O_RDWR|O_TRUNC, 0666)
     or die "$0: Cannot open: $file\n";
+eval { binmode OUTPUT; };
 
 # Print out DOSEMU header, if requested
 if ( $opt{'d'} ) {
