@@ -43,6 +43,15 @@ should typically have an MBR and a partition table.  The disk C/H/S
 geometry is determined by examining the partition table, so the entire
 image should be partitioned for proper operation.
 
+You can also specify the geometry manually with the following command
+line options (currently untested):
+
+   c=<number>	Specify number of cylinders
+   h=<number>	Specify number of heads
+   s=<number>	Specify number of sectors
+   floppy	The image is a floppy image
+   harddisk	The image is a hard disk image
+
 If you want to recompile it from sources, you will need to make sure that
 you have a fairly recent binutils installed.  I have been using the
 binutils-2.11.90.0.8-9 RPM from RedHat.

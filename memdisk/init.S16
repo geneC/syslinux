@@ -139,7 +139,28 @@ start:
 
 startc:
 /*
- * Set up the operating environment expected by the C code.
+ * Copy the command line, if there is one
+ */
+		xorw %di,%di		# Bottom of our own segment
+		movl cmd_line_ptr, %eax
+		andl %eax,%eax
+		jz endcmd		# No command line?
+		movw %ax,%si
+		shrl $4,%eax		# Convert to a segment address
+		andw $0x000F,%si	# Starting offset
+		movw %ax,%gs
+		movw $496,%cx		# Maximum number of bytes
+copycmd:
+		lodsb %gs:(%si),%al
+		andb %al,%al		# Make sure we're null-terminated
+		jz endcmd
+		stosb %al,%es:(%di)
+		loopw copycmd
+endcmd:
+		xorb %al,%al
+		stosb %al,%es:(%di)
+/*
+ * Jump to C code
  */
 		sti			# Maybe not?
 		calll setup		# Call the C code

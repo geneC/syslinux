@@ -26,5 +26,6 @@
 int putchar(int);
 int puts(const char *);
 int printf(const char *, ...);
+unsigned int atou(const char *);
 
 #endif

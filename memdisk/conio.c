@@ -78,6 +78,14 @@ static int skip_atoi(const char **s)
   return i;
 }
 
+unsigned int atou(const char *s)
+{
+  unsigned int i = 0;
+  while (isdigit(*s))
+    i = i*10 + (*s++ - '0');
+  return i;
+}
+
 static int strnlen(const char *s, int maxlen)
 {
   const char *es = s;
@@ -256,9 +264,6 @@ int vsprintf(char *buf, const char *fmt, va_list args)
       
     case 's':
       s = va_arg(args, char *);
-      if (!s)
-	s = "(null)";
-      
       len = strnlen(s, precision);
       
       if (!(flags & LEFT))

@@ -49,7 +49,7 @@ struct patch_area {
 
 /* This is the header in the boot sector/setup area */
 struct setup_header {
-  uint8_t dummy[0x1f1];		/* Boot sector */
+  char cmdline[0x1f1];
   uint8_t setup_secs;
   uint16_t syssize;
   uint16_t swap_dev;
@@ -115,7 +115,7 @@ static void high_bcopy(uint32_t dst, uint32_t src, uint16_t len)
   high_mover.dst2  = dst >> 16;
   high_mover.dst3  = dst >> 24;
 
-  asm volatile("pushf ; movb $0x87,%%ah ; int $0x15 ; popf"
+  asm volatile("pushfl ; movb $0x87,%%ah ; int $0x15 ; popfl"
 	       :: "S" (&high_mover), "c" (len >> 1)
 	       : "eax", "ebx", "ecx", "edx",
 	       "ebp", "esi", "edi", "memory");
@@ -185,6 +185,62 @@ rdz_32(uint32_t addr)
 #define BIOS_BASEMEM	0x413	 /* Amount of DOS memory */
 
 /*
+ * Routine to seek for a command-line item and return a pointer
+ * to the data portion, if present
+ */
+static inline int
+isspace(int ch)
+{
+  return (ch == ' ') || ((ch >= '\b') && (ch <= '\r'));
+}
+
+/* Magic return values */
+#define CMD_NOTFOUND   ((char *)-1) /* Not found */
+#define CMD_BOOL       ((char *)-2) /* Found boolean option */
+#define CMD_HASDATA(X) ((int)(X) >= 0)
+const char *getcmditem(const char *what)
+{
+  const char *p, *wp;
+  int match = 0;
+
+  for ( p = shdr->cmdline ; *p ; p++ ) {
+    switch ( match ) {
+    case 0:			/* Ground state */
+      if ( isspace(*p) )
+	break;
+
+      wp = what;
+      /* Fall through */
+
+    case 1:			/* Matching */
+      if ( *wp == '\0' ) {
+	if ( *p == '=' )
+	  return p+1;
+	else if ( isspace(*p) )
+	  return CMD_BOOL;
+	else {
+	  match = 2;
+	  break;
+	}
+      }
+      if ( *p != *wp++ )
+	match = 2;		/* Skipping bogus */
+      break;
+
+    case 2:
+      if ( isspace(*p) )
+	match = 0;		/* Next option */
+    }
+  }
+    
+  /* Check for matching string at end of line */
+  if ( match == 1 && *wp == '\0' )
+    return CMD_BOOL;
+  
+  return CMD_NOTFOUND;
+}
+
+/*
  * Figure out the "geometry" of the disk in question
  */
 struct geometry {
@@ -216,63 +272,88 @@ struct ptab_entry {
 
 const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 {
-  static struct geometry hd_geometry;
+  static struct geometry hd_geometry = { 0, 0, 0, 0, 0, 0x80 };
   struct ptab_entry ptab[4];	/* Partition table buffer */
-  uint32_t sectors;
+  unsigned int sectors, v;
+  unsigned int max_c, max_h, max_s;
+  unsigned int c, h, s;
   int i;
-  int c, h, s;
-  int max_c, max_h, max_s;
+  const char *p;
+
+  printf("command line: %s\n", shdr->cmdline);
 
   if ( size & 0x1ff ) {
     puts("MEMDISK: Image has fractional end sector\n");
     size &= ~0x1ff;
   }
+
   sectors = size >> 9;
+  hd_geometry.sectors = sectors;
 
   for ( i = 0 ; i < known_geometries ; i++ ) {
     if ( sectors == geometries[i].sectors ) {
-      return &geometries[i];
+      hd_geometry = geometries[i];
+      break;
     }
   }
 
-  /* No match, must be a hard disk image */
-  /* Need to examine the partition table for geometry */
-  copy_from_high(&ptab, where+(512-2-4*16), sizeof ptab);
+  if ( CMD_HASDATA(p = getcmditem("c")) && (v = atou(p)) )
+    hd_geometry.c = v;
+  if ( CMD_HASDATA(p = getcmditem("h")) && (v = atou(p)) )
+    hd_geometry.h = v;
+  if ( CMD_HASDATA(p = getcmditem("s")) && (v = atou(p)) )
+    hd_geometry.s = v;
   
-  max_c = max_h = 0;  max_s = 1;
-  for ( i = 0 ; i < 4 ; i++ ) {
-    if ( ptab[i].type ) {
-      c = ptab[i].start_c + (ptab[i].start_s >> 6);
-      s = (ptab[i].start_s & 0x3f);
-      h = ptab[i].start_h;
-      
-      if ( max_c < c ) max_c = c;
-      if ( max_h < h ) max_h = h;
-      if ( max_s < s ) max_s = s;
-      
-      c = ptab[i].end_c + (ptab[i].end_s >> 6);
-      s = (ptab[i].end_s & 0x3f);
-      h = ptab[i].end_h;
-      
-      if ( max_c < c ) max_c = c;
-      if ( max_h < h ) max_h = h;
-      if ( max_s < s ) max_s = s;
-    }
+  if ( getcmditem("floppy") != CMD_NOTFOUND ) {
+    hd_geometry.driveno = 0;
+    if ( hd_geometry.type == 0 )
+      hd_geometry.type = 0x10;	/* ATAPI floppy, e.g. LS-120 */
+  }
+  if ( getcmditem("harddisk") != CMD_NOTFOUND ) {
+    hd_geometry.driveno = 0x80;
+    hd_geometry.type = 0;
   }
 
-  max_c++; max_h++;		/* Convert to count (1-based) */
+  if ( (hd_geometry.c == 0) || (hd_geometry.h == 0) ||
+       (hd_geometry.s == 0) ) {
+    /* Hard disk image, need to examine the partition table for geometry */
+    copy_from_high(&ptab, where+(512-2-4*16), sizeof ptab);
+    
+    max_c = max_h = 0;  max_s = 1;
+    for ( i = 0 ; i < 4 ; i++ ) {
+      if ( ptab[i].type ) {
+	c = ptab[i].start_c + (ptab[i].start_s >> 6);
+	s = (ptab[i].start_s & 0x3f);
+	h = ptab[i].start_h;
+	
+	if ( max_c < c ) max_c = c;
+	if ( max_h < h ) max_h = h;
+	if ( max_s < s ) max_s = s;
+	
+	c = ptab[i].end_c + (ptab[i].end_s >> 6);
+	s = (ptab[i].end_s & 0x3f);
+	h = ptab[i].end_h;
+	
+	if ( max_c < c ) max_c = c;
+	if ( max_h < h ) max_h = h;
+	if ( max_s < s ) max_s = s;
+      }
+    }
+    
+    max_c++; max_h++;		/* Convert to count (1-based) */
+    
+    if ( !hd_geometry.h )
+      hd_geometry.h = max_h;
+    if ( !hd_geometry.s )
+      hd_geometry.s = max_s;
+    if ( !hd_geometry.c )
+      hd_geometry.c = sectors/(hd_geometry.h*hd_geometry.s);
+  }
 
-  hd_geometry.sectors = sectors;
-  hd_geometry.c       = sectors/(max_h*max_s);
-  hd_geometry.h       = max_h;
-  hd_geometry.s       = max_s;
-  hd_geometry.type    = 0;
-  hd_geometry.driveno = 0x80;	/* Hard drive */
-
-  if ( sectors % (max_s*max_h) ) {
+  if ( sectors % (hd_geometry.h*hd_geometry.s) ) {
     puts("MEMDISK: Image seems to have fractional end cylinder\n");
   }
-  if ( max_c > hd_geometry.c ) {
+  if ( (hd_geometry.c*hd_geometry.h*hd_geometry.s) > sectors ) {
     puts("MEMDISK: Image appears to be truncated\n");
   }
 
