@@ -1872,7 +1872,7 @@ keywd_table:
 		keyword default, pc_default
 		keyword timeout, pc_timeout
 		keyword font, pc_font
-		keyword kbd, pc_kbd
+		keyword kbdmap, pc_kbd
 		keyword display, pc_display
 		keyword prompt, pc_prompt
 		keyword label, pc_label

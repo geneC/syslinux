@@ -4,7 +4,7 @@ display
 font
 implicit
 ipappend
-kbd
+kbdmap
 kernel
 label
 localboot
