@@ -385,10 +385,12 @@ _start1:	mov [cs:InitStack],sp		; Save initial stack pointer
 		; Show signs of life
 		mov si,isolinux_banner
 		call writestr
-		call crlf			; For now...
+		mov si,copyright_str
+		call writestr
 
 		;
-		; Before modifying any memory, get the checksum of bytes 64-2048
+		; Before modifying any memory, get the checksum of bytes
+		; 64-2048
 		;
 initial_csum:	xor edi,edi
 		mov si,_start1
@@ -718,6 +720,8 @@ xint13:		mov byte [RetryCount], 6
 ; Data that needs to be in the first sector
 ;
 isolinux_banner	db CR, LF, 'ISOLINUX ', version_str, ' ', date, ' ', 0
+copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
+		db CR, LF, 0
 isolinux_str	db 'isolinux: ', 0
 startup_msg:	db 'Starting up, DL = ', 0
 spec_ok_msg:	db 'Loaded spec packet OK, drive = ', 0
@@ -732,7 +736,7 @@ size_msg:	db 'Sectors to load = ', 0
 loaded_msg:	db 'Loaded boot image, verifying...', CR, LF, 0
 verify_msg:	db 'Image checksum verified.', CR, LF, 0
 checkerr_msg:	db 'Load checksum error, goodbye...', CR, LF, 0
-diskerr_msg:	db 'CD-ROM disk error ', 0
+diskerr_msg:	db 'Disk error ', 0
 allread_msg	db 'Main image read, jumping to main code...', CR, LF, 0
 crlf_msg	db CR, LF, 0
 
@@ -828,12 +832,6 @@ not_vga:
 
 		; Patch the writechr routine to point to the full code
 		mov word [writechr+1], writechr_full-(writechr+3)
-
-;
-; Tell the user we got this far
-;
-		mov si,copyright_str
-		call writestr
 
 ; Test tracers
 		TRACER 'T'
@@ -4054,8 +4052,6 @@ LF		equ 10		; Line Feed
 FF		equ 12		; Form Feed
 BS		equ  8		; Backspace
 
-copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
-		db CR, LF, 0
 boot_prompt	db 'boot: ', 0
 wipe_char	db BS, ' ', BS, 0
 err_notfound	db 'Could not find kernel image: ',0
