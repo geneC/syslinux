@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ bcopy_gdt_size:	equ $-bcopy_gdt
 
 ;
 ; bcopy:
-;	32-bit copy
+;	32-bit copy, overlap safe
 ;
 ; Inputs:
 ;	ESI	- source pointer
@@ -70,13 +70,12 @@ bcopy_gdt_size:	equ $-bcopy_gdt
 ;	ECX	- zero
 ;
 bcopy:		push eax
+		push esi
+		push edi
+		push ecx
 		pushf			; Saves, among others, the IF flag
-		push gs
-		push fs
 		push ds
 		push es
-		mov [cs:SavedSSSP],sp
-		mov [cs:SavedSSSP+2],ss
 
 		cli
 		call enable_a20
@@ -91,21 +90,45 @@ bcopy:		push eax
 		mov es,ax
 		mov ds,ax
 
-		mov al,18h		; "Real-mode-like" data segment
-		mov ss,ax
-		mov fs,ax
-		mov gs,ax	
+		; Don't mess with ss, fs, and gs.  They are never changed
+		; and should be able to make it back out of protected mode.
+		; This works because (and only because) we don't take
+		; interrupt in protected mode.
 
+		cmp esi,edi		; If source > destination, we might
+		ja .reverse		; have to copy backwards
+
+.forward:
 		mov al,cl		; Save low bits
+		and al,3
 		shr ecx,2		; Convert to dwords
 		a32 rep movsd		; Do our business
 		; At this point ecx == 0
 
 		mov cl,al		; Copy any fractional dword
-		and cl,3
 		a32 rep movsb
+		jmp .exit
 
-		mov al,18h		; "Real-mode-like" data segment
+.reverse:
+		std			; Reverse copy
+		lea esi,[esi+ecx-1]	; Point to final byte
+		lea edi,[edi+ecx-1]
+		mov eax,ecx
+		and ecx,3
+		shr eax,2
+		a32 rep movsb
+		
+		; Change ESI/EDI to point to the last dword, instead
+		; of the last byte.
+		sub esi,3
+		sub edi,3
+		mov ecx,eax
+		a32 rep movsd
+
+		cld
+
+.exit:
+		mov ax,18h		; "Real-mode-like" data segment
 		mov es,ax
 		mov ds,ax
 
@@ -115,14 +138,16 @@ bcopy:		push eax
 		jmp 0:.in_rm
 
 .in_rm:		; Back in real mode
-		lss sp,[cs:SavedSSSP]
 		pop es
 		pop ds
-		pop fs
-		pop gs
 		call disable_a20
 
 		popf			; Re-enables interrupts
+		pop eax
+		pop edi
+		pop esi
+		add edi,eax
+		add esi,eax
 		pop eax
 		ret
 
@@ -372,8 +397,9 @@ try_wbinvd:
 ;
 ; bcopy_over_self:
 ;
-; This routine is used to copy large blocks of code on top of
-; conventional memory (to 0:7c00).  We therefore have to move
+; This routine is used to shuffle memory around, followed by
+; invoking an entry point somewhere in low memory.  This routine
+; can clobber any memory above 7C00h, we therefore have to move
 ; necessary code into the trackbuf area before doing the copy,
 ; and do adjustments to anything except BSS area references.
 ;
@@ -381,25 +407,37 @@ try_wbinvd:
 ; references in the ".earlybss" segment.
 ;
 ; After performing the copy, this routine resets the stack and
-; jumps to 0:7c00.
+; jumps to the specified entrypoint.
 ;
 ; IMPORTANT: This routine does not canonicalize the stack or the
 ; SS register.  That is the responsibility of the caller.
 ;
 ; Inputs:
-;	ESI, EDI, ECX	- same as bcopy
+; 	DS:BX		-> Pointer to list of (dst, src, len) pairs
+; 	AX		-> Number of list entries
+;	[CS:EntryPoint]	-> CS:IP to jump to
 ;	On stack	- initial state (fd, ad, ds, es, fs, gs)
 ;
-bcopy_over_self:
+shuffle_and_boot:
+		and ax,ax
+		jz .done
+.loop:
+		mov edi,[bx]
+		mov esi,[bx+4]
+		mov ecx,[bx+8]
 		call bcopy
-		
+		add bx,12
+		dec ax
+		jnz .loop
+
+.done:
 		pop gs
 		pop fs
 		pop es
 		pop ds
 		popad
 		popfd
-		jmp 0:7c00h
+		jmp far [cs:EntryPoint]
 
 		align 2
 A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
@@ -414,9 +452,7 @@ __bcopy_size	equ $-__bcopy_start
 
 		section .earlybss
 		alignb 2
+EntryPoint	resd 1			; CS:IP for shuffle_and_boot
 SavedSSSP	resd 1			; Saved real mode SS:SP
 A20Test		resw 1			; Counter for testing status of A20
 A20Tries	resb 1			; Times until giving up on A20
-
-
-

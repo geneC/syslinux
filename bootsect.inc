@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -39,12 +39,18 @@ load_bootsec:
 		shl eax,16
 		xchg dx,ax		; Now EAX = file length
 		mov edi, 100000h
+		mov [trackbuf+4],edi	; Copy from this address
 		push edi		; Save load address
+		xor dx,dx		; No padding
 		call load_high
 		call crlf
 
 		sub edi,100000h
-		push edi		; Save length
+		mov [trackbuf+8],edi	; Save length
+
+		mov eax,7C00h		; Entry point
+		mov [trackbuf],eax	; Copy to this address
+		mov [EntryPoint],eax	; Jump to this address when done
 
 %if IS_SYSLINUX || IS_MDSLINUX
 		movzx ecx,byte [CopySuper]
@@ -81,15 +87,24 @@ load_bootsec:
 %endif
 		xor bx,bx
 
+;
+; replace_bootstrap for the special case where we have exactly one
+; descriptor, and it's the first entry in the trackbuf
+;
+
+replace_bootstrap_one:
+		push word trackbuf		; Address of descriptor list
+		push word 1			; Length of descriptor list
+		; Fall through
+
 ; 
 ; Entrypoint for "shut down and replace bootstrap" -- also invoked by
-; the COMBOOT API.  This routine expects two dword on the stack:
-; linear address and length.  Additionally, the values of ESI and EDX
-; are passed on to the new bootstrap; the value of BX becomes the new
-; DS.
+; the COMBOOT API.  This routine expects two words on the stack:
+; address of the copy list (versus DS) and count.  Additionally,
+; the values of ESI and EDX are passed on to the new bootstrap;
+; the value of BX becomes the new DS.
 ; 
 replace_bootstrap:
-
 		;
 		; Prepare for shutting down
 		;
@@ -120,16 +135,15 @@ replace_bootstrap:
 		mov [es:di+12],esi
 		mov [es:di+6],bx
 
-		pop ecx			; Byte count to copy
-		pop esi			; Copy from...
+		pop cx			; Copy list count
+		pop bx			; Copy from...
 
 		cli
 		mov ax,es
 		mov ss,ax
 		movzx esp,di
-		mov edi,7C00h		; Copy to...
 
-		jmp bcopy_over_self
+		jmp shuffle_and_boot
 
 %if IS_SYSLINUX || IS_MDSLINUX
 		; Nothing

@@ -90,8 +90,10 @@ s_padding1              resw 1
 s_reserved              resd 204                ; Padding to the end of the block 
 			endstruc
 
+%ifndef DEPEND
 %if ext2_super_block_size != 1024
 %error "ext2_super_block definition bogus"
+%endif
 %endif
 
 ;
@@ -121,8 +123,10 @@ i_pad1                  resw 1
 l_i_reserved2           resd 2
 			endstruc
 
+%ifndef DEPEND
 %if ext2_inode_size != 128
 %error "ext2_inode definition bogus"
+%endif
 %endif
 
 ;
@@ -139,8 +143,10 @@ bg_pad			resw 1
 bg_reserved		resd 3
 			endstruc
 
+%ifndef DEPEND
 %if ext2_group_desc_size != 32
 %error "ext2_group_desc definition bogus"
+%endif
 %endif
 
 %define ext2_group_desc_lg2size 5

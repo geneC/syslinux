@@ -317,7 +317,8 @@ void unzip_if_needed(uint32_t *where_p, uint32_t *size_p)
     }
 
     if ( !okmem ) {
-      puts("Not enough memory to decompress image\n");
+      printf("Not enough memory to decompress image (need 0x%08x bytes)\n",
+	     gzdatasize);
       die();
     }
 

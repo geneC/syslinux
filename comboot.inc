@@ -188,7 +188,7 @@ comboot_int21:	cli
 		loopne .again
 		; The last function in the list is the
 		; "no such function" function
-
+		clc
 		call ax			; Call the invoked function
 comboot_resume:
 		setc P_FLAGSL		; Propagate CF->error
@@ -281,14 +281,13 @@ comboot_checkver:			; 30 = check DOS version
 		mov P_EBX,'SL' << 16
 		mov P_ECX,'IN' << 16
 		mov P_EDX,'UX' << 16
-		clc
 		ret
 
 comboot_getchar:
 		cmp byte [APIKeyFlag],00h
 		jne .queued
 		call getchar		; If not queued get input
-		and al,al		; Function key?
+		and al,al		; Function key?  (CF <- 0)
 		jnz .done
 		mov [APIKeyWait],ah	; High part of key
 		inc byte [APIKeyFlag]	; Set flag
@@ -322,7 +321,7 @@ comboot_int22:
 		xor ax,ax			; Function 0 -> unimplemented
 .ok:
 		xchg ax,bx
-		add bx,bx
+		add bx,bx			; CF <- 0
 		call [bx+int22_table]
 		jmp comboot_resume		; On return
 
@@ -546,12 +545,17 @@ comapi_cleanup:
 ;
 comapi_chainboot:
 		call comapi_cleanup
+		mov eax,P_EDI
+		mov [trackbuf+4],eax		; Copy from
+		mov eax,P_ECX
+		mov [trackbuf+8],eax		; Total bytes
+		mov eax,7C00h
+		mov [trackbuf],eax		; Copy to
+		mov [EntryPoint],eax		; CS:IP entry point
 		mov esi,P_ESI
 		mov edx,P_EBX
 		mov bx,P_DS
-		push P_EDI
-		push P_ECX
-		jmp replace_bootstrap
+		jmp replace_bootstrap_one
 
 
 ;
@@ -604,6 +608,43 @@ comapi_dnsresolv equ comapi_err
 		dw %2
 %endmacro
 
+
+;
+; INT 22h AX=0011h	Maximum number of shuffle descriptors
+;
+comapi_maxshuffle:
+		mov P_CX,(2*trackbufsize)/12
+		ret
+
+;
+; INT 22h AX=0012h	Cleanup, shuffle and boot
+;
+comapi_shuffle:
+		call comapi_cleanup
+		mov cx,P_CX
+		cmp cx,(2*trackbufsize)/12
+		ja .error
+
+		push cx				; On stack: descriptor count
+
+		lea cx,[ecx+ecx*2]		; CX *= 3
+
+		mov fs,P_ES
+		mov si,P_DI
+		mov di,trackbuf
+		push di				; On stack: descriptor list address
+		fs rep movsd			; Copy the list
+
+		mov eax,P_EBP
+		mov [EntryPoint],eax		; CS:IP entry point
+		mov esi,P_ESI
+		mov edx,P_EBX
+		mov bx,P_DS
+		jmp replace_bootstrap
+.error:
+		stc
+		ret
+
 int21_table:
 		int21	00h, comboot_return
 		int21	01h, comboot_getkey
@@ -619,23 +660,25 @@ int21_count	equ ($-int21_table)/3
 
 		align 2, db 0
 int22_table:
-		dw comapi_err			; 0000 unimplemented syscall
-		dw comapi_get_version		; 0001 get SYSLINUX version
-		dw comapi_writestr		; 0002 write string
-		dw comapi_run			; 0003 run specified command
-		dw comapi_run_default		; 0004 run default command
-		dw comapi_textmode		; 0005 force text mode
-		dw comapi_open			; 0006 open file
-		dw comapi_read			; 0007 read file
-		dw comapi_close			; 0008 close file
-		dw comapi_pxecall		; 0009 call PXE stack
-		dw comapi_derinfo		; 000A derivative-specific info
-		dw comapi_serialcfg		; 000B get serial port config
-		dw comapi_cleanup		; 000C perform final cleanup
-		dw comapi_chainboot		; 000D clean up then bootstrap
-		dw comapi_configfile		; 000E get name of config file
-		dw comapi_ipappend		; 000F get ipappend strings
-		dw comapi_dnsresolv		; 0010 resolve hostname
+		dw comapi_err		; 0000 unimplemented syscall
+		dw comapi_get_version	; 0001 get SYSLINUX version
+		dw comapi_writestr	; 0002 write string
+		dw comapi_run		; 0003 run specified command
+		dw comapi_run_default	; 0004 run default command
+		dw comapi_textmode	; 0005 force text mode
+		dw comapi_open		; 0006 open file
+		dw comapi_read		; 0007 read file
+		dw comapi_close		; 0008 close file
+		dw comapi_pxecall	; 0009 call PXE stack
+		dw comapi_derinfo	; 000A derivative-specific info
+		dw comapi_serialcfg	; 000B get serial port config
+		dw comapi_cleanup	; 000C perform final cleanup
+		dw comapi_chainboot	; 000D clean up then bootstrap
+		dw comapi_configfile	; 000E get name of config file
+		dw comapi_ipappend	; 000F get ipappend strings
+		dw comapi_dnsresolv	; 0010 resolve hostname
+		dw comapi_maxshuffle	; 0011 maximum shuffle descriptors
+		dw comapi_shuffle	; 0012 cleanup, shuffle and boot
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

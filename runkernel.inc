@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -126,7 +126,8 @@ construct_cmdline:
 ; the first option was BOOT_IMAGE=, but that is no longer certain.
 ;
 		mov si,cmd_line_here
-                mov byte [initrd_flag],0
+		xor ax,ax
+                mov [InitRDPtr],ax		; No initrd= option (yet)
                 push es				; Set DS <- real_mode_seg
                 pop ds
 get_next_opt:   lodsb
@@ -156,15 +157,16 @@ get_next_opt:   lodsb
                 mov di,initrd_cmd
 		mov cx,initrd_cmd_len
 		repe cmpsb
-                jne not_initrd
+                jne .not_initrd
 
-		mov di,InitRD
-                push si                         ; mangle_dir mangles si
-                call mangle_name                ; Mangle ramdisk name
-                pop si
-		cmp byte [es:InitRD+NULLOFFSET],NULLFILE ; Null filename?
-                seta byte [es:initrd_flag]	; Set flag if not
-not_initrd:	pop es                          ; Restore ES -> real_mode_seg
+		cmp al,' '
+		jbe .noramdisk
+		mov [cs:InitRDPtr],si
+		jmp .not_initrd
+.noramdisk:
+		xor ax,ax
+		mov [cs:InitRDPtr],ax
+.not_initrd:	pop es                          ; Restore ES -> real_mode_seg
 skip_this_opt:  lodsb                           ; Load from command line
                 cmp al,' '
                 ja skip_this_opt
@@ -225,6 +227,9 @@ new_kernel:
 		mov byte [es:su_loader],my_id	; Show some ID
 		movzx ax,byte [es:bs_setupsecs]	; Variable # of setup sectors
 		mov [SetupSecs],ax
+		xor eax,eax
+		mov [es:su_ramdisklen],eax	; No initrd loaded yet
+
 ;
 ; About to load the kernel.  This is a modern kernel, so use the boot flags
 ; we were provided.
@@ -272,9 +277,11 @@ read_kernel:
 		sub eax,8000h			; Amount of kernel not yet loaded
 		jbe high_load_done		; Zero left (tiny kernel)
 
+		xor dx,dx			; No padding needed
 		call load_high			; Copy the file
 
 high_load_done:
+		mov [KernelEnd],edi
                 mov ax,real_mode_seg		; Set to real mode seg
                 mov es,ax
 
@@ -287,49 +294,9 @@ high_load_done:
 ; if we tried to load initrd using an old kernel
 ;
 load_initrd:
-                test byte [initrd_flag],1
+                cmp word [InitRDPtr],0
                 jz nk_noinitrd
-                push es                         ; ES->real_mode_seg
-                push ds
-                pop es                          ; We need ES==DS
-                mov si,InitRD
-                mov di,InitRDCName
-                call unmangle_name              ; Create human-readable name
-                sub di,InitRDCName
-                mov [InitRDCNameLen],di
-                mov di,InitRD
-                call searchdir                  ; Look for it in directory
-                pop es
-		jz initrd_notthere
-		mov [es:su_ramdisklen1],ax	; Ram disk length
-		mov [es:su_ramdisklen2],dx
-		mov edx,[HighMemSize]		; End of memory
-		dec edx
-		mov eax,[RamdiskMax]		; Highest address allowed by kernel
-		cmp edx,eax
-		jna memsize_ok
-		mov edx,eax			; Adjust to fit inside limit
-memsize_ok:
-		inc edx
-                xor dx,dx			; Round down to 64K boundary
-		sub edx,[es:su_ramdisklen]	; Subtract size of ramdisk
-                xor dx,dx			; Round down to 64K boundary
-                mov [es:su_ramdiskat],edx	; Load address
-		call loadinitrd			; Load initial ramdisk
-		jmp short initrd_end
-
-initrd_notthere:
-                mov si,err_noinitrd
-                call cwritestr
-                mov si,InitRDCName
-                call cwritestr
-                mov si,crlf_msg
-                jmp abort_load
-
-no_high_mem:    mov si,err_nohighmem		; Error routine
-                jmp abort_load
-
-initrd_end:
+		call parse_load_initrd
 nk_noinitrd:
 ;
 ; Abandon hope, ye that enter here!  We do no longer permit aborts.
@@ -496,8 +463,8 @@ kill_motor:
 ; initrd, and are always loaded low.
 ;
 old_kernel:
-                test byte [initrd_flag],1	; Old kernel can't have initrd
-                jz load_old_kernel
+               	cmp word [InitRDPtr],0		; Old kernel can't have initrd
+                je load_old_kernel
                 mov si,err_oldkernel
                 jmp abort_load
 load_old_kernel:
@@ -506,19 +473,118 @@ load_old_kernel:
 		jmp read_kernel
 
 ;
+; parse_load_initrd
+;
+; Parse an initrd= option and load the initrds.  Note that we load
+; from the high end of memory first, so we parse this option from
+; left to right.
+;
+parse_load_initrd:
+		push es
+		push ds
+		mov ax,real_mode_seg
+		mov ds,ax
+		push cs
+		pop es			; DS == real_mode_seg, ES == CS
+
+		mov si,[cs:InitRDPtr]
+.find_end:
+		lodsb
+		cmp al,' '
+		ja .find_end
+		; Now SI points to one character beyond the
+		; byte that ended this option.
+
+.get_chunk:
+		dec si
+
+		; DS:SI points to a termination byte
+
+		xor ax,ax
+		xchg al,[si]		; Zero-terminate
+		push si			; Save ending byte address
+		push ax			; Save ending byte
+
+.find_start:
+		dec si
+		cmp si,[cs:InitRDPtr]
+		je .got_start
+		cmp byte [si],','
+		jne .find_start
+
+		; It's a comma byte
+		inc si
+
+.got_start:
+		push si
+		mov di,InitRD		; Target buffer for mangled name
+		call mangle_name
+		call loadinitrd
+		pop si
+
+		pop ax
+		pop di
+		mov [di],al		; Restore ending byte
+
+		cmp si,[cs:InitRDPtr]
+		ja .get_chunk
+
+		pop ds
+		pop es
+		ret
+
+;
 ; Load RAM disk into high memory
 ;
-; Need to be set:
-;	su_ramdiskat	- Where in memory to load
-;	su_ramdisklen	- Size of file
-;	SI		- initrd filehandle/cluster pointer
+; Input:	InitRD		- set to the mangled name of the initrd
 ;
-		section .text
 loadinitrd:
-                push es                         ; Save ES on entry
+		push ds
+		push es
+		mov ax,cs			; CS == DS == ES
+		mov ds,ax
+		mov es,ax
+                mov si,InitRD
+                mov di,InitRDCName
+                call unmangle_name              ; Create human-readable name
+                sub di,InitRDCName
+                mov [InitRDCNameLen],di
+                mov di,InitRD
+                call searchdir                  ; Look for it in directory
+		jz .notthere
+
+		mov cx,dx
+		shl ecx,16
+		mov cx,ax			; ECX <- ram disk length
+
 		mov ax,real_mode_seg
-                mov es,ax
-                mov edi,[es:su_ramdiskat]	; initrd load address
+		mov es,ax
+
+		push ecx			; Bytes to load
+		cmp dword [es:su_ramdisklen],0
+		je .nopadding			; Don't pad the last initrd
+		add ecx,4095
+		and cx,0F000h
+.nopadding:
+		add [es:su_ramdisklen],ecx
+		mov edx,[HighMemSize]		; End of memory
+		dec edx
+		mov eax,[RamdiskMax]		; Highest address allowed by kernel
+		cmp edx,eax
+		jna .memsize_ok
+		mov edx,eax			; Adjust to fit inside limit
+.memsize_ok:
+		inc edx
+                and dx,0F000h			; Round down to 4K boundary
+		sub edx,ecx			; Subtract size of ramdisk
+                and dx,0F000h			; Round down to 4K boundary
+		cmp edx,[KernelEnd]		; Are we hitting the kernel image?
+		jb no_high_mem
+
+                mov [es:su_ramdiskat],edx	; Load address
+		mov [RamdiskMax],edx		; Next initrd loaded here
+
+                mov edi,edx			; initrd load address
 		push si
 		mov si,crlfloading_msg		; Write "Loading "
 		call cwritestr
@@ -528,11 +594,26 @@ loadinitrd:
                 call cwritestr
 		pop si
 
-		mov eax,[es:su_ramdisklen]
+		pop eax				; Bytes to load
+		mov dx,0FFFh			; Pad to page
 		call load_high			; Load the file
 
-		call crlf
-                pop es                          ; Restore original ES
+		pop es
+		pop ds
+		jmp crlf			; Print carriage return and return
+
+.notthere:
+                mov si,err_noinitrd
+                call cwritestr
+                mov si,InitRDCName
+                call cwritestr
+                mov si,crlf_msg
+                jmp abort_load
+
+no_high_mem:    				; Error routine
+		mov si,err_nohighmem
+                jmp abort_load
+
                 ret
 
 		section .data
@@ -544,6 +625,8 @@ boot_image_len  equ $-boot_image
 RamdiskMax	resd 1			; Highest address for ramdisk
 KernelSize	resd 1			; Size of kernel in bytes
 KernelSects	resd 1			; Size of kernel in sectors
+KernelEnd	resd 1			; Ending address of the kernel image
 CmdLineLen	resw 1			; Length of command line including null
 SetupSecs	resw 1			; Number of setup sectors
+InitRDPtr	resw 1			; Pointer to initrd= option in command line
 LoadFlags	resb 1			; Loadflags from kernel

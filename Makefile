@@ -1,7 +1,7 @@
 ##  $Id$
 ## -----------------------------------------------------------------------
 ##   
-##   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
+##   Copyright 1998-2005 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ VERSION  = $(shell cat version)
 # directories.
 #
 CSRC     = syslxmod.c gethostip.c
-NASMSRC  = ldlinux.asm copybs.asm pxelinux.asm mbr.asm isolinux.asm
+NASMSRC  = $(wildcard *.asm)
 SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
 
 # _bin.c files required by both BTARGET and ITARGET installers

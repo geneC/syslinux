@@ -423,10 +423,10 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 AX=000Bh [2.00]	Get Serial Console Configuration
 
 	Input:	AX	000Bh
-	Output:	DX	Serial port I/O base (e.g. 3F8h = COM1...)
-		CX	Baud rate divisor (1 = 115200 bps, 2 = 57600 bps...)
-		BX	Flow control configuration bits (see syslinux.doc)
-			-> Bit 15 is set if the video console is disabled
+	Output:	DX	serial port I/O base (e.g. 3F8h = COM1...)
+		CX	baud rate divisor (1 = 115200 bps, 2 = 57600 bps...)
+		BX	flow control configuration bits (see syslinux.doc)
+			-> bit 15 is set if the video console is disabled
 
 	If no serial port is configured, DX will be set to 0 and the
 	other registers are undefined.
@@ -447,7 +447,7 @@ AX=000Ch [2.00]	Perform final cleanup
 
 	For COM32 images, the boot loader will continue to provide
 	interrupt and BIOS call thunking services as long its memory
-	areas (0x1000-0xffff, 0x100000-0x100fff) are not overwritten.
+	areas (0x0800-0xffff, 0x100000-0x100fff) are not overwritten.
 	MAKE SURE TO DISABLE INTERRUPTS, AND INSTALL NEW GDT AND IDTS
 	BEFORE OVERWRITING THESE MEMORY AREAS.
 
@@ -499,10 +499,10 @@ AX=000Eh [2.11]	Get configuration file name
 
 AX=000Fh [3.00] Get IPAPPEND strings [PXELINUX]
 	Input:  AX	000Fh
-	Output:	CX	Number of strings (currently 2)
-		ES:BX	Pointer to an array of NEAR pointers in
+	Output:	CX	number of strings (currently 2)
+		ES:BX	pointer to an array of NEAR pointers in
 			the same segment, one for each of the above
-			strings.
+			strings
 
 	Returns the same strings that the "ipappend" option would have
 	added to the command line, one for each bit of the "ipappend"
@@ -511,7 +511,7 @@ AX=000Fh [3.00] Get IPAPPEND strings [PXELINUX]
 
 
 AX=0010h [3.00] Resolve hostname [PXELINUX]
-	Input:  ES:BX	Pointer to null-terminated hostname
+	Input:  ES:BX	pointer to null-terminated hostname
 	Output:	EAX	IP address of hostname (zero if not found)
 
 	Queries the DNS server(s) for a specific hostname.  If the
@@ -525,5 +525,53 @@ AX=0010h [3.00] Resolve hostname [PXELINUX]
 	The IP address is returned in network byte order, i.e. if the
 	IP address is 1.2.3.4, EAX will contain 0x04030201.  Note that
 	all uses of IP addresses in PXE are also in network byte order.
+
+
+AX=0011h [3.10] Maximum number of shuffle descriptors
+	Input:	AX	0011h
+	Output:	CX	maximum number of descriptors
+
+	This routine reports the maximum number of shuffle descriptors
+	permitted in a call to function 0012h.
+
+	Typical values are 682 and 1365.
+
+
+AX=0012h [3.10] Cleanup, shuffle and boot
+	Input:	AX	0012h
+		DX	derivative-specific flags (see previous function)
+		ES:DI	shuffle descriptor list (must be in low memory)
+		CX	number of shuffle descriptors
+		EBX(!)	initial value of EDX after bootstrap
+		ESI	initial value of ESI after bootstrap
+		DS	initial value of DS after bootstrap
+		EBP	CS:IP of routine to jump to
+	Output:	Does not return
+		(if CX is too large the routine returns with CF=1)
+
+	This routine performs final cleanup, then performs a sequence
+	of copies, and jumps to a specified real mode entry point.
+	This is a more general version of function 000Dh, which can
+	also be used to load other types of programs.
+
+	The copies must not touch memory below address 7C00h.
+
+	ES:DI points to a list of CX descriptors each of the form:
+	
+		Offset	Size	Meaning
+		 0	dword	destination address
+		 4	dword	source address
+		 8	dword	length in bytes
+
+	The copies are overlap-safe, like memmove().
+
+	Normal boot sectors expect DL to contain the drive number,
+	and, for hard drives (DL >= 80h) DS:SI to contain a pointer to
+	the 16-byte partition table entry.  The memory between
+	600h-7FFh is available to put the partition table entry in.
+
+	For PXELINUX, if the PXE stack is not unloaded, all registers
+	(except DS, ESI and EDX) and the stack will be set up as they
+	were set up by the PXE ROM.
 
 

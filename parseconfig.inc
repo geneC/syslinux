@@ -353,8 +353,6 @@ OntimeoutLen	dw 0			; Bytes in ontimeout command
 OnerrorLen	dw 0			; Bytes in onerror command
 KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
 CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
-initrd_flag	equ $
-initrd_ptr	dw 0			; Initial ramdisk pointer/flag
 ForcePrompt	dw 0			; Force prompt
 AllowImplicit   dw 1                    ; Allow implicit kernels
 AllowOptions	dw 1			; User-specified options allowed

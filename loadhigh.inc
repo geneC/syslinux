@@ -27,11 +27,12 @@
 ;		The xfer_buf_seg is used as a bounce buffer.
 ;
 ;		The input address (EDI) should be dword aligned, and the final
-;		dword written is padded with zeroes if necessary.
+;		stretch is padded with zeroes if necessary.
 ;
 ; Inputs:	SI  = file handle/cluster pointer
 ;		EDI = target address in high memory
 ;		EAX = size of remaining file in bytes
+;		DX   = zero-padding mask (e.g. 0003h for pad to dword)
 ;
 ; Outputs:	SI  = file handle/cluster pointer
 ;		EDI = first untouched address (not including padding)
@@ -70,7 +71,7 @@ load_high:
 		push ecx			; <B> Byte count this round 
 		push edi			; <C> Target buffer
 .fix_slop:
-		test cl,3
+		test cx,dx
 		jz .noslop
 		; The last dword fractional - pad with zeroes
 		; Zero-padding is critical for multi-file initramfs.

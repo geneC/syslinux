@@ -64,6 +64,7 @@ is_com32_image:
 		mov edi,pm_entry	; Load address
 		pop eax			; File length
 		pop si			; File handle
+		xor dx,dx		; No padding
 		call load_high
 		call crlf
 
