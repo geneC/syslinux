@@ -7,6 +7,7 @@ Changes in 1.40:
 	* Include a new "copybs" DOS utility to copy a boot sector to
 	  a file (under Linux, use "dd".)
 	* Fix the DOS installer to work for disks over 32 MB.
+	* SYSLINUX should now handle disks with more than 65536 tracks.
 
 Changes in 1.37:
 	* Fix a bug that caused "label" statements in syslinux.cfg to

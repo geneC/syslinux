@@ -360,6 +360,11 @@ InitRDCName     resb 13            	; Unmangled initrd name
 
 		section .text
                 org 7C00h
+;
+; Primary entry point.  Tempting as though it may be, we can't put the
+; initial "cli" here; the jmp opcode in the first byte is part of the
+; "magic number" (using the term very loosely) for the DOS superblock.
+;
 bootsec		equ $
 		jmp short start		; 2 bytes
 		nop			; 1 byte
@@ -541,7 +546,7 @@ sd_nextsec:	push ax
 		pop si
 sd_nextentry:	cmp byte [si],0		; Directory high water mark
 		je kaboom
-		mov di,ldlinux_sys
+		mov di,ldlinux_name
 		mov cx,11
 		push si
 		repe cmpsb
@@ -589,20 +594,19 @@ found_it:	; Note: we actually leave two words on the stack here
 		mul bx
 		add ax,[DataArea1]
 		adc dx,[DataArea2]
-		mov bx,ldlinux_magic
-		push bx
+		mov bx,ldlinux_sys
 		call getlinsec
 		mov si,bs_magic
-		pop di
+		mov di,ldlinux_magic
 		mov cx,magic_len
 		repe cmpsb		; Make sure that the bootsector
 		jne kaboom		; matches LDLINUX.SYS
 ;
-; Some BIOSes are buggy and don't jump to 0000:7C00 but to an alias address.
-; We depend on CS == 0 later in the program, but in order to conserve space
-; we don't do this until here.
+; Done! Jump to the entry point!
 ;
-		jmp 0:ldlinux_ent
+		jmp ldlinux_ent
+
+;
 ;
 ; writestr: write a null-terminated string to the console
 ;
@@ -647,15 +651,25 @@ getonesec:
 ;	     The "stupid patch area" gets replaced by the code
 ;	     mov bp,1 ; nop ... (BD 01 00 90 90...) when installing with
 ;	     the -s option.
-;
-; BUG ALERT: We can have up to 2^18 tracks (1024 cylinders*256 heads), but the
-; first divide only allows for 2^16-1.
-;
 getlinsec:
 		mov si,[bsSecPerTrack]
-		div si			; Convert linear to sector/track
-		mov cx,dx		; Save sector
-		xor dx,dx		; 32-bit track number
+		;
+		; Dividing by sectors to get (track,sector): we may have
+		; up to 2^18 tracks, so we need to do this in two steps
+		; to produce a 32-bit quotient.
+		;
+		xchg di,ax		; DI <- LSW of LBA
+		xchg ax,dx
+		xor dx,dx		; DX:AX now == MSW of LBA
+		push dx
+		div si			; Obtain MSW of track #
+		xchg ax,di		; Save MSW of track, AX <- LSW of LBA
+		add ax,dx		; Add remainder from high word
+		pop dx			; DX <- 0, flags preserved!
+		adc dx,dx		; DX == 0, so DX <- CF ? 1 : 0
+		div si			; Obtain LSW of track #, remainder
+		xchg cx,dx		; CX <- Sector index (0-based)
+		xchg dx,di		; MSW of track #; DX:AX now == track #
 		div word [bsHeads]	; Convert track to head/cyl
 		;
 		; Now we have AX = cyl, DX = head, CX = sector (0-based),
@@ -731,21 +745,18 @@ disk_try_again: push dx			; <G>
 gls_nonewcyl:	sub cx,si		; First sector on new track
 		jmp short gls_nextchunk
 
-bailmsg		db 'Boot failed!', 0Dh, 0Ah, 0
+bailmsg:	db 'Boot failed', 0Dh, 0Ah, 0
 
-bs_checkpt	equ $			; Must be <= 1E3h
+bs_checkpt	equ $			; Must be <= 1EFh
 
-		zb 1E3h-($-$$)
-bs_magic	equ $			; The following 32 bytes should
-					; match ldlinux_magic
-ldlinux_sys	db 'LDLINUX SYS'	; Looks like this in the root dir
-		db ' '
-bs_version	db version_str
-		db ' '
-bs_date		db date
-magic_len	equ $-bs_magic
+		zb 1EFh-($-$$)
+bs_magic	equ $			; From here to the magic_len equ
+					; must match ldlinux_magic
+ldlinux_name:	db 'LDLINUX SYS'	; Looks like this in the root dir
+		dd HEXDATE		; Hopefully unique between compiles
 
 bootsignature	dw 0AA55h
+magic_len	equ $-bs_magic
 
 ;
 ; ===========================================================================
@@ -753,25 +764,32 @@ bootsignature	dw 0AA55h
 ; ===========================================================================
 ;  Start of LDLINUX.SYS
 ; ===========================================================================
-;
-; This "magic number" works well with the "type" command... the 0 we treat
-; as end of string, but is ignored by "type".
-;
-ldlinux_magic	db 'LDLINUX'
-missing_dot	db ' '
-		db 'SYS ', version_str, ' ', date
-magic_eof	db 0, 
-crlf		db 0Dh, 0Ah, 0, 01Ah
+
+ldlinux_sys:
+
+; The 1Ah is ^Z, which is an end-of-file marker if we "type" this file in DOS
+syslinux_banner	db 0Dh, 0Ah, 'SYSLINUX ', version_str, ' ', date, 0
+		db 0Dh, 0Ah, 1Ah
+
+ldlinux_magic	db 'LDLINUX SYS'
+		dd HEXDATE
+		dw 0AA55h
 
 		align 4
+
+;
+; Entry point.  Note that some BIOSes are buggy and put the boot sector
+; at 07C0:0000 instead of 0000:7C00 and the like.  We don't want to add
+; anything more to the boot sector, so it is written to not assume a fixed
+; value in CS, but we don't want to deal with that anymore from now on.
+;
 ldlinux_ent:
+		jmp 0:ldlinux_ent2
+ldlinux_ent2:
 ;
 ; Tell the user we got this far
 ;
-		mov si,crlf
-		call writestr
-		mov byte [missing_dot],'.'
-		mov si,ldlinux_magic
+		mov si,syslinux_banner
 		call writestr
 ;
 ; Remember, the boot sector loaded only the first cluster of LDLINUX.SYS.
@@ -1413,7 +1431,7 @@ func_key:
 		call get_msg_file
 		jmp short fk_wrcmd
 fk_nofile:
-		mov si,crlf
+		mov si,crlf_msg
 		call writestr
 fk_wrcmd:
 		mov si,boot_prompt
@@ -1432,7 +1450,7 @@ auto_boot:
 		rep movsd
 		jmp short load_kernel
 command_done:
-		mov si,crlf
+		mov si,crlf_msg
 		call writestr
 		cmp di,command_line		; Did we just hit return?
 		je auto_boot
@@ -1525,7 +1543,7 @@ bad_kernel:
 		call writestr
 		pop si				; KernelCName
                 call writestr
-                mov si,crlf
+                mov si,crlf_msg
                 jmp abort_load                  ; Ask user for clue
 ;
 ; bad_implicit: The user entered a nonvirtual kernel name, with "implicit 0"
@@ -1708,7 +1726,7 @@ hms_ok:		mov [HighMemSize],ax
                 mov si,offset cmd_line_here
                 call cwritestr
                 pop ds
-                mov si,offset crlf
+                mov si,offset crlf_msg
                 call cwritestr
 %endif
 ;
@@ -1840,7 +1858,7 @@ initrd_notthere:
                 call writestr
                 mov si,InitRDCName
                 call writestr
-                mov si,crlf
+                mov si,crlf_msg
                 jmp abort_load
 
 no_high_mem:    mov si,err_nohighmem		; Error routine
@@ -1988,7 +2006,7 @@ kill_motor:
 ; Now we're as close to be done as we can be and still use our normal
 ; routines, print a CRLF to end the row of dots
 ;
-		mov si,crlf
+		mov si,crlf_msg
 		call writestr
 ;
 ; If we're debugging, wait for a keypress so we can read any debug messages
@@ -3039,7 +3057,7 @@ dumpregs	proc near		; When calling, IP is on stack
 		push cs			; Set DS <- CS
 		pop ds
 		cld			; Clear direction flag
-		mov si,offset crlf
+		mov si,offset crlf_msg
 		call writestr
 		mov bx,sp
 		add bx,byte 26

@@ -38,12 +38,13 @@ all:	$(TARGETS)
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
 # guaranteed to be unique to be unique from build to build.
+NOW = $(shell perl now.pl ldlinux.asm)
 ifndef DATE
-DATE = $(shell perl now.pl ldlinux.asm)
+DATE = $(NOW)
 endif
 
 ldlinux.bin: ldlinux.asm genstupid.pl
-	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
+	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" -dHEXDATE="$(NOW)" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
 	perl genstupid.pl < ldlinux.lst
 
 bootsect.bin: ldlinux.bin

@@ -437,13 +437,12 @@ Then use the FDISK command to mark the appropriate partition active.
 
    ++++ KNOWN BUGS ++++
 
-SYSLINUX will have problems with disks with more than 65536 tracks
-(cylinders * heads) or 1024 cylinders if the filesystem on which
-SYSLINUX is installed extends beyond either of these two maxima.
+SYSLINUX is unsafe to use on any filesystem that extends past cylinder
+1024.  This is a fundamental limitation of the standard BIOS API.
 
-Furthermore, SYSLINUX will not work (and will refuse to install) on
-filesystems with a cluster size of more than 16K (typically means a
-filesystem of more than 1 GB.)
+SYSLINUX will not work (and will refuse to install) on filesystems
+with a cluster size of more than 16K (typically means a filesystem of
+more than 1 GB.)
 
    ++++ COMPATIBILITY WITH SYSLINUX 1.0 ++++
 
