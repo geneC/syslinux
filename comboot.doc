@@ -144,6 +144,9 @@ invoked via a FAR CALL.
 SYSLINUX provides the following API calls.  SYSLINUX 1.xx only
 supported INT 20h - terminate program.
 
+NOTE: Most of the API functionality is still experimental.  Expect to
+find bugs.
+
 
 	++++ DOS-COMPATIBLE API CALLS ++++
 

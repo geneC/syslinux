@@ -93,8 +93,8 @@ load_bootsec:
 		lss sp,[InitStack]	; Reset stack to PXE original
 %else
 		mov esp,7C00h
-		pushad
 		pushfd
+		pushad
 		push bx	; ds
 		push bx ; es
 		push bx ; fs

@@ -10,6 +10,7 @@ Changes in 2.07:
 	  address of the boot interface to the kernel as a
 	  command-line option.
 	* mkdiskimage: fix the generation of the end limit.
+	* PXELINUX: Fix bug in chainloading of other NBPs.
 
 Changes in 2.06:
 	* ALL: Fix problem that would occationally cause a

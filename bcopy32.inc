@@ -387,7 +387,7 @@ try_wbinvd:
 ;
 ; Inputs:
 ;	ESI, EDI, ECX	- same as bcopy
-;	On stack	- initial state (ad, fd, ds, es, fs, gs)
+;	On stack	- initial state (fd, ad, ds, es, fs, gs)
 ;
 %define ADJUST	(__bcopy_start - trackbuf)
 
@@ -441,7 +441,7 @@ bcopy_over_self:
 		pop fs
 		pop es
 		pop ds
-		popfd
 		popad
+		popfd
 		jmp 0:7c00h
 __bcopy_end:
