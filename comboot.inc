@@ -518,7 +518,9 @@ comapi_cleanup:
 		; Unload PXE if requested
 		test dl,3
 		setnz [KeepPXE]
+		sub bp,sp		; unload_pxe may move the stack around
 		call unload_pxe
+		add bp,sp		; restore frame pointer...
 %elif IS_SYSLINUX || IS_MDSLINUX
 		; Restore original FDC table
 		mov eax,[OrigFDCTabPtr]
@@ -530,6 +532,19 @@ comapi_cleanup:
 		int 13h
 		clc
 		ret
+
+
+;
+; INT 22h AX=000Dh	Clean up then replace bootstrap
+;
+comapi_chainboot:
+		call comapi_cleanup
+		mov esi,P_ESI
+		mov edx,P_EBX
+		mov bx,P_DS
+		push P_EDI
+		push P_ECX
+		jmp replace_bootstrap
 
 ;
 ; This stuff should really be in the data section...
@@ -567,6 +582,7 @@ int22_table:
 		dw comapi_derinfo		; 000A derivative-specific info
 		dw comapi_serialcfg		; 000B get serial port config
 		dw comapi_cleanup		; 000C perform final cleanup
+		dw comapi_chainboot		; 000D clean up then bootstrap
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

@@ -224,6 +224,9 @@ Files		resb MAX_OPEN*open_file_t_size
 ;; loading the rest.
 ;;
 bootsec		equ $
+
+StackBuf	equ $-44
+
 _start:		; Far jump makes sure we canonicalize the address
 		cli
 		jmp 0:_start1
@@ -241,7 +244,7 @@ _start1:	mov [cs:InitStack],sp		; Save initial stack pointer
 		mov [cs:InitStack+2],ss
 		xor ax,ax
 		mov ss,ax
-		mov sp,_start			; Set up stack
+		mov sp,StackBuf			; Set up stack
 		mov ds,ax
 		mov es,ax
 		mov fs,ax
@@ -1578,6 +1581,7 @@ exten_table:	db '.cbt'		; COMBOOT (specific)
 		db '.img'		; Disk image
 		db '.bin'		; CD boot sector
 		db '.com'		; COMBOOT (same as DOS)
+		db '.c32'		; COM32
 exten_table_end:
 		dd 0, 0			; Need 8 null bytes here
 

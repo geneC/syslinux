@@ -201,6 +201,7 @@ LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
 FuncFlag	resb 1			; Escape sequences received from keyboard
 DisplayMask	resb 1			; Display modes mask
+CopySuper	resb 1			; Distinguish .bs versus .bss
 MNameBuf        resb 11            	; Generic mangled file name buffer
 InitRD          resb 11                 ; initrd= mangled name
 KernelCName     resb 13                 ; Unmangled kernel name
@@ -217,7 +218,7 @@ VGAFileMBuf	resb 11			; Mangled VGA image name
 ; "close" to the initial stack pointer offset, in order to
 ; reduce the code size...
 ;
-StackBuf	equ $-32		; Start the stack here (grow down - 4K)
+StackBuf	equ $-44-32		; Start the stack here (grow down - 4K)
 PartInfo	equ StackBuf		; Saved partition table entry
 FloppyTable	equ PartInfo+16		; Floppy info table (must follow PartInfo)
 OrigFDCTabPtr	equ StackBuf-4		; The high dword on the stack
@@ -1421,6 +1422,7 @@ exten_table:	db 'CBT',0		; COMBOOT (specific)
 		db 'BSS',0		; Boot Sector (add superblock)
 		db 'BS ',0		; Boot Sector 
 		db 'COM',0		; COMBOOT (same as DOS)
+		db 'C32',0		; COM32
 exten_table_end:
 		dd 0, 0			; Need 8 null bytes here
 

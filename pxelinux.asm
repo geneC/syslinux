@@ -310,7 +310,7 @@ packet_buf_size	equ $-packet_buf
 
 		section .text
                 org 7C00h
-StackBuf	equ $			; Base of stack if we use our own
+StackBuf	equ $-44		; Base of stack if we use our own
 
 ;
 ; Primary entry point.
@@ -2432,6 +2432,7 @@ bootif_str_len	equ $-bootif_str
 exten_table:	db '.cbt'		; COMBOOT (specific)
 		db '.0', 0, 0		; PXE bootstrap program
 		db '.com'		; COMBOOT (same as DOS)
+		db '.c32'		; COM32
 exten_table_end:
 		dd 0, 0			; Need 8 null bytes here
 

@@ -31,7 +31,7 @@ LIBOBJS	   = conio.o
 
 .SUFFIXES: .lss .c .o .elf .c32
 
-all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32
+all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 fd.c32
 
 %.o: %.S
 	$(CC) $(SFLAGS) -c -o $@ $<

@@ -13,6 +13,9 @@ Changes in 2.08:
 	  (including file not found.)  This bug would cause us to run
 	  out of sockets and thus "go deaf" after a while.
 	* MEMDISK: Add an API to query for the existence of MEMDISK.
+	* SYSLINUX: Fix loading boot sectors (.bs/.bss) from floppy
+	  disk.
+	* .c32 is now one of the extensions searched for automatically.
 
 Changes in 2.07:
 	* MEMDISK: Workaround for BIOSes which go into a snit when
