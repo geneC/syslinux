@@ -1122,8 +1122,10 @@ searchdir:
 		jz .failure			; Hit directory high water mark
 		push cx
 		push si
+		push di
 		mov cx,11
 		gs repe cmpsb
+		pop di
 		pop si
 		pop cx
 		jz .found
