@@ -36,6 +36,15 @@ extern void __attribute__((noreturn)) die(void);
 /* Standard routines */
 #define memcpy(a,b,c) __builtin_memcpy(a,b,c)
 #define memset(a,b,c) __builtin_memset(a,b,c)
+#define strlen(a)     __builtin_strlen(a)
+
+/* memcpy() but returns a pointer to end of buffer */
+static inline void *
+memcpy_endptr(void *__d, const void *__s, unsigned int __n)
+{
+  memcpy(__d, __s, __n);
+  return (void *)((char *)__d + __n);
+}
 
 /* Decompression */
 void *unzip(void *indata, unsigned long zbytes, void *target);

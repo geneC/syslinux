@@ -63,20 +63,22 @@ typedef union {
 } dpt_t;
 
 struct patch_area {
-  uint16_t cylinders;
-  uint16_t heads;
-  uint32_t sectors;
-  uint32_t disksize;
   uint32_t diskbuf;
-
-  uint32_t mem1mb;
-  uint32_t mem16mb;
-
+  uint32_t disksize;
+  uint16_t cmdline_off, cmdline_seg;
+  
   uint32_t oldint13;
   uint32_t oldint15;
 
-  uint16_t memint1588;
   uint16_t olddosmem;
+  uint16_t memint1588;
+
+  uint16_t cylinders;
+  uint16_t heads;
+  uint32_t sectors;
+
+  uint32_t mem1mb;
+  uint32_t mem16mb;
 
   uint8_t  driveno;
   uint8_t  drivetype;
@@ -496,7 +498,7 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   uint16_t dosmem_k;
   uint32_t stddosmem;
   const struct geometry *geometry;
-  int total_size;
+  int total_size, cmdlinelen;
   com32sys_t regs;
   uint32_t ramdisk_image, ramdisk_size;
 
@@ -583,9 +585,13 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
      map -- 12 bytes per range; we may need as many as 2 additional
      ranges (each insertrange() can worst-case turn 1 area into 3)
      plus the terminating range, over what nranges currently show. */
-
-  total_size = hptr->total_size + (nranges+3)*sizeof(ranges[0]) + STACK_NEEDED;
-  printf("Total size needed = %u bytes\n", total_size);
+  cmdlinelen = strlen(shdr->cmdline)+1;
+  total_size  =  hptr->total_size; 		/* Actual memdisk code */
+  total_size += (nranges+3)*sizeof(ranges[0]);  /* E820 memory ranges */
+  total_size += cmdlinelen;	                /* Command line */
+  total_size += STACK_NEEDED;	                /* Stack */
+  printf("Total size needed = %u bytes, allocating %uK\n",
+	 total_size, (total_size+0x3ff) >> 10);
 
   if ( total_size > dos_mem ) {
     puts("MEMDISK: Insufficient low memory\n");
@@ -649,10 +655,17 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
     pptr->drivecnt = regs.edx.b[0]+1;
   }
 
-  /* Copy driver followed by E820 table */
-  memcpy((void *)(driverseg << 4), &_binary_memdisk_bin_start, bin_size);
-  memcpy((void *)((driverseg << 4) + bin_size), ranges,
-	 (nranges+1)*sizeof(ranges[0]));
+  /* Pointer to the command line */
+  pptr->cmdline_off = bin_size + (nranges+1)*sizeof(ranges[0]);
+  pptr->cmdline_seg = driverseg;
+
+  /* Copy driver followed by E820 table followed by command line */
+  {
+    unsigned char *dpp = (unsigned char *)(driverseg << 4);
+    dpp = memcpy_endptr(dpp, &_binary_memdisk_bin_start, bin_size);
+    dpp = memcpy_endptr(dpp, ranges, (nranges+1)*sizeof(ranges[0]));
+    dpp = memcpy_endptr(dpp, shdr->cmdline, cmdlinelen+1);
+  }
 
   /* Install the interrupt handlers */
   printf("old: int13 = %08x  int15 = %08x\n",

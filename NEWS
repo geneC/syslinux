@@ -12,6 +12,7 @@ Changes in 2.08:
 	* PXELINUX: Actually free sockets when we get a failure
 	  (including file not found.)  This bug would cause us to run
 	  out of sockets and thus "go deaf" after a while.
+	* MEMDISK: Add an API to query for the existence of MEMDISK.
 
 Changes in 2.07:
 	* MEMDISK: Workaround for BIOSes which go into a snit when

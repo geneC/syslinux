@@ -17,6 +17,8 @@
 ; 
 ; ****************************************************************************
 
+%include	"../version.gen"
+
 ; %define DEBUG_TRACERS			; Uncomment to get debugging tracers
 
 %ifdef DEBUG_TRACERS
@@ -43,18 +45,23 @@
 %define		P_DS		word [bp+34]
 %define		P_ES		word [bp+32]
 %define		P_EAX		dword [bp+28]
+%define		P_HAX		word [bp+30]
 %define		P_AX		word [bp+28]
 %define		P_AL		byte [bp+28]
 %define		P_AH		byte [bp+29]
 %define		P_ECX		dword [bp+24]
+%define		P_HCX		word [bp+26]
 %define		P_CX		word [bp+24]
 %define		P_CL		byte [bp+24]
 %define		P_CH		byte [bp+25]
 %define		P_EDX		dword [bp+20]
+%define		P_HDX		word [bp+22]
 %define		P_DX		word [bp+20]
 %define		P_DL		byte [bp+20]
 %define		P_DH		byte [bp+21]
 %define		P_EBX		dword [bp+16]
+%define		P_HBX		word [bp+18]
+%define		P_HBXL		byte [bp+18]
 %define		P_BX		word [bp+16]
 %define		P_BL		byte [bp+16]
 %define		P_BH		byte [bp+17]
@@ -250,8 +257,7 @@ GetParms:
 		test byte [DriveNo],80h
 		jnz .hd
 		mov P_DI,DPT
-		mov ax,cs
-		mov P_ES,ax
+		mov P_ES,cs
 		mov bl,[DriveType]
 		mov P_BL,bl
 .hd:
@@ -264,6 +270,28 @@ GetParms:
 		mov ax,[Heads]
 		dec ax
 		mov P_DH,al
+
+		;
+		; Is this MEMDISK installation check?
+		;
+		cmp P_HAX,'ME'
+		jne .notic
+		cmp P_HCX,'MD'
+		jne .notic
+		cmp P_HDX,'IS'
+		jne .notic
+		cmp P_HBX,'K?'
+		jne .notic
+
+		; MEMDISK installation check...
+		mov P_HAX,'!M'
+		mov P_HCX,'EM'
+		mov P_HDX,'DI'
+		mov P_HBX,'SK'
+		mov P_ES,cs
+		mov P_DI,MemDisk_Info
+
+.notic:
 		xor ax,ax
 		ret
 		
@@ -498,22 +526,29 @@ Mover_dst2:	db 0			; High 8 bits of source addy
 Mover_dummy2:	dd 0, 0, 0, 0		; More space for the BIOS
 
 		alignb 4, db 0
+MemDisk_Info	equ $			; Pointed to by installation check
+MDI_Bytes	dw 26			; Total bytes in MDI structure
+MDI_Version	db VER_MINOR, VER_MAJOR	; MEMDISK version
+
 PatchArea	equ $			; This gets filled in by the installer
 
-Cylinders	dw 0			; Cylinder count
-Heads		dw 0			; Head count
-Sectors		dd 0			; Sector count (zero-extended)
-DiskSize	dd 0			; Size of disk in blocks
 DiskBuf		dd 0			; Linear address of high memory disk
-
-Mem1MB		dd 0			; 1MB-16MB memory amount (1K)
-Mem16MB		dd 0			; 16MB-4G memory amount (64K)
+DiskSize	dd 0			; Size of disk in blocks
+CommandLine	dw 0, 0			; Far pointer to saved command line
 
 OldInt13	dd 0			; INT 13h in chain
 OldInt15	dd 0			; INT 15h in chain
 
-MemInt1588	dw 0			; 1MB-65MB memory amount (1K)
 OldDosMem	dw 0			; Old position of DOS mem end
+; ---- MDI structure ends here ---
+MemInt1588	dw 0			; 1MB-65MB memory amount (1K)
+
+Cylinders	dw 0			; Cylinder count
+Heads		dw 0			; Head count
+Sectors		dd 0			; Sector count (zero-extended)
+
+Mem1MB		dd 0			; 1MB-16MB memory amount (1K)
+Mem16MB		dd 0			; 16MB-4G memory amount (64K)
 
 DriveNo		db 0			; Our drive number
 DriveType	db 0			; Our drive type (floppies)
