@@ -276,11 +276,16 @@ VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
 KbdMap		resb 256		; Keyboard map
+PathPrefix	resb 128		; 128 bytes (comes from BOOTP size)
 FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
 NumBuf		resb 16			; Buffer to load number
 NumBufEnd	equ NumBuf+15		; Pointer to last byte in NumBuf
-		alignb 4
+		alignb 32
 KernelName      resb FILENAME_MAX       ; Mangled name for kernel
+KernelCName     resb FILENAME_MAX	; Unmangled kernel name
+InitRDCName     resb FILENAME_MAX       ; Unmangled initrd name
+MNameBuf	resb FILENAME_MAX
+InitRD		resb FILENAME_MAX
 PartInfo	resb 16			; Partition table entry
 InitRDat	resd 1			; Load address (linear) for initrd
 HiLoadAddr      resd 1			; Address pointer for high load loop
@@ -320,10 +325,6 @@ KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
 FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
-KernelCName     resb FILENAME_MAX	; Unmangled kernel name
-InitRDCName     resb FILENAME_MAX       ; Unmangled initrd name
-MNameBuf	resb FILENAME_MAX
-InitRD		resb FILENAME_MAX
 
 		alignb tftp_port_t_size
 Sockets		resb MAX_SOCKETS*tftp_port_t_size
@@ -376,6 +377,18 @@ _start1:
 		mov [Stack],sp
 		mov ax,ss
 		mov [Stack+2],ax
+;
+; Initialize screen (if we're using one)
+;
+		call adjust_screen
+;
+; Tell the user we got this far
+;
+		mov si,pxelinux_banner
+		call writestr
+
+		mov si,copyright_str
+		call writestr
 
 ;
 ; Now we need to find the !PXE structure.  It's *supposed* to be pointed
@@ -439,20 +452,6 @@ have_pxe_entry:	mov si,pxeentry_msg
 		call crlf
 
 ;
-; Initialize screen (if we're using one)
-;
-		call adjust_screen
-
-;
-; Tell the user we got this far
-;
-		mov si,pxelinux_banner
-		call writestr
-
-		mov si,copyright_str
-		call writestr
-
-;
 ; Clear Sockets structures
 ;
 		mov di,Sockets
@@ -484,12 +483,10 @@ query_bootp:	mov ax,0DEADh			; Something bogus
 .pxe_ok:	mov si,myipaddr_msg
 		call writestr
 		mov eax,[bootp.yip]		; "Your" IP address
+		xchg ah,al			; Host byte order
+		ror eax,16
+		xchg ah,al
 		call writehex8
-		call crlf
-
-		; Print the boot file
-		mov si,bootp.bootfile
-		call writestr
 		call crlf
 
 ;
@@ -622,37 +619,49 @@ mkkeymap:	stosb
 		loop mkkeymap
 
 ;
+; Store standard filename prefix
+;
+prefix:		mov si,bootp.bootfile
+		mov di,PathPrefix
+		cld
+		call strcpy
+		lea cx,[di-PathPrefix]
+		std
+		lea si,[di-2]			; Skip final null!
+		dec cx
+.find_alnum:	lodsb
+		or al,20h
+		cmp al,'.'			; Count . or - as alphanum
+		je .alnum
+		cmp al,'-'
+		je .alnum
+		cmp al,'0'
+		jb .notalnum
+		cmp al,'9'
+		jbe .alnum
+		cmp al,'a'
+		jb .notalnum
+		cmp al,'z'
+		ja .notalnum
+.alnum:		loop .find_alnum
+.notalnum:	mov byte [si+2],0		; Zero-terminate after delimiter
+		cld
+		mov si,tftpprefix_msg
+		call writestr
+		mov si,PathPrefix
+		call writestr
+		call crlf
+
+;
 ; Load configuration file
 ;
-;
-; Now, prepare some of the data structures
-;
-filename_cp:	mov si,bootp.bootfile
-		mov di,pxe_tftp_open_pkt.filename
-		cld
-		xor cx,cx
-.strcpy:	lodsb
-		stosb
-		inc cx
-		and al,al
-		jnz .strcpy
-		std
-		dec di
-		mov si,di
-		mov al,'.'
-		repne scasb
-		jne .nodot
-		inc di
-		jmp short .dot
-.nodot:		mov di,si
-.dot:		cld
-		; Now di points to where we want to add stuff to the filename
-		mov si,dot_cfg_slash
-		mov cx,dot_cfg_slash_len
+find_config:	mov di,trackbuf
+		mov si,cfgprefix
+		mov cx,cfgprefix_len
 		rep movsb
 		mov cx,8
 		mov eax,[bootp.yip]
-		xchg ah,al			; Convert to native byte order
+		xchg ah,al			; Host byte order
 		ror eax,16
 		xchg ah,al
 .hexify_loop:	rol eax,4
@@ -684,7 +693,7 @@ config_scan:
 .not_default:	pusha
 		mov si,trying_msg
 		call writestr
-		mov di,pxe_tftp_open_pkt.filename
+		mov di,trackbuf
 		mov si,di
 		call writestr
 		call crlf
@@ -1327,7 +1336,7 @@ e801_hole:
 got_highmem:
 		sub eax,HIGHMEM_SLOP
 		mov [HighMemSize],eax
-		call writehex8
+
 ;
 ; Construct the command line (append options have already been copied)
 ;
@@ -2129,6 +2138,11 @@ searchdir:
 		mov [pxe_udp_write_pkt.buffer],di
 		mov ax,TFTP_RRQ		; TFTP opcode
 		stosw
+		push si			; Add common prefix
+		mov si,PathPrefix
+		call strcpy
+		dec di
+		pop si
 		call strcpy		; Filename
 		mov si,tftp_tail
 		mov cx,tftp_tail_len
@@ -2280,9 +2294,7 @@ searchdir:
 .bailnow:	add sp,byte 8		; Immediate error - no retry
 		jmp short .error
 
-.failure:	mov al,'F'
-		call writechr
-		pop bx			; Junk
+.failure:	pop bx			; Junk
 		pop bx
 		pop si
 		pop ax
@@ -3109,17 +3121,6 @@ pxe_thunk:	push es
 		retf
 
 ;
-; dot: debugging routine, prints a dot w/o clobbering registers
-;
-dot:		pushad
-		pushfd
-		mov al,'.'
-		call writechr
-		popfd
-		popad
-		ret
-
-;
 ; getfssec: Get multiple clusters from a file, given the starting cluster.
 ;
 ;	In this case, get multiple blocks from a specific TCP connection.
@@ -3133,8 +3134,6 @@ dot:		pushad
 ;	CF = 1	-> Hit EOF
 ;
 getfssec:
-		mov al,'G'
-		call writechr
 
 .packet_loop:	push cx				; <A> Save count
 		push es				; <B> Save buffer pointer
@@ -3148,9 +3147,6 @@ getfssec:
 		mov cx,PKT_RETRY
 
 .send_ack:	push cx				; <D>
-
-		mov al,'a'
-		call writechr
 
 		mov eax,[si+tftp_filepos]
 		shr eax,LOG_TFTP_BLOCKSIZE
@@ -3205,9 +3201,6 @@ getfssec:
 .recv_ok:	pop dx				; <F>
 		pop cx				; <E>
 
-		mov al,'r'
-		call writechr
-
 		cmp word [pxe_udp_read_pkt.buffersize],byte 4
 		jb .send_loop			; Bad size for a DATA packet
 
@@ -3225,9 +3218,6 @@ getfssec:
 		; Wrong packet, ACK the packet and then try again
 		; This is presumably because the ACK got lost,
 		; so the server just resent the previous packet
-		mov al,'w'
-		call writechr
-
 		mov ax,[packet_buf+2]
 		call ack_packet
 		jmp .send_ok			; Reset timeout
@@ -3240,9 +3230,6 @@ getfssec:
 
 		cmp cx,TFTP_BLOCKSIZE		; Is it a full block
 		jb .last_block
-
-		mov al,'+'
-		call writechr
 
 		pop di				; <C> Get target buffer
 		pop es				; <B>
@@ -3275,9 +3262,6 @@ getfssec:
 		call ack_packet
 		mov word [si],0			; Socket closed
 	
-		mov al,'*'
-		call writechr
-
 		; Copy data
 		pop di				; <C>
 		pop es				; <B>
@@ -3364,13 +3348,6 @@ err_not386	db 'It appears your computer uses a 286 or lower CPU.'
 		db 'down the Ctrl key while booting, and I will take your'
 		db 0Dh, 0Ah
 		db 'word for it.', 0Dh, 0Ah, 0
-err_noram	db 'It appears your computer has less than 608K of low ("DOS")'
-		db 0Dh, 0Ah
-		db 'RAM.  Linux needs at least this amount to boot.  If you get'
-		db 0Dh, 0Ah
-		db 'this message in error, hold down the Ctrl key while'
-		db 0Dh, 0Ah
-		db 'booting, and I will take your word for it.', 0Dh, 0Ah, 0
 err_badcfg      db 'Unknown keyword in config file.', 0Dh, 0Ah, 0
 err_noparm      db 'Missing parameter in config file.', 0Dh, 0Ah, 0
 err_noinitrd    db 0Dh, 0Ah, 'Could not find ramdisk image: ', 0
@@ -3394,6 +3371,7 @@ using_pxenv_msg db 'Old PXE API detected, using PXENV+ structure', 0Dh, 0Ah, 0
 apiver_str	db 'PXE API version is ',0
 pxeentry_msg	db 'PXE entry point found (we hope) at ', 0
 myipaddr_msg	db 'My IP address seems to be ',0
+tftpprefix_msg	db 'TFTP prefix: ', 0
 ready_msg	db 13, 10, 'Ready to start kernel...', 13, 10, 0
 trying_msg	db 'Trying to load: ', 0
 loading_msg     db 'Loading ', 0
@@ -3402,12 +3380,11 @@ dot_msg         db '.', 0
 aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
 crlf_msg	db 0Dh, 0Ah, 0
 crff_msg	db 0Dh, 0Ch, 0
-syslinux_cfg	db 'SYSLINUXCFG'
 default_str	db 'default', 0
 default_len	equ ($-default_str)
 pxelinux_banner	db 0Dh, 0Ah, 'PXELINUX ', version_str, ' ', date, ' ', 0
-dot_cfg_slash	db '.cfg/'			; No final null!
-dot_cfg_slash_len equ ($-dot_cfg_slash)
+cfgprefix	db 'pxelinux.cfg/'		; No final null!
+cfgprefix_len	equ ($-cfgprefix)
 
 ;
 ; Command line options we'd like to take a look at
@@ -3499,23 +3476,6 @@ pxe_udp_read_pkt:
 .lport:		dw 0			; Local port
 .buffersize:	dw 0			; Max packet size
 .buffer:	dw 0, 0			; seg:off of buffer
-
-pxe_tftp_open_pkt:
-.status:	dw 0			; Status
-.sip:		dd 0			; Server IP
-.gip:		dd 0			; Gateway IP
-.filename:	times 128 db 0		; Input filename
-.tftpport:	dw TFTP_PORT		; TFTP port
-.packetsize:	dw 1024			; Packet size
-
-pxe_tftp_read_pkt:
-.status:	dw 0			; Status
-.packetno:	dw 0			; Packet number
-.buffersize:	dw 0			; Size of packet buffer
-.buffer:	dw 0, real_mode_seg	; seg:off of buffer
-
-pxe_tftp_close_pkt:
-.status:	dw 0			; Status
 
 pxe_unload_stack_pkt:
 .status:	dw 0			; Status
