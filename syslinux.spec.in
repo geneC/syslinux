@@ -36,12 +36,12 @@ make installer
 %install
 rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_bindir}
-mkdir -p %{buildroot}%{_prefix}/lib/syslinux
-mkdir -p %{buildroot}%{_prefix}/include
+mkdir -p %{buildroot}%{_libdir}/syslinux
+mkdir -p %{buildroot}%{_includedir}
 make install install-lib \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} \
-	LIBDIR=%{_prefix}/lib INCDIR=%{_prefix}/include
-cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_prefix}/lib/syslinux
+	LIBDIR=%{_libdir} INCDIR=%{_includedir}
+cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_libdir}/syslinux
 
 %clean
 rm -rf %{buildroot}
@@ -54,9 +54,9 @@ rm -rf %{buildroot}
 %{_bindir}/ppmtolss16
 %{_bindir}/lss16toppm
 %{_bindir}/gethostip
-%{_prefix}/lib/syslinux
-%{_prefix}/lib/libsyslinux.*
-%{_prefix}/include/syslinux.h
+%{_libdir}/syslinux
+%{_libdir}/libsyslinux.*
+%{_includedir}/syslinux.h
 
 %post
 /sbin/ldconfig
