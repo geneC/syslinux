@@ -38,6 +38,7 @@ official:
 	$(MAKE) dist
 
 release:
+	test -d release
 	$(CVS) tag -F `echo syslinux-$(VERSION) | sed -e 's/\./_/g'`
 	-rm -rf release/syslinux-$(VERSION)
 	-rm -f release/syslinux-$(VERSION).*
@@ -68,6 +69,7 @@ PREREL    := syslinux-$(VERSION)-pre$(PRERELNO)
 RPMPREREL := $(shell $(PERL) -e 'printf "%.2f.%d\n", $(VERSION)-0.01, $(PRERELNO);')
 
 prerel:
+	test -d release
 	$(CVS) tag -F `echo $(PREREL) | sed -e 's/\./_/g'`
 	mkdir -p $(PRERELDIR) $(PRERELDIR)/uu
 	-rm -rf $(PRERELDIR)/$(PREREL)
