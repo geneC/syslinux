@@ -2244,7 +2244,7 @@ a20_test:
 		push cx
 		push ax
 		mov cx,0FFFFh		; HMA = segment 0FFFFh
-		mov es,ax
+		mov es,cx
 		mov cx,0100h		; Loop count
 		mov ax,[ss:A20Test]
 .a20_wait:	inc ax
