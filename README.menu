@@ -49,15 +49,19 @@ MENU LABEL label
 
 	# Soft Cap Linux
 	LABEL softcap
-		MENU LABEL Soft Cap Linux 9.6.36
+		MENU LABEL Soft Cap ^Linux 9.6.36
 		KERNEL softcap-9.6.36.bzi
 		APPEND whatever
 
 	# A very dense operating system
 	LABEL brick
-		MENU LABEL Windows CE/ME/NT
+		MENU LABEL ^Windows CE/ME/NT
 		KERNEL chain.c32
 		APPEND hd0 2
+
+	The ^ symbol in a MENU LABEL statement defines a hotkey.
+	The hotkey will be highlighted in the menu and will move the
+	menu cursor immediately to that entry.
 
 MENU HIDE
 

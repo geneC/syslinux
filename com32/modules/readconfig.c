@@ -32,6 +32,7 @@ char *menu_title = "";
 char *ontimeout  = NULL;
 
 struct menu_entry menu_entries[MAX_ENTRIES];
+struct menu_entry *menu_hotkeys[256];
 
 #define astrdup(x) ({ char *__x = (x); \
                       size_t __n = strlen(__x) + 1; \
@@ -121,12 +122,23 @@ static void record(struct labeldata *ld, char *append)
 {
   char ipoptions[256], *ipp;
   int i;
+  struct menu_entry *me = &menu_entries[nentries];
 
   if ( ld->label ) {
     char *a, *s;
-    menu_entries[nentries].displayname =
-      ld->menulabel ? ld->menulabel : ld->label;
-    menu_entries[nentries].label       = ld->label;
+    me->displayname = ld->menulabel ? ld->menulabel : ld->label;
+    me->label       = ld->label;
+    me->hotkey = 0;
+
+    if ( ld->menulabel ) {
+      unsigned char *p = strchr(ld->menulabel, '^');
+      if ( p && p[1] ) {
+	int hotkey = p[1] & ~0x20;
+	if ( !menu_hotkeys[hotkey] ) {
+	  me->hotkey = hotkey;
+	}
+      }
+    }
 
     ipp = ipoptions;
     *ipp = '\0';
@@ -139,7 +151,7 @@ static void record(struct labeldata *ld, char *append)
     if ( !a ) a = append;
     if ( !a || (a[0] == '-' && !a[1]) ) a = "";
     s = a[0] ? " " : "";
-    asprintf(&menu_entries[nentries].cmdline, "%s%s%s%s", ld->kernel, ipoptions, s, a);
+    asprintf(&me->cmdline, "%s%s%s%s", ld->kernel, ipoptions, s, a);
 
     ld->label = NULL;
     free(ld->kernel);
@@ -147,8 +159,12 @@ static void record(struct labeldata *ld, char *append)
       free(ld->append);
 
     if ( !ld->menuhide ) {
+      if ( me->hotkey )
+	menu_hotkeys[me->hotkey] = me;
+
       if ( ld->menudefault )
 	defentry = nentries;
+
       nentries++;
     }
   }

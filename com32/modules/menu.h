@@ -24,13 +24,14 @@ struct menu_entry {
   char *displayname;
   char *label;
   char *cmdline;
-  int flags;
+  unsigned char hotkey;
 };
 
 #define MAX_CMDLINE_LEN	 256
 
 #define MAX_ENTRIES	4096	/* Oughta be enough for anybody */
 extern struct menu_entry menu_entries[];
+extern struct menu_entry *menu_hotkeys[256];
 
 extern int nentries;
 extern int defentry;

@@ -42,7 +42,9 @@ struct menu_attrib {
   const char *border;		/* Border area */
   const char *title;		/* Title bar */
   const char *unsel;		/* Unselected menu item */
+  const char *hotkey;		/* Unselected hotkey */
   const char *sel;		/* Selected */
+  const char *hotsel;		/* Selected hotkey */
   const char *more;		/* [More] tag */
   const char *tabmsg;		/* Press [Tab] message */
   const char *cmdmark;		/* Command line marker */
@@ -54,7 +56,9 @@ const struct menu_attrib default_attrib = {
   .border  = "\033[0;30;44m",
   .title   = "\033[1;36;44m",
   .unsel   = "\033[0;37;44m",
+  .hotkey  = "\033[1;37;44m",
   .sel     = "\033[0;30;47m",
+  .hotsel  = "\033[1;30;47m",
   .more    = "\033[0;37;44m",
   .tabmsg  = "\033[0;31;40m",
   .cmdmark = "\033[1;36;40m",
@@ -91,6 +95,35 @@ char *pad_line(const char *text, int align, int width)
   return buffer;
 }
 
+/* Display an entry, with possible hotkey highlight.  Assumes
+   that the current attribute is the non-hotkey one, and will
+   guarantee that as an exit condition as well. */
+void display_entry(const struct menu_entry *entry, const char *attrib,
+		   const char *hotattrib, int width)
+{
+  const char *p = entry->displayname;
+
+  while ( width ) {
+    if ( *p ) {
+      if ( *p == '^' ) {
+	p++;
+	if ( *p && (unsigned char)*p == entry->hotkey ) {
+	  fputs(hotattrib, stdout);
+	  putchar(*p++);
+	  fputs(attrib, stdout);
+	  width--;
+	}
+      } else {
+	putchar(*p++);
+	width--;
+      }
+    } else {
+      putchar(' ');
+      width--;
+    }
+  }
+}
+
 void draw_menu(int sel, int top)
 {
   int x, y;
@@ -118,13 +151,21 @@ void draw_menu(int sel, int top)
 
   for ( y = 4 ; y < 4+MENU_ROWS ; y++ ) {
     int i = (y-4)+top;
-    const char *txt = (i >= nentries) ? "" : menu_entries[i].displayname;
 
-    printf("\033[%d;%dH\272%s %s %s\272",
+    printf("\033[%d;%dH\272%s ",
 	   y, MARGIN+1,
-	   (i == sel) ? menu_attrib->sel : menu_attrib->unsel,
-	   pad_line(txt, 0, WIDTH-2*MARGIN-4),
-	   menu_attrib->border);
+	   (i == sel) ? menu_attrib->sel : menu_attrib->unsel);
+
+    if ( i >= nentries ) {
+      fputs(pad_line("", 0, WIDTH-2*MARGIN-4), stdout);
+    } else {
+      display_entry(&menu_entries[i],
+		    (i == sel) ? menu_attrib->sel : menu_attrib->unsel,
+		    (i == sel) ? menu_attrib->hotsel : menu_attrib->hotkey,
+		    WIDTH-2*MARGIN-4);
+    }
+    
+    printf(" %s\272", menu_attrib->border);
   }
 
   printf("\033[%d;%dH\310", y, MARGIN+1);
@@ -320,6 +361,13 @@ const char *run_menu(void)
 	done = 1;
       break;
     default:
+      if ( key > 0 && key < 0xFF ) {
+	key &= ~0x20;		/* Upper case */
+	if ( menu_hotkeys[key] ) {
+	  entry = menu_hotkeys[key] - menu_entries;
+	  /* Should we commit at this point? */
+	}
+      }
       break;
     }
   }
