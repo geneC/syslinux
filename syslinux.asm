@@ -87,6 +87,11 @@ got_colon:	jcxz got_cmdline
 ;
 bad_usage:	mov dx,msg_unfair
 		jmp die
+
+		section .data
+msg_unfair:	db 'Usage: syslinux [-s] <drive>:', 0Dh, 0Ah, '$'
+
+		section .text
 ;
 ; Scan for options after a - sign.  The only recognized option right now
 ; is -s.
@@ -106,10 +111,6 @@ scan_option:	jcxz bad_usage
 		pop si
 		jmp short scan_option
 
-		section .data
-msg_unfair:	db 'Usage: syslinux [-s] <drive>:', 0Dh, 0Ah, '$'
-
-		section .text
 ;
 ; Parsed the command line OK.  Check that the drive parameters are acceptable
 ;
