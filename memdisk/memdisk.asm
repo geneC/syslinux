@@ -7,7 +7,7 @@
 ;  A program to emulate an INT 13h disk BIOS from a "disk" in extended
 ;  memory.
 ;
-;   Copyright (C) 2001-2003  H. Peter Anvin
+;   Copyright (C) 2001-2004  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -234,9 +234,13 @@ do_copy:
 		ret
 
 Write:
+		test byte [ConfigFlags],01h
+		jnz .readonly
 		call setup_regs
 		xchg esi,edi		; Opposite direction of a Read!
 		jmp short do_copy
+.readonly:	mov ah,03h		; Write protected medium
+		ret
 
 		; Verify integrity; just bounds-check
 Verify:
@@ -559,7 +563,8 @@ Mem16MB		dd 0			; 16MB-4G memory amount (64K)
 DriveNo		db 0			; Our drive number
 DriveType	db 0			; Our drive type (floppies)
 DriveCnt	db 0			; Drive count (from the BIOS)
-		db 0			; Pad
+
+ConfigFlags	db 0			; Bit 0 - readonly
 
 MyStack		dw 0			; Offset of stack
 StatusPtr	dw 0			; Where to save status (zeroseg ptr)

@@ -61,9 +61,12 @@ line options (currently untested):
 [*] MS-DOS only allows max 255 heads, and only allows 255 cylinders
     on floppy disks.
 
-If you want to recompile it from sources, you will need to make sure that
-you have a fairly recent binutils installed.  I have been using the
-binutils-2.11.90.0.8-9 RPM from RedHat.
+c) The disk is normally writable (although, of course, there is
+nothing backing it up, so it only lasts until reset.)  If you want,
+you can mimic a write-protected disk by specifying the command line
+option:
+
+   ro		Disk is readonly
 
 
 Some interesting things to note:

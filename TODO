@@ -5,8 +5,6 @@ $Id$
 - PXELINUX: Support changing the default server and downloading files
   from a non-default server.
 
-- MEMDISK: Support read only mode.
-
 
 *** Debugging projects:
 

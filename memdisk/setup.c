@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2001-2003 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2001-2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -82,7 +82,8 @@ struct patch_area {
   uint8_t  driveno;
   uint8_t  drivetype;
   uint8_t  drivecnt;
-  uint8_t  _pad1;
+  uint8_t  configflags;
+#define CONFIG_READONLY	0x01
 
   uint16_t mystack;
   uint16_t statusptr;
@@ -568,6 +569,13 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   pptr->disksize  = geometry->sectors;
   pptr->diskbuf   = ramdisk_image + geometry->offset;
   pptr->statusptr = (geometry->driveno & 0x80) ? 0x474 : 0x441;
+  pptr->configflags = 0;
+
+  /* Readonly? */
+  if ( getcmditem("ro") != CMD_NOTFOUND ) {
+    printf("Marking disk readonly\n");
+    pptr->configflags |= CONFIG_READONLY;
+  }
 
   /* Set up a drive parameter table */
   if ( geometry->driveno & 0x80 ) {
