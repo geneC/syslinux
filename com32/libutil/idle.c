@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2005 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -27,64 +27,27 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * line_input.c
+ * idle.c
  *
- * Line-oriented input discupline
+ * What to do in a busy loop...
  */
 
-#include "file.h"
-#include <errno.h>
+#ifdef __COM32__
+
 #include <syslinux.h>
 
-ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
-		     ssize_t (*get_char)(struct file_info *, void *, size_t))
+void do_idle(void)
 {
-  size_t n = 0;
-  char ch;
-  int rv;
-  ssize_t (* const Write)(struct file_info *, const void *, size_t) =
-    fp->oop->write;
-
-  for(;;) {
-    rv = get_char(fp, &ch, 1);
-
-    if ( rv != 1 ) {
-      syslinux_idle();
-      continue;
-    }
-
-    switch ( ch ) {
-    case '\n':			/* Ignore incoming linefeed */
-      break;
-      
-    case '\r':
-      *buf = '\n';
-      Write(fp, "\n", 1);
-      return n+1;
-    
-    case '\b':
-      if ( n > 0 ) {
-	n--; buf--;
-	Write(fp, "\b \b", 3);
-      }
-      break;
-
-    case '\x15':		/* Ctrl-U */
-      while ( n ) {
-	n--; buf--;
-	Write(fp, "\b \b", 3);
-      }
-      break;
-      
-    default:
-      if ( n < bufsize-1 ) {
-	*buf = ch;
-	Write(fp, buf, 1);
-	n++;
-	buf++;
-      }
-      break;
-    }
-  }
+  syslinux_idle();
 }
 
+#else
+
+#include <sched.h>
+
+void do_idle(void)
+{
+  sched_yield();		/* As good as we can get... */
+}
+
+#endif

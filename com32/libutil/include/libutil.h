@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2005 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -27,64 +27,14 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * line_input.c
+ * libutil.h
  *
- * Line-oriented input discupline
+ * Misc libutil functions
  */
 
-#include "file.h"
-#include <errno.h>
-#include <syslinux.h>
+#ifndef LIBUTIL_LIBUTIL_H
+#define LIBUTIL_LIBUTIL_H
 
-ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
-		     ssize_t (*get_char)(struct file_info *, void *, size_t))
-{
-  size_t n = 0;
-  char ch;
-  int rv;
-  ssize_t (* const Write)(struct file_info *, const void *, size_t) =
-    fp->oop->write;
+void do_idle(void);
 
-  for(;;) {
-    rv = get_char(fp, &ch, 1);
-
-    if ( rv != 1 ) {
-      syslinux_idle();
-      continue;
-    }
-
-    switch ( ch ) {
-    case '\n':			/* Ignore incoming linefeed */
-      break;
-      
-    case '\r':
-      *buf = '\n';
-      Write(fp, "\n", 1);
-      return n+1;
-    
-    case '\b':
-      if ( n > 0 ) {
-	n--; buf--;
-	Write(fp, "\b \b", 3);
-      }
-      break;
-
-    case '\x15':		/* Ctrl-U */
-      while ( n ) {
-	n--; buf--;
-	Write(fp, "\b \b", 3);
-      }
-      break;
-      
-    default:
-      if ( n < bufsize-1 ) {
-	*buf = ch;
-	Write(fp, buf, 1);
-	n++;
-	buf++;
-      }
-      break;
-    }
-  }
-}
-
+#endif

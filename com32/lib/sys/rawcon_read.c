@@ -29,8 +29,8 @@
 /*
  * rawcon_read.c
  *
- * Character-oriented reading from the console without echo, and with
- * a timeout (50-100 ms).
+ * Character-oriented reading from the console without echo;
+ * this is a NONBLOCKING device.
  */
 
 #include <errno.h>

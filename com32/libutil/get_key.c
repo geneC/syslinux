@@ -41,6 +41,7 @@
 #include <time.h>
 #include <sys/times.h>
 #include <getkey.h>
+#include <libutil.h>
 
 struct keycode {
   int code;
@@ -138,6 +139,8 @@ int get_key(FILE *f, clock_t timeout)
 	return buffer[0];	/* timeout in sequence */
       else if ( !nc && timeout && lateness > timeout )
 	return KEY_NONE;	/* timeout before sequence */
+
+      do_idle();
 
       another = 1;
       continue;
