@@ -36,6 +36,8 @@ CC       = mingw-gcc
 AR	 = mingw-ar
 RANLIB   = mingw-ranlib
 endif
+CC_IS_GOOD := $(shell $(CC) $(CFLAGS) $(LDFLAGS) -o hello.exe hello.c >/dev/null 2>&1 ; echo $$?)
+
 CFLAGS   = -W -Wall -O2 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 PIC      =
 LDFLAGS  = -O2 -s
@@ -52,7 +54,12 @@ VERSION  = $(shell cat ../version)
 .c.i:
 	$(CC) $(INCLUDE) $(CFLAGS) -E -o $@ $<
 
+ifeq ($(CC_IS_GOOD),0)
 all: ../syslinux.exe
+else
+all:	# We don't have a working win32 compiler
+	rm -f ../syslinux.exe
+endif
 
 libsyslinux.a: bootsect_bin.o ldlinux_bin.o syslxmod.o
 	rm -f $@

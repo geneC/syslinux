@@ -9,6 +9,8 @@ Changes in 2.12:
 	  programs.
 	* MEMDISK: Work around a linker bug by rearranging the code to
 	  not use the linker for the 16-bit code.
+	* SYSLINUX: If we're building on a machine without a Win32
+	  (mingw) compiler, just skip building syslinux.exe.
 
 Changes in 2.11:
 	* ALL: Add an API call to get the configuration file name.

@@ -95,11 +95,11 @@ ISUBDIRS = sample com32
 
 all:	$(BTARGET) $(ITARGET)
 	for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
-	ls -l $(BTARGET) $(ITARGET) memdisk/memdisk
+	-ls -l $(BTARGET) $(ITARGET) memdisk/memdisk
 
 installer: $(ITARGET)
 	for i in $(ISUBDIRS); do $(MAKE) -C $$i all ; done
-	ls -l $(BTARGET) $(ITARGET)
+	-ls -l $(BTARGET) $(ITARGET)
 
 version.gen: version version.pl
 	$(PERL) version.pl version
