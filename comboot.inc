@@ -378,11 +378,7 @@ comapi_run:
 		mov ds,P_ES
 		mov si,P_BX
 		mov di,command_line
-.copyloop:
-		lodsb
-		stosb
-		and al,al
-		jnz .copyloop
+		call strcpy
 		xor ax,ax
 		mov bx,load_kernel		; Run a new kernel
 		jmp comboot_exit_special	; Terminate task, clean up
