@@ -57,8 +57,8 @@ const struct menu_attrib default_attrib = {
   .title   	= "\033[1;36;44m",
   .unsel        = "\033[0;37;44m",
   .hotkey       = "\033[1;37;44m",
-  .sel          = "\033[0;30;47m",
-  .hotsel       = "\033[1;30;47m",
+  .sel          = "\033[0;7;37;40m",
+  .hotsel       = "\033[1;7;37;40m",
   .scrollbar    = "\033[0;30;44m",
   .tabmsg  	= "\033[0;31;40m",
   .cmdmark 	= "\033[1;36;40m",
@@ -275,8 +275,8 @@ const char *run_menu(void)
 {
   int key;
   int done = 0;
-  int entry = defentry;
-  int top = 0;
+  int entry = defentry, prev_entry = -1;
+  int top = 0, prev_top = -1;
   int clear = 1;
   const char *cmdline = NULL;
   clock_t key_timeout;
@@ -299,11 +299,16 @@ const char *run_menu(void)
       top = min(entry, max(0,nentries-MENU_ROWS));
 
     /* Start with a clear screen */
-    if ( clear )
+    if ( clear ) {
       printf("%s\033[2J", menu_attrib->screen);
-    clear = 0;
+      clear = 0;
+      prev_entry = prev_top = -1;
+    }
 
-    draw_menu(entry, top);
+    if ( entry != prev_entry || top != prev_top ) {
+      draw_menu(entry, top);
+      prev_entry = entry;  prev_top = top;
+    }
 
     key = get_key(stdin, key_timeout);
     switch ( key ) {
