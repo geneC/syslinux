@@ -27,7 +27,7 @@ label dos
 
 Note the following:
 
-a) The disk image should *not* be compressed.
+a) The disk image can be uncompressed or compressed with gzip.
 
 b) If the disk image is one of the following sizes, it's assumed to be a
 floppy image:
@@ -41,9 +41,12 @@ floppy image:
    2,949,120 bytes - 2880K floppy
 
 For any other size, the image is assumed to be a hard disk image, and
-should typically have an MBR and a partition table.  The disk C/H/S
-geometry is determined by examining the partition table, so the entire
-image should be partitioned for proper operation.
+should typically have an MBR and a partition table.  It may optionally
+have a DOSEMU geometry header; in which case the header is used to
+determine the C/H/S geometry of the disk.  Otherwise, the geometry is
+determined by examining the partition table, so the entire image
+should be partitioned for proper operation (it may be divided between
+multiple partitions, however.)
 
 You can also specify the geometry manually with the following command
 line options (currently untested):

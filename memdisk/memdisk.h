@@ -37,4 +37,7 @@ extern void __attribute__((noreturn)) die(void);
 #define memcpy(a,b,c) __builtin_memcpy(a,b,c)
 #define memset(a,b,c) __builtin_memset(a,b,c)
 
+/* Decompression */
+void *unzip(void *indata, uint32_t *datalen, void *end_mem);
+
 #endif

@@ -220,6 +220,49 @@ const char *getcmditem(const char *what)
 }
 
 /*
+ * Check to see if this is a gzip image
+ */
+void unzip_if_needed(uint32_t *where_p, uint32_t *size_p)
+{
+  uint32_t where = *where_p;
+  uint32_t size = *size_p;
+  uint64_t startrange, endrange;
+  uint32_t gzdatasize;
+  uint32_t end_mem = 0;
+  int i, okmem;
+
+  /* Is it a gzip image? */
+  if ( *(uint16_t *)where == 0x8b1f ) {
+    gzdatasize = *(uint32_t *)(where + size - 4);
+
+    /* Find a good place to put it */
+    okmem = 0;
+    for ( i = 0 ; i < nranges ; i++ ) {
+      /* Truncate range at 4G if needed */
+      endrange = (ranges[i+1].start >= 0x100000000ULL
+		  ? 100000000ULL : ranges[i+1].start);
+      /* Allow for 512-byte alignment */
+      startrange = (ranges[i].start + 511) & ~511;
+
+      if ( startrange <= (-gzdatasize) &&
+	   ranges[i].type == 1 &&
+	   endrange - startrange >= gzdatasize ) {
+	end_mem = endrange - ranges[i].start;
+	okmem = 1;
+      }
+    }   
+    
+
+    if ( !okmem ) {
+      puts("Not enough memory to decompress image\n");
+      die();
+    }
+
+    *where_p = (uint32_t)unzip((void *)where, size_p, (void *)end_mem);
+  }
+}  
+
+/*
  * Figure out the "geometry" of the disk in question
  */
 struct geometry {
@@ -403,6 +446,7 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   const struct geometry *geometry;
   int total_size;
   com32sys_t regs;
+  uint32_t ramdisk_image, ramdisk_size;
 
   /* Set up global variables */
   syscall = cs_syscall;
@@ -416,29 +460,27 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
     die();
   }
 
-  printf("Ramdisk at 0x%08x, length 0x%08x\n",
-	 shdr->ramdisk_image, shdr->ramdisk_size);
+  ramdisk_image = shdr->ramdisk_image;
+  ramdisk_size  = shdr->ramdisk_size;
 
-  geometry = get_disk_image_geometry(shdr->ramdisk_image, shdr->ramdisk_size);
+  e820map_init();		/* Initialize memory data structure */
+  get_mem();			/* Query BIOS for memory map */
+  parse_mem();			/* Parse memory map */
+
+  printf("Ramdisk at 0x%08x, length 0x%08x\n",
+	 ramdisk_image, ramdisk_size);
+
+  unzip_if_needed(&ramdisk_image, &ramdisk_size);
+
+  geometry = get_disk_image_geometry(ramdisk_image, ramdisk_size);
 
   printf("Disk is %s, %u K, C/H/S = %u/%u/%u\n",
 	 geometry->driveno ? "hard disk" : "floppy",
 	 geometry->sectors >> 1,
 	 geometry->c, geometry->h, geometry->s);
 
-  e820map_init();		/* Initialize memory data structure */
-  get_mem();			/* Query BIOS for memory map */
-  parse_mem();			/* Parse memory map */
-
-  printf("dos_mem  = %#10x (%u K)\n"
-	 "low_mem  = %#10x (%u K)\n"
-	 "high_mem = %#10x (%u K)\n",
-	 dos_mem, dos_mem >> 10,
-	 low_mem, low_mem >> 10,
-	 high_mem, high_mem >> 10);
-
   /* Reserve the ramdisk memory */
-  insertrange(shdr->ramdisk_image, shdr->ramdisk_size, 2);
+  insertrange(ramdisk_image, ramdisk_size, 2);
   parse_mem();			/* Recompute variables */
 
   /* Figure out where it needs to go */
@@ -458,7 +500,7 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   pptr->heads     = geometry->h;
   pptr->sectors   = geometry->s;
   pptr->disksize  = geometry->sectors;
-  pptr->diskbuf   = shdr->ramdisk_image + geometry->offset;
+  pptr->diskbuf   = ramdisk_image + geometry->offset;
   pptr->statusptr = (geometry->driveno & 0x80) ? 0x474 : 0x441;
 
   /* Set up a drive parameter table */
@@ -508,13 +550,6 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   wrz_16(BIOS_BASEMEM, driveraddr >> 10);
   insertrange(driveraddr, dos_mem-driveraddr, 2);
   parse_mem();
-
-  printf("dos_mem  = %#10x (%u K)\n"
-	 "low_mem  = %#10x (%u K)\n"
-	 "high_mem = %#10x (%u K)\n",
-	 dos_mem, dos_mem >> 10,
-	 low_mem, low_mem >> 10,
-	 high_mem, high_mem >> 10);
 
   pptr->mem1mb     = low_mem  >> 10;
   pptr->mem16mb    = high_mem >> 16;

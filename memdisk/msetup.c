@@ -68,6 +68,7 @@ static inline void get_dos_mem(void)
   memset(&regs, 0, sizeof regs);
   syscall(0x12, &regs, &regs);
   insertrange(0, (uint64_t)((uint32_t)regs.eax.w[0] << 10), 1);
+  printf(" DOS: %d K\n", regs.eax.w[0]);
 }
 
 static inline int get_e801(void)
@@ -87,6 +88,8 @@ static inline int get_e801(void)
     if ( regs.ebx.w[0] ) {
       insertrange(0x1000000, (uint64_t)((uint32_t)regs.ebx.w[0] << 16), 1);
     }
+
+    printf("e801: %04x %04x\n", regs.eax.w[0], regs.ebx.w[0]);
   }
 
   return err;
@@ -107,6 +110,8 @@ static inline int get_88(void)
     if ( regs.eax.w[0] ) {
       insertrange(0x100000, (uint64_t)((uint32_t)regs.eax.w[0] << 10), 1);
     }
+
+    printf("  88: %04x\n", regs.eax.w[0]);
   }
 
   return err;
