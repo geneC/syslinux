@@ -56,8 +56,9 @@ enum ansi_state {
 
 #define MAX_PARMS	16
 
-static struct {
+struct term_state {
   int attr;			/* Current display attribute */
+  int vtgraphics;		/* VT graphics on/off */
   int intensity;
   int underline;
   int blink;
@@ -71,8 +72,12 @@ static struct {
   int pvt;			/* Private code? */
   int nparms;			/* Number of parameters seen */
   int parms[MAX_PARMS];
-} st = {
+};
+
+static const struct term_state default_state =
+{
   .attr = 0x07,			/* Grey on black */
+  .vtgraphics = 0,
   .intensity = 1,
   .underline = 0,
   .blink = 0,
@@ -87,10 +92,20 @@ static struct {
   .nparms = 0,
 };
 
+static struct term_state st;
+
+/* DEC VT graphics to codepage 437 table (characters 0x60-0x7F only) */
+static const char decvt_to_cp437[] =
+  { 0004, 0261, 0007, 0007, 0007, 0007, 0370, 0361, 0007, 0007, 0331, 0277, 0332, 0300, 0305, 0304,
+    0304, 0304, 0137, 0137, 0303, 0264, 0301, 0302, 0263, 0363, 0362, 0343, 0330, 0234, 0007, 00 };
+
 /* Common setup */
 static void __constructor ansicon_init(void)
 {
   static com32sys_t ireg;	/* Auto-initalized to all zero */
+
+  /* Initial state */
+  memcpy(&st, &default_state, sizeof st);
 
   /* Force text mode */
   ireg.eax.w[0] = 0x0005;
@@ -161,12 +176,21 @@ static void ansicon_putchar(int ch)
     case 127:
       /* Ignore delete */
       break;
+    case 14:
+      st.vtgraphics = 1;
+      break;
+    case 15:
+      st.vtgraphics = 0;
+      break;
     case 27:
       st.state = st_esc;
       break;
     default:
       /* Print character */
       if ( ch >= 32 ) {
+	if ( st.vtgraphics && (ch & 0xe0) == 0x60 )
+	  ch = decvt_to_cp437[ch - 0x60];
+
 	ireg.eax.b[1] = 0x09;
 	ireg.eax.b[0] = ch;
 	ireg.ebx.b[1] = page;
@@ -192,6 +216,12 @@ static void ansicon_putchar(int ch)
       st.state = st_csi;
       st.nparms = st.pvt = 0;
       memset(st.parms, 0, sizeof st.parms);
+      break;
+    case 'c':
+      /* Reset terminal */
+      memcpy(&st, &default_state, sizeof st);
+      ansicon_erase(0, 0, cols-1, rows-1);
+      xy.x = xy.y = 1;
       break;
     default:
       /* Ignore sequence */
