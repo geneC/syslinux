@@ -34,7 +34,7 @@ PPMTOLSS16 = 	../ppmtolss16
 LIB	   = ../lib/libcom32.a
 LIBGCC    := $(shell $(CC) --print-libgcc)
 
-.SUFFIXES: .lss .c .o .elf .c32
+.SUFFIXES: .lss .c .o .elf .c32 .lnx
 
 all: hello.c32 fancyhello.c32 fancyhello.lnx
 
@@ -61,7 +61,7 @@ tidy:
 	rm -f *.o *.a *.lst *.elf
 
 clean: tidy
-	rm -f *.lss *.o *.c32 *.com
+	rm -f *.lss *.o *.c32 *.lnx *.com
 
 spotless: clean
 	rm -f *~ \#*

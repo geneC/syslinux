@@ -8,7 +8,7 @@ PERL	= perl
 STRIP	= strip --strip-all -R .comment -R .note
 OBJCOPY	= objcopy
 
-REQFLAGS  = -g -m32 -I. -I./sys -I../include
+REQFLAGS  = -g -m32 -D__COM32__ -I. -I./sys -I../include
 OPTFLAGS  = -Os -march=i386 -falign-functions=0 -falign-jumps=0 -falign-labels=0
 WARNFLAGS = -W -Wall -Wpointer-arith -Wwrite-strings -Wstrict-prototypes -Winline
 
