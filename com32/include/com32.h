@@ -54,4 +54,26 @@ extern struct com32_sys_args {
   uint32_t cs_bounce_size;
 } __com32;
 
+/*
+ * These functions convert between linear pointers in the range
+ * 0..0xFFFFF and real-mode style SEG:OFFS pointers.  Note that a
+ * 32-bit linear pointer is not compatible with a SEG:OFFS pointer
+ * stored in two consecutive 16-bit words.
+ */
+static inline uint16_t SEG(void *__p)
+{
+  return (uint16_t)(((uint32_t)__p) >> 4);
+}
+
+static inline uint16_t OFFS(void *__p)
+{
+  /* The double cast here is to shut up gcc */
+  return (uint16_t)(uint32_t)__p & 0x000F;
+}
+
+static inline void *MK_PTR(uint16_t __seg, uint16_t __offs)
+{
+  return (void *)( ((uint32_t)__seg << 4) + (uint32_t)__offs );
+}
+
 #endif /* _COM32_H */

@@ -25,7 +25,7 @@ PPMTOLSS16 = 	../ppmtolss16
 
 .SUFFIXES: .lss .c .o .elf .c32
 
-all: syslogo.lss hello.c32
+all: syslogo.lss hello.c32 hello2.c32
 
 %.o: %.S
 	$(CC) $(SFLAGS) -c -o $@ $<

@@ -40,4 +40,3 @@ cwritestr:
 .end:		popad
 		popfd
                 ret
-
