@@ -25,7 +25,7 @@ ldlinux.bin: ldlinux.asm
 bootsect.bin: ldlinux.bin
 	dd if=ldlinux.bin of=bootsect.bin bs=512 count=1
 
-ldlinux.sys:
+ldlinux.sys: ldlinux.bin
 	dd if=ldlinux.bin of=ldlinux.sys  bs=512 skip=1
 
 clean:
