@@ -11,14 +11,15 @@ License, version 2 or, at your option, any later version.  There is no
 warranty, neither expressed nor implied, to the function of this
 program.  Please see the included file COPYING for details.
 
-SYSLINUX is a boot loader for the Linux operating system which operates
-off MS-DOS floppies.  It is intended to simplify first-time installation
-of Linux.  It is *not* intended to be used as a general purpose boot
-loader; once the operating system is installed I recommend LILO as the
-boot loader, except for people whose root filesystem is a UMSDOS
-filesystem (where a DOS defragmenter could wreck havoc with LILO's
-carefully set up block tables) -- for them I recommend Loadlin (which
-loads Linux from the DOS command line).
+SYSLINUX is a boot loader for the Linux operating system which
+operates off MS-DOS floppies.  It is intended to simplify first-time
+installation of Linux, and for creation of rescue- and other
+special-purpose boot floppies.  It is *not* intended to be used as a
+general purpose boot loader; once the operating system is installed I
+recommend LILO as the boot loader, except for people whose root
+filesystem is a UMSDOS filesystem (where a DOS defragmenter could
+wreck havoc with LILO's carefully set up block tables) -- for them I
+recommend Loadlin (which loads Linux from the DOS command line).
 
 SYSLINUX could, however, in conjunction with the UMSDOS filesystem,
 completely eliminate the need for distribution of raw diskette images
@@ -253,4 +254,13 @@ I would appreciate hearing of any problems you have with SYSLINUX.  I
 would also like to hear from you if you have successfully used SYSLINUX,
 *especially* if you are using it for a distribution.
 
-Please contact me at email <hpa@zytor.com>.
+There is a mailing list for discussion among SYSLINUX users and for
+announcements of new and test versions.  To join, send a message to
+majordomo@linux.kernel.org with the line:
+
+subscribe syslinux
+
+in the body of the message.  The submission address is
+syslinux@linux.kernel.org.
+
+
