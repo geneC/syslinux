@@ -287,9 +287,10 @@ int main(int argc, char *argv[])
     } else if ( f == 0 ) {
       if ( S_ISREG(st.st_mode) )
 	execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-o", "loop", "-w",
-	      device, mntpath);
+	      device, mntpath, NULL);
       else
-	execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-w", device, mntpath);
+	execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-w", device, mntpath,
+	      NULL);
       _exit(255);		/* execl failed */
     }
   }

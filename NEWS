@@ -1,3 +1,6 @@
+Changes in 1.33:
+	* Bug fix in the Linux installer.
+
 Changes in 1.32:
 	* FAT16 filesystems are now supported.
 

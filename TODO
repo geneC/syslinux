@@ -4,6 +4,8 @@ Currently scheduled for inclusion in 1.40:
 - "Comboot" style boot files.
 - Booting DOS for a DOS/Linux dual rescue disk.
 - Cleaned up documentation, with a real man page.
+- Boot ELKS, if at all possible (may have problems with i386
+  assumption.)
 
 For a later release, perhaps:
 
