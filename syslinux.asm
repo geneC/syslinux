@@ -52,6 +52,8 @@ cmdscan1:	jcxz bad_usage			; End of command line?
 		dec cx
 		cmp al,' '			; White space
 		jbe cmdscan1
+		cmp al,'-'
+		je scan_option
 		or al,020h			; -> lower case
 		cmp al,'a'			; Check for letter
 		jb bad_usage
@@ -85,9 +87,27 @@ got_colon:	jcxz got_cmdline
 ;
 bad_usage:	mov dx,msg_unfair
 		jmp die
+;
+; Scan for options after a - sign.  The only recognized option right now
+; is -s.
+;
+scan_option:	jcxz bad_usage
+		lodsb
+		dec cx
+		cmp al,' '
+		jbe cmdscan1
+		or al,20h
+		cmp al,'s'
+		jne bad_usage
+		push si			; make_stupid doesn't save these
+		push cx
+		call make_stupid	; Enable stupid boot sector
+		pop cx
+		pop si
+		jmp short scan_option
 
 		section .data
-msg_unfair:	db 'Usage: syslinux <drive>:', 0Dh, 0Ah, '$'
+msg_unfair:	db 'Usage: syslinux [-s] <drive>:', 0Dh, 0Ah, '$'
 
 		section .text
 ;

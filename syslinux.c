@@ -22,8 +22,6 @@
  * we probably could do the mounting ourselves, and make this program
  * setuid safe.
  *
- * Also, sync() between accessing the raw device and mount/umount seems
- * to be necessary; I get data corruption otherwise.
  */
 
 #include <alloca.h>
@@ -51,6 +49,8 @@ extern unsigned int  bootsect_len;
 
 extern unsigned char ldlinux[];
 extern unsigned int  ldlinux_len;
+
+extern void make_stupid(void);	/* Patching routine for stupid mode */
 
 char *program;			/* Name of program */
 char *device;			/* Device to install to */
@@ -98,6 +98,12 @@ static u_int32_t get_32(unsigned char *p)
     ((u_int32_t)p[2] << 16) + ((u_int32_t)p[3] << 24);
 }
 
+void usage(void)
+{
+  fprintf(stderr, "Usage: %s [-s] device\n", program);
+  exit(1);
+}
+
 int main(int argc, char *argv[])
 {
   static unsigned char sectbuf[512];
@@ -111,17 +117,36 @@ int main(int argc, char *argv[])
   pid_t f, w;
   int status;
   char *mntpath = NULL, mntname[64];
-  char *ldlinux_name;
+  char *ldlinux_name, **argp, *opt;
   int my_umask;
 
   program = argv[0];
+  
+  device = NULL;
 
-  if ( argc != 2 || argv[1][0] == '-' ) {
-    fprintf(stderr, "Usage: %s device\n", program);
-    exit(1);
+  for ( argp = argv+1 ; *argp ; argp++ ) {
+    if ( **argp == '-' ) {
+      opt = *argp + 1;
+      if ( !*opt )
+	usage();
+
+      while ( *opt ) {
+	if ( *opt == 's' ) {
+	  make_stupid();	/* Use "safe, slow and stupid" code */
+	} else {
+	  usage();
+	}
+	opt++;
+      }
+    } else {
+      if ( device )
+	usage();
+      device = *argp;
+    }
   }
 
-  device = argv[1];
+  if ( !device )
+    usage();
 
   /*
    * First make sure we can open the device at all, and that we have
@@ -369,7 +394,6 @@ umount:
   /*
    * To finish up, write the boot sector
    */
-
   dev_fd = open(device, O_RDWR);
   if ( dev_fd < 0 ) {
     perror(device);
@@ -394,6 +418,8 @@ umount:
     left -= nb;
   }
   close(dev_fd);
+
+  sync();
 
   /* Done! */
 

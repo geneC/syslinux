@@ -35,7 +35,7 @@ it, then execute the DOS command:
 
         SYSLINUX [-s] a:
 
-(or whichever drive letter is appropriate) 
+(or whichever drive letter is appropriate; the [] meaning -s is optional) 
 
 or the Linux command:
 
@@ -46,9 +46,9 @@ or the Linux command:
 This will alter the boot sector on the disk and copy a file named
 LDLINUX.SYS into its root directory.
 
-The -s option will install a "slow and stupid" version of SYSLINUX.
-This version may work on some very buggy BIOSes on which SYSLINUX
-would otherwise fail.
+The -s option, if given, will install a "safe, slow and stupid"
+version of SYSLINUX.  This version may work on some very buggy BIOSes
+on which SYSLINUX would otherwise fail.
 
 WARNING: There seems to be a bug in some recent experimental Linux
 	 kernels that causes floppy disk corruption when using the
@@ -325,5 +325,3 @@ subscribe syslinux
 
 in the body of the message.  The submission address is
 syslinux@linux.kernel.org.
-
-

@@ -3,11 +3,15 @@ Changes in 1.35:
 	  tested, this time.  You should even be able to dd a floppy
 	  to a partition and boot from it.)
 	* Removed large workaround code for an alleged ancient BIOS
-	  bug I have never actually seen.
+	  bug I have never actually seen.  The -s option should work
+	  on those machines, anyway.
 	* Support for simple keyboard remappings, same as used by
 	  LILO (once again to support localization.)  The program
 	  keytab-lilo.pl from the LILO distribution included to
 	  generate such maps.
+	* Added a "safe, slow and stupid" (-s) option to the
+	  installers.  This option will lobotomize the boot sector to
+	  hopefully work on even very buggy BIOSes.
 	
 Changes in 1.34:
 	* Ability to load a VGA font on bootup (for localized Linux
