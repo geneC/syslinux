@@ -18,7 +18,7 @@
 #
 .PHONY: official release
 
-PRIVATE = Makefile.private .depend memdisk/.depend
+PRIVATE = Makefile.private .depend memdisk/.depend com32/lib
 
 isolinux.iso: all
 	cp isolinux-debug.bin isolinux-test/isolinux/isolinux.bin
@@ -40,8 +40,7 @@ release:
 	-rm -rf release/syslinux-$(VERSION)
 	-rm -f release/syslinux-$(VERSION).*
 	mkdir -p release/syslinux-$(VERSION)
-	mkdir -p release/syslinux-$(VERSION)/com32
-	cp -rP $(SOURCES) $(DOCS) $(OTHER) release/syslinux-$(VERSION)
+	cp -dR $(SOURCES) $(DOCS) $(OTHER) release/syslinux-$(VERSION)
 	find release/syslinux-$(VERSION) -name CVS -type d -print0 | \
 		xargs -0rt rm -rf
 	ln -f $(PRIVATE) release/syslinux-$(VERSION)
@@ -64,8 +63,7 @@ prerel:
 	-rm -rf $(PRERELDIR)/$(PREREL)
 	-rm -f $(PRERELDIR)/$(PREREL).*
 	mkdir -p $(PRERELDIR)/$(PREREL)
-	mkdir -p $(PRERELDIR)/$(PREREL)/com32
-	cp -rP $(SOURCES) $(DOCS) $(OTHER) $(PRERELDIR)/$(PREREL)
+	cp -dR $(SOURCES) $(DOCS) $(OTHER) $(PRERELDIR)/$(PREREL)
 	find $(PRERELDIR)/$(PREREL) -name CVS -type d -print0 | \
 		xargs -0rt rm -rf
 	make -C $(PRERELDIR)/$(PREREL) spotless

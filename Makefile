@@ -48,7 +48,7 @@ SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
 BTARGET = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
 	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin libsyslinux.a
 ITARGET = syslinux.com syslinux copybs.com gethostip mkdiskimage
-DOCS    = COPYING NEWS README TODO *.doc sample com32/include
+DOCS    = COPYING NEWS README TODO *.doc sample com32
 OTHER   = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
 	  keytab-lilo.pl version version.pl sys2ansi.pl \
 	  ppmtolss16 lss16toppm memdisk bin2hex.pl mkdiskimage.in
