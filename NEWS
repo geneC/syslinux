@@ -10,6 +10,7 @@ Changes in 3.08:
 	  get_key() use it.
 	* libutil: Add SHA-1 and base64 functions.
 	* Simple menu system: add password support.
+	* EXTLINUX: Sparse files now handled correctly.
 
 Changes in 3.07:
 	* Fix chainloading (chain.c32).
