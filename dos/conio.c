@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2001-2003 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2001-2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 
 int putchar(int ch)
 {
-  asm("movb $0x02,%%ah ; int $0x21" : : "b" (ch));
+  asm("movb $0x02,%%ah ; int $0x21" : : "d" (ch));
   return ch;
 }
 
