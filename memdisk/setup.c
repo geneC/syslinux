@@ -93,7 +93,7 @@ struct patch_area {
   uint16_t statusptr;
 
   dpt_t dpt;
-} __attribute__((packed));
+};
 
 /* This is the header in the boot sector/setup area */
 struct setup_header {
@@ -121,7 +121,7 @@ struct setup_header {
   uint16_t pad1;
   uint32_t cmd_line_ptr;
   uint32_t initrd_addr_max;
-} __attribute__((packed));
+};
 
 const struct setup_header * const shdr = (struct setup_header *)(LOW_SEG << 4);
 
