@@ -73,6 +73,7 @@ dns_mangle:
 ;
 dns_compare:
 		pusha
+%if 0
 
 .label:
 		lodsb
@@ -94,9 +95,12 @@ dns_compare:
 		
 		; We have a string of bytes that need to match now
 		repe cmpsb
-		jz .label
+		je .label
 
 .done:
+%else
+		xor ax,ax
+%endif
 		popa
 		ret
 
@@ -179,7 +183,6 @@ LastDNSServer	dw DNSServers
 
 		section .text
 dns_resolv:
-		push si
 		push di
 		push cx
 		push dx
@@ -201,6 +204,9 @@ dns_resolv:
 		stosw
 		
 		call dns_mangle		; Convert name to DNS labels
+
+		push si			; Save pointer to after DNS string
+
 		mov ax,htons(1)
 		stosw			; QTYPE  = 1 = A
 		stosw			; QCLASS = 1 = IN
@@ -215,9 +221,9 @@ dns_resolv:
 		mov dx,PKT_TIMEOUT
 		mov cx,PKT_RETRY
 .backoff:
-		mov di,DNSServers
+		mov si,DNSServers
 .servers:
-		cmp di,[LastDNSServer]
+		cmp si,[LastDNSServer]
 		jb .moreservers
 
 .nomoreservers:
@@ -226,18 +232,17 @@ dns_resolv:
 
 		xor eax,eax			; Nothing...
 .done:
+		pop si
 		pop dx
 		pop cx
 		pop di
-		pop si
 		ret
 
 .moreservers:
-		push di
+		lodsd				; EAX <- next server
+		push si
 		push cx
 		push dx
-
-		mov eax,[di]
 
 		mov word [pxe_udp_write_pkt_dns.status],0	
 
@@ -270,6 +275,8 @@ dns_resolv:
 		mov bx,PXENV_UDP_READ
 		call pxenv
 		and ax,ax
+		jnz .waitrecv
+		cmp [pxe_udp_read_pkt_dns.status],ax
 		jnz .waitrecv
 
 		; Got a packet, deal with it...
@@ -307,13 +314,11 @@ dns_resolv:
 		call dns_compare
 		pushf
 		call dns_skiplabel
-		mov ax,[si+8]			; RDLENGHT
+		mov ax,[si+8]			; RDLENGTH
 		xchg ah,al			; ntohs
 		popf
 		jnz .notsame
-		cmp word [si],htons(1)		; TYPE = A?
-		jne .notsame
-		cmp word [si+2],htons(1)	; CLASS = IN?
+		cmp dword [si],htons(1)*0x10001	; TYPE = A, CLASS = IN?
 		jne .notsame
 		cmp ax,4			; RDLENGTH = 4?
 		jne .notsame
@@ -326,8 +331,8 @@ dns_resolv:
 		jmp .done
 
 .notsame:
-		add di,10
-		add di,ax
+		add si,10
+		add si,ax
 		loop .parseanswer
 
 .badness:
@@ -350,6 +355,5 @@ dns_resolv:
 .timeout:
 		pop dx
 		pop cx
-		pop di
-		add di,4
+		pop si
 		jmp .servers
