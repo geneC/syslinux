@@ -514,9 +514,10 @@ have_entrypoint:
 
 ;
 ; Now attempt to get the BOOTP/DHCP packet that brought us life (and an IP
-; address)
+; address).  This lives in the DHCPACK packet (query info 2).
 ;
-query_bootp:	mov ax,ds
+query_bootp:
+		mov ax,ds
 		mov es,ax
 		mov di,pxe_bootp_query_pkt
 		mov bx,PXENV_GET_CACHED_INFO
@@ -531,8 +532,6 @@ query_bootp:	mov ax,ds
 
 		call far [PXENVEntry]
 		jc .pxe_err
-		cmp ax,byte 0
-		je .pxe_size
 .pxe_size:
 		mov ax,[pxe_bootp_size_query_pkt.buffersize]
 		call writehex4
@@ -548,11 +547,7 @@ query_bootp:	mov ax,ds
 		call writehex4
 		call crlf
 
-.pxe_ok:	mov si,trackbuf+bootp.bootfile
-		mov di,BootFile
-		mov cx,128 >> 2
-		rep movsd			; Copy bootfile name
-
+.pxe_ok:
 		mov si,myipaddr_msg
 		call writestr
 		mov eax,[trackbuf+bootp.yip]	; "Your" IP address
@@ -562,6 +557,25 @@ query_bootp:	mov ax,ds
 		xchg ah,al
 		call writehex8
 		call crlf
+;
+; Now, get the boot file and other info.  This lives in the CACHED_REPLY
+; packet (query info 3).
+;
+		mov [pxe_bootp_query_pkt.packettype], byte 3
+		mov [pxe_bootp_size_query_pkt.packettype], byte 3
+
+		mov di,pxe_bootp_query_pkt
+		mov bx,PXENV_GET_CACHED_INFO
+
+		call far [PXENVEntry]
+		jc .pxe_err1
+		cmp ax,byte 0
+		jne .pxe_err1
+
+		mov si,trackbuf+bootp.bootfile
+		mov di,BootFile
+		mov cx,128 >> 2
+		rep movsd			; Copy bootfile name
 
 ;
 ; Normalize ES = DS
