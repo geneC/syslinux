@@ -201,10 +201,10 @@ const char *syslinux_check_bootsect(const void *bs)
 
     if ( get_8(sectbuf+bs16BootSignature) == 0x29 ) {
       if ( !memcmp(sectbuf+bs16FileSysType, "FAT12   ", 8) ) {
-	if ( clusters >= 4085 )
+	if ( clusters >= 0xFF5 )
 	  return "more than 4084 clusters but claims FAT12";
       } else if ( !memcmp(sectbuf+bs16FileSysType, "FAT16   ", 8) ) {
-	if ( clusters < 4085 )
+	if ( clusters < 0xFF5 )
 	  return "less than 4084 clusters but claims FAT16";
       } else if ( memcmp(sectbuf+bs16FileSysType, "FAT     ", 8) ) {
 	static char fserr[] = "filesystem type \"????????\" not supported";
@@ -216,7 +216,7 @@ const char *syslinux_check_bootsect(const void *bs)
     /* FAT32 */
     /* Moving the FileSysType and BootSignature was a lovely stroke of M$ idiocy */
     if ( get_8(sectbuf+bs32BootSignature) != 0x29 ||
-	 !memcmp(sectbuf+bs32FileSysType, "FAT32   ", 8) )
+	 memcmp(sectbuf+bs32FileSysType, "FAT32   ", 8) )
       goto invalid;
   } else {
     goto invalid;
