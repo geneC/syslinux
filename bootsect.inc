@@ -108,7 +108,7 @@ load_bootsec:
 		jmp bcopy_over_self
 
 %if IS_SYSLINUX = 0
-is_bss_image:
+is_bss_sector:
 		mov si,err_bssimage
 		call cwritestr
 		jmp enter_command

@@ -4,13 +4,18 @@ apply to that specific program only; other changes apply to both.
 Changes in 2.00:
 	* ALL: Add support for "COM32" (32-bit COMBOOT) images.
 	* ALL: Add an API for COMBOOT/COM32 images.  See comboot.doc
-	  for details.
+	  for details.  There is a C development environment for
+	  COM32 being created; it should be ready at some point in
+	  the future.
 	* Fix mbr.asm so that it actually works.
 	* SYSLINUX: The syslinux installer *SHOULD* now be safe to
 	  run setuid root.
 	* PXELINUX: Fix bug where PXELINUX would override random
 	  chunks of the UNDI code segment!  Thanks to Kevin Tran for
 	  finding this bug.
+	* ISOLINUX: Fix a bug related to slashes in pathnames.
+	* ALL: Make the <Ctrl-V> key print out the version; this is
+	  to help debugging.
 
 Changes in 1.76:
 	* ISOLINUX: Remove code no longer used which caused hangs on
