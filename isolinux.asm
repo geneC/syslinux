@@ -2733,9 +2733,10 @@ searchdir:
 
 .next_sector:
 		; Advance to the beginning of next sector
-		add si,SECTORSIZE-1
-		and si,~(SECTORSIZE-1)
-		jmp short .check_overrun
+		lea ax,[si+SECTORSIZE-1]
+		and ax,~(SECTORSIZE-1)
+		sub ax,si
+		jmp short .not_file		; We still need to do length checks
 
 .failure:	xor ax,ax			; ZF = 1
 		pop es
@@ -3561,20 +3562,31 @@ gl_xret:	popf
 ;	       and doesn't contain whitespace, and zero-pads the output buffer,
 ;	       so "repe cmpsb" can do a compare.
 ;
-; ISOLINUX:: This needs to capitalize the filename.
+; ISOLINUX:: This probably should capitalize the filename?
 ;
 mangle_name:
-		mov cx,FILENAME_MAX-1
+		mov cx,FILENAME_MAX-2
+		mov ah,'.'			; No dot encountered
+
 .mn_loop:
 		lodsb
 		cmp al,' '			; If control or space, end
 		jna .mn_end
-		stosb
+		cmp al,ah
+		jne .mn_normal
+		xor ah,ah			; Found dot
+		inc cx				; We're now allowed one more char
+.mn_normal:	stosb
 		loop .mn_loop
 .mn_end:
-		inc cx				; At least one null byte
+		and ah,ah			; Did we find the dot?
+		jz .mn_nodot
+		mov al,ah			; No, need to append dot
+		stosb
+		dec cx
+.mn_nodot:	inc cx				; At least one null byte
 		xor ax,ax			; Zero-fill name
-		rep stosb			; Doesn't do anything if CX=0
+		rep stosb
 		ret				; Done
 
 ;
@@ -3590,7 +3602,7 @@ mangle_name:
 ;                On return, DI points to the first byte after the output name,
 ;                which is set to a null byte.
 ;
-; ISOLINUX:: This should lower-case the filename.
+; ISOLINUX:: This needs to strip the trailing dot, if there is one.
 ;
 unmangle_name:	call strcpy
 		dec di				; Point to final null byte
