@@ -1483,6 +1483,6 @@ vgafontbuf	equ 0E000h
 ; This is a compile-time assert that we didn't run out of space
 %ifndef DEPEND
 %if (getcbuf+trackbufsize) > vgafontbuf
-; %error "Out of memory, better reorganize something..."
+%error "Out of memory, better reorganize something..."
 %endif
 %endif
