@@ -52,18 +52,24 @@ OBJS     = $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
 VPATH = .:..:../libfat
 
-all: installer
+TARGETS = syslinux.exe
+
+ifeq ($(CC_IS_OK),0)
+all: $(TARGETS)
+else
+all:
+	rm -f $(TARGETS)
+endif
 
 tidy:
 	-rm -f *.o *.i *.s *.a .*.d
 
 clean: tidy
-	-rm -f syslinux.exe
 
 spotless: clean
-	-rm -f *~
+	-rm -f *~ $(TARGETS)
 
-installer: syslinux.exe
+installer:
 
 syslinux.exe: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^

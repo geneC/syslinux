@@ -33,7 +33,7 @@ struct libfat_filesystem;
 /*
  * Open the filesystem.  The readfunc is the function to read
  * sectors, in the format:
- * int readfunc(void *readptr, void *buf, size_t secsize,
+ * int readfunc(intptr_t readptr, void *buf, size_t secsize,
  *              libfat_sector_t secno)
  *
  * ... where readptr is a private argument.
@@ -41,8 +41,8 @@ struct libfat_filesystem;
  * A return value of != secsize is treated as error.
  */
 struct libfat_filesystem *
-libfat_open(int (*readfunc)(void *, void *, size_t, libfat_sector_t),
-	    void *readptr);
+libfat_open(int (*readfunc)(intptr_t, void *, size_t, libfat_sector_t),
+	    intptr_t readptr);
 
 void libfat_close(struct libfat_filesystem *);
 
