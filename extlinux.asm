@@ -101,18 +101,8 @@ comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 file_sector	resd 1			; Next linear sector to read
 file_left	resd 1			; Number of sectors left
 file_in_sec	resd 1			; Sector where inode lives
-file_in_off	resw 1			; 
-file_in_start	resw 1			; Offset to beginning of inode
-file_1i_sec	resd 1			; First sector of current ind block
-file_1i_off	resw 1			; Offset to next block ptr
+file_in_off	resw 1
 		resw 1
-file_2i_sec	resd 1			; First sector of current dind block
-file_2i_off	resw 1			; Offset to next block ptr
-		resw 1
-file_3i_sec	resd 1			; First sector of current dind block
-file_3i_off	resw 1			; Offset to next block ptr
-		resw 1
-		resb 24
 		endstruc
 
 %ifndef DEPEND
@@ -1009,13 +999,13 @@ unmangle_name:
 
 
 ;
-; getsector:	Convert a linear sector index in a file to a linear sector number
+; linsector:	Convert a linear sector index in a file to a linear sector number
 ;	EAX	-> linear sector number
 ;	DS:SI	-> open_file_t
 ;
 ;		Returns next sector number in EAX; CF on EOF (not an error!)
 ;
-nextsector:
+linsector:
 		push gs
 		push ebx
 		push esi
@@ -1133,7 +1123,59 @@ nextsector:
 ;	All arguments are advanced to reflect data read.
 ;
 getfssec:
+		push ebp
+		push eax
+		push ebx
+		push edx
+.getfragment:
+		mov eax,[si]			; Current start index
+		mov ebx,eax
+		call linsector
+		push eax			; Fragment start sector
+		mov edx,eax
+		xor ebp,ebp			; Fragment sector count
+.getseccnt:
+		inc bp
+		dec cx
+		jz .do_read
+		xor eax,eax
+		mov ax,es
+		shl ax,4
+		add ax,bx			; Now DI = how far into 64K block we are
+		not ax				; Bytes left in 64K block
+		inc eax
+		shr eax,SECTOR_SHIFT		; Sectors left in 64K block
+		cmp bp,ax
+		jnb .do_read			; Unless there is at least 1 more sector room...
+		inc ebx				; Sector index
+		inc edx				; Linearly next sector
+		mov eax,ebx
+		call nextsector
+		jc .do_read
+		cmp edx,eax
+		je .getseccnt
+.do_read:
+		pop eax				; Linear start sector
+		call getlinsecsr
+		lea eax,[eax+ebp-1]		; This is the last sector actually read
+		shl bp,9
+		add bx,bp			; Adjust buffer pointer
+		call nextsector
+		jc .eof
+		mov edx,eax
+		and cx,cx
+		jnz .getfragment
+.done:
+		pop edx
+		pop ebx
+		pop eax
+		pop ebp
 		ret
+.eof:
+		xor edx,edx
+		stc
+		jmp .done
+
 
 
 ; -----------------------------------------------------------------------------
