@@ -215,6 +215,16 @@ clin_is_wsp:    and al,al
 clin_opt_ptr:   dec si                          ; Point to first nonblank
                 mov [CmdOptPtr],si		; Save ptr to first option
 ;
+; If "allowoptions 0", put a null character here in order to ignore any
+; user-specified options.
+;
+		mov ax,[AllowOptions]
+		and ax,ax
+		jnz clin_opt_ok
+		mov [si],al
+clin_opt_ok:
+
+;
 ; Now check if it is a "virtual kernel"
 ;
 		mov cx,[VKernelCtr]

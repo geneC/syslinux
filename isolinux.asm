@@ -1750,6 +1750,7 @@ initrd_ptr	dw 0			; Initial ramdisk pointer/flag
 VKernelCtr	dw 0			; Number of registered vkernels
 ForcePrompt	dw 0			; Force prompt
 AllowImplicit   dw 1                    ; Allow implicit kernels
+AllowOptions	dw 1			; User-specified options allowed
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 VGAFontSize	dw 16			; Defaults to 16 byte font
 UserFont	db 0			; Using a user-specified font

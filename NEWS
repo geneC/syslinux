@@ -12,6 +12,10 @@ Changes in 2.10:
 	  severe bugs in certain Award BIOSes; from Knut Petersen.
 	* SYSLINUX: Fix for the nomtools installed, from Frederic
 	  Pasteleurs.
+	* PXELINUX: Fix handling of IP numbers in the ranges
+	  100-109 and 200-209.
+	* ALL: New option "allowoptions" (defaults to 1), which
+	  controls if options are allowed on the command line or not.
 
 Changes in 2.09:
 	* SYSLINUX: Remove residual setuid crap from

@@ -214,6 +214,10 @@ TextColorReg	resb 17			; VGA color registers for text mode
 VGAFileBuf	resb 13			; Unmangled VGA image name
 VGAFileBufEnd	equ $
 VGAFileMBuf	resb 11			; Mangled VGA image name
+                alignb 4		; For the good of REP MOVSD
+command_line	resb max_cmd_len+2	; Command line buffer
+default_cmd	resb max_cmd_len+1	; "default" command line
+kern_cmd_len	equ $-command_line
 
 		section .text
                 org 7C00h
@@ -1451,6 +1455,7 @@ initrd_ptr	dw 0			; Initial ramdisk pointer/flag
 VKernelCtr	dw 0			; Number of registered vkernels
 ForcePrompt	dw 0			; Force prompt
 AllowImplicit   dw 1                    ; Allow implicit kernels
+AllowOptions	dw 1			; User-specified options allowed
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 VGAFontSize	dw 16			; Defaults to 16 byte font
 UserFont	db 0			; Using a user-specified font
@@ -1463,12 +1468,8 @@ linuxauto_cmd	db 'linux auto',0
 linuxauto_len   equ $-linuxauto_cmd
 boot_image      db 'BOOT_IMAGE='
 boot_image_len  equ $-boot_image
-                align 4, db 0		; For the good of REP MOVSD
-command_line	equ $
-default_cmd	equ $+(max_cmd_len+2)
-ldlinux_end	equ default_cmd+(max_cmd_len+1)
-kern_cmd_len    equ ldlinux_end-command_line
-ldlinux_len	equ ldlinux_end-ldlinux_magic
+ldlinux_end	equ $
+ldlinux_len	equ $-ldlinux_magic
 ;
 ; Put the getcbuf right after the code, aligned on a sector boundary
 ;
@@ -1482,6 +1483,6 @@ vgafontbuf	equ 0E000h
 ; This is a compile-time assert that we didn't run out of space
 %ifndef DEPEND
 %if (getcbuf+trackbufsize) > vgafontbuf
-%error "Out of memory, better reorganize something..."
+; %error "Out of memory, better reorganize something..."
 %endif
 %endif

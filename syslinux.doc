@@ -211,6 +211,12 @@ IMPLICIT flag_val
         If flag_val is 0, do not load a kernel image unless it has been
         explicitly named in a LABEL statement.  The default is 1.
 
+ALLOWOPTIONS flag_val
+	If flag_val is 0, the user is not allowed to specify any
+	arguments on the kernel command line.  The only options
+	recognized are those specified in an APPEND statement.  The
+	default is 1.
+
 TIMEOUT timeout
         Indicates how long to wait at the boot: prompt until booting
         automatically, in units of 1/10 s.  The timeout is cancelled as

@@ -2034,8 +2034,11 @@ gendotquad:
 		mov cx,4
 .genchar:
 		push eax
-		cmp al,100
-		jb .lt100
+		cmp al,10		; < 10?
+		jb .lt10		; If so, skip first 2 digits
+
+		cmp al,100		; < 100
+		jb .lt100		; If so, skip first digit
 
 		aam 100
 		; Now AH = 100-digit; AL = remainder
@@ -2044,9 +2047,6 @@ gendotquad:
 		inc di
 
 .lt100:
-		cmp al,10
-		jb .lt10
-
 		aam 10
 		; Now AH = 10-digit; AL = remainder
 		add ah,'0'
@@ -2550,6 +2550,7 @@ initrd_ptr	dw 0			; Initial ramdisk pointer/flag
 VKernelCtr	dw 0			; Number of registered vkernels
 ForcePrompt	dw 0			; Force prompt
 AllowImplicit   dw 1                    ; Allow implicit kernels
+AllowOptions	dw 1			; User-specified options allowed
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 VGAFontSize	dw 16			; Defaults to 16 byte font
 UserFont	db 0			; Using a user-specified font

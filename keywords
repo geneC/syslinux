@@ -13,6 +13,7 @@ prompt
 say
 serial
 timeout
+allowoptions
 ontimeout
 onerror
 f0
