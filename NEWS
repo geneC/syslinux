@@ -2,6 +2,9 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 3.06:
+	* Fix typo that caused the ramdisk to load in the wrong place.
+
 Changes in 3.05:
 	* New API function "shuffle and boot"; allows COM32 modules to
 	  load or construct (almost) arbitrarily complex objects,
