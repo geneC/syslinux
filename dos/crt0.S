@@ -1,5 +1,9 @@
 	.code16
 
+#ifndef REGPARM
+# error "This file assumes -mregparm=3 -DREGPARM=3"
+#endif
+	
 	.section ".init","ax"
 	.globl _start
 	.type _start,@function
@@ -16,11 +20,11 @@ _start:
 	shrw $2,%cx
 	rep ; stosl
 
-	# Compute argc and argv
+	# Compute argc and argv (assumes REGPARM)
 	xorl %edx,%edx
-	movzbw 80,%bx
-	movb %dl,81(%bx)	# Zero-terminate string
-	movb $81,%dl
+	movzbw 0x80,%bx
+	movb %dl,0x81(%bx)	# Zero-terminate string
+	movb $0x81,%dl
 	pushl %eax		# Make space for argv
 	movl %esp,%eax
 	calll __parse_argv
