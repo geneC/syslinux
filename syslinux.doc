@@ -98,12 +98,16 @@ PXELINUX.
 DEFAULT kernel options...
         Sets the default command line.  If SYSLINUX boots automatically,
         it will act just as if the entries after DEFAULT had been typed
-        in at the "boot:" prompt, except that the option "auto" is
-        automatically added, indicating an automatic boot.
+        in at the "boot:" prompt.
 
         If no configuration file is present, or no DEFAULT entry is
-        present in the config file, the default is kernel name "linux",
-        with no options.
+        present in the config file, the default is "linux auto".
+
+	NOTE: Earlier versions of SYSLINUX used to automatically
+	append the string "auto" to whatever the user specified using
+	the DEFAULT command.  As of version 1.54, this is no longer
+	true, as it caused problems when using a shell as a substitute
+	for "init."  You may want to include this option manually.
 
 APPEND options...
         Add one or more options to the kernel command line.  These are

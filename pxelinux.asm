@@ -864,9 +864,8 @@ parse_config:
 
 pc_default:	mov di,default_cmd		; "default" command
 		call getline
-		mov si,auto_cmd			; add "auto"+null
-                mov cx,auto_len
-		rep movsb
+		xor al,al
+		stosb				; null-terminate
 		jmp short parse_config
 
 pc_append:      cmp word [VKernelCtr],byte 0	; "append" command
@@ -4335,10 +4334,8 @@ IPAppend	db 0			; Default IPAPPEND option
 ; Stuff for the command line; we do some trickery here with equ to avoid
 ; tons of zeros appended to our file and wasting space
 ;
-linuxauto_cmd	db 'linux '
-auto_cmd	db 'auto',0
+linuxauto_cmd	db 'linux auto',0
 linuxauto_len   equ $-linuxauto_cmd
-auto_len        equ $-auto_cmd
 boot_image      db 'BOOT_IMAGE='
 boot_image_len  equ $-boot_image
                 align 4, db 0		; For the good of REP MOVSD
