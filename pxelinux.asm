@@ -548,15 +548,9 @@ query_bootp:
 		call crlf
 
 .pxe_ok:
-		mov si,myipaddr_msg
-		call writestr
 		mov eax,[trackbuf+bootp.yip]	; "Your" IP address
 		mov [MyIP],eax
-		xchg ah,al			; Host byte order
-		ror eax,16
-		xchg ah,al
-		call writehex8
-		call crlf
+
 ;
 ; Now, get the boot file and other info.  This lives in the CACHED_REPLY
 ; packet (query info 3).
@@ -577,6 +571,26 @@ query_bootp:
 		mov cx,128 >> 2
 		rep movsd			; Copy bootfile name
 
+;
+; If packet 2 didn't contain a valid IP address, guess that it's in this
+; packet instead
+;
+		mov si,myipaddr_msg
+		call writestr
+		mov eax,[MyIP]
+		cmp eax, byte 0			; 0.0.0.0 bad
+		je .badip
+		cmp al,224			; 224..255.x.x.x
+		jb .goodip
+.badip:
+		mov eax,[trackbuf+bootp.yip]	; Hope this is better...
+		mov [MyIP],eax
+.goodip:
+		xchg ah,al			; Host byte order
+		ror eax,16
+		xchg ah,al
+		call writehex8
+		call crlf
 ;
 ; Normalize ES = DS
 ;
