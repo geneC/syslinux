@@ -449,7 +449,7 @@ have_pxenv:
 		; Nope, !PXE structure missing despite API 2.1+, or at least
 		; the pointer is missing.  Do a last-ditch attempt to find it.
 		call memory_scan_for_pxe_struct
-		jne have_pxe
+		jnc have_pxe
 
 		; Otherwise, no dice, use PXENV+ structure
 		mov bx,si
