@@ -2,6 +2,7 @@
 # $Id$
 #
 # Perl script to convert a Syslinux-format screen to PC-ANSI
+# to display in a color xterm or on the Linux console
 #
 @ansicol = (0,4,2,6,1,5,3,7);
 
@@ -25,8 +26,9 @@ while ( read(STDIN, $ch, 1) > 0 ) {
 	    printf "%d;%dm",
 	    $ansicol[$attr >> 4] + 40, $ansicol[$attr & 7] + 30;
 	}
+    } elsif ( $ch eq "\x0D" ) {	# <CR>  <Ctrl-M> Carriage return
+	# Ignore
     } else {
 	print $ch;
     }
 }
-
