@@ -124,61 +124,67 @@ void display_entry(const struct menu_entry *entry, const char *attrib,
   }
 }
 
+void draw_row(int y, int sel, int top, int sbtop, int sbbot)
+{
+  int i = (y-4)+top;
+  
+  printf("\033[%d;%dH%s\272%s ",
+	 y, MARGIN+1, menu_attrib->border,
+	 (i == sel) ? menu_attrib->sel : menu_attrib->unsel);
+  
+  if ( i >= nentries ) {
+    fputs(pad_line("", 0, WIDTH-2*MARGIN-4), stdout);
+  } else {
+    display_entry(&menu_entries[i],
+		  (i == sel) ? menu_attrib->sel : menu_attrib->unsel,
+		  (i == sel) ? menu_attrib->hotsel : menu_attrib->hotkey,
+		  WIDTH-2*MARGIN-4);
+  }
+
+  if ( nentries <= MENU_ROWS ) {
+    printf(" %s\272", menu_attrib->border);
+  } else if ( sbtop > 0 ) {
+    if ( y >= sbtop && y <= sbbot )
+      printf(" %s\261", menu_attrib->scrollbar);
+    else
+      printf(" %s\260", menu_attrib->scrollbar);
+  } else {
+    putchar(' ');		/* Don't modify the scrollbar */
+  }
+}
+
 void draw_menu(int sel, int top)
 {
   int x, y;
   int sbtop = 0, sbbot = 0;
-
+  
   if ( nentries > MENU_ROWS ) {
     int sblen = MENU_ROWS*MENU_ROWS/nentries;
     sbtop = (MENU_ROWS-sblen+1)*top/(nentries-MENU_ROWS+1);
     sbbot = sbtop + sblen - 1;
-
+    
     sbtop += 4;  sbbot += 4;	/* Starting row of scrollbar */
   }
-
+  
   printf("\033[1;%dH%s\311", MARGIN+1, menu_attrib->border);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
     putchar('\315');
   putchar('\273');
-
+  
   printf("\033[2;%dH%s\272%s %s %s\272",
 	 MARGIN+1,
 	 menu_attrib->border,
 	 menu_attrib->title,
 	 pad_line(menu_title, 1, WIDTH-2*MARGIN-4),
 	 menu_attrib->border);
-
+  
   printf("\033[3;%dH%s\307", MARGIN+1, menu_attrib->border);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
     putchar('\304');
   putchar('\266');
-
-  for ( y = 4 ; y < 4+MENU_ROWS ; y++ ) {
-    int i = (y-4)+top;
-
-    printf("\033[%d;%dH%s\272%s ",
-	   y, MARGIN+1, menu_attrib->border,
-	   (i == sel) ? menu_attrib->sel : menu_attrib->unsel);
-
-    if ( i >= nentries ) {
-      fputs(pad_line("", 0, WIDTH-2*MARGIN-4), stdout);
-    } else {
-      display_entry(&menu_entries[i],
-		    (i == sel) ? menu_attrib->sel : menu_attrib->unsel,
-		    (i == sel) ? menu_attrib->hotsel : menu_attrib->hotkey,
-		    WIDTH-2*MARGIN-4);
-    }
-
-    if ( nentries <= MENU_ROWS ) {
-      printf(" %s\272", menu_attrib->border);
-    } else {
-      if ( y >= sbtop && y <= sbbot )
-	printf(" %s\261", menu_attrib->scrollbar);
-      else
-	printf(" %s\260", menu_attrib->scrollbar);
-    }
-  }
+  
+  for ( y = 4 ; y < 4+MENU_ROWS ; y++ )
+    draw_row(y, sel, top, sbtop, sbbot);
 
   printf("\033[%d;%dH%s\310", y, MARGIN+1, menu_attrib->border);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
@@ -305,10 +311,14 @@ const char *run_menu(void)
       prev_entry = prev_top = -1;
     }
 
-    if ( entry != prev_entry || top != prev_top ) {
+    if ( top != prev_top ) {
       draw_menu(entry, top);
-      prev_entry = entry;  prev_top = top;
+    } else if ( entry != prev_entry ) {
+      draw_row(prev_entry-top+4, entry, top, 0, 0);
+      draw_row(entry-top+4, entry, top, 0, 0);
     }
+
+    prev_entry = entry;  prev_top = top;
 
     key = get_key(stdin, key_timeout);
     switch ( key ) {
@@ -334,12 +344,20 @@ const char *run_menu(void)
     case 'P':
     case 'p':
     case KEY_UP:
-      entry--;
+      if ( entry > 0 ) {
+	entry--;
+	if ( entry < top )
+	  top -= MENU_ROWS;
+      }
       break;
     case 'N':
     case 'n':
     case KEY_DOWN:
-      entry++;
+      if ( entry < nentries-1 ) {
+	entry++;
+	if ( entry >= top+MENU_ROWS )
+	  top += MENU_ROWS;
+      }
       break;
     case KEY_CTRL('P'):
     case KEY_PGUP:
