@@ -563,6 +563,27 @@ comapi_configfile:
 		clc
 		ret
 
+;
+; INT 22h AX=000Fh	Get IPAPPEND strings
+;
+%if IS_PXELINUX
+comapi_ipappend:
+		mov P_ES,cs
+		mov P_CX,numIPAppends
+		mov P_BX,IPAppends
+		clc
+		ret
+
+		section .data
+		alignb 2, db 0
+IPAppends	dw IPOption
+		dw BOOTIFStr
+numIPAppends	equ ($-IPAppends)/2
+
+%else
+comboot_ipappend equ comapi_err
+%endif
+		
 		section .bss
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
 
@@ -602,6 +623,7 @@ int22_table:
 		dw comapi_cleanup		; 000C perform final cleanup
 		dw comapi_chainboot		; 000D clean up then bootstrap
 		dw comapi_configfile		; 000E get name of config file
+		dw comapi_ipappend		; 000F get ipappend strings
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <minmax.h>
 #include <alloca.h>
 #ifdef __COM32__
 # include <com32.h>
@@ -37,7 +38,31 @@ struct menu_entry menu_entries[MAX_ENTRIES];
                       char *__p = alloca(__n); \
                       if ( __p ) memcpy(__p, __x, __n); \
                       __p; })
+
+const char *ipappends[32];
                       
+static void
+get_ipappend(void)
+{
+#ifdef __COM32__
+  static com32sys_t r;
+  uint16_t *ipp;
+  int i;
+  int nipappends;
+
+  r.eax.w[0] = 0x000F;
+  __intcall(0x22, &r, &r);
+
+  nipappends = min(r.ecx.w[0], 32);
+  ipp        = MK_PTR(r.es, r.ebx.w[0]);
+  for ( i = 0 ; i < nipappends ; i++ ) {
+    ipappends[i] = MK_PTR(r.es, *ipp++);
+  }
+#else
+  ipappends[0] = "ip=foo:bar:baz:quux";
+  ipappends[1] = "BOOTIF=01-aa-bb-cc-dd-ee-ff";
+#endif
+}
 
 static const char *
 get_config(void)
@@ -82,24 +107,42 @@ static int looking_at(const char *line, const char *kwd)
   return *p <= ' ';		/* Must be EOL or whitespace */
 }
 
-static void record(char *label, char *lkernel, char *lappend, char *append)
+struct labeldata {
+  char *label;
+  char *kernel;
+  char *append;
+  unsigned int ipappend;
+};
+
+static void record(struct labeldata *ld, char *append)
 {
-  if ( label ) {
+  char ipoptions[256], *ipp;
+  int i;
+
+  if ( ld->label ) {
     char *a, *s;
-    menu_entries[nentries].displayname = label;
-    a = lappend;
+    menu_entries[nentries].displayname = ld->label;
+
+    ipp = ipoptions;
+    *ipp = '\0';
+    for ( i = 0 ; i < 32 ; i++ ) {
+      if ( (ld->ipappend & (1U << i)) && ipappends[i] )
+	ipp += sprintf(ipp, " %s", ipappends[i]);
+    }
+
+    a = ld->append;
     if ( !a ) a = append;
     if ( !a || (a[0] == '-' && !a[1]) ) a = "";
     s = a[0] ? " " : "";
-    asprintf(&menu_entries[nentries].cmdline, "%s%s%s", lkernel, s, a);
+    asprintf(&menu_entries[nentries].cmdline, "%s%s%s%s", ld->kernel, ipoptions, s, a);
 
     printf("displayname: %s\n", menu_entries[nentries].displayname);
     printf("cmdline:     %s\n", menu_entries[nentries].cmdline);
 
-    label = NULL;
-    free(lkernel);
-    if ( lappend )
-      free(lappend);
+    ld->label = NULL;
+    free(ld->kernel);
+    if ( ld->append )
+      free(ld->append);
     nentries++;
   }
 }
@@ -109,7 +152,9 @@ void parse_config(const char *filename)
   char line[MAX_LINE], *p;
   FILE *f;
   char *append = NULL;
-  char *label = NULL, *lkernel = NULL, *lappend = NULL;
+  static struct labeldata ld;
+
+  get_ipappend();
 
   if ( !filename )
     filename = get_config();
@@ -141,20 +186,21 @@ void parse_config(const char *filename)
       }
     } else if ( looking_at(p, "append") ) {
       char *a = strdup(skipspace(p+6));
-      if ( label )
-	lappend = a;
+      if ( ld.label )
+	ld.append = a;
       else
 	append = a;
     } else if ( looking_at(p, "label") ) {
       p = skipspace(p+5);
-      record(label, lkernel, lappend, append);
-      label   = strdup(p);
-      lkernel = strdup(p);
-      lappend = NULL;
+      record(&ld, append);
+      ld.label    = strdup(p);
+      ld.kernel   = strdup(p);
+      ld.append   = NULL;
+      ld.ipappend = 0;
     } else if ( looking_at(p, "kernel") ) {
-      if ( label ) {
-	free(lkernel);
-	lkernel = strdup(skipspace(p+6));
+      if ( ld.label ) {
+	free(ld.kernel);
+	ld.kernel = strdup(skipspace(p+6));
       }
     } else if ( looking_at(p, "timeout") ) {
       timeout = atoi(skipspace(p+7));
@@ -162,9 +208,11 @@ void parse_config(const char *filename)
       ontimeout = strdup(skipspace(p+9));
     } else if ( looking_at(p, "allowoptions") ) {
       allowedit = atoi(skipspace(p+12));
+    } else if ( looking_at(p, "ipappend") ) {
+      ld.ipappend = atoi(skipspace(p+8));
     }
   }
   
-  record(label, lkernel, lappend, append);
+  record(&ld, append);
   fclose(f);
 }

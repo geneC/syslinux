@@ -45,6 +45,7 @@ keywd_size	equ 8	; Bytes per keyword
 
 keywd_table:
 		keyword hash,      pc_comment
+		keyword menu,	   pc_comment
 		keyword append,    pc_append
 		keyword default,   pc_default
 		keyword display,   pc_filecmd,  get_msg_file

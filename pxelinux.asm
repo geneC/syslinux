@@ -209,6 +209,7 @@ OverLoad	resb 1			; Set if DHCP packet uses "overloading"
 MACLen		resb 1			; MAC address len
 MACType		resb 1			; MAC address type
 MAC		resb 16			; Actual MAC address
+BOOTIFStr	resb 7			; Space for "BOOTIF="
 MACStr		resb 3*17		; MAC address as a string
 
 ;
@@ -550,10 +551,14 @@ query_bootp:
 		sub cx,di
 		xor ax,ax
 		rep stosb
-		pop cx
 		
+		mov si,bootif_str
+		mov di,BOOTIFStr
+		mov cx,bootif_str_len
+		rep movsb
+	
+		pop cx
 		mov si,MACType
-		mov di,MACStr
 		inc cx
 		mov bx,hextbl_lower
 .hexify_mac:
@@ -819,10 +824,7 @@ config_scan:
 .noipappend1:
 		test byte [IPAppend],02h
 		jz .noipappend2
-		mov si,bootif_str
-		mov cx,bootif_str_len
-		rep movsb
-		mov si,MACStr
+		mov si,BOOTIFStr
 		call strcpy
 		mov byte [es:di-1],' '		; Replace null with space
 .noipappend2:
