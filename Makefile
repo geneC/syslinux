@@ -41,7 +41,7 @@ CSRC    = syslinux.c gethostip.c
 NASMSRC  = ldlinux.asm syslinux.asm copybs.asm \
 	  pxelinux.asm mbr.asm isolinux.asm isolinux-debug.asm
 SOURCES = $(CSRC) $(NASMSRC) *.inc
-BTARGET = ldlinux.bss ldlinux.sys ldlinux.bin ldlinux.lst \
+BTARGET = kwdhash.gen ldlinux.bss ldlinux.sys ldlinux.bin ldlinux.lst \
 	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin
 ITARGET = syslinux.com syslinux copybs.com gethostip
 DOCS    = COPYING NEWS README TODO *.doc sample
