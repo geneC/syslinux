@@ -17,7 +17,9 @@
 ; 
 ; ****************************************************************************
 
+%ifndef DEPEND
 %include	"../version.gen"
+%endif
 
 ; %define DEBUG_TRACERS			; Uncomment to get debugging tracers
 
