@@ -659,7 +659,7 @@ ldlinux_magic	db 'LDLINUX SYS'
 ; immediately after the EOF + LDLINUX SYS + 4 bytes + 55 AA + alignment,
 ; so we can find it algorithmically.
 ;
-		alignb 4
+		alignb 4, db 0
 MaxTransfer	dw 00FFh		; Absolutely maximum transfer size
 
 		align 4
