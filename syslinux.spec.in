@@ -62,6 +62,7 @@ rm -rf %{buildroot}
 %doc NEWS README* *.doc memdisk/*.doc COPYING
 %doc sample
 %{_bindir}/syslinux
+%{_bindir}/extlinux
 %{_bindir}/ppmtolss16
 %{_bindir}/lss16toppm
 %{_bindir}/gethostip
@@ -85,6 +86,7 @@ rm -rf %{buildroot}
 * Thu Dec 30 2004 H. Peter Anvin <hpa@zytor.com>
 - libsyslinux dropped in syslinux 3.00.
 - Additional documentation.
+- Add extlinux.
 
 * Tue Dec 14 2004 H. Peter Anvin <hpa@zytor.com>
 - Add a devel package for the com32 library added in 2.12.
