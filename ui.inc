@@ -229,18 +229,25 @@ clin_opt_ok:
 ;
 vk_check:
 		xor si,si			; Beginning of vk_seg
-		push word vk_seg
-		pop ds
 .scan:
 		cmp si,[VKernelBytes]
 		jae .not_vk
+
+		push ds
+		push word vk_seg
+		pop ds
+
 		mov di,VKernelBuf
 		call rllunpack
+		pop ds
 		; SI updated on return
+
 		sub di,cx			; Return to beginning of buf
 		push si
+		mov si,KernelName
 		mov cx,FILENAME_MAX
 		es repe cmpsb
+		pop si
 		je .found
 		jmp .scan
 
@@ -281,8 +288,6 @@ vk_check:
 %endif
 
 .not_vk:
-		push cs
-		pop ds
 
 ;
 ; Not a "virtual kernel" - check that's OK and construct the command line
