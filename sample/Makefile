@@ -1,7 +1,7 @@
 #ident "$Id$"
 ## -----------------------------------------------------------------------
 ##   
-##   Copyright 2001 H. Peter Anvin - All Rights Reserved
+##   Copyright 2001-2004 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -15,13 +15,17 @@
 ## samples for syslinux users
 ##
 
-CC         = gcc
-LD         = ld
+gcc_ok   = $(shell if gcc $(1) -c -x c /dev/null -o /dev/null 2>/dev/null; \
+	           then echo $(1); else echo $(2); fi)
+
+M32     := $(call gcc_ok,-m32,)
+
+CC         = gcc $(M32)
+LD         = ld -m elf_i386
 AR	   = ar
 NASM	   = nasm
 RANLIB	   = ranlib
-M32	   = $(shell if gcc -m32 -c -x c /dev/null -o /dev/null 2>/dev/null; then echo -m32 ; fi)
-CFLAGS     = $(M32) -march=i386 -O2 -fomit-frame-pointer -I../com32/include
+CFLAGS     = -W -Wall -march=i386 -Os -fomit-frame-pointer -I../com32/include
 SFLAGS     = -march=i386
 LDFLAGS    = -s
 OBJCOPY    = objcopy

@@ -1,7 +1,7 @@
 #ident "$Id$"
 ## -----------------------------------------------------------------------
 ##   
-##   Copyright 2001 H. Peter Anvin - All Rights Reserved
+##   Copyright 2001-2004 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -13,15 +13,18 @@
 
 VERSION := $(shell cat ../version)
 
-CC       = gcc
-M32      = $(shell if gcc -m32 -c -x c /dev/null -o /dev/null 2>/dev/null; then echo -m32 ; fi)
-CFLAGS   = $(M32) -g -Wall -O2 -fomit-frame-pointer -march=i386 \
-	   -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
+gcc_ok   = $(shell if gcc $(1) -c -x c /dev/null -o /dev/null 2>/dev/null; \
+	           then echo $(1); else echo $(2); fi)
+
+M32     := $(call gcc_ok,-m32,)
+ALIGN   := $(call gcc_ok,-falign-functions=0 -falign-jumps=0 -falign-loops=0,-malign-functions=0 -malign-jumps=0 -malign-loops=0)
+
+CC       = gcc $(M32)
+CFLAGS   = -g -W -Wall -Os -fomit-frame-pointer -march=i386 $(ALIGN) \
 	   -DVERSION='"$(VERSION)"' -DDATE='"$(DATE)"'
 LDFLAGS  = -g
 INCLUDE  = -I../com32/include
-AS       = as
-LD	 = ld
+LD	 = ld -m elf_i386
 NASM     = nasm -O99
 NINCLUDE = 
 OBJCOPY  = objcopy
@@ -51,8 +54,11 @@ spotless: clean
 %.o: %.asm
 	$(NASM) -f elf -l $*.lst -o $@ $<
 
+%.o: %.s
+	$(CC) -x assembler -c -o $@ $<
+
 %.o16: %.s16
-	$(AS) -o $@ $<
+	$(CC) -x assembler -c -o $@ $<
 
 %.o: %.c
 	$(CC) $(INCLUDE) $(CFLAGS) -c -o $@ $<

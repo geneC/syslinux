@@ -23,7 +23,7 @@ ifeq ($(findstring CYGWIN,$(OSTYPE)),CYGWIN)
 CC       = gcc
 AR	 = ar
 RANLIB   = ranlib
-CFLAGS   = -mno-cygwin -Wall -O2 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+CFLAGS   = -mno-cygwin -W -Wall -O2 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 PIC	 =
 LDFLAGS  = -mno-cygwin -O2 -s
 else
@@ -36,7 +36,7 @@ CC       = mingw-gcc
 AR	 = mingw-ar
 RANLIB   = mingw-ranlib
 endif
-CFLAGS   = -Wall -O2 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+CFLAGS   = -W -Wall -O2 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 PIC      =
 LDFLAGS  = -O2 -s
 endif

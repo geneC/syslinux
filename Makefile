@@ -18,7 +18,7 @@
 OSTYPE   = $(shell uname -msr)
 CC	 = gcc
 INCLUDE  =
-CFLAGS   = -Wall -O2 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+CFLAGS   = -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 PIC      = -fPIC
 LDFLAGS  = -O2 -s
 AR	 = ar
