@@ -18,8 +18,9 @@
 
 /* A pointer to this is stored in the header */
 const char memdisk_version[] =
-"MEMDISK " VERSION " " DATE
-"  Copyright " FIRSTYEAR "-" COPYYEAR " H. Peter Anvin";
+"MEMDISK " VERSION " " DATE;
+const char copyright[] = 
+"Copyright " FIRSTYEAR "-" COPYYEAR " H. Peter Anvin";
 
 extern const char _binary_memdisk_bin_start[], _binary_memdisk_bin_end[];
 extern const char _binary_memdisk_bin_size[]; /* Weird, I know */
@@ -441,7 +442,7 @@ uint32_t setup(void)
   int total_size;
 
   /* Show signs of life */
-  printf("%s\n", memdisk_version);
+  printf("%s  %s\n", memdisk_version, copyright);
 
   if ( !shdr->ramdisk_image || !shdr->ramdisk_size ) {
     puts("MEMDISK: No ramdisk image specified!\n");
