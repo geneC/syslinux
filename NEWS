@@ -1,8 +1,13 @@
 Changes in 1.35:
-	* Loading from partitions now should work properly.
+	* Loading from partitions now should work properly.  (Actually
+	  tested, this time.  You should even be able to dd a floppy
+	  to a partition and boot from it.)
 	* Removed large workaround code for an alleged ancient BIOS
 	  bug I have never actually seen.
-	* Support for simple keyboard remappings (for localization, again.)
+	* Support for simple keyboard remappings, same as used by
+	  LILO (once again to support localization.)  The program
+	  keytab-lilo.pl from the LILO distribution included to
+	  generate such maps.
 	
 Changes in 1.34:
 	* Ability to load a VGA font on bootup (for localized Linux

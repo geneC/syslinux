@@ -1,6 +1,6 @@
-                                SYSLINUX
-			      Version 1.34
-			     March 4, 1998
+			       SYSLINUX
+			     Version 1.35
+			    April 13, 1998
 
               A bootloader for Linux using MS-DOS floppies
 
@@ -33,18 +33,22 @@ In order to create a bootable Linux floppy using SYSLINUX, prepare a
 normal MS-DOS formatted floppy.  Copy one or more Linux kernel files to
 it, then execute the DOS command:
 
-        SYSLINUX a:
+        SYSLINUX [-s] a:
 
 (or whichever drive letter is appropriate) 
 
 or the Linux command:
 
-	syslinux /dev/fd0
+	syslinux [-s] /dev/fd0
 
 (or, again, whichever device is the correct one.)
 
 This will alter the boot sector on the disk and copy a file named
 LDLINUX.SYS into its root directory.
+
+The -s option will install a "slow and stupid" version of SYSLINUX.
+This version may work on some very buggy BIOSes on which SYSLINUX
+would otherwise fail.
 
 WARNING: There seems to be a bug in some recent experimental Linux
 	 kernels that causes floppy disk corruption when using the
@@ -71,7 +75,6 @@ the following items (case is insensitive for keywords; upper case is used
 here to indicate that a word should be typed verbatim):
 
 DEFAULT kernel options...
-
         Sets the default command line.  If SYSLINUX boots automatically,
         it will act just as if the entries after DEFAULT had been typed
         in at the "boot:" prompt, except that the option "auto" is
@@ -82,7 +85,6 @@ DEFAULT kernel options...
         with no options.
 
 APPEND options...
-
         Add one or more options to the kernel command line.  These are
         added both for automatic and manual boots.  The options are
         added at the very beginning of the kernel command line,
@@ -92,7 +94,6 @@ APPEND options...
 LABEL label
   KERNEL kernel
   APPEND options...
-
         Indicates that if "label" is entered as the kernel to boot,
         SYSLINUX should instead boot "kernel", and the specified APPEND
         options should be used instead of the ones specified in the
@@ -116,17 +117,14 @@ LABEL label
 		"v2.1.30" and "v2.1.31" will not be distinguishable.
 
   APPEND -
-
         Append nothing.  APPEND with a single hyphen as argument in a
         LABEL section can be used to override a global APPEND.
 
 IMPLICIT flag_val
-
         If flag_val is 0, do not load a kernel image unless it has been
         explicitly named in a LABEL statement.  The default is 1.
 
 TIMEOUT timeout
-
         Indicates how long to wait at the boot: prompt until booting
         automatically, in units of 1/10 s.  The timeout is cancelled as
         soon as the user types anything on the keyboard, the assumption
@@ -145,8 +143,20 @@ FONT filename
 	ignored.  This only works on EGA and VGA cards; hopefully it
 	should do nothing on others.
 
-DISPLAY filename
+KBDMAP keymap
+	Install a simple keyboard map.  The keyboard remapper used is
+	*very* simplistic (it simply remaps the keycodes received from
+	the BIOS, which means that only the key combinations relevant
+	in the default layout -- usually U.S. English -- can be
+	mapped) but should at least help people with AZERTY keyboard
+	layout and the locations of = and , (two special characters
+	used heavily on the Linux kernel command line.)
 
+	The included program keytab-lilo.pl from the LILO distribution
+	can be used to create such keymaps.  The file keytab-lilo.doc
+	contains the documentation for this program.
+
+DISPLAY filename
         Displays the indicated file on the screen at boot time (before
         the boot: prompt, if displayed).  This option takes the place of
         the LINUXMSG.TXT and BOOTMSG.TXT files in SYSLINUX 1.0.  Please
@@ -155,7 +165,6 @@ DISPLAY filename
         NOTE: If the file is missing, this option is simply ignored.
 
 PROMPT flag_val
-
         If flag_val is 0, display the boot: prompt only if the Shift or Alt
         key is pressed, or Caps Lock or Scroll lock is set (this is the
         default).  If flag_val is 1, always display the boot: prompt.  This
@@ -167,7 +176,6 @@ F2 filename
    ...etc...
 F9 filename
 F0 filename
-
         Displays the indicated file on the screen when a function key is
         pressed at the boot: prompt.  This can be used to implement
         pre-boot online help (presumably for the kernel command line
@@ -219,9 +227,9 @@ provided.  The suggested manner is to let the initrd system mount the
 boot floppy and look for additional drivers in a predetermined
 location.
 
-To bzImage and recent zImage kernels, SYSLINUX 1.30-1.32 will identify
-using the ID byte 0x31.  The ID range 0x32-0x3f is reserved for future
-versions of SYSLINUX.
+To bzImage and recent zImage kernels, SYSLINUX 1.30 and higher will
+identify using the ID byte 0x31.  The ID range 0x32-0x3f is reserved
+for future versions of SYSLINUX.
 
    ++++ DISPLAY FILE FORMAT ++++
 
@@ -268,6 +276,40 @@ signature for the LDLINUX.SYS file, which must match the boot sector.
 Any file that SYSLINUX uses can be marked hidden, system or readonly if
 so is convenient; SYSLINUX ignores all file attributes.  The SYSLINUX
 installed automatically sets the readonly attribute on LDLINUX.SYS.
+
+   ++++ NOTES ON BOOTABLE CD-ROMS ++++
+
+SYSLINUX can be used to create bootdisk images for El
+Torito-compatible bootable CD-ROMs.  However, it appears that many
+BIOSes are very buggy when it comes to booting CD-ROMs.  Some users
+have reported that the following steps are helpful in making a CD-ROM
+that is bootable on the largest possible number of machines:
+
+	a) Use the -s (slow and stupid) option to SYSLINUX;
+	b) Put the boot image as close to the beginning of the
+	   ISO 9660 filesystem as possible.
+
+A CD-ROM is so much faster than a floppy that the -s option shouldn't
+matter from a speed perspective.
+
+   ++++ BOOTING FROM A FAT FILESYSTEM PARTITION ++++
+
+SYSLINUX can boot from a FAT12 or FAT16 filesystem partition on a hard
+disk (FAT32, introduced in Windows 95 OSR-2, is not supported,
+however.)  The installation procedure is identical to the procedure
+for installing it on a floppy, and should work under either DOS or
+Linux.  To boot from a partition, SYSLINUX needs to be launched from a
+Master Boot Record or another boot loader, just like DOS itself would.
+
+Under DOS, you can install a standard simple MBR on the primary hard
+disk by running the command:
+
+	FDISK /MBR
+
+Then use the FDISK command to mark the appropriate partition active.
+
+SYSLINUX, like DOS, requires that the partition which contains it
+lives entirely below cylinder 1024 for proper operation.
 
    ++++ BUG REPORTS ++++
 

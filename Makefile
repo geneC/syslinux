@@ -30,7 +30,7 @@ VERSION = $(shell cat version)
 SOURCES = ldlinux.asm syslinux.asm syslinux.c
 TARGETS = bootsect.bin ldlinux.sys syslinux.com syslinux
 DOCS    = COPYING NEWS README TODO syslinux.doc
-OTHER   = Makefile bin2c.pl now.pl version
+OTHER   = Makefile bin2c.pl now.pl keytab-lilo.pl version
 
 all:	$(TARGETS)
 	ls -l $(TARGETS)
@@ -64,7 +64,8 @@ syslinux: syslinux.o bootsect_bin.o ldlinux_bin.o
 	$(CC) $(LDFLAGS) -o syslinux syslinux.o bootsect_bin.o ldlinux_bin.o
 
 install: all
-	install -c syslinux $(BINDIR)
+	chmod a+x keytab-lilo.pl
+	install -c syslinux keytab-lilo.pl $(BINDIR)
 
 tidy:
 	rm -f ldlinux.bin *.lst *.o *_bin.c

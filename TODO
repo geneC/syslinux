@@ -5,8 +5,6 @@ Currently scheduled for inclusion in 1.40:
 - Cleaned up documentation, with a real man page.
 - Boot ELKS, if at all possible (may have problems with i386
   assumption.)
-- Get booting from a partition working (two independent reports say
-  it's broken.)
 
 For a later release, perhaps:
 
