@@ -167,7 +167,8 @@ int main(int argc, char *argv[])
   }
   
   /* Check to see that what we got was indeed an MS-DOS boot sector/superblock */
-  if(!syslinux_check_bootsect(sectbuf,drive)) {
+  if(!syslinux_check_bootsect(sectbuf,&errmsg)) {
+    fprintf(stderr, "%s\n", errmsg);
     exit(1);
   }
 

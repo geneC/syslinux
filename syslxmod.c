@@ -121,11 +121,13 @@ void syslinux_make_bootsect(void *bs)
  * Check to see that what we got was indeed an MS-DOS boot sector/superblock;
  * Return 0 if bad and 1 if OK.
  */
-int syslinux_check_bootsect(const void *bs, const char *device)
+int syslinux_check_bootsect(const void *bs, const char **errmsg)
 {
   int veryold;
   unsigned int sectors, clusters;
   const unsigned char *sectbuf = bs;
+
+  *errmsg = 0;
 
   /*** FIX: Handle FAT32 ***/
 
@@ -140,21 +142,20 @@ int syslinux_check_bootsect(const void *bs, const char *device)
 
     if ( !memcmp(sectbuf+bsFileSysType, "FAT12   ", 8) ) {
       if ( clusters > 4086 ) {
-	fprintf(stderr, "%s: ERROR: FAT12 but claims more than 4086 clusters\n",
-		device);
+	*errmsg = "FAT12 but claims more than 4086 clusters";
 	return 0;
       }
     } else if ( !memcmp(sectbuf+bsFileSysType, "FAT16   ", 8) ) {
       if ( clusters <= 4086 ) {
-	fprintf(stderr, "%s: ERROR: FAT16 but claims less than 4086 clusters\n",
-		device);
+	*errmsg = "FAT16 but claims less than 4086 clusters";
 	return 0;
       }
     } else if ( !memcmp(sectbuf+bsFileSysType, "FAT     ", 8) ) {
       /* OS/2 sets up the filesystem as just `FAT'. */
     } else {
-      fprintf(stderr, "%s: filesystem type \"%8.8s\" not supported\n",
-	      device, sectbuf+bsFileSysType);
+      static char fserr[] = "filesystem type \"????????\" not supported";
+      memcpy(fserr+17, sectbuf+bsFileSysType, 8);
+      *errmsg = fserr;
       return 0;
     }
   } else {
@@ -162,8 +163,8 @@ int syslinux_check_bootsect(const void *bs, const char *device)
 
     if ( sectbuf[bsSecPerClust] & (sectbuf[bsSecPerClust] - 1) ||
 	 sectbuf[bsSecPerClust] == 0 ) {
-      fprintf(stderr, "%s: This doesn't look like a FAT filesystem\n",
-	      device);
+      *errmsg = "this doesn't look like a FAT filesystem";
+      return 0;
     }
 
     sectors = get_16(sectbuf+bsSectors);
@@ -172,8 +173,7 @@ int syslinux_check_bootsect(const void *bs, const char *device)
   }
 
   if ( get_16(sectbuf+bsBytesPerSec) != 512 ) {
-    fprintf(stderr, "%s: Sector sizes other than 512 not supported\n",
-	    device);
+    *errmsg = "sector sizes other than 512 not supported";
     return 0;
   }
 

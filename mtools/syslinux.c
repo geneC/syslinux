@@ -136,6 +136,7 @@ int main(int argc, char *argv[])
   libfat_sector_t s, *secp, sectors[65]; /* 65 is maximum possible */
   int32_t ldlinux_cluster;
   int nsectors;
+  const char *errmsg;
 
   (void)argc;			/* Unused */
 
@@ -192,7 +193,8 @@ int main(int argc, char *argv[])
   /*
    * Check to see that what we got was indeed an MS-DOS boot sector/superblock
    */
-  if( !syslinux_check_bootsect(sectbuf,device) ) {
+  if( !syslinux_check_bootsect(sectbuf,&errmsg) ) {
+    fprintf(stderr, "%s: %s\n", program, errmsg);
     exit(1);
   }
 

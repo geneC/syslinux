@@ -30,13 +30,15 @@ const char *program = "syslinux"; /* Name of program */
 
 void __attribute__((noreturn)) usage(void)
 {
-  fprintf(stderr, "Usage: %s [-sf] drive:\n", program);
+  puts("Usage: syslinux [-sf] drive:\n");
   exit(1);
 }
 
 void __attribute__((noreturn)) die(const char *msg)
 {
-  fprintf(stderr, "%s: %s\n", program, msg);
+  puts("syslinux: ");
+  puts(msg);
+  putchar('\n');
   exit(1);
 }
 
@@ -149,6 +151,7 @@ int main(int argc, char *argv[])
   int32_t ldlinux_cluster;
   int nsectors;
   char *device = NULL;
+  const char *errmsg;
 
   (void)argc;			/* Unused */
 
@@ -190,7 +193,9 @@ int main(int argc, char *argv[])
   /*
    * Check to see that what we got was indeed an MS-DOS boot sector/superblock
    */
-  if(!syslinux_check_bootsect(sectbuf,device)) {
+  if(!syslinux_check_bootsect(sectbuf,&errmsg)) {
+    puts(errmsg);
+    putchar('\n');
     exit(1);
   }
   
