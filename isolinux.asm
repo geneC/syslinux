@@ -3156,7 +3156,7 @@ msg_line_wrap:					; Screen wraparound
 msg_scroll:     xor cx,cx                       ; Upper left hand corner
                 mov dx,[ScreenSize]
                 mov [CursorRow],dh		; New cursor at the bottom
-                mov bh,[TextAttribute]
+                mov bh,[ScrollAttribute]
                 mov ax,0601h                    ; Scroll up one line
                 int 10h
                 jmp short msg_gotoxy
