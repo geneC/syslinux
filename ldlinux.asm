@@ -1048,17 +1048,7 @@ skip_checks:
 ; Initialization that does not need to go into the any of the pre-load
 ; areas
 ;
-                mov al,[BIOS_vidrows]
-                and al,al
-                jnz vidrows_is_ok
-                mov al,24                       ; No vidrows in BIOS, assume 25
-						; (Remember: vidrows == rows-1)
-vidrows_is_ok:  mov [VidRows],al
-                mov ah,0fh
-                int 10h                         ; Read video state
-                mov [TextPage],bh
-                dec ah                          ; Store count-1 (same as rows)
-                mov [VidCols],ah
+		call adjust_screen
 ;
 ; Now we're all set to start with our *real* business.	First load the
 ; configuration file (if any) and parse it.
@@ -1092,6 +1082,8 @@ parse_config:
 		je near pc_timeout
 		cmp ax,'pr'			; PRompt
 		je near pc_prompt
+		cmp ax,'fo'			; FOnt
+		je near pc_font
 		cmp ax,'di'			; DIsplay
 		je near pc_display
 		cmp ax,'la'			; LAbel
@@ -1107,12 +1099,14 @@ parse_config:
 		cmp al,'f'			; F-key
 		jne parse_config
 		jmp pc_fkey
+
 pc_default:	mov di,default_cmd		; "default" command
 		call getline
 		mov si,auto_cmd			; add "auto"+null
                 mov cx,auto_len
 		rep movsb
 		jmp short parse_config
+
 pc_append:      cmp word [VKernelCtr],byte 0	; "append" command
 		ja pc_append_vk
                 mov di,AppendBuf
@@ -1130,10 +1124,13 @@ pc_append_vk:	mov di,VKernelBuf+vk_append	; "append" command (vkernel)
                 mov di,0                        ; If "append -" -> null string
 pc_app2:        mov [VKernelBuf+vk_appendlen],di
 		jmp short parse_config_2	
+
 pc_bootsec:	mov al,vk_t_bootsec		; "bootsec" command
 		jmp short pc_vkernel
+
 pc_run:		mov al,vk_t_run			; "run" command
 		jmp short pc_vkernel
+
 pc_kernel:	mov al,vk_t_kernel		; "kernel" command
 pc_vkernel:	cmp word [VKernelCtr],byte 0
 		je near parse_config		; ("label" section only)
@@ -1145,6 +1142,7 @@ pc_vkernel:	cmp word [VKernelCtr],byte 0
 		mov di,VKernelBuf+vk_rname
 		call mangle_name
 		jmp short parse_config_2
+
 pc_timeout:	call getint			; "timeout" command
 		jc parse_config_2
 		mov ax,0D215h			; There are approx 1.D215h
@@ -1152,6 +1150,7 @@ pc_timeout:	call getint			; "timeout" command
 		add bx,dx
 		mov [KbdTimeOut],bx
 		jmp short parse_config_2
+
 pc_display:	mov di,trackbuf
 		push di
 		call getline			; Get filename to display
@@ -1164,14 +1163,17 @@ pc_display:	mov di,trackbuf
 		jz parse_config_2		; File not found?
 		call get_msg_file		; Load and display file
 parse_config_2: jmp parse_config
+
 pc_prompt:	call getint			; "prompt" command
 		jc parse_config_2
 		mov [ForcePrompt],bx
 		jmp short parse_config_2
+
 pc_implicit:    call getint                     ; "implicit" command
                 jc parse_config_2
                 mov [AllowImplicit],bx
                 jmp short parse_config_2
+
 pc_fkey:	sub ah,'1'
 		jnb pc_fkey1
 		mov ah,9			; F10
@@ -1190,6 +1192,7 @@ pc_fkey1:	xor cx,cx
 		add di,FKeyName
 		call mangle_name		; Mangle file name
 		jmp short parse_config_2
+
 pc_label:	call commit_vk			; Commit any current vkernel
 		mov di,trackbuf			; Get virtual filename
 		push di
@@ -1210,6 +1213,20 @@ pc_label:	call commit_vk			; Commit any current vkernel
                 mov [VKernelBuf+vk_appendlen],cx
                 rep movsb
 		jmp short parse_config_2
+
+pc_font:	mov di,trackbuf			; "font" command
+		push di
+		call getline			; Get font filename
+		pop si
+		mov di,MNameBuf			; Mangled name buffer
+		push di
+		call mangle_name		; Mangle file name
+		pop di
+		call searchdir			; Search for file
+		jz parse_config_3		; File not found?
+		call loadfont			; Load and install font
+parse_config_3:	jmp parse_config
+
 ;
 ; commit_vk: Store the current VKernelBuf into buffer segment
 ;
@@ -2208,6 +2225,61 @@ writechr:
 		ret
 
 ;
+; adjust_screen: Set the internal variables associated with the screen size.
+;		This is a subroutine in case we're loading a custom font.
+;
+adjust_screen:
+                mov al,[BIOS_vidrows]
+                and al,al
+                jnz vidrows_is_ok
+                mov al,24                       ; No vidrows in BIOS, assume 25
+						; (Remember: vidrows == rows-1)
+vidrows_is_ok:  mov [VidRows],al
+                mov ah,0fh
+                int 10h                         ; Read video state
+                mov [TextPage],bh
+                dec ah                          ; Store count-1 (same as rows)
+                mov [VidCols],ah
+bf_ret:		ret
+
+;
+; loadfont:	Load a .psf font file and install it onto the VGA console
+;		(if we're not on a VGA screen then ignore.)  It is called with
+;		SI and DX:AX set by routine searchdir
+;
+loadfont:
+		mov bx,trackbuf			; The trackbuf is >= 16K; the part
+		mov cx,[BufSafe]		; of a PSF file we care about is no
+		call getfssec			; more than 8K+4 bytes
+
+		mov ax,[trackbuf]		; Magic number
+		cmp ax,0436h
+		jne bf_ret
+
+		mov al,[trackbuf+2]		; File mode
+		cmp al,3			; Font modes 0-3 supported
+		ja bf_ret
+
+		mov bh,byte [trackbuf+3]	; Height of font
+		cmp bh,2			; VGA minimum
+		jb bf_ret
+		cmp bh,32			; VGA maximum
+		ja bf_ret
+
+		mov bp,trackbuf+4		; Address of font data
+		xor bl,bl
+		mov cx,256
+		xor dx,dx
+		mov ax,1110h
+		int 10h				; Load into VGA RAM
+
+		xor bl,bl
+		mov ax,1103h			; Select page 0
+		int 10h
+
+		jmp short adjust_screen
+
+;
 ; get_msg_file: Load a text file and write its contents to the screen,
 ;               interpreting color codes.  Is called with SI and DX:AX
 ;               set by routine searchdir
@@ -2892,13 +2964,14 @@ initrd_cmd_len	equ 7
 keywd_table	db 'ap' ; append
 		db 'de' ; default
 		db 'ti' ; timeout
+		db 'fo'	; font
 		db 'di' ; display
 		db 'pr' ; prompt
 		db 'la' ; label
                 db 'im' ; implicit
 		db 'ke' ; kernel
-		db 'ru'	; run
-		db 'bo'	; bootsec
+;		db 'ru'	; run
+;		db 'bo'	; bootsec
 		db 'f1' ; F1
 		db 'f2' ; F2
 		db 'f3' ; F3

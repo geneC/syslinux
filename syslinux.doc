@@ -1,6 +1,6 @@
                                 SYSLINUX
-			      Version 1.33
-			  February 26, 1998
+			      Version 1.34
+			     March 4, 1998
 
               A bootloader for Linux using MS-DOS floppies
 
@@ -136,6 +136,14 @@ TIMEOUT timeout
 
         NOTE: The maximum possible timeout value is 35996; corresponding to
         just below one hour.
+
+FONT filename
+	Load a font in .psf format before displaying any output
+	(except the copyright line, which is output as ldlinux.sys
+	itself is loaded.)  SYSLINUX only loads the font onto the
+	video card; if the .psf file contains a Unicode table it is
+	ignored.  This only works on EGA and VGA cards; hopefully it
+	should do nothing on others.
 
 DISPLAY filename
 

@@ -1,11 +1,12 @@
 Currently scheduled for inclusion in 1.40:
 
-- FAT16 support (for LS120 floppies mainly).		DONE!
 - "Comboot" style boot files.
 - Booting DOS for a DOS/Linux dual rescue disk.
 - Cleaned up documentation, with a real man page.
 - Boot ELKS, if at all possible (may have problems with i386
   assumption.)
+- Get booting from a partition working (two independent reports say
+  it's broken.)
 
 For a later release, perhaps:
 
