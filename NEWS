@@ -5,6 +5,8 @@ Changes in 1.64:
 	* Limited support for hardware flow control when using a
 	  serial port console.
 	* Support specifying the serial port I/O address explicitly.
+	* Make DOS installer hopefully behave more nicely when used on
+	  recent Windows versions.
 
 Changes in 1.63:
 	* Make the ppmtolss16 program handle color conversion more

@@ -162,7 +162,7 @@ got_cmdline:
 		jne sectorsize_error
 
 		cmp byte [bx+dpbClusterShift],5	; Max size = 16K = 2^5 sectors
-		jna read_bootsect
+		jna drive_ok
 
 hugeclust_error:
 		mov dx,msg_hugeclust_err
@@ -174,8 +174,125 @@ sectorsize_error:
 		mov dx,msg_sectorsize_err
 		jmp die
 
+drive_ok:
+
 ;
-; Good enough.  Now read the old boot sector and copy the superblock.
+; Writing LDLINUX.SYS
+;
+		section .data
+ldlinux_sys_str:
+		db 'A:\LDLINUX.SYS', 0
+		section .text
+
+write_file:
+		; 0. Set the correct filename
+
+		mov al,[DriveNo]
+		add [ldlinux_sys_str],al
+
+		; 1. If the file exists, strip its attributes and delete
+
+		xor cx,cx			; Clear attributes
+		mov dx,ldlinux_sys_str
+		mov ax,4301h			; Set file attributes
+		int 21h
+
+		mov dx,ldlinux_sys_str
+		mov ah,41h			; Delete file
+		int 21h
+
+		; 2. Create LDLINUX.SYS and write data to it
+
+		mov dx,ldlinux_sys_str
+		xor cx,cx			; Normal file
+		mov ah,3Ch			; Create file
+		int 21h
+		jc .file_write_error
+		mov [FileHandle],ax
+
+		mov bx,ax
+		mov cx,ldlinux_size
+		mov dx,LDLinuxSYS
+		mov ah,40h			; Write data
+		int 21h
+		jc .file_write_error
+		cmp ax,ldlinux_size
+		je .no_file_write_error
+.file_write_error:
+		jmp file_write_error
+.no_file_write_error:
+
+		mov bx,[FileHandle]
+		mov ah,3Eh			; Close file
+		int 21h
+
+		section .bss
+FileHandle:	resw 1
+
+		section .text
+
+		; 3. Set the readonly flag on LDLINUX.SYS
+
+		mov dx,ldlinux_sys_str
+		mov cx,1			; Read only
+		mov ax,4301h			; Set attributes
+		int 21h
+
+;
+; Now, if we're on a recent Windows system we need to lock the device.
+; This call should have no effect on plain DOS.
+;
+lock_drive:
+		cmp word [DOSVersion], 0700h	; Win9x/NT?
+		jb .plain_dos			; Plain DOS -> no locking
+
+		mov ax,440Dh			; Generic IOCTL
+		mov bl,[DriveNo]
+		inc bl				; 1-based
+		mov bh,1			; Lock level 1
+		mov cx,084Ah			; Lock logical volume
+		mov dx,01h			; Allow write mappings/allow new mappings
+		pusha
+		int 21h
+		popa
+		jc .disk_lock_error_nocleanup
+
+		xor dx,dx
+		inc bh				; Lock level 2
+		pusha
+		int 21h
+		popa
+		jc .disk_lock_error
+
+		inc bh				; Lock level 3
+		pusha
+		int 21h
+		popa
+		jnc .done
+
+.disk_lock_error:
+		xor cx,cx
+		mov cl,bh
+		dec cx
+.lock_cleanup:
+		push cx
+		mov ax, 440Dh
+		mov bl,[DriveNo]
+		inc bl
+		mov cx,086Ah
+		int 21h
+		pop cx
+		loop .lock_cleanup
+
+.disk_lock_error_nocleanup:
+		mov dx, msg_lock_err
+		jmp die
+
+.done:
+.plain_dos:	; Plain DOS -> no locking
+
+;
+; Now read the old boot sector and copy the superblock.
 ;
 		section .data
 		align 4, db 0
@@ -211,68 +328,11 @@ read_bootsect:
 		mov di,BootSector+11
 		mov cx,51			; Superblock = 51 bytes
 		rep movsb			; Copy the superblock
-		jmp short write_file
+		jmp short write_bootsect
 disk_read_error:
 		mov dx,msg_read_err
 		jmp die
-;
-; Writing LDLINUX.SYS
-;
-write_file:
-		; 0. Set the correct filename
 
-		mov al,[DriveNo]
-		add [ldlinux_sys_str],al
-
-		; 1. If the file exists, strip its attributes and delete
-
-		xor cx,cx			; Clear attributes
-		mov dx,ldlinux_sys_str
-		mov ax,4301h			; Set file attributes
-		int 21h
-
-		mov dx,ldlinux_sys_str
-		mov ah,41h			; Delete file
-		int 21h
-
-		section .data
-ldlinux_sys_str: db 'A:\LDLINUX.SYS', 0
-
-		section .text
-
-		; 2. Create LDLINUX.SYS and write data to it
-
-		mov dx,ldlinux_sys_str
-		xor cx,cx			; Normal file
-		mov ah,3Ch			; Create file
-		int 21h
-		jc file_write_error
-		mov [FileHandle],ax
-
-		mov bx,ax
-		mov cx,ldlinux_size
-		mov dx,LDLinuxSYS
-		mov ah,40h			; Write data
-		int 21h
-		jc file_write_error
-		cmp ax,ldlinux_size
-		jne file_write_error
-
-		mov bx,[FileHandle]
-		mov ah,3Eh			; Close file
-		int 21h
-
-		section .bss
-FileHandle:	resw 1
-
-		section .text
-
-		; 3. Set the readonly flag on LDLINUX.SYS
-
-		mov dx,ldlinux_sys_str
-		mov cx,1			; Read only
-		mov ax,4301h			; Set attributes
-		int 21h
 ;
 ; Writing boot sector
 ;
@@ -294,19 +354,39 @@ write_bootsect:
 		pop ax				; Remove flags from stack
 		jc disk_write_error
 
+;
+; Unlock the disk if we had to lock it
+;
+unlock_disk:
+		cmp word [DOSVersion], 0700h
+		jb .plain_dos
+
+		mov cx,	3			; Need to release lock 3 times
+.loop:
+		push cx
+		mov ax,440Dh			; Generic IOCTL
+		mov bl,[DriveNo]
+		inc bl				; 1-based drive number
+		mov cx,086Ah			; Unlock logical drive
+		int 21h
+		pop cx
+		loop .loop
+
+.plain_dos:	; Plain DOS -> no locking
+
 all_done:	mov ax,4C00h			; Exit good status
 		int 21h
 ;
 ; Error routine jump
 ;
-disk_write_error:
 file_write_error:
+disk_write_error:
 		mov dx,msg_write_err
 die:
 		push cs
 		pop ds
 		push dx
-		mov dx,msg_error
+		mov dx, msg_error
 		mov ah,09h
 		int 21h
 		pop dx
@@ -331,13 +411,14 @@ msg_sectorsize_err:	db 'Sector sizes other than 512 bytes not supported', 0Dh, 0
 msg_hugeclust_err:	db 'Clusters larger than 16K not supported', 0Dh, 0Ah, '$'
 msg_read_err:		db 'Boot sector read failed', 0Dh, 0Ah, '$'
 msg_write_err:		db 'Disk write failed', 0Dh, 0Ah, '$'
+msg_lock_err:		db 'Unable to lock drive for exclusive access', 0Dh, 0Ah, '$'
 
 		section .data
-		align 4, db 0
+		align 16, db 0
 BootSector:	incbin "bootsect.bin"
 LDLinuxSYS:	incbin "ldlinux.sys"
 ldlinux_size:	equ $-LDLinuxSYS
 
 		section .bss
-		alignb 4
+		alignb 16
 SectorBuffer:	resb 512
