@@ -288,7 +288,7 @@ _start1:
 		push gs
 
 		mov bp,sp
-		les bx,[bp+48]		; Initial !PXE structure pointer
+		les bx,[bp+48]		; ES:BX -> !PXE or PXENV+ structure
 
 		mov ax,cs
 		mov ds,ax
@@ -832,12 +832,12 @@ config_scan:
 ; AX contains the appropriate return code.
 ;
 local_boot:
-		call vgaclearmode
-		xor si,si
+		mov si,cs
 		mov ds,si			; Restore DI
 		mov ss,si
-		mov sp,StackBuf			; Reset the stack
+		mov esp,StackBuf		; Reset the stack
 		mov [LocalBootType],ax
+		call vgaclearmode
 		mov si,localboot_msg
 		call writestr
 		; Restore the environment we were called with
@@ -946,7 +946,7 @@ kaboom:
 memory_scan_for_pxe_struct:
 		push ds
 		pusha
-		xor ax,ax
+		mov ax,cs
 		mov ds,ax
 		mov si,trymempxe_msg
 		call writestr
