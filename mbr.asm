@@ -2,13 +2,9 @@
 ; $Id$
 ; -----------------------------------------------------------------------
 ;   
-;   Copyright 2000 H. Peter Anvin - All Rights Reserved
+;   NOT Copyright 2000 H. Peter Anvin
 ;
-;   This program is free software; you can redistribute it and/or modify
-;   it under the terms of the GNU General Public License as published by
-;   the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
-;   USA; either version 2 of the License, or (at your option) any later
-;   version; incorporated herein by reference.
+;   This file is in the public domain.  Enjoy.
 ;
 ; -----------------------------------------------------------------------
 
@@ -16,14 +12,14 @@
 ; mbr.asm
 ;
 ; Simple Master Boot Record, including support for EBIOS extensions.
-;
+; 
 ; The MBR lives in front of the boot sector, and is responsible for
-; loading the boot sector of the active partition.  The EBIOS support is needed
-; if the active partition starts beyond cylinder 1024.
-;
-; This MBR determines all geometry info at runtime.  It uses only the linear
-; block field in the partition table.  It does, however, pass the partition table
-; information unchanged to the target OS.
+; loading the boot sector of the active partition.  The EBIOS support
+; is needed if the active partition starts beyond cylinder 1024.
+; 
+; This MBR determines all geometry info at runtime.  It uses only the
+; linear block field in the partition table.  It does, however, pass
+; the partition table information unchanged to the target OS.
 ;
 ; This MBR should be "8086-clean", i.e. not require a 386.
 ;
