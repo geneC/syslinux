@@ -13,6 +13,7 @@ Changes in 1.54:
 	* When specifying a "default" command line, no longer
 	  automatically appent "auto".  See the "DEFAULT" command in
 	  syslinux.doc for more information.
+	* PXELINUX: Clean up the allocation of local socket numbers.
 
 Changes in 1.53:
 	* PXELINUX: Rename pxelinux.bin to pxelinux.0, to match what

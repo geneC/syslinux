@@ -22,7 +22,7 @@
 %include "pxe.inc"
 
 ;
-; Macros for byte order
+; Macros for byte order of constants
 ;
 %define htons(x)  ( ( ((x) & 0FFh) << 8 ) + ( ((x) & 0FF00h) >> 8 ) )
 %define ntohs(x) htons(x)
@@ -34,19 +34,20 @@
 ; by the kernel.
 ;
 max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
-FILENAME_MAX	equ 32			; Including final null; should be a power of 2
-LOG_FILENAME_MAX equ 5			; log2(FILENAME_MAX)
+FILENAME_MAX_LG2 equ 5			; log2(Max filename size Including final null)
+FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
 REBOOT_TIME	equ 5*60		; If failure, time until full reset
 HIGHMEM_MAX	equ 038000000h		; Highest address for an initrd
 HIGHMEM_SLOP	equ 128*1024		; Avoid this much memory near the top
 DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
 BAUD_DIVISOR	equ 115200		; Serial port parameter
-MAX_SOCKETS	equ 64			; Max number of open sockets
+MAX_SOCKETS_LG2	equ 6			; log2(Max number of open sockets)
+MAX_SOCKETS	equ (1 << MAX_SOCKETS_LG2)
 TFTP_PORT	equ htons(69)		; Default TFTP port 
 PKT_RETRY	equ 6			; Packet transmit retry count
 PKT_TIMEOUT	equ 8			; Initial timeout, timer ticks @ 55 ms
-TFTP_BLOCKSIZE	equ 512			; Bytes/block
-LOG_TFTP_BLOCKSIZE equ 9		; log2(TFTP_BLOCKSIZE)
+TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)
+TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
 
 ;
 ; TFTP operation codes
@@ -999,7 +1000,7 @@ pc_fkey1:	xor cx,cx
 		call getline			; Get filename to display
 		pop si
 		pop di
-		shl di,LOG_FILENAME_MAX		; Convert to offset
+		shl di,FILENAME_MAX_LG2		; Convert to offset
 		add di,FKeyName
 		call mangle_name		; Mangle file name
 		jmp short parse_config_3
@@ -1189,7 +1190,7 @@ func_key:
 		shr ax,8
 show_help:	; AX = func key # (0 = F1, 9 = F10)
 		mov cl,al
-		shl ax,LOG_FILENAME_MAX		; Convert to offset
+		shl ax,FILENAME_MAX_LG2		; Convert to offset
 		mov bx,1
 		shl bx,cl
 		and bx,[FKeyMap]
@@ -2880,12 +2881,27 @@ allocate_socket:
 		xor cx,cx			; ZF = 1
 		pop cx
 		ret
-.found:		mov cx,[MySocket]
-		inc cx
-		and cx,0BFFFh			; Wrap 32768->49151 (ZF = 0)
-		mov [MySocket],cx
+		; Allocate a socket number.  Socket numbers are made
+		; guaranteed unique by including the socket slot number
+		; (inverted, because we use the loop counter cx); add a
+		; counter value to keep the numbers from being likely to
+		; get immediately reused.
+		;
+		; The NextSocket variable also contains the top two bits
+		; set.  This generates a value in the range 49152 to
+		; 57343.
+.found:
+		dec cx
+		push ax
+		mov ax,[NextSocket]
+		inc ax
+		and ax,((1 << (13-MAX_SOCKETS_LG2))-1) | 0xC000
+		mov [NextSocket],ax
+		shl cx,13-MAX_SOCKETS_LG2
+		add cx,ax			; ZF = 0
 		xchg ch,cl			; Convert to network byte order
 		mov [bx],cx			; Socket in use
+		pop ax
 		pop cx
 		ret
 
@@ -3703,7 +3719,7 @@ getfssec:
 .send_ack:	push cx				; <D> Retry count
 
 		mov eax,[si+tftp_filepos]
-		shr eax,LOG_TFTP_BLOCKSIZE
+		shr eax,TFTP_BLOCKSIZE_LG2
 		xchg ah,al			; Network byte order
 		call ack_packet			; Send ACK
 
@@ -3762,7 +3778,7 @@ getfssec:
 		jne .wait_data			; Then wait for something else
 
 		mov eax,[si+tftp_filepos]
-		shr eax,LOG_TFTP_BLOCKSIZE
+		shr eax,TFTP_BLOCKSIZE_LG2
 		inc ax				; Which packet are we waiting for?
 	
 		xchg ah,al			; Network byte order
@@ -4288,7 +4304,7 @@ VKernelCtr	dw 0			; Number of registered vkernels
 ForcePrompt	dw 0			; Force prompt
 AllowImplicit   dw 1                    ; Allow implicit kernels
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
-MySocket	dw 32768		; Local UDP socket counter
+NextSocket	dw 49152		; Counter for allocating socket numbers
 A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
 A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
 A20Type		dw A20_DUNNO		; A20 type unknown
