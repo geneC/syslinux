@@ -243,6 +243,7 @@ GraphXSize	resw 1			; Width of splash screen file
 VGAPos		resw 1			; Pointer into VGA memory
 VGACluster	resw 1			; Cluster pointer for VGA image file
 VGAFilePtr	resw 1			; Pointer into VGAFileBuf
+Com32SysSP	resw 1			; SP saved during COM32 syscall
 ConfigFile	resw 1			; Socket for config file
 PktTimeout	resw 1			; Timeout for current packet
 KernelExtPtr	resw 1			; During search, final null pointer
@@ -865,15 +866,14 @@ config_scan:
 		call writestr
 		call crlf
 		call open
+		popa
 		jnz .success
-
-.badness:	popa
 		dec di
 		loop .tryagain
 
 		jmp no_config_file
 
-.success:	add sp,byte 16			; Adjust stack
+.success:
 
 ;
 ; Now we have the config file open.  Parse the config file and
