@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2003 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -35,6 +35,9 @@
 %endif
 %ifndef IS_ISOLINUX
 %define IS_ISOLINUX 0
+%endif
+%ifndef IS_EXTLINUX
+%define IS_EXTLINUX 0
 %endif
 
 ;
@@ -96,5 +99,11 @@
 %define ntohs(x) htons(x)
 %define htonl(x)  ( ( ((x) & 0FFh) << 24) + ( ((x) & 0FF00h) << 8 ) + ( ((x) & 0FF0000h) >> 8 ) + ( ((x) & 0FF000000h) >> 24) )
 %define ntohl(x) htonl(x)
+
+;
+; ASCII
+;
+CR	equ 13
+LF	equ 10
 
 %endif ; _MACROS_INC

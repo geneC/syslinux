@@ -87,6 +87,7 @@ CAN_USE_HEAP    equ 80h                 ; Boot loader reports heap size
 ;
 syslinux_id	equ 031h		; 3 = SYSLINUX family; 1 = SYSLINUX
 pxelinux_id	equ 032h		; 3 = SYSLINUX family; 2 = PXELINUX
-isolinux_id	equ 033h		; 3 = SYSLINUX family; 3 = PXELINUX
+isolinux_id	equ 033h		; 3 = SYSLINUX family; 3 = ISOLINUX
+extlinux_id	equ 034h		; 3 = SYSLINUX family; 4 = EXTLINUX
 
 %endif ; _KERNEL_INC
