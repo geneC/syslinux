@@ -1,5 +1,9 @@
-Please read the file syslinux.doc for information on how to use
-SYSLINUX.
+See the following files for documentation about SYSLINUX:
+
+	syslinux.doc	- Usage instructions; manual.
+	NEWS		- List of changes from previous releases.
+	TODO		- About features planned for future releases.
+	COPYING		- For the license terms of this software.
 
 SYSLINUX now builds in a Linux environment, using nasm.  You need nasm
 version 0.97 or later to build SYSLINUX from source.  See
@@ -8,10 +12,15 @@ http://www.cryogen.com/Nasm for information about nasm.
 There is now a mailing list for SYSLINUX.  See the end of syslinux.doc
 for details.
 
+SYSLINUX is Copyright 1994-1998 H. Peter Anvin, and is free software;
+you can redistribute it and/or modify it under the terms of the GNU
+General Public License as published by the Free Software Foundation,
+Inc., 675 Mass Ave, Cambridge MA 02139, USA; either version 2 of the
+License, or (at your option) any later version.
+
 **** WARNING: READ THIS IF YOU'RE USING A 2.1.x EXPERIMENTAL KERNEL ****
 
 WARNING: There seems to be a bug in some recent experimental Linux
 kernels that causes floppy disk corruption when using the Linux
 syslinux installer.  This bug exists in kernels 2.1.79-2.1.86; as far
 as I know it was fixed in 2.1.87.
-
