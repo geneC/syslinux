@@ -25,7 +25,8 @@ LD         = ld -m elf_i386
 AR	   = ar
 NASM	   = nasm
 RANLIB	   = ranlib
-CFLAGS     = -W -Wall -march=i386 -Os -fomit-frame-pointer -I../include
+CFLAGS     = -W -Wall -march=i386 -Os -fomit-frame-pointer -I../include  -D__COM32__
+LNXCFLAGS  = -W -Wall -march=i386 -Os -g
 SFLAGS     = -march=i386
 LDFLAGS    = -T ../lib/com32.ld
 OBJCOPY    = objcopy
@@ -35,7 +36,7 @@ LIBGCC    := $(shell $(CC) --print-libgcc)
 
 .SUFFIXES: .lss .c .o .elf .c32
 
-all: hello.c32 fancyhello.c32
+all: hello.c32 fancyhello.c32 fancyhello.lnx
 
 .PRECIOUS: %.o
 %.o: %.S
@@ -48,6 +49,10 @@ all: hello.c32 fancyhello.c32
 .PRECIOUS: %.elf
 %.elf: %.o $(LIB)
 	$(LD) $(LDFLAGS) -o $@ $^ $(LIBGCC)
+
+.PRECIOUS: %.lnx
+%.lnx: %.c
+	$(CC) $(LNXCFLAGS) -o $@ $^
 
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
