@@ -303,8 +303,8 @@ location.
 
 To bzImage and recent zImage kernels, SYSLINUX 1.30 and higher will
 identify using the ID byte 0x31.  PXELINUX identifies using the ID
-byte 0x32.  The ID range 0x33-0x3f is reserved for future versions of
-SYSLINUX.
+byte 0x32, and ISOLINUX 0x33.  The ID range 0x34-0x3f is reserved for
+future versions or derivatives of SYSLINUX.
 
 
    ++++ DISPLAY FILE FORMAT ++++
