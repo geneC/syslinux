@@ -20,6 +20,9 @@ Changes in 2.00:
 	* Add a small script, mkdiskimage, to create a DOS-formatted
 	  hard disk image using mtools.  This may be useful in
 	  conjunction with MEMDISK.
+	* ISOLINUX: Search for a /boot/isolinux directory as well as
+	  /isolinux.
+	* ALL: Fix a bug related to very long configuration files.
 
 Changes in 1.76:
 	* ISOLINUX: Remove code no longer used which caused hangs on

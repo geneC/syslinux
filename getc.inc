@@ -52,8 +52,8 @@ open_return:	ret
 
 getc:
 		stc			; If we exit here -> EOF
-		mov ecx,[FBytes]
-		jecxz getc_ret
+		cmp dword [FBytes],byte 0
+		je getc_ret
 		mov si,[FPtr]
 		cmp si,[EndOfGetCBuf]
 		jb getc_loaded
@@ -73,7 +73,7 @@ getc_oksize:	sub [FClust],cx		; Reduce remaining clusters
 		mov [FNextClust],si	; Store new next pointer
 		pop si			; SI -> newly loaded data
 		pop es			; Restore ES
-getc_loaded:	lodsb			; Load a byte
+getc_loaded:	lodsb			; Load a byte, increment SI
 		mov [FPtr],si		; Update next byte pointer
 		dec dword [FBytes]	; Update bytes left counter
 		clc			; Not EOF

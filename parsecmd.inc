@@ -39,7 +39,9 @@ getcommand:
 		or al,20h		; Convert to lower case
 		movzx ebx,al		; Hash for a one-char keyword
 .read_loop:
+		push ebx
 		call getc
+		pop ebx
 		cmp al,' '		; Whitespace
 		jbe .done
 		or al,20h

@@ -2,7 +2,7 @@
 
        A bootloader for Linux using ISO 9660/El Torito CD-ROMs
 
-		Copyright (C) 1994-2001 H. Peter Anvin
+		Copyright (C) 1994-2002 H. Peter Anvin
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -23,18 +23,21 @@ Make sure you have a recent enough version of mkisofs.  I recommend
 mkisofs 1.13 (distributed with cdrecord 1.9), but 1.12 might work as
 well (not tested.)
 
-To create an image, create a directory called "isolinux" underneath
-the root directory of your ISO image master file tree.  Copy
-isolinux.bin, a config file called "isolinux.cfg" (see syslinux.doc
-for details on the configuration file), and all necessary files
-(kernels, initrd, display files, etc.) into this directory, then use
-the following command to create your ISO image (add additional options
-as appropriate, such as -J or -R):
+To create an image, create a directory called "isolinux" (or, if you
+prefer, "boot/isolinux") underneath the root directory of your ISO
+image master file tree.  Copy isolinux.bin, a config file called
+"isolinux.cfg" (see syslinux.doc for details on the configuration
+file), and all necessary files (kernels, initrd, display files, etc.)
+into this directory, then use the following command to create your ISO
+image (add additional options as appropriate, such as -J or -R):
 
 	mkisofs -o <isoimage> \
 		-b isolinux/isolinux.bin -c isolinux/boot.cat \
 		-no-emul-boot -boot-load-size 4 -boot-info-table \
 		<root-of-iso-tree>
+
+(If you named the directory boot/isolinux that should of course be
+-b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat.)
 
 ISOLINUX resolves pathnames the following way:
 
@@ -63,6 +66,14 @@ ISOLINUX is by default built in two versions, one version with extra
 debugging messages enabled.  If you are having problems with ISOLINUX,
 I would greatly appreciate if you could try out the debugging version
 (isolinux-debug.bin) and let me know what it reports.
+
+
+      ++++ NOTE ON THE CONFIG FILE DIRECTORY ++++
+
+ISOLINUX will search for the config file directory in the order
+/boot/isolinux, /isolinux, /.  The first directory that exists is
+used, even if it contains no files.  Therefore, please make sure that
+these directories don't exist if you don't want ISOLINUX to use them.
 
 
       ++++ BOOTING DOS (OR OTHER SIMILAR OPERATING SYSTEMS) ++++

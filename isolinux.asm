@@ -796,13 +796,18 @@ get_fs_structures:
 		mov [RootDir+dir_clust],eax
 		mov [CurDir+dir_clust],eax
 
-		; Look for an "isolinux" directory, and if found,
+		; Look for an isolinux directory, and if found,
 		; make it the current directory instead of the root
 		; directory.
+		mov di,boot_dir			; Search for /boot/isolinux
+		mov al,02h
+		call searchdir_iso
+		jnz .found_dir
 		mov di,isolinux_dir
-		mov al,02h			; Search for a directory
+		mov al,02h			; Search for /isolinux
 		call searchdir_iso
 		jz .no_isolinux_dir
+.found_dir:
 		mov [CurDir+dir_len],eax
 		mov eax,[si+file_left]
 		mov [CurDir+dir_clust],eax
@@ -1525,6 +1530,7 @@ aborted_msg	db ' aborted.', CR, LF, 0
 crff_msg	db CR, FF, 0
 default_str	db 'default', 0
 default_len	equ ($-default_str)
+boot_dir	db '/boot'			; /boot/isolinux
 isolinux_dir	db '/isolinux', 0
 isolinux_cfg	db 'isolinux.cfg', 0
 err_disk_image	db 'Cannot load disk image (invalid file)?', CR, LF, 0
