@@ -133,7 +133,9 @@ The best one currently known, using ISC dhcp 2.0 dhcpd.conf syntax:
 
 However, some PXE implementations will only work this way if the
 "dhcp-class-identifier" and "vendor-encapsulated-options" are *not*
-present...
+present.  Intel Boot Client 3.0 and later are known to fall into this
+category.  Arguably, that would have been the right thing from the
+beginning.
 
 Note that if your particular TFTP daemon runs under chroot (tftp-hpa
 will do this if you specify the -s (secure) option; this is

@@ -196,8 +196,11 @@ bootp:
 .macaddr	resb 16			; Client MAC address
 .sname		resb 64			; Server name (optional)
 .bootfile	resb 128		; Boot file name
-.options	resb 1264		; Vendor options
+.option_magic	resd 1			; Vendor option magic cookie
+.options	resb 1260		; Vendor options
 		endstruc	
+
+BOOTP_OPTION_MAGIC	equ htonl(0x63825363)	; See RFC 2132
 
 ;
 ; TFTP connection data structure.  Each one of these corresponds to a local
@@ -317,7 +320,7 @@ FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
 NumBuf		resb 15			; Buffer to load number
 NumBufEnd	resb 1			; Last byte in NumBuf
 DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
-IPOption	resb 64			; ip= option buffer
+IPOption	resb 80			; ip= option buffer
 		alignb 32
 BootFile	resb 128		; Boot file name from DHCP query
 KernelName      resb FILENAME_MAX       ; Mangled name for kernel
@@ -589,6 +592,10 @@ query_bootp:
 		mov [MyIP],eax
 		call genipopt
 .goodip:
+		mov di,DotQuadBuf
+		push di
+		call gendotquad			; This takes host byte order input
+
 		xchg ah,al			; Host byte order
 		ror eax,16			; (BSWAP doesn't work on 386)
 		xchg ah,al
@@ -599,14 +606,15 @@ query_bootp:
 		mov si,myipaddr_msg
 		call writestr
 		call writehex8
-		mov di,DotQuadBuf
-		mov si,di
-		call gendotquad
 		mov al,' '
 		call writechr
+		pop si				; DotQuadBuf
 		call writestr
 		call crlf
 
+		mov si,IPOption			; ***
+		call writestr			; ***
+		call crlf			; ***
 ;
 ; Save away the server IP and port number
 ;
@@ -888,12 +896,12 @@ pc_app2:        mov [VKernelBuf+vk_appendlen],di
 pc_ipappend:	call getint			; "ipappend" command
 		jc parse_config_2
 		and bx,bx
-		setnz al
+		setnz bl
 		cmp word [VKernelCtr], byte 0
-		je .vk
-		mov [IPAppend],al
+		jne .vk
+		mov [IPAppend],bl
 		jmp short parse_config_2
-.vk:		mov [VKernelBuf+vk_ipappend],al
+.vk:		mov [VKernelBuf+vk_ipappend],bl
 		jmp short parse_config_2
 
 pc_kernel:	cmp word [VKernelCtr],byte 0	; "kernel" command
@@ -3849,15 +3857,17 @@ unload_pxe:
 ;
 ; gendotquad
 ;
-; Take an IP address in EAX and output a dotted quad string to ES:DI.
+; Take an IP address (in host byte order) in EAX and
+; output a dotted quad string to ES:DI.
 ; DI points to terminal null at end of string on exit.
 ;
 ; CX is destroyed.
 ;
 gendotquad:
+		push eax
 		mov cx,4
 .genchar:
-		rol eax,8	; Move next char into LSB
+		push eax
 		aam 100
 		; Now AH = 100-digit; AL = remainder
 		cmp ah, 0
@@ -3865,28 +3875,37 @@ gendotquad:
 		add ah,'0'
 		mov [es:di],ah
 		inc di
+		aam 10
+		; Now AH = 10-digit; AL = remainder
+		jmp short .tendigit
 .lt100:
 		aam 10
-		; Now AH = 100-digit; AL = remainder
+		; Now AH = 10-digit; AL = remainder
 		cmp ah, 0
 		je .lt10
+.tendigit:
 		add ah,'0'
 		mov [es:di],ah		
 		inc di
 .lt10:
 		add al,'0'
-		mov ah,'.'
-		stosw
+		stosb
+		mov al,'.'
+		stosb
+		pop eax
+		ror eax,8	; Move next char into LSB
 		loop .genchar
 		dec di
 		mov [es:di], byte 0
+		pop eax
 		ret
 
 ;
 ; genipopt
 ;
-; Generate an ip=<client-ip>::<gw-ip>:<netmask> option into IPOption
-; based on a DHCP packet in trackbuf.  Assumes CS == DS == ES.
+; Generate an ip=<client-ip>:<boot-server-ip>:<gw-ip>:<netmask>
+; option into IPOption based on a DHCP packet in trackbuf.
+; Assumes CS == DS == ES.
 ;
 genipopt:
 		pushad
@@ -3898,10 +3917,18 @@ genipopt:
 		call gendotquad
 		mov al,':'
 		stosb
+		mov eax,[trackbuf+bootp.sip]
+		call gendotquad
+		mov al,':'
 		stosb
-		mov si,trackbuf+bootp.options
+
 		xor ebx,ebx	; Unknown netmask
 		xor edx,edx	; Unknown router
+
+		mov si,trackbuf+bootp.option_magic
+		lodsd
+		cmp eax,BOOTP_OPTION_MAGIC
+		jne .parse_done	; Unknown option format
 .parseopt:
 		lodsb
 		cmp al,0	; PAD option
