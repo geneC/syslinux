@@ -1893,7 +1893,7 @@ loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
 dot_msg         db '.', 0
 fourbs_msg	db BS, BS, BS, BS, 0
-aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
+aborted_msg	db ' aborted.', CR, LF, 0
 crff_msg	db CR, FF, 0
 default_str	db 'default', 0
 default_len	equ ($-default_str)
