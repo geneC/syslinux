@@ -1,0 +1,16 @@
+	.code16gcc
+
+	.globl _start
+_start:
+	movw $__bss_start,%di
+	xorl %eax,%eax
+	movw $_end,%cx
+	subw %di,%cx
+	shrw $2,%cx
+	rep ; stosl
+
+	calll main
+	movb $0x4c,%ah
+	int $0x21
+	hlt
+
