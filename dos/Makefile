@@ -1,7 +1,7 @@
 CC	 = gcc -m32
 LD       = ld -m elf_i386
 OBJCOPY  = objcopy
-OPTFLAGS = -g -Os
+OPTFLAGS = -g -Os -march=i386 -falign-functions=0 -falign-jumps=0 -falign-loops=0 -fomit-frame-pointer
 INCLUDES = -include code16.h -I. -I.. -I../libfat
 CFLAGS	 = -W -Wall -ffreestanding $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = -T com16.ld

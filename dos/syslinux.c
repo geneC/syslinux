@@ -50,7 +50,7 @@ int open(const char *filename, int mode)
 
   rv = 0x3D00 | mode;
   asm volatile("int $0x21 ; setc %0"
-	       : "=rm" (err), "+a" (rv)
+	       : "=abcdm" (err), "+a" (rv)
 	       : "d" (filename));
   if ( err )
     die("cannot open ldlinux.sys");
@@ -79,7 +79,7 @@ ssize_t write_file(int fd, const void *buf, size_t count)
   while ( count ) {
     rv = 0x4000;
     asm volatile("int $0x21 ; setc %0"
-		 : "=rm" (err), "+a" (rv)
+		 : "=abcdm" (err), "+a" (rv)
 		 : "b" (fd), "c" (count), "d" (buf));
     if ( err || rv == 0 )
       die("file write error");
@@ -96,7 +96,7 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
   uint8_t err;
 
   asm volatile("int $0x26 ; setc %0 ; popfw"
-	       : "=rm" (err)
+	       : "=abcdm" (err)
 	       : "a" (drive), "b" (buf), "c" (nsecs), "d" (sector));
 
   if ( err )
@@ -108,7 +108,7 @@ void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
   uint8_t err;
 
   asm volatile("int $0x25 ; setc %0 ; popfw"
-	       : "=rm" (err)
+	       : "=abcdm" (err)
 	       : "a" (drive), "b" (buf), "c" (nsecs), "d" (sector));
 
   if ( err )
@@ -121,7 +121,7 @@ void set_attributes(const char *file, int attributes)
   uint16_t rv = 0x4301;
 
   asm volatile("int $0x21 ; setc %0"
-	       : "=rm" (err), "+a" (rv)
+	       : "=abcdm" (err), "+a" (rv)
 	       : "c" (attributes), "d" (file));
 
   if ( err )
