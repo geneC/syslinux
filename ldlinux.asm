@@ -301,6 +301,7 @@ FKeyName	resb 10*16		; File names for F-key help
 NumBuf		resb 16			; Buffer to load number
 NumBufEnd	equ NumBuf+15		; Pointer to last byte in NumBuf
 		alignb 4
+PartInfo	resb 16			; Partition table entry
 InitRDat	resd 1			; Load address (linear) for initrd
 HiLoadAddr      resd 1			; Address pointer for high load loop
 KernelName      resb 12		        ; Mangled name for kernel
@@ -400,19 +401,24 @@ superblock_len	equ $-superblock
 
 start:
 		cli			; No interrupts yet, please
+		cld			; Copy upwards
 ;
 ; Set up the stack
 ;
-		xor ax,ax
-		mov ss,ax
+		xor cx,cx
+		mov ss,cx
 		mov sp,StackBuf		; Just below BSS
+		mov es,cx
 ;
 ; DS:SI may contain a partition table entry.  Preserve it for us.
 ;
-		mov dh,[si]		; "Active flag" (sanity check)
-		mov bp,[si+8]		; LSW of linear offset
-		mov bx,[si+10]		; MSW of linear offset
-
+;		mov dh,[si]		; "Active flag" (sanity check)
+;		mov bp,[si+8]		; LSW of linear offset
+;		mov bx,[si+10]		; MSW of linear offset
+		mov cl,8		; Save partition info (CH == 0)
+		mov di,PartInfo
+		rep movsw
+;
 ; Now sautee the BIOS floppy info block to that it will support decent-
 ; size transfers; the floppy block is 11 bytes and is stored in the
 ; INT 1Eh vector (brilliant waste of resources, eh?)
@@ -421,8 +427,9 @@ start:
 ; had to waste precious boot sector space with this code.
 ;
 ; This code no longer fits.  Hope that noone really needs it anymore.
-; In fact, some indications is that this code does more harm than good
-; with all the new kinds of drives and media.
+; (If so, it needs serious updating.)  In fact, some indications is that
+; this code does more harm than good with all the new kinds of drives and
+; media.
 ;
 %ifdef SUPPORT_REALLY_BROKEN_BIOSES
 		lds si,[ss:fdctab]	; DS:SI -> original
@@ -441,7 +448,7 @@ start:
 		mov [fdctab+2],ax	; Segment 0
 		mov [fdctab],di		; offset floppy_block
 %else
-		mov ds,ax
+		mov ds,cx		; CX == 0
 %endif
 ;
 ; Ready to enable interrupts, captain
@@ -454,21 +461,27 @@ start:
 ;
 ; Would it be better to zero out bsHidden if we don't have a partition table?
 ;
-		push dx
+; Note: di points to beyond the end of PartInfo
+;
 		mov [bsDriveNumber],dl
 		test dl,80h		; If floppy disk (00-7F), assume no
 		jz not_harddisk		; partition table
-		test dh,7Fh		; Sanity check: "active flag" should
+		test byte [di-16],7Fh	; Sanity check: "active flag" should
 		jnz no_partition	; be 00 or 80
-		mov [bsHidden1],bp
-		mov [bsHidden2],bx
+		lea si,[di-8]
+		mov di,bsHidden1
+		mov cl,2		; CH == 0
+		rep movsw
+;		mov [bsHidden1],bp
+;		mov [bsHidden2],bx
 no_partition:
 ;
 ; Get disk drive parameters (don't trust the superblock.)  Don't do this for
-; floppy drives -- INT 13:08 on floppy drives will return info about what the
-; *drive* supports, not about the *media*...
+; floppy drives -- INT 13:08 on floppy drives will (may?) return info about
+; what the *drive* supports, not about the *media*.  Fortunately floppy disks
+; tend to have a fixed, well-defined geometry which is stored in the superblock.
 ;
-		pop dx			; Restore DL = drive #
+		; DL == drive # still
 		mov ah,08h
 		int 13h
 		jc no_driveparm
@@ -487,8 +500,8 @@ not_harddisk:
 ; wasting precious boot sector space again...
 ;
 debugentrypt:
-		xor ax,ax		; INT 13:08 destroys ES
-		mov es,ax		; so we clear it this late
+		push ss
+		pop es
 		mov al,[bsFATs]		; Number of FATs (AH == 0)
 		jc kaboom		; If the floppy init failed
 		mul word [bsFATsecs]	; Get the size of the FAT area
@@ -640,6 +653,9 @@ getonesec:
 ;	     The "stupid patch area" gets replaced by the code
 ;	     mov bp,1 ; nop ... (BD 01 00 90 90...) when installing with
 ;	     the -s option.
+;
+; BUG ALERT: We can have up to 2^18 tracks (1024 cylinders*256 heads), but the
+; first divide only allows for 2^16-1.
 ;
 getlinsec:
 		mov si,[bsSecPerTrack]
@@ -1494,14 +1510,10 @@ not_vk:		pop ds
 ;
 ; Find the kernel on disk
 ;
-get_kernel:     mov eax,[KernelName+8]		; Save initial extension
+get_kernel:     mov byte [KernelName+11],0	; Zero-terminate filename/extension
+		mov eax,[KernelName+8]		; Save initial extension
 		mov [OrigKernelExt],eax
 .search_loop:	push bx
-		mov si,KernelName
-                mov di,KernelCName
-                call unmangle_name              ; Get human form
-                sub di,KernelCName
-                mov [KernelCNameLen],di
                 mov di,KernelName	      	; Search on disk
                 call searchdir
 		pop bx
@@ -1510,9 +1522,14 @@ get_kernel:     mov eax,[KernelName+8]		; Save initial extension
 		mov [KernelName+8],eax
 		sub bx,byte 4
 		jnb .search_loop
-bad_kernel:     mov si,err_notfound		; Complain about missing kernel
+bad_kernel:     
+		mov si,KernelName
+                mov di,KernelCName
+		push di
+                call unmangle_name              ; Get human form
+		mov si,err_notfound		; Complain about missing kernel
 		call writestr
-                mov si,KernelCName
+		pop si				; KernelCName
                 call writestr
                 mov si,crlf
                 jmp abort_load                  ; Ask user for clue
@@ -1569,8 +1586,15 @@ kernel_corrupt: mov si,err_notkernel
 ; Anything else is assumed to be a Linux kernel.
 ;
 kernel_good:
+		pusha
+		mov si,KernelName
+                mov di,KernelCName
+                call unmangle_name              ; Get human form
+                sub di,KernelCName
+                mov [KernelCNameLen],di
+		popa
+
 		mov ecx,[KernelName+8]		; Get (mangled) extension
-		and ecx,00ffffffh		; 3 bytes
 		cmp ecx,'COM'
 		je near is_comboot_image
 		cmp ecx,'CBT'
@@ -2043,6 +2067,8 @@ is_comboot_image:
 		rep stosd
 
 		mov word [es:0], 020CDh	; INT 20h instruction
+		; First non-free paragraph
+		mov word [es:02h], comboot_seg+1000h
 
 		; Copy the command line from high memory
 		mov cx,125		; Max cmdline len (minus space and CR)
@@ -2113,8 +2139,12 @@ is_bss_sector:
 load_bootsec:
 		and dx,dx
 		jnz bad_bootsec
-		cmp ax,[bsBytesPerSec]
+		mov bx,[bsBytesPerSec]
+		cmp ax,bx
 		jne bad_bootsec
+
+		; Make sure we don't test this uninitialized
+		mov [bx+trackbuf-2],dx	; Note DX == 0
 
 		mov bx,trackbuf
 		mov cx,1		; 1 cluster >= 1 sector
@@ -2139,9 +2169,14 @@ load_bootsec:
 		mov si,trackbuf
 		mov di,bootsec
 		mov cx,[bsBytesPerSec]
-		rep movsb
+		rep movsb		; Copy the boot sector!
 		
-		xor si,si		; BUG: should point to partition info
+		mov si,PartInfo
+		mov di,800h-18		; Put partition info here
+		push di
+		mov cx,8		; 16 bytes
+		rep movsw
+		pop si			; DS:SI points to partition info
 
 		jmp bootsec
 
@@ -2392,6 +2427,12 @@ ac_ret:         popa
 ;	     error handling, plus it reads the root directory in
 ;	     larger chunks than a sector at a time (which is probably
 ;	     a waste of coding effort, but I like to do things right).
+;
+;	     FIXME: usually we can load the entire root dir in memory,
+;	     and files are usually at the beginning anyway.  It probably
+;	     would be worthwhile to remember if we have the first chunk
+;	     in memory and skip the load if that (it would speed up online
+;	     help, mainly.)
 ;
 ;	     NOTE: This file considers finding a zero-length file an
 ;	     error.  This is so we don't have to deal with that special

@@ -1,6 +1,6 @@
 			       SYSLINUX
-			     Version 1.37
-			    April 20, 1998
+			     Version 1.40
+			      May 6, 1998
 
               A bootloader for Linux using MS-DOS floppies
 
@@ -97,13 +97,13 @@ APPEND options...
         them.  This is the equivalent of the LILO "append" option.
 
 LABEL label
-  KERNEL kernel
+  KERNEL image
   APPEND options...
         Indicates that if "label" is entered as the kernel to boot,
-        SYSLINUX should instead boot "kernel", and the specified APPEND
+        SYSLINUX should instead boot "image", and the specified APPEND
         options should be used instead of the ones specified in the
         global section of the file (before the first LABEL command.)
-        The default for "kernel" is the same as "label", and if no
+        The default for "image" is the same as "label", and if no
         APPEND is given the default is to use the global entry (if any).
         Up to 128 LABEL entries are permitted.
 
@@ -117,9 +117,12 @@ LABEL label
           kernel mykernel
           append myoptions
 
-	Note:	Labels are mangled as if they were DOS filenames, and must be
+	Notes:	Labels are mangled as if they were DOS filenames, and must be
 		unique after mangling.  For example, two labels
 		"v2.1.30" and "v2.1.31" will not be distinguishable.
+
+		The "image" doesn't have to be a Linux kernel; it can
+		be a boot sector or a COMBOOT file (see below.)
 
   APPEND -
         Append nothing.  APPEND with a single hyphen as argument in a
@@ -195,16 +198,6 @@ Note that the configuration file is not completely decoded.  Syntax
 different from the one described above may still work correctly in this
 version of SYSLINUX, but may break in a future one.
 
-The following combinations of options can be used to mimic the behaviour
-of SYSLINUX 1.0 with LINUXMSG.TXT or BOOTMSG.TXT present, respectively:
-
-# Mimic SYSLINUX 1.0 with LINUXMSG.TXT file present:
-display linuxmsg.txt
-prompt 1
-
-# Mimic SYSLINUX 1.0 with BOOTMSG.TXT file present:
-display bootmsg.txt
-
    ++++ LARGE KERNELS AND INITIAL RAMDISK SUPPORT ++++
 
 This version of SYSLINUX supports large kernels (bzImage format),
@@ -266,6 +259,102 @@ are interpreted:
 <SUB>                                   <SUB> = <Ctrl-Z> = ASCII 26
         End of file (DOS convention).
 
+   ++++ COMBOOT IMAGES AND OTHER OPERATING SYSTEMS ++++
+
+This version of SYSLINUX supports chain loading of other operating
+systems (such as MS-DOS and its derivatives, including Windows 95/98),
+as well as COMBOOT-style standalone executables (a subset of DOS .COM
+files; see separate section below.)
+
+Chain loading requires the boot sector of the foreign operating system
+to be stored in a file in the root directory of the filesystem.
+Because neither Linux kernels, boot sector images, nor COMBOOT files
+have reliable magic numbers, SYSLINUX will look at the file
+extension.  The following extensions are recognized:
+
+	none or other	Linux kernel image
+	.CBT		COMBOOT image (not runnable from DOS)
+	.BSS		Boot sector (DOS superblock will be patched in)
+	.BS		Boot sector
+	.COM		COMBOOT image (runnable from DOS)
+
+For filenames given on the command line, SYSLINUX will search for the
+file by adding extensions in the order listed above if the plain
+filename is not found.  Filenames in KERNEL statements must be fully
+qualified.
+
+   ++++ BOOTING DOS ++++
+
+This is the recommended procedure for creating a SYSLINUX disk that
+can boot either DOS or Linux.  This example assumes the drive is A: in
+DOS and /dev/fd0 in Linux; for other drives, substitute the
+appropriate drive designator.
+
+1. Make a DOS bootable disk.  This can be done either by specifying
+   the /s option when formatting the disk in DOS, or by running the
+   DOS command SYS:
+
+	format a: /s
+   or
+	sys a:
+
+2. Boot Linux.  Copy the DOS boot sector from the disk into a file:
+
+	dd if=/dev/fd0 of=dos.bss bs=512 count=1
+
+3. Run SYSLINUX on the disk:
+
+	syslinux /dev/fd0
+
+4. Mount the disk and copy the DOS boot sector file to it.  The file
+   *must* have extension .bss:
+
+	mount -t msdos /dev/fd0 /mnt
+	cp dos.bss /mnt
+
+5. Copy the Linux kernel image(s), initrd(s), etc to the disk, and
+   create/edit syslinux.cfg and help files if desired:
+
+	cp vmlinux /mnt
+	cp initrd.gz /mnt
+
+6. Unmount the disk.
+
+	umount /mnt
+
+   ++++ COMBOOT EXECUTABLES ++++
+
+A COMBOOT file is a standalone executable in DOS .COM format.  They
+can, among other things, be produced by the Etherboot package by
+Markus Gutschke and Ken Yap.  The following requirements apply for
+these files to be sufficiently "standalone" for SYSLINUX to be able to
+load and run them:
+
+  * The program must not execute any DOS calls (since there is no
+    DOS), although it may call the BIOS.  The only exception is that
+    the program may execute INT 20h (Terminate Program) to return to
+    the SYSLINUX prompt.  Note especially that INT 21h AH=4Ch, INT 21h
+    AH=31h or INT 27h are *not* supported.
+  * Only the following fields in the PSP are supported:
+    - pspInt20 at offset 00h;
+    - pspNextParagraph at offset 02h;
+    - pspCommandTail at offset 80h (contains the arguments from the
+      SYSLINUX command line).
+
+    All other fields will contain zero.
+  * The program must not modify any main memory outside its 64K
+    segment if it returns to SYSLINUX via INT 20h.
+
+SYSLINUX requires that COMBOOT files end in ".COM" or ".CBT".  Files
+ending in .COM can be run from the DOS command line, files ending in
+.CBT cannot, otherwise there is no difference.  SYSLINUX will prefer a
+.CBT file over a similarly named .COM.
+
+SYSLINUX currently doesn't provide any form of API for the use of
+COMBOOT files.  If there is need, a future version may contain an INT
+interface to some SYSLINUX functions; please contact me if you have a
+need or ideas for such an API.
+
    ++++ NOVICE PROTECTION ++++
 
 SYSLINUX will attempt to detect if the user is trying to boot on a 286
@@ -290,7 +379,7 @@ BIOSes are very buggy when it comes to booting CD-ROMs.  Some users
 have reported that the following steps are helpful in making a CD-ROM
 that is bootable on the largest possible number of machines:
 
-	a) Use the -s (slow and stupid) option to SYSLINUX;
+	a) Use the -s (safe, slow and stupid) option to SYSLINUX;
 	b) Put the boot image as close to the beginning of the
 	   ISO 9660 filesystem as possible.
 
@@ -315,6 +404,24 @@ Then use the FDISK command to mark the appropriate partition active.
 
 SYSLINUX, like DOS, requires that the partition which contains it
 lives entirely below cylinder 1024 for proper operation.
+
+   ++++ COMPATIBILITY WITH SYSLINUX 1.0 ++++
+
+The following combinations of options can be used to mimic the behaviour
+of SYSLINUX 1.0 with LINUXMSG.TXT or BOOTMSG.TXT present, respectively:
+
+# Mimic SYSLINUX 1.0 with LINUXMSG.TXT file present:
+display linuxmsg.txt
+prompt 1
+
+# Mimic SYSLINUX 1.0 with BOOTMSG.TXT file present:
+display bootmsg.txt
+
+   ++++ KNOWN BUGS ++++
+
+SYSLINUX will have problems with disks with more than 65536 tracks
+(cylinders * heads) or 1024 cylinders if the filesystem on which
+SYSLINUX is installed extends beyond either of these two maxima.
 
    ++++ BUG REPORTS ++++
 
