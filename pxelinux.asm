@@ -2343,7 +2343,7 @@ keywd_count	equ ($-keywd_table)/keywd_size
 ;
 		align 4, db 0
 exten_table:	db '.cbt'		; COMBOOT (specific)
-		db '.0'			; PXE bootstrap program
+		db '.0', 0, 0		; PXE bootstrap program
 		db '.com'		; COMBOOT (same as DOS)
 exten_table_end:
 		dd 0, 0			; Need 8 null bytes here
