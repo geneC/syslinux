@@ -510,25 +510,18 @@ in_proper_place:
 		jne root_not_floppy
 		mov word [es:bs_rootdev],0200h
 root_not_floppy:
+
 ;
 ; Copy the disk table to high memory, then re-initialize the floppy
 ; controller
 ;
-; This needs to be moved before the copy
-;
-%if 0
-		push ds
-		push bx
-		lds si,[fdctab]
+%if IS_SYSLINUX
+		lgs si,[cs:fdctab]
 		mov di,linux_fdctab
-		mov cx,3			; 12 bytes
-		push di
-		rep movsd
-		pop di
-		mov [fdctab1],di		; Save new floppy tab pos
-		mov [fdctab2],es
-		pop bx
-		pop ds
+		mov cx,6			; 12 bytes
+		gs rep movsw
+		mov [cs:fdctab],word linux_fdctab ; Save new floppy tab pos
+		mov [cs:fdctab+2],es
 %endif
 ;
 ; Linux wants the floppy motor shut off before starting the kernel,

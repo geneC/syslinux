@@ -118,8 +118,21 @@ KbdMap		resb 256		; Keyboard map
 FKeyName	resb 10*16		; File names for F-key help
 NumBuf		resb 15			; Buffer to load number
 NumBufEnd	resb 1			; Last byte in NumBuf
+		alignb 8
+
+		; Expanded superblock
+SuperInfo	equ $
+		resq 16			; The first 16 bytes expanded 8 times
+		;
+		; These need to follow SuperInfo
+		;
+RootDir		resd 1			; Location of root directory
+DataArea	resd 1			; Location of data area
+RootDirSize	resw 1			; Root dir size in sectors
+DirScanCtr	resw 1			; Used while searching directory
+EndofDirSec	resw 1			; = trackbuf+bsBytesPerSec-31
+
 		alignb 4
-PartInfo	resb 16			; Partition table entry
 E820Buf		resd 5			; INT 15:E820 data buffer
 HiLoadAddr      resd 1			; Address pointer for high load loop
 HighMemSize	resd 1			; End of memory pointer (bytes)
@@ -130,22 +143,11 @@ ClustPerMoby	resd 1			; Clusters per 64K
 ClustSize	resd 1			; Bytes/cluster
 KernelName      resb 12		        ; Mangled name for kernel
 					; (note the spare byte after!)
-RootDir		equ $			; Location of root directory
-RootDir1	resw 1
-RootDir2	resw 1
-DataArea	equ $			; Location of data area
-DataArea1	resw 1
-DataArea2	resw 1
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
 FBytes2		resw 1
-RootDirSize	resw 1			; Root dir size in sectors
-DirScanCtr	resw 1			; Used while searching directory
 DirBlocksLeft	resw 1			; Ditto
-EndofDirSec	resw 1			; = trackbuf+bsBytesPerSec-31
 RunLinClust	resw 1			; Cluster # for LDLINUX.SYS
-SecPerClust	resw 1			; Same as bsSecPerClust, but a word
-NextCluster	resw 1			; Pointer to "nextcluster" routine
 BufSafe		resw 1			; Clusters we can load into trackbuf
 BufSafeSec	resw 1			; = how many sectors?
 BufSafeBytes	resw 1			; = how many bytes?
@@ -196,7 +198,15 @@ VGAFileMBuf	resb 11			; Mangled VGA image name
 
 		section .text
                 org 7C00h
-StackBuf	equ $			; Start the stack here (grow down - 4K)
+;
+; Some of the things that have to be saved very early are saved
+; "close" to the initial stack pointer offset, in order to
+; reduce the code size...
+;
+StackBuf	equ $-32		; Start the stack here (grow down - 4K)
+PartInfo	equ StackBuf		; Saved partition table entry
+FloppyTable	equ PartInfo+16		; Floppy info table (must follow PartInfo)
+OrigFDCTabPtr	equ StackBuf-4		; The high dword on the stack
 
 ;
 ; Primary entry point.  Tempting as though it may be, we can't put the
@@ -211,30 +221,49 @@ bootsec		equ $
 ; loaded and ready for us
 ;
 bsOemName	db 'SYSLINUX'		; The SYS command sets this, so...
+;
+; These are the fields we actually care about.  We end up expanding them
+; all to dword size early in the code, so generate labels for both
+; the expanded and unexpanded versions.
+;;
+%macro		superb 1
+bx %+ %1	equ SuperInfo+($-superblock)*8+4
+bs %+ %1	equ $
+		zb 1
+%endmacro
+%macro		superw 1
+bx %+ %1	equ SuperInfo+($-superblock)*8
+bs %+ %1	equ $
+		zw 1
+%endmacro
+%macro		superd 1
+bx %+ %1	equ $			; no expansion for dwords
+bs %+ %1	equ $
+		zd 1
+%endmacro
 superblock	equ $
-bsBytesPerSec	zw 1
-bsSecPerClust	zb 1
-bsResSectors	zw 1
-bsFATs		zb 1
-bsRootDirEnts	zw 1
-bsSectors	zw 1
-bsMedia		zb 1
-bsFATsecs	zw 1
-bsSecPerTrack	zw 1
-bsHeads		zw 1
-bsHiddenSecs	equ $
-bsHidden1	zw 1
-bsHidden2	zw 1
-bsHugeSectors	equ $
-bsHugeSec1	zw 1
-bsHugeSec2	zw 1
-bsDriveNumber	zb 1
-bsReserved1	zb 1
-bsBootSignature zb 1			; 29h if the following fields exist
-bsVolumeID	zd 1
+		superw BytesPerSec
+		superb SecPerClust
+		superw ResSectors
+		superb FATs
+		superw RootDirEnts
+		superw Sectors
+		superb Media
+		superw FATsecs
+		superw SecPerTrack
+		superw Heads
+superinfo_size	equ ($-superblock)-1	; How much to expand
+		superd Hidden
+		superd HugeSectors
+		superb DriveNumber
+		superb Reserved1
+		superb BootSignature	; 29h if the following fields exist
+		superd VolumeID
 bsVolumeLabel	zb 11
-bsFileSysType	zb 8			; Must be FAT12 for this version
+bsFileSysType	zb 8			; Must be FAT12 or FAT16 for this version
 superblock_len	equ $-superblock
+
+SecPerClust	equ bxSecPerClust
 ;
 ; Note we don't check the constraints above now; we did that at install
 ; time (we hope!)
@@ -248,52 +277,46 @@ start:
 ;
 ; Set up the stack
 ;
-		xor cx,cx
-		mov ss,cx
+		xor ax,ax
+		mov ss,ax
 		mov sp,StackBuf		; Just below BSS
-		mov es,cx
+		mov es,ax
 ;
 ; DS:SI may contain a partition table entry.  Preserve it for us.
 ;
-		mov cl,8		; Save partition info (CH == 0)
-		mov di,PartInfo
+		mov cx,8		; Save partition info
+		mov di,sp
 		rep movsw
+
+		mov ds,ax		; Now we can initialize DS...
+
+		mov [di+bsDriveNumber-FloppyTable],dl
+		and dl,dl		; If floppy disk (00-7F), assume no
+		js harddisk		; partition table
 ;
 ; Now sautee the BIOS floppy info block to that it will support decent-
 ; size transfers; the floppy block is 11 bytes and is stored in the
 ; INT 1Eh vector (brilliant waste of resources, eh?)
 ;
 ; Of course, if BIOSes had been properly programmed, we wouldn't have
-; had to waste precious boot sector space with this code.
+; had to waste precious space with this code.
 ;
-; This code no longer fits.  Hope that noone really needs it anymore.
-; (If so, it needs serious updating.)  In fact, some indications is that
-; this code does more harm than good with all the new kinds of drives and
-; media.
-;
-%ifdef SUPPORT_REALLY_BROKEN_BIOSES
-		lds si,[ss:fdctab]	; DS:SI -> original
-		push ds			; Save on stack in case
-		push si			; we have to bail
-		push bx
-		mov cx,6		; 12 bytes
-		mov di,floppy_table
-		push di
-		cld
-		rep movsw		; Faster to move words
-		pop di
-		mov ds,ax		; Now we can point DS to here, too
+		mov bx,fdctab
+		lfs si,[bx]		; FS:SI -> original fdctab
+		push fs			; Save on stack in case we need to bail
+		push si
+		mov cl,6		; 12 bytes (CX == 0)
+		; es:di -> FloppyTable already
+		; This should be safe to do now, interrupts are off...
+		mov [bx],di		; FloppyTable
+		mov [bx+2],ax		; Segment 0
+		fs rep movsw		; Faster to move words
 		mov cl,[bsSecPerTrack]  ; Patch the sector count
-		mov [di+4],cl
-		mov [fdctab+2],ax	; Segment 0
-		mov [fdctab],di		; offset floppy_block
-%else
-		mov ds,cx		; CX == 0
-%endif
-;
-; Ready to enable interrupts, captain
-;
-		sti
+		mov [di-8],cl
+		; AX == 0 here
+		int 13h			; Some BIOSes need this
+
+		jmp short not_harddisk
 ;
 ; The drive number and possibly partition information was passed to us
 ; by the BIOS or previous boot loader (MBR).  Current "best practice" is to
@@ -303,15 +326,12 @@ start:
 ;
 ; Note: di points to beyond the end of PartInfo
 ;
-		mov [bsDriveNumber],dl
-		test dl,80h		; If floppy disk (00-7F), assume no
-		jz not_harddisk		; partition table
-		test byte [di-16],7Fh	; Sanity check: "active flag" should
-		jnz no_partition	; be 00 or 80
-		lea si,[di-8]		; Partition offset (dword)
-		mov di,bsHidden1
-		mov cl,2		; CH == 0
-		rep movsw
+harddisk:
+; This sanity check doesn't fit anymore...
+;		test byte [di-16],7Fh	; Sanity check: "active flag" should
+;		jnz no_partition	; be 00 or 80
+		mov eax,[di-8]		; Partition offset (dword)
+		mov [bsHidden],eax
 no_partition:
 ;
 ; Get disk drive parameters (don't trust the superblock.)  Don't do this for
@@ -325,69 +345,86 @@ no_partition:
 		jc no_driveparm
 		and ah,ah
 		jnz no_driveparm
-		inc dh			; Contains # of heads - 1
-		mov [bsHeads],dh
+		shr dx,8
+		inc dx			; Contains # of heads - 1
+		mov [bsHeads],dx
 		and cx,3fh
 		mov [bsSecPerTrack],cx
 no_driveparm:
 not_harddisk:
+;
+; Ready to enable interrupts, captain
+;
+		sti
+;
+; Insane hack to expand the superblock to dwords
+;
+expand_super:
+		xor eax,eax
+		mov es,ax			; INT 13:08 destroys ES
+		mov si,superblock
+		mov di,SuperInfo
+		mov cl,superinfo_size		; CH == 0
+.loop:
+		lodsw
+		dec si
+		stosd				; Store expanded word
+		xor ah,ah
+		stosd				; Store expanded byte
+		loop .loop
+
 ;
 ; Now we have to do some arithmetric to figure out where things are located.
 ; If Micro$oft had had brains they would already have done this for us,
 ; and stored it in the superblock at format time, but here we go,
 ; wasting precious boot sector space again...
 ;
+%define		Z di-superinfo_size*8-SuperInfo
 debugentrypt:
-		xor ax,ax		; INT 13:08 destroys ES
-		mov es,ax
-		mov al,[bsFATs]		; Number of FATs (AH == 0)
-		mul word [bsFATsecs]	; Get the size of the FAT area
-		add ax,[bsHidden1]	; Add hidden sectors
-		adc dx,[bsHidden2]
-		add ax,[bsResSectors]	; And reserved sectors
-		adc dx,byte 0
+		mov ax,[bxFATs]		; Number of FATs (eax<31:16> == 0)
+		mov edx,[Z+bxFATsecs]	; Sectors/FAT
+		mul edx			; Get the size of the FAT area
+		; edx <- 0
+		add eax,[bxHidden]		; Add hidden sectors
+		add eax,[Z+bxResSectors]	; And reserved sectors
 
-		mov [RootDir1],ax	; Location of root directory
-		mov [RootDir2],dx
-		mov [DataArea1],ax
-		mov [DataArea2],dx
-		push ax
-		push dx
+		mov [RootDir],eax	; Location of root directory
+		mov [DataArea],eax	; First data sector
+		push eax
 
-		mov ax,32		; Size of a directory entry
-		mul word [bsRootDirEnts]
-		mov bx,[bsBytesPerSec]
+		mov eax,[Z+bxRootDirEnts]
+		shl ax,5		; Size of a directory entry
+		mov bx,[Z+bxBytesPerSec]
 		add ax,bx		; Round up, not down
 		dec ax
 		div bx			; Now we have the size of the root dir
 		mov [RootDirSize],ax
 		mov [DirScanCtr],ax
 		add bx,trackbuf-31
-		mov [EndofDirSec],bx	; End of a single directory sector
+		mov [Z+EndofDirSec],bx	; End of a single directory sector
+		add [Z+DataArea],eax
+		pop eax			; Reload root directory starting point
 
-		add [DataArea1],ax
-		adc word [DataArea2],byte 0
-
-		pop dx			; Reload root directory starting point
-		pop ax
 ;
 ; Now the fun begins.  We have to search the root directory for
 ; LDLINUX.SYS and load the first sector, so we have a little more
 ; space to have fun with.  Then we can go chasing through the FAT.
 ; Joy!!
 ;
-sd_nextsec:	push ax
-		push dx
+sd_nextsec:	push eax
 		mov bx,trackbuf
 		push bx
 		call getonesec
 		pop si
-sd_nextentry:	cmp byte [si],0		; Directory high water mark
+sd_nextentry:	mov cx,11
+		cmp [si],ch		; Directory high water mark
 		je kaboom
-		test byte [si+11],18h	; Must be a file
-		jnz sd_not_file
+; This no longer fits... since we'd be dead anyway if there
+; was a nonfile named LDLINUX.SYS on the disk, it shouldn't
+; matter...
+;		test byte [si+11],18h	; Must be a file
+;		jnz sd_not_file
 		mov di,ldlinux_name
-		mov cx,11
 		push si
 		repe cmpsb
 		pop si
@@ -395,10 +432,8 @@ sd_nextentry:	cmp byte [si],0		; Directory high water mark
 sd_not_file:	add si,byte 32		; Distance to next
 		cmp si,[EndofDirSec]
 		jb sd_nextentry
-		pop dx
-		pop ax
-		add ax,byte 1
-		adc dx,byte 0
+		pop eax
+		inc eax
 		dec word [DirScanCtr]
 		jnz sd_nextsec
 ;
@@ -407,8 +442,9 @@ sd_not_file:	add si,byte 32		; Distance to next
 kaboom:
 		xor si,si
 		mov ss,si		
-		mov sp,StackBuf 	; Reset stack
+		mov sp,StackBuf-4 	; Reset stack
 		mov ds,si		; Reset data segment
+		pop dword [fdctab]	; Restore FDC table
 .patch:		mov si,bailmsg
 		call writestr		; Returns with AL = 0
 		cbw			; AH <- 0
@@ -422,16 +458,14 @@ kaboom:
 ;
 found_it:	; Note: we actually leave two words on the stack here
 		; (who cares?)
-		xor ax,ax
-		mov al,[bsSecPerClust]
+		mov eax,[bxSecPerClust]
 		mov bp,ax		; Load an entire cluster
-		mov bx,[si+26]		; First cluster
+		movzx ebx,word [si+26]	; First cluster
 		mov [RunLinClust],bx	; Save for later use
 		dec bx			; First cluster is "cluster 2"
 		dec bx
-		mul bx
-		add ax,[DataArea1]
-		adc dx,[DataArea2]
+		mul ebx
+		add eax,[DataArea]
 		mov bx,ldlinux_sys
 		call getlinsec
 		mov si,bs_magic
@@ -441,40 +475,31 @@ found_it:	; Note: we actually leave two words on the stack here
 		jne kaboom		; matches LDLINUX.SYS
 ;
 ; Done! Jump to the entry point!
-; 
-; Note that some BIOSes are buggy and run the boot sector at 07C0:0000
-; instead of 0000:7C00 and the like.  We don't want to add anything
-; more to the boot sector, so it is written to not assume a fixed
-; value in CS, but we don't want to deal with that anymore from now
-; on.
 ;
-		jmp 0:ldlinux_ent
-
+		jmp ldlinux_ent
 ;
 ;
 ; writestr: write a null-terminated string to the console
 ;
 writestr:
-wstr_1:         lodsb
+.loop:		lodsb
 		and al,al
-                jz return
+                jz .return
 		mov ah,0Eh		; Write to screen as TTY
 		mov bx,0007h		; White on black, current page
 		int 10h
-		jmp short wstr_1
+		jmp short .loop
+.return:	ret
+
 ;
-; disk_error: decrement the retry count and bail if zero
+; disk_error: decrement the retry count and bail if zero.
+;	      This gets patched once we have more space to try to
+;             optimize transfer sizes on broken machines.
 ;
 disk_error:	dec si			; SI holds the disk retry counter
 		jz kaboom
-		pop bx			; <I>
-		pop cx			; <H>
-		pop dx			; <G>
-		pop ax			; <F> (AH = 0)
-		mov al,1		; Once we fail, only transfer 1 sector
+		; End of patched "call" instruction!
 		jmp short disk_try_again
-
-return:		ret
 
 ;
 ; getonesec: like getlinsec, but pre-sets the count to 1
@@ -485,7 +510,7 @@ getonesec:
 
 ;
 ; getlinsec: load a sequence of BP floppy sector given by the linear sector
-;	     number in DX:AX into the buffer at ES:BX.	We try to optimize
+;	     number in EAX into the buffer at ES:BX.  We try to optimize
 ;	     by loading up to a whole track at a time, but the user
 ;	     is responsible for not crossing a 64K boundary.
 ;	     (Yes, BP is weird for a count, but it was available...)
@@ -497,28 +522,25 @@ getonesec:
 ;	     mov bp,1 ; nop ... (BD 01 00 90 90...) when installing with
 ;	     the -s option.
 ;
+;            This routine assumes CS == DS.
+;
 ; Stylistic note: use "xchg" instead of "mov" when the source is a register
 ; that is dead from that point; this saves space.  However, please keep
 ; the order to dst,src to keep things sane.
 ;
 getlinsec:
-		mov si,[bsSecPerTrack]
+		mov esi,[bxSecPerTrack]
 		;
 		; Dividing by sectors to get (track,sector): we may have
-		; up to 2^18 tracks, so we need to do this in two steps
-		; to produce a 32-bit quotient.
+		; up to 2^18 tracks, so we need to use 32-bit arithmetric.
 		;
-		xchg cx,ax		; CX <- LSW of LBA
-		xchg ax,dx
-		xor dx,dx		; DX:AX now == MSW of LBA
-		div si			; Obtain MSW of track #
-		xchg ax,cx		; Remainder -> MSW of new dividend
-					; LSW of LBA -> LSW of new dividend
-					; Quotient -> MSW of track # 
-		div si			; Obtain LSW of track #, remainder
-		xchg cx,dx		; CX <- Sector index (0-based)
-					; DX <- MSW of track #
-		div word [bsHeads]	; Convert track to head/cyl
+		xor edx,edx		; Zero-extend LBA to 64 bits
+		div esi
+		xor cx,cx
+		xchg cx,dx		; CX <- sector index (0-based)
+					; EDX <- 0
+		; eax = track #
+		div dword [bxHeads]	; Convert track to head/cyl
 		;
 		; Now we have AX = cyl, DX = head, CX = sector (0-based),
 		; BP = sectors to transfer, SI = bsSecPerTrack,
@@ -527,23 +549,25 @@ getlinsec:
 gls_nextchunk:	push si			; <A> bsSecPerTrack
 		push bp			; <B> Sectors to transfer
 
+		; Important - this gets patched with a call.  The call
+		; assumes cx, si and bp are set up, and can modify bp
+		; and destroy si.  Until we have the space to do so,
+		; transfer one sector at a time.
+gls_set_size:
 __BEGIN_STUPID_PATCH_AREA:
-		sub si,cx		; Sectors left on track
-		cmp bp,si
-		jna gls_lastchunk
-		mov bp,si		; No more than a trackful, please!
+		mov bp,1		; 3 bytes, same as a call insn
 __END_STUPID_PATCH_AREA:
-gls_lastchunk:	
+
 		push ax			; <C> Cylinder #
 		push dx			; <D> Head #
 
 		push cx			; <E> Sector #
-		mov cl,6		; Because IBM was STOOPID
-		shl ah,cl		; and thought 8 bits were enough
+		shl ah,6		; Because IBM was STOOPID
+					; and thought 8 bits were enough
 					; then thought 10 bits were enough...
 		pop cx			; <E> Sector #
 		push cx			; <E> Sector #
-		inc cx			; Sector numbers are 1-based
+		inc cx			; Sector numbers are 1-based, sigh
 		or cl,ah
 		mov ch,al
 		mov dh,dl
@@ -555,24 +579,16 @@ gls_lastchunk:
 ; Do the disk transfer... save the registers in case we fail :(
 ;
 disk_try_again: 
-		push ax			; <F> Number of sectors we're transferring
+		pusha			; <F>
 		mov ah,02h		; READ DISK
-		push dx			; <G>
-		push cx			; <H>
-		push bx			; <I>
-		push si			; <J>
 		int 13h
-		pop si			; <J>
+		popa			; <F>
 		jc disk_error
 ;
 ; Disk access successful
 ;
-		pop bx			; <I> Buffer location
-		pop ax			; <H> No longer needed
-		pop ax			; <G> No longer needed
-		pop di			; <F> Sector transferred count
 		pop cx			; <E> Sector #
-		mov ax,di		; Reduce sector left count
+		mov di,ax		; Reduce sector left count
 		mul word [bsBytesPerSec] ; Figure out how much to advance ptr
 		add bx,ax		; Update buffer location
 		pop dx			; <D> Head #
@@ -580,7 +596,7 @@ disk_try_again:
 		pop bp			; <B> Sectors left to transfer
 		pop si			; <A> Number of sectors/track
 		sub bp,di		; Reduce with # of sectors just read
-		jz return		; Done!
+		jz writestr.return	; Done!
 		add cx,di
 		cmp cx,si
 		jb gls_nextchunk
@@ -596,6 +612,7 @@ bailmsg:	db 'Boot failed', 0Dh, 0Ah, 0
 
 bs_checkpt	equ $			; Must be <= 7DEFh
 
+%if 1
 bs_checkpt_off	equ ($-$$)
 %ifndef DEPEND
 %if bs_checkpt_off > 1EFh
@@ -604,6 +621,7 @@ bs_checkpt_off	equ ($-$$)
 %endif
 
 		zb 1EFh-($-$$)
+%endif
 bs_magic	equ $			; From here to the magic_len equ
 					; must match ldlinux_magic
 ldlinux_name:	db 'LDLINUX SYS'	; Looks like this in the root dir
@@ -628,9 +646,26 @@ ldlinux_magic	db 'LDLINUX SYS'
 		dd HEXDATE
 		dw 0AA55h
 
-		align 4
+;
+; This area is possibly patched by the installer.  It is located
+; immediately after the EOF + LDLINUX SYS + 4 bytes + 55 AA + alignment,
+; so we can find it algorithmically.
+;
+		alignb 4
+MaxTransfer	dw 00FFh		; Absolutely maximum transfer size
 
+		align 4
 ldlinux_ent:
+; 
+; Note that some BIOSes are buggy and run the boot sector at 07C0:0000
+; instead of 0000:7C00 and the like.  We don't want to add anything
+; more to the boot sector, so it is written to not assume a fixed
+; value in CS, but we don't want to deal with that anymore from now
+; on.
+;
+		jmp 0:.next
+.next:
+
 ;
 ; Tell the user we got this far
 ;
@@ -641,22 +676,22 @@ ldlinux_ent:
 ; We can really only rely on a single sector having been loaded.  Hence
 ; we should load the FAT into RAM and start chasing pointers...
 ;
-		mov dx,1			; 64K
 		xor ax,ax
-		div word [bsBytesPerSec]	; sectors/64K
+		cwd
+		inc dx				; DX:AX <- 64K
+		div word [bxBytesPerSec]	; sectors/64K
 		mov si,ax
 
 		push es
 		mov bx,fat_seg			; Load into fat_seg:0000
 		mov es,bx
 		
-		mov ax,[bsHidden1]		; Hidden sectors
-		mov dx,[bsHidden2]
-		add ax,[bsResSectors]		; plus reserved sectors = FAT
-		adc dx,byte 0
-		mov cx,[bsFATsecs]		; Sectors/FAT
+		mov eax,[bsHidden]		; Hidden sectors
+		add edx,[bxResSectors]
+		add eax,edx
+		mov ecx,[bxFATsecs]		; Sectors/FAT
 fat_load_loop:	
-		mov bp,cx
+		mov ebp,ecx			; Make sure high EBP = 0
 		cmp bp,si
 		jna fat_load
 		mov bp,si			; A full 64K moby
@@ -665,8 +700,7 @@ fat_load:
 		call getlinsecsr
 		sub cx,bp
 		jz fat_load_done		; Last moby?
-		add ax,bp			; Advance sector count
-		adc dx,byte 0
+		add eax,ebp			; Advance sector count
 		mov bx,es			; Next 64K moby
 		add bx,1000h
 		mov es,bx
@@ -678,20 +712,17 @@ fat_load_done:
 ; Also figure out how many clusters will fit in an 8K buffer, and how
 ; many sectors and bytes that is
 ;
-		mov di,[bsBytesPerSec]		; Used a lot below
-
-		movzx eax,byte [bsSecPerClust]	; We do this in the boot
-						; sector, too, but there
-		mov [SecPerClust],ax		; wasn't space to save it
-		mov si,ax			; Also used a lot...
+		mov edi,[bxBytesPerSec]		; Used a lot below
+		mov eax,[SecPerClust]
+		mov si,ax			; Also used a lot
 		mul di
 		mov [ClustSize],eax		; Bytes/cluster
 		mov bx,ax
-		mov ax,trackbufsize
-		xor dx,dx
+		mov ax,trackbufsize		; High bit 0
+		cwd
 		div bx
 		mov [BufSafe],ax		; # of cluster in trackbuf
-		mul word [SecPerClust]
+		mul si
 		mov [BufSafeSec],ax
 		mul di
 		mov [BufSafeBytes],ax
@@ -700,40 +731,29 @@ fat_load_done:
 ;
 ; FAT12 or FAT16?  This computation is fscking ridiculous...
 ;
-		xor dx,dx
-		xor cx,cx
-		mov ax,[bsSectors]
+		mov eax,[bxSectors]
 		and ax,ax
 		jnz have_secs
-		mov ax,[bsHugeSectors]
-		mov dx,[bsHugeSectors+2]
-have_secs:	sub ax,[bsResSectors]
-		sbb dx,byte 0
-		mov cl,[bsFATs]
-sec_fat_loop:	sub ax,[bsFATsecs]
-		sbb dx,byte 0
-		loop sec_fat_loop
-		push ax
-		push dx
-		mov ax,[bsRootDirEnts]
-		mov bx,32			; Smaller than shift since we
-		mul bx				; need the doubleword product
-		add ax,di
-		adc dx,byte 0
-		sub ax,byte 1
-		sbb dx,byte 0
-		div di
-		mov bx,ax
-		pop dx
-		pop ax
-		sub ax,bx
-		sbb dx,byte 0
-		div si
-		cmp ax,4086			; Right value?
-		mov ax,nextcluster_fat16
-		ja have_fat_type
-have_fat12:	mov ax,nextcluster_fat12
-have_fat_type:	mov word [NextCluster],ax
+		mov eax,[bsHugeSectors]
+have_secs:	add eax,[bsHidden]		; These are not included
+		sub eax,[RootDir]		; Start of root directory
+		movzx ebx,word [RootDirSize]
+		sub eax,ebx			; Subtract root directory size
+		xor edx,edx
+		div esi				; Convert to clusters
+		cmp ax,4086			; FAT12 limit
+		jna is_fat12
+		; Patch the jump
+		mov byte [nextcluster+1],nextcluster_fat16-(nextcluster+2)
+is_fat12:
+
+;
+; Patch gls_set_size so we can transfer more than one sector at a time.
+;
+		mov byte [gls_set_size],0xe8	; E8 = CALL NEAR
+		mov word [gls_set_size+1],do_gls_set_size-(gls_set_size+3)
+		mov byte [disk_error],0xe8
+		mov word [disk_error+1],do_disk_error-(disk_error+3)
 
 ;
 ; Now we read the rest of LDLINUX.SYS.	Don't bother loading the first
@@ -744,7 +764,7 @@ load_rest:
 		mov bx,ldlinux_sys
 		add bx,cx
 		mov si,[RunLinClust]
-		call [NextCluster]
+		call nextcluster
 		xor dx,dx
 		mov ax,ldlinux_len-1		; To be on the safe side
 		add ax,cx
@@ -775,19 +795,18 @@ all_read_jmp:
 ;
 						; 386 check
 getfssec:
-getfragment:	xor bp,bp			; Fragment sector count
-		mov ax,si			; Get sector address
+getfragment:	xor ebp,ebp			; Fragment sector count
+		movzx eax,si			; Get sector address
 		dec ax				; Convert to 0-based
 		dec ax
-		mul word [SecPerClust]
-		add ax,[DataArea1]
-		adc dx,[DataArea2]
+		mul dword [SecPerClust]
+		add eax,[DataArea]
 getseccnt:					; See if we can read > 1 clust
 		add bp,[SecPerClust]
 		dec cx				; Reduce clusters left to find
-		mov di,si			; Predict next cluster
-		inc di
-		call [NextCluster]
+		lea di,[si+1]
+		call nextcluster
+		cmc
 		jc gfs_eof			; At EOF?
 		jcxz endfragment		; Or was it the last we wanted?
 		cmp si,di			; Is file continuous?
@@ -797,31 +816,24 @@ gfs_eof:	pushf				; Remember EOF or not
 		push si
 		push cx
 gfs_getchunk:
-		push ax
-		push dx
+		push eax
 		mov ax,es			; Check for 64K boundaries.
-		mov cl,4
-		shl ax,cl
+		shl ax,4
 		add ax,bx
 		xor dx,dx
 		neg ax
-		jnz gfs_partseg
-		inc dx				; Full 64K segment
-gfs_partseg:
+		setz dl				; DX <- 1 if full 64K segment
 		div word [bsBytesPerSec]	; How many sectors fit?
 		mov si,bp
 		sub si,ax			; Compute remaining sectors
 		jbe gfs_lastchunk
 		mov bp,ax
-		pop dx
-		pop ax
+		pop eax
 		call getlinsecsr
-		add ax,bp
-		adc dx,byte 0
+		add eax,ebp			; EBP<31:16> == 0
 		mov bp,si			; Remaining sector count
 		jmp short gfs_getchunk
-gfs_lastchunk:	pop dx
-		pop ax		
+gfs_lastchunk:	pop eax
 		call getlinsec
 		pop cx
 		pop si
@@ -833,51 +845,33 @@ gfs_return:	ret
 ;
 ; getlinsecsr: save registers, call getlinsec, restore registers
 ;
-getlinsecsr:	push ax
-		push dx
-		push cx
-		push bp
-		push si
-		push di
+getlinsecsr:	pushad
 		call getlinsec
-		pop di
-		pop si
-		pop bp
-		pop cx
-		pop dx
-		pop ax
+		popad
 		ret
 
 ;
 ; nextcluster: Advance a cluster pointer in SI to the next cluster
-;	       pointed at in the FAT tables (note: FAT12 assumed)
-;	       Sets CF on return if end of file.
+;	       pointed at in the FAT tables.  CF=0 on return if end of file.
 ;
-;	       The variable NextCluster gets set to the appropriate
-;	       value here.
-;
+nextcluster:
+		jmp short nextcluster_fat12	; This gets patched
+
 nextcluster_fat12:
-		push ax
+		push bx
 		push ds
-		mov ax,fat_seg
-		mov ds,ax
-		mov ax,si			; Multiply by 3/2
-		shr ax,1
-		pushf				; CF now set if odd
-		add si,ax
-		mov si,[si]
-		popf
+		mov bx,fat_seg
+		mov ds,bx
+		mov bx,si			; Multiply by 3/2
+		shr bx,1			; CF now set if odd
+		mov si,[si+bx]
 		jnc nc_even
-		shr si,1			; Needed for odd only
-		shr si,1
-		shr si,1
-		shr si,1
+		shr si,4			; Needed for odd only
 nc_even:
 		and si,0FFFh
 		cmp si,0FF0h			; Clears CF if at end of file
-		cmc				; But we want it SET...
 		pop ds
-		pop ax
+		pop bx
 nc_return:	ret
 
 ;
@@ -894,10 +888,47 @@ nextcluster_fat16:
 .seg0:		mov ds,ax
 		mov si,[si]
 		cmp si,0FFF0h
-		cmc
 		pop ds
 		pop ax
 		ret
+
+;
+; Routine that controls how much we can transfer in one chunk.  Called
+; from gls_set_size in getlinsec.
+;
+do_gls_set_size:
+		sub si,cx		; Sectors left on track
+		cmp bp,si
+		jna .lastchunk
+		mov bp,si		; No more than a trackful, please!
+.lastchunk:
+		cmp bp,[MaxTransfer]	; Absolute maximum transfer size
+		jna .oktransfer
+		mov bp,[MaxTransfer]
+.oktransfer:	
+		ret
+
+;
+; This routine captures disk errors, and tries to decide if it is
+; time to reduce the transfer size.
+;
+do_disk_error:
+		dec si			; Decrement the retry counter
+		jz kaboom		; If expired, croak
+		cmp si,2		; If only 2 attempts left
+		ja .nodanger
+		mov al,1		; Drop transfer size to 1
+		jmp short .setsize
+.nodanger:
+		cmp si,retry_count-2
+		ja .again		; First time, just try again
+		shr al,1		; Otherwise, try to reduce
+		adc al,0		; the max transfer size, but not to 0
+.setsize:
+		mov [MaxTransfer],al
+.again:
+		ret
+
 ;
 ; Debug routine
 ;
@@ -951,8 +982,8 @@ all_read:
 ; Now, everything is "up and running"... patch kaboom for more
 ; verbosity and using the full screen system
 ;
-		mov byte [kaboom.patch],0e9h		; JMP NEAR
-		mov word [kaboom.patch+1],kaboom2-(kaboom.patch+3)
+		; E9 = JMP NEAR
+		mov dword [kaboom.patch],0e9h+((kaboom2-(kaboom.patch+3)) << 8)
 
 ;
 ; Compute some parameters that depend on cluster size
@@ -983,7 +1014,7 @@ all_read:
 
 		mov di,KbdMap			; Default keymap 1:1
 		xor al,al
-		mov cx,256
+		inc ch				; CX <- 256
 mkkeymap:	stosb
 		inc al
 		loop mkkeymap
@@ -1396,10 +1427,9 @@ searchdir:
 		mov [DirScanCtr],ax
 		mov ax,[RootDirSize]
 		mov [DirBlocksLeft],ax
-		mov ax,[RootDir1]
-		mov dx,[RootDir2]
+		mov eax,[RootDir]
 scan_group:
-		mov bp,[DirBlocksLeft]
+		movzx ebp,word [DirBlocksLeft]
 		and bp,bp
 		jz dir_return
 		cmp bp,[BufSafeSec]
@@ -1407,24 +1437,14 @@ scan_group:
 		mov bp,[BufSafeSec]
 load_last:
 		sub [DirBlocksLeft],bp
-		push ax
-		push dx
+		push eax
 		mov ax,[bsBytesPerSec]
 		mul bp
 		add ax,trackbuf-31
 		mov [EndofDirSec],ax	; End of loaded
-		pop dx
-		pop ax
-		push bp			; Save number of sectors
-		push ax			; Save present location
-		push dx
-		push di			; Save name
+		pop eax
 		mov bx,trackbuf
-		call getlinsec
-		pop di
-		pop dx
-		pop ax
-		pop bp
+		call getlinsecsr
 		mov si,trackbuf
 dir_test_name:	cmp byte [si],0		; Directory high water mark
 		je dir_return		; Failed
@@ -1442,8 +1462,7 @@ dir_not_this:   add si,byte 32
 		jz dir_return		; Out of it...
 		cmp si,[EndofDirSec]
 		jb dir_test_name
-		add ax,bp		; Increment linear sector number
-		adc dx,byte 0
+		add eax,ebp		; Increment linear sector number
 		jmp short scan_group
 dir_success:
 		mov ax,[si+28]		; Length of file

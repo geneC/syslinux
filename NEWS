@@ -1,6 +1,22 @@
 Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to both.
 
+Changes in 1.75:
+	* ALL: NASM 0.98.32 or later is now required to build NASM
+	  from sources.
+	* SYSLINUX: put back in the workaround for the BIOS floppy
+	  table.  This seems to be a requirement for "extended" floppy
+	  formats to work correctly.
+	* SYSLINUX: No longer warn if one is trying to boot on a 286
+	  or older.  The above BIOS workaround no longer fits if the
+	  requirement to use only 8086-compatible code in the early
+	  boot is maintained.  It made sense in 1994, but in 2002 a
+	  286 or older is a museum object.
+	* SYSLINUX: Use a downright bizarre, stateful algorithm to try
+	  to guess the maximum transfer size.  I am *hoping* this will
+	  cut down on the number of systems for which -s is required
+	  to work at any acceptable speed.
+
 Changes in 1.74:
 	* SYSLINUX: fix bug that would cause valid kernel images to be
 	  labelled "invalid".

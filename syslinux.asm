@@ -440,12 +440,12 @@ die_common:
 		int 21h
 
 ;
-; This includes a small subroutine make_stupid to patch up the boot sector
-; in case we give the -s (stupid) option
+; Patch the code to make it "stupid"
 ;
-%ifndef DEPEND	; Generated file
-%include "stupid.gen"
-%endif
+make_stupid:
+		; Only access one sector at a time
+		mov word [LDLinuxSYS+PATCH_OFFSET],1
+		ret
 
 			section .data
 msg_error_sp:		db 'ERROR $'

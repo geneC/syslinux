@@ -52,8 +52,6 @@ extern unsigned int  bootsect_len;
 extern unsigned char ldlinux[];
 extern unsigned int  ldlinux_len;
 
-extern void make_stupid(void);	/* Patching routine for stupid mode */
-
 char *program;			/* Name of program */
 char *device;			/* Device to install to */
 uid_t euid;			/* Our current euid */
@@ -98,6 +96,28 @@ static u_int32_t get_32(unsigned char *p)
 {
   return (u_int32_t)p[0] + ((u_int32_t)p[1] << 8) +
     ((u_int32_t)p[2] << 16) + ((u_int32_t)p[3] << 24);
+}
+
+static void set_16(unsigned char *p, u_int16_t v)
+{
+  p[0] = (v & 0xff);
+  p[1] = ((v >> 8) & 0xff);
+}
+
+#if 0				/* Not needed */
+static void set_32(unsigned char *p, u_int32_t v)
+{
+  p[0] = (v & 0xff);
+  p[1] = ((v >> 8) & 0xff);
+  p[2] = ((v >> 16) & 0xff);
+  p[3] = ((v >> 24) & 0xff);
+}
+#endif
+
+/* Patch the code so that we're running in stupid mode */
+static void make_stupid(void)
+{
+  set_16(ldlinux+PATCH_OFFSET, 1); /* Access only one sector at a time */
 }
 
 void usage(void)
