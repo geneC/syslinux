@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2001 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2001-2003 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -28,66 +28,64 @@ static inline int get_e820(void)
     uint64_t base;
     uint64_t len;
     uint32_t type;
-  };
-  struct e820_info buf;
-  uint32_t lastptr = 0;
+  } *buf = sys_bounce;
   uint32_t copied;
   int range_count = 0;
-  uint32_t eax, edx;
+  com32sys_t regs;
+
+  memset(&regs, 0, sizeof regs);
 
   do {
-    copied = sizeof(buf);
-    eax = 0x0000e820;
-    edx = 0x534d4150;
+    regs.eax.l = 0x0000e820;
+    regs.ecx.l = sizeof(*buf);
+    regs.edx.l = 0x534d4150;
+    regs.edi.w[0] = OFFS(buf);
+    regs.es = SEG(buf);
+  
+    syscall(0x15, &regs, &regs);
+    copied = (regs.eflags.l & 1) ? 0 : regs.ecx.l;
     
-    asm volatile("int $0x15 ; "
-		 "jnc 1f ; "
-		 "xorl %0,%0\n"
-		 "1:"
-		 : "+c" (copied), "+b" (lastptr),
-		 "+a" (eax), "+d" (edx)
-		 : "D" (&buf)
-		 : "esi", "ebp");
-    
-    if ( eax != 0x534d4150 || copied < 20 )
+    if ( regs.eax.l != 0x534d4150 || copied < 20 )
       break;
     
-    insertrange(buf.base, buf.len, buf.type);
+    printf("e820: %08x%08x %08x%08x %d\n",
+	   (uint32_t)(buf->base >> 32), (uint32_t)buf->base,
+	   (uint32_t)(buf->len >> 32), (uint32_t)buf->len,
+	   buf->type);
+
+    insertrange(buf->base, buf->len, buf->type);
     range_count++;
 
-  } while ( lastptr );
+  } while ( regs.ebx.l );
 
   return !range_count;
 }
 
 static inline void get_dos_mem(void)
 {
-  uint16_t dos_kb;
+  com32sys_t regs;
 
-  asm volatile("int $0x12" : "=a" (dos_kb)
-	       :: "ebx", "ecx", "edx", "esi", "edi", "ebp");
-
-  insertrange(0, (uint64_t)((uint32_t)dos_kb << 10), 1);
+  memset(&regs, 0, sizeof regs);
+  syscall(0x12, &regs, &regs);
+  insertrange(0, (uint64_t)((uint32_t)regs.eax.w[0] << 10), 1);
 }
 
 static inline int get_e801(void)
 {
-  uint16_t low_mem;
-  uint16_t high_mem;
-  uint8_t err;
+  int err;
+  com32sys_t regs;
 
-  asm volatile("movw $0xe801, %%ax ; "
-	       "int $0x15 ; "
-	       "setc %2"
-	       : "=a" (low_mem), "=b" (high_mem), "=d" (err)
-	       :: "ecx", "esi", "edi", "ebp");
+  memset(&regs, 0, sizeof regs);
 
-  if ( !err ) {
-    if ( low_mem ) {
-      insertrange(0x100000, (uint64_t)((uint32_t)low_mem << 10), 1);
+  regs.eax.w[0] = 0xe801;
+  syscall(0x15, &regs, &regs);
+
+  if ( !(err = regs.eflags.l & 1) ) {
+    if ( regs.eax.w[0] ) {
+      insertrange(0x100000, (uint64_t)((uint32_t)regs.eax.w[0] << 10), 1);
     }
-    if ( high_mem ) {
-      insertrange(0x1000000, (uint64_t)((uint32_t)high_mem << 16), 1);
+    if ( regs.ebx.w[0] ) {
+      insertrange(0x1000000, (uint64_t)((uint32_t)regs.ebx.w[0] << 16), 1);
     }
   }
 
@@ -96,18 +94,18 @@ static inline int get_e801(void)
 
 static inline int get_88(void)
 {
-  uint16_t low_mem;
-  uint8_t err;
+  com32sys_t regs;
+  int err;
 
-  asm volatile("movb $0x88,%%ah ; "
-	       "int $0x15 ; "
-	       "setc %1"
-	       : "=a" (low_mem), "=d" (err)
-	       :: "ebx", "ecx", "esi", "edi", "ebp");
+  memset(&regs, 0, sizeof regs);
 
-  if ( !err ) {
-    if ( low_mem ) {
-      insertrange(0x100000, (uint64_t)((uint32_t)low_mem << 10), 1);
+  regs.eax.b[1] = 0x88;
+  syscall(0x15, &regs, &regs);
+
+
+  if ( !(err = regs.eflags.l & 1) ) {
+    if ( regs.eax.w[0] ) {
+      insertrange(0x100000, (uint64_t)((uint32_t)regs.eax.w[0] << 10), 1);
     }
   }
 

@@ -19,6 +19,8 @@
  * This module *MUST* get linked first into the image
  */
 
+#include "version.h"
+
 		.text
 		.code16
 
@@ -159,15 +161,15 @@ endcmd:
 		xorb %al,%al
 		stosb %al,%es:(%di)
 /*
- * Jump to C code
+ * Jump to 32-bit code
  */
-		sti			# Maybe not?
-		calll setup		# Call the C code
+		sti
+		call init32		# Call the 32-bit code
 		# The setup function returns the drive number,
 		# which should be returned in %dl
 		movw %ax,%dx
 
-		# If the C code returns, we are good to go, and the
+		# If the 32-bit code returns, we are good to go, and the
 		# new boot sector is already loaded
 		cli
 		movw $0x7c00,%sp
@@ -178,3 +180,10 @@ endcmd:
 		movw %si,%gs
 		movw %si,%ss
 		ljmp $0,$0x7c00		# Entrypoint at 0000:7C00
+
+		.section ".rodata","a"
+memdisk_version:
+		.ascii "MEMDISK " VERSION " " DATE
+		.ascii "Copyright " FIRSTYEAR "-" COPYYEAR " H. Peter Anvin"
+		.byte 0
+

@@ -15,6 +15,7 @@
 #include "e820.h"
 #include "conio.h"
 #include "version.h"
+#include "memdisk.h"
 
 /* A pointer to this is stored in the header */
 const char memdisk_version[] =
@@ -116,112 +117,40 @@ struct setup_header {
   uint32_t initrd_addr_max;
 };
 
-const struct setup_header * const shdr = (struct setup_header *)0;
+const struct setup_header * const shdr = (struct setup_header *)(LOW_SEG << 4);
 
 /* Access to high memory */
-
-struct high_mover {
-  uint32_t resv1[4];		/* For the BIOS */
-  uint16_t src_limit;		/* 0xffff */
-  uint16_t src01;		/* Bytes 0-1 of src */
-  uint8_t src2;			/* Byte 2 of src */
-  uint8_t src_perms;		/* 0x93 */
-  uint8_t src_xperms;		/* 0x00 */
-  uint8_t src3;			/* Byte 3 of src */
-  uint16_t dst_limit;		/* 0xffff */
-  uint16_t dst01;		/* Bytes 0-1 of dst */
-  uint8_t dst2;			/* Byte 2 of dst */
-  uint8_t dst_perms;		/* 0x93 */
-  uint8_t dst_xperms;		/* 0x00 */
-  uint8_t dst3;			/* Byte 3 of dst */
-  uint32_t resv2[4];		/* For the BIOS */
-};
-
-/* Note: this version of high_bcopy() is limited to 64K */
-static void high_bcopy(uint32_t dst, uint32_t src, uint16_t len)
-{
-  static struct high_mover high_mover = 
-  {
-    { 0, 0, 0, 0 },
-    0xffff, 0, 0, 0x93, 0x00, 0,
-    0xffff, 0, 0, 0x93, 0x00, 0,
-    { 0, 0, 0, 0 }
-  };
-  
-  high_mover.src01 = (uint16_t)src;
-  high_mover.src2  = src >> 16;
-  high_mover.src3  = src >> 24;
-
-  high_mover.dst01 = (uint16_t)dst;
-  high_mover.dst2  = dst >> 16;
-  high_mover.dst3  = dst >> 24;
-
-  asm volatile("pushal ; "
-	       "pushfl ; "
-	       "movb $0x87,%%ah ; "
-	       "int $0x15 ; "
-	       "popfl ; "
-	       "popal"
-	       :: "S" (&high_mover), "c" (len >> 1)
-	       : "memory");
-}
-
-#define LOWSEG 0x0800		/* Should match init.S16 */
-
-static inline uint32_t
-ptr2linear(void *ptr)
-{
-  return (LOWSEG << 4) + (uint32_t)ptr;
-}
-
-static inline void
-copy_to_high(uint32_t dst, void *src, uint16_t len)
-{
-  high_bcopy(dst, ptr2linear(src), len);
-}
-
-static inline void
-copy_from_high(void *dst, uint32_t src, uint16_t len)
-{
-  high_bcopy(ptr2linear(dst), src, len);
-}
 
 /* Access to objects in the zero page */
 static inline void
 wrz_8(uint32_t addr, uint8_t data)
 {
-  asm volatile("movb %0,%%fs:%1" :: "ri" (data), "m" (*(uint8_t *)addr));
+  *((uint8_t *)addr) = data;
 }
 static inline void
 wrz_16(uint32_t addr, uint16_t data)
 {
-  asm volatile("movw %0,%%fs:%1" :: "ri" (data), "m" (*(uint16_t *)addr));
+  *((uint16_t *)addr) = data;
 }
 static inline void
 wrz_32(uint32_t addr, uint32_t data)
 {
-  asm volatile("movl %0,%%fs:%1" :: "ri" (data), "m" (*(uint32_t *)addr));
+  *((uint32_t *)addr) = data;
 }
 static inline uint8_t
 rdz_8(uint32_t addr)
 {
-  uint8_t data;
-  asm volatile("movb %%fs:%1,%0" : "=r" (data) : "m" (*(uint8_t *)addr));
-  return data;
+  return *((uint8_t *)addr);
 }
 static inline uint16_t
 rdz_16(uint32_t addr)
 {
-  uint16_t data;
-  asm volatile("movw %%fs:%1,%0" : "=r" (data) : "m" (*(uint16_t *)addr));
-  return data;
+  return *((uint16_t *)addr);
 }
 static inline uint32_t
 rdz_32(uint32_t addr)
 {
-  uint32_t data;
-  asm volatile("movl %%fs:%1,%0" : "=r" (data) : "m" (*(uint32_t *)addr));
-  return data;
+  return *((uint32_t *)addr);
 }
 
 /* Addresses in the zero page */
@@ -363,7 +292,7 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
   hd_geometry.offset  = offset;
 
   /* Do we have a DOSEMU header? */
-  copy_from_high(&dosemu, where+hd_geometry.offset, sizeof dosemu);
+  memcpy(&dosemu, (char *)where+hd_geometry.offset, sizeof dosemu);
   if ( !__builtin_memcmp("DOSEMU", dosemu.magic, 7) ) {
     /* Always a hard disk unless overruled by command-line options */
     hd_geometry.driveno = 0x80;
@@ -396,7 +325,7 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
   if ( (hd_geometry.c == 0) || (hd_geometry.h == 0) ||
        (hd_geometry.s == 0) ) {
     /* Hard disk image, need to examine the partition table for geometry */
-    copy_from_high(&ptab, where+hd_geometry.offset+(512-2-4*16), sizeof ptab);
+    memcpy(&ptab, (char *)where+hd_geometry.offset+(512-2-4*16), sizeof ptab);
     
     max_c = max_h = 0;  max_s = 1;
     for ( i = 0 ; i < 4 ; i++ ) {
@@ -452,14 +381,17 @@ void __attribute__((noreturn)) die(void)
     asm volatile("hlt");
 }
 
-#define STACK_NEEDED	128	/* Number of bytes of stack */
+#define STACK_NEEDED	256	/* Number of bytes of stack */
 
 /*
  * Actual setup routine
  * Returns the drive number (which is then passed in %dl to the
  * called routine.)
  */
-uint32_t setup(void)
+syscall_t syscall;
+void *sys_bounce;
+
+uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
 {
   unsigned int bin_size = (int) &_binary_memdisk_bin_size;
   struct memdisk_header *hptr;
@@ -468,10 +400,13 @@ uint32_t setup(void)
   uint32_t driverptr, driveraddr;
   uint16_t dosmem_k;
   uint32_t stddosmem;
-  uint8_t status;
-  uint16_t exitcode;
   const struct geometry *geometry;
   int total_size;
+  com32sys_t regs;
+
+  /* Set up global variables */
+  syscall = cs_syscall;
+  sys_bounce = cs_bounce;
 
   /* Show signs of life */
   printf("%s  %s\n", memdisk_version, copyright);
@@ -612,62 +547,34 @@ uint32_t setup(void)
   }
 
   /* Query drive parameters of this type */
-  {
-    uint16_t bpt_es, bpt_di;
-    uint8_t cf, dl;
-
-    asm volatile("pushw %%es ; "
-		 "xorw %1,%1 ; "
-		 "movw %1,%%es ; "
-		 "movb $0x08,%%ah ; "
-		 "int $0x13 ; "
-		 "setc %2 ; "
-		 "movw %%es,%0 ;"
-		 "popw %%es"
-		 : "=a" (bpt_es), "=D" (bpt_di),
-		 "=c" (cf), "=d" (dl)
-		 : "d" (geometry->driveno & 0x80)
-		 : "esi", "ebx", "ebp");
-
-    if ( cf ) {
-      printf("INT 13 08: Failure, assuming this is the only drive\n");
-      pptr->drivecnt = 1;
-    } else {
-      printf("INT 13 08: Success, count = %u, BPT = %04x:%04x\n",
-	     dl, bpt_es, bpt_di);
-      pptr->drivecnt = dl+1;
-    }
+  memset(&regs, 0, sizeof regs);
+  regs.es = 0;
+  regs.eax.b[1] = 0x08;
+  regs.edx.b[0] = geometry->driveno;
+  syscall(0x13, &regs, &regs);
+  
+  if ( regs.eflags.l & 1 ) {
+    printf("INT 13 08: Failure, assuming this is the only drive\n");
+    pptr->drivecnt = 1;
+  } else {
+    printf("INT 13 08: Success, count = %u, BPT = %04x:%04x\n",
+	   regs.edx.b[0], regs.es, regs.edi.w[0]);
+    pptr->drivecnt = regs.edx.b[0]+1;
   }
 
   /* Copy driver followed by E820 table */
-  asm volatile("pushal ; "
-	       "pushw %%es ; "
-	       "movw %0,%%es ; "
-	       "cld ; "
-	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
-	       "movw %1,%%cx ; "
-	       "movw %2,%%si ; "
-	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
-	       "popw %%es ; "
-	       "popal"
-	       :: "r" (driverseg),
-	       "r" ((uint16_t)((nranges+1)*3)), /* 3 dwords/range */
-	       "r" ((uint16_t)&ranges),
-	       "c" (bin_size >> 2),
-	       "S" (&_binary_memdisk_bin_start),
-	       "D" (0));
+  memcpy((void *)(driverseg << 4), &_binary_memdisk_bin_start, bin_size);
+  memcpy((void *)((driverseg << 4) + bin_size), ranges, (nranges+1)*3);
 
   /* Install the interrupt handlers */
-  {
-    printf("old: int13 = %08x  int15 = %08x\n",
-	   rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
-
-    wrz_32(BIOS_INT13, driverptr+hptr->int13_offs);
-    wrz_32(BIOS_INT15, driverptr+hptr->int15_offs);
-
-    printf("new: int13 = %08x  int15 = %08x\n",
-	   rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
-  }
+  printf("old: int13 = %08x  int15 = %08x\n",
+	 rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
+  
+  wrz_32(BIOS_INT13, driverptr+hptr->int13_offs);
+  wrz_32(BIOS_INT15, driverptr+hptr->int15_offs);
+  
+  printf("new: int13 = %08x  int15 = %08x\n",
+	 rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
 
   /* Update various BIOS magic data areas (gotta love this shit) */
 
@@ -675,7 +582,6 @@ uint32_t setup(void)
     /* Update BIOS hard disk count */
     wrz_8(BIOS_HD_COUNT, rdz_8(BIOS_HD_COUNT)+1);
   } else {
-#if 1				/* Apparently this is NOT wanted... */
     /* Update BIOS floppy disk count */
     uint8_t equip = rdz_8(BIOS_EQUIP);
     if ( equip & 1 ) {
@@ -687,41 +593,31 @@ uint32_t setup(void)
       equip &= ~(3 << 6);
     }
     wrz_8(BIOS_EQUIP, equip);
-#endif
   }
 
-  /* Reboot into the new "disk" */
-  asm volatile("pushl %%ebp ; "
-	       "pushl %%edx ; "
-	       "pushw %%es ; "
-	       "xorw %%cx,%%cx ; "
-	       "movw %%cx,%%es ; "
-	       "incw %%cx ; "
-	       "movw $0x0201,%%ax ; "
-	       "movw $0x7c00,%%bx ; "
-	       "int $0x13 ; "
-	       "popw %%es ; "
-	       "popl %%edx ; "
-	       "popl %%ebp ; "
-	       "setc %0"
-	       : "=rm" (status), "=a" (exitcode)
-	       : "d" ((uint16_t)geometry->driveno)
-	       : "ecx", "ebx", "esi", "edi");
+  /* Reboot into the new "disk"; this is also a test for the interrupt hooks */
+  puts("Loading boot sector... ");
 
-  if ( status ) {
+  memset(&regs, 0, sizeof regs);
+  // regs.es = 0;
+  regs.eax.w[0] = 0x0201;	/* Read sector */
+  regs.ebx.w[0] = 0x7c00;	/* 0000:7C00 */
+  regs.ecx.w[0] = 1;		/* One sector */
+  regs.edx.w[0] = geometry->driveno;
+  syscall(0x13, &regs, &regs);
+
+  if ( regs.eflags.l & 1 ) {
     puts("MEMDISK: Failed to load new boot sector\n");
     die();
   }
   
   if ( getcmditem("pause") != CMD_NOTFOUND ) {
     puts("Press any key to boot... ");
-    asm volatile("pushal ; "
-		 "xorw %ax,%ax ; "
-		 "int $0x16 ; "
-		 "popal");
+    regs.eax.w[0] = 0;
+    syscall(0x16, &regs, NULL);
   }
 
-  puts("Booting...\n");
+  puts("booting...\n");
 
   /* On return the assembly code will jump to the boot vector */
   return geometry->driveno;

@@ -14,24 +14,26 @@
 VERSION := $(shell cat ../version)
 
 CC       = gcc
-CFLAGS   = -Wall -O2 -fomit-frame-pointer -march=i386 \
+CFLAGS   = -g -Wall -O2 -fomit-frame-pointer -march=i386 \
 	   -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
+	  -I../com32/include \
 	   -DVERSION='"$(VERSION)"' -DDATE='"$(DATE)"'
-LDFLAGS  = 
+LDFLAGS  = -g
 INCLUDE  =
 AS       = as
 LD	 = ld
-NASM     = nasm
+NASM     = nasm -O99
 NINCLUDE = 
 OBJCOPY  = objcopy
 PERL     = perl
 
 # Important: init.o16 must be first!!
-OBJS     = init.o16 setup.o16 msetup.o16 e820func.o16 conio.o16 memdisk.o
+OBJS16   = init.o16 init32.o
+OBJS32   = start32.o setup.o msetup.o e820func.o conio.o memcpy.o memdisk.o
 
 CSRC     = setup.c msetup.c e820func.c conio.c
 SSRC     = init.S16
-NASMSRC  = memdisk.asm
+NASMSRC  = memdisk.asm jmp32.asm
 
 all: memdisk e820test
 
@@ -45,8 +47,14 @@ clean: tidy
 spotless: clean
 	rm -f memdisk .depend
 
+%.o: %.asm
+	$(NASM) -f elf -l $*.lst -o $@ $<
+
 %.o16: %.s16
 	$(AS) -o $@ $<
+
+%.o: %.c
+	$(CC) $(INCLUDE) $(CFLAGS) -c -o $@ $<
 
 %.s16: %.s
 	echo '.code16gcc' | cat - $< > $@
@@ -69,12 +77,17 @@ spotless: clean
 %.bin: %.asm
 	$(NASM) -f bin $(NINCLUDE) -o $@ -l $*.lst $<
 
-memdisk.elf: $(OBJS)
+memdisk16.elf: $(OBJS16)
 	$(LD) -Ttext 0 -o $@ $^
 
-memdisk: memdisk.elf postprocess.pl
+memdisk32.elf: $(OBJS32)
+	$(LD) -Ttext 0x100000 -o $@ $^
+
+%.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
-	$(PERL) postprocess.pl $@
+
+memdisk: memdisk16.bin memdisk32.bin postprocess.pl
+	$(PERL) postprocess.pl $@ memdisk16.bin memdisk32.bin
 
 e820test: e820func.o msetup.o e820test.o memdisk.o
 	$(CC) $(LDFLAGS) -o $@ $^

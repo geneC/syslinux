@@ -18,26 +18,20 @@
  */
 
 #include <stdint.h>
+#include "memdisk.h"
 #include "conio.h"
 
 int putchar(int ch)
 {
+  com32sys_t regs;
+
   if ( ch == '\n' ) {
     /* \n -> \r\n */
-    asm volatile("movw $0x0e0d,%%ax ; "
-		 "movw $0x0007,%%bx ; "
-		 "int $0x10"
-		 ::: "eax", "ebx", "ecx", "edx",
-		 "esi", "edi", "ebp");
+    putchar('\r');
   }
   
-  {
-    uint16_t ax = 0x0e00|(ch&0xff);
-    asm volatile("movw $0x0007,%%bx ; "
-		 "int $0x10"
-		 : "+a" (ax)
-		 :: "ebx", "ecx", "edx", "esi", "edi", "ebp");
-  }
+  regs.eax.w[0] = 0x0e00|(ch&0xff);
+  syscall(0x10, &regs, NULL);
 
   return ch;
 }
