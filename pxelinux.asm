@@ -35,6 +35,7 @@
 ;
 max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
 FILENAME_MAX	equ 32			; Including final null; should be a power of 2
+LOG_FILENAME_MAX equ 5			; log2(FILENAME_MAX)
 REBOOT_TIME	equ 5*60		; If failure, time until full reset
 HIGHMEM_MAX	equ 038000000h		; Highest address for an initrd
 HIGHMEM_SLOP	equ 128*1024		; Avoid this much memory near the top
@@ -413,8 +414,13 @@ _start1:
 		cmp dword [es:bx], 'PXEN'
 		jne no_pxe
 		cmp word [es:bx+4], 'V+'
-		jne no_pxe
+		je have_pxenv
 
+no_pxe:		mov si,err_nopxe
+		call writestr
+		jmp kaboom
+
+have_pxenv:
 		mov si,found_pxenv
 		call writestr
 
@@ -426,13 +432,15 @@ _start1:
 
 		cmp word [es:bx+6], 0201h	; API version 2.1 or higher
 		jb old_api
+		mov si,bx
+		mov ax,es
 		les bx,[es:bx+26h]		; !PXE structure pointer
 		cmp dword [es:bx],'!PXE'
 		je have_pxe
 
-no_pxe:		mov si,err_nopxe
-		call writestr
-		jmp kaboom
+		; Nope, !PXE structure missing despite API 2.1+
+		mov bx,si
+		mov es,ax
 
 old_api:	; Need to use a PXENV+ structure
 		mov si,using_pxenv_msg
@@ -481,6 +489,10 @@ query_bootp:	mov ax,0DEADh			; Something bogus
 .pxe_err:
 		mov si,err_pxefailed
 		call writestr
+		call writehex4
+		mov al, ' '
+		call writechr
+		mov ax,[pxe_bootp_query_pkt.status]
 		call writehex4
 		call crlf
 
@@ -865,7 +877,7 @@ pc_fkey1:	xor cx,cx
 		call getline			; Get filename to display
 		pop si
 		pop di
-		shl di,4			; Multiply number by 16
+		shl di,LOG_FILENAME_MAX		; Convert to offset
 		add di,FKeyName
 		call mangle_name		; Mangle file name
 		jmp short parse_config_3
@@ -1053,7 +1065,7 @@ func_key:
 		shr ax,8
 show_help:	; AX = func key # (0 = F1, 9 = F10)
 		mov cl,al
-		shl ax,4			; Convert to x16
+		shl ax,LOG_FILENAME_MAX		; Convert to offset
 		mov bx,1
 		shl bx,cl
 		and bx,[FKeyMap]
@@ -3365,7 +3377,7 @@ err_bootsec	db 'Invalid or corrupt boot sector image.', 13, 10, 0
 err_a20		db 13, 10, 'A20 gate not responding!', 13, 10, 0
 err_bootfailed	db 13, 10, 'Boot failed: press a key to retry, or wait for reset...', 13, 10, 0
 bailmsg		equ err_bootfailed
-err_nopxe	db 'Cannot find !PXE structure, I want my mommy!' ,13, 10, 0
+err_nopxe	db "No !PXE or PXENV+ API found; we're dead...", 13, 10, 0
 err_pxefailed	db 'PXE API call failed, error ', 0
 err_udpinit	db 'Failed to initialize UDP stack', 13, 10, 0
 err_oldtftp	db 'TFTP server does not support the tsize option', 13, 10, 0

@@ -107,7 +107,7 @@ with onboard Ethernet and "Intel LANDesk(R) Service Agent II version
 0.99c", using ISC dhcpd 2.0.
 
 Unfortunately, this particular version of Intel LANDesk Service Agent
-II seems to have a rather serious bug: it requests the TFTP "blksize"
+II seems to have a rather serious bug : it requests the TFTP "blksize"
 option, but will be mortally confused if this option is actually
 accepted!  There are two possible workarounds for this bug:
 
@@ -126,6 +126,7 @@ accepted!  There are two possible workarounds for this bug:
 
 2. Add the following DHCP option:
 
+   THIS IS AN ILLEGAL OPTION - FIX THIS SECTION
    "option vendor-encapsulated-options 08:00:00:01:7f:00:00:01 ;"
 
    That line is not supposed to be necessary, and in fact makes
@@ -133,6 +134,8 @@ accepted!  There are two possible workarounds for this bug:
    MTFTP transfer before falling back to TFTP.  For some reason, the
    boot PROM doesn't request the "blksize" option if it has already
    failed an MTFTP transfer, and thus the bug is avoided.
+
+It appears this bug was fixed in version 0.99h.
 
 
     ++++ SOME NOTES ++++
