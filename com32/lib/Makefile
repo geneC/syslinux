@@ -30,7 +30,12 @@ LIBOBJS = abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o	\
 	pci/writeb.o pci/writew.o pci/writel.o				\
 	zlib/adler32.o zlib/compress.o zlib/crc32.o zlib/gzio.o 	\
 	zlib/uncompr.o zlib/deflate.o zlib/trees.o zlib/zutil.o 	\
-	zlib/inflate.o zlib/infback.o zlib/inftrees.o zlib/inffast.o
+	zlib/inflate.o zlib/infback.o zlib/inftrees.o zlib/inffast.o	\
+	libpng/png.o libpng/pngset.o libpng/pngrutil.o			\
+	libpng/pngtrans.o libpng/pngwutil.o libpng/pngread.o		\
+	libpng/pngrio.o libpng/pngwio.o libpng/pngwrite.o		\
+	libpng/pngrtran.o libpng/pngwtran.o libpng/pngmem.o		\
+	libpng/pngerror.o libpng/pngpread.o
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib
