@@ -324,6 +324,11 @@ PROMPT flag_val
         key is pressed, or Caps Lock or Scroll lock is set (this is the
         default).  If flag_val is 1, always display the boot: prompt.
 
+NOESCAPE flag_val
+	If flag_val is set to 1, ignore the Shift/Alt/Caps Lock/Scroll
+	Lock escapes.  Use this (together with PROMPT 0) to force the
+	default boot alternative.
+
 F1 filename
 F2 filename
    ...etc...

@@ -61,6 +61,7 @@ keywd_table:
 		keyword ontimeout, pc_ontimeout
 		keyword onerror,   pc_onerror
 		keyword allowoptions, pc_setint16, AllowOptions
+		keyword noescape,  pc_noescape
 		keyword f1,        pc_fkey,     FKeyName+(0<<FILENAME_MAX_LG2)
 		keyword f2,        pc_fkey,     FKeyName+(1<<FILENAME_MAX_LG2)
 		keyword f3,        pc_fkey,     FKeyName+(2<<FILENAME_MAX_LG2)

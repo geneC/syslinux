@@ -270,6 +270,13 @@ pc_say:		call pc_getline			; "say" command
 		jmp crlf			; tailcall
 
 ;
+; "noescape" command
+;
+pc_noescape:
+		mov byte [KbdFlags],0
+		; Fall into pc_getline
+
+;
 ; Comment line
 ;
 pc_comment:	; Fall into pc_getline

@@ -22,6 +22,10 @@ Changes in 2.20:
 	  boot sector to a file instead of the real boot sector.  This
 	  is currently not supported in any of the other installers,
 	  but should be added to the Win32 installer at some point.
+	* ALL: New NOESCAPE command, disables the "hold down the Shift
+	  key to display the prompt" behaviour.
+	* New simple menu system, as an alternative to the advanced
+	  menu system already present.  See README.menu for details.
 
 Changes in 2.13:
 	* MEMDISK: Fix command-line parsing "brown paper bag" class
