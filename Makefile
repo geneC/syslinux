@@ -18,6 +18,7 @@
 CC	 = gcc
 INCLUDE  =
 CFLAGS	 = -Wall -O2 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+PIC      = -fPIC
 LDFLAGS	 = -O2 -s
 AR	 = ar
 RANLIB   = ranlib
@@ -36,6 +37,10 @@ VERSION  = $(shell cat version)
 .c.o:
 	$(CC) $(INCLUDE) $(CFLAGS) -c $<
 
+# libsyslinux.so
+LIB_SONAME = libsyslinux.so.2
+LIB_SO  = libsyslinux.so.$(VERSION)
+
 #
 # The BTARGET refers to objects that are derived from ldlinux.asm; we
 # like to keep those uniform for debugging reasons; however, distributors 
@@ -46,7 +51,8 @@ NASMSRC  = ldlinux.asm syslinux.asm copybs.asm \
 	  pxelinux.asm mbr.asm isolinux.asm isolinux-debug.asm
 SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
 BTARGET = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
-	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin libsyslinux.a
+	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin \
+	  libsyslinux.a $(LIB_SO)
 ITARGET = syslinux.com syslinux syslinux-nomtools copybs.com gethostip \
 	  mkdiskimage
 DOCS    = COPYING NEWS README TODO *.doc sample com32
@@ -61,7 +67,7 @@ INSTALL_BIN   =	syslinux gethostip ppmtolss16 lss16toppm
 INSTALL_AUX   =	pxelinux.0 isolinux.bin isolinux-debug.bin \
 		syslinux.com copybs.com memdisk/memdisk
 # Things to install in /usr/lib
-INSTALL_LIB   = libsyslinux.a
+INSTALL_LIB   = $(LIB_SO) libsyslinux.a
 # Things to install in /usr/include
 INSTALL_INC   = syslinux.h
 
@@ -145,6 +151,9 @@ libsyslinux.a: bootsect_bin.o ldlinux_bin.o syslxmod.o
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
+$(LIB_SO): bootsect_bin.o ldlinux_bin.o syslxmod.o
+	$(CC) $(LDFLAGS) -shared -Wl,-soname,$(LIB_SONAME) -o $@ $^
+
 syslinux: syslinux.o libsyslinux.a
 	$(CC) $(LDFLAGS) -o $@ $^
 
@@ -152,7 +161,7 @@ syslinux-nomtools: syslinux-nomtools.o libsyslinux.a
 	$(CC) $(LDFLAGS) -o $@ $^
 
 syslxmod.o: syslxmod.c patch.offset
-	$(CC) $(INCLUDE) $(CFLAGS) -DPATCH_OFFSET=`cat patch.offset` \
+	$(CC) $(INCLUDE) $(CFLAGS) $(PIC) -DPATCH_OFFSET=`cat patch.offset` \
 		-c -o $@ $<
 
 gethostip.o: gethostip.c
@@ -172,6 +181,8 @@ install-lib: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(LIBDIR) $(INSTALLDIR)$(INCDIR)
 	install -m 644 -c $(INSTALL_LIB) $(INSTALLROOT)$(LIBDIR)
 	install -m 644 -c $(INSTALL_INC) $(INSTALLROOT)$(INCDIR)
+	cd $(INSTALLROOT)$(LIBDIR) && ln -sf $(LIB_SO) libsyslinux.so
+	ldconfig
 
 install-all: install install-all
 
@@ -196,7 +207,7 @@ dist: tidy
 	done
 
 local-spotless:
-	rm -f $(BTARGET) .depend
+	rm -f $(BTARGET) .depend *.so.*
 
 spotless: local-clean dist local-spotless
 	$(MAKE) -C sample spotless

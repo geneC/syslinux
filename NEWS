@@ -18,6 +18,10 @@ Changes in 2.04:
 	* MEMDISK: Fix installing the E820 memory map.  Calling
 	  INT 15h AX=0E820h with MEMDISK 2.03 loaded would give a
 	  completely corrupt memory map.
+	* SYSLINUX: Make libsyslinux a dynamic library, so that it can
+	  be updated separately from client programs.  The whole idea,
+	  after all, is to enable alternate programs to become
+	  syslinux installers.
 
 Changes in 2.03:
 	* Actually support comment lines in the configuration file.
