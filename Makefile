@@ -88,15 +88,18 @@ ldlinux.bin: ldlinux.asm kwdhash.inc
 		-l ldlinux.lst -o ldlinux.bin ldlinux.asm
 	$(PERL) genstupid.pl < ldlinux.lst
 
-pxelinux.0: pxelinux.asm kwdhash.inc
+pxelinux.bin: pxelinux.asm kwdhash.inc
 	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" \
 		-dHEXDATE="$(HEXDATE)" \
-		-l pxelinux.lst -o pxelinux.0 pxelinux.asm
+		-l pxelinux.lst -o pxelinux.bin pxelinux.asm
 
 isolinux.bin: isolinux.asm kwdhash.inc
 	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" \
 		-dHEXDATE="$(HEXDATE)" \
 		-l isolinux.lst -o isolinux.bin isolinux.asm
+
+pxelinux.0: pxelinux.bin
+	cp pxelinux.bin pxelinux.0
 
 # Special verbose version of isolinux.bin
 isolinux-debug.bin: isolinux.asm kwdhash.inc
