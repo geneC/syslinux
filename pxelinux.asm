@@ -318,6 +318,8 @@ A20Test		resw 1			; Counter for testing status of A20
 ServerPort	resw 1			; TFTP server port
 ConfigFile	resw 1			; Socket for config file
 PktTimeout	resw 1			; Timeout for current packet
+CmdLineLen	resw 1			; Length of command line including null
+KernelExtPtr	resw 1			; During search, final null pointer
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -356,6 +358,8 @@ bootp:
 .v_magic	resd 1			; DHCP magic cookie
 .v_flags	resd 1			; DHCP flags
 .v_pad		resb 56			; Vendor options padding
+
+.options	resb 0500h		; Additional option space
 
 bootp_size	equ $-bootp
 
@@ -402,7 +406,7 @@ _start1:
 ; to by SS:[SP+4], but support INT 1Ah, AX=5650h method as well.
 ;
 		cmp dword [es:bx], '!PXE'
-		je have_pxe
+		je near have_pxe
 
 		; Uh-oh, not there... try plan B
 		mov ax, 5650h
@@ -461,13 +465,8 @@ old_api:	; Need to use a PXENV+ structure
 
 		mov eax,[es:bx+0Ah]		; PXE RM API
 		mov [PXENVEntry],eax
-		jmp short have_pxe_entry
 
-have_pxe:
-		mov eax,[es:bx+10h]
-		mov [PXEEntry],eax
-
-have_pxe_entry:	mov si,pxeentry_msg
+		mov si,pxenventry_msg
 		call writestr
 		mov ax,[PXENVEntry+2]
 		call writehex4
@@ -476,6 +475,23 @@ have_pxe_entry:	mov si,pxeentry_msg
 		mov ax,[PXENVEntry]
 		call writehex4
 		call crlf
+		jmp short have_entrypoint
+
+have_pxe:
+		mov eax,[es:bx+10h]
+		mov [PXEEntry],eax
+
+		mov si,pxeentry_msg
+		call writestr
+		mov ax,[PXEEntry+2]
+		call writehex4
+		mov al,':'
+		call writechr
+		mov ax,[PXEEntry]
+		call writehex4
+		call crlf
+
+have_entrypoint:
 
 ;
 ; Clear Sockets structures
@@ -489,17 +505,28 @@ have_pxe_entry:	mov si,pxeentry_msg
 ; Now attempt to get the BOOTP/DHCP packet that brought us life (and an IP
 ; address)
 ;
-query_bootp:	mov ax,0DEADh			; Something bogus
-	
-		mov ax,ds
+query_bootp:	mov ax,ds
 		mov es,ax
 		mov di,pxe_bootp_query_pkt
 		mov bx,PXENV_GET_CACHED_INFO
 
 		call far [PXENVEntry]
-		jc .pxe_err
+		jc .pxe_err1
 		cmp ax,byte 0
 		je .pxe_ok
+.pxe_err1:	
+		mov di,pxe_bootp_size_query_pkt
+		mov bx,PXENV_GET_CACHED_INFO
+
+		call far [PXENVEntry]
+		jc .pxe_err
+		cmp ax,byte 0
+		je .pxe_size
+.pxe_size:
+		mov ax,[pxe_bootp_size_query_pkt.buffersize]
+		call writehex4
+		call crlf
+
 .pxe_err:
 		mov si,err_pxefailed
 		call writestr
@@ -1176,22 +1203,30 @@ not_vk:		pop ds
                 pop di
                 pop si
                 pop es
-		mov bx,exten_count << 2		; Alternates to try
 ;
 ; Find the kernel on disk
 ;
 get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/extension
-		mov eax,[KernelName+8]			; Save initial extension
-		mov [OrigKernelExt],eax
+		mov di,KernelName
+		xor al,al
+		mov cx,FILENAME_MAX-5		; Need 4 chars + null
+		repne scasb			; Scan for final null
+		jne .no_skip
+		dec di				; Point to final null 
+.no_skip:	mov [KernelExtPtr],di
+		mov bx,exten_table
 .search_loop:	push bx
                 mov di,KernelName	      	; Search on disk
                 call searchdir
 		pop bx
                 jnz kernel_good
-		mov eax,[exten_table+bx]	; Try a different extension
-		mov [KernelName+8],eax
-		sub bx,byte 4
-		jnb .search_loop
+		mov eax,[bx]			; Try a different extension
+		mov si,[KernelExtPtr]
+		mov [si],eax
+		mov byte [si+4],0
+		add bx,byte 4
+		cmp bx,exten_table_end
+		jna .search_loop		; allow == case (final case)
 bad_kernel:     
 		mov si,KernelName
                 mov di,KernelCName
@@ -1246,33 +1281,41 @@ kernel_corrupt: mov si,err_notkernel
 ; This is it!  We have a name (and location on the disk)... let's load
 ; that sucker!!  First we have to decide what kind of file this is; base
 ; that decision on the file extension.  The following extensions are
-; recognized:
+; recognized; case insensitive:
 ;
-; .COM 	- COMBOOT image
-; .CBT	- COMBOOT image
-; .BS	- Boot sector
-; .BSS	- Boot sector, but transfer over DOS superblock
+; .com 	- COMBOOT image
+; .cbt	- COMBOOT image
+; .bs	- Boot sector
+; .bss	- Boot sector, but transfer over DOS superblock
+;
+; Boot sectors are currently not supported by PXELINUX.
 ;
 ; Anything else is assumed to be a Linux kernel.
 ;
 kernel_good:
-		pusha
-		mov si,KernelName
-                mov di,KernelCName
-                call unmangle_name              ; Get human form
-                sub di,KernelCName
-                mov [KernelCNameLen],di
-		popa
+		push di
+		push ax
+		mov di,KernelName
+		xor al,al
+		mov cx,FILENAME_MAX
+		repne scasb
+		jne .one_step
+		dec di
+.one_step:	mov ecx,[di-4]			; 4 bytes before end
+		pop ax
+		pop di
 
-		mov ecx,[KernelName+8]		; Get (mangled) extension
-		cmp ecx,'COM'
+		or ecx,20202000h		; Force lower case
+
+		cmp ecx,'.com'
 		je near is_comboot_image
-		cmp ecx,'CBT'
+		cmp ecx,'.cbt'
 		je near is_comboot_image
-		cmp ecx,'BS '
-		je near is_bootsector
-		cmp ecx,'BSS'
+		cmp ecx,'.bss'
 		je near is_bss_sector
+		and ecx, 00ffffffh
+		cmp ecx,'.bs'
+		je near is_bootsector
 		; Otherwise Linux kernel
 ;
 ; A Linux kernel consists of three parts: boot sector, setup code, and
@@ -1449,6 +1492,8 @@ is_mem_cmd:
 cmdline_end:
                 push cs                         ; Restore standard DS
                 pop ds
+		sub di,cmd_line_here
+		mov [CmdLineLen],di		; Length including final null
 ;
 ; Now check if we have a large kernel, which needs to be loaded high
 ;
@@ -1629,6 +1674,12 @@ nk_noinitrd:
 		shl cx,7			; Sectors -> dwords
 		xor si,si
 		xor di,di
+		fs rep movsd			; Copy setup + boot sector
+		mov si,cmd_line_here
+		mov di,si
+		mov cx,[CmdLineLen]
+		add cx,byte 3
+		shr cx,2			; Convert to dwords
 		fs rep movsd
 ;
 ; Some kernels in the 1.2 ballpark but pre-bzImage have more than 4
@@ -2148,32 +2199,52 @@ kaboom:
 ;	Otherwise CF = 1, all registers saved
 ;	
 memory_scan_for_pxe_struct:
+		push ds
 		pusha
+		xor ax,ax
+		mov ds,ax
+		mov si,trymempxe_msg
+		call writestr
 		mov ax,[BIOS_fbm]	; Starting segment
 		shl ax,(10-4)		; Kilobytes -> paragraphs
+;		mov ax,01000h		; Start to look here
 		dec ax			; To skip inc ax
 .mismatch:
 		inc ax
 		cmp ax,0A000h		; End of memory
 		jae .not_found
+		call writehex4
+		mov si,fourbs_msg
+		call writestr
 		mov es,ax
-		mov edx,[es:si]
+		mov edx,[es:0]
 		cmp edx,'!PXE'
 		jne .mismatch
 		movzx cx,byte [es:4]	; Length of structure
-		cmp cl,58h		; Minimum length
+		cmp cl,08h		; Minimum length
 		jb .mismatch
+		push ax
 		xor ax,ax
 		xor si,si
 .checksum:	es lodsb
 		add ah,al
 		loop .checksum
-		and ah,ah
+		pop ax
 		jnz .mismatch		; Checksum must == 0
-.found:		add sp,byte 8*2		; Adjust stack
+.found:		mov bp,sp
+		xor bx,bx
+		mov [bp+8],bx		; Save BX into stack frame (will be == 0)
+		mov ax,es
+		call writehex4
+		call crlf
+		popa
+		pop ds
 		clc
 		ret
-.not_found:	popa
+.not_found:	mov si,notfound_msg
+		call writestr
+		popa
+		pop ds
 		stc
 		ret
 
@@ -2189,8 +2260,11 @@ memory_scan_for_pxe_struct:
 ;	
 memory_scan_for_pxenv_struct:
 		pusha
-		mov ax,[BIOS_fbm]	; Starting segment
-		shl ax,(10-4)		; Kilobytes -> paragraphs
+		mov si,trymempxenv_msg
+		call writestr
+;		mov ax,[BIOS_fbm]	; Starting segment
+;		shl ax,(10-4)		; Kilobytes -> paragraphs
+		mov ax,01000h		; Start to look here
 		dec ax			; To skip inc ax
 .mismatch:
 		inc ax
@@ -2213,10 +2287,16 @@ memory_scan_for_pxenv_struct:
 		loop .checksum
 		and ah,ah
 		jnz .mismatch		; Checksum must == 0
-.found:		add sp,byte 8*2		; Adjust stack
+.found:		mov bp,sp
+		mov [bp+8],bx		; Save BX into stack frame
+		mov ax,bx
+		call writehex4
+		call crlf
 		clc
 		ret
-.not_found:	popad
+.not_found:	mov si,notfound_msg
+		call writestr
+		popad
 		stc
 		ret
 
@@ -3227,7 +3307,7 @@ unmangle_name:	call strcpy
 pxe_thunk:	push es
 		push di
 		push bx
-		call far [PXEEntry]
+		call far [cs:PXEEntry]
 		add sp,byte 6
 		cmp ax,byte 1
 		cmc				; Set CF unless ax == 0
@@ -3483,13 +3563,19 @@ found_pxenv	db 'Found PXENV+ structure', 13, 10, 0
 using_pxenv_msg db 'Old PXE API detected, using PXENV+ structure', 13, 10, 0
 apiver_str	db 'PXE API version is ',0
 pxeentry_msg	db 'PXE entry point found (we hope) at ', 0
+pxenventry_msg	db 'PXENV entry point found (we hope) at ', 0
+trymempxe_msg	db 'Scanning memory for !PXE structure... ', 0
+trymempxenv_msg	db 'Scanning memory for PXENV+ structure... ', 0
+notfound_msg	db 'not found', 13, 10, 0
 myipaddr_msg	db 'My IP address seems to be ',0
 tftpprefix_msg	db 'TFTP prefix: ', 0
+cmdline_msg	db 'Command line: ', 13, 10, 0
 ready_msg	db 13, 10, 'Ready to start kernel...', 13, 10, 0
 trying_msg	db 'Trying to load: ', 0
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
 dot_msg         db '.', 0
+fourbs_msg	db 8, 8, 8, 8, 0
 aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
 crlf_msg	db 13, 10, 0
 crff_msg	db 13, 0Ch, 0
@@ -3534,20 +3620,15 @@ keywd_table	db 'ap' ; append
 		db 'f0' ; F10
 		dw 0
 ;
-; Extensions to search for (in *reverse* order).  Note that the last
-; (lexically first) entry in the table is a placeholder for the original
-; extension, needed for error messages.  The exten_table is shifted so
-; the table is 1-based; this is because a "loop" cx is used as index.
+; Extensions to search for (in *forward* order).
 ;
 		align 4, db 0
-exten_table:
-OrigKernelExt:	dd 0			; Original extension
-		db 'COM',0		; COMBOOT (same as DOS)
-		db 'BS ',0		; Boot Sector 
-		db 'BSS',0		; Boot Sector (add superblock)
-		db 'CBT',0		; COMBOOT (specific)
-
-exten_count	equ (($-exten_table) >> 2) - 1	; Number of alternates
+exten_table:	db '.cbt'		; COMBOOT (specific)
+		db '.bss'		; Boot Sector (add superblock)
+		db '.bs', 0		; Boot Sector 
+		db '.com'		; COMBOOT (same as DOS)
+exten_table_end:
+		dd 0, 0			; Need 8 null bytes here
 
 ;
 ; PXENV entry point.  If we use the !PXE API, this will point to a thunk
@@ -3560,9 +3641,16 @@ PXENVEntry	dw pxe_thunk,0
 ;
 pxe_bootp_query_pkt:
 .status:	dw 0			; Status
-.packettype:	dw 2			; DHCPACK packet
+.packettype:	dw 3			; DHCPACK packet
 .buffersize:	dw bootp_size		; Packet size
 .buffer:	dw bootp, 0		; seg:off of buffer
+.bufferlimit:	dw bootp_size		; Unused
+
+pxe_bootp_size_query_pkt:
+.status:	dw 0			; Status
+.packettype:	dw 3			; DHCPACK packet
+.buffersize:	dw 0			; Packet size
+.buffer:	dw 0, 0			; seg:off of buffer
 .bufferlimit:	dw 0			; Unused
 
 pxe_udp_open_pkt:

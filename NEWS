@@ -1,3 +1,10 @@
+Changes in 1.48:
+	* PXELINUX: Workaround for PXE ROMs based on the Intel PXE PDK
+	  2.0 build 071 and earlier: missing !PXE structure pointer.
+	* PXELINUX: Handle larger BOOTP/DHCP packages.
+	* PXELINUX: The command line passing was broken; fix.
+	* PXELINUX: Make COMBOOT images work.
+
 Changes in 1.47:
 	* PXELINUX: RFC 1123 states that a TFTP implementation MUST
 	  use adaptive timeout, "at least an exponential backoff of
