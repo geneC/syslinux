@@ -222,45 +222,84 @@ const char *getcmditem(const char *what)
 /*
  * Check to see if this is a gzip image
  */
+#define UNZIP_ALIGN 512
+
+extern void _end;		/* Symbol signalling end of data */
+
 void unzip_if_needed(uint32_t *where_p, uint32_t *size_p)
 {
   uint32_t where = *where_p;
   uint32_t size = *size_p;
   uint64_t startrange, endrange;
-  uint32_t gzdatasize;
-  uint32_t end_mem = 0;
+  uint32_t gzdatasize, gzwhere;
+  uint32_t target = 0;
   int i, okmem;
 
   /* Is it a gzip image? */
   if ( *(uint16_t *)where == 0x8b1f ) {
     gzdatasize = *(uint32_t *)(where + size - 4);
 
-    /* Find a good place to put it */
+    /* Find a good place to put it: search memory ranges in descending order
+       until we find one that is legal and fits */
     okmem = 0;
-    for ( i = 0 ; i < nranges ; i++ ) {
-      /* Truncate range at 4G if needed */
-      endrange = (ranges[i+1].start >= 0x100000000ULL
-		  ? 100000000ULL : ranges[i+1].start);
-      /* Allow for 512-byte alignment */
-      startrange = (ranges[i].start + 511) & ~511;
+    for ( i = nranges-1 ; i >= 0 ; i-- ) {
+      /* Don't use > 4G memory */
+      if ( ranges[i].start >= 0x100000000ULL )
+	continue;
+      startrange = ranges[i].start;
 
-      if ( startrange <= (-gzdatasize) &&
-	   ranges[i].type == 1 &&
-	   endrange - startrange >= gzdatasize ) {
-	end_mem = (uint32_t)endrange;
+      /* Truncate range at 4G if needed */
+      endrange = ((ranges[i+1].start >= 0x100000000ULL ||
+		   ranges[i+1].start == 0ULL)
+		  ? 100000000ULL : ranges[i+1].start);
+
+      /* Make sure we don't overwrite ourselves */
+      if ( startrange < (uint32_t)&_end )
+	startrange = (uint64_t)&_end;
+
+      /* Allow for alignment */
+      startrange = (ranges[i].start + (UNZIP_ALIGN-1)) & ~(UNZIP_ALIGN-1);
+
+      /* This is where the gz image should be put if we put it in this range */
+      gzwhere = (endrange - gzdatasize) & ~(UNZIP_ALIGN-1);
+
+      /* Must be memory and large enough */
+      if ( ranges[i].type == 1 && gzwhere >= startrange ) {
+        if ( where+size >= gzwhere && where < endrange ) {
+	  /* Need to move source data to avoid compressed/uncompressed overlap */
+	  uint32_t newwhere;
+
+	  if ( gzwhere-startrange < size )
+	    continue;		/* Can't fit both old and new */
+
+	  newwhere = (gzwhere - size) & ~(UNZIP_ALIGN-1);
+	  printf("Moving compressed data from 0x%08x to 0x%08x\n",
+		 where, newwhere);
+
+	  /* Our memcpy() is OK, because we always move from a higher
+	     address to a lower one */
+	  memcpy((void *)newwhere, (void *)where, size);
+	  where = newwhere;
+	}
+
+	target = gzwhere;
 	okmem = 1;
+	break;
       }
-    }   
-    
+    }
 
     if ( !okmem ) {
       puts("Not enough memory to decompress image\n");
       die();
     }
 
-    *where_p = (uint32_t)unzip((void *)where, size_p, (void *)end_mem);
+    printf("gzip image: decompressed addr 0x%08x, len 0x%08x: ",
+	   target, gzdatasize);
+
+    *size_p  = gzdatasize;
+    *where_p = (uint32_t)unzip((void *)where, size, (void *)target);
   }
-}  
+}
 
 /*
  * Figure out the "geometry" of the disk in question

@@ -38,6 +38,6 @@ extern void __attribute__((noreturn)) die(void);
 #define memset(a,b,c) __builtin_memset(a,b,c)
 
 /* Decompression */
-void *unzip(void *indata, uint32_t *datalen, void *end_mem);
+void *unzip(void *indata, unsigned long zbytes, void *target);
 
 #endif

@@ -166,10 +166,8 @@ static void error(char *x)
  */
 extern void _end;
 
-void *unzip(void *indata, uint32_t *datalen, void *end_mem)
+void *unzip(void *indata, unsigned long zbytes, void *target)
 {
-  void *target;
-  unsigned long zbytes = *datalen; 
   /* The uncompressed length of a gzip file is the last four bytes */
   unsigned long dbytes = *(uint32_t *)((char *)indata + zbytes - 4);
 
@@ -177,23 +175,8 @@ void *unzip(void *indata, uint32_t *datalen, void *end_mem)
   free_mem_ptr = (ulg)sys_bounce + 0x10000;
   free_mem_end_ptr = free_mem_ptr + 0x10000;
 
-  /* Pick address and round to nearest sector */
-  target = (void *)(((uint32_t)end_mem - dbytes) & ~511);
-  printf("gzip image: decompressed addr 0x%08lx, len 0x%08lx: ", (unsigned long)target, dbytes);
-  *datalen = dbytes;
-
-  /* Copy input data to "low high" memory */
-  inbuf = &_end;
-  inbuf = (void *)(((unsigned long)inbuf + 3) & ~3);
-
-  if ( (uint32_t)inbuf + zbytes > (uint32_t)target ||
-       (void *)inbuf > indata )
-    error("insufficient memory to decompress");
-
-  memcpy(inbuf, indata, zbytes);
-
   /* Set up input buffer */
-  inbuf  = &_end;
+  inbuf  = indata;
   insize = zbytes;
 
   /* Set up output buffer */
