@@ -30,14 +30,22 @@ static void console_init(void)
 {
   /* Write both to the ANSI console and the serial port, if configured */
   openconsole(&dev_stdcon_r, &dev_ansiserial_w);
-  printf("\033[20h");		/* Automatically convert \r\n -> \n */
 }  
 
 #else
 
+#include <termios.h>
+#include <unistd.h>
+
 static void console_init(void)
 {
-  /* Do Linux initialization (none needed) */
+  struct termios tio;
+
+  /* Set the termios flag so we behave the same as libcom32 */
+  tcgetattr(0, &tio);
+  tio.c_iflag &= ~ICRNL;
+  tio.c_iflag |= IGNCR;
+  tcsetattr(0, TCSANOW, &tio);
 }  
 
 #endif
@@ -47,6 +55,7 @@ int main(void)
   char buffer[1024];
 
   console_init();
+  printf("\033[20h");		/* Automatically convert \r\n -> \n */
 
   printf("\033[1;33;44m *** \033[37mHello, World!\033[33m *** \033[0m\n");
 
