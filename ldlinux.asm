@@ -2325,6 +2325,15 @@ bcopy:
 %define delaytime 256			; 4 x ISA bus cycles (@ 1.5 µs)
 
 enable_a20:
+;
+; First, enable the "fast A20 gate"
+;
+		in al, 92h
+		or al,02h
+		out 92h, al
+;
+; Second, enable the keyboard controller A20 gate
+;
 		call empty_8042
 		mov al,0D1h		; Command write
 		out 064h, al
@@ -2349,6 +2358,15 @@ enable_a20:
 		ret
 
 disable_a20:
+;
+; First, disable the "fast A20 gate"
+;
+		in al, 92h
+		and al,~02h
+		out 92h, al
+;
+; Second, disable the keyboard controller A20 gate
+;
 		call empty_8042
 		mov al,0D1h
 		out 064h, al		; Command write

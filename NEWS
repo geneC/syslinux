@@ -1,3 +1,7 @@
+Changes in 1.42:
+	* Frob the "fast A20 gate" port as well as the keyboard
+	  controller; will this help systems with problems?
+
 Changes in 1.41:
 	* Don't get confused by directories, volume labels, or VFAT
 	  long names.
