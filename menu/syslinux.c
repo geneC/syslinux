@@ -17,14 +17,17 @@ static inline int asm_issyslinux(void)
 {
   unsigned long eax, ebx, ecx, edx;
 
-  asm("movb $0x30,%%ah ; int $0x21"
-      : "=a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx));
+  eax = 0x00003000;
+  ebx = ecx = edx = 0xFFFFFFFF;
+
+  asm("int $0x21"
+      : "+a" (eax), "+b" (ebx), "+c" (ecx), "+d" (edx));
 
   return (eax == 0x53590000) && (ebx == 0x534c0000) &&
     (ecx == 0x494e0000) && (edx == 0x55580000);
 }
 
-char issyslinux(void)
+int issyslinux(void)
 {
    return asm_issyslinux();
 }

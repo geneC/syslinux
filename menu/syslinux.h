@@ -4,7 +4,7 @@
 
 extern int syslinux;		/* Syslinux flag */
 
-char issyslinux(void);		/* Check if syslinux is running */
+int issyslinux(void);		/* Check if syslinux is running */
 
 void runcommand(const char *cmd); /* Run specified command */
 
