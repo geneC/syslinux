@@ -42,7 +42,11 @@ TFTP_PORT	equ htons(69)		; Default TFTP port
 PKT_RETRY	equ 6			; Packet transmit retry count
 PKT_TIMEOUT	equ 12			; Initial timeout, timer ticks @ 55 ms
 ; Desired TFTP block size
-TFTP_LARGEBLK	equ (1500-20-8-4)	; MTU 1500 - IP hdr - UDP hdr - TFTP hdr
+; For Ethernet MTU is normally 1500.  Unfortunately there seems to
+; be a fair number of networks with "substandard" MTUs which break.
+; The code assumes TFTP_LARGEBLK <= 2K.
+TFTP_MTU	equ 1472
+TFTP_LARGEBLK	equ (TFTP_MTU-20-8-4)	; MTU - IP hdr - UDP hdr - TFTP hdr
 ; Standard TFTP block size
 TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)
 TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)

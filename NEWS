@@ -12,6 +12,10 @@ Changes in 2.06:
 	  actually process comments in the header and odd
 	  alignments of the various parameters, as well as
 	  "plain" (not raw) files and PBM and PGM files.
+	* PXELINUX: Lower the default MTU to 1472 in order to deal
+	  with systems with slightly nonstandard MTUs, and PXE
+	  stacks which don't defragment correctly.  Unfortunately this
+	  is very hard to test dynamically.
 
 Changes in 2.05:
 	* PXELINUX: Add a default query based on the hardware address
