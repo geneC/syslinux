@@ -108,8 +108,6 @@ adequate to make all or most existing PXE client boot.
 
 Using ISC dhcp 2.0 dhcpd.conf syntax:
 
-configuration:
-
         allow booting;
         allow bootp;
 
@@ -129,6 +127,73 @@ configuration:
                 hardware ethernet <ethernet address>;
                 fixed-address <hostname>;
         }
+
+Using ISC dhcp 3.0 beta dhcpd.conf syntax:
+
+	# Declare the syntax of PXE options
+	# This is only needed at one point in the file
+	option space pxe;
+	option pxe.mtftp-ip		code  1 = ip-address;
+	option pxe.mtftp-cport		code  2 = unsigned integer 16;
+	option pxe.mtftp-sport		code  3 = unsigned integer 16;
+	option pxe.mtftp-tmout		code  4 = unsigned integer 8;
+	option pxe.mtftp-delay		code  5 = unsigned integer 8;
+	option pxe.discovery-control	code  6 = unsigned integer 8;
+	option pxe.discovery-mcast-addr	code  7 = ip-address;
+	option pxe.boot-servers		code  8 = array of {
+		unsigned integer 16,
+		unsigned integer 8,
+		array of ip-address
+	};
+	option pxe.boot-menu		code  9 = array of {
+		unsigned integer 16,
+		unsigned integer 8,
+		text
+	};
+	option pxe.menu-prompt		code 10 = {
+		unsigned integer 8,
+		text
+	};
+	option pxe.mcast-addrs-alloc	code 11 = {
+		ip-address,
+		unsigned integer 16,
+		unsigned integer 16
+	};
+	option pxe.credential-types	code 12 = array of unsigned integer 32;
+	option pxe.boot-item		code 71 = {
+		unsigned integer 16,
+		unsigned integer 16
+	};
+
+        allow booting;
+        allow bootp;
+
+        filename "/tftpboot/pxelinux.bin" ;
+        option dhcp-class-identifier "PXEClient";
+	vendor-option-space pxe;
+	option pxe.boot-menu		32768 12 "Network boot"
+	option pxe.menu-prompt		0 "Prompt"
+	option pxe.discovery-control	2
+	option pxe.boot-servers		32768 0
+	option pxe.boot-item		32768 0
+
+	next-server <TFTP-server>;
+	# server-identifier <TFTP-server>;	# Illegal! See below
+
+        option domain-name "<domain name>";
+        option subnet-mask <subnet mask>;
+        option broadcast-address <broadcast address>;
+        option domain-name-servers <dns servers>;
+        option routers <default router>;
+
+	option pxe.
+
+        host <hostname> {
+                hardware ethernet <ethernet address>;
+                fixed-address <hostname>;
+        }
+
+
 
 Note that if your particular TFTP daemon runs under chroot (tftp-hpa
 will do this if you specify the -s (secure) option; this is
