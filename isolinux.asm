@@ -9,7 +9,7 @@
 ;  available.  It is based on the SYSLINUX boot loader for MS-DOS
 ;  floppies.
 ;
-;   Copyright (C) 1994-2001  H. Peter Anvin
+;   Copyright (C) 1994-2002  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@ SECTORSIZE	equ (1 << SECTORSIZE_LG2)
 ;
 %define	version_str	VERSION		; Must be 4 characters long!
 %define date		DATE_STR	; Defined from the Makefile
-%define	year		'2001'
+%define	year		'2002'
 ;
 ; Debgging stuff
 ;

@@ -16,7 +16,7 @@
 ;  then the first sector (cluster, really, but we can only assume 1 sector)
 ;  of LDLINUX.SYS at 7E00h and finally the remainder of LDLINUX.SYS at 8000h.
 ;
-;   Copyright (C) 1994-2001  H. Peter Anvin
+;   Copyright (C) 1994-2002  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ BAUD_DIVISOR	equ 115200		; Serial port parameter
 ;
 %define	version_str	VERSION		; Must be 4 characters long!
 %define date		DATE_STR	; Defined from the Makefile
-%define	year		'2001'
+%define	year		'2002'
 ;
 ; Debgging stuff
 ;

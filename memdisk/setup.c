@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2001 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2001-2002 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -15,7 +15,8 @@
 #include "e820.h"
 #include "conio.h"
 
-#define COPYYEAR "2001"
+#define FIRSTYEAR "2001"
+#define COPYYEAR  "2002"
 
 extern const char _binary_memdisk_bin_start[], _binary_memdisk_bin_end[];
 extern const char _binary_memdisk_bin_size[]; /* Weird, I know */
@@ -438,7 +439,7 @@ uint32_t setup(void)
 
   /* Show signs of life */
   puts("MEMDISK " VERSION " " DATE
-       "  Copyright " COPYYEAR " H. Peter Anvin\n");
+       "  Copyright " FIRSTYEAR "-" COPYYEAR " H. Peter Anvin\n");
 
   if ( !shdr->ramdisk_image || !shdr->ramdisk_size ) {
     puts("MEMDISK: No ramdisk image specified!\n");
