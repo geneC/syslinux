@@ -6,6 +6,8 @@ Changes in 1.62:
 	  configuration file name and pathname prefix, using
 	  "site-specific" DHCP options.
 	* PXELINUX: Documentation fixes.
+	* PXELINUX: Fix the "ipappend" option; the last two values
+	  were reversed vs. what the kernel expected.
 
 Changes in 1.61:
 	* ISOLINUX: Support full pathname searches.  Max length for a

@@ -4326,11 +4326,11 @@ genipopt:
 		call gendotquad
 		mov al,':'
 		stosb
-		mov eax,[Netmask]
+		mov eax,[Gateway]
 		call gendotquad
 		mov al,':'
 		stosb
-		mov eax,[Gateway]
+		mov eax,[Netmask]
 		call gendotquad	; Zero-terminates its output
 		sub di,IPOption
 		mov [IPOptionLen],di
