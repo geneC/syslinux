@@ -2000,6 +2000,8 @@ loadinitrd:
                 mov edi,[InitRDat]		; initrd load address
 		mov [es:su_ramdiskat],edi	; Offset for ram disk
 		push si
+                mov si,loading_msg
+                call cwritestr
                 mov si,InitRDCName		; Write ramdisk name
                 call cwritestr
                 mov si,dotdot_msg		; Write dots
@@ -2033,8 +2035,6 @@ rd_last_moby:
 rd_load_done:
                 pop si                          ; Clean up the stack
 		call crlf
-                mov si,loading_msg		; Write new "Loading " for
-                call cwritestr                  ; the benefit of the kernel
                 pop es                          ; Restore original ES
                 ret
 

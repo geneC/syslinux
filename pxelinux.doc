@@ -1,0 +1,107 @@
+                               PXELINUX
+                             Version 1.46
+                          September ??, 1999
+
+    A bootloader for Linux using the PXE network booting protocol
+
+		  Copyright (C) 1999 H. Peter Anvin
+
+This program is provided under the terms of the GNU General Public
+License, version 2 or, at your option, any later version.  There is no
+warranty, neither expressed nor implied, to the function of this
+program.  Please see the included file COPYING for details.
+
+----------------------------------------------------------------------
+
+PXELINUX is a SYSLINUX derivative, for booting Linux off a network
+server, using a network ROM conforming to the Intel PXE (Pre-Execution
+Environment) specification.  PXELINUX is *not* a program that is
+intended to be flashed or burned into a PROM on the network card; if
+you want that, check out NILO (http://www.nilo.org/).  NILO can also
+be used to create a PXE-compliant boot PROM for most network cards
+which have drivers for Linux or FreeBSD.
+
+
+    ++++ HOW TO CONFIGURE PXELINUX ++++
+
+PXELINUX operates in many ways like SYSLINUX.  If you are not familiar
+with SYSLINUX, read syslinux.doc first, since this documentation only
+explains the differences.
+
+PXELINUX currently requires that the boot server has a TFTP server
+which supports the "tsize" TFTP option (RFC 1784/RFC 2349).  The
+source for such a TFTP server is available from the Netboot home page
+at <http://www.han.de/~gero/netboot/english/download.html>.
+
+On the TFTP server, create the directory "/tftpboot", and copy the
+following files to it:
+
+	pxelinux.bin		- from the SYSLINUX distribution
+
+	any kernel or initrd images you want to boot
+
+Finally, create the directory "/tftpboot/pxelinux.cfg".  The
+configuration file (equivalent of syslinux.cfg) will live in this
+directory.  Because more than one system may be booted from the same
+server, the configuration file name depends on the IP address of the
+booting machine.  PXELINUX will search for its config file on the boot
+server in the following way:
+
+  First, it will search for the config file using its own IP address
+  in upper case hexadecimal, e.g. 192.0.2.91 -> C000025B.
+
+  If that file is not found, it will remove one hex digit and try
+  again.  For 192.0.2.91, if C000025B is not found, it will try
+  C000025, C00002, C0000, C000, C00, C0, and C in that order.
+
+  Finally, it will try looking for a file named "default" (in lower
+  case).
+
+It should be noted that all filename references are relative to the
+/tftpboot directory, or whatever directory the pxelinux.bin lives in.
+PXELINUX generally requires that filenames are 31 characters or
+shorter in length.
+
+PXELINUX does not support MTFTP, and I have no immediate plans of
+doing so.
+
+
+    ++++ SETTING UP A BOOTP SERVER ++++
+
+The PXE protocol is very complex, but I have successfully booted an
+Intel Nightshade-based PXE host (with "Intel LANDesk(R) Service Agent
+II"), using a DHCP-enabled BOOTP server with the following
+configuration in /etc/bootptab:
+
+<hostname>:hn:ht=ether:ha=<ethernet_address>:ip=<ip>:\
+	:bf=/tftpboot/pxelinux.bin:\
+	:T60=505845436c69656e74:\
+	:T43=0603:\
+	:T43=08000001ssssssss:\
+	:sm=<netmask>:\
+	:gw=<default_gateway>:\
+	:ds=<dns_servers>:
+
+... where "ssssssss" is the IP address of the boot server, in
+hexadecimal.
+
+Your mileage may vary.
+
+
+    ++++ PXELINUX IS STILL BETA ++++
+
+PXELINUX is still very much beta; however, I'd be interested in
+hearing about any experiences you might have with it, good or bad.  If
+you have any comments, please use the SYSLINUX mailing list mentioned
+at the end of syslinux.doc.  Thanks!
+
+Currently known problems:
+
++ Requires a TFTP server which supports the "tsize" option.
++ Probably doesn't work if the BOOTP/DHCP server and the TFTP server
+  aren't the same.
++ The error recovery routine doesn't work quite right.
++ There may be funnies with memory management.  The PXE spec has no
+  decent way of telling it to free up all memory and unchain any
+  interrupts; it allows the base stack to be unloaded, but not the
+  UNDI driver.

@@ -1,6 +1,6 @@
 			       SYSLINUX
-			     Version 1.45
-			    June 14, 1999
+			     Version 1.46
+			  September ??, 1999
 
               A bootloader for Linux using MS-DOS floppies
 
@@ -10,6 +10,8 @@ This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
 warranty, neither expressed nor implied, to the function of this
 program.  Please see the included file COPYING for details.
+
+----------------------------------------------------------------------
 
 SYSLINUX is a boot loader for the Linux operating system which
 operates off an MS-DOS/Windows FAT filesystem.  It is intended to

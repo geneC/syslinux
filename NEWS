@@ -1,3 +1,8 @@
+Changes in 1.46:
+	* New program PXELINUX to do network booting over the PXE
+	  (Pre-Execution Environment) network booting protocol.  See
+	  pxelinux.doc for details.
+
 Changes in 1.45:
 	* Serial console support.  See syslinux.doc for details.
 
