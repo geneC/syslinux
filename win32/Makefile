@@ -47,7 +47,8 @@ CC_IS_GOOD := $(shell $(CC) $(CFLAGS) $(LDFLAGS) -o hello.exe hello.c >/dev/null
 
 .SUFFIXES: .c .o .i .s .S
 
-SRCS     = syslinux.c ../syslxmod.c ../bootsect_bin.c ../ldlinux_bin.c $(wildcard ../libfat/*.c)
+SRCS     = syslinux.c ../syslxmod.c ../bootsect_bin.c ../ldlinux_bin.c \
+	   ../mbr_bin.c $(wildcard ../libfat/*.c)
 OBJS     = $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
 VPATH = .:..:../libfat
@@ -62,7 +63,7 @@ all:
 endif
 
 tidy:
-	-rm -f *.o *.i *.s *.a .*.d
+	-rm -f *.o *.i *.s *.a .*.d *_bin.c
 
 clean: tidy
 
@@ -73,6 +74,7 @@ installer:
 
 syslinux.exe: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
+
 
 %.o: %.c
 	$(CC) -Wp,-MT,$@,-MMD,.$@.d $(CFLAGS) -c -o $@ $<

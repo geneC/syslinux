@@ -38,10 +38,6 @@ VERSION  = $(shell cat version)
 .c.o:
 	$(CC) $(INCLUDE) $(CFLAGS) -c $<
 
-# libsyslinux.so
-LIB_SONAME = libsyslinux.so.2.2
-LIB_SO  = libsyslinux.so.$(VERSION)
-
 #
 # The BTARGET refers to objects that are derived from ldlinux.asm; we
 # like to keep those uniform for debugging reasons; however, distributors 
@@ -60,8 +56,8 @@ SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
 BTARGET  = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
 	   pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin \
 	   extlinux.bin extlinux.bss extlinux.sys \
-	   bootsect_bin.c ldlinux_bin.c extlinux_bss_bin.c extlinux_sys_bin.c
-	   # libsyslinux.a $(LIB_SO)
+	   bootsect_bin.c ldlinux_bin.c mbr_bin.c \
+	   extlinux_bss_bin.c extlinux_sys_bin.c 
 BOBJECTS = $(BTARGET) dos/syslinux.com win32/syslinux.exe memdisk/memdisk
 BSUBDIRS = memdisk dos win32
 ITARGET  = copybs.com gethostip mkdiskimage
@@ -80,9 +76,9 @@ INSTALL_AUX   =	pxelinux.0 isolinux.bin isolinux-debug.bin \
 		dos/syslinux.com win32/syslinux.exe \
 		copybs.com memdisk/memdisk
 # Things to install in /usr/lib
-INSTALL_LIB   = $(LIB_SO) libsyslinux.a
+INSTALL_LIB   = # libsyslinux.a
 # Things to install in /usr/include
-INSTALL_INC   = syslinux.h
+INSTALL_INC   = # syslinux.h
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
@@ -162,6 +158,9 @@ extlinux.sys: extlinux.bin
 mbr.bin: mbr.asm
 	$(NASM) -f bin -l mbr.lst -o mbr.bin mbr.asm
 
+mbr_bin.c: mbr.bin bin2c.pl
+	$(PERL) bin2c.pl syslinux_mbr < $< > $@
+
 copybs.com: copybs.asm
 	$(NASM) -f bin -l copybs.lst -o copybs.com copybs.asm
 
@@ -177,7 +176,7 @@ extlinux_bss_bin.c: extlinux.bss bin2c.pl
 extlinux_sys_bin.c: extlinux.sys bin2c.pl
 	$(PERL) bin2c.pl extlinux_image < $< > $@
 
-libsyslinux.a: bootsect_bin.o ldlinux_bin.o syslxmod.o
+libsyslinux.a: bootsect_bin.o ldlinux_bin.o mbr_bin.o syslxmod.o
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@

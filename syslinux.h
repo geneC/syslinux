@@ -19,10 +19,15 @@
 /* The standard boot sector and ldlinux image */
 extern unsigned char syslinux_bootsect[];
 extern unsigned int  syslinux_bootsect_len;
+extern int           syslinux_bootsect_mtime;
 
 extern unsigned char syslinux_ldlinux[];
 extern unsigned int  syslinux_ldlinux_len;
 extern int           syslinux_ldlinux_mtime;
+
+extern unsigned char syslinux_mbr[];
+extern unsigned int  syslinux_mbr_len;
+extern int           syslinux_mbr_mtime;
 
 /* This switches the boot sector to "stupid mode" */
 void syslinux_make_stupid(void);

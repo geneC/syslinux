@@ -31,7 +31,9 @@ Changes in 3.00:
 	  from an alternate TFTP server, or just a ::
 	  (e.g. ::filename), which suppresses the common pathname
 	  prefix.  See pxelinux.doc.
-
+	* SYSLINUX: Add an -m option to the Win32 installer (only!)
+	  to write an MBR and -a to mark the partition SYSLINUX is
+	  being installed on active.
 
 Changes in 2.13:
 	* MEMDISK: Fix command-line parsing "brown paper bag" class

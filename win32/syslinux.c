@@ -23,6 +23,141 @@
 #include "syslinux.h"
 #include "libfat.h"
 
+void error(char* msg);
+
+/* Begin stuff for MBR code */
+
+#include <winioctl.h>
+
+#define SECTOR_SIZE 512
+#define PART_TABLE  0x1be
+#define PART_SIZE   0x10
+#define PART_COUNT  4
+#define PART_ACTIVE 0x80
+
+// The following struct should be in the ntddstor.h file, but I didn't have it.
+// TODO: Make this a conditional compilation
+typedef struct _STORAGE_DEVICE_NUMBER {
+  DEVICE_TYPE  DeviceType;
+  ULONG  DeviceNumber;
+  ULONG  PartitionNumber;
+} STORAGE_DEVICE_NUMBER, *PSTORAGE_DEVICE_NUMBER;
+
+BOOL GetStorageDeviceNumberByHandle( HANDLE handle, const STORAGE_DEVICE_NUMBER *sdn ) {
+  BOOL result = FALSE;
+  DWORD count;
+  
+  if ( DeviceIoControl( handle, IOCTL_STORAGE_GET_DEVICE_NUMBER, NULL,
+			0, (LPVOID)sdn, sizeof( *sdn ), &count, NULL ) ) {
+    result = TRUE;
+  }
+  else {
+    error("GetDriveNumber: DeviceIoControl failed.");
+  }
+  
+  return( result );
+}
+
+int GetBytesPerSector( HANDLE drive ) {
+  int result = 0;
+  DISK_GEOMETRY g;
+  DWORD count;
+  
+  if ( DeviceIoControl( drive, IOCTL_DISK_GET_DRIVE_GEOMETRY, NULL, 0,
+			&g, sizeof( g ), &count, NULL ) ) {
+    result = g.BytesPerSector;
+  }
+  
+  return( result );
+}
+
+BOOL FixMBR(int driveNum, int partitionNum, int write_mbr, int set_active) {
+  BOOL result = TRUE;
+  HANDLE drive;
+  
+  char driveName[128];
+  
+  sprintf( driveName, "\\\\.\\PHYSICALDRIVE%d", driveNum );
+  
+  drive = CreateFile( driveName,
+		      GENERIC_READ | GENERIC_WRITE,
+		      FILE_SHARE_WRITE | FILE_SHARE_READ,
+		      NULL,
+		      OPEN_EXISTING,
+		      0,
+		      NULL );
+  
+  if( drive == INVALID_HANDLE_VALUE ) {
+    error("Accessing physical drive");
+    result = FALSE;
+  }
+  
+  if( result ) {
+    unsigned char sector[SECTOR_SIZE];
+    DWORD howMany;
+    
+    if( GetBytesPerSector( drive ) != SECTOR_SIZE ) {
+      fprintf(stderr, "Error: Sector size of this drive is %d; must be %d\n",
+	      GetBytesPerSector( drive ), SECTOR_SIZE );
+      result = FALSE;
+    }
+    
+    if ( result ) {
+      if ( ReadFile( drive, sector, sizeof( sector ), &howMany, NULL ) == 0 ) {
+	error("Reading raw drive");
+	result = FALSE;
+      } else if ( howMany != sizeof( sector ) ) {
+	fprintf(stderr, "Error: ReadFile on drive only got %d of %d bytes\n",
+		(int)howMany, sizeof( sector ) );
+	result = FALSE;
+      }
+    }
+    
+    // Copy over the MBR code if specified (-m)
+    if ( write_mbr ) {
+      if ( result ) {
+	if ( syslinux_mbr_len >= PART_TABLE ) {
+	  fprintf(stderr, "Error: MBR will not fit; not writing\n" );
+	  result = FALSE;
+	} else {
+	  memcpy( sector, syslinux_mbr, syslinux_mbr_len );
+	}
+      }
+    }
+    
+    // Check that our partition is active if specified (-a)
+    if ( set_active ) {
+      if ( sector[ PART_TABLE + ( PART_SIZE * ( partitionNum - 1 ) ) ] != 0x80 ) {
+	int p;
+	for ( p = 0; p < PART_COUNT; p++ )
+	  sector[ PART_TABLE + ( PART_SIZE * p ) ] = ( p == partitionNum - 1 ? 0x80 : 0 );
+      }
+    }
+
+    if ( result ) {
+      SetFilePointer( drive, 0, NULL, FILE_BEGIN );
+      
+      if ( WriteFile( drive, sector, sizeof( sector ), &howMany, NULL ) == 0 ) {
+	error("Writing MBR");
+	result = FALSE;
+      } else if ( howMany != sizeof( sector ) ) {
+	fprintf(stderr, "Error: WriteFile on drive only wrote %d of %d bytes\n",
+		(int)howMany, sizeof( sector ) );
+	result = FALSE;
+      }
+    }
+    
+    if( !CloseHandle( drive ) ) {
+      error("CloseFile on drive");
+      result = FALSE;
+    }
+  }
+  
+  return( result );
+}
+
+/* End stuff for MBR code */
+
 char *program;			/* Name of program */
 char *drive;			/* Drive to install to */
 
@@ -32,7 +167,7 @@ char *drive;			/* Drive to install to */
  * On Windows Me/98/95 you cannot open a directory, physical disk, or
  * volume using CreateFile.
  */
-int checkver()
+int checkver(void)
 {
   OSVERSIONINFO osvi;
 
@@ -91,7 +226,7 @@ int libfat_readfile(intptr_t pp, void *buf, size_t secsize, libfat_sector_t sect
 
 void usage(void)
 {
-  fprintf(stderr, "Usage: syslinux.exe [-sf] <drive>:\n");
+  fprintf(stderr, "Usage: syslinux.exe [-sfma] <drive>:\n");
   exit(1);
 }
 
@@ -115,6 +250,8 @@ int main(int argc, char *argv[])
   int nsectors;
 
   int force = 0;		/* -f (force) option */
+  int mbr = 0;			/* -m (MBR) option */
+  int setactive = 0;		/* -a (set partition active) */
 
   (void)argc;
 
@@ -135,8 +272,12 @@ int main(int argc, char *argv[])
       while ( *opt ) {
 	if ( *opt == 's' ) {
 	  syslinux_make_stupid();	/* Use "safe, slow and stupid" code */
-        } else if ( *opt == 'f' ) {
-          force = 1;                    /* Force install */
+	} else if ( *opt == 'f' ) {
+	  force = 1;                    /* Force install */
+	} else if ( *opt == 'm' ) {
+	  mbr = 1;                      /* Install MBR */
+	} else if ( *opt == 'a' ) {
+	  setactive = 1;		/* Mark this partition active */
 	} else {
 	  usage();
 	}
@@ -269,6 +410,18 @@ int main(int argc, char *argv[])
        bytes_written != syslinux_ldlinux_len ) {
     error("Could not write ldlinux.sys");
     exit(1);
+  }
+
+  /* If desired, fix the MBR */
+  if( mbr || setactive ) {
+    STORAGE_DEVICE_NUMBER sdn;
+    if( GetStorageDeviceNumberByHandle( f_handle, &sdn ) ) {
+      if( !FixMBR(sdn.DeviceNumber, sdn.PartitionNumber, mbr, setactive) ) {
+        fprintf(stderr, "Did not successfully update the MBR; continuing...\n");
+      }
+    } else {
+      fprintf(stderr, "Could not find device number for updating MBR; continuing...\n");
+    }
   }
 
   /* Close file */ 
