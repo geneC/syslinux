@@ -20,14 +20,16 @@ Requires: mtools, libc.so.6
 Requires: mtools, libc.so.6()(64bit)
 %endif
 
+%package devel
+Summary: Development environment for SYSLINUX add-on modules
+Group: Development/Libraries
+
 %description
 SYSLINUX is a simple kernel loader. It normally loads the kernel (and an 
 optional initrd image) from a FAT filesystem. It can also be used as a
 PXE bootloader during network boots (PXELINUX), or for booting from
 ISO 9660 CD-ROMs (ISOLINUX).  It also includes a tool, MEMDISK, which
 loads legacy operating systems from these media.
-
-Package: devel
 
 %description devel
 The SYSLINUX boot loader contains an API, called COM32, for writing
