@@ -692,10 +692,9 @@ prefix:		mov si,BootFile
 		mov di,PathPrefix
 		cld
 		call strcpy
-		lea cx,[di-PathPrefix]
+		lea cx,[di-PathPrefix-1]
 		std
 		lea si,[di-2]			; Skip final null!
-		dec cx
 .find_alnum:	lodsb
 		or al,20h
 		cmp al,'.'			; Count . or - as alphanum
@@ -711,6 +710,7 @@ prefix:		mov si,BootFile
 		cmp al,'z'
 		ja .notalnum
 .alnum:		loop .find_alnum
+		dec si
 .notalnum:	mov byte [si+2],0		; Zero-terminate after delimiter
 		cld
 		mov si,tftpprefix_msg

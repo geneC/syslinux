@@ -8,8 +8,8 @@ Changes in 1.49:
 	  low 512K is available; PXELINUX requires 384K.  Machines
 	  with a physical memory hole in the low 640K cannot boot
 	  Linux no matter what.)  Depending what the reason is for the
-	  memory hole, a new kernel (2.4.0-test3 or later) may be
-	  required.
+	  memory hole, a new kernel (2.4.0-test3-pre3 or later) may be
+	  required. [PXELINUX NOT FULLY DONE IN THIS TEST VERSION]
 	* SYSLINUX: Default installer binary now compiled against
 	  glibc 2.1.  If this is inappropriate for your system and you
 	  still want to use the offical version of SYSLINUX, please
@@ -21,7 +21,11 @@ Changes in 1.49:
 	  individual partition of a whole-harddisk image.
 	* Include the source code to a Master Boot Record (MBR)
 	  functionally equivalent to the one installed DOS except it
-	  includes EBIOS support.  The MBR code is public domain.
+	  includes EBIOS support, and should be resistant to geometry
+	  changes.  The MBR code is public domain.
+	* PXELINUX: Fix "double p" bug: if the tftp prefix was null,
+	  all filenames would get a "p" preprended, e.g.
+	  "ppxelinux.cfg" and "pvmlinux".
 
 Changes in 1.48:
 	* PXELINUX: Workaround for PXE ROMs based on the Intel PXE PDK

@@ -61,41 +61,43 @@ fake_setup_seg	equ real_mode_seg+020h
 
 		struc real_mode_seg_t
 		resb 20h-($-$$)		; org 20h
-kern_cmd_magic	resw 1			; Magic # for command line
-kern_cmd_offset resw 1			; Offset for kernel command line
+kern_cmd_magic	resw 1			; 0020 Magic # for command line
+kern_cmd_offset resw 1			; 0022 Offset for kernel command line
 		resb 497-($-$$)		; org 497d
-bs_setupsecs	resb 1			; Sectors for setup code (0 -> 4)
-bs_rootflags	resw 1			; Root readonly flag
-bs_syssize	resw 1
-bs_swapdev	resw 1			; Swap device (obsolete)
-bs_ramsize	resw 1			; Ramdisk flags, formerly ramdisk size
-bs_vidmode	resw 1			; Video mode
-bs_rootdev	resw 1			; Root device
-bs_bootsign	resw 1			; Boot sector signature (0AA55h)
-su_jump		resb 1			; 0EBh
-su_jump2	resb 1
-su_header	resd 1			; New setup code: header
-su_version	resw 1			; See linux/arch/i386/boot/setup.S
-su_switch	resw 1
-su_setupseg	resw 1
-su_startsys	resw 1
-su_kver		resw 1			; Kernel version pointer
-su_loader	resb 1			; Loader ID
-su_loadflags	resb 1			; Load high flag
-su_movesize	resw 1
-su_code32start	resd 1			; Start of code loaded high
-su_ramdiskat	resd 1			; Start of initial ramdisk
+bs_setupsecs	resb 1			; 01F1 Sectors for setup code (0 -> 4)
+bs_rootflags	resw 1			; 01F2 Root readonly flag
+bs_syssize	resw 1			; 01F4
+bs_swapdev	resw 1			; 01F6 Swap device (obsolete)
+bs_ramsize	resw 1			; 01F8 Ramdisk flags, formerly ramdisk size
+bs_vidmode	resw 1			; 01FA Video mode
+bs_rootdev	resw 1			; 01FC Root device
+bs_bootsign	resw 1			; 01FE Boot sector signature (0AA55h)
+su_jump		resb 1			; 0200 0EBh
+su_jump2	resb 1			; 0201 Size of following header
+su_header	resd 1			; 0202 New setup code: header
+su_version	resw 1			; 0206 See linux/arch/i386/boot/setup.S
+su_switch	resw 1			; 0208
+su_setupseg	resw 1			; 020A
+su_startsys	resw 1			; 020C
+su_kver		resw 1			; 020E Kernel version pointer
+su_loader	resb 1			; 0210 Loader ID
+su_loadflags	resb 1			; 0211 Load high flag
+su_movesize	resw 1			; 0212
+su_code32start	resd 1			; 0214 Start of code loaded high
+su_ramdiskat	resd 1			; 0218 Start of initial ramdisk
 su_ramdisklen	equ $			; Length of initial ramdisk
-su_ramdisklen1	resw 1
-su_ramdisklen2	resw 1
-su_bsklugeoffs	resw 1
-su_bsklugeseg	resw 1
-su_heapend	resw 1
+su_ramdisklen1	resw 1			; 021C
+su_ramdisklen2	resw 1			; 021E
+su_bsklugeoffs	resw 1			; 0220
+su_bsklugeseg	resw 1			; 0222
+su_heapend	resw 1			; 0224
+su_pad1		resw 1			; 0226
+su_cmd_line_ptr	resd 1			; 0228
 		resb (8000h-12)-($-$$)	; Were bootsect.S puts it...
-linux_stack	equ $
+linux_stack	equ $			; 7FF4
 linux_fdctab	equ $
 		resb 8000h-($-$$)
-cmd_line_here	equ $			; Should be out of the way
+cmd_line_here	equ $			; 8000 Should be out of the way
 		endstruc
 
 setup_seg	equ 9020h
@@ -154,9 +156,9 @@ vk_end:		equ $			; Should be <= vk_size
 ; 0000h - main code/data segment (and BIOS segment)
 ; 7000h - real_mode_seg
 ;
-vk_seg          equ 6000h		; This is where we stick'em
-xfer_buf_seg	equ 5000h		; Bounce buffer for I/O to high mem
-fat_seg		equ 3000h		; 128K area for FAT (2x64K)
+fat_seg		equ 5000h		; 128K area for FAT (2x64K)
+vk_seg          equ 4000h		; This is where we stick'em
+xfer_buf_seg	equ 3000h		; Bounce buffer for I/O to high mem
 comboot_seg	equ 2000h		; COMBOOT image loading zone
 
 ;
@@ -2092,12 +2094,25 @@ high_load_done:
 ; capable of starting their setup from a different address.
 ;
 		mov bx,real_mode_seg		; Real mode segment
+		mov fs,bx			; FS -> real_mode_seg
 ;
 ; Copy command line.  Unfortunately, the kernel boot protocol requires
 ; the command line to exist in the 9xxxxh range even if the rest of the
 ; setup doesn't.
 ;
-		mov fs,bx			; FS -> real_mode_seg
+		test byte [LoadFlags],LOAD_HIGH
+		jz need_high_cmdline
+		cmp word [fs:su_version],0202h	; Support new cmdline protocol?
+		jb need_high_cmdline
+		; New cmdline protocol
+		; Store 32-bit (flat) pointer to command line
+		mov dword [fs:su_cmd_line_ptr],(real_mode_seg << 4) + cmd_line_here
+		jmp short in_proper_place
+
+need_high_cmdline:
+;
+; Copy command line up to 90000h
+;
 		mov ax,9000h
 		mov es,ax
 		mov si,cmd_line_here

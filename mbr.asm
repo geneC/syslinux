@@ -194,11 +194,12 @@ missing_os_msg	db 'Missing operating system', 13, 10, 0
 bad_disk_msg	db 'Operating system loading error', 13, 10, 0
 
 ;
-; Total MBR size: 446 bytes
-; (End-of-boot-sector signature also needed.)
+; Maximum MBR size: 446 bytes; end-of-boot-sector signature also needed.
+; Note that some operating systems (NT, DR-DOS) put additional stuff at
+; the end of the MBR, so shorter is better.
 ;
-		times 446-($-$$) db 0
-PartitionTable	equ $				; Start of partition table
+
+PartitionTable	equ $$+446			; Start of partition table
 
 ;
 ; BSS data; put at 800h
