@@ -7,6 +7,9 @@ Changes in 1.47:
 	  TFTP server.
 	* PXELINUX: When sending ERROR due to bad OACK, use the proper
 	  destination port number (why are TFTP port numbers so odd?)
+	* PXELINUX: If the boot dies in the middle somewhere,
+	  eventually give up and reset the machine (unattended
+	  operation.)
 
 Changes in 1.46:
 	* New program PXELINUX to do network booting using a
