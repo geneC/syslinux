@@ -2116,7 +2116,7 @@ bcopy:		push eax
 ; 
 %define	io_delay	call _io_delay
 %define IO_DELAY_PORT	80h		; Invalid port (we hope!)
-%define disable_wait 	256		; How long to wait for a disable
+%define disable_wait 	32		; How long to wait for a disable
 
 %define A20_DUNNO	0		; A20 type unknown
 %define A20_NONE	1		; A20 always on?
@@ -2250,11 +2250,11 @@ a20_test:
 		push ax
 		mov cx,0FFFFh		; HMA = segment 0FFFFh
 		mov es,cx
-		mov cx,0100h		; Loop count
+		mov cx,32		; Loop count
 		mov ax,[ss:A20Test]
 .a20_wait:	inc ax
 		mov [ss:A20Test],ax
-;		call try_wbinvd
+		io_delay		; Serialize, and fix delay
 		cmp ax,[es:A20Test+10h]
 		loopz .a20_wait
 .a20_done:	pop ax
