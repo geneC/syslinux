@@ -315,21 +315,22 @@ ClustPerMoby	resw 1			; Clusters per 64K
 FClust		resw 1			; Number of clusters in open/getc file
 FNextClust	resw 1			; Pointer to next cluster in d:o
 FPtr		resw 1			; Pointer to next char in buffer
-CmdOptPtr       resw 1                    ; Pointer to first option on cmd line
-KernelCNameLen  resw 1                    ; Length of unmangled kernel name
-InitRDCNameLen  resw 1                    ; Length of unmangled initrd name
-NextCharJump    resw 1                    ; Routine to interpret next print char
-HiLoadAddr      resw 1                    ; Address pointer for high load loop
+CmdOptPtr       resw 1			; Pointer to first option on cmd line
+KernelCNameLen  resw 1			; Length of unmangled kernel name
+InitRDCNameLen  resw 1			; Length of unmangled initrd name
+NextCharJump    resw 1			; Routine to interpret next print char
+HiLoadAddr      resw 1			; Address pointer for high load loop
+SetupSecs	resw 1			; Number of setup sectors
 TextAttrBX      equ $
-TextAttribute   resb 1                    ; Text attribute for message file
-TextPage        resb 1                    ; Active display page
+TextAttribute   resb 1			; Text attribute for message file
+TextPage        resb 1			; Active display page
 CursorDX        equ $
-CursorCol       resb 1                    ; Cursor column for message file
-CursorRow       resb 1                    ; Cursor row for message file
+CursorCol       resb 1			; Cursor column for message file
+CursorRow       resb 1			; Cursor row for message file
 ScreenSize      equ $
-VidCols         resb 1                    ; Columns on screen-1
-VidRows         resb 1                    ; Rows on screen-1
-RetryCount      resb 1                    ; Used for disk access retries
+VidCols         resb 1			; Columns on screen-1
+VidRows         resb 1			; Rows on screen-1
+RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
 MNameBuf        resb 11            	; Generic mangled file name buffer
 KernelName      resb 11		        ; Mangled name for kernel
@@ -1292,7 +1293,7 @@ not_vk:		pop ds
                 mov es,di
                 mov si,AppendBuf
                 mov di,cmd_line_here
-                mov cx,AppendLen
+                mov cx,[AppendLen]
                 rep movsb
                 mov [CmdLinePtr],di
                 pop di
@@ -1548,7 +1549,7 @@ cmdline_end:
 		cmp dword [es:su_header],HEADER_ID	; New setup code ID
 		jne near old_kernel		; Old kernel, load low
 		cmp word [es:su_version],0200h	; Setup code version 2.0
-		jnb near old_kernel		; Old kernel, load low
+		jb near old_kernel		; Old kernel, load low
                 cmp word [es:su_version],0201h	; Version 2.01+?
                 jb new_kernel                   ; If 2.00, skip this step
                 mov word [es:su_heapend],linux_stack	; Set up the heap
@@ -1559,6 +1560,9 @@ cmdline_end:
 ;
 new_kernel:
 		mov byte [es:su_loader],syslinux_id	; Show some ID
+		xor ax,ax
+		mov al,[es:bs_setupsecs]	; Variable # of setup sectors
+		mov [SetupSecs],ax
 ;
 ; Now see if we have an initial RAMdisk; if so, do requisite computation
 ;
@@ -1595,7 +1599,7 @@ new_kernel:
                 mov [InitRDat],dx		; Load address
 		call loadinitrd			; Load initial ramdisk
 ;
-; About to load the kernel, so print the kernel signon
+; About to load the kernel.  Print the kernel name and pick high or low.
 ;
 nk_noinitrd:
                 mov si,KernelCName		; Print kernel name part of
@@ -1669,14 +1673,23 @@ high_load_done:
 		jmp load_done
 ;
 ; Load an older kernel.  Older kernels always have 4 setup sectors, can't have
-; initrd, and are always laoded low.
+; initrd, and are always loaded low.
 ;
 old_kernel:
                 test byte [initrd_flag],1	; Old kernel can't have initrd
-                jz low_kernel
+                jz load_old_kernel
                 mov si,err_oldkernel
                 jmp abort_load
+load_old_kernel:
+		mov si,KernelCName
+		call cwritestr
+		mov si,dotdot_msg
+		call cwritestr
+
+		mov word [SetupSecs],4		; Always 4 setup sectors
+
                 ; An old kernel is always loaded low...
+
 low_kernel:
 ;
 ; Low kernel: check that it will fit as a low kernel,
@@ -1699,8 +1712,7 @@ low_kernel_ok:  push es
 ; Transfer the already loaded protected-mode code down, then load the rest
 ;
                 mov bx,1                        ; 1 boot sector
-                add bl,[es:bs_setupsecs]	; Plus setup sectors
-                sbb bh,byte 0
+                add bx,[SetupSecs]		; Plus setup sectors
                 shl bx,byte 5			; Convert to a paragraph number
                 push bx                         ; Save paragraph
                 add bx,real_mode_seg
