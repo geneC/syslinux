@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2005 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -399,7 +399,8 @@ void __attribute__((noreturn)) execute(const char *cmdline)
 
 int main(int argc, char *argv[])
 {
-  const char *cmdline;
+  const char *cmdline = NULL;
+  int err = 0;
 
   (void)argc;
 
@@ -408,10 +409,16 @@ int main(int argc, char *argv[])
 
   parse_config(argv[1]);
 
-  cmdline = run_menu();
+  if ( !nentries ) {
+    fputs("No LABEL entries found in configuration file!\n", stdout);
+    err = 1;
+  } else {
+    cmdline = run_menu();
+  }
+
   printf("\033[?25h\033[%d;1H\033[0m", END_ROW);
   if ( cmdline )
     execute(cmdline);
   else
-    return 0;
+    return err;
 }

@@ -20,14 +20,14 @@ gcc_ok   = $(shell if gcc $(1) -c -x c /dev/null -o /dev/null 2>/dev/null; \
 
 M32     := $(call gcc_ok,-m32,)
 
-CC         = gcc $(M32)
+CC         = gcc
 LD         = ld -m elf_i386
 AR	   = ar
 NASM	   = nasm
 RANLIB	   = ranlib
-CFLAGS     = -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os -fomit-frame-pointer -I../libutil/include -I../include  -D__COM32__
-LNXCFLAGS  = -W -Wall -march=i386 -Os -g -I../libutil/include
-LNXSFLAGS  = -march=i386
+CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os -fomit-frame-pointer -I../libutil/include -I../include  -D__COM32__
+LNXCFLAGS  = -W -Wall -O -g -I../libutil/include
+LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 SFLAGS     = -D__COM32__ -march=i386
 LDFLAGS    = -T ../lib/com32.ld
