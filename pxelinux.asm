@@ -53,6 +53,13 @@ TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
 %assign USE_PXE_PROVIDED_STACK 1	; Use stack provided by PXE?
 
 ;
+; This is what we need to do when idle
+;
+%macro	DO_IDLE 0
+	call check_for_arp
+%endmacro
+
+;
 ; TFTP operation codes
 ;
 TFTP_RRQ	equ htons(1)		; Read request
@@ -1230,8 +1237,7 @@ searchdir:
 		mov [pxe_udp_read_pkt.status],byte 0
 		mov [pxe_udp_read_pkt.buffer],di
 		mov [pxe_udp_read_pkt.buffer+2],ds
-		mov di,packet_buf_size
-		mov [pxe_udp_read_pkt.buffersize],di
+		mov word [pxe_udp_read_pkt.buffersize],packet_buf_size
 		mov eax,[MyIP]
 		mov [pxe_udp_read_pkt.dip],eax
 		mov [pxe_udp_read_pkt.lport],bx
@@ -1369,6 +1375,7 @@ searchdir:
 		and eax,eax		; Set ZF depending on file size
 		pop bp			; Junk
 		pop bp			; Junk (retry counter)
+		jz .error_si		; ZF = 1 need to free the socket
 		pop bp
 		pop es
 		ret
@@ -1390,8 +1397,7 @@ searchdir:
 		call writestr
 		jmp kaboom
 
-.bailnow:	add sp,byte 8		; Immediate error - no retry
-		jmp short .error
+.bailnow:	mov word [bp-2],1	; Immediate error - no retry
 
 .failure:	pop bx			; Junk
 		pop bx
@@ -1400,7 +1406,9 @@ searchdir:
 		dec ax			; Retry counter
 		jnz .sendreq		; Try again
 
-.error:		xor si,si		; ZF <- 1
+.error:		mov si,bx		; Socket pointer
+.error_si:				; Socket pointer already in SI
+		call free_socket	; ZF <- 1, SI <- 0
 		pop bp
 		pop es
 		ret
@@ -1447,6 +1455,22 @@ allocate_socket:
 		mov [bx],cx			; Socket in use
 		pop ax
 		pop cx
+		ret
+
+;
+; Free socket: socket in SI; return SI = 0, ZF = 1 for convenience
+;
+free_socket:
+		push es
+		pusha
+		xor ax,ax
+		mov es,ax
+		mov di,si
+		mov cx,tftp_clear_words
+		rep stosw
+		popa
+		pop es
+		xor si,si
 		ret
 
 ;
@@ -1659,15 +1683,7 @@ getfssec:	push si
 
 		; The socket is closed and the buffer drained
 		; Close socket structure and re-init for next user
-		push es
-		push ds
-		pop es
-		mov di,si
-		; ax = 0
-		mov cx,tftp_clear_words
-		rep stosw
-		pop es
-		xor si,si
+		call free_socket
 		stc
 .bytes_left:
 		ret
@@ -2268,6 +2284,35 @@ genipopt:
 		call gendotquad	; Zero-terminates its output
 		sub di,IPOption
 		mov [IPOptionLen],di
+		popad
+		ret
+
+;
+; Call the receive loop while idle.  This is done mostly so we can respond to
+; ARP messages, but perhaps in the future this can be used to do network
+; console.
+;
+check_for_arp:
+		pushad
+		push ds
+		push es
+		mov ax,cs
+		mov ds,ax
+		mov es,ax
+		mov di,packet_buf
+		mov [pxe_udp_read_pkt.status],al	; 0
+		mov [pxe_udp_read_pkt.buffer],di
+		mov [pxe_udp_read_pkt.buffer+2],ds
+		mov word [pxe_udp_read_pkt.buffersize],packet_buf_size
+		mov eax,[MyIP]
+		mov [pxe_udp_read_pkt.dip],eax
+		mov [pxe_udp_read_pkt.lport],ax		; 0
+		mov di,pxe_udp_read_pkt
+		mov bx,PXENV_UDP_READ
+		call pxenv
+		; Ignore result...
+		pop es
+		pop ds
 		popad
 		ret
 

@@ -319,7 +319,9 @@ pollchar:
 ; getchar: Read a character from keyboard or serial port
 ;
 getchar:
-.again:		mov ah,1		; Poll keyboard
+.again:
+		DO_IDLE
+		mov ah,1		; Poll keyboard
 		int 16h
 		jnz .kbd		; Keyboard input?
 		mov bx,[SerialPort]

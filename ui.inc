@@ -59,6 +59,7 @@ tick_loop:	push dx
 		cmp dx,ax			; Has the timer advanced?
 		je tick_loop
 		pop cx
+		DO_IDLE
 		loop time_loop			; If so, decrement counter
 
 		; Timeout!!!!

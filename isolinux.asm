@@ -41,6 +41,13 @@ SECTORSIZE_LG2	equ 11			; 2048 bytes/sector (El Torito requirement)
 SECTORSIZE	equ (1 << SECTORSIZE_LG2)
 
 ;
+; This is what we need to do when idle
+;
+%macro	DO_IDLE 0
+	; Nothing
+%endmacro
+
+;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
 ; Since there is no room in the bottom 64K for all of these, we

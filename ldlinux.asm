@@ -46,6 +46,13 @@ retry_count	equ 6			; How patient are we with the disk?
 %assign HIGHMEM_SLOP 0			; Avoid this much memory near the top
 
 ;
+; This is what we need to do when idle
+;
+%macro	DO_IDLE 0
+	; Nothing
+%endmacro
+
+;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
 ; Since there is no room in the bottom 64K for all of these, we
