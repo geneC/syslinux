@@ -56,8 +56,7 @@ load_high:
 .size_ok:
 		xor edx,edx
 		push eax			; <B> Bytes transferred this chunk
-		movzx ecx,word [ClustSize]
-		div ecx				; Convert to clusters
+		div dword [ClustSize]		; Convert to clusters
 		; Round up...
 		add edx,byte -1			; Sets CF if EDX >= 1
 		adc eax,byte 0			; Add 1 to EAX if CF set
