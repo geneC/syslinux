@@ -1,6 +1,13 @@
 Starting with 1.47, changes marked with SYSLINUX/PXELINUX apply to
 that specific program only; other changes apply to both.
 
+Changes in 1.53:
+	* PXELINUX: Rename pxelinux.bin to pxelinux.0, to match what
+	  most PXE servers seem to expect.
+	* PXELINUX: Update the docs to outline how to work with the
+	  kano.org.uk pxe server daemon.  A more complete example
+	  setup still needs to be written.
+
 Changes in 1.52:
 	* PXELINUX: Fix bugs introduced by new A20 code.  (SYSLINUX
 	  has also been changed for code consistency reasons, but I'm

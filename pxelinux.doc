@@ -29,7 +29,7 @@ explains the differences.
 On the TFTP server, create the directory "/tftpboot", and copy the
 following files to it:
 
-	pxelinux.bin		- from the SYSLINUX distribution
+	pxelinux.0		- from the SYSLINUX distribution
 
 	any kernel or initrd images you want to boot
 
@@ -51,7 +51,7 @@ search for its config file on the boot server in the following way:
   C00002, C0000, C000, C00, C0, C, and default, in that order.
 
 It should be noted that all filename references are relative to the
-directory pxelinux.bin lives in (usually /tftpboot).  PXELINUX
+directory pxelinux.0 lives in (usually /tftpboot).  PXELINUX
 generally requires that filenames (including any relative path) are 31
 characters or shorter in length.
 
@@ -103,20 +103,23 @@ workarounds for this bug:
     ++++ SETTING UP THE DHCP SERVER ++++
 
 The PXE protocol uses a very complex set of extensions to DHCP or
-BOOTP.  Some PXE implementations can be coaxed to operate with a
-normal DHCP server; unfortunately so far no "magic bullet" which works
-with all PXE implementations work.
+BOOTP.  The best is probably to set up a "PXE boot server" on port
+4011 of your TFTP server; a free PXE boot server is available at:
 
-The best one currently known, using ISC dhcp 2.0 dhcpd.conf syntax:
+	http://www.kano.org.uk/projects/pxe/
+
+With such a boot server defined, you should be able to use the
+following DHCP set up, using ISC dhcp 2.0 dhcpd.conf syntax:
 
         allow booting;
         allow bootp;
 
-        filename "/tftpboot/pxelinux.bin" ;
+	# PXE-specific configuration directives...
+
         option dhcp-class-identifier "PXEClient";
-	option vendor-encapsulated-options 09:0f:80:00:0c:4e:65:74:77:6f:72:6b:20:62:6f:6f:74:0a:07:00:50:72:6f:6d:70:74:06:01:02:08:03:80:00:00:47:04:80:00:00:00:ff;
-	next-server <TFTP-server>;
-	# server-identifier <TFTP-server>;	# Illegal! See below
+	next-server <pxe-boot-server>;
+
+	# Standard configuration directives...
 
         option domain-name "<domain name>";
         option subnet-mask <subnet mask>;
@@ -131,6 +134,27 @@ The best one currently known, using ISC dhcp 2.0 dhcpd.conf syntax:
                 fixed-address <hostname>;
         }
 
+
+Some PXE implementations can be coaxed to operate with a normal DHCP
+server; unfortunately so far no "magic bullet" which works with all
+PXE implementations work.
+
+The best one currently known, using ISC dhcp 2.0 dhcpd.conf syntax:
+
+        allow booting;
+        allow bootp;
+
+	# PXE-specific configuration directives...
+
+        filename "/tftpboot/pxelinux.0" ;
+        option dhcp-class-identifier "PXEClient";
+	option vendor-encapsulated-options 09:0f:80:00:0c:4e:65:74:77:6f:72:6b:20:62:6f:6f:74:0a:07:00:50:72:6f:6d:70:74:06:01:02:08:03:80:00:00:47:04:80:00:00:00:ff;
+	next-server <TFTP-server>;
+	# server-identifier <TFTP-server>;	# Illegal! See below
+
+	# Standard configuration directives...
+	# Same as above
+
 However, some PXE implementations will only work this way if the
 "dhcp-class-identifier" and "vendor-encapsulated-options" are *not*
 present.  Intel Boot Client 3.0 and later are known to fall into this
@@ -142,12 +166,12 @@ will do this if you specify the -s (secure) option; this is
 recommended), you most likely should not include the /tftpboot prefix.
 
 If the DHCP and TFTP servers are not on the same machine, you are
-supposed to set up a DHCP server on port 4011 on the TFTP server; this
-is the "PXE boot server", which uses the DHCP protocol.  If this is
-not possible, you can try adding the directive "server-identifier
-<TFTP-server>;"  Unfortunately this is a violation of DHCP
-protocol, but some PXE implementations do not accept the next-server
-directive without it or the "boot server".
+supposed to set up a PXE boot server (see above) on port 4011 on the
+TFTP server; the "PXE boot server" is basically a modified DHCP server
+on a nonstandard port.  If this is not possible, you can try adding
+the directive "server-identifier <TFTP-server>;" Unfortunately this is
+a violation of DHCP protocol, but some PXE implementations do not
+accept the next-server directive without it or the "boot server".
 
 I have successfully booted an Intel N440BX ("Nightshade") motherboard
 with onboard Ethernet and "Intel LANDesk(R) Service Agent II version

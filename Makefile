@@ -34,11 +34,12 @@ VERSION = $(shell cat version)
 #
 SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm \
 	  pxelinux.asm pxe.inc mbr.asm
-BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst pxelinux.bin mbr.bin
+BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst pxelinux.0 mbr.bin
 ITARGET = syslinux.com syslinux copybs.com
 DOCS    = COPYING NEWS README TODO *.doc
 OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version \
 	  sys2ansi.pl
+OBSOLETE = pxelinux.bin
 
 all:	$(BTARGET) $(ITARGET)
 	ls -l $(BTARGET) $(ITARGET)
@@ -60,8 +61,8 @@ ldlinux.bin: ldlinux.asm
 	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" -dHEXDATE="$(HEXDATE)" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
 	perl genstupid.pl < ldlinux.lst
 
-pxelinux.bin: pxelinux.asm
-	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" -dHEXDATE="$(HEXDATE)" -l pxelinux.lst -o pxelinux.bin pxelinux.asm
+pxelinux.0: pxelinux.asm
+	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" -dHEXDATE="$(HEXDATE)" -l pxelinux.lst -o pxelinux.0 pxelinux.asm
 
 bootsect.bin: ldlinux.bin
 	dd if=ldlinux.bin of=bootsect.bin bs=512 count=1
@@ -104,6 +105,7 @@ install: all
 
 tidy:
 	rm -f syslinux.lst copybs.lst *.o *_bin.c stupid.* pxelinux.lst
+	rm -f $(OBSOLETE)
 
 clean: tidy
 	rm -f $(ITARGET)
