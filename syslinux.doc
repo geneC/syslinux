@@ -603,6 +603,14 @@ it under Linux, simply type:
 
 ... where /dev/XXX is the device you wish to install it on.
 
+Under DOS or Win32, you can install the SYSLINUX MBR with the -m
+option to the SYSLINUX installer, and use the -a option to mark the
+current partition active:
+
+	syslinux -ma c:
+
+Note that this will also install SYSLINUX on the specified partition.
+
 
    ++++ HARDWARE INFORMATION +++
 
