@@ -19,6 +19,14 @@
 ; ****************************************************************************
 
 ;
+; Macros for byte order
+;
+%define htons(x)  ( ( ((x) & 0FFh) << 8 ) + ( ((x) & 0FF00h) >> 8 ) )
+%define ntohs(x) htons(x)
+%define htonl(x)  ( ( ((x) & 0FFh) << 24) + ( ((x) & 0FF00h) << 8 ) + ( ((x) & 0FF0000h) >> 8 ) + ( ((x) & 0FF000000h) >> 24) )
+%define ntohl(x) htonl(x)
+
+;
 ; Some semi-configurable constants... change on your own risk.  Most are imposed
 ; by the kernel.
 ;
@@ -28,6 +36,20 @@ retry_count	equ 6			; How patient are we with the disk?
 HIGHMEM_MAX	equ 038000000h		; Highest address for an initrd
 DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
 BAUD_DIVISOR	equ 115200		; Serial port parameter
+MAX_SOCKETS	equ 64			; Max number of open sockets
+TFTP_PORT	equ htons(69)		; Default TFTP port 
+PKT_RETRY	equ 8			; Packet transmit retry count
+PKT_TIMEOUT	equ 20			; Timer ticks @ 55 ms
+
+;
+; TFTP operation codes
+;
+TFTP_RRQ	equ htons(1)		; Read request
+TFTP_WRQ	equ htons(2)		; Write request
+TFTP_DATA	equ htons(3)		; Data packet
+TFTP_ACK	equ htons(4)		; ACK packet
+TFTP_ERROR	equ htons(5)		; ERROR packet
+
 ;
 ; Should be updated with every release to avoid bootsector/SYS file mismatch
 ;
@@ -46,10 +68,10 @@ syslinux_id	equ 032h		; SYSLINUX (3) 2 = PXELINUX
 ; Segments used by Linux
 ;
 ; Note: the real_mode_seg is supposed to be 9000h, but PXE uses that
-; memory.  Therefore, we load it at 8000h and copy it before starting
+; memory.  Therefore, we load it at 5000:0000h and copy it before starting
 ; the Linux kernel.
 ;
-real_mode_seg	equ 7000h
+real_mode_seg	equ 5000h
 		struc real_mode_seg_t
 		resb 20h-($-$$)		; org 20h
 kern_cmd_magic	resw 1			; Magic # for command line
@@ -134,12 +156,29 @@ vk_end:		equ $			; Should be <= vk_size
 ;
 ; Segment assignments in the bottom 640K
 ; 0000h - main code/data segment (and BIOS segment)
-; 7000h - real_mode_seg
+; 5000h - real_mode_seg
 ;
-vk_seg          equ 6000h		; This is where we stick'em
-xfer_buf_seg	equ 5000h		; Bounce buffer for I/O to high mem
-fat_seg		equ 3000h		; 128K area for FAT (2x64K)
+vk_seg          equ 4000h		; This is where we stick'em
+xfer_buf_seg	equ 3000h		; Bounce buffer for I/O to high mem
 comboot_seg	equ 2000h		; COMBOOT image loading zone
+
+fat_seg		equ 0h			; BOGUS
+
+;
+; TFTP connection data structure.  Each one of these corresponds to a local
+; UDP port.  The size of this structure must be a power of 2.
+;
+		struc tftp_port_t
+tftp_localport	resw 1			; Local port number	(0 = not in use)
+tftp_remoteport	resw 1			; Remote port number
+tftp_localip	resd 1			; Local IP address
+tftp_remoteip	resd 1			; Remote IP address
+tftp_filepos	resd 1			; Position within file
+		endstruc
+
+%if (tftp_port_t_size & (tftp_port_t_size-1))
+%error "tftp_port_t is not a power of 2"
+%endif
 
 ;
 ; For our convenience: define macros for jump-over-unconditinal jumps
@@ -222,11 +261,12 @@ BIOS_vidrows    resb 1			; Number of screen rows
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
  		absolute 1000h
-trackbuf	equ $			; Track buffer goes here
-trackbufsize	equ 16384		; Safe size of track buffer
+trackbuf	resb 16384		; Track buffer goes here
+trackbufsize	equ $-trackbuf
+
 ;		trackbuf ends at 5000h
 
-                absolute 6000h          ; Here we keep our BSS stuff
+                absolute 5000h          ; Here we keep our BSS stuff
 StackBuf	equ $			; Start the stack here (grow down - 4K)
 VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
@@ -244,6 +284,7 @@ HighMemSize	resd 1			; End of memory pointer (bytes)
 KernelSize	resd 1			; Size of kernel (bytes)
 Stack		resd 1			; Pointer to reset stack
 PXEEntry	resd 1			; !PXE API entry point
+ServerIP	resd 1			; IP address of boot server
 RootDir		equ $			; Location of root directory
 RootDir1	resw 1
 RootDir2	resw 1
@@ -278,6 +319,8 @@ NextCharJump    resw 1			; Routine to interpret next print char
 SetupSecs	resw 1			; Number of setup sectors
 SavedSP		resw 1			; Our SP while running a COMBOOT image
 A20Test		resw 1			; Counter for testing status of A20
+ServerPort	resw 1			; TFTP server port
+CurrentSocket	resw 1			; Workspace for network functions
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -296,6 +339,9 @@ KernelCName     resb MAX_FILENAME	; Unmangled kernel name
 InitRDCName     resb MAX_FILENAME       ; Unmangled initrd name
 MNameBuf	resb 11			; OBSOLETE
 InitRD		resb 11			; OBSOLETE
+
+		alignb tftp_port_t_size
+Sockets		resb MAX_SOCKETS*tftp_port_t_size
 
 		alignb 16
 		; BOOTP/DHCP packet buffer
@@ -320,6 +366,9 @@ bootp:
 
 bootp_size	equ $-bootp
 
+		alignb 16
+packet_buf	resb 2048		; Transfer packet
+packet_buf_size	equ $-packet_buf
 
 		section .text
                 org 7C00h
@@ -405,6 +454,11 @@ have_pxe_entry:	mov si,pxeentry_msg
 		call crlf
 
 ;
+; Initialize screen (if we're using one)
+;
+		call adjust_screen
+
+;
 ; Tell the user we got this far
 ;
 		mov si,pxelinux_banner
@@ -412,7 +466,15 @@ have_pxe_entry:	mov si,pxeentry_msg
 
 		mov si,copyright_str
 		call writestr
-		
+
+;
+; Clear Sockets structures
+;
+		mov di,Sockets
+		mov cx,(MAX_SOCKETS*tftp_port_t_size)/4
+		xor eax,eax
+		rep stosd
+
 ;
 ; Now attempt to get the BOOTP/DHCP packet that brought us life (and an IP
 ; address)
@@ -452,17 +514,40 @@ query_bootp:	mov ax,0DEADh			; Something bogus
 		mov si,bootp.bootfile
 		call writestr
 		call crlf
+
 ;
 ; Normalize ES = DS
 ;
 		mov ax,ds
 		mov es,ax
+
+;
+; Save away the server IP and port number
+;
+		mov eax,[bootp.sip]
+		mov [ServerIP],eax
+		mov [ServerPort], word TFTP_PORT
+
+;
+; Initialize UDP stack
+;
+udp_init:
+		mov eax,[bootp.yip]
+		mov [pxe_udp_open_pkt.sip],eax
+		mov di,pxe_udp_open_pkt
+		mov bx,0030h			; PXENV_UDP_OPEN
+		call far [PXENVEntry]
+		jc .failed
+		cmp word [pxe_udp_open_pkt.status], byte 0
+		je .success
+.failed:	mov si,err_udpinit
+		call writestr
+		jmp kaboom
+.success:
+
 ;
 ; Now, prepare some of the data structures
 ;
-		mov eax,[bootp.sip]
-		mov [pxe_tftp_open_pkt.sip],eax
-
 filename_cp:	mov si,bootp.bootfile
 		mov di,pxe_tftp_open_pkt.filename
 		cld
@@ -483,8 +568,9 @@ filename_cp:	mov si,bootp.bootfile
 .nodot:		mov di,si
 .dot:		cld
 		; Now di points to where we want to add stuff to the filename
-		mov al,'/'
-		stosb
+		mov si,dot_cfg_slash
+		mov cx,dot_cfg_slash_len
+		rep movsb
 		mov cx,8
 		mov eax,[bootp.yip]
 		bswap eax			; Convert to native byte order
@@ -515,14 +601,16 @@ config_scan:
 		rep movsb			; Copy "default" string
 		popa
 .not_default:	pusha
-		mov di,pxe_tftp_open_pkt
-		mov bx,0020h			; PXENV_TFTP_OPEN
-		call far [PXENVEntry]
-		jc .badness
-		cmp ax,byte 0
-		jne .badness
-		cmp word [pxe_tftp_open_pkt.status],0
-		je .success
+		mov si,trying_msg
+		call writestr
+		mov si,pxe_tftp_open_pkt.filename
+		push si
+		call writestr
+		call crlf
+		pop si
+		call tftp_connect
+		jnz .success
+
 .badness:	popa
 		dec di
 		loop .tryagain
@@ -630,11 +718,6 @@ skip_checks:
 		mov byte [try_wbinvd],0c3h		; Near RET		
 is_486:
 
-;
-; Initialization that does not need to go into the any of the pre-load
-; areas
-;
-		call adjust_screen
 ;
 ; Now we're all set to start with our *real* business.	First load the
 ; configuration file (if any) and parse it.
@@ -2027,35 +2110,215 @@ kaboom:
 .norge:		jmp short .norge	; If int 19h returned; this is the end
 
 ;
-; searchdir: Search the root directory for a pre-mangled filename in
-;	     DS:DI.  This routine is similar to the one in the boot
-;	     sector, but is a little less Draconian when it comes to
-;	     error handling, plus it reads the root directory in
-;	     larger chunks than a sector at a time (which is probably
-;	     a waste of coding effort, but I like to do things right).
+; tftp_connect:
 ;
-;	     FIXME: usually we can load the entire root dir in memory,
-;	     and files are usually at the beginning anyway.  It probably
-;	     would be worthwhile to remember if we have the first chunk
-;	     in memory and skip the load if that (it would speed up online
-;	     help, mainly.)
+;	Open a TFTP connection to the server 
 ;
-;	     NOTE: This file considers finding a zero-length file an
-;	     error.  This is so we don't have to deal with that special
-;	     case elsewhere in the program (most loops have the test
-;	     at the end).
-;
+;	     On entry:
+;		DS:SI	= filename
 ;	     If successful:
 ;		ZF clear
-;		SI	= cluster # for the first cluster
-;		DX:AX	= file length in bytes
+;		SI	= socket pointer
+;		DX:AX	= file length in bytes [OBSOLETE]
 ;	     If unsuccessful
 ;		ZF set
 ;
 
-searchdir:
-		; No longer applicable
-dir_return:
+searchdir:	; Old name for this function [OBSOLETE]
+tftp_connect:	
+		push bp
+		mov bp,sp
+
+		call dot
+
+		call allocate_socket
+		jz near .error
+
+		call dot
+
+		mov ax,PKT_RETRY	; Retry counter
+	
+.sendreq:	push ax			; [bp-2]  - Retry counter
+		push si			; [bp-4]  - File name 
+		push bx			; [bp-6]  - TFTP block
+		mov bx,[bx]
+		push bx			; [bp-8]  - TID (socket port no)
+
+		mov eax,[ServerIP]	; Server IP
+		mov [pxe_udp_write_pkt.sip],eax
+		mov [pxe_udp_write_pkt.lport],bx
+		mov ax,[ServerPort]
+		mov [pxe_udp_write_pkt.rport],ax
+		mov di,packet_buf
+		mov [pxe_udp_write_pkt.buffer],di
+		mov ax,TFTP_RRQ		; TFTP opcode
+		stosw
+		call strcpy		; Filename
+		mov si,octet_str
+		call strcpy
+		sub di,packet_buf	; Get packet size
+		mov [pxe_udp_write_pkt.buffersize],di
+
+		mov al,'S'
+		call writechr
+
+		mov di,pxe_udp_write_pkt
+		mov bx,0033h		; PXENV_UDP_WRITE
+		call far [PXENVEntry]
+		jc near .failure
+		cmp word [pxe_udp_write_pkt.status],byte 0
+		jne near .failure
+
+		;
+		; Danger, Will Robinson!  We need to support timeout
+		; and retry lest we just lost a packet...
+		;
+
+		; Packet transmitted OK, now we need to receive
+.getpacket:	push word PKT_TIMEOUT	; [bp-10]
+
+		xor ax,ax
+		int 1Ah
+		push dx			; [bp-12]
+
+.pkt_loop:	mov bx,[bp-8]		; TID
+		mov di,packet_buf
+		mov [pxe_udp_read_pkt.buffer],di
+		mov di,packet_buf_size
+		mov [pxe_udp_read_pkt.buffersize],di
+		mov eax,[bootp.yip]	; Our own IP
+		mov [bx+tftp_localip],eax
+		mov [pxe_udp_read_pkt.dip],eax
+		mov [pxe_udp_read_pkt.lport],bx
+		mov di,pxe_udp_read_pkt
+		mov bx,0032h			; PXENV_UDP_READ
+		call far [PXENVEntry]
+		and ax,ax
+		jz .got_packet			; Wait for packet
+.no_packet:
+		xor ax,ax
+		int 1Ah
+		cmp dx,[bp-12]
+		je .pkt_loop
+		mov [bp-12],dx
+		dec word [bp-10]		; Timeout
+		jnz .pkt_loop
+		pop ax	; Adjust stack
+		pop ax
+		jmp short .failure
+		
+.got_packet:
+		mov al,'R'
+		call writechr
+
+		mov bx,[bp-8]			; TID
+
+		mov eax,[ServerIP]
+		cmp [pxe_udp_read_pkt.sip],eax
+		jne .no_packet
+		mov [bx+tftp_remoteip],eax
+
+		pop ax	; Adjust stack
+		pop ax
+
+		mov ax,[pxe_udp_read_pkt.rport]
+		mov [bx+tftp_remoteport],ax
+
+		movzx eax,word [pxe_udp_read_pkt.buffersize]
+		sub eax, byte 4
+		jb .failure			; Garbled reply
+		mov [bx+tftp_filepos], eax
+
+		cmp word [packet_buf], TFTP_ERROR
+		je .bailnow			; ERROR reply: don't try again
+
+		cmp word [packet_buf], TFTP_DATA
+		jne .failure			; Non-DATA reply -> error
+
+		cmp word [packet_buf+2], htons(1)
+		jne .failure			; Packet # != 1
+
+		; Now we have a packet of data which we don't know what
+		; to do with.  Need to save this somewhere...
+
+.ackpacket:	mov word [packet_buf], TFTP_ACK
+		mov [pxe_udp_write_pkt.buffersize], word 4
+
+		mov al,'A'
+		call writechr
+		
+		mov di,pxe_udp_write_pkt
+		mov bx,0033h		; PXENV_UDP_WRITE
+		call far [PXENVEntry]
+		jc .failure
+		cmp word [pxe_udp_write_pkt.status],byte 0
+		jne .failure
+	
+		; Success, done!
+		pop si			; Junk	
+		pop si			; We want the packet ptr in SI
+		pop bp			; Junk
+		pop bp			; Junk (retry counter)
+		and bp,bp		; BP != 0, ZF <- 0
+		pop bp
+		ret
+
+.bailnow:	mov al,'B'
+		call writechr
+		add sp,byte 8		; Immediate error - no retry
+		jmp short .error
+
+.failure:	mov al,'F'
+		call writechr
+		pop bx			; Junk
+		pop bx
+		pop si
+		pop ax
+		dec ax			; Retry counter
+		jnz near .sendreq	; Try again
+
+.error:		xor si,si		; ZF <- 1
+		pop bp
+		ret
+
+;
+; allocate_socket: Allocate a local UDP port structure
+;
+;		If successful:
+;		  ZF set
+;		  BX     = socket pointer
+;               If unsuccessful:
+;                 ZF clear
+;
+allocate_socket:
+		push cx
+		mov bx,Sockets
+		mov cx,MAX_SOCKETS
+.check:		cmp word [bx], byte 0
+		je .found
+		add bx,tftp_port_t_size
+		loop .check
+		xor cx,cx			; ZF = 1
+		pop cx
+		ret
+.found:		mov cx,[MySocket]
+		inc cx
+		and cx,0BFFFh			; Wrap 32768->49151 (ZF = 0)
+		mov [MySocket],cx
+		xchg ch,cl			; Convert to network byte order
+		mov [bx],cx			; Socket in use
+		pop cx
+		ret
+
+;
+; strcpy: Copy DS:SI -> ES:DI up to and including a null byte
+;
+strcpy:		push ax
+.loop:		lodsb
+		stosb
+		and al,al
+		jnz .loop
+		pop ax
 		ret
 
 ;
@@ -2861,6 +3124,44 @@ pxe_thunk:	push es
 		cmc				; Set CF unless ax == 0
 		retf
 
+;
+; Debugging routine: print packet data
+;
+debug_pxenv:
+		push ax
+		push bx
+		mov al,'['
+		call writechr
+		mov ax,bx
+		call writehex4
+		mov al,':'
+		call writechr
+		pop bx
+		pop ax
+		push di
+		call far [PXENVEntry]
+		pop di
+		pushf
+		push ax
+		mov ax,[di]
+		call writehex4
+		mov al,']'
+		call writechr
+		pop ax
+		popf
+		ret
+
+;
+; dot: debugging routine, prints a dot w/o clobbering registers
+;
+dot:		pushad
+		pushfd
+		mov al,'.'
+		call writechr
+		popfd
+		popad
+		ret
+
 ; ----------------------------------------------------------------------------------
 ;  Begin data section
 ; ----------------------------------------------------------------------------------
@@ -2916,11 +3217,13 @@ err_bootfailed	db 0Dh, 0Ah, 'Boot failed: please change disks and press '
 bailmsg		equ err_bootfailed
 err_nopxe	db 'Cannot find !PXE structure, I want my mommy!' ,0Dh, 0Ah, 0
 err_pxefailed	db 'PXE API call failed, error ', 0
+err_udpinit	db 'Failed to initialize UDP stack', 0Dh, 0Ah, 0
 found_pxenv	db 'Found PXENV+ structure', 0Dh, 0Ah, 0
-using_pxenv_msg db 'PXE API 2.0 detected, using PXENV+ structure', 0Dh, 0Ah, 0
+using_pxenv_msg db 'Old PXE API detected, using PXENV+ structure', 0Dh, 0Ah, 0
 apiver_str	db 'PXE API version is ',0
 pxeentry_msg	db 'PXE entry point found (we hope) at ', 0
 myipaddr_msg	db 'My IP address seems to be ',0
+trying_msg	db 'Trying to load: ', 0
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
 dot_msg         db '.', 0
@@ -2931,6 +3234,8 @@ syslinux_cfg	db 'SYSLINUXCFG'
 default_str	db 'default', 0
 default_len	equ ($-default_str)
 pxelinux_banner	db 0Dh, 0Ah, 'PXELINUX ', version_str, ' ', date, ' ', 0
+dot_cfg_slash	db '.cfg/'			; No final null!
+dot_cfg_slash_len equ ($-dot_cfg_slash)
 
 ;
 ; Command line options we'd like to take a look at
@@ -2997,12 +3302,37 @@ pxe_bootp_query_pkt:
 .buffer:	dw bootp, 0		; seg:off of buffer
 .bufferlimit:	dw 0			; Unused
 
+pxe_udp_open_pkt:
+.status:	dw 0			; Status
+.sip:		dd 0			; Source (our) IP
+
+pxe_udp_close_pkt:
+.status:	dw 0			; Status
+
+pxe_udp_write_pkt:
+.status:	dw 0			; Status
+.sip:		dd 0			; Server IP
+.gip:		dd 0			; Gateway IP
+.lport:		dw 0			; Local port
+.rport:		dw 0			; Remote port
+.buffersize:	dw 0			; Size of packet
+.buffer:	dw 0, 0			; seg:off of buffer
+
+pxe_udp_read_pkt:
+.status:	dw 0			; Status
+.sip:		dd 0			; Source IP
+.dip:		dd 0			; Destination (our) IP
+.rport:		dw 0			; Remote port
+.lport:		dw 0			; Local port
+.buffersize:	dw 0			; Max packet size
+.buffer:	dw 0, 0			; seg:off of buffer
+
 pxe_tftp_open_pkt:
 .status:	dw 0			; Status
 .sip:		dd 0			; Server IP
 .gip:		dd 0			; Gateway IP
 .filename:	times 128 db 0		; Input filename
-.tftpport:	dw 69			; TFTP port
+.tftpport:	dw TFTP_PORT		; TFTP port
 .packetsize:	dw 1024			; Packet size
 
 pxe_tftp_read_pkt:
@@ -3037,6 +3367,13 @@ VKernelCtr	dw 0			; Number of registered vkernels
 ForcePrompt	dw 0			; Force prompt
 AllowImplicit   dw 1                    ; Allow implicit kernels
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
+MySocket	dw 32768		; Local UDP socket counter
+
+;
+; TFTP commands
+;
+octet_str	db 'octet', 0		; Octet mode
+
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
 ; tons of zeros appended to our file and wasting space

@@ -360,7 +360,7 @@ RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
-FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
+FuncFlag	resb 1			; Escape sequences received from keyboard
 MNameBuf        resb 11            	; Generic mangled file name buffer
 InitRD          resb 11                 ; initrd= mangled name
 KernelCName     resb 13                 ; Unmangled kernel name
