@@ -9,7 +9,7 @@ LDFLAGS	 = -T com16.ld
 SRCS     = syslinux.c printf.c conio.c skipatou.c atou.c malloc.c free.c \
 	   ../syslxmod.c ../bootsect_bin.c ../ldlinux_bin.c \
            $(wildcard ../libfat/*.c)
-OBJS	 = crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
+OBJS	 = crt0.o memcpy.o memset.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
 .SUFFIXES: .c .o .i .s .S .elf .com
 

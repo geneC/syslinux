@@ -131,9 +131,9 @@ void set_attributes(const char *file, int attributes)
 /*
  * Version of the read_device function suitable for libfat
  */
-int libfat_xpread(void *pp, void *buf, size_t secsize, libfat_sector_t sector)
+int libfat_xpread(intptr_t pp, void *buf, size_t secsize, libfat_sector_t sector)
 {
-  read_device((int)pp, buf, 1, sector);
+  read_device(pp, buf, 1, sector);
   return secsize;
 }
 
@@ -208,7 +208,7 @@ int main(int argc, char *argv[])
    * this is supposed to be a simple, privileged version
    * of the installer.
    */
-  fs = libfat_open(libfat_xpread, (void *)dev_fd);
+  fs = libfat_open(libfat_xpread, dev_fd);
   ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
   secp = sectors;
   nsectors = 0;
