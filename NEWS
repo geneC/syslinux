@@ -1,6 +1,11 @@
 Changes in 1.42:
 	* Frob the "fast A20 gate" port as well as the keyboard
 	  controller; will this help systems with problems?
+	* Include some intermediate files in the distribution, plus
+	  provide a "make installer" target for distributors to relink
+	  the install programs only.  I would prefer the syslinux boot
+	  loader proper to be "binary clean" for debuggablity -- use
+	  "make clean ; make installer" to rebuild the installers only.
 
 Changes in 1.41:
 	* Don't get confused by directories, volume labels, or VFAT

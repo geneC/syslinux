@@ -27,22 +27,31 @@ VERSION = $(shell cat version)
 .c.o:
 	$(CC) $(CFLAGS) -c $<
 
+#
+# The BTARGET refers to objects that are derived from ldlinux.asm; we
+# like to keep those uniform for debugging reasons; however, distributors 
+# want to recompile the installers (ITARGET).
+#
 SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm
-TARGETS = bootsect.bin ldlinux.sys syslinux.com syslinux copybs.com
+BTARGET = bootsect.bin ldlinux.sys stupid.c stupid.inc ldlinux.bin ldlinux.lst
+ITARGET = syslinux.com syslinux copybs.com
 DOCS    = COPYING NEWS README TODO syslinux.doc keytab-lilo.doc
 OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version
 
-all:	$(TARGETS)
-	ls -l $(TARGETS)
+all:	$(BTARGET) $(ITARGET)
+	ls -l $(BTARGET) $(ITARGET)
+
+installer: $(ITARGET)
+	ls -l $(BTARGET) $(ITARGET)
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
 # guaranteed to be unique to be unique from build to build.
 ifndef HEXDATE
-HEXDATE = $(shell perl now.pl ldlinux.asm)
+HEXDATE := $(shell perl now.pl ldlinux.asm)
 endif
 ifndef DATE
-DATE = $(HEXDATE)
+DATE    := $(HEXDATE)
 endif
 
 ldlinux.bin: ldlinux.asm genstupid.pl
@@ -81,10 +90,13 @@ install: all
 	install -c syslinux $(BINDIR)
 
 tidy:
-	rm -f ldlinux.bin *.lst *.o *_bin.c stupid.*
+	rm -f syslinux.lst *.o *_bin.c
 
 clean: tidy
-	rm -f $(TARGETS)
+	rm -f $(ITARGET)
+
+spotless: clean
+	rm -f $(BTARGET)
 
 dist: tidy
 	rm -f *~ \#*
@@ -97,7 +109,7 @@ dist: tidy
 .PHONY: official release
 
 official:
-	$(MAKE) clean
+	$(MAKE) spotless
 	$(MAKE) all DATE=`date +'%Y-%m-%d'`
 	$(MAKE) dist
 
@@ -122,7 +134,7 @@ prerel:
 	-rm -f $(PRERELDIR)/$(PREREL).*
 	mkdir -p $(PRERELDIR)/$(PREREL)
 	cp $(SOURCES) $(DOCS) $(OTHER) $(PRERELDIR)/$(PREREL)
-	make -C $(PRERELDIR)/$(PREREL) clean
+	make -C $(PRERELDIR)/$(PREREL) spotless
 	make -C $(PRERELDIR)/$(PREREL) HEXDATE="$(DATE)"
 	make -C $(PRERELDIR)/$(PREREL) dist
 	cd $(PRERELDIR) && tar cvvf - $(PREREL) | \
