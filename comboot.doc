@@ -151,7 +151,13 @@ INT 21h AH=01h	Get Key with Echo
 
 INT 21h AH=02h	Write Character
 
-	Writes a character in DL to the console output.
+	Writes a character in DL to the console (video and serial)
+	output.
+
+INT 21h AH=04h	Write Character to Serial Port
+
+	Writes a character in DL to the serial console output
+	(if enabled) only.
 
 INT 21h AH=08h	Get Key without Echo
 
@@ -307,3 +313,4 @@ AX=0009h	Call PXE Stack [PXELINUX ONLY]
 	Invoke an arbitrary PXE stack function.  On SYSLINUX/ISOLINUX,
 	this function returns with an error (CF=1) and no action is
 	taken.
+
