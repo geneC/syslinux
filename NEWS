@@ -3,6 +3,10 @@ apply to that specific program only; other changes apply to all of
 them.
 
 Changes in 2.01:
+	* MEMDISK: Fix memory sizing bug when the ramdisk crosses the
+	  16 MB boundary.
+	* MEMDISK: Add a "pause" option to stop immediately before
+	  booting, to read off the messages.
 	* MEMDISK: Support disk images with DOSEMU headers.
 	* Update the mkdiskimage script to handle newer mtools
 	  versions, and be able to generate disk images with DOSEMU

@@ -572,6 +572,13 @@ uint32_t setup(void)
   insertrange(driveraddr, dos_mem-driveraddr, 2);
   parse_mem();
 
+  printf("dos_mem  = %#10x (%u K)\n"
+	 "low_mem  = %#10x (%u K)\n"
+	 "high_mem = %#10x (%u K)\n",
+	 dos_mem, dos_mem >> 10,
+	 low_mem, low_mem >> 10,
+	 high_mem, high_mem >> 10);
+
   pptr->mem1mb     = low_mem  >> 10;
   pptr->mem16mb    = high_mem >> 16;
   if ( low_mem == (15 << 20) ) {
@@ -582,9 +589,8 @@ uint32_t setup(void)
     pptr->memint1588 = low_mem >> 10;
   }
 
-  printf("mem1mb  = %5u (0x%04x)\n", pptr->mem1mb, pptr->mem1mb);
-  printf("mem16mb = %5u (0x%04x)\n", pptr->mem16mb, pptr->mem16mb);
-  printf("mem1588 = %5u (0x%04x)\n", pptr->memint1588, pptr->memint1588);
+  printf("1588: 0x%04x  15E801: 0x%04x 0x%04x\n",
+	 pptr->memint1588, pptr->mem1mb, pptr->mem16mb);
 
   driverseg = driveraddr >> 4;
   driverptr = driverseg  << 16;
@@ -622,7 +628,7 @@ uint32_t setup(void)
 		 : "esi", "ebx", "ebp");
 
     if ( cf ) {
-      printf("INT 13 08: Failure\n");
+      printf("INT 13 08: Failure, assuming this is the only drive\n");
       pptr->drivecnt = 1;
     } else {
       printf("INT 13 08: Success, count = %u, BPT = %04x:%04x\n",
@@ -705,6 +711,14 @@ uint32_t setup(void)
     die();
   }
   
+  if ( getcmditem("pause") != CMD_NOTFOUND ) {
+    puts("Press any key to boot... ");
+    asm volatile("pushal ; "
+		 "xorw %ax,%ax ; "
+		 "int $0x16 ; "
+		 "popal");
+  }
+
   puts("Booting...\n");
 
   /* On return the assembly code will jump to the boot vector */

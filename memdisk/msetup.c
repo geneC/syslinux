@@ -131,31 +131,35 @@ void get_mem(void)
   }
 }
 
+#define PW(x) (1ULL << (x))
+
 void parse_mem(void)
 {
   struct e820range *ep;
+
+  dos_mem = low_mem = high_mem = 0;
 
   /* Derive "dos mem", "high mem", and "low mem" from the range array */
   for ( ep = ranges ; ep->type != -1 ; ep++ ) {
     if ( ep->type == 1 ) {
       /* Only look at memory ranges */
       if ( ep->start == 0 ) {
-	if ( ep[1].start > 0x100000 )
-	  dos_mem = 0x100000;
+	if ( ep[1].start > PW(20) )
+	  dos_mem = PW(20);
 	else
 	  dos_mem = ep[1].start;
       }
-      if ( ep->start <= 0x00100000 && ep[1].start > 0x00100000 ) {
-	if ( ep[1].start > 0x01000000 )
-	  low_mem =  0x01000000 - 0x00100000;
+      if ( ep->start <= PW(20) && ep[1].start > PW(20) ) {
+	if ( ep[1].start > PW(24) )
+	  low_mem = PW(24) - PW(20);
 	else
-	  low_mem = ep[1].start - 0x00100000;
+	  low_mem = ep[1].start - PW(20);
       }
-      if ( ep->start <= 0x01000000 && ep[1].start > 0x01000000 ) {
-	if ( ep[1].start > 0x100000000 )
-	  high_mem = 0x100000000 - 0x01000000;
+      if ( ep->start <= PW(24) && ep[1].start > PW(24) ) {
+	if ( ep[1].start > PW(32) )
+	  high_mem = PW(32) - PW(24);
 	else
-	  high_mem = ep[1].start - 0x01000000;
+	  high_mem = ep[1].start - PW(24);
       }
     }
   }
