@@ -49,7 +49,7 @@ syslinux_id	equ 032h		; SYSLINUX (3) 2 = PXELINUX
 ; memory.  Therefore, we load it at 8000h and copy it before starting
 ; the Linux kernel.
 ;
-real_mode_seg	equ 8000h
+real_mode_seg	equ 7000h
 		struc real_mode_seg_t
 		resb 20h-($-$$)		; org 20h
 kern_cmd_magic	resw 1			; Magic # for command line
@@ -134,11 +134,11 @@ vk_end:		equ $			; Should be <= vk_size
 ;
 ; Segment assignments in the bottom 640K
 ; 0000h - main code/data segment (and BIOS segment)
-; 8000h - real_mode_seg
+; 7000h - real_mode_seg
 ;
-vk_seg          equ 7000h		; This is where we stick'em
-xfer_buf_seg	equ 6000h		; Bounce buffer for I/O to high mem
-fat_seg		equ 4000h		; 128K area for FAT (2x64K)
+vk_seg          equ 6000h		; This is where we stick'em
+xfer_buf_seg	equ 5000h		; Bounce buffer for I/O to high mem
+fat_seg		equ 3000h		; 128K area for FAT (2x64K)
 comboot_seg	equ 2000h		; COMBOOT image loading zone
 
 ;
@@ -2999,11 +2999,30 @@ pxe_bootp_query_pkt:
 
 pxe_tftp_open_pkt:
 .status:	dw 0			; Status
-.sip		dd 0			; Server IP
-.gip		dd 0			; Gateway IP
-.filename	times 128 db 0		; Input filename
-.tftpport	dw 69			; TFTP port
-.packetsize	dw 1024			; Packet size
+.sip:		dd 0			; Server IP
+.gip:		dd 0			; Gateway IP
+.filename:	times 128 db 0		; Input filename
+.tftpport:	dw 69			; TFTP port
+.packetsize:	dw 1024			; Packet size
+
+pxe_tftp_read_pkt:
+.status:	dw 0			; Status
+.packetno:	dw 0			; Packet number
+.buffersize:	dw 0			; Size of packet buffer
+.buffer:	dw 0, real_mode_seg	; seg:off of buffer
+
+pxe_tftp_close_pkt:
+.status:	dw 0			; Status
+
+pxe_unload_stack_pkt:
+.status:	dw 0			; Status
+.reserved:	times 10 db 0		; Reserved
+
+pxe_undi_shutdown:
+.status:	dw 0			; Status
+
+pxe_undi_cleanup:
+.status:	dw 0			; Status
 
 ;
 ; Misc initialized (data) variables
