@@ -251,14 +251,20 @@ rdz_32(uint32_t addr)
 }
 
 /* Addresses in the zero page */
-#define BIOS_BASEMEM	0x413	/* Amount of DOS memory */
+#define BIOS_INT13	(0x13*4) /* INT 13h vector */
+#define BIOS_INT15	(0x15*4) /* INT 13h vector */
+#define BIOS_BASEMEM	0x413	 /* Amount of DOS memory */
 
 void setup(void)
 {
   unsigned int size = (int) &_binary_memdisk_bin_size;
   struct memdisk_header *hptr;
   struct patch_area *pptr;
-  uint32_t old_dos_mem;
+  uint16_t driverseg;
+  uint32_t driverptr, driveraddr;
+  uint8_t driveno = 0;
+  uint8_t status;
+  uint16_t exitcode;
 
   /* Point %fs to the zero page */
   asm volatile("movw %0,%%fs" :: "r" (0));
@@ -274,13 +280,13 @@ void setup(void)
     /* Badness... */
   }
 
-  old_dos_mem = dos_mem;
+  pptr->olddosmem = rdz_16(BIOS_BASEMEM);
 
-  dos_mem -= hptr->total_size;
-  dos_mem &= ~0x3FF;
+  driveraddr  = dos_mem - hptr->total_size;
+  driveraddr &= ~0x3FF;
 
   /* Reserve this range of memory */
-  insertrange(dos_mem, old_dos_mem-dos_mem, 2);
+  insertrange(driveraddr, dos_mem-driveraddr, 2);
   parse_mem();
 
   pptr->mem1mb     = low_mem  >> 10;
@@ -288,18 +294,47 @@ void setup(void)
   pptr->memint1588 = (low_mem == 0xf00000)
     ? ((high_mem > 0x30ffc00) ? 0xffff : (high_mem >> 10)+0x3c00)
     : (low_mem >> 10);
-  pptr->olddosmem = rdz_16(BIOS_BASEMEM);
+
+  driverseg = driveraddr >> 4;
+  driverptr = driverseg  << 16;
+
+  pptr->oldint13 = rdz_32(BIOS_INT13);
+  pptr->oldint15 = rdz_32(BIOS_INT15);
+
+  /* Claim the memory and copy the driver into place */
   wrz_16(BIOS_BASEMEM, dos_mem >> 10);
 
-  /* ... patch other things ... */
-
-  /* Copy the driver into place */
   asm volatile("pushw %%es ; "
 	       "movw %0,%%es ; "
 	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
 	       "popw %%es"
-	       :: "r" ((uint16_t)(dos_mem >> 4)),
+	       :: "r" (driverseg),
 	       "c" (size >> 2),
 	       "S" (&_binary_memdisk_bin_start),
 	       "D" (0));
+
+  /* Install the interrupt handlers */
+  wrz_32(BIOS_INT13, driverptr+hptr->int13_offs);
+  wrz_32(BIOS_INT15, driverptr+hptr->int15_offs);
+
+  /* Reboot into the new "disk" */
+  asm volatile("pushw %%es ; "
+	       "xorw %%cx,%%cx ; "
+	       "movw %%cx,%%es ; "
+	       "incw %%cx ; "
+	       "movw $0x0201,%%ax ; "
+	       "movw $0x7c00,%%bx ; "
+	       "int $0x13 ; "
+	       "setc %0 ; "
+	       "popw %%es"
+	       : "=r" (status), "=a" (exitcode)
+	       : "d" ((uint16_t)driveno)
+	       : "ebx", "ecx", "edx", "esi", "edi", "ebp");
+
+  if ( status ) {
+    /* Badness... */
+  }
+  
+  /* On return the assembly code will jump to the boot vector */
 }
+
