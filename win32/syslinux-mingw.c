@@ -17,6 +17,10 @@
  *
  * To compile this install Cygwin with gcc, gcc-mingw, w32api,
  * nasm, make and perl. Then build with: 'make syslinux.exe'
+ *
+ * TODO:
+ *	* Test with harddrives. We might need to use \\.\PHYSICALDRIVEX
+ *        instead of \\.\X: for these non removable devices.
  */
 
 #include <varargs.h>
@@ -197,6 +201,12 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
+  /* Now flush the media */
+  if(!FlushFileBuffers(f_handle)) {
+    error("FlushFileBuffers failed");
+    exit(1);
+  }
+ 
   /* Close file */ 
   CloseHandle(f_handle);
 
@@ -234,10 +244,14 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
+  /* Now flush the media */
+  if(!FlushFileBuffers(f_handle)) {
+    error("FlushFileBuffers failed");
+    exit(1);
+  }
+    
   /* Close file */ 
   CloseHandle(f_handle);
-
-  /* TODO: flush device. Not really sure how */
 
   /* Done! */
   return 0;
