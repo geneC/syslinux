@@ -12,7 +12,7 @@
 ## -----------------------------------------------------------------------
 
 CC      = gcc
-CFLAGS  = -g -O2 -fomit-frame-pointer -march=i386 \
+CFLAGS  = -O2 -fomit-frame-pointer -march=i386 \
 	  -malign-functions=0 -malign-jumps=0 -malign-loops=0
 LDFLAGS = 
 AS      = as
@@ -33,8 +33,7 @@ clean:
 	$(AS) -o $@ $<
 
 %.s16: %.s
-	echo '.code16' > $@
-	sed -e 's/\bcall\b/calll/g' -e 's/\bret\b/retl/g' < $< >> $@
+	echo '.code16gcc' | cat - $< > $@
 
 %.s: %.S
 	$(CC) -x c $(CFLAGS) -Wp,-traditional -E -o $@ $<

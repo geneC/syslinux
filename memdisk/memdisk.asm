@@ -239,41 +239,37 @@ setup_regs:
 		ret
 
 int15_e820:
-		cmp edx,534D4150h
+		cmp edx,534D4150h	; "SMAP"
 		jne near oldint15
 		cmp ecx,20		; Need 20 bytes
 		jb err86
+		push ds
+		push cs
+		pop ds
 		push edx		; "SMAP"
-		push esi
-		push edi
 		and ebx,ebx
 		jne .renew
-		mov ebx,[E820Table]
-.renew:		mov esi,ebx
-		xor edi,edi
-		mov di,cs
-		shr di,4
-		add edi,E820Buf
-		mov ecx,24/2
-		call bcopy
-		add ebx, byte 12
-		pop edi
-		pop esi
-		mov eax,[cs:E820Buf]
+		mov ebx,E820Table
+.renew:
+		add bx, byte 12		; Advance to next
+		mov eax,[bx-12]		; Start addr (low)
 		mov [es:di],eax
-		mov eax,[cs:E820Buf+4]
-		mov [es:di+4],eax
-		mov eax,[cs:E820Buf+12]
-		mov [es:di+8],eax
-		mov eax,[cs:E820Buf+16]
-		mov [es:di+12],eax
-		mov eax,[cs:E820Buf+8]
+		mov ecx,[bx-8]		; Start addr (high)
+		mov [es:di+4],ecx
+		mov eax,[bx]		; End addr (low)
+		mov ecx,[bx+4]		; End addr (high)
+		sub eax,[bx-12]		; Derive the length
+		sbb ecx,[bx-8]
+		mov [es:di+8],eax	; Length (low)
+		mov [es:di+12],ecx	; Length (high)
+		mov eax,[bx-4]		; Type
 		mov [es:di+16],eax
-		cmp dword [cs:E820Buf+20], byte -1
+		cmp dword [bx+8], byte -1	; Type of next = end?
 		jne .notdone
 		xor ebx,ebx		; Done with table
 .notdone:
 		pop eax			; "SMAP"
+		pop ds
 		mov ecx,20		; Bytes loaded
 int15_success:
 		mov byte [bp+12], 02h	; Clear CF
@@ -412,33 +408,34 @@ Mover_dst2:	db 0			; High 8 bits of source addy
 
 LastStatus	db 0			; Last return status
 
-		section .bss
-		alignb 4
+		alignb 4, db 0
 PatchArea	equ $			; This gets filled in by the installer
 
-Cylinders	resw 1			; Cylinder count
-Heads		resw 1			; Head count
-Sectors		resd 1			; Sector count (zero-extended)
-DiskSize	resd 1			; Size of disk in blocks
-DiskBuf		resd 1			; Linear address of high memory disk
+Cylinders	dw 0			; Cylinder count
+Heads		dw 0			; Head count
+Sectors		dd 0			; Sector count (zero-extended)
+DiskSize	dd 0			; Size of disk in blocks
+DiskBuf		dd 0			; Linear address of high memory disk
 
-E820Table	resd 1			; E820 table in high memory
-Mem1MB		resd 1			; 1MB-16MB memory amount (1K)
-Mem16MB		resd 1			; 16MB-4G memory amount (64K)
-MemInt1588	resd 1			; 1MB-65MB memory amount (1K)
+Mem1MB		dd 0			; 1MB-16MB memory amount (1K)
+Mem16MB		dd 0			; 16MB-4G memory amount (64K)
+MemInt1588	dd 0			; 1MB-65MB memory amount (1K)
 
-OldInt13	resd 1			; INT 13h in chain
-OldInt15	resd 1			; INT 15h in chain
+OldInt13	dd 0			; INT 13h in chain
+OldInt15	dd 0			; INT 15h in chain
 
-OldDosMem	resw 1			; Old position of DOS mem end
+OldDosMem	dw 0			; Old position of DOS mem end
 
-DriveNo		resb 1			; Our drive number
-DriveType	resb 1			; Our drive type (floppies)
+DriveNo		db 0			; Our drive number
+DriveType	db 0			; Our drive type (floppies)
 
 		; End patch area
 
-Stack		resd 2			; Saved SS:ESP on invocation
-E820Buf		resd 6			; E820 fetch buffer
-SavedAX		resw 1			; AX saved on invocation
+Stack		dd 0			; Saved SS:ESP on invocation
+		dw 0
+SavedAX		dw 0			; AX saved on invocation
 
+		alignb 4, db 0		; We *MUST* end on a dword boundary
+
+E820Table	equ $			; The installer loads the E820 table here
 TotalSize	equ $			; End pointer

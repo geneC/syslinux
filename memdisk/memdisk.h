@@ -12,19 +12,15 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * conio.h
+ * memdisk.h
  *
- * Limited console I/O
+ * Miscellaneous header definitions
  */
 
-#ifndef CONIO_H
-#define CONIO_H
+#ifndef MEMDISK_H
+#define MEMDISK_H
 
-#include <stdint.h>
-#include <stdarg.h>
-
-int putchar(int);
-int puts(const char *);
-int printf(const char *, ...);
+/* What to call when we're dead */
+extern void __attribute__((noreturn)) die(void);
 
 #endif

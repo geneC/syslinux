@@ -19,7 +19,7 @@
  * This module *MUST* get linked first into the image
  */
 
-		.section ".text", "ax"
+		.text
 		.code16
 
 /*
@@ -114,28 +114,38 @@ ramdisk_max:	.long 0xffffffff	# Load ramdisk as high as
 
 /* ------------------- End of setup header --------------------------- */
 
-/*
- * Canonicalize CS to match the other segments
- */
-start:
-		pushw %ds
-		pushw $start2
-		lret
+LOWSEG = 0x0800		# 0x8000 physical
 
-start2:
 /*
- * Set up the operating environment expected by the C code.
+ * Move ourselves down in memory to reduce the risk of conflicts;
+ * the canonicalize CS to match the other segments...
+ *
  * The C code uses 32-bit registers to make sure the high part of
  * %esp is zero.
  *
- * The C code expects %cs == %ds == %es, and %fs == 0.
+ * The C code expects %cs == %ds == %es == %ss, and %fs == 0.
  */
-		.byte 0x66,0x0f,0xb7,0xe4	# movzwl %sp,%esp
-		pushw %ds
-		popw %es
-		xorw %ax,%ax
-		movw %ax,%fs
-		sti			# We may want to kill this?
+start:
+		movw $LOWSEG,%ax
+		movw %ax,%es
+		movzbw setup_sects,%cx
+		inc %cx			# Add one for the boot sector
+		shlw $7,%cx		# Convert to dwords
+		xorw %si,%si
+		xorw %di,%di
+		movw %si,%fs		# %fs -> zero segment
+		cld
+		rep ; movsl %ds:(%si),%es:(%di)
+		movw %ax,%ds
+		movw %ax,%ss
+		xorl %esp,%esp		# Stack at the top of the segment
+		ljmp $LOWSEG, $startc
+
+startc:
+/*
+ * Set up the operating environment expected by the C code.
+ */
+		sti			# Maybe not?
 		calll setup		# Call the C code
 		# The setup function returns the drive number,
 		# which should be returned in %dl

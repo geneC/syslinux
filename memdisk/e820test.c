@@ -24,6 +24,11 @@
 extern void parse_mem(void);
 extern uint32_t dos_mem, low_mem, high_mem;
 
+void __attribute__((noreturn)) die(void)
+{
+  abort();
+}
+
 void printranges(void) {
   int i;
 

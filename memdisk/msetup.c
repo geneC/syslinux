@@ -18,6 +18,8 @@
  */
 
 #include <stdint.h>
+#include "memdisk.h"
+#include "conio.h"
 #include "e820.h"
 
 static inline int get_e820(void)
@@ -26,27 +28,35 @@ static inline int get_e820(void)
     uint64_t base;
     uint64_t len;
     uint32_t type;
-  } __attribute__((packed));
+  };
   struct e820_info buf;
   uint32_t lastptr = 0;
-  int copied;
-  int range_count;
+  uint32_t copied;
+  int range_count = 0;
   
   do {
+    puts("Calling INT 15 E820...\n");
     asm volatile("int $0x15 ; "
 		 "jc 1f ; "
 		 "cmpl $0x534d4150, %%eax ; "
 		 "je 2f\n"
 		 "1:\n\t"
-		 "xorl %%ecx, %%ecx\n"
+		 "xorl %0,%0\n"
 		 "2:"
-		 : "=c" (copied), "=&b" (lastptr)
+		 : "=c" (copied), "+b" (lastptr)
 		 : "a" (0x0000e820), "d" (0x534d4150),
-		 "c" (20), "D" (&buf)
-		 : "esi", "ebp");
+		 "c" (sizeof(buf)), "D" (&buf)
+		 : "eax", "edx", "esi", "edi", "ebp");
 
     if ( copied < 20 )
       break;
+
+    printf("BIOS e820: %08x%08x %08x%08x %u\n",
+	   (uint32_t)(buf.base >> 32),
+	   (uint32_t)buf.base,
+	   (uint32_t)(buf.len >> 32),
+	   (uint32_t)buf.len,
+	   buf.type);
 
     insertrange(buf.base, buf.len, buf.type);
     range_count++;
@@ -60,34 +70,13 @@ static inline void get_dos_mem(void)
 {
   uint16_t dos_kb;
 
+  puts("Calling INT 12...\n");
   asm volatile("int $0x12" : "=a" (dos_kb)
 	       :: "ebx", "ecx", "edx", "esi", "edi", "ebp");
+
+  printf("BIOS 12:   %u K DOS memory\n", dos_kb);
   
   insertrange(0, (uint64_t)((uint32_t)dos_kb << 10), 1);
-}
-
-static inline int get_e881(void)
-{
-  uint32_t low_mem;
-  uint32_t high_mem;
-  uint8_t err;
-
-  asm volatile("movw $0xe881, %%ax ; "
-	       "int $0x15 ; "
-	       "setc %2"
-	       : "=a" (low_mem), "=b" (high_mem), "=d" (err)
-	       :: "ecx", "esi", "edi", "ebp");
-
-  if ( !err ) {
-    if ( low_mem ) {
-      insertrange(0x100000, (uint64_t)low_mem << 10, 1);
-    }
-    if ( high_mem ) {
-      insertrange(0x1000000, (uint64_t)high_mem << 16, 1);
-    }
-  }
-
-  return err;
 }
 
 static inline int get_e801(void)
@@ -96,6 +85,7 @@ static inline int get_e801(void)
   uint16_t high_mem;
   uint8_t err;
 
+  puts("Calling INT 15 E801...\n");
   asm volatile("movw $0xe801, %%ax ; "
 	       "int $0x15 ; "
 	       "setc %2"
@@ -103,6 +93,9 @@ static inline int get_e801(void)
 	       :: "ecx", "esi", "edi", "ebp");
 
   if ( !err ) {
+    printf("BIOS e801: %u K low mem, %u K high mem\n",
+	   low_mem, high_mem << 6);
+
     if ( low_mem ) {
       insertrange(0x100000, (uint64_t)((uint32_t)low_mem << 10), 1);
     }
@@ -119,6 +112,7 @@ static inline int get_88(void)
   uint16_t low_mem;
   uint8_t err;
 
+  puts("Calling INT 15 88...\n");
   asm volatile("movb $0x88,%%ah ; "
 	       "int $0x15 ; "
 	       "setc %1"
@@ -126,6 +120,8 @@ static inline int get_88(void)
 	       :: "ebx", "ecx", "esi", "edi", "ebp");
 
   if ( !err ) {
+    printf("BIOS 88:    %u K extended memory\n", low_mem);
+
     if ( low_mem ) {
       insertrange(0x100000, (uint64_t)((uint32_t)low_mem << 10), 1);
     }
@@ -142,11 +138,10 @@ void get_mem(void)
 {
   if ( get_e820() ) {
     get_dos_mem();
-    if ( get_e881() ) {
-      if ( get_e801() ) {
-	if ( get_88() ) {
-	  /* Running out of ideas here... */
-	}
+    if ( get_e801() ) {
+      if ( get_88() ) {
+	puts("MEMDISK: Unable to obtain memory map\n");
+	die();
       }
     }
   }

@@ -32,7 +32,6 @@ struct patch_area {
   uint32_t disksize;
   uint32_t diskbuf;
 
-  uint32_t e820table;
   uint32_t mem1mb;
   uint32_t mem16mb;
   uint32_t memint1588;
@@ -88,7 +87,7 @@ wrz_16(uint32_t addr, uint16_t data)
   asm volatile("movw %0,%%fs:%1" :: "ri" (data), "m" (*(uint16_t *)addr));
 }
 static inline void
-wrz_32(uint32_t addr, uint16_t data)
+wrz_32(uint32_t addr, uint32_t data)
 {
   asm volatile("movl %0,%%fs:%1" :: "ri" (data), "m" (*(uint32_t *)addr));
 }
@@ -173,41 +172,70 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 }
 
 /*
+ * Jump here if all hope is gone...
+ */
+void __attribute__((noreturn)) die(void)
+{
+  asm volatile("sti");
+  for(;;)
+    asm volatile("hlt");
+}
+
+/*
  * Actual setup routine
  * Returns the drive number (which is then passed in %dl to the
  * called routine.)
  */
 uint32_t setup(void)
 {
-  unsigned int size = (int) &_binary_memdisk_bin_size;
+  unsigned int bin_size = (int) &_binary_memdisk_bin_size;
   struct memdisk_header *hptr;
   struct patch_area *pptr;
   uint16_t driverseg;
   uint32_t driverptr, driveraddr;
+  uint16_t dosmem_k;
+  uint32_t stddosmem;
   uint8_t driveno = 0;
   uint8_t status;
   uint16_t exitcode;
   const struct geometry *geometry;
+  int total_size;
 
   /* Show signs of life */
-  puts("Memdisk: hello, world!\n");
+  puts("Memdisk: Hello, World!\n");
 
-  for(;;);
+  if ( !shdr->ramdisk_image || !shdr->ramdisk_size ) {
+    puts("MEMDISK: No ramdisk image specified!\n");
+    die();
+  }
+
+  printf("Test of simple printf...\n");
+  printf("Ramdisk at 0x%08x, length 0x%08x\n",
+	 shdr->ramdisk_image, shdr->ramdisk_size);
+
+  /* Reserve the ramdisk memory */
+  insertrange(shdr->ramdisk_image, shdr->ramdisk_size, 2);
 
   geometry = get_disk_image_geometry(shdr->ramdisk_image, shdr->ramdisk_size);
 
   get_mem();
   parse_mem();
 
+  printf("dos_mem  = %#10x (%u K)\n"
+	 "low_mem  = %#10x (%u K)\n"
+	 "high_mem = %#10x (%u K)\n",
+	 dos_mem, dos_mem >> 10,
+	 low_mem, low_mem >> 10,
+	 high_mem, high_mem >> 10);
+
   /* Figure out where it needs to go */
   hptr = (struct memdisk_header *) &_binary_memdisk_bin_start;
   pptr = (struct patch_area *)(_binary_memdisk_bin_start + hptr->patch_offs);
 
-  if ( hptr->total_size > dos_mem ) {
-    /* Badness... */
-  }
+  dosmem_k = rdz_16(BIOS_BASEMEM);
+  pptr->olddosmem = dosmem_k;
+  stddosmem = dosmem_k << 10;
 
-  pptr->olddosmem = rdz_16(BIOS_BASEMEM);
   pptr->driveno   = geometry->driveno;
   pptr->drivetype = geometry->type;
   pptr->cylinders = geometry->c;
@@ -216,8 +244,24 @@ uint32_t setup(void)
   pptr->disksize  = geometry->sectors;
   pptr->diskbuf   = shdr->ramdisk_image;
 
-  driveraddr  = dos_mem - hptr->total_size;
+  /* The size is given by hptr->total_size plus the size of the
+     E820 map -- 12 bytes per range; we may need as many as
+     2 additional ranges plus the terminating range, over what
+     nranges currently show. */
+
+  total_size = hptr->total_size + (nranges+3)*12;
+  printf("Total size needed = %u bytes\n", total_size);
+
+  if ( total_size > dos_mem ) {
+    puts("MEMDISK: Insufficient low memory\n");
+    die();
+  }
+
+  driveraddr  = stddosmem - total_size;
   driveraddr &= ~0x3FF;
+
+  printf("Old dos memory at 0x%05x (map says 0x%05x), loading at 0x%05x\n",
+	 stddosmem, dos_mem, driveraddr);
 
   /* Reserve this range of memory */
   insertrange(driveraddr, dos_mem-driveraddr, 2);
@@ -238,12 +282,19 @@ uint32_t setup(void)
   /* Claim the memory and copy the driver into place */
   wrz_16(BIOS_BASEMEM, dos_mem >> 10);
 
+  /* Copy driver followed by E820 table */
   asm volatile("pushw %%es ; "
 	       "movw %0,%%es ; "
+	       "cld ; "
+	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
+	       "movw %2,%%cx ; "
+	       "movw %1,%%si ; "
 	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
 	       "popw %%es"
 	       :: "r" (driverseg),
-	       "c" (size >> 2),
+	       "g" ((uint16_t)((nranges+1)*3)), /* 3 dwords/range */
+	       "g" ((uint16_t)ranges),
+	       "c" (bin_size >> 2),
 	       "S" (&_binary_memdisk_bin_start),
 	       "D" (0));
 
@@ -266,7 +317,8 @@ uint32_t setup(void)
 	       : "ebx", "ecx", "edx", "esi", "edi", "ebp");
 
   if ( status ) {
-    /* Badness... */
+    puts("MEMDISK: Failed to load new boot sector\n");
+    die();
   }
   
   /* On return the assembly code will jump to the boot vector */
