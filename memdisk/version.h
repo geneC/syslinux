@@ -21,6 +21,6 @@
 #define MEMDISK_VERSION_H
 
 #define FIRSTYEAR "2001"
-#define COPYYEAR  "2004"
+#define COPYYEAR  "2005"
 
 #endif
