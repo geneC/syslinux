@@ -2,7 +2,7 @@
 ; $Id$
 ; -----------------------------------------------------------------------
 ;   
-;   Copyright 1998 H. Peter Anvin - All Rights Reserved
+;   Copyright 1998-2001 H. Peter Anvin - All Rights Reserved
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -151,7 +151,6 @@ dpbFreeCnt:	resw 1
 got_cmdline:
 		mov dl,[DriveNo]
 		inc dl				; 1-based
-		mov bx,DPB
 		mov ah,32h
 		int 21h				; Get Drive Parameter Block
 		
@@ -169,12 +168,14 @@ hugeclust_error:
 		jmp die
 filesystem_error:
 		mov dx,msg_filesystem_err
-		jmp die
+		jmp doserr
 sectorsize_error:
 		mov dx,msg_sectorsize_err
 		jmp die
 
 drive_ok:
+		push cs
+		pop ds
 
 ;
 ; Writing LDLINUX.SYS
@@ -188,7 +189,7 @@ write_file:
 		; 0. Set the correct filename
 
 		mov al,[DriveNo]
-		add [ldlinux_sys_str],al
+		add byte [ldlinux_sys_str],al
 
 		; 1. If the file exists, strip its attributes and delete
 
@@ -219,7 +220,8 @@ write_file:
 		cmp ax,ldlinux_size
 		je .no_file_write_error
 .file_write_error:
-		jmp file_write_error
+		mov dx, msg_fwrite_err
+		jmp doserr
 .no_file_write_error:
 
 		mov bx,[FileHandle]
@@ -254,20 +256,19 @@ lock_drive:
 		mov dx,01h			; Allow write mappings/allow new mappings
 		pusha
 		int 21h
-		popa
 		jc .disk_lock_error_nocleanup
+		popa
 
 		xor dx,dx
 		inc bh				; Lock level 2
 		pusha
 		int 21h
-		popa
 		jc .disk_lock_error
+		popa
 
 		inc bh				; Lock level 3
 		pusha
 		int 21h
-		popa
 		jnc .done
 
 .disk_lock_error:
@@ -285,10 +286,13 @@ lock_drive:
 		loop .lock_cleanup
 
 .disk_lock_error_nocleanup:
+		popa
 		mov dx, msg_lock_err
-		jmp die
+		jmp doserr
 
 .done:
+		popa
+
 .plain_dos:	; Plain DOS -> no locking
 
 ;
@@ -331,7 +335,7 @@ read_bootsect:
 		jmp short write_bootsect
 disk_read_error:
 		mov dx,msg_read_err
-		jmp die
+		jmp doserr
 
 ;
 ; Writing boot sector
@@ -379,9 +383,45 @@ all_done:	mov ax,4C00h			; Exit good status
 ;
 ; Error routine jump
 ;
-file_write_error:
 disk_write_error:
 		mov dx,msg_write_err
+
+doserr:
+		push cs
+		pop ds
+		push dx				; Error message
+		push ax				; Error code
+		mov dx, msg_error_sp
+		mov ah,09h
+		int 21h
+		pop ax
+		
+		mov cx,4
+		mov bx,hexdigits
+		mov si,ax
+.digit:
+		rol si,1
+		rol si,1
+		rol si,1
+		rol si,1
+		mov ax,si
+		and al,0Fh
+		xlatb
+		mov ah,02h			; Display character
+		mov dl,al
+		int 21h
+		loop .digit
+
+		mov dx,msg_colon
+		mov ah,09h
+		int 21h
+
+		jmp short die_common
+
+		section .data
+hexdigits:	db '0123456789ABCDEF'
+
+		section .text
 die:
 		push cs
 		pop ds
@@ -389,7 +429,9 @@ die:
 		mov dx, msg_error
 		mov ah,09h
 		int 21h
-		pop dx
+
+die_common:
+		pop dx				; Error message
 
 		mov ah,09h			; Write string
 		int 21h
@@ -404,13 +446,16 @@ die:
 		%include "stupid.inc"
 
 		section .data
+msg_error_sp:		db 'ERROR $'
+msg_colon:		db ': $'
 msg_error:		db 'ERROR: $'
 msg_ancient_err:	db 'DOS version 3.20 or later required', 0Dh, 0Ah, '$'
 msg_filesystem_err:	db 'Filesystem not found on disk', 0Dh, 0Ah, '$'
 msg_sectorsize_err:	db 'Sector sizes other than 512 bytes not supported', 0Dh, 0Ah, '$'
 msg_hugeclust_err:	db 'Clusters larger than 16K not supported', 0Dh, 0Ah, '$'
 msg_read_err:		db 'Boot sector read failed', 0Dh, 0Ah, '$'
-msg_write_err:		db 'Disk write failed', 0Dh, 0Ah, '$'
+msg_write_err:		db 'Boot sector write failed', 0Dh, 0Ah, '$'
+msg_fwrite_err:		db 'LDLINUX.SYS write failed', 0Dh, 0Ah, '$'
 msg_lock_err:		db 'Unable to lock drive for exclusive access', 0Dh, 0Ah, '$'
 
 		section .data
