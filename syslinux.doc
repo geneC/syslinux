@@ -410,6 +410,8 @@ qualified.
 
    ++++ BOOTING DOS (OR OTHER SIMILAR OPERATING SYSTEMS) ++++
 
+This section applies to SYSLINUX only, not to PXELINUX or ISOLINUX.
+
 This is the recommended procedure for creating a SYSLINUX disk that
 can boot either DOS or Linux.  This example assumes the drive is A: in
 DOS and /dev/fd0 in Linux; for other drives, substitute the
@@ -545,6 +547,8 @@ that is bootable on the largest possible number of machines:
 
 A CD-ROM is so much faster than a floppy that the -s option shouldn't
 matter from a speed perspective.
+
+Of course, you may want to use ISOLINUX instead.  See isolinux.doc.
 
 
    ++++ BOOTING FROM A FAT FILESYSTEM PARTITION ON A HARD DISK ++++
