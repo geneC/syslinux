@@ -1155,6 +1155,7 @@ searchdir:
 		mov dx,[gs:si+26]		; Low cluster word
 		sub edx,2
 		shl edx,cl
+		add edx,[DataArea]
 		mov [bx],edx			; Starting sector
 
 		mov edx,eax
