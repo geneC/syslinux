@@ -111,7 +111,7 @@ static const struct keycode keycodes[] = {
 };
 #define NCODES ((int)(sizeof keycodes/sizeof(struct keycode)))
 
-int get_key(FILE *f)
+int get_key(FILE *f, clock_t timeout)
 {
   unsigned char buffer[MAXLEN];
   int nc, i, rv;
@@ -120,19 +120,23 @@ int get_key(FILE *f)
   unsigned char ch;
   clock_t start;
 
+  /* We typically start in the middle of a clock tick */
+  if ( timeout )
+    timeout++;
+
   nc = 0;
   start = times(NULL);
   do {
     rv = read(fileno(f), &ch, 1);
     if ( rv == 0 || (rv == -1 && errno == EAGAIN) ) {
-      if ( nc && (clock_t)(times(NULL)-start) >= 2+CLK_TCK/20 )
-	return buffer[0];	/* timeout */
-      else {
-	if ( !nc )
-	  start = times(NULL);
-	another = 1;
-	continue;
-      }
+      clock_t lateness = times(NULL)-start;
+      if ( nc && lateness > 1+CLK_TCK/20 )
+	return buffer[0];	/* timeout in sequence */
+      else if ( !nc && timeout && lateness > timeout )
+	return KEY_NONE;	/* timeout before sequence */
+
+      another = 1;
+      continue;
     }
 
     start = times(NULL);

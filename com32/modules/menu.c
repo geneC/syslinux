@@ -25,11 +25,18 @@
 #include <consoles.h>
 #include <getkey.h>
 #include <minmax.h>
+#include <time.h>
+#include <sys/times.h>
+#include <unistd.h>
 #ifdef __COM32__
 #include <com32.h>
 #endif
 
 #include "menu.h"
+
+#ifndef CLK_TCK
+# define CLK_TCK sysconf(_SC_CLK_TCK)
+#endif
 
 struct menu_attrib {
   const char *border;		/* Border area */
@@ -135,11 +142,11 @@ void draw_menu(int sel, int top)
   printf("%s\033[%d;1H", menu_attrib->screen, END_ROW);
 }
 
-char *edit_cmdline(char *input)
+char *edit_cmdline(char *input, int top)
 {
   static char cmdline[MAX_CMDLINE_LEN];
   int key, len;
-  int redraw = 1;
+  int redraw = 2;
 
   strncpy(cmdline, input, MAX_CMDLINE_LEN);
   cmdline[MAX_CMDLINE_LEN-1] = '\0';
@@ -147,7 +154,14 @@ char *edit_cmdline(char *input)
   len = strlen(cmdline);
 
   for (;;) {
-    if ( redraw ) {
+    if ( redraw > 1 ) {
+      /* Clear and redraw whole screen */
+      printf("%s\033[2J", menu_attrib->screen);
+      draw_menu(-1, top);
+    }
+
+    if ( redraw > 0 ) {
+      /* Redraw the command line */
       printf("\033[%d;1H%s> %s%s",
 	     CMDLINE_ROW, menu_attrib->cmdmark,
 	     menu_attrib->cmdline, pad_line(cmdline, 0, MAX_CMDLINE_LEN-1));
@@ -156,11 +170,14 @@ char *edit_cmdline(char *input)
       redraw = 0;
     }
 
-    key = get_key(stdin);
+    key = get_key(stdin, 0);
 
     /* FIX: should handle arrow keys and edit-in-middle */
 
     switch( key ) {
+    case KEY_CTRL('L'):
+      redraw = 2;
+      break;
     case KEY_ENTER:
     case KEY_CTRL('J'):
       return cmdline;
@@ -212,6 +229,11 @@ const char *run_menu(void)
   int top = 0;
   int clear = 1;
   char *cmdline;
+  clock_t key_timeout;
+
+  /* Convert timeout from deciseconds to clock ticks */
+  /* Note: for both key_timeout and timeout == 0 means no limit */
+  key_timeout = (clock_t)(CLK_TCK*timeout+9)/10;
 
   while ( !done ) {
     if ( entry < 0 )
@@ -231,8 +253,20 @@ const char *run_menu(void)
 
     draw_menu(entry, top);
 
-    key = get_key(stdin);
+    key = get_key(stdin, key_timeout);
     switch ( key ) {
+    case KEY_NONE:		/* Timeout */
+      /* This is somewhat hacky, but this at least lets the user
+	 know what's going on, and still deals with "phantom inputs"
+	 e.g. on serial ports. */
+      if ( entry != defentry )
+	entry = defentry;
+      else
+	done = 1;
+      break;
+    case KEY_CTRL('L'):
+      clear = 1;
+      break;
     case KEY_ENTER:
     case KEY_CTRL('J'):
       done = 1;
@@ -268,8 +302,7 @@ const char *run_menu(void)
       break;
     case KEY_TAB:
       if ( allowedit ) {
-	draw_menu(-1, top);	/* Disable bar */
-	cmdline = edit_cmdline(menu_entries[entry].cmdline);
+	cmdline = edit_cmdline(menu_entries[entry].cmdline, top);
 	if ( cmdline )
 	  return cmdline;
 	else

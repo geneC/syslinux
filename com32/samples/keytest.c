@@ -33,7 +33,7 @@ static void cooked_keys(void)
   printf("[cooked]");
 
   for(;;) {
-    key = get_key(stdin);
+    key = get_key(stdin, 0);
 
     if ( key == 0x03 ) {
       printf("[done]\n");

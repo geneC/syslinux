@@ -36,6 +36,9 @@
 #define LIBUTIL_GETKEY_H
 
 #include <stdio.h>
+#include <sys/times.h>
+
+#define KEY_NONE	(-1)
 
 #define KEY_CTRL(x)	((x) & 0x001f)
 #define KEY_BACKSPACE	0x0008
@@ -67,6 +70,6 @@
 #define KEY_INS		0x0128
 #define KEY_DEL		0x0129
 
-int get_key(FILE *);
+int get_key(FILE *, clock_t);
 
 #endif /* LIBUTIL_GETKEY_H */
