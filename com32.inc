@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2003 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -140,12 +140,13 @@ com32_call_start:
 
 		; Now everything is set up for interrupts...
 
+		push dword com32_farcall	; Farcall entry point
 		push dword (1 << 16)		; 64K bounce buffer
 		push dword (comboot_seg << 4)	; Bounce buffer address
-		push dword com32_syscall	; Syscall entry point
+		push dword com32_intcall	; Intcall entry point
 		movzx esi,word [word CmdOptPtr]
 		push esi			; Command line pointer
-		push dword 4			; Argument count
+		push dword 5			; Argument count
 		sti				; Interrupts OK now
 		call pm_entry			; Run the program...
 		; ... on return, fall through to com32_exit ...
@@ -217,8 +218,12 @@ com32_sys_rm:
 		pop ds
 		popad
 		popfd
+		mov [cs:Com32SysSP],sp
 		retf				; Invoke routine
 .return:
+		; We clean up SP here because we don't know if the
+		; routine returned with RET, RETF or IRET
+		mov sp,[cs:Com32SysSP]
 		pushfd
 		pushad
 		push ds
@@ -253,7 +258,7 @@ com32_int_resume:
 		iret
 
 ;
-; Syscall invocation.  We manifest a structure on the real-mode stack,
+; Intcall/farcall invocation.  We manifest a structure on the real-mode stack,
 ; containing the com32sys_t structure from <com32.h> as well as
 ; the following entries (from low to high address):
 ; - Target offset
@@ -262,27 +267,37 @@ com32_int_resume:
 ; - Return segment (== real mode cs == 0)
 ; - Return flags
 ;
+com32_farcall:
+		pushfd				; Save IF among other things...
+		pushad				; We only need to save some, but...
+
+		mov eax,[esp+10*4]		; CS:IP
+		jmp com32_syscall
+
+
+com32_intcall:
+		pushfd				; Save IF among other things...
+		pushad				; We only need to save some, but...
+
+		movzx eax,byte [esp+10*4]	; INT number
+		mov eax,[eax*4]			; Get CS:IP from low memory
+
 com32_syscall:
-		pushfd			; Save IF among other things...
-		pushad			; We only need to save some, but...
 		cld
 
 		movzx edi,word [word SavedSSSP]
-		movzx eax,word [word SavedSSSP+2]
+		movzx ebx,word [word SavedSSSP+2]
 		sub edi,54		; Allocate 54 bytes
 		mov [word SavedSSSP],di
-		shl eax,4
-		add edi,eax		; Create linear address
+		shl ebx,4
+		add edi,ebx		; Create linear address
 
 		mov esi,[esp+11*4]	; Source regs
 		xor ecx,ecx
 		mov cl,11		; 44 bytes to copy
 		rep movsd
 
-		movzx eax,byte [esp+10*4] ; Interrupt number
-		; ecx == 0 here; adding it to the EA makes the
-		; encoding smaller
-		mov eax,[ecx+eax*4]	; Get IVT entry
+		; EAX is already set up to be CS:IP
 		stosd			; Save in stack frame
 		mov eax,com32_sys_rm.return	; Return seg:offs
 		stosd			; Save in stack frame
@@ -295,7 +310,8 @@ com32_syscall:
 		jmp com32_enter_rm	; Go to real mode
 
 		; On return, the 44-byte return structure is on the
-		; real-mode stack.
+		; real-mode stack, plus the 10 additional bytes used
+		; by the target address (see above.)
 com32_sys_resume:
 		movzx esi,word [word SavedSSSP]
 		movzx eax,word [word SavedSSSP+2]
@@ -309,7 +325,7 @@ com32_sys_resume:
 		mov cl,11		; 44 bytes
 		rep movsd		; Copy register block
 
-		add dword [word SavedSSSP],44	; Remove from stack
+		add dword [word SavedSSSP],54	; Remove from stack
 
 		popad
 		popfd

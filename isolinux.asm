@@ -170,6 +170,7 @@ GraphXSize	resw 1			; Width of splash screen file
 VGAPos		resw 1			; Pointer into VGA memory
 VGACluster	resw 1			; Cluster pointer for VGA image file
 VGAFilePtr	resw 1			; Pointer into VGAFileBuf
+Com32SysSP	resw 1			; SP saved during COM32 syscall
 ConfigFile	resw 1			; Socket for config file
 PktTimeout	resw 1			; Timeout for current packet
 KernelExtPtr	resw 1			; During search, final null pointer

@@ -48,7 +48,7 @@ static void writemsg(const char *msg)
   inreg.eax.w[0] = 0x0002;	/* Write string */
   inreg.ebx.w[0] = OFFS(__com32.cs_bounce);
   inreg.es       = SEG(__com32.cs_bounce);
-  __com32.cs_syscall(0x22, &inreg, NULL);
+  __com32.cs_intcall(0x22, &inreg, NULL);
 };  
 
 int __start(void)

@@ -79,11 +79,12 @@ notification to the program how much memory is available.
 The following arguments are passed to the program on the stack:
 
  Address  Size	Meaning
- [ESP+4]  dword	Number of additional arguments (currently 4)
+ [ESP+4]  dword	Number of additional arguments (currently 5)
  [ESP+8]  dword	Pointer to the command line arguments (null-terminated string)
- [ESP+12] dword Pointer to system call helper function
+ [ESP+12] dword Pointer to INT call helper function
  [ESP+16] dword Pointer to low memory bounce buffer
  [ESP+20] dword Size of low memory bounce buffer
+ [ESP+24] dword Pointer to FAR call helper function (new in 2.05)
 
 This corresponds to the following C prototype, available in the file
 com32/include/com32.h:
@@ -91,14 +92,15 @@ com32/include/com32.h:
 /* The standard prototype for _start() */
 int _start(unsigned int __nargs,
 	   char *__cmdline,
-	   void (*__syscall)(uint8_t, com32sys_t *, com32sys_t *),
+	   void (*__intcall)(uint8_t, com32sys_t *, com32sys_t *),
 	   void *__bounce_ptr,
-	   unsigned int __bounce_len);
+	   unsigned int __bounce_len,
+	   void (*__farcall)(uint32_t, uint16_t, com32sys_t *, com32sys_t *));
 
-The system call helper function can be used to issue BIOS or SYSLINUX
-API calls, and takes the interrupt number as first argument.  The
-second argument is a pointer to the input register definition, an
-instance of the following structure (also available in com32.h):
+The intcall helper function can be used to issue BIOS or SYSLINUX API
+calls, and takes the interrupt number as first argument.  The second
+argument is a pointer to the input register definition, an instance of
+the following structure (also available in com32.h):
 
 typedef union {
   uint32_t l;
@@ -131,6 +133,10 @@ instance of the same structure.  The third argument can also be zero
 Since BIOS or SYSLINUX API calls can generally only manipulate data
 below address 0x100000, a "bounce buffer" in low memory, at least 64K
 in size, is available, to copy data in and out.
+
+The farcall helper function behaves similarly, but takes as its first
+argument the CS:IP (in the form (CS << 16) + IP) of procedure to be
+invoked via a FAR CALL.
 
 
 	++++ SYSLINUX API CALLS +++

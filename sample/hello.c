@@ -38,7 +38,7 @@ int __start(void)
   for ( p = msg ; *p ; p++ ) {
     inreg.edx.b[0] = *p;
     inreg.eax.b[1] = 0x02;	/* Write Character */
-    __com32.cs_syscall(0x21, &inreg, NULL);
+    __com32.cs_intcall(0x21, &inreg, NULL);
   }
 
   return 0;

@@ -172,6 +172,7 @@ GraphXSize	resw 1			; Width of splash screen file
 VGAPos		resw 1			; Pointer into VGA memory
 VGACluster	resw 1			; Cluster pointer for VGA image file
 VGAFilePtr	resw 1			; Pointer into VGAFileBuf
+Com32SysSP	resw 1			; SP saved during COM32 syscall
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
