@@ -30,26 +30,32 @@ static inline void memset(void *buf, int ch, unsigned int len)
 	       : "+D" (buf), "+c" (len) : "a" (ch) : "memory");
 }
 
-static inline void memcpy(void *dst, const void *src, unsigned int len)
+static void strcpy(char *dst, const char *src)
 {
-  asm volatile("cld; rep; movsb"
-	       : "+D" (dst), "+S" (src), "+c" (len) : : "memory");
+  while ( *src )
+    *dst++ = *src++;
+
+  *dst = '\0';
 }
 
-int __start(void)
+static void writemsg(const char *msg)
 {
-  const char msg[] = "Hello, World!\r\n";
-  com32sys_t inreg, outreg;
-  const char *p;
+  com32sys_t inreg;
 
   memset(&inreg, 0, sizeof inreg);
 
-  /* Bounce buffer is at least 64K in size */
-  memcpy(__com32.cs_bounce, msg, sizeof msg);
+  strcpy(__com32.cs_bounce, msg);
   inreg.eax.w[0] = 0x0002;	/* Write string */
   inreg.ebx.w[0] = OFFS(__com32.cs_bounce);
   inreg.es       = SEG(__com32.cs_bounce);
   __com32.cs_syscall(0x22, &inreg, NULL);
+};  
 
+int __start(void)
+{
+  writemsg("Hello, World!\r\n"
+	   "cmdline = ");
+  writemsg(__com32.cs_cmdline);
+  writemsg("\r\n");
   return 0;
 }
