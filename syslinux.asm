@@ -38,11 +38,24 @@ pspCommandArg:		resb 127
 		section .text
 		org 0100h
 _start:		
-		; BUG: check DOS version
+		mov ax,3000h			; Get DOS version
+		int 21h
+		xchg al,ah
+		mov [DOSVersion],ax
+		cmp ax,0314h			; DOS 3.20 minimum
+		jae dosver_ok
+		mov dx,msg_ancient_err
+		jmp die
 
+		section .bss
+		alignb 2
+DOSVersion:	resw 1
+
+		section .text
 ;
 ; Scan command line for a drive letter followed by a colon
 ;
+dosver_ok:
 		xor cx,cx
 		mov si,pspCommandArg
 		mov cl,[pspCommandLen]
@@ -164,16 +177,34 @@ sectorsize_error:
 ;
 ; Good enough.  Now read the old boot sector and copy the superblock.
 ;
-read_bootsect:
-		push cs				; Set DS == ES
-		pop ds
+		section .data
+		align 4, db 0
+DISKIO		equ $
+diStartSector:	dd 0				; Absolute sector 0
+diSectors:	dw 1				; One sector
+diBuffer:	dw SectorBuffer			; Buffer offset
+		dw 0				; Buffer segment
 
+		section .text
+read_bootsect:
+		mov ax,cs			; Set DS <- CS
+		mov ds,ax
+
+		cmp word [DOSVersion],0400h	; DOS 4.00 has a new interface
+		jae .new
+.old:
 		mov bx,SectorBuffer
-		mov al,[DriveNo]
 		mov cx,1			; One sector
+		jmp short .common
+.new:
+		mov [diBuffer+2],ax		; == DS
+		mov bx,DISKIO
+		mov cx,-1
+.common:
 		xor dx,dx			; Absolute sector 0
+		mov al,[DriveNo]
 		int 25h				; DOS absolute disk read
-		add sp,byte 2			; Remove flags from stack
+		pop ax				; Remove flags from stack
 		jc disk_read_error
 
 		mov si,SectorBuffer+11		; Offset of superblock
@@ -240,13 +271,23 @@ FileHandle:	resw 1
 ;
 ; Writing boot sector
 ;
-		mov al,[DriveNo]
-		mov bx,BootSector
+write_bootsect:
+		cmp word [DOSVersion],0400h	; DOS 4.00 has a new interface
+		jae .new
+.old:
+		mov bx,SectorBuffer
 		mov cx,1			; One sector
+		jmp short .common
+.new:
+		mov bx,DISKIO
+		mov cx,-1
+.common:
 		xor dx,dx			; Absolute sector 0
+		mov al,[DriveNo]
 		int 26h				; DOS absolute disk write
-		add sp,byte 2			; Remove flags
+		pop ax				; Remove flags from stack
 		jc disk_write_error
+
 
 all_done:	mov ax,4C00h			; Exit good status
 		int 21h
@@ -282,10 +323,11 @@ die:
 
 		section .data
 msg_error:		db 'ERROR: $'
+msg_ancient_err:	db 'DOS version 3.20 or later required', 0Dh, 0Ah, '$'
 msg_filesystem_err:	db 'Filesystem not found on disk', 0Dh, 0Ah, '$'
 msg_sectorsize_err:	db 'Sector sizes other than 512 bytes not supported', 0Dh, 0Ah, '$'
 msg_hugeclust_err:	db 'Clusters larger than 16K not supported', 0Dh, 0Ah, '$'
-msg_read_err:		db 'Disk read failed', 0Dh, 0Ah, '$'
+msg_read_err:		db 'Boot sector read failed', 0Dh, 0Ah, '$'
 msg_write_err:		db 'Disk write failed', 0Dh, 0Ah, '$'
 
 		section .data

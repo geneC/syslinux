@@ -27,8 +27,8 @@ VERSION = $(shell cat version)
 .c.o:
 	$(CC) $(CFLAGS) -c $<
 
-SOURCES = ldlinux.asm syslinux.asm syslinux.c
-TARGETS = bootsect.bin ldlinux.sys syslinux.com syslinux
+SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm
+TARGETS = bootsect.bin ldlinux.sys syslinux.com syslinux copybs.com
 DOCS    = COPYING NEWS README TODO syslinux.doc keytab-lilo.doc
 OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version
 
@@ -54,6 +54,9 @@ ldlinux.sys: ldlinux.bin
 
 syslinux.com: syslinux.asm bootsect.bin ldlinux.sys stupid.inc
 	$(NASM) -f bin -l syslinux.lst -o syslinux.com syslinux.asm
+
+copybs.com: copybs.asm
+	$(NASM) -f bin -l copybs.lst -o copybs.com copybs.asm
 
 bootsect_bin.c: bootsect.bin bin2c.pl
 	perl bin2c.pl bootsect < bootsect.bin > bootsect_bin.c
