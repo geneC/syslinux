@@ -240,6 +240,12 @@ running this version of dhcpd:
 	option pxelinux.pathprefix code 210 = text;
 	option pxelinux.reboottime code 211 = unsigned integer 32;
 
+    NOTE: In earlier versions of PXELINUX, this would only work as a
+    "site-option-space".  Since PXELINUX 2.07, this will work both as a
+    "site-option-space" (unencapsulated) and as a "vendor-option-space"
+    (type 43 encapsulated.)  This may avoid messing with the
+    dhcp-parameter-request-list, as detailed below.
+
 Then, inside your PXELINUX-booting group or class (whereever you have
 the PXELINUX-related options, such as the filename option), you can
 add, for example:
