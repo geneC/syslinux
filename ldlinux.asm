@@ -328,7 +328,7 @@ eddcheck:
 		;
 		; We have EDD support...
 		;
-		mov byte [getlinsec+1],getlinsec_ebios-(getlinsec+2)
+		mov byte [getlinsec.jmp+1],getlinsec_ebios-(getlinsec.jmp+2)
 .noedd:
 
 ;
@@ -423,7 +423,7 @@ getonesec:
 ;
 getlinsec:
 		add eax,[bsHidden]		; Add partition offset
-		jmp strict short getlinsec_cbios	; This is patched
+.jmp:		jmp strict short getlinsec_cbios	; This is patched
 
 ;
 ; getlinsec_ebios:
@@ -774,7 +774,7 @@ genfatinfo:
 		add edx,eax
 		mov [EndSector],edx
 
-		add eax,[bxResSectors]
+		mov eax,[bxResSectors]
 		mov [FAT],eax			; Beginning of FAT
 		mov edx,[bxFATsecs]
 		and dx,dx
