@@ -27,5 +27,5 @@ libcom32 and libutil are licensed under the MIT license:
 ##
 ## -----------------------------------------------------------------------
 
-The files in the modules directory are mostly under the GNU GPL (see
-the file COPYING in the directory above.)
+The files in the samples and modules directories are mostly under the
+GNU GPL (see the file COPYING in the directory above.)
