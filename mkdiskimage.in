@@ -89,9 +89,9 @@ $psize = $c*$h*$s-$s;
 $bhead   = ($h > 1) ? 1 : 0;
 $bsect   = 1;
 $bcyl    = ($h > 1) ? 0 : 1;
-$ehead   = $h;
-$esect   = $s + (($c & 0x300) >> 2);
-$ecyl    = $c & 0xff;
+$ehead   = $h-1;
+$esect   = $s + ((($c-1) & 0x300) >> 2);
+$ecyl    = ($c-1) & 0xff;
 if ( $psize > 65536 ) {
     $fstype = 0x06;
 } else {
