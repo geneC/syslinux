@@ -122,5 +122,46 @@ The MEMDISK info structure currently contains:
 	[ES:DI+20]	16:16	Old INT 15h pointer
 	[ES:DI+24]	word	Amount of DOS memory before MEMDISK loaded
 
+In addition, the following fields are available at [ES:0]:
+
+	[ES:0]		word	Offset of INT 13h routine (segment == ES)
+	[ES:2]		word	Offset of INT 15h routine (segment == ES)
+
 The program mdiskchk.c in the sample directory is an example on how
 this API can be used.
+
+The following code can be used to "disable" MEMDISK.  Note that it
+does not free the handler in DOS memory, and that running this from
+DOS will probably crash your machine (DOS doesn't like drives
+suddenly disappearing from underneath):
+
+	mov eax, 454D0800h
+	mov ecx, 444D0000h
+	mov edx, 53490000h + drive #
+	mov ebx, 3F4B0000h
+	int 13h
+
+	shr eax, 16
+	cmp ax, 4D21h
+	jne not_memdisk
+	shr ecx, 16
+	cmp cx, 4D45h
+	jne not_memdisk
+	shr edx, 16
+	cmp dx, 4944h
+	jne not_memdisk
+	shr ebx, 16
+	cmp bx, 4B53h
+	jne not_memdisk
+
+	di
+	mov bx,[es:0]		; INT 13h handler offset
+	mov eax,[es:di+16]	; Old INT 13h handler
+	mov byte [es:bx], 0EAh	; FAR JMP
+	mov [es:bx+1], eax
+
+	mov bx,[es:2]		; INT 15h handler offset
+	mov eax,[es:di+20]	; Old INT 15h handler
+	mov byte [es:bx], 0EAh	; FAR JMP
+	mov [es:bx+1], eax
+	ei
