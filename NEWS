@@ -1,6 +1,8 @@
 Changes in 1.43:
 	* Add sys2ansi.pl script to display the contents of a
 	  colorized SYSLINUX file.
+	* Changed the io_delay once again, after a report that the
+	  old delay port causes hangs on some systems.
 
 Changes in 1.42:
 	* Frob the "fast A20 gate" port as well as the keyboard
