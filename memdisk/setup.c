@@ -232,14 +232,23 @@ void unzip_if_needed(uint32_t *where_p, uint32_t *size_p)
 {
   uint32_t where = *where_p;
   uint32_t size = *size_p;
+  uint32_t zbytes;
   uint32_t startrange, endrange;
   uint32_t gzdatasize, gzwhere;
+  uint32_t orig_crc, offset;
   uint32_t target = 0;
   int i, okmem;
 
   /* Is it a gzip image? */
-  if ( *(uint16_t *)where == 0x8b1f ) {
-    gzdatasize = *(uint32_t *)(where + size - 4);
+  if (check_zip ((void *)where, size, &zbytes, &gzdatasize,
+                 &orig_crc, &offset) == 0) {
+
+    if (offset + zbytes > size) {
+      /* Assertion failure; check_zip is supposed to guarantee this
+         never happens. */
+      puts("internal error: check_zip returned nonsense\n");
+      die();
+    }
 
     /* Find a good place to put it: search memory ranges in descending order
        until we find one that is legal and fits */
@@ -312,7 +321,8 @@ void unzip_if_needed(uint32_t *where_p, uint32_t *size_p)
 	   target, gzdatasize);
 
     *size_p  = gzdatasize;
-    *where_p = (uint32_t)unzip((void *)where, size, (void *)target);
+    *where_p = (uint32_t)unzip((void *)(where + offset), zbytes,
+                               gzdatasize, orig_crc, (void *)target);
   }
 }
 

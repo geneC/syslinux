@@ -47,6 +47,10 @@ memcpy_endptr(void *__d, const void *__s, unsigned int __n)
 }
 
 /* Decompression */
-void *unzip(void *indata, unsigned long zbytes, void *target);
+extern int check_zip(void *indata, uint32_t size, uint32_t *zbytes_p,
+                     uint32_t *dbytes_p, uint32_t *orig_crc,
+                     uint32_t *offset_p);
+extern void *unzip(void *indata, uint32_t zbytes, uint32_t dbytes,
+                   uint32_t orig_crc, void *target);
 
 #endif

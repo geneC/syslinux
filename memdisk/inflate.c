@@ -1055,70 +1055,9 @@ makecrc(void)
 /*
  * Do the uncompression!
  */
-int gunzip(void)
+int gunzip()
 {
-    uch flags;
-    unsigned char magic[2]; /* magic header */
-    char method;
-    ulg orig_crc = 0;       /* original crc */
-    ulg orig_len = 0;       /* original uncompressed length */
     int res;
-
-    magic[0] = (unsigned char)get_byte();
-    magic[1] = (unsigned char)get_byte();
-    method = (unsigned char)get_byte();
-
-    if (magic[0] != 037 ||
-	((magic[1] != 0213) && (magic[1] != 0236))) {
-	    error("bad gzip magic numbers");
-	    return -1;
-    }
-
-    /* We only support method #8, DEFLATED */
-    if (method != 8)  {
-	    error("internal error, invalid method");
-	    return -1;
-    }
-
-    flags  = (uch)get_byte();
-    if ((flags & ENCRYPTED) != 0) {
-	    error("Input is encrypted");
-	    return -1;
-    }
-    if ((flags & CONTINUATION) != 0) {
-	    error("Multi part input");
-	    return -1;
-    }
-    if ((flags & RESERVED) != 0) {
-	    error("Input has invalid flags");
-	    return -1;
-    }
-
-    /* Ignore timestamp */
-    (void)get_byte();
-    (void)get_byte();
-    (void)get_byte();
-    (void)get_byte();
-
-    (void)get_byte();  /* Ignore extra flags for the moment */
-    (void)get_byte();  /* Ignore OS type for the moment */
-
-    if ((flags & EXTRA_FIELD) != 0) {
-	    unsigned len = (unsigned)get_byte();
-	    len |= ((unsigned)get_byte())<<8;
-	    while (len--) (void)get_byte();
-    }
-
-    /* Get original file name if it was truncated */
-    if ((flags & ORIG_NAME) != 0) {
-	    /* Discard the old name */
-	    while (get_byte() != 0) /* null */ ;
-    } 
-
-    /* Discard file comment if any */
-    if ((flags & COMMENT) != 0) {
-	    while (get_byte() != 0) /* null */ ;
-    }
 
     /* Decompress */
     if ((res = inflate())) {
@@ -1139,29 +1078,6 @@ int gunzip(void)
 	    }
 	    return -1;
     }
-	    
-    /* Get the crc and original length */
-    /* crc32  (see algorithm.doc)
-     * uncompressed input size modulo 2^32
-     */
-    orig_crc = (ulg) get_byte();
-    orig_crc |= (ulg) get_byte() << 8;
-    orig_crc |= (ulg) get_byte() << 16;
-    orig_crc |= (ulg) get_byte() << 24;
-    
-    orig_len = (ulg) get_byte();
-    orig_len |= (ulg) get_byte() << 8;
-    orig_len |= (ulg) get_byte() << 16;
-    orig_len |= (ulg) get_byte() << 24;
-    
-    /* Validate decompression */
-    if (orig_crc != CRC_VALUE) {
-	    error("crc error");
-	    return -1;
-    }
-    if (orig_len != bytes_out) {
-	    error("length error");
-	    return -1;
-    }
+
     return 0;
 }

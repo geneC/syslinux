@@ -177,6 +177,171 @@ static void error(char *x)
   die();
 }
 
+/* GZIP header */
+struct gzip_header {
+  uint16_t magic;
+  uint8_t method;
+  uint8_t flags;
+  uint32_t timestamp;
+  uint8_t extra_flags;
+  uint8_t os_type;
+} __attribute__ ((packed));
+/* (followed by optional and variable length "extra", "original name",
+   and "comment" fields) */
+
+struct gzip_trailer {
+  uint32_t crc;
+  uint32_t dbytes;
+} __attribute__ ((packed));
+
+/* PKZIP header.  See
+ * <http://www.pkware.com/products/enterprise/white_papers/appnote.html>.
+ */
+struct pkzip_header {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t flags;
+  uint16_t method;
+  uint16_t modified_time;
+  uint16_t modified_date;
+  uint32_t crc;
+  uint32_t zbytes;
+  uint32_t dbytes;
+  uint16_t filename_len;
+  uint16_t extra_len;
+} __attribute__ ((packed));
+/* (followed by optional and variable length "filename" and "extra"
+   fields) */
+
+/* gzip flag byte */
+#define ASCII_FLAG   0x01 /* bit 0 set: file probably ASCII text */
+#define CONTINUATION 0x02 /* bit 1 set: continuation of multi-part gzip file */
+#define EXTRA_FIELD  0x04 /* bit 2 set: extra field present */
+#define ORIG_NAME    0x08 /* bit 3 set: original file name present */
+#define COMMENT      0x10 /* bit 4 set: file comment present */
+#define ENCRYPTED    0x20 /* bit 5 set: file is encrypted */
+#define RESERVED     0xC0 /* bit 6,7:   reserved */
+
+/* pkzip flag byte */
+#define PK_ENCRYPTED     0x01  /* bit 0 set: file is encrypted */
+#define PK_DATADESC       0x08  /* bit 3 set: file has trailing "data
+                                   descriptor" */
+#define PK_UNSUPPORTED    0xFFF0 /* All other bits must be zero */
+
+
+/* Return 0 if (indata, size) points to a ZIP file, and fill in
+   compressed data size, uncompressed data size, CRC, and offset of
+   data.
+
+   If indata is not a ZIP file, return -1. */
+int check_zip(void *indata, uint32_t size, uint32_t *zbytes_p,
+              uint32_t *dbytes_p, uint32_t *orig_crc, uint32_t *offset_p) {
+  struct gzip_header *gzh = (struct gzip_header *)indata;
+  struct pkzip_header *pkzh = (struct pkzip_header *)indata;
+  uint32_t offset;
+
+  if (gzh->magic == 0x8b1f) {
+    struct gzip_trailer *gzt = indata + size - sizeof (struct gzip_trailer);
+    /* We only support method #8, DEFLATED */
+    if (gzh->method != 8)  {
+      error("gzip file uses invalid method");
+      return -1;
+    }
+    if (gzh->flags & ENCRYPTED) {
+      error("gzip file is encrypted; not supported");
+      return -1;
+    }
+    if (gzh->flags & CONTINUATION) {
+      error("gzip file is a continuation file; not supported");
+      return -1;
+    }
+    if (gzh->flags & RESERVED) {
+      error("gzip file has unsupported flags");
+      return -1;
+    }
+    offset = sizeof (*gzh);
+    if (gzh->flags & EXTRA_FIELD) {
+      /* Skip extra field */
+      unsigned len = *(unsigned *)(indata + offset);
+      offset += 2 + len;
+    }
+    if (gzh->flags & ORIG_NAME) {
+      /* Discard the old name */
+      uint8_t *p = indata;
+      while (p[offset] != 0 && offset < size) {
+        offset++;
+      }
+      offset++;
+    }
+    
+    if (gzh->flags & COMMENT) {
+      /* Discard the comment */
+      uint8_t *p = indata;
+      while (p[offset] != 0 && offset < size) {
+        offset++;
+      }
+      offset++;
+    }
+
+    if (offset > size) {
+      error ("gzip file corrupt");
+      return -1;
+    }
+    *zbytes_p = size - offset - sizeof (struct gzip_trailer);
+    *dbytes_p = gzt->dbytes;
+    *orig_crc = gzt->crc;
+    *offset_p = offset;
+    return 0;
+  }
+  else if (pkzh->magic == 0x04034b50UL) {
+    /* Magic number matches pkzip file. */
+    
+    offset = sizeof (*pkzh);
+    if (pkzh->flags & PK_ENCRYPTED) {
+      error("pkzip file is encrypted; not supported");
+      return -1;
+    }
+    if (pkzh->flags & PK_DATADESC) {
+      error("pkzip file uses data_descriptor field; not supported");
+      return -1;
+    }
+    if (pkzh->flags & PK_UNSUPPORTED) {
+      error("pkzip file has unsupported flags");
+      return -1;
+    }
+
+    /* We only support method #8, DEFLATED */
+    if (pkzh->method != 8) {
+      error("pkzip file uses invalid method");
+      return -1;
+    }
+    /* skip header */
+    offset = sizeof (*pkzh);
+    /* skip filename */
+    offset += pkzh->filename_len;
+    /* skip extra field */
+    offset += pkzh->extra_len;
+
+    if (offset + pkzh->zbytes > size) {
+      error ("pkzip file corrupt");
+      return -1;
+    }
+
+    *zbytes_p = pkzh->zbytes;
+    *dbytes_p = pkzh->dbytes;
+    *orig_crc = pkzh->crc;
+    *offset_p = offset;
+    return 0;
+  }
+  else {
+    /* Magic number does not match. */
+    return -1;
+  }
+
+  error ("Internal error in check_zip");
+  return -1;
+}
+
 /*
  * Decompress the image, trying to flush the end of it as close
  * to end_mem as possible.  Return a pointer to the data block,
@@ -184,18 +349,19 @@ static void error(char *x)
  */
 extern void _end;
 
-void *unzip(void *indata, unsigned long zbytes, void *target)
+void *unzip(void *indata, uint32_t zbytes, uint32_t dbytes,
+            uint32_t orig_crc, void *target)
 {
-  /* The uncompressed length of a gzip file is the last four bytes */
-  unsigned long dbytes = *(uint32_t *)((char *)indata + zbytes - 4);
-
   /* Set up the heap; it's the 64K after the bounce buffer */
   free_mem_ptr = (ulg)sys_bounce + 0x10000;
   free_mem_end_ptr = free_mem_ptr + 0x10000;
 
   /* Set up input buffer */
   inbuf  = indata;
-  insize = inbytes = zbytes;
+  /* Sometimes inflate() looks beyond the end of the compressed data,
+     but it always backs up before it is done.  So we give it 4 bytes
+     of slack. */
+  insize = inbytes = zbytes + 4;
 
   /* Set up output buffer */
   outcnt = 0;
@@ -206,8 +372,16 @@ void *unzip(void *indata, unsigned long zbytes, void *target)
   makecrc();
   gunzip();
 
+  /* Verify that gunzip() consumed the entire input. */
+  if (inbytes != 4)
+    error("compressed data length error");
+
+  /* Check the uncompressed data length and CRC. */
   if ( bytes_out != dbytes )
-    error("length error");
+    error("uncompressed data length error");
+
+  if (orig_crc != CRC_VALUE)
+    error("crc error");
 
   puts("ok\n");
 
