@@ -143,17 +143,17 @@ void parse_mem(void)
 	else
 	  dos_mem = ep[1].start;
       }
-      if ( ep->start <= 0x100000 && ep[1].start > 0x100000 ) {
-	if ( ep[1].start > 0x1000000 )
-	  low_mem = 0x1000000 - ep->start;
+      if ( ep->start <= 0x00100000 && ep[1].start > 0x00100000 ) {
+	if ( ep[1].start > 0x01000000 )
+	  low_mem =  0x01000000 - 0x00100000;
 	else
-	  low_mem = ep[1].start - ep->start;
+	  low_mem = ep[1].start - 0x00100000;
       }
-      if ( ep->start <= 0x1000000 && ep[1].start > 0x1000000 ) {
+      if ( ep->start <= 0x01000000 && ep[1].start > 0x01000000 ) {
 	if ( ep[1].start > 0x100000000 )
-	  high_mem = 0x100000000 - ep->start;
+	  high_mem = 0x100000000 - 0x01000000;
 	else
-	  high_mem = ep[1].start - ep->start;
+	  high_mem = ep[1].start - 0x01000000;
       }
     }
   }
