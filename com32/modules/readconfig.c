@@ -31,6 +31,8 @@ int timeout   = 0;
 char *menu_title  = "";
 char *ontimeout   = NULL;
 
+char *menu_master_passwd = NULL;
+
 struct menu_entry menu_entries[MAX_ENTRIES];
 struct menu_entry *menu_hotkeys[256];
 

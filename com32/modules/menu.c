@@ -29,6 +29,7 @@
 #include <sys/times.h>
 #include <unistd.h>
 #include <sha1.h>
+#include <base64.h>
 #ifdef __COM32__
 #include <com32.h>
 #endif
@@ -52,7 +53,7 @@ struct menu_attrib {
   const char *cmdline;		/* Command line */
   const char *screen;		/* Rest of the screen */
   const char *pwdborder;	/* Password box border */
-  const char *pwdhdr;		/* Password box header */
+  const char *pwdheader;	/* Password box header */
   const char *pwdentry;		/* Password box contents */
 };
 
@@ -166,23 +167,41 @@ draw_row(int y, int sel, int top, int sbtop, int sbbot)
 }
 
 static int
-passwd_compare(const char *entry, const char *passwd)
+passwd_compare(const char *passwd, const char *entry)
 {
   const char *p;
   SHA1_CTX ctx;
+  unsigned char sha1[20], pwdsha1[20];
 
   if ( passwd[0] != '$' )	/* Plaintext passwd, yuck! */
     return !strcmp(entry, passwd);
 
-  if ( strncmp(passwd, "$2$", 3) )
+  if ( strncmp(passwd, "$4$", 3) )
     return 0;			/* Only SHA-1 passwds supported */
 
-  if ( p = 
+  SHA1Init(&ctx);
+
+  if ( (p = strchr(passwd+3, '$')) ) {
+    SHA1Update(&ctx, passwd+3, p-(passwd+3));
+    p++;
+  } else {
+    p = passwd+3;		/* Assume no salt */
+  }
+
+  SHA1Update(&ctx, entry, strlen(entry));
+  SHA1Final(sha1, &ctx);
+
+  memset(pwdsha1, 0, 20);
+  unbase64(pwdsha1, 20, p);
+
+  return !memcmp(sha1, pwdsha1, 20);
+}
 
 static int
 ask_passwd(const struct menu_entry *entry)
 {
-  const char title[] = "Password required";
+  static const char title[] = "Password required";
+  static char user_passwd[] = "passw0rd";
   int x;
 
   printf("\033[%d;%dH%s\016l", PASSWD_ROW, PASSWD_MARGIN+1,
@@ -200,12 +219,16 @@ ask_passwd(const struct menu_entry *entry)
   
   printf("j\017\033[%d;%dH%s %s \033[%d;%dH%s",
 	 PASSWD_ROW, WIDTH-(sizeof(title)+1)/2,
-	 menu_attrib->pwdtitle, title,
+	 menu_attrib->pwdheader, title,
 	 PASSWD_ROW+1, PASSWD_MARGIN+3, menu_attrib->pwdentry);
 
   /* Actually allow user to type a password, then compare to the SHA1 */
-
-  return 0;
+  if ( (menu_master_passwd && passwd_compare(menu_master_passwd, user_passwd))
+       || (entry && entry->passwd &&
+	   passwd_compare(entry->passwd, user_passwd)) )
+    return 1;
+  else
+    return 0;
 }
 
 

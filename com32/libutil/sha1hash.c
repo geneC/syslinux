@@ -114,7 +114,7 @@ void SHAPrintContext(SHA1_CTX *context, char *msg){
 
 /* Hash a single 512-bit block. This is the core of the algorithm. */
 
-void SHA1Transform(uint32_t state[5], unsigned char buffer[64])
+void SHA1Transform(uint32_t state[5], const unsigned char buffer[64])
 {
 uint32_t a, b, c, d, e;
 typedef union {
@@ -183,7 +183,7 @@ void SHA1Init(SHA1_CTX* context)
 
 /* Run your data through this. */
 
-void SHA1Update(SHA1_CTX* context, unsigned char* data, uint32_t len)	/*
+void SHA1Update(SHA1_CTX* context, const unsigned char* data, uint32_t len)	/*
 JHB */
 {
 uint32_t i, j;	/* JHB */

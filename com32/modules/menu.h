@@ -41,6 +41,7 @@ extern int timeout;
 
 extern char *menu_title;
 extern char *ontimeout;
+extern char *menu_master_passwd;
 
 void parse_config(const char *filename);
 

@@ -27,7 +27,7 @@ static inline uint32_t __htonl(uint32_t v)
 }
 
 #define htonl(x) __htonl(x)
-#define ntohl(x) __ntohl(x)
+#define ntohl(x) __htonl(x)
 
 static inline uint64_t __htonq(uint64_t v)
 {
@@ -35,7 +35,7 @@ static inline uint64_t __htonq(uint64_t v)
 }
 
 #define htonq(x) __htonq(x)
-#define ntohq(x) __ntohq(x)
+#define ntohq(x) __htonq(x)
 
 #endif /* _NETINET_IN_H */
 
