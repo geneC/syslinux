@@ -1,0 +1,286 @@
+#!/usr/bin/perl
+#ident "$Id$"
+## -----------------------------------------------------------------------
+##   
+##   Copyright 2001 H. Peter Anvin - All Rights Reserved
+##
+##   This program is free software; you can redistribute it and/or modify
+##   it under the terms of the GNU General Public License as published by
+##   the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
+##   USA; either version 2 of the License, or (at your option) any later
+##   version; incorporated herein by reference.
+##
+## -----------------------------------------------------------------------
+
+##
+## ppmtolss16
+##
+## Convert a "raw" PPM file with max 16 colors to a simple RLE-based format:
+##
+## uint32 0x1413f33d    ; magic (littleendian)
+## uint16 xsize		; littleendian
+## uint16 ysize		; littleendian
+## 16 x uint8 r,g,b	; color map, in 6-bit format (each byte is 0..63)
+##
+## Then, a sequence of nybbles:
+##
+## N	... if N is != previous pixel, one pixel of color N
+## ... otherwise run sequence follows ...
+## M    ... if M > 0 then run length is M+1
+## ... otherwise run sequence is encoded in two nybbles,
+##     littleendian, +17
+##
+## The nybble sequences are on a per-row basis; runs may not extend
+## across rows and odd-nybble rows are zero-padded.
+##
+## At the start of row, the "previous pixel" is assumed to be zero.
+##
+## BUG: This program does not handle comments in the header, nor
+## "plain" ppm format.
+##
+## Usage:
+##
+##	ppmtorle16 [#rrggbb=i ...] < input.ppm > output.rle
+##
+## Command line options of the form #rrggbb=i indicate that
+## the color #rrggbb (hex) should be assigned index i (decimal)
+##
+
+$magic = 0x1413f33d;
+
+foreach $arg ( @ARGV ) {
+    if ( $arg =~ /^\#([0-9a-f])([0-9a-f])([0-9a-f])=([0-9]+)$/i ) {
+	$r = hex($1) << 2;
+	$g = hex($2) << 2;
+	$b = hex($3) << 2;
+	$i = $4 + 0;
+    } elsif ( $arg =~ /^\#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})=([0-9]+)$/i ) {
+	$r = hex($1) >> 2;
+	$g = hex($2) >> 2;
+	$b = hex($3) >> 2;
+	$i = $4 + 0;
+    } elsif ( $arg =~ /^\#([0-9a-f]{3})([0-9a-f]{3})([0-9a-f]{3})=([0-9]+)$/i ) {
+	$r = hex($1) >> 6;
+	$g = hex($2) >> 6;
+	$b = hex($3) >> 6;
+	$i = $4 + 0;
+    } elsif ( $arg =~ /^\#([0-9a-f]{4})([0-9a-f]{4})([0-9a-f]{4})=([0-9]+)$/i ) {
+	$r = hex($1) >> 10;
+	$g = hex($2) >> 10;
+	$b = hex($3) >> 10;
+	$i = $4 + 0;
+    } else {
+	# print STDERR "$0: Unknown argument: $arg\n";
+	next;
+    }
+
+    if ( $i > 15 ) {
+	# print STDERR "$0: Color index out of range: $arg\n";
+	next;
+    }
+
+    $rgb = pack("CCC", $r, $g, $b);
+
+    if ( defined($index_forced{$i}) ) {
+	# print STDERR "$0: More than one color index $i\n";
+	exit(1);
+    }
+    $index_forced{$i} = $rgb;
+    $force_index{$rgb} = $i;
+}
+
+$form = <STDIN>;
+die "$0: stdin is not a raw PPM file" if ( $form ne "P6\n" );
+$sizes = <STDIN>;
+chomp $sizes;
+if ( $sizes !~ /^([0-9]+)\s+([0-9]+)\s*$/ ) {
+    die "$0: Input format error 1\n";
+}
+$xsize = $1 + 0;
+$ysize = $2 + 0;
+$maxcol = <STDIN>;
+chomp $maxcol;
+if ( $maxcol !~ /^([0-9]+)\s*$/ ) {
+    die "$0: Input format error 2\n";
+}
+$maxcol = $1 + 0;
+$maxmult = 64/($maxcol+1);	# Equal buckets conversion
+
+@data = ();
+
+for ( $y = 0 ; $y < $ysize ; $y++ ) {
+    for ( $x = 0 ; $x < $xsize ; $x++ ) {
+	die "$0: Premature EOF at ($x,$y) of ($xsize,$ysize)\n"
+	    if ( read(STDIN, $rgb, 3) != 3 );
+	# Convert to 6-bit representation
+	($r, $g, $b) = unpack("CCC", $rgb);
+	$r = int($r*$maxmult+0.5);
+	$g = int($g*$maxmult+0.5);
+	$b = int($b*$maxmult+0.5);
+	$rgb = pack("CCC", $r, $g, $b);
+	$color_count{$rgb}++;
+	push(@data, $rgb);
+    }
+}
+
+# Sort list of colors according to freqency
+@colors = sort { $color_count{$b} <=> $color_count{$a} } keys(%color_count);
+
+if ( scalar(@colors) > 16 ) {
+    # print STDERR "$0: Warning: input > 16 colors\n";
+    @colors = @colors[0..15];
+}
+
+# Now we have our pick of colors.  Sort according to intensity;
+# this is more or less an ugly hack to cover for the fact that
+# using PPM as input doesn't let the user set the color map,
+# which the user really needs to be able to do.
+
+sub by_intensity() {
+    my($ra,$ga,$ba) = unpack("CCC", $a);
+    my($rb,$gb,$bb) = unpack("CCC", $b);
+
+    my($ia) = $ra*0.299 + $ga*0.587 + $ba*0.114;
+    my($ib) = $rb*0.299 + $gb*0.587 + $bb*0.114;
+
+    return ( $ia <=> $ib ) if ( $ia != $ib );
+
+    # If same, sort based on RGB components,
+    # with highest priority given to G, then R, then B.
+    
+    return ( $ga <=> $gb ) if ( $ga != $gb );
+    return ( $ra <=> $rb ) if ( $ra != $rb );
+    return ( $ba <=> $bb );
+}
+
+@icolors = sort by_intensity @colors;
+
+# Insert forced colors into "final" array
+@colors = (undef) x 16;
+foreach $rgb ( @icolors ) {
+    if ( defined($force_index{$rgb}) ) {
+	$colors[$force_index{$rgb}] = $rgb;
+    }
+}
+
+# Insert remaining colors in the remaining slots,
+# in luminosity-sorted order
+$nix = 0;
+foreach $rgb ( @icolors ) {
+    if ( ! defined($force_index{$rgb}) ) {
+	# Advance to the next free slot
+	$nix++ while ( defined($colors[$nix]) );
+	$colors[$nix] = $rgb;
+    }
+}
+
+undef @icolors;
+
+# Generate color index hash
+for ( $i = 0 ; $i < scalar @colors ; $i++ ) {
+    $color_index{$colors[$i]} = $i;
+}
+
+# Output header
+print pack("Vvv", $magic, $xsize, $ysize);
+
+# Output color map
+for ( $i = 0 ; $i < 16 ; $i++ ) {
+    if ( defined($colors[$i]) ) {
+	print $colors[$i];
+    } else {
+	# Padding for unused color entries
+	print pack("CCC", 63*$i/15, 63*$i/15, 63*$i/15);
+    }
+}
+
+sub output_nybble($) {
+    my($ny) = @_;
+
+    if ( !defined($ny) ) {
+	if ( defined($nybble_tmp) ) {
+	    $ny = 0;		# Force the last byte out
+	} else {
+	    return;
+	}
+    }
+
+    $ny = $ny & 0x0F;
+
+    # printf STDERR "%x", $ny;
+
+    if ( defined($nybble_tmp) ) {
+	$ny = ($ny << 4) | $nybble_tmp;
+	print chr($ny);
+	$bytes++;
+	undef $nybble_tmp;
+    } else {
+	$nybble_tmp = $ny;
+    }
+}
+
+sub output_run($$$) {
+    my($last,$this,$run) = @_;
+
+    # printf STDERR "Color %2d Run %3d = ", $this, $run;
+
+    if ( $this != $last ) {
+	output_nybble($this);
+	$run--;
+    }
+    while ( $run ) {
+	if ( $run >= 16 ) {
+	    output_nybble($this);
+	    output_nybble(0);
+	    if ( $run > 271 ) {
+		$erun = 255;
+		$run -= 271;
+	    } else {
+		$erun = $run-16;
+		$run = 0;
+	    }
+	    output_nybble($erun);
+	    output_nybble($erun >> 4);
+	} else {
+	    output_nybble($this);
+	    output_nybble($run);
+	    $run = 0;
+	}
+    }
+    # print STDERR "\n";
+}
+    
+$bytes  = 0;
+undef $nybble_tmp;
+
+for ( $y = 0 ; $y < $ysize ; $y++ ) {
+    $last = $prev = 0;
+    $run = 0;
+    # printf STDERR "*** Row %3d ***\n", $y;
+    for ( $x = 0 ; $x < $xsize ; $x++ ) {
+	$rgb = shift(@data);
+	$i   = $color_index{$rgb} + 0;
+	if ( $i == $last ) {
+	    $run++;
+	} else {
+	    output_run($prev, $last, $run);
+	    $prev = $last;
+	    $last = $i;
+	    $run  = 1;
+	}
+    }
+    # Output final datum for row; we're always at least one pixel behind
+    output_run($prev, $last, $run);
+    # printf STDERR "Row termination  = ";
+    output_nybble(undef);	# Flush row
+    # print STDERR "\n";
+}
+
+$pixels = $xsize * $ysize;
+$size = ($pixels+1)/2;
+printf STDERR "%d pixels, %d bytes, (%2.2f%% compression)\n",
+    $pixels, $bytes, 100*($size-$bytes)/$size;
+
+
+
+

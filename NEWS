@@ -1,6 +1,9 @@
 Starting with 1.47, changes marked with SYSLINUX/PXELINUX apply to
 that specific program only; other changes apply to both.
 
+Changes in 1.60:
+	* Add support for graphical splash screens.
+
 Changes in 1.54:
 	* PXELINUX: Fix code for finding !PXE from PXENV+.  This was
 	  due to a spec bug; match the most recent spec since that

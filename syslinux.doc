@@ -319,6 +319,25 @@ are interpreted:
 
 	Colors are not visible over the serial console.
 
+<CAN>filename<newline>			<CAN> = <Ctrl-X> = ASCII 24
+	If a VGA display is present, enter graphics mode and display
+	the graphic included in the specified file.  The file format
+	is an ad hoc format called LSS16; the included Perl program
+	"ppmtolss16" can be used to produce these images.  This Perl
+	program also includes the file format specification.
+
+	The image is displayed in 640x480 16-color mode.  Once in
+	graphics mode, the display attributes (set by <SI> code
+	sequences) work slightly differently: the background color is
+	ignored, and the foreground colors are the 16 colors specified
+	in the image file.  For that reason, ppmtolss16 allows you to
+	specify that certain colors should be assigned to specific
+	color indicies.
+
+	Color indicies 0 and 7, in particular, should be chosen with
+	care: 0 is the background color, and 7 is the color used for
+	the text printed by SYSLINUX itself.
+
 <SUB>                                   <SUB> = <Ctrl-Z> = ASCII 26
         End of file (DOS convention).
 

@@ -36,7 +36,7 @@ SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm \
 	  pxelinux.asm pxe.inc mbr.asm gethostip.c
 BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst pxelinux.0 mbr.bin
 ITARGET = syslinux.com syslinux copybs.com gethostip
-DOCS    = COPYING NEWS README TODO *.doc
+DOCS    = COPYING NEWS README TODO *.doc sample
 OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version \
 	  sys2ansi.pl
 OBSOLETE = pxelinux.bin
@@ -44,11 +44,14 @@ OBSOLETE = pxelinux.bin
 # Things to install in /usr/bin
 INSTALL_BIN = syslinux gethostip
 
-all:	$(BTARGET) $(ITARGET)
+all:	$(BTARGET) $(ITARGET) samples
 	ls -l $(BTARGET) $(ITARGET)
 
-installer: $(ITARGET)
+installer: $(ITARGET) samples
 	ls -l $(BTARGET) $(ITARGET)
+
+samples:
+	$(MAKE) -C sample all
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
@@ -116,6 +119,7 @@ tidy:
 
 clean: tidy
 	rm -f $(ITARGET)
+	$(MAKE) -C sample clean
 
 dist: tidy
 	rm -f *~ \#* core
