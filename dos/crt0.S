@@ -4,6 +4,9 @@
 	.globl _start
 	.type _start,@function
 _start:
+	# Align the stack and make sure the high half is zero
+	andl $0xfff8,%esp
+	
 	# Clear the .bss
 	cld
 	xorl %eax,%eax
@@ -51,20 +54,22 @@ _start:
 	calll __init_memory_arena
 
 	# Now call main...
-	pushl $argv		# Push argv
-	pushl %eax		# Dummy argc (we dont look at it)
+	movl $argv,%edx		# argv
+	xorl %eax,%eax		# dummy argc (we dont use it)
 	calll main
-	pushl %eax
-	calll exit
-	hlt
+
+	# Here %eax is the exit code, fall through into exit
+	
 	.size _start,.-_start
 
 	.globl exit
 	.type exit,@function
 exit:
-	movb 4(%esp),%al
+	# Exit code already in %eax
 	movb $0x4c,%ah		# Terminate program
 	int $0x21
+1:	hlt
+	jmp 1b
 	.size exit,.-exit
 	
 	.section ".bss","aw"
