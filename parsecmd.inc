@@ -57,7 +57,7 @@ getcommand:
 		lodsd
 		cmp ebx,eax
 		je .found_keywd
-		lodsw			; Skip entrypoint
+		lodsd			; Skip entrypoint/argument
 		loop .table_search
 
 		; Otherwise unrecognized keyword
@@ -71,7 +71,8 @@ getcommand:
 		call cwritestr
 		jmp short .find
 
-.found_keywd:	call near [si]
+.found_keywd:	lodsw			; Load argument into ax
+		call near [si]
 		clc
 		ret
 

@@ -99,28 +99,34 @@ pc_timeout:	call getint
 .err:		ret
 
 ;
-; "display" command
+; Generic integer variable setting commands:
+; "prompt", "implicit"
 ;
-pc_display:	call pc_getfile
-		jz .err				; File not found?
-		call get_msg_file		; Load and display file
-.err:		ret
-
-;
-; "prompt" command
-;
-pc_prompt:	call getint
+pc_setint16:
+		push ax
+		call getint
+		pop si
 		jc .err
-		mov [ForcePrompt],bx
+		mov [si],bx
 .err:		ret
 
 ;
-; "implicit" command
+; Generic file-processing commands:
+; "display", "font", "kbdmap"
 ;
-pc_implicit:    call getint
-                jc .err
-                mov [AllowImplicit],bx
-.err:		ret
+pc_filecmd:	push ax				; Function to tailcall
+		mov di,trackbuf
+		push di
+		call getline
+		pop si
+		mov di,MNameBuf
+		push di
+		call mangle_name
+		pop di
+		call searchdir			; tailcall
+		jnz .ok
+		pop ax				; Drop the successor function
+.ok:		ret				; Tailcall if OK, error return
 
 ;
 ; "serial" command
@@ -209,31 +215,12 @@ pc_serial:	call getint
 ;
 ; "F"-key command
 ;
-; This relies on the fact that [si] points to the address of the entrypoint
-;
-pc_f1:		nop
-pc_f2:		nop
-pc_f3:		nop
-pc_f4:		nop
-pc_f5:		nop
-pc_f6:		nop
-pc_f7:		nop
-pc_f8:		nop
-pc_f9:		nop
-pc_f10:
-		mov cx,[si]
-		sub cx,pc_f1
-		push cx
-		mov ax,1
-		shl ax,cl
-		or [FKeyMap], ax		; Mark that we have this loaded
+pc_fkey:	push ax
 		mov di,trackbuf
 		push di
 		call getline			; Get filename to display
 		pop si
 		pop di
-		shl di,FILENAME_MAX_LG2		; Convert to offset
-		add di,FKeyName
 		call mangle_name		; Mangle file name
 		ret
 
@@ -264,22 +251,6 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		ret
 
 ;
-; "font" command
-;
-pc_font:	call pc_getfile			; "font" command
-		jz .err				; File not found?
-		call loadfont			; Load and install font
-.err:		ret
-
-;
-; "kbd" command
-;
-pc_kbd:		call pc_getfile			; "kbd" command
-		jz .err
-		call loadkeys
-.err:		ret
-
-;
 ; "say" command
 ;
 pc_say:		mov di,trackbuf			; "say" command
@@ -290,20 +261,6 @@ pc_say:		mov di,trackbuf			; "say" command
 		pop si
 		call writestr
 		jmp crlf			; tailcall
-
-;
-; pc_getfile:	For command line options that take file argument, this
-; 		routine decodes the file argument and runs it through searchdir
-;
-pc_getfile:	mov di,trackbuf
-		push di
-		call getline
-		pop si
-		mov di,MNameBuf
-		push di
-		call mangle_name
-		pop di
-		jmp searchdir			; tailcall
 
 ;
 ; Main loop for configuration file parsing

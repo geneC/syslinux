@@ -689,6 +689,12 @@ all_read:
 		; Now set up screen parameters
 		call adjust_screen
 
+		; Wipe the F-key area
+		mov al,NULLFILE
+		mov di,FKeyName
+		mov cx,10*(1 << FILENAME_MAX_LG2)
+		rep stosb
+
 		; Patch the writechr routine to point to the full code
 		mov word [writechr+1], writechr_full-(writechr+3)
 
@@ -914,21 +920,19 @@ ctrl_f:		push di
 		jmp short show_help
 
 func_key:
+		; AL = 0 if we get here
 		push di
 		cmp ah,68			; F10
 		ja get_char_2
 		sub ah,59			; F1
 		jb get_char_2
-		shr ax,8
+		xchg al,ah
 show_help:	; AX = func key # (0 = F1, 9 = F10)
-		mov cl,al
-		shl ax,FILENAME_MAX_LG2		; Convert to offset
-		mov bx,1
-		shl bx,cl
-		and bx,[FKeyMap]
-		jz get_char_2			; Undefined F-key
-		mov di,ax
+		shl ax,FILENAME_MAX_LG2		; Convert to pointer
+		xchg di,ax
 		add di,FKeyName
+		cmp byte [di],NULLFILE
+		je get_char_2			; Undefined F-key
 		call searchdir
 		jz fk_nofile
 		push si
@@ -1865,35 +1869,6 @@ initrd_cmd_len	equ 7
 ; Config file keyword table
 ;
 %include "keywords.inc"
-		align 2, db 0
-
-keywd_table:
-		keyword append, pc_append
-		keyword default, pc_default
-		keyword timeout, pc_timeout
-		keyword font, pc_font
-		keyword kbdmap, pc_kbd
-		keyword display, pc_display
-		keyword prompt, pc_prompt
-		keyword label, pc_label
-		keyword implicit, pc_implicit
-		keyword kernel, pc_kernel
-		keyword serial, pc_serial
-		keyword say, pc_say
-		keyword f1, pc_f1
-		keyword f2, pc_f2
-		keyword f3, pc_f3
-		keyword f4, pc_f4
-		keyword f5, pc_f5
-		keyword f6, pc_f6
-		keyword f7, pc_f7
-		keyword f8, pc_f8
-		keyword f9, pc_f9
-		keyword f10, pc_f10
-		keyword f0, pc_f10
-		keyword localboot, pc_localboot
-
-keywd_count	equ ($-keywd_table)/keywd_size
 
 ;
 ; Extensions to search for (in *forward* order).
@@ -1935,7 +1910,6 @@ img_table:
 ;
 AppendLen       dw 0                    ; Bytes in append= command
 KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
-FKeyMap		dw 0			; Bitmap for F-keys loaded
 CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
 initrd_flag	equ $
 initrd_ptr	dw 0			; Initial ramdisk pointer/flag

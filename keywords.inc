@@ -23,7 +23,56 @@
 
 %macro keyword 2
 	dd hash_%1	; Hash value
+	dw 0		; No argument
 	dw %2		; Entrypoint
 %endmacro
 
-keywd_size	equ 6	; Bytes per keyword
+%macro keyword 3
+	dd hash_%1	; Hash value
+	dw %3		; 16-bit argument
+	dw %2		; Entrypoint
+%endmacro
+
+%macro keyword 4
+	dd hash_%1	; Hash value
+	db %3, %4	; 2 8-bit arguments
+	dw %2		; Entrypoint
+%endmacro
+
+keywd_size	equ 8	; Bytes per keyword
+
+		align 4, db 0
+
+keywd_table:
+		keyword append,    pc_append
+		keyword default,   pc_default
+		keyword display,   pc_filecmd,  get_msg_file
+		keyword font,      pc_filecmd,  loadfont
+		keyword implicit,  pc_setint16, AllowImplicit
+		keyword kbdmap,    pc_filecmd,  loadkeys
+		keyword kernel,    pc_kernel
+		keyword label,     pc_label
+		keyword prompt,    pc_setint16, ForcePrompt
+		keyword say,       pc_say
+		keyword serial,    pc_serial
+		keyword timeout,   pc_timeout
+		keyword f1,        pc_fkey,     FKeyName+(0<<FILENAME_MAX_LG2)
+		keyword f2,        pc_fkey,     FKeyName+(1<<FILENAME_MAX_LG2)
+		keyword f3,        pc_fkey,     FKeyName+(2<<FILENAME_MAX_LG2)
+		keyword f4,        pc_fkey,     FKeyName+(3<<FILENAME_MAX_LG2)
+		keyword f5,        pc_fkey,     FKeyName+(4<<FILENAME_MAX_LG2)
+		keyword f6,        pc_fkey,     FKeyName+(5<<FILENAME_MAX_LG2)
+		keyword f7,        pc_fkey,     FKeyName+(6<<FILENAME_MAX_LG2)
+		keyword f8,        pc_fkey,     FKeyName+(7<<FILENAME_MAX_LG2)
+		keyword f9,        pc_fkey,     FKeyName+(8<<FILENAME_MAX_LG2)
+		keyword f10,       pc_fkey,     FKeyName+(9<<FILENAME_MAX_LG2)
+		keyword f0,        pc_fkey,     FKeyName+(9<<FILENAME_MAX_LG2)
+%if IS_PXELINUX
+		keyword ipappend,  pc_ipappend
+%endif
+%if IS_PXELINUX || IS_ISOLINUX
+		keyword localboot, pc_localboot
+%endif
+
+keywd_count	equ ($-keywd_table)/keywd_size
+
