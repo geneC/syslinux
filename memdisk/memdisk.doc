@@ -46,11 +46,15 @@ image should be partitioned for proper operation.
 You can also specify the geometry manually with the following command
 line options (currently untested):
 
-   c=<number>	Specify number of cylinders
-   h=<number>	Specify number of heads
-   s=<number>	Specify number of sectors
+   c=<number>	Specify number of cylinders (max 1024[*])
+   h=<number>	Specify number of heads (max 256[*])
+   s=<number>	Specify number of sectors (max 63)
    floppy	The image is a floppy image
    harddisk	The image is a hard disk image
+
+
+[*] MS-DOS only allows max 255 heads, and only allows 255 cylinders
+    on floppy disks.
 
 If you want to recompile it from sources, you will need to make sure that
 you have a fairly recent binutils installed.  I have been using the
