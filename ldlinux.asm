@@ -1503,8 +1503,8 @@ get_next_opt:   lodsb
                 push si                         ; mangle_dir mangles si
                 call mangle_name                ; Mangle ramdisk name
                 pop si
-		cmp byte [InitRD],' '		; Null filename?
-                seta byte [initrd_flag]         ; Set flag if not
+		cmp byte [es:InitRD],' '	; Null filename?
+                seta byte [es:initrd_flag]	; Set flag if not
 not_initrd:     pop es                          ; Restore ES->real_mode_seg
 skip_this_opt:  lodsb                           ; Load from command line
                 cmp al,' '
@@ -1526,7 +1526,7 @@ is_vga_cmd:
                 je vc0
                 call parseint                   ; vga=<number>
 		jc skip_this_opt		; Not an integer
-vc0:		mov [es:bs_vidmode],bx		; Set video mode
+vc0:		mov [bs_vidmode],bx		; Set video mode
 		jmp short skip_this_opt
 is_mem_cmd:
                 add si,byte 4
@@ -1537,7 +1537,7 @@ is_mem_cmd:
 		cmp ebx,14*1024			; Only trust < 15M point
                 jna memcmd_fair
 		mov bx,14*1024
-memcmd_fair:    mov [HighMemSize],bx
+memcmd_fair:    mov [es:HighMemSize],bx
 		jmp short skip_this_opt
 cmdline_end:
                 push cs                         ; Restore standard DS
@@ -2257,8 +2257,9 @@ open_return:	ret
 
 ;
 getc:
+		stc			; If we exit here -> EOF
 		mov ecx,[FBytes]
-		jecxz getc_end
+		jecxz getc_ret
 		mov si,[FPtr]
 		cmp si,[EndOfGetCBuf]
 		jb getc_loaded
@@ -2281,8 +2282,8 @@ getc_oksize:	sub [FClust],cx		; Reduce remaining clusters
 getc_loaded:	lodsb			; Load a byte
 		mov [FPtr],si		; Update next byte pointer
 		dec dword [FBytes]	; Update bytes left counter (CF = 1)
-getc_end:	cmc			; Set CF = 1 on EOF, 0 if not
-		ret
+		clc			; Not EOF
+getc_ret:	ret
 
 ;
 ; ungetc:	Push a character (in AL) back into the getc buffer
@@ -2386,7 +2387,7 @@ gkw_skipline:	cmp al,10		; Scan for LF
 ;
 getint:
 		mov di,NumBuf
-gi_getnum:	cmp di,[NumBufEnd]	; Last byte in NumBuf
+gi_getnum:	cmp di,NumBufEnd	; Last byte in NumBuf
 		jae gi_loaded
 		push di
 		call getc

@@ -21,8 +21,12 @@
  * mount the disk.  Either that or if Linux gets an fmount() system call
  * we probably could do the mounting ourselves, and make this program
  * setuid safe.
+ *
+ * Also, sync() between accessing the raw device and mount/umount seems
+ * to be necessary; I get data corruption otherwise.
  */
 
+#include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <mntent.h>
@@ -107,6 +111,7 @@ int main(int argc, char *argv[])
   pid_t f, w;
   int status;
   char *mntpath = NULL, mntname[64];
+  char *ldlinux_name;
   int my_umask;
 
   program = argv[0];
@@ -150,6 +155,8 @@ int main(int argc, char *argv[])
     left -= nb;
   }
   close(dev_fd);
+
+  sync();
   
   /*
    * Check to see that what we got was indeed an MS-DOS boot sector/superblock
@@ -199,8 +206,8 @@ int main(int argc, char *argv[])
 	    device);
     exit(1);
   }
-  if ( sectbuf[bsSecPerClust] > 64 ) {
-    fprintf(stderr, "%s: Cluster sizes larger than 32K not supported\n",
+  if ( sectbuf[bsSecPerClust] > 32 ) {
+    fprintf(stderr, "%s: Cluster sizes larger than 16K not supported\n",
 	    device);
   }
 
@@ -226,6 +233,7 @@ int main(int argc, char *argv[])
 	     !strcmp(mnt->mnt_type, "auto") ) &&
 	   hasmntopt(mnt, "user") &&
 	   !hasmntopt(mnt, "ro") &&
+	   mnt->mnt_dir[0] == '/' &&
 	   !!hasmntopt(mnt, "loop") == !!S_ISREG(st.st_mode)) {
 	/* Okay, this is an fstab entry we should be able to live with. */
 
@@ -287,15 +295,16 @@ int main(int argc, char *argv[])
     exit(1);			/* Mount failed */
   }
 
-  if ( chdir(mntpath) ) {
-    perror("chdir");
-    if ( !euid )
-      rmdir(mntpath);
-    exit(1);
+  ldlinux_name = alloca(strlen(mntpath)+13);
+  if ( !ldlinux_name ) {
+    perror("malloc");
+    err = 1;
+    goto umount;
   }
+  sprintf(ldlinux_name, "%s/ldlinux.sys", mntpath);
 
-  unlink("ldlinux.sys");
-  fd = open("ldlinux.sys", O_WRONLY|O_CREAT|O_TRUNC, 0444);
+  unlink(ldlinux_name);
+  fd = open(ldlinux_name, O_WRONLY|O_CREAT|O_TRUNC, 0444);
   if ( fd < 0 ) {
     perror(device);
     err = 1;
@@ -329,8 +338,6 @@ int main(int argc, char *argv[])
   close(fd);
 
 umount:
-  chdir("/");
-
   f = fork();
   if ( f < 0 ) {
     perror("fork");
@@ -343,6 +350,8 @@ umount:
   if ( w != f || status ) {
     exit(1);
   }
+
+  sync();
 
   if ( !euid )
     rmdir(mntpath);
