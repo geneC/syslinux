@@ -842,6 +842,36 @@ load_config:
 ;
 %include "bootsect.inc"
 
+
+;
+; getlinsec_ext: same as getlinsec, except load any sector from the zero
+;		 block as all zeros; use to load any data derived
+;		 from an ext2 block pointer, i.e. anything *except the
+;		 superblock.*
+;
+getonesec_ext:
+		mov bp,1
+
+getlinsec_ext:
+		cmp eax,[ClustSize]
+		jae getlinsec			; Nothing fancy
+
+		; If we get here, at least part of what we want is in the
+		; zero block.  Zero one sector at a time and loop.
+		push eax
+		push cx
+		xchg di,bx
+		xor eax,eax
+		mov cx,SECTOR_SIZE >> 2
+		rep stosd
+		xchg di,bx
+		pop cx
+		pop eax
+		inc eax
+		dec bp
+		jnz getlinsec_ext
+		ret
+
 ;
 ; abort_check: let the user abort with <ESC> or <Ctrl-C>
 ;
@@ -1080,7 +1110,6 @@ searchdir:
 		pop cx
 		pop bx
 		ret
-
 ;
 ; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
 ;	       to by ES:DI; ends on encountering any whitespace.
@@ -1331,7 +1360,9 @@ getfssec:
 		je .getseccnt
 .do_read:
 		pop eax				; Linear start sector
-		call getlinsecsr
+		pushad
+		call getlinsec_ext
+		popad
 		push bp
 		shl bp,9
 		add bx,bp			; Adjust buffer pointer

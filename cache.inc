@@ -59,7 +59,11 @@ getcachesector:
 		shl bx,SECTOR_SHIFT-2
 		mov si,bx
 		pushad
+%if IS_EXTLINUX
+		call getonesec_ext
+%else
 		call getonesec
+%endif
 		popad
 		pop es
 		pop bx
