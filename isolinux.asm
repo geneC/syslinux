@@ -2102,6 +2102,8 @@ nk_noinitrd:
 ; and the real mode stuff to 90000h.  We assume that all bzImage kernels are
 ; capable of starting their setup from a different address.
 ;
+		mov ax,real_mode_seg
+		mov fs,ax
 
 ;
 ; Copy command line.  Unfortunately, the kernel boot protocol requires
@@ -2882,8 +2884,6 @@ loadinitrd:
 		call load_high			; Load the file
 
 		call crlf
-                mov si,loading_msg		; Write new "Loading " for
-                call cwritestr                  ; the benefit of the kernel
                 pop es                          ; Restore original ES
                 ret
 
@@ -2911,6 +2911,8 @@ load_high:
 		mov es,bx
 
 .read_loop:
+		and si,si			; If SI == 0 then we have end of file
+		jz .eof
 		push si
 		mov si,dot_msg
 		call cwritestr
@@ -2960,6 +2962,7 @@ load_high:
 		sub eax,ecx
 		jnz .read_loop			; More to read...
 		
+.eof:
 		pop es
 		ret
 
@@ -4500,7 +4503,7 @@ err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
 notfound_msg	db 'not found', CR, LF, 0
 localboot_msg	db 'Booting from local disk...', CR, LF, 0
 cmdline_msg	db 'Command line: ', CR, LF, 0
-ready_msg	db ' ready.', CR, LF, 0
+ready_msg	db 'Ready.', CR, LF, 0
 trying_msg	db 'Trying to load: ', 0
 crlfloading_msg	db CR, LF			; Fall through
 loading_msg     db 'Loading ', 0
