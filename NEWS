@@ -5,6 +5,7 @@ Changes in 1.52:
 	* PXELINUX: Fix bugs introduced by new A20 code.  (SYSLINUX
 	  has also been changed for code consistency reasons, but I'm
 	  pretty sure the changes are don't care on SYSLINUX.)
+	* Documentation updates.
 
 Changes in 1.51:
 	* PXELINUX: Not all PXE stacks fill in the IP address for a
