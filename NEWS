@@ -13,6 +13,7 @@ Changes in 2.07:
 	* PXELINUX: Fix multiple bugs in chainloading of other NBPs.
 	* MEMDISK: Fix bug that would occationally cause "ran out of
 	  input data" when using compressed disk images.
+	* SYSLINUX: Updates for the win32 installer (from Lars Munch.)
 
 Changes in 2.06:
 	* ALL: Fix problem that would occationally cause a

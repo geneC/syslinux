@@ -13,32 +13,12 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * syslinux.c - Win2k/WinXP installer program for SYSLINUX
- *
- * To compile this install Cygwin with gcc, gcc-mingw, w32api,
- * nasm, make and perl. Then build with: 'make syslinux.exe'
- *
- * TODO:
- *	* Test with harddrives. We might need to use \\.\PHYSICALDRIVEX
- *        instead of \\.\X: for these non removable devices.
+ * syslinux-mingw.c - Win2k/WinXP installer program for SYSLINUX
  */
 
-#include <varargs.h>
-#include <windef.h>
-#include <winbase.h>
-#include <winnt.h>
-#include <wingdi.h>
-#include <winuser.h>
-#include <winioctl.h>
-
-#include <fcntl.h>
+#include <windows.h>
 #include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <ctype.h>
 
 #include "syslinux.h"
 
@@ -95,10 +75,10 @@ void usage(void)
 int main(int argc, char *argv[])
 {
   HANDLE f_handle;
-  DISK_GEOMETRY dg;
   DWORD bytes_read;
   DWORD bytes_written;
-  DWORD junk;
+  DWORD drives;
+  UINT drive_type;
 
   static unsigned char sectbuf[512];
   char **argp, *opt;
@@ -141,6 +121,29 @@ int main(int argc, char *argv[])
   if ( !drive )
     usage();
 
+  /* Test if drive exists */
+  drives = GetLogicalDrives();
+  if(!(drives & ( 1 << (tolower(drive[0]) - 'a')))) {
+    fprintf(stderr, "No such drive %c:\n", drive[0]);
+    exit(1);
+  }
+
+  /* Determines the drive type */
+  sprintf(drive_name, "%c:\\", drive[0]);
+  drive_type = GetDriveType(drive_name);
+
+  /* Test for removeable media */
+  if ((drive_type == DRIVE_FIXED) && (force == 0)) {
+    fprintf(stderr, "Not a removable drive (use -f to override) \n");
+    exit(1);
+  }
+
+  /* Test for unsupported media */
+  if ((drive_type != DRIVE_FIXED) && (drive_type != DRIVE_REMOVABLE)) {
+    fprintf(stderr, "Unsupported media\n");
+    exit(1);
+  }
+
   /*
    * First open the drive
    */
@@ -154,27 +157,6 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  /* Get drive geometry */
-  if(!DeviceIoControl(f_handle, IOCTL_DISK_GET_DRIVE_GEOMETRY,
-		      NULL, 0, &dg, sizeof(dg),
-		      &junk, (LPOVERLAPPED) NULL)) {
-
-    error("GetDriveGeometry failed");
-    exit(1);
-  }
-    
-  /* Test for removeable media */
-  if ((dg.MediaType == FixedMedia) && (force == 0)) {
-    fprintf(stderr, "Not a removable drive (use -f to override) \n");
-    exit(1);
-  }
-
-  /* Test for unknown media */
-  if ((dg.MediaType == Unknown) && (force == 0)) {
-    fprintf(stderr, "Drive media unknown (use -f to override) \n");
-    exit(1);
-  }
-    
   /*
    * Read the boot sector
    */  
@@ -201,12 +183,6 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  /* Now flush the media */
-  if(!FlushFileBuffers(f_handle)) {
-    error("FlushFileBuffers failed");
-    exit(1);
-  }
- 
   /* Close file */ 
   CloseHandle(f_handle);
 
