@@ -85,8 +85,8 @@ comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 ; File structure.  This holds the information for each currently open file.
 ;
 		struc open_file_t
+file_left	resd 1			; Number of sectors left (0 = free)
 file_sector	resd 1			; Next linear sector to read
-file_left	resd 1			; Number of sectors left
 file_in_sec	resd 1			; Sector where inode lives
 file_in_off	resw 1
 		resw 1
@@ -126,8 +126,6 @@ TotalSectors	resd 1			; Total number of sectors
 EndSector	resd 1			; Location of filesystem end
 ClustSize	resd 1			; Bytes/cluster
 ClustMask	resd 1			; Sectors/cluster - 1
-CachePtrs	resw 65536/SECTOR_SIZE	; Cached sector pointers
-NextCacheSlot	resw 1			; Next cache slot to occupy
 CopySuper	resb 1			; Distinguish .bs versus .bss
 DriveNumber	resb 1			; BIOS drive number
 ClustShift	resb 1			; Shift count for sectors/cluster
@@ -908,6 +906,92 @@ allocate_file:
 		; ZF = 0 if we fell out of the loop
 .found:		pop cx
 		ret
+;
+; open_inode:
+;	     Open a file indicated by an inode number in EAX
+;
+;	     NOTE: This file considers finding a zero-length file an
+;	     error.  This is so we don't have to deal with that special
+;	     case elsewhere in the program (most loops have the test
+;	     at the end).
+;
+;	     If successful:
+;		ZF clear
+;		SI	    = file pointer
+;		DX:AX = EAX = file length in bytes
+;	     If unsuccessful
+;		ZF set
+;
+open_inode.allocate_failure:
+		xor eax,eax
+		ret
+
+open_inode:
+		call allocate_file
+		jnz .allocate_failure
+
+		push gs
+		; First, get the appropriate inode group and index
+		dec eax				; There is no inode 0
+		xor edx,edx
+		mov [bx+file_sector],edx
+		div dword [SuperBlock+s_inodes_per_group]
+		; EAX = inode group; EDX = inode within group
+		push edx
+
+		; Now, we need the block group descriptor.
+		; To get that, we first need the relevant descriptor block.
+				
+		shl eax, ext2_group_desc_lg2size ; Get byte offset in desc table
+		xor edx,edx
+		div dword [BlockSize]
+		; eax = block #, edx = offset in block
+		add eax,dword [SuperBlock+s_first_data_block]
+		inc eax				; s_first_data_block+1
+		mov cl,[ClustShift]
+		shl eax,cl
+		call getcachesec		; Get the group descriptor
+		add si,dx
+		mov esi,[gs:si+bg_inode_table]	; Get inode table block #
+		pop eax				; Get inode within group
+		movzx edx, word [SuperBlock+s_inode_size]
+		mul edx
+		; edx:eax = byte offset in inode table
+		div dword [BlockSize]
+		; eax = block # versus inode table, edx = offset in block
+		add eax,esi
+		shl eax,cl			; Turn into sector
+		push dx
+		shr edx,SECTOR_SHIFT
+		add eax,edx
+		mov [bx+file_in_sec],eax
+		pop dx
+		and dx,SECTOR_SIZE-1
+		mov [bx+file_in_off],dx
+
+		call getcachesec
+		add si,dx
+		mov eax,[gs:si+i_size]
+		push eax
+		add eax,SECTOR_SIZE-1
+		shr eax,SECTOR_SHIFT
+		mov [bx+file_left],eax
+		pop eax
+		mov si,bx
+		mov edx,eax
+		shr edx,16			; 16-bitism, sigh
+		and eax,eax			; ZF clear unless zero-length file
+		pop gs
+		ret
+
+;
+; close:
+;	     Deallocates a file structure (pointer in SI)
+;	     Assumes CS == DS.
+;
+close:
+		mov dword [si],0		; First dword == file_left
+		ret
 
 ;
 ; searchdir:
@@ -920,17 +1004,143 @@ allocate_file:
 ;
 ;	     If successful:
 ;		ZF clear
-;		SI	= file pointer
-;		DX:AX	= file length in bytes
+;		SI	    = file pointer
+;		DX:AX = EAX = file length in bytes
 ;	     If unsuccessful
 ;		ZF set
 ;
-
+;	     Assumes CS == DS == ES; *** IS THIS CORRECT ***?
+;
 searchdir:
-		call allocate_file
-		jnz .alloc_failure
+		mov eax,[CurrentDir]
+.leadingslash:
+		cmp byte [di],'/'	; Absolute filename?
+		jne .searchloop
+		mov eax,EXT2_ROOT_INO
+		inc di			; Skip slash
 
+.searchloop:
+		; At this point, EAX contains the directory inode,
+		; and DS:DI contains a pathname tail.
+		call open_inode
+
+.readdir:
+		mov bx,trackbuf
+		push bx
+		mov cx,[SecPerBlock]
+		call getfssec
+		pop bx
+		pushf			; Save EOF flag
+.getent:
+		cmp dword [bx+d_inode],0
+		je .endblock
+		
+		push di
+		push si
+		mov cx,[bx+d_name_len]
+		lea si,[bx+d_name]
+		repe cmpsb
+		pop si
+		je .maybe
+.nope:
+		pop di
+
+		add bx,[bx+d_rec_len]
+		jmp .getent
+
+.endblock:
+		popf
+		jnc .readdir		; There is more
+.failure:
+		xor eax,eax
 		ret
+.maybe:
+		mov eax,[si+d_inode]
+		
+		cmp byte [di],0
+		je .finish		; It's a real file; done
+		cmp byte [di],'/'
+		jne .nope		; False alarm
+		
+		; It's a match, but it's a directory.
+		; Repeat operation.
+		call close
+		pop si			; Adjust stack (di)
+		pop si			; Adjust stack (flags)
+		inc di			; Skip slash
+		jmp .searchloop
+		
+
+.finish:	; We found it; now we need to open the file
+		call close		; Close directory
+		pop si			; Adjust stack (di)
+		pop si			; Adjust stack (flags)
+		call open_inode
+		ret
+
+;
+; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
+;	       to by ES:DI; ends on encountering any whitespace.
+;
+;	       This verifies that a filename is < FILENAME_MAX characters,
+;	       doesn't contain whitespace, zero-pads the output buffer,
+;	       and removes redundant slashes,
+;	       so "repe cmpsb" can do a compare, and the
+;	       path-searching routine gets a bit of an easier job.
+;
+;	       FIX: we may want to support \-escapes here (and this would
+;	       be the place.)
+;	       
+mangle_name:
+		push bx
+		xor ax,ax
+		mov cx,FILENAME_MAX-1
+		mov bx,di
+
+.mn_loop:
+		lodsb
+		cmp al,' '			; If control or space, end
+		jna .mn_end
+		cmp al,ah			; Repeated slash?
+		je .mn_skip
+		xor ah,ah
+		cmp al,'/'
+		jne .mn_ok
+		mov ah,al
+.mn_ok		stosb
+.mn_skip:	loop .mn_loop
+.mn_end:
+		cmp bx,di			; At the beginning of the buffer?
+		jbe .mn_zero
+		cmp byte [di-1],'/'		; Terminal slash?
+		jne .mn_zero
+.mn_kill:	dec di				; If so, remove it
+		inc cx
+		jmp short .mn_end
+.mn_zero:
+		inc cx				; At least one null byte
+		xor ax,ax			; Zero-fill name
+		rep stosb
+		pop bx
+		ret				; Done
+
+;
+; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
+;                filename to the conventional representation.  This is needed
+;                for the BOOT_IMAGE= parameter for the kernel.
+;                NOTE: A 13-byte buffer is mandatory, even if the string is
+;                known to be shorter.
+;
+;                DS:SI -> input mangled file name
+;                ES:DI -> output buffer
+;
+;                On return, DI points to the first byte after the output name,
+;                which is set to a null byte.
+;
+unmangle_name:	call strcpy
+		dec di				; Point to final null byte
+		ret
+
 ;
 ; writechr:	Write a single character in AL to the console without
 ;		mangling any registers; handle video pages correctly.
@@ -959,30 +1169,6 @@ kaboom2:
 		call vgaclearmode
 		int 19h			; And try once more to boot...
 .norge:		jmp short .norge	; If int 19h returned; this is the end
-
-;
-; mangle_name: Mangle a DOS filename pointed to by DS:SI into a buffer pointed
-;	       to by ES:DI; ends on encountering any whitespace
-;
-
-mangle_name:
-		ret
-
-;
-; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
-;                filename to the conventional representation.  This is needed
-;                for the BOOT_IMAGE= parameter for the kernel.
-;                NOTE: A 13-byte buffer is mandatory, even if the string is
-;                known to be shorter.
-;
-;                DS:SI -> input mangled file name
-;                ES:DI -> output buffer
-;
-;                On return, DI points to the first byte after the output name,
-;                which is set to a null byte.
-;
-unmangle_name:
-		ret
 
 
 ;
@@ -1255,7 +1441,6 @@ exten_table_end:
 %ifdef debug				; This code for debugging only
 debug_magic	dw 0D00Dh		; Debug code sentinel
 %endif
-ScrollAttribute	db 07h			; White on black (for text mode)
 
 		alignb 4, db 0
 BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf

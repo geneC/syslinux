@@ -21,6 +21,23 @@
 
 %define EXT2_GOOD_OLD_REV       0       ; The good old (original) format
 %define EXT2_DYNAMIC_REV        1       ; V2 format w/ dynamic inode sizes
+%define EXT2_GOOD_OLD_INODE_SIZE 128
+
+; Special inode numbers
+%define	EXT2_BAD_INO		 1	; Bad blocks inode
+%define EXT2_ROOT_INO		 2	; Root inode
+%define EXT2_BOOT_LOADER_INO	 5	; Boot loader inode
+%define EXT2_UNDEL_DIR_INO	 6	; Undelete directory inode
+%define EXT3_RESIZE_INO		 7	; Reserved group descriptors inode
+%define EXT3_JOURNAL_INO	 8	; Journal inode
+
+; We're readonly, so we only care about incompat features.
+%define EXT2_FEATURE_INCOMPAT_COMPRESSION	0x0001
+%define EXT2_FEATURE_INCOMPAT_FILETYPE		0x0002
+%define EXT3_FEATURE_INCOMPAT_RECOVER		0x0004
+%define EXT3_FEATURE_INCOMPAT_JOURNAL_DEV	0x0008
+%define EXT2_FEATURE_INCOMPAT_META_BG		0x0010
+%define EXT2_FEATURE_INCOMPAT_ANY		0xffffffff
 
 %define EXT2_NDIR_BLOCKS	12
 %define	EXT2_IND_BLOCK		EXT2_NDIR_BLOCKS
@@ -128,3 +145,13 @@ bg_reserved		resd 3
 
 %define ext2_group_desc_lg2size 5
 
+;
+; Structure definition for ext2 directory entry
+;
+			struc ext2_dir_entry
+d_inode			resd 1			; Inode number
+d_rec_len		resw 1			; Directory entry length
+d_name_len		resb 1			; Name length
+d_file_type		resb 1			; File type
+d_name			equ $
+			endstruc

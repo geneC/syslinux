@@ -59,6 +59,7 @@ SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
 # mingw suite installed
 BTARGET  = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
 	   pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin \
+	   extlinux.bin extlinux.bss extlinux.sys \
 	   bootsect_bin.c ldlinux_bin.c
 	   # libsyslinux.a $(LIB_SO)
 BOBJECTS = $(BTARGET) dos/syslinux.com win32/syslinux.exe memdisk/memdisk
@@ -132,6 +133,10 @@ isolinux.bin: isolinux.asm kwdhash.gen version.gen checksumiso.pl
 		-l isolinux.lst -o isolinux.bin isolinux.asm
 	$(PERL) checksumiso.pl isolinux.bin
 
+extlinux.bin: extlinux.asm kwdhash.gen version.gen
+	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
+		-l extlinux.lst -o extlinux.bin extlinux.asm
+
 pxelinux.0: pxelinux.bin
 	cp pxelinux.bin pxelinux.0
 
@@ -143,10 +148,16 @@ isolinux-debug.bin: isolinux.asm kwdhash.gen version.gen checksumiso.pl
 	$(PERL) checksumiso.pl $@
 
 ldlinux.bss: ldlinux.bin
-	dd if=ldlinux.bin of=ldlinux.bss bs=512 count=1
+	dd if=$< of=$@ bs=512 count=1
 
 ldlinux.sys: ldlinux.bin
-	dd if=ldlinux.bin of=ldlinux.sys  bs=512 skip=1
+	dd if=$< of=$@ bs=512 skip=1
+
+extlinux.bss: extlinux.bin
+	dd if=$< of=$@ bs=512 count=1
+
+extlinux.sys: extlinux.bin
+	dd if=$< of=$@ bs=512 skip=1
 
 mbr.bin: mbr.asm
 	$(NASM) -f bin -l mbr.lst -o mbr.bin mbr.asm
