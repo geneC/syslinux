@@ -8,6 +8,8 @@ Changes in 1.54:
 	* SYSLINUX: Add some smarts to the boot sector, which
 	  hopefully should reduce the number of systems which require 
 	  stupid mode ("syslinux -s").
+	* PXELINUX: Document further some of the pathologies with old
+	  PXE stacks.
 
 Changes in 1.53:
 	* PXELINUX: Rename pxelinux.bin to pxelinux.0, to match what
