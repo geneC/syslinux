@@ -453,7 +453,7 @@ AX=000Ch	Perform final cleanup
 
 
 AX=000Dh	Cleanup and replace bootstrap code
-	Input:	AX	000Ch
+	Input:	AX	000Dh
 		DX	derivative-specific flags (see previous function)
 		EDI	bootstrap code (linear address, can be in high memory)
 		ECX	bootstrap code length in bytes (max 
