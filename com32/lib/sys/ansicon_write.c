@@ -57,6 +57,7 @@ enum ansi_state {
 #define MAX_PARMS	16
 
 struct term_state {
+  int disabled;
   int attr;			/* Current display attribute */
   int vtgraphics;		/* VT graphics on/off */
   int intensity;
@@ -76,6 +77,7 @@ struct term_state {
 
 static const struct term_state default_state =
 {
+  .disabled = 0,
   .attr = 0x07,			/* Grey on black */
   .vtgraphics = 0,
   .intensity = 1,
@@ -103,9 +105,19 @@ static const char decvt_to_cp437[] =
 static void __constructor ansicon_init(void)
 {
   static com32sys_t ireg;	/* Auto-initalized to all zero */
+  com32sys_t oreg;
 
   /* Initial state */
   memcpy(&st, &default_state, sizeof st);
+
+  /* Are we disabled? */
+  ireg.eax.w[0] = 0x000b;
+  __intcall(0x22, &ireg, &oreg);
+
+  if ( (signed char)oreg.ebx.b[1] < 0 ) {
+    st.disabled = 1;
+    return;
+  }
 
   /* Force text mode */
   ireg.eax.w[0] = 0x0005;
@@ -114,8 +126,8 @@ static void __constructor ansicon_init(void)
   /* Get cursor shape */
   ireg.eax.b[1] = 0x03;
   ireg.ebx.b[1] = BIOS_PAGE;
-  __intcall(0x10, &ireg, &ireg);
-  st.cursor_type = ireg.ecx.w[0];
+  __intcall(0x10, &ireg, &oreg);
+  st.cursor_type = oreg.ecx.w[0];
 }
 
 /* Erase a region of the screen */
@@ -505,6 +517,9 @@ ssize_t __ansicon_write(struct file_info *fp, const void *buf, size_t count)
   size_t n = 0;
 
   (void)fp;
+
+  if ( st.disabled )
+    return n;			/* Nothing to do */
 
   while ( count-- ) {
     ansicon_putchar(*bufp++);

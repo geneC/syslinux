@@ -509,6 +509,10 @@ comapi_serialcfg:
 		or al,ah
 		mov ah,[FlowIgnore]
 		shr ah,4
+		test byte [DisplayCon],01h
+		jnz .normalconsole
+		or ah,80h
+.normalconsole:
 		mov P_BX,ax
 		clc
 		ret

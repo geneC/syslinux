@@ -424,6 +424,7 @@ AX=000Bh [2.00]	Get Serial Console Configuration
 	Output:	DX	Serial port I/O base (e.g. 3F8h = COM1...)
 		CX	Baud rate divisor (1 = 115200 bps, 2 = 57600 bps...)
 		BX	Flow control configuration bits (see syslinux.doc)
+			-> Bit 15 is set if the video console is disabled
 
 	If no serial port is configured, DX will be set to 0 and the
 	other registers are undefined.
