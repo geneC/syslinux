@@ -17,7 +17,7 @@ tidy:
 	-rm -f *.o *.i *.s *.a .*.d
 
 clean: tidy
-	-rm -f syslinux
+	-rm -f syslinux syslinux-nomtools
 
 spotless: clean
 	-rm -f *~
@@ -28,7 +28,7 @@ syslinux: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
 
 syslinux-nomtools: syslinux
-	cp -f $< $@
+	ln -f $< $@
 
 %.o: %.c
 	$(CC) -Wp,-MT,$@,-MMD,.$@.d $(CFLAGS) -c -o $@ $<
