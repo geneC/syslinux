@@ -1,9 +1,10 @@
                                 SYSLINUX
-			      Version 1.30
+			      Version 1.31
+			   January 31, 1998
 
               A bootloader for Linux using MS-DOS floppies
 
-                  Copyright (C) 1994-96 H. Peter Anvin
+		Copyright (C) 1994-1998 H. Peter Anvin
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -192,7 +193,7 @@ provided.  The suggested manner is to let the initrd system mount the
 boot floppy and look for additional drivers in a predetermined
 location.
 
-To bzImage and recent zImage kernels, SYSLINUX 1.30 will identify
+To bzImage and recent zImage kernels, SYSLINUX 1.30-1.31 will identify
 using the ID byte 0x31.  The ID range 0x32-0x3f is reserved for future
 versions of SYSLINUX.
 
@@ -249,7 +250,3 @@ would also like to hear from you if you have successfully used SYSLINUX,
 *especially* if you are using it for a distribution.
 
 Please contact me at email <hpa@zytor.com>.
-
-Sincerely,
-
-                H. Peter Anvin                  November 2, 1996
