@@ -47,7 +47,7 @@ LIB_SO  = libsyslinux.so.$(VERSION)
 # like to keep those uniform for debugging reasons; however, distributors 
 # want to recompile the installers (ITARGET).
 #
-CSRC    = syslinux.c syslinux-nomtools.c syslxmod.c gethostip.c
+CSRC     = syslxmod.c gethostip.c
 NASMSRC  = ldlinux.asm syslinux.asm copybs.asm \
 	  pxelinux.asm mbr.asm isolinux.asm
 SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
@@ -90,8 +90,8 @@ MAKE    += DATE=$(DATE) HEXDATE=$(HEXDATE)
 # want to remove win32 from this list; otherwise you're going to get an
 # error every time you try to build.
 #
-BSUBDIRS = memdisk win32
-ISUBDIRS = sample com32
+BSUBDIRS = memdisk
+ISUBDIRS = mtools unix win32 sample com32
 
 all:	$(BTARGET) $(ITARGET)
 	for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
@@ -136,15 +136,11 @@ ldlinux.bss: ldlinux.bin
 ldlinux.sys: ldlinux.bin
 	dd if=ldlinux.bin of=ldlinux.sys  bs=512 skip=1
 
-patch.offset: ldlinux.sys findpatch.pl
-	$(PERL) findpatch.pl > patch.offset
-
 mbr.bin: mbr.asm
 	$(NASM) -f bin -l mbr.lst -o mbr.bin mbr.asm
 
-syslinux.com: syslinux.asm ldlinux.bss ldlinux.sys patch.offset
-	$(NASM) -f bin -DPATCH_OFFSET=`cat patch.offset` \
-		-l syslinux.lst -o syslinux.com syslinux.asm
+syslinux.com: syslinux.asm ldlinux.bss ldlinux.sys
+	$(NASM) -f bin -l syslinux.lst -o syslinux.com syslinux.asm
 
 copybs.com: copybs.asm
 	$(NASM) -f bin -l copybs.lst -o copybs.com copybs.asm
