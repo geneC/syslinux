@@ -13,11 +13,19 @@ static inline pciaddr_t pci_mkaddr(uint32_t bus, uint32_t dev,
     ((func & 0x07) << 8) | (reg & 0xff);
 }
 
-uint8_t pci_readb(pciaddr_t a);
-uint16_t pci_readw(pciaddr_t a);
-uint32_t pci_readl(pciaddr_t a);
-void pci_writeb(uint8_t v, pciaddr_t a);
-void pci_writew(uint16_t v, pciaddr_t a);
-void pci_writel(uint32_t v, pciaddr_t a);
+enum pci_config_type {
+  PCI_CFG_AUTO		= 0,	/* autodetect */
+  PCI_CFG_TYPE1		= 1,
+  PCI_CFG_TYPE2		= 2,
+};
+
+void pci_set_config_type(enum pci_config_type);
+
+uint8_t pci_readb(pciaddr_t);
+uint16_t pci_readw(pciaddr_t);
+uint32_t pci_readl(pciaddr_t);
+void pci_writeb(uint8_t, pciaddr_t);
+void pci_writew(uint16_t, pciaddr_t);
+void pci_writel(uint32_t, pciaddr_t);
 
 #endif /* _SYS_PCI_H */
