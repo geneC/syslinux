@@ -736,9 +736,10 @@ gls_nonewcyl:	sub cx,si		; First sector on new track
 
 bailmsg:	db 'Boot failed', 0Dh, 0Ah, 0
 
-bs_checkpt	equ $			; Must be <= 1EFh
+bs_checkpt	equ $			; Must be <= 7DEFh
 
-%if (bs_checkpt-$$) > 0x1EF
+bs_checkpt_off	equ ($-$$)
+%if bs_checkpt_off > 1EFh
 %error "Boot sector overflow"
 %endif
 
@@ -1047,9 +1048,10 @@ safedumpregs:
 		jmp dumpregs
 %endif
 
-rl_checkpt	equ $				; Must be <= 400h
+rl_checkpt	equ $				; Must be <= 8000h
 
-%if (rl_checkpt-$$) > 0x400
+rl_checkpt_off	equ ($-$$)
+%if rl_checkpt_off > 400h
 %error "Sector 1 overflow"
 %endif
 
