@@ -8,6 +8,10 @@ Changes in 2.13:
 	* MEMDISK: Add "raw" mode to support the DOS boot disk from
 	  WinME/XP, which seems to deliberately crash the system
 	  when someone uses the "INT 15h mover" highmem API.
+	* Make "make install" do something sane for the com32
+	  development environment.
+	* In the spec file, create a separate -devel RPM for the com32
+	  development environment.
 
 Changes in 2.12:
 	* Simple C library, based on klibc, for writing COM32
