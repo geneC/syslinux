@@ -20,7 +20,8 @@ LD         = ld
 AR	   = ar
 NASM	   = nasm
 RANLIB	   = ranlib
-CFLAGS     = -march=i386 -O2 -fomit-frame-pointer -I../com32/include
+M32	   = $(shell if gcc -m32 -c -x c /dev/null -o /dev/null 2>/dev/null; then echo -m32 ; fi)
+CFLAGS     = $(M32) -march=i386 -O2 -fomit-frame-pointer -I../com32/include
 SFLAGS     = -march=i386
 LDFLAGS    = -s
 OBJCOPY    = objcopy

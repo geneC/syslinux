@@ -14,7 +14,8 @@
 VERSION := $(shell cat ../version)
 
 CC       = gcc
-CFLAGS   = -g -Wall -O2 -fomit-frame-pointer -march=i386 \
+M32      = $(shell if gcc -m32 -c -x c /dev/null -o /dev/null 2>/dev/null; then echo -m32 ; fi)
+CFLAGS   = $(M32) -g -Wall -O2 -fomit-frame-pointer -march=i386 \
 	   -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 	   -DVERSION='"$(VERSION)"' -DDATE='"$(DATE)"'
 LDFLAGS  = -g
