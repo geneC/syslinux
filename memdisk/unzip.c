@@ -38,9 +38,6 @@ static unsigned insize;		/* total input bytes read */
 static unsigned inbytes;	/* valid bytes in inbuf */
 static unsigned outcnt;		/* bytes in output buffer */
 
-/* This is here to try to debug strange errors seen on some machines. */
-static ulg in_crc;		/* crc of input bytes as read */
-
 /* gzip flag byte */
 #define ASCII_FLAG   0x01 /* bit 0 set: file probably ASCII text */
 #define CONTINUATION 0x02 /* bit 1 set: continuation of multi-part gzip file */
@@ -81,12 +78,17 @@ static inline uch get_byte(void)
   if ( inbytes ) {
     uch b = *inbuf++;
     inbytes--;
-    in_crc = crc_32_tab[(in_crc ^ b) & 0xff] ^ (in_crc >> 8);
-    
     return b;
   } else {
     return fill_inbuf();	/* Input buffer underrun */
   }
+}
+
+/* Unget byte from input buffer */
+static inline void unget_byte(void)
+{
+  inbytes++;
+  inbuf--;
 }
 
 static ulg bytes_out = 0;	/* Number of bytes output */
@@ -140,8 +142,7 @@ static int fill_inbuf(void)
 {
   /* This should never happen.  We have already pointed the algorithm
      to all the data we have. */
-  printf("failed\nDecompression error: ran out of input data, cksum = %lu %u\n",
-	 in_crc^0xffffffffUL, insize);
+  printf("failed\nDecompression error: ran out of input data\n");
   die();
 }
 
@@ -193,7 +194,6 @@ void *unzip(void *indata, unsigned long zbytes, void *target)
   free_mem_end_ptr = free_mem_ptr + 0x10000;
 
   /* Set up input buffer */
-  in_crc = 0xffffffffUL;
   inbuf  = indata;
   insize = inbytes = zbytes;
 

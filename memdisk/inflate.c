@@ -978,7 +978,7 @@ STATIC int inflate()
    */
   while (bk >= 8) {
     bk -= 8;
-    inbuf--;
+    unget_byte();
   }
 
   /* flush out slide */
