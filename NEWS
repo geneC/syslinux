@@ -4,9 +4,11 @@ them.
 
 Changes in 2.04:
 	* ALL: Reclaim even more low memory by observing that
-	comboot_seg == real_mode_seg is perfectly fine, and by the
-	fact that the 1000h segment managed to get unused in all
-	derivatives...
+	  comboot_seg == real_mode_seg is perfectly fine, and by the
+	  fact that the 1000h segment managed to get unused in all
+	  derivatives...
+	* PXELINUX: Attempt to negotiate full Ethernet-sized blocks
+	  (1468 bytes) using the blksize option.
 
 Changes in 2.03:
 	* Actually support comment lines in the configuration file.

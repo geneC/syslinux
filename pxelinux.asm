@@ -37,9 +37,13 @@ REBOOT_TIME	equ 5*60		; If failure, time until full reset
 %assign HIGHMEM_SLOP 128*1024		; Avoid this much memory near the top
 MAX_SOCKETS_LG2	equ 5			; log2(Max number of open sockets)
 MAX_SOCKETS	equ (1 << MAX_SOCKETS_LG2)
+PKTBUF_SIZE	equ (65536/MAX_SOCKETS)	; Per-socket packet buffer size
 TFTP_PORT	equ htons(69)		; Default TFTP port 
 PKT_RETRY	equ 6			; Packet transmit retry count
 PKT_TIMEOUT	equ 12			; Initial timeout, timer ticks @ 55 ms
+; Desired TFTP block size
+TFTP_LARGEBLK	equ (1500-20-8-4)	; MTU 1500 - IP hdr - UDP hdr - TFTP hdr
+; Standard TFTP block size
 TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)
 TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
 %assign USE_PXE_PROVIDED_STACK 1	; Use stack provided by PXE?
@@ -53,6 +57,19 @@ TFTP_DATA	equ htons(3)		; Data packet
 TFTP_ACK	equ htons(4)		; ACK packet
 TFTP_ERROR	equ htons(5)		; ERROR packet
 TFTP_OACK	equ htons(6)		; OACK packet
+
+;
+; TFTP error codes
+;
+TFTP_EUNDEF	equ htons(0)		; Unspecified error
+TFTP_ENOTFOUND	equ htons(1)		; File not found
+TFTP_EACCESS	equ htons(2)		; Access violation
+TFTP_ENOSPACE	equ htons(3)		; Disk full
+TFTP_EBADOP	equ htons(4)		; Invalid TFTP operation
+TFTP_EBADID	equ htons(5)		; Unknown transfer
+TFTP_EEXISTS	equ htons(6)		; File exists
+TFTP_ENOUSER	equ htons(7)		; No such user
+TFTP_EOPTNEG	equ htons(8)		; Option negotiation failure
 
 ;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
@@ -92,7 +109,7 @@ vk_end:		equ $			; Should be <= vk_size
 real_mode_seg	equ 4000h
 vk_seg          equ 3000h		; Virtual kernels
 xfer_buf_seg	equ 2000h		; Bounce buffer for I/O to high mem
-tftp_buf_seg	equ 1000h		; Packet buffers segments
+pktbuf_seg	equ 1000h		; Packet buffers segments
 comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 
 ;
@@ -123,18 +140,25 @@ BOOTP_OPTION_MAGIC	equ htonl(0x63825363)	; See RFC 2132
 ;
 ; TFTP connection data structure.  Each one of these corresponds to a local
 ; UDP port.  The size of this structure must be a power of 2.
+; HBO = host byte order; NBO = network byte order
+; (*) = written by options negotiation code, must be dword sized
 ;
 		struc tftp_port_t
 tftp_localport	resw 1			; Local port number	(0 = not in use)
 tftp_remoteport	resw 1			; Remote port number
 tftp_remoteip	resd 1			; Remote IP address
-tftp_filepos	resd 1			; Position within file
-tftp_filesize	resd 1			; Total file size
-tftp_pktbuf	resw 1			; Packet buffer offset
-tftp_dataptr	resw 1			; Pointer to available data
+tftp_filepos	resd 1			; Bytes downloaded (including buffer)
+tftp_filesize	resd 1			; Total file size(*)
+tftp_blksize	resd 1			; Block size for this connection(*)
 tftp_bytesleft	resw 1			; Unclaimed data bytes
-		resw 5			; Currently unusued
+tftp_lastpkt	resw 1			; Sequence number of last packet (NBO)
+tftp_dataptr	resw 1			; Pointer to available data
+		resw 2			; Currently unusued
+		; At end since it should not be zeroed on socked close
+tftp_pktbuf	resw 1			; Packet buffer offset
 		endstruc
+
+tftp_clear_words equ (tftp_pktbuf/2)	; Number of words to zero on socket close
 
 %ifndef DEPEND
 %if (tftp_port_t_size & (tftp_port_t_size-1))
@@ -518,22 +542,28 @@ have_entrypoint:
 ;
 ; Clear Sockets structures
 ;
+clear_sockets:
+		mov ax,ds	; Set ES <- DS
+		mov es,ax
+
 		mov di,Sockets
 		mov cx,(MAX_SOCKETS*tftp_port_t_size)/4
 		xor eax,eax
-		push es		; Save ES -> PXE structure
-		push ds		; ES <- DS
-		pop es
+		push di
 		rep stosd
-		pop es
+		pop di		; di <- Sockets
+		mov cx,MAX_SOCKETS
+.setbufptr:
+		mov [di+tftp_pktbuf],ax
+		add di,tftp_port_t_size
+		add ax,PKTBUF_SIZE
+		loop .setbufptr
 
 ;
 ; Now attempt to get the BOOTP/DHCP packet that brought us life (and an IP
 ; address).  This lives in the DHCPACK packet (query info 2).
 ;
 query_bootp:
-		mov ax,ds
-		mov es,ax
 		mov di,pxe_bootp_query_pkt_2
 		mov bx,PXENV_GET_CACHED_INFO
 
@@ -1062,6 +1092,9 @@ memory_scan_for_pxenv_struct:
 ;
 
 searchdir:
+		push es
+		mov ax,ds
+		mov es,ax
 		mov si,di
 		push bp
 		mov bp,sp
@@ -1076,7 +1109,7 @@ searchdir:
 		push si			; [bp-4]  - File name 
 		push bx			; [bp-6]  - TFTP block
 		mov bx,[bx]
-		push bx			; [bp-8]  - TID (socket port no)
+		push bx			; [bp-8]  - TID (local port no)
 
 		mov eax,[ServerIP]	; Server IP
 		mov [pxe_udp_write_pkt.status],byte 0
@@ -1122,6 +1155,7 @@ searchdir:
 		mov di,packet_buf
 		mov [pxe_udp_read_pkt.status],byte 0
 		mov [pxe_udp_read_pkt.buffer],di
+		mov [pxe_udp_read_pkt.buffer+2],ds
 		mov di,packet_buf_size
 		mov [pxe_udp_read_pkt.buffersize],di
 		mov eax,[MyIP]
@@ -1149,7 +1183,7 @@ searchdir:
 		mov bx,[bp-8]			; TID
 
 		mov eax,[ServerIP]
-		cmp [pxe_udp_read_pkt.sip],eax
+		cmp [pxe_udp_read_pkt.sip],eax	; This is technically not to the TFTP spec?
 		jne .no_packet
 		mov [si+tftp_remoteip],eax
 
@@ -1162,23 +1196,30 @@ searchdir:
 		mov ax,[pxe_udp_read_pkt.rport]
 		mov [si+tftp_remoteport],ax
 
-		movzx eax,word [pxe_udp_read_pkt.buffersize]
-		sub eax, byte 2
+		; filesize <- -1 == unknown
+		mov dword [si+tftp_filesize], -1
+		; Default blksize unless blksize option negotiated
+		mov word [si+tftp_blksize], TFTP_BLOCKSIZE
+
+		mov cx,[pxe_udp_read_pkt.buffersize]
+		sub cx,2		; CX <- bytes after opcode
 		jb .failure		; Garbled reply
 
-		cmp word [packet_buf], TFTP_ERROR
+		mov si,packet_buf
+		lodsw
+
+		cmp ax, TFTP_ERROR
 		je .bailnow		; ERROR reply: don't try again
 
-		cmp word [packet_buf], TFTP_OACK
-		jne .err_reply
+		cmp ax, TFTP_OACK
+		jne .no_tsize
 
 		; Now we need to parse the OACK packet to get the transfer
-		; size.
-.parse_oack:	mov cx,[pxe_udp_read_pkt.buffersize]
-		mov si,packet_buf+2
-		sub cx,byte 2
-		jz .no_tsize			; No options acked
-.get_opt_name:	mov di,si
+		; size.  SI -> first byte of options; CX -> byte count
+.parse_oack:
+		jcxz .no_tsize			; No options acked
+.get_opt_name:
+		mov di,si
 		mov bx,si
 .opt_name_loop:	lodsb
 		and al,al
@@ -1187,54 +1228,82 @@ searchdir:
 		stosb
 		loop .opt_name_loop
 		; We ran out, and no final null
-		jmp short .err_reply
-.got_opt_name:	dec cx
+		jmp .err_reply
+.got_opt_name:	; si -> option value
+		dec cx				; bytes left in pkt
 		jz .err_reply			; Option w/o value
+
+		; Parse option pointed to by bx; guaranteed to be
+		; null-terminated.
 		push cx
-		mov si,bx
-		mov di,tsize_str
-		mov cx,tsize_len
+		push si
+		mov si,bx			; -> option name
+		mov bx,tftp_opt_table
+		mov cx,tftp_opts
+.opt_loop:
+		push cx
+		push si
+		mov di,[bx]			; Option pointer
+		mov cx,[bx+2]			; Option len
 		repe cmpsb
+		pop si
 		pop cx
-		jne .err_reply			; Bad option -> error
-.get_value:	xor eax,eax
+		je .get_value			; OK, known option
+		add bx,6
+		loop .opt_loop
+
+		pop si
+		pop cx
+		jmp .err_reply			; Non-negotiated option returned
+
+.get_value:	pop si				; si -> option value
+		pop cx				; cx -> bytes left in pkt
+		mov bx,[bx+4]			; Pointer to data target
+		add bx,[bp-6]			; TFTP socket pointer
+		xor eax,eax
 		xor edx,edx
 .value_loop:	lodsb
 		and al,al
 		jz .got_value
 		sub al,'0'
 		cmp al, 9
-		ja .err_reply
+		ja .err_reply			; Not a decimal digit
 		imul edx,10
 		add edx,eax
+		mov [bx],edx
 		loop .value_loop
-		; Ran out before final null
-		jmp short .err_reply
-.got_value:	dec cx
-		jnz .err_reply			; Not end of packet
-		; Move size into DX:AX (old calling convention)
-		; but let EAX == DX:AX
-		mov eax,edx
-		shr edx,16
+		; Ran out before final null, accept anyway
+		jmp short .done_pkt
 
-		xor edi,edi		; ZF <- 1
+.got_value:
+		dec cx
+		jnz .get_opt_name		; Not end of packet
+
+		; ZF == 1
 
 		; Success, done!
-
+.done_pkt:
 		pop si			; Junk	
 		pop si			; We want the packet ptr in SI
 
-		mov [si+tftp_filesize],eax
-		mov [si+tftp_filepos],edi
+		mov eax,[si+tftp_filesize]
+		cmp eax,-1
+		jz .no_tsize
+		mov edx,eax
+		shr edx,16		; DX:AX == EAX
 
-		inc di			; ZF <- 0
+		and eax,eax		; Set ZF depending on file size
 		pop bp			; Junk
 		pop bp			; Junk (retry counter)
 		pop bp
+		pop es
 		ret
 
+.no_tsize:
 .err_reply:	; Option negotiation error.  Send ERROR reply.
-		mov ax,[pxe_udp_read_pkt.rport]
+		; ServerIP and gateway are already programmed in
+		mov si,[bp-6]
+		mov ax,[si+tftp_remoteport]
 		mov word [pxe_udp_write_pkt.rport],ax
 		mov word [pxe_udp_write_pkt.buffer],tftp_opt_err
 		mov word [pxe_udp_write_pkt.buffersize],tftp_opt_err_len
@@ -1242,7 +1311,8 @@ searchdir:
 		mov bx,PXENV_UDP_WRITE
 		call pxenv
 
-.no_tsize:	mov si,err_oldtftp
+		; Write an error message and explode
+		mov si,err_oldtftp
 		call writestr
 		jmp kaboom
 
@@ -1254,10 +1324,11 @@ searchdir:
 		pop si
 		pop ax
 		dec ax			; Retry counter
-		jnz .sendreq	; Try again
+		jnz .sendreq		; Try again
 
 .error:		xor si,si		; ZF <- 1
 		pop bp
+		pop es
 		ret
 
 ;
@@ -1428,7 +1499,7 @@ unmangle_name:	call strcpy
 
 pxenv:
 .jump:		call 0:pxe_thunk		; Default to calling the thunk
-		cld
+		cld				; Make sure DF <- 0
 		ret
 
 ; Must be after function def due to NASM bug
@@ -1462,21 +1533,97 @@ PXEEntry	equ pxe_thunk.jump+1
 ;
 ;  On entry:
 ;	ES:BX	-> Buffer
-;	SI	-> TFTP block pointer
-;	CX	-> 512-byte block pointer; 0FFFFh = until end of file
+;	SI	-> TFTP socket pointer
+;	CX	-> 512-byte block count; 0FFFFh = until end of file
 ;  On exit:
-;	SI	-> TFTP block pointer (or 0 on EOF)
+;	SI	-> TFTP socket pointer (or 0 on EOF)
 ;	CF = 1	-> Hit EOF
 ;
-getfssec:
+getfssec:	push si
+		push fs
+		mov di,bx
+		mov bx,si
+		mov ax,pktbuf_seg
+		mov fs,ax
 
-.packet_loop:	push cx				; <A> Save count
-		push es				; <B> Save buffer pointer
-		push bx				; <C> Block pointer
-	
+		movzx ecx,cx
+		shl ecx,TFTP_BLOCKSIZE_LG2	; Convert to bytes
+		jz .hit_eof			; Nothing to do?
+		
+.need_more:
+		push ecx
+
+		movzx eax,word [bx+tftp_bytesleft]
+		cmp ecx,eax
+		jna .ok_size
+		mov ecx,eax
+		jcxz .need_packet		; No bytes available?
+.ok_size:
+
+		mov ax,cx			; EAX<31:16> == ECX<31:16> == 0
+		mov si,[bx+tftp_dataptr]
+		sub [bx+tftp_bytesleft],cx
+		fs rep movsb			; Copy from packet buffer
+		mov [bx+tftp_dataptr],si
+
+		pop ecx
+		sub ecx,eax
+		jnz .need_more
+
+
+.hit_eof:
+		pop fs
+		pop si
+
+		; Is there anything left of this?
+		mov eax,[si+tftp_filesize]
+		sub eax,[si+tftp_filepos]
+		jnz .bytes_left	; CF <- 0
+
+		cmp [si+tftp_bytesleft],ax
+		jnz .bytes_left	; CF <- 0
+
+		; The socket is closed and the buffer drained
+		; Close socket structure and re-init for next user
+		push es
+		push ds
+		pop es
+		mov di,si
+		; ax = 0
+		mov cx,tftp_clear_words
+		rep stosw
+		pop es
+		xor si,si
+		stc
+.bytes_left:
+		ret
+
+;
+; No data in buffer, check to see if we can get a packet...
+;
+.need_packet:
+		pop ecx
+		mov eax,[bx+tftp_filesize]
+		cmp eax,[bx+tftp_filepos]
+		je .hit_eof			; Already EOF'd; socket already closed
+
+		pushad
+		push es
+		mov si,bx
+		call get_packet
+		pop es
+		popad
+
+		jmp .need_more
+
+;
+; Get a fresh packet; expects fs -> pktbuf_seg and ds:si -> socket structure
+;
+get_packet:
 		mov ax,ds
 		mov es,ax
-
+	
+.packet_loop:
 		; Start by ACKing the previous packet; this should cause the
 		; next packet to be sent.
 		mov cx,PKT_RETRY
@@ -1484,9 +1631,7 @@ getfssec:
 
 .send_ack:	push cx				; <D> Retry count
 
-		mov eax,[si+tftp_filepos]
-		shr eax,TFTP_BLOCKSIZE_LG2
-		xchg ah,al			; Network byte order
+		mov ax,[si+tftp_lastpkt]
 		call ack_packet			; Send ACK
 
 		; We used to test the error code here, but sometimes
@@ -1502,10 +1647,11 @@ getfssec:
 .wait_data:	push cx				; <E> Timeout
 		push dx				; <F> Old time
 
-		mov bx,packet_buf
+		mov bx,[si+tftp_pktbuf]
 		mov [pxe_udp_read_pkt.buffer],bx
-		mov [pxe_udp_read_pkt.buffersize],word packet_buf_size
-		mov eax,[bx+tftp_remoteip]
+		mov [pxe_udp_read_pkt.buffer+2],fs
+		mov [pxe_udp_read_pkt.buffersize],word PKTBUF_SIZE
+		mov eax,[si+tftp_remoteip]
 		mov [pxe_udp_read_pkt.sip],eax
 		mov eax,[MyIP]
 		mov [pxe_udp_read_pkt.dip],eax
@@ -1518,8 +1664,8 @@ getfssec:
 		push si				; <G>
 		call pxenv
 		pop si				; <G>
-		cmp ax,byte 0
-		je .recv_ok
+		and ax,ax
+		jz .recv_ok
 
 		; No packet, or receive failure
 		mov dx,[BIOS_timer]
@@ -1540,76 +1686,65 @@ getfssec:
 		cmp word [pxe_udp_read_pkt.buffersize],byte 4
 		jb .wait_data			; Bad size for a DATA packet
 
-		cmp word [packet_buf],TFTP_DATA	; Not a data packet?
+		mov bx,[si+tftp_pktbuf]
+		cmp word [fs:bx],TFTP_DATA	; Not a data packet?
 		jne .wait_data			; Then wait for something else
 
-		mov eax,[si+tftp_filepos]
-		shr eax,TFTP_BLOCKSIZE_LG2
+		mov ax,[si+tftp_lastpkt]
+		xchg ah,al			; Host byte order
 		inc ax				; Which packet are we waiting for?
 		xchg ah,al			; Network byte order
-		cmp word [packet_buf+2],ax
+		cmp [fs:bx+2],ax
 		je .right_packet
 
 		; Wrong packet, ACK the packet and then try again
 		; This is presumably because the ACK got lost,
 		; so the server just resent the previous packet
-		mov ax,[packet_buf+2]
+		mov ax,[fs:bx+2]
 		call ack_packet
 		jmp .send_ok			; Reset timeout
 
-.right_packet:	; It's the packet we want.  We're also EOF if the size < 512.
+.right_packet:	; It's the packet we want.  We're also EOF if the size < blocksize
+
 		pop cx				; <D> Don't need the retry count anymore
+
+		mov [si+tftp_lastpkt],ax	; Update last packet number
+
 		movzx ecx,word [pxe_udp_read_pkt.buffersize]
-		sub cx,byte 4
+		sub cx,byte 4			; Skip TFTP header
+
+		; If this is a zero-length block, don't mess with the pointers,
+		; since we may have just set up the previous block that way
+		jz .last_block
+
+		; Set pointer to data block
+		lea ax,[bx+4]			; Data past TFTP header
+		mov [si+tftp_dataptr],ax
+
 		add [si+tftp_filepos],ecx
+		mov [si+tftp_bytesleft],cx
 
-		cmp cx,TFTP_BLOCKSIZE		; Is it a full block
-		jb .last_block
-
-		pop di				; <C> Get target buffer
-		pop es				; <B>
-
-		cld
-		push si
-		mov si,packet_buf+4
-		mov cx,TFTP_BLOCKSIZE >> 2
-		rep movsd
-		mov bx,di
-		pop si
-
-		pop cx				; <A>
-		loop .packet_loop_jmp
+		cmp cx,[si+tftp_blksize]	; Is it a full block?
+		jb .last_block			; If so, it's not EOF
 
 		; If we had the exact right number of bytes, always get
 		; one more packet to get the (zero-byte) EOF packet and
 		; close the socket.
 		mov eax,[si+tftp_filepos]
 		cmp [si+tftp_filesize],eax
-		je .packet_loop_jmp
+		je .packet_loop
 
-		clc				; Not EOF
-		ret				; Mission accomplished
+		ret
 
-.packet_loop_jmp: jmp .packet_loop
 
-.last_block:	; Last block - ACK packet immediately and free socket
-		mov ax,[packet_buf+2]
+.last_block:	; Last block - ACK packet immediately
+		mov ax,[fs:bx+2]
 		call ack_packet
-		mov word [si],0			; Socket closed
+
+		; Make sure we know we are at end of file
+		mov eax,[si+tftp_filepos]
+		mov [si+tftp_filesize],eax
 	
-		; Copy data
-		pop di				; <C>
-		pop es				; <B>
-
-		cld
-		mov si,packet_buf+4
-		rep movsb
-		mov bx,di
-
-		xor si,si
-		
-		pop cx				; <A> Not used
-		stc				; EOF
 		ret
 
 ;
@@ -2246,12 +2381,31 @@ KeepPXE		db 0			; Should PXE be kept around?
 ;
 ; TFTP commands
 ;
-tftp_tail	db 'octet', 0, 'tsize' ,0, '0', 0	; Octet mode, request size
-tftp_tail_len	equ ($-tftp_tail)
-tsize_str	db 'tsize', 0
+tftp_tail	db 'octet', 0				; Octet mode
+tsize_str	db 'tsize' ,0				; Request size
 tsize_len	equ ($-tsize_str)
+		db '0', 0
+blksize_str	db 'blksize', 0				; Request large blocks
+blksize_len	equ ($-blksize_str)
+		asciidec TFTP_LARGEBLK
+		db 0
+tftp_tail_len	equ ($-tftp_tail)
+
+		alignb 2, db 0
+;
+; Options negotiation parsing table (string pointer, string len, offset
+; into socket structure)
+;
+tftp_opt_table:
+		dw tsize_str, tsize_len, tftp_filesize
+		dw blksize_str, blksize_len, tftp_blksize
+tftp_opts	equ ($-tftp_opt_table)/6
+
+;
+; Error packet to return on options negotiation error
+;
 tftp_opt_err	dw TFTP_ERROR				; ERROR packet
-		dw htons(8)				; ERROR 8: bad options
+		dw TFTP_EOPTNEG				; ERROR 8: bad options
 		db 'tsize option required', 0		; Error message
 tftp_opt_err_len equ ($-tftp_opt_err)
 
