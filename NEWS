@@ -5,9 +5,9 @@ them.
 Changes in 2.03:
 	* Actually support comment lines in the configuration file.
 	* PXELINUX: Try to resolve some problems with stack switches.
-	  This is a workaround for what appears to be a fairly common
-	  PXE stack bug, including in the remote install PXE boot
-	  floppy (rbfg.exe) from Argon Technologies.
+	* PXELINUX: Handle PXE stacks with broken routing.
+	  With these workarounds, the remote install PXE boot floppy
+	  (rbfg.exe) from Argon Technologies should work correctly.
 
 Changes in 2.02:
 	* SYSLINUX: Security flaws have been found in the SYSLINUX

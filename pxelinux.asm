@@ -8,7 +8,7 @@
 ;  network booting API.  It is based on the SYSLINUX boot loader for
 ;  MS-DOS floppies.
 ;
-;   Copyright (C) 1994-2002  H. Peter Anvin
+;   Copyright (C) 1994-2003  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -348,7 +348,7 @@ _start1:
 
 		; Uh-oh, not there... try plan B
 		mov ax, 5650h
-		int 1Ah
+		int 1Ah					; May trash regs
 		jc no_pxe
 		cmp ax,564Eh
 		jne no_pxe
@@ -1075,7 +1075,10 @@ searchdir:
 		push bx			; [bp-8]  - TID (socket port no)
 
 		mov eax,[ServerIP]	; Server IP
+		mov [pxe_udp_write_pkt.status],byte 0
 		mov [pxe_udp_write_pkt.sip],eax
+		mov eax,[UseGW]
+		mov [pxe_udp_write_pkt.gip],eax
 		mov [pxe_udp_write_pkt.lport],bx
 		mov ax,[ServerPort]
 		mov [pxe_udp_write_pkt.rport],ax
@@ -1113,6 +1116,7 @@ searchdir:
 
 .pkt_loop:	mov bx,[bp-8]		; TID
 		mov di,packet_buf
+		mov [pxe_udp_read_pkt.status],byte 0
 		mov [pxe_udp_read_pkt.buffer],di
 		mov di,packet_buf_size
 		mov [pxe_udp_read_pkt.buffersize],di
@@ -1664,7 +1668,8 @@ unload_pxe:
 		pop di
 		call pxenv
 		jc .cant_free
-		cmp word [pxe_unload_stack_pkt.status],PXENV_STATUS_SUCCESS
+		mov ax,word [pxe_unload_stack_pkt.status]
+		cmp ax,PXENV_STATUS_SUCCESS
 		jne .cant_free
 		jmp .call_loop
 
@@ -1735,7 +1740,12 @@ unload_pxe:
 .cant_free:
 		mov si,cant_free_msg
 		call writestr
-		xchg ax,bx
+		push ax
+		xchg bx,ax
+		call writehex4
+		mov al,'-'
+		call writechr
+		pop ax
 		call writehex4
 		mov al,'-'
 		call writechr
@@ -1815,6 +1825,7 @@ gendotquad:
 ; ServerIP	- boot server IP address
 ; Netmask	- network mask
 ; Gateway	- default gateway router IP
+; UseGW		- zero if ServerIP local, otherwise Gateway
 ; BootFile	- boot file name
 ;
 ; This assumes the DHCP packet is in "trackbuf" and the length
@@ -1866,6 +1877,14 @@ parse_dhcp:
 		mov cx,64
 		call parse_dhcp_options
 .nosnameoverload:
+		; Now adjust the gateway
+		mov eax,[MyIP]
+		xor eax,[ServerIP]
+		and eax,[Netmask]
+		jz .nogwneeded
+		mov eax,[Gateway]
+.nogwneeded:
+		mov [UseGW],eax
 		ret
 
 ;
@@ -2232,6 +2251,7 @@ MyIP		dd 0			; My IP address
 ServerIP	dd 0			; IP address of boot server
 Netmask		dd 0			; Netmask of this subnet
 Gateway		dd 0			; Default router
+UseGW		dd 0			; Router to use to get to ServerIP
 ServerPort	dw TFTP_PORT		; TFTP server port
 
 ;
