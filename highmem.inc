@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -31,17 +31,24 @@ highmemsize:
 ;
 get_e820:
 		xor ebx,ebx			; Start with first record
+		mov dword [E820Max],-(1 << 20)	; Max amount of high memory
+		mov dword [E820Mem],ebx		; Detected amount of high memory
 		mov es,bx			; Need ES = DS = 0 for now
 		jmp short .do_e820		; Skip "at end" check first time!
 .int_loop:	and ebx,ebx			; If we're back at beginning...
-		jz no_e820			; ... bail; nothing found
+		jz .e820_done			; ... we're done
 .do_e820:	mov eax,0000E820h
 		mov edx,534D4150h		; "SMAP" backwards
 		xor ecx,ecx
 		mov cl,20			; ECX <- 20
 		mov di,E820Buf
 		int 15h
-		jc no_e820
+		jnc .no_carry
+		; If carry, ebx == 0 means error, ebx != 0 means we're done
+		and ebx,ebx
+		jnz .e820_done
+		jmp no_e820
+.no_carry:
 		cmp eax,534D4150h
 		jne no_e820
 ;
@@ -51,7 +58,19 @@ get_e820:
 		ja .int_loop			; Start >= 4 GB?
 		mov edx, (1 << 20)
 		sub edx, [E820Buf]
-		jb .int_loop			; Start >= 1 MB?
+		jnb .ram_range			; Start >= 1 MB?
+		; If we get here, it starts > 1 MB but < 4 GB; if this is a
+		; *non*-memory range, remember this as unusable; some BIOSes
+		; get the length of primary RAM wrong!
+		cmp dword [E820Buf+16], byte 1
+		je .int_loop			; If it's memory, don't worry about it
+		neg edx				; This means what for memory limit?
+		cmp edx,[E820Max]		; Better or worse
+		jnb .int_loop
+		mov [E820Max],edx
+		jmp .int_loop
+		
+.ram_range:
 		stc
 		sbb eax,eax			; eax <- 0xFFFFFFFF
 		cmp dword [E820Buf+12], byte 0
@@ -62,10 +81,20 @@ get_e820:
 
 		; Now EAX contains the size of memory 1 MB...up
 		cmp dword [E820Buf+16], byte 1
-		jne near err_nohighmem		; High memory isn't usable memory!!!!
+		jne .int_loop			; High memory isn't usable memory!!!!
 
 		; We're good!
-		jmp short got_highmem_add1mb	; Still need to add low 1 MB
+		mov [E820Mem],eax
+		jmp .int_loop			; Still need to add low 1 MB
+
+.e820_done:
+		mov eax,[E820Mem]
+		and eax,eax
+		jz no_e820			; Nothing found by E820?
+		cmp eax,[E820Max]		; Make sure we're not limited
+		jna got_highmem_add1mb
+		mov eax,[E820Max]
+		jmp got_highmem_add1mb
 
 ;
 ; INT 15:E820 failed.  Try INT 15:E801.

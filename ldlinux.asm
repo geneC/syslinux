@@ -148,6 +148,8 @@ EndofDirSec	resw 1			; = trackbuf+bsBytesPerSec-31
 
 		alignb 4
 E820Buf		resd 5			; INT 15:E820 data buffer
+E820Mem		resd 1			; Memory detected by E820
+E820Max		resd 1			; Is E820 memory capped?
 HiLoadAddr      resd 1			; Address pointer for high load loop
 HighMemSize	resd 1			; End of memory pointer (bytes)
 RamdiskMax	resd 1			; Highest address for a ramdisk

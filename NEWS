@@ -14,6 +14,8 @@ Changes in 2.09:
 	  SYSLINUX from COMBOOT!!!!
 	* COMBOOT: Fix "get key without echo" API function.
 	* SYSLINUX: Fix bug that affected the API open function.
+	* ALL: Improve the E820 memory parser, to work around some
+	  buggy BIOSes.
 
 Changes in 2.08:
 	* Add new configuration command "ontimeout" to allow timeout
