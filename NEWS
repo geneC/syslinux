@@ -18,6 +18,7 @@ Changes in 1.75:
 	  to work at any acceptable speed.
 	* ISOLINUX: Add a few more workarounds for various broken El
 	  Torito BIOSes.
+	* Make sure .depend files aren't accidentally packed...
 
 Changes in 1.74:
 	* SYSLINUX: fix bug that would cause valid kernel images to be
