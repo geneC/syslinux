@@ -208,14 +208,22 @@ SERIAL port [[baudrate] flowcontrol]
 	to 9600 bps.  The serial parameters are hardcoded to be 8
 	bits, no parity, 1 stop bit.
 
-	"flowcontrol" is one of the following values:
-	
-	Value	Flow control	RTS	DTR	CTS	DCD
-	  0	None		U	U	I	I
-	  1	RTS/CTS		A	A	O	I
-	  2	DTR/DCD		A	A	O	O
+	"flowcontrol" is a combination of the following bits:
+	  1 - Assert DTR
+ 	  2 - Assert RTS
+	 16 - Wait for CTS assertion
+	 32 - Wait for DSR assertion
+	 64 - Wait for RI assertion
+	128 - Wait for DCD assertion
 
-	U = Unchanged   A = Asserted   I = Ignored   O = Observed
+	Typical values are:
+
+	  0 - No flow control (default)
+	 19 - RTS/CTS flow control
+	 35 - DTR/DSR flow control
+	131 - DTR/DCD flow control
+
+	All other values are reserved.
 
 	For this directive to be guaranteed to work properly, it
 	should be the first directive in the configuration file.

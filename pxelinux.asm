@@ -383,9 +383,11 @@ CursorRow       resb 1			; Cursor row for message file
 ScreenSize      equ $
 VidCols         resb 1			; Columns on screen-1
 VidRows         resb 1			; Rows on screen-1
+FlowControl	equ $
+FlowOutput	resb 1			; Outputs to assert for serial flow
+FlowInput	resb 1			; Input bits for serial flow
 RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
-FlowControl	resb 1			; Serial port flow control
 LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
 FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
@@ -1001,7 +1003,7 @@ pc_serial:	call getint			; "serial" command
 		jc parse_config_2
 		call ungetc
 		call getint
-		mov [FlowControl], byte 0	; Default to no flow control
+		mov [FlowControl], word 0	; Default to no flow control
 		jc .nobaud
 .valid_baud:	
 		push ebx
@@ -1009,7 +1011,9 @@ pc_serial:	call getint			; "serial" command
 		jnc .valid_flow
 		xor bl,bl			; Default -> no flow control
 .valid_flow:
-		mov [FlowControl],bl
+		mov bh,bl
+		and bx,0F003h			; Valid bits
+		mov [FlowControl],bx
 		pop ebx				; Baud rate
 		jmp short .parse_baud
 .nobaud:
@@ -1043,13 +1047,11 @@ pc_serial:	call getint			; "serial" command
 		xor al,al			; IRQ disable
 		call slow_out
 
-		test byte [FlowControl],01h
-		jz .no_flow
 		add dx,byte 3			; DX -> MCR
 		in al,dx
-		or al,03h			; DTR=1 RTS=1
+		mov ah,[FlowOutput]		; DTR and RTS control
+		or al,ah			; Assert bits
 		call slow_out
-.no_flow:
 
 		; Show some life
 		mov si,pxelinux_banner
@@ -3337,6 +3339,7 @@ write_serial:
 		and bx,bx
 		je .noserial
 		push ax
+		mov ah,[FlowInput]
 .waitspace:
 		; Wait for space in transmit register
 		lea dx,[bx+5]			; DX -> LSR
@@ -3344,13 +3347,12 @@ write_serial:
 		test al,20h
 		jz .waitspace
 
-		; Wait for CTS to become available if applicable
-		test byte [FlowControl], 01h
-		jz .no_flow
+		; Wait for input flow control
 		inc dx				; DX -> MSR
 		in al,dx
-		test al,10h
-		jz .waitspace	
+		and al,ah
+		cmp al,ah
+		jne .waitspace	
 .no_flow:		
 
 		xchg dx,bx			; DX -> THR
