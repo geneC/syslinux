@@ -58,7 +58,11 @@ syslogo.lss:	syslogo.png $(PPMTOLSS16)
 		$(PPMTOLSS16) \#000000=0 \#d0d0d0=7 \#f6f6f6=15	\
 		> syslogo.lss
 
-clean:
-	rm -f *.lss *.o *.elf *.c32
+tidy:
+	rm -f *.o *.a *.lst
+
+# Don't specify *.com since mdiskchk.com can't be built using Linux tools
+clean: tidy
+	rm -f *.lss *.o *.elf *.c32 comecho.com
 
 spotless: clean

@@ -200,6 +200,7 @@ local-tidy:
 tidy: local-tidy
 	$(MAKE) -C memdisk tidy
 	$(MAKE) -C win32 tidy
+	$(MAKE) -C sample tidy
 
 local-clean:
 	rm -f $(ITARGET)
