@@ -29,7 +29,7 @@
 ;
 ; Some semi-configurable constants... change on your own risk
 ;
-max_cmd_len	equ 2047		; Must be odd; 2047 is the kernel limit
+max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
 retry_count	equ 6			; How patient are we with the disk?
 
 ;
@@ -107,20 +107,35 @@ CAN_USE_HEAP    equ 80h                 ; Boot loader reports heap size
 ;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
-; Since there is no room in the bottom 64K for up to 16 of these, we
+; Since there is no room in the bottom 64K for all of these, we
 ; stick them at 8000:0000 and copy them down before we need them.
 ;
-; Note: this structure can be added to, but must be less than 4K in size.
+; Note: this structure can be added to, but it must 
 ;
+%define vk_power	7		; log2(max number of vkernels)
+%define	max_vk		(1 << vk_power)	; Maximum number of vkernels
+%define vk_shift	(16-vk_power)
+
+
 		struc vkernel
 vk_vname:	resb 11			; Virtual name **MUST BE FIRST!**
-		resb 3			; Alignment filler
 vk_rname:	resb 11			; Real name
-		resb 1			; Filler
 vk_appendlen:	resw 1
+vk_type:	resb 1			; Type of entry
+		alignb 4
 vk_append:	resb max_cmd_len+1	; Command line
-vk_size:	equ $
+		alignb 4
+vk_size:	equ $			; Should == 1 << vk_shift
 		endstruc
+
+%if vk_size*max_vk > 65536
+%error Too many vkernels defined
+%endif
+
+%define vk_t_kernel	0		; File is a kernel image
+%define vk_t_bootsec	1		; File is a boot sector image
+%define vk_t_run	2		; File is a COMboot .com image
+
 ;
 ; Segment assignments in the bottom 640K
 ; 0000h - main code/data segment (and BIOS segment)
@@ -333,6 +348,7 @@ VidRows         resb 1			; Rows on screen-1
 RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
+KernelType	resb 1			; Type of "kernel" we're loading
 MNameBuf        resb 11            	; Generic mangled file name buffer
 KernelName      resb 11		        ; Mangled name for kernel
 InitRD          resb 11                 ; initrd= mangled name
@@ -514,7 +530,7 @@ found_it:	; Note: we actually leave two words on the stack here
 		xor ah,ah
 		mov bp,ax		; Load an entire cluster
 		mov bx,[si+26]		; First cluster
-		push bx			; Remember which cluster it was
+		mov [RunLinClust],bx	; Save for later use
 		dec bx			; First cluster is cluster 2
 		dec bx
 		mul bx
@@ -645,7 +661,7 @@ return:		ret
 
 bailmsg		db 'Boot failed: change disks and press any key', 0Dh, 0Ah, 0
 
-bs_checkpt	equ $			; Must be <= 1E5h
+bs_checkpt	equ $			; Must be <= 1E3h
 
 		zb 1E3h-($-$$)
 bs_magic	equ $			; The following 32 bytes should
@@ -676,11 +692,6 @@ magic_eof	db 0, 0Dh, 0Ah, 01Ah
 
 		align 4
 ldlinux_ent:
-;
-; The boot sector left the cluster number of this first LDLINUX.SYS
-; sector on the stack.	We'll need it later, so we should pop it off
-;
-		pop word [RunLinClust]
 ;
 ; Tell the user we got this far
 ;
@@ -1028,7 +1039,8 @@ skip_checks:
                 mov al,[BIOS_vidrows]
                 and al,al
                 jnz vidrows_is_ok
-                mov al,25                       ; No vidrows in BIOS, assume 25
+                mov al,24                       ; No vidrows in BIOS, assume 25
+						; (Remember: vidrows == rows-1)
 vidrows_is_ok:  mov [VidRows],al
                 mov ah,0fh
                 int 10h                         ; Read video state
@@ -1074,6 +1086,10 @@ parse_config:
 		je near pc_label
 		cmp ax,'ke'			; KErnel
 		je pc_kernel
+		cmp ax,'bo'			; BOotsec
+		je pc_bootsec
+		cmp ax,'ru'			; RUn
+		je pc_run
                 cmp ax,'im'                     ; IMplicit
                 je near pc_implicit
 		cmp al,'f'			; F-key
@@ -1102,8 +1118,14 @@ pc_append_vk:	mov di,VKernelBuf+vk_append	; "append" command (vkernel)
                 mov di,0                        ; If "append -" -> null string
 pc_app2:        mov [VKernelBuf+vk_appendlen],di
 		jmp short parse_config_2	
-pc_kernel:	cmp word [VKernelCtr],byte 0	; "kernel" command
-		je near parse_config		; (vkernel only)
+pc_bootsec:	mov al,vk_t_bootsec		; "bootsec" command
+		jmp short pc_vkernel
+pc_run:		mov al,vk_t_run			; "run" command
+		jmp short pc_vkernel
+pc_kernel:	mov al,vk_t_kernel		; "kernel" command
+pc_vkernel:	cmp word [VKernelCtr],byte 0
+		je near parse_config		; ("label" section only)
+		mov [VKernelBuf+vk_type],al
 		mov di,trackbuf
 		push di
 		call getline
@@ -1146,7 +1168,7 @@ pc_fkey1:	xor cx,cx
 		push cx
 		mov ax,1
 		shl ax,cl
-		or [FKeyMap], ax			; Mark that we have this loaded
+		or [FKeyMap], ax		; Mark that we have this loaded
 		mov di,trackbuf
 		push di
 		call getline			; Get filename to display
@@ -1168,6 +1190,8 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		mov di,VKernelBuf+vk_rname
 		mov cx,11
 		rep movsb
+		; By default, this is a Linux kernel image
+		mov byte [VKernelBuf+vk_type],vk_t_kernel
                 mov si,AppendBuf         	; Default append==global append
                 mov di,VKernelBuf+vk_append
                 mov cx,[AppendLen]
@@ -1180,20 +1204,20 @@ pc_label:	call commit_vk			; Commit any current vkernel
 commit_vk:
 		cmp word [VKernelCtr],byte 0
 		je cvk_ret			; No VKernel = return
-		cmp word [VKernelCtr],byte 16	; Above limit?
+		cmp word [VKernelCtr],max_vk	; Above limit?
 		ja cvk_overflow
 		mov di,[VKernelCtr]
 		dec di
-		shl di,12			; 4K/buffer
+		shl di,vk_shift
 		mov si,VKernelBuf
-		mov cx,1024			; = 4K bytes
+		mov cx,(vk_size >> 2)
 		push es
 		push word vk_seg
 		pop es
 		rep movsd			; Copy to buffer segment
 		pop es
 cvk_ret:	ret
-cvk_overflow:	mov word [VKernelCtr],16	; No more than 16, please
+cvk_overflow:	mov word [VKernelCtr],max_vk	; No more than max_vk, please
 		ret
 
 ;
@@ -1356,12 +1380,13 @@ vk_check:	pusha
 		repe cmpsb			; Is this it?
 		je vk_found
 		popa
-		add si,4096			; 4K per vkernel structure
+		add si,vk_size
 		loop vk_check
 not_vk:		pop ds
 ;
 ; Not a "virtual kernel" - check that's OK and construct the command line
 ;
+		mov byte [KernelType],vk_t_kernel	; Regular kernel
                 cmp word [AllowImplicit],byte 0
                 je bad_implicit
                 push es
@@ -1425,6 +1450,8 @@ vk_found:	popa
 		mov si,VKernelBuf+vk_rname
 		mov cx,11
 		rep movsb
+		mov al,[VKernelBuf+vk_type]	; Type of kernel to load
+		mov [KernelType],al
 		pop di
 		jmp short get_kernel
 ;
@@ -2855,8 +2882,10 @@ keywd_table	db 'ap' ; append
 		db 'di' ; display
 		db 'pr' ; prompt
 		db 'la' ; label
-		db 'ke' ; kernel
                 db 'im' ; implicit
+		db 'ke' ; kernel
+		db 'ru'	; run
+		db 'bo'	; bootsec
 		db 'f1' ; F1
 		db 'f2' ; F2
 		db 'f3' ; F3
