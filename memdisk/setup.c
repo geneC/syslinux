@@ -43,6 +43,8 @@ struct patch_area {
 
   uint8_t  driveno;
   uint8_t  drivetype;
+
+  uint16_t mystack;
 };
 
 /* This is the header in the boot sector/setup area */
@@ -105,7 +107,7 @@ rdz_16(uint32_t addr)
   asm volatile("movw %%fs:%1,%0" : "=r" (data) : "m" (*(uint16_t *)addr));
   return data;
 }
-static inline uint8_t
+static inline uint32_t
 rdz_32(uint32_t addr)
 {
   uint32_t data;
@@ -181,6 +183,8 @@ void __attribute__((noreturn)) die(void)
     asm volatile("hlt");
 }
 
+#define STACK_NEEDED	128	/* Number of bytes of stack */
+
 /*
  * Actual setup routine
  * Returns the drive number (which is then passed in %dl to the
@@ -215,8 +219,17 @@ uint32_t setup(void)
 
   geometry = get_disk_image_geometry(shdr->ramdisk_image, shdr->ramdisk_size);
 
+  printf("Disk is %s, %u K, C/H/S = %u/%u/%u\n",
+	 geometry->driveno ? "hard disk" : "floppy",
+	 geometry->sectors >> 1,
+	 geometry->c, geometry->h, geometry->s);
+
+
+  puts("e820map_init ");
   e820map_init();		/* Initialize memory data structure */
+  puts("get_mem ");
   get_mem();			/* Query BIOS for memory map */
+  puts("parse_mem\n");
   parse_mem();			/* Parse memory map */
 
   printf("dos_mem  = %#10x (%u K)\n"
@@ -251,7 +264,7 @@ uint32_t setup(void)
      2 additional ranges plus the terminating range, over what
      nranges currently show. */
 
-  total_size = hptr->total_size + (nranges+3)*12;
+  total_size = hptr->total_size + (nranges+3)*12 + STACK_NEEDED;
   printf("Total size needed = %u bytes\n", total_size);
 
   if ( total_size > dos_mem ) {
@@ -262,10 +275,14 @@ uint32_t setup(void)
   driveraddr  = stddosmem - total_size;
   driveraddr &= ~0x3FF;
 
+  /* Anything beyond the end is for the stack */
+  pptr->mystack = (uint16_t)(stddosmem-driveraddr);
+
   printf("Old dos memory at 0x%05x (map says 0x%05x), loading at 0x%05x\n",
 	 stddosmem, dos_mem, driveraddr);
 
   /* Reserve this range of memory */
+  wrz_16(BIOS_BASEMEM, driveraddr >> 10);
   insertrange(driveraddr, dos_mem-driveraddr, 2);
   parse_mem();
 
@@ -281,8 +298,13 @@ uint32_t setup(void)
   pptr->oldint13 = rdz_32(BIOS_INT13);
   pptr->oldint15 = rdz_32(BIOS_INT15);
 
-  /* Claim the memory and copy the driver into place */
-  wrz_16(BIOS_BASEMEM, dos_mem >> 10);
+  /* Adjust the E820 table: if there are null ranges (type 0)
+     at the end, change them to type end of list (-1).
+     This is necessary for the driver to be able to report end
+     of list correctly. */
+  while ( nranges && ranges[nranges-1].type == 0 ) {
+    ranges[--nranges].type = -1;
+  }
 
   /* Copy driver followed by E820 table */
   asm volatile("pushw %%es ; "
@@ -294,15 +316,22 @@ uint32_t setup(void)
 	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
 	       "popw %%es"
 	       :: "r" (driverseg),
-	       "g" ((uint16_t)((nranges+1)*3)), /* 3 dwords/range */
-	       "g" ((uint16_t)ranges),
+	       "r" ((uint16_t)((nranges+1)*3)), /* 3 dwords/range */
+	       "r" ((uint16_t)ranges),
 	       "c" (bin_size >> 2),
 	       "S" (&_binary_memdisk_bin_start),
-	       "D" (0));
+	       "D" (0)
+	       : "esi", "edi", "ecx");
 
   /* Install the interrupt handlers */
+  printf("old: int13 = %08x  int15 = %08x\n",
+	 rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
+
   wrz_32(BIOS_INT13, driverptr+hptr->int13_offs);
   wrz_32(BIOS_INT15, driverptr+hptr->int15_offs);
+
+  printf("new: int13 = %08x  int15 = %08x\n",
+	 rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
 
   /* Reboot into the new "disk" */
   asm volatile("pushw %%es ; "
@@ -312,9 +341,9 @@ uint32_t setup(void)
 	       "movw $0x0201,%%ax ; "
 	       "movw $0x7c00,%%bx ; "
 	       "int $0x13 ; "
-	       "setc %0 ; "
-	       "popw %%es"
-	       : "=r" (status), "=a" (exitcode)
+	       "popw %%es ; "
+	       "setc %0 "
+	       : "=rm" (status), "=a" (exitcode)
 	       : "d" ((uint16_t)driveno)
 	       : "ebx", "ecx", "edx", "esi", "edi", "ebp");
 
@@ -323,6 +352,8 @@ uint32_t setup(void)
     die();
   }
   
+  puts("Booting...\n");
+
   /* On return the assembly code will jump to the boot vector */
   return driveno;
 }

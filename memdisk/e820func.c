@@ -30,7 +30,8 @@ void e820map_init(void)
 {
   nranges = 1;
   asm volatile("cld ; rep ; stosl %0,%%es:(%1)"
-	       :: "a" (0), "S" (ranges), "c" (sizeof(ranges) >> 2));
+	       :: "a" (0), "D" (ranges), "c" (sizeof(ranges) >> 2)
+	       : "edi", "ecx");
   ranges[1].type = -1;
 }
 

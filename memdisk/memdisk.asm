@@ -22,8 +22,6 @@
 %define SECTORSIZE_LG2	9		; log2(sector size)
 %define	SECTORSIZE	(1 << SECTORSIZE_LG2)
 
-MyStack		equ 1024
-
 		; Parameter registers definition; this is the definition
 		; of the stack frame.
 %define		P_DS		word [bp+34]
@@ -65,12 +63,12 @@ Int13Start:
 		xor dl,[cs:DriveNo]
 		pop dx
 		js .nomatch		; If SF=0, we have a match here
+		jz .our_drive		; If ZF=1, we have an exact match
 		cmp dl,[cs:DriveNo]
-		je .our_drive
 		jb .nomatch		; Drive < Our drive
 		dec dl			; Drive > Our drive, adjust drive #
 .nomatch:
-		jmp far [OldInt13]
+		jmp far [cs:OldInt13]
 
 .our_drive:
 		mov [cs:Stack],esp
@@ -79,33 +77,36 @@ Int13Start:
 		mov [cs:Stack+4],ax
 		mov ax,cs
 		mov ss,ax
-		mov sp,MyStack
+		mov sp,[cs:MyStack]
 		push ds
 		push es
 		mov ds,ax
 		mov es,ax
 		mov ax,[SavedAX]
 		pushad
-		mov bp,sp
+		mov bp,sp		; Point BP to the entry stack frame
 		cmp ah,Int13FuncsMax
 		jae Invalid
 		xor al,al		; AL = 0 is standard entry condition
 		mov di,ax
-		shr di,7
+		shr di,7		; Convert AH to an offset in DI
 		call [Int13Funcs+di]
 
 Done:		; Standard routine for return
-		mov [LastStatus],ah
 		mov P_AX,ax
-		cmp ah,1
 DoneWeird:
-		setnb al		; AL <- (AH > 0) ? 1 : 0 (CF)
-		lds ebx,[Stack]		; DS:EBX <- Old stack pointer
-		mov [ebx+4],al		; Low byte of old FLAGS -> arithmetric flags
+		mov [LastStatus],ah
+		and ah,ah
+
 		popad
 		pop es
 		pop ds
 		lss esp,[cs:Stack]
+
+		; This sets the low byte (the arithmetric flags) of the
+		; FLAGS on stack to either 00h (no flags) or 01h (CF)
+		; depending on if AH was zero or not.
+		setnz [esp+4]		; Set CF iff error
 		iret
 
 Reset:
@@ -117,14 +118,13 @@ Reset:
 		pop ds
 		lss esp,[cs:Stack]
 		and dl,80h		; Clear all but the type bit
-		jmp far [OldInt13]
+		jmp far [cs:OldInt13]
 
 Invalid:
 		mov ax,0100h		; Unsupported function
 		ret
 
 GetDriveType:
-		pop ax			; Drop return address
 		mov ah,[DriveNo]
 		shr ah,7
 		pushf
@@ -137,19 +137,12 @@ GetDriveType:
 		mov ax,[DiskSize+2]
 		mov P_CX,ax
 .floppy:
-		mov [LastStatus],byte 0	; Success, but AH returns a value
-		jmp short DoneWeird
+		pop ax			; Drop return address
+		xor ax,ax		; Success...
+		jmp short DoneWeird	; But don't stick it into P_AX
 
 GetStatus:
 		mov ah,[LastStatus]	; Copy last status
-		ret
-
-CheckIfReady:				; These are always-successful noop functions
-Recalibrate:
-InitWithParms:
-DetectChange:
-success:
-		xor ax,ax		; Always successful
 		ret
 
 Read:
@@ -161,7 +154,7 @@ do_copy:
 
 Write:
 		call setup_regs
-		xchg esi,edi
+		xchg esi,edi		; Opposite direction of a Read!
 		jmp short do_copy
 
 		; These verify one sector only
@@ -171,7 +164,15 @@ Seek:
 		; Verify integrity; just bounds-check
 Verify:
 		call setup_regs		; Returns error if appropriate
-		jmp short success	
+		; And fall through to success
+
+CheckIfReady:				; These are always-successful noop functions
+Recalibrate:
+InitWithParms:
+DetectChange:
+success:
+		xor ax,ax		; Always successful
+		ret
 
 GetParms:
 		; We need to get the "number of drives" from the BIOS
@@ -197,44 +198,46 @@ GetParms:
 		xor ax,ax
 		ret
 
-		; Convert a CHS address in CX/DH into an LBA in EAX
-chstolba:
-		xor ebx,ebx
-		mov bl,cl		; Sector number
-		and bl,3Fh
-		dec bx
-		mov si,dx
-		mov ax,[Heads]
-		shr cl,6
-		xchg cl,ch		; Now CX <- cylinder number
-		mul cx			; DX:AX <- AX*CX
-		shr si,8		; SI <- head number
-		add ax,si
-		adc dx,byte 0
-		shl edx,16
-		or eax,edx
-		mul dword [Sectors]
-		add eax,ebx
-		ret
-
 		; Set up registers as for a "Read", and compares against disk size
 setup_regs:
-		call chstolba
-		movzx edi,P_BX		; Get linear address of target buffer
-		movzx ecx,P_ES
-		shr ecx,4
-		add edi,ecx
-		movzx ecx,P_AL
-		lea ebx,[eax+ecx]
+
+		; Convert a CHS address in P_CX/P_DH into an LBA in eax
+		; CH = cyl[7:0]
+		; CL[0:5] = sector (1-based)  CL[7:6] = cyl[9:8]
+		; DH = head
+		movzx ecx,P_CX
+		movzx ebx,cl		; Sector number
+		and bl,3Fh
+		dec ebx			; Sector number is 1-based
+		movzx edi,P_DH		; Head number
+		movzx eax,word [Heads]
+		shr cl,6
+		xchg cl,ch		; Now CX <- cylinder number
+		mul ecx			; eax <- Heads*cyl# (edx <- 0)
+		add eax,edi
+		mul dword [Sectors]
+		add eax,ebx
+		; Now eax = LBA
+
+		;
+		; setup_regs continues...
+		;
+		; Note: edi[31:16] and ecx[31:16] = 0 already
+		mov di,P_BX		; Get linear address of target buffer
+		mov cx,P_ES
+		shl ecx,4
+		add edi,ecx		; EDI = address to fetch to
+		movzx ecx,P_AL		; Sector count
 		mov esi,eax
-		shr esi,SECTORSIZE_LG2
-		add esi,[DiskBuf]
-		cmp ebx,[DiskSize]
-		jae .overrun
-		shr ecx,SECTORSIZE_LG2-1
+		add eax,ecx
+		shl esi,SECTORSIZE_LG2
+		add esi,[DiskBuf]	; Get address in high memory
+		cmp eax,[DiskSize]	; Check the high mark against limit
+		ja .overrun
+		shl ecx,SECTORSIZE_LG2-1 ; Convert count to 16-bit words
 		ret
 
-.overrun:	pop ax			; Drop return address
+.overrun:	pop ax			; Drop setup_regs return address
 		mov ax,0400h		; Sector not found
 		ret
 
@@ -252,6 +255,10 @@ int15_e820:
 		mov ebx,E820Table
 .renew:
 		add bx, byte 12		; Advance to next
+		mov eax,[bx-4]		; Type
+		and eax,eax		; Null type?
+		jz .renew		; If so advance to next
+		mov [es:di+16],eax
 		mov eax,[bx-12]		; Start addr (low)
 		mov [es:di],eax
 		mov ecx,[bx-8]		; Start addr (high)
@@ -262,8 +269,6 @@ int15_e820:
 		sbb ecx,[bx-8]
 		mov [es:di+8],eax	; Length (low)
 		mov [es:di+12],ecx	; Length (high)
-		mov eax,[bx-4]		; Type
-		mov [es:di+16],eax
 		cmp dword [bx+8], byte -1	; Type of next = end?
 		jne .notdone
 		xor ebx,ebx		; Done with table
@@ -401,6 +406,7 @@ Mover_src1:	db 0, 0, 0		; Low 24 bits of source addy
 		db 93h			; Access rights
 		db 00h			; Extended access rights
 Mover_src2:	db 0			; High 8 bits of source addy
+		dw 0ffffh		; 64 K segment size
 Mover_dst1:	db 0, 0, 0		; Low 24 bits of target addy
 		db 93h			; Access rights
 		db 00h			; Extended access rights
@@ -428,6 +434,9 @@ OldDosMem	dw 0			; Old position of DOS mem end
 
 DriveNo		db 0			; Our drive number
 DriveType	db 0			; Our drive type (floppies)
+
+MyStack		dw 0			; Offset of stack
+		dw 0			; Padding
 
 		; End patch area
 
