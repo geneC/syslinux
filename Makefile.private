@@ -1,6 +1,6 @@
 ## -*- makefile -*- ------------------------------------------------------
 ##   
-##   Copyright 2000 H. Peter Anvin - All Rights Reserved
+##   Copyright 2000-2002 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -20,9 +20,12 @@
 
 PRIVATE = Makefile.private
 
-isolinux.iso: isolinux-debug.bin
+isolinux.iso: all
 	cp isolinux-debug.bin isolinux-test/isolinux/isolinux.bin
-	mkisofs -v -r -J -o isolinux.iso isolinux-test
+	mkisofs -v -r -J \
+		-b isolinux/isolinux.bin -c isolinux/boot.cat \
+		-no-emul-boot -boot-load-size 4 -boot-info-table \
+		-o isolinux.iso isolinux-test
 
 burn: isolinux.iso
 	cdrecord -v blank=fast isolinux.iso

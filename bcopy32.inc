@@ -77,7 +77,7 @@ bcopy:		push eax
 		mov eax,cr0
 		or al,1
 		mov cr0,eax		; Enter protected mode
-		jmp 08h:.in_pm
+.adj3a:		jmp 08h:.in_pm
 
 .in_pm:		mov ax,10h		; Data segment selector
 		mov es,ax
@@ -91,23 +91,20 @@ bcopy:		push eax
 		mov al,cl		; Save low bits
 		shr ecx,2		; Convert to dwords
 		a32 rep movsd		; Do our business
+		; At this point ecx == 0
 
-		test al,2
-		jz .noword
-		a32 movsw
-.noword:
-		test al,1
-		jz .nobyte
-		a32 movsb
-.nobyte:
-		
-		mov es,ax		; Set to "real-mode-like"
+		mov cl,al		; Copy any fractional dword
+		and cl,3
+		a32 rep movsb
+
+		mov al,18h		; "Real-mode-like" data segment
+		mov es,ax
 		mov ds,ax
-	
+
 		mov eax,cr0
 		and al,~1
 		mov cr0,eax		; Disable protected mode
-.adj3:		jmp 0:.in_rm
+.adj3b:		jmp 0:.in_rm
 
 .in_rm:		; Back in real mode
 		lss sp,[cs:SavedSSSP]
@@ -144,7 +141,6 @@ bcopy:		push eax
 A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
 A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
 a20_adjust_cnt	equ ($-A20List)/2
-A20Type		dw A20_DUNNO		; A20 type unknown
 
 slow_out:	out dx, al		; Fall through
 
@@ -160,7 +156,9 @@ try_enable_a20:
 ;
 ; Flush the caches
 ;
-;		call try_wbinvd
+%if DO_WBINVD
+		call try_wbinvd
+%endif
 
 ;
 ; If the A20 type is known, jump straight to type
@@ -287,7 +285,9 @@ disable_a20:
 ;
 ; Flush the caches
 ;
-;		call try_wbinvd
+%if DO_WBINVD
+		call try_wbinvd
+%endif
 
 		mov bp,[cs:A20Type]
 		add bp,bp			; Convert to word offset
@@ -359,11 +359,13 @@ empty_8042:
 .done:		ret	
 
 ;
-; WBINVD instruction; gets auto-eliminated on 386 CPUs
+; Execute a WBINVD instruction if possible on this CPU
 ;
+%if DO_WBINVD
 try_wbinvd:
 		wbinvd
 		ret
+%endif
 
 ;
 ; bcopy_over_self:
@@ -388,7 +390,8 @@ try_wbinvd:
 		align 2
 adjlist		dw bcopy_gdt.adj1 - ADJUST
 		dw bcopy.adj2 + 5 - ADJUST
-		dw bcopy.adj3 + 1 - ADJUST
+		dw bcopy.adj3a + 1 - ADJUST
+		dw bcopy.adj3b + 1 - ADJUST
 		dw try_enable_a20.adj4 + 3 - ADJUST
 		dw disable_a20.adj5 + 3 - ADJUST
 adjlist_cnt	equ ($-adjlist)/2

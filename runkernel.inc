@@ -318,13 +318,14 @@ read_kernel:
 ; Move the stuff beyond the setup code to high memory at 100000h
 ;
 		movzx esi,word [SetupSecs]	; Setup sectors
-		inc esi				; plus 1 boot sector
-                shl esi,9			; Convert to bytes
+		inc si				; plus 1 boot sector
+                shl si,9			; Convert to bytes
                 mov ecx,8000h			; 32K
 		sub ecx,esi			; Number of bytes to copy
 		push ecx
 		add esi,(real_mode_seg << 4)	; Pointer to source
                 mov edi,100000h                 ; Copy to address 100000h
+
                 call bcopy			; Transfer to high memory
 
 		; On exit EDI -> where to load the rest

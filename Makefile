@@ -39,7 +39,7 @@ VERSION  = $(shell cat version)
 #
 CSRC    = syslinux.c gethostip.c
 NASMSRC  = ldlinux.asm syslinux.asm copybs.asm \
-	  pxelinux.asm mbr.asm isolinux.asm
+	  pxelinux.asm mbr.asm isolinux.asm isolinux-debug.asm
 SOURCES = $(CSRC) $(NASMSRC) *.inc
 BTARGET = ldlinux.bss ldlinux.sys ldlinux.bin ldlinux.lst \
 	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin
@@ -102,10 +102,10 @@ pxelinux.0: pxelinux.bin
 	cp pxelinux.bin pxelinux.0
 
 # Special verbose version of isolinux.bin
-isolinux-debug.bin: isolinux.asm kwdhash.inc
+isolinux-debug.bin: isolinux-debug.asm kwdhash.inc
 	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" \
-		-dHEXDATE="$(HEXDATE)" -dDEBUG_MESSAGES \
-		-l isolinux-debug.lst -o isolinux-debug.bin isolinux.asm
+		-dHEXDATE="$(HEXDATE)" \
+		-l isolinux-debug.lst -o isolinux-debug.bin isolinux-debug.asm
 
 ldlinux.bss: ldlinux.bin
 	dd if=ldlinux.bin of=ldlinux.bss bs=512 count=1
