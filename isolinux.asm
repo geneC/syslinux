@@ -646,7 +646,8 @@ checkerr_msg:	db 'Image checksum error, sorry...', CR, LF, 0
 
 err_bootfailed	db CR, LF, 'Boot failed: press a key to retry...'
 bailmsg		equ err_bootfailed
-crlf_msg	db CR, LF, 0
+crlf_msg	db CR, LF
+null_msg	db 0
 
 ;
 ; El Torito spec packet

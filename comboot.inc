@@ -37,12 +37,15 @@ is_comboot_image:
 		;
 		; Set up the DOS vectors in the IVT (INT 20h-3fh)
 		;
-		mov dword [4*0x20],comboot_return	; INT 20h vector
-		mov eax,comboot_bogus
-		mov di,4*0x21
-		mov cx,31		; All remaining DOS vectors
+		mov di,4*0x20		; DOS interrupt vectors
+		mov eax,comboot_return
+		stosd
+		mov ax,comboot_int21
+		stosd
+		mov ax,comboot_bogus
+		mov cx,30		; All remaining DOS vectors
 		rep stosd
-	
+
 		mov cx,comboot_seg
 		mov es,cx
 
@@ -79,8 +82,7 @@ comboot_end_cmd: mov al,0Dh		; CR after last character
 		mov [es:80h], al	; Store command line length
 
 		mov [SavedSSSP],sp
-		mov ax,ss		; Save away SS:SP
-		mov [SavedSSSP+2],ax
+		mov [SavedSSSP+2],ss	; Save away SS:SP
 
 		call vgaclearmode	; Reset video
 
@@ -94,23 +96,36 @@ comboot_end_cmd: mov al,0Dh		; CR after last character
 
 ; Proper return vector
 comboot_return:	cli			; Don't trust anyone
-		lss sp,[cs:SavedSSSP]
-		mov ds,ax
-		mov es,ax
-		sti
-		cld
-		jmp cb_enter
+		xor ax,ax
+		jmp comboot_exit
 
-; Attempted to execute DOS system call
+; INT 21h: generic DOS system call
+comboot_int21:	and ah,ah		; 00 = return
+		je comboot_return
+		cmp ah,4Ch		; 4C = return with status
+		je comboot_return
+
+		; Otherwise fall through to comboot_bogus
+
+; Attempted to execute non-21h DOS system call
 comboot_bogus:	cli			; Don't trust anyone
+		mov ax,err_notdos
+
+;
+; Generic COMBOOT return to command line code
+;
+comboot_exit:
 		lss sp,[cs:SavedSSSP]
-		mov ds,ax
-		mov es,ax
+		xor dx,dx
+		mov ds,dx
+		mov es,dx
 		sti
 		cld
+		and ax,ax
+		je .nomsg
 		mov si,KernelCName
 		call cwritestr
-		mov si,err_notdos
+		xchg si,ax
 		call cwritestr
-		jmp cb_enter
+.nomsg:		jmp cb_enter
 

@@ -1685,7 +1685,8 @@ loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
 dot_msg         db '.', 0
 aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
-crlf_msg	db CR, LF, 0
+crlf_msg	db CR, LF
+null_msg	db 0
 crff_msg	db CR, FF, 0
 syslinux_cfg	db 'SYSLINUXCFG'
 ;

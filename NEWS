@@ -19,6 +19,12 @@ Changes in 1.75:
 	* ISOLINUX: Add a few more workarounds for various broken El
 	  Torito BIOSes.
 	* Make sure .depend files aren't accidentally packed...
+	* ALL: Fix bugs in the extension-detect code; this caused
+	  files like COMBOOT images and CD boot sectors to be
+	  mis-identified as Linux kernels and rejected.
+	* ALL: Fix the return from COMBOOT.
+	* ALL: Do some of the early groundwork for supporting DOS
+	  system calls in COMBOOT.
 
 Changes in 1.74:
 	* SYSLINUX: fix bug that would cause valid kernel images to be
