@@ -77,6 +77,70 @@ struct setup_header {
 
 const struct setup_header * const shdr = (struct setup_header *)0;
 
+/* Access to high memory */
+
+struct high_mover {
+  uint32_t resv1[4];		/* For the BIOS */
+  uint16_t src_limit;		/* 0xffff */
+  uint16_t src01;		/* Bytes 0-1 of src */
+  uint8_t src2;			/* Byte 2 of src */
+  uint8_t src_perms;		/* 0x93 */
+  uint8_t src_xperms;		/* 0x00 */
+  uint8_t src3;			/* Byte 3 of src */
+  uint16_t dst_limit;		/* 0xffff */
+  uint16_t dst01;		/* Bytes 0-1 of dst */
+  uint8_t dst2;			/* Byte 2 of dst */
+  uint8_t dst_perms;		/* 0x93 */
+  uint8_t dst_xperms;		/* 0x00 */
+  uint8_t dst3;			/* Byte 3 of dst */
+  uint32_t resv2[4];		/* For the BIOS */
+};
+
+/* Note: this version of high_bcopy() is limited to 64K */
+static void high_bcopy(uint32_t dst, uint32_t src, uint16_t len)
+{
+  static struct high_mover high_mover = 
+  {
+    { 0, 0, 0, 0 },
+    0xffff, 0, 0, 0x93, 0x00, 0,
+    0xffff, 0, 0, 0x93, 0x00, 0,
+    { 0, 0, 0, 0 }
+  };
+  
+  high_mover.src01 = (uint16_t)src;
+  high_mover.src2  = src >> 16;
+  high_mover.src3  = src >> 24;
+
+  high_mover.dst01 = (uint16_t)dst;
+  high_mover.dst2  = dst >> 16;
+  high_mover.dst3  = dst >> 24;
+
+  asm volatile("pushf ; movb $0x87,%%ah ; int $0x15 ; popf"
+	       :: "S" (&high_mover), "c" (len >> 1)
+	       : "eax", "ebx", "ecx", "edx",
+	       "ebp", "esi", "edi", "memory");
+}
+
+#define LOWSEG 0x0800		/* Should match init.S16 */
+
+static inline uint32_t
+ptr2linear(void *ptr)
+{
+  return (LOWSEG << 4) + (uint32_t)ptr;
+}
+
+static inline void
+copy_to_high(uint32_t dst, void *src, uint16_t len)
+{
+  high_bcopy(dst, ptr2linear(src), len);
+}
+
+static inline void
+copy_from_high(void *dst, uint32_t src, uint16_t len)
+{
+  high_bcopy(ptr2linear(dst), src, len);
+}
+
 /* Access to objects in the zero page */
 static inline void
 wrz_8(uint32_t addr, uint8_t data)
@@ -124,51 +188,91 @@ rdz_32(uint32_t addr)
  * Figure out the "geometry" of the disk in question
  */
 struct geometry {
-  uint32_t size;		/* Size in bytes */
-  uint32_t sectors;		/* 512-byte sector limit */
+  uint32_t sectors;		/* 512-byte sector count */
   uint32_t c, h, s;		/* C/H/S geometry */
   uint8_t type;		        /* Type byte for INT 13h AH=08h */
   uint8_t driveno;		/* Drive no */
 };
 
-static const uint32_t image_sizes[] =
-{  360*1024,
-   720*1024,
-  1200*1024,
-  1440*1024,
-  2880*1024,
-  0 };
 static const struct geometry geometries[] =
-{ {  360*1024,  720, 40,  2,  9, 0x01, 0 },
-  {  720*1024, 1440, 80,  2,  9, 0x03, 0 },
-  { 1200*1024, 2400, 80,  2, 15, 0x02, 0 },
-  { 1440*1024, 2880, 80,  2, 18, 0x04, 0 },
-  { 2880*1024, 5760, 80,  2, 36, 0x06, 0 } };
+{ 
+  {  720, 40,  2,  9, 0x01, 0 }, /*  360 K */
+  { 1440, 80,  2,  9, 0x03, 0 }, /*  720 K*/
+  { 2400, 80,  2, 15, 0x02, 0 }, /* 1200 K */
+  { 2880, 80,  2, 18, 0x04, 0 }, /* 1440 K */
+  { 5760, 80,  2, 36, 0x06, 0 }, /* 2880 K */
+};
 #define known_geometries (sizeof(geometries)/sizeof(struct geometry))
+
+/* Format of a DOS partition table entry */
+struct ptab_entry {
+  uint8_t active;
+  uint8_t start_h, start_s, start_c;
+  uint8_t type;
+  uint8_t end_h, end_s, end_c;
+  uint32_t start;
+  uint32_t size;
+};
 
 const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 {
   static struct geometry hd_geometry;
+  struct ptab_entry ptab[4];	/* Partition table buffer */
+  uint32_t sectors;
   int i;
+  int c, h, s;
+  int max_c, max_h, max_s;
+
+  if ( size & 0x1ff ) {
+    puts("MEMDISK: Image has fractional end sector\n");
+    size &= ~0x1ff;
+  }
+  sectors = size >> 9;
 
   for ( i = 0 ; i < known_geometries ; i++ ) {
-    if ( size == geometries[i].size ) {
+    if ( sectors == geometries[i].sectors ) {
       return &geometries[i];
     }
   }
 
   /* No match, must be a hard disk image */
   /* Need to examine the partition table for geometry */
+  copy_from_high(&ptab, where+(512-2-4*16), sizeof ptab);
+  
+  max_c = max_h = 0;  max_s = 1;
+  for ( i = 0 ; i < 4 ; i++ ) {
+    c = ptab[i].start_c + (ptab[i].start_s >> 6);
+    s = (ptab[i].start_s & 0x3f);
+    h = ptab[i].start_h;
 
-  /* For now, though, just use a simple standard geometry CHS = Nx16x63 */
+    if ( max_c < c ) max_c = c;
+    if ( max_h < h ) max_h = h;
+    if ( max_s < s ) max_s = s;
 
-  hd_geometry.size    = size & ~0x1FF;
-  hd_geometry.sectors = size >> 9;
-  hd_geometry.c       = size/(16*63*512);
-  hd_geometry.h       = 16;
-  hd_geometry.s       = 63;
+    c = ptab[i].end_c + (ptab[i].end_s >> 6);
+    s = (ptab[i].end_s & 0x3f);
+    h = ptab[i].end_h;
+
+    if ( max_c < c ) max_c = c;
+    if ( max_h < h ) max_h = h;
+    if ( max_s < s ) max_s = s;
+  }
+
+  max_c++; max_h++;		/* Convert to count (1-based) */
+
+  hd_geometry.sectors = sectors;
+  hd_geometry.c       = sectors/(max_h*max_s);
+  hd_geometry.h       = max_h;
+  hd_geometry.s       = max_s;
   hd_geometry.type    = 0;
   hd_geometry.driveno = 0x80;	/* Hard drive */
+
+  if ( sectors % (max_s*max_h) ) {
+    puts("MEMDISK: Image seems to have fractional end cylinder\n");
+  }
+  if ( max_c > hd_geometry.c ) {
+    puts("MEMDISK: Image appears to be truncated\n");
+  }
 
   return &hd_geometry;
 }
@@ -224,12 +328,8 @@ uint32_t setup(void)
 	 geometry->sectors >> 1,
 	 geometry->c, geometry->h, geometry->s);
 
-
-  puts("e820map_init ");
   e820map_init();		/* Initialize memory data structure */
-  puts("get_mem ");
   get_mem();			/* Query BIOS for memory map */
-  puts("parse_mem\n");
   parse_mem();			/* Parse memory map */
 
   printf("dos_mem  = %#10x (%u K)\n"
@@ -312,17 +412,6 @@ uint32_t setup(void)
      of list correctly. */
   while ( nranges && ranges[nranges-1].type == 0 ) {
     ranges[--nranges].type = -1;
-  }
-
-  /* Dump the ranges table for debugging */
-  {
-    uint32_t *r = (uint32_t *)&ranges;
-    while ( 1 ) {
-      printf("%08x%08x %d\n", r[1], r[0], r[2]);
-      if ( r[2] == (uint32_t)-1 )
-	break;
-      r += 3;
-    }
   }
 
   /* Copy driver followed by E820 table */
