@@ -54,7 +54,7 @@ VPATH = .:..:../libfat
 
 TARGETS = syslinux.exe
 
-ifeq ($(CC_IS_OK),0)
+ifeq ($(CC_IS_GOOD),0)
 all: $(TARGETS)
 else
 all:

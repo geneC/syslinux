@@ -84,8 +84,11 @@ int main(int argc, char *argv[])
   char **argp, *opt;
   char drive_name[128];
   char ldlinux_name[128];
+  const char *errmsg;
 
   int force = 0;		/* -f (force) option */
+
+  (void)argc;
 
   if (!checkver()) {
     fprintf(stderr, "You need to be running at least Windows NT\n");
