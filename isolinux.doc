@@ -20,8 +20,8 @@ This documentation isn't here yet, but here is enough that you should
 be able to test it out:
 
 Make sure you have a recent enough version of mkisofs.  I recommend
-mkisofs 1.13 (distributed with the cdrecord distribution), but 1.12
-might work as well (not tested.)
+mkisofs 1.13 (distributed with cdrecord 1.9), but 1.12 might work as
+well (not tested.)
 
 To create an image, create a directory called "isolinux" underneath
 the root directory of your ISO image master file tree.  Copy
