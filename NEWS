@@ -36,7 +36,11 @@ Changes in 3.00:
 	  to write an MBR and -a to mark the partition SYSLINUX is
 	  being installed on active.
 	* MEMDISK: Give a way to query the boot loader type while
-	  running MEMDISK; see memdisk/memdisk.doc and sample/mdiskchk.c.
+	  running MEMDISK; see memdisk/memdisk.doc and
+	  sample/mdiskchk.c.
+	* mkdiskimage: substantially improved mkdiskimage which, among
+	  other things, can now be used to initialize USB keys as
+	  zipdrives; see README.usbkey for more information.
 
 Changes in 2.13:
 	* MEMDISK: Fix command-line parsing "brown paper bag" class
