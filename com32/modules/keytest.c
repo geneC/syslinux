@@ -1,0 +1,79 @@
+#ident "$Id$"
+/* ----------------------------------------------------------------------- *
+ *   
+ *   Copyright 2004 H. Peter Anvin - All Rights Reserved
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
+ *   Bostom MA 02111-1307, USA; either version 2 of the License, or
+ *   (at your option) any later version; incorporated herein by reference.
+ *
+ * ----------------------------------------------------------------------- */
+
+/*
+ * keytest.c
+ *
+ * Test the key parsing library
+ */
+
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <consoles.h>		/* Provided by libutil */
+#include <getkey.h>
+
+static void cooked_keys(void)
+{
+  int key;
+
+  printf("[cooked]");
+
+  for(;;) {
+    key = get_key(stdin);
+
+    if ( key == 0x03 ) {
+      printf("[done]\n");
+      exit(0);
+    } else if ( key == '?' )
+      return;
+    
+    if ( key >= 0x20 && key < 0x100 ) {
+      putchar(key);
+    } else {
+      printf("[%04x]", key);
+    }
+  }
+}
+
+static void raw_keys(void)
+{
+  int key;
+
+  printf("[raw]");
+
+  for(;;) {
+    key = getc(stdin);
+
+    if ( key == 0x03 ) {
+      printf("[done]\n");
+      exit(0);
+    } else if ( key == '!' )
+      return;
+    
+    printf("<%02x>", key);
+  }
+}
+
+int main(void)
+{
+  console_ansi_raw();
+
+  printf("Press keys, end with Ctrl-C...\n");
+
+  for (;;) {
+    cooked_keys();
+    raw_keys();
+  }
+}
