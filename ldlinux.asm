@@ -301,6 +301,7 @@ EndofDirSec	resw 1			; = trackbuf+bsBytesPerSec-31
 RunLinClust	resw 1			; Cluster # for LDLINUX.SYS
 ClustSize	resw 1			; Bytes/cluster
 SecPerClust	resw 1			; Same as bsSecPerClust, but a word
+NextCluster	resw 1			; Pointer to "nextcluster" routine
 BufSafe		resw 1			; Clusters we can load into trackbuf
 BufSafeSec	resw 1			; = how many sectors?
 BufSafeBytes	resw 1			; = how many bytes?
@@ -331,6 +332,7 @@ VidCols         resb 1			; Columns on screen-1
 VidRows         resb 1			; Rows on screen-1
 RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
+LoadFlags	resb 1			; Loadflags from kernel
 MNameBuf        resb 11            	; Generic mangled file name buffer
 KernelName      resb 11		        ; Mangled name for kernel
 InitRD          resb 11                 ; initrd= mangled name
@@ -664,14 +666,15 @@ bootsignature	dw 0AA55h
 ;  Start of LDLINUX.SYS
 ; ===========================================================================
 ;
-; This "magic number" works well with the "type" command... :-)
+; This "magic number" works well with the "type" command... the 0 we treat
+; as end of string, but is ignored by "type".
 ;
 ldlinux_magic	db 'LDLINUX'
 missing_dot	db ' '
 		db 'SYS ', version_str, ' ', date
-magic_eof	db 0Dh, 0Ah, 01Ah
+magic_eof	db 0, 0Dh, 0Ah, 01Ah
 
-		zb 220h-($-$$)
+		align 4
 ldlinux_ent:
 ;
 ; The boot sector left the cluster number of this first LDLINUX.SYS
@@ -684,7 +687,6 @@ ldlinux_ent:
 		mov si,crlf
 		call writestr
 		mov byte [missing_dot],'.'
-		mov byte [magic_eof],0
 		mov si,ldlinux_magic
 		call writestr
 ;
@@ -692,22 +694,48 @@ ldlinux_ent:
 ; We can really only rely on a single sector having been loaded.  Hence
 ; we should load the FAT into RAM and start chasing pointers...
 ;
-		mov bx,FAT			; Where it goes in memory
+		mov dx,1			; 64K
+		xor ax,ax
+		div word [bsBytesPerSec]	; sectors/64K
+		mov si,ax
+
+		push es
+		mov bx,fat_seg			; Load into fat_seg:0000
+		mov es,bx
+
 		mov ax,[bsHidden1]		; Hidden sectors
 		mov dx,[bsHidden2]
 		add ax,[bsResSectors]		; plus reserved sectors = FAT
 		adc dx,byte 0
-		mov bp,[bsFATsecs]		; Sectors/FAT
-		call getlinsec			; Load it in...
+		mov cx,[bsFATsecs]		; Sectors/FAT
+fat_load_loop:	mov bp,cx
+		cmp bp,si
+		jna fat_load
+		mov bp,si			; A full 64K moby
+fat_load:	call getlinsecsr
+		sub cx,bp
+		jz fat_load_done		; Last moby?
+		add ax,bp			; Advance sector count
+		adc dx,byte 0
+		mov bx,es			; Next 64K moby
+		add bx,1000h
+		mov es,bx
+		xor bx,bx	
+		jmp short fat_load_loop
+fat_load_done:
+		pop es
 ;
 ; Fine, now we have the FAT in memory.	How big is a cluster, really?
 ; Also figure out how many clusters will fit in an 8K buffer, and how
 ; many sectors and bytes that is
 ;
+		mov di,[bsBytesPerSec]		; Used a lot below
+
 		mov al,[bsSecPerClust]		; We do this in the boot
 		xor ah,ah			; sector, too, but there
 		mov [SecPerClust],ax		; wasn't space to save it
-		mul word [bsBytesPerSec]
+		mov si,ax			; Also used a lot...
+		mul di
 		mov [ClustSize],ax		; Bytes/cluster
 		mov bx,ax
 		mov ax,trackbufsize
@@ -716,22 +744,60 @@ ldlinux_ent:
 		mov [BufSafe],ax		; # of cluster in trackbuf
 		mul word [SecPerClust]
 		mov [BufSafeSec],ax
-		mul word [bsBytesPerSec]
+		mul di
 		mov [BufSafeBytes],ax
 		add ax,getcbuf			; getcbuf is same size as
 		mov [EndOfGetCBuf],ax		; trackbuf, for simplicity
 ;
+; FAT12 or FAT16?  This computation is fscking ridiculous...
+;
+		xor dx,dx
+		xor cx,cx
+		mov ax,[bsSectors]
+		and ax,ax
+		jnz have_secs
+		mov ax,[bsHugeSectors]
+		mov dx,[bsHugeSectors+2]
+have_secs:	sub ax,[bsResSectors]
+		sbb dx,byte 0
+		mov cl,[bsFATs]
+sec_fat_loop:	sub ax,[bsFATsecs]
+		sbb dx,byte 0
+		loop sec_fat_loop
+		push ax
+		push dx
+		mov ax,[bsRootDirEnts]
+		add ax,di
+		dec ax
+		mov bx,32			; Smaller than shift since we
+		mul bx				; need the doubleword product
+		div di
+		mov bx,ax
+		pop dx
+		pop ax
+		sub ax,bx
+		sbb dx,byte 0
+		div si
+		cmp ax,4086			; Right value?
+		ja have_fat16
+have_fat12:	mov word [NextCluster],nextcluster_fat12
+		jmp short load_rest
+have_fat16:	mov word [NextCluster],nextcluster_fat16
+
+;
 ; Now we read the rest of LDLINUX.SYS.	Don't bother loading the first
 ; cluster again, though.
 ;
+load_rest:
+		mov cx,[ClustSize]
 		mov bx,ldlinux_magic
-		add bx,[ClustSize]
+		add bx,cx
 		mov si,[RunLinClust]
-		call nextcluster
+		call [NextCluster]
 		xor dx,dx
 		mov ax,ldlinux_len-1		; To be on the safe side
-		add ax,[ClustSize]
-		div word [ClustSize]		; the number of clusters
+		add ax,cx
+		div cx				; the number of clusters
 		dec ax				; We've already read one
 		jz all_read_jmp
 		mov cx,ax
@@ -764,15 +830,16 @@ getfragment:	xor bp,bp			; Fragment sector count
 		mov ax,si			; Get sector address
 		dec ax				; Convert to 0-based
 		dec ax
-		mul word [SecPerClust]
+		mov bx,[SecPerClust]
+		mul bx
 		add ax,[DataArea1]
 		adc dx,[DataArea2]
 getseccnt:					; See if we can read > 1 clust
-		add bp,[SecPerClust]
+		add bp,bx
 		dec cx				; Reduce clusters left to find
 		mov di,si			; Predict next cluster
 		inc di
-		call nextcluster
+		call [NextCluster]
 		jc gfs_eof			; At EOF?
 		jcxz endfragment		; Or was it the last we wanted?
 		cmp si,di			; Is file continuous?
@@ -785,10 +852,8 @@ gfs_getchunk:
 		push ax
 		push dx
 		mov ax,es			; Check for 64K boundaries.
-		shl ax,1			; This really belongs in
-		shl ax,1			; getlinsec, but it would
-		shl ax,1			; make it not fit in the boot
-		shl ax,1			; sector.
+		mov cl,4
+		shl ax,cl
 		add ax,bx
 		xor dx,dx
 		neg ax
@@ -802,17 +867,10 @@ gfs_partseg:
 		mov bp,ax
 		pop dx
 		pop ax
-		push si				; Save remaining sector count
-		push ax				; Save position
-		push dx
-		push bp				; Save sectors to transfer
-		call getlinsec
-		pop bp
-		pop dx
-		pop ax
-		add ax,bp			; Advance sector pointer
+		call getlinsecsr
+		add ax,bp
 		adc dx,byte 0
-		pop bp				; Load remaining sector counter
+		mov bp,si			; Remaining sector count
 		jmp short gfs_getchunk
 gfs_lastchunk:	pop dx
 		pop ax		
@@ -825,18 +883,39 @@ gfs_lastchunk:	pop dx
 gfs_return:	ret
 
 ;
+; getlinsecsr: save registers, call getlinsec, restore registers
+;
+getlinsecsr:	push ax
+		push dx
+		push cx
+		push bp
+		push si
+		call getlinsec
+		pop si
+		pop bp
+		pop cx
+		pop dx
+		pop ax
+		ret
+
+;
 ; nextcluster: Advance a cluster pointer in SI to the next cluster
 ;	       pointed at in the FAT tables (note: FAT12 assumed)
 ;	       Sets CF on return if end of file.
 ;
-nextcluster:
+;	       The variable NextCluster gets set to the appropriate
+;	       value here.
+;
 nextcluster_fat12:
 		push ax
+		push ds
+		mov ax,fat_seg
+		mov ds,ax
 		mov ax,si			; Multiply by 3/2
 		shr ax,1
 		pushf				; CF now set if odd
 		add si,ax
-		mov si,[FAT+si]
+		mov si,[si]
 		popf
 		jnc nc_even
 		shr si,1			; Needed for odd only
@@ -847,23 +926,23 @@ nc_even:
 		and si,0FFFh
 		cmp si,0FF0h			; Clears CF if at end of file
 		cmc				; But we want it SET...
+		pop ds
 		pop ax
 nc_return:	ret
 
 nextcluster_fat16:
 		push ax
-		push es
+		push ds
 		mov ax,(fat_seg >> 12)
 		shl si,1
 		adc ax,byte 0
-		mov es,ax
-		mov si,[es:si]
+		mov ds,ax
+		mov si,[si]
 		cmp si,0FFF0h
 		cmc
-		pop es
+		pop ds
 		pop ax
 		ret
-
 ;
 ; Debug routine
 ;
@@ -1596,17 +1675,8 @@ new_kernel:
                 shl dx,2                        ; Convert to 256-byte blocks
                 mov [InitRDat],dx		; Load address
 		call loadinitrd			; Load initial ramdisk
-;
-; About to load the kernel.  Print the kernel name and pick high or low.
-;
-nk_noinitrd:
-                mov si,KernelCName		; Print kernel name part of
-                call cwritestr                  ; "Loading" message
-                mov si,dotdot_msg		; Print dots
-                call cwritestr
-                test byte [es:su_loadflags],LOAD_HIGH ; Is high load flag set?
-                jnz high_kernel                 ; Yes, load high
-                jmp low_kernel                  ; No, load low
+		jmp short initrd_end
+
 initrd_notthere:
                 mov si,err_noinitrd
                 call writestr
@@ -1614,12 +1684,28 @@ initrd_notthere:
                 call writestr
                 mov si,crlf
                 jmp abort_load
-;
-; If we get here, we need to load kernel high
-;
+
 no_high_mem:    mov si,err_nohighmem		; Error routine
                 jmp abort_load
-high_kernel:
+;
+; About to load the kernel.  This is a modern kernel, so use the boot flags
+; we were provided.
+;
+nk_noinitrd:
+initrd_end:
+                mov al,[es:su_loadflags]
+		mov [LoadFlags],al
+;
+; Load the kernel.  We always load it at 100000h even if we're supposed to
+; load it "low"; for a "low" load we copy it down to low memory right before
+; jumping to it.
+;
+read_kernel:
+                mov si,KernelCName		; Print kernel name part of
+                call cwritestr                  ; "Loading" message
+                mov si,dotdot_msg		; Print dots
+                call cwritestr
+
                 mov ax,[HighMemSize]
 		cmp ax,[KernelK]
 		jb no_high_mem			; Not enough high memory
@@ -1666,100 +1752,24 @@ high_last_moby:
 		jne high_load_loop		; Apparently not
 high_load_done:
 		pop si				; No longer needed
-		push word real_mode_seg
-		pop es
-		jmp load_done
-;
-; Load an older kernel.  Older kernels always have 4 setup sectors, can't have
-; initrd, and are always loaded low.
-;
-old_kernel:
-                test byte [initrd_flag],1	; Old kernel can't have initrd
-                jz load_old_kernel
-                mov si,err_oldkernel
-                jmp abort_load
-load_old_kernel:
-		mov si,KernelCName
-		call cwritestr
-		mov si,dotdot_msg
-		call cwritestr
-
-		mov word [SetupSecs],4		; Always 4 setup sectors
-
-                ; An old kernel is always loaded low...
-
-low_kernel:
-;
-; Low kernel: check that it will fit as a low kernel,
-;             save the vkernel buffers into high memory in case we abort the
-;             load, then transfer the kernel to low memory
-;
-                cmp word [KernelK],512		; 512K maximum
-                jna low_kernel_ok
-                jmp kernel_corrupt
-low_kernel_ok:  push es
-                mov bx,vk_seg
-                mov es,bx
-                xor bx,bx
-                mov di,1000h                    ; 100000h
-                mov cx,8000h                    ; 64K
-                call upload
-                pop es
-                mov byte [VKernelsHigh],1	; VKernels now in high memory
-;
-; Transfer the already loaded protected-mode code down, then load the rest
-;
-                mov bx,1                        ; 1 boot sector
-                add bx,[SetupSecs]		; Plus setup sectors
-                shl bx,byte 5			; Convert to a paragraph number
-                push bx                         ; Save paragraph
-                add bx,real_mode_seg
-                push ds                         ; Save DS
-                mov ds,bx
-                mov ax,1000h                    ; New kernel start at...
-                mov es,ax
-                xor si,si
-                xor di,di
-                mov cx,2000h                    ; Cheating: copy 32K
-                rep movsd                       ; Copy down non-setup code
-                pop ds
-                pop bx                          ; Segment count of setup
-                mov ax,1800h                    ; Paragraph for moby 2 if
-                                                ; setup is 0K
-                sub ax,bx                       ; AX now = this moby segment
-loadmoby:
-                mov si,dot_msg
-                call cwritestr
-                call abort_check
-                pop si                          ; Restore cluster pointer
-		mov cx,[KernelClust]
-		cmp cx,[ClustPerMoby]
-		jna last_moby
-		mov cx,[ClustPerMoby]
-last_moby:
-		sub [KernelClust],cx
-		xor bx,bx			; Load at zero
-                mov es,ax                       ; Segment address
-                push ax                         ; Save segment address
-                call getfssec
-                pop ax
-		jc load_done
-		cmp word [KernelClust],byte 0
-		jz load_done
-                push si                         ; Save cluster pointer
-                add ax,1000h                    ; Advance to next moby
-                jmp short loadmoby
-;
-; This is where both the high and low load routines end up after having
-; loaded
-;
-
-load_done:
-                mov ax,real_mode_seg
+                mov ax,real_mode_seg		; Set to real mode seg
                 mov es,ax
 
                 mov si,dot_msg
                 call cwritestr
+;
+; Abandon hope, ye that enter here!  We do no longer permit aborts.
+; Now, if we were supposed to load "low", copy the kernel down to 10000h
+;
+		test byte [LoadFlags],LOAD_HIGH
+		jnz in_proper_place		; If high load, we're done
+
+		movzx ecx,word [KernelK]
+		shl ecx,8			; K -> dword
+		mov esi,100000h
+		mov edi,10000h
+		call bcopy
+in_proper_place:
 ;
 ; If the default root device is set to FLOPPY (0000h), change to
 ; /dev/fd0 (0200h)
@@ -1824,6 +1834,19 @@ kill_motor:
 ;
 		jmp setup_seg:setup_entry
 ;
+; Load an older kernel.  Older kernels always have 4 setup sectors, can't have
+; initrd, and are always loaded low.
+;
+old_kernel:
+                test byte [initrd_flag],1	; Old kernel can't have initrd
+                jz load_old_kernel
+                mov si,err_oldkernel
+                jmp abort_load
+load_old_kernel:
+		mov word [SetupSecs],4		; Always 4 setup sectors
+		mov byte [LoadFlags],0		; Always low
+		jmp load_kernel
+;
 ; cwritestr: write a null-terminated string to the console, saving
 ;            registers on entry (we can't use this in the boot sector,
 ;            since we haven't verified 386-ness yet)
@@ -1839,6 +1862,102 @@ cwstr_1:        lodsb
                 jmp short cwstr_1
 cwstr_2:        popa
                 ret
+
+;
+; 32-bit bcopy routine for real mode
+;
+; We enter protected mode, set up a flat 32-bit environment, run rep movsd
+; and then exit.  IMPORTANT: This code assumes cs == ss == 0.
+;
+; This code is probably excessively anal-retentive in its handling of
+; segments, but this stuff is painful enough as it is without having to rely
+; on everything happening "as it ought to."
+;
+bcopy_gdt_ptr:	dw bcopy_gdt_size-1
+		dd bcopy_gdt
+
+		align 4
+bcopy_gdt:	dd 0			; Null descriptor
+		dd 0
+		dd 0000ffffh		; Code segment, use16, readable,
+		dd 00009b00h		; present, dpl 0, cover 64K
+		dd 0000ffffh		; Data segment, use16, read/write,
+		dd 008f9300h		; present, dpl 0, cover all 4G
+		dd 0000ffffh		; Data segment, use16, read/write,
+		dd 00009300h		; present, dpl 0, cover 64K
+bcopy_gdt_size:	equ $-bcopy_gdt
+
+bcopy:
+		push eax
+		push gs
+		push fs
+		push ds
+		push es
+		pushf			; Saves, among others, the IF flag
+
+		o32 lgdt [bcopy_gdt_ptr]
+		mov eax,cr0
+		or al,1
+		cli
+		mov cr0,eax		; Enter protected mode
+		jmp 8:.in_pm
+
+.in_pm:		xor ax,ax		; Null selector
+		mov fs,ax
+		mov gs,ax
+
+		mov al,16		; Data segment selector
+		mov es,ax
+		mov ds,ax
+
+		mov al,24		; "Real-mode-like" data segment
+		mov ss,ax
+	
+		a32 rep movsd		; Do our business
+		
+		mov es,ax		; Set to "real-mode-like"
+		mov ds,ax
+		mov fs,ax
+		mov gs,ax	
+	
+		mov eax,cr0
+		and al,0feh
+		mov cr0,eax		; Disable protected mode
+		jmp 0:.in_rm
+
+.in_rm:		xor ax,ax		; Back in real mode
+		mov ss,ax
+		popf
+		pop es
+		pop ds
+		pop fs
+		pop gs
+		pop eax
+		ret
+
+;
+; upload: upload a chunk of data to high memory
+;         es:bx = source address
+;         di    = linear target address (x 256)
+;         cx    = count (words) - max 8000h for now
+;
+; This routine is dumb (we used to use the BIOS i286-based routines rather
+; than our own bcopy routine) and needs to go away.
+;
+upload:
+		pushad
+		xor eax,eax
+		mov ax,es
+		movzx esi,bx
+		shl eax,4
+		add esi,eax
+		movzx edi,di
+		shl edi,8
+		movzx ecx,cx
+		shr ecx,1
+		call bcopy
+		popad
+		ret
 
 ;
 ; Load RAM disk into high memory
@@ -1895,58 +2014,6 @@ rd_load_done:
                 ret
 
 ;
-; upload: upload a chunk of data to high memory
-;         es:bx = source address
-;         di    = linear target address (x 256)
-;         cx    = count (words) - max 8000h for now
-;
-
-upload:
-                pushad
-                push es
-                mov eax,09300000h       ; Compute linear base [93h in field
-                mov ax,es               ; right beyond the 3-byte address
-                shl eax,4               ; field!
-                movzx ebx,bx
-                add eax,ebx
-                mov dword [px_src_low],eax
-ul_dl:          push cs                 ; Set ES=CS (=DS)
-                pop es
-                mov [px_dst],di         ; Save destination address
-                push cx                 ; Save count
-                xor eax,eax
-                mov di,px_wipe_1
-                mov cx,4
-                stosd
-                mov di,px_wipe_2
-                mov cx,4
-                stosd
-                pop cx
-                mov si,prot_xfer_gdt
-                mov ah,87h
-                int 15h
-                jc ul_error
-                pop es
-                popad
-                ret
-ul_error:       pop ax                  ; Leave ES=CS (=DS)
-                popad
-                mov si,err_highload
-                jmp abort_load
-
-;
-; download: same as upload, except si = linear source address (x 256)
-;           currently used only to recover the vkernels in case of an
-;           aborted low-kernel load (don't you love corner cases?)
-;
-download:
-                pushad
-                push es
-                mov byte [px_src_low],0
-                mov [px_src],si
-                jmp short ul_dl
-
-;
 ; GDT for protected-mode transfers (int 15h AH=87h).  Note that the low
 ; 8 bits are set to zero in all transfers, so they never change in this
 ; block.
@@ -2001,14 +2068,6 @@ abort_load:
                 mov ss,ax                       ; Just in case...
                 sti
                 call writestr                   ; Expects SI -> error msg
-                cmp byte [VKernelsHigh],0
-                je al_ok
-                mov si,1000h                    ; VKernels stashed high
-                mov di,vk_seg                   ; Recover
-                shr di,4
-                mov cx,8000h
-                call download
-                mov byte [VKernelsHigh],0
 al_ok:          jmp enter_command               ; Return to command prompt
 ;
 ; End of abort_check
@@ -2828,7 +2887,6 @@ initrd_ptr	dw 0			; Initial ramdisk pointer/flag
 VKernelCtr	dw 0			; Number of registered vkernels
 ForcePrompt	dw 0			; Force prompt
 AllowImplicit   dw 1                    ; Allow implicit kernels
-VKernelsHigh    db 0                    ; vkernel buffers in high memory
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
 ; tons of zeros appended to our file and wasting space
