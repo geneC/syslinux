@@ -30,8 +30,9 @@ It works the same way as SYSLINUX, with a few slight modifications.
    limited to 255 characters.
 
 
-4. EXTLINUX currently doesn't support symlinks; it does, however,
-   support hard links.  This will be fixed in a future version.
+4. EXTLINUX currently doesn't support symlinks or sparse files; it
+   does, however, support hard links.  This will be fixed in a future
+   version.
 
 
 
