@@ -56,7 +56,9 @@ syslinux_id	equ 031h		; SYSLINUX (3) version 1.x (1)
 ; hog some of high memory.  Therefore, we load it at 7000:0000h and copy
 ; it before starting the Linux kernel.
 ;
-real_mode_seg	equ 5000h
+real_mode_seg	equ 7000h
+fake_setup_seg	equ real_mode_seg+020h
+
 		struc real_mode_seg_t
 		resb 20h-($-$$)		; org 20h
 kern_cmd_magic	resw 1			; Magic # for command line
@@ -1927,13 +1929,13 @@ is_mem_cmd:
                 add si,byte 4
                 call parseint
 		jc skip_this_opt		; Not an integer
-		mov [ss:HighMemSize],ebx
+		mov [cs:HighMemSize],ebx
 		jmp short skip_this_opt
 cmdline_end:
-                push ss                         ; Restore standard DS
+                push cs                         ; Restore standard DS
                 pop ds
-		sub di,cmd_line_here
-		mov [CmdLineLen],di		; Length including final null
+		sub si,cmd_line_here
+		mov [CmdLineLen],si		; Length including final null
 ;
 ; Now check if we have a large kernel, which needs to be loaded high
 ;
@@ -2035,7 +2037,7 @@ read_kernel:
                 mov [HiLoadAddr],ecx
 		sub ecx,100000h			; Turn into a counter
 		shr ecx,2			; Convert to dwords
-		add esi,90000h			; Pointer to source
+		add esi,(real_mode_seg << 4)	; Pointer to source
                 mov edi,100000h                 ; Copy to address 100000h
                 call bcopy			; Transfer to high memory
 ;
@@ -2078,6 +2080,16 @@ high_load_done:
 ;
                 call abort_check        	; Last chance!!
 
+		mov si,ready_msg
+		call cwritestr
+;
+; Now, if we were supposed to load "low", copy the kernel down to 10000h
+; and the real mode stuff to 90000h.  We assume that all bzImage kernels are
+; capable of starting their setup from a different address.
+;
+		test byte [LoadFlags],LOAD_HIGH
+		mov bx,real_mode_seg		; Real mode segment
+		jnz in_proper_place		; If high load, we're done
 ;
 ; Copy real_mode stuff up to 90000h
 ;
@@ -2114,11 +2126,6 @@ high_load_done:
 		shl cx,7			; Sectors -> dwords
 		xor eax,eax
 		rep stosd			; Clear region
-;
-; Now, if we were supposed to load "low", copy the kernel down to 10000h
-;
-		test byte [LoadFlags],LOAD_HIGH
-		jnz in_proper_place		; If high load, we're done
 
 		mov ecx,[KernelSize]
 		add ecx,3			; Round upwards
@@ -2126,7 +2133,14 @@ high_load_done:
 		mov esi,100000h
 		mov edi,10000h
 		call bcopy
+
+		mov bx,9000h			; Real mode segment
+
+;
+; Now everything is where it needs to be...
+;
 in_proper_place:
+		mov es,bx			; Real mode segment
 ;
 ; If the default root device is set to FLOPPY (0000h), change to
 ; /dev/fd0 (0200h)
@@ -2139,21 +2153,25 @@ root_not_floppy:
 ; Copy the disk table to high memory, then re-initialize the floppy
 ; controller
 ;
+; This needs to be moved before the copy
+;
+%if 0
 		push ds
+		push bx
 		lds si,[fdctab]
 		mov di,linux_fdctab
 		mov cx,3			; 12 bytes
 		push di
 		rep movsd
 		pop di
-		cli
 		mov [fdctab1],di		; Save new floppy tab pos
 		mov [fdctab2],es
-		sti
 		xor ax,ax
 		xor dx,dx
 		int 13h
+		pop bx
 		pop ds
+%endif
 ;
 ; Linux wants the floppy motor shut off before starting the kernel,
 ; at least bootsect.S seems to imply so
@@ -2163,12 +2181,6 @@ kill_motor:
 		xor al,al
 		call slow_out
 ;
-; Now we're as close to be done as we can be and still use our normal
-; routines, print a CRLF to end the row of dots
-;
-		mov si,crlf_msg
-		call cwritestr
-;
 ; If we're debugging, wait for a keypress so we can read any debug messages
 ;
 %ifdef debug
@@ -2177,19 +2189,25 @@ kill_motor:
 %endif
 ;
 ; Set up segment registers and the Linux real-mode stack
+; Note: bx == the real mode segment
 ;
 		cli
-		mov ax,9000h
-		mov ds,ax
-                mov es,ax
-		mov fs,ax
-		mov gs,ax
-		mov ss,ax
+		; es is already == real mode segment
+		mov ds,bx
+		mov fs,bx
+		mov gs,bx
+		mov ss,bx
 		mov sp,linux_stack
 ;
 ; We're done... now RUN THAT KERNEL!!!!
+; Setup segment == real mode segment + 020h; we need to jump to offset
+; zero in the real mode segment.
 ;
-		jmp setup_seg:setup_entry
+		add bx,020h
+		push bx
+		push word 0h
+		retf
+
 ;
 ; Load an older kernel.  Older kernels always have 4 setup sectors, can't have
 ; initrd, and are always loaded low.
@@ -3610,6 +3628,7 @@ err_bootsec	db 'Invalid or corrupt boot sector image.', 0Dh, 0Ah, 0
 err_a20		db 0Dh, 0Ah, 'A20 gate not responding!', 0Dh, 0Ah, 0
 err_bootfailed	db 0Dh, 0Ah, 'Boot failed: please change disks and press '
 		db 'a key to continue.', 0Dh, 0Ah, 0
+ready_msg	db ' ready.', 0Dh, 0Ah, 0
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
 dot_msg         db '.', 0
