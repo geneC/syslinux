@@ -4,9 +4,11 @@
 This is a menu system written by Murali Krishnan Ganapathy and ported
 from OpenWatcom to gcc by HPA.
 
-To configure the menus, you need to set up main.c to have the menu
-items you desire, then build the menu system using make.  You can use
-either simple.c or complex.c as a starting point for your own main.c.
+To configure the menus, you need to set up a menu configuration file
+to have the menu items you desire, then build the menu system using
+make.  You can use either simple.c or complex.c as a starting point
+for your own menu configuration file; then add the name with a .com
+extension to the MENUS list in the Makefile.
 
 The resulting code runs both under DOS as well as SYSLINUX.
 Currently, menu items, submenus and checkboxes are supported.

@@ -6,9 +6,15 @@ ALIGN   := $(call gcc_ok,-falign-functions=0 -falign-jumps=0 -falign-loops=0,-ma
 
 CC	= gcc $(M32) -funsigned-char
 CFLAGS  = -g -W -Wall -march=i386 $(ALIGN) -Os
+AR      = ar
 AS      = as
 LD      = ld -m elf_i386
 OBJCOPY = objcopy
+RANLIB  = ranlib
+
+LIBMENU = biosio.o16 string.o16 menu.o16 syslinux.o16
+
+MENUS   = simple.com complex.com
 
 .SUFFIXES: .c .s .s16 .o16 .elf .com
 
@@ -24,21 +30,21 @@ OBJCOPY = objcopy
 .elf.com:
 	$(OBJCOPY) -O binary $< $@
 
+%.elf: %.o16 startup.o16 com16.ld libmenu.a
+	$(LD) -T com16.ld -o $@ startup.o16 $< libmenu.a
 
-all : menu.com
-
-menu.elf: startup.o16 main.o16 biosio.o16 string.o16 menu.o16 syslinux.o16
-	$(LD) -T com16.ld -o $@ $^
+all : $(MENUS)
 
 startup.s16: startup.S16
 	$(CC) $(CFLAGS) -x assembler-with-cpp -E -o $@ $<
 
+libmenu.a: $(LIBMENU)
+	-rm -f $@
+	$(AR) cq $@ $^
+	$(RANLIB) $@
+
 clean:
-	-rm -f *.s *.s16 *.o16 *.elf *.com
+	-rm -f *.s *.s16 *.o16 *.elf *.com *.a
 
 spotless: clean
 	-rm -f *~ \#*
-
-distclean: spotless
-	-rm -f main.c
-
