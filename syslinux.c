@@ -100,7 +100,7 @@ static u_int32_t get_32(unsigned char *p)
 
 void usage(void)
 {
-  fprintf(stderr, "Usage: %s [-s] device\n", program);
+  fprintf(stderr, "Usage: %s [-sf] device\n", program);
   exit(1);
 }
 
@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  if ( !S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode) ) {
+  if ( !force && !S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode) ) {
     fprintf(stderr, "%s: not a block device or regular file (use -f to override)\n", device);
     exit(1);
   }
