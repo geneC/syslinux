@@ -182,7 +182,7 @@ install-lib: installer
 	install -m 644 -c $(INSTALL_LIB) $(INSTALLROOT)$(LIBDIR)
 	install -m 644 -c $(INSTALL_INC) $(INSTALLROOT)$(INCDIR)
 	cd $(INSTALLROOT)$(LIBDIR) && ln -sf $(LIB_SO) libsyslinux.so
-	ldconfig
+	[ -z '$(INSTALLROOT)' ] && ldconfig
 
 install-all: install install-all
 
