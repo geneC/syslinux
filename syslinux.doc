@@ -225,6 +225,7 @@ SERIAL port [[baudrate] flowcontrol]
 	Typical values are:
 
 	    0 - No flow control (default)
+	0x303 - Null modem cable detect
 	0x013 - RTS/CTS flow control
 	0x813 - RTS/CTS flow control, modem input
 	0x023 - DTR/DSR flow control
