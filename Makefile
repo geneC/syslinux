@@ -44,7 +44,7 @@ OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version \
 OBSOLETE = pxelinux.bin
 
 # Things to install in /usr/bin
-INSTALL_BIN = syslinux gethostip
+INSTALL_BIN = syslinux gethostip ppmtolss16 lss16toppm
 
 all:	$(BTARGET) $(ITARGET) samples
 	ls -l $(BTARGET) $(ITARGET)
@@ -128,7 +128,7 @@ gethostip.o: gethostip.c
 gethostip: gethostip.o
 
 install: all
-	install -c $(INSTALL_BIN) $(BINDIR)
+	install -c $(INSTALL_BIN) $(INSTALLROOT)$(BINDIR)
 
 tidy:
 	rm -f *.o *_bin.c stupid.*
