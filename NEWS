@@ -1,6 +1,11 @@
 Changes in 1.42:
 	* Frob the "fast A20 gate" port as well as the keyboard
 	  controller; will this help systems with problems?
+	* Be even more paranoid about A20, unfortunately even this
+	  seems to be not paranoid enough... what I don't understand
+	  is that if there is hardware out there *this broken*, how
+	  can it run Linux at all?  Report an error message rather
+	  than hang forever if A20 is stuck.
 	* Include some intermediate files in the distribution, plus
 	  provide a "make installer" target for distributors to relink
 	  the install programs only.  I would prefer the syslinux boot

@@ -343,7 +343,7 @@ InitRDCNameLen  resw 1			; Length of unmangled initrd name
 NextCharJump    resw 1			; Routine to interpret next print char
 SetupSecs	resw 1			; Number of setup sectors
 SavedSP		resw 1			; Our SP while running a COMBOOT image
-A20test		resw 1			; Counter for testing status of A20
+A20Test		resw 1			; Counter for testing status of A20
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -356,6 +356,7 @@ VidRows         resb 1			; Rows on screen-1
 RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
+A20Tries	resb 1			; Times until giving up on A20
 MNameBuf        resb 11            	; Generic mangled file name buffer
 InitRD          resb 11                 ; initrd= mangled name
 KernelCName     resb 13                 ; Unmangled kernel name
@@ -2272,13 +2273,10 @@ cwstr_2:        popa
 ; segments, but this stuff is painful enough as it is without having to rely
 ; on everything happening "as it ought to."
 ;
-		align 2
-bcopy_gdt_ptr:	dw bcopy_gdt_size-1
-		dd bcopy_gdt
-
 		align 4
-bcopy_gdt:	dd 0			; Null descriptor
-		dd 0
+bcopy_gdt:	dw bcopy_gdt_size-1	; Null descriptor - contains GDT
+		dd bcopy_gdt		; pointer for LGDT instruction
+		dw 0
 		dd 0000ffffh		; Code segment, use16, readable,
 		dd 00009b00h		; present, dpl 0, cover 64K
 		dd 0000ffffh		; Data segment, use16, read/write,
@@ -2294,23 +2292,20 @@ bcopy:		push eax
 		push ds
 		push es
 
-		mov al,'<'		; DEBUG DEBUG DEBUG
-		call writechr		
-
 		cli
 		call enable_a20
 
-		o32 lgdt [bcopy_gdt_ptr]
+		o32 lgdt [bcopy_gdt]
 		mov eax,cr0
 		or al,1
 		mov cr0,eax		; Enter protected mode
-		jmp 8:.in_pm
+		jmp 08h:.in_pm
 
-.in_pm:		mov ax,16		; Data segment selector
+.in_pm:		mov ax,10h		; Data segment selector
 		mov es,ax
 		mov ds,ax
 
-		mov al,24		; "Real-mode-like" data segment
+		mov al,18h		; "Real-mode-like" data segment
 		mov ss,ax
 		mov fs,ax
 		mov gs,ax	
@@ -2321,7 +2316,7 @@ bcopy:		push eax
 		mov ds,ax
 	
 		mov eax,cr0
-		and al,0feh
+		and al,~1
 		mov cr0,eax		; Disable protected mode
 		jmp 0:.in_rm
 
@@ -2332,9 +2327,6 @@ bcopy:		push eax
 		pop fs
 		pop gs
 		call disable_a20
-
-		mov al,'>'		; DEBUG DEBUG DEBUG
-		call writechr		
 
 		popf			; Re-enables interrupts
 		pop eax
@@ -2350,9 +2342,13 @@ bcopy:		push eax
 ; We typically toggle A20 twice for every 64K transferred.
 ; 
 %define	io_delay  times 4 out 0EDh,al	; Invalid port (we hope)
-%define delaytime 256			; 4 x ISA bus cycles (@ 1.5 µs)
+%define delaytime 1024			; 4 x ISA bus cycles (@ 1.5 µs)
+
 
 enable_a20:
+		mov byte [ss:A20Tries],255 ; Times to try to make this work
+
+try_enable_a20:
 ;
 ; Flush the caches
 ;
@@ -2361,9 +2357,9 @@ enable_a20:
 ;
 ; Enable the "fast A20 gate"
 ;
-		in al, 92h
+		in al, 092h
 		or al,02h
-		out 92h, al
+		out 092h, al
 ;
 ; Enable the keyboard controller A20 gate
 ;
@@ -2381,13 +2377,31 @@ enable_a20:
 		; we don't want to *require* A20 masking (SYSLINUX should
 		; work fine without it, if the BIOS does.)
 		push es
-		mov ax,0FFFFh		; HMA
-		mov es,ax
-.a20_wait:	inc word [ss:A20test]
+		push cx
+		mov cx,0FFFFh		; Times to try, also HMA
+		mov es,cx		; HMA = segment 0FFFFh
+.a20_wait:	inc word [ss:A20Test]
 		call try_wbinvd
-		mov ax,[es:A20test+10h]
-		cmp ax,[ss:A20test]
-		je .a20_wait
+		mov ax,[es:A20Test+10h]
+		cmp ax,[ss:A20Test]
+		jne .a20_done
+		loop .a20_wait
+;
+; Oh bugger.  A20 is not responding.  Try frobbing it again; eventually give up
+; and report failure to the user.
+;
+		pop cx
+		pop es
+
+		dec byte [ss:A20Tries]
+		jnz try_enable_a20
+
+		mov si, err_a20
+		jmp abort_load
+;
+; A20 unmasked, proceed...
+;
+.a20_done:	pop cx
 		pop es
 		ret
 
@@ -2399,9 +2413,9 @@ disable_a20:
 ;
 ; Disable the "fast A20 gate"
 ;
-		in al, 92h
+		in al, 092h
 		and al,~02h
-		out 92h, al
+		out 092h, al
 ;
 ; Disable the keyboard controller A20 gate
 ;
@@ -2411,7 +2425,7 @@ disable_a20:
 		call empty_8042
 		mov al,0DDh		; A20 off
 		out 060h, al
-		jmp short kbc_delay
+		; Fall through/tailcall to kbc_delay
 
 kbc_delay:	call empty_8042
 		push cx
@@ -3383,6 +3397,7 @@ err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
 err_notdos	db ': attempted DOS system call', 0Dh, 0Ah, 0
 err_comlarge	db 'COMBOOT image too large.', 0Dh, 0Ah, 0
 err_bootsec	db 'Invalid or corrupt boot sector image.', 0Dh, 0Ah, 0
+err_a20		db 0Dh, 0Ah, 'A20 gate not responding!', 0Dh, 0Ah, 0
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
 dot_msg         db '.', 0
