@@ -78,10 +78,6 @@ INSTALL_BIN   =	mtools/syslinux gethostip ppmtolss16 lss16toppm
 INSTALL_AUX   =	pxelinux.0 isolinux.bin isolinux-debug.bin \
 		dos/syslinux.com win32/syslinux.exe \
 		copybs.com memdisk/memdisk
-# Things to install in /usr/lib
-INSTALL_LIB   = # libsyslinux.a
-# Things to install in /usr/include
-INSTALL_INC   = # syslinux.h
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
@@ -203,11 +199,6 @@ install: installer
 	$(MAKE) -C com32 install
 
 install-lib: installer
-	mkdir -m 755 -p $(INSTALLROOT)$(LIBDIR) $(INSTALLDIR)$(INCDIR)
-	install -m 644 -c $(INSTALL_LIB) $(INSTALLROOT)$(LIBDIR)
-	install -m 644 -c $(INSTALL_INC) $(INSTALLROOT)$(INCDIR)
-	cd $(INSTALLROOT)$(LIBDIR) && ln -sf $(LIB_SO) libsyslinux.so
-	if [ -z '$(INSTALLROOT)' ]; then ldconfig; fi
 
 install-all: install install-lib
 
