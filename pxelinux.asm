@@ -909,7 +909,7 @@ config_scan:
 		rep movsb
 		mov si,MACStr
 		call strcpy
-		mov byte [di-1],' '		; Replace null with space
+		mov byte [es:di-1],' '		; Replace null with space
 .noipappend2:
 %endmacro
 
