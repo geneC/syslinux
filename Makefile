@@ -111,7 +111,7 @@ clean: tidy
 	rm -f $(ITARGET)
 
 dist: tidy
-	rm -f *~ \#*
+	rm -f *~ \#* core
 
 spotless: clean dist
 	rm -f $(BTARGET)
