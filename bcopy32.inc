@@ -389,7 +389,7 @@ try_wbinvd:
 ;	ESI, EDI, ECX	- same as bcopy
 ;	On stack	- initial state (fd, ad, ds, es, fs, gs)
 ;
-%define ADJUST	(__bcopy_start - trackbuf)
+%define ADJUST	(__bcopy_start - $$) - BSS_START
 
 		align 2
 adjlist		dw bcopy_gdt.adj1 - ADJUST
@@ -410,7 +410,7 @@ bcopy_over_self:
 		mov ds,bx
 
 		mov si,__bcopy_start
-		mov di,trackbuf
+		mov di,trackbuf		; == BSS_START
 		mov cx,(__bcopy_end - __bcopy_start + 3) >> 2
 		rep movsd
 

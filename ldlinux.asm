@@ -125,26 +125,13 @@ file_left	resd 1			; Number of sectors left
 ;
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
- 		absolute 1000h
+BSS_START	equ 1000h
+		section .bss start=BSS_START
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
-;		ends at 5000h
+		; ends at 5000h
 
-
-;
-; Constants for the xfer_buf_seg
-;
-; The xfer_buf_seg is also used to store message file buffers.  We
-; need two trackbuffers (text and graphics), plus a work buffer
-; for the graphics decompressor.
-;
-xbs_textbuf	equ 0			; Also hard-coded, do not change
-xbs_vgabuf	equ trackbufsize
-xbs_vgatmpbuf	equ 2*trackbufsize
-
-
-                absolute 5000h          ; Here we keep our BSS stuff
 VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
@@ -247,6 +234,18 @@ default_cmd	resb max_cmd_len+1	; "default" command line
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
 
+;
+; Constants for the xfer_buf_seg
+;
+; The xfer_buf_seg is also used to store message file buffers.  We
+; need two trackbuffers (text and graphics), plus a work buffer
+; for the graphics decompressor.
+;
+xbs_textbuf	equ 0			; Also hard-coded, do not change
+xbs_vgabuf	equ trackbufsize
+xbs_vgatmpbuf	equ 2*trackbufsize
+
+
 		section .text
                 org 7C00h
 ;
@@ -318,9 +317,6 @@ SecPerClust	equ bxSecPerClust
 ; Note we don't check the constraints above now; we did that at install
 ; time (we hope!)
 ;
-
-;floppy_table	equ $			; No sense in wasting memory, overwrite start
-
 start:
 		cli			; No interrupts yet, please
 		cld			; Copy upwards

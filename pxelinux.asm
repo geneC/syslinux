@@ -190,24 +190,19 @@ tftp_clear_words equ (tftp_pktbuf/2)	; Number of words to zero on socket close
 ;
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
- 		absolute 1000h
+BSS_START	equ 1000h
+ 		section .bss start=BSS_START
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
-;		ends at 5000h
+		; ends at 5000h
 
-;
-; Constants for the xfer_buf_seg
-;
-; The xfer_buf_seg is also used to store message file buffers.  We
-; need two trackbuffers (text and graphics), plus a work buffer
-; for the graphics decompressor.
-;
-xbs_textbuf	equ 0			; Also hard-coded, do not change
-xbs_vgabuf	equ trackbufsize
-xbs_vgatmpbuf	equ 2*trackbufsize
+; Warning here: RBFG build 22 randomly overwrites memory location
+; [0x5680,0x576c), possibly more.  It seems that it gets confused and
+; screws up the pointer to its own internal packet buffer and starts
+; writing a received ARP packet into low memory.
+RBFB_brainfuck	resb 800h
 
-                absolute 4000h          ; Here we keep our BSS stuff
 VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
@@ -224,13 +219,6 @@ KernelCName     resb FILENAME_MAX	; Unmangled kernel name
 InitRDCName     resb FILENAME_MAX       ; Unmangled initrd name
 MNameBuf	resb FILENAME_MAX
 InitRD		resb FILENAME_MAX
-
-; Warning here: RBFG build 22 randomly overwrites memory location
-; [0x5680,0x576c), possibly more.  It seems that it gets confused and
-; screws up the pointer to its own internal packet buffer and starts
-; writing a received ARP packet into low memory.
-
-		absolute 6000h
 NumBuf		resb 15			; Buffer to load number
 NumBufEnd	resb 1			; Last byte in NumBuf
 DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
@@ -326,6 +314,17 @@ Sockets		resb MAX_SOCKETS*tftp_port_t_size
 		alignb 16
 packet_buf	resb 2048		; Transfer packet
 packet_buf_size	equ $-packet_buf
+
+;
+; Constants for the xfer_buf_seg
+;
+; The xfer_buf_seg is also used to store message file buffers.  We
+; need two trackbuffers (text and graphics), plus a work buffer
+; for the graphics decompressor.
+;
+xbs_textbuf	equ 0			; Also hard-coded, do not change
+xbs_vgabuf	equ trackbufsize
+xbs_vgatmpbuf	equ 2*trackbufsize
 
 		section .text
                 org 7C00h
@@ -792,7 +791,8 @@ prefix:		test byte [DHCPMagic], 04h	; Did we get a path prefix option
 		mov di,PathPrefix
 		cld
 		call strcpy
-		lea cx,[di-PathPrefix-1]
+		mov cx,di
+		sub cx,PathPrefix+1
 		std
 		lea si,[di-2]			; Skip final null!
 .find_alnum:	lodsb
