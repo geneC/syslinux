@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2003-2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,40 +26,34 @@
  *
  * ----------------------------------------------------------------------- */
 
-#include <errno.h>
-#include <com32.h>
-#include <string.h>
-#include "file.h"
-
 /*
- * opendev.c
+ * rawcon_write.c
  *
- * Open a special device
+ * Raw writing to the console; no \n -> \r\n translation
  */
 
-int opendev(const struct dev_info *dev, int flags)
+#include <errno.h>
+#include <string.h>
+#include <com32.h>
+#include <minmax.h>
+#include "file.h"
+
+ssize_t __rawcon_write(struct file_info *fp, const void *buf, size_t count)
 {
-  int fd;
-  struct file_info *fp;
-  
-  if ( !(flags & 3) || (flags & ~dev->fileflags) ) {
-    errno = EINVAL;
-    return -1;
+  com32sys_t ireg;
+  const char *bufp = buf;
+  size_t n = 0;
+
+  (void)fp;
+
+  memset(&ireg, 0, sizeof ireg); 
+  ireg.eax.b[1] = 0x02;
+
+  while ( count-- ) {
+    ireg.edx.b[0] = *bufp++;
+    __intcall(0x21, &ireg, NULL);
+    n++;
   }
 
-  for ( fd = 0, fp = __file_info ; fd < NFILES ; fd++, fp++ )
-    if ( !fp->ops )
-      break;
-
-  if ( fd >= NFILES ) {
-    errno = EMFILE;
-    return -1;
-  }
-
-  fp->ops = dev;
-  fp->p.f.offset    = 0;
-  fp->p.f.nbytes    = 0;
-  fp->p.f.datap     = fp->p.f.buf;
-
-  return fd;
+  return n;
 }

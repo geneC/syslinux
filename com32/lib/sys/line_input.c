@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2003-2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,40 +26,53 @@
  *
  * ----------------------------------------------------------------------- */
 
-#include <errno.h>
-#include <com32.h>
-#include <string.h>
-#include "file.h"
-
 /*
- * opendev.c
+ * line_input.c
  *
- * Open a special device
+ * Line-oriented input discupline
  */
 
-int opendev(const struct dev_info *dev, int flags)
-{
-  int fd;
-  struct file_info *fp;
-  
-  if ( !(flags & 3) || (flags & ~dev->fileflags) ) {
-    errno = EINVAL;
-    return -1;
-  }
+#include "file.h"
 
-  for ( fd = 0, fp = __file_info ; fd < NFILES ; fd++, fp++ )
-    if ( !fp->ops )
+ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
+		     ssize_t (*get_char)(struct file_info *, void *, size_t))
+{
+  size_t n = 0;
+  char ch;
+
+  for(;;) {
+    if ( get_char(fp, &ch, 1) != 1 )
+      return n;
+    
+    switch ( ch ) {
+    case '\r':
+      *buf = '\n';
+      fp->ops->write(fp, "\n", 1);
+      return n+1;
+    
+    case '\b':
+      if ( n > 0 ) {
+	n--; buf--;
+	fp->ops->write(fp, "\b \b", 3);
+      }
       break;
 
-  if ( fd >= NFILES ) {
-    errno = EMFILE;
-    return -1;
+    case '\x15':		/* Ctrl-U */
+      while ( n ) {
+	n--; buf--;
+	fp->ops->write(fp, "\b \b", 3);
+      }
+      break;
+      
+    default:
+      if ( n < bufsize-1 ) {
+	*buf = ch;
+	fp->ops->write(fp, buf, 1);
+	n++;
+	buf++;
+      }
+      break;
+    }
   }
-
-  fp->ops = dev;
-  fp->p.f.offset    = 0;
-  fp->p.f.nbytes    = 0;
-  fp->p.f.datap     = fp->p.f.buf;
-
-  return fd;
 }
+

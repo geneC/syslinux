@@ -50,7 +50,7 @@ int close(int fd)
     if ( rv )
       return rv;
   }
-
-  fp->ops = NULL;		/* File structure unused */
+  
+  memset(fp, 0, sizeof *fp);	/* File structure unused */
   return 0;
 }

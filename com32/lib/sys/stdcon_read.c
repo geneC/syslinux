@@ -29,7 +29,7 @@
 /*
  * stdcon_read.c
  *
- * Reading from the console, with echo
+ * Line-oriented reading from the standard console
  */
 
 #include <errno.h>
@@ -38,30 +38,31 @@
 #include <minmax.h>
 #include "file.h"
 
+extern ssize_t __rawcon_read(struct file_info *fp, void *buf, size_t count);
+
 ssize_t __stdcon_read(struct file_info *fp, void *buf, size_t count)
 {
-  com32sys_t ireg, oreg;
   char *bufp = buf;
   size_t n = 0;
+  char ch;
 
   (void)fp;
 
-  memset(&ireg, 0, sizeof ireg); 
+  while ( n < count ) {
+    if ( fp->p.f.nbytes ) {
+      ch = *bufp++ = *fp->p.f.datap++;
+      fp->p.f.nbytes--;
+      n++;
+      if ( ch == '\n' )
+	return n;
+    } else {
+      fp->p.f.nbytes = __line_input(fp, fp->p.f.buf, MAXBLOCK,
+				    __rawcon_read);
+      fp->p.f.datap = fp->p.f.buf;
 
-  while ( count ) {
-    ireg.eax.b[1]  = 0x01;
-    __intcall(0x21, &ireg, &oreg);
-    *bufp++ = oreg.eax.b[0];
-    n++;
-    
-    if ( ! --count )
-      break;
-
-    /* Only return more than one if there is stuff in the buffer */
-    ireg.eax.b[1] = 0x0B;
-    __intcall(0x21, &ireg, &oreg);
-    if ( !oreg.eax.b[0] )
-      break;
+      if ( fp->p.f.nbytes == 0 )
+	return n;
+    }
   }
 
   return n;

@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2003-2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,40 +26,28 @@
  *
  * ----------------------------------------------------------------------- */
 
-#include <errno.h>
-#include <com32.h>
-#include <string.h>
-#include "file.h"
-
 /*
- * opendev.c
+ * rawcon.c
  *
- * Open a special device
+ * Raw console
  */
 
-int opendev(const struct dev_info *dev, int flags)
-{
-  int fd;
-  struct file_info *fp;
-  
-  if ( !(flags & 3) || (flags & ~dev->fileflags) ) {
-    errno = EINVAL;
-    return -1;
-  }
+#include <errno.h>
+#include <string.h>
+#include <com32.h>
+#include <minmax.h>
+#include <fcntl.h>
+#include <console.h>
+#include "file.h"
 
-  for ( fd = 0, fp = __file_info ; fd < NFILES ; fd++, fp++ )
-    if ( !fp->ops )
-      break;
+extern ssize_t __rawcon_read(struct file_info *, void *, size_t);
+extern ssize_t __rawcon_write(struct file_info *, const void *, size_t);
 
-  if ( fd >= NFILES ) {
-    errno = EMFILE;
-    return -1;
-  }
-
-  fp->ops = dev;
-  fp->p.f.offset    = 0;
-  fp->p.f.nbytes    = 0;
-  fp->p.f.datap     = fp->p.f.buf;
-
-  return fd;
-}
+const struct dev_info dev_rawcon = {
+  .dev_magic  = __DEV_MAGIC,
+  .flags      = __DEV_TTY,
+  .fileflags  = O_RDWR|O_CREAT|O_TRUNC|O_APPEND,
+  .read       = __rawcon_read,
+  .write      = __rawcon_write,
+  .close      = NULL,
+};

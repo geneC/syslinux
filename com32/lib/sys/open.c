@@ -86,7 +86,6 @@ int open(const char *pathname, int flags, ...)
   fp->p.f.filedes   = regs.esi.w[0];
   fp->p.f.offset    = 0;
   fp->p.f.nbytes    = 0;
-  fp->p.f.datap     = fp->p.f.buf;
 
   return fd;
 } 

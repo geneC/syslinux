@@ -40,7 +40,10 @@
 struct dev_info;
 __extern int openconsole(const struct dev_info *);
 
+/* Standard line-oriented console */
 extern const struct dev_info dev_stdcon;
+/* Raw character-oriented console */
+extern const struct dev_info dev_rawcon;
 
 #endif /* _CONSOLE_H */
 

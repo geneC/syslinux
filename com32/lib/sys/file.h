@@ -80,4 +80,8 @@ struct file_info {
 
 extern struct file_info __file_info[NFILES];
 
+/* Line input discipline */
+ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
+                     ssize_t (*get_char)(struct file_info *, void *, size_t));
+
 #endif /* _COM32_SYS_FILE_H */
