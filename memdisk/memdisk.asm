@@ -164,6 +164,20 @@ DoneWeird:
 Reset:
 		; Reset affects multiple drives, so we need to pass it on
 		TRACER 'R'
+		test dl,dl		; Always pass it on if we are resetting HD
+		js .pass_on		; Bit 7 set
+		; Some BIOSes get very unhappy if we pass a reset floppy
+		; command to them and don't actually have any floppies.
+		; This is a bug, but we have to deal with it nontheless.
+		; Therefore, if we are the *ONLY* floppy drive, and the
+		; user didn't request HD reset, then just drop the command.
+		xor ax,ax		; Bottom of memory
+		mov es,ax
+		mov al,[es:0x410]	; BIOS equipment byte
+		shr al,6		; Top two bits + 1
+		jz success		; If this is the only device, just report success
+		; ... otherwise pass it to the BIOS
+.pass_on:
 		pop ax			; Drop return address
 		popad			; Restore all registers
 		pop es
