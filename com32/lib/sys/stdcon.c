@@ -27,30 +27,27 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * close.c
+ * stdcon.c
+ *
+ * Default console
  */
 
 #include <errno.h>
-#include <com32.h>
 #include <string.h>
+#include <com32.h>
+#include <minmax.h>
+#include <fcntl.h>
+#include <console.h>
 #include "file.h"
 
-int close(int fd)
-{
-  struct file_info *fp = &__file_info[fd];
-  int rv = 0;
+extern ssize_t __stdcon_read(struct file_info *, void *, size_t);
+extern ssize_t __stdcon_write(struct file_info *, const void *, size_t);
 
-  if ( fd >= NFILES || !fp->ops ) {
-    errno = EBADF;
-    return -1;
-  }
-
-  if ( fp->ops->close ) {
-    rv = fp->ops->close(fp);
-    if ( rv )
-      return rv;
-  }
-
-  fp->ops = NULL;		/* File structure unused */
-  return 0;
-}
+const struct dev_info dev_stdcon = {
+  .dev_magic  = __DEV_MAGIC,
+  .flags      = __DEV_TTY,
+  .fileflags  = O_RDWR|O_CREAT|O_TRUNC|O_APPEND,
+  .read       = __stdcon_read,
+  .write      = __stdcon_write,
+  .close      = NULL,
+};

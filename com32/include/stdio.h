@@ -47,6 +47,8 @@ static __inline__ int fileno(FILE *__f)
 #define stderr __create_file(2)
 
 __extern FILE *fopen(const char *, const char *);
+struct dev_info;
+__extern FILE *fopendev(const struct dev_info *, const char *);
 
 static __inline__ FILE *fdopen(int __fd, const char *__m)
 {

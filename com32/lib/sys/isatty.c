@@ -27,30 +27,27 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * close.c
+ * isatty.c
+ *
+ * Return if this is a tty or not
  */
 
 #include <errno.h>
-#include <com32.h>
 #include <string.h>
+#include <com32.h>
+#include <minmax.h>
+#include <unistd.h>
+#include <klibc/compiler.h>
 #include "file.h"
 
-int close(int fd)
+int isatty(int fd)
 {
   struct file_info *fp = &__file_info[fd];
-  int rv = 0;
 
   if ( fd >= NFILES || !fp->ops ) {
     errno = EBADF;
     return -1;
   }
 
-  if ( fp->ops->close ) {
-    rv = fp->ops->close(fp);
-    if ( rv )
-      return rv;
-  }
-
-  fp->ops = NULL;		/* File structure unused */
-  return 0;
+  return (fp->ops->flags & __DEV_TTY);
 }

@@ -27,30 +27,20 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * close.c
+ * console.h
+ *
+ * Alternative consoles
  */
 
-#include <errno.h>
-#include <com32.h>
-#include <string.h>
-#include "file.h"
+#ifndef _CONSOLE_H
+#define _CONSOLE_H
 
-int close(int fd)
-{
-  struct file_info *fp = &__file_info[fd];
-  int rv = 0;
+#include <klibc/extern.h>
 
-  if ( fd >= NFILES || !fp->ops ) {
-    errno = EBADF;
-    return -1;
-  }
+struct dev_info;
+__extern int openconsole(const struct dev_info *);
 
-  if ( fp->ops->close ) {
-    rv = fp->ops->close(fp);
-    if ( rv )
-      return rv;
-  }
+extern const struct dev_info dev_stdcon;
 
-  fp->ops = NULL;		/* File structure unused */
-  return 0;
-}
+#endif /* _CONSOLE_H */
+

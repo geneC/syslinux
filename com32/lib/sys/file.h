@@ -39,31 +39,45 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-/* Ordinary file */
+/* Device structure; contains the relevant operations */
+
+struct file_info;
+
+#define __DEV_MAGIC	0xf4e7
+#define __DEV_TTY	0x0001	/* TTY - must be bit 0 */
+#define __DEV_FILE	0x0002	/* Ordinary file */
+struct dev_info {
+  uint16_t dev_magic;		/* Magic number */
+  uint16_t flags;		/* Flags */
+  int fileflags;		/* Permitted file flags */
+  ssize_t (*read)(struct file_info *, void *, size_t);
+  ssize_t (*write)(struct file_info *, const void *, size_t);
+  int (*close)(struct file_info *);
+};
+
+/* File structure */
 
 #define NFILES 32		/* Number of files to support */
 #define MAXBLOCK 16384		/* Defined by ABI */
 
 struct file_info {
-  int blocklg2;			/* Blocksize log 2 */
-  size_t offset;		/* Current file offset */
-  size_t length;		/* Total file length */
-  uint16_t filedes;		/* File descriptor */
-  uint16_t _filler;		/* Unused */
-  size_t nbytes;		/* Number of bytes available in buffer */
-  char *datap;			/* Current data pointer */
-  char buf[MAXBLOCK];
+  const struct dev_info *ops;	/* Operations structure */
+
+  union {
+    /* Structure used for ordinary files */
+    struct {
+      int blocklg2;		/* Blocksize log 2 */
+      size_t offset;		/* Current file offset */
+      size_t length;		/* Total file length */
+      uint16_t filedes;		/* File descriptor */
+      uint16_t _filler;		/* Unused */
+      size_t nbytes;		/* Number of bytes available in buffer */
+      char *datap;		/* Current data pointer */
+      char buf[MAXBLOCK];
+    } f;
+  } p;
 };
 
 extern struct file_info __file_info[NFILES];
-
-/* Special device (tty et al) */
-
-#define __DEV_MAGIC	0x504af4e7
-struct dev_info {
-  uint32_t dev_magic;		/* Magic number */
-  ssize_t (*read)(int, void *, size_t);
-  ssize_t (*write)(int, const void *, size_t);
-};
 
 #endif /* _COM32_SYS_FILE_H */

@@ -77,11 +77,10 @@ LIBOBJS = \
 	vsprintf.o \
 	vsscanf.o \
 	sys/entry.o sys/exit.o \
-	sys/open.o \
-	sys/fileinfo.o \
-	sys/close.o \
-	sys/read.o \
-	sys/write.o
+	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/close.o \
+	sys/open.o sys/fileread.o sys/fileclose.o \
+	sys/isatty.o sys/openconsole.o \
+	sys/stdcon.o sys/stdcon_write.o sys/stdcon_read.o
 
 all: libcom32.a
 

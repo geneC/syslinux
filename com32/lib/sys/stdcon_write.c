@@ -27,30 +27,37 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * close.c
+ * write.c
+ *
+ * Writing to the console
  */
 
 #include <errno.h>
-#include <com32.h>
 #include <string.h>
+#include <com32.h>
+#include <minmax.h>
 #include "file.h"
 
-int close(int fd)
+ssize_t __stdcon_write(struct file_info *fp, const void *buf, size_t count)
 {
-  struct file_info *fp = &__file_info[fd];
-  int rv = 0;
+  com32sys_t ireg;
+  const char *bufp = buf;
+  size_t n = 0;
 
-  if ( fd >= NFILES || !fp->ops ) {
-    errno = EBADF;
-    return -1;
+  (void)fp;
+
+  memset(&ireg, 0, sizeof ireg); 
+  ireg.eax.b[1] = 0x02;
+
+  while ( count-- ) {
+    if ( *bufp == '\n' ) {
+      ireg.edx.b[0] = '\r';
+      __intcall(0x21, &ireg, NULL);
+    }
+    ireg.edx.b[0] = *bufp++;
+    __intcall(0x21, &ireg, NULL);
+    n++;
   }
 
-  if ( fp->ops->close ) {
-    rv = fp->ops->close(fp);
-    if ( rv )
-      return rv;
-  }
-
-  fp->ops = NULL;		/* File structure unused */
-  return 0;
+  return n;
 }

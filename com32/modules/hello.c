@@ -17,11 +17,25 @@
  * Hello, World! using libcom32
  */
 
+#include <string.h>
 #include <stdio.h>
+#include <console.h>
 
 int main(void)
 {
+  char buffer[1024];
+
+  openconsole(&dev_stdcon);
+
   printf("Hello, World!\n");
 
+  for (;;) {
+    printf("> ");
+    fgets(buffer, sizeof buffer, stdin);
+    if ( !strncmp(buffer, "exit", 4) )
+      break;
+    printf(": %s", buffer);
+  }
+    
   return 0;
 }

@@ -27,30 +27,42 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * close.c
+ * stdcon_read.c
+ *
+ * Reading from the console, with echo
  */
 
 #include <errno.h>
-#include <com32.h>
 #include <string.h>
+#include <com32.h>
+#include <minmax.h>
 #include "file.h"
 
-int close(int fd)
+ssize_t __stdcon_read(struct file_info *fp, void *buf, size_t count)
 {
-  struct file_info *fp = &__file_info[fd];
-  int rv = 0;
+  com32sys_t ireg, oreg;
+  char *bufp = buf;
+  size_t n = 0;
 
-  if ( fd >= NFILES || !fp->ops ) {
-    errno = EBADF;
-    return -1;
+  (void)fp;
+
+  memset(&ireg, 0, sizeof ireg); 
+
+  while ( count ) {
+    ireg.eax.b[1]  = 0x01;
+    __intcall(0x21, &ireg, &oreg);
+    *bufp++ = oreg.eax.b[0];
+    n++;
+    
+    if ( ! --count )
+      break;
+
+    /* Only return more than one if there is stuff in the buffer */
+    ireg.eax.b[1] = 0x0B;
+    __intcall(0x21, &ireg, &oreg);
+    if ( !oreg.eax.b[0] )
+      break;
   }
 
-  if ( fp->ops->close ) {
-    rv = fp->ops->close(fp);
-    if ( rv )
-      return rv;
-  }
-
-  fp->ops = NULL;		/* File structure unused */
-  return 0;
+  return n;
 }

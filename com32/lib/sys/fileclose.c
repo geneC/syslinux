@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2003-2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,67 +26,28 @@
  *
  * ----------------------------------------------------------------------- */
 
+/*
+ * fileclose.c
+ *
+ * Close an ordinary file
+ */
+
 #include <errno.h>
 #include <com32.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include "file.h"
 
-/*
- * open.c
- *
- * Open an ordinary file
- */
-
-extern ssize_t __file_read(struct file_info *, void *, size_t);
-extern int __file_close(struct file_info *);
-
-static const struct dev_info file_dev = {
-  .dev_magic = __DEV_MAGIC,
-  .flags     = __DEV_FILE,
-  .fileflags = O_RDONLY,
-  .read      = __file_read,
-  .write     = NULL,		/* File writes are not supported */
-  .close     = __file_close,
-};
-
-int open(const char *pathname, int flags, ...)
+int __file_close(struct file_info *fp)
 {
   com32sys_t regs;
-  int fd;
-  struct file_info *fp;
 
-  fd = opendev(&file_dev, flags);
+  if ( fp->p.f.filedes ) {
+    memset(&regs, 0, sizeof regs);
+    regs.eax.w[0] = 0x0008;	/* Close file */
+    regs.esi.w[0] = fp->p.f.filedes;
 
-  if ( fd < 0 )
-    return -1;
-  
-  fp = &__file_info[fd];
-
-  strlcpy(__com32.cs_bounce, pathname, __com32.cs_bounce_size);
-
-  regs.eax.w[0] = 0x0006;
-  regs.esi.w[0] = OFFS(__com32.cs_bounce);
-  regs.es = SEG(__com32.cs_bounce);
-
-  __com32.cs_intcall(0x22, &regs, &regs);
-  
-  if ( (regs.eflags.l & EFLAGS_CF) || regs.esi.w[0] == 0 ) {
-    errno = ENOENT;
-    return -1;
+    __com32.cs_intcall(0x22, &regs, NULL);
   }
 
-  {
-    uint16_t blklg2;
-    asm("bsrw %1,%0" : "=r" (blklg2) : "rm" (regs.ecx.w[0]));
-    fp->p.f.blocklg2 = blklg2;
-  }
-  fp->p.f.length    = regs.eax.l;
-  fp->p.f.filedes   = regs.esi.w[0];
-  fp->p.f.offset    = 0;
-  fp->p.f.nbytes    = 0;
-  fp->p.f.datap     = fp->p.f.buf;
-
-  return fd;
-} 
+  return 0;
+}

@@ -29,64 +29,34 @@
 #include <errno.h>
 #include <com32.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include "file.h"
 
 /*
- * open.c
+ * opendev.c
  *
- * Open an ordinary file
+ * Open a special device
  */
 
-extern ssize_t __file_read(struct file_info *, void *, size_t);
-extern int __file_close(struct file_info *);
-
-static const struct dev_info file_dev = {
-  .dev_magic = __DEV_MAGIC,
-  .flags     = __DEV_FILE,
-  .fileflags = O_RDONLY,
-  .read      = __file_read,
-  .write     = NULL,		/* File writes are not supported */
-  .close     = __file_close,
-};
-
-int open(const char *pathname, int flags, ...)
+int opendev(const struct dev_info *dev, int flags)
 {
-  com32sys_t regs;
   int fd;
   struct file_info *fp;
-
-  fd = opendev(&file_dev, flags);
-
-  if ( fd < 0 )
-    return -1;
   
-  fp = &__file_info[fd];
-
-  strlcpy(__com32.cs_bounce, pathname, __com32.cs_bounce_size);
-
-  regs.eax.w[0] = 0x0006;
-  regs.esi.w[0] = OFFS(__com32.cs_bounce);
-  regs.es = SEG(__com32.cs_bounce);
-
-  __com32.cs_intcall(0x22, &regs, &regs);
-  
-  if ( (regs.eflags.l & EFLAGS_CF) || regs.esi.w[0] == 0 ) {
-    errno = ENOENT;
+  if ( !(flags & 3) || (flags & ~dev->fileflags) ) {
+    errno = EINVAL;
     return -1;
   }
 
-  {
-    uint16_t blklg2;
-    asm("bsrw %1,%0" : "=r" (blklg2) : "rm" (regs.ecx.w[0]));
-    fp->p.f.blocklg2 = blklg2;
+  for ( fd = 0, fp = __file_info ; fd < NFILES ; fd++, fp++ )
+    if ( !fp->ops )
+      break;
+
+  if ( fd >= NFILES ) {
+    errno = EMFILE;
+    return -1;
   }
-  fp->p.f.length    = regs.eax.l;
-  fp->p.f.filedes   = regs.esi.w[0];
-  fp->p.f.offset    = 0;
-  fp->p.f.nbytes    = 0;
-  fp->p.f.datap     = fp->p.f.buf;
+
+  fp->ops = dev;
 
   return fd;
-} 
+}

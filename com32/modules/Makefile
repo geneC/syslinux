@@ -25,12 +25,13 @@ LD         = ld -m elf_i386
 AR	   = ar
 NASM	   = nasm
 RANLIB	   = ranlib
-CFLAGS     = -W -Wall -march=i386 -Os -fomit-frame-pointer -I../com32/include
+CFLAGS     = -W -Wall -march=i386 -Os -fomit-frame-pointer -I../include
 SFLAGS     = -march=i386
 LDFLAGS    = -s -T ../lib/com32.ld
 OBJCOPY    = objcopy
 PPMTOLSS16 = 	../ppmtolss16
 LIB	   = ../lib/libcom32.a
+LIBGCC    := $(shell $(CC) --print-libgcc)
 
 .SUFFIXES: .lss .c .o .elf .c32
 
@@ -46,7 +47,7 @@ all: hello.c32
 
 .PRECIOUS: %.elf
 %.elf: %.o $(LIB)
-	$(LD) $(LDFLAGS) -o $@ $^
+	$(LD) $(LDFLAGS) -o $@ $^ $(LIBGCC)
 
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
