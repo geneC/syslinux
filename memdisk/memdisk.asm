@@ -7,7 +7,7 @@
 ;  A program to emulate an INT 13h disk BIOS from a "disk" in extended
 ;  memory.
 ;
-;   Copyright (C) 2001  H. Peter Anvin
+;   Copyright (C) 2001-2003  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -308,7 +308,7 @@ int15_e820:
 		jne .renew
 		mov ebx,E820Table
 .renew:
-		add bx, byte 12		; Advance to next
+		add bx,12		; Advance to next
 		mov eax,[bx-4]		; Type
 		and eax,eax		; Null type?
 		jz .renew		; If so advance to next
@@ -323,7 +323,7 @@ int15_e820:
 		sbb ecx,[bx-8]
 		mov [es:di+8],eax	; Length (low)
 		mov [es:di+12],ecx	; Length (high)
-		cmp dword [bx+8], byte -1	; Type of next = end?
+		cmp dword [bx+8],-1	; Type of next = end?
 		jne .notdone
 		xor ebx,ebx		; Done with table
 .notdone:

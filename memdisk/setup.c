@@ -599,7 +599,8 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
 
   /* Copy driver followed by E820 table */
   memcpy((void *)(driverseg << 4), &_binary_memdisk_bin_start, bin_size);
-  memcpy((void *)((driverseg << 4) + bin_size), ranges, (nranges+1)*3);
+  memcpy((void *)((driverseg << 4) + bin_size), ranges,
+	 (nranges+1)*sizeof(ranges[0]));
 
   /* Install the interrupt handlers */
   printf("old: int13 = %08x  int15 = %08x\n",
