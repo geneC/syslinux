@@ -65,8 +65,8 @@ struct memdiskinfo * query_memdisk(int drive)
     mov _edx, edx ;
     mov _ebx, ebx ;
     mov _es, es ;
-    mov _di, di
-      }
+    mov _di, di ;
+  }
   
   if ( _eax >> 16 != 0x4d21 ||
        _ecx >> 16 != 0x4d45 ||
