@@ -325,6 +325,7 @@ VidCols         resb 1			; Columns on screen-1
 VidRows         resb 1			; Rows on screen-1
 RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
+FlowControl	resb 1			; Serial port flow control
 LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
 FuncFlag	resb 1			; Escape sequences received from keyboard
@@ -1285,36 +1286,49 @@ pc_serial:	call getint			; "serial" command
 		call getint
 		jnc .valid_baud
 		mov ebx,DEFAULT_BAUD		; No baud rate given
-.valid_baud:	pop di				; Serial port #
+.valid_baud:	
+		push ebx
+		call getint			; Hardware flow control?
+		jnc .valid_flow
+		xor bx,bx			; Default -> no flow control
+.valid_flow:
+		mov [FlowControl],bl
+		pop ebx				; Baud rate
+		pop di				; Serial port #
 		cmp ebx,byte 75
 		jb parse_config_2		; < 75 baud == bogus
 		mov eax,BAUD_DIVISOR
 		cdq
 		div ebx
 		push ax				; Baud rate divisor
-		mov dx,di
+		cmp di,3
+		ja .port_is_io			; If port > 3 then port is I/O addr
 		shl di,1
-		mov ax,[di+serial_base]
-		mov [SerialPort],ax
-		push ax				; Serial port base
-		mov ax,00e3h			; INT 14h init parameters
-		int 14h				; Init serial port
-		pop bx				; Serial port base
-		lea dx,[bx+3]
+		mov di,[di+serial_base]
+.port_is_io:	mov [SerialPort],di
+		lea dx,[di+3]			; DX -> LCR
 		mov al,83h			; Enable DLAB
 		call slow_out
 		pop ax				; Divisor
-		mov dx,bx
+		mov dx,di			; DX -> LS
 		call slow_out
-		inc dx
+		inc dx				; DX -> MS
 		mov al,ah
 		call slow_out
 		mov al,03h			; Disable DLAB
-		add dx,byte 2
+		add dx,byte 2			; DX -> LCR
 		call slow_out
-		sub dx,byte 2
+		sub dx,byte 2			; DX -> IER
 		xor al,al			; IRQ disable
 		call slow_out
+
+		test byte [FlowControl],01h
+		jz .no_flow
+		add dx,byte 3			; DX -> MCR
+		in al,dx
+		or al,03h			; DTR=1 RTS=1
+		call slow_out
+.no_flow:
 
 		; Show some life
 		mov si,syslinux_banner
@@ -3251,11 +3265,23 @@ write_serial:
 		and bx,bx
 		je .noserial
 		push ax
-.waitspace:	lea dx,[bx+5]			; Wait for space in transmit reg
+.waitspace:
+		; Wait for space in transmit register
+		lea dx,[bx+5]			; DX -> LSR
 		in al,dx
 		test al,20h
 		jz .waitspace
-		xchg dx,bx
+
+		; Wait for CTS to become available if applicable
+		test byte [FlowControl], 01h
+		jz .no_flow
+		inc dx				; DX -> MSR
+		in al,dx
+		test al,10h
+		jz .waitspace	
+.no_flow:		
+
+		xchg dx,bx			; DX -> THR
 		pop ax
 		call slow_out			; Send data
 .noserial:	popad
@@ -3376,9 +3402,9 @@ pollchar:
 		mov dx,[SerialPort]
 		and dx,dx
 		jz .done		; No serial port -> no input
-		add dx,byte 5		; Serial status register
+		add dx,byte 5		; DX -> LSR
 		in al,dx
-		test al,1		; ZF = 0 if traffic
+		test al,1		; ZF = 0 if data pending
 .done:		popad
 		ret
 

@@ -201,11 +201,16 @@ TIMEOUT timeout
         NOTE: The maximum possible timeout value is 35996; corresponding to
         just below one hour.
 
-SERIAL port [baudrate]
+SERIAL port [[baudrate] flowcontrol]
 	Enables a serial port to act as the console.  "port" is a
-	number (0 = /dev/ttyS0 = COM1, etc.); if "baudrate" is
-	omitted, the baud rate defaults to 9600 bps.  The serial
-	parameters are hardcoded to be 8 bits, no parity, 1 stop bit.
+	number (0 = /dev/ttyS0 = COM1, etc.) or an I/O port address
+	(e.g. 0x3F8); if "baudrate" is omitted, the baud rate defaults
+	to 9600 bps.  The serial parameters are hardcoded to be 8
+	bits, no parity, 1 stop bit.
+
+	"flowcontrol" is a flag (0 = off, 1 = on), to support hardware
+	flowcontrol (RTS/CTS).  Specifically, SYSLINUX will assert
+	DTR and RTS, and will honor incoming CTS.
 
 	For this directive to be guaranteed to work properly, it
 	should be the first directive in the configuration file.
