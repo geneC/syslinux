@@ -83,6 +83,8 @@ endif
 ifndef DATE
 DATE    := $(HEXDATE)
 endif
+MAKE    += DATE=$(DATE) HEXDATE=$(HEXDATE)
+
 
 BSUBDIRS = memdisk win32
 ISUBDIRS = sample com32
