@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1998-2005 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -20,10 +20,14 @@
  * mtools, but requires root privilege.
  */
 
+/*
+ * If DO_DIRECT_MOUNT is 0, call mount(8)
+ * If DO_DIRECT_MOUNT is 1, call mount(2)
+ */
 #ifdef __KLIBC__
-# define DO_DIRECT_MOUNT 1	/* Call mount(2) directly */
+# define DO_DIRECT_MOUNT 1
 #else
-# define DO_DIRECT_MOUNT 0	/* Call /bin/mount instead */
+# define DO_DIRECT_MOUNT 0	/* glibc has broken losetup ioctls */
 #endif
 
 #define _GNU_SOURCE
@@ -100,11 +104,12 @@ void __attribute__((noreturn)) die(const char *msg)
  */
 ssize_t xpread(int fd, void *buf, size_t count, off_t offset)
 {
+  char *p = buf;
   ssize_t rv;
   ssize_t done = 0;
 
   while ( count ) {
-    rv = pread(fd, buf, count, offset);
+    rv = pread(fd, p, count, offset);
     if ( rv == 0 ) {
       die("short read");
     } else if ( rv == -1 ) {
@@ -117,6 +122,7 @@ ssize_t xpread(int fd, void *buf, size_t count, off_t offset)
     } else {
       offset += rv;
       done += rv;
+      p += rv;
       count -= rv;
     }
   }
@@ -124,13 +130,14 @@ ssize_t xpread(int fd, void *buf, size_t count, off_t offset)
   return done;
 }
 
-ssize_t xpwrite(int fd, void *buf, size_t count, off_t offset)
+ssize_t xpwrite(int fd, const void *buf, size_t count, off_t offset)
 {
+  const char *p = buf;
   ssize_t rv;
   ssize_t done = 0;
 
   while ( count ) {
-    rv = pwrite(fd, buf, count, offset);
+    rv = pwrite(fd, p, count, offset);
     if ( rv == 0 ) {
       die("short write");
     } else if ( rv == -1 ) {
@@ -143,6 +150,7 @@ ssize_t xpwrite(int fd, void *buf, size_t count, off_t offset)
     } else {
       offset += rv;
       done += rv;
+      p += rv;
       count -= rv;
     }
   }
@@ -174,6 +182,7 @@ int main(int argc, char *argv[])
   char *ldlinux_name, **argp, *opt;
   int force = 0;		/* -f (force) option */
   struct libfat_filesystem *fs;
+  struct libfat_direntry dentry;
   libfat_sector_t s, *secp, sectors[65]; /* 65 is maximum possible */
   int32_t ldlinux_cluster;
   int nsectors;
@@ -445,7 +454,7 @@ umount:
    * of the installer.
    */
   fs = libfat_open(libfat_xpread, dev_fd);
-  ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
+  ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", &dentry);
   secp = sectors;
   nsectors = 0;
   s = libfat_clustertosector(fs, ldlinux_cluster);
@@ -465,6 +474,15 @@ umount:
    * Write the now-patched first sector of ldlinux.sys
    */
   xpwrite(dev_fd, syslinux_ldlinux, 512, filesystem_offset + ((off_t)sectors[0] << 9));
+
+  /*
+   * Patch the root directory to set attributes to
+   * HIDDEN|SYSTEM|READONLY
+   */
+  {
+    const unsigned char attrib = 0x07;
+    xpwrite(dev_fd, &attrib, 1, ((off_t)dentry.sector << 9)+dentry.offset+11);
+  }
 
   /*
    * To finish up, write the boot sector

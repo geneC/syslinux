@@ -23,7 +23,7 @@
 #include "libfatint.h"
 
 int32_t libfat_searchdir(struct libfat_filesystem *fs, int32_t dirclust,
-			 const void *name, void *direntry)
+			 const void *name, struct libfat_direntry *direntry)
 {
   struct fat_dirent *dep;
   int nent;
@@ -39,11 +39,14 @@ int32_t libfat_searchdir(struct libfat_filesystem *fs, int32_t dirclust,
     if ( !dep )
       return -1;		/* Read error */
 
-    for ( nent = LIBFAT_SECTOR_SIZE/sizeof(struct fat_dirent) ;
-	  nent ; nent-- ) {
+    for ( nent = 0 ; nent < LIBFAT_SECTOR_SIZE ;
+	  nent += sizeof(struct fat_dirent) ) {
       if ( !memcmp(dep->name, name, 11) ) {
-	if ( direntry )
-	  memcpy(direntry, dep, sizeof (*dep));
+	if ( direntry ) {
+	  memcpy(direntry->entry, dep, sizeof (*dep));
+	  direntry->sector = s;
+	  direntry->offset = nent;
+	}
 	if ( read32(&dep->size) == 0 )
 	  return 0;		/* An empty file has no clusters */
 	else

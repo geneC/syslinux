@@ -30,6 +30,12 @@
 typedef uint32_t libfat_sector_t;
 struct libfat_filesystem;
 
+struct libfat_direntry {
+  libfat_sector_t sector;
+  int offset;
+  unsigned char entry[32];
+};
+
 /*
  * Open the filesystem.  The readfunc is the function to read
  * sectors, in the format:
@@ -75,7 +81,7 @@ void * libfat_get_sector(struct libfat_filesystem *fs, libfat_sector_t n);
  * Copies the directory entry into direntry and returns 0 if found.
  */
 int32_t libfat_searchdir(struct libfat_filesystem *fs, int32_t dirclust,
-			 const void *name, void *direntry);
+			 const void *name, struct libfat_direntry *direntry);
 
 #endif /* LIBFAT_H */
 
