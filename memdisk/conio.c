@@ -22,12 +22,18 @@
 
 int putchar(int ch)
 {
-  if ( ch == '\n' )
-    putchar('\r');		/* \n -> \r\n */
+  if ( ch == '\n' ) {
+    /* \n -> \r\n */
+    asm volatile("movw $0x0e0d,%%ax ; "
+		 "movw $0x0007,%%bx ; "
+		 "int $0x10"
+		 ::: "eax", "ebx", "ecx", "edx",
+		 "esi", "edi", "ebp");
+  }
 
-  asm volatile("int $0x10"
-	       :: "a" ((uint16_t)(0x0e00|(ch&0xff))),
-	       "b" ((uint16_t)0x07)
+  asm volatile("movw $0x0007,%%bx ; "
+	       "int $0x10"
+	       :: "a" ((uint16_t)(0x0e00|(ch&0xff)))
 	       : "eax", "ebx", "ecx", "edx",
 	       "esi", "edi", "ebp");
 
