@@ -14,6 +14,9 @@ Changes in 2.07:
 	* MEMDISK: Fix bug that would occationally cause "ran out of
 	  input data" when using compressed disk images.
 	* SYSLINUX: Updates for the win32 installer (from Lars Munch.)
+	* PXELINUX: PXELINUX-specific options are now recognized both
+	  in a vendor-option-space (a.k.a. type 43 encapsulated) as
+	  well as in a site-option-space (unencapsulated.)
 
 Changes in 2.06:
 	* ALL: Fix problem that would occationally cause a

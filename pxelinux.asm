@@ -2116,7 +2116,14 @@ parse_dhcp:
 ; size is CX -- some DHCP servers leave option fields unterminated
 ; in violation of the spec.
 ;
+; For parse_some_dhcp_options, DH contains the minimum value for
+; the option to recognize -- this is used to restrict parsing to
+; PXELINUX-specific options only.
+;
 parse_dhcp_options:
+		xor dx,dx
+
+parse_some_dhcp_options:
 .loop:
 		and cx,cx
 		jz .done
@@ -2137,6 +2144,9 @@ parse_dhcp_options:
 		sub cx,ax	; Decrement bytes left counter
 		jb .done	; Malformed option: length > field size
 
+		cmp dl,dh	; Is the option value 
+		jb .opt_done
+
 		cmp dl,1	; SUBNET MASK option
 		jne .not_subnet
 		mov edx,[si]
@@ -2150,6 +2160,16 @@ parse_dhcp_options:
 		mov [Gateway],edx
 		jmp .opt_done
 .not_router:
+
+		cmp dl,43	; VENDOR ENCAPSULATED option
+		jne .not_vendor
+		pusha
+		mov dh,208	; Only recognize PXELINUX options
+		mov cx,ax	; Length of option = max bytes to parse
+		call parse_some_dhcp_options	; Parse recursive structure
+		popa
+		jmp .opt_done
+.not_vendor:
 
 		cmp dl,52	; OPTION OVERLOAD option
 		jne .not_overload
