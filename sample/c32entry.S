@@ -47,9 +47,10 @@ _start:
 		rep ; stosl
 
 		# Copy COM32 invocation parameters
-		leal 4(%esp),%esi
+		leal 4(%esp),%esi		# Argument list
 		movl $__com32,%edi
 		movl $6,%ecx
+		movl %esp,-4(%edi)		# Save the initial stack ptr
 		cmpl (%esi),%ecx
 		jbe 1f
 		movl (%esi),%ecx
@@ -60,5 +61,7 @@ _start:
 		jmp __start
 
 		.section ".bss","a"
+		.globl __entry_esp
+__entry_esp:	.space 4
 		.globl __com32
-__com32:	.space 24
+__com32:	.space 4*6

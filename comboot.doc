@@ -79,6 +79,7 @@ notification to the program how much memory is available.
 The following arguments are passed to the program on the stack:
 
  Address  Size	Meaning
+ [ESP]    dword Return (termination) address
  [ESP+4]  dword	Number of additional arguments (currently 5)
  [ESP+8]  dword	Pointer to the command line arguments (null-terminated string)
  [ESP+12] dword Pointer to INT call helper function
