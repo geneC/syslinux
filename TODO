@@ -5,11 +5,15 @@ $Id$
 - PXELINUX: Support changing the default server and downloading files
   from a non-default server.
 
+- Allow the boot sector to be written to a file instead of the actual
+  boot sector.
 
 *** Debugging projects:
 
 - Figure out why MEMDISK croaks on the WinME/WinXP DOS startup disk.
 
+
+*** In progress, but for
 
 *** Future projects:
 
@@ -17,18 +21,11 @@ $Id$
 
 - Cleaned up documentation, with a real man page.
 
-- Support for clusters larger than 16K.  This would require changing
-  a lot of the SYSLINUX internals so we can read partial clusters;
-  change the current "cluster pointers" to become
-  "cluster:sector pointers".  (32K may be doable.)  Microsoft
-  documentation claims that 32K is the maximum legal value although
-  "some versions of some systems allow 64K".
+- Major rewrite of SYSLINUX to support EBIOS/EDD, FAT32 and large
+  clusters.  This should also enable code to be shared with the
+  ext2/ext3 version.
 
-- EBIOS support.
-
-- FAT32 support.
-
-- ext2/ext3 support.
+- ext2/ext3 support (EXTLINUX.)
 
 - Subdirectory support in SYSLINUX.
 
