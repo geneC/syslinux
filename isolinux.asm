@@ -1025,13 +1025,15 @@ get_fs_structures:
 		mov bx,trackbuf
 		call getonesec
 
-		mov si,dbg_rootdir_msg			; ***
-		call writemsg				; ***
 		mov eax,[trackbuf+156+2]
 		mov [RootDir+dir_lba],eax
 		mov [CurDir+dir_lba],eax
-		call writehex8				; ***
-		call crlf				; ***
+%ifdef DEBUG_MESSAGES
+		mov si,dbg_rootdir_msg
+		call writemsg
+		call writehex8
+		call crlf
+%endif
 		mov eax,[trackbuf+156+10]
 		mov [RootDir+dir_len],eax		
 		mov [CurDir+dir_len],eax
@@ -1050,30 +1052,36 @@ get_fs_structures:
 		mov [CurDir+dir_len],eax
 		mov eax,[si+file_left]
 		mov [CurDir+dir_clust],eax
-		push si
-		mov si,dbg_isodir_msg		; ***
-		call writemsg			; ***
-		pop si
 		xor eax,eax			; Free this file pointer entry
 		xchg eax,[si+file_sector]
 		mov [CurDir+dir_lba],eax
-		call writehex8			; ***
-		call crlf			; ***
+%ifdef DEBUG_MESSAGES
+		push si
+		mov si,dbg_isodir_msg
+		call writemsg
+		pop si
+		call writehex8
+		call crlf
+%endif
 .no_isolinux_dir:
 
 ;
 ; Locate the configuration file
 ;
 load_config:
-		mov si,dbg_config_msg		; ***
-		call writemsg			; ***
+%ifdef DEBUG_MESSAGES
+		mov si,dbg_config_msg
+		call writemsg
+%endif
 
 		mov di,isolinux_cfg
 		call open
 		jz near no_config_file		; Not found or empty
 
-		mov si,dbg_configok_msg		; ***
-		call writemsg			; ***
+%ifdef DEBUG_MESSAGES
+		mov si,dbg_configok_msg
+		call writemsg
+%endif
 
 ;
 ; Now we have the config file open
@@ -4143,10 +4151,12 @@ default_len	equ ($-default_str)
 isolinux_dir	db '/isolinux', 0
 isolinux_cfg	db 'isolinux.cfg', 0
 
+%ifdef DEBUG_MESSAGES
 dbg_rootdir_msg	db 'Root directory at LBA = ', 0
 dbg_isodir_msg	db 'isolinux directory at LBA = ', 0
 dbg_config_msg	db 'About to load config file...', CR, LF, 0
 dbg_configok_msg	db 'Configuration file opened...', CR, LF, 0
+%endif
 ;
 ; Command line options we'd like to take a look at
 ;
