@@ -1,7 +1,7 @@
-## -----------------------------------------------------------------------
 ##  $Id$
+## -----------------------------------------------------------------------
 ##
-##   Copyright 1998-2003 H. Peter Anvin - All Rights Reserved
+##   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ LIB_SO  = libsyslinux.so.$(VERSION)
 #
 CSRC    = syslinux.c syslinux-nomtools.c syslxmod.c gethostip.c
 NASMSRC  = ldlinux.asm syslinux.asm copybs.asm \
-	  pxelinux.asm mbr.asm isolinux.asm isolinux-debug.asm
+	  pxelinux.asm mbr.asm isolinux.asm
 SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
@@ -115,17 +115,20 @@ pxelinux.bin: pxelinux.asm kwdhash.gen version.gen
 	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-l pxelinux.lst -o pxelinux.bin pxelinux.asm
 
-isolinux.bin: isolinux.asm kwdhash.gen version.gen
+isolinux.bin: isolinux.asm kwdhash.gen version.gen checksumiso.pl
 	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-l isolinux.lst -o isolinux.bin isolinux.asm
+	$(PERL) checksumiso.pl isolinux.bin
 
 pxelinux.0: pxelinux.bin
 	cp pxelinux.bin pxelinux.0
 
 # Special verbose version of isolinux.bin
-isolinux-debug.bin: isolinux-debug.asm kwdhash.gen
+isolinux-debug.bin: isolinux.asm kwdhash.gen version.gen checksumiso.pl
 	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
-		-l isolinux-debug.lst -o isolinux-debug.bin isolinux-debug.asm
+		-DDEBUG_MESSAGES \
+		-l isolinux-debug.lst -o isolinux-debug.bin isolinux.asm
+	$(PERL) checksumiso.pl $@
 
 ldlinux.bss: ldlinux.bin
 	dd if=ldlinux.bin of=ldlinux.bss bs=512 count=1

@@ -240,10 +240,12 @@ _start:		; Far jump makes sure we canonicalize the address
 		jmp 0:_start1
 		times 8-($-$$) nop		; Pad to file offset 8
 
-		; This table gets filled in by mkisofs using the
-		; -boot-info-table option
-bi_pvd:		dd 0xdeadbeef			; LBA of primary volume descriptor
-bi_file:	dd 0xdeadbeef			; LBA of boot file
+		; This table hopefully gets filled in by mkisofs using the
+		; -boot-info-table option.  If not, the values in this
+		; table are default values that we can use to get us what
+		; we need, at least under a certain set of assumptions.
+bi_pvd:		dd 16				; LBA of primary volume descriptor
+bi_file:	dd 0				; LBA of boot file
 bi_length:	dd 0xdeadbeef			; Length of boot file
 bi_csum:	dd 0xdeadbeef			; Checksum of boot file
 bi_reserved:	times 10 dd 0xdeadbeef		; Reserved
@@ -280,15 +282,6 @@ initial_csum:	xor edi,edi
 		loop .loop
 		mov [FirstSecSum],edi
 
-		; Set up boot file sizes
-		mov eax,[bi_length]
-		sub eax,SECTORSIZE-3
-		shr eax,2			; bytes->dwords
-		mov [ImageDwords],eax		; boot file dwords
-		add eax,(2047 >> 2)
-		shr eax,9			; dwords->sectors
-		mov [ImageSectors],ax		; boot file sectors
-
 		mov [DriveNo],dl
 %ifdef DEBUG_MESSAGES
 		mov si,startup_msg
@@ -319,10 +312,62 @@ initial_csum:	xor edi,edi
 %endif
 
 found_drive:
+		; Alright, we have found the drive.  Now, try to find the
+		; boot file itself.  If we have a boot info table, life is
+		; good; if not, we have to make some assumptions, and try
+		; to figure things out ourselves.  In particular, the
+		; assumptions we have to make are:
+		; - single session only
+		; - only one boot entry (no menu or other alternatives)
+
+		cmp dword [bi_file],0		; Address of code to load
+		jne found_file			; Boot info table present :)
+
+;%ifdef DEBUG_MESSAGES
+		mov si,noinfotable_msg
+		call writemsg
+;%endif
+		
+		; No such luck.  See if the the spec packet contained one.
+		mov eax,[sp_lba]
+		and eax,eax
+		jz set_file			; Good enough
+
+;%ifdef DEBUG_MESSAGES
+		mov si,noinfoinspec_msg
+		call writemsg
+;%endif
+		
+		; No such luck.  Get the Boot Record Volume, assuming single
+		; session disk, and that we're the first entry in the chain
+		mov eax,17			; Assumed address of BRV
+		mov bx,trackbuf
+		call getonesec
+
+		mov eax,[trackbuf+47h]		; Get boot catalog address
+		mov bx,trackbuf
+		call getonesec			; Get boot catalog
+
+		mov eax,[trackbuf+28h]		; First boot entry
+		; And hope and pray this is us...
+
 		; Some BIOSes apparently have limitations on the size 
 		; that may be loaded (despite the El Torito spec being very
 		; clear on the fact that it must all be loaded.)  Therefore,
 		; we load it ourselves, and *bleep* the BIOS.
+
+set_file:
+		mov [bi_file],eax
+
+found_file:
+		; Set up boot file sizes
+		mov eax,[bi_length]
+		sub eax,SECTORSIZE-3
+		shr eax,2			; bytes->dwords
+		mov [ImageDwords],eax		; boot file dwords
+		add eax,(2047 >> 2)
+		shr eax,9			; dwords->sectors
+		mov [ImageSectors],ax		; boot file sectors
 
 		mov eax,[bi_file]		; Address of code to load
 		inc eax				; Don't reload bootstrap code
@@ -749,6 +794,8 @@ loaded_msg:	db 'Loaded boot image, verifying...', CR, LF, 0
 verify_msg:	db 'Image checksum verified.', CR, LF, 0
 allread_msg	db 'Main image read, jumping to main code...', CR, LF, 0
 %endif
+noinfotable_msg	db 'No boot info table, assuming single session disk...', CR, LF, 0
+noinfoinspec_msg db 'Spec packet missing LBA information, trying to wing it...', CR, LF, 0
 spec_err_msg:	db 'Loading spec packet failed, trying to wing it...', CR, LF, 0
 maybe_msg:	db 'Found something at drive = ', 0
 alright_msg:	db 'Looks like it might be right, continuing...', CR, LF, 0
@@ -780,22 +827,6 @@ sp_loadseg:	dw 0				; Load segment
 sp_sectors:	dw 0				; Sector count
 sp_chs:		db 0,0,0			; Simulated CHS geometry
 sp_dummy:	db 0				; Scratch, safe to overwrite
-
-;
-; Spec packet for disk image emulation
-;
-		align 8, db 0
-dspec_packet:	db 13h				; Size of packet
-dsp_media:	db 0				; Media type
-dsp_drive:	db 0				; Drive number
-dsp_controller:	db 0				; Controller index
-dsp_lba:	dd 0				; LBA for emulated disk image
-dsp_devspec:	dw 0				; IDE/SCSI information
-dsp_buffer:	dw 0				; User-provided buffer
-dsp_loadseg:	dw 0				; Load segment
-dsp_sectors:	dw 1				; Sector count
-dsp_chs:	db 0,0,0			; Simulated CHS geometry
-dsp_dummy:	db 0				; Scratch, safe to overwrite
 
 ;
 ; EBIOS drive parameter packet
@@ -1667,6 +1698,7 @@ img_table:
 ;
 ; Misc initialized (data) variables
 ;
+		align 4, db 0
 AppendLen       dw 0                    ; Bytes in append= command
 OntimeoutLen	dw 0			; Bytes in ontimeout command
 OnerrorLen	dw 0			; Bytes in onerror command
@@ -1682,6 +1714,22 @@ SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 VGAFontSize	dw 16			; Defaults to 16 byte font
 UserFont	db 0			; Using a user-specified font
 ScrollAttribute	db 07h			; White on black (for text mode)
+
+;
+; Spec packet for disk image emulation
+;
+		align 8, db 0
+dspec_packet:	db 13h				; Size of packet
+dsp_media:	db 0				; Media type
+dsp_drive:	db 0				; Drive number
+dsp_controller:	db 0				; Controller index
+dsp_lba:	dd 0				; LBA for emulated disk image
+dsp_devspec:	dw 0				; IDE/SCSI information
+dsp_buffer:	dw 0				; User-provided buffer
+dsp_loadseg:	dw 0				; Load segment
+dsp_sectors:	dw 1				; Sector count
+dsp_chs:	db 0,0,0			; Simulated CHS geometry
+dsp_dummy:	db 0				; Scratch, safe to overwrite
 
 ;
 ; Variables that are uninitialized in SYSLINUX but initialized here

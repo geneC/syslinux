@@ -11,6 +11,9 @@ Changes in 2.12:
 	  not use the linker for the 16-bit code.
 	* SYSLINUX: If we're building on a machine without a Win32
 	  (mingw) compiler, just skip building syslinux.exe.
+	* ISOLINUX: Support non-mkisofs mastering programs, at least
+	  as long as the image is single-session.  For best results,
+	  ISOLINUX should be the only boot loader installed.
 
 Changes in 2.11:
 	* ALL: Add an API call to get the configuration file name.
