@@ -287,14 +287,14 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
   }
 
   sectors = size >> 9;
-  hd_geometry.sectors = sectors;
-
   for ( i = 0 ; i < known_geometries ; i++ ) {
     if ( sectors == geometries[i].sectors ) {
       hd_geometry = geometries[i];
       break;
     }
   }
+
+  hd_geometry.sectors = sectors;
 
   if ( CMD_HASDATA(p = getcmditem("c")) && (v = atou(p)) )
     hd_geometry.c = v;
