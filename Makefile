@@ -39,10 +39,10 @@ VERSION  = $(shell cat version)
 # like to keep those uniform for debugging reasons; however, distributors 
 # want to recompile the installers (ITARGET).
 #
-CSRC    = syslinux.c syslxmod.c gethostip.c syslinux.h
+CSRC    = syslinux.c syslxmod.c gethostip.c
 NASMSRC  = ldlinux.asm syslinux.asm copybs.asm \
 	  pxelinux.asm mbr.asm isolinux.asm isolinux-debug.asm
-SOURCES = $(CSRC) $(NASMSRC) *.inc
+SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
 BTARGET = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
 	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin libsyslinux.a
 ITARGET = syslinux.com syslinux copybs.com gethostip mkdiskimage
