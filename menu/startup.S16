@@ -2,14 +2,22 @@
 
 	.globl _start
 _start:
+	/* Make sure stack pointer is normalized */
+	movzwl %sp,%esp
+
+	/* Zero .bss */
 	movw $__bss_start,%di
 	xorl %eax,%eax
-	movw $_end,%cx
+	movw $(_end+3),%cx
 	subw %di,%cx
 	shrw $2,%cx
+	cld
 	rep ; stosl
 
+	/* Invoke main() */
 	calll main
+
+	/* Terminate program (with error code in %al) */
 	movb $0x4c,%ah
 	int $0x21
 	hlt
