@@ -25,7 +25,7 @@ LD         = ld -m elf_i386
 AR	   = ar
 NASM	   = nasm
 RANLIB	   = ranlib
-CFLAGS     = -W -Wall -march=i386 -Os -fomit-frame-pointer -I../libutil/include -I../include  -D__COM32__
+CFLAGS     = -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os -fomit-frame-pointer -I../libutil/include -I../include  -D__COM32__
 LNXCFLAGS  = -W -Wall -march=i386 -Os -g -I../libutil/include
 LNXSFLAGS  = -march=i386
 LNXLDFLAGS = -g
