@@ -103,6 +103,8 @@ stupid.inc: stupid.c
 
 stupid.o: stupid.c
 
+gethostip.o: gethostip.c
+
 gethostip: gethostip.o
 
 install: all
