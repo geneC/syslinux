@@ -100,12 +100,6 @@ linux_fdctab	equ $
 cmd_line_here	equ $			; 8000 Should be out of the way
 		endstruc
 
-setup_seg	equ 9020h
-		struc setup_seg_t
-		org 0h			; as 9020:0000, not 9000:0200
-setup_entry	equ $
-		endstruc
-
 ;
 ; Kernel command line signature
 ;
@@ -121,11 +115,12 @@ HEADER_ID       equ 'HdrS'		; HdrS (in littleendian hex)
 ;
 LOAD_HIGH	equ 01h			; Large kernel, load high
 CAN_USE_HEAP    equ 80h                 ; Boot loader reports heap size
+
 ;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
 ; Since there is no room in the bottom 64K for all of these, we
-; stick them at 8000:0000 and copy them down before we need them.
+; stick them at vk_seg:0000 and copy them down before we need them.
 ;
 ; Note: this structure can be added to, but it must 
 ;
@@ -2046,8 +2041,8 @@ read_kernel:
 		add esi,(real_mode_seg << 4)	; Pointer to source
                 mov edi,100000h                 ; Copy to address 100000h
                 call bcopy			; Transfer to high memory
-;
-                push word xfer_buf_seg		; Segment 7000h is xfer buffer
+
+                push word xfer_buf_seg		; Transfer buffer segment
                 pop es
 high_load_loop: 
                 mov si,dot_msg			; Progress report
@@ -2100,6 +2095,7 @@ high_load_done:
 ; the command line to exist in the 9xxxxh range even if the rest of the
 ; setup doesn't.
 ;
+		cli				; In case of hooked interrupts
 		test byte [LoadFlags],LOAD_HIGH
 		jz need_high_cmdline
 		cmp word [fs:su_version],0202h	; Support new cmdline protocol?
@@ -2134,7 +2130,6 @@ need_high_cmdline:
 ;
 ; Copy real_mode stuff up to 90000h
 ;
-		cli				; In case of hooked interrupts
 		mov ax,real_mode_seg
 		mov fs,ax
 		mov ax,9000h
@@ -3616,6 +3611,15 @@ lc_1:           cmp al,lcase_low
                 pop bx
 lc_ret:         ret
 
+; ----------------------------------------------------------------------------------
+;  Begin data section
+; ----------------------------------------------------------------------------------
+
+CR		equ 13		; Carriage Return
+LF		equ 10		; Line Feed
+FF		equ 12		; Form Feed
+BS		equ  8		; Backspace
+
 ;
 ; Lower-case table for codepage 865
 ;
@@ -3625,51 +3629,49 @@ lcase_tab       db 135, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138
                 db 139, 140, 141, 132, 134, 130, 145, 145, 147, 148, 149
                 db 150, 151, 152, 148, 129, 155, 156, 155, 158, 159, 160
                 db 161, 162, 163, 164, 164
-;
-; Various initialized or semi-initialized variables
-;
+
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
-		db 0Dh, 0Ah, 0
+		db CR, LF, 0
 boot_prompt	db 'boot: ', 0
 wipe_char	db 08h, ' ', 08h, 0
 err_notfound	db 'Could not find kernel image: ',0
-err_notkernel	db 0Dh, 0Ah, 'Invalid or corrupt kernel image.', 0Dh, 0Ah, 0
+err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
 err_not386	db 'It appears your computer uses a 286 or lower CPU.'
-		db 0Dh, 0Ah
+		db CR, LF
 		db 'You cannot run Linux unless you have a 386 or higher CPU'
-		db 0Dh, 0Ah
+		db CR, LF
 		db 'in your machine.  If you get this message in error, hold'
-		db 0Dh, 0Ah
+		db CR, LF
 		db 'down the Ctrl key while booting, and I will take your'
-		db 0Dh, 0Ah
-		db 'word for it.', 0Dh, 0Ah, 0
+		db CR, LF
+		db 'word for it.', CR, LF, 0
 err_noram	db 'It appears your computer has less than 512K of low ("DOS")'
-		db 0Dh, 0Ah
+		db CR, LF
 		db 'RAM.  Linux needs at least this amount to boot.  If you get'
-		db 0Dh, 0Ah
+		db CR, LF
 		db 'this message in error, hold down the Ctrl key while'
-		db 0Dh, 0Ah
-		db 'booting, and I will take your word for it.', 0Dh, 0Ah, 0
-err_badcfg      db 'Unknown keyword in syslinux.cfg.', 0Dh, 0Ah, 0
-err_noparm      db 'Missing parameter in syslinux.cfg.', 0Dh, 0Ah, 0
-err_noinitrd    db 0Dh, 0Ah, 'Could not find ramdisk image: ', 0
-err_nohighmem   db 'Not enough memory to load specified kernel.', 0Dh, 0Ah, 0
-err_highload    db 0Dh, 0Ah, 'Kernel transfer failure.', 0Dh, 0Ah, 0
+		db CR, LF
+		db 'booting, and I will take your word for it.', CR, LF, 0
+err_badcfg      db 'Unknown keyword in syslinux.cfg.', CR, LF, 0
+err_noparm      db 'Missing parameter in syslinux.cfg.', CR, LF, 0
+err_noinitrd    db CR, LF, 'Could not find ramdisk image: ', 0
+err_nohighmem   db 'Not enough memory to load specified kernel.', CR, LF, 0
+err_highload    db CR, LF, 'Kernel transfer failure.', CR, LF, 0
 err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
-                db 0Dh, 0Ah, 0
-err_notdos	db ': attempted DOS system call', 0Dh, 0Ah, 0
-err_comlarge	db 'COMBOOT image too large.', 0Dh, 0Ah, 0
-err_bootsec	db 'Invalid or corrupt boot sector image.', 0Dh, 0Ah, 0
-err_a20		db 0Dh, 0Ah, 'A20 gate not responding!', 0Dh, 0Ah, 0
-err_bootfailed	db 0Dh, 0Ah, 'Boot failed: please change disks and press '
-		db 'a key to continue.', 0Dh, 0Ah, 0
-ready_msg	db ' ready.', 0Dh, 0Ah, 0
+                db CR, LF, 0
+err_notdos	db ': attempted DOS system call', CR, LF, 0
+err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
+err_bootsec	db 'Invalid or corrupt boot sector image.', CR, LF, 0
+err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
+err_bootfailed	db CR, LF, 'Boot failed: please change disks and press '
+		db 'a key to continue.', CR, LF, 0
+ready_msg	db ' ready.', CR, LF, 0
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
 dot_msg         db '.', 0
 aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
-crlf_msg	db 0Dh, 0Ah, 0
-crff_msg	db 0Dh, 0Ch, 0
+crlf_msg	db CR, LF, 0
+crff_msg	db CR, FF, 0
 syslinux_cfg	db 'SYSLINUXCFG'
 ;
 ; Command line options we'd like to take a look at

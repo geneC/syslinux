@@ -80,81 +80,65 @@ syslinux_id	equ 032h		; SYSLINUX (3) 2 = PXELINUX
 ; the Linux kernel.
 ;
 real_mode_seg	equ 5000h
+fake_setup_seg	equ real_mode_seg+020h
+
 		struc real_mode_seg_t
 		resb 20h-($-$$)		; org 20h
-kern_cmd_magic	resw 1			; Magic # for command line
-kern_cmd_offset resw 1			; Offset for kernel command line
+kern_cmd_magic	resw 1			; 0020 Magic # for command line
+kern_cmd_offset resw 1			; 0022 Offset for kernel command line
 		resb 497-($-$$)		; org 497d
-bs_setupsecs	resb 1			; Sectors for setup code (0 -> 4)
-bs_rootflags	resw 1			; Root readonly flag
-bs_syssize	resw 1
-bs_swapdev	resw 1			; Swap device (obsolete)
-bs_ramsize	resw 1			; Ramdisk flags, formerly ramdisk size
-bs_vidmode	resw 1			; Video mode
-bs_rootdev	resw 1			; Root device
-bs_bootsign	resw 1			; Boot sector signature (0AA55h)
-su_jump		resb 1			; 0EBh
-su_jump2	resb 1
-su_header	resd 1			; New setup code: header
-su_version	resw 1			; See linux/arch/i386/boot/setup.S
-su_switch	resw 1
-su_setupseg	resw 1
-su_startsys	resw 1
-su_kver		resw 1			; Kernel version pointer
-su_loader	resb 1			; Loader ID
-su_loadflags	resb 1			; Load high flag
-su_movesize	resw 1
-su_code32start	resd 1			; Start of code loaded high
-su_ramdiskat	resd 1			; Start of initial ramdisk
+bs_setupsecs	resb 1			; 01F1 Sectors for setup code (0 -> 4)
+bs_rootflags	resw 1			; 01F2 Root readonly flag
+bs_syssize	resw 1			; 01F4
+bs_swapdev	resw 1			; 01F6 Swap device (obsolete)
+bs_ramsize	resw 1			; 01F8 Ramdisk flags, formerly ramdisk size
+bs_vidmode	resw 1			; 01FA Video mode
+bs_rootdev	resw 1			; 01FC Root device
+bs_bootsign	resw 1			; 01FE Boot sector signature (0AA55h)
+su_jump		resb 1			; 0200 0EBh
+su_jump2	resb 1			; 0201 Size of following header
+su_header	resd 1			; 0202 New setup code: header
+su_version	resw 1			; 0206 See linux/arch/i386/boot/setup.S
+su_switch	resw 1			; 0208
+su_setupseg	resw 1			; 020A
+su_startsys	resw 1			; 020C
+su_kver		resw 1			; 020E Kernel version pointer
+su_loader	resb 1			; 0210 Loader ID
+su_loadflags	resb 1			; 0211 Load high flag
+su_movesize	resw 1			; 0212
+su_code32start	resd 1			; 0214 Start of code loaded high
+su_ramdiskat	resd 1			; 0218 Start of initial ramdisk
 su_ramdisklen	equ $			; Length of initial ramdisk
-su_ramdisklen1	resw 1
-su_ramdisklen2	resw 1
-su_bsklugeoffs	resw 1
-su_bsklugeseg	resw 1
-su_heapend	resw 1
+su_ramdisklen1	resw 1			; 021C
+su_ramdisklen2	resw 1			; 021E
+su_bsklugeoffs	resw 1			; 0220
+su_bsklugeseg	resw 1			; 0222
+su_heapend	resw 1			; 0224
+su_pad1		resw 1			; 0226
+su_cmd_line_ptr	resd 1			; 0228
 		resb (8000h-12)-($-$$)	; Were bootsect.S puts it...
-linux_stack	equ $
+linux_stack	equ $			; 7FF4
 linux_fdctab	equ $
 		resb 8000h-($-$$)
-cmd_line_here	equ $			; Should be out of the way
+cmd_line_here	equ $			; 8000 Should be out of the way
 		endstruc
 
-setup_seg	equ 9020h
-setup_entry	equ 0h			; Entry point 9020:0000
-
 ;
-; BOOTP/DHCP packet pattern
+; Kernel command line signature
 ;
-		struc bootp_t		
-bootp:
-.opcode		resb 1			; BOOTP/DHCP "opcode"
-.hardware	resb 1			; ARP hardware type
-.hardlen	resb 1			; Hardware address length
-.gatehops	resb 1			; Used by forwarders
-.ident		resd 1			; Transaction ID
-.seconds	resw 1			; Seconds elapsed
-.flags		resw 1			; Broadcast flags
-.cip		resd 1			; Client IP
-.yip		resd 1			; "Your" IP
-.sip		resd 1			; Next server IP
-.gip		resd 1			; Relay agent IP
-.macaddr	resb 16			; Client MAC address
-.sname		resb 64			; Server name (optional)
-.bootfile	resb 128		; Boot file name
-.v_magic	resd 1			; DHCP magic cookie
-.v_flags	resd 1			; DHCP flags
-.v_pad		resb 56			; Vendor options padding
-		endstruc		
+CMD_MAGIC	equ 0A33Fh		; Command line magic
 
 ;
 ; Magic number of su_header field
 ;
 HEADER_ID       equ 'HdrS'		; HdrS (in littleendian hex)
+
 ;
 ; Flags for the su_loadflags field
 ;
 LOAD_HIGH	equ 01h			; Large kernel, load high
 CAN_USE_HEAP    equ 80h                 ; Boot loader reports heap size
+
 ;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
@@ -191,7 +175,29 @@ vk_seg          equ 4000h		; This is where we stick'em
 xfer_buf_seg	equ 3000h		; Bounce buffer for I/O to high mem
 comboot_seg	equ 2000h		; COMBOOT image loading zone
 
-fat_seg		equ 0h			; BOGUS
+;
+; BOOTP/DHCP packet pattern
+;
+		struc bootp_t		
+bootp:
+.opcode		resb 1			; BOOTP/DHCP "opcode"
+.hardware	resb 1			; ARP hardware type
+.hardlen	resb 1			; Hardware address length
+.gatehops	resb 1			; Used by forwarders
+.ident		resd 1			; Transaction ID
+.seconds	resw 1			; Seconds elapsed
+.flags		resw 1			; Broadcast flags
+.cip		resd 1			; Client IP
+.yip		resd 1			; "Your" IP
+.sip		resd 1			; Next server IP
+.gip		resd 1			; Relay agent IP
+.macaddr	resb 16			; Client MAC address
+.sname		resb 64			; Server name (optional)
+.bootfile	resb 128		; Boot file name
+.v_magic	resd 1			; DHCP magic cookie
+.v_flags	resd 1			; DHCP flags
+.v_pad		resb 56			; Vendor options padding
+		endstruc		
 
 ;
 ; TFTP connection data structure.  Each one of these corresponds to a local
@@ -629,11 +635,16 @@ not_386:
 		jmp kaboom
 is_386:
 		; Now we know it's a 386 or higher
-
 ;
-; We can't do the low memory check that SYSLINUX does, since
-; the PXE code is up in high memory.
+; Now check that there is at least 384K of low (DOS) memory
 ;
+		int 12h
+		cmp ax,384
+		jae enough_ram
+		mov si,err_noram
+		call writestr
+		jmp kaboom
+enough_ram:
 skip_checks:
 
 ;
@@ -1430,8 +1441,6 @@ got_highmem:
 ;
 ; Construct the command line (append options have already been copied)
 ;
-		mov word [es:kern_cmd_magic],0A33Fh	; Command line magic no
-		mov word [es:kern_cmd_offset],cmd_line_here
 		mov di,[CmdLinePtr]
                 mov si,boot_image        	; BOOT_IMAGE=
                 mov cx,boot_image_len
@@ -1510,8 +1519,8 @@ is_mem_cmd:
 cmdline_end:
                 push cs                         ; Restore standard DS
                 pop ds
-		sub di,cmd_line_here
-		mov [CmdLineLen],di		; Length including final null
+		sub si,cmd_line_here
+		mov [CmdLineLen],si		; Length including final null
 ;
 ; Now check if we have a large kernel, which needs to be loaded high
 ;
@@ -1662,12 +1671,6 @@ nk_noinitrd:
 ;
                 call abort_check        	; Last chance!!
 
-;
-; Now we're as close to be done as we can be and still use our normal
-; routines, print a CRLF to end the row of dots
-;
-;		mov si,crlf_msg
-;		call cwritestr
 		mov si,ready_msg
 		call cwritestr
 ;
@@ -1680,9 +1683,52 @@ nk_noinitrd:
 		mov sp,7C00h			; Set up a more normal stack
 		
 ;
-; Copy real_mode stuff up to 90000h
+; Now, if we were supposed to load "low", copy the kernel down to 10000h
+; and the real mode stuff to 90000h.  We assume that all bzImage kernels are
+; capable of starting their setup from a different address.
+;
+		mov bx,real_mode_seg		; Real mode segment
+		mov fs,bx			; FS -> real_mode_seg
+;
+; Copy command line.  Unfortunately, the kernel boot protocol requires
+; the command line to exist in the 9xxxxh range even if the rest of the
+; setup doesn't.
 ;
 		cli				; In case of hooked interrupts
+		test byte [LoadFlags],LOAD_HIGH
+		jz need_high_cmdline
+		cmp word [fs:su_version],0202h	; Support new cmdline protocol?
+		jb need_high_cmdline
+		; New cmdline protocol
+		; Store 32-bit (flat) pointer to command line
+		mov dword [fs:su_cmd_line_ptr],(real_mode_seg << 4) + cmd_line_here
+		jmp short in_proper_place
+
+need_high_cmdline:
+;
+; Copy command line up to 90000h
+;
+		mov ax,9000h
+		mov es,ax
+		mov si,cmd_line_here
+		mov di,si
+		mov [fs:kern_cmd_magic],word CMD_MAGIC ; Store magic
+		mov [fs:kern_cmd_offset],di	; Store pointer
+
+		mov cx,[CmdLineLen]
+		add cx,byte 3
+		shr cx,2			; Convert to dwords
+		fs rep movsd
+
+		test byte [LoadFlags],LOAD_HIGH
+		; Note bx -> real_mode_seg still
+		jnz in_proper_place		; If high load, we're done
+
+;
+; Loading low; we can't assume it's safe to run in place.
+;
+; Copy real_mode stuff up to 90000h
+;
 		mov ax,real_mode_seg
 		mov fs,ax
 		mov ax,9000h
@@ -1693,12 +1739,6 @@ nk_noinitrd:
 		xor si,si
 		xor di,di
 		fs rep movsd			; Copy setup + boot sector
-		mov si,cmd_line_here
-		mov di,si
-		mov cx,[CmdLineLen]
-		add cx,byte 3
-		shr cx,2			; Convert to dwords
-		fs rep movsd
 ;
 ; Some kernels in the 1.2 ballpark but pre-bzImage have more than 4
 ; setup sectors, but the boot protocol had not yet been defined.  They
@@ -1716,18 +1756,20 @@ nk_noinitrd:
 		xor eax,eax
 		rep stosd			; Clear region
 ;
-; Now, if we were supposed to load "low", copy the kernel down to 10000h
-;
-		test byte [LoadFlags],LOAD_HIGH
-		jnz in_proper_place		; If high load, we're done
-
 		mov ecx,[KernelSize]
 		add ecx,3			; Round upwards
 		shr ecx,2			; Bytes -> dwords
 		mov esi,100000h
 		mov edi,10000h
 		call bcopy
+
+		mov bx,9000h			; Real mode segment
+
+;
+; Now everything is where it needs to be...
+;
 in_proper_place:
+		mov es,bx			; Real mode segment
 ;
 ; If the default root device is set to FLOPPY (0000h), change to
 ; /dev/fd0 (0200h)
@@ -1737,6 +1779,29 @@ in_proper_place:
 		mov word [es:bs_rootdev],0200h
 root_not_floppy:
 ;
+; Copy the disk table to high memory, then re-initialize the floppy
+; controller
+;
+; This needs to be moved before the copy
+;
+%if 0
+		push ds
+		push bx
+		lds si,[fdctab]
+		mov di,linux_fdctab
+		mov cx,3			; 12 bytes
+		push di
+		rep movsd
+		pop di
+		mov [fdctab1],di		; Save new floppy tab pos
+		mov [fdctab2],es
+		xor ax,ax
+		xor dx,dx
+		int 13h
+		pop bx
+		pop ds
+%endif
+;
 ; Linux wants the floppy motor shut off before starting the kernel,
 ; at least bootsect.S seems to imply so
 ;
@@ -1745,20 +1810,33 @@ kill_motor:
 		xor al,al
 		call slow_out
 ;
+; If we're debugging, wait for a keypress so we can read any debug messages
+;
+%ifdef debug
+                xor ax,ax
+                int 16h
+%endif
+;
 ; Set up segment registers and the Linux real-mode stack
+; Note: bx == the real mode segment
 ;
 		cli
-		mov ax,9000h
-		mov ds,ax
-                mov es,ax
-		mov fs,ax
-		mov gs,ax
-		mov ss,ax
+		; es is already == real mode segment
+		mov ds,bx
+		mov fs,bx
+		mov gs,bx
+		mov ss,bx
 		mov sp,linux_stack
 ;
 ; We're done... now RUN THAT KERNEL!!!!
+; Setup segment == real mode segment + 020h; we need to jump to offset
+; zero in the real mode segment.
 ;
-		jmp setup_seg:setup_entry
+		add bx,020h
+		push bx
+		push word 0h
+		retf
+
 ;
 ; Load an older kernel.  Older kernels always have 4 setup sectors, can't have
 ; initrd, and are always loaded low.
@@ -3542,64 +3620,73 @@ unload_pxe:
 ;  Begin data section
 ; ----------------------------------------------------------------------------------
 
-;
-; Various initialized or semi-initialized variables
-;
+CR		equ 13		; Carriage Return
+LF		equ 10		; Line Feed
+FF		equ 12		; Form Feed
+BS		equ  8		; Backspace
+
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
-		db 13, 10, 0
+		db CR, LF, 0
 boot_prompt	db 'boot: ', 0
 wipe_char	db 08h, ' ', 08h, 0
 err_notfound	db 'Could not find kernel image: ',0
-err_notkernel	db 13, 10, 'Invalid or corrupt kernel image.', 13, 10, 0
+err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
 err_not386	db 'It appears your computer uses a 286 or lower CPU.'
-		db 13, 10
+		db CR, LF
 		db 'You cannot run Linux unless you have a 386 or higher CPU'
-		db 13, 10
+		db CR, LF
 		db 'in your machine.  If you get this message in error, hold'
-		db 13, 10
+		db CR, LF
 		db 'down the Ctrl key while booting, and I will take your'
-		db 13, 10
-		db 'word for it.', 13, 10, 0
-err_badcfg      db 'Unknown keyword in config file.', 13, 10, 0
-err_noparm      db 'Missing parameter in config file.', 13, 10, 0
-err_noinitrd    db 13, 10, 'Could not find ramdisk image: ', 0
-err_nohighmem   db 'Not enough memory to load specified kernel.', 13, 10, 0
-err_highload    db 13, 10, 'Kernel transfer failure.', 13, 10, 0
+		db CR, LF
+		db 'word for it.', CR, LF, 0
+err_noram	db 'It appears your computer has less than 384K of low ("DOS")'
+		db 0Dh, 0Ah
+		db 'RAM.  Linux needs at least this amount to boot.  If you get'
+		db 0Dh, 0Ah
+		db 'this message in error, hold down the Ctrl key while'
+		db 0Dh, 0Ah
+		db 'booting, and I will take your word for it.', 0Dh, 0Ah, 0
+err_badcfg      db 'Unknown keyword in config file.', CR, LF, 0
+err_noparm      db 'Missing parameter in config file.', CR, LF, 0
+err_noinitrd    db CR, LF, 'Could not find ramdisk image: ', 0
+err_nohighmem   db 'Not enough memory to load specified kernel.', CR, LF, 0
+err_highload    db CR, LF, 'Kernel transfer failure.', CR, LF, 0
 err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
-                db 13, 10, 0
-err_notdos	db ': attempted DOS system call', 13, 10, 0
-err_comlarge	db 'COMBOOT image too large.', 13, 10, 0
-err_bootsec	db 'Invalid or corrupt boot sector image.', 13, 10, 0
-err_a20		db 13, 10, 'A20 gate not responding!', 13, 10, 0
-err_bootfailed	db 13, 10, 'Boot failed: press a key to retry, or wait for reset...', 13, 10, 0
+                db CR, LF, 0
+err_notdos	db ': attempted DOS system call', CR, LF, 0
+err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
+err_bootsec	db 'Invalid or corrupt boot sector image.', CR, LF, 0
+err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
+err_bootfailed	db CR, LF, 'Boot failed: press a key to retry, or wait for reset...', CR, LF, 0
 bailmsg		equ err_bootfailed
-err_nopxe	db "No !PXE or PXENV+ API found; we're dead...", 13, 10, 0
+err_nopxe	db "No !PXE or PXENV+ API found; we're dead...", CR, LF, 0
 err_pxefailed	db 'PXE API call failed, error ', 0
-err_udpinit	db 'Failed to initialize UDP stack', 13, 10, 0
-err_oldtftp	db 'TFTP server does not support the tsize option', 13, 10, 0
-found_pxenv	db 'Found PXENV+ structure', 13, 10, 0
-using_pxenv_msg db 'Old PXE API detected, using PXENV+ structure', 13, 10, 0
+err_udpinit	db 'Failed to initialize UDP stack', CR, LF, 0
+err_oldtftp	db 'TFTP server does not support the tsize option', CR, LF, 0
+found_pxenv	db 'Found PXENV+ structure', CR, LF, 0
+using_pxenv_msg db 'Old PXE API detected, using PXENV+ structure', CR, LF, 0
 apiver_str	db 'PXE API version is ',0
 pxeentry_msg	db 'PXE entry point found (we hope) at ', 0
 pxenventry_msg	db 'PXENV entry point found (we hope) at ', 0
 trymempxe_msg	db 'Scanning memory for !PXE structure... ', 0
 trymempxenv_msg	db 'Scanning memory for PXENV+ structure... ', 0
-notfound_msg	db 'not found', 13, 10, 0
+notfound_msg	db 'not found', CR, LF, 0
 myipaddr_msg	db 'My IP address seems to be ',0
 tftpprefix_msg	db 'TFTP prefix: ', 0
-cmdline_msg	db 'Command line: ', 13, 10, 0
-ready_msg	db 13, 10, 'Ready to start kernel...', 13, 10, 0
+cmdline_msg	db 'Command line: ', CR, LF, 0
+ready_msg	db ' ready.', CR, LF, 0
 trying_msg	db 'Trying to load: ', 0
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
 dot_msg         db '.', 0
-fourbs_msg	db 8, 8, 8, 8, 0
+fourbs_msg	db BS, BS, BS, BS, 0
 aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
-crlf_msg	db 13, 10, 0
-crff_msg	db 13, 0Ch, 0
+crlf_msg	db CR, LF, 0
+crff_msg	db CR, FF, 0
 default_str	db 'default', 0
 default_len	equ ($-default_str)
-pxelinux_banner	db 13, 10, 'PXELINUX ', version_str, ' ', date, ' ', 0
+pxelinux_banner	db CR, LF, 'PXELINUX ', version_str, ' ', date, ' ', 0
 cfgprefix	db 'pxelinux.cfg/'		; No final null!
 cfgprefix_len	equ ($-cfgprefix)
 
