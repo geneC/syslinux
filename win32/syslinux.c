@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *   
  *   Copyright 2003 Lars Munch Christensen - All Rights Reserved
+ *   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
  *	
  *   Based on the Linux installer program for SYSLINUX by H. Peter Anvin
  *
@@ -22,6 +23,12 @@
 
 #include "syslinux.h"
 #include "libfat.h"
+
+#ifdef __GNUC__
+# define noreturn void __attribute__((noreturn))
+#else
+# define noreturn void
+#endif
 
 void error(char* msg);
 
@@ -52,7 +59,7 @@ BOOL GetStorageDeviceNumberByHandle( HANDLE handle, const STORAGE_DEVICE_NUMBER 
     result = TRUE;
   }
   else {
-    error("GetDriveNumber: DeviceIoControl failed.");
+    error("GetDriveNumber: DeviceIoControl failed");
   }
   
   return( result );
@@ -158,8 +165,8 @@ BOOL FixMBR(int driveNum, int partitionNum, int write_mbr, int set_active) {
 
 /* End stuff for MBR code */
 
-char *program;			/* Name of program */
-char *drive;			/* Drive to install to */
+const char *program;		/* Name of program */
+const char *drive;		/* Drive to install to */
 
 /*
  * Check Windows version.
@@ -224,9 +231,9 @@ int libfat_readfile(intptr_t pp, void *buf, size_t secsize, libfat_sector_t sect
   return secsize;
 }
 
-void usage(void)
+noreturn usage(void)
 {
-  fprintf(stderr, "Usage: syslinux.exe [-sfma] <drive>:\n");
+  fprintf(stderr, "Usage: syslinux.exe [-sfma] <drive>: [bootsecfile]\n");
   exit(1);
 }
 
@@ -248,6 +255,7 @@ int main(int argc, char *argv[])
   libfat_sector_t s, *secp, sectors[65]; /* 65 is maximum possible */
   uint32_t ldlinux_cluster;
   int nsectors;
+  const char *bootsecfile = NULL;
 
   int force = 0;		/* -f (force) option */
   int mbr = 0;			/* -m (MBR) option */
@@ -284,9 +292,12 @@ int main(int argc, char *argv[])
 	opt++;
       }
     } else {
-      if ( drive )
+      if ( bootsecfile )
 	usage();
-      drive = *argp;
+      else if ( drive )
+	bootsecfile = *argp;
+      else
+	drive = *argp;
     }
   }
 
@@ -325,7 +336,7 @@ int main(int argc, char *argv[])
 			 FILE_SHARE_READ | FILE_SHARE_WRITE,
 			 NULL, OPEN_EXISTING, 0, NULL );
 
-  if(d_handle == INVALID_HANDLE_VALUE) {
+  if (d_handle == INVALID_HANDLE_VALUE) {
     error("Could not open drive");
     exit(1);
   }
@@ -333,8 +344,11 @@ int main(int argc, char *argv[])
   /*
    * Make sure we can read the boot sector
    */  
-  ReadFile(d_handle, sectbuf, 512, &bytes_read, NULL);
-  if(bytes_read != 512) {
+  if ( !ReadFile(d_handle, sectbuf, 512, &bytes_read, NULL) ) {
+    error("Reading boot sector");
+    exit(1);
+  }
+  if (bytes_read != 512) {
     fprintf(stderr, "Could not read the whole boot sector\n");
     exit(1);
   }
@@ -361,14 +375,13 @@ int main(int argc, char *argv[])
 			FILE_ATTRIBUTE_HIDDEN,
 			NULL );
   
-  if(f_handle == INVALID_HANDLE_VALUE) {
+  if (f_handle == INVALID_HANDLE_VALUE) {
     error("Unable to create ldlinux.sys");
     exit(1);
   }
 
   /* Write ldlinux.sys file */
-  if (!WriteFile(f_handle, syslinux_ldlinux, syslinux_ldlinux_len, &bytes_written, NULL) ||
-      bytes_written != syslinux_ldlinux_len ) {
+  if (!WriteFile(f_handle, syslinux_ldlinux, syslinux_ldlinux_len, &bytes_written, NULL)) {
     error("Could not write ldlinux.sys");
     exit(1);
   }
@@ -415,7 +428,7 @@ int main(int argc, char *argv[])
   /* If desired, fix the MBR */
   if( mbr || setactive ) {
     STORAGE_DEVICE_NUMBER sdn;
-    if( GetStorageDeviceNumberByHandle( f_handle, &sdn ) ) {
+    if( GetStorageDeviceNumberByHandle( d_handle, &sdn ) ) {
       if( !FixMBR(sdn.DeviceNumber, sdn.PartitionNumber, mbr, setactive) ) {
         fprintf(stderr, "Did not successfully update the MBR; continuing...\n");
       }
@@ -431,14 +444,31 @@ int main(int argc, char *argv[])
   syslinux_make_bootsect(sectbuf);
 
   /* Write the syslinux boot sector into the boot sector */
-  SetFilePointer(d_handle, 0, NULL, FILE_BEGIN);
-  WriteFile( d_handle, sectbuf, 512, &bytes_written, NULL ) ;
+  if ( bootsecfile ) {
+    f_handle = CreateFile(bootsecfile, GENERIC_READ | GENERIC_WRITE,
+			  FILE_SHARE_READ | FILE_SHARE_WRITE,
+			  NULL, CREATE_ALWAYS, 
+			  FILE_ATTRIBUTE_ARCHIVE,
+			  NULL );
+    if (f_handle == INVALID_HANDLE_VALUE) {
+      error("Unable to create bootsector file");
+      exit(1);
+    }
+    if (!WriteFile(f_handle, sectbuf, 512, &bytes_written, NULL)) {
+      error("Could not write boot sector file");
+      exit(1);
+    }
+    CloseHandle(f_handle);
+  } else {
+    SetFilePointer(d_handle, 0, NULL, FILE_BEGIN);
+    WriteFile( d_handle, sectbuf, 512, &bytes_written, NULL ) ;
+  }
 
   if(bytes_written != 512) {
     fprintf(stderr, "Could not write the whole boot sector\n");
     exit(1);
   }
-
+  
   /* Close file */ 
   CloseHandle(d_handle);
 

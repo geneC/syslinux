@@ -18,10 +18,10 @@ Changes in 3.00:
 	  on the complexity.)
 	* EXTLINUX: New derivative, which boots from an ext2/ext3
 	  filesystem.
-	* SYSLINUX: The DOS installer can now optionally write the
-	  boot sector to a file instead of the real boot sector.  This
-	  is currently not supported in any of the other installers,
-	  but should be added to the Win32 installer at some point.
+	* SYSLINUX: The DOS and Win32 installers can now optionally
+	  write the boot sector to a file instead of the real boot
+	  sector.  This is not supported in the Linux installers,
+	  however.
 	* ALL: New NOESCAPE command, disables the "hold down the Shift
 	  key to display the prompt" behaviour.
 	* New simple menu system, as an alternative to the advanced
@@ -33,7 +33,8 @@ Changes in 3.00:
 	  prefix.  See pxelinux.doc.
 	* SYSLINUX: Add an -m option to the Win32 installer (only!)
 	  to write an MBR and -a to mark the partition SYSLINUX is
-	  being installed on active.
+	  being installed on active.  This will hopefully be added
+	  to the DOS installer later.
 
 Changes in 2.13:
 	* MEMDISK: Fix command-line parsing "brown paper bag" class

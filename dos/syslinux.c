@@ -37,7 +37,7 @@ uint16_t dos_version;
 
 void __attribute__((noreturn)) usage(void)
 {
-  puts("Usage: syslinux [-sf] drive: [bootsecfile]\n");
+  puts("Usage: syslinux [-sf] <drive>: [bootsecfile]\n");
   exit(1);
 }
 
