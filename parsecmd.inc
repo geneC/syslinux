@@ -42,6 +42,7 @@ getcommand:
 		push ebx
 		call getc
 		pop ebx
+		jc .eof
 		cmp al,' '		; Whitespace
 		jbe .done
 		or al,20h
