@@ -434,11 +434,11 @@ int main(int argc, char *argv[])
       setuid(0);
       if ( S_ISREG(st.st_mode) ) {
 	snprintf(mnt_opts, sizeof mnt_opts,
-		 "rw,nodev,noexec,loop,offset=%" PRIdMAX ",umask=077,uid=%lu",
+		 "rw,nodev,noexec,nosuid,loop,offset=%" PRIdMAX ",umask=077,uid=%lu",
 		 (uintmax_t)offset, (unsigned long)ruid);
       } else {
 	snprintf(mnt_opts, sizeof mnt_opts,
-		 "rw,nodev,noexec,umask=077,uid=%lu",
+		 "rw,nodev,noexec,nosuid,umask=077,uid=%lu",
 		 (unsigned long)ruid);
       }
       /* We're root, use clean_environ */
@@ -505,7 +505,7 @@ umount:
   } else if ( f == 0 ) {
     seteuid(0);		/* ***BECOME ROOT*** */
     setuid(0);
-    execl(_PATH_UMOUNT, _PATH_UMOUNT, mntpath, NULL);
+    execle(_PATH_UMOUNT, _PATH_UMOUNT, mntpath, NULL, clean_environ);
   }
 
   w = waitpid(f, &status, 0);
