@@ -847,7 +847,6 @@ all_read:
 ;
 expand_super:
 		xor eax,eax
-		mov es,ax			; INT 13:08 destroys ES
 		mov si,superblock
 		mov di,SuperInfo
 		mov cx,superinfo_size
@@ -857,30 +856,7 @@ expand_super:
 		stosd				; Store expanded word
 		xor ah,ah
 		stosd				; Store expanded byte
-
-;
-; How big is a cluster, really?  Also figure out how many clusters
-; will fit in the trackbuf, and how many sectors and bytes that is
-;
-; FIX THIS: We shouldn't rely on integral sectors in the trackbuf
-; anymore...
-;
-		mov edi,[bxBytesPerSec]		; Used a lot below
-		mov eax,[SecPerClust]
-		mov si,ax			; Also used a lot
-		mul di
-		mov [ClustSize],eax		; Bytes/cluster
-		mov bx,ax
-		mov ax,trackbufsize		; High bit 0
-		cwd
-		div bx
-		mov [BufSafe],ax		; # of cluster in trackbuf
-		mul si
-		mov [BufSafeSec],ax
-		mul di
-		mov [BufSafeBytes],ax
-		add ax,getcbuf			; Size of getcbuf is the same
-		mov [EndOfGetCBuf],ax		; as for trackbuf
+		loop .loop
 
 ;
 ; Compute some information about this filesystem.
