@@ -1357,7 +1357,7 @@ kernel_good:
 ; more than 8M, we need to change the logic for loading it anyway...)
 ;
 load_it:
-                cmp dx,byte 80h			; 8 megs
+                cmp dx,80h			; 8 megs
 		ja kernel_corrupt
 		and dx,dx
 		jz kernel_corrupt
