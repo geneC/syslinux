@@ -136,7 +136,7 @@ gethostip.o: gethostip.c
 
 gethostip: gethostip.o
 
-install: all
+install: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR) $(INSTALLROOT)$(LIBDIR)
 	install -m 755 -c $(INSTALL_BIN) $(INSTALLROOT)$(BINDIR)
 	install -m 644 -c $(INSTALL_LIB) $(INSTALLROOT)$(LIBDIR)
