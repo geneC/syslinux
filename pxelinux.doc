@@ -81,6 +81,11 @@ Lefebvre:
 
 	ftp://ftp.mamalinux.com/pub/atftp/
 
+If your boot server is running Windows (and you can't fix that), try
+tftpd32 by Philippe Jounin:
+
+	http://tftpd32.jounin.net/
+
 
     ++++ SETTING UP THE DHCP SERVER ++++
 
