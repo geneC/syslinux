@@ -18,6 +18,9 @@
  */
 
 #define  _GNU_SOURCE		/* Enable everything */
+#include <inttypes.h>
+/* This is needed to deal with the kernel headers imported into glibc 3.3.3. */
+typedef uint64_t u64;
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -26,7 +29,6 @@
 #include <mntent.h>
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
 #include <getopt.h>
 #include <sysexits.h>
 #include <sys/ioctl.h>
