@@ -138,12 +138,12 @@ LABEL label
           label = mylabel
           append = "myoptions"
 
-        corresponding to the SYSLINUX:
+        ... whereas SYSLINUX uses the syntax:
         label mylabel
           kernel mykernel
           append myoptions
 
-	Notes:	Labels are mangled as if they were DOS filenames, and must be
+	Notes:	Labels are mangled as if they were filenames, and must be
 		unique after mangling.  For example, two labels
 		"v2.1.30" and "v2.1.31" will not be distinguishable.
 
@@ -154,10 +154,17 @@ LABEL label
         Append nothing.  APPEND with a single hyphen as argument in a
         LABEL section can be used to override a global APPEND.
 
-  LOCALBOOT flag_val
-	On PXELINUX, specifying "LOCALBOOT 1" instead of a "KERNEL"
+  LOCALBOOT type
+	On PXELINUX, specifying "LOCALBOOT 0" instead of a "KERNEL"
 	option means invoking this particular label will cause a local
 	disk boot instead of booting a kernel.
+
+	0 means perform a normal boot.  The type value 4 will perform
+	a local boot with the Universal Network Driver Interface
+	(UNDI) driver still resident in memory.  The type value 5 will
+	perform a local boot with the entire PXE stack, including the
+	UNDI driver, still resident in memory.  All other values are
+	undefined.
 
 IMPLICIT flag_val
         If flag_val is 0, do not load a kernel image unless it has been

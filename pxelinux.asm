@@ -358,6 +358,7 @@ ConfigFile	resw 1			; Socket for config file
 PktTimeout	resw 1			; Timeout for current packet
 KernelExtPtr	resw 1			; During search, final null pointer
 IPOptionLen	resw 1			; Length of IPOption
+LocalBootType	resw 1			; Local boot return code
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -913,11 +914,10 @@ pc_ipappend:	call getint			; "ipappend" command
 		jmp short parse_config_2
 
 pc_localboot:	call getint			; "localboot" command
-		and bx,bx
-		jz parse_config_2
 		cmp word [VKernelCtr],byte 0	; ("label" section only)
 		je parse_config_2
 		mov [VKernelBuf+vk_rname], byte 0	; Null kernel name
+		mov [VKernelBuf+vk_rname+1], bx	; Return type
 		jmp short parse_config_2
 
 pc_kernel:	cmp word [VKernelCtr],byte 0	; "kernel" command
@@ -1377,6 +1377,7 @@ vk_found:	popa
 		cmp byte [VKernelBuf+vk_rname], 0
 		jne near get_kernel		; No, it's real, go get it
 
+		mov ax, [VKernelBuf+vk_rname+1]
 		jmp local_boot
 ;
 ; kernel_corrupt: Called if the kernel file does not seem healthy
@@ -2102,11 +2103,13 @@ is_bss_sector:
 .badness:	jmp short .badness
 
 ;
-; Boot to the local disk by returning the appropriate PXE magic
+; Boot to the local disk by returning the appropriate PXE magic.
+; AX contains the appropriate return code.
 ;
 local_boot:
 		lss sp,[cs:Stack]		; Restore stack pointer
 		pop ds				; Restore DS
+		mov [LocalBootType],ax
 		mov si,localboot_msg
 		call writestr
 		; Restore the environment we were called with
@@ -2116,7 +2119,7 @@ local_boot:
 		pop ds
 		popfd
 		popad
-		xor ax,ax			; Unload PXE and local boot
+		mov ax,[cs:LocalBootType]
 		retf				; Return to PXE
 
 ;
