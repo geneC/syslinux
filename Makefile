@@ -64,8 +64,7 @@ syslinux: syslinux.o bootsect_bin.o ldlinux_bin.o
 	$(CC) $(LDFLAGS) -o syslinux syslinux.o bootsect_bin.o ldlinux_bin.o
 
 install: all
-	chmod a+x keytab-lilo.pl
-	install -c syslinux keytab-lilo.pl $(BINDIR)
+	install -c syslinux $(BINDIR)
 
 tidy:
 	rm -f ldlinux.bin *.lst *.o *_bin.c
