@@ -35,16 +35,16 @@ gcc_ok   = $(shell if gcc $(1) -c -x c /dev/null -o /dev/null 2>/dev/null; \
 
 M32     := $(call gcc_ok,-m32,)
 
-CC         = gcc $(M32) 
+CC         = gcc
 LD         = ld -m elf_i386
 AR	   = ar
 NASM	   = nasm
 RANLIB	   = ranlib
-CFLAGS     = -mregparm=3 -DREGPARM=3 -D__COM32__ -W -Wall -march=i386 -Os -fomit-frame-pointer -I./include -I../include
-SFLAGS     = -D__COM32__ -march=i386
+CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -D__COM32__ -W -Wall -march=i386 -Os -fomit-frame-pointer -I./include -I../include
+SFLAGS     = $(M32) -D__COM32__ -march=i386
 LDFLAGS    = -T ../lib/com32.ld
-LNXCFLAGS  = -I./include -W -Wall -march=i386 -Os -g
-LNXSFLAGS  = -march=i386
+LNXCFLAGS  = -I./include -W -Wall -O -g
+LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 OBJCOPY    = objcopy
 LIBOBJS	   = ansiline.o ansiraw.o get_key.o
