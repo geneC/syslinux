@@ -14,14 +14,9 @@
 /*
  * syslinux.c - Linux installer program for SYSLINUX
  *
- * This program ought to be portable.  I hope so, at least.
- *
- * HPA note: this program needs too much privilege.  We should probably
- * access the filesystem directly like mtools does so we don't have to
- * mount the disk.  Either that or if Linux gets an fmount() system call
- * we probably could do the mounting ourselves, and make this program
- * setuid safe.  Or perhaps try to link with mtools code...
- *
+ * This program now requires mtools.  It turned out to be a lot
+ * easier to deal with than dealing with needing mount privileges.
+ * We need device write permission anyway.
  */
 
 #define _XOPEN_SOURCE 500	/* Required on glibc 2.x */
@@ -43,18 +38,8 @@
 
 #include "syslinux.h"
 
-#ifndef _PATH_MOUNT
-#define _PATH_MOUNT "/bin/mount"
-#endif
-
-#ifndef _PATH_UMOUNT
-#define _PATH_UMOUNT "/bin/umount"
-#endif
-
 char *program;			/* Name of program */
 char *device;			/* Device to install to */
-uid_t ruid;			/* Real uid */
-uid_t euid;			/* Initial euid */
 pid_t mypid;
 
 enum bs_offsets {
@@ -182,30 +167,19 @@ ssize_t xpwrite(int fd, void *buf, size_t count, off_t offset)
 int main(int argc, char *argv[])
 {
   static unsigned char sectbuf[512];
-  int dev_fd, fd;
+  int dev_fd;
   struct stat st;
   int veryold;
   unsigned int sectors, clusters;
-  int err = 0;
-  pid_t f, w;
   int status;
-  char *mntpath = NULL, mntname[128], devfdname[128];
-  char *ldlinux_name, **argp, *opt;
-  mode_t my_umask;
+  char **argp, *opt;
   int force = 0;		/* -f (force) option */
   off_t offset = 0;		/* -o (offset) option */
-  static const char * const clean_environ[] = {
-    "PATH=/bin:/usr/bin",
-    NULL
-  };
+  char mtools_conf[] = "/tmp/syslinux-mtools-XXXXXX";
+  int mtc_fd;
+  FILE *mtc, *mtp;
 
-  ruid = getuid();
-  euid = geteuid();
   mypid = getpid();
-  
-  if ( !euid )
-    seteuid(ruid);		/* Run as regular user until we need it */
-
   program = argv[0];
   
   device = NULL;
@@ -258,15 +232,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  if ( lseek(dev_fd, offset, SEEK_SET) != offset ) {
-    if ( !(force && errno == EBADF) ) {
-      fprintf(stderr, "%s: seek error", device);
-      exit(1);
-    }
-  }
-
   xpread(dev_fd, sectbuf, 512, offset);
-  fsync(dev_fd);
   
   /*
    * Check to see that what we got was indeed an MS-DOS boot sector/superblock
@@ -325,205 +291,51 @@ int main(int argc, char *argv[])
   }
 
   /*
-   * Now mount the device.  If we are non-root we need to find an fstab
-   * entry for this device which has the user flag and the appropriate
-   * options set.
+   * Create an mtools configuration file
    */
-  if ( euid ) {
-    FILE *fstab;
-    struct mntent *mnt;
-
-    if ( !(fstab = setmntent(MNTTAB, "r")) ) {
-      fprintf(stderr, "%s: cannot open " MNTTAB "\n", program);
-    }
-    
-    while ( (mnt = getmntent(fstab)) ) {
-      if ( !strcmp(device, mnt->mnt_fsname) &&
-	   ( !strcmp(mnt->mnt_type, "msdos") ||
-	     !strcmp(mnt->mnt_type, "umsdos") ||
-	     !strcmp(mnt->mnt_type, "vfat") ||
-	     !strcmp(mnt->mnt_type, "uvfat") ||
-	     !strcmp(mnt->mnt_type, "auto") ) &&
-	   ( hasmntopt(mnt, "user") ||
-	     (hasmntopt(mnt, "owner") && st.st_uid == euid) ) &&
-	   !hasmntopt(mnt, "ro") &&
-	   mnt->mnt_dir[0] == '/' &&
-	   !!hasmntopt(mnt, "loop") == !!S_ISREG(st.st_mode) &&
-	   ( (!hasmntopt(mnt,"offset") && offset == 0) ||
-	     (atol(hasmntopt(mnt, "offset")) == offset) ) ) {
-	/* Okay, this is an fstab entry we should be able to live with. */
-	
-	mntpath = mnt->mnt_dir;
-	break;
-      }
-    }
-    endmntent(fstab);
-
-    if ( !mntpath ) {
-      fprintf(stderr, "%s: not root and no appropriate entry for %s in "
-	      MNTTAB "\n", program, device);
-      exit(1);
-    }
-  
-    f = fork();
-    if ( f < 0 ) {
-      perror(program);
-      exit(1);
-    } else if ( f == 0 ) {
-      /* We're not root here, so don't use clean_environ */
-      execl(_PATH_MOUNT, _PATH_MOUNT, mntpath, NULL);
-      _exit(255);		/* If execl failed, trouble... */
-    }
-  } else {
-    unsigned int nn;
-    struct stat dst;
-    int rv;
-
-    /* We're root or at least setuid.
-       Make a temp dir and pass all the gunky options to mount. */
-
-    if ( chdir("/tmp") ) {
-      perror(program);
-      exit(1);
-    }
-
-#define TMP_MODE (S_IXUSR|S_IWUSR|S_IXGRP|S_IWGRP|S_IWOTH|S_IXOTH|S_ISVTX)
-
-    if ( stat(".", &dst) || !S_ISDIR(dst.st_mode) ||
-	 (dst.st_mode & TMP_MODE) != TMP_MODE ) {
-      fprintf(stderr, "%s: possibly unsafe /tmp permissions\n", program);
-      exit(1);
-    }
-
-    for ( nn = 1 ; nn ; nn++ ) {
-      snprintf(mntname, sizeof mntname, "syslinux.mnt.%lu.%u",
-	       (unsigned long)mypid, nn);
-
-      if ( lstat(mntname, &dst) != -1 || errno != ENOENT )
-	continue;
-
-      seteuid(0);		/* *** BECOME ROOT *** */
-      rv = mkdir(mntname, 0000); /* AS ROOT */
-      seteuid(ruid);
-
-      if ( rv == -1 ) {
-	if ( errno == EEXIST || errno == EINTR )
-	  continue;
-	perror(program);
-	exit(1);
-      }
-
-      if ( lstat(mntname, &dst) || dst.st_mode != (S_IFDIR|0000) ||
-	   dst.st_uid != 0 ) {
-	fprintf(stderr, "%s: someone is trying to symlink race us!\n", program);
-	openlog("syslinux", LOG_PID, LOG_AUTHPRIV);
-	syslog(LOG_WARNING,
-	       "symlink race intercepted when running as user %lu",
-	       (unsigned long)ruid);
-	exit(1);
-      }
-      break;			/* OK, got something... */
-    }
-
-    if ( !nn ) {
-      fprintf(stderr, "%s: failed to create a temp directory!\n", program);
-      exit(1);
-    }
-
-    mntpath = mntname;
-
-    snprintf(devfdname, sizeof devfdname, "/proc/%lu/fd/%d",
-	     (unsigned long)mypid, dev_fd);
-
-    f = fork();
-    if ( f < 0 ) {
-      perror(program);
-      rmdir(mntpath);
-      exit(1);
-    } else if ( f == 0 ) {
-      char mnt_opts[128];
-      seteuid(0);		/* ***BECOME ROOT*** */
-      setuid(0);
-      if ( S_ISREG(st.st_mode) ) {
-	snprintf(mnt_opts, sizeof mnt_opts,
-		 "rw,nodev,noexec,nosuid,loop,offset=%" PRIdMAX ",umask=077,uid=%lu",
-		 (uintmax_t)offset, (unsigned long)ruid);
-      } else {
-	snprintf(mnt_opts, sizeof mnt_opts,
-		 "rw,nodev,noexec,nosuid,umask=077,uid=%lu",
-		 (unsigned long)ruid);
-      }
-      /* We're root, use clean_environ */
-      execle(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-o", mnt_opts,\
-	     devfdname, mntpath, NULL, clean_environ);
-      _exit(255);		/* execl failed */
-    }
-  }
-
-  w = waitpid(f, &status, 0);
-  if ( w != f || (!WIFEXITED(status) || WEXITSTATUS(status)) ) {
-    if ( !euid ) {
-      seteuid(0);			/* *** BECOME ROOT *** */
-      rmdir(mntpath);		/* AS ROOT */
-      seteuid(ruid);
-    }
-    exit(1);			/* Mount failed */
-  }
-
-  ldlinux_name = alloca(strlen(mntpath)+13);
-  if ( !ldlinux_name ) {
+  mtc_fd = mkstemp(mtools_conf);
+  if ( mtc_fd < 0 || !(mtc = fdopen(mtc_fd, "w")) ) {
     perror(program);
-    err = 1;
-    goto umount;
+    exit(1);
   }
-  sprintf(ldlinux_name, "%s/ldlinux.sys", mntpath);
-
-  unlink(ldlinux_name);
-  fd = open(ldlinux_name, O_WRONLY|O_CREAT|O_TRUNC, 0444);
-  if ( fd < 0 ) {
-    perror(device);
-    err = 1;
-    goto umount;
-  }
-
-  xpwrite(fd, syslinux_ldlinux, syslinux_ldlinux_len, 0);
-
+  fprintf(mtc,
+	  "drive s:\n"
+	  "  file=\"/proc/%lu/fd/%d\"\n"
+	  "  offset=%lld\n",
+	  (unsigned long)mypid,
+	  dev_fd,
+	  (unsigned long long)offset);
+  fclose(mtc);
+  
   /*
-   * I don't understand why I need this.  Does the DOS filesystems
-   * not honour the mode passed to open()?
+   * Run mtools to create the LDLINUX.SYS file
    */
-  my_umask = umask(0777);
-  umask(my_umask);
-  fchmod(fd, 0444 & ~my_umask);
-
-  close(fd);
-
-umount:
-  f = fork();
-  if ( f < 0 ) {
-    perror("fork");
-    exit(1);
-  } else if ( f == 0 ) {
-    seteuid(0);		/* ***BECOME ROOT*** */
-    setuid(0);
-    execle(_PATH_UMOUNT, _PATH_UMOUNT, mntpath, NULL, clean_environ);
-  }
-
-  w = waitpid(f, &status, 0);
-  if ( w != f || (!WIFEXITED(status) || WEXITSTATUS(status)) ) {
+  if ( setenv("MTOOLSRC", mtools_conf, 1) ) {
+    perror(program);
     exit(1);
   }
 
-  sync();
+  /* This command may fail legitimately */
+  system("mattrib -h -r -s s:ldlinux.sys 2>/dev/null");
 
-  if ( !euid ) {
-    seteuid(0);			/* *** BECOME ROOT *** */
-    rmdir(mntpath);		/* AS ROOT */
-    seteuid(ruid);
+  mtp = popen("mcopy -o - s:ldlinux.sys", "w");
+  if ( !mtp ||
+       (fwrite(syslinux_ldlinux, 1, syslinux_ldlinux_len, mtp) 
+	!= syslinux_ldlinux_len) ||
+       (status = pclose(mtp), !WIFEXITED(status) || WEXITSTATUS(status)) ) {
+    fprintf(stderr, "%s: failed to create ldlinux.sys\n", program);
+    exit(1);
   }
 
-  if ( err )
-    exit(err);
+  status = system("mattrib +r s:ldlinux.sys");
+
+  if ( !WIFEXITED(status) || WEXITSTATUS(status) ) {
+    fprintf(stderr,
+	    "%s: warning: failed to set readonly bit on ldlinux.sys\n",
+	    program);
+  }
+
+  unlink(mtools_conf);
 
   /*
    * To finish up, write the boot sector

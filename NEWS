@@ -2,6 +2,14 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 2.02:
+	* SYSLINUX: Security flaws have been found in the SYSLINUX
+	  installer when running setuid root.  Rewrite the SYSLINUX
+	  installer so it uses mtools instead.  It therefore now
+	  requires mtools (specifically mcopy and mattrib) to exist on
+	  your system, but it will not require root privileges and
+	  SHOULD NOT be setuid.
+
 Changes in 2.01:
 	* MEMDISK: Fix memory sizing bug when the ramdisk crosses the
 	  16 MB boundary.
