@@ -8,6 +8,8 @@ Changes in 1.60:
 	  more details.
 	* PXELINUX: Don't search for boot sector file types, since
 	  they don't work anyway.
+	* SYSLINUX: Document the LOCK command for Win9x, and the error
+	  dialog box for WinNT/2K.
 
 Changes in 1.54:
 	* PXELINUX: Fix code for finding !PXE from PXENV+.  This was
