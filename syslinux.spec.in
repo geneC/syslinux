@@ -73,8 +73,6 @@ rm -rf %{buildroot}
 %{_libdir}/syslinux/memdisk
 %{_libdir}/syslinux/*.pl
 %{_libdir}/syslinux/mkdiskimage
-%{_libdir}/libsyslinux.*
-%{_includedir}/syslinux.h
 
 %files devel
 %{_libdir}/syslinux/com32
