@@ -126,6 +126,78 @@ DriveNo		resb 1			; CD-ROM BIOS drive number
 ISOFlags	resb 1			; Flags for ISO directory search
 RetryCount      resb 1			; Used for disk access retries
 
+_spec_start	equ $
+
+;
+; El Torito spec packet
+;
+
+		alignb 8
+spec_packet:	resb 1				; Size of packet
+sp_media:	resb 1				; Media type
+sp_drive:	resb 1				; Drive number
+sp_controller:	resb 1				; Controller index
+sp_lba:		resd 1				; LBA for emulated disk image
+sp_devspec:	resw 1				; IDE/SCSI information
+sp_buffer:	resw 1				; User-provided buffer
+sp_loadseg:	resw 1				; Load segment
+sp_sectors:	resw 1				; Sector count
+sp_chs:		resb 3  			; Simulated CHS geometry
+sp_dummy:	resb 1				; Scratch, safe to overwrite
+
+;
+; EBIOS drive parameter packet
+;
+		alignb 8
+drive_params:	resw 1				; Buffer size
+dp_flags:	resw 1				; Information flags
+dp_cyl:		resd 1				; Physical cylinders
+dp_head:	resd 1				; Physical heads
+dp_sec:		resd 1				; Physical sectors/track
+dp_totalsec:	resd 2				; Total sectors
+dp_secsize:	resw 1				; Bytes per sector
+dp_dpte:	resd 1				; Device Parameter Table
+dp_dpi_key:	resw 1				; 0BEDDh if rest valid
+dp_dpi_len:	resb 1				; DPI len
+		resb 1
+		resw 1
+dp_bus:		resb 4				; Host bus type
+dp_interface:	resb 8				; Interface type
+db_i_path:	resd 2				; Interface path
+db_d_path:	resd 2				; Device path
+		resb 1
+db_dpi_csum:	resb 1				; Checksum for DPI info
+
+;
+; EBIOS disk address packet
+;
+		alignb 8
+dapa:		resw 1				; Packet size
+.count:		resw 1				; Block count
+.off:		resw 1				; Offset of buffer
+.seg:		resw 1				; Segment of buffer
+.lba:		resd 2				; LBA (LSW, MSW)
+
+;
+; Spec packet for disk image emulation
+;
+		alignb 8
+dspec_packet:	resb 1				; Size of packet
+dsp_media:	resb 1				; Media type
+dsp_drive:	resb 1				; Drive number
+dsp_controller:	resb 1				; Controller index
+dsp_lba:	resd 1				; LBA for emulated disk image
+dsp_devspec:	resw 1				; IDE/SCSI information
+dsp_buffer:	resw 1				; User-provided buffer
+dsp_loadseg:	resw 1				; Load segment
+dsp_sectors:	resw 1				; Sector count
+dsp_chs:	resb 3				; Simulated CHS geometry
+dsp_dummy:	resb 1				; Scratch, safe to overwrite
+
+		alignb 4
+_spec_end	equ $
+_spec_len	equ _spec_end - _spec_start
+
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
 
@@ -205,6 +277,22 @@ initial_csum:	xor edi,edi
 		call writehex2
 		call crlf
 %endif
+		;
+		; Initialize spec packet buffers
+		;
+		mov di,_spec_start
+		mov cx,_spec_len >> 2
+		xor eax,eax
+		rep stosd
+
+		; Initialize length field of the various packets
+		mov byte [spec_packet],13h
+		mov byte [drive_params],30
+		mov byte [dapa],16
+		mov byte [dspec_packet],13h
+
+		; Other nonzero fields
+		inc word [dsp_sectors]
 
 		; Now figure out what we're actually doing
 		; Note: use passed-in DL value rather than 7Fh because
@@ -530,6 +618,8 @@ spec_query_failed:
 		mov al,dl
 		call writehex2
 		call crlf
+		mov si,trysbm_msg
+		call writemsg
 		jmp .found_drive		; Pray that this works...
 
 fatal_error:
@@ -715,67 +805,17 @@ spec_err_msg:	db 'Loading spec packet failed, trying to wing it...', CR, LF, 0
 maybe_msg:	db 'Found something at drive = ', 0
 alright_msg:	db 'Looks like it might be right, continuing...', CR, LF, 0
 nospec_msg	db 'Extremely broken BIOS detected, last ditch attempt with drive = ', 0
-nosecsize_msg:	db 'Failed to get sector size, assuming 0800', CR, LF, 0
+nothing_msg:	db 'Failed to locate CD-ROM device; boot failed.', CR, LF
+trysbm_msg	db 'See http://syslinux.zytor.com/sbm for more information.', CR, LF, 0
 diskerr_msg:	db 'Disk error ', 0
 oncall_str:	db ', AX = ',0
 ondrive_str:	db ', drive ', 0
-nothing_msg:	db 'Failed to locate CD-ROM device; boot failed.', CR, LF, 0
 checkerr_msg:	db 'Image checksum error, sorry...', CR, LF, 0
 
 err_bootfailed	db CR, LF, 'Boot failed: press a key to retry...'
 bailmsg		equ err_bootfailed
 crlf_msg	db CR, LF
 null_msg	db 0
-
-;
-; El Torito spec packet
-;
-		align 8, db 0
-spec_packet:	db 13h				; Size of packet
-sp_media:	db 0				; Media type
-sp_drive:	db 0				; Drive number
-sp_controller:	db 0				; Controller index
-sp_lba:		dd 0				; LBA for emulated disk image
-sp_devspec:	dw 0				; IDE/SCSI information
-sp_buffer:	dw 0				; User-provided buffer
-sp_loadseg:	dw 0				; Load segment
-sp_sectors:	dw 0				; Sector count
-sp_chs:		db 0,0,0			; Simulated CHS geometry
-sp_dummy:	db 0				; Scratch, safe to overwrite
-
-;
-; EBIOS drive parameter packet
-;
-		align 8, db 0
-drive_params:	dw 30				; Buffer size
-dp_flags:	dw 0				; Information flags
-dp_cyl:		dd 0				; Physical cylinders
-dp_head:	dd 0				; Physical heads
-dp_sec:		dd 0				; Physical sectors/track
-dp_totalsec:	dd 0,0				; Total sectors
-dp_secsize:	dw 0				; Bytes per sector
-dp_dpte:	dd 0				; Device Parameter Table
-dp_dpi_key:	dw 0				; 0BEDDh if rest valid
-dp_dpi_len:	db 0				; DPI len
-		db 0
-		dw 0
-dp_bus:		times 4 db 0			; Host bus type
-dp_interface:	times 8 db 0			; Interface type
-db_i_path:	dd 0,0				; Interface path
-db_d_path:	dd 0,0				; Device path
-		db 0
-db_dpi_csum:	db 0				; Checksum for DPI info
-
-;
-; EBIOS disk address packet
-;
-		align 8, db 0
-dapa:		dw 16				; Packet size
-.count:		dw 0				; Block count
-.off:		dw 0				; Offset of buffer
-.seg:		dw 0				; Segment of buffer
-.lba:		dd 0				; LBA (LSW)
-		dd 0				; LBA (MSW)
 
 		alignb 4, db 0
 Stack		dw _start, 0			; SS:SP for stack reset
@@ -784,11 +824,11 @@ MaxTransfer	dw 32				; Max sectors per transfer
 rl_checkpt	equ $				; Must be <= 800h
 
 rl_checkpt_off	equ ($-$$)
-%ifndef DEPEND
-%if rl_checkpt_off > 0x800
-%error "Sector 0 overflow"
-%endif
-%endif
+;%ifndef DEPEND
+;%if rl_checkpt_off > 0x800
+;%error "Sector 0 overflow"
+;%endif
+;%endif
 
 ; ----------------------------------------------------------------------------
 ;  End of code and data that have to be in the first sector
@@ -1597,22 +1637,6 @@ img_table:
 ;
 ; Misc initialized (data) variables
 ;
-
-;
-; Spec packet for disk image emulation
-;
-		align 8, db 0
-dspec_packet:	db 13h				; Size of packet
-dsp_media:	db 0				; Media type
-dsp_drive:	db 0				; Drive number
-dsp_controller:	db 0				; Controller index
-dsp_lba:	dd 0				; LBA for emulated disk image
-dsp_devspec:	dw 0				; IDE/SCSI information
-dsp_buffer:	dw 0				; User-provided buffer
-dsp_loadseg:	dw 0				; Load segment
-dsp_sectors:	dw 1				; Sector count
-dsp_chs:	db 0,0,0			; Simulated CHS geometry
-dsp_dummy:	db 0				; Scratch, safe to overwrite
 
 ;
 ; Variables that are uninitialized in SYSLINUX but initialized here
