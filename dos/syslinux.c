@@ -27,6 +27,7 @@
 #include "libfat.h"
 
 const char *program = "syslinux"; /* Name of program */
+uint16_t dos_version;
 
 void __attribute__((noreturn)) usage(void)
 {
@@ -34,8 +35,11 @@ void __attribute__((noreturn)) usage(void)
   exit(1);
 }
 
+void unlock_device(int);
+
 void __attribute__((noreturn)) die(const char *msg)
 {
+  unlock_device(0);
   puts("syslinux: ");
   puts(msg);
   putchar('\n');
@@ -139,6 +143,71 @@ int libfat_xpread(intptr_t pp, void *buf, size_t secsize, libfat_sector_t sector
   return secsize;
 }
 
+static inline void get_dos_version(void)
+{
+  uint16_t ver = 0x3001;
+  asm("int $0x21 ; xchgb %%ah,%%al" : "+a" (ver) : : "ebx", "ecx");
+  dos_version = ver;
+}
+
+/* The locking interface relies on static variables.  A massive hack :( */
+static uint16_t lock_level;
+
+static inline void set_lock_device(int device)
+{
+  lock_level = device << 8;
+}
+
+void lock_device(int level)
+{
+  uint16_t rv;
+  uint8_t err;
+
+  if ( dos_version < 0x0700 )
+    return;			/* Win9x/NT only */
+
+  while ( (uint8_t)lock_level < level ) {
+    rv = 0x444d;
+    asm volatile("int $0x21 ; setc %0"
+		 : "=abcdm" (err), "+a" (rv)
+		 : "b" (lock_level+1), "c" (0x484A), "d"(0x0001));
+    
+    if ( err ) {
+      asm volatile("int $0x21 ; setc %0"
+		   : "=abcdm" (err), "+a" (rv)
+		   : "b" (lock_level+1), "c" (0x084A), "d"(0x0001));
+      
+      if ( err ) 
+	die("could not lock device");
+    }
+
+    lock_level++;
+  }
+  return;
+}
+
+void unlock_device(int level)
+{
+  uint16_t rv;
+  uint8_t err;
+
+  if ( dos_version < 0x0700 )
+    return;			/* Win9x/NT only */
+
+  while ( (uint8_t)lock_level > level ) {
+    rv = 0x440d;
+    asm volatile("int $0x21 ; setc %0"
+		 : "=abcdm" (err), "+a" (rv)
+		 : "b" (lock_level-1), "c" (0x486A));
+    if ( err ) {
+      asm volatile("int $0x21 ; setc %0"
+		   : "=abcdm" (err), "+a" (rv)
+		   : "b" (lock_level-1), "c" (0x086A));
+    }
+    lock_level--;
+  }
+}
+
 int main(int argc, char *argv[])
 {
   static unsigned char sectbuf[512];
@@ -154,6 +223,8 @@ int main(int argc, char *argv[])
   const char *errmsg;
 
   (void)argc;			/* Unused */
+  
+  get_dos_version();
 
   for ( argp = argv+1 ; *argp ; argp++ ) {
     if ( **argp == '-' ) {
@@ -188,12 +259,17 @@ int main(int argc, char *argv[])
   if ( !(device[0] & 0x40) || device[1] != ':' || device[2] )
     usage();
 
+  set_lock_device(dev_fd);
+
+  lock_device(2);		/* Make sure we can lock the device */
   read_device(dev_fd, sectbuf, 1, 0);
+  unlock_device(1);
 
   /*
    * Check to see that what we got was indeed an MS-DOS boot sector/superblock
    */
   if(!syslinux_check_bootsect(sectbuf,&errmsg)) {
+    unlock_device(0);
     puts(errmsg);
     putchar('\n');
     exit(1);
@@ -213,6 +289,7 @@ int main(int argc, char *argv[])
    * this is supposed to be a simple, privileged version
    * of the installer.
    */
+  lock_device(2);
   fs = libfat_open(libfat_xpread, dev_fd);
   ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
   secp = sectors;
@@ -233,6 +310,7 @@ int main(int argc, char *argv[])
   /*
    * Write the now-patched first sector of ldlinux.sys
    */
+  lock_device(3);
   write_device(dev_fd, syslinux_ldlinux, 1, sectors[0]);
 
   /*
@@ -247,6 +325,9 @@ int main(int argc, char *argv[])
 
   /* Write new boot sector */
   write_device(dev_fd, sectbuf, 1, 0);
+
+  /* Release device lock */
+  unlock_device(0);
 
   /* Done! */
 

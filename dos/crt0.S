@@ -54,14 +54,18 @@ _start:
 	pushl $argv		# Push argv
 	pushl %eax		# Dummy argc (we dont look at it)
 	calll main
-	
 	pushl %eax
+	calll exit
+	hlt
+	.size _start,.-_start
 
 	.globl exit
+	.type exit,@function
 exit:
-	popl %eax
+	movb 4(%esp),%al
 	movb $0x4c,%ah		# Terminate program
 	int $0x21
-
+	.size exit,.-exit
+	
 	.section ".bss","aw"
 argv:	.space 4*128
