@@ -46,29 +46,38 @@ LIB_SO  = libsyslinux.so.$(VERSION)
 # The BTARGET refers to objects that are derived from ldlinux.asm; we
 # like to keep those uniform for debugging reasons; however, distributors 
 # want to recompile the installers (ITARGET).
+# 
+# BOBJECTS and IOBJECTS are the same thing, except used for
+# installation, so they include objects that may be in subdirectories
+# with their own Makefiles.  Finally, there is a list of those
+# directories.
 #
 CSRC     = syslxmod.c gethostip.c
-NASMSRC  = ldlinux.asm syslinux.asm copybs.asm \
-	  pxelinux.asm mbr.asm isolinux.asm
+NASMSRC  = ldlinux.asm copybs.asm pxelinux.asm mbr.asm isolinux.asm
 SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
-BTARGET = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
-	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin \
-	  libsyslinux.a syslinux.exe $(LIB_SO) 
-ITARGET = syslinux.com syslinux syslinux-nomtools copybs.com gethostip \
-	  mkdiskimage
-DOCS    = COPYING NEWS README TODO BUGS *.doc sample menu com32
-OTHER   = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
-	  keytab-lilo.pl version version.pl sys2ansi.pl \
-	  ppmtolss16 lss16toppm memdisk bin2hex.pl mkdiskimage.in
+BTARGET  = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
+	   pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin \
+	   bootsect_bin.c ldlinux_bin.c
+	   # libsyslinux.a $(LIB_SO)
+BOBJECTS = $(BTARGET) dos/syslinux.com win32/syslinux.exe memdisk/memdisk
+BSUBDIRS = memdisk dos win32
+ITARGET  = copybs.com gethostip mkdiskimage
+IOBJECTS = $(ITARGET) mtools/syslinux unix/syslinux 
+ISUBDIRS = mtools unix sample com32
+DOCS     = COPYING NEWS README TODO BUGS *.doc sample menu com32
+OTHER    = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
+	   keytab-lilo.pl version version.pl sys2ansi.pl \
+	   ppmtolss16 lss16toppm memdisk bin2hex.pl mkdiskimage.in
 OBSOLETE = pxelinux.bin
 
 # Things to install in /usr/bin
-INSTALL_BIN   =	syslinux gethostip ppmtolss16 lss16toppm
+INSTALL_BIN   =	mtools/syslinux gethostip ppmtolss16 lss16toppm
 # Things to install in /usr/lib/syslinux
 INSTALL_AUX   =	pxelinux.0 isolinux.bin isolinux-debug.bin \
-		syslinux.com syslinux.exe copybs.com memdisk/memdisk
+		dos/syslinux.com win32/syslinux.exe \
+		copybs.com memdisk/memdisk
 # Things to install in /usr/lib
 INSTALL_LIB   = $(LIB_SO) libsyslinux.a
 # Things to install in /usr/include
@@ -90,16 +99,19 @@ MAKE    += DATE=$(DATE) HEXDATE=$(HEXDATE)
 # want to remove win32 from this list; otherwise you're going to get an
 # error every time you try to build.
 #
-BSUBDIRS = memdisk
-ISUBDIRS = mtools unix win32 sample com32
 
 all:	$(BTARGET) $(ITARGET)
-	for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
-	-ls -l $(BTARGET) $(ITARGET) memdisk/memdisk
+	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+	$(MAKE) all-local
+	-ls -l $(BOBJECTS) $(IOBJECTS)
+
+all-local: $(BTARGET) $(ITARGET)
+
+installer: installer-local
 
 installer: $(ITARGET)
-	for i in $(ISUBDIRS); do $(MAKE) -C $$i all ; done
-	-ls -l $(BTARGET) $(ITARGET)
+	set -e ; for i in $(ISUBDIRS); do $(MAKE) -C $$i all ; done
+	-ls -l $(BOBJECTS) $(IOBJECTS)
 
 version.gen: version version.pl
 	$(PERL) version.pl version
@@ -139,9 +151,6 @@ ldlinux.sys: ldlinux.bin
 mbr.bin: mbr.asm
 	$(NASM) -f bin -l mbr.lst -o mbr.bin mbr.asm
 
-syslinux.com: syslinux.asm ldlinux.bss ldlinux.sys
-	$(NASM) -f bin -l syslinux.lst -o syslinux.com syslinux.asm
-
 copybs.com: copybs.asm
 	$(NASM) -f bin -l copybs.lst -o copybs.com copybs.asm
 
@@ -158,19 +167,6 @@ libsyslinux.a: bootsect_bin.o ldlinux_bin.o syslxmod.o
 
 $(LIB_SO): bootsect_bin.o ldlinux_bin.o syslxmod.o
 	$(CC) $(LDFLAGS) -shared -Wl,-soname,$(LIB_SONAME) -o $@ $^
-
-syslinux: syslinux.o libsyslinux.a
-	$(CC) $(LDFLAGS) -o $@ $^
-
-syslinux-nomtools: syslinux-nomtools.o libsyslinux.a
-	$(CC) $(LDFLAGS) -o $@ $^
-
-syslxmod.o: syslxmod.c patch.offset
-	$(CC) $(INCLUDE) $(CFLAGS) $(PIC) -DPATCH_OFFSET=`cat patch.offset` \
-		-c -o $@ $<
-
-syslinux.exe: win32/syslinux-mingw.c libsyslinux.a
-	$(MAKE) -C win32 all
 
 gethostip.o: gethostip.c
 
@@ -201,13 +197,13 @@ local-tidy:
 	rm -f $(OBSOLETE)
 
 tidy: local-tidy
-	for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 local-clean:
 	rm -f $(ITARGET)
 
 clean: local-tidy local-clean
-	for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 dist: tidy
 	for dir in . sample memdisk ; do \
@@ -218,7 +214,7 @@ local-spotless:
 	rm -f $(BTARGET) .depend *.so.*
 
 spotless: local-clean dist local-spotless
-	for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 .depend:
 	rm -f .depend

@@ -14,6 +14,7 @@
 #ifndef SYSLINUX_H
 #define SYSLINUX_H
 
+#include <inttypes.h>
 
 /* The standard boot sector and ldlinux image */
 extern unsigned char syslinux_bootsect[];

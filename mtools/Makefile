@@ -1,8 +1,8 @@
 CC	 = gcc
-OPTFLAGS = -g -O -Dinline=
+OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libfat
 CFLAGS	 = -W -Wall -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
-LDFLAGS	 = 
+LDFLAGS	 = -s
 
 SRCS     = syslinux.c ../syslxmod.c ../bootsect_bin.c ../ldlinux_bin.c $(wildcard ../libfat/*.c)
 OBJS	 = $(patsubst %.c,%.o,$(notdir $(SRCS)))
@@ -20,6 +20,7 @@ clean: tidy
 	-rm -f syslinux
 
 spotless: clean
+	-rm -f *~
 
 installer: syslinux
 

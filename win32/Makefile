@@ -23,9 +23,9 @@ ifeq ($(findstring CYGWIN,$(OSTYPE)),CYGWIN)
 CC       = gcc
 AR	 = ar
 RANLIB   = ranlib
-CFLAGS   = -mno-cygwin -W -Wall -O2 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+CFLAGS   = -mno-cygwin -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 PIC	 =
-LDFLAGS  = -mno-cygwin -O2 -s
+LDFLAGS  = -mno-cygwin -Os -s
 else
 ifeq ($(findstring MINGW32,$(OSTYPE)),MINGW32)
 CC       = gcc
@@ -37,9 +37,9 @@ AR	 = mingw-ar
 RANLIB   = mingw-ranlib
 endif
 
-CFLAGS   = -W -Wall -O2 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+CFLAGS   = -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 PIC      =
-LDFLAGS  = -O2 -s
+LDFLAGS  = -Os -s
 endif
 CFLAGS += -I. -I.. -I../libfat
 
@@ -76,6 +76,3 @@ syslinux.exe: $(OBJS)
 	$(CC) $(CFLAGS) -S -o $@ $<
 
 -include .*.d
-
-
-

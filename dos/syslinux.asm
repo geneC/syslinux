@@ -444,7 +444,7 @@ die_common:
 ;
 make_stupid:
 		; Only access one sector at a time
-		mov word [LDLinuxSYS+PATCH_OFFSET],1
+		mov word [BootSector+0x1FC],1
 		ret
 
 			section .data
