@@ -17,7 +17,7 @@
 
 CC	 = gcc
 INCLUDE  =
-CFLAGS	 = -Wall -O2 -fomit-frame-pointer
+CFLAGS	 = -Wall -O2 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 LDFLAGS	 = -O2 -s
 AR	 = ar
 RANLIB   = ranlib

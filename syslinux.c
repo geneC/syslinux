@@ -29,6 +29,7 @@
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <mntent.h>
 #include <paths.h>
 #include <stdio.h>
@@ -190,6 +191,10 @@ int main(int argc, char *argv[])
   int my_umask;
   int force = 0;		/* -f (force) option */
   off_t offset = 0;		/* -o (offset) option */
+  static const char * const clean_environ[] = {
+    "PATH=/bin:/usr/bin",
+    NULL
+  };
 
   ruid = getuid();
   euid = geteuid();
@@ -362,6 +367,7 @@ int main(int argc, char *argv[])
       perror(program);
       exit(1);
     } else if ( f == 0 ) {
+      /* We're not root here, so don't use clean_environ */
       execl(_PATH_MOUNT, _PATH_MOUNT, mntpath, NULL);
       _exit(255);		/* If execl failed, trouble... */
     }
@@ -427,14 +433,17 @@ int main(int argc, char *argv[])
       seteuid(0);		/* ***BECOME ROOT*** */
       setuid(0);
       if ( S_ISREG(st.st_mode) ) {
-	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,loop,offset=%ld,umask=077,uid=%lu",
-		 offset, (unsigned long)ruid);
+	snprintf(mnt_opts, sizeof mnt_opts,
+		 "rw,nodev,noexec,loop,offset=%" PRIdMAX ",umask=077,uid=%lu",
+		 (uintmax_t)offset, (unsigned long)ruid);
       } else {
-	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,umask=077,uid=%lu",
+	snprintf(mnt_opts, sizeof mnt_opts,
+		 "rw,nodev,noexec,umask=077,uid=%lu",
 		 (unsigned long)ruid);
       }
-      execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-o", mnt_opts,\
-	    devfdname, mntpath, NULL);
+      /* We're root, use clean_environ */
+      execle(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-o", mnt_opts,\
+	     devfdname, mntpath, NULL, clean_environ);
       _exit(255);		/* execl failed */
     }
   }
