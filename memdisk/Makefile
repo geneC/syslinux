@@ -44,10 +44,10 @@ clean: tidy
 	echo '.code16gcc' | cat - $< > $@
 
 %.s: %.S
-	$(CC) -x c $(CFLAGS) -Wp,-traditional -E -o $@ $<
+	$(CC) -x c $(CFLAGS) -traditional -E -o $@ $<
 
 %.s16: %.S16
-	$(CC) -x c $(CFLAGS) -Wp,-traditional -E -o $@ $<
+	$(CC) -x c $(CFLAGS) -traditional -E -o $@ $<
 
 %.s: %.c
 	$(CC) $(CFLAGS) -S -o $@ $<

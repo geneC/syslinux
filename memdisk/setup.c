@@ -151,10 +151,14 @@ static void high_bcopy(uint32_t dst, uint32_t src, uint16_t len)
   high_mover.dst2  = dst >> 16;
   high_mover.dst3  = dst >> 24;
 
-  asm volatile("pushfl ; movb $0x87,%%ah ; int $0x15 ; popfl"
+  asm volatile("pushal ; "
+	       "pushfl ; "
+	       "movb $0x87,%%ah ; "
+	       "int $0x15 ; "
+	       "popfl ; "
+	       "popal"
 	       :: "S" (&high_mover), "c" (len >> 1)
-	       : "eax", "ebx", "ecx", "edx",
-	       "ebp", "esi", "edi", "memory");
+	       : "memory");
 }
 
 #define LOWSEG 0x0800		/* Should match init.S16 */
@@ -594,21 +598,22 @@ uint32_t setup(void)
   }
 
   /* Copy driver followed by E820 table */
-  asm volatile("pushw %%es ; "
+  asm volatile("pushal ; "
+	       "pushw %%es ; "
 	       "movw %0,%%es ; "
 	       "cld ; "
 	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
 	       "movw %1,%%cx ; "
 	       "movw %2,%%si ; "
 	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
-	       "popw %%es"
+	       "popw %%es ; "
+	       "popal"
 	       :: "r" (driverseg),
 	       "r" ((uint16_t)((nranges+1)*3)), /* 3 dwords/range */
 	       "r" ((uint16_t)&ranges),
 	       "c" (bin_size >> 2),
 	       "S" (&_binary_memdisk_bin_start),
-	       "D" (0)
-	       : "esi", "edi", "ecx");
+	       "D" (0));
 
   /* Install the interrupt handlers */
   {
@@ -644,7 +649,9 @@ uint32_t setup(void)
   }
 
   /* Reboot into the new "disk" */
-  asm volatile("pushw %%es ; "
+  asm volatile("pushl %%ebp ; "
+	       "pushl %%edx ; "
+	       "pushw %%es ; "
 	       "xorw %%cx,%%cx ; "
 	       "movw %%cx,%%es ; "
 	       "incw %%cx ; "
@@ -652,10 +659,12 @@ uint32_t setup(void)
 	       "movw $0x7c00,%%bx ; "
 	       "int $0x13 ; "
 	       "popw %%es ; "
-	       "setc %0 "
+	       "popl %%edx ; "
+	       "popl %%ebp ; "
+	       "setc %0"
 	       : "=rm" (status), "=a" (exitcode)
 	       : "d" ((uint16_t)geometry->driveno)
-	       : "ebx", "ecx", "edx", "esi", "edi", "ebp");
+	       : "ecx", "ebx", "esi", "edi");
 
   if ( status ) {
     puts("MEMDISK: Failed to load new boot sector\n");

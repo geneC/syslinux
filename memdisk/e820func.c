@@ -28,10 +28,14 @@ int nranges;
 
 void e820map_init(void)
 {
+  struct e820range *rp = ranges;
+  unsigned int rdw = sizeof(ranges) >> 2;
   nranges = 1;
-  asm volatile("cld ; rep ; stosl %0,%%es:(%1)"
-	       :: "a" (0), "D" (ranges), "c" (sizeof(ranges) >> 2)
-	       : "edi", "ecx");
+  
+  asm volatile("cld ; rep ; stosl %2,%%es:(%0)"
+	       : "+D" (rp), "+c" (rdw)
+	       : "a" (0)
+	       : "memory");
   ranges[1].type = -1;
 }
 

@@ -30,12 +30,14 @@ int putchar(int ch)
 		 ::: "eax", "ebx", "ecx", "edx",
 		 "esi", "edi", "ebp");
   }
-
-  asm volatile("movw $0x0007,%%bx ; "
-	       "int $0x10"
-	       :: "a" ((uint16_t)(0x0e00|(ch&0xff)))
-	       : "eax", "ebx", "ecx", "edx",
-	       "esi", "edi", "ebp");
+  
+  {
+    uint16_t ax = 0x0e00|(ch&0xff);
+    asm volatile("movw $0x0007,%%bx ; "
+		 "int $0x10"
+		 : "+a" (ax)
+		 :: "ebx", "ecx", "edx", "esi", "edi", "ebp");
+  }
 
   return ch;
 }

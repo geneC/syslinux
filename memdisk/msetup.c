@@ -33,23 +33,25 @@ static inline int get_e820(void)
   uint32_t lastptr = 0;
   uint32_t copied;
   int range_count = 0;
-  
+  uint32_t eax, edx;
+
   do {
+    copied = sizeof(buf);
+    eax = 0x0000e820;
+    edx = 0x534d4150;
+    
     asm volatile("int $0x15 ; "
-		 "jc 1f ; "
-		 "cmpl $0x534d4150, %%eax ; "
-		 "je 2f\n"
-		 "1:\n\t"
+		 "jnc 1f ; "
 		 "xorl %0,%0\n"
-		 "2:"
-		 : "=c" (copied), "+b" (lastptr)
-		 : "a" (0x0000e820), "d" (0x534d4150),
-		 "c" (sizeof(buf)), "D" (&buf)
-		 : "eax", "edx", "esi", "edi", "ebp");
-
-    if ( copied < 20 )
+		 "1:"
+		 : "+c" (copied), "+b" (lastptr),
+		 "+a" (eax), "+d" (edx)
+		 : "D" (&buf)
+		 : "esi", "ebp");
+    
+    if ( eax != 0x534d4150 || copied < 20 )
       break;
-
+    
     insertrange(buf.base, buf.len, buf.type);
     range_count++;
 
