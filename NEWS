@@ -22,6 +22,8 @@ Changes in 2.04:
 	  be updated separately from client programs.  The whole idea,
 	  after all, is to enable alternate programs to become
 	  syslinux installers.
+	* Include an rpm spec file in the distribution, so rpmbuild
+	  -ta works.
 
 Changes in 2.03:
 	* Actually support comment lines in the configuration file.
