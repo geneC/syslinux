@@ -112,7 +112,7 @@ const char *bootloadername(uint8_t id)
       { 0x30, 0xf0, "SYSLINUX family" },
       { 0x40, 0xf0, "Etherboot" },
       { 0x50, 0xf0, "ELILO" },
-      { 0x70, 0xf0, "GRuB" },
+      { 0x70, 0xf0, "GrUB" },
       { 0x80, 0xf0, "U-Boot" },
       { 0x00, 0x00, "unknown" }
     };
