@@ -2341,9 +2341,17 @@ bcopy:		push eax
 ;
 ; We typically toggle A20 twice for every 64K transferred.
 ; 
-%define	io_delay  times 4 in al,080h	; Invalid port (we hope)
-%define delaytime 1024			; 4 x ISA bus cycles (@ 1.5 µs)
+%define	io_delay	call _io_delay
+%define io_delay_port	80h		; Invalid port (we hope!)
+%define delaytime 	1024		; 4 x ISA bus cycles (@ 1.5 µs)
 
+_io_delay:	push ax
+		in ax,IO_DELAY_PORT
+		in ax,IO_DELAY_PORT
+		in ax,IO_DELAY_PORT
+		in ax,IO_DELAY_PORT
+		pop ax
+		ret
 
 enable_a20:
 		mov byte [ss:A20Tries],255 ; Times to try to make this work
