@@ -1,6 +1,8 @@
+; -*- fundamental -*- (asm-mode sucks)
+; $Id$
 ; ****************************************************************************
 ;
-;  LDLINUX.ASM
+;  ldlinux.asm
 ;
 ;  A program to boot Linux kernels off an MS-DOS formatted floppy disk.	 This
 ;  functionality is good to have for installation floppies, where it may
@@ -12,13 +14,16 @@
 ;
 ;  This file is loaded in stages; first the boot sector at offset 7C00h,
 ;  then the first sector (cluster, really, but we can only assume 1 sector)
-;  of LDLINUX.SYS at 7E00h and finally the remainder of LDLINUX.SYS at 8000h
+;  of LDLINUX.SYS at 7E00h and finally the remainder of LDLINUX.SYS at 8000h.
 ;
 ;   Copyright (C) 1994-1998  H. Peter Anvin
 ;
-;   This code is free software under the terms of the GNU General Public
-;   License, version 2, or at your option any later version.
-;
+;  This program is free software; you can redistribute it and/or modify
+;  it under the terms of the GNU General Public License as published by
+;  the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
+;  USA; either version 2 of the License, or (at your option) any later
+;  version; incorporated herein by reference.
+; 
 ; ****************************************************************************
 
 ;

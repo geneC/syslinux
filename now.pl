@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+#ident "$Id$"
 #
 # Print the time as a hexadecimal integer
 #
