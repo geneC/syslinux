@@ -21,7 +21,6 @@
  */
 
 #define _XOPEN_SOURCE 500	/* For pread() pwrite() */
-#define _BSD_SOURCE		/* For seteuid() */
 #define _LARGEFILE64_SOURCE	/* For O_LARGEFILE */
 #include <alloca.h>
 #include <errno.h>
@@ -48,8 +47,6 @@
 
 char *program;			/* Name of program */
 char *device;			/* Device to install to */
-uid_t ruid;			/* Real uid */
-uid_t euid;			/* Initial euid */
 pid_t mypid;
 
 void usage(void)
@@ -132,13 +129,6 @@ int main(int argc, char *argv[])
   int force = 0;		/* -f (force) option */
   off_t offset = 0;		/* -o (offset) option */
 
-  ruid = getuid();
-  euid = geteuid();
-  mypid = getpid();
-  
-  if ( !euid )
-    setreuid(-1, ruid);		/* Run as regular user until we need it */
-
   program = argv[0];
   
   device = NULL;
@@ -211,7 +201,7 @@ int main(int argc, char *argv[])
   /*
    * Now mount the device.
    */
-  if ( euid ) {
+  if ( geteuid() ) {
     fprintf(stderr, "%s: This program needs root privilege\n", program);
     exit(1);
   } else {
@@ -242,9 +232,7 @@ int main(int argc, char *argv[])
       if ( lstat(mntname, &dst) != -1 || errno != ENOENT )
 	continue;
 
-      seteuid(0);		/* *** BECOME ROOT *** */
-      rv = mkdir(mntname, 0000); /* AS ROOT */
-      seteuid(ruid);
+      rv = mkdir(mntname, 0000);
 
       if ( rv == -1 ) {
 	if ( errno == EEXIST || errno == EINTR )
@@ -273,14 +261,11 @@ int main(int argc, char *argv[])
       exit(1);
     } else if ( f == 0 ) {
       char mnt_opts[128];
-      seteuid(0);		/* ***BECOME ROOT*** */
-      setuid(0);
       if ( S_ISREG(st.st_mode) ) {
-	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,loop,offset=%llu,umask=077,uid=%lu",
-		 (unsigned long long)offset, (unsigned long)ruid);
+	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,loop,offset=%llu,umask=077",
+		 (unsigned long long)offset);
       } else {
-	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,umask=077,uid=%lu",
-		 (unsigned long)ruid);
+	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,umask=077");
       }
       execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-o", mnt_opts,\
 	    devfdname, mntpath, NULL);
@@ -290,8 +275,7 @@ int main(int argc, char *argv[])
 
   w = waitpid(f, &status, 0);
   if ( w != f || status ) {
-    if ( !euid )
-      rmdir(mntpath);
+    rmdir(mntpath);
     exit(1);			/* Mount failed */
   }
 
@@ -343,8 +327,6 @@ umount:
     perror("fork");
     exit(1);
   } else if ( f == 0 ) {
-    seteuid(0);		/* ***BECOME ROOT*** */
-    setuid(0);
     execl(_PATH_UMOUNT, _PATH_UMOUNT, mntpath, NULL);
   }
 
@@ -354,12 +336,7 @@ umount:
   }
 
   sync();
-
-  if ( !euid ) {
-    seteuid(0);			/* *** BECOME ROOT *** */
-    rmdir(mntpath);		/* AS ROOT */
-    seteuid(ruid);
-  }
+  rmdir(mntpath);
 
   if ( err )
     exit(err);
