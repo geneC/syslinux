@@ -37,6 +37,8 @@
 ;
 my_id		equ syslinux_id
 max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
+FILENAME_MAX_LG2 equ 4			; log2(Max filename size Including final null)
+FILENAME_MAX	equ 11			; Max mangled filename size
 retry_count	equ 6			; How patient are we with the disk?
 HIGHMEM_MAX	equ 037FFFFFFh		; DEFAULT highest address for an initrd
 DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
@@ -62,8 +64,8 @@ BAUD_DIVISOR	equ 115200		; Serial port parameter
 %define vk_size		(1 << vk_shift)	; Size of a vkernel buffer
 
 		struc vkernel
-vk_vname:	resb 11			; Virtual name **MUST BE FIRST!**
-vk_rname:	resb 11			; Real name
+vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
+vk_rname:	resb FILENAME_MAX	; Real name
 vk_appendlen:	resw 1
 		alignb 4
 vk_append:	resb max_cmd_len+1	; Command line
