@@ -87,6 +87,9 @@ fwrite(void *__p, size_t __s, size_t __n, FILE *__f)
 }
 #endif
 
+/* No seek, but we can tell */
+__extern long ftell(FILE *);
+
 __extern int printf(const char *, ...);
 __extern int vprintf(const char *, va_list);
 __extern int fprintf(FILE *, const char *, ...);
