@@ -154,7 +154,7 @@ suddenly disappearing from underneath):
 	cmp bx, 4B53h
 	jne not_memdisk
 
-	di
+	cli
 	mov bx,[es:0]		; INT 13h handler offset
 	mov eax,[es:di+16]	; Old INT 13h handler
 	mov byte [es:bx], 0EAh	; FAR JMP
@@ -164,4 +164,4 @@ suddenly disappearing from underneath):
 	mov eax,[es:di+20]	; Old INT 15h handler
 	mov byte [es:bx], 0EAh	; FAR JMP
 	mov [es:bx+1], eax
-	ei
+	sti
