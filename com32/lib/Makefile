@@ -17,7 +17,7 @@ LIBOBJS = abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o	\
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
 	libgcc/__divdi3.o libgcc/__moddi3.o 				\
-	sys/entry.o sys/exit.o sys/argv.o				\
+	sys/entry.o sys/exit.o sys/argv.o sys/times.o			\
 	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o		\
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
 	sys/isatty.o sys/openconsole.o sys/line_input.o			\

@@ -232,8 +232,8 @@ static void ansicon_putchar(int ch)
 	case 'H':
 	case 'f':
 	  {
-	    int x = st.parms[0] - 1;
-	    int y = st.parms[1] - 1;
+	    int y = st.parms[0] - 1;
+	    int x = st.parms[1] - 1;
 
 	    xy.x = (x >= cols) ? cols-1 : (x < 0) ? 0 : x;
 	    xy.y = (y >= rows) ? rows-1 : (y < 0) ? 0 : y;

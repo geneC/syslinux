@@ -36,6 +36,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
+#include <unistd.h>
 #include <getkey.h>
 
 struct keycode {
@@ -110,16 +112,24 @@ static const struct keycode keycodes[] = {
 int get_key(FILE *f)
 {
   unsigned char buffer[MAXLEN];
-  int nc, ch, i;
+  int nc, i, rv;
   const struct keycode *kc;
   int another;
+  unsigned char ch;
 
   nc = 0;
   do {
-    ch = getc(f);
-
-    if ( ch == EOF )
+    rv = read(fileno(f), &ch, 1);
+    if ( rv == 0 )
       return EOF;
+    else if ( rv == -1 && errno == EAGAIN ) {
+      if ( nc )
+	return buffer[0];	/* timeout */
+      else {
+	another = 1;
+	continue;
+      }
+    }
 
     buffer[nc++] = ch;
 
@@ -128,7 +138,6 @@ int get_key(FILE *f)
       if ( nc == kc->seqlen && !memcmp(buffer, kc->seq, nc) )
 	return kc->code;
       else if ( nc < kc->seqlen && !memcmp(buffer, kc->seq, nc) ) {
-	another = 1;
 	break;
       }
     }

@@ -27,68 +27,19 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * ansiraw.c
+ * sys/times.c
  *
- * Configures the console for ANSI output in raw mode; versions
- * for COM32 and Linux support.
+ * Returns something like a clock.
  */
 
-#ifdef __COM32__
+#include <sys/times.h>
+#include <inttypes.h>
+#include <com32.h>
 
-#include <stdio.h>
-#include <unistd.h>
-#include <console.h>
-
-static void __attribute__((destructor)) console_cleanup(void)
+clock_t times(struct tms *buf)
 {
-  /* For the serial console, be nice and clean up */
-  fputs("\033[0m\033[20l", stdout);
+  (void)buf;			/* Ignored */
+
+  /* Should we get this via INT 1Ah? */
+  return *(uint16_t *)0x46c;
 }
-
-void console_ansi_raw(void)
-{
-  openconsole(&dev_rawcon_r, &dev_ansiserial_w);
-  fputs("\033[0m\033[20h", stdout);
-}
-
-#else 
-
-#include <stdio.h>
-#include <termios.h>
-
-static struct termios original_termios_settings;
-
-static void __attribute__((constructor)) console_init(void)
-{
-  tcgetattr(0, &original_termios_settings);
-}
-
-static void __attribute__((destructor)) console_cleanup(void)
-{
-  fputs("\033[0m\033[20l", stdout);
-  tcsetattr(0, TCSANOW, &original_termios_settings);
-}
-  
-
-void console_ansi_raw(void)
-{
-  struct termios tio;
-
-  /* Disable stdio buffering */
-  setbuf(stdin,  NULL);
-  setbuf(stdout, NULL);
-  setbuf(stderr, NULL);
-
-  /* Set the termios flag so we behave the same as libcom32 */
-  tcgetattr(0, &tio);
-  tio.c_iflag &= ~ICRNL;
-  tio.c_iflag |= IGNCR;
-  tio.c_lflag &= ~(ISIG|ICANON|ECHO);
-  tio.c_cc[VMIN]  = 0;
-  tio.c_cc[VTIME] = 2;
-  tcsetattr(0, TCSANOW, &tio);
-  fputs("\033[0m\033[20h", stdout);
-}
-
-#endif
-
