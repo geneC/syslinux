@@ -607,8 +607,14 @@ found_it:	; Note: we actually leave two words on the stack here
 		jne kaboom		; matches LDLINUX.SYS
 ;
 ; Done! Jump to the entry point!
+; 
+; Note that some BIOSes are buggy and run the boot sector at 07C0:0000
+; instead of 0000:7C00 and the like.  We don't want to add anything
+; more to the boot sector, so it is written to not assume a fixed
+; value in CS, but we don't want to deal with that anymore from now
+; on.
 ;
-		jmp ldlinux_ent
+		jmp 0:ldlinux_ent
 
 ;
 ;
@@ -783,15 +789,7 @@ ldlinux_magic	db 'LDLINUX SYS'
 
 		align 4
 
-;
-; Entry point.  Note that some BIOSes are buggy and put the boot sector
-; at 07C0:0000 instead of 0000:7C00 and the like.  We don't want to add
-; anything more to the boot sector, so it is written to not assume a fixed
-; value in CS, but we don't want to deal with that anymore from now on.
-;
 ldlinux_ent:
-		jmp 0:ldlinux_ent2
-ldlinux_ent2:
 ;
 ; Tell the user we got this far
 ;
