@@ -697,7 +697,7 @@ Mover_dummy2:	dd 0, 0, 0, 0		; More space for the BIOS
 
 		alignb 4, db 0
 MemDisk_Info	equ $			; Pointed to by installation check
-MDI_Bytes	dw 26			; Total bytes in MDI structure
+MDI_Bytes	dw 27			; Total bytes in MDI structure
 MDI_Version	db VER_MINOR, VER_MAJOR	; MEMDISK version
 
 PatchArea	equ $			; This gets filled in by the installer
@@ -710,7 +710,10 @@ OldInt13	dd 0			; INT 13h in chain
 OldInt15	dd 0			; INT 15h in chain
 
 OldDosMem	dw 0			; Old position of DOS mem end
+BootLoaderID	db 0			; Boot loader ID from header
 ; ---- MDI structure ends here ---
+		db 0, 0, 0		; pad
+
 MemInt1588	dw 0			; 1MB-65MB memory amount (1K)
 
 Cylinders	dw 0			; Cylinder count

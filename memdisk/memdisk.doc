@@ -125,7 +125,7 @@ http://www.ctyme.com/rbrown.htm, for a detailed description.
 
 The MEMDISK info structure currently contains:
 
-	[ES:DI]		word	Total size of structure (currently 26 bytes)
+	[ES:DI]		word	Total size of structure (currently 27 bytes)
 	[ES:DI+2]	byte	MEMDISK minor version
 	[ES:DI+3]	byte	MEMDISK major version
 	[ES:DI+4]	dword	Pointer to MEMDISK data in high memory
@@ -134,6 +134,10 @@ The MEMDISK info structure currently contains:
 	[ES:DI+16]	16:16	Old INT 13h pointer
 	[ES:DI+20]	16:16	Old INT 15h pointer
 	[ES:DI+24]	word	Amount of DOS memory before MEMDISK loaded
+	[ES:DI+26]	byte	Boot loader ID
+
+MEMDISK 3.00 and higher has the size of this structure as 27; earlier
+versions had size 26 and did not include the boot loader ID.
 
 In addition, the following fields are available at [ES:0]:
 

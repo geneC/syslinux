@@ -70,6 +70,9 @@ struct patch_area {
   uint32_t oldint15;
 
   uint16_t olddosmem;
+  uint8_t  bootloaderid;
+
+  uint8_t  _pad[3];
   uint16_t memint1588;
 
   uint16_t cylinders;
@@ -90,7 +93,7 @@ struct patch_area {
   uint16_t statusptr;
 
   dpt_t dpt;
-};
+} __attribute__((packed));
 
 /* This is the header in the boot sector/setup area */
 struct setup_header {
@@ -118,7 +121,7 @@ struct setup_header {
   uint16_t pad1;
   uint32_t cmd_line_ptr;
   uint32_t initrd_addr_max;
-};
+} __attribute__((packed));
 
 const struct setup_header * const shdr = (struct setup_header *)(LOW_SEG << 4);
 
@@ -571,8 +574,10 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   pptr->disksize  = geometry->sectors;
   pptr->diskbuf   = ramdisk_image + geometry->offset;
   pptr->statusptr = (geometry->driveno & 0x80) ? 0x474 : 0x441;
-  pptr->configflags = 0;
 
+  pptr->bootloaderid = shdr->type_of_loader;
+
+  pptr->configflags = 0;
   /* Set config flags */
   if ( getcmditem("ro") != CMD_NOTFOUND ) {
     puts("Marking disk readonly\n");
