@@ -806,7 +806,7 @@ gfs_partseg:
 		pop dx
 		pop ax
 		add ax,bp			; Advance sector pointer
-		adc dx,0
+		adc dx,byte 0
 		pop bp				; Load remaining sector counter
 		jmp gfs_getchunk
 gfs_lastchunk:	pop dx
@@ -957,42 +957,42 @@ vidrows_is_ok:  mov [VidRows],al
 ;
 		mov di,syslinux_cfg
 		call open
-		jmpz no_config_file
+		jz near no_config_file
 parse_config:
 		call getkeyword
-                jmpc end_config_file		; Config file loaded
+                jc near end_config_file		; Config file loaded
 		cmp ax,'de'			; DEfault
 		je pc_default
 		cmp ax,'ap'			; APpend
 		je pc_append
 		cmp ax,'ti'			; TImeout
-		jmpe pc_timeout
+		je near pc_timeout
 		cmp ax,'pr'			; PRompt
-		jmpe pc_prompt
+		je near pc_prompt
 		cmp ax,'di'			; DIsplay
-		jmpe pc_display
+		je near pc_display
 		cmp ax,'la'			; LAbel
-		jmpe pc_label
+		je near pc_label
 		cmp ax,'ke'			; KErnel
 		je pc_kernel
                 cmp ax,'im'                     ; IMplicit
-                jmpe pc_implicit
+                je near pc_implicit
 		cmp al,'f'			; F-key
-		jmpe pc_fkey
-		jmp parse_config
+		jne parse_config
+		jmp pc_fkey
 pc_default:	mov di,default_cmd		; "default" command
 		call getline
 		mov si,auto_cmd			; add "auto"+null
                 mov cx,auto_len
 		rep movsb
-		jmp parse_config
-pc_append:      cmp word [VKernelCtr],0		; "append" command
+		jmp short parse_config
+pc_append:      cmp word [VKernelCtr],byte 0	; "append" command
 		ja pc_append_vk
                 mov di,AppendBuf
 		call getline
                 sub di,AppendBuf
 pc_app1:        mov [AppendLen],di
-                jmp parse_config
+                jmp short parse_config
 pc_append_vk:	mov di,VKernelBuf+vk_append	; "append" command (vkernel)
 		call getline
 		sub di,VKernelBuf+vk_append
@@ -1002,23 +1002,23 @@ pc_append_vk:	mov di,VKernelBuf+vk_append	; "append" command (vkernel)
                 jne pc_app2
                 mov di,0                        ; If "append -" -> null string
 pc_app2:        mov [VKernelBuf+vk_appendlen],di
-		jmp parse_config	
-pc_kernel:	cmp word [VKernelCtr],0		; "kernel" command
-		jmpe parse_config		; (vkernel only)
+		jmp short parse_config_2	
+pc_kernel:	cmp word [VKernelCtr],byte 0	; "kernel" command
+		je near parse_config		; (vkernel only)
 		mov di,trackbuf
 		push di
 		call getline
 		pop si
 		mov di,VKernelBuf+vk_rname
 		call mangle_name
-		jmp parse_config
+		jmp short parse_config_2
 pc_timeout:	call getint			; "timeout" command
-		jmpc parse_config
+		jc parse_config_2
 		mov ax,0D215h			; There are approx 1.D215h
 		mul bx				; clock ticks per 1/10 s
 		add bx,dx
 		mov [KbdTimeOut],bx
-		jmp parse_config
+		jmp short parse_config_2
 pc_display:	mov di,trackbuf
 		push di
 		call getline			; Get filename to display
@@ -1028,17 +1028,17 @@ pc_display:	mov di,trackbuf
 		call mangle_name		; Mangle file name
 		pop di
 		call searchdir			; Search for file
-		jmpz parse_config		; File not found?
+		jz parse_config_2		; File not found?
 		call get_msg_file		; Load and display file
-pc_parse_config: jmp parse_config
+parse_config_2: jmp parse_config
 pc_prompt:	call getint			; "prompt" command
-		jc pc_parse_config
+		jc parse_config_2
 		mov [ForcePrompt],bx
-		jmp short pc_parse_config
+		jmp short parse_config_2
 pc_implicit:    call getint                     ; "implicit" command
-                jc pc_parse_config
+                jc parse_config_2
                 mov [AllowImplicit],bx
-                jmp short pc_parse_config
+                jmp short parse_config_2
 pc_fkey:	sub ah,'1'
 		jnb pc_fkey1
 		mov ah,9			; F10
@@ -1056,7 +1056,7 @@ pc_fkey1:	xor cx,cx
 		shl di,4			; Multiply number by 16
 		add di,FKeyName
 		call mangle_name		; Mangle file name
-		jmp short pc_parse_config
+		jmp short parse_config_2
 pc_label:	call commit_vk			; Commit any current vkernel
 		mov di,trackbuf			; Get virtual filename
 		push di
@@ -1074,14 +1074,14 @@ pc_label:	call commit_vk			; Commit any current vkernel
                 mov cx,[AppendLen]
                 mov [VKernelBuf+vk_appendlen],cx
                 rep movsb
-		jmp short pc_parse_config
+		jmp short parse_config_2
 ;
 ; commit_vk: Store the current VKernelBuf into buffer segment
 ;
 commit_vk:
-		cmp word [VKernelCtr],0
+		cmp word [VKernelCtr],byte 0
 		je cvk_ret			; No VKernel = return
-		cmp word [VKernelCtr],16	; Above limit?
+		cmp word [VKernelCtr],byte 16	; Above limit?
 		ja cvk_overflow
 		mov di,[VKernelCtr]
 		dec di
@@ -1107,7 +1107,7 @@ no_config_file:
 ; Check whether or not we are supposed to display the boot prompt.
 ;
 check_for_key:
-		cmp word [ForcePrompt],0	; Force prompt?
+		cmp word [ForcePrompt],byte 0	; Force prompt?
 		jnz enter_command
 		test byte [KbdFlags],5Bh	; Caps, Scroll, Shift, Alt
 		jmpz auto_boot			; If neither, default boot
@@ -1249,7 +1249,7 @@ clin_opt_ptr:   dec si                          ; Point to first nonblank
 		push ds
 		push word vk_seg
 		pop ds
-		cmp cx,0
+		cmp cx,byte 0
 		je not_vk
 		xor si,si			; Point to first vkernel
 vk_check:	pusha
@@ -1263,7 +1263,7 @@ not_vk:		pop ds
 ;
 ; Not a "virtual kernel" - check that's OK and construct the command line
 ;
-                cmp word [AllowImplicit],0
+                cmp word [AllowImplicit],byte 0
                 je bad_implicit
                 push es
                 push si
@@ -1383,7 +1383,7 @@ kernel_sane:	push ax
 		pop dx
 		pop ax
 		add ax,1023
-		adc dx,0
+		adc dx,byte 0
 		mov bx,1024
 		div bx				; Get number of kilobytes
 		mov [KernelK],ax
@@ -1412,7 +1412,7 @@ kernel_sane:	push ax
 		jc kernel_corrupt		; Failure in first 32K
                 cmp word [es:bs_bootsign],0AA55h
 		jne kernel_corrupt		; Boot sec signature missing
-		cmp byte [es:su_jump], 0EBh	; Jump opcode
+		cmp byte [es:su_jump],0EBh	; Jump opcode
 		jne kernel_corrupt
 ;
 ; Get the BIOS' idea of what the size of high memory is
@@ -1492,16 +1492,16 @@ skip_this_opt:  lodsb                           ; Load from command line
                 dec si
                 jmp get_next_opt
 is_vga_cmd:
-                add si,4
+                add si,byte 4
                 mov eax,[si]
-                mov bx, -1
+                mov bx,-1
                 cmp eax, 'norm'                 ; vga=normal
                 je vc0
-                and eax, 0ffffffh               ; 3 bytes
-                mov bx, -2
+                and eax,0ffffffh		; 3 bytes
+                mov bx,-2
                 cmp eax, 'ext'                  ; vga=ext
                 je vc0
-                mov bx, -3
+                mov bx,-3
                 cmp eax, 'ask'                  ; vga=ask
                 je vc0
                 call parseint                   ; vga=<number>
@@ -1509,7 +1509,7 @@ is_vga_cmd:
 vc0:		mov [es:bs_vidmode],bx		; Set video mode
 		jmp skip_this_opt
 is_mem_cmd:
-                add si,4
+                add si,byte 4
                 call parseint
 		jc skip_this_opt		; Not an integer
 		shr ebx,10			; Convert to kilobytes
@@ -1640,7 +1640,7 @@ high_last_moby:
                 popf                            ; Restore EOF
                 jc high_load_done               ; If EOF we are done
                 add word [HiLoadAddr],100h	; Point to next 64K
-                cmp word [KernelClust],0	; Are we done?
+                cmp word [KernelClust],byte 0	; Are we done?
 		jne high_load_loop		; Apparently not
 high_load_done:
 		pop si				; No longer needed
@@ -1680,8 +1680,8 @@ low_kernel_ok:  push es
 ;
                 mov bx,1                        ; 1 boot sector
                 add bl,[es:bs_setupsecs]	; Plus setup sectors
-                sbb bh,0
-                shl bx,5                        ; Convert to a paragraph number
+                sbb bh,byte 0
+                shl bx,byte 5			; Convert to a paragraph number
                 push bx                         ; Save paragraph
                 add bx,real_mode_seg
                 push ds                         ; Save DS
@@ -1714,7 +1714,7 @@ last_moby:
                 call getfssec
                 pop ax
 		jc load_done
-		cmp word [KernelClust],0
+		cmp word [KernelClust],byte 0
 		jz load_done
                 push si                         ; Save cluster pointer
                 add ax,1000h                    ; Advance to next moby
@@ -1734,7 +1734,7 @@ load_done:
 ; If the default root device is set to FLOPPY (0000h), change to
 ; /dev/fd0 (0200h)
 ;
-		cmp word [es:bs_rootdev],0
+		cmp word [es:bs_rootdev],byte 0
 		jne root_not_floppy
 		mov word [es:bs_rootdev],0200h
 root_not_floppy:
