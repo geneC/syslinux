@@ -11,7 +11,8 @@ Changes in 3.02:
 	* EXTLINUX: Hack for systems which don't have BLKGETSIZE64
 	  defined in the standard header files.
 	* Simple menu system: minor aestetic improvements, and try to
-	  work better over a serial console.
+	  work better over a serial console (speed, and readability on
+	  monochrome terminal emulators.)
 
 Changes in 3.01:
 	* EXTLINUX, SYSLINUX: Fix compile errors on some systems.
