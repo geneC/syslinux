@@ -226,15 +226,22 @@ comboot_int22:
 		pop ds
 
 		cmp ax,int22_count
-		jae comboot_apierr
-
+		jb .ok
+		xor ax,ax			; Function 0 -> unimplemented
+.ok:
 		xchg ax,bx
 		add bx,bx
 		call [bx+int22_table]
 		jmp comboot_resume		; On return
 
 ;
-; INT 22h AX=0000h	Null system call
+; INT 22h AX=0000h	Unimplemented call
+;
+comapi_err:
+		stc
+		ret
+
+;
 ; INT 22h AX=0001h	Get SYSLINUX version
 ;
 comapi_get_version:
@@ -360,19 +367,18 @@ comapi_close:
 ;
 ; INT 22h AX=0009h	Call PXE stack
 ;
-comapi_pxecall:
 %if IS_PXELINUX
+comapi_pxecall:
 		call far [PXENVEntry]
 		clc
 		ret
 %else
-		stc				; Function not available
-		ret
+comapi_pxecall	equ comapi_err			; Not available
 %endif
 
 		align 2, db 0
 int22_table:
-		dw comapi_nop			; 0000 null syscall
+		dw comapi_err			; 0000 unimplemented syscall
 		dw comapi_get_version		; 0001 get SYSLINUX version
 		dw comapi_writestr		; 0002 write string
 		dw comapi_run			; 0003 run specified command

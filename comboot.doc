@@ -185,14 +185,6 @@ All calls return CF=0 on success, CF=1 on failure.  The noted outputs
 apply if CF=0 only unless otherwise noted.
 
 
-AX=0000h	No Operation
-
-	Input:	AX	0000h
-	Output:	None
-
-	This API call does nothing.
-
-
 AX=0001h	Get Version
 
 	Input:	AX	0001h
