@@ -407,10 +407,16 @@ A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
 a20_adjust_cnt	equ ($-A20List)/2
 
 A20Type		dw A20_NONE		; A20 type
-A20Test		dw 0			; Counter for testing status of A20
-A20Tries	db 0			; Times until giving up on A20
 
 		; Total size of .bcopy32 section
 		alignb 4, db 0		; Even number of dwords
 __bcopy_size	equ $-__bcopy_start
+
+		section .earlybss
+		alignb 2
+SavedSSSP	resd 1			; Saved real mode SS:SP
+A20Test		resw 1			; Counter for testing status of A20
+A20Tries	resb 1			; Times until giving up on A20
+
+
 

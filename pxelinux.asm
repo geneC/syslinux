@@ -273,9 +273,12 @@ _start:
 		mov ds,ax
 		mov es,ax	
 
-		mov si,ldlinux_end-(TEXT_START-7C00h)-4
-		mov di,ldlinux_end-4
-		mov cx,ldlinux_end-TEXT_START
+		; This is uglier than it should be, but works around
+		; some NASM 0.98.38 bugs.
+		mov di,section..bcopy32.start
+		add di,__bcopy_size-4
+		lea si,[di-(TEXT_START-7C00h)]
+		lea cx,[di-(TEXT_START-4)]
 		shr cx,2
 		std			; Overlapping areas, copy backwards
 		rep movsd
@@ -1482,15 +1485,17 @@ parse_dotquad:
 mangle_name:
 		push si
 		mov eax,[ServerIP]
+		cmp byte [si],0
+		je .noip			; Null filename?!?!
 		cmp word [si],'::'		; Leading ::?
 		je .gotprefix
 
 .more:
-		cmp word [si],'::'
-		je .here
+		inc si
 		cmp byte [si],0
+		je .noip
+		cmp word [si],'::'
 		jne .more
-		jmp .noip
 
 		; We have a :: prefix of some sort, it could be either
 		; a DNS name or a dot-quad IP address.  Try the dot-quad
@@ -1503,9 +1508,13 @@ mangle_name:
 		cmp word [si],'::'
 		je .gotprefix
 .notdq:
+		pop si
+		push si
 		call dns_resolv
 		cmp word [si],'::'
-		je .gotprefix
+		jne .noip
+		and eax,eax
+		jnz .gotprefix
 
 .noip:
 		pop si
@@ -1531,7 +1540,6 @@ mangle_name:
 		inc cx				; At least one null byte
 		xor ax,ax			; Zero-fill name
 		rep stosb			; Doesn't do anything if CX=0
-		pop bx
 		ret				; Done
 
 ;
@@ -2568,5 +2576,3 @@ EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 %endif
 IPAppend	db 0			; Default IPAPPEND option
 DHCPMagic	db 0			; DHCP site-specific option info
-
-ldlinux_end     equ $

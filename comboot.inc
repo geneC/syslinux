@@ -580,9 +580,6 @@ numIPAppends	equ ($-IPAppends)/2
 comapi_ipappend equ comapi_err
 %endif
 		
-		section .bss
-SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
-
 		section .data
 %macro 		int21 2
 		db %1

@@ -1630,5 +1630,3 @@ EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 %error trackbufsize must be a multiple of SECTOR_SIZE
 %endif
 %endif
-
-ldlinux_end     equ $
