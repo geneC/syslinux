@@ -6,6 +6,9 @@ Changes in 2.07:
 	* MEMDISK: Workaround for BIOSes which go into a snit when
 	  they get a RESET command for the floppy system when there is
 	  no floppy in the system.
+	* PXELINUX: Add "ipappend 2", which passes the hardware
+	  address of the boot interface to the kernel as a
+	  command-line option.
 
 Changes in 2.06:
 	* ALL: Fix problem that would occationally cause a

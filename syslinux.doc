@@ -124,13 +124,32 @@ APPEND options...
         them.  This is the equivalent of the LILO "append" option.
 
 IPAPPEND flag_val			[PXELINUX only]
-	The IPAPPEND option is available only on PXELINUX, and
-	indicates (if the flag value is 1) that an option of the
-	following format should be generated and added:
+	The IPAPPEND option is available only on PXELINUX.  The
+	flag_val is an OR of the following options:
+
+	1: indicates that an option of the following format
+	should be generated and added to the kernel command line:
 
 		ip=<client-ip>:<boot-server-ip>:<gw-ip>:<netmask>
 
 	... based on the input from the DHCP/BOOTP or PXE boot server.
+
+	THE USE OF THIS OPTION IS NOT RECOMMENDED.  If you have to use
+	it, it is probably an indication that your network configuration
+	is broken.  Using just "ip=dhcp" on the kernel command line
+	is a preferrable option, or, better yet, run dhcpcd/dhclient,
+	from an initrd if necessary.
+
+	2: indicates that an option of the following format
+	should be generated and added to the kernel command line:
+
+		BOOTIF=<hardware-address-of-boot-interface>
+
+	... in dash-separated hexadecimal with leading hardware type
+	(same as for the configuration file; see pxelinux.doc.)
+
+	This allows an initrd program to determine from which
+	interface the system booted.
 
 LABEL label
   KERNEL image

@@ -210,7 +210,7 @@ IPOption	resb 80			; ip= option buffer
 MACLen		resb 1			; MAC address len
 MACType		resb 1			; MAC address type
 MAC		resb 16			; Actual MAC address
-MACStr		resb 51			; MAC address as a string
+MACStr		resb 3*17		; MAC address as a string
 		alignb 32
 KernelName      resb FILENAME_MAX       ; Mangled name for kernel
 KernelCName     resb FILENAME_MAX	; Unmangled kernel name
@@ -894,14 +894,23 @@ config_scan:
 %define HAVE_SPECIAL_APPEND
 %macro	SPECIAL_APPEND 0
 		mov al,[IPAppend]		; ip=
-		and al,al
-		jz .noipappend
+		test al,01h			; IP append
+		jz .noipappend1
 		mov si,IPOption
 		mov cx,[IPOptionLen]
 		rep movsb
 		mov al,' '
 		stosb
-.noipappend:
+.noipappend1:
+		test al,02h
+		jz .noipappend2
+		mov si,bootif_str
+		mov cx,bootif_str_len
+		rep movsb
+		mov si,MACStr
+		call strcpy
+		mov byte [di-1],' '		; Replace null with space
+.noipappend2:
 %endmacro
 
 ; Unload PXE stack
@@ -2337,8 +2346,11 @@ cfgprefix_len	equ ($-cfgprefix)
 ;
 ; mem= and vga= are handled as normal 32-bit integer values
 initrd_cmd	db 'initrd='
-initrd_cmd_len	equ 7
+initrd_cmd_len	equ $-initrd_cmd
 
+; This one we make ourselves
+bootif_str	db 'BOOTIF='
+bootif_str_len	equ $-bootif_str
 ;
 ; Config file keyword table
 ;
