@@ -34,7 +34,7 @@
 ; by the kernel.
 ;
 max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
-FILENAME_MAX_LG2 equ 5			; log2(Max filename size Including final null)
+FILENAME_MAX_LG2 equ 6			; log2(Max filename size Including final null)
 FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
 REBOOT_TIME	equ 5*60		; If failure, time until full reset
 HIGHMEM_MAX	equ 038000000h		; Highest address for an initrd
