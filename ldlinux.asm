@@ -1145,6 +1145,7 @@ ac_ret1:	ret
 ;
 
 searchdir:
+		push bp
 		mov ax,[bsRootDirEnts]
 		mov [DirScanCtr],ax
 		mov ax,[RootDirSize]
@@ -1193,6 +1194,7 @@ dir_success:
 		mov bx,ax
 		or bx,dx		; Sets ZF iff DX:AX is zero
 dir_return:
+		pop bp
 		ret
 
 ;
