@@ -808,7 +808,7 @@ gfs_partseg:
 		add ax,bp			; Advance sector pointer
 		adc dx,byte 0
 		pop bp				; Load remaining sector counter
-		jmp gfs_getchunk
+		jmp short gfs_getchunk
 gfs_lastchunk:	pop dx
 		pop ax		
 		call getlinsec
@@ -1110,7 +1110,7 @@ check_for_key:
 		cmp word [ForcePrompt],byte 0	; Force prompt?
 		jnz enter_command
 		test byte [KbdFlags],5Bh	; Caps, Scroll, Shift, Alt
-		jmpz auto_boot			; If neither, default boot
+		jz near auto_boot		; If neither, default boot
 
 enter_command:
 		mov si,boot_prompt
@@ -1127,7 +1127,7 @@ clear_buffer:	mov ah,1			; Check for pending char
 		jz get_char_time
 		xor ax,ax			; Get char
 		int 16h
-		jmp clear_buffer
+		jmp short clear_buffer
 get_char_time:	mov cx,[KbdTimeOut]
 		and cx,cx
 		jz get_char			; Timeout == 0 -> no timeout
@@ -1161,7 +1161,7 @@ enter_char:	cmp di,max_cmd_len+command_line ; Check there's space
 		jnb get_char
 		stosb				; Save it
 		call writechr			; Echo to screen
-		jmp get_char
+		jmp short get_char
 not_ascii:	cmp al,0Dh			; Enter
 		je command_done
 		cmp al,08h			; Backspace
@@ -1171,7 +1171,7 @@ not_ascii:	cmp al,0Dh			; Enter
 		dec di				; Unstore one character
 		mov si,wipe_char		; and erase it from the screen
 		call writestr
-		jmp get_char
+		jmp short get_char
 func_key:
 		push di
 		cmp ah,68			; F10
@@ -1189,7 +1189,7 @@ func_key:
 		call searchdir
 		jz fk_nofile
 		call get_msg_file
-		jmp fk_wrcmd
+		jmp short fk_wrcmd
 fk_nofile:
 		mov si,crlf
 		call writestr
@@ -1202,13 +1202,13 @@ fk_wrcmd:
 		mov si,command_line
 		call writestr			; Write command line so far
 		pop di
-		jmp get_char
+		jmp short get_char
 auto_boot:
 		mov si,default_cmd
 		mov di,command_line
 		mov cx,(max_cmd_len+4) >> 2
 		rep movsd
-		jmp load_kernel
+		jmp short load_kernel
 command_done:
 		mov si,crlf
 		call writestr
@@ -1301,7 +1301,7 @@ bad_kernel:     mov si,err_notfound		; Complain about missing kernel
 bad_implicit:   mov si,KernelName		; For the error message
                 mov di,KernelCName
                 call unmangle_name
-                jmp bad_kernel
+                jmp short bad_kernel
 ;
 ; vk_found: We *are* using a "virtual kernel"
 ;
@@ -1327,7 +1327,7 @@ vk_found:	popa
 		mov cx,11
 		rep movsb
 		pop di
-		jmp get_kernel
+		jmp short get_kernel
 ;
 ; kernel_corrupt: Called if the kernel file does not seem healthy
 ;
@@ -1463,7 +1463,7 @@ hms_ok:		mov [HighMemSize],ax
                 pop ds
 get_next_opt:   lodsb
 		and al,al
-		jmpz cmdline_end
+		jz near cmdline_end
 		cmp al,' '
 		jbe get_next_opt
 		dec si
@@ -1490,7 +1490,7 @@ skip_this_opt:  lodsb                           ; Load from command line
                 cmp al,' '
                 ja skip_this_opt
                 dec si
-                jmp get_next_opt
+                jmp short get_next_opt
 is_vga_cmd:
                 add si,byte 4
                 mov eax,[si]
@@ -1507,7 +1507,7 @@ is_vga_cmd:
                 call parseint                   ; vga=<number>
 		jc skip_this_opt		; Not an integer
 vc0:		mov [es:bs_vidmode],bx		; Set video mode
-		jmp skip_this_opt
+		jmp short skip_this_opt
 is_mem_cmd:
                 add si,byte 4
                 call parseint
@@ -1518,7 +1518,7 @@ is_mem_cmd:
                 jna memcmd_fair
 		mov bx,14*1024
 memcmd_fair:    mov [HighMemSize],bx
-		jmp skip_this_opt
+		jmp short skip_this_opt
 cmdline_end:
                 push cs                         ; Restore standard DS
                 pop ds
@@ -1526,9 +1526,9 @@ cmdline_end:
 ; Now check if we have a large kernel, which needs to be loaded high
 ;
 		cmp dword [es:su_header],HEADER_ID	; New setup code ID
-		jmpne old_kernel		; Old kernel, load low
+		jne near old_kernel		; Old kernel, load low
 		cmp word [es:su_version],0200h	; Setup code version 2.0
-		jmpb old_kernel			; Old kernel, load low
+		jnb near old_kernel		; Old kernel, load low
                 cmp word [es:su_version],0201h	; Version 2.01+?
                 jb new_kernel                   ; If 2.00, skip this step
                 mov word [es:su_heapend],linux_stack	; Set up the heap
@@ -1718,7 +1718,7 @@ last_moby:
 		jz load_done
                 push si                         ; Save cluster pointer
                 add ax,1000h                    ; Advance to next moby
-                jmp loadmoby
+                jmp short loadmoby
 ;
 ; This is where both the high and low load routines end up after having
 ; loaded
@@ -1914,7 +1914,7 @@ download:
                 push es
                 mov byte [px_src_low],0
                 mov [px_src],si
-                jmp ul_dl
+                jmp short ul_dl
 
 ;
 ; GDT for protected-mode transfers (int 15h AH=87h).  Note that the low
@@ -2060,7 +2060,7 @@ dir_not_this:   add si,32
 		jb dir_test_name
 		add ax,bp		; Increment linear sector number
 		adc dx,0
-		jmp scan_group
+		jmp short scan_group
 dir_success:
 		mov ax,[si+28]		; Length of file
 		mov dx,[si+30]
@@ -2123,7 +2123,7 @@ print_msg_file: push cx
 		jz msg_done
 		loop print_msg_file
 		pop si
-		jmp get_msg_chunk
+		jmp short get_msg_chunk
 msg_done_pop:
                 add sp,6                        ; Lose 3 words on the stack
 msg_done:
@@ -2162,14 +2162,14 @@ msg_newline:                                    ; Newline char or end of line
                 cmp al,[VidRows]
                 ja msg_scroll
                 mov [CursorRow],al
-                jmp msg_gotoxy
+                jmp short msg_gotoxy
 msg_scroll:     xor cx,cx                       ; Upper left hand corner
                 mov dx,[ScreenSize]
                 mov [CursorRow],dh		; New cursor at the bottom
                 mov bh,[TextAttribute]
                 mov ax,0601h                    ; Scroll up one line
                 int 10h
-                jmp msg_gotoxy
+                jmp short msg_gotoxy
 msg_formfeed:                                   ; Form feed character
                 xor cx,cx
                 mov [CursorDX],cx		; Upper lefthand corner
@@ -2177,7 +2177,7 @@ msg_formfeed:                                   ; Form feed character
                 mov bh,[TextAttribute]
                 mov ax,0600h                    ; Clear screen region
                 int 10h
-                jmp msg_gotoxy
+                jmp short msg_gotoxy
 msg_setbg:                                      ; Color background character
                 call unhexchar
                 jc msg_color_bad
@@ -2343,12 +2343,12 @@ gkw_missingpar: pop ax
 gkw_badline_pop: pop ax
 gkw_badline:	mov si,err_badcfg
 		call writestr
-		jmp gkw_find
+		jmp short gkw_find
 gkw_skipline:	cmp al,10		; Scan for LF
 		je gkw_find
 		call getc
 		jc gkw_eof
-		jmp gkw_skipline
+		jmp short gkw_skipline
 
 ;
 ; getint:	Load an integer from the getc file.
@@ -2390,7 +2390,7 @@ pi_begin:	lodsb
 		cmp al,'-'
 		jne pi_not_minus
 		xor bp,1		; Set unary minus flag
-		jmp pi_begin
+		jmp short pi_begin
 pi_not_minus:
 		cmp al,'0'
 		jb pi_err
@@ -2398,7 +2398,7 @@ pi_not_minus:
 		cmp al,'9'
 		ja pi_err
 		mov cl,10		; Base = decimal
-		jmp pi_foundbase
+		jmp short pi_foundbase
 pi_octhex:
 		lodsb
 		cmp al,'0'
@@ -2409,7 +2409,7 @@ pi_octhex:
 		cmp al,'7'
 		ja pi_err
 		mov cl,8		; Base = octal
-		jmp pi_foundbase
+		jmp short pi_foundbase
 pi_ishex:
 		mov al,'0'		; No numeric value accrued yet
 		mov cl,16		; Base = hex
@@ -2421,7 +2421,7 @@ pi_foundbase:
 		imul ebx,ecx		; Multiply accumulated by base
                 add ebx,eax             ; Add current digit
 		lodsb
-		jmp pi_foundbase
+		jmp short pi_foundbase
 pi_km:
 		dec si			; Back up to last non-numeric
 		lodsb
@@ -2440,11 +2440,11 @@ pi_ret:		pop bp
                 pop eax
 		ret
 pi_err:		stc
-		jmp pi_ret
+		jmp short pi_ret
 pi_isk:		shl ebx,10		; x 2^10
-		jmp pi_done
+		jmp short pi_done
 pi_ism:		shl ebx,20		; x 2^20
-		jmp pi_done
+		jmp short pi_done
 
 ;
 ; unhexchar:    Convert a hexadecimal digit in AL to the equivalent number;
@@ -2497,7 +2497,7 @@ gl_fillloop:	push dx
 		jna gl_ctrl
 		xor dx,dx
 gl_store:	stosb
-		jmp gl_fillloop
+		jmp short gl_fillloop
 gl_ctrl:	cmp al,10
 		je gl_ret		; CF clear!
 		cmp al,26
@@ -2506,9 +2506,9 @@ gl_ctrl:	cmp al,10
 		jnz gl_fillloop		; Ignore multiple spaces
 		mov al,' '		; Ctrl -> space
 		inc dx
-		jmp gl_store
+		jmp short gl_store
 gl_eoln:        clc                     ; End of line is not end of file
-                jmp gl_ret
+                jmp short gl_ret
 gl_eof:         stc
 gl_ret:		pushf			; We want the last char to be space!
 		and dl,dl
