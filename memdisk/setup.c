@@ -362,7 +362,7 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 
   /* Do we have a DOSEMU header? */
   copy_from_high(&dosemu, where+hd_geometry.offset, sizeof dosemu);
-  if ( !memcmp("DOSEMU", dosemu.magic, 7) ) {
+  if ( !__builtin_memcmp("DOSEMU", dosemu.magic, 7) ) {
     /* Always a hard disk unless overruled by command-line options */
     hd_geometry.driveno = 0x80;
     hd_geometry.type = 0;
