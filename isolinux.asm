@@ -1680,6 +1680,7 @@ default_str	db 'default', 0
 default_len	equ ($-default_str)
 boot_dir	db '/boot'			; /boot/isolinux
 isolinux_dir	db '/isolinux', 0
+ConfigName	equ $
 isolinux_cfg	db 'isolinux.cfg', 0
 err_disk_image	db 'Cannot load disk image (invalid file)?', CR, LF, 0
 

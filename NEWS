@@ -2,6 +2,9 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 2.11:
+	* ALL: Add an API call to get the configuration file name.
+
 Changes in 2.10:
 	* MEMDISK: Handle images compressed with zip as well as with
 	  gzip.  Some Windows-based image tools apparently generate

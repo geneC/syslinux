@@ -1412,7 +1412,8 @@ aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
 crlf_msg	db CR, LF
 null_msg	db 0
 crff_msg	db CR, FF, 0
-syslinux_cfg	db 'SYSLINUXCFG'
+syslinux_cfg	db 'SYSLINUXCFG'		; Mangled form
+ConfigName	db 'syslinux.cfg',0		; Unmangled form
 %if IS_MDSLINUX
 manifest	db 'MANIFEST   '
 %endif

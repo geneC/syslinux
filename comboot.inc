@@ -551,6 +551,16 @@ comapi_chainboot:
 		push P_ECX
 		jmp replace_bootstrap
 
+
+;
+; INT 22h AX=000Eh	Get configuration file name
+;
+comapi_configfile:
+		mov P_ES,cs
+		mov P_BX,ConfigName
+		clc
+		ret
+
 ;
 ; This stuff should really be in the data section...
 ;
@@ -588,6 +598,7 @@ int22_table:
 		dw comapi_serialcfg		; 000B get serial port config
 		dw comapi_cleanup		; 000C perform final cleanup
 		dw comapi_chainboot		; 000D clean up then bootstrap
+		dw comapi_configfile		; 000E get name of config file
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

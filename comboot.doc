@@ -247,7 +247,7 @@ AX=0003h	Run command
 
 	Input:	AX	0003h
 		ES:BX	null-terminated command string
-	Output:	None
+	Output:	Does not return
 
 	This API call terminates the program and executes the command
 	string as if the user had entered it at the SYSLINUX command
@@ -257,7 +257,7 @@ AX=0003h	Run command
 AX=0004h	Run default command
 
 	Input:	AX	0004h
-	Output:	None
+	Output:	Does not return
 
 	This API call terminates the program and executes the default
 	command string as if the user had pressed Enter alone on the
@@ -424,7 +424,7 @@ AX=000Bh	Get Serial Console Configuration
 AX=000Ch	Perform final cleanup
 	Input:	AX	000Ch
 		DX	derivative-specific flags (0000h = clean up all)
-	Output:	None
+	Output:	Does not return
 
 	This routine performs any "final cleanup" the boot loader
 	would normally perform before loading a kernel, such as
@@ -461,7 +461,7 @@ AX=000Dh	Cleanup and replace bootstrap code
 		EBX(!)	initial value of EDX after bootstrap
 		ESI	initial value of ESI after bootstrap
 		DS	initial value of DS after bootstrap
-	Output:	None
+	Output:	Does not return
 
 	This routine performs final cleanup, then takes a piece of
 	code, copies it over the primary bootstrap at address 7C00h,
@@ -476,3 +476,12 @@ AX=000Dh	Cleanup and replace bootstrap code
 	For PXELINUX, if the PXE stack is not unloaded, all registers
 	(except DS, ESI and EDX) and the stack will be set up as they
 	were set up by the PXE ROM.
+
+
+AX=000Eh	Get configuration file name
+	Input:	AX	0000Eh
+	Output:	ES:BX	null-terminated file name string
+
+	Returns the name of the configuration file.  Note that it is
+	possible that the configuration file doesn't actually exist.
+

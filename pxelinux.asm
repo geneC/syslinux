@@ -817,10 +817,7 @@ prefix:		test byte [DHCPMagic], 04h	; Did we get a path prefix option
 ; Load configuration file
 ;
 find_config:
-		mov di,trackbuf
-		mov si,cfgprefix
-		mov cx,cfgprefix_len
-		rep movsb
+
 ;
 ; Begin looking for configuration file
 ;
@@ -829,7 +826,6 @@ config_scan:
 		jz .no_option
 
 		; We got a DHCP option, try it first
-		push di
 		mov si,trying_msg
 		call writestr
 		mov di,ConfigName
@@ -837,18 +833,23 @@ config_scan:
 		call writestr
 		call crlf
 		call open
-		pop di
 		jnz .success
 
-.no_option:	; Have to guess config file name
+.no_option:
+		mov di,ConfigName
+		mov si,cfgprefix
+		mov cx,cfgprefix_len
+		rep movsb
+
 		; Try loading by MAC address
+		; Have to guess config file name
 		push di
 		mov si,MACStr
 		mov cx,(3*17+1)/2
 		rep movsw
 		mov si,trying_msg
 		call writestr
-		mov di,trackbuf
+		mov di,ConfigName
 		mov si,di
 		call writestr
 		call crlf
@@ -887,7 +888,7 @@ config_scan:
 .not_default:	pusha
 		mov si,trying_msg
 		call writestr
-		mov di,trackbuf
+		mov di,ConfigName
 		mov si,di
 		call writestr
 		call crlf
