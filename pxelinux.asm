@@ -45,7 +45,7 @@ MAX_SOCKETS_LG2	equ 6			; log2(Max number of open sockets)
 MAX_SOCKETS	equ (1 << MAX_SOCKETS_LG2)
 TFTP_PORT	equ htons(69)		; Default TFTP port 
 PKT_RETRY	equ 6			; Packet transmit retry count
-PKT_TIMEOUT	equ 8			; Initial timeout, timer ticks @ 55 ms
+PKT_TIMEOUT	equ 12			; Initial timeout, timer ticks @ 55 ms
 TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)
 TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
 
@@ -3033,7 +3033,7 @@ loadfont:
 .graphics:
 		; CX = 0 on entry
 		mov cl,bh			; CX = bytes/character
-		mov ax,640
+		mov ax,480
 		div cl				; Compute char rows per screen
 		mov dl,al
 		dec al
@@ -3307,7 +3307,7 @@ writechr:
 		mov ah,02h
 		int 10h
 		mov ax,0601h		; Scroll up one line
-		mov bh,07h		; White on black
+		mov bh,[ScrollAttribute]
 		xor cx,cx
 		mov dx,[ScreenSize]	; The whole screen
 		int 10h
@@ -4466,15 +4466,16 @@ vgasetmode:
 		mov [TextPage], byte 0	; Always page 0
 
 		mov cx,[VGAFontSize]
-		mov ax,640
+		mov ax,480
 		div cl
+		mov dl,al
 		dec al			; VidRows is stored -1
 		mov [VidRows],al
-		mov dl,al
 		mov bp,vgafontbuf
 		xor bx,bx
 		mov ax,1121h		; Set graphics font
 		int 10h
+		mov byte [ScrollAttribute], 00h
 
 		xor ax,ax		; Set ZF
 .error:
@@ -4493,6 +4494,7 @@ vgaclearmode:
 ;		mov dx,TextColorReg	; Restore color registers
 ;		mov ax,1002h
 ;		int 10h
+		mov byte [ScrollAttribute], 07h
 .done:
 		popad
 		ret
@@ -4638,11 +4640,12 @@ keywd_table	db 'ap' ; append
 		dw 0
 ;
 ; Extensions to search for (in *forward* order).
+; (.bs and .bss are disabled for PXELINUX, since they are not supported)
 ;
 		align 4, db 0
 exten_table:	db '.cbt'		; COMBOOT (specific)
-		db '.bss'		; Boot Sector (add superblock)
-		db '.bs', 0		; Boot Sector 
+;		db '.bss'		; Boot Sector (add superblock)
+;		db '.bs', 0		; Boot Sector 
 		db '.com'		; COMBOOT (same as DOS)
 exten_table_end:
 		dd 0, 0			; Need 8 null bytes here
@@ -4764,6 +4767,7 @@ ClustPerMoby	dw 65536/TFTP_BLOCKSIZE	; Clusters per 64K
 %error trackbufsize must be a multiple of TFTP_BLOCKSIZE
 %endif
 IPAppend	db 0			; Default IPAPPEND option
+ScrollAttribute	db 07h			; White on black (for text mode)
 
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
