@@ -22,10 +22,15 @@ LDFLAGS	= -O2 -s
 
 BINDIR  = /usr/bin
 
+VERSION = $(shell cat version)
+
 .c.o:
 	$(CC) $(CFLAGS) -c $<
 
-TARGETS=bootsect.bin ldlinux.sys syslinux.com syslinux
+SOURCES = ldlinux.asm syslinux.asm syslinux.c
+TARGETS = bootsect.bin ldlinux.sys syslinux.com syslinux
+DOCS    = COPYING NEWS README TODO syslinux.doc
+OTHER   = Makefile bin2c.pl now.pl version
 
 all:	$(TARGETS)
 	ls -l $(TARGETS)
@@ -38,7 +43,7 @@ DATE = $(shell perl now.pl)
 endif
 
 ldlinux.bin: ldlinux.asm
-	$(NASM) -f bin -dDATE_STR="'$(DATE)'" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
+	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
 
 bootsect.bin: ldlinux.bin
 	dd if=ldlinux.bin of=bootsect.bin bs=512 count=1
@@ -62,10 +67,10 @@ install: all
 	install -c syslinux $(BINDIR)
 
 tidy:
-	rm -f *.bin *.lst *.sys *.o *_bin.c
+	rm -f ldlinux.bin *.lst *.o *_bin.c
 
 clean: tidy
-	rm -f syslinux syslinux.com
+	rm -f $(TARGETS)
 
 dist: tidy
 	rm -f *~ \#*
@@ -75,7 +80,20 @@ dist: tidy
 # for release.  Please do not "make official" and distribute the binaries,
 # please.
 #
+.PHONY: official release
+
 official:
 	$(MAKE) clean
 	$(MAKE) all DATE=`date +'%Y-%m-%d'`
 	$(MAKE) dist
+
+release:
+	-rm -rf release/syslinux-$(VERSION)
+	-rm -f release/syslinux-$(VERSION).*
+	mkdir -p release/syslinux-$(VERSION)
+	cp $(SOURCES) $(DOCS) $(OTHER) release/syslinux-$(VERSION)
+	make -C release/syslinux-$(VERSION) official
+	cd release ; tar cvvf - syslinux-$(VERSION) | \
+		gzip -9 > syslinux-$(VERSION).tar.gz
+	cd release/syslinux-$(VERSION) ; \
+		zip -9r ../syslinux-$(VERSION).zip *

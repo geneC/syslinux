@@ -35,7 +35,7 @@ retry_count	equ 6			; How patient are we with the disk?
 ;
 ; Should be updated with every release to avoid bootsector/SYS file mismatch
 ;
-%define	version_str	'1.31'		; Must be 4 characters long!
+%define	version_str	VERSION		; Must be 4 characters long!
 %define date		DATE_STR	; Defined from the Makefile
 %define	year		'1998'
 ;
