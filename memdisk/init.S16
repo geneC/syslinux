@@ -46,7 +46,7 @@ _start:
 		.word	0x0203		# header version number (>= 0x0105)
 					# or else old loadlin-1.5 will fail)
 realmode_swtch:	.word	0, 0		# default_switch, SETUPSEG
-start_sys_seg:	.word	0		# obsolete
+start_sys_seg:	.word	0x1000		# obsolete
 version_ptr:	.word	memdisk_version-0x200
 					# pointing to kernel version string
 
