@@ -32,7 +32,7 @@ VERSION = $(shell cat version)
 # like to keep those uniform for debugging reasons; however, distributors 
 # want to recompile the installers (ITARGET).
 #
-SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm
+SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm pxelinux.asm
 BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst pxelinux.bin
 ITARGET = syslinux.com syslinux copybs.com
 DOCS    = COPYING NEWS README TODO *.doc
