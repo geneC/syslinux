@@ -43,9 +43,6 @@
 ## the color #rrggbb (hex) should be assigned index i (decimal)
 ##
 
-
-use IO::Handle;
-
 eval { use bytes; };
 eval { binmode STDIN; };
 eval { binmode STDOUT; };
