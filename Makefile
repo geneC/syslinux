@@ -20,6 +20,8 @@ CC	= gcc
 CFLAGS	= -Wall -O2 -fomit-frame-pointer
 LDFLAGS	= -O2 -s
 
+BINDIR  = /usr/bin
+
 .c.o:
 	$(CC) $(CFLAGS) -c $<
 
@@ -48,6 +50,9 @@ ldlinux_bin.c: ldlinux.sys bin2c.pl
 
 syslinux: syslinux.o bootsect_bin.o ldlinux_bin.o
 	$(CC) $(LDFLAGS) -o syslinux syslinux.o bootsect_bin.o ldlinux_bin.o
+
+install: all
+	install -c syslinux $(BINDIR)
 
 tidy:
 	rm -f *.bin *.lst *.sys *.o *_bin.c
