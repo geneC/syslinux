@@ -55,13 +55,6 @@ TFTP_ERROR	equ htons(5)		; ERROR packet
 TFTP_OACK	equ htons(6)		; OACK packet
 
 ;
-; Should be updated with every release to avoid bootsector/SYS file mismatch
-;
-%define	version_str	VERSION		; Must be 4 characters long!
-%define date		DATE_STR	; Defined from the Makefile
-%define	year		'2002'
-
-;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
 ; Since there is no room in the bottom 64K for all of these, we
@@ -540,7 +533,7 @@ query_bootp:
 		mov di,pxe_bootp_query_pkt_2
 		mov bx,PXENV_GET_CACHED_INFO
 
-		call far [PXENVEntry]
+		call pxenv
 		push word [pxe_bootp_query_pkt_2.status]
 		jc .pxe_err1
 		cmp ax,byte 0
@@ -549,7 +542,7 @@ query_bootp:
 		mov di,pxe_bootp_size_query_pkt
 		mov bx,PXENV_GET_CACHED_INFO
 
-		call far [PXENVEntry]
+		call pxenv
 		jc .pxe_err
 .pxe_size:
 		mov ax,[pxe_bootp_size_query_pkt.buffersize]
@@ -581,7 +574,7 @@ query_bootp:
 		mov di,pxe_bootp_query_pkt_3
 		mov bx,PXENV_GET_CACHED_INFO
 
-		call far [PXENVEntry]
+		call pxenv
 		push word [pxe_bootp_query_pkt_3.status]
 		jc .pxe_err1
 		cmp ax,byte 0
@@ -640,7 +633,7 @@ udp_init:
 		mov [pxe_udp_open_pkt.sip],eax
 		mov di,pxe_udp_open_pkt
 		mov bx,PXENV_UDP_OPEN
-		call far [PXENVEntry]
+		call pxenv
 		jc .failed
 		cmp word [pxe_udp_open_pkt.status], byte 0
 		je .success
@@ -1104,7 +1097,7 @@ searchdir:
 
 		mov di,pxe_udp_write_pkt
 		mov bx,PXENV_UDP_WRITE
-		call far [PXENVEntry]
+		call pxenv
 		jc .failure
 		cmp word [pxe_udp_write_pkt.status],byte 0
 		jne .failure
@@ -1128,7 +1121,7 @@ searchdir:
 		mov [pxe_udp_read_pkt.lport],bx
 		mov di,pxe_udp_read_pkt
 		mov bx,PXENV_UDP_READ
-		call far [PXENVEntry]
+		call pxenv
 		and ax,ax
 		jz .got_packet			; Wait for packet
 .no_packet:
@@ -1239,7 +1232,7 @@ searchdir:
 		mov word [pxe_udp_write_pkt.buffersize],tftp_opt_err_len
 		mov di,pxe_udp_write_pkt
 		mov bx,PXENV_UDP_WRITE
-		call far [PXENVEntry]
+		call pxenv
 
 .no_tsize:	mov si,err_oldtftp
 		call writestr
@@ -1418,6 +1411,17 @@ unmangle_name:	call strcpy
 		ret
 
 ;
+; pxenv
+;
+; This is the main PXENV+/!PXE entry point, using the PXENV+
+; calling convention.  This is a separate local routine so
+; we can hook special things from it if necessary.
+;
+pxenv:
+		call far [cs:PXENVEntry]
+		ret
+
+;
 ; pxe_thunk
 ;
 ; Convert from the PXENV+ calling convention (BX, ES, DI) to the !PXE
@@ -1496,7 +1500,7 @@ getfssec:
 		mov di,pxe_udp_read_pkt
 		mov bx,PXENV_UDP_READ
 		push si				; <G>
-		call far [PXENVEntry]
+		call pxenv
 		pop si				; <G>
 		cmp ax,byte 0
 		je .recv_ok
@@ -1619,7 +1623,7 @@ ack_packet:
 		mov [pxe_udp_write_pkt.buffersize], word 4
 		mov di,pxe_udp_write_pkt
 		mov bx,PXENV_UDP_WRITE
-		call far [PXENVEntry]
+		call pxenv
 		cmp ax,byte 0			; ZF = 1 if write OK
 		popad
 		ret
@@ -1628,11 +1632,18 @@ ack_packet:
 ; unload_pxe:
 ;
 ; This function unloads the PXE and UNDI stacks and unclaims
-; the memory.  Assumes CS == DS == ES.
+; the memory.
 ;
 unload_pxe:
 		test byte [KeepPXE],01h		; Should we keep PXE around?
 		jnz reset_pxe
+
+		push ds
+		push es
+
+		mov ax,cs
+		mov ds,ax
+		mov es,ax
 
 		mov si,new_api_unload
 		cmp byte [APIVer+1],2		; Major API version >= 2?
@@ -1651,7 +1662,7 @@ unload_pxe:
 		mov cx,pxe_unload_stack_pkt_len >> 1
 		rep stosw
 		pop di
-		call far [PXENVEntry]
+		call pxenv
 		jc .cant_free
 		cmp word [pxe_unload_stack_pkt.status],PXENV_STATUS_SUCCESS
 		jne .cant_free
@@ -1695,10 +1706,12 @@ unload_pxe:
 		popf
 		popa
 %endif
+		mov bx,0FF00h
 
 		mov dx,[RealBaseMem]
 		cmp dx,[BIOS_fbm]		; Sanity check
 		jna .cant_free
+		inc bx
 
 		; Check that PXE actually unhooked the INT 1Ah chain
 		movzx eax,word [4*0x1a]
@@ -1710,9 +1723,13 @@ unload_pxe:
 		jae .ok
 		cmp ax,[BIOS_fbm]
 		jae .cant_free
+		; inc bx
 
 .ok:
 		mov [BIOS_fbm],dx
+.pop_ret:
+		pop es
+		pop ds
 		ret
 		
 .cant_free:
@@ -1724,14 +1741,19 @@ unload_pxe:
 		call writechr
 		mov eax,[4*0x1a]
 		call writehex8
-		jmp crlf
+		call crlf
+		jmp .pop_ret
 
 		; We want to keep PXE around, but still we should reset
 		; it to the standard bootup configuration
 reset_pxe:
+		push es
+		push cs
+		pop es
 		mov bx,PXENV_UDP_CLOSE
 		mov di,pxe_udp_close_pkt
-		call far [PXENVEntry]
+		call pxenv
+		pop es
 		ret
 
 ;

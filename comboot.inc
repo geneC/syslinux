@@ -436,7 +436,7 @@ comapi_pxecall:
 		mov bx,P_BX
 		mov es,P_ES
 		mov di,P_DI
-		call far [PXENVEntry]
+		call pxenv
 		mov P_AX,ax
 		clc
 		ret
