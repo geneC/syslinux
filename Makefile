@@ -125,7 +125,8 @@ install: all
 	install -c $(INSTALL_BIN) $(BINDIR)
 
 tidy:
-	rm -f syslinux.lst copybs.lst *.o *_bin.c stupid.* pxelinux.lst
+	rm -f *.o *_bin.c stupid.*
+	rm -f syslinux.lst copybs.lst pxelinux.lst isolinux.lst
 	rm -f $(OBSOLETE)
 
 clean: tidy
