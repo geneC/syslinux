@@ -100,7 +100,7 @@ void syslinux_make_bootsect(void *bs)
 /*
  * Check to see that what we got was indeed an MS-DOS boot sector/superblock
  */
-int syslinux_check_bootsect(void *bs, char* device)
+int syslinux_check_bootsect(const void *bs, const char *device)
 {
   int veryold;
   unsigned int sectors, clusters;

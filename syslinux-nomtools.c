@@ -20,12 +20,17 @@
  * mtools, but requires root privilege.
  */
 
+#ifdef __KLIBC__
+# define DO_DIRECT_MOUNT 1	/* Call mount(2) directly */
+#else
+# define DO_DIRECT_MOUNT 0	/* Call /bin/mount instead */
+#endif
+
 #define _XOPEN_SOURCE 500	/* For pread() pwrite() */
 #define _LARGEFILE64_SOURCE	/* For O_LARGEFILE */
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <mntent.h>
 #include <paths.h>
 #include <stdio.h>
 #include <string.h>
@@ -34,24 +39,55 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/mount.h>
 
 #include "syslinux.h"
 
-#ifndef _PATH_MOUNT
-#define _PATH_MOUNT "/bin/mount"
+#if DO_DIRECT_MOUNT
+
+# include <linux/loop.h>
+
+#else
+
+# include <paths.h>
+# ifndef _PATH_MOUNT
+#  define _PATH_MOUNT "/bin/mount"
+# endif
+# ifndef _PATH_UMOUNT
+#  define _PATH_UMOUNT "/bin/umount"
+# endif
+
 #endif
 
-#ifndef _PATH_UMOUNT
-#define _PATH_UMOUNT "/bin/umount"
-#endif
-
-char *program;			/* Name of program */
-char *device;			/* Device to install to */
+const char *program;		/* Name of program */
+const char *device;		/* Device to install to */
 pid_t mypid;
+char *mntpath = NULL;		/* Path on which to mount */
+#if DO_DIRECT_MOUNT
+int loop_fd = -1;		/* Loop device */
+#endif
 
-void usage(void)
+void __attribute__((noreturn)) usage(void)
 {
   fprintf(stderr, "Usage: %s [-sf] [-o offset] device\n", program);
+  exit(1);
+}
+
+void __attribute__((noreturn)) die(const char *msg)
+{
+  fprintf(stderr, "%s: %s\n", program, msg);
+
+#if DO_DIRECT_MOUNT
+  if ( loop_fd != -1 ) {
+    ioctl(loop_fd, LOOP_CLR_FD, 0); /* Free loop device */
+    close(loop_fd);
+    loop_fd = -1;
+  }
+#endif
+
+  if ( mntpath )
+    unlink(mntpath);
+
   exit(1);
 }
 
@@ -66,8 +102,7 @@ ssize_t xpread(int fd, void *buf, size_t count, off_t offset)
   while ( count ) {
     rv = pread(fd, buf, count, offset);
     if ( rv == 0 ) {
-      fprintf(stderr, "%s: short read\n", program);
-      exit(1);
+      die("short read");
     } else if ( rv == -1 ) {
       if ( errno == EINTR ) {
 	continue;
@@ -93,8 +128,7 @@ ssize_t xpwrite(int fd, void *buf, size_t count, off_t offset)
   while ( count ) {
     rv = pwrite(fd, buf, count, offset);
     if ( rv == 0 ) {
-      fprintf(stderr, "%s: short write\n", program);
-      exit(1);
+      die("short write");
     } else if ( rv == -1 ) {
       if ( errno == EINTR ) {
 	continue;
@@ -123,16 +157,18 @@ int main(int argc, char *argv[])
   int err = 0;
   pid_t f, w;
   int status;
-  char *mntpath = NULL, mntname[64], devfdname[64];
+  char mntname[64], devfdname[64];
   char *ldlinux_name, **argp, *opt;
   int my_umask;
   int force = 0;		/* -f (force) option */
-  off_t offset = 0;		/* -o (offset) option */
+  int offset = 0;		/* -o (offset) option */
 
   program = argv[0];
   mypid = getpid();
   
   device = NULL;
+
+  umask(077);
 
   for ( argp = argv+1 ; *argp ; argp++ ) {
     if ( **argp == '-' ) {
@@ -173,20 +209,11 @@ int main(int argc, char *argv[])
   }
 
   if ( !force && !S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode) ) {
-    fprintf(stderr, "%s: not a block device or regular file (use -f to override)\n", device);
-    exit(1);
+    die("not a block device or regular file (use -f to override)");
   }
 
   if ( !force && offset != 0 && !S_ISREG(st.st_mode) ) {
-    fprintf(stderr, "%s: not a regular file and an offset specified (use -f to override)\n", device);
-    exit(1);
-  }
-
-  if ( lseek(dev_fd, offset, SEEK_SET) != offset ) {
-    if ( !(force && errno == EBADF) ) {
-      fprintf(stderr, "%s: seek error", device);
-      exit(1);
-    }
+    die("not a regular file and an offset specified (use -f to override)");
   }
 
   xpread(dev_fd, sectbuf, 512, offset);
@@ -203,8 +230,7 @@ int main(int argc, char *argv[])
    * Now mount the device.
    */
   if ( geteuid() ) {
-    fprintf(stderr, "%s: This program needs root privilege\n", program);
-    exit(1);
+    die("This program needs root privilege");
   } else {
     int i = 0;
     struct stat dst;
@@ -222,8 +248,7 @@ int main(int argc, char *argv[])
 
     if ( stat(".", &dst) || !S_ISDIR(dst.st_mode) ||
 	 (dst.st_mode & TMP_MODE) != TMP_MODE ) {
-      fprintf(stderr, "%s: possibly unsafe /tmp permissions\n", program);
-      exit(1);
+      die("possibly unsafe /tmp permissions");
     }
 
     for ( i = 0 ; ; i++ ) {
@@ -244,13 +269,48 @@ int main(int argc, char *argv[])
 
       if ( lstat(mntname, &dst) || dst.st_mode != (S_IFDIR|0000) ||
 	   dst.st_uid != 0 ) {
-	fprintf(stderr, "%s: someone is trying to symlink race us!\n", program);
-	exit(1);
+	die("someone is trying to symlink race us!");
       }
       break;			/* OK, got something... */
     }
 
     mntpath = mntname;
+
+#if DO_DIRECT_MOUNT
+    if ( S_ISREG(st.st_mode) ) {
+      /* It's file, need to mount it loopback */
+      unsigned int n = 0;
+      struct loop_info64 loopinfo;
+
+      for ( n = 0 ; loop_fd < 0 ; n++ ) {
+	snprintf(devfdname, sizeof devfdname, "/dev/loop%u", n);
+	loop_fd = open(devfdname, O_RDWR);
+	if ( loop_fd < 0 && errno == ENOENT ) {
+	  die("no available loopback device!");
+	}
+	if ( ioctl(loop_fd, LOOP_SET_FD, (void *)dev_fd) ) {
+	  close(loop_fd); loop_fd = -1;
+	  if ( errno != EBUSY )
+	    die("cannot set up loopback device");
+	  else
+	    continue;
+	}
+	
+	if ( ioctl(loop_fd, LOOP_GET_STATUS64, &loopinfo) ||
+	     (loopinfo.lo_offset = offset,
+	      ioctl(loop_fd, LOOP_SET_STATUS64, &loopinfo)) )
+	  die("cannot set up loopback device");
+      }
+    } else {
+      snprintf(devfdname, sizeof devfdname, "/proc/%lu/fd/%d",
+	       (unsigned long)mypid, dev_fd);
+    }
+
+    if ( mount(devfdname, mntpath, "msdos",
+	       MS_NOEXEC|MS_NOSUID, "umask=077,quiet") )
+      die("could not mount filesystem");
+
+#else
 
     snprintf(devfdname, sizeof devfdname, "/proc/%lu/fd/%d",
 	     (unsigned long)mypid, dev_fd);
@@ -263,23 +323,25 @@ int main(int argc, char *argv[])
     } else if ( f == 0 ) {
       char mnt_opts[128];
       if ( S_ISREG(st.st_mode) ) {
-	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,loop,offset=%llu,umask=077",
+	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,loop,offset=%llu,umask=077,quiet",
 		 (unsigned long long)offset);
       } else {
-	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,umask=077");
+	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,umask=077,quiet");
       }
       execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-o", mnt_opts,\
 	    devfdname, mntpath, NULL);
       _exit(255);		/* execl failed */
     }
-  }
 
-  w = waitpid(f, &status, 0);
-  if ( w != f || status ) {
-    rmdir(mntpath);
-    exit(1);			/* Mount failed */
+    w = waitpid(f, &status, 0);
+    if ( w != f || status ) {
+      rmdir(mntpath);
+      exit(1);			/* Mount failed */
+    }
+    
+#endif
   }
-
+  
   ldlinux_name = alloca(strlen(mntpath)+13);
   if ( !ldlinux_name ) {
     perror(program);
@@ -316,13 +378,24 @@ int main(int argc, char *argv[])
    * I don't understand why I need this.  Does the DOS filesystems
    * not honour the mode passed to open()?
    */
-  my_umask = umask(0777);
-  umask(my_umask);
-  fchmod(fd, 0444 & ~my_umask);
+  fchmod(fd, 0400);
 
   close(fd);
 
 umount:
+#if DO_DIRECT_MOUNT
+
+  if ( umount2(mntpath, 0) )
+    die("could not umount path");
+
+  if ( loop_fd != -1 ) {
+    ioctl(loop_fd, LOOP_CLR_FD, 0); /* Free loop device */
+    close(loop_fd);
+    loop_fd = -1;
+  }
+
+#else
+
   f = fork();
   if ( f < 0 ) {
     perror("fork");
@@ -335,6 +408,8 @@ umount:
   if ( w != f || status ) {
     exit(1);
   }
+
+#endif
 
   sync();
   rmdir(mntpath);
@@ -362,3 +437,4 @@ umount:
 
   return 0;
 }
+
