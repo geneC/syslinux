@@ -338,6 +338,7 @@ LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
 FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
 ISOFlags	resb 1			; Flags for ISO directory search
+DiskError	resb 1			; Error code for disk I/O
 TextColorReg	resb 17			; VGA color registers for text mode
 VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
 VGAFileBufEnd	equ $
@@ -702,15 +703,21 @@ xint13:		mov byte [RetryCount], 6
 		jc .error
 		add sp,byte 8*4			; Clean up stack
 		ret
-.error:		popad
+.error:		mov [DiskError],ah		; Save error code
+		popad
 		dec byte [RetryCount]
 		jnz .try
 
 .real_error:	mov si,diskerr_msg
 		call writemsg
-		mov al,ah
+		mov al,[DiskError]
+		call writehex2
+		mov si,ondrive_str
+		call writestr
+		mov al,dl
 		call writehex2
 		call crlf
+
 .norge:		jmp short .norge
 
 
@@ -735,6 +742,7 @@ loaded_msg:	db 'Loaded boot image, verifying...', CR, LF, 0
 verify_msg:	db 'Image checksum verified.', CR, LF, 0
 checkerr_msg:	db 'Load checksum error, goodbye...', CR, LF, 0
 diskerr_msg:	db 'Disk error ', 0
+ondrive_str:	db ', drive ', 0
 allread_msg	db 'Main image read, jumping to main code...', CR, LF, 0
 crlf_msg	db CR, LF, 0
 
