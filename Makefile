@@ -109,3 +109,16 @@ release:
 		gzip -9 > syslinux-$(VERSION).tar.gz
 	cd release/syslinux-$(VERSION) ; \
 		zip -9r ../syslinux-$(VERSION).zip *
+
+prerel:
+	-rm -rf release/syslinux-$(VERSION)-$(DATE)
+	-rm -f release/syslinux-$(VERSION)-$(DATE).*
+	mkdir -p release/syslinux-$(VERSION)-$(DATE)
+	cp $(SOURCES) $(DOCS) $(OTHER) release/syslinux-$(VERSION)-$(DATE)
+	make -C release/syslinux-$(VERSION)-$(DATE) clean
+	make -C release/syslinux-$(VERSION)-$(DATE) DATE="$(DATE)"
+	make -C release/syslinux-$(VERSION)-$(DATE) dist
+	cd release ; tar cvvf - syslinux-$(VERSION)-$(DATE) | \
+		gzip -9 > syslinux-$(VERSION)-$(DATE).tar.gz
+	cd release/syslinux-$(VERSION)-$(DATE) ; \
+		zip -9r ../syslinux-$(VERSION)-$(DATE).zip *

@@ -651,6 +651,11 @@ getonesec:
 ;	     The "stupid patch area" gets replaced by the code
 ;	     mov bp,1 ; nop ... (BD 01 00 90 90...) when installing with
 ;	     the -s option.
+;
+; Stylistic note: use "xchg" instead of "mov" when the source is a register
+; that is dead from that point; this saves space.  However, please keep
+; the order to dst,src to keep things sane.
+;
 getlinsec:
 		mov si,[bsSecPerTrack]
 		;
@@ -658,18 +663,17 @@ getlinsec:
 		; up to 2^18 tracks, so we need to do this in two steps
 		; to produce a 32-bit quotient.
 		;
-		xchg di,ax		; DI <- LSW of LBA
+		xchg cx,ax		; CX <- LSW of LBA
 		xchg ax,dx
 		xor dx,dx		; DX:AX now == MSW of LBA
 		push dx
 		div si			; Obtain MSW of track #
-		xchg ax,di		; Save MSW of track, AX <- LSW of LBA
-		add ax,dx		; Add remainder from high word
-		pop dx			; DX <- 0, flags preserved!
-		adc dx,dx		; DX == 0, so DX <- CF ? 1 : 0
+		xchg ax,cx		; Remainder -> MSW of new dividend
+					; LSW of LBA -> LSW of new dividend
+					; Quotient -> MSW of track # 
 		div si			; Obtain LSW of track #, remainder
 		xchg cx,dx		; CX <- Sector index (0-based)
-		xchg dx,di		; MSW of track #; DX:AX now == track #
+					; DX <- MSW of track #
 		div word [bsHeads]	; Convert track to head/cyl
 		;
 		; Now we have AX = cyl, DX = head, CX = sector (0-based),
@@ -2308,7 +2312,7 @@ enable_a20:
 		out 060h, al
 kbc_delay:	call empty_8042
 		push cx
-		mov cx,14h
+		mov cx, delaytime
 .delayloop:	io_delay
 		loop .delayloop
 		pop cx
