@@ -296,17 +296,18 @@ const char *getcmditem(const char *what)
 struct geometry {
   uint32_t sectors;		/* 512-byte sector count */
   uint32_t c, h, s;		/* C/H/S geometry */
+  uint32_t offset;		/* Byte offset for disk */
   uint8_t type;		        /* Type byte for INT 13h AH=08h */
   uint8_t driveno;		/* Drive no */
 };
 
 static const struct geometry geometries[] =
 { 
-  {  720, 40,  2,  9, 0x01, 0 }, /*  360 K */
-  { 1440, 80,  2,  9, 0x03, 0 }, /*  720 K*/
-  { 2400, 80,  2, 15, 0x02, 0 }, /* 1200 K */
-  { 2880, 80,  2, 18, 0x04, 0 }, /* 1440 K */
-  { 5760, 80,  2, 36, 0x06, 0 }, /* 2880 K */
+  {  720, 40,  2,  9, 0, 0x01, 0 }, /*  360 K */
+  { 1440, 80,  2,  9, 0, 0x03, 0 }, /*  720 K*/
+  { 2400, 80,  2, 15, 0, 0x02, 0 }, /* 1200 K */
+  { 2880, 80,  2, 18, 0, 0x04, 0 }, /* 1440 K */
+  { 5760, 80,  2, 36, 0, 0x06, 0 }, /* 2880 K */
 };
 #define known_geometries (sizeof(geometries)/sizeof(struct geometry))
 
@@ -320,24 +321,35 @@ struct ptab_entry {
   uint32_t size;
 };
 
+/* Format of a DOSEMU header */
+struct dosemu_header {
+  uint8_t magic[7];		/* DOSEMU\0 */
+  uint32_t h;
+  uint32_t s;
+  uint32_t c;
+  uint32_t offset;
+  uint8_t pad[105];
+} __attribute__((packed));
+
 const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 {
-  static struct geometry hd_geometry = { 0, 0, 0, 0, 0, 0x80 };
+  static struct geometry hd_geometry = { 0, 0, 0, 0, 0, 0, 0x80 };
   struct ptab_entry ptab[4];	/* Partition table buffer */
+  struct dosemu_header dosemu;
   unsigned int sectors, v;
   unsigned int max_c, max_h, max_s;
-  unsigned int c, h, s;
+  unsigned int c, h, s, offset;
   int i;
+  int drive_specified;
   const char *p;
 
   printf("command line: %s\n", shdr->cmdline);
 
-  if ( size & 0x1ff ) {
-    puts("MEMDISK: Image has fractional end sector\n");
-    size &= ~0x1ff;
-  }
+  offset = 0;
+  if ( CMD_HASDATA(p = getcmditem("offset")) && (v = atou(p)) )
+    offset = v;
 
-  sectors = size >> 9;
+  sectors = (size-offset) >> 9;
   for ( i = 0 ; i < known_geometries ; i++ ) {
     if ( sectors == geometries[i].sectors ) {
       hd_geometry = geometries[i];
@@ -346,6 +358,20 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
   }
 
   hd_geometry.sectors = sectors;
+  hd_geometry.offset  = offset;
+
+  /* Do we have a DOSEMU header? */
+  copy_from_high(&dosemu, where+hd_geometry.offset, sizeof dosemu);
+  if ( !memcmp("DOSEMU", dosemu.magic, 7) ) {
+    /* Always a hard disk unless overruled by command-line options */
+    hd_geometry.driveno = 0x80;
+    hd_geometry.type = 0;
+    hd_geometry.c = dosemu.c;
+    hd_geometry.h = dosemu.h;
+    hd_geometry.s = dosemu.s;
+    hd_geometry.offset += dosemu.offset;
+    sectors = (size-hd_geometry.offset) >> 9;
+  }
 
   if ( CMD_HASDATA(p = getcmditem("c")) && (v = atou(p)) )
     hd_geometry.c = v;
@@ -358,16 +384,17 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
     hd_geometry.driveno = 0;
     if ( hd_geometry.type == 0 )
       hd_geometry.type = 0x10;	/* ATAPI floppy, e.g. LS-120 */
-  }
-  if ( getcmditem("harddisk") != CMD_NOTFOUND ) {
+    drive_specified = 1;
+  } else if ( getcmditem("harddisk") != CMD_NOTFOUND ) {
     hd_geometry.driveno = 0x80;
     hd_geometry.type = 0;
+    drive_specified = 1;
   }
 
   if ( (hd_geometry.c == 0) || (hd_geometry.h == 0) ||
        (hd_geometry.s == 0) ) {
     /* Hard disk image, need to examine the partition table for geometry */
-    copy_from_high(&ptab, where+(512-2-4*16), sizeof ptab);
+    copy_from_high(&ptab, where+hd_geometry.offset+(512-2-4*16), sizeof ptab);
     
     max_c = max_h = 0;  max_s = 1;
     for ( i = 0 ; i < 4 ; i++ ) {
@@ -400,6 +427,9 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
       hd_geometry.c = sectors/(hd_geometry.h*hd_geometry.s);
   }
 
+  if ( (size-hd_geometry.offset) & 0x1ff ) {
+    puts("MEMDISK: Image has fractional end sector\n");
+  }
   if ( sectors % (hd_geometry.h*hd_geometry.s) ) {
     puts("MEMDISK: Image seems to have fractional end cylinder\n");
   }
@@ -491,7 +521,7 @@ uint32_t setup(void)
   pptr->heads     = geometry->h;
   pptr->sectors   = geometry->s;
   pptr->disksize  = geometry->sectors;
-  pptr->diskbuf   = shdr->ramdisk_image;
+  pptr->diskbuf   = shdr->ramdisk_image + geometry->offset;
   pptr->statusptr = (geometry->driveno & 0x80) ? 0x474 : 0x441;
 
   /* Set up a drive parameter table */

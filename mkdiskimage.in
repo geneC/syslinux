@@ -22,7 +22,9 @@ sub absolute_path($) {
 
 for $a ( @ARGV ) {
     if ( $a =~ /^\-/ ) {
-	$opt{$'} = 1;
+	foreach $o ( split(//, substr($a,1)) ) {
+	    $opt{$o} = 1;
+	}
     } else {
 	push(@args, $a);
     }
@@ -33,7 +35,8 @@ $c += 0;  $h += 0;  $s += 0;
 
 if ( !$file || $c < 1 || $c > 1024 ||
      $h < 1 || $h > 256 || $s < 1 || $s > 63 ) {
-    print STDERR "Usage: $0 [-o] file c h s (max: 1024 256 63)\n";
+    print STDERR "Usage: $0 [-do] file c h s (max: 1024 256 63)\n";
+    print STDERR "    -d    add DOSEMU header\n";
     print STDERR "    -o    print filesystem offset to stdout\n";
     exit 1;
 }
@@ -42,6 +45,13 @@ $cylsize = $h*$s*512;
 
 sysopen(OUTPUT, $file, O_CREAT|O_RDWR|O_TRUNC, 0666)
     or die "$0: Cannot open: $file\n";
+
+# Print out DOSEMU header, if requested
+if ( $opt{'d'} ) {
+    $emuhdr = "DOSEMU\0" . pack("VVVV", $h, $s, $c, 128);
+    $emuhdr .= "\0" x (128 - length($emuhdr));
+    print OUTPUT $emuhdr;
+}
 
 # Print the MBR and partition table
 $mbr = '';
@@ -106,7 +116,7 @@ $imglink = $tmpdir.'/disk.img';
 die "$0: Failed to create symlink $imglink\n"
     if ( !symlink(absolute_path($file), $imglink) );
 
-$offset = $s*512;
+$offset = $s*512 + ($opt{'d'} ? 128 : 0);
 open(MCONFIG, "> ${cfgfile}") or die "$0: Cannot make mtools config\n";
 print MCONFIG "drive z:\n";
 print MCONFIG "file=\"${imglink}\"\n";

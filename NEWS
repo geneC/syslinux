@@ -3,8 +3,10 @@ apply to that specific program only; other changes apply to all of
 them.
 
 Changes in 2.01:
+	* MEMDISK: Support disk images with DOSEMU headers.
 	* Update the mkdiskimage script to handle newer mtools
-	  versions.
+	  versions, and be able to generate disk images with DOSEMU
+	  headers (controlled by the -d option).
 
 Changes in 2.00:
 	* ALL: Add support for "COM32" (32-bit COMBOOT) images.
