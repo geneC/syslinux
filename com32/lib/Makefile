@@ -25,7 +25,9 @@ LIBOBJS = abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o	\
 	sys/stdcon_read.o sys/stdcon_write.o sys/rawcon_read.o		\
 	sys/rawcon_write.o sys/err_read.o sys/err_write.o		\
 	sys/null_read.o sys/null_write.o sys/serial_write.o		\
-	sys/ansicon_write.o sys/ansiserial_write.o
+	sys/ansicon_write.o sys/ansiserial_write.o			\
+	pci/readb.o pci/readw.o pci/readl.o 				\
+	pci/writeb.o pci/writew.o pci/writel.o
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib
