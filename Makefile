@@ -25,7 +25,9 @@ RANLIB   = ranlib
 NASM	 = nasm -O99
 NINCLUDE = 
 BINDIR   = /usr/bin
-LIBDIR   = /usr/lib/syslinux
+LIBDIR   = /usr/lib
+AUXDIR   = $(LIBDIR)/syslinux
+INCDIR   = /usr/include
 
 PERL     = perl
 
@@ -55,8 +57,12 @@ OBSOLETE = pxelinux.bin
 # Things to install in /usr/bin
 INSTALL_BIN   =	syslinux gethostip ppmtolss16 lss16toppm
 # Things to install in /usr/lib/syslinux
-INSTALL_LIB   =	pxelinux.0 isolinux.bin isolinux-debug.bin \
+INSTALL_AUX   =	pxelinux.0 isolinux.bin isolinux-debug.bin \
 		syslinux.com copybs.com memdisk/memdisk
+# Things to install in /usr/lib
+INSTALL_LIB   = libsyslinux.a
+# Things to install in /usr/include
+INSTALL_INC   = syslinux.h
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
@@ -154,9 +160,16 @@ mkdiskimage: mkdiskimage.in mbr.bin bin2hex.pl
 	chmod a+x $@
 
 install: installer
-	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR) $(INSTALLROOT)$(LIBDIR)
+	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR) $(INSTALLROOT)$(AUXDIR)
 	install -m 755 -c $(INSTALL_BIN) $(INSTALLROOT)$(BINDIR)
+	install -m 644 -c $(INSTALL_AUX) $(INSTALLROOT)$(AUXDIR)
+
+install-lib: installer
+	mkdir -m 755 -p $(INSTALLROOT)$(LIBDIR) $(INSTALLDIR)$(INCDIR)
 	install -m 644 -c $(INSTALL_LIB) $(INSTALLROOT)$(LIBDIR)
+	install -m 644 -c $(INSTALL_INC) $(INSTALLROOT)$(INCDIR)
+
+install-all: install install-all
 
 local-tidy:
 	rm -f *.o *_bin.c stupid.* patch.offset

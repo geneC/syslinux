@@ -15,7 +15,8 @@ Changes in 2.01:
 	* PXELINUX, ISOLINUX: Fix some COMBOOT API calls.
 	* PXELINUX: Doc fix.
 	* Build SYSLINUX into a small library for encapsulation into
-	  other programs.
+	  other programs (however, please keep in mind this is a GPL'd
+	  library.)
 	* SYSLINUX: Make installer work with "owner" in /etc/fstab.
 	* SYSLINUX: Fix issue with working on nonpartitioned hard disk
 	  devices.  THIS CONFIGURATION IS NOT RECOMMENDED.
