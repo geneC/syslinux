@@ -208,9 +208,14 @@ SERIAL port [[baudrate] flowcontrol]
 	to 9600 bps.  The serial parameters are hardcoded to be 8
 	bits, no parity, 1 stop bit.
 
-	"flowcontrol" is a flag (0 = off, 1 = on), to support hardware
-	flowcontrol (RTS/CTS).  Specifically, SYSLINUX will assert
-	DTR and RTS, and will honor incoming CTS.
+	"flowcontrol" is one of the following values:
+	
+	Value	Flow control	RTS	DTR	CTS	DCD
+	  0	None		U	U	I	I
+	  1	RTS/CTS		A	A	O	I
+	  2	DTR/DCD		A	A	O	O
+
+	U = Unchanged   A = Asserted   I = Ignored   O = Observed
 
 	For this directive to be guaranteed to work properly, it
 	should be the first directive in the configuration file.

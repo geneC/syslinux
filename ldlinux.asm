@@ -1284,16 +1284,20 @@ pc_serial:	call getint			; "serial" command
 		jc parse_config_2
 		call ungetc
 		call getint
-		jnc .valid_baud
-		mov ebx,DEFAULT_BAUD		; No baud rate given
+		mov [FlowControl], byte 0	; Default to no flow control
+		jc .nobaud
 .valid_baud:	
 		push ebx
 		call getint			; Hardware flow control?
 		jnc .valid_flow
-		xor bx,bx			; Default -> no flow control
+		xor bl,bl			; Default -> no flow control
 .valid_flow:
 		mov [FlowControl],bl
 		pop ebx				; Baud rate
+		jmp short .parse_baud
+.nobaud:
+		mov ebx,DEFAULT_BAUD		; No baud rate given
+.parse_baud:
 		pop di				; Serial port #
 		cmp ebx,byte 75
 		jb parse_config_2		; < 75 baud == bogus
