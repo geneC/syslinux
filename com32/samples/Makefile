@@ -39,7 +39,9 @@ LNXLIBS	   = ../libutil/libutil_lnx.a
 
 .SUFFIXES: .lss .c .o .elf .c32 .lnx
 
-all: chain.c32
+all: 	hello.c32 \
+	fancyhello.c32 fancyhello.lnx \
+	keytest.c32 keytest.lnx
 
 .PRECIOUS: %.o
 %.o: %.S
