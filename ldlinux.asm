@@ -300,7 +300,9 @@ AppendBuf       resb max_cmd_len+1	; append=
 FKeyName	resb 10*16		; File names for F-key help
 NumBuf		resb 16			; Buffer to load number
 NumBufEnd	equ NumBuf+15		; Pointer to last byte in NumBuf
+		alignb 4
 InitRDat	resd 1			; Load address (linear) for initrd
+HiLoadAddr      resd 1			; Address pointer for high load loop
 RootDir		equ $			; Location of root directory
 RootDir1	resw 1
 RootDir2	resw 1
@@ -334,7 +336,6 @@ CmdOptPtr       resw 1			; Pointer to first option on cmd line
 KernelCNameLen  resw 1			; Length of unmangled kernel name
 InitRDCNameLen  resw 1			; Length of unmangled initrd name
 NextCharJump    resw 1			; Routine to interpret next print char
-HiLoadAddr      resw 1			; Address pointer for high load loop
 SetupSecs	resw 1			; Number of setup sectors
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
@@ -1737,17 +1738,16 @@ read_kernel:
 ;
 ; Move the stuff beyond the setup code to high memory at 100000h
 ;
-                mov bx,1                        ; 1 boot sector
-                add bl,[es:bs_setupsecs]	; Plus setup sectors
-                sbb bh,0
-                shl bx,1                        ; Convert to 256-byte blocks
-                mov ax,1080h                    ; 108000h = 1M + 32K
-                sub ax,bx                       ; Adjust pointer to 2nd block
-                mov [HiLoadAddr],ax
-                shl bx,8                        ; Convert to a byte address
-                mov cx,4000h                    ; Cheating!  Copy all 32K
-                mov di,1000h                    ; Copy to address 100000h
-                call upload                     ; Transfer to high memory
+		movzx ecx,word [SetupSecs]	; Setup sectors
+		inc ecx				; plus 1 boot sector
+                shl ecx,9			; Convert to bytes
+                mov esi,108000h			; 108000h = 1M + 32K
+                sub esi,ecx			; Adjust pointer to 2nd block
+                mov [HiLoadAddr],esi
+		sub esi,70000h			; Pointer to source
+		shr ecx,2			; Convert to dwords
+                mov edi,100000h                 ; Copy to address 100000h
+                call bcopy			; Transfer to high memory
 ;
                 push word xfer_buf_seg		; Segment 7000h is xfer buffer
                 pop es
@@ -1767,12 +1767,13 @@ high_last_moby:
                 push si                         ; Save cluster pointer
                 pushf                           ; Save EOF
                 xor bx,bx
-                mov di,[HiLoadAddr]		; Destination address
-                mov cx,8000h                    ; Cheating - transfer 64K
-                call upload                     ; Transfer to high memory
+		mov esi,(xfer_buf_seg << 4)
+                mov edi,[HiLoadAddr]		; Destination address
+                mov ecx,4000h			; Cheating - transfer 64K
+                call bcopy			; Transfer to high memory
+		mov [HiLoadAddr],edi		; Point to next target area
                 popf                            ; Restore EOF
                 jc high_load_done               ; If EOF we are done
-                add word [HiLoadAddr],100h	; Point to next 64K
                 cmp word [KernelClust],byte 0	; Are we done?
 		jne high_load_loop		; Apparently not
 high_load_done:
@@ -1898,6 +1899,7 @@ cwstr_2:        popa
 ; segments, but this stuff is painful enough as it is without having to rely
 ; on everything happening "as it ought to."
 ;
+		align 2
 bcopy_gdt_ptr:	dw bcopy_gdt_size-1
 		dd bcopy_gdt
 
@@ -1961,30 +1963,6 @@ bcopy:
 		ret
 
 ;
-; upload: upload a chunk of data to high memory
-;         es:bx = source address
-;         di    = linear target address (x 256)
-;         cx    = count (words) - max 8000h for now
-;
-; This routine is dumb (we used to use the BIOS i286-based routines rather
-; than our own bcopy routine) and needs to go away.
-;
-upload:
-		pushad
-		xor eax,eax
-		mov ax,es
-		movzx esi,bx
-		shl eax,4
-		add esi,eax
-		movzx edi,di
-		shl edi,8
-		movzx ecx,cx
-		shr ecx,1
-		call bcopy
-		popad
-		ret
-
-;
 ; Load RAM disk into high memory
 ;
 loadinitrd:
@@ -2038,25 +2016,6 @@ rd_load_done:
                 pop es                          ; Restore original ES
                 ret
 
-;
-; GDT for protected-mode transfers (int 15h AH=87h).  Note that the low
-; 8 bits are set to zero in all transfers, so they never change in this
-; block.
-;
-                align 4
-prot_xfer_gdt   equ $
-px_wipe_1       times 16 db 0		; Reserved
-                dw 0FFFFh               ; Limit: 64K
-px_src_low      db 0                    ; Low 8 bits of source address
-px_src          dw 0                    ; High 16 bits of source address
-                db 93h                  ; Segment access flags
-                dw 0                    ; Reserved
-                dw 0FFFFh               ; Limit: 64K
-px_dst_low      db 00h                  ; Low 8 bits of destination address
-px_dst          dw 0                    ; High 16 bits of destination address
-                db 93h                  ; Segment access flags
-                dw 0                    ; Reserved
-px_wipe_2       times 16 db 0	        ; Reserved
 ;
 ; abort_check: let the user abort with <ESC> or <Ctrl-C>
 ;
