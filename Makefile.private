@@ -20,7 +20,7 @@
 
 CVS     = cvs -d hpa@terminus.zytor.com:/home/hpa/cvsroot
 
-PRIVATE = Makefile.private .depend memdisk/.depend com32/lib
+PRIVATE = Makefile.private .depend */.depend
 
 isolinux.iso: all
 	cp isolinux-debug.bin isolinux-test/isolinux/isolinux.bin
