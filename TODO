@@ -1,6 +1,4 @@
 - Cleaned up documentation, with a real man page.
-- Boot ELKS, if at all possible (may have problems with i386
-  assumption.)
 - Support for clusters larger than 16K.  This would require changing
   a lot of the SYSLINUX internals so we can read partial clusters;
   change the current "cluster pointers" to become
