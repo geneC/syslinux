@@ -355,6 +355,30 @@ are interpreted:
 	care: 0 is the background color, and 7 is the color used for
 	the text printed by SYSLINUX itself.
 
+<DLE>..<ETB>				<Ctrl-P>..<Ctrl-W> = ASCII 16-23
+	These codes can be used to select which modes to print a
+	certain part of the message file in.  Each of these control
+	characters select a specific set of modes (text screen,
+	graphics screen, serial port) for which the output is actually
+	displayed:
+
+	Character			Text	Graph	Serial
+	------------------------------------------------------
+	<DLE> = <Ctrl-P> = ASCII 16	No	No	No
+	<DC1> = <Ctrl-Q> = ASCII 17	Yes	No	No
+	<DC2> = <Ctrl-R> = ASCII 18	No	Yes	No
+	<DC3> = <Ctrl-S> = ASCII 19	Yes	Yes	No
+	<DC4> = <Ctrl-T> = ASCII 20	No	No	Yes
+	<NAK> = <Ctrl-U> = ASCII 21	Yes	No	Yes
+	<SYN> = <Ctrl-V> = ASCII 22	No	Yes	Yes
+	<ETB> = <Ctrl-W> = ASCII 23	Yes	Yes	Yes
+
+	For example:
+
+	<DC1>Text mode<DC2>Graphics mode<DC4>Serial port<ETB>
+	
+	... will actually print out which mode the console is in!
+
 <SUB>                                   <SUB> = <Ctrl-Z> = ASCII 26
         End of file (DOS convention).
 

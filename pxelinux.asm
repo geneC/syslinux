@@ -386,6 +386,7 @@ KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
 FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
+DisplayMask	resb 1			; Display modes mask
 OverLoad	resb 1			; Set if DHCP packet uses "overloading"
 TextColorReg	resb 17			; VGA color registers for text mode
 VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
@@ -3075,6 +3076,8 @@ get_msg_file:
 		mov ax,xfer_buf_seg		; Use for temporary storage
 		mov es,ax
 
+                mov byte [TextAttribute],07h	; Default grey on white
+		mov byte [DisplayMask],07h	; Display text in all modes
 		call msg_initvars
 
 get_msg_chunk:  push edx			; EDX = length of file
@@ -3092,6 +3095,8 @@ print_msg_file:
                 cmp al,1Ah                      ; DOS EOF?
 		je msg_done_pop
 		push si
+		mov cl,[UsingVGA]
+		inc cl				; 01h = text mode, 02h = graphics
                 call [NextCharJump]		; Do what shall be done
 		pop si
 		pop edx
@@ -3118,8 +3123,14 @@ msg_putchar:                                    ; Normal character
                 je msg_formfeed
 		cmp al,18h			; <CAN> = VGA filename follows
 		je near msg_vga
+		jnb .not_modectl
+		cmp al,10h			; 10h to 17h are mode controls
+		jae near msg_modectl
+.not_modectl:
 
-msg_normal:	call write_serial		; Write to serial port
+msg_normal:	call write_serial_displaymask	; Write to serial port
+		test [DisplayMask],cl
+		jz msg_ignore			; Not screen
                 mov bx,[TextAttrBX]
                 mov ah,09h                      ; Write character/attribute
                 mov cx,1                        ; One character only
@@ -3140,8 +3151,10 @@ msg_ctrl_o:                                     ; ^O = color code follows
                 ret
 msg_newline:                                    ; Newline char or end of line
 		mov si,crlf_msg
-		call write_serial_str
+		call write_serial_str_displaymask
 msg_line_wrap:					; Screen wraparound
+		test [DisplayMask],cl
+		jz msg_ignore
                 mov byte [CursorCol],0
                 mov al,[CursorRow]
                 inc ax
@@ -3158,7 +3171,9 @@ msg_scroll:     xor cx,cx                       ; Upper left hand corner
                 jmp short msg_gotoxy
 msg_formfeed:                                   ; Form feed character
 		mov si,crff_msg
-		call write_serial_str
+		call write_serial_str_displaymask
+		test [DisplayMask],cl
+		jz msg_ignore
                 xor cx,cx
                 mov [CursorDX],cx		; Upper lefthand corner
                 mov dx,[ScreenSize]
@@ -3170,13 +3185,19 @@ msg_setbg:                                      ; Color background character
                 call unhexchar
                 jc msg_color_bad
                 shl al,4
+		test [DisplayMask],cl
+		jz .dontset
                 mov [TextAttribute],al
+.dontset:
                 mov word [NextCharJump],msg_setfg
                 ret
 msg_setfg:                                      ; Color foreground character
                 call unhexchar
                 jc msg_color_bad
+		test [DisplayMask],cl
+		jz .dontset
                 or [TextAttribute],al		; setbg set foreground to 0
+.dontset:
 		jmp short msg_putcharnext
 msg_vga:
 		mov word [NextCharJump],msg_filename
@@ -3221,7 +3242,6 @@ msg_viewimage:
 		; Subroutine to initialize variables, also needed
 		; after loading a graphics file
 msg_initvars:
-                mov byte [TextAttribute],07h	; Default grey on white
                 pusha
                 mov bh,[TextPage]
                 mov ah,03h                      ; Read cursor position
@@ -3230,9 +3250,18 @@ msg_initvars:
                 popa
 		jmp short msg_putcharnext	; Initialize state machine
 
+msg_modectl:
+		and al,07h
+		mov [DisplayMask],al
+		jmp short msg_putcharnext
+
 ;
 ; write_serial:	If serial output is enabled, write character on serial port
+; write_serial_displaymask: d:o, but ignore if DisplayMask & 04h == 0
 ;
+write_serial_displaymask:
+		test byte [DisplayMask], 04h
+		jz write_serial.end
 write_serial:
 		pushfd
 		pushad
@@ -3249,11 +3278,16 @@ write_serial:
 		call slow_out			; Send data
 .noserial:	popad
 		popfd
-		ret
+.end:		ret
 
 ;
 ; write_serial_str: write_serial for strings
+; write_serial_str_displaymask: d:o, but ignore if DisplayMask & 04h == 0
 ;
+write_serial_str_displaymask:
+		test byte [DisplayMask], 04h
+		jz write_serial_str.end
+
 write_serial_str:
 .loop		lodsb
 		and al,al
