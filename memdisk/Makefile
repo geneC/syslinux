@@ -12,7 +12,7 @@
 ## -----------------------------------------------------------------------
 
 CC      = gcc
-CFLAGS  = -O2 -fomit-frame-pointer -march=i386 \
+CFLAGS  = -Wall -O2 -fomit-frame-pointer -march=i386 \
 	  -malign-functions=0 -malign-jumps=0 -malign-loops=0
 LDFLAGS = 
 AS      = as
@@ -31,7 +31,7 @@ tidy:
 	rm -f *.o *.s *.o16 *.s16 *.bin *.lst *.elf e820test
 
 # clean also removes the product binary
-clean:
+clean: tidy
 	rm -f memdisk
 
 %.o16: %.s16

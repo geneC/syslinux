@@ -188,35 +188,33 @@ rdz_32(uint32_t addr)
  * Routine to seek for a command-line item and return a pointer
  * to the data portion, if present
  */
-static inline int
-isspace(int ch)
-{
-  return (ch == ' ') || ((ch >= '\b') && (ch <= '\r'));
-}
 
 /* Magic return values */
 #define CMD_NOTFOUND   ((char *)-1) /* Not found */
 #define CMD_BOOL       ((char *)-2) /* Found boolean option */
 #define CMD_HASDATA(X) ((int)(X) >= 0)
+
 const char *getcmditem(const char *what)
 {
-  const char *p, *wp;
+  const char *p;
+  const char *wp = what;
   int match = 0;
 
   for ( p = shdr->cmdline ; *p ; p++ ) {
     switch ( match ) {
     case 0:			/* Ground state */
-      if ( isspace(*p) )
+      if ( *p == ' ' )
 	break;
 
       wp = what;
+      match = 1;
       /* Fall through */
 
     case 1:			/* Matching */
       if ( *wp == '\0' ) {
 	if ( *p == '=' )
 	  return p+1;
-	else if ( isspace(*p) )
+	else if ( *p == ' ' )
 	  return CMD_BOOL;
 	else {
 	  match = 2;
@@ -224,12 +222,13 @@ const char *getcmditem(const char *what)
 	}
       }
       if ( *p != *wp++ )
-	match = 2;		/* Skipping bogus */
+	match = 2;
       break;
 
-    case 2:
-      if ( isspace(*p) )
+    case 2:			/* Mismatch, skip rest of option */
+      if ( *p == ' ' )
 	match = 0;		/* Next option */
+      break;
     }
   }
     

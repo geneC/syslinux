@@ -52,7 +52,7 @@ static void insertrange_at(int where, uint64_t start, uint32_t type)
 
 void insertrange(uint64_t start, uint64_t len, uint32_t type)
 {
-  uint64_t newstart, last;
+  uint64_t last;
   uint32_t oldtype;
   int i, j;
 
