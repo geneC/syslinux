@@ -17,7 +17,7 @@
 
 NASM	= nasm
 
-all:	bootsect.bin ldlinux.sys
+all:	bootsect.bin ldlinux.sys syslinux.com
 
 ldlinux.bin: ldlinux.asm
 	$(NASM) -f bin -dHEX_TIME="`perl now.pl`" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
@@ -29,6 +29,10 @@ bootsect.bin: ldlinux.bin
 ldlinux.sys: ldlinux.bin
 	dd if=ldlinux.bin of=ldlinux.sys  bs=512 skip=1
 	ls -l ldlinux.sys
+
+syslinux.com: syslinux.asm bootsect.bin ldlinux.sys
+	$(NASM) -f bin -l syslinux.lst -o syslinux.com syslinux.asm
+	ls -l syslinux.com
 
 clean:
 	rm -f *.bin *.lst *.sys

@@ -1,0 +1,3 @@
+- FAT16 support (for LS120 floppies mainly).
+- "Comboot" style boot files.
+- Booting DOS for a DOS/Linux dual rescue disk.
