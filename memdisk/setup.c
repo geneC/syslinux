@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2001-2002 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2001-2003 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -247,7 +247,7 @@ void unzip_if_needed(uint32_t *where_p, uint32_t *size_p)
       if ( startrange <= (-gzdatasize) &&
 	   ranges[i].type == 1 &&
 	   endrange - startrange >= gzdatasize ) {
-	end_mem = endrange - ranges[i].start;
+	end_mem = (uint32_t)endrange;
 	okmem = 1;
       }
     }   

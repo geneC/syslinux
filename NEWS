@@ -12,6 +12,9 @@ Changes in 2.04:
 	* SYSLINUX: Resurrect the old no-mtools version of the
 	  installer, although as a root-only tool.  Some distributors
 	  have indicated that they need a small standalone installer.
+	* MEMDISK: Fix a memory offset computation error when
+	  installing compressed disks which generally would cause
+	  1 MB of memory to be wasted.
 
 Changes in 2.03:
 	* Actually support comment lines in the configuration file.
