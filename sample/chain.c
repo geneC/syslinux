@@ -31,6 +31,9 @@ int printf(const char *, ...);
 int puts(const char *);
 unsigned int skip_atou(char * const *);
 
+#define memset(x,y,z) __builtin_memset(x,y,z)
+#define memcpy(x,y,z) __builtin_memcpy(x,y,z)
+
 #define SECTOR 512		/* bytes/sector */
 
 static inline void error(const char *msg)
@@ -260,12 +263,11 @@ struct part_entry *find_logical_partition(int whichpart, char *table, struct par
 
 int __start(void)
 {
-  char *mbr, *boot_sector;
+  char *mbr, *boot_sector = NULL;
   struct part_entry *partinfo;
   char *cmdline = __com32.cs_cmdline;
   int hd, drive, whichpart;
   static com32sys_t inreg;	/* In bss, so zeroed automatically */
-  int retry;
 
   /* Parse command line */
   while ( isspace(*cmdline) )
