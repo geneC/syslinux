@@ -717,9 +717,25 @@ xint13:		mov byte [RetryCount], 6
 		mov al,dl
 		call writehex2
 		call crlf
+		; Fall through to kaboom
 
+;
+; kaboom: write a message and bail out.  Wait for a user keypress,
+;	  then do a hard reboot.
+;
+kaboom:
+		lss sp,[cs:Stack]
+		mov ax,cs
+		mov ds,ax
+		mov es,ax
+		mov fs,ax
+		mov gs,ax
+		sti
+		mov si,err_bootfailed
+		call cwritestr
+		call getchar
+		int 19h
 .norge:		jmp short .norge
-
 
 ;
 ; Data that needs to be in the first sector
@@ -2696,25 +2712,6 @@ al_ok:          jmp enter_command               ; Return to command prompt
 ;
 ac_ret2:	popa
 ac_ret1:	ret
-
-
-;
-; kaboom: write a message and bail out.  Wait for quite a while, or a user keypress,
-;	  then do a hard reboot.
-;
-kaboom:
-		lss sp,[cs:Stack]
-		mov ax,cs
-		mov ds,ax
-		mov es,ax
-		mov fs,ax
-		mov gs,ax
-		sti
-		mov si,err_bootfailed
-		call cwritestr
-		call getchar
-		int 19h
-.norge:		jmp short .norge
 
 
 ;
