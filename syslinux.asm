@@ -18,9 +18,22 @@
 ;	DOS installer for SYSLINUX
 ;
 
-		absolute 0080h
-psp_cmdlen:	resb 1
-psp_cmdline:	resb 127
+		absolute 0
+pspInt20:		resw 1
+pspNextParagraph:	resw 1
+			resb 1		; reserved
+pspDispatcher:		resb 5
+pspTerminateVector:	resd 1
+pspControlCVector:	resd 1
+pspCritErrorVector:	resd 1
+			resw 11		; reserved
+pspEnvironment:		resw 1
+			resw 23		; reserved
+pspFCB_1:		resb 16
+pspFCB_2:		resb 16
+			resd 1		; reserved
+pspCommandLen:		resb 1
+pspCommandArg:		resb 127
 
 		section .text
 		org 0100h
@@ -31,8 +44,8 @@ _start:
 ; Scan command line for a drive letter followed by a colon
 ;
 		xor cx,cx
-		mov si,psp_cmdline
-		mov cl,[psp_cmdlen]
+		mov si,pspCommandArg
+		mov cl,[pspCommandLen]
 		
 cmdscan1:	jcxz bad_usage			; End of command line?
 		lodsb				; Load character
@@ -71,21 +84,74 @@ got_colon:	jcxz got_cmdline
 ; We end up here if the command line doesn't parse
 ;
 bad_usage:	mov dx,msg_unfair
-		mov ah,09h
-		int 21h
-
-		mov ax,4C01h			; Exit with error code
-		int 21h
+		jmp die
 
 		section .data
 msg_unfair:	db 'Usage: syslinux <drive>:', 0Dh, 0Ah, '$'
 
 		section .text
 ;
-; Parsed the command line OK, now get to work
+; Parsed the command line OK.  Check that the drive parameters are acceptable
 ;
-got_cmdline:	; BUG: check sector size == 512
-		; Use INT 21h:32h
+		struc DPB
+dpbDrive:	resb 1
+dpbUnit:	resb 1
+dpbSectorSize:	resw 1
+dpbClusterMask:	resb 1
+dpbClusterShift: resb 1
+dpbFirstFAT:	resw 1
+dpbFATCount:	resb 1
+dpbRootEntries:	resw 1
+dpbFirstSector:	resw 1
+dpbMaxCluster:	resw 1
+dpbFATSize:	resw 1
+dpbDirSector:	resw 1
+dpbDriverAddr:	resd 1
+dpbMedia:	resb 1
+dpbFirstAccess:	resb 1
+dpbNextDPB:	resd 1
+dpbNextFree:	resw 1
+dpbFreeCnt:	resw 1
+		endstruc
+
+got_cmdline:
+		mov dl,[DriveNo]
+		inc dl				; 1-based
+		mov bx,DPB
+		mov ah,32h
+		int 21h				; Get Drive Parameter Block
+		
+		and al,al
+		jnz filesystem_error
+
+		cmp word [bx+dpbMaxCluster],4087 ; FAT16 not supported yet
+		ja fat16_error
+
+		cmp word [bx+dpbSectorSize],512	; Sector size = 512 required
+		jne sectorsize_error
+
+		cmp byte [bx+dpbClusterShift],6	; Max size = 32K = 2^6 sectors
+		jna read_bootsect
+
+hugeclust_error:
+		mov dx,msg_hugeclust_err
+		jmp die
+filesystem_error:
+		mov dx,msg_filesystem_err
+		jmp die
+fat16_error:
+		mov dx,msg_fat16_err
+		jmp die
+sectorsize_error:
+		mov dx,msg_sectorsize_err
+		jmp die
+
+;
+; Good enough.  Now read the old boot sector and copy the superblock.
+;
+read_bootsect:
+		push cs				; Set DS == ES
+		pop ds
 
 		mov bx,SectorBuffer
 		mov al,[DriveNo]
@@ -94,8 +160,6 @@ got_cmdline:	; BUG: check sector size == 512
 		int 25h				; DOS absolute disk read
 		add sp,byte 2			; Remove flags from stack
 		jc disk_read_error
-		
-		; BUG: check FAT12, clustersize < 128 sectors
 
 		mov si,SectorBuffer+11		; Offset of superblock
 		mov di,BootSector+11
@@ -104,6 +168,11 @@ got_cmdline:	; BUG: check sector size == 512
 ;
 ; Writing LDLINUX.SYS
 ;
+		; 0. Set the correct filename
+
+		mov al,[DriveNo]
+		add [ldlinux_sys_str],al
+
 		; 1. If the file exists, strip its attributes and delete
 
 		xor cx,cx			; Clear attributes
@@ -116,7 +185,7 @@ got_cmdline:	; BUG: check sector size == 512
 		int 21h
 
 		section .data
-ldlinux_sys_str: db 'LDLINUX.SYS', 0
+ldlinux_sys_str: db 'A:\LDLINUX.SYS', 0
 
 		section .text
 
@@ -156,6 +225,7 @@ FileHandle:	resw 1
 ;
 ; Writing boot sector
 ;
+		mov al,[DriveNo]
 		mov bx,BootSector
 		mov cx,1			; One sector
 		xor dx,dx			; Absolute sector 0
@@ -165,11 +235,24 @@ FileHandle:	resw 1
 
 all_done:	mov ax,4C00h			; Exit good status
 		int 21h
-
+;
+; Error routine jump
+;
 disk_read_error:
+		mov dx,msg_read_err
+		jmp short die
 disk_write_error:
 file_write_error:
-		mov dx,msg_bummer
+		mov dx,msg_write_err
+die:
+		push cs
+		pop ds
+		push dx
+		mov dx,msg_error
+		mov ah,09h
+		int 21h
+		pop dx
+
 		mov ah,09h			; Write string
 		int 21h
 
@@ -177,7 +260,13 @@ file_write_error:
 		int 21h
 
 		section .data
-msg_bummer:	db 'Disk write error', 0Dh, 0Ah, '$'
+msg_error:		db 'ERROR: $'
+msg_filesystem_err:	db 'Filesystem not found on disk', 0Dh, 0Ah, '$'
+msg_fat16_err:		db 'FAT16 filesystems not supported at this time', 0Dh, 0Ah, '$'
+msg_sectorsize_err:	db 'Sector sizes other than 512 bytes not supported', 0Dh, 0Ah, '$'
+msg_hugeclust_err:	db 'Clusters larger than 32K not supported', 0Dh, 0Ah, '$'
+msg_read_err:		db 'Disk read failed', 0Dh, 0Ah, '$'
+msg_write_err:		db 'Disk write failed', 0Dh, 0Ah, '$'
 
 		section .data
 		align 4, db 0
