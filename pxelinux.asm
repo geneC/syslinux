@@ -1623,6 +1623,12 @@ ack_packet:
 		mov [pxe_udp_write_pkt.rport],ax
 		mov eax,[si+tftp_remoteip]
 		mov [pxe_udp_write_pkt.sip],eax
+		xor eax,[MyIP]
+		and eax,[Netmask]
+		jz .nogw
+		mov eax,[Gateway]
+.nogw:
+		mov [pxe_udp_write_pkt.gip],eax
 		mov [pxe_udp_write_pkt.buffer],word ack_packet_buf
 		mov [pxe_udp_write_pkt.buffersize], word 4
 		mov di,pxe_udp_write_pkt
