@@ -38,8 +38,8 @@ int _start(unsigned int nargs, char *cmdline,
   memset(&inreg, 0, sizeof inreg);
 
   for ( p = msg ; *p ; p++ ) {
-    inreg.edx = *p;
-    inreg.eax = 0x0200;
+    inreg.edx.b[0] = *p;
+    inreg.eax.b[1] = 0x02;	/* Write Character */
     syscall(0x21, &inreg, NULL);
   }
 
