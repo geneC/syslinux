@@ -6,6 +6,10 @@
 	.globl _exit
 	.type _exit, @function
 _exit:
+#ifdef REGPARM
+	pushl %eax
+#endif
+	
 	# Run any destructors
 	movl $__dtors_start, %esi
 2:
@@ -16,7 +20,11 @@ _exit:
 	jmp 2b
 	
 1:
+#ifdef REGPARM
+	popl %eax
+#else
 	movl 4(%esp),%eax		# Exit code in %eax = return value
+#endif
 	movl (__entry_esp),%esp		# Return stack pointer to entry value
 	ret				# Return to termination address
 	.size _exit, .-_exit
