@@ -1962,7 +1962,7 @@ get_next_opt:   lodsb
                 cmp eax,'mem='
 		je is_mem_cmd
                 push es                         ; Save ES -> real_mode_seg
-                push ss
+                push cs
                 pop es                          ; Set ES <- normal DS
                 mov di,initrd_cmd
 		mov cx,initrd_cmd_len
@@ -2034,10 +2034,69 @@ new_kernel:
 		movzx ax,byte [es:bs_setupsecs]	; Variable # of setup sectors
 		mov [SetupSecs],ax
 ;
-; Now see if we have an initial RAMdisk; if so, do requisite computation
+; About to load the kernel.  This is a modern kernel, so use the boot flags
+; we were provided.
 ;
+                mov al,[es:su_loadflags]
+		mov [LoadFlags],al
+;
+; Load the kernel.  We always load it at 100000h even if we're supposed to
+; load it "low"; for a "low" load we copy it down to low memory right before
+; jumping to it.
+;
+read_kernel:
+                mov si,KernelCName		; Print kernel name part of
+                call cwritestr                  ; "Loading" message
+                mov si,dotdot_msg		; Print dots
+                call cwritestr
+
+                mov eax,[HighMemSize]
+		sub eax,100000h			; Load address
+		cmp eax,[KernelSize]
+		jb near no_high_mem		; Not enough high memory
+;
+; Move the stuff beyond the setup code to high memory at 100000h
+;
+		movzx esi,word [SetupSecs]	; Setup sectors
+		inc esi				; plus 1 boot sector
+                shl esi,9			; Convert to bytes
+                mov ecx,8000h			; 32K
+		sub ecx,esi			; Number of bytes to copy
+		push ecx
+		shr ecx,2			; Convert to dwords
+		add esi,(real_mode_seg << 4)	; Pointer to source
+                mov edi,100000h                 ; Copy to address 100000h
+                call bcopy			; Transfer to high memory
+
+		; On exit EDI -> where to load the rest
+
+                mov si,dot_msg			; Progress report
+                call cwritestr
+                call abort_check
+
+		pop ecx				; Number of bytes in the initial portion
+		pop si				; Restore file handle/cluster pointer
+		mov eax,[KernelSize]
+		sub eax,ecx			; Amount of kernel left over
+		jbe high_load_done		; Zero left (tiny kernel)
+
+		call load_high			; Copy the file
+
+high_load_done:
+                mov ax,real_mode_seg		; Set to real mode seg
+                mov es,ax
+
+                mov si,dot_msg
+                call cwritestr
+
+;
+; Now see if we have an initial RAMdisk; if so, do requisite computation
+; We know we have a new kernel; the old_kernel code already will have objected
+; if we tried to load initrd using an old kernel
+;
+load_initrd:
                 test byte [initrd_flag],1
-                jz nk_noinitrd
+                jz near nk_noinitrd
                 push es                         ; ES->real_mode_seg
                 push ds
                 pop es                          ; We need ES==DS
@@ -2077,63 +2136,9 @@ initrd_notthere:
 
 no_high_mem:    mov si,err_nohighmem		; Error routine
                 jmp abort_load
-;
-; About to load the kernel.  This is a modern kernel, so use the boot flags
-; we were provided.
-;
-nk_noinitrd:
+
 initrd_end:
-                mov al,[es:su_loadflags]
-		mov [LoadFlags],al
-;
-; Load the kernel.  We always load it at 100000h even if we're supposed to
-; load it "low"; for a "low" load we copy it down to low memory right before
-; jumping to it.
-;
-read_kernel:
-                mov si,KernelCName		; Print kernel name part of
-                call cwritestr                  ; "Loading" message
-                mov si,dotdot_msg		; Print dots
-                call cwritestr
-
-                mov eax,[HighMemSize]
-		sub eax,100000h			; Load address
-		cmp eax,[KernelSize]
-		jb no_high_mem			; Not enough high memory
-;
-; Move the stuff beyond the setup code to high memory at 100000h
-;
-		movzx esi,word [SetupSecs]	; Setup sectors
-		inc esi				; plus 1 boot sector
-                shl esi,9			; Convert to bytes
-                mov ecx,8000h			; 32K
-                sub ecx,esi			; Number of bytes to copy
-		push ecx
-		shr ecx,2			; Convert to dwords
-		add esi,(real_mode_seg << 4)	; Pointer to source
-                mov edi,100000h                 ; Copy to address 100000h
-                call bcopy			; Transfer to high memory
-
-		; On exit EDI -> where to load the rest
-
-                mov si,dot_msg			; Progress report
-                call cwritestr
-                call abort_check
-
-		pop ecx				; Number of bytes in the initial portion
-		pop si				; Restore file handle/cluster pointer
-		mov eax,[KernelSize]
-		sub eax,ecx			; Amount of kernel left over
-		jbe high_load_done		; Zero left (tiny kernel)
-
-		call load_high			; Copy the file
-
-high_load_done:
-                mov ax,real_mode_seg		; Set to real mode seg
-                mov fs,ax			; FS -> real_mode_seg
-
-                mov si,dot_msg
-                call cwritestr
+nk_noinitrd:
 ;
 ; Abandon hope, ye that enter here!  We do no longer permit aborts.
 ;
@@ -2148,6 +2153,8 @@ high_load_done:
 ; and the real mode stuff to 90000h.  We assume that all bzImage kernels are
 ; capable of starting their setup from a different address.
 ;
+		mov ax,real_mode_seg
+		mov fs,ax
 
 ;
 ; Copy command line.  Unfortunately, the kernel boot protocol requires
@@ -2793,6 +2800,8 @@ loadinitrd:
                 mov es,ax
                 mov edi,[es:su_ramdiskat]	; initrd load address
 		push si
+		mov si,crlfloading_msg		; Write "Loading "
+		call cwritestr
                 mov si,InitRDCName		; Write ramdisk name
                 call cwritestr
                 mov si,dotdot_msg		; Write dots
@@ -2803,8 +2812,6 @@ loadinitrd:
 		call load_high			; Load the file
 
 		call crlf
-                mov si,loading_msg		; Write new "Loading " for
-                call cwritestr                  ; the benefit of the kernel
                 pop es                          ; Restore original ES
                 ret
 
@@ -2832,6 +2839,8 @@ load_high:
 		mov es,bx
 
 .read_loop:
+		and si,si			; If SI == 0 then we have end of file
+		jz .eof
 		push si
 		mov si,dot_msg
 		call cwritestr
@@ -2881,6 +2890,7 @@ load_high:
 		sub eax,ecx
 		jnz .read_loop			; More to read...
 		
+.eof:
 		pop es
 		ret
 
@@ -3098,10 +3108,10 @@ use_font:
 adjust_screen:
                 mov al,[BIOS_vidrows]
                 and al,al
-                jnz vidrows_is_ok
+                jnz vidrows_ok
                 mov al,24                       ; No vidrows in BIOS, assume 25
 						; (Remember: vidrows == rows-1)
-vidrows_is_ok:  mov [VidRows],al
+vidrows_ok:	mov [VidRows],al
                 mov ah,0fh
                 int 10h                         ; Read video state
                 mov [TextPage],bh
@@ -3565,7 +3575,6 @@ open:
 		popf			; Restore no ZF
 open_return:	ret
 
-;
 getc:
 		stc			; If we exit here -> EOF
 		mov ecx,[FBytes]
@@ -3580,18 +3589,18 @@ getc:
 		mov cx,[BufSafe]
 getc_oksize:	sub [FClust],cx		; Reduce remaining clusters
 		mov si,[FNextClust]
+		push es			; ES may be != DS, save old ES
+		push ds
+		pop es
 		mov bx,getcbuf
 		push bx
-		push es			; ES may be != DS, save old ES
-		push ds			; Trackbuf is in DS, not ES
-		pop es
 		call getfssec		; Load a trackbuf full of data
 		mov [FNextClust],si	; Store new next pointer
-		pop es			; Restore ES
 		pop si			; SI -> newly loaded data
+		pop es			; Restore ES
 getc_loaded:	lodsb			; Load a byte
 		mov [FPtr],si		; Update next byte pointer
-		dec dword [FBytes]	; Update bytes left counter (CF = 1)
+		dec dword [FBytes]	; Update bytes left counter
 		clc			; Not EOF
 getc_ret:	ret
 
@@ -4194,8 +4203,9 @@ vgasetmode:
 		mov ax,1A00h		; Get video card and monitor
 		xor bx,bx
 		int 10h
-		cmp bl, 8		; If not VGA card/VGA monitor, give up
-		jne .error		; ZF=0
+		sub bl, 7		; BL=07h and BL=08h OK
+		cmp bl, 1
+		ja .error		; ZF=0
 ;		mov bx,TextColorReg
 ;		mov dx,1009h		; Read color registers
 ;		int 10h
@@ -4323,7 +4333,8 @@ err_bootsec	db 'Invalid or corrupt boot sector image.', CR, LF, 0
 err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: please change disks and press '
 		db 'a key to continue.', CR, LF, 0
-ready_msg	db ' ready.', CR, LF, 0
+ready_msg	db 'Ready.', CR, LF, 0
+crlfloading_msg	db CR, LF
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
 dot_msg         db '.', 0
@@ -4340,7 +4351,7 @@ initrd_cmd_len	equ 7
 ;
 ; Config file keyword table
 ;
-		align 2
+		align 2, db 0
 keywd_table	db 'ap' ; append
 		db 'de' ; default
 		db 'ti' ; timeout

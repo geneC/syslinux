@@ -3313,10 +3313,10 @@ use_font:
 adjust_screen:
                 mov al,[BIOS_vidrows]
                 and al,al
-                jnz vidrows_is_ok
+                jnz vidrows_ok
                 mov al,24                       ; No vidrows in BIOS, assume 25
 						; (Remember: vidrows == rows-1)
-vidrows_is_ok:  mov [VidRows],al
+vidrows_ok:	mov [VidRows],al
                 mov ah,0fh
                 int 10h                         ; Read video state
                 mov [TextPage],bh
@@ -3773,8 +3773,8 @@ getc:
 getc_oksize:	sub [FClust],cx		; Reduce remaining clusters
 		mov si,[FNextClust]
 		push es			; ES may be != DS, save old ES
-		mov bx,ds
-		mov es,bx
+		push ds
+		pop es
 		mov bx,getcbuf
 		push bx
 		call getfssec		; Load a trackbuf full of data
@@ -4385,8 +4385,9 @@ vgasetmode:
 		mov ax,1A00h		; Get video card and monitor
 		xor bx,bx
 		int 10h
-		cmp bl, 8		; If not VGA card/VGA monitor, give up
-		jne .error		; ZF=0
+		sub bl, 7		; BL=07h and BL=08h OK
+		cmp bl, 1
+		ja .error		; ZF=0
 ;		mov bx,TextColorReg
 ;		mov dx,1009h		; Read color registers
 ;		int 10h
@@ -4661,4 +4662,3 @@ vgafontbuf	equ 0E000h
 %if (getcbuf+trackbufsize) > vgafontbuf
 %error "Out of memory, better reorganize something..."
 %endif
-

@@ -3747,8 +3747,8 @@ getc:
 getc_oksize:	sub [FClust],cx		; Reduce remaining clusters
 		mov si,[FNextClust]
 		push es			; ES may be != DS, save old ES
-		mov bx,ds
-		mov es,bx
+		push ds
+		pop es
 		mov bx,getcbuf
 		push bx
 		call getfssec		; Load a trackbuf full of data
@@ -4794,7 +4794,6 @@ vgasetmode:
 ;		mov bx,TextColorReg
 ;		mov dx,1009h		; Read color registers
 ;		int 10h
-.ok:
 		mov ax,0012h		; Set mode = 640x480 VGA 16 colors
 		int 10h
 		mov dx,linear_color
@@ -5145,4 +5144,3 @@ vgafontbuf	equ 0E000h
 %if (getcbuf+trackbufsize) > vgafontbuf
 %error "Out of memory, better reorganize something..."
 %endif
-
