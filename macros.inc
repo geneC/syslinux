@@ -57,6 +57,7 @@
 ; Macro to emit an unsigned decimal number as a string
 ;
 %macro asciidec	1.nolist
+%ifndef DEPEND	; Not safe for "depend"
 %if %1 >= 1000000000
 	db ((%1/1000000000) % 10) + '0'
 %endif
@@ -85,6 +86,7 @@
 	db ((%1/10) % 10) + '0'
 %endif
 	db (%1 % 10) + '0'
+%endif
 %endmacro
 
 ;
