@@ -35,6 +35,8 @@ DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
 BAUD_DIVISOR	equ 115200		; Serial port parameter
 MAX_OPEN_LG2	equ 6			; log2(Max number of open files)
 MAX_OPEN	equ (1 << MAX_OPEN_LG2)
+SECTORSIZE_LG2	equ 11			; 2048 bytes/sector (El Torito requirement)
+SECTORSIZE	equ (1 << SECTORSIZE_LG2)
 
 ;
 ; Should be updated with every release to avoid bootsector/SYS file mismatch
@@ -375,7 +377,7 @@ _start1:	xor ax,ax
 		;
 initial_csum:	xor edi,edi
 		mov si,_start1
-		mov cx,(2048-64) >> 2
+		mov cx,(SECTORSIZE-64) >> 2
 .loop:		lodsd
 		add edi,eax
 		loop .loop
@@ -383,7 +385,7 @@ initial_csum:	xor edi,edi
 
 		; Set up boot file sizes
 		mov eax,[bi_length]
-		sub eax,2048-3
+		sub eax,SECTORSIZE-3
 		shr eax,2			; bytes->dwords
 		mov [ImageDwords],eax		; boot file dwords
 		add eax,(2047 >> 2)
@@ -638,7 +640,7 @@ getlinsec_cdrom:
 		movzx eax,word [si+2]		; Sectors we read
 		add [si+8],eax			; Advance sector pointer
 		sub bp,ax			; Sectors left
-		shl ax,11-4			; 2048-byte sectors -> segment
+		shl ax,SECTORSIZE_LG2-4		; 2048-byte sectors -> segment
 		add [si+6],ax			; Advance buffer pointer
 		and bp,bp
 		jnz .loop
