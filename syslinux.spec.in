@@ -42,6 +42,7 @@ mkdir -p %{buildroot}%{_includedir}
 make install install-lib \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} \
 	LIBDIR=%{_libdir} INCDIR=%{_includedir}
+make -C sample tidy
 cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_libdir}/syslinux
 
 %clean
