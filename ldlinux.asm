@@ -990,10 +990,9 @@ searchdir:
 		push ds
 		pop es				; ES = DS
 
-		mov edx,[RootDir]		; First root directory sector
+		mov eax,[RootDir]		; First root directory sector
 
 .scansector:
-		mov eax,edx
 		call getcachesector
 		; GS:SI now points to this sector
 
