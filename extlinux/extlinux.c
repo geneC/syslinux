@@ -282,9 +282,12 @@ uint64_t get_size(int devfd)
   uint32_t sects;
   struct stat st;
 
+#ifdef BLKGETSIZE64
   if ( !ioctl(devfd, BLKGETSIZE64, &bytes) )
     return bytes;
-  else if ( !ioctl(devfd, BLKGETSIZE, &sects) )
+#endif
+
+  if ( !ioctl(devfd, BLKGETSIZE, &sects) )
     return (uint64_t)sects << 9;
   else if ( !fstat(devfd, &st) && st.st_size )
     return st.st_size;
