@@ -47,6 +47,23 @@ memcpy_endptr(void *__d, const void *__s, unsigned int __n)
   return (void *)((char *)__d + __n);
 }
 
+/* memcmp() */
+static inline int
+memcmp(const void *__a, const void *__b, unsigned int __n)
+{
+  const unsigned char *__aa = __a;
+  const unsigned char *__bb = __b;
+  int __d;
+
+  while ( __n ) {
+    __d = *__bb++ - *__aa++;
+    if ( __d )
+      return __d;
+  }
+
+  return 0;
+}
+
 /* Decompression */
 extern int check_zip(void *indata, uint32_t size, uint32_t *zbytes_p,
                      uint32_t *dbytes_p, uint32_t *orig_crc,
