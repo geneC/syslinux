@@ -361,11 +361,13 @@ const char *run_menu(void)
       break;
     case KEY_CTRL('P'):
     case KEY_PGUP:
+    case KEY_LEFT:
       entry -= MENU_ROWS;
       top   -= MENU_ROWS;
       break;
     case KEY_CTRL('N'):
     case KEY_PGDN:
+    case KEY_RIGHT:
     case ' ':
       entry += MENU_ROWS;
       top   += MENU_ROWS;
@@ -377,6 +379,15 @@ const char *run_menu(void)
     case '+':
       entry++;
       top++;
+      break;
+    case KEY_CTRL('A'):
+    case KEY_HOME:
+      top = entry = 0;
+      break;
+    case KEY_CTRL('E'):
+    case KEY_END:
+      entry = nentries - 1;
+      top = max(0, nentries-MENU_ROWS);
       break;
     case KEY_TAB:
       if ( allowedit ) {

@@ -101,12 +101,16 @@ static const struct keycode keycodes[] = {
   CODE(KEY_LEFT, "\033[D"),
   CODE(KEY_RIGHT,"\033[C"),
   CODE(KEY_PGUP, "\033[5~"),
+  CODE(KEY_PGUP, "\033[V"),
   CODE(KEY_PGDN, "\033[6~"),
+  CODE(KEY_PGDN, "\033[U"),
   CODE(KEY_HOME, "\033[1~"),
   CODE(KEY_HOME, "\033[H"),
   CODE(KEY_END,  "\033[4~"),
   CODE(KEY_END,  "\033[F"),
+  CODE(KEY_END,  "\033OF"),
   CODE(KEY_INS,  "\033[2~"),
+  CODE(KEY_INS,  "\033[@"),
   CODE(KEY_DEL,  "\033[3~"),
 };
 #define NCODES ((int)(sizeof keycodes/sizeof(struct keycode)))
