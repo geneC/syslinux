@@ -106,7 +106,7 @@ all-local: $(BTARGET) $(ITARGET)
 
 installer: installer-local
 
-installer: $(ITARGET)
+installer-local: $(ITARGET)
 	set -e ; for i in $(ISUBDIRS); do $(MAKE) -C $$i all ; done
 	-ls -l $(BOBJECTS) $(IOBJECTS)
 
