@@ -1310,7 +1310,6 @@ writechr_full:
 		push ds
 		push cs
 		pop ds
-		mov ax,cs
 		call write_serial	; write to serial port if needed
 		pushfd
 		pushad
