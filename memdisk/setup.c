@@ -527,12 +527,12 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
     pptr->dpt.fd.old_fd_dpt = rdz_32(BIOS_INT1E);
   }
 
-  /* The size is given by hptr->total_size plus the size of the
-     E820 map -- 12 bytes per range; we may need as many as
-     2 additional ranges plus the terminating range, over what
-     nranges currently show. */
+  /* The size is given by hptr->total_size plus the size of the E820
+     map -- 12 bytes per range; we may need as many as 2 additional
+     ranges (each insertrange() can worst-case turn 1 area into 3)
+     plus the terminating range, over what nranges currently show. */
 
-  total_size = hptr->total_size + (nranges+3)*12 + STACK_NEEDED;
+  total_size = hptr->total_size + (nranges+3)*sizeof(ranges[0]) + STACK_NEEDED;
   printf("Total size needed = %u bytes\n", total_size);
 
   if ( total_size > dos_mem ) {
