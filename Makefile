@@ -27,6 +27,7 @@ RANLIB   = ranlib
 NASM	 = nasm -O99
 NINCLUDE = 
 BINDIR   = /usr/bin
+SBINDIR  = /usr/sbin
 LIBDIR   = /usr/lib
 AUXDIR   = $(LIBDIR)/syslinux
 INCDIR   = /usr/include
@@ -74,6 +75,8 @@ OBSOLETE = pxelinux.bin
 
 # Things to install in /usr/bin
 INSTALL_BIN   =	mtools/syslinux gethostip ppmtolss16 lss16toppm
+# Things to install in /usr/sbin
+INSTALL_SBIN  = extlinux/extlinux
 # Things to install in /usr/lib/syslinux
 INSTALL_AUX   =	pxelinux.0 isolinux.bin isolinux-debug.bin \
 		dos/syslinux.com win32/syslinux.exe \
@@ -193,8 +196,11 @@ mkdiskimage: mkdiskimage.in mbr.bin bin2hex.pl
 	chmod a+x $@
 
 install: installer
-	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR) $(INSTALLROOT)$(AUXDIR)
+	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR)
 	install -m 755 -c $(INSTALL_BIN) $(INSTALLROOT)$(BINDIR)
+	mkdir -m 755 -p $(INSTALLROOT)$(SBINDIR)
+	install -m 755 -c $(INSTALL_SBIN) $(INSTALLROOT)$(SBINDIR)
+	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)
 	install -m 644 -c $(INSTALL_AUX) $(INSTALLROOT)$(AUXDIR)
 	$(MAKE) -C com32 install
 

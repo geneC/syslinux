@@ -46,10 +46,11 @@ make -C sample tidy
 %install
 rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_bindir}
+mkdir -p %{buildroot}%{_sbindir}
 mkdir -p %{buildroot}%{_libdir}/syslinux
 mkdir -p %{buildroot}%{_includedir}
 make install-all \
-	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} \
+	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} SBINDIR=%{_sbindir} \
 	LIBDIR=%{_libdir} INCDIR=%{_includedir}
 make -C sample tidy
 cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_libdir}/syslinux
@@ -62,7 +63,7 @@ rm -rf %{buildroot}
 %doc NEWS README* *.doc memdisk/*.doc COPYING
 %doc sample
 %{_bindir}/syslinux
-%{_bindir}/extlinux
+%{_sbindir}/extlinux
 %{_bindir}/ppmtolss16
 %{_bindir}/lss16toppm
 %{_bindir}/gethostip
