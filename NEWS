@@ -1,3 +1,6 @@
+Changes in 1.45:
+	* Serial console support.  See syslinux.doc for details.
+
 Changes in 1.44:
 	* Change HIGHMEM_MAX to 38000000h to (hopefully) avoid the
 	  kernel stepping on it; 3f000000h was apparently a higher

@@ -33,6 +33,7 @@
 max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
 retry_count	equ 6			; How patient are we with the disk?
 HIGHMEM_MAX	equ 038000000h		; Highest address for an initrd
+DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
 
 ;
 ; Should be updated with every release to avoid bootsector/SYS file mismatch
@@ -141,7 +142,7 @@ vk_end:		equ $			; Should be <= vk_size
 vk_seg          equ 8000h		; This is where we stick'em
 xfer_buf_seg	equ 7000h		; Bounce buffer for I/O to high mem
 fat_seg		equ 5000h		; 128K area for FAT (2x64K)
-comboot_seg	equ 1000h		; COMBOOT image loading zone
+comboot_seg	equ 2000h		; COMBOOT image loading zone
 
 ;
 ; For our convenience: define macros for jump-over-unconditinal jumps
@@ -344,6 +345,7 @@ NextCharJump    resw 1			; Routine to interpret next print char
 SetupSecs	resw 1			; Number of setup sectors
 SavedSP		resw 1			; Our SP while running a COMBOOT image
 A20Test		resw 1			; Counter for testing status of A20
+SerialPort	resw 1			; Serial port no (or -1 for no serial port)
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -357,6 +359,7 @@ RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
+FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
 MNameBuf        resb 11            	; Generic mangled file name buffer
 InitRD          resb 11                 ; initrd= mangled name
 KernelCName     resb 13                 ; Unmangled kernel name
@@ -1218,6 +1221,8 @@ parse_config:
 		je pc_kernel
                 cmp ax,'im'                     ; IMplicit
                 je near pc_implicit
+		cmp ax,'se'			; SErial
+		je near pc_serial
 		cmp al,'f'			; F-key
 		jne parse_config
 		jmp pc_fkey
@@ -1280,6 +1285,26 @@ pc_implicit:    call getint                     ; "implicit" command
                 mov [AllowImplicit],bx
                 jmp short parse_config_2
 
+pc_serial:	call getint			; "serial" command
+		jc parse_config_2
+		mov [SerialPort],bx
+		call skipspace
+		call getint
+;		jnc .valid_baud
+;		mov ebx,DEFAULT_BAUD		; No baud rate given
+;.valid_baud:	mov ecx,9600
+		mov ax,00e3h			; INT 14h init parameters
+;.baud_loop:	cmp ebx,ecx
+;		jae .this_baud
+;		sub al,020h
+;		shr ecx,1
+;		jmp short .baud_loop
+.this_baud:	mov dx,[SerialPort]
+		int 14h				; Initialize serial port
+		mov al,'>'
+		call write_serial
+		jmp short parse_config_2		
+
 pc_fkey:	sub ah,'1'
 		jnb pc_fkey1
 		mov ah,9			; F10
@@ -1316,10 +1341,10 @@ pc_label:	call commit_vk			; Commit any current vkernel
                 mov cx,[AppendLen]
                 mov [VKernelBuf+vk_appendlen],cx
                 rep movsb
-		jmp short parse_config_2
+		jmp near parse_config_3
 
 pc_font:	call pc_getfile			; "font" command
-		jz parse_config_2		; File not found?
+		jz parse_config_3		; File not found?
 		call loadfont			; Load and install font
 		jmp short parse_config_3
 
@@ -1381,8 +1406,9 @@ check_for_key:
 
 enter_command:
 		mov si,boot_prompt
-		call writestr
+		call cwritestr
 
+		mov byte [FuncFlag],0		; <Ctrl-F> not pressed
 		mov di,command_line
 ;
 ; get the very first character -- we can either time
@@ -1406,7 +1432,14 @@ tick_loop:	push dx
 		mov ah,1			; Check for pending keystroke
 		int 16h
 		jnz get_char_pop
-		xor ax,ax
+		mov dx,[SerialPort]		; Check for serial port input
+		cmp dx,byte -1
+		je .noserial
+		mov ax,0300h
+		int 14h
+		test ah,1			; Receive data ready
+		jnz get_char_pop
+.noserial:	xor ax,ax
 		int 1Ah				; Get time "of day"
 		pop ax
 		cmp dx,ax			; Has the timer advanced?
@@ -1414,45 +1447,89 @@ tick_loop:	push dx
 		pop cx
 		loop time_loop			; If so, decrement counter
 		jmp command_done		; Timeout!
-get_char_pop:	pop eax				; Clear the stack
-get_char:	xor ax,ax			; Get char
+
+get_char_pop:	pop eax				; Clear stack
+get_char:	mov ah,1			; Keyboard char ready?
+		int 16h
+		jnz get_kbd
+		mov dx,[SerialPort]		; Serial port input?
+		cmp dx,byte -1
+		je get_char
+		mov ax,0300h
+		int 14h
+		test ah,1
+		jz get_char
+
+get_serial:	mov ax,0200h			; Get char from serial port
+		mov dx,[SerialPort]
+		int 14h
+		jmp short got_ascii
+
+get_kbd:	xor ax,ax			; Get char
 		int 16h
 		and al,al
 		jz func_key
 		mov bx,KbdMap			; Keyboard map translation
 		xlatb
+
+got_ascii:	cmp al,7Fh			; <DEL> == <BS>
+		je backspace
 		cmp al,' '			; ASCII?
 		jb not_ascii
 		ja enter_char
 		cmp di,command_line		; Space must not be first
 		je get_char
-enter_char:	cmp di,max_cmd_len+command_line ; Check there's space
+enter_char:	test byte [FuncFlag],1
+		jz .not_ctrl_f
+		mov byte [FuncFlag],0
+		cmp al,'0'
+		jb .not_ctrl_f
+		je ctrl_f_0
+		cmp al,'9'
+		jbe ctrl_f
+.not_ctrl_f:	cmp di,max_cmd_len+command_line ; Check there's space
 		jnb get_char
 		stosb				; Save it
 		call writechr			; Echo to screen
-		jmp short get_char
-not_ascii:	cmp al,0Dh			; Enter
+get_char_2:	jmp short get_char
+not_ascii:	mov byte [FuncFlag],0
+		cmp al,0Dh			; Enter
 		je command_done
+		cmp al,06h			; <Ctrl-F>
+		je set_func_flag
 		cmp al,08h			; Backspace
 		jne get_char
-		cmp di,command_line		; Make sure there is anything
+backspace:	cmp di,command_line		; Make sure there is anything
 		je get_char			; to erase
 		dec di				; Unstore one character
 		mov si,wipe_char		; and erase it from the screen
-		call writestr
-		jmp short get_char
+		call cwritestr
+		jmp short get_char_2
+
+set_func_flag:
+		mov byte [FuncFlag],1
+		jmp short get_char_2
+
+ctrl_f_0:	add al,10			; <Ctrl-F>0 == F10
+ctrl_f:		push di
+		sub al,'0'
+		xor ah,ah
+		jmp short show_help
+
 func_key:
 		push di
 		cmp ah,68			; F10
-		ja get_char
+		ja get_char_2
 		sub ah,59			; F1
-		jb get_char
-		mov cl,ah
-		shr ax,4			; Convert to x16
+		jb get_char_2
+		shr ax,8
+show_help:	; AX = func key # (0 = F1, 9 = F10)
+		mov cl,al
+		shl ax,4			; Convert to x16
 		mov bx,1
 		shl bx,cl
 		and bx,[FKeyMap]
-		jz get_char			; Undefined F-key
+		jz get_char_2			; Undefined F-key
 		mov di,ax
 		add di,FKeyName
 		call searchdir
@@ -1461,17 +1538,17 @@ func_key:
 		jmp short fk_wrcmd
 fk_nofile:
 		mov si,crlf_msg
-		call writestr
+		call cwritestr
 fk_wrcmd:
 		mov si,boot_prompt
-		call writestr
+		call cwritestr
 		pop di				; Command line write pointer
 		push di
 		mov byte [di],0			; Null-terminate command line
 		mov si,command_line
-		call writestr			; Write command line so far
+		call cwritestr			; Write command line so far
 		pop di
-		jmp short get_char
+		jmp short get_char_2
 auto_boot:
 		mov si,default_cmd
 		mov di,command_line
@@ -1480,7 +1557,7 @@ auto_boot:
 		jmp short load_kernel
 command_done:
 		mov si,crlf_msg
-		call writestr
+		call cwritestr
 		cmp di,command_line		; Did we just hit return?
 		je auto_boot
 		xor al,al			; Store a final null
@@ -1569,9 +1646,9 @@ bad_kernel:
 		push di
                 call unmangle_name              ; Get human form
 		mov si,err_notfound		; Complain about missing kernel
-		call writestr
+		call cwritestr
 		pop si				; KernelCName
-                call writestr
+                call cwritestr
                 mov si,crlf_msg
                 jmp abort_load                  ; Ask user for clue
 ;
@@ -1898,9 +1975,9 @@ memsize_ok:
 
 initrd_notthere:
                 mov si,err_noinitrd
-                call writestr
+                call cwritestr
                 mov si,InitRDCName
-                call writestr
+                call cwritestr
                 mov si,crlf_msg
                 jmp abort_load
 
@@ -2052,7 +2129,7 @@ kill_motor:
 ; routines, print a CRLF to end the row of dots
 ;
 		mov si,crlf_msg
-		call writestr
+		call cwritestr
 ;
 ; If we're debugging, wait for a keypress so we can read any debug messages
 ;
@@ -2156,7 +2233,7 @@ comboot_end_cmd: mov al,0Dh		; CR after last character
 ; Looks like a COMBOOT image but too large
 comboot_too_large:
 		mov si,err_comlarge
-		call writestr
+		call cwritestr
 cb_enter:	jmp enter_command
 
 ; Proper return vector
@@ -2180,9 +2257,9 @@ comboot_bogus:	cli			; Don't trust anyone
 		sti
 		cld
 		mov si,KernelCName
-		call writestr
+		call cwritestr
 		mov si,err_notdos
-		call writestr
+		call cwritestr
 		jmp short cb_enter
 
 ;
@@ -2241,7 +2318,7 @@ load_bootsec:
 
 bad_bootsec:
 		mov si,err_bootsec
-		call writestr
+		call cwritestr
 		jmp enter_command
 
 ;
@@ -2251,14 +2328,15 @@ bad_bootsec:
 ;
 cwritestr:
                 pusha
-cwstr_1:        lodsb
+.top:		lodsb
 		and al,al
-                jz cwstr_2
+                jz .end
+		call write_serial	; Write to serial port if enabled
 		mov ah,0Eh		; Write to screen as TTY
 		mov bx,0007h		; White on black, current page
 		int 10h
-                jmp short cwstr_1
-cwstr_2:        popa
+                jmp short .top
+.end:		popa
                 ret
 
 ;
@@ -2506,9 +2584,9 @@ rd_last_moby:
 rd_load_done:
                 pop si                          ; Clean up the stack
                 mov si,crlf_msg
-		call writestr
+		call cwritestr
                 mov si,loading_msg		; Write new "Loading " for
-                call writestr                   ; the benefit of the kernel
+                call cwritestr                  ; the benefit of the kernel
                 pop es                          ; Restore original ES
                 ret
 
@@ -2549,7 +2627,7 @@ abort_load:
                 mov sp,StackBuf-2*3    		; Reset stack
                 mov ss,ax                       ; Just in case...
                 sti
-                call writestr                   ; Expects SI -> error msg
+                call cwritestr                  ; Expects SI -> error msg
 al_ok:          jmp enter_command               ; Return to command prompt
 ;
 ; End of abort_check
@@ -2652,6 +2730,7 @@ dir_return:
 ;		mangling any registers
 ;
 writechr:
+		call write_serial	; write to serial port if needed
 		pusha
 		mov ah,0Eh
 		mov bx,0007h		; white text on this page
@@ -2790,6 +2869,8 @@ msg_putchar:                                    ; Normal character
                 je msg_newline
                 cmp al,0Ch                      ; <FF> = clear screen
                 je msg_formfeed
+
+msg_normal:	call write_serial		; Write to serial port
                 mov bx,[TextAttrBX]
                 mov ah,09h                      ; Write character/attribute
                 mov cx,1                        ; One character only
@@ -2799,6 +2880,7 @@ msg_putchar:                                    ; Normal character
                 cmp al,[VidCols]
                 ja msg_newline
                 mov [CursorCol],al
+
 msg_gotoxy:     mov bh,[TextPage]
                 mov dx,[CursorDX]
                 mov ah,02h                      ; Set cursor position
@@ -2808,6 +2890,10 @@ msg_ctrl_o:                                     ; ^O = color code follows
                 mov word [NextCharJump],msg_setbg
                 ret
 msg_newline:                                    ; Newline char or end of line
+		mov al,0Dh
+		call write_serial
+		mov al,0Ah
+		call write_serial
                 mov byte [CursorCol],0
                 mov al,[CursorRow]
                 inc ax
@@ -2823,6 +2909,10 @@ msg_scroll:     xor cx,cx                       ; Upper left hand corner
                 int 10h
                 jmp short msg_gotoxy
 msg_formfeed:                                   ; Form feed character
+		mov al,0Dh
+		call write_serial
+		mov al,0Ch
+		call write_serial
                 xor cx,cx
                 mov [CursorDX],cx		; Upper lefthand corner
                 mov dx,[ScreenSize]
@@ -2847,6 +2937,19 @@ msg_color_bad:
                 mov byte [TextAttribute],07h	; Default attribute
                 mov word [NextCharJump],msg_putchar
                 ret
+
+;
+; write_serial:	If serial output is enabled, write character on serial port
+;
+write_serial:
+		pusha
+		mov dx,[SerialPort]
+		cmp dx,byte -1
+		je .noserial
+		mov ah,01h
+		int 14h
+.noserial:	popa
+		ret
 
 ;
 ; open,getc:	Load a file a character at a time for parsing in a manner
@@ -2991,11 +3094,11 @@ gkw_eof_pop:	pop ax
 gkw_eof:	ret			; CF = 1 on all EOF conditions
 gkw_missingpar: pop ax
                 mov si,err_noparm
-                call writestr
+                call cwritestr
                 jmp gkw_find
 gkw_badline_pop: pop ax
 gkw_badline:	mov si,err_badcfg
-		call writestr
+		call cwritestr
 		jmp short gkw_find
 gkw_skipline:	cmp al,10		; Scan for LF
 		je gkw_find
@@ -3183,7 +3286,7 @@ dumpregs	proc near		; When calling, IP is on stack
 		pop ds
 		cld			; Clear direction flag
 		mov si,offset crlf_msg
-		call writestr
+		call cwritestr
 		mov bx,sp
 		add bx,byte 26
 		mov si,offset regnames
@@ -3430,6 +3533,7 @@ keywd_table	db 'ap' ; append
 		db 'la' ; label
                 db 'im' ; implicit
 		db 'ke' ; kernel
+		db 'se' ; serial
 		db 'f1' ; F1
 		db 'f2' ; F2
 		db 'f3' ; F3
