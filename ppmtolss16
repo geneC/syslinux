@@ -53,9 +53,9 @@ sub rgbconvert($$) {
     my($r,$g,$b);
 
     ($r, $g, $b) = unpack("CCC", $rgb);
-    $r = int($r*$maxmult+0.5);
-    $g = int($g*$maxmult+0.5);
-    $b = int($b*$maxmult+0.5);
+    $r = int($r*$maxmult);
+    $g = int($g*$maxmult);
+    $b = int($b*$maxmult);
     $rgb = pack("CCC", $r, $g, $b);
     return $rgb;
 }
