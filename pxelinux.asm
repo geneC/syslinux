@@ -258,6 +258,8 @@ tftp_filesize	resd 1			; Total file size
 
 		absolute 0400h
 serial_base	resw 4			; Base addresses for 4 serial ports
+		absolute 0413h
+BIOS_fbm	resw 1			; Free Base Memory (kilobytes)
 		absolute 046Ch
 BIOS_timer	resw 1			; Timer ticks
 		absolute 0472h
@@ -416,6 +418,12 @@ _start1:
 		cmp word [es:bx+4], 'V+'
 		je have_pxenv
 
+		; Nothing there either.  Last-ditch: scan memory
+		call memory_scan_for_pxe_struct		; !PXE scan
+		jnc have_pxe
+		call memory_scan_for_pxenv_struct	; PXENV+ scan
+		jnc have_pxenv
+
 no_pxe:		mov si,err_nopxe
 		call writestr
 		jmp kaboom
@@ -438,7 +446,12 @@ have_pxenv:
 		cmp dword [es:bx],'!PXE'
 		je have_pxe
 
-		; Nope, !PXE structure missing despite API 2.1+
+		; Nope, !PXE structure missing despite API 2.1+, or at least
+		; the pointer is missing.  Do a last-ditch attempt to find it.
+		call memory_scan_for_pxe_struct
+		jne have_pxe
+
+		; Otherwise, no dice, use PXENV+ structure
 		mov bx,si
 		mov es,ax
 
@@ -449,6 +462,7 @@ old_api:	; Need to use a PXENV+ structure
 		mov eax,[es:bx+0Ah]		; PXE RM API
 		mov [PXENVEntry],eax
 		jmp short have_pxe_entry
+
 have_pxe:
 		mov eax,[es:bx+10h]
 		mov [PXEEntry],eax
@@ -2122,6 +2136,90 @@ kaboom:
 		call crlf
 		mov word [BIOS_magic],0	; Cold reboot
 		jmp 0F000h:0FFF0h	; Reset vector address
+
+;
+; memory_scan_for_pxe_struct:
+;
+;	If none of the standard methods find the !PXE structure, look for it
+;	by scanning memory.
+;
+;	On exit, if found:
+;		CF = 0, ES:BX -> !PXE structure
+;	Otherwise CF = 1, all registers saved
+;	
+memory_scan_for_pxe_struct:
+		pusha
+		mov ax,[BIOS_fbm]	; Starting segment
+		shl ax,(10-4)		; Kilobytes -> paragraphs
+		dec ax			; To skip inc ax
+.mismatch:
+		inc ax
+		cmp ax,0A000h		; End of memory
+		jae .not_found
+		mov es,ax
+		mov edx,[es:si]
+		cmp edx,'!PXE'
+		jne .mismatch
+		movzx cx,byte [es:4]	; Length of structure
+		cmp cl,58h		; Minimum length
+		jb .mismatch
+		xor ax,ax
+		xor si,si
+.checksum:	es lodsb
+		add ah,al
+		loop .checksum
+		and ah,ah
+		jnz .mismatch		; Checksum must == 0
+.found:		add sp,byte 8*2		; Adjust stack
+		clc
+		ret
+.not_found:	popa
+		stc
+		ret
+
+;
+; memory_scan_for_pxenv_struct:
+;
+;	If none of the standard methods find the PXENV+ structure, look for it
+;	by scanning memory.
+;
+;	On exit, if found:
+;		CF = 0, ES:BX -> PXENV+ structure
+;	Otherwise CF = 1, all registers saved
+;	
+memory_scan_for_pxenv_struct:
+		pusha
+		mov ax,[BIOS_fbm]	; Starting segment
+		shl ax,(10-4)		; Kilobytes -> paragraphs
+		dec ax			; To skip inc ax
+.mismatch:
+		inc ax
+		cmp ax,0A000h		; End of memory
+		jae .not_found
+		mov es,ax
+		mov edx,[es:0]
+		cmp edx,'PXEN'
+		jne .mismatch
+		mov dx,[es:4]
+		cmp dx,'V+'
+		jne .mismatch
+		movzx cx,byte [es:8]	; Length of structure
+		cmp cl,26h		; Minimum length
+		jb .mismatch
+		xor ax,ax
+		xor si,si
+.checksum:	es lodsb
+		add ah,al
+		loop .checksum
+		and ah,ah
+		jnz .mismatch		; Checksum must == 0
+.found:		add sp,byte 8*2		; Adjust stack
+		clc
+		ret
+.not_found:	popad
+		stc
+		ret
+
 ;
 ; searchdir:
 ;
