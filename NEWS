@@ -3,6 +3,7 @@ apply to that specific program only; other changes apply to both.
 
 Changes in 1.70:
 	* Major code restructuring.
+	* Relax the conventional memory limits somewhat.
 	* MEMDISK: Set up the "version number string" pointer in the
 	  header correctly.
         * SYSLINUX: Fix, again, "the bug that won't die": the use of

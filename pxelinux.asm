@@ -788,10 +788,10 @@ not_386:
 is_386:
 		; Now we know it's a 386 or higher
 ;
-; Now check that there is at least 384K of low (DOS) memory
+; Now check that there is sufficient low (DOS) memory
 ;
 		int 12h
-		cmp ax,384
+		cmp ax,(real_mode_seg+0xa00) >> 6
 		jae enough_ram
 		mov si,err_noram
 		call writestr
