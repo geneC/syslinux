@@ -49,8 +49,11 @@ ldlinux_bin.c: ldlinux.sys bin2c.pl
 syslinux: syslinux.o bootsect_bin.o ldlinux_bin.o
 	$(CC) $(LDFLAGS) -o syslinux syslinux.o bootsect_bin.o ldlinux_bin.o
 
-clean:
-	rm -f *.bin *.lst *.sys *_bin.c syslinux syslinux.com
+tidy:
+	rm -f *.bin *.lst *.sys *.o *_bin.c
 
-distclean: clean
+clean: tidy
+	rm -f syslinux syslinux.com
+
+dist: tidy
 	rm -f *~ \#*

@@ -23,14 +23,15 @@
  * setuid safe.
  */
 
+#include <errno.h>
+#include <fcntl.h>
+#include <mntent.h>
 #include <paths.h>
 #include <stdio.h>
-#include <mntent.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #ifndef _PATH_MOUNT
 #define _PATH_MOUNT "/bin/mount"
@@ -45,7 +46,7 @@ extern const unsigned int  ldlinux_len;
 char *program;			/* Name of program */
 char *device;			/* Device to install to */
 
-enum bs_offsets = {
+enum bs_offsets {
   bsJump          = 0x00,
   bsOemName       = 0x03,
   bsBytesPerSec   = 0x0b,
@@ -76,21 +77,21 @@ enum bs_offsets = {
 /*
  * Access functions for littleendian numbers, possibly misaligned.
  */
-static uint16 get_16(unsigned char *p)
+static u_int16_t get_16(unsigned char *p)
 {
-  return (uint16)p[0] + ((uint16)p[1] << 8);
+  return (u_int16_t)p[0] + ((u_int16_t)p[1] << 8);
 }
 
-static uint32 get_32(unsigned char *p)
+static u_int32_t get_32(unsigned char *p)
 {
-  return (uint32)p[0] + ((uint32)p[1] << 8) +
-    ((uint32)p[2] << 16) + ((uint32)p[3] << 24);
+  return (u_int32_t)p[0] + ((u_int32_t)p[1] << 8) +
+    ((u_int32_t)p[2] << 16) + ((u_int32_t)p[3] << 24);
 }
 
 int main(int argc, char *argv[])
 {
   static unsigned char sectbuf[512], *dp;
-  int *dev_fd;
+  int dev_fd;
   struct stat st;
   int nb, left, veryold;
   unsigned int sectors, clusters;
@@ -115,14 +116,14 @@ int main(int argc, char *argv[])
   }
 
   if ( !S_ISBLK(st.st_mode) || !S_ISREG(st.st_mode) ) {
-    fprintf("%s: not a block device or regular file\n", device);
+    fprintf(stderr, "%s: not a block device or regular file\n", device);
     exit(1);
   }
 
   left = 512;
   dp = sectbuf;
   while ( left ) {
-    nb = read(dp, left, dev_fd);
+    nb = read(dev_fd, dp, left);
     if ( nb == -1 && errno == EINTR )
       continue;
     if ( nb < 0 ) {
@@ -135,7 +136,7 @@ int main(int argc, char *argv[])
     dp += nb;
     left -= nb;
   }
-  close(device);
+  close(dev_fd);
   
   /*
    * Check to see that what we got was indeed an MS-DOS boot sector/superblock
@@ -151,14 +152,14 @@ int main(int argc, char *argv[])
     clusters = sectors / sectbuf[bsSecPerClust];
 
     if ( !memcmp(sectbuf+bsFileSysType, "FAT12   ", 8) ) {
-      if ( clust > 4086 ) {
+      if ( clusters > 4086 ) {
 	fprintf(stderr, "%s: ERROR: FAT12 but claims more than 4086 clusters\n",
 		device);
 	exit(1);
       }
     } else {
       fprintf(stderr, "%s: filesystem type \"%8.8s\" not supported\n",
-	      sectbuf+bsFileSysType);
+	      device, sectbuf+bsFileSysType);
       exit(1);
     }
   } else {
@@ -199,7 +200,7 @@ int main(int argc, char *argv[])
     struct mntent *mnt;
 
     if ( !(fstab = setmntent(MNTTAB, "r")) ) {
-      fprintf("%s: cannot open " MNTTAB "\n", program);
+      fprintf(stderr, "%s: cannot open " MNTTAB "\n", program);
     }
     
     while ( (mnt = getmntent(fstab)) ) {
@@ -208,6 +209,11 @@ int main(int argc, char *argv[])
 	     !strcmp(mnt->mnt_type, "umsdos") ||
 	     !strcmp(mnt->mnt_type, "vfat") ||
 	     !strcmp(mnt->mnt_type, "uvfat") ||
-	     !strcmp(mnt->mnt_type, "auto")
+	     !strcmp(mnt->mnt_type, "auto") ) {
+	}
+      }
+    }
+  }
+
   return 0;
 }
