@@ -275,9 +275,6 @@ uint32_t setup(void)
   driveraddr  = stddosmem - total_size;
   driveraddr &= ~0x3FF;
 
-  /* Anything beyond the end is for the stack */
-  pptr->mystack = (uint16_t)(stddosmem-driveraddr);
-
   printf("Old dos memory at 0x%05x (map says 0x%05x), loading at 0x%05x\n",
 	 stddosmem, dos_mem, driveraddr);
 
@@ -294,6 +291,9 @@ uint32_t setup(void)
 
   driverseg = driveraddr >> 4;
   driverptr = driverseg  << 16;
+
+  /* Anything beyond the end is for the stack */
+  pptr->mystack    = (uint16_t)(stddosmem-driveraddr);
 
   pptr->oldint13 = rdz_32(BIOS_INT13);
   pptr->oldint15 = rdz_32(BIOS_INT15);

@@ -85,6 +85,7 @@ Int13Start:
 		mov ax,[SavedAX]
 		pushad
 		mov bp,sp		; Point BP to the entry stack frame
+		; Note: AH == P_AH here
 		cmp ah,Int13FuncsMax
 		jae Invalid
 		xor al,al		; AL = 0 is standard entry condition
@@ -98,15 +99,15 @@ DoneWeird:
 		mov [LastStatus],ah
 		and ah,ah
 
+		lds ebx,[Stack]
+		; This sets the low byte (the arithmetric flags) of the
+		; FLAGS on stack to either 00h (no flags) or 01h (CF)
+		; depending on if AH was zero or not.
+		setnz [bx+4]		; Set CF iff error
 		popad
 		pop es
 		pop ds
 		lss esp,[cs:Stack]
-
-		; This sets the low byte (the arithmetric flags) of the
-		; FLAGS on stack to either 00h (no flags) or 01h (CF)
-		; depending on if AH was zero or not.
-		setnz [esp+4]		; Set CF iff error
 		iret
 
 Reset:
@@ -212,12 +213,12 @@ setup_regs:
 		movzx edi,P_DH		; Head number
 		movzx eax,word [Heads]
 		shr cl,6
-		xchg cl,ch		; Now CX <- cylinder number
+		xchg cl,ch		; Now (E)CX <- cylinder number
 		mul ecx			; eax <- Heads*cyl# (edx <- 0)
 		add eax,edi
 		mul dword [Sectors]
 		add eax,ebx
-		; Now eax = LBA
+		; Now eax = LBA, edx = 0
 
 		;
 		; setup_regs continues...
@@ -229,8 +230,8 @@ setup_regs:
 		add edi,ecx		; EDI = address to fetch to
 		movzx ecx,P_AL		; Sector count
 		mov esi,eax
-		add eax,ecx
-		shl esi,SECTORSIZE_LG2
+		add eax,ecx		; LBA of final sector + 1
+		shl esi,SECTORSIZE_LG2	; LBA -> byte offset
 		add esi,[DiskBuf]	; Get address in high memory
 		cmp eax,[DiskSize]	; Check the high mark against limit
 		ja .overrun
@@ -277,12 +278,12 @@ int15_e820:
 		pop ds
 		mov ecx,20		; Bytes loaded
 int15_success:
-		mov byte [bp+12], 02h	; Clear CF
+		mov byte [bp+6], 02h	; Clear CF
 		pop bp
 		iret
 
 err86:
-		mov byte [bp+12], 03h	; Set CF
+		mov byte [bp+6], 03h	; Set CF
 		mov ah,86h
 		pop bp
 		iret
@@ -340,7 +341,7 @@ bcopy:
 		jna .safe_size
 		mov ecx,8000h
 .safe_size:
-		push ecx
+		push ecx	; Transfer size this cycle
 		mov eax, esi
 		mov [Mover_src1], si
 		shr eax, 16
@@ -354,7 +355,8 @@ bcopy:
 		mov si,Mover
 		mov ah, 87h
 		int 15h
-		pop eax
+		cli		; Some BIOSes enable interrupts on INT 15h
+		pop eax		; Transfer size this cycle
 		pop ecx
 		pop edi
 		pop esi
@@ -411,6 +413,7 @@ Mover_dst1:	db 0, 0, 0		; Low 24 bits of target addy
 		db 93h			; Access rights
 		db 00h			; Extended access rights
 Mover_dst2:	db 0			; High 8 bits of source addy
+Mover_dummy2:	dd 0, 0, 0, 0		; More space for the BIOS
 
 LastStatus	db 0			; Last return status
 
@@ -436,7 +439,6 @@ DriveNo		db 0			; Our drive number
 DriveType	db 0			; Our drive type (floppies)
 
 MyStack		dw 0			; Offset of stack
-		dw 0			; Padding
 
 		; End patch area
 

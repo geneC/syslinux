@@ -26,8 +26,13 @@ OBJS    = init.o16 setup.o16 msetup.o16 e820func.o16 conio.o16 memdisk.o
 
 all: memdisk e820test
 
+# tidy removes everything except the final binary
+tidy:
+	rm -f *.o *.s *.o16 *.s16 *.bin *.lst *.elf e820test
+
+# clean also removes the product binary
 clean:
-	rm -f *.o *.s *.o16 *.s16 *.bin *.lst *.elf e820test memdisk
+	rm -f memdisk
 
 %.o16: %.s16
 	$(AS) -o $@ $<
