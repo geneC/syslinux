@@ -27,6 +27,15 @@ struct memdisk_header {
   uint16_t total_size;
 };
 
+/* The Disk Parameter Table is required on hard disks */
+struct dpt {
+  uint16_t max_cyl;		/* Max cylinder */
+  uint8_t max_head;		/* Max head */
+  uint8_t junk1[5];		/* Obsolete junk, leave at zero */
+  uint8_t ctrl;			/* Control byte */
+  uint8_t junk2[7];		/* More obsolete junk */
+};
+
 struct patch_area {
   uint16_t cylinders;
   uint16_t heads;
@@ -49,17 +58,9 @@ struct patch_area {
   uint8_t  _pad1;
 
   uint16_t bpt_offs, bpt_seg;
+  uint16_t statusptr;
 
   uint16_t mystack;
-};
-
-/* The Disk Parameter Table is required on hard disks */
-struct dpt {
-  uint16_t max_cyl;		/* Max cylinder */
-  uint8_t max_head;		/* Max head */
-  uint8_t junk1[5];		/* Obsolete junk, leave at zero */
-  uint8_t ctrl;			/* Control byte */
-  uint8_t junk2[7];		/* More obsolete junk */
 };
 
 /* This is the header in the boot sector/setup area */
@@ -197,6 +198,7 @@ rdz_32(uint32_t addr)
 /* Addresses in the zero page */
 #define BIOS_INT13	(0x13*4) /* INT 13h vector */
 #define BIOS_INT15	(0x15*4) /* INT 15h vector */
+#define BIOS_INT40	(0x40*4) /* INT 13h vector */
 #define BIOS_INT41      (0x41*4) /* INT 41h vector */
 #define BIOS_INT46      (0x46*4) /* INT 46h vector */
 #define BIOS_BASEMEM	0x413	 /* Amount of DOS memory */
@@ -458,6 +460,7 @@ uint32_t setup(void)
   pptr->sectors   = geometry->s;
   pptr->disksize  = geometry->sectors;
   pptr->diskbuf   = shdr->ramdisk_image;
+  pptr->statusptr = (geometry->driveno & 0x80) ? 0x474 : 0x441;
 
   /* The size is given by hptr->total_size plus the size of the
      E820 map -- 12 bytes per range; we may need as many as
@@ -514,23 +517,6 @@ uint32_t setup(void)
     ranges[--nranges].type = -1;
   }
 
-  /* Copy driver followed by E820 table */
-  asm volatile("pushw %%es ; "
-	       "movw %0,%%es ; "
-	       "cld ; "
-	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
-	       "movw %1,%%cx ; "
-	       "movw %2,%%si ; "
-	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
-	       "popw %%es"
-	       :: "r" (driverseg),
-	       "r" ((uint16_t)((nranges+1)*3)), /* 3 dwords/range */
-	       "r" ((uint16_t)&ranges),
-	       "c" (bin_size >> 2),
-	       "S" (&_binary_memdisk_bin_start),
-	       "D" (0)
-	       : "esi", "edi", "ecx");
-
   /* Query drive parameters of this type */
   {
     uint16_t bpt_es, bpt_di;
@@ -550,24 +536,46 @@ uint32_t setup(void)
 		 : "esi", "ebx", "ebp");
 
     if ( cf ) {
+      printf("INT 13 08: Failure\n");
       pptr->drivecnt = 1;
       pptr->bpt_offs = pptr->bpt_seg = 0;
     } else {
+      printf("INT 13 08: Success, count = %u, BPT = %04x:%04x\n",
+	     dl, bpt_es, bpt_di);
       pptr->drivecnt = dl+1;
       pptr->bpt_offs = bpt_di;
       pptr->bpt_seg  = bpt_es;
     }
   }
 
+  /* Copy driver followed by E820 table */
+  asm volatile("pushw %%es ; "
+	       "movw %0,%%es ; "
+	       "cld ; "
+	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
+	       "movw %1,%%cx ; "
+	       "movw %2,%%si ; "
+	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
+	       "popw %%es"
+	       :: "r" (driverseg),
+	       "r" ((uint16_t)((nranges+1)*3)), /* 3 dwords/range */
+	       "r" ((uint16_t)&ranges),
+	       "c" (bin_size >> 2),
+	       "S" (&_binary_memdisk_bin_start),
+	       "D" (0)
+	       : "esi", "edi", "ecx");
+
   /* Install the interrupt handlers */
-  printf("old: int13 = %08x  int15 = %08x\n",
-	 rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
+  {
+    printf("old: int13 = %08x  int15 = %08x\n",
+	   rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
 
-  wrz_32(BIOS_INT13, driverptr+hptr->int13_offs);
-  wrz_32(BIOS_INT15, driverptr+hptr->int15_offs);
+    wrz_32(BIOS_INT13, driverptr+hptr->int13_offs);
+    wrz_32(BIOS_INT15, driverptr+hptr->int15_offs);
 
-  printf("new: int13 = %08x  int15 = %08x\n",
-	 rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
+    printf("new: int13 = %08x  int15 = %08x\n",
+	   rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
+  }
 
   /* Update various BIOS magic data areas (gotta love this shit) */
 
@@ -575,6 +583,7 @@ uint32_t setup(void)
     /* Update BIOS hard disk count */
     wrz_8(BIOS_HD_COUNT, rdz_8(BIOS_HD_COUNT)+1);
   } else {
+#if 0				/* Apparently this is NOT wanted... */
     /* Update BIOS floppy disk count */
     uint16_t equip = rdz_16(BIOS_EQUIP);
     if ( equip & 1 ) {
@@ -586,6 +595,7 @@ uint32_t setup(void)
       equip &= ~(3 << 6);
     }
     wrz_16(BIOS_EQUIP, equip);
+#endif
   }
 
   /* Reboot into the new "disk" */

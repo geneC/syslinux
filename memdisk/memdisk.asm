@@ -17,7 +17,7 @@
 ; 
 ; ****************************************************************************
 
-%define DEBUG_TRACERS			; Uncomment to get debugging tracers
+; %define DEBUG_TRACERS			; Uncomment to get debugging tracers
 
 %ifdef DEBUG_TRACERS
 
@@ -80,8 +80,6 @@ Int13Start:
 		pop dx
 		js .nomatch		; If SF=0, we have a class match here
 		jz .our_drive		; If ZF=1, we have an exact match
-		cmp ah,08h		; Is it Get Drive Parameters?
-		je .our_drive		; If so always handle for our own class
 		cmp dl,[cs:DriveNo]
 		jb .nomatch		; Drive < Our drive
 		dec dl			; Drive > Our drive, adjust drive #
@@ -116,7 +114,10 @@ Done:		; Standard routine for return
 		mov P_AX,ax
 DoneWeird:
 		TRACER 'D'
-		mov [LastStatus],ah
+		xor bx,bx
+		mov es,bx
+		mov bx,[StatusPtr]
+		mov [es:bx],ah		; Save status
 		and ah,ah
 
 		lds ebx,[Stack]
@@ -133,7 +134,6 @@ DoneWeird:
 Reset:
 		; Reset affects multiple drives, so we need to pass it on
 		TRACER 'R'
-		mov [LastStatus],al 	; Clear the status (AL = 0)
 		pop ax			; Drop return address
 		popad			; Restore all registers
 		pop es
@@ -168,7 +168,10 @@ GetDriveType:
 		jmp short DoneWeird	; But don't stick it into P_AX
 
 GetStatus:
-		mov ah,[LastStatus]	; Copy last status
+		xor ax,ax
+		mov es,ax
+		mov bx,[StatusPtr]
+		mov ah,[bx]		; Copy last status
 		ret
 
 Read:
@@ -201,14 +204,7 @@ success:
 		ret
 
 GetParms:
-		; This gets invoked even for other drives, so that
-		; we can modify the drive count on return
 		TRACER 'G'
-		mov dx,P_DX		; The drive whose number we're stealing
-		cmp dl,[DriveNo]
-		jb .belowdrive
-		ja .abovedrive
-		TRACER 'M'
 		mov dl,[DriveCnt]	; Cached data
 		mov P_DL,dl
 		test byte [DriveNo],80h
@@ -232,31 +228,6 @@ GetParms:
 		xor ax,ax
 		ret
 		
-		; If another disk, just mangle DL on return
-.abovedrive:
-		TRACER 'A'
-		dec dl			; Adjust drive # to what the BIOS believes
-.belowdrive:
-		TRACER 'B'
-		mov di,P_DI
-		mov ax,P_ES
-		mov es,ax
-		mov bx,P_BX
-		mov cx,P_CX
-		mov ax,P_AX
-		pushf
-		call far [OldInt13]
-		inc dl			; Add ourselves to the count
-		mov P_AX,ax
-		mov P_BX,bx
-		mov P_CX,cx
-		mov P_DX,dx
-		mov P_DI,di
-		mov cx,es
-		mov P_ES,cx
-		TRACER 'R'
-		ret
-
 		; Set up registers as for a "Read", and compares against disk size
 setup_regs:
 
@@ -509,6 +480,7 @@ DriveNo		db 0			; Our drive number
 DriveType	db 0			; Our drive type (floppies)
 DriveCnt	db 0			; Drive count (from the BIOS)
 		db 0			; Pad
+
 BPT		dd 0			; BIOS parameter table pointer (floppies)
 
 MyStack		dw 0			; Offset of stack
@@ -518,8 +490,7 @@ MyStack		dw 0			; Offset of stack
 Stack		dd 0			; Saved SS:ESP on invocation
 		dw 0
 SavedAX		dw 0			; AX saved on invocation
-
-LastStatus	db 0			; Last return status
+StatusPtr	dw 0			; Where to save status (zeroseg ptr)
 
 		alignb 4, db 0		; We *MUST* end on a dword boundary
 
