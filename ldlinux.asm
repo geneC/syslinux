@@ -304,6 +304,8 @@ NumBufEnd	equ NumBuf+15		; Pointer to last byte in NumBuf
 PartInfo	resb 16			; Partition table entry
 InitRDat	resd 1			; Load address (linear) for initrd
 HiLoadAddr      resd 1			; Address pointer for high load loop
+HighMemSize	resd 1			; End of memory pointer (bytes)
+KernelSize	resd 1			; Size of kernel (bytes)
 KernelName      resb 12		        ; Mangled name for kernel
 					; (note the spare byte after!)
 RootDir		equ $			; Location of root directory
@@ -327,9 +329,7 @@ BufSafe		resw 1			; Clusters we can load into trackbuf
 BufSafeSec	resw 1			; = how many sectors?
 BufSafeBytes	resw 1			; = how many bytes?
 EndOfGetCBuf	resw 1			; = getcbuf+BufSafeBytes
-HighMemSize	resw 1			; High memory (K)
 KernelClust	resw 1			; Kernel size in clusters
-KernelK		resw 1			; Kernel size in kilobytes
 InitRDClust	resw 1			; Ramdisk size in clusters
 ClustPerMoby	resw 1			; Clusters per 64K
 FClust		resw 1			; Number of clusters in open/getc file
@@ -1666,11 +1666,8 @@ kernel_sane:	push ax
                 mov [KernelClust],ax
 		pop dx
 		pop ax
-		add ax,1023
-		adc dx,byte 0
-		mov bx,1024
-		div bx				; Get number of kilobytes
-		mov [KernelK],ax
+		mov [KernelSize],ax
+		mov [KernelSize+2],dx
 ;
 ; Now, if we transfer these straight, we'll hit 64K boundaries.	 Hence we
 ; have to see if we're loading more than 64K, and if so, load it step by
@@ -1700,12 +1697,31 @@ kernel_sane:	push ax
 ; Get the BIOS' idea of what the size of high memory is
 ;
 		push si				; Save our cluster pointer!
-		mov ah,88h
+
+		mov ax,0e801h			; Query high memory (semi-recent)
+		int 15h
+		jc no_e801
+		cmp ax,3c00h
+		ja no_e801			; > 3C00h something's wrong with this call
+		jb e801_hole			; If memory hole we can only use low part
+
+		mov ax,bx
+		shl eax,16			; 64K chunks
+		add eax,(16 << 20)		; Add first 16M
+		jmp short got_highmem				
+
+no_e801:
+		mov ah,88h			; Query high memory (oldest)
 		int 15h
 		cmp ax,14*1024			; Don't trust memory >15M
-		jna hms_ok
+		jna e801_hole
 		mov ax,14*1024
-hms_ok:		mov [HighMemSize],ax
+e801_hole:
+		and eax,0ffffh
+		shl eax,10			; Convert from kilobytes
+		add eax,(1 << 20)		; First megabyte
+got_highmem:
+		mov [HighMemSize],eax
 ;
 ; Construct the command line (append options have already been copied)
 ;
@@ -1794,12 +1810,7 @@ is_mem_cmd:
                 add si,byte 4
                 call parseint
 		jc skip_this_opt		; Not an integer
-		shr ebx,10			; Convert to kilobytes
-                sub ebx,1024                    ; Don't count first meg
-		cmp ebx,14*1024			; Only trust < 15M point
-                jna memcmd_fair
-		mov bx,14*1024
-memcmd_fair:    mov [ss:HighMemSize],bx
+		mov [ss:HighMemSize],ebx
 		jmp short skip_this_opt
 cmdline_end:
                 push ss                         ; Restore standard DS
@@ -1849,9 +1860,7 @@ new_kernel:
 		movzx dx,dl
 		add ax,dx
 		mov [InitRDClust],ax		; Ramdisk clusters
-		movzx edx,word [HighMemSize]	; End of memory
-		add edx,1024			; Add "low" memory
-		shl edx,10			; Convert to bytes
+		mov edx,[HighMemSize]		; End of memory
 		sub edx,[es:su_ramdisklen]	; Subtract size of ramdisk
                 xor dx,dx			; Round down to 64K boundary
                 mov [InitRDat],edx		; Load address
@@ -1887,8 +1896,9 @@ read_kernel:
                 mov si,dotdot_msg		; Print dots
                 call cwritestr
 
-                mov ax,[HighMemSize]
-		cmp ax,[KernelK]
+                mov eax,[HighMemSize]
+		sub eax,100000h			; Load address
+		cmp eax,[KernelSize]
 		jb no_high_mem			; Not enough high memory
 ;
 ; Move the stuff beyond the setup code to high memory at 100000h
@@ -1966,8 +1976,9 @@ high_load_done:
 		test byte [LoadFlags],LOAD_HIGH
 		jnz in_proper_place		; If high load, we're done
 
-		movzx ecx,word [KernelK]
-		shl ecx,8			; K -> dword
+		mov ecx,[KernelSize]
+		add ecx,3			; Round upwards
+		shr ecx,2			; Bytes -> dwords
 		mov esi,100000h
 		mov edi,10000h
 		call bcopy

@@ -1,6 +1,14 @@
 Changes in 1.41:
 	* Don't get confused by directories, volume labels, or VFAT
 	  long names.
+	* Use INT 15h, AX=0E801h to query memory size before trying
+	  INT 15h, AH=88h.  This not only provides more headroom
+	  between the kernel and the initrd on large-memory machines,
+	  but it appears some recent BIOSes actually have started
+	  returning garbage for the AH=88h (older) call.
+	* Trust high memory beyond the 15 MB mark if the user has
+	  specified it, or if obtained with INT 15h, AH=0E801h (with
+	  no memory holes above 1 MB.)
 
 Changes in 1.40:
 	* Increase A20M delay and put in a test to avoid problems on
