@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2003 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -250,7 +250,7 @@ comboot_getkeynoecho:			; 08 = get key w/o echo
 		clc
 		ret
 
-comboot_writestr:			; 09 = write string
+comboot_writestr:			; 09 = write DOS string
 		mov es,P_DS
 		mov si,P_DX
 .loop:		es lodsb
@@ -564,7 +564,7 @@ int21_table:
 		int21	01h, comboot_getkey
 		int21	02h, comboot_writechr
 		int21	04h, comboot_writeserial
-		int21	08h, comboot_getkey
+		int21	08h, comboot_getkeynoecho
 		int21	09h, comboot_writestr
 		int21	0Bh, comboot_checkkey
 		int21	30h, comboot_checkver

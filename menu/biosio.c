@@ -157,7 +157,7 @@ void cursoron(void)
 char bkspstr[] = " \b$";
 char eolstr[] = "\n$";
 
-static char asm_getchar(void)
+static inline char asm_getchar(void)
 {
   char v;
 
