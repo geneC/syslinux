@@ -6,6 +6,8 @@ Changes in 2.00:
 	* ALL: Add an API for COMBOOT/COM32 images.  See comboot.doc
 	  for details.
 	* Fix mbr.asm so that it actually works.
+	* SYSLINUX: The syslinux installer *SHOULD* now be safe to
+	  run setuid root.
 
 Changes in 1.76:
 	* ISOLINUX: Remove code no longer used which caused hangs on

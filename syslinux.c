@@ -25,6 +25,7 @@
  */
 
 #define _XOPEN_SOURCE 500	/* Required on glibc 2.x */
+#define _BSD_SOURCE
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -54,7 +55,9 @@ extern unsigned int  ldlinux_len;
 
 char *program;			/* Name of program */
 char *device;			/* Device to install to */
-uid_t euid;			/* Our current euid */
+uid_t ruid;			/* Real uid */
+uid_t euid;			/* Initial euid */
+pid_t mypid;
 
 enum bs_offsets {
   bsJump          = 0x00,
@@ -195,11 +198,18 @@ int main(int argc, char *argv[])
   int err = 0;
   pid_t f, w;
   int status;
-  char *mntpath = NULL, mntname[64];
+  char *mntpath = NULL, mntname[64], devfdname[64];
   char *ldlinux_name, **argp, *opt;
   int my_umask;
   int force = 0;		/* -f (force) option */
   off_t offset = 0;		/* -o (offset) option */
+
+  ruid = getuid();
+  euid = geteuid();
+  mypid = getpid();
+  
+  if ( !euid )
+    setreuid(-1, ruid);		/* Run as regular user until we need it */
 
   program = argv[0];
   
@@ -261,9 +271,7 @@ int main(int argc, char *argv[])
   }
 
   xpread(dev_fd, sectbuf, 512, offset);
-  close(dev_fd);
-
-  sync();
+  fsync(dev_fd);
   
   /*
    * Check to see that what we got was indeed an MS-DOS boot sector/superblock
@@ -326,7 +334,7 @@ int main(int argc, char *argv[])
    * entry for this device which has the user flag and the appropriate
    * options set.
    */
-  if ( (euid = geteuid()) ) {
+  if ( euid ) {
     FILE *fstab;
     struct mntent *mnt;
 
@@ -371,19 +379,55 @@ int main(int argc, char *argv[])
     }
   } else {
     int i = 0;
+    struct stat dst;
+    int rv;
 
-    /* We're root.  Make a temp dir and pass all the gunky options to mount. */
+    /* We're root or at least setuid.
+       Make a temp dir and pass all the gunky options to mount. */
 
-    do {
-      sprintf(mntname, "/tmp/syslinux.mnt.%lu.%d", (unsigned long)getpid(), i++);
-    } while ( (errno = 0, mkdir(mntname, 0700) == -1) &&
-	      (errno == EEXIST || errno == EINTR) );
-    if ( errno ) {
+    if ( chdir("/tmp") ) {
       perror(program);
       exit(1);
     }
-    
+
+#define TMP_MODE (S_IXUSR|S_IWUSR|S_IXGRP|S_IWGRP|S_IWOTH|S_IXOTH|S_ISVTX)
+
+    if ( stat(".", &dst) || !S_ISDIR(dst.st_mode) ||
+	 (dst.st_mode & TMP_MODE) != TMP_MODE ) {
+      fprintf(stderr, "%s: possibly unsafe /tmp permissions\n", program);
+      exit(1);
+    }
+
+    for ( i = 0 ; ; i++ ) {
+      snprintf(mntname, sizeof mntname, "syslinux.mnt.%lu.%d",
+	       (unsigned long)mypid, i);
+
+      if ( lstat(mntname, &dst) != -1 || errno != ENOENT )
+	continue;
+
+      seteuid(0);		/* *** BECOME ROOT *** */
+      rv = mkdir(mntname, 0000); /* AS ROOT */
+      seteuid(ruid);
+
+      if ( rv == -1 ) {
+	if ( errno == EEXIST || errno == EINTR )
+	  continue;
+	perror(program);
+	exit(1);
+      }
+
+      if ( lstat(mntname, &dst) || dst.st_mode != (S_IFDIR|0000) ||
+	   dst.st_uid != 0 ) {
+	fprintf(stderr, "%s: someone is trying to symlink race us!\n", program);
+	exit(1);
+      }
+      break;			/* OK, got something... */
+    }
+
     mntpath = mntname;
+
+    snprintf(devfdname, sizeof devfdname, "/proc/%lu/fd/%d",
+	     (unsigned long)mypid, dev_fd);
 
     f = fork();
     if ( f < 0 ) {
@@ -391,15 +435,18 @@ int main(int argc, char *argv[])
       rmdir(mntpath);
       exit(1);
     } else if ( f == 0 ) {
+      char mnt_opts[128];
+      seteuid(0);		/* ***BECOME ROOT*** */
+      setuid(0);
       if ( S_ISREG(st.st_mode) ) {
-	char loop_string[128];
-	sprintf(loop_string, "loop,offset=%ld", offset);
-	execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-o", loop_string,\
-	      "-w", device, mntpath, NULL);
+	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,loop,offset=%ld,umask=077,uid=%lu",
+		 offset, (unsigned long)ruid);
       } else {
-	execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-w", device, mntpath,
-	      NULL);
+	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,umask=077,uid=%lu",
+		 (unsigned long)ruid);
       }
+      execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-o", mnt_opts,\
+	    devfdname, mntpath, NULL);
       _exit(255);		/* execl failed */
     }
   }
@@ -413,7 +460,7 @@ int main(int argc, char *argv[])
 
   ldlinux_name = alloca(strlen(mntpath)+13);
   if ( !ldlinux_name ) {
-    perror("malloc");
+    perror(program);
     err = 1;
     goto umount;
   }
@@ -459,6 +506,8 @@ umount:
     perror("fork");
     exit(1);
   } else if ( f == 0 ) {
+    seteuid(0);		/* ***BECOME ROOT*** */
+    setuid(0);
     execl(_PATH_UMOUNT, _PATH_UMOUNT, mntpath, NULL);
   }
 
@@ -469,8 +518,11 @@ umount:
 
   sync();
 
-  if ( !euid )
-    rmdir(mntpath);
+  if ( !euid ) {
+    seteuid(0);			/* *** BECOME ROOT *** */
+    rmdir(mntpath);		/* AS ROOT */
+    seteuid(ruid);
+  }
 
   if ( err )
     exit(err);
@@ -478,11 +530,6 @@ umount:
   /*
    * To finish up, write the boot sector
    */
-  dev_fd = open(device, O_RDWR);
-  if ( dev_fd < 0 ) {
-    perror(device);
-    exit(1);
-  }
 
   /* Read the superblock again since it might have changed while mounted */
   xpread(dev_fd, sectbuf, 512, offset);
