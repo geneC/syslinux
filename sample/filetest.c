@@ -3,6 +3,7 @@
 
 #define NULL ((void *)0)
 int printf(const char *, ...);
+int putchar(int);
 
 static inline void memset(void *buf, int ch, unsigned int len)
 {
@@ -30,7 +31,7 @@ static void printregs(const com32sys_t *r)
 
 int __start(void)
 {
-  unsigned int ax,cx,dx,es,si,di,t;
+  unsigned int ax,cx,si,t;
   com32sys_t  inreg,outreg;
   char *p;
   

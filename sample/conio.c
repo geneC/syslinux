@@ -22,6 +22,12 @@
 
 #define NULL ((void *)0)
 
+static inline void memset(void *buf, int ch, unsigned int len)
+{
+  asm volatile("cld; rep; stosb"
+	       : "+D" (buf), "+c" (len) : "a" (ch) : "memory");
+}
+
 int putchar(int ch)
 {
   com32sys_t regs;

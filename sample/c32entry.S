@@ -60,7 +60,7 @@ _start:
 		# did not parse the command line or anything like that.
 		jmp __start
 
-		.section ".bss","a"
+		.section ".bss","aw"
 		.globl __entry_esp
 __entry_esp:	.space 4
 		.globl __com32

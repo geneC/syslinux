@@ -30,7 +30,7 @@ static inline void memset(void *buf, int ch, unsigned int len)
 int __start(void)
 {
   const char *msg = "Hello, World!\r\n";
-  com32sys_t inreg, outreg;
+  com32sys_t inreg;
   const char *p;
 
   memset(&inreg, 0, sizeof inreg);

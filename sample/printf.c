@@ -13,6 +13,8 @@
 
 #include <stdarg.h>
 
+int puts(const char *);
+
 static inline int
 isdigit(int ch)
 {
