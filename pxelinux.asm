@@ -306,7 +306,11 @@ _start1:
 		mov al,NULLFILE
 		mov di,FKeyName
 		mov cx,10*(1 << FILENAME_MAX_LG2)
+		push es			; Save ES -> PXE structure
+		push ds			; ES <- DS
+		pop es
 		rep stosb
+		pop es			; Restore ES
 
 ;
 ; Tell the user we got this far
@@ -504,7 +508,11 @@ have_entrypoint:
 		mov di,Sockets
 		mov cx,(MAX_SOCKETS*tftp_port_t_size)/4
 		xor eax,eax
+		push es		; Save ES -> PXE structure
+		push ds		; ES <- DS
+		pop es
 		rep stosd
+		pop es
 
 ;
 ; Now attempt to get the BOOTP/DHCP packet that brought us life (and an IP
