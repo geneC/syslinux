@@ -80,7 +80,6 @@ load_high:
 		inc ecx
 		jmp short .fix_slop
 .noslop:
-		shr ecx,2			; Convert to dwords
 		push esi			; <D> File handle/cluster pointer
 		mov esi,(xfer_buf_seg << 4)	; Source address
 		call bcopy			; Copy to high memory

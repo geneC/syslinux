@@ -45,6 +45,21 @@ bcopy_gdt:	dw bcopy_gdt_size-1	; Null descriptor - contains GDT
 		dd 00009300h		; present, dpl 0, cover 64K
 bcopy_gdt_size:	equ $-bcopy_gdt
 
+;
+; bcopy:
+;	32-bit copy
+;
+; Inputs:
+;	ESI	- source pointer
+;	EDI	- target pointer
+;	ECX	- byte count
+;	DF	- zero
+;
+; Outputs:
+;	ESI	- first byte after source
+;	EDI	- first byte after target
+;	ECX	- zero
+;
 bcopy:		push eax
 		pushf			; Saves, among others, the IF flag
 		push gs
@@ -72,8 +87,19 @@ bcopy:		push eax
 		mov ss,ax
 		mov fs,ax
 		mov gs,ax	
-	
+
+		mov al,cl		; Save low bits
+		shr ecx,2		; Convert to dwords
 		a32 rep movsd		; Do our business
+
+		test al,2
+		jz .noword
+		a32 movsw
+.noword:
+		test al,1
+		jz .nobyte
+		a32 movsb
+.nobyte:
 		
 		mov es,ax		; Set to "real-mode-like"
 		mov ds,ax
@@ -350,10 +376,15 @@ try_wbinvd:
 ; After performing the copy, this routine resets the stack and
 ; jumps to 0:7c00.
 ;
+; IMPORTANT: This routine does not canonicalize the stack or the
+; SS register.  That is the responsibility of the caller.
+;
 ; Inputs:
 ;	ESI, EDI, ECX	- same as bcopy
 ;	EDX		- edx on invocation
 ;	EAX		- esi on invocation
+;	EBX		- ebx on invocation
+;	ES		- es on invocation
 ;
 %define ADJUST	(__bcopy_start - trackbuf)
 
@@ -366,19 +397,19 @@ adjlist		dw bcopy_gdt.adj1 - ADJUST
 adjlist_cnt	equ ($-adjlist)/2
 
 bcopy_over_self:
-		cli
-		cld
-		xor bx,bx
-		mov ds,bx
-		mov es,bx
-		mov ss,bx
-		mov sp,7c00h
-
+		push es
+		push ebx
 		push eax
 		push edx
 		push esi	
 		push edi
 		push ecx
+
+		xor bx,bx
+		mov es,bx
+		mov ds,bx
+		mov fs,bx
+		mov gs,bx
 
 		mov si,__bcopy_start
 		mov di,trackbuf
@@ -410,5 +441,7 @@ bcopy_over_self:
 		
 		pop edx
 		pop esi
+		pop ebx
+		pop es
 		jmp 0:7c00h
 __bcopy_end:

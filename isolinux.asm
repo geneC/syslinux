@@ -1194,9 +1194,11 @@ kernel_corrupt: mov si,err_notkernel
 ;
 ; .com 	- COMBOOT image
 ; .cbt	- COMBOOT image
-; .bs	- Boot sector	  (SYSLINUX only)
-; .bss	- DOS boot sector (SYSLINUX only)
-; .img	- Disk image	  (ISOLINUX only)
+; .bs	- Boot sector
+; .0	- PXE bootstrap program (PXELINUX only)
+; .bin  - Boot sector
+; .bss	- Boot sector, but transfer over DOS superblock (SYSLINUX only)
+; .img  - Floppy image (ISOLINUX only)
 ;
 ; Anything else is assumed to be a Linux kernel.
 ;
@@ -1234,9 +1236,11 @@ kernel_good:
 		cmp ecx,'.img'
 		je near is_disk_image
 		cmp ecx,'.bss'
-		je near is_bss_sector
+		je near is_bss_image
 		and ecx, 00ffffffh
 		cmp ecx,'.bs'
+		je near is_bootsector
+		cmp cx,'.0'
 		je near is_bootsector
 		; Otherwise Linux kernel
 
@@ -1251,12 +1255,9 @@ kernel_good:
 %include "comboot.inc"
 
 ;
-; Load a boot sector
+; Boot sector loading code
 ;
-is_bootsector:
-is_bss_sector:
-		; Can't load these from the network, dang it!
-.badness:	jmp short .badness
+%include "bootsect.inc"
 
 ;
 ; Enable disk emulation.  The kind of disk we emulate is dependent on the size of
@@ -1911,7 +1912,7 @@ err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
                 db CR, LF, 0
 err_notdos	db ': attempted DOS system call', CR, LF, 0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
-err_bootsec	db 'Invalid or corrupt boot sector image.', CR, LF, 0
+err_bssimage	db 'BSS images not supported.', CR, LF, 0
 err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
 notfound_msg	db 'not found', CR, LF, 0
 localboot_msg	db 'Booting from local disk...', CR, LF, 0

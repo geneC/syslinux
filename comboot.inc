@@ -17,6 +17,12 @@
 ;; Common code for running a COMBOOT image
 ;;
 
+; Looks like a COMBOOT image but too large
+comboot_too_large:
+		mov si,err_comlarge
+		call cwritestr
+cb_enter:	jmp enter_command
+
 ;
 ; Load a COMBOOT image.  A COMBOOT image is basically a DOS .COM file,
 ; except that it may, of course, not contain any DOS system calls.  We
@@ -24,7 +30,7 @@
 ;
 is_comboot_image:
 		and dx,dx
-		jnz near comboot_too_large
+		jnz comboot_too_large
 		cmp ax,0ff00h		; Max size in bytes
 		jae comboot_too_large
 
@@ -86,12 +92,6 @@ comboot_end_cmd: mov al,0Dh		; CR after last character
 
 		jmp comboot_seg:100h	; Run it
 
-; Looks like a COMBOOT image but too large
-comboot_too_large:
-		mov si,err_comlarge
-		call cwritestr
-cb_enter:	jmp enter_command
-
 ; Proper return vector
 comboot_return:	cli			; Don't trust anyone
 		lss sp,[cs:SavedSSSP]
@@ -99,7 +99,7 @@ comboot_return:	cli			; Don't trust anyone
 		mov es,ax
 		sti
 		cld
-		jmp short cb_enter
+		jmp cb_enter
 
 ; Attempted to execute DOS system call
 comboot_bogus:	cli			; Don't trust anyone
@@ -112,5 +112,5 @@ comboot_bogus:	cli			; Don't trust anyone
 		call cwritestr
 		mov si,err_notdos
 		call cwritestr
-		jmp short cb_enter
+		jmp cb_enter
 

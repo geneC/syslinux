@@ -44,7 +44,7 @@
 ;
 is_linux_kernel:
                 cmp dx,80h			; 8 megs
-		ja kernel_corrupt
+		ja near kernel_corrupt
 		and dx,dx
 		jnz kernel_sane
 		cmp ax,1024			; Bootsect + 1 setup sect
@@ -323,7 +323,6 @@ read_kernel:
                 mov ecx,8000h			; 32K
 		sub ecx,esi			; Number of bytes to copy
 		push ecx
-		shr ecx,2			; Convert to dwords
 		add esi,(real_mode_seg << 4)	; Pointer to source
                 mov edi,100000h                 ; Copy to address 100000h
                 call bcopy			; Transfer to high memory
@@ -489,8 +488,6 @@ need_high_cmdline:
 ; Copy the kernel down to the "low" location
 ;
 		mov ecx,[KernelSize]
-		add ecx,3			; Round upwards
-		shr ecx,2			; Bytes -> dwords
 		mov esi,100000h
 		mov edi,10000h
 		call bcopy

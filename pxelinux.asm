@@ -198,6 +198,7 @@ RamdiskMax	resd 1			; Highest address for a ramdisk
 KernelSize	resd 1			; Size of kernel (bytes)
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
 Stack		resd 1			; Pointer to reset stack
+InitESBX	resd 1			; Initial ES:BX pointer
 PXEEntry	resd 1			; !PXE API entry point
 RebootTime	resd 1			; Reboot timeout, if set by option
 KernelClust	resd 1			; Kernel size in clusters
@@ -274,6 +275,10 @@ _start1:
 		push es
 		push fs
 		push gs
+
+		mov [cs:InitESBX],bx
+		mov bx,es
+		mov [cs:InitESBX+2],bx
 
 		mov bp,sp
 		les bx,[bp+48]		; Initial !PXE structure pointer
@@ -1111,7 +1116,10 @@ kernel_corrupt: mov si,err_notkernel
 ; .com 	- COMBOOT image
 ; .cbt	- COMBOOT image
 ; .bs	- Boot sector
-; .bss	- Boot sector, but transfer over DOS superblock
+; .0	- PXE bootstrap program (PXELINUX only)
+; .bin  - Boot sector
+; .bss	- Boot sector, but transfer over DOS superblock (SYSLINUX only)
+; .img  - Floppy image (ISOLINUX only)
 ;
 ; Boot sectors are currently not supported by PXELINUX.
 ;
@@ -1145,9 +1153,13 @@ kernel_good:
 		cmp ecx,'.cbt'
 		je near is_comboot_image
 		cmp ecx,'.bss'
-		je near is_bss_sector
+		je near is_bss_image
+		cmp ecx,'.bin'
+		je near is_bootsector
 		and ecx, 00ffffffh
 		cmp ecx,'.bs'
+		je near is_bootsector
+		cmp cx,'.0'
 		je near is_bootsector
 		; Otherwise Linux kernel
 ;
@@ -1187,12 +1199,9 @@ kernel_good:
 %include "comboot.inc"
 
 ;
-; Load a boot sector
+; Boot sector loading code
 ;
-is_bootsector:
-is_bss_sector:
-		; Can't load these from the network, dang it!
-.badness:	jmp short .badness
+%include "bootsect.inc"
 
 ;
 ; Boot to the local disk by returning the appropriate PXE magic.
@@ -2327,7 +2336,7 @@ err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
                 db CR, LF, 0
 err_notdos	db ': attempted DOS system call', CR, LF, 0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
-err_bootsec	db 'Invalid or corrupt boot sector image.', CR, LF, 0
+err_bssimage	db 'BSS images not supported.', CR, LF, 0
 err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: press a key to retry, or wait for reset...', CR, LF, 0
 bailmsg		equ err_bootfailed

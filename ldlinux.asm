@@ -1345,10 +1345,13 @@ kernel_corrupt: mov si,err_notkernel
 ; that decision on the file extension.  The following extensions are
 ; recognized:
 ;
-; .COM 	- COMBOOT image
-; .CBT	- COMBOOT image
-; .BS	- Boot sector
-; .BSS	- Boot sector, but transfer over DOS superblock
+; .com 	- COMBOOT image
+; .cbt	- COMBOOT image
+; .bs	- Boot sector
+; .0	- PXE bootstrap program (PXELINUX only)
+; .bin  - Boot sector
+; .bss	- Boot sector, but transfer over DOS superblock (SYSLINUX only)
+; .img  - Floppy image (ISOLINUX only)
 ;
 ; Anything else is assumed to be a Linux kernel.
 ;
@@ -1368,6 +1371,8 @@ kernel_good:
 		je near is_comboot_image
 		cmp ecx,'BS '
 		je near is_bootsector
+		cmp ecx,'BIN'
+		je near is_bootsector
 		cmp ecx,'BSS'
 		je near is_bss_sector
 		; Otherwise Linux kernel
@@ -1383,65 +1388,9 @@ kernel_good:
 %include "comboot.inc"
 
 ;
-; Load a boot sector
+; Boot sector loading code
 ;
-is_bootsector:
-		; Transfer zero bytes
-		push word 0
-		jmp short load_bootsec
-is_bss_sector:
-		; Transfer the superblock
-		push word superblock_len
-load_bootsec:
-		and dx,dx
-		jnz bad_bootsec
-		mov bx,[bsBytesPerSec]
-		cmp ax,bx
-		jne bad_bootsec
-
-		; Make sure we don't test this uninitialized
-		mov [bx+trackbuf-2],dx	; Note DX == 0
-
-		mov bx,trackbuf
-		mov cx,1		; 1 cluster >= 1 sector
-		call getfssec
-
-		mov bx,[bsBytesPerSec]
-		mov ax,[bx+trackbuf-2]
-		cmp ax,0AA55h		; Boot sector signature
-		jne bad_bootsec
-
-		mov si,superblock
-		mov di,trackbuf+(superblock-bootsec)
-		pop cx			; Transfer count
-		rep movsb
-;
-; Okay, here we go... copy over our own boot sector and run the new one
-;
-		call vgaclearmode	; Reset video
-
-		cli			; Point of no return
-	
-		mov dl,[bsDriveNumber]	; May not be in new bootsector!
-
-		mov si,trackbuf
-		mov di,bootsec
-		mov cx,[bsBytesPerSec]
-		rep movsb		; Copy the boot sector!
-		
-		mov si,PartInfo
-		mov di,800h-18		; Put partition info here
-		push di
-		mov cx,8		; 16 bytes
-		rep movsw
-		pop si			; DS:SI points to partition info
-
-		jmp bootsec
-
-bad_bootsec:
-		mov si,err_bootsec
-		call cwritestr
-		jmp enter_command
+%include "bootsect.inc"
 
 ;
 ; abort_check: let the user abort with <ESC> or <Ctrl-C>
@@ -1774,7 +1723,6 @@ err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
                 db CR, LF, 0
 err_notdos	db ': attempted DOS system call', CR, LF, 0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
-err_bootsec	db 'Invalid or corrupt boot sector image.', CR, LF, 0
 err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: please change disks and press '
 		db 'a key to continue.', CR, LF, 0
