@@ -48,6 +48,10 @@ release:
 		xargs -0rt rm -f
 	find release/syslinux-$(VERSION) -name CVS -type d -print0 | \
 		xargs -0rt rm -rf
+	sed -e 's/@@VERSION@@/$(VERSION)/g' \
+		< release/syslinux-$(VERSION)/syslinux.spec.in \
+		> release/syslinux-$(VERSION)/syslinux.spec
+	rm -f release/syslinux-$(VERSION)/syslinux.spec.in
 	$(MAKE) -C release/syslinux-$(VERSION) spotless
 	$(MAKE) -C release/syslinux-$(VERSION) depend
 	$(MAKE) -C release/syslinux-$(VERSION) official
@@ -61,6 +65,7 @@ release:
 PRERELDIR := release/syslinux-$(VERSION)-pre
 PRERELNO  := $(shell cat $(PRERELDIR)/.prerel 2>/dev/null || echo 1)
 PREREL    := syslinux-$(VERSION)-pre$(PRERELNO)
+RPMPREREL := $(shell $(PERL) -e 'printf "%.2f.%d\n", $(VERSION)-0.01, $(PRERELNO);')
 
 prerel:
 	$(CVS) tag -F `echo $(PREREL) | sed -e 's/\./_/g'`
@@ -74,6 +79,10 @@ prerel:
 		xargs -0rt rm -f
 	find $(PRERELDIR)/$(PREREL) -name CVS -type d -print0 | \
 		xargs -0rt rm -rf
+	sed -e 's/@@VERSION@@/$(RPMPREREL)/g' \
+		< $(PRERELDIR)/$(PREREL)/syslinux.spec.in \
+		> $(PRERELDIR)/$(PREREL)/syslinux.spec
+	rm -f $(PRERELDIR)/$(PREREL)/syslinux.spec.in
 	$(MAKE) -C $(PRERELDIR)/$(PREREL) spotless
 	$(MAKE) -C $(PRERELDIR)/$(PREREL) depend
 	$(MAKE) -C $(PRERELDIR)/$(PREREL) all DATE=`printf '%s-pre%d          ' $(VERSION) $(PRERELNO) | dd bs=10 count=1 2>/dev/null`
