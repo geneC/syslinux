@@ -4,6 +4,13 @@ $Id$
 
 - PXELINUX: Support changing the default server and boot file prefix?
 
+- Support loading a new configuration file.
+
+- "Shuffle and boot" extension, with the appropriate com32 library
+  support.
+
+- Library support for all the comboot system calls.
+
 
 *** Future projects:
 
