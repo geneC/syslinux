@@ -126,6 +126,8 @@ HighMemSize	resd 1			; End of memory pointer (bytes)
 RamdiskMax	resd 1			; Highest address for a ramdisk
 KernelSize	resd 1			; Size of kernel (bytes)
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
+ClustPerMoby	resd 1			; Clusters per 64K
+ClustSize	resd 1			; Bytes/cluster
 KernelName      resb 12		        ; Mangled name for kernel
 					; (note the spare byte after!)
 RootDir		equ $			; Location of root directory
@@ -142,7 +144,6 @@ DirScanCtr	resw 1			; Used while searching directory
 DirBlocksLeft	resw 1			; Ditto
 EndofDirSec	resw 1			; = trackbuf+bsBytesPerSec-31
 RunLinClust	resw 1			; Cluster # for LDLINUX.SYS
-ClustSize	resw 1			; Bytes/cluster
 SecPerClust	resw 1			; Same as bsSecPerClust, but a word
 NextCluster	resw 1			; Pointer to "nextcluster" routine
 BufSafe		resw 1			; Clusters we can load into trackbuf
@@ -150,7 +151,6 @@ BufSafeSec	resw 1			; = how many sectors?
 BufSafeBytes	resw 1			; = how many bytes?
 EndOfGetCBuf	resw 1			; = getcbuf+BufSafeBytes
 KernelClust	resw 1			; Kernel size in clusters
-ClustPerMoby	resw 1			; Clusters per 64K
 FClust		resw 1			; Number of clusters in open/getc file
 FNextClust	resw 1			; Pointer to next cluster in d:o
 FPtr		resw 1			; Pointer to next char in buffer
@@ -680,12 +680,12 @@ fat_load_done:
 ;
 		mov di,[bsBytesPerSec]		; Used a lot below
 
-		mov al,[bsSecPerClust]		; We do this in the boot
-		xor ah,ah			; sector, too, but there
+		movzx eax,byte [bsSecPerClust]	; We do this in the boot
+						; sector, too, but there
 		mov [SecPerClust],ax		; wasn't space to save it
 		mov si,ax			; Also used a lot...
 		mul di
-		mov [ClustSize],ax		; Bytes/cluster
+		mov [ClustSize],eax		; Bytes/cluster
 		mov bx,ax
 		mov ax,trackbufsize
 		xor dx,dx
@@ -957,10 +957,11 @@ all_read:
 ;
 ; Compute some parameters that depend on cluster size
 ;
-		mov dx,1
-		xor ax,ax
+		xor eax,eax
+		cwd				; DX <- 0
+		inc dx				; DX:AX <- 64K
 		div word [ClustSize]
-		mov [ClustPerMoby],ax		; Clusters/64K
+		mov [ClustPerMoby],eax		; Clusters/64K
 
 ;
 ; Now we're all set to start with our *real* business.	First load the
