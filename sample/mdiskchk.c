@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
       printf("Drive %02X is MEMDISK %u.%02u:\n"
 	     "\tAddress = 0x%08lx, len = %lu sectors, chs = %u/%u/%u,\n"
 	     "\tloader = 0x%02x (%s),\n"
-	     "\tCmdline = %Fs\n",
+	     "\tcmdline = %Fs\n",
 	     d, m->version >> 8, m->version & 0xff,
 	     m->base, m->size, m->cylinders, m->heads, m->sectors,
 	     m->bootloaderid, bootloadername(m->bootloaderid),
