@@ -85,7 +85,11 @@ DATE    := $(HEXDATE)
 endif
 MAKE    += DATE=$(DATE) HEXDATE=$(HEXDATE)
 
-
+#
+# NOTE: If you don't have the mingw compiler suite installed, you probably
+# want to remove win32 from this list; otherwise you're going to get an
+# error every time you try to build.
+#
 BSUBDIRS = memdisk win32
 ISUBDIRS = sample com32
 
