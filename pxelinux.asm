@@ -49,6 +49,7 @@ TFTP_WRQ	equ htons(2)		; Write request
 TFTP_DATA	equ htons(3)		; Data packet
 TFTP_ACK	equ htons(4)		; ACK packet
 TFTP_ERROR	equ htons(5)		; ERROR packet
+TFTP_OACK	equ htons(6)		; OACK packet
 
 ;
 ; Should be updated with every release to avoid bootsector/SYS file mismatch
@@ -2154,8 +2155,9 @@ tftp_connect:
 		mov ax,TFTP_RRQ		; TFTP opcode
 		stosw
 		call strcpy		; Filename
-		mov si,octet_str
-		call strcpy
+		mov si,tftp_tail
+		mov cx,tftp_tail_len
+		rep movsb
 		sub di,packet_buf	; Get packet size
 		mov [pxe_udp_write_pkt.buffersize],di
 
@@ -2205,7 +2207,7 @@ tftp_connect:
 		jnz .pkt_loop
 		pop ax	; Adjust stack
 		pop ax
-		jmp short .failure
+		jmp .failure
 		
 .got_packet:
 		mov al,'R'
@@ -2232,15 +2234,21 @@ tftp_connect:
 		cmp word [packet_buf], TFTP_ERROR
 		je .bailnow			; ERROR reply: don't try again
 
+		; SHOULD REALLY SEND ERROR PACKET HERE!
 		cmp word [packet_buf], TFTP_DATA
-		jne .failure			; Non-DATA reply -> error
+		je .no_tsize
+
+		; SHOULD REALLY SEND ERROR PACKET HERE!
+		cmp word [packet_buf], TFTP_OACK
+		jne .failure			; Non-OACK reply -> error
 
 		cmp word [packet_buf+2], htons(1)
 		jne .failure			; Packet # != 1
 
-		; Now we have a packet of data which we don't know what
-		; to do with.  Need to save this somewhere...
+		; Now we need to parse the OACK packet to get the transfer
+		; size.
 
+		; **** WE SHOULD NOT ACK THIS PACKET YET ****
 .ackpacket:	mov word [packet_buf], TFTP_ACK
 		mov [pxe_udp_write_pkt.buffersize], word 4
 
@@ -2262,6 +2270,10 @@ tftp_connect:
 		and bp,bp		; BP != 0, ZF <- 0
 		pop bp
 		ret
+
+.no_tsize:	mov si,err_oldtftp
+		call writestr
+		jmp kaboom
 
 .bailnow:	mov al,'B'
 		call writechr
@@ -3218,6 +3230,7 @@ bailmsg		equ err_bootfailed
 err_nopxe	db 'Cannot find !PXE structure, I want my mommy!' ,0Dh, 0Ah, 0
 err_pxefailed	db 'PXE API call failed, error ', 0
 err_udpinit	db 'Failed to initialize UDP stack', 0Dh, 0Ah, 0
+err_oldtftp	db 'TFTP server does not support the tsize option', 0Dh, 0Ah, 0
 found_pxenv	db 'Found PXENV+ structure', 0Dh, 0Ah, 0
 using_pxenv_msg db 'Old PXE API detected, using PXENV+ structure', 0Dh, 0Ah, 0
 apiver_str	db 'PXE API version is ',0
@@ -3372,7 +3385,8 @@ MySocket	dw 32768		; Local UDP socket counter
 ;
 ; TFTP commands
 ;
-octet_str	db 'octet', 0		; Octet mode
+tftp_tail	db 'octet', 0, 'tsize' ,0, '0', 0	; Octet mode, request size
+tftp_tail_len	equ ($-tftp_tail)
 
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
