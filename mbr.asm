@@ -1,6 +1,6 @@
 ; -----------------------------------------------------------------------
 ;   
-;   Copyright 2003 H. Peter Anvin - All Rights Reserved
+;   Copyright 2003-2004 H. Peter Anvin - All Rights Reserved
 ;
 ;   Permission is hereby granted, free of charge, to any person
 ;   obtaining a copy of this software and associated documentation
@@ -41,13 +41,16 @@
 ; This MBR should be "8086-clean", i.e. not require a 386.
 ;
 
+%include "bios.inc"
+	
 ;
 ; Note: The MBR is actually loaded at 0:7C00h, but we quickly move it down to
 ; 0600h.
 ;
+		section .text
 		cpu 8086
-
 		org 0600h
+
 _start:		cli
 		xor ax,ax
 		mov ds,ax
@@ -180,10 +183,11 @@ disk_error:
 die:
 .msgloop:
 		lodsb
-		xor al,al
+		and al,al
 		jz .now
 		mov ah,0Eh			; TTY output
-		mov bx,0007h
+		mov bh,[BIOS_page]		; Current page
+		mov bl,07h
 		int 10h
 		jmp short .msgloop
 .now:
