@@ -17,49 +17,13 @@
 ;; CPU-dependent initialization and related checks.
 ;;
 
-;
-; Check that no moron is trying to boot Linux on a 286 or so.  According
-; to Intel, the way to check is to see if the high 4 bits of the FLAGS
-; register are either all stuck at 1 (8086/8088) or all stuck at 0
-; (286 in real mode), if not it is a 386 or higher.  They didn't
-; say how to check for a 186/188, so I *hope* it falls out as a 8086
-; or 286 in this test.
-;
-; Also, provide an escape route in case it doesn't work.
-;
 check_escapes:
 		mov ah,02h			; Check keyboard flags
 		int 16h
 		mov [KbdFlags],al		; Save for boot prompt check
 		test al,04h			; Ctrl->skip 386 check
 		jnz skip_checks
-test_8086:
-		pushf				; Get flags
-		pop ax
-		and ax,0FFFh			; Clear top 4 bits
-		push ax				; Load into FLAGS
-		popf
-		pushf				; And load back
-		pop ax
-		and ax,0F000h			; Get top 4 bits
-		cmp ax,0F000h			; If set -> 8086/8088
-		je not_386
-test_286:
-		pushf				; Get flags
-		pop ax
-		or ax,0F000h			; Set top 4 bits
-		push ax
-		popf
-		pushf
-		pop ax
-		and ax,0F000h			; Get top 4 bits
-		jnz is_386			; If not clear -> 386
-not_386:
-		mov si,err_not386
-		call writestr
-		jmp kaboom
-is_386:
-		; Now we know it's a 386 or higher
+
 ;
 ; Now check that there is sufficient low (DOS) memory
 ;

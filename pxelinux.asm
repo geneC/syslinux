@@ -193,6 +193,7 @@ HighMemSize	resd 1			; End of memory pointer (bytes)
 RamdiskMax	resd 1			; Highest address for a ramdisk
 KernelSize	resd 1			; Size of kernel (bytes)
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
+PMESP		resd 1			; Protected-mode ESP
 Stack		resd 1			; Pointer to reset stack
 PXEEntry	resd 1			; !PXE API entry point
 RebootTime	resd 1			; Reboot timeout, if set by option
@@ -1037,6 +1038,7 @@ kernel_corrupt: mov si,err_notkernel
 ;
 ; .com 	- COMBOOT image
 ; .cbt	- COMBOOT image
+; .c32  - COM32 image
 ; .bs	- Boot sector
 ; .0	- PXE bootstrap program (PXELINUX only)
 ; .bin  - Boot sector
@@ -1078,6 +1080,8 @@ kernel_good:
 		je is_comboot_image
 		cmp ecx,'.cbt'
 		je is_comboot_image
+		cmp ecx,'.c32'
+		je is_com32_image
 		cmp ecx,'.bss'
 		je is_bss_image
 		cmp ecx,'.bin'
@@ -1124,6 +1128,7 @@ kernel_good:
 ; COMBOOT-loading code
 ;
 %include "comboot.inc"
+%include "com32.inc"
 
 ;
 ; Boot sector loading code
@@ -2099,21 +2104,21 @@ parse_dhcp_options:
 		jne .not_subnet
 		mov edx,[si]
 		mov [Netmask],edx
-		jmp short .opt_done
+		jmp .opt_done
 .not_subnet:
 
 		cmp dl,3	; ROUTER option
 		jne .not_router
 		mov edx,[si]
 		mov [Gateway],edx
-		jmp short .opt_done
+		jmp .opt_done
 .not_router:
 
 		cmp dl,52	; OPTION OVERLOAD option
 		jne .not_overload
 		mov dl,[si]
 		mov [OverLoad],dl
-		jmp short .opt_done
+		jmp .opt_done
 .not_overload:
 
 		cmp dl,67	; BOOTFILE NAME option
@@ -2222,6 +2227,7 @@ writestr	equ cwritestr
 %include "loadhigh.inc"		; Load a file into high memory
 %include "font.inc"		; VGA font stuff
 %include "graphics.inc"		; VGA graphics
+%include "highmem.inc"		; High memory sizing
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
@@ -2238,15 +2244,6 @@ boot_prompt	db 'boot: ', 0
 wipe_char	db BS, ' ', BS, 0
 err_notfound	db 'Could not find kernel image: ',0
 err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
-err_not386	db 'It appears your computer uses a 286 or lower CPU.'
-		db CR, LF
-		db 'You cannot run Linux unless you have a 386 or higher CPU'
-		db CR, LF
-		db 'in your machine.  If you get this message in error, hold'
-		db CR, LF
-		db 'down the Ctrl key while booting, and I will take your'
-		db CR, LF
-		db 'word for it.', CR, LF, 0
 err_noram	db 'It appears your computer has less than 384K of low ("DOS")'
 		db 0Dh, 0Ah
 		db 'RAM.  Linux needs at least this amount to boot.  If you get'

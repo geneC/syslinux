@@ -158,7 +158,7 @@ msg_formfeed:                                   ; Form feed character
                 mov bh,[TextAttribute]
                 mov ax,0600h                    ; Clear screen region
                 int 10h
-                jmp short msg_gotoxy
+                jmp msg_gotoxy
 msg_setbg:                                      ; Color background character
                 call unhexchar
                 jc msg_color_bad

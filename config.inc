@@ -28,6 +28,13 @@ BAUD_DIVISOR	equ 115200		; Serial port parameter
 %assign	DO_WBINVD 0			; Should we use WBINVD or not?
 
 ;
+; Version number definitinons
+;
+%ifndef DEPEND				; Generated file
+%include "version.gen"
+%endif
+
+;
 ; Should be updated with every release to avoid bootsector/SYS file mismatch
 ;
 %define	version_str	VERSION		; Must be 4 characters long!

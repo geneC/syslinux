@@ -139,6 +139,7 @@ HighMemSize	resd 1			; End of memory pointer (bytes)
 RamdiskMax	resd 1			; Highest address for a ramdisk
 KernelSize	resd 1			; Size of kernel (bytes)
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
+PMESP		resd 1			; Protected-mode ESP
 ClustPerMoby	resd 1			; Clusters per 64K
 ClustSize	resd 1			; Bytes/cluster
 KernelName      resb 12		        ; Mangled name for kernel
@@ -793,7 +794,8 @@ all_read_jmp:
 ;	SI	-> Starting cluster number (2-based)
 ;	CX	-> Cluster count (0FFFFh = until end of file)
 ;
-						; 386 check
+;	Returns CF=1 on EOF
+;
 getfssec:
 getfragment:	xor ebp,ebp			; Fragment sector count
 		movzx eax,si			; Get sector address
@@ -1311,6 +1313,7 @@ kernel_corrupt: mov si,err_notkernel
 ;
 ; .com 	- COMBOOT image
 ; .cbt	- COMBOOT image
+; .c32  - COM32 image
 ; .bs	- Boot sector
 ; .0	- PXE bootstrap program (PXELINUX only)
 ; .bin  - Boot sector
@@ -1334,6 +1337,8 @@ kernel_good:
 		je is_comboot_image
 		cmp ecx,'CBT'
 		je is_comboot_image
+		cmp ecx,'C32'
+		je is_com32_image
 		cmp ecx,'BS '
 		je is_bootsector
 		cmp ecx,'BIN'
@@ -1351,6 +1356,7 @@ kernel_good:
 ; COMBOOT-loading code
 ;
 %include "comboot.inc"
+%include "com32.inc"
 
 ;
 ; Boot sector loading code
@@ -1625,6 +1631,7 @@ lc_ret:         ret
 %include "loadhigh.inc"		; Load a file into high memory
 %include "font.inc"		; VGA font stuff
 %include "graphics.inc"		; VGA graphics
+%include "highmem.inc"		; High memory sizing
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
@@ -1651,15 +1658,6 @@ boot_prompt	db 'boot: ', 0
 wipe_char	db BS, ' ', BS, 0
 err_notfound	db 'Could not find kernel image: ',0
 err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
-err_not386	db 'It appears your computer uses a 286 or lower CPU.'
-		db CR, LF
-		db 'You cannot run Linux unless you have a 386 or higher CPU'
-		db CR, LF
-		db 'in your machine.  If you get this message in error, hold'
-		db CR, LF
-		db 'down the Ctrl key while booting, and I will take your'
-		db CR, LF
-		db 'word for it.', CR, LF, 0
 err_noram	db 'It appears your computer has less than 488K of low ("DOS")'
 		db CR, LF
 		db 'RAM.  Linux needs at least this amount to boot.  If you get'

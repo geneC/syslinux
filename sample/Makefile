@@ -15,14 +15,30 @@
 ## samples for syslinux users
 ##
 
+CC         = gcc
+LD         = ld
+CFLAGS     = -O2 -fomit-frame-pointer -I..
+LDFLAGS    = -s
+OBJCOPY    = objcopy
 PPMTOLSS16 = 	../ppmtolss16
 
-all: syslogo.lss
+.SUFFIXES: .lss .c .o .elf .c32
+
+all: syslogo.lss hello.c32
+
+.c.o:
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+.elf.c32:
+	$(OBJCOPY) -O binary $< $@
 
 syslogo.lss:	syslogo.png $(PPMTOLSS16)
 	pngtopnm syslogo.png | \
 		$(PPMTOLSS16) \#000000=0 \#d0d0d0=7 \#f6f6f6=15	\
 		> syslogo.lss
+
+hello.elf: hello.o
+	$(LD) -Ttext 0x101000 -e _start -o $@ $<
 
 clean:
 	rm -f *.lss

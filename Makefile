@@ -41,12 +41,13 @@ CSRC    = syslinux.c gethostip.c
 NASMSRC  = ldlinux.asm syslinux.asm copybs.asm \
 	  pxelinux.asm mbr.asm isolinux.asm isolinux-debug.asm
 SOURCES = $(CSRC) $(NASMSRC) *.inc
-BTARGET = kwdhash.gen ldlinux.bss ldlinux.sys ldlinux.bin \
+BTARGET = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
 	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin
 ITARGET = syslinux.com syslinux copybs.com gethostip
 DOCS    = COPYING NEWS README TODO *.doc sample
 OTHER   = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
-	  keytab-lilo.pl version sys2ansi.pl ppmtolss16 lss16toppm memdisk
+	  keytab-lilo.pl version version.pl sys2ansi.pl \
+	  ppmtolss16 lss16toppm memdisk
 OBSOLETE = pxelinux.bin
 
 # Things to install in /usr/bin
@@ -79,22 +80,22 @@ samples:
 memdisk:
 	$(MAKE) -C memdisk all
 
+version.gen: version version.pl
+	$(PERL) version.pl version
+
 kwdhash.gen: keywords genhash.pl
 	$(PERL) genhash.pl < keywords > kwdhash.gen
 
-ldlinux.bin: ldlinux.asm kwdhash.gen
-	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" \
-		-dHEXDATE="$(HEXDATE)" \
+ldlinux.bin: ldlinux.asm kwdhash.gen version.gen
+	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-l ldlinux.lst -o ldlinux.bin ldlinux.asm
 
-pxelinux.bin: pxelinux.asm kwdhash.gen
-	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" \
-		-dHEXDATE="$(HEXDATE)" \
+pxelinux.bin: pxelinux.asm kwdhash.gen version.gen
+	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-l pxelinux.lst -o pxelinux.bin pxelinux.asm
 
-isolinux.bin: isolinux.asm kwdhash.gen
-	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" \
-		-dHEXDATE="$(HEXDATE)" \
+isolinux.bin: isolinux.asm kwdhash.gen version.gen
+	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-l isolinux.lst -o isolinux.bin isolinux.asm
 
 pxelinux.0: pxelinux.bin
@@ -102,8 +103,7 @@ pxelinux.0: pxelinux.bin
 
 # Special verbose version of isolinux.bin
 isolinux-debug.bin: isolinux-debug.asm kwdhash.gen
-	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" \
-		-dHEXDATE="$(HEXDATE)" \
+	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-l isolinux-debug.lst -o isolinux-debug.bin isolinux-debug.asm
 
 ldlinux.bss: ldlinux.bin
@@ -136,7 +136,8 @@ syslinux: syslinux.o bootsect_bin.o ldlinux_bin.o
 		syslinux.o bootsect_bin.o ldlinux_bin.o
 
 syslinux.o: syslinux.c patch.offset
-	$(CC) $(INCLUDE) $(CFLAGS) -DPATCH_OFFSET=`cat patch.offset` -c -o $@ $<
+	$(CC) $(INCLUDE) $(CFLAGS) -DPATCH_OFFSET=`cat patch.offset` \
+		-c -o $@ $<
 
 gethostip.o: gethostip.c
 

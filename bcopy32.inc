@@ -43,6 +43,11 @@ bcopy_gdt:	dw bcopy_gdt_size-1	; Null descriptor - contains GDT
 		dd 008f9300h		; present, dpl 0, cover all 4G
 		dd 0000ffffh		; Data segment, use16, read/write,
 		dd 00009300h		; present, dpl 0, cover 64K
+		; The rest are used for COM32 only
+		dd 0000ffffh		; Code segment, use32, readable,
+		dd 00cf9b00h		; present, dpl 0, cover all 4G
+		dd 0000ffffh		; Data segment, use32, read/write,
+		dd 00cf9300h		; present, dpl 0, cover all 4G
 bcopy_gdt_size:	equ $-bcopy_gdt
 
 ;
