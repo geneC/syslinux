@@ -6,29 +6,40 @@
 #
 @ansicol = (0,4,2,6,1,5,3,7);
 
+$getting_file = 0;
+
 while ( read(STDIN, $ch, 1) > 0 ) {
     if ( $ch eq "\x1A" ) {	# <SUB> <Ctrl-Z> EOF
 	last;
     } elsif ( $ch eq "\x0C" ) {	# <FF>  <Ctrl-L> Clear screen
-	print "\x1b[2J";
+	print "\x1b[2J" if ( !$getting_file );
     } elsif ( $ch eq "\x0F" ) {	# <SI>  <Ctrl-O> Attribute change
-	if ( read(STDIN, $attr, 2) == 2 ) {
-	    $attr = hex $attr;
-	    print "\x1b[0;";
-	    if ( $attr & 0x80 ) {
-		print "5;";
-		$attr &= ~0x80;
+	if ( !$getting_file ) {
+	    if ( read(STDIN, $attr, 2) == 2 ) {
+		$attr = hex $attr;
+		print "\x1b[0;";
+		if ( $attr & 0x80 ) {
+		    print "5;";
+		    $attr &= ~0x80;
+		}
+		if ( $attr & 0x08 ) {
+		    print "1;";
+		    $attr &= ~0x08;
+		}
+		printf "%d;%dm",
+		$ansicol[$attr >> 4] + 40, $ansicol[$attr & 7] + 30;
 	    }
-	    if ( $attr & 0x08 ) {
-		print "1;";
-		$attr &= ~0x08;
-	    }
-	    printf "%d;%dm",
-	    $ansicol[$attr >> 4] + 40, $ansicol[$attr & 7] + 30;
 	}
+    } elsif ( $ch eq "\x18" ) {	# <CAN> <Ctrl-X> Display image
+	# We can't display an image; pretend to be a text screen
+	# Ignore all input until end of line
+	$getting_file = 1;
     } elsif ( $ch eq "\x0D" ) {	# <CR>  <Ctrl-M> Carriage return
 	# Ignore
-    } else {
+    } elsif ( $ch eq "\x0A" ) { # <LF>  <Ctrl-J> Line feed
+	$getting_file = 0;
 	print $ch;
+    } else {
+	print $ch if ( !$getting_file );
     }
 }
