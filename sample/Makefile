@@ -26,3 +26,5 @@ syslogo.lss:	syslogo.png $(PPMTOLSS16)
 
 clean:
 	rm -f *.lss
+
+spotless: clean

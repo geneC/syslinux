@@ -149,8 +149,10 @@ local-tidy:
 tidy: local-tidy
 	$(MAKE) -C memdisk tidy
 
-clean: local-tidy
+local-clean:
 	rm -f $(ITARGET)
+
+clean: local-tidy local-clean
 	$(MAKE) -C sample clean
 	$(MAKE) -C memdisk clean
 
@@ -159,8 +161,10 @@ dist: tidy
 		( cd $$dir && rm -f *~ \#* core ) ; \
 	done
 
-spotless: clean dist
+local-spotless:
 	rm -f $(BTARGET)
+
+spotless: local-clean dist local-spotless
 	$(MAKE) -C sample spotless
 	$(MAKE) -C memdisk spotless
 
