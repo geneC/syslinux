@@ -19,9 +19,10 @@
 #include "biosio.h"
 #include "string.h"
 #include "menu.h"
+#include "heap.h"
 
 // Local Variables
-static t_menusystem menusystem;
+static pt_menusystem ms; // Pointer to the menusystem
 static char TITLESTR[] = "COMBOOT Menu System for SYSLINUX developed by Murali Krishnan Ganapathy";
 static char TITLELONG[] = " TITLE too long ";
 static char ITEMLONG[] = " ITEM too long ";
@@ -59,17 +60,16 @@ void drawbox(char top, char left, char bot, char right,char attr, char page)
     }
 }
 
-void printmenu(t_menu * menu, int curr, char top, char left)
+void printmenu(pt_menu menu, int curr, char top, char left)
 {
     int x;
     int numitems,menuwidth;
-    t_menusystem *ms;
     char fchar[5],lchar[5]; // The first and last char in for each entry
     const char *str;  // and inbetween the item or a seperator is printed
     char attr;  // all in the attribute attr
     char sep[MENULEN];// and inbetween the item or a seperator is printed
+    pt_menuitem ci;
 
-    ms = & menusystem;
     numitems = menu->numitems;
     menuwidth = menu->menuwidth+3;
     clearwindow(top,left-2,top+numitems+1,left+menuwidth+1,ms->menupage,ms->fillchar,ms->shadowattr);
@@ -85,9 +85,10 @@ void printmenu(t_menu * menu, int curr, char top, char left)
         // Setup the defaults now
         lchar[0] = fchar[0] = ' '; 
         lchar[1] = fchar[1] = '\0'; // fchar and lchar are just spaces
-        str = menu->items[x].item; // Pointer to item string
+        ci = menu->items[x];
+        str = ci->item; // Pointer to item string
         attr = (x==curr ? ms->reverseattr : ms->normalattr); // Normal attributes
-        switch (menu->items[x].action) // set up attr,str,fchar,lchar for everything
+        switch (ci->action) // set up attr,str,fchar,lchar for everything
         {
             case OPT_INACTIVE:
                  attr = (x==curr? ms->revinactattr : ms->inactattr);
@@ -96,7 +97,7 @@ void printmenu(t_menu * menu, int curr, char top, char left)
                  lchar[0] = SUBMENUCHAR; lchar[1] = 0;
                  break;
             case OPT_CHECKBOX:
-                 lchar[0] = (menu->items[x].itemdata.checked ? CHECKED : UNCHECKED);
+                 lchar[0] = (ci->itemdata.checked ? CHECKED : UNCHECKED);
                  lchar[1] = 0;
                  break;
             case OPT_SEP:
@@ -117,27 +118,24 @@ void printmenu(t_menu * menu, int curr, char top, char left)
         gotoxy(top+x,left+menuwidth-1,ms->menupage); // Last char if any
         csprint(lchar); // Print last part
     }
-    if (menusystem.handler) menusystem.handler(&menusystem,menu->items+curr);
+    if (ms->handler) ms->handler(ms,menu->items[curr]);
 }
 
-void cleanupmenu(t_menu *menu, char top,char left)
+void cleanupmenu(pt_menu menu, char top,char left)
 {
-    t_menusystem *ms = &menusystem;
     clearwindow(top,left-2,top+menu->numitems+1,left+menu->menuwidth+4,ms->menupage,ms->fillchar,ms->fillattr); // Clear the shadow
     clearwindow(top-1,left-3,top+menu->numitems,left+menu->menuwidth+3,ms->menupage,ms->fillchar,ms->fillattr); // clear the main window
 }
 
 /* Handle one menu */
-t_menuitem * getmenuoption( t_menu *menu, char top, char left, char startopt)
+pt_menuitem getmenuoption( pt_menu menu, char top, char left, char startopt)
 // Return item chosen or NULL if ESC was hit.
 {
     int curr;
     char asc,scan;
     char numitems;
-    t_menusystem *ms;
-    t_menuitem *ci; // Current item
+    pt_menuitem ci; // Current item
     
-    ms = & menusystem;
     numitems = menu->numitems;
     // Setup status line
     gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
@@ -148,11 +146,11 @@ t_menuitem * getmenuoption( t_menu *menu, char top, char left, char startopt)
     gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
     cprint(ms->spacechar,ms->statusattr,ms->numcols,1);
     gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
-    csprint(menu->items[curr].status);
+    csprint(menu->items[curr]->status);
     while (1) // Forever
     {
         printmenu(menu,curr,top,left);
-        ci = &(menu->items[curr]);
+        ci = menu->items[curr];
         asc = inputc(&scan);
         switch (scan)
         {
@@ -169,11 +167,10 @@ t_menuitem * getmenuoption( t_menu *menu, char top, char left, char startopt)
                   curr -= 5;
                   break;
             case UPARROW:
-                  while((curr > 0) && (menu->items[--curr].action == OPT_SEP)) ;
+                  while((curr > 0) && (menu->items[--curr]->action == OPT_SEP)) ;
                   break;
             case DNARROW:
-                  while((curr < numitems-1) && (menu->items[++curr].action == OPT_SEP)) ;
-                  //curr++;
+                  while((curr < numitems-1) && (menu->items[++curr]->action == OPT_SEP)) ;
                   break;
             case LTARROW:
             case ESCAPE:
@@ -192,7 +189,7 @@ t_menuitem * getmenuoption( t_menu *menu, char top, char left, char startopt)
                   if (ci->action != OPT_CHECKBOX) break;
                   ci->itemdata.checked = !ci->itemdata.checked;
                   // Call handler to see it anything needs to be done
-                  if (ci->handler != NULL) ci->handler(&menusystem,ci); 
+                  if (ci->handler != NULL) ci->handler(ms,ci); 
                   break;
         }
         // Adjust within range
@@ -201,15 +198,15 @@ t_menuitem * getmenuoption( t_menu *menu, char top, char left, char startopt)
         // Update status line
         gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
         cprint(ms->spacechar,ms->statusattr,ms->numcols,ms->menupage);
-        csprint(menu->items[curr].status);
+        csprint(menu->items[curr]->status);
     }
     return NULL; // Should never come here
 }
 
 /* Handle the entire system of menu's. */
-t_menuitem * runmenusystem(char top, char left, int currmenu)
+pt_menuitem runmenusystem(char top, char left, pt_menu cmenu)
 /*
- * currmenu
+ * cmenu
  *    Which menu should be currently displayed
  * top,left
  *    What is the position of the top,left corner of the menu
@@ -218,16 +215,14 @@ t_menuitem * runmenusystem(char top, char left, int currmenu)
  *    Returns a pointer to the final item chosen, or NULL if nothing chosen.
  */
 {
-    t_menu *cmenu;
-    t_menusystem *ms = &menusystem;
-    t_menuitem *opt,*choice;
+    pt_menuitem opt,choice;
     int numitems;
     char startopt;
 
     startopt = 0;
+    if (cmenu == NULL) return NULL;
 startover:
-    cmenu = (menusystem.menus+currmenu);
-    numitems = menusystem.menus[currmenu].numitems;
+    numitems = cmenu->numitems;
     opt = getmenuoption(cmenu,top,left,startopt);
     if (opt == NULL)
     {
@@ -240,7 +235,7 @@ startover:
         cleanupmenu(cmenu,top,left);
         return opt; // parent cleanup other menus
     }
-    if (opt->itemdata.submenunum >= menusystem.nummenus) // This is Bad....
+    if (opt->itemdata.submenunum >= ms->nummenus) // This is Bad....
     {
         gotoxy(12,12,ms->menupage); // Middle of screen
         csprint("Invalid submenu requested. Ask administrator to correct this.");
@@ -250,7 +245,7 @@ startover:
     // Call recursively for submenu
     // Position the submenu below the current item,
     // covering half the current window (horizontally)
-    choice = runmenusystem(top+opt->index+2, left+3+(cmenu->menuwidth >> 1), opt->itemdata.submenunum);
+    choice = runmenusystem(top+opt->index+2, left+3+(cmenu->menuwidth >> 1), ms->menus[opt->itemdata.submenunum]);
     if (choice==NULL) // User hit Esc in submenu
     {
        // Startover
@@ -266,28 +261,26 @@ startover:
 
 /* User Callable functions */
 
-t_menuitem * showmenus(char startmenu)
+pt_menuitem showmenus(char startmenu)
 {
-    t_menuitem *rv;
-    t_menusystem *ms;
+    pt_menuitem rv;
     char oldpage,tpos;
 
-    ms = & menusystem;
     // Setup screen for menusystem
     oldpage = getdisppage();
     setdisppage(ms->menupage);
     cls();
     clearwindow(ms->minrow,ms->mincol,ms->maxrow,ms->maxcol,ms->menupage,ms->fillchar,ms->fillattr);
-    tpos = (ms->numcols - strlen(menusystem.title) - 1) >> 1; // To center it on line    
+    tpos = (ms->numcols - strlen(ms->title) - 1) >> 1; // To center it on line    
     gotoxy(ms->minrow,ms->mincol,ms->menupage);
     cprint(ms->tfillchar,ms->titleattr,ms->numcols,ms->menupage);
     gotoxy(ms->minrow,ms->mincol+tpos,ms->menupage);
-    csprint(menusystem.title);
+    csprint(ms->title);
     
     cursoroff(); // Doesn't seem to work?
 
     // Go
-    rv = runmenusystem(ms->minrow+MENUROW, ms->mincol+MENUCOL, startmenu);
+    rv = runmenusystem(ms->minrow+MENUROW, ms->mincol+MENUCOL, ms->menus[startmenu]);
 
     // Hide the garbage we left on the screen
     cursoron();
@@ -299,71 +292,78 @@ t_menuitem * showmenus(char startmenu)
 
 void init_menusystem(const char *title)
 {
-    menusystem.nummenus = 0;
-    if (title == NULL)
-        menusystem.title = TITLESTR; // Copy pointers
-    else menusystem.title = title;
-
-    menusystem.normalattr = NORMALATTR; 
-    menusystem.reverseattr= REVERSEATTR;
-    menusystem.inactattr = INACTATTR;
-    menusystem.revinactattr = REVINACTATTR;
-
-    menusystem.statusattr = STATUSATTR;
-    menusystem.statline = STATLINE;
-    menusystem.tfillchar= TFILLCHAR;
-    menusystem.titleattr= TITLEATTR;
+    char i;
     
-    menusystem.fillchar = FILLCHAR;
-    menusystem.fillattr = FILLATTR;
-    menusystem.spacechar= SPACECHAR;
-    menusystem.shadowattr = SHADOWATTR;
+    ms = NULL;
+    ms = (pt_menusystem) malloc(sizeof(t_menusystem));
+    if (ms == NULL) return;
+    ms->nummenus = 0;
+    // Initialise all menu pointers
+    for (i=0; i < MAXMENUS; i++) ms->menus[i] = NULL; 
+    
+    if (title == NULL)
+        ms->title = TITLESTR; // Copy pointers
+    else ms->title = title;
 
-    menusystem.menupage = MENUPAGE; // Usually no need to change this at all
-    menusystem.handler = NULL; // No handler function
+    ms->normalattr = NORMALATTR; 
+    ms->reverseattr= REVERSEATTR;
+    ms->inactattr = INACTATTR;
+    ms->revinactattr = REVINACTATTR;
+
+    ms->statusattr = STATUSATTR;
+    ms->statline = STATLINE;
+    ms->tfillchar= TFILLCHAR;
+    ms->titleattr= TITLEATTR;
+    
+    ms->fillchar = FILLCHAR;
+    ms->fillattr = FILLATTR;
+    ms->spacechar= SPACECHAR;
+    ms->shadowattr = SHADOWATTR;
+
+    ms->menupage = MENUPAGE; // Usually no need to change this at all
+    ms->handler = NULL; // No handler function
 
     // Figure out the size of the screen we are in now.
     // By default we use the whole screen for our menu
-    menusystem.minrow = menusystem.mincol = 0;
-    menusystem.numcols = getnumcols();
-    menusystem.numrows = getnumrows();
-    menusystem.maxcol = menusystem.numcols - 1;
-    menusystem.maxrow = menusystem.numrows - 1;
+    ms->minrow = ms->mincol = 0;
+    ms->numcols = getnumcols();
+    ms->numrows = getnumrows();
+    ms->maxcol = ms->numcols - 1;
+    ms->maxrow = ms->numrows - 1;
 }
 
 void set_normal_attr(char normal, char selected, char inactivenormal, char inactiveselected)
 {
-    if (normal != 0xFF)           menusystem.normalattr   = normal;
-    if (selected != 0xFF)         menusystem.reverseattr  = selected;
-    if (inactivenormal != 0xFF)   menusystem.inactattr    = inactivenormal;
-    if (inactiveselected != 0xFF) menusystem.revinactattr = inactiveselected;
+    if (normal != 0xFF)           ms->normalattr   = normal;
+    if (selected != 0xFF)         ms->reverseattr  = selected;
+    if (inactivenormal != 0xFF)   ms->inactattr    = inactivenormal;
+    if (inactiveselected != 0xFF) ms->revinactattr = inactiveselected;
 }
 
 void set_status_info(char statusattr, char statline)
 {
-    if (statusattr != 0xFF) menusystem.statusattr = statusattr;
+    if (statusattr != 0xFF) ms->statusattr = statusattr;
     // statline is relative to minrow
-    if (statline >= menusystem.numrows) statline = menusystem.numrows - 1;
-    menusystem.statline = statline; // relative to ms->minrow, 0 based
+    if (statline >= ms->numrows) statline = ms->numrows - 1;
+    ms->statline = statline; // relative to ms->minrow, 0 based
 }
 
 void set_title_info(char tfillchar, char titleattr)
 {
-    if (tfillchar  != 0xFF) menusystem.tfillchar  = tfillchar;
-    if (titleattr  != 0xFF) menusystem.titleattr  = titleattr;
+    if (tfillchar  != 0xFF) ms->tfillchar  = tfillchar;
+    if (titleattr  != 0xFF) ms->titleattr  = titleattr;
 }
 
 void set_misc_info(char fillchar, char fillattr,char spacechar, char shadowattr)
 {
-    if (fillchar  != 0xFF) menusystem.fillchar  = fillchar;
-    if (fillattr  != 0xFF) menusystem.fillattr  = fillattr;
-    if (spacechar != 0xFF) menusystem.spacechar = spacechar;
-    if (shadowattr!= 0xFF) menusystem.shadowattr= shadowattr;
+    if (fillchar  != 0xFF) ms->fillchar  = fillchar;
+    if (fillattr  != 0xFF) ms->fillattr  = fillattr;
+    if (spacechar != 0xFF) ms->spacechar = spacechar;
+    if (shadowattr!= 0xFF) ms->shadowattr= shadowattr;
 }
 
 void set_window_size(char top, char left, char bot, char right) // Set the window which menusystem should use
 {
-    t_menusystem *ms;
     
     char nr,nc;
     if ((top > bot) || (left > right)) return; // Sorry no change will happen here
@@ -371,7 +371,6 @@ void set_window_size(char top, char left, char bot, char right) // Set the windo
     nc = getnumcols();
     if (bot >= nr) bot = nr-1;
     if (right >= nc) right = nc-1;
-    ms = &menusystem;
     ms->minrow = top;
     ms->mincol = left;
     ms->maxrow = bot;
@@ -383,83 +382,96 @@ void set_window_size(char top, char left, char bot, char right) // Set the windo
 
 void reg_handler( t_menusystem_handler handler)
 {
-    menusystem.handler = handler;
+    ms->handler = handler;
 }
 
 void unreg_handler()
 {
-    menusystem.handler = NULL;
+    ms->handler = NULL;
 }
 
 char add_menu(const char *title) // Create a new menu and return its position
 {
-   char num = menusystem.nummenus;
-   t_menu *m;
+   char num,i;
+   pt_menu m;
 
    if (num >= MAXMENUS) return -1;
-   m = &(menusystem.menus[num]);
+   num = ms->nummenus;
+   m = NULL;
+   m = (pt_menu) malloc(sizeof(t_menu));
+   if (m == NULL) return -1;
+   ms->menus[num] = m;
    m->numitems = 0;
+   for (i=0; i < MAXMENUSIZE; i++) m->items[i] = NULL;
+   
    if (title)
    {
        if (strlen(title) > MENULEN - 2)
-          m->title = TITLELONG;              //strcpy(m->title," TITLE TOO LONG ");
-       else m->title = title; //strcpy(m->title,title);
+          m->title = TITLELONG;
+       else m->title = title; 
    }
-   else m->title = EMPTYSTR; //strcpy(m->title,"");
+   else m->title = EMPTYSTR; 
    m ->menuwidth = strlen(m->title);
-   menusystem.nummenus += 1;
-   return menusystem.nummenus - 1;
+   ms->nummenus ++;
+   return ms->nummenus - 1;
 }
 
 
-void add_sep() // Add a separator to current menu
+pt_menuitem add_sep() // Add a separator to current menu
 {
-    t_menuitem *mi;
-    t_menu *m;
+    pt_menuitem mi;
+    pt_menu m;
 
-    m = &(menusystem.menus[menusystem.nummenus-1]);
-    mi = &(m->items[m->numitems]);
+    m = (ms->menus[ms->nummenus-1]);
+    mi = NULL;
+    mi = (pt_menuitem) malloc(sizeof(t_menuitem));
+    if (mi == NULL) return NULL;
+    m->items[m->numitems] = mi;
     mi->handler = NULL; // No handler
     mi->item = mi->status = mi->data = EMPTYSTR;
     mi->action = OPT_SEP;
     mi->index = m->numitems++;
-    mi->parindex = menusystem.nummenus-1;    
+    mi->parindex = ms->nummenus-1;
+    return mi;
 }
 
-t_menuitem * add_item(const char *item, const char *status, t_action action, const char *data, char itemdata) // Add item to the "current" menu
+pt_menuitem add_item(const char *item, const char *status, t_action action, const char *data, char itemdata) // Add item to the "current" menu
 {
-    t_menuitem *mi;
-    t_menu *m;
+    pt_menuitem mi;
+    pt_menu m;
 
-    m = &(menusystem.menus[menusystem.nummenus-1]);
-    mi = &(m->items[m->numitems]);
+    m = (ms->menus[ms->nummenus-1]);
+    mi = NULL;
+    mi = (pt_menuitem) malloc(sizeof(t_menuitem));
+    if (mi == NULL) return NULL;
+    m->items[m->numitems] = mi;
     mi->handler = NULL; // No handler
     if (item) {
       if (strlen(item) > MENULEN - 2) {
-        mi->item = ITEMLONG; //strcpy(mi->item,"ITEM TOO LONG");
+        mi->item = ITEMLONG; 
       } else {
-        mi->item = item; //strcpy(mi->item,item);
+        mi->item = item; 
         if (strlen(item) > m->menuwidth) m->menuwidth = strlen(item);
       }
-    } else mi->item = EMPTYSTR; //strcpy(mi->item,"");
+    } else mi->item = EMPTYSTR; 
 
     if (status) {
       if (strlen(status) > STATLEN - 2) {
-          mi->status = STATUSLONG; //strcpy(mi->status,"STATUS STRING TOO LONG");
+          mi->status = STATUSLONG; 
       } else {
-      mi->status = status; //strcpy(mi->status,status);
+      mi->status = status; 
       }
-    } else mi->status = EMPTYSTR; //strcpy(mi->status,"");
+    } else mi->status = EMPTYSTR; 
     
     mi->action = action;
 
     if (data) {
       if (strlen(data) > ACTIONLEN - 2) {
-          mi->data = ACTIONLONG; //strcpy(mi->data,"ACTION STRING LONG");
+          mi->data = ACTIONLONG; 
       } else {
-         mi->data = data; //strcpy(mi->data,data); // This is only null terminated
+         mi->data = data; 
       }
-    } else mi->data = EMPTYSTR; //strcpy(mi->data,"");
+    } else mi->data = EMPTYSTR; 
 
     switch (action)
     {
@@ -474,7 +486,7 @@ t_menuitem * add_item(const char *item, const char *status, t_action action, con
             break;
     }
     mi->index = m->numitems++;
-    mi->parindex = menusystem.nummenus-1;
+    mi->parindex = ms->nummenus-1;
     return mi;
 }
 

@@ -18,6 +18,7 @@
 #include "biosio.h"
 #include "string.h"
 #include "syslinux.h"
+#include "heap.h"
 
 int syslinux;
 

@@ -121,9 +121,9 @@ typedef void (*t_item_handler)(struct s_menusystem *, struct s_menuitem *);
 typedef void (*t_menusystem_handler)(struct s_menusystem *, struct s_menuitem *);
 
 typedef struct s_menuitem {
-    const char *item; //char item[MENULEN+2];
-    const char *status; //char status[STATLEN+2];
-    const char *data; //char data[ACTIONLEN+2];
+    const char *item;
+    const char *status;
+    const char *data; 
     void * extra_data; // Any other data user can point to
     t_item_handler handler; // Pointer to function of type menufn
     char active; // Is this item active or not
@@ -133,16 +133,20 @@ typedef struct s_menuitem {
     char parindex; // Index of the menu in which this item appears. 
 } t_menuitem;
 
+typedef t_menuitem *pt_menuitem; // Pointer to type menuitem
+
 typedef struct s_menu {
-    t_menuitem items[MAXMENUSIZE];
-    const char *title; //char title[MENULEN+2];
+    pt_menuitem items[MAXMENUSIZE];
+    const char *title;
     char numitems;
     char menuwidth;
 } t_menu;
 
+typedef t_menu *pt_menu; // Pointer to type menu
+
 typedef struct s_menusystem {
-    t_menu menus[MAXMENUS];
-    const char *title; //char title[80]; // Maximum title length
+    pt_menu menus[MAXMENUS];
+    const char *title; 
     t_menusystem_handler handler; // Handler function called every time a menu is re-printed.
     char nummenus;
     char normalattr; 
@@ -162,6 +166,8 @@ typedef struct s_menusystem {
     char maxcol,mincol,numcols; // Number of columns in the window
 } t_menusystem;
 
+typedef t_menusystem *pt_menusystem; // Pointer to type menusystem
+
 /************************************************************************
  * IMPORTANT INFORMATION
  *
@@ -178,7 +184,7 @@ typedef struct s_menusystem {
  ***************************************************************************
  */
 
-t_menuitem * showmenus(char startmenu);
+pt_menuitem showmenus(char startmenu);
 
 void init_menusystem(const char *title); // This pointer value is stored internally
 
@@ -200,10 +206,10 @@ void unreg_handler();
 char add_menu(const char *title); // This pointer value is stored internally
 
 // Add item to the "current" menu // pointer values are stored internally
-t_menuitem * add_item(const char *item, const char *status, t_action action, const char *data, char itemdata);
+pt_menuitem add_item(const char *item, const char *status, t_action action, const char *data, char itemdata);
 
 // Add a separator to the "current" menu
-void add_sep();
+pt_menuitem add_sep();
 
 // Main function for the user's config file
 int menumain(char *cmdline);

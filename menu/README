@@ -10,7 +10,10 @@ make.  You can use either simple.c or complex.c as a starting point
 for your own menu configuration file; then add the name with a .com
 extension to the MENUS list in the Makefile.
 
-The resulting code runs both under DOS as well as SYSLINUX.
+The resulting code runs both under DOS as well as SYSLINUX. A trivial
+memory allocation routine is implemented, to reduce the memory footprint 
+of this utility.
+
 Currently, menu items, submenus and checkboxes are supported.
 
 The keys used are:
@@ -25,9 +28,5 @@ Credits
 * The Watcom developers and Peter Anvin for figuring out the 
   startup code.
 
-- Murali
-
-P.S: I know that the choice of colors are not exactly the best
-(in fact they are horrible). If you know a better choice of colors
-I would be happy to change my defaults to your suggested ones.
+- Murali (gmurali+guicd@cs.uchicago.edu)
 
