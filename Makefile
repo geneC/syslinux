@@ -130,17 +130,23 @@ gethostip: gethostip.o
 install: all
 	install -c $(INSTALL_BIN) $(INSTALLROOT)$(BINDIR)
 
-tidy:
+local-tidy:
 	rm -f *.o *_bin.c stupid.*
 	rm -f syslinux.lst copybs.lst pxelinux.lst isolinux*.lst
 	rm -f $(OBSOLETE)
 
-clean: tidy
+tidy: local-tidy
+	$(MAKE) -C memdisk tidy
+
+clean: local-tidy
 	rm -f $(ITARGET)
 	$(MAKE) -C sample clean
+	$(MAKE) -C memdisk clean
 
 dist: tidy
-	rm -f *~ \#* core
+	for $$dir in . sample memdisk ; do \
+		( cd $$dir && rm -f *~ \#* core ) ; \
+	done
 
 spotless: clean dist
 	rm -f $(BTARGET)

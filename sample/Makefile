@@ -24,6 +24,5 @@ syslogo.lss:	syslogo.png $(PPMTOLSS16)
 		$(PPMTOLSS16) \#000000=0 \#d0d0d0=7 \#f6f6f6=15	\
 		> syslogo.lss
 
-
 clean:
 	rm -f *.lss
