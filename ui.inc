@@ -104,6 +104,8 @@ not_ascii:	mov byte [FuncFlag],0
 		je command_done
 		cmp al,06h			; <Ctrl-F>
 		je set_func_flag
+		cmp al,15h			; <Ctrl-U>
+		je kill_command			; Kill input line
 		cmp al,16h			; <Ctrl-V>
 		je print_version
 		cmp al,08h			; Backspace
@@ -114,6 +116,10 @@ backspace:	cmp di,command_line		; Make sure there is anything
 		mov si,wipe_char		; and erase it from the screen
 		call cwritestr
 		jmp short get_char_2
+
+kill_command:
+		call crlf
+		jmp enter_command
 
 set_func_flag:
 		mov byte [FuncFlag],1

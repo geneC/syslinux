@@ -23,6 +23,7 @@ Changes in 2.08:
 	  location 0x5700.  Thus, don't use it!
 	* PXELINUX: Change pathname length max from 63 to 127; change
 	  max vkernels from 128 to 64.
+	* Support Ctrl-U -> kill entire command line input.
 
 Changes in 2.07:
 	* MEMDISK: Workaround for BIOSes which go into a snit when
