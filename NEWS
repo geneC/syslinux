@@ -1,4 +1,7 @@
 Changes in 1.44:
+	* Change HIGHMEM_MAX to 38000000h to (hopefully) avoid the
+	  kernel stepping on it; 3f000000h was apparently a higher
+	  limit than the kernel used!
 
 Changes in 1.43:
 	* Add sys2ansi.pl script to display the contents of a

@@ -32,7 +32,7 @@
 ;
 max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
 retry_count	equ 6			; How patient are we with the disk?
-HIGHMEM_MAX	equ 03f000000h		; Highest address for an initrd
+HIGHMEM_MAX	equ 038000000h		; Highest address for an initrd
 
 ;
 ; Should be updated with every release to avoid bootsector/SYS file mismatch
