@@ -47,7 +47,7 @@ ITARGET = syslinux.com syslinux copybs.com gethostip mkdiskimage
 DOCS    = COPYING NEWS README TODO *.doc sample com32/include
 OTHER   = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
 	  keytab-lilo.pl version version.pl sys2ansi.pl \
-	  ppmtolss16 lss16toppm memdisk
+	  ppmtolss16 lss16toppm memdisk bin2hex.pl mkdiskimage.in
 OBSOLETE = pxelinux.bin
 
 # Things to install in /usr/bin
