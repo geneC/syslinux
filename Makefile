@@ -51,13 +51,16 @@ VERSION  = $(shell cat version)
 CSRC     = syslxmod.c gethostip.c
 NASMSRC  = ldlinux.asm copybs.asm pxelinux.asm mbr.asm isolinux.asm
 SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
+
+# _bin.c files required by both BTARGET and ITARGET installers
+BINFILES = bootsect_bin.c ldlinux_bin.c mbr_bin.c \
+	   extlinux_bss_bin.c extlinux_sys_bin.c 
+
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
 BTARGET  = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
 	   pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin \
-	   extlinux.bin extlinux.bss extlinux.sys \
-	   bootsect_bin.c ldlinux_bin.c mbr_bin.c \
-	   extlinux_bss_bin.c extlinux_sys_bin.c 
+	   extlinux.bin extlinux.bss extlinux.sys
 BOBJECTS = $(BTARGET) dos/syslinux.com win32/syslinux.exe memdisk/memdisk
 BSUBDIRS = memdisk dos win32
 ITARGET  = copybs.com gethostip mkdiskimage
@@ -97,18 +100,18 @@ MAKE    += DATE=$(DATE) HEXDATE=$(HEXDATE)
 # error every time you try to build.
 #
 
-all:	$(BTARGET) $(ITARGET)
+all:	all-local
 	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 	$(MAKE) all-local
 	-ls -l $(BOBJECTS) $(IOBJECTS)
 
-all-local: $(BTARGET) $(ITARGET)
+all-local: $(BTARGET) $(ITARGET) $(BINFILES)
 
 installer: installer-local
-
-installer-local: $(ITARGET)
 	set -e ; for i in $(ISUBDIRS); do $(MAKE) -C $$i all ; done
 	-ls -l $(BOBJECTS) $(IOBJECTS)
+
+installer-local: $(ITARGET) $(BINFILES)
 
 version.gen: version version.pl
 	$(PERL) version.pl version
