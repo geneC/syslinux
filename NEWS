@@ -3,7 +3,10 @@ apply to that specific program only; other changes apply to all of
 them.
 
 Changes in 2.12:
-	* Simple C library, based on klibc, for writing COM32 programs.
+	* Simple C library, based on klibc, for writing COM32
+	  programs.
+	* Fix the handling of file length in loading of COM32
+	  programs.
 
 Changes in 2.11:
 	* ALL: Add an API call to get the configuration file name.
