@@ -18,9 +18,6 @@
 ; this should be the normal thing for client-serving DNS servers.)
 ;
 
-%include "macros.inc"
-%include "pxe.inc"
-
 DNS_PORT	equ htons(53)		; Default DNS port 
 DNS_MAX_PACKET	equ 512			; Defined by protocol
 ; TFTP uses the range 49152-57343; avoid that range
@@ -216,8 +213,20 @@ dns_resolv:
 		mov di,[DNSServers]
 .servers:
 		cmp di,[LastDNSServer]
-		jae .nomoreservers
+		jb .moreservers
 
+.nomoreservers:
+		add dx,dx			; Exponential backoff
+		loop .backoff
+
+		xor eax,eax			; Nothing...
+.done:
+		pop dx
+		pop cx
+		pop di
+		ret
+
+.moreservers:
 		push di
 		push cx
 		push dx
@@ -258,7 +267,79 @@ dns_resolv:
 		jnz .waitrecv
 
 		; Got a packet, deal with it...
-		hlt
+		mov di,DNSRecvBuf
+		lodsw
+		cmp ax,[DNSSendBuf]		; ID
+		jne .waitrecv			; Not ours
+
+		lodsw				; flags
+		xor al,80h			; Query#/Answer bit
+		test ax,htons(0F80Fh)
+		jnz .badness
+		
+		lodsw
+		xchg ah,al
+		mov cx,ax			; Questions echoed
+		lodsw
+		xchg ah,al
+		push ax				; Replies
+		lodsw				; NS records
+		lodsw				; Authority records
+
+		jcxz .qskipped
+.skipq:
+		call dns_skiplabel		; Skip name
+		add di,4			; Skip question trailer
+		loop .skipq
+
+.qskipped:
+		pop cx				; Number of replies
+		jcxz .badness
+
+.parseanswer:
+		mov si,DNSSendBuf+dnshdr_size
+		call dns_compare
+		pushf
+		call dns_skiplabel
+		mov ax,[si+8]			; RDLENGHT
+		xchg ah,al			; Convert to host byte order
+		popf
+		jnz .notsame
+		cmp word [si],htons(1)		; TYPE = A?
+		jne .notsame
+		cmp word [si+2],htons(1)	; CLASS = IN?
+		jne .notsame
+		cmp ax,4			; RDLENGTH = 4?
+		jne .notsame
+		;
+		; We hit paydirt here...
+		;
+		mov eax,[si+10]
+.gotresult:
+		add sp,6			; Drop timeout information
+		jmp .done
+
+.notsame:
+		add di,10
+		add di,ax
+		loop .parseanswer
+
+.badness:
+		; We got back no data from this server.  Unfortunately, for a recursive,
+		; non-authoritative query there is no such thing as an NXDOMAIN reply,
+		; which technically means we can't draw any conclusions.  However,
+		; in practice that means the domain doesn't exist.  If this turns out
+		; to be a problem, we may want to add code to go through all the servers
+		; before giving up.
+
+		; If the DNS server wasn't capable of recursion, and isn't capable
+		; of giving us an authoritative reply (i.e. neither AA or RA set),
+		; then at least try a different setver...
+		test word [DNSRecvBuf+dnshdr.flags],htons(0480h)
+		jz .timeout
+		
+		xor eax,eax
+		jmp .gotresult
 
 .timeout:
 		pop dx
@@ -266,13 +347,3 @@ dns_resolv:
 		pop di
 		add di,4
 		jmp .servers
-.nomoreservers:
-		add dx,dx			; Exponential backoff
-		loop .backoff
-
-		xor eax,eax			; Nothing...
-.done:
-		push dx
-		push cx
-		push di
-		ret
