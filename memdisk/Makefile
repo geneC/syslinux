@@ -88,6 +88,10 @@ memdisk.o: memdisk.bin
 	for ssrc in $(SSRC) ; do $(CC) $(INCLUDE) -x c -traditional -M $$ssrc | sed -e 's/\.S16\.o/\.o16/' >> .depend ; done
 	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc >> .depend ; done
 
+depend:
+	rm -f .depend
+	$(MAKE) .depend
+
 # This file contains the version number, so add a dependency for it
 setup.s: ../version
 

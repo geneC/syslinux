@@ -19,6 +19,8 @@ CC	 = gcc
 INCLUDE  =
 CFLAGS	 = -Wall -O2 -fomit-frame-pointer
 LDFLAGS	 = -O2 -s
+AR	 = ar
+RANLIB   = ranlib
 
 NASM	 = nasm -O99
 NINCLUDE = 
@@ -37,12 +39,12 @@ VERSION  = $(shell cat version)
 # like to keep those uniform for debugging reasons; however, distributors 
 # want to recompile the installers (ITARGET).
 #
-CSRC    = syslinux.c gethostip.c
+CSRC    = syslinux.c syslxmod.c gethostip.c
 NASMSRC  = ldlinux.asm syslinux.asm copybs.asm \
 	  pxelinux.asm mbr.asm isolinux.asm isolinux-debug.asm
 SOURCES = $(CSRC) $(NASMSRC) *.inc
 BTARGET = kwdhash.gen version.gen ldlinux.bss ldlinux.sys ldlinux.bin \
-	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin
+	  pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin libsyslinux.a
 ITARGET = syslinux.com syslinux copybs.com gethostip mkdiskimage
 DOCS    = COPYING NEWS README TODO *.doc sample com32/include
 OTHER   = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
@@ -126,16 +128,20 @@ copybs.com: copybs.asm
 	$(NASM) -f bin -l copybs.lst -o copybs.com copybs.asm
 
 bootsect_bin.c: ldlinux.bss bin2c.pl
-	$(PERL) bin2c.pl bootsect < ldlinux.bss > bootsect_bin.c
+	$(PERL) bin2c.pl syslinux_bootsect < ldlinux.bss > bootsect_bin.c
 
 ldlinux_bin.c: ldlinux.sys bin2c.pl
-	$(PERL) bin2c.pl ldlinux < ldlinux.sys > ldlinux_bin.c
+	$(PERL) bin2c.pl syslinux_ldlinux < ldlinux.sys > ldlinux_bin.c
 
-syslinux: syslinux.o bootsect_bin.o ldlinux_bin.o
-	$(CC) $(LDFLAGS) -o syslinux \
-		syslinux.o bootsect_bin.o ldlinux_bin.o
+libsyslinux.a: bootsect_bin.o ldlinux_bin.o syslxmod.o
+	rm -f $@
+	$(AR) cq $@ $^
+	$(RANLIB) $@
 
-syslinux.o: syslinux.c patch.offset
+syslinux: syslinux.o libsyslinux.a
+	$(CC) $(LDFLAGS) -o $@ $^
+
+syslxmod.o: syslxmod.c patch.offset
 	$(CC) $(INCLUDE) $(CFLAGS) -DPATCH_OFFSET=`cat patch.offset` \
 		-c -o $@ $<
 
@@ -184,9 +190,12 @@ spotless: local-clean dist local-spotless
 	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -M $$csrc >> .depend ; done
 	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc >> .depend ; done
 
-depend:
+local-depend:
 	rm -f .depend
 	$(MAKE) .depend
+
+depend: local-depend
+	$(MAKE) -C memdisk depend
 
 # Hook to add private Makefile targets for the maintainer.
 -include Makefile.private

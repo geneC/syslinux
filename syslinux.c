@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 1998-2002 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1998-2001 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -39,6 +39,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include "syslinux.h"
+
 #ifndef _PATH_MOUNT
 #define _PATH_MOUNT "/bin/mount"
 #endif
@@ -46,12 +48,6 @@
 #ifndef _PATH_UMOUNT
 #define _PATH_UMOUNT "/bin/umount"
 #endif
-
-extern unsigned char bootsect[];
-extern unsigned int  bootsect_len;
-
-extern unsigned char ldlinux[];
-extern unsigned int  ldlinux_len;
 
 char *program;			/* Name of program */
 char *device;			/* Device to install to */
@@ -84,9 +80,6 @@ enum bs_offsets {
   bsSignature     = 0x1fe
 };
 
-#define bsCopyStart bsBytesPerSec
-#define bsCopyLen   (bsCode-bsBytesPerSec)
-
 /*
  * Access functions for littleendian numbers, possibly misaligned.
  */
@@ -101,13 +94,13 @@ static u_int32_t get_32(unsigned char *p)
     ((u_int32_t)p[2] << 16) + ((u_int32_t)p[3] << 24);
 }
 
+#if 0				/* Not needed */
 static void set_16(unsigned char *p, u_int16_t v)
 {
   p[0] = (v & 0xff);
   p[1] = ((v >> 8) & 0xff);
 }
 
-#if 0				/* Not needed */
 static void set_32(unsigned char *p, u_int32_t v)
 {
   p[0] = (v & 0xff);
@@ -116,12 +109,6 @@ static void set_32(unsigned char *p, u_int32_t v)
   p[3] = ((v >> 24) & 0xff);
 }
 #endif
-
-/* Patch the code so that we're running in stupid mode */
-static void make_stupid(void)
-{
-  set_16(ldlinux+PATCH_OFFSET, 1); /* Access only one sector at a time */
-}
 
 void usage(void)
 {
@@ -223,7 +210,7 @@ int main(int argc, char *argv[])
 
       while ( *opt ) {
 	if ( *opt == 's' ) {
-	  make_stupid();	/* Use "safe, slow and stupid" code */
+	  syslinux_make_stupid();	/* Use "safe, slow and stupid" code */
 	} else if ( *opt == 'f' ) {
 	  force = 1;		/* Force install */
 	} else if ( *opt == 'o' && argp[1] ) {
@@ -474,8 +461,8 @@ int main(int argc, char *argv[])
     goto umount;
   }
 
-  cdp = ldlinux;
-  left = ldlinux_len;
+  cdp = syslinux_ldlinux;
+  left = syslinux_ldlinux_len;
   while ( left ) {
     nb = write(fd, cdp, left);
     if ( nb == -1 && errno == EINTR )
@@ -534,11 +521,11 @@ umount:
   /* Read the superblock again since it might have changed while mounted */
   xpread(dev_fd, sectbuf, 512, offset);
 
-  /* Copy the old superblock into the new boot sector */
-  memcpy(bootsect+bsCopyStart, sectbuf+bsCopyStart, bsCopyLen);
+  /* Copy the syslinux code into the boot sector */
+  syslinux_make_bootsect(sectbuf);
 
   /* Write new boot sector */
-  xpwrite(dev_fd, bootsect, 512, offset);
+  xpwrite(dev_fd, sectbuf, 512, offset);
 
   close(dev_fd);
   sync();
