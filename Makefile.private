@@ -40,7 +40,7 @@ release:
 
 
 PRERELDIR := release/syslinux-$(VERSION)-prerel
-PRERELNO  := `cat $(PRERELDIR)/.prerel 2>/dev/null || echo 1`
+PRERELNO  := $(shell cat $(PRERELDIR)/.prerel 2>/dev/null || echo 1)
 PREREL    := syslinux-$(VERSION)-$(PRERELNO)
 
 prerel:
