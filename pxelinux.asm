@@ -4531,7 +4531,7 @@ BS		equ  8		; Backspace
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
 		db CR, LF, 0
 boot_prompt	db 'boot: ', 0
-wipe_char	db 08h, ' ', 08h, 0
+wipe_char	db BS, ' ', BS, 0
 err_notfound	db 'Could not find kernel image: ',0
 err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
 err_not386	db 'It appears your computer uses a 286 or lower CPU.'
