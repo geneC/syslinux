@@ -36,7 +36,8 @@ SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm
 BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst
 ITARGET = syslinux.com syslinux copybs.com
 DOCS    = COPYING NEWS README TODO *.doc
-OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version
+OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version \
+	  sys2ansi.pl
 
 all:	$(BTARGET) $(ITARGET)
 	ls -l $(BTARGET) $(ITARGET)
