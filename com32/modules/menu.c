@@ -28,6 +28,7 @@
 #include <time.h>
 #include <sys/times.h>
 #include <unistd.h>
+#include <sha1.h>
 #ifdef __COM32__
 #include <com32.h>
 #endif
@@ -50,9 +51,12 @@ struct menu_attrib {
   const char *cmdmark;		/* Command line marker */
   const char *cmdline;		/* Command line */
   const char *screen;		/* Rest of the screen */
+  const char *pwdborder;	/* Password box border */
+  const char *pwdhdr;		/* Password box header */
+  const char *pwdentry;		/* Password box contents */
 };
 
-const struct menu_attrib default_attrib = {
+static const struct menu_attrib default_attrib = {
   .border  	= "\033[0;30;44m",
   .title   	= "\033[1;36;44m",
   .unsel        = "\033[0;37;44m",
@@ -64,18 +68,24 @@ const struct menu_attrib default_attrib = {
   .cmdmark 	= "\033[1;36;40m",
   .cmdline 	= "\033[0;37;40m",
   .screen  	= "\033[0;37;40m",
+  .pwdborder	= "\033[0;30;47m",
+  .pwdheader    = "\033[0;31;47m",
+  .pwdentry     = "\033[0;30;47m",
 };
 
-const struct menu_attrib *menu_attrib = &default_attrib;
+static const struct menu_attrib *menu_attrib = &default_attrib;
 
 #define WIDTH		80
 #define MARGIN		10
+#define PASSWD_MARGIN	3
 #define MENU_ROWS	12
 #define TABMSG_ROW	18
 #define CMDLINE_ROW	20
 #define END_ROW		24
+#define PASSWD_ROW	11
 
-char *pad_line(const char *text, int align, int width)
+static char *
+pad_line(const char *text, int align, int width)
 {
   static char buffer[256];
   int n, p;
@@ -98,8 +108,9 @@ char *pad_line(const char *text, int align, int width)
 /* Display an entry, with possible hotkey highlight.  Assumes
    that the current attribute is the non-hotkey one, and will
    guarantee that as an exit condition as well. */
-void display_entry(const struct menu_entry *entry, const char *attrib,
-		   const char *hotattrib, int width)
+static void
+display_entry(const struct menu_entry *entry, const char *attrib,
+	      const char *hotattrib, int width)
 {
   const char *p = entry->displayname;
 
@@ -124,7 +135,8 @@ void display_entry(const struct menu_entry *entry, const char *attrib,
   }
 }
 
-void draw_row(int y, int sel, int top, int sbtop, int sbbot)
+static void
+draw_row(int y, int sel, int top, int sbtop, int sbbot)
 {
   int i = (y-4)+top;
   
@@ -153,7 +165,52 @@ void draw_row(int y, int sel, int top, int sbtop, int sbbot)
   }
 }
 
-void draw_menu(int sel, int top)
+static int
+passwd_compare(const char *entry, const char *passwd)
+{
+  const char *p;
+  SHA1_CTX ctx;
+
+  if ( passwd[0] != '$' )	/* Plaintext passwd, yuck! */
+    return !strcmp(entry, passwd);
+
+  if ( strncmp(passwd, "$2$", 3) )
+    return 0;			/* Only SHA-1 passwds supported */
+
+  if ( p = 
+
+static int
+ask_passwd(const struct menu_entry *entry)
+{
+  const char title[] = "Password required";
+  int x;
+
+  printf("\033[%d;%dH%s\016l", PASSWD_ROW, PASSWD_MARGIN+1,
+	 menu_attrib->pwdborder);
+  for ( x = 2 ; x <= WIDTH-2*PASSWD_MARGIN-1 ; x++ )
+    putchar('q');
+  
+  printf("k\033[%d;%dx", PASSWD_ROW+1, PASSWD_MARGIN+1);
+  for ( x = 2 ; x <= WIDTH-2*PASSWD_MARGIN-1 ; x++ )
+    putchar(' ');
+
+  printf("x\033[%d;%dHm", PASSWD_ROW+2, PASSWD_MARGIN+1);
+  for ( x = 2 ; x <= WIDTH-2*PASSWD_MARGIN-1 ; x++ )
+    putchar('q');
+  
+  printf("j\017\033[%d;%dH%s %s \033[%d;%dH%s",
+	 PASSWD_ROW, WIDTH-(sizeof(title)+1)/2,
+	 menu_attrib->pwdtitle, title,
+	 PASSWD_ROW+1, PASSWD_MARGIN+3, menu_attrib->pwdentry);
+
+  /* Actually allow user to type a password, then compare to the SHA1 */
+
+  return 0;
+}
+
+
+static void
+draw_menu(int sel, int top)
 {
   int x, y;
   int sbtop = 0, sbbot = 0;
@@ -197,7 +254,8 @@ void draw_menu(int sel, int top)
   printf("%s\033[%d;1H", menu_attrib->screen, END_ROW);
 }
 
-const char *edit_cmdline(char *input, int top)
+static const char *
+edit_cmdline(char *input, int top)
 {
   static char cmdline[MAX_CMDLINE_LEN];
   int key, len;
@@ -278,7 +336,8 @@ const char *edit_cmdline(char *input, int top)
   }
 }
 
-const char *run_menu(void)
+static const char *
+run_menu(void)
 {
   int key;
   int done = 0;
@@ -423,7 +482,8 @@ const char *run_menu(void)
 }
 
 
-void __attribute__((noreturn)) execute(const char *cmdline)
+static void __attribute__((noreturn))
+execute(const char *cmdline)
 {
 #ifdef __COM32__
   static com32sys_t ireg;

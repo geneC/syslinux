@@ -28,8 +28,8 @@ int defentry  = 0;
 int allowedit = 1;		/* Allow edits of the command line */
 int timeout   = 0;
 
-char *menu_title = "";
-char *ontimeout  = NULL;
+char *menu_title  = "";
+char *ontimeout   = NULL;
 
 struct menu_entry menu_entries[MAX_ENTRIES];
 struct menu_entry *menu_hotkeys[256];
@@ -92,7 +92,8 @@ skipspace(char *p)
 }
 
 /* Check to see if we are at a certain keyword (case insensitive) */
-static int looking_at(const char *line, const char *kwd)
+static int
+looking_at(const char *line, const char *kwd)
 {
   const char *p = line;
   const char *q = kwd;
@@ -113,12 +114,14 @@ struct labeldata {
   char *kernel;
   char *append;
   char *menulabel;
+  char *passwd;
   unsigned int ipappend;
   unsigned int menuhide;
   unsigned int menudefault;
 };
 
-static void record(struct labeldata *ld, char *append)
+static void
+record(struct labeldata *ld, char *append)
 {
   char ipoptions[256], *ipp;
   int i;
@@ -128,6 +131,7 @@ static void record(struct labeldata *ld, char *append)
     char *a, *s;
     me->displayname = ld->menulabel ? ld->menulabel : ld->label;
     me->label       = ld->label;
+    me->passwd      = ld->passwd;
     me->hotkey = 0;
 
     if ( ld->menulabel ) {
@@ -208,6 +212,8 @@ void parse_config(const char *filename)
 	ld.menudefault = 1;
       } else if ( looking_at(p, "hide") ) {
 	ld.menuhide = 1;
+      } else if ( looking_at(p, "passwd") ) {
+	ld.passwd = strdup(skipspace(p+6));
       } else {
 	/* Unknown, ignore for now */
       }

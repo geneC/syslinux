@@ -24,6 +24,7 @@ struct menu_entry {
   char *displayname;
   char *label;
   char *cmdline;
+  char *passwd;
   unsigned char hotkey;
 };
 
