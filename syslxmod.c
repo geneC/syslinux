@@ -104,7 +104,7 @@ int syslinux_check_bootsect(const void *bs, const char *device)
 {
   int veryold;
   unsigned int sectors, clusters;
-  unsigned char *sectbuf = bs;
+  const unsigned char *sectbuf = bs;
 
   if ( sectbuf[bsBootSignature] == 0x29 ) {
     /* It's DOS, and it has all the new nice fields */
