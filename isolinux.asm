@@ -1424,7 +1424,7 @@ unmangle_name:	call strcpy
 ;  On entry:
 ;	ES:BX	-> Buffer
 ;	SI	-> File pointer
-;	CX	-> Cluster count; 0FFFFh = until end of file
+;	CX	-> Cluster count
 ;  On exit:
 ;	SI	-> File pointer (or 0 on EOF)
 ;	CF = 1	-> Hit EOF
@@ -1436,9 +1436,10 @@ getfssec:
 		push cs
 		pop ds				; DS <- CS
 
-		cmp cx,[si+file_left]
+		movzx ecx,cx
+		cmp ecx,[si+file_left]
 		jna .ok_size
-		mov cx,[si+file_left]
+		mov ecx,[si+file_left]
 .ok_size:
 
 		mov bp,cx
