@@ -9,7 +9,7 @@
 ;  available.  It is based on the SYSLINUX boot loader for MS-DOS
 ;  floppies.
 ;
-;   Copyright (C) 1994-2002  H. Peter Anvin
+;   Copyright (C) 1994-2004  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -189,9 +189,6 @@ KernelExtPtr	resw 1			; During search, final null pointer
 LocalBootType	resw 1			; Local boot return code
 ImageSectors	resw 1			; isolinux.bin size, sectors
 DiskSys		resw 1			; Last INT 13h call
-TextAttrBX      equ $
-TextAttribute   resb 1			; Text attribute for message file
-TextPage        resb 1			; Active display page
 CursorDX        equ $
 CursorCol       resb 1			; Cursor column for message file
 CursorRow       resb 1			; Cursor row for message file
@@ -203,6 +200,7 @@ FlowControl	equ $
 FlowOutput	resb 1			; Outputs to assert for serial flow
 FlowInput	resb 1			; Input bits for serial flow
 FlowIgnore	resb 1			; Ignore input unless these bits set
+TextAttribute   resb 1			; Text attribute for message file
 RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
@@ -1331,7 +1329,7 @@ writechr_full:
 		call write_serial	; write to serial port if needed
 		pushfd
 		pushad
-		mov bh,[TextPage]
+		mov bh,[BIOS_page]
 		push ax
                 mov ah,03h              ; Read cursor position
                 int 10h
@@ -1343,7 +1341,7 @@ writechr_full:
 		cmp al,10
 		je .lf
 		push dx
-                mov bh,[TextPage]
+                mov bh,[BIOS_page]
 		mov bl,07h		; White on black
 		mov cx,1		; One only
 		mov ah,09h		; Write char and attribute
@@ -1356,7 +1354,7 @@ writechr_full:
 .lf:		inc dh
 		cmp dh,[VidRows]
 		ja .scroll
-.curxyok:	mov bh,[TextPage]
+.curxyok:	mov bh,[BIOS_page]
 		mov ah,02h		; Set cursor position
 		int 10h			
 .ret:		popad
@@ -1364,7 +1362,7 @@ writechr_full:
 		pop ds
 		ret
 .scroll:	dec dh
-		mov bh,[TextPage]
+		mov bh,[BIOS_page]
 		mov ah,02h
 		int 10h
 		mov ax,0601h		; Scroll up one line

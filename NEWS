@@ -3,7 +3,10 @@ apply to that specific program only; other changes apply to all of
 them.
 
 Changes in 2.09:
-	* SYSLINUX: Remove residual setuid crap from syslinux-nomtools.
+	* SYSLINUX: Remove residual setuid crap from
+	  syslinux-nomtools.
+	* Handle video pages correctly when using the API functions.
+	* Handle compiling on an x86-64 platform correctly.
 
 Changes in 2.08:
 	* Add new configuration command "ontimeout" to allow timeout

@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,8 @@ fdctab2		resw 1
 serial_base	resw 4			; Base addresses for 4 serial ports
 		absolute 0413h
 BIOS_fbm	resw 1			; Free Base Memory (kilobytes)
+		absolute 0462h
+BIOS_page	resb 1			; Current video page
 		absolute 046Ch
 BIOS_timer	resw 1			; Timer ticks
 		absolute 0472h

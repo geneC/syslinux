@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -109,7 +109,8 @@ msg_putchar:                                    ; Normal character
 msg_normal:	call write_serial_displaymask	; Write to serial port
 		test [DisplayMask],cl
 		jz msg_ignore			; Not screen
-                mov bx,[TextAttrBX]
+                mov bl,[TextAttribute]
+		mov bh,[BIOS_page]
                 mov ah,09h                      ; Write character/attribute
                 mov cx,1                        ; One character only
                 int 10h                         ; Write to screen
@@ -119,7 +120,7 @@ msg_normal:	call write_serial_displaymask	; Write to serial port
                 ja msg_line_wrap		; Screen wraparound
                 mov [CursorCol],al
 
-msg_gotoxy:     mov bh,[TextPage]
+msg_gotoxy:     mov bh,[BIOS_page]
                 mov dx,[CursorDX]
                 mov ah,02h                      ; Set cursor position
                 int 10h
@@ -225,7 +226,7 @@ msg_viewimage:
 		; after loading a graphics file
 msg_initvars:
                 pusha
-                mov bh,[TextPage]
+                mov bh,[BIOS_page]
                 mov ah,03h                      ; Read cursor position
                 int 10h
                 mov [CursorDX],dx

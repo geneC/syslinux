@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -80,7 +80,6 @@ use_font:
 		mov ax,1121h			; Set user character table
 		int 10h
 		mov [VidCols], byte 79		; Always 80 bytes/line
-		mov [TextPage], byte 0		; Always page 0
 .lf_ret:	ret				; No need to call adjust_screen
 
 .text:
@@ -110,7 +109,6 @@ adjust_screen:
 vidrows_ok:	mov [VidRows],al
                 mov ah,0fh
                 int 10h                         ; Read video state
-                mov [TextPage],bh
                 dec ah                          ; Store count-1 (same as rows)
                 mov [VidCols],ah
 		ret

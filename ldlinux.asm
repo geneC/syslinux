@@ -16,7 +16,7 @@
 ;  then the first sector (cluster, really, but we can only assume 1 sector)
 ;  of LDLINUX.SYS at 7E00h and finally the remainder of LDLINUX.SYS at 8000h.
 ;
-;   Copyright (C) 1994-2002  H. Peter Anvin
+;   Copyright (C) 1994-2004  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -185,9 +185,6 @@ VGAPos		resw 1			; Pointer into VGA memory
 VGACluster	resw 1			; Cluster pointer for VGA image file
 VGAFilePtr	resw 1			; Pointer into VGAFileBuf
 Com32SysSP	resw 1			; SP saved during COM32 syscall
-TextAttrBX      equ $
-TextAttribute   resb 1			; Text attribute for message file
-TextPage        resb 1			; Active display page
 CursorDX        equ $
 CursorCol       resb 1			; Cursor column for message file
 CursorRow       resb 1			; Cursor row for message file
@@ -199,6 +196,7 @@ FlowControl	equ $
 FlowOutput	resb 1			; Outputs to assert for serial flow
 FlowInput	resb 1			; Input bits for serial flow
 FlowIgnore	resb 1			; Ignore input unless these bits set
+TextAttribute   resb 1			; Text attribute for message file
 RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
@@ -504,13 +502,15 @@ found_it:	; Note: we actually leave two words on the stack here
 ;
 ;
 ; writestr: write a null-terminated string to the console
+;	    This assumes we're on page 0.  This is only used for early
+;           messages, so it should be OK.
 ;
 writestr:
 .loop:		lodsb
 		and al,al
                 jz .return
 		mov ah,0Eh		; Write to screen as TTY
-		mov bx,0007h		; White on black, current page
+		mov bx,0007h		; Attribute
 		int 10h
 		jmp short .loop
 .return:	ret
@@ -1197,14 +1197,15 @@ dir_return:
 
 ;
 ; writechr:	Write a single character in AL to the console without
-;		mangling any registers
+;		mangling any registers; handle video pages correctly.
 ;
 writechr:
 		call write_serial	; write to serial port if needed
 		pushfd
 		pushad
 		mov ah,0Eh
-		mov bx,0007h		; white text on this page
+		mov bl,07h		; attribute
+		mov bh,[cs:BIOS_page]	; current page
 		int 10h
 		popad
 		popfd
