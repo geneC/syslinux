@@ -3,3 +3,4 @@ Currently scheduled for inclusion in 1.40:
 - FAT16 support (for LS120 floppies mainly).
 - "Comboot" style boot files.
 - Booting DOS for a DOS/Linux dual rescue disk.
+- Cleaned up documentation, with a real man page.

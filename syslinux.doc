@@ -33,10 +33,23 @@ In order to create a bootable Linux floppy using SYSLINUX, prepare a
 normal MS-DOS formatted floppy.  Copy one or more Linux kernel files to
 it, then execute the DOS command:
 
-        SYSLINUX drive:
+        SYSLINUX a:
+
+(or whichever drive letter is appropriate) 
+
+or the Linux command:
+
+	syslinux /dev/fd0
+
+(or, again, whichever device is the correct one.)
 
 This will alter the boot sector on the disk and copy a file named
 LDLINUX.SYS into its root directory.
+
+WARNING: There seems to be a bug in some recent experimental Linux
+	 kernels that causes floppy disk corruption when using the
+	 Linux syslinux installer.  This bug was introduced in 2.1.79
+	 or 2.1.80; as of 2.1.85 the bug is still there.
 
 On boot time, by default, the kernel will be loaded from the image named
 LINUX on the boot floppy.  This default can be changed, see the section
