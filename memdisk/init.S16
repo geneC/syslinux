@@ -46,10 +46,9 @@ _start:
 		.word	0x0203		# header version number (>= 0x0105)
 					# or else old loadlin-1.5 will fail)
 realmode_swtch:	.word	0, 0		# default_switch, SETUPSEG
-start_sys_seg:	.word	0
-		.word	kernel_version	# pointing to kernel version string
-					# above section of header is compatible
-					# with loadlin-1.5 (header v1.5).
+start_sys_seg:	.word	0		# obsolete
+version_ptr:	.word	memdisk_version-0x200
+					# pointing to kernel version string
 
 type_of_loader:	.byte	0		# = 0, old one (LILO, Loadlin,
 					#      Bootlin, SYSLX, bootsect...)
@@ -179,8 +178,3 @@ endcmd:
 		movw %si,%gs
 		movw %si,%ss
 		ljmp $0,$0x7c00		# Entrypoint at 0000:7C00
-
-		.section ".rodata", "a"
-kernel_version:	.ascii "MEMDISK ..."
-		.byte 0
-

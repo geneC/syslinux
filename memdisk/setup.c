@@ -14,9 +14,12 @@
 #include <stdint.h>
 #include "e820.h"
 #include "conio.h"
+#include "version.h"
 
-#define FIRSTYEAR "2001"
-#define COPYYEAR  "2002"
+/* A pointer to this is stored in the header */
+const char memdisk_version[] =
+"MEMDISK " VERSION " " DATE
+"  Copyright " FIRSTYEAR "-" COPYYEAR " H. Peter Anvin";
 
 extern const char _binary_memdisk_bin_start[], _binary_memdisk_bin_end[];
 extern const char _binary_memdisk_bin_size[]; /* Weird, I know */
@@ -438,8 +441,7 @@ uint32_t setup(void)
   int total_size;
 
   /* Show signs of life */
-  puts("MEMDISK " VERSION " " DATE
-       "  Copyright " FIRSTYEAR "-" COPYYEAR " H. Peter Anvin\n");
+  printf("%s\n", memdisk_version);
 
   if ( !shdr->ramdisk_image || !shdr->ramdisk_size ) {
     puts("MEMDISK: No ramdisk image specified!\n");
