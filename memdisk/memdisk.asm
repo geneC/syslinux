@@ -74,7 +74,17 @@ Pointers:	dw Int13Start
 		dw TotalSize
 
 Int13Start:
+		; Swap stack
+		mov [cs:Stack],esp
+		mov [cs:SavedAX],ax
+		mov ax,ss
+		mov [cs:Stack+4],ax
+		mov ax,cs
+		mov ss,ax
+		mov sp,[cs:MyStack]
+
 		; See if DL points to our class of device (FD, HD)
+		push dx
 		push dx
 		xor dl,[cs:DriveNo]
 		pop dx
@@ -84,23 +94,41 @@ Int13Start:
 		jb .nomatch		; Drive < Our drive
 		dec dl			; Drive > Our drive, adjust drive #
 .nomatch:
-		jmp far [cs:OldInt13]
+		mov ax,[cs:SavedAX]
+		pushf
+		call far [cs:OldInt13]
+		pushf
+		push bp
+		mov bp,sp
+		cmp byte [cs:SavedAX+1],08h
+		je .norestoredl
+		cmp byte [cs:SavedAX+1],15h
+		jne .restoredl
+		test byte [bp+4],80h	; Hard disk?
+		jnz .norestoredl
+.restoredl:
+		mov dl,[bp+4]
+.norestoredl:
+		push ax
+		push ebx
+		push ds
+		mov ax,[bp+2]		; Flags
+		lds ebx,[cs:Stack]
+		mov [bx+4],al		; Arithmetric flags
+		pop ds
+		pop ebx
+		pop ax
+		pop bp
+		lss esp,[cs:Stack]
+		iret
 
 .our_drive:
-		; Swap stack
-		mov [cs:Stack],esp
-		mov [cs:SavedAX],ax
-		mov ax,ss
-		mov [cs:Stack+4],ax
-		mov ax,cs
-		mov ss,ax
-		mov sp,[cs:MyStack]
+		; Set up standard entry frame
 		push ds
 		push es
 		mov ds,ax
 		mov es,ax
 		mov ax,[SavedAX]
-
 		pushad
 		mov bp,sp		; Point BP to the entry stack frame
 		TRACER 'F'
