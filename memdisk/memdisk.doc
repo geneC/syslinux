@@ -88,7 +88,7 @@ Additional technical information:
 Starting with version 2.08, MEMDISK now supports an installation check
 API.  This works as follows:
 
-	EAX = 454D0800h ("ME")
+	EAX = 454D08xxh ("ME") (08h = parameter query)
 	ECX = 444Dxxxxh ("MD")
 	EDX = 5349xxnnh	("IS") (nn = drive #)
 	EBX = 3F4Bxxxxh ("K?")
@@ -103,9 +103,12 @@ If drive nn is a MEMDISK, the registers will contain:
 
 	ES:DI -> MEMDISK info structures
 
-The low parts of EAX/ECX/EDX/EBX have the normal return values for
-INT 13h, AH=08h, i.e. information of the disk geometry etc (see Ralf
-Brown's interrupt list for a detailed description.)
+The low parts of EAX/ECX/EDX/EBX have the normal return values for INT
+13h, AH=08h, i.e. information of the disk geometry etc.
+
+See Ralf Brown's interrupt list,
+http://www.cs.cmu.edu/afs/cs.cmu.edu/user/ralf/pub/WWW/files.html or
+http://www.ctyme.com/rbrown.htm, for a detailed description.
 
 The MEMDISK info structure currently contains:
 
