@@ -647,10 +647,10 @@ reported turn out to be BIOS or hardware bugs, and I need as much
 information as possible in order to diagnose the problems.
 
 There is a mailing list for discussion among SYSLINUX users and for
-announcements of new and test versions.  To join, send a message to
-majordomo@linux.kernel.org with the line:
+announcements of new and test versions.  To join, or to browse the
+archive, go to:
 
-subscribe syslinux
+   http://www.zytor.com/mailman/listinfo/syslinux
 
-in the body of the message.  The submission address is
-syslinux@linux.kernel.org.
+The mailing list changed in early 2002.  The old mailing list at
+kernel.org is no longer in use.

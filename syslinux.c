@@ -101,7 +101,7 @@ static u_int32_t get_32(unsigned char *p)
 
 void usage(void)
 {
-  fprintf(stderr, "Usage: %s [-sf] device\n", program);
+  fprintf(stderr, "Usage: %s [-sf] [-o offset] device\n", program);
   exit(1);
 }
 
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 	} else if ( *opt == 'f' ) {
 	  force = 1;		/* Force install */
 	} else if ( *opt == 'o' && argp[1] ) {
-	  offset = atol(*++argp); /* Byte offset */
+	  offset = strtoul(*++argp, NULL, 0); /* Byte offset */
 	} else {
 	  usage();
 	}
@@ -419,6 +419,13 @@ umount:
   if ( dev_fd < 0 ) {
     perror(device);
     exit(1);
+  }
+
+  if ( lseek(dev_fd, offset, SEEK_SET) != offset ) {
+    if ( !(force && errno == EBADF) ) {
+      fprintf(stderr, "%s: seek error", device);
+      exit(1);
+    }
   }
 
   /* Copy the old superblock into the new boot sector */

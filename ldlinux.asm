@@ -2060,6 +2060,7 @@ new_kernel:
 		mov edx,eax			; Adjust to fit inside limit
 memsize_ok:
 		inc edx
+                xor dx,dx			; Round down to 64K boundary
 		sub edx,[es:su_ramdisklen]	; Subtract size of ramdisk
                 xor dx,dx			; Round down to 64K boundary
                 mov [es:su_ramdiskat],edx	; Load address

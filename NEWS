@@ -6,6 +6,9 @@ Changes in 1.70:
 	* MEMDISK: Set up the "version number string" pointer in the
 	  header correctly.
 
+Changes in 1.67:
+	* Handle bug in the location of initrd.
+
 Changes in 1.66:
 	* MEMDISK: Make compile with newer versions of gcc.
 
