@@ -27,7 +27,7 @@ label dos
 
 Note the following:
 
-a) The disk image can be uncompressed or compressed with gzip.
+a) The disk image can be uncompressed or compressed with gzip or zip.
 
 b) If the disk image is one of the following sizes, it's assumed to be a
 floppy image:
