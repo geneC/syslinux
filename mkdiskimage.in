@@ -16,7 +16,8 @@
 # Creates a blank MS-DOS formatted hard disk image
 #
 
-eval { use bytes; };
+use bytes;
+use integer;
 use Fcntl;
 use Errno;
 use Cwd;
@@ -132,7 +133,8 @@ $imglink = $tmpdir.'/disk.img';
 die "$0: Failed to create symlink $imglink\n"
     if ( !symlink(absolute_path($file), $imglink) );
 
-$offset = $s*512 + ($opt{'d'} ? 128 : 0);
+$header_size = ($opt{'d'} ? 128 : 0);
+$offset = $s*512 + $header_size;
 open(MCONFIG, "> ${cfgfile}") or die "$0: Cannot make mtools config\n";
 print MCONFIG "drive z:\n";
 print MCONFIG "file=\"${imglink}\"\n";
@@ -160,6 +162,11 @@ unlink($cfgfile);
 unlink($imglink);
 rmdir($tmpdir);
 
+# MTOOLS doesn't write the bsHiddenSecs field correctly
+seek(OUTPUT, $offset + 0x1c, 0);
+print OUTPUT pack("V", ($offset-$header_size)>>9);
+
+# Set the partition type
 if ( $opt{'F'} ) {
     $fstype = 0x0b;		# FAT32
 } else {
@@ -168,7 +175,7 @@ if ( $opt{'F'} ) {
     } else {
 	$fstype = 0x04;		# FAT16 <= 32MB
     }
-    seek(OUTPUT, $s*512+0x36, 0);
+    seek(OUTPUT, $offset + 0x36, 0);
     read(OUTPUT, $fsname, 8);
     
     # FAT12: adjust partition type
@@ -176,7 +183,7 @@ if ( $opt{'F'} ) {
 	$fstype = 0x01;		# FAT12
     }
 }
-seek(OUTPUT, 446+4, 0);
+seek(OUTPUT, 446+4 + $header_size, 0);
 print OUTPUT pack("C", $fstype);
 
 exit 0;
