@@ -16,6 +16,8 @@ Changes in 1.75:
 	  to guess the maximum transfer size.  I am *hoping* this will
 	  cut down on the number of systems for which -s is required
 	  to work at any acceptable speed.
+	* ISOLINUX: Add a few more workarounds for various broken El
+	  Torito BIOSes.
 
 Changes in 1.74:
 	* SYSLINUX: fix bug that would cause valid kernel images to be

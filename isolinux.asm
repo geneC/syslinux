@@ -33,6 +33,7 @@ my_id		equ isolinux_id
 FILENAME_MAX_LG2 equ 8			; log2(Max filename size Including final null)
 FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
 NULLFILE	equ 0			; Zero byte == null file name
+retry_count	equ 6			; How patient are we wirh the BIOS?
 %assign HIGHMEM_SLOP 128*1024		; Avoid this much memory near the top
 MAX_OPEN_LG2	equ 6			; log2(Max number of open files)
 MAX_OPEN	equ (1 << MAX_OPEN_LG2)
@@ -173,6 +174,7 @@ PktTimeout	resw 1			; Timeout for current packet
 KernelExtPtr	resw 1			; During search, final null pointer
 LocalBootType	resw 1			; Local boot return code
 ImageSectors	resw 1			; isolinux.bin size, sectors
+DiskSys		resw 1			; Last INT 13h call
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -434,6 +436,23 @@ spec_query_failed:
 		cmp dl, 80h
 		jnb .test_loop
 
+		; No spec packet anywhere.  Some particularly pathetic
+		; BIOSes apparently don't even implement function
+		; 4B01h, so we can't query a spec packet no matter
+		; what.  If we got a drive number in DL, then try to
+		; use it, and if it works, then well...
+		mov dl,[DriveNo]
+		cmp dl,81h			; Should be 81-FF at least
+		jb fatal_error			; If not, it's hopeless
+
+		; Write a warning to indicate we're on *very* thin ice now
+		mov si,nospec_msg
+		call writemsg
+		mov al,dl
+		call writehex2
+		call crlf
+		jmp .found_drive		; Pray that this works...
+
 fatal_error:
 		mov si,nothing_msg
 		call writemsg
@@ -498,9 +517,9 @@ getlinsec:
 		mov [si+8],eax
 .loop:
 		push bp				; Sectors left
-		cmp bp,byte 32
+		cmp bp,[MaxTransfer]
 		jbe .bp_ok
-		mov bp,32
+		mov bp,[MaxTransfer]
 .bp_ok:
 		mov [si+2],bp
 		push si
@@ -520,21 +539,45 @@ getlinsec:
 		ret
 
 		; INT 13h with retry
-xint13:		mov byte [RetryCount], 6
+xint13:		mov byte [RetryCount],retry_count
 .try:		pushad
 		int 13h
 		jc .error
 		add sp,byte 8*4			; Clean up stack
 		ret
-.error:		mov [DiskError],ah		; Save error code
+.error:
+		mov [DiskError],ah		; Save error code
 		popad
+		mov [DiskSys],ax		; Save system call number
 		dec byte [RetryCount]
-		jnz .try
+		jz .real_error
+		push ax
+		mov al,[RetryCount]
+		mov ah,[dapa+2]			; Sector transfer count
+		cmp al,2			; Only 2 attempts left
+		ja .nodanger
+		mov ah,1			; Drop transfer size to 1
+		jmp short .setsize
+.nodanger:
+		cmp al,retry_count-2
+		ja .again			; First time, just try again
+		shr ah,1			; Otherwise, try to reduce
+		adc ah,0			; the max transfer size, but not to 0
+.setsize:
+		mov [MaxTransfer],ah
+		mov [dapa+2],ah
+.again:
+		pop ax
+		jmp .try
 
 .real_error:	mov si,diskerr_msg
 		call writemsg
 		mov al,[DiskError]
 		call writehex2
+		mov si,oncall_str
+		call writestr
+		mov ax,[DiskSys]
+		call writehex4
 		mov si,ondrive_str
 		call writestr
 		mov al,dl
@@ -590,8 +633,10 @@ allread_msg	db 'Main image read, jumping to main code...', CR, LF, 0
 spec_err_msg:	db 'Loading spec packet failed, trying to wing it...', CR, LF, 0
 maybe_msg:	db 'Found something at drive = ', 0
 alright_msg:	db 'Looks like it might be right, continuing...', CR, LF, 0
+nospec_msg	db 'Extremely broken BIOS detected, last ditch attempt with drive = ', 0
 nosecsize_msg:	db 'Failed to get sector size, assuming 0800', CR, LF, 0
 diskerr_msg:	db 'Disk error ', 0
+oncall_str:	db ', AX = ',0
 ondrive_str:	db ', drive ', 0
 nothing_msg:	db 'Failed to locate CD-ROM device; boot failed.', CR, LF, 0
 checkerr_msg:	db 'Image checksum error, sorry...', CR, LF, 0
@@ -667,7 +712,8 @@ dapa:		dw 16				; Packet size
 		dd 0				; LBA (MSW)
 
 		alignb 4, db 0
-Stack		dw _start, 0		; SS:SP for stack reset
+Stack		dw _start, 0			; SS:SP for stack reset
+MaxTransfer	dw 32				; Max sectors per transfer
 
 rl_checkpt	equ $				; Must be <= 800h
 
