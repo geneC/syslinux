@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 1998-2001 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1998-2003 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -35,9 +35,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <syslog.h>
 #include <unistd.h>
-#include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 
 #include "syslinux.h"
@@ -122,11 +123,12 @@ void usage(void)
  */
 ssize_t xpread(int fd, void *buf, size_t count, off_t offset)
 {
+  char *bufp = (char *)buf;
   ssize_t rv;
   ssize_t done = 0;
 
   while ( count ) {
-    rv = pread(fd, buf, count, offset);
+    rv = pread(fd, bufp, count, offset);
     if ( rv == 0 ) {
       fprintf(stderr, "%s: short read\n", program);
       exit(1);
@@ -138,6 +140,7 @@ ssize_t xpread(int fd, void *buf, size_t count, off_t offset)
 	exit(1);
       }
     } else {
+      bufp += rv;
       offset += rv;
       done += rv;
       count -= rv;
@@ -149,11 +152,12 @@ ssize_t xpread(int fd, void *buf, size_t count, off_t offset)
 
 ssize_t xpwrite(int fd, void *buf, size_t count, off_t offset)
 {
+  char *bufp = (char *)buf;
   ssize_t rv;
   ssize_t done = 0;
 
   while ( count ) {
-    rv = pwrite(fd, buf, count, offset);
+    rv = pwrite(fd, bufp, count, offset);
     if ( rv == 0 ) {
       fprintf(stderr, "%s: short write\n", program);
       exit(1);
@@ -165,6 +169,7 @@ ssize_t xpwrite(int fd, void *buf, size_t count, off_t offset)
 	exit(1);
       }
     } else {
+      bufp += rv;
       offset += rv;
       done += rv;
       count -= rv;
@@ -177,18 +182,16 @@ ssize_t xpwrite(int fd, void *buf, size_t count, off_t offset)
 int main(int argc, char *argv[])
 {
   static unsigned char sectbuf[512];
-  unsigned char *dp;
-  const unsigned char *cdp;
   int dev_fd, fd;
   struct stat st;
-  int nb, left, veryold;
+  int veryold;
   unsigned int sectors, clusters;
   int err = 0;
   pid_t f, w;
   int status;
-  char *mntpath = NULL, mntname[64], devfdname[64];
+  char *mntpath = NULL, mntname[128], devfdname[128];
   char *ldlinux_name, **argp, *opt;
-  int my_umask;
+  mode_t my_umask;
   int force = 0;		/* -f (force) option */
   off_t offset = 0;		/* -o (offset) option */
   static const char * const clean_environ[] = {
@@ -201,7 +204,7 @@ int main(int argc, char *argv[])
   mypid = getpid();
   
   if ( !euid )
-    setreuid(-1, ruid);		/* Run as regular user until we need it */
+    seteuid(ruid);		/* Run as regular user until we need it */
 
   program = argv[0];
   
@@ -372,7 +375,7 @@ int main(int argc, char *argv[])
       _exit(255);		/* If execl failed, trouble... */
     }
   } else {
-    int i = 0;
+    unsigned int nn;
     struct stat dst;
     int rv;
 
@@ -392,9 +395,9 @@ int main(int argc, char *argv[])
       exit(1);
     }
 
-    for ( i = 0 ; ; i++ ) {
-      snprintf(mntname, sizeof mntname, "syslinux.mnt.%lu.%d",
-	       (unsigned long)mypid, i);
+    for ( nn = 1 ; nn ; nn++ ) {
+      snprintf(mntname, sizeof mntname, "syslinux.mnt.%lu.%u",
+	       (unsigned long)mypid, nn);
 
       if ( lstat(mntname, &dst) != -1 || errno != ENOENT )
 	continue;
@@ -413,9 +416,18 @@ int main(int argc, char *argv[])
       if ( lstat(mntname, &dst) || dst.st_mode != (S_IFDIR|0000) ||
 	   dst.st_uid != 0 ) {
 	fprintf(stderr, "%s: someone is trying to symlink race us!\n", program);
+	openlog("syslinux", LOG_PID, LOG_AUTHPRIV);
+	syslog(LOG_WARNING,
+	       "symlink race intercepted when running as user %lu",
+	       (unsigned long)ruid);
 	exit(1);
       }
       break;			/* OK, got something... */
+    }
+
+    if ( !nn ) {
+      fprintf(stderr, "%s: failed to create a temp directory!\n", program);
+      exit(1);
     }
 
     mntpath = mntname;
@@ -449,9 +461,12 @@ int main(int argc, char *argv[])
   }
 
   w = waitpid(f, &status, 0);
-  if ( w != f || status ) {
-    if ( !euid )
-      rmdir(mntpath);
+  if ( w != f || (!WIFEXITED(status) || WEXITSTATUS(status)) ) {
+    if ( !euid ) {
+      seteuid(0);			/* *** BECOME ROOT *** */
+      rmdir(mntpath);		/* AS ROOT */
+      seteuid(ruid);
+    }
     exit(1);			/* Mount failed */
   }
 
@@ -471,21 +486,7 @@ int main(int argc, char *argv[])
     goto umount;
   }
 
-  cdp = syslinux_ldlinux;
-  left = syslinux_ldlinux_len;
-  while ( left ) {
-    nb = write(fd, cdp, left);
-    if ( nb == -1 && errno == EINTR )
-      continue;
-    else if ( nb <= 0 ) {
-      perror(device);
-      err = 1;
-      goto umount;
-    }
-
-    dp += nb;
-    left -= nb;
-  }
+  xpwrite(fd, syslinux_ldlinux, syslinux_ldlinux_len, 0);
 
   /*
    * I don't understand why I need this.  Does the DOS filesystems
@@ -509,7 +510,7 @@ umount:
   }
 
   w = waitpid(f, &status, 0);
-  if ( w != f || status ) {
+  if ( w != f || (!WIFEXITED(status) || WEXITSTATUS(status)) ) {
     exit(1);
   }
 
