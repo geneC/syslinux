@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
   /*
    * Check to see that what we got was indeed an MS-DOS boot sector/superblock
    */
-  if(!syslinux_check_bootsect(sectbuf,&errmsg)) {
+  if( (errmsg = syslinux_check_bootsect(sectbuf)) ) {
     fprintf(stderr, "%s: %s\n", device, errmsg);
     exit(1);
   }

@@ -7,6 +7,7 @@ CFLAGS	 = -W -Wall -ffreestanding -msoft-float $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = -T com16.ld
 AR       = ar
 RANLIB   = ranlib
+LIBGCC  := $(shell $(CC) --print-libgcc)
 
 SRCS     = syslinux.c \
 	   ../syslxmod.c ../bootsect_bin.c ../ldlinux_bin.c \
@@ -33,7 +34,7 @@ spotless: clean
 installer: syslinux.com
 
 syslinux.elf: $(OBJS) libcom.a
-	$(LD) $(LDFLAGS) -o $@ $^
+	$(LD) $(LDFLAGS) -o $@ $^ $(LIBGCC)
 
 libcom.a: $(LIBOBJS)
 	-rm -f $@

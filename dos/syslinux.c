@@ -37,7 +37,7 @@ uint16_t dos_version;
 
 void __attribute__((noreturn)) usage(void)
 {
-  puts("Usage: syslinux [-sf] drive:\n");
+  puts("Usage: syslinux [-sf] drive: [bootsecfile]\n");
   exit(1);
 }
 
@@ -250,7 +250,7 @@ int main(int argc, char *argv[])
   libfat_sector_t s, *secp, sectors[65]; /* 65 is maximum possible */
   int32_t ldlinux_cluster;
   int nsectors;
-  char *device = NULL;
+  const char *device = NULL, *bootsecfile = NULL;
   const char *errmsg;
   int i;
 
@@ -279,8 +279,11 @@ int main(int argc, char *argv[])
 	opt++;
       }
     } else {
-      if ( device )
+      if ( bootsecfile )
 	usage();
+      else if ( device )
+	bootsecfile = *argp;
+      else
       device = *argp;
     }
   }
@@ -304,7 +307,7 @@ int main(int argc, char *argv[])
   /*
    * Check to see that what we got was indeed an MS-DOS boot sector/superblock
    */
-  if(!syslinux_check_bootsect(sectbuf,&errmsg)) {
+  if( (errmsg = syslinux_check_bootsect(sectbuf)) ) {
     unlock_device(0);
     puts(errmsg);
     putchar('\n');
@@ -314,7 +317,7 @@ int main(int argc, char *argv[])
   ldlinux_name[0] = dev_fd | 0x40;
 
   set_attributes(ldlinux_name, 0);
-  fd = creat(ldlinux_name, 0x27); /* ARCHIVE SYSTEM HIDDEN READONLY */
+  fd = creat(ldlinux_name, 0x07); /* SYSTEM HIDDEN READONLY */
   write_file(fd, syslinux_ldlinux, syslinux_ldlinux_len);
   close(fd);
 
@@ -359,10 +362,15 @@ int main(int argc, char *argv[])
   syslinux_make_bootsect(sectbuf);
 
   /* Write new boot sector */
-  write_device(dev_fd, sectbuf, 1, 0);
-
-  /* Release device lock */
-  unlock_device(0);
+  if ( bootsecfile ) {
+    unlock_device(0);
+    fd = creat(bootsecfile, 0x20); /* ARCHIVE */
+    write_file(fd, sectbuf, 512);
+    close(fd);
+  } else {
+    write_device(dev_fd, sectbuf, 1, 0);
+    unlock_device(0);
+  }
 
   /* Done! */
 

@@ -20,48 +20,74 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <string.h>
+#include <stddef.h>
 
 #include "syslinux.h"
 
 #define LDLINUX_MAGIC	0x3eb202fe
 
 enum bs_offsets {
-  bsJump          = 0x00,
-  bsOemName       = 0x03,
-  bsBytesPerSec   = 0x0b,
-  bsSecPerClust   = 0x0d,
-  bsResSectors    = 0x0e,
-  bsFATs          = 0x10,
-  bsRootDirEnts   = 0x11,
-  bsSectors       = 0x13,
-  bsMedia         = 0x15,
-  bsFATsecs       = 0x16,
-  bsSecPerTrack   = 0x18,
-  bsHeads         = 0x1a,
-  bsHiddenSecs    = 0x1c,
-  bsHugeSectors   = 0x20,
-  bsDriveNumber   = 0x24,
-  bsReserved1     = 0x25,
-  bsBootSignature = 0x26,
-  bsVolumeID      = 0x27,
-  bsVolumeLabel   = 0x2b,
-  bsFileSysType   = 0x36,
-  bsCode          = 0x3e,
+  bsJump            = 0x00,
+  bsOemName         = 0x03,
+  bsBytesPerSec     = 0x0b,
+  bsSecPerClust     = 0x0d,
+  bsResSectors      = 0x0e,
+  bsFATs            = 0x10,
+  bsRootDirEnts     = 0x11,
+  bsSectors         = 0x13,
+  bsMedia           = 0x15,
+  bsFATsecs         = 0x16,
+  bsSecPerTrack     = 0x18,
+  bsHeads           = 0x1a,
+  bsHiddenSecs      = 0x1c,
+  bsHugeSectors     = 0x20,
+
+  /* FAT12/16 only */
+  bs16DriveNumber   = 0x24,
+  bs16Reserved1     = 0x25,
+  bs16BootSignature = 0x26,
+  bs16VolumeID      = 0x27,
+  bs16VolumeLabel   = 0x2b,
+  bs16FileSysType   = 0x36,
+  bs16Code          = 0x3e,
+
+  /* FAT32 only */
+  bs32FATSz32       = 36,
+  bs32ExtFlags      = 40,
+  bs32FSVer         = 42,
+  bs32RootClus      = 44,
+  bs32FSInfo        = 48,
+  bs32BkBootSec     = 50,
+  bs32Reserved      = 52,
+  bs32DriveNumber   = 64,
+  bs32Reserved1     = 65,
+  bs32BootSignature = 66,
+  bs32VolumeID      = 67,
+  bs32VolumeLabel   = 71,
+  bs32FileSysType   = 82,
+  bs32Code          = 90,
+  
   bsSignature     = 0x1fe
 };
 
 #define bsHead      bsJump
 #define bsHeadLen   (bsOemName-bsHead)
-#define bsCodeLen   (bsSignature-bsCode)
+#define bsCode	    bs32Code	/* The common safe choice */
+#define bsCodeLen   (bsSignature-bs32Code)
 
 /*
  * Access functions for littleendian numbers, possibly misaligned.
  */
+static inline uint8_t get_8(const unsigned char *p)
+{
+  return *(const uint8_t *)p;
+}
+
 static inline uint16_t get_16(const unsigned char *p)
 {
 #if defined(__i386__) || defined(__x86_64__)
   /* Littleendian and unaligned-capable */
-  return *(uint16_t *)p;
+  return *(const uint16_t *)p;
 #else
   return (uint16_t)p[0] + ((uint16_t)p[1] << 8);
 #endif
@@ -71,7 +97,7 @@ static inline uint32_t get_32(const unsigned char *p)
 {
 #if defined(__i386__) || defined(__x86_64__)
   /* Littleendian and unaligned-capable */
-  return *(uint32_t *)p;
+  return *(const uint32_t *)p;
 #else
   return (uint32_t)p[0] + ((uint32_t)p[1] << 8) +
     ((uint32_t)p[2] << 16) + ((uint32_t)p[3] << 24);
@@ -119,65 +145,87 @@ void syslinux_make_bootsect(void *bs)
 
 /*
  * Check to see that what we got was indeed an MS-DOS boot sector/superblock;
- * Return 0 if bad and 1 if OK.
+ * Return NULL if OK and otherwise an error message;
  */
-int syslinux_check_bootsect(const void *bs, const char **errmsg)
+const char *syslinux_check_bootsect(const void *bs)
 {
   int veryold;
-  unsigned int sectors, clusters;
+  int sectorsize;
+  long long sectors, fatsectors, dsectors;
+  long long clusters;
+  int rootdirents, clustersize;
   const unsigned char *sectbuf = bs;
 
-  *errmsg = 0;
+  veryold = 0;
 
-  /*** FIX: Handle FAT32 ***/
+  /* Must be 0xF0 or 0xF8..0xFF */
+  if ( get_8(sectbuf+bsMedia) != 0xF0 &&
+       get_8(sectbuf+bsMedia) < 0xF8 )
+    goto invalid;
+  
+  sectorsize = get_16(sectbuf+bsBytesPerSec);
+  if ( sectorsize == 512 )
+    ; /* ok */
+  else if ( sectorsize == 1024 || sectorsize == 2048 || sectorsize == 4096 )
+    return "only 512-byte sectors are supported";
+  else
+    goto invalid;
 
-  if ( sectbuf[bsBootSignature] == 0x29 ) {
-    /* It's DOS, and it has all the new nice fields */
+  clustersize = get_8(sectbuf+bsSecPerClust);
+  if ( clustersize == 0 || (clustersize & (clustersize-1)) )
+    goto invalid;		/* Must be nonzero and a power of 2 */
 
-    veryold = 0;
+  sectors = get_16(sectbuf+bsSectors);
+  sectors = sectors ? sectors : get_32(sectbuf+bsHugeSectors);
 
-    sectors = get_16(sectbuf+bsSectors);
-    sectors = sectors ? sectors : get_32(sectbuf+bsHugeSectors);
-    clusters = sectors / sectbuf[bsSecPerClust];
+  dsectors = sectors - get_16(sectbuf+bsResSectors);
 
-    if ( !memcmp(sectbuf+bsFileSysType, "FAT12   ", 8) ) {
-      if ( clusters > 4086 ) {
-	*errmsg = "FAT12 but claims more than 4086 clusters";
-	return 0;
+  fatsectors = get_16(sectbuf+bsFATsecs);
+  fatsectors = fatsectors ? fatsectors : get_32(sectbuf+bs32FATSz32);
+  fatsectors *= get_8(sectbuf+bsFATs);
+  dsectors -= fatsectors;
+
+  rootdirents = get_16(sectbuf+bsRootDirEnts);
+  dsectors -= (rootdirents+sectorsize/32-1)/sectorsize;
+
+  if ( dsectors < 0 || fatsectors == 0 )
+    goto invalid;
+
+  clusters = dsectors/clustersize;
+
+  if ( clusters < 0xFFF5 ) {
+    /* FAT12 or FAT16 */
+
+    if ( !get_16(sectbuf+bsFATsecs) )
+      goto invalid;
+
+    if ( get_8(sectbuf+bs16BootSignature) == 0x29 ) {
+      if ( !memcmp(sectbuf+bs16FileSysType, "FAT12   ", 8) ) {
+	if ( clusters >= 4085 )
+	  return "more than 4084 clusters but claims FAT12";
+      } else if ( !memcmp(sectbuf+bs16FileSysType, "FAT16   ", 8) ) {
+	if ( clusters < 4085 )
+	  return "less than 4084 clusters but claims FAT16";
+      } else if ( memcmp(sectbuf+bs16FileSysType, "FAT     ", 8) ) {
+	static char fserr[] = "filesystem type \"????????\" not supported";
+	memcpy(fserr+17, sectbuf+bs16FileSysType, 8);
+	return fserr;
       }
-    } else if ( !memcmp(sectbuf+bsFileSysType, "FAT16   ", 8) ) {
-      if ( clusters <= 4086 ) {
-	*errmsg = "FAT16 but claims less than 4086 clusters";
-	return 0;
-      }
-    } else if ( !memcmp(sectbuf+bsFileSysType, "FAT     ", 8) ) {
-      /* OS/2 sets up the filesystem as just `FAT'. */
-    } else {
-      static char fserr[] = "filesystem type \"????????\" not supported";
-      memcpy(fserr+17, sectbuf+bsFileSysType, 8);
-      *errmsg = fserr;
-      return 0;
     }
+  } else if ( clusters < 0x0FFFFFF5 ) {
+    /* FAT32 */
+    /* Moving the FileSysType and BootSignature was a lovely stroke of M$ idiocy */
+    if ( get_8(sectbuf+bs32BootSignature) != 0x29 ||
+	 !memcmp(sectbuf+bs32FileSysType, "FAT32   ", 8) )
+      goto invalid;
   } else {
-    veryold = 1;
-
-    if ( sectbuf[bsSecPerClust] & (sectbuf[bsSecPerClust] - 1) ||
-	 sectbuf[bsSecPerClust] == 0 ) {
-      *errmsg = "this doesn't look like a FAT filesystem";
-      return 0;
-    }
-
-    sectors = get_16(sectbuf+bsSectors);
-    sectors = sectors ? sectors : get_32(sectbuf+bsHugeSectors);
-    clusters = sectors / sectbuf[bsSecPerClust];
+    goto invalid;
   }
+  
+  return NULL;
 
-  if ( get_16(sectbuf+bsBytesPerSec) != 512 ) {
-    *errmsg = "sector sizes other than 512 not supported";
-    return 0;
-  }
-
-  return 1;
+ invalid:
+  return "this doesn't look like a valid FAT filesystem";
 }
 
 /*
@@ -231,6 +279,6 @@ int syslinux_patch(const uint32_t *sectors, int nsectors)
 
   set_32(patcharea+4, csum);
 
-  return 0;
+    return 0;
 }
 

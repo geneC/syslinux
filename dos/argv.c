@@ -73,13 +73,13 @@ int __parse_argv(char ***argv, const char *str)
     if ( ! *p )
       break;
   }
-  q--;				/* Point to final null */
 
   /* Now create argv */
   arg = ALIGN_UP(q,char *);
   *argv = arg;
   *arg++ = mem;			/* argv[0] */
 
+  q--;				/* Point q to final null */
   for ( r = mem ; r < q ; r++ ) {
     if ( *r == '\0' ) {
       *arg++ = r+1;
