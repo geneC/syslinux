@@ -36,9 +36,14 @@ as appropriate, such as -J or -R):
 		-no-emul-boot -boot-load-size 4 -boot-info-table \
 		<root-of-iso-tree>
 
-ISOLINUX will look in the "isolinux" directory, if it exists, for any
-file requested.  It currently does not support accessing other
-directories.  Please let me know if this is a desired feature.
+ISOLINUX resolves pathnames the following way:
+
+- A pathname consists of names separated by slashes, Unix-style.
+- A leading / means it searches from the root directory; otherwise the
+  search is from the isolinux directory (think of this as the "current
+  directory".)
+- . and .. in pathname searches are not supported.
+- The maximum length of any pathname is 255 characters.
 
 Note that ISOLINUX only uses the "plain" ISO 9660 filenames, i.e. it
 does not support Rock Ridge or Joliet filenames.  It can still be used

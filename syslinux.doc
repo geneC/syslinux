@@ -75,11 +75,6 @@ mode.
 The -o option is used with a disk image file and specifies the byte
 offset of the filesystem image in the file.
 
-WARNING: There seems to be a bug in some recent experimental Linux
-	 kernels that causes floppy disk corruption when using the
-	 Linux syslinux installer.  This bug exists in kernels
-	 2.1.79-2.1.86; as far as I know the bug is fixed in 2.1.87.
-
 On boot time, by default, the kernel will be loaded from the image named
 LINUX on the boot floppy.  This default can be changed, see the section
 on the SYSLINUX config file.
@@ -126,7 +121,7 @@ APPEND options...
         usually permitting explicitly entered kernel options to override
         them.  This is the equivalent of the LILO "append" option.
 
-IPAPPEND flag_val
+IPAPPEND flag_val			[PXELINUX only]
 	The IPAPPEND option is available only on PXELINUX, and
 	indicates (if the flag value is 1) that an option of the
 	following format should be generated and added:
@@ -138,14 +133,15 @@ IPAPPEND flag_val
 LABEL label
   KERNEL image
   APPEND options...
-  IPAPPEND flag_val
+  IPAPPEND flag_val			[PXELINUX only]
 	Indicates that if "label" is entered as the kernel to boot,
         SYSLINUX should instead boot "image", and the specified APPEND
 	and IPAPPEND options should be used instead of the ones
         specified in the global section of the file (before the first
         LABEL command.)  The default for "image" is the same as
         "label", and if no APPEND is given the default is to use the
-        global entry (if any).  Up to 128 LABEL entries are permitted.
+        global entry (if any).  Up to 128 LABEL entries are permitted
+	(for ISOLINUX, 64 LABEL entries.)
 
         Note that LILO uses the syntax:
         image = mykernel
@@ -159,16 +155,17 @@ LABEL label
 
 	Notes:	Labels are mangled as if they were filenames, and must be
 		unique after mangling.  For example, two labels
-		"v2.1.30" and "v2.1.31" will not be distinguishable.
+		"v2.1.30" and "v2.1.31" will not be distinguishable
+		under SYSLINUX, since both mangle to the same DOS filename.
 
-		The "image" doesn't have to be a Linux kernel; it can
+		The "kernel" doesn't have to be a Linux kernel; it can
 		be a boot sector or a COMBOOT file (see below.)
 
   APPEND -
         Append nothing.  APPEND with a single hyphen as argument in a
         LABEL section can be used to override a global APPEND.
 
-  LOCALBOOT type
+  LOCALBOOT type			[ISOLINUX, PXELINUX]
 	On PXELINUX, specifying "LOCALBOOT 0" instead of a "KERNEL"
 	option means invoking this particular label will cause a local
 	disk boot instead of booting a kernel.

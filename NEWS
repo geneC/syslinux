@@ -1,6 +1,12 @@
 Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to both.
 
+Changes in 1.61:
+	* ISOLINUX: Support full pathname searches.  Max length for a
+	  pathname is 255 characters.  As a result, only 64 "label"
+	  statements are supported in ISOLINUX.
+	* PXELINUX: Max filename length extended to 63 characters.
+
 Changes in 1.60:
 	* Add support for graphical splash screens.
 	* Add mode control characters, which allows you to control
