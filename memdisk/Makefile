@@ -63,8 +63,8 @@ spotless: clean
 %.i: %.c
 	$(CC) $(INCLUDE) $(CFLAGS) -E -o $@ $<
 
+# Cancel default rule
 %.o: %.c
-	$(CC) $(INCLUDE) $(CFLAGS) -c -o $@ $<
 
 %.bin: %.asm
 	$(NASM) -f bin $(NINCLUDE) -o $@ -l $*.lst $<
@@ -84,9 +84,12 @@ memdisk.o: memdisk.bin
 
 .depend:
 	rm -f .depend
-	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -M $$csrc >> .depend ; done
+	for csrc in *.c ; do $(CC) $(INCLUDE) -M $$csrc | sed -e 's/\.o/\.s/' >> .depend ; done
 	for ssrc in $(SSRC) ; do $(CC) $(INCLUDE) -x c -traditional -M $$ssrc | sed -e 's/\.S16\.o/\.o16/' >> .depend ; done
 	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc >> .depend ; done
+
+# This file contains the version number, so add a dependency for it
+setup.s: ../version
 
 # Include dependencies file
 include .depend
