@@ -4,6 +4,9 @@ them.
 
 Changes in 2.11:
 	* ALL: Add an API call to get the configuration file name.
+	* SYSLINUX: Fix bug in 2.10 that prevented it from working
+	  correctly for a lot of people.
+	* SYSLINUX: In the installer, make mtools a bit less fussy.
 
 Changes in 2.10:
 	* MEMDISK: Handle images compressed with zip as well as with
