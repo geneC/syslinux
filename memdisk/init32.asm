@@ -43,10 +43,6 @@
 ; segments, but this stuff is painful enough as it is without having to rely
 ; on everything happening "as it ought to."
 ;
-; IMPORTANT: This code must be capable of operating when copied to the
-; trackbuf area (1000h).  The routine bcopy_over_self handles this mode
-; of operation, including any necessary adjustments.
-;
 		section .rodata
 
 	; desc base, limit, flags
