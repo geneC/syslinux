@@ -38,7 +38,7 @@ BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst pxelinux.0 mbr.bin
 ITARGET = syslinux.com syslinux copybs.com gethostip
 DOCS    = COPYING NEWS README TODO *.doc sample
 OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version \
-	  sys2ansi.pl
+	  sys2ansi.pl ppmtolss16
 OBSOLETE = pxelinux.bin
 
 # Things to install in /usr/bin
