@@ -1,6 +1,6 @@
 			       SYSLINUX
-			     Version 1.40
-			      May 7, 1998
+			     Version 1.42
+			   December 5, 1998
 
               A bootloader for Linux using MS-DOS floppies
 
@@ -461,6 +461,11 @@ display bootmsg.txt
 I would appreciate hearing of any problems you have with SYSLINUX.  I
 would also like to hear from you if you have successfully used SYSLINUX,
 *especially* if you are using it for a distribution.
+
+If you are reporting problems, please include all possible information
+about your system and your BIOS; the vast majority of all problems
+reported turn out to be BIOS or hardware bugs, and I need as much
+information as possible in order to diagnose the problems.
 
 There is a mailing list for discussion among SYSLINUX users and for
 announcements of new and test versions.  To join, send a message to

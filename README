@@ -1,6 +1,7 @@
 See the following files for documentation about SYSLINUX:
 
 	syslinux.doc	- Usage instructions; manual.
+	distrib.doc	- For creators of Linux distributions.
 	NEWS		- List of changes from previous releases.
 	TODO		- About features planned for future releases.
 	COPYING		- For the license terms of this software.

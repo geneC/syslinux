@@ -35,7 +35,7 @@ VERSION = $(shell cat version)
 SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm
 BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst
 ITARGET = syslinux.com syslinux copybs.com
-DOCS    = COPYING NEWS README TODO syslinux.doc keytab-lilo.doc
+DOCS    = COPYING NEWS README TODO *.doc
 OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version
 
 all:	$(BTARGET) $(ITARGET)
