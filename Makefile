@@ -161,6 +161,8 @@ dist: tidy
 
 spotless: clean dist
 	rm -f $(BTARGET)
+	$(MAKE) -C sample spotless
+	$(MAKE) -C memdisk spotless
 
 #
 # Hook to add private Makefile targets for the maintainer.
