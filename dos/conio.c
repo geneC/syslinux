@@ -22,6 +22,8 @@
 
 int putchar(int ch)
 {
+  if ( ch == '\n' )
+    putchar('\r');
   asm("movb $0x02,%%ah ; int $0x21" : : "d" (ch));
   return ch;
 }
