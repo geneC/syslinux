@@ -8,6 +8,7 @@ Changes in 2.05:
 	  separated by dashes and including the hardware type, for
 	  example, the Ethernet (type 1) address 88:99:AA:BB:CC:DD
 	  would query the file pxelinux.cfg/01-88-99-aa-bb-cc-dd.
+        * PXELINUX: Fix bug involving non-IP-based config file names.
 
 Changes in 2.04:
 	* ALL: Reclaim even more low memory by observing that
