@@ -30,6 +30,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/mount.h>
 
 #include <linux/ext2_fs.h>
 #include <linux/fd.h>		/* Floppy geometry */
