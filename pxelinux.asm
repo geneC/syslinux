@@ -42,6 +42,7 @@ PKT_RETRY	equ 6			; Packet transmit retry count
 PKT_TIMEOUT	equ 12			; Initial timeout, timer ticks @ 55 ms
 TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)
 TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
+%assign USE_PXE_PROVIDED_STACK 1	; Use stack provided by PXE?
 
 ;
 ; TFTP operation codes
@@ -271,7 +272,7 @@ packet_buf_size	equ $-packet_buf
 
 		section .text
                 org 7C00h
-StackBuf	equ $
+StackBuf	equ $			; Base of stack if we use our own
 
 ;
 ; Primary entry point.
@@ -280,8 +281,8 @@ bootsec		equ $
 _start:
 		jmp 0:_start1		; Canonicalize address
 _start1:
-		pushad			; Paranoia... in case of return to PXE
-		pushfd			; ... save as much state as possible
+		pushfd			; Paranoia... in case of return to PXE
+		pushad			; ... save as much state as possible
 		push ds
 		push es
 		push fs
@@ -298,9 +299,15 @@ _start1:
 		mov [InitStack],sp
 		mov [InitStack+2],ss
 
+%if USE_PXE_PROVIDED_STACK
+		; Apparently some platforms go bonkers if we
+		; set up our own stack...
+		mov [BaseStack],sp
+		mov [BaseStack+4],ss
+%endif
+
 		cli			; Paranoia
-		mov ss,ax
-		mov sp,StackBuf
+		lss esp,[BaseStack]
 
 		sti			; Stack set up and ready
 		cld			; Copy upwards
@@ -834,8 +841,7 @@ config_scan:
 local_boot:
 		mov si,cs
 		mov ds,si			; Restore DI
-		mov ss,si
-		mov esp,StackBuf		; Reset the stack
+		lss esp,[BaseStack]
 		mov [LocalBootType],ax
 		call vgaclearmode
 		mov si,localboot_msg
@@ -846,9 +852,9 @@ local_boot:
 		pop fs
 		pop es
 		pop ds
-		popfd
 		popad
 		mov ax,[cs:LocalBootType]
+		popfd
 		retf				; Return to PXE
 
 ;
@@ -878,8 +884,7 @@ abort_load:
                 mov ax,cs                       ; Restore CS = DS = ES
                 mov ds,ax
                 mov es,ax
-		mov ss,ax
-		mov sp,StackBuf			; Reset the stack
+		lss esp,[BaseStack]
 		sti
                 call cwritestr                  ; Expects SI -> error msg
 al_ok:          jmp enter_command               ; Return to command prompt
@@ -898,8 +903,7 @@ kaboom:
 		mov ax,cs
 		mov es,ax
 		mov ds,ax
-		mov ss,ax
-		mov sp,StackBuf
+		lss esp,[BaseStack]
 		sti
 .patch:		mov si,bailmsg
 		call writestr		; Returns with AL = 0
@@ -1654,12 +1658,32 @@ unload_pxe:
 		jmp .call_loop
 
 .call_done:
-		mov bx,0FF00h
+%if USE_PXE_PROVIDED_STACK
+		; We need to switch to our local stack here...
+		pusha
+		pushf
+
+		mov si,sp
+		mov cx,[InitStack]
+		mov di,StackBuf
+		mov [BaseStack],di
+		mov [BaseStack+4],es
+		sub cx,si
+		sub di,cx
+		mov dx,cx			; New SP
+		ss rep movsb
+
+		cli
+		mov ss,cx			; CX == 0 here
+		mov sp,dx
+		
+		popf
+		popa
+%endif
 
 		mov dx,[RealBaseMem]
 		cmp dx,[BIOS_fbm]		; Sanity check
 		jna .cant_free
-		inc bx
 
 		; Check that PXE actually unhooked the INT 1Ah chain
 		movzx eax,word [4*0x1a]
@@ -1671,7 +1695,6 @@ unload_pxe:
 		jae .ok
 		cmp ax,[BIOS_fbm]
 		jae .cant_free
-		; inc bx
 
 .ok:
 		mov [BIOS_fbm],dx
@@ -2133,6 +2156,9 @@ pxe_udp_read_pkt:
 ;
 ; Misc initialized (data) variables
 ;
+		alignb 4, db 0
+BaseStack	dd StackBuf		; SS:ESP of base stack
+		dw 0
 AppendLen       dw 0                    ; Bytes in append= command
 KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
 CmdLinePtr	dw cmd_line_here	; Command line advancing pointer

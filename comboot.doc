@@ -366,15 +366,15 @@ AX=000Ah	Get Derivative-Specific Information
 		[fs:si+2]	FS
 		[fs:si+4]	ES
 		[fs:si+6]	DS
-		[fs:si+8]	EFLAGS
-		[fs:si+12]	EDI
-		[fs:si+16]	ESI
-		[fs:si+20]	EBP
-		[fs:si+24]	-
-		[fs:si+28]	EBX
-		[fs:si+32]	EDX
-		[fs:si+36]	ECX
-		[fs:si+40]	EAX
+		[fs:si+8]	EDI
+		[fs:si+12]	ESI
+		[fs:si+16]	EBP
+		[fs:si+20]	-
+		[fs:si+24]	EBX
+		[fs:si+28]	EDX
+		[fs:si+32]	ECX
+		[fs:si+36]	EAX
+		[fs:si+40]	EFLAGS
 		[fs:si+44]	PXE return IP	<- t.o.s. when PXELINUX invoked
 		[fs:si+46]	PXE return CS
 
