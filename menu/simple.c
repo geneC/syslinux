@@ -68,7 +68,6 @@ int menumain(char *cmdline)
   curr = showmenus(MAIN); // Initial menu is the one with index MAIN
   if (curr)
   {
-        if (curr->action == OPT_EXIT) return 0;
         if (curr->action == OPT_RUN)
         {
             if (syslinux) runcommand(curr->data);

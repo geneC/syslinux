@@ -17,6 +17,11 @@
 #define NULL ((void *)0)
 #endif
 
+#define BELL 0x07
+// CHRELATTR = ^N, CHABSATTR = ^O
+#define CHABSATTR 15 
+#define CHRELATTR 14
+
 /* BIOS Assisted output routines */
 
 void csprint(const char *str, char attr); // Print a C str (NUL-terminated)
@@ -27,7 +32,8 @@ void setdisppage(char num); // Set the display page to specified number
 
 char getdisppage(); // Get current display page 
 
-void clearwindow(char top,char left,char bot,char right, char page,char fillchar, char fillattr);
+void clearwindow(char top, char left, char bot, char right, 
+		 char page, char fillchar, char fillattr);
 
 void cls(void);			/* Clears the entire current screen page */
 
@@ -36,6 +42,9 @@ void gotoxy(char row,char col, char page);
 void getpos(char * row, char * col, char page);
 
 char inputc(char * scancode); // Return ASCII char by val, and scancode by reference
+
+
+void putch(char x, char attr, char page); // Print one char
 
 void cursoroff(void);		/* Turns on cursor */
 
@@ -63,6 +72,8 @@ static inline char getnumcols(void)
 {
     return readbiosb(0x44a);
 }
+
+void scrollup(); //Scroll up display screen by one line
  
 void setvideomode(char mode); // Set the video mode.
 

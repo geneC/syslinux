@@ -22,6 +22,27 @@
 #include "biosio.h"
 #include "string.h"
 
+// TIMEOUT PARAMETERS
+/* If no key is pressed within TIMEOUTNUMSTEPS * TIMEOUTSTEPSIZE milliseconds
+   and if a timeout handler is registered, then that will be called.
+   The handler should either either take control from there on, or return without
+   producing any change in the current video settings.
+
+   For e.g. the handler could
+   * Could just quit the menu program
+   * beep and return.
+
+   TIMEOUTSTEPSIZE is the interval for which the program sleeps without checking for 
+   any keystroke. So increasing this will make the response of the system slow.
+   Decreasing this will make a lot of interrupt calls using up your CPU. Default
+   value of TIMEOUTSTEPSIZE of 0.1 seconds should be right in most cases.
+
+   TIMEOUTNUMSTEPS of 3000 corresponds to a wait time of 300 seconds or 5 minutes
+*/
+
+#define TIMEOUTSTEPSIZE 10  
+#define TIMEOUTNUMSTEPS 30000L
+
 // Scancodes of some keys
 #define ESCAPE     1
 #define ENTERA    28
@@ -38,18 +59,30 @@
 #define SPACEKEY 57 // Scan code for SPACE
 
 // Attributes
-#define NORMALATTR   0x17
-#define REVERSEATTR  0x70
-#define INACTATTR    0x18
-#define REVINACTATTR 0x78
-#define STATUSATTR   0x74
-#define FILLCHAR     177
-#define FILLATTR     0x01
-#define SHADOWATTR   0x00
-#define SPACECHAR    ' '
+#define NORMALATTR    0x17
+#define NORMALHLITE   0x1F // Normal Highlight attribute
+#define REVERSEATTR   0x70
+#define REVERSEHLITE  0x78 // Reverse Hightlight attribute
+#define INACTATTR     0x18
+#define INACTHLITE    0x10 // Inactive Highlight attribute
+#define REVINACTATTR  0x78
+#define REVINACTHLITE 0x70 // Reverse Inactive Highlight attr
 
-#define TFILLCHAR    ' '
-#define TITLEATTR    0x70
+#define STATUSATTR    0x74
+#define STATUSHLITE   0x7B // Status highlight
+
+#define FILLCHAR      177
+#define FILLATTR      0x01
+#define SHADOWATTR    0x00
+#define SPACECHAR     ' '
+
+#define TFILLCHAR     ' '
+#define TITLEATTR     0x70
+
+#define ENABLEHLITE   '<' // Char which turns on highlight
+#define DISABLEHLITE  '>' // Char which turns off highlight
+#define NOHLITE       0   // The offset into attrib array for non-hilite
+#define HLITE         1   // The offset for Hlite attrib
 
 // Single line Box drawing Chars
 
@@ -112,7 +145,7 @@
 #define RADIOMENU  2
 
 typedef enum {OPT_INACTIVE, OPT_SUBMENU, OPT_RUN, OPT_EXITMENU, OPT_CHECKBOX,
-	      OPT_RADIOMENU, OPT_EXIT, OPT_SEP, OPT_INVISIBLE,
+	      OPT_RADIOMENU, OPT_SEP, OPT_INVISIBLE,
 	      OPT_RADIOITEM} t_action;
 
 typedef union {
@@ -128,6 +161,11 @@ struct s_menusystem;
 typedef void (*t_item_handler)(struct s_menusystem *, struct s_menuitem *);
 typedef void (*t_menusystem_handler)(struct s_menusystem *, struct s_menuitem *);
 
+// TIMEOUT is the list of possible values which can be returned by the handler
+// instructing the menusystem what to do. The default is CODE_WAIT
+typedef enum {CODE_WAIT, CODE_ENTER, CODE_ESCAPE } TIMEOUTCODE;
+typedef TIMEOUTCODE (*t_timeout_handler)(void);
+
 typedef struct s_menuitem {
   const char *item;
   const char *status;
@@ -137,6 +175,7 @@ typedef struct s_menuitem {
   t_item_handler handler; // Pointer to function of type menufn
   t_action action;
   t_itemdata itemdata; // Data depends on action value
+  char shortcut; // one of [A-Za-z0-9] shortcut for this menu item
   char index; // Index within the menu array
   char parindex; // Index of the menu in which this item appears. 
 } t_menuitem;
@@ -158,12 +197,16 @@ typedef struct s_menusystem {
   pt_menu menus[MAXMENUS];
   const char *title; 
   t_menusystem_handler handler; // Handler function called every time a menu is re-printed.
+  t_timeout_handler ontimeout; // Timeout handler
+  unsigned int tm_stepsize; // Timeout step size (in milliseconds)
+  unsigned long tm_numsteps; // Time to wait for key press=numsteps * stepsize milliseconds
+
   char nummenus;
-  char normalattr; 
-  char reverseattr;
-  char inactattr;
-  char revinactattr;
-  char statusattr;
+  char normalattr[2]; // [0] is non-hlite attr, [1] is hlite attr
+  char reverseattr[2];
+  char inactattr[2];
+  char revinactattr[2];
+  char statusattr[2];
   char fillchar;
   char fillattr;
   char spacechar;
@@ -200,7 +243,9 @@ void init_menusystem(const char *title); // This pointer value is stored interna
 
 void set_normal_attr(char normal, char selected, char inactivenormal, char inactiveselected);
 
-void set_status_info(char statusattr, char statline);
+void set_normal_hlite(char normal, char selected, char inactivenormal, char inactiveselected);
+
+void set_status_info(char statusattr, char statushlite, char statline);
 
 void set_title_info(char tfillchar, char titleattr);
 
@@ -212,13 +257,20 @@ void reg_handler( t_menusystem_handler handler); // Register handler
 
 void unreg_handler(); 
 
+void reg_ontimeout(t_timeout_handler, unsigned int numsteps, unsigned int stepsize); 
+// Set timeout handler, set 0 for default values.
+// So stepsize=0 means numsteps is measured in centiseconds.
+void unreg_ontimeout();
+
 // Create a new menu and return its position
 char add_menu(const char *title); // This pointer value is stored internally
+
+void set_menu_pos(char row,char col); // Set the position of this menu.
 
 // Add item to the "current" menu // pointer values are stored internally
 pt_menuitem add_item(const char *item, const char *status, t_action action, const char *data, char itemdata);
 
-void set_menu_pos(char row,char col); // Set the position of this menu.
+void set_shortcut(char shortcut); // Set the shortcut key for the current item
 
 // Add a separator to the "current" menu
 pt_menuitem add_sep();

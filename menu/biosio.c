@@ -138,7 +138,12 @@ static inline void asm_putchar(char x, char attr,char page)
 		 : "ebx", "ecx", "ebp");
 }
 
-static inline void scrollup()
+void putch(char x, char attr, char page)
+{
+  asm_putchar(x,attr,page);
+}
+
+void scrollup()
 {
   unsigned short dx = (getnumrows()<< 8) + getnumcols();
   
@@ -154,6 +159,7 @@ static inline void scrollup()
 void csprint(const char *str,char attr)
 {
     char page = asm_getdisppage();
+    char newattr=0,cha,chb;
     char row,col;
 
     asm_getpos(&row,&col,page);
@@ -169,8 +175,28 @@ void csprint(const char *str,char attr)
 	case '\r':
 	  col=0;
 	  break;
-	case 0x07: // Bell Char
+	case BELL: // Bell Char
 	  asm_beep();
+	  break;
+	case CHRELATTR: // change attribute (relatively)
+	case CHABSATTR: // change attribute (absolute)
+	  cha = *(str+1);
+	  chb = *(str+2);
+	  if ((((cha >= '0') && (cha <= '9')) || 
+	       ((cha >= 'A') && (cha <= 'F'))) &&
+	      (((chb >= '0') && (chb <= '9')) || 
+	       ((chb >= 'A') && (chb <= 'F')))) // Next two chars are legal
+	    {
+	      if ((cha >= 'A') && (cha <= 'F'))
+		cha = cha - 'A'+10;
+	      else cha = cha - '0';
+	      if ((chb >= 'A') && (chb <= 'F'))
+		chb = chb - 'A'+10;
+	      else chb = chb - '0';
+	      newattr = (cha << 4) + chb;
+	      attr = (*str == CHABSATTR ? newattr : attr ^ newattr);
+	      str += 2; // Will be incremented again later
+	    }
 	  break;
 	default:
 	  asm_putchar(*str, attr, page);
@@ -231,7 +257,7 @@ static inline void asm_cursorshape(char start, char end)
     asm volatile("movb $0x01,%%ah ; int $0x10"
 		 : : "c" ((start << 8) + end) : "eax");
 }
-   
+
 void cursoroff(void)
 {
     asm_cursorshape(32,32);

@@ -23,9 +23,9 @@
 char infoline[160];
 
 // Different network options
-static char nonet[] = "network [none]";
-static char dhcpnet[]="network [dhcp]";
-static char statnet[]="network [static]";
+static char nonet[] = "<n>etwork [none]";
+static char dhcpnet[]="<n>etwork [dhcp]";
+static char statnet[]="<n>etwork [static]";
 
 struct {
     unsigned int baseurl : 1; // Do we need to specify by url
@@ -41,6 +41,14 @@ t_menuitem * stat,*dhcp,*none;
 char TESTING,RESCUE,MAIN,PREP,NETMENU;
 
 /* End globals */
+
+
+TIMEOUTCODE ontimeout()
+{
+  beep();
+  return CODE_WAIT;
+}
+
 
 #define INFLINE 22
 
@@ -165,34 +173,36 @@ int menumain(char *cmdline)
 
   // Register the menusystem handler
   reg_handler(&msys_handler);
+  // Register the ontimeout handler, with a time out of 10 seconds
+  reg_ontimeout(ontimeout,1000,0);
 
   NETMENU = add_menu(" Init Network ");
-  none = add_item("None","Dont start network",OPT_RADIOITEM,"no ",0);
-  dhcp = add_item("dhcp","Use DHCP",OPT_RADIOITEM,"dhcp ",0);
-  stat = add_item("static","Use static IP I will specify later",OPT_RADIOITEM,"static ",0);
+  none = add_item("<N>one","Dont start network",OPT_RADIOITEM,"no ",0);
+  dhcp = add_item("<d>hcp","Use DHCP",OPT_RADIOITEM,"dhcp ",0);
+  stat = add_item("<s>tatic","Use static IP I will specify later",OPT_RADIOITEM,"static ",0);
 
   TESTING = add_menu(" Testing ");
   set_menu_pos(5,55);
-  add_item("Memory Test","Perform extensive memory testing",OPT_RUN, "memtest",0);
-  add_item("Invisible","You dont see this",OPT_INVISIBLE,"junk",0);
-  add_item("Exit this menu","Go one level up",OPT_EXITMENU,"exit",0);
+  add_item("<M>emory Test","Perform extensive memory testing",OPT_RUN, "memtest",0);
+  add_item("<I>nvisible","You dont see this",OPT_INVISIBLE,"junk",0);
+  add_item("<E>xit this menu","Go one level up",OPT_EXITMENU,"exit",0);
 
   RESCUE = add_menu(" Rescue Options ");
-  add_item("Linux Rescue","linresc",OPT_RUN,"linresc",0);
-  add_item("Dos Rescue","dosresc",OPT_RUN,"dosresc",0);
-  add_item("Windows Rescue","winresc",OPT_RUN,"winresc",0);
-  add_item("Exit this menu","Go one level up",OPT_EXITMENU,"exit",0);
+  add_item("<L>inux Rescue","linresc",OPT_RUN,"linresc",0);
+  add_item("<D>os Rescue","dosresc",OPT_RUN,"dosresc",0);
+  add_item("<W>indows Rescue","winresc",OPT_RUN,"winresc",0);
+  add_item("<E>xit this menu","Go one level up",OPT_EXITMENU,"exit",0);
 
   PREP = add_menu(" Prep options ");
-  baseurl = add_item("baseurl by IP?","Specify gui baseurl by IP address",OPT_CHECKBOX,"baseurl",0);
-  mountcd = add_item("mountcd?","Mount the cdrom drive?",OPT_CHECKBOX,"mountcd",0);
+  baseurl = add_item("<b>aseurl by IP?","Specify gui baseurl by IP address",OPT_CHECKBOX,"baseurl",0);
+  mountcd = add_item("<m>ountcd?","Mount the cdrom drive?",OPT_CHECKBOX,"mountcd",0);
   network = add_item(dhcpnet,"How to initialise network device?",OPT_RADIOMENU,NULL,NETMENU);
   add_sep();
-  winrep  = add_item("Reinstall windows","Re-install the windows side of a dual boot setup",OPT_CHECKBOX,"winrepair",0);
-  linrep  = add_item("Reinstall linux","Re-install the linux side of a dual boot setup",OPT_CHECKBOX,"linrepair",0);
+  winrep  = add_item("Reinstall <w>indows","Re-install the windows side of a dual boot setup",OPT_CHECKBOX,"winrepair",0);
+  linrep  = add_item("Reinstall <l>inux","Re-install the linux side of a dual boot setup",OPT_CHECKBOX,"linrepair",0);
   add_sep();
-  runprep = add_item("Run prep now","Execute prep with the above options",OPT_RUN,"prep",0);
-  add_item("Exit this menu","Go up one level",OPT_EXITMENU,"exitmenu",0);
+  runprep = add_item("<R>un prep now","Execute prep with the above options",OPT_RUN,"prep",0);
+  add_item("<E>xit this menu","Go up one level",OPT_EXITMENU,"exitmenu",0);
   baseurl->handler = &checkbox_handler;
   mountcd->handler = &checkbox_handler;
   winrep->handler = &checkbox_handler;
@@ -204,14 +214,14 @@ int menumain(char *cmdline)
   flags.linrep = 0;
 
   MAIN = add_menu(" Main Menu ");  
-  add_item("Prepare","prep",OPT_RUN,"prep",0);
-  add_item("Prep options...","Options for prep image",OPT_SUBMENU,NULL,PREP);
-  add_item("Rescue options...","Troubleshoot a system",OPT_SUBMENU,NULL,RESCUE);
-  add_item("Testing...","Options to test hardware",OPT_SUBMENU,NULL,TESTING);
-  add_item("Exit to prompt", "Exit the menu system", OPT_EXITMENU, "exit", 0);
+  add_item("<P>repare","prep",OPT_RUN,"prep",0);
+  add_item("<P>rep options...","Options for prep image",OPT_SUBMENU,NULL,PREP);
+  add_item("<R>escue options...","Troubleshoot a system",OPT_SUBMENU,NULL,RESCUE);
+  add_item("<T>esting...","Options to test hardware",OPT_SUBMENU,NULL,TESTING);
+  add_item("<E>xit to prompt", "Exit the menu system", OPT_EXITMENU, "exit", 0);
 
   csprint("Press any key within 5 seconds to show menu...",0x07);
-  if (!checkkeypress(200,25)) // Granularity of 200 milliseconds
+  if (!checkkeypress(100,50)) // Granularity of 100 milliseconds
     {
       csprint("Sorry! Time's up.\r\n",0x07);
       return 1;
@@ -220,7 +230,6 @@ int menumain(char *cmdline)
   curr = showmenus(MAIN);
   if (curr)
   {
-        if (curr->action == OPT_EXIT) return 0;
         if (curr->action == OPT_RUN)
         {
             strcpy(cmd,curr->data);
@@ -238,9 +247,16 @@ int menumain(char *cmdline)
             if (syslinux)
                runcommand(cmd);
             else csprint(cmd,0x07);
-            return 1;
+            return 1; // Should not happen when run from SYSLINUX
         }
   }
+  // If user quits the menu system, control comes here
+  // If you want to execute some specific command uncomment the next two lines
+
+  // if (syslinux) runcommand(YOUR_COMMAND_HERE);
+  // else csprint(YOUR_COMMAND_HERE,0x07);
+
+  // Return to prompt
   return 0;
 }
 

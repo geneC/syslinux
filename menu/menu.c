@@ -32,6 +32,88 @@ static char EMPTYSTR[] = "";
 
 /* Basic Menu routines */
 
+// This is same as inputc except it honors the ontimeout handler
+// and calls it when needed. For the callee, there is no difference
+// as this will not return unless a key has been pressed.
+char getch(char *scan)
+{
+  unsigned long i;
+  TIMEOUTCODE c;
+
+  // Wait until keypress if no handler specified
+  if (ms->ontimeout==NULL) return inputc(scan);
+
+  while (1) // Forever do
+    {
+      for (i=0; i < ms->tm_numsteps; i++)
+	{
+	  if (checkkbdbuf()) return inputc(scan);
+	  sleep(ms->tm_stepsize);
+	}
+      c = ms->ontimeout();
+      switch(c)
+	{
+	case CODE_ENTER: // Pretend user hit enter
+	  *scan = ENTERA;
+	  return '\015'; // \015 octal = 13
+	case CODE_ESCAPE: // Pretend user hit escape
+	  *scan = ESCAPE;
+	  return '\033'; // \033 octal = 27
+	default:
+	  break;
+	}
+    }
+  return 0;
+}
+
+/* Print a menu item */
+/* attr[0] is non-hilite attr, attr[1] is highlight attr */
+void printmenuitem(const char *str,char* attr)
+{
+    char page = getdisppage();
+    char row,col;
+    int hlite=NOHLITE; // Initially no highlighting
+
+    getpos(&row,&col,page);
+    while ( *str ) {
+      switch (*str) 
+	{
+	case '\b':
+	  --col;
+	  break;
+	case '\n':
+	  ++row;
+	  break;
+	case '\r':
+	  col=0;
+	  break;
+	case BELL: // No Bell Char
+	  break;
+	case ENABLEHLITE: // Switch on highlighting
+	  hlite = HLITE;
+	  break;
+	case DISABLEHLITE: // Turn off highlighting
+	  hlite = NOHLITE;
+	  break;
+	default:
+	  putch(*str, attr[hlite], page);
+	  ++col;
+	}
+      if (col > getnumcols())
+	{
+	  ++row;
+	  col=0;
+	}
+      if (row > getnumrows())
+	{
+	  scrollup();
+	  row= getnumrows();
+	}
+      gotoxy(row,col,page);
+      str++;
+    }
+}
+
 void drawbox(char top, char left, char bot, char right,char attr, char page)
 {
   char x;
@@ -86,13 +168,44 @@ int prev_visible(pt_menu menu, int index) // Return index of next visible
   return ans;
 }
 
+int find_shortcut(pt_menu menu,char shortcut, int index) 
+// Find the next index with specified shortcut key
+{
+  int ans;
+  pt_menuitem mi;
+
+  // Garbage in garbage out
+  if ((index <0) || (index >= menu->numitems)) return index; 
+  ans = index+1;
+  // Go till end of menu
+  while (ans < menu->numitems)	 
+    {
+      mi = menu->items[ans];
+      if ((mi->action == OPT_INVISIBLE) || (mi->action == OPT_SEP)
+	  || (mi->shortcut != shortcut))
+	ans ++;
+      else return ans;
+    }
+  // Start at the beginning and try again
+  ans = 0;
+  while (ans < index)
+    {
+      mi = menu->items[ans];
+      if ((mi->action == OPT_INVISIBLE) || (mi->action == OPT_SEP)
+	  || (mi->shortcut != shortcut))
+	ans ++;
+      else return ans;
+    }
+  return index; // Sorry not found
+}
+
 void printmenu(pt_menu menu, int curr, char top, char left)
 {
   int x,row; // x = index, row = position from top
   int numitems,menuwidth;
   char fchar[5],lchar[5]; // The first and last char in for each entry
   const char *str;  // and inbetween the item or a seperator is printed
-  char attr;  // all in the attribute attr
+  char *attr;  // attribute attr
   char sep[MENULEN];// and inbetween the item or a seperator is printed
   pt_menuitem ci;
   
@@ -102,13 +215,13 @@ void printmenu(pt_menu menu, int curr, char top, char left)
   clearwindow(top,left-2, top+numitems+1, left+menuwidth+1,
 	      ms->menupage, ms->fillchar, ms->shadowattr);
   drawbox(top-1, left-3, top+numitems, left+menuwidth, 
-	  ms->normalattr, ms->menupage);
+	  ms->normalattr[NOHLITE], ms->menupage);
   memset(sep,HORIZ,menuwidth); // String containing the seperator string
   sep[menuwidth-1] = 0; 
   // Menu title
   x = (menuwidth - strlen(menu->title) - 1) >> 1;
   gotoxy(top-1,left+x,ms->menupage);
-  csprint(menu->title,ms->normalattr);
+  printmenuitem(menu->title,ms->normalattr);
   row = -1; // 1 less than inital value of x
   for (x=0; x < menu->numitems; x++)
     {
@@ -137,7 +250,7 @@ void printmenu(pt_menu menu, int curr, char top, char left)
 	  break;
 	case OPT_SEP:
 	  fchar[0] = '\b'; fchar[1] = LTRT; fchar[2] = HORIZ; fchar[3] = HORIZ; fchar[4] = 0;
-	  lchar[0] = HORIZ; lchar[1] = RTLT; lchar[3] = 0;
+	  lchar[0] = HORIZ; lchar[1] = RTLT; lchar[2] = 0;
 	  str = sep;
 	  break;
 	case OPT_EXITMENU:
@@ -147,13 +260,13 @@ void printmenu(pt_menu menu, int curr, char top, char left)
 	  break;
         }
       gotoxy(top+row,left-2,ms->menupage);
-      cprint(ms->spacechar,attr,menuwidth+2,ms->menupage); // Wipe area with spaces
+      cprint(ms->spacechar,attr[NOHLITE],menuwidth+2,ms->menupage); // Wipe area with spaces
       gotoxy(top+row,left-2,ms->menupage);
-      csprint(fchar,attr); // Print first part
+      csprint(fchar,attr[NOHLITE]); // Print first part
       gotoxy(top+row,left,ms->menupage);
-      csprint(str,attr); // Print main part
+      printmenuitem(str,attr); // Print main part
       gotoxy(top+row,left+menuwidth-1,ms->menupage); // Last char if any
-      csprint(lchar,attr); // Print last part
+      csprint(lchar,attr[NOHLITE]); // Print last part
     }
   if (ms->handler) ms->handler(ms,menu->items[curr]);
 }
@@ -166,7 +279,7 @@ void printradiomenu(pt_menu menu, int curr, char top, char left)
   int numitems,menuwidth;
   char fchar[5],lchar[5]; // The first and last char in for each entry
   const char *str;  // and inbetween the item or a seperator is printed
-  char attr;  // all in the attribute attr
+  char *attr;  // all in the attribute attr
   char sep[MENULEN];// and inbetween the item or a seperator is printed
   pt_menuitem ci;
   
@@ -176,13 +289,13 @@ void printradiomenu(pt_menu menu, int curr, char top, char left)
   clearwindow(top,left-2, top+numitems+1, left+menuwidth+1,
 	      ms->menupage, ms->fillchar, ms->shadowattr);
   drawbox(top-1, left-3, top+numitems, left+menuwidth, 
-	  ms->normalattr, ms->menupage);
+	  ms->normalattr[NOHLITE], ms->menupage);
   memset(sep,HORIZ,menuwidth); // String containing the seperator string
   sep[menuwidth-1] = 0; 
   // Menu title
   x = (menuwidth - strlen(menu->title) - 1) >> 1;
   gotoxy(top-1,left+x,ms->menupage);
-  csprint(menu->title,ms->normalattr);
+  printmenuitem(menu->title,ms->normalattr);
   row = -1; // 1 less than inital value of x
   for (x=0; x < menu->numitems; x++)
     {
@@ -209,13 +322,13 @@ void printradiomenu(pt_menu menu, int curr, char top, char left)
 	  break;
         }
       gotoxy(top+row,left-2,ms->menupage);
-      cprint(ms->spacechar,attr,menuwidth+2,ms->menupage); // Wipe area with spaces
+      cprint(ms->spacechar,attr[NOHLITE],menuwidth+2,ms->menupage); // Wipe area with spaces
       gotoxy(top+row,left-2,ms->menupage);
-      csprint(fchar,attr); // Print first part
+      csprint(fchar,attr[NOHLITE]); // Print first part
       gotoxy(top+row,left,ms->menupage);
-      csprint(str,attr); // Print main part
+      printmenuitem(str,attr); // Print main part
       gotoxy(top+row,left+menuwidth-1,ms->menupage); // Last char if any
-      csprint(lchar,attr); // Print last part
+      csprint(lchar,attr[NOHLITE]); // Print last part
     }
   if (ms->handler) ms->handler(ms,menu->items[curr]);
 }
@@ -241,20 +354,21 @@ pt_menuitem getradiooption(pt_menu menu, char top, char left, char startopt)
   numitems = menu->numvisible;
   // Setup status line
   gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
-  cprint(ms->spacechar,ms->reverseattr,ms->numcols,ms->menupage);
+  cprint(ms->spacechar,ms->statusattr[NOHLITE],ms->numcols,ms->menupage);
 
   // Initialise current menu item
   curr = next_visible(menu,startopt);
 
   gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
-  cprint(ms->spacechar,ms->statusattr,ms->numcols,1);
+  cprint(ms->spacechar,ms->statusattr[NOHLITE],ms->numcols,1);
   gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
-  csprint(menu->items[curr]->status,ms->statusattr);
+  printmenuitem(menu->items[curr]->status,ms->statusattr);
   while (1) // Forever
     {
       printradiomenu(menu,curr,top,left);
       ci = menu->items[curr];
-      asc = inputc(&scan);
+      
+      asc = getch(&scan);
       switch (scan)
         {
 	case HOMEKEY:
@@ -286,14 +400,18 @@ pt_menuitem getradiooption(pt_menu menu, char top, char left, char startopt)
 	  if (ci->action == OPT_SEP) break;
 	  return ci;
 	  break;
+	default:
+	  // Check if this is a shortcut key
+	  if (((asc >= 'A') && (asc <= 'Z')) ||
+	      ((asc >= 'a') && (asc <= 'z')) ||
+	      ((asc >= '0') && (asc <= '9')))
+	    curr = find_shortcut(menu,asc,curr);
+	  break;
         }
-      // Adjust within range
-      //if (curr < 0) curr=next_visible(menu,0);
-      //if (curr >= numitems) curr = prev_visible(menu,numitems -1);
       // Update status line
       gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
-      cprint(ms->spacechar,ms->statusattr,ms->numcols,ms->menupage);
-      csprint(menu->items[curr]->status,ms->statusattr);
+      cprint(ms->spacechar,ms->statusattr[NOHLITE],ms->numcols,ms->menupage);
+      printmenuitem(menu->items[curr]->status,ms->statusattr);
     }
   return NULL; // Should never come here
 }
@@ -311,20 +429,20 @@ pt_menuitem getmenuoption( pt_menu menu, char top, char left, char startopt)
   numitems = menu->numvisible;
   // Setup status line
   gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
-  cprint(ms->spacechar,ms->reverseattr,ms->numcols,ms->menupage);
+  cprint(ms->spacechar,ms->statusattr[NOHLITE],ms->numcols,ms->menupage);
 
   // Initialise current menu item    
   curr = next_visible(menu,startopt);
 
   gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
-  cprint(ms->spacechar,ms->statusattr,ms->numcols,1);
+  cprint(ms->spacechar,ms->statusattr[NOHLITE],ms->numcols,1);
   gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
-  csprint(menu->items[curr]->status,ms->statusattr);
+  printmenuitem(menu->items[curr]->status,ms->statusattr);
   while (1) // Forever
     {
       printmenu(menu,curr,top,left);
       ci = menu->items[curr];
-      asc = inputc(&scan);
+      asc = getch(&scan);
       switch (scan)
         {
 	case HOMEKEY:
@@ -364,14 +482,18 @@ pt_menuitem getmenuoption( pt_menu menu, char top, char left, char startopt)
 	  // Call handler to see it anything needs to be done
 	  if (ci->handler != NULL) ci->handler(ms,ci); 
 	  break;
+	default:
+	  // Check if this is a shortcut key
+	  if (((asc >= 'A') && (asc <= 'Z')) ||
+	      ((asc >= 'a') && (asc <= 'z')) ||
+	      ((asc >= '0') && (asc <= '9')))
+	    curr = find_shortcut(menu,asc,curr);
+	  break;
         }
-      // Adjust within range
-      //if (curr < 0) curr=next_visible(menu,0);
-      //if (curr >= numitems) curr = prev_visible(menu,numitems -1);
       // Update status line
       gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
-      cprint(ms->spacechar,ms->statusattr,ms->numcols,ms->menupage);
-      csprint(menu->items[curr]->status,ms->statusattr);
+      cprint(ms->spacechar,ms->statusattr[NOHLITE],ms->numcols,ms->menupage);
+      printmenuitem(menu->items[curr]->status,ms->statusattr);
     }
   return NULL; // Should never come here
 }
@@ -507,12 +629,25 @@ void init_menusystem(const char *title)
     ms->title = TITLESTR; // Copy pointers
   else ms->title = title;
 
-  ms->normalattr = NORMALATTR; 
-  ms->reverseattr= REVERSEATTR;
-  ms->inactattr = INACTATTR;
-  ms->revinactattr = REVINACTATTR;
+  // Timeout settings
+  ms->tm_stepsize = TIMEOUTSTEPSIZE;
+  ms->tm_numsteps = TIMEOUTNUMSTEPS;
 
-  ms->statusattr = STATUSATTR;
+  ms->normalattr[NOHLITE] = NORMALATTR; 
+  ms->normalattr[HLITE] = NORMALHLITE;
+
+  ms->reverseattr[NOHLITE] = REVERSEATTR;
+  ms->reverseattr[HLITE] = REVERSEHLITE;
+
+  ms->inactattr[NOHLITE] = INACTATTR;
+  ms->inactattr[HLITE] = INACTHLITE;
+
+  ms->revinactattr[NOHLITE] = REVINACTATTR;
+  ms->revinactattr[HLITE] = REVINACTHLITE;
+
+  ms->statusattr[NOHLITE] = STATUSATTR;
+  ms->statusattr[HLITE] = STATUSHLITE;
+
   ms->statline = STATLINE;
   ms->tfillchar= TFILLCHAR;
   ms->titleattr= TITLEATTR;
@@ -524,6 +659,7 @@ void init_menusystem(const char *title)
 
   ms->menupage = MENUPAGE; // Usually no need to change this at all
   ms->handler = NULL; // No handler function
+  ms->ontimeout=NULL; // No timeout handler
 
   // Figure out the size of the screen we are in now.
   // By default we use the whole screen for our menu
@@ -536,15 +672,25 @@ void init_menusystem(const char *title)
 
 void set_normal_attr(char normal, char selected, char inactivenormal, char inactiveselected)
 {
-  if (normal != 0xFF)           ms->normalattr   = normal;
-  if (selected != 0xFF)         ms->reverseattr  = selected;
-  if (inactivenormal != 0xFF)   ms->inactattr    = inactivenormal;
-  if (inactiveselected != 0xFF) ms->revinactattr = inactiveselected;
+  if (normal != 0xFF)           ms->normalattr[0]   = normal;
+  if (selected != 0xFF)         ms->reverseattr[0]  = selected;
+  if (inactivenormal != 0xFF)   ms->inactattr[0]    = inactivenormal;
+  if (inactiveselected != 0xFF) ms->revinactattr[0] = inactiveselected;
 }
 
-void set_status_info(char statusattr, char statline)
+void set_normal_hlite(char normal, char selected, char inactivenormal, char inactiveselected)
 {
-  if (statusattr != 0xFF) ms->statusattr = statusattr;
+  if (normal != 0xFF)           ms->normalattr[1]   = normal;
+  if (selected != 0xFF)         ms->reverseattr[1]  = selected;
+  if (inactivenormal != 0xFF)   ms->inactattr[1]    = inactivenormal;
+  if (inactiveselected != 0xFF) ms->revinactattr[1] = inactiveselected;
+}
+
+
+void set_status_info(char statusattr, char statushlite, char statline)
+{
+  if (statusattr != 0xFF) ms->statusattr[NOHLITE] = statusattr;
+  if (statushlite!= 0xFF) ms->statusattr[HLITE] = statushlite;
   // statline is relative to minrow
   if (statline >= ms->numrows) statline = ms->numrows - 1;
   ms->statline = statline; // relative to ms->minrow, 0 based
@@ -591,6 +737,19 @@ void unreg_handler()
 {
   ms->handler = NULL;
 }
+
+void reg_ontimeout(t_timeout_handler handler, unsigned int numsteps, unsigned int stepsize)
+{
+  ms->ontimeout = handler;
+  if (numsteps != 0) ms->tm_numsteps = numsteps;
+  if (stepsize != 0) ms->tm_stepsize = stepsize;
+}
+
+void unreg_ontimeout()
+{
+  ms->ontimeout = NULL;
+}
+
 
 void calc_visible(pt_menu menu)
 {
@@ -655,6 +814,7 @@ pt_menuitem add_sep() // Add a separator to current menu
   mi->action = OPT_SEP;
   mi->index = m->numitems++;
   mi->parindex = ms->nummenus-1;
+  mi->shortcut = 0;
   return mi;
 }
 
@@ -664,6 +824,8 @@ pt_menuitem add_item(const char *item, const char *status, t_action action,
 {
   pt_menuitem mi;
   pt_menu m;
+  const char *str;
+  char inhlite=0; // Are we inside hlite area
 
   m = (ms->menus[ms->nummenus-1]);
   mi = NULL;
@@ -689,6 +851,32 @@ pt_menuitem add_item(const char *item, const char *status, t_action action,
   } else mi->status = EMPTYSTR; 
     
   mi->action = action;
+  str = mi->item;
+  mi->shortcut = 0;
+  inhlite = 0; // We have not yet seen an ENABLEHLITE char
+  // Find the first char in [A-Za-z0-9] after ENABLEHLITE and not arg to control char
+  while (*str)
+    {
+      if (*str == ENABLEHLITE) 
+	{
+	  inhlite=1;
+	}
+      if (*str == DISABLEHLITE)
+	{
+	  inhlite = 0;
+	}
+      if ( (inhlite == 1) && 
+	   (((*str >= 'A') && (*str <= 'Z')) || 
+	    ((*str >= 'a') && (*str <= 'z')) ||
+	    ((*str >= '0') && (*str <= '9'))))
+	{
+	  mi->shortcut=*str;
+	  break;
+	}
+      ++str;
+    }
+  if ((mi->shortcut >= 'A') && (mi->shortcut <= 'Z')) // Make lower case
+    mi->shortcut = mi->shortcut -'A'+'a';
 
   if (data) {
     if (strlen(data) > ACTIONLEN - 2) {
@@ -696,7 +884,7 @@ pt_menuitem add_item(const char *item, const char *status, t_action action,
     } else {
       mi->data = data; 
     }
-  } else mi->data = EMPTYSTR; 
+  } else mi->data = EMPTYSTR;
 
   switch (action)
     {
@@ -716,4 +904,16 @@ pt_menuitem add_item(const char *item, const char *status, t_action action,
   mi->index = m->numitems++;
   mi->parindex = ms->nummenus-1;
   return mi;
+}
+
+// Set the shortcut key for the current item
+void set_shortcut(char shortcut)
+{
+  pt_menuitem mi;
+  pt_menu m;
+
+  m = (ms->menus[ms->nummenus-1]); 
+  if (m->numitems <= 0) return;
+  mi = m->items[(unsigned int) m->numitems-1];
+  mi->shortcut = shortcut;
 }
