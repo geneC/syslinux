@@ -53,3 +53,8 @@ to generate long (up to 31 characters) plain filenames.
 ISOLINUX does not support discontiguous files, interleaved mode, or
 logical block and sector sizes other than 2048.  This should normally
 not be a problem.
+
+ISOLINUX is by default built in two versions, one version with extra
+debugging messages enabled.  If you are having problems with ISOLINUX,
+I would greatly appreciate if you could try out the debugging version
+(isolinux-debug.bin) and let me know what it reports.
