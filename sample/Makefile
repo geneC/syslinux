@@ -27,7 +27,7 @@ OBJCOPY    = objcopy
 PPMTOLSS16 = 	../ppmtolss16
 LIB	   = libcom32.a
 
-LIBOBJS	   = conio.o atou.o printf.o
+LIBOBJS	   = conio.o atou.o skipatou.o printf.o
 
 .SUFFIXES: .lss .c .o .elf .c32
 
