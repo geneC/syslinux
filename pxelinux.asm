@@ -55,6 +55,9 @@ TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
 ;
 ; This is what we need to do when idle
 ;
+%macro	RESET_IDLE 0
+	call reset_idle
+%endmacro
 %macro	DO_IDLE 0
 	call check_for_arp
 %endmacro
@@ -264,6 +267,7 @@ IPOptionLen	resw 1			; Length of IPOption
 LocalBootType	resw 1			; Local boot return code
 RealBaseMem	resw 1			; Amount of DOS memory after freeing
 APIVer		resw 1			; PXE API version found
+IdleTimer	resw 1			; Time to check for ARP?
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -2293,8 +2297,28 @@ genipopt:
 ; ARP messages, but perhaps in the future this can be used to do network
 ; console.
 ;
+; hpa sez: people using automatic control on the serial port get very
+; unhappy if we poll for ARP too often (the PXE stack is pretty slow,
+; typically.)  Therefore, only poll if at least 4 BIOS timer ticks have
+; passed since the last poll, and reset this when a character is
+; received (RESET_IDLE).
+;
+reset_idle:
+		push ax
+		mov ax,[cs:BIOS_timer]
+		mov [cs:IdleTimer],ax
+		pop ax
+		ret
+
 check_for_arp:
-		pushad
+		push ax
+		mov ax,[cs:BIOS_timer]
+		sub ax,[cs:IdleTimer]
+		cmp ax,4
+		pop ax
+		jae .need_poll
+		ret
+.need_poll:	pushad
 		push ds
 		push es
 		mov ax,cs
@@ -2315,6 +2339,7 @@ check_for_arp:
 		pop es
 		pop ds
 		popad
+		RESET_IDLE
 		ret
 
 ; -----------------------------------------------------------------------------

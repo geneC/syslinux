@@ -43,6 +43,9 @@ SECTORSIZE	equ (1 << SECTORSIZE_LG2)
 ;
 ; This is what we need to do when idle
 ;
+%macro	RESET_IDLE 0
+	; Nothing
+%endmacro
 %macro	DO_IDLE 0
 	; Nothing
 %endmacro

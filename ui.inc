@@ -44,6 +44,7 @@ clear_buffer:	mov ah,1			; Check for pending char
 		jmp short clear_buffer
 get_char_time:	
 		call vgashowcursor
+		RESET_IDLE
 		mov cx,[KbdTimeOut]
 		and cx,cx
 		jz get_char			; Timeout == 0 -> no timeout
