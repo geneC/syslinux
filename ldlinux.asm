@@ -121,7 +121,6 @@ CAN_USE_HEAP    equ 80h                 ; Boot loader reports heap size
 vk_vname:	resb 11			; Virtual name **MUST BE FIRST!**
 vk_rname:	resb 11			; Real name
 vk_appendlen:	resw 1
-vk_type:	resb 1			; Type of entry
 		alignb 4
 vk_append:	resb max_cmd_len+1	; Command line
 		alignb 4
@@ -131,10 +130,6 @@ vk_size:	equ $			; Should == 1 << vk_shift
 %if vk_size*max_vk > 65536
 %error Too many vkernels defined
 %endif
-
-%define vk_t_kernel	0		; File is a kernel image
-%define vk_t_bootsec	1		; File is a boot sector image
-%define vk_t_run	2		; File is a COMboot .com image
 
 ;
 ; Segment assignments in the bottom 640K
@@ -353,7 +348,6 @@ VidRows         resb 1			; Rows on screen-1
 RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
-KernelType	resb 1			; Type of "kernel" we're loading
 MNameBuf        resb 11            	; Generic mangled file name buffer
 KernelName      resb 11		        ; Mangled name for kernel
 InitRD          resb 11                 ; initrd= mangled name
@@ -1160,10 +1154,6 @@ parse_config:
 		je near pc_label
 		cmp ax,'ke'			; KErnel
 		je pc_kernel
-		cmp ax,'bo'			; BOotsec
-		je pc_bootsec
-		cmp ax,'ru'			; RUn
-		je pc_run
                 cmp ax,'im'                     ; IMplicit
                 je near pc_implicit
 		cmp al,'f'			; F-key
@@ -1195,16 +1185,8 @@ pc_append_vk:	mov di,VKernelBuf+vk_append	; "append" command (vkernel)
 pc_app2:        mov [VKernelBuf+vk_appendlen],di
 		jmp short parse_config_2	
 
-pc_bootsec:	mov al,vk_t_bootsec		; "bootsec" command
-		jmp short pc_vkernel
-
-pc_run:		mov al,vk_t_run			; "run" command
-		jmp short pc_vkernel
-
-pc_kernel:	mov al,vk_t_kernel		; "kernel" command
-pc_vkernel:	cmp word [VKernelCtr],byte 0
+pc_kernel:	cmp word [VKernelCtr],byte 0	; "kernel" command
 		je near parse_config		; ("label" section only)
-		mov [VKernelBuf+vk_type],al
 		mov di,trackbuf
 		push di
 		call getline
@@ -1267,8 +1249,6 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		mov di,VKernelBuf+vk_rname
 		mov cx,11
 		rep movsb
-		; By default, this is a Linux kernel image
-		mov byte [VKernelBuf+vk_type],vk_t_kernel
                 mov si,AppendBuf         	; Default append==global append
                 mov di,VKernelBuf+vk_append
                 mov cx,[AppendLen]
@@ -1490,7 +1470,6 @@ not_vk:		pop ds
 ;
 ; Not a "virtual kernel" - check that's OK and construct the command line
 ;
-		mov byte [KernelType],vk_t_kernel	; Regular kernel
                 cmp word [AllowImplicit],byte 0
                 je bad_implicit
                 push es
@@ -1554,8 +1533,6 @@ vk_found:	popa
 		mov si,VKernelBuf+vk_rname
 		mov cx,11
 		rep movsb
-		mov al,[VKernelBuf+vk_type]	; Type of kernel to load
-		mov [KernelType],al
 		pop di
 		jmp short get_kernel
 ;
@@ -3068,8 +3045,6 @@ keywd_table	db 'ap' ; append
 		db 'la' ; label
                 db 'im' ; implicit
 		db 'ke' ; kernel
-;		db 'ru'	; run
-;		db 'bo'	; bootsec
 		db 'f1' ; F1
 		db 'f2' ; F2
 		db 'f3' ; F3
