@@ -1,6 +1,6 @@
                                PXELINUX
-                             Version 1.46
-                          September 17, 1999
+                             Version 1.48
+                          September 26, 1999
 
     A bootloader for Linux using the PXE network booting protocol
 
@@ -27,15 +27,6 @@ which have drivers for Linux or FreeBSD.
 PXELINUX operates in many ways like SYSLINUX.  If you are not familiar
 with SYSLINUX, read syslinux.doc first, since this documentation only
 explains the differences.
-
-PXELINUX currently requires that the boot server has a TFTP server
-which supports the "tsize" TFTP option (RFC 1784/RFC 2349).  The
-"tftp-hpa" TFTP server, which support options, is available at:
-
-	http://www.kernel.org/pub/software/network/tftp/
-	ftp://www.kernel.org/pub/software/network/tftp/
-
-... and on any kernel.org mirror (see http://www.kernel.org/mirrors/).
 
 On the TFTP server, create the directory "/tftpboot", and copy the
 following files to it:
@@ -67,10 +58,46 @@ generally requires that filenames are 31 characters or shorter in
 length.
 
 PXELINUX does not support MTFTP, and I have no immediate plans of
-doing so.
+doing so.  It is of course possible to use MTFTP for the initial boot,
+if you have such a setup.  MTFTP server setup is beyond the scope of
+this document.
 
 
-    ++++ SETTING UP A DHCP SERVER ++++
+    ++++ SOME NOTES ON THE TFTP SERVER ++++
+
+PXELINUX currently requires that the boot server has a TFTP server
+which supports the "tsize" TFTP option (RFC 1784/RFC 2349).  The
+"tftp-hpa" TFTP server, which support options, is available at:
+
+	http://www.kernel.org/pub/software/network/tftp/
+	ftp://www.kernel.org/pub/software/network/tftp/
+
+... and on any kernel.org mirror (see http://www.kernel.org/mirrors/).
+
+Unfortunately, the Intel LANDesk Service Agent II prior to version
+0.99h (PXE PDK V2.4) seems to have a rather serious bug: it requests
+the TFTP "blksize" option, but will be mortally confused if this
+option is actually accepted by the server!  There are three possible
+workarounds for this bug:
+
+1. Use a TFTP server with doesn't support "blksize".
+
+   Unfortunately, PXELINUX requires the "tsize" option to be
+   supported, and it is very unusual for TFTP servers to implement one
+   and not the other.  The "tftp-hpa" TFTP server (see above) therefore 
+   can be configured to disable individual options with a command-line
+   option (-r <optionname>).  In this case, use "-r blksize".
+
+2. Use MTFTP for the initial bootstrap.  You need an MTFTP server with
+   the appropriate DHCP setup to do this.
+
+3. Use appropriate DHCP options that the client will attempt MTFTP
+   before trying conventional TFTP.  It seems that the client will not
+   request the "blksize" option if it has tried MTFTP and failed.
+   These DHCP options are beyond the scope of this document.
+
+
+    ++++ SETTING UP THE DHCP SERVER ++++
 
 The PXE protocol uses a very complex set of extensions to DHCP or
 BOOTP.  ISC dhcp 3.0, currently in beta, appears to have enough smarts
@@ -121,23 +148,6 @@ with onboard Ethernet and "Intel LANDesk(R) Service Agent II version
 Management Adapter "Boot agent 2.6 (build 071)" (derived from the
 Intel PXE PDK V3.0 bld 071) using the configuration above and ISC
 dhcpd 2.0.
-
-Unfortunately, the Intel LANDesk Service Agent II prior to version
-0.99h (PXE PDK V2.4) seems to have a rather serious bug : it requests
-the TFTP "blksize" option, but will be mortally confused if this
-option is actually accepted by the server!  There are two possible
-workarounds for this bug:
-
-1. Use a TFTP server with doesn't support "blksize".
-
-   Unfortunately, PXELINUX requires the "tsize" option to be
-   supported, and it is very unusual for TFTP servers to implement one
-   and not the other.  The "tftp-hpa" TFTP server (see above) therefore 
-   can be configured to disable individual options with a command-line
-   option (-r <optionname>).  In this case, use "-r blksize".
-
-2. Use MTFTP for the initial bootstrap.  You need an MTFTP server to
-   do this.
 
 
     ++++ SOME NOTES ++++
