@@ -30,14 +30,14 @@ SFLAGS     = -march=i386
 LDFLAGS    = -s
 OBJCOPY    = objcopy
 PPMTOLSS16 = 	../ppmtolss16
-LIB	   = libcom32.a
+LIB	   = liboldcom32.a
 
 LIBOBJS	   = conio.o atou.o skipatou.o printf.o c32exit.o
 
 .SUFFIXES: .lss .c .o .elf .c32
 
 all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 \
-     fd.c32 chain.c32 $(LIB)
+     fd.c32 $(LIB)
 
 .PRECIOUS: %.o
 %.o: %.S
