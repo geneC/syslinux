@@ -30,3 +30,27 @@ It works the same way as SYSLINUX, with a few slight modifications.
    limited to 255 characters.
 
 
+
+Note that EXTLINUX installs in the filesystem partition like a
+well-behaved bootloader :)  Thus, it needs a master boot record in the
+partition table; the mbr.bin shipped with SYSLINUX should work well.
+To install it just do:
+
+	cat mbr.bin > /dev/XXX
+
+... where /dev/XXX is the appropriate master device, e.g. /dev/hda,
+and make sure the correct partition in set active.
+
+
+If you have multiple disks in a software RAID configuration, the
+preferred way to boot is:
+
+- Create a separate RAID-1 partition for /boot.  Note that the Linux
+  RAID-1 driver can span as many disks as you wish.
+
+- Install the MBR on *each disk*, and mark the RAID-1 partition
+  active.
+
+- Run "extlinux /boot" to install extlinux.  This will install it on
+  all the drives in the RAID-1 set, which means you can boot any
+  combination of drives in any order.
