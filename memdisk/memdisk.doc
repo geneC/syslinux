@@ -1,0 +1,56 @@
+$Id$
+[This documentation is rather crufty at the moment.]
+
+MEMDISK is meant to allow booting legacy operating systems via PXE,
+and as a workaround for BIOSes where ISOLINUX image support doesn't
+work.
+
+MEMDISK simulates a disk by claiming a chunk of high memory for the
+disk and a (very small - 2K typical) chunk of low (DOS) memory for the
+driver itself, then hooking the INT 13h (disk driver) and INT 15h
+(memory query) BIOS interrupts.
+
+To use it, type on the SYSLINUX command line:
+
+memdisk initrd=diskimg.img
+
+... where diskimg.img is the disk image you want to boot from.
+
+[Obviously, the memdisk binary as well as your disk image file need to
+be present in the boot image directory.]
+
+... or add to your syslinux.cfg/pxelinux.cfg/isolinux.cfg something like:
+
+label dos
+    kernel memdisk
+    append initrd=dosboot.img
+
+Note the following:
+
+a) The disk image should *not* be compressed.
+
+b) If the disk image is one of the following sizes, it's assumed to be a
+floppy image:
+
+     368,640 bytes -  360K floppy
+     737,280 bytes -  720K floppy
+   1,222,800 bytes - 1200K floppy
+   1,474,560 bytes - 1440K floppy
+   2,949,120 bytes - 2880K floppy
+
+For any other size, the image is assumed to be a hard disk image (and
+should typically have an MBR and a partition table.)  Currently, the hard
+disk is always given the geometry of 16 heads, 63 sectors (the number of
+cylinders is derived from the image size) and should therefore be an even
+multiple of 516,096 bytes; in a future version I plan to examine the
+partition table to deduce the CHS geometry.
+
+SYSLINUX 1.65-pre4 does not contain what I would call a "release
+quality" version of MEMDISK, but it does seem to work (I have
+successfully booted DOS over the net using PXELINUX with it.)  It
+contains an awful lot of debugging messages at this point, for one
+thing.
+
+If you want to recompile it from sources, you will need to make sure that
+you have a fairly recent binutils installed.  I have been using the
+binutils-2.11.90.0.8-9 RPM from RedHat.
