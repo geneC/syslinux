@@ -216,6 +216,10 @@ TextColorReg	resb 17			; VGA color registers for text mode
 VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
 VGAFileBufEnd	equ $
 VGAFileMBuf	resb FILENAME_MAX	; Mangled VGA image name
+                alignb 4		; For the good of REP MOVSD
+command_line	resb max_cmd_len+2	; Command line buffer
+		alignb 4
+default_cmd	resb max_cmd_len+1	; "default" command line
 
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
@@ -1712,11 +1716,8 @@ linuxauto_cmd	db 'linux auto',0
 linuxauto_len   equ $-linuxauto_cmd
 boot_image      db 'BOOT_IMAGE='
 boot_image_len  equ $-boot_image
-                align 4, db 0		; For the good of REP MOVSD
-command_line	equ $
-default_cmd	equ $+(max_cmd_len+2)
-ldlinux_end	equ default_cmd+(max_cmd_len+1)
-kern_cmd_len    equ ldlinux_end-command_line
+ldlinux_end     equ $
+
 ;
 ; Put the getcbuf right after the code, aligned on a sector boundary
 ;

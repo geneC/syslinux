@@ -122,8 +122,7 @@ construct_cmdline:
 		SPECIAL_APPEND			; Module-specific hook
 
                 mov si,[CmdOptPtr]              ; Options from user input
-		mov cx,(kern_cmd_len+3) >> 2
-		rep movsd
+		call strcpy
 
 ;
 ; Scan through the command line for anything that looks like we might be

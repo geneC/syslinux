@@ -216,8 +216,8 @@ VGAFileBufEnd	equ $
 VGAFileMBuf	resb 11			; Mangled VGA image name
                 alignb 4		; For the good of REP MOVSD
 command_line	resb max_cmd_len+2	; Command line buffer
+		alignb 4
 default_cmd	resb max_cmd_len+1	; "default" command line
-kern_cmd_len	equ $-command_line
 
 		section .text
                 org 7C00h
@@ -1356,6 +1356,7 @@ lc_ret:         ret
 %include "font.inc"		; VGA font stuff
 %include "graphics.inc"		; VGA graphics
 %include "highmem.inc"		; High memory sizing
+%include "strcpy.inc"           ; strcpy()
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
