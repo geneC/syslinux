@@ -8,9 +8,14 @@ $Id$
 - Allow the boot sector to be written to a file instead of the actual
   boot sector.
 
+- Better memory management of the vkernel area, in particular for
+  pxelinux/isolinux.  This should allow more vkernels inside the 64K
+  vkernel segment.
+
+
 *** Debugging projects:
 
-- Figure out why MEMDISK croaks on the WinME/WinXP DOS startup disk.
+- DONE: Figure out why MEMDISK croaks on the WinME/WinXP DOS startup disk.
 
 
 *** In progress, but for
@@ -21,7 +26,7 @@ $Id$
 
 - Cleaned up documentation, with a real man page.
 
-- Major rewrite of SYSLINUX to support EBIOS/EDD, FAT32 and large
+- IN PROGRESS: Major rewrite of SYSLINUX to support EBIOS/EDD, FAT32 and large
   clusters.  This should also enable code to be shared with the
   ext2/ext3 version.
 
@@ -36,4 +41,4 @@ $Id$
 
 - Add "localboot" support to SYSLINUX (using the ISOLINUX feature
   set.)
-  -> chain.c32 is probably sufficient.
+  OBSOLETE: chain.c32 is probably sufficient.
