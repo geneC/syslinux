@@ -200,7 +200,7 @@ install-all: install install-all
 
 local-tidy:
 	rm -f *.o *_bin.c stupid.* patch.offset
-	rm -f syslinux.lst copybs.lst pxelinux.lst isolinux*.lst
+	rm -f *.lst
 	rm -f $(OBSOLETE)
 
 tidy: local-tidy
