@@ -40,6 +40,7 @@ load_bootsec:
 		xchg dx,ax		; Now EAX = file length
 		mov edi, 100000h
 		call load_high
+		call crlf
 
 %if IS_SYSLINUX
 		pop cx
