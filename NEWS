@@ -2,6 +2,9 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 2.03:
+	* Actually support comment lines in the configuration file.
+
 Changes in 2.02:
 	* SYSLINUX: Security flaws have been found in the SYSLINUX
 	  installer when running setuid root.  Rewrite the SYSLINUX

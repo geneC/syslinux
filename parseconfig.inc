@@ -79,10 +79,7 @@ pc_localboot:	call getint
 ; "kernel" command
 pc_kernel:	cmp word [VKernelCtr],byte 0
 		je .err				; ("label" section only)
-		mov di,trackbuf
-		push di
-		call getline
-		pop si
+		call pc_getline
 		mov di,VKernelBuf+vk_rname
 		call mangle_name
 .err:		ret
@@ -115,10 +112,7 @@ pc_setint16:
 ; "display", "font", "kbdmap"
 ;
 pc_filecmd:	push ax				; Function to tailcall
-		mov di,trackbuf
-		push di
-		call getline
-		pop si
+		call pc_getline
 		mov di,MNameBuf
 		push di
 		call mangle_name
@@ -217,10 +211,7 @@ pc_serial:	call getint
 ; "F"-key command
 ;
 pc_fkey:	push ax
-		mov di,trackbuf
-		push di
-		call getline			; Get filename to display
-		pop si
+		call pc_getline
 		pop di
 		call mangle_name		; Mangle file name
 		ret
@@ -229,10 +220,7 @@ pc_fkey:	push ax
 ; "label" command
 ;
 pc_label:	call commit_vk			; Commit any current vkernel
-		mov di,trackbuf			; Get virtual filename
-		push di
-		call getline
-		pop si
+		call pc_getline
 		mov di,VKernelBuf+vk_vname
 		call mangle_name		; Mangle virtual name
 		inc word [VKernelCtr]		; One more vkernel
@@ -254,14 +242,25 @@ pc_label:	call commit_vk			; Commit any current vkernel
 ;
 ; "say" command
 ;
-pc_say:		mov di,trackbuf			; "say" command
+pc_say:		call pc_getline			; "say" command
+		call writestr
+		jmp crlf			; tailcall
+
+;
+; Comment line
+;
+pc_comment	equ pc_getline			; Get a line and discard
+
+;
+; Common subroutine: load line into trackbuf; returns with SI -> trackbuf
+;
+pc_getline:	mov di,trackbuf
 		push di
 		call getline
 		xor al,al
 		stosb				; Null-terminate
 		pop si
-		call writestr
-		jmp crlf			; tailcall
+		ret
 
 ;
 ; Main loop for configuration file parsing

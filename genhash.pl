@@ -5,6 +5,9 @@
 
 while ( defined($keywd = <STDIN>) ) {
     chomp $keywd;
+    
+    ($keywd,$keywdname) = split(/\s+/, $keywd);
+    $keywdname = $keywd unless ( $keywdname );
 
     $l = length($keywd);
     $h = 0;
@@ -17,5 +20,5 @@ while ( defined($keywd = <STDIN>) ) {
 	$h, $keywd, $seenhash{$h};
     }
     $seenhash{$h} = $keywd;
-    printf("%-23s equ 0x%08x\n", "hash_\L${keywd}\E", $h);
+    printf("%-23s equ 0x%08x\n", "hash_${keywdname}", $h);
 }

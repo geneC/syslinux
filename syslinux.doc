@@ -99,6 +99,8 @@ All options here applies to PXELINUX as well as SYSLINUX unless
 otherwise noted.  See pxelinux.doc for additional information on
 PXELINUX.
 
+# comment
+	A comment line.  The whitespace after the hash mark is mandatory.
 
 DEFAULT kernel options...
         Sets the default command line.  If SYSLINUX boots automatically,
@@ -291,8 +293,7 @@ F0 filename
 	the help screens, e.g. <Ctrl-F><2> to get to the F2 screen,
 	and <Ctrl-F><0> for the F10 one.
 
-In the configuration file blank lines and comment lines beginning
-with a hash mark (#) are ignored.
+Blank lines are ignored.
 
 Note that the configuration file is not completely decoded.  Syntax
 different from the one described above may still work correctly in this
