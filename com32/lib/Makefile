@@ -57,4 +57,5 @@ install: all
 	-rm -rf $(INSTALLROOT)$(COM32DIR)/include
 	cp -r ../include $(INSTALLROOT)$(COM32DIR)
 
--include .*.d
+-include .*.d */.*.d
+
