@@ -13,6 +13,9 @@ writechr:
 		pop ds
 		call write_serial	; write to serial port if needed
 		pushfd
+		test byte [DisplayCon],01h	; Write to screen?
+		jz .nothing
+
 		pushad
 		mov bh,[BIOS_page]
 		push ax
@@ -43,6 +46,7 @@ writechr:
 		mov ah,02h		; Set cursor position
 		int 10h			
 .ret:		popad
+.nothing:
 		popfd
 		pop ds
 		ret

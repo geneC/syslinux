@@ -288,6 +288,15 @@ SERIAL port [[baudrate] flowcontrol]
 	ports detected by the BIOS.  They may or may not correspond to
 	the legacy port values 0x3F8, 0x2F8, 0x3E8, 0x2E8.
 
+CONSOLE flag_val
+	If flag_val is 0, disable output to the normal video console.
+	If flag_val is 1, enable output to the video console (this is
+	the default.)
+
+	Some BIOSes try to forward this to the serial console and
+	sometimes make a total mess thereof, so this option lets you
+	disable the video console on these systems.
+
 FONT filename
 	Load a font in .psf format before displaying any output
 	(except the copyright line, which is output as ldlinux.sys

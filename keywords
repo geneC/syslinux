@@ -13,6 +13,7 @@ localboot
 prompt
 say
 serial
+console
 timeout
 allowoptions
 ontimeout

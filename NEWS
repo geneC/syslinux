@@ -13,6 +13,8 @@ Changes in 3.02:
 	* Simple menu system: minor aestetic improvements, and try to
 	  work better over a serial console (speed, and readability on
 	  monochrome terminal emulators.)
+	* New CONSOLE directive to control output on the video console
+	  (useful for dealing with some broken serial-forwarding BIOSes.)
 
 Changes in 3.01:
 	* EXTLINUX, SYSLINUX: Fix compile errors on some systems.

@@ -1055,12 +1055,15 @@ searchdir:
 writechr:
 		call write_serial	; write to serial port if needed
 		pushfd
+		test byte [cs:DisplayCon], 01h
+		jz .nothing
 		pushad
 		mov ah,0Eh
 		mov bl,07h		; attribute
 		mov bh,[cs:BIOS_page]	; current page
 		int 10h
 		popad
+.nothing:
 		popfd
 		ret
 

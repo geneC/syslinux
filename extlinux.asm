@@ -6,7 +6,7 @@
 ;
 ;  A program to boot Linux kernels off an ext2/ext3 filesystem.
 ;
-;   Copyright (C) 1994-2004  H. Peter Anvin
+;   Copyright (C) 1994-2005  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -1151,12 +1151,15 @@ unmangle_name:	call strcpy
 writechr:
 		call write_serial	; write to serial port if needed
 		pushfd
+		test byte [cs:DisplayCon],01h
+		jz .nothing
 		pushad
 		mov ah,0Eh
 		mov bl,07h		; attribute
 		mov bh,[cs:BIOS_page]	; current page
 		int 10h
 		popad
+.nothing:
 		popfd
 		ret
 

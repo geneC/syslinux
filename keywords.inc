@@ -57,6 +57,7 @@ keywd_table:
 		keyword prompt,    pc_setint16, ForcePrompt
 		keyword say,       pc_say
 		keyword serial,    pc_serial
+		keyword console,   pc_setint16,	DisplayCon
 		keyword timeout,   pc_timeout
 		keyword ontimeout, pc_ontimeout
 		keyword onerror,   pc_onerror

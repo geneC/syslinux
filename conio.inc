@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -111,6 +111,8 @@ msg_putchar:                                    ; Normal character
 msg_normal:	call write_serial_displaymask	; Write to serial port
 		test [DisplayMask],cl
 		jz msg_ignore			; Not screen
+		test byte [DisplayCon],01h
+		jz msg_ignore
                 mov bl,[TextAttribute]
 		mov bh,[BIOS_page]
                 mov ah,09h                      ; Write character/attribute
@@ -374,6 +376,9 @@ debug_tracer:	pushad
 %endif	; DEBUG_TRACERS
 
 		section .data
+		; This is a word to pc_setint16 can set it
+DisplayCon	dw 01h			; Console display enabled
+
 ScrollAttribute	db 07h			; Grey on white (normal text color)
 
 		section .bss
