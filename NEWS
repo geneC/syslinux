@@ -5,6 +5,8 @@ Changes in 1.70:
 	* Major code restructuring.
 	* MEMDISK: Set up the "version number string" pointer in the
 	  header correctly.
+        * SYSLINUX: Fix, again, "the bug that won't die": the use of
+          the offset parameter with the SYSLINUX installer.
 
 Changes in 1.67:
 	* Handle bug in the location of initrd.
