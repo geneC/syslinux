@@ -588,10 +588,11 @@ wstr_1:         lodsb
 ;
 disk_error:	dec si			; SI holds the disk retry counter
 		jz kaboom
-		xchg ax,bx		; Shorter than MOV
 		pop bx			; <I>
 		pop cx			; <H>
 		pop dx			; <G>
+		pop ax			; <F> (AH = 0)
+		mov al,1		; Once we fail, only transfer 1 sector
 		jmp short disk_try_again
 
 return:		ret
@@ -670,20 +671,19 @@ gls_lastchunk:
 		mov dl,[bsDriveNumber]
 		xchg ax,bp		; Sector to transfer count
 					; (xchg shorter than mov)
-		push ax			; <F> Number of sectors we're transferring
-		mov ah,02h		; Read it!
+		mov si,retry_count	; # of times to retry a disk access
 ;
 ; Do the disk transfer... save the registers in case we fail :(
 ;
-		mov si,retry_count	; # of times to retry a disk access
-disk_try_again: push dx			; <G>
+disk_try_again: 
+		push ax			; <F> Number of sectors we're transferring
+		mov ah,02h		; READ DISK
+		push dx			; <G>
 		push cx			; <H>
 		push bx			; <I>
-		push ax			; <J>
-		push si			; <K>
+		push si			; <J>
 		int 13h
-		pop si			; <K>
-		pop bx			; <J>
+		pop si			; <J>
 		jc disk_error
 ;
 ; Disk access successful

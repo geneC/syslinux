@@ -5,6 +5,9 @@ Changes in 1.54:
 	* PXELINUX: Fix code for finding !PXE from PXENV+.  This was
 	  due to a spec bug; match the most recent spec since that
 	  seems to be what implementations actually do.
+	* SYSLINUX: Add some smarts to the boot sector, which
+	  hopefully should reduce the number of systems which require 
+	  stupid mode ("syslinux -s").
 
 Changes in 1.53:
 	* PXELINUX: Rename pxelinux.bin to pxelinux.0, to match what
