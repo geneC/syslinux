@@ -23,8 +23,8 @@ static inline int asm_issyslinux(void)
   asm("int $0x21"
       : "+a" (eax), "+b" (ebx), "+c" (ecx), "+d" (edx));
 
-  return (eax == 0x53590000) && (ebx == 0x534c0000) &&
-    (ecx == 0x494e0000) && (edx == 0x55580000);
+  return (eax == 0x59530000) && (ebx == 0x4c530000) &&
+    (ecx == 0x4e490000) && (edx == 0x58550000);
 }
 
 int issyslinux(void)

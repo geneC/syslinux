@@ -195,7 +195,7 @@ INT 21h AH=30h	Check DOS Version
 	hypothetical "DOS 0.0", but the high parts of EAX-EBX-ECX-EDX
 	spell "SYSLINUX":
 
-	EAX=53590000h EBX=534C0000h ECX=494E0000h EDX=55580000h
+	EAX=59530000h EBX=4C530000h ECX=4E490000h EDX=58550000h
 
 	This function can thus be used to distinguish running on
 	SYSLINUX from running on DOS.
