@@ -126,7 +126,8 @@ get_e820:
 		mov edx, (1 << 20)
 		sub edx, [E820Buf]
 		jb .int_loop			; Start >= 1 MB?
-		mov eax, 0FFFFFFFFh
+		stc
+		sbb eax,eax			; eax <- 0xFFFFFFFF
 		cmp dword [E820Buf+12], byte 0
 		ja .huge			; Size >= 4 GB
 		mov eax, [E820Buf+8]
