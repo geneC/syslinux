@@ -41,6 +41,6 @@ hello.elf: hello.o
 	$(LD) -Ttext 0x101000 -e _start -o $@ $<
 
 clean:
-	rm -f *.lss
+	rm -f *.lss *.o *.elf *.c32
 
 spotless: clean
