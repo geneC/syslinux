@@ -18,7 +18,7 @@
 #
 .PHONY: official release
 
-PRIVATE = Makefile.private
+PRIVATE = Makefile.private .depend memdisk/.depend
 
 isolinux.iso: all
 	cp isolinux-debug.bin isolinux-test/isolinux/isolinux.bin
