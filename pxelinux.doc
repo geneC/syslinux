@@ -82,7 +82,8 @@ Lefebvre:
 	ftp://ftp.mamalinux.com/pub/atftp/
 
 If your boot server is running Windows (and you can't fix that), try
-tftpd32 by Philippe Jounin:
+tftpd32 by Philippe Jounin (you need version 2.11 or later; previous
+versions had a bug which made it incompatible with PXELINUX):
 
 	http://tftpd32.jounin.net/
 
