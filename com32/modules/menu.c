@@ -131,6 +131,8 @@ void draw_menu(int sel, int top)
   if ( allowedit )
     printf("%s\033[%d;1H%s", menu_attrib->tabmsg, TABMSG_ROW,
 	   pad_line("Press [Tab] to edit options", 1, WIDTH));
+
+  printf("%s\033[%d;1H", menu_attrib->screen, END_ROW);
 }
 
 char *edit_cmdline(char *input)
@@ -176,7 +178,7 @@ char *edit_cmdline(char *input)
     case KEY_CTRL('U'):
       if ( len ) {
 	len = 0;
-	cmdline[len] = 0;
+	cmdline[len] = '\0';
 	redraw = 1;
       }
       break;
@@ -187,6 +189,7 @@ char *edit_cmdline(char *input)
 	  len--;
 	  wasbs = wasbs || (cmdline[len-1] <= ' ');
 	}
+	cmdline[len] = '\0';
 	redraw = 1;
       }
       break;
@@ -207,10 +210,8 @@ const char *run_menu(void)
   int done = 0;
   int entry = defentry;
   int top = 0;
+  int clear = 1;
   char *cmdline;
-
-  /* Start with a clear screen */
-  printf("%s\033[2J", menu_attrib->screen);
 
   while ( !done ) {
     if ( entry < 0 )
@@ -222,6 +223,11 @@ const char *run_menu(void)
       top = max(0, entry-MENU_ROWS+1);
     else if ( top > entry )
       top = entry;
+
+    /* Start with a clear screen */
+    if ( clear )
+      printf("%s\033[2J", menu_attrib->screen);
+    clear = 0;
 
     draw_menu(entry, top);
 
@@ -266,6 +272,8 @@ const char *run_menu(void)
 	cmdline = edit_cmdline(menu_entries[entry].cmdline);
 	if ( cmdline )
 	  return cmdline;
+	else
+	  clear = 1;
       }
       break;
     case KEY_CTRL('C'):		/* Ctrl-C */
@@ -278,7 +286,7 @@ const char *run_menu(void)
   }
 
   /* Return the label name so localboot and ipappend work */
-  return menu_entries[entry].displayname;
+  return menu_entries[entry].label;
 }
 
 

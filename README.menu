@@ -1,0 +1,81 @@
+$Id$
+
+There are two menu systems included with SYSLINUX, the advanced menu
+system, and the simple menu system.
+
+
++++ THE ADVANCED MENU SYSTEM +++
+
+The advanced menu system, written by Murali Krishnan Ganapathy, is
+located in the menu/ subdirectly.  It allows the user to create
+hierarchial submenus, dynamic options, checkboxes, and just about
+anything you want.  It requires that the menu is compiled from a
+simple C file, see menu/simple.c and menu/complex.c for examples.
+
+The advanced menu system doesn't support serial console at this time.
+
+See menu/README for more information.
+
+
++++ THE SIMPLE MENU SYSTEM +++
+
+The simple menu system is a single module located at
+com32/modules/menu.c32.  It uses the same configuration file as the
+regular SYSLINUX command line, and displays all the LABEL statements.
+
+To use the menu system, simply make sure menu.c32 is in the
+appropriate location for your boot medium, and put the following
+options in your configuration file:
+
+DEFAULT menu.c32
+PROMPT 0
+
+
+There are a few menu additions to the command line, all starting with
+the keyword MENU; like the rest of the SYSLINUX config file
+language, it is case insensitive:
+
+MENU TITLE title
+
+	Give the menu a title.  The title is presented at the top of
+	the menu.
+
+MENU LABEL label
+
+	(Only valid after a LABEL statement.)
+	Changes the label displayed for a specific entry.  This allows
+	you to have a label that isn't suitable for the command line,
+	for example:
+
+	LABEL softcap
+		MENU LABEL Soft Cap Linux 9.6.36
+		KERNEL softcap-9.6.36.bzi
+		APPEND whatever
+
+MENU HIDE
+
+	(Only valid after a LABEL statement.)
+	Suppresses a particular LABEL entry from the menu.
+
+
+MENU DEFAULT
+
+	(Only valid after a LABEL statement.)
+	Indicates that this entry should be the default.  If no
+	default is specified, use the first one.
+
+
+The menu system honours the TIMEOUT command; if TIMEOUT is specified
+it will execute the ONTIMEOUT command if one exists, otherwise it will
+pick the default menu option.
+
+Normally, the user can press [Tab] to edit the menu entry, and [Esc]
+to return to the SYSLINUX command line.  However, if the configuration
+file specifies ALLOWOPTIONS 0, these keys will be disabled.
+
+The simple menu system supports serial console, using the normal
+SERIAL directive.  However, it can be quite slow over a slow serial
+link; you probably want to set your baudrate to 38400 or higher if
+possible.  It requires a Linux/VT220/ANSI-compatible terminal on the
+other end.
+

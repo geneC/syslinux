@@ -35,8 +35,6 @@ getcommand:
 		call skipspace		; Skip leading whitespace
 		jz .eof			; End of file
 		jc .find		; End of line: try again
-		cmp al,'0'		; Skip comment line
-		jb .skipline
 
 		or al,20h		; Convert to lower case
 		movzx ebx,al		; Hash for a one-char keyword
@@ -72,9 +70,10 @@ getcommand:
 		; No parameter
 .noparm:
 		mov si,err_noparm
+		mov al,10		; Already at EOL
 .error:
 		call cwritestr
-		jmp short .find
+		jmp short .skipline
 
 .found_keywd:	lodsw			; Load argument into ax
 		call [si]

@@ -272,7 +272,7 @@ pc_say:		call pc_getline			; "say" command
 ;
 ; Comment line
 ;
-pc_comment	equ pc_getline			; Get a line and discard
+pc_comment:	; Fall into pc_getline
 
 ;
 ; Common subroutine: load line into trackbuf; returns with SI -> trackbuf

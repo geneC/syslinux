@@ -111,7 +111,10 @@ struct labeldata {
   char *label;
   char *kernel;
   char *append;
+  char *menulabel;
   unsigned int ipappend;
+  unsigned int menuhide;
+  unsigned int menudefault;
 };
 
 static void record(struct labeldata *ld, char *append)
@@ -121,7 +124,9 @@ static void record(struct labeldata *ld, char *append)
 
   if ( ld->label ) {
     char *a, *s;
-    menu_entries[nentries].displayname = ld->label;
+    menu_entries[nentries].displayname =
+      ld->menulabel ? ld->menulabel : ld->label;
+    menu_entries[nentries].label       = ld->label;
 
     ipp = ipoptions;
     *ipp = '\0';
@@ -136,14 +141,16 @@ static void record(struct labeldata *ld, char *append)
     s = a[0] ? " " : "";
     asprintf(&menu_entries[nentries].cmdline, "%s%s%s%s", ld->kernel, ipoptions, s, a);
 
-    printf("displayname: %s\n", menu_entries[nentries].displayname);
-    printf("cmdline:     %s\n", menu_entries[nentries].cmdline);
-
     ld->label = NULL;
     free(ld->kernel);
     if ( ld->append )
       free(ld->append);
-    nentries++;
+
+    if ( !ld->menuhide ) {
+      if ( ld->menudefault )
+	defentry = nentries;
+      nentries++;
+    }
   }
 }
 
@@ -172,15 +179,19 @@ void parse_config(const char *filename)
       *p = '\0';
 
     p = skipspace(line);
-    printf("> %s\n", p);
 
     if ( looking_at(p, "menu") ) {
-      p = skipspace(line+4);
-
+      p = skipspace(p+4);
+      
       if ( looking_at(p, "title") ) {
 	menu_title = strdup(skipspace(p+5));
+      } else if ( looking_at(p, "label") ) {
+	if ( ld.label )
+	  ld.menulabel = strdup(skipspace(p+5));
       } else if ( looking_at(p, "default") ) {
-	defentry = atoi(skipspace(p+7));
+	ld.menudefault = 1;
+      } else if ( looking_at(p, "hide") ) {
+	ld.menuhide = 1;
       } else {
 	/* Unknown, ignore for now */
       }
@@ -193,10 +204,11 @@ void parse_config(const char *filename)
     } else if ( looking_at(p, "label") ) {
       p = skipspace(p+5);
       record(&ld, append);
-      ld.label    = strdup(p);
-      ld.kernel   = strdup(p);
-      ld.append   = NULL;
-      ld.ipappend = 0;
+      ld.label     = strdup(p);
+      ld.kernel    = strdup(p);
+      ld.append    = NULL;
+      ld.menulabel = NULL;
+      ld.ipappend  = ld.menudefault = ld.menuhide = 0;
     } else if ( looking_at(p, "kernel") ) {
       if ( ld.label ) {
 	free(ld.kernel);

@@ -14,7 +14,7 @@
 /*
  * menu.h
  *
- * Header file for the menu project
+ * Header file for the simple menu system
  */
 
 #ifndef MENU_H
@@ -22,7 +22,9 @@
 
 struct menu_entry {
   char *displayname;
+  char *label;
   char *cmdline;
+  int flags;
 };
 
 #define MAX_CMDLINE_LEN	 256
