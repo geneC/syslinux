@@ -50,7 +50,13 @@ it, then execute the DOS command:
 
 (or whichever drive letter is appropriate; the [] meaning -s is optional) 
 
-or the Linux command:
+If you're running in a Win95/98/ME DOS box, you should execute the
+command "lock a:" first.  If you're running in a WinNT/2K DOS box, you
+will probably get a dialog box about not getting exclusive access and
+with Abort/Retry/Ignore buttons; people have reported that selecting
+"Ignore" makes the command complete correctly.
+
+Under Linux, execute the command:
 
 	syslinux [-s] [-o offset] /dev/fd0
 
@@ -440,6 +446,7 @@ To make this installation in DOS only, you need the utility copybs.com
 
 3. Run SYSLINUX on the disk:
 
+	[lock a: if you're running under Win95/98/ME]
 	syslinux a:
 
 4. Copy the Linux kernel image(s), initrd(s), etc to the disk, and
