@@ -314,14 +314,14 @@ VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
 KbdMap		resb 256		; Keyboard map
-PathPrefix	resb 128		; 128 bytes (comes from BOOTP size)
+BootFile	resb 256		; Boot file from DHCP packet
+PathPrefix	resb 256		; Path prefix derived from the above
 FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
 NumBuf		resb 15			; Buffer to load number
 NumBufEnd	resb 1			; Last byte in NumBuf
 DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
 IPOption	resb 80			; ip= option buffer
 		alignb 32
-BootFile	resb 128		; Boot file name from DHCP query
 KernelName      resb FILENAME_MAX       ; Mangled name for kernel
 KernelCName     resb FILENAME_MAX	; Unmangled kernel name
 InitRDCName     resb FILENAME_MAX       ; Unmangled initrd name
@@ -335,8 +335,6 @@ HighMemSize	resd 1			; End of memory pointer (bytes)
 KernelSize	resd 1			; Size of kernel (bytes)
 Stack		resd 1			; Pointer to reset stack
 PXEEntry	resd 1			; !PXE API entry point
-MyIP		resd 1			; My IP address
-ServerIP	resd 1			; IP address of boot server
 SavedSSSP	resw 1			; Our SS:SP while running a COMBOOT image
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
@@ -353,7 +351,6 @@ NextCharJump    resw 1			; Routine to interpret next print char
 SetupSecs	resw 1			; Number of setup sectors
 A20Test		resw 1			; Counter for testing status of A20
 CmdLineLen	resw 1			; Length of command line including null
-ServerPort	resw 1			; TFTP server port
 ConfigFile	resw 1			; Socket for config file
 PktTimeout	resw 1			; Timeout for current packet
 KernelExtPtr	resw 1			; During search, final null pointer
@@ -373,6 +370,7 @@ KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
 FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
+OverLoad	resb 1			; Set if DHCP packet uses "overloading"
 
 		alignb tftp_port_t_size
 Sockets		resb MAX_SOCKETS*tftp_port_t_size
@@ -532,14 +530,15 @@ have_entrypoint:
 query_bootp:
 		mov ax,ds
 		mov es,ax
-		mov di,pxe_bootp_query_pkt
+		mov di,pxe_bootp_query_pkt_2
 		mov bx,PXENV_GET_CACHED_INFO
 
 		call far [PXENVEntry]
+		push word [pxe_bootp_query_pkt_2.status]
 		jc .pxe_err1
 		cmp ax,byte 0
 		je .pxe_ok
-.pxe_err1:	
+.pxe_err1:
 		mov di,pxe_bootp_size_query_pkt
 		mov bx,PXENV_GET_CACHED_INFO
 
@@ -556,49 +555,44 @@ query_bootp:
 		call writehex4
 		mov al, ' '
 		call writechr
-		mov ax,[pxe_bootp_query_pkt.status]
+		pop ax				; Status
 		call writehex4
 		call crlf
+		jmp kaboom			; We're dead
 
 .pxe_ok:
-		mov eax,[trackbuf+bootp.yip]	; "Your" IP address
-		mov [MyIP],eax
-		call genipopt
+		pop cx				; Forget status
+		mov cx,[pxe_bootp_query_pkt_2.buffersize]
+		call parse_dhcp			; Parse DHCP packet
 
 ;
 ; Now, get the boot file and other info.  This lives in the CACHED_REPLY
 ; packet (query info 3).
 ;
-		mov [pxe_bootp_query_pkt.packettype], byte 3
 		mov [pxe_bootp_size_query_pkt.packettype], byte 3
 
-		mov di,pxe_bootp_query_pkt
+		mov di,pxe_bootp_query_pkt_3
 		mov bx,PXENV_GET_CACHED_INFO
 
 		call far [PXENVEntry]
+		push word [pxe_bootp_query_pkt_3.status]
 		jc .pxe_err1
 		cmp ax,byte 0
 		jne .pxe_err1
 
-		mov si,trackbuf+bootp.bootfile
-		mov di,BootFile
-		mov cx,128 >> 2
-		rep movsd			; Copy bootfile name
+		; Packet loaded OK...
+		pop cx				; Forget status
+		mov cx,[pxe_bootp_query_pkt_3.buffersize]
+		call parse_dhcp			; Parse DHCP packet
+;
+; Generate ip= option
+;
+		call genipopt
 
 ;
-; If packet 2 didn't contain a valid IP address, guess that it's in this
-; packet instead
+; Print IP address
 ;
 		mov eax,[MyIP]
-		cmp eax, byte 0			; 0.0.0.0 bad
-		je .badip
-		cmp al,224			; 224..255.x.x.x
-		jb .goodip
-.badip:
-		mov eax,[trackbuf+bootp.yip]	; Hope this is better...
-		mov [MyIP],eax
-		call genipopt
-.goodip:
 		mov di,DotQuadBuf
 		push di
 		call gendotquad			; This takes network byte order input
@@ -607,9 +601,6 @@ query_bootp:
 		ror eax,16			; (BSWAP doesn't work on 386)
 		xchg ah,al
 
-;
-; Print IP address
-;
 		mov si,myipaddr_msg
 		call writestr
 		call writehex8
@@ -622,12 +613,6 @@ query_bootp:
 		mov si,IPOption			; ***
 		call writestr			; ***
 		call crlf			; ***
-;
-; Save away the server IP and port number
-;
-		mov eax,[trackbuf+bootp.sip]
-		mov [ServerIP],eax
-		mov [ServerPort], word TFTP_PORT
 
 ;
 ; Initialize UDP stack
@@ -3943,6 +3928,138 @@ gendotquad:
 		ret
 
 ;
+; parse_dhcp
+;
+; Parse a DHCP packet.  This includes dealing with "overloaded"
+; option fields (see RFC 2132, section 9.3)
+;
+; This should fill in the following global variables, if the
+; information is present:
+;
+; MyIP		- client IP address
+; ServerIP	- boot server IP address
+; Netmask	- network mask
+; Gateway	- default gateway router IP
+; BootFile	- boot file name
+;
+; This assumes the DHCP packet is in "trackbuf" and the length
+; of the packet in in CX on entry.
+;
+
+parse_dhcp:
+		mov byte [OverLoad],0		; Assume no overload
+		mov eax, [trackbuf+bootp.yip]
+		and eax, eax
+		jz .noyip
+		cmp al,224			; Class D or higher -> bad
+		jae .noyip
+		mov [MyIP], eax
+.noyip:
+		mov eax, [trackbuf+bootp.sip]
+		and eax, eax
+		jz .nosip
+		cmp al,224			; Class D or higher -> bad
+		jae .nosip
+		mov [ServerIP], eax
+.nosip:
+		sub cx, bootp.options
+		jbe .nooptions
+		mov si, trackbuf+bootp.option_magic
+		lodsd
+		cmp eax, BOOTP_OPTION_MAGIC
+		jne .nooptions
+		call parse_dhcp_options
+.nooptions:
+		mov si, trackbuf+bootp.bootfile
+		test byte [OverLoad],1
+		jz .nofileoverload
+		mov cx,128
+		call parse_dhcp_options
+		jmp short .parsed_file
+.nofileoverload:
+		cmp byte [si], 0
+		jz .parsed_file			; No bootfile name
+		mov di,BootFile
+		mov cx,32
+		rep movsd
+		xor al,al
+		stosb				; Null-terminate
+.parsed_file:
+		mov si, trackbuf+bootp.sname
+		test byte [OverLoad],2
+		jz .nosnameoverload
+		mov cx,64
+		call parse_dhcp_options
+.nosnameoverload:
+		ret
+
+;
+; Parse a sequence of DHCP options, pointed to by DS:SI; the field
+; size is CX -- some DHCP servers leave option fields unterminated
+; in violation of the spec.
+;
+parse_dhcp_options:
+.loop:
+		and cx,cx
+		jz .done
+
+		lodsb
+		dec cx
+		jz .done	; Last byte; must be PAD, END or malformed
+		cmp al, 0	; PAD option
+		je .loop
+		cmp al,255	; END option
+		je .done
+
+		; Anything else will have a length field
+		mov dl,al	; DL <- option number
+		xor ax,ax
+		lodsb		; AX <- option length
+		dec cx
+		sub cx,ax	; Decrement bytes left counter
+		jb .done	; Malformed option: length > field size
+
+		cmp dl,1	; SUBNET MASK option
+		jne .not_subnet
+		mov edx,[si]
+		mov [Netmask],edx
+		jmp short .opt_done
+
+.not_subnet:
+		cmp dl,3	; ROUTER option
+		jne .not_router
+		mov edx,[si]
+		mov [Gateway],edx
+		jmp short .opt_done
+
+.not_router:
+		cmp dl,52	; OPTION OVERLOAD option
+		jne .not_overload
+		mov dl,[si]
+		mov [OverLoad],dl
+		jmp short .opt_done
+
+.not_overload:
+		mov dl,67	; BOOTFILE NAME option
+		jne .not_bootfile
+		push cx
+		mov di,BootFile
+		mov cx,ax
+		rep movsb
+		mov byte [di],0	; Null-terminate
+		pop cx
+		jmp short .opt_done_noskip
+
+.not_bootfile:
+		; Unknown option.  Skip to the next one.
+.opt_done:
+		add si,ax
+.opt_done_noskip:
+		jmp short .loop
+.done:
+		ret
+
+;
 ; genipopt
 ;
 ; Generate an ip=<client-ip>:<boot-server-ip>:<gw-ip>:<netmask>
@@ -3955,54 +4072,20 @@ genipopt:
 		mov eax,'ip='
 		stosd
 		dec di
-		mov eax,[trackbuf+bootp.yip]
+		mov eax,[MyIP]
 		call gendotquad
 		mov al,':'
 		stosb
-		mov eax,[trackbuf+bootp.sip]
+		mov eax,[ServerIP]
 		call gendotquad
 		mov al,':'
 		stosb
-
-		xor ebx,ebx	; Unknown netmask
-		xor edx,edx	; Unknown router
-
-		mov si,trackbuf+bootp.option_magic
-		lodsd
-		cmp eax,BOOTP_OPTION_MAGIC
-		jne .parse_done	; Unknown option format
-.parseopt:
-		lodsb
-		cmp al,0	; PAD option
-		je .parseopt
-		cmp al,255	; END option
-		je .parse_done
-		cmp al,1	; SUBNET MASK option
-		jne .not_subnet
-		inc si		; Skip length (always 4)
-		lodsd		; Read subnet mask
-		xchg ebx,eax	; Netmask: save in EBX
-		jmp short .parseopt
-.not_subnet:
-		cmp al,3	; ROUTER option
-		jne .not_router
-		inc si		; Skip length (always 4)
-		lodsd		; Read gateway address
-		xchg edx,eax	; Router: save in EDX
-		jmp short .parseopt
-.not_router:
-		; Unknown option.  Read the length and skip ahead.
-		xor ah,ah
-		lodsb
-		add si,ax
-		jmp short .parseopt
-.parse_done:
-		mov eax,edx	; Router
+		mov eax,[Netmask]
 		call gendotquad
 		mov al,':'
 		stosb
-		mov eax,ebx	; Netmask
-		call gendotquad	; Zero-terminates output!
+		mov eax,[Gateway]
+		call gendotquad	; Zero-terminates its output
 		sub di,IPOption
 		mov [IPOptionLen],di
 		popad
@@ -4140,9 +4223,16 @@ PXENVEntry	dw pxe_thunk,0
 ;
 ; PXE query packets partially filled in
 ;
-pxe_bootp_query_pkt:
+pxe_bootp_query_pkt_2:
 .status:	dw 0			; Status
 .packettype:	dw 2			; DHCPACK packet
+.buffersize:	dw trackbufsize		; Packet size
+.buffer:	dw trackbuf, 0		; seg:off of buffer
+.bufferlimit:	dw trackbufsize		; Unused
+
+pxe_bootp_query_pkt_3:
+.status:	dw 0			; Status
+.packettype:	dw 3			; Boot server packet
 .buffersize:	dw trackbufsize		; Packet size
 .buffer:	dw trackbuf, 0		; seg:off of buffer
 .bufferlimit:	dw trackbufsize		; Unused
@@ -4215,8 +4305,16 @@ tftp_opt_err	dw TFTP_ERROR				; ERROR packet
 		db 'tsize option required', 0		; Error message
 tftp_opt_err_len equ ($-tftp_opt_err)
 
-		alignb 2
+		alignb 4, db 0
 ack_packet_buf:	dw TFTP_ACK, 0				; TFTP ACK packet
+
+;
+; IP information (initialized to "unknown" values)
+MyIP		dd 0			; My IP address
+ServerIP	dd 0			; IP address of boot server
+Netmask		dd 0			; Netmask of this subnet
+Gateway		dd 0			; Default router
+ServerPort	dw TFTP_PORT		; TFTP server port
 
 ;
 ; Variables that are uninitialized in SYSLINUX but initialized here

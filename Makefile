@@ -1,7 +1,7 @@
 ## -----------------------------------------------------------------------
 ##  $Id$
 ##
-##   Copyright 1998 H. Peter Anvin - All Rights Reserved
+##   Copyright 1998-2001 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -35,11 +35,14 @@ VERSION = $(shell cat version)
 SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm \
 	  pxelinux.asm pxe.inc mbr.asm
 BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst pxelinux.0 mbr.bin
-ITARGET = syslinux.com syslinux copybs.com
+ITARGET = syslinux.com syslinux copybs.com gethostip
 DOCS    = COPYING NEWS README TODO *.doc
 OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version \
 	  sys2ansi.pl
 OBSOLETE = pxelinux.bin
+
+# Things to install in /usr/bin
+INSTALL_BIN = syslinux gethostip
 
 all:	$(BTARGET) $(ITARGET)
 	ls -l $(BTARGET) $(ITARGET)
@@ -100,8 +103,10 @@ stupid.inc: stupid.c
 
 stupid.o: stupid.c
 
+gethostip: gethostip.o
+
 install: all
-	install -c syslinux $(BINDIR)
+	install -c $(INSTALL_BIN) $(BINDIR)
 
 tidy:
 	rm -f syslinux.lst copybs.lst *.o *_bin.c stupid.* pxelinux.lst

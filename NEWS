@@ -9,6 +9,9 @@ Changes in 1.53:
 	  setup still needs to be written.
 	* PXELINUX: Support new "localboot" option for "label"
 	  sections.
+	* PXELINUX: More robust parsing of DHCP/boot server packets.
+	* PXELINUX: Include a small utility program "gethostip" to
+	  compute hexadecimal IP addresses.
 
 Changes in 1.52:
 	* PXELINUX: Fix bugs introduced by new A20 code.  (SYSLINUX

@@ -41,7 +41,9 @@ depends on the IP address of the booting machine.  PXELINUX will
 search for its config file on the boot server in the following way:
 
   First, it will search for the config file using its own IP address
-  in upper case hexadecimal, e.g. 192.0.2.91 -> C000025B.
+  in upper case hexadecimal, e.g. 192.0.2.91 -> C000025B
+  (you can use the included progam "gethostip" to compute the
+  hexadecimal IP address for any host.)
 
   If that file is not found, it will remove one hex digit and try
   again.  Ultimately, it will try looking for a file named "default"
