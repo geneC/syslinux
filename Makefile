@@ -33,8 +33,8 @@ VERSION = $(shell cat version)
 # want to recompile the installers (ITARGET).
 #
 SOURCES = ldlinux.asm syslinux.asm syslinux.c copybs.asm \
-	  pxelinux.asm pxe.inc
-BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst pxelinux.bin
+	  pxelinux.asm pxe.inc mbr.asm
+BTARGET = bootsect.bin ldlinux.sys ldlinux.bin ldlinux.lst pxelinux.bin mbr.bin
 ITARGET = syslinux.com syslinux copybs.com
 DOCS    = COPYING NEWS README TODO *.doc
 OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version \
@@ -68,6 +68,9 @@ bootsect.bin: ldlinux.bin
 
 ldlinux.sys: ldlinux.bin
 	dd if=ldlinux.bin of=ldlinux.sys  bs=512 skip=1
+
+mbr.bin: mbr.asm
+	$(NASM) -f bin -l mbr.lst -o mbr.bin mbr.asm
 
 syslinux.com: syslinux.asm bootsect.bin ldlinux.sys stupid.inc
 	$(NASM) -f bin -l syslinux.lst -o syslinux.com syslinux.asm

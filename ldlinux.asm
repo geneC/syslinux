@@ -40,7 +40,7 @@ BAUD_DIVISOR	equ 115200		; Serial port parameter
 ;
 %define	version_str	VERSION		; Must be 4 characters long!
 %define date		DATE_STR	; Defined from the Makefile
-%define	year		'1999'
+%define	year		'2000'
 ;
 ; Debgging stuff
 ;
@@ -105,9 +105,15 @@ setup_entry	equ $
 		endstruc
 
 ;
+; Kernel command line signature
+;
+CMD_MAGIC	equ 0A33Fh		; Command line magic
+
+;
 ; Magic number of su_header field
 ;
 HEADER_ID       equ 'HdrS'		; HdrS (in littleendian hex)
+
 ;
 ; Flags for the su_loadflags field
 ;
@@ -1844,8 +1850,6 @@ got_highmem:
 ;
 ; Construct the command line (append options have already been copied)
 ;
-		mov word [es:kern_cmd_magic],0A33Fh	; Command line magic no
-		mov word [es:kern_cmd_offset],cmd_line_here
 		mov di,[CmdLinePtr]
                 mov si,boot_image        	; BOOT_IMAGE=
                 mov cx,boot_image_len
@@ -2087,9 +2091,31 @@ high_load_done:
 ; and the real mode stuff to 90000h.  We assume that all bzImage kernels are
 ; capable of starting their setup from a different address.
 ;
-		test byte [LoadFlags],LOAD_HIGH
 		mov bx,real_mode_seg		; Real mode segment
+;
+; Copy command line.  Unfortunately, the kernel boot protocol requires
+; the command line to exist in the 9xxxxh range even if the rest of the
+; setup doesn't.
+;
+		mov fs,bx			; FS -> real_mode_seg
+		mov ax,9000h
+		mov es,ax
+		mov si,cmd_line_here
+		mov di,si
+		mov [fs:kern_cmd_magic],word CMD_MAGIC ; Store magic
+		mov [fs:kern_cmd_offset],di	; Store pointer
+
+		mov cx,[CmdLineLen]
+		add cx,byte 3
+		shr cx,2			; Convert to dwords
+		fs rep movsd
+
+		test byte [LoadFlags],LOAD_HIGH
+		; Note bx -> real_mode_seg still
 		jnz in_proper_place		; If high load, we're done
+
+;
+; Loading low; we can't assume it's safe to run in place.
 ;
 ; Copy real_mode stuff up to 90000h
 ;
@@ -2104,12 +2130,6 @@ high_load_done:
 		xor si,si
 		xor di,di
 		fs rep movsd			; Copy setup + boot sector
-		mov si,cmd_line_here
-		mov di,si
-		mov cx,[CmdLineLen]
-		add cx,byte 3
-		shr cx,2			; Convert to dwords
-		fs rep movsd
 ;
 ; Some kernels in the 1.2 ballpark but pre-bzImage have more than 4
 ; setup sectors, but the boot protocol had not yet been defined.  They
@@ -2126,7 +2146,7 @@ high_load_done:
 		shl cx,7			; Sectors -> dwords
 		xor eax,eax
 		rep stosd			; Clear region
-
+;
 		mov ecx,[KernelSize]
 		add ecx,3			; Round upwards
 		shr ecx,2			; Bytes -> dwords
