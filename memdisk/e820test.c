@@ -17,6 +17,7 @@
  * Test of INT 15:E820 canonicalization/manipulation routine
  */
 
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -47,17 +48,22 @@ int main(int argc, char *argv[])
 {
   uint64_t start, len;
   uint32_t type;
+  char line[BUFSIZ], *p;
 
   e820map_init();
   printranges();
 
-  while ( scanf("%llx %llx %d", &start, &len, &type) == 3 ) {
-    putchar('\n'); 
-    printf("%016llx %016llx %d <-\n", start, len, type);
-    putchar('\n'); 
-    insertrange(start, len, type);
-    printranges(); 
- }
+  while ( fgets(line, BUFSIZ, stdin) ) {
+    p = strchr(line, ':');
+    p = p ? p+1 : line;
+    if ( sscanf(p, " %llx %llx %d", &start, &len, &type) == 3 ) {
+      putchar('\n'); 
+      printf("%016llx %016llx %d <-\n", start, len, type);
+      putchar('\n'); 
+      insertrange(start, len, type);
+      printranges(); 
+    }
+  }
 
   parse_mem();
 
