@@ -18,6 +18,7 @@
 CC         = gcc
 LD         = ld
 AR	   = ar
+NASM	   = nasm
 RANLIB	   = ranlib
 CFLAGS     = -march=i386 -O2 -fomit-frame-pointer -I../com32/include
 SFLAGS     = -march=i386
@@ -30,7 +31,7 @@ LIBOBJS	   = conio.o
 
 .SUFFIXES: .lss .c .o .elf .c32
 
-all: syslogo.lss hello.c32 hello2.c32 filetest.c32
+all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32
 
 %.o: %.S
 	$(CC) $(SFLAGS) -c -o $@ $<
@@ -43,6 +44,9 @@ all: syslogo.lss hello.c32 hello2.c32 filetest.c32
 
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
+
+%.com: %.asm
+	$(NASM) -f bin -o $@ -l $*.lst $<
 
 $(LIB): $(LIBOBJS)
 	rm -f $@

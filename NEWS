@@ -5,6 +5,8 @@ them.
 Changes in 2.08:
 	* Add "timeoutcmd" to allow timeout to have a different action
 	  than just pressing Enter.
+	* Fix bugs in the COMBOOT/COM32 command-line parsing.  APPEND
+	  now works with COMBOOT/COM32 images.
 
 Changes in 2.07:
 	* MEMDISK: Workaround for BIOSes which go into a snit when

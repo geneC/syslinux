@@ -75,15 +75,14 @@ is_comboot_image:
 		cmp ax,0ff00h		; Max size in bytes
 		jae comboot_too_large
 
+		push si			; Save file handle
+
+		call make_plain_cmdline
+
 		call comboot_setup_api
 
 		mov cx,comboot_seg
 		mov es,cx
-
-		mov bx,100h		; Load at <seg>:0100h
-
-		mov cx,[ClustPerMoby]	; Absolute maximum # of clusters
-		call getfssec
 
 		xor di,di
 		mov cx,64		; 256 bytes (size of PSP)
@@ -104,23 +103,32 @@ is_comboot_image:
 %endif
 %endif
 		; Copy the command line from high memory
+		mov si,cmd_line_here
 		mov cx,125		; Max cmdline len (minus space and CR)
-		mov si,[CmdOptPtr]
 		mov di,081h		; Offset in PSP for command line
 		mov al,' '		; DOS command lines begin with a space
 		stosb
 
-comboot_cmd_cp:	es lodsb
+.loop:		es lodsb
 		and al,al
-		jz comboot_end_cmd
+		jz .done
 		stosb
-		loop comboot_cmd_cp
-comboot_end_cmd: mov al,0Dh		; CR after last character
-		stosb
-		mov al,126		; Include space but not CR
-		sub al,cl
-		mov [es:80h], al	; Store command line length
+		loop .loop
+.done:
 
+		mov al,0Dh		; CR after last character
+		stosb
+		mov ax,di
+		sub al,82h		; Include space but not CR
+		mov [es:80h],al		; Store command line length
+
+		; Now actually load the file...
+		pop si			; File handle
+		mov bx,100h		; Load at <seg>:0100h
+		mov cx,[ClustPerMoby]	; Absolute maximum # of clusters
+		call getfssec
+
+		; And invoke the program...
 		mov [SavedSSSP],sp
 		mov [SavedSSSP+2],ss	; Save away SS:SP
 

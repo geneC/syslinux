@@ -41,6 +41,19 @@ com32_rmidt:
 		dd 0			; Address
 
 is_com32_image:
+		push si			; Save file handle
+
+		call make_plain_cmdline
+		; Copy the command line into the low cmdline buffer
+		mov ax,real_mode_seg
+		mov fs,ax
+		mov si,cmd_line_here
+		mov di,command_line
+		mov cx,[CmdLinePtr]
+		inc cx			; Include final null
+		sub cx,si
+		fs rep movsb
+
 		call highmemsize	; We need the high memory size...
 		call comboot_setup_api	; Set up the COMBOOT-style API
 
@@ -48,6 +61,7 @@ is_com32_image:
 		xchg eax,edx		; Gotta fix this insanity...
 		shl eax,16
 		mov ax,dx
+		pop si			; File handle
 		call load_high
 		call crlf
 
@@ -146,8 +160,7 @@ com32_call_start:
 		push dword (1 << 16)		; 64K bounce buffer
 		push dword (comboot_seg << 4)	; Bounce buffer address
 		push dword com32_intcall	; Intcall entry point
-		movzx esi,word [word CmdOptPtr]
-		push esi			; Command line pointer
+		push dword command_line		; Command line pointer
 		push dword 5			; Argument count
 		sti				; Interrupts OK now
 		call pm_entry			; Run the program...

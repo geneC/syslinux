@@ -928,6 +928,7 @@ config_scan:
 ;
 %include "comboot.inc"
 %include "com32.inc"
+%include "cmdline.inc"
 
 ;
 ; Boot sector loading code

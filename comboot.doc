@@ -179,6 +179,10 @@ INT 21h AH=08h	Get Key without Echo
 	Reads a key fron the console input, without echoing it to the
 	console output.  The read character is returned in AL.
 
+INT 21h AH=09h	Write DOS String to Console
+
+	Writes a DOS $-terminated string in DS:DX to the console.
+
 INT 21h AH=0Bh	Check Keyboard
 
 	Returns AL=FFh if there is a keystroke waiting (which can then
