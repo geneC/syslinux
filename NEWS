@@ -3,8 +3,8 @@ apply to that specific program only; other changes apply to all of
 them.
 
 Changes in 2.08:
-	* Add "timeoutcmd" to allow timeout to have a different action
-	  than just pressing Enter.
+	* Add new configuration command "ontimeout" to allow timeout
+	  to have a different action than just pressing Enter.
 	* Fix bugs in the COMBOOT/COM32 command-line parsing.  APPEND
 	  now works with COMBOOT/COM32 images.
 	* PXELINUX: Poll for ARP requests while sitting at the
