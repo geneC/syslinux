@@ -888,8 +888,8 @@ genfatinfo:
 		mov [RootDir],eax		; For FAT12/16 == root dir location
 
 		mov edx,[bxRootDirEnts]
-		add dx,512-32
-		shr dx,9-5
+		add dx,SECTOR_SIZE/32-1
+		shr dx,SECTOR_SHIFT-5
 		mov [RootDirSize],edx
 		add eax,edx
 		mov [DataArea],eax		; Beginning of data area
@@ -1329,11 +1329,13 @@ getfssec_edx:
 		inc bp
 		dec cx
 		jz .do_read
+		xor eax,eax
 		mov ax,es
 		shl ax,4
 		add ax,bx			; Now DI = how far into 64K block we are
-		neg ax				; Bytes left in 64K block
-		shr ax,9			; Sectors left in 64K block
+		not ax				; Bytes left in 64K block
+		inc eax
+		shr eax,SECTOR_SHIFT		; Sectors left in 64K block
 		cmp bp,ax
 		jnb .do_read			; Unless there is at least 1 more sector room...
 		lea eax,[edx+1]			; Linearly next sector
@@ -1403,6 +1405,7 @@ nextcluster_fat12:
 		push si
 		mov edx,edi
 		shr edi,1
+		pushf			; Save the shifted-out LSB (=CF)
 		add edx,edi
 		mov eax,edx
 		shr eax,9
@@ -1417,8 +1420,8 @@ nextcluster_fat12:
 		mov bx,dx
 		and bx,1FFh
 		mov ch,[gs:si+bx]
-		test di,1
-		jz .even
+		popf
+		jnc .even
 		shr cx,4
 .even:		and cx,0FFFh
 		movzx edi,cx
