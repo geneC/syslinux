@@ -42,6 +42,7 @@
 char *program;			/* Name of program */
 char *device;			/* Device to install to */
 pid_t mypid;
+off_t filesystem_offset = 0;	/* Offset of filesystem */
 
 void usage(void)
 {
@@ -115,7 +116,7 @@ ssize_t xpwrite(int fd, void *buf, size_t count, off_t offset)
  */
 int libfat_xpread(intptr_t pp, void *buf, size_t secsize, libfat_sector_t sector)
 {
-  off_t offset = (off_t)sector * secsize;
+  off_t offset = (off_t)sector * secsize + filesystem_offset;
   return xpread(pp, buf, secsize, offset);
 }
 
@@ -128,7 +129,6 @@ int main(int argc, char *argv[])
   int status;
   char **argp, *opt;
   int force = 0;		/* -f (force) option */
-  off_t offset = 0;		/* -o (offset) option */
   char mtools_conf[] = "/tmp/syslinux-mtools-XXXXXX";
   int mtc_fd;
   FILE *mtc, *mtp;
@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
 	} else if ( *opt == 'f' ) {
 	  force = 1;		/* Force install */
 	} else if ( *opt == 'o' && argp[1] ) {
-	  offset = (off_t)strtoull(*++argp, NULL, 0); /* Byte offset */
+	  filesystem_offset = (off_t)strtoull(*++argp, NULL, 0); /* Byte offset */
 	} else {
 	  usage();
 	}
@@ -188,7 +188,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  xpread(dev_fd, sectbuf, 512, offset);
+  xpread(dev_fd, sectbuf, 512, filesystem_offset);
   
   /*
    * Check to see that what we got was indeed an MS-DOS boot sector/superblock
@@ -214,7 +214,7 @@ int main(int argc, char *argv[])
 	  "  offset=%llu\n",
 	  (unsigned long)mypid,
 	  dev_fd,
-	  (unsigned long long)offset);
+	  (unsigned long long)filesystem_offset);
   fclose(mtc);
   
   /*
@@ -270,20 +270,20 @@ int main(int argc, char *argv[])
   /*
    * Write the now-patched first sector of ldlinux.sys
    */
-  xpwrite(dev_fd, syslinux_ldlinux, 512, offset + ((off_t)sectors[0] << 9));
+  xpwrite(dev_fd, syslinux_ldlinux, 512, filesystem_offset + ((off_t)sectors[0] << 9));
 
   /*
    * To finish up, write the boot sector
    */
 
   /* Read the superblock again since it might have changed while mounted */
-  xpread(dev_fd, sectbuf, 512, offset);
+  xpread(dev_fd, sectbuf, 512, filesystem_offset);
 
   /* Copy the syslinux code into the boot sector */
   syslinux_make_bootsect(sectbuf);
 
   /* Write new boot sector */
-  xpwrite(dev_fd, sectbuf, 512, offset);
+  xpwrite(dev_fd, sectbuf, 512, filesystem_offset);
 
   close(dev_fd);
   sync();

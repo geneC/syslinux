@@ -66,6 +66,7 @@ const char *program;		/* Name of program */
 const char *device;		/* Device to install to */
 pid_t mypid;
 char *mntpath = NULL;		/* Path on which to mount */
+off_t filesystem_offset = 0;	/* Filesystem offset */
 #if DO_DIRECT_MOUNT
 int loop_fd = -1;		/* Loop device */
 #endif
@@ -154,7 +155,7 @@ ssize_t xpwrite(int fd, void *buf, size_t count, off_t offset)
  */
 int libfat_xpread(intptr_t pp, void *buf, size_t secsize, libfat_sector_t sector)
 {
-  off_t offset = (off_t)sector * secsize;
+  off_t offset = (off_t)sector * secsize + filesystem_offset;
   return xpread(pp, buf, secsize, offset);
 }
 
@@ -172,7 +173,6 @@ int main(int argc, char *argv[])
   char mntname[64], devfdname[64];
   char *ldlinux_name, **argp, *opt;
   int force = 0;		/* -f (force) option */
-  off_t offset = 0;		/* -o (offset) option */
   struct libfat_filesystem *fs;
   libfat_sector_t s, *secp, sectors[65]; /* 65 is maximum possible */
   int32_t ldlinux_cluster;
@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
 	} else if ( *opt == 'f' ) {
 	  force = 1;		/* Force install */
 	} else if ( *opt == 'o' && argp[1] ) {
-	  offset = (off_t)strtoull(*++argp, NULL, 0); /* Byte offset */
+	  filesystem_offset = (off_t)strtoull(*++argp, NULL, 0); /* Byte offset */
 	} else {
 	  usage();
 	}
@@ -230,11 +230,11 @@ int main(int argc, char *argv[])
     die("not a block device or regular file (use -f to override)");
   }
 
-  if ( !force && offset != 0 && !S_ISREG(st.st_mode) ) {
+  if ( !force && filesystem_offset && !S_ISREG(st.st_mode) ) {
     die("not a regular file and an offset specified (use -f to override)");
   }
 
-  xpread(dev_fd, sectbuf, 512, offset);
+  xpread(dev_fd, sectbuf, 512, filesystem_offset);
   fsync(dev_fd);
 
   /*
@@ -316,7 +316,7 @@ int main(int argc, char *argv[])
 	}
 	
 	if ( ioctl(loop_fd, LOOP_GET_STATUS64, &loopinfo) ||
-	     (loopinfo.lo_offset = offset,
+	     (loopinfo.lo_offset = filesystem_offset,
 	      ioctl(loop_fd, LOOP_SET_STATUS64, &loopinfo)) )
 	  die("cannot set up loopback device");
       }
@@ -343,7 +343,7 @@ int main(int argc, char *argv[])
       char mnt_opts[128];
       if ( S_ISREG(st.st_mode) ) {
 	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,loop,offset=%llu,umask=077,quiet",
-		 (unsigned long long)offset);
+		 (unsigned long long)filesystem_offset);
       } else {
 	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,umask=077,quiet");
       }
@@ -464,20 +464,20 @@ umount:
   /*
    * Write the now-patched first sector of ldlinux.sys
    */
-  xpwrite(dev_fd, syslinux_ldlinux, 512, offset + ((off_t)sectors[0] << 9));
+  xpwrite(dev_fd, syslinux_ldlinux, 512, filesystem_offset + ((off_t)sectors[0] << 9));
 
   /*
    * To finish up, write the boot sector
    */
 
   /* Read the superblock again since it might have changed while mounted */
-  xpread(dev_fd, sectbuf, 512, offset);
+  xpread(dev_fd, sectbuf, 512, filesystem_offset);
 
   /* Copy the syslinux code into the boot sector */
   syslinux_make_bootsect(sectbuf);
 
   /* Write new boot sector */
-  xpwrite(dev_fd, sectbuf, 512, offset);
+  xpwrite(dev_fd, sectbuf, 512, filesystem_offset);
 
   close(dev_fd);
   sync();
