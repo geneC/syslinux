@@ -39,7 +39,7 @@ VERSION  = $(shell cat version)
 	$(CC) $(INCLUDE) $(CFLAGS) -c $<
 
 # libsyslinux.so
-LIB_SONAME = libsyslinux.so.2
+LIB_SONAME = libsyslinux.so.2.2
 LIB_SO  = libsyslinux.so.$(VERSION)
 
 #

@@ -23,6 +23,8 @@
 
 #include "syslinux.h"
 
+#define LDLINUX_MAGIC	0x3eb202fe
+
 enum bs_offsets {
   bsJump          = 0x00,
   bsOemName       = 0x03,
@@ -49,7 +51,7 @@ enum bs_offsets {
 };
 
 #define bsHead      bsJump
-#define bsHeadLen   (bsBytesPerSec-bsHead)
+#define bsHeadLen   (bsOemName-bsHead)
 #define bsCodeLen   (bsSignature-bsCode)
 
 /*
@@ -78,25 +80,33 @@ static inline uint32_t get_32(const unsigned char *p)
 
 static inline void set_16(unsigned char *p, uint16_t v)
 {
+#if defined(__i386__) || defined(__x86_64__)
+  /* Littleendian and unaligned-capable */
+  *(uint16_t *)p = v;
+#else
   p[0] = (v & 0xff);
   p[1] = ((v >> 8) & 0xff);
+#endif
 }
 
-#if 0				/* Not needed */
 static inline void set_32(unsigned char *p, uint32_t v)
 {
+#if defined(__i386__) || defined(__x86_64__)
+  /* Littleendian and unaligned-capable */
+  *(uint32_t *)p = v;
+#else
   p[0] = (v & 0xff);
   p[1] = ((v >> 8) & 0xff);
   p[2] = ((v >> 16) & 0xff);
   p[3] = ((v >> 24) & 0xff);
-}
 #endif
+}
 
 /* Patch the code so that we're running in stupid mode */
 void syslinux_make_stupid(void)
 {
   /* Access only one sector at a time */
-  set_16(syslinux_ldlinux+PATCH_OFFSET, 1);
+  set_16(syslinux_bootsect+0x1FC, 1);
 }
   
 void syslinux_make_bootsect(void *bs)
@@ -108,13 +118,16 @@ void syslinux_make_bootsect(void *bs)
 }
 
 /*
- * Check to see that what we got was indeed an MS-DOS boot sector/superblock
+ * Check to see that what we got was indeed an MS-DOS boot sector/superblock;
+ * Return 0 if bad and 1 if OK.
  */
 int syslinux_check_bootsect(const void *bs, const char *device)
 {
   int veryold;
   unsigned int sectors, clusters;
   const unsigned char *sectbuf = bs;
+
+  /*** FIX: Handle FAT32 ***/
 
   if ( sectbuf[bsBootSignature] == 0x29 ) {
     /* It's DOS, and it has all the new nice fields */
@@ -164,11 +177,60 @@ int syslinux_check_bootsect(const void *bs, const char *device)
     return 0;
   }
 
-  if ( sectbuf[bsSecPerClust] > 32 ) {
-    fprintf(stderr, "%s: Cluster sizes larger than 16K not supported\n",
-	    device);
-    return 0;
-  }
-
   return 1;
 }
+
+/*
+ * This patches the boot sector and the first sector of ldlinux.sys
+ * based on an ldlinux.sys sector map passed in.  Typically this is
+ * handled by writing ldlinux.sys, mapping it, and then overwrite it
+ * with the patched version.  If this isn't safe to do because of
+ * an OS which does block reallocation, then overwrite it with
+ * direct access since the location is known.
+ *
+ * Return 0 if successful, otherwise -1.
+ */
+int syslinux_patch(const uint32_t *sectors, int nsectors)
+{
+  unsigned char *patcharea, *p;
+  int nsect = (syslinux_ldlinux_len+511) >> 9;
+  uint32_t csum;
+  int i, dw;
+
+  if ( nsectors < nsect )
+    return -1;
+
+  /* First sector need pointer in boot sector */
+  set_32(syslinux_bootsect+0x1F8, *sectors++);
+  nsect--;
+  
+  /* Search for LDLINUX_MAGIC to find the patch area */
+  for ( p = syslinux_ldlinux ; get_32(p) != LDLINUX_MAGIC ; p += 4 );
+  patcharea = p+4;
+
+  /* Set up the totals */
+  dw = syslinux_ldlinux_len >> 2; /* COMPLETE dwords! */
+  set_16(patcharea, dw);
+  set_16(patcharea+2, nsect);	/* Does not include the first sector! */
+
+  /* Set the sector pointers */
+  p = patcharea+8;
+
+  memset(p, 0, 64*4);
+  while ( nsect-- ) {
+    set_32(p, *sectors++);
+    p += 4;
+  }
+
+  /* Now produce a checksum */
+  set_32(patcharea+4, 0);
+
+  csum = LDLINUX_MAGIC;
+  for ( i = 0, p = syslinux_ldlinux ; i < dw ; i++, p += 4 )
+    csum -= get_32(p);		/* Negative checksum */
+
+  set_32(patcharea+4, csum);
+
+  return 0;
+}
+

@@ -37,6 +37,7 @@
 #include <sys/wait.h>
 
 #include "syslinux.h"
+#include "libfat.h"
 
 char *program;			/* Name of program */
 char *device;			/* Device to install to */
@@ -109,6 +110,16 @@ ssize_t xpwrite(int fd, void *buf, size_t count, off_t offset)
   return done;
 }
 
+/*
+ * Version of the read function suitable for libfat
+ */
+int libfat_xpread(void *pp, void *buf, size_t secsize, libfat_sector_t sector)
+{
+  off_t offset = (off_t)sector * secsize;
+  return xpread((int)pp, buf, secsize, offset);
+}
+
+
 int main(int argc, char *argv[])
 {
   static unsigned char sectbuf[512];
@@ -121,6 +132,12 @@ int main(int argc, char *argv[])
   char mtools_conf[] = "/tmp/syslinux-mtools-XXXXXX";
   int mtc_fd;
   FILE *mtc, *mtp;
+  struct libfat_filesystem *fs;
+  libfat_sector_t s, *secp, sectors[65]; /* 65 is maximum possible */
+  int32_t ldlinux_cluster;
+  int nsectors;
+
+  (void)argc;			/* Unused */
 
   mypid = getpid();
   program = argv[0];
@@ -139,7 +156,7 @@ int main(int argc, char *argv[])
 	} else if ( *opt == 'f' ) {
 	  force = 1;		/* Force install */
 	} else if ( *opt == 'o' && argp[1] ) {
-	  offset = strtoul(*++argp, NULL, 0); /* Byte offset */
+	  offset = (off_t)strtoull(*++argp, NULL, 0); /* Byte offset */
 	} else {
 	  usage();
 	}
@@ -170,17 +187,12 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  if ( !force && offset != 0 && !S_ISREG(st.st_mode) ) {
-    fprintf(stderr, "%s: not a regular file and an offset specified (use -f to override)\n", device);
-    exit(1);
-  }
-
   xpread(dev_fd, sectbuf, 512, offset);
   
   /*
    * Check to see that what we got was indeed an MS-DOS boot sector/superblock
    */
-  if(!syslinux_check_bootsect(sectbuf,device)) {
+  if( !syslinux_check_bootsect(sectbuf,device) ) {
     exit(1);
   }
 
@@ -197,7 +209,7 @@ int main(int argc, char *argv[])
 	  "MTOOLS_SKIP_CHECK=1\n" /* Needed for some flash memories */
 	  "drive s:\n"
 	  "  file=\"/proc/%lu/fd/%d\"\n"
-	  "  offset=%lld\n",
+	  "  offset=%llu\n",
 	  (unsigned long)mypid,
 	  dev_fd,
 	  (unsigned long long)offset);
@@ -223,15 +235,40 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  status = system("mattrib +r s:ldlinux.sys");
+  status = system("mattrib +r +h +s s:ldlinux.sys");
 
   if ( !WIFEXITED(status) || WEXITSTATUS(status) ) {
     fprintf(stderr,
-	    "%s: warning: failed to set readonly bit on ldlinux.sys\n",
+	    "%s: warning: failed to set system bit on ldlinux.sys\n",
 	    program);
   }
 
   unlink(mtools_conf);
+
+  /*
+   * Now, use libfat to create a block map
+   */
+  fs = libfat_open(libfat_xpread, (void *)dev_fd);
+  ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
+  secp = sectors;
+  nsectors = 0;
+  s = libfat_clustertosector(fs, ldlinux_cluster);
+  while ( s && nsectors < 65 ) {
+    *secp++ = s;
+    nsectors++;
+    s = libfat_nextsector(fs, s);
+  }
+  libfat_close(fs);
+
+  /*
+   * Patch ldlinux.sys and the boot sector
+   */
+  syslinux_patch(sectors, nsectors);
+
+  /*
+   * Write the now-patched first sector of ldlinux.sys
+   */
+  xpwrite(dev_fd, syslinux_ldlinux, 512, offset + ((off_t)sectors[0] << 9));
 
   /*
    * To finish up, write the boot sector

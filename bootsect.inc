@@ -65,7 +65,7 @@ load_bootsec:
 		mov eax,[OrigFDCTabPtr]
 		mov [fdctab],eax
 
-		mov dl,[bsDriveNumber]
+		mov dl,[DriveNumber]
 		mov si,PartInfo		; Partition info buffer
 		mov di,800h-18		; Put partition info here
 		push di

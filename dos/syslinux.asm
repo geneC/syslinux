@@ -328,9 +328,9 @@ read_bootsect:
 		pop ax				; Remove flags from stack
 		jc disk_read_error
 
-		mov si,SectorBuffer+11		; Offset of superblock
-		mov di,BootSector+11
-		mov cx,51			; Superblock = 51 bytes
+		mov si,SectorBuffer+3		; Offset of superblock
+		mov di,BootSector+3
+		mov cx,59			; Superblock = 59 bytes
 		rep movsb			; Copy the superblock
 		jmp short write_bootsect
 disk_read_error:

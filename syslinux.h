@@ -23,7 +23,7 @@ extern unsigned char syslinux_ldlinux[];
 extern unsigned int  syslinux_ldlinux_len;
 extern int           syslinux_ldlinux_mtime;
 
-/* This switches the boot sector and ldlinux to "stupid mode" */
+/* This switches the boot sector to "stupid mode" */
 void syslinux_make_stupid(void);
 
 /* This takes a boot sector and merges in the syslinux fields */
@@ -31,5 +31,8 @@ void syslinux_make_bootsect(void *);
 
 /* Check to see that what we got was indeed an MS-DOS boot sector/superblock */
 int syslinux_check_bootsect(const void *bs, const char *device);
+
+/* This patches the boot sector and ldlinux.sys based on a sector map */
+int syslinux_patch(const uint32_t *sectors, int nsectors);
 
 #endif
