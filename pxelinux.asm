@@ -172,9 +172,9 @@ fat_seg		equ 0h			; BOGUS
 		struc tftp_port_t
 tftp_localport	resw 1			; Local port number	(0 = not in use)
 tftp_remoteport	resw 1			; Remote port number
-tftp_localip	resd 1			; Local IP address
 tftp_remoteip	resd 1			; Remote IP address
 tftp_filepos	resd 1			; Position within file
+tftp_filesize	resd 1			; Total file size
 		endstruc
 
 %if (tftp_port_t_size & (tftp_port_t_size-1))
@@ -2189,7 +2189,6 @@ tftp_connect:
 		mov di,packet_buf_size
 		mov [pxe_udp_read_pkt.buffersize],di
 		mov eax,[bootp.yip]	; Our own IP
-		mov [bx+tftp_localip],eax
 		mov [pxe_udp_read_pkt.dip],eax
 		mov [pxe_udp_read_pkt.lport],bx
 		mov di,pxe_udp_read_pkt
@@ -2227,49 +2226,83 @@ tftp_connect:
 		mov [bx+tftp_remoteport],ax
 
 		movzx eax,word [pxe_udp_read_pkt.buffersize]
-		sub eax, byte 4
-		jb .failure			; Garbled reply
+		sub eax, byte 2
+		jb near .failure		; Garbled reply
 		mov [bx+tftp_filepos], eax
 
 		cmp word [packet_buf], TFTP_ERROR
-		je .bailnow			; ERROR reply: don't try again
+		je near .bailnow		; ERROR reply: don't try again
 
-		; SHOULD REALLY SEND ERROR PACKET HERE!
-		cmp word [packet_buf], TFTP_DATA
-		je .no_tsize
-
-		; SHOULD REALLY SEND ERROR PACKET HERE!
 		cmp word [packet_buf], TFTP_OACK
-		jne .failure			; Non-OACK reply -> error
-
-		cmp word [packet_buf+2], htons(1)
-		jne .failure			; Packet # != 1
+		jne .err_reply
 
 		; Now we need to parse the OACK packet to get the transfer
 		; size.
 
-		; **** WE SHOULD NOT ACK THIS PACKET YET ****
-.ackpacket:	mov word [packet_buf], TFTP_ACK
-		mov [pxe_udp_write_pkt.buffersize], word 4
+.parse_oack:	mov cx,[pxe_udp_read_pkt.buffersize]
+		mov si,packet_buf+2
+		sub cx,byte 2
+		jz .no_tsize			; No options acked
+.get_opt_name:	mov di,si
+		mov bx,si
+.opt_name_loop:	lodsb
+		and al,al
+		jz .got_opt_name
+		or al,20h			; Convert to lowercase
+		stosb
+		loop .opt_name_loop
+		; We ran out, and no final null
+		jmp short .err_reply
+.got_opt_name:	dec cx
+		jz .failure			; Option w/o value
+		push cx
+		mov si,bx
+		mov di,tsize_str
+		mov cx,tsize_len
+		repe cmpsb
+		pop cx
+		jne .err_reply			; Bad option -> error
+.get_value:	xor eax,eax
+		xor edx,edx
+.value_loop:	lodsb
+		and al,al
+		jz .got_value
+		sub al,'0'
+		cmp al, 9
+		ja .err_reply
+		imul edx,10
+		add edx,eax
+		loop .value_loop
+		; Ran out before final null
+		jmp short .err_reply
+.got_value:	dec cx
+		jnz .err_reply			; Not end of packet
+		; Move size into DX:AX (old calling convention)
+		; but let EAX == DX:AX
+		mov eax,edx
+		shr edx,16
 
-		mov al,'A'
-		call writechr
-		
-		mov di,pxe_udp_write_pkt
-		mov bx,0033h		; PXENV_UDP_WRITE
-		call far [PXENVEntry]
-		jc .failure
-		cmp word [pxe_udp_write_pkt.status],byte 0
-		jne .failure
-	
+		xor edi,edi
+
 		; Success, done!
 		pop si			; Junk	
 		pop si			; We want the packet ptr in SI
+
+		mov [si+tftp_filesize],eax
+		mov [si+tftp_filepos],edi
+
 		pop bp			; Junk
 		pop bp			; Junk (retry counter)
 		and bp,bp		; BP != 0, ZF <- 0
 		pop bp
 		ret
+
+.err_reply:	; Option negotiation error.  Send ERROR reply.
+		mov word [pxe_udp_write_pkt.buffer],tftp_opt_err
+		mov word [pxe_udp_write_pkt.buffersize],tftp_opt_err_len
+		mov di,pxe_udp_write_pkt
+		mov bx,0033h		; PXENV_UDP_WRITE
+		call far [PXENVEntry]
 
 .no_tsize:	mov si,err_oldtftp
 		call writestr
@@ -3387,6 +3420,12 @@ MySocket	dw 32768		; Local UDP socket counter
 ;
 tftp_tail	db 'octet', 0, 'tsize' ,0, '0', 0	; Octet mode, request size
 tftp_tail_len	equ ($-tftp_tail)
+tsize_str	db 'tsize', 0
+tsize_len	equ ($-tsize_str)
+tftp_opt_err	dw TFTP_ERROR				; ERROR packet
+		dw htons(8)				; ERROR 8: bad options
+		db 'tsize option required', 0		; Error message
+tftp_opt_err_len equ ($-tftp_opt_err)
 
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
