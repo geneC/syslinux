@@ -1045,31 +1045,6 @@ enough_ram:
 skip_checks:
 
 ;
-; We still need to check if this is a 486 or higher, and if it isn't, blank
-; out the WBINVD subroutine
-;
-%if 0
-		pushfd
-		pushfd
-		pop eax
-		mov ebx,eax
-		xor eax,(1 << 18)		; Toggle EFLAGS.AC
-		push eax
-		popfd
-		pushfd
-		pop eax
-		popfd
-		cmp eax,ebx
-		jne is_486			; Is a 486 or higher, assume WBINVD works
-		mov word [flush_cache.wbinvd],09090h	; NOP out
-is_486:
-%else
-
-%define wbinvd	nop
-
-%endif
-
-;
 ; Initialization that does not need to go into the any of the pre-load
 ; areas
 ;
@@ -2003,10 +1978,9 @@ bcopy:
 ; Routines to enable and disable (yuck) A20
 ; These routines are largely cut-and-paste from the Linux setup code
 ; 
-%define	io_delay out 0EDh, ax		; Invalid port
+%define	io_delay out 0EDh, ax		; Invalid port (we hope)
 
 enable_a20:
-		call flush_cache
 		call empty_8042
 		mov al,0D1h		; Command write
 		out 064h, al
@@ -2022,7 +1996,6 @@ kbc_delay:	call empty_8042
 		ret
 
 disable_a20:
-		call flush_cache
 		call empty_8042
 		mov al,0D1h
 		out 064h, al		; Command write
@@ -2044,10 +2017,6 @@ empty_8042:
 		jnz empty_8042
 		io_delay
 		ret	
-
-flush_cache:
-.wbinvd:	wbinvd			; Gets NOP'd out on a 386
-		ret
 
 ;
 ; Load RAM disk into high memory
