@@ -159,12 +159,14 @@ LABEL label
 	option means invoking this particular label will cause a local
 	disk boot instead of booting a kernel.
 
-	0 means perform a normal boot.  The type value 4 will perform
-	a local boot with the Universal Network Driver Interface
-	(UNDI) driver still resident in memory.  The type value 5 will
-	perform a local boot with the entire PXE stack, including the
-	UNDI driver, still resident in memory.  All other values are
-	undefined.
+	The argument 0 means perform a normal boot.  The argument 4
+	will perform a local boot with the Universal Network Driver
+	Interface (UNDI) driver still resident in memory.  Finally,
+	the argument 5 will perform a local boot with the entire PXE
+	stack, including the UNDI driver, still resident in memory.
+	All other values are undefined.  If you don't know what the
+	UNDI or PXE stacks are, don't worry -- you don't want them,
+	just specify 0.
 
 IMPLICIT flag_val
         If flag_val is 0, do not load a kernel image unless it has been
