@@ -31,6 +31,8 @@ release:
 	-rm -f release/syslinux-$(VERSION).*
 	mkdir -p release/syslinux-$(VERSION)
 	cp -r $(SOURCES) $(DOCS) $(OTHER) release/syslinux-$(VERSION)
+	find release/syslinux-$(VERSION) -name CVS -type d -print0 | \
+		xargs -0rt rm -rf
 	ln $(PRIVATE) release/syslinux-$(VERSION)
 	cd release/syslinux-$(VERSION) && $(MAKE) official
 	cd release/syslinux-$(VERSION) && rm -f $(PRIVATE)
@@ -51,6 +53,8 @@ prerel:
 	-rm -f $(PRERELDIR)/$(PREREL).*
 	mkdir -p $(PRERELDIR)/$(PREREL)
 	cp -r $(SOURCES) $(DOCS) $(OTHER) $(PRERELDIR)/$(PREREL)
+	find $(PRERELDIR)/$(PREREL) -name CVS -type d -print0 | \
+		xargs -0rt rm -rf
 	make -C $(PRERELDIR)/$(PREREL) spotless
 	make -C $(PRERELDIR)/$(PREREL) all DATE=`printf '%s-pre%d          ' $(VERSION) $(PRERELNO) | dd bs=10 count=1 2>/dev/null`
 	make -C $(PRERELDIR)/$(PREREL) dist
