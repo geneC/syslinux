@@ -101,11 +101,8 @@ for ( $y = 0 ; $y < $ysize ; $y++ ) {
 	    # Truncate overlong runs
 	    $c = $xsize-$x if ( $c > $xsize-$x );
 	    # Output run
-	    while ( $c ) {
-		print $color{$n};
-		$c--;
-		$x++;
-	    }
+	    print $color{$n} x $c;
+	    $x += $c;
 	}
     }
 }
