@@ -47,10 +47,17 @@ MENU LABEL label
 	you to have a label that isn't suitable for the command line,
 	for example:
 
+	# Soft Cap Linux
 	LABEL softcap
 		MENU LABEL Soft Cap Linux 9.6.36
 		KERNEL softcap-9.6.36.bzi
 		APPEND whatever
+
+	# A very dense operating system
+	LABEL brick
+		MENU LABEL Windows CE/ME/NT
+		KERNEL chain.c32
+		APPEND hd0 2
 
 MENU HIDE
 

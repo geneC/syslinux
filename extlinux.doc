@@ -65,3 +65,21 @@ kernel image to still be in the log.  This is a general problem for
 boot loaders on journalling filesystems; it is not specific to
 extlinux.  The "sync" command does not flush the log on the ext3
 filesystem.
+
+
+The SYSLINUX series boot loaders support chain loading other operating
+systems via a separate module, chain.c32 (located in
+com32/modules/chain.c32).  To use it, specify a LABEL in the
+configuration file with KERNEL chain.c32 and
+APPEND [hd|fd]<number> [<partition>]
+
+For example:
+
+# Windows CE/ME/NT, a very dense operating system.
+# Second partition (2) on the first hard disk (hd0);
+# Linux would *typically* call this /dev/hda2 or /dev/sda2.
+LABEL cement
+	KERNEL chain.c32
+	APPEND hd0 2
+
+See also README.menu.
