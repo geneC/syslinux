@@ -39,7 +39,7 @@ VERSION  = $(shell cat version)
 # like to keep those uniform for debugging reasons; however, distributors 
 # want to recompile the installers (ITARGET).
 #
-CSRC    = syslinux.c syslxmod.c gethostip.c
+CSRC    = syslinux.c syslxmod.c gethostip.c syslinux.h
 NASMSRC  = ldlinux.asm syslinux.asm copybs.asm \
 	  pxelinux.asm mbr.asm isolinux.asm isolinux-debug.asm
 SOURCES = $(CSRC) $(NASMSRC) *.inc
