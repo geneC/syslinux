@@ -29,7 +29,7 @@ VERSION = $(shell cat version)
 
 SOURCES = ldlinux.asm syslinux.asm syslinux.c
 TARGETS = bootsect.bin ldlinux.sys syslinux.com syslinux
-DOCS    = COPYING NEWS README TODO syslinux.doc
+DOCS    = COPYING NEWS README TODO syslinux.doc keytab-lilo.doc
 OTHER   = Makefile bin2c.pl now.pl keytab-lilo.pl version
 
 all:	$(TARGETS)
