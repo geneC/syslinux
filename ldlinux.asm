@@ -1153,7 +1153,7 @@ searchdir:
 		mov dx,[gs:si+20]		; High cluster word
 		shl edx,16
 		mov dx,[gs:si+26]		; Low cluster word
-		add edx,2
+		sub edx,2
 		shl edx,cl
 		mov [bx],edx			; Starting sector
 
