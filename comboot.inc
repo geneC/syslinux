@@ -429,6 +429,7 @@ comapi_pxecall:
 		mov es,P_ES
 		mov di,P_DI
 		call far [PXENVEntry]
+		mov P_AX,ax
 		clc
 		ret
 %else
@@ -495,7 +496,7 @@ int21_table:
 		int21	0Bh, comboot_checkkey
 		int21	30h, comboot_checkver
 		int21	4Ch, comboot_return
-		int21	00h, comboot_bogus
+		int21	 -1, comboot_bogus
 int21_count	equ ($-int21_table)/3
 
 		align 2, db 0

@@ -317,7 +317,10 @@ AX=0009h	Call PXE Stack [PXELINUX ONLY]
 
 	Invoke an arbitrary PXE stack function.  On SYSLINUX/ISOLINUX,
 	this function returns with an error (CF=1) and no action is
-	taken.
+	taken.  On PXELINUX, this function always returns with CF=0
+	indicating that the PXE stack was successfully invoked; check
+	the status code in AX and in the first word of the data buffer
+	to determine if the PXE call succeeded or not.
 
 
 AX=000Ah	Get Derivative-Specific Information
