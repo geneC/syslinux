@@ -241,21 +241,23 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
   
   max_c = max_h = 0;  max_s = 1;
   for ( i = 0 ; i < 4 ; i++ ) {
-    c = ptab[i].start_c + (ptab[i].start_s >> 6);
-    s = (ptab[i].start_s & 0x3f);
-    h = ptab[i].start_h;
-
-    if ( max_c < c ) max_c = c;
-    if ( max_h < h ) max_h = h;
-    if ( max_s < s ) max_s = s;
-
-    c = ptab[i].end_c + (ptab[i].end_s >> 6);
-    s = (ptab[i].end_s & 0x3f);
-    h = ptab[i].end_h;
-
-    if ( max_c < c ) max_c = c;
-    if ( max_h < h ) max_h = h;
-    if ( max_s < s ) max_s = s;
+    if ( ptab[i].type ) {
+      c = ptab[i].start_c + (ptab[i].start_s >> 6);
+      s = (ptab[i].start_s & 0x3f);
+      h = ptab[i].start_h;
+      
+      if ( max_c < c ) max_c = c;
+      if ( max_h < h ) max_h = h;
+      if ( max_s < s ) max_s = s;
+      
+      c = ptab[i].end_c + (ptab[i].end_s >> 6);
+      s = (ptab[i].end_s & 0x3f);
+      h = ptab[i].end_h;
+      
+      if ( max_c < c ) max_c = c;
+      if ( max_h < h ) max_h = h;
+      if ( max_s < s ) max_s = s;
+    }
   }
 
   max_c++; max_h++;		/* Convert to count (1-based) */
