@@ -33,17 +33,23 @@
  */
 
 #include "file.h"
+#include <errno.h>
 
 ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
 		     ssize_t (*get_char)(struct file_info *, void *, size_t))
 {
   size_t n = 0;
   char ch;
+  int rv;
   ssize_t (* const Write)(struct file_info *, const void *, size_t) =
     fp->oop->write;
 
   for(;;) {
-    if ( get_char(fp, &ch, 1) != 1 )
+    rv = get_char(fp, &ch, 1);
+
+    if ( rv == -1 && (errno == EINTR || errno == EAGAIN) )
+      continue;
+    else if ( rv != 1 )
       return n;
     
     switch ( ch ) {
