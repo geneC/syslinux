@@ -349,6 +349,7 @@ KernelSize	resd 1			; Size of kernel (bytes)
 Stack		resd 1			; Pointer to reset stack
 PXEEntry	resd 1			; !PXE API entry point
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
+RebootTime	resd 1			; Reboot timeout, if set by option
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
 FBytes2		resw 1
@@ -2604,15 +2605,22 @@ kaboom:
 		call getchar
 		jmp short .drain
 .drained:
+		mov edi,[RebootTime]
+		mov al,[DHCPMagic]
+		and al,09h		; Magic+Timeout
+		cmp al,09h
+		jne .not_set
+		mov edi,REBOOT_TIME
+.not_set:
 		mov cx,18
 .wait1:		push cx
-		mov cx,REBOOT_TIME
+		mov ecx,edi
 .wait2:		mov dx,[BIOS_timer]
 .wait3:		call pollchar
 		jnz .keypress
 		cmp dx,[BIOS_timer]
 		je .wait3
-		loop .wait2
+		a32 loop .wait2		; a32 means use ecx as counter
 		mov al,'.'
 		call writechr
 		pop cx
@@ -4270,6 +4278,19 @@ parse_dhcp_options:
 		jmp short .copyoption
 	
 .not_pl_prefix:
+		cmp dl,179	; PXELINUX REBOOTTIME option
+		jne .not_pl_timeout
+		cmp al,4
+		jne .opt_done
+		mov edx,[si]
+		xchg dl,dh	; Convert to host byte order
+		rol edx,16
+		xchg dl,dh
+		mov [RebootTime],edx
+		or byte [DHCPMagic], byte 8	; Got RebootTime
+		; jmp short .opt_done
+
+.not_pl_timeout
 		; Unknown option.  Skip to the next one.
 .opt_done:
 		add si,ax

@@ -248,14 +248,20 @@ Option 178	pxelinux.pathprefix
 	  needs to end in whatever character the TFTP server OS uses
 	  as a pathname separator, e.g. slash (/) for Unix.
 
+Option 179	pxelinux.reboottime
+	- Specifies, in seconds, the time to wait before reboot in the
+	  event of TFTP failure.  0 means wait "forever" (in reality,
+	  it waits approximately 136 years.)
+
 ISC dhcp 3.0 supports a rather nice syntax for specifying custom
 options; you can use the following syntax in dhcpd.conf if you are
 running this version of dhcpd:
 
 	option space pxelinux;
-	option pxelinux.magic code 176 = string;
+	option pxelinux.magic      code 176 = string;
 	option pxelinux.configfile code 177 = text;
 	option pxelinux.pathprefix code 178 = text;
+	option pxelinux.reboottime code 179 = unsigned integer 32;
 
 Then, inside your PXELINUX-booting group or class (whereever you have
 the PXELINUX-related options, such as the filename option), you can
@@ -265,6 +271,7 @@ add, for example:
 	option pxelinux.magic f1:00:74:7e;
 	option pxelinux.configfile "configs/common";
 	option pxelinux.pathprefix "/tftpboot/pxelinux/files/";
+	option pxelinux.reboottime 30;
 	filename "/tftpboot/pxelinux/pxelinux.bin";
 
 Note that the configfile is relative to the pathprefix: this will look
