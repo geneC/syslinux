@@ -101,9 +101,9 @@ There are three possible workarounds for this bug:
    request the "blksize" option if it has tried MTFTP and failed.
    These DHCP options are beyond the scope of this document.
 
-These systems also break if PMTU discovery is enabled on the TFTP
-server.  This has to be disabled in the kernel on the TFTP server.  On
-Linux, you can disable PMTU discovery by setting:
+These systems also seem to break if PMTU discovery is enabled on the
+TFTP server.  This has to be disabled in the kernel on the TFTP
+server.  On Linux, you can disable PMTU discovery by setting:
 
 	echo 1 > /proc/sys/net/ipv4/ip_no_pmtu_disc
 
