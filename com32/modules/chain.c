@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2003-2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2003-2005 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
  *
  * ... e.g. "chain hd0 1" will boot the first partition on the first hard disk.
  *
- * Only partitions 1-4 supported at this time; 0 = boot MBR (default.)
+ * Partitions 1-4 are primary, 5+ logical, 0 = boot MBR (default.)
  */
 
 #include <com32.h>
@@ -35,7 +35,7 @@
 
 static inline void error(const char *msg)
 {
-  puts(msg);
+  fputs(msg, stderr);
 }
 
 /*
@@ -48,9 +48,9 @@ int int13_retry(const com32sys_t *inreg, com32sys_t *outreg)
   
   if ( !outreg ) outreg = &tmpregs;
 
-  while ( retry ) {
+  while ( retry-- ) {
     __intcall(0x13, inreg, outreg);
-    if ( (outreg->eflags.l & 1) == 0 )
+    if ( !(outreg->eflags.l & EFLAGS_CF) )
       return 0;			/* CF=0, OK */
   }
 
@@ -62,43 +62,49 @@ int int13_retry(const com32sys_t *inreg, com32sys_t *outreg)
  */
 struct diskinfo {
   int disk;
+  int ebios;			/* EBIOS supported on this disk */
+  int cbios;			/* CHS geometry is valid */
   int head;
   int sect;
-  int ebios;
 } disk_info;
 
 int get_disk_params(int disk)
 {
-  com32sys_t getparm, parm, getebios, ebios;
-
-  memset(&getparm, 0, sizeof getparm);
-  memset(&getebios, 0, sizeof getebios);
-  memset(&disk_info, 0, sizeof disk_info);
+  static com32sys_t getparm, parm, getebios, ebios;
 
   disk_info.disk = disk;
 
-  if ( disk & 0x80 ) {
-    /* Get disk parameters -- hard drives only */
-    
-    getparm.eax.b[1] = 0x08;
-    getparm.edx.b[0] = disk;
-    if ( int13_retry(&getparm, &parm) )
-      return -1;
-    
-    disk_info.head = parm.edx.b[1]+1;
-    disk_info.sect = parm.ecx.b[0] & 0x3f;
-    
-    /* Get EBIOS support */
-    
-    getebios.eax.w[0] = 0x4100;
-    getebios.edx.b[0] = disk;
-    getebios.ebx.w[0] = 0x55aa;
-    getebios.eflags.b[0] = 0x3;	/* CF set */
-    if ( !int13_retry(&getebios, &ebios) ) {
-      if ( ebios.ebx.w[0] == 0xaa55 &&
-	   (ebios.ecx.b[0] & 1) )
-	disk_info.ebios = 1;
-    }
+  /* Get EBIOS support */
+  getebios.eax.w[0] = 0x4100;
+  getebios.ebx.w[0] = 0x55aa;
+  getebios.edx.b[0] = disk;
+  getebios.eflags.b[0] = 0x3;	/* CF set */
+
+  __intcall(0x13, &getebios, &ebios);
+
+  if ( !(ebios.eflags.l & EFLAGS_CF) &&
+       ebios.ebx.w[0] == 0xaa55 &&
+       (ebios.ecx.b[0] & 1) ) {
+    disk_info.ebios = 1;
+  }
+
+  /* Get disk parameters -- really only useful for
+     hard disks, but if we have a partitioned floppy
+     it's actually our best chance... */
+  getparm.eax.b[1] = 0x08;
+  getparm.edx.b[0] = disk;
+
+  __intcall(0x13, &getparm, &parm);
+
+  if ( parm.eflags.l & EFLAGS_CF )
+    return disk_info.ebios ? 0 : -1;
+  
+  disk_info.head = parm.edx.b[1]+1;
+  disk_info.sect = parm.ecx.b[0] & 0x3f;
+  if ( disk_info.sect == 0 ) {
+    disk_info.sect = 1;
+  } else {
+    disk_info.cbios = 1;	/* Valid geometry */
   }
 
   return 0;
@@ -135,10 +141,19 @@ int read_sector(void *buf, unsigned int lba)
   } else {
     unsigned int c, h, s, t;
 
-    s = (lba % disk_info.sect) + 1;
-    t = lba / disk_info.sect;	/* Track = head*cyl */
-    h = t % disk_info.head;
-    c = t / disk_info.head;
+    if ( !disk_info.cbios ) {
+      /* We failed to get the geometry */
+
+      if ( lba )
+	return -1;		/* Can only read MBR */
+
+      s = 1;  h = 0;  c = 0;
+    } else {
+      s = (lba % disk_info.sect) + 1;
+      t = lba / disk_info.sect;	/* Track = head*cyl */
+      h = t % disk_info.head;
+      c = t / disk_info.head;
+    }
 
     if ( s > 63 || h > 256 || c > 1023 )
       return -1;
@@ -253,39 +268,38 @@ struct part_entry *find_logical_partition(int whichpart, char *table, struct par
 }
 
 
-int main(void)
+int main(int argc, char *argv[])
 {
   char *mbr, *boot_sector = NULL;
   struct part_entry *partinfo;
-  char *cmdline = __com32.cs_cmdline;
+  char *drivename, *partition;
   int hd, drive, whichpart;
   static com32sys_t inreg;	/* In bss, so zeroed automatically */
 
   openconsole(&dev_null_r, &dev_stdcon_w);
 
-  /* Parse command line */
-  while ( isspace(*cmdline) )
-    cmdline++;
+  if ( argc < 2 ) {
+    error("Usage: chain.c32 (hd|fd)# [partition]\n");
+    goto bail;
+  }
+
+  drivename = argv[1];
+  partition = argv[2];		/* Possibly null */
 
   hd = 0;
-  if ( (cmdline[0] == 'h' || cmdline[0] == 'f') &&
-       cmdline[1] == 'd' ) {
-    hd = cmdline[0] == 'h';
-    cmdline += 2;
+  if ( (drivename[0] == 'h' || drivename[0] == 'f') &&
+       drivename[1] == 'd' ) {
+    hd = drivename[0] == 'h';
+    drivename += 2;
   }
-  drive = (hd ? 0x80 : 0) | strtoul(cmdline, &cmdline, 0);
+  drive = (hd ? 0x80 : 0) | strtoul(drivename, NULL, 0);
   whichpart = 0;		/* Default */
 
-  if ( isspace(*cmdline) ) {
-    while ( isspace(*cmdline) )
-      cmdline++;
+  if ( partition )
+    whichpart = strtoul(partition, NULL, 0);
 
-    whichpart = strtoul(cmdline, NULL, 0);
-  }
-
-  if ( !(drive & 0x80) && whichpart != 0 ) {
-    error("Partitions not supported on floppy drives\n");
-    goto bail;
+  if ( !(drive & 0x80) && whichpart ) {
+    error("Warning: Partitions of floppy devices may not work\n");
   }
 
   /* Divvy up the bounce buffer.  To keep things sector-
@@ -295,14 +309,15 @@ int main(void)
   dapa = (struct ebios_dapa *)__com32.cs_bounce;
   mbr  = (char *)__com32.cs_bounce + SECTOR;
 
-  /* Get the MBR */
-  if ( get_disk_params(drive) ) {
+  /* Get the disk geometry (not needed for MBR) */
+  if ( get_disk_params(drive) && whichpart ) {
     error("Cannot get disk parameters\n");
     goto bail;
   }
 
+  /* Get MBR */
   if ( read_sector(mbr, 0) ) {
-    error("Cannot read MBR\n");
+    error("Cannot read Master Boot Record\n");
     goto bail;
   }
 
@@ -343,6 +358,9 @@ int main(void)
     inreg.esi.w[0] = 0x7be;
     memcpy((char *)0x7be, partinfo, sizeof(*partinfo));
   }
+  
+  fputs("Booting...\n", stdout);
+
   inreg.eax.w[0] = 0x000d;	/* Clean up and chain boot */
   inreg.edx.w[0] = 0;		/* Should be 3 for "keeppxe" */
   inreg.edi.l    = (uint32_t)boot_sector;

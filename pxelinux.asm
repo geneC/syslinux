@@ -8,7 +8,7 @@
 ;  network booting API.  It is based on the SYSLINUX boot loader for
 ;  MS-DOS floppies.
 ;
-;   Copyright (C) 1994-2004  H. Peter Anvin
+;   Copyright (C) 1994-2005  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -196,6 +196,7 @@ ConfigName	resb 256-4		; Configuration file from DHCP option
 PathPrefix	resb 256		; Path prefix derived from boot file
 DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
 IPOption	resb 80			; ip= option buffer
+InitStack	resd 1			; Pointer to reset stack
 
 ; Warning here: RBFG build 22 randomly overwrites memory location
 ; [0x5680,0x576c), possibly more.  It seems that it gets confused and
@@ -205,7 +206,6 @@ RBFG_brainfuck	resb 0E00h
 
 		section .bss
 		alignb 4
-InitStack	resd 1			; Pointer to reset stack
 RebootTime	resd 1			; Reboot timeout, if set by option
 StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure
 APIVer		resw 1			; PXE API version found
@@ -253,9 +253,9 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 		section .text
 		;
 		; PXELINUX needs more BSS than the other derivatives;
-		; therefore we relocate it from 7C00h on startup
+		; therefore we relocate it from 7C00h on startup.
 		;
-StackBuf	equ $-44		; Base of stack if we use our own
+StackBuf	equ $			; Base of stack if we use our own
 
 ;
 ; Primary entry point.
@@ -411,7 +411,7 @@ old_api:	; Need to use a PXENV+ structure
 		mov eax,[es:bx+0Ah]		; PXE RM API
 		mov [PXENVEntry],eax
 
-		mov si,undi_data_msg		; ***
+		mov si,undi_data_msg
 		call writestr
 		mov ax,[es:bx+20h]
 		call writehex4
@@ -466,7 +466,7 @@ have_pxe:
 		mov eax,[es:bx+10h]
 		mov [PXEEntry],eax
 
-		mov si,undi_data_msg		; ***
+		mov si,undi_data_msg
 		call writestr
 		mov eax,[es:bx+2Ah]
 		call writehex8
@@ -1905,7 +1905,13 @@ unload_pxe:
 		jmp .call_loop
 
 .call_done:
-%if USE_PXE_PROVIDED_STACK
+;
+; This isn't necessary anymore; we can use the memory area previously
+; used by the PXE stack indefinitely, and the chainload code sets up
+; a new stack independently.  Leave the source code in here for now,
+; but expect to rip it out soonish.
+;
+%if 0 ; USE_PXE_PROVIDED_STACK
 		; We need to switch to our local stack here...
 		pusha
 		pushf

@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -527,7 +527,7 @@ comapi_cleanup:
 		sub bp,sp		; unload_pxe may move the stack around
 		call unload_pxe
 		add bp,sp		; restore frame pointer...
-%elif IS_SYSLINUX || IS_MDSLINUX
+%elif IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
 		; Restore original FDC table
 		mov eax,[OrigFDCTabPtr]
 		mov [fdctab],eax
@@ -538,7 +538,6 @@ comapi_cleanup:
 		int 13h
 		clc
 		ret
-
 
 ;
 ; INT 22h AX=000Dh	Clean up then replace bootstrap

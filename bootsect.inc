@@ -66,7 +66,7 @@ load_bootsec:
 
 		xor edx,edx
 		xor esi,esi
-%if IS_SYSLINUX || IS_MDSLINUX
+%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
 		; Restore original FDC table
 		mov eax,[OrigFDCTabPtr]
 		mov [fdctab],eax
@@ -111,7 +111,9 @@ replace_bootstrap:
 		call vgaclearmode
 
 		;
-		; Set up initial stack frame (not used by PXE if keeppxe is set)
+		; Set up initial stack frame (not used by PXE if keeppxe is
+		; set - we use the PXE stack then.)
+		; AFTER THIS POINT ONLY .earlybss IS AVAILABLE, NOT .bss
 		;
 		xor ax,ax
 		mov ds,ax
@@ -135,12 +137,12 @@ replace_bootstrap:
 		mov [es:di+12],esi
 		mov [es:di+6],bx
 
-		pop cx			; Copy list count
+		pop ax			; Copy list count
 		pop bx			; Copy from...
 
 		cli
-		mov ax,es
-		mov ss,ax
+		mov cx,es
+		mov ss,cx
 		movzx esp,di
 
 		jmp shuffle_and_boot
