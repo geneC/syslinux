@@ -177,6 +177,12 @@ int main(int argc, char *argv[])
 		device);
 	exit(1);
       }
+    } else if ( !memcmp(sectbuf+bsFileSysType, "FAT16   ", 8) ) {
+      if ( clusters <= 4086 ) {
+	fprintf(stderr, "%s: ERROR: FAT16 but claims less than 4086 clusters\n",
+		device);
+	exit(1);
+      }
     } else {
       fprintf(stderr, "%s: filesystem type \"%8.8s\" not supported\n",
 	      device, sectbuf+bsFileSysType);

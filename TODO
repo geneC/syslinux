@@ -1,6 +1,14 @@
 Currently scheduled for inclusion in 1.40:
 
-- FAT16 support (for LS120 floppies mainly).
+- FAT16 support (for LS120 floppies mainly).		DONE!
 - "Comboot" style boot files.
 - Booting DOS for a DOS/Linux dual rescue disk.
 - Cleaned up documentation, with a real man page.
+
+For a later release, perhaps:
+
+- Support for clusters larger than 16K.  This would require changing
+  a lot of the SYSLINUX internals so we can read partial clusters;
+  change the current "cluster pointers" to become
+  "cluster:sector pointers".
+

@@ -124,9 +124,6 @@ got_cmdline:
 		and al,al
 		jnz filesystem_error
 
-		cmp word [bx+dpbMaxCluster],4087 ; FAT16 not supported yet
-		ja fat16_error
-
 		cmp word [bx+dpbSectorSize],512	; Sector size = 512 required
 		jne sectorsize_error
 
@@ -138,9 +135,6 @@ hugeclust_error:
 		jmp die
 filesystem_error:
 		mov dx,msg_filesystem_err
-		jmp die
-fat16_error:
-		mov dx,msg_fat16_err
 		jmp die
 sectorsize_error:
 		mov dx,msg_sectorsize_err
@@ -262,7 +256,6 @@ die:
 		section .data
 msg_error:		db 'ERROR: $'
 msg_filesystem_err:	db 'Filesystem not found on disk', 0Dh, 0Ah, '$'
-msg_fat16_err:		db 'FAT16 filesystems not supported at this time', 0Dh, 0Ah, '$'
 msg_sectorsize_err:	db 'Sector sizes other than 512 bytes not supported', 0Dh, 0Ah, '$'
 msg_hugeclust_err:	db 'Clusters larger than 16K not supported', 0Dh, 0Ah, '$'
 msg_read_err:		db 'Disk read failed', 0Dh, 0Ah, '$'

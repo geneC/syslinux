@@ -1,3 +1,6 @@
+Changes in 1.32:
+	* FAT16 is now supported.
+
 Changes in 1.31:
 	* Now compiles under Linux, using NASM, rather than using
 	  Turbo Assembler under DOS.  See http://www.cryogen.com/Nasm

@@ -689,7 +689,8 @@ bootsignature	dw 0AA55h
 ldlinux_magic	db 'LDLINUX'
 missing_dot	db ' '
 		db 'SYS ', version_str, ' ', date
-magic_eof	db 0, 0Dh, 0Ah, 01Ah
+magic_eof	db 0, 
+crlf		db 0Dh, 0Ah, 0, 01Ah
 
 		align 4
 ldlinux_ent:
@@ -822,8 +823,6 @@ load_rest:
 ; All loaded up
 ;
 all_read_jmp:
-		mov si,copyright_str
-		call writestr
 		jmp all_read
 ;
 ; -----------------------------------------------------------------------------
@@ -945,13 +944,18 @@ nc_even:
 		pop ax
 nc_return:	ret
 
+;
+; FAT16 decoding routine.  Note that a 16-bit FAT can be up to 128K,
+; so we have to decide if we're in the "low" or the "high" 64K-segment...
+;
 nextcluster_fat16:
 		push ax
 		push ds
-		mov ax,(fat_seg >> 12)
+		mov ax,fat_seg
 		shl si,1
-		adc ax,byte 0
-		mov ds,ax
+		jnc .seg0
+		mov ax,fat_seg+1000h
+.seg0:		mov ds,ax
 		mov si,[si]
 		cmp si,0FFF0h
 		cmc
@@ -968,12 +972,6 @@ safedumpregs:
 		jmp dumpregs
 %endif
 
-;
-; Data that has to be in the first sector
-;
-copyright_str   db '  Copyright (C) 1994-', year, ' H. Peter Anvin'
-crlf		db 0Dh, 0Ah, 0
-
 rl_checkpt	equ $				; Must be <= 400h
 
 ; ----------------------------------------------------------------------------
@@ -981,6 +979,12 @@ rl_checkpt	equ $				; Must be <= 400h
 ; ----------------------------------------------------------------------------
 
 all_read:
+;
+; Let the user (and programmer!) know we got this far.  This used to be
+; in Sector 1, but makes a lot more sense here.
+;
+		mov si,copyright_str
+		call writestr
 ;
 ; Check that no moron is trying to boot Linux on a 286 or so.  According
 ; to Intel, the way to check is to see if the high 4 bits of the FLAGS
@@ -1041,6 +1045,7 @@ skip_checks:
 ; We still need to check if this is a 486 or higher, and if it isn't, blank
 ; out the WBINVD subroutine
 ;
+%if 0
 		pushfd
 		pushfd
 		pop eax
@@ -1055,6 +1060,11 @@ skip_checks:
 		jne is_486			; Is a 486 or higher, assume WBINVD works
 		mov word [flush_cache.wbinvd],09090h	; NOP out
 is_486:
+%else
+
+%define wbinvd	nop
+
+%endif
 
 ;
 ; Initialization that does not need to go into the any of the pre-load
@@ -2862,6 +2872,8 @@ lcase_tab       db 135, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138
 ;
 ; Various initialized or semi-initialized variables
 ;
+copyright_str   db '  Copyright (C) 1994-', year, ' H. Peter Anvin'
+		db 0Dh, 0Ah, 0
 boot_prompt	db 'boot: ',0
 wipe_char	db 08h, ' ', 08h, 0
 err_notfound	db 'Could not find kernel image: ',0
