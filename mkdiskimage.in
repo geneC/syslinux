@@ -21,6 +21,7 @@ use integer;
 use Fcntl;
 use Errno;
 use Cwd;
+use IO::Handle;			# For flush()
 
 sub absolute_path($) {
     my($f) = @_;
@@ -48,12 +49,18 @@ for $a ( @ARGV ) {
 ($file,$c,$h,$s) = @args;
 $c += 0;  $h += 0;  $s += 0;
 
+$pentry = 1;
+$pentry = 2 if ( $opt{'2'} );
+$pentry = 3 if ( $opt{'3'} );
+$pentry = 4 if ( $opt{'4'} );
+
 if ( !$file || $c < 1 || $c > 1024 ||
      $h < 1 || $h > 256 || $s < 1 || $s > 63 ) {
-    print STDERR "Usage: $0 [-doF] file c h s (max: 1024 256 63)\n";
+    print STDERR "Usage: $0 [-doF4] file c h s (max: 1024 256 63)\n";
     print STDERR "    -d    add DOSEMU header\n";
     print STDERR "    -o    print filesystem offset to stdout\n";
     print STDERR "    -F    format partition as FAT32\n";
+    print STDERR "    -4    use partition entry 4 (standard for zipdisks)\n";
     exit 1;
 }
 
@@ -61,7 +68,7 @@ $cylsize = $h*$s*512;
 
 sysopen(OUTPUT, $file, O_CREAT|O_RDWR|O_TRUNC, 0666)
     or die "$0: Cannot open: $file\n";
-eval { binmode OUTPUT; };
+binmode OUTPUT;
 
 # Print out DOSEMU header, if requested
 if ( $opt{'d'} ) {
@@ -99,9 +106,14 @@ if ( $psize > 65536 ) {
 } else {
     $fstype = 0x04;
 }
-print OUTPUT pack("CCCCCCCCVV", 0x80, $bhead, $bsect, $bcyl, $fstype,
-		  $ehead, $esect, $ecyl, $s, $psize);
-print OUTPUT "\0" x 48;
+for ( $i = 1 ; $i <= 4 ; $i++ ) {
+    if ( $i == $pentry ) {
+	print OUTPUT pack("CCCCCCCCVV", 0x80, $bhead, $bsect, $bcyl, $fstype,
+			  $ehead, $esect, $ecyl, $s, $psize);
+    } else {
+	print OUTPUT "\0" x 16;
+    }
+}
 print OUTPUT "\x55\xaa";
 
 # Output blank file
@@ -134,7 +146,13 @@ die "$0: Failed to create symlink $imglink\n"
     if ( !symlink(absolute_path($file), $imglink) );
 
 $header_size = ($opt{'d'} ? 128 : 0);
+
+# Start of filesystem
 $offset = $s*512 + $header_size;
+
+# Start of partition table entry
+$pstart = $header_size + 446 + 16*($pentry-1);
+
 open(MCONFIG, "> ${cfgfile}") or die "$0: Cannot make mtools config\n";
 print MCONFIG "drive z:\n";
 print MCONFIG "file=\"${imglink}\"\n";
@@ -183,8 +201,20 @@ if ( $opt{'F'} ) {
 	$fstype = 0x01;		# FAT12
     }
 }
-seek(OUTPUT, 446+4 + $header_size, 0);
+seek(OUTPUT, $pstart+4, 0);
 print OUTPUT pack("C", $fstype);
+
+flush OUTPUT;
+
+# Just in case this is a block device, try to flush the partition table
+eval {
+    use POSIX;
+    ($sysname, $nodename, $release, $version, $machine) = POSIX::uname();
+    if ( $sysname eq 'Linux' ) {
+	$BLKRRPART = 0x125f;
+	ioctl(OUTPUT, $BLKRRPART, 0);
+    }
+};
 
 exit 0;
 __END__
