@@ -38,18 +38,10 @@ floppy image:
    1,474,560 bytes - 1440K floppy
    2,949,120 bytes - 2880K floppy
 
-For any other size, the image is assumed to be a hard disk image (and
-should typically have an MBR and a partition table.)  Currently, the hard
-disk is always given the geometry of 16 heads, 63 sectors (the number of
-cylinders is derived from the image size) and should therefore be an even
-multiple of 516,096 bytes; in a future version I plan to examine the
-partition table to deduce the CHS geometry.
-
-SYSLINUX 1.65-pre4 does not contain what I would call a "release
-quality" version of MEMDISK, but it does seem to work (I have
-successfully booted DOS over the net using PXELINUX with it.)  It
-contains an awful lot of debugging messages at this point, for one
-thing.
+For any other size, the image is assumed to be a hard disk image, and
+should typically have an MBR and a partition table.  The disk C/H/S
+geometry is determined by examining the partition table, so the entire
+image should be partitioned for proper operation.
 
 If you want to recompile it from sources, you will need to make sure that
 you have a fairly recent binutils installed.  I have been using the
