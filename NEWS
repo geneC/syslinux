@@ -11,6 +11,7 @@ Changes in 2.01:
 	* Update the mkdiskimage script to handle newer mtools
 	  versions, and be able to generate disk images with DOSEMU
 	  headers (controlled by the -d option).
+	* Fix the COM32 sample program.
 
 Changes in 2.00:
 	* ALL: Add support for "COM32" (32-bit COMBOOT) images.

@@ -46,11 +46,12 @@ typedef struct {
   reg32_t eflags;		/* Offset 40 */
 } com32sys_t;
 
-/* The standard prototype for _start() */
-int _start(unsigned int __nargs,
-	   char *__cmdline,
-	   void (*__syscall)(uint8_t, com32sys_t *, com32sys_t *),
-	   void *__bounce_ptr,
-	   unsigned int __bounce_len);
+extern struct com32_sys_args {
+  uint32_t cs_sysargs;
+  char *cs_cmdline;
+  void (*cs_syscall)(uint8_t, com32sys_t *, com32sys_t *);
+  void *cs_bounce;
+  uint32_t cs_bounce_size;
+} __com32;
 
 #endif /* _COM32_H */

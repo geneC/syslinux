@@ -27,9 +27,7 @@ static inline void memset(void *buf, int ch, unsigned int len)
 	       : "+D" (buf), "+c" (len) : "a" (ch) : "memory");
 }
 
-int _start(unsigned int nargs, char *cmdline,
-	   void (*syscall)(unsigned char, com32sys_t *, com32sys_t *),
-	   void *bounce_ptr, unsigned int bounce_len)
+int __start(void)
 {
   const char *msg = "Hello, World!\r\n";
   com32sys_t inreg, outreg;
@@ -40,7 +38,7 @@ int _start(unsigned int nargs, char *cmdline,
   for ( p = msg ; *p ; p++ ) {
     inreg.edx.b[0] = *p;
     inreg.eax.b[1] = 0x02;	/* Write Character */
-    syscall(0x21, &inreg, NULL);
+    __com32.cs_syscall(0x21, &inreg, NULL);
   }
 
   return 0;

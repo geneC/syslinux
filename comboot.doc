@@ -62,6 +62,9 @@ be possible to create a COM32 execution engine that would run under
 something like Linux DOSEMU, it is recommended that the code does not
 assume CPL 0 unless absolutely necessary.
 
+It is highly recommended that every COM32 program begins with the byte
+sequence B8 FF 4C CD 21 (mov eax,21cd4cffh) as a magic number.
+
 A COM32 file should have extension ".c32".
 
 On startup, CS will be set up as a flat 32-bit code segment, and DS ==
