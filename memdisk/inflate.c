@@ -109,17 +109,6 @@
 static char rcsid[] = "#Id: inflate.c,v 0.14 1993/06/10 13:27:04 jloup Exp #";
 #endif
 
-#ifndef STATIC
-
-#if defined(STDC_HEADERS) || defined(HAVE_STDLIB_H)
-#  include <sys/types.h>
-#  include <stdlib.h>
-#endif
-
-#include "gzip.h"
-#define STATIC
-#endif /* !STATIC */
-	
 #define slide window
 
 /* Huffman code lookup table entry--this entry is four bytes for machines
