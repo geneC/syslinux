@@ -295,6 +295,9 @@ KernelSize	resd 1			; Size of kernel (bytes)
 RootDir		resd 1			; Root directory location (LBA)
 RootDirLen	resd 1			; Root directory length
 RootDirClust	resd 1			; Root directory length in clusters
+CurDir		resd 1			; Current directory location (LBA)
+CurDirLen	resd 1			; Current directory length
+CurDirClust	resd 1			; Current directory length in clusters
 SavedSSSP	resw 1			; Our SS:SP while running a COMBOOT image
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
@@ -333,6 +336,7 @@ KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
 FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
+ISOFlags	resb 1			; Flags for ISO directory search
 TextColorReg	resb 17			; VGA color registers for text mode
 VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
 VGAFileBufEnd	equ $
@@ -794,29 +798,6 @@ rl_checkpt_off	equ ($-$$)
 
 all_read:
 ;
-; Now, we need to sniff out the actual filesystem data structures.
-; mkisofs gave us a pointer to the primary volume descriptor
-; (which will be at 16 only for a single-session disk!); from the PVD
-; we should be able to find the rest of what we need to know.
-; 
-get_fs_structures:
-		mov eax,[bi_pvd]
-		mov bx,trackbuf
-		call getonesec
-
-		mov si,dbg_rootdir_msg			; ***
-		call writemsg				; ***
-		mov eax,[trackbuf+156+2]
-		mov [RootDir],eax
-		call writehex8				; ***
-		call crlf				; ***
-		mov eax,[trackbuf+156+10]
-		mov [RootDirLen],eax		
-		add eax,SECTORSIZE-1
-		shr eax,SECTORSIZE_LG2
-		mov [RootDirClust],eax
-
-;
 ; Initialize screen (if we're using one)
 ;
 		; Get ROM 8x16 font in case we switch to graphics mode
@@ -965,8 +946,54 @@ mkkeymap:	stosb
 		loop mkkeymap
 
 ;
+; Now, we need to sniff out the actual filesystem data structures.
+; mkisofs gave us a pointer to the primary volume descriptor
+; (which will be at 16 only for a single-session disk!); from the PVD
+; we should be able to find the rest of what we need to know.
+; 
+get_fs_structures:
+		mov eax,[bi_pvd]
+		mov bx,trackbuf
+		call getonesec
+
+		mov si,dbg_rootdir_msg			; ***
+		call writemsg				; ***
+		mov eax,[trackbuf+156+2]
+		mov [RootDir],eax
+		mov [CurDir],eax
+		call writehex8				; ***
+		call crlf				; ***
+		mov eax,[trackbuf+156+10]
+		mov [RootDirLen],eax		
+		mov [CurDirLen],eax
+		add eax,SECTORSIZE-1
+		shr eax,SECTORSIZE_LG2
+		mov [RootDirClust],eax
+		mov [CurDirClust],eax
+
+		; Look for an "isolinux" directory, and if found,
+		; make it the current directory instead of the root
+		; directory.
+		mov di,isolinux_dir
+		mov al,02h			; Search for a directory
+		call searchdir_iso
+		jz .no_isolinux_dir
+
+		mov [CurDirLen],eax
+		mov eax,[si+file_sector]
+		mov [CurDir],eax
+		mov eax,[si+file_left]
+		mov [CurDirClust],eax
+
+		xor eax,eax
+		mov [si+file_sector],eax	; Free this file pointer entry
+
+.no_isolinux_dir:
+
+;
 ; Locate the configuration file
 ;
+load_config:
 		mov si,dbg_config_msg		; ***
 		call writemsg			; ***
 
@@ -2671,13 +2698,21 @@ kaboom:
 ;		DS:DI	= filename
 ;	     If successful:
 ;		ZF clear
-;		SI	= file pointer
-;		DX:AX	= file length in bytes
+;		SI		= file pointer
+;		DX:AX or EAX	= file length in bytes
 ;	     If unsuccessful
 ;		ZF set
 ;
 
+;
+; searchdir_iso is a special entry point for ISOLINUX only.  In addition
+; to the above, searchdir_iso passes a file flag mask in AL.  This is useful
+; for searching for directories.
+;
 searchdir:
+		xor al,al
+searchdir_iso:
+		mov [ISOFlags],al
 		TRACER 'S'
 		push es
 		push ds
@@ -2707,7 +2742,9 @@ searchdir:
 		cmp al,33
 		jb .next_sector
 		TRACER 'c'
-		test [si+25], byte 8Eh		; Unwanted file attributes!
+		mov al,[si+25]
+		xor al,[ISOFlags]
+		test al, byte 8Eh		; Unwanted file attributes!
 		jnz .not_file
 		pusha
 		movzx cx,byte [si+32]		; File identifier length
@@ -4028,6 +4065,7 @@ aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
 crff_msg	db CR, FF, 0
 default_str	db 'default', 0
 default_len	equ ($-default_str)
+isolinux_dir	db 'isolinux', 0
 isolinux_cfg	db 'isolinux.cfg', 0
 
 dbg_rootdir_msg	db 'Root directory at LBA = ', 0
