@@ -360,6 +360,7 @@ comapi_close:
 ;
 ; INT 22h AX=0009h	Call PXE stack
 ;
+comapi_pxecall:
 %if IS_PXELINUX
 		call far [PXENVEntry]
 		clc
