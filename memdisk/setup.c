@@ -307,6 +307,8 @@ static const struct geometry geometries[] =
   { 1440, 80,  2,  9, 0, 0x03, 0 }, /*  720 K*/
   { 2400, 80,  2, 15, 0, 0x02, 0 }, /* 1200 K */
   { 2880, 80,  2, 18, 0, 0x04, 0 }, /* 1440 K */
+  { 1680, 80,  2, 21, 0, 0x04, 0 }, /* 1680 K */
+  { 1722, 82,  2, 21, 0, 0x04, 0 }, /* 1722 K */
   { 5760, 80,  2, 36, 0, 0x06, 0 }, /* 2880 K */
 };
 #define known_geometries (sizeof(geometries)/sizeof(struct geometry))

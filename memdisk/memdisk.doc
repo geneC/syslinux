@@ -36,6 +36,8 @@ floppy image:
      737,280 bytes -  720K floppy
    1,222,800 bytes - 1200K floppy
    1,474,560 bytes - 1440K floppy
+   1,720,320 bytes - 1680K floppy (common extended format)
+   1,763,328 bytes - 1722K floppy (common extended format)
    2,949,120 bytes - 2880K floppy
 
 For any other size, the image is assumed to be a hard disk image, and
