@@ -92,7 +92,7 @@ all:	$(BTARGET) $(ITARGET)
 	ls -l $(BTARGET) $(ITARGET) memdisk/memdisk
 
 installer: $(ITARGET)
-	$(MAKE) -C $(ISUBDIRS) all
+	for i in $(ISUBDIRS); do $(MAKE) -C $$i all ; done
 	ls -l $(BTARGET) $(ITARGET)
 
 version.gen: version version.pl
