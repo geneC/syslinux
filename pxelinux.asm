@@ -222,6 +222,7 @@ KernelExtPtr	resw 1			; During search, final null pointer
 IPOptionLen	resw 1			; Length of IPOption
 LocalBootType	resw 1			; Local boot return code
 RealBaseMem	resw 1			; Amount of DOS memory after freeing
+APIVer		resw 1			; PXE API version found
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -246,6 +247,15 @@ TextColorReg	resb 17			; VGA color registers for text mode
 VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
 VGAFileBufEnd	equ $
 VGAFileMBuf	resb FILENAME_MAX	; Mangled VGA image name
+
+;
+; PXE packets which don't need static initialization
+;
+		alignb 4
+pxe_unload_stack_pkt:
+.status:	resw 1			; Status
+.reserved:	resw 10			; Reserved
+pxe_unload_stack_pkt_len	equ $-pxe_unload_stack_pkt
 
 		alignb tftp_port_t_size
 Sockets		resb MAX_SOCKETS*tftp_port_t_size
@@ -306,6 +316,15 @@ _start1:
 		call writestr
 
 ;
+; Assume API version 2.1, in case we find the !PXE structure without
+; finding the PXENV+ structure.  This should really look at the Base
+; Code ROM ID structure in have_pxe, but this is adequate for now --
+; if we have !PXE, we have to be 2.1 or higher, and we don't care
+; about higher versions than that.
+;
+		mov word [APIVer],0201h
+
+;
 ; Now we need to find the !PXE structure.  It's *supposed* to be pointed
 ; to by SS:[SP+4], but support INT 1Ah, AX=5650h method as well.
 ;
@@ -343,10 +362,11 @@ have_pxenv:
 		mov si,apiver_str
 		call writestr
 		mov ax,[es:bx+6]
+		mov [APIVer],ax
 		call writehex4
 		call crlf
 
-		cmp word [es:bx+6], 0201h	; API version 2.1 or higher
+		cmp ax,0201h			; API version 2.1 or higher
 		jb old_api
 		mov si,bx
 		mov ax,es
@@ -1923,44 +1943,77 @@ ack_packet:
 ; unload_pxe:
 ;
 ; This function unloads the PXE and UNDI stacks and unclaims
-; the memory.
+; the memory.  Assumes CS == DS == ES.
 ;
 unload_pxe:
-		mov di,pxe_udp_close_pkt
-		mov bx,PXENV_UDP_CLOSE
-		call far [PXENVEntry]
-		mov di,pxe_undi_shutdown_pkt
-		mov bx,PXENV_UNDI_SHUTDOWN
-		call far [PXENVEntry]
+		test byte [KeepPXE],01h		; Should we keep PXE around?
+		jnz reset_pxe
+
+		mov si,new_api_unload
+		cmp byte [APIVer+1],2		; Major API version >= 2?
+		jae .new_api
+		mov si,old_api_unload
+.new_api:
+		
+.call_loop:	xor ax,ax
+		lodsb
+		and ax,ax
+		jz .call_done
+		xchg bx,ax
 		mov di,pxe_unload_stack_pkt
-		mov bx,PXENV_UNLOAD_STACK
+		push di
+		xor ax,ax
+		mov cx,pxe_unload_stack_pkt_len >> 1
+		rep stosw
+		pop di
 		call far [PXENVEntry]
 		jc .cant_free
-		cmp word [pxe_unload_stack_pkt.status],byte PXENV_STATUS_SUCCESS
+		cmp word [pxe_unload_stack_pkt.status],PXENV_STATUS_SUCCESS
 		jne .cant_free
+		jmp .call_loop
 
-		mov ax,[RealBaseMem]
-		cmp ax,[BIOS_fbm]		; Sanity check
+.call_done:
+		mov bx,0FF00h
+
+		mov dx,[RealBaseMem]
+		cmp dx,[BIOS_fbm]		; Sanity check
 		jna .cant_free
+		inc bx
 
 		; Check that PXE actually unhooked the INT 1Ah chain
-		movzx ebx,word [4*0x1a]
+		movzx eax,word [4*0x1a]
 		movzx ecx,word [4*0x1a+2]
 		shl ecx,4
-		add ebx,ecx
-		shr ebx,10
-		cmp bx,ax			; Not in range
+		add eax,ecx
+		shr eax,10
+		cmp ax,dx			; Not in range
 		jae .ok
-		cmp bx,[BIOS_fbm]
-		jae .cant_free		
+		cmp ax,[BIOS_fbm]
+		jae .cant_free
+		; inc bx
 
 .ok:
-		mov [BIOS_fbm],ax
+		mov [BIOS_fbm],dx
 		ret
 		
 .cant_free:
 		mov si,cant_free_msg
-		jmp writestr
+		call writestr
+		xchg ax,bx
+		call writehex4
+		mov al,'-'
+		call writechr
+		mov eax,[4*0x1a]
+		call writehex8
+		jmp crlf
+
+		; We want to keep PXE around, but still we should reset
+		; it to the standard bootup configuration
+reset_pxe:
+		mov bx,PXENV_UDP_CLOSE
+		mov di,pxe_udp_close_pkt
+		call far [PXENVEntry]
+		ret
 
 ;
 ; gendotquad
@@ -2279,7 +2332,7 @@ undi_data_msg	  db 'UNDI data segment at:   ',0
 undi_data_len_msg db 'UNDI data segment size: ',0 
 undi_code_msg	  db 'UNDI code segment at:   ',0
 undi_code_len_msg db 'UNDI code segment size: ',0 
-cant_free_msg	db 'Failed to free base memory, sorry...', CR, LF, 0
+cant_free_msg	db 'Failed to free base memory, error ', 0
 notfound_msg	db 'not found', CR, LF, 0
 myipaddr_msg	db 'My IP address seems to be ',0
 tftpprefix_msg	db 'TFTP prefix: ', 0
@@ -2332,6 +2385,22 @@ exten_table_end:
 PXENVEntry	dw pxe_thunk,0
 
 ;
+; PXE unload sequences
+;
+new_api_unload:
+		db PXENV_UDP_CLOSE
+		db PXENV_UNDI_SHUTDOWN
+		db PXENV_UNLOAD_STACK
+		db PXENV_STOP_UNDI
+		db 0
+old_api_unload:
+		db PXENV_UDP_CLOSE
+		db PXENV_UNDI_SHUTDOWN
+		db PXENV_UNLOAD_STACK
+		db PXENV_UNDI_CLEANUP
+		db 0
+
+;
 ; PXE query packets partially filled in
 ;
 pxe_bootp_query_pkt_2:
@@ -2380,13 +2449,6 @@ pxe_udp_read_pkt:
 .buffersize:	dw 0			; Max packet size
 .buffer:	dw 0, 0			; seg:off of buffer
 
-pxe_unload_stack_pkt:
-.status:	dw 0			; Status
-.reserved:	times 10 db 0		; Reserved
-
-pxe_undi_shutdown_pkt:
-.status:	dw 0			; Status
-
 ;
 ; Misc initialized (data) variables
 ;
@@ -2403,6 +2465,7 @@ NextSocket	dw 49152		; Counter for allocating socket numbers
 VGAFontSize	dw 16			; Defaults to 16 byte font
 UserFont	db 0			; Using a user-specified font
 ScrollAttribute	db 07h			; White on black (for text mode)
+KeepPXE		db 0			; Should PXE be kept around?
 
 ;
 ; TFTP commands

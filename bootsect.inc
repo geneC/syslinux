@@ -80,9 +80,7 @@ load_bootsec:
 %elif IS_PXELINUX
 		; Close the UDP stack so the PXE stack is in a known state for
 		; the new NBP
-		mov di,pxe_udp_close_pkt
-		mov bx,PXENV_UDP_CLOSE
-		call far [PXENVEntry]
+		call reset_pxe
 %endif
 
 		pop ecx			; Byte count to copy

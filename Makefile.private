@@ -43,7 +43,8 @@ release:
 	cp -rP $(SOURCES) $(DOCS) $(OTHER) release/syslinux-$(VERSION)
 	find release/syslinux-$(VERSION) -name CVS -type d -print0 | \
 		xargs -0rt rm -rf
-	ln $(PRIVATE) release/syslinux-$(VERSION)
+	ln -f $(PRIVATE) release/syslinux-$(VERSION)
+	cd release/syslinux-$(VERSION) && $(MAKE) depend
 	cd release/syslinux-$(VERSION) && $(MAKE) official
 	cd release/syslinux-$(VERSION) && rm -f $(PRIVATE)
 	cd release && tar cvvf - syslinux-$(VERSION) | \

@@ -145,6 +145,16 @@ get_next_opt:   lodsb
 		je is_vga_cmd
                 cmp eax,'mem='
 		je is_mem_cmd
+%if IS_PXELINUX
+		cmp eax,'keep'			; Is it "keeppxe"?
+		jne .notkeep
+		cmp dword [si+3],'ppxe'
+		jne .notkeep
+		cmp byte [si+7],' '		; Must be whitespace or EOS
+		ja .notkeep
+		or byte [cs:KeepPXE],1
+.notkeep:
+%endif
                 push es                         ; Save ES -> real_mode_seg
                 push cs
                 pop es                          ; Set ES <- normal DS
@@ -152,6 +162,7 @@ get_next_opt:   lodsb
 		mov cx,initrd_cmd_len
 		repe cmpsb
                 jne not_initrd
+
 		mov di,InitRD
                 push si                         ; mangle_dir mangles si
                 call mangle_name                ; Mangle ramdisk name

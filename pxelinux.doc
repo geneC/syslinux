@@ -302,6 +302,17 @@ varying degrees of severity.  Please see:
 if known.
 
 
+    ++++ KEEPING THE PXE STACK AROUND ++++
+
+Normally, PXELINUX will unload the PXE and UNDI stacks before invoking
+the kernel.  In special circumstances (for example, when using MEMDISK
+to boot an operating system with an UNDI network driver) it might be
+desirable to keep the PXE stack in memory.  If the option "keeppxe"
+is given on the kernel command line, PXELINUX will keep the PXE and
+UNDI stacks in memory.  (If you don't know what this means, you
+probably don't need it.)
+
+
     ++++ CURRENTLY KNOWN PROBLEMS ++++
 
 The following problems are known with PXELINUX, so far:
@@ -309,10 +320,6 @@ The following problems are known with PXELINUX, so far:
 + Requires a TFTP server which supports the "tsize" option.
 + The error recovery routine doesn't work quite right.  For right now,
   it just does a hard reset - seems good enough.
-+ There may be funnies with memory management.  The PXE spec has no
-  decent way of telling it to free up all memory and unchain any
-  interrupts; it allows the base stack to be unloaded, but not the
-  UNDI driver.
 + We should probably call the UDP receive function in the keyboard
   entry loop, so that we answer ARP requests.
 + Boot sectors/disk images are not supported yet.

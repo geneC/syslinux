@@ -55,10 +55,9 @@ com32_start:
 		mov ebx,com32_call_start	; Where to go in PM
 
 com32_enter_pm:
+		cli
 		mov [SavedSSSP],sp
 		mov [SavedSSSP+2],ss
-
-		cli
 		cld
 		call a20_test
 		jnz .a20ok
