@@ -40,6 +40,7 @@ release:
 	-rm -rf release/syslinux-$(VERSION)
 	-rm -f release/syslinux-$(VERSION).*
 	mkdir -p release/syslinux-$(VERSION)
+	mkdir -p release/syslinux-$(VERSION)/com32
 	cp -rP $(SOURCES) $(DOCS) $(OTHER) release/syslinux-$(VERSION)
 	find release/syslinux-$(VERSION) -name CVS -type d -print0 | \
 		xargs -0rt rm -rf
