@@ -422,6 +422,7 @@ getonesec:
 ; the order to dst,src to keep things sane.
 ;
 getlinsec:
+		add eax,[bsHidden]		; Add partition offset
 		jmp strict short getlinsec_cbios	; This is patched
 
 ;
@@ -770,7 +771,6 @@ genfatinfo:
 .have_secs:
 		mov [TotalSectors],edx
 
-		mov eax,[bsHidden]		; Hidden sectors aren't included
 		add edx,eax
 		mov [EndSector],edx
 

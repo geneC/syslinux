@@ -114,7 +114,7 @@ getcbuf		resb trackbufsize
 		; ends at 5000h
 
 SuperBlock	resb 1024		; ext2 superblock
-SuperInfo	resd 16			; DOS superblock expanded
+SuperInfo	resq 16			; DOS superblock expanded
 ClustSize	resd 1			; Bytes/cluster ("block")
 SecPerClust	resd 1			; Sectors/cluster
 ClustMask	resd 1			; Sectors/cluster - 1
@@ -317,7 +317,7 @@ eddcheck:
 		;
 		; We have EDD support...
 		;
-		mov byte [getlinsec+1],getlinsec_ebios-(getlinsec+2)
+		mov byte [getlinsec.jmp+1],getlinsec_ebios-(getlinsec.jmp+2)
 .noedd:
 
 ;
@@ -411,7 +411,8 @@ getonesec:
 ; the order to dst,src to keep things sane.
 ;
 getlinsec:
-		jmp strict short getlinsec_cbios	; This is patched
+		add eax,[bsHidden]		; Add partition offset
+.jmp:		jmp strict short getlinsec_cbios	; This is patched
 
 ;
 ; getlinsec_ebios:
