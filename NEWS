@@ -3,7 +3,10 @@ apply to that specific program only; other changes apply to all of
 them.
 
 Changes in 3.03:
-	* EXTLINUX: Fix API function 000Ah (get derivative-specific info).
+	* EXTLINUX: Fix API function 000Ah (get derivative-specific
+	  info).
+	* libcom32/ethersel: Support PCI Config Mechanism #2 on
+	  machines still infested with that hideous old hack.
 
 Changes in 3.02:
 	* SYSLINUX: The "unix" installer now sets the MS-DOS
