@@ -22,10 +22,15 @@
 
 /* BIOS Assisted output routines */
 
+void bios_int10(void)
+{
+  asm volatile("pushl %ebp ; int $0x10 ; popl %ebp");
+}
+
 /* Print character and attribute at cursor */
 static inline void asm_cprint(char chr, char attr, int times, char disppage)
 {
-    asm volatile("movb $0x09,%%ah ; int $0x10"
+    asm volatile("movb $0x09,%%ah ; call bios_int10"
 		 : "+a" (chr) : "b" (attr + (disppage << 8)), "c" (times));
 }
 
@@ -36,7 +41,7 @@ void cprint(char chr,char attr,int times,char disppage)
 
 static inline void asm_setdisppage(char num)
 {
-    asm volatile("movb $0x05,%%ah ; int $0x10"
+    asm volatile("movb $0x05,%%ah ; call bios_int10"
 		 : "+a" (num));
 }
 
@@ -50,8 +55,9 @@ static inline char asm_getdisppage(void)
     char page;
     
     asm("movb $0x0f,%%ah ; "
-	"int $0x10 ; "
-	"movb %%bh,%0" : "=abcdm" (page) : : "eax", "ebp");
+	"call bios_int10 ; "
+	"movb %%bh,%0"
+	: "=abcdm" (page) : : "eax");
     return page;
 }
 
@@ -64,7 +70,7 @@ static inline void asm_getpos(char *row, char *col, char page)
 {
     asm("movb %2,%%bh ; "
 	"movb $0x03,%%ah ; "
-	"int $0x10 ; "
+	"call bios_int10 ; "
 	"movb %%dh,%0 ; "
 	"movb %%dl,%1"
 	: "=m" (*row), "=m" (*col)
@@ -81,7 +87,7 @@ static inline void asm_gotoxy(char row,char col, char page)
 {
     asm volatile("movb %1,%%bh ; "
 		 "movb $0x02,%%ah ; "
-		 "int $0x10"
+		 "call bios_int10"
 		 : : "d" ((row << 8) + col), "abcdmi" (page)
 		 : "eax", "ebx");
 }
@@ -117,7 +123,7 @@ void asm_beep()
   // For a beep the page number (bh) does not matter, so set it to zero
   asm volatile("movw $0x0E07, %%ax;"
 	       "xor  %%bh,%%bh;"
-	       "int $0x10"
+	       "call bios_int10"
 	       : : : "eax","ebx");
 }
 
@@ -132,7 +138,7 @@ static inline void asm_putchar(char x, char attr,char page)
 		 "movb %2,%%bl;"
 		 "movb $0x09,%%ah;"
 		 "movw $0x1, %%cx;"
-		 "int $0x10"
+		 "call bios_int10"
 		 : "+a" (x)
 		 : "abcdmi" (page), "acdmi" (attr)
 		 : "ebx", "ecx", "ebp");
@@ -150,7 +156,7 @@ void scrollup()
   asm volatile("movw $0x0601, %%ax;"
 	       "movb $0x07, %%bh;"
 	       "xor %%cx, %%cx;"
-	       "int $0x10"
+	       "call bios_int10"
 	       : "+d" (dx)
 	       : : "eax","ebx","ecx");
 }
