@@ -912,8 +912,11 @@ pc_ipappend:	call getint			; "ipappend" command
 .vk:		mov [VKernelBuf+vk_ipappend],bl
 		jmp short parse_config_2
 
-pc_localboot:	cmp word [VKernelCtr],byte 0	; "localboot" command
-		je parse_config_2		; ("label" section only)
+pc_localboot:	call getint			; "localboot" command
+		and bx,bx
+		jz parse_config_2
+		cmp word [VKernelCtr],byte 0	; ("label" section only)
+		je parse_config_2
 		mov [VKernelBuf+vk_rname], byte 0	; Null kernel name
 		jmp short parse_config_2
 
@@ -933,12 +936,12 @@ pc_timeout:	call getint			; "timeout" command
 		mul bx				; clock ticks per 1/10 s
 		add bx,dx
 		mov [KbdTimeOut],bx
-		jmp short parse_config_2
+parse_config_2:	jmp parse_config
 
 pc_display:	call pc_getfile			; "display" command
 		jz parse_config_2		; File not found?
 		call get_msg_file		; Load and display file
-parse_config_2: jmp parse_config
+		jmp short parse_config_2
 
 pc_prompt:	call getint			; "prompt" command
 		jc parse_config_2
