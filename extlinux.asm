@@ -1381,8 +1381,8 @@ err_noram	db 'It appears your computer has less than '
 		db 'this message in error, hold down the Ctrl key while'
 		db CR, LF
 		db 'booting, and I will take your word for it.', CR, LF, 0
-err_badcfg      db 'Unknown keyword in syslinux.cfg.', CR, LF, 0
-err_noparm      db 'Missing parameter in syslinux.cfg.', CR, LF, 0
+err_badcfg      db 'Unknown keyword in extlinux.conf.', CR, LF, 0
+err_noparm      db 'Missing parameter in extlinux.conf.', CR, LF, 0
 err_noinitrd    db CR, LF, 'Could not find ramdisk image: ', 0
 err_nohighmem   db 'Not enough memory to load specified kernel.', CR, LF, 0
 err_highload    db CR, LF, 'Kernel transfer failure.', CR, LF, 0
