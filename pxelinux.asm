@@ -397,9 +397,9 @@ _start1:
 		push es
 		push fs
 		push gs
-	
+
 		mov bp,sp
-		les bx,[bp+4]		; Initial !PXE structure pointer
+		les bx,[bp+48]		; Initial !PXE structure pointer
 
 		mov ax,cs
 		mov ds,ax
@@ -438,7 +438,7 @@ _start1:
 		jne no_pxe
 
 		; Okay, that gave us the PXENV+ structure, find !PXE
-		; structure from that
+		; structure from that (if available)
 		cmp dword [es:bx], 'PXEN'
 		jne no_pxe
 		cmp word [es:bx+4], 'V+'
