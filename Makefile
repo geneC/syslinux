@@ -112,16 +112,21 @@ release:
 	cd release/syslinux-$(VERSION) ; \
 		zip -9r ../syslinux-$(VERSION).zip *
 
+
+PREREL    := syslinux-$(VERSION)-$(DATE)
+PRERELDIR := release/syslinux-$(VERSION)-prerel
+ 
 prerel:
-	-rm -rf release/syslinux-$(VERSION)-$(DATE)
-	-rm -f release/syslinux-$(VERSION)-$(DATE).*
-	mkdir -p release/syslinux-$(VERSION)-$(DATE)
+	mkdir -p $(PRERELDIR)
+	-rm -rf $(PRERELDIR)/$(PREREL)
+	-rm -f $(PRERELDIR)/$(PREREL).*
+	mkdir -p $(PRERELDIR)/$(PREREL)
 	cp $(SOURCES) $(DOCS) $(OTHER) release/syslinux-$(VERSION)-$(DATE)
-	make -C release/syslinux-$(VERSION)-$(DATE) clean
-	make -C release/syslinux-$(VERSION)-$(DATE) HEXDATE="$(DATE)"
-	make -C release/syslinux-$(VERSION)-$(DATE) dist
-	cd release && tar cvvf - syslinux-$(VERSION)-$(DATE) | \
-		gzip -9 > syslinux-$(VERSION)-$(DATE).tar.gz 
-	cd release && uuencode syslinux-$(VERSION)-$(DATE).tar.gz syslinux-$(VERSION)-$(DATE).tar.gz > syslinux-$(VERSION)-$(DATE).uu
-	cd release/syslinux-$(VERSION)-$(DATE) && \
-		zip -9r ../syslinux-$(VERSION)-$(DATE).zip *
+	make -C $(PRERELDIR)/$(PREREL) clean
+	make -C $(PRERELDIR)/$(PREREL) HEXDATE="$(DATE)"
+	make -C $(PRERELDIR)/$(PREREL) dist
+	cd $(PRERELDIR) && tar cvvf - $(PREREL) | \
+		gzip -9 > $(PREREL).tar.gz 
+	cd $(PRERELDIR) && uuencode $(PREREL).tar.gz $(PREREL).tar.gz > $(PREREL).uu
+	cd $(PRERELDIR)/$(PREREL) && \
+		zip -9r ../$(PREREL).zip *
