@@ -19,11 +19,12 @@
 #include "string.h"
 #include "syslinux.h"
 
-char TESTING,RESCUE,MAIN,PREP;
-
-int menumain(void)
+int menumain(char *cmdline)
 {
   t_menuitem * curr;
+
+  char TESTING,RESCUE,MAIN;	/* The menus we're going to declare */
+  (void)cmdline;		/* Not used */
 
   // Choose the default title and setup default values for all attributes....
   init_menusystem(NULL);

@@ -110,11 +110,13 @@ void checkbox_handler(t_menusystem *ms, t_menuitem *mi)
     if (strcmp(mi->data,"dhcp") == 0) flags.dhcp    = (mi->itemdata.checked ? 1 : 0);
 }
 
-int menumain(void)
+int menumain(char *cmdline)
 {
   t_menuitem * curr;
-  char cmdline[160];
+  char cmd[160];
   char ip[30];
+
+  (void)cmdline;		/* Not used */
 
   // Choose the default title and setup default values for all attributes....
   init_menusystem(NULL);
@@ -172,21 +174,21 @@ int menumain(void)
         if (curr->action == OPT_EXIT) return 0;
         if (curr->action == OPT_RUN)
         {
-            strcpy(cmdline,curr->data);
+            strcpy(cmd,curr->data);
             if (curr == runprep)
             {
-                strcat(cmdline,infoline);
+                strcat(cmd,infoline);
                 if (flags.network && !flags.dhcp) // We want static
                 {
                     csprint("Enter IP address (last two octets only): ");
                     getstring(ip, sizeof ip);
-                    strcat(cmdline,"ipaddr=128.135.");
-                    strcat(cmdline,ip);
+                    strcat(cmd,"ipaddr=128.135.");
+                    strcat(cmd,ip);
                 }
             }
             if (syslinux)
-               runcommand(cmdline);
-            else csprint(cmdline);
+               runcommand(cmd);
+            else csprint(cmd);
             return 1;
         }
   }

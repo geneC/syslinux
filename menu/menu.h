@@ -190,6 +190,6 @@ int add_menu(const char *title);
 t_menuitem * add_item(const char *item, const char *status, t_action action, const char *data, char itemdata); 
 
 // Main function for the user's config file
-int menumain(void);
+int menumain(char *cmdline);
 
 #endif

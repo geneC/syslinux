@@ -14,8 +14,21 @@ _start:
 	cld
 	rep ; stosl
 
-	/* Invoke main() */
-	calll main
+	/* Normalize the command line.  At startup 0x80 = length and
+	   the command line starts at 0x81, but with whitespace */
+	movl $0x81,%esi
+	movzbl (0x80),%ebx
+	movb $0,(%bx,%si)		/* Null-terminate the string */
+1:
+	lodsb
+	dec %al				/* Stop on null */
+	cmp $31,%al			/* Whitespace? */
+	jbe 1
+	dec %si				/* Unskip first character */
+
+	/* Invoke _cstart */
+	pushl %esi			/* Pointer to command line */
+	calll _cstart
 
 	/* Terminate program (with error code in %al) */
 	movb $0x4c,%ah

@@ -21,16 +21,14 @@
 
 int syslinux;
 
-int main(void)
+int _cstart(char *cmdline)
 {
   int rv;
-  int origpage;
-  char r,c;
 
   syslinux = issyslinux();      /* Find if syslinux is running */
   if (syslinux) gototxtmode();  /* (else assume we are running in DOS) */
 
-  rv = menumain();		/* Run the actual menu system */
+  rv = menumain(cmdline);	/* Run the actual menu system */
 
   return rv;
 }
