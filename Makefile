@@ -38,13 +38,15 @@ all:	$(TARGETS)
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
 # guaranteed to be unique to be unique from build to build.
-NOW = $(shell perl now.pl ldlinux.asm)
+ifndef HEXDATE
+HEXDATE = $(shell perl now.pl ldlinux.asm)
+endif
 ifndef DATE
-DATE = $(NOW)
+DATE = $(HEXDATE)
 endif
 
 ldlinux.bin: ldlinux.asm genstupid.pl
-	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" -dHEXDATE="$(NOW)" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
+	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" -dHEXDATE="$(HEXDATE)" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
 	perl genstupid.pl < ldlinux.lst
 
 bootsect.bin: ldlinux.bin
@@ -116,7 +118,7 @@ prerel:
 	mkdir -p release/syslinux-$(VERSION)-$(DATE)
 	cp $(SOURCES) $(DOCS) $(OTHER) release/syslinux-$(VERSION)-$(DATE)
 	make -C release/syslinux-$(VERSION)-$(DATE) clean
-	make -C release/syslinux-$(VERSION)-$(DATE) DATE="$(DATE)"
+	make -C release/syslinux-$(VERSION)-$(DATE) HEXDATE="$(DATE)"
 	make -C release/syslinux-$(VERSION)-$(DATE) dist
 	cd release ; tar cvvf - syslinux-$(VERSION)-$(DATE) | \
 		gzip -9 > syslinux-$(VERSION)-$(DATE).tar.gz
