@@ -468,7 +468,7 @@ have_pxenv:
 		jb old_api
 		mov si,bx
 		mov ax,es
-		les bx,[es:bx+26h]		; !PXE structure pointer
+		les bx,[es:bx+28h]		; !PXE structure pointer
 		cmp dword [es:bx],'!PXE'
 		je have_pxe
 

@@ -1,6 +1,11 @@
 Starting with 1.47, changes marked with SYSLINUX/PXELINUX apply to
 that specific program only; other changes apply to both.
 
+Changes in 1.54:
+	* PXELINUX: Fix code for finding !PXE from PXENV+.  This was
+	  due to a spec bug; match the most recent spec since that
+	  seems to be what implementations actually do.
+
 Changes in 1.53:
 	* PXELINUX: Rename pxelinux.bin to pxelinux.0, to match what
 	  most PXE servers seem to expect.
