@@ -9,14 +9,18 @@ See the following files for documentation about SYSLINUX:
 	COPYING		- For the license terms of this software.
 
 SYSLINUX now builds in a Linux environment, using nasm.  You need nasm
-version 0.98.32 or later to build SYSLINUX from source.  See
+version 0.98.38 or later to build SYSLINUX from source.  See
 http://nasm.sf.net/ for information about nasm.
 
 There is now a mailing list for SYSLINUX.  See the end of syslinux.doc
 for details.
 
-SYSLINUX is Copyright 1994-2002 H. Peter Anvin, and is free software;
-you can redistribute it and/or modify it under the terms of the GNU
-General Public License as published by the Free Software Foundation,
-Inc., 675 Mass Ave, Cambridge MA 02139, USA; either version 2 of the
-License, or (at your option) any later version.
+SYSLINUX is:
+
+   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
+   Boston MA 02111-1307, USA; either version 2 of the License, or
+   (at your option) any later version; incorporated herein by reference.
