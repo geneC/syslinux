@@ -47,6 +47,9 @@ ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
       return n;
     
     switch ( ch ) {
+    case '\n':			/* Ignore incoming linefeed */
+      break;
+      
     case '\r':
       *buf = '\n';
       Write(fp, "\n", 1);
