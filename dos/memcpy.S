@@ -6,19 +6,19 @@
 #
 
 	.text
-	.code16
+	.code16gcc
 	.globl memcpy
 	.type memcpy, @function
 memcpy:
 	cld
-	pushl %edi
-	pushl %esi
-	movw 12(%esp),%di
-	movw 16(%esp),%si
-	movw 20(%esp),%cx
+	pushw %di
+	pushw %si
+	movw %ax,%di
+	movw %dx,%si
+	# The third argument is already in cx
 	rep ; movsb
-	popl %esi
-	popl %edi
+	popw %si
+	popw %di
 	ret
 
 	.size memcpy,.-memcpy

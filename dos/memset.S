@@ -6,17 +6,17 @@
 #
 
 	.text
-	.code16
+	.code16gcc
 	.globl memset
 	.type memset, @function
 memset:
 	cld
-	pushl %edi
-	movw 8(%esp),%di
-	movb 12(%esp),%al
-	movw 16(%esp),%cx
+	pushw %di
+	movw %ax,%di
+	movb %dl,%al
+	# The third argument is already in %cx
 	rep ; stosb
-	popl %edi
-	ret
+	popw %di
+	retl
 
 	.size memset,.-memset
