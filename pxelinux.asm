@@ -8,7 +8,7 @@
 ;  network booting API.  It is based on the SYSLINUX boot loader for
 ;  MS-DOS floppies.
 ;
-;   Copyright (C) 1994-1999  H. Peter Anvin
+;   Copyright (C) 1994-2000  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -365,6 +365,7 @@ RetryCount      resb 1			; Used for disk access retries
 KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
+A20KBCflag	resb 1			; Did we use KBC to access A20?
 FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
 
 		alignb tftp_port_t_size
@@ -2043,18 +2044,16 @@ bcopy:		push eax
 
 slow_out:	out dx, al		; Fall through
 
-_io_delay:	push ax
-		in ax,IO_DELAY_PORT
-		in ax,IO_DELAY_PORT
-		in ax,IO_DELAY_PORT
-		in ax,IO_DELAY_PORT
-		pop ax
+_io_delay:	out IO_DELAY_PORT,al
+		out IO_DELAY_PORT,al
+		out IO_DELAY_PORT,al
+		out IO_DELAY_PORT,al
 		ret
 
 enable_a20:
 		mov byte [ss:A20Tries],255 ; Times to try to make this work
 
-try_enable_a20:
+.try_enable_a20:
 ;
 ; Flush the caches
 ;
@@ -2063,44 +2062,46 @@ try_enable_a20:
 ;
 ; Enable the "fast A20 gate"
 ;
+		mov byte [ss:A20KBCflag], 0	; Haven't used the KBC yet
 		in al, 092h
 		or al,02h
+		and al,~01h			; Don't accidentally reset the machine!
 		out 092h, al
 ;
 ; Enable the keyboard controller A20 gate
 ;
+		mov dl, 1			; Allow early exit
 		call empty_8042
-		mov al,0D1h		; Command write
+		jnz .a20_wait			; A20 live, no need to use KBC
+
+		mov byte [ss:A20KBCflag], 1	; We touched the KBC
+		mov al,0D1h			; Command write
 		out 064h, al
-		call empty_8042
+		call empty_8042_uncond
+
 		mov al,0DFh		; A20 on
 		out 060h, al
-		call kbc_delay
+		call empty_8042_uncond
+
 		; Verify that A20 actually is enabled.  Do that by
 		; observing a word in low memory and the same word in
 		; the HMA until they are no longer coherent.  Note that
 		; we don't do the same check in the disable case, because
 		; we don't want to *require* A20 masking (SYSLINUX should
 		; work fine without it, if the BIOS does.)
-		push es
-		push cx
-		mov cx,0FFFFh		; Times to try, also HMA
-		mov es,cx		; HMA = segment 0FFFFh
-.a20_wait:	inc word [ss:A20Test]
-		call try_wbinvd
-		mov ax,[es:A20Test+10h]
-		cmp ax,[ss:A20Test]
-		jne .a20_done
-		loop .a20_wait
+.a20_wait:	push cx
+		mov cx, 0FFFFh
+.a20_wait_loop:
+		call a20_test
+		jnz .a20_done
+		loop .a20_wait_loop
 ;
 ; Oh bugger.  A20 is not responding.  Try frobbing it again; eventually give up
 ; and report failure to the user.
 ;
 		pop cx
-		pop es
-
 		dec byte [ss:A20Tries]
-		jnz try_enable_a20
+		jnz .try_enable_a20
 
 		mov si, err_a20
 		jmp abort_load
@@ -2108,6 +2109,27 @@ try_enable_a20:
 ; A20 unmasked, proceed...
 ;
 .a20_done:	pop cx
+		ret
+
+;
+; This routine tests if A20 is enabled (ZF = 0).  This routine
+; must not destroy any register contents.
+;
+a20_test:
+		push es
+		push cx
+		push ax
+		mov cx,0FFFFh		; HMA = segment 0FFFFh
+		mov es,ax
+		mov cx,0100h		; Loop count
+		mov ax,[ss:A20Test]
+.a20_wait:	inc ax
+		mov [ss:A20Test],ax
+		call try_wbinvd
+		cmp ax,[es:A20Test+10h]
+		loopz .a20_wait
+.a20_done:	pop ax
+		pop cx
 		pop es
 		ret
 
@@ -2120,29 +2142,43 @@ disable_a20:
 ; Disable the "fast A20 gate"
 ;
 		in al, 092h
-		and al,~02h
+		and al,~03h
 		out 092h, al
 ;
 ; Disable the keyboard controller A20 gate
 ;
-		call empty_8042
+		test [ss:A20KBCflag], byte 01h
+		jz .snooze		; Never messed with the KBC
+
+		; We did mess with the KBC, so we have to do this..
+		call empty_8042_uncond
 		mov al,0D1h
 		out 064h, al		; Command write
-		call empty_8042
+		call empty_8042_uncond
 		mov al,0DDh		; A20 off
 		out 060h, al
-		; Fall through/tailcall to kbc_delay
-
-kbc_delay:	call empty_8042
-		push cx
+		call empty_8042_uncond
+		; Wait a bit for it to take effect
+.snooze:	push cx
 		mov cx, delaytime
 .delayloop:	io_delay
 		loop .delayloop
 		pop cx
 		ret
 
+;
+; Routine to empty the 8042 KBC controller.  If dl != 0
+; then we will test A20 in the loop and exit if A20 is
+; suddenly enabled.
+;
+empty_8042_uncond:
+		xor dl,dl
 empty_8042:
-		io_delay
+		call a20_test
+		jz .a20_on
+		and dl,dl
+		jnz .done
+.a20_on:	io_delay
 		in al, 064h		; Status port
 		test al,1
 		jz .no_output
@@ -2153,7 +2189,7 @@ empty_8042:
 		test al,2
 		jnz empty_8042
 		io_delay
-		ret	
+.done:		ret	
 
 ;
 ; WBINVD instruction; gets auto-eliminated on 386 CPUs
