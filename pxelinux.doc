@@ -69,11 +69,13 @@ doing so.
     ++++ SETTING UP A DHCP SERVER ++++
 
 The PXE protocol uses a very complex set of extensions to DHCP or
-BOOTP, but it seems that at least existing implementations don't
-really require all of them; in fact, the only necessary option appears
-to be the dhcp-class-identifier "PXEClient".
+BOOTP.  ISC dhcp 3.0, currently in beta, appears to have enough smarts
+to support at least most of the full protocol.
 
-Using ISC dhcpd.conf syntax:
+However, I believe I have found a magic cookie set of options which is
+adequate to make all or most existing PXE client boot.
+
+Using ISC dhcp 2.0 dhcpd.conf syntax:
 
 configuration:
 
@@ -81,8 +83,10 @@ configuration:
         allow bootp;
 
         filename "/tftpboot/pxelinux.bin" ;
-        next-server <TFTP server>;
         option dhcp-class-identifier "PXEClient";
+	option vendor-encapsulated-options 09:0f:80:00:0c:4e:65:74:77:6f:72:6b:20:62:6f:6f:74:0a:07:00:50:72:6f:6d:70:74:06:01:02:08:03:80:00:00:47:04:80:00:00:00:ff;
+	next-server <TFTP-server>;
+	# server-identifier <TFTP-server>;	# Illegal! See below
 
         option domain-name "<domain name>";
         option subnet-mask <subnet mask>;
@@ -95,21 +99,28 @@ configuration:
                 fixed-address <hostname>;
         }
 
-
-The configuration above works even if the DHCP and TFTP servers are
-not the same machine.
+If the DHCP and TFTP servers are not on the same machine, you are
+supposed to set up a DHCP server on port 4011 on the TFTP server; this
+is the "PXE boot server", which uses the DHCP protocol.  If this is
+not possible, you can try adding the directive "server-identifier
+<TFTP-server>;"  Unfortunately this is a violation of DHCP
+protocol, but some PXE implementations do not accept the next-server
+directive without it or the "boot server".
 
 Note that if your particular TFTP daemon runs under chroot, it may be
 that the filename parameter should not include the /tftpboot prefix.
 
 I have successfully booted an Intel N440BX ("Nightshade") motherboard
 with onboard Ethernet and "Intel LANDesk(R) Service Agent II version
-0.99c", using ISC dhcpd 2.0.
+0.99c" (derived from the Intel PXE PDK 1.0) and the Intel PRO/100+
+Management Adapter "Boot agent 2.6 (build 071)" (derived from the
+Intel PXE PDK V3.0 bld 071) using the configuration above and ISC
+dhcpd 2.0.
 
-Unfortunately, this particular version of Intel LANDesk Service Agent
-II seems to have a rather serious bug : it requests the TFTP "blksize"
-option, but will be mortally confused if this option is actually
-accepted!  There are two possible workarounds for this bug:
+Unfortunately, the Intel LANDesk Service Agent II prior to version
+0.99h seems to have a rather serious bug : it requests the TFTP
+"blksize" option, but will be mortally confused if this option is
+actually accepted!  There are two possible workarounds for this bug:
 
 1. Use a TFTP server with doesn't support "blksize".
 
