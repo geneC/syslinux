@@ -362,21 +362,21 @@ AX=000Ah	Get Derivative-Specific Information
 		provided by the PXE stack, with the following values
 		pushed at the time PXELINUX is started:
 
-		fs:[si+0]	GS		<- top of stack
-		fs:[si+2]	FS
-		fs:[si+4]	ES
-		fs:[si+6]	DS
-		fs:[si+8]	EFLAGS
-		fs:[si+12]	EDI
-		fs:[si+16]	ESI
-		fs:[si+20]	EBP
-		fs:[si+24]	-
-		fs:[si+28]	EBX
-		fs:[si+32]	EDX
-		fs:[si+36]	ECX
-		fs:[si+40]	EAX
-		fs:[si+44]	PXE return IP	<- t.o.s. when PXELINUX invoked
-		fs:[si+46]	PXE return CS
+		[fs:si+0]	GS		<- top of stack
+		[fs:si+2]	FS
+		[fs:si+4]	ES
+		[fs:si+6]	DS
+		[fs:si+8]	EFLAGS
+		[fs:si+12]	EDI
+		[fs:si+16]	ESI
+		[fs:si+20]	EBP
+		[fs:si+24]	-
+		[fs:si+28]	EBX
+		[fs:si+32]	EDX
+		[fs:si+36]	ECX
+		[fs:si+40]	EAX
+		[fs:si+44]	PXE return IP	<- t.o.s. when PXELINUX invoked
+		[fs:si+46]	PXE return CS
 
 
 	[ISOLINUX]
