@@ -161,8 +161,13 @@ LABEL label
         specified in the global section of the file (before the first
         LABEL command.)  The default for "image" is the same as
         "label", and if no APPEND is given the default is to use the
-        global entry (if any).  Up to 64 LABEL entries are permitted
-	(for SYSLINUX, 128 LABEL entries.)
+        global entry (if any).
+
+	Starting with version 2.20, LABEL statements are compressed
+	internally, therefore the maximum number of LABEL statements
+	depends on their complexity.  Typical is around 600.  SYSLINUX
+	will print an error message if the internal memory for labels
+	is overrun.
 
         Note that LILO uses the syntax:
         image = mykernel

@@ -67,6 +67,8 @@ debugging messages enabled.  If you are having problems with ISOLINUX,
 I would greatly appreciate if you could try out the debugging version
 (isolinux-debug.bin) and let me know what it reports.
 
+YOU MAY WANT TO CONSIDER USING THE DEBUGGING VERSION BY DEFAULT.
+
 
       ++++ NOTE ON THE CONFIG FILE DIRECTORY ++++
 

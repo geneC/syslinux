@@ -16,6 +16,8 @@ Changes in 2.20:
 	  compressed format, which means that a lot more labels are
 	  permitted (500-1000 in a typical configuration, but depends
 	  on the complexity.)
+	* EXTLINUX: New derivative, which boots from an ext2/ext3
+	  filesystem.
 
 Changes in 2.13:
 	* MEMDISK: Fix command-line parsing "brown paper bag" class
