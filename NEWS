@@ -6,6 +6,8 @@ Changes in 1.63:
 	  correctly.
 	* Clean up "make install" target, honour INSTALLROOT if it
 	  exists.
+	* SYSLINUX: Fix stack-smash bug identified by Steffen
+	  Winterfeldt.
 
 Changes in 1.62:
 	* PXELINUX: Allow the DHCP server to override the

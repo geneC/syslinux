@@ -259,7 +259,6 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 
 
                 absolute 5000h          ; Here we keep our BSS stuff
-StackBuf	equ $			; Start the stack here (grow down - 4K)
 VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
@@ -341,6 +340,8 @@ VGAFileMBuf	resb 11			; Mangled VGA image name
 
 		section .text
                 org 7C00h
+StackBuf	equ $			; Start the stack here (grow down - 4K)
+
 ;
 ; Primary entry point.  Tempting as though it may be, we can't put the
 ; initial "cli" here; the jmp opcode in the first byte is part of the
