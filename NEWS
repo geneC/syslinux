@@ -1,7 +1,7 @@
 Changes in 1.40:
-	* Increase A20M delay to avoid problems on certain IBM
-	  Thinkpads (thanks to Donnie Barnes of RedHat for vital info
-	  on this one.)
+	* Increase A20M delay and put in a test to avoid problems on
+	  certain IBM Thinkpads (thanks to Donnie Barnes of RedHat
+	  for vital info on this one.)
 	* Support COMBOOT style boot command images.
 	* Support chain loading (foreign operating systems, e.g. DOS).
 	* Include a new "copybs" DOS utility to copy a boot sector to
@@ -58,45 +58,45 @@ Changes in 1.31:
 	  don't need Turbo C.)
 
 Changes in 1.30:
-        * Added support for loading bzImage and initrd loading, and made
-          SYSLINUX new-setup-code aware (SYSLINUX 1.30 id=0x31).
-        * Added LILO-style kernel labels; see the LABEL and IMPLICIT
-          keywords in README file.
-        * Added support for colorization of intro and help screens.
-        * The vga= option is now handled correctly.
-        * Massive rewrite of large chunks of the code in order to
-          support the first two new features.
+	* Added support for loading bzImage and initrd loading, and made
+	  SYSLINUX new-setup-code aware (SYSLINUX 1.30 id=0x31).
+	* Added LILO-style kernel labels; see the LABEL and IMPLICIT
+	  keywords in README file.
+	* Added support for colorization of intro and help screens.
+	* The vga= option is now handled correctly.
+	* Massive rewrite of large chunks of the code in order to
+	  support the first two new features.
 
 Changes in 1.20:
-        * Added simple online help at the "boot:" prompt.
-        * Removed 2880K image as I no longer have access to such a
-          floppy drive.  (Donations accepted!!)
-        * Decided to distribute the source in a subdirectory rather
-          than in a nested zipfile.
+	* Added simple online help at the "boot:" prompt.
+	* Removed 2880K image as I no longer have access to such a
+	  floppy drive.	 (Donations accepted!!)
+	* Decided to distribute the source in a subdirectory rather
+	  than in a nested zipfile.
 
 Changes in 1.11:
-        * Removed a sanity check which would cause booting to fail on
-          Phoenix BIOS version 4.03.  Apparently this BIOS is buggy.
+	* Removed a sanity check which would cause booting to fail on
+	  Phoenix BIOS version 4.03.  Apparently this BIOS is buggy.
 
 Changes in 1.10:
-        * Added configuration file SYSLINUX.CFG.  This file contains all
-          configurable options, and can be edited from any OS which can
-          access an MS-DOS filesystem; there is no longer a need to run
-          SYSLINUX.EXE except to write the boot sector.
-        * Default command line now given by "default" line in config
-          file.
-        * LINUXMSG.TXT and BOOTMSG.TXT hard-coded file names replaced by
-          "display" and "prompt" lines in config file.
-        * LILO-style option appending now supported ("append" line in
-          config file).
-        * Prompt timeout is now supported ("timeout" line in config
-          file).  The timeout is cancelled when anything is typed on the
-          command line.
-        * Pressing <ESC> or <Ctrl-C> at the Loading... stage now aborts
-          the kernel loading in progress and returns the user to the
-          boot: prompt.
-        * The installer now automatically sets the READONLY flag on
-          LDLINUX.SYS.
+	* Added configuration file SYSLINUX.CFG.  This file contains all
+	  configurable options, and can be edited from any OS which can
+	  access an MS-DOS filesystem; there is no longer a need to run
+	  SYSLINUX.EXE except to write the boot sector.
+	* Default command line now given by "default" line in config
+	  file.
+	* LINUXMSG.TXT and BOOTMSG.TXT hard-coded file names replaced by
+	  "display" and "prompt" lines in config file.
+	* LILO-style option appending now supported ("append" line in
+	  config file).
+	* Prompt timeout is now supported ("timeout" line in config
+	  file).  The timeout is cancelled when anything is typed on the
+	  command line.
+	* Pressing <ESC> or <Ctrl-C> at the Loading... stage now aborts
+	  the kernel loading in progress and returns the user to the
+	  boot: prompt.
+	* The installer now automatically sets the READONLY flag on
+	  LDLINUX.SYS.
 	* Added 2880K disk image.
 
 Changes in 1.03:
@@ -107,13 +107,13 @@ Changes in 1.03:
 	* Changed default kernel name on disk images to LINUX.
 
 Changes in 1.02:
-        * Fixed bug that would garble the command line on recent kernels
-          with more than 4 sectors of setup code (this wasn't really a
-          *bug*; rather, a kernel change broke the code.  Unfortunately
-          the Linux boot interface is still sorely undocumented).
-        * Added BOOTMSG.TXT file support (message file which does not
-          force display of the boot prompt).
+	* Fixed bug that would garble the command line on recent kernels
+	  with more than 4 sectors of setup code (this wasn't really a
+	  *bug*; rather, a kernel change broke the code.  Unfortunately
+	  the Linux boot interface is still sorely undocumented).
+	* Added BOOTMSG.TXT file support (message file which does not
+	  force display of the boot prompt).
 
 Changes in 1.01:
-        * Fixed bug on some (most?) 386 BIOSes would require two boot
-          attempts.
+	* Fixed bug on some (most?) 386 BIOSes would require two boot
+	  attempts.

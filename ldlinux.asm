@@ -341,6 +341,7 @@ InitRDCNameLen  resw 1			; Length of unmangled initrd name
 NextCharJump    resw 1			; Routine to interpret next print char
 SetupSecs	resw 1			; Number of setup sectors
 SavedSP		resw 1			; Our SP while running a COMBOOT image
+A20test		resw 1			; Counter for testing status of A20
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -2300,8 +2301,8 @@ bcopy:
 ;
 ; We typically toggle A20 twice for every 64K transferred.
 ; 
-%define	io_delay  out 080h,al		; Invalid port (we hope)
-%define delaytime 1024			; ISA bus cycles (1.5 µs)
+%define	io_delay  times 4 out 0EDh,al	; Invalid port (we hope)
+%define delaytime 256			; 4 x ISA bus cycles (@ 1.5 µs)
 
 enable_a20:
 		call empty_8042
@@ -2310,12 +2311,21 @@ enable_a20:
 		call empty_8042
 		mov al,0DFh		; A20 on
 		out 060h, al
-kbc_delay:	call empty_8042
-		push cx
-		mov cx, delaytime
-.delayloop:	io_delay
-		loop .delayloop
-		pop cx
+		call kbc_delay
+		; Verify that A20 actually is enabled.  Do that by
+		; observing a word in low memory and the same word in
+		; the HMA until they are no longer coherent.  Note that
+		; we don't do the same check in the disable case, because
+		; we don't want to *require* A20 masking (SYSLINUX should
+		; work fine without it, if the BIOS does.)
+		push es
+		mov ax,0FFFFh		; HMA
+		mov es,ax
+.a20_wait:	inc word [ss:A20test]
+		mov ax,[es:A20test+10h]
+		cmp ax,[ss:A20test]
+		je .a20_wait
+		pop es
 		ret
 
 disable_a20:
@@ -2326,6 +2336,14 @@ disable_a20:
 		mov al,0DDh		; A20 off
 		out 060h, al
 		jmp short kbc_delay
+
+kbc_delay:	call empty_8042
+		push cx
+		mov cx, delaytime
+.delayloop:	io_delay
+		loop .delayloop
+		pop cx
+		ret
 
 empty_8042:
 		io_delay
