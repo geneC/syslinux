@@ -30,7 +30,7 @@
 ; Some semi-configurable constants... change on your own risk.
 ;
 my_id		equ pxelinux_id
-FILENAME_MAX_LG2 equ 6			; log2(Max filename size Including final null)
+FILENAME_MAX_LG2 equ 7			; log2(Max filename size Including final null)
 FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
 NULLFILE	equ 0			; Zero byte == null file name
 REBOOT_TIME	equ 5*60		; If failure, time until full reset
@@ -93,7 +93,7 @@ TFTP_EOPTNEG	equ htons(8)		; Option negotiation failure
 ;
 ; Note: this structure can be added to, but it must 
 ;
-%define vk_power	7		; log2(max number of vkernels)
+%define vk_power	6		; log2(max number of vkernels)
 %define	max_vk		(1 << vk_power)	; Maximum number of vkernels
 %define vk_shift	(16-vk_power)	; Number of bits to shift
 %define vk_size		(1 << vk_shift)	; Size of a vkernel buffer
@@ -204,16 +204,21 @@ xbs_textbuf	equ 0			; Also hard-coded, do not change
 xbs_vgabuf	equ trackbufsize
 xbs_vgatmpbuf	equ 2*trackbufsize
 
-                absolute 5000h          ; Here we keep our BSS stuff
+                absolute 4000h          ; Here we keep our BSS stuff
 VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
 Ontimeout	resb max_cmd_len+1	; ontimeout
 Onerror		resb max_cmd_len+1	; onerror
 KbdMap		resb 256		; Keyboard map
-BootFile	resb 256		; Boot file from DHCP packet
 PathPrefix	resb 256		; Path prefix derived from the above
+BootFile	resb 256		; Boot file from DHCP packet
 ConfigName	resb 256		; Configuration file from DHCP option
+
+; Warning here: RBFG build 22 seems to randomly overwrite memory location
+; 0x5700.  Not sure why yet.  Consider that if these are realigned.
+
+		absolute 5800h
 FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
 NumBuf		resb 15			; Buffer to load number
 NumBufEnd	resb 1			; Last byte in NumBuf
@@ -1239,7 +1244,7 @@ searchdir:
 
 .pkt_loop:	mov bx,[bp-8]		; TID
 		mov di,packet_buf
-		mov [pxe_udp_read_pkt.status],byte 0
+		mov word [pxe_udp_read_pkt.status],0
 		mov [pxe_udp_read_pkt.buffer],di
 		mov [pxe_udp_read_pkt.buffer+2],ds
 		mov word [pxe_udp_read_pkt.buffersize],packet_buf_size
