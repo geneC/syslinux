@@ -112,15 +112,16 @@ that the filename parameter should not include the /tftpboot prefix.
 
 I have successfully booted an Intel N440BX ("Nightshade") motherboard
 with onboard Ethernet and "Intel LANDesk(R) Service Agent II version
-0.99c" (derived from the Intel PXE PDK 1.0) and the Intel PRO/100+
+0.99c" (derived from the Intel PXE PDK V2.0) and the Intel PRO/100+
 Management Adapter "Boot agent 2.6 (build 071)" (derived from the
 Intel PXE PDK V3.0 bld 071) using the configuration above and ISC
 dhcpd 2.0.
 
 Unfortunately, the Intel LANDesk Service Agent II prior to version
-0.99h seems to have a rather serious bug : it requests the TFTP
-"blksize" option, but will be mortally confused if this option is
-actually accepted!  There are two possible workarounds for this bug:
+0.99h (PXE PDK V2.4) seems to have a rather serious bug : it requests
+the TFTP "blksize" option, but will be mortally confused if this
+option is actually accepted by the server!  There are two possible
+workarounds for this bug:
 
 1. Use a TFTP server with doesn't support "blksize".
 
@@ -135,18 +136,8 @@ actually accepted!  There are two possible workarounds for this bug:
 
    ... and on any kernel.org mirror (see http://www.kernel.org/mirrors/).
 
-2. Add the following DHCP option:
-
-   THIS IS AN ILLEGAL OPTION - FIX THIS SECTION
-   "option vendor-encapsulated-options 08:00:00:01:7f:00:00:01 ;"
-
-   That line is not supposed to be necessary, and in fact makes
-   booting significantly slower, since it will attempt (and fail) an
-   MTFTP transfer before falling back to TFTP.  For some reason, the
-   boot PROM doesn't request the "blksize" option if it has already
-   failed an MTFTP transfer, and thus the bug is avoided.
-
-It appears this bug was fixed in version 0.99h.
+2. Use MTFTP for the initial bootstrap.  You need an MTFTP server to
+   do this.
 
 
     ++++ SOME NOTES ++++
@@ -169,7 +160,7 @@ Currently known problems:
 
 + Requires a TFTP server which supports the "tsize" option.
 + The error recovery routine doesn't work quite right.  For right now,
-  just do a hard reset.
+  it just does a hard reset - seems good enough.
 + There may be funnies with memory management.  The PXE spec has no
   decent way of telling it to free up all memory and unchain any
   interrupts; it allows the base stack to be unloaded, but not the

@@ -1,9 +1,12 @@
 Changes in 1.48:
 	* PXELINUX: Workaround for PXE ROMs based on the Intel PXE PDK
-	  2.0 build 071 and earlier: missing !PXE structure pointer.
+	  3.0 build 071 and earlier: missing !PXE structure pointer.
 	* PXELINUX: Handle larger BOOTP/DHCP packages.
 	* PXELINUX: The command line passing was broken; fix.
 	* PXELINUX: Make COMBOOT images work.
+	* PXELINUX: Documentation on how to make booting work using
+	  the PDK 3.0-derived clients, which aren't so generous as to
+	  allow booting with only "PXEClient" specified.
 
 Changes in 1.47:
 	* PXELINUX: RFC 1123 states that a TFTP implementation MUST
