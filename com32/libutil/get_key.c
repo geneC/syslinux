@@ -38,6 +38,8 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <time.h>
+#include <sys/times.h>
 #include <getkey.h>
 
 struct keycode {
@@ -116,20 +118,24 @@ int get_key(FILE *f)
   const struct keycode *kc;
   int another;
   unsigned char ch;
+  clock_t start;
 
   nc = 0;
+  start = times(NULL);
   do {
     rv = read(fileno(f), &ch, 1);
-    if ( rv == 0 )
-      return EOF;
-    else if ( rv == -1 && errno == EAGAIN ) {
-      if ( nc )
+    if ( rv == 0 || (rv == -1 && errno == EAGAIN) ) {
+      if ( nc && (clock_t)(times(NULL)-start) >= 2+CLK_TCK/20 )
 	return buffer[0];	/* timeout */
       else {
+	if ( !nc )
+	  start = times(NULL);
 	another = 1;
 	continue;
       }
     }
+
+    start = times(NULL);
 
     buffer[nc++] = ch;
 
@@ -138,6 +144,7 @@ int get_key(FILE *f)
       if ( nc == kc->seqlen && !memcmp(buffer, kc->seq, nc) )
 	return kc->code;
       else if ( nc < kc->seqlen && !memcmp(buffer, kc->seq, nc) ) {
+	another = 1;
 	break;
       }
     }

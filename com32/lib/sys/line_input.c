@@ -47,11 +47,9 @@ ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
   for(;;) {
     rv = get_char(fp, &ch, 1);
 
-    if ( rv == -1 && (errno == EINTR || errno == EAGAIN) )
+    if ( rv != 1 )
       continue;
-    else if ( rv != 1 )
-      return n;
-    
+
     switch ( ch ) {
     case '\n':			/* Ignore incoming linefeed */
       break;

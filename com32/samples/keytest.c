@@ -20,6 +20,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include <sys/times.h>
 
 #include <consoles.h>		/* Provided by libutil */
 #include <getkey.h>
@@ -70,6 +72,7 @@ int main(void)
 {
   console_ansi_raw();
 
+  printf("CLK_TCK = %d\n", (int)CLK_TCK);
   printf("Press keys, end with Ctrl-C...\n");
 
   for (;;) {

@@ -85,7 +85,7 @@ void console_ansi_raw(void)
   tio.c_iflag |= IGNCR;
   tio.c_lflag &= ~(ISIG|ICANON|ECHO);
   tio.c_cc[VMIN]  = 0;
-  tio.c_cc[VTIME] = 2;
+  tio.c_cc[VTIME] = 1;		/* Don't 100% busy-wait in Linux */
   tcsetattr(0, TCSANOW, &tio);
   fputs("\033[0m\033[20h", stdout);
 }

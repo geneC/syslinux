@@ -54,19 +54,12 @@ ssize_t __rawcon_read(struct file_info *fp, void *buf, size_t count)
 
   start = times(NULL);
 
-  while ( count ) {
-    if ( (clock_t)(times(NULL) - start) >= 2+CLK_TCK/20 )
-      break;
-
+  while ( n < count ) {
     /* Poll */
     ireg.eax.b[1] = 0x0B;
     __intcall(0x21, &ireg, &oreg);
-    if ( !oreg.eax.b[0] ) {
-      if ( n )
-	break;			/* We have data, deliver it */
-      else
-	continue;
-    }
+    if ( !oreg.eax.b[0] )
+      break;
 
     /* We have data, go get it */
     ireg.eax.b[1]  = 0x08;
@@ -75,12 +68,7 @@ ssize_t __rawcon_read(struct file_info *fp, void *buf, size_t count)
     n++;
   }
 
-  if ( n == 0 ) {
-    errno = EAGAIN;
-    return -1;
-  } else {
-    return n;
-  }
+  return n;
 }
 
 const struct input_dev dev_rawcon_r = {
