@@ -20,18 +20,19 @@ LIBOBJS	 = conio.o memcpy.o memset.o  skipatou.o atou.o malloc.o free.o \
 
 VPATH = .:..:../libfat
 
-all: installer
+TARGETS = syslinux.com
+
+all: $(TARGETS)
 
 tidy:
 	-rm -f *.o *.i *.s *.a .*.d *.elf
 
 clean: tidy
-	-rm -f syslinux.com
 
 spotless: clean
-	-rm -f *~
+	-rm -f *~ $(TARGETS)
 
-installer: syslinux.com
+installer:
 
 syslinux.elf: $(OBJS) libcom.a
 	$(LD) $(LDFLAGS) -o $@ $^
