@@ -55,6 +55,7 @@ struct memdiskinfo * query_memdisk(int drive)
   uint32_t _eax, _ebx, _ecx, _edx;
   uint16_t _es, _di;
   unsigned char _dl = drive;
+  uint16_t bytes;
 
   __asm {
     .386 ;
@@ -78,7 +79,16 @@ struct memdiskinfo * query_memdisk(int drive)
        _ebx >> 16 != 0x4b53 )
     return NULL;
 
-  _fmemcpy((void far *)&mm, (void far *)MK_FP(_es,_di), 26);
+  memset(&mm, 0, sizeof mm);
+
+  bytes = *(uint16_t far *)MK_FP(_es, _di);
+
+  /* 27 is the most we know how to handle */
+  if ( bytes > 27 )
+    bytes = 27;
+
+  _fmemcpy((void far *)&mm, (void far *)MK_FP(_es,_di), bytes);
+
   mm.cylinders = ((_ecx >> 8) & 0xff) + ((_ecx & 0xc0) << 2) + 1;
   mm.heads     = ((_edx >> 8) & 0xff) + 1;
   mm.sectors   = (_ecx & 0x3f);
