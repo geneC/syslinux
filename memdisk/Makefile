@@ -19,6 +19,7 @@ AS      = as
 LD	= ld
 NASM    = nasm
 OBJCOPY = objcopy
+PERL    = perl
 
 # Important: init.o16 must be first!!
 OBJS    = init.o16 setup.o16 msetup.o16 e820func.o16 memdisk.o
@@ -55,8 +56,9 @@ clean:
 memdisk.elf: $(OBJS)
 	$(LD) -Ttext 0 -o $@ $^
 
-memdisk: memdisk.elf
+memdisk: memdisk.elf postprocess.pl
 	$(OBJCOPY) -O binary $< $@
+	$(PERL) postprocess.pl $@
 
 e820test: e820func.o msetup.o e820test.o memdisk.o
 	$(CC) $(LDFLAGS) -o $@ $^
