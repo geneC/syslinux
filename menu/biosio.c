@@ -13,6 +13,13 @@
 #include "string.h"
 #include "biosio.h"
 
+/*
+ * Note: don't use "r" or "g" for 8-bit values.  Some versions of gcc
+ * will actually try to generate x86-64 registers that way!  Use
+ * "abcd" or "abcdmi", respectively.  Newer gccs have the newer "q"
+ * and "Q" constraints, but older gccs don't know those.
+ */
+
 /* BIOS Assisted output routines */
 
 /* Print character and attribute at cursor */
@@ -44,7 +51,7 @@ static inline char asm_getdisppage(void)
     
     asm("movb $0x0f,%%ah ; "
 	"int $0x10 ; "
-	"movb %%bh,%0" : "=rm" (page) : : "eax", "ebp");
+	"movb %%bh,%0" : "=abcdm" (page) : : "eax", "ebp");
     return page;
 }
 
@@ -61,7 +68,7 @@ static inline void asm_getpos(char *row, char *col, char page)
 	"movb %%dh,%0 ; "
 	"movb %%dl,%1"
 	: "=m" (*row), "=m" (*col)
-	: "g" (page)
+	: "abcdmi" (page)
 	: "eax", "ebx", "ecx", "edx");
 }
 
@@ -75,7 +82,7 @@ static inline void asm_gotoxy(char row,char col, char page)
     asm volatile("movb %1,%%bh ; "
 		 "movb $0x02,%%ah ; "
 		 "int $0x10"
-		 : : "d" ((row << 8) + col), "g" (page)
+		 : : "d" ((row << 8) + col), "abcdmi" (page)
 		 : "eax", "ebx");
 }
 
@@ -108,7 +115,7 @@ unsigned char sleep(unsigned int msec)
 void asm_beep()
 {
   // For a beep the page number (bh) does not matter, so set it to zero
-  asm volatile("movb $0x0E07, %%ax;"
+  asm volatile("movw $0x0E07, %%ax;"
 	       "xor  %%bh,%%bh;"
 	       "int $0x10"
 	       : : : "eax","ebx");
@@ -127,17 +134,19 @@ static inline void asm_putchar(char x, char attr,char page)
 		 "movw $0x1, %%cx;"
 		 "int $0x10"
 		 : "+a" (x)
-		 : "g" (page), "g" (attr)
+		 : "abcdmi" (page), "acdmi" (attr)
 		 : "ebx", "ecx", "ebp");
 }
 
 static inline void scrollup()
 {
+  unsigned short dx = (getnumrows()<< 8) + getnumcols();
+  
   asm volatile("movw $0x0601, %%ax;"
 	       "movb $0x07, %%bh;"
 	       "xor %%cx, %%cx;"
 	       "int $0x10"
-	       : "+d"((getnumrows()<< 8) + getnumcols())
+	       : "+d" (dx)
 	       : : "eax","ebx","ecx");
 }
 
@@ -307,9 +316,9 @@ static inline unsigned char asm_checkkbdbuf()
   asm volatile("movb $0x11, %%ah;"
 	       "int $0x16 ;"
 	       "setnz %0;"
-	       : "=r" (ans)
+	       : "=abcdm" (ans)
 	       : 
-	       : "%eax");
+	       : "eax");
   return ans;
 }
 

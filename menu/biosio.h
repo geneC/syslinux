@@ -49,7 +49,7 @@ static inline unsigned char readbiosb(unsigned short addr)
 
     asm("movw %2,%%fs ; "
 	"movb %%fs:%1,%0"
-	: "=r" (v)
+	: "=abcd" (v)
 	: "m" (*(unsigned char *)(unsigned int)addr),
 	"r" ((unsigned short)0));
     return v;
