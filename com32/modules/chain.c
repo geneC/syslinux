@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <console.h>
 
 #define SECTOR 512		/* bytes/sector */
 
@@ -260,6 +261,8 @@ int main(void)
   int hd, drive, whichpart;
   static com32sys_t inreg;	/* In bss, so zeroed automatically */
 
+  openconsole(&dev_null_r, &dev_stdcon_w);
+
   /* Parse command line */
   while ( isspace(*cmdline) )
     cmdline++;
@@ -354,6 +357,3 @@ int main(void)
 bail:
   return 255;
 }
-
-
-  

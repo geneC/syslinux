@@ -31,9 +31,6 @@ DNS_MAX_SERVERS equ 4			; Max no of DNS servers
 ; On return, DI points to the first byte after the label set,
 ; and SI to the terminating byte.
 ;
-; Assumes DS == ES.  Change references to [bx] to [es:bx] to remove
-; that assumption.
-;
 ; On return, DX contains the number of dots encountered.
 ;
 dns_mangle:
@@ -53,13 +50,13 @@ dns_mangle:
 		jz .endstring
 		cmp al,'.'
 		je .isdot
-		inc byte [bx]
+		inc byte [es:bx]
 		stosb
 		jmp .getbyte
 .endstring:
 		dec si
 		dec dx			; We always counted one high
-		cmp byte [bx],0
+		cmp byte [es:bx],0
 		jz .done
 		xor al,al
 		stosb
@@ -128,11 +125,6 @@ dns_skiplabel:
 		pop ax
 		ret
 
-; Actual resolver function
-; Points to a null-terminated or :-terminated string in DS:SI
-; and returns the name in EAX if it exists and can be found.
-; If EAX = 0 on exit, the lookup failed.
-
 		; DNS header format
 		struc dnshdr
 .id:		resw 1
@@ -186,19 +178,25 @@ pxe_udp_read_pkt_dns:
 
 LastDNSServer	dw DNSServers
 
+; Actual resolver function
+; Points to a null-terminated or :-terminated string in DS:SI
+; and returns the name in EAX if it exists and can be found.
+; If EAX = 0 on exit, the lookup failed.
+
 		section .text
 dns_resolv:
+		push ds
+		push es
 		push di
 		push cx
 		push dx
 
-		; Initialize...
-		mov eax,[MyIP]
-		mov [pxe_udp_read_pkt_dns.dip],eax
+		push cs
+		pop es			; ES <- CS
 
 		; First, build query packet
 		mov di,DNSSendBuf+dnshdr.flags
-		inc word [di-2]		; New query ID
+		inc word [es:di-2]	; New query ID
 		mov ax,htons(0100h)	; Recursion requested
 		stosw
 		mov ax,htons(1)		; One question
@@ -209,7 +207,15 @@ dns_resolv:
 		stosw
 		
 		call dns_mangle		; Convert name to DNS labels
+
+		push cs			; DS <- CS
+		pop ds
+
 		push si			; Save pointer to after DNS string
+
+		; Initialize...
+		mov eax,[MyIP]
+		mov [pxe_udp_read_pkt_dns.dip],eax
 
 		and dx,dx
 		jnz .fqdn		; If we have dots, assume it's FQDN
@@ -247,6 +253,8 @@ dns_resolv:
 		pop dx
 		pop cx
 		pop di
+		pop es
+		pop ds
 		ret
 
 .moreservers:
