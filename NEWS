@@ -12,6 +12,7 @@ Changes in 2.01:
 	  versions, and be able to generate disk images with DOSEMU
 	  headers (controlled by the -d option).
 	* Fix the COM32 sample program.
+	* PXELINUX, ISOLINUX: Fix come COMBOOT API calls.
 
 Changes in 2.00:
 	* ALL: Add support for "COM32" (32-bit COMBOOT) images.

@@ -1316,6 +1316,9 @@ strcpy:		push ax
 ;		since some PXE BIOSes seem to interfere regular console I/O.
 ;
 writechr:
+		push ds
+		push cs
+		pop ds
 		call write_serial	; write to serial port if needed
 		pushfd
 		pushad
@@ -1349,6 +1352,7 @@ writechr:
 		int 10h			
 .ret:		popad
 		popfd
+		pop ds
 		ret
 .scroll:	dec dh
 		mov bh,[TextPage]
