@@ -1,10 +1,9 @@
                                PXELINUX
-                             Version 1.48
-                          September 26, 1999
+                             Version 1.49
 
     A bootloader for Linux using the PXE network booting protocol
 
-		  Copyright (C) 1999 H. Peter Anvin
+		Copyright (C) 1994-2000 H. Peter Anvin
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -46,11 +45,11 @@ server in the following way:
   in upper case hexadecimal, e.g. 192.0.2.91 -> C000025B.
 
   If that file is not found, it will remove one hex digit and try
-  again.  For 192.0.2.91, if C000025B is not found, it will try
-  C000025, C00002, C0000, C000, C00, C0, and C in that order.
+  again.  Ultimately, it will try looking for a file named "default"
+  (in lower case).
 
-  Finally, it will try looking for a file named "default" (in lower
-  case).
+  As an example, for 192.0.2.91, it will try C000025B, C000025,
+  C00002, C0000, C000, C00, C0, C, and default, in that order.
 
 It should be noted that all filename references are relative to the
 directory pxelinux.bin lives in (usually /tftpboot).  PXELINUX
@@ -220,8 +219,8 @@ dhcpd 2.0.
 If the boot fails, PXELINUX (unlike SYSLINUX) will not wait forever;
 rather, if it has not received any input for approximately five
 minutes after displaying an error message, it will reset the machine.
-This allows the machine to recover in case it had bad enough luck of
-trying to boot at the same time the TFTP server goes down.
+This allows an unattended machine to recover in case it had bad enough
+luck of trying to boot at the same time the TFTP server goes down.
 
 
     ++++ PXELINUX IS STILL BETA ++++
@@ -248,3 +247,4 @@ Currently known problems:
   entry loop, so that we answer ARP requests.
 + Boot sectors don't work yet... they probably need auxilliary information
   (such as device) to work at all.
+* No way to chain-load onto a hard disk.
