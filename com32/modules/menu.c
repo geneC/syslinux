@@ -198,10 +198,12 @@ passwd_compare(const char *passwd, const char *entry)
 }
 
 static int
-ask_passwd(const struct menu_entry *entry)
+ask_passwd(const char *menu_entry)
 {
   static const char title[] = "Password required";
-  static char user_passwd[] = "passw0rd";
+  char user_passwd[WIDTH], *p;
+  int done;
+  int key;
   int x;
 
   printf("\033[%d;%dH%s\016l", PASSWD_ROW, PASSWD_MARGIN+1,
@@ -209,7 +211,7 @@ ask_passwd(const struct menu_entry *entry)
   for ( x = 2 ; x <= WIDTH-2*PASSWD_MARGIN-1 ; x++ )
     putchar('q');
   
-  printf("k\033[%d;%dx", PASSWD_ROW+1, PASSWD_MARGIN+1);
+  printf("k\033[%d;%dHx", PASSWD_ROW+1, PASSWD_MARGIN+1);
   for ( x = 2 ; x <= WIDTH-2*PASSWD_MARGIN-1 ; x++ )
     putchar(' ');
 
@@ -218,17 +220,62 @@ ask_passwd(const struct menu_entry *entry)
     putchar('q');
   
   printf("j\017\033[%d;%dH%s %s \033[%d;%dH%s",
-	 PASSWD_ROW, WIDTH-(sizeof(title)+1)/2,
+	 PASSWD_ROW, (WIDTH-((int)sizeof(title)+1))/2,
 	 menu_attrib->pwdheader, title,
 	 PASSWD_ROW+1, PASSWD_MARGIN+3, menu_attrib->pwdentry);
 
   /* Actually allow user to type a password, then compare to the SHA1 */
-  if ( (menu_master_passwd && passwd_compare(menu_master_passwd, user_passwd))
-       || (entry && entry->passwd &&
-	   passwd_compare(entry->passwd, user_passwd)) )
-    return 1;
-  else
-    return 0;
+  done = 0;
+  p = user_passwd;
+
+  while ( !done ) {
+    key = get_key(stdin, 0);
+
+    switch ( key ) {
+    case KEY_ENTER:
+    case KEY_CTRL('J'):
+      done = 1;
+      break;
+
+    case KEY_ESC:
+    case KEY_CTRL('C'):
+      p = user_passwd;		/* No password entered */
+      done = 1;
+      break;
+
+    case KEY_BACKSPACE:
+    case KEY_DEL:
+    case KEY_DELETE:
+      if ( p > user_passwd ) {
+	printf("\b \b");
+	p--;
+      }
+      break;
+
+    case KEY_CTRL('U'):
+      while ( p > user_passwd ) {
+	printf("\b \b");
+	p--;
+      }
+      break;
+
+    default:
+      if ( key >= ' ' && key <= 0xFF &&
+	   (p-user_passwd) < WIDTH-2*PASSWD_MARGIN-5 ) {
+	*p++ = key;
+	putchar('*');
+      }
+      break;
+    }
+  }
+
+  if ( p == user_passwd )
+    return 0;			/* No password entered */
+
+  *p = '\0';
+      
+  return (menu_master_passwd && passwd_compare(menu_master_passwd, user_passwd))
+    || (menu_entry && passwd_compare(menu_entry, user_passwd));
 }
 
 
@@ -270,7 +317,7 @@ draw_menu(int sel, int top)
     putchar('q');
   fputs("j\017", stdout);
 
-  if ( allowedit )
+  if ( allowedit && !menu_master_passwd )
     printf("%s\033[%d;1H%s", menu_attrib->tabmsg, TABMSG_ROW,
 	   pad_line("Press [Tab] to edit options", 1, WIDTH));
 
@@ -324,7 +371,7 @@ edit_cmdline(char *input, int top)
       return NULL;
     case KEY_BACKSPACE:
     case KEY_DEL:
-    case '\x7F':
+    case KEY_DELETE:
       if ( len ) {
 	cmdline[--len] = '\0';
 	redraw = 1;
@@ -359,6 +406,12 @@ edit_cmdline(char *input, int top)
   }
 }
 
+static void
+clear_screen(void)
+{
+  printf("\033e\033%%@\033)0\033(B%s\033[?25l\033[2J", menu_attrib->screen);
+}
+
 static const char *
 run_menu(void)
 {
@@ -390,7 +443,7 @@ run_menu(void)
       /* Clear and redraw whole screen */
       /* Enable ASCII on G0 and DEC VT on G1; do it in this order
 	 to avoid confusing the Linux console */
-      printf("\033e\033%%@\033)0\033(B%s\033[?25l\033[2J", menu_attrib->screen);
+      clear_screen();
       clear = 0;
       prev_entry = prev_top = -1;
     }
@@ -409,7 +462,10 @@ run_menu(void)
     case KEY_NONE:		/* Timeout */
       /* This is somewhat hacky, but this at least lets the user
 	 know what's going on, and still deals with "phantom inputs"
-	 e.g. on serial ports. */
+	 e.g. on serial ports.
+
+	 Warning: a timeout will boot the default entry without any
+	 password! */
       if ( entry != defentry )
 	entry = defentry;
       else {
@@ -422,8 +478,13 @@ run_menu(void)
       break;
     case KEY_ENTER:
     case KEY_CTRL('J'):
+      if ( menu_entries[entry].passwd ) {
+	clear = 1;
+	done = ask_passwd(menu_entries[entry].passwd);
+      } else {
+	done = 1;
+      }
       cmdline = menu_entries[entry].label;
-      done = 1;
       break;
     case 'P':
     case 'p':
@@ -475,16 +536,36 @@ run_menu(void)
       break;
     case KEY_TAB:
       if ( allowedit ) {
+	int ok = 1;
+
 	draw_row(entry-top+4, -1, top, 0, 0);
-	cmdline = edit_cmdline(menu_entries[entry].cmdline, top);
-	done = !!cmdline;
-	clear = 1;		/* In case we hit [Esc] and done is null */
+
+	if ( menu_master_passwd ) {
+	  ok = ask_passwd(NULL);
+	  clear_screen();
+	  draw_menu(-1, top);
+	}
+	
+	if ( ok ) {
+	  cmdline = edit_cmdline(menu_entries[entry].cmdline, top);
+	  done = !!cmdline;
+	  clear = 1;		/* In case we hit [Esc] and done is null */
+	} else {
+	  draw_row(entry-top+4, entry, top, 0, 0);
+	}
       }
       break;
     case KEY_CTRL('C'):		/* Ctrl-C */
     case KEY_ESC:		/* Esc */
-      if ( allowedit )
+      if ( allowedit ) {
 	done = 1;
+	clear = 1;
+	
+	draw_row(entry-top+4, -1, top, 0, 0);
+
+	if ( menu_master_passwd )
+	  done = ask_passwd(NULL);
+      }
       break;
     default:
       if ( key > 0 && key < 0xFF ) {

@@ -75,8 +75,8 @@ static const struct keycode keycodes[] = {
   CODE(KEY_PGDN, "\0\x51"),
   CODE(KEY_HOME, "\0\x47"),
   CODE(KEY_END,  "\0\x4F"),
-  CODE(KEY_INS,  "\0\x52"),
-  CODE(KEY_DEL,  "\0\x53"),
+  CODE(KEY_INSERT, "\0\x52"),
+  CODE(KEY_DELETE, "\0\x53"),
 
   /* Now, VT/xterm/Linux codes */
   CODE(KEY_F1,   "\033[[A"),
@@ -110,9 +110,9 @@ static const struct keycode keycodes[] = {
   CODE(KEY_END,  "\033[4~"),
   CODE(KEY_END,  "\033[F"),
   CODE(KEY_END,  "\033OF"),
-  CODE(KEY_INS,  "\033[2~"),
-  CODE(KEY_INS,  "\033[@"),
-  CODE(KEY_DEL,  "\033[3~"),
+  CODE(KEY_INSERT, "\033[2~"),
+  CODE(KEY_INSERT, "\033[@"),
+  CODE(KEY_DELETE, "\033[3~"),
 };
 #define NCODES ((int)(sizeof keycodes/sizeof(struct keycode)))
 

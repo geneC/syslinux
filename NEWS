@@ -8,6 +8,8 @@ Changes in 3.08:
 	* Add API function for idle loop.
 	* libutil: Add do_idle() function for idle loop, make
 	  get_key() use it.
+	* libutil: Add SHA-1 and base64 functions.
+	* Simple menu system: add password support.
 
 Changes in 3.07:
 	* Fix chainloading (chain.c32).

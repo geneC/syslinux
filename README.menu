@@ -78,13 +78,38 @@ MENU DEFAULT
 	default is specified, use the first one.
 
 
+MENU PASSWD passwd
+
+	(Only valid after a LABEL statement.)
+	Sets a password on this menu entry.  "passwd" can be either a
+	cleartext password or a SHA-1 encrypted password; use the
+	included Perl script "sha1pass" to encrypt passwords.
+	(Obviously, if you don't encrypt your passwords they will not
+	be very secure at all.)
+
+	If you are using passwords, you want to make sure you also use
+	the settings "NOESCAPE 1", "PROMPT 0", and either set
+	"ALLOWOPTIONS 0" or use a master password (see below.)
+
+	If passwd is an empty string, this menu entry can only be
+	unlocked with the master password.
+
+
+MENU MASTER PASSWD passwd
+
+	Sets a master password.  This password can be used to boot any
+	menu entry, and is required for the [Tab] and [Esc] keys to
+	work.
+
+
 The menu system honours the TIMEOUT command; if TIMEOUT is specified
 it will execute the ONTIMEOUT command if one exists, otherwise it will
 pick the default menu option.
 
 Normally, the user can press [Tab] to edit the menu entry, and [Esc]
 to return to the SYSLINUX command line.  However, if the configuration
-file specifies ALLOWOPTIONS 0, these keys will be disabled.
+file specifies ALLOWOPTIONS 0, these keys will be disabled, and if
+MENU MASTER PASSWD is set, they require the master password.
 
 The simple menu system supports serial console, using the normal
 SERIAL directive.  However, it can be quite slow over a slow serial

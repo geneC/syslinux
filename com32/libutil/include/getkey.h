@@ -45,6 +45,7 @@
 #define KEY_TAB		0x0009
 #define KEY_ENTER	0x000d
 #define KEY_ESC		0x001b
+#define KEY_DEL		0x007f
 
 #define KEY_F1		0x0100
 #define KEY_F2		0x0101
@@ -67,8 +68,8 @@
 #define KEY_PGDN	0x0125
 #define KEY_HOME	0x0126
 #define KEY_END		0x0127
-#define KEY_INS		0x0128
-#define KEY_DEL		0x0129
+#define KEY_INSERT	0x0128
+#define KEY_DELETE	0x0129
 
 int get_key(FILE *, clock_t);
 

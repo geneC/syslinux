@@ -216,6 +216,11 @@ void parse_config(const char *filename)
 	ld.menuhide = 1;
       } else if ( looking_at(p, "passwd") ) {
 	ld.passwd = strdup(skipspace(p+6));
+      } else if ( looking_at(p, "master") ) {
+	p = skipspace(p+6);
+	if ( looking_at (p, "passwd") ) {
+	  menu_master_passwd = strdup(skipspace(p+6));
+	}
       } else {
 	/* Unknown, ignore for now */
       }
