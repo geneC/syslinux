@@ -53,5 +53,8 @@ compatibility with short-names-only operating systems like MS-DOS is
 not an issue, you can use the "-l" or "-iso-level 2" option to mkisofs
 to generate long (up to 31 characters) plain filenames.
 
+ISOLINUX does not support discontiguous files, interleaved mode, or
+logical block and sector sizes other than 2048.  This should normally
+not be a problem.
 
- 
+
