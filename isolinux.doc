@@ -23,25 +23,22 @@ Make sure you have a recent enough version of mkisofs.  I recommend
 mkisofs 1.13 (distributed with the cdrecord distribution), but 1.12
 might work as well (not tested.)
 
-To create an image, put isolinux.bin, a config file called
-"isolinux.cfg" (see syslinux.doc for details on the configuration
-file), and all necessary files (kernels, initrd, display files, etc.)
-in the root directory of your ISO master file tree.  Then use the
-following command to create your ISO image (add additional options as
-appropriate):
+To create an image, create a directory called "isolinux" underneath
+the root directory of your ISO image master file tree.  Copy
+isolinux.bin, a config file called "isolinux.cfg" (see syslinux.doc
+for details on the configuration file), and all necessary files
+(kernels, initrd, display files, etc.) into this directory, then use
+the following command to create your ISO image (add additional options
+as appropriate, such as -J or -R):
 
-	mkisofs -o <isoimage> -b isolinux.bin -c .boot.cat \
+	mkisofs -o <isoimage> \
+		-b isolinux/isolinux.bin -c isolinux/boot.cat \
 		-no-emul-boot -boot-load-size 4 -boot-info-table \
 		<root-of-iso-tree>
 
-The real release version of ISOLINUX will probably look for a
-directory named "isolinux" in the root, and use it instead of the root
-directory if present.
-
-Like SYSLINUX, ISOLINUX does not support subdirectories.  Unlike
-SYSLINUX, there isn't a fundamental reason for this, so if this is
-something desirable, let me know and I'll add it on my list of things
-to do.
+ISOLINUX will look in the "isolinux" directory, if it exists, for any
+file requested.  It currently does not support accessing other
+directories.  Please let me know if this is a desired feature.
 
 Note that ISOLINUX only uses the "plain" ISO 9660 filenames, i.e. it
 does not support Rock Ridge or Joliet filenames.  It can still be used
@@ -56,5 +53,3 @@ to generate long (up to 31 characters) plain filenames.
 ISOLINUX does not support discontiguous files, interleaved mode, or
 logical block and sector sizes other than 2048.  This should normally
 not be a problem.
-
-
