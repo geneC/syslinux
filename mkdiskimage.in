@@ -82,7 +82,7 @@ if ( $c == 0 ) {
 	$is_open = 1;
 
 	if ( (@filestat = stat(OUTPUT)) && S_ISREG($filestat[2]) ) {
-	    $len = $filestat[7];
+	    $len = $filestat[7] >> 9;
 	} elsif ( $is_linux && S_ISBLK($filestat[2]) ) {
 	    $blksize = pack("L!", 0);
 	    if ( ioctl(OUTPUT, $BLKGETSIZE, $blksize) == 0 ) {
