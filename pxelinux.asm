@@ -657,6 +657,17 @@ query_bootp:
 		call crlf			; ***
 
 ;
+; Check to see if we got any PXELINUX-specific DHCP options; in particular,
+; if we didn't get the magic enable, do not recognize any other options.
+;
+check_dhcp_magic:
+		test byte [DHCPMagic], 1	; If we didn't get the magic enable...
+		jnz .got_magic
+		mov byte [DHCPMagic], 0		; If not, kill all other options
+.got_magic:
+	
+
+;
 ; Initialize UDP stack
 ;
 udp_init:
@@ -779,16 +790,6 @@ mkkeymap:	stosb
 
 
 ;
-; Check to see if we got any PXELINUX-specific DHCP options
-;
-check_dhcp_magic:
-		test byte [DHCPMagic], 1	; If we didn't get the magic enable...
-		jnz .got_magic
-		mov byte [DHCPMagic], 0		; If not, kill all other options
-.got_magic:
-	
-
-;
 ; Store standard filename prefix
 ;
 prefix:		test byte [DHCPMagic], 04h	; Did we get a path prefix option
@@ -857,6 +858,7 @@ config_scan:
 		jz .no_option
 
 		; We got a DHCP option, try it first
+		push di
 		mov si,trying_msg
 		call writestr
 		mov di,ConfigName
@@ -864,6 +866,7 @@ config_scan:
 		call writestr
 		call crlf
 		call open
+		pop di
 		jnz .success
 
 .no_option:		; Have to guess config file name
@@ -3054,7 +3057,7 @@ use_font:
 		jne .text
 
 .graphics:
-		xor cx,bx
+		xor cx,cx
 		mov cl,bh			; CX = bytes/character
 		mov ax,480
 		div cl				; Compute char rows per screen
@@ -3063,7 +3066,7 @@ use_font:
 		mov [VidRows],al
 		mov ax,1121h			; Set user character table
 		int 10h
-		mov [VidRows], byte 79		; Always 80 bytes/line
+		mov [VidCols], byte 79		; Always 80 bytes/line
 		mov [TextPage], byte 0		; Always page 0
 		ret	; No need to call adjust_screen
 
@@ -4247,32 +4250,31 @@ parse_dhcp_options:
 		mov edx,[si]
 		mov [Netmask],edx
 		jmp short .opt_done
-
 .not_subnet:
+
 		cmp dl,3	; ROUTER option
 		jne .not_router
 		mov edx,[si]
 		mov [Gateway],edx
 		jmp short .opt_done
-
 .not_router:
+
 		cmp dl,52	; OPTION OVERLOAD option
 		jne .not_overload
 		mov dl,[si]
 		mov [OverLoad],dl
 		jmp short .opt_done
-
 .not_overload:
+
 		cmp dl,67	; BOOTFILE NAME option
 		jne .not_bootfile
 		mov di,BootFile
 		jmp short .copyoption
-
 .done:
 		ret		; This is here to make short jumps easier
-
 .not_bootfile:
-		cmp dl,176	; PXELINUX MAGIC option
+
+		cmp dl,208	; PXELINUX MAGIC option
 		jne .not_pl_magic
 		cmp al,4	; Must have length == 4
 		jne .opt_done
@@ -4280,23 +4282,23 @@ parse_dhcp_options:
 		jne .opt_done
 		or byte [DHCPMagic], byte 1		; Found magic #
 		jmp short .opt_done
-
 .not_pl_magic:
-		cmp dl,177	; PXELINUX CONFIGFILE option
+
+		cmp dl,209	; PXELINUX CONFIGFILE option
 		jne .not_pl_config
 		mov di,ConfigName
 		or byte [DHCPMagic], byte 2	; Got config file
 		jmp short .copyoption
-
 .not_pl_config:
-		cmp dl,178	; PXELINUX PATHPREFIX option
+
+		cmp dl,210	; PXELINUX PATHPREFIX option
 		jne .not_pl_prefix
 		mov di,PathPrefix
 		or byte [DHCPMagic], byte 4	; Got path prefix
 		jmp short .copyoption
-	
 .not_pl_prefix:
-		cmp dl,179	; PXELINUX REBOOTTIME option
+
+		cmp dl,211	; PXELINUX REBOOTTIME option
 		jne .not_pl_timeout
 		cmp al,4
 		jne .opt_done
@@ -4307,8 +4309,8 @@ parse_dhcp_options:
 		mov [RebootTime],edx
 		or byte [DHCPMagic], byte 8	; Got RebootTime
 		; jmp short .opt_done
+.not_pl_timeout:
 
-.not_pl_timeout
 		; Unknown option.  Skip to the next one.
 .opt_done:
 		add si,ax
@@ -4584,11 +4586,13 @@ vgasetmode:
 		mov ax,1A00h		; Get video card and monitor
 		xor bx,bx
 		int 10h
-		cmp bl, 8		; If not VGA card/VGA monitor, give up
-		jne .error		; ZF=0
+		sub bl, 7		; BL=07h and BL=08h OK
+		cmp bl, 1
+		ja .error		; ZF=0
 ;		mov bx,TextColorReg
 ;		mov dx,1009h		; Read color registers
 ;		int 10h
+.ok:
 		mov ax,0012h		; Set mode = 640x480 VGA 16 colors
 		int 10h
 		mov dx,linear_color
@@ -4611,20 +4615,21 @@ vgaclearmode:
 		push ds
 		push cs
 		pop ds			; DS <- CS
-		pushad
 		cmp [UsingVGA], byte 1
 		jne .done
+		pushad
 		mov ax,0003h		; Return to normal video mode
 		int 10h
 ;		mov dx,TextColorReg	; Restore color registers
 ;		mov ax,1002h
 ;		int 10h
-
+		mov [UsingVGA], byte 0
 
 		call use_font		; Restore text font/data
 		mov byte [ScrollAttribute], 07h
-.done:
 		popad
+.done:
+
 		pop ds
 		ret
 

@@ -19,10 +19,15 @@
 
 		org 0h
 
+%define SECTORSIZE_LG2	9		; log2(sector size)
+%define	SECTORSIZE	(1 << SECTORSIZE_LG2)
+
 MyStack		equ 1024
 
 		; Parameter registers definition; this is the definition
 		; of the stack frame.
+%define		P_DS		word [bp+34]
+%define		P_ES		word [bp+32]
 %define		P_EAX		dword [bp+28]
 %define		P_AX		word [bp+28]
 %define		P_AL		byte [bp+28]
@@ -86,6 +91,7 @@ Done:		; Standard routine for return
 		mov [LastStatus],ah
 		mov P_AX,ax
 		cmp ah,1
+DoneWeird:
 		setnb al		; AL <- (AH > 0) ? 1 : 0 (CF)
 		lds bx,[Stack]		; DS:BX <- Old stack pointer
 		mov [bx+4],al		; Low byte of old FLAGS -> arithmetric flags
@@ -106,28 +112,198 @@ Reset:
 		and dl,80h		; Clear all but the type bit
 		jmp far [OldInt13]
 
+Invalid:
+		mov ax,0100h		; Unsupported function
+		ret
+
+GetDriveType:
+		pop ax			; Drop return address
+		mov ah,[DriveNo]
+		shr ah,7
+		or ah,02h		; CF = 0
+		mov P_AH,ah
+		mov [LastStatus],byte 0	; Success, but AH returns a value
+		jmp short DoneWeird
+
 GetStatus:
 		mov ah,[LastStatus]	; Copy last status
 		ret
 
-CheckIfReady:
+CheckIfReady:				; These are always-successful noop functions
 Recalibrate:
-		xor ah,ah		; Always successful
+InitWithParms:
+DetectChange:
+success:
+		xor ax,ax		; Always successful
 		ret
 
 Read:
-Write:
-Verify:
-Format:
-GetParms:
-InitWithParms:
-Seek:
-GetDriveType:
-DetectChange:
-
-Invalid:
-		mov ah,01h		; Unsupported function
+		call setup_regs
+do_copy:
+		call bcopy
+		movzx ax,P_AL		; AH = 0, AL = transfer count
 		ret
+
+Write:
+		call setup_regs
+		xchg esi,edi
+		jmp short do_copy
+
+		; These verify one sector only
+Seek:
+		mov P_AL,1
+
+		; Verify integrity; just bounds-check
+Verify:
+		call setup_regs		; Returns error if appropriate
+		jmp short success	
+
+GetParms:
+		; We need to get the "number of drives" from the BIOS
+		mov dl,P_DL
+		inc dl			; The drive whose number we're stealing
+		mov ah,08h
+		int 13h
+		inc dl			; Add ourselves to the count
+		mov P_DL,dl		; Drive count
+		mov P_DI,di		; Steal the diskette parameter table if applicable
+		mov ax,es
+		mov P_ES,ax
+		mov bl,[DriveType]
+		mov P_BL,bl
+		mov ax,[Cylinders]
+		dec ax			; We report the highest #, not the count
+		or ah,[Sectors]
+		xchg al,ah
+		mov P_CX,ax
+		mov al,[Heads]
+		dec al
+		mov P_DH,al
+		xor ax,ax
+		ret
+
+		; Convert a CHS address in CX/DH into an LBA in EAX
+chstolba:
+		xor ebx,ebx
+		mov bl,cl		; Sector number
+		and bl,3Fh
+		dec bx
+		mov si,dx
+		mov ax,[Heads]
+		shr cl,6
+		xchg cl,ch		; Now CX <- cylinder number
+		mul cx			; DX:AX <- AX*CX
+		shr si,8		; SI <- head number
+		add ax,si
+		adc dx,byte 0
+		shl edx,16
+		or eax,edx
+		mul dword [Sectors]
+		add eax,ebx
+		ret
+
+bcopy:
+		; Do something here
+
+		; Set up registers as for a "Read", and compares against disk size
+setup_regs:
+		call chstolba
+		movzx edi,P_BX		; Get linear address of target buffer
+		movzx ecx,P_ES
+		shr ecx,4
+		add edi,ecx
+		movzx ecx,P_AL
+		lea ebx,[eax+ecx]
+		mov esi,eax
+		shr esi,SECTORSIZE_LG2
+		add esi,[DiskBuf]
+		cmp ebx,[DiskSize]
+		jae .overrun
+		ret
+
+.overrun:	pop ax			; Drop return address
+		mov ax,0400h		; Sector not found
+		ret
+
+int15_e820:
+		cmp edx,534D4150h
+		jne near oldint15
+		cmp ecx,20		; Need 20 bytes
+		jb err86
+		push edx		; "SMAP"
+		push esi
+		push edi
+		and ebx,ebx
+		jne .renew
+		mov ebx,[E820Table]
+.renew:		mov esi,ebx
+		xor edi,edi
+		mov di,cs
+		shr di,4
+		add edi,E820Buf
+		mov ecx,24/4
+		call bcopy
+		add ebx, byte 12
+		pop edi
+		pop esi
+		mov eax,[cs:E820Buf]
+		mov [es:di],eax
+		mov eax,[cs:E820Buf+4]
+		mov [es:di+4],eax
+		mov eax,[cs:E820Buf+12]
+		mov [es:di+8],eax
+		mov eax,[cs:E820Buf+16]
+		mov [es:di+12],eax
+		mov eax,[cs:E820Buf+8]
+		mov [es:di+16],eax
+		cmp dword [cs:E820Buf+20], byte -1
+		jne .notdone
+		xor ebx,ebx		; Done with table
+.notdone:
+		pop eax			; "SMAP"
+		mov ecx,20		; Bytes loaded
+int15_success:
+		mov byte [bp+12], 02h	; Clear CF
+		pop bp
+		iret
+
+err86:
+		mov byte [bp+12], 03h	; Set CF
+		mov ah,86h
+		pop bp
+		iret
+
+Int15Start:
+		push bp
+		mov bp,sp
+		cmp ax,0E820h
+		je near int15_e820
+		cmp ax,0E801h
+		je int15_e801
+		cmp ax,0E881h
+		je int15_e881
+		cmp ah,88h
+		je int15_88
+oldint15:	pop bp
+		jmp far [OldInt15]
+		
+int15_e801:
+		mov ax,[cs:Mem1MB]
+		mov cx,ax
+		mov bx,[cs:Mem16MB]
+		mov dx,ax
+		jmp short int15_success
+
+int15_e881:
+		mov eax,[cs:Mem1MB]
+		mov ecx,eax
+		mov ebx,[cs:Mem16MB]
+		mov edx,eax
+		jmp short int15_success
+
+int15_88:
+		mov ax,[cs:MemInt1588]
+		jmp short int15_success
 
 		section .data
 Int13Funcs	dw Reset		; 00h - RESET
@@ -135,9 +311,9 @@ Int13Funcs	dw Reset		; 00h - RESET
 		dw Read			; 02h - READ
 		dw Write		; 03h - WRITE
 		dw Verify		; 04h - VERIFY
-		dw Format		; 05h - FORMAT TRACK
-		dw Format		; 06h - FORMAT TRACK AND SET BAD FLAGS
-		dw Format		; 07h - FORMAT DRIVE AT TRACK
+		dw Invalid		; 05h - FORMAT TRACK
+		dw Invalid		; 06h - FORMAT TRACK AND SET BAD FLAGS
+		dw Invalid		; 07h - FORMAT DRIVE AT TRACK
 		dw GetParms		; 08h - GET PARAMETERS
 		dw InitWithParms	; 09h - INITIALIZE CONTROLLER WITH DRIVE PARAMETERS
 		dw Invalid		; 0Ah
@@ -157,11 +333,24 @@ Int13FuncsEnd	equ $
 Int13FuncsMax	equ (Int13FuncsEnd-Int13Funcs) >> 1
 
 DriveNo		db 0			; Our drive number
+DriveType	db 0			; Our drive type (floppies)
 LastStatus	db 0			; Last return status
+
+		alignb 4, db 0
+Cylinders	dw 0			; Cylinder count
+Heads		dw 0			; Head count
+Sectors		dd 0			; Sector count (zero-extended)
+DiskSize	dd 0			; Size of disk in blocks
+DiskBuf		dd 0			; Linear address of high memory disk
+
+E820Table	dd 0			; E820 table in high memory
+Mem1MB		dd 0			; 1MB-16MB memory amount (1K)
+Mem16MB		dd 0			; 16MB-4G memory amount (64K)
+MemInt1588	dw 0			; 1MB-65MB memory amount (1K)
 
 		section .bss
 OldInt13	resd 1			; INT 13h in chain
+OldInt15	resd 1			; INT 15h in chain
 Stack		resd 1			; Saved SS:SP on invocation
+E820Buf		resd 6			; E820 fetch buffer
 SavedAX		resw 1			; AX saved during initialization
-
-

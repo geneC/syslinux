@@ -2989,7 +2989,7 @@ use_font:
 		jne .text
 
 .graphics:
-		xor cx,bx
+		xor cx,cx
 		mov cl,bh			; CX = bytes/character
 		mov ax,480
 		div cl				; Compute char rows per screen
@@ -2998,7 +2998,7 @@ use_font:
 		mov [VidRows],al
 		mov ax,1121h			; Set user character table
 		int 10h
-		mov [VidRows], byte 79		; Always 80 bytes/line
+		mov [VidCols], byte 79		; Always 80 bytes/line
 		mov [TextPage], byte 0		; Always page 0
 		ret	; No need to call adjust_screen
 
@@ -4126,7 +4126,7 @@ vgaclearmode:
 ;		mov dx,TextColorReg	; Restore color registers
 ;		mov ax,1002h
 ;		int 10h
-
+		mov [UsingVGA], byte 0
 
 		call use_font		; Restore text font/data
 		mov byte [ScrollAttribute], 07h

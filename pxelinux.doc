@@ -235,20 +235,20 @@ PXELINUX (starting with version 1.62) supports the following
 nonstandard DHCP options, which depending on your DHCP server you may
 be able to use to customize the specific behaviour of PXELINUX:
 
-Option 176	pxelinux.magic
+Option 208	pxelinux.magic
 	- Must be set to F1:00:74:7E (241.0.116.126) for PXELINUX to
 	  recognize any special DHCP options whatsoever.
 
-Option 177	pxelinux.configfile
+Option 209	pxelinux.configfile
 	- Specifies the PXELINUX configuration file name.
 
-Option 178	pxelinux.pathprefix
+Option 210	pxelinux.pathprefix
 	- Specifies the PXELINUX common path prefix, instead of
 	  deriving it from the boot file name.  This almost certainly
 	  needs to end in whatever character the TFTP server OS uses
 	  as a pathname separator, e.g. slash (/) for Unix.
 
-Option 179	pxelinux.reboottime
+Option 211	pxelinux.reboottime
 	- Specifies, in seconds, the time to wait before reboot in the
 	  event of TFTP failure.  0 means wait "forever" (in reality,
 	  it waits approximately 136 years.)
@@ -258,10 +258,10 @@ options; you can use the following syntax in dhcpd.conf if you are
 running this version of dhcpd:
 
 	option space pxelinux;
-	option pxelinux.magic      code 176 = string;
-	option pxelinux.configfile code 177 = text;
-	option pxelinux.pathprefix code 178 = text;
-	option pxelinux.reboottime code 179 = unsigned integer 32;
+	option pxelinux.magic      code 208 = string;
+	option pxelinux.configfile code 209 = text;
+	option pxelinux.pathprefix code 210 = text;
+	option pxelinux.reboottime code 211 = unsigned integer 32;
 
 Then, inside your PXELINUX-booting group or class (whereever you have
 the PXELINUX-related options, such as the filename option), you can
@@ -272,11 +272,24 @@ add, for example:
 	option pxelinux.configfile "configs/common";
 	option pxelinux.pathprefix "/tftpboot/pxelinux/files/";
 	option pxelinux.reboottime 30;
+	option dhcp-parameter-request-list 1, 3, 208, 209, 210, 211;
 	filename "/tftpboot/pxelinux/pxelinux.bin";
 
 Note that the configfile is relative to the pathprefix: this will look
 for a config file called /tftpboot/pxelinux/files/configs/common on
 the TFTP server.
+
+The "option dhcp-parameter-request-list" is unfortunately required,
+since the DHCP exchange happens before PXELINUX starts.
+Unfortunately at least DHCP 3.0rc2pl1 takes this as "send these
+options and no others", even when the client explicitly requests
+them.  This can easily cause problems for your operating system; you
+may need to add additional options here.  I'm afraid I don't have a
+neat and clean solution for this problem using existing software.
+Fixing it in PXELINUX would require a fairly large amount of
+additional code, since PXELINUX would be required to conduct its own
+DHCP exchange rather than getting the cached packet from the PXE
+stack.
 
 Using ISC dhcp 3.0 you can create a lot of these strings on the fly.
 For example, to use the hexadecimal form of the hardware address as
