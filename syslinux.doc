@@ -11,6 +11,10 @@ program.  Please see the included file COPYING for details.
 
 ----------------------------------------------------------------------
 
+      SYSLINUX now has a home page at http://syslinux.zytor.com/
+
+----------------------------------------------------------------------
+
 SYSLINUX is a boot loader for the Linux operating system which
 operates off an MS-DOS/Windows FAT filesystem.  It is intended to
 simplify first-time installation of Linux, and for creation of rescue-
