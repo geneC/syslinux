@@ -19,7 +19,7 @@ MENUS   = simple.com complex.com
 .SUFFIXES: .c .s .s16 .o16 .elf .com
 
 .c.s:
-	$(CC) $(CFLAGS) -S -o $@ $<
+	$(CC) $(CFLAGS) -MMD -S -o $@ $<
 
 .s.s16:
 	echo '.code16gcc' | cat - $< > $@
@@ -44,7 +44,9 @@ libmenu.a: $(LIBMENU)
 	$(RANLIB) $@
 
 clean:
-	-rm -f *.s *.s16 *.o16 *.elf *.com *.a
+	-rm -f *.s *.s16 *.o16 *.elf *.com *.a *.d
 
 spotless: clean
 	-rm -f *~ \#*
+
+-include *.d
