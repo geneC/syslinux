@@ -141,7 +141,7 @@ static inline void asm_putchar(char x, char attr,char page)
 		 "call bios_int10"
 		 : "+a" (x)
 		 : "abcdmi" (page), "acdmi" (attr)
-		 : "ebx", "ecx", "ebp");
+		 : "ebx", "ecx");
 }
 
 void putch(char x, char attr, char page)
