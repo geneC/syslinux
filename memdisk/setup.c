@@ -317,7 +317,6 @@ uint32_t setup(void)
     die();
   }
 
-  printf("Test of simple printf...\n");
   printf("Ramdisk at 0x%08x, length 0x%08x\n",
 	 shdr->ramdisk_image, shdr->ramdisk_size);
 
