@@ -34,7 +34,7 @@ OBJS32   = start32.o setup.o msetup.o e820func.o conio.o memcpy.o \
 
 CSRC     = setup.c msetup.c e820func.c conio.c unzip.c
 SSRC     = init.S16
-NASMSRC  = memdisk.asm jmp32.asm
+NASMSRC  = memdisk.asm init32.asm
 
 all: memdisk e820test
 
