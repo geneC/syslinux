@@ -647,7 +647,7 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   }
   
   if ( getcmditem("pause") != CMD_NOTFOUND ) {
-    puts("Press any key to boot... ");
+    puts("press any key to boot... ");
     regs.eax.w[0] = 0;
     syscall(0x16, &regs, NULL);
   }
