@@ -1660,9 +1660,6 @@ kill_motor:
 ;
 ; We're done... now RUN THAT KERNEL!!!!
 ;
-		mov ax,0E00h + 'X'
-		mov bx,0007h
-		int 10h
 		jmp setup_seg:setup_entry
 ;
 ; Load an older kernel.  Older kernels always have 4 setup sectors, can't have
