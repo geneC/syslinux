@@ -44,9 +44,9 @@ release:
 	find release/syslinux-$(VERSION) -name CVS -type d -print0 | \
 		xargs -0rt rm -rf
 	find release/syslinux-$(VERSION) \
-		\( -name *~ -or -name \#* \) -type d -print0 | \
+		\( -name '*~' -or -name '#*' \) -type f -print0 | \
 		xargs -0rt rm -f
-	ln -f $(PRIVATE) release/syslinux-$(VERSION)
+	cp -a $(PRIVATE) release/syslinux-$(VERSION)
 	cd release/syslinux-$(VERSION) && $(MAKE) depend
 	cd release/syslinux-$(VERSION) && $(MAKE) official
 	cd release/syslinux-$(VERSION) && rm -rf $(PRIVATE)
@@ -70,13 +70,12 @@ prerel:
 	find $(PRERELDIR)/$(PREREL) -name CVS -type d -print0 | \
 		xargs -0rt rm -rf
 	find $(PRERELDIR)/$(PREREL) \
-		\( -name *~ -or -name \#* \) -type d -print0 | \
+		\( -name '*~' -or -name '#*' \) -type f -print0 | \
 		xargs -0rt rm -f
 	make -C $(PRERELDIR)/$(PREREL) spotless
 	make -C $(PRERELDIR)/$(PREREL) all DATE=`printf '%s-pre%d          ' $(VERSION) $(PRERELNO) | dd bs=10 count=1 2>/dev/null`
 	make -C $(PRERELDIR)/$(PREREL) dist
-	cd $(PRERELDIR)/$(PREREL) && \
-		rm -rf $(PRIVATE)
+	cd $(PRERELDIR)/$(PREREL) && rm -rf $(PRIVATE)
 	cd $(PRERELDIR) && tar cvvf - $(PREREL) | \
 		gzip -9 > $(PREREL).tar.gz 
 	cd $(PRERELDIR) && \
