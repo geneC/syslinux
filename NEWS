@@ -7,6 +7,8 @@ Changes in 1.70:
 	  header correctly.
         * SYSLINUX: Fix, again, "the bug that won't die": the use of
           the offset parameter with the SYSLINUX installer.
+	* SYSLINUX: Fix possible superblock corruption problem in the
+	  SYSLINUX installer.
 
 Changes in 1.67:
 	* Handle bug in the location of initrd.

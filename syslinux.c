@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 1998-2000 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1998-2002 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -20,10 +20,11 @@
  * access the filesystem directly like mtools does so we don't have to
  * mount the disk.  Either that or if Linux gets an fmount() system call
  * we probably could do the mounting ourselves, and make this program
- * setuid safe.
+ * setuid safe.  Or perhaps try to link with mtools code...
  *
  */
 
+#define _XOPEN_SOURCE 500	/* Required on glibc 2.x */
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -105,6 +106,63 @@ void usage(void)
   exit(1);
 }
 
+/*
+ * read/write wrapper functions
+ */
+ssize_t xpread(int fd, void *buf, size_t count, off_t offset)
+{
+  ssize_t rv;
+  ssize_t done = 0;
+
+  while ( count ) {
+    rv = pread(fd, buf, count, offset);
+    if ( rv == 0 ) {
+      fprintf(stderr, "%s: short read\n", program);
+      exit(1);
+    } else if ( rv == -1 ) {
+      if ( errno == EINTR ) {
+	continue;
+      } else {
+	perror(program);
+	exit(1);
+      }
+    } else {
+      offset += rv;
+      done += rv;
+      count -= rv;
+    }
+  }
+
+  return done;
+}
+
+ssize_t xpwrite(int fd, void *buf, size_t count, off_t offset)
+{
+  ssize_t rv;
+  ssize_t done = 0;
+
+  while ( count ) {
+    rv = pwrite(fd, buf, count, offset);
+    if ( rv == 0 ) {
+      fprintf(stderr, "%s: short write\n", program);
+      exit(1);
+    } else if ( rv == -1 ) {
+      if ( errno == EINTR ) {
+	continue;
+      } else {
+	perror(program);
+	exit(1);
+      }
+    } else {
+      offset += rv;
+      done += rv;
+      count -= rv;
+    }
+  }
+
+  return done;
+}
+
 int main(int argc, char *argv[])
 {
   static unsigned char sectbuf[512];
@@ -182,22 +240,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  left = 512;
-  dp = sectbuf;
-  while ( left ) {
-    nb = read(dev_fd, dp, left);
-    if ( nb == -1 && errno == EINTR )
-      continue;
-    if ( nb < 0 ) {
-      perror(device);
-      exit(1);
-    } else if ( nb == 0 ) {
-      fprintf(stderr, "%s: no boot sector\n", device);
-      exit(1);
-    }
-    dp += nb;
-    left -= nb;
-  }
+  xpread(dev_fd, sectbuf, 512, offset);
   close(dev_fd);
 
   sync();
@@ -421,32 +464,16 @@ umount:
     exit(1);
   }
 
-  if ( lseek(dev_fd, offset, SEEK_SET) != offset ) {
-    if ( !(force && errno == EBADF) ) {
-      fprintf(stderr, "%s: seek error", device);
-      exit(1);
-    }
-  }
+  /* Read the superblock again since it might have changed while mounted */
+  xpread(dev_fd, sectbuf, 512, offset);
 
   /* Copy the old superblock into the new boot sector */
   memcpy(bootsect+bsCopyStart, sectbuf+bsCopyStart, bsCopyLen);
-  
-  dp = bootsect;
-  left = bootsect_len;
-  while ( left ) {
-    nb = write(dev_fd, dp, left);
-    if ( nb == -1 && errno == EINTR )
-      continue;
-    else if ( nb <= 0 ) {
-      perror(device);
-      exit(1);
-    }
-    
-    dp += nb;
-    left -= nb;
-  }
-  close(dev_fd);
 
+  /* Write new boot sector */
+  xpwrite(dev_fd, bootsect, 512, offset);
+
+  close(dev_fd);
   sync();
 
   /* Done! */
