@@ -527,7 +527,7 @@ AX=0010h [3.00] Resolve hostname [PXELINUX]
 	all uses of IP addresses in PXE are also in network byte order.
 
 
-AX=0011h [3.10] Maximum number of shuffle descriptors
+AX=0011h [3.05] Maximum number of shuffle descriptors
 	Input:	AX	0011h
 	Output:	CX	maximum number of descriptors
 
@@ -537,7 +537,7 @@ AX=0011h [3.10] Maximum number of shuffle descriptors
 	Typical values are 682 and 1365.
 
 
-AX=0012h [3.10] Cleanup, shuffle and boot
+AX=0012h [3.05] Cleanup, shuffle and boot
 	Input:	AX	0012h
 		DX	derivative-specific flags (see previous function)
 		ES:DI	shuffle descriptor list (must be in low memory)
