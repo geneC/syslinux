@@ -425,6 +425,7 @@ static void adjust_mbr(int device, int writembr, int set_active)
       } else {
 	me->active = 0;
       }
+      me++;
     }
 
     if ( found < 1 ) {
