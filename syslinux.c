@@ -336,14 +336,15 @@ int main(int argc, char *argv[])
 	     !strcmp(mnt->mnt_type, "vfat") ||
 	     !strcmp(mnt->mnt_type, "uvfat") ||
 	     !strcmp(mnt->mnt_type, "auto") ) &&
-	   hasmntopt(mnt, "user") &&
+	   ( hasmntopt(mnt, "user") ||
+	     (hasmntopt(mnt, "owner") && st.st_uid == euid) ) &&
 	   !hasmntopt(mnt, "ro") &&
 	   mnt->mnt_dir[0] == '/' &&
 	   !!hasmntopt(mnt, "loop") == !!S_ISREG(st.st_mode) &&
 	   ( (!hasmntopt(mnt,"offset") && offset == 0) ||
 	     (atol(hasmntopt(mnt, "offset")) == offset) ) ) {
 	/* Okay, this is an fstab entry we should be able to live with. */
-
+	
 	mntpath = mnt->mnt_dir;
 	break;
       }
