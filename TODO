@@ -6,5 +6,3 @@
 - Support initrd that span multiple input media?
 - Support a small set of DOS system calls for COMBOOT images?  (Serial
   console support makes this particularly desirable.)
-
-
