@@ -13,6 +13,7 @@ Changes in 2.09:
 	* COMBOOT: Correct the documentation of how to detect
 	  SYSLINUX from COMBOOT!!!!
 	* COMBOOT: Fix "get key without echo" API function.
+	* SYSLINUX: Fix bug that affected the API open function.
 
 Changes in 2.08:
 	* Add new configuration command "ontimeout" to allow timeout
