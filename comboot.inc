@@ -409,6 +409,7 @@ comapi_open:
 		mov P_HAX,dx
 		mov ax,[ClustSize]
 		mov P_CX,ax
+		mov P_SI,si
 		clc
 		ret
 .err:
@@ -420,8 +421,10 @@ comapi_open:
 ; INT 22h AX=0007h	Read file
 ;
 comapi_read:
-		mov ax,P_BX
+		mov es,P_ES
+		mov bx,P_BX
 		mov si,P_SI
+		mov cx,P_CX
 		call getfssec
 		jnc .noteof
 		xor si,si		; SI <- 0 on EOF, CF <- 0

@@ -56,6 +56,8 @@ com32_start:
 
 com32_enter_pm:
 		cli
+		mov ax,cs
+		mov ds,ax
 		mov [SavedSSSP],sp
 		mov [SavedSSSP+2],ss
 		cld

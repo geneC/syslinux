@@ -17,11 +17,16 @@
 
 CC         = gcc
 LD         = ld
+AR	   = ar
+RANLIB	   = ranlib
 CFLAGS     = -march=i386 -O2 -fomit-frame-pointer -I../com32/include
 SFLAGS     = -march=i386
 LDFLAGS    = -s
 OBJCOPY    = objcopy
 PPMTOLSS16 = 	../ppmtolss16
+LIB	   = libcom32.a
+
+LIBOBJS	   = conio.o
 
 .SUFFIXES: .lss .c .o .elf .c32
 
@@ -33,11 +38,16 @@ all: syslogo.lss hello.c32 hello2.c32 filetest.c32
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-%.elf: c32entry.o %.o
+%.elf: c32entry.o %.o $(LIB)
 	$(LD) -Ttext 0x101000 -e _start -o $@ $^
 
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
+
+$(LIB): $(LIBOBJS)
+	rm -f $@
+	$(AR) cq $@ $^
+	$(RANLIB) $@
 
 syslogo.lss:	syslogo.png $(PPMTOLSS16)
 	pngtopnm syslogo.png | \

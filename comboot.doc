@@ -446,4 +446,3 @@ AX=000Ch	Perform final cleanup
 
 	All other values are undefined, and may have different
 	meanings in future versions of SYSLINUX.
-

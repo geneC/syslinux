@@ -17,6 +17,9 @@ Changes in 2.07:
 	* PXELINUX: PXELINUX-specific options are now recognized both
 	  in a vendor-option-space (a.k.a. type 43 encapsulated) as
 	  well as in a site-option-space (unencapsulated.)
+	* COM32: Don't crash when DS != 0.
+	* COMBOOT/COM32: Make file reading work correctly.  Thanks to
+	  Phung Chi Kien for submitting a test program.
 
 Changes in 2.06:
 	* ALL: Fix problem that would occationally cause a
