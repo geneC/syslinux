@@ -42,7 +42,7 @@ vgadisplayfile:
 
 		; The header WILL be in the first chunk.
 		cmp dword [es:xbs_vgabuf],0x1413f33d	; Magic number
-.error_nz:	jne near .error
+.error_nz:	jne .error
 		mov ax,[es:xbs_vgabuf+4]
 		mov [GraphXSize],ax
 

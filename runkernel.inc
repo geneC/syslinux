@@ -44,11 +44,11 @@
 ;
 is_linux_kernel:
                 cmp dx,80h			; 8 megs
-		ja near kernel_corrupt
+		ja kernel_corrupt
 		and dx,dx
 		jnz kernel_sane
 		cmp ax,1024			; Bootsect + 1 setup sect
-		jb near kernel_corrupt
+		jb kernel_corrupt
 kernel_sane:	push ax
 		push dx
 		push si
@@ -95,7 +95,7 @@ kernel_sane:	push ax
                 pop si                          ; Cluster pointer on stack
 		call getfssec
                 cmp word [es:bs_bootsign],0AA55h
-		jne near kernel_corrupt		; Boot sec signature missing
+		jne kernel_corrupt		; Boot sec signature missing
 ;
 ; Get the BIOS' idea of what the size of high memory is.
 ;
@@ -136,7 +136,7 @@ get_e820:
 
 		; Now EAX contains the size of memory 1 MB...up
 		cmp dword [E820Buf+16], byte 1
-		jne near err_nohighmem		; High memory isn't usable memory!!!!
+		jne err_nohighmem		; High memory isn't usable memory!!!!
 
 		; We're good!
 		pop es
@@ -210,7 +210,7 @@ construct_cmdline:
                 pop ds
 get_next_opt:   lodsb
 		and al,al
-		jz near cmdline_end
+		jz cmdline_end
 		cmp al,' '
 		jbe get_next_opt
 		dec si
@@ -274,9 +274,9 @@ cmdline_end:
 ;
 		mov dword [RamdiskMax], HIGHMEM_MAX	; Default initrd limit
 		cmp dword [es:su_header],HEADER_ID	; New setup code ID
-		jne near old_kernel		; Old kernel, load low
+		jne old_kernel		; Old kernel, load low
 		cmp word [es:su_version],0200h	; Setup code version 2.0
-		jb near old_kernel		; Old kernel, load low
+		jb old_kernel		; Old kernel, load low
                 cmp word [es:su_version],0201h	; Version 2.01+?
                 jb new_kernel                   ; If 2.00, skip this step
                 mov word [es:su_heapend],linux_stack	; Set up the heap
@@ -314,7 +314,7 @@ read_kernel:
                 mov eax,[HighMemSize]
 		sub eax,100000h			; Load address
 		cmp eax,[KernelSize]
-		jb near no_high_mem		; Not enough high memory
+		jb no_high_mem		; Not enough high memory
 ;
 ; Move the stuff beyond the setup code to high memory at 100000h
 ;
@@ -357,7 +357,7 @@ high_load_done:
 ;
 load_initrd:
                 test byte [initrd_flag],1
-                jz near nk_noinitrd
+                jz nk_noinitrd
                 push es                         ; ES->real_mode_seg
                 push ds
                 pop es                          ; We need ES==DS

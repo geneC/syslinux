@@ -1024,7 +1024,7 @@ mkkeymap:	stosb
 ;
 		mov di,syslinux_cfg
 		call open
-		jz near no_config_file
+		jz no_config_file
 ;
 ; Now we have the config file open
 ;
@@ -1037,7 +1037,7 @@ check_for_key:
 		cmp word [ForcePrompt],byte 0	; Force prompt?
 		jnz enter_command
 		test byte [KbdFlags],5Bh	; Caps, Scroll, Shift, Alt
-		jz near auto_boot		; If neither, default boot
+		jz auto_boot		; If neither, default boot
 
 enter_command:
 		mov si,boot_prompt
@@ -1214,7 +1214,7 @@ clin_opt_ptr:   dec si                          ; Point to first nonblank
 vk_check:	pusha
 		mov cx,11
 		repe cmpsb			; Is this it?
-		je near vk_found
+		je vk_found
 		popa
 		add si,vk_size
 		loop vk_check

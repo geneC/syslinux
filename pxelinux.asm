@@ -309,7 +309,7 @@ _start1:
 ; to by SS:[SP+4], but support INT 1Ah, AX=5650h method as well.
 ;
 		cmp dword [es:bx], '!PXE'
-		je near have_pxe
+		je have_pxe
 
 		; Uh-oh, not there... try plan B
 		mov ax, 5650h
@@ -327,7 +327,7 @@ _start1:
 
 		; Nothing there either.  Last-ditch: scan memory
 		call memory_scan_for_pxe_struct		; !PXE scan
-		jnc near have_pxe
+		jnc have_pxe
 		call memory_scan_for_pxenv_struct	; PXENV+ scan
 		jnc have_pxenv
 
@@ -351,12 +351,12 @@ have_pxenv:
 		mov ax,es
 		les bx,[es:bx+28h]		; !PXE structure pointer
 		cmp dword [es:bx],'!PXE'
-		je near have_pxe
+		je have_pxe
 
 		; Nope, !PXE structure missing despite API 2.1+, or at least
 		; the pointer is missing.  Do a last-ditch attempt to find it.
 		call memory_scan_for_pxe_struct
-		jnc near have_pxe
+		jnc have_pxe
 
 		; Otherwise, no dice, use PXENV+ structure
 		mov bx,si
@@ -415,7 +415,7 @@ old_api:	; Need to use a PXENV+ structure
 		mov ax,[PXENVEntry]
 		call writehex4
 		call crlf
-		jmp near have_entrypoint
+		jmp have_entrypoint
 
 have_pxe:
 		mov eax,[es:bx+10h]
@@ -748,7 +748,7 @@ check_for_key:
 		cmp word [ForcePrompt],byte 0	; Force prompt?
 		jnz enter_command
 		test byte [KbdFlags],5Bh	; Caps, Scroll, Shift, Alt
-		jz near auto_boot		; If neither, default boot
+		jz auto_boot		; If neither, default boot
 
 enter_command:
 		mov si,boot_prompt
@@ -818,7 +818,7 @@ enter_char:	test byte [FuncFlag],1
 get_char_2:	jmp short get_char
 not_ascii:	mov byte [FuncFlag],0
 		cmp al,0Dh			; Enter
-		je near command_done
+		je command_done
 		cmp al,06h			; <Ctrl-F>
 		je set_func_flag
 		cmp al,08h			; Backspace
@@ -924,7 +924,7 @@ clin_opt_ptr:   dec si                          ; Point to first nonblank
 vk_check:	pusha
 		mov cx,FILENAME_MAX
 		repe cmpsb			; Is this it?
-		je near vk_found
+		je vk_found
 		popa
 		add si,vk_size
 		loop vk_check
@@ -963,7 +963,7 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
                 mov di,KernelName	      	; Search on disk
                 call searchdir
 		pop bx
-                jnz near kernel_good
+                jnz kernel_good
 		mov eax,[bx]			; Try a different extension
 		mov si,[KernelExtPtr]
 		mov [si],eax
@@ -1020,7 +1020,7 @@ vk_found:	popa
 
 		; Is this a "localboot" pseudo-kernel?
 		cmp byte [VKernelBuf+vk_rname], 0
-		jne near get_kernel		; No, it's real, go get it
+		jne get_kernel		; No, it's real, go get it
 
 		mov ax, [VKernelBuf+vk_rname+1]
 		jmp local_boot
@@ -1364,7 +1364,7 @@ searchdir:
 		mov bp,sp
 
 		call allocate_socket
-		jz near .error
+		jz .error
 
 		mov ax,PKT_RETRY	; Retry counter
 		mov word [PktTimeout],PKT_TIMEOUT	; Initial timeout
@@ -1399,9 +1399,9 @@ searchdir:
 		mov di,pxe_udp_write_pkt
 		mov bx,PXENV_UDP_WRITE
 		call far [PXENVEntry]
-		jc near .failure
+		jc .failure
 		cmp word [pxe_udp_write_pkt.status],byte 0
-		jne near .failure
+		jne .failure
 
 		;
 		; Danger, Will Robinson!  We need to support timeout
@@ -1457,10 +1457,10 @@ searchdir:
 
 		movzx eax,word [pxe_udp_read_pkt.buffersize]
 		sub eax, byte 2
-		jb near .failure		; Garbled reply
+		jb .failure		; Garbled reply
 
 		cmp word [packet_buf], TFTP_ERROR
-		je near .bailnow		; ERROR reply: don't try again
+		je .bailnow		; ERROR reply: don't try again
 
 		cmp word [packet_buf], TFTP_OACK
 		jne .err_reply
@@ -1547,7 +1547,7 @@ searchdir:
 		pop si
 		pop ax
 		dec ax			; Retry counter
-		jnz near .sendreq	; Try again
+		jnz .sendreq	; Try again
 
 .error:		xor si,si		; ZF <- 1
 		pop bp

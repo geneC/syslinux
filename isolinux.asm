@@ -283,10 +283,10 @@ initial_csum:	xor edi,edi
 		mov dl,[DriveNo]
 		mov si,spec_packet
 		int 13h
-		jc near spec_query_failed	; Shouldn't happen (BIOS bug)
+		jc spec_query_failed	; Shouldn't happen (BIOS bug)
 		mov dl,[DriveNo]
 		cmp [sp_drive],dl		; Should contain the drive number
-		jne near spec_query_failed
+		jne spec_query_failed
 
 %ifdef DEBUG_MESSAGES
 		mov si,spec_ok_msg
@@ -480,7 +480,7 @@ writemsg:	push ax
 ;
 
 writechr:
-		jmp near writechr_simple	; NOT "short"!!!!
+		jmp near writechr_simple	; 3-byte jump
 
 writechr_simple:
 		pushfd
@@ -857,7 +857,7 @@ load_config:
 
 		mov di,isolinux_cfg
 		call open
-		jz near no_config_file		; Not found or empty
+		jz no_config_file		; Not found or empty
 
 %ifdef DEBUG_MESSAGES
 		mov si,dbg_configok_msg
@@ -876,7 +876,7 @@ check_for_key:
 		cmp word [ForcePrompt],byte 0	; Force prompt?
 		jnz enter_command
 		test byte [KbdFlags],5Bh	; Caps, Scroll, Shift, Alt
-		jz near auto_boot		; If neither, default boot
+		jz auto_boot		; If neither, default boot
 
 enter_command:
 		mov si,boot_prompt
@@ -946,7 +946,7 @@ enter_char:	test byte [FuncFlag],1
 get_char_2:	jmp short get_char
 not_ascii:	mov byte [FuncFlag],0
 		cmp al,0Dh			; Enter
-		je near command_done
+		je command_done
 		cmp al,06h			; <Ctrl-F>
 		je set_func_flag
 		cmp al,08h			; Backspace
@@ -1052,7 +1052,7 @@ clin_opt_ptr:   dec si                          ; Point to first nonblank
 vk_check:	pusha
 		mov cx,FILENAME_MAX
 		repe cmpsb			; Is this it?
-		je near vk_found
+		je vk_found
 		popa
 		add si,vk_size
 		loop vk_check
@@ -1091,7 +1091,7 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
                 mov di,KernelName	      	; Search on disk
                 call searchdir
 		pop bx
-                jnz near kernel_good
+                jnz kernel_good
 		mov eax,[bx]			; Try a different extension
 		mov si,[KernelExtPtr]
 		mov [si],eax
@@ -1146,7 +1146,7 @@ vk_found:	popa
 
 		; Is this a "localboot" pseudo-kernel?
 		cmp byte [VKernelBuf+vk_rname], 0
-		jne near get_kernel		; No, it's real, go get it
+		jne get_kernel		; No, it's real, go get it
 
 		mov ax, [VKernelBuf+vk_rname+1]
 		jmp local_boot
@@ -1252,7 +1252,7 @@ is_disk_image:
 		TRACER 't'
 		mov eax,[di+4]
 		cmp edx,[di]
-		je near .type_found
+		je .type_found
 		add di,8
 		loop .search_table
 
@@ -1261,14 +1261,14 @@ is_disk_image:
 .hard_disk_image:
 		TRACER 'h'
 		cmp edx,512
-		jb near .bad_image
+		jb .bad_image
 
 		mov bx,trackbuf
 		mov cx,1			; Load 1 sector
 		call getfssec
 		
 		cmp word [trackbuf+510],0aa55h	; Boot signature
-		jne near .bad_image		; Image not bootable
+		jne .bad_image		; Image not bootable
 
 		mov cx,4			; 4 partition entries
 		mov di,trackbuf+446		; Start of partition table

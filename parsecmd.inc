@@ -72,7 +72,7 @@ getcommand:
 		jmp short .find
 
 .found_keywd:	lodsw			; Load argument into ax
-		call near [si]
+		call [si]
 		clc
 		ret
 

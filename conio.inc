@@ -98,12 +98,12 @@ msg_putchar:                                    ; Normal character
                 cmp al,0Ch                      ; <FF> = clear screen
                 je msg_formfeed
 		cmp al,19h			; <EM> = return to text mode
-		je near msg_novga
+		je msg_novga
 		cmp al,18h			; <CAN> = VGA filename follows
-		je near msg_vga
+		je msg_vga
 		jnb .not_modectl
 		cmp al,10h			; 10h to 17h are mode controls
-		jae near msg_modectl
+		jae msg_modectl
 .not_modectl:
 
 msg_normal:	call write_serial_displaymask	; Write to serial port
