@@ -28,7 +28,8 @@ DNS_MAX_SERVERS equ 4			; Max no of DNS servers
 
 ;
 ; Turn a string in DS:SI into a DNS "label set" in ES:DI.
-; On return, DI points to the first byte after the label set.
+; On return, DI points to the first byte after the label set,
+; and SI to the terminating byte.
 ;
 ; Assumes DS == ES.  Change references to [bx] to [es:bx] to remove
 ; that assumption.
@@ -45,12 +46,15 @@ dns_mangle:
 		lodsb
 		and al,al
 		jz .endstring
+		cmp al,':'
+		jz .endstring
 		cmp al,'.'
 		je .isdot
 		inc byte [bx]
 		stosb
 		jmp .getbyte
 .endstring:
+		dec si
 		cmp byte [bx],0
 		jz .done
 		xor al,al
@@ -117,7 +121,7 @@ dns_skiplabel:
 		ret
 
 ; Actual resolver function
-; Points to a null-terminated string in DS:SI
+; Points to a null-terminated or :-terminated string in DS:SI
 ; and returns the name in EAX if it exists and can be found.
 ; If EAX = 0 on exit, the lookup failed.
 

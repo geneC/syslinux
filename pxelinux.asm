@@ -1484,10 +1484,29 @@ mangle_name:
 		mov eax,[ServerIP]
 		cmp word [si],'::'		; Leading ::?
 		je .gotprefix
+
+.more:
+		cmp word [si],'::'
+		je .here
+		cmp byte [si],0
+		jne .more
+		jmp .noip
+
+		; We have a :: prefix of some sort, it could be either
+		; a DNS name or a dot-quad IP address.  Try the dot-quad
+		; first...
+.here:
+		pop si
+		push si
 		call parse_dotquad
-		jc .noip
+		jc .notdq
 		cmp word [si],'::'
 		je .gotprefix
+.notdq:
+		call dns_resolv
+		cmp word [si],'::'
+		je .gotprefix
+
 .noip:
 		pop si
 		xor eax,eax
@@ -1512,6 +1531,7 @@ mangle_name:
 		inc cx				; At least one null byte
 		xor ax,ax			; Zero-fill name
 		rep stosb			; Doesn't do anything if CX=0
+		pop bx
 		ret				; Done
 
 ;
@@ -2022,6 +2042,7 @@ gendotquad:
 ; Netmask	- network mask
 ; Gateway	- default gateway router IP
 ; BootFile	- boot file name
+; DNSServers	- DNS server IPs
 ;
 ; This assumes the DHCP packet is in "trackbuf" and the length
 ; of the packet in in CX on entry.
@@ -2107,7 +2128,7 @@ parse_some_dhcp_options:
 		sub cx,ax	; Decrement bytes left counter
 		jb .done	; Malformed option: length > field size
 
-		cmp dl,dh	; Is the option value 
+		cmp dl,dh	; Is the option value valid?
 		jb .opt_done
 
 		cmp dl,1	; SUBNET MASK option
@@ -2123,6 +2144,21 @@ parse_some_dhcp_options:
 		mov [Gateway],ebx
 		jmp .opt_done
 .not_router:
+
+		cmp dl,6	; DNS SERVERS option
+		jne .not_dns
+		pusha
+		shr cx,2
+		cmp cl,DNS_MAX_SERVERS
+		jna .oklen
+		mov cl,DNS_MAX_SERVERS
+.oklen:
+		mov di,DNSServers
+		rep movsd
+		mov [LastDNSServer],di
+		popa
+		jmp .opt_done
+.not_dns:
 
 		cmp dl,43	; VENDOR ENCAPSULATED option
 		jne .not_vendor
