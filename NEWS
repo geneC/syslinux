@@ -11,6 +11,8 @@ Changes in 1.51:
 	* Support memory detection using INT 15h, AX=0E820h.  BIOS
 	  manufacturers have apparently gotten sloppy about keeping
 	  INT 15h, AX=0E801h working properly.
+	* Don't issue <CR><LF> onto the serial port when we're doing
+	  screen wraparound.
 
 Changes in 1.50:
 	* Yet another A20-code update.  It seems some "legacy-free"
