@@ -426,13 +426,14 @@ have reliable magic numbers, SYSLINUX will look at the file extension.
 The following extensions are recognized (case insensitive):
 
   none or other	Linux kernel image
-  .cbt		COMBOOT image (not runnable from DOS)
-  .bss		Boot sector, DOS superblock will be patched in [SYSLINUX only]
-  .bs		Boot sector [SYSLINUX only]
+  .0		PXE bootstrap program (NBP) [PXELINUX only]
   .bin		"CD boot sector" [ISOLINUX only]
+  .bs		Boot sector [SYSLINUX only]
+  .bss		Boot sector, DOS superblock will be patched in [SYSLINUX only]
+  .c32		COM32 image (32-bit COMBOOT)
+  .cbt		COMBOOT image (not runnable from DOS)
   .com		COMBOOT image (runnable from DOS)
   .img		Disk image [ISOLINUX only]
-  .0		PXE bootstrap program (NBP) [PXELINUX only]
 
 For filenames given on the command line, SYSLINUX will search for the
 file by adding extensions in the order listed above if the plain
