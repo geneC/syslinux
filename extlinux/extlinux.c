@@ -298,38 +298,35 @@ uint64_t get_size(int devfd)
  */
 struct geometry_table {
   uint64_t bytes;
-  struct hd_big_geometry g;
+  struct hd_geometry g;
 };
 
-/* Anyone have the zipdisk and LS120/LS240 geometries? */
+/* Standard floppy disk geometries, plus LS-120.  Zipdisk geometry
+   (x/64/32) is the final fallback.  I don't know what LS-240 has
+   as its geometry, since I don't have one and don't know anyone that does,
+   and Google wasn't helpful... */
 static const struct geometry_table standard_geometries[] = {
-  {  360*1024, {  2,  9, 40, 0 } },
-  {  720*1024, {  2,  9, 80, 0 } },
-  { 1200*1024, {  2, 15, 80, 0 } },
-  { 1440*1024, {  2, 18, 80, 0 } },
-  { 1680*1024, {  2, 21, 80, 0 } },
-  { 1722*1024, {  2, 21, 80, 0 } },
-  { 2880*1024, {  2, 36, 80, 0 } },
-  { 3840*1024, {  2, 48, 80, 0 } },
+  {    360*1024, {  2,  9,  40, 0 } },
+  {    720*1024, {  2,  9,  80, 0 } },
+  {   1200*1024, {  2, 15,  80, 0 } },
+  {   1440*1024, {  2, 18,  80, 0 } },
+  {   1680*1024, {  2, 21,  80, 0 } },
+  {   1722*1024, {  2, 21,  80, 0 } },
+  {   2880*1024, {  2, 36,  80, 0 } },
+  {   3840*1024, {  2, 48,  80, 0 } },
+  { 123264*1024, {  8, 32, 963, 0 } }, /* LS120 */
   { 0, {0,0,0,0} }
 };
 
 int
-get_geometry(int devfd, uint64_t totalbytes, struct hd_big_geometry *geo)
+get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
 {
-  struct hd_geometry   hd_geo;
   struct floppy_struct fd_str;
   const struct geometry_table *gp;
 
   memset(geo, 0, sizeof *geo);
 
-  if ( !ioctl(devfd, HDIO_GETGEO_BIG, &geo) ) {
-    return 0;
-  } else if ( !ioctl(devfd, HDIO_GETGEO, &hd_geo) ) {
-    geo->heads     = hd_geo.heads;
-    geo->sectors   = hd_geo.sectors;
-    geo->cylinders = hd_geo.cylinders;
-    geo->start     = hd_geo.start;
+  if ( !ioctl(devfd, HDIO_GETGEO, &geo) ) {
     return 0;
   } else if ( !ioctl(devfd, FDGETPRM, &fd_str) ) {
     geo->heads     = fd_str.head;
@@ -347,8 +344,17 @@ get_geometry(int devfd, uint64_t totalbytes, struct hd_big_geometry *geo)
     }
   }
 
-  /* Nope, didn't work; hope this is a hard disk-type device or EDD capable */
-  fprintf(stderr, "Warning: unable to obtain device geometry (may or may not work)\n");
+  /* Didn't work either... assign a geometry of 64 heads, 32 sectors; this is
+     what zipdisks use, so this would help if someone has a USB key that
+     they're booting in USB-ZIP mode. */
+
+  geo->heads     = 64;
+  geo->sectors   = 32;
+  geo->cylinders = totalbytes/(64*32*512);
+  geo->start     = 0;
+  fprintf(stderr, "Warning: unable to obtain device geometry (defaulting to %s/%s/%s)\n",
+	  geo->cylinders, geo->heads, geo->sectors);
+
   return 1;
 }
 
@@ -361,7 +367,7 @@ void
 patch_file_and_bootblock(int fd, int dirfd, int devfd)
 {
   struct stat dirst;
-  struct hd_big_geometry geo;
+  struct hd_geometry geo;
   uint32_t *sectp;
   uint64_t totalbytes, totalsectors;
   int nsect;
