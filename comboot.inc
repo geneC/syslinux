@@ -98,6 +98,11 @@ is_comboot_image:
 		shl ax,6		; Kilobytes -> paragraphs
 		mov word [es:02h],ax
 
+%ifndef DEPEND
+%if real_mode_seg != comboot_seg
+%error "This code assumes real_mode_seg == comboot_seg"
+%endif
+%endif
 		; Copy the command line from high memory
 		mov cx,125		; Max cmdline len (minus space and CR)
 		mov si,[CmdOptPtr]
@@ -105,7 +110,7 @@ is_comboot_image:
 		mov al,' '		; DOS command lines begin with a space
 		stosb
 
-comboot_cmd_cp:	lodsb
+comboot_cmd_cp:	es lodsb
 		and al,al
 		jz comboot_end_cmd
 		stosb

@@ -23,7 +23,7 @@ check_for_key:
 		cmp word [ForcePrompt],byte 0	; Force prompt?
 		jnz enter_command
 		test byte [KbdFlags],5Bh	; Caps, Scroll, Shift, Alt
-		jz auto_boot		; If neither, default boot
+		jz auto_boot			; If neither, default boot
 
 enter_command:
 		mov si,boot_prompt
@@ -240,7 +240,7 @@ not_vk:		pop ds
 ; Find the kernel on disk
 ;
 get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/extension
-%if IS_SYSLINUX || IS_MDSLINUX		; SYSLINUX has to deal with DOS mangled names...
+%if IS_SYSLINUX || IS_MDSLINUX			; SYSLINUX has to deal with DOS mangled names...
 		mov eax,[KernelName+8]		; Save initial extension
 		mov [exten_table_end],eax	; Last case == initial ext.
 %else
