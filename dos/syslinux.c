@@ -162,24 +162,21 @@ void lock_device(int level)
 {
   uint16_t rv;
   uint8_t err;
+  uint16_t lock_call;
 
   if ( dos_version < 0x0700 )
     return;			/* Win9x/NT only */
+
+  /* DOS 7.10 = Win95 OSR2 = first version with FAT32 */
+  lock_call = (dos_version >= 0x0710) ? 0x484A : 0x084A;
 
   while ( (uint8_t)lock_level < level ) {
     rv = 0x444d;
     asm volatile("int $0x21 ; setc %0"
 		 : "=abcdm" (err), "+a" (rv)
-		 : "b" (lock_level+1), "c" (0x484A), "d"(0x0001));
-    
-    if ( err ) {
-      asm volatile("int $0x21 ; setc %0"
-		   : "=abcdm" (err), "+a" (rv)
-		   : "b" (lock_level+1), "c" (0x084A), "d"(0x0001));
-      
-      if ( err ) 
-	die("could not lock device");
-    }
+		 : "b" (lock_level+1), "c" (lock_call), "d"(0x0001));
+    if ( err ) 
+      die("could not lock device");
 
     lock_level++;
   }
@@ -190,20 +187,19 @@ void unlock_device(int level)
 {
   uint16_t rv;
   uint8_t err;
+  uint16_t unlock_call;
 
   if ( dos_version < 0x0700 )
     return;			/* Win9x/NT only */
+
+  /* DOS 7.10 = Win95 OSR2 = first version with FAT32 */
+  unlock_call = (dos_version >= 0x0710) ? 0x486A : 0x086A;
 
   while ( (uint8_t)lock_level > level ) {
     rv = 0x440d;
     asm volatile("int $0x21 ; setc %0"
 		 : "=abcdm" (err), "+a" (rv)
-		 : "b" (lock_level-1), "c" (0x486A));
-    if ( err ) {
-      asm volatile("int $0x21 ; setc %0"
-		   : "=abcdm" (err), "+a" (rv)
-		   : "b" (lock_level-1), "c" (0x086A));
-    }
+		 : "b" (lock_level-1), "c" (unlock_call));
     lock_level--;
   }
 }
