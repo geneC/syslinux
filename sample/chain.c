@@ -12,13 +12,14 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * hd.c
+ * chain.c
  *
  * Chainload a hard disk (currently rather braindead.)
  *
- * Usage: hd disk# [partition]
+ * Usage: chain hd<disk#> [<partition>]
+ *        chain fd<disk#>
  *
- * ... e.g. "hd 0 1" will boot the first partition on the first hard disk.
+ * ... e.g. "chain hd0 1" will boot the first partition on the first hard disk.
  *
  * Only partitions 1-4 supported at this time; 0 = boot MBR (default.)
  */
@@ -29,6 +30,8 @@
 int printf(const char *, ...);
 int puts(const char *);
 unsigned int skip_atou(char * const *);
+
+#define SECTOR 512		/* bytes/sector */
 
 static inline void error(const char *msg)
 {
@@ -157,7 +160,6 @@ int read_sector(void *buf, unsigned int lba)
   return int13_retry(&inreg, NULL);
 }
 
-
 /* A DOS partition table entry */
 struct part_entry {
   uint8_t active_flag;		/* 0x80 if "active" */
@@ -171,6 +173,90 @@ struct part_entry {
   uint32_t start_lba;
   uint32_t length;
 } __attribute__((packed));
+
+
+/* Search for a logical partition.  Logical partitions are actually implemented
+   as recursive partition tables; theoretically they're supposed to form a linked
+   list, but other structures have been seen.
+
+   To make things extra confusing: data partition offsets are relative to where
+   the data partition record is stored, whereas extended partition offsets
+   are relative to the beginning of the extended partition all the way back
+   at the MBR... but still not absolute! */
+
+int nextpart;			/* Number of the next logical partition */
+
+struct part_entry *find_logical_partition(int whichpart, char *table, struct part_entry *self, struct part_entry *root)
+{
+  struct part_entry *ptab = (struct part_entry *)(table + 0x1be);
+  struct part_entry *found;
+  int i;
+
+  if ( *(uint16_t *)(ptab + 0x1fe) != 0xaa55 )
+    return NULL;		/* Signature missing */
+
+  /* We are assumed to already having enumerated all the data partitions
+     in this table if this is the MBR.  For MBR, self == NULL. */
+
+  if ( self ) {
+    /* Scan the data partitions. */
+
+    for ( i = 0 ; i < 4 ; i++ ) {
+      if ( ptab[i].ostype == 0x00 || ptab[i].ostype == 0x05 ||
+	   ptab[i].ostype == 0x0f || ptab[i].ostype == 0x85 )
+	continue;		/* Skip empty or extended partitions */
+
+      if ( !ptab[i].length )
+	continue;
+
+      /* Adjust the offset to account for the extended partition itself */
+      ptab[i].start_lba += self->start_lba;
+
+      /* Sanity check entry: must not extend outside the extended partition.
+	 This is necessary since some OSes put crap in some entries. */
+      if ( ptab[i].start_lba + ptab[i].length <= self->start_lba ||
+	   ptab[i].start_lba >= self->start_lba + self->length )
+	continue;
+
+      /* OK, it's a data partition.  Is it the one we're looking for? */
+      if ( nextpart++ == whichpart )
+	return &ptab[i];
+    }
+  }
+
+  /* Scan the extended partitions. */
+  for ( i = 0 ; i < 4 ; i++ ) {
+    if ( ptab[i].ostype != 0x05 &&
+	 ptab[i].ostype != 0x0f && ptab[i].ostype != 0x85 )
+      continue;		/* Skip empty or data partitions */
+    
+    if ( !ptab[i].length )
+      continue;
+    
+    /* Adjust the offset to account for the extended partition itself */
+    if ( root )
+      ptab[i].start_lba += root->start_lba;
+    
+    /* Sanity check entry: must not extend outside the extended partition.
+       This is necessary since some OSes put crap in some entries. */
+    if ( root )
+      if ( ptab[i].start_lba + ptab[i].length <= root->start_lba ||
+	   ptab[i].start_lba >= root->start_lba + root->length )
+	continue;
+    
+    /* Process this partition */
+    if ( read_sector(table+SECTOR, ptab[i].start_lba) )
+      continue;			/* Read error, must be invalid */
+
+    if ( (found = find_logical_partition(whichpart, table+SECTOR, &ptab[i],
+					 root ? root : &ptab[i])) )
+      return found;
+  }
+
+  /* If we get here, there ain't nothing... */
+  return NULL;
+}
+
 
 int __start(void)
 {
@@ -211,7 +297,7 @@ int __start(void)
      the MBR next, and the rest is used for the partition-
      chasing stack. */
   dapa = (struct ebios_dapa *)__com32.cs_bounce;
-  mbr  = (char *)__com32.cs_bounce + 512;
+  mbr  = (char *)__com32.cs_bounce + SECTOR;
 
   /* Get the MBR */
   if ( get_disk_params(drive) ) {
@@ -231,16 +317,27 @@ int __start(void)
   } else if ( whichpart <= 4 ) {
     /* Boot a primary partition */
     partinfo = &((struct part_entry *)(mbr + 0x1be))[whichpart-1];
-    boot_sector = mbr+512;
+    if ( partinfo->ostype == 0 ) {
+      error("Invalid primary partition\n");
+      goto bail;
+    }
   } else {
     /* Boot a logical partition */
-    error("Logical partitions not implemented yet\n");
-    goto bail;
+
+    nextpart = 5;
+    partinfo = find_logical_partition(whichpart, mbr, NULL, NULL);
+
+    if ( !partinfo || partinfo->ostype == 0 ) {
+      error("Requested logical partition not found\n");
+      goto bail;
+    }
   }
 
   /* Do the actual chainloading */
   if ( partinfo ) {
     /* Actually read the boot sector */
+    /* Pick the first buffer that isn't already in use */
+    boot_sector = (char *)(((unsigned long)partinfo + 511) & ~511);
     if ( read_sector(boot_sector, partinfo->start_lba) ) {
       error("Cannot read boot sector\n");
       goto bail;
@@ -253,7 +350,7 @@ int __start(void)
   inreg.eax.w[0] = 0x000d;	/* Clean up and chain boot */
   inreg.edx.w[0] = 0;		/* Should be 3 for "keeppxe" */
   inreg.edi.l    = (uint32_t)boot_sector;
-  inreg.ecx.l    = 512;		/* One sector */
+  inreg.ecx.l    = SECTOR;	/* One sector */
   inreg.ebx.b[0] = drive;	/* DL = drive no */
 
   __com32.cs_intcall(0x22, &inreg, NULL);
