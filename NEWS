@@ -8,6 +8,8 @@ Changes in 3.02:
 	* COM32 library: build the .lnx (test modules for running
 	  under Linux) as architecture native modules, in case
 	  i386 devel libraries aren't installed.
+	* EXTLINUX: Hack for systems which don't have BLKGETSIZE64
+	  defined in the standard header files.
 
 Changes in 3.01:
 	* EXTLINUX, SYSLINUX: Fix compile errors on some systems.
