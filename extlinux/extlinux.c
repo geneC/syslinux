@@ -42,6 +42,11 @@
 # define dprintf(...) ((void)0)
 #endif
 
+#if defined(__linux__) && !defined(BLKGETSIZE64)
+/* This takes a u64, but the size field says size_t.  Someone screwed big. */
+# define BLKGETSIZE64 _IOR(0x12,114,size_t)
+#endif
+
 #define LDLINUX_MAGIC	0x3eb202fe
 
 enum bs_offsets {
@@ -286,7 +291,6 @@ uint64_t get_size(int devfd)
   if ( !ioctl(devfd, BLKGETSIZE64, &bytes) )
     return bytes;
 #endif
-
   if ( !ioctl(devfd, BLKGETSIZE, &sects) )
     return (uint64_t)sects << 9;
   else if ( !fstat(devfd, &st) && st.st_size )
