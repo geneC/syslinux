@@ -144,7 +144,7 @@ clean: local-tidy
 	$(MAKE) -C memdisk clean
 
 dist: tidy
-	for $$dir in . sample memdisk ; do \
+	for dir in . sample memdisk ; do \
 		( cd $$dir && rm -f *~ \#* core ) ; \
 	done
 
