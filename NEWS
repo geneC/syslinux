@@ -1,6 +1,9 @@
 Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to both.
 
+Changes in 1.72:
+	* PXELINUX, ISOLINUX: Fix bugs in the new core code.
+
 Changes in 1.71:
 	* Fix a "brown paper bag" class bug in the new core code.
 
