@@ -252,8 +252,8 @@ VKernelBuf:	resb vk_size		; "Current" vkernel
 AppendBuf       resb max_cmd_len+1	; append=
 KbdMap		resb 256		; Keyboard map
 FKeyName	resb 10*16		; File names for F-key help
-NumBuf		resb 16			; Buffer to load number
-NumBufEnd	equ NumBuf+15		; Pointer to last byte in NumBuf
+NumBuf		resb 15			; Buffer to load number
+NumBufEnd	resb 1			; Last byte in NumBuf
 		alignb 4
 PartInfo	resb 16			; Partition table entry
 E820Buf		resd 5			; INT 15:E820 data buffer

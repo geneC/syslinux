@@ -90,6 +90,11 @@ is a text file in either UNIX or DOS format, containing one or more of
 the following items (case is insensitive for keywords; upper case is used
 here to indicate that a word should be typed verbatim):
 
+All options here applies to PXELINUX as well as SYSLINUX unless
+otherwise noted.  See pxelinux.doc for additional information on
+PXELINUX.
+
+
 DEFAULT kernel options...
         Sets the default command line.  If SYSLINUX boots automatically,
         it will act just as if the entries after DEFAULT had been typed
@@ -107,16 +112,26 @@ APPEND options...
         usually permitting explicitly entered kernel options to override
         them.  This is the equivalent of the LILO "append" option.
 
+IPAPPEND flag_val
+	The IPAPPEND option is available only on PXELINUX, and
+	indicates (if the flag value is 1) that an option of the
+	following format should be generated and added:
+
+		ip=<client-ip>::<gw-ip>:<netmask>
+
+	... based on the input from the DHCP server.
+
 LABEL label
   KERNEL image
   APPEND options...
-        Indicates that if "label" is entered as the kernel to boot,
+  IPAPPEND flag_val
+	Indicates that if "label" is entered as the kernel to boot,
         SYSLINUX should instead boot "image", and the specified APPEND
-        options should be used instead of the ones specified in the
-        global section of the file (before the first LABEL command.)
-        The default for "image" is the same as "label", and if no
-        APPEND is given the default is to use the global entry (if any).
-        Up to 128 LABEL entries are permitted.
+	and IPAPPEND options should be used instead of the ones
+        specified in the global section of the file (before the first
+        LABEL command.)  The default for "image" is the same as
+        "label", and if no APPEND is given the default is to use the
+        global entry (if any).  Up to 128 LABEL entries are permitted.
 
         Note that LILO uses the syntax:
         image = mykernel

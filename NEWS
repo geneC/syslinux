@@ -6,6 +6,8 @@ Changes in 1.52:
 	  has also been changed for code consistency reasons, but I'm
 	  pretty sure the changes are don't care on SYSLINUX.)
 	* Documentation updates.
+	* PXELINUX: Add "ipappend" option to generate an ip= option to
+	  the kernel.
 
 Changes in 1.51:
 	* PXELINUX: Not all PXE stacks fill in the IP address for a

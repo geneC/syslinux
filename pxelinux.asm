@@ -155,6 +155,8 @@ CAN_USE_HEAP    equ 80h                 ; Boot loader reports heap size
 		struc vkernel
 vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
 vk_rname:	resb FILENAME_MAX	; Real name
+vk_ipappend:	resb 1			; "IPAPPEND" flag
+		resb 1			; Pad
 vk_appendlen:	resw 1
 		alignb 4
 vk_append:	resb max_cmd_len+1	; Command line
@@ -194,10 +196,8 @@ bootp:
 .macaddr	resb 16			; Client MAC address
 .sname		resb 64			; Server name (optional)
 .bootfile	resb 128		; Boot file name
-.v_magic	resd 1			; DHCP magic cookie
-.v_flags	resd 1			; DHCP flags
-.v_pad		resb 56			; Vendor options padding
-		endstruc		
+.options	resb 1264		; Vendor options
+		endstruc	
 
 ;
 ; TFTP connection data structure.  Each one of these corresponds to a local
@@ -314,8 +314,10 @@ AppendBuf       resb max_cmd_len+1	; append=
 KbdMap		resb 256		; Keyboard map
 PathPrefix	resb 128		; 128 bytes (comes from BOOTP size)
 FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
-NumBuf		resb 16			; Buffer to load number
-NumBufEnd	equ NumBuf+15		; Pointer to last byte in NumBuf
+NumBuf		resb 15			; Buffer to load number
+NumBufEnd	resb 1			; Last byte in NumBuf
+DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
+IPOption	resb 64			; ip= option buffer
 		alignb 32
 BootFile	resb 128		; Boot file name from DHCP query
 KernelName      resb FILENAME_MAX       ; Mangled name for kernel
@@ -353,6 +355,7 @@ ServerPort	resw 1			; TFTP server port
 ConfigFile	resw 1			; Socket for config file
 PktTimeout	resw 1			; Timeout for current packet
 KernelExtPtr	resw 1			; During search, final null pointer
+IPOptionLen	resw 1			; Length of IPOption
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -550,6 +553,7 @@ query_bootp:
 .pxe_ok:
 		mov eax,[trackbuf+bootp.yip]	; "Your" IP address
 		mov [MyIP],eax
+		call genipopt
 
 ;
 ; Now, get the boot file and other info.  This lives in the CACHED_REPLY
@@ -575,8 +579,6 @@ query_bootp:
 ; If packet 2 didn't contain a valid IP address, guess that it's in this
 ; packet instead
 ;
-		mov si,myipaddr_msg
-		call writestr
 		mov eax,[MyIP]
 		cmp eax, byte 0			; 0.0.0.0 bad
 		je .badip
@@ -585,17 +587,25 @@ query_bootp:
 .badip:
 		mov eax,[trackbuf+bootp.yip]	; Hope this is better...
 		mov [MyIP],eax
+		call genipopt
 .goodip:
 		xchg ah,al			; Host byte order
-		ror eax,16
+		ror eax,16			; (BSWAP doesn't work on 386)
 		xchg ah,al
+
+;
+; Print IP address
+;
+		mov si,myipaddr_msg
+		call writestr
 		call writehex8
+		mov di,DotQuadBuf
+		mov si,di
+		call gendotquad
+		mov al,' '
+		call writechr
+		call writestr
 		call crlf
-;
-; Normalize ES = DS
-;
-		mov ax,ds
-		mov es,ax
 
 ;
 ; Save away the server IP and port number
@@ -837,13 +847,15 @@ parse_config:
 		cmp ax,'la'			; LAbel
 		je near pc_label
 		cmp ax,'ke'			; KErnel
-		je pc_kernel
+		je near pc_kernel
                 cmp ax,'im'                     ; IMplicit
                 je near pc_implicit
 		cmp ax,'se'			; SErial
 		je near pc_serial
 		cmp ax,'sa'			; SAy
 		je near pc_say
+		cmp ax,'ip'			; IPappend
+		je pc_ipappend
 		cmp al,'f'			; F-key
 		jne parse_config
 		jmp pc_fkey
@@ -872,6 +884,17 @@ pc_append_vk:	mov di,VKernelBuf+vk_append	; "append" command (vkernel)
                 mov di,0                        ; If "append -" -> null string
 pc_app2:        mov [VKernelBuf+vk_appendlen],di
 		jmp short parse_config_2	
+
+pc_ipappend:	call getint			; "ipappend" command
+		jc parse_config_2
+		and bx,bx
+		setnz al
+		cmp word [VKernelCtr], byte 0
+		je .vk
+		mov [IPAppend],al
+		jmp short parse_config_2
+.vk:		mov [VKernelBuf+vk_ipappend],al
+		jmp short parse_config_2
 
 pc_kernel:	cmp word [VKernelCtr],byte 0	; "kernel" command
 		je near parse_config		; ("label" section only)
@@ -990,6 +1013,8 @@ pc_label:	call commit_vk			; Commit any current vkernel
                 mov cx,[AppendLen]
                 mov [VKernelBuf+vk_appendlen],cx
                 rep movsb
+		mov al,[IPAppend]		; Default ipappend==global ipappend
+		mov [VKernelBuf+vk_ipappend],al
 		jmp near parse_config_3
 
 pc_font:	call pc_getfile			; "font" command
@@ -1320,6 +1345,8 @@ vk_found:	popa
 		mov cx,FILENAME_MAX		; We need ECX == CX later
 		rep movsb
 		pop di
+		mov al,[VKernelBuf+vk_ipappend]
+		mov [IPAppend],al
 		xor bx,bx			; Try only one version
 		jmp get_kernel
 ;
@@ -1519,6 +1546,7 @@ got_highmem:
 ;
 ; Construct the command line (append options have already been copied)
 ;
+construct_cmdline:
 		mov di,[CmdLinePtr]
                 mov si,boot_image        	; BOOT_IMAGE=
                 mov cx,boot_image_len
@@ -1528,6 +1556,16 @@ got_highmem:
                 rep movsb
                 mov al,' '                      ; Space
                 stosb
+
+		mov al,[IPAppend]		; ip=
+		and al,al
+		jz .noipappend
+		mov si,IPOption
+		mov cx,[IPOptionLen]
+		rep movsb
+		mov al,' '
+		stosb
+.noipappend:
                 mov si,[CmdOptPtr]              ; Options from user input
 		mov cx,(kern_cmd_len+3) >> 2
 		rep movsd
@@ -1936,7 +1974,7 @@ load_old_kernel:
 ;
 is_comboot_image:
 		and dx,dx
-		jnz short comboot_too_large
+		jnz near comboot_too_large
 		cmp ax,0ff00h		; Max size in bytes
 		jae comboot_too_large
 
@@ -3808,6 +3846,99 @@ unload_pxe:
 		call far [PXENVEntry]
 		ret
 
+;
+; gendotquad
+;
+; Take an IP address in EAX and output a dotted quad string to ES:DI.
+; DI points to terminal null at end of string on exit.
+;
+; CX is destroyed.
+;
+gendotquad:
+		mov cx,4
+.genchar:
+		rol eax,8	; Move next char into LSB
+		aam 100
+		; Now AH = 100-digit; AL = remainder
+		cmp ah, 0
+		je .lt100
+		add ah,'0'
+		mov [es:di],ah
+		inc di
+.lt100:
+		aam 10
+		; Now AH = 100-digit; AL = remainder
+		cmp ah, 0
+		je .lt10
+		add ah,'0'
+		mov [es:di],ah		
+		inc di
+.lt10:
+		add al,'0'
+		mov ah,'.'
+		stosw
+		loop .genchar
+		dec di
+		mov [es:di], byte 0
+		ret
+
+;
+; genipopt
+;
+; Generate an ip=<client-ip>::<gw-ip>:<netmask> option into IPOption
+; based on a DHCP packet in trackbuf.  Assumes CS == DS == ES.
+;
+genipopt:
+		pushad
+		mov di,IPOption
+		mov eax,'ip='
+		stosd
+		dec di
+		mov eax,[trackbuf+bootp.yip]
+		call gendotquad
+		mov al,':'
+		stosb
+		stosb
+		mov si,trackbuf+bootp.options
+		xor ebx,ebx	; Unknown netmask
+		xor edx,edx	; Unknown router
+.parseopt:
+		lodsb
+		cmp al,0	; PAD option
+		je .parseopt
+		cmp al,255	; END option
+		je .parse_done
+		cmp al,1	; SUBNET MASK option
+		jne .not_subnet
+		inc si		; Skip length (always 4)
+		lodsd		; Read subnet mask
+		xchg ebx,eax	; Netmask: save in EBX
+		jmp short .parseopt
+.not_subnet:
+		cmp al,3	; ROUTER option
+		jne .not_router
+		inc si		; Skip length (always 4)
+		lodsd		; Read gateway address
+		xchg edx,eax	; Router: save in EDX
+		jmp short .parseopt
+.not_router:
+		; Unknown option.  Read the length and skip ahead.
+		xor ah,ah
+		lodsb
+		add si,ax
+		jmp short .parseopt
+.parse_done:
+		mov eax,edx	; Router
+		call gendotquad
+		mov al,':'
+		stosb
+		mov eax,ebx	; Netmask
+		call gendotquad	; Zero-terminates output!
+		sub di,IPOption
+		mov [IPOptionLen],di
+		popad
+		ret
+
 ; ----------------------------------------------------------------------------------
 ;  Begin data section
 ; ----------------------------------------------------------------------------------
@@ -3894,6 +4025,7 @@ initrd_cmd_len	equ 7
 		align 2, db 0
 
 keywd_table	db 'ap' ; append
+		db 'ip' ; ipappend
 		db 'de' ; default
 		db 'ti' ; timeout
 		db 'fo'	; font
@@ -3999,7 +4131,6 @@ MySocket	dw 32768		; Local UDP socket counter
 A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
 A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
 A20Type		dw A20_DUNNO		; A20 type unknown
-
 ;
 ; TFTP commands
 ;
@@ -4012,6 +4143,7 @@ tftp_opt_err	dw TFTP_ERROR				; ERROR packet
 		db 'tsize option required', 0		; Error message
 tftp_opt_err_len equ ($-tftp_opt_err)
 
+		alignb 2
 ack_packet_buf:	dw TFTP_ACK, 0				; TFTP ACK packet
 
 ;
@@ -4027,6 +4159,7 @@ ClustPerMoby	dw 65536/TFTP_BLOCKSIZE	; Clusters per 64K
 %if ( trackbufsize % TFTP_BLOCKSIZE ) != 0
 %error trackbufsize must be a multiple of TFTP_BLOCKSIZE
 %endif
+IPAppend	db 0			; Default IPAPPEND option
 
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid

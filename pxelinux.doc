@@ -34,11 +34,11 @@ following files to it:
 	any kernel or initrd images you want to boot
 
 Finally, create the directory "/tftpboot/pxelinux.cfg".  The
-configuration file (equivalent of syslinux.cfg) will live in this
-directory.  Because more than one system may be booted from the same
-server, the configuration file name depends on the IP address of the
-booting machine.  PXELINUX will search for its config file on the boot
-server in the following way:
+configuration file (equivalent of syslinux.cfg -- see syslinux.doc for
+the options here) will live in this directory.  Because more than one
+system may be booted from the same server, the configuration file name
+depends on the IP address of the booting machine.  PXELINUX will
+search for its config file on the boot server in the following way:
 
   First, it will search for the config file using its own IP address
   in upper case hexadecimal, e.g. 192.0.2.91 -> C000025B.
@@ -52,8 +52,8 @@ server in the following way:
 
 It should be noted that all filename references are relative to the
 directory pxelinux.bin lives in (usually /tftpboot).  PXELINUX
-generally requires that filenames are 31 characters or shorter in
-length.
+generally requires that filenames (including any relative path) are 31
+characters or shorter in length.
 
 PXELINUX does not support MTFTP, and I have no immediate plans of
 doing so.  It is of course possible to use MTFTP for the initial boot,
