@@ -46,6 +46,8 @@ release:
 	find release/syslinux-$(VERSION) \
 		\( -name '*~' -or -name '#*' \) -type f -print0 | \
 		xargs -0rt rm -f
+	find release/syslinux-$(VERSION) -name CVS -type d -print0 | \
+		xargs -0rt rm -rf
 	$(MAKE) -C release/syslinux-$(VERSION) spotless
 	$(MAKE) -C release/syslinux-$(VERSION) depend
 	$(MAKE) -C release/syslinux-$(VERSION) official
@@ -70,6 +72,8 @@ prerel:
 	find $(PRERELDIR)/$(PREREL) \
 		\( -name '*~' -or -name '#*' \) -type f -print0 | \
 		xargs -0rt rm -f
+	find $(PRERELDIR)/$(PREREL) -name CVS -type d -print0 | \
+		xargs -0rt rm -rf
 	$(MAKE) -C $(PRERELDIR)/$(PREREL) spotless
 	$(MAKE) -C $(PRERELDIR)/$(PREREL) depend
 	$(MAKE) -C $(PRERELDIR)/$(PREREL) all DATE=`printf '%s-pre%d          ' $(VERSION) $(PRERELNO) | dd bs=10 count=1 2>/dev/null`
