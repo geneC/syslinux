@@ -20,8 +20,9 @@
  * mtools, but requires root privilege.
  */
 
-#define _XOPEN_SOURCE 500	/* Required on glibc 2.x */
-#define _BSD_SOURCE
+#define _XOPEN_SOURCE 500	/* For pread() pwrite() */
+#define _BSD_SOURCE		/* For seteuid() */
+#define _LARGEFILE64_SOURCE	/* For O_LARGEFILE */
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -230,7 +231,7 @@ int main(int argc, char *argv[])
    * First make sure we can open the device at all, and that we have
    * read/write permission.
    */
-  dev_fd = open(device, O_RDWR);
+  dev_fd = open(device, O_RDWR|O_LARGEFILE);
   if ( dev_fd < 0 || fstat(dev_fd, &st) < 0 ) {
     perror(device);
     exit(1);
