@@ -681,7 +681,7 @@ ldlinux_magic	dd LDLINUX_MAGIC
 
 ;
 ; This area is patched by the installer.  It is found by looking for
-; LDLINUX_MAGIC, plus 4 bytes.
+; LDLINUX_MAGIC, plus 8 bytes.
 ;
 patch_area:
 LDLDwords	dw 0		; Total dwords starting at ldlinux_sys
@@ -737,7 +737,7 @@ load_rest:
 		inc edx				; Next linear sector
 		cmp [esi],edx			; Does it match
 		jnz .chunk_ready		; If not, this is it
-		inc esi				; If so, add sector to chunk
+		add esi,4			; If so, add sector to chunk
 		jmp short .make_chunk
 
 .chunk_ready:
@@ -1552,8 +1552,7 @@ nextsector:
 ;		Assumes CS == DS.
 ;
 getfatsector:
-		add eax,[bsHidden]	; Hidden sectors
-		add eax,[bxResSectors]	; Reserved sectors
+		add eax,[FAT]		; FAT starting address
 		; Fall through
 
 ;

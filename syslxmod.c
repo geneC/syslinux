@@ -206,7 +206,7 @@ int syslinux_patch(const uint32_t *sectors, int nsectors)
   
   /* Search for LDLINUX_MAGIC to find the patch area */
   for ( p = syslinux_ldlinux ; get_32(p) != LDLINUX_MAGIC ; p += 4 );
-  patcharea = p+4;
+  patcharea = p+8;
 
   /* Set up the totals */
   dw = syslinux_ldlinux_len >> 2; /* COMPLETE dwords! */
