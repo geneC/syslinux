@@ -2649,13 +2649,13 @@ load_high:
 		pop si
 		call abort_check
 
-		push eax			; Total chunk to transfer
+		push eax			; <A> Total bytes to transfer
 		cmp eax,(1 << 16)		; Max 64K in one transfer
 		jna .size_ok
 		mov eax,(1 << 16)
 .size_ok:
 		xor edx,edx
-		push eax			; Bytes transferred this chunk
+		push eax			; <B> Bytes transferred this chunk
 		movzx ecx,word [ClustSize]
 		div ecx				; Convert to clusters
 		; Round up...
@@ -2663,32 +2663,31 @@ load_high:
 		adc eax,byte 0			; Add 1 to EAX if CF set
 
 		; Now (e)ax contains the number of clusters to get
-		push edi
+		push edi			; <C> Target buffer
 		mov cx,ax
 		xor bx,bx			; ES:0
 		call getfssec			; Load the data into xfer_buf_seg
-		pop edi
-		pop ecx				; Byte count this round
-		push ecx
-		push edi
+		pop edi				; <C> Target buffer
+		pop ecx				; <B> Byte count this round
+		push ecx			; <B> Byte count this round 
+		push edi			; <C> Target buffer
 .fix_slop:
 		test cl,3
 		jz .noslop
 		; The last dword fractional - pad with zeroes
 		; Zero-padding is critical for multi-file initramfs.
-		mov bx,cx
-		mov byte [es:bx],0
+		mov byte [es:ecx],0
 		inc ecx
 		jmp short .fix_slop
 .noslop:
 		shr ecx,2			; Convert to dwords
-		push esi
+		push esi			; <D> File handle/cluster pointer
 		mov esi,(xfer_buf_seg << 4)	; Source address
 		call bcopy			; Copy to high memory
-		pop esi
-		pop edi
-		pop ecx
-		pop eax
+		pop esi				; <D> File handle/cluster pointer
+		pop edi				; <C> Target buffer
+		pop ecx				; <B> Byte count this round
+		pop eax				; <A> Total bytes to transfer
 		add edi,ecx
 		sub eax,ecx
 		jnz .read_loop			; More to read...
