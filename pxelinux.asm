@@ -31,7 +31,7 @@
 ; by the kernel.
 ;
 max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
-MAX_FILENAME	equ 32			; Including final null; should be a power of 2
+FILENAME_MAX	equ 32			; Including final null; should be a power of 2
 retry_count	equ 6			; How patient are we with the disk?
 HIGHMEM_MAX	equ 038000000h		; Highest address for an initrd
 DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
@@ -40,6 +40,8 @@ MAX_SOCKETS	equ 64			; Max number of open sockets
 TFTP_PORT	equ htons(69)		; Default TFTP port 
 PKT_RETRY	equ 8			; Packet transmit retry count
 PKT_TIMEOUT	equ 20			; Timer ticks @ 55 ms
+TFTP_BLOCKSIZE	equ 512			; Bytes/block
+LOG_TFTP_BLOCKSIZE equ 9		; log2(TFTP_BLOCKSIZE)
 
 ;
 ; TFTP operation codes
@@ -113,10 +115,7 @@ cmd_line_here	equ $			; Should be out of the way
 		endstruc
 
 setup_seg	equ 9020h
-		struc setup_seg_t
-		org 0h			; as 9020:0000, not 9000:0200
-setup_entry	equ $
-		endstruc
+setup_entry	equ 0h			; Entry point 9020:0000
 
 ;
 ; Magic number of su_header field
@@ -141,8 +140,8 @@ CAN_USE_HEAP    equ 80h                 ; Boot loader reports heap size
 %define vk_size		(1 << vk_shift)	; Size of a vkernel buffer
 
 		struc vkernel
-vk_vname:	resb MAX_FILENAME	; Virtual name **MUST BE FIRST!**
-vk_rname:	resb MAX_FILENAME	; Real name
+vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
+vk_rname:	resb FILENAME_MAX	; Real name
 vk_appendlen:	resw 1
 		alignb 4
 vk_append:	resb max_cmd_len+1	; Command line
@@ -273,11 +272,11 @@ VKernelBuf:	resb vk_size		; "Current" vkernel
 		alignb 4
 AppendBuf       resb max_cmd_len+1	; append=
 KbdMap		resb 256		; Keyboard map
-FKeyName	resb 10*MAX_FILENAME	; File names for F-key help
+FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
 NumBuf		resb 16			; Buffer to load number
 NumBufEnd	equ NumBuf+15		; Pointer to last byte in NumBuf
 		alignb 4
-KernelName      resb MAX_FILENAME       ; Mangled name for kernel
+KernelName      resb FILENAME_MAX       ; Mangled name for kernel
 PartInfo	resb 16			; Partition table entry
 InitRDat	resd 1			; Load address (linear) for initrd
 HiLoadAddr      resd 1			; Address pointer for high load loop
@@ -286,30 +285,12 @@ KernelSize	resd 1			; Size of kernel (bytes)
 Stack		resd 1			; Pointer to reset stack
 PXEEntry	resd 1			; !PXE API entry point
 ServerIP	resd 1			; IP address of boot server
-RootDir		equ $			; Location of root directory
-RootDir1	resw 1
-RootDir2	resw 1
-DataArea	equ $			; Location of data area
-DataArea1	resw 1
-DataArea2	resw 1
+SavedSSSP	resw 1			; Our SS:SP while running a COMBOOT image
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
 FBytes2		resw 1
-RootDirSize	resw 1			; Root dir size in sectors
-DirScanCtr	resw 1			; Used while searching directory
-DirBlocksLeft	resw 1			; Ditto
-EndofDirSec	resw 1			; = trackbuf+bsBytesPerSec-31
-RunLinClust	resw 1			; Cluster # for LDLINUX.SYS
-ClustSize	resw 1			; Bytes/cluster
-SecPerClust	resw 1			; Same as bsSecPerClust, but a word
-NextCluster	resw 1			; Pointer to "nextcluster" routine
-BufSafe		resw 1			; Clusters we can load into trackbuf
-BufSafeSec	resw 1			; = how many sectors?
-BufSafeBytes	resw 1			; = how many bytes?
-EndOfGetCBuf	resw 1			; = getcbuf+BufSafeBytes
 KernelClust	resw 1			; Kernel size in clusters
 InitRDClust	resw 1			; Ramdisk size in clusters
-ClustPerMoby	resw 1			; Clusters per 64K
 FClust		resw 1			; Number of clusters in open/getc file
 FNextClust	resw 1			; Pointer to next cluster in d:o
 FPtr		resw 1			; Pointer to next char in buffer
@@ -318,10 +299,9 @@ KernelCNameLen  resw 1			; Length of unmangled kernel name
 InitRDCNameLen  resw 1			; Length of unmangled initrd name
 NextCharJump    resw 1			; Routine to interpret next print char
 SetupSecs	resw 1			; Number of setup sectors
-SavedSP		resw 1			; Our SP while running a COMBOOT image
 A20Test		resw 1			; Counter for testing status of A20
 ServerPort	resw 1			; TFTP server port
-CurrentSocket	resw 1			; Workspace for network functions
+ConfigFile	resw 1			; Socket for config file
 TextAttrBX      equ $
 TextAttribute   resb 1			; Text attribute for message file
 TextPage        resb 1			; Active display page
@@ -336,10 +316,10 @@ KbdFlags	resb 1			; Check for keyboard escapes
 LoadFlags	resb 1			; Loadflags from kernel
 A20Tries	resb 1			; Times until giving up on A20
 FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
-KernelCName     resb MAX_FILENAME	; Unmangled kernel name
-InitRDCName     resb MAX_FILENAME       ; Unmangled initrd name
-MNameBuf	resb 11			; OBSOLETE
-InitRD		resb 11			; OBSOLETE
+KernelCName     resb FILENAME_MAX	; Unmangled kernel name
+InitRDCName     resb FILENAME_MAX       ; Unmangled initrd name
+MNameBuf	resb FILENAME_MAX
+InitRD		resb FILENAME_MAX
 
 		alignb tftp_port_t_size
 Sockets		resb MAX_SOCKETS*tftp_port_t_size
@@ -546,100 +526,6 @@ udp_init:
 		jmp kaboom
 .success:
 
-;
-; Now, prepare some of the data structures
-;
-filename_cp:	mov si,bootp.bootfile
-		mov di,pxe_tftp_open_pkt.filename
-		cld
-		xor cx,cx
-.strcpy:	lodsb
-		stosb
-		inc cx
-		and al,al
-		jnz .strcpy
-		std
-		dec di
-		mov si,di
-		mov al,'.'
-		repne scasb
-		jne .nodot
-		inc di
-		jmp short .dot
-.nodot:		mov di,si
-.dot:		cld
-		; Now di points to where we want to add stuff to the filename
-		mov si,dot_cfg_slash
-		mov cx,dot_cfg_slash_len
-		rep movsb
-		mov cx,8
-		mov eax,[bootp.yip]
-		bswap eax			; Convert to native byte order
-.hexify_loop:	rol eax,4
-		push eax
-		and al,0Fh
-		cmp al,10
-		jae .high
-.low:		add al,'0'
-		jmp short .char
-.high:		add al,'A'-10
-.char:		stosb
-		pop eax
-		loop .hexify_loop
-
-;
-; Begin looking for configuration file
-;
-config_scan:
-		mov cx,9			; Up to 9 attempts
-
-.tryagain:	mov byte [di],0
-		cmp cx,byte 1
-		jne .not_default
-		pusha
-		mov si,default_str
-		mov cx,default_len
-		rep movsb			; Copy "default" string
-		popa
-.not_default:	pusha
-		mov si,trying_msg
-		call writestr
-		mov si,pxe_tftp_open_pkt.filename
-		push si
-		call writestr
-		call crlf
-		pop si
-		call tftp_connect
-		jnz .success
-
-.badness:	popa
-		dec di
-		loop .tryagain
-
-;
-; If we get here, no configuration file
-;
-
-.success:	popa
-		; If we get here, we have an open TFTP connection to the config file
-
-enough:		mov si,enough_msg
-		call writestr
-		jmp kaboom
-enough_msg:	db 13,10,10,'End of implemented code.', 13, 10, 0
-
-;
-; getfssec: Get multiple clusters from a file, given the starting cluster.
-;
-;	This routine makes sure the subtransfers do not cross a 64K boundary,
-;	and will correct the situation if it does, UNLESS *sectors* cross
-;	64K boundaries.
-;
-;	ES:BX	-> Buffer
-;	SI	-> Starting cluster number (2-based)
-;	CX	-> Cluster count (0FFFFh = until end of file)
-;
-						; 386 check
 ; 
 ; Check that no moron is trying to boot Linux on a 286 or so.  According
 ; to Intel, the way to check is to see if the high 4 bits of the FLAGS
@@ -683,18 +569,13 @@ not_386:
 		jmp kaboom
 is_386:
 		; Now we know it's a 386 or higher
+
 ;
-; Now check that there is at least 608K of low (DOS) memory
-; (608K = 9800h segments)
+; We can't do the low memory check that SYSLINUX does, since
+; the PXE code is up in high memory.
 ;
-		int 12h
-		cmp ax,608
-		jae enough_ram
-		mov si,err_noram
-		call writestr
-		jmp kaboom
-enough_ram:
 skip_checks:
+
 ;
 ; Check if we're 386 (as opposed to 486+); if so we need to blank out
 ; the WBINVD instruction
@@ -747,9 +628,83 @@ mkkeymap:	stosb
 ;
 ; Load configuration file
 ;
-		mov di,syslinux_cfg
+;
+; Now, prepare some of the data structures
+;
+filename_cp:	mov si,bootp.bootfile
+		mov di,pxe_tftp_open_pkt.filename
+		cld
+		xor cx,cx
+.strcpy:	lodsb
+		stosb
+		inc cx
+		and al,al
+		jnz .strcpy
+		std
+		dec di
+		mov si,di
+		mov al,'.'
+		repne scasb
+		jne .nodot
+		inc di
+		jmp short .dot
+.nodot:		mov di,si
+.dot:		cld
+		; Now di points to where we want to add stuff to the filename
+		mov si,dot_cfg_slash
+		mov cx,dot_cfg_slash_len
+		rep movsb
+		mov cx,8
+		mov eax,[bootp.yip]
+		xchg ah,al			; Convert to native byte order
+		ror eax,16
+		xchg ah,al
+.hexify_loop:	rol eax,4
+		push eax
+		and al,0Fh
+		cmp al,10
+		jae .high
+.low:		add al,'0'
+		jmp short .char
+.high:		add al,'A'-10
+.char:		stosb
+		pop eax
+		loop .hexify_loop
+
+;
+; Begin looking for configuration file
+;
+config_scan:
+		mov cx,9			; Up to 9 attempts
+
+.tryagain:	mov byte [di],0
+		cmp cx,byte 1
+		jne .not_default
+		pusha
+		mov si,default_str
+		mov cx,default_len
+		rep movsb			; Copy "default" string
+		popa
+.not_default:	pusha
+		mov si,trying_msg
+		call writestr
+		mov di,pxe_tftp_open_pkt.filename
+		mov si,di
+		call writestr
+		call crlf
 		call open
-		jz near no_config_file
+		jnz .success
+
+.badness:	popa
+		dec di
+		loop .tryagain
+
+		jmp near no_config_file
+
+;
+; Now we have the config file open
+;
+.success:	add sp,byte 16			; Adjust stack
 parse_config:
 		call getkeyword
                 jc near end_config_file		; Config file loaded
@@ -914,7 +869,7 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		inc word [VKernelCtr]		; One more vkernel
 		mov si,VKernelBuf+vk_vname 	; By default, rname == vname
 		mov di,VKernelBuf+vk_rname
-		mov cx,11
+		mov cx,FILENAME_MAX
 		rep movsb
                 mov si,AppendBuf         	; Default append==global append
                 mov di,VKernelBuf+vk_append
@@ -1152,7 +1107,7 @@ clin_opt_ptr:   dec si                          ; Point to first nonblank
 		je not_vk
 		xor si,si			; Point to first vkernel
 vk_check:	pusha
-		mov cx,11
+		mov cx,FILENAME_MAX
 		repe cmpsb			; Is this it?
 		je near vk_found
 		popa
@@ -1181,8 +1136,8 @@ not_vk:		pop ds
 ;
 ; Find the kernel on disk
 ;
-get_kernel:     mov byte [KernelName+11],0	; Zero-terminate filename/extension
-		mov eax,[KernelName+8]		; Save initial extension
+get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/extension
+		mov eax,[KernelName+8]			; Save initial extension
 		mov [OrigKernelExt],eax
 .search_loop:	push bx
                 mov di,KernelName	      	; Search on disk
@@ -1233,7 +1188,7 @@ vk_found:	popa
                 pop di                          ; DI -> KernelName
 		push di	
 		mov si,VKernelBuf+vk_rname
-		mov cx,11			; We need ECX == CX later
+		mov cx,FILENAME_MAX		; We need ECX == CX later
 		rep movsb
 		pop di
 		xor bx,bx			; Try only one version
@@ -1279,17 +1234,6 @@ kernel_good:
 ; A Linux kernel consists of three parts: boot sector, setup code, and
 ; kernel code.	The boot sector is never executed when using an external
 ; booting utility, but it contains some status bytes that are necessary.
-; The boot sector and setup code together form exactly 5 sectors that
-; should be loaded at 9000:0.  The subsequent code should be loaded
-; at 1000:0.  For simplicity, we load the whole thing at 0F60:0, and
-; copy the latter stuff afterwards.
-;
-; NOTE: In the previous code I have avoided making any assumptions regarding
-; the size of a sector, in case this concept ever gets extended to other
-; media like CD-ROM (not that a CD-ROM would be bloody likely to use a FAT
-; filesystem, of course).  However, a "sector" when it comes to Linux booting
-; stuff means 512 bytes *no matter what*, so here I am using that piece
-; of knowledge.
 ;
 ; First check that our kernel is at least 64K and less than 8M (if it is
 ; more than 8M, we need to change the logic for loading it anyway...)
@@ -1343,7 +1287,7 @@ kernel_sane:	push ax
 		sub [KernelClust],cx
 		xor bx,bx
                 pop si                          ; Cluster pointer on stack
-;		call getfssec
+		call getfssec
 		jc near kernel_corrupt		; Failure in first 32K
                 cmp word [es:bs_bootsign],0AA55h
 		jne near kernel_corrupt		; Boot sec signature missing
@@ -1376,6 +1320,7 @@ e801_hole:
 		add eax,(1 << 20)		; First megabyte
 got_highmem:
 		mov [HighMemSize],eax
+		call writehex8
 ;
 ; Construct the command line (append options have already been copied)
 ;
@@ -1425,7 +1370,7 @@ get_next_opt:   lodsb
                 cmp eax,'mem='
 		je is_mem_cmd
                 push es                         ; Save ES -> real_mode_seg
-                push ss
+                push cs
                 pop es                          ; Set ES <- normal DS
                 mov di,initrd_cmd
 		mov cx,initrd_cmd_len
@@ -1464,10 +1409,10 @@ is_mem_cmd:
                 add si,byte 4
                 call parseint
 		jc skip_this_opt		; Not an integer
-		mov [ss:HighMemSize],ebx
+		mov [cs:HighMemSize],ebx
 		jmp short skip_this_opt
 cmdline_end:
-                push ss                         ; Restore standard DS
+                push cs                         ; Restore standard DS
                 pop ds
 ;
 ; Now check if we have a large kernel, which needs to be loaded high
@@ -1570,11 +1515,11 @@ read_kernel:
                 mov [HiLoadAddr],ecx
 		sub ecx,100000h			; Turn into a counter
 		shr ecx,2			; Convert to dwords
-		add esi,90000h			; Pointer to source
+		add esi,(real_mode_seg << 4)	; Pointer to source
                 mov edi,100000h                 ; Copy to address 100000h
                 call bcopy			; Transfer to high memory
 ;
-                push word xfer_buf_seg		; Segment 7000h is xfer buffer
+                push word xfer_buf_seg		; Transfer buffer segment
                 pop es
 high_load_loop: 
                 mov si,dot_msg			; Progress report
@@ -1588,7 +1533,7 @@ high_last_moby:
 		sub [KernelClust],cx
 		xor bx,bx			; Load at offset 0
                 pop si                          ; Restore cluster pointer
-;		call getfssec
+		call getfssec
                 push si                         ; Save cluster pointer
                 pushf                           ; Save EOF
                 xor bx,bx
@@ -1613,6 +1558,22 @@ high_load_done:
 ;
                 call abort_check        	; Last chance!!
 
+;
+; Unload PXE stack
+;
+		call unload_pxe
+;
+; Copy real_mode stuff up to 90000h
+;
+		cli				; In case UNDI didn't unload
+		mov ax,real_mode_seg
+		mov fs,ax
+		mov ax,9000h
+		mov es,ax
+		mov cx,[SetupSecs]
+		inc cx				; Setup + boot sector
+		shl cx,7			; Sectors -> dwords
+		fs rep movsd
 ;
 ; Some kernels in the 1.2 ballpark but pre-bzImage have more than 4
 ; setup sectors, but the boot protocol had not yet been defined.  They
@@ -1674,15 +1635,13 @@ kill_motor:
 ;
 ; Set up segment registers and the Linux real-mode stack
 ;
-		mov ax,real_mode_seg
+		mov ax,9000h
 		mov ds,ax
                 mov es,ax
 		mov fs,ax
 		mov gs,ax
-		cli
 		mov ss,ax
 		mov sp,linux_stack
-		sti
 ;
 ; We're done... now RUN THAT KERNEL!!!!
 ;
@@ -1727,7 +1686,7 @@ is_comboot_image:
 		mov bx,100h		; Load at <seg>:0100h
 
 		mov cx,[ClustPerMoby]	; Absolute maximum # of clusters
-;		call getfssec
+		call getfssec
 
 		xor di,di
 		mov cx,64		; 256 bytes (size of PSP)
@@ -1756,6 +1715,10 @@ comboot_end_cmd: mov al,0Dh		; CR after last character
 		sub al,cl
 		mov [es:80h], al	; Store command line length
 
+		mov [SavedSSSP],sp
+		mov ax,ss		; Save away SS:SP
+		mov [SavedSSSP+2],ax
+
 		mov ax,es
 		mov ds,ax
 		mov ss,ax
@@ -1773,10 +1736,9 @@ cb_enter:	jmp enter_command
 ; Proper return vector
 comboot_return:	cli			; Don't trust anyone
 		xor ax,ax
-		mov ss,ax
-		mov sp,[ss:SavedSP]
 		mov ds,ax
 		mov es,ax
+		lss sp,[SavedSSSP]
 		sti
 		cld
 		jmp short cb_enter
@@ -1784,10 +1746,9 @@ comboot_return:	cli			; Don't trust anyone
 ; Attempted to execute DOS system call
 comboot_bogus:	cli			; Don't trust anyone
 		xor ax,ax
-		mov ss,ax
-		mov sp,[ss:SavedSP]
 		mov ds,ax
 		mov es,ax
+		lss sp,[SavedSSSP]
 		sti
 		cld
 		mov si,KernelCName
@@ -1832,6 +1793,9 @@ bcopy:		push eax
 		push fs
 		push ds
 		push es
+		mov [cs:SavedSSSP],sp
+		mov ax,ss
+		mov [cs:SavedSSSP+2],ax
 
 		cli
 		call enable_a20
@@ -1861,8 +1825,8 @@ bcopy:		push eax
 		mov cr0,eax		; Disable protected mode
 		jmp 0:.in_rm
 
-.in_rm:		xor ax,ax		; Back in real mode
-		mov ss,ax
+.in_rm:		; Back in real mode
+		lss sp,[cs:SavedSSSP]
 		pop es
 		pop ds
 		pop fs
@@ -2037,7 +2001,7 @@ rd_last_moby:
                 push word xfer_buf_seg		; Bounce buffer segment
 		pop es
 		push cx
-;		call getfssec
+		call getfssec
 		pop cx
                 push si				; Save cluster pointer
 		mov esi,(xfer_buf_seg << 4)
@@ -2105,28 +2069,35 @@ kaboom:
 		pop ds
 .patch:		mov si,bailmsg
 		call writestr		; Returns with AL = 0
-		cbw			; AH <- 0
+		call unload_pxe
+.drain:		mov ah,1
+		int 16h			; Keypress there?
+		jz .drained
+		xor ah,ah
+		int 16h
+		jmp short .drain
+.drained:	xor ah,ah
 		int 16h			; Wait for keypress
 		int 19h			; And try once more to boot...
 .norge:		jmp short .norge	; If int 19h returned; this is the end
 
 ;
-; tftp_connect:
+; searchdir:
 ;
 ;	Open a TFTP connection to the server 
 ;
 ;	     On entry:
-;		DS:SI	= filename
+;		DS:DI	= filename
 ;	     If successful:
 ;		ZF clear
 ;		SI	= socket pointer
-;		DX:AX	= file length in bytes [OBSOLETE]
+;		DX:AX	= file length in bytes
 ;	     If unsuccessful
 ;		ZF set
 ;
 
-searchdir:	; Old name for this function [OBSOLETE]
-tftp_connect:	
+searchdir:
+		mov si,di
 		push bp
 		mov bp,sp
 
@@ -2212,23 +2183,23 @@ tftp_connect:
 		mov al,'R'
 		call writechr
 
+		mov si,[bp-6]			; TFTP pointer
 		mov bx,[bp-8]			; TID
 
 		mov eax,[ServerIP]
 		cmp [pxe_udp_read_pkt.sip],eax
 		jne .no_packet
-		mov [bx+tftp_remoteip],eax
+		mov [si+tftp_remoteip],eax
 
 		pop ax	; Adjust stack
 		pop ax
 
 		mov ax,[pxe_udp_read_pkt.rport]
-		mov [bx+tftp_remoteport],ax
+		mov [si+tftp_remoteport],ax
 
 		movzx eax,word [pxe_udp_read_pkt.buffersize]
 		sub eax, byte 2
 		jb near .failure		; Garbled reply
-		mov [bx+tftp_filepos], eax
 
 		cmp word [packet_buf], TFTP_ERROR
 		je near .bailnow		; ERROR reply: don't try again
@@ -2238,6 +2209,8 @@ tftp_connect:
 
 		; Now we need to parse the OACK packet to get the transfer
 		; size.
+		mov al,'A'
+		call writechr
 
 .parse_oack:	mov cx,[pxe_udp_read_pkt.buffersize]
 		mov si,packet_buf+2
@@ -2254,7 +2227,7 @@ tftp_connect:
 		; We ran out, and no final null
 		jmp short .err_reply
 .got_opt_name:	dec cx
-		jz .failure			; Option w/o value
+		jz .err_reply			; Option w/o value
 		push cx
 		mov si,bx
 		mov di,tsize_str
@@ -2282,18 +2255,21 @@ tftp_connect:
 		mov eax,edx
 		shr edx,16
 
-		xor edi,edi
+		xor edi,edi		; ZF <- 1
 
 		; Success, done!
+		mov al,'*'
+		call writechr
+
 		pop si			; Junk	
 		pop si			; We want the packet ptr in SI
 
 		mov [si+tftp_filesize],eax
 		mov [si+tftp_filepos],edi
 
+		inc di			; ZF <- 0
 		pop bp			; Junk
 		pop bp			; Junk (retry counter)
-		and bp,bp		; BP != 0, ZF <- 0
 		pop bp
 		ret
 
@@ -2392,7 +2368,7 @@ bf_ret:		ret
 loadfont:
 		mov bx,trackbuf			; The trackbuf is >= 16K; the part
 		mov cx,[BufSafe]		; of a PSF file we care about is no
-;		call getfssec			; more than 8K+4 bytes
+		call getfssec			; more than 8K+4 bytes
 
 		mov ax,[trackbuf]		; Magic number
 		cmp ax,0436h
@@ -2432,7 +2408,7 @@ loadkeys:
 
 		mov bx,trackbuf
 		mov cx,1			; 1 cluster should be >= 256 bytes
-;		call getfssec
+		call getfssec
 
 		mov si,trackbuf
 		mov di,KbdMap
@@ -2459,7 +2435,7 @@ get_msg_chunk:  push ax                         ; DX:AX = length of file
                 push dx
 		mov bx,trackbuf
 		mov cx,[BufSafe]
-;		call getfssec
+		call getfssec
                 pop dx
                 pop ax
 		push si				; Save current cluster
@@ -2598,16 +2574,60 @@ write_serial_str:
 
 ;
 ; writechr:	Write a single character in AL to the console without
-;		mangling any registers
+;		mangling any registers.  This does raw console writes,
+;		since some PXE BIOSes seem to interfere regular console I/O.
 ;
 writechr:
 		call write_serial	; write to serial port if needed
 		pushad
-		mov ah,0Eh
-		mov bx,0007h		; white text on this page
+		mov bh,[TextPage]
+                mov ah,03h              ; Read cursor position
+                int 10h
+		cmp al,8
+		je .bs
+		cmp al,13
+		je .cr
+		cmp al,10
+		je .lf
+		push dx
+                mov bh,[TextPage]
+		mov bl,07h		; White on black
+		mov cx,1		; One only
+		mov ah,09h		; Write char and attribute
+		int 10h
+		pop dx
+		inc dl
+		cmp dl,[VidCols]
+		jna .curxyok
+		xor dl,dl
+.lf:		inc dh
+		cmp dh,[VidRows]
+		ja .scroll
+.curxyok:	mov bh,[TextPage]
+		mov ah,02h		; Set cursor position
+		int 10h			
+		popad
+		ret
+.scroll:	dec dh
+		mov bh,[TextPage]
+		mov ah,02h
+		int 10h
+		mov ax,0601h		; Scroll up one line
+		mov bh,07h		; White on black
+		xor cx,cx
+		mov dx,[ScreenSize]	; The whole screen
 		int 10h
 		popad
 		ret
+.cr:		xor dl,dl
+		jmp short .curxyok
+.bs:		sub dl,1
+		jnc .curxyok
+		mov dl,[VidCols]
+		sub dh,1
+		jnc .curxyok
+		xor dh,dh
+		jmp short .curxyok
 
 ;
 ; crlf: Print a newline
@@ -2727,16 +2747,16 @@ kaboom2:
 ;		open:	Input:	filename in DS:DI
 ;			Output: ZF set on file not found or zero length
 ;
+;		openfd:	Input:	file handle in SI
+;			Output: none
+;
 ;		getc:	Output: CF set on end of file
 ;				Character loaded in AL
 ;
 open:
-		mov di,pxe_tftp_open_pkt
-		mov bx,0020h		; PXENV_TFTP_OPEN
-		call far [PXENVEntry]
-
 		call searchdir
 		jz open_return
+openfd:
 		pushf
 		mov [FBytes1],ax
 		mov [FBytes2],dx
@@ -2752,7 +2772,6 @@ open:
 		popf			; Restore no ZF
 open_return:	ret
 
-;
 getc:
 		stc			; If we exit here -> EOF
 		mov ecx,[FBytes]
@@ -2772,7 +2791,7 @@ getc_oksize:	sub [FClust],cx		; Reduce remaining clusters
 		push es			; ES may be != DS, save old ES
 		push ds			; Trackbuf is in DS, not ES
 		pop es
-;		call getfssec		; Load a trackbuf full of data
+		call getfssec		; Load a trackbuf full of data
 		mov [FNextClust],si	; Store new next pointer
 		pop es			; Restore ES
 		pop si			; SI -> newly loaded data
@@ -3042,54 +3061,26 @@ gl_xret:	popf
 		ret
 
 ;
-; mangle_name: Mangle a DOS filename pointed to by DS:SI into a buffer pointed
-;	       to by ES:DI; ends on encountering any whitespace
+; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
+;	       to by ES:DI; ends on encountering any whitespace.
 ;
-
+;	       This verifies that a filename is < FILENAME_MAX characters
+;	       and doesn't contain whitespace, and zero-pads the output buffer,
+;	       so "repe cmpsb" can do a compare.
+;
 mangle_name:
-		mov cx,11			; # of bytes to write
-mn_loop:
+		mov cx,FILENAME_MAX-1
+.mn_loop:
 		lodsb
 		cmp al,' '			; If control or space, end
-		jna mn_end
-		cmp al,'.'			; Period -> space-fill
-		je mn_is_period
-		cmp al,'a'
-		jb mn_not_lower
-		cmp al,'z'
-		ja mn_not_uslower
-		sub al,020h
-		jmp short mn_not_lower
-mn_is_period:	mov al,' '			; We need to space-fill
-mn_period_loop: cmp cx,3			; If <= 3 characters left
-		jbe mn_loop			; Just ignore it
-		stosb				; Otherwise, write a period
-		loop mn_period_loop		; Dec CX and (always) jump
-mn_not_uslower: cmp al,ucase_low
-		jb mn_not_lower
-		cmp al,ucase_high
-		ja mn_not_lower
-		mov bx,ucase_tab-ucase_low
-                cs xlatb
-mn_not_lower:	stosb
-		loop mn_loop			; Don't continue if too long
-mn_end:
-		mov al,' '			; Space-fill name
+		jna .mn_end
+		stosb
+		loop .mn_loop
+.mn_end:
+		inc cx				; At least one null byte
+		xor ax,ax			; Zero-fill name
 		rep stosb			; Doesn't do anything if CX=0
 		ret				; Done
-
-;
-; Upper-case table for extended characters; this is technically code page 865,
-; but code page 437 users will probably not miss not being able to use the
-; cent sign in kernel images too much :-)
-;
-; The table only covers the range 129 to 164; the rest we can deal with.
-;
-ucase_low	equ 129
-ucase_high	equ 164
-ucase_tab	db 154, 144, 'A', 142, 'A', 143, 128, 'EEEIII'
-		db 142, 143, 144, 146, 146, 'O', 153, 'OUUY', 153, 154
-		db 157, 156, 157, 158, 159, 'AIOU', 165
 
 ;
 ; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
@@ -3104,52 +3095,9 @@ ucase_tab	db 154, 144, 'A', 142, 'A', 143, 128, 'EEEIII'
 ;                On return, DI points to the first byte after the output name,
 ;                which is set to a null byte.
 ;
-unmangle_name:
-                push si                 ; Save pointer to original name
-                mov cx,8
-                mov bp,di
-un_copy_body:   lodsb
-                call lower_case
-                stosb
-                cmp al,' '
-                jbe un_cb_space
-                mov bp,di               ; Position of last nonblank+1
-un_cb_space:    loop un_copy_body
-                mov di,bp
-                mov al,'.'              ; Don't save
-                stosb
-                mov cx,3
-un_copy_ext:    lodsb
-                call lower_case
-                stosb
-                cmp al,' '
-                jbe un_ce_space
-                mov bp,di
-un_ce_space:    loop un_copy_ext
-                mov di,bp
-                mov byte [es:di], 0
-                pop si
-                ret
-
-;
-; lower_case: Lower case a character in AL
-;
-lower_case:
-                cmp al,'A'
-                jb lc_ret
-                cmp al,'Z'
-                ja lc_1
-                or al,20h
-                ret
-lc_1:           cmp al,lcase_low
-                jb lc_ret
-                cmp al,lcase_high
-                ja lc_ret
-                push bx
-                mov bx,lcase_tab-lcase_low
-               	cs xlatb
-                pop bx
-lc_ret:         ret
+unmangle_name:	call strcpy
+		dec di				; Point to final null byte
+		ret
 
 ;
 ; pxe_thunk
@@ -3207,20 +3155,237 @@ dot:		pushad
 		popad
 		ret
 
+;
+; getfssec: Get multiple clusters from a file, given the starting cluster.
+;
+;	In this case, get multiple blocks from a specific TCP connection.
+;
+;  On entry:
+;	ES:BX	-> Buffer
+;	SI	-> TFTP block pointer
+;	CX	-> 512-byte block pointer; 0FFFFh = until end of file
+;  On exit:
+;	SI	-> TFTP block pointer (or 0 on EOF)
+;	CF = 1	-> Hit EOF
+;
+getfssec:
+		mov al,'G'
+		call writechr
+
+.packet_loop:	push cx				; Save count
+		push es				; Save buffer pointer
+		push bx
+	
+		mov ax,ds
+		mov es,ax
+
+		; Start by ACKing the previous packet; this should cause the
+		; next packet to be sent.
+		mov cx,PKT_RETRY
+
+.send_ack:	push cx
+
+		mov al,'a'
+		call writechr
+
+		mov eax,[si+tftp_filepos]
+		shr eax,LOG_TFTP_BLOCKSIZE
+		xchg ah,al			; Network byte order
+		call ack_packet			; Send ACK
+		jz .send_ok
+
+		pop cx
+		loop .send_ack
+		jmp kaboom			; Failed to send ACK
+
+.send_ok:	; Now wait for packet.
+		xor ax,ax
+		int 1Ah				; Get current time
+
+		mov cx,PKT_TIMEOUT
+.send_loop:	push cx
+		push dx
+
+		mov bx,packet_buf
+		mov [pxe_udp_read_pkt.buffer],bx
+		mov [pxe_udp_read_pkt.buffersize],word packet_buf_size
+		mov eax,[bx+tftp_remoteip]
+		mov [pxe_udp_read_pkt.sip],eax
+		mov eax,[bootp.yip]
+		mov [pxe_udp_read_pkt.dip],eax
+		mov ax,[si+tftp_remoteport]
+		mov [pxe_udp_read_pkt.rport],ax
+		mov ax,[si+tftp_localport]
+		mov [pxe_udp_read_pkt.lport],ax
+		mov di,pxe_udp_read_pkt
+		mov bx,0032h			; PXE_UDP_READ
+		push si
+		call far [PXENVEntry]
+		pop si
+		cmp ax,byte 0
+		je .recv_ok
+
+		; No packet, or receive failure
+		xor ax,ax
+		int 1Ah				; Get time
+		pop ax				; Old time
+		pop cx
+		cmp ax,dx			; Same time -> don't advance timeout
+		je .send_loop
+		loop .send_loop			; Decrease timeout
+		
+		pop cx				; Didn't get any, send another ACK
+		loop .send_ack
+		jmp kaboom			; Forget it...
+
+.recv_ok:	pop dx
+		pop cx
+
+		mov al,'r'
+		call writechr
+
+		cmp word [pxe_udp_read_pkt.buffersize],byte 4
+		jb .send_loop			; Bad size for a DATA packet
+
+		cmp word [packet_buf],TFTP_DATA	; Not a data packet?
+		jne .send_loop			; Then wait for something else
+
+		mov eax,[si+tftp_filepos]
+		shr eax,LOG_TFTP_BLOCKSIZE
+		inc ax				; Which packet are we waiting for?
+	
+		xchg ah,al			; Network byte order
+		cmp word [packet_buf+2],ax
+		je .right_packet
+
+		; Wrong packet, ACK the packet and then try again
+		; This is presumably because the ACK got lost,
+		; so the server just resent the previous packet
+		mov al,'w'
+		call writechr
+
+		mov ax,[packet_buf+2]
+		call ack_packet
+		jmp .send_ok			; Reset timeout
+
+.right_packet:	; It's the packet we want.  We're also EOF if the size < 512.
+		pop cx				; Don't need the retry count anymore
+		mov al,'*'
+		call writechr
+		movzx ecx,word [pxe_udp_read_pkt.buffersize]
+		sub cx,4
+		add [si+tftp_filepos],ecx
+
+		cmp cx,TFTP_BLOCKSIZE		; Is it a full block
+		jb .last_block
+
+		pop di				; Get target buffer
+		pop es
+
+		push si
+		mov si,packet_buf+4
+		mov cx,TFTP_BLOCKSIZE >> 2
+		rep movsd
+		mov bx,di
+		pop si
+
+		pop cx
+		loop .packet_loop_jmp
+
+		; If we had the exact right number of bytes, always get
+		; one more packet to get the EOF packet and close the
+		; socket.
+
+		mov eax,[si+tftp_filepos]
+		cmp [si+tftp_filesize],eax
+		je .packet_loop_jmp
+
+		clc				; Not EOF
+		ret				; Mission accomplished
+
+.packet_loop_jmp: jmp .packet_loop
+
+.last_block:	; Last block - ACK packet immediately and free socket
+		mov ax,[packet_buf+2]
+		call ack_packet
+		mov word [si],0			; Socket closed
+	
+		pop di
+		pop es
+
+		mov si,packet_buf+4
+		sub cx,byte 4
+		movzx ecx,cx
+		add dword [si+tftp_filepos],ecx
+		rep movsb
+		mov bx,di
+
+		xor si,si
+		
+		pop cx				; Not used
+		stc				; EOF
+		ret
+
+;
+; ack_packet:
+;
+; Send ACK packet.  This is a common operation and so is worth canning.
+;
+; Entry:
+;	SI 	= TFTP block
+;	AX 	= Packet # to ack (network byte order)
+; Exit:
+;	ZF = 0 -> Error
+;	All registers preserved
+;
+; This function uses the pxe_udp_write_pkt but not the packet_buf.
+;
+ack_packet:
+		pushad
+		mov [ack_packet_buf+2],ax	; Packet number to ack
+		mov ax,[si]
+		mov [pxe_udp_write_pkt.lport],ax
+		mov ax,[si+tftp_remoteport]
+		mov [pxe_udp_write_pkt.rport],ax
+		mov eax,[si+tftp_remoteip]
+		mov [pxe_udp_write_pkt.sip],eax
+		mov [pxe_udp_write_pkt.buffer],word ack_packet_buf
+		mov [pxe_udp_write_pkt.buffersize], word 4
+		mov di,pxe_udp_write_pkt
+		mov bx,0033h			; PXE_UDP_WRITE
+		call far [PXENVEntry]
+		cmp ax,byte 0			; ZF = 1 if write OK
+		popad
+		ret
+
+;
+; unload_pxe:
+;
+; This function unloads the PXE and UNDI stacks.
+;
+unload_pxe:
+		ret				; Are these safe or will we die?
+		mov di,pxe_udp_close_pkt
+		mov bx,0031h			; PXE_UDP_CLOSE
+		call far [PXENVEntry]
+		mov di,pxe_undi_shutdown_pkt
+		mov bx,0005h			; PXE_UNDI_SHUTDOWN
+		call far [PXENVEntry]
+		mov di,pxe_undi_shutdown_pkt
+		mov bx,0076h			; PXE_STOP_BASE
+		call far [PXENVEntry]
+		mov di,pxe_unload_stack_pkt
+		mov bx,0070h			; PXE_UNLOAD_STACK
+		call far [PXENVEntry]
+		mov di,pxe_undi_shutdown_pkt
+		mov bx,0015h			; PXE_STOP_UNDI
+		call far [PXENVEntry]
+		ret
+
 ; ----------------------------------------------------------------------------------
 ;  Begin data section
 ; ----------------------------------------------------------------------------------
 
-
-;
-; Lower-case table for codepage 865
-;
-lcase_low       equ 128
-lcase_high      equ 165
-lcase_tab       db 135, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138
-                db 139, 140, 141, 132, 134, 130, 145, 145, 147, 148, 149
-                db 150, 151, 152, 148, 129, 155, 156, 155, 158, 159, 160
-                db 161, 162, 163, 164, 164
 ;
 ; Various initialized or semi-initialized variables
 ;
@@ -3246,8 +3411,8 @@ err_noram	db 'It appears your computer has less than 608K of low ("DOS")'
 		db 'this message in error, hold down the Ctrl key while'
 		db 0Dh, 0Ah
 		db 'booting, and I will take your word for it.', 0Dh, 0Ah, 0
-err_badcfg      db 'Unknown keyword in syslinux.cfg.', 0Dh, 0Ah, 0
-err_noparm      db 'Missing parameter in syslinux.cfg.', 0Dh, 0Ah, 0
+err_badcfg      db 'Unknown keyword in config file.', 0Dh, 0Ah, 0
+err_noparm      db 'Missing parameter in config file.', 0Dh, 0Ah, 0
 err_noinitrd    db 0Dh, 0Ah, 'Could not find ramdisk image: ', 0
 err_nohighmem   db 'Not enough memory to load specified kernel.', 0Dh, 0Ah, 0
 err_highload    db 0Dh, 0Ah, 'Kernel transfer failure.', 0Dh, 0Ah, 0
@@ -3394,10 +3559,7 @@ pxe_unload_stack_pkt:
 .status:	dw 0			; Status
 .reserved:	times 10 db 0		; Reserved
 
-pxe_undi_shutdown:
-.status:	dw 0			; Status
-
-pxe_undi_cleanup:
+pxe_undi_shutdown_pkt:
 .status:	dw 0			; Status
 
 ;
@@ -3426,6 +3588,19 @@ tftp_opt_err	dw TFTP_ERROR				; ERROR packet
 		dw htons(8)				; ERROR 8: bad options
 		db 'tsize option required', 0		; Error message
 tftp_opt_err_len equ ($-tftp_opt_err)
+
+ack_packet_buf:	dw TFTP_ACK, 0				; TFTP ACK packet
+
+;
+; Variables that are uninitialized in SYSLINUX but initialized here
+;
+ClustSize	dw TFTP_BLOCKSIZE	; Bytes/cluster
+SecPerClust	dw TFTP_BLOCKSIZE/512	; Same as bsSecPerClust, but a word
+BufSafe		dw trackbufsize/TFTP_BLOCKSIZE	; Clusters we can load into trackbuf
+BufSafeSec	dw trackbufsize/512	; = how many sectors?
+BufSafeBytes	dw trackbufsize		; = how many bytes?
+EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
+ClustPerMoby	dw 65536/TFTP_BLOCKSIZE	; Clusters per 64K
 
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
