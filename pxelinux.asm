@@ -2968,7 +2968,7 @@ msg_normal:	call write_serial		; Write to serial port
                 mov al,[CursorCol]
                 inc ax
                 cmp al,[VidCols]
-                ja msg_newline
+                ja msg_line_wrap		; Screen wraparound
                 mov [CursorCol],al
 
 msg_gotoxy:     mov bh,[TextPage]
@@ -2984,6 +2984,7 @@ msg_newline:                                    ; Newline char or end of line
 		mov si,crlf_msg
 		call write_serial_str
 		pop si
+msg_line_wrap:					; Screen wraparound
                 mov byte [CursorCol],0
                 mov al,[CursorRow]
                 inc ax
