@@ -10,6 +10,8 @@ Changes in 3.02:
 	  i386 devel libraries aren't installed.
 	* EXTLINUX: Hack for systems which don't have BLKGETSIZE64
 	  defined in the standard header files.
+	* Simple menu system: minor aestetic improvements, and try to
+	  work better over a serial console.
 
 Changes in 3.01:
 	* EXTLINUX, SYSLINUX: Fix compile errors on some systems.
