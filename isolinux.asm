@@ -1449,6 +1449,7 @@ show_help:	; AX = func key # (0 = F1, 9 = F10)
 		add di,FKeyName
 		call searchdir
 		jz fk_nofile
+		call crlf
 		call get_msg_file
 		jmp short fk_wrcmd
 fk_nofile:

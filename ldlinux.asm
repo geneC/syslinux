@@ -1549,11 +1549,11 @@ show_help:	; AX = func key # (0 = F1, 9 = F10)
 		add di,FKeyName
 		call searchdir
 		jz fk_nofile
+		call crlf
 		call get_msg_file
 		jmp short fk_wrcmd
 fk_nofile:
-		mov si,crlf_msg
-		call cwritestr
+		call crlf
 fk_wrcmd:
 		mov si,boot_prompt
 		call cwritestr
@@ -1571,8 +1571,7 @@ auto_boot:
 		rep movsd
 		jmp short load_kernel
 command_done:
-		mov si,crlf_msg
-		call cwritestr
+		call crlf
 		cmp di,command_line		; Did we just hit return?
 		je auto_boot
 		xor al,al			; Store a final null
@@ -2806,8 +2805,7 @@ rd_last_moby:
 		jne rd_load_loop		; Apparently not
 rd_load_done:
                 pop si                          ; Clean up the stack
-                mov si,crlf_msg
-		call cwritestr
+		call crlf
                 mov si,loading_msg		; Write new "Loading " for
                 call cwritestr                  ; the benefit of the kernel
                 pop es                          ; Restore original ES
@@ -3286,6 +3284,12 @@ writechr:
 		popad
 		popfd
 		ret
+
+;
+; crlf: Print a newline
+;
+crlf:		mov si,crlf_msg
+		; Fall through
 
 ;
 ; cwritestr: write a null-terminated string to the console, saving
@@ -4091,6 +4095,7 @@ vgasetmode:
 		xor bx,bx
 		mov ax,1121h		; Set graphics font
 		int 10h
+		mov byte [ScrollAttribute], 00h
 
 		xor ax,ax		; Set ZF
 .error:
@@ -4109,6 +4114,7 @@ vgaclearmode:
 ;		mov dx,TextColorReg	; Restore color registers
 ;		mov ax,1002h
 ;		int 10h
+		mov byte [ScrollAttribute], 07h
 .done:
 		popad
 		ret
@@ -4268,6 +4274,7 @@ A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
 A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
 A20Type		dw A20_DUNNO		; A20 type unknown
 VGAFontSize	dw 16			; Defaults to 16 byte font
+ScrollAttribute	db 07h			; White on black (for text mode)
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
 ; tons of zeros appended to our file and wasting space
@@ -4296,4 +4303,3 @@ vgafontbuf	equ 0E000h
 %if (getcbuf+trackbufsize) > vgafontbuf
 %error "Out of memory, better reorganize something..."
 %endif
-
