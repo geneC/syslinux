@@ -2,11 +2,12 @@
 ; $Id$
 ; ****************************************************************************
 ;
-;  pxelinux.asm
+;  isolinux.asm
 ;
-;  A program to boot Linux kernels off a TFTP server using the Intel PXE
-;  network booting API.  It is based on the SYSLINUX boot loader for
-;  MS-DOS floppies.
+;  A program to boot Linux kernels off a CD-ROM using the El Torito
+;  boot standard in "no emulation" mode, making the entire filesystem
+;  available.  It is based on the SYSLINUX boot loader for MS-DOS
+;  floppies.
 ;
 ;   Copyright (C) 1994-2001  H. Peter Anvin
 ;
@@ -18,46 +19,22 @@
 ; 
 ; ****************************************************************************
 
-
-%include "pxe.inc"
-
-;
-; Macros for byte order of constants
-;
-%define htons(x)  ( ( ((x) & 0FFh) << 8 ) + ( ((x) & 0FF00h) >> 8 ) )
-%define ntohs(x) htons(x)
-%define htonl(x)  ( ( ((x) & 0FFh) << 24) + ( ((x) & 0FF00h) << 8 ) + ( ((x) & 0FF0000h) >> 8 ) + ( ((x) & 0FF000000h) >> 24) )
-%define ntohl(x) htonl(x)
+; NOTE TO SELF: Based on pxelinux.asm,v 1.48 2001/03/30 02:52:17 hpa
+; Integrate PXELINUX changes since that version, please
 
 ;
 ; Some semi-configurable constants... change on your own risk.  Most are imposed
 ; by the kernel.
 ;
 max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
-FILENAME_MAX_LG2 equ 5			; log2(Max filename size Including final null)
+FILENAME_MAX_LG2 equ 6			; log2(Max filename size Including final null)
 FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
-REBOOT_TIME	equ 5*60		; If failure, time until full reset
 HIGHMEM_MAX	equ 038000000h		; Highest address for an initrd
 HIGHMEM_SLOP	equ 128*1024		; Avoid this much memory near the top
 DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
 BAUD_DIVISOR	equ 115200		; Serial port parameter
-MAX_SOCKETS_LG2	equ 6			; log2(Max number of open sockets)
-MAX_SOCKETS	equ (1 << MAX_SOCKETS_LG2)
-TFTP_PORT	equ htons(69)		; Default TFTP port 
-PKT_RETRY	equ 6			; Packet transmit retry count
-PKT_TIMEOUT	equ 8			; Initial timeout, timer ticks @ 55 ms
-TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)
-TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
-
-;
-; TFTP operation codes
-;
-TFTP_RRQ	equ htons(1)		; Read request
-TFTP_WRQ	equ htons(2)		; Write request
-TFTP_DATA	equ htons(3)		; Data packet
-TFTP_ACK	equ htons(4)		; ACK packet
-TFTP_ERROR	equ htons(5)		; ERROR packet
-TFTP_OACK	equ htons(6)		; OACK packet
+MAX_OPEN_LG2	equ 6			; log2(Max number of open files)
+MAX_OPEN	equ (1 << MAX_OPEN_LG2)
 
 ;
 ; Should be updated with every release to avoid bootsector/SYS file mismatch
@@ -72,13 +49,10 @@ TFTP_OACK	equ htons(6)		; OACK packet
 ;
 ; ID for SYSLINUX (reported to kernel)
 ;
-syslinux_id	equ 032h		; SYSLINUX (3) 2 = PXELINUX
+syslinux_id	equ 033h		; SYSLINUX (3) 3 = ISOLINUX
+
 ;
 ; Segments used by Linux
-;
-; Note: the real_mode_seg is supposed to be 9000h, but PXE uses that
-; memory.  Therefore, we load it at 5000:0000h and copy it before starting
-; the Linux kernel.
 ;
 real_mode_seg	equ 5000h
 fake_setup_seg	equ real_mode_seg+020h
@@ -179,44 +153,15 @@ xfer_buf_seg	equ 3000h		; Bounce buffer for I/O to high mem
 comboot_seg	equ 2000h		; COMBOOT image loading zone
 
 ;
-; BOOTP/DHCP packet pattern
+; File structure.  This holds the information for each currently open file.
 ;
-		struc bootp_t		
-bootp:
-.opcode		resb 1			; BOOTP/DHCP "opcode"
-.hardware	resb 1			; ARP hardware type
-.hardlen	resb 1			; Hardware address length
-.gatehops	resb 1			; Used by forwarders
-.ident		resd 1			; Transaction ID
-.seconds	resw 1			; Seconds elapsed
-.flags		resw 1			; Broadcast flags
-.cip		resd 1			; Client IP
-.yip		resd 1			; "Your" IP
-.sip		resd 1			; Next server IP
-.gip		resd 1			; Relay agent IP
-.macaddr	resb 16			; Client MAC address
-.sname		resb 64			; Server name (optional)
-.bootfile	resb 128		; Boot file name
-.option_magic	resd 1			; Vendor option magic cookie
-.options	resb 1260		; Vendor options
-		endstruc	
-
-BOOTP_OPTION_MAGIC	equ htonl(0x63825363)	; See RFC 2132
-
-;
-; TFTP connection data structure.  Each one of these corresponds to a local
-; UDP port.  The size of this structure must be a power of 2.
-;
-		struc tftp_port_t
-tftp_localport	resw 1			; Local port number	(0 = not in use)
-tftp_remoteport	resw 1			; Remote port number
-tftp_remoteip	resd 1			; Remote IP address
-tftp_filepos	resd 1			; Position within file
-tftp_filesize	resd 1			; Total file size
+		struc open_file_t
+file_sector	resd 1			; Sector pointer (0 = structure free)
+file_sectors	resd 1			; Number of sectors left
 		endstruc
 
-%if (tftp_port_t_size & (tftp_port_t_size-1))
-%error "tftp_port_t is not a power of 2"
+%if (open_file_t_size & (open_file_t_size-1))
+%error "open_file_t is not a power of 2"
 %endif
 
 ;
@@ -373,25 +318,346 @@ A20Tries	resb 1			; Times until giving up on A20
 FuncFlag	resb 1			; == 1 if <Ctrl-F> pressed
 OverLoad	resb 1			; Set if DHCP packet uses "overloading"
 
-		alignb tftp_port_t_size
-Sockets		resb MAX_SOCKETS*tftp_port_t_size
-
-		alignb 16
-		; BOOTP/DHCP packet buffer
-
-		alignb 16
-packet_buf	resb 2048		; Transfer packet
-packet_buf_size	equ $-packet_buf
+		alignb open_file_t_size
+Files		resb MAX_OPEN*open_file_t_size
 
 		section .text
                 org 7C00h
-;
-; Primary entry point.
-;
+;;
+;; Primary entry point.  Because BIOSes are buggy, we only load the first
+;; CD-ROM sector (2K) of the file, so the number one priority is actually
+;; loading the rest.
+;;
 bootsec		equ $
-_start:
-		jmp 0:_start1		; Canonicalize address
-_start1:
+_start:		; Far jump makes sure we canonicalize the address
+		cli			; 1 byte
+		jmp 0:_start1		; 5 bytes
+		nop
+		nop
+
+		; This table gets filled in by mkisofs using the
+		; -boot-info-table option
+bi_pvd:		dd 0xdeadbeef			; LBA of primary volume descriptor
+bi_file:	dd 0xdeadbeef			; LBA of boot file
+bi_length:	dd 0xdeadbeef			; Length of boot file
+bi_csum:	dd 0xdeadbeef			; Checksum of boot file
+bi_reserved:	times 10 dd 0xdeadbeef		; Reserved
+
+_start1:	xor ax,ax
+		mov es,ax
+		mov ss,ax
+		mov ds,ax
+		mov sp,_start			; Set up stack
+		sti
+
+		cld
+		;
+		; Before modifying any memory, get the checksum of bytes 64-2048
+		;
+initial_csum:	xor edi,edi
+		mov si,_start1
+		mov cx,(2048-64) >> 2
+.loop:		lodsd
+		add edi,eax
+		loop .loop
+		mov [FirstSecSum],edi
+
+		; Set up boot file sizes
+		mov eax,[bi_length]
+		sub eax,2048-3
+		shr eax,2			; bytes->dwords
+		mov [ImageDwords],eax		; boot file dwords
+		add eax,(2047 >> 2)
+		shr eax,9			; dwords->sectors
+		mov [ImageSectors],ax		; boot file sectors
+
+		mov si,startup_msg
+		call writemsg
+		mov [DriveNo],dl
+		mov al,dl
+		call writehex2
+		call crlf
+
+		; Now figure out what we're actually doing
+		; Note: use passed-in DL value rather than 7Fh because
+		; at least some BIOSes will get the wrong value otherwise
+		mov ax,4B01h			; Get disk emulation status
+		mov dl,[DriveNo]
+		mov si,spec_packet
+		int 13h
+		jc near spec_query_failed	; Shouldn't happen (BIOS bug)
+		mov dl,[DriveNo]
+		cmp [sp_drive],dl		; Should contain the drive number
+		jne near spec_query_failed
+
+		mov si,spec_ok_msg
+		call writemsg
+		mov al,byte [sp_drive]
+		call writehex2
+		call crlf
+
+found_drive:
+		; Get drive information
+		mov ah,48h
+		mov dl,[DriveNo]
+		mov si,drive_params
+		int 13h
+		jnc params_ok
+
+		mov si,nosecsize_msg
+		call writemsg
+
+params_ok:
+		; Check for the sector size (should be 2048, but
+		; some BIOSes apparently think we're 512-byte media)
+		mov si,secsize_msg
+		call writemsg
+		mov ax,[dp_secsize]
+		mov [bdib_secsize],ax
+		call writehex4
+		call crlf
+
+load_image:
+		; Some BIOSes apparently have limitations on the size 
+		; that may be loaded (despite the El Torito spec being very
+		; clear on the fact that it must all be loaded.)  Therefore,
+		; we load it ourselves, and *bleep* the BIOS.
+
+		mov eax,[bi_file]		; Address of code to load
+		inc eax				; Don't reload bootstrap code
+		mov si,offset_msg
+		call writemsg
+		call writehex8
+		call crlf
+
+		; Just in case some BIOSes have problems with
+		; segment wraparound, use the normalized address
+		mov bx,(REALOFF >> 4)
+		mov es,bx
+		xor bx,bx
+		mov bp,[ImageSectors]
+		push ax
+		mov si,size_msg
+		call writemsg
+		mov ax,bp
+		call writehex4
+		call crlf
+		pop ax
+		call getlinsec_cdrom
+
+		mov ax,ds
+		mov es,ax
+
+		mov si,loaded_msg
+		call writemsg
+
+		; Verify the checksum on the loaded image.
+verify_image:
+		mov si,REALOFF
+		mov bx,es
+		mov ecx,[ImageDwords]
+		mov edi,[FirstSecSum]		; First sector checksum
+.loop		es lodsd
+		add edi,eax
+		dec ecx
+		jz .done
+		and si,si
+		jnz .loop
+		; SI wrapped around, advance ES
+		add bx,1000h
+		mov es,bx
+		jmp short .loop
+.done:		mov ax,ds
+		mov es,ax
+		cmp [bi_csum],edi
+		je integrity_ok
+
+		mov si,checkerr_msg
+		call writestr
+
+integrity_ok:
+		; Copy relevant data to BDIB
+		movzx ax,byte [sp_drive]
+		mov [bdib_unit],ax
+		mov ebx,[bi_pvd]
+		mov [bdib_offset],ebx
+		
+		; Now point to the BDIB and run
+		mov bx,bdib			; Set up BDIB pointer in ES:BX
+
+		mov si,ready_msg
+		call writemsg
+
+		jmp all_read			; Jump to main code
+
+		; INT 13h, AX=4B01h, DL=7Fh failed.  Try to scan the entire 80h-FFh from
+		; the end.
+spec_query_failed:
+		mov si,spec_err_msg
+		call writemsg
+
+		mov dl,0FFh
+.test_loop:	pusha
+		mov ax,4B01h
+		mov si,spec_packet
+		mov byte [si],13		; Size of buffer
+		int 13h
+		popa
+		jc .still_broken
+
+		mov si,maybe_msg
+		call writemsg
+		mov al,dl
+		call writehex2
+		call crlf
+
+		cmp byte [sp_drive],dl
+		jne .still_broken
+
+		; Okay, good enough...
+		mov si,alright_msg
+		call writemsg
+		mov [DriveNo],dl
+		jmp found_drive
+
+.still_broken:	dec dx
+		cmp dl, 80h
+		jnb .test_loop
+
+fatal_error:
+		mov si,nothing_msg
+		call writemsg
+
+.norge:		jmp short .norge
+
+		; Information message (DS:SI) output
+		; Prefix with "isoboot: "; first byte is flag if
+		; we should set the pause in bdib_flags
+writemsg:	push ax
+		push si
+		mov si,isoboot_str
+		call writestr
+		pop si
+		lodsb
+		or [bdib_flags],al
+		call writestr
+		pop ax				
+		ret
+
+		; Information string (DS:SI) output
+writestr:	pushad
+		pushfd
+.loop:		lodsb
+		and al,al
+		jz .done
+		mov ah,0Eh
+		int 10h
+		jmp short .loop
+.done:		popfd
+		popad
+		ret
+
+		; Write value in AL, AX or EAX as hex
+writehex2:	pushad
+		mov cx,2
+		shl eax,24
+		jmp short writehex_common
+writehex4:	pushad
+		mov cx,4
+		shl eax,16
+		jmp short writehex_common
+writehex8:	pushad
+		mov cx,8
+writehex_common:
+		pushfd
+		mov bx,hex_table
+.loop:		rol eax,4	; Move bits in question into bottom bits
+		push eax
+		and al,0Fh
+		xlatb
+		mov ah,0Eh
+		int 10h
+		pop eax
+		loop .loop
+		popfd
+		popad
+		ret
+
+		; Print newline
+crlf:		push si
+		mov si,crlf_str
+		call writestr
+		pop si
+		ret
+
+;
+; Get linear sectors - EBIOS LBA addressing, 2048-byte sectors.
+;
+; Note that we can't always do this as a single request, because at least
+; Phoenix BIOSes has a 127-sector limit.  To be on the safe side, stick
+; to 32 sectors (64K) per request.
+;
+getlinsec_cdrom:
+		mov si,dapa			; Load up the DAPA
+		mov [si+4],bx
+		mov bx,es
+		mov [si+6],bx
+		mov [si+8],eax
+.loop:
+		push bp				; Sectors left
+		cmp bp,byte 32
+		jbe .bp_ok
+		mov bp,32
+.bp_ok:
+		mov [si+2],bp
+		push si
+		mov dl,[DriveNo]
+		mov ah,42h			; Extended Read
+		call xint13
+		pop si
+		pop bp
+		movzx eax,word [si+2]		; Sectors we read
+		add [si+8],eax			; Advance sector pointer
+		sub bp,ax			; Sectors left
+		shl ax,11-4			; 2048-byte sectors -> segment
+		add [si+6],ax			; Advance buffer pointer
+		and bp,bp
+		jnz .loop
+		mov eax,[si+8]			; Next sector
+		ret
+
+		; INT 13h with retry
+xint13:		mov byte [RetryCount], 6
+.try:		pushad
+		int 13h
+		jc .error
+		add sp,byte 8*4			; Clean up stack
+		ret
+.error:		popad
+		dec byte [RetryCount]
+		jnz .try
+
+.real_error:	mov si,diskerr_msg
+		call writemsg
+		mov al,ah
+		call writehex2
+		call crlf
+.norge:		jmp short .norge
+
+
+rl_checkpt	equ $				; Must be <= 400h
+
+%if (rl_checkpt-$$) > 0x800
+%error "Sector 0 overflow"
+%endif
+
+; ----------------------------------------------------------------------------
+;  End of code and data that have to be in the first sector
+; ----------------------------------------------------------------------------
+
+	;;; ********** THIS STUFF HASN'T BEEN UNIFIED PROPERLY ***********
+
+all_read:
 		pushad			; Paranoia... in case of return to PXE
 		pushfd			; ... save as much state as possible
 		push ds
@@ -517,10 +783,10 @@ have_pxe:
 have_entrypoint:
 
 ;
-; Clear Sockets structures
+; Clear Files structures
 ;
-		mov di,Sockets
-		mov cx,(MAX_SOCKETS*tftp_port_t_size)/4
+		mov di,Files
+		mov cx,(MAX_OPEN*open_file_t_size)/4
 		xor eax,eax
 		rep stosd
 
@@ -2872,11 +3138,11 @@ searchdir:
 ;
 allocate_socket:
 		push cx
-		mov bx,Sockets
-		mov cx,MAX_SOCKETS
+		mov bx,Files
+		mov cx,MAX_OPEN
 .check:		cmp word [bx], byte 0
 		je .found
-		add bx,tftp_port_t_size
+		add bx,open_file_t_size
 		loop .check
 		xor cx,cx			; ZF = 1
 		pop cx
@@ -2895,9 +3161,9 @@ allocate_socket:
 		push ax
 		mov ax,[NextSocket]
 		inc ax
-		and ax,((1 << (13-MAX_SOCKETS_LG2))-1) | 0xC000
+		and ax,((1 << (13-MAX_OPEN_LG2))-1) | 0xC000
 		mov [NextSocket],ax
-		shl cx,13-MAX_SOCKETS_LG2
+		shl cx,13-MAX_OPEN_LG2
 		add cx,ax			; ZF = 0
 		xchg ch,cl			; Convert to network byte order
 		mov [bx],cx			; Socket in use
