@@ -324,20 +324,20 @@ found_drive:
 		cmp dword [bi_file],0		; Address of code to load
 		jne found_file			; Boot info table present :)
 
-;%ifdef DEBUG_MESSAGES
+%ifdef DEBUG_MESSAGES
 		mov si,noinfotable_msg
 		call writemsg
-;%endif
+%endif
 		
 		; No such luck.  See if the the spec packet contained one.
 		mov eax,[sp_lba]
 		and eax,eax
 		jz set_file			; Good enough
 
-;%ifdef DEBUG_MESSAGES
+%ifdef DEBUG_MESSAGES
 		mov si,noinfoinspec_msg
 		call writemsg
-;%endif
+%endif
 		
 		; No such luck.  Get the Boot Record Volume, assuming single
 		; session disk, and that we're the first entry in the chain

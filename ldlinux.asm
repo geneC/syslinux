@@ -46,6 +46,9 @@ retry_count	equ 6			; How patient are we with the disk?
 %assign HIGHMEM_SLOP 0			; Avoid this much memory near the top
 LDLINUX_MAGIC	equ 0x3eb202fe		; A random number to identify ourselves with
 
+MAX_OPEN_LG2	equ 6			; log2(Max number of open files)
+MAX_OPEN	equ (1 << MAX_OPEN_LG2)
+
 SECTOR_SHIFT	equ 9
 SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 
@@ -100,6 +103,20 @@ cache_seg	equ 3000h		; 64K area for metadata cache
 vk_seg          equ 2000h		; Virtual kernels
 xfer_buf_seg	equ 1000h		; Bounce buffer for I/O to high mem
 comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
+
+;
+; File structure.  This holds the information for each currently open file.
+;
+		struc open_file_t
+file_sector	resd 1			; Sector pointer (0 = structure free)
+file_left	resd 1			; Number of sectors left
+		endstruc
+
+%ifndef DEPEND
+%if (open_file_t_size & (open_file_t_size-1))
+%error "open_file_t is not a power of 2"
+%endif
+%endif
 
 ; ---------------------------------------------------------------------------
 ;   BEGIN CODE
@@ -162,7 +179,6 @@ KernelSize	resd 1			; Size of kernel (bytes)
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
 PMESP		resd 1			; Protected-mode ESP
 FSectors	resd 1			; Number of sectors in getc file
-ClustPerMoby	resd 1			; Clusters per 64K
 ClustSize	resd 1			; Bytes/cluster
 ClustMask	resd 1			; Sectors/cluster - 1
 KernelName      resb 12		        ; Mangled name for kernel
@@ -227,6 +243,9 @@ VGAFileMBuf	resb 11			; Mangled VGA image name
 command_line	resb max_cmd_len+2	; Command line buffer
 		alignb 4
 default_cmd	resb max_cmd_len+1	; "default" command line
+
+		alignb open_file_t_size
+Files		resb MAX_OPEN*open_file_t_size
 
 		section .text
                 org 7C00h
@@ -943,6 +962,14 @@ getfattype:
 %include "cpuinit.inc"
 
 ;
+; Clear Files structures
+;
+		mov di,Files
+		mov cx,(MAX_OPEN*open_file_t_size)/4
+		xor eax,eax
+		rep stosd
+
+;
 ; Initialization that does not need to go into the any of the pre-load
 ; areas
 ;
@@ -961,15 +988,6 @@ getfattype:
 ;
 		; E9 = JMP NEAR
 		mov dword [kaboom.patch],0e9h+((kaboom2-(kaboom.patch+3)) << 8)
-
-;
-; Compute some parameters that depend on cluster size
-;
-		xor eax,eax
-		cwd				; DX <- 0
-		inc dx				; DX:AX <- 64K
-		div word [ClustSize]
-		mov [ClustPerMoby],eax		; Clusters/64K
 
 ;
 ; Now we're all set to start with our *real* business.	First load the
@@ -1066,6 +1084,28 @@ ac_ret2:	popa
 ac_ret1:	ret
 
 ;
+; allocate_file: Allocate a file structure
+;
+;		If successful:
+;		  ZF set
+;		  BX = file pointer
+;		In unsuccessful:
+;		  ZF clear
+;
+allocate_file:
+		TRACER 'a'
+		push cx
+		mov bx,Files
+		mov cx,MAX_OPEN
+.check:		cmp dword [bx], byte 0
+		je .found
+		add bx,open_file_t_size		; ZF = 0
+		loop .check
+		; ZF = 0 if we fell out of the loop
+.found:		pop cx
+		ret
+
+;
 ; searchdir:
 ;	     Search the root directory for a pre-mangled filename in DS:DI.
 ;
@@ -1076,63 +1116,74 @@ ac_ret1:	ret
 ;
 ;	     If successful:
 ;		ZF clear
-;		SI	= cluster # for the first cluster
+;		SI	= file pointer
 ;		DX:AX	= file length in bytes
 ;	     If unsuccessful
 ;		ZF set
 ;
 
 searchdir:
-		push bp
-		mov ax,[bsRootDirEnts]
-		mov [DirScanCtr],ax
-		mov ax,[RootDirSize]
-		mov [DirBlocksLeft],ax
-		mov eax,[RootDir]
-scan_group:
-		movzx ebp,word [DirBlocksLeft]
-		and bp,bp
-		jz dir_return
-		cmp bp,[BufSafeSec]
-		jna load_last
-		mov bp,[BufSafeSec]
-load_last:
-		sub [DirBlocksLeft],bp
-		push eax
-		mov ax,[bsBytesPerSec]
-		mul bp
-		add ax,trackbuf-31
-		mov [EndofDirSec],ax	; End of loaded
-		pop eax
-		mov bx,trackbuf
-		call getlinsecsr
-		mov si,trackbuf
-dir_test_name:	cmp byte [si],0		; Directory high water mark
-		je dir_return		; Failed
-                test byte [si+11],18h	; Check it really is a file
-                jnz dir_not_this
-		push di
+		call allocate_file
+		jnz .alloc_failure
+
+		push gs
+		push es
+		push ds
+		pop es				; ES = DS
+
+		mov edx,[RootDir]		; First root directory sector
+
+.scansector:
+		mov eax,edx
+		call getcachesector
+		; GS:SI now points to this sector
+
+		mov cx,SECTOR_SIZE/32		; 32 == directory entry size
+.scanentry:
+		cmp byte [gs:si],0
+		jz .failure			; Hit directory high water mark
+		push cx
 		push si
-		mov cx,11		; Filename = 11 bytes
-		repe cmpsb
+		mov cx,11
+		gs repe cmpsb
 		pop si
-		pop di
-		je dir_success
-dir_not_this:   add si,byte 32
-		dec word [DirScanCtr]
-		jz dir_return		; Out of it...
-		cmp si,[EndofDirSec]
-		jb dir_test_name
-		add eax,ebp		; Increment linear sector number
-		jmp short scan_group
-dir_success:
-		mov ax,[si+28]		; Length of file
-		mov dx,[si+30]
-		mov si,[si+26]		; Cluster pointer
-		mov bx,ax
-		or bx,dx		; Sets ZF iff DX:AX is zero
-dir_return:
-		pop bp
+		pop cx
+		jz .found
+		add si,32
+		loop .scanentry
+
+		call nextsector
+		jnc .scansector			; CF is set if we're at end
+
+		; If we get here, we failed
+.failure:
+		pop es
+		pop gs
+.alloc_failure:
+		xor ax,ax			; ZF <- 1
+		ret
+.found:
+		mov eax,[gs:si+28]		; File size
+		add eax,SECTOR_SIZE-1
+		shr eax,SECTOR_SHIFT
+		jz .failure			; Zero-length file
+		mov [bx+4],eax
+
+		mov cl,[ClustShift]
+		mov dx,[gs:si+20]		; High cluster word
+		shl edx,16
+		mov dx,[gs:si+26]		; Low cluster word
+		add edx,2
+		shl edx,cl
+		mov [bx],edx			; Starting sector
+
+		mov edx,eax
+		shr edx,16			; 16-bitism, sigh
+		mov si,bx
+		and eax,eax			; ZF <- 0
+
+		pop es
+		pop gs
 		ret
 
 ;
@@ -1332,10 +1383,10 @@ getfssec_edx:
 ;
 ; getfssec: Get multiple sectors from a file
 ;
-;	Same as above, except SI is a pointer to a dword with the current sector.
+;	Same as above, except SI is a pointer to a open_file_t
 ;
 ;	ES:BX	-> Buffer
-;	DS:SI	-> Pointer to current sector number
+;	DS:SI	-> Pointer to open_file_t
 ;	CX	-> Sector count (0FFFFh = until end of file)
 ;                  Must not exceed the ES segment
 ;	Returns CF=1 on EOF (not necessarily error)
@@ -1343,6 +1394,13 @@ getfssec_edx:
 ;
 getfssec:
 		push edx
+		movzx edx,cx
+		cmp edx,[si+4]
+		jbe .sizeok
+		mov edx,[si+4]
+		mov cx,dx
+.sizeok:
+		sub [si+4],edx
 		mov edx,[si]
 		call getfssec_edx
 		mov [si],edx
