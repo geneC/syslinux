@@ -1462,18 +1462,16 @@ get_e820:
 ; Look for a memory block starting at <= 1 MB and continuing upward
 ;
 		cmp dword [E820Buf+4], byte 0
-		ja .int_loop			; Start >= 4 GB
-		mov edx,[E820Buf]
-		cmp edx, (1 << 20)
-		ja .int_loop
-		mov eax, 0FFFFFFFFh		
+		ja .int_loop			; Start >= 4 GB?
+		mov edx, (1 << 20)
+		sub edx, [E820Buf]
+		jb .int_loop			; Start >= 1 MB?
+		mov eax, 0FFFFFFFFh
 		cmp dword [E820Buf+12], byte 0
 		ja .huge			; Size >= 4 GB
 		mov eax, [E820Buf+8]
-.huge:		mov ecx, (1 << 20)
-		sub ecx, edx
-		sub eax, ecx			; Adjust size to start at 1 MB
-		jb .int_loop			; Completely below 1 MB
+.huge:		sub eax, edx			; Adjust size to start at 1 MB
+		jbe .int_loop			; Completely below 1 MB?
 
 		; Now EAX contains the size of memory 1 MB...up
 		cmp dword [E820Buf+16], byte 1
@@ -2146,8 +2144,8 @@ try_enable_a20:
 ;
 ; If the A20 type is known, jump straight to type
 ;
-		movzx si,byte [ss:A20Type]
-		jmp word [si+A20List]
+		movzx bp,byte [ss:A20Type]
+		jmp word [bp+A20List]		; Implicit ss: because of bp
 
 ;
 ; First, see if we are on a system with no A20 gate
@@ -2265,8 +2263,8 @@ disable_a20:
 ;
 ;		call try_wbinvd
 
-		movzx si,[ss:A20Type]
-		jmp word [si+A20DList]
+		movzx bp,byte [ss:A20Type]
+		jmp word [bp+A20DList]		; Implicit ss: because of bp
 
 a20d_bios:
 		mov ax,2400h
