@@ -49,7 +49,7 @@ installer: $(ITARGET)
 # official release.  Otherwise, substitute a hex string that is pretty much
 # guaranteed to be unique to be unique from build to build.
 ifndef HEXDATE
-HEXDATE := $(shell perl now.pl ldlinux.asm)
+HEXDATE := $(shell perl now.pl ldlinux.asm pxelinux.asm)
 endif
 ifndef DATE
 DATE    := $(HEXDATE)

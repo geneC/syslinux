@@ -37,6 +37,7 @@ max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
 FILENAME_MAX	equ 32			; Including final null; should be a power of 2
 retry_count	equ 6			; How patient are we with the disk?
 HIGHMEM_MAX	equ 038000000h		; Highest address for an initrd
+HIGHMEM_SLOP	equ 128*1024		; Avoid this much memory near the top
 DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
 BAUD_DIVISOR	equ 115200		; Serial port parameter
 MAX_SOCKETS	equ 64			; Max number of open sockets
@@ -364,17 +365,17 @@ _start:
 		jmp 0:_start1		; Canonicalize address
 _start1:	
 		mov bp,sp
-		les bx,[ss:bp+4]	; Initial !PXE structure pointer
+		les bx,[bp+4]		; Initial !PXE structure pointer
 
-		push cs
-		pop ds
+		mov ax,cs
+		mov ds,ax
 		sti			; Stack already set up by PXE
 		cld			; Copy upwards
 
 		push ds
 		mov [Stack],sp
-		push ss
-		pop word [Stack+2]
+		mov ax,ss
+		mov [Stack+2],ax
 
 ;
 ; Now we need to find the !PXE structure.  It's *supposed* to be pointed
@@ -483,14 +484,6 @@ query_bootp:	mov ax,0DEADh			; Something bogus
 .pxe_ok:	mov si,myipaddr_msg
 		call writestr
 		mov eax,[bootp.yip]		; "Your" IP address
-		call writehex8
-		mov al,' '
-		call writechr
-		mov eax,[bootp.sip]		; Server IP address(?)
-		call writehex8
-		mov al,' '
-		call writechr
-		mov eax,[bootp.gip]		; Gateway IP address(?)
 		call writehex8
 		call crlf
 
@@ -702,7 +695,7 @@ config_scan:
 		dec di
 		loop .tryagain
 
-		jmp near no_config_file
+		jmp no_config_file
 
 ;
 ; Now we have the config file open
@@ -733,6 +726,8 @@ parse_config:
                 je near pc_implicit
 		cmp ax,'se'			; SErial
 		je near pc_serial
+		cmp ax,'sa'			; SAy
+		je near pc_say
 		cmp al,'f'			; F-key
 		jne parse_config
 		jmp pc_fkey
@@ -750,7 +745,7 @@ pc_append:      cmp word [VKernelCtr],byte 0	; "append" command
 		call getline
                 sub di,AppendBuf
 pc_app1:        mov [AppendLen],di
-                jmp short parse_config
+                jmp short parse_config_2
 pc_append_vk:	mov di,VKernelBuf+vk_append	; "append" command (vkernel)
 		call getline
 		sub di,VKernelBuf+vk_append
@@ -890,6 +885,16 @@ pc_kbd:		call pc_getfile			; "kbd" command
 		jz parse_config_3
 		call loadkeys
 parse_config_3:	jmp parse_config
+
+pc_say:		mov di,trackbuf			; "say" command
+		push di
+		call getline
+		xor al,al
+		stosb				; Null-terminate
+		pop si
+		call writestr
+		call crlf
+		jmp short parse_config_3
 
 ;
 ; pc_getfile:	For command line options that take file argument, this
@@ -1048,8 +1053,7 @@ show_help:	; AX = func key # (0 = F1, 9 = F10)
 		call get_msg_file
 		jmp short fk_wrcmd
 fk_nofile:
-		mov si,crlf_msg
-		call cwritestr
+		call crlf
 fk_wrcmd:
 		mov si,boot_prompt
 		call cwritestr
@@ -1067,8 +1071,7 @@ auto_boot:
 		rep movsd
 		jmp short load_kernel
 command_done:
-		mov si,crlf_msg
-		call cwritestr
+		call crlf
 		cmp di,command_line		; Did we just hit return?
 		je auto_boot
 		xor al,al			; Store a final null
@@ -1322,6 +1325,7 @@ e801_hole:
 		shl eax,10			; Convert from kilobytes
 		add eax,(1 << 20)		; First megabyte
 got_highmem:
+		sub eax,HIGHMEM_SLOP
 		mov [HighMemSize],eax
 		call writehex8
 ;
@@ -1401,6 +1405,7 @@ is_mem_cmd:
                 add si,byte 4
                 call parseint
 		jc skip_this_opt		; Not an integer
+		sub ebx,HIGHMEM_SLOP
 		mov [cs:HighMemSize],ebx
 		jmp short skip_this_opt
 cmdline_end:
@@ -1567,15 +1572,11 @@ nk_noinitrd:
 ;
 ; Unload PXE stack
 ;
-		mov al,'U'
-		call writechr
 		call unload_pxe
 		cli
 		xor ax,ax
 		mov ss,ax
 		mov sp,7C00h			; Set up a more normal stack
-		mov al,'L'
-		call writechr
 		
 ;
 ; Copy real_mode stuff up to 90000h
@@ -2022,8 +2023,7 @@ rd_last_moby:
 		jne rd_load_loop		; Apparently not
 rd_load_done:
                 pop si                          ; Clean up the stack
-                mov si,crlf_msg
-		call cwritestr
+		call crlf
                 mov si,loading_msg		; Write new "Loading " for
                 call cwritestr                  ; the benefit of the kernel
                 pop es                          ; Restore original ES
@@ -2109,12 +2109,8 @@ searchdir:
 		push bp
 		mov bp,sp
 
-		call dot
-
 		call allocate_socket
 		jz near .error
-
-		call dot
 
 		mov ax,PKT_RETRY	; Retry counter
 	
@@ -2139,9 +2135,6 @@ searchdir:
 		rep movsb
 		sub di,packet_buf	; Get packet size
 		mov [pxe_udp_write_pkt.buffersize],di
-
-		mov al,'S'
-		call writechr
 
 		mov di,pxe_udp_write_pkt
 		mov bx,PXENV_UDP_WRITE
@@ -2188,9 +2181,6 @@ searchdir:
 		jmp .failure
 		
 .got_packet:
-		mov al,'R'
-		call writechr
-
 		mov si,[bp-6]			; TFTP pointer
 		mov bx,[bp-8]			; TID
 
@@ -2217,9 +2207,6 @@ searchdir:
 
 		; Now we need to parse the OACK packet to get the transfer
 		; size.
-		mov al,'A'
-		call writechr
-
 .parse_oack:	mov cx,[pxe_udp_read_pkt.buffersize]
 		mov si,packet_buf+2
 		sub cx,byte 2
@@ -2266,8 +2253,6 @@ searchdir:
 		xor edi,edi		; ZF <- 1
 
 		; Success, done!
-		mov al,'*'
-		call writechr
 
 		pop si			; Junk	
 		pop si			; We want the packet ptr in SI
@@ -2292,9 +2277,7 @@ searchdir:
 		call writestr
 		jmp kaboom
 
-.bailnow:	mov al,'B'
-		call writechr
-		add sp,byte 8		; Immediate error - no retry
+.bailnow:	add sp,byte 8		; Immediate error - no retry
 		jmp short .error
 
 .failure:	mov al,'F'
@@ -2794,18 +2777,18 @@ getc:
 		mov cx,[BufSafe]
 getc_oksize:	sub [FClust],cx		; Reduce remaining clusters
 		mov si,[FNextClust]
+		push es			; ES may be != DS, save old ES
+		mov bx,ds
+		mov es,bx
 		mov bx,getcbuf
 		push bx
-		push es			; ES may be != DS, save old ES
-		push ds			; Trackbuf is in DS, not ES
-		pop es
 		call getfssec		; Load a trackbuf full of data
 		mov [FNextClust],si	; Store new next pointer
-		pop es			; Restore ES
 		pop si			; SI -> newly loaded data
+		pop es			; Restore ES
 getc_loaded:	lodsb			; Load a byte
 		mov [FPtr],si		; Update next byte pointer
-		dec dword [FBytes]	; Update bytes left counter (CF = 1)
+		dec dword [FBytes]	; Update bytes left counter
 		clc			; Not EOF
 getc_ret:	ret
 
@@ -3124,33 +3107,6 @@ pxe_thunk:	push es
 		cmp ax,byte 1
 		cmc				; Set CF unless ax == 0
 		retf
-
-;
-; Debugging routine: print packet data
-;
-debug_pxenv:
-		push ax
-		push bx
-		mov al,'['
-		call writechr
-		mov ax,bx
-		call writehex4
-		mov al,':'
-		call writechr
-		pop bx
-		pop ax
-		push di
-		call far [PXENVEntry]
-		pop di
-		pushf
-		push ax
-		mov ax,[di]
-		call writehex4
-		mov al,']'
-		call writechr
-		pop ax
-		popf
-		ret
 
 ;
 ; dot: debugging routine, prints a dot w/o clobbering registers
@@ -3475,6 +3431,7 @@ keywd_table	db 'ap' ; append
                 db 'im' ; implicit
 		db 'ke' ; kernel
 		db 'se' ; serial
+		db 'sa' ; say
 		db 'f1' ; F1
 		db 'f2' ; F2
 		db 'f3' ; F3
@@ -3606,6 +3563,9 @@ BufSafeSec	dw trackbufsize/512	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 ClustPerMoby	dw 65536/TFTP_BLOCKSIZE	; Clusters per 64K
+%if ( trackbufsize % TFTP_BLOCKSIZE ) != 0
+%error trackbufsize must be a multiple of TFTP_BLOCKSIZE
+%endif
 
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
