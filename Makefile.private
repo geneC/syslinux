@@ -80,4 +80,4 @@ prerel:
 
 unprerel:
 	expr $(PRERELNO) - 1 > $(PRERELDIR)/.prerel
-	echo Next release will be syslinux-$(VERSION)-pre`cat $(PRERELDIR)/.prerel`
+	@echo Next release will be syslinux-$(VERSION)-pre`cat $(PRERELDIR)/.prerel`
