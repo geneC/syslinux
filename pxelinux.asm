@@ -328,6 +328,7 @@ AppendBuf       resb max_cmd_len+1	; append=
 KbdMap		resb 256		; Keyboard map
 BootFile	resb 256		; Boot file from DHCP packet
 PathPrefix	resb 256		; Path prefix derived from the above
+ConfigName	resb 256		; Configuration file from DHCP option
 FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
 NumBuf		resb 15			; Buffer to load number
 NumBufEnd	resb 1			; Last byte in NumBuf
@@ -775,10 +776,23 @@ mkkeymap:	stosb
 		inc al
 		loop mkkeymap
 
+
+;
+; Check to see if we got any PXELINUX-specific DHCP options
+;
+check_dhcp_magic:
+		test byte [DHCPMagic], 1	; If we didn't get the magic enable...
+		jnz .got_magic
+		mov byte [DHCPMagic], 0		; If not, kill all other options
+.got_magic:
+	
+
 ;
 ; Store standard filename prefix
 ;
-prefix:		mov si,BootFile
+prefix:		test byte [DHCPMagic], 04h	; Did we get a path prefix option
+		jnz .got_prefix
+		mov si,BootFile
 		mov di,PathPrefix
 		cld
 		call strcpy
@@ -803,6 +817,7 @@ prefix:		mov si,BootFile
 		dec si
 .notalnum:	mov byte [si+2],0		; Zero-terminate after delimiter
 		cld
+.got_prefix:
 		mov si,tftpprefix_msg
 		call writestr
 		mov si,PathPrefix
@@ -837,6 +852,21 @@ find_config:	mov di,trackbuf
 ; Begin looking for configuration file
 ;
 config_scan:
+		test byte [DHCPMagic], 02h
+		jz .no_option
+
+		; We got a DHCP option, try it first
+		mov si,trying_msg
+		call writestr
+		mov di,ConfigName
+		mov si,di
+		call writestr
+		call crlf
+		call open
+		jnz .success
+
+.no_option:		; Have to guess config file name
+
 		mov cx,9			; Up to 9 attempts
 
 .tryagain:	mov byte [di],0
@@ -4207,24 +4237,52 @@ parse_dhcp_options:
 		jmp short .opt_done
 
 .not_overload:
-		mov dl,67	; BOOTFILE NAME option
+		cmp dl,67	; BOOTFILE NAME option
 		jne .not_bootfile
-		push cx
 		mov di,BootFile
-		mov cx,ax
-		rep movsb
-		mov byte [di],0	; Null-terminate
-		pop cx
-		jmp short .opt_done_noskip
+		jmp short .copyoption
+
+.done:
+		ret		; This is here to make short jumps easier
 
 .not_bootfile:
+		cmp dl,176	; PXELINUX MAGIC option
+		jne .not_pl_magic
+		cmp al,4	; Must have length == 4
+		jne .opt_done
+		cmp dword [si], htonl(0xF100747E)	; Magic number
+		jne .opt_done
+		or byte [DHCPMagic], byte 1		; Found magic #
+		jmp short .opt_done
+
+.not_pl_magic:
+		cmp dl,177	; PXELINUX CONFIGFILE option
+		jne .not_pl_config
+		mov di,ConfigName
+		or byte [DHCPMagic], byte 2	; Got config file
+		jmp short .copyoption
+
+.not_pl_config:
+		cmp dl,178	; PXELINUX PATHPREFIX option
+		jne .not_pl_prefix
+		mov di,PathPrefix
+		or byte [DHCPMagic], byte 4	; Got path prefix
+		jmp short .copyoption
+	
+.not_pl_prefix:
 		; Unknown option.  Skip to the next one.
 .opt_done:
 		add si,ax
 .opt_done_noskip:
-		jmp short .loop
-.done:
-		ret
+		jmp .loop
+
+		; Common code for copying an option verbatim
+.copyoption:
+		xchg cx,ax
+		rep movsb
+		xchg cx,ax	; Now ax == 0
+		stosb		; Null-terminate
+		jmp short .opt_done_noskip
 
 ;
 ; genipopt
@@ -4767,6 +4825,8 @@ A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
 A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
 A20Type		dw A20_DUNNO		; A20 type unknown
 VGAFontSize	dw 16			; Defaults to 16 byte font
+ScrollAttribute	db 07h			; White on black (for text mode)
+
 ;
 ; TFTP commands
 ;
@@ -4804,7 +4864,7 @@ ClustPerMoby	dw 65536/TFTP_BLOCKSIZE	; Clusters per 64K
 %error trackbufsize must be a multiple of TFTP_BLOCKSIZE
 %endif
 IPAppend	db 0			; Default IPAPPEND option
-ScrollAttribute	db 07h			; White on black (for text mode)
+DHCPMagic	db 0			; DHCP site-specific option info
 
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
