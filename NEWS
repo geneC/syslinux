@@ -17,6 +17,8 @@ Changes in 2.01:
 	* Build SYSLINUX into a small library for encapsulation into
 	  other programs.
 	* SYSLINUX: Make installer work with "owner" in /etc/fstab.
+	* SYSLINUX: Fix issue with working on nonpartitioned hard disk
+	  devices.  THIS CONFIGURATION IS NOT RECOMMENDED.
 
 Changes in 2.00:
 	* ALL: Add support for "COM32" (32-bit COMBOOT) images.

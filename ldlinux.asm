@@ -336,9 +336,8 @@ floppy:
 ; Note: di points to beyond the end of PartInfo
 ;
 harddisk:
-; This sanity check doesn't fit anymore...
-;		test byte [di-16],7Fh	; Sanity check: "active flag" should
-;		jnz no_partition	; be 00 or 80
+		test byte [di-16],7Fh	; Sanity check: "active flag" should
+		jnz no_partition	; be 00 or 80
 		mov eax,[di-8]		; Partition offset (dword)
 		mov [bsHidden],eax
 no_partition:
