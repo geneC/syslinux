@@ -117,9 +117,9 @@ IPAPPEND flag_val
 	indicates (if the flag value is 1) that an option of the
 	following format should be generated and added:
 
-		ip=<client-ip>::<gw-ip>:<netmask>
+		ip=<client-ip>:<boot-server-ip>:<gw-ip>:<netmask>
 
-	... based on the input from the DHCP server.
+	... based on the input from the DHCP/BOOTP or PXE boot server.
 
 LABEL label
   KERNEL image
