@@ -3,7 +3,11 @@ apply to that specific program only; other changes apply to all of
 them.
 
 Changes in 3.08:
-	* SYSLINUX: Fix performance regression (-s mode always enabled.)
+	* SYSLINUX: Fix performance regression (-s mode always
+	  enabled.)
+	* Add API function for idle loop.
+	* libutil: Add do_idle() function for idle loop, make
+	  get_key() use it.
 
 Changes in 3.07:
 	* Fix chainloading (chain.c32).

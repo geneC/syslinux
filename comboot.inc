@@ -644,6 +644,14 @@ comapi_shuffle:
 		stc
 		ret
 
+;
+; INT 22h AX=0013h	Idle call
+;
+comapi_idle:
+		DO_IDLE
+		clc
+		ret
+
 int21_table:
 		int21	00h, comboot_return
 		int21	01h, comboot_getkey
@@ -678,6 +686,7 @@ int22_table:
 		dw comapi_dnsresolv	; 0010 resolve hostname
 		dw comapi_maxshuffle	; 0011 maximum shuffle descriptors
 		dw comapi_shuffle	; 0012 cleanup, shuffle and boot
+		dw comapi_idle		; 0013 idle call
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

@@ -575,3 +575,11 @@ AX=0012h [3.05] Cleanup, shuffle and boot
 	were set up by the PXE ROM.
 
 
+AX=0013h [3.08] Idle loop call
+	Input:	AX	0013h
+	Output:	None
+
+	Call this routine while sitting in an idle loop.  It performs
+	any periodic activities required by the filesystem code.  At
+	the moment, this is a no-op on all derivatives except
+	PXELINUX, where it executes PXE calls to answer ARP queries.

@@ -2343,7 +2343,7 @@ check_for_arp:
 		mov word [pxe_udp_read_pkt.buffersize],packet_buf_size
 		mov eax,[MyIP]
 		mov [pxe_udp_read_pkt.dip],eax
-		mov [pxe_udp_read_pkt.lport],ax		; 0
+		mov word [pxe_udp_read_pkt.lport],htons(9)	; discard port
 		mov di,pxe_udp_read_pkt
 		mov bx,PXENV_UDP_READ
 		call pxenv
