@@ -52,8 +52,8 @@ open_return:	ret
 
 getc:
 		stc			; If we exit here -> EOF
-		cmp dword [FBytes],byte 0
-		je getc_ret
+		mov ecx,[FBytes]
+		jecxz getc_ret
 		mov si,[FPtr]
 		cmp si,[EndOfGetCBuf]
 		jb getc_loaded
