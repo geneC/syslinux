@@ -39,6 +39,6 @@ BAUD_DIVISOR	equ 115200		; Serial port parameter
 ;
 %define	version_str	VERSION		; Must be 4 characters long!
 %define date		DATE_STR	; Defined from the Makefile
-%define	year		'2002'
+%define	year		'2003'
 
 %endif ; _CONFIG_INC
