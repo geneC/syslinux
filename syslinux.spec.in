@@ -32,6 +32,7 @@ ISO 9660 CD-ROMs (ISOLINUX).
 %build
 make clean
 make installer
+make -C sample tidy
 
 %install
 rm -rf %{buildroot}
