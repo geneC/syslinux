@@ -240,7 +240,7 @@ not_vk:		pop ds
 ; Find the kernel on disk
 ;
 get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/extension
-%if IS_SYSLINUX		; SYSLINUX has to deal with DOS mangled names...
+%if IS_SYSLINUX || IS_MDSLINUX		; SYSLINUX has to deal with DOS mangled names...
 		mov eax,[KernelName+8]		; Save initial extension
 		mov [exten_table_end],eax	; Last case == initial ext.
 %else
@@ -259,7 +259,7 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
 		pop bx
                 jnz kernel_good
 		mov eax,[bx]			; Try a different extension
-%if IS_SYSLINUX
+%if IS_SYSLINUX || IS_MDSLINUX
 		mov [KernelName+8],eax
 %else
 		mov si,[KernelExtPtr]
@@ -318,7 +318,7 @@ vk_found:	popa
 %endif
 		xor bx,bx			; Try only one version
 
-%if IS_SYSLINUX
+%if IS_SYSLINUX || IS_MDSLINUX
 		jmp get_kernel
 %else
 		; Is this a "localboot" pseudo-kernel?
@@ -360,7 +360,7 @@ kernel_good:
 		mov [KernelCNameLen],di
 		popa
 		
-%if IS_SYSLINUX
+%if IS_SYSLINUX || IS_MDSLINUX
 		mov ecx,[KernelName+7]
 		mov cl,'.'
 %else
@@ -397,7 +397,7 @@ kernel_good:
 		je is_bss_sector
 		cmp ecx,'.bin'
 		je is_bootsector
-%if IS_SYSLINUX
+%if IS_SYSLINUX || IS_MDSLINUX
 		cmp ecx,'.bs '
 		je is_bootsector
 		cmp ecx,'.0  '

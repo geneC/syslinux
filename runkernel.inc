@@ -451,7 +451,7 @@ root_not_floppy:
 ; Copy the disk table to high memory, then re-initialize the floppy
 ; controller
 ;
-%if IS_SYSLINUX
+%if IS_SYSLINUX || IS_MDSLINUX
 		lgs si,[cs:fdctab]
 		mov di,linux_fdctab
 		mov cx,6			; 12 bytes

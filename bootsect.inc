@@ -25,7 +25,7 @@
 ; Load a boot sector
 ;
 is_bootsector:
-%if IS_SYSLINUX
+%if IS_SYSLINUX || IS_MDSLINUX
 		; Transfer zero bytes
 		xor cx,cx
 		jmp short load_bootsec
@@ -42,14 +42,14 @@ load_bootsec:
 		call load_high
 		call crlf
 
-%if IS_SYSLINUX
+%if IS_SYSLINUX || IS_MDSLINUX
 		pop cx
 %endif
 
 		sub edi,100000h
 		push edi		; Save length
 
-%if IS_SYSLINUX
+%if IS_SYSLINUX || IS_MDSLINUX
 		jcxz .not_bss
 
 		; For a BSS boot sector we have to patch.
@@ -66,7 +66,7 @@ load_bootsec:
 		call vgaclearmode
 		xor edx,edx
 		xor eax,eax
-%if IS_SYSLINUX
+%if IS_SYSLINUX || IS_MDSLINUX
 		mov dl,[bsDriveNumber]
 
 		mov si,PartInfo
@@ -106,7 +106,9 @@ load_bootsec:
 
 		jmp bcopy_over_self
 
-%if IS_SYSLINUX = 0
+%if IS_SYSLINUX || IS_MDSLINUX
+		; Nothing
+%else
 is_bss_sector:
 		mov si,err_bssimage
 		call cwritestr

@@ -26,7 +26,9 @@
 ; 
 ; ****************************************************************************
 
+%ifndef IS_MDSLINUX
 %define IS_SYSLINUX 1
+%endif
 %include "macros.inc"
 %include "config.inc"
 %include "kernel.inc"
@@ -647,7 +649,13 @@ magic_len	equ $-bs_magic
 
 ldlinux_sys:
 
-syslinux_banner	db 0Dh, 0Ah, 'SYSLINUX ', version_str, ' ', date, ' ', 0
+syslinux_banner	db 0Dh, 0Ah
+%if IS_MDSLINUX
+		db 'MDSLINUX '
+%else
+		db 'SYSLINUX '
+%endif
+		db version_str, ' ', date, ' ', 0
 		db 0Dh, 0Ah, 1Ah	; EOF if we "type" this in DOS
 
 ldlinux_magic	db 'LDLINUX SYS'
@@ -1381,6 +1389,9 @@ crlf_msg	db CR, LF
 null_msg	db 0
 crff_msg	db CR, FF, 0
 syslinux_cfg	db 'SYSLINUXCFG'
+%if IS_MDSLINUX
+manifest	db 'MANIFEST   '
+%endif
 ;
 ; Command line options we'd like to take a look at
 ;

@@ -449,7 +449,7 @@ comapi_pxecall	equ comapi_err			; Not available
 ;
 comapi_derinfo:
 		mov P_AL,my_id
-%if IS_SYSLINUX
+%if IS_SYSLINUX || IS_MDSLINUX
 		mov al,[bsDriveNumber]
 		mov P_DL,al
 		mov P_ES,cs
@@ -499,7 +499,7 @@ comapi_cleanup:
 		test dl,3
 		setnz [KeepPXE]
 		call unload_pxe
-%elif IS_SYSLINUX
+%elif IS_SYSLINUX || IS_MDSLINUX
 		; Restore original FDC table
 		mov eax,[OrigFDCTabPtr]
 		mov [fdctab],eax

@@ -27,6 +27,9 @@
 %ifndef IS_SYSLINUX
 %define IS_SYSLINUX 0
 %endif
+%ifndef IS_MDSLINUX
+%define IS_MDSLINUX 0
+%endif
 %ifndef IS_PXELINUX
 %define IS_PXELINUX 0
 %endif
