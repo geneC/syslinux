@@ -18,7 +18,7 @@
 
 /* A pointer to this is stored in the header */
 const char memdisk_version[] =
-"MEMDISK " VERSION /* " " DATE */;
+"MEMDISK " VERSION " " DATE;
 const char copyright[] = 
 "Copyright " FIRSTYEAR "-" COPYYEAR " H. Peter Anvin";
 
