@@ -444,7 +444,7 @@ die_common:
 ; in case we give the -s (stupid) option
 ;
 %ifndef DEPEND	; Generated file
-%include "stupid.inc"
+%include "stupid.gen"
 %endif
 
 			section .data

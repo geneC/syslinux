@@ -18,7 +18,7 @@
 ;;
 
 %ifndef DEPEND		; Generated file
-%include "kwdhash.inc"
+%include "kwdhash.gen"
 %endif
 
 %macro keyword 2

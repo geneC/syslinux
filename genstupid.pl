@@ -1,7 +1,7 @@
 #ident "$Id$"
 ## -----------------------------------------------------------------------
 ##   
-##   Copyright 1998 H. Peter Anvin - All Rights Reserved
+##   Copyright 1998-2002 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@ print CFILE "}\n";
 
 close(CFILE);
 
-open(ASMFILE, "> stupid.inc") || die "$0: cannot open stupid.inc: $!\n";
+open(ASMFILE, "> stupid.gen") || die "$0: cannot open stupid.inc: $!\n";
 
 printf ASMFILE "\tsection .text\n";
 printf ASMFILE "make_stupid:\n";
