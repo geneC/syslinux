@@ -189,7 +189,6 @@ KernelSize	resd 1			; Size of kernel (bytes)
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
 PMESP		resd 1			; Protected-mode ESP
 InitStack	resd 1			; Pointer to reset stack
-PXEEntry	resd 1			; !PXE API entry point
 RebootTime	resd 1			; Reboot timeout, if set by option
 KernelClust	resd 1			; Kernel size in clusters
 StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure
@@ -1421,9 +1420,14 @@ unmangle_name:	call strcpy
 ; calling convention.  This is a separate local routine so
 ; we can hook special things from it if necessary.
 ;
+
 pxenv:
-		call far [cs:PXENVEntry]
+.jump:		call 0:pxe_thunk		; Default to calling the thunk
+		cld
 		ret
+
+; Must be after function def due to NASM bug
+PXENVEntry	equ pxenv.jump+1
 
 ;
 ; pxe_thunk
@@ -1437,11 +1441,14 @@ pxenv:
 pxe_thunk:	push es
 		push di
 		push bx
-		call far [cs:PXEEntry]
+.jump:		call 0:0
 		add sp,byte 6
 		cmp ax,byte 1
 		cmc				; Set CF unless ax == 0
 		retf
+
+; Must be after function def due to NASM bug
+PXEEntry	equ pxe_thunk.jump+1
 
 ;
 ; getfssec: Get multiple clusters from a file, given the starting cluster.
@@ -1690,8 +1697,7 @@ unload_pxe:
 		mov ax,ss
 		mov gs,ax
 		sub ax,[BaseStack+4]		; Are we using the base stack
-						; (as opposed to the COMBOOT stack)?
-		je .is_base_stack
+		je .is_base_stack		; (as opposed to the COMBOOT stack)?
 
 		lgs si,[SavedSSSP]		; COMBOOT stack
 .is_base_stack:
@@ -1702,11 +1708,11 @@ unload_pxe:
 		mov [BaseStack+4],es
 		sub cx,si
 		sub di,cx
-		mov [SavedSSSP],cx		; New SP
+		mov [SavedSSSP],di		; New SP
 		mov [SavedSSSP+2],es
 		gs rep movsb
 
-		and ax,ax			; Remeber which stack
+		and ax,ax			; Remember which stack
 		jne .combootstack
 
 		; Update the base stack pointer since it's in use
@@ -2143,12 +2149,6 @@ exten_table:	db '.cbt'		; COMBOOT (specific)
 		db '.com'		; COMBOOT (same as DOS)
 exten_table_end:
 		dd 0, 0			; Need 8 null bytes here
-
-;
-; PXENV entry point.  If we use the !PXE API, this will point to a thunk
-; function that converts to the !PXE calling convention.
-;
-PXENVEntry	dw pxe_thunk,0
 
 ;
 ; PXE unload sequences
