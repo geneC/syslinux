@@ -181,3 +181,125 @@ void parse_mem(void)
     }
   }
 }
+
+extern const char _binary_memdisk_bin_start[], _binary_memdisk_bin_end[];
+extern const char _binary_memdisk_bin_size[]; /* Weird, I know */
+struct memdisk_header {
+  uint16_t int13_offs;
+  uint16_t int15_offs;
+  uint16_t patch_offs;
+  uint16_t total_size;
+};
+struct patch_area {
+  uint8_t  driveno;
+  uint8_t  drivetype;
+  uint8_t  laststatus;
+  uint8_t  _pad1;
+
+  uint16_t cylinders;
+  uint16_t heads;
+  uint32_t sectors;
+  uint32_t disksize;
+  uint32_t diskbuf;
+
+  uint32_t e820table;
+  uint32_t mem1mb;
+  uint32_t mem16mb;
+  uint32_t memint1588;
+
+  uint32_t oldint13;
+  uint32_t oldint15;
+  uint16_t olddosmem;
+};
+
+/* Access to objects in the zero page */
+static inline void
+wrz_8(uint32_t addr, uint8_t data)
+{
+  asm volatile("movb %0,%%fs:%1" :: "ri" (data), "m" (*(uint8_t *)addr));
+}
+static inline void
+wrz_16(uint32_t addr, uint16_t data)
+{
+  asm volatile("movw %0,%%fs:%1" :: "ri" (data), "m" (*(uint16_t *)addr));
+}
+static inline void
+wrz_32(uint32_t addr, uint16_t data)
+{
+  asm volatile("movl %0,%%fs:%1" :: "ri" (data), "m" (*(uint32_t *)addr));
+}
+static inline uint8_t
+rdz_8(uint32_t addr)
+{
+  uint8_t data;
+  asm volatile("movb %%fs:%1,%0" : "=r" (data) : "m" (*(uint8_t *)addr));
+  return data;
+}
+static inline uint16_t
+rdz_16(uint32_t addr)
+{
+  uint16_t data;
+  asm volatile("movw %%fs:%1,%0" : "=r" (data) : "m" (*(uint16_t *)addr));
+  return data;
+}
+static inline uint8_t
+rdz_32(uint32_t addr)
+{
+  uint32_t data;
+  asm volatile("movl %%fs:%1,%0" : "=r" (data) : "m" (*(uint32_t *)addr));
+  return data;
+}
+
+/* Addresses in the zero page */
+#define BIOS_BASEMEM	0x413	/* Amount of DOS memory */
+
+void setup(void)
+{
+  unsigned int size = (int) &_binary_memdisk_bin_size;
+  struct memdisk_header *hptr;
+  struct patch_area *pptr;
+  uint32_t old_dos_mem;
+
+  /* Point %fs to the zero page */
+  asm volatile("movw %0,%%fs" :: "r" (0));
+
+  get_mem();
+  parse_mem();
+
+  /* Figure out where it needs to go */
+  hptr = (struct memdisk_header *) &_binary_memdisk_bin_start;
+  pptr = (struct patch_area *)(_binary_memdisk_bin_start + hptr->patch_offs);
+
+  if ( hptr->total_size > dos_mem ) {
+    /* Badness... */
+  }
+
+  old_dos_mem = dos_mem;
+
+  dos_mem -= hptr->total_size;
+  dos_mem &= ~0x3FF;
+
+  /* Reserve this range of memory */
+  insertrange(dos_mem, old_dos_mem-dos_mem, 2);
+  parse_mem();
+
+  pptr->mem1mb     = low_mem  >> 10;
+  pptr->mem16mb    = high_mem >> 16;
+  pptr->memint1588 = (low_mem == 0xf00000)
+    ? ((high_mem > 0x30ffc00) ? 0xffff : (high_mem >> 10)+0x3c00)
+    : (low_mem >> 10);
+  pptr->olddosmem = rdz_16(BIOS_BASEMEM);
+  wrz_16(BIOS_BASEMEM, dos_mem >> 10);
+
+  /* ... patch other things ... */
+
+  /* Copy the driver into place */
+  asm volatile("pushw %%es ; "
+	       "movw %0,%%es ; "
+	       "rep ; movsl %%ds:(%%si), %%es:(%%di) ; "
+	       "popw %%es"
+	       :: "r" ((uint16_t)(dos_mem >> 4)),
+	       "c" (size >> 2),
+	       "S" (&_binary_memdisk_bin_start),
+	       "D" (0));
+}

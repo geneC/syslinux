@@ -52,6 +52,13 @@ MyStack		equ 1024
 %define		P_DI		word [bp]
 
 		section .text
+		; These pointers are used by the installer and
+		; must be first in the binary
+Pointers:	dw Int13Start
+		dw Int15Start
+		dw PatchArea
+		dw TotalSize
+
 Int13Start:
 		; See if DL points to our class of device (FD, HD)
 		push dx
@@ -66,10 +73,10 @@ Int13Start:
 		jmp far [OldInt13]
 
 .our_drive:
-		mov [cs:Stack],sp
+		mov [cs:Stack],esp
 		mov [cs:SavedAX],ax
 		mov ax,ss
-		mov [cs:Stack+2],ax
+		mov [cs:Stack+4],ax
 		mov ax,cs
 		mov ss,ax
 		mov sp,MyStack
@@ -93,12 +100,12 @@ Done:		; Standard routine for return
 		cmp ah,1
 DoneWeird:
 		setnb al		; AL <- (AH > 0) ? 1 : 0 (CF)
-		lds bx,[Stack]		; DS:BX <- Old stack pointer
-		mov [bx+4],al		; Low byte of old FLAGS -> arithmetric flags
+		lds ebx,[Stack]		; DS:EBX <- Old stack pointer
+		mov [ebx+4],al		; Low byte of old FLAGS -> arithmetric flags
 		popad
 		pop es
 		pop ds
-		lss sp,[cs:Stack]
+		lss esp,[cs:Stack]
 		iret
 
 Reset:
@@ -108,7 +115,7 @@ Reset:
 		popad
 		pop es
 		pop ds
-		lss sp,[cs:Stack]
+		lss esp,[cs:Stack]
 		and dl,80h		; Clear all but the type bit
 		jmp far [OldInt13]
 
@@ -356,6 +363,7 @@ bcopy:
 		ret
 
 		section .data
+		alignb 8
 Int13Funcs	dw Reset		; 00h - RESET
 		dw GetStatus		; 01h - GET STATUS
 		dw Read			; 02h - READ
@@ -382,22 +390,6 @@ Int13Funcs	dw Reset		; 00h - RESET
 Int13FuncsEnd	equ $
 Int13FuncsMax	equ (Int13FuncsEnd-Int13Funcs) >> 1
 
-DriveNo		db 0			; Our drive number
-DriveType	db 0			; Our drive type (floppies)
-LastStatus	db 0			; Last return status
-
-		alignb 4, db 0
-Cylinders	dw 0			; Cylinder count
-Heads		dw 0			; Head count
-Sectors		dd 0			; Sector count (zero-extended)
-DiskSize	dd 0			; Size of disk in blocks
-DiskBuf		dd 0			; Linear address of high memory disk
-
-E820Table	dd 0			; E820 table in high memory
-Mem1MB		dd 0			; 1MB-16MB memory amount (1K)
-Mem16MB		dd 0			; 16MB-4G memory amount (64K)
-MemInt1588	dw 0			; 1MB-65MB memory amount (1K)
-
 		alignb 8, db 0
 Mover		dd 0, 0, 0, 0		; Must be zero
 		dw 0ffffh		; 64 K segment size
@@ -411,8 +403,32 @@ Mover_dst1:	db 0, 0, 0		; Low 24 bits of target addy
 Mover_dst2:	db 0			; High 8 bits of source addy
 
 		section .bss
+		alignb 4
+PatchArea	equ $			; This gets filled in by the installer
+
+DriveNo		resb 1			; Our drive number
+DriveType	resb 1			; Our drive type (floppies)
+LastStatus	resb 1			; Last return status
+		resb 1			; pad
+
+Cylinders	resw 1			; Cylinder count
+Heads		resw 1			; Head count
+Sectors		resd 1			; Sector count (zero-extended)
+DiskSize	resd 1			; Size of disk in blocks
+DiskBuf		resd 1			; Linear address of high memory disk
+
+E820Table	resd 1			; E820 table in high memory
+Mem1MB		resd 1			; 1MB-16MB memory amount (1K)
+Mem16MB		resd 1			; 16MB-4G memory amount (64K)
+MemInt1588	resd 1			; 1MB-65MB memory amount (1K)
+
 OldInt13	resd 1			; INT 13h in chain
 OldInt15	resd 1			; INT 15h in chain
-Stack		resd 1			; Saved SS:SP on invocation
+
+		; End patch area
+
+Stack		resd 2			; Saved SS:ESP on invocation
 E820Buf		resd 6			; E820 fetch buffer
-SavedAX		resw 1			; AX saved during initialization
+SavedAX		resw 1			; AX saved on invocation
+
+TotalSize	equ $			; End pointer

@@ -14,14 +14,17 @@
 CC      = gcc
 CFLAGS  = -g -O2 -fomit-frame-pointer -march=i386 -malign-functions=0 -malign-jumps=0 -malign-loops=0
 LDFLAGS = 
+AS      = as
+LD	= ld
+NASM    = nasm
 
-all: e820func.o16 msetup.o16 e820test
+all: e820func.o16 msetup.o16 e820test memdisk.bin
 
 clean:
-	rm -f *.o *.s *.o16 *.s16 e820test
+	rm -f *.o *.s *.o16 *.s16 *.bin *.lst e820test
 
 %.o16: %.s16
-	as -o $@ $<
+	$(AS) -o $@ $<
 
 %.s16: %.s
 	echo '.code16' | cat - $< > $@
@@ -32,6 +35,11 @@ clean:
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-e820test: e820func.o msetup.o e820test.o
+%.bin: %.asm
+	$(NASM) -f bin -o $@ -l $*.lst $<
+
+e820test: e820func.o msetup.o e820test.o memdisk.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
+memdisk.o: memdisk.bin
+	$(LD) -r -b binary -o $@ $<
