@@ -44,12 +44,13 @@ void *__mem_end = &_end;     /* Global variable for use by malloc() */
 
 int __parse_argv(char ***argv, const char *str)
 {
+  char argv0[] = "";
   char *mem = __mem_end;
   const char *p = str;
   char *q = mem;
   char *r;
   char **arg;
-  int wasspace = 0;
+  int wasspace = 1;
   int argc = 1;
 
   /* First copy the string, turning whitespace runs into nulls */
@@ -77,9 +78,12 @@ int __parse_argv(char ***argv, const char *str)
   /* Now create argv */
   arg = ALIGN_UP(q,char *);
   *argv = arg;
-  *arg++ = mem;			/* argv[0] */
-
+  *arg++ = argv0;		/* argv[0] */
+  
   q--;				/* Point q to final null */
+  if ( mem < q )
+    *arg++ = mem;		/* argv[1] */
+
   for ( r = mem ; r < q ; r++ ) {
     if ( *r == '\0' ) {
       *arg++ = r+1;
