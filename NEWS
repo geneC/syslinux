@@ -7,6 +7,8 @@ Changes in 2.12:
 	  programs.
 	* Fix the handling of file length in loading of COM32
 	  programs.
+	* MEMDISK: Work around a linker bug by rearranging the code to
+	  not use the linker for the 16-bit code.
 
 Changes in 2.11:
 	* ALL: Add an API call to get the configuration file name.
