@@ -45,7 +45,7 @@ struct menu_attrib {
   const char *hotkey;		/* Unselected hotkey */
   const char *sel;		/* Selected */
   const char *hotsel;		/* Selected hotkey */
-  const char *more;		/* [More] tag */
+  const char *scrollbar;	/* Scroll bar */
   const char *tabmsg;		/* Press [Tab] message */
   const char *cmdmark;		/* Command line marker */
   const char *cmdline;		/* Command line */
@@ -53,17 +53,17 @@ struct menu_attrib {
 };
 
 const struct menu_attrib default_attrib = {
-  .border  = "\033[0;30;44m",
-  .title   = "\033[1;36;44m",
-  .unsel   = "\033[0;37;44m",
-  .hotkey  = "\033[1;37;44m",
-  .sel     = "\033[0;30;47m",
-  .hotsel  = "\033[1;30;47m",
-  .more    = "\033[0;37;44m",
-  .tabmsg  = "\033[0;31;40m",
-  .cmdmark = "\033[1;36;40m",
-  .cmdline = "\033[0;37;40m",
-  .screen  = "\033[0;37;40m",
+  .border  	= "\033[0;30;44m",
+  .title   	= "\033[1;36;44m",
+  .unsel        = "\033[0;37;44m",
+  .hotkey       = "\033[1;37;44m",
+  .sel          = "\033[0;30;47m",
+  .hotsel       = "\033[1;30;47m",
+  .scrollbar    = "\033[0;30;44m",
+  .tabmsg  	= "\033[0;31;40m",
+  .cmdmark 	= "\033[1;36;40m",
+  .cmdline 	= "\033[0;37;40m",
+  .screen  	= "\033[0;37;40m",
 };
 
 const struct menu_attrib *menu_attrib = &default_attrib;
@@ -127,33 +127,38 @@ void display_entry(const struct menu_entry *entry, const char *attrib,
 void draw_menu(int sel, int top)
 {
   int x, y;
+  int sbtop = 0, sbbot = 0;
+
+  if ( nentries > MENU_ROWS ) {
+    int sblen = MENU_ROWS*MENU_ROWS/nentries;
+    sbtop = (MENU_ROWS-sblen+1)*top/(nentries-MENU_ROWS+1);
+    sbbot = sbtop + sblen - 1;
+
+    sbtop += 4;  sbbot += 4;	/* Starting row of scrollbar */
+  }
 
   printf("\033[1;%dH%s\311", MARGIN+1, menu_attrib->border);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
     putchar('\315');
   putchar('\273');
 
-  printf("\033[2;%dH\272%s %s %s\272",
+  printf("\033[2;%dH%s\272%s %s %s\272",
 	 MARGIN+1,
+	 menu_attrib->border,
 	 menu_attrib->title,
 	 pad_line(menu_title, 1, WIDTH-2*MARGIN-4),
 	 menu_attrib->border);
 
-  printf("\033[3;%dH\307", MARGIN+1);
+  printf("\033[3;%dH%s\307", MARGIN+1, menu_attrib->border);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
     putchar('\304');
   putchar('\266');
 
-  if ( top != 0 )
-    printf("%s\033[3;%dH[-]%s",
-	   menu_attrib->more, WIDTH-MARGIN-5,
-	   menu_attrib->border);
-
   for ( y = 4 ; y < 4+MENU_ROWS ; y++ ) {
     int i = (y-4)+top;
 
-    printf("\033[%d;%dH\272%s ",
-	   y, MARGIN+1,
+    printf("\033[%d;%dH%s\272%s ",
+	   y, MARGIN+1, menu_attrib->border,
 	   (i == sel) ? menu_attrib->sel : menu_attrib->unsel);
 
     if ( i >= nentries ) {
@@ -164,17 +169,21 @@ void draw_menu(int sel, int top)
 		    (i == sel) ? menu_attrib->hotsel : menu_attrib->hotkey,
 		    WIDTH-2*MARGIN-4);
     }
-    
-    printf(" %s\272", menu_attrib->border);
+
+    if ( nentries <= MENU_ROWS ) {
+      printf(" %s\272", menu_attrib->border);
+    } else {
+      if ( y >= sbtop && y <= sbbot )
+	printf(" %s\261", menu_attrib->scrollbar);
+      else
+	printf(" %s\260", menu_attrib->scrollbar);
+    }
   }
 
-  printf("\033[%d;%dH\310", y, MARGIN+1);
+  printf("\033[%d;%dH%s\310", y, MARGIN+1, menu_attrib->border);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
     putchar('\315');
   putchar('\274');
-
-  if ( top < nentries-MENU_ROWS )
-    printf("%s\033[%d;%dH[+]", menu_attrib->more, y, WIDTH-MARGIN-5);
 
   if ( allowedit )
     printf("%s\033[%d;1H%s", menu_attrib->tabmsg, TABMSG_ROW,
@@ -286,8 +295,8 @@ const char *run_menu(void)
 
     if ( top < 0 || top < entry-MENU_ROWS+1 )
       top = max(0, entry-MENU_ROWS+1);
-    else if ( top > entry )
-      top = entry;
+    else if ( top > entry || top > max(0,nentries-MENU_ROWS) )
+      top = min(entry, max(0,nentries-MENU_ROWS));
 
     /* Start with a clear screen */
     if ( clear )
