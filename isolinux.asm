@@ -314,7 +314,10 @@ params_ok:
 		;
 		; FIX: We need to check what the proper behaviour
 		; is for getlinsec when the BIOS thinks the sector
-		; size is 512!!!  For that, we need such a BIOS, though...
+		; size is 512!!!  For now, we ignore what the BIOS
+		; says and assume it's using 2048-byte sectors
+		; anyway.  This is correct for at least one BIOS
+		; with this particular pathology.
 %ifdef DEBUG_MESSAGES
 		mov si,secsize_msg
 		call writemsg
