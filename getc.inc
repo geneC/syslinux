@@ -38,12 +38,10 @@ openfd:
 		pushf
 		mov [FBytes1],ax
 		mov [FBytes2],dx
-		add ax,[ClustSize]
-		adc dx,byte 0
-		sub ax,byte 1
-		sbb dx,byte 0
-		div word [ClustSize]
-		mov [FClust],ax		; Number of clusters
+		mov eax,[FBytes]
+		add eax,SECTOR_SIZE-1
+		shr eax,SECTOR_SHIFT
+		mov [FSectors],eax	; Number of sectors
 		mov [FNextClust],si	; Cluster pointer
 		mov ax,[EndOfGetCBuf]	; Pointer at end of buffer ->
 		mov [FPtr],ax		;  nothing loaded yet
@@ -58,11 +56,11 @@ getc:
 		cmp si,[EndOfGetCBuf]
 		jb getc_loaded
 		; Buffer empty -- load another set
-		mov cx,[FClust]
-		cmp cx,[BufSafe]
+		mov ecx,[FSectors]
+		cmp ecx,trackbufsize >> SECTOR_SHIFT
 		jna getc_oksize
-		mov cx,[BufSafe]
-getc_oksize:	sub [FClust],cx		; Reduce remaining clusters
+		mov ecx,trackbufsize >> SECTOR_SHIFT
+getc_oksize:	sub [FSectors],ecx	; Reduce remaining clusters
 		mov si,[FNextClust]
 		push es			; ES may be != DS, save old ES
 		push ds

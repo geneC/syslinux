@@ -144,7 +144,8 @@ SuperInfo	equ $
 		resq 16			; The first 16 bytes expanded 8 times
 
 FAT		resd 1			; Location of (first) FAT
-RootDir		resd 1			; Location of root directory
+RootDirArea	resd 1			; Location of root directory area
+RootDir		resd 1			; Location of root directory proper
 DataArea	resd 1			; Location of data area
 RootDirSize	resd 1			; Root dir size in sectors
 TotalSectors	resd 1			; Total number of sectors
@@ -160,6 +161,7 @@ RamdiskMax	resd 1			; Highest address for a ramdisk
 KernelSize	resd 1			; Size of kernel (bytes)
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
 PMESP		resd 1			; Protected-mode ESP
+FSectors	resd 1			; Number of sectors in getc file
 ClustPerMoby	resd 1			; Clusters per 64K
 ClustSize	resd 1			; Bytes/cluster
 ClustMask	resd 1			; Sectors/cluster - 1
@@ -171,12 +173,7 @@ FBytes1		resw 1
 FBytes2		resw 1
 DirBlocksLeft	resw 1			; Ditto
 RunLinClust	resw 1			; Cluster # for LDLINUX.SYS
-BufSafe		resw 1			; Clusters we can load into trackbuf
-BufSafeSec	resw 1			; = how many sectors?
-BufSafeBytes	resw 1			; = how many bytes?
-EndOfGetCBuf	resw 1			; = getcbuf+BufSafeBytes
-KernelClust	resw 1			; Kernel size in clusters
-FClust		resw 1			; Number of clusters in open/getc file
+KernelSects	resw 1			; Kernel size in clusters
 FNextClust	resw 1			; Pointer to next cluster in d:o
 FPtr		resw 1			; Pointer to next char in buffer
 CmdOptPtr       resw 1			; Pointer to first option on cmd line
@@ -890,7 +887,8 @@ genfatinfo:
 .have_fatsecs:
 		imul edx,[bxFATs]
 		add eax,edx
-		mov [RootDir],eax		; Beginning of root directory
+		mov [RootDirArea],eax		; Beginning of root directory
+		mov [RootDir],eax		; For FAT12/16 == root dir location
 
 		mov edx,[bxRootDirEnts]
 		add dx,512-32
@@ -926,6 +924,15 @@ getfattype:
 		mov cl,nextcluster_fat16-(nextcluster+2)
 		cmp eax,65525			; FAT16 limit
 		jb .setsize
+		;
+		; FAT32, root directory is a cluster chain
+		;
+		mov cl,[ClustShift]
+		mov eax,[bootsec+44]		; Root directory cluster
+		sub eax,2
+		shl eax,cl
+		add eax,[DataArea]
+		mov [RootDir],eax
 		mov cl,nextcluster_fat28-(nextcluster+2)
 .setsize:
 		mov byte [nextcluster+1],cl
@@ -1302,7 +1309,6 @@ getfssec_edx:
 		jc .do_read
 		cmp edx,eax
 		jz .getseccnt
-
 .do_read:
 		mov eax,edx
 		call getlinsecsr
@@ -1318,7 +1324,6 @@ getfssec_edx:
 		pop eax
 		pop ebp
 		ret
-
 .eof:
 		xor edx,edx
 		stc
@@ -1651,6 +1656,17 @@ SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 VGAFontSize	dw 16			; Defaults to 16 byte font
 UserFont	db 0			; Using a user-specified font
 ScrollAttribute	db 07h			; White on black (for text mode)
+
+		alignb 4, db 0
+BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf
+BufSafeSec	dw trackbufsize/SECTOR_SIZE	; = how many sectors?
+BufSafeBytes	dw trackbufsize		; = how many bytes?
+EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
+%ifndef DEPEND
+%if ( trackbufsize % SECTOR_SIZE ) != 0
+%error trackbufsize must be a multiple of SECTOR_SIZE
+%endif
+%endif
 ;
 ; Stuff for the command line; we do some trickery here with equ to avoid
 ; tons of zeros appended to our file and wasting space

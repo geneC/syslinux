@@ -64,12 +64,9 @@ kernel_sane:	push ax
 		shl edx,16			; register for the kernel size
 		or eax,edx
 		mov [KernelSize],eax
-		xor edx,edx
-		div dword [ClustSize]		; # of clusters total
-		; Round up...
-		add edx,byte -1			; Sets CF if EDX >= 1
-		adc eax,byte 0			; Add 1 to EAX if CF set
-                mov [KernelClust],eax
+		add eax,SECTOR_SIZE-1
+		shr eax,SECTOR_SHIFT
+                mov [KernelSects],eax		; Total sectors in kernel
 
 ;
 ; Now, if we transfer these straight, we'll hit 64K boundaries.	 Hence we
@@ -84,13 +81,12 @@ kernel_sane:	push ax
 ; If we have larger than 32K clusters, yes, we're hosed.
 ;
 		call abort_check		; Check for abort key
-		mov ecx,[ClustPerMoby]
-		shr ecx,1			; Half a moby
-		cmp ecx,[KernelClust]
+		mov ecx,8000h >> SECTOR_SHIFT	; Half a moby (32K)
+		cmp ecx,[KernelSects]
 		jna .normalkernel
-		mov ecx,[KernelClust]
+		mov ecx,[KernelSects]
 .normalkernel:
-		sub [KernelClust],ecx
+		sub [KernelSects],ecx
 		xor bx,bx
                 pop si                          ; Cluster pointer on stack
 		call getfssec

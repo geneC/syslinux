@@ -37,8 +37,8 @@ retry_count	equ 6			; How patient are we with the BIOS?
 %assign HIGHMEM_SLOP 128*1024		; Avoid this much memory near the top
 MAX_OPEN_LG2	equ 6			; log2(Max number of open files)
 MAX_OPEN	equ (1 << MAX_OPEN_LG2)
-SECTORSIZE_LG2	equ 11			; 2048 bytes/sector (El Torito requirement)
-SECTORSIZE	equ (1 << SECTORSIZE_LG2)
+SECTOR_SHIFT	equ 11			; 2048 bytes/sector (El Torito requirement)
+SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 
 ;
 ; This is what we need to do when idle
@@ -161,16 +161,16 @@ RamdiskMax	resd 1			; Highest address for a ramdisk
 KernelSize	resd 1			; Size of kernel (bytes)
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
 PMESP		resd 1			; Protected-mode ESP
+FSectors	resd 1			; Number of sectors in getc file
 RootDir		resb dir_t_size		; Root directory
 CurDir		resb dir_t_size		; Current directory
-KernelClust	resd 1			; Kernel size in clusters
+KernelSects	resd 1			; Kernel size in clusters
 InitStack	resd 1			; Initial stack pointer (SS:SP)
 FirstSecSum	resd 1			; Checksum of bytes 64-2048
 ImageDwords	resd 1			; isolinux.bin size, dwords
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
 FBytes2		resw 1
-FClust		resw 1			; Number of clusters in open/getc file
 FNextClust	resw 1			; Pointer to next cluster in d:o
 FPtr		resw 1			; Pointer to next char in buffer
 CmdOptPtr       resw 1			; Pointer to first option on cmd line
@@ -277,7 +277,7 @@ _start1:	mov [cs:InitStack],sp		; Save initial stack pointer
 		;
 initial_csum:	xor edi,edi
 		mov si,_start1
-		mov cx,(SECTORSIZE-64) >> 2
+		mov cx,(SECTOR_SIZE-64) >> 2
 .loop:		lodsd
 		add edi,eax
 		loop .loop
@@ -363,7 +363,7 @@ set_file:
 found_file:
 		; Set up boot file sizes
 		mov eax,[bi_length]
-		sub eax,SECTORSIZE-3
+		sub eax,SECTOR_SIZE-3
 		shr eax,2			; bytes->dwords
 		mov [ImageDwords],eax		; boot file dwords
 		add eax,(2047 >> 2)
@@ -696,7 +696,7 @@ getlinsec:
 		movzx eax,word [si+2]		; Sectors we read
 		add [si+8],eax			; Advance sector pointer
 		sub bp,ax			; Sectors left
-		shl ax,SECTORSIZE_LG2-4		; 2048-byte sectors -> segment
+		shl ax,SECTOR_SHIFT-4		; 2048-byte sectors -> segment
 		add [si+6],ax			; Advance buffer pointer
 		and bp,bp
 		jnz .loop
@@ -967,8 +967,8 @@ get_fs_structures:
 		mov eax,[trackbuf+156+10]
 		mov [RootDir+dir_len],eax		
 		mov [CurDir+dir_len],eax
-		add eax,SECTORSIZE-1
-		shr eax,SECTORSIZE_LG2
+		add eax,SECTOR_SIZE-1
+		shr eax,SECTOR_SHIFT
 		mov [RootDir+dir_clust],eax
 		mov [CurDir+dir_clust],eax
 
@@ -1359,8 +1359,8 @@ searchdir_iso:
 
 .next_sector:
 		; Advance to the beginning of next sector
-		lea ax,[si+SECTORSIZE-1]
-		and ax,~(SECTORSIZE-1)
+		lea ax,[si+SECTOR_SIZE-1]
+		and ax,~(SECTOR_SIZE-1)
 		sub ax,si
 		jmp short .not_file		; We still need to do length checks
 
@@ -1374,8 +1374,8 @@ searchdir_iso:
 		mov [bx+file_sector],eax
 		mov eax,[si+10]			; Data length
 		push eax
-		add eax,SECTORSIZE-1
-		shr eax,SECTORSIZE_LG2
+		add eax,SECTOR_SIZE-1
+		shr eax,SECTOR_SHIFT
 		mov [bx+file_left],eax
 		pop eax
 		mov edx,eax
@@ -1739,16 +1739,13 @@ dsp_dummy:	db 0				; Scratch, safe to overwrite
 ; **** BIOS expects our "sector size" to be.
 ;
 		alignb 4, db 0
-ClustSize	dd SECTORSIZE		; Bytes/cluster
-ClustPerMoby	dd 65536/SECTORSIZE	; Clusters per 64K
-SecPerClust	dw 1			; Same as bsSecPerClust, but a word
-BufSafe		dw trackbufsize/SECTORSIZE	; Clusters we can load into trackbuf
-BufSafeSec	dw trackbufsize/SECTORSIZE	; = how many sectors?
+BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf
+BufSafeSec	dw trackbufsize/SECTOR_SIZE	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 %ifndef DEPEND
-%if ( trackbufsize % SECTORSIZE ) != 0
-%error trackbufsize must be a multiple of SECTORSIZE
+%if ( trackbufsize % SECTOR_SIZE ) != 0
+%error trackbufsize must be a multiple of SECTOR_SIZE
 %endif
 %endif
 

@@ -52,6 +52,9 @@ TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)
 TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
 %assign USE_PXE_PROVIDED_STACK 1	; Use stack provided by PXE?
 
+SECTOR_SHIFT	equ TFTP_BLOCKSIZE_LG2
+SECTOR_SIZE	equ TFTP_BLOCKSIZE
+
 ;
 ; This is what we need to do when idle
 ;
@@ -246,14 +249,14 @@ RamdiskMax	resd 1			; Highest address for a ramdisk
 KernelSize	resd 1			; Size of kernel (bytes)
 SavedSSSP	resd 1			; Our SS:SP while running a COMBOOT image
 PMESP		resd 1			; Protected-mode ESP
+FSectors	resd 1			; Number of sectors in getc file
 InitStack	resd 1			; Pointer to reset stack
 RebootTime	resd 1			; Reboot timeout, if set by option
-KernelClust	resd 1			; Kernel size in clusters
+KernelSects	resd 1			; Kernel size in clusters
 StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure
 FBytes		equ $			; Used by open/getc
 FBytes1		resw 1
 FBytes2		resw 1
-FClust		resw 1			; Number of clusters in open/getc file
 FNextClust	resw 1			; Pointer to next cluster in d:o
 FPtr		resw 1			; Pointer to next char in buffer
 CmdOptPtr       resw 1			; Pointer to first option on cmd line
@@ -2536,9 +2539,6 @@ ServerPort	dw TFTP_PORT		; TFTP server port
 ; Variables that are uninitialized in SYSLINUX but initialized here
 ;
 		alignb 4, db 0
-ClustSize	dd TFTP_BLOCKSIZE	; Bytes/cluster
-ClustPerMoby	dd 65536/TFTP_BLOCKSIZE	; Clusters per 64K
-SecPerClust	dw TFTP_BLOCKSIZE/512	; Same as bsSecPerClust, but a word
 BufSafe		dw trackbufsize/TFTP_BLOCKSIZE	; Clusters we can load into trackbuf
 BufSafeSec	dw trackbufsize/512	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?

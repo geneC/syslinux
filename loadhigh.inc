@@ -54,14 +54,11 @@ load_high:
 		jna .size_ok
 		mov eax,(1 << 16)
 .size_ok:
-		xor edx,edx
 		push eax			; <B> Bytes transferred this chunk
-		div dword [ClustSize]		; Convert to clusters
-		; Round up...
-		add edx,byte -1			; Sets CF if EDX >= 1
-		adc eax,byte 0			; Add 1 to EAX if CF set
+		add eax,SECTOR_SIZE-1
+		shr eax,SECTOR_SHIFT		; Convert to sectors
 
-		; Now (e)ax contains the number of clusters to get
+		; Now (e)ax contains the number of sectors to get
 		push edi			; <C> Target buffer
 		mov cx,ax
 		xor bx,bx			; ES:0

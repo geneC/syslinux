@@ -125,7 +125,8 @@ is_comboot_image:
 		; Now actually load the file...
 		pop si			; File handle
 		mov bx,100h		; Load at <seg>:0100h
-		mov cx,[ClustPerMoby]	; Absolute maximum # of clusters
+		mov cx,0FF00h >> SECTOR_SHIFT
+					; Absolute maximum # of sectors
 		call getfssec
 
 		; And invoke the program...
@@ -420,8 +421,7 @@ comapi_open:
 		jz .err
 		mov P_AX,ax
 		mov P_HAX,dx
-		mov ax,[ClustSize]
-		mov P_CX,ax
+		mov P_CX,SECTOR_SIZE
 		mov P_SI,si
 		clc
 		ret
