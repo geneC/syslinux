@@ -47,8 +47,8 @@
 #define KEY_F8		0x0107
 #define KEY_F9		0x0108
 #define KEY_F10		0x0109
-#define KEY_F11		0x010A /* NOT SUPPORTED BY MOST BIOSES!!! */
-#define KEY_F12		0x010B /* NOT SUPPORTED BY MOST BIOSES!!! */
+#define KEY_F11		0x010A
+#define KEY_F12		0x010B
 
 #define KEY_UP		0x0120
 #define KEY_DOWN	0x0121

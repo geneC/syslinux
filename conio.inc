@@ -296,7 +296,7 @@ write_serial_str:
 ;
 pollchar:
 		pushad
-		mov ah,1		; Poll keyboard
+		mov ah,11h		; Poll keyboard
 		int 16h
 		jnz .done		; Keyboard response
 		mov dx,[SerialPort]
@@ -346,7 +346,7 @@ getchar:
 .kbd:		mov ah,10h		; Get keyboard input
 		int 16h
 		cmp al,0E0h
-		jz .not_ext
+		jnz .not_ext
 		xor al,al
 .not_ext:
 		and al,al
