@@ -338,23 +338,25 @@ void unreg_handler()
 
 int add_menu(const char *title) // Create a new menu and return its position
 {
-    const int num = (unsigned char)menusystem.nummenus;
+    t_menu *m;
 
-    if (num >= MAXMENUS) return -1;
-    menusystem.menus[num].numitems = 0;
-    menusystem.menus[num].menuwidth = 0;    
-    if (title)
-    {
+    if (menusystem.nummenus >= MAXMENUS)
+	return -1;
+
+    m = &menusystem.menus[(unsigned int)menusystem.nummenus];
+
+    m->numitems = 0;
+    if (title) {
         if (strlen(title) > MENULEN - 2) {
-            strcpy(menusystem.menus[num].title," TITLE TOO LONG ");          
+	    strcpy(m->title," TITLE TOO LONG ");          
         } else {
-            strcpy(menusystem.menus[num].title,title);
+	    strcpy(m->title,title);
         }
+    } else {
+        strcpy(m->title,"");
     }
-    else
-    {
-        strcpy(menusystem.menus[num].title,"");
-    }
+
+    m->menuwidth = strlen(m->title);
 
     return menusystem.nummenus++;
 }
