@@ -30,7 +30,7 @@ VERSION = $(shell cat version)
 SOURCES = ldlinux.asm syslinux.asm syslinux.c
 TARGETS = bootsect.bin ldlinux.sys syslinux.com syslinux
 DOCS    = COPYING NEWS README TODO syslinux.doc keytab-lilo.doc
-OTHER   = Makefile bin2c.pl now.pl keytab-lilo.pl version
+OTHER   = Makefile bin2c.pl now.pl genstupid.pl keytab-lilo.pl version
 
 all:	$(TARGETS)
 	ls -l $(TARGETS)
@@ -42,8 +42,9 @@ ifndef DATE
 DATE = $(shell perl now.pl)
 endif
 
-ldlinux.bin: ldlinux.asm
+ldlinux.bin: ldlinux.asm genstupid.pl
 	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" -l ldlinux.lst -o ldlinux.bin ldlinux.asm
+	perl genstupid.pl < ldlinux.lst
 
 bootsect.bin: ldlinux.bin
 	dd if=ldlinux.bin of=bootsect.bin bs=512 count=1
@@ -51,7 +52,7 @@ bootsect.bin: ldlinux.bin
 ldlinux.sys: ldlinux.bin
 	dd if=ldlinux.bin of=ldlinux.sys  bs=512 skip=1
 
-syslinux.com: syslinux.asm bootsect.bin ldlinux.sys
+syslinux.com: syslinux.asm bootsect.bin ldlinux.sys stupid.inc
 	$(NASM) -f bin -l syslinux.lst -o syslinux.com syslinux.asm
 
 bootsect_bin.c: bootsect.bin bin2c.pl
@@ -60,14 +61,20 @@ bootsect_bin.c: bootsect.bin bin2c.pl
 ldlinux_bin.c: ldlinux.sys bin2c.pl
 	perl bin2c.pl ldlinux < ldlinux.sys > ldlinux_bin.c
 
-syslinux: syslinux.o bootsect_bin.o ldlinux_bin.o
+syslinux: syslinux.o bootsect_bin.o ldlinux_bin.o stupid.o
 	$(CC) $(LDFLAGS) -o syslinux syslinux.o bootsect_bin.o ldlinux_bin.o
+
+stupid.o: stupid.c
+
+stupid.c: ldlinux.asm
+
+stupid.inc: ldlinux.asm
 
 install: all
 	install -c syslinux $(BINDIR)
 
 tidy:
-	rm -f ldlinux.bin *.lst *.o *_bin.c
+	rm -f ldlinux.bin *.lst *.o *_bin.c stupid.*
 
 clean: tidy
 	rm -f $(TARGETS)

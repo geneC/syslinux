@@ -253,6 +253,12 @@ die:
 		mov ax,4C01h			; Exit error status
 		int 21h
 
+;
+; This includes a small subroutine make_stupid to patch up the boot sector
+; in case we give the -s (stupid) option
+;
+		%include "stupid.inc"
+
 		section .data
 msg_error:		db 'ERROR: $'
 msg_filesystem_err:	db 'Filesystem not found on disk', 0Dh, 0Ah, '$'

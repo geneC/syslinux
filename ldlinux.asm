@@ -638,8 +638,9 @@ getonesec:
 ;	     On return, BX points to the first byte after the transferred
 ;	     block.
 ;
-;	     When compiling with the STUPID option, this is replaced by a
-;	     routine which loads one sector at a time.
+;	     The "stupid patch area" gets replaced by the code
+;	     mov bp,1 ; nop ... (BD 01 00 90 90...) when installing with
+;	     the -s option.
 ;
 getlinsec:
 		mov si,[bsSecPerTrack]
@@ -654,20 +655,14 @@ getlinsec:
 		;
 gls_nextchunk:	push si			; <A> bsSecPerTrack
 		push bp			; <B> Sectors to transfer
-%ifdef STUPID
-		mov bp,1
-		nop			; Minimize size of patch
-		nop
-		nop
-		nop
-		nop
-%else
+
+__BEGIN_STUPID_PATCH_AREA:
 		sub si,cx		; Sectors left on track
 		cmp bp,si
 		jna gls_lastchunk
 		mov bp,si		; No more than a trackful, please!
+__END_STUPID_PATCH_AREA:
 gls_lastchunk:	
-%endif
 		push ax			; <C> Cylinder #
 		push dx			; <D> Head #
 		push bp			; <E> Number of sectors we're transferring
