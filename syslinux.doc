@@ -436,9 +436,10 @@ filename is not found.  Filenames in KERNEL statements must be fully
 qualified.
 
 
-   ++++ BOOTING DOS (OR OTHER SIMILAR OPERATING SYSTEMS) ++++
+      ++++ BOOTING DOS (OR OTHER SIMILAR OPERATING SYSTEMS) ++++
 
 This section applies to SYSLINUX only, not to PXELINUX or ISOLINUX.
+See isolinux.doc for an equivalent procedure for ISOLINUX.
 
 This is the recommended procedure for creating a SYSLINUX disk that
 can boot either DOS or Linux.  This example assumes the drive is A: in

@@ -20,7 +20,7 @@
 ; ****************************************************************************
 
 ; Note: The Makefile builds one version with DEBUG_MESSAGES automatically.
-; %define DEBUG_TRACERS			; Uncomment to get debugging tracers
+%define DEBUG_TRACERS			; Uncomment to get debugging tracers
 ; %define DEBUG_MESSAGES		; Uncomment to get debugging messages
 
 %ifdef DEBUG_TRACERS
@@ -822,7 +822,7 @@ crlf_msg	db CR, LF, 0
 ; El Torito spec packet
 ;
 		align 8, db 0
-spec_packet:	db 13				; Size of packet
+spec_packet:	db 13h				; Size of packet
 sp_media:	db 0				; Media type
 sp_drive:	db 0				; Drive number
 sp_controller:	db 0				; Controller index
@@ -832,6 +832,23 @@ sp_buffer:	dw 0				; User-provided buffer
 sp_loadseg:	dw 0				; Load segment
 sp_sectors:	dw 0				; Sector count
 sp_chs:		db 0,0,0			; Simulated CHS geometry
+sp_dummy:	db 0				; Scratch, safe to overwrite
+
+;
+; Spec packet for disk image emulation
+;
+		align 8, db 0
+dspec_packet:	db 13h				; Size of packet
+dsp_media:	db 0				; Media type
+dsp_drive:	db 0				; Drive number
+dsp_controller:	db 0				; Controller index
+dsp_lba:	dd 0				; LBA for emulated disk image
+dsp_devspec:	dw 0				; IDE/SCSI information
+dsp_buffer:	dw 0				; User-provided buffer
+dsp_loadseg:	dw 0				; Load segment
+dsp_sectors:	dw 1				; Sector count
+dsp_chs:	db 0,0,0			; Simulated CHS geometry
+dsp_dummy:	db 0				; Scratch, safe to overwrite
 
 ;
 ; EBIOS drive parameter packet
@@ -1657,10 +1674,9 @@ kernel_corrupt: mov si,err_notkernel
 ;
 ; .com 	- COMBOOT image
 ; .cbt	- COMBOOT image
-; .bs	- Boot sector
-; .bss	- Boot sector, but transfer over DOS superblock
-;
-; Boot sectors are currently not supported by PXELINUX.
+; .bs	- Boot sector	  (SYSLINUX only)
+; .bss	- DOS boot sector (SYSLINUX only)
+; .img	- Disk image	  (ISOLINUX only)
 ;
 ; Anything else is assumed to be a Linux kernel.
 ;
@@ -1685,12 +1701,18 @@ kernel_good:
 		pop ax
 		pop di
 
+;
+; At this point, DX:AX contains the size of the kernel, and SI contains
+; the file handle/cluster pointer.
+;
 		or ecx,20202000h		; Force lower case
 
 		cmp ecx,'.com'
 		je near is_comboot_image
 		cmp ecx,'.cbt'
 		je near is_comboot_image
+		cmp ecx,'.img'
+		je near is_disk_image
 		cmp ecx,'.bss'
 		je near is_bss_sector
 		and ecx, 00ffffffh
@@ -2359,6 +2381,137 @@ is_bootsector:
 is_bss_sector:
 		; Can't load these from the network, dang it!
 .badness:	jmp short .badness
+
+;
+; Enable disk emulation.  The kind of disk we emulate is dependent on the size of
+; the file: 1200K, 1440K or 2880K floppy, otherwise harddisk.
+;
+is_disk_image:
+		TRACER CR
+		TRACER LF
+		TRACER 'D'
+		TRACER ':'
+
+		shl edx,16
+		mov dx,ax			; Set EDX <- file size
+		mov di,img_table
+		mov cx,img_table_count
+		mov eax,[si+file_sector]	; Starting LBA of file
+		mov [dsp_lba],eax		; Location of file
+		mov byte [dsp_drive], 0		; 00h floppy, 80h hard disk
+.search_table:
+		TRACER 't'
+		mov eax,[di+4]
+		cmp edx,[di]
+		je near .type_found
+		add di,8
+		loop .search_table
+
+		; Hard disk image.  Need to examine the partition table
+		; in order to deduce the C/H/S geometry.  Sigh.
+.hard_disk_image:
+		TRACER 'h'
+		cmp edx,512
+		jb near .bad_image
+
+		mov bx,trackbuf
+		mov cx,1			; Load 1 sector
+		call getfssec
+		
+		cmp word [trackbuf+510],0aa55h	; Boot signature
+		jne near .bad_image		; Image not bootable
+
+		mov cx,4			; 4 partition entries
+		mov di,trackbuf+446		; Start of partition table
+
+		xor ax,ax			; Highest sector(al) head(ah)
+
+.part_scan:
+		cmp byte [di+4], 0
+		jz .part_loop
+		lea si,[di+1]
+		call .hs_check
+		add si,byte 4
+		call .hs_check
+.part_loop:
+		add di,byte 16
+		loop .part_scan
+		
+		push eax			; H/S
+		push edx			; File size
+		mov bl,ah
+		xor bh,bh
+		inc bx				; # of heads in BX
+		xor ah,ah			; # of sectors in AX
+		cwde				; EAX[31:16] <- 0
+		mul bx
+		shl eax,9			; Convert to bytes
+		; Now eax contains the number of bytes per cylinder
+		pop ebx				; File size
+		xor edx,edx
+		div ebx
+		and edx,edx
+		jz .no_remainder
+		inc eax				; Fractional cylinder...
+		; Now (e)ax contains the number of cylinders
+.no_remainder:	cmp eax,1024
+		jna .ok_cyl
+		mov ax,1024			; Max possible #
+.ok_cyl:	dec ax				; Convert to max cylinder no
+		pop ebx				; S(bl) H(bh)
+		shl ah,6
+		or bl,ah
+		xchg ax,bx
+		shl eax,16
+		mov ah,bl
+		mov al,4			; Hard disk boot
+		mov byte [dsp_drive], 80h	; Drive 80h = hard disk
+
+.type_found:
+		TRACER 'T'
+		mov bl,[sp_media]
+		and bl,0F0h			; Copy controller info bits
+		or al,bl
+		mov [dsp_media],al		; Emulation type
+		shr eax,8
+		mov [dsp_chs],eax		; C/H/S geometry
+		mov ax,[sp_devspec]		; Copy device spec
+		mov [dsp_devspec],ax
+		mov al,[sp_controller]		; Copy controller index
+		mov [dsp_controller],al
+
+		TRACER 'V'
+		call vgaclearmode		; Reset video
+
+		mov ax,4C00h			; Enable emulation and boot
+		mov si,dspec_packet
+		mov dl,[DriveNo]
+		lss sp,[InitStack]
+		TRACER 'X'
+
+		int 13h
+
+		; If this returns, we have problems
+.bad_image:
+		mov si,err_disk_image
+		call cwritestr
+		jmp enter_command
+
+;
+; Look for the highest seen H/S geometry
+; We compute cylinders separately
+;
+.hs_check:
+		mov bl,[si]			; Head #
+		cmp bl,ah
+		jna .done_track
+		mov ah,bl			; New highest head #
+.done_track:	mov bl,[si+1]
+		and bl,3Fh			; Sector #
+		cmp bl,al
+		jna .done_sector
+		mov al,bl
+.done_sector:	ret
 
 ;
 ; Boot a specified local disk.  AX specifies the BIOS disk number; or
@@ -4308,6 +4461,7 @@ default_str	db 'default', 0
 default_len	equ ($-default_str)
 isolinux_dir	db '/isolinux', 0
 isolinux_cfg	db 'isolinux.cfg', 0
+err_disk_image	db 'Cannot load disk image (invalid file)?', CR, LF, 0
 
 %ifdef DEBUG_MESSAGES
 dbg_rootdir_msg	db 'Root directory at LBA = ', 0
@@ -4357,11 +4511,34 @@ keywd_table	db 'ap' ; append
 ;
 		align 4, db 0
 exten_table:	db '.cbt'		; COMBOOT (specific)
-		db '.bss'		; Boot Sector (add superblock)
-		db '.bs', 0		; Boot Sector 
+		db '.img'		; Disk image
 		db '.com'		; COMBOOT (same as DOS)
 exten_table_end:
 		dd 0, 0			; Need 8 null bytes here
+
+;
+; Floppy image table
+;
+		align 4, db 0
+img_table_count	equ 3
+img_table:
+		dd 1200*1024		; 1200K floppy
+		db 1			; Emulation type
+		db 80-1			; Max cylinder
+		db 15			; Max sector
+		db 2-1			; Max head
+
+		dd 1440*1024		; 1440K floppy
+		db 2			; Emulation type
+		db 80-1			; Max cylinder
+		db 18			; Max sector
+		db 2-1			; Max head
+
+		dd 2880*1024		; 2880K floppy
+		db 3			; Emulation type
+		db 80-1			; Max cylinder
+		db 36			; Max sector
+		db 2-1			; Max head
 
 ;
 ; Misc initialized (data) variables

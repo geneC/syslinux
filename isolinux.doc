@@ -63,3 +63,30 @@ ISOLINUX is by default built in two versions, one version with extra
 debugging messages enabled.  If you are having problems with ISOLINUX,
 I would greatly appreciate if you could try out the debugging version
 (isolinux-debug.bin) and let me know what it reports.
+
+
+      ++++ BOOTING DOS (OR OTHER SIMILAR OPERATING SYSTEMS) ++++
+
+To boot DOS, or other real-mode operating systems (protected-mode
+operating systems may or may not work correctly), using ISOLINUX, you
+need to prepare a disk image (usually a floppy image, but a hard disk
+image can be used on *most* systems) with the relevant operating
+system.  This file should be included on the CD-ROM in the /isolinux
+directory, and have a .img extension.  The ".img" extension does not
+have to be specified on the command line, but has to be explicitly
+specified if used in a "kernel" statement in isolinux.cfg.
+
+For a floppy image, the size of the image should be exactly one of the
+following:
+
+	1,228,800 bytes		- For a 1200K floppy image
+	1,474,560 bytes		- For a 1440K floppy image
+	2,949,120 bytes		- For a 2880K floppy image
+
+Any other size is assumed to be a hard disk image.  In order to work
+on as many systems as possible, a hard disk image should have exactly
+one partition, marked active, that covers the entire size of the disk
+image file.  Even so, hard disk images are not supported on all
+BIOSes.
+
+
