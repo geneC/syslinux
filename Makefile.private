@@ -1,6 +1,6 @@
 ## -*- makefile -*- ------------------------------------------------------
 ##   
-##   Copyright 2000-2002 H. Peter Anvin - All Rights Reserved
+##   Copyright 2000-2003 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -43,6 +43,9 @@ release:
 	cp -dR $(SOURCES) $(DOCS) $(OTHER) release/syslinux-$(VERSION)
 	find release/syslinux-$(VERSION) -name CVS -type d -print0 | \
 		xargs -0rt rm -rf
+	find release/syslinux-$(VERSION) \
+		\( -name *~ -or -name \#* \) -type d -print0 | \
+		xargs -0rt rm -f
 	ln -f $(PRIVATE) release/syslinux-$(VERSION)
 	cd release/syslinux-$(VERSION) && $(MAKE) depend
 	cd release/syslinux-$(VERSION) && $(MAKE) official
@@ -66,6 +69,9 @@ prerel:
 	cp -dR $(SOURCES) $(DOCS) $(OTHER) $(PRERELDIR)/$(PREREL)
 	find $(PRERELDIR)/$(PREREL) -name CVS -type d -print0 | \
 		xargs -0rt rm -rf
+	find $(PRERELDIR)/$(PREREL) \
+		\( -name *~ -or -name \#* \) -type d -print0 | \
+		xargs -0rt rm -f
 	make -C $(PRERELDIR)/$(PREREL) spotless
 	make -C $(PRERELDIR)/$(PREREL) all DATE=`printf '%s-pre%d          ' $(VERSION) $(PRERELNO) | dd bs=10 count=1 2>/dev/null`
 	make -C $(PRERELDIR)/$(PREREL) dist
