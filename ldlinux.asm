@@ -27,10 +27,12 @@
 ; ****************************************************************************
 
 ;
-; Some semi-configurable constants... change on your own risk
+; Some semi-configurable constants... change on your own risk.  Most are imposed
+; by the kernel.
 ;
 max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
 retry_count	equ 6			; How patient are we with the disk?
+HIGHMEM_MAX	equ 03f000000h		; Highest address for an initrd
 
 ;
 ; Should be updated with every release to avoid bootsector/SYS file mismatch
@@ -1861,6 +1863,11 @@ new_kernel:
 		add ax,dx
 		mov [InitRDClust],ax		; Ramdisk clusters
 		mov edx,[HighMemSize]		; End of memory
+		mov eax,HIGHMEM_MAX		; Limit imposed by kernel
+		cmp edx,eax
+		jna memsize_ok
+		mov edx,eax			; Adjust to fit inside limit
+memsize_ok:
 		sub edx,[es:su_ramdisklen]	; Subtract size of ramdisk
                 xor dx,dx			; Round down to 64K boundary
                 mov [InitRDat],edx		; Load address
