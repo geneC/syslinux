@@ -321,9 +321,9 @@ IP address::filename		(e.g. 192.0.2.1::filename)
 
 	Suppresses the common filename prefix, *and* sends a request
 	to an alternate TFTP server.  Instead of an IP address, a
-	*fully qualified* DNS name can be used,
-	e.g. "bootserver.domain.com::filename" should work, but
-	"bootserver::filename" typically will not.
+	DNS name can be used.  It will be assumed to be fully
+	qualified if it contains dots; otherwise the local domain as
+	reported by the DHCP server (option 15) will be added.
 
 :: was chosen because it is unlikely to conflict with operating system
 usage.  However, if you happen to have an environment for which the

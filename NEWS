@@ -28,11 +28,10 @@ Changes in 3.00:
 	* New simple menu system, as an alternative to the advanced
 	  menu system already present.  See README.menu for details.
 	* PXELINUX: Filenames can now be prefixed with an IP address
-	  or *fully qualified* DNS name plus ::
-	  (e.g. 192.0.2.1::filename or server.domain.com::filename),
-	  which downloads a file from an alternate TFTP server, or
-	  just a :: (e.g. ::filename), which suppresses the common
-	  pathname prefix.  See pxelinux.doc.
+	  or DNS name plus :: (e.g. 192.0.2.1::filename or
+	  server.domain.com::filename), which downloads a file from an
+	  alternate TFTP server, or just a :: (e.g. ::filename), which
+	  suppresses the common pathname prefix.  See pxelinux.doc.
 	* SYSLINUX: Add an -m option to the Win32 installer (only!)
 	  to write an MBR and -a to mark the partition SYSLINUX is
 	  being installed on active.  This will hopefully be added
