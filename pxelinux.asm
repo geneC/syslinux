@@ -3796,14 +3796,14 @@ PXENVEntry	dw pxe_thunk,0
 ;
 pxe_bootp_query_pkt:
 .status:	dw 0			; Status
-.packettype:	dw 3			; DHCPACK packet
+.packettype:	dw 2			; DHCPACK packet
 .buffersize:	dw trackbufsize		; Packet size
 .buffer:	dw trackbuf, 0		; seg:off of buffer
 .bufferlimit:	dw trackbufsize		; Unused
 
 pxe_bootp_size_query_pkt:
 .status:	dw 0			; Status
-.packettype:	dw 3			; DHCPACK packet
+.packettype:	dw 2			; DHCPACK packet
 .buffersize:	dw 0			; Packet size
 .buffer:	dw 0, 0			; seg:off of buffer
 .bufferlimit:	dw 0			; Unused
