@@ -535,6 +535,10 @@ loadinitrd:
                 pop es                          ; Restore original ES
                 ret
 
+		section .data
+boot_image      db 'BOOT_IMAGE='
+boot_image_len  equ $-boot_image
+
 		section .bss
 		alignb 4
 RamdiskMax	resd 1			; Highest address for ramdisk

@@ -47,7 +47,7 @@ pc_onerror:	mov di,Onerror
 ;
 ; "append" command
 ;
-pc_append:      cmp word [VKernelCtr],byte 0
+pc_append:      cmp byte [VKernel],0
 		ja .vk
                 mov di,AppendBuf
 		call getline
@@ -71,7 +71,7 @@ pc_append:      cmp word [VKernelCtr],byte 0
 %if IS_PXELINUX
 pc_ipappend:	call getint
 		jc .err
-		cmp word [VKernelCtr], byte 0
+		cmp byte [VKernel],0
 		jne .vk
 		mov [IPAppend],bl
 .err:		ret
@@ -84,7 +84,7 @@ pc_ipappend:	call getint
 ;
 %if IS_PXELINUX || IS_ISOLINUX
 pc_localboot:	call getint
-		cmp word [VKernelCtr],byte 0	; ("label" section only)
+		cmp byte [VKernel],0		; ("label" section only)
 		je .err
 		mov di,VKernelBuf+vk_rname
 		xor ax,ax
@@ -96,7 +96,7 @@ pc_localboot:	call getint
 
 ;
 ; "kernel" command
-pc_kernel:	cmp word [VKernelCtr],byte 0
+pc_kernel:	cmp byte [VKernel],0
 		je .err				; ("label" section only)
 		call pc_getline
 		mov di,VKernelBuf+vk_rname
@@ -246,7 +246,7 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		call pc_getline
 		mov di,VKernelBuf+vk_vname
 		call mangle_name		; Mangle virtual name
-		inc word [VKernelCtr]		; One more vkernel
+		mov byte [VKernel],1		; We've seen a "label" statement
 		mov si,VKernelBuf+vk_vname 	; By default, rname == vname
 		mov di,VKernelBuf+vk_rname
 		mov cx,FILENAME_MAX
@@ -308,22 +308,51 @@ commit_vk:
 		xor ax,ax
 		rep stosb
 
-		cmp word [VKernelCtr],byte 0
-		je cvk_ret			; No VKernel = return
-		cmp word [VKernelCtr],max_vk	; Above limit?
-		ja cvk_overflow
-		mov di,[VKernelCtr]
-		dec di
-		shl di,vk_shift
+		; Pack temporarily into trackbuf
 		mov si,VKernelBuf
-		mov cx,(vk_size >> 2)
+		mov di,trackbuf
+		mov cx,vk_size
+		call rllpack
+		; Now DX = number of bytes
+		mov di,[VKernelBytes]
+		mov cx,dx
+		add dx,di
+		jc .overflow			; If > 1 segment
+		mov [VKernelBytes],dx
+		mov si,trackbuf
 		push es
 		push word vk_seg
 		pop es
-		rep movsd			; Copy to buffer segment
+		rep movsb
 		pop es
-cvk_ret:	ret
-cvk_overflow:	mov word [VKernelCtr],max_vk	; No more than max_vk, please
 		ret
+.overflow:
+		mov si,vk_overflow_msg
+		call writestr
+		ret
+
+		section .data
+vk_overflow_msg	db 'Out of memory parsing config file', CR, LF, 0
+
+		align 2, db 0
+AppendLen       dw 0                    ; Bytes in append= command
+OntimeoutLen	dw 0			; Bytes in ontimeout command
+OnerrorLen	dw 0			; Bytes in onerror command
+KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
+CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
+initrd_flag	equ $
+initrd_ptr	dw 0			; Initial ramdisk pointer/flag
+ForcePrompt	dw 0			; Force prompt
+AllowImplicit   dw 1                    ; Allow implicit kernels
+AllowOptions	dw 1			; User-specified options allowed
+SerialPort	dw 0			; Serial port base (or 0 for no serial port)
+VKernelBytes	dw 0			; Number of bytes used by vkernels
+VKernel		db 0			; Have we seen any "label" statements?
+
+		section .bss
+                alignb 4		; For the good of REP MOVSD
+command_line	resb max_cmd_len+2	; Command line buffer
+		alignb 4
+default_cmd	resb max_cmd_len+1	; "default" command line
 
 %include "rllpack.inc"

@@ -227,21 +227,63 @@ clin_opt_ok:
 ;
 ; Now check if it is a "virtual kernel"
 ;
-		mov cx,[VKernelCtr]
-		push ds
+vk_check:
+		xor si,si			; Beginning of vk_seg
 		push word vk_seg
 		pop ds
-		cmp cx,byte 0
-		je not_vk
-		xor si,si			; Point to first vkernel
-vk_check:	pusha
+.scan:
+		cmp si,[VKernelBytes]
+		jae .not_vk
+		mov di,VKernelBuf
+		call rllunpack
+		; SI updated on return
+		sub di,cx			; Return to beginning of buf
+		push si
 		mov cx,FILENAME_MAX
-		repe cmpsb			; Is this it?
-		je vk_found
-		popa
-		add si,vk_size
-		loop vk_check
-not_vk:		pop ds
+		es repe cmpsb
+		je .found
+		jmp .scan
+
+;
+; We *are* using a "virtual kernel"
+;
+.found:
+		push es
+		push word real_mode_seg
+		pop es
+		mov di,cmd_line_here
+		mov si,VKernelBuf+vk_append
+		mov cx,[VKernelBuf+vk_appendlen]
+		rep movsb
+		mov [CmdLinePtr],di		; Where to add rest of cmd
+		pop es
+		mov di,KernelName
+		push di	
+		mov si,VKernelBuf+vk_rname
+		mov cx,FILENAME_MAX		; We need ECX == CX later
+		rep movsb
+		pop di
+%if IS_PXELINUX
+		mov al,[VKernelBuf+vk_ipappend]
+		mov [IPAppend],al
+%endif
+		xor bx,bx			; Try only one version
+
+%if IS_SYSLINUX || IS_MDSLINUX
+		jmp get_kernel
+%else
+		; Is this a "localboot" pseudo-kernel?
+		cmp byte [VKernelBuf+vk_rname], 0
+		jne get_kernel		; No, it's real, go get it
+
+		mov ax, [VKernelBuf+vk_rname+1]
+		jmp local_boot
+%endif
+
+.not_vk:
+		push cs
+		pop ds
+
 ;
 ; Not a "virtual kernel" - check that's OK and construct the command line
 ;
@@ -346,48 +388,6 @@ on_error:
 		jmp load_kernel
 
 ;
-; vk_found: We *are* using a "virtual kernel"
-;
-vk_found:	popa
-		push di
-		mov di,VKernelBuf
-		mov cx,vk_size >> 2
-		rep movsd
-		push es				; Restore old DS
-		pop ds
-		push es
-		push word real_mode_seg
-		pop es
-		mov di,cmd_line_here
-		mov si,VKernelBuf+vk_append
-		mov cx,[VKernelBuf+vk_appendlen]
-		rep movsb
-		mov [CmdLinePtr],di		; Where to add rest of cmd
-		pop es
-                pop di                          ; DI -> KernelName
-		push di	
-		mov si,VKernelBuf+vk_rname
-		mov cx,FILENAME_MAX		; We need ECX == CX later
-		rep movsb
-		pop di
-%if IS_PXELINUX
-		mov al,[VKernelBuf+vk_ipappend]
-		mov [IPAppend],al
-%endif
-		xor bx,bx			; Try only one version
-
-%if IS_SYSLINUX || IS_MDSLINUX
-		jmp get_kernel
-%else
-		; Is this a "localboot" pseudo-kernel?
-		cmp byte [VKernelBuf+vk_rname], 0
-		jne get_kernel		; No, it's real, go get it
-
-		mov ax, [VKernelBuf+vk_rname+1]
-		jmp local_boot
-%endif
-
-;
 ; kernel_corrupt: Called if the kernel file does not seem healthy
 ;
 kernel_corrupt: mov si,err_notkernel
@@ -476,9 +476,5 @@ KernelExtPtr	resw 1			; During search, final null pointer
 CmdOptPtr       resw 1			; Pointer to first option on cmd line
 KbdFlags	resb 1			; Check for keyboard escapes
 FuncFlag	resb 1			; Escape sequences received from keyboard
-                alignb 4		; For the good of REP MOVSD
-command_line	resb max_cmd_len+2	; Command line buffer
-		alignb 4
-default_cmd	resb max_cmd_len+1	; "default" command line
 
 		section .text

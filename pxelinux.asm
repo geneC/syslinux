@@ -35,9 +35,9 @@ FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
 NULLFILE	equ 0			; Zero byte == null file name
 REBOOT_TIME	equ 5*60		; If failure, time until full reset
 %assign HIGHMEM_SLOP 128*1024		; Avoid this much memory near the top
-MAX_SOCKETS_LG2	equ 5			; log2(Max number of open sockets)
-MAX_SOCKETS	equ (1 << MAX_SOCKETS_LG2)
-PKTBUF_SIZE	equ (65536/MAX_SOCKETS)	; Per-socket packet buffer size
+MAX_OPEN_LG2	equ 5			; log2(Max number of open sockets)
+MAX_OPEN	equ (1 << MAX_OPEN_LG2)
+PKTBUF_SIZE	equ (65536/MAX_OPEN)	; Per-socket packet buffer size
 TFTP_PORT	equ htons(69)		; Default TFTP port 
 PKT_RETRY	equ 6			; Packet transmit retry count
 PKT_TIMEOUT	equ 12			; Initial timeout, timer ticks @ 55 ms
@@ -160,7 +160,7 @@ BOOTP_OPTION_MAGIC	equ htonl(0x63825363)	; See RFC 2132
 ; HBO = host byte order; NBO = network byte order
 ; (*) = written by options negotiation code, must be dword sized
 ;
-		struc tftp_port_t
+		struc open_file_t
 tftp_localport	resw 1			; Local port number	(0 = not in use)
 tftp_remoteport	resw 1			; Remote port number
 tftp_remoteip	resd 1			; Remote IP address
@@ -174,12 +174,9 @@ tftp_dataptr	resw 1			; Pointer to available data
 		; At end since it should not be zeroed on socked close
 tftp_pktbuf	resw 1			; Packet buffer offset
 		endstruc
-
-tftp_clear_words equ (tftp_pktbuf/2)	; Number of words to zero on socket close
-
 %ifndef DEPEND
-%if (tftp_port_t_size & (tftp_port_t_size-1))
-%error "tftp_port_t is not a power of 2"
+%if (open_file_t_size & (open_file_t_size-1))
+%error "open_file_t is not a power of 2"
 %endif
 %endif
 
@@ -236,8 +233,8 @@ pxe_unload_stack_pkt:
 .reserved:	resw 10			; Reserved
 pxe_unload_stack_pkt_len	equ $-pxe_unload_stack_pkt
 
-		alignb tftp_port_t_size
-Sockets		resb MAX_SOCKETS*tftp_port_t_size
+		alignb open_file_t_size
+Files		resb MAX_OPEN*open_file_t_size
 
 		alignb 16
 		; BOOTP/DHCP packet buffer
@@ -508,26 +505,6 @@ have_pxe:
 have_entrypoint:
 
 ;
-; Clear Sockets structures
-;
-clear_sockets:
-		mov ax,ds	; Set ES <- DS
-		mov es,ax
-
-		mov di,Sockets
-		mov cx,(MAX_SOCKETS*tftp_port_t_size)/4
-		xor eax,eax
-		push di
-		rep stosd
-		pop di		; di <- Sockets
-		mov cx,MAX_SOCKETS
-.setbufptr:
-		mov [di+tftp_pktbuf],ax
-		add di,tftp_port_t_size
-		add ax,PKTBUF_SIZE
-		loop .setbufptr
-
-;
 ; Now attempt to get the BOOTP/DHCP packet that brought us life (and an IP
 ; address).  This lives in the DHCPACK packet (query info 2).
 ;
@@ -685,6 +662,7 @@ udp_init:
 ;
 ; Common initialization code
 ;
+%include "init.inc"
 %include "cpuinit.inc"
 
 ;
@@ -700,18 +678,6 @@ udp_init:
 ; to take'm out.  In fact, we may want to put them back if we're going
 ; to boot ELKS at some point.
 ;
-		mov si,linuxauto_cmd		; Default command: "linux auto"
-		mov di,default_cmd
-                mov cx,linuxauto_len
-		rep movsb
-
-		mov di,KbdMap			; Default keymap 1:1
-		xor al,al
-		mov cx,256
-mkkeymap:	stosb
-		inc al
-		loop mkkeymap
-
 
 ;
 ; Store standard filename prefix
@@ -1375,11 +1341,11 @@ searchdir:
 ;
 allocate_socket:
 		push cx
-		mov bx,Sockets
-		mov cx,MAX_SOCKETS
+		mov bx,Files
+		mov cx,MAX_OPEN
 .check:		cmp word [bx], byte 0
 		je .found
-		add bx,tftp_port_t_size
+		add bx,open_file_t_size
 		loop .check
 		xor cx,cx			; ZF = 1
 		pop cx
@@ -1398,9 +1364,9 @@ allocate_socket:
 		push ax
 		mov ax,[NextSocket]
 		inc ax
-		and ax,((1 << (13-MAX_SOCKETS_LG2))-1) | 0xC000
+		and ax,((1 << (13-MAX_OPEN_LG2))-1) | 0xC000
 		mov [NextSocket],ax
-		shl cx,13-MAX_SOCKETS_LG2
+		shl cx,13-MAX_OPEN_LG2
 		add cx,ax			; ZF = 0
 		xchg ch,cl			; Convert to network byte order
 		mov [bx],cx			; Socket in use
@@ -1417,7 +1383,7 @@ free_socket:
 		xor ax,ax
 		mov es,ax
 		mov di,si
-		mov cx,tftp_clear_words
+		mov cx,tftp_pktbuf >> 1		; tftp_pktbuf is not cleared
 		rep stosw
 		popa
 		pop es
@@ -2402,26 +2368,6 @@ pxe_udp_read_pkt:
 ;
 		alignb 4, db 0
 BaseStack	dd StackBuf		; SS:ESP of base stack
-		dw 0
-AppendLen       dw 0                    ; Bytes in append= command
-OntimeoutLen	dw 0			; Bytes in ontimeout command
-OnerrorLen	dw 0			; Bytes in onerror command
-KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
-CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
-initrd_flag	equ $
-initrd_ptr	dw 0			; Initial ramdisk pointer/flag
-VKernelCtr	dw 0			; Number of registered vkernels
-ForcePrompt	dw 0			; Force prompt
-AllowImplicit   dw 1                    ; Allow implicit kernels
-AllowOptions	dw 1			; User-specified options allowed
-SerialPort	dw 0			; Serial port base (or 0 for no serial port)
-VGAFontSize	dw 16			; Defaults to 16 byte font
-UserFont	db 0			; Using a user-specified font
-ScrollAttribute	db 07h			; White on black (for text mode)
-
-;
-; PXELINUX-specific variables
-; 
 NextSocket	dw 49152		; Counter for allocating socket numbers
 KeepPXE		db 0			; Should PXE be kept around?
 
@@ -2484,12 +2430,4 @@ EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 IPAppend	db 0			; Default IPAPPEND option
 DHCPMagic	db 0			; DHCP site-specific option info
 
-;
-; Stuff for the command line; we do some trickery here with equ to avoid
-; tons of zeros appended to our file and wasting space
-;
-linuxauto_cmd	db 'linux auto',0
-linuxauto_len   equ $-linuxauto_cmd
-boot_image      db 'BOOT_IMAGE='
-boot_image_len  equ $-boot_image
 ldlinux_end     equ $

@@ -850,6 +850,7 @@ getfattype:
 ; Common initialization code
 ;
 %include "cpuinit.inc"
+%include "init.inc"
 
 ;
 ; Clear Files structures
@@ -863,19 +864,6 @@ getfattype:
 ; Initialize the metadata cache
 ;
 		call initcache
-
-;
-; Initialization that does not need to go into the any of the pre-load
-; areas
-;
-		; Now set up screen parameters
-		call adjust_screen
-
-		; Wipe the F-key area
-		mov al,NULLFILE
-		mov di,FKeyName
-		mov cx,10*(1 << FILENAME_MAX_LG2)
-		rep stosb
 
 ;
 ; Now, everything is "up and running"... patch kaboom for more
@@ -897,17 +885,6 @@ getfattype:
 ; to take'm out.  In fact, we may want to put them back if we're going
 ; to boot ELKS at some point.
 ;
-		mov si,linuxauto_cmd		; Default command: "linux auto"
-		mov di,default_cmd
-                mov cx,linuxauto_len
-		rep movsb
-
-		mov di,KbdMap			; Default keymap 1:1
-		xor al,al
-		inc ch				; CX <- 256
-mkkeymap:	stosb
-		inc al
-		loop mkkeymap
 
 ;
 ; Load configuration file
@@ -1558,21 +1535,6 @@ exten_table_end:
 %ifdef debug				; This code for debugging only
 debug_magic	dw 0D00Dh		; Debug code sentinel
 %endif
-AppendLen       dw 0                    ; Bytes in append= command
-OntimeoutLen	dw 0			; Bytes in ontimeout command
-OnerrorLen	dw 0			; Bytes in onerror command
-KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
-CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
-initrd_flag	equ $
-initrd_ptr	dw 0			; Initial ramdisk pointer/flag
-VKernelCtr	dw 0			; Number of registered vkernels
-ForcePrompt	dw 0			; Force prompt
-AllowImplicit   dw 1                    ; Allow implicit kernels
-AllowOptions	dw 1			; User-specified options allowed
-SerialPort	dw 0			; Serial port base (or 0 for no serial port)
-VGAFontSize	dw 16			; Defaults to 16 byte font
-UserFont	db 0			; Using a user-specified font
-ScrollAttribute	db 07h			; White on black (for text mode)
 
 		alignb 4, db 0
 BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf
@@ -1584,14 +1546,6 @@ EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 %error trackbufsize must be a multiple of SECTOR_SIZE
 %endif
 %endif
-;
-; Stuff for the command line; we do some trickery here with equ to avoid
-; tons of zeros appended to our file and wasting space
-;
-linuxauto_cmd	db 'linux auto',0
-linuxauto_len   equ $-linuxauto_cmd
-boot_image      db 'BOOT_IMAGE='
-boot_image_len  equ $-boot_image
 
 		align 4, db 0		; Pad out any unfinished dword
 ldlinux_end	equ $

@@ -373,6 +373,9 @@ debug_tracer:	pushad
 		ret
 %endif	; DEBUG_TRACERS
 
+		section .data
+ScrollAttribute	db 07h			; Grey on white (normal text color)
+
 		section .bss
 		alignb 2
 NextCharJump    resw 1			; Routine to interpret next print char

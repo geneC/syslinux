@@ -835,15 +835,8 @@ all_read:
 ;
 ; Common initialization code
 ;
+%include "init.inc"
 %include "cpuinit.inc"
-
-;
-; Clear Files structures
-;
-		mov di,Files
-		mov cx,(MAX_OPEN*open_file_t_size)/4
-		xor eax,eax
-		rep stosd
 
 ;
 ; Now we're all set to start with our *real* business.	First load the
@@ -858,17 +851,6 @@ all_read:
 ; to take'm out.  In fact, we may want to put them back if we're going
 ; to boot ELKS at some point.
 ;
-		mov si,linuxauto_cmd		; Default command: "linux auto"
-		mov di,default_cmd
-                mov cx,linuxauto_len
-		rep movsb
-
-		mov di,KbdMap			; Default keymap 1:1
-		xor al,al
-		mov cx,256
-mkkeymap:	stosb
-		inc al
-		loop mkkeymap
 
 ;
 ; Now, we need to sniff out the actual filesystem data structures.
@@ -1627,22 +1609,6 @@ img_table:
 ;
 ; Misc initialized (data) variables
 ;
-		align 4, db 0
-AppendLen       dw 0                    ; Bytes in append= command
-OntimeoutLen	dw 0			; Bytes in ontimeout command
-OnerrorLen	dw 0			; Bytes in onerror command
-KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
-CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
-initrd_flag	equ $
-initrd_ptr	dw 0			; Initial ramdisk pointer/flag
-VKernelCtr	dw 0			; Number of registered vkernels
-ForcePrompt	dw 0			; Force prompt
-AllowImplicit   dw 1                    ; Allow implicit kernels
-AllowOptions	dw 1			; User-specified options allowed
-SerialPort	dw 0			; Serial port base (or 0 for no serial port)
-VGAFontSize	dw 16			; Defaults to 16 byte font
-UserFont	db 0			; Using a user-specified font
-ScrollAttribute	db 07h			; White on black (for text mode)
 
 ;
 ; Spec packet for disk image emulation
@@ -1677,12 +1643,4 @@ EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 %endif
 %endif
 
-;
-; Stuff for the command line; we do some trickery here with equ to avoid
-; tons of zeros appended to our file and wasting space
-;
-linuxauto_cmd	db 'linux auto',0
-linuxauto_len   equ $-linuxauto_cmd
-boot_image      db 'BOOT_IMAGE='
-boot_image_len  equ $-boot_image
 ldlinux_end     equ $
