@@ -173,9 +173,9 @@ Reset:
 		; user didn't request HD reset, then just drop the command.
 		xor ax,ax		; Bottom of memory
 		mov es,ax
-		mov al,[es:0x410]	; BIOS equipment byte
-		shr al,6		; Top two bits + 1
-		jz success		; If this is the only device, just report success
+		; BIOS equipment byte, top two bits + 1 == total # of floppies
+		test byte [es:0x410],0C0h	
+		jz success
 		; ... otherwise pass it to the BIOS
 .pass_on:
 		pop ax			; Drop return address
