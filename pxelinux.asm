@@ -214,12 +214,20 @@ KbdMap		resb 256		; Keyboard map
 PathPrefix	resb 256		; Path prefix derived from the above
 BootFile	resb 256		; Boot file from DHCP packet
 ConfigName	resb 256		; Configuration file from DHCP option
-
-; Warning here: RBFG build 22 seems to randomly overwrite memory location
-; 0x5700.  Not sure why yet.  Consider that if these are realigned.
-
-		absolute 5800h
 FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
+		alignb FILENAME_MAX
+KernelName      resb FILENAME_MAX       ; Mangled name for kernel
+KernelCName     resb FILENAME_MAX	; Unmangled kernel name
+InitRDCName     resb FILENAME_MAX       ; Unmangled initrd name
+MNameBuf	resb FILENAME_MAX
+InitRD		resb FILENAME_MAX
+
+; Warning here: RBFG build 22 randomly overwrites memory location
+; [0x5680,0x576c), possibly more.  It seems that it gets confused and
+; screws up the pointer to its own internal packet buffer and starts
+; writing a received ARP packet into low memory.
+
+		absolute 6000h
 NumBuf		resb 15			; Buffer to load number
 NumBufEnd	resb 1			; Last byte in NumBuf
 DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
@@ -228,12 +236,6 @@ MACLen		resb 1			; MAC address len
 MACType		resb 1			; MAC address type
 MAC		resb 16			; Actual MAC address
 MACStr		resb 3*17		; MAC address as a string
-		alignb 32
-KernelName      resb FILENAME_MAX       ; Mangled name for kernel
-KernelCName     resb FILENAME_MAX	; Unmangled kernel name
-InitRDCName     resb FILENAME_MAX       ; Unmangled initrd name
-MNameBuf	resb FILENAME_MAX
-InitRD		resb FILENAME_MAX
 PartInfo	resb 16			; Partition table entry
 E820Buf		resd 5			; INT 15:E820 data buffer
 HiLoadAddr      resd 1			; Address pointer for high load loop
