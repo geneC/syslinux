@@ -1,12 +1,12 @@
 /*
- * fopen.c
+ * fopendev.c
  */
 
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
 
-FILE *fopen(const char *file, const char *mode)
+FILE *fopendev(const struct dev_info *dev, const char *mode)
 {
   int flags = O_RDONLY;
   int plus = 0;
@@ -34,7 +34,7 @@ FILE *fopen(const char *file, const char *mode)
     flags = (flags & ~(O_RDONLY|O_WRONLY)) | O_RDWR;
   }
 
-  fd = open(file, flags, 0666);
+  fd = opendev(file, flags);
 
   if ( fd < 0 )
     return NULL;
