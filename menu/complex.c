@@ -46,7 +46,7 @@ void msys_handler(t_menusystem *ms, t_menuitem *mi)
         return;
     }
     strcpy (infoline," ");
-    if (flags.baseurl) strcat(infoline,"baseurl=http://128.135.11.139/gui ");
+    if (flags.baseurl) strcat(infoline,"baseurl=http://192.168.11.12/gui ");
     if (flags.mountcd) strcat(infoline,"mountcd=yes ");
     if (!flags.network)
        strcat(infoline,"network=no ");
@@ -118,8 +118,12 @@ int menumain(char *cmdline)
 
   (void)cmdline;		/* Not used */
 
+  // Switch video mode here
+  // setvideomode(0x18); // or whatever mode you want
+
   // Choose the default title and setup default values for all attributes....
   init_menusystem(NULL);
+  set_window_size(1,1,23,79); // Leave one row/col all around
   
   // Choose the default values for all attributes and char's
   // -1 means choose defaults (Actually the next 4 lines are not needed)
@@ -182,7 +186,7 @@ int menumain(char *cmdline)
                 {
                     csprint("Enter IP address (last two octets only): ");
                     getstring(ip, sizeof ip);
-                    strcat(cmd,"ipaddr=128.135.");
+                    strcat(cmd,"ipaddr=192.168.");
                     strcat(cmd,ip);
                 }
             }

@@ -26,8 +26,12 @@ int menumain(char *cmdline)
   char TESTING,RESCUE,MAIN;	/* The menus we're going to declare */
   (void)cmdline;		/* Not used */
 
+  // Change the video mode here
+  // setvideomode(0)
+
   // Choose the default title and setup default values for all attributes....
   init_menusystem(NULL);
+  set_window_size(1,1,23,78); // Leave one row/col border all around
   
   // Choose the default values for all attributes and char's
   // -1 means choose defaults (Actually the next 4 lines are not needed)

@@ -10,6 +10,12 @@
  *
  * ----------------------------------------------------------------------- */
 
+/* This program can be compiled for DOS with the OpenWatcom compiler
+ * (http://www.openwatcom.org/):
+ *
+ * wcl -3 -osx -mt <filename>.c
+ */
+
 #ifndef __MENU_H__
 #define __MENU_H__
 
@@ -32,25 +38,6 @@
 #define SPACEKEY 57 // Scan code for SPACE
 
 // Attributes
-#if 0
-/* Original black/white with blink */
-
-#define NORMALATTR   0x70
-#define REVERSEATTR  0x87
-#define INACTATTR    0x74
-#define REVINACTATTR 0x87
-#define STATUSATTR   0xF0
-#define FILLCHAR     178
-#define FILLATTR     0x07
-#define SHADOWATTR   0x08
-#define SPACECHAR    ' '
-
-#define TFILLCHAR    ' '
-#define TITLEATTR    0x70
-
-#else
-/* Alternate color scheme */
-
 #define NORMALATTR   0x17
 #define REVERSEATTR  0x70
 #define INACTATTR    0x18
@@ -64,8 +51,6 @@
 #define TFILLCHAR    ' '
 #define TITLEATTR    0x70
 
-#endif
-
 #define TITLESTR  "COMBOOT Menu System for SYSLINUX developed by Murali Krishnan Ganapathy"
 
 // Single line Box drawing Chars
@@ -78,7 +63,6 @@
 #define BOT      196
 #define LEFT     179
 #define RIGHT    179
-
 
 // Double line Box Drawing Chars
 /*
@@ -103,11 +87,11 @@
 #define MENUROW       3  // Row where menu is displayed
 #define MENUCOL       4  // Col where menu is displayed
 #define MENUPAGE      1  // show in display page 1
-#define STATLINE      24 // Line number where status line starts
+#define STATLINE      23 // Line number where status line starts
 
 // Other Chars
 #define SUBMENUCHAR  175 // This is >> symbol, << is 174
-#define CHECKED      251 // Checkmark
+#define CHECKED      251 // Check mark
 #define UNCHECKED    250 // Light bullet
 
 typedef enum {OPT_INACTIVE, OPT_SUBMENU, OPT_RUN, OPT_EXITMENU, OPT_CHECKBOX, OPT_RADIOBTN, OPT_EXIT} t_action;
@@ -128,21 +112,21 @@ typedef void (*t_menusystem_handler)(struct s_menusystem *, struct s_menuitem *)
 typedef struct s_menuitem {
     char item[MENULEN+2];
     char status[STATLEN+2];
+    char data[ACTIONLEN+2];
+    void * extra_data; // Any other data user can point to
+    t_item_handler handler; // Pointer to function of type menufn
     char active; // Is this item active or not
     t_action action;
-    char data[ACTIONLEN+2];
     t_itemdata itemdata; // Data depends on action value
     char index; // Index within the menu array
     char parindex; // Index of the menu in which this item appears. 
-    void * extra_data; // Any other data user can point to
-    t_item_handler handler; // Pointer to function of type menufn
 } t_menuitem;
 
 typedef struct s_menu {
+    t_menuitem items[MAXMENUSIZE];
+    char title[MENULEN+2];
     char numitems;
     char menuwidth;
-    char title[MENULEN+2];
-    t_menuitem items[MAXMENUSIZE];
 } t_menu;
 
 typedef struct s_menusystem {
@@ -163,6 +147,8 @@ typedef struct s_menusystem {
     char shadowattr;
     char statline;
     char menupage;
+    char maxrow,minrow,numrows; // Number of rows in the current text mode
+    char maxcol,mincol,numcols; // Number of columns in the current text mode
 } t_menusystem;
 
 // User callable Functions
@@ -178,6 +164,8 @@ void set_status_info(char statusattr, char statline);
 void set_title_info(char tfillchar, char titleattr);
 
 void set_misc_info(char fillchar, char fillattr,char spacechar, char shadowattr);
+
+void set_window_size(char top, char left, char bot, char right); // Set the window which menusystem should use
 
 void reg_handler( t_menusystem_handler handler); // Register handler
 

@@ -49,4 +49,26 @@ void cursoron(void);		/* Turns off cursor */
 
 void getstring(char *str, unsigned int size);
 
+static inline unsigned char readbiosb(unsigned short addr)
+{
+    unsigned char v;
+
+    asm("movw %2,%%fs ; "
+	"movb %%fs:%1,%0"
+	: "=r" (v)
+	: "m" (*(unsigned char *)(unsigned int)addr),
+	"r" ((unsigned short)0));
+    return v;
+}
+static inline char getnumrows()
+{
+    return readbiosb(0x484);
+}
+static inline char getnumcols(void)
+{
+    return readbiosb(0x44a);
+}
+ 
+void setvideomode(char mode); // Set the video mode.
+
 #endif

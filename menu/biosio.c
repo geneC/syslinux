@@ -18,8 +18,8 @@
 /* Print character and attribute at cursor */
 static inline void asm_cprint(char chr, char attr, int times, char disppage)
 {
-  asm volatile("movb $0x09,%%ah ; int $0x10"
-	       : "+a" (chr) : "b" (attr + (disppage << 8)), "c" (times));
+    asm volatile("movb $0x09,%%ah ; int $0x10"
+		 : "+a" (chr) : "b" (attr + (disppage << 8)), "c" (times));
 }
 
 void cprint(char chr,char attr,int times,char disppage)
@@ -29,8 +29,8 @@ void cprint(char chr,char attr,int times,char disppage)
 
 static inline void asm_setdisppage(char num)
 {
-  asm volatile("movb $0x05,%%ah ; int $0x10"
-	       : "+a" (num));
+    asm volatile("movb $0x05,%%ah ; int $0x10"
+		 : "+a" (num));
 }
 
 void setdisppage(char num) // Set the display page to specified number
@@ -41,12 +41,12 @@ void setdisppage(char num) // Set the display page to specified number
 
 static inline char asm_getdisppage(void)
 {
-  char page;
-
-  asm("movb $0x0f,%%ah ; "
-      "int $0x10 ; "
-      "movb %%bh,%0" : "=rm" (page) : : "eax", "ebp");
-  return page;
+    char page;
+    
+    asm("movb $0x0f,%%ah ; "
+	"int $0x10 ; "
+	"movb %%bh,%0" : "=rm" (page) : : "eax", "ebp");
+    return page;
 }
 
 char getdisppage() // Get current display page 
@@ -66,7 +66,7 @@ static inline void asm_putchar(char x, char page)
 void csprint(const char *str)
 {
     char page = asm_getdisppage();
-
+    
     while ( *str ) {
 	asm_putchar(*str, page);
 	str++;
@@ -85,18 +85,19 @@ void clearwindow(char top, char left, char bot, char right, char page, char fill
 
 void cls(void)
 {
-    asm_cprint(' ',0x07,25*80,getdisppage());    
+    gotoxy(0,0,getdisppage());
+    asm_cprint(' ',0x07,getnumrows()*getnumcols(),getdisppage());    
 }
 
 static inline void asm_gotoxy(char row,char col, char page)
 {
-  asm volatile("movb %1,%%bh ; "
-	       "movb $0x02,%%ah ; "
-	       "int $0x10"
-	       : : "d" ((row << 8) + col), "g" (page)
-	       : "eax", "ebx");
+    asm volatile("movb %1,%%bh ; "
+		 "movb $0x02,%%ah ; "
+		 "int $0x10"
+		 : : "d" ((row << 8) + col), "g" (page)
+		 : "eax", "ebx");
 }
-   
+
 void gotoxy(char row,char col, char page)
 {
     asm_gotoxy(row,col,page);
@@ -104,16 +105,16 @@ void gotoxy(char row,char col, char page)
 
 static inline void asm_getpos(char *row, char *col, char page)
 {
-  asm("movb %2,%%bh ; "
-      "movb $0x03,%%ah ; "
-      "int $0x10 ; "
-      "movb %%dh,%0 ; "
-      "movb %%dl,%1"
-      : "=m" (*row), "=m" (*col)
-      : "g" (page)
-      : "eax", "ebx", "ecx", "edx");
+    asm("movb %2,%%bh ; "
+	"movb $0x03,%%ah ; "
+	"int $0x10 ; "
+	"movb %%dh,%0 ; "
+	"movb %%dl,%1"
+	: "=m" (*row), "=m" (*col)
+	: "g" (page)
+	: "eax", "ebx", "ecx", "edx");
 }
-   
+
 void getpos(char * row, char * col, char page)
 {
     asm_getpos(row,col,page);
@@ -128,8 +129,8 @@ char asm_inputc(char *scancode)
 	       : "=a" (ax));
   
   if (scancode)
-    *scancode = (ax >> 8);
-
+      *scancode = (ax >> 8);
+  
   return (char)ax;
 }
    
@@ -140,8 +141,8 @@ char inputc(char * scancode)
 
 static inline void asm_cursorshape(char start, char end)
 {
-  asm volatile("movb $0x01,%%ah ; int $0x10"
-	       : : "c" ((start << 8) + end) : "eax");
+    asm volatile("movb $0x01,%%ah ; int $0x10"
+		 : : "c" ((start << 8) + end) : "eax");
 }
    
 void cursoroff(void)
@@ -159,46 +160,59 @@ char eolstr[] = "\n$";
 
 static inline char asm_getchar(void)
 {
-  char v;
-
-  /* Get key without echo */
-  asm("movb $0x08,%%ah ; int $0x21" : "=a" (v));
-
-  return v;
+    char v;
+    
+    /* Get key without echo */
+    asm("movb $0x08,%%ah ; int $0x21" : "=a" (v));
+    
+    return v;
 }
 
-void getstring(char *str, unsigned int size)
 // Reads a line of input from stdin. Replace CR with NUL byte
+void getstring(char *str, unsigned int size)
 {
-  char c;
-  char *p = str;
-  char page = asm_getdisppage();
-
-  while ( (c = asm_getchar()) != '\r' ) {
-    switch (c) {
-    case '\0':			/* Extended char prefix */
-      asm_getchar();		/* Drop */
-      break;
-    case '\b':
-      if ( p > str ) {
-	p--;
-	csprint("\b \b");
-      }
-      break;
-    case '\x15':		/* Ctrl-U: kill input */
-      while ( p > str ) {
-	p--;
-	csprint("\b \b");
-      }
-      break;
-    default:
-      if ( c >= ' ' && (unsigned int)(p-str) < size-1 ) {
-	*p++ = c;
-	asm_putchar(c, page);
-      }
-      break;
+    char c;
+    char *p = str;
+    char page = asm_getdisppage();
+    
+    while ( (c = asm_getchar()) != '\r' ) {
+	switch (c) {
+	case '\0':		/* Extended char prefix */
+	    asm_getchar();	/* Drop */
+	    break;
+	case '\b':
+	    if ( p > str ) {
+		p--;
+		csprint("\b \b");
+	    }
+	    break;
+	case '\x15':		/* Ctrl-U: kill input */
+	    while ( p > str ) {
+		p--;
+		csprint("\b \b");
+	    }
+	    break;
+	default:
+	    if ( c >= ' ' && (unsigned int)(p-str) < size-1 ) {
+		*p++ = c;
+		asm_putchar(c, page);
+	    }
+	    break;
+	}
     }
-  }
-  *p = '\0';
-  csprint("\r\n");
+    *p = '\0';
+    csprint("\r\n");
+}
+
+static inline void asm_setvideomode(char mode)
+{
+    /* This BIOS function is notoriously register-dirty,
+       so push/pop around it */
+    asm volatile("pushal ; xorb %%ah,%%ah ; int $0x10 ; popal"
+		 : : "a" (mode) );
+}
+
+void setvideomode(char mode)
+{
+    asm_setvideomode(mode);
 }
