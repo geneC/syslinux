@@ -53,8 +53,6 @@ pc_append:      cmp word [VKernelCtr],byte 0
 %if IS_PXELINUX
 pc_ipappend:	call getint
 		jc .err
-		and bx,bx
-		setnz bl
 		cmp word [VKernelCtr], byte 0
 		jne .vk
 		mov [IPAppend],bl
