@@ -14,7 +14,7 @@ SRCS     = syslinux.c \
            $(wildcard ../libfat/*.c)
 OBJS	 = crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
 LIBOBJS	 = conio.o memcpy.o memset.o  skipatou.o atou.o malloc.o free.o \
-	   argv.o printf.o 
+	   argv.o printf.o __divdi3.o __udivmoddi4.o
 
 .SUFFIXES: .c .o .i .s .S .elf .com
 
@@ -34,7 +34,7 @@ spotless: clean
 installer: syslinux.com
 
 syslinux.elf: $(OBJS) libcom.a
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBGCC)
+	$(LD) $(LDFLAGS) -o $@ $^
 
 libcom.a: $(LIBOBJS)
 	-rm -f $@
