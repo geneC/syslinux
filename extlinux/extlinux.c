@@ -36,6 +36,12 @@
 #include <linux/hdreg.h>	/* Hard disk geometry */
 #include <linux/fs.h>		/* FIGETBSZ, FIBMAP */
 
+#ifdef DEBUG
+# define dprintf printf
+#else
+# define dprintf(...) ((void)0)
+#endif
+
 #define LDLINUX_MAGIC	0x3eb202fe
 
 enum bs_offsets {
@@ -249,7 +255,7 @@ sectmap(int fd, uint32_t *sectors, int nsectors)
   while ( nsectors ) {
     
     blk = nblk++;
-    printf("querying block %u\n", blk);
+    dprintf("querying block %u\n", blk);
     if ( ioctl(fd, FIBMAP, &blk) )
       return -1;
 
@@ -258,7 +264,7 @@ sectmap(int fd, uint32_t *sectors, int nsectors)
       if ( !nsectors )
 	return 0;
 
-      printf("Sector: %10u\n", blk);
+      dprintf("Sector: %10u\n", blk);
       *sectors++ = blk++;
       nsectors--;
     }
@@ -268,57 +274,128 @@ sectmap(int fd, uint32_t *sectors, int nsectors)
 }
 
 /*
+ * Get the size of a block device
+ */
+uint64_t get_size(int devfd)
+{
+  uint64_t bytes;
+  uint32_t sects;
+  struct stat st;
+
+  if ( !ioctl(devfd, BLKGETSIZE64, &bytes) )
+    return bytes;
+  else if ( !ioctl(devfd, BLKGETSIZE, &sects) )
+    return (uint64_t)sects << 9;
+  else if ( !fstat(devfd, &st) && st.st_size )
+    return st.st_size;
+  else
+    return 0;
+}
+
+
+/*
+ * Get device geometry and partition offset
+ */
+struct geometry_table {
+  off_t bytes;
+  struct hd_big_geometry g;
+};
+
+/* Anyone have the zipdisk and LS120/LS240 geometries? */
+static const struct geometry_table standard_geometries[] = {
+  {  360*1024, {  2,  9, 40, 0 } },
+  {  720*1024, {  2,  9, 80, 0 } },
+  { 1200*1024, {  2, 15, 80, 0 } },
+  { 1440*1024, {  2, 18, 80, 0 } },
+  { 1680*1024, {  2, 21, 80, 0 } },
+  { 1722*1024, {  2, 21, 80, 0 } },
+  { 3840*1024, {  2, 36, 80, 0 } },
+  { 0, {0,0,0,0} }
+};
+
+int
+get_geometry(int devfd, uint64_t totalbytes, struct hd_big_geometry *geo)
+{
+  struct hd_geometry   hd_geo;
+  struct floppy_struct fd_str;
+  const struct geometry_table *gp;
+
+  memset(geo, 0, sizeof *geo);
+
+  if ( !ioctl(devfd, HDIO_GETGEO_BIG, &geo) ) {
+    return 0;
+  } else if ( !ioctl(devfd, HDIO_GETGEO, &hd_geo) ) {
+    geo->heads     = hd_geo.heads;
+    geo->sectors   = hd_geo.sectors;
+    geo->cylinders = hd_geo.cylinders;
+    geo->start     = hd_geo.start;
+    return 0;
+  } else if ( !ioctl(devfd, FDGETPRM, &fd_str) ) {
+    geo->heads     = fd_str.head;
+    geo->sectors   = fd_str.sect;
+    geo->cylinders = fd_str.track;
+    geo->start     = 0;
+  } 
+
+  /* Didn't work.  Let's see if this is one of the standard geometries */
+  for ( gp = standard_geometries ; gp->bytes ; gp++ ) {
+    if ( gp->bytes == totalbytes ) {
+      memcpy(geo, &gp->g, sizeof *geo);
+      return 0;
+    }
+  }
+
+  /* Nope, didn't work; hope this is a hard disk-type device or EDD capable */
+  fprintf(stderr, "Warning: unable to obtain device geometry (may or may not work)\n");
+  return 1;
+}
+
+/*
  * Query the device geometry and put it into the boot sector.
  * Map the file and put the map in the boot sector and file.
  * Stick the "current directory" inode number into the file.
  */
 void
-patch_file_and_bootblock(int fd, int dirfd)
+patch_file_and_bootblock(int fd, int dirfd, int devfd)
 {
   struct stat dirst;
-  struct hd_geometry   hd_geo;
-  struct floppy_struct fd_str;
-  uint16_t heads, cylinders;
-  uint32_t sectors, offset;
+  struct hd_big_geometry geo;
   uint32_t *sectp;
+  uint64_t totalbytes, totalsectors;
   int nsect;
   unsigned char *p, *patcharea;
   int i, dw;
   uint32_t csum;
-
-  if ( ioctl(fd, HDIO_GETGEO, &hd_geo) == 0 ) {
-    heads     = hd_geo.heads;
-    sectors   = hd_geo.sectors;
-    cylinders = hd_geo.cylinders;
-    offset    = hd_geo.start;
-  } else if ( ioctl(fd, FDGETPRM, &fd_str) == 0 ) {
-    heads     = fd_str.head;
-    sectors   = fd_str.sect;
-    cylinders = fd_str.track;
-    offset    = 0;
-  } else {
-    fprintf(stderr, "Warning: unable to obtain device geometry (may or may not work)\n");
-    heads = sectors = cylinders = offset = 0;
-  }
 
   if ( fstat(dirfd, &dirst) ) {
     perror("fstat dirfd");
     exit(255);			/* This should never happen */
   }
 
+  totalbytes = get_size(devfd);
+  get_geometry(devfd, totalbytes, &geo);
+
   /* Patch this into a fake FAT superblock.  This isn't because
      FAT is a good format in any way, it's because it lets the
      early bootstrap share code with the FAT version. */
-  printf("cyl = %u, heads = %u, sect = %u\n", cylinders, heads, sectors);
+  dprintf("cyl = %u, heads = %u, sect = %u\n", geo.cylinders, geo.heads, geo.sectors);
 
-  set_16(boot_block+bsBytesPerSec, 512);
-  set_16(boot_block+bsSecPerTrack, sectors);
-  set_16(boot_block+bsHeads, heads);
-  set_32(boot_block+bsHiddenSecs, offset);
+  totalsectors = totalbytes >> SECTOR_SHIFT;
+  if ( totalsectors >= 65536 ) {
+    set_16(boot_block+bsSectors, 0);
+  } else {
+    set_16(boot_block+bsSectors, totalsectors);
+  }
+  set_32(boot_block+bsHugeSectors, totalsectors);
+
+  set_16(boot_block+bsBytesPerSec, SECTOR_SIZE);
+  set_16(boot_block+bsSecPerTrack, geo.sectors);
+  set_16(boot_block+bsHeads, geo.heads);
+  set_32(boot_block+bsHiddenSecs, geo.start);
 
   /* Construct the boot file */
 
-  printf("directory inode = %lu\n", (unsigned long) dirst.st_ino);
+  dprintf("directory inode = %lu\n", (unsigned long) dirst.st_ino);
   nsect = (boot_image_len+SECTOR_SIZE-1) >> SECTOR_SHIFT;
   sectp = alloca(sizeof(uint32_t)*nsect);
   if ( sectmap(fd, sectp, nsect) ) {
@@ -364,7 +441,7 @@ patch_file_and_bootblock(int fd, int dirfd)
  * Must be run AFTER install_file()!
  */
 int
-install_bootblock(int fd, char *device)
+install_bootblock(int fd, const char *device)
 {
   struct ext2_super_block sb;
 
@@ -387,7 +464,7 @@ install_bootblock(int fd, char *device)
 }
 
 int
-install_file(char *path, struct stat *rst)
+install_file(char *path, int devfd, struct stat *rst)
 {
   char *file;
   int fd = -1, dirfd = -1, flags;
@@ -438,8 +515,7 @@ install_file(char *path, struct stat *rst)
   }
 
   /* Map the file, and patch the initial sector accordingly */
-  patch_file_and_bootblock(fd, dirfd);
-  patch_file_and_bootblock(fd, dirfd);
+  patch_file_and_bootblock(fd, dirfd, devfd);
 
   /* Write it again - this relies on the file being overwritten in place! */
   if ( xpwrite(fd, boot_image, boot_image_len, 0) != boot_image_len ) {
@@ -513,7 +589,7 @@ install_loader(char *path)
     return 1;
   }
 
-  install_file(path, &fst);
+  install_file(path, devfd, &fst);
 
   if ( fst.st_dev != st.st_dev ) {
     fprintf(stderr, "%s: file system changed under us - aborting!\n",

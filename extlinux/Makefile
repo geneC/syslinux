@@ -1,8 +1,8 @@
 CC	 = gcc
-OPTFLAGS = -g -Os
+OPTFLAGS = -g -Os -DDEBUG
 INCLUDES = -I. -I.. -I../libfat
 CFLAGS	 = -W -Wall -Wno-sign-compare -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
-LDFLAGS	 = -s
+LDFLAGS	 = -g
 
 SRCS     = extlinux.c ../extlinux_bss_bin.c ../extlinux_sys_bin.c
 OBJS	 = $(patsubst %.c,%.o,$(notdir $(SRCS)))
