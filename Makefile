@@ -46,6 +46,16 @@ OBSOLETE = pxelinux.bin
 # Things to install in /usr/bin
 INSTALL_BIN = syslinux gethostip ppmtolss16 lss16toppm
 
+# The DATE is set on the make command line when building binaries for
+# official release.  Otherwise, substitute a hex string that is pretty much
+# guaranteed to be unique to be unique from build to build.
+ifndef HEXDATE
+HEXDATE := $(shell perl now.pl ldlinux.asm pxelinux.asm isolinux.asm)
+endif
+ifndef DATE
+DATE    := $(HEXDATE)
+endif
+
 all:	$(BTARGET) $(ITARGET) samples memdisk
 	ls -l $(BTARGET) $(ITARGET) memdisk/memdisk
 
@@ -59,16 +69,6 @@ samples:
 .PHONY: memdisk
 memdisk:
 	$(MAKE) -C memdisk all
-
-# The DATE is set on the make command line when building binaries for
-# official release.  Otherwise, substitute a hex string that is pretty much
-# guaranteed to be unique to be unique from build to build.
-ifndef HEXDATE
-HEXDATE := $(shell perl now.pl ldlinux.asm pxelinux.asm)
-endif
-ifndef DATE
-DATE    := $(HEXDATE)
-endif
 
 ldlinux.bin: ldlinux.asm
 	$(NASM) -f bin -dVERSION="'$(VERSION)'" -dDATE_STR="'$(DATE)'" \
