@@ -6,6 +6,8 @@ Changes in 1.60:
 	* ISOLINUX: New program, which boots Linux from a CD-ROM
 	  without using floppy emulation mode.  See isolinux.doc for
 	  more details.
+	* PXELINUX: Don't search for boot sector file types, since
+	  they don't work anyway.
 
 Changes in 1.54:
 	* PXELINUX: Fix code for finding !PXE from PXENV+.  This was
