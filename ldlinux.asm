@@ -294,8 +294,6 @@ start:
 		mov ds,ax		; Now we can initialize DS...
 
 		mov [di+bsDriveNumber-FloppyTable],dl
-		and dl,dl		; If floppy disk (00-7F), assume no
-		js harddisk		; partition table
 ;
 ; Now sautee the BIOS floppy info block to that it will support decent-
 ; size transfers; the floppy block is 11 bytes and is stored in the
@@ -308,6 +306,14 @@ start:
 		lfs si,[bx]		; FS:SI -> original fdctab
 		push fs			; Save on stack in case we need to bail
 		push si
+
+		; Save the old fdctab even if hard disk so the stack layout
+		; is the same.  The instructions above do not change the flags
+		and dl,dl		; If floppy disk (00-7F), assume no
+					; partition table
+		js harddisk
+
+floppy:
 		mov cl,6		; 12 bytes (CX == 0)
 		; es:di -> FloppyTable already
 		; This should be safe to do now, interrupts are off...

@@ -292,6 +292,10 @@ AX=0007h	Read file
 	aligned.  SYSLINUX guarantees at least this alignment for the
 	COMBOOT load segment or the COM32 bounce buffer.
 
+	Keep in mind that a "file" may be a TFTP connection, and that
+	leaving a file open for an extended period of time may result
+	in a timeout.
+
 	WARNING: Calling this function with an invalid file handle
 	will probably crash the system.
 
@@ -377,3 +381,34 @@ AX=000Bh	Get Serial Console Configuration
 
 	If no serial port is configured, DX will be set to 0 and the
 	other registers are undefined.
+
+
+AX=000Ch	Perform final cleanup
+	Input:	AX	000Ch
+		DX	derivative-specific flags (0000h = clean up all)
+	Output:	None
+
+	This routine performs any "final cleanup" the boot loader
+	would normally perform before loading a kernel, such as
+	unloading the PXE stack in the case of PXELINUX.  AFTER
+	INVOKING THIS CALL, NO OTHER API CALLS MAY BE INVOKED, NOR MAY
+	THE PROGRAM TERMINATE AND RETURN TO THE BOOT LOADER.  This
+	call basically tells the boot loader "get out of the way, I'll
+	handle it from here."  The boot loader will continue to
+	provide interrupt and BIOS call thunking services as long its
+	memory areas (0x1000-0xffff, 0x100000-0x100fff) are not
+	overwritten.  MAKE SURE TO DISABLE INTERRUPTS BEFORE
+	OVERWRITING THESE MEMORY AREAS.
+
+	The permissible values for DX are as follows:
+
+	SYSLINUX:	0000h	Normal cleanup
+
+	PXELINUX:	0000h	Normal cleanup
+			0003h	Keep UNDI and PXE stacks loaded
+
+	ISOLINUX:	0000h	Normal cleanup
+
+	All other values are undefined, and may have different
+	meanings in future versions of SYSLINUX.
+

@@ -479,6 +479,27 @@ comapi_serialcfg:
 		ret
 
 ;
+; INT 22h AX=000Ch	Perform final cleanup
+;
+comapi_cleanup:
+%if IS_PXELINUX
+		; Unload PXE if requested
+		test dl,3
+		setnz [KeepPXE]
+		call unload_pxe
+%elif IS_SYSLINUX
+		; Restore original FDC table
+		mov eax,[OrigFDCTabPtr]
+		mov [fdctab],eax
+%endif
+		; Reset the floppy disk subsystem
+		xor ax,ax
+		xor dx,dx
+		int 13h
+		clc
+		ret
+
+;
 ; This stuff should really be in the data section...
 ;
 %macro 		int21 2
@@ -513,6 +534,7 @@ int22_table:
 		dw comapi_pxecall		; 0009 call PXE stack
 		dw comapi_derinfo		; 000A derivative-specific info
 		dw comapi_serialcfg		; 000B get serial port config
+		dw comapi_cleanup		; 000C perform final cleanup
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0
