@@ -19,8 +19,8 @@
 ;
 
 		absolute 0080h
-psp_cmdlen	resb 1
-psp_cmdline	resb 127
+psp_cmdlen:	resb 1
+psp_cmdline:	resb 127
 
 		section .text
 		org 0100h
@@ -48,7 +48,7 @@ cmdscan1:	jcxz bad_usage			; End of command line?
 		mov [DriveNo],al		; Save away drive index
 
 		section .bss
-DriveNo		resb 1
+DriveNo:	resb 1
 
 		section .text
 ;
@@ -78,13 +78,14 @@ bad_usage:	mov dx,msg_unfair
 		int 21h
 
 		section .data
-msg_unfair	db 'Usage: syslinux <drive>:', 0Dh, 0Ah, '$'
+msg_unfair:	db 'Usage: syslinux <drive>:', 0Dh, 0Ah, '$'
 
 		section .text
 ;
 ; Parsed the command line OK, now get to work
 ;
 got_cmdline:	; BUG: check sector size == 512
+		; Use INT 21h:32h
 
 		mov bx,SectorBuffer
 		mov al,[DriveNo]
@@ -100,9 +101,61 @@ got_cmdline:	; BUG: check sector size == 512
 		mov di,BootSector+11
 		mov cx,51			; Superblock = 51 bytes
 		rep movsb			; Copy the superblock
+;
+; Writing LDLINUX.SYS
+;
+		; 1. If the file exists, strip its attributes and delete
 
-		; Write LDLINUX.SYS here (*before* writing boot sector)
+		xor cx,cx			; Clear attributes
+		mov dx,ldlinux_sys_str
+		mov ax,4301h			; Set file attributes
+		int 21h
 
+		mov dx,ldlinux_sys_str
+		mov ah,41h			; Delete file
+		int 21h
+
+		section .data
+ldlinux_sys_str: db 'LDLINUX.SYS', 0
+
+		section .text
+
+		; 2. Create LDLINUX.SYS and write data to it
+
+		mov dx,ldlinux_sys_str
+		xor cx,cx			; Normal file
+		mov ah,3Ch			; Create file
+		int 21h
+		jc file_write_error
+		mov [FileHandle],ax
+
+		mov bx,ax
+		mov cx,ldlinux_size
+		mov dx,LDLinuxSYS
+		mov ah,40h			; Write data
+		int 21h
+		jc file_write_error
+		cmp ax,ldlinux_size
+		jne file_write_error
+
+		mov bx,[FileHandle]
+		mov ah,3Eh			; Close file
+		int 21h
+
+		section .bss
+FileHandle:	resw 1
+
+		section .text
+
+		; 3. Set the readonly flag on LDLINUX.SYS
+
+		mov dx,ldlinux_sys_str
+		mov cx,1			; Read only
+		mov ax,4301h			; Set attributes
+		int 21h
+;
+; Writing boot sector
+;
 		mov bx,BootSector
 		mov cx,1			; One sector
 		xor dx,dx			; Absolute sector 0
@@ -115,13 +168,22 @@ all_done:	mov ax,4C00h			; Exit good status
 
 disk_read_error:
 disk_write_error:
-		mov ax,4C01h
+file_write_error:
+		mov dx,msg_bummer
+		mov ah,09h			; Write string
 		int 21h
+
+		mov ax,4C01h			; Exit error status
+		int 21h
+
+		section .data
+msg_bummer:	db 'Disk write error', 0Dh, 0Ah, '$'
 
 		section .data
 		align 4, db 0
 BootSector:	incbin "bootsect.bin"
 LDLinuxSYS:	incbin "ldlinux.sys"
+ldlinux_size:	equ $-LDLinuxSYS
 
 		section .bss
 		alignb 4

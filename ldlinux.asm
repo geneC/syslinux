@@ -426,8 +426,8 @@ debugentrypt:
 		mov al,[bsFATs]		; Number of FATs
 		jmpc kaboom		; If the floppy init failed
 					; (too far to be above the mov)
-		cbw			; Clear AH
-		mul byte [bsFATsecs]	; Get the size of the FAT area
+		cbw			; Clear AH (we WILL have < 128 FATs)
+		mul word [bsFATsecs]	; Get the size of the FAT area
 		add ax,[bsHidden1]	; Add hidden sectors
 		adc dx,[bsHidden2]
 		add ax,[bsResSectors]	; And reserved sectors (why two?)
@@ -451,23 +451,25 @@ debugentrypt:
 		add bx,trackbuf-31
 		mov [EndofDirSec],bx	; End of a single directory sector
 
-		add [DataArea1],ax	; Now we have the location of the
-		adc word [DataArea2],byte 0 ; first data cluster
+		add [DataArea1],ax
+		adc word [DataArea2],byte 0
+
+		pop dx			; Reload root directory starting point
+		pop ax
 ;
 ; Now the fun begins.  We have to search the root directory for
 ; LDLINUX.SYS and load the first sector, so we have a little more
 ; space to have fun with.  Then we can go chasing through the FAT.
 ; Joy!!
 ;
-sd_nextsec:	pop dx
-		pop ax
-		push ax
+sd_nextsec:	push ax
 		push dx
 		mov bx,trackbuf
+		push bx
 		call getonesec
-		mov si,trackbuf
+		pop si
 sd_nextentry:	cmp byte [si],0		; Directory high water mark
-jz_kaboom:	jz kaboom
+		je kaboom
 		mov di,ldlinux_sys
 		mov cx,11
 		push si
@@ -477,6 +479,8 @@ jz_kaboom:	jz kaboom
 		add si,byte 32		; Distance to next
 		cmp si,[EndofDirSec]
 		jb sd_nextentry
+		pop dx
+		pop ax
 		add ax,byte 1
 		adc dx,byte 0
 		dec word [DirScanCtr]
@@ -496,16 +500,16 @@ kaboom:
 		pop word [si+2]
 		sti
 		int 19h			; And try once more to boot...
-norge:		jmp short norge		; If int 19h returned... oh boy...
+norge:		jmp short norge		; If int 19h returned; this is the end
 
 ;
 ; found_it: now we compute the location of the first sector, then
 ;	    load it and JUMP (since we're almost out of space)
 ;
-found_it:	pop ax
-		pop ax
+found_it:	; Note: we actually leave two words on the stack here
+		; (who cares?)
 		mov al,[bsSecPerClust]
-		cbw			; We won't have 128 sec/cluster
+		xor ah,ah
 		mov bp,ax		; Load an entire cluster
 		mov bx,[si+26]		; First cluster
 		push bx			; Remember which cluster it was
@@ -515,13 +519,14 @@ found_it:	pop ax
 		add ax,[DataArea1]
 		adc dx,[DataArea2]
 		mov bx,ldlinux_magic
+		push bx
 		call getlinsec
 		mov si,bs_magic
-		mov di,ldlinux_magic
-		mov cx,[magic_len]
+		pop di
+		mov cx,magic_len
 		repe cmpsb		; Make sure that the bootsector
-		jne kaboom
-		jmp ldlinux_ent		; matches LDLINUX.SYS
+		jne kaboom		; matches LDLINUX.SYS
+		jmp ldlinux_ent
 ;
 ; writestr: write a null-terminated string to the console
 ;
@@ -583,8 +588,8 @@ gls_lasttrack:	push ax			; Cylinder #
 
 		push cx
 		mov cl,6		; Because IBM was STOOPID
-		shl ah,cl		; and thought 8 bits was enough
-					; then thought 10 bits was enough...
+		shl ah,cl		; and thought 8 bits were enough
+					; then thought 10 bits were enough...
 		pop cx			; Sector #
 		inc cx			; Sector numbers are 1-based
 		or cl,ah
@@ -825,11 +830,12 @@ gfs_return:	ret
 ;	       Sets CF on return if end of file.
 ;
 nextcluster:
-		push bx
-		mov bx,si			; Multiply by 3/2
-		shr bx,1
+nextcluster_fat12:
+		push ax
+		mov ax,si			; Multiply by 3/2
+		shr ax,1
 		pushf				; CF now set if odd
-		add si,bx
+		add si,ax
 		mov si,[FAT+si]
 		popf
 		jnc nc_even
@@ -841,8 +847,22 @@ nc_even:
 		and si,0FFFh
 		cmp si,0FF0h			; Clears CF if at end of file
 		cmc				; But we want it SET...
-		pop bx
+		pop ax
 nc_return:	ret
+
+nextcluster_fat16:
+		push ax
+		push es
+		mov ax,(fat_seg >> 12)
+		shl si,1
+		adc ax,byte 0
+		mov es,ax
+		mov si,[es:si]
+		cmp si,0FFF0h
+		cmc
+		pop es
+		pop ax
+		ret
 
 ;
 ; Debug routine
@@ -2044,7 +2064,7 @@ load_last:
 		mov si,trackbuf
 dir_test_name:	cmp byte [si],0		; Directory high water mark
 		je dir_return		; Failed
-                test byte [si+11],010h	; Check it really is a file
+                test byte [si+11],018h	; Check it really is a file
                 jnz dir_not_this
 		push di
 		push si
