@@ -12,10 +12,6 @@
 ;  from MS-LOSS, and can be especially useful in conjunction with the
 ;  umsdos filesystem.
 ;
-;  This file is loaded in stages; first the boot sector at offset 7C00h,
-;  then the first sector (cluster, really, but we can only assume 1 sector)
-;  of LDLINUX.SYS at 7E00h and finally the remainder of LDLINUX.SYS at 8000h.
-;
 ;   Copyright (C) 1994-2004  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
@@ -146,8 +142,6 @@ TotalSectors	resd 1			; Total number of sectors
 EndSector	resd 1			; Location of filesystem end
 ClustSize	resd 1			; Bytes/cluster
 ClustMask	resd 1			; Sectors/cluster - 1
-CachePtrs	resw 65536/SECTOR_SIZE	; Cached sector pointers
-NextCacheSlot	resw 1			; Next cache slot to occupy
 CopySuper	resb 1			; Distinguish .bs versus .bss
 DriveNumber	resb 1			; BIOS drive number
 ClustShift	resb 1			; Shift count for sectors/cluster
@@ -866,6 +860,11 @@ getfattype:
 		rep stosd
 
 ;
+; Initialize the metadata cache
+;
+		call initcache
+
+;
 ; Initialization that does not need to go into the any of the pre-load
 ; areas
 ;
@@ -1455,55 +1454,7 @@ nextsector:
 ;
 getfatsector:
 		add eax,[FAT]		; FAT starting address
-		; Fall through
-
-;
-; getcachesector: Check for a particular sector (EAX) in the sector cache,
-;		  and if it is already there, return a pointer in GS:SI
-;		  otherwise load it and return said pointer.
-;
-;		Assumes CS == DS.
-;
-getcachesector:
-		push cx
-		mov si,cache_seg
-		mov gs,si
-		mov si,CachePtrs	; Sector cache pointers
-		mov cx,65536/SECTOR_SIZE
-.search:
-		cmp eax,[si]
-		jz .hit
-		add si,4
-		loop .search
-
-.miss:
-		; Need to load it.  Highly inefficient cache replacement
-		; algorithm: Least Recently Written (LRW)
-		push bx
-		push es
-		push gs
-		pop es
-		mov bx,[NextCacheSlot]
-		inc bx
-		and bx,(1 << (16-SECTOR_SHIFT))-1
-		mov [NextCacheSlot],bx
-		shl bx,2
-		mov [CachePtrs+bx],eax
-		shl bx,SECTOR_SHIFT-2
-		mov si,bx
-		pushad
-		call getonesec
-		popad
-		pop es
-		pop bx
-		pop cx
-		ret
-
-.hit:		; We have it; get the pointer
-		sub si,CachePtrs
-		shl si,SECTOR_SHIFT-2
-		pop cx
-		ret
+		jmp getcachesector
 
 ; -----------------------------------------------------------------------------
 ;  Common modules
@@ -1520,6 +1471,7 @@ getcachesector:
 %include "graphics.inc"		; VGA graphics
 %include "highmem.inc"		; High memory sizing
 %include "strcpy.inc"           ; strcpy()
+%include "cache.inc"		; Metadata disk cache
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
