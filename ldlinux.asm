@@ -1362,11 +1362,6 @@ lc_ret:         ret
 ;  Begin data section
 ; -----------------------------------------------------------------------------
 
-CR		equ 13		; Carriage Return
-LF		equ 10		; Line Feed
-FF		equ 12		; Form Feed
-BS		equ  8		; Backspace
-
 ;
 ; Lower-case table for codepage 865
 ;

@@ -103,7 +103,9 @@
 ;
 ; ASCII
 ;
-CR	equ 13
-LF	equ 10
+CR		equ 13		; Carriage Return
+LF		equ 10		; Line Feed
+FF		equ 12		; Form Feed
+BS		equ  8		; Backspace
 
 %endif ; _MACROS_INC

@@ -2302,11 +2302,6 @@ writestr	equ cwritestr
 ;  Begin data section
 ; -----------------------------------------------------------------------------
 
-CR		equ 13		; Carriage Return
-LF		equ 10		; Line Feed
-FF		equ 12		; Form Feed
-BS		equ  8		; Backspace
-
 hextbl_lower	db '0123456789abcdef'
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
 		db CR, LF, 0

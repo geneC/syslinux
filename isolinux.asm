@@ -1566,11 +1566,6 @@ getfssec:
 ;  Begin data section
 ; -----------------------------------------------------------------------------
 
-CR		equ 13		; Carriage Return
-LF		equ 10		; Line Feed
-FF		equ 12		; Form Feed
-BS		equ  8		; Backspace
-
 boot_prompt	db 'boot: ', 0
 wipe_char	db BS, ' ', BS, 0
 err_notfound	db 'Could not find kernel image: ',0
