@@ -583,14 +583,14 @@ spec_query_failed:
 		mov si,alright_msg
 		call writemsg
 		mov [DriveNo],dl
-		jmp found_drive
+.found_drive:	jmp found_drive
 
 		; Award BIOS 4.51 apparently passes garbage in sp_drive,
 		; but if this was the drive number originally passed in
 		; DL then consider it "good enough"
 .maybe_broken:
 		cmp byte [DriveNo],dl
-		je found_drive
+		je .found_drive
 
 .still_broken:	dec dx
 		cmp dl, 80h
