@@ -120,8 +120,6 @@ SuperInfo	resd 16			; DOS superblock expanded
 ClustSize	resd 1			; Bytes/cluster ("block")
 SecPerClust	resd 1			; Sectors/cluster
 ClustMask	resd 1			; Sectors/cluster - 1
-PtrsPerSector1	resd 1			; Pointers/sector
-PtrsPerSector2	resd 1			; (Pointers/cluster) * (Pointers/sector)
 PtrsPerBlock1	resd 1			; Pointers/cluster
 PtrsPerBlock2	resd 1			; (Pointers/cluster)^2
 DriveNumber	resb 1			; BIOS drive number
@@ -775,12 +773,6 @@ expand_super:
 		dec eax
 		mov [ClustMask],eax
 
-		add cl,SECTOR_SHIFT-2		; 4 bytes/pointer
-		mov eax,SECTOR_SIZE/4
-		mov [PtrsPerSector1],eax
-		shl eax,cl
-		mov [PtrsPerSector2],eax
-
 		shl edx,cl
 		mov [PtrsPerBlock1],edx
 		shl edx,cl
@@ -1227,17 +1219,17 @@ linsector:
 		; with respect to the start of the tind area;
 		; ebx contains the pointer to the tind block.
 		xor edx,edx
-		div dword [PtrsPerSector2]
+		div dword [PtrsPerBlock2]
 		; EAX = which dind block, EDX = pointer within dind block
-		push eax
-		mov ebp,[gs:si+bx]
+		push ax
 		shr eax,SECTOR_SHIFT-2
+		mov ebp,[gs:si+bx]
 		shl ebp,cl
 		add eax,ebp
 		call getcachesector
-		pop eax
-		and eax,(SECTOR_SIZE >> 2)-1
-		lea ebx,[4*eax]
+		pop bx
+		and bx,(SECTOR_SIZE >> 2)-1
+		shl bx,2
 		mov eax,edx		; The ind2 code wants the remainder...
 
 .ind2:
@@ -1245,32 +1237,32 @@ linsector:
 		; with respect to the start of the dind area;
 		; ebx contains the pointer to the dind block.
 		xor edx,edx
-		div dword [PtrsPerSector1]
+		div dword [PtrsPerBlock1]
 		; EAX = which ind block, EDX = pointer within ind block
-		push eax
-		mov ebp,[gs:si+bx]
+		push ax
 		shr eax,SECTOR_SHIFT-2
+		mov ebp,[gs:si+bx]
 		shl ebp,cl
 		add eax,ebp
 		call getcachesector
-		pop eax
-		and eax,(SECTOR_SIZE >> 2)-1
-		lea ebx,[4*eax]
+		pop bx
+		and bx,(SECTOR_SIZE >> 2)-1
+		shl bx,2
 		mov eax,edx		; The int1 code wants the remainder...
 
 .ind1:
 		; Single indirect; eax contains the block no
 		; with respect to the start of the ind area;
 		; ebx contains the pointer to the ind block.
-		push eax
-		mov ebp,[gs:si+bx]
+		push ax
 		shr eax,SECTOR_SHIFT-2
+		mov ebp,[gs:si+bx]
 		shl ebp,cl
 		add eax,ebp
 		call getcachesector
-		pop eax
-		and eax,(SECTOR_SIZE >> 2)-1
-		lea ebx,[4*eax]
+		pop bx
+		and bx,(SECTOR_SIZE >> 2)-1
+		shl bx,2
 
 .direct:
 		mov ebx,[gs:bx+si]	; Get the pointer
