@@ -3,4 +3,5 @@
   a lot of the SYSLINUX internals so we can read partial clusters;
   change the current "cluster pointers" to become
   "cluster:sector pointers".
-
+- Support initrd that span multiple input media?
+- Support a small set of DOS system calls for COMBOOT images?
