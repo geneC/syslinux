@@ -47,6 +47,3 @@ exit:
 1:	hlt
 	jmp 1b
 	.size exit,.-exit
-	
-	.section ".bss","aw"
-argv:	.space 4*128

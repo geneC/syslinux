@@ -22,6 +22,7 @@ struct free_arena_header __malloc_head =
 
 /* This is extern so it can be overridden by the user application */
 extern size_t __stack_size;
+extern void *__mem_end;		/* Produced after argv parsing */
 
 static inline size_t sp(void)
 {
@@ -32,11 +33,10 @@ static inline size_t sp(void)
 
 static void __constructor init_memory_arena(void)
 {
-  extern char _end[];		/* Symbol created by the linker */
   struct free_arena_header *fp;
   size_t start, total_space;
 
-  start = (size_t)ARENA_ALIGN_UP(_end);
+  start = (size_t)ARENA_ALIGN_UP(__mem_end);
   total_space = sp() - start;
 
   if ( __stack_size == 0 || __stack_size > total_space >> 1 )
