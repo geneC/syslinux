@@ -2149,15 +2149,15 @@ parse_some_dhcp_options:
 
 		cmp dl,1	; SUBNET MASK option
 		jne .not_subnet
-		mov edx,[si]
-		mov [Netmask],edx
+		mov ebx,[si]
+		mov [Netmask],ebx
 		jmp .opt_done
 .not_subnet:
 
 		cmp dl,3	; ROUTER option
 		jne .not_router
-		mov edx,[si]
-		mov [Gateway],edx
+		mov ebx,[si]
+		mov [Gateway],ebx
 		jmp .opt_done
 .not_router:
 
@@ -2173,8 +2173,8 @@ parse_some_dhcp_options:
 
 		cmp dl,52	; OPTION OVERLOAD option
 		jne .not_overload
-		mov dl,[si]
-		mov [OverLoad],dl
+		mov bl,[si]
+		mov [OverLoad],bl
 		jmp .opt_done
 .not_overload:
 
@@ -2214,11 +2214,11 @@ parse_some_dhcp_options:
 		jne .not_pl_timeout
 		cmp al,4
 		jne .opt_done
-		mov edx,[si]
-		xchg dl,dh	; Convert to host byte order
-		rol edx,16
-		xchg dl,dh
-		mov [RebootTime],edx
+		mov ebx,[si]
+		xchg bl,bh	; Convert to host byte order
+		rol ebx,16
+		xchg bl,bh
+		mov [RebootTime],ebx
 		or byte [DHCPMagic], byte 8	; Got RebootTime
 		; jmp short .opt_done
 .not_pl_timeout:
