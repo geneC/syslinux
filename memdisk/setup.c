@@ -213,13 +213,11 @@ uint32_t setup(void)
   printf("Ramdisk at 0x%08x, length 0x%08x\n",
 	 shdr->ramdisk_image, shdr->ramdisk_size);
 
-  /* Reserve the ramdisk memory */
-  insertrange(shdr->ramdisk_image, shdr->ramdisk_size, 2);
-
   geometry = get_disk_image_geometry(shdr->ramdisk_image, shdr->ramdisk_size);
 
-  get_mem();
-  parse_mem();
+  e820map_init();		/* Initialize memory data structure */
+  get_mem();			/* Query BIOS for memory map */
+  parse_mem();			/* Parse memory map */
 
   printf("dos_mem  = %#10x (%u K)\n"
 	 "low_mem  = %#10x (%u K)\n"
@@ -227,6 +225,10 @@ uint32_t setup(void)
 	 dos_mem, dos_mem >> 10,
 	 low_mem, low_mem >> 10,
 	 high_mem, high_mem >> 10);
+
+  /* Reserve the ramdisk memory */
+  insertrange(shdr->ramdisk_image, shdr->ramdisk_size, 2);
+  parse_mem();			/* Recompute variables */
 
   /* Figure out where it needs to go */
   hptr = (struct memdisk_header *) &_binary_memdisk_bin_start;

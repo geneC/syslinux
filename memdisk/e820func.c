@@ -22,8 +22,17 @@
 
 #define MAXRANGES	64
 /* All of memory starts out as one range of "indeterminate" type */
-struct e820range ranges[MAXRANGES] = { { 0ULL, 0 }, { 0ULL, (uint32_t)-1 } };
-int nranges = 1;
+struct e820range ranges[MAXRANGES];
+int nranges;
+
+
+void e820map_init(void)
+{
+  nranges = 1;
+  asm volatile("cld ; rep ; stosl %0,%%es:(%1)"
+	       :: "a" (0), "S" (ranges), "c" (sizeof(ranges) >> 2));
+  ranges[1].type = -1;
+}
 
 static void insertrange_at(int where, uint64_t start, uint32_t type)
 {
