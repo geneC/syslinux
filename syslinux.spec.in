@@ -1,6 +1,7 @@
+# -*- rpm -*-
 Summary: Kernel loader which uses a FAT or iso9660 filesystem or a PXE network
 Name: syslinux
-Version: 2.04
+Version: @@VERSION@@
 Release: 1
 License: GPL
 Group: Applications/System
@@ -59,6 +60,7 @@ rm -rf %{buildroot}
 * Wed Apr 16 2003 H. Peter Anvin <hpa@zytor.com> 2.04-1
 - 2.04 release
 - Add support for libsyslinux.so*
+- Templatize for inclusion in CVS tree
 
 * Thu Apr 10 2003 H. Peter Anvin <hpa@zytor.com>
 - 2.03 release
