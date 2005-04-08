@@ -13,6 +13,7 @@ Changes in 3.08:
 	* EXTLINUX: Sparse files now handled correctly.
 	* EXTLINUX: Large directories now handled correctly.
 	* Fix configuration file parsing error, that could cause hangs.
+	* ALL: At the prompt, Ctrl-X now forces text mode.
 
 Changes in 3.07:
 	* Fix chainloading (chain.c32).

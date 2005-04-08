@@ -102,12 +102,14 @@ enter_char:	test byte [FuncFlag],1
 not_ascii:	mov byte [FuncFlag],0
 		cmp al,0Dh			; Enter
 		je command_done
-		cmp al,06h			; <Ctrl-F>
+		cmp al,'F' & 1Fh		; <Ctrl-F>
 		je set_func_flag
-		cmp al,15h			; <Ctrl-U>
+		cmp al,'U' & 1Fh		; <Ctrl-U>
 		je kill_command			; Kill input line
-		cmp al,16h			; <Ctrl-V>
+		cmp al,'V' & 1Fh		; <Ctrl-V>
 		je print_version
+		cmp al,'X' & 1Fh		; <Ctrl-X>
+		je force_text_mode
 		cmp al,08h			; Backspace
 		jne get_char
 backspace:	cmp di,command_line		; Make sure there is anything
@@ -119,6 +121,10 @@ backspace:	cmp di,command_line		; Make sure there is anything
 
 kill_command:
 		call crlf
+		jmp enter_command
+
+force_text_mode:
+		call vgaclearmode
 		jmp enter_command
 
 set_func_flag:
