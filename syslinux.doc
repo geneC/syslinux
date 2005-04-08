@@ -441,6 +441,22 @@ are interpreted:
         End of file (DOS convention).
 
 
+   ++++ COMMAND LINE KEYSTROKES ++++
+
+The command line prompt supports the following keystrokes:
+
+<Enter>		boot specified command line
+<BackSpace>	erase one character
+<Ctrl-U>	erase the whole line
+<Ctrl-V>	display the current SYSLINUX version
+<Ctrl-W>	erase one word
+<Ctrl-X>	force text mode
+<F1>..<F10>	help screens (if configured)
+<Ctrl-F><digit>	equivalent to F1..F10
+<Ctrl-C>	interrupt boot in progress
+<Esc>		interrupt boot in progress
+
+
    ++++ COMBOOT IMAGES AND OTHER OPERATING SYSTEMS ++++
 
 This version of SYSLINUX supports chain loading of other operating
