@@ -1,0 +1,9 @@
+* Read menu structure from config files
+  - This will eliminate the need for recompiling the code, especially 
+    for the simple menus
+* Features to add
+  - Parse commandline arguments
+* Help support
+  - Beef up help.c so that the text file can be larger than one page, and 
+    user can scroll down page to view extra text.
+

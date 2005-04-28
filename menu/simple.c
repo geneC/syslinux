@@ -1,6 +1,6 @@
 /* -*- c -*- ------------------------------------------------------------- *
  *   
- *   Copyright 2004 Murali Krishnan Ganapathy - All Rights Reserved
+ *   Copyright 2004-2005 Murali Krishnan Ganapathy - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -15,16 +15,14 @@
 #endif
 
 #include "menu.h"
-#include "biosio.h"
-#include "string.h"
-#include "syslinux.h"
+#include "com32io.h"
+#include <string.h>
 
-int menumain(char *cmdline)
+int main(void)
 {
   t_menuitem * curr;
 
   char TESTING,RESCUE,MAIN;	/* The menus we're going to declare */
-  (void)cmdline;		/* Not used */
 
   // Change the video mode here
   // setvideomode(0)
@@ -40,7 +38,7 @@ int menumain(char *cmdline)
   //set_title_info  (-1,-1); 
   //set_misc_info(-1,-1,-1,-1);
   
-  // menuindex = add_menu(" Menu Title ");
+  // menuindex = add_menu(" Menu Title ",-1);
   // add_item("Item string","Status String",TYPE,"any string",NUM)
   //   TYPE = OPT_RUN | OPT_EXITMENU | OPT_SUBMENU | OPT_CHECKBOX | OPT_INACTIVE
   //   "any string" not used by the menu system, useful for storing kernel names
@@ -48,18 +46,18 @@ int menumain(char *cmdline)
   //         0/1 default checked state if OPT_CHECKBOX
   //         unused otherwise.
 
-  TESTING = add_menu(" Testing ");
+  TESTING = add_menu(" Testing ",-1);
   add_item("Self Loop","Go to testing",OPT_SUBMENU,NULL,TESTING);
   add_item("Memory Test","Perform extensive memory testing",OPT_RUN, "memtest",0);
   add_item("Exit this menu","Go one level up",OPT_EXITMENU,"exit",0);
 
-  RESCUE = add_menu(" Rescue Options ");
+  RESCUE = add_menu(" Rescue Options ",-1);
   add_item("Linux Rescue","linresc",OPT_RUN,"linresc",0);
   add_item("Dos Rescue","dosresc",OPT_RUN,"dosresc",0);
   add_item("Windows Rescue","winresc",OPT_RUN,"winresc",0);
   add_item("Exit this menu","Go one level up",OPT_EXITMENU,"exit",0);
 
-  MAIN = add_menu(" Main Menu ");  
+  MAIN = add_menu(" Main Menu ",-1);  
   add_item("Prepare","prep",OPT_RUN,"prep",0);
   add_item("Rescue options...","Troubleshoot a system",OPT_SUBMENU,NULL,RESCUE);
   add_item("Testing...","Options to test hardware",OPT_SUBMENU,NULL,TESTING);
@@ -70,7 +68,7 @@ int menumain(char *cmdline)
   {
         if (curr->action == OPT_RUN)
         {
-            if (syslinux) runcommand(curr->data);
+            if (issyslinux()) runsyslinuxcmd(curr->data);
             else csprint(curr->data,0x07);
             return 1;
         }

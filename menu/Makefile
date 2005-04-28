@@ -1,52 +1,79 @@
-gcc_ok   = $(shell if $(CC) $(1) -c -x c /dev/null -o /dev/null 2>/dev/null; \
+#ident "$Id$"
+## -----------------------------------------------------------------------
+##   
+##   Copyright 2001-2005 H. Peter Anvin - All Rights Reserved
+##
+##   This program is free software; you can redistribute it and/or modify
+##   it under the terms of the GNU General Public License as published by
+##   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
+##   Boston MA 02111-1307, USA; either version 2 of the License, or
+##   (at your option) any later version; incorporated herein by reference.
+##
+## -----------------------------------------------------------------------
+
+##
+## samples for syslinux users
+##
+
+gcc_ok   = $(shell if gcc $(1) -c -x c /dev/null -o /dev/null 2>/dev/null; \
 	           then echo $(1); else echo $(2); fi)
 
 M32     := $(call gcc_ok,-m32,)
-ALIGN   := $(call gcc_ok,-falign-functions=0 -falign-jumps=0 -falign-loops=0,-malign-functions=0 -malign-jumps=0 -malign-loops=0)
 
-CC	= gcc
-CFLAGS  =  $(M32) -funsigned-char -g -W -Wall -march=i386 $(ALIGN) -Os
-AR      = ar
-AS      = as
-LD      = ld -m elf_i386
-OBJCOPY = objcopy
-RANLIB  = ranlib
+CC         = gcc
+LD         = ld -m elf_i386
+AR	   = ar
+NASM	   = nasm
+RANLIB	   = ranlib
+COM32DIR   = ../com32
+LUDIR      = $(COM32DIR)/libutil
+LDIR       = $(COM32DIR)/lib
+CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os -fomit-frame-pointer -I$(LUDIR)/include -I$(COM32DIR)/include  -Ilibmenu -D__COM32__
+SFLAGS     = -D__COM32__ -march=i386
+LDFLAGS    = -T $(LDIR)/com32.ld 
+OBJCOPY    = objcopy
+LIBGCC    := $(shell $(CC) --print-libgcc)
 
-LIBMENU = main.o16 biosio.o16 string.o16 menu.o16 syslinux.o16 heap.o16
+LIBS	   = libmenu/libmenu.a $(LUDIR)/libutil_com.a $(LDIR)/libcom32.a $(LIBGCC)
 
-MENUS   = simple.com complex.com
+LIBMENU = libmenu/syslnx.o libmenu/com32io.o libmenu/tui.o \
+	libmenu/menu.o libmenu/passwords.o libmenu/des.o libmenu/help.o 
 
-.SUFFIXES: .c .s .s16 .o16 .elf .com
+MENUS = $(patsubst %.c,%.c32,$(wildcard *.c))
 
-.c.s:
-	$(CC) $(CFLAGS) -MMD -S -o $@ $<
+.SUFFIXES: .S .c .o .elf .c32 
 
-.s.s16:
-	echo '.code16gcc' | cat - $< > $@
+.PRECIOUS: %.o
+%.o: %.S
+	$(CC) $(SFLAGS) -c -o $@ $<
 
-.s16.o16:
-	$(AS) -o $@ $<
+.PRECIOUS: %.o
+%.o: %.c %.h
+	$(CC) $(CFLAGS) -c -o $@ $<
 
-.elf.com:
+.PRECIOUS: %.elf 
+%.elf: %.o $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ $^ 
+
+%.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
 
-%.elf: %.o16 startup.o16 com16.ld libmenu.a
-	$(LD) -T com16.ld -o $@ startup.o16 $< libmenu.a
+all: menus
 
-all : $(MENUS)
-
-startup.s16: startup.S16
-	$(CC) $(CFLAGS) -x assembler-with-cpp -E -o $@ $<
-
-libmenu.a: $(LIBMENU)
+libmenu/libmenu.a: $(LIBMENU)
 	-rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
-clean:
-	-rm -f *.s *.s16 *.o16 *.elf *.com *.a *.d
+tidy:
+	rm -f *.o *.lo *.a *.lst *.elf libmenu/*.o libmenu/*.a
+
+clean: tidy
+	rm -f *.lss *.c32 *.com
 
 spotless: clean
-	-rm -f *~ \#* .\#*
+	rm -f *~ \#*
 
--include *.d
+menus: $(MENUS)
+
+install:	# Don't install samples

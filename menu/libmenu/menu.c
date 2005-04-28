@@ -1,6 +1,6 @@
 /* -*- c -*- ------------------------------------------------------------- *
  *
- *   Copyright 2004 Murali Krishnan Ganapathy - All Rights Reserved
+ *   Copyright 2004-2005 Murali Krishnan Ganapathy - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -10,25 +10,28 @@
  *
  * ----------------------------------------------------------------------- */
 
-/* This program can be compiled for DOS with the OpenWatcom compiler
- * (http://www.openwatcom.org/):
- *
- * wcl -3 -osx -mt getargs.c
- */
-
-#include "biosio.h"
-#include "string.h"
 #include "menu.h"
-#include "heap.h"
+#include <stdlib.h>
 
 // Local Variables
 static pt_menusystem ms; // Pointer to the menusystem
-static char TITLESTR[] = "COMBOOT Menu System for SYSLINUX developed by Murali Krishnan Ganapathy";
-static char TITLELONG[] = " TITLE too long ";
-static char ITEMLONG[] = " ITEM too long ";
-static char ACTIONLONG[] = " ACTION too long ";
-static char STATUSLONG[] = " STATUS too long ";
-static char EMPTYSTR[] = "";
+char TITLESTR[] = "COMBOOT Menu System for SYSLINUX developed by Murali Krishnan Ganapathy";
+char TITLELONG[] = " TITLE too long ";
+char ITEMLONG[] = " ITEM too long ";
+char ACTIONLONG[] = " ACTION too long ";
+char STATUSLONG[] = " STATUS too long ";
+char EMPTYSTR[] = "";
+
+/* Forward declarations */
+int calc_visible(pt_menu menu,int first);
+int next_visible(pt_menu menu,int index); 
+int prev_visible(pt_menu menu,int index); 
+int next_visible_sep(pt_menu menu,int index); 
+int prev_visible_sep(pt_menu menu,int index); 
+int calc_first_early(pt_menu menu,int curr);
+int calc_first_late(pt_menu menu,int curr);
+int isvisible(pt_menu menu,int first, int curr);
+
 
 /* Basic Menu routines */
 
@@ -68,10 +71,10 @@ char getch(char *scan)
 
 /* Print a menu item */
 /* attr[0] is non-hilite attr, attr[1] is highlight attr */
-void printmenuitem(const char *str,char* attr)
+void printmenuitem(const char *str,uchar* attr)
 {
-    char page = getdisppage();
-    char row,col;
+    uchar page = getdisppage();
+    uchar row,col;
     int hlite=NOHLITE; // Initially no highlighting
 
     getpos(&row,&col,page);
@@ -114,61 +117,7 @@ void printmenuitem(const char *str,char* attr)
     }
 }
 
-void drawbox(char top, char left, char bot, char right,char attr, char page)
-{
-  char x;
-    
-  // Top border
-  gotoxy(top,left,page);
-  cprint(TOPLEFT,attr,1,page);
-  gotoxy(top,left+1,page);
-  cprint(TOP,attr,right-left,page);
-  gotoxy(top,right,page);
-  cprint(TOPRIGHT,attr,1,page);
-  // Bottom border
-  gotoxy(bot,left,page);
-  cprint(BOTLEFT,attr,1,page);
-  gotoxy(bot,left+1,page);
-  cprint(BOT,attr,right-left,page);
-  gotoxy(bot,right,page);
-  cprint(BOTRIGHT,attr,1,page);
-  // Left & right borders
-  for (x=top+1; x < bot; x++)
-    {
-      gotoxy(x,left,page);
-      cprint(LEFT,attr,1,page);
-      gotoxy(x,right,page);
-      cprint(RIGHT,attr,1,page);
-    }
-}
-
-int next_visible(pt_menu menu, int index) // Return index of next visible
-{
-  int ans;
-  if (index < 0) ans = 0 ;
-  else if (index >= menu->numitems) ans = menu->numitems-1;
-  else ans = index;
-  while ((ans < menu->numitems-1) && 
-	 ((menu->items[ans]->action == OPT_INVISIBLE) || 
-	  (menu->items[ans]->action == OPT_SEP))) 
-    ans++;
-  return ans;
-}
-
-int prev_visible(pt_menu menu, int index) // Return index of next visible
-{
-  int ans;
-  if (index < 0) ans = 0;
-  else if (index >= menu->numitems) ans = menu->numitems-1;
-  else ans = index;
-  while ((ans > 0) && 
-	 ((menu->items[ans]->action == OPT_INVISIBLE) ||
-	  (menu->items[ans]->action == OPT_SEP))) 
-    ans--;
-  return ans;
-}
-
-int find_shortcut(pt_menu menu,char shortcut, int index) 
+int find_shortcut(pt_menu menu,uchar shortcut, int index) 
 // Find the next index with specified shortcut key
 {
   int ans;
@@ -199,35 +148,39 @@ int find_shortcut(pt_menu menu,char shortcut, int index)
   return index; // Sorry not found
 }
 
-void printmenu(pt_menu menu, int curr, char top, char left)
+// print the menu starting from FIRST
+// will print a maximum of menu->menuheight items
+void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first)
 {
   int x,row; // x = index, row = position from top
   int numitems,menuwidth;
   char fchar[5],lchar[5]; // The first and last char in for each entry
   const char *str;  // and inbetween the item or a seperator is printed
-  char *attr;  // attribute attr
+  uchar *attr;  // attribute attr
   char sep[MENULEN];// and inbetween the item or a seperator is printed
   pt_menuitem ci;
   
-  calc_visible(menu);
-  numitems = menu->numvisible;
+  numitems = calc_visible(menu,first);
+  if (numitems > menu->menuheight) numitems = menu->menuheight;
+
   menuwidth = menu->menuwidth+3;
   clearwindow(top,left-2, top+numitems+1, left+menuwidth+1,
 	      ms->menupage, ms->fillchar, ms->shadowattr);
-  drawbox(top-1, left-3, top+numitems, left+menuwidth, 
-	  ms->normalattr[NOHLITE], ms->menupage);
-  memset(sep,HORIZ,menuwidth); // String containing the seperator string
+  drawbox(top-1,left-3,top+numitems,left+menuwidth,
+          ms->menupage,ms->normalattr[NOHLITE],ms->menubt);
+  memset(sep,ms->box_horiz,menuwidth); // String containing the seperator string
   sep[menuwidth-1] = 0; 
   // Menu title
   x = (menuwidth - strlen(menu->title) - 1) >> 1;
   gotoxy(top-1,left+x,ms->menupage);
   printmenuitem(menu->title,ms->normalattr);
   row = -1; // 1 less than inital value of x
-  for (x=0; x < menu->numitems; x++)
+  for (x=first; x < menu->numitems; x++)
     {
       ci = menu->items[x];
       if (ci->action == OPT_INVISIBLE) continue;
       row++;
+      if (row >= numitems) break; // Already have enough number of items
       // Setup the defaults now
       lchar[0] = fchar[0] = ' '; 
       lchar[1] = fchar[1] = '\0'; // fchar and lchar are just spaces
@@ -249,8 +202,8 @@ void printmenu(pt_menu menu, int curr, char top, char left)
 	  lchar[1] = 0;
 	  break;
 	case OPT_SEP:
-	  fchar[0] = '\b'; fchar[1] = LTRT; fchar[2] = HORIZ; fchar[3] = HORIZ; fchar[4] = 0;
-	  lchar[0] = HORIZ; lchar[1] = RTLT; lchar[2] = 0;
+	  fchar[0] = '\b'; fchar[1] = ms->box_ltrt; fchar[2] = ms->box_horiz; fchar[3] = ms->box_horiz; fchar[4] = 0;
+	  lchar[0] = ms->box_horiz; lchar[1] = ms->box_rtlt; lchar[2] = 0;
 	  str = sep;
 	  break;
 	case OPT_EXITMENU:
@@ -268,40 +221,65 @@ void printmenu(pt_menu menu, int curr, char top, char left)
       gotoxy(top+row,left+menuwidth-1,ms->menupage); // Last char if any
       csprint(lchar,attr[NOHLITE]); // Print last part
     }
+  // Check if we need to MOREABOVE and MOREBELOW to be added
+  // reuse x 
+  row = 0;
+  x = next_visible_sep(menu,0); // First item
+  if (! isvisible(menu,first,x)) // There is more above
+  {
+     row = 1;
+     gotoxy(top,left+menuwidth,ms->menupage);
+     cprint(MOREABOVE,ms->normalattr[NOHLITE],1,ms->menupage);
+  }
+  x = prev_visible_sep(menu,menu->numitems); // last item
+  if (! isvisible(menu,first,x)) // There is more above
+  {
+     row = 1;
+     gotoxy(top+numitems-1,left+menuwidth,ms->menupage);
+     cprint(MOREBELOW,ms->normalattr[NOHLITE],1,ms->menupage);
+  }
+  // Add a scroll box
+  x = ((numitems-1)*curr)/(menu->numitems);
+  if ((x>0) && (row==1)) {
+  gotoxy(top+x,left+menuwidth,ms->menupage);
+  cprint(SCROLLBOX,ms->normalattr[NOHLITE],1,ms->menupage);
+  }
   if (ms->handler) ms->handler(ms,menu->items[curr]);
 }
 
 // Difference between this and regular menu, is that only 
 // OPT_INVISIBLE, OPT_SEP are honoured 
-void printradiomenu(pt_menu menu, int curr, char top, char left)
+void printradiomenu(pt_menu menu, int curr, uchar top, uchar left, int first)
 {
   int x,row; // x = index, row = position from top
   int numitems,menuwidth;
   char fchar[5],lchar[5]; // The first and last char in for each entry
   const char *str;  // and inbetween the item or a seperator is printed
-  char *attr;  // all in the attribute attr
+  uchar *attr;  // all in the attribute attr
   char sep[MENULEN];// and inbetween the item or a seperator is printed
   pt_menuitem ci;
   
-  calc_visible(menu);
-  numitems = menu->numvisible;
+  numitems = calc_visible(menu,first);
+  if (numitems > menu->menuheight) numitems = menu->menuheight;
+
   menuwidth = menu->menuwidth+3;
   clearwindow(top,left-2, top+numitems+1, left+menuwidth+1,
 	      ms->menupage, ms->fillchar, ms->shadowattr);
-  drawbox(top-1, left-3, top+numitems, left+menuwidth, 
-	  ms->normalattr[NOHLITE], ms->menupage);
-  memset(sep,HORIZ,menuwidth); // String containing the seperator string
+  drawbox(top-1,left-3,top+numitems,left+menuwidth,
+          ms->menupage,ms->normalattr[NOHLITE],ms->menubt);
+  memset(sep,ms->box_horiz,menuwidth); // String containing the seperator string
   sep[menuwidth-1] = 0; 
   // Menu title
   x = (menuwidth - strlen(menu->title) - 1) >> 1;
   gotoxy(top-1,left+x,ms->menupage);
   printmenuitem(menu->title,ms->normalattr);
   row = -1; // 1 less than inital value of x
-  for (x=0; x < menu->numitems; x++)
+  for (x=first; x < menu->numitems; x++)
     {
       ci = menu->items[x];
       if (ci->action == OPT_INVISIBLE) continue;
       row++;
+      if (row > numitems) break;
       // Setup the defaults now
       fchar[0] = RADIOUNSEL; fchar[1]='\0'; // Unselected ( )
       lchar[0] = '\0'; // Nothing special after 
@@ -314,8 +292,8 @@ void printradiomenu(pt_menu menu, int curr, char top, char left)
 	  attr = ms->inactattr;
 	  break;
 	case OPT_SEP:
-	  fchar[0] = '\b'; fchar[1] = LTRT; fchar[2] = HORIZ; fchar[3] = HORIZ; fchar[4] = 0;
-	  lchar[0] = HORIZ; lchar[1] = RTLT; lchar[3] = 0;
+	  fchar[0] = '\b'; fchar[1] = ms->box_ltrt; fchar[2] = ms->box_horiz; fchar[3] = ms->box_horiz; fchar[4] = 0;
+	  lchar[0] = ms->box_horiz; lchar[1] = ms->box_rtlt; lchar[3] = 0;
 	  str = sep;
 	  break;
 	default: // To keep the compiler happy
@@ -330,28 +308,52 @@ void printradiomenu(pt_menu menu, int curr, char top, char left)
       gotoxy(top+row,left+menuwidth-1,ms->menupage); // Last char if any
       csprint(lchar,attr[NOHLITE]); // Print last part
     }
+  // Check if we need to MOREABOVE and MOREBELOW to be added
+  // reuse x 
+  row = 0;
+  x = next_visible_sep(menu,0); // First item
+  if (! isvisible(menu,first,x)) // There is more above
+  {
+     row = 1;
+     gotoxy(top,left+menuwidth,ms->menupage);
+     cprint(MOREABOVE,ms->normalattr[NOHLITE],1,ms->menupage);
+  }
+  x = prev_visible_sep(menu,menu->numitems); // last item
+  if (! isvisible(menu,first,x)) // There is more above
+  {
+     row = 1;
+     gotoxy(top+numitems-1,left+menuwidth,ms->menupage);
+     cprint(MOREBELOW,ms->normalattr[NOHLITE],1,ms->menupage);
+  }
+  // Add a scroll box
+  x = ((numitems-1)*curr)/(menu->numitems);
+  if ((x > 0) && (row == 1))
+  {
+     gotoxy(top+x,left+menuwidth,ms->menupage);
+     cprint(SCROLLBOX,ms->normalattr[NOHLITE],1,ms->menupage);
+  }
   if (ms->handler) ms->handler(ms,menu->items[curr]);
 }
 
-void cleanupmenu(pt_menu menu, char top,char left)
+void cleanupmenu(pt_menu menu, uchar top,uchar left,int numitems)
 {
-  clearwindow(top,left-2, top+menu->numvisible+1, left+menu->menuwidth+4,
+  if (numitems > menu->menuheight) numitems = menu->menuheight;
+  clearwindow(top,left-2, top+numitems+1, left+menu->menuwidth+4,
 	      ms->menupage, ms->fillchar, ms->fillattr); // Clear the shadow
-  clearwindow(top-1, left-3, top+menu->numvisible, left+menu->menuwidth+3,
+  clearwindow(top-1, left-3, top+numitems, left+menu->menuwidth+3,
 	      ms->menupage, ms->fillchar, ms->fillattr); // main window
 }
 
 /* Handle a radio menu */
-pt_menuitem getradiooption(pt_menu menu, char top, char left, char startopt)
+pt_menuitem getradiooption(pt_menu menu, uchar top, uchar left, uchar startopt)
      // Return item chosen or NULL if ESC was hit.
 {
-  int curr,i;
-  char asc,scan;
-  char numitems;
+  int curr,i,first,tmp;
+  uchar asc,scan;
+  uchar numitems;
   pt_menuitem ci; // Current item
     
-  calc_visible(menu);
-  numitems = menu->numvisible;
+  numitems = calc_visible(menu,0);
   // Setup status line
   gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
   cprint(ms->spacechar,ms->statusattr[NOHLITE],ms->numcols,ms->menupage);
@@ -363,9 +365,10 @@ pt_menuitem getradiooption(pt_menu menu, char top, char left, char startopt)
   cprint(ms->spacechar,ms->statusattr[NOHLITE],ms->numcols,1);
   gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
   printmenuitem(menu->items[curr]->status,ms->statusattr);
+  first = calc_first_early(menu,curr);
   while (1) // Forever
     {
-      printradiomenu(menu,curr,top,left);
+      printradiomenu(menu,curr,top,left,first);
       ci = menu->items[curr];
       
       asc = getch(&scan);
@@ -373,21 +376,28 @@ pt_menuitem getradiooption(pt_menu menu, char top, char left, char startopt)
         {
 	case HOMEKEY:
 	  curr = next_visible(menu,0);
+          first = calc_first_early(menu,curr);
 	  break;
 	case ENDKEY:
 	  curr = prev_visible(menu,numitems-1);
+          first = calc_first_late(menu,curr);
 	  break;
 	case PAGEDN:
 	  for (i=0; i < 5; i++) curr = next_visible(menu,curr+1);
+          first = calc_first_late(menu,curr);
 	  break;
 	case PAGEUP:
 	  for (i=0; i < 5; i++) curr = prev_visible(menu,curr-1);
+          first = calc_first_early(menu,curr);
 	  break;
 	case UPARROW:
 	  curr = prev_visible(menu,curr-1);
+          if (curr < first) first = calc_first_early(menu,curr);
 	  break;
 	case DNARROW:
 	  curr = next_visible(menu,curr+1);
+          if (! isvisible(menu,first,curr)) 
+               first = calc_first_late(menu,curr);
 	  break;
 	case LTARROW:
 	case ESCAPE:
@@ -405,7 +415,18 @@ pt_menuitem getradiooption(pt_menu menu, char top, char left, char startopt)
 	  if (((asc >= 'A') && (asc <= 'Z')) ||
 	      ((asc >= 'a') && (asc <= 'z')) ||
 	      ((asc >= '0') && (asc <= '9')))
-	    curr = find_shortcut(menu,asc,curr);
+          {
+	    tmp = find_shortcut(menu,asc,curr);
+            if ((tmp > curr) && (! isvisible(menu,first,tmp)))
+                  first = calc_first_late(menu,tmp);
+            if (tmp < curr) 
+               first = calc_first_early(menu,tmp);
+            curr = tmp;
+          }
+          else {
+            if (ms->keys_handler) // Call extra keys handler
+               ms->keys_handler(ms,menu->items[curr],(scan << 8) | asc);
+          }
 	  break;
         }
       // Update status line
@@ -417,16 +438,16 @@ pt_menuitem getradiooption(pt_menu menu, char top, char left, char startopt)
 }
 
 /* Handle one menu */
-pt_menuitem getmenuoption( pt_menu menu, char top, char left, char startopt)
+pt_menuitem getmenuoption(pt_menu menu, uchar top, uchar left, uchar startopt)
      // Return item chosen or NULL if ESC was hit.
 {
-  int curr,i;
-  char asc,scan;
-  char numitems;
+  int curr,i,first,tmp;
+  uchar asc,scan;
+  uchar numitems;
   pt_menuitem ci; // Current item
+  t_handler_return hr; // Return value of handler
     
-  calc_visible(menu);
-  numitems = menu->numvisible;
+  numitems = calc_visible(menu,0);
   // Setup status line
   gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
   cprint(ms->spacechar,ms->statusattr[NOHLITE],ms->numcols,ms->menupage);
@@ -438,30 +459,38 @@ pt_menuitem getmenuoption( pt_menu menu, char top, char left, char startopt)
   cprint(ms->spacechar,ms->statusattr[NOHLITE],ms->numcols,1);
   gotoxy(ms->minrow+ms->statline,ms->mincol,ms->menupage);
   printmenuitem(menu->items[curr]->status,ms->statusattr);
+  first = calc_first_early(menu,curr);
   while (1) // Forever
     {
-      printmenu(menu,curr,top,left);
+      printmenu(menu,curr,top,left,first);
       ci = menu->items[curr];
       asc = getch(&scan);
       switch (scan)
         {
 	case HOMEKEY:
 	  curr = next_visible(menu,0);
+          first = calc_first_early(menu,curr);
 	  break;
 	case ENDKEY:
 	  curr = prev_visible(menu,numitems-1);
+          first = calc_first_late(menu,curr);
 	  break;
 	case PAGEDN:
 	  for (i=0; i < 5; i++) curr = next_visible(menu,curr+1);
+          first = calc_first_late(menu,curr);
 	  break;
 	case PAGEUP:
 	  for (i=0; i < 5; i++) curr = prev_visible(menu,curr-1);
+          first = calc_first_early(menu,curr);
 	  break;
 	case UPARROW:
 	  curr = prev_visible(menu,curr-1);
+          if (curr < first) first = calc_first_early(menu,curr);
 	  break;
 	case DNARROW:
 	  curr = next_visible(menu,curr+1);
+          if (! isvisible(menu,first,curr)) 
+               first = calc_first_late(menu,curr);
 	  break;
 	case LTARROW:
 	case ESCAPE:
@@ -474,20 +503,58 @@ pt_menuitem getmenuoption( pt_menu menu, char top, char left, char startopt)
 	  if (ci->action == OPT_CHECKBOX) break;
 	  if (ci->action == OPT_SEP) break;
 	  if (ci->action == OPT_EXITMENU) return NULL; // As if we hit Esc
-	  return ci;
+          // If we are going into a radio menu, dont call handler, return ci
+          if (ci->action == OPT_RADIOMENU) return ci;
+          if (ci->handler != NULL) // Do we have a handler
+          {
+             hr = ci->handler(ms,ci);  
+             if (hr.refresh) // Do we need to refresh
+             {
+                // Cleanup menu using old number of items
+                cleanupmenu(menu,top,left,numitems); 
+                // Recalculate the number of items
+                numitems = calc_visible(menu,0);
+                // Reprint the menu
+                printmenu(menu,curr,top,left,first);
+             }
+             if (hr.valid) return ci; 
+          }
+          else return ci;
 	  break;
 	case SPACEKEY:
-	  if (ci->action != OPT_CHECKBOX) break;
-	  ci->itemdata.checked = !ci->itemdata.checked;
-	  // Call handler to see it anything needs to be done
-	  if (ci->handler != NULL) ci->handler(ms,ci); 
-	  break;
+          if (ci->action != OPT_CHECKBOX) break;
+          ci->itemdata.checked = !ci->itemdata.checked;
+          if (ci->handler != NULL) // Do we have a handler
+          {
+             hr = ci->handler(ms,ci);  
+             if (hr.refresh) // Do we need to refresh
+             {
+                // Cleanup menu using old number of items
+                cleanupmenu(menu,top,left,numitems); 
+                // Recalculate the number of items
+                numitems = calc_visible(menu,0);
+                // Reprint the menu
+                printmenu(menu,curr,top,left,first);
+             }
+          }
+          break;
 	default:
 	  // Check if this is a shortcut key
 	  if (((asc >= 'A') && (asc <= 'Z')) ||
 	      ((asc >= 'a') && (asc <= 'z')) ||
 	      ((asc >= '0') && (asc <= '9')))
-	    curr = find_shortcut(menu,asc,curr);
+          {
+	    tmp = find_shortcut(menu,asc,curr);
+            if ((tmp > curr) && (! isvisible(menu,first,tmp)))
+                  first = calc_first_late(menu,tmp);
+            if (tmp < curr) 
+               first = calc_first_early(menu,tmp);
+            curr = tmp;
+          }
+          else {
+            if (ms->keys_handler) // Call extra keys handler
+               ms->keys_handler(ms,menu->items[curr],(scan << 8) | asc);
+          }
 	  break;
         }
       // Update status line
@@ -499,7 +566,7 @@ pt_menuitem getmenuoption( pt_menu menu, char top, char left, char startopt)
 }
 
 /* Handle the entire system of menu's. */
-pt_menuitem runmenusystem(char top, char left, pt_menu cmenu, char startopt, char menutype)
+pt_menuitem runmenusystem(uchar top, uchar left, pt_menu cmenu, uchar startopt, uchar menutype)
      /*
       * cmenu
       *    Which menu should be currently displayed
@@ -515,11 +582,15 @@ pt_menuitem runmenusystem(char top, char left, pt_menu cmenu, char startopt, cha
       */
 {
   pt_menuitem opt,choice;
-  char startat,mt;
-  char row,col;
+  uchar startat,mt;
+  uchar row,col;
 
   if (cmenu == NULL) return NULL;
  startover:
+  // Set the menu height
+  cmenu->menuheight = ms->maxrow - top-3;
+  if (cmenu->menuheight > ms->maxmenuheight) 
+     cmenu->menuheight = ms->maxmenuheight;
   if (menutype == NORMALMENU)
     opt = getmenuoption(cmenu,top,left,startopt);
   else // menutype == RADIOMENU
@@ -528,13 +599,13 @@ pt_menuitem runmenusystem(char top, char left, pt_menu cmenu, char startopt, cha
   if (opt == NULL)
     {
       // User hit Esc
-      cleanupmenu(cmenu,top,left);
+      cleanupmenu(cmenu,top,left,calc_visible(cmenu,0));
       return NULL;
     }
   // Are we done with the menu system?
   if ((opt->action != OPT_SUBMENU) && (opt->action != OPT_RADIOMENU)) 
     {
-      cleanupmenu(cmenu,top,left);
+      cleanupmenu(cmenu,top,left,calc_visible(cmenu,0));
       return opt; // parent cleanup other menus
     }
   // Either radiomenu or submenu
@@ -544,7 +615,7 @@ pt_menuitem runmenusystem(char top, char left, pt_menu cmenu, char startopt, cha
     {
       gotoxy(12,12,ms->menupage); // Middle of screen
       csprint("ERROR: Invalid submenu requested.",0x07);
-      cleanupmenu(cmenu,top,left);
+      cleanupmenu(cmenu,top,left,calc_visible(cmenu,0));
       return NULL; // Pretend user hit esc
     }
   // Call recursively for submenu
@@ -565,7 +636,7 @@ pt_menuitem runmenusystem(char top, char left, pt_menu cmenu, char startopt, cha
   if (opt->action == OPT_RADIOMENU)
     {
       if (choice != NULL) opt->data = (void *)choice; // store choice in data field
-      if (opt->handler != NULL) opt->handler(ms,opt); // Call handler
+      if (opt->handler != NULL) opt->handler(ms,opt);  
       choice = NULL; // Pretend user hit esc
     }
   if (choice==NULL) // User hit Esc in submenu
@@ -576,17 +647,17 @@ pt_menuitem runmenusystem(char top, char left, pt_menu cmenu, char startopt, cha
     }
   else
     {
-      cleanupmenu(cmenu,top,left);
+      cleanupmenu(cmenu,top,left,calc_visible(cmenu,0));
       return choice;
     }
 }
 
 /* User Callable functions */
 
-pt_menuitem showmenus(char startmenu)
+pt_menuitem showmenus(uchar startmenu)
 {
   pt_menuitem rv;
-  char oldpage,tpos;
+  uchar oldpage,tpos;
 
   // Setup screen for menusystem
   oldpage = getdisppage();
@@ -614,20 +685,21 @@ pt_menuitem showmenus(char startmenu)
   return rv;
 }
 
-void init_menusystem(const char *title)
+pt_menusystem init_menusystem(const char *title)
 {
   int i;
     
   ms = NULL;
   ms = (pt_menusystem) malloc(sizeof(t_menusystem));
-  if (ms == NULL) return;
+  if (ms == NULL) return NULL;
   ms->nummenus = 0;
   // Initialise all menu pointers
   for (i=0; i < MAXMENUS; i++) ms->menus[i] = NULL; 
     
+  ms->title = (char *)malloc(TITLELEN+1); 
   if (title == NULL)
-    ms->title = TITLESTR; // Copy pointers
-  else ms->title = title;
+    strcpy(ms->title,TITLESTR); // Copy string
+  else strcpy(ms->title,title);
 
   // Timeout settings
   ms->tm_stepsize = TIMEOUTSTEPSIZE;
@@ -658,8 +730,17 @@ void init_menusystem(const char *title)
   ms->shadowattr = SHADOWATTR;
 
   ms->menupage = MENUPAGE; // Usually no need to change this at all
-  ms->handler = NULL; // No handler function
+
+  // Initialise all handlers
+  ms->handler = NULL;
+  ms->keys_handler = NULL; 
   ms->ontimeout=NULL; // No timeout handler
+
+  // Setup ACTION_{,IN}VALID
+  ACTION_VALID.valid=1;
+  ACTION_VALID.refresh=0;
+  ACTION_INVALID.valid = 0;
+  ACTION_INVALID.refresh = 0;
 
   // Figure out the size of the screen we are in now.
   // By default we use the whole screen for our menu
@@ -668,9 +749,18 @@ void init_menusystem(const char *title)
   ms->numrows = getnumrows();
   ms->maxcol = ms->numcols - 1;
   ms->maxrow = ms->numrows - 1;
+
+  // How many entries per menu can we display at a time
+  ms->maxmenuheight = ms->maxrow - ms->minrow - 3;
+  if (ms->maxmenuheight > MAXMENUHEIGHT) 
+      ms->maxmenuheight= MAXMENUHEIGHT; 
+
+  // Set up the look of the box
+  set_box_type(MENUBOXTYPE);
+  return ms;
 }
 
-void set_normal_attr(char normal, char selected, char inactivenormal, char inactiveselected)
+void set_normal_attr(uchar normal, uchar selected, uchar inactivenormal, uchar inactiveselected)
 {
   if (normal != 0xFF)           ms->normalattr[0]   = normal;
   if (selected != 0xFF)         ms->reverseattr[0]  = selected;
@@ -678,7 +768,7 @@ void set_normal_attr(char normal, char selected, char inactivenormal, char inact
   if (inactiveselected != 0xFF) ms->revinactattr[0] = inactiveselected;
 }
 
-void set_normal_hlite(char normal, char selected, char inactivenormal, char inactiveselected)
+void set_normal_hlite(uchar normal, uchar selected, uchar inactivenormal, uchar inactiveselected)
 {
   if (normal != 0xFF)           ms->normalattr[1]   = normal;
   if (selected != 0xFF)         ms->reverseattr[1]  = selected;
@@ -686,8 +776,7 @@ void set_normal_hlite(char normal, char selected, char inactivenormal, char inac
   if (inactiveselected != 0xFF) ms->revinactattr[1] = inactiveselected;
 }
 
-
-void set_status_info(char statusattr, char statushlite, char statline)
+void set_status_info(uchar statusattr, uchar statushlite, uchar statline)
 {
   if (statusattr != 0xFF) ms->statusattr[NOHLITE] = statusattr;
   if (statushlite!= 0xFF) ms->statusattr[HLITE] = statushlite;
@@ -696,13 +785,13 @@ void set_status_info(char statusattr, char statushlite, char statline)
   ms->statline = statline; // relative to ms->minrow, 0 based
 }
 
-void set_title_info(char tfillchar, char titleattr)
+void set_title_info(uchar tfillchar, uchar titleattr)
 {
   if (tfillchar  != 0xFF) ms->tfillchar  = tfillchar;
   if (titleattr  != 0xFF) ms->titleattr  = titleattr;
 }
 
-void set_misc_info(char fillchar, char fillattr,char spacechar, char shadowattr)
+void set_misc_info(uchar fillchar, uchar fillattr,uchar spacechar, uchar shadowattr)
 {
   if (fillchar  != 0xFF) ms->fillchar  = fillchar;
   if (fillattr  != 0xFF) ms->fillattr  = fillattr;
@@ -710,10 +799,26 @@ void set_misc_info(char fillchar, char fillattr,char spacechar, char shadowattr)
   if (shadowattr!= 0xFF) ms->shadowattr= shadowattr;
 }
 
-void set_window_size(char top, char left, char bot, char right) // Set the window which menusystem should use
+void set_box_type(boxtype bt)
+{
+  uchar *bxc;
+  ms->menubt = bt;
+  bxc = getboxchars(bt);
+  ms->box_horiz = bxc[BOX_HORIZ]; // The char used to draw top line
+  ms->box_ltrt = bxc[BOX_LTRT]; 
+  ms->box_rtlt = bxc[BOX_RTLT]; 
+}
+
+void set_menu_options(uchar maxmenuheight) 
+{
+  if (maxmenuheight != 0xFF) ms->maxmenuheight = maxmenuheight;
+}
+
+// Set the window which menusystem should use
+void set_window_size(uchar top, uchar left, uchar bot, uchar right) 
 {
     
-  char nr,nc;
+  uchar nr,nc;
   if ((top > bot) || (left > right)) return; // Sorry no change will happen here
   nr = getnumrows();
   nc = getnumcols();
@@ -728,14 +833,29 @@ void set_window_size(char top, char left, char bot, char right) // Set the windo
   if (ms->statline >= ms->numrows) ms->statline = ms->numrows - 1; // Clip statline if need be
 }
 
-void reg_handler( t_menusystem_handler handler)
+void reg_handler( t_handler htype, void * handler)
 {
-  ms->handler = handler;
+  // If bad value set to default screen handler
+  switch(htype) {
+    case HDLR_KEYS:
+         ms->keys_handler = (t_keys_handler) handler;
+         break;
+    default:
+         ms->handler = (t_menusystem_handler) handler;
+         break;
+  }
 }
 
-void unreg_handler()
+void unreg_handler(t_handler htype)
 {
-  ms->handler = NULL;
+  switch(htype) {
+    case HDLR_KEYS:
+         ms->keys_handler = NULL;
+         break;
+    default:
+         ms->handler = NULL;
+         break;
+  }
 }
 
 void reg_ontimeout(t_timeout_handler handler, unsigned int numsteps, unsigned int stepsize)
@@ -750,19 +870,108 @@ void unreg_ontimeout()
   ms->ontimeout = NULL;
 }
 
+int next_visible(pt_menu menu, int index) 
+{
+  int ans;
+  if (index < 0) ans = 0 ;
+  else if (index >= menu->numitems) ans = menu->numitems-1;
+  else ans = index;
+  while ((ans < menu->numitems-1) && 
+	 ((menu->items[ans]->action == OPT_INVISIBLE) || 
+	  (menu->items[ans]->action == OPT_SEP))) 
+    ans++;
+  return ans;
+}
 
-void calc_visible(pt_menu menu)
+int prev_visible(pt_menu menu, int index) // Return index of prev visible
+{
+  int ans;
+  if (index < 0) ans = 0;
+  else if (index >= menu->numitems) ans = menu->numitems-1;
+  else ans = index;
+  while ((ans > 0) && 
+	 ((menu->items[ans]->action == OPT_INVISIBLE) ||
+	  (menu->items[ans]->action == OPT_SEP))) 
+    ans--;
+  return ans;
+}
+
+int next_visible_sep(pt_menu menu, int index) 
+{
+  int ans;
+  if (index < 0) ans = 0 ;
+  else if (index >= menu->numitems) ans = menu->numitems-1;
+  else ans = index;
+  while ((ans < menu->numitems-1) && 
+	 (menu->items[ans]->action == OPT_INVISIBLE))  
+    ans++;
+  return ans;
+}
+
+int prev_visible_sep(pt_menu menu, int index) // Return index of prev visible
+{
+  int ans;
+  if (index < 0) ans = 0;
+  else if (index >= menu->numitems) ans = menu->numitems-1;
+  else ans = index;
+  while ((ans > 0) && 
+	 (menu->items[ans]->action == OPT_INVISIBLE)) 
+    ans--;
+  return ans;
+}
+
+int calc_visible(pt_menu menu,int first)
 {
   int ans,i;
 
-  if (menu == NULL) return;  
+  if (menu == NULL) return 0;  
   ans = 0;
-  for (i=0; i < menu->numitems; i++)
+  for (i=first; i < menu->numitems; i++)
     if (menu->items[i]->action != OPT_INVISIBLE) ans++;
-  menu->numvisible = ans;
+  return ans;
 }
 
-char add_menu(const char *title) // Create a new menu and return its position
+// is curr visible if first entry is first?
+int isvisible(pt_menu menu,int first, int curr)
+{
+  if (curr < first) return 0;
+  return (calc_visible(menu,first)-calc_visible(menu,curr) < menu->menuheight);
+}
+
+// Calculate the first entry to be displayed
+// so that curr is visible and make curr as late as possible
+int calc_first_late(pt_menu menu,int curr)
+{
+  int ans,i,nv;
+
+  nv = calc_visible(menu,0);
+  if (nv <= menu->menuheight) return 0;
+  // Start with curr and go back menu->menuheight times
+  ans = curr+1;
+  for (i=0; i < menu->menuheight; i++)
+    ans = prev_visible_sep(menu,ans-1);
+  return ans;
+}
+
+// Calculate the first entry to be displayed
+// so that curr is visible and make curr as early as possible
+int calc_first_early(pt_menu menu,int curr)
+{
+  int ans,i,nv;
+
+  nv = calc_visible(menu,0);
+  if (nv <= menu->menuheight) return 0;
+  // Start with curr and go back till >= menu->menuheight 
+  // items are visible 
+  nv = calc_visible(menu,curr); // Already nv of them are visible
+  ans = curr;
+  for (i=0; i < menu->menuheight - nv; i++)
+    ans = prev_visible_sep(menu,ans-1);
+  return ans;
+}
+
+// Create a new menu and return its position
+uchar add_menu(const char *title, int maxmenusize) 
 {
   int num,i;
   pt_menu m;
@@ -776,21 +985,26 @@ char add_menu(const char *title) // Create a new menu and return its position
   m->numitems = 0;
   m->row = 0xFF;
   m->col = 0xFF;
-  for (i=0; i < MAXMENUSIZE; i++) m->items[i] = NULL;
+  if (maxmenusize < 1)
+     m->maxmenusize = MAXMENUSIZE;
+  else m->maxmenusize = maxmenusize;
+  m->items = (pt_menuitem *) malloc(sizeof(pt_menuitem)*(m->maxmenusize));
+  for (i=0; i < m->maxmenusize; i++) m->items[i] = NULL;
    
+  m->title = (char *)malloc(MENULEN+1);
   if (title)
     {
       if (strlen(title) > MENULEN - 2)
-	m->title = TITLELONG;
-      else m->title = title; 
+	strcpy(m->title,TITLELONG);
+      else strcpy(m->title,title); 
     }
-  else m->title = EMPTYSTR; 
+  else strcpy(m->title,EMPTYSTR); 
   m ->menuwidth = strlen(m->title);
   ms->nummenus ++;
   return ms->nummenus - 1;
 }
 
-void set_menu_pos(char row,char col) // Set the position of this menu.
+void set_menu_pos(uchar row,uchar col) // Set the position of this menu.
 {
   pt_menu m;
 
@@ -810,22 +1024,23 @@ pt_menuitem add_sep() // Add a separator to current menu
   if (mi == NULL) return NULL;
   m->items[(unsigned int)m->numitems] = mi;
   mi->handler = NULL; // No handler
-  mi->item = mi->status = mi->data = EMPTYSTR;
+  mi->item = mi->status = mi->data = NULL;
   mi->action = OPT_SEP;
   mi->index = m->numitems++;
   mi->parindex = ms->nummenus-1;
   mi->shortcut = 0;
+  mi->helpid=0;
   return mi;
 }
 
 // Add item to the "current" menu
 pt_menuitem add_item(const char *item, const char *status, t_action action, 
-		     const char *data, char itemdata) 
+		     const char *data, uchar itemdata) 
 {
   pt_menuitem mi;
   pt_menu m;
   const char *str;
-  char inhlite=0; // Are we inside hlite area
+  uchar inhlite=0; // Are we inside hlite area
 
   m = (ms->menus[ms->nummenus-1]);
   mi = NULL;
@@ -833,26 +1048,33 @@ pt_menuitem add_item(const char *item, const char *status, t_action action,
   if (mi == NULL) return NULL;
   m->items[(unsigned int) m->numitems] = mi;
   mi->handler = NULL; // No handler
+
+  // Allocate space to store stuff
+  mi->item = (char *)malloc(MENULEN+1);
+  mi->status = (char *)malloc(STATLEN+1);
+  mi->data = (char *)malloc(ACTIONLEN+1);
+
   if (item) {
-    if (strlen(item) > MENULEN - 2) {
-      mi->item = ITEMLONG; 
+    if (strlen(item) > MENULEN) {
+      strcpy(mi->item,ITEMLONG); 
     } else {
-      mi->item = item; 
-      if (strlen(item) > m->menuwidth) m->menuwidth = strlen(item);
+      strcpy(mi->item,item); 
     }
-  } else mi->item = EMPTYSTR; 
+    if (strlen(mi->item) > m->menuwidth) m->menuwidth = strlen(mi->item);
+  } else strcpy(mi->item,EMPTYSTR); 
 
   if (status) {
-    if (strlen(status) > STATLEN - 2) {
-      mi->status = STATUSLONG; 
+    if (strlen(status) > STATLEN) {
+      strcpy(mi->status,STATUSLONG); 
     } else {
-      mi->status = status; 
+      strcpy(mi->status,status); 
     }
-  } else mi->status = EMPTYSTR; 
+  } else strcpy(mi->status,EMPTYSTR); 
     
-  mi->action = action;
+  mi->action=action;
   str = mi->item;
   mi->shortcut = 0;
+  mi->helpid = 0xFFFF;
   inhlite = 0; // We have not yet seen an ENABLEHLITE char
   // Find the first char in [A-Za-z0-9] after ENABLEHLITE and not arg to control char
   while (*str)
@@ -879,12 +1101,12 @@ pt_menuitem add_item(const char *item, const char *status, t_action action,
     mi->shortcut = mi->shortcut -'A'+'a';
 
   if (data) {
-    if (strlen(data) > ACTIONLEN - 2) {
-      mi->data = ACTIONLONG; 
+    if (strlen(data) > ACTIONLEN) {
+      strcpy(mi->data,ACTIONLONG); 
     } else {
-      mi->data = data; 
+      strcpy(mi->data,data); 
     }
-  } else mi->data = EMPTYSTR;
+  } else strcpy(mi->data,EMPTYSTR);
 
   switch (action)
     {
@@ -907,7 +1129,7 @@ pt_menuitem add_item(const char *item, const char *status, t_action action,
 }
 
 // Set the shortcut key for the current item
-void set_shortcut(char shortcut)
+void set_item_options(uchar shortcut,int helpid)
 {
   pt_menuitem mi;
   pt_menu m;
@@ -915,5 +1137,12 @@ void set_shortcut(char shortcut)
   m = (ms->menus[ms->nummenus-1]); 
   if (m->numitems <= 0) return;
   mi = m->items[(unsigned int) m->numitems-1];
-  mi->shortcut = shortcut;
+
+  if (shortcut != 0xFF) mi->shortcut = shortcut;
+  if (helpid != 0xFFFF) mi->helpid = helpid;
+}
+
+// Free internal datasutructures
+void close_menusystem(void)
+{
 }

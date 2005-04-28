@@ -1,6 +1,6 @@
 /* -*- c -*- ------------------------------------------------------------- *
  *   
- *   Copyright 2004 Murali Krishnan Ganapathy - All Rights Reserved
+ *   Copyright 2004-2005 Murali Krishnan Ganapathy - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -15,17 +15,24 @@
 #endif
 
 #include "menu.h"
-#include "biosio.h"
-#include "string.h"
-#include "syslinux.h"
+#include "com32io.h"
+#include "help.h"
+#include "passwords.h"
+#include "des.h"
+#include <stdlib.h>
+#include <stdio.h>
 
 /* Global variables */
 char infoline[160];
+char buffer[80];
 
 // Different network options
 static char nonet[] = "<n>etwork [none]";
 static char dhcpnet[]="<n>etwork [dhcp]";
 static char statnet[]="<n>etwork [static]";
+
+static char loginstr[] = "<L>ogin  ";
+static char logoutstr[]= "<L>ogout ";
 
 struct {
     unsigned int baseurl : 1; // Do we need to specify by url
@@ -34,14 +41,16 @@ struct {
     unsigned int linrep  : 1; // Want to repair linux?
 } flags;
 
-t_menuitem *baseurl,*mountcd,*network,*runprep,*winrep,*linrep;
 // Some menu options
-t_menuitem * stat,*dhcp,*none;
+t_menuitem *baseurl,*mountcd,*network,*runprep,*winrep,*linrep;
+t_menuitem * stat,*dhcp,*none,*prepopt,*secret;
+
 // all the menus we are going to declare
-char TESTING,RESCUE,MAIN,PREP,NETMENU;
+unsigned char TESTING,RESCUE,MAIN,PREPMENU,NETMENU,LONGMENU,SECRETMENU;
+
+char username[12]; // Name of user currently using the system
 
 /* End globals */
-
 
 TIMEOUTCODE ontimeout()
 {
@@ -51,6 +60,82 @@ TIMEOUTCODE ontimeout()
 
 
 #define INFLINE 22
+#define PWDLINE 3
+#define PWDPROMPT 21
+#define PWDCOLUMN 60
+#define PWDATTR 0x74
+#define EDITPROMPT 21
+
+void keys_handler(t_menusystem *ms, t_menuitem *mi,unsigned int scancode)
+{
+   char nc;
+
+   if ((scancode >> 8) == F1) { // If scancode of F1
+      runhelpsystem(mi->helpid);
+   }
+   // If user hit TAB, and item is an "executable" item
+   // and user has privileges to edit it, edit it in place.
+   if (((scancode & 0xFF) == 0x09) && (mi->action == OPT_RUN) &&
+       (isallowed(username,"editcmd") || isallowed(username,"root"))) { 
+     nc = getnumcols();
+     // User typed TAB and has permissions to edit command line
+     gotoxy(EDITPROMPT,1,ms->menupage);
+     csprint("Command line:",0x07);
+     editstring(mi->data,ACTIONLEN);
+     gotoxy(EDITPROMPT,1,ms->menupage);
+     cprint(' ',0x07,nc-1,ms->menupage);
+   }
+}
+
+t_handler_return login_handler(t_menusystem *ms, t_menuitem *mi)
+{
+  (void)mi; // Unused
+  char pwd[40];
+  char login[40];
+  char nc;
+  t_handler_return rv;
+
+  if (mi->item == loginstr) { /* User wants to login */
+    nc = getnumcols();
+    gotoxy(PWDPROMPT,1,ms->menupage);
+    csprint("Enter Username: ",0x07);
+    getstring(login, sizeof username);
+    gotoxy(PWDPROMPT,1,ms->menupage);
+    cprint(' ',0x07,nc,ms->menupage);
+    csprint("Enter Password: ",0x07);
+    getpwd(pwd, sizeof pwd);
+    gotoxy(PWDPROMPT,1,ms->menupage);
+    cprint(' ',0x07,nc,ms->menupage);
+
+    if (authenticate_user(login,pwd))
+    {
+      strcpy(username,login); 
+      mi->item = logoutstr; // Change item to read "Logout"
+    }
+    else strcpy(username,GUEST_USER);
+  }
+  else // User needs to logout
+  {
+    strcpy(username,GUEST_USER);
+    mi->item = loginstr;
+  }
+
+  if (strcmp(username,GUEST_USER)==0)
+  {
+     prepopt->action = OPT_INACTIVE;
+     secret->action = OPT_INVISIBLE;
+  }
+  else 
+  {
+     prepopt->action = OPT_SUBMENU;
+     prepopt->itemdata.radiomenunum = PREPMENU;
+     secret->action = OPT_SUBMENU;
+     secret->itemdata.submenunum = SECRETMENU;
+  }
+  rv.valid = 0;
+  rv.refresh = 1;
+  return rv;
+}
 
 void msys_handler(t_menusystem *ms, t_menuitem *mi)
 {
@@ -58,9 +143,17 @@ void msys_handler(t_menusystem *ms, t_menuitem *mi)
     void *v;
     nc = getnumcols(); // Get number of columns
 
-    if (mi->parindex != PREP) // If we are not in the PREP MENU
+    gotoxy(PWDLINE,PWDCOLUMN,ms->menupage);
+    csprint("User: ",PWDATTR);
+    cprint(ms->fillchar,ms->fillattr,sizeof username,ms->menupage);
+    gotoxy(PWDLINE,PWDCOLUMN +6,ms->menupage);
+    csprint(username,PWDATTR);
+
+    if (mi->parindex != PREPMENU) // If we are not in the PREP MENU
     {
         gotoxy(INFLINE,0,ms->menupage);
+        cprint(' ',0x07,nc,ms->menupage);
+        gotoxy(INFLINE+1,0,ms->menupage);
         cprint(' ',0x07,nc,ms->menupage);
         return;
     }
@@ -86,7 +179,7 @@ void msys_handler(t_menusystem *ms, t_menuitem *mi)
     csprint(infoline,0x07);
 }
 
-void network_handler(t_menusystem *ms, t_menuitem *mi)
+t_handler_return network_handler(t_menusystem *ms, t_menuitem *mi)
 {
   // mi=network since this is handler only for that.
   (void)ms; // Unused
@@ -94,13 +187,14 @@ void network_handler(t_menusystem *ms, t_menuitem *mi)
   if (mi->data == (void *)none) mi->item = nonet;
   if (mi->data == (void *)stat) mi->item = statnet;
   if (mi->data == (void *)dhcp) mi->item = dhcpnet;
+  return ACTION_INVALID;  // VALID or INVALID does not matter
 }
 
-void checkbox_handler(t_menusystem *ms, t_menuitem *mi)
+t_handler_return checkbox_handler(t_menusystem *ms, t_menuitem *mi)
 {
   (void)ms; /* Unused */
 
-    if (mi->action != OPT_CHECKBOX) return;
+    if (mi->action != OPT_CHECKBOX) return ACTION_INVALID;
     
     if (strcmp(mi->data,"baseurl") == 0) flags.baseurl = (mi->itemdata.checked ? 1 : 0);
     if (strcmp(mi->data,"winrepair") == 0) {
@@ -128,6 +222,7 @@ void checkbox_handler(t_menusystem *ms, t_menuitem *mi)
         }
     }
     if (strcmp(mi->data,"mountcd") == 0) flags.mountcd = (mi->itemdata.checked ? 1 : 0);
+  return ACTION_VALID;
 }
 
 /*
@@ -149,18 +244,21 @@ int checkkeypress(int stepsize, int numsteps)
   return 0;
 }
 
-int menumain(char *cmdline)
+int main()
 {
   t_menuitem * curr;
   char cmd[160];
   char ip[30];
 
-  (void)cmdline;		/* Not used */
+  // Set default username as guest
+  strcpy(username,GUEST_USER);
 
   // Switch video mode here
   // setvideomode(0x18); // or whatever mode you want
 
   // Choose the default title and setup default values for all attributes....
+  init_passwords("/isolinux/password");
+  init_help("/isolinux/help");
   init_menusystem(NULL);
   set_window_size(1,1,20,78); // Leave some space around
   
@@ -172,28 +270,29 @@ int menumain(char *cmdline)
   //set_misc_info(-1,-1,-1,-1);
 
   // Register the menusystem handler
-  reg_handler(&msys_handler);
+  reg_handler(HDLR_SCREEN,&msys_handler);
+  reg_handler(HDLR_KEYS,&keys_handler);
   // Register the ontimeout handler, with a time out of 10 seconds
   reg_ontimeout(ontimeout,1000,0);
 
-  NETMENU = add_menu(" Init Network ");
+  NETMENU = add_menu(" Init Network ",-1); 
   none = add_item("<N>one","Dont start network",OPT_RADIOITEM,"no ",0);
   dhcp = add_item("<d>hcp","Use DHCP",OPT_RADIOITEM,"dhcp ",0);
   stat = add_item("<s>tatic","Use static IP I will specify later",OPT_RADIOITEM,"static ",0);
 
-  TESTING = add_menu(" Testing ");
+  TESTING = add_menu(" Testing ",-1);
   set_menu_pos(5,55);
   add_item("<M>emory Test","Perform extensive memory testing",OPT_RUN, "memtest",0);
   add_item("<I>nvisible","You dont see this",OPT_INVISIBLE,"junk",0);
   add_item("<E>xit this menu","Go one level up",OPT_EXITMENU,"exit",0);
 
-  RESCUE = add_menu(" Rescue Options ");
+  RESCUE = add_menu(" Rescue Options ",-1);
   add_item("<L>inux Rescue","linresc",OPT_RUN,"linresc",0);
   add_item("<D>os Rescue","dosresc",OPT_RUN,"dosresc",0);
   add_item("<W>indows Rescue","winresc",OPT_RUN,"winresc",0);
   add_item("<E>xit this menu","Go one level up",OPT_EXITMENU,"exit",0);
 
-  PREP = add_menu(" Prep options ");
+  PREPMENU = add_menu(" Prep options ",-1);
   baseurl = add_item("<b>aseurl by IP?","Specify gui baseurl by IP address",OPT_CHECKBOX,"baseurl",0);
   mountcd = add_item("<m>ountcd?","Mount the cdrom drive?",OPT_CHECKBOX,"mountcd",0);
   network = add_item(dhcpnet,"How to initialise network device?",OPT_RADIOMENU,NULL,NETMENU);
@@ -213,13 +312,70 @@ int menumain(char *cmdline)
   flags.winrep = 0;
   flags.linrep = 0;
 
-  MAIN = add_menu(" Main Menu ");  
-  add_item("<P>repare","prep",OPT_RUN,"prep",0);
-  add_item("<P>rep options...","Options for prep image",OPT_SUBMENU,NULL,PREP);
-  add_item("<R>escue options...","Troubleshoot a system",OPT_SUBMENU,NULL,RESCUE);
-  add_item("<T>esting...","Options to test hardware",OPT_SUBMENU,NULL,TESTING);
-  add_item("<E>xit to prompt", "Exit the menu system", OPT_EXITMENU, "exit", 0);
+  SECRETMENU = add_menu(" Secret Menu ",-1);
+  add_item("secret 1","Secret",OPT_RUN,"A",0);
+  add_item("secret 2","Secret",OPT_RUN,"A",0);
 
+  LONGMENU = add_menu(" Long Menu ",40); // Override default here
+  add_item("<A>a","Aa",OPT_RUN,"A",0);
+  add_item("<B>b","Ab",OPT_RUN,"A",0);
+  add_item("<C>","A",OPT_RUN,"A",0);
+  add_item("<D>","A",OPT_RUN,"A",0);
+  add_item("<E>","A",OPT_RUN,"A",0);
+  add_item("<F>","A",OPT_RUN,"A",0);
+  add_item("<G>","A",OPT_RUN,"A",0);
+  add_item("<H>","A",OPT_RUN,"A",0);
+  add_item("<I>","A",OPT_RUN,"A",0);
+  add_item("<J>","A",OPT_RUN,"A",0);
+  add_item("<K>","A",OPT_RUN,"A",0);
+  add_item("<L>","A",OPT_RUN,"A",0);
+  add_item("<J>","A",OPT_RUN,"A",0);
+  add_item("<K>","A",OPT_RUN,"A",0);
+  add_item("<L>","A",OPT_RUN,"A",0);
+  add_item("<M>","A",OPT_RUN,"A",0);
+  add_item("<N>","A",OPT_RUN,"A",0);
+  add_item("<O>","A",OPT_RUN,"A",0);
+  add_item("<P>","A",OPT_RUN,"A",0);
+  add_item("<Q>","A",OPT_RUN,"A",0);
+  add_item("<R>","A",OPT_RUN,"A",0);
+  add_item("<S>","A",OPT_RUN,"A",0);
+  add_item("<T>","A",OPT_RUN,"A",0);
+  add_item("<U>","A",OPT_RUN,"A",0);
+  add_item("<V>","A",OPT_RUN,"A",0);
+  add_item("<W>","A",OPT_RUN,"A",0);
+  add_item("<X>","A",OPT_RUN,"A",0);
+  add_item("<Y>","A",OPT_RUN,"A",0);
+  add_item("<Z>","A",OPT_RUN,"A",0);
+  add_item("<1>","A",OPT_RUN,"A",0);
+  add_item("<2>","A",OPT_RUN,"A",0);
+  add_item("<3>","A",OPT_RUN,"A",0);
+  add_item("<4>","A",OPT_RUN,"A",0);
+  add_item("<5>","A",OPT_RUN,"A",0);
+  add_item("<6>","A",OPT_RUN,"A",0);
+  add_item("<7>","A",OPT_RUN,"A",0);
+  add_item("<8>","A",OPT_RUN,"A",0);
+  add_item("<9>","A",OPT_RUN,"A",0);
+
+  MAIN = add_menu(" Main Menu ",8);  
+  curr = add_item(loginstr,"Login as a privileged user",OPT_RUN,NULL,0);
+  set_item_options(-1,23);
+  curr->handler = &login_handler;
+
+  add_item("<P>repare","prep",OPT_RUN,"prep",0);
+  set_item_options(-1,24);
+  prepopt = add_item("<P>rep options...","Options for prep image: Requires authenticated user",OPT_INACTIVE,NULL,PREPMENU);
+  set_item_options(-1,25);
+
+  add_item("<R>escue options...","Troubleshoot a system",OPT_SUBMENU,NULL,RESCUE);
+  set_item_options(-1,26);
+  add_item("<T>esting...","Options to test hardware",OPT_SUBMENU,NULL,TESTING);
+  set_item_options(-1,27);
+  add_item("<L>ong Menu...","test menu system",OPT_SUBMENU,NULL,LONGMENU);
+  set_item_options(-1,28);
+  secret = add_item("<S>ecret Menu...","Secret menu",OPT_INVISIBLE,NULL,SECRETMENU);
+  set_item_options(-1,29);
+  add_item("<E>xit to prompt", "Exit the menu system", OPT_EXITMENU, "exit", 0);
+  set_item_options(-1,30);
   csprint("Press any key within 5 seconds to show menu...",0x07);
   if (!checkkeypress(100,50)) // Granularity of 100 milliseconds
     {
@@ -239,13 +395,14 @@ int menumain(char *cmdline)
 		if (network->data == (void *)stat) // We want static
                 {
                     csprint("Enter IP address (last two octets only): ",0x07);
-                    getstring(ip, sizeof ip);
+                    strcpy(ip, "Junk");
+                    editstring(ip, sizeof ip);
                     strcat(cmd,"ipaddr=192.168.");
                     strcat(cmd,ip);
                 }
             }
-            if (syslinux)
-               runcommand(cmd);
+            if (issyslinux())
+               runsyslinuxcmd(cmd);
             else csprint(cmd,0x07);
             return 1; // Should not happen when run from SYSLINUX
         }
@@ -255,6 +412,11 @@ int menumain(char *cmdline)
 
   // if (syslinux) runcommand(YOUR_COMMAND_HERE);
   // else csprint(YOUR_COMMAND_HERE,0x07);
+
+  // Deallocate space used for these data structures
+  close_passwords();
+  close_help();
+  close_menusystem(); 
 
   // Return to prompt
   return 0;
