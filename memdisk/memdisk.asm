@@ -511,9 +511,9 @@ bcopy:
 		or al,01h
 		mov cr0,eax
 
-		mov ax,16		; Large flag segment
-		mov ds,ax
-		mov es,ax
+		mov bx,16		; Large flat segment
+		mov ds,bx
+		mov es,bx
 
 		a32 rep movsd
 
