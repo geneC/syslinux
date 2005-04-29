@@ -88,6 +88,7 @@ struct patch_area {
   uint8_t  configflags;
 #define CONFIG_READONLY	0x01
 #define CONFIG_RAW	0x02
+#define CONFIG_BIGRAW	0x08		/* MUST be 8! */
 
   uint16_t mystack;
   uint16_t statusptr;
@@ -586,6 +587,10 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   if ( getcmditem("raw") != CMD_NOTFOUND ) {
     puts("Using raw access to high memory\n");
     pptr->configflags |= CONFIG_RAW;
+  }
+  if ( getcmditem("bigraw") != CMD_NOTFOUND ) {
+    puts("Using raw access to high memory - assuming big real mode\n");
+    pptr->configflags |= CONFIG_BIGRAW|CONFIG_RAW;
   }
 
   /* Set up a drive parameter table */

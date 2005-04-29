@@ -16,6 +16,8 @@ Changes in 3.08:
 	* Fix configuration file parsing error, that could cause
 	  hangs.
 	* Rewritten advanced menuing system from Murali Ganapathy.
+	* MEMDISK: New "bigraw" mode to work around certain broken
+	  BIOS flash programs.
 
 Changes in 3.07:
 	* Fix chainloading (chain.c32).

@@ -37,6 +37,10 @@
 
 %endif	; DEBUG_TRACERS
 
+%define CONFIG_READONLY	0x01
+%define CONFIG_RAW	0x02
+%define CONFIG_BIGRAW	0x08		; MUST be 8!
+
 		org 0h
 
 %define SECTORSIZE_LG2	9		; log2(sector size)
@@ -242,7 +246,7 @@ WriteMult:
 		TRACER 'M'
 Write:
 		TRACER 'W'
-		test byte [ConfigFlags],01h
+		test byte [ConfigFlags],CONFIG_READONLY
 		jnz .readonly
 		call setup_regs
 		xchg esi,edi		; Opposite direction of a Read!
@@ -448,7 +452,7 @@ bcopy:
 		push edx
 		push ebp
 
-		test byte [ConfigFlags],02h
+		test byte [ConfigFlags],CONFIG_RAW
 		jz .anymode
 
 		smsw ax			; Unprivileged!
@@ -489,24 +493,32 @@ bcopy:
 		mov [0],ax
 
 		or dx,bx
+		push dx			; Save A20 status
 		jnz .skip_a20e
 
 		mov ax,2401h		; Enable A20
 		int 15h
 .skip_a20e:
+		mov dl,[ConfigFlags]
+		and dx,CONFIG_BIGRAW
+		add dx,8
+		; DX = 16 for BIGRAW, 8 for RAW
+		;  8 is selector for a 64K flat segment,
+		; 16 is selector for a 4GB flat segment.	
 
 		lgdt [cs:Shaker]
 		mov eax,cr0
 		or al,01h
 		mov cr0,eax
 
-		mov bx,8
-		mov ds,bx
-		mov es,bx
+		mov ax,16		; Large flag segment
+		mov ds,ax
+		mov es,ax
 
 		a32 rep movsd
 
-		add bx,bx		; BX <- 16
+		; DX has the appropriate value to put in
+		; the registers on return
 		mov ds,bx
 		mov es,bx
 
@@ -516,6 +528,7 @@ bcopy:
 		pop es
 		pop ds
 
+		pop dx			; A20 status
 		and dx,dx
 		jnz .skip_a20d
 		mov ax,2400h		; Disable A20
@@ -671,11 +684,11 @@ Shaker		dw ShakerEnd-$
 		dd 0			; Pointer to self
 		dw 0
 
-Shaker_DS:	dd 0x0000ffff
-		dd 0x008f9300
-
-Shaker_RMDS:	dd 0x0000ffff
+Shaker_RMDS:	dd 0x0000ffff		; 64K data segment
 		dd 0x00009300
+
+Shaker_DS:	dd 0x0000ffff		; 4GB data segment
+		dd 0x008f9300
 
 ShakerEnd	equ $
 

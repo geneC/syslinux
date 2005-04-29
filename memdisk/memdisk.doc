@@ -72,11 +72,13 @@ d) MEMDISK normally uses the BIOS "INT 15h mover" API to access high
    memory.  This is well-behaved with extended memory managers which load
    later.  Unfortunately it appears that the "DOS boot disk" from
    WinME/XP *deliberately* crash the system when this API is invoked.
-   The following command-line option tells MEMDISK to enter protected
+   The following command-line options tells MEMDISK to enter protected
    mode directly, whenever possible:
 
-   raw		Use raw access to protected mode memory
+   raw		Use raw access to protected mode memory.
 
+   bigraw	Use raw access to protected mode memory, and leave the
+		CPU in "big real" mode afterwards.
 
 
 Some interesting things to note:
