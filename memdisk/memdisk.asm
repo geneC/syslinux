@@ -519,8 +519,8 @@ bcopy:
 
 		; DX has the appropriate value to put in
 		; the registers on return
-		mov ds,bx
-		mov es,bx
+		mov ds,dx
+		mov es,dx
 
 		and al,~01h
 		mov cr0,eax
