@@ -18,6 +18,11 @@ Changes in 3.08:
 	* Rewritten advanced menuing system from Murali Ganapathy.
 	* MEMDISK: New "bigraw" mode to work around certain broken
 	  BIOS flash programs.
+	* COM32 module to boot Multiboot systems, including Xen.  See
+	  com32/modules/mboot.doc.
+	* Max command line changed to 1024 characters.  Note that the
+	  kernel proper still can only handle 255 characters without
+	  patching, and COM16 binaries can only handle 125 characters.
 
 Changes in 3.07:
 	* Fix chainloading (chain.c32).

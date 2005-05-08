@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 2002-2004 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2002-2005 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 %ifndef _CONFIG_INC
 %define _CONFIG_INC
 
-max_cmd_len	equ 255			; Must be odd; 255 is the kernel limit
+max_cmd_len	equ 1023		; Must be odd; 255 is the kernel limit
 HIGHMEM_MAX	equ 037FFFFFFh		; DEFAULT highest address for an initrd
 DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
 BAUD_DIVISOR	equ 115200		; Serial port parameter

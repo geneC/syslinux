@@ -345,9 +345,12 @@ need_high_cmdline:
 		mov [fs:kern_cmd_offset],di	; Store pointer
 
 		mov cx,[CmdLineLen]
-		add cx,byte 3
-		shr cx,2			; Convert to dwords
-		fs rep movsd
+		cmp cx,255
+		jna .len_ok
+		mov cx,255			; Protocol < 0x202 has 255 as hard limit
+.len_ok:
+		fs rep movsb
+		fs stosb			; Final null, note AL == 0 here		
 
 		push fs
 		pop es
