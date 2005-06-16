@@ -4,6 +4,7 @@ them.
 
 Changes in 3.09:
 	* gcc4 compilation fix.
+	* <BEL> (Ctrl-G) in message files now causes a beep.
 
 Changes in 3.08:
 	* SYSLINUX: Fix performance regression (-s mode always

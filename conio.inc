@@ -99,6 +99,8 @@ msg_putchar:                                    ; Normal character
                 je msg_newline
                 cmp al,0Ch                      ; <FF> = clear screen
                 je msg_formfeed
+		cmp al,07h			; <BEL> = beep
+		je msg_beep
 		cmp al,19h			; <EM> = return to text mode
 		je msg_novga
 		cmp al,18h			; <CAN> = VGA filename follows
@@ -129,6 +131,12 @@ msg_gotoxy:     mov bh,[BIOS_page]
                 mov ah,02h                      ; Set cursor position
                 int 10h
 msg_ignore:     ret
+
+msg_beep:	mov ax,0E07h			; Beep
+		xor bx,bx
+		int 10h
+		ret
+
 msg_ctrl_o:                                     ; ^O = color code follows
                 mov word [NextCharJump],msg_setbg
                 ret

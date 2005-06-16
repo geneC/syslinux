@@ -440,6 +440,9 @@ are interpreted:
 <SUB>                                   <SUB> = <Ctrl-Z> = ASCII 26
         End of file (DOS convention).
 
+<BEL>					<BEL> = <Ctrl-G> = ASCII 7
+	Beep the speaker.
+
 
    ++++ COMMAND LINE KEYSTROKES ++++
 
