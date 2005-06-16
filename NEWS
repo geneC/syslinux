@@ -5,6 +5,8 @@ them.
 Changes in 3.09:
 	* gcc4 compilation fix.
 	* <BEL> (Ctrl-G) in message files now causes a beep.
+	* Reduce the command line to 511 characters; 1023 caused
+	  memory overflows.
 
 Changes in 3.08:
 	* SYSLINUX: Fix performance regression (-s mode always
@@ -24,7 +26,7 @@ Changes in 3.08:
 	  BIOS flash programs.
 	* COM32 module to boot Multiboot systems, including Xen.  See
 	  com32/modules/mboot.doc.
-	* Max command line changed to 1024 characters.  Note that the
+	* Max command line changed to 1023 characters.  Note that the
 	  kernel proper still can only handle 255 characters without
 	  patching, and COM16 binaries can only handle 125 characters.
 

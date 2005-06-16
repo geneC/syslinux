@@ -337,7 +337,7 @@ need_high_cmdline:
 ;
 ; Copy command line up to 90000h
 ;
-		mov ax,9000h
+		mov ax,9000h			; Note AL <- 0
 		mov es,ax
 		mov si,cmd_line_here
 		mov di,si
@@ -350,7 +350,7 @@ need_high_cmdline:
 		mov cx,255			; Protocol < 0x202 has 255 as hard limit
 .len_ok:
 		fs rep movsb
-		fs stosb			; Final null, note AL == 0 here		
+		stosb				; Final null, note AL == 0 already
 
 		push fs
 		pop es
