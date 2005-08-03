@@ -17,6 +17,7 @@ enum pci_config_type {
   PCI_CFG_AUTO		= 0,	/* autodetect */
   PCI_CFG_TYPE1		= 1,
   PCI_CFG_TYPE2		= 2,
+  PCI_CFG_BIOS          = 3,
 };
 
 void pci_set_config_type(enum pci_config_type);
