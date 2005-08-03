@@ -431,28 +431,36 @@ getlinsec:
 ; getlinsec implementation for EBIOS (EDD)
 ;
 getlinsec_ebios:
-                mov si,dapa                     ; Load up the DAPA
-                mov [si+4],bx
-                mov [si+6],es
-                mov [si+8],eax
 .loop:
                 push bp                         ; Sectors left
 		call maxtrans			; Enforce maximum transfer size
-.bp_ok:
-                mov [si+2],bp
+		movzx ecx,bp			; Sectors we are about to read
+
+		; Form DAPA on stack
+		push dword 0
+		push eax
+		push es
+		push bx
+		push bp
+		push word 16
+		mov si,sp
                 mov dl,[DriveNumber]
                 mov ah,42h                      ; Extended Read
+		push ds
+		push ss
+		pop ds				; DS <- SS
                 call xint13
+		pop ds
+
+		add sp,16			; Remove DAPA
                 pop bp
-                movzx eax,word [si+2]           ; Sectors we read
-                add [si+8],eax                  ; Advance sector pointer
-                sub bp,ax                       ; Sectors left
-                shl ax,9                        ; 512-byte sectors
-                add [si+4],ax                   ; Advance buffer pointer
+		add eax,ecx			; Advance sector pointer
+		sub bp,cx			; Sectors left
+                shl cx,9                        ; 512-byte sectors
+                add bx,cx                   	; Advance buffer pointer
                 and bp,bp
                 jnz .loop
-                mov eax,[si+8]                  ; Next sector
-                mov bx,[si+4]                   ; Buffer pointer
+
                 ret
 
 ;
@@ -529,19 +537,6 @@ maxtrans:
 ; Error message on failure
 ;
 bailmsg:	db 'Boot failed', 0Dh, 0Ah, 0
-
-;
-; EBIOS disk address packet
-;
-		align 4, db 0
-dapa:
-                dw 16                           ; Packet size
-.count:         dw 0                            ; Block count
-.off:           dw 0                            ; Offset of buffer
-.seg:           dw 0                            ; Segment of buffer
-.lba:           dd 0                            ; LBA (LSW)
-                dd 0                            ; LBA (MSW)
-
 
 %if 1
 bs_checkpt_off	equ ($-$$)
