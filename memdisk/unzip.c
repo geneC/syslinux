@@ -70,7 +70,7 @@ static void error(char *m);
 static void gzip_mark(void **);
 static void gzip_release(void **);
 
-extern ulg crc_32_tab[256];
+static ulg crc_32_tab[256];
 
 /* Get byte from input buffer */
 static inline uch get_byte(void)
