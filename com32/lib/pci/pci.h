@@ -10,5 +10,7 @@
 #include <sys/cpu.h>
 
 extern enum pci_config_type __pci_cfg_type;
+extern uint32_t __pci_read_bios(uint32_t call, pciaddr_t a);
+extern void __pci_write_bios(uint32_t call, uint32_t v, pciaddr_t a);
 
 #endif /* PCI_PCI_H */

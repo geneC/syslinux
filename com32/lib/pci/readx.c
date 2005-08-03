@@ -1,4 +1,5 @@
 #include "pci/pci.h"
+#include <string.h>
 
 TYPE BWL(pci_read) (pciaddr_t a)
 {
@@ -40,6 +41,9 @@ TYPE BWL(pci_read) (pciaddr_t a)
 	sti();
       }
       return r;
+
+    case PCI_CFG_BIOS:
+      return (TYPE) __pci_read_bios(BIOSCALL, a);
       
     default:
       return (TYPE)~0;

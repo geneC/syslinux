@@ -1,7 +1,8 @@
 # Include configuration rules
 include MCONFIG
 
-LIBOBJS = abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o	\
+LIBOBJS = \
+	abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o		\
 	ctypes.o errno.o fgetc.o fgets.o fopen.o fprintf.o fputc.o	\
 	putchar.o							\
 	fputs.o fread2.o fread.o free.o fwrite2.o fwrite.o getopt.o	\
@@ -15,10 +16,13 @@ LIBOBJS = abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o	\
 	strtoimax.o strtok.o strtol.o strtoll.o strtoul.o strtoull.o	\
 	strtoumax.o vfprintf.o vprintf.o vsnprintf.o vsprintf.o		\
 	asprintf.o vasprintf.o strlcpy.o strlcat.o 			\
-	vsscanf.o libgcc/__ashldi3.o libgcc/__udivdi3.o			\
+	vsscanf.o							\
+	\
+	libgcc/__ashldi3.o libgcc/__udivdi3.o			\
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
 	libgcc/__divdi3.o libgcc/__moddi3.o 				\
+	\
 	sys/entry.o sys/exit.o sys/argv.o sys/times.o sys/idle.o	\
 	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
@@ -27,11 +31,15 @@ LIBOBJS = abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o	\
 	sys/rawcon_write.o sys/err_read.o sys/err_write.o		\
 	sys/null_read.o sys/null_write.o sys/serial_write.o		\
 	sys/ansicon_write.o sys/ansiserial_write.o			\
-	pci/cfgtype.o pci/readb.o pci/readw.o pci/readl.o 		\
-	pci/writeb.o pci/writew.o pci/writel.o				\
+	\
+	pci/cfgtype.o 							\
+	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o 		\
+	pci/writeb.o pci/writew.o pci/writel.o pci/writebios.o 		\
+	\
 	zlib/adler32.o zlib/compress.o zlib/crc32.o zlib/gzio.o 	\
 	zlib/uncompr.o zlib/deflate.o zlib/trees.o zlib/zutil.o 	\
 	zlib/inflate.o zlib/infback.o zlib/inftrees.o zlib/inffast.o	\
+	\
 	libpng/png.o libpng/pngset.o libpng/pngrutil.o			\
 	libpng/pngtrans.o libpng/pngwutil.o libpng/pngread.o		\
 	libpng/pngrio.o libpng/pngwio.o libpng/pngwrite.o		\

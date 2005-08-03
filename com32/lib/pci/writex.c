@@ -37,9 +37,14 @@ void BWL(pci_write) (TYPE v, pciaddr_t a)
 	outb(oldcfa, 0xcfa);
 	sti();
       }
+      return;
+
+    case PCI_CFG_BIOS:
+      __pci_write_bios(BIOSCALL, v, a);
+      return;
 
     default:
-      return;			/* Do nothing */
+      return;
     }
   }
 }
