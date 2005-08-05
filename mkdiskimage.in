@@ -76,7 +76,7 @@ if ( $opt{'M'} ) {
 
 $is_open = 0;
 
-if ( $c == 0 ) {
+if ( $c == 0 && $file ne '' ) {
     $len = 0;
     if ( sysopen(OUTPUT, $file, O_RDWR, 0666) ) {
 	$is_open = 1;
@@ -99,9 +99,9 @@ if ( $c == 0 ) {
     $c = $len/($h*$s);
 }
 
-if ( !$file || $c < 1 || $c > 1024 ||
+if ( $file eq '' || $c < 1 || $c > 1024 ||
      $h < 1 || $h > 256 || $s < 1 || $s > 63 ) {
-    print STDERR "Usage: $0 [-doF4] file c h s (max: 1024 256 63)\n";
+    print STDERR "Usage: $0 [-doF4] file [c h s] (max: 1024 256 63)\n";
     print STDERR "    -d    add DOSEMU header\n";
     print STDERR "    -o    print filesystem offset to stdout\n";
     print STDERR "    -F    format partition as FAT32\n";
