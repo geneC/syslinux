@@ -19,8 +19,9 @@ void pci_set_config_type(enum pci_config_type type)
     __intcall(0x1a, &ireg, &oreg);
 
     if ( !(oreg.eflags.l & EFLAGS_CF) &&
-	 oreg.edx.l == 0x20494250 ) {
-      type = (oreg.edi.l & 1) ? PCI_CFG_TYPE1 : PCI_CFG_BIOS;
+	 oreg.eax.b[1] == 0 && oreg.edx.l == 0x20494250 ) {
+      /* Use CM#1 if it is present, otherwise BIOS calls. CM#2 is evil. */
+      type = (oreg.eax.b[0] & 1) ? PCI_CFG_TYPE1 : PCI_CFG_BIOS;
     } else {
       /* Try to detect CM #1 */
       cli();
