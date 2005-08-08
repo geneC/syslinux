@@ -39,7 +39,7 @@ FILENAME_MAX_LG2 equ 4			; log2(Max filename size Including final null)
 FILENAME_MAX	equ 11			; Max mangled filename size
 NULLFILE	equ ' '			; First char space == null filename
 NULLOFFSET	equ 0			; Position in which to look
-retry_count	equ 6			; How patient are we with the disk?
+retry_count	equ 16			; How patient are we with the disk?
 %assign HIGHMEM_SLOP 0			; Avoid this much memory near the top
 LDLINUX_MAGIC	equ 0x3eb202fe		; A random number to identify ourselves with
 
@@ -352,6 +352,7 @@ eddcheck:
 ;
 ; kaboom: write a message and bail out.
 ;
+disk_error:
 kaboom:
 		xor si,si
 		mov ss,si		
@@ -380,23 +381,6 @@ writestr:
 		int 10h
 		jmp short .loop
 .return:	ret
-
-;
-; xint13: wrapper for int 13h which will retry 6 times and then die,
-;	  AND save all registers except BP
-;
-xint13:
-.again:
-                mov bp,retry_count
-.loop:          pushad
-                int 13h
-                popad
-                jnc writestr.return
-                dec bp
-                jnz .loop
-.disk_error:
-		jmp strict near kaboom	; Patched
-
 
 ;
 ; getonesec: get one disk sector
@@ -435,12 +419,14 @@ getlinsec_ebios:
                 push bp                         ; Sectors left
 		call maxtrans			; Enforce maximum transfer size
 		movzx ecx,bp			; Sectors we are about to read
+		mov bp,retry_count
+.retry:
 
 		; Form DAPA on stack
 		push dword 0
 		push eax
 		push es
-		push bx
+		push cx
 		push bp
 		push word 16
 		mov si,sp
@@ -449,19 +435,40 @@ getlinsec_ebios:
 		push ds
 		push ss
 		pop ds				; DS <- SS
-                call xint13
+		pushad
+		int 13h
+		popad
 		pop ds
-
-		add sp,16			; Remove DAPA
+		lea sp,[si+16]			; Remove DAPA
                 pop bp
+		jc .error
+
 		add eax,ecx			; Advance sector pointer
 		sub bp,cx			; Sectors left
-                shl cx,9                        ; 512-byte sectors
+                shl cx,SECTOR_SHIFT		; 512-byte sectors
                 add bx,cx                   	; Advance buffer pointer
                 and bp,bp
                 jnz .loop
 
                 ret
+
+.error:
+		; Some systems seem to get "stuck" in an error state when
+		; using EBIOS.  Doesn't happen when using CBIOS, which is
+		; good, since some other systems get timeout failures
+		; waiting for the floppy disk to spin up.
+
+		pushad				; Try resetting the device
+		xor ax,ax
+		int 13h
+		popad
+		dec bp
+		jnz .retry
+
+		shr word [MaxTransfer],1	; Reduce the transfer size
+		jnz .loop
+
+		jmp disk_error
 
 ;
 ; getlinsec_cbios:
@@ -487,6 +494,9 @@ getlinsec_cbios:
 					; EDX <- 0
 		; eax = track #
 		div edi			; Convert track to head/cyl
+		; cmp eax,1023
+		; ja .error
+
 		;
 		; Now we have AX = cyl, DX = head, CX = sector (0-based),
 		; BP = sectors to transfer, SI = bsSecPerTrack,
@@ -512,7 +522,13 @@ getlinsec_cbios:
 		mov dl,[DriveNumber]
 		xchg ax,bp		; Sector to transfer count
 		mov ah,02h		; Read sectors
-		call xint13
+		mov bp,retry_count
+.retry:
+		pushad
+		int 13h
+		popad
+		jc .error
+.resume:
 		movzx ecx,al
 		shl ax,9		; Convert sectors in AL to bytes in AX
 		pop bx
@@ -523,6 +539,16 @@ getlinsec_cbios:
 		sub bp,cx
 		jnz .loop
 		ret
+
+.error:
+		dec bp
+		jnz .retry
+
+		xor ax,ax		; Sectors transferred <- 0
+		shr word [MaxTransfer],1
+		jnz .resume
+
+		jmp disk_error
 
 ;
 ; Truncate BP to MaxTransfer
@@ -536,7 +562,7 @@ maxtrans:
 ;
 ; Error message on failure
 ;
-bailmsg:	db 'Boot failed', 0Dh, 0Ah, 0
+bailmsg:	db 'ERR', 0Dh, 0Ah, 0
 
 %if 1
 bs_checkpt_off	equ ($-$$)
@@ -603,11 +629,6 @@ ldlinux_ent:
 ;
 		mov si,syslinux_banner
 		call writestr
-
-;
-; Patch disk error handling
-;
-		mov word [xint13.disk_error+1],do_disk_error-(xint13.disk_error+3)
 
 ;
 ; Now we read the rest of LDLINUX.SYS.	Don't bother loading the first
@@ -679,26 +700,6 @@ getlinsecsr:	pushad
 		call getlinsec
 		popad
 		ret
-
-;
-; This routine captures disk errors, and tries to decide if it is
-; time to reduce the transfer size.
-;
-do_disk_error:
-		cmp ah,42h
-		je .ebios
-		shr al,1		; Try reducing the transfer size
-		mov [MaxTransfer],al	
-		jz kaboom		; If we can't, we're dead...
-		jmp xint13		; Try again
-.ebios:
-		push ax
-		mov ax,[si+2]
-		shr ax,1
-		mov [MaxTransfer],ax
-		mov [si+2],ax
-		pop ax
-		jmp xint13
 
 ;
 ; Checksum error message
