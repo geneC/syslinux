@@ -211,6 +211,8 @@ pciscan(struct match *list)
   pciaddr_t a;
   struct match *m;
 
+  pci_set_config_type(PCI_CFG_AUTO);
+
   for ( bus = 0 ; bus <= 0xff ; bus++ ) {
     for ( dev = 0 ; dev <= 0x1f ; dev++ ) {
       maxfunc = 0;
