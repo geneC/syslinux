@@ -77,20 +77,11 @@ extern struct com32_sys_args {
 } __com32;
 
 /*
- * System call macros
+ * System call wrapper functions
  */
-static inline void
-__intcall(uint8_t __i, const com32sys_t *__sr, com32sys_t *__dr)
-{
-  __com32.cs_intcall(__i, __sr, __dr);
-}
-
-static inline void
-__farcall(uint16_t __es, uint16_t __eo,
-	  const com32sys_t *__sr, com32sys_t *__dr)
-{
-  __com32.cs_farcall((__es << 16) + __eo, __sr, __dr);
-}
+void __intcall(uint8_t __i, const com32sys_t *__sr, com32sys_t *__dr);
+void __farcall(uint16_t __es, uint16_t __eo,
+	       const com32sys_t *__sr, com32sys_t *__dr);
 
 /*
  * These functions convert between linear pointers in the range

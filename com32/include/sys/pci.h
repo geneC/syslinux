@@ -14,13 +14,14 @@ static inline pciaddr_t pci_mkaddr(uint32_t bus, uint32_t dev,
 }
 
 enum pci_config_type {
+  PCI_CFG_NONE          = -1,	/* badness */
   PCI_CFG_AUTO		= 0,	/* autodetect */
   PCI_CFG_TYPE1		= 1,
   PCI_CFG_TYPE2		= 2,
   PCI_CFG_BIOS          = 3,
 };
 
-void pci_set_config_type(enum pci_config_type);
+enum pci_config_type pci_set_config_type(enum pci_config_type);
 
 uint8_t pci_readb(pciaddr_t);
 uint16_t pci_readw(pciaddr_t);
