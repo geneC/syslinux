@@ -6,6 +6,9 @@ Changes in 3.10:
 	* gcc 4.0.1 compilation fixes.
 	* Add support for querying the PCI BIOS in libcom32
 	  (used by ethersel et al.)
+	* Fix PCI handing (ethersel etc) on several old chipsets (and
+	  VMWare.)
+	* Try to deal with systems with broken EBIOS.
 
 Changes in 3.09:
 	* gcc4 compilation fix.
