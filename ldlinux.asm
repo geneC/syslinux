@@ -311,7 +311,6 @@ not_harddisk:
 ;
 		sti
 
-
 ;
 ; Do we have EBIOS (EDD)?
 ;
@@ -328,7 +327,8 @@ eddcheck:
 		;
 		; We have EDD support...
 		;
-		mov byte [getlinsec.jmp+1],getlinsec_ebios-(getlinsec.jmp+2)
+		; 0xEB = short jump
+		mov word [getlinsec_cbios],((getlinsec_ebios-(getlinsec_cbios+2)) << 8) + 0xeb
 .noedd:
 
 ;
@@ -341,46 +341,11 @@ eddcheck:
 		call getonesec
 		
 		; Some modicum of integrity checking
-		cmp dword [ldlinux_magic],LDLINUX_MAGIC
-		jne kaboom
-		cmp dword [ldlinux_magic+4],HEXDATE
+		cmp dword [ldlinux_magic+4],LDLINUX_MAGIC^HEXDATE
 		jne kaboom
 
 		; Go for it...
 		jmp ldlinux_ent
-
-;
-; kaboom: write a message and bail out.
-;
-disk_error:
-kaboom:
-		xor si,si
-		mov ss,si		
-		mov sp,StackBuf-4 	; Reset stack
-		mov ds,si		; Reset data segment
-		pop dword [fdctab]	; Restore FDC table
-.patch:		mov si,bailmsg
-		call writestr		; Returns with AL = 0
-		cbw			; AH <- 0
-		int 16h			; Wait for keypress
-		int 19h			; And try once more to boot...
-.norge:		jmp short .norge	; If int 19h returned; this is the end
-
-;
-;
-; writestr: write a null-terminated string to the console
-;	    This assumes we're on page 0.  This is only used for early
-;           messages, so it should be OK.
-;
-writestr:
-.loop:		lodsb
-		and al,al
-                jz .return
-		mov ah,0Eh		; Write to screen as TTY
-		mov bx,0007h		; Attribute
-		int 10h
-		jmp short .loop
-.return:	ret
 
 ;
 ; getonesec: get one disk sector
@@ -407,69 +372,9 @@ getonesec:
 ;
 getlinsec:
 		add eax,[bsHidden]		; Add partition offset
-.jmp:		jmp strict short getlinsec_cbios	; This is patched
+		xor edx,edx			; Zero-extend LBA (eventually allow 64 bits)
 
-;
-; getlinsec_ebios:
-;
-; getlinsec implementation for EBIOS (EDD)
-;
-getlinsec_ebios:
-.loop:
-                push bp                         ; Sectors left
-		call maxtrans			; Enforce maximum transfer size
-		movzx ecx,bp			; Sectors we are about to read
-		mov bp,retry_count
-.retry:
-
-		; Form DAPA on stack
-		push dword 0
-		push eax
-		push es
-		push cx
-		push bp
-		push word 16
-		mov si,sp
-                mov dl,[DriveNumber]
-                mov ah,42h                      ; Extended Read
-		push ds
-		push ss
-		pop ds				; DS <- SS
-		pushad
-		int 13h
-		popad
-		pop ds
-		lea sp,[si+16]			; Remove DAPA
-                pop bp
-		jc .error
-
-		add eax,ecx			; Advance sector pointer
-		sub bp,cx			; Sectors left
-                shl cx,SECTOR_SHIFT		; 512-byte sectors
-                add bx,cx                   	; Advance buffer pointer
-                and bp,bp
-                jnz .loop
-
-                ret
-
-.error:
-		; Some systems seem to get "stuck" in an error state when
-		; using EBIOS.  Doesn't happen when using CBIOS, which is
-		; good, since some other systems get timeout failures
-		; waiting for the floppy disk to spin up.
-
-		pushad				; Try resetting the device
-		xor ax,ax
-		int 13h
-		popad
-		dec bp
-		jnz .retry
-
-		shr word [MaxTransfer],1	; Reduce the transfer size
-		jnz .loop
-
-		jmp disk_error
-
+		; Fall through.  In the case of EBIOS, we patch over the first instruction.
 ;
 ; getlinsec_cbios:
 ;
@@ -477,6 +382,7 @@ getlinsec_ebios:
 ;
 getlinsec_cbios:
 .loop:
+		push edx
 		push eax
 		push bp
 		push bx
@@ -487,13 +393,14 @@ getlinsec_cbios:
 		; Dividing by sectors to get (track,sector): we may have
 		; up to 2^18 tracks, so we need to use 32-bit arithmetric.
 		;
-		xor edx,edx		; Zero-extend LBA to 64 bits
 		div esi
 		xor cx,cx
 		xchg cx,dx		; CX <- sector index (0-based)
 					; EDX <- 0
 		; eax = track #
 		div edi			; Convert track to head/cyl
+
+		; We should test this, but it doesn't fit...
 		; cmp eax,1023
 		; ja .error
 
@@ -529,12 +436,13 @@ getlinsec_cbios:
 		popad
 		jc .error
 .resume:
-		movzx ecx,al
-		shl ax,9		; Convert sectors in AL to bytes in AX
+		movzx ecx,al		; ECX <- sectors transferred
+		shl ax,SECTOR_SHIFT	; Convert sectors in AL to bytes in AX
 		pop bx
 		add bx,ax
 		pop bp
 		pop eax
+		pop edx
 		add eax,ecx
 		sub bp,cx
 		jnz .loop
@@ -546,9 +454,97 @@ getlinsec_cbios:
 
 		xor ax,ax		; Sectors transferred <- 0
 		shr word [MaxTransfer],1
-		jnz .resume
-
+		jnz .error
 		jmp disk_error
+
+;
+; getlinsec_ebios:
+;
+; getlinsec implementation for EBIOS (EDD)
+;
+getlinsec_ebios:
+.loop:
+                push bp                         ; Sectors left
+.retry2:
+		call maxtrans			; Enforce maximum transfer size
+		movzx edi,bp			; Sectors we are about to read
+		mov cx,retry_count
+.retry:
+
+		; Form DAPA on stack
+		push edx
+		push eax
+		push es
+		push bx
+		push di
+		push word 16
+		mov si,sp
+                mov dl,[DriveNumber]
+                mov ah,42h                      ; Extended Read
+		push ds
+		push ss
+		pop ds				; DS <- SS
+		pushad
+		int 13h
+		popad
+		pop ds
+		lea sp,[si+16]			; Remove DAPA
+		jc .error
+        	pop bp
+		add eax,edi			; Advance sector pointer
+		sub bp,di			; Sectors left
+                shl di,SECTOR_SHIFT		; 512-byte sectors
+                add bx,di                   	; Advance buffer pointer
+                and bp,bp
+                jnz .loop
+
+                ret
+
+.error:
+		; Some systems seem to get "stuck" in an error state when
+		; using EBIOS.  Doesn't happen when using CBIOS, which is
+		; good, since some other systems get timeout failures
+		; waiting for the floppy disk to spin up.
+
+		pushad				; Try resetting the device
+		xor ax,ax
+		int 13h
+		popad
+		loop .retry			; CX-- and jump if not zero
+
+		shr word [MaxTransfer],1	; Reduce the transfer size
+		jnz .retry2
+
+		; Fall back to CBIOS here?
+
+		; Fall through to disk_error
+
+;
+; kaboom: write a message and bail out.
+;
+disk_error:
+kaboom:
+		xor si,si
+		mov ss,si		
+		mov sp,StackBuf-4 	; Reset stack
+		mov ds,si		; Reset data segment
+		pop dword [fdctab]	; Restore FDC table
+.patch:					; When we have full code, intercept here
+		mov si,bailmsg
+
+		; Write error message, this assumes screen page 0
+.loop:		lodsb
+		and al,al
+                jz .done
+		mov ah,0Eh		; Write to screen as TTY
+		mov bx,0007h		; Attribute
+		int 10h
+		jmp short .loop
+.done:
+		cbw			; AH <- 0
+		int 16h			; Wait for keypress
+		int 19h			; And try once more to boot...
+.norge:		jmp short .norge	; If int 19h returned; this is the end
 
 ;
 ; Truncate BP to MaxTransfer
@@ -559,10 +555,11 @@ maxtrans:
 		mov bp,[MaxTransfer]
 .ok:		ret
 
+
 ;
 ; Error message on failure
 ;
-bailmsg:	db 'ERR', 0Dh, 0Ah, 0
+bailmsg:	db 'Boot failed', 0Dh, 0Ah, 0
 
 %if 1
 bs_checkpt_off	equ ($-$$)
@@ -598,7 +595,7 @@ syslinux_banner	db 0Dh, 0Ah
 
 		align 8, db 0
 ldlinux_magic	dd LDLINUX_MAGIC
-		dd HEXDATE
+		dd LDLINUX_MAGIC^HEXDATE
 
 ;
 ; This area is patched by the installer.  It is found by looking for
@@ -692,6 +689,22 @@ verify_checksum:
 ; -----------------------------------------------------------------------------
 ; Subroutines that have to be in the first sector
 ; -----------------------------------------------------------------------------
+
+;
+;
+; writestr: write a null-terminated string to the console
+;	    This assumes we're on page 0.  This is only used for early
+;           messages, so it should be OK.
+;
+writestr:
+.loop:		lodsb
+		and al,al
+                jz .return
+		mov ah,0Eh		; Write to screen as TTY
+		mov bx,0007h		; Attribute
+		int 10h
+		jmp short .loop
+.return:	ret
 
 ;
 ; getlinsecsr: save registers, call getlinsec, restore registers
