@@ -28,7 +28,7 @@ TYPE BWL(pci_read) (pciaddr_t a)
 	uint8_t oldcf8, oldcfa;
 	
 	if ( a & (0x10 << 11) )
-	  return (TYPE)~0;
+	  return (TYPE)~0;	/* Device 16-31 not supported */
 	
 	cli();
 	oldcf8 = inb(0xcf8);

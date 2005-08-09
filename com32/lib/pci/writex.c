@@ -25,7 +25,7 @@ void BWL(pci_write) (TYPE v, pciaddr_t a)
 	uint8_t oldcf8, oldcfa;
 	
 	if ( a & (0x10 << 11) )
-	  return;
+	  return;		/* Devices 16-31 not supported */
 	
 	cli();
 	oldcf8 = inb(0xcf8);
