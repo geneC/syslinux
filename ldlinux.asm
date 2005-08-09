@@ -327,8 +327,7 @@ eddcheck:
 		;
 		; We have EDD support...
 		;
-		; 0xEB = short jump
-		mov word [getlinsec_cbios],((getlinsec_ebios-(getlinsec_cbios+2)) << 8) + 0xeb
+		mov byte [getlinsec.jmp+1],(getlinsec_ebios-(getlinsec.jmp+2))
 .noedd:
 
 ;
@@ -374,7 +373,73 @@ getlinsec:
 		add eax,[bsHidden]		; Add partition offset
 		xor edx,edx			; Zero-extend LBA (eventually allow 64 bits)
 
-		; Fall through.  In the case of EBIOS, we patch over the first instruction.
+.jmp:		jmp strict short getlinsec_cbios
+
+;
+; getlinsec_ebios:
+;
+; getlinsec implementation for EBIOS (EDD)
+;
+getlinsec_ebios:
+.loop:
+                push bp                         ; Sectors left
+.retry2:
+		call maxtrans			; Enforce maximum transfer size
+		movzx edi,bp			; Sectors we are about to read
+		mov cx,retry_count
+.retry:
+
+		; Form DAPA on stack
+		push edx
+		push eax
+		push es
+		push bx
+		push di
+		push word 16
+		mov si,sp
+                mov dl,[DriveNumber]
+                mov ah,42h                      ; Extended Read
+		push ds
+		push ss
+		pop ds				; DS <- SS
+		pushad
+		int 13h
+		popad
+		pop ds
+		lea sp,[si+16]			; Remove DAPA
+		jc .error
+        	pop bp
+		add eax,edi			; Advance sector pointer
+		sub bp,di			; Sectors left
+                shl di,SECTOR_SHIFT		; 512-byte sectors
+                add bx,di                   	; Advance buffer pointer
+                and bp,bp
+                jnz .loop
+
+                ret
+
+.error:
+		; Some systems seem to get "stuck" in an error state when
+		; using EBIOS.  Doesn't happen when using CBIOS, which is
+		; good, since some other systems get timeout failures
+		; waiting for the floppy disk to spin up.
+
+		pushad				; Try resetting the device
+		xor ax,ax
+		int 13h
+		popad
+		loop .retry			; CX-- and jump if not zero
+
+		shr word [MaxTransfer],1	; Reduce the transfer size
+		jnz .retry2
+
+		; Total failure.  Try falling back to CBIOS.
+		mov byte [getlinsec.jmp+1],(getlinsec_cbios-(getlinsec.jmp+2))
+		mov byte [MaxTransfer],63	; Max possibe CBIOS transfer
+
+		pop bp
+		; ... fall through ...
+
 ;
 ; getlinsec_cbios:
 ;
@@ -452,73 +517,11 @@ getlinsec_cbios:
 		dec bp
 		jnz .retry
 
-		xor ax,ax		; Sectors transferred <- 0
+		xchg ax,bp		; Sectors transferred <- 0
 		shr word [MaxTransfer],1
-		jnz .error
-		jmp disk_error
-
-;
-; getlinsec_ebios:
-;
-; getlinsec implementation for EBIOS (EDD)
-;
-getlinsec_ebios:
-.loop:
-                push bp                         ; Sectors left
-.retry2:
-		call maxtrans			; Enforce maximum transfer size
-		movzx edi,bp			; Sectors we are about to read
-		mov cx,retry_count
-.retry:
-
-		; Form DAPA on stack
-		push edx
-		push eax
-		push es
-		push bx
-		push di
-		push word 16
-		mov si,sp
-                mov dl,[DriveNumber]
-                mov ah,42h                      ; Extended Read
-		push ds
-		push ss
-		pop ds				; DS <- SS
-		pushad
-		int 13h
-		popad
-		pop ds
-		lea sp,[si+16]			; Remove DAPA
-		jc .error
-        	pop bp
-		add eax,edi			; Advance sector pointer
-		sub bp,di			; Sectors left
-                shl di,SECTOR_SHIFT		; 512-byte sectors
-                add bx,di                   	; Advance buffer pointer
-                and bp,bp
-                jnz .loop
-
-                ret
-
-.error:
-		; Some systems seem to get "stuck" in an error state when
-		; using EBIOS.  Doesn't happen when using CBIOS, which is
-		; good, since some other systems get timeout failures
-		; waiting for the floppy disk to spin up.
-
-		pushad				; Try resetting the device
-		xor ax,ax
-		int 13h
-		popad
-		loop .retry			; CX-- and jump if not zero
-
-		shr word [MaxTransfer],1	; Reduce the transfer size
-		jnz .retry2
-
-		; Fall back to CBIOS here?
-
+		jnz .resume
 		; Fall through to disk_error
-
+	
 ;
 ; kaboom: write a message and bail out.
 ;
@@ -555,22 +558,14 @@ maxtrans:
 		mov bp,[MaxTransfer]
 .ok:		ret
 
-
 ;
 ; Error message on failure
 ;
-bailmsg:	db 'Boot failed', 0Dh, 0Ah, 0
+bailmsg:	db 'Boot error', 0Dh, 0Ah, 0
 
-%if 1
-bs_checkpt_off	equ ($-$$)
-%ifndef DEPEND
-%if bs_checkpt_off > 1F8h
-%error "Boot sector overflow"
-%endif
-%endif
-
+		; This fails if the boot sector overflows
 		zb 1F8h-($-$$)
-%endif
+
 FirstSector	dd 0xDEADBEEF			; Location of sector 1
 MaxTransfer	dw 0x007F			; Max transfer size
 bootsignature	dw 0AA55h
@@ -625,6 +620,17 @@ ldlinux_ent:
 ; Tell the user we got this far
 ;
 		mov si,syslinux_banner
+		call writestr
+
+;
+; Tell the user if we're using EBIOS or CBIOS
+;
+print_bios:
+		mov si,bios_name
+		cmp byte [getlinsec.jmp+1],(getlinsec_ebios-(getlinsec.jmp+2))
+		jne .cbios
+		mov byte [si],'E'
+.cbios:
 		call writestr
 
 ;
@@ -718,6 +724,11 @@ getlinsecsr:	pushad
 ; Checksum error message
 ;
 checksumerr_msg	db 'Load error - ', 0	; Boot failed appended
+
+;
+; BIOS type string
+;
+bios_name	db 'CBIOS', 0
 
 ;
 ; Debug routine
