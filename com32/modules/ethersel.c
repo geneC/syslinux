@@ -210,10 +210,23 @@ pciscan(struct match *list)
   uint8_t hdrtype, rid;
   pciaddr_t a;
   struct match *m;
+  int cfgtype;
 
-  pci_set_config_type(PCI_CFG_AUTO);
+#ifdef DEBUG
+  outl(~0, 0xcf8);
+  printf("Poking at port CF8 = %#08x\n", inl(0xcf8));
+  outl(0, 0xcf8);
+#endif
+
+  cfgtype = pci_set_config_type(PCI_CFG_AUTO);
+  (void)cfgtype;
+
+  dprintf("PCI configuration type %d\n", cfgtype);
 
   for ( bus = 0 ; bus <= 0xff ; bus++ ) {
+
+    dprintf("Probing bus 0x%02x... \n", bus);
+
     for ( dev = 0 ; dev <= 0x1f ; dev++ ) {
       maxfunc = 0;
       for ( func = 0 ; func <= maxfunc ; func++ ) {
