@@ -397,15 +397,15 @@ getlinsec_ebios:
 		push di
 		push word 16
 		mov si,sp
+		pushad
                 mov dl,[DriveNumber]
-                mov ah,42h                      ; Extended Read
 		push ds
 		push ss
 		pop ds				; DS <- SS
-		pushad
+                mov ah,42h                      ; Extended Read
 		int 13h
-		popad
 		pop ds
+		popad
 		lea sp,[si+16]			; Remove DAPA
 		jc .error
         	pop bp
@@ -426,16 +426,17 @@ getlinsec_ebios:
 
 		pushad				; Try resetting the device
 		xor ax,ax
+		mov dl,[DriveNumber]
 		int 13h
 		popad
 		loop .retry			; CX-- and jump if not zero
 
-		shr word [MaxTransfer],1	; Reduce the transfer size
-		jnz .retry2
+		;shr word [MaxTransfer],1	; Reduce the transfer size
+		;jnz .retry2
 
 		; Total failure.  Try falling back to CBIOS.
 		mov byte [getlinsec.jmp+1],(getlinsec_cbios-(getlinsec.jmp+2))
-		mov byte [MaxTransfer],63	; Max possibe CBIOS transfer
+		;mov byte [MaxTransfer],63	; Max possibe CBIOS transfer
 
 		pop bp
 		; ... fall through ...
@@ -728,7 +729,7 @@ checksumerr_msg	db 'Load error - ', 0	; Boot failed appended
 ;
 ; BIOS type string
 ;
-bios_name	db 'CBIOS', 0
+bios_name	db 'CBIOS ', 0
 
 ;
 ; Debug routine
