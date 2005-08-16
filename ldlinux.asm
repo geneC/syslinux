@@ -627,10 +627,10 @@ ldlinux_ent:
 ; Tell the user if we're using EBIOS or CBIOS
 ;
 print_bios:
-		mov si,bios_name
+		mov si,cbios_name
 		cmp byte [getlinsec.jmp+1],(getlinsec_ebios-(getlinsec.jmp+2))
 		jne .cbios
-		mov byte [si],'E'
+		mov si,ebios_name
 .cbios:
 		call writestr
 
@@ -713,7 +713,7 @@ writestr:
 		jmp short .loop
 .return:	ret
 
-;
+
 ; getlinsecsr: save registers, call getlinsec, restore registers
 ;
 getlinsecsr:	pushad
@@ -724,12 +724,13 @@ getlinsecsr:	pushad
 ;
 ; Checksum error message
 ;
-checksumerr_msg	db 'Load error - ', 0	; Boot failed appended
+checksumerr_msg	db ' Load error - ', 0	; Boot failed appended
 
 ;
 ; BIOS type string
 ;
-bios_name	db 'CBIOS ', 0
+cbios_name	db 'CBIOS', 0
+ebios_name	db 'EBIOS', 0
 
 ;
 ; Debug routine
@@ -744,7 +745,7 @@ safedumpregs:
 rl_checkpt	equ $				; Must be <= 8000h
 
 rl_checkpt_off	equ ($-$$)
-%if 0 ; ndef DEPEND
+%ifndef DEPEND
 %if rl_checkpt_off > 400h
 %error "Sector 1 overflow"
 %endif
