@@ -460,6 +460,8 @@ AX=000Ch [2.00]	Perform final cleanup
 
 	ISOLINUX:	0000h	Normal cleanup
 
+	EXTLINUX:	0000h	Normal cleanup
+
 	All other values are undefined, and may have different
 	meanings in future versions of SYSLINUX.
 
@@ -583,3 +585,41 @@ AX=0013h [3.08] Idle loop call
 	any periodic activities required by the filesystem code.  At
 	the moment, this is a no-op on all derivatives except
 	PXELINUX, where it executes PXE calls to answer ARP queries.
+
+	Note: it's safe to call this API call on previous SYSLINUX
+	versions (2.00 or later); it will just harmlessly fail.  If
+	API call INT 22h, AX=0015h, bit 1 is set, there is no reason
+	(but safe) to call this routine.
+
+
+AX=0014h [3.10] Local boot [PXELINUX, ISOLINUX]
+	Input:	AX	0014h
+		DX	Local boot parameter
+	Output:	Does not return
+
+	This function invokes the equivalent of the "localboot"
+	configuration file option.  The parameter in DX is the same
+	parameter as would be entered after "localboot" in the
+	configuration file; this parameter is derivative-specific --
+	see syslinux.doc for the definition.
+
+
+AX=0015h [3.10] Get feature flags
+	Input:	AX	0015h
+	Output:	ES:BX	pointer to flags in memory
+		CX	number of flag bytes
+
+	This function reports whether or not this SYSLINUX version and
+	derivative supports specific features.  Keep in mind that
+	future versions might have more bits; remember to treat any
+	bits beyond the end of the array (as defined by the value in
+	CX) as zero.
+
+	Currently the following feature flag is defined:
+
+	Byte	Bit	Definition
+	----------------------------------------------------
+	0	0	Local boot (AX=0014h) supported
+		1	Idle loop call (AX=0013h) is a no-op
+
+	All other flags are reserved.

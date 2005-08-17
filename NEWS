@@ -9,6 +9,8 @@ Changes in 3.10:
 	* Fix PCI handing (ethersel etc) on several old chipsets (and
 	  VMWare.)
 	* Try to deal with systems with broken EBIOS.
+	* New API call to do "localboot".
+	* New API call to query features.
 
 Changes in 3.09:
 	* gcc4 compilation fix.

@@ -652,6 +652,28 @@ comapi_idle:
 		clc
 		ret
 
+;
+; INT 22h AX=0014h	Local boot
+;
+%if IS_PXELINUX || IS_ISOLINUX
+comapi_localboot:
+		mov ax,P_DX
+		jmp local_boot
+%else
+comapi_localboot equ comapi_err
+%endif
+
+;
+; INT 22h AX=0015h	Feature flags
+;
+comapi_features:
+		mov P_ES,cs
+		mov P_BX,feature_flags
+		mov P_CX,feature_flags_len
+		clc
+		ret
+
+		section .data
 int21_table:
 		int21	00h, comboot_return
 		int21	01h, comboot_getkey
@@ -687,7 +709,21 @@ int22_table:
 		dw comapi_maxshuffle	; 0011 maximum shuffle descriptors
 		dw comapi_shuffle	; 0012 cleanup, shuffle and boot
 		dw comapi_idle		; 0013 idle call
+		dw comapi_localboot	; 0014 local boot
+		dw comapi_features	; 0015 feature flags
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0
 APIKeyFlag	db 0
+
+;
+; This is the feature flag array for INT 22h AX=0015h
+feature_flags:
+%if IS_PXELINUX
+		db 1			; Have local boot, idle not noop
+%elif IS_ISOLINUX
+		db 3			; Have local boot, idle is noop
+%else
+		db 2			; No local boot, idle is noop
+%endif
+feature_flags_len equ ($-feature_flags)
