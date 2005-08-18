@@ -35,7 +35,7 @@ FILENAME_MAX_LG2 equ 8			; log2(Max filename size Including final null)
 FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)	; Max mangled filename size
 NULLFILE	equ 0			; Null character == empty filename
 NULLOFFSET	equ 0			; Position in which to look
-retry_count	equ 6			; How patient are we with the disk?
+retry_count	equ 16			; How patient are we with the disk?
 %assign HIGHMEM_SLOP 0			; Avoid this much memory near the top
 LDLINUX_MAGIC	equ 0x3eb202fe		; A random number to identify ourselves with
 
@@ -301,7 +301,6 @@ not_harddisk:
 ;
 		sti
 
-
 ;
 ; Do we have EBIOS (EDD)?
 ;
@@ -318,7 +317,7 @@ eddcheck:
 		;
 		; We have EDD support...
 		;
-		mov byte [getlinsec.jmp+1],getlinsec_ebios-(getlinsec.jmp+2)
+		mov byte [getlinsec.jmp+1],(getlinsec_ebios-(getlinsec.jmp+2))
 .noedd:
 
 ;
@@ -331,62 +330,11 @@ eddcheck:
 		call getonesec
 		
 		; Some modicum of integrity checking
-		cmp dword [ldlinux_magic],LDLINUX_MAGIC
-		jne kaboom
-		cmp dword [ldlinux_magic+4],HEXDATE
+		cmp dword [ldlinux_magic+4],LDLINUX_MAGIC^HEXDATE
 		jne kaboom
 
 		; Go for it...
 		jmp ldlinux_ent
-
-;
-; kaboom: write a message and bail out.
-;
-kaboom:
-		xor si,si
-		mov ss,si		
-		mov sp,StackBuf-4 	; Reset stack
-		mov ds,si		; Reset data segment
-		pop dword [fdctab]	; Restore FDC table
-.patch:		mov si,bailmsg
-		call writestr		; Returns with AL = 0
-		cbw			; AH <- 0
-		int 16h			; Wait for keypress
-		int 19h			; And try once more to boot...
-.norge:		jmp short .norge	; If int 19h returned; this is the end
-
-;
-;
-; writestr: write a null-terminated string to the console
-;	    This assumes we're on page 0.  This is only used for early
-;           messages, so it should be OK.
-;
-writestr:
-.loop:		lodsb
-		and al,al
-                jz .return
-		mov ah,0Eh		; Write to screen as TTY
-		mov bx,0007h		; Attribute
-		int 10h
-		jmp short .loop
-.return:	ret
-
-;
-; xint13: wrapper for int 13h which will retry 6 times and then die,
-;	  AND save all registers except BP
-;
-xint13:
-.again:
-                mov bp,retry_count
-.loop:          pushad
-                int 13h
-                popad
-                jnc writestr.return
-                dec bp
-                jnz .loop
-.disk_error:
-		jmp strict near kaboom	; Patched
-
 
 ;
 ; getonesec: get one disk sector
@@ -413,7 +361,9 @@ getonesec:
 ;
 getlinsec:
 		add eax,[bsHidden]		; Add partition offset
-.jmp:		jmp strict short getlinsec_cbios	; This is patched
+		xor edx,edx			; Zero-extend LBA (eventually allow 64 bits)
+
+.jmp:		jmp strict short getlinsec_cbios
 
 ;
 ; getlinsec_ebios:
@@ -421,29 +371,65 @@ getlinsec:
 ; getlinsec implementation for EBIOS (EDD)
 ;
 getlinsec_ebios:
-                mov si,dapa                     ; Load up the DAPA
-                mov [si+4],bx
-                mov [si+6],es
-                mov [si+8],eax
 .loop:
                 push bp                         ; Sectors left
+.retry2:
 		call maxtrans			; Enforce maximum transfer size
-.bp_ok:
-                mov [si+2],bp
+		movzx edi,bp			; Sectors we are about to read
+		mov cx,retry_count
+.retry:
+
+		; Form DAPA on stack
+		push edx
+		push eax
+		push es
+		push bx
+		push di
+		push word 16
+		mov si,sp
+		pushad
                 mov dl,[DriveNumber]
+		push ds
+		push ss
+		pop ds				; DS <- SS
                 mov ah,42h                      ; Extended Read
-                call xint13
-                pop bp
-                movzx eax,word [si+2]           ; Sectors we read
-                add [si+8],eax                  ; Advance sector pointer
-                sub bp,ax                       ; Sectors left
-                shl ax,9                        ; 512-byte sectors
-                add [si+4],ax                   ; Advance buffer pointer
+		int 13h
+		pop ds
+		popad
+		lea sp,[si+16]			; Remove DAPA
+		jc .error
+        	pop bp
+		add eax,edi			; Advance sector pointer
+		sub bp,di			; Sectors left
+                shl di,SECTOR_SHIFT		; 512-byte sectors
+                add bx,di                   	; Advance buffer pointer
                 and bp,bp
                 jnz .loop
-                mov eax,[si+8]                  ; Next sector
-                mov bx,[si+4]                   ; Buffer pointer
+
                 ret
+
+.error:
+		; Some systems seem to get "stuck" in an error state when
+		; using EBIOS.  Doesn't happen when using CBIOS, which is
+		; good, since some other systems get timeout failures
+		; waiting for the floppy disk to spin up.
+
+		pushad				; Try resetting the device
+		xor ax,ax
+		mov dl,[DriveNumber]
+		int 13h
+		popad
+		loop .retry			; CX-- and jump if not zero
+
+		;shr word [MaxTransfer],1	; Reduce the transfer size
+		;jnz .retry2
+
+		; Total failure.  Try falling back to CBIOS.
+		mov byte [getlinsec.jmp+1],(getlinsec_cbios-(getlinsec.jmp+2))
+		;mov byte [MaxTransfer],63	; Max possibe CBIOS transfer
+
+		pop bp
+		; ... fall through ...
 
 ;
 ; getlinsec_cbios:
@@ -452,6 +438,7 @@ getlinsec_ebios:
 ;
 getlinsec_cbios:
 .loop:
+		push edx
 		push eax
 		push bp
 		push bx
@@ -462,13 +449,17 @@ getlinsec_cbios:
 		; Dividing by sectors to get (track,sector): we may have
 		; up to 2^18 tracks, so we need to use 32-bit arithmetric.
 		;
-		xor edx,edx		; Zero-extend LBA to 64 bits
 		div esi
 		xor cx,cx
 		xchg cx,dx		; CX <- sector index (0-based)
 					; EDX <- 0
 		; eax = track #
 		div edi			; Convert track to head/cyl
+
+		; We should test this, but it doesn't fit...
+		; cmp eax,1023
+		; ja .error
+
 		;
 		; Now we have AX = cyl, DX = head, CX = sector (0-based),
 		; BP = sectors to transfer, SI = bsSecPerTrack,
@@ -494,17 +485,60 @@ getlinsec_cbios:
 		mov dl,[DriveNumber]
 		xchg ax,bp		; Sector to transfer count
 		mov ah,02h		; Read sectors
-		call xint13
-		movzx ecx,al
-		shl ax,9		; Convert sectors in AL to bytes in AX
+		mov bp,retry_count
+.retry:
+		pushad
+		int 13h
+		popad
+		jc .error
+.resume:
+		movzx ecx,al		; ECX <- sectors transferred
+		shl ax,SECTOR_SHIFT	; Convert sectors in AL to bytes in AX
 		pop bx
 		add bx,ax
 		pop bp
 		pop eax
+		pop edx
 		add eax,ecx
 		sub bp,cx
 		jnz .loop
 		ret
+
+.error:
+		dec bp
+		jnz .retry
+
+		xchg ax,bp		; Sectors transferred <- 0
+		shr word [MaxTransfer],1
+		jnz .resume
+		; Fall through to disk_error
+	
+;
+; kaboom: write a message and bail out.
+;
+disk_error:
+kaboom:
+		xor si,si
+		mov ss,si		
+		mov sp,StackBuf-4 	; Reset stack
+		mov ds,si		; Reset data segment
+		pop dword [fdctab]	; Restore FDC table
+.patch:					; When we have full code, intercept here
+		mov si,bailmsg
+
+		; Write error message, this assumes screen page 0
+.loop:		lodsb
+		and al,al
+                jz .done
+		mov ah,0Eh		; Write to screen as TTY
+		mov bx,0007h		; Attribute
+		int 10h
+		jmp short .loop
+.done:
+		cbw			; AH <- 0
+		int 16h			; Wait for keypress
+		int 19h			; And try once more to boot...
+.norge:		jmp short .norge	; If int 19h returned; this is the end
 
 ;
 ; Truncate BP to MaxTransfer
@@ -518,31 +552,11 @@ maxtrans:
 ;
 ; Error message on failure
 ;
-bailmsg:	db 'Boot failed', 0Dh, 0Ah, 0
+bailmsg:	db 'Boot error', 0Dh, 0Ah, 0
 
-;
-; EBIOS disk address packet
-;
-		align 4, db 0
-dapa:
-                dw 16                           ; Packet size
-.count:         dw 0                            ; Block count
-.off:           dw 0                            ; Offset of buffer
-.seg:           dw 0                            ; Segment of buffer
-.lba:           dd 0                            ; LBA (LSW)
-                dd 0                            ; LBA (MSW)
-
-
-%if 1
-bs_checkpt_off	equ ($-$$)
-%ifndef DEPEND
-%if bs_checkpt_off > 1F8h
-%error "Boot sector overflow"
-%endif
-%endif
-
+		; This fails if the boot sector overflows
 		zb 1F8h-($-$$)
-%endif
+
 FirstSector	dd 0xDEADBEEF			; Location of sector 1
 MaxTransfer	dw 0x007F			; Max transfer size
 bootsignature	dw 0AA55h
@@ -563,7 +577,7 @@ syslinux_banner	db 0Dh, 0Ah
 
 		align 8, db 0
 ldlinux_magic	dd LDLINUX_MAGIC
-		dd HEXDATE
+		dd LDLINUX_MAGIC^HEXDATE
 
 ;
 ; This area is patched by the installer.  It is found by looking for
@@ -597,9 +611,15 @@ ldlinux_ent:
 		call writestr
 
 ;
-; Patch disk error handling
+; Tell the user if we're using EBIOS or CBIOS
 ;
-		mov word [xint13.disk_error+1],do_disk_error-(xint13.disk_error+3)
+print_bios:
+		mov si,cbios_name
+		cmp byte [getlinsec.jmp+1],(getlinsec_ebios-(getlinsec.jmp+2))
+		jne .cbios
+		mov si,ebios_name
+.cbios:
+		call writestr
 
 ;
 ; Now we read the rest of LDLINUX.SYS.	Don't bother loading the first
@@ -622,9 +642,9 @@ load_rest:
 		dec cx
 		jz .chunk_ready
 		inc edx				; Next linear sector
-		cmp [esi],edx			; Does it match
+		cmp [si],edx			; Does it match
 		jnz .chunk_ready		; If not, this is it
-		add esi,4			; If so, add sector to chunk
+		add si,4			; If so, add sector to chunk
 		jmp short .make_chunk
 
 .chunk_ready:
@@ -665,6 +685,22 @@ verify_checksum:
 ; -----------------------------------------------------------------------------
 
 ;
+;
+; writestr: write a null-terminated string to the console
+;	    This assumes we're on page 0.  This is only used for early
+;           messages, so it should be OK.
+;
+writestr:
+.loop:		lodsb
+		and al,al
+                jz .return
+		mov ah,0Eh		; Write to screen as TTY
+		mov bx,0007h		; Attribute
+		int 10h
+		jmp short .loop
+.return:	ret
+
+
 ; getlinsecsr: save registers, call getlinsec, restore registers
 ;
 getlinsecsr:	pushad
@@ -673,29 +709,15 @@ getlinsecsr:	pushad
 		ret
 
 ;
-; This routine captures disk errors, and tries to decide if it is
-; time to reduce the transfer size.
-;
-do_disk_error:
-		cmp ah,42h
-		je .ebios
-		shr al,1		; Try reducing the transfer size
-		mov [MaxTransfer],al	
-		jz kaboom		; If we can't, we're dead...
-		jmp xint13		; Try again
-.ebios:
-		push ax
-		mov ax,[si+2]
-		shr ax,1
-		mov [MaxTransfer],ax
-		mov [si+2],ax
-		pop ax
-		jmp xint13
-
-;
 ; Checksum error message
 ;
-checksumerr_msg	db 'Load error - ', 0	; Boot failed appended
+checksumerr_msg	db ' Load error - ', 0	; Boot failed appended
+
+;
+; BIOS type string
+;
+cbios_name	db 'CBIOS', 0
+ebios_name	db 'EBIOS', 0
 
 ;
 ; Debug routine
@@ -710,7 +732,7 @@ safedumpregs:
 rl_checkpt	equ $				; Must be <= 8000h
 
 rl_checkpt_off	equ ($-$$)
-%if 0 ; ndef DEPEND
+%ifndef DEPEND
 %if rl_checkpt_off > 400h
 %error "Sector 1 overflow"
 %endif
