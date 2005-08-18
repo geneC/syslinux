@@ -14,6 +14,8 @@ Changes in 3.10:
 	* Fix for bug in EBIOS code discovered by Arwin Vosselman.
 	* NOESCAPE security fix.
 	* Comments are now recognized even without a space following #.
+	* Fix incorrect handling of mixes of entries with and without
+	  MENU PASSWD.
 
 Changes in 3.09:
 	* gcc4 compilation fix.

@@ -137,7 +137,7 @@ record(struct labeldata *ld, char *append)
     me->hotkey = 0;
 
     if ( ld->menulabel ) {
-      unsigned char *p = strchr(ld->menulabel, '^');
+      unsigned char *p = (unsigned char *)strchr(ld->menulabel, '^');
       if ( p && p[1] ) {
 	int hotkey = p[1] & ~0x20;
 	if ( !menu_hotkeys[hotkey] ) {
@@ -160,9 +160,15 @@ record(struct labeldata *ld, char *append)
     asprintf(&me->cmdline, "%s%s%s%s", ld->kernel, ipoptions, s, a);
 
     ld->label = NULL;
+    ld->passwd = NULL;
+
     free(ld->kernel);
-    if ( ld->append )
+    ld->kernel = NULL;
+
+    if ( ld->append ) {
       free(ld->append);
+      ld->append = NULL;
+    }
 
     if ( !ld->menuhide ) {
       if ( me->hotkey )
@@ -235,6 +241,7 @@ void parse_config(const char *filename)
       record(&ld, append);
       ld.label     = strdup(p);
       ld.kernel    = strdup(p);
+      ld.passwd    = NULL;
       ld.append    = NULL;
       ld.menulabel = NULL;
       ld.ipappend  = ld.menudefault = ld.menuhide = 0;
