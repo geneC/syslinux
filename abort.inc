@@ -61,10 +61,8 @@ abort_check:
 		sti
                 call cwritestr                  ; Expects SI -> error msg
 
-		; If NOESCAPE is active, then execute the default command
-		cmp byte [KbdFlagMask],0
-          	jz auto_boot			; Default command
-		jmp enter_command		; Otherwise command prompt
+		; Return to the command prompt
+		jmp enter_command
 
 ;
 ; End of abort_check

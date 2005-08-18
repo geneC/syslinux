@@ -276,13 +276,6 @@ pc_say:		call pc_getline			; "say" command
 		jmp crlf			; tailcall
 
 ;
-; "noescape" command
-;
-pc_noescape:
-		mov byte [KbdFlagMask],0	; No escape route available...
-		; Fall into pc_getline
-
-;
 ; Comment line
 ;
 pc_comment:	; Fall into pc_getline
@@ -359,6 +352,7 @@ OnerrorLen	dw 0			; Bytes in onerror command
 KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
 CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
 ForcePrompt	dw 0			; Force prompt
+NoEscape	dw 0			; No escape
 AllowImplicit   dw 1                    ; Allow implicit kernels
 AllowOptions	dw 1			; User-specified options allowed
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)

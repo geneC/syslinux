@@ -36,6 +36,10 @@ getcommand:
 		jz .eof			; End of file
 		jc .find		; End of line: try again
 
+		; Do this explicitly so #foo is treated as a comment
+		cmp al,'#'		; Leading hash mark -> comment
+		je .skipline
+
 		or al,20h		; Convert to lower case
 		movzx ebx,al		; Hash for a one-char keyword
 .read_loop:

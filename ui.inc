@@ -20,13 +20,15 @@ no_config_file:
 ; Check whether or not we are supposed to display the boot prompt.
 ;
 check_for_key:
-		cmp word [ForcePrompt],byte 0	; Force prompt?
+		cmp word [ForcePrompt],0	; Force prompt?
 		jnz enter_command
-		mov al,[KbdFlags]
-		test al,[KbdFlagMask]
+		test byte [KbdFlags],5Bh	; Shift Alt Caps Scroll
 		jz auto_boot			; If neither, default boot
 
 enter_command:
+		cmp word [NoEscape],0		; If NOESCAPE, no prompt,
+		je auto_boot			; always run default cmd
+
 		mov si,boot_prompt
 		call cwritestr
 
@@ -183,12 +185,20 @@ fk_wrcmd:
 		call cwritestr			; Write command line so far
 fk_nofile:	pop di
 		jmp short get_char_2
+
+;
+; Jump here to run the default command line
+;
 auto_boot:
 		mov si,default_cmd
 		mov di,command_line
 		mov cx,(max_cmd_len+4) >> 2
 		rep movsd
 		jmp short load_kernel
+
+;
+; Jump here when the command line is completed
+;
 command_done:
 		call crlf
 		cmp di,command_line		; Did we just hit return?
@@ -485,9 +495,6 @@ kernel_good:
 		je is_bootsector
 %endif
 		; Otherwise Linux kernel
-
-		section .data
-KbdFlagMask	db 5Bh			; Caps, Scroll, Shift, Alt
 
 		section .bss
 		alignb 2

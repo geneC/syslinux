@@ -13,6 +13,7 @@ Changes in 3.10:
 	* New API call to query features.
 	* Fix for bug in EBIOS code discovered by Arwin Vosselman.
 	* NOESCAPE security fix.
+	* Comments are now recognized even without a space following #.
 
 Changes in 3.09:
 	* gcc4 compilation fix.

@@ -44,7 +44,6 @@ keywd_size	equ 8	; Bytes per keyword
 		align 4, db 0
 
 keywd_table:
-		keyword hash,      pc_comment
 		keyword menu,	   pc_comment
 		keyword append,    pc_append
 		keyword default,   pc_default
@@ -62,7 +61,7 @@ keywd_table:
 		keyword ontimeout, pc_ontimeout
 		keyword onerror,   pc_onerror
 		keyword allowoptions, pc_setint16, AllowOptions
-		keyword noescape,  pc_noescape
+		keyword noescape,  pc_setint16,	NoEscape
 		keyword f1,        pc_fkey,     FKeyName+(0<<FILENAME_MAX_LG2)
 		keyword f2,        pc_fkey,     FKeyName+(1<<FILENAME_MAX_LG2)
 		keyword f3,        pc_fkey,     FKeyName+(2<<FILENAME_MAX_LG2)
