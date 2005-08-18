@@ -279,7 +279,7 @@ pc_say:		call pc_getline			; "say" command
 ; "noescape" command
 ;
 pc_noescape:
-		mov byte [KbdFlags],0
+		mov byte [KbdFlagMask],0	; No escape route available...
 		; Fall into pc_getline
 
 ;

@@ -22,7 +22,8 @@ no_config_file:
 check_for_key:
 		cmp word [ForcePrompt],byte 0	; Force prompt?
 		jnz enter_command
-		test byte [KbdFlags],5Bh	; Caps, Scroll, Shift, Alt
+		mov al,[KbdFlags]
+		test al,[KbdFlagMask]
 		jz auto_boot			; If neither, default boot
 
 enter_command:
@@ -484,6 +485,9 @@ kernel_good:
 		je is_bootsector
 %endif
 		; Otherwise Linux kernel
+
+		section .data
+KbdFlagMask	db 5Bh			; Caps, Scroll, Shift, Alt
 
 		section .bss
 		alignb 2

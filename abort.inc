@@ -54,7 +54,7 @@ abort_check:
 %elif IS_PXELINUX
 		lss esp,[BaseStack]
 %elif IS_ISOLINUX
-		lss sp,[cs:Stack]
+		lss sp,[Stack]
 %else
 		NEED TO KNOW HOW TO RESET STACK
 %endif
@@ -62,7 +62,7 @@ abort_check:
                 call cwritestr                  ; Expects SI -> error msg
 
 		; If NOESCAPE is active, then execute the default command
-		cmp byte [KbdFlags],0
+		cmp byte [KbdFlagMask],0
           	jz auto_boot			; Default command
 		jmp enter_command		; Otherwise command prompt
 
