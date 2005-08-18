@@ -61,12 +61,10 @@ abort_check:
 		sti
                 call cwritestr                  ; Expects SI -> error msg
 
-		; If onerror is set, jump to onerror, otherwise return
-		; to the command prompt
-		mov cx,[OnerrorLen]
-		and cx,cx
-		jnz on_error
-          	jmp enter_command               ; Return to command prompt
+		; If NOESCAPE is active, then execute the default command
+		cmp byte [KbdFlags],0
+          	jz auto_boot			; Default command
+		jmp enter_command		; Otherwise command prompt
 
 ;
 ; End of abort_check
