@@ -1149,43 +1149,9 @@ local_boot:
 		jmp kaboom			; If we returned, oh boy...
 
 ;
-; abort_check: let the user abort with <ESC> or <Ctrl-C>
+; Abort loading code
 ;
-abort_check:
-		call pollchar
-		jz ac_ret1
-		pusha
-		call getchar
-		cmp al,27			; <ESC>
-		je ac_kill
-		cmp al,3			; <Ctrl-C>
-		jne ac_ret2
-ac_kill:	mov si,aborted_msg
-
-;
-; abort_load: Called by various routines which wants to print a fatal
-;             error message and return to the command prompt.  Since this
-;             may happen at just about any stage of the boot process, assume
-;             our state is messed up, and just reset the segment registers
-;             and the stack forcibly.
-;
-;             SI    = offset (in _text) of error message to print
-;
-abort_load:
-                mov ax,cs                       ; Restore CS = DS = ES
-                mov ds,ax
-                mov es,ax
-                cli
-		lss sp,[cs:Stack]		; Reset the stack
-                sti
-                call cwritestr                  ; Expects SI -> error msg
-al_ok:          jmp enter_command               ; Return to command prompt
-;
-; End of abort_check
-;
-ac_ret2:	popa
-ac_ret1:	ret
-
+%include "abort.inc"
 
 ;
 ; searchdir:
