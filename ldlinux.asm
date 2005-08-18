@@ -655,9 +655,9 @@ load_rest:
 		dec cx
 		jz .chunk_ready
 		inc edx				; Next linear sector
-		cmp [esi],edx			; Does it match
+		cmp [si],edx			; Does it match
 		jnz .chunk_ready		; If not, this is it
-		add esi,4			; If so, add sector to chunk
+		add si,4			; If so, add sector to chunk
 		jmp short .make_chunk
 
 .chunk_ready:

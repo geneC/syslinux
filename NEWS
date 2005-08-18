@@ -11,6 +11,7 @@ Changes in 3.10:
 	* Try to deal with systems with broken EBIOS.
 	* New API call to do "localboot".
 	* New API call to query features.
+	* Fix for bug in EBIOS code discovered by Arwin Vosselman.
 
 Changes in 3.09:
 	* gcc4 compilation fix.
