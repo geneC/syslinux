@@ -198,7 +198,8 @@ ConfigName	resb 256-4		; Configuration file from DHCP option
 PathPrefix	resb 256		; Path prefix derived from boot file
 DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
 IPOption	resb 80			; ip= option buffer
-InitStack	resd 1			; Pointer to reset stack
+InitStack	resd 1			; Pointer to reset stack (SS:SP)
+PXEStack	resd 1			; Saved stack during PXE call
 
 ; Warning here: RBFG build 22 randomly overwrites memory location
 ; [0x5680,0x576c), possibly more.  It seems that it gets confused and
@@ -1549,11 +1550,21 @@ unmangle_name:
 ;
 ; This is the main PXENV+/!PXE entry point, using the PXENV+
 ; calling convention.  This is a separate local routine so
-; we can hook special things from it if necessary.
+; we can hook special things from it if necessary.  In particular,
+; some PXE stacks seem to not like being invoked from anything but
+; the initial stack, so humour it.
 ;
 
 pxenv:
+%if USE_PXE_PROVIDED_STACK == 0
+		mov [cs:PXEStack],sp
+		mov [cs:PXEStack+2],ss
+		lss sp,[cs:InitStack]
+%endif
 .jump:		call 0:pxe_thunk		; Default to calling the thunk
+%if USE_PXE_PROVIDED_STACK == 0
+		lss sp,[cs:PXEStack]
+%endif
 		cld				; Make sure DF <- 0
 		ret
 
@@ -2512,7 +2523,8 @@ pxe_udp_read_pkt:
 ; Misc initialized (data) variables
 ;
 		alignb 4, db 0
-BaseStack	dd StackBuf		; SS:ESP of base stack
+BaseStack	dd StackBuf		; ESP of base stack
+		dw 0			; SS of base stack
 NextSocket	dw 49152		; Counter for allocating socket numbers
 KeepPXE		db 0			; Should PXE be kept around?
 
