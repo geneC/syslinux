@@ -52,7 +52,7 @@ TFTP_LARGEBLK	equ (TFTP_MTU-20-8-4)	; MTU - IP hdr - UDP hdr - TFTP hdr
 ; Standard TFTP block size
 TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)
 TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
-%assign USE_PXE_PROVIDED_STACK 1	; Use stack provided by PXE?
+%assign USE_PXE_PROVIDED_STACK 0	; Use stack provided by PXE?
 
 SECTOR_SHIFT	equ TFTP_BLOCKSIZE_LG2
 SECTOR_SIZE	equ TFTP_BLOCKSIZE
