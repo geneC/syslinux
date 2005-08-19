@@ -117,3 +117,11 @@ link; you probably want to set your baudrate to 38400 or higher if
 possible.  It requires a Linux/VT220/ANSI-compatible terminal on the
 other end.
 
+It is also possible to load a secondary configuration file, to get to
+another menu.  To do that, invoke menu.c32 with the name of the
+secondary configuration file.
+
+LABEL othermenu
+	MENU LABEL Another Menu
+	KERNEL menu.c32
+	APPEND othermenu.conf
