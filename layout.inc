@@ -23,7 +23,7 @@ BSS_START	equ 0800h
 
 ; PXELINUX needs lots of BSS, so it relocates itself on startup
 %if IS_PXELINUX
-TEXT_START	equ 9000h
+TEXT_START	equ 0A000h
 %else
 TEXT_START	equ 7C00h
 %endif
