@@ -19,6 +19,7 @@
  */
 
 #define _GNU_SOURCE		/* Needed for asprintf() on Linux */
+#include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -469,7 +470,7 @@ run_menu(void)
       if ( entry != defentry )
 	entry = defentry;
       else {
-	cmdline = menu_entries[defentry].label;
+	cmdline = menu_entries[defentry].cmdline;
 	done = 1;
       }
       break;
@@ -484,7 +485,7 @@ run_menu(void)
       } else {
 	done = 1;
       }
-      cmdline = menu_entries[entry].label;
+      cmdline = menu_entries[entry].cmdline;
       break;
     case 'P':
     case 'p':
@@ -586,18 +587,27 @@ run_menu(void)
 }
 
 
-static void __attribute__((noreturn))
+static void
 execute(const char *cmdline)
 {
 #ifdef __COM32__
   static com32sys_t ireg;
 
-  strcpy(__com32.cs_bounce, cmdline);
-  ireg.eax.w[0] = 0x0003;	/* Run command */
-  ireg.ebx.w[0] = OFFS(__com32.cs_bounce);
-  ireg.es = SEG(__com32.cs_bounce);
+  if ( !strncmp(cmdline, ".localboot", 10) && isspace(cmdline[10]) ) {
+    unsigned long localboot = strtoul(cmdline+10, NULL, 0);
+    
+    ireg.eax.w[0] = 0x0014;	/* Local boot */
+    ireg.edx.w[0] = localboot;
+  } else {
+    strcpy(__com32.cs_bounce, cmdline);
+    ireg.eax.w[0] = 0x0003;	/* Run command */
+    ireg.ebx.w[0] = OFFS(__com32.cs_bounce);
+    ireg.es = SEG(__com32.cs_bounce);
+  }
+
   __intcall(0x22, &ireg, NULL);
-  exit(255);  /* Shouldn't return */
+
+  /* If this returns, something went bad; return to menu */
 #else
   /* For testing... */
   printf("\n>>> %s\n", cmdline);
@@ -607,8 +617,7 @@ execute(const char *cmdline)
 
 int main(int argc, char *argv[])
 {
-  const char *cmdline = NULL;
-  int err = 0;
+  const char *cmdline;
 
   (void)argc;
 
@@ -618,14 +627,16 @@ int main(int argc, char *argv[])
 
   if ( !nentries ) {
     fputs("No LABEL entries found in configuration file!\n", stdout);
-    err = 1;
-  } else {
-    cmdline = run_menu();
+    return 1;			/* Error! */
   }
 
-  printf("\033[?25h\033[%d;1H\033[0m", END_ROW);
-  if ( cmdline )
-    execute(cmdline);
-  else
-    return err;
+  for(;;) {
+    cmdline = run_menu();
+
+    printf("\033[?25h\033[%d;1H\033[0m", END_ROW);
+    if ( cmdline )
+      execute(cmdline);
+    else
+      return 0;			/* Exit */
+  }
 }

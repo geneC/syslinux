@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2005 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -258,6 +258,9 @@ void parse_config(const char *filename)
       allowedit = atoi(skipspace(p+12));
     } else if ( looking_at(p, "ipappend") ) {
       ld.ipappend = atoi(skipspace(p+8));
+    } else if ( looking_at(p, "localboot") ) {
+      ld.kernel = ".localboot";
+      ld.append = strdup(skipspace(p+9));
     }
   }
   
