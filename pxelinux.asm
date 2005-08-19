@@ -60,6 +60,8 @@ SECTOR_SIZE	equ TFTP_BLOCKSIZE
 ;
 ; This is what we need to do when idle
 ;
+%define HAVE_IDLE 1			; idle is not a noop
+
 %macro	RESET_IDLE 0
 	call reset_idle
 %endmacro

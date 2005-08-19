@@ -647,10 +647,18 @@ comapi_shuffle:
 ;
 ; INT 22h AX=0013h	Idle call
 ;
+%ifdef HAVE_IDLE
+
 comapi_idle:
 		DO_IDLE
 		clc
 		ret
+
+%else
+
+comapi_idle	equ comapi_err
+
+%endif
 
 ;
 ; INT 22h AX=0014h	Local boot

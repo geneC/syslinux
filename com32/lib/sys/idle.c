@@ -51,8 +51,7 @@ void syslinux_idle(void)
   if ( do_idle ) {
     __intcall(0x22, &sys_idle, &idle_result);
 
-    if ( idle_result.eflags.l & EFLAGS_CF )
-      do_idle = 0;
+    do_idle = ~idle_result.eflags.l & EFLAGS_CF;
   }
 
   cpu_relax();

@@ -16,6 +16,9 @@ Changes in 3.10:
 	* Comments are now recognized even without a space following #.
 	* Fix incorrect handling of mixes of entries with and without
 	  MENU PASSWD.
+	* The idle API call now harmlessly returns failure if it is a
+	  no-op.  That way the caller can decide whether or not to
+	  bother invoking it again.
 
 Changes in 3.09:
 	* gcc4 compilation fix.

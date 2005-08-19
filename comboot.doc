@@ -586,10 +586,13 @@ AX=0013h [3.08] Idle loop call
 	the moment, this is a no-op on all derivatives except
 	PXELINUX, where it executes PXE calls to answer ARP queries.
 
-	Note: it's safe to call this API call on previous SYSLINUX
-	versions (2.00 or later); it will just harmlessly fail.  If
-	API call INT 22h, AX=0015h, bit 1 is set, there is no reason
-	(but safe) to call this routine.
+	Starting with version 3.10, this API call harmlessly returns
+	failure (CF=1) if invoked on a platform which does not need
+	idle calls.  Additionally, it's safe to call this API call on
+	previous SYSLINUX versions (2.00 or later); it will just
+	harmlessly fail.  Thus, if this call returns failure (CF=1),
+	it means that there is no technical reason to call this
+	function again, although doing so is of course safe.
 
 
 AX=0014h [3.10] Local boot [PXELINUX, ISOLINUX]
