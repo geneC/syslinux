@@ -27,7 +27,7 @@ check_for_key:
 
 enter_command:
 		cmp word [NoEscape],0		; If NOESCAPE, no prompt,
-		je auto_boot			; always run default cmd
+		jne auto_boot			; always run default cmd
 
 		mov si,boot_prompt
 		call cwritestr
