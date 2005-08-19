@@ -259,7 +259,7 @@ void parse_config(const char *filename)
     } else if ( looking_at(p, "ipappend") ) {
       ld.ipappend = atoi(skipspace(p+8));
     } else if ( looking_at(p, "localboot") ) {
-      ld.kernel = ".localboot";
+      ld.kernel = strdup(".localboot");
       ld.append = strdup(skipspace(p+9));
     }
   }
