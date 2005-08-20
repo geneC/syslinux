@@ -125,15 +125,18 @@ kwdhash.gen: keywords genhash.pl
 ldlinux.bin: ldlinux.asm kwdhash.gen version.gen
 	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-DMAP=ldlinux.map -l ldlinux.lst -o ldlinux.bin ldlinux.asm
+	$(PERL) checkov.pl ldlinux.map $@
 
 pxelinux.bin: pxelinux.asm kwdhash.gen version.gen
 	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-DMAP=pxelinux.map -l pxelinux.lst -o pxelinux.bin pxelinux.asm
+	$(PERL) checkov.pl pxelinux.map $@
 
 isolinux.bin: isolinux.asm kwdhash.gen version.gen checksumiso.pl
 	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-DMAP=isolinux.map -l isolinux.lst -o isolinux.bin isolinux.asm
-	$(PERL) checksumiso.pl isolinux.bin
+	$(PERL) checkov.pl isolinux.map $@
+	$(PERL) checksumiso.pl $@
 
 # Special verbose version of isolinux.bin
 isolinux-debug.bin: isolinux.asm kwdhash.gen version.gen checksumiso.pl
@@ -141,11 +144,13 @@ isolinux-debug.bin: isolinux.asm kwdhash.gen version.gen checksumiso.pl
 		-DDEBUG_MESSAGES \
 		-DMAP=isolinux-debug.map -l isolinux-debug.lst \
 		-o isolinux-debug.bin isolinux.asm
+	$(PERL) checkov.pl isolinux-debug.map $@
 	$(PERL) checksumiso.pl $@
 
 extlinux.bin: extlinux.asm kwdhash.gen version.gen
 	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-DMAP=extlinux.map -l extlinux.lst -o extlinux.bin extlinux.asm
+	$(PERL) checkov.pl extlinux.map $@
 
 pxelinux.0: pxelinux.bin
 	cp pxelinux.bin pxelinux.0

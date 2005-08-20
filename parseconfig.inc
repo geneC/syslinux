@@ -359,7 +359,7 @@ SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 VKernelBytes	dw 0			; Number of bytes used by vkernels
 VKernel		db 0			; Have we seen any "label" statements?
 
-		section .bss
+		section .latebss
                 alignb 4		; For the good of REP MOVSD
 command_line	resb max_cmd_len+2	; Command line buffer
 		alignb 4

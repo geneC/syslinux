@@ -1,7 +1,7 @@
 ; -*- fundamental -*-
 ; -----------------------------------------------------------------------
 ;   
-;   Copyright 2004 H. Peter Anvin - All Rights Reserved
+;   Copyright 2004-2005 H. Peter Anvin - All Rights Reserved
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -10,6 +10,7 @@
 ;   (at your option) any later version; incorporated herein by reference.
 ;
 ; -----------------------------------------------------------------------
+; $Id$
 
 ;
 ; dnsresolv.inc
@@ -150,8 +151,8 @@ dns_skiplabel:
 .rdata:		equ $
 		endstruc
 
-		section .bss
-		alignb 2, db 0
+		section .latebss
+		alignb 2
 DNSSendBuf	resb DNS_MAX_PACKET
 DNSRecvBuf	resb DNS_MAX_PACKET
 LocalDomain	resb 256		; Max possible length

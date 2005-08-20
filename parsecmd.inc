@@ -93,7 +93,7 @@ getcommand:
 		jc .eof
 		jmp short .skipline
 
-		section .bss
+		section .latebss
 		alignb 4
 vk_size		equ (vk_end + 3) & ~3
 VKernelBuf:	resb vk_size		; "Current" vkernel

@@ -114,7 +114,7 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
 		; ends at 4800h
 
-		section .bss
+		section .latebss
 SuperBlock	resb 1024		; ext2 superblock
 SuperInfo	resq 16			; DOS superblock expanded
 ClustSize	resd 1			; Bytes/cluster ("block")
@@ -619,8 +619,14 @@ print_bios:
 		jne .cbios
 		mov si,ebios_name
 .cbios:
+		mov [BIOSName],si
 		call writestr
 
+		section .bss
+%define	HAVE_BIOSNAME 1
+BIOSName	resw 1
+
+		section .text
 ;
 ; Now we read the rest of LDLINUX.SYS.	Don't bother loading the first
 ; sector again, though.
@@ -716,8 +722,8 @@ checksumerr_msg	db ' Load error - ', 0	; Boot failed appended
 ;
 ; BIOS type string
 ;
-cbios_name	db 'CBIOS', 0
-ebios_name	db 'EBIOS', 0
+cbios_name	db ' CBIOS', 0
+ebios_name	db ' EBIOS', 0
 
 ;
 ; Debug routine

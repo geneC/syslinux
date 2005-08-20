@@ -18,15 +18,15 @@
 ;
 
 
-; Memory below 0800h is reserved for the BIOS and the MBR
+; Memory below 0800h is reserved for the BIOS and the MBR.
 BSS_START	equ 0800h
 
-; PXELINUX needs lots of BSS, so it relocates itself on startup
-%if IS_PXELINUX
-TEXT_START	equ 0A000h
-%else
+; Text starts at the load address of 07C00h.
 TEXT_START	equ 7C00h
-%endif
+
+; The secondary BSS section, above the text; we really wish we could
+; just make it follow .bcopy32, but it doesn't seem to work that way.
+LATEBSS_START	equ 0B000h
 
 %ifdef MAP
 		[map all MAP]
@@ -50,6 +50,5 @@ TEXT_START	equ 7C00h
 		section .data	  align=16 ; follows=.text
 
 		; NASM BUG: We would like to do follows=.bcopy32
-		section .latebss  nobits align=16 start=0E000h
-
+		section .latebss  nobits align=16 start=LATEBSS_START
 

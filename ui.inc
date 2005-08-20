@@ -166,6 +166,10 @@ print_version:
 		push di				; Command line write pointer
 		mov si,syslinux_banner
 		call cwritestr
+%ifdef HAVE_BIOSNAME
+		mov si,[BIOSName]
+		call cwritestr
+%endif
 		mov si,copyright_str
 		call cwritestr
 

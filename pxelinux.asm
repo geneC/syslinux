@@ -207,7 +207,7 @@ PXEStack	resd 1			; Saved stack during PXE call
 ; writing a received ARP packet into low memory.
 RBFG_brainfuck	resb 0E00h
 
-		section .bss
+		section .latebss
 		alignb 4
 RebootTime	resd 1			; Reboot timeout, if set by option
 StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure
@@ -276,6 +276,7 @@ _start:
 		mov ds,ax
 		mov es,ax	
 
+%if TEXT_START != 0x7c00
 		; This is uglier than it should be, but works around
 		; some NASM 0.98.38 bugs.
 		mov di,section..bcopy32.start
@@ -285,6 +286,7 @@ _start:
 		shr cx,2
 		std			; Overlapping areas, copy backwards
 		rep movsd
+%endif
 
 		jmp 0:_start1		; Canonicalize address
 _start1:

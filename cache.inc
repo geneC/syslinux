@@ -77,7 +77,7 @@ getcachesector:
 		pop cx
 		ret
 
-		section .bss
+		section .latebss
 		alignb 4
 CachePtrs	resd 65536/SECTOR_SIZE	; Cached sector pointers
 NextCacheSlot	resw 1			; Next cache slot to occupy
