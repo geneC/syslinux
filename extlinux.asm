@@ -722,8 +722,8 @@ checksumerr_msg	db ' Load error - ', 0	; Boot failed appended
 ;
 ; BIOS type string
 ;
-cbios_name	db ' CBIOS', 0
-ebios_name	db ' EBIOS', 0
+cbios_name	db 'CBIOS', 0
+ebios_name	db 'EBIOS', 0
 
 ;
 ; Debug routine
