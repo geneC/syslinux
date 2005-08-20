@@ -276,6 +276,7 @@ _start:
 		mov ds,ax
 		mov es,ax	
 
+%ifndef DEPEND
 %if TEXT_START != 0x7c00
 		; This is uglier than it should be, but works around
 		; some NASM 0.98.38 bugs.
@@ -287,7 +288,7 @@ _start:
 		std			; Overlapping areas, copy backwards
 		rep movsd
 %endif
-
+%endif
 		jmp 0:_start1		; Canonicalize address
 _start1:
 		mov bp,sp
