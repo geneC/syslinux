@@ -17,11 +17,10 @@
 ; Code to terminate a kernel load
 ;
 
+		section .text
 ;
 ; abort_check: let the user abort with <ESC> or <Ctrl-C>
 ;
-abort_load	equ abort_check.do_abort
-
 abort_check:
 		call pollchar
 		jz .ret1
@@ -30,7 +29,10 @@ abort_check:
 		cmp al,27			; <ESC>
 		je .kill
 		cmp al,3			; <Ctrl-C>
-		jne .ret2
+		je .kill
+.ret2:		popa
+.ret1:		ret
+
 .kill:		mov si,aborted_msg
 
 		; ... fall through ...
@@ -44,7 +46,7 @@ abort_check:
 ;
 ;             SI    = offset (in _text) of error message to print
 ;
-.do_abort:
+abort_load:
                 mov ax,cs                       ; Restore CS = DS = ES
                 mov ds,ax
                 mov es,ax
@@ -63,9 +65,3 @@ abort_check:
 
 		; Return to the command prompt
 		jmp enter_command
-
-;
-; End of abort_check
-;
-.ret2:		popa
-.ret1:		ret
