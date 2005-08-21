@@ -11,6 +11,8 @@ Changes in 3.10:
 	* Try to deal with systems with broken EBIOS.
 	* New API call to do "localboot".
 	* New API call to query features.
+	* New API call to run kernel image, a lower-level call than
+	  "run command".  See comboot.doc.
 	* Fix for bug in EBIOS code discovered by Arwin Vosselman.
 	* NOESCAPE security fix.
 	* Comments are now recognized even without a space following #.
@@ -19,6 +21,9 @@ Changes in 3.10:
 	* The idle API call now harmlessly returns failure if it is a
 	  no-op.  That way the caller can decide whether or not to
 	  bother invoking it again.
+	* Temporarily disable the idle API call on PXELINUX, due to
+	  some platforms on which the idle API call seems to hang; this
+	  problem has not yet been debugged.
 
 Changes in 3.09:
 	* gcc4 compilation fix.
