@@ -896,9 +896,8 @@ config_scan:
 ; AX contains the appropriate return code.
 ;
 local_boot:
-		mov si,cs
-		mov ds,si			; Restore DI
-		lss esp,[BaseStack]
+		push cs
+		pop ds
 		mov [LocalBootType],ax
 		call vgaclearmode
 		mov si,localboot_msg
