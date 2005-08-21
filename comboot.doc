@@ -158,17 +158,20 @@ INT 21h AH=4Ch	[2.00] Terminate program
 
 	All of these terminate the program.
 
+
 INT 21h AH=01h	[2.01] Get Key with Echo
 
 	Reads a key from the console input, with echo to the console
 	output.  The read character is returned in AL.  Extended
 	characters received from the keyboard are returned as NUL (00h)
 	+ the extended character code.
+
 	
 INT 21h AH=02h	[2.01] Write Character
 
 	Writes a character in DL to the console (video and serial)
 	output.
+
 
 INT 21h AH=04h	[2.01] Write Character to Serial Port
 
@@ -176,19 +179,23 @@ INT 21h AH=04h	[2.01] Write Character to Serial Port
 	(if enabled.)  If no serial port is configured, this routine
 	does nothing.
 
+
 INT 21h AH=08h	[2.09] Get Key without Echo
 
 	Reads a key fron the console input, without echoing it to the
 	console output.  The read character is returned in AL.
 
+
 INT 21h AH=09h	[2.01] Write DOS String to Console
 
 	Writes a DOS $-terminated string in DS:DX to the console.
+
 
 INT 21h AH=0Bh	[2.00] Check Keyboard
 
 	Returns AL=FFh if there is a keystroke waiting (which can then
 	be read with INT 21h, AH=01h or AH=08h), otherwise AL=00h.
+
 
 INT 21h AH=30h	[2.00] Check DOS Version
 
@@ -626,3 +633,29 @@ AX=0015h [3.10] Get feature flags
 		1	Idle loop call (AX=0013h) is a no-op
 
 	All other flags are reserved.
+
+
+AX=0016h [3.10] Run kernel image
+	Input:	AX	0016h
+		DS:SI	Filename of kernel image (zero-terminated string)
+		ES:BX	Command line (zero-terminated string)
+		ECX	IPAPPEND flags [PXELINUX]
+		EDX	Reserved - MUST BE ZERO
+	Output:	Does not return if successful; returns with CF=1 if
+		the kernel image is not found.
+
+	This function is similiar to AX=0003h Run command, except that
+	the filename and command line are treated as if specified in a
+	KERNEL and APPEND statement of a LABEL statement, which means:
+
+	- The filename has to be exact; no variants are tried;
+	- No global APPEND statement is applied;
+	- ALLOWOPTIONS and IMPLICIT statements in the configuration
+	  file do not apply.  It is therefore important that the
+	  COMBOOT module doesn't allow the end user to violate the
+	  intent of the administrator.
+
+	Additionally, this function returns with a failure if the file
+	doesn't exist, instead of returning to the command line.  (It
+	may still return to the command line if the image is somehow
+	corrupt, however.)

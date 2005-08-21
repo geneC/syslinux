@@ -681,6 +681,44 @@ comapi_features:
 		clc
 		ret
 
+;
+; INT 22h AX=0016h	Run kernel image
+;
+comapi_runkernel:
+		push ds
+		mov ds,P_DS
+		mov si,P_SI
+		mov di,KernelName
+		push di
+		call mangle_name
+		pop di
+		pop ds
+		call searchdir
+		jz comapi_err			; Kernel doesn't exist
+
+		; The kernel image was found, so we can load it...
+		mov [Kernel_SI],si
+		mov [Kernel_EAX],ax
+		mov [Kernel_EAX+2],dx
+		
+		push es
+		mov ds,P_ES
+		mov si,P_BX
+		push word real_mode_seg
+		pop es
+		mov di,cmd_line_here
+		call strcpy
+		dec di
+		mov [CmdLinePtr],di
+		pop es
+		
+%if IS_PXELINUX
+		mov al,P_CL
+		mov [IPAppend],al
+%endif
+
+		mov bx,kernel_good_saved
+
 		section .data
 int21_table:
 		int21	00h, comboot_return

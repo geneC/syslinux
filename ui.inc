@@ -439,6 +439,20 @@ kernel_corrupt: mov si,err_notkernel
 ;
 ; Anything else is assumed to be a Linux kernel.
 ;
+		section .bss
+		alignb 4
+Kernel_EAX	resd 1
+Kernel_SI	resw 1
+
+		section .text
+kernel_good_saved:
+		; Alternate entry point for which the return from
+		; searchdir is stored in memory.  This is used for
+		; COMBOOT function INT 22h, AX=0016h.
+		mov si,[Kernel_SI]
+		mov eax,[Kernel_EAX]
+		mov dx,[Kernel_EAX+2]
+
 kernel_good:
 		pusha
 		mov si,KernelName

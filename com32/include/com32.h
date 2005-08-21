@@ -88,16 +88,33 @@ void __farcall(uint16_t __es, uint16_t __eo,
  * 0..0xFFFFF and real-mode style SEG:OFFS pointers.  Note that a
  * 32-bit linear pointer is not compatible with a SEG:OFFS pointer
  * stored in two consecutive 16-bit words.
+ *
+ * Use OFFS_WRT() if you want to compute an offset relative to a
+ * specific segment.  OFFS_VALID() will return whether or not the
+ * pointer is actually reachable from the target segment.
  */
-static inline uint16_t SEG(void *__p)
+static inline uint16_t SEG(const volatile void *__p)
 {
   return (uint16_t)(((uintptr_t)__p) >> 4);
 }
 
-static inline uint16_t OFFS(void *__p)
+static inline uint16_t OFFS(const volatile void *__p)
 {
   /* The double cast here is to shut up gcc */
   return (uint16_t)(uintptr_t)__p & 0x000F;
+}
+
+static inline uint16_t OFFS_WRT(const volatile void *__p, uint16_t seg)
+{
+  return (uint16_t)((uintptr_t)__p - ((uintptr_t)seg << 4));
+}
+
+static inline int OFFS_VALID(const volatile void *__p, uint16_t seg)
+{
+  uintptr_t __segstart = (uintptr_t)seg << 4;
+  uintptr_t __ptr = (uintptr_t)__p;
+
+  return (__ptr >= __segstart) && (__ptr <= __segstart+0xffff);
 }
 
 static inline void *MK_PTR(uint16_t __seg, uint16_t __offs)
