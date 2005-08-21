@@ -17,11 +17,12 @@ char *fgets(char *s, int n, FILE *f)
     ch = getc(f);
     if ( ch == EOF ) {
       *p = '\0';
-      return NULL;
+      return (p == s) ? NULL : s;
     }
     *p++ = ch;
     if ( ch == '\n' )
       break;
+    n--;
   }
   if ( n )
     *p = '\0';
