@@ -2,12 +2,13 @@ $Id$
 
 *** To do in the short term:
 
+- PXELINUX: Figure out localboot/idle problems
+
 - PXELINUX: Support changing the default server and boot file prefix?
 
 - Support loading a new configuration file.
 
-- "Shuffle and boot" extension, with the appropriate com32 library
-  support.
+- Library support for "shuffle and boot" extension.
 
 - Library support for all the comboot system calls.
 
@@ -28,3 +29,5 @@ $Id$
 - Add "localboot" support to SYSLINUX (using the ISOLINUX feature
   set.)
   OBSOLETE: chain.c32 is probably better.
+
+- API call to get directory listing
