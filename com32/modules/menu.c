@@ -588,40 +588,38 @@ run_menu(void)
 
 
 static void
-execute(char *cmdline)
+execute(const char *cmdline)
 {
 #ifdef __COM32__
   com32sys_t ireg;
+  const char *p;
+  char *q = __com32.cs_bounce;
+  const char *kernel, *args;
+
   memset(&ireg, 0, sizeof ireg);
 
-  if ( !strncmp(cmdline, ".localboot", 10) && isspace(cmdline[10]) ) {
-    unsigned long localboot = strtoul(cmdline+10, NULL, 0);
-    
+  kernel = q;
+  p = cmdline;
+  while ( *p && !isspace(*p) ) {
+    *q++ = *p++;
+  }
+  *q++ = '\0';
+  
+  args = q;
+  while ( *p && isspace(*p) )
+    p++;
+  
+  strcpy(q, p);
+
+  if ( !strcmp(kernel, ".localboot") ) {
     ireg.eax.w[0] = 0x0014;	/* Local boot */
-    ireg.edx.w[0] = localboot;
+    ireg.edx.w[0] = strtoul(args, NULL, 0);
   } else {
-    const char *p;
-    char *q = __com32.cs_bounce;
-    const char *kernel, *args;
-
-    kernel = q;
-    p = cmdline;
-    while ( *p && !isspace(*p) ) {
-      *p++ = *q++;
-    }
-    *q++ = '\0';
-
-    args = q;
-    while ( *p && isspace(*p) )
-      p++;
-      
-    strcpy(q, p);
-
-    ireg.eax.w[0] = 0x0016;
+    ireg.eax.w[0] = 0x0016;	/* Run kernel image */
     ireg.esi.w[0] = OFFS(kernel);
     ireg.ds       = SEG(kernel);
     ireg.ebx.w[0] = OFFS(args);
-    ireg.es       = SEG(kernel);
+    ireg.es       = SEG(args);
     /* ireg.ecx.l    = 0; */		/* We do ipappend "manually" */
     /* ireg.edx.l    = 0; */
   }

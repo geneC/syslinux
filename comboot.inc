@@ -415,17 +415,13 @@ comapi_open:
 		pop di
 		pop ds
 		call searchdir
-		jz .err
+		jz comapi_err
 		mov P_AX,ax
 		mov P_HAX,dx
 		mov P_CX,SECTOR_SIZE
 		mov P_SI,si
 		clc
 		ret
-.err:
-		stc
-		ret
-
 
 ;
 ; INT 22h AX=0007h	Read file
@@ -694,30 +690,53 @@ comapi_runkernel:
 		pop di
 		pop ds
 		call searchdir
-		jz comapi_err			; Kernel doesn't exist
+		jz comapi_err
 
 		; The kernel image was found, so we can load it...
 		mov [Kernel_SI],si
 		mov [Kernel_EAX],ax
 		mov [Kernel_EAX+2],dx
 		
+		; It's not just possible, but quite likely, that ES:BX
+		; points into real_mode_seg, so we need to exercise some
+		; special care here... use xfer_buf_seg as an intermediary
+		push ds
 		push es
+		mov ax,xfer_buf_seg
 		mov ds,P_ES
 		mov si,P_BX
-		push word real_mode_seg
-		pop es
-		mov di,cmd_line_here
+		mov es,ax
+		xor di,di
 		call strcpy
-		dec di
-		mov [CmdLinePtr],di
 		pop es
-		
+		pop ds
+
 %if IS_PXELINUX
 		mov al,P_CL
 		mov [IPAppend],al
 %endif
 
-		mov bx,kernel_good_saved
+		xor ax,ax
+		mov bx,.finish
+		jmp comboot_exit_special
+
+.finish:
+		; Copy the command line into its proper place
+		push ds
+		push es
+		mov ax,xfer_buf_seg
+		mov dx,real_mode_seg
+		mov ds,ax
+		mov es,dx
+		xor si,si
+		mov di,cmd_line_here
+		call strcpy
+		mov byte [es:di-1],' '		; Simulate APPEND
+		pop es
+		pop ds
+		mov [CmdLinePtr],di
+		mov word [CmdOptPtr],zero_string
+		jmp kernel_good_saved
 
 		section .data
 int21_table:
@@ -757,10 +776,13 @@ int22_table:
 		dw comapi_idle		; 0013 idle call
 		dw comapi_localboot	; 0014 local boot
 		dw comapi_features	; 0015 feature flags
+		dw comapi_runkernel	; 0016 run kernel image
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0
 APIKeyFlag	db 0
+
+zero_string	db 0			; Empty, null-terminated string
 
 ;
 ; This is the feature flag array for INT 22h AX=0015h

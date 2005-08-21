@@ -23,17 +23,14 @@
 ; Assumes DS == CS
 make_plain_cmdline:
 		push es
-		; ui.inc has already copied the actual command line
+		; ui.inc has already copied any APPEND options
 		mov ax,real_mode_seg
 		mov es,ax
 
 		mov si,[CmdOptPtr]
 		mov di,[CmdLinePtr]
 		
-.loop:		lodsb
-		stosb
-		and al,al
-		jnz .loop
+		call strcpy
 
 		dec di
 		mov [CmdLinePtr],di
