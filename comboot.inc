@@ -643,7 +643,12 @@ comapi_shuffle:
 ;
 ; INT 22h AX=0013h	Idle call
 ;
-%ifdef HAVE_IDLE
+;
+; *** FIX THIS ***
+; The idle call seems to have detrimental effects on some machines when
+; called from a COM32 context (WHY?) --  disable it for now.
+;
+%if 0 ; def HAVE_IDLE
 
 comapi_idle:
 		DO_IDLE
