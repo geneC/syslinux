@@ -24,6 +24,8 @@ Changes in 3.10:
 	* Temporarily disable the idle API call on PXELINUX, due to
 	  some platforms on which the idle API call seems to hang; this
 	  problem has not yet been debugged.
+	* MEMDISK: the handling of DOSEMU-headered images was broken;
+	  fix it.
 
 Changes in 3.09:
 	* gcc4 compilation fix.

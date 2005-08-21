@@ -55,7 +55,7 @@ memcmp(const void *__a, const void *__b, unsigned int __n)
   const unsigned char *__bb = __b;
   int __d;
 
-  while ( __n ) {
+  while ( __n-- ) {
     __d = *__bb++ - *__aa++;
     if ( __d )
       return __d;
