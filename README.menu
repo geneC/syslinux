@@ -66,8 +66,7 @@ MENU LABEL label
 	menu cursor immediately to that entry.
 
 	Reusing hotkeys is disallowed, subsequent entries will not be
-	highlighted, and will not work.  Hotkeys ^n and ^p are predefined
-	to mean next and previous lines respectively.  
+	highlighted, and will not work.
 
 	Keep in mind that the LABELs, not MENU LABELs, must be unique,
 	or odd things will happen to the command-line.
