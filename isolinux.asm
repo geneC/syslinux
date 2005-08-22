@@ -1173,17 +1173,19 @@ local_boot:
 ; to the above, searchdir_iso passes a file flag mask in AL.  This is useful
 ; for searching for directories.
 ;
-alloc_failure:
+searchdir_iso.alloc_failure:
 		xor ax,ax			; ZF <- 1
-		ret
+		jmp searchdir_iso.ret
 
 searchdir:
 		xor al,al
 searchdir_iso:
+		push bx
+		push cx
 		mov [ISOFlags],al
 		TRACER 'S'
 		call allocate_file		; Temporary file structure for directory
-		jnz alloc_failure
+		jnz .alloc_failure
 		push es
 		push ds
 		pop es				; ES = DS
@@ -1268,8 +1270,7 @@ searchdir_iso:
 
 .failure:	xor eax,eax			; ZF = 1
 		mov [bx+file_sector],eax
-		pop es
-		ret
+		jmp .ret
 
 .success:
 		mov eax,[si+2]			; Location of extent
@@ -1284,7 +1285,10 @@ searchdir_iso:
 		shr edx,16
 		and bx,bx			; ZF = 0
 		mov si,bx
+.ret:
 		pop es
+		pop cx
+		pop bx
 		ret
 
 .resume:	; We get here if we were only doing part of a lookup

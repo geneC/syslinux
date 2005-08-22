@@ -976,9 +976,11 @@ allocate_file:
 ;
 
 searchdir:
+		push bx
 		call allocate_file
 		jnz .alloc_failure
 
+		push cx
 		push gs
 		push es
 		push ds
@@ -1013,8 +1015,10 @@ searchdir:
 .failure:
 		pop es
 		pop gs
+		pop cx
 .alloc_failure:
-		xor ax,ax			; ZF <- 1
+		pop bx
+		xor eax,eax			; ZF <- 1
 		ret
 .found:
 		mov eax,[gs:si+28]		; File size
@@ -1039,6 +1043,8 @@ searchdir:
 
 		pop es
 		pop gs
+		pop cx
+		pop bx
 		ret
 
 ;

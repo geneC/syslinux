@@ -1065,7 +1065,6 @@ close:
 searchdir:
 		push bx
 		push cx
-		push di
 		push bp
 		mov byte [SymlinkCtr],MAX_SYMLINKS
 
@@ -1111,7 +1110,6 @@ searchdir:
 .done:
 		and eax,eax		; Set/clear ZF
 		pop bp
-		pop di
 		pop cx
 		pop bx
 		ret

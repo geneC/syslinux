@@ -1089,6 +1089,8 @@ memory_scan_for_pxenv_struct:
 
 searchdir:
 		push es
+		push bx
+		push cx
 		mov ax,ds
 		mov es,ax
 		mov si,di
@@ -1096,7 +1098,7 @@ searchdir:
 		mov bp,sp
 
 		call allocate_socket
-		jz .error
+		jz .ret
 
 		mov ax,PKT_RETRY	; Retry counter
 		mov word [PktTimeout],PKT_TIMEOUT	; Initial timeout
@@ -1308,7 +1310,10 @@ searchdir:
 		pop bp			; Junk
 		pop bp			; Junk (retry counter)
 		jz .error_si		; ZF = 1 need to free the socket
+.ret:
 		pop bp
+		pop cx
+		pop bx
 		pop es
 		ret
 
@@ -1341,9 +1346,7 @@ searchdir:
 .error:		mov si,bx		; Socket pointer
 .error_si:				; Socket pointer already in SI
 		call free_socket	; ZF <- 1, SI <- 0
-		pop bp
-		pop es
-		ret
+		jmp .ret
 
 ;
 ; allocate_socket: Allocate a local UDP port structure
