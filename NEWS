@@ -27,6 +27,7 @@ Changes in 3.10:
 	* MEMDISK: the handling of DOSEMU-headered images was broken;
 	  fix it.
 	* EXTLINUX: symlinks are now supported.
+	* Simple menu system: N and P now work correctly as hotkeys.
 
 Changes in 3.09:
 	* gcc4 compilation fix.
