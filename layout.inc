@@ -25,8 +25,14 @@ BSS_START	equ 0800h
 TEXT_START	equ 7C00h
 
 ; The secondary BSS section, above the text; we really wish we could
-; just make it follow .bcopy32, but it doesn't seem to work that way.
+; just make it follow .bcopy32 or hang off the end,
+; but it doesn't seem to work that way.
 LATEBSS_START	equ 0B000h
+
+; Reserve memory for the stack.  This causes checkov to abort the
+; compile if we violate this space.
+STACK_SIZE	equ 4096
+STACK_START	equ TEXT_START-STACK_SIZE
 
 %ifdef MAP
 		[map all MAP]
@@ -51,4 +57,8 @@ LATEBSS_START	equ 0B000h
 
 		; NASM BUG: We would like to do follows=.bcopy32
 		section .latebss  nobits align=16 start=LATEBSS_START
+
+		; Reserve space for stack
+		section .stack	  nobits align=16 start=STACK_START
+Stack		resb	STACK_SIZE
 

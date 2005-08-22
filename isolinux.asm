@@ -218,9 +218,9 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 ;; CD-ROM sector (2K) of the file, so the number one priority is actually
 ;; loading the rest.
 ;;
-bootsec		equ $
+StackBuf	equ $
 
-StackBuf	equ $-44
+bootsec		equ $
 
 _start:		; Far jump makes sure we canonicalize the address
 		cli
@@ -759,7 +759,7 @@ xint13:		mov byte [RetryCount],retry_count
 ;	  then do a hard reboot.
 ;
 kaboom:
-		lss sp,[cs:Stack]
+		lss sp,[cs:StackPtr]
 		mov ax,cs
 		mov ds,ax
 		mov es,ax
@@ -818,7 +818,7 @@ crlf_msg	db CR, LF
 null_msg	db 0
 
 		alignb 4, db 0
-Stack		dw _start, 0			; SS:SP for stack reset
+StackPtr	dw StackBuf, 0			; SS:SP for stack reset
 MaxTransfer	dw 32				; Max sectors per transfer
 
 rl_checkpt	equ $				; Must be <= 800h
