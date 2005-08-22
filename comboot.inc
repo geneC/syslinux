@@ -583,6 +583,8 @@ numIPAppends	equ ($-IPAppends)/2
 comapi_ipappend equ comapi_err
 %endif
 
+		section .text
+
 ;
 ; INT 22h AX=0010h	Resolve hostname
 ;
@@ -597,12 +599,7 @@ comapi_dnsresolv:
 comapi_dnsresolv equ comapi_err
 %endif
 		
-		section .data
-%macro 		int21 2
-		db %1
-		dw %2
-%endmacro
-
+		section .text
 
 ;
 ; INT 22h AX=0011h	Maximum number of shuffle descriptors
@@ -744,6 +741,12 @@ comapi_runkernel:
 		jmp kernel_good_saved
 
 		section .data
+
+%macro 		int21 2
+		db %1
+		dw %2
+%endmacro
+
 int21_table:
 		int21	00h, comboot_return
 		int21	01h, comboot_getkey

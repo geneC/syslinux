@@ -1,7 +1,7 @@
 ; $Id$
 ; -----------------------------------------------------------------------
 ;   
-;   Copyright 1998-1999 H. Peter Anvin - All Rights Reserved
+;   Copyright 1998-2005 H. Peter Anvin - All Rights Reserved
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -44,6 +44,27 @@
 %define EXT2_DIND_BLOCK		(EXT2_IND_BLOCK+1)
 %define	EXT2_TIND_BLOCK		(EXT2_DIND_BLOCK+1)
 %define	EXT2_N_BLOCKS		(EXT2_TIND_BLOCK+1)
+
+;
+; File types and file modes
+;
+%define S_IFDIR		0040000o	; Directory
+%define S_IFCHR		0020000o	; Character device
+%define S_IFBLK		0060000o	; Block device
+%define S_IFREG		0100000o	; Regular file
+%define S_IFIFO		0010000o	; FIFO
+%define S_IFLNK		0120000o	; Symbolic link
+%define S_IFSOCK	0140000o	; Socket
+
+%define S_IFSHIFT	12
+
+%define T_IFDIR		(S_IFDIR >> S_IFSHIFT)
+%define T_IFCHR		(S_IFCHR >> S_IFSHIFT)
+%define T_IFBLK		(S_IFBLK >> S_IFSHIFT)
+%define T_IFREG		(S_IFREG >> S_IFSHIFT)
+%define T_IFIFO		(S_IFIFO >> S_IFSHIFT)
+%define T_IFLNK		(S_IFLNK >> S_IFSHIFT)
+%define T_IFSOCK	(S_IFSOCK >> S_IFSHIFT)
 
 ;
 ; Structure definition for the ext2 superblock

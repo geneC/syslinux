@@ -45,6 +45,10 @@ MAX_OPEN	equ (1 << MAX_OPEN_LG2)
 SECTOR_SHIFT	equ 9
 SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 
+MAX_SYMLINKS	equ 64			; Maximum number of symlinks per lookup
+SYMLINK_SECTORS	equ 2			; Max number of sectors in a symlink
+					; (should be >= FILENAME_MAX)
+
 ;
 ; This is what we need to do when idle
 ;
@@ -939,17 +943,25 @@ allocate_file:
 ;		ZF clear
 ;		SI	    = file pointer
 ;		DX:AX = EAX = file length in bytes
+;		ThisInode   = the first 128 bytes of the inode
 ;	     If unsuccessful
 ;		ZF set
 ;
+;	     Assumes CS == DS == ES.
+;
 open_inode.allocate_failure:
 		xor eax,eax
+		pop bx
+		pop di
 		ret
 
 open_inode:
+		push di
+		push bx
 		call allocate_file
 		jnz .allocate_failure
 
+		push cx
 		push gs
 		; First, get the appropriate inode group and index
 		dec eax				; There is no inode 0
@@ -996,9 +1008,13 @@ open_inode:
 
 		call getcachesector
 		add si,dx
-		mov ax,[gs:si+i_mode]
+		mov cx,EXT2_GOOD_OLD_INODE_SIZE >> 2
+		mov di,ThisInode
+		gs rep movsd
+
+		mov ax,[ThisInode+i_mode]
 		mov [bx+file_mode],ax
-		mov eax,[gs:si+i_size]
+		mov eax,[ThisInode+i_size]
 		push eax
 		add eax,SECTOR_SIZE-1
 		shr eax,SECTOR_SHIFT
@@ -1009,8 +1025,16 @@ open_inode:
 		shr edx,16			; 16-bitism, sigh
 		and eax,eax			; ZF clear unless zero-length file
 		pop gs
+		pop cx
+		pop bx
+		pop di
 		ret
 
+		section .latebss
+		alignb 4
+ThisInode	resb EXT2_GOOD_OLD_INODE_SIZE	; The most recently opened inode
+
+		section .text
 ;
 ; close:
 ;	     Deallocates a file structure (pointer in SI)
@@ -1042,17 +1066,78 @@ searchdir:
 		push bx
 		push cx
 		push di
+		push bp
+		mov byte [SymlinkCtr],MAX_SYMLINKS
+
 		mov eax,[CurrentDir]
+.begin_path:
 .leadingslash:
 		cmp byte [di],'/'	; Absolute filename?
-		jne .searchloop
+		jne .gotdir
 		mov eax,EXT2_ROOT_INO
 		inc di			; Skip slash
+		jmp .leadingslash
+.gotdir:
 
-.searchloop:
 		; At this point, EAX contains the directory inode,
 		; and DS:DI contains a pathname tail.
+.open:
+		push eax		; Save directory inode
+
 		call open_inode
+		jz .done		; If error, done
+
+		mov cx,[si+file_mode]
+		shr cx,S_IFSHIFT	; Get file type
+
+		cmp cx,T_IFDIR
+		je .directory
+
+		add sp,4		; Drop directory inode
+
+		cmp cx,T_IFREG
+		je .file
+		cmp cx,T_IFLNK
+		je .symlink
+
+		; Otherwise, something bad...
+.err:
+		call close
+.err_noclose:
+		xor eax,eax
+		xor si,si
+		cwd			; DX <- 0
+
+.done:
+		and eax,eax		; Set/clear ZF
+		pop bp
+		pop di
+		pop cx
+		pop bx
+		ret
+
+		;
+		; It's a file.
+		;
+.file:
+		cmp byte [di],0		; End of path?
+		je .done		; If so, done
+		jmp .err		; Otherwise, error
+
+		;
+		; It's a directory.
+		;
+.directory:
+		pop dword [ThisDir]	; Remember what directory we're searching
+
+		cmp byte [di],0		; More path?
+		je .err			; If not, bad
+		
+.skipslash:				; Skip redundant slashes
+		cmp byte [di],'/'
+		jne .readdir
+		inc di
+		jmp .skipslash
 
 .readdir:
 		mov bx,trackbuf
@@ -1081,38 +1166,99 @@ searchdir:
 		pop si
 		popf
 		jnc .readdir		; There is more
-.failure:
-		xor eax,eax
-		jmp .done
+		jmp .err		; Otherwise badness...
+
 .maybe:
 		mov eax,[bx+d_inode]
 		
+		; Does this match the end of the requested filename?
 		cmp byte [di],0
-		je .finish		; It's a real file; done
+		je .finish
 		cmp byte [di],'/'
-		jne .nope		; False alarm
-		
-		; It's a match, but it's a directory.
-		; Repeat operation.
-		pop bx			; Adjust stack (di)
-		pop si
-		call close
-		pop bx			; Adjust stack (flags)
-		inc di			; Skip slash
-		jmp .searchloop
-		
+		jne .nope
 
-.finish:	; We found it; now we need to open the file
+		; We found something; now we need to open the file
+.finish:
 		pop bx			; Adjust stack (di)
 		pop si
 		call close		; Close directory
 		pop bx			; Adjust stack (flags)
-		call open_inode
-.done:
+		jmp .open
+
+		;
+		; It's a symlink.  We have to determine if it's a fast symlink
+		; (data stored in the inode) or not (data stored as a regular
+		; file.)  Either which way, we start from the directory
+		; which we just visited if relative, or from the root directory
+		; if absolute, and append any remaining part of the path.
+		;
+.symlink:
+		dec byte [SymlinkCtr]
+		jz .err			; Too many symlink references
+
+		cmp eax,SYMLINK_SECTORS*SECTOR_SIZE
+		jae .err		; Symlink too long
+
+		; Computation for fast symlink, as defined by ext2/3 spec
+		xor ecx,ecx
+		cmp [ThisInode+i_file_acl],ecx
+		setne cl		; ECX <- i_file_acl ? 1 : 0
+		cmp [ThisInode+i_blocks],ecx
+		jne .slow_symlink
+
+		; It's a fast symlink
+.fast_symlink:
+		call close		; We've got all we need
+		mov si,ThisInode+i_block
+
+		push di
+		mov di,SymlinkTmpBuf
+		mov ecx,eax
+		rep movsb
+		pop si
+
+.symlink_finish:
+		cmp byte [si],0
+		je .no_slash
+		mov al,'/'
+		stosb
+.no_slash:
+		mov bp,SymlinkTmpBufEnd
+		call strecpy
+		jc .err_noclose		; Buffer overflow
+
+		; Now copy it to the "real" buffer; we need to have
+		; two buffers so we avoid overwriting the tail on the
+		; next copy
+		mov si,SymlinkTmpBuf
+		mov di,SymlinkBuf
+		push di
+		call strcpy
 		pop di
-		pop cx
-		pop bx
-		ret
+		mov eax,[ThisDir]	; Resume searching previous directory
+		jmp .begin_path
+
+.slow_symlink:
+		mov bx,SymlinkTmpBuf
+		mov cx,SYMLINK_SECTORS
+		call getfssec
+		; The EOF closed the file
+
+		mov si,di		; SI = filename tail
+		mov di,SymlinkTmpBuf
+		add ax,di		; AX = file length
+		jmp .symlink_finish
+
+
+		section .bss
+		alignb	4
+SymlinkBuf	resb	SYMLINK_SECTORS*SECTOR_SIZE+64
+SymlinkTmpBuf	 equ	trackbuf
+SymlinkTmpBufEnd equ	trackbuf+SYMLINK_SECTORS*SECTOR_SIZE+64
+ThisDir		resd	1
+SymlinkCtr	resb	1
+
+		section .text
 ;
 ; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
 ;	       to by ES:DI; ends on encountering any whitespace.
@@ -1405,6 +1551,7 @@ getfssec:
 %include "graphics.inc"		; VGA graphics
 %include "highmem.inc"		; High memory sizing
 %include "strcpy.inc"           ; strcpy()
+%include "strecpy.inc"          ; strcpy with end pointer check
 %include "cache.inc"
 
 ; -----------------------------------------------------------------------------

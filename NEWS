@@ -26,6 +26,7 @@ Changes in 3.10:
 	  problem has not yet been debugged.
 	* MEMDISK: the handling of DOSEMU-headered images was broken;
 	  fix it.
+	* EXTLINUX: symlinks are now supported.
 
 Changes in 3.09:
 	* gcc4 compilation fix.
