@@ -65,6 +65,13 @@ MENU LABEL label
 	The hotkey will be highlighted in the menu and will move the
 	menu cursor immediately to that entry.
 
+	Reusing hotkeys is disallowed, subsequent entries will not be
+	highlighted, and will not work.  Hotkeys ^n and ^p are predefined
+	to mean next and previous lines respectively.  
+
+	Keep in mind that the LABELs, not MENU LABELs, must be unique,
+	or odd things will happen to the command-line.
+
 MENU HIDE
 
 	(Only valid after a LABEL statement.)
