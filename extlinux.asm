@@ -1244,7 +1244,7 @@ searchdir:
 
 		mov si,di		; SI = filename tail
 		mov di,SymlinkTmpBuf
-		add ax,di		; AX = file length
+		add di,ax		; AX = file length
 		jmp .symlink_finish
 
 
