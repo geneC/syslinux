@@ -133,7 +133,7 @@ unsigned char checkkbdbuf()
 {
    REG_AH(inreg) = 0x11;
    __intcall(0x16,&inreg,&outreg);
-   return (outreg.eflags.l & EFLAGS_ZF);
+   return !(outreg.eflags.l & EFLAGS_ZF);
 }
 
 // Get char displayed at current position
