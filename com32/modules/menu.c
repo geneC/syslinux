@@ -487,8 +487,7 @@ run_menu(void)
       }
       cmdline = menu_entries[entry].cmdline;
       break;
-    case 'P':
-    case 'p':
+    case KEY_CTRL('P'):
     case KEY_UP:
       if ( entry > 0 ) {
 	entry--;
@@ -496,8 +495,7 @@ run_menu(void)
 	  top -= MENU_ROWS;
       }
       break;
-    case 'N':
-    case 'n':
+    case KEY_CTRL('N'):
     case KEY_DOWN:
       if ( entry < nentries-1 ) {
 	entry++;
@@ -505,13 +503,11 @@ run_menu(void)
 	  top += MENU_ROWS;
       }
       break;
-    case KEY_CTRL('P'):
     case KEY_PGUP:
     case KEY_LEFT:
       entry -= MENU_ROWS;
       top   -= MENU_ROWS;
       break;
-    case KEY_CTRL('N'):
     case KEY_PGDN:
     case KEY_RIGHT:
     case ' ':
