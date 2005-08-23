@@ -56,7 +56,7 @@ abort_load:
 %elif IS_PXELINUX
 		lss esp,[BaseStack]
 %elif IS_ISOLINUX
-		lss sp,[Stack]
+		lss sp,[StackPtr]
 %else
 		NEED TO KNOW HOW TO RESET STACK
 %endif
