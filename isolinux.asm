@@ -9,7 +9,7 @@
 ;  available.  It is based on the SYSLINUX boot loader for MS-DOS
 ;  floppies.
 ;
-;   Copyright (C) 1994-2004  H. Peter Anvin
+;   Copyright (C) 1994-2005  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -1167,25 +1167,23 @@ local_boot:
 ;	     If unsuccessful
 ;		ZF set
 ;
-
+; Assumes CS == DS == ES, and trashes BX and CX.
 ;
 ; searchdir_iso is a special entry point for ISOLINUX only.  In addition
 ; to the above, searchdir_iso passes a file flag mask in AL.  This is useful
 ; for searching for directories.
 ;
-searchdir_iso.alloc_failure:
+alloc_failure:
 		xor ax,ax			; ZF <- 1
-		jmp searchdir_iso.ret
+		ret
 
 searchdir:
 		xor al,al
 searchdir_iso:
-		push bx
-		push cx
 		mov [ISOFlags],al
 		TRACER 'S'
 		call allocate_file		; Temporary file structure for directory
-		jnz .alloc_failure
+		jnz alloc_failure
 		push es
 		push ds
 		pop es				; ES = DS
@@ -1270,7 +1268,8 @@ searchdir_iso:
 
 .failure:	xor eax,eax			; ZF = 1
 		mov [bx+file_sector],eax
-		jmp .ret
+		pop es
+		ret
 
 .success:
 		mov eax,[si+2]			; Location of extent
@@ -1285,10 +1284,7 @@ searchdir_iso:
 		shr edx,16
 		and bx,bx			; ZF = 0
 		mov si,bx
-.ret:
 		pop es
-		pop cx
-		pop bx
 		ret
 
 .resume:	; We get here if we were only doing part of a lookup
