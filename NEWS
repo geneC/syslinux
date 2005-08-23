@@ -28,6 +28,7 @@ Changes in 3.10:
 	  fix it.
 	* EXTLINUX: symlinks are now supported.
 	* Simple menu system: N and P now work correctly as hotkeys.
+	* MEMDISK: more BIOS bug workarounds.
 
 Changes in 3.09:
 	* gcc4 compilation fix.
