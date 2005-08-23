@@ -52,14 +52,21 @@ b) If the disk image is one of the following sizes, it's assumed to be a
    You can also specify the geometry manually with the following command
    line options:
 
-   c=<number>	Specify number of cylinders (max 1024[*])
-   h=<number>	Specify number of heads (max 256[*])
-   s=<number>	Specify number of sectors (max 63)
-   floppy	The image is a floppy image
-   harddisk	The image is a hard disk image
+   c=#		Specify number of cylinders (max 1024[*])
+   h=#		Specify number of heads (max 256[*])
+   s=#		Specify number of sectors (max 63)
+   floppy[=#]	The image is a floppy image[**]
+   harddisk[=#]	The image is a hard disk image[**]
 
-   [*] MS-DOS only allows max 255 heads, and only allows 255 cylinders
-       on floppy disks.
+   # represents a decimal number.
+
+    [*] MS-DOS only allows max 255 heads, and only allows 255 cylinders
+        on floppy disks.
+
+   [**] Normally MEMDISK emulates the first floppy or hard disk.  This
+        can be overridden by specifying an index, e.g. floppy=1 will
+        simulate fd1 (B:). This may not work on all operating systems
+        or BIOSes.
 
 c) The disk is normally writable (although, of course, there is
    nothing backing it up, so it only lasts until reset.)  If you want,

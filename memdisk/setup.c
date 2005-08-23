@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2001-2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2001-2005 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -427,13 +427,13 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
   if ( CMD_HASDATA(p = getcmditem("s")) && (v = atou(p)) )
     hd_geometry.s = v;
   
-  if ( getcmditem("floppy") != CMD_NOTFOUND ) {
-    hd_geometry.driveno = 0;
+  if ( (p = getcmditem("floppy")) != CMD_NOTFOUND ) {
+    hd_geometry.driveno = CMD_HASDATA(p) ? atou(p) & 0x7f : 0;
     if ( hd_geometry.type == 0 )
       hd_geometry.type = 0x10;	/* ATAPI floppy, e.g. LS-120 */
     drive_specified = 1;
-  } else if ( getcmditem("harddisk") != CMD_NOTFOUND ) {
-    hd_geometry.driveno = 0x80;
+  } else if ( (p = getcmditem("harddisk")) != CMD_NOTFOUND ) {
+    hd_geometry.driveno = CMD_HASDATA(p) ? atou(p) | 0x80 : 0x80;
     hd_geometry.type = 0;
     drive_specified = 1;
   }
@@ -717,18 +717,31 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
 
   if ( geometry->driveno & 0x80 ) {
     /* Update BIOS hard disk count */
-    wrz_8(BIOS_HD_COUNT, rdz_8(BIOS_HD_COUNT)+1);
+    int nhd = rdz_8(BIOS_HD_COUNT);
+
+    nhd++;
+    if ( nhd <= (geometry->driveno & 0x7f) )
+      nhd = (geometry->driveno & 0x7f) + 1;
+
+    if ( nhd > 128 )
+      nhd = 128;
+
+    wrz_8(BIOS_HD_COUNT, nhd);
   } else {
     /* Update BIOS floppy disk count */
     uint8_t equip = rdz_8(BIOS_EQUIP);
-    if ( equip & 1 ) {
-      if ( (equip & (3 << 6)) != (3 << 6) ) {
-	equip += (1 << 6);
-      }
-    } else {
-      equip |= 1;
-      equip &= ~(3 << 6);
-    }
+    int nflop = (equip & 1) ? (equip >> 6) : 0;
+
+    nflop++;
+    if ( nflop <= geometry->driveno )
+      nflop = geometry->driveno + 1;
+
+    if ( nflop > 4 )
+      nflop = 4;
+
+    equip |= 1;
+    equip &= ~(3 << 6);
+    equip |= (nflop-1) << 6;
     wrz_8(BIOS_EQUIP, equip);
   }
 

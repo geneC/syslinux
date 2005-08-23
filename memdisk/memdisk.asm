@@ -177,19 +177,24 @@ DoneWeird:
 Reset:
 		; Reset affects multiple drives, so we need to pass it on
 		TRACER 'R'
+		xor ax,ax		; Bottom of memory
+		mov es,ax
 		test dl,dl		; Always pass it on if we are resetting HD
-		js .pass_on		; Bit 7 set
+		js .hard_disk		; Bit 7 set
 		; Some BIOSes get very unhappy if we pass a reset floppy
 		; command to them and don't actually have any floppies.
 		; This is a bug, but we have to deal with it nontheless.
 		; Therefore, if we are the *ONLY* floppy drive, and the
 		; user didn't request HD reset, then just drop the command.
-		xor ax,ax		; Bottom of memory
-		mov es,ax
 		; BIOS equipment byte, top two bits + 1 == total # of floppies
-		test byte [es:0x410],0C0h	
+		test byte [es:0x410],0C0h
 		jz success
-		; ... otherwise pass it to the BIOS
+		jmp .pass_on		; ... otherwise pass it to the BIOS
+.hard_disk:
+		; ... same thing for hard disks, sigh ...
+		cmp byte [es:0x475],1	; BIOS variable for number of hard disks
+		jbe success
+
 .pass_on:
 		pop ax			; Drop return address
 		popad			; Restore all registers
