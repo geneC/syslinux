@@ -53,11 +53,13 @@ mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_sbindir}
 mkdir -p %{buildroot}%{_libdir}/syslinux
 mkdir -p %{buildroot}%{_includedir}
+mkdir -p %{buildroot}/boot
 make install-all \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} SBINDIR=%{_sbindir} \
 	LIBDIR=%{_libdir} INCDIR=%{_includedir}
 make -C sample tidy
 cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_libdir}/syslinux
+ln %{buildroot}%{_libdir}/syslinux/*.c32 %{buildroot}/boot
 
 %clean
 rm -rf %{buildroot}
@@ -79,6 +81,7 @@ rm -rf %{buildroot}
 %{_libdir}/syslinux/memdisk
 %{_libdir}/syslinux/*.pl
 %{_libdir}/syslinux/mkdiskimage
+/boot/*.c32
 
 %files devel
 %{_libdir}/syslinux/com32
@@ -88,6 +91,9 @@ rm -rf %{buildroot}
 %postun
 
 %changelog
+* Tue Aug 23 2005 H. Peter Anvin <hpa@zytor.com>
+- Put *.c32 into /boot.
+
 * Thu Dec 30 2004 H. Peter Anvin <hpa@zytor.com>
 - libsyslinux dropped in syslinux 3.00.
 - Additional documentation.
