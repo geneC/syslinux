@@ -730,7 +730,7 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   } else {
     /* Update BIOS floppy disk count */
     uint8_t equip = rdz_8(BIOS_EQUIP);
-    int nflop = (equip & 1) ? (equip >> 6) : 0;
+    int nflop = (equip & 1) ? (equip >> 6)+1 : 0;
 
     nflop++;
     if ( nflop <= geometry->driveno )
