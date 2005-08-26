@@ -547,8 +547,9 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
 
   geometry = get_disk_image_geometry(ramdisk_image, ramdisk_size);
 
-  printf("Disk is %s, %u K, C/H/S = %u/%u/%u\n",
-	 geometry->driveno ? "hard disk" : "floppy",
+  printf("Disk is %s %d, %u K, C/H/S = %u/%u/%u\n",
+	 (geometry->driveno & 0x80) ? "hard disk" : "floppy",
+	 geometry->driveno & 0x7f,
 	 geometry->sectors >> 1,
 	 geometry->c, geometry->h, geometry->s);
 
