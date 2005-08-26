@@ -77,14 +77,26 @@ static const struct menu_attrib default_attrib = {
 
 static const struct menu_attrib *menu_attrib = &default_attrib;
 
-#define WIDTH		80
-#define MARGIN		10
-#define PASSWD_MARGIN	3
-#define MENU_ROWS	12
-#define TABMSG_ROW	18
-#define CMDLINE_ROW	20
-#define END_ROW		24
-#define PASSWD_ROW	11
+struct menu_parameter mparm[] = {
+  { "width", 80 },
+  { "margin", 10 },
+  { "passwordmargin", 3 },
+  { "rows", 12 },
+  { "tabmsgrow", 18 },
+  { "cmdlinerow", 20 },
+  { "endrow", 24 },
+  { "passwordrow", 11 },
+  { NULL, 0 }
+};
+
+#define WIDTH		mparm[0].value
+#define MARGIN		mparm[1].value
+#define PASSWD_MARGIN	mparm[2].value
+#define MENU_ROWS	mparm[3].value
+#define TABMSG_ROW	mparm[4].value
+#define CMDLINE_ROW	mparm[5].value
+#define END_ROW		mparm[6].value
+#define PASSWD_ROW	mparm[7].value
 
 static char *
 pad_line(const char *text, int align, int width)

@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2005 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -33,6 +33,13 @@ struct menu_entry {
 #define MAX_ENTRIES	4096	/* Oughta be enough for anybody */
 extern struct menu_entry menu_entries[];
 extern struct menu_entry *menu_hotkeys[256];
+
+struct menu_parameter {
+  const char *name;
+  int value;
+};
+
+extern struct menu_parameter mparm[];
 
 extern int nentries;
 extern int defentry;

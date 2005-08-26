@@ -108,6 +108,19 @@ MENU MASTER PASSWD passwd
 	work.
 
 
+MENU WIDTH 80
+MENU MARGIN 10
+MENU PASSWORDMARGIN 3
+MENU ROWS 12
+MENU TABMSGROW 18
+MENU CMDLINEROW 20
+MENU ENDROW 24
+MENU PASSWORDROW 11
+
+	These options control the layout of the menu on the screen.
+	The values above are the defaults.
+
+
 The menu system honours the TIMEOUT command; if TIMEOUT is specified
 it will execute the ONTIMEOUT command if one exists, otherwise it will
 pick the default menu option.

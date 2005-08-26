@@ -224,11 +224,19 @@ void parse_config(const char *filename)
 	ld.passwd = strdup(skipspace(p+6));
       } else if ( looking_at(p, "master") ) {
 	p = skipspace(p+6);
-	if ( looking_at (p, "passwd") ) {
+	if ( looking_at(p, "passwd") ) {
 	  menu_master_passwd = strdup(skipspace(p+6));
 	}
       } else {
-	/* Unknown, ignore for now */
+	/* Unknown, check for parameters */
+	struct menu_parameter *pp;
+	for ( pp = mparm ; pp->name ; pp++ ) {
+	  if ( looking_at(p, pp->name) ) {
+	    p = skipspace(p+strlen(pp->name));
+	    pp->value = atoi(p);
+	    break;
+	  }
+	}
       }
     } else if ( looking_at(p, "append") ) {
       char *a = strdup(skipspace(p+6));
