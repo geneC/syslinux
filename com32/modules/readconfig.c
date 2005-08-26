@@ -94,10 +94,11 @@ skipspace(char *p)
 }
 
 /* Check to see if we are at a certain keyword (case insensitive) */
-static int
-looking_at(const char *line, const char *kwd)
+/* Returns a pointer to the first character past the keyword */
+static char *
+looking_at(char *line, const char *kwd)
 {
-  const char *p = line;
+  char *p = line;
   const char *q = kwd;
 
   while ( *p && *q && ((*p^*q) & ~0x20) == 0 ) {
@@ -106,9 +107,9 @@ looking_at(const char *line, const char *kwd)
   }
 
   if ( *q )
-    return 0;			/* Didn't see the keyword */
+    return NULL;		/* Didn't see the keyword */
 
-  return *p <= ' ';		/* Must be EOL or whitespace */
+  return (*p <= ' ') ? p : NULL; /* Must be EOL or whitespace */
 }
 
 struct labeldata {
@@ -184,7 +185,7 @@ record(struct labeldata *ld, char *append)
 
 void parse_config(const char *filename)
 {
-  char line[MAX_LINE], *p;
+  char line[MAX_LINE], *p, *ep;
   FILE *f;
   char *append = NULL;
   static struct labeldata ld;
@@ -228,12 +229,11 @@ void parse_config(const char *filename)
 	  menu_master_passwd = strdup(skipspace(p+6));
 	}
       } else {
-	/* Unknown, check for parameters */
+	/* Unknown, check for layout parameters */
 	struct menu_parameter *pp;
 	for ( pp = mparm ; pp->name ; pp++ ) {
-	  if ( looking_at(p, pp->name) ) {
-	    p = skipspace(p+strlen(pp->name));
-	    pp->value = atoi(p);
+	  if ( (ep = looking_at(p, pp->name)) ) {
+	    pp->value = atoi(skipspace(ep));
 	    break;
 	  }
 	}
