@@ -680,7 +680,7 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   memset(&regs, 0, sizeof regs);
   regs.es = 0;
   regs.eax.b[1] = 0x08;
-  regs.edx.b[0] = geometry->driveno;
+  regs.edx.b[0] = geometry->driveno & 0x80;
   syscall(0x13, &regs, &regs);
   
   if ( regs.eflags.l & 1 ) {
