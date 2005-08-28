@@ -87,7 +87,7 @@ struct menu_parameter mparm[] = {
   { "passwordmargin", 3 },
   { "rows", 12 },
   { "tabmsgrow", 18 },
-  { "cmdlinerow", 20 },
+  { "cmdlinerow", 18 },
   { "endrow", 24 },
   { "passwordrow", 11 },
   { "timeoutrow", 20 },
@@ -299,7 +299,7 @@ ask_passwd(const char *menu_entry)
 
 
 static void
-draw_menu(int sel, int top)
+draw_menu(int sel, int top, int edit_line)
 {
   int x, y;
   int sbtop = 0, sbbot = 0;
@@ -336,7 +336,7 @@ draw_menu(int sel, int top)
     putchar('q');
   fputs("j\017", stdout);
 
-  if ( allowedit && !menu_master_passwd )
+  if ( edit_line && allowedit && !menu_master_passwd )
     printf("%s\033[%d;1H%s", menu_attrib->tabmsg, TABMSG_ROW,
 	   pad_line("Press [Tab] to edit options", 1, WIDTH));
 
@@ -362,7 +362,7 @@ edit_cmdline(char *input, int top)
       /* Enable ASCII on G0 and DEC VT on G1; do it in this order
 	 to avoid confusing the Linux console */
       printf("\033e\033%%@\033)0\033(B%s\033[?25l\033[2J", menu_attrib->screen);
-      draw_menu(-1, top);
+      draw_menu(-1, top, 1);
       prev_len = 0;
     }
 
@@ -517,7 +517,7 @@ run_menu(void)
     }
 
     if ( top != prev_top ) {
-      draw_menu(entry, top);
+      draw_menu(entry, top, 1);
     } else if ( entry != prev_entry ) {
       draw_row(prev_entry-top+4, entry, top, 0, 0);
       draw_row(entry-top+4, entry, top, 0, 0);
@@ -635,7 +635,7 @@ run_menu(void)
 	  ok = ask_passwd(NULL);
 
 	clear_screen();
-	draw_menu(-1, top);
+	draw_menu(-1, top, 0);
 	
 	if ( ok ) {
 	  cmdline = edit_cmdline(menu_entries[entry].cmdline, top);
