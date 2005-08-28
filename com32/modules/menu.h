@@ -28,7 +28,8 @@ struct menu_entry {
   unsigned char hotkey;
 };
 
-#define MAX_CMDLINE_LEN	 256
+/* 512 is the current definition inside syslinux */
+#define MAX_CMDLINE_LEN	 512
 
 #define MAX_ENTRIES	4096	/* Oughta be enough for anybody */
 extern struct menu_entry menu_entries[];
