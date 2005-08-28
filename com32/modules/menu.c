@@ -424,14 +424,14 @@ edit_cmdline(char *input, int top)
       }
       break;
     case KEY_LEFT:
-    case KEY_CTRL('P'):
+    case KEY_CTRL('B'):
       if ( cursor ) {
 	cursor--;
 	redraw = 1;
       }
       break;
     case KEY_RIGHT:
-    case KEY_CTRL('N'):
+    case KEY_CTRL('F'):
       if ( cursor < len ) {
 	putchar(cmdline[cursor++]);
       }
@@ -597,11 +597,13 @@ run_menu(void)
       break;
     case KEY_PGUP:
     case KEY_LEFT:
+    case KEY_CTRL('B'):
       entry -= MENU_ROWS;
       top   -= MENU_ROWS;
       break;
     case KEY_PGDN:
     case KEY_RIGHT:
+    case KEY_CTRL('F'):
     case ' ':
       entry += MENU_ROWS;
       top   += MENU_ROWS;
