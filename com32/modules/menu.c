@@ -101,7 +101,7 @@ struct menu_parameter mparm[] = {
 static char *
 pad_line(const char *text, int align, int width)
 {
-  static char buffer[256];
+  static char buffer[MAX_CMDLINE_LEN];
   int n, p;
 
   if ( width >= (int) sizeof buffer )
@@ -341,13 +341,14 @@ static const char *
 edit_cmdline(char *input, int top)
 {
   static char cmdline[MAX_CMDLINE_LEN];
-  int key, len;
+  int key, len, prev_len, cursor;
   int redraw = 1;		/* We enter with the menu already drawn */
 
   strncpy(cmdline, input, MAX_CMDLINE_LEN);
   cmdline[MAX_CMDLINE_LEN-1] = '\0';
 
-  len = strlen(cmdline);
+  len = cursor = strlen(cmdline);
+  prev_len = 0;
 
   for (;;) {
     if ( redraw > 1 ) {
@@ -356,15 +357,17 @@ edit_cmdline(char *input, int top)
 	 to avoid confusing the Linux console */
       printf("\033e\033%%@\033)0\033(B%s\033[?25l\033[2J", menu_attrib->screen);
       draw_menu(-1, top);
+      prev_len = 0;
     }
 
     if ( redraw > 0 ) {
       /* Redraw the command line */
-      printf("\033[?25h\033[%d;1H%s> %s%s",
+      printf("\033[?25l\033[%d;1H%s> %s%s",
 	     CMDLINE_ROW, menu_attrib->cmdmark,
-	     menu_attrib->cmdline, pad_line(cmdline, 0, MAX_CMDLINE_LEN-1));
-      printf("%s\033[%d;3H%s",
-	     menu_attrib->cmdline, CMDLINE_ROW, cmdline);
+	     menu_attrib->cmdline, pad_line(cmdline, 0, prev_len));
+      printf("%s\033[%d;3H%s\033[?25h",
+	     menu_attrib->cmdline, CMDLINE_ROW, pad_line(cmdline, 0, cursor));
+      prev_len = len;
       redraw = 0;
     }
 
@@ -385,34 +388,80 @@ edit_cmdline(char *input, int top)
     case KEY_BACKSPACE:
     case KEY_DEL:
     case KEY_DELETE:
-      if ( len ) {
-	cmdline[--len] = '\0';
+      if ( cursor ) {
+	memmove(cmdline+cursor-1, cmdline+cursor, len-cursor+1);
+	len--;
+	cursor--;
 	redraw = 1;
       }
       break;
     case KEY_CTRL('U'):
       if ( len ) {
-	len = 0;
+	len = cursor = 0;
 	cmdline[len] = '\0';
 	redraw = 1;
       }
       break;
     case KEY_CTRL('W'):
-      if ( len ) {
-	int wasbs = (cmdline[len-1] <= ' ');
-	while ( len && (cmdline[len-1] <= ' ' || !wasbs) ) {
-	  len--;
-	  wasbs = wasbs || (cmdline[len-1] <= ' ');
-	}
-	cmdline[len] = '\0';
+      if ( cursor ) {
+	int prevcursor = cursor;
+
+	while ( cursor && (cmdline[cursor-1] <= ' ') )
+	  cursor--;
+
+	while ( cursor && (cmdline[cursor-1] > ' ') )
+	  cursor--;
+
+	memmove(cmdline+cursor, cmdline+prevcursor, len-prevcursor+1);
+	len -= (cursor-prevcursor);
+	redraw = 1;
+      }
+      break;
+    case KEY_LEFT:
+    case KEY_CTRL('P'):
+      if ( cursor ) {
+	cursor--;
+	redraw = 1;
+      }
+      break;
+    case KEY_RIGHT:
+    case KEY_CTRL('N'):
+      if ( cursor < len ) {
+	putchar(cmdline[cursor++]);
+      }
+      break;
+    case KEY_CTRL('K'):
+      if ( cursor < len ) {
+	cmdline[len = cursor] = '\0';
+	redraw = 1;
+      }
+      break;
+    case KEY_CTRL('A'):
+      if ( cursor ) {
+	cursor = 0;
+	redraw = 1;
+      }
+      break;
+    case KEY_CTRL('E'):
+      if ( cursor != len ) {
+	cursor = len;
 	redraw = 1;
       }
       break;
     default:
       if ( key >= ' ' && key <= 0xFF && len < MAX_CMDLINE_LEN-1 ) {
-	cmdline[len] = key;
-	cmdline[++len] = '\0';
-	putchar(key);
+	if ( cursor == len ) {
+	  cmdline[len] = key;
+	  cmdline[++len] = '\0';
+	  cursor++;
+	  putchar(key);
+	  prev_len++;
+	} else {
+	  memmove(cmdline+cursor+1, cmdline+cursor, len-cursor+1);
+	  cmdline[cursor++] = key;
+	  len++;
+	  redraw = 1;
+	}
       }
       break;
     }
