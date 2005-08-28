@@ -6,6 +6,8 @@ Changes in 3.11:
 	* MEMDISK: Fix bug by which accessing the real floppy disk
 	  as B: in MS-DOS was broken.
 	* Simple menu system: allow tweaking of the screen layout.
+	* Simple menu system: better command-line editing, correctly
+	  handle command lines above 256 characters.
 
 Changes in 3.10:
 	* gcc 4.0.1 compilation fixes.
