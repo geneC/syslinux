@@ -56,6 +56,8 @@ struct menu_attrib {
   const char *pwdborder;	/* Password box border */
   const char *pwdheader;	/* Password box header */
   const char *pwdentry;		/* Password box contents */
+  const char *timeout_msg;	/* Timeout message */
+  const char *timeout;		/* Timeout counter */
 };
 
 static const struct menu_attrib default_attrib = {
@@ -73,6 +75,8 @@ static const struct menu_attrib default_attrib = {
   .pwdborder	= "\033[0;30;47m",
   .pwdheader    = "\033[0;31;47m",
   .pwdentry     = "\033[0;30;47m",
+  .timeout_msg  = "\033[0;37;40m",
+  .timeout      = "\033[1;37;40m",
 };
 
 static const struct menu_attrib *menu_attrib = &default_attrib;
@@ -86,6 +90,7 @@ struct menu_parameter mparm[] = {
   { "cmdlinerow", 20 },
   { "endrow", 24 },
   { "passwordrow", 11 },
+  { "timeoutrow", 20 },
   { NULL, 0 }
 };
 
@@ -97,6 +102,7 @@ struct menu_parameter mparm[] = {
 #define CMDLINE_ROW	mparm[5].value
 #define END_ROW		mparm[6].value
 #define PASSWD_ROW	mparm[7].value
+#define TIMEOUT_ROW	mparm[8].value
 
 static char *
 pad_line(const char *text, int align, int width)
@@ -481,13 +487,13 @@ run_menu(void)
   int done = 0;
   int entry = defentry, prev_entry = -1;
   int top = 0, prev_top = -1;
-  int clear = 1;
+  int clear = 1, to_clear;
   const char *cmdline = NULL;
-  clock_t key_timeout;
+  clock_t key_timeout, timeout_left, this_timeout;
 
   /* Convert timeout from deciseconds to clock ticks */
   /* Note: for both key_timeout and timeout == 0 means no limit */
-  key_timeout = (clock_t)(CLK_TCK*timeout+9)/10;
+  timeout_left = key_timeout = (clock_t)(CLK_TCK*timeout+9)/10;
 
   while ( !done ) {
     if ( entry < 0 )
@@ -519,7 +525,27 @@ run_menu(void)
 
     prev_entry = entry;  prev_top = top;
 
-    key = get_key(stdin, key_timeout);
+    if ( key_timeout && entry == defentry ) {
+      int tol = timeout_left/CLK_TCK;
+      int nc = snprintf(NULL, 0, " Automatic boot in %d seconds ", tol);
+      printf("\033[%d;%dH%s Automatic boot in %s%d%s seconds ",
+	     TIMEOUT_ROW, 1+((WIDTH-nc)>>1),
+	     menu_attrib->timeout_msg,
+	     menu_attrib->timeout, tol,
+	     menu_attrib->timeout_msg);
+      to_clear = 1;
+    } else {
+      to_clear = 0;
+    }
+
+    this_timeout = min(timeout_left, CLK_TCK);
+    key = get_key(stdin, this_timeout);
+
+    if ( key != KEY_NONE ) {
+      timeout_left = key_timeout;
+      clear = to_clear;
+    }
+
     switch ( key ) {
     case KEY_NONE:		/* Timeout */
       /* This is somewhat hacky, but this at least lets the user
@@ -528,11 +554,16 @@ run_menu(void)
 
 	 Warning: a timeout will boot the default entry without any
 	 password! */
-      if ( entry != defentry )
-	entry = defentry;
-      else {
-	cmdline = menu_entries[defentry].cmdline;
-	done = 1;
+      timeout_left -= this_timeout;
+
+      if ( timeout_left == 0 ) {
+	if ( entry != defentry ) {
+	  entry = defentry;
+	  timeout_left = key_timeout;
+	} else {
+	  cmdline = menu_entries[defentry].cmdline;
+	  done = 1;
+	}
       }
       break;
     case KEY_CTRL('L'):
@@ -598,11 +629,11 @@ run_menu(void)
 
 	draw_row(entry-top+4, -1, top, 0, 0);
 
-	if ( menu_master_passwd ) {
+	if ( menu_master_passwd )
 	  ok = ask_passwd(NULL);
-	  clear_screen();
-	  draw_menu(-1, top);
-	}
+
+	clear_screen();
+	draw_menu(-1, top);
 	
 	if ( ok ) {
 	  cmdline = edit_cmdline(menu_entries[entry].cmdline, top);
