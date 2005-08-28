@@ -8,6 +8,8 @@ Changes in 3.11:
 	* Simple menu system: allow tweaking of the screen layout.
 	* Simple menu system: better command-line editing, correctly
 	  handle command lines above 256 characters.
+	* PXELINUX: revert memory allocation change that caused
+	  problems on some network cards.
 
 Changes in 3.10:
 	* gcc 4.0.1 compilation fixes.
