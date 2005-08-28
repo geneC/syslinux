@@ -116,6 +116,7 @@ MENU TABMSGROW 18
 MENU CMDLINEROW 20
 MENU ENDROW 24
 MENU PASSWORDROW 11
+MENU TIMEOUTROW 20
 
 	These options control the layout of the menu on the screen.
 	The values above are the defaults.
