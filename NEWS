@@ -12,6 +12,8 @@ Changes in 3.11:
 	  problems on some network cards.
 	* MEMDISK: Try work around a bug on some BIOSes when no
 	  physical floppy disk is present in the system.
+	* Enable the 16550A FIFOs, if present, when doing serial
+	  console.
 
 Changes in 3.10:
 	* gcc 4.0.1 compilation fixes.
