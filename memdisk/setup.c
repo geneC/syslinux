@@ -692,6 +692,10 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
     pptr->drivecnt = regs.edx.b[0]+1;
   }
 
+  /* Discontiguous drive space.  There is no really good solution for this. */
+  if ( pptr->drivecnt <= (geometry->driveno & 0x7f) )
+    pptr->drivecnt = (geometry->driveno & 0x7f) + 1;
+
   /* Pointer to the command line */
   pptr->cmdline_off = bin_size + (nranges+1)*sizeof(ranges[0]);
   pptr->cmdline_seg = driverseg;
@@ -718,11 +722,7 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
 
   if ( geometry->driveno & 0x80 ) {
     /* Update BIOS hard disk count */
-    int nhd = rdz_8(BIOS_HD_COUNT);
-
-    nhd++;
-    if ( nhd <= (geometry->driveno & 0x7f) )
-      nhd = (geometry->driveno & 0x7f) + 1;
+    uint8_t nhd = pptr->drivecnt;
 
     if ( nhd > 128 )
       nhd = 128;
@@ -731,18 +731,15 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   } else {
     /* Update BIOS floppy disk count */
     uint8_t equip = rdz_8(BIOS_EQUIP);
-    int nflop = (equip & 1) ? (equip >> 6)+1 : 0;
+    uint8_t nflop = pptr->drivecnt;
 
-    nflop++;
-    if ( nflop <= geometry->driveno )
-      nflop = geometry->driveno + 1;
-
-    if ( nflop > 4 )
+    if ( nflop > 4 )		/* Limit of equipment byte */
       nflop = 4;
 
-    equip |= 1;
-    equip &= ~(3 << 6);
-    equip |= (nflop-1) << 6;
+    equip &= 0x3E;
+    if ( nflop ) 
+      equip |= ((nflop-1) << 6) | 0x01;
+
     wrz_8(BIOS_EQUIP, equip);
   }
 

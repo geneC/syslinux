@@ -10,6 +10,8 @@ Changes in 3.11:
 	  handle command lines above 256 characters.
 	* PXELINUX: revert memory allocation change that caused
 	  problems on some network cards.
+	* MEMDISK: Try work around a bug on some BIOSes when no
+	  physical floppy disk is present in the system.
 
 Changes in 3.10:
 	* gcc 4.0.1 compilation fixes.
