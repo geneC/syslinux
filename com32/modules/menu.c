@@ -379,21 +379,21 @@ edit_cmdline(char *input, int top)
 
     key = get_key(stdin, 0);
 
-    /* FIX: should handle arrow keys and edit-in-middle */
-
     switch( key ) {
     case KEY_CTRL('L'):
       redraw = 2;
       break;
+
     case KEY_ENTER:
     case KEY_CTRL('J'):
       return cmdline;
+
     case KEY_ESC:
     case KEY_CTRL('C'):
       return NULL;
+
     case KEY_BACKSPACE:
     case KEY_DEL:
-    case KEY_DELETE:
       if ( cursor ) {
 	memmove(cmdline+cursor-1, cmdline+cursor, len-cursor+1);
 	len--;
@@ -401,6 +401,16 @@ edit_cmdline(char *input, int top)
 	redraw = 1;
       }
       break;
+
+    case KEY_CTRL('D'):	
+    case KEY_DELETE:
+      if ( cursor < len ) {
+	memmove(cmdline+cursor, cmdline+cursor+1, len-cursor);
+	len--;
+	redraw = 1;
+      }
+      break;
+
     case KEY_CTRL('U'):
       if ( len ) {
 	len = cursor = 0;
@@ -408,6 +418,7 @@ edit_cmdline(char *input, int top)
 	redraw = 1;
       }
       break;
+
     case KEY_CTRL('W'):
       if ( cursor ) {
 	int prevcursor = cursor;
@@ -423,6 +434,7 @@ edit_cmdline(char *input, int top)
 	redraw = 1;
       }
       break;
+
     case KEY_LEFT:
     case KEY_CTRL('B'):
       if ( cursor ) {
@@ -430,30 +442,37 @@ edit_cmdline(char *input, int top)
 	redraw = 1;
       }
       break;
+
     case KEY_RIGHT:
     case KEY_CTRL('F'):
       if ( cursor < len ) {
 	putchar(cmdline[cursor++]);
       }
       break;
+
     case KEY_CTRL('K'):
       if ( cursor < len ) {
 	cmdline[len = cursor] = '\0';
 	redraw = 1;
       }
       break;
+
+    case KEY_HOME:
     case KEY_CTRL('A'):
       if ( cursor ) {
 	cursor = 0;
 	redraw = 1;
       }
       break;
+
+    case KEY_END:
     case KEY_CTRL('E'):
       if ( cursor != len ) {
 	cursor = len;
 	redraw = 1;
       }
       break;
+
     default:
       if ( key >= ' ' && key <= 0xFF && len < MAX_CMDLINE_LEN-1 ) {
 	if ( cursor == len ) {
@@ -566,9 +585,11 @@ run_menu(void)
 	}
       }
       break;
+
     case KEY_CTRL('L'):
       clear = 1;
       break;
+
     case KEY_ENTER:
     case KEY_CTRL('J'):
       if ( menu_entries[entry].passwd ) {
@@ -579,63 +600,82 @@ run_menu(void)
       }
       cmdline = menu_entries[entry].cmdline;
       break;
-    case KEY_CTRL('P'):
+
     case KEY_UP:
+    case KEY_CTRL('P'):
       if ( entry > 0 ) {
 	entry--;
 	if ( entry < top )
 	  top -= MENU_ROWS;
       }
       break;
-    case KEY_CTRL('N'):
+
     case KEY_DOWN:
+    case KEY_CTRL('N'):
       if ( entry < nentries-1 ) {
 	entry++;
 	if ( entry >= top+MENU_ROWS )
 	  top += MENU_ROWS;
       }
       break;
+
     case KEY_PGUP:
     case KEY_LEFT:
     case KEY_CTRL('B'):
+    case '<':
       entry -= MENU_ROWS;
       top   -= MENU_ROWS;
       break;
+
     case KEY_PGDN:
     case KEY_RIGHT:
     case KEY_CTRL('F'):
+    case '>':
     case ' ':
       entry += MENU_ROWS;
       top   += MENU_ROWS;
       break;
+
     case '-':
       entry--;
       top--;
       break;
+
     case '+':
       entry++;
       top++;
       break;
+
     case KEY_CTRL('A'):
     case KEY_HOME:
       top = entry = 0;
       break;
+
     case KEY_CTRL('E'):
     case KEY_END:
       entry = nentries - 1;
       top = max(0, nentries-MENU_ROWS);
       break;
+
     case KEY_TAB:
       if ( allowedit ) {
 	int ok = 1;
 
 	draw_row(entry-top+4, -1, top, 0, 0);
 
-	if ( menu_master_passwd )
-	  ok = ask_passwd(NULL);
+	if ( to_clear ) {
+	  /* Erase timeout message */
+	  printf("\033[%d;1H%s\033[K", TIMEOUT_ROW, menu_attrib->screen);
+	}
 
-	clear_screen();
-	draw_menu(-1, top, 0);
+	if ( menu_master_passwd ) {
+	  ok = ask_passwd(NULL);
+	  clear_screen();
+	  draw_menu(-1, top, 0);
+	} else {
+	  /* Erase [Tab] message */
+	  printf("\033[%d;1H%s\033[K", TABMSG_ROW, menu_attrib->screen);
+	}
 	
 	if ( ok ) {
 	  cmdline = edit_cmdline(menu_entries[entry].cmdline, top);
