@@ -614,7 +614,8 @@ run_menu(void)
 
     if ( key != KEY_NONE ) {
       timeout_left = key_timeout;
-      clear = to_clear;
+      if ( to_clear )
+	printf("\033[%d;1H%s\033[K", TIMEOUT_ROW, menu_attrib->screen);
     }
 
     switch ( key ) {
@@ -711,11 +712,6 @@ run_menu(void)
 
 	key_timeout = 0;	/* Cancels timeout */
 	draw_row(entry-top+4, -1, top, 0, 0);
-
-	if ( to_clear ) {
-	  /* Erase timeout message */
-	  printf("\033[%d;1H%s\033[K", TIMEOUT_ROW, menu_attrib->screen);
-	}
 
 	if ( menu_master_passwd ) {
 	  ok = ask_passwd(NULL);
