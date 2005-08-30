@@ -57,7 +57,8 @@ keywd_table:
 		keyword say,       pc_say
 		keyword serial,    pc_serial
 		keyword console,   pc_setint16,	DisplayCon
-		keyword timeout,   pc_timeout
+		keyword timeout,   pc_timeout,  KbdTimeout
+		keyword totaltimeout, pc_timeout, TotalTimeout
 		keyword ontimeout, pc_ontimeout
 		keyword onerror,   pc_onerror
 		keyword allowoptions, pc_setint16, AllowOptions

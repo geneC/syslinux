@@ -16,6 +16,11 @@
 
 	.text
 	.align 4
+
+	.globl _setjmp
+	.type _setjmp, @function
+_setjmp:				# gcc 4.0.1 wants this as an alias?
+		
 	.globl setjmp
 	.type setjmp, @function
 setjmp:

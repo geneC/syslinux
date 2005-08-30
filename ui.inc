@@ -34,6 +34,7 @@ enter_command:
 
 		mov byte [FuncFlag],0		; <Ctrl-F> not pressed
 		mov di,command_line
+
 ;
 ; get the very first character -- we can either time
 ; out, or receive a character press at this time.  Some dorky BIOSes stuff
@@ -45,40 +46,20 @@ clear_buffer:	mov ah,11h			; Check for pending char
 		mov ah,10h			; Get char
 		int 16h
 		jmp short clear_buffer
-get_char_time:	
-		call vgashowcursor
-		RESET_IDLE
-		mov cx,[KbdTimeOut]
-		and cx,cx
-		jz get_char			; Timeout == 0 -> no timeout
-		inc cx				; The first loop will happen
-						; immediately as we don't
-						; know the appropriate DX value
-time_loop:	push cx
-tick_loop:	push dx
-		call pollchar
-		jnz get_char_pop
-		mov dx,[BIOS_timer]		; Get time "of day"
-		pop ax
-		cmp dx,ax			; Has the timer advanced?
-		je tick_loop
-		pop cx
-		DO_IDLE
-		loop time_loop			; If so, decrement counter
 
-		; Timeout!!!!
-		call vgahidecursor
-		mov si,Ontimeout		; Copy ontimeout command
-		mov cx,[OntimeoutLen]		; if we have one...
-		rep movsb
-.stddefault:
-		jmp command_done
+		; For the first character, both KbdTimeout and
+		; TotalTimeout apply; after that, only TotalTimeout.
 
-get_char_pop:	pop eax				; Clear stack
+get_char_time:
+		mov eax,[TotalTimeout]
+		mov [ThisTotalTo],eax
+		mov eax,[KbdTimeout]
+		mov [ThisKbdTo],eax
+
 get_char:
-		call vgashowcursor
-		call getchar
-		call vgahidecursor
+		call getchar_timeout
+		and dword [ThisKbdTo],0		; For the next time...
+
 		and al,al
 		jz func_key
 
@@ -422,6 +403,48 @@ on_error:
 ;
 kernel_corrupt: mov si,err_notkernel
                 jmp abort_load
+
+;
+; Get a key, observing ThisKbdTO and ThisTotalTO -- those are timeouts
+; which can be adjusted by the caller based on the corresponding
+; master variables; on return they're updated.
+;
+; This cheats.  If we say "no timeout" we actually get a timeout of
+; 7.5 years.
+;
+getchar_timeout:
+		call vgashowcursor
+		RESET_IDLE
+
+.loop:
+		push word [BIOS_timer]
+		call pollchar
+		jnz .got_char
+		pop ax
+		cmp ax,[BIOS_timer]		; Has the timer advanced?
+		je .loop
+		DO_IDLE
+		
+		dec dword [ThisKbdTo]
+		jz .timeout
+		dec dword [ThisTotalTo]
+		jnz .loop
+
+.timeout:
+		; Timeout!!!!
+		pop cx				; Discard return address
+		call vgahidecursor
+		mov si,Ontimeout		; Copy ontimeout command
+		mov cx,[OntimeoutLen]		; if we have one...
+		rep movsb
+		jmp command_done
+
+.got_char:
+		pop cx				; Discard
+		call getchar
+		call vgahidecursor
+		ret
+
 ;
 ; This is it!  We have a name (and location on the disk)... let's load
 ; that sucker!!  First we have to decide what kind of file this is; base
@@ -515,7 +538,9 @@ kernel_good:
 		; Otherwise Linux kernel
 
 		section .bss
-		alignb 2
+		alignb 4
+ThisKbdTo	resd 1			; Temporary holder for KbdTimeout
+ThisTotalTo	resd 1			; Temporary holder for TotalTimeout
 KernelExtPtr	resw 1			; During search, final null pointer
 CmdOptPtr       resw 1			; Pointer to first option on cmd line
 KbdFlags	resb 1			; Check for keyboard escapes

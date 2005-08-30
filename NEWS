@@ -14,6 +14,8 @@ Changes in 3.11:
 	  physical floppy disk is present in the system.
 	* Enable the 16550A FIFOs, if present, when doing serial
 	  console.
+	* New "totaltimeout" command establishes a timeout without
+	  regard for any user input.
 
 Changes in 3.10:
 	* gcc 4.0.1 compilation fixes.

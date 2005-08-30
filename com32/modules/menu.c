@@ -26,9 +26,8 @@
 #include <consoles.h>
 #include <getkey.h>
 #include <minmax.h>
-#include <time.h>
-#include <sys/times.h>
-#include <unistd.h>
+#include <setjmp.h>
+#include <limits.h>
 #include <sha1.h>
 #include <base64.h>
 #ifdef __COM32__
@@ -216,6 +215,42 @@ passwd_compare(const char *passwd, const char *entry)
   return !memcmp(sha1, pwdsha1, 20);
 }
 
+static jmp_buf timeout_jump;
+
+static int mygetkey(clock_t timeout)
+{
+  clock_t t0, t;
+  clock_t tto, to;
+  int key;
+
+  if ( !totaltimeout )
+    return get_key(stdin, timeout);
+
+  for (;;) {
+    tto = min(totaltimeout, INT_MAX);
+    to = timeout ? min(tto, timeout) : tto;
+    
+    t0 = times(NULL);
+    key = get_key(stdin, to);
+    t = times(NULL) - t0;
+    
+    if ( totaltimeout <= t )
+      longjmp(timeout_jump, 1);
+
+    totaltimeout -= t;
+
+    if ( key != KEY_NONE )
+      return key;
+
+    if ( timeout ) {
+      if ( timeout <= t )
+	return KEY_NONE;
+      
+      timeout -= t;
+    }
+  }
+}
+
 static int
 ask_passwd(const char *menu_entry)
 {
@@ -248,7 +283,7 @@ ask_passwd(const char *menu_entry)
   p = user_passwd;
 
   while ( !done ) {
-    key = get_key(stdin, 0);
+    key = mygetkey(0);
 
     switch ( key ) {
     case KEY_ENTER:
@@ -377,7 +412,7 @@ edit_cmdline(char *input, int top)
       redraw = 0;
     }
 
-    key = get_key(stdin, 0);
+    key = mygetkey(0);
 
     switch( key ) {
     case KEY_CTRL('L'):
@@ -504,15 +539,28 @@ run_menu(void)
 {
   int key;
   int done = 0;
-  int entry = defentry, prev_entry = -1;
+  volatile int entry = defentry, prev_entry = -1;
   int top = 0, prev_top = -1;
   int clear = 1, to_clear;
   const char *cmdline = NULL;
-  clock_t key_timeout, timeout_left, this_timeout;
+  volatile clock_t key_timeout, timeout_left, this_timeout;
 
-  /* Convert timeout from deciseconds to clock ticks */
   /* Note: for both key_timeout and timeout == 0 means no limit */
-  timeout_left = key_timeout = (clock_t)(CLK_TCK*timeout+9)/10;
+  timeout_left = key_timeout = timeout;
+
+  /* Handle both local and global timeout */
+  if ( setjmp(timeout_jump) ) {
+    entry = defentry;
+
+    if ( top < 0 || top < entry-MENU_ROWS+1 )
+      top = max(0, entry-MENU_ROWS+1);
+    else if ( top > entry || top > max(0,nentries-MENU_ROWS) )
+      top = min(entry, max(0,nentries-MENU_ROWS));
+
+    draw_menu(ontimeout ? -1 : entry, top, 1);
+    cmdline = ontimeout ? ontimeout : menu_entries[entry].cmdline;
+    done = 1;
+  }
 
   while ( !done ) {
     if ( entry < 0 )
@@ -544,7 +592,11 @@ run_menu(void)
 
     prev_entry = entry;  prev_top = top;
 
-    if ( key_timeout && entry == defentry ) {
+    /* Cursor movement cancels timeout */
+    if ( entry != defentry )
+      key_timeout = 0;
+
+    if ( key_timeout ) {
       int tol = timeout_left/CLK_TCK;
       int nc = snprintf(NULL, 0, " Automatic boot in %d seconds ", tol);
       printf("\033[%d;%dH%s Automatic boot in %s%d%s seconds ",
@@ -557,8 +609,8 @@ run_menu(void)
       to_clear = 0;
     }
 
-    this_timeout = min(timeout_left, CLK_TCK);
-    key = get_key(stdin, this_timeout);
+    this_timeout = min(min(key_timeout, timeout_left), CLK_TCK);
+    key = mygetkey(this_timeout);
 
     if ( key != KEY_NONE ) {
       timeout_left = key_timeout;
@@ -573,16 +625,11 @@ run_menu(void)
 
 	 Warning: a timeout will boot the default entry without any
 	 password! */
-      timeout_left -= this_timeout;
-
-      if ( timeout_left == 0 ) {
-	if ( entry != defentry ) {
-	  entry = defentry;
-	  timeout_left = key_timeout;
-	} else {
-	  cmdline = menu_entries[defentry].cmdline;
-	  done = 1;
-	}
+      if ( key_timeout ) {
+	if ( timeout_left <= this_timeout )
+	  longjmp(timeout_jump, 1);
+	
+	timeout_left -= this_timeout;
       }
       break;
 
@@ -592,6 +639,7 @@ run_menu(void)
 
     case KEY_ENTER:
     case KEY_CTRL('J'):
+      key_timeout = 0;		/* Cancels timeout */
       if ( menu_entries[entry].passwd ) {
 	clear = 1;
 	done = ask_passwd(menu_entries[entry].passwd);
@@ -661,6 +709,7 @@ run_menu(void)
       if ( allowedit ) {
 	int ok = 1;
 
+	key_timeout = 0;	/* Cancels timeout */
 	draw_row(entry-top+4, -1, top, 0, 0);
 
 	if ( to_clear ) {
@@ -691,6 +740,7 @@ run_menu(void)
       if ( allowedit ) {
 	done = 1;
 	clear = 1;
+	key_timeout = 0;
 	
 	draw_row(entry-top+4, -1, top, 0, 0);
 
@@ -702,6 +752,7 @@ run_menu(void)
       if ( key > 0 && key < 0xFF ) {
 	key &= ~0x20;		/* Upper case */
 	if ( menu_hotkeys[key] ) {
+	  key_timeout = 0;
 	  entry = menu_hotkeys[key] - menu_entries;
 	  /* Should we commit at this point? */
 	}
@@ -759,7 +810,7 @@ execute(const char *cmdline)
   /* If this returns, something went bad; return to menu */
 #else
   /* For testing... */
-  printf("\n>>> %s\n", cmdline);
+  printf("\n\033[0m>>> %s\n", cmdline);
   exit(0);
 #endif
 }

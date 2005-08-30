@@ -23,10 +23,11 @@
 
 #include "menu.h"
 
-int nentries  = 0;
-int defentry  = 0;
-int allowedit = 1;		/* Allow edits of the command line */
-int timeout   = 0;
+int nentries     = 0;
+int defentry     = 0;
+int allowedit    = 1;		/* Allow edits of the command line */
+int timeout      = 0;
+long long totaltimeout = 0;
 
 char *menu_title  = "";
 char *ontimeout   = NULL;
@@ -259,7 +260,9 @@ void parse_config(const char *filename)
 	ld.kernel = strdup(skipspace(p+6));
       }
     } else if ( looking_at(p, "timeout") ) {
-      timeout = atoi(skipspace(p+7));
+      timeout = (atoi(skipspace(p+7))*CLK_TCK+9)/10;
+    } else if ( looking_at(p, "totaltimeout") ) {
+      totaltimeout = (atoll(skipspace(p+13))*CLK_TCK+9)/10;
     } else if ( looking_at(p, "ontimeout") ) {
       ontimeout = strdup(skipspace(p+9));
     } else if ( looking_at(p, "allowoptions") ) {

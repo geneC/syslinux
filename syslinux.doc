@@ -226,8 +226,20 @@ TIMEOUT timeout
         begun.  A timeout of zero will disable the timeout completely,
         this is also the default.
 
-        NOTE: The maximum possible timeout value is 35996; corresponding to
-        just below one hour.
+TOTALTIMEOUT timeout
+        Indicates how long to wait until booting automatically, in
+	units of 1/10 s.  This timeout is *not* cancelled by user
+	input, and can thus be used to deal with serial port glitches
+	or "the user walked away" type situations.  A timeout of zero
+	will disable the timeout completely, this is also the default.
+
+	Both TIMEOUT and TOTALTIMEOUT can be used together, for
+	example:
+
+		# Wait 5 seconds unless the user types something, but
+		# always boot after 15 minutes.
+		TIMEOUT 50
+		TOTALTIMEOUT 9000
 
 ONTIMEOUT kernel options...
 	Sets the command line invoked on a timeout.  Normally this is

@@ -110,15 +110,25 @@ pc_kernel:	cmp byte [VKernel],0
 .err:		ret
 
 ;
-; "timeout" command
+; "timeout", "totaltimeout" command
 ;
-pc_timeout:	call getint
+; N.B. 1/10 s ~ 1.D2162AABh clock ticks
+;
+pc_timeout:	push ax
+		call getint
+		pop si
 		jc .err
-		mov ax,0D215h			; There are approx 1.D215h
-		mul bx				; clock ticks per 1/10 s
-		add bx,dx
-		mov [KbdTimeOut],bx
+		mov eax,0D2162AABh
+		mul ebx				; clock ticks per 1/10 s
+		add ebx,edx
+		mov [si],ebx
 .err:		ret
+
+
+;
+; "totaltimeout" command
+;
+pc_totaltimeout:
 
 ;
 ; Generic integer variable setting commands:
@@ -366,11 +376,12 @@ commit_vk:
 		section .data
 vk_overflow_msg	db 'Out of memory parsing config file', CR, LF, 0
 
-		align 2, db 0
+		align 4, db 0
+KbdTimeout      dd 0                    ; Keyboard timeout (if any)
+TotalTimeout	dd 0			; Total timeout (if any)
 AppendLen       dw 0                    ; Bytes in append= command
 OntimeoutLen	dw 0			; Bytes in ontimeout command
 OnerrorLen	dw 0			; Bytes in onerror command
-KbdTimeOut      dw 0                    ; Keyboard timeout (if any)
 CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
 ForcePrompt	dw 0			; Force prompt
 NoEscape	dw 0			; No escape

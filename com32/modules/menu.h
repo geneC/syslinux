@@ -20,6 +20,16 @@
 #ifndef MENU_H
 #define MENU_H
 
+#include <time.h>
+#include <sys/time.h>
+#include <sys/times.h>
+#include <inttypes.h>
+#include <unistd.h>
+
+#ifndef CLK_TCK
+# define CLK_TCK sysconf(_SC_CLK_TCK)
+#endif
+
 struct menu_entry {
   char *displayname;
   char *label;
@@ -46,6 +56,7 @@ extern int nentries;
 extern int defentry;
 extern int allowedit;
 extern int timeout;
+extern long long totaltimeout;
 
 extern char *menu_title;
 extern char *ontimeout;
