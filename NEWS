@@ -16,6 +16,8 @@ Changes in 3.11:
 	  console.
 	* New "totaltimeout" command establishes a timeout without
 	  regard for any user input.
+	* Simple menu system: timeout behaviour now more in line with
+	  user expectations.
 
 Changes in 3.10:
 	* gcc 4.0.1 compilation fixes.
