@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2005 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -116,6 +116,8 @@ static const struct keycode keycodes[] = {
 };
 #define NCODES ((int)(sizeof keycodes/sizeof(struct keycode)))
 
+#define KEY_TIMEOUT ((CLK_TCK+9)/10)
+
 int get_key(FILE *f, clock_t timeout)
 {
   unsigned char buffer[MAXLEN];
@@ -135,9 +137,12 @@ int get_key(FILE *f, clock_t timeout)
     rv = read(fileno(f), &ch, 1);
     if ( rv == 0 || (rv == -1 && errno == EAGAIN) ) {
       clock_t lateness = times(NULL)-start;
-      if ( nc && lateness > 1+CLK_TCK/20 )
-	return buffer[0];	/* timeout in sequence */
-      else if ( !nc && timeout && lateness > timeout )
+      if ( nc && lateness > 1+KEY_TIMEOUT ) {
+	if ( nc == 1 )
+	  return buffer[0];	/* timeout in sequence */
+	else if ( timeout && lateness > timeout )
+	  return KEY_NONE;
+      } else if ( !nc && timeout && lateness > timeout )
 	return KEY_NONE;	/* timeout before sequence */
 
       do_idle();

@@ -214,29 +214,29 @@ pc_serial:	call getint
 		call slow_out
 
 		mov al,03h			; Disable DLAB
-		add dx,byte 2			; DX -> LCR
+		inc dx				; DX -> LCR
+		inc dx
 		call slow_out
 
 		in al,dx			; Read back LCR (detect missing hw)
 		cmp al,03h			; If nothing here we'll read 00 or FF
 		jne .serial_port_bad		; Assume serial port busted
-		sub dx,byte 2			; DX -> IER
+		dec dx
+		dec dx				; DX -> IER
 		xor al,al			; IRQ disable
 		call slow_out
 
-		inc dx
-		inc dx				; DX -> FCR
+		inc dx				; DX -> FCR/IIR
 		mov al,01h
 		call slow_out			; Enable FIFOs if present
-		dec dx				; DX -> IIR
 		in al,dx
-		inc dx				; DX -> FCR
 		cmp al,0C0h			; FIFOs enabled and usable?
 		jae .fifo_ok
 		xor ax,ax			; Disable FIFO if unusable
 		call slow_out
 .fifo_ok:
 
+		inc dx
 		inc dx				; DX -> MCR
 		in al,dx
 		or al,[FlowOutput]		; Assert bits
