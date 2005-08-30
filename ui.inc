@@ -1,7 +1,7 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
 ;;   
-;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -435,6 +435,7 @@ getchar_timeout:
 		pop cx				; Discard return address
 		call vgahidecursor
 		mov si,Ontimeout		; Copy ontimeout command
+		mov di,command_line
 		mov cx,[OntimeoutLen]		; if we have one...
 		rep movsb
 		jmp command_done
