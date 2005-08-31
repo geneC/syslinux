@@ -18,6 +18,7 @@ Changes in 3.11:
 	  regard for any user input.
 	* Simple menu system: timeout behaviour now more in line with
 	  user expectations.
+	* Simple menu system: "ontimeout" should now work correctly.
 
 Changes in 3.10:
 	* gcc 4.0.1 compilation fixes.
