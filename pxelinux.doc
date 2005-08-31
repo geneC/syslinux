@@ -15,9 +15,9 @@ PXELINUX is a SYSLINUX derivative, for booting Linux off a network
 server, using a network ROM conforming to the Intel PXE (Pre-Execution
 Environment) specification.  PXELINUX is *not* a program that is
 intended to be flashed or burned into a PROM on the network card; if
-you want that, check out NILO (http://www.nilo.org/).  NILO can also
-be used to create a PXE-compliant boot PROM for most network cards
-which have drivers for Linux or FreeBSD.
+you want that, check out Etherboot (http://www.etherboot.org/).
+Etherboot 5.4 or later can also be used to create a PXE-compliant boot
+PROM for many network cards.
 
 
     ++++ HOW TO CONFIGURE PXELINUX ++++
