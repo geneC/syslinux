@@ -59,7 +59,7 @@ make install-all \
 	LIBDIR=%{_libdir} INCDIR=%{_includedir}
 make -C sample tidy
 cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_libdir}/syslinux
-ln %{buildroot}%{_libdir}/syslinux/*.c32 %{buildroot}/boot
+cp %{buildroot}%{_libdir}/syslinux/*.c32 %{buildroot}/boot
 
 %clean
 rm -rf %{buildroot}
@@ -91,6 +91,9 @@ rm -rf %{buildroot}
 %postun
 
 %changelog
+* Fri Sep  9 2005 H. Peter Anvin <hpa@zytor.com>
+- Copy, don't link, *.c32 into /boot; rpm doesn't like breaking links.
+
 * Tue Aug 23 2005 H. Peter Anvin <hpa@zytor.com>
 - Put *.c32 into /boot.
 
