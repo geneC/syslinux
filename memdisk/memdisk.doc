@@ -163,7 +163,8 @@ suddenly disappearing from underneath):
 
 	mov eax, 454D0800h
 	mov ecx, 444D0000h
-	mov edx, 53490000h + drive #
+	mov edx, 53490000h
+	mov dl,drive_number
 	mov ebx, 3F4B0000h
 	int 13h
 
