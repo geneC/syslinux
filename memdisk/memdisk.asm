@@ -23,6 +23,12 @@
 
 ; %define DEBUG_TRACERS			; Uncomment to get debugging tracers
 
+%ifdef WITH_EDD
+%define EDD 1
+%else
+%define EDD 0
+%endif
+
 %ifdef DEBUG_TRACERS
 
 %macro TRACER	1
@@ -318,8 +324,64 @@ GetParms:
 .notic:
 		xor ax,ax
 		ret
-		
-		; Set up registers as for a "Read", and compares against disk size
+;
+; EDD functions -- only if enabled
+;
+%if EDD
+EDDPresence:
+		cmp P_BX,55AAh
+		jne Invalid
+		mov P_BX,0AA55h		; EDD signature
+		mov P_AX,03000h		; EDD 3.0
+		mov P_CX,0001h		; Fixed disk access subset
+		pop ax			; Drop return address
+		xor ax,ax		; Success
+		jmp DoneWeird		; Success, but AH != 0, sigh...
+
+EDDRead:
+		call edd_setup_regs
+		call bcopy
+		xor ax,ax
+		ret
+
+EDDWrite:
+		call edd_setup_regs
+		xchg esi,edi
+		call bcopy
+		xor ax,ax
+		ret
+
+EDDVerify:
+EDDSeek:
+		call edd_setup_regs	; Just bounds checking
+		xor ax,ax
+		ret
+
+EDDGetParms:
+		mov es,P_DS
+		mov di,P_SI
+		mov cx,26		; Length of our DPT
+		cmp [es:di],cx
+		jb .overrun
+
+		; This should be done by the installer...
+		mov eax,[DiskSize]
+		mov [si+16],eax
+
+		mov si,EDD_DPT
+		rep movsb
+
+		xor ax,ax
+		ret
+
+.overrun:
+		mov ax,0100h
+		ret
+%endif ; EDD
+
+		; Set up registers as for a "Read", and compares against disk size.
+		; WARNING: This fails immediately, even if we can transfer some
+		; sectors.  This isn't really the correct behaviour.
 setup_regs:
 
 		; Convert a CHS address in P_CX/P_DH into an LBA in eax
@@ -359,13 +421,76 @@ setup_regs:
 		add esi,[DiskBuf]	; Get address in high memory
 		cmp eax,[DiskSize]	; Check the high mark against limit
 		ja .overrun
-		shl ecx,SECTORSIZE_LG2-2 ; Convert count to 32-bit words
+		shl ecx,SECTORSIZE_LG2-2 ; Convert count to dwords
 		ret
 
 .overrun:	pop ax			; Drop setup_regs return address
 		mov ax,0200h		; Missing address mark
 		ret			; Return to Done
 
+		; Set up registers as for an EDD Read, and compares against disk size.
+%if EDD
+edd_setup_regs:
+		mov si,P_SI		; DS:SI -> DAPA
+		mov es,P_DS
+
+		mov dx,[es:si]
+		cmp dx,16
+		jb .baddapa
+
+		cmp dword [es:si+4],-1
+		je .linear_address
+
+		movzx esi,word [es:si+4]	; Offset
+		movzx edi,word [es:si+6]	; Segment
+		shl edi,4
+		add esi,edi
+
+		jmp .got_address
+
+.linear_address:
+		cmp dx,24			; Must be large enough to hold linear address
+		jb .baddapa
+
+		cmp dword [es:si+20],0		; > 4 GB addresses not supported
+		jne .overrun
+
+		mov esi,[es:si+16]
+
+.got_address:
+		cmp dword [es:si+12],0		; LBA too large?
+		jne .overrun
+
+		movzx ecx, word [es:si+2]	; Sectors to transfer
+		mov edi,[es:si+8]		; Starting sector
+		mov eax,edi
+		add eax,ecx
+		jc .overrun
+		cmp eax,[DiskSize]
+		ja .overrun
+
+		shl ecx,SECTORSIZE_LG2-2	; Convert to dwords
+		shl edi,SECTORSIZE_LG2		; Convert to an offset
+		add edi,[DiskBuf]
+		ret
+
+.baddapa:
+		pop ax			; Drop setup_regs return address
+		mov ax,0100h		; Invalid command
+		ret
+
+.overrun:
+		and word [es:si+2],0	; No sectors transferred
+		pop ax
+		mov ax,0200h
+		ret
+
+%endif ; EDD
+
+
+;
+; INT 15h intercept routines
+;
 int15_e820:
 		cmp edx,534D4150h	; "SMAP"
 		jne near oldint15
@@ -628,7 +753,7 @@ Int13Funcs	dw Reset		; 00h - RESET
 		dw Invalid		; 14h
 		dw GetDriveType		; 15h - GET DRIVE TYPE
 		dw DetectChange		; 16h - DETECT DRIVE CHANGE
-%if 0
+%if EDD
 		dw Invalid		; 17h
 		dw Invalid		; 18h
 		dw Invalid		; 19h
@@ -683,6 +808,20 @@ Int13Funcs	dw Reset		; 00h - RESET
 
 Int13FuncsEnd	equ $
 Int13FuncsMax	equ (Int13FuncsEnd-Int13Funcs) >> 1
+
+%if EDD
+EDD_DPT:
+.length		dw 26
+		; Bit 0 - DMA boundaries handled transparently
+		; Bit 3 - Device supports write verify
+.info		dw 0009h
+.cylinders	dd 0			; No physical geometry
+.heads		dd 0			; No physical geometry
+.sectors	dd 0			; No physical geometry
+.totalsize	dd 0, 0			; Total number of sectors
+.bytespersec	dw SECTORSIZE
+
+%endif
 
 		alignb 8, db 0
 Shaker		dw ShakerEnd-$
