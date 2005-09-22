@@ -651,7 +651,7 @@ install_loader(const char *path, int update_only)
   struct mntent *mnt = NULL;
   int devfd, rv;
   FILE *mtab;
-  const char *devname;
+  const char *devname = NULL;
 
   if ( stat(path, &st) || !S_ISDIR(st.st_mode) ) {
     fprintf(stderr, "%s: Not a directory: %s\n", program, path);
@@ -694,7 +694,7 @@ install_loader(const char *path, int update_only)
   }
   
   if ( update_only && !already_installed(devfd) ) {
-    fprintf(stderr, "%s: no previous extlinux installation found\n");
+    fprintf(stderr, "%s: no previous extlinux boot sector found\n", program);
     return 1;
   }
 	    
