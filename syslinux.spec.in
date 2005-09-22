@@ -89,11 +89,14 @@ rm -rf %{buildroot}
 %post
 # If we have a /boot/extlinux.conf file, assume extlinux is our bootloader
 # and update it.
-if [ -f /boot/extlinux.conf ]; then extlinux /boot; fi
+if [ -f /boot/extlinux.conf ]; then extlinux --update /boot; fi
 
 %postun
 
 %changelog
+* Wed Sep 21 2005 H. Peter Anvin <hpa@zytor.com>
+- If /boot/extlinux.conf exist, run extlinux --update.
+
 * Fri Sep  9 2005 H. Peter Anvin <hpa@zytor.com>
 - Copy, don't link, *.c32 into /boot; rpm doesn't like breaking links.
 

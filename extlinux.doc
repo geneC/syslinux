@@ -6,13 +6,16 @@ It works the same way as SYSLINUX, with a few slight modifications.
 1. The installer is run on a *mounted* filesystem.  Run the extlinux
    installer on the directory in which you want extlinux installed:
 
-	extlinux /boot
+	extlinux -i /boot
+
+   Specify --install (-i) to install for the first time, or
+   --update (-U) to upgrade a previous installation.
 
    NOTE: this doesn't have to be the root directory of a filesystem.
    If /boot is a filesystem, you can do:
 
 	mkdir -p /boot/extlinux
-	extlinux /boot/extlinux
+	extlinux -i /boot/extlinux
 
    ... to create a subdirectory and install extlinux in it. 
 
@@ -27,7 +30,7 @@ It works the same way as SYSLINUX, with a few slight modifications.
    they are relative to the extlinux directory.
 
    extlinux supports subdirectories, but the total path length is
-   limited to 255 characters.
+   limited to 511 characters.
 
 
 4. EXTLINUX now supports symbolic links.  However, extremely long
@@ -59,7 +62,7 @@ preferred way to boot is:
 - Install the MBR on *each disk*, and mark the RAID-1 partition
   active.
 
-- Run "extlinux /boot" to install extlinux.  This will install it on
+- Run "extlinux -i /boot" to install extlinux.  This will install it on
   all the drives in the RAID-1 set, which means you can boot any
   combination of drives in any order.
 

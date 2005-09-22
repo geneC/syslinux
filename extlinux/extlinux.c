@@ -66,6 +66,8 @@ static void __attribute__((noreturn)) usage(int rv)
 {
   fprintf(stderr,
 	  "Usage: %s [options] directory\n"
+	  "  --install    -i  Install over the current bootsector\n"
+	  "  --update     -U  Update a previous EXTLINUX installation\n"
 	  "  --zip        -z  Force zipdrive geometry (-H 64 -S 32)\n"
 	  "  --sectors=#  -S  Force the number of sectors per track\n"
 	  "  --heads=#    -H  Force number of heads\n"
@@ -83,6 +85,8 @@ static void __attribute__((noreturn)) usage(int rv)
 }
 
 static const struct option long_options[] = {
+  { "install",  0, NULL, 'i' },
+  { "update",   0, NULL, 'U' },
   { "zipdrive", 0, NULL, 'z' },
   { "sectors",  1, NULL, 'S' },
   { "heads",    1, NULL, 'H' },
@@ -91,7 +95,7 @@ static const struct option long_options[] = {
   { 0, 0, 0, 0 }
 };
     
-static const char short_options[] = "zS:H:vh";
+static const char short_options[] = "iUuzS:H:vh";
 
 
 
@@ -629,13 +633,25 @@ install_file(const char *path, int devfd, struct stat *rst)
   return 1;
 }
 
+/* EXTLINUX installs the string 'EXTLINUX' at offset 3 in the boot
+   sector; this is consistent with FAT filesystems. */
 int
-install_loader(const char *path)
+already_installed(int devfd)
+{
+  char buffer[8];
+
+  xpread(devfd, buffer, 8, 3);
+  return !memcmp(buffer, "EXTLINUX", 8);
+}
+
+int
+install_loader(const char *path, int update_only)
 {
   struct stat st, dst, fst;
   struct mntent *mnt = NULL;
   int devfd, rv;
   FILE *mtab;
+  const char *devname;
 
   if ( stat(path, &st) || !S_ISDIR(st.st_mode) ) {
     fprintf(stderr, "%s: Not a directory: %s\n", program, path);
@@ -650,40 +666,38 @@ install_loader(const char *path)
 	    !strcmp(mnt->mnt_type, "ext3")) &&
 	   !stat(mnt->mnt_fsname, &dst) &&
 	   dst.st_rdev == st.st_dev ) {
-	fprintf(stderr, "%s is device %s\n", path, mnt->mnt_fsname);
-	if ( (devfd = open(mnt->mnt_fsname, O_RDWR|O_SYNC)) < 0 ) {
-	  fprintf(stderr, "%s: cannot open device %s\n", program, mnt->mnt_fsname);
-	  return 1;
-	}
+	devname = mnt->mnt_fsname;
 	break;
       }
     }
   }
 
-  if ( devfd < 0 ) {
+  if ( !devname ) {
     /* Didn't find it in /proc/mounts, try /etc/mtab */
     if ( (mtab = setmntent("/etc/mtab", "r")) ) {
       while ( (mnt = getmntent(mtab)) ) {
-	if ( (!strcmp(mnt->mnt_type, "ext2") ||
-	      !strcmp(mnt->mnt_type, "ext3")) &&
-	     !stat(mnt->mnt_fsname, &dst) &&
-	     dst.st_rdev == st.st_dev ) {
-	  fprintf(stderr, "%s is device %s\n", path, mnt->mnt_fsname);
-	  if ( (devfd = open(mnt->mnt_fsname, O_RDWR|O_SYNC)) < 0 ) {
-	    fprintf(stderr, "%s: cannot open device %s\n", program, mnt->mnt_fsname);
-	    return 1;
-	  }
-	  break;
-	}
+	devname = mnt->mnt_fsname;
+	break;
       }
     }
   }
 
-  if ( devfd < 0 ) {
+  if ( !devname ) {
     fprintf(stderr, "%s: cannot find device for path %s\n", program, path);
     return 1;
   }
 
+  fprintf(stderr, "%s is device %s\n", path, devname);
+  if ( (devfd = open(devname, O_RDWR|O_SYNC)) < 0 ) {
+    fprintf(stderr, "%s: cannot open device %s\n", program, devname);
+    return 1;
+  }
+  
+  if ( update_only && !already_installed(devfd) ) {
+    fprintf(stderr, "%s: no previous extlinux installation found\n");
+    return 1;
+  }
+	    
   install_file(path, devfd, &fst);
 
   if ( fst.st_dev != st.st_dev ) {
@@ -709,6 +723,7 @@ main(int argc, char *argv[])
 {
   int o;
   const char *directory;
+  int update_only = -1;
 
   program = argv[0];
 
@@ -735,6 +750,13 @@ main(int argc, char *argv[])
 	exit(EX_USAGE);
       }
       break;
+    case 'i':
+      update_only = 0;
+      break;
+    case 'u':
+    case 'U':
+      update_only = 1;
+      break;
     case 'h':
       usage(0);
       break;
@@ -752,5 +774,11 @@ main(int argc, char *argv[])
   if ( !directory )
     usage(EX_USAGE);
 
-  return install_loader(directory);
+  if ( update_only == -1 ) {
+    fprintf(stderr, "%s: warning: a future version will require --install or --update\n",
+	    program);
+    update_only = 0;
+  }
+
+  return install_loader(directory, update_only);
 }
