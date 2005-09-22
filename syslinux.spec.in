@@ -87,6 +87,9 @@ rm -rf %{buildroot}
 %{_libdir}/syslinux/com32
 
 %post
+# If we have a /boot/extlinux.conf file, assume extlinux is our bootloader
+# and update it.
+if [ -f /boot/extlinux.conf ]; then extlinux /boot; fi
 
 %postun
 
