@@ -2,6 +2,13 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 3.20:
+	* EXTLINUX: New options --install (-i) and --update (-U), to
+	  make it clear if a boot loader should be installed or
+	  updated.  For now, defaults to --install for compatibility;
+	  a future version will require one of these options.
+	* New library functions to load and place files in memory.
+
 Changes in 3.11:
 	* MEMDISK: Fix bug by which accessing the real floppy disk
 	  as B: in MS-DOS was broken.
