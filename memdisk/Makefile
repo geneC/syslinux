@@ -27,7 +27,7 @@ CFLAGS   = -g -W -Wall -Wno-sign-compare \
 LDFLAGS  = -g
 INCLUDE  = -I../com32/include
 LD	 = ld -m elf_i386
-NASM     = nasm -O99
+NASM     = nasm -O99 # -dWITH_EDD
 NFLAGS   = -dVERSION='"$(VERSION)"' -dDATE='"$(DATE)"'
 NINCLUDE = 
 OBJCOPY  = objcopy
