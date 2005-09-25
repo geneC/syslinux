@@ -7,7 +7,7 @@
 ;  A program to emulate an INT 13h disk BIOS from a "disk" in extended
 ;  memory.
 ;
-;   Copyright (C) 2001-2004  H. Peter Anvin
+;   Copyright (C) 2001-2005  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -232,7 +232,7 @@ GetDriveType:
 		mov P_AH,bl		; 02h floppy, 03h hard disk
 		pop ax			; Drop return address
 		xor ax,ax		; Success...
-		jmp short DoneWeird	; But don't stick it into P_AX
+		jmp DoneWeird		; But don't stick it into P_AX
 
 GetStatus:
 		xor ax,ax
@@ -329,22 +329,31 @@ GetParms:
 ;
 %if EDD
 EDDPresence:
+		TRACER 'E'
+		TRACER 'c'
+
 		cmp P_BX,55AAh
 		jne Invalid
 		mov P_BX,0AA55h		; EDD signature
-		mov P_AX,03000h		; EDD 3.0
+		mov P_AX,02100h		; EDD 1.1
 		mov P_CX,0001h		; Fixed disk access subset
 		pop ax			; Drop return address
 		xor ax,ax		; Success
 		jmp DoneWeird		; Success, but AH != 0, sigh...
 
 EDDRead:
+		TRACER 'E'
+		TRACER 'r'
+
 		call edd_setup_regs
 		call bcopy
 		xor ax,ax
 		ret
 
 EDDWrite:
+		TRACER 'E'
+		TRACER 'w'
+
 		call edd_setup_regs
 		xchg esi,edi
 		call bcopy
@@ -358,11 +367,22 @@ EDDSeek:
 		ret
 
 EDDGetParms:
+		TRACER 'E'
+		TRACER 'p'
+
 		mov es,P_DS
 		mov di,P_SI
-		mov cx,26		; Length of our DPT
+		mov cx,30		; Length of our DPT
+		cmp [es:di],cx
+		jae .oksize
+
+		mov cx,26
 		cmp [es:di],cx
 		jb .overrun
+
+
+.oksize:
+		mov [si],cx
 
 		; This should be done by the installer...
 		mov eax,[DiskSize]
@@ -431,6 +451,7 @@ setup_regs:
 		; Set up registers as for an EDD Read, and compares against disk size.
 %if EDD
 edd_setup_regs:
+		push es
 		mov si,P_SI		; DS:SI -> DAPA
 		mov es,P_DS
 
@@ -472,17 +493,20 @@ edd_setup_regs:
 		shl ecx,SECTORSIZE_LG2-2	; Convert to dwords
 		shl edi,SECTORSIZE_LG2		; Convert to an offset
 		add edi,[DiskBuf]
+		pop es
 		ret
 
 .baddapa:
-		pop ax			; Drop setup_regs return address
 		mov ax,0100h		; Invalid command
+		pop es
+		pop ax			; Drop setup_regs return address
 		ret
 
 .overrun:
 		and word [es:si+2],0	; No sectors transferred
-		pop ax
 		mov ax,0200h
+		pop es
+		pop ax
 		ret
 
 %endif ; EDD
@@ -811,7 +835,7 @@ Int13FuncsMax	equ (Int13FuncsEnd-Int13Funcs) >> 1
 
 %if EDD
 EDD_DPT:
-.length		dw 26
+.length		dw 30
 		; Bit 0 - DMA boundaries handled transparently
 		; Bit 3 - Device supports write verify
 .info		dw 0009h
@@ -820,6 +844,7 @@ EDD_DPT:
 .sectors	dd 0			; No physical geometry
 .totalsize	dd 0, 0			; Total number of sectors
 .bytespersec	dw SECTORSIZE
+.eddtable	dw -1, -1		; Invalid EDD table
 
 %endif
 
