@@ -44,7 +44,6 @@ release:
 	cg-tag syslinux-$(VERSION)
 	-rm -rf release/syslinux-$(VERSION)
 	-rm -f release/syslinux-$(VERSION).*
-	mkdir -p release/syslinux-$(VERSION)
 	cd release && env GIT_DIR='$(ABS_GIT_DIR)' cg-export -r syslinux-$(VERSION) syslinux-$(VERSION)
 	find release/syslinux-$(VERSION) \
 		\( -name '*~' -or -name '#*' \) -type f -print0 | \
@@ -75,7 +74,6 @@ prerel:
 	mkdir -p $(PRERELDIR) $(PRERELDIR)/uu
 	-rm -rf $(PRERELDIR)/$(PREREL)
 	-rm -f $(PRERELDIR)/$(PREREL).*
-	mkdir -p $(PRERELDIR)/$(PREREL)
 	cd $(PRERELDIR) && env GIT_DIR='$(ABS_GIT_DIR)' cg-export -r $(PREREL) $(PREREL)
 	find $(PRERELDIR)/$(PREREL) \
 		\( -name '*~' -or -name '#*' \) -type f -print0 | \
