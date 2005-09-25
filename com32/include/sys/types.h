@@ -11,6 +11,6 @@
 
 typedef ptrdiff_t	ssize_t;
 typedef int		mode_t;
-typedef int64_t		off_t;
+typedef size_t		off_t;
 
 #endif

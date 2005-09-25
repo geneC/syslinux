@@ -40,4 +40,13 @@
 #define S_IWOTH 00002
 #define S_IXOTH 00001
 
+/* These are the only fields in struct stat we emulate */
+struct stat {
+  mode_t st_mode;
+  off_t  st_size;
+};
+
+/* Only fstat() supported */
+int fstat(int, struct stat *);
+
 #endif /* _SYS_STAT_H */

@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2005 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -27,19 +27,16 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * read.c
+ * fstat.c
  *
- * Reading from a file descriptor
+ * Very trivial fstat emulation
  */
 
+#include <sys/stat.h>
 #include <errno.h>
-#include <string.h>
-#include <com32.h>
-#include <minmax.h>
-#include <klibc/compiler.h>
 #include "file.h"
 
-ssize_t read(int fd, void *buf, size_t count)
+int fstat(int fd, struct stat *buf)
 {
   struct file_info *fp = &__file_info[fd];
   
@@ -47,6 +44,16 @@ ssize_t read(int fd, void *buf, size_t count)
     errno = EBADF;
     return -1;
   }
+  
+  if ( fp->iop->flags & __DEV_FILE ) {
+    buf->st_mode = S_IFREG | 0444;
+    buf->st_size = fp->i.length;
+  } else {
+    buf->st_mode = S_IFCHR | 0666;
+    buf->st_size = 0;
+  }
 
-  return fp->iop->read(fp, buf, count);
+  return 0;
 }
+
+
