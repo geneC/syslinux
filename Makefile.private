@@ -18,8 +18,6 @@
 #
 .PHONY: official release
 
-CVS     = cvs -d hpa@terminus.zytor.com:/home/hpa/cvsroot
-
 PRIVATE = Makefile.private .depend */.depend
 
 GIT_DIR ?= .git
@@ -51,8 +49,6 @@ release:
 	find release/syslinux-$(VERSION) \
 		\( -name '*~' -or -name '#*' \) -type f -print0 | \
 		xargs -0rt rm -f
-	find release/syslinux-$(VERSION) -name CVS -type d -print0 | \
-		xargs -0rt rm -rf
 	sed -e 's/@@VERSION@@/$(VERSION)/g' -e 's/@@RPMVERSION@@/$(VERSION)/g' \
 		< release/syslinux-$(VERSION)/syslinux.spec.in \
 		> release/syslinux-$(VERSION)/syslinux.spec
@@ -76,7 +72,6 @@ prerel:
 	test -d release
 	rm -f $(GIT_DIR)/refs/tags/syslinux-$(VERSION)
 	cg-tag syslinux-$(VERSION)
-	$(CVS) tag -F `echo $(PREREL) | sed -e 's/\./_/g'`
 	mkdir -p $(PRERELDIR) $(PRERELDIR)/uu
 	-rm -rf $(PRERELDIR)/$(PREREL)
 	-rm -f $(PRERELDIR)/$(PREREL).*
@@ -85,8 +80,6 @@ prerel:
 	find $(PRERELDIR)/$(PREREL) \
 		\( -name '*~' -or -name '#*' \) -type f -print0 | \
 		xargs -0rt rm -f
-	find $(PRERELDIR)/$(PREREL) -name CVS -type d -print0 | \
-		xargs -0rt rm -rf
 	sed -e 's/@@VERSION@@/$(VERSION)-pre$(PRERELNO)/g' \
 	    -e 's/@@RPMVERSION@@/$(RPMPREREL)/g' \
 		< $(PRERELDIR)/$(PREREL)/syslinux.spec.in \
