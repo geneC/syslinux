@@ -71,7 +71,7 @@ RPMPREREL := $(shell $(PERL) -e 'printf "%.2f.%d\n", $(VERSION)-0.01, $(PRERELNO
 prerel:
 	test -d release
 	rm -f $(GIT_DIR)/refs/tags/syslinux-$(VERSION)
-	cg-tag syslinux-$(VERSION)
+	cg-tag $(PREREL)
 	mkdir -p $(PRERELDIR) $(PRERELDIR)/uu
 	-rm -rf $(PRERELDIR)/$(PREREL)
 	-rm -f $(PRERELDIR)/$(PREREL).*
