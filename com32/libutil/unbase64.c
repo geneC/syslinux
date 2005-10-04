@@ -36,7 +36,7 @@
 #include <base64.h>
 
 static const unsigned char _base64chars[] =
-"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789./";
+"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 size_t unbase64(unsigned char *buffer, size_t bufsiz, const char *txt)
 {
@@ -55,6 +55,7 @@ size_t unbase64(unsigned char *buffer, size_t bufsiz, const char *txt)
   }
   
   /* Also support filesystem safe alternate base64 encoding */
+  base64tbl['.'] = 62;
   base64tbl['-'] = 62;
   base64tbl['_'] = 63;
 
