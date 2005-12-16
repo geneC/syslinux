@@ -155,6 +155,7 @@ typedef struct s_menuitem {
   char *status;
   char *data; // string containing kernel to run.. but... 
   // for radio menu's this is a pointer to the item selected or NULL (initially)
+  // for submenu's this string could be name of menu 
   void * extra_data; // Any other data user can point to
   t_item_handler handler; // Pointer to function of type menufn
   t_action action;
@@ -169,7 +170,8 @@ typedef t_menuitem *pt_menuitem; // Pointer to type menuitem
 
 typedef struct s_menu {
   pt_menuitem *items; // pointer to array of pointer to menuitems
-  char *title;
+  char *title; // Title string for menu
+  char *name; // menu can be referred to by this string 
   int maxmenusize; // the size of array allocated
   uchar numitems; // how many items do we actually have
   uchar menuwidth;
@@ -215,25 +217,10 @@ typedef struct s_menusystem {
 
 typedef t_menusystem *pt_menusystem; // Pointer to type menusystem
 
-/************************************************************************
- * IMPORTANT INFORMATION
- *
- * All functions which take a string as argument store the pointer
- * for later use. So if you have alloc'ed a space for the string
- * and are passing it to any of these functions, DO NOT deallocate it.
- *
- * If they are constant strings, you may receive warning from the compiler
- * about "converting from char const * to char *". Ignore these errors.
- *
- * This hack/trick of storing these pointers will help in reducing the size
- * of the internal structures by a lot.
- *
- ***************************************************************************
- */
-
 pt_menuitem showmenus(uchar startmenu);
 
 pt_menusystem init_menusystem(const char *title); 
+
 void close_menusystem(); // Deallocate memory used
 
 void set_normal_attr(uchar normal, uchar selected, uchar inactivenormal, uchar inactiveselected);
@@ -261,8 +248,15 @@ void reg_ontimeout(t_timeout_handler, unsigned int numsteps, unsigned int stepsi
 // So stepsize=0 means numsteps is measured in centiseconds.
 void unreg_ontimeout();
 
+// Find the number of the menu given the name
+// Returns -1 if not found
+uchar find_menu_num(const char *name);
+
 // Create a new menu and return its position
 uchar add_menu(const char *title, int maxmenusize); 
+
+// Create a named menu and return its position
+uchar add_named_menu(const char *name, const char *title, int maxmenusize); 
 
 void set_menu_pos(uchar row,uchar col); // Set the position of this menu.
 

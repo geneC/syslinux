@@ -22,8 +22,6 @@ int main(void)
 {
   t_menuitem * curr;
 
-  char TESTING,RESCUE,MAIN;	/* The menus we're going to declare */
-
   // Change the video mode here
   // setvideomode(0)
 
@@ -38,32 +36,35 @@ int main(void)
   //set_title_info  (-1,-1); 
   //set_misc_info(-1,-1,-1,-1);
   
-  // menuindex = add_menu(" Menu Title ",-1);
+  // menuindex = add_named_menu("name"," Menu Title ",-1);
   // add_item("Item string","Status String",TYPE,"any string",NUM)
   //   TYPE = OPT_RUN | OPT_EXITMENU | OPT_SUBMENU | OPT_CHECKBOX | OPT_INACTIVE
-  //   "any string" not used by the menu system, useful for storing kernel names
+  //   "any string" useful for storing kernel names
+  //   In case of OPT_SUBMENU, "any string" can be set to "name" of menu to be linked
+  //   in which case value NUM is ignored
   //   NUM = index of submenu if OPT_SUBMENU, 
   //         0/1 default checked state if OPT_CHECKBOX
   //         unused otherwise.
 
-  TESTING = add_menu(" Testing ",-1);
-  add_item("Self Loop","Go to testing",OPT_SUBMENU,NULL,TESTING);
+  add_named_menu("testing"," Testing ",-1);
+  add_item("Self Loop","Go to testing",OPT_SUBMENU,"testing",0);
   add_item("Memory Test","Perform extensive memory testing",OPT_RUN, "memtest",0);
   add_item("Exit this menu","Go one level up",OPT_EXITMENU,"exit",0);
 
-  RESCUE = add_menu(" Rescue Options ",-1);
+  add_named_menu("rescue"," Rescue Options ",-1);
   add_item("Linux Rescue","linresc",OPT_RUN,"linresc",0);
   add_item("Dos Rescue","dosresc",OPT_RUN,"dosresc",0);
   add_item("Windows Rescue","winresc",OPT_RUN,"winresc",0);
   add_item("Exit this menu","Go one level up",OPT_EXITMENU,"exit",0);
 
-  MAIN = add_menu(" Main Menu ",-1);  
+  add_named_menu("main"," Main Menu ",-1);  
   add_item("Prepare","prep",OPT_RUN,"prep",0);
-  add_item("Rescue options...","Troubleshoot a system",OPT_SUBMENU,NULL,RESCUE);
-  add_item("Testing...","Options to test hardware",OPT_SUBMENU,NULL,TESTING);
+  add_item("Rescue options...","Troubleshoot a system",OPT_SUBMENU,"rescue",0);
+  add_item("Testing...","Options to test hardware",OPT_SUBMENU,"testing",0);
   add_item("Exit to prompt", "Exit the menu system", OPT_EXITMENU, "exit", 0);
 
-  curr = showmenus(MAIN); // Initial menu is the one with index MAIN
+  curr = showmenus(find_menu_num("main")); // Initial menu is the one called "main"
+
   if (curr)
   {
         if (curr->action == OPT_RUN)

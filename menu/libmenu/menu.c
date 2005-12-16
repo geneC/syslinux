@@ -652,12 +652,52 @@ pt_menuitem runmenusystem(uchar top, uchar left, pt_menu cmenu, uchar startopt, 
     }
 }
 
+// Finds the indexof the menu with given name
+uchar find_menu_num(const char *name)
+{
+  int i;
+  pt_menu m;
+
+  if (name == NULL) return (uchar)(-1);
+  for (i=0; i < ms->nummenus; i++)
+  { 
+    m = ms->menus[i];
+    if ((m->name) && (strcmp(m->name,name)==0)) return i;
+  }
+  return (uchar)(-1);
+}
+
+// Run through all items and if they are submenus
+// with a non-trivial "action" and trivial submenunum
+// replace submenunum with the menu with name "action"
+void fix_submenus()
+{
+  int i,j;
+  pt_menu m;
+  pt_menuitem mi;
+
+  i = 0;
+  for (i=0; i < ms->nummenus; i++)
+  {
+     m = ms->menus[i];
+     for (j=0; j < m->numitems; j++)
+     {
+         mi = m->items[j];
+         // if submenu with non-trivial data string 
+         if ( (mi->action == OPT_SUBMENU) && (mi->data) )
+            mi->itemdata.submenunum = find_menu_num (mi->data);
+     }
+  }
+}
+
 /* User Callable functions */
 
 pt_menuitem showmenus(uchar startmenu)
 {
   pt_menuitem rv;
   uchar oldpage,tpos;
+
+  fix_submenus(); // Fix submenu numbers incase nick names were used 
 
   // Setup screen for menusystem
   oldpage = getdisppage();
@@ -672,6 +712,7 @@ pt_menuitem showmenus(uchar startmenu)
   csprint(ms->title,ms->titleattr);
 
   cursoroff(); // Doesn't seem to work?
+
 
   // Go, main menu cannot be a radio menu 
   rv = runmenusystem(ms->minrow+MENUROW, ms->mincol+MENUCOL, 
@@ -983,6 +1024,7 @@ uchar add_menu(const char *title, int maxmenusize)
   if (m == NULL) return -1;
   ms->menus[num] = m;
   m->numitems = 0;
+  m->name = NULL;
   m->row = 0xFF;
   m->col = 0xFF;
   if (maxmenusize < 1)
@@ -1002,6 +1044,32 @@ uchar add_menu(const char *title, int maxmenusize)
   m ->menuwidth = strlen(m->title);
   ms->nummenus ++;
   return ms->nummenus - 1;
+}
+
+void set_menu_name(const char *name) // Set the "name" of this menu
+{
+  pt_menu m;
+
+  m = ms->menus[ms->nummenus-1];
+  if (m->name)  // Free up previous name
+  {
+     free(m->name);
+     m -> name = NULL;
+  }
+
+  if (name)
+    {
+      m->name = (char *)malloc(strlen(name)+1);
+      strcpy(m->name,name); 
+    }
+}
+
+// Create a new named menu and return its position
+uchar add_named_menu(const char * name, const char *title, int maxmenusize) 
+{
+   add_menu(title,maxmenusize);
+   set_menu_name(name);
+   return ms->nummenus - 1;
 }
 
 void set_menu_pos(uchar row,uchar col) // Set the position of this menu.
@@ -1118,6 +1186,7 @@ pt_menuitem add_item(const char *item, const char *status, t_action action,
       break;
     case OPT_RADIOMENU:
       mi->itemdata.radiomenunum = itemdata;
+      if (mi->data) free(mi->data);
       mi->data = NULL; // No selection made
       break;
     default: // to keep the compiler happy
@@ -1146,3 +1215,4 @@ void set_item_options(uchar shortcut,int helpid)
 void close_menusystem(void)
 {
 }
+

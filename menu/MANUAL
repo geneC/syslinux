@@ -65,13 +65,10 @@ should appear in the menu. An example is given below.
   CHECKED = 1;
   add_item("option1","Status 1",OPT_RUN,"kernel1 arg1=val1",0);
   add_item("selfloop","Status 2",OPT_SUBMENU,NULL,MAINMENU);
+  add_item("othermenu","Status 3",OPT_SUBMENU,"menuname",0);
   add_sep();
   add_item("checkbox,"Checkbox Info",OPT_CHECKBOX,NULL,CHECKED);
   add_item("Exit ","Status String",OPT_EXITMENU,NULL,0);
-  //   "any string" not used by the menu system, useful for storing kernel names
-  //   NUM = index of submenu if OPT_SUBMENU, 
-  //         0/1 default checked state if OPT_CHECKBOX
-  //         unused otherwise.
 </code>
 
 The call to add_menu has two arguments, the first being the title of 
@@ -79,8 +76,17 @@ the menu and the second an upper bound on the number of items in the menu.
 Putting a -1, will use the default (see MENUSIZE in menu.h). If you try
 to add more items than specified, the extra items will not appear in 
 the menu. The accuracy of this number affects the memory required
-to run the system. Currently the code compiles to a .COM file which 
-has a 64K limit on memory used. 
+to run the system. 
+
+If you do not want to keep track of the return values, you can also use 
+the following variant of add_menu
+
+<code>
+add_named_menu("main"," Menu Title ",-1)
+</code>
+
+This creates a new menu as before and gives it a name "main". When using named
+menus, you get an alternate way for adding submenu's. See below for details.
 
 The call to add_item has five arguments.
 The first argument is the text which appears in the menu itself.
@@ -100,16 +106,28 @@ the following
  * OPT_INACTIVE : A disabled item (user cannot select this)
  * OPT_INVISIBLE: This item will not be displayed.
   
-The fourth argument is the value of the data field. This pointer is just
-stored. In case of a radiomenu this points to the menuitem chosen (Dont 
-forget to typecase this pointer to (t_menuitem *) when reading this info).
+The fourth argument is the value of the data field always a string. 
+Usually this string is just copied and nothing is done with it. Two
+cases, where it is used.
+
+In case of a radiomenu the input string is ignored and the "data" field
+points to the menuitem chosen (Dont forget to typecast this pointer to 
+(t_menuitem *) when reading this info).
+
+In case of a submenu, this string if non-trivial is interpreted as the 
+name of the submenu which should be linked there. This interpretation
+happens when the menu is first run and not when the menu system is being 
+created. This allows the user to create the menusystem in an arbitrary 
+order. 
+
 
 The fifth argument is a number whose meaning depends on the type of the 
 item. For a CHECKBOX it should be 0/1 setting the initial state of the
 checkbox. For a SUBMENU it should be the index of the menu which should
-be displayed if this option is chosen. For a RADIOMENU it should be the
+be displayed if this option is chosen. Incase the data field is non-trivial, 
+this number is ignored and computed later. For a RADIOMENU it should be the
 index of the menu which contains all the options (All items in that menu
-should not of type RADIOITEM are ignored). For all other types, this
+not of type RADIOITEM are ignored). For all other types, this
 argument has no meaning at all.
 
 A call to add_sep is a convenient shorthand for calling add_item
@@ -123,6 +141,7 @@ item which was selected by the user.
 
 <code>
    choice = showmenus(MAIN); // Initial menu is the one with index MAIN
+   // or choice = showmenus(find_menu_num("main")); // Initial menu is the one named "main" 
 </code>
 
 1.4 Processing the result

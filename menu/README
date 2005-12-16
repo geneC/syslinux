@@ -8,8 +8,12 @@ original author.
 To configure the menus, you need to set up a menu configuration file
 to have the menu items you desire, then build the menu system using
 make.  You can use either simple.c or complex.c as a starting point
-for your own menu configuration file; then add the name with a .c32
-extension to the MENUS list in the Makefile.
+for your own menu configuration file; If your menu system is only going 
+to have entries corresponding to things which can be executed directly, 
+then you can create a file in ".menu" format instead of the C code.
+
+NOTE: ".menu" files can only describe the very basic type of menus
+See MENU_FORMAT for the syntax of .menu files
 
 The resulting code is a 32-bit COMBOOT code, and hence can be executed
 only under syslinux. You can use tools like bochs to help debug your

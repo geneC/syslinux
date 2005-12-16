@@ -39,9 +39,16 @@ LIBS	   = libmenu/libmenu.a $(LUDIR)/libutil_com.a $(LDIR)/libcom32.a $(LIBGCC)
 LIBMENU = libmenu/syslnx.o libmenu/com32io.o libmenu/tui.o \
 	libmenu/menu.o libmenu/passwords.o libmenu/des.o libmenu/help.o 
 
-MENUS = $(patsubst %.c,%.c32,$(wildcard *.c))
+CMENUS = $(patsubst %.c,%.c32,$(wildcard *.c))
+IMENUS = $(patsubst %.menu,%.c32,$(wildcard *.menu))
 
-.SUFFIXES: .S .c .o .elf .c32 
+MENUS = $(CMENUS) $(IMENUS)
+
+.SUFFIXES: .S .c .o .elf .c32 .menu
+
+.PRECIOUS: %.c
+%.c: %.menu
+	python menugen.py $< $@
 
 .PRECIOUS: %.o
 %.o: %.S

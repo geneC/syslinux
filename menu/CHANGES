@@ -1,3 +1,11 @@
+Changes in v1.2
+---------------
+* Allowed menu's to have names. Submenu's can be referred to by names instead 
+  of their index in the menu system. This allows user to refer to submenus
+  which are not yet part of the menusystem.
+* menugen.py: Python script for converting menu's specified in a given format
+  to corresponding C source code
+
 Changes in v1.1
 ---------------
 * Additional handler type: Keys handler
