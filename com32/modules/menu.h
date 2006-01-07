@@ -56,6 +56,7 @@ extern int nentries;
 extern int defentry;
 extern int allowedit;
 extern int timeout;
+extern int shiftkey;
 extern long long totaltimeout;
 
 extern char *menu_title;

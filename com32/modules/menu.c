@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2004-2005 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2006 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -534,6 +534,14 @@ clear_screen(void)
   printf("\033e\033%%@\033)0\033(B%s\033[?25l\033[2J", menu_attrib->screen);
 }
 
+static inline int
+shift_is_held(void)
+{
+  uint8_t shift_bits = *(uint8_t *)0x417;
+
+  return !!(shift_bits & 0x5d);	/* Caps/Scroll/Alt/Shift */
+}
+
 static const char *
 run_menu(void)
 {
@@ -547,6 +555,11 @@ run_menu(void)
 
   /* Note: for both key_timeout and timeout == 0 means no limit */
   timeout_left = key_timeout = timeout;
+
+  /* If we're in shiftkey mode, exit immediately unless a shift key is pressed */
+  if ( shiftkey && !shift_is_held() ) {
+    return menu_entries[defentry].cmdline;
+  }
 
   /* Handle both local and global timeout */
   if ( setjmp(timeout_jump) ) {
@@ -777,13 +790,13 @@ execute(const char *cmdline)
 
   kernel = q;
   p = cmdline;
-  while ( *p && !isspace(*p) ) {
+  while ( *p && *p > ' ' ) {
     *q++ = *p++;
   }
   *q++ = '\0';
   
   args = q;
-  while ( *p && isspace(*p) )
+  while ( *p && *p <= ' ' )
     p++;
   
   strcpy(q, p);

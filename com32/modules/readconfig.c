@@ -1,7 +1,7 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2004-2005 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2006 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ int nentries     = 0;
 int defentry     = 0;
 int allowedit    = 1;		/* Allow edits of the command line */
 int timeout      = 0;
+int shiftkey     = 0;		/* Only display menu if shift key pressed */
 long long totaltimeout = 0;
 
 char *menu_title  = "";
@@ -184,6 +185,40 @@ record(struct labeldata *ld, char *append)
   }
 }
 
+static char *
+unlabel(char *str)
+{
+  /* Convert a CLI-style command line to an executable command line */
+  const char *p;
+  char *q;
+  struct menu_entry *me;
+  int i, pos;
+
+  p = str;
+  while ( *p && !isspace(*p) )
+    p++;
+
+  /* p now points to the first byte beyond the kernel name */
+  pos = p-str;
+
+  for ( i = 0 ; i < nentries ; i++ ) {
+    me = &menu_entry[i];
+
+    if ( !strncmp(str, me->label, pos) && !me->label[pos] ) {
+      /* Found matching label */
+      q = malloc(strlen(me->cmdline) + strlen(p) + 1);
+      strcpy(q, me->cmdline);
+      strcat(q, p);
+      
+      free(str);
+
+      return q;
+    }
+  }
+
+  return str;
+}
+
 void parse_config(const char *filename)
 {
   char line[MAX_LINE], *p, *ep;
@@ -224,6 +259,8 @@ void parse_config(const char *filename)
 	ld.menuhide = 1;
       } else if ( looking_at(p, "passwd") ) {
 	ld.passwd = strdup(skipspace(p+6));
+      } else if ( looking_at(p, "shiftkey") ) {
+	shiftkey = 1;
       } else if ( looking_at(p, "master") ) {
 	p = skipspace(p+6);
 	if ( looking_at(p, "passwd") ) {
@@ -264,7 +301,7 @@ void parse_config(const char *filename)
     } else if ( looking_at(p, "totaltimeout") ) {
       totaltimeout = (atoll(skipspace(p+13))*CLK_TCK+9)/10;
     } else if ( looking_at(p, "ontimeout") ) {
-      ontimeout = strdup(skipspace(p+9));
+      ontimeout = skipspace(p+9);
     } else if ( looking_at(p, "allowoptions") ) {
       allowedit = atoi(skipspace(p+12));
     } else if ( looking_at(p, "ipappend") ) {
@@ -277,4 +314,7 @@ void parse_config(const char *filename)
   
   record(&ld, append);
   fclose(f);
+  
+  if ( ontimeout )
+    ontimeout = unlabel(ontimeout);
 }
