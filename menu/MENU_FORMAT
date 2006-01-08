@@ -1,0 +1,68 @@
+A .menu file can be used to describe basic menu structures which can be converted into 
+C code which can then be compiled into a .c32 file for use with SYSLINUX. The format
+of a .menu file is similar to an ini file, but with important differences.
+
+COMMENTS and Blank lines
+------------------------
+Lines starting with # and ; are treated as comments. 
+Blank lines are used to separate the attributes of one menu item
+from another. Multiple blank lines are equivalent to a single one.
+In other contexts Blank lines are not significant.
+
+Menus
+-----
+Each menu declaration starts with a line containing the name of menu in [ ].
+This name is used for internal purposes only and is not visible to the user of 
+the system.
+
+The menu declaration is followed by lines which set the attributes of the menu.
+This is followed by a blank line and followed by declaration of menu items in 
+that menu.
+
+Currently supported menu attributes are
+title: the title of this menu
+row,col: position where menu should be displayed (defaults to system choosing optimal place)
+
+
+Global Settings
+---------------
+All lines which occur before the first menu declaration is considered as 
+a global declaration. Currently supported global settings are
+
+title: the title of the whole menu system
+top,left,bot,right: limits of the window in which menu system should use to display
+     menu. Defaults to 1,1,23,78
+
+Menu item
+---------
+Each menu item is declared by setting the following attributes
+
+item: The string displayed to the user
+info: Additional information displayed in the status bar
+type: exitmenu,submenu or run indicating whether this item represents 
+      an entry which exits this menu, goes to a sub menu or
+      executes something in SYSLINUX
+data: In case of exitmenu, this has no meaning
+      In case of submenu, this is the name of the submenu
+      In case of run, this is string to be passed to SYSLINUX for execution
+
+--------------------------------------------------------
+
+GLOBAL SETTINGS
+
+[menuname1]
+
+MENUSETTINGS
+
+ITEMATTR
+
+...
+
+[menuname2]
+
+MENUSETTINGS
+
+ITEMATTR
+
+ITEMATTR
+

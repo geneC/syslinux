@@ -1,10 +1,10 @@
 Changes in v1.2
 ---------------
-* Allowed menu's to have names. Submenu's can be referred to by names instead 
-  of their index in the menu system. This allows user to refer to submenus
-  which are not yet part of the menusystem.
-* menugen.py: Python script for converting menu's specified in a given format
-  to corresponding C source code
+* Allowed menu's to have names. Submenu's can be referred to by names 
+  instead of their index in the menu system. This allows user to refer 
+  to submenus which are not yet part of the menusystem.
+* menugen.py: Python script for converting .menu files to C source code
+  See MENU_FORMAT for the format of .menu files
 
 Changes in v1.1
 ---------------
