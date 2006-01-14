@@ -24,7 +24,7 @@ void *realloc(void *ptr, size_t size)
   }
 
   /* Add the obligatory arena header, and round up */
-  size = (size+2*sizeof(struct arena_header)-1) & ARENA_SIZE_MASK;
+  size = (size+2*sizeof(struct arena_header)-1) & ~ARENA_SIZE_MASK;
 
   ah = (struct free_arena_header *)
     ((struct arena_header *)ptr - 1);
