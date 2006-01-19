@@ -89,7 +89,7 @@ get_config(void)
 static char *
 skipspace(char *p)
 {
-  while ( *p && *p <= ' ' )
+  while ( *p && my_isspace(*p) )
     p++;
   
   return p;
@@ -111,7 +111,7 @@ looking_at(char *line, const char *kwd)
   if ( *q )
     return NULL;		/* Didn't see the keyword */
 
-  return (*p <= ' ') ? p : NULL; /* Must be EOL or whitespace */
+  return my_isspace(*p) ? p : NULL; /* Must be EOL or whitespace */
 }
 
 struct labeldata {
@@ -195,14 +195,14 @@ unlabel(char *str)
   int i, pos;
 
   p = str;
-  while ( *p && !isspace(*p) )
+  while ( *p && !my_isspace(*p) )
     p++;
 
   /* p now points to the first byte beyond the kernel name */
   pos = p-str;
 
   for ( i = 0 ; i < nentries ; i++ ) {
-    me = &menu_entry[i];
+    me = &menu_entries[i];
 
     if ( !strncmp(str, me->label, pos) && !me->label[pos] ) {
       /* Found matching label */

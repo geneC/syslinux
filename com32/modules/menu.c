@@ -458,10 +458,10 @@ edit_cmdline(char *input, int top)
       if ( cursor ) {
 	int prevcursor = cursor;
 
-	while ( cursor && (cmdline[cursor-1] <= ' ') )
+	while ( cursor && my_isspace(cmdline[cursor-1]) )
 	  cursor--;
 
-	while ( cursor && (cmdline[cursor-1] > ' ') )
+	while ( cursor && !my_isspace(cmdline[cursor-1]) )
 	  cursor--;
 
 	memmove(cmdline+cursor, cmdline+prevcursor, len-prevcursor+1);
@@ -790,13 +790,13 @@ execute(const char *cmdline)
 
   kernel = q;
   p = cmdline;
-  while ( *p && *p > ' ' ) {
+  while ( *p && !my_isspace(*p) ) {
     *q++ = *p++;
   }
   *q++ = '\0';
   
   args = q;
-  while ( *p && *p <= ' ' )
+  while ( *p && my_isspace(*p) )
     p++;
   
   strcpy(q, p);

@@ -65,5 +65,10 @@ extern char *menu_master_passwd;
 
 void parse_config(const char *filename);
 
+static inline int my_isspace(char c)
+{
+  return (unsigned char)c <= ' ';
+}
+
 #endif /* MENU_H */
 
