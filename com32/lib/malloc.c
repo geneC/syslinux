@@ -105,7 +105,7 @@ void *malloc(size_t size)
     return NULL;
 
   /* Add the obligatory arena header, and round up */
-  size = (size+2*sizeof(struct arena_header)-1) & ~ARENA_SIZE_MASK;
+  size = (size+2*sizeof(struct arena_header)-1) & ARENA_SIZE_MASK;
 
   for ( fp = __malloc_head.next_free ; fp->a.type != ARENA_TYPE_HEAD ;
 	fp = fp->next_free ) {

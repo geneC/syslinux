@@ -37,10 +37,10 @@ struct arena_header {
 #define ARENA_TYPE_HEAD 2
 #endif
 
-#define ARENA_SIZE_MASK (sizeof(struct arena_header)-1)
+#define ARENA_SIZE_MASK (~(uintptr_t)(sizeof(struct arena_header)-1))
 
-#define ARENA_ALIGN_UP(p)	((char *)(((uintptr_t)(p) + ARENA_SIZE_MASK) & ~ARENA_SIZE_MASK))
-#define ARENA_ALIGN_DOWN(p)	((char *)((uintptr_t)(p) & ~ARENA_SIZE_MASK))
+#define ARENA_ALIGN_UP(p)	((char *)(((uintptr_t)(p) + ~ARENA_SIZE_MASK) & ARENA_SIZE_MASK))
+#define ARENA_ALIGN_DOWN(p)	((char *)((uintptr_t)(p) & ARENA_SIZE_MASK))
 
 /*
  * This structure should be no more than twice the size of the
