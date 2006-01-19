@@ -72,4 +72,15 @@
 #define ALTF11  0x8B
 #define ALTF12  0x8C
 
+/* Bits representing ShiftFlags, See Int16/Function 2 or Mem[0x417] to get this info */
+
+#define INSERT_ON     (1<<7)
+#define CAPSLOCK_ON   (1<<6)
+#define NUMLOCK_ON    (1<<5)
+#define SCRLLOCK_ON   (1<<4)
+#define ALT_PRESSED   (1<<3)
+#define CTRL_PRESSED  (1<<2)
+// actually 1<<1 is Left Shift, 1<<0 is right shift
+#define SHIFT_PRESSED (1<<1 | 1 <<0)   
+
 #endif

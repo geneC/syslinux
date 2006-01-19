@@ -11,6 +11,7 @@
  * ----------------------------------------------------------------------- */
 
 #include "menu.h"
+#include "com32io.h"
 #include <stdlib.h>
 
 // Local Variables
@@ -42,18 +43,29 @@ char getch(char *scan)
 {
   unsigned long i;
   TIMEOUTCODE c;
+  t_timeout_handler th;
 
   // Wait until keypress if no handler specified
-  if (ms->ontimeout==NULL) return inputc(scan);
+  if ((ms->ontimeout==NULL) && (ms->ontotaltimeout==NULL)) return inputc(scan);
 
+  th = ms->ontimeout;
   while (1) // Forever do
     {
       for (i=0; i < ms->tm_numsteps; i++)
 	{
 	  if (checkkbdbuf()) return inputc(scan);
 	  sleep(ms->tm_stepsize);
+          if ( (ms->tm_total_timeout == 0) || (ms->ontotaltimeout==NULL))
+              continue; // Dont bother with calculations if no handler 
+          ms->tm_sofar_timeout += ms->tm_stepsize;
+          if (ms->tm_sofar_timeout >= ms->tm_total_timeout) {
+             th = ms->ontotaltimeout;
+             ms->tm_sofar_timeout = 0;
+             break; // Get out of the for loop
+          }
 	}
-      c = ms->ontimeout();
+      if (!th) continue; // no handler dont call
+      c = th();
       switch(c)
 	{
 	case CODE_ENTER: // Pretend user hit enter
@@ -684,7 +696,8 @@ void fix_submenus()
      {
          mi = m->items[j];
          // if submenu with non-trivial data string 
-         if ( (mi->action == OPT_SUBMENU) && (mi->data) )
+         // again using hack that itemdata is a union data type
+         if ( mi->data && ((mi->action == OPT_SUBMENU) || (mi->action == OPT_RADIOMENU)) )
             mi->itemdata.submenunum = find_menu_num (mi->data);
      }
   }
@@ -776,6 +789,9 @@ pt_menusystem init_menusystem(const char *title)
   ms->handler = NULL;
   ms->keys_handler = NULL; 
   ms->ontimeout=NULL; // No timeout handler
+  ms->tm_total_timeout = 0; 
+  ms->tm_sofar_timeout = 0;
+  ms->ontotaltimeout = NULL;
 
   // Setup ACTION_{,IN}VALID
   ACTION_VALID.valid=1;
@@ -910,6 +926,21 @@ void unreg_ontimeout()
 {
   ms->ontimeout = NULL;
 }
+
+void reg_ontotaltimeout (t_timeout_handler handler, unsigned long numcentiseconds)
+{
+  if (numcentiseconds != 0) {
+     ms->ontotaltimeout = handler;
+     ms->tm_total_timeout = numcentiseconds*10; // to convert to milliseconds
+     ms->tm_sofar_timeout = 0;
+  }
+}
+
+void unreg_ontotaltimeout()
+{
+  ms->ontotaltimeout = NULL;
+}
+
 
 int next_visible(pt_menu menu, int index) 
 {
@@ -1214,5 +1245,56 @@ void set_item_options(uchar shortcut,int helpid)
 // Free internal datasutructures
 void close_menusystem(void)
 {
+}
+
+// append_line_helper(pt_menu menu,char *line)
+void append_line_helper(int menunum, char *line)
+{
+  pt_menu menu;
+  pt_menuitem mi,ri;
+  char *app;
+  int ctr;
+  char dp;
+
+
+  dp = getdisppage();
+  menu = ms->menus[menunum];
+  for (ctr = 0; ctr < (int) menu->numitems; ctr++)
+  {
+      mi = menu->items[ctr];
+      app = NULL; //What to append
+      switch (mi->action) {
+        case OPT_CHECKBOX:
+             if (mi->itemdata.checked) app = mi->data;
+             break;
+        case OPT_RADIOMENU:
+             if (mi->data) { // Some selection has been made
+                ri = (pt_menuitem) (mi->data);
+                app = ri->data;
+             }
+             break;
+        case OPT_SUBMENU:
+             append_line_helper(mi->itemdata.submenunum,line);
+             break;
+        default:
+             break;
+      }
+      if (app) {
+         strcat(line," ");
+         strcat(line,app);
+      }
+  }
+}
+
+
+// Generate string based on state of checkboxes and radioitem in given menu
+// Assume line points to large enough buffer
+void gen_append_line(const char *menu_name,char *line)
+{
+  int menunum;
+
+  menunum = find_menu_num(menu_name);
+  if (menunum < 0) return; // No such menu
+  append_line_helper(menunum,line);
 }
 

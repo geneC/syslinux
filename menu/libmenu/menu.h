@@ -93,7 +93,6 @@
 #define MENUROW       3  // Row where menu is displayed (relative to window)
 #define MENUCOL       4  // Col where menu is displayed (relative to window)
 #define MENUPAGE      1  // show in display page 1
-#define HELPPAGE      2  // Use this page for any additional information
 #define STATLINE      24 // Line number where status line starts (relative to window)
 
 // Used for printing debugging messages
@@ -157,13 +156,14 @@ typedef struct s_menuitem {
   // for radio menu's this is a pointer to the item selected or NULL (initially)
   // for submenu's this string could be name of menu 
   void * extra_data; // Any other data user can point to
+  unsigned int helpid; // Used for Context sensitive help
   t_item_handler handler; // Pointer to function of type menufn
   t_action action;
   t_itemdata itemdata; // Data depends on action value
-  unsigned int helpid; // context sensitive help system ID
   uchar shortcut; // one of [A-Za-z0-9] shortcut for this menu item
   uchar index; // Index within the menu array
   uchar parindex; // Index of the menu in which this item appears. 
+  
 } t_menuitem;
 
 typedef t_menuitem *pt_menuitem; // Pointer to type menuitem
@@ -190,6 +190,11 @@ typedef struct s_menusystem {
   unsigned long tm_numsteps; 
   // Time to wait for key press=numsteps * stepsize milliseconds
   unsigned int tm_stepsize; // Timeout step size (in milliseconds)
+  // Total timeout max time spent idle before we call handler
+  unsigned long tm_total_timeout; // (in milli seconds)
+  unsigned long tm_sofar_timeout; // All accumulated timeout
+  // total timeout handler
+  t_timeout_handler ontotaltimeout; // Total timeout handler
 
   int maxmenuheight;
   uchar nummenus;
@@ -248,6 +253,9 @@ void reg_ontimeout(t_timeout_handler, unsigned int numsteps, unsigned int stepsi
 // So stepsize=0 means numsteps is measured in centiseconds.
 void unreg_ontimeout();
 
+void reg_ontotaltimeout(t_timeout_handler, unsigned long numcentiseconds);
+void unreg_ontotaltimeout();
+
 // Find the number of the menu given the name
 // Returns -1 if not found
 uchar find_menu_num(const char *name);
@@ -275,7 +283,9 @@ static inline void set_shortcut(uchar shortcut)
 // Add a separator to the "current" menu
 pt_menuitem add_sep();
 
-// Main function for the user's config file
-int menumain(char *cmdline);
+// Generate string based on state of checkboxes and radioitem in given menu
+// and append string to existing contents of "line"
+// line must have enough space allocated
+void gen_append_line(const char *menu_name,char *line);
 
 #endif

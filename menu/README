@@ -12,7 +12,6 @@ for your own menu configuration file; If your menu system is only going
 to have entries corresponding to things which can be executed directly, 
 then you can create a file in ".menu" format instead of the C code.
 
-NOTE: ".menu" files can only describe the very basic type of menus
 See MENU_FORMAT for the syntax of .menu files
 
 The resulting code is a 32-bit COMBOOT code, and hence can be executed

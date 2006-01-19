@@ -1,88 +1,89 @@
 #!/usr/bin/env python
 
-import sys, string
-
-TEMPLATE_HEADER="""
-/* -*- c -*- ------------------------------------------------------------- *
- *   
- *   Copyright 2004-2005 Murali Krishnan Ganapathy - All Rights Reserved
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
- *   Boston MA 02111-1307, USA; either version 2 of the License, or
- *   (at your option) any later version; incorporated herein by reference.
- *
- * ----------------------------------------------------------------------- */
-
-#ifndef NULL
-#define NULL ((void *) 0)
-#endif
-
-#include "menu.h"
-#include "com32io.h"
-#include <string.h>
-
-int main(void)
-{
-  t_menuitem * curr;
-
-  // Change the video mode here
-  // setvideomode(0)
-
-  // Set the title and window size
-  
-"""
-
-
-TEMPLATE_FOOTER=""" 
-  curr = showmenus(find_menu_num("main")); // Initial menu is the one called "main"
-
-  if (curr)
-  {
-        if (curr->action == OPT_RUN)
-        {
-            if (issyslinux()) runsyslinuxcmd(curr->data);
-            else csprint(curr->data,0x07);
-            return 1;
-        }
-        csprint("Error in programming!",0x07);
-  }
-  return 0;
-}
-"""
+import sys, re, getopt
 
 class Menusystem:
-   def __init__(self):
+   
+   types = {"run"      : "OPT_RUN",
+            "inactive" : "OPT_INACTIVE", 
+            "checkbox" : "OPT_CHECKBOX",
+            "radiomenu": "OPT_RADIOMENU", 
+            "sep"      : "OPT_SEP", 
+            "invisible": "OPT_INVISIBLE",
+            "radioitem": "OPT_RADIOITEM",
+            "exitmenu" : "OPT_EXITMENU",
+            "login"    : "login", # special type
+            "submenu"  : "OPT_SUBMENU"}
+
+   entry_init = { "item" : "",
+                  "info" : "",
+                  "data" : "",
+                  "ipappend" : 0, # flag to send in case of PXELINUX
+                  "helpid" : 65535, # 0xFFFF
+                  "shortcut":"-1",
+                  "state"  : 0, # initial state of checkboxes
+                  "argsmenu": "", # name of menu containing arguments
+                  "perms"  : "", # permission required to execute this entry
+                  "_updated" : None, # has this dictionary been updated
+                  "type" : "run" }
+   
+   menu_init = {  "title" : "",
+                  "row" : "0xFF", # let system decide position
+                  "col" : "0xFF", 
+                  "_updated" : None,
+                  "name" : "" }
+
+   system_init ={ "videomode" : "0xFF",
+                  "title" : "Menu System",
+                  "top" : "1", 
+                  "left" : "1" , 
+                  "bot" : "21", 
+                  "right":"79",
+                  "helpdir" : "/isolinux/help",
+                  "pwdfile" : "",
+                  "pwdrow"  : "23",
+                  "editrow" : "23",
+                  "skipcondn"  : "0",
+                  "skipcmd" : ".exit",
+                  "startfile": "",
+                  "onerrorcmd":".repeat",
+                  "exitcmd"  : ".exit",
+                  "exitcmdroot"  : "",
+                  "timeout"  : "600",
+                  "timeoutcmd":".beep",
+                  "totaltimeout" : "0",
+                  "totaltimeoutcmd" : ".wait"
+                 }
+
+   shift_flags = { "alt"  : "ALT_PRESSED",
+                   "ctrl" : "CTRL_PRESSED",
+                   "shift": "SHIFT_PRESSED",
+                   "caps" : "CAPSLOCK_ON",
+                   "num"  : "NUMLOCK_ON",
+                   "ins"  : "INSERT_ON"
+                 }
+
+   reqd_templates = ["item","login","menu","system"]
+
+   def __init__(self,template):
+       self.state = "system"
+       self.code_template_filename = template
        self.menus = []
-       self.types = {"run" : "OPT_RUN","exitmenu":"OPT_EXITMENU","submenu":"OPT_SUBMENU"}
        self.init_entry()
        self.init_menu()
        self.init_system()
-       self.vtypes = string.join(self.types.keys()," OR ")
-       self.vattrs = string.join(filter(lambda x: x[0] != "_", self.entry.keys())," OR ")
-       self.mattrs = string.join(filter(lambda x: x[0] != "_", self.menu.keys())," OR ")
-       self.itemtemplate = '  add_item("%(item)s","%(info)s",%(type)s,"%(data)s",0);\n'
-       self.menutemplate = '\n  add_named_menu("%(name)s","%(title)s",-1);\n'
-       self.systemplate = '\n  init_menusystem(%(title)s);\n  set_window_size(%(top)s,%(left)s,%(bot)s,%(right)s);\n'
+       self.vtypes = " OR ".join(self.types.keys())
+       self.vattrs = " OR ".join(filter(lambda x: x[0] != "_", self.entry.keys()))
+       self.mattrs = " OR ".join(filter(lambda x: x[0] != "_", self.menu.keys()))
 
    def init_entry(self):
-       self.entry = { "item" : "",
-                      "info" : "",
-                      "data" : "",
-                      "_updated" : None, # has this dictionary been updated
-                      "type" : "run" }
+       self.entry = self.entry_init.copy()
 
    def init_menu(self):
-       self.menu = {"title" : "",
-                    "row" : "0xFF", # let system decide position
-                    "col" : "0xFF", 
-                    "_updated" : None,
-                    "name" : "" }
+       self.menu = self.menu_init.copy()
 
    def init_system(self):
-       self.system = { "title" : "",
-                       "top" : "1", "left" : "1" , "bot" : "23", "right":"79" }
+       self.system = self.system_init.copy()
 
    def add_menu(self,name):
        self.add_item()
@@ -105,105 +106,153 @@ class Menusystem:
           self.menus[-1][1].append(self.entry)
        self.init_entry()
 
-   # remove quotes if reqd
-   def rm_quote(self,str):
-       str = str .strip()
-       if (str[0] == str[-1]) and (str[0] in ['"',"'"]): # remove quotes
-          str = str[1:-1]
-       return str
-
    def set_item(self,name,value):
        if not self.entry.has_key(name):
           msg = ["Unknown attribute %s in line %d" % (name,self.lineno)]
           msg.append("REASON: Attribute must be one of %s" % self.vattrs)
-          return string.join(msg,"\n")
+          return "\n".join(msg)
        if name=="type" and not self.types.has_key(value):
           msg = [ "Unrecognized type %s in line %d" % (value,self.lineno)]
           msg.append("REASON: Valid types are %s" % self.vtypes)
-          return string.join(msg,"\n")
-       self.entry[name] = self.rm_quote(value)
+          return "\n".join(msg)
+       if name=="shortcut":
+          if (value <> "-1") and not re.match("^[A-Za-z0-9]$",value):
+             msg = [ "Invalid shortcut char '%s' in line %d" % (value,self.lineno) ]
+             msg.append("REASON: Valid values are [A-Za-z0-9]")
+             return "\n".join(msg)
+          elif value <> "-1": value = "'%s'" % value
+       elif name in ["state","helpid","ipappend"]:
+          try:
+              value = int(value)
+          except:
+              return "Value of %s in line %d must be an integer" % (name,self.lineno)
+       self.entry[name] = value
        self.entry["_updated"] = 1
        return ""
 
    def set_menu(self,name,value):
-       # no current menu yet. We are probably in global section
-       if not self.menus: return "Error"
        if not self.menu.has_key(name):
-          return "Error"
-       self.menu[name] = self.rm_quote(value)
+          return "Error: Unknown keyword %s" % name
+       self.menu[name] = value
        self.menu["_updated"] = 1
        return ""
 
    def set_system(self,name,value):
        if not self.system.has_key(name):
-          return "Error"
-       self.system[name] = self.rm_quote(value)
+          return "Error: Unknown keyword %s" % name
+       if name == "skipcondn":
+          try: # is skipcondn a number?
+             a = int(value)
+          except: # it is a "-" delimited sequence 
+             value = value.lower()
+             parts = [ self.shift_flags.get(x.strip(),None) for x in value.split("-") ]
+             self.system["skipcondn"] = " | ".join(filter(None, parts))
+       else:
+          self.system[name] = value
 
    def set(self,name,value):
-       msg = self.set_item(name,value)
-       # if valid item attrbute done
-       if not msg: return
+       # remove quotes if given
+       if (value[0] == value[-1]) and (value[0] in ['"',"'"]): # remove quotes
+          value = value[1:-1]
+       if self.state == "system":
+          err = self.set_system(name,value)
+          if not err: return
+       if self.state == "menu":
+          err = self.set_menu(name,value)
+          # change state to entry it menu returns error
+          if err: 
+             err = None
+             self.state = "item"
+       if self.state == "item":
+          err = self.set_item(name,value)
 
-       # check if attr is of menu
-       err = self.set_menu(name,value)
-       if not err: return
-   
-       # check if global attribute
-       err = self.set_system(name,value)
        if not err: return
 
        # all errors so return item's error message
-       print msg
+       print err
        sys.exit(1)
 
    def print_entry(self,entry,fd):
        entry["type"] = self.types[entry["type"]]
-       fd.write(self.itemtemplate % entry)
+       if entry["type"] == "login": #special type
+          fd.write(self.templates["login"] % entry)
+       else: 
+          fd.write(self.templates["item"] % entry)
 
    def print_menu(self,menu,fd):
        if menu["name"] == "main": self.foundmain = 1
-       fd.write(self.menutemplate % menu)
+       fd.write(self.templates["menu"] % menu)
        if (menu["row"] != "0xFF") or (menu["col"] != "0xFF"):
           fd.write('  set_menu_pos(%(row)s,%(col)s);\n' % menu)
        
-   # parts of C code which set attrs for entire menu system
-   def print_system(self,fd):
-       if self.system["title"]:
-          self.system["title"] = '"%s"' % self.system["title"]
-       else: self.system["title"] = "NULL"
-       fd.write(self.systemplate % self.system)
 
    def output(self,filename):
-       fd = open(filename,"w")
+       curr_template = None
+       contents = []
+       self.templates = {}
+       regbeg = re.compile(r"^--(?P<name>[a-z]+) BEGINS?--\n$")
+       regend = re.compile(r"^--[a-z]+ ENDS?--\n$")
+       ifd = open(self.code_template_filename,"r")
+       for line in ifd.readlines():
+           b = regbeg.match(line)
+           e = regend.match(line)
+           if e: # end of template
+              if curr_template:
+                 self.templates[curr_template] = "".join(contents)
+              curr_template = None
+              continue
+           if b:
+              curr_template = b.group("name")
+              contents = []
+              continue
+           if not curr_template: continue # lines between templates are ignored
+           contents.append(line)
+       ifd.close()
+       
+       missing = None
+       for x in self.reqd_templates:
+           if not self.templates.has_key(x): missing = x
+       if missing:
+           print "Template %s required but not defined in %s" % (missing,self.code_template_filename)
+      
+       if filename == "-":
+          fd = sys.stdout
+       else: fd = open(filename,"w")
        self.foundmain = None
-       fd.write(TEMPLATE_HEADER)
-       self.print_system(fd)
+       fd.write(self.templates["header"]) 
+       fd.write(self.templates["system"] % self.system)
        for (menu,items) in self.menus:
            self.print_menu(menu,fd)
            for entry in items: self.print_entry(entry,fd)
-       fd.write(TEMPLATE_FOOTER)
+       fd.write(self.templates["footer"]) 
        fd.close()
        if not self.foundmain:
           print "main menu not found"
+          print self.menus
           sys.exit(1)
        
    def input(self,filename):
-       fd = open(filename,"r")
+       if filename == "-":
+          fd = sys.stdin
+       else: fd = open(filename,"r")
        self.lineno = 0
+       self.state = "system"
        for line in fd.readlines():
          self.lineno = self.lineno + 1
          if line and line[-1] in ["\r","\n"]: line = line[:-1]
          if line and line[-1] in ["\r","\n"]: line = line[:-1]
+         line = line.strip()
          if line and line[0] in ["#",";"]: continue
 
          try:
            # blank line -> starting a new entry
-           if not line: 
-              self.add_item()
+           if not line:
+              if self.state == "item": self.add_item()
               continue
 
            # starting a new section?
            if line[0] == "[" and line[-1] == "]":
+              self.state = "menu"
               self.add_menu(line[1:-1])
               continue
            
@@ -222,18 +271,37 @@ class Menusystem:
        fd.close()
        self.add_item()
 
-
 def usage():
-    print sys.argv[0]," inputfile outputfile"
-    print "inputfile is the ini-like file declaring menu structure"
-    print "outputfile is the C source which can be compiled"
+    print sys.argv[0]," [options]"
+    print "--input=<file>    is the name of the .menu file declaring the menu structure"
+    print "--output=<file>   is the name of generated C source"
+    print "--template=<file> is the name of template to be used"
+    print
+    print "input and output default to - (stdin and stdout respectively)"
+    print "template defaults to adv_menu.tpl"
     sys.exit(1)
 
 def main():
-    if len(sys.argv) <> 3: usage()
-    inst = Menusystem()
-    inst.input(sys.argv[1])
-    inst.output(sys.argv[2])
+    tfile = "adv_menu.tpl"
+    ifile = "-"
+    ofile = "-"
+    opts,args = getopt.getopt(sys.argv[1:], "hi:o:t:",["input=","output=","template=","help"])
+    if args:
+       print "Unknown options %s" % args
+       usage()
+    for o,a in opts:
+        if o in ["-i","--input"]: 
+           ifile = a
+        elif o in ["-o", "--output"]:
+           ofile = a
+        elif o in ["-t","--template"]:
+           tfile = a
+        elif o in ["-h","--help"]:
+           usage()
+
+    inst = Menusystem(tfile)
+    inst.input(ifile)
+    inst.output(ofile)
 
 if __name__ == "__main__":
    main()

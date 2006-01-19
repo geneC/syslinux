@@ -38,10 +38,27 @@
 #define REG_DX(x) ((x).edx.w[0])
 #define REG_EDX(x) ((x).edx.l)
 
+#define REG_DS(x) ((x).ds)
+#define REG_ES(x) ((x).es)
+#define REG_FS(x) ((x).fs)
+#define REG_GS(x) ((x).gs)
+
+#define REG_SI(x) ((x).esi.w[0])
+#define REG_ESI(x) ((x).esi.l)
+
+#define REG_DI(x) ((x).edi.w[0])
+#define REG_EDI(x) ((x).edi.l)
+
 char issyslinux(void);		/* Check if syslinux is running */
 
 void runsyslinuxcmd(const char *cmd); /* Run specified command */
 
 void gototxtmode(void); /* Change mode to text mode */
+
+void syslinux_idle(void); /* Call syslinux idle loop */
+
+/* Run command line with ipappend, returns if kernel image not found
+   If syslinux version too old, then defaults to runsyslinuxcmd */
+void runsyslinuximage(const char*cmd, long ipappend); 
 
 #endif

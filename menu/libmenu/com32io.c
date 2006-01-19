@@ -65,7 +65,7 @@ unsigned char sleep(unsigned int msec)
 
    REG_AH(inreg) = 0x86;
    REG_CX(inreg) = (micro >> 16);
-   REG_DX(inreg) = (micro % 0x10000);
+   REG_DX(inreg) = (micro & 0xFFFF);
    __intcall(0x15,&inreg,&outreg);
    return REG_AH(outreg);
 }
@@ -78,22 +78,22 @@ void beep()
    __intcall(0x10,&inreg,&outreg);
 }
 
-void scrollup()
+void scrollupwindow(char top, char left, char bot, char right, char attr,char numlines)
 {
-  unsigned int dx = (getnumrows()<< 8) + getnumcols();
   REG_AH(inreg) = 0x06;
-  REG_AL(inreg) = 0x01;
-  REG_BH(inreg) = 0x07; // Attribute to write blanks lines
-  REG_DX(inreg) = dx; // BOT RIGHT corner to window
-  REG_CX(inreg) = 0; // TOP LEFT of window
+  REG_AL(inreg) = numlines;
+  REG_BH(inreg) = attr; // Attribute to write blanks lines
+  REG_DX(inreg) = (bot << 8) + right; // BOT RIGHT corner of window
+  REG_CX(inreg) = (top << 8) + left; // TOP LEFT of window
+  __intcall(0x10,&inreg,&outreg);
 }
 
 char inputc(char * scancode)
 {
+  syslinux_idle(); /* So syslinux can perform periodic activity */
   REG_AH(inreg) = 0x10;
   __intcall(0x16,&inreg,&outreg);
-  if (scancode)
-      *scancode = REG_AH(outreg);
+  if (scancode) *scancode = REG_AH(outreg);
   return REG_AL(outreg);
 }
    

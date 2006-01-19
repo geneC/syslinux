@@ -47,8 +47,8 @@ MENUS = $(CMENUS) $(IMENUS)
 .SUFFIXES: .S .c .o .elf .c32 .menu
 
 .PRECIOUS: %.c
-%.c: %.menu
-	python menugen.py $< $@
+%.c: %.menu adv_menu.tpl
+	python menugen.py --input=$< --output=$@ --template=adv_menu.tpl
 
 .PRECIOUS: %.o
 %.o: %.S
@@ -73,12 +73,18 @@ libmenu/libmenu.a: $(LIBMENU)
 	$(RANLIB) $@
 
 tidy:
-	rm -f *.o *.lo *.a *.lst *.elf libmenu/*.o libmenu/*.a
+	rm -f *.o *.lo *.a *.lst *.elf 
 
-clean: tidy
+libclean:
+	rm -f libmenu/*.o libmenu/*.a
+
+clean: tidy menuclean
 	rm -f *.lss *.c32 *.com
 
-spotless: clean
+menuclean:
+	rm -f $(patsubst %.menu,%.c,$(wildcard *.menu))
+
+spotless: clean libclean menuclean
 	rm -f *~ \#*
 
 menus: $(MENUS)

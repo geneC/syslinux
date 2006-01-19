@@ -79,9 +79,24 @@ static inline char getnumcols(void)
     return readbiosb(0x44a); // Actually numcols
 }
 
-void scrollup(); //Scroll up display screen by one line
+static inline char getshiftflags(void)
+{
+    return readbiosb(0x417);
+}
+
+void scrollupwindow(char top, char left, char bot,char right,char attr,char numlines); //Scroll up given window
+
+static inline void scrollup(void) //Scroll up display screen by one line
+{
+   scrollupwindow(0,0,getnumrows(),getnumcols(),0x07,1);
+}
  
 void setvideomode(char mode); // Set the video mode.
+
+static inline char getvideomode(void)  // Get the current video mode 
+{
+   return readbiosb(0x449);
+}
 
 unsigned char sleep(unsigned int msec); // Sleep for specified time
 

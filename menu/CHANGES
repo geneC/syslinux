@@ -3,8 +3,21 @@ Changes in v1.2
 * Allowed menu's to have names. Submenu's can be referred to by names 
   instead of their index in the menu system. This allows user to refer 
   to submenus which are not yet part of the menusystem.
+* help pages can be longer than one screen 
 * menugen.py: Python script for converting .menu files to C source code
+  .menu files can be used to descibe most static uses of menu system, 
+  including SubMenus, Checkboxes, RadioButtons, User Authentication and
+  Context sensitive help. You can also restrict use of certain items
+  to users with certain credentials.
+
   See MENU_FORMAT for the format of .menu files
+
+* display.c32: Takes the name of the text file to display and displays it
+  allowing user to scroll through the text. 
+
+  USAGE: display.c32 <filename>
+
+  <filename> must be an absolute filename (including the /isolinux part)
 
 Changes in v1.1
 ---------------

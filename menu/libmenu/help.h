@@ -22,14 +22,24 @@
 #define HELP_TITLE_HEIGHT 1
 #define HELP_BODY_ROW (HELP_TITLE_HEIGHT+3)
 #define HELP_LEFT_MARGIN 2
+#define HELP_RIGHT_MARGIN 2 // Assume all lines dont cross this
+#define HELP_BOTTOM_MARGIN 2 // Number of lines not use from bottom of screen
+
 #define HELPBOX BOX_SINSIN
 #define HELPDIRLEN  64
+#define HELPPAGE 2
+
+#define HELP_MORE_ABOVE 24 // to print when more is available above
+#define HELP_MORE_BELOW 25 // same as above but for below
 
 // Display one screen of help information
 void showhelp(const char *filename);
 
 // Start the help system using id helpid
 void runhelpsystem(unsigned int helpid);
+
+// Start help system with specified file
+void runhelp(const char *filename);
 
 // Directory where help files are located
 void init_help(const char *helpdir);

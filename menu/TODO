@@ -1,8 +1,3 @@
 * Write COMBOOT code to read .menu files and parse them directly
   - take the name of menu file to parse from commandline 
-* menugen.py is still useful as user can see what the C code will 
-  be and modify that as required.
-* Help support
-  - Beef up help.c so that the text file can be larger than one page, and 
-    user can scroll down page to view extra text.
 

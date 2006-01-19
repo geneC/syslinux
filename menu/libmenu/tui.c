@@ -1,6 +1,6 @@
 /* -*- c -*- ------------------------------------------------------------- *
  *   
- *   Copyright 2004-2005 Murali Krishnan Ganapathy - All Rights Reserved
+ *   Copyright 2004-2006 Murali Krishnan Ganapathy - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -10,12 +10,9 @@
  *
  * ----------------------------------------------------------------------- */
 
+#include "tui.h"
 #include <string.h>
 #include <com32.h>
-#include "tui.h"
-#include "syslnx.h"
-#include "com32io.h"
-#include "scancodes.h"
 #include <stdlib.h>
 
 com32sys_t inreg,outreg; // Global register sets for use

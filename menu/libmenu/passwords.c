@@ -26,9 +26,7 @@ int numusers; // Actual number of users
 char authenticate_user(const char * username, const char* pwd)
 {
   char salt[12];
-  int  i, password_ok;
-
-  password_ok=0;
+  int  i;
 
   for (i=0; i< numusers; i++) {
     if (userdb[i] == NULL) continue;
@@ -48,6 +46,8 @@ char isallowed(const char *username, const char *perm)
   char *dperm;
   char *tmp;
 
+  // If no users, then everybody is allowed to do everything
+  if (numusers == 0) return 1;
   if (strcmp(username,GUEST_USER) == 0) return 0;
   dperm = (char *) malloc(strlen(perm)+3);
   strcpy(dperm+1,perm);
