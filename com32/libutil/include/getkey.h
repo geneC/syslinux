@@ -36,7 +36,12 @@
 #define LIBUTIL_GETKEY_H
 
 #include <stdio.h>
+#include <unistd.h>
 #include <sys/times.h>
+
+#ifndef CLK_TCK
+# define CLK_TCK sysconf(_SC_CLK_TCK)
+#endif
 
 #define KEY_NONE	(-1)
 
