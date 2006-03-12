@@ -36,10 +36,6 @@
 
 #include "menu.h"
 
-#ifndef CLK_TCK
-# define CLK_TCK sysconf(_SC_CLK_TCK)
-#endif
-
 struct menu_attrib {
   const char *border;		/* Border area */
   const char *title;		/* Title bar */
