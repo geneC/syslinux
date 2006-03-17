@@ -6,6 +6,7 @@
  *  Copyright (C) 2005 Tim Deegan <Tim.Deegan@cl.cam.ac.uk>
  *  Parts based on GNU GRUB, Copyright (C) 2000  Free Software Foundation, Inc.
  *  Parts based on SYSLINUX, Copyright (C) 1994-2005  H. Peter Anvin.
+ *  Thanks to Ram Yalamanchili for the ELF section-header loading.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License as
@@ -86,8 +87,8 @@ struct lidt_operand {
 } __attribute__((packed));
 
 /* Magic strings */
-static const char version_string[]   = "COM32 Multiboot loader v0.1";
-static const char copyright_string[] = "Copyright (C) 2005 Tim Deegan.";
+static const char version_string[]   = "COM32 Multiboot loader v0.2";
+static const char copyright_string[] = "Copyright (C) 2005-2006 Tim Deegan.";
 static const char module_separator[] = "---";
 
 
@@ -524,7 +525,7 @@ static void load_file(char *filename, char **startp, size_t *sizep)
 }
 
 
-static size_t load_kernel(char *cmdline) 
+static size_t load_kernel(struct multiboot_info *mbi, char *cmdline) 
     /* Load a multiboot/elf32 kernel and allocate run-time memory for it.
      * Returns the kernel's entry address.  */
 {
@@ -534,9 +535,11 @@ static size_t load_kernel(char *cmdline)
     char *seg_addr;                   /* Where a segment was loaded */
     size_t seg_size, bss_size;                     /* How big it is */
     size_t run_addr, run_size;            /* Where it should be put */
+    size_t shdr_run_addr;
     char *p; 
     Elf32_Ehdr *ehdr;
     Elf32_Phdr *phdr;
+    Elf32_Shdr *shdr;
     struct multiboot_header *mbh;
 
     printf("Kernel: %s\n", cmdline);
@@ -697,6 +700,59 @@ static size_t load_kernel(char *cmdline)
                 }
             }
          
+            if (ehdr->e_shoff != 0) {
+#ifdef DEBUG
+                printf("Loading ELF section table.\n");
+#endif
+                /* Section Header */
+                shdr = (Elf32_Shdr *)(load_addr + ehdr->e_shoff);
+
+                /* Section Header Table size */
+                run_size = ehdr->e_shentsize * ehdr->e_shnum;
+                shdr_run_addr = place_module_section(run_size, 0x1000); 
+                if (shdr_run_addr == 0) {
+                    printf("Warning: Not enough memory to load the "
+                           "section table.\n");
+                    return ehdr->e_entry;
+                }
+                add_section(shdr_run_addr, (void*) shdr, run_size);
+
+                /* Load section tables not loaded thru program segments */
+                for (i = 0; i < ehdr->e_shnum; i++) {
+                   /* This case is when this section is already included in 
+                    * program header or it's 0 size, so no need to load */
+                   if (shdr[i].sh_addr != 0 || !shdr[i].sh_size)
+                       continue;
+
+                   if (shdr[i].sh_addralign == 0)
+                       shdr[i].sh_addralign = 1;
+                   
+                   run_addr = place_module_section(shdr[i].sh_size, 
+                                                   shdr[i].sh_addralign); 
+                   if (run_addr == 0) {
+                       printf("Warning: Not enough memory to load "
+                              "section %d.\n", i);
+                       return ehdr->e_entry;
+                   }
+                   shdr[i].sh_addr = run_addr;
+                   add_section(run_addr, 
+                               (void*) (shdr[i].sh_offset + load_addr),
+                               shdr[i].sh_size);
+                }
+
+                mbi->flags |= MB_INFO_ELF_SHDR;
+                mbi->syms.e.num = ehdr->e_shnum;
+                mbi->syms.e.size = ehdr->e_shentsize;
+                mbi->syms.e.shndx = ehdr->e_shstrndx;
+                mbi->syms.e.addr = shdr_run_addr;
+#ifdef DEBUG
+                printf("Section information: shnum: %lu, entSize: %lu, "
+                       "shstrndx: %lu, addr: 0x%lx\n", 
+                       mbi->syms.e.num, mbi->syms.e.size, 
+                       mbi->syms.e.shndx, mbi->syms.e.addr);
+#endif                    
+            }
+
             /* Done! */
             return ehdr->e_entry;
         }
@@ -967,7 +1023,7 @@ int main(int argc, char **argv)
     p += strlen(version_string) + 1;
 
     /* Now, do all the loading, and boot it */
-    entry = load_kernel((char *)(mbi->cmdline + mbi_reloc_offset));
+    entry = load_kernel(mbi, (char *)(mbi->cmdline + mbi_reloc_offset));
     for (i=0; i<modules; i++) {
         load_module(&(modp[i]), (char *)(modp[i].cmdline + mbi_reloc_offset));
     }
