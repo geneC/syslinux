@@ -8,6 +8,7 @@ Changes in 3.20:
 	  updated.  For now, defaults to --install for compatibility;
 	  a future version will require one of these options.
 	* New library functions to load and place files in memory.
+	* mboot.c32 bug fixes.
 
 Changes in 3.11:
 	* MEMDISK: Fix bug by which accessing the real floppy disk
