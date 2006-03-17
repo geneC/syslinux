@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004-2006 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -154,11 +154,11 @@ static void
 draw_row(int y, int sel, int top, int sbtop, int sbbot)
 {
   int i = (y-4)+top;
-  
+
   printf("\033[%d;%dH%s\016x\017%s ",
 	 y, MARGIN+1, menu_attrib->border,
 	 (i == sel) ? menu_attrib->sel : menu_attrib->unsel);
-  
+
   if ( i >= nentries ) {
     fputs(pad_line("", 0, WIDTH-2*MARGIN-4), stdout);
   } else {
@@ -225,11 +225,11 @@ static int mygetkey(clock_t timeout)
   for (;;) {
     tto = min(totaltimeout, INT_MAX);
     to = timeout ? min(tto, timeout) : tto;
-    
+
     t0 = times(NULL);
     key = get_key(stdin, to);
     t = times(NULL) - t0;
-    
+
     if ( totaltimeout <= t )
       longjmp(timeout_jump, 1);
 
@@ -241,7 +241,7 @@ static int mygetkey(clock_t timeout)
     if ( timeout ) {
       if ( timeout <= t )
 	return KEY_NONE;
-      
+
       timeout -= t;
     }
   }
@@ -260,7 +260,7 @@ ask_passwd(const char *menu_entry)
 	 menu_attrib->pwdborder);
   for ( x = 2 ; x <= WIDTH-2*PASSWD_MARGIN-1 ; x++ )
     putchar('q');
-  
+
   printf("k\033[%d;%dHx", PASSWD_ROW+1, PASSWD_MARGIN+1);
   for ( x = 2 ; x <= WIDTH-2*PASSWD_MARGIN-1 ; x++ )
     putchar(' ');
@@ -268,7 +268,7 @@ ask_passwd(const char *menu_entry)
   printf("x\033[%d;%dHm", PASSWD_ROW+2, PASSWD_MARGIN+1);
   for ( x = 2 ; x <= WIDTH-2*PASSWD_MARGIN-1 ; x++ )
     putchar('q');
-  
+
   printf("j\017\033[%d;%dH%s %s \033[%d;%dH%s",
 	 PASSWD_ROW, (WIDTH-((int)sizeof(title)+1))/2,
 	 menu_attrib->pwdheader, title,
@@ -323,7 +323,7 @@ ask_passwd(const char *menu_entry)
     return 0;			/* No password entered */
 
   *p = '\0';
-      
+
   return (menu_master_passwd && passwd_compare(menu_master_passwd, user_passwd))
     || (menu_entry && passwd_compare(menu_entry, user_passwd));
 }
@@ -334,31 +334,31 @@ draw_menu(int sel, int top, int edit_line)
 {
   int x, y;
   int sbtop = 0, sbbot = 0;
-  
+
   if ( nentries > MENU_ROWS ) {
     int sblen = MENU_ROWS*MENU_ROWS/nentries;
     sbtop = (MENU_ROWS-sblen+1)*top/(nentries-MENU_ROWS+1);
     sbbot = sbtop + sblen - 1;
-    
+
     sbtop += 4;  sbbot += 4;	/* Starting row of scrollbar */
   }
-  
+
   printf("\033[1;%dH%s\016l", MARGIN+1, menu_attrib->border);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
     putchar('q');
-  
+
   printf("k\033[2;%dH%sx\017%s %s %s\016x",
 	 MARGIN+1,
 	 menu_attrib->border,
 	 menu_attrib->title,
 	 pad_line(menu_title, 1, WIDTH-2*MARGIN-4),
 	 menu_attrib->border);
-  
+
   printf("\033[3;%dH%st", MARGIN+1, menu_attrib->border);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
     putchar('q');
   fputs("u\017", stdout);
-  
+
   for ( y = 4 ; y < 4+MENU_ROWS ; y++ )
     draw_row(y, sel, top, sbtop, sbbot);
 
@@ -433,7 +433,7 @@ edit_cmdline(char *input, int top)
       }
       break;
 
-    case KEY_CTRL('D'):	
+    case KEY_CTRL('D'):
     case KEY_DELETE:
       if ( cursor < len ) {
 	memmove(cmdline+cursor, cmdline+cursor+1, len-cursor);
@@ -638,7 +638,7 @@ run_menu(void)
       if ( key_timeout ) {
 	if ( timeout_left <= this_timeout )
 	  longjmp(timeout_jump, 1);
-	
+
 	timeout_left -= this_timeout;
       }
       break;
@@ -730,7 +730,7 @@ run_menu(void)
 	  /* Erase [Tab] message */
 	  printf("\033[%d;1H%s\033[K", TABMSG_ROW, menu_attrib->screen);
 	}
-	
+
 	if ( ok ) {
 	  cmdline = edit_cmdline(menu_entries[entry].cmdline, top);
 	  done = !!cmdline;
@@ -746,7 +746,7 @@ run_menu(void)
 	done = 1;
 	clear = 1;
 	key_timeout = 0;
-	
+
 	draw_row(entry-top+4, -1, top, 0, 0);
 
 	if ( menu_master_passwd )
@@ -790,11 +790,11 @@ execute(const char *cmdline)
     *q++ = *p++;
   }
   *q++ = '\0';
-  
+
   args = q;
   while ( *p && my_isspace(*p) )
     p++;
-  
+
   strcpy(q, p);
 
   if ( !strcmp(kernel, ".localboot") ) {

@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004-2006 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -45,7 +45,7 @@ struct menu_entry *menu_hotkeys[256];
                       __p; })
 
 const char *ipappends[32];
-                      
+
 static void
 get_ipappend(void)
 {
@@ -74,7 +74,7 @@ get_config(void)
 {
 #ifdef __COM32__
   static com32sys_t r;
-  
+
   r.eax.w[0] = 0x000E;
   __intcall(0x22, &r, &r);
 
@@ -83,7 +83,7 @@ get_config(void)
   return "syslinux.cfg";	/* Dummy default name */
 #endif
 }
-  
+
 #define MAX_LINE 512
 
 static char *
@@ -91,7 +91,7 @@ skipspace(char *p)
 {
   while ( *p && my_isspace(*p) )
     p++;
-  
+
   return p;
 }
 
@@ -209,7 +209,7 @@ unlabel(char *str)
       q = malloc(strlen(me->cmdline) + strlen(p) + 1);
       strcpy(q, me->cmdline);
       strcat(q, p);
-      
+
       free(str);
 
       return q;
@@ -247,7 +247,7 @@ void parse_config(const char *filename)
 
     if ( looking_at(p, "menu") ) {
       p = skipspace(p+4);
-      
+
       if ( looking_at(p, "title") ) {
 	menu_title = strdup(skipspace(p+5));
       } else if ( looking_at(p, "label") ) {
@@ -311,10 +311,10 @@ void parse_config(const char *filename)
       ld.append = strdup(skipspace(p+9));
     }
   }
-  
+
   record(&ld, append);
   fclose(f);
-  
+
   if ( ontimeout )
     ontimeout = unlabel(ontimeout);
 }

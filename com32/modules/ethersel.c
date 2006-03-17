@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2005 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,7 @@
  * DEFAULT ethersel.c32
  * # DEV [DID xxxx:yyyy[/mask]] [RID zz-zz] [SID uuuu:vvvv[/mask]] commandline
  * # ...
- * 
+ *
  * DID = PCI device ID
  * RID = Revision ID (range)
  * SID = Subsystem ID
@@ -233,7 +233,7 @@ pciscan(struct match *list)
 	a = pci_mkaddr(bus, dev, func, 0);
 
 	did = pci_readl(a);
-	
+
 	if ( did == 0xffffffff || did == 0xffff0000 ||
 	     did == 0x0000ffff || did == 0x00000000 )
 	  continue;

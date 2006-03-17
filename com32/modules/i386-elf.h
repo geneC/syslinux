@@ -29,9 +29,9 @@ typedef unsigned long Elf32_Word;
 /* ELF header */
 typedef struct
 {
-  
+
 #define EI_NIDENT 16
-  
+
   /* first four characters are defined below */
 #define EI_MAG0		0
 #define ELFMAG0		0x7f
@@ -41,32 +41,32 @@ typedef struct
 #define ELFMAG2		'L'
 #define EI_MAG3		3
 #define ELFMAG3		'F'
-  
+
 #define EI_CLASS	4	/* data sizes */
 #define ELFCLASS32	1	/* i386 -- up to 32-bit data sizes present */
-  
+
 #define EI_DATA		5	/* data type and ordering */
 #define ELFDATA2LSB	1	/* i386 -- LSB 2's complement */
-  
+
 #define EI_VERSION	6	/* version number.  "e_version" must be the same */
 #define EV_CURRENT      1	/* current version number */
 
 #define EI_OSABI	7	/* operating system/ABI indication */
 #define ELFOSABI_FREEBSD	9
-  
+
 #define EI_ABIVERSION	8	/* ABI version */
-  
+
 #define EI_PAD		9	/* from here in is just padding */
-  
+
 #define EI_BRAND	8	/* start of OS branding (This is
 				   obviously illegal against the ELF
 				   standard.) */
-  
+
   unsigned char e_ident[EI_NIDENT];	/* basic identification block */
-  
+
 #define ET_EXEC		2	/* we only care about executable types */
   Elf32_Half e_type;		/* file types */
-  
+
 #define EM_386		3	/* i386 -- obviously use this one */
   Elf32_Half e_machine;	/* machine types */
   Elf32_Word e_version;	/* use same as "EI_VERSION" above */
@@ -79,7 +79,7 @@ typedef struct
   Elf32_Half e_phnum;		/* number of entries in program header */
   Elf32_Half e_shentsize;	/* section header entry size */
   Elf32_Half e_shnum;		/* number of entries in section header */
-  
+
 #define SHN_UNDEF       0
 #define SHN_LORESERVE   0xff00
 #define SHN_LOPROC      0xff00

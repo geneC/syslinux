@@ -2,7 +2,7 @@
  *  mboot.c
  *
  *  Loader for Multiboot-compliant kernels and modules.
- * 
+ *
  *  Copyright (C) 2005 Tim Deegan <Tim.Deegan@cl.cam.ac.uk>
  *  Parts based on GNU GRUB, Copyright (C) 2000  Free Software Foundation, Inc.
  *  Parts based on SYSLINUX, Copyright (C) 1994-2005  H. Peter Anvin.
@@ -22,7 +22,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
  *  02111-1307, USA.
- * 
+ *
  */
 
 
@@ -97,7 +97,7 @@ static const char module_separator[] = "---";
  */
 
 static void __constructor check_version(void)
-    /* Check the SYSLINUX version.  Docs say we should be OK from v2.08, 
+    /* Check the SYSLINUX version.  Docs say we should be OK from v2.08,
      * but in fact we crash on anything below v2.12 (when libc came in). */
 {
     com32sys_t regs_in, regs_out;
@@ -125,13 +125,13 @@ static void __constructor grab_memory(void)
     /* Runs before init_memory_arena() (com32/lib/malloc.c) to let
      * the malloc() code know how much space it's allowed to use.
      * We don't use malloc() directly, but some of the library code
-     * does (zlib, for example). */ 
-{ 
+     * does (zlib, for example). */
+{
     /* Find the stack pointer */
     register char * sp;
     asm volatile("movl %%esp, %0" : "=r" (sp));
 
-    /* Initialize the allocation of *run-time* memory: don't let ourselves 
+    /* Initialize the allocation of *run-time* memory: don't let ourselves
      * overwrite the stack during the relocation later. */
     max_run_addr = (size_t) sp - (MALLOC_SIZE + STACK_SIZE);
 
@@ -139,12 +139,12 @@ static void __constructor grab_memory(void)
      * above __mem_end and below the stack.  We will load files starting
      * at the old __mem_end and working towards the new one, and allocate
      * section descriptors at the top of that area, working down. */
-    next_load_addr = __mem_end; 
+    next_load_addr = __mem_end;
     section_addr = sp - (MALLOC_SIZE + STACK_SIZE);
     section_count = 0;
 
     /* But be careful not to move it the wrong direction if memory is
-     * tight.  Instead we'll fail more gracefully later, when we try to 
+     * tight.  Instead we'll fail more gracefully later, when we try to
      * load a file and find that next_load_addr > section_addr. */
     __mem_end = MAX(section_addr, next_load_addr);
 }
@@ -156,7 +156,7 @@ static void __constructor grab_memory(void)
  *  Run-time memory map functions: allocating and recording allocations.
  */
 
-static int cmp_sections(const void *a, const void *b) 
+static int cmp_sections(const void *a, const void *b)
     /* For sorting section descriptors by destination address */
 {
     const section_t *sa = a;
@@ -176,7 +176,7 @@ static void add_section(size_t dest, char *src, size_t size)
     printf("SECTION: %#8.8x --> %#8.8x (%#x)\n", (size_t) src, dest, size);
 #endif
 
-    section_addr -= sizeof (section_t); 
+    section_addr -= sizeof (section_t);
     if (section_addr < next_load_addr) {
         printf("Fatal: out of memory allocating section descriptor.\n");
         exit(1);
@@ -187,13 +187,13 @@ static void add_section(size_t dest, char *src, size_t size)
     sec->src = src;
     sec->dest = dest;
     sec->size = size;
-    
+
     /* Keep the list sorted */
     qsort(sec, section_count, sizeof (section_t), cmp_sections);
 }
 
 
-static size_t place_low_section(size_t size, size_t align) 
+static size_t place_low_section(size_t size, size_t align)
     /* Find a space in the run-time memory map, below 640K */
 {
     int i;
@@ -216,7 +216,7 @@ static size_t place_low_section(size_t size, size_t align)
 }
 
 
-static size_t place_module_section(size_t size, size_t align) 
+static size_t place_module_section(size_t size, size_t align)
     /* Find a space in the run-time memory map for this module. */
 {
     /* Ideally we'd run through the sections looking for a free space
@@ -224,7 +224,7 @@ static size_t place_module_section(size_t size, size_t align)
      * assume that the bootloader has loaded all the modules
      * consecutively, above the kernel.  So, what we actually do is
      * keep a pointer to the highest address allocated so far, and
-     * always allocate modules there. */ 
+     * always allocate modules there. */
 
     size_t start = next_mod_run_addr;
     start = (start + (align-1)) & ~(align-1);
@@ -268,7 +268,7 @@ static void place_kernel_section(size_t start, size_t size)
         printf("Fatal: kernel (%#8.8x+%#x) runs into the memory hole.\n",
                start, size);
         exit(1);
-    }   
+    }
     if (start < MIN_RUN_ADDR) {
         /* Loads too low */
         printf("Fatal: kernel load address (%#8.8x) is too low (<%#8.8x).\n",
@@ -282,8 +282,8 @@ static void place_kernel_section(size_t start, size_t size)
 }
 
 
-static void reorder_sections(void) 
-    /* Reorders sections into a safe order, where no relocation 
+static void reorder_sections(void)
+    /* Reorders sections into a safe order, where no relocation
      * overwrites the source of a later one.  */
 {
     section_t *secs = (section_t *) section_addr;
@@ -293,8 +293,8 @@ static void reorder_sections(void)
 #ifdef DEBUG
     printf("Relocations:\n");
     for (i = 0; i < section_count ; i++) {
-        printf("    %#8.8x --> %#8.8x (%#x)\n", 
-               (size_t)secs[i].src, secs[i].dest, secs[i].size); 
+        printf("    %#8.8x --> %#8.8x (%#x)\n",
+               (size_t)secs[i].src, secs[i].dest, secs[i].size);
     }
 #endif
 
@@ -303,7 +303,7 @@ static void reorder_sections(void)
     scan_again:
         for (j = i + 1 ; j < section_count; j++) {
             if (secs[j].src != NULL
-                && secs[i].dest + secs[i].size > (size_t) secs[j].src 
+                && secs[i].dest + secs[i].size > (size_t) secs[j].src
                 && secs[i].dest < (size_t) secs[j].src + secs[j].size) {
                 /* Would overwrite the source of the later move */
                 if (++tries > section_count) {
@@ -323,8 +323,8 @@ static void reorder_sections(void)
 #ifdef DEBUG
     printf("Relocations:\n");
     for (i = 0; i < section_count ; i++) {
-        printf("    %#8.8x --> %#8.8x (%#x)\n", 
-               (size_t)secs[i].src, secs[i].dest, secs[i].size); 
+        printf("    %#8.8x --> %#8.8x (%#x)\n",
+               (size_t)secs[i].src, secs[i].dest, secs[i].size);
     }
 #endif
 }
@@ -339,7 +339,7 @@ static void init_mmap(struct multiboot_info *mbi)
     size_t mem_lower, mem_upper, run_addr, mmap_size;
     register size_t sp;
 
-    /* Default values for mem_lower and mem_upper in case the BIOS won't 
+    /* Default values for mem_lower and mem_upper in case the BIOS won't
      * tell us: 640K, and all memory up to the stack. */
     asm volatile("movl %%esp, %0" : "=r" (sp));
     mem_upper = (sp - MEM_HOLE_END) / 1024;
@@ -348,7 +348,7 @@ static void init_mmap(struct multiboot_info *mbi)
 #ifdef DEBUG
     printf("Requesting memory map from BIOS:\n");
 #endif
-    
+
     /* Ask the BIOS for the full memory map of the machine.  We'll
      * build it in Multiboot format (i.e. with size fields) in the
      * bounce buffer, and then allocate some high memory to keep it in
@@ -356,13 +356,13 @@ static void init_mmap(struct multiboot_info *mbi)
     e820 = __com32.cs_bounce;
     e820_slots = 0;
     regs_out.ebx.l = 0;
-    
-    while(((void *)(e820 + 1)) < __com32.cs_bounce + __com32.cs_bounce_size) 
+
+    while(((void *)(e820 + 1)) < __com32.cs_bounce + __com32.cs_bounce_size)
     {
         memset(e820, 0, sizeof (*e820));
         memset(&regs_in, 0, sizeof regs_in);
         e820->size = sizeof(*e820) - sizeof(e820->size);
-      
+
         /* Ask the BIOS to fill in this descriptor */
         regs_in.eax.l = 0xe820;         /* "Get system memory map" */
         regs_in.ebx.l = regs_out.ebx.l; /* Continuation value from last call */
@@ -371,32 +371,32 @@ static void init_mmap(struct multiboot_info *mbi)
         regs_in.es = SEG(&e820->BaseAddr);
         regs_in.edi.w[0] = OFFS(&e820->BaseAddr);
         __intcall(0x15, &regs_in, &regs_out);
-        
+
         if ((regs_out.eflags.l & EFLAGS_CF) != 0 && regs_out.ebx.l != 0)
             break;  /* End of map */
 
         if (((regs_out.eflags.l & EFLAGS_CF) != 0 && regs_out.ebx.l == 0)
             || (regs_out.eax.l != 0x534d4150))
-        {           
+        {
             /* Error */
-            printf("Error %x reading E820 memory map: %s.\n", 
+            printf("Error %x reading E820 memory map: %s.\n",
                    (int) regs_out.eax.b[0],
                    (regs_out.eax.b[0] == 0x80) ? "invalid command" :
                    (regs_out.eax.b[0] == 0x86) ? "not supported" :
                    "unknown error");
             break;
-        } 
+        }
 
         /* Success */
 #ifdef DEBUG
-        printf("    %#16.16Lx -- %#16.16Lx : ", 
+        printf("    %#16.16Lx -- %#16.16Lx : ",
                e820->BaseAddr, e820->BaseAddr + e820->Length);
         switch (e820->Type) {
-        case 1: printf("Available\n"); break; 
-        case 2: printf("Reserved\n"); break; 
-        case 3: printf("ACPI Reclaim\n"); break; 
-        case 4: printf("ACPI NVS\n"); break; 
-        default: printf("? (Reserved)\n"); break; 
+        case 1: printf("Available\n"); break;
+        case 2: printf("Reserved\n"); break;
+        case 3: printf("ACPI Reclaim\n"); break;
+        case 4: printf("ACPI NVS\n"); break;
+        default: printf("? (Reserved)\n"); break;
         }
 #endif
 
@@ -408,12 +408,12 @@ static void init_mmap(struct multiboot_info *mbi)
             }
         }
 
-        /* Move to next slot */ 
+        /* Move to next slot */
         e820++;
         e820_slots++;
-        
+
         /* Done? */
-        if (regs_out.ebx.l == 0) 
+        if (regs_out.ebx.l == 0)
             break;
     }
 
@@ -421,11 +421,11 @@ static void init_mmap(struct multiboot_info *mbi)
     mbi->flags |= MB_INFO_MEMORY;
     mbi->mem_lower = mem_lower;
     mbi->mem_upper = mem_upper;
-    
+
     /* Record the full memory map in the MBI */
     if (e820_slots != 0) {
         mmap_size = e820_slots * sizeof(*e820);
-        /* Where will it live at run time? */ 
+        /* Where will it live at run time? */
         run_addr = place_low_section(mmap_size, 1);
         if (run_addr == 0) {
             printf("Fatal: can't find space for the e820 mmap.\n");
@@ -456,14 +456,14 @@ static void init_mmap(struct multiboot_info *mbi)
  *  Code for loading and parsing files.
  */
 
-static void load_file(char *filename, char **startp, size_t *sizep) 
+static void load_file(char *filename, char **startp, size_t *sizep)
     /* Load a file into memory.  Returns where it is and how big via
      * startp and sizep */
 {
     gzFile fp;
     char *start;
     int bsize;
-    
+
     printf("Loading %s.", filename);
 
     start = next_load_addr;
@@ -475,7 +475,7 @@ static void load_file(char *filename, char **startp, size_t *sizep)
         printf("\nFatal: cannot open %s\n", filename);
         exit(1);
     }
-    
+
     while (next_load_addr + LOAD_CHUNK <= section_addr) {
         bsize = gzread(fp, next_load_addr, LOAD_CHUNK);
         printf("%s",".");
@@ -485,13 +485,13 @@ static void load_file(char *filename, char **startp, size_t *sizep)
             gzclose(fp);
             exit(1);
         }
-      
+
         next_load_addr += bsize;
         sizep[0] += bsize;
 
         if (bsize < LOAD_CHUNK) {
             printf("%s","\n");
-            gzclose(fp);        
+            gzclose(fp);
             return;
         }
     }
@@ -503,16 +503,16 @@ static void load_file(char *filename, char **startp, size_t *sizep)
     } else {
         bsize = 0;
     }
-    
+
     if (bsize < 0) {
         gzclose(fp);
         printf("\nFatal: read error in %s\n", filename);
         exit(1);
     }
-    
+
     next_load_addr += bsize;
     sizep[0] += bsize;
-    
+
     if (!gzeof(fp)) {
         gzclose(fp);
         printf("\nFatal: out of memory reading %s\n", filename);
@@ -525,7 +525,7 @@ static void load_file(char *filename, char **startp, size_t *sizep)
 }
 
 
-static size_t load_kernel(struct multiboot_info *mbi, char *cmdline) 
+static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
     /* Load a multiboot/elf32 kernel and allocate run-time memory for it.
      * Returns the kernel's entry address.  */
 {
@@ -536,7 +536,7 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
     size_t seg_size, bss_size;                     /* How big it is */
     size_t run_addr, run_size;            /* Where it should be put */
     size_t shdr_run_addr;
-    char *p; 
+    char *p;
     Elf32_Ehdr *ehdr;
     Elf32_Phdr *phdr;
     Elf32_Shdr *shdr;
@@ -544,13 +544,13 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
 
     printf("Kernel: %s\n", cmdline);
 
-    load_addr = 0; 
+    load_addr = 0;
     load_size = 0;
-    p = strchr(cmdline, ' '); 
+    p = strchr(cmdline, ' ');
     if (p != NULL) *p = 0;
     load_file(cmdline, &load_addr, &load_size);
     if (load_size < 12) {
-        printf("Fatal: %s is too short to be a multiboot kernel.", 
+        printf("Fatal: %s is too short to be a multiboot kernel.",
                cmdline);
         exit(1);
     }
@@ -561,7 +561,7 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
     for (i = 0; i <= MIN(load_size - 12, MULTIBOOT_SEARCH - 12); i += 4)
     {
         mbh = (struct multiboot_header *)(load_addr + i);
-        if (mbh->magic != MULTIBOOT_MAGIC 
+        if (mbh->magic != MULTIBOOT_MAGIC
             || ((mbh->magic+mbh->flags+mbh->checksum) & 0xffffffff))
         {
             /* Not a multiboot header */
@@ -570,7 +570,7 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
         if (mbh->flags & (MULTIBOOT_UNSUPPORTED | MULTIBOOT_VIDEO_MODE)) {
             /* Requires options we don't support */
             printf("Fatal: Kernel requires multiboot options "
-                   "that I don't support: %#x.\n", 
+                   "that I don't support: %#x.\n",
                    mbh->flags & (MULTIBOOT_UNSUPPORTED|MULTIBOOT_VIDEO_MODE));
             exit(1);
         }
@@ -589,35 +589,35 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
 
             /* How much code is there? */
             run_addr = mbh->load_addr;
-            if (mbh->load_end_addr != 0) 
+            if (mbh->load_end_addr != 0)
                 seg_size = mbh->load_end_addr - mbh->load_addr;
-            else 
+            else
                 seg_size = load_size - (seg_addr - load_addr);
 
-            /* How much memory will it take up? */ 
+            /* How much memory will it take up? */
             if (mbh->bss_end_addr != 0)
                 run_size = mbh->bss_end_addr - mbh->load_addr;
             else
                 run_size = seg_size;
-            
+
             if (seg_size > run_size) {
-                printf("Fatal: can't put %i bytes of kernel into %i bytes " 
+                printf("Fatal: can't put %i bytes of kernel into %i bytes "
                        "of memory.\n", seg_size, run_size);
                 exit(1);
             }
             if (seg_addr + seg_size > load_addr + load_size) {
-                printf("Fatal: multiboot load segment runs off the " 
+                printf("Fatal: multiboot load segment runs off the "
                        "end of the file.\n");
                 exit(1);
             }
 
             /* Does it fit where it wants to be? */
             place_kernel_section(run_addr, run_size);
-            
+
             /* Put it on the relocation list */
             if (seg_size < run_size) {
                 /* Set up the kernel BSS too */
-                if (seg_size > 0) 
+                if (seg_size > 0)
                     add_section(run_addr, seg_addr, seg_size);
                 bss_size = run_size - seg_size;
                 add_section(run_addr + seg_size, NULL, bss_size);
@@ -625,15 +625,15 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
                 /* No BSS */
                 add_section(run_addr, seg_addr, run_size);
             }
-            
+
             /* Done. */
             return mbh->entry_addr;
-            
+
         } else {
-          
-            /* Now look for an ELF32 header */    
+
+            /* Now look for an ELF32 header */
             ehdr = (Elf32_Ehdr *)load_addr;
-            if (*(unsigned long *)ehdr != 0x464c457f 
+            if (*(unsigned long *)ehdr != 0x464c457f
                 || ehdr->e_ident[EI_DATA] != ELFDATA2LSB
                 || ehdr->e_ident[EI_CLASS] != ELFCLASS32
                 || ehdr->e_machine != EM_386)
@@ -655,7 +655,7 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
             printf("Using ELF header.\n");
 #endif
 
-            if (ehdr->e_type != ET_EXEC 
+            if (ehdr->e_type != ET_EXEC
                 || ehdr->e_version != EV_CURRENT
                 || ehdr->e_phentsize != sizeof (Elf32_Phdr)) {
                 printf("Warning: funny-looking ELF header.\n");
@@ -667,15 +667,15 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
 
                 /* How much is in this segment? */
                 run_size = phdr[i].p_memsz;
-                if (phdr[i].p_type != PT_LOAD) 
+                if (phdr[i].p_type != PT_LOAD)
                     seg_size = 0;
-                else 
+                else
                     seg_size = (size_t)phdr[i].p_filesz;
-                
+
                 /* Where is it in the loaded file? */
                 seg_addr = load_addr + phdr[i].p_offset;
                 if (seg_addr + seg_size > load_addr + load_size) {
-                    printf("Fatal: ELF load segment runs off the " 
+                    printf("Fatal: ELF load segment runs off the "
                            "end of the file.\n");
                     exit(1);
                 }
@@ -690,7 +690,7 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
                 /* Put it on the relocation list */
                 if (seg_size < run_size) {
                     /* Set up the kernel BSS too */
-                    if (seg_size > 0) 
+                    if (seg_size > 0)
                         add_section(run_addr, seg_addr, seg_size);
                     bss_size = run_size - seg_size;
                     add_section(run_addr + seg_size, NULL, bss_size);
@@ -699,7 +699,7 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
                     add_section(run_addr, seg_addr, run_size);
                 }
             }
-         
+
             if (ehdr->e_shoff != 0) {
 #ifdef DEBUG
                 printf("Loading ELF section table.\n");
@@ -709,7 +709,7 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
 
                 /* Section Header Table size */
                 run_size = ehdr->e_shentsize * ehdr->e_shnum;
-                shdr_run_addr = place_module_section(run_size, 0x1000); 
+                shdr_run_addr = place_module_section(run_size, 0x1000);
                 if (shdr_run_addr == 0) {
                     printf("Warning: Not enough memory to load the "
                            "section table.\n");
@@ -719,23 +719,23 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
 
                 /* Load section tables not loaded thru program segments */
                 for (i = 0; i < ehdr->e_shnum; i++) {
-                   /* This case is when this section is already included in 
+                   /* This case is when this section is already included in
                     * program header or it's 0 size, so no need to load */
                    if (shdr[i].sh_addr != 0 || !shdr[i].sh_size)
                        continue;
 
                    if (shdr[i].sh_addralign == 0)
                        shdr[i].sh_addralign = 1;
-                   
-                   run_addr = place_module_section(shdr[i].sh_size, 
-                                                   shdr[i].sh_addralign); 
+
+                   run_addr = place_module_section(shdr[i].sh_size,
+                                                   shdr[i].sh_addralign);
                    if (run_addr == 0) {
                        printf("Warning: Not enough memory to load "
                               "section %d.\n", i);
                        return ehdr->e_entry;
                    }
                    shdr[i].sh_addr = run_addr;
-                   add_section(run_addr, 
+                   add_section(run_addr,
                                (void*) (shdr[i].sh_offset + load_addr),
                                shdr[i].sh_size);
                 }
@@ -747,10 +747,10 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
                 mbi->syms.e.addr = shdr_run_addr;
 #ifdef DEBUG
                 printf("Section information: shnum: %lu, entSize: %lu, "
-                       "shstrndx: %lu, addr: 0x%lx\n", 
-                       mbi->syms.e.num, mbi->syms.e.size, 
+                       "shstrndx: %lu, addr: 0x%lx\n",
+                       mbi->syms.e.num, mbi->syms.e.size,
                        mbi->syms.e.shndx, mbi->syms.e.addr);
-#endif                    
+#endif
             }
 
             /* Done! */
@@ -765,17 +765,17 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
 
 
 
-static void load_module(struct mod_list *mod, char *cmdline) 
+static void load_module(struct mod_list *mod, char *cmdline)
     /* Load a multiboot module and allocate a memory area for it */
 {
     char *load_addr, *p;
     size_t load_size, run_addr;
-    
+
     printf("Module: %s\n", cmdline);
 
-    load_addr = 0; 
+    load_addr = 0;
     load_size = 0;
-    p = strchr(cmdline, ' '); 
+    p = strchr(cmdline, ' ');
     if (p != NULL) *p = 0;
     load_file(cmdline, &load_addr, &load_size);
     if (p != NULL) *p = ' ';
@@ -787,7 +787,7 @@ static void load_module(struct mod_list *mod, char *cmdline)
         exit(1);
     }
     add_section(run_addr, load_addr, load_size);
-    
+
     /* Remember where we put it */
     mod->mod_start = run_addr;
     mod->mod_end = run_addr + load_size;
@@ -805,7 +805,7 @@ static void load_module(struct mod_list *mod, char *cmdline)
  *  Code for shuffling sections into place and booting the new kernel
  */
 
-static void trampoline_start(section_t *secs, int sec_count, 
+static void trampoline_start(section_t *secs, int sec_count,
                              size_t mbi_run_addr, size_t entry)
     /* Final shuffle-and-boot code.  Running on the stack; no external code
      * or data can be relied on. */
@@ -845,12 +845,12 @@ static void trampoline_start(section_t *secs, int sec_count,
             char *q = (char *) secs[i].dest;
             size_t n = secs[i].size;
             if ( q < p ) {
-                asm volatile("cld ; rep ; movsb" 
+                asm volatile("cld ; rep ; movsb"
                              : "+c" (n), "+S" (p), "+D" (q));
             } else {
                 p += (n-1);
                 q += (n-1);
-                asm volatile("std ; rep ; movsb" 
+                asm volatile("std ; rep ; movsb"
                              : "+c" (n), "+S" (p), "+D" (q));
             }
         }
@@ -866,26 +866,26 @@ static void trampoline_start(section_t *secs, int sec_count,
          * ESP is the kernels' problem.
          * GDTR is the kernel's problem.
          * CS is already a 32-bit, 0--4G code segments.
-         * DS, ES, FS and GS are already 32-bit, 0--4G data segments. 
+         * DS, ES, FS and GS are already 32-bit, 0--4G data segments.
          * EBX must point to the MBI: */
 
-        "movl %0, %%ebx;" 
-    
+        "movl %0, %%ebx;"
+
         /* EAX must be the Multiboot magic number. */
 
         "movl $0x2badb002, %%eax;"
 
         /* Start the kernel. */
 
-        "jmp *%1" 
+        "jmp *%1"
 
-        : : "m" (mbi_run_addr), "r" (entry));    
+        : : "m" (mbi_run_addr), "r" (entry));
 
 }
 static void trampoline_end(void) {}
 
 
-static void boot(size_t mbi_run_addr, size_t entry) 
+static void boot(size_t mbi_run_addr, size_t entry)
     /* Tidy up SYSLINUX, shuffle memory and boot the kernel */
 {
     com32sys_t regs;
@@ -901,7 +901,7 @@ static void boot(size_t mbi_run_addr, size_t entry)
      * safe because it's not the source or the destination of any
      * copies, and there'll be no more library calls after the copy. */
 
-    tr_sections = ((section_t *) section_addr) + section_count; 
+    tr_sections = ((section_t *) section_addr) + section_count;
     trampoline = (void *) (tr_sections + section_count);
     trampoline_size = (void *)&trampoline_end - (void *)&trampoline_start;
 
@@ -917,7 +917,7 @@ static void boot(size_t mbi_run_addr, size_t entry)
 
     memmove(tr_sections, section_addr, section_count * sizeof (section_t));
     memmove(trampoline, trampoline_start, trampoline_size);
-      
+
     /* Tell SYSLINUX to clean up */
     memset(&regs, 0, sizeof regs);
     regs.eax.l = 0x000c; /* "Perform final cleanup" */
@@ -960,17 +960,17 @@ int main(int argc, char **argv)
 #endif
 
     /* How much space will the MBI need? */
-    modules = 0; 
+    modules = 0;
     mbi_size = sizeof(struct multiboot_info) + strlen(version_string) + 5;
     for (i = 1 ; i < argc ; i++) {
         if (!strcmp(argv[i], module_separator)) {
-            modules++; 
+            modules++;
             mbi_size += sizeof(struct mod_list) + 1;
         } else {
             mbi_size += strlen(argv[i]) + 1;
         }
     }
-    
+
     /* Allocate space in the load buffer for the MBI, all the command
      * lines, and all the module details. */
     mbi = (struct multiboot_info *)next_load_addr;
@@ -1028,10 +1028,10 @@ int main(int argc, char **argv)
         load_module(&(modp[i]), (char *)(modp[i].cmdline + mbi_reloc_offset));
     }
     boot(mbi_run_addr, entry);
-    
+
     return 1;
 }
 
-/* 
+/*
  *  EOF
  */

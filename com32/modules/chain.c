@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2003-2005 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -45,7 +45,7 @@ int int13_retry(const com32sys_t *inreg, com32sys_t *outreg)
 {
   int retry = 6;		/* Number of retries */
   com32sys_t tmpregs;
-  
+
   if ( !outreg ) outreg = &tmpregs;
 
   while ( retry-- ) {
@@ -98,7 +98,7 @@ int get_disk_params(int disk)
 
   if ( parm.eflags.l & EFLAGS_CF )
     return disk_info.ebios ? 0 : -1;
-  
+
   disk_info.head = parm.edx.b[1]+1;
   disk_info.sect = parm.ecx.b[0] & 0x3f;
   if ( disk_info.sect == 0 ) {
@@ -133,7 +133,7 @@ int read_sector(void *buf, unsigned int lba)
     dapa->off = OFFS(buf);
     dapa->seg = SEG(buf);
     dapa->lba = lba;
-    
+
     inreg.esi.w[0] = OFFS(dapa);
     inreg.ds       = SEG(dapa);
     inreg.edx.b[0] = disk_info.disk;
@@ -166,7 +166,7 @@ int read_sector(void *buf, unsigned int lba)
     inreg.ebx.w[0] = OFFS(buf);
     inreg.es       = SEG(buf);
   }
-  
+
   return int13_retry(&inreg, NULL);
 }
 
@@ -239,21 +239,21 @@ struct part_entry *find_logical_partition(int whichpart, char *table, struct par
     if ( ptab[i].ostype != 0x05 &&
 	 ptab[i].ostype != 0x0f && ptab[i].ostype != 0x85 )
       continue;		/* Skip empty or data partitions */
-    
+
     if ( !ptab[i].length )
       continue;
-    
+
     /* Adjust the offset to account for the extended partition itself */
     if ( root )
       ptab[i].start_lba += root->start_lba;
-    
+
     /* Sanity check entry: must not extend outside the extended partition.
        This is necessary since some OSes put crap in some entries. */
     if ( root )
       if ( ptab[i].start_lba + ptab[i].length <= root->start_lba ||
 	   ptab[i].start_lba >= root->start_lba + root->length )
 	continue;
-    
+
     /* Process this partition */
     if ( read_sector(table+SECTOR, ptab[i].start_lba) )
       continue;			/* Read error, must be invalid */
@@ -358,7 +358,7 @@ int main(int argc, char *argv[])
     inreg.esi.w[0] = 0x7be;
     memcpy((char *)0x7be, partinfo, sizeof(*partinfo));
   }
-  
+
   fputs("Booting...\n", stdout);
 
   inreg.eax.w[0] = 0x000d;	/* Clean up and chain boot */
