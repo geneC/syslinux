@@ -358,7 +358,8 @@ static void init_mmap(struct multiboot_info *mbi)
     
     while(((void *)(e820 + 1)) < __com32.cs_bounce + __com32.cs_bounce_size) 
     {
-
+        memset(e820, 0, sizeof (*e820));
+        memset(&regs_in, 0, sizeof regs_in);
         e820->size = sizeof(*e820) - sizeof(e820->size);
       
         /* Ask the BIOS to fill in this descriptor */
@@ -862,6 +863,7 @@ static void boot(size_t mbi_run_addr, size_t entry)
     memmove(trampoline, trampoline_start, trampoline_size);
       
     /* Tell SYSLINUX to clean up */
+    memset(&regs, 0, sizeof regs);
     regs.eax.l = 0x000c; /* "Perform final cleanup" */
     regs.edx.l = 0;      /* "Normal cleanup" */
     __intcall(0x22, &regs, NULL);
