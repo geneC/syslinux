@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2001-2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -47,10 +47,10 @@ struct fat_bootsect {
       le32_t bsVolumeID;	/* Volume serial number */
       char bsVolumeLabel[11];	/* Volume name */
       char bsFileSysType[8];	/* File system type */
-  
+
       le8_t bsCode[448];	/* Boot sector code */
     } fat16;
-    
+
     /* FAT32 */
     struct {
       le32_t bpb_fatsz32;	/* Sectors/FAT */
@@ -109,4 +109,3 @@ struct fat_vfat_slot
 };
 
 #endif /* FAT_H */
-

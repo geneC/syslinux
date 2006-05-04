@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -38,7 +38,7 @@ enum fat_type {
 struct libfat_filesystem {
   int (*read)(intptr_t, void *, size_t, libfat_sector_t);
   intptr_t readptr;
- 
+
   enum fat_type fat_type;
   unsigned int clustsize;
   int clustshift;

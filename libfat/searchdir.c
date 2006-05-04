@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -34,7 +34,7 @@ int32_t libfat_searchdir(struct libfat_filesystem *fs, int32_t dirclust,
       return -2;		/* Not found */
     else if ( s == (libfat_sector_t)-1 )
       return -1;		/* Error */
-    
+
     dep = libfat_get_sector(fs, s);
     if ( !dep )
       return -1;		/* Read error */
@@ -52,12 +52,12 @@ int32_t libfat_searchdir(struct libfat_filesystem *fs, int32_t dirclust,
 	else
 	  return read16(&dep->clustlo) + (read16(&dep->clusthi) << 16);
       }
-      
+
       if ( dep->name[0] == 0 )
 	return -2;		/* Hit high water mark */
 
       dep++;
-    }   
+    }
 
     s = libfat_nextsector(fs, s);
   }

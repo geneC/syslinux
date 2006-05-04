@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -84,4 +84,3 @@ int32_t libfat_searchdir(struct libfat_filesystem *fs, int32_t dirclust,
 			 const void *name, struct libfat_direntry *direntry);
 
 #endif /* LIBFAT_H */
-

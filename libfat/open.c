@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -35,13 +35,13 @@ libfat_open(int (*readfunc)(intptr_t, void *, size_t, libfat_sector_t),
   fs = malloc(sizeof(struct libfat_filesystem));
   if ( !fs )
     goto barf;
-  
+
   fs->sectors = NULL;
   fs->read = readfunc;
   fs->readptr = readptr;
 
   bs = libfat_get_sector(fs, 0);
-  if ( !bs ) 
+  if ( !bs )
     goto barf;
 
   if ( read16(&bs->bsBytesPerSec) != LIBFAT_SECTOR_SIZE )
@@ -55,20 +55,20 @@ libfat_open(int (*readfunc)(intptr_t, void *, size_t, libfat_sector_t),
     goto barf;
   fs->clustsize  = 1 << i;	/* Treat 0 as 2^8 = 64K */
   fs->clustshift = i;
-  
+
   sectors = read16(&bs->bsSectors);
   if ( !sectors )
     sectors = read32(&bs->bsHugeSectors);
 
   fs->end = sectors;
-  
+
   fs->fat     = read16(&bs->bsResSectors);
   fatsize     = read16(&bs->bsFATsecs);
   if ( !fatsize )
     fatsize   = read32(&bs->u.fat32.bpb_fatsz32);
-  
+
   fs->rootdir = fs->fat + fatsize * read8(&bs->bsFATs);
-  
+
   rootdirsize = ((read16(&bs->bsRootDirEnts) << 5) + LIBFAT_SECTOR_MASK)
 					    >> LIBFAT_SECTOR_SHIFT;
   fs->data    = fs->rootdir + rootdirsize;
@@ -92,7 +92,7 @@ libfat_open(int (*readfunc)(intptr_t, void *, size_t, libfat_sector_t),
     minfatsize = fs->endcluster << 2;
   } else
     goto barf;			/* Impossibly many clusters */
-  
+
   minfatsize = (minfatsize + LIBFAT_SECTOR_SIZE-1) >> LIBFAT_SECTOR_SHIFT;
 
   if ( minfatsize > fatsize )

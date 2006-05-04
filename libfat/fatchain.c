@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -107,7 +107,7 @@ libfat_sector_t libfat_nextsector(struct libfat_filesystem *fs,
     if ( !fsdata )
       return -1;
     nextcluster = read16((le16_t *)&fsdata[fatoffset & LIBFAT_SECTOR_MASK]);
-    
+
     if ( nextcluster >= 0x0FFF8 )
       return 0;
     break;
@@ -120,17 +120,14 @@ libfat_sector_t libfat_nextsector(struct libfat_filesystem *fs,
       return -1;
     nextcluster = read32((le32_t *)&fsdata[fatoffset & LIBFAT_SECTOR_MASK]);
     nextcluster &= 0x0FFFFFFF;
-    
+
     if ( nextcluster >= 0x0FFFFFF8 )
       return 0;
     break;
-    
+
   default:
     return -1;			/* WTF? */
   }
 
   return libfat_clustertosector(fs, nextcluster);
 }
-
-    
-

@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -34,12 +34,12 @@ void * libfat_get_sector(struct libfat_filesystem *fs, libfat_sector_t n)
   if ( !ls ) {
     libfat_flush(fs);
     ls = malloc(sizeof(struct libfat_sector));
-  
+
     if ( !ls )
       return NULL;		/* Can't allocate memory */
   }
 
-  if ( fs->read(fs->readptr, ls->data, LIBFAT_SECTOR_SIZE, n) 
+  if ( fs->read(fs->readptr, ls->data, LIBFAT_SECTOR_SIZE, n)
        != LIBFAT_SECTOR_SIZE ) {
     free(ls);
     return NULL;		/* I/O error */
@@ -64,7 +64,3 @@ void libfat_flush(struct libfat_filesystem *fs)
     free(ls);
   }
 }
-
-
-    
-  

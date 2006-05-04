@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2001-2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -14,7 +14,7 @@
 /*
  * ulint.h
  *
- * Basic operations on unaligned, littleendian integers 
+ * Basic operations on unaligned, littleendian integers
  */
 
 #ifndef ULINT_H
@@ -70,7 +70,7 @@ write32(le32_t *_p, uint32_t _v)
   *((uint32_t *)_p) = _v;
 }
 
-#else 
+#else
 
 /* Generic, mostly portable versions */
 
