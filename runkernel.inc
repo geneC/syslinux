@@ -35,16 +35,17 @@
 ; kernel code.	The boot sector is never executed when using an external
 ; booting utility, but it contains some status bytes that are necessary.
 ;
-; First check that our kernel is at least 1K and less than 8M (if it is
-; more than 8M, we need to change the logic for loading it anyway...)
+; First check that our kernel is at least 1K, or else it isn't long
+; enough to have the appropriate headers.
 ;
 ; We used to require the kernel to be 64K or larger, but it has gotten
 ; popular to use the Linux kernel format for other things, which may
 ; not be so large.
 ;
+; Additionally, we used to have a test for 8 MB or smaller.  Equally
+; obsolete.
+;
 is_linux_kernel:
-                cmp dx,80h			; 8 megs
-		ja kernel_corrupt
 		and dx,dx
 		jnz kernel_sane
 		cmp ax,1024			; Bootsect + 1 setup sect
