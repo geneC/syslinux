@@ -253,6 +253,11 @@ local-depend:
 depend: local-depend
 	$(MAKE) -C memdisk depend
 
+# Shortcut to build unix/syslinux using klibc
+klibc:
+	$(MAKE) clean
+	$(MAKE) CC=klcc ITARGET= ISUBDIRS=unix BSUBDIRS=
+
 # Hook to add private Makefile targets for the maintainer.
 -include Makefile.private
 
