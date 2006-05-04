@@ -1,5 +1,5 @@
 /* -*- c -*- ------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004-2005 Murali Krishnan Ganapathy - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -35,7 +35,7 @@ void setdisppage(char num) // Set the display page to specified number
     __intcall(0x10,&inreg,&outreg);
 }
 
-char getdisppage() // Get current display page 
+char getdisppage() // Get current display page
 {
     REG_AH(inreg) = 0x0f;
     __intcall(0x10,&inreg,&outreg);
@@ -74,7 +74,7 @@ void beep()
 {
    REG_AH(inreg) = 0x0E;
    REG_AL(inreg) = 0x07;
-   REG_BH(inreg) = 0; 
+   REG_BH(inreg) = 0;
    __intcall(0x10,&inreg,&outreg);
 }
 
@@ -96,7 +96,7 @@ char inputc(char * scancode)
   if (scancode) *scancode = REG_AH(outreg);
   return REG_AL(outreg);
 }
-   
+
 void getcursorshape(char *start, char *end)
 {
    char page = getdisppage();
@@ -144,4 +144,3 @@ unsigned char getcharat(char page)
    __intcall(0x16,&inreg,&outreg);
    return REG_AL(outreg);
 }
-

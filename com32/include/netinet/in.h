@@ -38,6 +38,3 @@ static inline uint64_t __htonq(uint64_t v)
 #define ntohq(x) __htonq(x)
 
 #endif /* _NETINET_IN_H */
-
-
-      

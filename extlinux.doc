@@ -17,7 +17,7 @@ It works the same way as SYSLINUX, with a few slight modifications.
 	mkdir -p /boot/extlinux
 	extlinux -i /boot/extlinux
 
-   ... to create a subdirectory and install extlinux in it. 
+   ... to create a subdirectory and install extlinux in it.
 
 
 2. The configuration file is called "extlinux.conf", and is expected

@@ -38,7 +38,7 @@ it, then execute the DOS command:
 
         syslinux [-s] a:
 
-(or whichever drive letter is appropriate; the [] meaning -s is optional) 
+(or whichever drive letter is appropriate; the [] meaning -s is optional)
 
 Use "syslinux.com" (in the dos subdirectory of the distribution) for
 plain DOS (MS-DOS, DR-DOS, PC-DOS, FreeDOS...) or Win9x/ME.
@@ -261,7 +261,7 @@ ONERROR kernel options...
 
 	... SYSLINUX will execute the following as if entered by the
 	user:
-	
+
 		xyzzy plugh foo bar baz
 
 SERIAL port [[baudrate] flowcontrol]
@@ -331,7 +331,7 @@ KBDMAP keymap
 	can be used to create such keymaps.  The file keytab-lilo.doc
 	contains the documentation for this program.
 
-DISPLAY filename 
+DISPLAY filename
 	Displays the indicated file on the screen at boot time (before
         the boot: prompt, if displayed).  Please see the section below
         on DISPLAY files.
@@ -447,7 +447,7 @@ are interpreted:
 	For example:
 
 	<DC1>Text mode<DC2>Graphics mode<DC4>Serial port<ETB>
-	
+
 	... will actually print out which mode the console is in!
 
 <SUB>                                   <SUB> = <Ctrl-Z> = ASCII 26
@@ -546,7 +546,7 @@ appropriate drive designator.
 6. Unmount the disk (if applicable.)
 
 	umount /mnt
- 
+
    ---- DOS/Windows procedure ----
 
 To make this installation in DOS only, you need the utility copybs.com
@@ -577,7 +577,7 @@ syslinux.exe instead.
 	copy vmlinux a:
 	copy initrd.gz a:
 
- 
+
    ++++ COMBOOT EXECUTABLES ++++
 
 SYSLINUX supports simple standalone programs, using a file format

@@ -45,7 +45,7 @@ search for its config file on the boot server in the following way:
   with dash separators; for example, for an Ethernet (ARP type 1)
   with address 88:99:AA:BB:CC:DD it would search for the filename
   01-88-99-aa-bb-cc-dd.
-  
+
   Next, it will search for the config file using its own IP address
   in upper case hexadecimal, e.g. 192.0.2.91 -> C000025B
   (you can use the included progam "gethostip" to compute the
@@ -69,7 +69,7 @@ search for its config file on the boot server in the following way:
 	/mybootdir/pxelinux.cfg/C0
 	/mybootdir/pxelinux.cfg/C
 	/mybootdir/pxelinux.cfg/default
- 
+
   ... in that order.
 
 Note that all filename references are relative to the directory

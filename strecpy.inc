@@ -4,7 +4,7 @@
 ;	   BP holds a pointer to the first byte beyond the end of the
 ;	   target buffer; return with CF=1 if target buffer overflows;
 ;	   the output is still zero-terminated.
-;	  
+;
 		section .text
 
 strecpy:
@@ -26,4 +26,3 @@ strecpy:
 		pop bp
 		pop ax
 		ret
-

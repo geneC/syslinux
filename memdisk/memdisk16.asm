@@ -1,7 +1,7 @@
 ;; -*- fundamental -*-
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -164,12 +164,12 @@ copy_cmdline:
 	dd (%2 & 0xffff) | ((%1 & 0xffff) << 16)
 	dd (%1 & 0xff000000) | (%2 & 0xf0000) | ((%3 & 0xf0ff) << 8) | ((%1 & 0x00ff0000) >> 16)
 %endmacro
-	
+
 		align 8, db 0
 call32_gdt:	dw call32_gdt_size-1	; Null descriptor - contains GDT
 .adj1:		dd call32_gdt+CS_BASE	; pointer for LGDT instruction
 		dw 0
-		
+
 		; 0008: Code segment, use16, readable, dpl 0, base CS_BASE, 64K
 		desc CS_BASE, 0xffff, 0x009b
 
@@ -184,25 +184,25 @@ call32_gdt:	dw call32_gdt_size-1	; Null descriptor - contains GDT
 
 		; 0028: Data segment, use32, read/write, dpl 0, base 0, 4G
 		desc 0, 0xfffff, 0xc093
-	
+
 call32_gdt_size:	equ $-call32_gdt
 
 err_a20:	db 'ERROR: A20 gate not responding!',13,10,0
-	
+
 		section .bss
 		alignb 4
 SavedSSSP	resd 1			; Place to save SS:SP
 Return		resd 1			; Return value
 A20Test		resw 1			; Space to test A20
 A20Tries	resb 1
-		
+
 		section .data
 		alignb 4
 Target		dd 0			; Target address
 Target_Seg	dw 20h			; Target CS
 
 A20Type		dw 0			; Default = unknown
-		
+
 		section .text
 		bits 16
 ;
@@ -213,7 +213,7 @@ A20Type		dw 0			; Default = unknown
 ; IBM ThinkPad 760EL.
 ;
 ; We typically toggle A20 twice for every 64K transferred.
-; 
+;
 %define	io_delay	call _io_delay
 %define IO_DELAY_PORT	80h		; Invalid port (we hope!)
 %define disable_wait 	32		; How long to wait for a disable
@@ -459,7 +459,7 @@ empty_8042:
 		test al,2
 		jnz empty_8042
 		io_delay
-.done:		ret	
+.done:		ret
 
 ;
 ; Execute a WBINVD instruction if possible on this CPU
@@ -518,7 +518,7 @@ call32_enter_pm:
 		or al,1
 		mov cr0,eax		; Enter protected mode
 		jmp 20h:dword .in_pm+CS_BASE
-		
+
 		bits 32
 .in_pm:
 		xor eax,eax		; Available for future use...

@@ -10,7 +10,7 @@ TYPE BWL(pci_read) (pciaddr_t a)
     case PCI_CFG_AUTO:
       pci_set_config_type(PCI_CFG_AUTO);
       break;			/* Try again */
-      
+
     case PCI_CFG_TYPE1:
       {
 	uint32_t oldcf8;
@@ -22,14 +22,14 @@ TYPE BWL(pci_read) (pciaddr_t a)
 	sti();
       }
       return r;
-      
+
     case PCI_CFG_TYPE2:
       {
 	uint8_t oldcf8, oldcfa;
-	
+
 	if ( a & (0x10 << 11) )
 	  return (TYPE)~0;	/* Device 16-31 not supported */
-	
+
 	cli();
 	oldcf8 = inb(0xcf8);
 	oldcfa = inb(0xcfa);
@@ -44,7 +44,7 @@ TYPE BWL(pci_read) (pciaddr_t a)
 
     case PCI_CFG_BIOS:
       return (TYPE) __pci_read_bios(BIOSCALL, a);
-      
+
     default:
       return (TYPE)~0;
     }

@@ -19,7 +19,7 @@
 ;  the Free Software Foundation, Inc., 53 Temple Place Ste 330,
 ;  Boston MA 02111-1307, USA; either version 2 of the License, or
 ;  (at your option) any later version; incorporated herein by reference.
-; 
+;
 ; ****************************************************************************
 
 %ifndef IS_MDSLINUX
@@ -338,7 +338,7 @@ eddcheck:
 		mov eax,[FirstSector]	; Sector start
 		mov bx,ldlinux_sys	; Where to load it
 		call getonesec
-		
+
 		; Some modicum of integrity checking
 		cmp dword [ldlinux_magic+4],LDLINUX_MAGIC^HEXDATE
 		jne kaboom
@@ -483,7 +483,7 @@ getlinsec_cbios:
 		cmp bp,si
 		jna .bp_ok
 		mov bp,si
-.bp_ok:	
+.bp_ok:
 
 		shl ah,6		; Because IBM was STOOPID
 					; and thought 8 bits were enough
@@ -522,14 +522,14 @@ getlinsec_cbios:
 		shr word [MaxTransfer],1
 		jnz .resume
 		; Fall through to disk_error
-	
+
 ;
 ; kaboom: write a message and bail out.
 ;
 disk_error:
 kaboom:
 		xor si,si
-		mov ss,si		
+		mov ss,si
 		mov sp,StackBuf-4 	; Reset stack
 		mov ds,si		; Reset data segment
 		pop dword [fdctab]	; Restore FDC table
@@ -607,7 +607,7 @@ CheckSum	dd 0		; Checksum starting at ldlinux_sys
 SectorPtrs	times 64 dd 0
 
 ldlinux_ent:
-; 
+;
 ; Note that some BIOSes are buggy and run the boot sector at 07C0:0000
 ; instead of 0000:7C00 and the like.  We don't want to add anything
 ; more to the boot sector, so it is written to not assume a fixed
@@ -1514,7 +1514,7 @@ initrd_cmd_len	equ 7
 ;
 exten_table:	db 'CBT',0		; COMBOOT (specific)
 		db 'BSS',0		; Boot Sector (add superblock)
-		db 'BS ',0		; Boot Sector 
+		db 'BS ',0		; Boot Sector
 		db 'COM',0		; COMBOOT (same as DOS)
 		db 'C32',0		; COM32
 exten_table_end:

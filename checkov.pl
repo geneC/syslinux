@@ -12,7 +12,7 @@
 
 sub overlap($$$$) {
     my($s1,$e1,$s2,$e2) = @_;
-    
+
     return 1 if ( $s2 < $e1 && $e2 > $s1 );
     return 1 if ( $s1 < $e2 && $e1 > $s2 );
 
@@ -56,12 +56,12 @@ foreach $s ( keys(%start) ) {
 
     foreach $o ( keys(%start) ) {
 	next if ( $s ge $o );
-	
+
 	$ostart  = $start{$o};
 	$ovstart = $vstart{$o};
 	$oend    = $ostart + $length{$o};
 	$ovend   = $ovstart + $length{$o};
-	
+
 	if ( overlap($sstart, $send, $ostart, $oend) ||
 	     overlap($svstart, $svend, $ostart, $oend) ||
 	     overlap($sstart, $send, $ovstart, $ovend) ||

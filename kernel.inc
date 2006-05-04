@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,7 @@
 
 ;;
 ;; kernel.inc
-;; 
+;;
 ;; Header file for the kernel interface definitions
 ;;
 

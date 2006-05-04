@@ -1,6 +1,6 @@
 ##  $Id$
 ## -----------------------------------------------------------------------
-##   
+##
 ##   Copyright 1998-2005 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
@@ -25,7 +25,7 @@ AR	 = ar
 RANLIB   = ranlib
 
 NASM	 = nasm -O99
-NINCLUDE = 
+NINCLUDE =
 BINDIR   = /usr/bin
 SBINDIR  = /sbin
 LIBDIR   = /usr/lib
@@ -41,9 +41,9 @@ VERSION  = $(shell cat version)
 
 #
 # The BTARGET refers to objects that are derived from ldlinux.asm; we
-# like to keep those uniform for debugging reasons; however, distributors 
+# like to keep those uniform for debugging reasons; however, distributors
 # want to recompile the installers (ITARGET).
-# 
+#
 # BOBJECTS and IOBJECTS are the same thing, except used for
 # installation, so they include objects that may be in subdirectories
 # with their own Makefiles.  Finally, there is a list of those
@@ -55,7 +55,7 @@ SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
 
 # _bin.c files required by both BTARGET and ITARGET installers
 BINFILES = bootsect_bin.c ldlinux_bin.c mbr_bin.c \
-	   extlinux_bss_bin.c extlinux_sys_bin.c 
+	   extlinux_bss_bin.c extlinux_sys_bin.c
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed

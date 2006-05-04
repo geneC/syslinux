@@ -7,7 +7,7 @@ eval { use bytes; };
 
 while ( defined($keywd = <STDIN>) ) {
     chomp $keywd;
-    
+
     ($keywd,$keywdname) = split(/\s+/, $keywd);
     $keywdname = $keywd unless ( $keywdname );
 

@@ -1,6 +1,6 @@
 #ifndef _PASSWORDS_H_
 #define _PASSWORDS_H_
-    
+
 char authenticate_user(const char * username, const char* pwd);
 
 char isallowed(const char *username, const char * perm);
@@ -16,7 +16,7 @@ void close_passwords();
 
 typedef struct {
   char username[USERNAME_LENGTH+1];
-  char pwdhash[PWDHASH_LENGTH+1]; 
+  char pwdhash[PWDHASH_LENGTH+1];
   char *perms; // pointer to string containing ":" delimited permissions
 } pwdentry;
 

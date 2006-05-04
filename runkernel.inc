@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,7 @@
 
 ;;
 ;; runkernel.inc
-;; 
+;;
 ;; Common code for running a Linux kernel
 ;;
 

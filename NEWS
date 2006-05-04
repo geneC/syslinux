@@ -544,7 +544,7 @@ Changes in 1.54:
 	  due to a spec bug; match the most recent spec since that
 	  seems to be what implementations actually do.
 	* SYSLINUX: Add some smarts to the boot sector, which
-	  hopefully should reduce the number of systems which require 
+	  hopefully should reduce the number of systems which require
 	  stupid mode ("syslinux -s").
 	* PXELINUX: Document further some of the pathologies with old
 	  PXE stacks.
@@ -720,10 +720,10 @@ Changes in 1.35:
 	* Added a "safe, slow and stupid" (-s) option to the
 	  installers.  This option will lobotomize the boot sector to
 	  hopefully work on even very buggy BIOSes.
-	
+
 Changes in 1.34:
 	* Ability to load a VGA font on bootup (for localized Linux
-	  distributions.) 
+	  distributions.)
 
 Changes in 1.33:
 	* Bug fix in the Linux installer.

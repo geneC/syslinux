@@ -26,9 +26,6 @@ char *fgets(char *s, int n, FILE *f)
   }
   if ( n )
     *p = '\0';
-  
+
   return s;
 }
-
-
-    

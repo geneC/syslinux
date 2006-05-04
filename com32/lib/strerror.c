@@ -21,4 +21,3 @@ char *strerror(int errnum)
 
   return (char *)memcpy(message+6, p, (numbuf+sizeof numbuf)-p);
 }
-

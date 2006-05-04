@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,7 @@
 
 ;;
 ;; loadhigh.inc
-;; 
+;;
 ;; Load a file into high memory
 ;;
 
@@ -23,7 +23,7 @@
 ; load_high:	loads (the remainder of) a file into high memory.
 ;		This routine prints dots for each 64K transferred, and
 ;		calls abort_check periodically.
-; 
+;
 ;		The xfer_buf_seg is used as a bounce buffer.
 ;
 ;		The input address (EDI) should be dword aligned, and the final
@@ -68,7 +68,7 @@ load_high:
 		call getfssec			; Load the data into xfer_buf_seg
 		pop edi				; <C> Target buffer
 		pop ecx				; <B> Byte count this round
-		push ecx			; <B> Byte count this round 
+		push ecx			; <B> Byte count this round
 		push edi			; <C> Target buffer
 .fix_slop:
 		test cx,dx
@@ -89,8 +89,7 @@ load_high:
 		add edi,ecx
 		sub eax,ecx
 		jnz .read_loop			; More to read...
-		
+
 .eof:
 		pop es
 		ret
-

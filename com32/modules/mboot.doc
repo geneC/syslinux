@@ -18,10 +18,9 @@ DEFAULT mboot.c32 xen.gz dom0_mem=15000 nosmp noacpi --- linux.gz console=tty0 r
 or, as a choice in a menu:
 
 LABEL Xen
-  KERNEL mboot.c32 
+  KERNEL mboot.c32
   APPEND xen.gz dom0_mem=15000 nosmp noacpi --- linux.gz console=tty0 root=/dev/hda1 --- initrd.img
 
 mboot.c32 requires version 2.12 or later of SYSLINUX.
 
 Tim Deegan, May 2005
-

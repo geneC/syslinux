@@ -107,5 +107,3 @@ on as many systems as possible, a hard disk image should have exactly
 one partition, marked active, that covers the entire size of the disk
 image file.  Even so, hard disk images are not supported on all
 BIOSes.
-
-

@@ -1,5 +1,5 @@
 /* -*- c -*- ------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004-2005 Murali Krishnan Ganapathy - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -21,9 +21,9 @@ char issyslinux(void)
   REG_EAX(inreg) = 0x00003000;
   REG_EBX(inreg) = REG_ECX(inreg) = REG_EDX(inreg) = 0xFFFFFFFF;
   __intcall(0x21,&inreg,&outreg);
-  return (REG_EAX(outreg) == 0x59530000) && 
+  return (REG_EAX(outreg) == 0x59530000) &&
          (REG_EBX(outreg) == 0x4c530000) &&
-         (REG_ECX(outreg) == 0x4e490000) && 
+         (REG_ECX(outreg) == 0x4e490000) &&
          (REG_EDX(outreg) == 0x58550000);
 }
 
@@ -66,7 +66,7 @@ void runsyslinuximage(const char*cmd, long ipappend)
   // Function 16h not supported Fall back to runcommand
   if (numfun < 0x16) runsyslinuxcmd(cmd);
   // Try the Run Kernel Image function
-  // Split command line into 
+  // Split command line into
   strcpy(__com32.cs_bounce,cmd);
   ptr = __com32.cs_bounce;
   // serach for first space or end of string
@@ -86,4 +86,3 @@ void runsyslinuximage(const char*cmd, long ipappend)
 
   __intcall(0x22,&inreg,&outreg); // If successful does not return
 }
-

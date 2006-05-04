@@ -55,6 +55,3 @@ syslinux.com: syslinux.elf
 	$(CC) $(CFLAGS) -D__ASSEMBLY__ -S -o $@ $<
 
 -include .*.d
-
-
-

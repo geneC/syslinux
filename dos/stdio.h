@@ -19,4 +19,3 @@ int printf(const char *fmt, ...);
 #define fprintf(x, y, ...) printf(y, ## __VA_ARGS__)
 
 #endif /* STDIO_H */
-

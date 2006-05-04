@@ -1,11 +1,11 @@
 Changes in v1.2
 ---------------
-* Allowed menu's to have names. Submenu's can be referred to by names 
-  instead of their index in the menu system. This allows user to refer 
+* Allowed menu's to have names. Submenu's can be referred to by names
+  instead of their index in the menu system. This allows user to refer
   to submenus which are not yet part of the menusystem.
-* help pages can be longer than one screen 
+* help pages can be longer than one screen
 * menugen.py: Python script for converting .menu files to C source code
-  .menu files can be used to descibe most static uses of menu system, 
+  .menu files can be used to descibe most static uses of menu system,
   including SubMenus, Checkboxes, RadioButtons, User Authentication and
   Context sensitive help. You can also restrict use of certain items
   to users with certain credentials.
@@ -13,7 +13,7 @@ Changes in v1.2
   See MENU_FORMAT for the format of .menu files
 
 * display.c32: Takes the name of the text file to display and displays it
-  allowing user to scroll through the text. 
+  allowing user to scroll through the text.
 
   USAGE: display.c32 <filename>
 
@@ -24,10 +24,9 @@ Changes in v1.1
 * Additional handler type: Keys handler
 * Menuitem handlers now have a return value of type t_handler_return.
   For all simple cases, you just return ACTION_VALID or ACTION_INVALID
-  (For some types of menu items, handlers are ignored, and for 
+  (For some types of menu items, handlers are ignored, and for
    others the return value is ignored)
 * add_menu takes an extra argument (to better control memory footprint)
   You can just set it to -1 to choose the default value
 * Now the menu system support long menu's using scroll bars.
 * Support for passwords and context sensitive help is added.
-

@@ -1,5 +1,5 @@
 /* -*- c -*- ------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004-2005 Murali Krishnan Ganapathy - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,7 @@ char * findline(char*buffer,int count)
 {
    int ctr;
    char *p= buffer-1;
-  
+
    if (count < 1) return buffer;
    for (ctr=0; ctr < count; ctr++) {
        p = strchr(p+1,'\n');
@@ -51,16 +51,16 @@ void printtext(char*buf, int from)
   char *p,*f;
   char right,bot,nlines;
 
-  // clear window to print 
+  // clear window to print
   right = getnumcols() - HELP_RIGHT_MARGIN;
   bot = getnumrows() - HELP_BOTTOM_MARGIN;
   nlines = bot-HELP_BODY_ROW+1;
-  scrollupwindow(HELP_BODY_ROW,HELP_LEFT_MARGIN,bot,right,0x07,nlines); 
+  scrollupwindow(HELP_BODY_ROW,HELP_LEFT_MARGIN,bot,right,0x07,nlines);
 
   f  = findline(buf,from);
   if (!f) return; // nothing to print
   if (*f=='\n') f++; // start of from+1st line
-  p = findline(f,nlines); 
+  p = findline(f,nlines);
   if (p && (*p=='\n')) *p = '\0'; // change to NUL
   gotoxy(HELP_BODY_ROW,HELP_LEFT_MARGIN,HELPPAGE);
   cswprint(f,0x07,HELP_LEFT_MARGIN);
@@ -72,7 +72,7 @@ void showhelp(const char *filename)
    char nc,nr,ph;
    char *title,*text;
    union { char *buffer; void *vbuf; } buf; // This is to avoild type-punning issues
-   
+
    char line[512];
    size_t size;
    char scan;
@@ -95,7 +95,7 @@ void showhelp(const char *filename)
      cls();
      return;
    }
-   
+
    rv = loadfile(filename,(void **)&buf.vbuf, &size); // load entire file into memory
    if (rv < 0) { // Error reading file or no such file
       sprintf(line, "Error reading file or file not found\n file=%s",filename);
@@ -123,11 +123,11 @@ void showhelp(const char *filename)
    while(scan != ESCAPE) {
        printtext(text,curr_line);
        gotoxy(HELP_BODY_ROW-1,nc-HELP_RIGHT_MARGIN,HELPPAGE);
-       if (curr_line > 0) 
+       if (curr_line > 0)
           putch(HELP_MORE_ABOVE,0x07,HELPPAGE);
        else putch(' ',0x07,HELPPAGE);
        gotoxy(nr-HELP_BOTTOM_MARGIN+1,nc-HELP_RIGHT_MARGIN,HELPPAGE);
-       if (curr_line < numlines - ph) 
+       if (curr_line < numlines - ph)
           putch(HELP_MORE_BELOW,0x07,HELPPAGE);
        else putch(' ',0x07,HELPPAGE);
 

@@ -1,5 +1,5 @@
 /* -*- c -*- ------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2003-2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -72,7 +72,7 @@ struct memdiskinfo * query_memdisk(int drive)
     mov _es, es ;
     mov _di, di ;
   }
-  
+
   if ( _eax >> 16 != 0x4d21 ||
        _ecx >> 16 != 0x4d45 ||
        _edx >> 16 != 0x4944 ||
@@ -92,7 +92,7 @@ struct memdiskinfo * query_memdisk(int drive)
   mm.cylinders = ((_ecx >> 8) & 0xff) + ((_ecx & 0xc0) << 2) + 1;
   mm.heads     = ((_edx >> 8) & 0xff) + 1;
   mm.sectors   = (_ecx & 0x3f);
-  
+
   return &mm;
 }
 
@@ -142,6 +142,6 @@ int main(int argc, char *argv[])
       found++;
     }
   }
-  
+
   return found;
 }

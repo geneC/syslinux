@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
 
   mypid = getpid();
   program = argv[0];
-  
+
   device = NULL;
 
   for ( argp = argv+1 ; *argp ; argp++ ) {
@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
   }
 
   xpread(dev_fd, sectbuf, 512, filesystem_offset);
-  
+
   /*
    * Check to see that what we got was indeed an MS-DOS boot sector/superblock
    */
@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
 	  dev_fd,
 	  (unsigned long long)filesystem_offset);
   fclose(mtc);
-  
+
   /*
    * Run mtools to create the LDLINUX.SYS file
    */
@@ -231,7 +231,7 @@ int main(int argc, char *argv[])
 
   mtp = popen("mcopy -D o -D O -o - s:ldlinux.sys", "w");
   if ( !mtp ||
-       (fwrite(syslinux_ldlinux, 1, syslinux_ldlinux_len, mtp) 
+       (fwrite(syslinux_ldlinux, 1, syslinux_ldlinux_len, mtp)
 	!= syslinux_ldlinux_len) ||
        (status = pclose(mtp), !WIFEXITED(status) || WEXITSTATUS(status)) ) {
     die("failed to create ldlinux.sys");

@@ -23,10 +23,10 @@ void BWL(pci_write) (TYPE v, pciaddr_t a)
     case PCI_CFG_TYPE2:
       {
 	uint8_t oldcf8, oldcfa;
-	
+
 	if ( a & (0x10 << 11) )
 	  return;		/* Devices 16-31 not supported */
-	
+
 	cli();
 	oldcf8 = inb(0xcf8);
 	oldcfa = inb(0xcfa);

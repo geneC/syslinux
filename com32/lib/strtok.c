@@ -13,4 +13,3 @@ char *strtok(char *s, const char *delim)
 
   return strsep(&holder, delim);
 }
-

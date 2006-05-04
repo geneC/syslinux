@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2005 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -11,10 +11,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -47,13 +47,13 @@ size_t unbase64(unsigned char *buffer, size_t bufsiz, const char *txt)
   char v;
   size_t nbytes = 0;
 
-  
+
   memset(base64tbl, -1, sizeof base64tbl);
 
   for ( i = 0 ; _base64chars[i] ; i++ ) {
     base64tbl[_base64chars[i]] = i;
   }
-  
+
   /* Also support filesystem safe alternate base64 encoding */
   base64tbl['.'] = 62;
   base64tbl['-'] = 62;
@@ -70,10 +70,9 @@ size_t unbase64(unsigned char *buffer, size_t bufsiz, const char *txt)
 	nbytes++;
 	nbits -= 8;
       }
-    }      
+    }
     txt++;
   }
 
   return nbytes;
 }
-

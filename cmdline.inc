@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 2003 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -29,7 +29,7 @@ make_plain_cmdline:
 
 		mov si,[CmdOptPtr]
 		mov di,[CmdLinePtr]
-		
+
 		call strcpy
 
 		dec di
@@ -37,5 +37,3 @@ make_plain_cmdline:
 
 		pop es
 		ret
-
-

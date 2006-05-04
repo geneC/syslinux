@@ -1,5 +1,5 @@
 ; -----------------------------------------------------------------------
-;   
+;
 ;   Copyright 2003-2004 H. Peter Anvin - All Rights Reserved
 ;
 ;   Permission is hereby granted, free of charge, to any person
@@ -10,10 +10,10 @@
 ;   sell copies of the Software, and to permit persons to whom
 ;   the Software is furnished to do so, subject to the following
 ;   conditions:
-;   
+;
 ;   The above copyright notice and this permission notice shall
 ;   be included in all copies or substantial portions of the Software.
-;   
+;
 ;   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 ;   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 ;   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -29,11 +29,11 @@
 ; mbr.asm
 ;
 ; Simple Master Boot Record, including support for EBIOS extensions.
-; 
+;
 ; The MBR lives in front of the boot sector, and is responsible for
 ; loading the boot sector of the active partition.  The EBIOS support
 ; is needed if the active partition starts beyond cylinder 1024.
-; 
+;
 ; This MBR determines all geometry info at runtime.  It uses only the
 ; linear block field in the partition table.  It does, however, pass
 ; the partition table information unchanged to the target OS.
@@ -42,7 +42,7 @@
 ;
 
 %include "bios.inc"
-	
+
 ;
 ; Note: The MBR is actually loaded at 0:7C00h, but we quickly move it down to
 ; 0600h.
@@ -72,7 +72,7 @@ _start:		cli
 ;
 
 		jmp 0:next		; Jump to copy at 0600h
-				
+
 next:
 		mov [DriveNo], dl		; Drive number stored in DL
 ;

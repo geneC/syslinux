@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,7 @@
 
 ;;
 ;; cpuinit.inc
-;; 
+;;
 ;; CPU-dependent initialization and related checks.
 ;;
 
@@ -73,4 +73,3 @@ skip_checks:
 		mov byte [try_wbinvd],0c3h		; Near RET
 is_486:
 %endif	; DO_WBINVD
-

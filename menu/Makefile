@@ -1,6 +1,6 @@
 #ident "$Id$"
 ## -----------------------------------------------------------------------
-##   
+##
 ##   Copyright 2001-2005 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
@@ -30,14 +30,14 @@ LUDIR      = $(COM32DIR)/libutil
 LDIR       = $(COM32DIR)/lib
 CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os -fomit-frame-pointer -I$(LUDIR)/include -I$(COM32DIR)/include  -Ilibmenu -D__COM32__
 SFLAGS     = -D__COM32__ -march=i386
-LDFLAGS    = -T $(LDIR)/com32.ld 
+LDFLAGS    = -T $(LDIR)/com32.ld
 OBJCOPY    = objcopy
 LIBGCC    := $(shell $(CC) --print-libgcc)
 
 LIBS	   = libmenu/libmenu.a $(LUDIR)/libutil_com.a $(LDIR)/libcom32.a $(LIBGCC)
 
 LIBMENU = libmenu/syslnx.o libmenu/com32io.o libmenu/tui.o \
-	libmenu/menu.o libmenu/passwords.o libmenu/des.o libmenu/help.o 
+	libmenu/menu.o libmenu/passwords.o libmenu/des.o libmenu/help.o
 
 CMENUS = $(patsubst %.c,%.c32,$(wildcard *.c))
 IMENUS = $(patsubst %.menu,%.c32,$(wildcard *.menu))
@@ -58,9 +58,9 @@ MENUS = $(CMENUS) $(IMENUS)
 %.o: %.c %.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-.PRECIOUS: %.elf 
+.PRECIOUS: %.elf
 %.elf: %.o $(LIBS)
-	$(LD) $(LDFLAGS) -o $@ $^ 
+	$(LD) $(LDFLAGS) -o $@ $^
 
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
@@ -73,7 +73,7 @@ libmenu/libmenu.a: $(LIBMENU)
 	$(RANLIB) $@
 
 tidy:
-	rm -f *.o *.lo *.a *.lst *.elf 
+	rm -f *.o *.lo *.a *.lst *.elf
 
 libclean:
 	rm -f libmenu/*.o libmenu/*.a

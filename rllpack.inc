@@ -1,6 +1,6 @@
 ; -*- fundamental -*-
 ; -----------------------------------------------------------------------
-;   
+;
 ;   Copyright 2004 H. Peter Anvin - All Rights Reserved
 ;
 ;   This program is free software; you can redistribute it and/or modify
@@ -66,7 +66,7 @@ rllpack:
 		jnz .normal
 		dec di			; We killed a whole stretch, remove start byte
 .normal:
-		inc bx	
+		inc bx
 		sub di,bx
 		mov bp,di
 		mov al,bl
@@ -104,7 +104,7 @@ rllpack:
 ; rllunpack:
 ;	Unpack bytes from DS:SI into ES:DI
 ;	On return SI, DI are updated and CX contains number of bytes output
-;	
+;
 rllunpack:
 		push ax
 		push di

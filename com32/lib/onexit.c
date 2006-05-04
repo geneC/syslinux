@@ -12,11 +12,11 @@ static struct atexit *__atexit_list;
 static __noreturn on_exit_exit(int rv)
 {
   struct atexit *ap;
-  
+
   for ( ap = __atexit_list ; ap ; ap = ap->next ) {
     ap->fctn(rv, ap->arg);	/* This assumes extra args are harmless */
   }
-  
+
   _exit(rv);
 }
 

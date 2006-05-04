@@ -1,7 +1,7 @@
 /*
  * unzip.c
- * 
- * This is a collection of several routines from gzip-1.0.3 
+ *
+ * This is a collection of several routines from gzip-1.0.3
  * adapted for Linux.
  *
  * malloc by Hannu Savolainen 1993 and Matthias Urlichs 1994
@@ -105,17 +105,17 @@ static ulg free_mem_ptr, free_mem_end_ptr;
 static void *malloc(int size)
 {
   void *p;
-  
+
   if (size < 0) error("malloc error");
-  
+
   free_mem_ptr = (free_mem_ptr + 3) & ~3;	/* Align */
-  
+
   p = (void *)free_mem_ptr;
   free_mem_ptr += size;
-  
+
   if (free_mem_ptr >= free_mem_end_ptr)
     error("out of memory");
-  
+
   return p;
 }
 
@@ -134,7 +134,7 @@ static void gzip_release(void **ptr)
 {
   free_mem_ptr = (long) *ptr;
 }
- 
+
 /* ===========================================================================
  * Fill the input buffer. This is called only when the buffer is empty
  * and at least one byte is really needed.
@@ -159,7 +159,7 @@ static void flush_window(void)
 
     if ( bytes_out+outcnt > output_size )
       error("output buffer overrun");
-    
+
     in = window;
     out = output_data;
     for (n = 0; n < outcnt; n++) {
@@ -274,7 +274,7 @@ int check_zip(void *indata, uint32_t size, uint32_t *zbytes_p,
       }
       offset++;
     }
-    
+
     if (gzh->flags & COMMENT) {
       /* Discard the comment */
       uint8_t *p = indata;
@@ -296,7 +296,7 @@ int check_zip(void *indata, uint32_t size, uint32_t *zbytes_p,
   }
   else if (pkzh->magic == 0x04034b50UL) {
     /* Magic number matches pkzip file. */
-    
+
     offset = sizeof (*pkzh);
     if (pkzh->flags & PK_ENCRYPTED) {
       error("pkzip file is encrypted; not supported");

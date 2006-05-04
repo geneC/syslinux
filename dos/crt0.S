@@ -3,14 +3,14 @@
 #ifndef REGPARM
 # error "This file assumes -mregparm=3 -DREGPARM=3"
 #endif
-	
+
 	.section ".init","ax"
 	.globl _start
 	.type _start,@function
 _start:
 	# Align the stack and make sure the high half is zero
 	andl $0xfff8,%esp
-	
+
 	# Clear the .bss
 	cld
 	xorl %eax,%eax
@@ -39,7 +39,7 @@ _start:
 	calll main
 
 	# Here %eax is the exit code, fall through into exit
-	
+
 	.size _start,.-_start
 
 	.globl exit

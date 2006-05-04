@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -66,7 +66,7 @@ enum bs_offsets {
   bs32VolumeLabel   = 71,
   bs32FileSysType   = 82,
   bs32Code          = 90,
-  
+
   bsSignature     = 0x1fe
 };
 
@@ -134,7 +134,7 @@ void syslinux_make_stupid(void)
   /* Access only one sector at a time */
   set_16(syslinux_bootsect+0x1FC, 1);
 }
-  
+
 void syslinux_make_bootsect(void *bs)
 {
   unsigned char *bootsect = bs;
@@ -162,7 +162,7 @@ const char *syslinux_check_bootsect(const void *bs)
   if ( get_8(sectbuf+bsMedia) != 0xF0 &&
        get_8(sectbuf+bsMedia) < 0xF8 )
     goto invalid;
-  
+
   sectorsize = get_16(sectbuf+bsBytesPerSec);
   if ( sectorsize == 512 )
     ; /* ok */
@@ -221,7 +221,7 @@ const char *syslinux_check_bootsect(const void *bs)
   } else {
     goto invalid;
   }
-  
+
   return NULL;
 
  invalid:
@@ -251,7 +251,7 @@ int syslinux_patch(const uint32_t *sectors, int nsectors)
   /* First sector need pointer in boot sector */
   set_32(syslinux_bootsect+0x1F8, *sectors++);
   nsect--;
-  
+
   /* Search for LDLINUX_MAGIC to find the patch area */
   for ( p = syslinux_ldlinux ; get_32(p) != LDLINUX_MAGIC ; p += 4 );
   patcharea = p+8;
@@ -281,4 +281,3 @@ int syslinux_patch(const uint32_t *sectors, int nsectors)
 
     return 0;
 }
-

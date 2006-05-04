@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -53,7 +53,7 @@ vgadisplayfile:
 		xor bx,bx			; First register number
 		mov cx,16			; 16 registers
 		int 10h
-	
+
 .movecursor:
 		mov ax,[es:xbs_vgabuf+6]	; Number of pixel rows
 		mov dx,[VGAFontSize]
@@ -333,4 +333,3 @@ VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
 %endif
 VGAFileBufEnd	equ $
 VGAFileMBuf	resb FILENAME_MAX	; Mangled VGA image name
-

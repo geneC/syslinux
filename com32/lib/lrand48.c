@@ -17,7 +17,7 @@ long jrand48(unsigned short xsubi[3])
     ((uint64_t)xsubi[2] << 32);
 
   x = (0x5deece66dULL * x) + 0xb;
-  
+
   xsubi[0] = (unsigned short)x;
   xsubi[1] = (unsigned short)(x >> 16);
   xsubi[2] = (unsigned short)(x >> 32);
@@ -39,4 +39,3 @@ long lrand48(void)
 {
   return (long)((uint32_t)(mrand48() >> 1));
 }
-

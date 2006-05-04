@@ -1,6 +1,6 @@
 ; $Id$
 ; -----------------------------------------------------------------------
-;   
+;
 ;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
 ;
 ;   This program is free software; you can redistribute it and/or modify
@@ -45,7 +45,7 @@ STACK_START	equ TEXT_START-STACK_SIZE
 
 		; NASM BUG: refers to hacks to handle NASM 0.98.38 bugs; might need
 		; conditional compilation
-	
+
 		section .earlybss nobits start=BSS_START
 		section .bcopy32  align=4 valign=16 follows=.data vfollows=.earlybss
 		; NASM BUG: follows= here should be vfollows=
@@ -61,4 +61,3 @@ STACK_START	equ TEXT_START-STACK_SIZE
 		; Reserve space for stack
 		section .stack	  nobits align=16 start=STACK_START
 Stack		resb	STACK_SIZE
-

@@ -9,4 +9,3 @@ void abort(void)
 {
   _exit(255);
 }
-  

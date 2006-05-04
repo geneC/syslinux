@@ -11,4 +11,3 @@ unsigned int atou(const char *s)
     i = i*10 + (*s++ - '0');
   return i;
 }
-

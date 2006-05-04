@@ -1,5 +1,5 @@
 /* -*- c -*- ------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004-2005 Murali Krishnan Ganapathy - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -76,7 +76,7 @@ void keys_handler(t_menusystem *ms, t_menuitem *mi,unsigned int scancode)
    // If user hit TAB, and item is an "executable" item
    // and user has privileges to edit it, edit it in place.
    if (((scancode & 0xFF) == 0x09) && (mi->action == OPT_RUN) &&
-       (isallowed(username,"editcmd") || isallowed(username,"root"))) { 
+       (isallowed(username,"editcmd") || isallowed(username,"root"))) {
      nc = getnumcols();
      // User typed TAB and has permissions to edit command line
      gotoxy(EDITPROMPT,1,ms->menupage);
@@ -109,7 +109,7 @@ t_handler_return login_handler(t_menusystem *ms, t_menuitem *mi)
 
     if (authenticate_user(login,pwd))
     {
-      strcpy(username,login); 
+      strcpy(username,login);
       mi->item = logoutstr; // Change item to read "Logout"
     }
     else strcpy(username,GUEST_USER);
@@ -125,7 +125,7 @@ t_handler_return login_handler(t_menusystem *ms, t_menuitem *mi)
      prepopt->action = OPT_INACTIVE;
      secret->action = OPT_INVISIBLE;
   }
-  else 
+  else
   {
      prepopt->action = OPT_SUBMENU;
      prepopt->itemdata.radiomenunum = PREPMENU;
@@ -195,7 +195,7 @@ t_handler_return checkbox_handler(t_menusystem *ms, t_menuitem *mi)
   (void)ms; /* Unused */
 
     if (mi->action != OPT_CHECKBOX) return ACTION_INVALID;
-    
+
     if (strcmp(mi->data,"baseurl") == 0) flags.baseurl = (mi->itemdata.checked ? 1 : 0);
     if (strcmp(mi->data,"winrepair") == 0) {
         if (mi->itemdata.checked)
@@ -226,7 +226,7 @@ t_handler_return checkbox_handler(t_menusystem *ms, t_menuitem *mi)
 }
 
 /*
-  Clears keyboard buffer and then 
+  Clears keyboard buffer and then
   wait for stepsize*numsteps milliseconds for user to press any key
   checks for keypress every stepsize milliseconds.
   Returns: 1 if user pressed a key (not read from the buffer),
@@ -261,12 +261,12 @@ int main()
   init_help("/isolinux/help");
   init_menusystem(NULL);
   set_window_size(1,1,20,78); // Leave some space around
-  
+
   // Choose the default values for all attributes and char's
   // -1 means choose defaults (Actually the next 4 lines are not needed)
-  //set_normal_attr (-1,-1,-1,-1); 
+  //set_normal_attr (-1,-1,-1,-1);
   //set_status_info (-1,-1); // Display status on the last line
-  //set_title_info  (-1,-1); 
+  //set_title_info  (-1,-1);
   //set_misc_info(-1,-1,-1,-1);
 
   // Register the menusystem handler
@@ -275,7 +275,7 @@ int main()
   // Register the ontimeout handler, with a time out of 10 seconds
   reg_ontimeout(ontimeout,1000,0);
 
-  NETMENU = add_menu(" Init Network ",-1); 
+  NETMENU = add_menu(" Init Network ",-1);
   none = add_item("<N>one","Dont start network",OPT_RADIOITEM,"no ",0);
   dhcp = add_item("<d>hcp","Use DHCP",OPT_RADIOITEM,"dhcp ",0);
   stat = add_item("<s>tatic","Use static IP I will specify later",OPT_RADIOITEM,"static ",0);
@@ -356,7 +356,7 @@ int main()
   add_item("<8>","A",OPT_RUN,"A",0);
   add_item("<9>","A",OPT_RUN,"A",0);
 
-  MAIN = add_menu(" Main Menu ",8);  
+  MAIN = add_menu(" Main Menu ",8);
   curr = add_item(loginstr,"Login as a privileged user",OPT_RUN,NULL,0);
   set_item_options(-1,23);
   curr->handler = &login_handler;
@@ -416,9 +416,8 @@ int main()
   // Deallocate space used for these data structures
   close_passwords();
   close_help();
-  close_menusystem(); 
+  close_menusystem();
 
   // Return to prompt
   return 0;
 }
-

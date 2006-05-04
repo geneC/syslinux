@@ -11,4 +11,3 @@ size_t strlen(const char *s)
     ss++;
   return ss-s;
 }
-

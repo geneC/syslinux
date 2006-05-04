@@ -1,5 +1,5 @@
 /* -*- c -*- ------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004-2005 Murali Krishnan Ganapathy - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 
 #include <com32.h>
 
-//Macros which help user not have to remember the structure of register 
+//Macros which help user not have to remember the structure of register
 // Data structure
 
 #define REG_AH(x) ((x).eax.b[1])
@@ -59,6 +59,6 @@ void syslinux_idle(void); /* Call syslinux idle loop */
 
 /* Run command line with ipappend, returns if kernel image not found
    If syslinux version too old, then defaults to runsyslinuxcmd */
-void runsyslinuximage(const char*cmd, long ipappend); 
+void runsyslinuximage(const char*cmd, long ipappend);
 
 #endif

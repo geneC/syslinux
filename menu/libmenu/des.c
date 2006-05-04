@@ -70,7 +70,7 @@
 typedef unsigned long my_u_int32_t;
 typedef unsigned char my_u_char_t;
 
-/* Re-entrantify me -- all this junk needs to be in 
+/* Re-entrantify me -- all this junk needs to be in
  * struct crypt_data to make this really reentrant... */
 static my_u_char_t	inv_key_perm[64];
 static my_u_char_t	inv_comp_perm[56];
@@ -94,8 +94,8 @@ static my_u_int32_t old_rawkey0, old_rawkey1;
 static my_u_int32_t common[8][256];
 #endif
 
-/* Static stuff that stays resident and doesn't change after 
- * being initialized, and therefore doesn't need to be made 
+/* Static stuff that stays resident and doesn't change after
+ * being initialized, and therefore doesn't need to be made
  * reentrant. */
 static my_u_char_t	init_perm[64], final_perm[64];
 static my_u_char_t	m_sbox[4][4096];
@@ -229,7 +229,7 @@ static const my_u_char_t	bits8[8] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 
 // static const my_u_int32_t *bits28, *bits24;
 
 
-static int 
+static int
 ascii_to_bin(char ch)
 {
 	if (ch > 'z')
@@ -317,7 +317,7 @@ des_init(void)
 	 * and for the key initial and compression permutations.
 	 */
 
-#ifndef LOWSPACE	
+#ifndef LOWSPACE
 	for (k = 0; k < 8; k++) {
 		for (i = 0; i < 256; i++) {
 			*(il = &ip_maskl[k][i]) = 0L;
@@ -376,7 +376,7 @@ des_init(void)
 	for (i = 0; i < 32; i++)
 		un_pbox[pbox[i] - 1] = (my_u_char_t)i;
 
-#ifndef LOWSPACE	
+#ifndef LOWSPACE
 	for (b = 0; b < 4; b++)
 		for (i = 0; i < 256; i++) {
 			*(p = &psbox[b][i]) = 0L;
@@ -397,7 +397,7 @@ setup_ip_maskl(void)
 {
   int    	i, j, k, inbit, obit;
   my_u_int32_t	*il;
-     
+
   for (k = 0; k < 8; k++) {
     for (i = 0; i < 256; i++) {
       *(il = &common[k][i]) = 0L;
@@ -417,7 +417,7 @@ setup_ip_maskr(void)
 {
   int    	i, j, k, inbit, obit;
   my_u_int32_t	*ir;
-     
+
   for (k = 0; k < 8; k++) {
     for (i = 0; i < 256; i++) {
       *(ir = &common[k][i]) = 0L;
@@ -451,7 +451,7 @@ setup_fp_maskl(void)
     }
   }
 }
-    
+
 static void
 setup_fp_maskr(void)
 {
@@ -471,7 +471,7 @@ setup_fp_maskr(void)
     }
   }
 }
-    
+
 static void
 setup_key_perm_maskl(void)
 {
@@ -515,7 +515,7 @@ setup_key_perm_maskr(void)
     }
   }
 }
-  
+
 static void
 setup_comp_maskl(void)
 {
@@ -565,7 +565,7 @@ setup_psbox(void)
 {
   int    	i, j, b;
   my_u_int32_t	*p;
-  
+
   for (b = 0; b < 4; b++)
     for (i = 0; i < 256; i++) {
       *(p = &common[b][i]) = 0L;
@@ -645,7 +645,7 @@ des_setkey(const char *key)
 	 *	Do key permutation and split into two 28-bit subkeys.
 	 */
 
-#ifdef LOWSPACE	
+#ifdef LOWSPACE
 	setup_key_perm_maskl();
 	k0 = common[0][rawkey0 >> 25]
 	   | common[1][(rawkey0 >> 17) & 0x7f]
@@ -695,7 +695,7 @@ des_setkey(const char *key)
 		t0 = (k0 << shifts) | (k0 >> (28 - shifts));
 		t1 = (k1 << shifts) | (k1 >> (28 - shifts));
 
-#ifdef LOWSPACE	
+#ifdef LOWSPACE
 		setup_comp_maskl();
 		de_keysl[15 - round] =
 		en_keysl[round] = common[0][(t0 >> 21) & 0x7f]
@@ -773,7 +773,7 @@ do_des(	my_u_int32_t l_in, my_u_int32_t r_in, my_u_int32_t *l_out, my_u_int32_t 
 	/*
 	 *	Do initial permutation (IP).
 	 */
-	
+
 #ifdef LOWSPACE
 	setup_ip_maskl();
 	l = common[0][l_in >> 24]
@@ -1046,7 +1046,7 @@ char *crypt(const char *key, const char *setting)
 		 */
 		output[9] = '\0';
 		p = (my_u_char_t *)output + strlen(output);
-	} else 
+	} else
 #endif
 	{
 		/*
@@ -1099,4 +1099,3 @@ char *crypt(const char *key, const char *setting)
 
 	return(output);
 }
-

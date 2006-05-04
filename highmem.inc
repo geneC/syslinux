@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,7 @@
 
 ;;
 ;; highmem.inc
-;; 
+;;
 ;; Probe for the size of high memory.  This can be overridden by a
 ;; mem= command on the command line while booting a new kernel.
 ;;
@@ -71,7 +71,7 @@ get_e820:
 		jnb .int_loop
 		mov [E820Max],edx
 		jmp .int_loop
-		
+
 .ram_range:
 		stc
 		sbb eax,eax			; eax <- 0xFFFFFFFF
@@ -112,7 +112,7 @@ no_e820:
 		mov ax,bx
 		shl eax,16			; 64K chunks
 		add eax,(16 << 20)		; Add first 16M
-		jmp short got_highmem				
+		jmp short got_highmem
 
 ;
 ; INT 15:E801 failed.  Try INT 15:88.

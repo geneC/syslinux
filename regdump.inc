@@ -107,5 +107,3 @@ regnames:
 .fs	db ' FS: ',0
 .gs	db ' GS: ',0
 .ip	db ' IP: ',0
-
-

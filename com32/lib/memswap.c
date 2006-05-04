@@ -17,7 +17,7 @@ void memswap(void *m1, void *m2, size_t n)
     tmp = *p;
     *p = *q;
     *q = tmp;
-    
+
     p++; q++;
   }
 }

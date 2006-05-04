@@ -29,7 +29,7 @@ void qsort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, co
   do {
     gap = newgap(gap);
     swapped = 0;
-    
+
     for ( i = 0, p1 = base ; i < nmemb-gap ; i++, p1 += size ) {
       j = i+gap;
       if ( compar(p1, p2 = (char *)base+j*size) > 0 ) {
@@ -39,4 +39,3 @@ void qsort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, co
     }
   } while ( gap > 1 || swapped );
 }
-

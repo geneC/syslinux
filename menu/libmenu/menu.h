@@ -35,7 +35,7 @@
    * Could just quit the menu program
    * beep and return.
 
-   TIMEOUTSTEPSIZE is the interval for which the program sleeps without checking for 
+   TIMEOUTSTEPSIZE is the interval for which the program sleeps without checking for
    any keystroke. So increasing this will make the response of the system slow.
    Decreasing this will make a lot of interrupt calls using up your CPU. Default
    value of TIMEOUTSTEPSIZE of 0.1 seconds should be right in most cases.
@@ -43,7 +43,7 @@
    TIMEOUTNUMSTEPS of 3000 corresponds to a wait time of 300 seconds or 5 minutes
 */
 
-#define TIMEOUTSTEPSIZE 10  
+#define TIMEOUTSTEPSIZE 10
 #define TIMEOUTNUMSTEPS 30000L
 
 // Attributes
@@ -100,17 +100,17 @@
 
 // Other Chars
 #define SUBMENUCHAR   175 // This is >> symbol
-#define RADIOMENUCHAR '>' // > symbol for radio menu? 
+#define RADIOMENUCHAR '>' // > symbol for radio menu?
 #define EXITMENUCHAR  174 // This is << symbol
 #define CHECKED       251 // Check mark
 #define UNCHECKED     250 // Light bullet
-#define RADIOSEL      '.' // Current Radio Selection 
+#define RADIOSEL      '.' // Current Radio Selection
 #define RADIOUNSEL    ' ' // Radio option not selected
 
 typedef unsigned char uchar;
 
 // Types of menu's
-#define NORMALMENU 1 
+#define NORMALMENU 1
 #define RADIOMENU  2
 
 typedef enum {OPT_INACTIVE, OPT_SUBMENU, OPT_RUN, OPT_EXITMENU, OPT_CHECKBOX,
@@ -133,16 +133,16 @@ typedef struct {
    unsigned int reserved:6; // For future expansion
 } t_handler_return;
 
-t_handler_return ACTION_VALID,ACTION_INVALID; // Specific values 
+t_handler_return ACTION_VALID,ACTION_INVALID; // Specific values
 
 typedef t_handler_return (*t_item_handler)(struct s_menusystem *, struct s_menuitem *);
 typedef void (*t_menusystem_handler)(struct s_menusystem *, struct s_menuitem *);
 typedef void (*t_keys_handler)(struct s_menusystem *, struct s_menuitem *,
-              unsigned int scancode); 
+              unsigned int scancode);
     // Last parameter = HIGH BYTE = scan code , LOW BYTE = ASCII CODE
 
-typedef enum {HDLR_SCREEN, HDLR_KEYS } t_handler; 
-// Types of handlers for menu system 
+typedef enum {HDLR_SCREEN, HDLR_KEYS } t_handler;
+// Types of handlers for menu system
 
 // TIMEOUT is the list of possible values which can be returned by the handler
 // instructing the menusystem what to do. The default is CODE_WAIT
@@ -152,9 +152,9 @@ typedef TIMEOUTCODE (*t_timeout_handler)(void);
 typedef struct s_menuitem {
   char *item;
   char *status;
-  char *data; // string containing kernel to run.. but... 
+  char *data; // string containing kernel to run.. but...
   // for radio menu's this is a pointer to the item selected or NULL (initially)
-  // for submenu's this string could be name of menu 
+  // for submenu's this string could be name of menu
   void * extra_data; // Any other data user can point to
   unsigned int helpid; // Used for Context sensitive help
   t_item_handler handler; // Pointer to function of type menufn
@@ -162,8 +162,8 @@ typedef struct s_menuitem {
   t_itemdata itemdata; // Data depends on action value
   uchar shortcut; // one of [A-Za-z0-9] shortcut for this menu item
   uchar index; // Index within the menu array
-  uchar parindex; // Index of the menu in which this item appears. 
-  
+  uchar parindex; // Index of the menu in which this item appears.
+
 } t_menuitem;
 
 typedef t_menuitem *pt_menuitem; // Pointer to type menuitem
@@ -171,7 +171,7 @@ typedef t_menuitem *pt_menuitem; // Pointer to type menuitem
 typedef struct s_menu {
   pt_menuitem *items; // pointer to array of pointer to menuitems
   char *title; // Title string for menu
-  char *name; // menu can be referred to by this string 
+  char *name; // menu can be referred to by this string
   int maxmenusize; // the size of array allocated
   uchar numitems; // how many items do we actually have
   uchar menuwidth;
@@ -183,11 +183,11 @@ typedef t_menu *pt_menu; // Pointer to type menu
 
 typedef struct s_menusystem {
   pt_menu menus[MAXMENUS];
-  char *title; 
-  t_menusystem_handler handler; // Menu system handler 
+  char *title;
+  t_menusystem_handler handler; // Menu system handler
   t_keys_handler keys_handler; // Handler for unknown keys
   t_timeout_handler ontimeout; // Timeout handler
-  unsigned long tm_numsteps; 
+  unsigned long tm_numsteps;
   // Time to wait for key press=numsteps * stepsize milliseconds
   unsigned int tm_stepsize; // Timeout step size (in milliseconds)
   // Total timeout max time spent idle before we call handler
@@ -211,11 +211,11 @@ typedef struct s_menusystem {
   uchar shadowattr;
   uchar statline;
   uchar menupage;
-  uchar maxrow,minrow,numrows; // Number of rows in the window 
+  uchar maxrow,minrow,numrows; // Number of rows in the window
   uchar maxcol,mincol,numcols; // Number of columns in the window
 
   // Menu box look
-  boxtype menubt; // What type of boxes should be drawn 
+  boxtype menubt; // What type of boxes should be drawn
   char box_horiz,box_ltrt,box_rtlt; // Some chars of the box, for redrawing portions of the box
 
 } t_menusystem;
@@ -224,7 +224,7 @@ typedef t_menusystem *pt_menusystem; // Pointer to type menusystem
 
 pt_menuitem showmenus(uchar startmenu);
 
-pt_menusystem init_menusystem(const char *title); 
+pt_menusystem init_menusystem(const char *title);
 
 void close_menusystem(); // Deallocate memory used
 
@@ -241,14 +241,14 @@ void set_box_type(boxtype bt);
 
 void set_window_size(uchar top, uchar left, uchar bot, uchar right); // Set the window which menusystem should use
 
-void set_menu_options(uchar maxmenuheight); 
+void set_menu_options(uchar maxmenuheight);
 // maximum height of a menu
 
 void reg_handler(t_handler htype, void * handler); // Register handler
 
-void unreg_handler( t_handler htype); 
+void unreg_handler( t_handler htype);
 
-void reg_ontimeout(t_timeout_handler, unsigned int numsteps, unsigned int stepsize); 
+void reg_ontimeout(t_timeout_handler, unsigned int numsteps, unsigned int stepsize);
 // Set timeout handler, set 0 for default values.
 // So stepsize=0 means numsteps is measured in centiseconds.
 void unreg_ontimeout();
@@ -261,22 +261,22 @@ void unreg_ontotaltimeout();
 uchar find_menu_num(const char *name);
 
 // Create a new menu and return its position
-uchar add_menu(const char *title, int maxmenusize); 
+uchar add_menu(const char *title, int maxmenusize);
 
 // Create a named menu and return its position
-uchar add_named_menu(const char *name, const char *title, int maxmenusize); 
+uchar add_named_menu(const char *name, const char *title, int maxmenusize);
 
 void set_menu_pos(uchar row,uchar col); // Set the position of this menu.
 
-// Add item to the "current" menu 
+// Add item to the "current" menu
 pt_menuitem add_item(const char *item, const char *status, t_action action, const char *data, uchar itemdata);
 
 // Set shortcut key and help id
 void set_item_options(uchar shortcut,int helpid);
 
 // Set the shortcut key for the current item
-static inline void set_shortcut(uchar shortcut) 
-{ 
+static inline void set_shortcut(uchar shortcut)
+{
   set_item_options(shortcut,0xFFFF);
 }
 

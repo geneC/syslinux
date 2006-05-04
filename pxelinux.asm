@@ -15,7 +15,7 @@
 ;  the Free Software Foundation, Inc., 53 Temple Place Ste 330,
 ;  Boston MA 02111-1307, USA; either version 2 of the License, or
 ;  (at your option) any later version; incorporated herein by reference.
-; 
+;
 ; ****************************************************************************
 
 %define IS_PXELINUX 1
@@ -40,7 +40,7 @@ REBOOT_TIME	equ 5*60		; If failure, time until full reset
 MAX_OPEN_LG2	equ 5			; log2(Max number of open sockets)
 MAX_OPEN	equ (1 << MAX_OPEN_LG2)
 PKTBUF_SIZE	equ (65536/MAX_OPEN)	; Per-socket packet buffer size
-TFTP_PORT	equ htons(69)		; Default TFTP port 
+TFTP_PORT	equ htons(69)		; Default TFTP port
 PKT_RETRY	equ 6			; Packet transmit retry count
 PKT_TIMEOUT	equ 12			; Initial timeout, timer ticks @ 55 ms
 ; Desired TFTP block size
@@ -123,7 +123,7 @@ comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 ;
 ; BOOTP/DHCP packet pattern
 ;
-		struc bootp_t		
+		struc bootp_t
 bootp:
 .opcode		resb 1			; BOOTP/DHCP "opcode"
 .hardware	resb 1			; ARP hardware type
@@ -141,7 +141,7 @@ bootp:
 .bootfile	resb 128		; Boot file name
 .option_magic	resd 1			; Vendor option magic cookie
 .options	resb 1260		; Vendor options
-		endstruc	
+		endstruc
 
 BOOTP_OPTION_MAGIC	equ htonl(0x63825363)	; See RFC 2132
 
@@ -274,7 +274,7 @@ _start:
 
 		xor ax,ax
 		mov ds,ax
-		mov es,ax	
+		mov es,ax
 
 %ifndef DEPEND
 %if TEXT_START != 0x7c00
@@ -351,7 +351,7 @@ _start1:
 ; to by SS:[SP+4], but support INT 1Ah, AX=5650h method as well.
 ; FIX: ES:BX should point to the PXENV+ structure on entry as well.
 ; We should make that the second test, and not trash ES:BX...
-; 
+;
 		cmp dword [es:bx], '!PXE'
 		je have_pxe
 
@@ -592,12 +592,12 @@ query_bootp:
 		sub cx,di
 		xor ax,ax
 		rep stosb
-		
+
 		mov si,bootif_str
 		mov di,BOOTIFStr
 		mov cx,bootif_str_len
 		rep movsb
-	
+
 		pop cx
 		mov si,MACType
 		inc cx
@@ -675,7 +675,7 @@ check_dhcp_magic:
 		jnz .got_magic
 		mov byte [DHCPMagic], 0		; If not, kill all other options
 .got_magic:
-	
+
 
 ;
 ; Initialize UDP stack
@@ -976,7 +976,7 @@ kaboom:
 ;	On exit, if found:
 ;		CF = 0, ES:BX -> !PXE structure
 ;	Otherwise CF = 1, all registers saved
-;	
+;
 memory_scan_for_pxe_struct:
 		push ds
 		pusha
@@ -1036,7 +1036,7 @@ memory_scan_for_pxe_struct:
 ;	On exit, if found:
 ;		CF = 0, ES:BX -> PXENV+ structure
 ;	Otherwise CF = 1, all registers saved
-;	
+;
 memory_scan_for_pxenv_struct:
 		pusha
 		mov si,trymempxenv_msg
@@ -1082,7 +1082,7 @@ memory_scan_for_pxenv_struct:
 ;
 ; searchdir:
 ;
-;	Open a TFTP connection to the server 
+;	Open a TFTP connection to the server
 ;
 ;	     On entry:
 ;		DS:DI	= mangled filename
@@ -1109,9 +1109,9 @@ searchdir:
 
 		mov ax,PKT_RETRY	; Retry counter
 		mov word [PktTimeout],PKT_TIMEOUT	; Initial timeout
-	
+
 .sendreq:	push ax			; [bp-2]  - Retry counter
-		push si			; [bp-4]  - File name 
+		push si			; [bp-4]  - File name
 
 		mov di,packet_buf
 		mov [pxe_udp_write_pkt.buffer],di
@@ -1199,7 +1199,7 @@ searchdir:
 		pop ax
 		shl word [PktTimeout],1		; Exponential backoff
 		jmp .failure
-		
+
 .got_packet:
 		mov si,[bp-6]			; TFTP pointer
 		mov bx,[bp-8]			; TID
@@ -1304,7 +1304,7 @@ searchdir:
 
 		; Success, done!
 .done_pkt:
-		pop si			; Junk	
+		pop si			; Junk
 		pop si			; We want the packet ptr in SI
 
 		mov eax,[si+tftp_filesize]
@@ -1627,7 +1627,7 @@ getfssec:	push si
 		movzx ecx,cx
 		shl ecx,TFTP_BLOCKSIZE_LG2	; Convert to bytes
 		jz .hit_eof			; Nothing to do?
-		
+
 .need_more:
 		push ecx
 
@@ -1692,7 +1692,7 @@ getfssec:	push si
 get_packet:
 		mov ax,ds
 		mov es,ax
-	
+
 .packet_loop:
 		; Start by ACKing the previous packet; this should cause the
 		; next packet to be sent.
@@ -1744,7 +1744,7 @@ get_packet:
 		cmp ax,dx			; Same time -> don't advance timeout
 		je .wait_data			; Same clock tick
 		loop .wait_data			; Decrease timeout
-		
+
 		pop cx				; <D> Didn't get any, send another ACK
 		shl word [PktTimeout],1		; Exponential backoff
 		loop .send_ack
@@ -1814,7 +1814,7 @@ get_packet:
 		; Make sure we know we are at end of file
 		mov eax,[si+tftp_filepos]
 		mov [si+tftp_filesize],eax
-	
+
 		ret
 
 ;
@@ -1877,7 +1877,7 @@ unload_pxe:
 		jae .new_api
 		mov si,old_api_unload
 .new_api:
-		
+
 .call_loop:	xor ax,ax
 		lodsb
 		and ax,ax
@@ -1933,7 +1933,7 @@ unload_pxe:
 
 		; Update the base stack pointer since it's in use
 		lss sp,[SavedSSSP]
-		
+
 .combootstack:
 		pop gs
 		popf
@@ -1964,7 +1964,7 @@ unload_pxe:
 		pop es
 		pop ds
 		ret
-		
+
 .cant_free:
 		mov si,cant_free_msg
 		call writestr
@@ -2023,7 +2023,7 @@ gendotquad:
 		aam 10
 		; Now AH = 10-digit; AL = remainder
 		add ah,'0'
-		mov [es:di],ah		
+		mov [es:di],ah
 		inc di
 
 .lt10:
@@ -2413,9 +2413,9 @@ pxenventry_msg	db 'PXENV entry point found (we hope) at ', 0
 trymempxe_msg	db 'Scanning memory for !PXE structure... ', 0
 trymempxenv_msg	db 'Scanning memory for PXENV+ structure... ', 0
 undi_data_msg	  db 'UNDI data segment at:   ',0
-undi_data_len_msg db 'UNDI data segment size: ',0 
+undi_data_len_msg db 'UNDI data segment size: ',0
 undi_code_msg	  db 'UNDI code segment at:   ',0
-undi_code_len_msg db 'UNDI code segment size: ',0 
+undi_code_len_msg db 'UNDI code segment size: ',0
 cant_free_msg	db 'Failed to free base memory, error ', 0
 notfound_msg	db 'not found', CR, LF, 0
 myipaddr_msg	db 'My IP address seems to be ',0

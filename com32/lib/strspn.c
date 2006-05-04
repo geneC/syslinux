@@ -61,7 +61,6 @@ char *
 strpbrk(const char *s, const char *accept)
 {
   const char *ss = s+strxspn(s, accept, 1);
-  
+
   return *ss ? (char *)ss : NULL;
 }
-

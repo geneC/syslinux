@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -267,7 +267,7 @@ vk_check:
 		mov [CmdLinePtr],di		; Where to add rest of cmd
 		pop es
 		mov di,KernelName
-		push di	
+		push di
 		mov si,VKernelBuf+vk_rname
 		mov cx,FILENAME_MAX		; We need ECX == CX later
 		rep movsb
@@ -326,7 +326,7 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
 		mov cx,FILENAME_MAX-5		; Need 4 chars + null
 		repne scasb			; Scan for final null
 		jne .no_skip
-		dec di				; Point to final null 
+		dec di				; Point to final null
 .no_skip:	mov [KernelExtPtr],di
 %endif
 		mov bx,exten_table
@@ -424,7 +424,7 @@ getchar_timeout:
 		cmp ax,[BIOS_timer]		; Has the timer advanced?
 		je .loop
 		DO_IDLE
-		
+
 		dec dword [ThisKbdTo]
 		jz .timeout
 		dec dword [ThisTotalTo]
@@ -485,7 +485,7 @@ kernel_good:
 		sub di,KernelCName
 		mov [KernelCNameLen],di
 		popa
-		
+
 %if IS_SYSLINUX || IS_MDSLINUX
 		mov ecx,[KernelName+7]
 		mov cl,'.'

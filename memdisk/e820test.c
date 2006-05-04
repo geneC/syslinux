@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2001-2003 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -57,11 +57,11 @@ int main(void)
     p = strchr(line, ':');
     p = p ? p+1 : line;
     if ( sscanf(p, " %llx %llx %d", &start, &len, &type) == 3 ) {
-      putchar('\n'); 
+      putchar('\n');
       printf("%016llx %016llx %d <-\n", start, len, type);
-      putchar('\n'); 
+      putchar('\n');
       insertrange(start, len, type);
-      printranges(); 
+      printranges();
     }
   }
 
@@ -75,7 +75,7 @@ int main(void)
 
   /* Now, steal a chunk (2K) of DOS memory and make sure it registered OK */
   insertrange(dos_mem-2048, 2048, 2); /* Type 2 = reserved */
-  
+
   printranges();
   parse_mem();
 

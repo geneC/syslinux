@@ -330,7 +330,7 @@ found_drive:
 		mov si,noinfotable_msg
 		call writemsg
 %endif
-		
+
 		; No such luck.  See if the the spec packet contained one.
 		mov eax,[sp_lba]
 		and eax,eax
@@ -340,7 +340,7 @@ found_drive:
 		mov si,noinfoinspec_msg
 		call writemsg
 %endif
-		
+
 		; No such luck.  Get the Boot Record Volume, assuming single
 		; session disk, and that we're the first entry in the chain
 		mov eax,17			; Assumed address of BRV
@@ -354,7 +354,7 @@ found_drive:
 		mov eax,[trackbuf+28h]		; First boot entry
 		; And hope and pray this is us...
 
-		; Some BIOSes apparently have limitations on the size 
+		; Some BIOSes apparently have limitations on the size
 		; that may be loaded (despite the El Torito spec being very
 		; clear on the fact that it must all be loaded.)  Therefore,
 		; we load it ourselves, and *bleep* the BIOS.
@@ -442,7 +442,7 @@ integrity_ok:
 ;; Start of BrokenAwardHack --- 10-nov-2002           Knut_Petersen@t-online.de
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;; There is a problem with certain versions of the AWARD BIOS ... 
+;; There is a problem with certain versions of the AWARD BIOS ...
 ;; the boot sector will be loaded and executed correctly, but, because the
 ;; int 13 vector points to the wrong code in the BIOS, every attempt to
 ;; load the spec packet will fail. We scan for the equivalent of
@@ -459,7 +459,7 @@ integrity_ok:
 ;; for anybody to change it now or in the future. There are no opcodes
 ;; that use encodings relativ to IP, so scanning is easy. If we find the
 ;; code above in the BIOS code we can be pretty sure to run on a machine
-;; with an broken AWARD BIOS ... 
+;; with an broken AWARD BIOS ...
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 									     ;;
@@ -494,7 +494,7 @@ award_hack:	mov 	si,spec_err_msg		; Moved to this place from
 %ifdef DEBUG_MESSAGES				;
 						;
 		call	writehex8		;
-		mov	si,award_not_crlf	; 
+		mov	si,award_not_crlf	;
 		call	writestr		;
 %endif						;
 		push	es			; save ES
@@ -509,7 +509,7 @@ award_loop:	push 	di			; save DI
 		pop 	di			; restore DI
 		jcxz 	award_found		; jmp if found
 		inc 	di			; not found, inc di
-		jno	award_loop		; 
+		jno	award_loop		;
 						;
 award_failed:	pop	es			; No, not this way :-((
 award_fail2:					;
@@ -535,7 +535,7 @@ award_found:	mov	eax,[es:di+0eh]		; load possible int 13 addr
 						;
 %ifdef DEBUG_MESSAGES				;
 						;
-		push	eax			; display message and 
+		push	eax			; display message and
 		mov	si,award_not_new	; new vector address
 		call	writemsg		;
 		pop	eax			;
@@ -546,7 +546,7 @@ award_found:	mov	eax,[es:di+0eh]		; load possible int 13 addr
 		mov 	ax,4B01h		; try to read the spec packet
 		mov 	dl,[DriveNo]		; now ... it should not fail
 		mov 	si,spec_packet		; any longer
-		int 	13h			; 
+		int 	13h			;
 		jc	award_fail2		;
 						;
 %ifdef DEBUG_MESSAGES				;
@@ -637,7 +637,7 @@ writemsg:	push ax
 		call writestr
 		pop si
 		call writestr
-		pop ax				
+		pop ax
 		ret
 
 ;
@@ -885,7 +885,7 @@ all_read:
 ; mkisofs gave us a pointer to the primary volume descriptor
 ; (which will be at 16 only for a single-session disk!); from the PVD
 ; we should be able to find the rest of what we need to know.
-; 
+;
 get_fs_structures:
 		mov eax,[bi_pvd]
 		mov bx,trackbuf
@@ -901,7 +901,7 @@ get_fs_structures:
 		call crlf
 %endif
 		mov eax,[trackbuf+156+10]
-		mov [RootDir+dir_len],eax		
+		mov [RootDir+dir_len],eax
 		mov [CurDir+dir_len],eax
 		add eax,SECTOR_SIZE-1
 		shr eax,SECTOR_SHIFT
@@ -1012,7 +1012,7 @@ is_disk_image:
 		mov bx,trackbuf
 		mov cx,1			; Load 1 sector
 		call getfssec
-		
+
 		cmp word [trackbuf+510],0aa55h	; Boot signature
 		jne .bad_image		; Image not bootable
 
@@ -1031,7 +1031,7 @@ is_disk_image:
 .part_loop:
 		add di,byte 16
 		loop .part_scan
-		
+
 		push eax			; H/S
 		push edx			; File size
 		mov bl,ah
@@ -1124,7 +1124,7 @@ local_boot:
 		call writestr
 		cmp ax,-1
 		je .int18
-		
+
 		; Load boot sector from the specified BIOS device and jump to it.
 		mov dl,al
 		xor dh,dh
@@ -1320,7 +1320,7 @@ allocate_file:
 		ret
 
 ;
-; iso_compare_names: 
+; iso_compare_names:
 ;	Compare the names DS:SI and DS:DI and report if they are
 ;	equal from an ISO 9660 perspective.  SI is the name from
 ;	the filesystem; CX indicates its length, and ';' terminates.
@@ -1379,7 +1379,7 @@ iso_compare_names:
 ;	       and removes trailing dots and redundant slashes,
 ;	       so "repe cmpsb" can do a compare, and the
 ;	       path-searching routine gets a bit of an easier job.
-;	       
+;
 mangle_name:
 		push bx
 		xor ax,ax

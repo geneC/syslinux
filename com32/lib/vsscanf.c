@@ -210,7 +210,7 @@ int vsscanf(const char *buffer, const char *format, va_list ap)
 	case 'u':		/* Unsigned decimal integer */
 	  base = 10; sign = 0;
 	  goto scan_int;
-	  
+
 	case 'x':		/* Hexadecimal integer */
 	case 'X':
 	  base = 16; sign = 0;
@@ -259,7 +259,7 @@ int vsscanf(const char *buffer, const char *format, va_list ap)
 	    }
 	  }
 	  break;
-	  
+
 	case 'c':               /* Character */
           width = (flags & FL_WIDTH) ? width : 1; /* Default width == 1 */
           sarg = va_arg(ap, char *);
@@ -289,7 +289,7 @@ int vsscanf(const char *buffer, const char *format, va_list ap)
 	    }
 	  }
 	  break;
-	  
+
 	case '[':		/* Character range */
 	  sarg = va_arg(ap, char *);
 	  state = st_match_init;
@@ -310,7 +310,7 @@ int vsscanf(const char *buffer, const char *format, va_list ap)
 	}
       }
       break;
-    
+
     case st_match_init:		/* Initial state for %[ match */
       if ( ch == '^' && !(flags & FL_INV) ) {
 	matchinv = 1;
@@ -319,7 +319,7 @@ int vsscanf(const char *buffer, const char *format, va_list ap)
 	state = st_match;
       }
       break;
-      
+
     case st_match:		/* Main state for %[ match */
       if ( ch == ']' ) {
 	goto match_run;
@@ -330,7 +330,7 @@ int vsscanf(const char *buffer, const char *format, va_list ap)
 	set_bit(matchmap, (unsigned char)ch);
       }
       break;
-      
+
     case st_match_range:		/* %[ match after - */
       if ( ch == ']' ) {
 	set_bit(matchmap, (unsigned char)'-'); /* - was last character */

@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -11,10 +11,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -56,12 +56,12 @@ ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
     switch ( ch ) {
     case '\n':			/* Ignore incoming linefeed */
       break;
-      
+
     case '\r':
       *buf = '\n';
       Write(fp, "\n", 1);
       return n+1;
-    
+
     case '\b':
       if ( n > 0 ) {
 	n--; buf--;
@@ -75,7 +75,7 @@ ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
 	Write(fp, "\b \b", 3);
       }
       break;
-      
+
     default:
       if ( n < bufsize-1 ) {
 	*buf = ch;
@@ -87,4 +87,3 @@ ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
     }
   }
 }
-

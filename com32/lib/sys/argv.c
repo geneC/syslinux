@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -11,10 +11,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -79,7 +79,7 @@ int __parse_argv(char ***argv, const char *str)
   arg = ALIGN_UP(q,char *);
   *argv = arg;
   *arg++ = argv0;		/* argv[0] */
-  
+
   q--;				/* Point q to final null */
   if ( mem < q )
     *arg++ = mem;		/* argv[1] */
@@ -95,4 +95,3 @@ int __parse_argv(char ***argv, const char *str)
 
   return argc;
 }
-

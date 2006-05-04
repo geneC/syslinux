@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,7 @@
 
 ;;
 ;; comboot.inc
-;; 
+;;
 ;; Common code for running a COMBOOT image
 ;;
 
@@ -383,7 +383,7 @@ comapi_run:
 		jmp comboot_exit_special	; Terminate task, clean up
 
 ;
-; INT 22h AX=0004h	Run default command		
+; INT 22h AX=0004h	Run default command
 ;
 ; Terminates the COMBOOT program and executes the default command line
 ; as if a timeout had happened or the user pressed <Enter>.
@@ -598,7 +598,7 @@ comapi_dnsresolv:
 %else
 comapi_dnsresolv equ comapi_err
 %endif
-		
+
 		section .text
 
 ;
@@ -698,7 +698,7 @@ comapi_runkernel:
 		mov [Kernel_SI],si
 		mov [Kernel_EAX],ax
 		mov [Kernel_EAX+2],dx
-		
+
 		; It's not just possible, but quite likely, that ES:BX
 		; points into real_mode_seg, so we need to exercise some
 		; special care here... use xfer_buf_seg as an intermediary

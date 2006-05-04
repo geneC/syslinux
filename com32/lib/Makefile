@@ -76,4 +76,3 @@ install: all
 	cp -r ../include $(INSTALLROOT)$(COM32DIR)
 
 -include .*.d */.*.d
-

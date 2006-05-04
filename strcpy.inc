@@ -11,4 +11,3 @@ strcpy:		push ax
 		jnz .loop
 		pop ax
 		ret
-

@@ -34,7 +34,7 @@ int __start(void)
   unsigned int ax,cx,si,t;
   com32sys_t  inreg,outreg;
   char *p;
-  
+
   /* Test null system call */
   inreg.eflags.l = 0xffffffff;
   inreg.eax.l = 0x11110000;
@@ -63,7 +63,7 @@ int __start(void)
   __com32.cs_intcall(0x22, &inreg, &outreg);
   printregs(&outreg);
   printf("----\n");
-  
+
   si = outreg.esi.w[0];		/* File handle */
   cx = outreg.ecx.w[0];		/* Block size */
   ax = outreg.eax.l;		/* File length */
@@ -71,7 +71,7 @@ int __start(void)
   while ( si ) {
     /* We can only read 64K per call */
     t = ( ax > 65536 ) ? 65536/cx : (ax+cx-1)/cx;
-    
+
     memset(&inreg, 0, sizeof inreg);
     inreg.esi.w[0] = si;
     inreg.ecx.w[0] = t;		/* Block count */

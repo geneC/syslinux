@@ -43,7 +43,7 @@ const unsigned char __ctypes[257] = {
   __ctype_cntrl,		/* control character */
   __ctype_cntrl,		/* control character */
   __ctype_cntrl,		/* control character */
-  
+
   __ctype_print|__ctype_space,	/* space */
   __ctype_print|__ctype_punct,	/* punctuation */
   __ctype_print|__ctype_punct,	/* punctuation */

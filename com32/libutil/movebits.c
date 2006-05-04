@@ -30,7 +30,7 @@ make_movelist(struct movelist *pptr, uintptr_t dst, uintptr_t src, uintptr_t len
 
   if ( !ml )
     return NULL;
-  
+
   ml->dst = dst;
   ml->src = src;
   ml->len = len;
@@ -102,7 +102,7 @@ split_movelist(uintptr_t start, uintptr_t len, struct movelist **parentptr)
 
   assert(start >= ml->src);
   assert(start < ml->src+ml->len);
-  
+
   /* Split off the beginning */
   if ( start > ml->src ) {
     uintptr_t l = start - ml->src;
@@ -210,7 +210,7 @@ allocate_from(uintptr_t start, uintptr_t len, struct movelist **parentptr)
     parentptr = split_movelist(start, len, parentptr);
     c = *parentptr;
   }
-  
+
   *parentptr = c->next;
   free(c);
 }
@@ -218,7 +218,7 @@ allocate_from(uintptr_t start, uintptr_t len, struct movelist **parentptr)
 /*
  * Remove any chunk from the freelist which is already
  * claimed by source data.  This somewhat frivolously
- * assumes that the fragments are either completely 
+ * assumes that the fragments are either completely
  * covered by a free zone or not covered at all.
  */
 static void
@@ -316,7 +316,7 @@ compute_movelist(struct movelist **moves, struct movelist *frags,
 	copylen = (*ep)->len;
       }
       allocate_from(copydst, copylen, ep);
-	
+
       if ( copylen >= o->len - (needbase-o->src) ) {
 	copysrc = o->src + (o->len - copylen);
       } else {
@@ -354,7 +354,7 @@ compute_movelist(struct movelist **moves, struct movelist *frags,
       goto move_chunk;
     }
     return -1;			/* Stuck! */
-    
+
   move_chunk:
     /* We're allowed to move the chunk into place now. */
 
@@ -363,7 +363,7 @@ compute_movelist(struct movelist **moves, struct movelist *frags,
       fp = split_movelist(f->src, copylen+(needbase-f->dst), fp);
       f = *fp;
     }
-    
+
     mv = new_movelist(f->dst, f->src, f->len);
     dprintf("A: 0x%08x bytes at 0x%08x -> 0x%08x\n",
 	    mv->len, mv->src, mv->dst);
@@ -431,4 +431,3 @@ int main(int argc, char *argv[])
 }
 
 #endif /* TEST */
-

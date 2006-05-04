@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -62,6 +62,6 @@ int main(int argc, char *argv[])
   } else {
     printf("%s not found\n", argv[1]);
   }
-    
+
   return 0;
 }

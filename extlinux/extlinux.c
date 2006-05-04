@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 1998-2005 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -94,7 +94,7 @@ static const struct option long_options[] = {
   { "help",     0, NULL, 'h' },
   { 0, 0, 0, 0 }
 };
-    
+
 static const char short_options[] = "iUuzS:H:vh";
 
 
@@ -146,7 +146,7 @@ enum bs_offsets {
   bs32VolumeLabel   = 71,
   bs32FileSysType   = 82,
   bs32Code          = 90,
-  
+
   bsSignature     = 0x1fe
 };
 
@@ -317,7 +317,7 @@ sectmap(int fd, uint32_t *sectors, int nsectors)
 
   nblk = 0;
   while ( nsectors ) {
-    
+
     blk = nblk++;
     dprintf("querying block %u\n", blk);
     if ( ioctl(fd, FIBMAP, &blk) )
@@ -400,7 +400,7 @@ get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
     geo->cylinders = fd_str.track;
     geo->start     = 0;
     return 0;
-  } 
+  }
 
   /* Didn't work.  Let's see if this is one of the standard geometries */
   for ( gp = standard_geometries ; gp->bytes ; gp++ ) {
@@ -488,33 +488,33 @@ patch_file_and_bootblock(int fd, int dirfd, int devfd)
   /* First sector need pointer in boot sector */
   set_32(boot_block+0x1F8, *sectp++);
   nsect--;
-  
+
   /* Search for LDLINUX_MAGIC to find the patch area */
   for ( p = boot_image ; get_32(p) != LDLINUX_MAGIC ; p += 4 );
   patcharea = p+8;
-  
+
   /* Set up the totals */
   dw = boot_image_len >> 2; /* COMPLETE dwords! */
   set_16(patcharea, dw);
   set_16(patcharea+2, nsect);	/* Does not include the first sector! */
   set_32(patcharea+8, dirst.st_ino); /* "Current" directory */
-  
+
   /* Set the sector pointers */
   p = patcharea+12;
-  
+
   memset(p, 0, 64*4);
   while ( nsect-- ) {
     set_32(p, *sectp++);
     p += 4;
   }
-  
+
   /* Now produce a checksum */
   set_32(patcharea+4, 0);
 
   csum = LDLINUX_MAGIC;
   for ( i = 0, p = boot_image ; i < dw ; i++, p += 4 )
     csum -= get_32(p);		/* Negative checksum */
-  
+
   set_32(patcharea+4, csum);
 }
 
@@ -536,7 +536,7 @@ install_bootblock(int fd, const char *device)
     fprintf(stderr, "no ext2/ext3 superblock found on %s\n", device);
     return 1;
   }
-  
+
   if ( xpwrite(fd, boot_block, boot_block_len, 0) != boot_block_len ) {
     perror("writing bootblock");
     return 1;
@@ -565,7 +565,7 @@ install_file(const char *path, int devfd, struct stat *rst)
     perror(path);
     goto bail;
   }
-    
+
   fd = open(file, O_RDONLY);
   if ( fd < 0 ) {
     if ( errno != ENOENT ) {
@@ -589,7 +589,7 @@ install_file(const char *path, int devfd, struct stat *rst)
     perror(file);
     goto bail;
   }
-  
+
   /* Write it the first time */
   if ( xpwrite(fd, boot_image, boot_image_len, 0) != boot_image_len ) {
     fprintf(stderr, "%s: write failure on %s\n", program, file);
@@ -657,7 +657,7 @@ install_loader(const char *path, int update_only)
     fprintf(stderr, "%s: Not a directory: %s\n", program, path);
     return 1;
   }
-  
+
   devfd = -1;
 
   if ( (mtab = setmntent("/proc/mounts", "r")) ) {
@@ -692,12 +692,12 @@ install_loader(const char *path, int update_only)
     fprintf(stderr, "%s: cannot open device %s\n", program, devname);
     return 1;
   }
-  
+
   if ( update_only && !already_installed(devfd) ) {
     fprintf(stderr, "%s: no previous extlinux boot sector found\n", program);
     return 1;
   }
-	    
+
   install_file(path, devfd, &fst);
 
   if ( fst.st_dev != st.st_dev ) {

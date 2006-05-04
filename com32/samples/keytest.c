@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -40,7 +40,7 @@ static void cooked_keys(void)
       exit(0);
     } else if ( key == '?' )
       return;
-    
+
     if ( key >= 0x20 && key < 0x100 ) {
       putchar(key);
     } else {
@@ -63,7 +63,7 @@ static void raw_keys(void)
       exit(0);
     } else if ( key == '!' )
       return;
-    
+
     printf("<%02x>", key);
   }
 }

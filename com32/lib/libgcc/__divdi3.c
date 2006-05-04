@@ -20,7 +20,7 @@ int64_t __divdi3(int64_t num, int64_t den)
     den = -den;
     minus ^= 1;
   }
-  
+
   v = __udivmoddi4(num, den, NULL);
   if ( minus )
     v = -v;

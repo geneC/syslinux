@@ -369,10 +369,10 @@ int vsnprintf(char *buffer, size_t n, const char *format, va_list ap)
 	  {
 	    char sch;
 	    int i;
-	    
+
 	    if ( prec != -1 && slen > prec )
 	      slen = prec;
-	    
+
 	    if ( width > slen && !(flags & FL_MINUS) ) {
 	      char pad = (flags & FL_ZERO) ? '0' : ' ';
 	      while ( width > slen ) {
@@ -414,7 +414,7 @@ int vsnprintf(char *buffer, size_t n, const char *format, va_list ap)
 	    }
 	  }
 	  break;
-	  
+
 	default:		/* Anything else, including % */
 	  EMIT(ch);
 	  break;

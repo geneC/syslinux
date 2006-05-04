@@ -294,4 +294,3 @@ int main(int argc, char *argv[])
   fputs("Error: no recognized network card found!\n", stderr);
   return 1;
 }
-

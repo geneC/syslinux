@@ -14,7 +14,7 @@
 ;  the Free Software Foundation, Inc., 53 Temple Place Ste 330,
 ;  Boston MA 02111-1307, USA; either version 2 of the License, or
 ;  (at your option) any later version; incorporated herein by reference.
-; 
+;
 ; ****************************************************************************
 
 %ifndef DEPEND
@@ -573,7 +573,7 @@ Int15Start:
 		je int15_88
 oldint15:	pop bp
 		jmp far [cs:OldInt15]
-		
+
 int15_e801:
 		mov ax,[cs:Mem1MB]
 		mov cx,ax
@@ -596,7 +596,7 @@ int15_88:
 ; Routine to copy in/out of high memory
 ; esi = linear source address
 ; edi = linear target address
-; ecx = 32-bit word count 
+; ecx = 32-bit word count
 ;
 ; Assumes cs = ds = es
 ;
@@ -658,7 +658,7 @@ bcopy:
 		add dx,8
 		; DX = 16 for BIGRAW, 8 for RAW
 		;  8 is selector for a 64K flat segment,
-		; 16 is selector for a 4GB flat segment.	
+		; 16 is selector for a 4GB flat segment.
 
 		lgdt [cs:Shaker]
 		mov eax,cr0

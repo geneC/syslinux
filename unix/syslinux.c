@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 1998-2005 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
 
   program = argv[0];
   mypid = getpid();
-  
+
   device = NULL;
 
   umask(077);
@@ -321,7 +321,7 @@ int main(int argc, char *argv[])
 	  else
 	    continue;
 	}
-	
+
 	if ( ioctl(loop_fd, LOOP_GET_STATUS64, &loopinfo) ||
 	     (loopinfo.lo_offset = filesystem_offset,
 	      ioctl(loop_fd, LOOP_SET_STATUS64, &loopinfo)) )
@@ -364,10 +364,10 @@ int main(int argc, char *argv[])
       rmdir(mntpath);
       exit(1);			/* Mount failed */
     }
-    
+
 #endif
   }
-  
+
   ldlinux_name = alloca(strlen(mntpath)+13);
   if ( !ldlinux_name ) {
     perror(program);
@@ -502,4 +502,3 @@ umount:
 
   return 0;
 }
-

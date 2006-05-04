@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -36,6 +36,6 @@ int main(void)
       break;
     printf(": %s", buffer);
   }
-    
+
   return 0;
 }

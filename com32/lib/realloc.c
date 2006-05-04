@@ -36,7 +36,7 @@ void *realloc(void *ptr, size_t size)
     /* Make me a new block.  This is kind of bogus; we should
        be checking the adjacent blocks to see if we can do an
        in-place adjustment... fix that later. */
-    
+
     oldsize = ah->a.size - sizeof(struct arena_header);
 
     newptr = malloc(size);
@@ -46,4 +46,3 @@ void *realloc(void *ptr, size_t size)
     return newptr;
   }
 }
-  

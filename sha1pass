@@ -7,7 +7,7 @@ use MIME::Base64;
 sub random_bytes($) {
     my($n) = @_;
     my($v, $i);
-    
+
     if ( open(RANDOM, '<', '/dev/random') ||
 	 open(RANDOM, '<', '/dev/urandom') ) {
 	read(RANDOM, $v, $n);

@@ -71,4 +71,3 @@ static inline int my_isspace(char c)
 }
 
 #endif /* MENU_H */
-

@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2003 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -89,7 +89,7 @@ com32_enter_pm:
 		or al,1
 		mov cr0,eax		; Enter protected mode
 		jmp 20h:.in_pm
-		
+
 		bits 32
 .in_pm:
 		xor eax,eax		; Available for future use...

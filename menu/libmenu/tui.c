@@ -1,5 +1,5 @@
 /* -*- c -*- ------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004-2006 Murali Krishnan Ganapathy - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -26,7 +26,7 @@ char eolstr[] = "\n$";
 // showoldvalue <> 0 implies currentvalue displayed first
 // If showoldvalue <> 0 then caller responsibility to ensure that
 // str is NULL terminated.
-void getuserinput(char *stra, unsigned int size, unsigned int password, 
+void getuserinput(char *stra, unsigned int size, unsigned int password,
   unsigned int showoldvalue)
 {
     unsigned char c,scan;
@@ -61,7 +61,7 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
     // Invariants: p is the current char
     // col is the corresponding column on the screen
     if (password == 0) // Not a password, print initial value
-    { 
+    {
        gotoxy(row,col,page);
        csprint(str,GETSTRATTR);
     }
@@ -73,7 +73,7 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
         break;
       }
       fudge = 0;
-        // if scan code is regognized do something 
+        // if scan code is regognized do something
         // else if char code is recognized do something
         // else ignore
       switch(scan) {
@@ -86,13 +86,13 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
         case LTARROW:
              if (p > str) p--;
              break;
-        case CTRLLT: 
+        case CTRLLT:
              if (p==str) break;
-             if (*p == ' ') 
+             if (*p == ' ')
                 while ((p > str) && (*p == ' ')) p--;
              else {
                 if (*(p-1) == ' ') {
-                   p--; 
+                   p--;
                    while ((p > str) && (*p == ' ')) p--;
                 }
              }
@@ -101,9 +101,9 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
         case RTARROW:
              if (p < last) p++;
              break;
-        case CTRLRT: 
+        case CTRLRT:
              if (*p==0) break; // At end of string
-             if (*p != ' ') 
+             if (*p != ' ')
                 while ((*p!=0) && (*p != ' ')) p++;
              while ((*p!=0) && ((*p == ' ') && (*(p+1) != ' '))) p++;
              if (*p==' ') p++;
@@ -136,7 +136,7 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
               p = str; *p=0; last = str;
 	      break;
 	  default: // Handle insert and overwrite mode
-	      if ((c >= ' ') && (c < 128) && 
+	      if ((c >= ' ') && (c < 128) &&
                   ((unsigned int)(p-str) < size-1) ) {
                 if (insmode == 0) { // Overwrite mode
                   if (p==last) last++;
@@ -186,7 +186,7 @@ void cswprint(const char *str,char attr,char left)
     nc = getnumcols();
     getpos(&row,&col,page);
     while ( *str ) {
-      switch (*str) 
+      switch (*str)
 	{
 	case '\b':
 	  --col;
@@ -205,9 +205,9 @@ void cswprint(const char *str,char attr,char left)
 	case CHABSATTR: // change attribute (absolute)
 	  cha = *(str+1);
 	  chb = *(str+2);
-	  if ((((cha >= '0') && (cha <= '9')) || 
+	  if ((((cha >= '0') && (cha <= '9')) ||
 	       ((cha >= 'A') && (cha <= 'F'))) &&
-	      (((chb >= '0') && (chb <= '9')) || 
+	      (((chb >= '0') && (chb <= '9')) ||
 	       ((chb >= 'A') && (chb <= 'F')))) // Next two chars are legal
 	    {
 	      if ((cha >= 'A') && (cha <= 'F'))
@@ -282,7 +282,7 @@ unsigned char * getboxchars(boxtype bt)
 {
    switch (bt)
    {
-     case BOX_SINSIN: 
+     case BOX_SINSIN:
           return SINSIN_CHARS;
           break;
      case BOX_DBLDBL:
@@ -302,12 +302,12 @@ unsigned char * getboxchars(boxtype bt)
 }
 
 // Draw box and lines
-void drawbox(char top,char left,char bot, char right, 
+void drawbox(char top,char left,char bot, char right,
              char page, char attr,boxtype bt)
 {
    unsigned char *box_chars; // pointer to array of box chars
    unsigned char x;
-    
+
   box_chars = getboxchars(bt);
   // Top border
   gotoxy(top,left,page);
@@ -333,7 +333,7 @@ void drawbox(char top,char left,char bot, char right,
     }
 }
 
-void drawhorizline(char top, char left, char right, char page, char attr, 
+void drawhorizline(char top, char left, char right, char page, char attr,
                    boxtype bt, char dumb)
 {
   unsigned char start,end;
@@ -351,7 +351,7 @@ void drawhorizline(char top, char left, char right, char page, char attr,
   {
     gotoxy(top,left,page);
     cprint(box_chars[BOX_LTRT],attr,1,page);
-    gotoxy(top,right,page); 
+    gotoxy(top,right,page);
     cprint(box_chars[BOX_RTLT],attr,1,page);
   }
 }

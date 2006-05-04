@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -155,7 +155,7 @@ void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 
   if ( err )
     die("sector read error");
-}  
+}
 
 /* Both traditional DOS and FAT32 DOS return this structure, but
    FAT32 return a lot more data, so make sure we have plenty of space */
@@ -187,7 +187,7 @@ uint32_t get_partition_offset(int drive)
   struct deviceparams dp;
 
   dp.specfunc = 1;		/* Get current information */
-  
+
   rv = 0x440d;
   asm volatile("int $0x21 ; setc %0"
 	       : "=abcdm" (err), "+a" (rv)
@@ -195,7 +195,7 @@ uint32_t get_partition_offset(int drive)
 
   if ( !err )
     return dp.hiddensecs;
-    
+
   rv = 0x440d;
   asm volatile("int $0x21 ; setc %0"
 	       : "=abcdm" (err), "+a" (rv)
@@ -249,7 +249,7 @@ void write_mbr(int drive, const void *buf)
   asm volatile("int $0x21 ; setc %0"
 	       : "=abcdm" (err), "+a" (rv)
 	       : "c" (0x4841), "d" (&mbr), "b" (drive));
-  
+
   if ( err )
     die("mbr write error");
 }
@@ -276,7 +276,7 @@ void read_mbr(int drive, const void *buf)
   asm volatile("int $0x21 ; setc %0"
 	       : "=abcdm" (err), "+a" (rv)
 	       : "c" (0x4861), "d" (&mbr), "b" (drive));
-  
+
   if ( err )
     die("mbr read error");
 }
@@ -412,12 +412,12 @@ static void adjust_mbr(int device, int writembr, int set_active)
     memcpy(sectbuf, syslinux_mbr, syslinux_mbr_len);
     *(uint16_t *)(sectbuf+510) = 0xaa55;
   }
-    
+
   if ( set_active ) {
     uint32_t offset = get_partition_offset(device);
     struct mbr_entry *me = (struct mbr_entry *)(sectbuf+446);
     int found = 0;
-    
+
     for ( i = 0 ; i < 4 ; i++ ) {
       if ( me->startlba == offset ) {
 	me->active = 0x80;
@@ -434,7 +434,7 @@ static void adjust_mbr(int device, int writembr, int set_active)
       die("multiple aliased partitions found");
     }
   }
-    
+
   write_mbr(device, sectbuf);
 }
 
@@ -460,7 +460,7 @@ int main(int argc, char *argv[])
     dprintf("argv[%d] = %p = \"%s\"\n", i, argv[i], argv[i]);
 
   (void)argc;			/* Unused */
-  
+
   get_dos_version();
 
   for ( argp = argv+1 ; *argp ; argp++ ) {
@@ -523,7 +523,7 @@ int main(int argc, char *argv[])
     putchar('\n');
     exit(1);
   }
-  
+
   ldlinux_name[0] = dev_fd | 0x40;
 
   set_attributes(ldlinux_name, 0);
@@ -591,4 +591,3 @@ int main(int argc, char *argv[])
 
   return 0;
 }
-

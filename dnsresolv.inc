@@ -1,6 +1,6 @@
 ; -*- fundamental -*-
 ; -----------------------------------------------------------------------
-;   
+;
 ;   Copyright 2004-2005 H. Peter Anvin - All Rights Reserved
 ;
 ;   This program is free software; you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 ; this should be the normal thing for client-serving DNS servers.)
 ;
 
-DNS_PORT	equ htons(53)		; Default DNS port 
+DNS_PORT	equ htons(53)		; Default DNS port
 DNS_MAX_PACKET	equ 512			; Defined by protocol
 ; TFTP uses the range 49152-57343
 DNS_LOCAL_PORT	equ htons(60053)	; All local DNS queries come from this port #
@@ -94,7 +94,7 @@ dns_compare:
 		movzx cx,al			; End label?
 		and cx,cx			; ZF = 1 if match
 		jz .done
-		
+
 		; We have a string of bytes that need to match now
 		repe cmpsb
 		je .label
@@ -206,7 +206,7 @@ dns_resolv:
 		stosw
 		stosw
 		stosw
-		
+
 		call dns_mangle		; Convert name to DNS labels
 
 		push cs			; DS <- CS
@@ -264,7 +264,7 @@ dns_resolv:
 		push cx
 		push dx
 
-		mov word [pxe_udp_write_pkt_dns.status],0	
+		mov word [pxe_udp_write_pkt_dns.status],0
 
 		mov [pxe_udp_write_pkt_dns.sip],eax
 		mov [pxe_udp_read_pkt_dns.sip],eax
@@ -309,7 +309,7 @@ dns_resolv:
 		xor al,80h			; Query#/Answer bit
 		test ax,htons(0F80Fh)
 		jnz .badness
-		
+
 		lodsw
 		xchg ah,al			; ntohs
 		mov cx,ax			; Questions echoed
@@ -368,7 +368,7 @@ dns_resolv:
 		; then at least try a different setver...
 		test word [DNSRecvBuf+dnshdr.flags],htons(0480h)
 		jz .timeout
-		
+
 		xor eax,eax
 		jmp .gotresult
 

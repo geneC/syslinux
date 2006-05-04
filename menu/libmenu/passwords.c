@@ -1,5 +1,5 @@
 /* -*- c -*- ------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004-2005 Murali Krishnan Ganapathy - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 #include <stdio.h>
 #include "tui.h"
 
-#define MAX_LINE 512 
+#define MAX_LINE 512
 // Max line length in a pwdfile
 p_pwdentry userdb[MAX_USERS]; // Array of pointers
 int numusers; // Actual number of users
@@ -78,7 +78,7 @@ void init_passwords(const char *filename)
 
   for (i=0; i < MAX_USERS; i++) userdb[i] = NULL;
   numusers = 0;
- 
+
   if ( !filename ) return; // No filename specified
 
   f = fopen(filename,"r");
@@ -103,7 +103,7 @@ void init_passwords(const char *filename)
     *p = '\0';
     pwdhash = p+1;
     if (*pwdhash == 0) continue; // Malformed line (no password specified)
-    p = strchr(pwdhash,':'); 
+    p = strchr(pwdhash,':');
     if (p == NULL) { // No perms specified
        perms = NULL;
     } else {
@@ -111,7 +111,7 @@ void init_passwords(const char *filename)
        perms = p+1;
        if (*perms == 0) perms = NULL;
     }
-    // At this point we have user,pwdhash and perms setup 
+    // At this point we have user,pwdhash and perms setup
     userdb[numusers] = (p_pwdentry)malloc(sizeof(pwdentry));
     strcpy(userdb[numusers]->username,user);
     strcpy(userdb[numusers]->pwdhash,pwdhash);

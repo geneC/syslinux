@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,7 @@
 		section .text
 ;
 ; "default" command
-; 
+;
 pc_default:	mov di,default_cmd
 		call getline
 		mov byte [di-1],0		; null-terminate
@@ -172,7 +172,7 @@ pc_serial:	call getint
 		call getint
 		mov [FlowControl], word 0	; Default to no flow control
 		jc .nobaud
-.valid_baud:	
+.valid_baud:
 		push ebx
 		call skipspace
 		jc .no_flow

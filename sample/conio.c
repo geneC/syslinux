@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2001-2003 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -38,7 +38,7 @@ int putchar(int ch)
     /* \n -> \r\n */
     putchar('\r');
   }
-  
+
   regs.eax.b[1] = 0x02;
   regs.edx.b[0] = ch;
   __com32.cs_intcall(0x21, &regs, NULL);

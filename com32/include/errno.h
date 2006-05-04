@@ -132,4 +132,3 @@ extern int errno;
 #define	EMEDIUMTYPE	124	/* Wrong medium type */
 
 #endif /* _ERRNO_H */
-

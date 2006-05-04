@@ -44,7 +44,7 @@ writechr:
 		ja .scroll
 .curxyok:	mov bh,[BIOS_page]
 		mov ah,02h		; Set cursor position
-		int 10h			
+		int 10h
 .ret:		popad
 .nothing:
 		popfd
@@ -69,4 +69,3 @@ writechr:
 		jnc .curxyok
 		xor dh,dh
 		jmp short .curxyok
-

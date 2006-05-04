@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -117,7 +117,7 @@ vidrows_ok:	mov [VidRows],al
 		popa
 		ret
 
-		
+
 ; VGA font buffer at the end of memory (so loading a font works even
 ; in graphics mode, but don't put too much pressure on the .bss)
 		section .latebss
@@ -127,5 +127,3 @@ vgafontbuf	resb 8192
 		align 2, db 0
 VGAFontSize	dw 16			; Defaults to 16 byte font
 UserFont	db 0			; Using a user-specified font
-
-

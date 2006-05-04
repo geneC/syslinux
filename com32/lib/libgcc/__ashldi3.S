@@ -15,11 +15,11 @@ __ashldi3:
 #endif
 	cmpb  $32,%cl
 	jae   1f
-	
+
 	shldl %cl,%eax,%edx
 	shl   %cl,%eax
 	ret
-	
+
 1:
 	xorl  %edx,%edx
 	shl   %cl,%eax

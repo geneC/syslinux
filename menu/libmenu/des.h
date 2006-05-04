@@ -6,4 +6,3 @@
 extern char *crypt (const char *key, const char *salt);
 
 #endif
-

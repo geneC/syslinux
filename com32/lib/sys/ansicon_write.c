@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -11,10 +11,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -134,7 +134,7 @@ static void __constructor ansicon_init(void)
 static void ansicon_erase(int x0, int y0, int x1, int y1)
 {
   static com32sys_t ireg;
-  
+
   ireg.eax.w[0] = 0x0600;	/* Clear window */
   ireg.ebx.b[1] = st.attr;	/* Fill with current attribute */
   ireg.ecx.b[0] = x0;
@@ -214,7 +214,7 @@ static void ansicon_putchar(int ch)
       break;
     }
     break;
-      
+
   case st_esc:
     switch ( ch ) {
     case '%':
@@ -241,7 +241,7 @@ static void ansicon_putchar(int ch)
       break;
     }
     break;
-      
+
   case st_csi:
     {
       int p0 = st.parms[0] ? st.parms[0] : 1;
@@ -353,7 +353,7 @@ static void ansicon_putchar(int ch)
 	    case 2:
 	      ansicon_erase(0, xy.y, cols-1, xy.y);
 	      break;
-	  
+
 	    default:
 	      /* Ignore */
 	      break;
@@ -443,7 +443,7 @@ static void ansicon_putchar(int ch)
 		break;
 	      }
 	    }
-	  
+
 	    /* Turn into an attribute code */
 	    {
 	      int bg = st.bg;
@@ -508,8 +508,8 @@ static void ansicon_putchar(int ch)
   ireg.edx.b[1] = xy.y;
   ireg.edx.b[0] = xy.x;
   __intcall(0x10, &ireg, NULL);
-}	
-      
+}
+
 
 ssize_t __ansicon_write(struct file_info *fp, const void *buf, size_t count)
 {

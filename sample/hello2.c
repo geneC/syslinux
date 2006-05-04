@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2002 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -49,7 +49,7 @@ static void writemsg(const char *msg)
   inreg.ebx.w[0] = OFFS(__com32.cs_bounce);
   inreg.es       = SEG(__com32.cs_bounce);
   __com32.cs_intcall(0x22, &inreg, NULL);
-};  
+};
 
 int __start(void)
 {

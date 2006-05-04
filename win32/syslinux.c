@@ -1,8 +1,8 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2003 Lars Munch Christensen - All Rights Reserved
  *   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
- *	
+ *
  *   Based on the Linux installer program for SYSLINUX by H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -53,7 +53,7 @@ typedef struct _STORAGE_DEVICE_NUMBER {
 BOOL GetStorageDeviceNumberByHandle( HANDLE handle, const STORAGE_DEVICE_NUMBER *sdn ) {
   BOOL result = FALSE;
   DWORD count;
-  
+
   if ( DeviceIoControl( handle, IOCTL_STORAGE_GET_DEVICE_NUMBER, NULL,
 			0, (LPVOID)sdn, sizeof( *sdn ), &count, NULL ) ) {
     result = TRUE;
@@ -61,7 +61,7 @@ BOOL GetStorageDeviceNumberByHandle( HANDLE handle, const STORAGE_DEVICE_NUMBER 
   else {
     error("GetDriveNumber: DeviceIoControl failed");
   }
-  
+
   return( result );
 }
 
@@ -69,23 +69,23 @@ int GetBytesPerSector( HANDLE drive ) {
   int result = 0;
   DISK_GEOMETRY g;
   DWORD count;
-  
+
   if ( DeviceIoControl( drive, IOCTL_DISK_GET_DRIVE_GEOMETRY, NULL, 0,
 			&g, sizeof( g ), &count, NULL ) ) {
     result = g.BytesPerSector;
   }
-  
+
   return( result );
 }
 
 BOOL FixMBR(int driveNum, int partitionNum, int write_mbr, int set_active) {
   BOOL result = TRUE;
   HANDLE drive;
-  
+
   char driveName[128];
-  
+
   sprintf( driveName, "\\\\.\\PHYSICALDRIVE%d", driveNum );
-  
+
   drive = CreateFile( driveName,
 		      GENERIC_READ | GENERIC_WRITE,
 		      FILE_SHARE_WRITE | FILE_SHARE_READ,
@@ -93,22 +93,22 @@ BOOL FixMBR(int driveNum, int partitionNum, int write_mbr, int set_active) {
 		      OPEN_EXISTING,
 		      0,
 		      NULL );
-  
+
   if( drive == INVALID_HANDLE_VALUE ) {
     error("Accessing physical drive");
     result = FALSE;
   }
-  
+
   if( result ) {
     unsigned char sector[SECTOR_SIZE];
     DWORD howMany;
-    
+
     if( GetBytesPerSector( drive ) != SECTOR_SIZE ) {
       fprintf(stderr, "Error: Sector size of this drive is %d; must be %d\n",
 	      GetBytesPerSector( drive ), SECTOR_SIZE );
       result = FALSE;
     }
-    
+
     if ( result ) {
       if ( ReadFile( drive, sector, sizeof( sector ), &howMany, NULL ) == 0 ) {
 	error("Reading raw drive");
@@ -119,7 +119,7 @@ BOOL FixMBR(int driveNum, int partitionNum, int write_mbr, int set_active) {
 	result = FALSE;
       }
     }
-    
+
     // Copy over the MBR code if specified (-m)
     if ( write_mbr ) {
       if ( result ) {
@@ -131,7 +131,7 @@ BOOL FixMBR(int driveNum, int partitionNum, int write_mbr, int set_active) {
 	}
       }
     }
-    
+
     // Check that our partition is active if specified (-a)
     if ( set_active ) {
       if ( sector[ PART_TABLE + ( PART_SIZE * ( partitionNum - 1 ) ) ] != 0x80 ) {
@@ -143,7 +143,7 @@ BOOL FixMBR(int driveNum, int partitionNum, int write_mbr, int set_active) {
 
     if ( result ) {
       SetFilePointer( drive, 0, NULL, FILE_BEGIN );
-      
+
       if ( WriteFile( drive, sector, sizeof( sector ), &howMany, NULL ) == 0 ) {
 	error("Writing MBR");
 	result = FALSE;
@@ -153,13 +153,13 @@ BOOL FixMBR(int driveNum, int partitionNum, int write_mbr, int set_active) {
 	result = FALSE;
       }
     }
-    
+
     if( !CloseHandle( drive ) ) {
       error("CloseFile on drive");
       result = FALSE;
     }
   }
-  
+
   return( result );
 }
 
@@ -194,14 +194,14 @@ void error(char* msg)
   LPVOID lpMsgBuf;
 
   /* Format the Windows error message */
-  FormatMessage( 
-		FORMAT_MESSAGE_ALLOCATE_BUFFER | 
-		FORMAT_MESSAGE_FROM_SYSTEM | 
+  FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER |
+		FORMAT_MESSAGE_FROM_SYSTEM |
 		FORMAT_MESSAGE_IGNORE_INSERTS,
 		NULL, GetLastError(),
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
 		(LPTSTR) &lpMsgBuf, 0, NULL );
-  
+
   /* Print it */
   fprintf(stderr, "%s: %s", msg, (char*) lpMsgBuf);
 
@@ -283,7 +283,7 @@ int main(int argc, char *argv[])
 	  syslinux_make_stupid();
 	  break;
 	case 'f':		/* Force install */
-	  force = 1;   
+	  force = 1;
 	  break;
 	case 'm':		/* Install MBR */
 	  mbr = 1;
@@ -349,7 +349,7 @@ int main(int argc, char *argv[])
 
   /*
    * Make sure we can read the boot sector
-   */  
+   */
   if ( !ReadFile(d_handle, sectbuf, 512, &bytes_read, NULL) ) {
     error("Reading boot sector");
     exit(1);
@@ -358,7 +358,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Could not read the whole boot sector\n");
     exit(1);
   }
-  
+
   /* Check to see that what we got was indeed an MS-DOS boot sector/superblock */
   if( (errmsg = syslinux_check_bootsect(sectbuf)) ) {
     fprintf(stderr, "%s\n", errmsg);
@@ -376,11 +376,11 @@ int main(int argc, char *argv[])
   /* Create ldlinux.sys file */
   f_handle = CreateFile(ldlinux_name, GENERIC_READ | GENERIC_WRITE,
 			FILE_SHARE_READ | FILE_SHARE_WRITE,
-			NULL, CREATE_ALWAYS, 
+			NULL, CREATE_ALWAYS,
 			FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_SYSTEM |
 			FILE_ATTRIBUTE_HIDDEN,
 			NULL );
-  
+
   if (f_handle == INVALID_HANDLE_VALUE) {
     error("Unable to create ldlinux.sys");
     exit(1);
@@ -443,7 +443,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  /* Close file */ 
+  /* Close file */
   CloseHandle(f_handle);
 
   /* Make the syslinux boot sector */
@@ -453,7 +453,7 @@ int main(int argc, char *argv[])
   if ( bootsecfile ) {
     f_handle = CreateFile(bootsecfile, GENERIC_READ | GENERIC_WRITE,
 			  FILE_SHARE_READ | FILE_SHARE_WRITE,
-			  NULL, CREATE_ALWAYS, 
+			  NULL, CREATE_ALWAYS,
 			  FILE_ATTRIBUTE_ARCHIVE,
 			  NULL );
     if (f_handle == INVALID_HANDLE_VALUE) {
@@ -474,8 +474,8 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Could not write the whole boot sector\n");
     exit(1);
   }
-  
-  /* Close file */ 
+
+  /* Close file */
   CloseHandle(d_handle);
 
   /* Done! */

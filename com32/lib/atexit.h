@@ -14,4 +14,3 @@ struct atexit {
 };
 
 #endif /* ATEXIT_H */
-

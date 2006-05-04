@@ -1,7 +1,7 @@
 ; -*- fundamental -*- (asm-mode sucks)
 ; $Id$
 ; -----------------------------------------------------------------------
-;   
+;
 ;   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
 ;
 ;   This program is free software; you can redistribute it and/or modify
@@ -62,7 +62,7 @@ dosver_ok:
 		xor cx,cx
 		mov si,pspCommandArg
 		mov cl,[pspCommandLen]
-		
+
 cmdscan1:	jcxz bad_usage			; End of command line?
 		lodsb				; Load character
 		dec cx
@@ -112,7 +112,7 @@ copyfile:	stosb
 		cmp al,' '
 		ja copyfile
 		jmp short got_cmdline
-		
+
 ;
 ; We end up here if the command line doesn't parse
 ;
@@ -164,7 +164,7 @@ got_cmdline:
 		inc dl				; 1-based
 		mov ah,32h
 		int 21h				; Get Drive Parameter Block
-		
+
 		and al,al
 		jnz filesystem_error
 

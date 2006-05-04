@@ -1,5 +1,5 @@
 /* -*- c -*- ------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004-2005 Murali Krishnan Ganapathy - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -81,6 +81,6 @@
 #define ALT_PRESSED   (1<<3)
 #define CTRL_PRESSED  (1<<2)
 // actually 1<<1 is Left Shift, 1<<0 is right shift
-#define SHIFT_PRESSED (1<<1 | 1 <<0)   
+#define SHIFT_PRESSED (1<<1 | 1 <<0)
 
 #endif

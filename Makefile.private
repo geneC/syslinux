@@ -1,5 +1,5 @@
 ## -*- makefile -*- ------------------------------------------------------
-##   
+##
 ##   Copyright 2000-2005 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
@@ -89,7 +89,7 @@ prerel:
 	$(MAKE) -C $(PRERELDIR)/$(PREREL) dist
 	cd $(PRERELDIR)/$(PREREL) && rm -rf $(PRIVATE)
 	cd $(PRERELDIR) && tar cvvf - $(PREREL) | \
-		gzip -9 > $(PREREL).tar.gz 
+		gzip -9 > $(PREREL).tar.gz
 	cd $(PRERELDIR) && \
 		uuencode $(PREREL).tar.gz $(PREREL).tar.gz > uu/$(PREREL).uu
 	cd $(PRERELDIR)/$(PREREL) && \

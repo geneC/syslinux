@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2001 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -40,7 +40,7 @@ static void insertrange_at(int where, uint64_t start, uint32_t type)
 
   for ( i = nranges ; i > where ; i-- )
     ranges[i] = ranges[i-1];
-  
+
   ranges[where].start = start;
   ranges[where].type  = type;
 
@@ -58,7 +58,7 @@ void insertrange(uint64_t start, uint64_t len, uint32_t type)
   /* Remove this to make len == 0 mean all of memory */
   if ( len == 0 )
     return;			/* Nothing to insert */
-  
+
   last = start+len-1;		/* May roll over */
 
   i = 0;
@@ -102,4 +102,3 @@ void insertrange(uint64_t start, uint64_t len, uint32_t type)
     nranges -= (i-j);
   }
 }
-

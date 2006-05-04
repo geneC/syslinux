@@ -15,11 +15,11 @@ __lshrdi3:
 #endif
 	cmpb  $32,%cl
 	jae   1f
-	
+
 	shrdl %cl,%edx,%eax
 	shrl  %cl,%edx
 	ret
-	
+
 1:
 	shrl  %cl,%edx
 	xorl  %eax,%eax

@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2003-2004 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -11,10 +11,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -60,7 +60,7 @@ int open(const char *pathname, int flags, ...)
 
   if ( fd < 0 )
     return -1;
-  
+
   fp = &__file_info[fd];
 
   strlcpy(__com32.cs_bounce, pathname, __com32.cs_bounce_size);
@@ -70,7 +70,7 @@ int open(const char *pathname, int flags, ...)
   regs.es = SEG(__com32.cs_bounce);
 
   __com32.cs_intcall(0x22, &regs, &regs);
-  
+
   if ( (regs.eflags.l & EFLAGS_CF) || regs.esi.w[0] == 0 ) {
     errno = ENOENT;
     return -1;
@@ -87,4 +87,4 @@ int open(const char *pathname, int flags, ...)
   fp->i.nbytes    = 0;
 
   return fd;
-} 
+}

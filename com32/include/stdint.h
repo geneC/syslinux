@@ -140,7 +140,3 @@ typedef uint64_t		uintmax_t;
 #endif /* STDC_CONSTANT_MACROS */
 
 #endif /* _STDINT_H */
-
-
-
-

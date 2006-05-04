@@ -1,5 +1,5 @@
 /* -*- c -*- ------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004-2005 Murali Krishnan Ganapathy - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -25,21 +25,21 @@
 
 #define BELL 0x07
 // CHRELATTR = ^N, CHABSATTR = ^O
-#define CHABSATTR 15 
+#define CHABSATTR 15
 #define CHRELATTR 14
 
-void clearwindow(char top, char left, char bot, char right, 
+void clearwindow(char top, char left, char bot, char right,
 		 char page, char fillchar, char fillattr);
 
 void cls(void);	/* Clears the entire current screen page */
 
-// Generic user input, 
+// Generic user input,
 // password = 0 iff chars echoed on screen
 // showoldvalue <> 0 iff current displayed for editing
-void getuserinput(char *str, unsigned int size, 
+void getuserinput(char *str, unsigned int size,
      unsigned int password, unsigned int showoldvalue);
 
-static inline void getstring(char *str, unsigned int size) 
+static inline void getstring(char *str, unsigned int size)
 {
    getuserinput(str,size,0,0);
 }
@@ -65,8 +65,8 @@ static inline void getpwd(char * str, unsigned int size)
 #define BOX_LEFT     0x5
 #define BOX_RIGHT    0x5
 #define BOX_VERT     0x5 // LEFT=RIGHT=VERT
-#define BOX_LTRT     0x6 
-#define BOX_RTLT     0x7 
+#define BOX_LTRT     0x6
+#define BOX_RTLT     0x7
 #define BOX_TOPBOT   0x8
 #define BOX_BOTTOP   0x9
 #define BOX_MIDDLE   0xA
@@ -75,7 +75,7 @@ typedef enum {BOX_SINSIN,BOX_DBLDBL, BOX_SINDBL, BOX_DBLSIN} boxtype;
 
 unsigned char * getboxchars(boxtype bt);
 
-void drawbox(char top,char left,char bot, char right, 
+void drawbox(char top,char left,char bot, char right,
              char page, char attr,boxtype bt);
 
 // Draw a horizontal line

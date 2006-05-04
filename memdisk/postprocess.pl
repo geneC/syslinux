@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 ## -----------------------------------------------------------------------
-##   
+##
 ##   Copyright 2001 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
@@ -55,4 +55,3 @@ while ( ($n = read(FILE, $f32, 65536)) > 0 ) {
 
 close(FILE);
 close(OUT);
-

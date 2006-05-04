@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2001-2003 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -41,13 +41,13 @@ static inline int get_e820(void)
     regs.edx.l = 0x534d4150;
     regs.edi.w[0] = OFFS(buf);
     regs.es = SEG(buf);
-  
+
     syscall(0x15, &regs, &regs);
     copied = (regs.eflags.l & 1) ? 0 : regs.ecx.l;
-    
+
     if ( regs.eax.l != 0x534d4150 || copied < 20 )
       break;
-    
+
     printf("e820: %08x%08x %08x%08x %d\n",
 	   (uint32_t)(buf->base >> 32), (uint32_t)buf->base,
 	   (uint32_t)(buf->len >> 32), (uint32_t)buf->len,

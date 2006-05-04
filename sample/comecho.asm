@@ -13,7 +13,7 @@ _start:
 	mov dl,"<"
 	mov ah,02h
 	int 21h
-	
+
 .writechar:
 	lodsb
 	mov dl,al
@@ -27,9 +27,6 @@ _start:
 
 	; Exit with near return, INT 20h, or INT 21h AX=4C00h
 	ret
-	
-		
+
+
 end_str	db ">", 0Dh, 0Ah, "$"
-	
-	
-	

@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,7 @@
 
 ;;
 ;; bootsect.inc
-;; 
+;;
 ;; Load a boot sector (or other bootstrap program.)
 ;;
 ;; Unlike previous versions of this software, this doesn't require that
@@ -97,13 +97,13 @@ replace_bootstrap_one:
 		push word 1			; Length of descriptor list
 		; Fall through
 
-; 
+;
 ; Entrypoint for "shut down and replace bootstrap" -- also invoked by
 ; the COMBOOT API.  This routine expects two words on the stack:
 ; address of the copy list (versus DS) and count.  Additionally,
 ; the values of ESI and EDX are passed on to the new bootstrap;
 ; the value of BX becomes the new DS.
-; 
+;
 replace_bootstrap:
 		;
 		; Prepare for shutting down
@@ -117,7 +117,7 @@ replace_bootstrap:
 		;
 		xor ax,ax
 		mov ds,ax
-		mov es,ax		
+		mov es,ax
 
 %if IS_PXELINUX
 		test byte [KeepPXE],01h

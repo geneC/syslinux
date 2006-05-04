@@ -20,6 +20,6 @@ int vasprintf(char **bufp, const char *format, va_list ap)
   *bufp = p = malloc(bytes);
   if ( !p )
     return -1;
-  
+
   return vsnprintf(p, bytes, format, ap);
 }

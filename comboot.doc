@@ -166,7 +166,7 @@ INT 21h AH=01h	[2.01] Get Key with Echo
 	characters received from the keyboard are returned as NUL (00h)
 	+ the extended character code.
 
-	
+
 INT 21h AH=02h	[2.01] Write Character
 
 	Writes a character in DL to the console (video and serial)
@@ -566,7 +566,7 @@ AX=0012h [3.05] Cleanup, shuffle and boot
 	The copies must not touch memory below address 7C00h.
 
 	ES:DI points to a list of CX descriptors each of the form:
-	
+
 		Offset	Size	Meaning
 		 0	dword	destination address
 		 4	dword	source address

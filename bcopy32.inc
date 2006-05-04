@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,7 @@
 
 ;;
 ;; bcopy32.inc
-;; 
+;;
 ;; 32-bit bcopy routine for real mode
 ;;
 
@@ -117,7 +117,7 @@ bcopy:		push eax
 		and ecx,3
 		shr eax,2
 		a32 rep movsb
-		
+
 		; Change ESI/EDI to point to the last dword, instead
 		; of the last byte.
 		sub esi,3
@@ -159,7 +159,7 @@ bcopy:		push eax
 ; IBM ThinkPad 760EL.
 ;
 ; We typically toggle A20 twice for every 64K transferred.
-; 
+;
 %define	io_delay	call _io_delay
 %define IO_DELAY_PORT	80h		; Invalid port (we hope!)
 %define disable_wait 	32		; How long to wait for a disable
@@ -383,7 +383,7 @@ empty_8042:
 		test al,2
 		jnz empty_8042
 		io_delay
-.done:		ret	
+.done:		ret
 
 ;
 ; Execute a WBINVD instruction if possible on this CPU

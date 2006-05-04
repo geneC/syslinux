@@ -15,11 +15,11 @@ __ashrdi3:
 #endif
 	cmpb  $32,%cl
 	jae   1f
-	
+
 	shrdl %cl,%edx,%eax
 	sarl  %cl,%edx
 	ret
-	
+
 1:
 	sarl  %cl,%edx
 	movl  %edx,%eax

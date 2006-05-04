@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2005 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -11,10 +11,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -39,12 +39,12 @@
 int fstat(int fd, struct stat *buf)
 {
   struct file_info *fp = &__file_info[fd];
-  
+
   if ( fd >= NFILES || !fp->iop ) {
     errno = EBADF;
     return -1;
   }
-  
+
   if ( fp->iop->flags & __DEV_FILE ) {
     buf->st_mode = S_IFREG | 0444;
     buf->st_size = fp->i.length;
@@ -55,5 +55,3 @@ int fstat(int fd, struct stat *buf)
 
   return 0;
 }
-
-

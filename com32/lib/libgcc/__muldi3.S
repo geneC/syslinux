@@ -28,7 +28,7 @@ __muldi3:
 	pop   %esi
 	imull %esi,%ecx
 	addl  %ecx,%edx
-#endif	
+#endif
 	pop   %esi
 	ret
 	.size __muldi3,.-__muldi3

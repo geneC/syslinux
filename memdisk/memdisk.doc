@@ -138,7 +138,7 @@ The MEMDISK info structure currently contains:
 	[ES:DI+2]	byte	MEMDISK minor version
 	[ES:DI+3]	byte	MEMDISK major version
 	[ES:DI+4]	dword	Pointer to MEMDISK data in high memory
-	[ES:DI+8]	dword	Size of MEMDISK data in 512-byte sectors 
+	[ES:DI+8]	dword	Size of MEMDISK data in 512-byte sectors
 	[ES:DI+12]	16:16	Far pointer to command line
 	[ES:DI+16]	16:16	Old INT 13h pointer
 	[ES:DI+20]	16:16	Old INT 15h pointer

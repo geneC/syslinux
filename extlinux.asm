@@ -13,7 +13,7 @@
 ;  the Free Software Foundation, Inc., 53 Temple Place Ste 330,
 ;  Boston MA 02111-1307, USA; either version 2 of the License, or
 ;  (at your option) any later version; incorporated herein by reference.
-; 
+;
 ; ****************************************************************************
 
 %define IS_EXTLINUX 1
@@ -332,7 +332,7 @@ eddcheck:
 		mov eax,[FirstSector]	; Sector start
 		mov bx,ldlinux_sys	; Where to load it
 		call getonesec
-		
+
 		; Some modicum of integrity checking
 		cmp dword [ldlinux_magic+4],LDLINUX_MAGIC^HEXDATE
 		jne kaboom
@@ -477,7 +477,7 @@ getlinsec_cbios:
 		cmp bp,si
 		jna .bp_ok
 		mov bp,si
-.bp_ok:	
+.bp_ok:
 
 		shl ah,6		; Because IBM was STOOPID
 					; and thought 8 bits were enough
@@ -516,14 +516,14 @@ getlinsec_cbios:
 		shr word [MaxTransfer],1
 		jnz .resume
 		; Fall through to disk_error
-	
+
 ;
 ; kaboom: write a message and bail out.
 ;
 disk_error:
 kaboom:
 		xor si,si
-		mov ss,si		
+		mov ss,si
 		mov sp,StackBuf-4 	; Reset stack
 		mov ds,si		; Reset data segment
 		pop dword [fdctab]	; Restore FDC table
@@ -598,7 +598,7 @@ CurrentDir	dd 2		; "Current" directory inode number
 SectorPtrs	times 64 dd 0
 
 ldlinux_ent:
-; 
+;
 ; Note that some BIOSes are buggy and run the boot sector at 07C0:0000
 ; instead of 0000:7C00 and the like.  We don't want to add anything
 ; more to the boot sector, so it is written to not assume a fixed
@@ -973,7 +973,7 @@ open_inode:
 
 		; Now, we need the block group descriptor.
 		; To get that, we first need the relevant descriptor block.
-				
+
 		shl eax, ext2_group_desc_lg2size ; Get byte offset in desc table
 		xor edx,edx
 		div dword [ClustSize]
@@ -1130,7 +1130,7 @@ searchdir:
 
 		cmp byte [di],0		; More path?
 		je .err			; If not, bad
-		
+
 .skipslash:				; Skip redundant slashes
 		cmp byte [di],'/'
 		jne .readdir
@@ -1148,7 +1148,7 @@ searchdir:
 .getent:
 		cmp dword [bx+d_inode],0
 		je .endblock
-		
+
 		push di
 		movzx cx,byte [bx+d_name_len]
 		lea si,[bx+d_name]
@@ -1168,7 +1168,7 @@ searchdir:
 
 .maybe:
 		mov eax,[bx+d_inode]
-		
+
 		; Does this match the end of the requested filename?
 		cmp byte [di],0
 		je .finish
@@ -1269,7 +1269,7 @@ SymlinkCtr	resb	1
 ;
 ;	       FIX: we may want to support \-escapes here (and this would
 ;	       be the place.)
-;	       
+;
 mangle_name:
 		push bx
 		xor ax,ax

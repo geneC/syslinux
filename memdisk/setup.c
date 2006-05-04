@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2001-2005 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 
 const char memdisk_version[] =
 "MEMDISK " VERSION " " DATE;
-const char copyright[] = 
+const char copyright[] =
 "Copyright " FIRSTYEAR "-" COPYYEAR " H. Peter Anvin";
 
 extern const char _binary_memdisk_bin_start[], _binary_memdisk_bin_end[];
@@ -65,7 +65,7 @@ struct patch_area {
   uint32_t diskbuf;
   uint32_t disksize;
   uint16_t cmdline_off, cmdline_seg;
-  
+
   uint32_t oldint13;
   uint32_t oldint15;
 
@@ -218,11 +218,11 @@ const char *getcmditem(const char *what)
       break;
     }
   }
-    
+
   /* Check for matching string at end of line */
   if ( match == 1 && *wp == '\0' )
     return CMD_BOOL;
-  
+
   return CMD_NOTFOUND;
 }
 
@@ -261,7 +261,7 @@ void unzip_if_needed(uint32_t *where_p, uint32_t *size_p)
     for ( i = nranges-1 ; i >= 0 ; i-- ) {
       /* We can't use > 4G memory (32 bits only.)  Truncate to 2^32-1
 	 so we don't have to deal with funny wraparound issues. */
-      
+
       /* Must be memory */
       if ( ranges[i].type != 1 )
 	continue;
@@ -298,14 +298,14 @@ void unzip_if_needed(uint32_t *where_p, uint32_t *size_p)
       if ( (uint64_t)where+size >= gzwhere && where < endrange ) {
 	/* Need to move source data to avoid compressed/uncompressed overlap */
 	uint32_t newwhere;
-	
+
 	if ( gzwhere-startrange < size )
 	  continue;		/* Can't fit both old and new */
-	
+
 	newwhere = (gzwhere - size) & ~(UNZIP_ALIGN-1);
 	printf("Moving compressed data from 0x%08x to 0x%08x\n",
 	       where, newwhere);
-	
+
 	/* Our memcpy() is OK, because we always move from a higher
 	   address to a lower one */
 	memcpy((void *)newwhere, (void *)where, size);
@@ -344,7 +344,7 @@ struct geometry {
 };
 
 static const struct geometry geometries[] =
-{ 
+{
   {  360*2, 40,  2,  9, 0, 0x01, 0 }, /*  360 K */
   {  720*2, 80,  2,  9, 0, 0x03, 0 }, /*  720 K*/
   { 1200*2, 80,  2, 15, 0, 0x02, 0 }, /* 1200 K */
@@ -426,7 +426,7 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
     hd_geometry.h = v;
   if ( CMD_HASDATA(p = getcmditem("s")) && (v = atou(p)) )
     hd_geometry.s = v;
-  
+
   if ( (p = getcmditem("floppy")) != CMD_NOTFOUND ) {
     hd_geometry.driveno = CMD_HASDATA(p) ? atou(p) & 0x7f : 0;
     if ( hd_geometry.type == 0 )
@@ -442,30 +442,30 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
        (hd_geometry.s == 0) ) {
     /* Hard disk image, need to examine the partition table for geometry */
     memcpy(&ptab, (char *)where+hd_geometry.offset+(512-2-4*16), sizeof ptab);
-    
+
     max_c = max_h = 0;  max_s = 1;
     for ( i = 0 ; i < 4 ; i++ ) {
       if ( ptab[i].type ) {
 	c = ptab[i].start_c + (ptab[i].start_s >> 6);
 	s = (ptab[i].start_s & 0x3f);
 	h = ptab[i].start_h;
-	
+
 	if ( max_c < c ) max_c = c;
 	if ( max_h < h ) max_h = h;
 	if ( max_s < s ) max_s = s;
-	
+
 	c = ptab[i].end_c + (ptab[i].end_s >> 6);
 	s = (ptab[i].end_s & 0x3f);
 	h = ptab[i].end_h;
-	
+
 	if ( max_c < c ) max_c = c;
 	if ( max_h < h ) max_h = h;
 	if ( max_s < s ) max_s = s;
       }
     }
-    
+
     max_c++; max_h++;		/* Convert to count (1-based) */
-    
+
     if ( !hd_geometry.h )
       hd_geometry.h = max_h;
     if ( !hd_geometry.s )
@@ -682,7 +682,7 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   regs.eax.b[1] = 0x08;
   regs.edx.b[0] = geometry->driveno & 0x80;
   syscall(0x13, &regs, &regs);
-  
+
   if ( regs.eflags.l & 1 ) {
     printf("INT 13 08: Failure, assuming this is the only drive\n");
     pptr->drivecnt = 1;
@@ -711,10 +711,10 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   /* Install the interrupt handlers */
   printf("old: int13 = %08x  int15 = %08x\n",
 	 rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
-  
+
   wrz_32(BIOS_INT13, driverptr+hptr->int13_offs);
   wrz_32(BIOS_INT15, driverptr+hptr->int15_offs);
-  
+
   printf("new: int13 = %08x  int15 = %08x\n",
 	 rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
 
@@ -737,7 +737,7 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
       nflop = 4;
 
     equip &= 0x3E;
-    if ( nflop ) 
+    if ( nflop )
       equip |= ((nflop-1) << 6) | 0x01;
 
     wrz_8(BIOS_EQUIP, equip);
@@ -758,7 +758,7 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
     puts("MEMDISK: Failed to load new boot sector\n");
     die();
   }
-  
+
   if ( getcmditem("pause") != CMD_NOTFOUND ) {
     puts("press any key to boot... ");
     regs.eax.w[0] = 0;

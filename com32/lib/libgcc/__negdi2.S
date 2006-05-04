@@ -3,7 +3,7 @@
  *
  * 64-bit negation
  */
-	
+
 	.text
 	.align 4
 	.globl __negdi2

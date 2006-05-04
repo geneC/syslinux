@@ -1,7 +1,7 @@
 All the lines in this file not in between --something BEGINS-- and --something ENDS--
 is ignored completely and will not make it into the generated C file
 
-This file has sections of C code each section delimited by --secname BEGINS-- 
+This file has sections of C code each section delimited by --secname BEGINS--
 and --secname ENDS--. In the generated C code certain section may be used multiple
 times. Currently the different section which must be defined are
 
@@ -11,15 +11,15 @@ Any additional sections you define will be processed but will probably not make 
 to the C code if you do not modify menugen.py to use it.
 
 header and footer go through unmolested. The remaining are % substituted using
-python rules. Basically it means %(var)s gets replaced by the value of the variable 
+python rules. Basically it means %(var)s gets replaced by the value of the variable
 "var" which is a processed form of what is read from the .menu file
 
-NOTE: There is absolutely no C code in the python script, so you are free to 
+NOTE: There is absolutely no C code in the python script, so you are free to
 modify this template to suit your needs
 
 --header BEGINS--
 /* -*- c -*- ------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004-2006 Murali Krishnan Ganapathy - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -54,7 +54,7 @@ typedef t_xtra *pt_xtra; // Pointer to extra datastructure
 // Types of dot commands for which caller takes responsibility of handling
 // In some case some commands may not make sense, it is up to the caller
 // to handle cases which do not make sense
-typedef enum {QUIT_CMD, REPEAT_CMD, ENTER_CMD, ESCAPE_CMD} t_dotcmd; 
+typedef enum {QUIT_CMD, REPEAT_CMD, ENTER_CMD, ESCAPE_CMD} t_dotcmd;
 
 
 /*----------------- Global Variables */
@@ -89,7 +89,7 @@ char * strip(char *str)
 {
   char *p,*s,*e;
   if (!str) return NULL;
-  p = str; 
+  p = str;
   s = NULL;
   e = NULL;
   while (*p) {
@@ -103,10 +103,10 @@ char * strip(char *str)
   return s;
 }
 
-// executes a list of % separated commands 
+// executes a list of % separated commands
 // non-dot commands are assumed to be syslinux commands
 // All syslinux commands are appended with the contents of kerargs
-// If it fails (kernel not found) then the next one is tried in the 
+// If it fails (kernel not found) then the next one is tried in the
 // list
 // returns QUIT_CMD or RPT_CMD
 t_dotcmd execdotcmd(const char *cmd, char *defcmd, const char *kerargs)
@@ -124,11 +124,11 @@ t_dotcmd execdotcmd(const char *cmd, char *defcmd, const char *kerargs)
       p = strchr(next,'%');
       if (p) {
          *p--='\0'; next=p+2;
-         while (*p == ' ') p--; 
+         while (*p == ' ') p--;
          *(++p)='\0'; // remove trailing spaces
       } else {
         if (*defcmd) { // execute defcmd next
-            next=defcmd; 
+            next=defcmd;
             defcmd=NULL; // exec def cmd only once
         } else next=NULL;
       }
@@ -147,7 +147,7 @@ t_dotcmd execdotcmd(const char *cmd, char *defcmd, const char *kerargs)
            while (*args == ' ') args++; // skip over spaces
         }
         if ( (strcmp(curr,".exit")==0) ||
-             (strcmp(curr,".quit")==0) 
+             (strcmp(curr,".quit")==0)
            )
            return QUIT_CMD;
         if ( (strcmp(curr,".repeat")==0) ||
@@ -156,7 +156,7 @@ t_dotcmd execdotcmd(const char *cmd, char *defcmd, const char *kerargs)
            )
            return RPT_CMD;
         if (strcmp(curr,".beep")==0) {
-           if ((args) && ('0' <= args[0]) && (args[0] <= '9')) 
+           if ((args) && ('0' <= args[0]) && (args[0] <= '9'))
               ctr = args[0]-'0';
            else ctr=1;
            for (;ctr>0; ctr--) beep();
@@ -173,9 +173,9 @@ TIMEOUTCODE timeout(const char *cmd)
   t_dotcmd c;
   c = execdotcmd(cmd,".wait",NULL);
   switch(c) {
-    case ENTER_CMD: 
+    case ENTER_CMD:
          return CODE_ENTER;
-    case ESCAPE_CMD: 
+    case ESCAPE_CMD:
          return CODE_ESCAPE;
     default:
          return CODE_WAIT;
@@ -204,7 +204,7 @@ void keys_handler(t_menusystem *ms, t_menuitem *mi,unsigned int scancode)
    // and user has privileges to edit it, edit it in place.
    if (((scancode & 0xFF) == 0x09) && (mi->action == OPT_RUN) &&
        (EDIT_ROW < getnumrows()) && (EDIT_ROW > 0) &&
-       (isallowed(username,"editcmd") || isallowed(username,"root"))) { 
+       (isallowed(username,"editcmd") || isallowed(username,"root"))) {
      nc = getnumcols();
      // User typed TAB and has permissions to edit command line
      gotoxy(EDIT_ROW,1,ms->menupage);
@@ -240,7 +240,7 @@ t_handler_return login_handler(t_menusystem *ms, t_menuitem *mi)
 
     if (authenticate_user(login,pwd))
     {
-      strcpy(username,login); 
+      strcpy(username,login);
       strcpy(logoutstr,"<L>ogout ");
       strcat(logoutstr,username);
       mi->item = logoutstr; // Change item to read "Logout"
@@ -328,7 +328,7 @@ void set_xtra(pt_menuitem mi, const char *argsmenu, const char *perms, unsigned 
    if (!bad_argsmenu) {
       xtra->argsmenu = (char *) malloc(sizeof(char)*(strlen(argsmenu)+1));
       strcpy(xtra->argsmenu,argsmenu);
-   } 
+   }
    if (!bad_perms) {
       xtra->perms = (char *) malloc(sizeof(char)*(strlen(perms)+1));
       strcpy(xtra->perms,perms);
@@ -343,7 +343,7 @@ int main(void)
   char exitcmd[MAX_CMD_LINE_LENGTH];
   char exitcmdroot[MAX_CMD_LINE_LENGTH];
   char onerrcmd[MAX_CMD_LINE_LENGTH];
-  char startfile[MAX_CMD_LINE_LENGTH]; 
+  char startfile[MAX_CMD_LINE_LENGTH];
   char *ecmd; // effective exit command or onerrorcmd
   char skipbits;
   char skipcmd[MAX_CMD_LINE_LENGTH];
@@ -364,7 +364,7 @@ int main(void)
   strcpy(exitcmd,"%(exitcmd)s");
   strcpy(exitcmdroot,"%(exitcmdroot)s");
   // If not specified exitcmdroot = exitcmd
-  if (exitcmdroot[0] == '\0') strcpy(exitcmdroot,exitcmd); 
+  if (exitcmdroot[0] == '\0') strcpy(exitcmdroot,exitcmd);
   // Timeout stuff
   timeout = %(timeout)s;
   strcpy(timeoutcmd,"%(timeoutcmd)s");
@@ -410,7 +410,7 @@ int main(void)
   if (getshiftflags() & skipbits) { // we must skip the menu altogther and execute skipcmd
     dotrv = execdotcmd(skipcmd,".beep%.exit",NULL); // Worst case we beep and exit
     if (dotrv == QUIT_CMD) quit = 1;
-  } 
+  }
 
 // Switch vide mode if required
    if (vmode != 0xFF) setvideomode(vmode);
@@ -442,10 +442,10 @@ int main(void)
      }
   }
 
-// Deallocate space used and quit 
+// Deallocate space used and quit
   close_passwords();
   close_help();
-  close_menusystem(); 
+  close_menusystem();
   return 0;
 }
 

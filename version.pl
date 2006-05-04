@@ -22,5 +22,3 @@ print VI "$def VERSION \"$version\"\n";
 print VI "$def VER_MAJOR $vma\n";
 print VI "$def VER_MINOR $vmi\n";
 close(VI);
-
-

@@ -1,6 +1,6 @@
 #ident "$Id$"
 # -----------------------------------------------------------------------
-#   
+#
 #   Copyright 2003-2004 H. Peter Anvin - All Rights Reserved
 #
 #   Permission is hereby granted, free of charge, to any person
@@ -11,10 +11,10 @@
 #   sell copies of the Software, and to permit persons to whom
 #   the Software is furnished to do so, subject to the following
 #   conditions:
-#   
+#
 #   The above copyright notice and this permission notice shall
 #   be included in all copies or substantial portions of the Software.
-#   
+#
 #   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 #   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 #   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -28,7 +28,7 @@
 
 # COM32 start up code - must be linked first in the binary
 
-	
+
 		.section ".init","ax"
 		.globl _start
 		.type _start, @function
@@ -82,7 +82,7 @@ _start:
 		call *(__exit_handler)
 		hlt
 		.size _start, .-_start
-			
+
 		.bss
 		.globl __entry_esp
 __entry_esp:	.space 4

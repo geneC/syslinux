@@ -49,7 +49,7 @@ static inline uint32_t cpuid_edx(uint32_t level)
 static inline uint64_t rdmsr(uint32_t msr)
 {
   uint64_t v;
-  
+
   asm volatile("rdmsr" : "=A" (v) : "c" (msr));
   return v;
 }

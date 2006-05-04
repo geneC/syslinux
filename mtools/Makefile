@@ -35,6 +35,3 @@ syslinux: $(OBJS)
 	$(CC) $(CFLAGS) -S -o $@ $<
 
 -include .*.d
-
-
-

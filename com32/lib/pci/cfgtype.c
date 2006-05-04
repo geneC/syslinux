@@ -39,14 +39,14 @@ static int type2_ok(void)
   outb(0, 0xcf8);
   oldcfa = inb(0xcfa);
   outb(0, 0xcfa);
-  
+
   cf8 = inb(0xcf8);
   cfa = inb(0xcfa);
-  
+
   outb(oldcf8, 0xcf8);
   outb(oldcfa, 0xcfa);
   sti();
-  
+
   return cf8 == 0 && cfa == 0;
 }
 
@@ -87,4 +87,3 @@ int pci_set_config_type(enum pci_config_type type)
 
   return (__pci_cfg_type = type);
 }
-

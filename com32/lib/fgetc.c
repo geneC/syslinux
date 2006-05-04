@@ -17,4 +17,3 @@ int fgetc(FILE *f)
 
   return (_fread(&ch, 1, f) == 1) ? (int)ch : EOF;
 }
-

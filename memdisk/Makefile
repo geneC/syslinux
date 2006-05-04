@@ -1,6 +1,6 @@
 #ident "$Id$"
 ## -----------------------------------------------------------------------
-##   
+##
 ##   Copyright 2001-2004 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
@@ -29,7 +29,7 @@ INCLUDE  = -I../com32/include
 LD	 = ld -m elf_i386
 NASM     = nasm -O99 # -dWITH_EDD
 NFLAGS   = -dVERSION='"$(VERSION)"' -dDATE='"$(DATE)"'
-NINCLUDE = 
+NINCLUDE =
 OBJCOPY  = objcopy
 PERL     = perl
 
@@ -39,7 +39,7 @@ OBJS32   = start32.o setup.o msetup.o e820func.o conio.o memcpy.o memset.o \
            unzip.o memdisk.o
 
 CSRC     = setup.c msetup.c e820func.c conio.c unzip.c
-SSRC     = 
+SSRC     =
 NASMSRC  = memdisk.asm memdisk16.asm
 
 all: memdisk e820test

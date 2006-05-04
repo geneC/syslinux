@@ -1,6 +1,6 @@
 #ident "$Id$"
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -11,10 +11,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -51,7 +51,7 @@ void console_ansi_std(void)
   fputs("\033[0m\033[20h", stdout);
 }
 
-#else 
+#else
 
 #include <stdio.h>
 #include <termios.h>
@@ -68,7 +68,7 @@ static void __attribute__((destructor)) console_cleanup(void)
   fputs("\033[0m\033[20l", stdout);
   tcsetattr(0, TCSANOW, &original_termios_settings);
 }
-  
+
 
 void console_ansi_std(void)
 {
@@ -89,4 +89,3 @@ void console_ansi_std(void)
 }
 
 #endif
-

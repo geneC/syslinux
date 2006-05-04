@@ -38,6 +38,3 @@ syslinux-nomtools: syslinux
 	$(CC) $(CFLAGS) -S -o $@ $<
 
 -include .*.d
-
-
-

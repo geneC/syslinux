@@ -35,6 +35,3 @@ extlinux: $(OBJS)
 	$(CC) $(CFLAGS) -S -o $@ $<
 
 -include .*.d
-
-
-

@@ -20,7 +20,7 @@
 	.globl _setjmp
 	.type _setjmp, @function
 _setjmp:				# gcc 4.0.1 wants this as an alias?
-		
+
 	.globl setjmp
 	.type setjmp, @function
 setjmp:
@@ -28,7 +28,7 @@ setjmp:
 	movl %eax,%edx
 #else
 	movl 4(%esp),%edx
-#endif	
+#endif
 	popl %ecx			# Return address, and adjust the stack
 	xorl %eax,%eax			# Return value
 	movl %ebx,(%edx)

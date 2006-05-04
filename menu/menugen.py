@@ -3,12 +3,12 @@
 import sys, re, getopt
 
 class Menusystem:
-   
+
    types = {"run"      : "OPT_RUN",
-            "inactive" : "OPT_INACTIVE", 
+            "inactive" : "OPT_INACTIVE",
             "checkbox" : "OPT_CHECKBOX",
-            "radiomenu": "OPT_RADIOMENU", 
-            "sep"      : "OPT_SEP", 
+            "radiomenu": "OPT_RADIOMENU",
+            "sep"      : "OPT_SEP",
             "invisible": "OPT_INVISIBLE",
             "radioitem": "OPT_RADIOITEM",
             "exitmenu" : "OPT_EXITMENU",
@@ -26,18 +26,18 @@ class Menusystem:
                   "perms"  : "", # permission required to execute this entry
                   "_updated" : None, # has this dictionary been updated
                   "type" : "run" }
-   
+
    menu_init = {  "title" : "",
                   "row" : "0xFF", # let system decide position
-                  "col" : "0xFF", 
+                  "col" : "0xFF",
                   "_updated" : None,
                   "name" : "" }
 
    system_init ={ "videomode" : "0xFF",
                   "title" : "Menu System",
-                  "top" : "1", 
-                  "left" : "1" , 
-                  "bot" : "21", 
+                  "top" : "1",
+                  "left" : "1" ,
+                  "bot" : "21",
                   "right":"79",
                   "helpdir" : "/isolinux/help",
                   "pwdfile" : "",
@@ -97,7 +97,7 @@ class Menusystem:
           self.menus[-1][0].update(self.menu)
           self.init_menu()
        if self.entry["_updated"]:
-          if not self.entry["info"]: 
+          if not self.entry["info"]:
              self.entry["info"] = self.entry["data"]
           if not self.menus:
              print "Error before line %d" % self.lineno
@@ -143,7 +143,7 @@ class Menusystem:
        if name == "skipcondn":
           try: # is skipcondn a number?
              a = int(value)
-          except: # it is a "-" delimited sequence 
+          except: # it is a "-" delimited sequence
              value = value.lower()
              parts = [ self.shift_flags.get(x.strip(),None) for x in value.split("-") ]
              self.system["skipcondn"] = " | ".join(filter(None, parts))
@@ -160,7 +160,7 @@ class Menusystem:
        if self.state == "menu":
           err = self.set_menu(name,value)
           # change state to entry it menu returns error
-          if err: 
+          if err:
              err = None
              self.state = "item"
        if self.state == "item":
@@ -176,7 +176,7 @@ class Menusystem:
        entry["type"] = self.types[entry["type"]]
        if entry["type"] == "login": #special type
           fd.write(self.templates["login"] % entry)
-       else: 
+       else:
           fd.write(self.templates["item"] % entry)
 
    def print_menu(self,menu,fd):
@@ -184,7 +184,7 @@ class Menusystem:
        fd.write(self.templates["menu"] % menu)
        if (menu["row"] != "0xFF") or (menu["col"] != "0xFF"):
           fd.write('  set_menu_pos(%(row)s,%(col)s);\n' % menu)
-       
+
 
    def output(self,filename):
        curr_template = None
@@ -208,29 +208,29 @@ class Menusystem:
            if not curr_template: continue # lines between templates are ignored
            contents.append(line)
        ifd.close()
-       
+
        missing = None
        for x in self.reqd_templates:
            if not self.templates.has_key(x): missing = x
        if missing:
            print "Template %s required but not defined in %s" % (missing,self.code_template_filename)
-      
+
        if filename == "-":
           fd = sys.stdout
        else: fd = open(filename,"w")
        self.foundmain = None
-       fd.write(self.templates["header"]) 
+       fd.write(self.templates["header"])
        fd.write(self.templates["system"] % self.system)
        for (menu,items) in self.menus:
            self.print_menu(menu,fd)
            for entry in items: self.print_entry(entry,fd)
-       fd.write(self.templates["footer"]) 
+       fd.write(self.templates["footer"])
        fd.close()
        if not self.foundmain:
           print "main menu not found"
           print self.menus
           sys.exit(1)
-       
+
    def input(self,filename):
        if filename == "-":
           fd = sys.stdin
@@ -255,7 +255,7 @@ class Menusystem:
               self.state = "menu"
               self.add_menu(line[1:-1])
               continue
-           
+
            # add property of current entry
            pos = line.find("=") # find the first = in string
            if pos < 0:
@@ -290,7 +290,7 @@ def main():
        print "Unknown options %s" % args
        usage()
     for o,a in opts:
-        if o in ["-i","--input"]: 
+        if o in ["-i","--input"]:
            ifile = a
         elif o in ["-o", "--output"]:
            ofile = a
@@ -305,5 +305,3 @@ def main():
 
 if __name__ == "__main__":
    main()
-
-

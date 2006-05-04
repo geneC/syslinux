@@ -23,7 +23,7 @@ int getopt(int argc, char * const *argv, const char *optstring)
   (void)argc;
 
   /* First, eliminate all non-option cases */
-  
+
   if ( !carg || carg[0] != '-' || !carg[1] ) {
     return -1;
   }
@@ -70,5 +70,3 @@ int getopt(int argc, char * const *argv, const char *optstring)
     return '?';
   }
 }
-
-	

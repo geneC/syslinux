@@ -63,4 +63,3 @@ LDFLAGS	= -m elf32_i386
 
 .c.ls:
 	$(CC) $(CFLAGS) $(SOFLAGS) -S -o $@ $<
-

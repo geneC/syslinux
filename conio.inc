@@ -1,6 +1,6 @@
 ;; $Id$
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -41,7 +41,7 @@ loadkeys:
 		rep movsd
 
 loadkeys_ret:	ret
-		
+
 ;
 ; get_msg_file: Load a text file and write its contents to the screen,
 ;               interpreting color codes.  Is called with SI and DX:AX
@@ -279,8 +279,8 @@ write_serial:
 		in al,dx
 		and al,ah
 		cmp al,ah
-		jne .waitspace	
-.no_flow:		
+		jne .waitspace
+.no_flow:
 
 		xchg dx,bx			; DX -> THR
 		pop ax

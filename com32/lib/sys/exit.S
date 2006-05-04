@@ -9,7 +9,7 @@ _exit:
 #ifdef REGPARM
 	pushl %eax
 #endif
-	
+
 	# Run any destructors
 	movl $__dtors_start, %esi
 2:
@@ -18,7 +18,7 @@ _exit:
 	call *(%esi)
 	addl $4,%esi
 	jmp 2b
-	
+
 1:
 #ifdef REGPARM
 	popl %eax

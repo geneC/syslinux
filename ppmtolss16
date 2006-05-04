@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 ## $Id$
 ## -----------------------------------------------------------------------
-##   
+##
 ##   Copyright 2004 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
@@ -135,12 +135,12 @@ sub getrgb($) {
 	$r = ( $getrgb_leftover_bit_val & 0x80 ) ? 0x00 : 0xff;
 	$getrgb_leftover_bit_val <<= 1;
 	$getrgb_leftover_bit_cnt--;
-	
+
 	return ($r,$r,$r);
     } elsif ( $form == 1 ) {
 	# Plain PBM
 	my($ch);
-	
+
 	do {
 	    $ch = getc(STDIN);
 	    return undef if ( !defined($ch) );
@@ -257,7 +257,7 @@ sub by_intensity() {
 
     # If same, sort based on RGB components,
     # with highest priority given to G, then R, then B.
-    
+
     return ( $ga <=> $gb ) if ( $ga != $gb );
     return ( $ra <=> $rb ) if ( $ra != $rb );
     return ( $ba <=> $bb );
@@ -364,7 +364,7 @@ sub output_run($$$) {
 	}
     }
 }
-    
+
 $bytes  = 0;
 undef $nybble_tmp;
 
@@ -392,7 +392,3 @@ $pixels = $xsize * $ysize;
 $size = ($pixels+1)/2;
 printf STDERR "%d pixels, %d bytes, (%2.2f%% compression)\n",
     $pixels, $bytes, 100*($size-$bytes)/$size;
-
-
-
-
