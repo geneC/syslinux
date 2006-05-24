@@ -856,31 +856,19 @@ static void trampoline_start(section_t *secs, int sec_count,
         }
     }
 
-    /* Now set up the last tiny bit of Multiboot environment... */
+    /* Now set up the last tiny bit of Multiboot environment.
+     * A20 is already enabled.
+     * CR0 already has PG cleared and PE set.
+     * EFLAGS already has VM and IF cleared.
+     * ESP is the kernels' problem.
+     * GDTR is the kernel's problem.
+     * CS is already a 32-bit, 0--4G code segments.
+     * DS, ES, FS and GS are already 32-bit, 0--4G data segments.
+     *
+     * EAX must be 0x2badb002 and EBX must point to the MBI when we jump. */
 
-    asm volatile(
-
-        /* A20 is already enabled.
-         * CR0 already has PG cleared and PE set.
-         * EFLAGS already has VM and IF cleared.
-         * ESP is the kernels' problem.
-         * GDTR is the kernel's problem.
-         * CS is already a 32-bit, 0--4G code segments.
-         * DS, ES, FS and GS are already 32-bit, 0--4G data segments.
-         * EBX must point to the MBI: */
-
-        "movl %0, %%ebx;"
-
-        /* EAX must be the Multiboot magic number. */
-
-        "movl $0x2badb002, %%eax;"
-
-        /* Start the kernel. */
-
-        "jmp *%1"
-
-        : : "m" (mbi_run_addr), "r" (entry));
-
+    asm volatile ("jmp *%2" 
+                  : : "a" (0x2badb002), "b" (mbi_run_addr), "cdSD" (entry));
 }
 static void trampoline_end(void) {}
 
