@@ -867,7 +867,7 @@ static void trampoline_start(section_t *secs, int sec_count,
      *
      * EAX must be 0x2badb002 and EBX must point to the MBI when we jump. */
 
-    asm volatile ("jmp *%2"
+    asm volatile ("jmp %*%2"
                   : : "a" (0x2badb002), "b" (mbi_run_addr), "cdSDm" (entry));
 }
 static void trampoline_end(void) {}
