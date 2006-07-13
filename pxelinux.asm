@@ -844,7 +844,7 @@ config_scan:
 		dec di
 		loop .tryagain
 
-		jmp no_config_file
+		jmp kaboom
 
 .success:
 
