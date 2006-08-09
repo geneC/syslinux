@@ -1,4 +1,3 @@
-#ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
@@ -111,6 +110,14 @@ ssize_t write_file(int fd, const void *buf, size_t count)
   return done;
 }
 
+static inline __attribute__((const)) uint16_t data_segment(void)
+{
+  uint16_t ds;
+
+  asm("movw %%ds,%0" : "=rm" (ds));
+  return ds;
+}
+
 struct diskio {
   uint32_t startsector;
   uint16_t sectors;
@@ -123,15 +130,15 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
   struct diskio dio;
 
   dprintf("write_device(%d,%p,%u,%u)\n", drive, buf, nsecs, sector);
-
+ 
   dio.startsector = sector;
   dio.sectors     = nsecs;
   dio.bufoffs     = (uintptr_t)buf;
-  asm("movw %%ds,%0" : "=m" (dio.bufseg));
+  dio.bufseg      = data_segment();
 
   asm volatile("int $0x26 ; setc %0 ; popfw"
 	       : "=abcdm" (err)
-	       : "a" (drive-1), "b" (&dio), "c" (-1), "d" (buf));
+	       : "a" (drive-1), "b" (&dio), "c" (-1), "d" (buf), "m" (dio));
 
   if ( err )
     die("sector write error");
@@ -147,11 +154,11 @@ void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
   dio.startsector = sector;
   dio.sectors     = nsecs;
   dio.bufoffs     = (uintptr_t)buf;
-  asm("movw %%ds,%0" : "=m" (dio.bufseg));
+  dio.bufseg      = data_segment();
 
   asm volatile("int $0x25 ; setc %0 ; popfw"
 	       : "=abcdm" (err)
-	       : "a" (drive-1), "b" (&dio), "c" (-1), "d" (buf));
+	       : "a" (drive-1), "b" (&dio), "c" (-1), "d" (buf), "m" (dio));
 
   if ( err )
     die("sector read error");
@@ -190,7 +197,7 @@ uint32_t get_partition_offset(int drive)
 
   rv = 0x440d;
   asm volatile("int $0x21 ; setc %0"
-	       : "=abcdm" (err), "+a" (rv)
+	       : "=abcdm" (err), "+a" (rv), "=m" (dp)
 	       : "b" (drive), "c" (0x0860), "d" (&dp));
 
   if ( !err )
@@ -198,7 +205,7 @@ uint32_t get_partition_offset(int drive)
 
   rv = 0x440d;
   asm volatile("int $0x21 ; setc %0"
-	       : "=abcdm" (err), "+a" (rv)
+	       : "=abcdm" (err), "+a" (rv), "=m" (dp)
 	       : "b" (drive), "c" (0x4860), "d" (&dp));
 
   if ( !err )
@@ -235,12 +242,12 @@ void write_mbr(int drive, const void *buf)
   dprintf("write_mbr(%d,%p)\n", drive, buf);
 
   mbr.bufferoffset = (uintptr_t)buf;
-  asm("movw %%ds,%0" : "=m" (mbr.bufferseg));
+  mbr.bufferseg    = data_segment();
 
   rv = 0x440d;
   asm volatile("int $0x21 ; setc %0"
 	       : "=abcdm" (err), "+a" (rv)
-	       : "c" (0x0841), "d" (&mbr), "b" (drive));
+	       : "c" (0x0841), "d" (&mbr), "b" (drive), "m" (mbr));
 
   if ( !err )
     return;
@@ -248,7 +255,7 @@ void write_mbr(int drive, const void *buf)
   rv = 0x440d;
   asm volatile("int $0x21 ; setc %0"
 	       : "=abcdm" (err), "+a" (rv)
-	       : "c" (0x4841), "d" (&mbr), "b" (drive));
+	       : "c" (0x4841), "d" (&mbr), "b" (drive), "m" (mbr));
 
   if ( err )
     die("mbr write error");
@@ -262,12 +269,12 @@ void read_mbr(int drive, const void *buf)
   dprintf("read_mbr(%d,%p)\n", drive, buf);
 
   mbr.bufferoffset = (uintptr_t)buf;
-  asm("movw %%ds,%0" : "=m" (mbr.bufferseg));
+  mbr.bufferseg    = data_segment();
 
   rv = 0x440d;
   asm volatile("int $0x21 ; setc %0"
 	       : "=abcdm" (err), "+a" (rv)
-	       : "c" (0x0861), "d" (&mbr), "b" (drive));
+	       : "c" (0x0861), "d" (&mbr), "b" (drive), "m" (mbr));
 
   if ( !err )
     return;
@@ -275,7 +282,7 @@ void read_mbr(int drive, const void *buf)
   rv = 0x440d;
   asm volatile("int $0x21 ; setc %0"
 	       : "=abcdm" (err), "+a" (rv)
-	       : "c" (0x4861), "d" (&mbr), "b" (drive));
+	       : "c" (0x4861), "d" (&mbr), "b" (drive), "m" (mbr));
 
   if ( err )
     die("mbr read error");
