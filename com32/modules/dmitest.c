@@ -114,9 +114,9 @@ int main(void)
 	  printf("No DMI Structure found\n");
 	  return -1;
   }
-  
+
   parse_dmitable(&dmi);
-  
+
   for (;;) {
     printf("Available commands are system, chassis, base_board, cpu, bios, all, exit\n");
     printf("dmi: ");

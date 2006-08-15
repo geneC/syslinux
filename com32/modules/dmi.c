@@ -70,7 +70,7 @@ static void dmi_processor_voltage(u8 code, s_dmi *dmi)
         static const float voltage[]={
                 5.0,
                 3.3,
-                2.9 
+                2.9
         };
         int i;
 
@@ -218,10 +218,10 @@ void dmi_bios_runtime_size(u32 code, s_dmi *dmi)
 {
         if(code&0x000003FF) {
 		dmi->bios.runtime_size=code;
-		strcpy(dmi->bios.runtime_size_unit,"bytes");	
+		strcpy(dmi->bios.runtime_size_unit,"bytes");
 	} else {
 		dmi->bios.runtime_size=code >>10;
-		strcpy(dmi->bios.runtime_size_unit,"KB");	
+		strcpy(dmi->bios.runtime_size_unit,"KB");
 
 	}
 }
@@ -351,7 +351,7 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
 			dmi->bios.rom_size=(data[0x09]+1)<<6;
 			strcpy(dmi->bios.rom_size_unit,"kB");
                         dmi_bios_characteristics(QWORD(data+0x0A),dmi);
-                        
+
 			if(h->length<0x13) break;
                         dmi_bios_characteristics_x1(data[0x12], dmi);
                         if(h->length<0x14) break;
@@ -413,7 +413,7 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
                         dmi->chassis.height=data[0x11];
                         dmi->chassis.nb_power_cords=data[0x12];
                         break;
-			
+
 			case 4: /* 3.3.5 Processor Information */
 //                        printf("Processor Information\n");
                         if(h->length<0x1A) break;
@@ -486,4 +486,3 @@ void parse_dmitable(s_dmi *dmi) {
         i++;
   }
 }
-
