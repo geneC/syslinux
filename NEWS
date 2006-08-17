@@ -15,6 +15,8 @@ Changes in 3.20:
 	  file was found.
 	* COM32 module by Erwan Velu to make decisions based on DMI
 	  info.
+	* Fix issue where going back and forth between menus a lot
+	  would cause a hang.
 
 Changes in 3.11:
 	* MEMDISK: Fix bug by which accessing the real floppy disk
