@@ -105,5 +105,5 @@ unprerel:
 	@echo Next release will be $(LATEST_PREREL)
 
 preupload:
-	scp release/$(PRERELDIR)/$(LATEST_PREREL).* $(UPLOAD)/Testing
+	scp $(PRERELDIR)/$(LATEST_PREREL).* $(UPLOAD)/Testing
 	cg-push -t $(LATEST_PREREL)
