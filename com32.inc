@@ -75,8 +75,8 @@ com32_enter_pm:
 		cli
 		mov ax,cs
 		mov ds,ax
-		mov [SavedSSSP],sp
-		mov [SavedSSSP+2],ss
+		mov [RealModeSSSP],sp
+		mov [RealModeSSSP+2],ss
 		cld
 		call a20_test
 		jnz .a20ok
@@ -200,7 +200,7 @@ com32_enter_rm:
 		mov es,ax
 		mov fs,ax
 		mov gs,ax
-		lss sp,[SavedSSSP]	; Restore stack
+		lss sp,[RealModeSSSP]	; Restore stack
 		jmp bx			; Go to whereever we need to go...
 
 com32_done:
@@ -303,10 +303,10 @@ com32_intcall:
 com32_syscall:
 		cld
 
-		movzx edi,word [word SavedSSSP]
-		movzx ebx,word [word SavedSSSP+2]
+		movzx edi,word [word RealModeSSSP]
+		movzx ebx,word [word RealModeSSSP+2]
 		sub edi,54		; Allocate 54 bytes
-		mov [word SavedSSSP],di
+		mov [word RealModeSSSP],di
 		shl ebx,4
 		add edi,ebx		; Create linear address
 
@@ -331,8 +331,8 @@ com32_syscall:
 		; real-mode stack, plus the 10 additional bytes used
 		; by the target address (see above.)
 com32_sys_resume:
-		movzx esi,word [word SavedSSSP]
-		movzx eax,word [word SavedSSSP+2]
+		movzx esi,word [word RealModeSSSP]
+		movzx eax,word [word RealModeSSSP+2]
 		mov edi,[esp+12*4]	; Dest regs
 		shl eax,4
 		add esi,eax		; Create linear address
@@ -343,7 +343,7 @@ com32_sys_resume:
 		mov cl,11		; 44 bytes
 		rep movsd		; Copy register block
 
-		add dword [word SavedSSSP],54	; Remove from stack
+		add dword [word RealModeSSSP],54	; Remove from stack
 
 		popad
 		popfd
@@ -353,6 +353,7 @@ com32_sys_resume:
 
 		section .bss
 		alignb 4
+RealModeSSSP	resd 1			; Real-mode SS:SP
 PMESP		resd 1			; Protected-mode ESP
 Com32SysSP	resw 1			; SP saved during COM32 syscall
 

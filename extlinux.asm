@@ -1,12 +1,11 @@
 ; -*- fundamental -*- (asm-mode sucks)
-; $Id$
 ; ****************************************************************************
 ;
 ;  extlinux.asm
 ;
 ;  A program to boot Linux kernels off an ext2/ext3 filesystem.
 ;
-;   Copyright (C) 1994-2005  H. Peter Anvin
+;   Copyright (C) 1994-2006  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -17,13 +16,7 @@
 ; ****************************************************************************
 
 %define IS_EXTLINUX 1
-%include "macros.inc"
-%include "config.inc"
-%include "kernel.inc"
-%include "bios.inc"
-%include "tracers.inc"
-%include "layout.inc"
-
+%include "head.inc"
 %include "ext2_fs.inc"
 
 ;

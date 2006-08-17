@@ -453,6 +453,5 @@ __bcopy_size	equ $-__bcopy_start
 		section .earlybss
 		alignb 2
 EntryPoint	resd 1			; CS:IP for shuffle_and_boot
-SavedSSSP	resd 1			; Saved real mode SS:SP
 A20Test		resw 1			; Counter for testing status of A20
 A20Tries	resb 1			; Times until giving up on A20

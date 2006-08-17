@@ -1,5 +1,4 @@
 ; -*- fundamental -*- (asm-mode sucks)
-; $Id$
 ; ****************************************************************************
 ;
 ;  isolinux.asm
@@ -9,7 +8,7 @@
 ;  available.  It is based on the SYSLINUX boot loader for MS-DOS
 ;  floppies.
 ;
-;   Copyright (C) 1994-2005  H. Peter Anvin
+;   Copyright (C) 1994-2006  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -20,12 +19,7 @@
 ; ****************************************************************************
 
 %define IS_ISOLINUX 1
-%include "macros.inc"
-%include "config.inc"
-%include "kernel.inc"
-%include "bios.inc"
-%include "tracers.inc"
-%include "layout.inc"
+%include "head.inc"
 
 ;
 ; Some semi-configurable constants... change on your own risk.

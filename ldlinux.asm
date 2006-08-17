@@ -25,12 +25,8 @@
 %ifndef IS_MDSLINUX
 %define IS_SYSLINUX 1
 %endif
-%include "macros.inc"
-%include "config.inc"
-%include "kernel.inc"
-%include "bios.inc"
-%include "tracers.inc"
-%include "layout.inc"
+%include "head.inc"
+
 ;
 ; Some semi-configurable constants... change on your own risk.
 ;

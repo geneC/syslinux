@@ -1,5 +1,4 @@
 ; -*- fundamental -*- (asm-mode sucks)
-; $Id$
 ; ****************************************************************************
 ;
 ;  pxelinux.asm
@@ -8,7 +7,7 @@
 ;  network booting API.  It is based on the SYSLINUX boot loader for
 ;  MS-DOS floppies.
 ;
-;   Copyright (C) 1994-2005  H. Peter Anvin
+;   Copyright (C) 1994-2006  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -19,13 +18,8 @@
 ; ****************************************************************************
 
 %define IS_PXELINUX 1
-%include "macros.inc"
-%include "config.inc"
-%include "kernel.inc"
-%include "bios.inc"
-%include "tracers.inc"
+%include "head.inc"
 %include "pxe.inc"
-%include "layout.inc"
 
 ;
 ; Some semi-configurable constants... change on your own risk.
@@ -1897,48 +1891,6 @@ unload_pxe:
 		jmp .call_loop
 
 .call_done:
-;
-; This isn't necessary anymore; we can use the memory area previously
-; used by the PXE stack indefinitely, and the chainload code sets up
-; a new stack independently.  Leave the source code in here for now,
-; but expect to rip it out soonish.
-;
-%if 0 ; USE_PXE_PROVIDED_STACK
-		; We need to switch to our local stack here...
-		pusha
-		pushf
-		push gs
-
-		mov si,sp
-		mov ax,ss
-		mov gs,ax
-		sub ax,[BaseStack+4]		; Are we using the base stack
-		je .is_base_stack		; (as opposed to the COMBOOT stack)?
-
-		lgs si,[SavedSSSP]		; COMBOOT stack
-.is_base_stack:
-
-		mov cx,[InitStack]
-		mov di,StackBuf
-		mov [BaseStack],di
-		mov [BaseStack+4],es
-		sub cx,si
-		sub di,cx
-		mov [SavedSSSP],di		; New SP
-		mov [SavedSSSP+2],es
-		gs rep movsb
-
-		and ax,ax			; Remember which stack
-		jne .combootstack
-
-		; Update the base stack pointer since it's in use
-		lss sp,[SavedSSSP]
-
-.combootstack:
-		pop gs
-		popf
-		popa
-%endif
 		mov bx,0FF00h
 
 		mov dx,[RealBaseMem]

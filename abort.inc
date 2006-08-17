@@ -1,7 +1,6 @@
-; $Id$
 ; -----------------------------------------------------------------------
 ;
-;   Copyright 2005 H. Peter Anvin - All Rights Reserved
+;   Copyright 2005-2006 H. Peter Anvin - All Rights Reserved
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -50,16 +49,7 @@ abort_load:
                 mov ax,cs                       ; Restore CS = DS = ES
                 mov ds,ax
                 mov es,ax
-%if IS_SYSLINUX || IS_EXTLINUX
-                mov ss,ax                       ; Just in case...
-                mov sp,StackBuf-2*3    		; Reset stack
-%elif IS_PXELINUX
-		lss esp,[BaseStack]
-%elif IS_ISOLINUX
-		lss sp,[StackPtr]
-%else
-		NEED TO KNOW HOW TO RESET STACK
-%endif
+		RESET_STACK
 		sti
                 call cwritestr                  ; Expects SI -> error msg
 

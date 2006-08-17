@@ -132,9 +132,6 @@ is_comboot_image:
 		call getfssec
 
 		; And invoke the program...
-		mov [SavedSSSP],sp
-		mov [SavedSSSP+2],ss	; Save away SS:SP
-
 		mov ax,es
 		mov ds,ax
 		mov ss,ax
@@ -213,7 +210,7 @@ comboot_exit_special:
 		xor dx,dx
 		mov ds,dx
 		mov es,dx
-		lss sp,[SavedSSSP]
+		RESET_STACK
 		sti
 		cld
 		call adjust_screen	; The COMBOOT program might have changed the screen
