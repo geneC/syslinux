@@ -20,8 +20,8 @@
 %define _STACK_INC
 
 ;
-; This macro resets the stack pointer, and sets CS == DS == ES == 0,
-; interrupts on, DF = 0.
+; This macro resets the stack pointer (including SS), and sets
+; DS == ES == 0, interrupts on, DF = 0.
 ;
 ; It takes a 16-bit register that can be safely clobbered as parameter.
 ;
