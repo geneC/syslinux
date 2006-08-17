@@ -9,7 +9,6 @@
 ;   (at your option) any later version; incorporated herein by reference.
 ;
 ; -----------------------------------------------------------------------
-; $Id$
 
 		section .text
 ;

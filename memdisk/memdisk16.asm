@@ -1,5 +1,4 @@
 ;; -*- fundamental -*-
-;; $Id$
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved

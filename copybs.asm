@@ -1,5 +1,4 @@
 ; -*- fundamental -*- (asm-mode sucks)
-; $Id$
 ; -----------------------------------------------------------------------
 ;
 ;   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
