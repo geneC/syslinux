@@ -1,6 +1,6 @@
 ## -*- makefile -*- ------------------------------------------------------
 ##
-##   Copyright 2000-2005 H. Peter Anvin - All Rights Reserved
+##   Copyright 2000-2006 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@ PRIVATE = Makefile.private .depend */.depend
 
 GIT_DIR ?= .git
 ABS_GIT_DIR := $(shell cd '$(GIT_DIR)' && pwd)
+
+-include Makefile.secret
 
 isolinux.iso: all
 	cp isolinux-debug.bin isolinux-test/isolinux/isolinux.bin
@@ -95,6 +97,13 @@ prerel:
 		zip -9r ../$(PREREL).zip *
 	expr $(PRERELNO) + 1 > $(PRERELDIR)/.prerel
 
+LATEST_PRERELNO := $(shell expr $(PRERELNO) - 1)
+LATEST_PREREL   := syslinux-$(VERSION)-pre$(LATEST_PRERELNO)
+
 unprerel:
-	expr $(PRERELNO) - 1 > $(PRERELDIR)/.prerel
-	@echo Next release will be syslinux-$(VERSION)-pre`cat $(PRERELDIR)/.prerel`
+	echo $(LATEST_PRERELNO) > $(PRERELDIR)/.prerel
+	@echo Next release will be $(LATEST_PREREL)
+
+preupload:
+	scp release/$(PRERELDIR)/$(LATEST_PREREL).* $(UPLOAD)/Testing
+	cg-push -t $(LATEST_PREREL)
