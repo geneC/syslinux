@@ -20,7 +20,7 @@
 %define _STACK_INC
 
 ;
-; This macro resets the stack pointer.  It assumes CS == DS.
+; This macro resets the stack pointer.  It assumes CS == DS and AX == 0.
 ;
 %macro RESET_STACK 0
 %if IS_SYSLINUX || IS_EXTLINUX

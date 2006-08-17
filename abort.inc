@@ -49,7 +49,7 @@ abort_load:
                 mov ax,cs                       ; Restore CS = DS = ES
                 mov ds,ax
                 mov es,ax
-		RESET_STACK
+		RESET_STACK			; AX must = 0
 		sti
                 call cwritestr                  ; Expects SI -> error msg
 

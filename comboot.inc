@@ -206,15 +206,16 @@ comboot_bogus:	cli			; Don't trust anyone
 comboot_exit:
 		mov bx,enter_command	; Normal return to command prompt
 comboot_exit_special:
-		xor dx,dx
-		mov ds,dx
-		mov es,dx
-		RESET_STACK
+		mov cx,ax
+		xor ax,ax
+		mov ds,ax
+		mov es,ax
+		RESET_STACK		; AX must = 0
 		sti
 		cld
 		call adjust_screen	; The COMBOOT program might have changed the screen
-		and ax,ax
-		je .nomsg
+		jcxz .nomsg
+		mov ax,cx
 		mov si,KernelCName
 		call cwritestr
 		xchg si,ax
