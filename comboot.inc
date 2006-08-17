@@ -141,7 +141,6 @@ is_comboot_image:
 
 ; Proper return vector
 comboot_return:	cli			; Don't trust anyone
-		xor ax,ax
 		jmp comboot_exit
 
 ;
@@ -200,13 +199,11 @@ comboot_bogus:	cli			; Don't trust anyone
 		mov ax,err_notdos
 ;
 ; Generic COMBOOT return to command line code
-;  AX -> message (if any)
 ;  BX -> where to go next
 ;
 comboot_exit:
 		mov bx,enter_command	; Normal return to command prompt
 comboot_exit_special:
-		mov cx,ax
 		xor ax,ax
 		mov ds,ax
 		mov es,ax
@@ -214,13 +211,7 @@ comboot_exit_special:
 		sti
 		cld
 		call adjust_screen	; The COMBOOT program might have changed the screen
-		jcxz .nomsg
-		mov ax,cx
-		mov si,KernelCName
-		call cwritestr
-		xchg si,ax
-		call cwritestr
-.nomsg:		jmp bx
+		jmp bx
 
 ;
 ; INT 21h system calls
@@ -375,7 +366,6 @@ comapi_run:
 		mov si,P_BX
 		mov di,command_line
 		call strcpy
-		xor ax,ax
 		mov bx,load_kernel		; Run a new kernel
 		jmp comboot_exit_special	; Terminate task, clean up
 
@@ -715,7 +705,6 @@ comapi_runkernel:
 		mov [IPAppend],al
 %endif
 
-		xor ax,ax
 		mov bx,.finish
 		jmp comboot_exit_special
 
