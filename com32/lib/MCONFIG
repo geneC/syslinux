@@ -1,5 +1,4 @@
 # -*- makefile -*-
-# $Id$
 
 CC	= gcc
 LD	= ld

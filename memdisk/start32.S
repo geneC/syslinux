@@ -1,4 +1,3 @@
-# $Id$
 #
 # Simple stub to get us to the right point in the 32-bit code;
 # this module must be linked first

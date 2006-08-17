@@ -1,5 +1,3 @@
-$Id$
-
 The proper mode to boot a USB key drive in is "USB-HDD".  That is the
 ONLY mode in which the C/H/S geometry encoded on the disk itself
 doesn't have to match what the BIOS thinks it is.  Since geometry on

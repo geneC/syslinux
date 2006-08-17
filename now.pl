@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-# $Id$
 #
 # Print the time (possibly the mtime of a file) as a hexadecimal integer
 # If more than one file, print the mtime of the *newest* file.

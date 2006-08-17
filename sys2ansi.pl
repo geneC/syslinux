@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-# $Id$
 #
 # Perl script to convert a Syslinux-format screen to PC-ANSI
 # to display in a color xterm or on the Linux console

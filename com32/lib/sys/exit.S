@@ -1,4 +1,3 @@
-# $Id$
 #
 # Implementation of _exit() for com32 based on c32entry.S
 #

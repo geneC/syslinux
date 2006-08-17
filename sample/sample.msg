@@ -1,4 +1,4 @@
- $Id$
+sample.msg
 Note that <Ctrl-P>...<Ctrl-W> can be used to delimit something
 that is effectively a comment.
 This message is displayed before the image.

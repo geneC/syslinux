@@ -1,4 +1,3 @@
-$Id$
 [This documentation is rather crufty at the moment.]
 
 MEMDISK is meant to allow booting legacy operating systems via PXE,

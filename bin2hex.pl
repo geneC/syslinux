@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-## "$Id$"
 ## -----------------------------------------------------------------------
 ##
 ##   Copyright 2003 H. Peter Anvin - All Rights Reserved
