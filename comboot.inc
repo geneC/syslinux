@@ -204,12 +204,7 @@ comboot_bogus:	cli			; Don't trust anyone
 comboot_exit:
 		mov bx,enter_command	; Normal return to command prompt
 comboot_exit_special:
-		xor ax,ax
-		mov ds,ax
-		mov es,ax
-		RESET_STACK		; AX must = 0
-		sti
-		cld
+		RESET_STACK_AND_SEGS AX
 		call adjust_screen	; The COMBOOT program might have changed the screen
 		jmp bx
 

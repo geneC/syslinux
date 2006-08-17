@@ -46,11 +46,7 @@ abort_check:
 ;             SI    = offset (in _text) of error message to print
 ;
 abort_load:
-                mov ax,cs                       ; Restore CS = DS = ES
-                mov ds,ax
-                mov es,ax
-		RESET_STACK			; AX must = 0
-		sti
+		RESET_STACK_AND_SEGS AX
                 call cwritestr                  ; Expects SI -> error msg
 
 		; Return to the command prompt

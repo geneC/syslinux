@@ -20,11 +20,17 @@
 %define _STACK_INC
 
 ;
-; This macro resets the stack pointer.  It assumes CS == DS and AX == 0.
+; This macro resets the stack pointer, and sets CS == DS == ES == 0,
+; interrupts on, DF = 0.
 ;
-%macro RESET_STACK 0
+; It takes a 16-bit register that can be safely clobbered as parameter.
+;
+%macro RESET_STACK_AND_SEGS 1
+		xor %1,%1
+		mov ds,%1
+		mov es,%1
 %if IS_SYSLINUX || IS_EXTLINUX
-                mov ss,ax                       ; Just in case...
+                mov ss,%1                       ; Just in case...
                 mov sp,StackBuf-2*3    		; Reset stack
 %elif IS_PXELINUX
 		lss esp,[BaseStack]
@@ -33,6 +39,8 @@
 %else
 		NEED TO KNOW HOW TO RESET STACK
 %endif
+		sti
+		cld
 %endmacro
 
 %endif ; _STACK_INC
