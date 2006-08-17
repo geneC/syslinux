@@ -141,6 +141,7 @@ is_comboot_image:
 
 ; Proper return vector
 comboot_return:	cli			; Don't trust anyone
+		push enter_command	; Normal return to command prompt
 		jmp comboot_exit
 
 ;
@@ -196,16 +197,27 @@ comboot_resume:
 
 ; Attempted to execute non-21h DOS system call
 comboot_bogus:	cli			; Don't trust anyone
-		mov ax,err_notdos
+		mov cx,err_notdos
+		push enter_command
+		jmp comboot_exit_msg
+
 ;
 ; Generic COMBOOT return to command line code
-;  BX -> where to go next
+;  stack -> where to go next
+;     CX -> message (for _msg version)
 ;
 comboot_exit:
-		mov bx,enter_command	; Normal return to command prompt
-comboot_exit_special:
+		xor cx,cx
+comboot_exit_msg:
+		pop bx			; Return address
 		RESET_STACK_AND_SEGS AX
 		call adjust_screen	; The COMBOOT program might have changed the screen
+		jcxz .nomsg
+		mov si,KernelCName
+		call cwritestr
+		mov si,cx
+		call cwritestr
+.nomsg:
 		jmp bx
 
 ;
@@ -361,8 +373,8 @@ comapi_run:
 		mov si,P_BX
 		mov di,command_line
 		call strcpy
-		mov bx,load_kernel		; Run a new kernel
-		jmp comboot_exit_special	; Terminate task, clean up
+		push load_kernel		; Run a new kernel
+		jmp comboot_exit		; Terminate task, clean up
 
 ;
 ; INT 22h AX=0004h	Run default command
@@ -371,8 +383,8 @@ comapi_run:
 ; as if a timeout had happened or the user pressed <Enter>.
 ;
 comapi_run_default:
-		mov bx,auto_boot
-		jmp comboot_exit_special
+		push auto_boot
+		jmp comboot_exit
 
 ;
 ; INT 22h AX=0005h	Force text mode
@@ -700,8 +712,7 @@ comapi_runkernel:
 		mov [IPAppend],al
 %endif
 
-		mov bx,.finish
-		jmp comboot_exit_special
+		call comboot_exit
 
 .finish:
 		; Copy the command line into its proper place
