@@ -13,6 +13,8 @@ Changes in 3.20:
 	* Add "klibc" target for building unix/syslinux with klcc.
 	* PXELINUX: Fail (and eventually reboot) if no configuration
 	  file was found.
+	* COM32 module by Erwan Velu to make decisions based on DMI
+	  info.
 
 Changes in 3.11:
 	* MEMDISK: Fix bug by which accessing the real floppy disk
