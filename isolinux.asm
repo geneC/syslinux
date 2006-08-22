@@ -755,7 +755,7 @@ xint13:		mov byte [RetryCount],retry_count
 ;	  then do a hard reboot.
 ;
 kaboom:
-		RESET_STACK_AND SEGS AX
+		RESET_STACK_AND_SEGS AX
 		mov si,err_bootfailed
 		call cwritestr
 		call getchar
