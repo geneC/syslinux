@@ -924,11 +924,7 @@ local_boot:
 ;	  or a user keypress, then do a hard reboot.
 ;
 kaboom:
-		mov ax,cs
-		mov es,ax
-		mov ds,ax
-		lss esp,[BaseStack]
-		sti
+		RESET_STACK_AND_SEGS AX
 .patch:		mov si,bailmsg
 		call writestr		; Returns with AL = 0
 .drain:		call pollchar
