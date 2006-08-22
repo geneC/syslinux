@@ -506,7 +506,7 @@ kernel_good:
 ; At this point, DX:AX contains the size of the kernel, and SI contains
 ; the file handle/cluster pointer.
 ;
-		or ecx,20202000h		; Force lower case
+		or ecx,20202000h		; Force lower case (except dot)
 
 		cmp ecx,'.com'
 		je is_comboot_image

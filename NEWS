@@ -17,6 +17,7 @@ Changes in 3.20:
 	  info.
 	* Fix issue where going back and forth between menus a lot
 	  would cause a hang.
+	* ISOLINUX: Fix bug which made "cd boot sectors" not work.
 
 Changes in 3.11:
 	* MEMDISK: Fix bug by which accessing the real floppy disk

@@ -212,7 +212,9 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 ;; CD-ROM sector (2K) of the file, so the number one priority is actually
 ;; loading the rest.
 ;;
-StackBuf	equ $
+StackBuf	equ $-44			; 44 bytes needed for
+						; the bootsector chainloading
+						; code!
 
 bootsec		equ $
 
