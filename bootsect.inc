@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2006 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -41,8 +41,8 @@ load_bootsec:
 		mov [trackbuf+4],edi	; Copy from this address
 		push edi		; Save load address
 		xor dx,dx		; No padding
+		mov bx,abort_check	; Don't print dots, but allow abort
 		call load_high
-		call crlf
 
 		sub edi,100000h
 		mov [trackbuf+8],edi	; Save length

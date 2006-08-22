@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2006 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -278,6 +278,7 @@ read_kernel:
 		jbe high_load_done		; Zero left (tiny kernel)
 
 		xor dx,dx			; No padding needed
+		mov bx,dot_pause		; Print dots...
 		call load_high			; Copy the file
 
 high_load_done:
@@ -599,6 +600,7 @@ loadinitrd:
 
 		pop eax				; Bytes to load
 		mov dx,0FFFh			; Pad to page
+		mov bx,dot_pause		; Print dots...
 		call load_high			; Load the file
 
 		pop es

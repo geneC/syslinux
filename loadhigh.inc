@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2006 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -31,25 +31,24 @@
 ; Inputs:	SI  = file handle/cluster pointer
 ;		EDI = target address in high memory
 ;		EAX = size of remaining file in bytes
-;		DX   = zero-padding mask (e.g. 0003h for pad to dword)
+;		DX  = zero-padding mask (e.g. 0003h for pad to dword)
+;		BX  = subroutine to call at the top of each loop
+;                     (to print status and check for abort)
 ;
 ; Outputs:	SI  = file handle/cluster pointer
 ;		EDI = first untouched address (not including padding)
 ;
 load_high:
-		push es
+		push es				; <AAA> ES
 
-		mov bx,xfer_buf_seg
-		mov es,bx
+		mov cx,xfer_buf_seg
+		mov es,cx
 
 .read_loop:
 		and si,si			; If SI == 0 then we have end of file
 		jz .eof
-		push si
-		mov si,dot_msg
-		call cwritestr
-		pop si
-		call abort_check
+		call bx
+		push bx				; <AA> Pausebird function
 
 		push eax			; <A> Total bytes to transfer
 		cmp eax,(1 << 16)		; Max 64K in one transfer
@@ -87,8 +86,17 @@ load_high:
 		pop eax				; <A> Total bytes to transfer
 		add edi,ecx
 		sub eax,ecx
+		pop bx				; <AA> Pausebird function
 		jnz .read_loop			; More to read...
+		
 
 .eof:
-		pop es
+		pop es				; <AAA> ES
 		ret
+
+dot_pause:
+		push ax
+		mov al,'.'
+		call writechr
+		pop ax
+		jmp abort_check			; Handles the return

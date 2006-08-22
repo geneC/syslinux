@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2003 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2006 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -64,8 +64,8 @@ is_com32_image:
 		pop eax			; File length
 		pop si			; File handle
 		xor dx,dx		; No padding
+		mov bx,abort_check	; Don't print dots, but allow abort
 		call load_high
-		call crlf
 
 com32_start:
 		mov ebx,com32_call_start	; Where to go in PM
