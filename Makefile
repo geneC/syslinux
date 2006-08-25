@@ -255,7 +255,7 @@ depend: local-depend
 # Shortcut to build unix/syslinux using klibc
 klibc:
 	$(MAKE) clean
-	$(MAKE) CC=klcc ITARGET= ISUBDIRS=unix BSUBDIRS=
+	$(MAKE) CC=klcc ITARGET= ISUBDIRS='unix extlinux' BSUBDIRS=
 
 # Hook to add private Makefile targets for the maintainer.
 -include Makefile.private

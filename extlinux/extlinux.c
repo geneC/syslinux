@@ -25,7 +25,9 @@ typedef uint64_t u64;
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
+#ifndef __KLIBC__
 #include <mntent.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
@@ -646,11 +648,14 @@ already_installed(int devfd)
 int
 install_loader(const char *path, int update_only)
 {
-  struct stat st, dst, fst;
-  struct mntent *mnt = NULL;
+  struct stat st, fst;
   int devfd, rv;
-  FILE *mtab;
   const char *devname = NULL;
+#ifndef __KLIBC__
+  struct mntent *mnt = NULL;
+  struct stat dst;
+  FILE *mtab;
+#endif
 
   if ( stat(path, &st) || !S_ISDIR(st.st_mode) ) {
     fprintf(stderr, "%s: Not a directory: %s\n", program, path);
@@ -658,6 +663,27 @@ install_loader(const char *path, int update_only)
   }
 
   devfd = -1;
+
+#ifdef __KLIBC__
+
+  /* klibc doesn't have getmntent and friends; instead, just create
+     a new device with the appropriate device type */
+  
+  {
+    static char devname_buf[64];
+
+    snprintf(devname_buf, sizeof devname_buf, "/tmp/dev-%u:%u",
+	     major(st.st_dev), minor(st.st_dev));
+    
+    if (mknod(devname_buf, 0600, st.st_dev)) {
+      fprintf(stderr, "%s: cannot create device %s\n", program, devname);
+      return 1;
+    }
+
+    devname = devname_buf;
+  }
+
+#else
 
   if ( (mtab = setmntent("/proc/mounts", "r")) ) {
     while ( (mnt = getmntent(mtab)) ) {
@@ -687,6 +713,9 @@ install_loader(const char *path, int update_only)
   }
 
   fprintf(stderr, "%s is device %s\n", path, devname);
+
+#endif
+
   if ( (devfd = open(devname, O_RDWR|O_SYNC)) < 0 ) {
     fprintf(stderr, "%s: cannot open device %s\n", program, devname);
     return 1;
@@ -706,11 +735,15 @@ install_loader(const char *path, int update_only)
   }
 
   sync();
-  rv = install_bootblock(devfd, mnt->mnt_fsname);
+  rv = install_bootblock(devfd, devname);
   close(devfd);
   sync();
 
+#ifdef __KLIBC__
+  unlink(devname);
+#else
   endmntent(mtab);
+#endif
 
   if ( rv ) return rv;
 

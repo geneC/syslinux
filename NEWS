@@ -10,7 +10,8 @@ Changes in 3.20:
 	* New library functions to load and place files in memory.
 	* mboot.c32 bug fixes.
 	* Remove 8 MB kernel size restriction.
-	* Add "klibc" target for building unix/syslinux with klcc.
+	* Add "klibc" target for building unix/syslinux and
+	  extlinux/extlinux with klcc (klibc-1.4.25 or later.)
 	* PXELINUX: Fail (and eventually reboot) if no configuration
 	  file was found.
 	* COM32 module by Erwan Velu to make decisions based on DMI
