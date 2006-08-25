@@ -796,8 +796,7 @@ main(int argc, char *argv[])
       fputs("extlinux " VERSION "\n", stderr);
       exit(0);
     default:
-      fprintf(stderr, "%s: Unknown option: %c\n", program, optopt);
-      exit(EX_USAGE);
+      usage(EX_USAGE);
     }
   }
 
