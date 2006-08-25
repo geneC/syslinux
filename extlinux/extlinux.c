@@ -645,6 +645,17 @@ already_installed(int devfd)
   return !memcmp(buffer, "EXTLINUX", 8);
 }
 
+
+#ifdef __KLIBC__
+static char devname_buf[64];
+
+static void device_cleanup(void)
+{
+  unlink(devname_buf);
+}
+#endif
+
+
 int
 install_loader(const char *path, int update_only)
 {
@@ -668,20 +679,16 @@ install_loader(const char *path, int update_only)
 
   /* klibc doesn't have getmntent and friends; instead, just create
      a new device with the appropriate device type */
-  
-  {
-    static char devname_buf[64];
-
-    snprintf(devname_buf, sizeof devname_buf, "/tmp/dev-%u:%u",
-	     major(st.st_dev), minor(st.st_dev));
+  snprintf(devname_buf, sizeof devname_buf, "/tmp/dev-%u:%u",
+	   major(st.st_dev), minor(st.st_dev));
     
-    if (mknod(devname_buf, S_IFBLK|0600, st.st_dev)) {
-      fprintf(stderr, "%s: cannot create device %s\n", program, devname);
-      return 1;
-    }
-
-    devname = devname_buf;
+  if (mknod(devname_buf, S_IFBLK|0600, st.st_dev)) {
+    fprintf(stderr, "%s: cannot create device %s\n", program, devname);
+    return 1;
   }
+
+  atexit(device_cleanup);	/* unlink the device node on exit */
+  devname = devname_buf;
 
 #else
 
@@ -739,15 +746,7 @@ install_loader(const char *path, int update_only)
   close(devfd);
   sync();
 
-#ifdef __KLIBC__
-  unlink(devname);
-#else
-  endmntent(mtab);
-#endif
-
-  if ( rv ) return rv;
-
-  return 0;
+  return rv;
 }
 
 int
