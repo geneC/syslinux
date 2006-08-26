@@ -660,7 +660,7 @@ AX=0016h [3.10] Run kernel image
 	corrupt, however.)
 
 
-AX=0017h [3.20] Report video mode change
+AX=0017h [3.30] Report video mode change
 	Input:	AX	0017h
 		BX	Video mode flags
 			Bit 0:	graphics mode
@@ -710,7 +710,7 @@ AX=0017h [3.20] Report video mode change
 		This is common for VESA modes.
 
 
-AX=0018h [3.20]	Query custom font
+AX=0018h [3.30]	Query custom font
 	Input:	AX	0018h
 	Output:	AL	Height of custom font in scan lines, or zero
 		ES:BX	Pointer to custom font in memory
