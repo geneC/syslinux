@@ -238,6 +238,19 @@ packedpixel2vga:
 vgasetmode:
 		push ds
 		pop es
+		mov al,[UsingVGA]
+		cmp al,01h
+		je .success		; Nothing to do...
+		test al,04h
+		jz .notvesa
+		; We're in a VESA mode, which means VGA; use VESA call
+		; to revert the mode, and then call the conventional
+		; mode-setting for good measure...
+		mov ax,4F02h
+		mov bx,0012h
+		int 10h
+		jmp .setmode
+.notvesa:
 		mov ax,1A00h		; Get video card and monitor
 		xor bx,bx
 		int 10h
@@ -247,6 +260,7 @@ vgasetmode:
 ;		mov bx,TextColorReg
 ;		mov dx,1009h		; Read color registers
 ;		int 10h
+.setmode:
 		mov ax,0012h		; Set mode = 640x480 VGA 16 colors
 		int 10h
 		mov dx,linear_color
@@ -254,9 +268,13 @@ vgasetmode:
 		int 10h
 		mov [UsingVGA], byte 1
 
+		; Set GXPixCols and GXPixRows
+		mov dword [GXPixCols],640+(480 << 16)
+
 		call use_font		; Set graphics font/data
 		mov byte [ScrollAttribute], 00h
 
+.success:
 		xor ax,ax		; Set ZF
 .error:
 		ret
@@ -273,8 +291,15 @@ vgaclearmode:
 		mov ax,cs
 		mov ds,ax
 		mov es,ax
-		cmp [UsingVGA], byte 1
-		jne .done
+		mov al,[UsingVGA]
+		and al,al		; Already in text mode?
+		jz .done
+		test al,04h
+		jz .notvesa
+		mov ax,4F02h		; VESA return to normal video mode
+		mov bx,0003h
+		int 10h
+.notvesa:
 		mov ax,0003h		; Return to normal video mode
 		int 10h
 ;		mov dx,TextColorReg	; Restore color registers
@@ -316,6 +341,9 @@ vgacursorcommon:
 		section .data
 		; Map colors to consecutive DAC registers
 linear_color	db 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0
+
+		; See comboot.doc, INT 22h AX=0017h for the semantics
+		; of this byte.
 UsingVGA	db 0
 
 		section .latebss

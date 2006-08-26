@@ -11,6 +11,10 @@ writechr:
 		push ds
 		push cs
 		pop ds
+		test byte [UsingVGA], 08h
+		jz .videook
+		call vgaclearmode
+.videook:
 		call write_serial	; write to serial port if needed
 		pushfd
 		test byte [DisplayCon],01h	; Write to screen?

@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2006 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -732,6 +732,45 @@ comapi_runkernel:
 		mov word [CmdOptPtr],zero_string
 		jmp kernel_good_saved
 
+;
+; INT 22h AX=0017h  Report video mode change
+;
+comapi_usingvga:
+		mov ax,P_BX
+		cmp ax,0Fh		; Unknown flags = failure
+		ja .error
+		mov [UsingVGA],al
+		mov cx,P_CX
+		mov dx,P_DX
+		mov [GXPixCols],cx
+		mov [GXPixRows],dx
+		test al,08h
+		jnz .notext
+		call adjust_screen
+.notext:
+		clc
+		ret
+.error:
+		stc
+		ret
+
+;
+; INT 22h AX=0018h  Query custom font
+;
+comapi_userfont:
+		mov al,[UserFont]
+		and al,al
+		jz .done
+		mov al,[VGAFontSize]
+		mov P_ES,ds
+		mov P_BX,vgafontbuf
+
+.done:		; CF=0 here
+		mov P_AL,al
+		ret
+		
+
+
 		section .data
 
 %macro 		int21 2
@@ -777,6 +816,8 @@ int22_table:
 		dw comapi_localboot	; 0014 local boot
 		dw comapi_features	; 0015 feature flags
 		dw comapi_runkernel	; 0016 run kernel image
+		dw comapi_usingvga	; 0017 report video mode change
+		dw comapi_userfont	; 0018 query custom font
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

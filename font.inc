@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2006 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -60,6 +60,11 @@ loadfont:
 ;       Must be called with CS = DS = ES
 ;
 use_font:
+		test byte [UsingVGA], ~03h	; Nonstandard mode?
+		jz .modeok
+		call vgaclearmode
+
+.modeok:
 		test [UserFont], byte 1		; Are we using a user-specified font?
 		jz adjust_screen		; If not, just do the normal stuff
 
@@ -67,20 +72,24 @@ use_font:
 		mov bh,[VGAFontSize]
 
 		xor bl,bl			; Needed by both INT 10h calls
-		cmp [UsingVGA], byte 1		; Are we in graphics mode?
-		jne .text
 
+		test byte [UsingVGA], 01h	; Are we in graphics mode?
+		jz .text
+		
 .graphics:
 		xor cx,cx
 		mov cl,bh			; CX = bytes/character
-		mov ax,480
+		mov ax,[GXPixRows]
 		div cl				; Compute char rows per screen
 		mov dl,al
-		dec al
+		dec ax
 		mov [VidRows],al
 		mov ax,1121h			; Set user character table
 		int 10h
-		mov [VidCols], byte 79		; Always 80 bytes/line
+		mov ax,[GXPixCols]
+		shr ax,3			; 8 pixels/character
+		dec ax
+		mov [VidCols],al
 .lf_ret:	ret				; No need to call adjust_screen
 
 .text:
@@ -126,3 +135,8 @@ vgafontbuf	resb 8192
 		align 2, db 0
 VGAFontSize	dw 16			; Defaults to 16 byte font
 UserFont	db 0			; Using a user-specified font
+
+		section .bss
+		alignb 4
+GXPixCols	resw 1			; Graphics mode pixel columns
+GXPixRows	resw 1			; Graphics mode pixel rows

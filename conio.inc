@@ -73,7 +73,9 @@ print_msg_file:
 		je msg_done_pop
 		push si
 		mov cl,[UsingVGA]
-		inc cl				; 01h = text mode, 02h = graphics
+		and cl,01h
+		inc cx				; CL <- 01h = text mode,
+						;       02h = graphics mode
                 call [NextCharJump]		; Do what shall be done
 		pop si
 		pop edx

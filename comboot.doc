@@ -658,3 +658,63 @@ AX=0016h [3.10] Run kernel image
 	doesn't exist, instead of returning to the command line.  (It
 	may still return to the command line if the image is somehow
 	corrupt, however.)
+
+
+AX=0017h [3.20] Report video mode change
+	Input:	AX	0017h
+		BX	Video mode flags
+			Bit 0:	graphics mode
+			Bit 1:	non-default mode
+			Bit 2:	VESA mode
+			Bit 3:	text functions not supported
+		CX	For graphics modes, pixel columns
+		DX	For graphics modes, pixel rows
+	Output:	None
+
+	This function is used to report video mode changes to
+	SYSLINUX.  It does NOT actually change the video mode, but
+	rather, allows SYSLINUX to take appropriate action in response
+	to a video mode change.  Modes that cannot be exited either
+	with the conventional BIOS mode set command (INT 10h, AH=00h)
+	or the VESA VBE mode set command (INT 10h, AX=4F02h) should
+	not be used.
+
+	This function returns with a failure if BX contains any bits
+	which are undefined in the current version of SYSLINUX.
+
+	The following bits in BX are currently defined:
+	
+	Bit 0: graphics mode
+
+		Indicates that the mode is a graphics mode, as opposed
+		to a text mode.
+
+	Bit 1: non-standard mode
+
+		A non-standard mode is any mode except text mode and
+		graphics mode 0012h (VGA 640x480, 16 color.)
+
+	Bit 2: VESA mode
+
+		This mode is a VESA mode, and has to be exited with
+		the VESA VBE API (INT 10h, AX=4F02h) as opposed to the
+		conventional BIOS API (INT 10h, AH=00h).
+
+	Bit 3: Text functions not supported
+
+		This indicates that the BIOS text output functions
+		(INT 10h, AH=02h, 03h, 06h, 09h, 0Eh, 11h) don't work.
+		If this bit is set, SYSLINUX will reset the mode
+		before printing any characters on the screen.
+
+		This is common for VESA modes.
+
+
+AX=0018h [3.20]	Query custom font
+	Input:	AX	0018h
+	Output:	AL	Height of custom font in scan lines, or zero
+		ES:BX	Pointer to custom font in memory
+
+	This call queries if a custom display font has been loaded via
+	the "font" configuration file command.  If no custom font has
+	been loaded, AL contains zero.

@@ -1043,25 +1043,6 @@ searchdir:
 		ret
 
 ;
-; writechr:	Write a single character in AL to the console without
-;		mangling any registers; handle video pages correctly.
-;
-writechr:
-		call write_serial	; write to serial port if needed
-		pushfd
-		test byte [cs:DisplayCon], 01h
-		jz .nothing
-		pushad
-		mov ah,0Eh
-		mov bl,07h		; attribute
-		mov bh,[cs:BIOS_page]	; current page
-		int 10h
-		popad
-.nothing:
-		popfd
-		ret
-
-;
 ;
 ; kaboom2: once everything is loaded, replace the part of kaboom
 ;	   starting with "kaboom.patch" with this part
@@ -1425,6 +1406,7 @@ getfatsector:
 
 %include "getc.inc"		; getc et al
 %include "conio.inc"		; Console I/O
+%include "plaincon.inc"		; writechr
 %include "writestr.inc"		; String output
 %include "parseconfig.inc"	; High-level config file handling
 %include "parsecmd.inc"		; Low-level config file handling
