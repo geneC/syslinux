@@ -22,7 +22,7 @@ PRIVATE = Makefile.private .depend */.depend
 GIT_DIR ?= .git
 ABS_GIT_DIR := $(shell cd '$(GIT_DIR)' && pwd)
 
--include Makefile.secret
+-include release/Makefile.secret
 
 isolinux.iso: all
 	cp isolinux-debug.bin isolinux-test/isolinux/isolinux.bin
