@@ -29,6 +29,20 @@
 #include "vesa.h"
 #include "video.h"
 
+/*
+ * Linear alpha blending.  Useless for anything that's actually
+ * depends on color accuracy (because of gamma), but it's fine for
+ * what we want.
+ *
+ * This algorithm is exactly equivalent to (alpha*fg+(255-alpha)*bg)/255
+ * for all 8-bit values, but is substantially faster.
+ */
+static inline uint8_t alpha(uint8_t fg, uint8_t bg, uint8_t alpha)
+{
+  unsigned int tmp = 1 + alpha*fg + (255-alpha)*bg;
+  return (tmp + (tmp >> 8)) >> 8;
+}
+
 static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 {
   const int height = __vesacon_font_height;
