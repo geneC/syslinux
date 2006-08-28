@@ -12,12 +12,18 @@ OBJCOPY	= objcopy
 
 # zlib and libpng configuration flags
 LIBFLAGS = -DDYNAMIC_CRC_TABLE -DPNG_NO_CONSOLE_IO \
-	   -DPNG_NO_MNG_FEATURES -DPNG_NO_FLOATING_POINT_SUPPORTED \
-	   -DPNG_NO_WRITE_FLUSH -DPNG_NO_WRITE_tIME -DPNG_NO_READ_tIME
+	   -FPNG_NO_WRITE_SUPPORTED \
+	   -DPNG_NO_MNG_FEATURES \
+	   -DPNG_NO_READ_tIME -DPNG_NO_WRITE_tIME
+
+# We need some features in libpng which apparently aren't available in the
+# fixed-point versions.  It's OK, because we have to have a non-graphical
+# fallback anyway, just use that on old machines...
+# LIBFLAGS += -DPNG_NO_FLOATING_POINT_SUPPORTED
 
 REQFLAGS  = -g -m32 -mregparm=3 -DREGPARM=3 -D__COM32__ -I. -I./sys -I../include
 OPTFLAGS  = -Os -march=i386 -falign-functions=0 -falign-jumps=0 \
-	    -falign-labels=0
+	    -falign-labels=0 -ffast-math
 WARNFLAGS = -W -Wall -Wpointer-arith -Wwrite-strings -Wstrict-prototypes -Winline
 
 CFLAGS  = -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d $(OPTFLAGS) \

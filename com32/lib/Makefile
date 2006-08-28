@@ -44,11 +44,13 @@ LIBOBJS = \
 	zlib/uncompr.o zlib/deflate.o zlib/trees.o zlib/zutil.o 	\
 	zlib/inflate.o zlib/infback.o zlib/inftrees.o zlib/inffast.o	\
 	\
-	libpng/png.o libpng/pngset.o libpng/pngrutil.o			\
+	libpng/png.o libpng/pngset.o libpng/pngget.o libpng/pngrutil.o  \
 	libpng/pngtrans.o libpng/pngwutil.o libpng/pngread.o		\
 	libpng/pngrio.o libpng/pngwio.o libpng/pngwrite.o		\
 	libpng/pngrtran.o libpng/pngwtran.o libpng/pngmem.o		\
-	libpng/pngerror.o libpng/pngpread.o
+	libpng/pngerror.o libpng/pngpread.o				\
+	\
+	math/pow.o
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib

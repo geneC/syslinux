@@ -55,8 +55,6 @@ int vesacon_load_background(const char *filename)
   png_infop end_ptr = NULL;
   png_color_16p image_background;
   static const png_color_16 my_background = {0,0,0,0,0};
-  double gamma;
-  const double screen_gamma = 2.2;
   png_bytep row_pointers[VIDEO_Y_SIZE];
   int passes;
   int i;
@@ -123,6 +121,11 @@ int vesacon_load_background(const char *filename)
 
   png_set_bgr(png_ptr);
 
+  if (info_ptr->bit_depth == 16)
+    png_set_strip_16(png_ptr);
+  else if (info_ptr->bit_depth < 8)
+    png_set_packing(png_ptr);
+
   if (png_get_bKGD(png_ptr, info_ptr, &image_background))
     png_set_background(png_ptr, image_background,
 		       PNG_BACKGROUND_GAMMA_FILE, 1, 1.0);
@@ -130,17 +133,6 @@ int vesacon_load_background(const char *filename)
     png_set_background(png_ptr, &my_background,
 		       PNG_BACKGROUND_GAMMA_SCREEN, 0, 1.0);
     
-
-  if (info_ptr->bit_depth == 16)
-    png_set_strip_16(png_ptr);
-  else if (info_ptr->bit_depth < 8)
-    png_set_packing(png_ptr);
-
-  if (png_get_gAMA(png_ptr, info_ptr, &gamma))
-    png_set_gamma(png_ptr, screen_gamma, gamma);
-  else
-    png_set_gamma(png_ptr, screen_gamma, 0.45455);
-
   /* Whew!  Now we should get the stuff we want... */
   for (i = 0; i < info_ptr->height; i++)
     row_pointers[i] = (png_bytep *)__vesacon_background[i];
