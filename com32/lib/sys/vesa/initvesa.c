@@ -35,15 +35,38 @@
 #include <inttypes.h>
 #include <com32.h>
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
 #include "vesa.h"
 #include "video.h"
 
-struct vesa_general_info __vesa_general_info;
-struct vesa_mode_info    __vesa_mode_info;
+struct vesa_info __vesa_info;
 
+struct vesa_char *__vesacon_text_display;
+
+int __vesacon_font_height;
 uint8_t __vesacon_graphics_font[FONT_MAX_CHARS][FONT_MAX_HEIGHT];
+
 uint32_t __vesacon_background[VIDEO_Y_SIZE][VIDEO_X_SIZE];
-uint32_t __vesacon_shadowfb[VIDEO_Y_SIZE][VIDEO_X_SIZE];
+
+ssize_t __serial_write(void *fp, const void *buf, size_t count);
+
+static void debug(const char *str, ...)
+{
+  va_list va;
+  char buf[65536];
+  size_t len;
+
+  va_start(va, str);
+  len = vsnprintf(buf, sizeof buf, str, va);
+  va_end(va);
+
+  if (len >= sizeof buf)
+    len = sizeof buf - 1;
+
+  __serial_write(NULL, buf, len);
+}
 
 static void unpack_font(uint8_t *dst, uint8_t *src, int height)
 {
@@ -51,9 +74,9 @@ static void unpack_font(uint8_t *dst, uint8_t *src, int height)
 
   for (i = 0; i < FONT_MAX_CHARS; i++) {
     memcpy(dst, src, height);
-    memset(dst+height, 0, 32-height);
+    memset(dst+height, 0, FONT_MAX_HEIGHT-height);
 
-    dst += 32;
+    dst += FONT_MAX_HEIGHT;
     src += height;
   }
 }
@@ -69,6 +92,8 @@ static int vesacon_set_mode(void)
   /* Allocate space in the bounce buffer for these structures */
   gi = &((struct vesa_info *)__com32.cs_bounce)->gi;
   mi = &((struct vesa_info *)__com32.cs_bounce)->mi;
+
+  debug("Hello, World!\r\n");
 
   memset(&rm, 0, sizeof rm);
 
@@ -87,11 +112,13 @@ static int vesacon_set_mode(void)
   }
 
   /* Search for a 640x480 32-bit linear frame buffer mode */
-  mode_ptr = CVT_PTR(gi->video_mode_ptr);
+  mode_ptr = GET_PTR(gi->video_mode_ptr);
 
   for(;;) {
     if ((mode = *mode_ptr++) == 0xFFFF)
       return 4;			/* No mode found */
+
+    debug("Found mode: 0x%04x\r\n", mode);
 
     rm.eax.w[0] = 0x4F01;	/* Get SVGA mode information */
     rm.ecx.w[0] = mode;
@@ -102,6 +129,11 @@ static int vesacon_set_mode(void)
     /* Must be a supported mode */
     if ( rm.eax.w[0] != 0x004f )
       continue;
+
+    debug("mode_attr 0x%04x, h_res = %4d, v_res = %4d, bpp = %2d, layout = %d (%d,%d,%d)\r\n",
+	  mi->mode_attr, mi->h_res, mi->v_res, mi->bpp, mi->memory_layout,
+	  mi->rpos, mi->gpos, mi->bpos);
+
     /* Must be an LFB color graphics mode supported by the hardware */
     if ( (mi->mode_attr & 0x0099) != 0x0099 )
       continue;
@@ -112,8 +144,8 @@ static int vesacon_set_mode(void)
     /* Must either be a packed-pixel mode or a direct color mode
        (depending on VESA version ) */
     if ( mi->memory_layout != 4 && /* Packed pixel */
-	 (mi->memory_layout != 6 || mi->rpos != 24 ||
-	  mi->gpos != 16 || mi->bpos != 0) )
+	 (mi->memory_layout != 6 || mi->rpos != 16 ||
+	  mi->gpos != 8 || mi->bpos != 0) )
       continue;
 
     /* Hey, looks like we found something we can live with */
@@ -125,7 +157,8 @@ static int vesacon_set_mode(void)
   rm.ebx.w[0] = 0x0600;		/* Get 8x16 ROM font */
   __intcall(0x10, &rm, &rm);
   rom_font = MK_PTR(rm.es, rm.ebp.w[0]);
-  unpack_font(graphics_font, rom_font, 16);
+  __vesacon_font_height = 16;
+  unpack_font((uint8_t *)__vesacon_graphics_font, rom_font, 16);
 
   /* Now set video mode */
   rm.eax.w[0] = 0x4F02;		/* Set SVGA video mode */
@@ -143,7 +176,110 @@ static int vesacon_set_mode(void)
   return 0;
 }
 
+
+static int init_text_display(void)
+{
+  size_t nchars;
+  struct vesa_char *ptr;
+
+  nchars = (TEXT_PIXEL_ROWS/__vesacon_font_height+2)*
+    (TEXT_PIXEL_COLS/FONT_WIDTH+2);
+
+  __vesacon_text_display = ptr = malloc(nchars*sizeof(struct vesa_char));
+
+  if (!ptr)
+    return -1;
+
+  /* I really which C had a memset() for larger-than-bytes objects... */
+  asm volatile("cld; rep; stosl"
+	       : "+D" (ptr), "+c" (nchars)
+	       : "a" (' '+(0x07 << 8)+(SHADOW_NORMAL << 16))
+	       : "memory");
+
+  return 0;
+}
+
 int __vesacon_init(void)
 {
-  return vesacon_set_mode();
+  int i, j, r, g, b, n;
+  const int step = 8;
+
+  /* Fill the background image with a test pattern */
+  for (i = 0; i < VIDEO_Y_SIZE; i++) {
+    r = g = b = n = 0;
+
+    for (j = 0; j < VIDEO_X_SIZE; j++) {
+      switch (n) {
+      case 0:
+	r += step;
+	if (r >= 255) {
+	  r = 255;
+	  n++;
+	}
+	break;
+      case 1:
+	g += step;
+	if (g >= 255) {
+	  g = 255;
+	  n++;
+	}
+	break;
+      case 2:
+	r -= step;
+	if (r <= 0) {
+	  r = 0;
+	  n++;
+	}
+	break;
+      case 3:
+	b += step;
+	if (b >= 255) {
+	  b = 255;
+	  n++;
+	}
+	break;
+      case 4:
+	g -= step;
+	if (g <= 0) {
+	  g = 0;
+	  n++;
+	}
+	break;
+      case 5:
+	r += step;
+	if (r >= 255) {
+	  r = 255;
+	  n++;
+	}
+	break;
+      case 6:
+	g += step;
+	if (g >= 255) {
+	  g = 255;
+	  n++;
+	}
+	break;
+      case 7:
+	r -= step;
+	if (r < 0) {
+	  r = 0;
+	  n = 0;
+	}
+	g = b = r;
+	break;
+      }
+      __vesacon_background[i][j] = (r << 16) + (g << 8) + b;
+    }
+  }
+
+  vesacon_set_mode();
+
+  init_text_display();
+
+  debug("Mode set, now drawing at %#p\n", __vesa_info.mi.lfb_ptr);
+
+  __vesacon_init_background();
+
+  debug("Ready!\r\n");
+  return 0;
 }
