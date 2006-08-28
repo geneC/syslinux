@@ -50,7 +50,7 @@ LIBOBJS = \
 	libpng/pngrtran.o libpng/pngwtran.o libpng/pngmem.o		\
 	libpng/pngerror.o libpng/pngpread.o				\
 	\
-	math/pow.o
+	sys/x86_init_fpu.o math/pow.o math/strtod.o
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib
