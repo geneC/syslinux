@@ -122,4 +122,26 @@ static inline void *MK_PTR(uint16_t __seg, uint16_t __offs)
   return (void *)((__seg << 4) + __offs);
 }
 
+/* Some tools to handle 16:16 far pointers in memory */
+
+struct __far_ptr {
+  uint32_t __ptr;
+} __attribute__((packed));
+
+typedef struct __far_ptr far_ptr_t;
+
+
+static inline void *GET_PTR(far_ptr_t __fptr)
+{
+  return MK_PTR(__fptr.__ptr >> 16, __fptr.__ptr);
+}
+
+static inline far_ptr_t FAR_PTR(void *__ptr)
+{
+  far_ptr_t __fptr;
+
+  __fptr.__ptr = (SEG(__ptr) << 16) + OFFS(__ptr);
+  return __fptr;
+}
+
 #endif /* _COM32_H */
