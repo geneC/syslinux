@@ -31,19 +31,11 @@
 #include "vesa.h"
 #include "video.h"
 
+/* FIX THIS: we need to redraw any text on the screen... */
 static void draw_background(void)
 {
-  uint32_t *outp = (uint32_t *)__vesa_info.mi.lfb_ptr;
-  uint32_t *inp = (uint32_t *)__vesacon_background;
-  size_t n = sizeof __vesacon_background;
-  uint32_t v;
-
-  while (n--) {
-    v = *inp++;
-    *outp++ = (__vesacon_alpha_tbl[(uint8_t)(v >> 16)][0] << 16)|
-      (__vesacon_alpha_tbl[(uint8_t)(v >> 8)][0] << 8)|
-      (__vesacon_alpha_tbl[(uint8_t)v][0]);
-  }
+  memcpy(__vesa_info.mi.lfb_ptr, __vesacon_background,
+	 sizeof __vesacon_background);
 }
 
 int vesacon_load_background(const char *filename)
@@ -159,8 +151,9 @@ int vesacon_load_background(const char *filename)
 
 int __vesacon_init_background(void)
 {
-  memset(__vesacon_background, 0, sizeof __vesacon_background);
+  memset(__vesacon_background, 0x80, sizeof __vesacon_background);
 
   /* The VESA BIOS has already cleared the screen */
+  draw_background();
   return 0;
 }

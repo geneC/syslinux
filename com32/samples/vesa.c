@@ -12,6 +12,7 @@ int main(void)
   char attr_buf[16];
 
   __vesacon_init();
+  vesacon_load_background("stacy.png");
 
   row = col = 0;
   
