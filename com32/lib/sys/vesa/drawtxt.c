@@ -127,8 +127,8 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 	chxbits = chbits;
 	chxbits &= (cptr->sha & 0x02) ? 0xff : 0x00;
 	chxbits ^= (cptr->sha & 0x01) ? 0xff : 0x00;
-	fgcolor = vesacon_color_map[cptr->sha & 0x0f];
-	bgcolor = vesacon_color_map[cptr->sha >> 4];
+	fgcolor = vesacon_color_map[cptr->attr & 0x0f];
+	bgcolor = vesacon_color_map[cptr->attr >> 4];
 	cptr++;
 	break;
       case FONT_WIDTH-1:
