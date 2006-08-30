@@ -85,4 +85,8 @@ sys/vesa/alphatbl.o: sys/vesa/alphatbl.c
 sys/vesa/alphatbl.c: sys/vesa/alphatbl.pl
 	$(PERL) $< > $@ || ( rm -f $@ ; exit 1 )
 
+# This code is performance critical, and doesn't compile well with -Os
+sys/vesa/drawtxt.o: sys/vesa/drawtxt.c
+	$(CC) $(CFLAGS) -O3 -c -o $@ $<
+
 -include .*.d */.*.d

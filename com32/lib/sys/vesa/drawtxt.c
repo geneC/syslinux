@@ -30,6 +30,29 @@
 #include "video.h"
 
 /*
+ * Color map (ARGB) for the 16 PC colors.  This can be overridden by the
+ * application, and do not have to match the traditional colors.
+ */
+uint32_t vesacon_color_map[16] = {
+  0x00000000,			/* black */
+  0x400000ff,			/* dark blue */
+  0x4000ff00,			/* dark green */
+  0x4000ffff,			/* dark cyan */
+  0x40ff0000,			/* dark red */
+  0x40ff00ff,			/* dark purple */
+  0x80ff8000,			/* brown */
+  0xc0ffffff,			/* light grey */
+  0x40ffffff,			/* dark grey */
+  0xc00000ff,			/* bright blue */
+  0xc000ff00,			/* bright green */
+  0xc000ffff,			/* bright cyan */
+  0xc0ff0000,			/* bright red */
+  0xc0ff00ff,			/* bright purple */
+  0xffffff00,			/* yellow */
+  0xffffffff,			/* white */
+};
+
+/*
  * Linear alpha blending.  Useless for anything that's actually
  * depends on color accuracy (because of gamma), but it's fine for
  * what we want.
@@ -37,20 +60,35 @@
  * This algorithm is exactly equivalent to (alpha*fg+(255-alpha)*bg)/255
  * for all 8-bit values, but is substantially faster.
  */
-static inline uint8_t alpha(uint8_t fg, uint8_t bg, uint8_t alpha)
+static inline __attribute__((always_inline))
+  uint8_t alpha_val(uint8_t fg, uint8_t bg, uint8_t alpha)
 {
   unsigned int tmp = 1 + alpha*fg + (255-alpha)*bg;
   return (tmp + (tmp >> 8)) >> 8;
+}
+
+static uint32_t alpha_pixel(uint32_t fg, uint32_t bg)
+{
+  uint8_t alpha = fg >> 24;
+  uint8_t fg_r = fg >> 16;
+  uint8_t fg_g = fg >> 8;
+  uint8_t fg_b = fg;
+  uint8_t bg_r = bg >> 16;
+  uint8_t bg_g = bg >> 8;
+  uint8_t bg_b = bg;
+
+  return
+    (alpha_val(fg_r, bg_r, alpha) << 16)|
+    (alpha_val(fg_g, bg_g, alpha) << 8)|
+    (alpha_val(fg_b, bg_b, alpha));
 }
 
 static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 {
   const int height = __vesacon_font_height;
   const int width = FONT_WIDTH;
-  uint32_t *bgrowptr, *bgptr, *fbrowptr, *fbptr, bgval, bgxval;
-  int fr = 0, fg = 0, fb = 0;
-  int br = 0, bg = 0, bb = 0;
-  uint8_t r, g, b;
+  uint32_t *bgrowptr, *bgptr, *fbrowptr, *fbptr, bgval, fgval;
+  uint32_t fgcolor = 0, bgcolor = 0, color;
   uint8_t chbits = 0, chxbits = 0, chsbits = 0;
   int i, j, pixrow, pixsrow;
   struct vesa_char *rowptr, *rowsptr, *cptr, *csptr;
@@ -89,12 +127,8 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 	chxbits = chbits;
 	chxbits &= (cptr->sha & 0x02) ? 0xff : 0x00;
 	chxbits ^= (cptr->sha & 0x01) ? 0xff : 0x00;
-	fr = ((cptr->attr & 4) >> 1) + ((cptr->attr & 8) >> 3);
-	fg = ((cptr->attr & 2)) + ((cptr->attr & 8) >> 3);
-	fb = ((cptr->attr & 1) << 1) + ((cptr->attr & 8) >> 3);
-	br = ((cptr->attr & 0x40) >> 5) + ((cptr->attr & 0x80) >> 7);
-	bg = ((cptr->attr & 0x20) >> 4) + ((cptr->attr & 0x80) >> 7);
-	bb = ((cptr->attr & 0x10) >> 3) + ((cptr->attr & 0x80) >> 7);
+	fgcolor = vesacon_color_map[cptr->sha & 0x0f];
+	bgcolor = vesacon_color_map[cptr->sha >> 4];
 	cptr++;
 	break;
       case FONT_WIDTH-1:
@@ -107,25 +141,23 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 	break;
       }
 
-      bgval = *bgptr;
-      bgxval = bgptr[VIDEO_X_SIZE+1];
+      /* If this pixel is raised, use the offsetted value */
+      bgval = (chxbits & 0x80) ? bgptr[VIDEO_X_SIZE+1] : *bgptr;
       bgptr++;
-      
-      if (chbits & 0x80) {
-	r = __vesacon_alpha_tbl[(uint8_t)(bgxval >> 16)][fr];
-	g = __vesacon_alpha_tbl[(uint8_t)(bgxval >> 8)][fg];
-	b = __vesacon_alpha_tbl[(uint8_t)bgxval][fb];
-      } else if ((chsbits & ~chxbits) & 0x80) {
-	r = __vesacon_alpha_tbl[(uint8_t)(bgval >> 16)][br] >> 2;
-	g = __vesacon_alpha_tbl[(uint8_t)(bgval >> 8)][bg] >> 2;
-	b = __vesacon_alpha_tbl[(uint8_t)bgval][bb] >> 2;
-      } else {
-	r = __vesacon_alpha_tbl[(uint8_t)(bgval >> 16)][br];
-	g = __vesacon_alpha_tbl[(uint8_t)(bgval >> 8)][bg];
-	b = __vesacon_alpha_tbl[(uint8_t)bgval][bb];
+
+      /* If this pixel is set, use the fg color, else the bg color */
+      fgval = (chbits & 0x80) ? fgcolor : bgcolor;
+
+      /* Produce the combined color pixel value */
+      color = alpha_pixel(fgval, bgval);
+
+      /* Apply the shadow (75% shadow) */
+      if ((chsbits & ~chxbits) & 0x80) {
+	color >>= 2;
+	color &= 0x3f3f3f;
       }
       
-      *fbptr++ = (r << 16)|(g << 8)|b;
+      *fbptr++ = color;
     }
 
     bgrowptr += VIDEO_X_SIZE;

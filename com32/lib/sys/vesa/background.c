@@ -126,12 +126,14 @@ int vesacon_load_background(const char *filename)
   else if (info_ptr->bit_depth < 8)
     png_set_packing(png_ptr);
 
+#if 0
   if (png_get_bKGD(png_ptr, info_ptr, &image_background))
     png_set_background(png_ptr, image_background,
 		       PNG_BACKGROUND_GAMMA_FILE, 1, 1.0);
   else
     png_set_background(png_ptr, &my_background,
 		       PNG_BACKGROUND_GAMMA_SCREEN, 0, 1.0);
+#endif
     
   /* Whew!  Now we should get the stuff we want... */
   for (i = 0; i < info_ptr->height; i++)
@@ -160,4 +162,5 @@ int __vesacon_init_background(void)
   memset(__vesacon_background, 0, sizeof __vesacon_background);
 
   /* The VESA BIOS has already cleared the screen */
+  return 0;
 }
