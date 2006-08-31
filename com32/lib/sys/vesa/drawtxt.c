@@ -113,7 +113,7 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
     chsbits = __vesacon_graphics_font[csptr->ch][pixsrow];
     chsbits &= (csptr->sha & 0x02) ? 0xff : 0x00;
     chsbits ^= (csptr->sha & 0x01) ? 0xff : 0x00;
-    chsbits <<= 7;
+    chsbits <<= 6;
     csptr++;
     
     for (j = width*ncols; j >= 0; j--) {
