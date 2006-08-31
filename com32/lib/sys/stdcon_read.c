@@ -73,4 +73,5 @@ const struct input_dev dev_stdcon_r = {
   .fileflags  = O_RDONLY,
   .read       = __stdcon_read,
   .close      = NULL,
+  .open       = NULL,
 };

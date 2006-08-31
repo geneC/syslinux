@@ -67,4 +67,5 @@ const struct output_dev dev_stdcon_w = {
   .fileflags  = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
   .write      = __stdcon_write,
   .close      = NULL,
+  .open       = NULL,
 };

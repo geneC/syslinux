@@ -76,4 +76,5 @@ const struct input_dev dev_rawcon_r = {
   .fileflags  = O_RDONLY,
   .read       = __rawcon_read,
   .close      = NULL,
+  .open       = NULL,
 };

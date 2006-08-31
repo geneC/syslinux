@@ -49,6 +49,7 @@ int close(int fd)
     if ( rv )
       return rv;
   }
+  fp->iop = &dev_error_r;
 
   if ( fp->oop->close ) {
     rv = fp->oop->close(fp);

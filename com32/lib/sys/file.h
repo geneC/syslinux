@@ -58,13 +58,16 @@ struct input_dev {
   int fileflags;		/* Permitted file flags */
   ssize_t (*read)(struct file_info *, void *, size_t);
   int (*close)(struct file_info *);
+  int (*open)(struct file_info *);
 };
+
 struct output_dev {
   uint16_t dev_magic;		/* Magic number */
   uint16_t flags;		/* Flags */
   int fileflags;
   ssize_t (*write)(struct file_info *, const void *, size_t);
   int (*close)(struct file_info *);
+  int (*open)(struct file_info *);
 };
 
 /* File structure */

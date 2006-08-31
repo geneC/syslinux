@@ -100,33 +100,50 @@ static const char decvt_to_cp437[] =
   { 0004, 0261, 0007, 0007, 0007, 0007, 0370, 0361, 0007, 0007, 0331, 0277, 0332, 0300, 0305, 0304,
     0304, 0304, 0137, 0137, 0303, 0264, 0301, 0302, 0263, 0363, 0362, 0343, 0330, 0234, 0007, 00 };
 
+/* Reference counter to the screen, to keep track of if we need reinitialization. */
+static int ansicon_counter = 0;
+
 /* Common setup */
-static void __constructor ansicon_init(void)
+int __ansicon_open(struct file_info *fp)
 {
   static com32sys_t ireg;	/* Auto-initalized to all zero */
   com32sys_t oreg;
 
-  /* Initial state */
-  memcpy(&st, &default_state, sizeof st);
+  (void)fp;
 
-  /* Are we disabled? */
-  ireg.eax.w[0] = 0x000b;
-  __intcall(0x22, &ireg, &oreg);
-
-  if ( (signed char)oreg.ebx.b[1] < 0 ) {
-    st.disabled = 1;
-    return;
+  if (!ansicon_counter) {
+    /* Initial state */
+    memcpy(&st, &default_state, sizeof st);
+    
+    /* Are we disabled? */
+    ireg.eax.w[0] = 0x000b;
+    __intcall(0x22, &ireg, &oreg);
+    
+    if ( (signed char)oreg.ebx.b[1] < 0 ) {
+      st.disabled = 1;
+    } else {
+      /* Force text mode */
+      ireg.eax.w[0] = 0x0005;
+      __intcall(0x22, &ireg, NULL);
+      
+      /* Get cursor shape */
+      ireg.eax.b[1] = 0x03;
+      ireg.ebx.b[1] = BIOS_PAGE;
+      __intcall(0x10, &ireg, &oreg);
+      st.cursor_type = oreg.ecx.w[0];
+    }
   }
 
-  /* Force text mode */
-  ireg.eax.w[0] = 0x0005;
-  __intcall(0x22, &ireg, NULL);
+  ansicon_counter++;
+  return 0;
+}
 
-  /* Get cursor shape */
-  ireg.eax.b[1] = 0x03;
-  ireg.ebx.b[1] = BIOS_PAGE;
-  __intcall(0x10, &ireg, &oreg);
-  st.cursor_type = oreg.ecx.w[0];
+int __ansicon_close(struct file_info *fp)
+{
+  (void)fp;
+
+  ansicon_counter--;
+  return 0;
 }
 
 /* Erase a region of the screen */
@@ -533,5 +550,6 @@ const struct output_dev dev_ansicon_w = {
   .flags      = __DEV_TTY | __DEV_OUTPUT,
   .fileflags  = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
   .write      = __ansicon_write,
-  .close      = NULL,
+  .close      = __ansicon_close,
+  .open       = __ansicon_open,
 };

@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <com32.h>
 #include <string.h>
+#include <unistd.h>
 #include "file.h"
 
 /*
@@ -36,11 +37,13 @@
  * Open a special device
  */
 
-int opendev(const struct input_dev *idev, const struct output_dev *odev, int flags)
+int opendev(const struct input_dev *idev,
+	    const struct output_dev *odev, int flags)
 {
   int fd;
   struct file_info *fp;
   int okflags;
+  int e;
 
   okflags = (idev ? idev->fileflags : 0) | (odev ? odev->fileflags : 0);
 
@@ -58,11 +61,31 @@ int opendev(const struct input_dev *idev, const struct output_dev *odev, int fla
     return -1;
   }
 
-  fp->iop         = idev ? idev : &dev_error_r;
-  fp->oop         = odev ? odev : &dev_error_w;
+  fp->iop         = &dev_error_r;
+  fp->oop         = &dev_error_w;
   fp->i.offset    = 0;
   fp->i.nbytes    = 0;
   fp->i.datap     = fp->i.buf;
 
+  if (idev) {
+    if (idev->open && (e = idev->open(fp))) {
+      errno = e;
+      goto puke;
+    }
+    fp->iop = idev;
+  }
+
+  if (odev) {
+    if (odev->open && (e = odev->open(fp))) {
+      errno = e;
+      goto puke;
+    }
+    fp->oop = odev;
+  }
+
   return fd;
+
+ puke:
+  close(fd);
+  return -1;
 }

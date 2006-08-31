@@ -37,6 +37,8 @@
 #include <minmax.h>
 #include "file.h"
 
+extern int __ansicon_open(void);
+extern int __ansicon_close(struct file_info *);
 extern ssize_t __ansicon_write(struct file_info *, const void *, size_t);
 extern ssize_t __serial_write(struct file_info *, const void *, size_t);
 
@@ -51,5 +53,6 @@ const struct output_dev dev_ansiserial_w = {
   .flags      = __DEV_TTY | __DEV_OUTPUT,
   .fileflags  = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
   .write      = __ansiserial_write,
-  .close      = NULL,
+  .close      = __ansicon_close,
+  .open       = __ansicon_open,
 };

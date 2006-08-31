@@ -100,7 +100,7 @@ static const char decvt_to_cp437[] =
     0304, 0304, 0137, 0137, 0303, 0264, 0301, 0302, 0263, 0363, 0362, 0343, 0330, 0234, 0007, 00 };
 
 /* Common setup */
-static void __constructor vesacon_init(void)
+static void vesacon_init(void)
 {
   static com32sys_t ireg;	/* Auto-initalized to all zero */
   com32sys_t oreg;
@@ -533,4 +533,5 @@ const struct output_dev dev_vesacon_w = {
   .fileflags  = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
   .write      = __vesacon_write,
   .close      = NULL,
+  .init       = vesacon_init,
 };

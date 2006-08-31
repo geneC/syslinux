@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2003-2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2003-2006 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -47,6 +47,7 @@ static const struct input_dev file_dev = {
   .fileflags = O_RDONLY,
   .read      = __file_read,
   .close     = __file_close,
+  .open      = NULL,
 };
 
 int open(const char *pathname, int flags, ...)
