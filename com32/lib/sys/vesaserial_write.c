@@ -26,38 +26,33 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * console.h
+ * vesaserial_write.c
  *
- * Alternative consoles
+ * Write to both to the VESA console and the serial port
  */
 
-#ifndef _CONSOLE_H
-#define _CONSOLE_H
+#include <errno.h>
+#include <string.h>
+#include <com32.h>
+#include <minmax.h>
+#include "file.h"
 
-#include <klibc/extern.h>
-#include <dev.h>
+extern int __vesacon_open(void);
+extern int __vesacon_close(struct file_info *);
+extern ssize_t __vesacon_write(struct file_info *, const void *, size_t);
+extern ssize_t __serial_write(struct file_info *, const void *, size_t);
 
-__extern int openconsole(const struct input_dev *, const struct output_dev *);
+static ssize_t __vesaserial_write(struct file_info *fp, const void *buf, size_t count)
+{
+  __vesacon_write(fp, buf, count);
+  return __serial_write(fp, buf, count);
+}
 
-/* Standard line-oriented console */
-extern const struct input_dev  dev_stdcon_r;
-extern const struct output_dev dev_stdcon_w;
-/* Raw character-oriented console */
-extern const struct input_dev  dev_rawcon_r;
-extern const struct output_dev dev_rawcon_w;
-
-/* These are output-only consoles; combine with one of the input methods */
-
-/* Serial port only */
-extern const struct output_dev dev_serial_w;
-/* ANSI console (output only; combine with one of the input methods) */
-extern const struct output_dev dev_ansicon_w;
-/* ANSI plus serial port */
-extern const struct output_dev dev_ansiserial_w;
-
-/* VESA graphics console (output only) */
-extern const struct output_dev dev_vesacon_w;
-/* VESA plus serial port */
-extern const struct output_dev dev_vesaserial_w;
-
-#endif /* _CONSOLE_H */
+const struct output_dev dev_vesaserial_w = {
+  .dev_magic  = __DEV_MAGIC,
+  .flags      = __DEV_TTY | __DEV_OUTPUT,
+  .fileflags  = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
+  .write      = __vesaserial_write,
+  .close      = __vesacon_close,
+  .open       = __vesacon_open,
+};

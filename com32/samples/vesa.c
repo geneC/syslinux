@@ -18,7 +18,7 @@ int main(void)
   
   for (attr = 0; attr < 256; attr++) {
     snprintf(attr_buf, sizeof attr_buf, " [%02X] ", attr);
-    vesacon_write_at(row, col, attr_buf, attr, attr & 3);
+    __vesacon_write_at(row, col, attr_buf, attr, attr & 3);
     row++;
     if (row >= 29) {
       row = 0;

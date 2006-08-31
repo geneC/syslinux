@@ -28,7 +28,8 @@
 /*
  * vesacon_write.c
  *
- * Write to the screen mapped using VESA BIOS extensions (VBE)
+ * Write to the screen using ANSI control codes (about as capable as
+ * DOS' ANSI.SYS.)
  */
 
 #include <errno.h>
@@ -37,14 +38,11 @@
 #include <minmax.h>
 #include <klibc/compiler.h>
 #include "file.h"
+#include "vesa/video.h"
 
 struct curxy {
   uint8_t x, y;
 } __attribute__((packed));
-#define BIOS_CURXY ((struct curxy *)0x450) /* Array for each page */
-#define BIOS_ROWS (*(uint8_t *)0x484)      /* Minus one; if zero use 24 (= 25 lines) */
-#define BIOS_COLS (*(uint16_t *)0x44A)
-#define BIOS_PAGE (*(uint8_t *)0x462)
 
 enum ansi_state {
   st_init,			/* Normal (no ESC seen) */
@@ -71,6 +69,7 @@ struct term_state {
   int pvt;			/* Private code? */
   int nparms;			/* Number of parameters seen */
   int parms[MAX_PARMS];
+  struct curxy xy;
 };
 
 static const struct term_state default_state =
@@ -90,6 +89,7 @@ static const struct term_state default_state =
   .state = st_init,
   .pvt = 0,
   .nparms = 0,
+  .xy = { 0, 0 },
 };
 
 static struct term_state st;
@@ -99,66 +99,67 @@ static const char decvt_to_cp437[] =
   { 0004, 0261, 0007, 0007, 0007, 0007, 0370, 0361, 0007, 0007, 0331, 0277, 0332, 0300, 0305, 0304,
     0304, 0304, 0137, 0137, 0303, 0264, 0301, 0302, 0263, 0363, 0362, 0343, 0330, 0234, 0007, 00 };
 
+/* Reference counter to the screen, to keep track of if we need reinitialization. */
+static int vesacon_counter = 0;
+
 /* Common setup */
-static void vesacon_init(void)
+int __vesacon_open(struct file_info *fp)
 {
   static com32sys_t ireg;	/* Auto-initalized to all zero */
   com32sys_t oreg;
 
-  /* Initial state */
-  memcpy(&st, &default_state, sizeof st);
+  (void)fp;
 
-  /* Are we disabled? */
-  ireg.eax.w[0] = 0x000b;
-  __intcall(0x22, &ireg, &oreg);
-
-  if ( (signed char)oreg.ebx.b[1] < 0 ) {
-    st.disabled = 1;
-    return;
+  if (!vesacon_counter) {
+    /* Initial state */
+    memcpy(&st, &default_state, sizeof st);
+    
+    /* Are we disabled? */
+    ireg.eax.w[0] = 0x000b;
+    __intcall(0x22, &ireg, &oreg);
+    
+    if ( (signed char)oreg.ebx.b[1] < 0 ) {
+      st.disabled = 1;
+    } else {
+      /* Switch mode */
+      if (__vesacon_init())
+	return EIO;
+    }
   }
 
-  /* Force text mode */
-  ireg.eax.w[0] = 0x0005;
-  __intcall(0x22, &ireg, NULL);
+  vesacon_counter++;
+  return 0;
+}
 
-  /* Get cursor shape */
-  ireg.eax.b[1] = 0x03;
-  ireg.ebx.b[1] = BIOS_PAGE;
-  __intcall(0x10, &ireg, &oreg);
-  st.cursor_type = oreg.ecx.w[0];
+int __vesacon_close(struct file_info *fp)
+{
+  (void)fp;
+
+  vesacon_counter--;
+  return 0;
 }
 
 /* Erase a region of the screen */
 static void vesacon_erase(int x0, int y0, int x1, int y1)
 {
-  static com32sys_t ireg;
-
-  ireg.eax.w[0] = 0x0600;	/* Clear window */
-  ireg.ebx.b[1] = st.attr;	/* Fill with current attribute */
-  ireg.ecx.b[0] = x0;
-  ireg.ecx.b[1] = y0;
-  ireg.edx.b[0] = x1;
-  ireg.edx.b[1] = y1;
-  __intcall(0x10, &ireg, NULL);
+  __vesacon_erase(x0, y0, x1, y1, st.attr,
+		  st.reverse ? SHADOW_ALL : SHADOW_NORMAL);
 }
 
 /* Show or hide the cursor */
 static void showcursor(int yes)
 {
-  static com32sys_t ireg;
-
-  ireg.eax.b[1] = 0x01;
-  ireg.ecx.w[0] = yes ? st.cursor_type : 0x2020;
-  __intcall(0x10, &ireg, NULL);
+  (void)yes;
+  /* Do something here */
 }
 
 static void vesacon_putchar(int ch)
 {
   static com32sys_t ireg;
-  const int rows  = BIOS_ROWS ? BIOS_ROWS+1 : 25;
-  const int cols  = BIOS_COLS;
-  const int page  = BIOS_PAGE;
-  struct curxy xy = BIOS_CURXY[page];
+  const int rows  = __vesacon_text_rows;
+  const int cols  = VIDEO_X_SIZE/FONT_WIDTH;
+  const int page  = 0;
+  struct curxy xy = st.xy;
 
   switch ( st.state ) {
   case st_init:
@@ -201,12 +202,8 @@ static void vesacon_putchar(int ch)
 	if ( st.vtgraphics && (ch & 0xe0) == 0x60 )
 	  ch = decvt_to_cp437[ch - 0x60];
 
-	ireg.eax.b[1] = 0x09;
-	ireg.eax.b[0] = ch;
-	ireg.ebx.b[1] = page;
-	ireg.ebx.b[0] = st.attr;
-	ireg.ecx.w[0] = 1;
-	__intcall(0x10, &ireg, NULL);
+	__vesacon_write_char(xy.x, xy.y, ch, st.attr,
+			     st.reverse ? SHADOW_ALL : SHADOW_NORMAL);
 	xy.x++;
       }
       break;
@@ -492,20 +489,12 @@ static void vesacon_putchar(int ch)
   }
   while ( xy.y >= rows ) {
     xy.y--;
-    ireg.eax.w[0] = 0x0601;
-    ireg.ebx.b[1] = st.attr;
-    ireg.ecx.w[0] = 0;
-    ireg.edx.b[1] = rows-1;
-    ireg.edx.b[0] = cols-1;
-    __intcall(0x10, &ireg, NULL); /* Scroll */
+    __vesacon_scroll_up(1, st.attr, st.reverse ? SHADOW_ALL : SHADOW_NORMAL);
   }
 
   /* Update cursor position */
-  ireg.eax.b[1] = 0x02;
-  ireg.ebx.b[1] = page;
-  ireg.edx.b[1] = xy.y;
-  ireg.edx.b[0] = xy.x;
-  __intcall(0x10, &ireg, NULL);
+  /* vesacon_set_cursor(xy.x, xy.y); */
+  st.xy = xy;
 }
 
 
@@ -532,6 +521,6 @@ const struct output_dev dev_vesacon_w = {
   .flags      = __DEV_TTY | __DEV_OUTPUT,
   .fileflags  = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
   .write      = __vesacon_write,
-  .close      = NULL,
-  .init       = vesacon_init,
+  .close      = __vesacon_close,
+  .open       = __vesacon_open,
 };

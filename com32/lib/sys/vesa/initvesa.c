@@ -45,7 +45,7 @@ struct vesa_info __vesa_info;
 
 struct vesa_char *__vesacon_text_display;
 
-int __vesacon_font_height;
+int __vesacon_font_height, __vesacon_text_rows;
 uint8_t __vesacon_graphics_font[FONT_MAX_CHARS][FONT_MAX_HEIGHT];
 
 uint32_t __vesacon_background[VIDEO_Y_SIZE][VIDEO_X_SIZE];
@@ -159,6 +159,7 @@ static int vesacon_set_mode(void)
   rom_font = MK_PTR(rm.es, rm.ebp.w[0]);
   __vesacon_font_height = 16;
   unpack_font((uint8_t *)__vesacon_graphics_font, rom_font, 16);
+  __vesacon_text_rows = (VIDEO_Y_SIZE-2*VIDEO_BORDER)/__vesacon_font_height;
 
   /* Now set video mode */
   rm.eax.w[0] = 0x4F02;		/* Set SVGA video mode */
@@ -201,78 +202,11 @@ static int init_text_display(void)
 
 int __vesacon_init(void)
 {
-  int i, j, r, g, b, n;
-  const int step = 8;
+  int rv;
 
-  /* Fill the background image with a test pattern */
-  for (i = 0; i < VIDEO_Y_SIZE; i++) {
-    r = g = b = n = 0;
-
-    for (j = 0; j < VIDEO_X_SIZE; j++) {
-      switch (n) {
-      case 0:
-	r += step;
-	if (r >= 255) {
-	  r = 255;
-	  n++;
-	}
-	break;
-      case 1:
-	g += step;
-	if (g >= 255) {
-	  g = 255;
-	  n++;
-	}
-	break;
-      case 2:
-	r -= step;
-	if (r <= 0) {
-	  r = 0;
-	  n++;
-	}
-	break;
-      case 3:
-	b += step;
-	if (b >= 255) {
-	  b = 255;
-	  n++;
-	}
-	break;
-      case 4:
-	g -= step;
-	if (g <= 0) {
-	  g = 0;
-	  n++;
-	}
-	break;
-      case 5:
-	r += step;
-	if (r >= 255) {
-	  r = 255;
-	  n++;
-	}
-	break;
-      case 6:
-	g += step;
-	if (g >= 255) {
-	  g = 255;
-	  n++;
-	}
-	break;
-      case 7:
-	r -= step;
-	if (r < 0) {
-	  r = 0;
-	  n = 0;
-	}
-	g = b = r;
-	break;
-      }
-      __vesacon_background[i][j] = (r << 16) + (g << 8) + b;
-    }
-  }
-
-  vesacon_set_mode();
+  rv = vesacon_set_mode();
+  if (rv)
+    return rv;
 
   init_text_display();
 

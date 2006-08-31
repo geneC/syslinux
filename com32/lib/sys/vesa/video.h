@@ -53,14 +53,19 @@ struct vesa_char {
 
 extern struct vesa_char *__vesacon_text_display;
 
-extern int __vesacon_font_height;
+extern int __vesacon_font_height, __vesacon_text_rows;
 extern uint8_t __vesacon_graphics_font[FONT_MAX_CHARS][FONT_MAX_HEIGHT];
 extern uint32_t __vesacon_background[VIDEO_Y_SIZE][VIDEO_X_SIZE];
 extern uint32_t __vesacon_shadowfb[VIDEO_Y_SIZE][VIDEO_X_SIZE];
 
 extern unsigned char __vesacon_alpha_tbl[256][4];
 
-extern int __vesacon_init_background(void);
+int __vesacon_init_background(void);
 int vesacon_load_background(const char *);
+int __vesacon_init(void);
+void __vesacon_erase(int, int, int, int, uint8_t, int);
+void __vesacon_scroll_up(int, uint8_t, int);
+void __vesacon_write_at(int, int, const char *, uint8_t, int);
+void __vesacon_write_char(int, int, char, uint8_t, int);
 
 #endif /* LIB_SYS_VESA_VIDEO_H */

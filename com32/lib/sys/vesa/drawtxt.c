@@ -174,10 +174,70 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
   }
 }
 
-void vesacon_write_at(int row, int col, const char *str, uint8_t attr, int rev)
+/* Fill a number of characters... */
+static inline struct vesa_char *vesacon_fill(struct vesa_char *ptr,
+					     struct vesa_char fill,
+					     unsigned int count)
+{
+  asm volatile("cld; rep; stosl"
+	       : "+D" (ptr), "+c" (count)
+	       : "a" (fill)
+	       : "memory");
+
+  return ptr;
+}
+
+/* Erase a region of the screen */
+void __vesacon_erase(int x0, int y0, int x1, int y1, uint8_t attr, int rev)
+{
+  int y;
+  struct vesa_char *ptr = &__vesacon_text_display
+    [(y0+1)*(TEXT_PIXEL_COLS/FONT_WIDTH+2)+(x0+1)];
+  struct vesa_char fill = {
+    .ch = ' ',
+    .attr = attr,
+    .sha = rev
+  };
+  int ncols = x1-x0+1;
+
+  for (y = y0; y <= y1; y++) {
+    vesacon_fill(ptr, fill, ncols);
+    ptr += TEXT_PIXEL_COLS/FONT_WIDTH+2;
+  }
+
+  vesacon_update_characters(y0, x0, y1-y0+1, ncols);
+}
+
+/* Scroll the screen up */
+void __vesacon_scroll_up(int nrows, uint8_t attr, int rev)
+{
+  struct vesa_char *fromptr = &__vesacon_text_display
+      [nrows*(TEXT_PIXEL_COLS/FONT_WIDTH+2)];
+  struct vesa_char *toptr = __vesacon_text_display;
+  int dword_count = nrows*(TEXT_PIXEL_COLS/FONT_WIDTH+2);
+  struct vesa_char fill = {
+    .ch   = ' ',
+    .attr = attr,
+    .sha  = rev,
+  };
+
+  asm volatile("cld ; rep ; movsl"
+	       : "+D" (toptr), "+S" (fromptr), "+c" (dword_count));
+
+  dword_count = (__vesacon_text_rows-nrows)*(TEXT_PIXEL_COLS/FONT_WIDTH+2);
+  vesacon_fill(toptr, fill, dword_count);
+  
+  vesacon_update_characters(0, 0, __vesacon_text_rows,
+			    TEXT_PIXEL_COLS/FONT_WIDTH);
+}
+
+/* Draw text at a specific area of the screen */
+void __vesacon_write_at(int x, int y, const char *str,
+			uint8_t attr, int rev)
 {
   int n = 0;
-  struct vesa_char *ptr = &__vesacon_text_display[(row+1)*(TEXT_PIXEL_COLS/FONT_WIDTH+2)+(col+1)];
+  struct vesa_char *ptr = &__vesacon_text_display
+    [(y+1)*(TEXT_PIXEL_COLS/FONT_WIDTH+2)+(x+1)];
 
   while (*str) {
     ptr->ch   = *str;
@@ -189,6 +249,19 @@ void vesacon_write_at(int row, int col, const char *str, uint8_t attr, int rev)
     ptr++;
   }
 
-  vesacon_update_characters(row, col, 1, n);
+  vesacon_update_characters(y, x, 1, n);
+}
+
+/* Draw one character text at a specific area of the screen */
+void __vesacon_write_char(int x, int y, char ch, uint8_t attr, int rev)
+{
+  struct vesa_char *ptr = &__vesacon_text_display
+    [(y+1)*(TEXT_PIXEL_COLS/FONT_WIDTH+2)+(x+1)];
+
+  ptr->ch   = ch;
+  ptr->attr = attr;
+  ptr->sha  = rev;
+
+  vesacon_update_characters(y, x, 1, 1);
 }
 

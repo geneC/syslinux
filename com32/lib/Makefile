@@ -33,8 +33,8 @@ LIBOBJS = \
 	sys/null_read.o sys/null_write.o sys/serial_write.o		\
 	sys/ansicon_write.o sys/ansiserial_write.o			\
 	\
-	sys/vesa/initvesa.o sys/vesa/alphatbl.o sys/vesa/drawtxt.o \
-	sys/vesa/background.o \
+	sys/vesacon_write.o sys/vesaserial_write.o 			\
+	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
 	\
 	pci/cfgtype.o 							\
 	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o 		\
@@ -79,11 +79,6 @@ install: all
 	install -m 644 libcom32.a com32.ld $(INSTALLROOT)$(COM32DIR)
 	-rm -rf $(INSTALLROOT)$(COM32DIR)/include
 	cp -r ../include $(INSTALLROOT)$(COM32DIR)
-
-sys/vesa/alphatbl.o: sys/vesa/alphatbl.c
-
-sys/vesa/alphatbl.c: sys/vesa/alphatbl.pl
-	$(PERL) $< > $@ || ( rm -f $@ ; exit 1 )
 
 # This code is performance critical, and doesn't compile well with -Os
 sys/vesa/drawtxt.o: sys/vesa/drawtxt.c
