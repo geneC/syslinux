@@ -40,12 +40,12 @@
 extern int __vesacon_open(void);
 extern int __vesacon_close(struct file_info *);
 extern ssize_t __vesacon_write(struct file_info *, const void *, size_t);
-extern ssize_t __serial_write(struct file_info *, const void *, size_t);
+extern ssize_t __xserial_write(struct file_info *, const void *, size_t);
 
 static ssize_t __vesaserial_write(struct file_info *fp, const void *buf, size_t count)
 {
   __vesacon_write(fp, buf, count);
-  return __serial_write(fp, buf, count);
+  return __xserial_write(fp, buf, count);
 }
 
 const struct output_dev dev_vesaserial_w = {
