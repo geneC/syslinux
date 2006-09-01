@@ -113,11 +113,11 @@ int __vesacon_open(struct file_info *fp)
   if (!vesacon_counter) {
     /* Initial state */
     memcpy(&st, &default_state, sizeof st);
-    
+
     /* Are we disabled? */
     ireg.eax.w[0] = 0x000b;
     __intcall(0x22, &ireg, &oreg);
-    
+
     if ( (signed char)oreg.ebx.b[1] < 0 ) {
       st.disabled = 1;
     } else {
