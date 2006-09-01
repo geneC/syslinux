@@ -17,6 +17,9 @@
  * a command line and/or edit it.
  */
 
+#include <consoles.h>
+#include "menu.h"
+
 int main(int argc, char *argv[])
 {
   console_ansi_raw();

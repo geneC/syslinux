@@ -37,7 +37,7 @@
 #include <minmax.h>
 #include "file.h"
 
-extern int __ansicon_open(void);
+extern int __ansicon_open(struct file_info *);
 extern int __ansicon_close(struct file_info *);
 extern ssize_t __ansicon_write(struct file_info *, const void *, size_t);
 extern ssize_t __xserial_write(struct file_info *, const void *, size_t);

@@ -16,6 +16,7 @@
 #include <string.h>
 #include <minmax.h>
 #include <alloca.h>
+#include <colortbl.h>
 #ifdef __COM32__
 # include <com32.h>
 #endif
@@ -220,7 +221,7 @@ unlabel(char *str)
   return str;
 }
 
-static const char *
+static char *
 dup_word(char **p)
 {
   char *sp = *p;
@@ -250,7 +251,6 @@ static int my_isxdigit(char c)
 
 static unsigned int hexval(char c)
 {
-  int v;
   unsigned char uc = c | 0x20;
 
   if (uc & 0x40)
@@ -303,9 +303,9 @@ static unsigned int parse_argb(char **p)
     dl = len/3;
     argb =
       0xff000000 |
-      (hexval2(sp[0]) << 16) |
-      (hexval2(sp[dl]) << 8)|
-      (hexval2(sp[dl*2]) << 0);
+      (hexval2(sp+0) << 16) |
+      (hexval2(sp+dl) << 8)|
+      (hexval2(sp+dl*2) << 0);
     break;
   case 8:			/* #aarrggbb */
     /* 12 is indistinguishable from #rrrrggggbbbb,
@@ -313,10 +313,10 @@ static unsigned int parse_argb(char **p)
   case 16:			/* #aaaarrrrggggbbbb */
     dl = len/4;
     argb =
-      (hexval2(sp[0]) << 24) |
-      (hexval2(sp[dl]) << 16) |
-      (hexval2(sp[dl*2]) << 8)|
-      (hexval2(sp[dl*3]) << 0);
+      (hexval2(sp+0) << 24) |
+      (hexval2(sp+dl) << 16) |
+      (hexval2(sp+dl*2) << 8)|
+      (hexval2(sp+dl*3) << 0);
     break;
   default:
     argb = 0;
@@ -373,7 +373,7 @@ void parse_config(const char *filename)
 	if ( looking_at(p, "passwd") ) {
 	  menu_master_passwd = strdup(skipspace(p+6));
 	}
-      } else if ( (ep = looking_at("background")) ) {
+      } else if ( (ep = looking_at(p, "background")) ) {
 	p = skipspace(ep);
 	menu_background = dup_word(&p);
       } else if ((ep = looking_at(p, "color")) ||

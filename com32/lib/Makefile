@@ -28,6 +28,8 @@ LIBOBJS = \
 	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
 	sys/isatty.o sys/fstat.o sys/openconsole.o sys/line_input.o	\
+	sys/colortable.o						\
+	\
 	sys/stdcon_read.o sys/stdcon_write.o sys/rawcon_read.o		\
 	sys/rawcon_write.o sys/err_read.o sys/err_write.o		\
 	sys/null_read.o sys/null_write.o sys/serial_write.o		\

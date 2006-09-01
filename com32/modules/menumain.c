@@ -38,37 +38,39 @@
 
 int (*draw_background)(const char *filename);
 
-struct menu_attrib {
-  const char *border;		/* Border area */
-  const char *title;		/* Title bar */
-  const char *unsel;		/* Unselected menu item */
-  const char *hotkey;		/* Unselected hotkey */
-  const char *sel;		/* Selected */
-  const char *hotsel;		/* Selected hotkey */
-  const char *scrollbar;	/* Scroll bar */
-  const char *tabmsg;		/* Press [Tab] message */
-  const char *cmdmark;		/* Command line marker */
-  const char *cmdline;		/* Command line */
-  const char *screen;		/* Rest of the screen */
-  const char *pwdborder;	/* Password box border */
-  const char *pwdheader;	/* Password box header */
-  const char *pwdentry;		/* Password box contents */
-  const char *timeout_msg;	/* Timeout message */
-  const char *timeout;		/* Timeout counter */
-};
+/*
+ * The color/attribute indexes (\1#XX) are as follows
+ *
+ * 00 - screen		Rest of the screen
+ * 01 - border		Border area
+ * 02 - title		Title bar
+ * 03 - unsel		Unselected menu item
+ * 04 - hotkey		Unselected hotkey
+ * 05 - sel		Selection bar
+ * 06 - hotsel		Selected hotkey
+ * 07 - scrollbar	Scroll bar
+ * 08 - tabmsg		Press [Tab] message
+ * 09 - cmdmark		Command line marker
+ * 10 - cmdline		Command line
+ * 11 - pwdborder	Password box border
+ * 12 - pwdheader	Password box header
+ * 13 - pwdentry	Password box contents
+ * 14 - timeout_msg	Timeout message
+ * 15 - timeout		Timeout counter
+ */
 
 static const struct color_table default_color_table[] = {
-  { "border",      "0;30;44",   0x80ffffff, 0x00000000 },
-  { "title",       "1;36;44",   0x80ffcc00, 0x00000000 },
-  { "unsel",       "0;37;44",   0x80ffffff, 0x00000000 },
+  { "screen",      "0;37;40",   0x80ffffff, 0x00000000 },
+  { "border",      "0;30;44",   0x40000000, 0x00000000 },
+  { "title",       "1;36;44",   0xc00090f0, 0x00000000 },
+  { "unsel",       "0;37;44",   0x90ffffff, 0x00000000 },
   { "hotkey",      "1;37;44",   0xffffffff, 0x00000000 },
-  { "sel",         "0;7;37;40", 0xff000000, 0x20ff8000 },
-  { "hotsel",      "1;7;37;40", 0xff404040, 0x20ff8000 },
-  { "scrollbar",   "0;30;44",   0x80ffffff, 0x00000000 },
-  { "tabmsg",      "0;31;40",   0x80ff8000, 0x00000000 },
+  { "sel",         "0;7;37;40", 0xcf101010, 0x20ff8000 },
+  { "hotsel",      "1;7;37;40", 0xff353535, 0x20ff8000 },
+  { "scrollbar",   "0;30;44",   0x40000000, 0x00000000 },
+  { "tabmsg",      "0;31;40",   0x90ffff00, 0x00000000 },
   { "cmdmark",     "1;36;40",   0xc000ffff, 0x00000000 },
   { "cmdline",     "0;37;40",   0xc0ffffff, 0x00000000 },
-  { "screen",      "0;37;40",   0x80ffffff, 0x00000000 },
   { "pwdborder",   "0;30;47",   0x80ffffff, 0x20ffffff },
   { "pwdheader",   "0;31;47",   0x80ff8080, 0x20ffffff },
   { "pwdentry",    "0;30;47",   0x80ffffff, 0x20ffffff },
@@ -77,7 +79,6 @@ static const struct color_table default_color_table[] = {
 };
 
 #define NCOLORS (sizeof default_color_table/sizeof(struct color_table))
-static struct color_table color_table[NCOLORS];
 
 struct menu_parameter mparm[] = {
   { "width", 80 },
@@ -108,6 +109,7 @@ install_default_color_table(void)
   unsigned int i;
   const struct color_table *dp;
   struct color_table *cp;
+  static struct color_table color_table[NCOLORS];
 
   dp = default_color_table;
   cp = color_table;
@@ -116,8 +118,13 @@ install_default_color_table(void)
     if (cp->ansi)
       free((void *)cp->ansi);
 
-    *cp++ = *dp++;
-    cp->ansi = strdup(cp->ansi);
+    cp->name = dp->name;
+    cp->ansi = strdup(dp->ansi);
+    cp->argb_fg = dp->argb_fg;
+    cp->argb_bg = dp->argb_bg;
+
+    cp++;
+    dp++;
   }
 
   console_color_table = color_table;
@@ -180,26 +187,25 @@ draw_row(int y, int sel, int top, int sbtop, int sbbot)
 {
   int i = (y-4)+top;
 
-  printf("\033[%d;%dH%s\016x\017%s ",
-	 y, MARGIN+1, menu_attrib->border,
-	 (i == sel) ? menu_attrib->sel : menu_attrib->unsel);
+  printf("\033[%d;%dH\1#01\016x\017%s ",
+	 y, MARGIN+1, (i == sel) ? "\1#05" : "\1#03");
 
   if ( i >= nentries ) {
     fputs(pad_line("", 0, WIDTH-2*MARGIN-4), stdout);
   } else {
     display_entry(&menu_entries[i],
-		  (i == sel) ? menu_attrib->sel : menu_attrib->unsel,
-		  (i == sel) ? menu_attrib->hotsel : menu_attrib->hotkey,
+		  (i == sel) ? "\1#05" : "\1#03",
+		  (i == sel) ? "\1#06" : "\1#04",
 		  WIDTH-2*MARGIN-4);
   }
 
   if ( nentries <= MENU_ROWS ) {
-    printf(" %s\016x\017", menu_attrib->border);
+    printf(" \1#01\016x\017");
   } else if ( sbtop > 0 ) {
     if ( y >= sbtop && y <= sbbot )
-      printf(" %s\016a\017", menu_attrib->scrollbar);
+      printf(" \1#07\016a\017");
     else
-      printf(" %s\016x\017", menu_attrib->border);
+      printf(" \1#01\016x\017");
   } else {
     putchar(' ');		/* Don't modify the scrollbar */
   }
@@ -221,13 +227,13 @@ passwd_compare(const char *passwd, const char *entry)
   SHA1Init(&ctx);
 
   if ( (p = strchr(passwd+3, '$')) ) {
-    SHA1Update(&ctx, passwd+3, p-(passwd+3));
+    SHA1Update(&ctx, (void *)passwd+3, p-(passwd+3));
     p++;
   } else {
     p = passwd+3;		/* Assume no salt */
   }
 
-  SHA1Update(&ctx, entry, strlen(entry));
+  SHA1Update(&ctx, (void *)entry, strlen(entry));
   SHA1Final(sha1, &ctx);
 
   memset(pwdsha1, 0, 20);
@@ -281,8 +287,7 @@ ask_passwd(const char *menu_entry)
   int key;
   int x;
 
-  printf("\033[%d;%dH%s\016l", PASSWD_ROW, PASSWD_MARGIN+1,
-	 menu_attrib->pwdborder);
+  printf("\033[%d;%dH\1#11\016l", PASSWD_ROW, PASSWD_MARGIN+1);
   for ( x = 2 ; x <= WIDTH-2*PASSWD_MARGIN-1 ; x++ )
     putchar('q');
 
@@ -294,10 +299,9 @@ ask_passwd(const char *menu_entry)
   for ( x = 2 ; x <= WIDTH-2*PASSWD_MARGIN-1 ; x++ )
     putchar('q');
 
-  printf("j\017\033[%d;%dH%s %s \033[%d;%dH%s",
+  printf("j\017\033[%d;%dH\1#12 %s \033[%d;%dH\1#13",
 	 PASSWD_ROW, (WIDTH-((int)sizeof(title)+1))/2,
-	 menu_attrib->pwdheader, title,
-	 PASSWD_ROW+1, PASSWD_MARGIN+3, menu_attrib->pwdentry);
+	 title, PASSWD_ROW+1, PASSWD_MARGIN+3);
 
   /* Actually allow user to type a password, then compare to the SHA1 */
   done = 0;
@@ -368,18 +372,15 @@ draw_menu(int sel, int top, int edit_line)
     sbtop += 4;  sbbot += 4;	/* Starting row of scrollbar */
   }
 
-  printf("\033[1;%dH%s\016l", MARGIN+1, menu_attrib->border);
+  printf("\033[1;%dH\1#01\016l", MARGIN+1);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
     putchar('q');
 
-  printf("k\033[2;%dH%sx\017%s %s %s\016x",
+  printf("k\033[2;%dH\1#01x\017\1#02 %s \1#01\016x",
 	 MARGIN+1,
-	 menu_attrib->border,
-	 menu_attrib->title,
-	 pad_line(menu_title, 1, WIDTH-2*MARGIN-4),
-	 menu_attrib->border);
+	 pad_line(menu_title, 1, WIDTH-2*MARGIN-4));
 
-  printf("\033[3;%dH%st", MARGIN+1, menu_attrib->border);
+  printf("\033[3;%dH\1#01t", MARGIN+1);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
     putchar('q');
   fputs("u\017", stdout);
@@ -387,16 +388,22 @@ draw_menu(int sel, int top, int edit_line)
   for ( y = 4 ; y < 4+MENU_ROWS ; y++ )
     draw_row(y, sel, top, sbtop, sbbot);
 
-  printf("\033[%d;%dH%s\016m", y, MARGIN+1, menu_attrib->border);
+  printf("\033[%d;%dH\1#01\016m", y, MARGIN+1);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
     putchar('q');
   fputs("j\017", stdout);
 
   if ( edit_line && allowedit && !menu_master_passwd )
-    printf("%s\033[%d;1H%s", menu_attrib->tabmsg, TABMSG_ROW,
+    printf("\1#08\033[%d;1H%s", TABMSG_ROW,
 	   pad_line("Press [Tab] to edit options", 1, WIDTH));
 
-  printf("%s\033[%d;1H", menu_attrib->screen, END_ROW);
+  printf("\1#00\033[%d;1H", END_ROW);
+}
+
+static void
+clear_screen(void)
+{
+  fputs("\033e\033%@\033)0\033(B\1#00\033[?25l\033[2J", stdout);
 }
 
 static const char *
@@ -417,18 +424,17 @@ edit_cmdline(char *input, int top)
       /* Clear and redraw whole screen */
       /* Enable ASCII on G0 and DEC VT on G1; do it in this order
 	 to avoid confusing the Linux console */
-      printf("\033e\033%%@\033)0\033(B%s\033[?25l\033[2J", menu_attrib->screen);
+      clear_screen();
       draw_menu(-1, top, 1);
       prev_len = 0;
     }
 
     if ( redraw > 0 ) {
       /* Redraw the command line */
-      printf("\033[?25l\033[%d;1H%s> %s%s",
-	     CMDLINE_ROW, menu_attrib->cmdmark,
-	     menu_attrib->cmdline, pad_line(cmdline, 0, prev_len));
-      printf("%s\033[%d;3H%s\033[?25h",
-	     menu_attrib->cmdline, CMDLINE_ROW, pad_line(cmdline, 0, cursor));
+      printf("\033[?25l\033[%d;1H\1#09> \1#10%s",
+	     CMDLINE_ROW, pad_line(cmdline, 0, prev_len));
+      printf("\1#10\033[%d;3H%s\033[?25h",
+	     CMDLINE_ROW, pad_line(cmdline, 0, cursor));
       prev_len = len;
       redraw = 0;
     }
@@ -549,12 +555,6 @@ edit_cmdline(char *input, int top)
   }
 }
 
-static void
-clear_screen(void)
-{
-  printf("\033e\033%%@\033)0\033(B%s\033[?25l\033[2J", menu_attrib->screen);
-}
-
 static inline int
 shift_is_held(void)
 {
@@ -633,11 +633,8 @@ run_menu(void)
     if ( key_timeout ) {
       int tol = timeout_left/CLK_TCK;
       int nc = snprintf(NULL, 0, " Automatic boot in %d seconds ", tol);
-      printf("\033[%d;%dH%s Automatic boot in %s%d%s seconds ",
-	     TIMEOUT_ROW, 1+((WIDTH-nc)>>1),
-	     menu_attrib->timeout_msg,
-	     menu_attrib->timeout, tol,
-	     menu_attrib->timeout_msg);
+      printf("\033[%d;%dH\1#14 Automatic boot in \1#15%d\1#14 seconds ",
+	     TIMEOUT_ROW, 1+((WIDTH-nc)>>1), tol);
       to_clear = 1;
     } else {
       to_clear = 0;
@@ -649,7 +646,7 @@ run_menu(void)
     if ( key != KEY_NONE ) {
       timeout_left = key_timeout;
       if ( to_clear )
-	printf("\033[%d;1H%s\033[K", TIMEOUT_ROW, menu_attrib->screen);
+	printf("\033[%d;1H\1#00\033[K", TIMEOUT_ROW);
     }
 
     switch ( key ) {
@@ -753,7 +750,7 @@ run_menu(void)
 	  draw_menu(-1, top, 0);
 	} else {
 	  /* Erase [Tab] message */
-	  printf("\033[%d;1H%s\033[K", TABMSG_ROW, menu_attrib->screen);
+	  printf("\033[%d;1H\1#00\033[K", TABMSG_ROW);
 	}
 
 	if ( ok ) {
@@ -849,7 +846,10 @@ int menu_main(int argc, char *argv[])
 {
   const char *cmdline;
 
+  (void)argc;
+
   install_default_color_table();
+  fputs("\1#00", stdout);
 
   parse_config(argv[1]);
 

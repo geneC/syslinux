@@ -190,9 +190,10 @@ void __vesacon_erase(int x0, int y0, int x1, int y1, uint8_t attr, int rev)
 void __vesacon_scroll_up(int nrows, uint8_t attr, int rev)
 {
   struct vesa_char *fromptr = &__vesacon_text_display
-      [nrows*(TEXT_PIXEL_COLS/FONT_WIDTH+2)];
-  struct vesa_char *toptr = __vesacon_text_display;
-  int dword_count = nrows*(TEXT_PIXEL_COLS/FONT_WIDTH+2);
+    [(nrows+1)*(TEXT_PIXEL_COLS/FONT_WIDTH+2)];
+  struct vesa_char *toptr = &__vesacon_text_display
+    [(TEXT_PIXEL_COLS/FONT_WIDTH+2)];
+  int dword_count = (__vesacon_text_rows-nrows)*(TEXT_PIXEL_COLS/FONT_WIDTH+2);
   struct vesa_char fill = {
     .ch   = ' ',
     .attr = attr,
@@ -202,7 +203,9 @@ void __vesacon_scroll_up(int nrows, uint8_t attr, int rev)
   asm volatile("cld ; rep ; movsl"
 	       : "+D" (toptr), "+S" (fromptr), "+c" (dword_count));
 
-  dword_count = (__vesacon_text_rows-nrows)*(TEXT_PIXEL_COLS/FONT_WIDTH+2);
+  dword_count = nrows*(TEXT_PIXEL_COLS/FONT_WIDTH+2);
+
+  /* Danger, Will Robinson: this is wrong if rev != SHADOW_NORMAL */
   vesacon_fill(toptr, fill, dword_count);
   
   vesacon_update_characters(0, 0, __vesacon_text_rows,

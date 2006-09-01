@@ -36,6 +36,7 @@
 #include <string.h>
 #include <com32.h>
 #include <minmax.h>
+#include <colortbl.h>
 #include <klibc/compiler.h>
 #include "file.h"
 
@@ -519,7 +520,7 @@ static void ansicon_putchar(int ch)
     {
       int n = (unsigned char)ch - '0';
       if (n < 10) {
-	st.param[0] = n*10;
+	st.parms[0] = n*10;
 	st.state = st_sohc1;
       } else {
 	st.state = st_init;
@@ -533,11 +534,11 @@ static void ansicon_putchar(int ch)
       const char *p;
 
       if (n < 10) {
-	st.param[0] += n;
+	st.parms[0] += n;
 	/* Emulate the appropriate CSI m sequence */
-	if (st.param[0] < console_color_table_size) {
+	if (st.parms[0] < console_color_table_size) {
 	  st.state = st_csi;
-	  for (p = console_color_table[st.param[0]]; *p; p++)
+	  for (p = console_color_table[st.parms[0]].ansi; *p; p++)
 	    ansicon_putchar(*p);
 	  ansicon_putchar('m');
 	}

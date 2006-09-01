@@ -36,6 +36,7 @@
 #include <string.h>
 #include <com32.h>
 #include <minmax.h>
+#include <colortbl.h>
 #include <klibc/compiler.h>
 #include "file.h"
 #include "vesa/video.h"
@@ -158,15 +159,16 @@ static void showcursor(int yes)
 
 static void vesacon_putchar(int ch)
 {
-  static com32sys_t ireg;
   const int rows  = __vesacon_text_rows;
-  const int cols  = VIDEO_X_SIZE/FONT_WIDTH;
-  const int page  = 0;
+  const int cols  = TEXT_PIXEL_COLS/FONT_WIDTH;
   struct curxy xy = st.xy;
 
   switch ( st.state ) {
   case st_init:
     switch ( ch ) {
+    case 1:
+      st.state = st_soh;
+      break;
     case '\b':
       if ( xy.x > 0 ) xy.x--;
       break;
@@ -232,6 +234,7 @@ static void vesacon_putchar(int ch)
       memcpy(&st, &default_state, sizeof st);
       vesacon_erase(0, 0, cols-1, rows-1);
       xy.x = xy.y = 1;
+      st.state = st_init;
       break;
     default:
       /* Ignore sequence */
@@ -468,7 +471,7 @@ static void vesacon_putchar(int ch)
     {
       int n = (unsigned char)ch - '0';
       if (n < 10) {
-	st.param[0] = n*10;
+	st.parms[0] = n*10;
 	st.state = st_sohc1;
       } else {
 	st.state = st_init;
@@ -482,15 +485,17 @@ static void vesacon_putchar(int ch)
       const char *p;
 
       if (n < 10) {
-	st.param[0] += n;
-	if (st.param[0] < console_color_table_size) {
+	st.parms[0] += n;
+	if (st.parms[0] < console_color_table_size) {
 	  /* Set the color table index */
-	  st.attr = st.param[0];
+	  st.attr = st.parms[0];
 
 	  /* See if there are any other attributes we care about */
-	  st.state = st_csi;
-	  for (p = console_color_table[st.param[0]]; *p; p++)
-	    vesacon_putchar(*p);
+	  p = console_color_table[st.parms[0]].ansi;
+	  st.state = st_esc;
+	  vesacon_putchar('[');
+	  while (*p)
+	    vesacon_putchar(*p++);
 	  vesacon_putchar('m');
 	}
       }

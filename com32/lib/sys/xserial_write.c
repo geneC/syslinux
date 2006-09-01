@@ -55,6 +55,7 @@ ssize_t __xserial_write(struct file_info *fp, const void *buf, size_t count)
   static enum { st_0, st_1, st_2, st_3 } state = st_0;
   static int ncolor = 0;
   int num;
+  const char *p;
 
   (void)fp;
 
@@ -97,14 +98,12 @@ ssize_t __xserial_write(struct file_info *fp, const void *buf, size_t count)
 	if (ncolor < console_color_table_size) {
 	  emit('\033');
 	  emit('[');
-	  __xserial_write(fp, console_color_table[ncolor].ansi,
-			  strlen(console_color_table[ncolor].ansi));
+	  for (p = console_color_table[ncolor].ansi; *p; p++)
+	    emit(*p);
 	  emit('m');
 	}
-	state = st_0;
-      } else {
-	state = st_0;
       }
+      state = st_0;
       break;
     }
 

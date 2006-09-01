@@ -34,7 +34,8 @@ int vesacon_load_background(const char *);
 int main(int argc, char *argv[])
 {
   openconsole(&dev_rawcon_r, &dev_vesaserial_w);
-
+  fputs("\033[0m\033[20h", stdout);
+  
   draw_background = vesacon_load_background;
 
   return menu_main(argc, argv);

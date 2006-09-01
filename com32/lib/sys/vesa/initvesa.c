@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <sys/fpu.h>
 #include "vesa.h"
 #include "video.h"
 
@@ -65,7 +66,7 @@ static void debug(const char *str, ...)
   if (len >= sizeof buf)
     len = sizeof buf - 1;
 
-  __serial_write(NULL, buf, len);
+  //__serial_write(NULL, buf, len);
 }
 
 static void unpack_font(uint8_t *dst, uint8_t *src, int height)
@@ -194,7 +195,7 @@ static int init_text_display(void)
   /* I really which C had a memset() for larger-than-bytes objects... */
   asm volatile("cld; rep; stosl"
 	       : "+D" (ptr), "+c" (nchars)
-	       : "a" (' '+(0x07 << 8)+(SHADOW_NORMAL << 16))
+	       : "a" (' '+(0 << 8)+(SHADOW_NORMAL << 16))
 	       : "memory");
 
   return 0;
@@ -203,6 +204,10 @@ static int init_text_display(void)
 int __vesacon_init(void)
 {
   int rv;
+
+  /* We need the FPU for graphics, at least libpng et al will need it... */
+  if (x86_init_fpu())
+    return 10;
 
   rv = vesacon_set_mode();
   if (rv)
