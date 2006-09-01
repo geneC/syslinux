@@ -66,7 +66,6 @@ ssize_t __xserial_write(struct file_info *fp, const void *buf, size_t count)
       if (ch == '\1') {
 	state = st_1;
       } else {
-	state = st_0;
 	emit(ch);
       }
       break;
@@ -77,7 +76,6 @@ ssize_t __xserial_write(struct file_info *fp, const void *buf, size_t count)
 	ncolor = 0;
       } else {
 	state = st_0;
-	emit(ch);
       }
       break;
 
@@ -88,7 +86,6 @@ ssize_t __xserial_write(struct file_info *fp, const void *buf, size_t count)
 	state = st_3;
       } else {
 	state = st_0;
-	emit(ch);
       }
       break;
 
@@ -107,7 +104,6 @@ ssize_t __xserial_write(struct file_info *fp, const void *buf, size_t count)
 	state = st_0;
       } else {
 	state = st_0;
-	emit(ch);
       }
       break;
     }
