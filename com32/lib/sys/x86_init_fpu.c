@@ -46,7 +46,7 @@ int x86_init_fpu(void)
   asm volatile("fnstsw %0" : "+m" (fsw));
   if (fsw != 0)
     return -1;
-  
+
   asm volatile("fnstcw %0" : "+m" (fcw));
   if ((fcw & 0x103f) != 0x3f)
     return -1;
