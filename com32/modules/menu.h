@@ -62,11 +62,16 @@ extern char *menu_title;
 extern char *ontimeout;
 extern char *menu_master_passwd;
 
+extern char *menu_background;
+
 void parse_config(const char *filename);
+extern int (*draw_background)(const char *filename);
 
 static inline int my_isspace(char c)
 {
   return (unsigned char)c <= ' ';
 }
+
+int menu_main(int argc, char *argv[]);
 
 #endif /* MENU_H */

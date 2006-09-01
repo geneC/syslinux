@@ -79,10 +79,10 @@ all: $(MODULES) $(TESTFILES)
 dmitest.elf : dmitest.o dmi_utils.o dmi.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-menu.elf : menu.o readconfig.o $(LIBS)
+menu.elf : menu.o menumain.o readconfig.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-vesamenu.elf : vesamenu.o readconfig.o $(LIBS)
+vesamenu.elf : vesamenu.o menumain.o readconfig.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 menu.lnx : menu.lo readconfig.lo $(LNXLIBS)

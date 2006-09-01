@@ -34,6 +34,8 @@ char *ontimeout   = NULL;
 
 char *menu_master_passwd = NULL;
 
+char *menu_background = NULL;
+
 struct menu_entry menu_entries[MAX_ENTRIES];
 struct menu_entry *menu_hotkeys[256];
 
@@ -88,7 +90,7 @@ get_config(void)
 static char *
 skipspace(char *p)
 {
-  while ( *p && my_isspace(*p) )
+  while (*p && my_isspace(*p))
     p++;
 
   return p;
@@ -218,6 +220,112 @@ unlabel(char *str)
   return str;
 }
 
+static const char *
+dup_word(char **p)
+{
+  char *sp = *p;
+  char *ep = sp;
+  char *dp;
+  size_t len;
+
+  while (*ep && !my_isspace(*ep))
+    ep++;
+
+  *p = ep;
+  len = ep-sp;
+
+  dp = malloc(len+1);
+  memcpy(dp, sp, len);
+  dp[len] = '\0';
+
+  return dp;
+}
+
+static int my_isxdigit(char c)
+{
+  unsigned char uc = c | 0x20;
+
+  return (uc-'0') < 10 || (uc-'a') < 6;
+}
+
+static unsigned int hexval(char c)
+{
+  int v;
+  unsigned char uc = c | 0x20;
+
+  if (uc & 0x40)
+    return uc-'a'+10;
+  else
+    return uc-'0';
+}
+
+static unsigned int hexval2(char *p)
+{
+  return (hexval(p[0]) << 4)+hexval(p[1]);
+}
+
+static unsigned int parse_argb(char **p)
+{
+  char *sp = *p;
+  char *ep;
+  unsigned int argb;
+  size_t len, dl;
+
+  if (*sp == '#')
+    sp++;
+
+  ep = sp;
+
+  while (my_isxdigit(*ep))
+    ep++;
+
+  *p = ep;
+  len = ep-sp;
+
+  switch(len) {
+  case 3:			/* #rgb */
+    argb =
+      0xff000000 |
+      (hexval(sp[0])*0x11 << 16)|
+      (hexval(sp[1])*0x11 << 8) |
+      (hexval(sp[2])*0x11 << 0);
+    break;
+  case 4:			/* #argb */
+    argb =
+      (hexval(sp[0])*0x11 << 24)|
+      (hexval(sp[1])*0x11 << 16)|
+      (hexval(sp[2])*0x11 << 8) |
+      (hexval(sp[3])*0x11 << 0);
+    break;
+  case 6:			/* #rrggbb */
+  case 9:			/* #rrrgggbbb */
+  case 12:			/* #rrrrggggbbbb */
+    dl = len/3;
+    argb =
+      0xff000000 |
+      (hexval2(sp[0]) << 16) |
+      (hexval2(sp[dl]) << 8)|
+      (hexval2(sp[dl*2]) << 0);
+    break;
+  case 8:			/* #aarrggbb */
+    /* 12 is indistinguishable from #rrrrggggbbbb,
+       assume that is a more common format */
+  case 16:			/* #aaaarrrrggggbbbb */
+    dl = len/4;
+    argb =
+      (hexval2(sp[0]) << 24) |
+      (hexval2(sp[dl]) << 16) |
+      (hexval2(sp[dl*2]) << 8)|
+      (hexval2(sp[dl*3]) << 0);
+    break;
+  default:
+    argb = 0;
+    break;
+  }
+
+  return argb;
+}
+
 void parse_config(const char *filename)
 {
   char line[MAX_LINE], *p, *ep;
@@ -264,6 +372,34 @@ void parse_config(const char *filename)
 	p = skipspace(p+6);
 	if ( looking_at(p, "passwd") ) {
 	  menu_master_passwd = strdup(skipspace(p+6));
+	}
+      } else if ( (ep = looking_at("background")) ) {
+	p = skipspace(ep);
+	menu_background = dup_word(&p);
+      } else if ((ep = looking_at(p, "color")) ||
+		 (ep = looking_at(p, "colour"))) {
+	int i;
+	struct color_table *cptr;
+	p = skipspace(ep);
+	cptr = console_color_table;
+	for ( i = 0; i < console_color_table_size; i++ ) {
+	  if ( (ep = looking_at(p, cptr->name)) ) {
+	    p = skipspace(ep);
+	    if (*p) {
+	      free(cptr->ansi);
+	      cptr->ansi = dup_word(&p);
+
+	      p = skipspace(ep);
+	      if (*p) {
+		cptr->argb_fg = parse_argb(&p);
+		p = skipspace(ep);
+		if (*p) {
+		  cptr->argb_bg = parse_argb(&p);
+		}
+	      }
+	    }
+	    break;
+	  }
 	}
       } else {
 	/* Unknown, check for layout parameters */
