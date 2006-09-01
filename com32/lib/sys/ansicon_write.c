@@ -51,6 +51,9 @@ enum ansi_state {
   st_init,			/* Normal (no ESC seen) */
   st_esc,			/* ESC seen */
   st_csi,			/* CSI seen */
+  st_soh,			/* SOH seen */
+  st_sohc,			/* SOH # seen */
+  st_sohc1,			/* SOH # digit seen */
 };
 
 #define MAX_PARMS	16
@@ -181,6 +184,9 @@ static void ansicon_putchar(int ch)
   switch ( st.state ) {
   case st_init:
     switch ( ch ) {
+    case 1:
+      st.state = st_soh;
+      break;
     case '\b':
       if ( xy.x > 0 ) xy.x--;
       break;
@@ -499,6 +505,45 @@ static void ansicon_putchar(int ch)
 	}
 	st.state = st_init;
       }
+    }
+    break;
+
+  case st_soh:
+    if ( ch == '#' )
+      state = st_sohc;
+    else
+      state = st_init;
+    break;
+
+  case st_sohc:
+    {
+      int n = (unsigned char)ch - '0';
+      if (n < 10) {
+	st.param[0] = n*10;
+	state = st_sohc1;
+      } else {
+	state = st_init;
+      }
+    }
+    break;
+
+  case st_sohc1:
+    {
+      int n = (unsigned char)ch - '0';
+      const char *p;
+
+      if (n < 10) {
+	st.param[0] += n;
+	/* Emulate the appropriate CSI m sequence */
+	if (st.param[0] < console_color_table_size) {
+	  state = st_csi;
+	  for (p = console_color_table[st.param[0]]; *p; p++)
+	    ansicon_putchar(*p);
+	  ansicon_putchar('m');
+	}
+      }
+
+      state = st_init;
     }
     break;
   }
