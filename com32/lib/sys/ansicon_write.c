@@ -510,9 +510,9 @@ static void ansicon_putchar(int ch)
 
   case st_soh:
     if ( ch == '#' )
-      state = st_sohc;
+      st.state = st_sohc;
     else
-      state = st_init;
+      st.state = st_init;
     break;
 
   case st_sohc:
@@ -520,9 +520,9 @@ static void ansicon_putchar(int ch)
       int n = (unsigned char)ch - '0';
       if (n < 10) {
 	st.param[0] = n*10;
-	state = st_sohc1;
+	st.state = st_sohc1;
       } else {
-	state = st_init;
+	st.state = st_init;
       }
     }
     break;
@@ -536,14 +536,14 @@ static void ansicon_putchar(int ch)
 	st.param[0] += n;
 	/* Emulate the appropriate CSI m sequence */
 	if (st.param[0] < console_color_table_size) {
-	  state = st_csi;
+	  st.state = st_csi;
 	  for (p = console_color_table[st.param[0]]; *p; p++)
 	    ansicon_putchar(*p);
 	  ansicon_putchar('m');
 	}
       }
 
-      state = st_init;
+      st.state = st_init;
     }
     break;
   }
