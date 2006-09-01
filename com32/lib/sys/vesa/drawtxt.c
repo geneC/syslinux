@@ -26,31 +26,9 @@
  * ----------------------------------------------------------------------- */
 
 #include <inttypes.h>
+#include <colortbl.h>
 #include "vesa.h"
 #include "video.h"
-
-/*
- * Color map (ARGB) for the 16 PC colors.  This can be overridden by the
- * application, and do not have to match the traditional colors.
- */
-uint32_t vesacon_color_map[16] = {
-  0x00000000,			/* black */
-  0x400000ff,			/* dark blue */
-  0x4000ff00,			/* dark green */
-  0x4000ffff,			/* dark cyan */
-  0x40ff0000,			/* dark red */
-  0x40ff00ff,			/* dark purple */
-  0x80ff8000,			/* brown */
-  0xc0ffffff,			/* light grey */
-  0x40ffffff,			/* dark grey */
-  0xc00000ff,			/* bright blue */
-  0xc000ff00,			/* bright green */
-  0xc000ffff,			/* bright cyan */
-  0xc0ff0000,			/* bright red */
-  0xc0ff00ff,			/* bright purple */
-  0xffffff00,			/* yellow */
-  0xffffffff,			/* white */
-};
 
 /*
  * Linear alpha blending.  Useless for anything that's actually
@@ -127,8 +105,8 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 	chxbits = chbits;
 	chxbits &= (cptr->sha & 0x02) ? 0xff : 0x00;
 	chxbits ^= (cptr->sha & 0x01) ? 0xff : 0x00;
-	fgcolor = vesacon_color_map[cptr->attr & 0x0f];
-	bgcolor = vesacon_color_map[cptr->attr >> 4];
+	fgcolor = console_color_table[cptr->attr].argb_fg;
+	bgcolor = console_color_table[cptr->attr].argb_bg;
 	cptr++;
 	break;
       case FONT_WIDTH-1:

@@ -48,6 +48,9 @@ enum ansi_state {
   st_init,			/* Normal (no ESC seen) */
   st_esc,			/* ESC seen */
   st_csi,			/* CSI seen */
+  st_soh,			/* SOH seen */
+  st_sohc,			/* SOH # seen */
+  st_sohc1,			/* SOH # digit seen */
 };
 
 #define MAX_PARMS	16
@@ -75,7 +78,7 @@ struct term_state {
 static const struct term_state default_state =
 {
   .disabled = 0,
-  .attr = 0x07,			/* Grey on black */
+  .attr = 0,			/* First color table entry */
   .vtgraphics = 0,
   .intensity = 1,
   .underline = 0,
@@ -438,33 +441,6 @@ static void vesacon_putchar(int ch)
 		break;
 	      }
 	    }
-
-	    /* Turn into an attribute code */
-	    {
-	      int bg = st.bg;
-	      int fg;
-
-	      if ( st.underline )
-		fg = 0x01;
-	      else if ( st.intensity == 0 )
-		fg = 0x08;
-	      else
-		fg = st.fg;
-
-	      if ( st.reverse ) {
-		bg = fg & 0x07;
-		fg &= 0x08;
-		fg |= st.bg;
-	      }
-
-	      if ( st.blink )
-		bg ^= 0x08;
-
-	      if ( st.intensity == 2 )
-		fg ^= 0x08;
-
-	      st.attr = (bg << 4) | fg;
-	    }
 	  }
 	  break;
 	case 's':
@@ -478,6 +454,48 @@ static void vesacon_putchar(int ch)
 	}
 	st.state = st_init;
       }
+    }
+    break;
+
+  case st_soh:
+    if ( ch == '#' )
+      st.state = st_sohc;
+    else
+      st.state = st_init;
+    break;
+
+  case st_sohc:
+    {
+      int n = (unsigned char)ch - '0';
+      if (n < 10) {
+	st.param[0] = n*10;
+	st.state = st_sohc1;
+      } else {
+	st.state = st_init;
+      }
+    }
+    break;
+
+  case st_sohc1:
+    {
+      int n = (unsigned char)ch - '0';
+      const char *p;
+
+      if (n < 10) {
+	st.param[0] += n;
+	if (st.param[0] < console_color_table_size) {
+	  /* Set the color table index */
+	  st.attr = st.param[0];
+
+	  /* See if there are any other attributes we care about */
+	  st.state = st_csi;
+	  for (p = console_color_table[st.param[0]]; *p; p++)
+	    vesacon_putchar(*p);
+	  vesacon_putchar('m');
+	}
+      }
+
+      st.state = st_init;
     }
     break;
   }
