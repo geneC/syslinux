@@ -91,7 +91,7 @@ install: all
 sys/vesa/drawtxt.o: sys/vesa/drawtxt.c
 	$(CC) $(CFLAGS) -O3 -c -o $@ $<
 
-jpeg/jidctflt.o: jpeg/jidctflt.o
+jpeg/jidctflt.o: jpeg/jidctflt.c
 	$(CC) $(CFLAGS) -O3 -c -o $@ $<
 
 -include .*.d */.*.d
