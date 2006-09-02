@@ -55,6 +55,8 @@ LIBOBJS = \
 	libpng/pngrtran.o libpng/pngwtran.o libpng/pngmem.o		\
 	libpng/pngerror.o libpng/pngpread.o				\
 	\
+	jpeg/tinyjpeg.o jpeg/jidctflt.o					\
+	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o
 
 BINDIR   = /usr/bin
@@ -85,8 +87,11 @@ install: all
 	-rm -rf $(INSTALLROOT)$(COM32DIR)/include
 	cp -r ../include $(INSTALLROOT)$(COM32DIR)
 
-# This code is performance critical, and doesn't compile well with -Os
+# These files are performance critical, and doesn't compile well with -Os
 sys/vesa/drawtxt.o: sys/vesa/drawtxt.c
+	$(CC) $(CFLAGS) -O3 -c -o $@ $<
+
+jpeg/jidctflt.o: jpeg/jidctflt.o
 	$(CC) $(CFLAGS) -O3 -c -o $@ $<
 
 -include .*.d */.*.d
