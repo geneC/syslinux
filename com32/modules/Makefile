@@ -44,7 +44,7 @@ AUXDIR   = $(LIBDIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-MODULES	  = chain.c32 menu.c32 ethersel.c32 mboot.c32 dmitest.c32
+MODULES	  = chain.c32 menu.c32 ethersel.c32 mboot.c32 dmitest.c32 cpuidtest.c32
 TESTFILES = menu.lnx
 
 all: $(MODULES) $(TESTFILES)
@@ -75,6 +75,9 @@ all: $(MODULES) $(TESTFILES)
 
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
+
+cpuidtest.elf : cpuidtest.o cpuid.o $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ $^
 
 dmitest.elf : dmitest.o dmi_utils.o dmi.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
