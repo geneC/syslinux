@@ -838,8 +838,11 @@ int main(int argc, char *argv[])
     cmdline = run_menu();
 
     printf("\033[?25h\033[%d;1H\033[0m", END_ROW);
-    if ( cmdline )
+    if ( cmdline ) {
       execute(cmdline);
+      if ( onerror )
+	  execute(onerror);
+    }
     else
       return 0;			/* Exit */
   }

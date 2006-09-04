@@ -23,6 +23,7 @@
 #include "menu.h"
 
 int nentries     = 0;
+int nhidden      = 0;
 int defentry     = 0;
 int allowedit    = 1;		/* Allow edits of the command line */
 int timeout      = 0;
@@ -31,10 +32,12 @@ long long totaltimeout = 0;
 
 char *menu_title  = "";
 char *ontimeout   = NULL;
+char *onerror     = NULL;
 
 char *menu_master_passwd = NULL;
 
 struct menu_entry menu_entries[MAX_ENTRIES];
+struct menu_entry hide_entries[MAX_ENTRIES];
 struct menu_entry *menu_hotkeys[256];
 
 #define astrdup(x) ({ char *__x = (x); \
@@ -159,7 +162,7 @@ record(struct labeldata *ld, char *append)
     if ( !a ) a = append;
     if ( !a || (a[0] == '-' && !a[1]) ) a = "";
     s = a[0] ? " " : "";
-    asprintf(&me->cmdline, "%s%s%s%s", ld->kernel, ipoptions, s, a);
+    asprintf(&me->cmdline, "%s%s%s%s", ld->kernel, s, a, ipoptions);
 
     ld->label = NULL;
     ld->passwd = NULL;
@@ -180,6 +183,19 @@ record(struct labeldata *ld, char *append)
 	defentry = nentries;
 
       nentries++;
+    }
+    else {
+      hide_entries[nhidden].displayname = me->displayname;
+      hide_entries[nhidden].label       = me->label;
+      hide_entries[nhidden].cmdline     = me->cmdline;
+      hide_entries[nhidden].passwd      = me->passwd;
+
+      me->displayname = NULL;
+      me->label       = NULL;
+      me->cmdline     = NULL;
+      me->passwd      = NULL;
+
+      nhidden++;
     }
   }
 }
@@ -215,6 +231,21 @@ unlabel(char *str)
     }
   }
 
+  for ( i = 0 ; i < nhidden ; i++ ) {
+    me = &hide_entries[i];
+
+    if ( !strncmp(str, me->label, pos) && !me->label[pos] ) {
+      /* Found matching label */
+      q = malloc(strlen(me->cmdline) + strlen(p) + 1);
+      strcpy(q, me->cmdline);
+      strcat(q, p);
+
+      free(str);
+
+      return q;
+    }
+  }
+
   return str;
 }
 
@@ -223,6 +254,7 @@ void parse_config(const char *filename)
   char line[MAX_LINE], *p, *ep;
   FILE *f;
   char *append = NULL;
+  unsigned int ipappend = 0;
   static struct labeldata ld;
 
   get_ipappend();
@@ -260,6 +292,8 @@ void parse_config(const char *filename)
 	ld.passwd = strdup(skipspace(p+6));
       } else if ( looking_at(p, "shiftkey") ) {
 	shiftkey = 1;
+      } else if ( looking_at(p, "onerror") ) {
+	onerror = strdup(skipspace(p+7));
       } else if ( looking_at(p, "master") ) {
 	p = skipspace(p+6);
 	if ( looking_at(p, "passwd") ) {
@@ -289,7 +323,8 @@ void parse_config(const char *filename)
       ld.passwd    = NULL;
       ld.append    = NULL;
       ld.menulabel = NULL;
-      ld.ipappend  = ld.menudefault = ld.menuhide = 0;
+      ld.ipappend  = ipappend;
+      ld.menudefault = ld.menuhide = 0;
     } else if ( looking_at(p, "kernel") ) {
       if ( ld.label ) {
 	free(ld.kernel);
@@ -300,11 +335,14 @@ void parse_config(const char *filename)
     } else if ( looking_at(p, "totaltimeout") ) {
       totaltimeout = (atoll(skipspace(p+13))*CLK_TCK+9)/10;
     } else if ( looking_at(p, "ontimeout") ) {
-      ontimeout = skipspace(p+9);
+      ontimeout = strdup(skipspace(p+9));
     } else if ( looking_at(p, "allowoptions") ) {
       allowedit = atoi(skipspace(p+12));
     } else if ( looking_at(p, "ipappend") ) {
-      ld.ipappend = atoi(skipspace(p+8));
+      if (ld.label) 
+        ld.ipappend = atoi(skipspace(p+8));
+      else
+	ipappend = atoi(skipspace(p+8));
     } else if ( looking_at(p, "localboot") ) {
       ld.kernel = strdup(".localboot");
       ld.append = strdup(skipspace(p+9));
@@ -316,4 +354,6 @@ void parse_config(const char *filename)
 
   if ( ontimeout )
     ontimeout = unlabel(ontimeout);
+  if ( onerror )
+    onerror = unlabel(onerror);
 }
