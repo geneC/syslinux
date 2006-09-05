@@ -27,9 +27,22 @@
 
 #include <stdio.h>
 #include <png.h>
+#include <tinyjpeg.h>
 #include <com32.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/stat.h>
 #include "vesa.h"
 #include "video.h"
+
+static size_t filesize(FILE *fp)
+{
+  struct stat st;
+  if (fstat(fileno(fp), &st))
+    return 0;
+  else
+    return st.st_size;
+}
 
 /* FIX THIS: we need to redraw any text on the screen... */
 static void draw_background(void)
@@ -38,29 +51,19 @@ static void draw_background(void)
 	 sizeof __vesacon_background);
 }
 
-int vesacon_load_background(const char *filename)
+static int read_png_file(FILE *fp)
 {
-  FILE *fp;
-  uint8_t header[8];
   png_structp png_ptr = NULL;
   png_infop info_ptr = NULL;
   png_infop end_ptr = NULL;
+#if 0
   png_color_16p image_background;
   static const png_color_16 my_background = {0,0,0,0,0};
+#endif
   png_bytep row_pointers[VIDEO_Y_SIZE];
   int passes;
   int i;
   int rv = -1;
-
-  if (!filename) {
-    draw_background();
-    return 0;
-  }
-
-  fp = fopen(filename, "r");
-
-  if (!fp)
-    goto err;
 
   png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING,
 				   NULL, NULL, NULL);
@@ -68,8 +71,7 @@ int vesacon_load_background(const char *filename)
   info_ptr = png_create_info_struct(png_ptr);
   end_ptr = png_create_info_struct(png_ptr);
 
-  if (fread(header, 1, 8, fp) != 8 || png_sig_cmp(header, 0, 8) ||
-      !png_ptr || !info_ptr || !end_ptr ||
+  if (!png_ptr || !info_ptr || !end_ptr ||
       setjmp(png_jmpbuf(png_ptr)))
     goto err;
 
@@ -128,8 +130,8 @@ int vesacon_load_background(const char *filename)
 #endif
     
   /* Whew!  Now we should get the stuff we want... */
-  for (i = 0; i < info_ptr->height; i++)
-    row_pointers[i] = (png_bytep *)__vesacon_background[i];
+  for (i = 0; i < (int)info_ptr->height; i++)
+    row_pointers[i] = (void *)__vesacon_background[i];
     
   passes = png_set_interlace_handling(png_ptr);
 
@@ -144,8 +146,101 @@ int vesacon_load_background(const char *filename)
  err:
   if (png_ptr)
     png_destroy_read_struct(&png_ptr, (png_infopp)NULL, (png_infopp)NULL);
+  return rv;
+}
+
+static int jpeg_sig_cmp(uint8_t *bytes, int len)
+{
+  (void)len;
+  return (bytes[0] == 0xff && bytes[1] == 0xd8) ? 0 : -1;
+}
+
+static int read_jpeg_file(FILE *fp, uint8_t *header, int len)
+{
+  struct jdec_private *jdec = NULL;
+  unsigned char *jpeg_file = NULL;
+  size_t length_of_file = filesize(fp);
+  unsigned int width, height;
+  int rv = -1;
+  unsigned char *components[3], *in_row_ptr;
+  uint32_t *out_row_ptr;
+  int bytes_per_row;
+  int i;
+
+  jpeg_file = malloc(length_of_file);
+  if (!jpeg_file)
+    goto err;
+
+  memcpy(jpeg_file, header, len);
+  if (fread(jpeg_file+len, 1, length_of_file-len, fp) != length_of_file-len)
+    goto err;
+
+  jdec = tinyjpeg_init();
+  if (!jdec)
+    goto err;
+
+  if (tinyjpeg_parse_header(jdec, jpeg_file, length_of_file) < 0)
+    goto err;
+
+  tinyjpeg_get_size(jdec, &width, &height);
+  if (width > VIDEO_X_SIZE || height > VIDEO_Y_SIZE)
+    goto err;
+
+  tinyjpeg_decode(jdec, TINYJPEG_FMT_BGRA32);
+  tinyjpeg_get_components(jdec, components);
+
+  bytes_per_row = width << 2;
+  in_row_ptr = components[0];
+  out_row_ptr = (uint32_t *)&__vesacon_background[0];
+
+  for (i = 0; i < (int)height; i++) {
+    memcpy(out_row_ptr, in_row_ptr, bytes_per_row);
+    in_row_ptr += bytes_per_row;
+    out_row_ptr += VIDEO_X_SIZE;
+  }
+
+  rv = 0;
+
+ err:
+  if (jdec)
+    tinyjpeg_free(jdec);
+  if (jpeg_file)
+    free(jpeg_file);
+
+  return rv;
+}   
+
+int vesacon_load_background(const char *filename)
+{
+  FILE *fp;
+  uint8_t header[8];
+  int rv = 1;
+
+  if (!filename) {
+    draw_background();
+    return 0;
+  }
+
+  fp = fopen(filename, "r");
+
+  if (!fp)
+    goto err;
+
+  if (fread(header, 1, 8, fp) != 8)
+    goto err;
+
+  if (!png_sig_cmp(header, 0, 8)) {
+    read_png_file(fp);
+  } else if (!jpeg_sig_cmp(header, 8)) {
+    read_jpeg_file(fp, header, 8);
+  }    
+
+  rv = 0;
+
+ err:
   if (fp)
     fclose(fp);
+
   return rv;
 }
 
