@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <minmax.h>
 #include "vesa.h"
 #include "video.h"
 
@@ -138,9 +139,6 @@ static int read_png_file(FILE *fp)
   for (i = 0; i < passes; i++)
     png_read_rows(png_ptr, row_pointers, NULL, info_ptr->height);
 
-  /* This actually displays the stuff */
-  draw_background();
-
   rv = 0;
 
  err:
@@ -164,7 +162,7 @@ static int read_jpeg_file(FILE *fp, uint8_t *header, int len)
   int rv = -1;
   unsigned char *components[3], *in_row_ptr;
   uint32_t *out_row_ptr;
-  int bytes_per_row;
+  int bytes_per_row, copy_bytes;
   int i;
 
   jpeg_file = malloc(length_of_file);
@@ -183,18 +181,19 @@ static int read_jpeg_file(FILE *fp, uint8_t *header, int len)
     goto err;
 
   tinyjpeg_get_size(jdec, &width, &height);
-  if (width > VIDEO_X_SIZE || height > VIDEO_Y_SIZE)
+  if (width > 65536 || height > 65536)
     goto err;
 
   tinyjpeg_decode(jdec, TINYJPEG_FMT_BGRA32);
   tinyjpeg_get_components(jdec, components);
 
   bytes_per_row = width << 2;
+  copy_bytes = min(width, (unsigned int)VIDEO_X_SIZE) << 2;
   in_row_ptr = components[0];
   out_row_ptr = (uint32_t *)&__vesacon_background[0];
 
   for (i = 0; i < (int)height; i++) {
-    memcpy(out_row_ptr, in_row_ptr, bytes_per_row);
+    memcpy(out_row_ptr, in_row_ptr, copy_bytes);
     in_row_ptr += bytes_per_row;
     out_row_ptr += VIDEO_X_SIZE;
   }
@@ -230,12 +229,13 @@ int vesacon_load_background(const char *filename)
     goto err;
 
   if (!png_sig_cmp(header, 0, 8)) {
-    read_png_file(fp);
+    rv = read_png_file(fp);
   } else if (!jpeg_sig_cmp(header, 8)) {
-    read_jpeg_file(fp, header, 8);
+    rv = read_jpeg_file(fp, header, 8);
   }    
 
-  rv = 0;
+  /* This actually displays the stuff */
+  draw_background();
 
  err:
   if (fp)
@@ -246,9 +246,8 @@ int vesacon_load_background(const char *filename)
 
 int __vesacon_init_background(void)
 {
-  memset(__vesacon_background, 0x80, sizeof __vesacon_background);
+  memset(__vesacon_background, 0, sizeof __vesacon_background);
 
   /* The VESA BIOS has already cleared the screen */
-  draw_background();
   return 0;
 }
