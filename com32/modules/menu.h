@@ -60,6 +60,7 @@ extern long long totaltimeout;
 
 extern char *menu_title;
 extern char *ontimeout;
+extern char *onerror;
 extern char *menu_master_passwd;
 
 extern char *menu_background;
