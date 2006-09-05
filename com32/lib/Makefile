@@ -57,6 +57,7 @@ LIBOBJS = \
 	\
 	jpeg/tinyjpeg.o jpeg/jidctflt.o	jpeg/decode1.o jpeg/decode3.o   \
 	jpeg/rgb24.o jpeg/bgr24.o jpeg/yuv420p.o jpeg/grey.o		\
+	jpeg/rgba32.o jpeg/bgra32.o					\
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o
 
