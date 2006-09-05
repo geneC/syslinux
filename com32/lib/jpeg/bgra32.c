@@ -355,9 +355,9 @@ static int initialize_bgra32(struct jdec_private *priv,
 			    unsigned int *bytes_per_mcu)
 {
   if (priv->components[0] == NULL)
-    priv->components[0] = (uint8_t *)malloc(priv->width * priv->height * 3);
-  bytes_per_blocklines[0] = priv->width * 3;
-  bytes_per_mcu[0] = 3*8;
+    priv->components[0] = (uint8_t *)malloc(priv->width * priv->height * 4);
+  bytes_per_blocklines[0] = priv->width * 4;
+  bytes_per_mcu[0] = 4*8;
 
   return !priv->components[0];
 }
