@@ -181,7 +181,7 @@ static int read_jpeg_file(FILE *fp, uint8_t *header, int len)
     goto err;
 
   tinyjpeg_get_size(jdec, &width, &height);
-  if (width > 65536 || height > 65536)
+  if (width > 4096 || height > 4096)
     goto err;
 
   tinyjpeg_decode(jdec, TINYJPEG_FMT_BGRA32);
