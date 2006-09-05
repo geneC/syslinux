@@ -100,8 +100,87 @@ struct jdec_private
 
 };
 
+struct tinyjpeg_colorspace {
+  convert_colorspace_fct convert_colorspace[4];
+  const decode_MCU_fct *decode_mcu_table;
+  int (*initialize)(struct jdec_private *, unsigned int *, unsigned int *);
+};
+
 #define IDCT jpeg_idct_float
 void jpeg_idct_float (struct component *compptr, uint8_t *output_buf, int stride);
+
+void tinyjpeg_process_Huffman_data_unit(struct jdec_private *priv, int component);
+
+extern const decode_MCU_fct tinyjpeg_decode_mcu_3comp_table[4];
+extern const decode_MCU_fct tinyjpeg_decode_mcu_1comp_table[4];
+
+enum std_markers {
+   DQT  = 0xDB, /* Define Quantization Table */
+   SOF  = 0xC0, /* Start of Frame (size information) */
+   DHT  = 0xC4, /* Huffman Table */
+   SOI  = 0xD8, /* Start of Image */
+   SOS  = 0xDA, /* Start of Scan */
+   EOI  = 0xD9, /* End of Image */
+   APP0 = 0xE0,
+};
+
+#define cY	1
+#define cCb	2
+#define cCr	3
+
+#define BLACK_Y 0
+#define BLACK_U 127
+#define BLACK_V 127
+
+#define SANITY_CHECK 1
+
+#if DEBUG
+#define error(fmt, args...) do { \
+   snprintf(error_string, sizeof(error_string), fmt, ## args); \
+   return -1; \
+} while(0)
+
+#define trace(fmt, args...) do { \
+   fprintf(stderr, fmt, ## args); \
+   fflush(stderr); \
+} while(0)
+#else
+#define error(fmt, args...) do { return -1; } while(0)
+#define trace(fmt, args...) do { } while (0)
+#endif
+
+#if 0
+static char *print_bits(unsigned int value, char *bitstr)
+{
+  int i, j;
+  i=31;
+  while (i>0)
+   {
+     if (value & (1UL<<i))
+       break;
+     i--;
+   }
+  j=0;
+  while (i>=0)
+   {
+     bitstr[j++] = (value & (1UL<<i))?'1':'0';
+     i--;
+   }
+  bitstr[j] = 0;
+  return bitstr;
+}
+
+static void print_next_16bytes(int offset, const unsigned char *stream)
+{
+  trace("%4.4x: %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x\n",
+	offset,
+	stream[0], stream[1], stream[2], stream[3], 
+	stream[4], stream[5], stream[6], stream[7],
+	stream[8], stream[9], stream[10], stream[11], 
+	stream[12], stream[13], stream[14], stream[15]);
+}
+
+#endif
 
 #endif
 

@@ -55,7 +55,8 @@ LIBOBJS = \
 	libpng/pngrtran.o libpng/pngwtran.o libpng/pngmem.o		\
 	libpng/pngerror.o libpng/pngpread.o				\
 	\
-	jpeg/tinyjpeg.o jpeg/jidctflt.o					\
+	jpeg/tinyjpeg.o jpeg/jidctflt.o	jpeg/decode1.o jpeg/decode3.o   \
+	jpeg/rgb24.o jpeg/bgr24.o jpeg/yuv420p.o jpeg/grey.o		\
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o
 
