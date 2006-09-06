@@ -787,12 +787,6 @@ int tinyjpeg_decode(struct jdec_private *priv,
   const decode_MCU_fct *decode_mcu_table;
   convert_colorspace_fct convert_to_pixfmt;
 
-  /* To keep gcc happy initialize some array */
-  bytes_per_mcu[1] = 0;
-  bytes_per_mcu[2] = 0;
-  bytes_per_blocklines[1] = 0;
-  bytes_per_blocklines[2] = 0;
-
   decode_mcu_table = pixfmt->decode_mcu_table;
 
   /* Fix: check return value */
@@ -864,15 +858,17 @@ void tinyjpeg_get_size(struct jdec_private *priv, unsigned int *width, unsigned 
   *height = priv->height;
 }
 
-int tinyjpeg_get_components(struct jdec_private *priv, unsigned char **components)
+int tinyjpeg_get_components(struct jdec_private *priv, unsigned char **components, unsigned int ncomponents)
 {
   int i;
-  for (i=0; priv->components[i] && i<COMPONENTS; i++)
+  if (ncomponents > COMPONENTS)
+    ncomponents = COMPONENTS;
+  for (i=0; i<ncomponents; i++)
     components[i] = priv->components[i];
   return 0;
 }
 
-int tinyjpeg_set_components(struct jdec_private *priv, unsigned char **components, unsigned int ncomponents)
+int tinyjpeg_set_components(struct jdec_private *priv, unsigned char * const *components, unsigned int ncomponents)
 {
   int i;
   if (ncomponents > COMPONENTS)
@@ -881,6 +877,30 @@ int tinyjpeg_set_components(struct jdec_private *priv, unsigned char **component
     priv->components[i] = components[i];
   return 0;
 }
+
+int tinyjpeg_get_bytes_per_row(struct jdec_private *priv,
+			       unsigned int *bytes,
+			       unsigned int ncomponents)
+{
+  int i;
+  if (ncomponents > COMPONENTS)
+    ncomponents = COMPONENTS;
+  for (i=0; i<ncomponents; i++)
+    bytes[i] = priv->bytes_per_row[i];
+  return 0;
+}  
+
+int tinyjpeg_set_bytes_per_row(struct jdec_private *priv,
+			       const unsigned int *bytes,
+			       unsigned int ncomponents)
+{
+  int i;
+  if (ncomponents > COMPONENTS)
+    ncomponents = COMPONENTS;
+  for (i=0; i<ncomponents; i++)
+    priv->bytes_per_row[i] = bytes[i];
+  return 0;
+}  
 
 int tinyjpeg_set_flags(struct jdec_private *priv, int flags)
 {

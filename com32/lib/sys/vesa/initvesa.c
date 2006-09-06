@@ -164,7 +164,7 @@ static int vesacon_set_mode(void)
 
   /* Now set video mode */
   rm.eax.w[0] = 0x4F02;		/* Set SVGA video mode */
-  rm.ebx.w[0] = mode | 0xC000;	/* Don't clear video RAM, use linear fb */
+  rm.ebx.w[0] = mode | 0x4000;	/* Clear video RAM, use linear fb */
   __intcall(0x10, &rm, &rm);
   if ( rm.eax.w[0] != 0x004F ) {
     rm.eax.w[0] = 0x0003;	/* Set regular text mode */

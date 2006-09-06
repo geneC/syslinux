@@ -54,7 +54,7 @@ static void YCrCB_to_Grey_1x1(struct jdec_private *priv)
 
   p = priv->plane[0];
   y = priv->Y;
-  offset_to_next_row = priv->width;
+  offset_to_next_row = priv->bytes_per_row[0];
 
   for (i=0; i<8; i++) {
      memcpy(p, y, 8);
@@ -74,14 +74,16 @@ static void YCrCB_to_Grey_2x1(struct jdec_private *priv)
   const unsigned char *y;
   unsigned char *p;
   unsigned int i;
+  int offset_to_next_row;
 
   p = priv->plane[0];
   y = priv->Y;
+  offset_to_next_row = priv->bytes_per_row[0];
 
   for (i=0; i<8; i++) {
      memcpy(p, y, 16);
      y += 16;
-     p += priv->width;
+     p += offset_to_next_row;
   }
 }
 
@@ -99,14 +101,16 @@ static void YCrCB_to_Grey_1x2(struct jdec_private *priv)
   const unsigned char *y;
   unsigned char *p;
   unsigned int i;
+  int offset_to_next_row;
 
   p = priv->plane[0];
   y = priv->Y;
+  offset_to_next_row = priv->bytes_per_row[0];
 
   for (i=0; i<16; i++) {
      memcpy(p, y, 8);
      y += 8;
-     p += priv->width;
+     p += offset_to_next_row;
   }
 }
 
@@ -123,24 +127,29 @@ static void YCrCB_to_Grey_2x2(struct jdec_private *priv)
   const unsigned char *y;
   unsigned char *p;
   unsigned int i;
+  int offset_to_next_row;
 
   p = priv->plane[0];
   y = priv->Y;
+  offset_to_next_row = priv->bytes_per_row[0];
 
   for (i=0; i<16; i++) {
      memcpy(p, y, 16);
      y += 16;
-     p += priv->width;
+     p += offset_to_next_row;
   }
 }
 
 static int initialize_grey(struct jdec_private *priv,
-			    unsigned int *bytes_per_blocklines,
-			    unsigned int *bytes_per_mcu)
+			   unsigned int *bytes_per_blocklines,
+			   unsigned int *bytes_per_mcu)
 {
   if (priv->components[0] == NULL)
     priv->components[0] = (uint8_t *)malloc(priv->width * priv->height * 3);
-  bytes_per_blocklines[0] = priv->width * 3;
+  if (!priv->bytes_per_row[0])
+    priv->bytes_per_row[0] = priv->width * 3;
+
+  bytes_per_blocklines[0] = priv->bytes_per_row[0];
   bytes_per_mcu[0] = 3*8;
 
   return !priv->components[0];

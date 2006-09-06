@@ -60,8 +60,8 @@ static void YCrCB_to_YUV420P_1x1(struct jdec_private *priv)
   for (i=0; i<8; i++)
    {
      memcpy(p, y, 8);
-     p+=priv->width;
-     y+=8;
+     p += priv->bytes_per_row[0];
+     y += 8;
    }
 
   p = priv->plane[1];
@@ -71,7 +71,7 @@ static void YCrCB_to_YUV420P_1x1(struct jdec_private *priv)
      for (j=0; j<8; j+=2, s+=2)
        *p++ = *s;
      s += 8; /* Skip one line */
-     p += priv->width/2 - 4;
+     p += priv->bytes_per_row[1] - 4;
    }
 
   p = priv->plane[2];
@@ -81,7 +81,7 @@ static void YCrCB_to_YUV420P_1x1(struct jdec_private *priv)
      for (j=0; j<8; j+=2, s+=2)
        *p++ = *s;
      s += 8; /* Skip one line */
-     p += priv->width/2 - 4;
+     p += priv->bytes_per_row[2] - 4;
    }
 }
 
@@ -102,7 +102,7 @@ static void YCrCB_to_YUV420P_2x1(struct jdec_private *priv)
   for (i=0; i<8; i++)
    {
      memcpy(p, y1, 16);
-     p += priv->width;
+     p += priv->bytes_per_row[0];
      y1 += 16;
    }
 
@@ -113,7 +113,7 @@ static void YCrCB_to_YUV420P_2x1(struct jdec_private *priv)
      for (j=0; j<8; j+=1, s+=1)
        *p++ = *s;
      s += 8; /* Skip one line */
-     p += priv->width/2 - 8;
+     p += priv->bytes_per_row[1] - 8;
    }
 
   p = priv->plane[2];
@@ -123,7 +123,7 @@ static void YCrCB_to_YUV420P_2x1(struct jdec_private *priv)
      for (j=0; j<8; j+=1, s+=1)
        *p++ = *s;
      s += 8; /* Skip one line */
-     p += priv->width/2 - 8;
+     p += priv->bytes_per_row[2] - 8;
    }
 }
 
@@ -147,7 +147,7 @@ static void YCrCB_to_YUV420P_1x2(struct jdec_private *priv)
   for (i=0; i<16; i++)
    {
      memcpy(p, y, 8);
-     p+=priv->width;
+     p+=priv->bytes_per_row[0];
      y+=8;
    }
 
@@ -157,7 +157,7 @@ static void YCrCB_to_YUV420P_1x2(struct jdec_private *priv)
    {
      for (j=0; j<8; j+=2, s+=2)
        *p++ = *s;
-     p += priv->width/2 - 4;
+     p += priv->bytes_per_row[1] - 4;
    }
 
   p = priv->plane[2];
@@ -166,7 +166,7 @@ static void YCrCB_to_YUV420P_1x2(struct jdec_private *priv)
    {
      for (j=0; j<8; j+=2, s+=2)
        *p++ = *s;
-     p += priv->width/2 - 4;
+     p += priv->bytes_per_row[2] - 4;
    }
 }
 
@@ -189,7 +189,7 @@ static void YCrCB_to_YUV420P_2x2(struct jdec_private *priv)
   for (i=0; i<16; i++)
    {
      memcpy(p, y1, 16);
-     p += priv->width;
+     p += priv->bytes_per_row[0];
      y1 += 16;
    }
 
@@ -199,7 +199,7 @@ static void YCrCB_to_YUV420P_2x2(struct jdec_private *priv)
    {
      memcpy(p, s, 8);
      s += 8;
-     p += priv->width/2;
+     p += priv->bytes_per_row[1];
    }
 
   p = priv->plane[2];
@@ -208,7 +208,7 @@ static void YCrCB_to_YUV420P_2x2(struct jdec_private *priv)
    {
      memcpy(p, s, 8);
      s += 8;
-     p += priv->width/2;
+     p += priv->bytes_per_row[2];
    }
 }
 
@@ -222,9 +222,16 @@ static int initialize_yuv420p(struct jdec_private *priv,
     priv->components[1] = (uint8_t *)malloc(priv->width * priv->height/4);
   if (priv->components[2] == NULL)
     priv->components[2] = (uint8_t *)malloc(priv->width * priv->height/4);
-  bytes_per_blocklines[0] = priv->width;
-  bytes_per_blocklines[1] = priv->width/4;
-  bytes_per_blocklines[2] = priv->width/4;
+  if (!priv->bytes_per_row[0])
+    priv->bytes_per_row[0] = priv->width;
+  if (!priv->bytes_per_row[1])
+    priv->bytes_per_row[1] = priv->width/2;
+  if (!priv->bytes_per_row[2])
+    priv->bytes_per_row[2] = priv->width/2;
+
+  bytes_per_blocklines[0] = priv->bytes_per_row[0];
+  bytes_per_blocklines[1] = priv->bytes_per_row[1]/2;
+  bytes_per_blocklines[2] = priv->bytes_per_row[2]/2;
   bytes_per_mcu[0] = 8;
   bytes_per_mcu[1] = 4;
   bytes_per_mcu[2] = 4;

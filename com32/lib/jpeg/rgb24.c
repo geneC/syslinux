@@ -84,7 +84,7 @@ static void YCrCB_to_RGB24_1x1(struct jdec_private *priv)
   Y = priv->Y;
   Cb = priv->Cb;
   Cr = priv->Cr;
-  offset_to_next_row = priv->width*3 - 8*3;
+  offset_to_next_row = priv->bytes_per_row[0] - 8*3;
   for (i=0; i<8; i++) {
 
     for (j=0;j<8;j++) {
@@ -139,7 +139,7 @@ static void YCrCB_to_RGB24_2x1(struct jdec_private *priv)
   Y = priv->Y;
   Cb = priv->Cb;
   Cr = priv->Cr;
-  offset_to_next_row = priv->width*3 - 16*3;
+  offset_to_next_row = priv->bytes_per_row[0] - 16*3;
   for (i=0; i<8; i++) {
 
     for (j=0; j<8; j++) {
@@ -202,11 +202,11 @@ static void YCrCB_to_RGB24_1x2(struct jdec_private *priv)
 #define FIX(x)          ((int)((x) * (1UL<<SCALEBITS) + 0.5))
 
   p = priv->plane[0];
-  p2 = priv->plane[0] + priv->width*3;
+  p2 = priv->plane[0] + priv->bytes_per_row[0];
   Y = priv->Y;
   Cb = priv->Cb;
   Cr = priv->Cr;
-  offset_to_next_row = 2*priv->width*3 - 8*3;
+  offset_to_next_row = 2*priv->bytes_per_row[0] - 8*3;
   for (i=0; i<8; i++) {
 
     for (j=0; j<8; j++) {
@@ -269,11 +269,11 @@ static void YCrCB_to_RGB24_2x2(struct jdec_private *priv)
 #define FIX(x)          ((int)((x) * (1UL<<SCALEBITS) + 0.5))
 
   p = priv->plane[0];
-  p2 = priv->plane[0] + priv->width*3;
+  p2 = priv->plane[0] + priv->bytes_per_row[0];
   Y = priv->Y;
   Cb = priv->Cb;
   Cr = priv->Cr;
-  offset_to_next_row = (priv->width*3*2) - 16*3;
+  offset_to_next_row = 2*priv->bytes_per_row[0] - 16*3;
   for (i=0; i<8; i++) {
 
     for (j=0;j<8;j++) {
@@ -337,7 +337,10 @@ static int initialize_rgb24(struct jdec_private *priv,
 {
   if (priv->components[0] == NULL)
     priv->components[0] = (uint8_t *)malloc(priv->width * priv->height * 3);
-  bytes_per_blocklines[0] = priv->width * 3;
+  if (!priv->bytes_per_row[0])
+    priv->bytes_per_row[0] = priv->width * 3;
+
+  bytes_per_blocklines[0] = priv->bytes_per_row[0];
   bytes_per_mcu[0] = 3*8;
 
   return !priv->components[0];

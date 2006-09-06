@@ -76,6 +76,7 @@ struct jdec_private
 {
   /* Public variables */
   uint8_t *components[COMPONENTS];
+  unsigned int bytes_per_row[COMPONENTS];
   unsigned int width, height;	/* Size of the image */
   unsigned int flags;
 

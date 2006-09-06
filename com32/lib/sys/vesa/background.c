@@ -160,10 +160,8 @@ static int read_jpeg_file(FILE *fp, uint8_t *header, int len)
   size_t length_of_file = filesize(fp);
   unsigned int width, height;
   int rv = -1;
-  unsigned char *components[3], *in_row_ptr;
-  uint32_t *out_row_ptr;
-  int bytes_per_row, copy_bytes;
-  int i;
+  unsigned char *components[1];
+  unsigned int bytes_per_row[1];
 
   jpeg_file = malloc(length_of_file);
   if (!jpeg_file)
@@ -181,28 +179,24 @@ static int read_jpeg_file(FILE *fp, uint8_t *header, int len)
     goto err;
 
   tinyjpeg_get_size(jdec, &width, &height);
-  if (width > 4096 || height > 4096)
+  if (width > VIDEO_X_SIZE || height > VIDEO_Y_SIZE)
     goto err;
 
+  components[0] = (void *)&__vesacon_background[0];
+  tinyjpeg_set_components(jdec, components, 1);
+  bytes_per_row[0] = VIDEO_X_SIZE << 2;
+  tinyjpeg_set_bytes_per_row(jdec, bytes_per_row, 1);
+
   tinyjpeg_decode(jdec, TINYJPEG_FMT_BGRA32);
-  tinyjpeg_get_components(jdec, components);
-
-  bytes_per_row = width << 2;
-  copy_bytes = min(width, (unsigned int)VIDEO_X_SIZE) << 2;
-  in_row_ptr = components[0];
-  out_row_ptr = (uint32_t *)&__vesacon_background[0];
-
-  for (i = 0; i < (int)height; i++) {
-    memcpy(out_row_ptr, in_row_ptr, copy_bytes);
-    in_row_ptr += bytes_per_row;
-    out_row_ptr += VIDEO_X_SIZE;
-  }
 
   rv = 0;
 
  err:
+  /* Don't use tinyjpeg_free() here, since we didn't allow tinyjpeg
+     to allocate the frame buffer */
   if (jdec)
-    tinyjpeg_free(jdec);
+    free(jdec);
+
   if (jpeg_file)
     free(jpeg_file);
 

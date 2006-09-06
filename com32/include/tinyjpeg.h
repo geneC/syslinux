@@ -59,8 +59,10 @@ int tinyjpeg_parse_header(struct jdec_private *priv, const unsigned char *buf, u
 int tinyjpeg_decode(struct jdec_private *priv, tinyjpeg_colorspace_t pixel_format);
 const char *tinyjpeg_get_errorstring(struct jdec_private *priv);
 void tinyjpeg_get_size(struct jdec_private *priv, unsigned int *width, unsigned int *height);
-int tinyjpeg_get_components(struct jdec_private *priv, unsigned char **components);
-int tinyjpeg_set_components(struct jdec_private *priv, unsigned char **components, unsigned int ncomponents);
+int tinyjpeg_get_components(struct jdec_private *priv, unsigned char **components, unsigned int ncomponents);
+int tinyjpeg_set_components(struct jdec_private *priv, unsigned char * const *components, unsigned int ncomponents);
+int tinyjpeg_get_bytes_per_row(struct jdec_private *priv, unsigned int *bytes, unsigned int ncomponents);
+int tinyjpeg_set_bytes_per_row(struct jdec_private *priv, const unsigned int *bytes, unsigned int ncomponents);
 int tinyjpeg_set_flags(struct jdec_private *priv, int flags);
 
 #ifdef __cplusplus

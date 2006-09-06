@@ -84,7 +84,7 @@ static void YCrCB_to_BGRA32_1x1(struct jdec_private *priv)
   Y = priv->Y;
   Cb = priv->Cb;
   Cr = priv->Cr;
-  offset_to_next_row = priv->width*4 - 8*4;
+  offset_to_next_row = priv->bytes_per_row[0] - 8*4;
   for (i=0; i<8; i++) {
 
     for (j=0;j<8;j++) {
@@ -142,7 +142,7 @@ static void YCrCB_to_BGRA32_2x1(struct jdec_private *priv)
   Y = priv->Y;
   Cb = priv->Cb;
   Cr = priv->Cr;
-  offset_to_next_row = priv->width*4 - 16*4;
+  offset_to_next_row = priv->bytes_per_row[0] - 16*4;
   for (i=0; i<8; i++) {
 
     for (j=0; j<8; j++) {
@@ -208,11 +208,11 @@ static void YCrCB_to_BGRA32_1x2(struct jdec_private *priv)
 #define FIX(x)          ((int)((x) * (1UL<<SCALEBITS) + 0.5))
 
   p = priv->plane[0];
-  p2 = priv->plane[0] + priv->width*4;
+  p2 = priv->plane[0] + priv->bytes_per_row[0];
   Y = priv->Y;
   Cb = priv->Cb;
   Cr = priv->Cr;
-  offset_to_next_row = 2*priv->width*4 - 8*4;
+  offset_to_next_row = 2*priv->bytes_per_row[0] - 8*4;
   for (i=0; i<8; i++) {
 
     for (j=0; j<8; j++) {
@@ -280,11 +280,11 @@ static void YCrCB_to_BGRA32_2x2(struct jdec_private *priv)
 #define FIX(x)          ((int)((x) * (1UL<<SCALEBITS) + 0.5))
 
   p = priv->plane[0];
-  p2 = priv->plane[0] + priv->width*4;
+  p2 = priv->plane[0] + priv->bytes_per_row[0];
   Y = priv->Y;
   Cb = priv->Cb;
   Cr = priv->Cr;
-  offset_to_next_row = (priv->width*4*2) - 16*4;
+  offset_to_next_row = 2*priv->bytes_per_row[0] - 16*4;
   for (i=0; i<8; i++) {
 
     for (j=0;j<8;j++) {
@@ -351,12 +351,15 @@ static void YCrCB_to_BGRA32_2x2(struct jdec_private *priv)
 }
 
 static int initialize_bgra32(struct jdec_private *priv,
-			    unsigned int *bytes_per_blocklines,
-			    unsigned int *bytes_per_mcu)
+			     unsigned int *bytes_per_blocklines,
+			     unsigned int *bytes_per_mcu)
 {
   if (priv->components[0] == NULL)
     priv->components[0] = (uint8_t *)malloc(priv->width * priv->height * 4);
-  bytes_per_blocklines[0] = priv->width * 4;
+  if (!priv->bytes_per_row[0])
+    priv->bytes_per_row[0] = priv->width * 4;
+
+  bytes_per_blocklines[0] = priv->bytes_per_row[0];
   bytes_per_mcu[0] = 4*8;
 
   return !priv->components[0];
