@@ -240,7 +240,7 @@ int vesacon_load_background(const char *filename)
 
 int __vesacon_init_background(void)
 {
-  memset(__vesacon_background, 0, sizeof __vesacon_background);
+  /* The BSS clearing has already cleared __vesacon_background */
 
   /* The VESA BIOS has already cleared the screen */
   return 0;
