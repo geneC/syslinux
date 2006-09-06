@@ -18,10 +18,11 @@ See menu/README for more information.
 +++ THE SIMPLE MENU SYSTEM +++
 
 The simple menu system is a single module located at
-com32/modules/menu.c32.  It uses the same configuration file as the
-regular SYSLINUX command line, and displays all the LABEL statements.
+com32/modules/vesamenu.c32 (graphical) or com32/modules/menu.c32 (text
+mode only).  It uses the same configuration file as the regular
+SYSLINUX command line, and displays all the LABEL statements.
 
-To use the menu system, simply make sure menu.c32 is in the
+To use the menu system, simply make sure [vesa]menu.c32 is in the
 appropriate location for your boot medium (the same directory as the
 configuration file for SYSLINUX, EXTLINUX and ISOLINUX, and the same
 directory as pxelinux.0 for PXELINUX), and put the following options
@@ -104,6 +105,98 @@ MENU MASTER PASSWD passwd
 	Sets a master password.  This password can be used to boot any
 	menu entry, and is required for the [Tab] and [Esc] keys to
 	work.
+
+
+MENU BACKGROUND filename
+
+	For vesamenu.c32, sets the background image.  The image should
+	be 640x480 pixels and either in PNG or JPEG format.
+
+
+MENU COLOR element ansi foreground background
+
+	Sets the color of element "element" to the specified color
+	sequence:
+
+	screen          Rest of the screen
+	border          Border area
+	title           Title bar
+	unsel           Unselected menu item
+	hotkey          Unselected hotkey
+	sel             Selection bar
+	hotsel          Selected hotkey
+	scrollbar       Scroll bar
+	tabmsg          Press [Tab] message
+	cmdmark         Command line marker
+	cmdline         Command line
+	pwdborder       Password box border
+	pwdheader       Password box header
+	pwdentry        Password box contents
+	timeout_msg     Timeout message
+	timeout         Timeout counter
+
+
+	"ansi" is a sequence of semicolon-separated ECMA-48 Set
+	Graphics Rendition (<ESC>[m) sequences:
+
+	0     reset all attributes to their defaults
+	1     set bold
+	4     set underscore (simulated with color on a color display)
+	5     set blink
+	7     set reverse video
+	22    set normal intensity
+	24    underline off
+	25    blink off
+	27    reverse video off
+	30    set black foreground
+	31    set red foreground
+	32    set green foreground
+	33    set brown foreground
+	34    set blue foreground
+	35    set magenta foreground
+	36    set cyan foreground
+	37    set white foreground
+	38    set underscore on, set default foreground color
+	39    set underscore off, set default foreground color
+	40    set black background
+	41    set red background
+	42    set green background
+	43    set brown background
+	44    set blue background
+	45    set magenta background
+	46    set cyan background
+	47    set white background
+	49    set default background color
+
+	These are used (a) in text mode, and (b) on the serial
+	console.
+
+
+	"foreground" and "background" are color codes in #AARRGGBB
+	notation, where AA RR GG BB are hexadecimal digits for alpha
+	(opacity), red, green and blue, respectively.  #00000000
+	represents fully transparent, and #ffffffff represents opaque
+	white.
+
+	The current defaults are:
+
+	timeout_msg
+	screen	    0;37;40    #80ffffff #00000000
+	border	    0;30;44    #40000000 #00000000
+	title	    1;36;44    #c00090f0 #00000000
+	unsel	    0;37;44    #90ffffff #00000000
+	hotkey	    1;37;44    #ffffffff #00000000
+	sel	    0;7;37;40  #cf101010 #20ff8000
+	hotsel	    1;7;37;40  #ff353535 #20ff8000
+	scrollbar   0;30;44    #40000000 #00000000
+	tabmsg	    0;31;40    #90ffff00 #00000000
+	cmdmark	    1;36;40    #c000ffff #00000000
+	cmdline	    0;37;40    #c0ffffff #00000000
+	pwdborder   0;30;47    #80ffffff #20ffffff
+	pwdheader   0;31;47    #80ff8080 #20ffffff
+	pwdentry    0;30;47    #80ffffff #20ffffff
+	timeout_msg 0;37;40    #80ffffff #00000000
+	timeout	    1;37;40    #c0ffffff #00000000
 
 
 MENU WIDTH 80
