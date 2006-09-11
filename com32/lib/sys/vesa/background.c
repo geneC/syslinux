@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2006 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -10,10 +10,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -85,12 +85,12 @@ static int read_png_file(FILE *fp)
 
   /* Set the appropriate set of transformations.  We need to end up
      with 32-bit BGRA format, no more, no less. */
-  
+
   switch (info_ptr->color_type) {
   case PNG_COLOR_TYPE_GRAY_ALPHA:
     png_set_gray_to_rgb(png_ptr);
     /* fall through */
-    
+
   case PNG_COLOR_TYPE_RGB_ALPHA:
     break;
 
@@ -104,7 +104,7 @@ static int read_png_file(FILE *fp)
     else
       png_set_add_alpha(png_ptr, ~0, PNG_FILLER_AFTER);
     break;
-    
+
   case PNG_COLOR_TYPE_PALETTE:
     png_set_palette_to_rgb(png_ptr);
     break;
@@ -129,11 +129,11 @@ static int read_png_file(FILE *fp)
     png_set_background(png_ptr, &my_background,
 		       PNG_BACKGROUND_GAMMA_SCREEN, 0, 1.0);
 #endif
-    
+
   /* Whew!  Now we should get the stuff we want... */
   for (i = 0; i < (int)info_ptr->height; i++)
     row_pointers[i] = (void *)__vesacon_background[i];
-    
+
   passes = png_set_interlace_handling(png_ptr);
 
   for (i = 0; i < passes; i++)
@@ -201,7 +201,7 @@ static int read_jpeg_file(FILE *fp, uint8_t *header, int len)
     free(jpeg_file);
 
   return rv;
-}   
+}
 
 int vesacon_load_background(const char *filename)
 {
@@ -226,7 +226,7 @@ int vesacon_load_background(const char *filename)
     rv = read_png_file(fp);
   } else if (!jpeg_sig_cmp(header, 8)) {
     rv = read_jpeg_file(fp, header, 8);
-  }    
+  }
 
   /* This actually displays the stuff */
   draw_background();

@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2006 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -10,10 +10,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -93,7 +93,7 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
     chsbits ^= (csptr->sha & 0x01) ? 0xff : 0x00;
     chsbits <<= 6;
     csptr++;
-    
+
     for (j = width*ncols; j >= 0; j--) {
       chbits <<= 1;
       chsbits <<= 1;
@@ -134,7 +134,7 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 	color >>= 2;
 	color &= 0x3f3f3f;
       }
-      
+
       *fbptr++ = color;
     }
 
@@ -207,7 +207,7 @@ void __vesacon_scroll_up(int nrows, uint8_t attr, int rev)
 
   /* Danger, Will Robinson: this is wrong if rev != SHADOW_NORMAL */
   vesacon_fill(toptr, fill, dword_count);
-  
+
   vesacon_update_characters(0, 0, __vesacon_text_rows,
 			    TEXT_PIXEL_COLS/FONT_WIDTH);
 }
@@ -234,7 +234,7 @@ void __vesacon_write_at(int x, int y, const char *str,
 }
 
 /* Draw one character text at a specific area of the screen */
-void __vesacon_write_char(int x, int y, char ch, uint8_t attr, int rev)
+void __vesacon_write_char(int x, int y, uint8_t ch, uint8_t attr, int rev)
 {
   struct vesa_char *ptr = &__vesacon_text_display
     [(y+1)*(TEXT_PIXEL_COLS/FONT_WIDTH+2)+(x+1)];
@@ -245,4 +245,3 @@ void __vesacon_write_char(int x, int y, char ch, uint8_t attr, int rev)
 
   vesacon_update_characters(y, x, 1, 1);
 }
-

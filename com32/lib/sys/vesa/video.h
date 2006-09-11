@@ -66,6 +66,6 @@ int __vesacon_init(void);
 void __vesacon_erase(int, int, int, int, uint8_t, int);
 void __vesacon_scroll_up(int, uint8_t, int);
 void __vesacon_write_at(int, int, const char *, uint8_t, int);
-void __vesacon_write_char(int, int, char, uint8_t, int);
+void __vesacon_write_char(int, int, uint8_t, uint8_t, int);
 
 #endif /* LIB_SYS_VESA_VIDEO_H */
