@@ -48,7 +48,7 @@ static const struct term_state default_state =
   .bg = 0,
   .autocr = 0,
   .saved_xy = { 0, 0 },
-  .cursor_type = 0x0607,
+  .cursor = 1,
   .state = st_init,
   .pvt = 0,
   .nparms = 0,
@@ -283,7 +283,7 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
 	      st->autocr = set;
 	      break;
 	    case 25:
-	      op->showcursor(st, set);
+	      op->showcursor(st);
 	      break;
 	    default:
 	      /* Ignore */
@@ -429,6 +429,6 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
   }
 
   /* Update cursor position */
-  op->set_cursor(xy.x, xy.y);
+  op->set_cursor(xy.x, xy.y, st->cursor);
   st->xy = xy;
 }

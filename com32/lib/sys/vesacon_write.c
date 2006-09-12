@@ -44,16 +44,15 @@
 
 static void vesacon_erase(const struct term_state *, int, int, int, int);
 static void vesacon_write_char(int, int, uint8_t, const struct term_state *);
-static void vesacon_showcursor(const struct term_state *, int);
+static void vesacon_showcursor(const struct term_state *);
 static void vesacon_scroll_up(const struct term_state *);
-static void vesacon_set_cursor(int, int);
 
 static struct term_state ts;
 static struct ansi_ops op = {
   .erase	= vesacon_erase,
   .write_char 	= vesacon_write_char,
   .showcursor   = vesacon_showcursor,
-  .set_cursor   = vesacon_set_cursor,
+  .set_cursor   = __vesacon_set_cursor,	/* in drawtxt.c */
   .scroll_up    = vesacon_scroll_up,
 };
 
@@ -123,17 +122,9 @@ static void vesacon_write_char(int x, int y, uint8_t ch,
 }
 
 /* Show or hide the cursor */
-static void vesacon_showcursor(const struct term_state *st, int yes)
+static void vesacon_showcursor(const struct term_state *st)
 {
-  (void)st;
-  (void)yes;
-  /* Do something here */
-}
-
-static void vesacon_set_cursor(int x, int y)
-{
-  (void)x; (void)y;
-  /* Do something here */
+  __vesacon_set_cursor(st->xy.x, st->xy.y, st->cursor);
 }
 
 static void vesacon_scroll_up(const struct term_state *st)
@@ -152,10 +143,14 @@ ssize_t __vesacon_write(struct file_info *fp, const void *buf, size_t count)
   if ( ti.disabled )
     return n;			/* Nothing to do */
 
+  /* This only updates the shadow text buffer... */
   while ( count-- ) {
     __ansi_putchar(&ti, *bufp++);
     n++;
   }
+
+  /* This actually draws it */
+  __vesacon_doit();
 
   return n;
 }

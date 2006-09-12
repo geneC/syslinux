@@ -31,6 +31,13 @@
 #include "video.h"
 
 /*
+ * Visible cursor information
+ */
+static uint8_t cursor_pattern[FONT_MAX_HEIGHT];
+static struct vesa_char *cursor_pointer = NULL;
+static int cursor_x, cursor_y;
+
+/*
  * Linear alpha blending.  Useless for anything that's actually
  * depends on color accuracy (because of gamma), but it's fine for
  * what we want.
@@ -89,6 +96,8 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
     csptr = rowsptr;
 
     chsbits = __vesacon_graphics_font[csptr->ch][pixsrow];
+    if (__unlikely(csptr == cursor_pointer))
+      chsbits |= cursor_pattern[pixsrow];
     chsbits &= (csptr->sha & 0x02) ? 0xff : 0x00;
     chsbits ^= (csptr->sha & 0x01) ? 0xff : 0x00;
     chsbits <<= 6;
@@ -102,6 +111,8 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
       switch (j % FONT_WIDTH) {
       case 0:
 	chbits = __vesacon_graphics_font[cptr->ch][pixrow];
+	if (__unlikely(cptr == cursor_pointer))
+	  chbits |= cursor_pattern[pixrow];
 	chxbits = chbits;
 	chxbits &= (cptr->sha & 0x02) ? 0xff : 0x00;
 	chxbits ^= (cptr->sha & 0x01) ? 0xff : 0x00;
@@ -111,6 +122,8 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 	break;
       case FONT_WIDTH-1:
 	chsbits = __vesacon_graphics_font[csptr->ch][pixsrow];
+	if (__unlikely(csptr == cursor_pointer))
+	  chsbits |= cursor_pattern[pixsrow];
 	chsbits &= (csptr->sha & 0x02) ? 0xff : 0x00;
 	chsbits ^= (csptr->sha & 0x01) ? 0xff : 0x00;
 	csptr++;
@@ -152,6 +165,38 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
   }
 }
 
+/* Bounding box for changed text.  The (x1, y1) coordinates are +1! */
+static unsigned int upd_x0 = -1U, upd_x1, upd_y0 = -1U, upd_y1;
+
+/* Update the range already touched by various variables */
+void __vesacon_doit(void)
+{
+  if (upd_x1 > upd_x0 && upd_y1 > upd_y0) {
+    vesacon_update_characters(upd_y0, upd_x0, upd_y1-upd_y0, upd_x1-upd_x0);
+    upd_x0 = upd_y0 = -1U;
+    upd_x1 = upd_y1 = 0;
+  }
+}
+
+/* Mark a range for update; note argument sequence is the same as
+   vesacon_update_characters() */
+static inline void vesacon_touch(int row, int col, int rows, int cols)
+{
+  unsigned int y0 = row;
+  unsigned int x0 = col;
+  unsigned int y1 = y0+rows;
+  unsigned int x1 = x0+cols;
+
+  if (y0 < upd_y0)
+    upd_y0 = y0;
+  if (y1 > upd_y1)
+    upd_y1 = y1;
+  if (x0 < upd_x0)
+    upd_x0 = x0;
+  if (x1 > upd_x1)
+    upd_x1 = x1;
+}
+
 /* Fill a number of characters... */
 static inline struct vesa_char *vesacon_fill(struct vesa_char *ptr,
 					     struct vesa_char fill,
@@ -183,7 +228,7 @@ void __vesacon_erase(int x0, int y0, int x1, int y1, uint8_t attr, int rev)
     ptr += TEXT_PIXEL_COLS/FONT_WIDTH+2;
   }
 
-  vesacon_update_characters(y0, x0, y1-y0+1, ncols);
+  vesacon_touch(y0, x0, y1-y0+1, ncols);
 }
 
 /* Scroll the screen up */
@@ -208,8 +253,7 @@ void __vesacon_scroll_up(int nrows, uint8_t attr, int rev)
   /* Danger, Will Robinson: this is wrong if rev != SHADOW_NORMAL */
   vesacon_fill(toptr, fill, dword_count);
 
-  vesacon_update_characters(0, 0, __vesacon_text_rows,
-			    TEXT_PIXEL_COLS/FONT_WIDTH);
+  vesacon_touch(0, 0, __vesacon_text_rows, TEXT_PIXEL_COLS/FONT_WIDTH);
 }
 
 /* Draw text at a specific area of the screen */
@@ -230,7 +274,7 @@ void __vesacon_write_at(int x, int y, const char *str,
     ptr++;
   }
 
-  vesacon_update_characters(y, x, 1, n);
+  vesacon_touch(y, x, 1, n);
 }
 
 /* Draw one character text at a specific area of the screen */
@@ -243,5 +287,37 @@ void __vesacon_write_char(int x, int y, uint8_t ch, uint8_t attr, int rev)
   ptr->attr = attr;
   ptr->sha  = rev;
 
-  vesacon_update_characters(y, x, 1, 1);
+  vesacon_touch(y, x, 1, 1);
+}
+
+void __vesacon_set_cursor(int x, int y, int visible)
+{
+  struct vesa_char *ptr = &__vesacon_text_display
+    [(y+1)*(TEXT_PIXEL_COLS/FONT_WIDTH+2)+(x+1)];
+
+  if (cursor_pointer)
+    vesacon_touch(cursor_y, cursor_x, 1, 1);
+
+  if (!visible) {
+    /* Invisible cursor */
+    cursor_pointer = NULL;
+  } else {
+    cursor_pointer = ptr;
+    vesacon_touch(y, x, 1, 1);
+  }
+
+  cursor_x = x;
+  cursor_y = y;
+}
+
+void __vesacon_init_cursor(int font_height)
+{
+  int r0 = font_height - (font_height < 10 ? 2 : 3);
+
+  if (r0 < 0)
+    r0 = 0;
+
+  /* cursor_pattern is assumed to be all zero */
+  cursor_pattern[r0] = 0xff;
+  cursor_pattern[r0+1] = 0xff;
 }

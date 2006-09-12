@@ -43,9 +43,9 @@
 
 static void ansicon_erase(const struct term_state *, int, int, int, int);
 static void ansicon_write_char(int, int, uint8_t, const struct term_state *);
-static void ansicon_showcursor(const struct term_state *, int);
+static void ansicon_showcursor(const struct term_state *);
 static void ansicon_scroll_up(const struct term_state *);
-static void ansicon_set_cursor(int, int);
+static void ansicon_set_cursor(int, int, int);
 
 static struct term_state ts;
 struct ansi_ops __ansicon_ops = {
@@ -71,6 +71,8 @@ static struct term_info ti =
 /* Reference counter to the screen, to keep track of if we need
    reinitialization. */
 static int ansicon_counter = 0;
+
+static uint16_t cursor_type;	/* Saved cursor pattern */
 
 /* Common setup */
 int __ansicon_open(struct file_info *fp)
@@ -101,7 +103,7 @@ int __ansicon_open(struct file_info *fp)
       ireg.eax.b[1] = 0x03;
       ireg.ebx.b[1] = BIOS_PAGE;
       __intcall(0x10, &ireg, &oreg);
-      ti.ts->cursor_type = oreg.ecx.w[0];
+      cursor_type = oreg.ecx.w[0];
     }
   }
 
@@ -161,20 +163,22 @@ static void ansicon_erase(const struct term_state *st,
 }
 
 /* Show or hide the cursor */
-static void ansicon_showcursor(const struct term_state *st, int yes)
+static void ansicon_showcursor(const struct term_state *st)
 {
   static com32sys_t ireg;
 
   ireg.eax.b[1] = 0x01;
-  ireg.ecx.w[0] = yes ? st->cursor_type : 0x2020;
+  ireg.ecx.w[0] = st->cursor ? cursor_type : 0x2020;
   __intcall(0x10, &ireg, NULL);
 }
 
-static void ansicon_set_cursor(int x, int y)
+static void ansicon_set_cursor(int x, int y, int visible)
 {
   const int page  = BIOS_PAGE;
   struct curxy xy = BIOS_CURXY[page];
   static com32sys_t ireg;
+
+  (void)visible;
 
   if (xy.x != x || xy.y != y) {
     ireg.eax.b[1] = 0x02;
@@ -190,7 +194,7 @@ static void ansicon_write_char(int x, int y, uint8_t ch,
 {
   static com32sys_t ireg;
 
-  ansicon_set_cursor(x, y);
+  ansicon_set_cursor(x, y, 0);
 
   ireg.eax.b[1] = 0x09;
   ireg.eax.b[0] = ch;

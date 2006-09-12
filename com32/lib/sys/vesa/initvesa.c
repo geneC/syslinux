@@ -161,6 +161,7 @@ static int vesacon_set_mode(void)
   __vesacon_font_height = 16;
   unpack_font((uint8_t *)__vesacon_graphics_font, rom_font, 16);
   __vesacon_text_rows = (VIDEO_Y_SIZE-2*VIDEO_BORDER)/__vesacon_font_height;
+  __vesacon_init_cursor(__vesacon_font_height);
 
   /* Now set video mode */
   rm.eax.w[0] = 0x4F02;		/* Set SVGA video mode */

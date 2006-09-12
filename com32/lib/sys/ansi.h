@@ -35,7 +35,7 @@ struct term_state {
   int bg;
   int autocr;
   struct curxy saved_xy;
-  uint16_t cursor_type;
+  int cursor;
   enum ansi_state state;
   int pvt;			/* Private code? */
   int nparms;			/* Number of parameters seen */
@@ -46,9 +46,9 @@ struct term_state {
 struct ansi_ops {
   void (*erase)(const struct term_state *st, int x0, int y0, int x1, int y1);
   void (*write_char)(int x, int y, uint8_t ch, const struct term_state *st);
-  void (*showcursor)(const struct term_state *st, int);
+  void (*showcursor)(const struct term_state *st);
   void (*scroll_up)(const struct term_state *st);
-  void (*set_cursor)(int x, int y);
+  void (*set_cursor)(int x, int y, int visible);
 };
 
 struct term_info {
