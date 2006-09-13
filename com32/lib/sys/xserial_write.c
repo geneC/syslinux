@@ -98,6 +98,8 @@ ssize_t __xserial_write(struct file_info *fp, const void *buf, size_t count)
 	if (ncolor < console_color_table_size) {
 	  emit('\033');
 	  emit('[');
+	  emit('0');
+	  emit(';');
 	  for (p = console_color_table[ncolor].ansi; *p; p++)
 	    emit(*p);
 	  emit('m');

@@ -60,21 +60,21 @@ int (*draw_background)(const char *filename);
  */
 
 static const struct color_table default_color_table[] = {
-  { "screen",      "0;37;40",   0x80ffffff, 0x00000000 },
-  { "border",      "0;30;44",   0x40000000, 0x00000000 },
+  { "screen",      "37;40",     0x80ffffff, 0x00000000 },
+  { "border",      "30;44",     0x40000000, 0x00000000 },
   { "title",       "1;36;44",   0xc00090f0, 0x00000000 },
-  { "unsel",       "0;37;44",   0x90ffffff, 0x00000000 },
+  { "unsel",       "37;44",     0x90ffffff, 0x00000000 },
   { "hotkey",      "1;37;44",   0xffffffff, 0x00000000 },
-  { "sel",         "0;7;37;40", 0xcf101010, 0x20ff8000 },
-  { "hotsel",      "1;7;37;40", 0xff353535, 0x20ff8000 },
-  { "scrollbar",   "0;30;44",   0x40000000, 0x00000000 },
-  { "tabmsg",      "0;31;40",   0x90ffff00, 0x00000000 },
+  { "sel",         "7;37;40",   0xcf101010, 0x20ff8000 },
+  { "hotsel",      "7;37;40",   0xff353535, 0x20ff8000 },
+  { "scrollbar",   "30;44",     0x40000000, 0x00000000 },
+  { "tabmsg",      "31;40",     0x90ffff00, 0x00000000 },
   { "cmdmark",     "1;36;40",   0xc000ffff, 0x00000000 },
-  { "cmdline",     "0;37;40",   0xc0ffffff, 0x00000000 },
-  { "pwdborder",   "0;30;47",   0x80ffffff, 0x20ffffff },
-  { "pwdheader",   "0;31;47",   0x80ff8080, 0x20ffffff },
-  { "pwdentry",    "0;30;47",   0x80ffffff, 0x20ffffff },
-  { "timeout_msg", "0;37;40",   0x80ffffff, 0x00000000 },
+  { "cmdline",     "37;40",     0xc0ffffff, 0x00000000 },
+  { "pwdborder",   "30;47",     0x80ffffff, 0x20ffffff },
+  { "pwdheader",   "31;47",     0x80ff8080, 0x20ffffff },
+  { "pwdentry",    "30;47",     0x80ffffff, 0x20ffffff },
+  { "timeout_msg", "37;40",     0x80ffffff, 0x00000000 },
   { "timeout",     "1;37;40",   0xc0ffffff, 0x00000000 },
 };
 

@@ -408,6 +408,8 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
 	  p = console_color_table[st->parms[0]].ansi;
 	  st->state = st_esc;
 	  __ansi_putchar(ti, '[');
+	  __ansi_putchar(ti, '0');
+	  __ansi_putchar(ti, ';');
 	  while (*p)
 	    __ansi_putchar(ti, *p++);
 	  __ansi_putchar(ti, 'm');
