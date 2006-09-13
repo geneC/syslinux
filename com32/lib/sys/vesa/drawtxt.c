@@ -29,6 +29,7 @@
 #include <colortbl.h>
 #include "vesa.h"
 #include "video.h"
+#include "fmtpixel.h"
 
 /*
  * Visible cursor information
@@ -72,15 +73,37 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 {
   const int height = __vesacon_font_height;
   const int width = FONT_WIDTH;
-  uint32_t *bgrowptr, *bgptr, *fbrowptr, *fbptr, bgval, fgval;
+  uint32_t *bgrowptr, *bgptr, bgval, fgval;
   uint32_t fgcolor = 0, bgcolor = 0, color;
   uint8_t chbits = 0, chxbits = 0, chsbits = 0;
   int i, j, pixrow, pixsrow;
   struct vesa_char *rowptr, *rowsptr, *cptr, *csptr;
-
+  unsigned long pixel_offset, bytes_per_pixel, bytes_per_row;
+  uint8_t row_buffer[VIDEO_X_SIZE*4], *rowbufptr;
+  uint8_t *fbrowptr;
+  
   bgrowptr  = &__vesacon_background[row*height+VIDEO_BORDER][col*width+VIDEO_BORDER];
-  fbrowptr = ((uint32_t *)__vesa_info.mi.lfb_ptr)+
-    ((row*height+VIDEO_BORDER)*VIDEO_X_SIZE)+(col*width+VIDEO_BORDER);
+  
+  pixel_offset = ((row*height+VIDEO_BORDER)*VIDEO_X_SIZE)+
+    (col*width+VIDEO_BORDER);
+
+  switch (__vesacon_pixel_format) {
+  case PXF_BGR24:
+    bytes_per_pixel = 3;
+    break;
+  case PXF_BGRA32:
+    bytes_per_pixel = 4;
+    break;
+  case PXF_LE_RGB16_565:
+    bytes_per_pixel = 2;
+    break;
+  default:
+    bytes_per_pixel = 0;
+    break;
+  }
+
+  bytes_per_row = bytes_per_pixel*VIDEO_X_SIZE;
+  fbrowptr = ((uint8_t *)__vesa_info.mi.lfb_ptr)+pixel_offset*bytes_per_pixel;
 
   /* Note that we keep a 1-character guard area around the real text area... */
   rowptr  = &__vesacon_text_display[(row+1)*(TEXT_PIXEL_COLS/FONT_WIDTH+2)+(col+1)];
@@ -90,7 +113,7 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 
   for (i = height*nrows; i >= 0; i--) {
     bgptr = bgrowptr;
-    fbptr = fbrowptr;
+    rowbufptr = row_buffer;
 
     cptr = rowptr;
     csptr = rowsptr;
@@ -100,16 +123,21 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
       chsbits |= cursor_pattern[pixsrow];
     chsbits &= (csptr->sha & 0x02) ? 0xff : 0x00;
     chsbits ^= (csptr->sha & 0x01) ? 0xff : 0x00;
-    chsbits <<= 6;
+    chsbits <<= (width-2);
     csptr++;
 
-    for (j = width*ncols; j >= 0; j--) {
+  /* Draw two pixels beyond the end of the line.  One for the shadow,
+     and one to make sure we have a whole dword of data for the copy
+     operation at the end.  Note that this code depends on the fact that
+     all characters begin on dword boundaries in the frame buffer. */
+
+    for (j = width*ncols+1; j >= 0; j--) {
       chbits <<= 1;
       chsbits <<= 1;
       chxbits <<= 1;
 
-      switch (j % FONT_WIDTH) {
-      case 0:
+      switch (j % width) {
+      case 1:
 	chbits = __vesacon_graphics_font[cptr->ch][pixrow];
 	if (__unlikely(cptr == cursor_pointer))
 	  chbits |= cursor_pattern[pixrow];
@@ -120,7 +148,7 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 	bgcolor = console_color_table[cptr->attr].argb_bg;
 	cptr++;
 	break;
-      case FONT_WIDTH-1:
+      case 0:
 	chsbits = __vesacon_graphics_font[csptr->ch][pixsrow];
 	if (__unlikely(csptr == cursor_pointer))
 	  chsbits |= cursor_pattern[pixsrow];
@@ -148,11 +176,24 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 	color &= 0x3f3f3f;
       }
 
-      *fbptr++ = color;
+      rowbufptr = format_pixel(rowbufptr, color, __vesacon_pixel_format);
+    }
+
+    /* Copy to frame buffer */
+    {
+      void *fb_ptr = fbrowptr;
+      void *rb_ptr = row_buffer;
+      unsigned int dword_count = (rowbufptr-row_buffer) >> 2;
+
+      /* Note that the dword_count is rounded down, not up.  That's because
+	 the row_buffer includes a spillover pixel. */
+
+      asm volatile("cld; rep; movsl"
+		   : "+D" (fb_ptr), "+S" (rb_ptr), "+c" (dword_count));
     }
 
     bgrowptr += VIDEO_X_SIZE;
-    fbrowptr += VIDEO_X_SIZE;
+    fbrowptr += bytes_per_row;
 
     if (++pixrow == height) {
       rowptr += TEXT_PIXEL_COLS/FONT_WIDTH+2;

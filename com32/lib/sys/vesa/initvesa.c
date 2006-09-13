@@ -47,6 +47,7 @@ struct vesa_info __vesa_info;
 struct vesa_char *__vesacon_text_display;
 
 int __vesacon_font_height, __vesacon_text_rows;
+enum vesa_pixel_format __vesacon_pixel_format;
 uint8_t __vesacon_graphics_font[FONT_MAX_CHARS][FONT_MAX_HEIGHT];
 
 uint32_t __vesacon_background[VIDEO_Y_SIZE][VIDEO_X_SIZE];
@@ -90,9 +91,10 @@ static int vesacon_set_mode(void)
 {
   com32sys_t rm;
   uint8_t *rom_font;
-  uint16_t mode, *mode_ptr;
+  uint16_t mode, bestmode, *mode_ptr;
   struct vesa_general_info *gi;
   struct vesa_mode_info *mi;
+  enum vesa_pixel_format pxf, bestpxf;
 
   /* Allocate space in the bounce buffer for these structures */
   gi = &((struct vesa_info *)__com32.cs_bounce)->gi;
@@ -118,11 +120,10 @@ static int vesacon_set_mode(void)
 
   /* Search for a 640x480 32-bit linear frame buffer mode */
   mode_ptr = GET_PTR(gi->video_mode_ptr);
+  bestmode = 0;
+  bestpxf  = PXF_NONE;
 
-  for(;;) {
-    if ((mode = *mode_ptr++) == 0xFFFF)
-      return 4;			/* No mode found */
-
+  while ((mode = *mode_ptr++) != 0xFFFF) {
     debug("Found mode: 0x%04x\r\n", mode);
 
     rm.eax.w[0] = 0x4F01;	/* Get SVGA mode information */
@@ -142,20 +143,40 @@ static int vesacon_set_mode(void)
     /* Must be an LFB color graphics mode supported by the hardware */
     if ( (mi->mode_attr & 0x0099) != 0x0099 )
       continue;
+
     /* Must be 640x480, 32 bpp */
-    if ( mi->h_res != VIDEO_X_SIZE || mi->v_res != VIDEO_Y_SIZE ||
-	 mi->bpp != 32 )
-      continue;
-    /* Must either be a packed-pixel mode or a direct color mode
-       (depending on VESA version ) */
-    if ( mi->memory_layout != 4 && /* Packed pixel */
-	 (mi->memory_layout != 6 || mi->rpos != 16 ||
-	  mi->gpos != 8 || mi->bpos != 0) )
+    if ( mi->h_res != VIDEO_X_SIZE || mi->v_res != VIDEO_Y_SIZE )
       continue;
 
-    /* Hey, looks like we found something we can live with */
-    break;
+    /* Must either be a packed-pixel mode or a direct color mode
+       (depending on VESA version ) */
+    if (mi->bpp == 32 && 
+	(mi->memory_layout == 4 ||
+	 (mi->memory_layout == 6 && mi->rpos == 16 && mi->gpos == 8 &&
+	  mi->bpos == 0)))
+      pxf = PXF_BGRA32;
+    else if (mi->bpp == 24 &&
+	     (mi->memory_layout == 4 ||
+	      (mi->memory_layout == 6 && mi->rpos == 16 && mi->gpos == 8 &&
+	       mi->bpos == 0)))
+      pxf = PXF_BGR24;
+    else if (mi->bpp == 16 &&
+	     (mi->memory_layout == 4 ||
+	      (mi->memory_layout == 6 && mi->rpos == 11 && mi->gpos == 5 &&
+	       mi->bpos == 0)))
+      pxf = PXF_LE_RGB16_565;
+    else
+      pxf = PXF_NONE;		/* Not a usable mode for us */
+
+    if (pxf < bestpxf) {
+      /* Best mode so far... */
+      bestmode = mode;
+      bestpxf  = pxf;
+    }
   }
+
+  if (bestpxf == PXF_NONE)
+    return 4;			/* No mode found */
 
   /* Download the SYSLINUX- or BIOS-provided font */
   rm.eax.w[0] = 0x0018;		/* Query custom font */
