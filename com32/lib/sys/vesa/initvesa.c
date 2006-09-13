@@ -153,13 +153,21 @@ static int vesacon_set_mode(void)
     break;
   }
 
-  /* Download the BIOS-provided font */
-  rm.eax.w[0] = 0x1130;		/* Get Font Information */
-  rm.ebx.w[0] = 0x0600;		/* Get 8x16 ROM font */
-  __intcall(0x10, &rm, &rm);
-  rom_font = MK_PTR(rm.es, rm.ebp.w[0]);
-  __vesacon_font_height = 16;
-  unpack_font((uint8_t *)__vesacon_graphics_font, rom_font, 16);
+  /* Download the SYSLINUX- or BIOS-provided font */
+  rm.eax.w[0] = 0x0018;		/* Query custom font */
+  __intcall(0x22, &rm, &rm);
+  if (!(rm.eflags.l & EFLAGS_CF) && rm.eax.b[0]) {
+    __vesacon_font_height = rm.eax.b[0];
+    rom_font = MK_PTR(rm.es, rm.ebx.w[0]);
+  } else {
+    rm.eax.w[0] = 0x1130;		/* Get Font Information */
+    rm.ebx.w[0] = 0x0600;		/* Get 8x16 ROM font */
+    __intcall(0x10, &rm, &rm);
+    rom_font = MK_PTR(rm.es, rm.ebp.w[0]);
+    __vesacon_font_height = 16;
+  }
+  unpack_font((uint8_t *)__vesacon_graphics_font, rom_font,
+	      __vesacon_font_height);
   __vesacon_text_rows = (VIDEO_Y_SIZE-2*VIDEO_BORDER)/__vesacon_font_height;
   __vesacon_init_cursor(__vesacon_font_height);
 
@@ -172,6 +180,13 @@ static int vesacon_set_mode(void)
     __intcall(0x10, &rm, NULL);
     return 9;			/* Failed to set mode */
   }
+
+  /* Tell syslinux we changed video mode */
+  rm.eax.w[0] = 0x0017;		/* Report video mode change */
+  rm.ebx.w[0] = (mi->mode_attr & 4) ? 0x0007 : 0x000F;
+  rm.ecx.w[0] = VIDEO_X_SIZE;
+  rm.edx.w[0] = VIDEO_Y_SIZE;
+  __intcall(0x22, &rm, NULL);
 
   /* Copy established state out of the bounce buffer */
   memcpy(&__vesa_info, __com32.cs_bounce, sizeof __vesa_info);
