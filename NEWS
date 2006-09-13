@@ -6,6 +6,8 @@ Changes in 3.30:
 	* libcom32 extended to support graphics mode and graphical console.
 	* vesamenu.c32, new graphical version of the Simple
 	  Menu System, see README.menu.
+	* New com32 modules by Erwan Velu do selection based on CPUID
+	  or PCI devices present.
 
 Changes in 3.20:
 	* EXTLINUX: New options --install (-i) and --update (-U), to
