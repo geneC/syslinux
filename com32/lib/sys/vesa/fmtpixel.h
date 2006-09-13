@@ -40,32 +40,37 @@
 /* Format a pixel and return the advanced pointer.
    THIS FUNCTION IS ALLOWED TO WRITE BEYOND THE END OF THE PIXEL. */
 
-static inline void *format_pixel(void *ptr, uint32_t rgba,
+static inline void *format_pixel(void *ptr, uint32_t bgra,
 				 enum vesa_pixel_format fmt)
 {
   switch (fmt) {
   case PXF_BGRA32:
-    *(uint32_t *)ptr = rgba;
-    return (uint32_t *)ptr + 1;
+    *(uint32_t *)ptr = bgra;
+    ptr = (uint32_t *)ptr + 1;
+    break;
 
   case PXF_BGR24:
-    *(uint32_t *)ptr = rgba;
-    return (uint8_t *)ptr + 3;
+    *(uint32_t *)ptr = bgra;
+    ptr = (uint8_t *)ptr + 3;
+    break;
     
   case PXF_LE_RGB16_565:
     {
       uint16_t pxv =
-	((rgba >> 3) & 0x1f) |
-	((rgba >> (2+8-5)) & (0x3f << 5)) |
-	((rgba >> (3+16-11)) & (0x1f << 11));
+	((bgra >> 3) & 0x1f) +
+	((bgra >> (2+8-5)) & (0x3f << 5)) +
+	(bgra >> (3+16-11));
 
       *(uint16_t *)ptr = pxv;
-      return (uint16_t *)ptr + 1;
+      ptr = (uint16_t *)ptr + 1;
     }
+    break;
 
   case PXF_NONE:		/* Shuts up gcc */
-    return ptr;
+    break;
   }
+
+  return ptr;
 }
 
 #endif /* LIB_SYS_VESA_FMTPIXEL_H */
