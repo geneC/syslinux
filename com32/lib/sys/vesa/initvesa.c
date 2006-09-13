@@ -53,8 +53,9 @@ uint32_t __vesacon_background[VIDEO_Y_SIZE][VIDEO_X_SIZE];
 
 ssize_t __serial_write(void *fp, const void *buf, size_t count);
 
-static void debug(const char *str, ...)
+static inline void debug(const char *str, ...)
 {
+#if 0
   va_list va;
   char buf[65536];
   size_t len;
@@ -66,7 +67,10 @@ static void debug(const char *str, ...)
   if (len >= sizeof buf)
     len = sizeof buf - 1;
 
-  //__serial_write(NULL, buf, len);
+  __serial_write(NULL, buf, len);
+#else
+  (void)str;
+#endif
 }
 
 static void unpack_font(uint8_t *dst, uint8_t *src, int height)
