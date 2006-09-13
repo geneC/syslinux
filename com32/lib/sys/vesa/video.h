@@ -51,6 +51,14 @@ struct vesa_char {
   uint8_t pad;			/* Currently unused */
 };
 
+/* Pixel formats in order of decreasing preference; PXF_NONE should be last */
+enum vesa_pixel_format {
+  PXF_BGRA32,			/* 32-bit BGRA */
+  PXF_BGR24,			/* 24-bit BGR */
+  PXF_LE_RGB16_565,		/* 16-bit littleendian 5:6:5 RGB */
+  PXF_NONE
+};
+
 extern struct vesa_char *__vesacon_text_display;
 
 extern int __vesacon_font_height, __vesacon_text_rows;
