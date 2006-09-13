@@ -184,7 +184,13 @@ static int vesacon_set_mode(void)
 
   /* Tell syslinux we changed video mode */
   rm.eax.w[0] = 0x0017;		/* Report video mode change */
-  rm.ebx.w[0] = (mi->mode_attr & 4) ? 0x0007 : 0x000F;
+  /* In theory this should be:
+
+     rm.ebx.w[0] = (mi->mode_attr & 4) ? 0x0007 : 0x000f;
+
+     However, that would assume all systems that claim to handle text
+     output in VESA modes actually do that... */
+  rm.ebx.w[0] = 0x000f;
   rm.ecx.w[0] = VIDEO_X_SIZE;
   rm.edx.w[0] = VIDEO_Y_SIZE;
   __intcall(0x22, &rm, NULL);
