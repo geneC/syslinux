@@ -283,6 +283,7 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
 	      st->autocr = set;
 	      break;
 	    case 25:
+	      st->cursor = set;
 	      op->showcursor(st);
 	      break;
 	    default:
