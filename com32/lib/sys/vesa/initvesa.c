@@ -179,11 +179,8 @@ static int vesacon_set_mode(void)
   rm.eax.w[0] = 0x4F02;		/* Set SVGA video mode */
   rm.ebx.w[0] = mode | 0x4000;	/* Clear video RAM, use linear fb */
   __intcall(0x10, &rm, &rm);
-  if ( rm.eax.w[0] != 0x004F ) {
-    rm.eax.w[0] = 0x0003;	/* Set regular text mode */
-    __intcall(0x10, &rm, NULL);
+  if ( rm.eax.w[0] != 0x004F )
     return 9;			/* Failed to set mode */
-  }
 
   /* Tell syslinux we changed video mode */
   rm.eax.w[0] = 0x0017;		/* Report video mode change */
