@@ -99,11 +99,13 @@ int __ansicon_open(struct file_info *fp)
       ireg.eax.w[0] = 0x0005;
       __intcall(0x22, &ireg, NULL);
 
-      /* Get cursor shape */
+      /* Get cursor shape and position */
       ireg.eax.b[1] = 0x03;
       ireg.ebx.b[1] = BIOS_PAGE;
       __intcall(0x10, &ireg, &oreg);
       cursor_type = oreg.ecx.w[0];
+      ti.ts->xy.x = oreg.edx.b[0];
+      ti.ts->xy.y = oreg.edx.b[1];
     }
   }
 
@@ -183,8 +185,8 @@ static void ansicon_set_cursor(int x, int y, int visible)
   if (xy.x != x || xy.y != y) {
     ireg.eax.b[1] = 0x02;
     ireg.ebx.b[1] = page;
-    ireg.edx.b[1] = xy.y;
-    ireg.edx.b[0] = xy.x;
+    ireg.edx.b[1] = y;
+    ireg.edx.b[0] = x;
     __intcall(0x10, &ireg, NULL);
   }
 }
