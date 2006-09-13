@@ -68,6 +68,7 @@ struct output_dev {
   ssize_t (*write)(struct file_info *, const void *, size_t);
   int (*close)(struct file_info *);
   int (*open)(struct file_info *);
+  const struct output_dev *fallback; /* Fallback option for certain consoles */
 };
 
 /* File structure */

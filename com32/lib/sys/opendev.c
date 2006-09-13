@@ -75,12 +75,21 @@ int opendev(const struct input_dev *idev,
     fp->iop = idev;
   }
 
-  if (odev) {
+  while (odev) {
     if (odev->open && (e = odev->open(fp))) {
+      if (e == EAGAIN) {
+	if (odev->fallback) {
+	  odev = odev->fallback;
+	  continue;
+	} else {
+	  e = EIO;
+	}
+      }
       errno = e;
       goto puke;
     }
     fp->oop = odev;
+    break;
   }
 
   return fd;

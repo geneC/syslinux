@@ -37,6 +37,7 @@
 #include <com32.h>
 #include <minmax.h>
 #include <colortbl.h>
+#include <console.h>
 #include <klibc/compiler.h>
 #include "ansi.h"
 #include "file.h"
@@ -85,7 +86,7 @@ int __vesacon_open(struct file_info *fp)
     } else {
       /* Switch mode */
       if (__vesacon_init())
-	return EIO;
+	return EAGAIN;
 
       /* Initial state */
       __ansi_init(&ti);
@@ -162,4 +163,5 @@ const struct output_dev dev_vesacon_w = {
   .write      = __vesacon_write,
   .close      = __vesacon_close,
   .open       = __vesacon_open,
+  .fallback   = &dev_ansicon_w,
 };

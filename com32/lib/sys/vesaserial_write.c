@@ -35,6 +35,7 @@
 #include <string.h>
 #include <com32.h>
 #include <minmax.h>
+#include <console.h>
 #include "file.h"
 
 extern int __vesacon_open(void);
@@ -55,4 +56,5 @@ const struct output_dev dev_vesaserial_w = {
   .write      = __vesaserial_write,
   .close      = __vesacon_close,
   .open       = __vesacon_open,
+  .fallback   = &dev_ansiserial_w,
 };
