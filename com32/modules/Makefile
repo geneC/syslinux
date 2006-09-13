@@ -1,6 +1,6 @@
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 2001-2004 H. Peter Anvin - All Rights Reserved
+##   Copyright 2001-2006 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ AUXDIR   = $(LIBDIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-MODULES	  = chain.c32 menu.c32 vesamenu.c32 ethersel.c32 mboot.c32 dmitest.c32 cpuidtest.c32
+MODULES	  = chain.c32 menu.c32 vesamenu.c32 ethersel.c32 mboot.c32 dmitest.c32 cpuidtest.c32 pcitest.c32
 TESTFILES = 
 
 all: $(MODULES) $(TESTFILES)
@@ -75,6 +75,9 @@ all: $(MODULES) $(TESTFILES)
 
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
+
+pcitest.elf : pcitest.o pci.o $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ $^
 
 cpuidtest.elf : cpuidtest.o cpuid.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
