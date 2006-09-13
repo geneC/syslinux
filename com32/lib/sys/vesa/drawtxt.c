@@ -256,27 +256,6 @@ void __vesacon_scroll_up(int nrows, uint8_t attr, int rev)
   vesacon_touch(0, 0, __vesacon_text_rows, TEXT_PIXEL_COLS/FONT_WIDTH);
 }
 
-/* Draw text at a specific area of the screen */
-void __vesacon_write_at(int x, int y, const char *str,
-			uint8_t attr, int rev)
-{
-  int n = 0;
-  struct vesa_char *ptr = &__vesacon_text_display
-    [(y+1)*(TEXT_PIXEL_COLS/FONT_WIDTH+2)+(x+1)];
-
-  while (*str) {
-    ptr->ch   = *str;
-    ptr->attr = attr;
-    ptr->sha  = rev;
-
-    n++;
-    str++;
-    ptr++;
-  }
-
-  vesacon_touch(y, x, 1, n);
-}
-
 /* Draw one character text at a specific area of the screen */
 void __vesacon_write_char(int x, int y, uint8_t ch, uint8_t attr, int rev)
 {
