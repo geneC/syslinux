@@ -47,7 +47,7 @@ struct vesa_info __vesa_info;
 struct vesa_char *__vesacon_text_display;
 
 int __vesacon_font_height, __vesacon_text_rows;
-enum vesa_pixel_format __vesacon_pixel_format;
+enum vesa_pixel_format __vesacon_pixel_format = PXF_NONE;
 unsigned int __vesacon_bytes_per_pixel;
 uint8_t __vesacon_graphics_font[FONT_MAX_CHARS][FONT_MAX_HEIGHT];
 
@@ -189,7 +189,6 @@ static int vesacon_set_mode(void)
 
   mi = &__vesa_info.mi;
   mode = bestmode;
-  __vesacon_pixel_format = bestpxf;
   __vesacon_bytes_per_pixel = mi->bpp >> 3;
 
   /* Download the SYSLINUX- or BIOS-provided font */
@@ -229,6 +228,8 @@ static int vesacon_set_mode(void)
   rm.ecx.w[0] = VIDEO_X_SIZE;
   rm.edx.w[0] = VIDEO_Y_SIZE;
   __intcall(0x22, &rm, NULL);
+
+  __vesacon_pixel_format = bestpxf;
 
   return 0;
 }

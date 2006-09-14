@@ -239,29 +239,50 @@ static int read_jpeg_file(FILE *fp, uint8_t *header, int len)
   return rv;
 }
 
+/* Simple grey Gaussian hole, enough to look interesting */
+static void default_background(void)
+{
+  int x, y, dx, dy, dy2;
+  uint8_t *bgptr = (uint8_t *)&__vesacon_background;
+  uint8_t c;
+
+  for (y = 0, dy = -VIDEO_Y_SIZE/2; y < VIDEO_Y_SIZE; y++, dy++) {
+    dy2 = dy*dy;
+    for (x = 0, dx = -VIDEO_X_SIZE/2; x < VIDEO_X_SIZE; x++, dx++) {
+      c = ((dx*dx+dy2) >> 11) + 88;
+      *bgptr++ = c;
+      *bgptr++ = c;
+      *bgptr++ = c;
+      bgptr++;			/* Dummy alpha */
+    }
+  }
+}
+
 int vesacon_load_background(const char *filename)
 {
-  FILE *fp;
+  FILE *fp = NULL;
   uint8_t header[8];
   int rv = 1;
 
+  if (__vesacon_pixel_format == PXF_NONE)
+    return 0;			/* Not in graphics mode */
+
   if (!filename) {
-    draw_background();
-    return 0;
-  }
-
-  fp = fopen(filename, "r");
-
-  if (!fp)
-    goto err;
-
-  if (fread(header, 1, 8, fp) != 8)
-    goto err;
-
-  if (!png_sig_cmp(header, 0, 8)) {
-    rv = read_png_file(fp);
-  } else if (!jpeg_sig_cmp(header, 8)) {
-    rv = read_jpeg_file(fp, header, 8);
+    default_background();
+  } else {
+    fp = fopen(filename, "r");
+    
+    if (!fp)
+      goto err;
+    
+    if (fread(header, 1, 8, fp) != 8)
+      goto err;
+    
+    if (!png_sig_cmp(header, 0, 8)) {
+      rv = read_png_file(fp);
+    } else if (!jpeg_sig_cmp(header, 8)) {
+      rv = read_jpeg_file(fp, header, 8);
+    }
   }
 
   /* This actually displays the stuff */
