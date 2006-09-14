@@ -178,25 +178,28 @@ MENU COLOR element ansi foreground background
 	represents fully transparent, and #ffffffff represents opaque
 	white.
 
+	
+	If any field is set to "*" then that field is left unchanged.
+
+
 	The current defaults are:
 
-	timeout_msg
-	screen	    37;40      #80ffffff #00000000
-	border	    30;44      #40000000 #00000000
-	title	    1;36;44    #c00090f0 #00000000
-	unsel	    37;44      #90ffffff #00000000
-	hotkey	    1;37;44    #ffffffff #00000000
-	sel	    7;37;40    #cf101010 #20ff8000
-	hotsel	    1;7;37;40  #ff353535 #20ff8000
-	scrollbar   30;44      #40000000 #00000000
-	tabmsg	    31;40      #90ffff00 #00000000
-	cmdmark	    1;36;40    #c000ffff #00000000
-	cmdline	    37;40      #c0ffffff #00000000
-	pwdborder   30;47      #80ffffff #20ffffff
-	pwdheader   31;47      #80ff8080 #20ffffff
-	pwdentry    30;47      #80ffffff #20ffffff
-	timeout_msg 37;40      #80ffffff #00000000
-	timeout	    1;37;40    #c0ffffff #00000000
+	menu color screen	37;40      #80ffffff #00000000
+	menu color border	30;44      #40000000 #00000000
+	menu color title	1;36;44    #c00090f0 #00000000
+	menu color unsel	37;44      #90ffffff #00000000
+	menu color hotkey	1;37;44    #ffffffff #00000000
+	menu color sel		7;37;40    #cf101010 #20ff8000
+	menu color hotsel	1;7;37;40  #ff353535 #20ff8000
+	menu color scrollbar	30;44      #40000000 #00000000
+	menu color tabmsg	31;40      #90ffff00 #00000000
+	menu color cmdmark	1;36;40    #c000ffff #00000000
+	menu color cmdline	37;40      #c0ffffff #00000000
+	menu color pwdborder	30;47      #80ffffff #20ffffff
+	menu color pwdheader	31;47      #80ff8080 #20ffffff
+	menu color pwdentry	30;47      #80ffffff #20ffffff
+	menu color timeout_msg	37;40      #80ffffff #00000000
+	menu color timeout	1;37;40    #c0ffffff #00000000
 
 
 MENU WIDTH 80

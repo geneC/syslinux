@@ -420,15 +420,25 @@ void parse_config(const char *filename)
 	  if ( (ep = looking_at(p, cptr->name)) ) {
 	    p = skipspace(ep);
 	    if (*p) {
-	      free(cptr->ansi);
-	      cptr->ansi = dup_word(&p);
+	      if (!strcmp(p, "*")) {
+		p++;
+	      } else {
+		free((void *)cptr->ansi);
+		cptr->ansi = dup_word(&p);
+	      }
 
-	      p = skipspace(ep);
+	      p = skipspace(p);
 	      if (*p) {
-		cptr->argb_fg = parse_argb(&p);
-		p = skipspace(ep);
+		if (!strcmp(p, "*")) {
+		  p++;
+		} else {
+		  cptr->argb_fg = parse_argb(&p);
+		}
+
+		p = skipspace(p);
 		if (*p) {
-		  cptr->argb_bg = parse_argb(&p);
+		  if (strcmp(p, "*"))
+		    cptr->argb_bg = parse_argb(&p);
 		}
 	      }
 	    }
