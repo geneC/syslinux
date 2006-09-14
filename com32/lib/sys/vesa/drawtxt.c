@@ -38,6 +38,13 @@ static uint8_t cursor_pattern[FONT_MAX_HEIGHT];
 static struct vesa_char *cursor_pointer = NULL;
 static int cursor_x, cursor_y;
 
+static inline void *copy_dword(void *dst, void *src, size_t dword_count)
+{
+  asm volatile("cld; rep; movsl"
+	       : "+D" (dst), "+S" (src), "+c" (dword_count));
+  return dst;			/* Updated destination pointer */
+}
+
 /*
  * Linear alpha blending.  Useless for anything that's actually
  * depends on color accuracy (because of gamma), but it's fine for
@@ -78,7 +85,8 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
   uint8_t chbits = 0, chxbits = 0, chsbits = 0;
   int i, j, pixrow, pixsrow;
   struct vesa_char *rowptr, *rowsptr, *cptr, *csptr;
-  unsigned long pixel_offset, bytes_per_pixel, bytes_per_row;
+  unsigned int bytes_per_pixel = __vesacon_bytes_per_pixel;
+  unsigned long pixel_offset, bytes_per_row;
   uint8_t row_buffer[VIDEO_X_SIZE*4], *rowbufptr;
   uint8_t *fbrowptr;
   
@@ -180,17 +188,9 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
     }
 
     /* Copy to frame buffer */
-    {
-      void *fb_ptr = fbrowptr;
-      void *rb_ptr = row_buffer;
-      unsigned int dword_count = (rowbufptr-row_buffer) >> 2;
-
-      /* Note that the dword_count is rounded down, not up.  That's because
-	 the row_buffer includes a spillover pixel. */
-
-      asm volatile("cld; rep; movsl"
-		   : "+D" (fb_ptr), "+S" (rb_ptr), "+c" (dword_count));
-    }
+    /* Note that the dword_count is rounded down, not up.  That's because
+       the row_buffer includes a spillover pixel. */
+    copy_dword(fbrowptr, row_buffer, (rowbufptr-row_buffer) >> 2);
 
     bgrowptr += VIDEO_X_SIZE;
     fbrowptr += bytes_per_row;
@@ -286,8 +286,7 @@ void __vesacon_scroll_up(int nrows, uint8_t attr, int rev)
     .sha  = rev,
   };
 
-  asm volatile("cld ; rep ; movsl"
-	       : "+D" (toptr), "+S" (fromptr), "+c" (dword_count));
+  toptr = copy_dword(toptr, fromptr, dword_count);
 
   dword_count = nrows*(TEXT_PIXEL_COLS/FONT_WIDTH+2);
 
@@ -340,4 +339,10 @@ void __vesacon_init_cursor(int font_height)
   /* cursor_pattern is assumed to be all zero */
   cursor_pattern[r0] = 0xff;
   cursor_pattern[r0+1] = 0xff;
+}
+
+void __vesacon_redraw_text(void)
+{
+  vesacon_update_characters(0, 0, __vesacon_text_rows,
+			    TEXT_PIXEL_COLS/FONT_WIDTH);
 }

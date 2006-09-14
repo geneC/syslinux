@@ -35,6 +35,7 @@
 #include <minmax.h>
 #include "vesa.h"
 #include "video.h"
+#include "fmtpixel.h"
 
 static size_t filesize(FILE *fp)
 {
@@ -45,11 +46,46 @@ static size_t filesize(FILE *fp)
     return st.st_size;
 }
 
-/* FIX THIS: we need to redraw any text on the screen... */
+/*** FIX: This really should be alpha-blended with color index 0 */
+
+/* For best performance, "start" should be a multiple of 4, to assure
+   aligned dwords. */
+static void draw_background_line(int line, int start, int npixels)
+{
+  uint8_t line_buf[VIDEO_X_SIZE*4], *lbp;
+  uint32_t *bgptr = &__vesacon_background[line][start];
+  unsigned int bytes_per_pixel = __vesacon_bytes_per_pixel;
+  enum vesa_pixel_format pixel_format = __vesacon_pixel_format;
+  uint8_t *fbptr = (uint8_t *)__vesa_info.mi.lfb_ptr +
+    (line*VIDEO_X_SIZE+start)*bytes_per_pixel;
+
+  lbp = line_buf;
+  while (npixels--)
+    lbp = format_pixel(lbp, *bgptr++, pixel_format);
+    
+  memcpy(fbptr, line_buf, lbp-line_buf);
+}
+
+/* This draws the border, then redraws the text area */
 static void draw_background(void)
 {
-  memcpy(__vesa_info.mi.lfb_ptr, __vesacon_background,
-	 sizeof __vesacon_background);
+  int i;
+  const int bottom_border = VIDEO_BORDER +
+    (TEXT_PIXEL_ROWS % __vesacon_font_height);
+  const int right_border = VIDEO_BORDER + (TEXT_PIXEL_COLS % FONT_WIDTH);
+  
+  for (i = 0; i < VIDEO_BORDER; i++)
+    draw_background_line(i, 0, VIDEO_X_SIZE);
+  
+  for (i = VIDEO_BORDER; i < VIDEO_Y_SIZE-bottom_border; i++) {
+    draw_background_line(i, 0, VIDEO_BORDER);
+    draw_background_line(i, VIDEO_X_SIZE-right_border, right_border);
+  }
+
+  for (i = VIDEO_Y_SIZE-bottom_border; i < VIDEO_Y_SIZE; i++)
+    draw_background_line(i, 0, VIDEO_X_SIZE);
+
+  __vesacon_redraw_text();
 }
 
 static int read_png_file(FILE *fp)

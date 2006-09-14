@@ -40,8 +40,8 @@
 /* Format a pixel and return the advanced pointer.
    THIS FUNCTION IS ALLOWED TO WRITE BEYOND THE END OF THE PIXEL. */
 
-static inline void *format_pixel(void *ptr, uint32_t bgra,
-				 enum vesa_pixel_format fmt)
+static inline __attribute__((always_inline))
+  void *format_pixel(void *ptr, uint32_t bgra, enum vesa_pixel_format fmt)
 {
   switch (fmt) {
   case PXF_BGRA32:
@@ -59,7 +59,7 @@ static inline void *format_pixel(void *ptr, uint32_t bgra,
       uint16_t pxv =
 	((bgra >> 3) & 0x1f) +
 	((bgra >> (2+8-5)) & (0x3f << 5)) +
-	(bgra >> (3+16-11));
+	((bgra >> (3+16-11)) & (0x1f << 11));
 
       *(uint16_t *)ptr = pxv;
       ptr = (uint16_t *)ptr + 1;

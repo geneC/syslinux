@@ -48,6 +48,7 @@ struct vesa_char *__vesacon_text_display;
 
 int __vesacon_font_height, __vesacon_text_rows;
 enum vesa_pixel_format __vesacon_pixel_format;
+unsigned int __vesacon_bytes_per_pixel;
 uint8_t __vesacon_graphics_font[FONT_MAX_CHARS][FONT_MAX_HEIGHT];
 
 uint32_t __vesacon_background[VIDEO_Y_SIZE][VIDEO_X_SIZE];
@@ -118,6 +119,9 @@ static int vesacon_set_mode(void)
     return 3;			/* VESA 2.0 not supported */
   }
 
+  /* Copy general info */
+  memcpy(&__vesa_info.gi, gi, sizeof *gi);
+
   /* Search for a 640x480 32-bit linear frame buffer mode */
   mode_ptr = GET_PTR(gi->video_mode_ptr);
   bestmode = 0;
@@ -150,6 +154,8 @@ static int vesacon_set_mode(void)
 
     /* Must either be a packed-pixel mode or a direct color mode
        (depending on VESA version ) */
+    pxf = PXF_NONE;		/* Not usable */
+
     if (mi->bpp == 32 && 
 	(mi->memory_layout == 4 ||
 	 (mi->memory_layout == 6 && mi->rpos == 16 && mi->gpos == 8 &&
@@ -165,18 +171,26 @@ static int vesacon_set_mode(void)
 	      (mi->memory_layout == 6 && mi->rpos == 11 && mi->gpos == 5 &&
 	       mi->bpos == 0)))
       pxf = PXF_LE_RGB16_565;
-    else
-      pxf = PXF_NONE;		/* Not a usable mode for us */
 
     if (pxf < bestpxf) {
+      debug("Best mode so far, pxf = %d\n", pxf);
+
       /* Best mode so far... */
       bestmode = mode;
       bestpxf  = pxf;
+
+      /* Copy mode info */
+      memcpy(&__vesa_info.mi, mi, sizeof *mi);
     }
   }
 
   if (bestpxf == PXF_NONE)
     return 4;			/* No mode found */
+
+  mi = &__vesa_info.mi;
+  mode = bestmode;
+  __vesacon_pixel_format = bestpxf;
+  __vesacon_bytes_per_pixel = mi->bpp >> 3;
 
   /* Download the SYSLINUX- or BIOS-provided font */
   rm.eax.w[0] = 0x0018;		/* Query custom font */
@@ -215,9 +229,6 @@ static int vesacon_set_mode(void)
   rm.ecx.w[0] = VIDEO_X_SIZE;
   rm.edx.w[0] = VIDEO_Y_SIZE;
   __intcall(0x22, &rm, NULL);
-
-  /* Copy established state out of the bounce buffer */
-  memcpy(&__vesa_info, __com32.cs_bounce, sizeof __vesa_info);
 
   return 0;
 }
