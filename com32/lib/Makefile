@@ -98,4 +98,4 @@ sys/vesa/drawtxt.o: sys/vesa/drawtxt.c
 jpeg/jidctflt.o: jpeg/jidctflt.c
 	$(CC) $(CFLAGS) -O3 -c -o $@ $<
 
--include .*.d */.*.d
+-include .*.d */.*.d */*/.*.d
