@@ -849,11 +849,9 @@ int menu_main(int argc, char *argv[])
   (void)argc;
 
   install_default_color_table();
-  fputs("\1#00", stdout);
-
   parse_config(argv[1]);
 
-  if (draw_background && menu_background)
+  if (draw_background)
     draw_background(menu_background);
 
   if ( !nentries ) {
