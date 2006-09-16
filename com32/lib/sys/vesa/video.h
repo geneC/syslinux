@@ -69,7 +69,8 @@ extern uint8_t __vesacon_graphics_font[FONT_MAX_CHARS][FONT_MAX_HEIGHT];
 extern uint32_t __vesacon_background[VIDEO_Y_SIZE][VIDEO_X_SIZE];
 extern uint32_t __vesacon_shadowfb[VIDEO_Y_SIZE][VIDEO_X_SIZE];
 
-extern unsigned char __vesacon_alpha_tbl[256][4];
+extern const uint16_t __vesacon_srgb_to_linear[256];
+extern const uint8_t  __vesacon_linear_to_srgb[4080];
 
 int __vesacon_init_background(void);
 int vesacon_load_background(const char *);

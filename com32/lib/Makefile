@@ -42,6 +42,7 @@ LIBOBJS = \
 	\
 	sys/vesacon_write.o sys/vesaserial_write.o 			\
 	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
+	sys/vesa/alphatbl.o						\
 	\
 	pci/cfgtype.o 							\
 	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o 		\
@@ -77,7 +78,7 @@ libcom32.a : $(LIBOBJS)
 	$(RANLIB) $@
 
 tidy:
-	rm -f *.o .*.d */*.o */.*.d lib/sys/vesa/alphatbl.c
+	rm -f *.o .*.d */*.o */.*.d sys/vesa/alphatbl.c
 
 clean: tidy
 	rm -f *.a
@@ -94,6 +95,9 @@ install: all
 # These files are performance critical, and doesn't compile well with -Os
 sys/vesa/drawtxt.o: sys/vesa/drawtxt.c
 	$(CC) $(CFLAGS) -O3 -c -o $@ $<
+
+sys/vesa/alphatbl.c: sys/vesa/alphatbl.pl
+	$(PERL) $< > $@
 
 jpeg/jidctflt.o: jpeg/jidctflt.c
 	$(CC) $(CFLAGS) -O3 -c -o $@ $<
