@@ -190,7 +190,7 @@ MENU COLOR element ansi foreground background
 	menu color unsel	37;44      #90ffffff #00000000
 	menu color hotkey	1;37;44    #ffffffff #00000000
 	menu color sel		7;37;40    #e0000000 #20ff8000
-	menu color hotsel	1;7;37;40  #e0300000 #20ff8000
+	menu color hotsel	1;7;37;40  #e0400000 #20ff8000
 	menu color scrollbar	30;44      #40000000 #00000000
 	menu color tabmsg	31;40      #90ffff00 #00000000
 	menu color cmdmark	1;36;40    #c000ffff #00000000

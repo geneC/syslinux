@@ -66,7 +66,7 @@ static const struct color_table default_color_table[] = {
   { "unsel",       "37;44",     0x90ffffff, 0x00000000 },
   { "hotkey",      "1;37;44",   0xffffffff, 0x00000000 },
   { "sel",         "7;37;40",   0xe0000000, 0x20ff8000 },
-  { "hotsel",      "1;7;37;40", 0xe0300000, 0x20ff8000 },
+  { "hotsel",      "1;7;37;40", 0xe0400000, 0x20ff8000 },
   { "scrollbar",   "30;44",     0x40000000, 0x00000000 },
   { "tabmsg",      "31;40",     0x90ffff00, 0x00000000 },
   { "cmdmark",     "1;36;40",   0xc000ffff, 0x00000000 },
