@@ -16,6 +16,7 @@
 #include <string.h>
 #include <minmax.h>
 #include <alloca.h>
+#include <inttypes.h>
 #include <colortbl.h>
 #ifdef __COM32__
 # include <com32.h>
@@ -275,31 +276,34 @@ dup_word(char **p)
 
 static int my_isxdigit(char c)
 {
-  unsigned char uc = c | 0x20;
+  unsigned int uc = c;
 
-  return (uc-'0') < 10 || (uc-'a') < 6;
+  return (uc-'0') < 10 ||
+    ((uc|0x20)-'a') < 6;
 }
 
 static unsigned int hexval(char c)
 {
   unsigned char uc = c | 0x20;
+  unsigned int v;
 
-  if (uc & 0x40)
-    return uc-'a'+10;
-  else
-    return uc-'0';
+  v = uc-'0';
+  if (v < 10)
+    return v;
+
+  return uc-'a'+10;
 }
 
-static unsigned int hexval2(char *p)
+static unsigned int hexval2(const char *p)
 {
   return (hexval(p[0]) << 4)+hexval(p[1]);
 }
 
-static unsigned int parse_argb(char **p)
+static uint32_t parse_argb(char **p)
 {
   char *sp = *p;
   char *ep;
-  unsigned int argb;
+  uint32_t argb;
   size_t len, dl;
 
   if (*sp == '#')
@@ -316,27 +320,27 @@ static unsigned int parse_argb(char **p)
   switch(len) {
   case 3:			/* #rgb */
     argb =
-      0xff000000 |
-      (hexval(sp[0])*0x11 << 16)|
-      (hexval(sp[1])*0x11 << 8) |
-      (hexval(sp[2])*0x11 << 0);
+      0xff000000 +
+      (hexval(sp[0])*0x11 << 16) +
+      (hexval(sp[1])*0x11 << 8) +
+      (hexval(sp[2])*0x11);
     break;
   case 4:			/* #argb */
     argb =
-      (hexval(sp[0])*0x11 << 24)|
-      (hexval(sp[1])*0x11 << 16)|
-      (hexval(sp[2])*0x11 << 8) |
-      (hexval(sp[3])*0x11 << 0);
+      (hexval(sp[0])*0x11 << 24) +
+      (hexval(sp[1])*0x11 << 16) +
+      (hexval(sp[2])*0x11 << 8) +
+      (hexval(sp[3])*0x11);
     break;
   case 6:			/* #rrggbb */
   case 9:			/* #rrrgggbbb */
   case 12:			/* #rrrrggggbbbb */
     dl = len/3;
     argb =
-      0xff000000 |
-      (hexval2(sp+0) << 16) |
-      (hexval2(sp+dl) << 8)|
-      (hexval2(sp+dl*2) << 0);
+      0xff000000 +
+      (hexval2(sp+0) << 16) +
+      (hexval2(sp+dl) << 8) +
+      hexval2(sp+dl*2);
     break;
   case 8:			/* #aarrggbb */
     /* 12 is indistinguishable from #rrrrggggbbbb,
@@ -344,13 +348,13 @@ static unsigned int parse_argb(char **p)
   case 16:			/* #aaaarrrrggggbbbb */
     dl = len/4;
     argb =
-      (hexval2(sp+0) << 24) |
-      (hexval2(sp+dl) << 16) |
-      (hexval2(sp+dl*2) << 8)|
-      (hexval2(sp+dl*3) << 0);
+      (hexval2(sp+0) << 24) +
+      (hexval2(sp+dl) << 16) +
+      (hexval2(sp+dl*2) << 8) +
+      hexval2(sp+dl*3);
     break;
   default:
-    argb = 0;
+    argb = 0xffff0000;		/* Bright red (error indication) */
     break;
   }
 
@@ -420,7 +424,7 @@ void parse_config(const char *filename)
 	  if ( (ep = looking_at(p, cptr->name)) ) {
 	    p = skipspace(ep);
 	    if (*p) {
-	      if (!strcmp(p, "*")) {
+	      if (looking_at(p, "*")) {
 		p++;
 	      } else {
 		free((void *)cptr->ansi);
@@ -429,21 +433,23 @@ void parse_config(const char *filename)
 
 	      p = skipspace(p);
 	      if (*p) {
-		if (!strcmp(p, "*")) {
+		if (looking_at(p, "*"))
 		  p++;
-		} else {
+		else
 		  cptr->argb_fg = parse_argb(&p);
-		}
-
+		
 		p = skipspace(p);
 		if (*p) {
-		  if (strcmp(p, "*"))
+		  if (looking_at(p, "*"))
+		    p++;
+		  else
 		    cptr->argb_bg = parse_argb(&p);
 		}
 	      }
 	    }
 	    break;
 	  }
+	  cptr++;
 	}
       } else {
 	/* Unknown, check for layout parameters */
