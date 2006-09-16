@@ -244,16 +244,16 @@ static void default_background(void)
 {
   int x, y, dx, dy, dy2;
   uint8_t *bgptr = (uint8_t *)&__vesacon_background;
-  uint8_t c;
+  uint8_t k;
 
   for (y = 0, dy = -VIDEO_Y_SIZE/2; y < VIDEO_Y_SIZE; y++, dy++) {
     dy2 = dy*dy;
     for (x = 0, dx = -VIDEO_X_SIZE/2; x < VIDEO_X_SIZE; x++, dx++) {
-      c = ((dx*dx+dy2) >> 11) + 88;
-      *bgptr++ = c;
-      *bgptr++ = c;
-      *bgptr++ = c;
-      bgptr++;			/* Dummy alpha */
+      k = __vesacon_linear_to_srgb[500+((dx*dx+dy2) >> 6)];
+      bgptr[0] = k;		/* Blue */
+      bgptr[1] = k;		/* Green */
+      bgptr[2] = k;		/* Red */
+      bgptr += 4;		/* Dummy alpha */
     }
   }
 }
