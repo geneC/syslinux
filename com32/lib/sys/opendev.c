@@ -61,10 +61,9 @@ int opendev(const struct input_dev *idev,
     return -1;
   }
 
+  /* The file structure is already zeroed */
   fp->iop         = &dev_error_r;
   fp->oop         = &dev_error_w;
-  fp->i.offset    = 0;
-  fp->i.nbytes    = 0;
   fp->i.datap     = fp->i.buf;
 
   if (idev) {

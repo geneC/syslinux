@@ -48,5 +48,6 @@ int isatty(int fd)
     return -1;
   }
 
+  /* __DEV_TTY == 1 */
   return (fp->iop->flags & __DEV_TTY);
 }

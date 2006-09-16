@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2006 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -80,8 +80,6 @@ int __ansicon_open(struct file_info *fp)
   static com32sys_t ireg;	/* Auto-initalized to all zero */
   com32sys_t oreg;
 
-  (void)fp;
-
   if (!ansicon_counter) {
     /* Are we disabled? */
     ireg.eax.w[0] = 0x000b;
@@ -108,6 +106,9 @@ int __ansicon_open(struct file_info *fp)
       ti.ts->xy.y = oreg.edx.b[1];
     }
   }
+
+  fp->o.rows = ti.rows;
+  fp->o.cols = ti.cols;
 
   ansicon_counter++;
   return 0;

@@ -845,11 +845,26 @@ execute(const char *cmdline)
 int menu_main(int argc, char *argv[])
 {
   const char *cmdline;
+  int rows, cols;
+  int i;
 
   (void)argc;
 
   install_default_color_table();
+  if (getscreensize(1, &rows, &cols)) {
+    /* Unknown screen size? */
+    rows = 24;
+    cols = 80;
+  }
+
+  WIDTH = cols;
   parse_config(argv[1]);
+
+  /* If anyone has specified negative parameters, consider them
+     relative to the bottom row of the screen. */
+  for (i = 0; mparm[i].name; i++)
+    if (mparm[i].value < 0)
+      mparm[i].value = max(mparm[i].value+rows, 0);
 
   if (draw_background)
     draw_background(menu_background);

@@ -85,14 +85,21 @@ int __vesacon_open(struct file_info *fp)
       ti.disabled = 1;
     } else {
       /* Switch mode */
-      if (__vesacon_init())
+      if (__vesacon_init()) {
+	vesacon_counter = -1;
 	return EAGAIN;
+      }
 
       /* Initial state */
       __ansi_init(&ti);
       ti.rows = __vesacon_text_rows;
     }
+  } else if (vesacon_counter == -1) {
+    return EAGAIN;
   }
+
+  fp->o.rows = ti.rows;
+  fp->o.cols = ti.cols;
 
   vesacon_counter++;
   return 0;

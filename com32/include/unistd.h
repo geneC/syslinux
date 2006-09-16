@@ -20,6 +20,7 @@ __extern ssize_t write(int, const void *, size_t);
 
 __extern int isatty(int);
 
+__extern int getscreensize(int, int *, int *);
 
 /* Standard file descriptor numbers. */
 #define STDIN_FILENO	0

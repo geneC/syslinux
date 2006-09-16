@@ -91,6 +91,11 @@ struct file_info {
     char *datap;		/* Current data pointer */
     char buf[MAXBLOCK];
   } i;
+
+  /* Output file data */
+  struct {
+    int rows, cols;		/* Rows and columns */
+  } o;
 };
 
 extern struct file_info __file_info[NFILES];
