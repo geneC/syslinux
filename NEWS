@@ -8,6 +8,8 @@ Changes in 3.30:
 	  Menu System, see README.menu.
 	* New com32 modules by Erwan Velu do selection based on CPUID
 	  or PCI devices present.
+	* RPM spec: add syslinux-tftpboot module; move syslinux by
+	  default to the /usr/share/syslinux directory.
 
 Changes in 3.20:
 	* EXTLINUX: New options --install (-i) and --update (-U), to

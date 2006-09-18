@@ -61,19 +61,19 @@ make -C sample tidy
 rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_sbindir}
-mkdir -p %{buildroot}%{_sharedir}/syslinux
+mkdir -p %{buildroot}%{_datadir}/syslinux
 mkdir -p %{buildroot}%{_includedir}
 mkdir -p %{buildroot}/boot %{buildroot}/tftpboot/pxelinux.cfg
 make install-all \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} SBINDIR=%{_sbindir} \
-	LIBDIR=%{_sharedir} INCDIR=%{_includedir}
+	LIBDIR=%{_datadir} INCDIR=%{_includedir}
 make -C sample tidy
-cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_sharedir}/syslinux
-cp %{buildroot}%{_sharedir}/syslinux/*.c32	%{buildroot}/boot
-cp %{buildroot}%{_sharedir}/syslinux/memdisk	%{buildroot}/boot
-cp %{buildroot}%{_sharedir}/syslinux/*.c32 	%{buildroot}/tftpboot
-cp %{buildroot}%{_sharedir}/syslinux/pxelinux.0 %{buildroot}/tftpboot
-cp %{buildroot}%{_sharedir}/syslinux/memdisk 	%{buildroot}/tftpboot
+cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_datadir}/syslinux
+cp %{buildroot}%{_datadir}/syslinux/*.c32	%{buildroot}/boot
+cp %{buildroot}%{_datadir}/syslinux/memdisk	%{buildroot}/boot
+cp %{buildroot}%{_datadir}/syslinux/*.c32 	%{buildroot}/tftpboot
+cp %{buildroot}%{_datadir}/syslinux/pxelinux.0 %{buildroot}/tftpboot
+cp %{buildroot}%{_datadir}/syslinux/memdisk 	%{buildroot}/tftpboot
 
 %clean
 rm -rf %{buildroot}
@@ -87,18 +87,18 @@ rm -rf %{buildroot}
 %{_bindir}/ppmtolss16
 %{_bindir}/lss16toppm
 %{_bindir}/gethostip
-%{_sharedir}/syslinux/*.com
-%{_sharedir}/syslinux/*.exe
-%{_sharedir}/syslinux/*.c32
-%{_sharedir}/syslinux/*.bin
-%{_sharedir}/syslinux/*.0
-%{_sharedir}/syslinux/memdisk
-%{_sharedir}/syslinux/*.pl
-%{_sharedir}/syslinux/mkdiskimage
+%{_datadir}/syslinux/*.com
+%{_datadir}/syslinux/*.exe
+%{_datadir}/syslinux/*.c32
+%{_datadir}/syslinux/*.bin
+%{_datadir}/syslinux/*.0
+%{_datadir}/syslinux/memdisk
+%{_datadir}/syslinux/*.pl
+%{_datadir}/syslinux/mkdiskimage
 /boot/*.c32
 
 %files devel
-%{_sharedir}/syslinux/com32
+%{_datadir}/syslinux/com32
 
 %files tftpboot
 /tftpboot
@@ -113,6 +113,7 @@ if [ -f /boot/extlinux.conf ]; then extlinux --update /boot; fi
 %changelog
 * Mon Sep 19 2006 H. Peter Anvin <hpa@zytor.com>
 - Add a syslinux-tftpboot module.
+- Move to %{_datadir} (/usr/share).
 
 * Wed Sep 21 2005 H. Peter Anvin <hpa@zytor.com>
 - If /boot/extlinux.conf exist, run extlinux --update.
