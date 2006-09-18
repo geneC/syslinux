@@ -1,7 +1,7 @@
 # -*- rpm -*-
 %define RPMVERSION @@RPMVERSION@@
 %define VERSION    @@VERSION@@
-Summary: Kernel loader which uses a FAT or iso9660 filesystem or a PXE network
+Summary: Kernel loader which uses a FAT, ext2/3 or iso9660 filesystem or a PXE network
 Name: syslinux
 Version: %{RPMVERSION}
 Release: 1
@@ -27,6 +27,7 @@ Requires: mtools, libc.so.6()(64bit)
 %package devel
 Summary: Development environment for SYSLINUX add-on modules
 Group: Development/Libraries
+Requires: syslinux
 
 %description
 SYSLINUX is a suite of bootloaders, currently supporting DOS FAT
@@ -38,6 +39,15 @@ MEMDISK, which loads legacy operating systems from these media.
 The SYSLINUX boot loader contains an API, called COM32, for writing
 sophisticated add-on modules.  This package contains the libraries
 necessary to compile such modules.
+
+%package tftpboot
+Summary: SYSLINUX modules in /tftpboot, available for network booting
+Group: Applications/Internet
+Requires: syslinux
+
+%description tftpboot
+All the SYSLINUX/PXELINUX modules directly available for network
+booting in the /tftpboot directory.
 
 %prep
 %setup -q -n syslinux-%{VERSION}
@@ -51,15 +61,19 @@ make -C sample tidy
 rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_sbindir}
-mkdir -p %{buildroot}%{_libdir}/syslinux
+mkdir -p %{buildroot}%{_sharedir}/syslinux
 mkdir -p %{buildroot}%{_includedir}
-mkdir -p %{buildroot}/boot
+mkdir -p %{buildroot}/boot %{buildroot}/tftpboot/pxelinux.cfg
 make install-all \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} SBINDIR=%{_sbindir} \
-	LIBDIR=%{_libdir} INCDIR=%{_includedir}
+	LIBDIR=%{_sharedir} INCDIR=%{_includedir}
 make -C sample tidy
-cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_libdir}/syslinux
-cp %{buildroot}%{_libdir}/syslinux/*.c32 %{buildroot}/boot
+cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_sharedir}/syslinux
+cp %{buildroot}%{_sharedir}/syslinux/*.c32	%{buildroot}/boot
+cp %{buildroot}%{_sharedir}/syslinux/memdisk	%{buildroot}/boot
+cp %{buildroot}%{_sharedir}/syslinux/*.c32 	%{buildroot}/tftpboot
+cp %{buildroot}%{_sharedir}/syslinux/pxelinux.0 %{buildroot}/tftpboot
+cp %{buildroot}%{_sharedir}/syslinux/memdisk 	%{buildroot}/tftpboot
 
 %clean
 rm -rf %{buildroot}
@@ -73,18 +87,21 @@ rm -rf %{buildroot}
 %{_bindir}/ppmtolss16
 %{_bindir}/lss16toppm
 %{_bindir}/gethostip
-%{_libdir}/syslinux/*.com
-%{_libdir}/syslinux/*.exe
-%{_libdir}/syslinux/*.c32
-%{_libdir}/syslinux/*.bin
-%{_libdir}/syslinux/*.0
-%{_libdir}/syslinux/memdisk
-%{_libdir}/syslinux/*.pl
-%{_libdir}/syslinux/mkdiskimage
+%{_sharedir}/syslinux/*.com
+%{_sharedir}/syslinux/*.exe
+%{_sharedir}/syslinux/*.c32
+%{_sharedir}/syslinux/*.bin
+%{_sharedir}/syslinux/*.0
+%{_sharedir}/syslinux/memdisk
+%{_sharedir}/syslinux/*.pl
+%{_sharedir}/syslinux/mkdiskimage
 /boot/*.c32
 
 %files devel
-%{_libdir}/syslinux/com32
+%{_sharedir}/syslinux/com32
+
+%files tftpboot
+/tftpboot
 
 %post
 # If we have a /boot/extlinux.conf file, assume extlinux is our bootloader
@@ -94,6 +111,9 @@ if [ -f /boot/extlinux.conf ]; then extlinux --update /boot; fi
 %postun
 
 %changelog
+* Mon Sep 19 2006 H. Peter Anvin <hpa@zytor.com>
+- Add a syslinux-tftpboot module.
+
 * Wed Sep 21 2005 H. Peter Anvin <hpa@zytor.com>
 - If /boot/extlinux.conf exist, run extlinux --update.
 
