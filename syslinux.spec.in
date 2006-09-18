@@ -6,7 +6,7 @@ Name: syslinux
 Version: %{RPMVERSION}
 Release: 1
 License: GPL
-Group: Applications/System
+Group: System/Boot
 Source0: ftp://ftp.kernel.org/pub/linux/utils/boot/syslinux/%{name}-%{VERSION}.tar.gz
 ExclusiveArch: i386 x86_64
 Packager: H. Peter Anvin <hpa@zytor.com>
@@ -39,6 +39,15 @@ MEMDISK, which loads legacy operating systems from these media.
 The SYSLINUX boot loader contains an API, called COM32, for writing
 sophisticated add-on modules.  This package contains the libraries
 necessary to compile such modules.
+
+%package extlinux
+Summary: The EXTLINUX bootloader, for booting the local system.
+Group: System/Boot
+Requires: syslinux
+
+%description extlinux
+The EXTLINUX bootloader, for booting the local system, as well as all
+the SYSLINUX/PXELINUX modules in /boot.
 
 %package tftpboot
 Summary: SYSLINUX modules in /tftpboot, available for network booting
@@ -83,7 +92,6 @@ rm -rf %{buildroot}
 %doc NEWS README* *.doc memdisk/*.doc COPYING
 %doc sample
 %{_bindir}/syslinux
-%{_sbindir}/extlinux
 %{_bindir}/ppmtolss16
 %{_bindir}/lss16toppm
 %{_bindir}/gethostip
@@ -95,15 +103,18 @@ rm -rf %{buildroot}
 %{_datadir}/syslinux/memdisk
 %{_datadir}/syslinux/*.pl
 %{_datadir}/syslinux/mkdiskimage
-/boot/*.c32
 
 %files devel
 %{_datadir}/syslinux/com32
 
+%files extlinux
+%{_sbindir}/extlinux
+/boot
+
 %files tftpboot
 /tftpboot
 
-%post
+%post extlinux
 # If we have a /boot/extlinux.conf file, assume extlinux is our bootloader
 # and update it.
 if [ -f /boot/extlinux.conf ]; then extlinux --update /boot; fi
@@ -113,6 +124,7 @@ if [ -f /boot/extlinux.conf ]; then extlinux --update /boot; fi
 %changelog
 * Mon Sep 19 2006 H. Peter Anvin <hpa@zytor.com>
 - Add a syslinux-tftpboot module.
+- Factor extlinux into its own package.
 - Move to %{_datadir} (/usr/share).
 
 * Wed Sep 21 2005 H. Peter Anvin <hpa@zytor.com>
