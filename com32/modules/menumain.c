@@ -858,7 +858,7 @@ int menu_main(int argc, char *argv[])
   }
 
   WIDTH = cols;
-  parse_config(argv[1]);
+  parse_configs(argv+1);
 
   /* If anyone has specified negative parameters, consider them
      relative to the bottom row of the screen. */

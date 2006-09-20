@@ -231,6 +231,10 @@ link; you probably want to set your baudrate to 38400 or higher if
 possible.  It requires a Linux/VT220/ANSI-compatible terminal on the
 other end.
 
+
+	+++ USING AN ALTERNATE CONFIGURATION FILE +++
+
+
 It is also possible to load a secondary configuration file, to get to
 another menu.  To do that, invoke menu.c32 with the name of the
 secondary configuration file.
@@ -239,3 +243,14 @@ LABEL othermenu
 	MENU LABEL Another Menu
 	KERNEL menu.c32
 	APPEND othermenu.conf
+
+If you specify more than one file, they will all be read, in the order
+specified.  However, global APPEND and IPAPPEND will only apply to the
+file currently being processed.
+
+# The file graphics.conf contains common color and layout commands for
+# all menus.
+LABEL othermenu
+	MENU LABEL Another Menu
+	KERNEL vesamenu.c32
+	APPEND graphics.conf othermenu.conf

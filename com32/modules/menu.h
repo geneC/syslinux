@@ -65,7 +65,7 @@ extern char *menu_master_passwd;
 
 extern char *menu_background;
 
-void parse_config(const char *filename);
+void parse_configs(char **argv);
 extern int (*draw_background)(const char *filename);
 
 static inline int my_isspace(char c)

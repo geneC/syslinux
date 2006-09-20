@@ -361,22 +361,14 @@ static uint32_t parse_argb(char **p)
   return argb;
 }
 
-void parse_config(const char *filename)
+static void parse_config_file(FILE *f)
 {
   char line[MAX_LINE], *p, *ep;
-  FILE *f;
   char *append = NULL;
   unsigned int ipappend = 0;
-  static struct labeldata ld;
+  struct labeldata ld;
 
-  get_ipappend();
-
-  if ( !filename )
-    filename = get_config();
-
-  f = fopen(filename, "r");
-  if ( !f )
-    return;
+  memset(&ld, 0, sizeof ld);
 
   while ( fgets(line, sizeof line, f) ) {
     p = strchr(line, '\r');
@@ -502,7 +494,34 @@ void parse_config(const char *filename)
   }
 
   record(&ld, append);
+}
+
+static int parse_one_config(const char *filename)
+{
+  FILE *f = fopen(filename, "r");
+  if ( !f )
+    return -1;
+
+  parse_config_file(f);
   fclose(f);
+
+  return 0;
+}
+
+void parse_configs(char **argv)
+{
+  const char *filename;
+
+  get_ipappend();
+
+  if ( !*argv ) {
+    parse_one_config(get_config());
+  } else {
+    while ( (filename = *argv++) )
+      parse_one_config(filename);
+  }
+
+  /* Common postprocessing */
 
   if ( ontimeout )
     ontimeout = unlabel(ontimeout);
