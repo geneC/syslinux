@@ -30,6 +30,7 @@
 #include "vesa.h"
 #include "video.h"
 #include "fmtpixel.h"
+#include "fill.h"
 
 /*
  * Visible cursor information
