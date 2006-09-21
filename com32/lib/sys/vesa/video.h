@@ -28,6 +28,8 @@
 #ifndef LIB_SYS_VESA_VIDEO_H
 #define LIB_SYS_VESA_VIDEO_H
 
+#include <colortbl.h>
+
 #define FONT_MAX_CHARS	256
 #define FONT_MAX_HEIGHT	 32
 #define FONT_WIDTH	  8
@@ -39,16 +41,9 @@
 #define TEXT_PIXEL_ROWS (VIDEO_Y_SIZE-2*VIDEO_BORDER)
 #define TEXT_PIXEL_COLS (VIDEO_X_SIZE-2*VIDEO_BORDER)
 
-#define SHADOW_NONE	0
-#define SHADOW_ALL	1
-#define SHADOW_NORMAL	2
-#define SHADOW_REVERSE	3
-
 struct vesa_char {
   uint8_t ch;			/* Character */
-  uint8_t attr;			/* PC-style graphics attribute */
-  uint8_t sha;			/* Shadow attributes */
-  uint8_t pad;			/* Currently unused */
+  uint8_t attr;			/* Color table index */
 };
 
 /* Pixel formats in order of decreasing preference; PXF_NONE should be last */
@@ -76,9 +71,9 @@ int __vesacon_init_background(void);
 int vesacon_load_background(const char *);
 int __vesacon_init(void);
 void __vesacon_init_cursor(int);
-void __vesacon_erase(int, int, int, int, uint8_t, int);
-void __vesacon_scroll_up(int, uint8_t, int);
-void __vesacon_write_char(int, int, uint8_t, uint8_t, int);
+void __vesacon_erase(int, int, int, int, uint8_t);
+void __vesacon_scroll_up(int, uint8_t);
+void __vesacon_write_char(int, int, uint8_t, uint8_t);
 void __vesacon_redraw_text(void);
 void __vesacon_doit(void);
 void __vesacon_set_cursor(int, int, int);

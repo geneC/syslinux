@@ -363,7 +363,7 @@ static uint32_t parse_argb(char **p)
 
 static void parse_config_file(FILE *f)
 {
-  char line[MAX_LINE], *p, *ep;
+  char line[MAX_LINE], *p, *ep, ch;
   char *append = NULL;
   unsigned int ipappend = 0;
   struct labeldata ld;
@@ -436,6 +436,18 @@ static void parse_config_file(FILE *f)
 		    p++;
 		  else
 		    cptr->argb_bg = parse_argb(&p);
+		  
+		  /* Parse a shadow mode */
+		  p = skipspace(p);
+		  ch = *p | 0x20;
+		  if (ch == 'n')	/* none */
+		    cptr->shadow = SHADOW_NONE;
+		  else if (ch == 's') /* std, standard */
+		    cptr->shadow = SHADOW_NORMAL;
+		  else if (ch == 'a') /* all */
+		    cptr->shadow = SHADOW_ALL;
+		  else if (ch == 'r') /* rev, reverse */
+		    cptr->shadow = SHADOW_REVERSE;
 		}
 	      }
 	    }

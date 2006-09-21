@@ -117,16 +117,14 @@ int __vesacon_close(struct file_info *fp)
 static void vesacon_erase(const struct term_state *st,
 			  int x0, int y0, int x1, int y1)
 {
-  __vesacon_erase(x0, y0, x1, y1, st->attr,
-		  st->reverse ? SHADOW_ALL : SHADOW_NORMAL);
+  __vesacon_erase(x0, y0, x1, y1, st->cindex);
 }
 
 /* Draw text on the screen */
 static void vesacon_write_char(int x, int y, uint8_t ch,
 			       const struct term_state *st)
 {
-  __vesacon_write_char(x, y, ch, st->cindex,
-		       st->reverse ? SHADOW_ALL : SHADOW_NORMAL);
+  __vesacon_write_char(x, y, ch, st->cindex);
 }
 
 /* Show or hide the cursor */
@@ -137,8 +135,7 @@ static void vesacon_showcursor(const struct term_state *st)
 
 static void vesacon_scroll_up(const struct term_state *st)
 {
-  __vesacon_scroll_up(1, st->cindex,
-		      st->reverse ? SHADOW_ALL : SHADOW_NORMAL);
+  __vesacon_scroll_up(1, st->cindex);
 }
 
 ssize_t __vesacon_write(struct file_info *fp, const void *buf, size_t count)

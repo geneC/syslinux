@@ -41,6 +41,7 @@
 #include <sys/fpu.h>
 #include "vesa.h"
 #include "video.h"
+#include "fill.h"
 
 struct vesa_info __vesa_info;
 
@@ -239,6 +240,10 @@ static int init_text_display(void)
 {
   size_t nchars;
   struct vesa_char *ptr;
+  struct vesa_char def_char = {
+    .ch = ' ',
+    .attr = 0,
+  };
 
   nchars = (TEXT_PIXEL_ROWS/__vesacon_font_height+2)*
     (TEXT_PIXEL_COLS/FONT_WIDTH+2);
@@ -248,11 +253,8 @@ static int init_text_display(void)
   if (!ptr)
     return -1;
 
-  /* I really which C had a memset() for larger-than-bytes objects... */
-  asm volatile("cld; rep; stosl"
-	       : "+D" (ptr), "+c" (nchars)
-	       : "a" (' '+(0 << 8)+(SHADOW_NORMAL << 16))
-	       : "memory");
+
+  vesacon_fill(ptr, def_char, nchars);
 
   return 0;
 }

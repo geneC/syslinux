@@ -25,29 +25,42 @@
  *
  * ----------------------------------------------------------------------- */
 
-#ifndef _COLORTBL_H
-#define _COLORTBL_H
+#ifndef LIB_SYS_VESA_FILL_H
+#define LIB_SYS_VESA_FILL_H
 
-/* Attribute/color table used by ansicon and vesacon to abstract
-   out the color selection. */
+#include "video.h"
 
-/* Note: vesacon relies on the encoding of these numbers */
-enum color_table_shadow {
-  SHADOW_NONE	 = 0,
-  SHADOW_ALL	 = 1,
-  SHADOW_NORMAL	 = 2,
-  SHADOW_REVERSE = 3,
-};
+/* Fill a number of characters. */
+static inline struct vesa_char *vesacon_fill(struct vesa_char *ptr,
+					     struct vesa_char fill,
+					     unsigned int count)
+{
+  switch (sizeof(struct vesa_char)) {
+  case 1:
+    asm volatile("cld; rep; stosb"
+		 : "+D" (ptr), "+c" (count)
+		 : "a" (fill)
+		 : "memory");
+    break;
+  case 2:
+    asm volatile("cld; rep; stosw"
+		 : "+D" (ptr), "+c" (count)
+		 : "a" (fill)
+		 : "memory");
+    break;
+  case 4:
+    asm volatile("cld; rep; stosl"
+		 : "+D" (ptr), "+c" (count)
+		 : "a" (fill)
+		 : "memory");
+    break;
+  default:
+    while (count--)
+      *ptr++ = fill;
+    break;
+  }
 
-struct color_table {
-  const char *name;		/* Attribute name (used for customization) */
-  const char *ansi;		/* ANSI attribute */
-  unsigned int argb_fg;		/* ARGB for foreground */
-  unsigned int argb_bg;		/* ARGB for background */
-  enum color_table_shadow shadow; /* Shadow mode */
-};
+  return ptr;
+}
 
-extern struct color_table *console_color_table;
-extern int console_color_table_size;
-
-#endif /* _COLORTBL_H */
+#endif /* LIB_SYS_VESA_FILL_H */

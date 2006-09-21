@@ -60,22 +60,22 @@ int (*draw_background)(const char *filename);
  */
 
 static const struct color_table default_color_table[] = {
-  { "screen",      "37;40",     0x80ffffff, 0x00000000 },
-  { "border",      "30;44",     0x40000000, 0x00000000 },
-  { "title",       "1;36;44",   0xc00090f0, 0x00000000 },
-  { "unsel",       "37;44",     0x90ffffff, 0x00000000 },
-  { "hotkey",      "1;37;44",   0xffffffff, 0x00000000 },
-  { "sel",         "7;37;40",   0xe0000000, 0x20ff8000 },
-  { "hotsel",      "1;7;37;40", 0xe0400000, 0x20ff8000 },
-  { "scrollbar",   "30;44",     0x40000000, 0x00000000 },
-  { "tabmsg",      "31;40",     0x90ffff00, 0x00000000 },
-  { "cmdmark",     "1;36;40",   0xc000ffff, 0x00000000 },
-  { "cmdline",     "37;40",     0xc0ffffff, 0x00000000 },
-  { "pwdborder",   "30;47",     0x80ffffff, 0x20ffffff },
-  { "pwdheader",   "31;47",     0x80ff8080, 0x20ffffff },
-  { "pwdentry",    "30;47",     0x80ffffff, 0x20ffffff },
-  { "timeout_msg", "37;40",     0x80ffffff, 0x00000000 },
-  { "timeout",     "1;37;40",   0xc0ffffff, 0x00000000 },
+  { "screen",      "37;40",     0x80ffffff, 0x00000000, SHADOW_NORMAL },
+  { "border",      "30;44",     0x40000000, 0x00000000, SHADOW_NORMAL },
+  { "title",       "1;36;44",   0xc00090f0, 0x00000000, SHADOW_NORMAL },
+  { "unsel",       "37;44",     0x90ffffff, 0x00000000, SHADOW_NORMAL },
+  { "hotkey",      "1;37;44",   0xffffffff, 0x00000000, SHADOW_NORMAL },
+  { "sel",         "7;37;40",   0xe0000000, 0x20ff8000, SHADOW_ALL },
+  { "hotsel",      "1;7;37;40", 0xe0400000, 0x20ff8000, SHADOW_ALL },
+  { "scrollbar",   "30;44",     0x40000000, 0x00000000, SHADOW_NORMAL },
+  { "tabmsg",      "31;40",     0x90ffff00, 0x00000000, SHADOW_NORMAL },
+  { "cmdmark",     "1;36;40",   0xc000ffff, 0x00000000, SHADOW_NORMAL },
+  { "cmdline",     "37;40",     0xc0ffffff, 0x00000000, SHADOW_NORMAL },
+  { "pwdborder",   "30;47",     0x80ffffff, 0x20ffffff, SHADOW_NORMAL },
+  { "pwdheader",   "31;47",     0x80ff8080, 0x20ffffff, SHADOW_NORMAL },
+  { "pwdentry",    "30;47",     0x80ffffff, 0x20ffffff, SHADOW_NORMAL },
+  { "timeout_msg", "37;40",     0x80ffffff, 0x00000000, SHADOW_NORMAL },
+  { "timeout",     "1;37;40",   0xc0ffffff, 0x00000000, SHADOW_NORMAL },
 };
 
 #define NCOLORS (sizeof default_color_table/sizeof(struct color_table))
@@ -118,10 +118,8 @@ install_default_color_table(void)
     if (cp->ansi)
       free((void *)cp->ansi);
 
-    cp->name = dp->name;
+    *cp = *dp;
     cp->ansi = strdup(dp->ansi);
-    cp->argb_fg = dp->argb_fg;
-    cp->argb_bg = dp->argb_bg;
 
     cp++;
     dp++;
