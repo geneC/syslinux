@@ -4,7 +4,8 @@ them.
 
 Changes in 3.31:
 	* The simple menu system (menu.c32 and vesamenu.c32) now
-	  support loading more than one configuration file at a time.
+	  support loading more than one configuration file at a time,
+	  using MENU INCLUDE or by specifying multiple filenames.
 	* The MENU COLOR statement can now control the shadowing mode.
 
 Changes in 3.30:

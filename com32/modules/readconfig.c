@@ -361,11 +361,17 @@ static uint32_t parse_argb(char **p)
   return argb;
 }
 
+/*
+ * Global APPEND and IPAPPEND status
+ */
+static char *append = NULL;
+static unsigned int ipappend = 0;
+
+static int parse_one_config(const char *filename);
+
 static void parse_config_file(FILE *f)
 {
   char line[MAX_LINE], *p, *ep, ch;
-  char *append = NULL;
-  unsigned int ipappend = 0;
   struct labeldata ld;
 
   memset(&ld, 0, sizeof ld);
@@ -403,6 +409,9 @@ static void parse_config_file(FILE *f)
 	if ( looking_at(p, "passwd") ) {
 	  menu_master_passwd = strdup(skipspace(p+6));
 	}
+      } else if ( (ep = looking_at(p, "include")) ) {
+	p = skipspace(ep);
+	parse_one_config(p);
       } else if ( (ep = looking_at(p, "background")) ) {
 	p = skipspace(ep);
 	if (menu_background)
@@ -512,7 +521,12 @@ static void parse_config_file(FILE *f)
 
 static int parse_one_config(const char *filename)
 {
-  FILE *f = fopen(filename, "r");
+  FILE *f;
+
+  if (!strcmp(filename, "~"))
+    filename = get_config();
+
+  f = fopen(filename, "r");
   if ( !f )
     return -1;
 
@@ -529,7 +543,7 @@ void parse_configs(char **argv)
   get_ipappend();
 
   if ( !*argv ) {
-    parse_one_config(get_config());
+    parse_one_config("~");
   } else {
     while ( (filename = *argv++) )
       parse_one_config(filename);

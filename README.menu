@@ -113,6 +113,14 @@ MENU BACKGROUND filename
 	be 640x480 pixels and either in PNG or JPEG format.
 
 
+MENU INCLUDE filename
+
+	Include the contents of the configuration file filename at
+	this point.  Keep in mind that the included data is only seen
+	by the menu system; the core syslinux code does not parse this
+	command, so any labels defined in it are unavailable.
+
+
 MENU COLOR element ansi foreground background shadow
 
 	Sets the color of element "element" to the specified color
@@ -253,8 +261,8 @@ LABEL othermenu
 	APPEND othermenu.conf
 
 If you specify more than one file, they will all be read, in the order
-specified.  However, global APPEND and IPAPPEND will only apply to the
-file currently being processed.
+specified.  The dummy filename ~ (tilde) is replaced with the filename
+of the main configuration file.
 
 # The file graphics.conf contains common color and layout commands for
 # all menus.
@@ -262,3 +270,11 @@ LABEL othermenu
 	MENU LABEL Another Menu
 	KERNEL vesamenu.c32
 	APPEND graphics.conf othermenu.conf
+
+# Return to the main menu
+LABEL mainmenu
+	MENU LABEL Return to Main Menu
+	KERNEL vesamenu.c32
+	APPEND graphics.conf ~
+
+See also the MENU INCLUDE directive above.
