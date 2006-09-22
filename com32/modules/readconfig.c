@@ -405,6 +405,8 @@ static void parse_config_file(FILE *f)
 	}
       } else if ( (ep = looking_at(p, "background")) ) {
 	p = skipspace(ep);
+	if (menu_background)
+	  free(menu_background);
 	menu_background = dup_word(&p);
       } else if ((ep = looking_at(p, "color")) ||
 		 (ep = looking_at(p, "colour"))) {
