@@ -87,7 +87,7 @@ struct menu_parameter mparm[] = {
   { "rows", 12 },
   { "tabmsgrow", 18 },
   { "cmdlinerow", 18 },
-  { "endrow", 24 },
+  { "endrow", -1 },
   { "passwordrow", 11 },
   { "timeoutrow", 20 },
   { NULL, 0 }
