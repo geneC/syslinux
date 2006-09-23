@@ -29,11 +29,13 @@ reset_config:
 		shr cx,2
 		rep movsd
 
+%ifndef DEPEND
 %if NULLFILE != 0
 		mov al,NULLFILE
 		mov di,FKeyName
 		mov cx,10*(1 << FILENAME_MAX_LG2)
 		rep stosb
+%endif
 %endif
 
 		mov si,linuxauto_cmd		; Default command: "linux auto"
