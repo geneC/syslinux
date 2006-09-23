@@ -514,7 +514,7 @@ kernel_good:
 ; At this point, DX:AX contains the size of the kernel, SI contains
 ; the file handle/cluster pointer, and ECX contains the extension (if any.)
 ;
-		mov di,[KernelType]
+		movzx di,byte [KernelType]
 		add di,di
 		jmp [kerneltype_table+di]
 
