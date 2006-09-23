@@ -677,6 +677,10 @@ comapi_features:
 ; INT 22h AX=0016h	Run kernel image
 ;
 comapi_runkernel:
+		mov al,P_DL
+		cmp al,VK_TYPES-1
+		ja .error
+		mov [KernelType],al
 		push ds
 		mov ds,P_DS
 		mov si,P_SI
@@ -731,6 +735,8 @@ comapi_runkernel:
 		mov [CmdLinePtr],di
 		mov word [CmdOptPtr],zero_string
 		jmp kernel_good_saved
+
+.error		equ comapi_shuffle.error
 
 ;
 ; INT 22h AX=0017h  Report video mode change
