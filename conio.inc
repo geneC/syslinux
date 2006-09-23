@@ -386,7 +386,7 @@ debug_tracer:	pushad
 		ret
 %endif	; DEBUG_TRACERS
 
-		section .data
+		section .config
 		; This is a word to pc_setint16 can set it
 DisplayCon	dw 01h			; Console display enabled
 

@@ -64,6 +64,7 @@ SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
 vk_rname:	resb FILENAME_MAX	; Real name
 vk_appendlen:	resw 1
+vk_type:	resb 1			; Type of file
 		alignb 4
 vk_append:	resb max_cmd_len+1	; Command line
 		alignb 4
@@ -1408,6 +1409,7 @@ getfatsector:
 %include "conio.inc"		; Console I/O
 %include "plaincon.inc"		; writechr
 %include "writestr.inc"		; String output
+%include "configinit.inc"	; Initialize configuration
 %include "parseconfig.inc"	; High-level config file handling
 %include "parsecmd.inc"		; Low-level config file handling
 %include "bcopy32.inc"		; 32-bit bcopy

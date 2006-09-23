@@ -47,8 +47,11 @@ STACK_START	equ TEXT_START-STACK_SIZE
 
 		section .earlybss nobits start=BSS_START
 		section .bcopy32  align=4 valign=16 follows=.data vfollows=.earlybss
+		section .config	  align=4 valign=16 follows=.bcopy32 vfollows=.bcopy32
+		section .config.end nobits align=4 follows=.config
+
 		; NASM BUG: follows= here should be vfollows=
-		section .bss      nobits align=256 follows=.bcopy32
+		section .bss      nobits align=256 follows=.config.end
 
 		section .text	  start=TEXT_START
 		; NASM BUG: follows=.text not accepted here

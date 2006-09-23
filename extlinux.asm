@@ -62,6 +62,7 @@ SYMLINK_SECTORS	equ 2			; Max number of sectors in a symlink
 vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
 vk_rname:	resb FILENAME_MAX	; Real name
 vk_appendlen:	resw 1
+vk_type:	resb 1			; Type of file
 		alignb 4
 vk_append:	resb max_cmd_len+1	; Command line
 		alignb 4
@@ -1516,6 +1517,7 @@ getfssec:
 %include "conio.inc"		; Console I/O
 %include "plaincon.inc"		; writechr
 %include "writestr.inc"		; String output
+%include "configinit.inc"	; Initialize configuration
 %include "parseconfig.inc"	; High-level config file handling
 %include "parsecmd.inc"		; Low-level config file handling
 %include "bcopy32.inc"		; 32-bit bcopy
@@ -1556,7 +1558,6 @@ err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
                 db CR, LF, 0
 err_notdos	db ': attempted DOS system call', CR, LF, 0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
-err_bssimage	db 'BSS images not supported.', CR, LF, 0
 err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: please change disks and press '
 		db 'a key to continue.', CR, LF, 0

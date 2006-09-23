@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2006 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -100,9 +100,11 @@ pc_localboot:	call getint
 %endif
 
 ;
-; "kernel" command
+; "kernel", "config", ... command
+;
 pc_kernel:	cmp byte [VKernel],0
 		je .err				; ("label" section only)
+		mov [VKernelBuf+vk_type],al
 		call pc_getline
 		mov di,VKernelBuf+vk_rname
 		call mangle_name
@@ -252,10 +254,15 @@ pc_serial:	call getint
 		call slow_out
 
 		; Show some life
+		cmp byte [SerialNotice],0
+		je .notfirst
+		mov byte [SerialNotice],0
+
 		mov si,syslinux_banner
 		call write_serial_str
 		mov si,copyright_str
 		call write_serial_str
+.notfirst:
 		ret
 
 .serial_port_bad:
@@ -374,7 +381,9 @@ commit_vk:
 
 		section .data
 vk_overflow_msg	db 'Out of memory parsing config file', CR, LF, 0
+SerialNotice	db 1			; Only print this once
 
+		section .config
 		align 4, db 0
 KbdTimeout      dd 0                    ; Keyboard timeout (if any)
 TotalTimeout	dd 0			; Total timeout (if any)
@@ -389,6 +398,10 @@ AllowOptions	dw 1			; User-specified options allowed
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 VKernelBytes	dw 0			; Number of bytes used by vkernels
 VKernel		db 0			; Have we seen any "label" statements?
+
+%if IS_PXELINUX
+IPAppend	db 0			; Default IPAPPEND option
+%endif
 
 		section .latebss
                 alignb 4		; For the good of REP MOVSD

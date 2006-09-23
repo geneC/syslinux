@@ -87,4 +87,17 @@ pxelinux_id	equ 032h		; 3 = SYSLINUX family; 2 = PXELINUX
 isolinux_id	equ 033h		; 3 = SYSLINUX family; 3 = ISOLINUX
 extlinux_id	equ 034h		; 3 = SYSLINUX family; 4 = EXTLINUX
 
+;
+; Types of vkernels
+;
+VK_KERNEL	equ 0			; Choose by filename
+VK_LINUX	equ 1			; Linux kernel image
+VK_BOOT		equ 2			; Boot sector
+VK_BSS		equ 3			; BSS boot sector
+VK_FDIMAGE	equ 4			; Floppy disk image
+VK_COMBOOT	equ 5			; COMBOOT image
+VK_COM32	equ 6			; COM32 image
+VK_CONFIG	equ 7			; Configuration file
+VK_TYPES	equ 8			; Number of VK types
+
 %endif ; _KERNEL_INC

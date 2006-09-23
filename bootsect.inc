@@ -145,12 +145,3 @@ replace_bootstrap:
 		movzx esp,di
 
 		jmp shuffle_and_boot
-
-%if IS_SYSLINUX || IS_MDSLINUX
-		; Nothing
-%else
-is_bss_sector:
-		mov si,err_bssimage
-		call cwritestr
-		jmp enter_command
-%endif

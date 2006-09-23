@@ -56,6 +56,7 @@ SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
 vk_rname:	resb FILENAME_MAX	; Real name
 vk_appendlen:	resw 1
+vk_type:	resb 1			; Type of file
 		alignb 4
 vk_append:	resb max_cmd_len+1	; Command line
 		alignb 4
@@ -825,26 +826,6 @@ rl_checkpt_off	equ ($-$$)
 ; ----------------------------------------------------------------------------
 
 all_read:
-;
-; Initialize screen (if we're using one)
-;
-		; Now set up screen parameters
-		call adjust_screen
-
-		; Wipe the F-key area
-		mov al,NULLFILE
-		mov di,FKeyName
-		mov cx,10*(1 << FILENAME_MAX_LG2)
-		rep stosb
-
-		; Patch the writechr routine to point to the full code
-		mov word [writechr+1], writechr_full-(writechr+3)
-
-; Tell the user we got this far...
-%ifndef DEBUG_MESSAGES			; Gets messy with debugging on
-		mov si,copyright_str
-		call writestr
-%endif
 
 ; Test tracers
 		TRACER 'T'
@@ -855,6 +836,15 @@ all_read:
 ;
 %include "init.inc"
 %include "cpuinit.inc"
+
+		; Patch the writechr routine to point to the full code
+		mov word [writechr+1], writechr_full-(writechr+3)
+
+; Tell the user we got this far...
+%ifndef DEBUG_MESSAGES			; Gets messy with debugging on
+		mov si,copyright_str
+		call writestr
+%endif
 
 ;
 ; Now we're all set to start with our *real* business.	First load the
@@ -1476,6 +1466,7 @@ getfssec:
 
 %include "getc.inc"		; getc et al
 %include "conio.inc"		; Console I/O
+%include "configinit.inc"	; Initialize configuration
 %include "parseconfig.inc"	; High-level config file handling
 %include "parsecmd.inc"		; Low-level config file handling
 %include "bcopy32.inc"		; 32-bit bcopy
@@ -1514,7 +1505,6 @@ err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
                 db CR, LF, 0
 err_notdos	db ': attempted DOS system call', CR, LF, 0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
-err_bssimage	db 'BSS images not supported.', CR, LF, 0
 err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
 notfound_msg	db 'not found', CR, LF, 0
 localboot_msg	db 'Booting from local disk...', CR, LF, 0

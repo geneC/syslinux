@@ -1,5 +1,6 @@
 menu
 append
+config
 default
 display
 font
@@ -7,6 +8,12 @@ implicit
 ipappend
 kbdmap
 kernel
+linux
+boot
+bss
+fdimage
+comboot
+com32
 label
 localboot
 prompt

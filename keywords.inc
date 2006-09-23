@@ -50,7 +50,14 @@ keywd_table:
 		keyword font,      pc_filecmd,  loadfont
 		keyword implicit,  pc_setint16, AllowImplicit
 		keyword kbdmap,    pc_filecmd,  loadkeys
-		keyword kernel,    pc_kernel
+		keyword kernel,    pc_kernel,	VK_KERNEL
+		keyword linux,     pc_kernel,	VK_LINUX
+		keyword boot,      pc_kernel,   VK_BOOT
+		keyword bss,       pc_kernel,   VK_BSS
+		keyword fdimage,   pc_kernel,   VK_FDIMAGE
+		keyword comboot,   pc_kernel,   VK_COMBOOT
+		keyword com32,     pc_kernel,   VK_COM32
+		keyword config,    pc_kernel,   VK_CONFIG
 		keyword label,     pc_label
 		keyword prompt,    pc_setint16, ForcePrompt
 		keyword say,       pc_say

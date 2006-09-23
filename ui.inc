@@ -13,8 +13,10 @@
 ;
 ; This file should be entered with the config file open (for getc)
 ;
+load_config_file:
 		call parse_config		; Parse configuration file
 no_config_file:
+
 ;
 ; Check whether or not we are supposed to display the boot prompt.
 ;
@@ -277,6 +279,9 @@ vk_check:
 %endif
 		xor bx,bx			; Try only one version
 
+		mov al, [VKernelBuf+vk_type]
+		mov [KernelType], al
+
 %if IS_PXELINUX || IS_ISOLINUX
 		; Is this a "localboot" pseudo-kernel?
 %if IS_PXELINUX
@@ -312,6 +317,9 @@ vk_check:
                 pop di
                 pop si
                 pop es
+
+		mov [KernelType], cl		; CL == 0 here
+
 ;
 ; Find the kernel on disk
 ;
@@ -503,9 +511,14 @@ kernel_good:
 %endif
 
 ;
-; At this point, DX:AX contains the size of the kernel, and SI contains
-; the file handle/cluster pointer.
+; At this point, DX:AX contains the size of the kernel, SI contains
+; the file handle/cluster pointer, and ECX contains the extension (if any.)
 ;
+		mov di,[KernelType]
+		add di,di
+		jmp [kerneltype_table+di]
+
+is_unknown_filetype:
 		or ecx,20202000h		; Force lower case (except dot)
 
 		cmp ecx,'.com'
@@ -536,6 +549,43 @@ kernel_good:
 		je is_bootsector
 %endif
 		; Otherwise Linux kernel
+		jmp is_linux_kernel
+
+is_config_file:
+		call openfd
+		call reset_config
+		jmp load_config_file
+
+; This is an image type we can't deal with
+is_bad_image:
+		mov si,err_badimage
+		call cwritestr
+		jmp enter_command
+
+%if IS_SYSLINUX || IS_MDSLINUX
+		; ok
+%else
+is_bss_sector	equ is_bad_image
+%endif
+%if IS_ISOLINUX
+		; ok
+%else
+is_disk_image	equ is_bad_image
+%endif
+
+		section .data
+err_badimage	db 'Invalid image type for this media type!', CR, LF, 0
+
+		align 2, db 0
+kerneltype_table:
+		dw is_unknown_filetype	; VK_KERNEL
+		dw is_linux_kernel	; VK_LINUX
+		dw is_bootsector	; VK_BOOT
+		dw is_bss_sector	; VK_BSS
+		dw is_disk_image	; VK_FDIMAGE
+		dw is_comboot_image	; VK_COMBOOT
+		dw is_com32_image	; VK_COM32
+		dw is_config_file	; VK_CONFIG
 
 		section .bss
 		alignb 4
@@ -545,5 +595,6 @@ KernelExtPtr	resw 1			; During search, final null pointer
 CmdOptPtr       resw 1			; Pointer to first option on cmd line
 KbdFlags	resb 1			; Check for keyboard escapes
 FuncFlag	resb 1			; Escape sequences received from keyboard
+KernelType	resb 1			; Kernel type, from vkernel, if known
 
 		section .text

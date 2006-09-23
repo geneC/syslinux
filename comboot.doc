@@ -639,7 +639,7 @@ AX=0016h [3.10] Run kernel image
 		DS:SI	Filename of kernel image (zero-terminated string)
 		ES:BX	Command line (zero-terminated string)
 		ECX	IPAPPEND flags [PXELINUX]
-		EDX	Reserved - MUST BE ZERO
+		EDX	Type of file (since 3.40)
 	Output:	Does not return if successful; returns with CF=1 if
 		the kernel image is not found.
 
@@ -658,6 +658,19 @@ AX=0016h [3.10] Run kernel image
 	doesn't exist, instead of returning to the command line.  (It
 	may still return to the command line if the image is somehow
 	corrupt, however.)
+
+	The file types are defined as follows:
+
+		    Equivalent
+	EDX	Config	Extensions	Type of file	
+	0	KERNEL			Determined by filename extension
+	1	LINUX	none		Linux kernel image
+	2	BOOT	.0 .bs .bin	Bootstrap program
+	3	BSS	.bss		Boot sector with patch [SYSLINUX]
+	4	FDIMAGE	.img		Floppy disk image [ISOLINUX]
+	5	COMBOOT	.com .cbt	16-bit COMBOOT program
+	6	COM32	.c32		COM32 program
+	7	CONFIG			Configuration file
 
 
 AX=0017h [3.30] Report video mode change

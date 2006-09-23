@@ -96,7 +96,7 @@ TFTP_EOPTNEG	equ htons(8)		; Option negotiation failure
 vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
 vk_rname:	resb FILENAME_MAX	; Real name
 vk_ipappend:	resb 1			; "IPAPPEND" flag
-		resb 1			; Pad
+vk_type:	resb 1			; Type of file
 vk_appendlen:	resw 1
 		alignb 4
 vk_append:	resb max_cmd_len+1	; Command line
@@ -2305,6 +2305,7 @@ check_for_arp:
 %include "writestr.inc"		; String output
 writestr	equ cwritestr
 %include "writehex.inc"		; Hexadecimal output
+%include "configinit.inc"	; Initialize configuration
 %include "parseconfig.inc"	; High-level config file handling
 %include "parsecmd.inc"		; Low-level config file handling
 %include "bcopy32.inc"		; 32-bit bcopy
@@ -2347,7 +2348,6 @@ err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
                 db CR, LF, 0
 err_notdos	db ': attempted DOS system call', CR, LF, 0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
-err_bssimage	db 'BSS images not supported.', CR, LF, 0
 err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: press a key to retry, or wait for reset...', CR, LF, 0
 bailmsg		equ err_bootfailed
@@ -2546,5 +2546,4 @@ EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 %error trackbufsize must be a multiple of TFTP_BLOCKSIZE
 %endif
 %endif
-IPAppend	db 0			; Default IPAPPEND option
 DHCPMagic	db 0			; DHCP site-specific option info

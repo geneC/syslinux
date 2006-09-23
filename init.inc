@@ -22,23 +22,10 @@ common_init:
 		; Now set up screen parameters
 		call adjust_screen
 
-		; Wipe the F-key area
-		mov al,NULLFILE
-		mov di,FKeyName
-		mov cx,10*(1 << FILENAME_MAX_LG2)
-		rep stosb
-
-		mov si,linuxauto_cmd		; Default command: "linux auto"
-		mov di,default_cmd
-                mov cx,linuxauto_len
-		rep movsb
-
-		mov di,KbdMap			; Default keymap 1:1
-		xor al,al
-		inc ch				; CX <- 256
-mkkeymap:	stosb
-		inc al
-		loop mkkeymap
+;
+; Initialize configuration information
+;
+		call reset_config
 
 ;
 ; Clear Files structures
@@ -57,9 +44,4 @@ mkkeymap:	stosb
 		add ax,PKTBUF_SIZE
 		loop .setbufptr
 %endif
-
-		section .data
-linuxauto_cmd	db 'linux auto',0
-linuxauto_len   equ $-linuxauto_cmd
-
 		section .text			; This is an inline file...

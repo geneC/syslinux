@@ -183,6 +183,19 @@ LABEL label
 		The "kernel" doesn't have to be a Linux kernel; it can
 		be a boot sector or a COMBOOT file (see below.)
 
+  LINUX image			- Linux kernel image (default)
+  BOOT image			- Bootstrap program (.bs, .0, .bin)
+  BSS image			- BSS image (.bss)
+  FDIMAGE image			- Floppy disk image (.img)
+  COMBOOT image			- COMBOOT program (.com, .cbt)
+  COM32 image			- COM32 program (.c32)
+  CONFIG image			- New configuration file
+	Using one of these keywords instead of KERNEL forces the
+	filetype, regardless of the filename.
+
+	CONFIG means restart the boot loader using a different
+	configuration file.
+
   APPEND -
         Append nothing.  APPEND with a single hyphen as argument in a
         LABEL section can be used to override a global APPEND.
@@ -500,6 +513,10 @@ For filenames given on the command line, SYSLINUX will search for the
 file by adding extensions in the order listed above if the plain
 filename is not found.  Filenames in KERNEL statements must be fully
 qualified.
+
+If this is specified with one of the keywords LINUX, BOOT, BSS,
+FDIMAGE, COMBOOT, COM32, or CONFIG instead of KERNEL, the filetype is
+considered to be the one specified regardless of the filename.
 
 
       ++++ BOOTING DOS (OR OTHER SIMILAR OPERATING SYSTEMS) ++++

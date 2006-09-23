@@ -102,8 +102,6 @@ use_font:
 		mov ax,1103h			; Select page 0
 		int 10h
 
-		; Fall through to adjust_screen
-
 lf_ret		equ use_font.lf_ret
 
 ;

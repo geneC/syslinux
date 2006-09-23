@@ -307,8 +307,8 @@ vgaclearmode:
 ;		int 10h
 		mov [UsingVGA], byte 0
 
-		call use_font		; Restore text font/data
 		mov byte [ScrollAttribute], 07h
+		call use_font		; Restore text font/data
 .done:
 		popad
 		pop es
