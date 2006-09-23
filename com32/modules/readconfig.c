@@ -362,19 +362,19 @@ static uint32_t parse_argb(char **p)
 }
 
 /*
- * Global APPEND and IPAPPEND status
+ * Parser state.  This is global so that including multiple
+ * files work as expected, which is that everything works the
+ * same way as if the files had been concatenated together.
  */
 static char *append = NULL;
 static unsigned int ipappend = 0;
+static struct labeldata ld;
 
 static int parse_one_config(const char *filename);
 
 static void parse_config_file(FILE *f)
 {
   char line[MAX_LINE], *p, *ep, ch;
-  struct labeldata ld;
-
-  memset(&ld, 0, sizeof ld);
 
   while ( fgets(line, sizeof line, f) ) {
     p = strchr(line, '\r');
@@ -515,8 +515,6 @@ static void parse_config_file(FILE *f)
       ld.append = strdup(skipspace(p+9));
     }
   }
-
-  record(&ld, append);
 }
 
 static int parse_one_config(const char *filename)
@@ -548,6 +546,10 @@ void parse_configs(char **argv)
     while ( (filename = *argv++) )
       parse_one_config(filename);
   }
+
+  /* On final EOF process the last label statement */
+
+  record(&ld, append);
 
   /* Common postprocessing */
 
