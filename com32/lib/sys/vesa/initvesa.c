@@ -105,6 +105,7 @@ static int vesacon_set_mode(void)
   debug("Hello, World!\r\n");
 
   memset(&rm, 0, sizeof rm);
+  memset(gi, 0, sizeof *gi);
 
   gi->signature = VBE2_MAGIC;	/* Get VBE2 extended data */
   rm.eax.w[0] = 0x4F00;		/* Get SVGA general information */
@@ -135,6 +136,7 @@ static int vesacon_set_mode(void)
   while ((mode = *mode_ptr++) != 0xFFFF) {
     debug("Found mode: 0x%04x\r\n", mode);
 
+    memset(mi, 0, sizeof *mi);
     rm.eax.w[0] = 0x4F01;	/* Get SVGA mode information */
     rm.ecx.w[0] = mode;
     rm.edi.w[0] = OFFS(mi);
