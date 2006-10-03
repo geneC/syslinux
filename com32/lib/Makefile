@@ -78,7 +78,9 @@ libcom32.a : $(LIBOBJS)
 	$(RANLIB) $@
 
 tidy:
-	rm -f *.o .*.d */*.o */.*.d sys/vesa/alphatbl.c
+	rm -f sys/vesa/alphatbl.c
+	find . -name \*.o -print | xargs -r rm -f
+	find . -name .\*.d -print | xargs -r rm -f 
 
 clean: tidy
 	rm -f *.a

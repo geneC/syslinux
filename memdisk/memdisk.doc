@@ -86,6 +86,9 @@ d) MEMDISK normally uses the BIOS "INT 15h mover" API to access high
    bigraw	Use raw access to protected mode memory, and leave the
 		CPU in "big real" mode afterwards.
 
+   safeint	Use INT 15h access to protected memory, but invoke
+		INT 15h the way it was *before* MEMDISK was loaded.
+
 
 Some interesting things to note:
 

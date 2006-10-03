@@ -6,7 +6,7 @@
 ;  A program to emulate an INT 13h disk BIOS from a "disk" in extended
 ;  memory.
 ;
-;   Copyright (C) 2001-2005  H. Peter Anvin
+;   Copyright (C) 2001-2006  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@
 
 %define CONFIG_READONLY	0x01
 %define CONFIG_RAW	0x02
+%define CONFIG_SAFEINT	0x04
 %define CONFIG_BIGRAW	0x08		; MUST be 8!
 
 		org 0h
@@ -605,7 +606,9 @@ bcopy:
 		push edx
 		push ebp
 
-		test byte [ConfigFlags],CONFIG_RAW
+		mov bx, real_int15_stub
+
+		test byte [ConfigFlags], CONFIG_RAW|CONFIG_SAFEINT
 		jz .anymode
 
 		smsw ax			; Unprivileged!
@@ -613,6 +616,33 @@ bcopy:
 		jnz .protmode
 
 .realmode:
+		test byte [ConfigFlags], CONFIG_RAW
+		jnz .raw
+
+		; We're in real mode with CONFIG_SAFEINT, invoke INT 15h
+		; directly if the vector is unchanged, otherwise invoke
+		; the *old* INT 15h vector.
+
+		push ds
+		xor ax, ax
+		mov fs,ax
+
+		cmp word [4*0x15], Int15Start
+		jne .changed
+
+		mov ax, cs
+		cmp word [4*0x15+2], ax
+		jne .changed
+
+		pop ds
+		jmp .anymode		; INT 15h unchanged, safe to execute
+
+.changed:	; INT 15h modified, execute *old* INT 15h
+		pop ds
+		mov bx, fake_int15_stub
+		jmp .anymode
+
+.raw:
 		TRACER 'r'
 		; We're in real mode, do it outselves
 
@@ -716,8 +746,7 @@ bcopy:
 		mov si,Mover
 		mov ah, 87h
 		shl cx,1	; Convert to 16-bit words
-		int 15h
-		cli		; Some BIOSes enable interrupts on INT 15h
+		call bx		; INT 15h stub
 		pop eax		; Transfer size this cycle
 		pop ecx
 		pop edi
@@ -734,6 +763,17 @@ bcopy:
 		pop edx
 		pop ebx
 		pop eax
+		ret
+
+real_int15_stub:
+		int 15h
+		cli		; Some BIOSes enable interrupts on INT 15h
+		ret
+
+fake_int15_stub:
+		pushf
+		call far [OldInt15]
+		cli
 		ret
 
 %ifdef DEBUG_TRACERS

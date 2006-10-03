@@ -105,6 +105,7 @@ static int vesacon_set_mode(void)
   debug("Hello, World!\r\n");
 
   memset(&rm, 0, sizeof rm);
+  memset(gi, 0, sizeof *gi);
 
   gi->signature = VBE2_MAGIC;	/* Get VBE2 extended data */
   rm.eax.w[0] = 0x4F00;		/* Get SVGA general information */
@@ -116,9 +117,13 @@ static int vesacon_set_mode(void)
     return 1;			/* Function call failed */
   if ( gi->signature != VESA_MAGIC )
     return 2;			/* No magic */
+#if 1
+  /* Linear frame buffer is a VBE 2.0 feature.  In theory this
+     test is redundant given that we check the bitmasks. */
   if ( gi->version < 0x0200 ) {
     return 3;			/* VESA 2.0 not supported */
   }
+#endif
 
   /* Copy general info */
   memcpy(&__vesa_info.gi, gi, sizeof *gi);
@@ -131,6 +136,7 @@ static int vesacon_set_mode(void)
   while ((mode = *mode_ptr++) != 0xFFFF) {
     debug("Found mode: 0x%04x\r\n", mode);
 
+    memset(mi, 0, sizeof *mi);
     rm.eax.w[0] = 0x4F01;	/* Get SVGA mode information */
     rm.ecx.w[0] = mode;
     rm.edi.w[0] = OFFS(mi);
@@ -145,8 +151,16 @@ static int vesacon_set_mode(void)
 	  mi->mode_attr, mi->h_res, mi->v_res, mi->bpp, mi->memory_layout,
 	  mi->rpos, mi->gpos, mi->bpos);
 
-    /* Must be an LFB color graphics mode supported by the hardware */
-    if ( (mi->mode_attr & 0x0099) != 0x0099 )
+    /* Must be an LFB color graphics mode supported by the hardware.
+       
+      The bits tested are:
+       7 - linear frame buffer available
+       4 - graphics mode
+       3 - color mode
+       1 - mode information available (mandatory in VBE 1.2+)
+       0 - mode supported by hardware
+    */
+    if ( (mi->mode_attr & 0x009b) != 0x009b )
       continue;
 
     /* Must be 640x480, 32 bpp */
