@@ -306,6 +306,31 @@ pc_say:		call pc_getline			; "say" command
 		jmp crlf			; tailcall
 
 ;
+; "text" command; ignore everything until we get an "endtext" line
+;
+pc_text:	call pc_getline			; Ignore rest of line
+.loop:
+		call pc_getline
+.skipspace:
+		lodsb
+		and al,al
+		jz .loop
+		cmp al,' '
+		jbe .skipspace
+
+		dec si
+		lodsd
+		and eax,0xfdfdfdfd
+		cmp eax,'ENDT'
+		jne .loop
+		lodsd
+		and eax,0x00fdfdfd
+		cmp eax,'EXT'
+		jne .loop
+		; If we get here we hit ENDTEXT
+		ret
+
+;
 ; Comment line
 ;
 pc_comment:	; Fall into pc_getline
