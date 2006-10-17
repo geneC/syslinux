@@ -1,9 +1,9 @@
-CC	 = gcc -m32
+CC	 = gcc
 LD       = ld -m elf_i386
 OBJCOPY  = objcopy
 OPTFLAGS = -g -Os -march=i386 -falign-functions=0 -falign-jumps=0 -falign-loops=0 -fomit-frame-pointer
 INCLUDES = -include code16.h -I. -I.. -I../libfat
-CFLAGS	 = -mregparm=3 -DREGPARM=3 -W -Wall -ffreestanding -msoft-float $(OPTFLAGS) $(INCLUDES)
+CFLAGS	 = -m32 -mregparm=3 -DREGPARM=3 -W -Wall -ffreestanding -msoft-float $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = -T com16.ld
 AR       = ar
 RANLIB   = ranlib
