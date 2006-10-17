@@ -1,6 +1,6 @@
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
+##   Copyright 1998-2006 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -19,30 +19,30 @@
 
 OSTYPE   = $(shell uname -msr)
 ifeq ($(findstring CYGWIN,$(OSTYPE)),CYGWIN)
-CC       = gcc
-AR	 = ar
-RANLIB   = ranlib
-CFLAGS   = -mno-cygwin -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
-PIC	 =
-LDFLAGS  = -mno-cygwin -Os -s
+WINCC       = gcc
+WINAR  	    = ar
+WINRANLIB   = ranlib
+WINCFLAGS   = -mno-cygwin -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+WINPIC	    =
+WINLDFLAGS  = -mno-cygwin -Os -s
 else
 ifeq ($(findstring MINGW32,$(OSTYPE)),MINGW32)
-CC       = gcc
-AR	 = ar
-RANLIB   = ranlib
+WINCC       = gcc
+WINAR	    = ar
+WINRANLIB   = ranlib
 else
-CC       = mingw-gcc
-AR	 = mingw-ar
-RANLIB   = mingw-ranlib
+WINCC       = mingw-gcc
+WINAR	    = mingw-ar
+WINRANLIB   = mingw-ranlib
 endif
 
-CFLAGS   = -W -Wall -Wno-sign-compare -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
-PIC      =
-LDFLAGS  = -Os -s
+WINCFLAGS   = -W -Wall -Wno-sign-compare -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+WINPIC      =
+WINLDFLAGS  = -Os -s
 endif
-CFLAGS += -I. -I.. -I../libfat
+WINCFLAGS += -I. -I.. -I../libfat
 
-CC_IS_GOOD := $(shell $(CC) $(CFLAGS) $(LDFLAGS) -o hello.exe hello.c >/dev/null 2>&1 ; echo $$?)
+WINCC_IS_GOOD := $(shell $(WINCC) $(WINCFLAGS) $(WINLDFLAGS) -o hello.exe hello.c >/dev/null 2>&1 ; echo $$?)
 
 .SUFFIXES: .c .o .i .s .S
 
@@ -54,7 +54,7 @@ VPATH = .:..:../libfat
 
 TARGETS = syslinux.exe
 
-ifeq ($(CC_IS_GOOD),0)
+ifeq ($(WINCC_IS_GOOD),0)
 all: $(TARGETS)
 else
 all:
@@ -72,14 +72,14 @@ spotless: clean
 installer:
 
 syslinux.exe: $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(WINCC) $(WINLDFLAGS) -o $@ $^
 
 
 %.o: %.c
-	$(CC) -Wp,-MT,$@,-MMD,.$@.d $(CFLAGS) -c -o $@ $<
+	$(WINCC) -Wp,-MT,$@,-MMD,.$@.d $(WINCFLAGS) -c -o $@ $<
 %.i: %.c
-	$(CC) $(CFLAGS) -E -o $@ $<
+	$(WINCC) $(WINCFLAGS) -E -o $@ $<
 %.s: %.c
-	$(CC) $(CFLAGS) -S -o $@ $<
+	$(WINCC) $(WINCFLAGS) -S -o $@ $<
 
 -include .*.d

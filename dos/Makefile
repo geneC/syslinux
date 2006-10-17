@@ -51,7 +51,9 @@ syslinux.com: syslinux.elf
 	$(CC) $(CFLAGS) -E -o $@ $<
 %.s: %.c
 	$(CC) $(CFLAGS) -S -o $@ $<
+%.o: %.S
+	$(CC) -Wp,-MT,$@,-MD,.$@.d $(CFLAGS) -D__ASSEMBLY__ -c -o $@ $<
 %.s: %.S
-	$(CC) $(CFLAGS) -D__ASSEMBLY__ -S -o $@ $<
+	$(CC) $(CFLAGS) -E -o $@ $<
 
 -include .*.d
