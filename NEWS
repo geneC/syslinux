@@ -4,6 +4,7 @@ them.
 
 Changes in 3.32:
 	* MEMDISK: New "safeint" mode.
+	* MEMDISK: Be more compliant with the PnP BIOS spec.
 
 Changes in 3.31:
 	* The simple menu system (menu.c32 and vesamenu.c32) now
