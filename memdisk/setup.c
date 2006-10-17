@@ -498,6 +498,33 @@ void __attribute__((noreturn)) die(void)
     asm volatile("hlt");
 }
 
+/*
+ * Find a $PnP installation check structure; return (ES << 16) + DI value
+ */
+static uint32_t pnp_install_check(void)
+{
+  uint32_t *seg;
+  unsigned char *p, csum;
+  int i;
+
+  for (seg = (uint32_t *)0xf0000; seg < (uint32_t *)0x100000; seg += 4) {
+    if (*seg == ('$'+('P' << 8)+('n' << 16)+('P' << 24))) {
+      p = (unsigned char *)seg;
+      if (p[2] < 0x21)
+	continue;
+      csum = 0;
+      for (i = p[2]; i; i--)
+	csum += *p++;
+      if (csum != 0)
+	continue;
+
+      return (0xf000 << 16) + (uint16_t)(unsigned long)seg;
+    }
+  }
+
+  return 0;
+}
+
 #define STACK_NEEDED	512	/* Number of bytes of stack */
 
 /*
@@ -508,7 +535,12 @@ void __attribute__((noreturn)) die(void)
 syscall_t syscall;
 void *sys_bounce;
 
-uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
+struct setup_return {
+  uint32_t es;			/* ES:DI -> $PnP structure */
+  uint32_t dx;			/* DL -> boot device */
+};
+
+struct setup_return setup(syscall_t cs_syscall, void *cs_bounce)
 {
   unsigned int bin_size = (int) &_binary_memdisk_bin_size;
   struct memdisk_header *hptr;
@@ -521,6 +553,7 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   int total_size, cmdlinelen;
   com32sys_t regs;
   uint32_t ramdisk_image, ramdisk_size;
+  struct setup_return sr;
 
   /* Set up global variables */
   syscall = cs_syscall;
@@ -776,5 +809,7 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   puts("booting...\n");
 
   /* On return the assembly code will jump to the boot vector */
-  return geometry->driveno;
+  sr.esdi = pnp_install_check();
+  sr.dx = geometry->driveno;
+  return sr;
 }
