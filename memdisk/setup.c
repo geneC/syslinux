@@ -123,9 +123,11 @@ struct setup_header {
   uint16_t pad1;
   uint32_t cmd_line_ptr;
   uint32_t initrd_addr_max;
+  uint32_t esdi;
+  uint32_t edx;
 };
 
-const struct setup_header * const shdr = (struct setup_header *)(LOW_SEG << 4);
+struct setup_header * const shdr = (struct setup_header *)(LOW_SEG << 4);
 
 /* Access to high memory */
 
@@ -535,12 +537,7 @@ static uint32_t pnp_install_check(void)
 syscall_t syscall;
 void *sys_bounce;
 
-struct setup_return {
-  uint32_t es;			/* ES:DI -> $PnP structure */
-  uint32_t dx;			/* DL -> boot device */
-};
-
-struct setup_return setup(syscall_t cs_syscall, void *cs_bounce)
+void setup(syscall_t cs_syscall, void *cs_bounce)
 {
   unsigned int bin_size = (int) &_binary_memdisk_bin_size;
   struct memdisk_header *hptr;
@@ -553,7 +550,6 @@ struct setup_return setup(syscall_t cs_syscall, void *cs_bounce)
   int total_size, cmdlinelen;
   com32sys_t regs;
   uint32_t ramdisk_image, ramdisk_size;
-  struct setup_return sr;
 
   /* Set up global variables */
   syscall = cs_syscall;
@@ -809,7 +805,6 @@ struct setup_return setup(syscall_t cs_syscall, void *cs_bounce)
   puts("booting...\n");
 
   /* On return the assembly code will jump to the boot vector */
-  sr.esdi = pnp_install_check();
-  sr.dx = geometry->driveno;
-  return sr;
+  shdr->esdi = pnp_install_check();
+  shdr->edx  = geometry->driveno;
 }

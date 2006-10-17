@@ -70,6 +70,13 @@ pad1		dw 0
 cmd_line_ptr	dd 0			; Command line
 ramdisk_max	dd 0xffffffff		; Highest allowed ramdisk address
 
+;
+; These fields aren't real setup fields, they're poked in by the
+; 32-bit code.
+;
+b_esdi		dd 0			; ES:DI for boot sector invocation
+b_edx		dd 0			; EDX for boot sector invocation
+
 		section .rodata
 memdisk_version:
 		db "MEMDISK ", VERSION, " ", DATE, 0
@@ -131,14 +138,13 @@ copy_cmdline:
 		call init32
 ;
 ; When init32 returns, we have been set up, the new boot sector loaded,
-; and we should go and and run the newly loaded boot sector
+; and we should go and and run the newly loaded boot sector.
 ;
-; The setup function returns (in DX) the drive number, and
-; the value for ES:DI in AX
+; The setup function will have poked values into the setup area.
 ;
-		movzx edi,ax
-		shr eax,16
-		mov es,ax
+		movzx edi,word [cs:b_esdi]
+		mov es,word [cs:b_esdi+2]
+		mov edx,[cs:b_edx]
 
 		cli
 		xor esi,esi		; No partition table involved
