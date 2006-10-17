@@ -69,10 +69,10 @@ spotless: clean
 	echo '.code16gcc' | cat - $< > $@
 
 %.s: %.S
-	$(CC) -x c $(INCLUDE) $(CFLAGS) -traditional -E -o $@ $<
+	$(CC) -x c $(INCLUDE) $(CFLAGS) -D__ASSEMBLY__ -E -o $@ $<
 
 %.s16: %.S16
-	$(CC) -x c $(INCLUDE) $(CFLAGS) -traditional -E -o $@ $<
+	$(CC) -x c $(INCLUDE) $(CFLAGS) -D__ASSEMBLY__ -E -o $@ $<
 
 %.s: %.c
 	$(CC) $(INCLUDE) $(CFLAGS) -S -o $@ $<
