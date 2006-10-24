@@ -507,15 +507,16 @@ static uint32_t pnp_install_check(void)
 {
   uint32_t *seg;
   unsigned char *p, csum;
-  int i;
+  int i, len;
 
   for (seg = (uint32_t *)0xf0000; seg < (uint32_t *)0x100000; seg += 4) {
     if (*seg == ('$'+('P' << 8)+('n' << 16)+('P' << 24))) {
       p = (unsigned char *)seg;
-      if (p[2] < 0x21)
+      len = p[5];
+      if (len < 0x21)
 	continue;
       csum = 0;
-      for (i = p[2]; i; i--)
+      for (i = len; i; i--)
 	csum += *p++;
       if (csum != 0)
 	continue;
