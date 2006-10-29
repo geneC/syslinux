@@ -43,7 +43,8 @@ static void emit(char ch)
 {
   static com32sys_t ireg;	/* Zeroed with the BSS */
 
-  ireg.eax.w[0] = 0x0400 | (unsigned char)ch;
+  ireg.eax.b[1] = 0x04;
+  ireg.edx.b[0] = ch;
 
   __intcall(0x21, &ireg, NULL);
 }
