@@ -551,6 +551,7 @@ void setup(syscall_t cs_syscall, void *cs_bounce)
   int total_size, cmdlinelen;
   com32sys_t regs;
   uint32_t ramdisk_image, ramdisk_size;
+  int bios_drives;
 
   /* Set up global variables */
   syscall = cs_syscall;
@@ -723,11 +724,28 @@ void setup(syscall_t cs_syscall, void *cs_bounce)
 
   if ( regs.eflags.l & 1 ) {
     printf("INT 13 08: Failure, assuming this is the only drive\n");
-    pptr->drivecnt = 1;
+    pptr->drivecnt = 0;
   } else {
     printf("INT 13 08: Success, count = %u, BPT = %04x:%04x\n",
 	   regs.edx.b[0], regs.es, regs.edi.w[0]);
-    pptr->drivecnt = regs.edx.b[0]+1;
+    pptr->drivecnt = regs.edx.b[0];
+  }
+
+  /* Compare what INT 13h returned with the appropriate equipment byte */
+  if ( geometry->driveno & 0x80 ) {
+    bios_drives = rdz_8(BIOS_HD_COUNT);
+  } else {
+    uint8_t equip = rdz_8(BIOS_EQUIP);
+
+    if (equip & 1)
+      bios_drives = (equip >> 6)+1;
+    else
+      bios_drives = 0;
+  }
+
+  if (pptr->drivecnt > bios_drives) {
+    printf("BIOS equipment byte says count = %d, go with that\n", bios_drives);
+    pptr->drivecnt = bios_drives;
   }
 
   /* Discontiguous drive space.  There is no really good solution for this. */
