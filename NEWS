@@ -6,6 +6,9 @@ Changes in 3.32:
 	* MEMDISK: New "safeint" mode.
 	* MEMDISK: Be more compliant with the PnP BIOS spec.
 	* MEMDISK: Turn on EDD support by default.
+	* MEMDISK: Try to work on some machines on which it would not
+	  work when there was no floppy drive in the system.
+	* Simple menu system: fix serial console support (broken in 3.30).
 
 Changes in 3.31:
 	* The simple menu system (menu.c32 and vesamenu.c32) now
