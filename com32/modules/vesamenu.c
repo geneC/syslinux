@@ -23,7 +23,12 @@
 #include <console.h>
 #include "menu.h"
 
-static void __attribute__((destructor)) console_cleanup(void)
+void console_prepare(void)
+{
+  fputs("\033[0m\033[20h\033[25l", stdout);
+}
+
+void console_cleanup(void)
 {
   /* For the serial console, be nice and clean up */
   fputs("\033[0m\033[20l", stdout);
@@ -34,7 +39,6 @@ int vesacon_load_background(const char *);
 int main(int argc, char *argv[])
 {
   openconsole(&dev_rawcon_r, &dev_vesaserial_w);
-  fputs("\033[0m\033[20h\033[25l", stdout);
   
   draw_background = vesacon_load_background;
 
