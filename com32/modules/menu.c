@@ -20,6 +20,16 @@
 #include <consoles.h>
 #include "menu.h"
 
+void console_prepare(void)
+{
+  /* Nothing special to do */
+}
+
+void console_cleanup(void)
+{
+  /* Nothing special to do */
+}
+
 int main(int argc, char *argv[])
 {
   console_ansi_raw();

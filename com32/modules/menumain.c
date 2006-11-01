@@ -848,6 +848,8 @@ int menu_main(int argc, char *argv[])
 
   (void)argc;
 
+  console_prepare();
+
   install_default_color_table();
   if (getscreensize(1, &rows, &cols)) {
     /* Unknown screen size? */
@@ -876,6 +878,8 @@ int menu_main(int argc, char *argv[])
     cmdline = run_menu();
 
     printf("\033[?25h\033[%d;1H\033[0m", END_ROW);
+    console_cleanup();
+
     if ( cmdline ) {
       execute(cmdline);
       if ( onerror )
@@ -883,5 +887,7 @@ int menu_main(int argc, char *argv[])
     } else {
       return 0;			/* Exit */
     }
+
+    console_prepare();		/* If we're looping... */
   }
 }
