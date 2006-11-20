@@ -922,7 +922,7 @@ int main(int argc, char **argv)
 {
     struct multiboot_info *mbi;
     struct mod_list *modp;
-    int modules;
+    int modules, num_append_args;
     int mbi_reloc_offset;
     char *p;
     size_t mbi_run_addr, mbi_size, entry;
@@ -990,11 +990,31 @@ int main(int argc, char **argv)
     mbi->mods_addr = ((size_t)modp) - mbi_reloc_offset;
     p = (char *)(modp + modules);
 
+    /* Append cmdline args show up in the beginning, append these 
+     * to kernel cmdline later on */
+    for (i = 1; i < argc; i++) {
+        if (strchr(argv[i], '=') != NULL) {
+            continue;
+        }
+        break;
+    }
+
     /* Command lines: first kernel, then modules */
     mbi->cmdline = ((size_t)p) - mbi_reloc_offset;
     modules = 0;
-    for (i = 1 ; i < argc ; i++) {
+    num_append_args = i-1;
+    
+    for (; i < argc ; i++) {
         if (!strcmp(argv[i], module_separator)) {
+            /* Add append args to kernel cmdline */
+            if (modules == 0 && num_append_args) {
+                int j;
+                for (j = 1; j < num_append_args+1; j++) {
+                    strcpy(p, argv[j]);
+                    p += strlen(argv[j]);
+                    *p++ = ' ';
+                }
+            }
             *p++ = '\0';
             modp[modules++].cmdline = ((size_t)p) - mbi_reloc_offset;
         } else {
