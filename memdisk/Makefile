@@ -26,8 +26,8 @@ CFLAGS   = -g -W -Wall -Wno-sign-compare \
 LDFLAGS  = -g
 INCLUDE  = -I../com32/include
 LD	 = ld -m elf_i386
-NASM     = nasm -O99 # -dWITH_EDD
-NFLAGS   = -dVERSION='"$(VERSION)"' -dDATE='"$(DATE)"'
+NASM     = nasm -O99
+NFLAGS   = -dVERSION='"$(VERSION)"' -dDATE='"$(DATE)"' -dWITH_EDD
 NINCLUDE =
 OBJCOPY  = objcopy
 PERL     = perl
@@ -69,10 +69,10 @@ spotless: clean
 	echo '.code16gcc' | cat - $< > $@
 
 %.s: %.S
-	$(CC) -x c $(INCLUDE) $(CFLAGS) -traditional -E -o $@ $<
+	$(CC) $(INCLUDE) $(CFLAGS) -D__ASSEMBLY__ -E -o $@ $<
 
 %.s16: %.S16
-	$(CC) -x c $(INCLUDE) $(CFLAGS) -traditional -E -o $@ $<
+	$(CC) $(INCLUDE) $(CFLAGS) -D__ASSEMBLY__ -E -o $@ $<
 
 %.s: %.c
 	$(CC) $(INCLUDE) $(CFLAGS) -S -o $@ $<

@@ -8,16 +8,15 @@ Release: 1
 License: GPL
 Group: System/Boot
 Source0: ftp://ftp.kernel.org/pub/linux/utils/boot/syslinux/%{name}-%{VERSION}.tar.gz
-ExclusiveArch: i386 x86_64
+ExclusiveArch: i386 i486 i586 i686 athlon pentium4 x86_64
 Packager: H. Peter Anvin <hpa@zytor.com>
 Buildroot: %{_tmppath}/%{name}-%{VERSION}-root
 BuildPrereq: nasm >= 0.98.38, perl
 Autoreq: 0
-%ifarch i386
-Requires: mtools, libc.so.6
-%endif
 %ifarch x86_64
 Requires: mtools, libc.so.6()(64bit)
+%else
+Requires: mtools, libc.so.6
 %endif
 
 # NOTE: extlinux belongs in /sbin, not in /usr/sbin, since it is typically

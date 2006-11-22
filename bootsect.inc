@@ -132,10 +132,39 @@ replace_bootstrap:
 		pop di
 .stackok:
 
-		mov [es:di+28],edx
-		mov [es:di+12],esi
-		mov [es:di+6],bx
+		mov [es:di+28],edx	; New EDX
+		mov [es:di+12],esi	; New ESI
+		mov [es:di+6],bx	; New DS
 
+		; Hunt for $PnP header if one exists
+		mov ax,0F000h
+		mov fs,ax
+		xor bx,bx
+.findpnp:
+		cmp dword [fs:bx], "$PnP"
+		jz .foundpnp
+		inc bx
+		jnz .findpnp
+		jmp .donepnp		; No $PnP header found
+.foundpnp:
+		movzx cx,byte [fs:bx+5]	; Size of $PnP header
+		cmp cl,21h
+		jb .findpnp		; Invalid $PnP header (too short)
+		push bx
+		xor ax,ax
+.checkpnp:
+		add al,byte [fs:bx]
+		inc bx
+		loop .checkpnp
+		pop bx
+		and al,al
+		jnz .findpnp
+
+		; Found a valid $PnP header, point ES:DI to it
+		mov [es:di+8], bx	; New DI
+		mov [es:di+4], fs	; New ES
+
+.donepnp:
 		pop ax			; Copy list count
 		pop bx			; Copy from...
 

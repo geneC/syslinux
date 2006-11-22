@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2001-2005 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2001-2006 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -123,9 +123,11 @@ struct setup_header {
   uint16_t pad1;
   uint32_t cmd_line_ptr;
   uint32_t initrd_addr_max;
+  uint32_t esdi;
+  uint32_t edx;
 };
 
-const struct setup_header * const shdr = (struct setup_header *)(LOW_SEG << 4);
+struct setup_header * const shdr = (struct setup_header *)(LOW_SEG << 4);
 
 /* Access to high memory */
 
@@ -498,6 +500,34 @@ void __attribute__((noreturn)) die(void)
     asm volatile("hlt");
 }
 
+/*
+ * Find a $PnP installation check structure; return (ES << 16) + DI value
+ */
+static uint32_t pnp_install_check(void)
+{
+  uint32_t *seg;
+  unsigned char *p, csum;
+  int i, len;
+
+  for (seg = (uint32_t *)0xf0000; seg < (uint32_t *)0x100000; seg += 4) {
+    if (*seg == ('$'+('P' << 8)+('n' << 16)+('P' << 24))) {
+      p = (unsigned char *)seg;
+      len = p[5];
+      if (len < 0x21)
+	continue;
+      csum = 0;
+      for (i = len; i; i--)
+	csum += *p++;
+      if (csum != 0)
+	continue;
+
+      return (0xf000 << 16) + (uint16_t)(unsigned long)seg;
+    }
+  }
+
+  return 0;
+}
+
 #define STACK_NEEDED	512	/* Number of bytes of stack */
 
 /*
@@ -508,7 +538,7 @@ void __attribute__((noreturn)) die(void)
 syscall_t syscall;
 void *sys_bounce;
 
-uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
+void setup(syscall_t cs_syscall, void *cs_bounce)
 {
   unsigned int bin_size = (int) &_binary_memdisk_bin_size;
   struct memdisk_header *hptr;
@@ -521,6 +551,7 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   int total_size, cmdlinelen;
   com32sys_t regs;
   uint32_t ramdisk_image, ramdisk_size;
+  int bios_drives;
 
   /* Set up global variables */
   syscall = cs_syscall;
@@ -693,11 +724,28 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
 
   if ( regs.eflags.l & 1 ) {
     printf("INT 13 08: Failure, assuming this is the only drive\n");
-    pptr->drivecnt = 1;
+    pptr->drivecnt = 0;
   } else {
     printf("INT 13 08: Success, count = %u, BPT = %04x:%04x\n",
 	   regs.edx.b[0], regs.es, regs.edi.w[0]);
-    pptr->drivecnt = regs.edx.b[0]+1;
+    pptr->drivecnt = regs.edx.b[0];
+  }
+
+  /* Compare what INT 13h returned with the appropriate equipment byte */
+  if ( geometry->driveno & 0x80 ) {
+    bios_drives = rdz_8(BIOS_HD_COUNT);
+  } else {
+    uint8_t equip = rdz_8(BIOS_EQUIP);
+
+    if (equip & 1)
+      bios_drives = (equip >> 6)+1;
+    else
+      bios_drives = 0;
+  }
+
+  if (pptr->drivecnt > bios_drives) {
+    printf("BIOS equipment byte says count = %d, go with that\n", bios_drives);
+    pptr->drivecnt = bios_drives;
   }
 
   /* Discontiguous drive space.  There is no really good solution for this. */
@@ -776,5 +824,6 @@ uint32_t setup(syscall_t cs_syscall, void *cs_bounce)
   puts("booting...\n");
 
   /* On return the assembly code will jump to the boot vector */
-  return geometry->driveno;
+  shdr->esdi = pnp_install_check();
+  shdr->edx  = geometry->driveno;
 }

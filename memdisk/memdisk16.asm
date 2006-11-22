@@ -70,6 +70,13 @@ pad1		dw 0
 cmd_line_ptr	dd 0			; Command line
 ramdisk_max	dd 0xffffffff		; Highest allowed ramdisk address
 
+;
+; These fields aren't real setup fields, they're poked in by the
+; 32-bit code.
+;
+b_esdi		dd 0			; ES:DI for boot sector invocation
+b_edx		dd 0			; EDX for boot sector invocation
+
 		section .rodata
 memdisk_version:
 		db "MEMDISK ", VERSION, " ", DATE, 0
@@ -131,22 +138,23 @@ copy_cmdline:
 		call init32
 ;
 ; When init32 returns, we have been set up, the new boot sector loaded,
-; and we should go and and run the newly loaded boot sector
+; and we should go and and run the newly loaded boot sector.
 ;
-; The setup function returns (in AL) the drive number which should be
-; put into DL
+; The setup function will have poked values into the setup area.
 ;
-		mov dx,ax
+		movzx edi,word [cs:b_esdi]
+		mov es,word [cs:b_esdi+2]
+		mov edx,[cs:b_edx]
 
 		cli
 		xor esi,esi		; No partition table involved
 		mov ds,si		; Make all the segments consistent
-		mov es,si
 		mov fs,si
 		mov gs,si
 		mov ss,si
 		mov esp,0x7C00		; Good place for SP to start out
-		jmp 0:0x7C00
+		call 0:0x7C00
+		int 18h			; A far return -> INT 18h
 
 ;
 ; We enter protected mode, set up a flat 32-bit environment, run rep movsd

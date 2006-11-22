@@ -26,7 +26,9 @@ sub random_bytes($) {
 
 ($pass, $salt) = @ARGV;
 
-$salt = $salt || MIME::Base64::encode(random_bytes(6), '');
+unless (defined($salt)) {
+    $salt = MIME::Base64::encode(random_bytes(6), '');
+}
 $pass = Digest::SHA1::sha1_base64($salt, $pass);
 
 print '$4$', $salt, '$', $pass, "\$\n";
