@@ -646,9 +646,9 @@ bcopy:
 		TRACER 'r'
 		; We're in real mode, do it outselves
 
-		pushfd
-		push ds
-		push es
+		pushfd			; <A>
+		push ds			; <B>
+		push es			; <C>
 
 		cli
 		cld
@@ -676,7 +676,7 @@ bcopy:
 		mov [0],ax
 
 		or dx,bx
-		push dx			; Save A20 status
+		push dx			; <D> Save A20 status
 		jnz .skip_a20e
 
 		mov ax,2401h		; Enable A20
@@ -708,16 +708,16 @@ bcopy:
 		and al,~01h
 		mov cr0,eax
 
-		pop es
-		pop ds
+		pop dx			; <D> A20 status
+		pop es			; <C>
+		pop ds			; <B>
 
-		pop dx			; A20 status
 		and dx,dx
 		jnz .skip_a20d
 		mov ax,2400h		; Disable A20
 		int 15h
 .skip_a20d:
-		popfd
+		popfd 			; <A>
 		jmp .done
 
 .protmode:
