@@ -440,14 +440,14 @@ static void parse_config_file(FILE *f)
 		  p++;
 		else
 		  cptr->argb_fg = parse_argb(&p);
-		
+
 		p = skipspace(p);
 		if (*p) {
 		  if (looking_at(p, "*"))
 		    p++;
 		  else
 		    cptr->argb_bg = parse_argb(&p);
-		  
+
 		  /* Parse a shadow mode */
 		  p = skipspace(p);
 		  ch = *p | 0x20;
@@ -506,7 +506,7 @@ static void parse_config_file(FILE *f)
     } else if ( looking_at(p, "allowoptions") ) {
       allowedit = atoi(skipspace(p+12));
     } else if ( looking_at(p, "ipappend") ) {
-      if (ld.label) 
+      if (ld.label)
         ld.ipappend = atoi(skipspace(p+8));
       else
 	ipappend = atoi(skipspace(p+8));

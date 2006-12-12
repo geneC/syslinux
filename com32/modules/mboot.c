@@ -990,7 +990,7 @@ int main(int argc, char **argv)
     mbi->mods_addr = ((size_t)modp) - mbi_reloc_offset;
     p = (char *)(modp + modules);
 
-    /* Append cmdline args show up in the beginning, append these 
+    /* Append cmdline args show up in the beginning, append these
      * to kernel cmdline later on */
     for (i = 1; i < argc; i++) {
         if (strchr(argv[i], '=') != NULL) {
@@ -1003,7 +1003,7 @@ int main(int argc, char **argv)
     mbi->cmdline = ((size_t)p) - mbi_reloc_offset;
     modules = 0;
     num_append_args = i-1;
-    
+
     for (; i < argc ; i++) {
         if (!strcmp(argv[i], module_separator)) {
             /* Add append args to kernel cmdline */

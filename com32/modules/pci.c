@@ -43,7 +43,7 @@ skipspace(char *p)
 
 void remove_eol(char *string)
 {
- int j = strlen(string); 
+ int j = strlen(string);
  int i = 0;
  for(i = 0; i < j; i++) if(string[i] == '\n') string[i] = 0;
 }
@@ -76,8 +76,8 @@ void get_name_from_pci_ids(s_pci_device *pci_device)
   strcpy(product_id,"0000");
   strcpy(sub_product_id,"0000");
   strcpy(sub_vendor_id,"0000");
-  
- 
+
+
   while ( fgets(line, sizeof line, f) ) {
     if ((line[0] == '#') || (line[0] == ' ') || (line[0] == 'C') || (line[0] == 10))
 	continue;
@@ -142,7 +142,7 @@ int pci_scan(s_pci_bus_list *pci_bus_list, s_pci_device_list *pci_device_list)
     pci_bus_list->pci_bus[bus].id=bus;
     pci_bus_list->pci_bus[bus].pci_device_count=0;
     pci_bus_list->count=0;;
-    
+
     for ( dev = 0 ; dev <= 0x1f ; dev++ ) {
       maxfunc = 0;
       for ( func = 0 ; func <= maxfunc ; func++ ) {
