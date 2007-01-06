@@ -340,7 +340,7 @@ AX=0009h [2.00] Call PXE Stack [PXELINUX ONLY]
 
 	Input:	AX	0009h
 		BX	PXE function number
-		ES:DI	PXE data buffer
+		ES:DI	PXE parameter structure buffer
 	Output:	AX	PXE return status code
 
 	Invoke an arbitrary PXE stack function.  On SYSLINUX/ISOLINUX,
