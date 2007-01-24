@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 1998-2005 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1998-2007 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -76,7 +76,7 @@ int loop_fd = -1;		/* Loop device */
 
 void __attribute__((noreturn)) usage(void)
 {
-  fprintf(stderr, "Usage: %s [-sf] [-o offset] device\n", program);
+  fprintf(stderr, "Usage: %s [-sf][-d directory][-o offset] device\n", program);
   exit(1);
 }
 
@@ -178,11 +178,12 @@ int main(int argc, char *argv[])
   char mntname[64], devfdname[64];
   char *ldlinux_name, **argp, *opt;
   int force = 0;		/* -f (force) option */
+  const char *subdir = NULL;
   struct libfat_filesystem *fs;
   struct libfat_direntry dentry;
   libfat_sector_t s, *secp, sectors[65]; /* 65 is maximum possible */
   int32_t ldlinux_cluster;
-  int nsectors;
+  int nsectors = 0;
   const char *errmsg;
 
   (void)argc;			/* Unused */
@@ -205,6 +206,8 @@ int main(int argc, char *argv[])
 	  syslinux_make_stupid();	/* Use "safe, slow and stupid" code */
 	} else if ( *opt == 'f' ) {
 	  force = 1;		/* Force install */
+	} else if ( *opt == 'd' && argp[1] ) {
+	  subdir = *++argp;
 	} else if ( *opt == 'o' && argp[1] ) {
 	  filesystem_offset = (off_t)strtoull(*++argp, NULL, 0); /* Byte offset */
 	} else {
@@ -367,13 +370,13 @@ int main(int argc, char *argv[])
 #endif
   }
 
-  ldlinux_name = alloca(strlen(mntpath)+13);
+  ldlinux_name = alloca(strlen(mntpath)+14);
   if ( !ldlinux_name ) {
     perror(program);
     err = 1;
     goto umount;
   }
-  sprintf(ldlinux_name, "%s/ldlinux.sys", mntpath);
+  sprintf(ldlinux_name, "%s//ldlinux.sys", mntpath);
 
   unlink(ldlinux_name);
   fd = open(ldlinux_name, O_WRONLY|O_CREAT|O_TRUNC, 0444);
@@ -409,6 +412,42 @@ int main(int argc, char *argv[])
 
   sync();
 
+  /*
+   * Now, use libfat to create a block map.  This probably
+   * should be changed to use ioctl(...,FIBMAP,...) since
+   * this is supposed to be a simple, privileged version
+   * of the installer.
+   */
+  fs = libfat_open(libfat_xpread, dev_fd);
+  ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", &dentry);
+  secp = sectors;
+  nsectors = 0;
+  s = libfat_clustertosector(fs, ldlinux_cluster);
+  while ( s && nsectors < 65 ) {
+    *secp++ = s;
+    nsectors++;
+    s = libfat_nextsector(fs, s);
+  }
+  libfat_close(fs);
+
+  /* Move ldlinux.sys to the desired location */
+  if (subdir) {
+    char *new_ldlinux_name = alloca(strlen(mntpath)+
+				    strlen(subdir)+15);
+    int mov_err = 1;
+
+    if ( new_ldlinux_name ) {
+      sprintf(new_ldlinux_name, "%s//%s//ldlinux.sys", mntpath, subdir);
+
+      if (!rename(ldlinux_name, new_ldlinux_name))
+	mov_err = 0;
+    }
+
+    if (mov_err)
+      fprintf(stderr, "%s: warning: unable to move ldlinux.sys: %s\n",
+	      device, strerror(errno));
+  }
+
 umount:
 #if DO_DIRECT_MOUNT
 
@@ -443,24 +482,6 @@ umount:
 
   if ( err )
     exit(err);
-
-  /*
-   * Now, use libfat to create a block map.  This probably
-   * should be changed to use ioctl(...,FIBMAP,...) since
-   * this is supposed to be a simple, privileged version
-   * of the installer.
-   */
-  fs = libfat_open(libfat_xpread, dev_fd);
-  ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", &dentry);
-  secp = sectors;
-  nsectors = 0;
-  s = libfat_clustertosector(fs, ldlinux_cluster);
-  while ( s && nsectors < 65 ) {
-    *secp++ = s;
-    nsectors++;
-    s = libfat_nextsector(fs, s);
-  }
-  libfat_close(fs);
 
   /*
    * Patch ldlinux.sys and the boot sector
