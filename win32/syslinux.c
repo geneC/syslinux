@@ -233,7 +233,7 @@ int libfat_readfile(intptr_t pp, void *buf, size_t secsize, libfat_sector_t sect
 
 noreturn usage(void)
 {
-  fprintf(stderr, "Usage: syslinux.exe [-sfma] <drive>: [bootsecfile]\n");
+  fprintf(stderr, "Usage: syslinux.exe [-sfma][-d directory] <drive>: [bootsecfile]\n");
   exit(1);
 }
 
@@ -256,6 +256,7 @@ int main(int argc, char *argv[])
   uint32_t ldlinux_cluster;
   int nsectors;
   const char *bootsecfile = NULL;
+  const char *subdir = NULL;
 
   int force = 0;		/* -f (force) option */
   int mbr = 0;			/* -m (MBR) option */
@@ -290,6 +291,10 @@ int main(int argc, char *argv[])
 	  break;
 	case 'a':		/* Mark this partition active */
 	  setactive = 1;
+	  break;
+	case 'd':
+	  if ( argp[1] )
+	    subdir = *++argp;
 	  break;
 	default:
 	  usage();
@@ -445,6 +450,46 @@ int main(int argc, char *argv[])
 
   /* Close file */
   CloseHandle(f_handle);
+
+  /* Move the file to the desired location */
+  if (subdir) {
+    char new_ldlinux_name[strlen(subdir)+16];
+    char *cp = new_ldlinux_name+3;
+    const char *sd;
+    int slash = 1;
+
+    new_ldlinux_name[0] = drive[0];
+    new_ldlinux_name[1] = ':';
+    new_ldlinux_name[2] = '\\';
+    
+    for (sd = subdir; *sd; sd++) {
+      if (*sd == '/' || *sd == '\\') {
+	if (slash)
+	  continue;
+	*cp++ = '\\';
+      }
+    }
+    
+    /* Skip if subdirectory == root */
+    if (cp > new_ldlinux_name+3) {
+      if (!slash)
+	*cp++ = '\\';
+
+      memcpy(cp, "ldlinux.sys", 12);
+
+      /* Delete any previous file */
+      SetFileAttributes(new_ldlinux_name, FILE_ATTRIBUTE_NORMAL);
+      DeleteFile(new_ldlinux_name);
+      if (!MoveFile(ldlinux_name, new_ldlinux_name))
+	SetFileAttributes(ldlinux_name, FILE_ATTRIBUTE_READONLY |
+			  FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN);
+      else
+	SetFileAttributes(new_ldlinux_name, FILE_ATTRIBUTE_READONLY |
+			  FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN);
+    }
+  }
+
+
 
   /* Make the syslinux boot sector */
   syslinux_make_bootsect(sectbuf);
