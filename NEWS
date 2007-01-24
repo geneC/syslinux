@@ -18,6 +18,7 @@ Changes in 3.35:
 
 	  To install ldlinux.sys in a subdirectory, pass the -d
 	  directory option to the SYSLINUX installer.
+	* New API call: read disk.
 
 Changes in 3.31:
 	* The simple menu system (menu.c32 and vesamenu.c32) now

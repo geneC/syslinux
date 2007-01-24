@@ -362,8 +362,10 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 
 	[SYSLINUX, EXTLINUX]
 	Input:	AX	000Ah
+		CL	9 (to get a valid return in CL for all versions)
 	Output:	AL	31h (SYSLINUX), 34h (EXTLINUX)
 		DL	drive number
+		CL	sector size as a power of 2 (9 = 512 bytes) [3.35]
 		ES:BX	pointer to partition table entry (if DL >= 80h)
 
 		Note: This function was broken in EXTLINUX 3.00-3.02.
@@ -413,6 +415,7 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 	Input:	AX	000Ah
 	Output:	AL	33h (ISOLINUX)
 		DL	drive number
+		CL	11 (sector size as a power of 2) [3.35]
 		ES:BX	pointer to El Torito spec packet
 
 		Note: Some very broken El Torito implementations do
@@ -718,3 +721,23 @@ AX=0018h [3.30]	Query custom font
 	This call queries if a custom display font has been loaded via
 	the "font" configuration file command.  If no custom font has
 	been loaded, AL contains zero.
+
+
+AX=0019h [3.35] Read disk [SYSLINUX, ISOLINUX, EXTLINUX]
+	Input:	AX	0019h
+		EDX	Sector number
+		ESI	Reserved - MUST BE ZERO
+		EDI	Reserved - MUST BE ZERO
+		CX	Sector count
+		ES:BX	Buffer address
+	Output:	None
+
+	Read disk blocks from the active filesystem (partition); for
+	disks, sector number zero is the boot sector.  For ISOLINUX,
+	this call reads the CD-ROM.
+
+	For compatiblity with all systems, the buffer should
+	*neither* cross 64K boundaries, *nor* wrap around the segment.
+
+	This routine reports "boot failed" (and does not return) on
+	disk error.
