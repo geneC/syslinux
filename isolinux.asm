@@ -1391,9 +1391,9 @@ mangle_name:
 .mn_end:
 		cmp bx,di			; At the beginning of the buffer?
 		jbe .mn_zero
-		cmp byte [di-1],'.'		; Terminal dot?
+		cmp byte [es:di-1],'.'		; Terminal dot?
 		je .mn_kill
-		cmp byte [di-1],'/'		; Terminal slash?
+		cmp byte [es:di-1],'/'		; Terminal slash?
 		jne .mn_zero
 .mn_kill:	dec di				; If so, remove it
 		inc cx
