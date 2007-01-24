@@ -519,8 +519,8 @@ int main(int argc, char *argv[])
 	  set_active = 1;
 	  break;
 	case 'd':
-	  if ( opt[1] )
-	    subdir = ++opt;
+	  if ( argp[1] )
+	    subdir = *++argp;
 	  break;
 	default:
 	  usage();
