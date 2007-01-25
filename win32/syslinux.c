@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2003 Lars Munch Christensen - All Rights Reserved
- *   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1998-2007 H. Peter Anvin - All Rights Reserved
  *
  *   Based on the Linux installer program for SYSLINUX by H. Peter Anvin
  *
@@ -463,11 +463,18 @@ int main(int argc, char *argv[])
     new_ldlinux_name[2] = '\\';
     
     for (sd = subdir; *sd; sd++) {
-      if (*sd == '/' || *sd == '\\') {
+      char *c = *sd;
+
+      if (c == '/' || c == '\\') {
 	if (slash)
 	  continue;
-	*cp++ = '\\';
+	c = '\\';
+	slash = 1;
+      } else {
+	slash = 0;
       }
+
+      *cp++ = c;
     }
     
     /* Skip if subdirectory == root */
