@@ -91,10 +91,17 @@ which requires root privilege.
    ++++ CONFIGURATION FILE ++++
 
 All the configurable defaults in SYSLINUX can be changed by putting a
-file called SYSLINUX.CFG in the root directory of the boot floppy.  This
-is a text file in either UNIX or DOS format, containing one or more of
-the following items (case is insensitive for keywords; upper case is used
-here to indicate that a word should be typed verbatim):
+file called "syslinux.cfg" in the root directory of the boot disk.
+
+This is a text file in either UNIX or DOS format, containing one or
+more of the following items (case is insensitive for keywords; upper
+case is used here to indicate that a word should be typed verbatim):
+
+Starting with version 3.35, the configuration file can also be in
+either the /boot/syslinux or /syslinux directories (searched in that
+order.)  If that is the case, then all filenames are assumed to be
+relative to that same directory, unless preceded with a slash or
+backslash.
 
 All options here applies to PXELINUX, ISOLINUX and EXTLINUX as well as
 SYSLINUX unless otherwise noted.  See the respective .doc files.
