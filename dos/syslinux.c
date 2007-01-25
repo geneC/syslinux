@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1998-2007 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -603,11 +603,18 @@ int main(int argc, char *argv[])
     new_ldlinux_name[2] = '\\';
     
     for (sd = subdir; *sd; sd++) {
-      if (*sd == '/' || *sd == '\\') {
+      char c = *sd;
+
+      if (c == '/' || c == '\\') {
 	if (slash)
 	  continue;
-	*cp++ = '\\';
+	c = '\\';
+	slash = 1;
+      } else {
+	slash = 0;
       }
+
+      *cp++ = c;
     }
     
     /* Skip if subdirectory == root */
