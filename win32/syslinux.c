@@ -463,7 +463,7 @@ int main(int argc, char *argv[])
     new_ldlinux_name[2] = '\\';
     
     for (sd = subdir; *sd; sd++) {
-      char *c = *sd;
+      char c = *sd;
 
       if (c == '/' || c == '\\') {
 	if (slash)
