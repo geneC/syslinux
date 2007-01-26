@@ -12,6 +12,8 @@
 
 - Deal with non-512-byte sectors (if I can get media which does...)
 
+- Add support for getting the hardware address on Infinibad.
+
 
 *** Future projects:
 
