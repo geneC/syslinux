@@ -63,9 +63,9 @@ booting in the /tftpboot directory.
 %setup -q -n syslinux-%{VERSION}
 
 %build
-make clean
+make CC='gcc %{mflag}' clean
 make CC='gcc %{mflag}' installer
-make -C sample tidy
+make CC='gcc %{mflag}' -C sample tidy
 
 %install
 rm -rf %{buildroot}
@@ -74,10 +74,10 @@ mkdir -p %{buildroot}%{_sbindir}
 mkdir -p %{buildroot}%{_datadir}/syslinux
 mkdir -p %{buildroot}%{_includedir}
 mkdir -p %{buildroot}/boot %{buildroot}/tftpboot/pxelinux.cfg
-make install-all \
+make CC='gcc %{mflag}' install-all \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} SBINDIR=%{_sbindir} \
 	LIBDIR=%{_datadir} INCDIR=%{_includedir}
-make -C sample tidy
+make CC='gcc %{mflag}' -C sample tidy
 cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_datadir}/syslinux
 cp %{buildroot}%{_datadir}/syslinux/*.c32	%{buildroot}/boot
 cp %{buildroot}%{_datadir}/syslinux/memdisk	%{buildroot}/boot
@@ -123,6 +123,9 @@ if [ -f /boot/extlinux.conf ]; then extlinux --update /boot; fi
 %postun
 
 %changelog
+* Thu Jan 25 2007 H. Peter Anvin <hpa@zytor.com>
+- Hacks to make the 32-bit version build correctly on 64-bit machines.
+
 * Mon Sep 19 2006 H. Peter Anvin <hpa@zytor.com>
 - Add a syslinux-tftpboot module.
 - Factor extlinux into its own package.
