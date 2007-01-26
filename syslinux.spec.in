@@ -15,8 +15,10 @@ BuildPrereq: nasm >= 0.98.38, perl
 Autoreq: 0
 %ifarch x86_64
 Requires: mtools, libc.so.6()(64bit)
+%define mflag
 %else
 Requires: mtools, libc.so.6
+%define mflag -m32
 %endif
 
 # NOTE: extlinux belongs in /sbin, not in /usr/sbin, since it is typically
@@ -62,7 +64,7 @@ booting in the /tftpboot directory.
 
 %build
 make clean
-make installer
+make CC='gcc %{mflag}' installer
 make -C sample tidy
 
 %install
