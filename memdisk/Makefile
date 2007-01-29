@@ -23,7 +23,8 @@ CC       = gcc
 CFLAGS   =  $(M32) $(FREE) -g -W -Wall -Wno-sign-compare \
 	   -Os -fomit-frame-pointer -march=i386 $(ALIGN) \
 	   -DVERSION='"$(VERSION)"' -DDATE='"$(DATE)"'
-LDFLAGS  = -g
+SFLAGS	 = $(M32) -march=i386 -D__ASSEMBLY__
+LDFLAGS  = $(M32) -g
 INCLUDE  = -I../com32/include
 LD	 = ld -m elf_i386
 NASM     = nasm -O99
@@ -38,7 +39,7 @@ OBJS32   = start32.o setup.o msetup.o e820func.o conio.o memcpy.o memset.o \
            unzip.o memdisk.o
 
 CSRC     = setup.c msetup.c e820func.c conio.c unzip.c
-SSRC     =
+SSRC     = start32.S memcpy.S memset.S
 NASMSRC  = memdisk.asm memdisk16.asm
 
 all: memdisk e820test
@@ -57,10 +58,13 @@ spotless: clean
 	$(NASM) $(NFLAGS) -f elf -l $*.lst -o $@ $<
 
 %.o: %.s
-	$(CC) -x assembler -c -o $@ $<
+	$(CC) $(SFLAGS) -c -o $@ $<
+
+%.o: %.S
+	$(CC) $(INCLUDE) $(SFLAGS) -c -o $@ $<
 
 %.o16: %.s16
-	$(CC) -x assembler -c -o $@ $<
+	$(CC) $(SFLAGS) -x assembler -c -o $@ $<
 
 %.o: %.c
 	$(CC) $(INCLUDE) $(CFLAGS) -c -o $@ $<
@@ -69,10 +73,10 @@ spotless: clean
 	echo '.code16gcc' | cat - $< > $@
 
 %.s: %.S
-	$(CC) $(INCLUDE) $(CFLAGS) -D__ASSEMBLY__ -E -o $@ $<
+	$(CC) $(INCLUDE) $(SFLAGS) -E -o $@ $<
 
 %.s16: %.S16
-	$(CC) $(INCLUDE) $(CFLAGS) -D__ASSEMBLY__ -E -o $@ $<
+	$(CC) $(INCLUDE) $(SFLAGS) -x assembler-with-cpp -E -o $@ $<
 
 %.s: %.c
 	$(CC) $(INCLUDE) $(CFLAGS) -S -o $@ $<
@@ -106,8 +110,8 @@ memdisk.o: memdisk.bin
 
 .depend:
 	rm -f .depend
-	for csrc in *.c ; do $(CC) $(INCLUDE) -MM $$csrc | sed -e 's/\.o/\.s/' >> .depend ; done
-	for ssrc in $(SSRC) ; do $(CC) $(INCLUDE) -x c -traditional -MM $$ssrc | sed -e 's/\.S16\.o/\.o16/' >> .depend ; done
+	for csrc in *.c ; do $(CC) $(INCLUDE) $(CFLAGS) -MM $$csrc >> .depend ; done
+	for ssrc in *.S ; do $(CC) $(INCLUDE) $(SFLAGS) -MM $$ssrc >> .depend ; done
 	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc >> .depend ; done
 
 depend:
