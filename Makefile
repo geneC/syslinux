@@ -38,7 +38,7 @@ PERL     = perl
 
 VERSION  = $(shell cat version)
 
-.c.o:
+%.o: %.c
 	$(CC) $(INCLUDE) $(CFLAGS) -c $<
 
 #
