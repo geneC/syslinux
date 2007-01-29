@@ -1,6 +1,6 @@
 ; -----------------------------------------------------------------------
 ;
-;   Copyright 2005-2006 H. Peter Anvin - All Rights Reserved
+;   Copyright 2005-2007 H. Peter Anvin - All Rights Reserved
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -33,8 +33,8 @@ abort_check:
 .ret1:		ret
 
 .kill:		mov si,aborted_msg
-
-		; ... fall through ...
+		mov bx,enter_command
+		jmp abort_load_chain
 
 ;
 ; abort_load: Called by various routines which wants to print a fatal
@@ -44,10 +44,22 @@ abort_check:
 ;             and the stack forcibly.
 ;
 ;             SI    = offset (in _text) of error message to print
+;	      BX    = future entry point (abort_load_chain)
 ;
 abort_load:
+		mov bx,error_or_command
+abort_load_chain:
 		RESET_STACK_AND_SEGS AX
                 call cwritestr                  ; Expects SI -> error msg
 
 		; Return to the command prompt
+		jmp bx
+
+;
+; error_or_command: Execute ONERROR if appropriate, otherwise enter_command
+;
+error_or_command:
+		mov cx,[OnerrorLen]
+		and cx,cx
+		jnz on_error
 		jmp enter_command

@@ -8,13 +8,26 @@ Changes in 3.40:
 	* It is now supported to load a different configuration file
 	  with the CONFIG keyword.
 
-Changes in 3.32:
+Changes in 3.35:
 	* MEMDISK: New "safeint" mode.
 	* MEMDISK: Be more compliant with the PnP BIOS spec.
 	* MEMDISK: Turn on EDD support by default.
 	* MEMDISK: Try to work on some machines on which it would not
 	  work when there was no floppy drive in the system.
-	* Simple menu system: fix serial console support (broken in 3.30).
+	* Simple menu system: fix serial console support (broken in
+	  3.30).
+	* SYSLINUX: Support subdirectories.  Like ISOLINUX, the
+	  "current directory" is the directory in which syslinux.cfg
+	  is found; this is searched for in the sequence
+	  /boot/syslinux, /syslinux, /.  As a side benefit, label names
+	  like "linux-2.6.18" and "linux-2.6.19" are now supported.
+
+	  To install ldlinux.sys in a subdirectory, pass the -d
+	  directory option to the SYSLINUX installer.
+
+	  This work was sponsored by slax.org (thanks, Tomas!)
+	* New API call: read disk.
+	* Invoke ONERROR on initrd load failure.
 
 Changes in 3.31:
 	* The simple menu system (menu.c32 and vesamenu.c32) now

@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1998-2007 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ uint16_t dos_version;
 
 void __attribute__((noreturn)) usage(void)
 {
-  puts("Usage: syslinux [-sfma] <drive>: [bootsecfile]\n");
+  puts("Usage: syslinux [-sfma][-d directory] <drive>: [bootsecfile]\n");
   exit(1);
 }
 
@@ -51,6 +51,13 @@ void __attribute__((noreturn)) die(const char *msg)
   exit(1);
 }
 
+void warning(const char *msg)
+{
+  puts("syslinux: warning: ");
+  puts(msg);
+  putchar('\n');
+}
+
 /*
  * read/write wrapper functions
  */
@@ -63,7 +70,7 @@ int creat(const char *filename, int mode)
 
   rv = 0x3C00;
   asm volatile("int $0x21 ; setc %0"
-	       : "=abcdm" (err), "+a" (rv)
+	       : "=bcdm" (err), "+a" (rv)
 	       : "c" (mode), "d" (filename));
   if ( err ) {
     dprintf("rv = %d\n", rv);
@@ -85,6 +92,26 @@ void close(int fd)
 
   /* The only error MS-DOS returns for close is EBADF,
      and we really don't care... */
+}
+
+int rename(const char *oldname, const char *newname)
+{
+  uint16_t rv = 0x5600;		/* Also support 43FFh? */
+  uint8_t err;
+
+  dprintf("rename(\"%s\", \"%s\")\n", oldname, newname);
+
+  asm volatile("int $0x21 ; setc %0"
+	       : "=bcdm" (err), "+a" (rv)
+	       : "d" (oldname), "D" (newname));
+
+  if ( err ) {
+    dprintf("rv = %d\n", rv);
+    warning("cannot move ldlinux.sys");
+    return rv;
+  }
+
+  return 0;
 }
 
 ssize_t write_file(int fd, const void *buf, size_t count)
@@ -449,7 +476,7 @@ int main(int argc, char *argv[])
 {
   static unsigned char sectbuf[512];
   int dev_fd, fd;
-  static char ldlinux_name[] = "@:\\LDLINUX.SYS";
+  static char ldlinux_name[] = "@:\\ldlinux.sys";
   char **argp, *opt;
   int force = 0;		/* -f (force) option */
   struct libfat_filesystem *fs;
@@ -461,6 +488,7 @@ int main(int argc, char *argv[])
   int i;
   int writembr = 0;		/* -m (write MBR) option */
   int set_active = 0;		/* -a (set partition active) option */
+  const char *subdir = NULL;
 
   dprintf("argv = %p\n", argv);
   for ( i = 0 ; i <= argc ; i++ )
@@ -489,6 +517,10 @@ int main(int argc, char *argv[])
 	  break;
 	case 'a':		/* Set partition active */
 	  set_active = 1;
+	  break;
+	case 'd':
+	  if ( argp[1] )
+	    subdir = *++argp;
 	  break;
 	default:
 	  usage();
@@ -556,6 +588,49 @@ int main(int argc, char *argv[])
     s = libfat_nextsector(fs, s);
   }
   libfat_close(fs);
+
+  /*
+   * If requested, move ldlinux.sys
+   */
+  if (subdir) {
+    char new_ldlinux_name[160];
+    char *cp = new_ldlinux_name+3;
+    const char *sd;
+    int slash = 1;
+
+    new_ldlinux_name[0] = dev_fd | 0x40;
+    new_ldlinux_name[1] = ':';
+    new_ldlinux_name[2] = '\\';
+    
+    for (sd = subdir; *sd; sd++) {
+      char c = *sd;
+
+      if (c == '/' || c == '\\') {
+	if (slash)
+	  continue;
+	c = '\\';
+	slash = 1;
+      } else {
+	slash = 0;
+      }
+
+      *cp++ = c;
+    }
+    
+    /* Skip if subdirectory == root */
+    if (cp > new_ldlinux_name+3) {
+      if (!slash)
+	*cp++ = '\\';
+
+      memcpy(cp, "ldlinux.sys", 12);
+
+      set_attributes(ldlinux_name, 0);
+      if (rename(ldlinux_name, new_ldlinux_name))
+	set_attributes(ldlinux_name, 0x07);
+      else
+	set_attributes(new_ldlinux_name, 0x07);
+    }
+  }
 
   /*
    * Patch ldlinux.sys and the boot sector

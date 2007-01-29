@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2007 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -376,7 +376,7 @@ bad_kernel:
                 jmp abort_load                  ; Ask user for clue
 
 ;
-; on_error: bad kernel, but we have onerror set
+; on_error: bad kernel, but we have onerror set; CX = OnerrorLen
 ;
 on_error:
 		mov si,Onerror

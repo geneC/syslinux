@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1998-2007 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ off_t filesystem_offset = 0;	/* Offset of filesystem */
 
 void __attribute__((noreturn)) usage(void)
 {
-  fprintf(stderr, "Usage: %s [-sf] [-o offset] device\n", program);
+  fprintf(stderr, "Usage: %s [-sf][-d directory][-o offset] device\n", program);
   exit(1);
 }
 
@@ -131,6 +131,7 @@ int main(int argc, char *argv[])
   char **argp, *opt;
   int force = 0;		/* -f (force) option */
   char mtools_conf[] = "/tmp/syslinux-mtools-XXXXXX";
+  const char *subdir = NULL;
   int mtc_fd;
   FILE *mtc, *mtp;
   struct libfat_filesystem *fs;
@@ -157,6 +158,8 @@ int main(int argc, char *argv[])
 	  syslinux_make_stupid();	/* Use "safe, slow and stupid" code */
 	} else if ( *opt == 'f' ) {
 	  force = 1;		/* Force install */
+	} else if ( *opt == 'd' && argp[1] ) {
+	  subdir = *++argp;
 	} else if ( *opt == 'o' && argp[1] ) {
 	  filesystem_offset = (off_t)strtoull(*++argp, NULL, 0); /* Byte offset */
 	} else {
@@ -226,25 +229,15 @@ int main(int argc, char *argv[])
   }
 
   /* This command may fail legitimately */
-  system("mattrib -h -r -s s:ldlinux.sys 2>/dev/null");
+  system("mattrib -h -r -s s:/ldlinux.sys 2>/dev/null");
 
-  mtp = popen("mcopy -D o -D O -o - s:ldlinux.sys", "w");
+  mtp = popen("mcopy -D o -D O -o - s:/ldlinux.sys", "w");
   if ( !mtp ||
        (fwrite(syslinux_ldlinux, 1, syslinux_ldlinux_len, mtp)
 	!= syslinux_ldlinux_len) ||
        (status = pclose(mtp), !WIFEXITED(status) || WEXITSTATUS(status)) ) {
     die("failed to create ldlinux.sys");
   }
-
-  status = system("mattrib +r +h +s s:ldlinux.sys");
-
-  if ( !WIFEXITED(status) || WEXITSTATUS(status) ) {
-    fprintf(stderr,
-	    "%s: warning: failed to set system bit on ldlinux.sys\n",
-	    program);
-  }
-
-  unlink(mtools_conf);
 
   /*
    * Now, use libfat to create a block map
@@ -261,15 +254,76 @@ int main(int argc, char *argv[])
   }
   libfat_close(fs);
 
-  /*
-   * Patch ldlinux.sys and the boot sector
-   */
+  /* Patch ldlinux.sys and the boot sector */
   syslinux_patch(sectors, nsectors);
 
+  /* Write the now-patched first sector of ldlinux.sys */
+  xpwrite(dev_fd, syslinux_ldlinux, 512,
+	  filesystem_offset + ((off_t)sectors[0] << 9));
+
+  /* Move ldlinux.sys to the desired location */
+  if (subdir) {
+    char target_file[4096], command[5120];
+    char *cp = target_file, *ep = target_file+sizeof target_file-16;
+    const char *sd;
+    int slash = 1;
+
+    cp += sprintf(cp, "'s:/");
+    for (sd = subdir; *sd; sd++) {
+      if (*sd == '/' || *sd == '\\') {
+	if (slash)
+	  continue;		/* Remove duplicated slashes */
+	slash = 1;
+      } else if (*sd == '\'' || *sd == '!') {
+	slash = 0;
+	if (cp < ep) *cp++ = '\'';
+	if (cp < ep) *cp++ = '\\';
+	if (cp < ep) *cp++ = *sd;
+	if (cp < ep) *cp++ = '\'';
+	continue;
+      } else {
+	slash = 0;
+      }
+
+      if (cp < ep)
+	*cp++ = *sd;
+    }
+    if (!slash)
+      *cp++ = '/';
+    strcpy(cp, "ldlinux.sys'");
+
+    /* This command may fail legitimately */
+    sprintf(command, "mattrib -h -r -s %s 2>/dev/null", target_file);
+    system(command);
+
+    sprintf(command, "mmove -D o -D O s:/ldlinux.sys %s", target_file);
+    status = system(command);
+
+    if ( !WIFEXITED(status) || WEXITSTATUS(status) ) {
+      fprintf(stderr,
+	      "%s: warning: unable to move ldlinux.sys\n",
+	    program);
+
+      status = system("mattrib +r +h +s s:/ldlinux.sys");
+    } else {
+      sprintf(command, "mattrib +r +h +s %s", target_file);
+      status = system(command);
+    }
+  } else {
+    status = system("mattrib +r +h +s s:/ldlinux.sys");
+  }
+
+  if ( !WIFEXITED(status) || WEXITSTATUS(status) ) {
+    fprintf(stderr,
+	    "%s: warning: failed to set system bit on ldlinux.sys\n",
+	    program);
+  }
+
+
   /*
-   * Write the now-patched first sector of ldlinux.sys
+   * Cleanup
    */
-  xpwrite(dev_fd, syslinux_ldlinux, 512, filesystem_offset + ((off_t)sectors[0] << 9));
+  unlink(mtools_conf);
 
   /*
    * To finish up, write the boot sector

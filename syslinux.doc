@@ -36,9 +36,9 @@ In order to create a bootable Linux floppy using SYSLINUX, prepare a
 normal MS-DOS formatted floppy.  Copy one or more Linux kernel files to
 it, then execute the DOS command:
 
-        syslinux [-s] a:
+        syslinux [-sfma][-d directory] a:
 
-(or whichever drive letter is appropriate; the [] meaning -s is optional)
+(or whichever drive letter is appropriate; the [] meaning optional.)
 
 Use "syslinux.com" (in the dos subdirectory of the distribution) for
 plain DOS (MS-DOS, DR-DOS, PC-DOS, FreeDOS...) or Win9x/ME.
@@ -48,12 +48,13 @@ WinNT/2000/XP.
 
 Under Linux, execute the command:
 
-	syslinux [-s] [-o offset] /dev/fd0
+	syslinux [-sf][-d directory][-o offset] /dev/fd0
 
 (or, again, whichever device is the correct one.)
 
 This will alter the boot sector on the disk and copy a file named
-LDLINUX.SYS into its root directory.
+LDLINUX.SYS into its root directory (or a subdirectory, if the -d
+option is specified.)
 
 The -s option, if given, will install a "safe, slow and stupid"
 version of SYSLINUX.  This version may work on some very buggy BIOSes
@@ -64,6 +65,10 @@ mode.
 
 The -o option is used with a disk image file and specifies the byte
 offset of the filesystem image in the file.
+
+For the DOS and Windows installers, the -m and -a options can be used
+on hard drives to write a Master Boot Record (MBR), and to mark the
+specific partition active.
 
 On boot time, by default, the kernel will be loaded from the image named
 LINUX on the boot floppy.  This default can be changed, see the section
@@ -86,10 +91,17 @@ which requires root privilege.
    ++++ CONFIGURATION FILE ++++
 
 All the configurable defaults in SYSLINUX can be changed by putting a
-file called SYSLINUX.CFG in the root directory of the boot floppy.  This
-is a text file in either UNIX or DOS format, containing one or more of
-the following items (case is insensitive for keywords; upper case is used
-here to indicate that a word should be typed verbatim):
+file called "syslinux.cfg" in the root directory of the boot disk.
+
+This is a text file in either UNIX or DOS format, containing one or
+more of the following items (case is insensitive for keywords; upper
+case is used here to indicate that a word should be typed verbatim):
+
+Starting with version 3.35, the configuration file can also be in
+either the /boot/syslinux or /syslinux directories (searched in that
+order.)  If that is the case, then all filenames are assumed to be
+relative to that same directory, unless preceded with a slash or
+backslash.
 
 All options here applies to PXELINUX, ISOLINUX and EXTLINUX as well as
 SYSLINUX unless otherwise noted.  See the respective .doc files.
@@ -174,14 +186,11 @@ LABEL label
           kernel mykernel
           append myoptions
 
-	Notes:	Labels are mangled as if they were filenames, and must be
-		unique after mangling.  For example, two labels
-		"v2.1.30" and "v2.1.31" will not be distinguishable
-		under SYSLINUX, since both mangle to the same DOS filename.
-		This is also true for "foo bar" and "foo baz".
+	Note: The "kernel" doesn't have to be a Linux kernel; it can
+	      be a boot sector or a COMBOOT file (see below.)
 
-		The "kernel" doesn't have to be a Linux kernel; it can
-		be a boot sector or a COMBOOT file (see below.)
+	Since version 3.32 label names are no longer mangled into DOS
+	format (for SYSLINUX.)
 
   LINUX image			- Linux kernel image (default)
   BOOT image			- Bootstrap program (.bs, .0, .bin)
@@ -688,10 +697,13 @@ The Linux boot protocol supports a "boot loader ID", a single byte
 where the upper nybble specifies a boot loader family (3 = SYSLINUX)
 and the lower nybble is version or, in the case of SYSLINUX, media:
 
-	0x31 = SYSLINUX
-	0x32 = PXELINUX
-	0x33 = ISOLINUX
-	0x34 = EXTLINUX
+	0x31 (49) = SYSLINUX
+	0x32 (50) = PXELINUX
+	0x33 (51) = ISOLINUX
+	0x34 (52) = EXTLINUX
+
+In recent versions of Linux, this ID is available as
+/proc/sys/kernel/bootloader_type.
 
 
    ++++ BUG REPORTS ++++

@@ -466,6 +466,7 @@ comapi_derinfo:
 		mov P_DL,al
 		mov P_ES,cs
 		mov P_BX,PartInfo
+		mov P_CL,SECTOR_SHIFT
 %elif IS_PXELINUX
 		mov ax,[APIVer]
 		mov P_DX,ax
@@ -482,6 +483,7 @@ comapi_derinfo:
 		mov P_DL,al
 		mov P_ES,cs
 		mov P_BX,spec_packet
+		mov P_CL,SECTOR_SHIFT
 %endif
 		clc
 		ret
@@ -775,7 +777,27 @@ comapi_userfont:
 		mov P_AL,al
 		ret
 		
-
+;
+; INT 22h AX=0019h  Read disk
+;
+%if IS_SYSLINUX || IS_MDSLINUX || IS_ISOLINUX || IS_EXTLINUX
+comapi_readdisk:
+		mov esi,P_ESI		; Enforce ESI == EDI == 0, these
+		or esi,P_EDI		; are reserved for future expansion
+		jnz .err
+		mov eax,P_EDX
+		mov bp,P_CX
+		mov es,P_ES
+		mov bx,P_BX
+		call getlinsec
+		clc
+		ret
+.err:
+		stc
+		ret
+%else
+comapi_readdisk	equ comapi_err
+%endif
 
 		section .data
 
@@ -824,6 +846,7 @@ int22_table:
 		dw comapi_runkernel	; 0016 run kernel image
 		dw comapi_usingvga	; 0017 report video mode change
 		dw comapi_userfont	; 0018 query custom font
+		dw comapi_readdisk	; 0019 read disk
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

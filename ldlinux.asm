@@ -11,7 +11,7 @@
 ;  from MS-LOSS, and can be especially useful in conjunction with the
 ;  umsdos filesystem.
 ;
-;   Copyright (C) 1994-2005  H. Peter Anvin
+;   Copyright (C) 1994-2007   H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -30,9 +30,9 @@
 ; Some semi-configurable constants... change on your own risk.
 ;
 my_id		equ syslinux_id
-FILENAME_MAX_LG2 equ 4			; log2(Max filename size Including final null)
-FILENAME_MAX	equ 11			; Max mangled filename size
-NULLFILE	equ ' '			; First char space == null filename
+FILENAME_MAX_LG2 equ 6			; log2(Max filename size Including final null)
+FILENAME_MAX	equ (1<<FILENAME_MAX_LG2) ; Max mangled filename size
+NULLFILE	equ 0			; First char space == null filename
 NULLOFFSET	equ 0			; Position in which to look
 retry_count	equ 16			; How patient are we with the disk?
 %assign HIGHMEM_SLOP 0			; Avoid this much memory near the top
@@ -900,9 +900,18 @@ getfattype:
 ;
 ; Load configuration file
 ;
-		mov di,syslinux_cfg
+		mov di,syslinux_cfg1
+		call open
+		jnz .config_open
+		mov di,syslinux_cfg2
+		call open
+		jnz .config_open
+		mov di,syslinux_cfg3
 		call open
 		jz no_config_file
+.config_open:
+		mov eax,[PrevDir]	; Make the directory with syslinux.cfg ...
+		mov [CurrentDir],eax	; ... the current directory
 
 ;
 ; Now we have the config file open.  Parse the config file and
@@ -955,23 +964,27 @@ allocate_file:
 		ret
 
 ;
-; searchdir:
-;	     Search the root directory for a pre-mangled filename in DS:DI.
+; search_dos_dir:
+;	     Search a specific directory for a pre-mangled filename in
+;            MangledBuf, in the directory starting in sector EAX.
 ;
 ;	     NOTE: This file considers finding a zero-length file an
 ;	     error.  This is so we don't have to deal with that special
 ;	     case elsewhere in the program (most loops have the test
 ;	     at the end).
 ;
+;	     Assumes DS == ES == CS.
+;
 ;	     If successful:
 ;		ZF clear
 ;		SI	= file pointer
-;		DX:AX	= file length in bytes
+;		EAX	= file length (MAY BE ZERO!)
+;		DL	= file attributes
 ;	     If unsuccessful
 ;		ZF set
 ;
 
-searchdir:
+search_dos_dir:
 		push bx
 		call allocate_file
 		jnz .alloc_failure
@@ -982,9 +995,8 @@ searchdir:
 		push ds
 		pop es				; ES = DS
 
-		mov eax,[RootDir]		; First root directory sector
-
 .scansector:
+		; EAX <- directory sector to scan
 		call getcachesector
 		; GS:SI now points to this sector
 
@@ -992,15 +1004,20 @@ searchdir:
 .scanentry:
 		cmp byte [gs:si],0
 		jz .failure			; Hit directory high water mark
+		test byte [gs:si+11],8		; Ignore volume labels and
+						; VFAT long filename entries
+		jnz .nomatch
 		push cx
 		push si
 		push di
+		mov di,MangledBuf
 		mov cx,11
 		gs repe cmpsb
 		pop di
 		pop si
 		pop cx
 		jz .found
+.nomatch:
 		add si,32
 		loop .scanentry
 
@@ -1020,8 +1037,7 @@ searchdir:
 		mov eax,[gs:si+28]		; File size
 		add eax,SECTOR_SIZE-1
 		shr eax,SECTOR_SHIFT
-		jz .failure			; Zero-length file
-		mov [bx+4],eax
+		mov [bx+4],eax			; Sector count
 
 		mov cl,[ClustShift]
 		mov dx,[gs:si+20]		; High cluster word
@@ -1033,15 +1049,100 @@ searchdir:
 		mov [bx],edx			; Starting sector
 
 		mov eax,[gs:si+28]		; File length again
-		mov dx,[gs:si+30]		; 16-bitism, sigh
-		mov si,bx
-		and eax,eax			; ZF <- 0
+		mov dl,[gs:si+11]		; File attribute
+		mov si,bx			; File pointer...
+		and si,si			; ZF <- 0
 
 		pop es
 		pop gs
 		pop cx
 		pop bx
 		ret
+
+;
+; searchdir:
+;
+;	Open a file
+;
+;	     On entry:
+;		DS:DI	= filename
+;	     If successful:
+;		ZF clear
+;		SI		= file pointer
+;		DX:AX or EAX	= file length in bytes
+;	     If unsuccessful
+;		ZF set
+;
+; Assumes CS == DS == ES, and trashes BX and CX.
+;
+searchdir:
+		mov eax,[CurrentDir]
+		cmp byte [di],'/'	; Root directory?
+		jne .notroot
+		mov eax,[RootDir]
+		inc di
+.notroot:
+
+.pathwalk:
+		push eax		; <A> Current directory sector
+		mov si,di
+.findend:
+		lodsb
+		cmp al,' '
+		jbe .endpath
+		cmp al,'/'
+		jne .findend
+.endpath:
+		xchg si,di
+		pop eax			; <A> Current directory sector
+
+		mov [PrevDir],eax	; Remember last directory searched
+
+		push di
+		call mangle_dos_name	; MangledBuf <- component
+		call search_dos_dir
+		pop di
+		jz .notfound		; Pathname component missing
+
+		cmp byte [di-1],'/'	; Do we expect a directory
+		je .isdir
+
+		; Otherwise, it should be a file
+.isfile:
+		test dl,18h		; Subdirectory|Volume Label
+		jnz .badfile		; If not a file, it's a bad thing
+
+		; SI and EAX are already set
+		mov edx,eax
+		shr edx,16		; Old 16-bit remnant...
+		and eax,eax		; EAX != 0
+		jz .badfile
+		ret			; Done!
+
+		; If we expected a directory, it better be one...
+.isdir:
+		test dl,10h		; Subdirectory
+		jz .badfile
+
+		xor eax,eax
+		xchg eax,[si+file_sector] ; Get sector number and free file structure
+		jmp .pathwalk		; Walk the next bit of the path
+
+.badfile:
+		xor eax,eax
+		mov [si],eax		; Free file structure
+
+.notfound:
+		xor eax,eax
+		xor dx,dx
+		ret
+
+		section .bss
+		alignb 4
+CurrentDir	resd 1			; Current directory
+PrevDir		resd 1			; Last scanned directory
+
+		section .text
 
 ;
 ;
@@ -1057,54 +1158,55 @@ kaboom2:
 .norge:		jmp short .norge	; If int 19h returned; this is the end
 
 ;
-; mangle_name: Mangle a DOS filename pointed to by DS:SI into a buffer pointed
-;	       to by ES:DI; ends on encountering any whitespace
+; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
+;	       to by ES:DI; ends on encountering any whitespace.
 ;
-
+;	       This verifies that a filename is < FILENAME_MAX characters,
+;	       doesn't contain whitespace, zero-pads the output buffer,
+; 	       and removes trailing dots and redundant slashes, plus changes
+;              backslashes to forward slashes,
+;	       so "repe cmpsb" can do a compare, and the path-searching routine
+;              gets a bit of an easier job.
+;
+;
 mangle_name:
-		mov cx,11			; # of bytes to write
-mn_loop:
+		push bx
+		xor ax,ax
+		mov cx,FILENAME_MAX-1
+		mov bx,di
+
+.mn_loop:
 		lodsb
 		cmp al,' '			; If control or space, end
-		jna mn_end
-		cmp al,'.'			; Period -> space-fill
-		je mn_is_period
-		cmp al,'a'
-		jb mn_not_lower
-		cmp al,'z'
-		ja mn_not_uslower
-		sub al,020h
-		jmp short mn_not_lower
-mn_is_period:	mov al,' '			; We need to space-fill
-mn_period_loop: cmp cx,3			; If <= 3 characters left
-		jbe mn_loop			; Just ignore it
-		stosb				; Otherwise, write a period
-		loop mn_period_loop		; Dec CX and (always) jump
-mn_not_uslower: cmp al,ucase_low
-		jb mn_not_lower
-		cmp al,ucase_high
-		ja mn_not_lower
-		mov bx,ucase_tab-ucase_low
-                cs xlatb
-mn_not_lower:	stosb
-		loop mn_loop			; Don't continue if too long
-mn_end:
-		mov al,' '			; Space-fill name
-		rep stosb			; Doesn't do anything if CX=0
+		jna .mn_end
+		cmp al,'\'			; Backslash?
+		jne .mn_not_bs
+		mov al,'/'			; Change to forward slash
+.mn_not_bs:
+		cmp al,ah			; Repeated slash?
+		je .mn_skip
+		xor ah,ah
+		cmp al,'/'
+		jne .mn_ok
+		mov ah,al
+.mn_ok		stosb
+.mn_skip:	loop .mn_loop
+.mn_end:
+		cmp bx,di			; At the beginning of the buffer?
+		jbe .mn_zero
+		cmp byte [es:di-1],'.'		; Terminal dot?
+		je .mn_kill
+		cmp byte [es:di-1],'/'		; Terminal slash?
+		jne .mn_zero
+.mn_kill:	dec di				; If so, remove it
+		inc cx
+		jmp short .mn_end
+.mn_zero:
+		inc cx				; At least one null byte
+		xor ax,ax			; Zero-fill name
+		rep stosb
+		pop bx
 		ret				; Done
-
-;
-; Upper-case table for extended characters; this is technically code page 865,
-; but code page 437 users will probably not miss not being able to use the
-; cent sign in kernel images too much :-)
-;
-; The table only covers the range 129 to 164; the rest we can deal with.
-;
-ucase_low	equ 129
-ucase_high	equ 164
-ucase_tab	db 154, 144, 'A', 142, 'A', 143, 128, 'EEEIII'
-		db 142, 143, 144, 146, 146, 'O', 153, 'OUUY', 153, 154
-		db 157, 156, 157, 158, 159, 'AIOU', 165
 
 ;
 ; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
@@ -1119,53 +1221,75 @@ ucase_tab	db 154, 144, 'A', 142, 'A', 143, 128, 'EEEIII'
 ;                On return, DI points to the first byte after the output name,
 ;                which is set to a null byte.
 ;
-unmangle_name:
-                push si                 ; Save pointer to original name
-                mov cx,8
-                mov bp,di
-un_copy_body:   lodsb
-                call lower_case
-                stosb
-                cmp al,' '
-                jbe un_cb_space
-                mov bp,di               ; Position of last nonblank+1
-un_cb_space:    loop un_copy_body
-                mov di,bp
-                mov al,'.'              ; Don't save
-                stosb
-                mov cx,3
-un_copy_ext:    lodsb
-                call lower_case
-                stosb
-                cmp al,' '
-                jbe un_ce_space
-                mov bp,di
-un_ce_space:    loop un_copy_ext
-                mov di,bp
-                mov byte [es:di], 0
-                pop si
-                ret
+unmangle_name:	call strcpy
+		dec di				; Point to final null byte
+		ret
 
 ;
-; lower_case: Lower case a character in AL
+; mangle_dos_name:
+;		Mangle a DOS filename component pointed to by DS:SI
+;		into [MangledBuf]; ends on encountering any whitespace or slash.
+;		Assumes CS == DS == ES.
 ;
-lower_case:
-                cmp al,'A'
-                jb lc_ret
-                cmp al,'Z'
-                ja lc_1
-                or al,20h
-                ret
-lc_1:           cmp al,lcase_low
-                jb lc_ret
-                cmp al,lcase_high
-                ja lc_ret
-                push bx
-                mov bx,lcase_tab-lcase_low
-               	cs xlatb
-                pop bx
-lc_ret:         ret
 
+mangle_dos_name:
+		pusha
+		mov di,MangledBuf
+
+		mov cx,11			; # of bytes to write
+.loop:
+		lodsb
+		cmp al,' '			; If control or space, end
+		jna .end
+		cmp al,'/'			; Slash, too
+		je .end
+		cmp al,'.'			; Period -> space-fill
+		je .is_period
+		cmp al,'a'
+		jb .not_lower
+		cmp al,'z'
+		ja .not_uslower
+		sub al,020h
+		jmp short .not_lower
+.is_period:	mov al,' '			; We need to space-fill
+.period_loop:	cmp cx,3			; If <= 3 characters left
+		jbe .loop			; Just ignore it
+		stosb				; Otherwise, write a period
+		loop .period_loop		; Dec CX and (always) jump
+.not_uslower:	cmp al,ucase_low
+		jb .not_lower
+		cmp al,ucase_high
+		ja .not_lower
+		mov bx,ucase_tab-ucase_low
+                xlatb
+.not_lower:	stosb
+		loop .loop			; Don't continue if too long
+.end:
+		mov al,' '			; Space-fill name
+		rep stosb			; Doesn't do anything if CX=0
+		popa
+		ret				; Done
+
+		section .bss
+MangledBuf	resb 11
+
+		section .text
+;
+; Case tables for extended characters; this is technically code page 865,
+; but code page 437 users will probably not miss not being able to use the
+; cent sign in kernel images too much :-)
+;
+; The table only covers the range 129 to 164; the rest we can deal with.
+;
+		section .data
+
+ucase_low	equ 129
+ucase_high	equ 164
+ucase_tab	db 154, 144, 'A', 142, 'A', 143, 128, 'EEEIII'
+		db 142, 143, 144, 146, 146, 'O', 153, 'OUUY', 153, 154
+		db 157, 156, 157, 158, 159, 'AIOU', 165
+
+		section .text
 ;
 ; getfssec_edx: Get multiple sectors from a file
 ;
@@ -1425,16 +1549,6 @@ getfatsector:
 ; -----------------------------------------------------------------------------
 
 		section .data
-;
-; Lower-case table for codepage 865
-;
-lcase_low       equ 128
-lcase_high      equ 165
-lcase_tab       db 135, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138
-                db 139, 140, 141, 132, 134, 130, 145, 145, 147, 148, 149
-                db 150, 151, 152, 148, 129, 155, 156, 155, 158, 159, 160
-                db 161, 162, 163, 164, 164
-
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
 		db CR, LF, 0
 boot_prompt	db 'boot: ', 0
@@ -1471,11 +1585,11 @@ aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
 crlf_msg	db CR, LF
 null_msg	db 0
 crff_msg	db CR, FF, 0
-syslinux_cfg	db 'SYSLINUXCFG'		; Mangled form
-ConfigName	db 'syslinux.cfg',0		; Unmangled form
-%if IS_MDSLINUX
-manifest	db 'MANIFEST   '
-%endif
+syslinux_cfg1	db '/boot'			; /boot/syslinux/syslinux.cfg
+syslinux_cfg2	db '/syslinux'			; /syslinux/syslinux.cfg
+syslinux_cfg3	db '/'				; /syslinux.cfg
+ConfigName	db 'syslinux.cfg', 0		; syslinux.cfg
+
 ;
 ; Command line options we'd like to take a look at
 ;
