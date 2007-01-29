@@ -196,8 +196,6 @@ libsyslinux.a: bootsect_bin.o ldlinux_bin.o mbr_bin.o syslxmod.o
 $(LIB_SO): bootsect_bin.o ldlinux_bin.o syslxmod.o
 	$(CC) $(LDFLAGS) -shared -Wl,-soname,$(LIB_SONAME) -o $@ $^
 
-gethostip.o: gethostip.c
-
 gethostip: gethostip.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
