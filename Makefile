@@ -263,4 +263,4 @@ klibc:
 -include Makefile.private
 
 # Include dependencies file
--include .depend
+include .depend
