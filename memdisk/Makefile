@@ -1,6 +1,6 @@
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 2001-2004 H. Peter Anvin - All Rights Reserved
+##   Copyright 2001-2007 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@ M32     := $(call gcc_ok,-m32,)
 ALIGN   := $(call gcc_ok,-falign-functions=0 -falign-jumps=0 -falign-loops=0,-malign-functions=0 -malign-jumps=0 -malign-loops=0)
 FREE    := $(call gcc_ok,-ffreestanding,)
 
-CC       = gcc $(M32) $(FREE)
-CFLAGS   = -g -W -Wall -Wno-sign-compare \
+CC       = gcc
+CFLAGS   =  $(M32) $(FREE) -g -W -Wall -Wno-sign-compare \
 	   -Os -fomit-frame-pointer -march=i386 $(ALIGN) \
 	   -DVERSION='"$(VERSION)"' -DDATE='"$(DATE)"'
 LDFLAGS  = -g

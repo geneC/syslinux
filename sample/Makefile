@@ -19,12 +19,12 @@ gcc_ok   = $(shell if gcc $(1) -c -x c /dev/null -o /dev/null 2>/dev/null; \
 
 M32       := $(call gcc_ok,-m32,) $(call gcc_ok,-ffreestanding,)
 
-CC         = gcc $(M32)
+CC         = gcc
 LD         = ld -m elf_i386
 AR	   = ar
 NASM	   = nasm
 RANLIB	   = ranlib
-CFLAGS     = -W -Wall -march=i386 -Os -fomit-frame-pointer -I../com32/include
+CFLAGS     = $(M32) -W -Wall -march=i386 -Os -fomit-frame-pointer -I../com32/include
 SFLAGS     = -march=i386
 LDFLAGS    = -s
 OBJCOPY    = objcopy
