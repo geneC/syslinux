@@ -25,7 +25,7 @@ AR	   = ar
 NASM	   = nasm
 RANLIB	   = ranlib
 CFLAGS     = $(M32) -W -Wall -march=i386 -Os -fomit-frame-pointer -I../com32/include
-SFLAGS     = -march=i386
+SFLAGS     = $(M32) -march=i386
 LDFLAGS    = -s
 OBJCOPY    = objcopy
 PPMTOLSS16 = 	../ppmtolss16
