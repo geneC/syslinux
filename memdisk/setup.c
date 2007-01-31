@@ -582,9 +582,11 @@ void setup(syscall_t cs_syscall, void *cs_bounce)
 
   geometry = get_disk_image_geometry(ramdisk_image, ramdisk_size);
 
-  if (getcmditem("edd") != CMD_NOTFOUND)
+  if (getcmditem("edd") != CMD_NOTFOUND ||
+      getcmditem("ebios") != CMD_NOTFOUND)
     do_edd = 1;
-  else if (getcmditem("noedd") != CMD_NOTFOUND)
+  else if (getcmditem("noedd") != CMD_NOTFOUND ||
+	   getcmditem("noebios") != CMD_NOTFOUND)
     do_edd = 0;
   else
     do_edd = (geometry->driveno & 0x80) ? 1 : 0;
