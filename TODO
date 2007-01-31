@@ -1,6 +1,6 @@
 *** To do in the short term:
 
-- PXELINUX: Figure out localboot/idle problems
+- PXELINUX: Figure out localboot/idle problems.
 
 - PXELINUX: Support changing the default server and boot file prefix?
 
@@ -10,6 +10,10 @@
 
 - Library support for all the comboot system calls.
 
+- Deal with non-512-byte sectors (if I can get media which does...)
+
+- Add support for getting the hardware address on Infinibad.
+
 
 *** Future projects:
 
@@ -17,15 +21,14 @@
 
 - Cleaned up documentation, with a real man page.
 
-- Subdirectory support in SYSLINUX.
-
 - Support files that span multiple input media (SYSLINUX)
   -> Seems to be getting less important; floppies are dying?
 
-- Clean up the handling of sections
+- Clean up the handling of sections.
 
-- Add "localboot" support to SYSLINUX (using the ISOLINUX feature
-  set.)
-  OBSOLETE: chain.c32 is probably better.
+- API call to get directory listing.
 
-- API call to get directory listing
+- COM32-based CLI.
+
+- Rewrite the filesystems to run in protected mode C code.
+

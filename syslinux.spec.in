@@ -15,10 +15,10 @@ BuildPrereq: nasm >= 0.98.38, perl
 Autoreq: 0
 %ifarch x86_64
 Requires: mtools, libc.so.6()(64bit)
-%define mflag
+%define my_cc gcc
 %else
 Requires: mtools, libc.so.6
-%define mflag -m32
+%define my_cc gcc -m32
 %endif
 
 # NOTE: extlinux belongs in /sbin, not in /usr/sbin, since it is typically
@@ -63,9 +63,9 @@ booting in the /tftpboot directory.
 %setup -q -n syslinux-%{VERSION}
 
 %build
-make CC='gcc %{mflag}' clean
-make CC='gcc %{mflag}' installer
-make CC='gcc %{mflag}' -C sample tidy
+make CC='%{my_cc}' clean
+make CC='%{my_cc}' installer
+make CC='%{my_cc}' -C sample tidy
 
 %install
 rm -rf %{buildroot}
@@ -74,10 +74,10 @@ mkdir -p %{buildroot}%{_sbindir}
 mkdir -p %{buildroot}%{_datadir}/syslinux
 mkdir -p %{buildroot}%{_includedir}
 mkdir -p %{buildroot}/boot %{buildroot}/tftpboot/pxelinux.cfg
-make CC='gcc %{mflag}' install-all \
+make CC='%{my_cc}' install-all \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} SBINDIR=%{_sbindir} \
 	LIBDIR=%{_datadir} INCDIR=%{_includedir}
-make CC='gcc %{mflag}' -C sample tidy
+make CC='%{my_cc}' -C sample tidy
 cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_datadir}/syslinux
 cp %{buildroot}%{_datadir}/syslinux/*.c32	%{buildroot}/boot
 cp %{buildroot}%{_datadir}/syslinux/memdisk	%{buildroot}/boot

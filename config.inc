@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 2002-2005 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2002-2007 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -38,6 +38,6 @@ BAUD_DIVISOR	equ 115200		; Serial port parameter
 ;
 %define	version_str	VERSION		; Must be 4 characters long!
 %define date		DATE_STR	; Defined from the Makefile
-%define	year		'2005'
+%define	year		'2007'
 
 %endif ; _CONFIG_INC

@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2002 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2002-2007 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -20,6 +20,6 @@
 #define MEMDISK_VERSION_H
 
 #define FIRSTYEAR "2001"
-#define COPYYEAR  "2005"
+#define COPYYEAR  "2007"
 
 #endif

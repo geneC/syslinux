@@ -22,6 +22,8 @@ Changes in 3.35:
 
 	  To install ldlinux.sys in a subdirectory, pass the -d
 	  directory option to the SYSLINUX installer.
+
+	  This work was sponsored by slax.org (thanks, Tomas!)
 	* New API call: read disk.
 	* Invoke ONERROR on initrd load failure.
 
