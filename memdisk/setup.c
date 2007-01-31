@@ -586,7 +586,8 @@ void setup(syscall_t cs_syscall, void *cs_bounce)
       getcmditem("ebios") != CMD_NOTFOUND)
     do_edd = 1;
   else if (getcmditem("noedd") != CMD_NOTFOUND ||
-	   getcmditem("noebios") != CMD_NOTFOUND)
+	   getcmditem("noebios") != CMD_NOTFOUND ||
+	   getcmditem("cbios") != CMD_NOTFOUND)
     do_edd = 0;
   else
     do_edd = (geometry->driveno & 0x80) ? 1 : 0;
