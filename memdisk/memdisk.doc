@@ -89,6 +89,12 @@ d) MEMDISK normally uses the BIOS "INT 15h mover" API to access high
    safeint	Use INT 15h access to protected memory, but invoke
 		INT 15h the way it was *before* MEMDISK was loaded.
 
+e) MEMDISK by default supports EDD/EBIOS on hard disks, but not on
+   floppy disks.  This can be controlled with the options:
+
+   edd		Enable EDD/EBIOS
+   noedd	Disable EDD/EBIOS
+
 
 Some interesting things to note:
 
@@ -136,7 +142,7 @@ http://www.ctyme.com/rbrown.htm, for a detailed description.
 
 The MEMDISK info structure currently contains:
 
-	[ES:DI]		word	Total size of structure (currently 27 bytes)
+	[ES:DI]		word	Total size of structure (currently 28 bytes)
 	[ES:DI+2]	byte	MEMDISK minor version
 	[ES:DI+3]	byte	MEMDISK major version
 	[ES:DI+4]	dword	Pointer to MEMDISK data in high memory
