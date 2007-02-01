@@ -1,10 +1,10 @@
 CC	 = gcc
 OPTFLAGS = -g -Os
-INCLUDES = -I. -I.. -I../libfat
+INCLUDES = -I. -I..
 CFLAGS	 = -W -Wall -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = -s
 
-SRCS     = syslinux.c ../syslxmod.c ../bootsect_bin.c ../ldlinux_bin.c $(wildcard ../libfat/*.c)
+SRCS     = syslinux.c ../syslxmod.c ../bootsect_bin.c ../ldlinux_bin.c
 OBJS	 = $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
 .SUFFIXES: .c .o .i .s .S
