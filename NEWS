@@ -5,6 +5,8 @@ them.
 Changes in 3.36:
 	* MEMDISK: Disable EDD by default on floppy disks.  EDD can be
 	  enabled with the "edd" option and disabled with "noedd".
+	* SYSLINUX: "unix" installer now uses Linux ioctls instead of
+	  using libfat.
 
 Changes in 3.35:
 	* MEMDISK: New "safeint" mode.
