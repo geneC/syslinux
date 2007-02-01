@@ -13,7 +13,7 @@
 /*
  * syslinux.c - Linux installer program for SYSLINUX
  *
- * This program ought to be portable.  I hope so, at least.
+ * This is Linux-specific by now.
  *
  * This is an alternate version of the installer which doesn't require
  * mtools, but requires root privilege.
@@ -46,15 +46,14 @@
 #include <sys/wait.h>
 #include <sys/mount.h>
 
+#include <linux/fs.h>		/* FIGETBSZ, FIBMAP */
+#include <linux/msdos_fs.h>	/* FAT_IOCTL_SET_ATTRIBUTES, SECTOR_* */
+
 #include "syslinux.h"
-#include "libfat.h"
 
 #if DO_DIRECT_MOUNT
-
 # include <linux/loop.h>
-
 #else
-
 # include <paths.h>
 # ifndef _PATH_MOUNT
 #  define _PATH_MOUNT "/bin/mount"
@@ -62,7 +61,6 @@
 # ifndef _PATH_UMOUNT
 #  define _PATH_UMOUNT "/bin/umount"
 # endif
-
 #endif
 
 const char *program;		/* Name of program */
@@ -156,17 +154,43 @@ ssize_t xpwrite(int fd, const void *buf, size_t count, off_t offset)
 }
 
 /*
- * Version of the read function suitable for libfat
+ * Create a block map for ldlinux.sys
  */
-int libfat_xpread(intptr_t pp, void *buf, size_t secsize, libfat_sector_t sector)
+int make_block_map(uint32_t *sectors, int len, int dev_fd, int fd)
 {
-  off_t offset = (off_t)sector * secsize + filesystem_offset;
-  return xpread(pp, buf, secsize, offset);
+  int nsectors = 0;
+  int blocksize, nblock, block;
+  int i;
+
+  (void)dev_fd;
+
+  if (ioctl(fd, FIGETBSZ, &blocksize) < 0)
+    die("ioctl FIGETBSZ failed");
+
+  blocksize >>= SECTOR_BITS;	/* sectors/block */
+
+  nblock = 0;
+  while (len > 0) {
+    block = nblock++;
+    if (ioctl(fd, FIBMAP, &block) < 0)
+      die("ioctl FIBMAP failed");
+    
+    for (i = 0; i < blocksize; i++) {
+      if (len <= 0)
+	break;
+
+      *sectors++ = (block*blocksize)+i;
+      nsectors++;
+      len -= (1 << SECTOR_BITS);
+    }
+  }
+
+  return nsectors;
 }
 
 int main(int argc, char *argv[])
 {
-  static unsigned char sectbuf[512];
+  static unsigned char sectbuf[SECTOR_SIZE];
   unsigned char *dp;
   const unsigned char *cdp;
   int dev_fd, fd;
@@ -179,10 +203,7 @@ int main(int argc, char *argv[])
   char *ldlinux_name, **argp, *opt;
   int force = 0;		/* -f (force) option */
   const char *subdir = NULL;
-  struct libfat_filesystem *fs;
-  struct libfat_direntry dentry;
-  libfat_sector_t s, *secp, sectors[65]; /* 65 is maximum possible */
-  int32_t ldlinux_cluster;
+  uint32_t sectors[65]; /* 65 is maximum possible */
   int nsectors = 0;
   const char *errmsg;
 
@@ -243,7 +264,7 @@ int main(int argc, char *argv[])
     die("not a regular file and an offset specified (use -f to override)");
   }
 
-  xpread(dev_fd, sectbuf, 512, filesystem_offset);
+  xpread(dev_fd, sectbuf, SECTOR_SIZE, filesystem_offset);
   fsync(dev_fd);
 
   /*
@@ -370,13 +391,21 @@ int main(int argc, char *argv[])
 #endif
   }
 
-  ldlinux_name = alloca(strlen(mntpath)+14);
+  ldlinux_name = alloca(strlen(mntpath)+14+
+			(subdir ? strlen(subdir)+2 : 0));
   if ( !ldlinux_name ) {
     perror(program);
     err = 1;
     goto umount;
   }
-  sprintf(ldlinux_name, "%s//ldlinux.sys", mntpath);
+  sprintf(ldlinux_name, "%s%s%s//ldlinux.sys",
+	  subdir ? "//" : "", subdir ? subdir : "", mntpath);
+
+  if ((fd = open(ldlinux_name, O_RDONLY)) >= 0) {
+    uint32_t zero_attr = 0;
+    ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &zero_attr);
+    close(fd);
+  }
 
   unlink(ldlinux_name);
   fd = open(ldlinux_name, O_WRONLY|O_CREAT|O_TRUNC, 0444);
@@ -402,51 +431,22 @@ int main(int argc, char *argv[])
     left -= nb;
   }
 
+  fsync(fd);
   /*
-   * I don't understand why I need this.  Does the DOS filesystems
-   * not honour the mode passed to open()?
+   * Set the attributes
    */
-  fchmod(fd, 0400);
+  {
+    uint32_t attr = 0x07;	/* Hidden+System+Readonly */
+    ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
+  }
+
+  /*
+   * Create a block map.
+   */
+  nsectors = make_block_map(sectors, syslinux_ldlinux_len, dev_fd, fd);
 
   close(fd);
-
   sync();
-
-  /*
-   * Now, use libfat to create a block map.  This probably
-   * should be changed to use ioctl(...,FIBMAP,...) since
-   * this is supposed to be a simple, privileged version
-   * of the installer.
-   */
-  fs = libfat_open(libfat_xpread, dev_fd);
-  ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", &dentry);
-  secp = sectors;
-  nsectors = 0;
-  s = libfat_clustertosector(fs, ldlinux_cluster);
-  while ( s && nsectors < 65 ) {
-    *secp++ = s;
-    nsectors++;
-    s = libfat_nextsector(fs, s);
-  }
-  libfat_close(fs);
-
-  /* Move ldlinux.sys to the desired location */
-  if (subdir) {
-    char *new_ldlinux_name = alloca(strlen(mntpath)+
-				    strlen(subdir)+15);
-    int mov_err = 1;
-
-    if ( new_ldlinux_name ) {
-      sprintf(new_ldlinux_name, "%s//%s//ldlinux.sys", mntpath, subdir);
-
-      if (!rename(ldlinux_name, new_ldlinux_name))
-	mov_err = 0;
-    }
-
-    if (mov_err)
-      fprintf(stderr, "%s: warning: unable to move ldlinux.sys: %s\n",
-	      device, strerror(errno));
-  }
 
 umount:
 #if DO_DIRECT_MOUNT
@@ -491,29 +491,21 @@ umount:
   /*
    * Write the now-patched first sector of ldlinux.sys
    */
-  xpwrite(dev_fd, syslinux_ldlinux, 512, filesystem_offset + ((off_t)sectors[0] << 9));
-
-  /*
-   * Patch the root directory to set attributes to
-   * HIDDEN|SYSTEM|READONLY
-   */
-  {
-    const unsigned char attrib = 0x07;
-    xpwrite(dev_fd, &attrib, 1, ((off_t)dentry.sector << 9)+dentry.offset+11);
-  }
+  xpwrite(dev_fd, syslinux_ldlinux, SECTOR_SIZE,
+	  filesystem_offset+((off_t)sectors[0] << SECTOR_BITS));
 
   /*
    * To finish up, write the boot sector
    */
 
   /* Read the superblock again since it might have changed while mounted */
-  xpread(dev_fd, sectbuf, 512, filesystem_offset);
+  xpread(dev_fd, sectbuf, SECTOR_SIZE, filesystem_offset);
 
   /* Copy the syslinux code into the boot sector */
   syslinux_make_bootsect(sectbuf);
 
   /* Write new boot sector */
-  xpwrite(dev_fd, sectbuf, 512, filesystem_offset);
+  xpwrite(dev_fd, sectbuf, SECTOR_SIZE, filesystem_offset);
 
   close(dev_fd);
   sync();
