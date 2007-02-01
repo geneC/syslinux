@@ -75,7 +75,7 @@ use_font:
 
 		test byte [UsingVGA], 01h	; Are we in graphics mode?
 		jz .text
-		
+
 .graphics:
 		xor cx,cx
 		mov cl,bh			; CX = bytes/character

@@ -686,7 +686,7 @@ AX=0017h [3.30] Report video mode change
 	which are undefined in the current version of SYSLINUX.
 
 	The following bits in BX are currently defined:
-	
+
 	Bit 0: graphics mode
 
 		Indicates that the mode is a graphics mode, as opposed
