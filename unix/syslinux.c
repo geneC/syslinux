@@ -46,8 +46,12 @@
 #include <sys/wait.h>
 #include <sys/mount.h>
 
+#include <sys/ioctl.h>
 #include <linux/fs.h>		/* FIGETBSZ, FIBMAP */
 #include <linux/msdos_fs.h>	/* FAT_IOCTL_SET_ATTRIBUTES, SECTOR_* */
+#ifndef FAT_IOCTL_SET_ATTRIBUTES
+# define FAT_IOCTL_SET_ATTRIBUTES _IOW('r', 0x11, uint32_t)
+#endif
 
 #include "syslinux.h"
 
