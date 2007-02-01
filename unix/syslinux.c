@@ -53,18 +53,21 @@
 # define FAT_IOCTL_SET_ATTRIBUTES _IOW('r', 0x11, uint32_t)
 #endif
 
+#include <paths.h>
+#ifndef _PATH_MOUNT
+# define _PATH_MOUNT "/bin/mount"
+#endif
+#ifndef _PATH_UMOUNT
+# define _PATH_UMOUNT "/bin/umount"
+#endif
+#ifndef _PATH_TMP
+# define _PATH_TMP "/tmp/"
+#endif
+
 #include "syslinux.h"
 
 #if DO_DIRECT_MOUNT
 # include <linux/loop.h>
-#else
-# include <paths.h>
-# ifndef _PATH_MOUNT
-#  define _PATH_MOUNT "/bin/mount"
-# endif
-# ifndef _PATH_UMOUNT
-#  define _PATH_UMOUNT "/bin/umount"
-# endif
 #endif
 
 const char *program;		/* Name of program */
@@ -192,6 +195,124 @@ int make_block_map(uint32_t *sectors, int len, int dev_fd, int fd)
   return nsectors;
 }
 
+/*
+ * Mount routine
+ */
+int do_mount(int dev_fd, int *cookie, const char *mntpath, const char *fstype)
+{
+  struct stat st;
+
+  (void)cookie;
+
+  if (fstat(dev_fd, &st) < 0)
+    return errno;
+
+#if DO_DIRECT_MOUNT
+  {
+    if ( !S_ISBLK(st.st_mode) ) {
+      /* It's file, need to mount it loopback */
+      unsigned int n = 0;
+      struct loop_info64 loopinfo;
+      int loop_fd;
+      
+      for ( n = 0 ; loop_fd < 0 ; n++ ) {
+	snprintf(devfdname, sizeof devfdname, "/dev/loop%u", n);
+	loop_fd = open(devfdname, O_RDWR);
+	if ( loop_fd < 0 && errno == ENOENT ) {
+	  die("no available loopback device!");
+	}
+	if ( ioctl(loop_fd, LOOP_SET_FD, (void *)dev_fd) ) {
+	  close(loop_fd); loop_fd = -1;
+	  if ( errno != EBUSY )
+	    die("cannot set up loopback device");
+	  else
+	    continue;
+	}
+	
+	if ( ioctl(loop_fd, LOOP_GET_STATUS64, &loopinfo) ||
+	     (loopinfo.lo_offset = filesystem_offset,
+	      ioctl(loop_fd, LOOP_SET_STATUS64, &loopinfo)) )
+	  die("cannot set up loopback device");
+      }
+      
+      *cookie = loop_fd;
+    } else {
+      snprintf(devfdname, sizeof devfdname, "/proc/%lu/fd/%d",
+	       (unsigned long)mypid, dev_fd);
+      *cookie = -1;
+    }   
+    
+    return mount(devfdname, mntpath, fstype,
+		 MS_NOEXEC|MS_NOSUID, "umask=077,quiet");
+  }
+#else
+  {
+    char devfdname[128], mnt_opts[128];
+    pid_t f, w;
+    int status;
+
+    snprintf(devfdname, sizeof devfdname, "/proc/%lu/fd/%d",
+	     (unsigned long)mypid, dev_fd);
+    
+    f = fork();
+    if ( f < 0 ) {
+      return -1;
+    } else if ( f == 0 ) {
+      if ( !S_ISBLK(st.st_mode) ) {
+	snprintf(mnt_opts, sizeof mnt_opts,
+		 "rw,nodev,noexec,loop,offset=%llu,umask=077,quiet",
+		 (unsigned long long)filesystem_offset);
+      } else {
+	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,umask=077,quiet");
+      }
+      execl(_PATH_MOUNT, _PATH_MOUNT, "-t", fstype, "-o", mnt_opts,	\
+	    devfdname, mntpath, NULL);
+      _exit(255);		/* execl failed */
+    }
+    
+    w = waitpid(f, &status, 0);
+    return ( w != f || status ) ? -1 : 0;
+  }
+#endif
+}
+
+/*
+ * umount routine
+ */
+void do_umount(const char *mntpath, int cookie)
+{
+#if DO_DIRECT_MOUNT
+  int loop_fd = cookie;
+  
+  if ( umount2(mntpath, 0) )
+    die("could not umount path");
+  
+  if ( loop_fd != -1 ) {
+    ioctl(loop_fd, LOOP_CLR_FD, 0); /* Free loop device */
+    close(loop_fd);
+    loop_fd = -1;
+  }
+  
+#else
+  pid_t f = fork();
+  pid_t w;
+  int status;
+  (void)cookie;
+
+  if ( f < 0 ) {
+    perror("fork");
+    exit(1);
+  } else if ( f == 0 ) {
+    execl(_PATH_UMOUNT, _PATH_UMOUNT, mntpath, NULL);
+  }
+  
+  w = waitpid(f, &status, 0);
+  if ( w != f || status ) {
+    exit(1);
+  }
+#endif
+}
+
 int main(int argc, char *argv[])
 {
   static unsigned char sectbuf[SECTOR_SIZE];
@@ -201,15 +322,14 @@ int main(int argc, char *argv[])
   struct stat st;
   int nb, left;
   int err = 0;
-  pid_t f, w;
-  int status;
-  char mntname[64], devfdname[64];
+  char mntname[128];
   char *ldlinux_name, **argp, *opt;
   int force = 0;		/* -f (force) option */
   const char *subdir = NULL;
   uint32_t sectors[65]; /* 65 is maximum possible */
   int nsectors = 0;
   const char *errmsg;
+  int mnt_cookie;
 
   (void)argc;			/* Unused */
 
@@ -260,12 +380,12 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  if ( !force && !S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode) ) {
-    die("not a block device or regular file (use -f to override)");
+  if ( !S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode) && !S_ISCHR(st.st_mode) ) {
+    die("not a device or regular file");
   }
 
-  if ( !force && filesystem_offset && !S_ISREG(st.st_mode) ) {
-    die("not a regular file and an offset specified (use -f to override)");
+  if ( filesystem_offset && S_ISBLK(st.st_mode) ) {
+    die("can't combine an offset with a block device");
   }
 
   xpread(dev_fd, sectbuf, SECTOR_SIZE, filesystem_offset);
@@ -292,7 +412,7 @@ int main(int argc, char *argv[])
     /* We're root or at least setuid.
        Make a temp dir and pass all the gunky options to mount. */
 
-    if ( chdir("/tmp") ) {
+    if ( chdir(_PATH_TMP) ) {
       perror(program);
       exit(1);
     }
@@ -301,7 +421,7 @@ int main(int argc, char *argv[])
 
     if ( stat(".", &dst) || !S_ISDIR(dst.st_mode) ||
 	 (dst.st_mode & TMP_MODE) != TMP_MODE ) {
-      die("possibly unsafe /tmp permissions");
+      die("possibly unsafe " _PATH_TMP " permissions");
     }
 
     for ( i = 0 ; ; i++ ) {
@@ -328,71 +448,12 @@ int main(int argc, char *argv[])
     }
 
     mntpath = mntname;
+  }
 
-#if DO_DIRECT_MOUNT
-    if ( S_ISREG(st.st_mode) ) {
-      /* It's file, need to mount it loopback */
-      unsigned int n = 0;
-      struct loop_info64 loopinfo;
-
-      for ( n = 0 ; loop_fd < 0 ; n++ ) {
-	snprintf(devfdname, sizeof devfdname, "/dev/loop%u", n);
-	loop_fd = open(devfdname, O_RDWR);
-	if ( loop_fd < 0 && errno == ENOENT ) {
-	  die("no available loopback device!");
-	}
-	if ( ioctl(loop_fd, LOOP_SET_FD, (void *)dev_fd) ) {
-	  close(loop_fd); loop_fd = -1;
-	  if ( errno != EBUSY )
-	    die("cannot set up loopback device");
-	  else
-	    continue;
-	}
-
-	if ( ioctl(loop_fd, LOOP_GET_STATUS64, &loopinfo) ||
-	     (loopinfo.lo_offset = filesystem_offset,
-	      ioctl(loop_fd, LOOP_SET_STATUS64, &loopinfo)) )
-	  die("cannot set up loopback device");
-      }
-    } else {
-      snprintf(devfdname, sizeof devfdname, "/proc/%lu/fd/%d",
-	       (unsigned long)mypid, dev_fd);
-    }
-
-    if ( mount(devfdname, mntpath, "msdos",
-	       MS_NOEXEC|MS_NOSUID, "umask=077,quiet") )
-      die("could not mount filesystem");
-
-#else
-
-    snprintf(devfdname, sizeof devfdname, "/proc/%lu/fd/%d",
-	     (unsigned long)mypid, dev_fd);
-
-    f = fork();
-    if ( f < 0 ) {
-      perror(program);
-      rmdir(mntpath);
-      exit(1);
-    } else if ( f == 0 ) {
-      char mnt_opts[128];
-      if ( S_ISREG(st.st_mode) ) {
-	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,loop,offset=%llu,umask=077,quiet",
-		 (unsigned long long)filesystem_offset);
-      } else {
-	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,umask=077,quiet");
-      }
-      execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-o", mnt_opts,\
-	    devfdname, mntpath, NULL);
-      _exit(255);		/* execl failed */
-    }
-
-    w = waitpid(f, &status, 0);
-    if ( w != f || status ) {
-      rmdir(mntpath);
-      exit(1);			/* Mount failed */
-    }
-
-#endif
+  if (do_mount(dev_fd, &mnt_cookie, mntpath, "vfat") &&
+      do_mount(dev_fd, &mnt_cookie, mntpath, "msdos")) {
+    rmdir(mntpath);
+    die("mount failed");
   }
 
   ldlinux_name = alloca(strlen(mntpath)+14+
@@ -453,34 +514,7 @@ int main(int argc, char *argv[])
   sync();
 
 umount:
-#if DO_DIRECT_MOUNT
-
-  if ( umount2(mntpath, 0) )
-    die("could not umount path");
-
-  if ( loop_fd != -1 ) {
-    ioctl(loop_fd, LOOP_CLR_FD, 0); /* Free loop device */
-    close(loop_fd);
-    loop_fd = -1;
-  }
-
-#else
-
-  f = fork();
-  if ( f < 0 ) {
-    perror("fork");
-    exit(1);
-  } else if ( f == 0 ) {
-    execl(_PATH_UMOUNT, _PATH_UMOUNT, mntpath, NULL);
-  }
-
-  w = waitpid(f, &status, 0);
-  if ( w != f || status ) {
-    exit(1);
-  }
-
-#endif
-
+  do_umount(mntpath, mnt_cookie);
   sync();
   rmdir(mntpath);
 
