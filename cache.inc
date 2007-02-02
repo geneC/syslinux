@@ -65,6 +65,7 @@ getcachesector:
 		push gs
 		pop es
 		mov bx,[CachePtrs+cptr.next]	; "Next most recent than head node"
+		mov [bx+cptr.sector],eax
 		mov si,bx
 		sub bx,CachePtrs+cptr_size
 		shl bx,SECTOR_SHIFT-cptr_size_lg2	; Buffer address
