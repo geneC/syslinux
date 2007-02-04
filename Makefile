@@ -63,12 +63,16 @@ BINFILES = bootsect_bin.c ldlinux_bin.c mbr_bin.c \
 # mingw suite installed
 BTARGET  = kwdhash.gen version.gen version.h \
 	   ldlinux.bss ldlinux.sys ldlinux.bin \
-	   pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin \
+	   pxelinux.0 isolinux.bin isolinux-debug.bin \
 	   extlinux.bin extlinux.bss extlinux.sys
-BOBJECTS = $(BTARGET) dos/syslinux.com win32/syslinux.exe memdisk/memdisk
+BOBJECTS = $(BTARGET) mbr/mbr.bin dos/syslinux.com win32/syslinux.exe memdisk/memdisk
+# BESUBDIRS and IESUBDIRS are "early", i.e. before the root; BSUBDIRS
+# and ISUBDIRS are "late", after the root.
+BESUBDIRS = mbr
 BSUBDIRS = memdisk dos win32
 ITARGET  = copybs.com gethostip mkdiskimage
 IOBJECTS = $(ITARGET) mtools/syslinux unix/syslinux extlinux/extlinux
+IESUBDIRS =
 ISUBDIRS = mtools unix extlinux sample com32
 DOCS     = COPYING NEWS README TODO BUGS *.doc sample menu com32
 OTHER    = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
@@ -102,9 +106,10 @@ MAKE    += DATE=$(DATE) HEXDATE=$(HEXDATE)
 # error every time you try to build.
 #
 
-all:	all-local
-	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+all:
+	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 	$(MAKE) all-local
+	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 	-ls -l $(BOBJECTS) $(IOBJECTS)
 
 all-local: $(BTARGET) $(ITARGET) $(BINFILES)
@@ -167,10 +172,7 @@ extlinux.bss: extlinux.bin
 extlinux.sys: extlinux.bin
 	dd if=$< of=$@ bs=512 skip=1
 
-mbr.bin: mbr.asm
-	$(NASM) -f bin -l mbr.lst -o mbr.bin mbr.asm
-
-mbr_bin.c: mbr.bin bin2c.pl
+mbr_bin.c: mbr/mbr.bin bin2c.pl
 	$(PERL) bin2c.pl syslinux_mbr < $< > $@
 
 copybs.com: copybs.asm
