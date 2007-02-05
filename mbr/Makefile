@@ -31,7 +31,7 @@ all:	mbr.bin
 
 .PRECIOUS: %.o
 %.o: %.S
-	$(CC) $(SFLAGS) -c -o $@ $<
+	$(CC) $(SFLAGS) -Wa,-a=$*.lst -c -o $@ $<
 
 mbr.elf: mbr.o
 	$(LD) -Ttext 0x600 -e _start -o $@ $^
@@ -41,7 +41,7 @@ mbr.bin: mbr.elf checksize.pl
 	$(PERL) checksize.pl mbr.bin 440
 
 tidy:
-	rm -f *.o *.elf
+	rm -f *.o *.elf *.lst
 
-clean:
-	rm -f *.o *.elf *.bin
+clean: tidy
+	rm -f *.bin
