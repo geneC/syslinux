@@ -201,8 +201,8 @@ $(LIB_SO): bootsect_bin.o ldlinux_bin.o syslxmod.o
 gethostip: gethostip.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
-mkdiskimage: mkdiskimage.in mbr.bin bin2hex.pl
-	$(PERL) bin2hex.pl < mbr.bin | cat mkdiskimage.in - > $@
+mkdiskimage: mkdiskimage.in mbr/mbr.bin bin2hex.pl
+	$(PERL) bin2hex.pl < mbr/mbr.bin | cat mkdiskimage.in - > $@
 	chmod a+x $@
 
 install: installer
