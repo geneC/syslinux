@@ -33,8 +33,8 @@ all:	mbr.bin
 %.o: %.S
 	$(CC) $(SFLAGS) -Wa,-a=$*.lst -c -o $@ $<
 
-mbr.elf: mbr.o
-	$(LD) -Ttext 0x600 -e _start -o $@ $^
+mbr.elf: mbr.o mbr.ld
+	$(LD) -T mbr.ld -e _start -o $@ $<
 
 mbr.bin: mbr.elf checksize.pl
 	$(OBJCOPY) -O binary $< $@

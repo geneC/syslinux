@@ -28,14 +28,21 @@
 	.code16
 	.text
 
-bootsec = 0x7c00
-stack	= bootsec
-driveno	= (stack-4)
-heads	= (stack-6)
-sectors	= (stack-8)
+	.globl	bootsec
+stack   = 0x7c00
+driveno	= (stack-6)
+heads	= (stack-8)
+sectors	= (stack-10)
 
 BIOS_page = 0x462
-	
+
+	/* gas/ld has issues with doing this as absolute addresses... */
+	.section ".bootsec", "a", @nobits
+	.globl	bootsec
+bootsec:
+	.space	512
+
+	.text	
 	.globl	_start
 _start:
 	cli
@@ -74,7 +81,7 @@ next:
 	jz	1f
 
 	/* We have EBIOS; patch in a jump to read_sector_ebios */
-	movw	$0xeb+((read_sector_ebios-read_sector_cbios+2)<< 8), (read_sector_cbios)
+	movw	$0xeb+((read_sector_ebios-read_sector_cbios-2)<< 8), (read_sector_cbios)
 
 1:
 	popw	%dx
@@ -93,7 +100,6 @@ next:
 	pushl	%eax		/* Base */
 	pushl	%eax		/* Root */
 	call	scan_partition_table
-
 	
 	/* If we get here, we have no OS */
 	jmp	missing_os
@@ -126,6 +132,7 @@ read_sector_ebios:
 	movl	%eax, 8(%si)
 	movb	$0x42, %ah
 read_common:
+	movb	(driveno), %dl
 	int	$0x13
 	ret
 
@@ -232,11 +239,13 @@ boot:
 	movl	8(%si), %eax
 	addl	22(%bp), %eax
 	movl	%eax, 8(%si)
+	pushw	%si
 	call	read_sector
+	popw	%si
 	jc	disk_error
-	cmpw	$0xaa55, (bootsec+0x510)
-	je	missing_os		/* Not a valid boot sector */
-	movw	$stack-6, %sp
+	cmpw	$0xaa55, (bootsec+510)
+	jne	missing_os		/* Not a valid boot sector */
+	movw	$driveno, %sp
 	popw	%dx		/* dl -> drive number */
 	popw	%di		/* es:di -> $PnP vector */
 	popw	%es
@@ -274,10 +283,10 @@ missing_os_msg:
 	.ascii	"Missing operating system."
 	.byte	0
 disk_error_msg:
-	.ascii	"Failed to load operating system."
+	.ascii	"Operating system load error."
 	.byte	0
 too_many_active_msg:
-	.ascii	"Multiple active partititons."
+	.ascii	"Multiple active partitions."
 	.byte	0
 
 	.balign	4
