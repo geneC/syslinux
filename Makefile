@@ -86,7 +86,7 @@ INSTALL_BIN   =	mtools/syslinux gethostip ppmtolss16 lss16toppm
 INSTALL_SBIN  = extlinux/extlinux
 # Things to install in /usr/lib/syslinux
 INSTALL_AUX   =	pxelinux.0 isolinux.bin isolinux-debug.bin \
-		dos/syslinux.com copybs.com memdisk/memdisk mbr.bin
+		dos/syslinux.com copybs.com memdisk/memdisk mbr/mbr.bin
 INSTALL_AUX_OPT = win32/syslinux.exe
 
 # The DATE is set on the make command line when building binaries for
