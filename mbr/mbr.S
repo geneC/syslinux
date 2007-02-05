@@ -43,6 +43,7 @@ _start:
 	movw	%ax, %ds
 	movw	%ax, %ss
 	movw	$stack, %sp
+	movw	%sp, %si
 	pushw	%es		/* es:di -> $PnP header */
 	pushw	%di
 	pushw	%dx		/* dl -> drive number */
@@ -51,7 +52,6 @@ _start:
 	cld
 
 	/* Copy down to 0:0x600 */
-	movw	%sp, %si
 	movw	$_start, %di
 	movw	$(512/2), %cx
 	rep; movsw
