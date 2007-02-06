@@ -485,10 +485,6 @@ kernel_good:
 		mov [KernelCNameLen],di
 		popa
 
-%if IS_SYSLINUX || IS_MDSLINUX
-		mov ecx,[KernelName+7]
-		mov cl,'.'
-%else
 		push di
 		push ax
 		mov di,KernelName+4*IS_PXELINUX
@@ -500,7 +496,6 @@ kernel_good:
 .one_step:	mov ecx,[di-4]			; 4 bytes before end
 		pop ax
 		pop di
-%endif
 
 ;
 ; At this point, DX:AX contains the size of the kernel, and SI contains
@@ -522,19 +517,13 @@ kernel_good:
 		je is_bss_sector
 		cmp ecx,'.bin'
 		je is_bootsector
-%if IS_SYSLINUX || IS_MDSLINUX
-		cmp ecx,'.bs '
-		je is_bootsector
-		cmp ecx,'.0  '
-		je is_bootsector
-%else
 		shr ecx,8
 		cmp ecx,'.bs'
 		je is_bootsector
 		shr ecx,8
 		cmp cx,'.0'
 		je is_bootsector
-%endif
+
 		; Otherwise Linux kernel
 
 		section .bss

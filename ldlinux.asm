@@ -122,7 +122,6 @@ RootDir		resd 1			; Location of root directory proper
 DataArea	resd 1			; Location of data area
 RootDirSize	resd 1			; Root dir size in sectors
 TotalSectors	resd 1			; Total number of sectors
-EndSector	resd 1			; Location of filesystem end
 ClustSize	resd 1			; Bytes/cluster
 ClustMask	resd 1			; Sectors/cluster - 1
 CopySuper	resb 1			; Distinguish .bs versus .bss
@@ -794,9 +793,6 @@ genfatinfo:
 .have_secs:
 		mov [TotalSectors],edx
 
-		add edx,eax
-		mov [EndSector],edx
-
 		mov eax,[bxResSectors]
 		mov [FAT],eax			; Beginning of FAT
 		mov edx,[bxFATsecs]
@@ -834,7 +830,7 @@ genfatinfo:
 ; FAT12, FAT16 or FAT28^H^H32?  This computation is fscking ridiculous.
 ;
 getfattype:
-		mov eax,[EndSector]
+		mov eax,[TotalSectors]
 		sub eax,[DataArea]
 		shr eax,cl			; cl == ClustShift
 		mov cl,nextcluster_fat12-(nextcluster+2)

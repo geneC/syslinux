@@ -9,6 +9,8 @@ Changes in 3.36:
 	* SYSLINUX: "unix" installer now uses Linux ioctls instead of
 	  using libfat.
 	* New MBR which can boot from logical partitions.
+	* SYSLINUX: Fix bug in detecting special extensions which was
+	  introduced in 3.35 :(
 
 Changes in 3.35:
 	* MEMDISK: New "safeint" mode.
