@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
   fprintf(mtc,
-	  "MTOOLS_NO_VFAT=1\n"
+	  /* "MTOOLS_NO_VFAT=1\n" */
 	  "MTOOLS_SKIP_CHECK=1\n" /* Needed for some flash memories */
 	  "drive s:\n"
 	  "  file=\"/proc/%lu/fd/%d\"\n"

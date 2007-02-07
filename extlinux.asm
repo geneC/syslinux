@@ -5,7 +5,7 @@
 ;
 ;  A program to boot Linux kernels off an ext2/ext3 filesystem.
 ;
-;   Copyright (C) 1994-2006  H. Peter Anvin
+;   Copyright (C) 1994-2007  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -111,7 +111,7 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
 		; ends at 4800h
 
-		section .latebss
+		section .bss
 SuperBlock	resb 1024		; ext2 superblock
 SuperInfo	resq 16			; DOS superblock expanded
 ClustSize	resd 1			; Bytes/cluster ("block")
@@ -1023,7 +1023,7 @@ open_inode:
 		pop di
 		ret
 
-		section .latebss
+		section .bss
 		alignb 4
 ThisInode	resb EXT2_GOOD_OLD_INODE_SIZE	; The most recently opened inode
 

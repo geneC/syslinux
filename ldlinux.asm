@@ -122,7 +122,6 @@ RootDir		resd 1			; Location of root directory proper
 DataArea	resd 1			; Location of data area
 RootDirSize	resd 1			; Root dir size in sectors
 TotalSectors	resd 1			; Total number of sectors
-EndSector	resd 1			; Location of filesystem end
 ClustSize	resd 1			; Bytes/cluster
 ClustMask	resd 1			; Sectors/cluster - 1
 CopySuper	resb 1			; Distinguish .bs versus .bss
@@ -794,9 +793,6 @@ genfatinfo:
 .have_secs:
 		mov [TotalSectors],edx
 
-		add edx,eax
-		mov [EndSector],edx
-
 		mov eax,[bxResSectors]
 		mov [FAT],eax			; Beginning of FAT
 		mov edx,[bxFATsecs]
@@ -834,7 +830,7 @@ genfatinfo:
 ; FAT12, FAT16 or FAT28^H^H32?  This computation is fscking ridiculous.
 ;
 getfattype:
-		mov eax,[EndSector]
+		mov eax,[TotalSectors]
 		sub eax,[DataArea]
 		shr eax,cl			; cl == ClustShift
 		mov cl,nextcluster_fat12-(nextcluster+2)
@@ -1603,11 +1599,11 @@ initrd_cmd_len	equ 7
 ;
 ; Extensions to search for (in *forward* order).
 ;
-exten_table:	db 'CBT',0		; COMBOOT (specific)
-		db 'BSS',0		; Boot Sector (add superblock)
-		db 'BS ',0		; Boot Sector
-		db 'COM',0		; COMBOOT (same as DOS)
-		db 'C32',0		; COM32
+exten_table:	db '.cbt'		; COMBOOT (specific)
+		db '.bss'		; Boot Sector (add superblock)
+		db '.bs', 0		; Boot Sector
+		db '.com'		; COMBOOT (same as DOS)
+		db '.c32'		; COM32
 exten_table_end:
 		dd 0, 0			; Need 8 null bytes here
 

@@ -1,6 +1,6 @@
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 1998-2006 H. Peter Anvin - All Rights Reserved
+##   Copyright 1998-2007 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -17,12 +17,18 @@
 # No builtin rules
 MAKEFLAGS = -r
 
+gcc_ok   = $(shell if gcc $(1) dummy.c -o /dev/null 2>/dev/null; \
+	           then echo '$(1)'; else echo '$(2)'; fi)
+
+comma   := ,
+LDHASH  := $(call gcc_ok,-Wl$(comma)--hash-style=both,)
+
 OSTYPE   = $(shell uname -msr)
 CC	 = gcc
 INCLUDE  =
 CFLAGS   = -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 PIC      = -fPIC
-LDFLAGS  = -O2 -s
+LDFLAGS  = -O2 -s $(LDHASH)
 AR	 = ar
 RANLIB   = ranlib
 
@@ -63,12 +69,16 @@ BINFILES = bootsect_bin.c ldlinux_bin.c mbr_bin.c \
 # mingw suite installed
 BTARGET  = kwdhash.gen version.gen version.h \
 	   ldlinux.bss ldlinux.sys ldlinux.bin \
-	   pxelinux.0 mbr.bin isolinux.bin isolinux-debug.bin \
+	   pxelinux.0 isolinux.bin isolinux-debug.bin \
 	   extlinux.bin extlinux.bss extlinux.sys
-BOBJECTS = $(BTARGET) dos/syslinux.com win32/syslinux.exe memdisk/memdisk
+BOBJECTS = $(BTARGET) mbr/mbr.bin dos/syslinux.com win32/syslinux.exe memdisk/memdisk
+# BESUBDIRS and IESUBDIRS are "early", i.e. before the root; BSUBDIRS
+# and ISUBDIRS are "late", after the root.
+BESUBDIRS = mbr
 BSUBDIRS = memdisk dos win32
 ITARGET  = copybs.com gethostip mkdiskimage
 IOBJECTS = $(ITARGET) mtools/syslinux unix/syslinux extlinux/extlinux
+IESUBDIRS =
 ISUBDIRS = mtools unix extlinux sample com32
 DOCS     = COPYING NEWS README TODO BUGS *.doc sample menu com32
 OTHER    = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
@@ -82,7 +92,7 @@ INSTALL_BIN   =	mtools/syslinux gethostip ppmtolss16 lss16toppm
 INSTALL_SBIN  = extlinux/extlinux
 # Things to install in /usr/lib/syslinux
 INSTALL_AUX   =	pxelinux.0 isolinux.bin isolinux-debug.bin \
-		dos/syslinux.com copybs.com memdisk/memdisk mbr.bin
+		dos/syslinux.com copybs.com memdisk/memdisk mbr/mbr.bin
 INSTALL_AUX_OPT = win32/syslinux.exe
 
 # The DATE is set on the make command line when building binaries for
@@ -102,9 +112,10 @@ MAKE    += DATE=$(DATE) HEXDATE=$(HEXDATE)
 # error every time you try to build.
 #
 
-all:	all-local
-	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+all:
+	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 	$(MAKE) all-local
+	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 	-ls -l $(BOBJECTS) $(IOBJECTS)
 
 all-local: $(BTARGET) $(ITARGET) $(BINFILES)
@@ -167,10 +178,7 @@ extlinux.bss: extlinux.bin
 extlinux.sys: extlinux.bin
 	dd if=$< of=$@ bs=512 skip=1
 
-mbr.bin: mbr.asm
-	$(NASM) -f bin -l mbr.lst -o mbr.bin mbr.asm
-
-mbr_bin.c: mbr.bin bin2c.pl
+mbr_bin.c: mbr/mbr.bin bin2c.pl
 	$(PERL) bin2c.pl syslinux_mbr < $< > $@
 
 copybs.com: copybs.asm
@@ -199,8 +207,8 @@ $(LIB_SO): bootsect_bin.o ldlinux_bin.o syslxmod.o
 gethostip: gethostip.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
-mkdiskimage: mkdiskimage.in mbr.bin bin2hex.pl
-	$(PERL) bin2hex.pl < mbr.bin | cat mkdiskimage.in - > $@
+mkdiskimage: mkdiskimage.in mbr/mbr.bin bin2hex.pl
+	$(PERL) bin2hex.pl < mbr/mbr.bin | cat mkdiskimage.in - > $@
 	chmod a+x $@
 
 install: installer

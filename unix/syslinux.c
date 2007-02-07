@@ -465,7 +465,7 @@ int main(int argc, char *argv[])
     goto umount;
   }
   sprintf(ldlinux_name, "%s%s%s//ldlinux.sys",
-	  subdir ? "//" : "", subdir ? subdir : "", mntpath);
+	  mntpath, subdir ? "//" : "", subdir ? subdir : "");
 
   if ((fd = open(ldlinux_name, O_RDONLY)) >= 0) {
     uint32_t zero_attr = 0;

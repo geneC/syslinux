@@ -316,10 +316,6 @@ vk_check:
 ; Find the kernel on disk
 ;
 get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/extension
-%if IS_SYSLINUX || IS_MDSLINUX			; SYSLINUX has to deal with DOS mangled names...
-		mov eax,[KernelName+8]		; Save initial extension
-		mov [exten_table_end],eax	; Last case == initial ext.
-%else
 		mov di,KernelName+4*IS_PXELINUX
 		xor al,al
 		mov cx,FILENAME_MAX-5		; Need 4 chars + null
@@ -327,7 +323,6 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
 		jne .no_skip
 		dec di				; Point to final null
 .no_skip:	mov [KernelExtPtr],di
-%endif
 		mov bx,exten_table
 .search_loop:	push bx
                 mov di,KernelName	      	; Search on disk
@@ -335,13 +330,9 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
 		pop bx
                 jnz kernel_good
 		mov eax,[bx]			; Try a different extension
-%if IS_SYSLINUX || IS_MDSLINUX
-		mov [KernelName+8],eax
-%else
 		mov si,[KernelExtPtr]
 		mov [si],eax
 		mov byte [si+4],0
-%endif
 		add bx,byte 4
 		cmp bx,exten_table_end
 		jna .search_loop		; allow == case (final case)
@@ -485,10 +476,6 @@ kernel_good:
 		mov [KernelCNameLen],di
 		popa
 
-%if IS_SYSLINUX || IS_MDSLINUX
-		mov ecx,[KernelName+7]
-		mov cl,'.'
-%else
 		push di
 		push ax
 		mov di,KernelName+4*IS_PXELINUX
@@ -500,7 +487,6 @@ kernel_good:
 .one_step:	mov ecx,[di-4]			; 4 bytes before end
 		pop ax
 		pop di
-%endif
 
 ;
 ; At this point, DX:AX contains the size of the kernel, and SI contains
@@ -522,19 +508,13 @@ kernel_good:
 		je is_bss_sector
 		cmp ecx,'.bin'
 		je is_bootsector
-%if IS_SYSLINUX || IS_MDSLINUX
-		cmp ecx,'.bs '
-		je is_bootsector
-		cmp ecx,'.0  '
-		je is_bootsector
-%else
 		shr ecx,8
 		cmp ecx,'.bs'
 		je is_bootsector
 		shr ecx,8
 		cmp cx,'.0'
 		je is_bootsector
-%endif
+
 		; Otherwise Linux kernel
 
 		section .bss
