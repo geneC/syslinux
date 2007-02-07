@@ -1599,11 +1599,11 @@ initrd_cmd_len	equ 7
 ;
 ; Extensions to search for (in *forward* order).
 ;
-exten_table:	db 'CBT',0		; COMBOOT (specific)
-		db 'BSS',0		; Boot Sector (add superblock)
-		db 'BS ',0		; Boot Sector
-		db 'COM',0		; COMBOOT (same as DOS)
-		db 'C32',0		; COM32
+exten_table:	db '.cbt'		; COMBOOT (specific)
+		db '.bss'		; Boot Sector (add superblock)
+		db '.bs', 0		; Boot Sector
+		db '.com'		; COMBOOT (same as DOS)
+		db '.c32'		; COM32
 exten_table_end:
 		dd 0, 0			; Need 8 null bytes here
 

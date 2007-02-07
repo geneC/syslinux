@@ -316,10 +316,6 @@ vk_check:
 ; Find the kernel on disk
 ;
 get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/extension
-%if IS_SYSLINUX || IS_MDSLINUX			; SYSLINUX has to deal with DOS mangled names...
-		mov eax,[KernelName+8]		; Save initial extension
-		mov [exten_table_end],eax	; Last case == initial ext.
-%else
 		mov di,KernelName+4*IS_PXELINUX
 		xor al,al
 		mov cx,FILENAME_MAX-5		; Need 4 chars + null
@@ -327,7 +323,6 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
 		jne .no_skip
 		dec di				; Point to final null
 .no_skip:	mov [KernelExtPtr],di
-%endif
 		mov bx,exten_table
 .search_loop:	push bx
                 mov di,KernelName	      	; Search on disk
@@ -335,13 +330,9 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
 		pop bx
                 jnz kernel_good
 		mov eax,[bx]			; Try a different extension
-%if IS_SYSLINUX || IS_MDSLINUX
-		mov [KernelName+8],eax
-%else
 		mov si,[KernelExtPtr]
 		mov [si],eax
 		mov byte [si+4],0
-%endif
 		add bx,byte 4
 		cmp bx,exten_table_end
 		jna .search_loop		; allow == case (final case)
