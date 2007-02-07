@@ -1,8 +1,14 @@
+gcc_ok   = $(shell if gcc $(1) ../dummy.c -o /dev/null 2>/dev/null; \
+	           then echo '$(1)'; else echo '$(2)'; fi)
+
+comma   := ,
+LDHASH  := $(call gcc_ok,-Wl$(comma)--hash-style=both,)
+
 CC	 = gcc
 OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libfat
 CFLAGS	 = -W -Wall -Wno-sign-compare -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
-LDFLAGS	 = -s
+LDFLAGS	 = $(LDHASH) -s
 
 SRCS     = extlinux.c ../extlinux_bss_bin.c ../extlinux_sys_bin.c
 OBJS	 = $(patsubst %.c,%.o,$(notdir $(SRCS)))

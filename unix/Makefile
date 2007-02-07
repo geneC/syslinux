@@ -1,8 +1,14 @@
+gcc_ok   = $(shell if gcc $(1) ../dummy.c -o /dev/null 2>/dev/null; \
+	           then echo '$(1)'; else echo '$(2)'; fi)
+
+comma   := ,
+LDHASH  := $(call gcc_ok,-Wl$(comma)--hash-style=both,)
+
 CC	 = gcc
 OPTFLAGS = -g -Os
 INCLUDES = -I. -I..
 CFLAGS	 = -W -Wall -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
-LDFLAGS	 = -s
+LDFLAGS	 = $(LDHASH) -s
 
 SRCS     = syslinux.c ../syslxmod.c ../bootsect_bin.c ../ldlinux_bin.c
 OBJS	 = $(patsubst %.c,%.o,$(notdir $(SRCS)))

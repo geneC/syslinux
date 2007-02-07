@@ -17,7 +17,7 @@ gcc_ok   = $(shell if gcc $(1) -c -x c /dev/null -o /dev/null 2>/dev/null; \
 
 M32     := $(call gcc_ok,-m32,)
 ALIGN   := $(call gcc_ok,-falign-functions=0 -falign-jumps=0 -falign-loops=0,-malign-functions=0 -malign-jumps=0 -malign-loops=0)
-FREE    := $(call gcc_ok,-ffreestanding,)
+FREE    := $(call gcc_ok,-ffreestanding,) $(call gcc_ok,-fno-stack-protector,)
 
 CC       = gcc
 CFLAGS   =  $(M32) $(FREE) -g -W -Wall -Wno-sign-compare \

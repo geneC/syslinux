@@ -1,6 +1,6 @@
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 1998-2006 H. Peter Anvin - All Rights Reserved
+##   Copyright 1998-2007 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -17,12 +17,18 @@
 # No builtin rules
 MAKEFLAGS = -r
 
+gcc_ok   = $(shell if gcc $(1) dummy.c -o /dev/null 2>/dev/null; \
+	           then echo '$(1)'; else echo '$(2)'; fi)
+
+comma   := ,
+LDHASH  := $(call gcc_ok,-Wl$(comma)--hash-style=both,)
+
 OSTYPE   = $(shell uname -msr)
 CC	 = gcc
 INCLUDE  =
 CFLAGS   = -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 PIC      = -fPIC
-LDFLAGS  = -O2 -s
+LDFLAGS  = -O2 -s $(LDHASH)
 AR	 = ar
 RANLIB   = ranlib
 
