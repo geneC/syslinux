@@ -113,6 +113,26 @@ void get_name_from_pci_ids(s_pci_device *pci_device)
  fclose(f);
 }
 
+struct match * find_pci_device(s_pci_device_list *pci_device_list, struct match *list) {
+        int pci_dev;
+	uint32_t did,sid;
+	struct match *m;
+        for (pci_dev=0; pci_dev<pci_device_list->count;pci_dev++) {
+                s_pci_device *pci_device = &pci_device_list->pci_device[pci_dev];
+		sid=((pci_device->sub_product)<<16 | (pci_device->sub_vendor));
+		did=((pci_device->product<<16) | (pci_device->vendor));
+		for ( m = list ; m ; m = m->next ) {
+          		if ( ((did ^ m->did) & m->did_mask) == 0 &&
+               		((sid ^ m->sid) & m->sid_mask) == 0 &&
+               		pci_device->revision >= m->rid_min && pci_device->revision <= m->rid_max ) {
+				dprintf("PCI Match: Vendor=%04x Product=%04x Sub_vendor=%04x Sub_Product=%04x Release=%02x\n",pci_device->vendor,pci_device->product,pci_device->sub_vendor,pci_device->sub_product,pci_device->revision);
+            			return m;
+			}
+        	}
+        }
+	return NULL;
+}
+
 int pci_scan(s_pci_bus_list *pci_bus_list, s_pci_device_list *pci_device_list)
 {
   unsigned int bus, dev, func, maxfunc;

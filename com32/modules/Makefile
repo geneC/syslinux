@@ -91,6 +91,9 @@ menu.elf : menu.o menumain.o readconfig.o $(LIBS)
 vesamenu.elf : vesamenu.o menumain.o readconfig.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
+ethersel.elf : ethersel.o pci.o $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ $^
+
 menu.lnx : menu.lo readconfig.lo $(LNXLIBS)
 	$(CC) $(LNXLDFLAGS) -o $@ $^
 

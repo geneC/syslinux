@@ -37,6 +37,16 @@ typedef struct {
 	uint8_t count;
 } s_pci_bus_list;
 
+struct match {
+  struct match *next;
+  uint32_t did;
+  uint32_t did_mask;
+  uint32_t sid;
+  uint32_t sid_mask;
+  uint8_t rid_min, rid_max;
+  char *filename;
+};
+
 static inline pciaddr_t pci_mkaddr(uint32_t bus, uint32_t dev,
 				   uint32_t func, uint32_t reg)
 {
@@ -62,4 +72,5 @@ void pci_writew(uint16_t, pciaddr_t);
 void pci_writel(uint32_t, pciaddr_t);
 
 extern int pci_scan(s_pci_bus_list *pci_bus_list, s_pci_device_list *pci_device_list);
+extern struct match * find_pci_device(s_pci_device_list *pci_device_list, struct match *list);
 #endif /* _SYS_PCI_H */

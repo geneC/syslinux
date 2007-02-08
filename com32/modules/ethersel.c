@@ -42,16 +42,6 @@
 # define dprintf(...) ((void)0)
 #endif
 
-struct match {
-  struct match *next;
-  uint32_t did;
-  uint32_t did_mask;
-  uint32_t sid;
-  uint32_t sid_mask;
-  uint8_t rid_min, rid_max;
-  char *filename;
-};
-
 static const char *
 get_config(void)
 {
@@ -201,68 +191,6 @@ parse_config(const char *filename)
   return list;
 }
 
-static struct match *
-pciscan(struct match *list)
-{
-  unsigned int bus, dev, func, maxfunc;
-  uint32_t did, sid;
-  uint8_t hdrtype, rid;
-  pciaddr_t a;
-  struct match *m;
-  int cfgtype;
-
-#ifdef DEBUG
-  outl(~0, 0xcf8);
-  printf("Poking at port CF8 = %#08x\n", inl(0xcf8));
-  outl(0, 0xcf8);
-#endif
-
-  cfgtype = pci_set_config_type(PCI_CFG_AUTO);
-  (void)cfgtype;
-
-  dprintf("PCI configuration type %d\n", cfgtype);
-
-  for ( bus = 0 ; bus <= 0xff ; bus++ ) {
-
-    dprintf("Probing bus 0x%02x... \n", bus);
-
-    for ( dev = 0 ; dev <= 0x1f ; dev++ ) {
-      maxfunc = 0;
-      for ( func = 0 ; func <= maxfunc ; func++ ) {
-	a = pci_mkaddr(bus, dev, func, 0);
-
-	did = pci_readl(a);
-
-	if ( did == 0xffffffff || did == 0xffff0000 ||
-	     did == 0x0000ffff || did == 0x00000000 )
-	  continue;
-
-	hdrtype = pci_readb(a + 0x0e);
-
-	if ( hdrtype & 0x80 )
-	  maxfunc = 7;		/* Multifunction device */
-
-	if ( hdrtype & 0x7f )
-	  continue;		/* Ignore bridge devices */
-
-	rid = pci_readb(a + 0x08);
-	sid = pci_readl(a + 0x2c);
-
-	dprintf("Scanning: DID %08x SID %08x RID %02x\n", did, sid, rid);
-
-	for ( m = list ; m ; m = m->next ) {
-	  if ( ((did ^ m->did) & m->did_mask) == 0 &&
-	       ((sid ^ m->sid) & m->sid_mask) == 0 &&
-	       rid >= m->rid_min && rid <= m->rid_max )
-	    return m;
-	}
-      }
-    }
-  }
-
-  return NULL;
-}
-
 static void __attribute__((noreturn))
 execute(const char *cmdline)
 {
@@ -279,12 +207,15 @@ execute(const char *cmdline)
 int main(int argc, char *argv[])
 {
   struct match *list, *match;
+  s_pci_device_list pci_device_list;
+  s_pci_bus_list pci_bus_list;
 
   openconsole(&dev_null_r, &dev_stdcon_w);
+  pci_scan(&pci_bus_list,&pci_device_list);
 
   list = parse_config(argc < 2 ? NULL : argv[1]);
 
-  match = pciscan(list);
+  match = find_pci_device(&pci_device_list,list);
 
   if ( match )
     execute(match->filename);
