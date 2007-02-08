@@ -136,7 +136,7 @@ replace_bootstrap:
 		mov [es:di+12],esi	; New ESI
 		mov [es:di+6],bx	; New DS
 
-%ifndef IS_PXELINUX
+%if IS_PXELINUX == 0
 		; DON'T DO THIS FOR PXELINUX...
 		; For PXE, ES:BX -> PXENV+, and this would corrupt
 		; that use.
