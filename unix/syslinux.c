@@ -354,7 +354,8 @@ int main(int argc, char *argv[])
 	} else if ( *opt == 'd' && argp[1] ) {
 	  subdir = *++argp;
 	} else if ( *opt == 'o' && argp[1] ) {
-	  filesystem_offset = (off_t)strtoull(*++argp, NULL, 0); /* Byte offset */
+	  /* Byte offset */
+	  filesystem_offset = (off_t)strtoull(*++argp, NULL, 0);
 	} else {
 	  usage();
 	}

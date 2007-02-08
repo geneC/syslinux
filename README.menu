@@ -186,13 +186,13 @@ MENU COLOR element ansi foreground background shadow
 	represents fully transparent, and #ffffffff represents opaque
 	white.
 
-	
+
 	"shadow" controls the handling of the graphical console text
 	shadow.  Permitted values are "none" (no shadowing), "std" or
 	"standard" (standard shadowing - foreground pixels are
 	raised), "all" (both background and foreground raised), and
 	"rev" or "reverse" (background pixels are raised.)
-	
+
 
 	If any field is set to "*" or omitted (at the end of the line)
 	then that field is left unchanged.
