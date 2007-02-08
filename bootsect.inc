@@ -136,6 +136,11 @@ replace_bootstrap:
 		mov [es:di+12],esi	; New ESI
 		mov [es:di+6],bx	; New DS
 
+%ifndef IS_PXELINUX
+		; DON'T DO THIS FOR PXELINUX...
+		; For PXE, ES:BX -> PXENV+, and this would corrupt
+		; that use.
+
 		; Hunt for $PnP header if one exists
 		mov ax,0F000h
 		mov fs,ax
@@ -163,6 +168,7 @@ replace_bootstrap:
 		; Found a valid $PnP header, point ES:DI to it
 		mov [es:di+8], bx	; New DI
 		mov [es:di+4], fs	; New ES
+%endif
 
 .donepnp:
 		pop ax			; Copy list count

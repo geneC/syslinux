@@ -11,6 +11,7 @@ Changes in 3.36:
 	* New MBR which can boot from logical partitions.
 	* SYSLINUX: Fix bug in detecting special extensions which was
 	  introduced in 3.35 :(
+	* PXELINUX: Unbreak chainbooting FreeBSD (and possibly others.)
 
 Changes in 3.35:
 	* MEMDISK: New "safeint" mode.
