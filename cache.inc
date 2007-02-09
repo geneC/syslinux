@@ -33,6 +33,7 @@ initcache:
 		mov [di+cptr.sector],eax	; Zero sector number
 		mov [di+cptr.prev],bx		; Previous pointer
 		mov [bx+cptr.next],di		; Previous entry's next pointer
+		mov bx,di
 		add di,cptr_size
 		loop .loop
 		ret
