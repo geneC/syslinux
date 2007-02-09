@@ -32,7 +32,7 @@
 gcc_ok   = $(shell if gcc $(1) -c -x c /dev/null -o /dev/null 2>/dev/null; \
 	           then echo $(1); else echo $(2); fi)
 
-M32     := $(call gcc_ok,-m32,) $(call gcc_ok,-fno_stack_protector,)
+M32     := $(call gcc_ok,-m32,) $(call gcc_ok,-fno-stack-protector,)
 
 CC         = gcc
 LD         = ld -m elf_i386
