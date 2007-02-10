@@ -70,8 +70,10 @@ struct patch_area {
 
   uint16_t olddosmem;
   uint8_t  bootloaderid;
+  uint8_t  maxint13func;
+#define MAXINT13_NOEDD	0x16
 
-  uint8_t  _pad[3];
+  uint8_t  _pad[2];
   uint16_t memint1588;
 
   uint16_t cylinders;
@@ -552,6 +554,7 @@ void setup(syscall_t cs_syscall, void *cs_bounce)
   com32sys_t regs;
   uint32_t ramdisk_image, ramdisk_size;
   int bios_drives;
+  int do_edd = -1;		/* -1 = default, 0 = no, 1 = yes */
 
   /* Set up global variables */
   syscall = cs_syscall;
@@ -579,11 +582,22 @@ void setup(syscall_t cs_syscall, void *cs_bounce)
 
   geometry = get_disk_image_geometry(ramdisk_image, ramdisk_size);
 
-  printf("Disk is %s %d, %u K, C/H/S = %u/%u/%u\n",
+  if (getcmditem("edd") != CMD_NOTFOUND ||
+      getcmditem("ebios") != CMD_NOTFOUND)
+    do_edd = 1;
+  else if (getcmditem("noedd") != CMD_NOTFOUND ||
+	   getcmditem("noebios") != CMD_NOTFOUND ||
+	   getcmditem("cbios") != CMD_NOTFOUND)
+    do_edd = 0;
+  else
+    do_edd = (geometry->driveno & 0x80) ? 1 : 0;
+
+  printf("Disk is %s %d, %u K, C/H/S = %u/%u/%u, EDD %s\n",
 	 (geometry->driveno & 0x80) ? "hard disk" : "floppy",
 	 geometry->driveno & 0x7f,
 	 geometry->sectors >> 1,
-	 geometry->c, geometry->h, geometry->s);
+	 geometry->c, geometry->h, geometry->s,
+	 do_edd ? "on" : "off");
 
   /* Reserve the ramdisk memory */
   insertrange(ramdisk_image, ramdisk_size, 2);
@@ -632,6 +646,10 @@ void setup(syscall_t cs_syscall, void *cs_bounce)
     pptr->configflags &= ~CONFIG_SAFEINT;
     pptr->configflags |= CONFIG_BIGRAW|CONFIG_RAW;
   }
+
+  /* pptr->maxint13func defaults to EDD enabled, if compiled in */
+  if (!do_edd)
+    pptr->maxint13func = MAXINT13_NOEDD;
 
   /* Set up a drive parameter table */
   if ( geometry->driveno & 0x80 ) {

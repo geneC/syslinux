@@ -35,8 +35,8 @@ burn: isolinux.iso
 	cdrecord -v blank=fast isolinux.iso
 
 official:
-	$(MAKE) spotless CC='$(CC) -m32' 
-	$(MAKE) depend CC='$(CC) -m32' 
+	$(MAKE) spotless CC='$(CC) -m32'
+	$(MAKE) depend CC='$(CC) -m32'
 	$(MAKE) all CC='$(CC) -m32'
 	$(MAKE) dist CC='$(CC) -m32'
 

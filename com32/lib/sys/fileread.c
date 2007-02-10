@@ -46,7 +46,7 @@ ssize_t __file_read(struct file_info *fp, void *buf, size_t count)
 
   memset(&ireg, 0, sizeof ireg);
   ireg.eax.w[0] = 0x0007;	/* Read file */
-  ireg.esi.w[0] = OFFS(__com32.cs_bounce);
+  ireg.ebx.w[0] = OFFS(__com32.cs_bounce);
   ireg.es = SEG(__com32.cs_bounce);
 
   while ( count ) {
@@ -64,7 +64,7 @@ ssize_t __file_read(struct file_info *fp, void *buf, size_t count)
 	return -1;
       }
 
-      fp->i.filedes = ireg.esi.w[0];
+      fp->i.filedes = oreg.esi.w[0];
       fp->i.nbytes = min(fp->i.length-fp->i.offset, (unsigned)MAXBLOCK);
       fp->i.datap = fp->i.buf;
       memcpy(fp->i.buf, __com32.cs_bounce, fp->i.nbytes);

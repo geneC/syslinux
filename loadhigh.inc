@@ -88,7 +88,7 @@ load_high:
 		sub eax,ecx
 		pop bx				; <AA> Pausebird function
 		jnz .read_loop			; More to read...
-		
+
 
 .eof:
 		pop es				; <AAA> ES

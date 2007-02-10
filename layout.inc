@@ -1,6 +1,6 @@
 ; -----------------------------------------------------------------------
 ;
-;   Copyright 1994-2004 H. Peter Anvin - All Rights Reserved
+;   Copyright 1994-2007 H. Peter Anvin - All Rights Reserved
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ TEXT_START	equ 7C00h
 ; The secondary BSS section, above the text; we really wish we could
 ; just make it follow .bcopy32 or hang off the end,
 ; but it doesn't seem to work that way.
-LATEBSS_START	equ 0B400h
+LATEBSS_START	equ 0B200h
 
 ; Reserve memory for the stack.  This causes checkov to abort the
 ; compile if we violate this space.

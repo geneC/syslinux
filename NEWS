@@ -8,6 +8,17 @@ Changes in 3.40:
 	* It is now supported to load a different configuration file
 	  with the CONFIG keyword.
 
+Changes in 3.36:
+	* MEMDISK: Disable EDD by default on floppy disks.  EDD can be
+	  enabled with the "edd" option and disabled with "noedd".
+	  This (hopefully) should make Ghost work again.
+	* SYSLINUX: "unix" installer now uses Linux ioctls instead of
+	  using libfat.
+	* New MBR which can boot from logical partitions.
+	* SYSLINUX: Fix bug in detecting special extensions which was
+	  introduced in 3.35 :(
+	* PXELINUX: Unbreak chainbooting FreeBSD (and possibly others.)
+
 Changes in 3.35:
 	* MEMDISK: New "safeint" mode.
 	* MEMDISK: Be more compliant with the PnP BIOS spec.

@@ -6,7 +6,7 @@
 ;  A program to emulate an INT 13h disk BIOS from a "disk" in extended
 ;  memory.
 ;
-;   Copyright (C) 2001-2006  H. Peter Anvin
+;   Copyright (C) 2001-2007  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -152,8 +152,8 @@ Int13Start:
 		mov bp,sp		; Point BP to the entry stack frame
 		TRACER 'F'
 		; Note: AH == P_AH here
-		cmp ah,Int13FuncsMax
-		jae Invalid_jump
+		cmp ah,[Int13MaxFunc]
+		ja Invalid_jump
 		xor al,al		; AL = 0 is standard entry condition
 		mov di,ax
 		shr di,7		; Convert AH to an offset in DI
@@ -870,7 +870,7 @@ Int13Funcs	dw Reset		; 00h - RESET
 %endif
 
 Int13FuncsEnd	equ $
-Int13FuncsMax	equ (Int13FuncsEnd-Int13Funcs) >> 1
+Int13FuncsCnt	equ (Int13FuncsEnd-Int13Funcs) >> 1
 
 %if EDD
 EDD_DPT:
@@ -933,8 +933,9 @@ OldInt15	dd 0			; INT 15h in chain
 OldDosMem	dw 0			; Old position of DOS mem end
 BootLoaderID	db 0			; Boot loader ID from header
 ; ---- MDI structure ends here ---
-		db 0, 0, 0		; pad
+Int13MaxFunc	db Int13FuncsCnt-1	; Max INT 13h function (to disable EDD)
 
+		db 0, 0			; pad
 MemInt1588	dw 0			; 1MB-65MB memory amount (1K)
 
 Cylinders	dw 0			; Cylinder count

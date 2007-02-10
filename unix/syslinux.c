@@ -13,7 +13,7 @@
 /*
  * syslinux.c - Linux installer program for SYSLINUX
  *
- * This program ought to be portable.  I hope so, at least.
+ * This is Linux-specific by now.
  *
  * This is an alternate version of the installer which doesn't require
  * mtools, but requires root privilege.
@@ -46,23 +46,28 @@
 #include <sys/wait.h>
 #include <sys/mount.h>
 
+#include <sys/ioctl.h>
+#include <linux/fs.h>		/* FIGETBSZ, FIBMAP */
+#include <linux/msdos_fs.h>	/* FAT_IOCTL_SET_ATTRIBUTES, SECTOR_* */
+#ifndef FAT_IOCTL_SET_ATTRIBUTES
+# define FAT_IOCTL_SET_ATTRIBUTES _IOW('r', 0x11, uint32_t)
+#endif
+
+#include <paths.h>
+#ifndef _PATH_MOUNT
+# define _PATH_MOUNT "/bin/mount"
+#endif
+#ifndef _PATH_UMOUNT
+# define _PATH_UMOUNT "/bin/umount"
+#endif
+#ifndef _PATH_TMP
+# define _PATH_TMP "/tmp/"
+#endif
+
 #include "syslinux.h"
-#include "libfat.h"
 
 #if DO_DIRECT_MOUNT
-
 # include <linux/loop.h>
-
-#else
-
-# include <paths.h>
-# ifndef _PATH_MOUNT
-#  define _PATH_MOUNT "/bin/mount"
-# endif
-# ifndef _PATH_UMOUNT
-#  define _PATH_UMOUNT "/bin/umount"
-# endif
-
 #endif
 
 const char *program;		/* Name of program */
@@ -156,35 +161,175 @@ ssize_t xpwrite(int fd, const void *buf, size_t count, off_t offset)
 }
 
 /*
- * Version of the read function suitable for libfat
+ * Create a block map for ldlinux.sys
  */
-int libfat_xpread(intptr_t pp, void *buf, size_t secsize, libfat_sector_t sector)
+int make_block_map(uint32_t *sectors, int len, int dev_fd, int fd)
 {
-  off_t offset = (off_t)sector * secsize + filesystem_offset;
-  return xpread(pp, buf, secsize, offset);
+  int nsectors = 0;
+  int blocksize, nblock, block;
+  int i;
+
+  (void)dev_fd;
+
+  if (ioctl(fd, FIGETBSZ, &blocksize) < 0)
+    die("ioctl FIGETBSZ failed");
+
+  blocksize >>= SECTOR_BITS;	/* sectors/block */
+
+  nblock = 0;
+  while (len > 0) {
+    block = nblock++;
+    if (ioctl(fd, FIBMAP, &block) < 0)
+      die("ioctl FIBMAP failed");
+    
+    for (i = 0; i < blocksize; i++) {
+      if (len <= 0)
+	break;
+
+      *sectors++ = (block*blocksize)+i;
+      nsectors++;
+      len -= (1 << SECTOR_BITS);
+    }
+  }
+
+  return nsectors;
+}
+
+/*
+ * Mount routine
+ */
+int do_mount(int dev_fd, int *cookie, const char *mntpath, const char *fstype)
+{
+  struct stat st;
+
+  (void)cookie;
+
+  if (fstat(dev_fd, &st) < 0)
+    return errno;
+
+#if DO_DIRECT_MOUNT
+  {
+    if ( !S_ISBLK(st.st_mode) ) {
+      /* It's file, need to mount it loopback */
+      unsigned int n = 0;
+      struct loop_info64 loopinfo;
+      int loop_fd;
+      
+      for ( n = 0 ; loop_fd < 0 ; n++ ) {
+	snprintf(devfdname, sizeof devfdname, "/dev/loop%u", n);
+	loop_fd = open(devfdname, O_RDWR);
+	if ( loop_fd < 0 && errno == ENOENT ) {
+	  die("no available loopback device!");
+	}
+	if ( ioctl(loop_fd, LOOP_SET_FD, (void *)dev_fd) ) {
+	  close(loop_fd); loop_fd = -1;
+	  if ( errno != EBUSY )
+	    die("cannot set up loopback device");
+	  else
+	    continue;
+	}
+	
+	if ( ioctl(loop_fd, LOOP_GET_STATUS64, &loopinfo) ||
+	     (loopinfo.lo_offset = filesystem_offset,
+	      ioctl(loop_fd, LOOP_SET_STATUS64, &loopinfo)) )
+	  die("cannot set up loopback device");
+      }
+      
+      *cookie = loop_fd;
+    } else {
+      snprintf(devfdname, sizeof devfdname, "/proc/%lu/fd/%d",
+	       (unsigned long)mypid, dev_fd);
+      *cookie = -1;
+    }   
+    
+    return mount(devfdname, mntpath, fstype,
+		 MS_NOEXEC|MS_NOSUID, "umask=077,quiet");
+  }
+#else
+  {
+    char devfdname[128], mnt_opts[128];
+    pid_t f, w;
+    int status;
+
+    snprintf(devfdname, sizeof devfdname, "/proc/%lu/fd/%d",
+	     (unsigned long)mypid, dev_fd);
+    
+    f = fork();
+    if ( f < 0 ) {
+      return -1;
+    } else if ( f == 0 ) {
+      if ( !S_ISBLK(st.st_mode) ) {
+	snprintf(mnt_opts, sizeof mnt_opts,
+		 "rw,nodev,noexec,loop,offset=%llu,umask=077,quiet",
+		 (unsigned long long)filesystem_offset);
+      } else {
+	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,umask=077,quiet");
+      }
+      execl(_PATH_MOUNT, _PATH_MOUNT, "-t", fstype, "-o", mnt_opts,	\
+	    devfdname, mntpath, NULL);
+      _exit(255);		/* execl failed */
+    }
+    
+    w = waitpid(f, &status, 0);
+    return ( w != f || status ) ? -1 : 0;
+  }
+#endif
+}
+
+/*
+ * umount routine
+ */
+void do_umount(const char *mntpath, int cookie)
+{
+#if DO_DIRECT_MOUNT
+  int loop_fd = cookie;
+  
+  if ( umount2(mntpath, 0) )
+    die("could not umount path");
+  
+  if ( loop_fd != -1 ) {
+    ioctl(loop_fd, LOOP_CLR_FD, 0); /* Free loop device */
+    close(loop_fd);
+    loop_fd = -1;
+  }
+  
+#else
+  pid_t f = fork();
+  pid_t w;
+  int status;
+  (void)cookie;
+
+  if ( f < 0 ) {
+    perror("fork");
+    exit(1);
+  } else if ( f == 0 ) {
+    execl(_PATH_UMOUNT, _PATH_UMOUNT, mntpath, NULL);
+  }
+  
+  w = waitpid(f, &status, 0);
+  if ( w != f || status ) {
+    exit(1);
+  }
+#endif
 }
 
 int main(int argc, char *argv[])
 {
-  static unsigned char sectbuf[512];
+  static unsigned char sectbuf[SECTOR_SIZE];
   unsigned char *dp;
   const unsigned char *cdp;
   int dev_fd, fd;
   struct stat st;
   int nb, left;
   int err = 0;
-  pid_t f, w;
-  int status;
-  char mntname[64], devfdname[64];
+  char mntname[128];
   char *ldlinux_name, **argp, *opt;
   int force = 0;		/* -f (force) option */
   const char *subdir = NULL;
-  struct libfat_filesystem *fs;
-  struct libfat_direntry dentry;
-  libfat_sector_t s, *secp, sectors[65]; /* 65 is maximum possible */
-  int32_t ldlinux_cluster;
+  uint32_t sectors[65]; /* 65 is maximum possible */
   int nsectors = 0;
   const char *errmsg;
+  int mnt_cookie;
 
   (void)argc;			/* Unused */
 
@@ -209,7 +354,8 @@ int main(int argc, char *argv[])
 	} else if ( *opt == 'd' && argp[1] ) {
 	  subdir = *++argp;
 	} else if ( *opt == 'o' && argp[1] ) {
-	  filesystem_offset = (off_t)strtoull(*++argp, NULL, 0); /* Byte offset */
+	  /* Byte offset */
+	  filesystem_offset = (off_t)strtoull(*++argp, NULL, 0);
 	} else {
 	  usage();
 	}
@@ -235,15 +381,15 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  if ( !force && !S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode) ) {
-    die("not a block device or regular file (use -f to override)");
+  if ( !S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode) && !S_ISCHR(st.st_mode) ) {
+    die("not a device or regular file");
   }
 
-  if ( !force && filesystem_offset && !S_ISREG(st.st_mode) ) {
-    die("not a regular file and an offset specified (use -f to override)");
+  if ( filesystem_offset && S_ISBLK(st.st_mode) ) {
+    die("can't combine an offset with a block device");
   }
 
-  xpread(dev_fd, sectbuf, 512, filesystem_offset);
+  xpread(dev_fd, sectbuf, SECTOR_SIZE, filesystem_offset);
   fsync(dev_fd);
 
   /*
@@ -267,7 +413,7 @@ int main(int argc, char *argv[])
     /* We're root or at least setuid.
        Make a temp dir and pass all the gunky options to mount. */
 
-    if ( chdir("/tmp") ) {
+    if ( chdir(_PATH_TMP) ) {
       perror(program);
       exit(1);
     }
@@ -276,7 +422,7 @@ int main(int argc, char *argv[])
 
     if ( stat(".", &dst) || !S_ISDIR(dst.st_mode) ||
 	 (dst.st_mode & TMP_MODE) != TMP_MODE ) {
-      die("possibly unsafe /tmp permissions");
+      die("possibly unsafe " _PATH_TMP " permissions");
     }
 
     for ( i = 0 ; ; i++ ) {
@@ -303,80 +449,29 @@ int main(int argc, char *argv[])
     }
 
     mntpath = mntname;
-
-#if DO_DIRECT_MOUNT
-    if ( S_ISREG(st.st_mode) ) {
-      /* It's file, need to mount it loopback */
-      unsigned int n = 0;
-      struct loop_info64 loopinfo;
-
-      for ( n = 0 ; loop_fd < 0 ; n++ ) {
-	snprintf(devfdname, sizeof devfdname, "/dev/loop%u", n);
-	loop_fd = open(devfdname, O_RDWR);
-	if ( loop_fd < 0 && errno == ENOENT ) {
-	  die("no available loopback device!");
-	}
-	if ( ioctl(loop_fd, LOOP_SET_FD, (void *)dev_fd) ) {
-	  close(loop_fd); loop_fd = -1;
-	  if ( errno != EBUSY )
-	    die("cannot set up loopback device");
-	  else
-	    continue;
-	}
-
-	if ( ioctl(loop_fd, LOOP_GET_STATUS64, &loopinfo) ||
-	     (loopinfo.lo_offset = filesystem_offset,
-	      ioctl(loop_fd, LOOP_SET_STATUS64, &loopinfo)) )
-	  die("cannot set up loopback device");
-      }
-    } else {
-      snprintf(devfdname, sizeof devfdname, "/proc/%lu/fd/%d",
-	       (unsigned long)mypid, dev_fd);
-    }
-
-    if ( mount(devfdname, mntpath, "msdos",
-	       MS_NOEXEC|MS_NOSUID, "umask=077,quiet") )
-      die("could not mount filesystem");
-
-#else
-
-    snprintf(devfdname, sizeof devfdname, "/proc/%lu/fd/%d",
-	     (unsigned long)mypid, dev_fd);
-
-    f = fork();
-    if ( f < 0 ) {
-      perror(program);
-      rmdir(mntpath);
-      exit(1);
-    } else if ( f == 0 ) {
-      char mnt_opts[128];
-      if ( S_ISREG(st.st_mode) ) {
-	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,loop,offset=%llu,umask=077,quiet",
-		 (unsigned long long)filesystem_offset);
-      } else {
-	snprintf(mnt_opts, sizeof mnt_opts, "rw,nodev,noexec,umask=077,quiet");
-      }
-      execl(_PATH_MOUNT, _PATH_MOUNT, "-t", "msdos", "-o", mnt_opts,\
-	    devfdname, mntpath, NULL);
-      _exit(255);		/* execl failed */
-    }
-
-    w = waitpid(f, &status, 0);
-    if ( w != f || status ) {
-      rmdir(mntpath);
-      exit(1);			/* Mount failed */
-    }
-
-#endif
   }
 
-  ldlinux_name = alloca(strlen(mntpath)+14);
+  if (do_mount(dev_fd, &mnt_cookie, mntpath, "vfat") &&
+      do_mount(dev_fd, &mnt_cookie, mntpath, "msdos")) {
+    rmdir(mntpath);
+    die("mount failed");
+  }
+
+  ldlinux_name = alloca(strlen(mntpath)+14+
+			(subdir ? strlen(subdir)+2 : 0));
   if ( !ldlinux_name ) {
     perror(program);
     err = 1;
     goto umount;
   }
-  sprintf(ldlinux_name, "%s//ldlinux.sys", mntpath);
+  sprintf(ldlinux_name, "%s%s%s//ldlinux.sys",
+	  mntpath, subdir ? "//" : "", subdir ? subdir : "");
+
+  if ((fd = open(ldlinux_name, O_RDONLY)) >= 0) {
+    uint32_t zero_attr = 0;
+    ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &zero_attr);
+    close(fd);
+  }
 
   unlink(ldlinux_name);
   fd = open(ldlinux_name, O_WRONLY|O_CREAT|O_TRUNC, 0444);
@@ -402,81 +497,25 @@ int main(int argc, char *argv[])
     left -= nb;
   }
 
+  fsync(fd);
   /*
-   * I don't understand why I need this.  Does the DOS filesystems
-   * not honour the mode passed to open()?
+   * Set the attributes
    */
-  fchmod(fd, 0400);
+  {
+    uint32_t attr = 0x07;	/* Hidden+System+Readonly */
+    ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
+  }
+
+  /*
+   * Create a block map.
+   */
+  nsectors = make_block_map(sectors, syslinux_ldlinux_len, dev_fd, fd);
 
   close(fd);
-
   sync();
 
-  /*
-   * Now, use libfat to create a block map.  This probably
-   * should be changed to use ioctl(...,FIBMAP,...) since
-   * this is supposed to be a simple, privileged version
-   * of the installer.
-   */
-  fs = libfat_open(libfat_xpread, dev_fd);
-  ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", &dentry);
-  secp = sectors;
-  nsectors = 0;
-  s = libfat_clustertosector(fs, ldlinux_cluster);
-  while ( s && nsectors < 65 ) {
-    *secp++ = s;
-    nsectors++;
-    s = libfat_nextsector(fs, s);
-  }
-  libfat_close(fs);
-
-  /* Move ldlinux.sys to the desired location */
-  if (subdir) {
-    char *new_ldlinux_name = alloca(strlen(mntpath)+
-				    strlen(subdir)+15);
-    int mov_err = 1;
-
-    if ( new_ldlinux_name ) {
-      sprintf(new_ldlinux_name, "%s//%s//ldlinux.sys", mntpath, subdir);
-
-      if (!rename(ldlinux_name, new_ldlinux_name))
-	mov_err = 0;
-    }
-
-    if (mov_err)
-      fprintf(stderr, "%s: warning: unable to move ldlinux.sys: %s\n",
-	      device, strerror(errno));
-  }
-
 umount:
-#if DO_DIRECT_MOUNT
-
-  if ( umount2(mntpath, 0) )
-    die("could not umount path");
-
-  if ( loop_fd != -1 ) {
-    ioctl(loop_fd, LOOP_CLR_FD, 0); /* Free loop device */
-    close(loop_fd);
-    loop_fd = -1;
-  }
-
-#else
-
-  f = fork();
-  if ( f < 0 ) {
-    perror("fork");
-    exit(1);
-  } else if ( f == 0 ) {
-    execl(_PATH_UMOUNT, _PATH_UMOUNT, mntpath, NULL);
-  }
-
-  w = waitpid(f, &status, 0);
-  if ( w != f || status ) {
-    exit(1);
-  }
-
-#endif
-
+  do_umount(mntpath, mnt_cookie);
   sync();
   rmdir(mntpath);
 
@@ -491,29 +530,21 @@ umount:
   /*
    * Write the now-patched first sector of ldlinux.sys
    */
-  xpwrite(dev_fd, syslinux_ldlinux, 512, filesystem_offset + ((off_t)sectors[0] << 9));
-
-  /*
-   * Patch the root directory to set attributes to
-   * HIDDEN|SYSTEM|READONLY
-   */
-  {
-    const unsigned char attrib = 0x07;
-    xpwrite(dev_fd, &attrib, 1, ((off_t)dentry.sector << 9)+dentry.offset+11);
-  }
+  xpwrite(dev_fd, syslinux_ldlinux, SECTOR_SIZE,
+	  filesystem_offset+((off_t)sectors[0] << SECTOR_BITS));
 
   /*
    * To finish up, write the boot sector
    */
 
   /* Read the superblock again since it might have changed while mounted */
-  xpread(dev_fd, sectbuf, 512, filesystem_offset);
+  xpread(dev_fd, sectbuf, SECTOR_SIZE, filesystem_offset);
 
   /* Copy the syslinux code into the boot sector */
   syslinux_make_bootsect(sectbuf);
 
   /* Write new boot sector */
-  xpwrite(dev_fd, sectbuf, 512, filesystem_offset);
+  xpwrite(dev_fd, sectbuf, SECTOR_SIZE, filesystem_offset);
 
   close(dev_fd);
   sync();

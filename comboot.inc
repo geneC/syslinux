@@ -776,7 +776,7 @@ comapi_userfont:
 .done:		; CF=0 here
 		mov P_AL,al
 		ret
-		
+
 ;
 ; INT 22h AX=0019h  Read disk
 ;
