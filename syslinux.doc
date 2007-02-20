@@ -193,8 +193,9 @@ LABEL label
 	format (for SYSLINUX.)
 
   LINUX image			- Linux kernel image (default)
-  BOOT image			- Bootstrap program (.bs, .0, .bin)
+  BOOT image			- Bootstrap program (.bs, .bin)
   BSS image			- BSS image (.bss)
+  PXE image			- PXE Network Bootstrap Program (.0)
   FDIMAGE image			- Floppy disk image (.img)
   COMBOOT image			- COMBOOT program (.com, .cbt)
   COM32 image			- COM32 program (.c32)

@@ -668,12 +668,13 @@ AX=0016h [3.10] Run kernel image
 	EDX	Config	Extensions	Type of file	
 	0	KERNEL			Determined by filename extension
 	1	LINUX	none		Linux kernel image
-	2	BOOT	.0 .bs .bin	Bootstrap program
+	2	BOOT	.bs .bin	Bootstrap program
 	3	BSS	.bss		Boot sector with patch [SYSLINUX]
-	4	FDIMAGE	.img		Floppy disk image [ISOLINUX]
-	5	COMBOOT	.com .cbt	16-bit COMBOOT program
-	6	COM32	.c32		COM32 program
-	7	CONFIG			Configuration file
+	4	PXE	.0		PXE Network Bootstrap Prog [PXELINUX]
+	5	FDIMAGE	.img		Floppy disk image [ISOLINUX]
+	6	COMBOOT	.com .cbt	16-bit COMBOOT program
+	7	COM32	.c32		COM32 program
+	8	CONFIG			Configuration file
 
 
 AX=0017h [3.30] Report video mode change

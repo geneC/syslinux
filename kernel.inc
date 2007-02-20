@@ -94,10 +94,11 @@ VK_KERNEL	equ 0			; Choose by filename
 VK_LINUX	equ 1			; Linux kernel image
 VK_BOOT		equ 2			; Boot sector
 VK_BSS		equ 3			; BSS boot sector
-VK_FDIMAGE	equ 4			; Floppy disk image
-VK_COMBOOT	equ 5			; COMBOOT image
-VK_COM32	equ 6			; COM32 image
-VK_CONFIG	equ 7			; Configuration file
-VK_TYPES	equ 8			; Number of VK types
+VK_PXE		equ 4			; PXE NBP
+VK_FDIMAGE	equ 5			; Floppy disk image
+VK_COMBOOT	equ 6			; COMBOOT image
+VK_COM32	equ 7			; COM32 image
+VK_CONFIG	equ 8			; Configuration file
+VK_TYPES	equ 9			; Number of VK types
 
 %endif ; _KERNEL_INC

@@ -57,6 +57,7 @@ keywd_table:
 		keyword linux,     	pc_kernel,	VK_LINUX
 		keyword boot,      	pc_kernel,	VK_BOOT
 		keyword bss,       	pc_kernel,	VK_BSS
+		keyword pxe,       	pc_kernel,	VK_PXE
 		keyword fdimage,   	pc_kernel,	VK_FDIMAGE
 		keyword comboot,   	pc_kernel,	VK_COMBOOT
 		keyword com32,    	pc_kernel,	VK_COM32

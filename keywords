@@ -12,6 +12,7 @@ kernel
 linux
 boot
 bss
+pxe
 fdimage
 comboot
 com32

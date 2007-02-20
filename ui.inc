@@ -562,6 +562,7 @@ kerneltype_table:
 		dw is_linux_kernel	; VK_LINUX
 		dw is_bootsector	; VK_BOOT
 		dw is_bss_sector	; VK_BSS
+		dw is_bootsector	; VK_PXE
 		dw is_disk_image	; VK_FDIMAGE
 		dw is_comboot_image	; VK_COMBOOT
 		dw is_com32_image	; VK_COM32
