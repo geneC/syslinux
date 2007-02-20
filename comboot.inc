@@ -786,9 +786,9 @@ comapi_readdisk:
 		or esi,P_EDI		; are reserved for future expansion
 		jnz .err
 		mov eax,P_EDX
-		mov bp,P_CX
 		mov es,P_ES
 		mov bx,P_BX
+		mov bp,P_CX		; WE CANNOT use P_* after touching bp!
 		call getlinsec
 		clc
 		ret
