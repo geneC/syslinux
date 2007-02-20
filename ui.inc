@@ -199,9 +199,7 @@ load_kernel:					; Load the kernel now
 		mov si,command_line
                 mov di,KernelName
                 push si
-                push di
 		call mangle_name
-		pop di
                 pop si
 ;
 ; Fast-forward to first option (we start over from the beginning, since
