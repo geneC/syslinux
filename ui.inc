@@ -532,6 +532,11 @@ is_unknown_filetype:
 		jmp is_linux_kernel
 
 is_config_file:
+		pusha
+		mov si,KernelCName		; Save the config file name, for posterity
+		mov di,ConfigName
+		call strcpy
+		popa
 		call openfd
 		call reset_config
 		jmp load_config_file

@@ -404,9 +404,7 @@ comapi_open:
 		mov ds,P_ES
 		mov si,P_SI
 		mov di,InitRD
-		push di
 		call mangle_name
-		pop di
 		pop ds
 		call searchdir
 		jz comapi_err
@@ -687,9 +685,7 @@ comapi_runkernel:
 		mov ds,P_DS
 		mov si,P_SI
 		mov di,KernelName
-		push di
 		call mangle_name
-		pop di
 		pop ds
 		call searchdir
 		jz comapi_err
@@ -865,3 +861,6 @@ feature_flags:
 		db 2			; No local boot, idle is noop
 %endif
 feature_flags_len equ ($-feature_flags)
+
+		section .latebss
+ConfigName	resb	FILENAME_MAX

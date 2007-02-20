@@ -228,9 +228,7 @@ msg_viewimage:
 		mov byte [si],0			; Zero-terminate filename
 		mov si,VGAFileBuf
 		mov di,VGAFileMBuf
-		push di
 		call mangle_name
-		pop di
 		call searchdir
 		pop es
 		jz msg_putcharnext		; Not there

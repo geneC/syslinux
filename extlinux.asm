@@ -841,7 +841,11 @@ expand_super:
 ; Load configuration file
 ;
 load_config:
+		mov si,config_name	; Save config file name
 		mov di,ConfigName
+		call strcpy
+
+		mov si,ConfigName
 		call open
 		jz no_config_file
 
@@ -1254,6 +1258,7 @@ SymlinkCtr	resb	1
 ;
 ; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
 ;	       to by ES:DI; ends on encountering any whitespace.
+;	       DI is preserved.
 ;
 ;	       This verifies that a filename is < FILENAME_MAX characters,
 ;	       doesn't contain whitespace, zero-pads the output buffer,
@@ -1265,6 +1270,7 @@ SymlinkCtr	resb	1
 ;	       be the place.)
 ;
 mangle_name:
+		push di
 		push bx
 		xor ax,ax
 		mov cx,FILENAME_MAX-1
@@ -1295,6 +1301,7 @@ mangle_name:
 		xor ax,ax			; Zero-fill name
 		rep stosb
 		pop bx
+		pop di
 		ret				; Done
 
 ;
@@ -1570,7 +1577,7 @@ aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
 crlf_msg	db CR, LF
 null_msg	db 0
 crff_msg	db CR, FF, 0
-ConfigName	db 'extlinux.conf',0		; Unmangled form
+config_name	db 'extlinux.conf',0		; Unmangled form
 
 ;
 ; Command line options we'd like to take a look at

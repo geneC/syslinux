@@ -925,7 +925,11 @@ load_config:
 		call writemsg
 %endif
 
-		mov di,isolinux_cfg
+		mov si,config_name
+		mov di,ConfigName
+		call strcpy
+
+		mov di,ConfigName
 		call open
 		jz no_config_file		; Not found or empty
 
@@ -1353,6 +1357,7 @@ iso_compare_names:
 ;
 ; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
 ;	       to by ES:DI; ends on encountering any whitespace.
+;	       DI is preserved.
 ;
 ;	       This verifies that a filename is < FILENAME_MAX characters,
 ;	       doesn't contain whitespace, zero-pads the output buffer,
@@ -1361,6 +1366,7 @@ iso_compare_names:
 ;	       path-searching routine gets a bit of an easier job.
 ;
 mangle_name:
+		push di
 		push bx
 		xor ax,ax
 		mov cx,FILENAME_MAX-1
@@ -1393,6 +1399,7 @@ mangle_name:
 		xor ax,ax			; Zero-fill name
 		rep stosb
 		pop bx
+		pop di
 		ret				; Done
 
 ;
@@ -1522,8 +1529,7 @@ default_str	db 'default', 0
 default_len	equ ($-default_str)
 boot_dir	db '/boot'			; /boot/isolinux
 isolinux_dir	db '/isolinux', 0
-ConfigName	equ $
-isolinux_cfg	db 'isolinux.cfg', 0
+config_name 	db 'isolinux.cfg', 0
 err_disk_image	db 'Cannot load disk image (invalid file)?', CR, LF, 0
 
 %ifdef DEBUG_MESSAGES

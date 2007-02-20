@@ -896,6 +896,10 @@ getfattype:
 ;
 ; Load configuration file
 ;
+		mov si,config_name	; Save configuration file name
+		mov di,ConfigName
+		call strcpy
+
 		mov di,syslinux_cfg1
 		call open
 		jnz .config_open
@@ -1156,6 +1160,7 @@ kaboom2:
 ;
 ; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
 ;	       to by ES:DI; ends on encountering any whitespace.
+;	       DI is preserved.
 ;
 ;	       This verifies that a filename is < FILENAME_MAX characters,
 ;	       doesn't contain whitespace, zero-pads the output buffer,
@@ -1166,6 +1171,7 @@ kaboom2:
 ;
 ;
 mangle_name:
+		push di
 		push bx
 		xor ax,ax
 		mov cx,FILENAME_MAX-1
@@ -1202,6 +1208,7 @@ mangle_name:
 		xor ax,ax			; Zero-fill name
 		rep stosb
 		pop bx
+		pop di
 		ret				; Done
 
 ;
@@ -1584,7 +1591,7 @@ crff_msg	db CR, FF, 0
 syslinux_cfg1	db '/boot'			; /boot/syslinux/syslinux.cfg
 syslinux_cfg2	db '/syslinux'			; /syslinux/syslinux.cfg
 syslinux_cfg3	db '/'				; /syslinux.cfg
-ConfigName	db 'syslinux.cfg', 0		; syslinux.cfg
+config_name	db 'syslinux.cfg', 0		; syslinux.cfg
 
 ;
 ; Command line options we'd like to take a look at

@@ -187,8 +187,6 @@ Files		resb MAX_OPEN*open_file_t_size
 
 		alignb FILENAME_MAX
 BootFile	resb 256		; Boot file from DHCP packet
-ConfigServer	resd 1			; Null prefix for mangled config name
-ConfigName	resb 256-4		; Configuration file from DHCP option
 PathPrefix	resb 256		; Path prefix derived from boot file
 DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
 IPOption	resb 80			; ip= option buffer
@@ -755,22 +753,11 @@ find_config:
 ; Begin looking for configuration file
 ;
 config_scan:
-		mov di,ConfigServer
-		xor eax,eax
-		stosd				; The config file is always from the server
-
 		test byte [DHCPMagic], 02h
 		jz .no_option
 
 		; We got a DHCP option, try it first
-		mov si,trying_msg
-		call writestr
-		; mov di,ConfigName		; - already the case
-		mov si,di
-		call writestr
-		call crlf
-		mov di,ConfigServer
-		call open
+		call .try
 		jnz .success
 
 .no_option:
@@ -785,14 +772,7 @@ config_scan:
 		mov si,MACStr
 		mov cx,(3*17+1)/2
 		rep movsw
-		mov si,trying_msg
-		call writestr
-		mov di,ConfigName
-		mov si,di
-		call writestr
-		call crlf
-		mov di,ConfigServer
-		call open
+		call .try
 		pop di
 		jnz .success
 
@@ -824,16 +804,8 @@ config_scan:
 		mov cx,default_len
 		rep movsb			; Copy "default" string
 		popa
-.not_default:	pusha
-		mov si,trying_msg
-		call writestr
-		mov di,ConfigName
-		mov si,di
-		call writestr
-		call crlf
-		mov di,ConfigServer
-		call open
-		popa
+.not_default:
+		call .try
 		jnz .success
 		dec di
 		loop .tryagain
@@ -841,6 +813,22 @@ config_scan:
 		mov si,err_noconfig
 		call writestr
 		jmp kaboom
+
+.try:
+		pusha
+		mov si,trying_msg
+		call writestr
+		mov di,ConfigName
+		mov si,di
+		call writestr
+		call crlf
+		mov si,di
+		mov di,getcbuf
+		call mangle_name
+		call open
+		popa
+		ret
+
 
 .success:
 
@@ -1454,6 +1442,7 @@ parse_dotquad:
 ;
 ; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
 ;	       to by ES:DI; ends on encountering any whitespace.
+;	       DI is preserved.
 ;
 ;	       This verifies that a filename is < FILENAME_MAX characters
 ;	       and doesn't contain whitespace, and zero-pads the output buffer,
@@ -1463,6 +1452,7 @@ parse_dotquad:
 ;	       the download host.
 ;
 mangle_name:
+		push di
 		push si
 		mov eax,[ServerIP]
 		cmp byte [si],0
@@ -1520,6 +1510,7 @@ mangle_name:
 		inc cx				; At least one null byte
 		xor ax,ax			; Zero-fill name
 		rep stosb			; Doesn't do anything if CX=0
+		pop di
 		ret				; Done
 
 ;
