@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2004-2005 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2007 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -36,6 +36,25 @@ struct menu_entry {
   char *passwd;
   unsigned char hotkey;
 };
+
+enum kernel_type {
+  /* Meta-types for internal use */
+  KT_NONE,
+  KT_LOCALBOOT,
+
+  /* The ones we can pass off to SYSLINUX, in order */
+  KT_KERNEL,			/* Undefined type */
+  KT_LINUX,			/* Linux kernel */
+  KT_BOOT,			/* Bootstrap program */
+  KT_BSS,			/* Boot sector with patch */
+  KT_PXE,			/* PXE NBP */
+  KT_FDIMAGE,			/* Floppy disk image */
+  KT_COMBOOT,			/* COMBOOT image */
+  KT_COM32,			/* COM32 image */
+  KT_CONFIG,			/* Configuration file */
+};
+
+extern const char *kernel_types[];
 
 /* 512 is the current definition inside syslinux */
 #define MAX_CMDLINE_LEN	 512

@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2004-2006 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2007 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -794,11 +794,11 @@ run_menu(void)
 
 
 static void
-execute(const char *cmdline)
+execute(const char *cmdline, enum kernel_type type)
 {
 #ifdef __COM32__
   com32sys_t ireg;
-  const char *p;
+  const char *p, **pp;
   char *q = __com32.cs_bounce;
   const char *kernel, *args;
 
@@ -817,17 +817,30 @@ execute(const char *cmdline)
 
   strcpy(q, p);
 
-  if ( !strcmp(kernel, ".localboot") ) {
+  if (kernel[0] == '.' && type == KT_NONE) {
+    /* It might be a type specifier */
+    enum kernel_type type = KT_NONE;
+    for (pp = kernel_types; *pp; pp++, type++) {
+      if (!strcmp(kernel+1, *pp)) {
+	execute(p, type);	/* Strip the type specifier and retry */
+      }
+    }
+  }
+
+  if (type == KT_LOCALBOOT) {
     ireg.eax.w[0] = 0x0014;	/* Local boot */
-    ireg.edx.w[0] = strtoul(args, NULL, 0);
+    ireg.edx.w[0] = strtoul(kernel, NULL, 0);
   } else {
+    if (type < KT_KERNEL)
+      type = KT_KERNEL;
+
     ireg.eax.w[0] = 0x0016;	/* Run kernel image */
     ireg.esi.w[0] = OFFS(kernel);
     ireg.ds       = SEG(kernel);
     ireg.ebx.w[0] = OFFS(args);
     ireg.es       = SEG(args);
+    ireg.edx.l    = type-KT_KERNEL;
     /* ireg.ecx.l    = 0; */		/* We do ipappend "manually" */
-    /* ireg.edx.l    = 0; */
   }
 
   __intcall(0x22, &ireg, NULL);
@@ -881,9 +894,9 @@ int menu_main(int argc, char *argv[])
     console_cleanup();
 
     if ( cmdline ) {
-      execute(cmdline);
+      execute(cmdline, KT_NONE);
       if ( onerror )
-	execute(onerror);
+	execute(onerror, KT_NONE);
     } else {
       return 0;			/* Exit */
     }

@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2004-2006 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2007 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -49,6 +49,21 @@ struct menu_entry *menu_hotkeys[256];
                       char *__p = alloca(__n); \
                       if ( __p ) memcpy(__p, __x, __n); \
                       __p; })
+
+const char *kernel_types[] = {
+  "none",
+  "localboot",
+  "kernel",
+  "linux",
+  "boot",
+  "bss",
+  "pxe",
+  "fdimage",
+  "comboot",
+  "com32",
+  "config",
+  NULL
+};
 
 const char *ipappends[32];
 
@@ -123,6 +138,7 @@ looking_at(char *line, const char *kwd)
 struct labeldata {
   char *label;
   char *kernel;
+  enum kernel_type type;
   char *append;
   char *menulabel;
   char *passwd;
@@ -166,7 +182,13 @@ record(struct labeldata *ld, char *append)
     if ( !a ) a = append;
     if ( !a || (a[0] == '-' && !a[1]) ) a = "";
     s = a[0] ? " " : "";
-    asprintf(&me->cmdline, "%s%s%s%s", ld->kernel, s, a, ipoptions);
+    if (ld->type == KT_KERNEL) {
+      asprintf(&me->cmdline, "%s%s%s%s",
+	       ld->kernel, s, a, ipoptions);
+    } else {
+      asprintf(&me->cmdline, ".%s %s%s%s%s",
+	       kernel_types[ld->type], ld->kernel, s, a, ipoptions);
+    }
 
     ld->label = NULL;
     ld->passwd = NULL;
@@ -372,9 +394,26 @@ static struct labeldata ld;
 
 static int parse_one_config(const char *filename);
 
+static char *is_kernel_type(char *cmdstr, enum kernel_type *type)
+{
+  const char **p;
+  char *q;
+  enum kernel_type t = KT_NONE;
+
+  for (p = kernel_types; *p; p++, t++) {
+    if ((q = looking_at(cmdstr, *p))) {
+      *type = t;
+      return q;
+    }
+  }
+
+  return NULL;
+}
+
 static void parse_config_file(FILE *f)
 {
   char line[MAX_LINE], *p, *ep, ch;
+  enum kernel_type type;
 
   while ( fgets(line, sizeof line, f) ) {
     p = strchr(line, '\r');
@@ -487,15 +526,17 @@ static void parse_config_file(FILE *f)
       record(&ld, append);
       ld.label     = strdup(p);
       ld.kernel    = strdup(p);
+      ld.type      = KT_KERNEL;
       ld.passwd    = NULL;
       ld.append    = NULL;
       ld.menulabel = NULL;
       ld.ipappend  = ipappend;
       ld.menudefault = ld.menuhide = 0;
-    } else if ( looking_at(p, "kernel") ) {
+    } else if ( (p = is_kernel_type(p, &type)) ) {
       if ( ld.label ) {
 	free(ld.kernel);
-	ld.kernel = strdup(skipspace(p+6));
+	ld.kernel = strdup(skipspace(p));
+	ld.type = type;
       }
     } else if ( looking_at(p, "timeout") ) {
       timeout = (atoi(skipspace(p+7))*CLK_TCK+9)/10;
@@ -510,9 +551,6 @@ static void parse_config_file(FILE *f)
         ld.ipappend = atoi(skipspace(p+8));
       else
 	ipappend = atoi(skipspace(p+8));
-    } else if ( looking_at(p, "localboot") ) {
-      ld.kernel = strdup(".localboot");
-      ld.append = strdup(skipspace(p+9));
     }
   }
 }
