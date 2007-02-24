@@ -532,10 +532,10 @@ static void parse_config_file(FILE *f)
       ld.menulabel = NULL;
       ld.ipappend  = ipappend;
       ld.menudefault = ld.menuhide = 0;
-    } else if ( (p = is_kernel_type(p, &type)) ) {
+    } else if ( (ep = is_kernel_type(p, &type)) ) {
       if ( ld.label ) {
 	free(ld.kernel);
-	ld.kernel = strdup(skipspace(p));
+	ld.kernel = strdup(skipspace(ep));
 	ld.type = type;
       }
     } else if ( looking_at(p, "timeout") ) {
