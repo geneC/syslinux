@@ -121,6 +121,22 @@ MENU INCLUDE filename
 	command, so any labels defined in it are unavailable.
 
 
+MENU AUTOBOOT message
+
+	Replaces the message "Automatic boot in # seconds".  The
+	symbol # is replaced with the number of seconds remaining.
+
+
+MENU TABMSG message
+
+	Replaces the message "Press [Tab] to edit options".
+
+
+MENU PASSPROMPT message
+
+	Replaces the message "Password required".
+
+
 MENU COLOR element ansi foreground background shadow
 
 	Sets the color of element "element" to the specified color

@@ -279,7 +279,6 @@ static int mygetkey(clock_t timeout)
 static int
 ask_passwd(const char *menu_entry)
 {
-  static const char title[] = "Password required";
   char user_passwd[WIDTH], *p;
   int done;
   int key;
@@ -298,8 +297,8 @@ ask_passwd(const char *menu_entry)
     putchar('q');
 
   printf("j\017\033[%d;%dH\1#12 %s \033[%d;%dH\1#13",
-	 PASSWD_ROW, (WIDTH-((int)sizeof(title)+1))/2,
-	 title, PASSWD_ROW+1, PASSWD_MARGIN+3);
+	 PASSWD_ROW, (WIDTH-(strlen(menu_passprompt_msg)+2))/2,
+	 menu_passprompt_msg, PASSWD_ROW+1, PASSWD_MARGIN+3);
 
   /* Actually allow user to type a password, then compare to the SHA1 */
   done = 0;
@@ -392,8 +391,7 @@ draw_menu(int sel, int top, int edit_line)
   fputs("j\017", stdout);
 
   if ( edit_line && allowedit && !menu_master_passwd )
-    printf("\1#08\033[%d;1H%s", TABMSG_ROW,
-	   pad_line("Press [Tab] to edit options", 1, WIDTH));
+    printf("\1#08\033[%d;1H%s", TABMSG_ROW, pad_line(menu_tab_msg, 1, WIDTH));
 
   printf("\1#00\033[%d;1H", END_ROW);
 }
@@ -629,10 +627,27 @@ run_menu(void)
       key_timeout = 0;
 
     if ( key_timeout ) {
+      char buf[256];
       int tol = timeout_left/CLK_TCK;
-      int nc = snprintf(NULL, 0, " Automatic boot in %d seconds ", tol);
-      printf("\033[%d;%dH\1#14 Automatic boot in \1#15%d\1#14 seconds ",
-	     TIMEOUT_ROW, 1+((WIDTH-nc)>>1), tol);
+      int nc = 0, nnc;
+      const char *tp = menu_autoboot_msg;
+      char tc;
+      char *tq = buf;
+
+      while ((tq-buf) < (sizeof buf-16) && (tc = *tp)) {
+	if (tc == '#') {
+	  nnc = sprintf(tq, "\1#15%d\1#14", tol);
+	  tq += nnc;
+	  nc += nnc-8;		/* 8 formatting characters */
+	} else {
+	  *tq++ = tc;
+	  nc++;
+	}
+	tp++;
+      }
+      *tq = '\0';
+
+      printf("\033[%d;%dH\1#14 %s ", TIMEOUT_ROW, 1+((WIDTH-nc)>>1), buf);
       to_clear = 1;
     } else {
       to_clear = 0;

@@ -81,6 +81,9 @@ extern char *menu_title;
 extern char *ontimeout;
 extern char *onerror;
 extern char *menu_master_passwd;
+extern char *menu_tab_msg;
+extern char *menu_autoboot_msg;
+extern char *menu_passprompt_msg;
 
 extern char *menu_background;
 

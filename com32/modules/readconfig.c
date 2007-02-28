@@ -32,11 +32,15 @@ int timeout      = 0;
 int shiftkey     = 0;		/* Only display menu if shift key pressed */
 long long totaltimeout = 0;
 
-char *menu_title  = "";
+char *menu_title  = NULL;
 char *ontimeout   = NULL;
 char *onerror     = NULL;
 
 char *menu_master_passwd = NULL;
+
+char *menu_tab_msg;
+char *menu_autoboot_msg;
+char *menu_passprompt_msg;
 
 char *menu_background = NULL;
 
@@ -456,6 +460,15 @@ static void parse_config_file(FILE *f)
 	if (menu_background)
 	  free(menu_background);
 	menu_background = dup_word(&p);
+      } else if ( (ep = looking_at(p, "autoboot")) ) {
+	free(menu_autoboot_msg);
+	menu_autoboot_msg = strdup(skipspace(ep));
+      } else if ( (ep = looking_at(p, "tabmsg")) ) {
+	free(menu_tab_msg);
+	menu_tab_msg = strdup(skipspace(ep));
+      } else if ( (ep = looking_at(p, "passprompt")) ) {
+	free(menu_passprompt_msg);
+	menu_passprompt_msg = strdup(skipspace(ep));
       } else if ((ep = looking_at(p, "color")) ||
 		 (ep = looking_at(p, "colour"))) {
 	int i;
@@ -576,7 +589,18 @@ void parse_configs(char **argv)
 {
   const char *filename;
 
+  /* Initialize defaults */
+
+  menu_title = strdup("");
+  menu_tab_msg = strdup("Press [Tab] to edit options");
+  menu_autoboot_msg = strdup("Automatic boot in # sections");
+  menu_passprompt_msg = strdup("Password required");
+
+  /* Other initialization */
+
   get_ipappend();
+
+  /* Actually process the files */
 
   if ( !*argv ) {
     parse_one_config("~");
