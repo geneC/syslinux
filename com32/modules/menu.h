@@ -56,6 +56,23 @@ enum kernel_type {
 
 extern const char *kernel_types[];
 
+/* Configurable messages */
+enum message_number {
+  MSG_TITLE,
+  MSG_AUTOBOOT,
+  MSG_TAB,
+  MSG_NOTAB,
+  MSG_PASSPROMPT,
+
+  MSG_COUNT
+};
+struct messages {
+  const char *name;		/* Message configuration name */
+  const char *defmsg;		/* Default message text */
+  char *msg;			/* Actual message text */
+};
+extern struct messages messages[MSG_COUNT];
+
 /* 512 is the current definition inside syslinux */
 #define MAX_CMDLINE_LEN	 512
 
@@ -77,7 +94,6 @@ extern int timeout;
 extern int shiftkey;
 extern long long totaltimeout;
 
-extern char *menu_title;
 extern char *ontimeout;
 extern char *onerror;
 extern char *menu_master_passwd;

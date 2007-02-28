@@ -132,6 +132,12 @@ MENU TABMSG message
 	Replaces the message "Press [Tab] to edit options".
 
 
+MENU NOTABMSG message
+
+	Takes the place of the TABMSG message if option editing is
+	disabled.  Defaults to blank.
+
+
 MENU PASSPROMPT message
 
 	Replaces the message "Password required".

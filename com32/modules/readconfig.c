@@ -32,21 +32,28 @@ int timeout      = 0;
 int shiftkey     = 0;		/* Only display menu if shift key pressed */
 long long totaltimeout = 0;
 
-char *menu_title  = NULL;
 char *ontimeout   = NULL;
 char *onerror     = NULL;
 
 char *menu_master_passwd = NULL;
-
-char *menu_tab_msg;
-char *menu_autoboot_msg;
-char *menu_passprompt_msg;
-
 char *menu_background = NULL;
 
 struct menu_entry menu_entries[MAX_ENTRIES];
 struct menu_entry hide_entries[MAX_ENTRIES];
 struct menu_entry *menu_hotkeys[256];
+
+struct messages messages[MSG_COUNT] = {
+  [MSG_TITLE] =
+  { "title", "", NULL },
+  [MSG_AUTOBOOT] = 
+  { "autoboot", "Automatic boot in # seconds", NULL },
+  [MSG_TAB] =
+  { "tabmsg", "Press [Tab] to edit options", NULL },
+  [MSG_NOTAB] =
+  { "notabmsg", "", NULL },
+  [MSG_PASSPROMPT] =
+  { "passprompt", "Password required", NULL },
+};
 
 #define astrdup(x) ({ char *__x = (x); \
                       size_t __n = strlen(__x) + 1; \
@@ -54,6 +61,7 @@ struct menu_entry *menu_hotkeys[256];
                       if ( __p ) memcpy(__p, __x, __n); \
                       __p; })
 
+/* Must match enum kernel_type */
 const char *kernel_types[] = {
   "none",
   "localboot",
@@ -414,10 +422,26 @@ static char *is_kernel_type(char *cmdstr, enum kernel_type *type)
   return NULL;
 }
 
+static char *is_message_name(char *cmdstr, struct messages **msgptr)
+{
+  char *q;
+  int i;
+
+  for (i = 0; i < MSG_COUNT; i++) {
+    if ((q = looking_at(cmdstr, messages[i].name))) {
+      *msgptr = &messages[i];
+      return q;
+    }
+  }
+
+  return NULL;
+}
+
 static void parse_config_file(FILE *f)
 {
   char line[MAX_LINE], *p, *ep, ch;
   enum kernel_type type;
+  struct messages *msgptr;
 
   while ( fgets(line, sizeof line, f) ) {
     p = strchr(line, '\r');
@@ -432,9 +456,7 @@ static void parse_config_file(FILE *f)
     if ( looking_at(p, "menu") ) {
       p = skipspace(p+4);
 
-      if ( looking_at(p, "title") ) {
-	menu_title = strdup(skipspace(p+5));
-      } else if ( looking_at(p, "label") ) {
+      if ( looking_at(p, "label") ) {
 	if ( ld.label )
 	  ld.menulabel = strdup(skipspace(p+5));
       } else if ( looking_at(p, "default") ) {
@@ -460,15 +482,9 @@ static void parse_config_file(FILE *f)
 	if (menu_background)
 	  free(menu_background);
 	menu_background = dup_word(&p);
-      } else if ( (ep = looking_at(p, "autoboot")) ) {
-	free(menu_autoboot_msg);
-	menu_autoboot_msg = strdup(skipspace(ep));
-      } else if ( (ep = looking_at(p, "tabmsg")) ) {
-	free(menu_tab_msg);
-	menu_tab_msg = strdup(skipspace(ep));
-      } else if ( (ep = looking_at(p, "passprompt")) ) {
-	free(menu_passprompt_msg);
-	menu_passprompt_msg = strdup(skipspace(ep));
+      } else if ( (ep = is_message_name(p, &msgptr)) ) {
+	free(msgptr->msg);
+	msgptr->msg = strdup(skipspace(ep));
       } else if ((ep = looking_at(p, "color")) ||
 		 (ep = looking_at(p, "colour"))) {
 	int i;
@@ -598,13 +614,15 @@ static int parse_one_config(const char *filename)
 void parse_configs(char **argv)
 {
   const char *filename;
+  int i;
 
   /* Initialize defaults */
 
-  menu_title = strdup("");
-  menu_tab_msg = strdup("Press [Tab] to edit options");
-  menu_autoboot_msg = strdup("Automatic boot in # sections");
-  menu_passprompt_msg = strdup("Password required");
+  for (i = 0; i < MSG_COUNT; i++) {
+    if (messages[i].msg)
+      free(messages[i].msg);
+    messages[i].msg = strdup(messages[i].defmsg);
+  }
 
   /* Other initialization */
 

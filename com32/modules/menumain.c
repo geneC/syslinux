@@ -297,8 +297,8 @@ ask_passwd(const char *menu_entry)
     putchar('q');
 
   printf("j\017\033[%d;%dH\1#12 %s \033[%d;%dH\1#13",
-	 PASSWD_ROW, (WIDTH-(strlen(menu_passprompt_msg)+2))/2,
-	 menu_passprompt_msg, PASSWD_ROW+1, PASSWD_MARGIN+3);
+	 PASSWD_ROW, (WIDTH-(strlen(messages[MSG_PASSPROMPT].msg)+2))/2,
+	 messages[MSG_PASSPROMPT].msg, PASSWD_ROW+1, PASSWD_MARGIN+3);
 
   /* Actually allow user to type a password, then compare to the SHA1 */
   done = 0;
@@ -360,6 +360,7 @@ draw_menu(int sel, int top, int edit_line)
 {
   int x, y;
   int sbtop = 0, sbbot = 0;
+  const char *tabmsg;
 
   if ( nentries > MENU_ROWS ) {
     int sblen = MENU_ROWS*MENU_ROWS/nentries;
@@ -375,7 +376,7 @@ draw_menu(int sel, int top, int edit_line)
 
   printf("k\033[2;%dH\1#01x\017\1#02 %s \1#01\016x",
 	 MARGIN+1,
-	 pad_line(menu_title, 1, WIDTH-2*MARGIN-4));
+	 pad_line(messages[MSG_TITLE].msg, 1, WIDTH-2*MARGIN-4));
 
   printf("\033[3;%dH\1#01t", MARGIN+1);
   for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
@@ -391,7 +392,11 @@ draw_menu(int sel, int top, int edit_line)
   fputs("j\017", stdout);
 
   if ( edit_line && allowedit && !menu_master_passwd )
-    printf("\1#08\033[%d;1H%s", TABMSG_ROW, pad_line(menu_tab_msg, 1, WIDTH));
+    tabmsg = messages[MSG_TAB].msg;
+  else
+    tabmsg = messages[MSG_NOTAB].msg;
+    
+  printf("\1#08\033[%d;1H%s", TABMSG_ROW, pad_line(tabmsg, 1, WIDTH));
 
   printf("\1#00\033[%d;1H", END_ROW);
 }
@@ -630,11 +635,11 @@ run_menu(void)
       char buf[256];
       int tol = timeout_left/CLK_TCK;
       int nc = 0, nnc;
-      const char *tp = menu_autoboot_msg;
+      const char *tp = messages[MSG_AUTOBOOT].msg;
       char tc;
       char *tq = buf;
 
-      while ((tq-buf) < (sizeof buf-16) && (tc = *tp)) {
+      while ((size_t)(tq-buf) < (sizeof buf-16) && (tc = *tp)) {
 	if (tc == '#') {
 	  nnc = sprintf(tq, "\1#15%d\1#14", tol);
 	  tq += nnc;
