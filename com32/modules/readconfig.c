@@ -528,6 +528,16 @@ static void parse_config_file(FILE *f)
 	  }
 	}
       }
+    } else if ( looking_at(p, "text") ) {
+      p = skipspace(p+4);
+      
+      /* p points to the TEXT command */
+      
+      while ( fgets(line, sizeof line, f) ) {
+	p = skipspace(line);
+	if (looking_at(p, "endtext"))
+	  break;
+      }
     } else if ( looking_at(p, "append") ) {
       char *a = strdup(skipspace(p+6));
       if ( ld.label )
