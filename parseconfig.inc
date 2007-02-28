@@ -316,23 +316,19 @@ pc_say:		call pc_getline			; "say" command
 pc_text:	call pc_getline			; Ignore rest of line
 .loop:
 		call pc_getline
-.skipspace:
-		lodsb
-		and al,al
-		jz .loop
-		cmp al,' '
-		jbe .skipspace
+		jc .eof
 
-		dec si
+		; Leading spaces are already removed...
 		lodsd
-		and eax,0xfdfdfdfd
+		and eax,0xdfdfdfdf		; Upper case
 		cmp eax,'ENDT'
 		jne .loop
 		lodsd
-		and eax,0x00fdfdfd
+		and eax,0x00dfdfdf		; Upper case and mask
 		cmp eax,'EXT'
 		jne .loop
 		; If we get here we hit ENDTEXT
+.eof:
 		ret
 
 ;
@@ -342,12 +338,12 @@ pc_comment:	; Fall into pc_getline
 
 ;
 ; Common subroutine: load line into trackbuf; returns with SI -> trackbuf
+; CF is set on EOF.
 ;
 pc_getline:	mov di,trackbuf
 		push di
 		call getline
-		xor al,al
-		stosb				; Null-terminate
+		mov byte [di],0			; Null-terminate
 		pop si
 		ret
 
