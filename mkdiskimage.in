@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 2002-2004 H. Peter Anvin - All Rights Reserved
+##   Copyright 2002-2007 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -68,7 +68,12 @@ $pentry = 2 if ( $opt{'2'} );
 $pentry = 3 if ( $opt{'3'} );
 $pentry = 4 if ( $opt{'4'} );
 
-if ( $opt{'M'} ) {
+if ( $opt{'z'} ) {
+    $h = $h || 64;
+    $s = $s || 32;
+}
+
+if ( $opt{'M'} && $h && $s ) {
     # Specify size in megabytes, not in cylinders
     $c = ($c*1024*2)/($h*$s);
 }
@@ -100,11 +105,12 @@ if ( $c == 0 && $file ne '' ) {
 
 if ( $file eq '' || $c < 1 || $c > 1024 ||
      $h < 1 || $h > 256 || $s < 1 || $s > 63 ) {
-    print STDERR "Usage: $0 [-doF4] file [c h s] (max: 1024 256 63)\n";
+    print STDERR "Usage: $0 [-doFMz4] file c h s (max: 1024 256 63)\n";
     print STDERR "    -d    add DOSEMU header\n";
     print STDERR "    -o    print filesystem offset to stdout\n";
     print STDERR "    -F    format partition as FAT32\n";
     print STDERR "    -M    \"c\" argument is megabytes, calculate cylinders\n";
+    print STDERR "    -z    use zipdisk geometry (h=64 s=32)\n";
     print STDERR "    -4    use partition entry 4 (standard for zipdisks)\n";
     exit 1;
 }
