@@ -76,6 +76,7 @@ static const struct color_table default_color_table[] = {
   { "pwdentry",    "30;47",     0x80ffffff, 0x20ffffff, SHADOW_NORMAL },
   { "timeout_msg", "37;40",     0x80ffffff, 0x00000000, SHADOW_NORMAL },
   { "timeout",     "1;37;40",   0xc0ffffff, 0x00000000, SHADOW_NORMAL },
+  { "help",        "37;40",     0xc0ffffff, 0x00000000, SHADOW_NORMAL },
 };
 
 #define NCOLORS (sizeof default_color_table/sizeof(struct color_table))
@@ -90,6 +91,7 @@ struct menu_parameter mparm[] = {
   { "endrow", -1 },
   { "passwordrow", 11 },
   { "timeoutrow", 20 },
+  { "helpmsgrow", 22 },
   { NULL, 0 }
 };
 
@@ -102,6 +104,7 @@ struct menu_parameter mparm[] = {
 #define END_ROW		mparm[6].value
 #define PASSWD_ROW	mparm[7].value
 #define TIMEOUT_ROW	mparm[8].value
+#define HELPMSG_ROW	mparm[9].value
 
 static void
 install_default_color_table(void)
@@ -397,7 +400,6 @@ draw_menu(int sel, int top, int edit_line)
     tabmsg = messages[MSG_NOTAB].msg;
     
   printf("\1#08\033[%d;1H%s", TABMSG_ROW, pad_line(tabmsg, 1, WIDTH));
-
   printf("\1#00\033[%d;1H", END_ROW);
 }
 
@@ -405,6 +407,41 @@ static void
 clear_screen(void)
 {
   fputs("\033e\033%@\033)0\033(B\1#00\033[?25l\033[2J", stdout);
+}
+
+static void
+display_help(const char *text)
+{
+  int row;
+  const char *p;
+
+  if (!text) {
+    text = "";
+    printf("\1#00\033[%d;1H", HELPMSG_ROW);
+  } else {
+    printf("\1#16\033[%d;1H", HELPMSG_ROW);
+  }
+
+  for (p = text, row = HELPMSG_ROW; *p && row < END_ROW; p++) {
+    switch (*p) {
+    case '\r':
+    case '\f':
+    case '\v':
+    case '\033':
+      break;
+    case '\n':
+      printf("\033[K\033[%d;1H", ++row);
+      break;
+    default:
+      putchar(*p);
+    }
+  }
+
+  fputs("\033[K", stdout);
+
+  while (row < END_ROW) {
+    printf("\033[K\033[%d;1H", ++row);
+  }
 }
 
 static const char *
@@ -620,9 +657,11 @@ run_menu(void)
 
     if ( top != prev_top ) {
       draw_menu(entry, top, 1);
+      display_help(menu_entries[entry].helptext);
     } else if ( entry != prev_entry ) {
       draw_row(prev_entry-top+4, entry, top, 0, 0);
       draw_row(entry-top+4, entry, top, 0, 0);
+      display_help(menu_entries[entry].helptext);
     }
 
     prev_entry = entry;  prev_top = top;
@@ -767,8 +806,9 @@ run_menu(void)
 	  clear_screen();
 	  draw_menu(-1, top, 0);
 	} else {
-	  /* Erase [Tab] message */
+	  /* Erase [Tab] message and help text*/
 	  printf("\033[%d;1H\1#00\033[K", TABMSG_ROW);
+	  display_help(NULL);
 	}
 
 	if ( ok ) {

@@ -33,7 +33,7 @@ PROMPT 0
 
 
 There are a few menu additions to the command line, all starting with
-the keyword MENU; like the rest of the SYSLINUX config file
+the keywords MENU or TEXT; like the rest of the SYSLINUX config file
 language, it is case insensitive:
 
 MENU TITLE title
@@ -70,6 +70,7 @@ MENU LABEL label
 	Keep in mind that the LABELs, not MENU LABELs, must be unique,
 	or odd things will happen to the command-line.
 
+
 MENU HIDE
 
 	(Only valid after a LABEL statement.)
@@ -81,6 +82,16 @@ MENU DEFAULT
 	(Only valid after a LABEL statement.)
 	Indicates that this entry should be the default.  If no
 	default is specified, use the first one.
+
+
+TEXT HELP
+Help text ...
+... which can span multiple lines
+ENDTEXT
+
+	(Only valid after a LABEL statement.)
+	Specifies a help text that should be displayed when a particular
+	selection is highlighted.
 
 
 MENU PASSWD passwd
@@ -164,6 +175,7 @@ MENU COLOR element ansi foreground background shadow
 	pwdentry        Password box contents
 	timeout_msg     Timeout message
 	timeout         Timeout counter
+	help		Help text
 
 
 	"ansi" is a sequence of semicolon-separated ECMA-48 Set
@@ -238,6 +250,7 @@ MENU COLOR element ansi foreground background shadow
 	menu color pwdentry	30;47      #80ffffff #20ffffff std
 	menu color timeout_msg	37;40      #80ffffff #00000000 std
 	menu color timeout	1;37;40    #c0ffffff #00000000 std
+	menu color help		37;40      #c0ffffff #00000000 std
 
 
 MENU WIDTH 80
@@ -249,6 +262,7 @@ MENU CMDLINEROW 18
 MENU ENDROW 24
 MENU PASSWORDROW 11
 MENU TIMEOUTROW 20
+MENU HELPMSGROW 22
 
 	These options control the layout of the menu on the screen.
 	The values above are the defaults.

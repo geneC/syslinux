@@ -154,6 +154,7 @@ struct labeldata {
   char *append;
   char *menulabel;
   char *passwd;
+  char *helptext;
   unsigned int ipappend;
   unsigned int menuhide;
   unsigned int menudefault;
@@ -171,6 +172,7 @@ record(struct labeldata *ld, char *append)
     me->displayname = ld->menulabel ? ld->menulabel : ld->label;
     me->label       = ld->label;
     me->passwd      = ld->passwd;
+    me->helptext    = ld->helptext;
     me->hotkey = 0;
 
     if ( ld->menulabel ) {
@@ -545,14 +547,34 @@ static void parse_config_file(FILE *f)
 	}
       }
     } else if ( looking_at(p, "text") ) {
+      enum text_cmd {
+	TEXT_UNKNOWN,
+	TEXT_HELP
+      } cmd = TEXT_UNKNOWN;
+      int len = ld.helptext ? strlen(ld.helptext) : 0;
+      int xlen;
+
       p = skipspace(p+4);
       
-      /* p points to the TEXT command */
+      if (looking_at(p, "help"))
+	cmd = TEXT_HELP;
       
       while ( fgets(line, sizeof line, f) ) {
 	p = skipspace(line);
 	if (looking_at(p, "endtext"))
 	  break;
+
+	xlen = strlen(line);
+
+	switch (cmd) {
+	case TEXT_UNKNOWN:
+	  break;
+	case TEXT_HELP:
+	  ld.helptext = realloc(ld.helptext, len+xlen+1);
+	  memcpy(ld.helptext+len, line, xlen+1);
+	  len += xlen;
+	  break;
+	}
       }
     } else if ( looking_at(p, "append") ) {
       char *a = strdup(skipspace(p+6));
@@ -569,6 +591,7 @@ static void parse_config_file(FILE *f)
       ld.passwd    = NULL;
       ld.append    = NULL;
       ld.menulabel = NULL;
+      ld.helptext  = NULL;
       ld.ipappend  = ipappend;
       ld.menudefault = ld.menuhide = 0;
     } else if ( (ep = is_kernel_type(p, &type)) ) {

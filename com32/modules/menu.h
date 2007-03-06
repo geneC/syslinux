@@ -34,6 +34,7 @@ struct menu_entry {
   char *label;
   char *cmdline;
   char *passwd;
+  char *helptext;
   unsigned char hotkey;
 };
 
