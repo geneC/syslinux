@@ -259,13 +259,17 @@ MENU PASSWORDMARGIN 3
 MENU ROWS 12
 MENU TABMSGROW 18
 MENU CMDLINEROW 18
-MENU ENDROW 24
+MENU ENDROW -1
 MENU PASSWORDROW 11
 MENU TIMEOUTROW 20
 MENU HELPMSGROW 22
+MENU HELPMSGENDROW -1
 
 	These options control the layout of the menu on the screen.
 	The values above are the defaults.
+
+	A negative value is relative to the calculated length of the
+	screen (25 for text mode, 28 for VESA graphics mode.)
 
 
 The menu system honours the TIMEOUT command; if TIMEOUT is specified

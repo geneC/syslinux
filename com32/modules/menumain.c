@@ -92,6 +92,7 @@ struct menu_parameter mparm[] = {
   { "passwordrow", 11 },
   { "timeoutrow", 20 },
   { "helpmsgrow", 22 },
+  { "helpmsgendrow", -1 },
   { NULL, 0 }
 };
 
@@ -105,6 +106,7 @@ struct menu_parameter mparm[] = {
 #define PASSWD_ROW	mparm[7].value
 #define TIMEOUT_ROW	mparm[8].value
 #define HELPMSG_ROW	mparm[9].value
+#define HELPMSGEND_ROW	mparm[10].value
 
 static void
 install_default_color_table(void)
@@ -422,7 +424,7 @@ display_help(const char *text)
     printf("\1#16\033[%d;1H", HELPMSG_ROW);
   }
 
-  for (p = text, row = HELPMSG_ROW; *p && row < END_ROW; p++) {
+  for (p = text, row = HELPMSG_ROW; *p && row <= HELPMSGEND_ROW; p++) {
     switch (*p) {
     case '\r':
     case '\f':
@@ -439,7 +441,7 @@ display_help(const char *text)
 
   fputs("\033[K", stdout);
 
-  while (row < END_ROW) {
+  while (row <= HELPMSGEND_ROW) {
     printf("\033[K\033[%d;1H", ++row);
   }
 }
