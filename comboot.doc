@@ -665,7 +665,7 @@ AX=0016h [3.10] Run kernel image
 	The file types are defined as follows:
 
 		    Equivalent
-	EDX	Config	Extensions	Type of file	
+	EDX	Config	Extensions	Type of file
 	0	KERNEL			Determined by filename extension
 	1	LINUX	none		Linux kernel image
 	2	BOOT	.bs .bin	Bootstrap program

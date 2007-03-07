@@ -1,5 +1,5 @@
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 1994-2006 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -55,4 +55,3 @@ mkkeymap:	stosb
 		section .data
 linuxauto_cmd	db 'linux auto',0
 linuxauto_len   equ $-linuxauto_cmd
-

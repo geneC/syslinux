@@ -112,4 +112,3 @@ getcachesector:
 		; The first entry is the head node of the list
 		alignb 4
 CachePtrs	resb (NCacheEntries+1)*cptr_size
-
