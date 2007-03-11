@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2006 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2007 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -795,6 +795,46 @@ comapi_readdisk:
 comapi_readdisk	equ comapi_err
 %endif
 
+;
+; INT 22h AX=001Ah	Cleanup, shuffle and boot to flat protected mode
+;
+comapi_shufflepm:
+		call comapi_cleanup
+		mov cx,P_CX
+		cmp cx,(2*trackbufsize)/12
+		ja .error
+
+		push cx				; On stack: descriptor count
+
+		lea cx,[ecx+ecx*2]		; CX *= 3
+
+		mov fs,P_ES
+		mov si,P_DI
+		mov di,trackbuf
+		push di				; On stack: descriptor list address
+		fs rep movsd			; Copy the list
+
+		mov fs,P_DS
+		mov si,P_SI
+		xor edi,edi
+		mov di,PMTrampolineBuf
+		mov al,0B8h			; MOV EAX opcode
+		mov cx,9
+.maketramp:
+		stosb				; MOV opcode
+		inc ax				; Next register opcode
+		movsd				; immediate value
+		loop .maketramp
+		mov byte [di-9],0E9h		; Last opcode is JMP
+		sub dword [di-8],edi		; Make JMP target relative
+
+		mov dword [EntryPoint],trampoline_to_pm
+		xor bx,bx			; DS on entry
+		jmp replace_bootstrap
+.error:
+		stc
+		ret
+
 		section .data
 
 %macro 		int21 2
@@ -843,6 +883,7 @@ int22_table:
 		dw comapi_usingvga	; 0017 report video mode change
 		dw comapi_userfont	; 0018 query custom font
 		dw comapi_readdisk	; 0019 read disk
+		dw comapi_shufflepm	; 001A cleanup, shuffle and boot to pm
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

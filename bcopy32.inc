@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2005 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2007 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -394,7 +394,7 @@ try_wbinvd:
 %endif
 
 ;
-; bcopy_over_self:
+; shuffle_and_boot:
 ;
 ; This routine is used to shuffle memory around, followed by
 ; invoking an entry point somewhere in low memory.  This routine
@@ -438,6 +438,27 @@ shuffle_and_boot:
 		popfd
 		jmp far [cs:EntryPoint]
 
+;
+; trampoline_to_pm:
+;
+; This routine is chained to from shuffle_and_boot to invoke a
+; flat 32-bit protected mode operating system.
+;
+trampoline_to_pm:
+		cli
+		call enable_a20
+		o32 lgdt [cs:bcopy_gdt]
+		mov eax,cr0
+		or al,1
+		mov cr0,eax		; Enter protected mode
+		mov ax,28h		; 32-bit data segment selector
+		mov es,ax
+		mov ds,ax
+		mov ss,ax
+		mov fs,ax
+		mov gs,ax
+		jmp 020h:PMTrampolineBuf ; 20h = 32-bit code segment
+
 		align 2
 A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
 A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
@@ -454,3 +475,4 @@ __bcopy_size	equ $-__bcopy_start
 EntryPoint	resd 1			; CS:IP for shuffle_and_boot
 A20Test		resw 1			; Counter for testing status of A20
 A20Tries	resb 1			; Times until giving up on A20
+PMTrampolineBuf	resb 9*9		; Code snippet for invoking PM entry
