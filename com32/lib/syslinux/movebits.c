@@ -1,3 +1,37 @@
+/* ----------------------------------------------------------------------- *
+ *
+ *   Copyright 2007 H. Peter Anvin - All Rights Reserved
+ *
+ *   Permission is hereby granted, free of charge, to any person
+ *   obtaining a copy of this software and associated documentation
+ *   files (the "Software"), to deal in the Software without
+ *   restriction, including without limitation the rights to use,
+ *   copy, modify, merge, publish, distribute, sublicense, and/or
+ *   sell copies of the Software, and to permit persons to whom
+ *   the Software is furnished to do so, subject to the following
+ *   conditions:
+ *
+ *   The above copyright notice and this permission notice shall
+ *   be included in all copies or substantial portions of the Software.
+ *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *   OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * ----------------------------------------------------------------------- */
+
+/*
+ * movebits.c
+ *
+ * Utility function to take a list of memory areas to shuffle and
+ * convert it to a set of shuffle operations.
+ */
+
 #include <assert.h>
 #include <stdio.h>
 #include <errno.h>
@@ -5,7 +39,7 @@
 #include <inttypes.h>
 #include <setjmp.h>
 
-#include "movebits.h"
+#include <syslinux/movebits.h>
 
 #ifdef TEST
 # define dprintf printf
@@ -16,73 +50,12 @@
 #define min(x,y) ((x) < (y) ? (x) : (y))
 #define max(x,y) ((x) > (y) ? (x) : (y))
 
-/*
- * Public utility function
- *
- * Creates a movelist consisting of only one element, and
- * if parent == NULL insert into the movelist chain immediately after
- * the parent element.
- */
-struct movelist *
-make_movelist(struct movelist *pptr, uintptr_t dst, uintptr_t src, uintptr_t len)
-{
-  struct movelist *ml = malloc(sizeof(struct movelist));
-
-  if ( !ml )
-    return NULL;
-
-  ml->dst = dst;
-  ml->src = src;
-  ml->len = len;
-  ml->next = pptr ? pptr->next : NULL;
-
-  if ( pptr )
-    pptr->next = ml;
-
-  return ml;
-}
-
-/*
- * Public utility function
- *
- * Convert a movelist into a linear array of struct move_descriptors
- */
-size_t
-linearize_movelist(struct move_descriptor **d, struct movelist *m)
-{
-  size_t n;
-  struct movelist *mm;
-  struct move_descriptor *l;
-
-  /* Count the length of the list */
-  n = 0;
-  for ( mm = m ; mm ; mm = mm->next )
-    n++;
-
-  *d = l = malloc(n * sizeof(struct move_descriptor));
-  if ( !l )
-    return (size_t)-1;
-
-  while ( m ) {
-    l->dst = m->dst;
-    l->src = m->src;
-    l->len = m->len;
-    l++;
-    mm = m;
-    m = m->next;
-    free(mm);
-  }
-
-  return n;
-}
-
-
 static jmp_buf new_movelist_bail;
 
-static struct movelist *
-new_movelist(uintptr_t dst, uintptr_t src, uintptr_t len)
+static struct syslinux_movelist *
+new_movelist(addr_t dst, addr_t src, addr_t len)
 {
-  struct movelist *ml = malloc(sizeof(struct movelist));
+  struct syslinux_movelist *ml = malloc(sizeof(struct syslinux_movelist));
 
   if ( !ml )
     longjmp(new_movelist_bail, 1);
@@ -95,17 +68,17 @@ new_movelist(uintptr_t dst, uintptr_t src, uintptr_t len)
   return ml;
 }
 
-static struct movelist **
-split_movelist(uintptr_t start, uintptr_t len, struct movelist **parentptr)
+static struct syslinux_movelist **
+split_movelist(addr_t start, addr_t len, struct syslinux_movelist **parentptr)
 {
-  struct movelist *m, *ml = *parentptr;
+  struct syslinux_movelist *m, *ml = *parentptr;
 
   assert(start >= ml->src);
   assert(start < ml->src+ml->len);
 
   /* Split off the beginning */
   if ( start > ml->src ) {
-    uintptr_t l = start - ml->src;
+    addr_t l = start - ml->src;
 
     m = new_movelist(ml->dst+l, start, ml->len-l);
     m->next = ml->next;
@@ -117,7 +90,7 @@ split_movelist(uintptr_t start, uintptr_t len, struct movelist **parentptr)
   }
 
   if ( ml->len > len ) {
-    uintptr_t l = ml->len - len;
+    addr_t l = ml->len - len;
 
     m = new_movelist(ml->dst+len, ml->src+len, l);
     m->next = ml->next;
@@ -128,23 +101,21 @@ split_movelist(uintptr_t start, uintptr_t len, struct movelist **parentptr)
   return parentptr;
 }
 
-#if 0
 static void
-delete_movelist(struct movelist **parentptr)
+delete_movelist(struct syslinux_movelist **parentptr)
 {
-  struct movelist *o = *parentptr;
+  struct syslinux_movelist *o = *parentptr;
   *parentptr = o->next;
   free(o);
 }
-#endif
 
 /*
  * Scan the freelist looking for a particular chunk of memory
  */
-static struct movelist **
-is_free_zone(uintptr_t start, uintptr_t len, struct movelist **space)
+static struct syslinux_movelist **
+is_free_zone(addr_t start, addr_t len, struct syslinux_movelist **space)
 {
-  struct movelist *s;
+  struct syslinux_movelist *s;
 
   while ( (s = *space) ) {
     if ( s->src <= start && s->src+s->len >= start+len )
@@ -159,11 +130,11 @@ is_free_zone(uintptr_t start, uintptr_t len, struct movelist **space)
  * Scan the freelist looking for the smallest chunk of memory which
  * can fit X bytes
  */
-static struct movelist **
-free_area(uintptr_t len, struct movelist **space)
+static struct syslinux_movelist **
+free_area(addr_t len, struct syslinux_movelist **space)
 {
-  struct movelist **best = NULL;
-  struct movelist *s;
+  struct syslinux_movelist **best = NULL;
+  struct syslinux_movelist *s;
 
   while ( (s = *space) ) {
     if ( s->len >= len ) {
@@ -178,13 +149,14 @@ free_area(uintptr_t len, struct movelist **space)
 
 
 /*
- * Scan the freelist looking for the largest chunk of memory, returns parent ptr
+ * Scan the freelist looking for the largest chunk of memory,
+ * returns parent ptr
  */
-static struct movelist **
-free_area_max(struct movelist **space)
+static struct syslinux_movelist **
+free_area_max(struct syslinux_movelist **space)
 {
-  struct movelist **best = NULL;
-  struct movelist *s;
+  struct syslinux_movelist **best = NULL;
+  struct syslinux_movelist *s;
 
   while ( (s = *space) ) {
     if ( !best || s->len > (*best)->len )
@@ -199,9 +171,9 @@ free_area_max(struct movelist **space)
  * Remove a chunk from the freelist
  */
 static void
-allocate_from(uintptr_t start, uintptr_t len, struct movelist **parentptr)
+allocate_from(addr_t start, addr_t len, struct syslinux_movelist **parentptr)
 {
-  struct movelist *c = *parentptr;
+  struct syslinux_movelist *c = *parentptr;
 
   assert(c->src <= start);
   assert(c->src+c->len >= start+len);
@@ -222,10 +194,11 @@ allocate_from(uintptr_t start, uintptr_t len, struct movelist **parentptr)
  * covered by a free zone or not covered at all.
  */
 static void
-tidy_freelist(struct movelist **frags, struct movelist **space)
+tidy_freelist(struct syslinux_movelist **frags,
+	      struct syslinux_movelist **space)
 {
-  struct movelist **sep;
-  struct movelist *f;
+  struct syslinux_movelist **sep;
+  struct syslinux_movelist *f;
 
   while ( (f = *frags) ) {
     if ( (sep = is_free_zone(f->src, f->len, space)) )
@@ -240,16 +213,16 @@ tidy_freelist(struct movelist **frags, struct movelist **space)
  */
 
 int
-compute_movelist(struct movelist **moves, struct movelist *frags,
-		 struct movelist *space)
+syslinux_compute_movelist(struct syslinux_movelist **moves,
+			  struct syslinux_movelist *frags,
+			  struct syslinux_movelist *space)
 {
-  struct movelist *mv;
-  struct movelist *f, **fp, **ep;
-  struct movelist *o, **op;
-  uintptr_t needbase, needlen, copysrc, copydst, copylen;
-  uintptr_t freebase, freelen;
-
+  struct syslinux_movelist *mv;
+  struct syslinux_movelist *f, **fp, **ep;
+  struct syslinux_movelist *o, **op;
   *moves = NULL;
+  addr_t needbase, needlen, copysrc, copydst, copylen;
+  addr_t freebase, freelen;
 
   if ( setjmp(new_movelist_bail) )
     return -1;			/* malloc() failed */
@@ -360,6 +333,8 @@ compute_movelist(struct movelist **moves, struct movelist *frags,
 
     if ( copylen < needlen ) {
       /* Didn't get all we wanted, so we have to split the chunk */
+      addr_t l;
+
       fp = split_movelist(f->src, copylen+(needbase-f->dst), fp);
       f = *fp;
     }
@@ -398,11 +373,11 @@ int main(int argc, char *argv[])
 {
   FILE *f;
   unsigned long d, s, l;
-  struct movelist *frags;
-  struct movelist **fep = &frags;
-  struct movelist *space;
-  struct movelist **sep = &space;
-  struct movelist *mv, *moves;
+  struct syslinux_movelist *frags;
+  struct syslinux_movelist **fep = &frags;
+  struct syslinux_movelist *space;
+  struct syslinux_movelist **sep = &space;
+  struct syslinux_movelist *mv, *moves;
 
   f = fopen(argv[1], "r");
   while ( fscanf(f, "%lx %lx %lx", &d, &s, &l) == 3 ) {
@@ -418,7 +393,7 @@ int main(int argc, char *argv[])
   }
   fclose(f);
 
-  if ( compute_movelist(&moves, frags, space) ) {
+  if ( syslinux_compute_movelist(&moves, frags, space) ) {
     printf("Failed to compute a move sequence\n");
     return 1;
   } else {
