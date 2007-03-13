@@ -576,6 +576,10 @@ AX=0012h [3.05] Cleanup, shuffle and boot
 
 	The copies are overlap-safe, like memmove().
 
+	Starting in version 3.40, if the source address is -1
+	(FFFFFFFFh) then the block specified by the destination
+	address	and the length is set to all zero.
+
 	Normal boot sectors expect DL to contain the drive number,
 	and, for hard drives (DL >= 80h) DS:SI to contain a pointer to
 	the 16-byte partition table entry.  The memory between

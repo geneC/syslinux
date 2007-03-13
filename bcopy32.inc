@@ -58,26 +58,31 @@ bcopy_gdt_size:	equ $-bcopy_gdt
 ;	32-bit copy, overlap safe
 ;
 ; Inputs:
-;	ESI	- source pointer
+;	ESI	- source pointer (-1 means do bzero rather than bcopy)
 ;	EDI	- target pointer
 ;	ECX	- byte count
 ;	DF	- zero
 ;
 ; Outputs:
-;	ESI	- first byte after source
+;	ESI	- first byte after source (garbage if ESI == -1 on entry)
 ;	EDI	- first byte after target
 ;	ECX	- zero
 ;
 bcopy:		push eax
+		push ebx
 		push esi
 		push edi
 		push ecx
 		pushf			; Saves, among others, the IF flag
 		push ds
 		push es
+		push fs
+		push gs
 
 		cli
 		call enable_a20
+
+		mov bx,ss		; Save the stack segment value!
 
 		o32 lgdt [cs:bcopy_gdt]
 		mov eax,cr0
@@ -89,10 +94,19 @@ bcopy:		push eax
 		mov es,ax
 		mov ds,ax
 
-		; Don't mess with ss, fs, and gs.  They are never changed
-		; and should be able to make it back out of protected mode.
-		; This works because (and only because) we don't take
-		; interrupt in protected mode.
+		; Set ss, fs, and gs, in case we're on a virtual machine
+		; running on Intel VT hardware -- it can't deal with a
+		; partial transition, for no good reason.  However,
+		; ss is NOT zero in general, so we have to preserve
+		; the value.
+
+		mov ax,18h		; Real-mode-like segment
+		mov fs,ax
+		mov gs,ax
+		mov ss,ax
+
+		cmp esi,-1
+		je .bzero
 
 		cmp esi,edi		; If source > destination, we might
 		ja .reverse		; have to copy backwards
@@ -125,6 +139,18 @@ bcopy:		push eax
 		a32 rep movsd
 
 		cld
+		jmp .exit
+
+.bzero:
+		xor eax,eax
+		mov si,cx		; Save low bits
+		and si,3
+		shr ecx,2
+		a32 rep stosd
+
+		mov cx,si		; Write fractional dword
+		a32 rep stosb
+		; jmp .exit
 
 .exit:
 		mov ax,18h		; "Real-mode-like" data segment
@@ -137,6 +163,9 @@ bcopy:		push eax
 		jmp 0:.in_rm
 
 .in_rm:		; Back in real mode
+		mov ss,bx
+		pop gs
+		pop fs
 		pop es
 		pop ds
 		call disable_a20
@@ -147,6 +176,7 @@ bcopy:		push eax
 		pop esi
 		add edi,eax
 		add esi,eax
+		pop ebx
 		pop eax
 		ret
 
