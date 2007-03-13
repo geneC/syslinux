@@ -823,7 +823,7 @@ comapi_shufflepm:
 .maketramp:
 		stosb				; MOV opcode
 		inc ax				; Next register opcode
-		movsd				; immediate value
+		fs movsd			; immediate value
 		loop .maketramp
 		mov byte [di-9],0E9h		; Last opcode is JMP
 		sub dword [di-8],edi		; Make JMP target relative
