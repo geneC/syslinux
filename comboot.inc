@@ -606,11 +606,12 @@ comapi_maxshuffle:
 ; INT 22h AX=0012h	Cleanup, shuffle and boot
 ;
 comapi_shuffle:
-		call comapi_cleanup
-		mov cx,P_CX
-		cmp cx,(2*trackbufsize)/12
+		cmp P_CX,(2*trackbufsize)/12
 		ja .error
 
+		call comapi_cleanup
+
+		mov cx, P_CX
 		push cx				; On stack: descriptor count
 
 		lea cx,[ecx+ecx*2]		; CX *= 3
@@ -799,11 +800,12 @@ comapi_readdisk	equ comapi_err
 ; INT 22h AX=001Ah	Cleanup, shuffle and boot to flat protected mode
 ;
 comapi_shufflepm:
-		call comapi_cleanup
-		mov cx,P_CX
-		cmp cx,(2*trackbufsize)/12
+		cmp P_CX,(2*trackbufsize)/12
 		ja .error
 
+		call comapi_cleanup
+
+		mov cx, P_CX
 		push cx				; On stack: descriptor count
 
 		lea cx,[ecx+ecx*2]		; CX *= 3
@@ -816,8 +818,7 @@ comapi_shufflepm:
 
 		mov fs,P_DS
 		mov si,P_SI
-		xor edi,edi
-		mov di,PMTrampolineBuf
+		mov edi,PMTrampolineBuf
 		mov al,0B8h			; MOV EAX opcode
 		mov cx,9
 .maketramp:
@@ -825,8 +826,8 @@ comapi_shufflepm:
 		inc ax				; Next register opcode
 		fs movsd			; immediate value
 		loop .maketramp
-		mov byte [di-9],0E9h		; Last opcode is JMP
-		sub dword [di-8],edi		; Make JMP target relative
+		mov byte [di-5],0E9h		; Last opcode is JMP
+		sub [di-4],edi			; Make JMP target relative
 
 		mov dword [EntryPoint],trampoline_to_pm
 		xor bx,bx			; DS on entry

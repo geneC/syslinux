@@ -92,8 +92,8 @@ load_bootsec:
 ;
 
 replace_bootstrap_one:
-		push word trackbuf		; Address of descriptor list
 		push word 1			; Length of descriptor list
+		push word trackbuf		; Address of descriptor list
 		; Fall through
 
 ;
@@ -149,7 +149,8 @@ replace_bootstrap:
 		cmp dword [fs:bx], "$PnP"
 		jz .foundpnp
 		inc bx
-		jnz .findpnp
+		cmp bx,-3		; Don't get a segment overflow error!
+		jb .findpnp
 		jmp .donepnp		; No $PnP header found
 .foundpnp:
 		movzx cx,byte [fs:bx+5]	; Size of $PnP header
@@ -171,8 +172,8 @@ replace_bootstrap:
 %endif
 
 .donepnp:
-		pop ax			; Copy list count
 		pop bx			; Copy from...
+		pop ax			; Copy list count
 
 		cli
 		mov cx,es

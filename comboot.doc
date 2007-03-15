@@ -548,7 +548,7 @@ AX=0011h [3.05] Maximum number of shuffle descriptors
 	Typical values are 682 and 1365.
 
 
-AX=0012h [3.05] Cleanup, shuffle and boot
+AX=0012h [3.40] Cleanup, shuffle and boot
 	Input:	AX	0012h
 		DX	derivative-specific flags (see function 000Ch)
 		ES:DI	shuffle descriptor list (must be in low memory)
@@ -588,6 +588,8 @@ AX=0012h [3.05] Cleanup, shuffle and boot
 	For PXELINUX, if the PXE stack is not unloaded, all registers
 	(except DS, ESI and EDX) and the stack will be set up as they
 	were set up by the PXE ROM.
+
+	This interface was probably broken before version 3.40.
 
 
 AX=0013h [3.08] Idle loop call
