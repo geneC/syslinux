@@ -37,4 +37,11 @@ static inline uint64_t __htonq(uint64_t v)
 #define htonq(x) __htonq(x)
 #define ntohq(x) __htonq(x)
 
+typedef uint32_t in_addr_t;
+typedef uint16_t in_port_t;
+
+struct in_addr {
+  in_addr_t s_addr;
+};
+
 #endif /* _NETINET_IN_H */

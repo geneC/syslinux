@@ -112,4 +112,7 @@
 #define __constructor	__attribute__((constructor))
 #define __destructor	__attribute__((destructor))
 
+/* Packed structures */
+#define __packed	__attribute__((packed))
+
 #endif
