@@ -47,7 +47,7 @@ LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 OBJCOPY    = objcopy
 LIBOBJS	   = ansiline.o ansiraw.o get_key.o idle.o sha1hash.o unbase64.o \
-	     movebits.o loadfile.o
+	     syslinux/loadfile.o
 LNXLIBOBJS = $(patsubst %.o,%.lo,$(LIBOBJS))
 
 .SUFFIXES: .lss .c .lo .o .elf .c32 .lnx

@@ -23,7 +23,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#include "loadfile.h"
+#include <syslinux/loadfile.h>
 
 int loadfile(const char *filename, void **ptr, size_t *len)
 {

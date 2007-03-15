@@ -42,6 +42,7 @@
 #include <elf.h>
 #include <console.h>
 
+#include <syslinux/loadfile.h>
 #include <syslinux/movebits.h>
 
 /* If we don't have this much memory for the stack, signal failure */
@@ -57,60 +58,6 @@
 static inline void error(const char *msg)
 {
   fputs(msg, stderr);
-}
-
-/*
- * Load a file into memory
- */
-int read_file(const char *filename, void **ptr, size_t *lenp)
-{
-  int fd;
-  size_t len;
-  ssize_t rv;
-  struct stat st;
-  char *data = NULL;
-
-  dprintf("filename = \"%s\"\n", filename);
-
-  fd = open(filename, O_RDONLY);
-  if (fd < 0)
-    return -1;
-
-  dprintf("file open...\n");
-
-  if (fstat(fd, &st) < 0)
-    goto bail;
-
-  len = st.st_size;
-
-  dprintf("Allocating %zu bytes...\n", len);
-
-  data = malloc(len);
-  if (!data) 
-    goto bail;
-  
-  *ptr  = data;
-  *lenp = len;
-
-  while (len) {
-    dprintf("Reading %zu bytes... ", len);
-    rv = read(fd, data, len);
-    dprintf("%zd bytes read\n", rv);
-    if (rv <= 0)
-      goto bail;		/* Syslinux doesn't EINTR */
-    data += rv;
-    len -= rv;
-  }
-
-  close(fd);
-
-  return 0;			/* All data read */
-
- bail:
-  if (data)
-    free(data);
-  close(fd);
-  return -1;
 }
 
 int boot_elf(void *ptr, size_t len, char **argv)
@@ -328,7 +275,7 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  if (read_file(argv[1], &data, &data_len)) {
+  if (loadfile(argv[1], &data, &data_len)) {
     error("Unable to load file\n");
     return 1;
   }
