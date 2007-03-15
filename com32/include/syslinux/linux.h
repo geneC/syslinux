@@ -45,7 +45,7 @@
 struct initramfs {
   struct initramfs *prev, *next;
   size_t len;
-  void *data;
+  const void *data;
   size_t data_len;
 };
 
@@ -54,5 +54,22 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 			char *cmdline,
 			uint16_t video_mode,
 			uint32_t mem_limit);
+
+/* Initramfs manipulation functions */
+
+struct initramfs *initramfs_init(void);
+int initramfs_add_data(struct initramfs *ihead, const void *data,
+		       size_t data_len, size_t len);
+int initramfs_mknod(struct initramfs *ihead, const char *filename,
+		    int do_mkdir,
+		    uint16_t mode, size_t len,
+		    uint32_t major, uint32_t minor);
+int initramfs_add_file(struct initramfs *ihead, const void *data,
+		       size_t data_len, size_t len,
+		       const char *filename, int do_mkdir, uint32_t mode);
+int initramfs_load_file(struct initramfs *ihead, const char *src_filename,
+			const char *dst_filename, int do_mkdir, uint32_t mode);
+int initramfs_add_trailer(struct initramfs *ihead);
+int initramfs_load_archive(struct initramfs *ihead, const char *filename);
 
 #endif /* _SYSLINUX_LINUX_H */
