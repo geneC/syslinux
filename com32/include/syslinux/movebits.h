@@ -43,11 +43,9 @@ struct syslinux_memmap {
 };
 
 
-struct syslinux_pm_regs {
-  uint32_t eax, ecx, edx, ebx;
-  uint32_t esp, ebp, esi, edi;
-  uint32_t eip;
-};
+/* Defined in <syslinux/bootpm.h> and <syslinux/bootrm.h> respectively */
+struct syslinux_pm_regs;
+struct syslinux_rm_regs;
 
 /*
  * moves is computed from "fraglist" and "memmap".  Areas that are
@@ -70,8 +68,7 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
 int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
 			     struct syslinux_memmap *memmap,
 			     uint16_t bootflags,
-			     uint32_t edx, uint32_t esi, uint16_t ds,
-			     uint16_t cs, uint16_t ip);
+			     struct syslinux_rm_regs *regs);
 int syslinux_shuffle_boot_pm(struct syslinux_movelist *fraglist,
 			     struct syslinux_memmap *memmap,
 			     uint16_t bootflags,

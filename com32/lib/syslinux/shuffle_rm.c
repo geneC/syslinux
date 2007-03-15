@@ -28,7 +28,7 @@
 /*
  * shuffle_rm.c
  *
- * Shuffle and boot to real mode code
+ * Shuffle and boot to protected mode code
  */
 
 #include <stdlib.h>
@@ -36,31 +36,33 @@
 #include <com32.h>
 #include <string.h>
 #include <syslinux/movebits.h>
+#include <syslinux/bootrm.h>
 
 int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
 			     struct syslinux_memmap *memmap,
 			     uint16_t bootflags,
-			     uint32_t edx, uint32_t esi, uint16_t ds,
-			     uint16_t cs, uint16_t ip)
+			     struct syslinux_rm_regs *regs)
 {
   int nd;
   com32sys_t ireg;
+  char *regbuf;
 
   nd = syslinux_prepare_shuffle(fraglist, memmap);
   if (nd < 0)
     return -1;
   
+  regbuf = (char *)__com32.cs_bounce + (12*nd);
+  memcpy(regbuf, regs, sizeof(*regs));
+
   memset(&ireg, 0, sizeof ireg);
   
-  ireg.eax.w[0] = 0x0012;
+  ireg.eax.w[0] = 0x001b;
   ireg.edx.w[0] = bootflags;
   ireg.es       = SEG(__com32.cs_bounce);
   ireg.edi.l    = OFFS(__com32.cs_bounce);
   ireg.ecx.l    = nd;
-  ireg.ebx.l    = edx;
-  ireg.esi.l    = esi;
-  ireg.ds       = ds;
-  ireg.ebp.l    = (cs << 16) + ip;
+  ireg.ds       = SEG(regbuf);
+  ireg.esi.l    = OFFS(regbuf);
   __intcall(0x22, &ireg, NULL);
 
   return -1;			/* Too many descriptors? */

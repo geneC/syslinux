@@ -26,44 +26,28 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * shuffle_pm.c
+ * syslinux/bootpm.h
  *
- * Shuffle and boot to protected mode code
+ * Data structures for shuffle and boot to protected mode
  */
 
-#include <stdlib.h>
-#include <inttypes.h>
-#include <com32.h>
-#include <string.h>
-#include <syslinux/movebits.h>
-#include <syslinux/bootpm.h>
+#ifndef _SYSLINUX_BOOTPM_H
+#define _SYSLINUX_BOOTPM_H
 
-int syslinux_shuffle_boot_pm(struct syslinux_movelist *fraglist,
-			     struct syslinux_memmap *memmap,
-			     uint16_t bootflags,
-			     struct syslinux_pm_regs *regs)
-{
-  int nd;
-  com32sys_t ireg;
-  char *regbuf;
+#include <stdint.h>
 
-  nd = syslinux_prepare_shuffle(fraglist, memmap);
-  if (nd < 0)
-    return -1;
-  
-  regbuf = (char *)__com32.cs_bounce + (12*nd);
-  memcpy(regbuf, regs, sizeof(*regs));
+struct syslinux_pm_regs {
+  uint32_t eax;			/* Offset  0 */
+  uint32_t ecx;			/* Offset  4 */
+  uint32_t edx;			/* Offset  8 */
+  uint32_t ebx;			/* Offset 12 */
+  uint32_t esp;			/* Offset 16 */
+  uint32_t ebp;			/* Offset 20 */
+  uint32_t esi;			/* Offset 24 */
+  uint32_t edi;			/* Offset 28 */
 
-  memset(&ireg, 0, sizeof ireg);
-  
-  ireg.eax.w[0] = 0x001a;
-  ireg.edx.w[0] = bootflags;
-  ireg.es       = SEG(__com32.cs_bounce);
-  ireg.edi.l    = OFFS(__com32.cs_bounce);
-  ireg.ecx.l    = nd;
-  ireg.ds       = SEG(regbuf);
-  ireg.esi.l    = OFFS(regbuf);
-  __intcall(0x22, &ireg, NULL);
+  uint32_t eip;			/* Offset 32 */
+};
 
-  return -1;			/* Too many descriptors? */
-}
+#endif /* _SYSLINUX_BOOTPM_H */
+

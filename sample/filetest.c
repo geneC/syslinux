@@ -26,7 +26,7 @@ static void printregs(const com32sys_t *r)
 	 "ebp = %08x  esi = %08x  edi = %08x  esp = %08x\n",
 	 r->eflags.l, r->ds, r->es, r->fs, r->gs,
 	 r->eax.l, r->ebx.l, r->ecx.l, r->edx.l,
-	 r->ebp.l, r->esi.l, r->edi.l, r->_unused.l);
+	 r->ebp.l, r->esi.l, r->edi.l, r->_unused_esp.l);
 }
 
 int __start(void)

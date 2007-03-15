@@ -39,7 +39,7 @@ typedef struct {
   reg32_t edi;			/* Offset  8 */
   reg32_t esi;			/* Offset 12 */
   reg32_t ebp;			/* Offset 16 */
-  reg32_t _unused;		/* Offset 20 */
+  reg32_t _unused_esp;		/* Offset 20 */
   reg32_t ebx;			/* Offset 24 */
   reg32_t edx;			/* Offset 28 */
   reg32_t ecx;			/* Offset 32 */

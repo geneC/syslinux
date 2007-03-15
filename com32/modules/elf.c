@@ -44,6 +44,7 @@
 
 #include <syslinux/loadfile.h>
 #include <syslinux/movebits.h>
+#include <syslinux/bootpm.h>
 
 /* If we don't have this much memory for the stack, signal failure */
 #define MIN_STACK	512

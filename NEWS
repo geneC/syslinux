@@ -12,9 +12,10 @@ Changes in 3.40:
 	  internationalization of menu messages.
 	* A new feature, TEXT HELP, allows the administrator to set
 	  a multi-line help message for individual selections.
-	* Fix API call 0x0012 (Shuffle and boot.)
-	* New API call 0x001a "Shuffle and boot to flat protected
-	  mode."
+	* Fix API call 0x0012 (Cleanup, shuffle and boot.)
+	* New API call "Cleanup, shuffle and boot to flat protected mode"
+	* New API call "Cleanup, shuffle and boot to real mode",
+	  similar to API call 0x0012 but allows arbitrary register setting.
 	* Introduce a library interface for loading arbitrary binary
 	  formats with relatively easily understood code.  See
 	  the elf.c32 module for an example on how to use it.

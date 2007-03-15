@@ -818,9 +818,9 @@ comapi_shufflepm:
 
 		mov fs,P_DS
 		mov si,P_SI
-		mov edi,PMTrampolineBuf
+		mov edi,TrampolineBuf
 		mov al,0B8h			; MOV EAX opcode
-		mov cx,9
+		mov cl,9
 .maketramp:
 		stosb				; MOV opcode
 		inc ax				; Next register opcode
@@ -831,6 +831,64 @@ comapi_shufflepm:
 
 		mov dword [EntryPoint],trampoline_to_pm
 		xor bx,bx			; DS on entry
+		jmp replace_bootstrap
+.error:
+		stc
+		ret
+
+;
+; INT 22h AX=001Bh	Cleanup, shuffle and boot with register setting
+;
+comapi_shufflerm:
+		cmp P_CX,(2*trackbufsize)/12
+		ja .error
+
+		call comapi_cleanup
+
+		mov cx, P_CX
+		push cx				; On stack: descriptor count
+
+		lea cx,[ecx+ecx*2]		; CX *= 3
+
+		mov fs,P_ES
+		mov si,P_DI
+		mov di,trackbuf
+		push di				; On stack: descriptor list address
+		fs rep movsd			; Copy the list
+
+		mov fs,P_DS
+		mov si,P_SI
+		mov di,TrampolineBuf
+
+		; Generate segment-loading instructions
+		mov bx,0C08Eh			; MOV ES,AX
+		mov cl,6			; 6 segment registers (incl CS)
+.segtramp:
+		mov al,0B8h
+		stosb				; MOV AX,imm16 opcode
+		fs movsw			; imm16
+		mov ax,bx
+		stosw				; MOV xS,AX
+		loop .segtramp
+
+		; Clobber the MOV CS,AX instruction.  This changes it
+		; into [89 C8], a harmless "MOV AX,CX".
+		mov byte [di-22], 89h
+
+		; Generate GPR-loading instructions
+		mov ax,0B866h			; MOV EAX,imm32
+		mov cl,8			; 8 GPRs
+.gprtramp:
+		stosw				; MOV ExX,imm32 opcode
+		fs movsd			; imm32
+		inc ah
+		loop .gprtramp
+
+		mov al,0EAh			; JMP FAR imm16:imm16 opcode
+		stosb
+		fs movsd			; CS:IP
+
+		mov dword [EntryPoint],TrampolineBuf
 		jmp replace_bootstrap
 .error:
 		stc
@@ -885,6 +943,7 @@ int22_table:
 		dw comapi_userfont	; 0018 query custom font
 		dw comapi_readdisk	; 0019 read disk
 		dw comapi_shufflepm	; 001A cleanup, shuffle and boot to pm
+		dw comapi_shufflerm	; 001B cleanup, shuffle and boot to rm
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

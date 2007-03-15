@@ -487,7 +487,7 @@ trampoline_to_pm:
 		mov ss,ax
 		mov fs,ax
 		mov gs,ax
-		jmp 020h:PMTrampolineBuf ; 20h = 32-bit code segment
+		jmp 020h:TrampolineBuf	; 20h = 32-bit code segment
 
 		align 2
 A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
@@ -505,4 +505,10 @@ __bcopy_size	equ $-__bcopy_start
 EntryPoint	resd 1			; CS:IP for shuffle_and_boot
 A20Test		resw 1			; Counter for testing status of A20
 A20Tries	resb 1			; Times until giving up on A20
-PMTrampolineBuf	resb 9*9		; Code snippet for invoking PM entry
+
+;
+; This buffer contains synthesized code for shuffle-and-boot.
+; For the PM case, it is 9*5 = 45 bytes long; for the RM case it is
+; 8*6 to set the GPRs, 6*5 to set the segment registers (including a dummy
+; setting of CS), 5 bytes to set CS:IP, for a total of 83 bytes.
+TrampolineBuf	resb 83			; Shuffle and boot trampoline
