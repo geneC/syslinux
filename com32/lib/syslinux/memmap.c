@@ -101,18 +101,18 @@ struct syslinux_memmap *syslinux_memory_map(void)
 	  len = 0;
 	start = 0x100000ULL;
       }
-      
+
       maxlen = 0x100000000ULL-start;
       if (len > maxlen)
 	len = maxlen;
-      
+
       if (len) {
 	if (syslinux_add_memmap(&mmap, (addr_t)start, (addr_t)len, type))
 	  goto bail;
 	memfound = 1;
       }
     }
-    
+
     ireg.ebx.l = oreg.ebx.l;
   } while (oreg.ebx.l);
 
@@ -144,7 +144,7 @@ struct syslinux_memmap *syslinux_memory_map(void)
 			    SMT_FREE))
       goto bail;
   }
-  
+
   return mmap;
 
  bail:

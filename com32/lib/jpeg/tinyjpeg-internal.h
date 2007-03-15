@@ -5,7 +5,7 @@
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * - Redistributions of source code must retain the above copyright notice,
  *  this list of conditions and the following disclaimer.
  *
@@ -16,7 +16,7 @@
  * - Neither the name of the author nor the names of its contributors may be
  *  used to endorse or promote products derived from this software without
  *  specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -51,13 +51,13 @@ struct huffman_table
   short int lookup[HUFFMAN_HASH_SIZE];
   /* code size: give the number of bits of a symbol is encoded */
   unsigned char code_size[HUFFMAN_HASH_SIZE];
-  /* some place to store value that is not encoded in the lookup table 
+  /* some place to store value that is not encoded in the lookup table
    * FIXME: Calculate if 256 value is enough to store all values
    */
   uint16_t slowtable[16-HUFFMAN_HASH_NBITS][256];
 };
 
-struct component 
+struct component
 {
   unsigned int Hfactor;
   unsigned int Vfactor;
@@ -175,13 +175,12 @@ static void print_next_16bytes(int offset, const unsigned char *stream)
 {
   trace("%4.4x: %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x\n",
 	offset,
-	stream[0], stream[1], stream[2], stream[3], 
+	stream[0], stream[1], stream[2], stream[3],
 	stream[4], stream[5], stream[6], stream[7],
-	stream[8], stream[9], stream[10], stream[11], 
+	stream[8], stream[9], stream[10], stream[11],
 	stream[12], stream[13], stream[14], stream[15]);
 }
 
 #endif
 
 #endif
-

@@ -14,10 +14,10 @@
 #define DMI_BIOS_H
 
 #include "stdbool.h"
-#define BIOS_VENDOR_SIZE  	       	32
-#define BIOS_VERSION_SIZE  		32
-#define BIOS_RELEASE_SIZE   		16
-#define BIOS_RUNTIME_SIZE_UNIT_SIZE 	16
+#define BIOS_VENDOR_SIZE		32
+#define BIOS_VERSION_SIZE		32
+#define BIOS_RELEASE_SIZE		16
+#define BIOS_RUNTIME_SIZE_UNIT_SIZE	16
 #define BIOS_ROM_UNIT_SIZE		16
 #define BIOS_BIOS_REVISION_SIZE		16
 #define BIOS_FIRMWARE_REVISION_SIZE	16
@@ -98,7 +98,7 @@ static const char *bios_charac_x1_strings[]={
      "I2O boot is supported",
      "LS-120 boot is supported",
      "ATAPI Zip drive boot is supported",
-     "IEEE 1394 boot is supported", 
+     "IEEE 1394 boot is supported",
      "Smart battery is supported" /* 7 */
 };
 
@@ -119,7 +119,7 @@ static const char *bios_charac_x2_strings[]={
     "BIOS boot specification is supported", /* 0 */
     "Function key-initiated network boot is supported",
     "Targeted content distribution is supported" /* 2 */
-};  
+};
 
 /* this struct have BIOS_CHAR_X2_NB_ELEMENTS */
 /* each bool is associated to the relevant message above */
@@ -130,9 +130,9 @@ bool target_content_distribution;
 } __attribute__((__packed__)) s_characteristics_x2;
 
 typedef struct {
-char vendor[BIOS_VENDOR_SIZE];	
-char version[BIOS_VERSION_SIZE];	
-char release_date[BIOS_RELEASE_SIZE];	
+char vendor[BIOS_VENDOR_SIZE];
+char version[BIOS_VERSION_SIZE];
+char release_date[BIOS_RELEASE_SIZE];
 u16  address;
 u16  runtime_size;
 char runtime_size_unit[BIOS_RUNTIME_SIZE_UNIT_SIZE];

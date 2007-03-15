@@ -239,7 +239,7 @@ unhexchar:
                 ja .err
                 sub al,'a'-10           ; CF <- 0
                 ret
-.err:        	stc
+.err:		stc
 .ret:		ret
 
 ;

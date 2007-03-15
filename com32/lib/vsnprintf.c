@@ -27,7 +27,7 @@ enum flags {
 enum ranks {
   rank_char	= -2,
   rank_short	= -1,
-  rank_int 	= 0,
+  rank_int	= 0,
   rank_long	= 1,
   rank_longlong	= 2
 };

@@ -680,7 +680,7 @@ void setup(syscall_t cs_syscall, void *cs_bounce)
      ranges (each insertrange() can worst-case turn 1 area into 3)
      plus the terminating range, over what nranges currently show. */
   cmdlinelen = strlen(shdr->cmdline)+1;
-  total_size  =  hptr->total_size; 		/* Actual memdisk code */
+  total_size  =  hptr->total_size;		/* Actual memdisk code */
   total_size += (nranges+3)*sizeof(ranges[0]);  /* E820 memory ranges */
   total_size += cmdlinelen;	                /* Command line */
   total_size += STACK_NEEDED;	                /* Stack */

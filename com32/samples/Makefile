@@ -31,14 +31,14 @@ LNXLDFLAGS = -g
 SFLAGS     = -D__COM32__ -march=i386
 LDFLAGS    = -T ../lib/com32.ld
 OBJCOPY    = objcopy
-PPMTOLSS16 = 	../ppmtolss16
+PPMTOLSS16 =	../ppmtolss16
 LIBGCC    := $(shell $(CC) --print-libgcc)
 LIBS	   = ../libutil/libutil_com.a ../lib/libcom32.a $(LIBGCC)
 LNXLIBS	   = ../libutil/libutil_lnx.a
 
 .SUFFIXES: .lss .c .o .elf .c32 .lnx
 
-all: 	hello.c32 cat.c32 resolv.c32 vesainfo.c32 \
+all:	hello.c32 cat.c32 resolv.c32 vesainfo.c32 \
 	fancyhello.c32 fancyhello.lnx \
 	keytest.c32 keytest.lnx \
 

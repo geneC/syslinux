@@ -157,7 +157,7 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
   struct diskio dio;
 
   dprintf("write_device(%d,%p,%u,%u)\n", drive, buf, nsecs, sector);
- 
+
   dio.startsector = sector;
   dio.sectors     = nsecs;
   dio.bufoffs     = (uintptr_t)buf;
@@ -601,7 +601,7 @@ int main(int argc, char *argv[])
     new_ldlinux_name[0] = dev_fd | 0x40;
     new_ldlinux_name[1] = ':';
     new_ldlinux_name[2] = '\\';
-    
+
     for (sd = subdir; *sd; sd++) {
       char c = *sd;
 
@@ -616,7 +616,7 @@ int main(int argc, char *argv[])
 
       *cp++ = c;
     }
-    
+
     /* Skip if subdirectory == root */
     if (cp > new_ldlinux_name+3) {
       if (!slash)

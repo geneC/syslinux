@@ -681,7 +681,7 @@ install_loader(const char *path, int update_only)
      a new device with the appropriate device type */
   snprintf(devname_buf, sizeof devname_buf, "/tmp/dev-%u:%u",
 	   major(st.st_dev), minor(st.st_dev));
-    
+
   if (mknod(devname_buf, S_IFBLK|0600, st.st_dev)) {
     fprintf(stderr, "%s: cannot create device %s\n", program, devname);
     return 1;

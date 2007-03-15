@@ -396,11 +396,11 @@ getlinsec_ebios:
 		popad
 		lea sp,[si+16]			; Remove DAPA
 		jc .error
-        	pop bp
+		pop bp
 		add eax,edi			; Advance sector pointer
 		sub bp,di			; Sectors left
                 shl di,SECTOR_SHIFT		; 512-byte sectors
-                add bx,di                   	; Advance buffer pointer
+                add bx,di			; Advance buffer pointer
                 and bp,bp
                 jnz .loop
 
@@ -518,7 +518,7 @@ disk_error:
 kaboom:
 		xor si,si
 		mov ss,si
-		mov sp,StackBuf-4 	; Reset stack
+		mov sp,StackBuf-4	; Reset stack
 		mov ds,si		; Reset data segment
 		pop dword [fdctab]	; Restore FDC table
 .patch:					; When we have full code, intercept here

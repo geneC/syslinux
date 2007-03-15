@@ -5,4 +5,3 @@
 #define assert(X) ((void)0)
 
 #endif /* _ASSERT_H */
-

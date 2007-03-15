@@ -191,7 +191,7 @@ bcopy:		push eax
 ;
 %define	io_delay	call _io_delay
 %define IO_DELAY_PORT	80h		; Invalid port (we hope!)
-%define disable_wait 	32		; How long to wait for a disable
+%define disable_wait	32		; How long to wait for a disable
 
 ; Note the skip of 2 here
 %define A20_DUNNO	0		; A20 type unknown
@@ -442,8 +442,8 @@ try_wbinvd:
 ; SS register.  That is the responsibility of the caller.
 ;
 ; Inputs:
-; 	DS:BX		-> Pointer to list of (dst, src, len) pairs
-; 	AX		-> Number of list entries
+;	DS:BX		-> Pointer to list of (dst, src, len) pairs
+;	AX		-> Number of list entries
 ;	[CS:EntryPoint]	-> CS:IP to jump to
 ;	On stack	- initial state (fd, ad, ds, es, fs, gs)
 ;

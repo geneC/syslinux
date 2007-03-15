@@ -53,7 +53,7 @@ static inline __attribute__((always_inline))
 
   tmp  = __vesacon_srgb_to_linear[fg] * alpha;
   tmp += __vesacon_srgb_to_linear[bg] * (255-alpha);
-  
+
   return __vesacon_linear_to_srgb[tmp >> 12];
 }
 
@@ -87,9 +87,9 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
   uint8_t row_buffer[VIDEO_X_SIZE*4], *rowbufptr;
   uint8_t *fbrowptr;
   uint8_t sha;
-  
+
   bgrowptr  = &__vesacon_background[row*height+VIDEO_BORDER][col*width+VIDEO_BORDER];
-  
+
   pixel_offset = ((row*height+VIDEO_BORDER)*VIDEO_X_SIZE)+
     (col*width+VIDEO_BORDER);
 

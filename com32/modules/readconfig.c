@@ -45,7 +45,7 @@ struct menu_entry *menu_hotkeys[256];
 struct messages messages[MSG_COUNT] = {
   [MSG_TITLE] =
   { "title", "", NULL },
-  [MSG_AUTOBOOT] = 
+  [MSG_AUTOBOOT] =
   { "autoboot", "Automatic boot in # seconds", NULL },
   [MSG_TAB] =
   { "tabmsg", "Press [Tab] to edit options", NULL },
@@ -555,10 +555,10 @@ static void parse_config_file(FILE *f)
       int xlen;
 
       p = skipspace(p+4);
-      
+
       if (looking_at(p, "help"))
 	cmd = TEXT_HELP;
-      
+
       while ( fgets(line, sizeof line, f) ) {
 	p = skipspace(line);
 	if (looking_at(p, "endtext"))

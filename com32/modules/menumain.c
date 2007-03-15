@@ -400,7 +400,7 @@ draw_menu(int sel, int top, int edit_line)
     tabmsg = messages[MSG_TAB].msg;
   else
     tabmsg = messages[MSG_NOTAB].msg;
-    
+
   printf("\1#08\033[%d;1H%s", TABMSG_ROW, pad_line(tabmsg, 1, WIDTH));
   printf("\1#00\033[%d;1H", END_ROW);
 }

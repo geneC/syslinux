@@ -172,7 +172,7 @@ tftp_pktbuf	resw 1			; Packet buffer offset
 ;
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
- 		section .earlybss
+		section .earlybss
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
@@ -1806,8 +1806,8 @@ get_packet:
 ; Send ACK packet.  This is a common operation and so is worth canning.
 ;
 ; Entry:
-;	SI 	= TFTP block
-;	AX 	= Packet # to ack (network byte order)
+;	SI	= TFTP block
+;	AX	= Packet # to ack (network byte order)
 ; Exit:
 ;	ZF = 0 -> Error
 ;	All registers preserved

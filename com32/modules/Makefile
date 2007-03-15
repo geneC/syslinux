@@ -31,7 +31,7 @@ LNXLDFLAGS = -g
 SFLAGS     = -D__COM32__ -march=i386
 LDFLAGS    = -T ../lib/com32.ld
 OBJCOPY    = objcopy
-PPMTOLSS16 = 	../ppmtolss16
+PPMTOLSS16 =	../ppmtolss16
 LIBGCC    := $(shell $(CC) --print-libgcc)
 LIBS	   = ../libutil/libutil_com.a ../lib/libcom32.a $(LIBGCC)
 LNXLIBS	   = ../libutil/libutil_lnx.a
@@ -46,7 +46,7 @@ COM32DIR = $(AUXDIR)/com32
 
 MODULES	  = chain.c32 menu.c32 vesamenu.c32 ethersel.c32 mboot.c32 \
 	    dmitest.c32 cpuidtest.c32 pcitest.c32 elf.c32
-TESTFILES = 
+TESTFILES =
 
 all: $(MODULES) $(TESTFILES)
 

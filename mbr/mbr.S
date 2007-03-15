@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
- *   
+ *
  *   Copyright 2007 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -10,10 +10,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -42,7 +42,7 @@ BIOS_page = 0x462
 bootsec:
 	.space	512
 
-	.text	
+	.text
 	.globl	_start
 _start:
 	cli
@@ -100,7 +100,7 @@ next:
 	pushl	%eax		/* Base */
 	pushl	%eax		/* Root */
 	call	scan_partition_table
-	
+
 	/* If we get here, we have no OS */
 	jmp	missing_os
 
@@ -155,7 +155,7 @@ read_partition_table:
 20:
 	popal
 	ret
-			
+
 /*
  * scan_partition_table:
  *	Scan a partition table currently loaded in the partition table
@@ -165,12 +165,12 @@ read_partition_table:
  *	  18(%bp) - root (offset from MBR, or 0 for MBR)
  *	  22(%bp) - base (location of this partition table)
  */
-	
+
 scan_partition_table:
 	pusha
 	movw	%sp, %bp
 
-	/* Search for active partitions */	
+	/* Search for active partitions */
 	movw	$ptab, %di
 	movw	$4, %cx
 	xorw	%ax, %ax
@@ -198,7 +198,7 @@ scan_partition_table:
 	je	8f
 	cmpb	$0x85, %al	/* Linux extended */
 	jne	9f
-	
+
 	/* It is an extended partition.  Read the extended partition and
 	   try to scan it.  If the scan returns, re-load the current
 	   partition table and resume scan. */
@@ -221,7 +221,7 @@ scan_partition_table:
 	movl	22(%bp), %eax
 	call	read_partition_table
 
-	/* fall through */		
+	/* fall through */
 9:
 	/* Not an extended partition */
 	addw	$16, %di
@@ -264,7 +264,7 @@ disk_error:
 too_many_active:
 	movw	$too_many_active_msg, %si
 	/* jmp error */
-	
+
 error:
 2:
 	lodsb

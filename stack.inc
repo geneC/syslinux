@@ -31,7 +31,7 @@
 		mov es,%1
 %if IS_SYSLINUX || IS_EXTLINUX
                 mov ss,%1                       ; Just in case...
-                mov sp,StackBuf-2*3    		; Reset stack
+                mov sp,StackBuf-2*3		; Reset stack
 %elif IS_PXELINUX
 		lss esp,[BaseStack]
 %elif IS_ISOLINUX

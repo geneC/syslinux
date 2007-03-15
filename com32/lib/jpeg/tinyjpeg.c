@@ -5,7 +5,7 @@
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * - Redistributions of source code must retain the above copyright notice,
  *  this list of conditions and the following disclaimer.
  *
@@ -16,7 +16,7 @@
  * - Neither the name of the author nor the names of its contributors may be
  *  used to endorse or promote products derived from this software without
  *  specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -42,7 +42,7 @@
 /* Global variable to return the last error found while deconding */
 static char error_string[256];
 
-static const unsigned char zigzag[64] = 
+static const unsigned char zigzag[64] =
 {
    0,  1,  5,  6, 14, 15, 27, 28,
    2,  4,  7, 13, 16, 26, 29, 42,
@@ -57,26 +57,26 @@ static const unsigned char zigzag[64] =
 /* Set up the standard Huffman tables (cf. JPEG standard section K.3) */
 /* IMPORTANT: these are only valid for 8-bit data precision! */
 static const unsigned char bits_dc_luminance[17] =
-{ 
-  0, 0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 
+{
+  0, 0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0
 };
 static const unsigned char val_dc_luminance[] =
 {
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
 };
-  
+
 static const unsigned char bits_dc_chrominance[17] =
 {
-  0, 0, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0 
+  0, 0, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0
 };
-static const unsigned char val_dc_chrominance[] = 
+static const unsigned char val_dc_chrominance[] =
 {
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
 };
-  
+
 static const unsigned char bits_ac_luminance[17] =
 {
-  0, 0, 2, 1, 3, 3, 2, 4, 3, 5, 5, 4, 4, 0, 0, 1, 0x7d 
+  0, 0, 2, 1, 3, 3, 2, 4, 3, 5, 5, 4, 4, 0, 0, 1, 0x7d
 };
 static const unsigned char val_ac_luminance[] =
 {
@@ -104,8 +104,8 @@ static const unsigned char val_ac_luminance[] =
 };
 
 static const unsigned char bits_ac_chrominance[17] =
-{ 
-  0, 0, 2, 1, 2, 4, 4, 3, 4, 7, 5, 4, 4, 0, 1, 2, 0x77 
+{
+  0, 0, 2, 1, 2, 4, 4, 3, 4, 7, 5, 4, 4, 0, 1, 2, 0x77
 };
 
 static const unsigned char val_ac_chrominance[] =
@@ -145,7 +145,7 @@ static const unsigned char val_ac_chrominance[] =
  *             bits.
  *  look_nbits: read nbits from the stream without marking as read.
  *  skip_nbits: read nbits from the stream but do not return the result.
- * 
+ *
  * stream: current pointer in the jpeg data (read bytes per bytes)
  * nbits_in_reservoir: number of bits filled into the reservoir
  * reservoir: register that contains bits information. Only nbits_in_reservoir
@@ -216,7 +216,7 @@ static int get_next_huffman_code(struct jdec_private *priv, struct huffman_table
   look_nbits(priv->reservoir, priv->nbits_in_reservoir, priv->stream, HUFFMAN_HASH_NBITS, hcode);
   value = huffman_table->lookup[hcode];
   if (value>=0)
-  { 
+  {
      int code_size = huffman_table->code_size[value];
      skip_nbits(priv->reservoir, priv->nbits_in_reservoir, priv->stream, code_size);
      return value;
@@ -303,7 +303,7 @@ void tinyjpeg_process_Huffman_data_unit(struct jdec_private *priv, int component
 
 /*
  * Takes two array of bits, and build the huffman table for size, and code
- * 
+ *
  * lookup will return the symbol if the code is less or equal than HUFFMAN_HASH_NBITS.
  * code_size will be used to known how many bits this symbol is encoded.
  * slowtable will be used when the first lookup didn't give the result.
@@ -316,7 +316,7 @@ static void build_huffman_table(const unsigned char *bits, const unsigned char *
   int next_free_entry;
 
   /*
-   * Build a temp array 
+   * Build a temp array
    *   huffsize[X] => numbers of bits to write vals[X]
    */
   hz = huffsize;
@@ -365,7 +365,7 @@ static void build_huffman_table(const unsigned char *bits, const unsigned char *
       {
 	/*
 	 * Good: val can be put in the lookup table, so fill all value of this
-	 * column with value val 
+	 * column with value val
 	 */
 	int repeat = 1UL<<(HUFFMAN_HASH_NBITS - code_size);
 	code <<= HUFFMAN_HASH_NBITS - code_size;
@@ -391,7 +391,7 @@ static void build_huffman_table(const unsigned char *bits, const unsigned char *
 
 static void build_default_huffman_tables(struct jdec_private *priv)
 {
-  if (   (priv->flags & TINYJPEG_FLAGS_MJPEG_TABLE) 
+  if (   (priv->flags & TINYJPEG_FLAGS_MJPEG_TABLE)
       && priv->default_huffman_table_initialized)
     return;
 
@@ -418,7 +418,7 @@ static void build_default_huffman_tables(struct jdec_private *priv)
  *      R = Y                + 1.40200 * Cr
  *      G = Y - 0.34414 * Cb - 0.71414 * Cr
  *      B = Y + 1.77200 * Cb
- * 
+ *
  ******************************************************************************/
 
 static void print_SOF(const unsigned char *stream)
@@ -440,7 +440,7 @@ static void print_SOF(const unsigned char *stream)
   nr_components = stream[7];
 
   trace("> SOF marker\n");
-  trace("Size:%dx%d nr_components:%d (%s)  precision:%d\n", 
+  trace("Size:%dx%d nr_components:%d (%s)  precision:%d\n",
       width, height,
       nr_components, nr_components_to_string[nr_components],
       precision);
@@ -696,7 +696,7 @@ static int parse_JFIF(struct jdec_private *priv, const unsigned char *stream)
   if (   (priv->component_infos[cY].Vfactor < priv->component_infos[cCb].Vfactor)
       || (priv->component_infos[cY].Vfactor < priv->component_infos[cCr].Vfactor))
     error("Vertical sampling factor for Y should be greater than vertical sampling factor for Cb or Cr\n");
-  if (   (priv->component_infos[cCb].Hfactor!=1) 
+  if (   (priv->component_infos[cCb].Hfactor!=1)
       || (priv->component_infos[cCr].Hfactor!=1)
       || (priv->component_infos[cCb].Vfactor!=1)
       || (priv->component_infos[cCr].Vfactor!=1))
@@ -728,7 +728,7 @@ bogus_jpeg_format:
 struct jdec_private *tinyjpeg_init(void)
 {
   struct jdec_private *priv;
- 
+
   priv = (struct jdec_private *)calloc(1, sizeof(struct jdec_private));
   if (priv == NULL)
     return NULL;
@@ -888,7 +888,7 @@ int tinyjpeg_get_bytes_per_row(struct jdec_private *priv,
   for (i=0; i<ncomponents; i++)
     bytes[i] = priv->bytes_per_row[i];
   return 0;
-}  
+}
 
 int tinyjpeg_set_bytes_per_row(struct jdec_private *priv,
 			       const unsigned int *bytes,
@@ -900,7 +900,7 @@ int tinyjpeg_set_bytes_per_row(struct jdec_private *priv,
   for (i=0; i<ncomponents; i++)
     priv->bytes_per_row[i] = bytes[i];
   return 0;
-}  
+}
 
 int tinyjpeg_set_flags(struct jdec_private *priv, int flags)
 {

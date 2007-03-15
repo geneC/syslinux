@@ -20,7 +20,7 @@
 OSTYPE   = $(shell uname -msr)
 ifeq ($(findstring CYGWIN,$(OSTYPE)),CYGWIN)
 WINCC       = gcc
-WINAR  	    = ar
+WINAR	    = ar
 WINRANLIB   = ranlib
 WINCFLAGS   = -mno-cygwin -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 WINPIC	    =

@@ -231,11 +231,11 @@ AX=0001h [2.00]	Get Version
 
 	Input:	AX	0001h
 	Output:	AX	number of INT 22h API functions available
-		CH 	SYSLINUX major version number
-		CL 	SYSLINUX minor version number
-		DL 	SYSLINUX derivative ID (e.g. 32h = PXELINUX)
+		CH	SYSLINUX major version number
+		CL	SYSLINUX minor version number
+		DL	SYSLINUX derivative ID (e.g. 32h = PXELINUX)
 		ES:SI	SYSLINUX version string
-		ES:DI 	SYSLINUX copyright string
+		ES:DI	SYSLINUX copyright string
 
 	This API call returns the SYSLINUX version and API
 	information.

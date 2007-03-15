@@ -461,7 +461,7 @@ int main(int argc, char *argv[])
     new_ldlinux_name[0] = drive[0];
     new_ldlinux_name[1] = ':';
     new_ldlinux_name[2] = '\\';
-    
+
     for (sd = subdir; *sd; sd++) {
       char c = *sd;
 
@@ -476,7 +476,7 @@ int main(int argc, char *argv[])
 
       *cp++ = c;
     }
-    
+
     /* Skip if subdirectory == root */
     if (cp > new_ldlinux_name+3) {
       if (!slash)

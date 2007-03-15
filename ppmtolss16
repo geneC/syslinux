@@ -221,7 +221,7 @@ if ( $form == 1 || $form == 4 ) {
 } else {
     $maxcol = get_numeric_token();
 }
-$maxmult = 64/($maxcol+1); 	# Equal buckets conversion
+$maxmult = 64/($maxcol+1);	# Equal buckets conversion
 
 @data = ();
 

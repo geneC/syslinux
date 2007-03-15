@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2007 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -10,10 +10,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -208,7 +208,7 @@ int boot_elf(void *ptr, size_t len, char **argv)
   spp = (uint32_t *)stack_frame;
   sfp = stack_frame + argc*sizeof(char *) + 5*sizeof(long);
   sfa = stack_pointer + argc*sizeof(char *) + 5*sizeof(long);
-  
+
   *spp++ = argc;
   for (argp = argv; *argp; argp++) {
     int bytes = strlen(*argp) + 1; /* Including final null */
@@ -218,7 +218,7 @@ int boot_elf(void *ptr, size_t len, char **argv)
     sfa += bytes;
   }
   /* Zero fields are aready taken care of by calloc() */
-  
+
   /* ... and we'll want to move it into the right place... */
 #if DEBUG
   if (syslinux_memmap_type(amap, stack_pointer, stack_frame_size)

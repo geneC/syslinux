@@ -51,4 +51,3 @@ for ($i = 0; $i <= 4079; $i++) {
     printf "\t%3d,\n", linear_to_srgb(($i+0.5)/4079.937744);
 }
 print "};\n\n";
-

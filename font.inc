@@ -55,7 +55,7 @@ loadfont:
 
 ;
 ; use_font:
-; 	This routine activates whatever font happens to be in the
+;	This routine activates whatever font happens to be in the
 ;	vgafontbuf, and updates the adjust_screen data.
 ;       Must be called with CS = DS = ES
 ;

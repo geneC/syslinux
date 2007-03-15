@@ -62,7 +62,7 @@ static void draw_background_line(int line, int start, int npixels)
   lbp = line_buf;
   while (npixels--)
     lbp = format_pixel(lbp, *bgptr++, pixel_format);
-    
+
   memcpy(fbptr, line_buf, lbp-line_buf);
 }
 
@@ -73,10 +73,10 @@ static void draw_background(void)
   const int bottom_border = VIDEO_BORDER +
     (TEXT_PIXEL_ROWS % __vesacon_font_height);
   const int right_border = VIDEO_BORDER + (TEXT_PIXEL_COLS % FONT_WIDTH);
-  
+
   for (i = 0; i < VIDEO_BORDER; i++)
     draw_background_line(i, 0, VIDEO_X_SIZE);
-  
+
   for (i = VIDEO_BORDER; i < VIDEO_Y_SIZE-bottom_border; i++) {
     draw_background_line(i, 0, VIDEO_BORDER);
     draw_background_line(i, VIDEO_X_SIZE-right_border, right_border);
@@ -271,13 +271,13 @@ int vesacon_load_background(const char *filename)
     default_background();
   } else {
     fp = fopen(filename, "r");
-    
+
     if (!fp)
       goto err;
-    
+
     if (fread(header, 1, 8, fp) != 8)
       goto err;
-    
+
     if (!png_sig_cmp(header, 0, 8)) {
       rv = read_png_file(fp);
     } else if (!jpeg_sig_cmp(header, 8)) {

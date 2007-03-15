@@ -331,7 +331,7 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
 .no_skip:	mov [KernelExtPtr],di
 		mov bx,exten_table
 .search_loop:	push bx
-                mov di,KernelName	      	; Search on disk
+                mov di,KernelName		; Search on disk
                 call searchdir
 		pop bx
                 jnz kernel_good
@@ -448,7 +448,7 @@ getchar_timeout:
 ; that decision on the file extension.  The following extensions are
 ; recognized; case insensitive:
 ;
-; .com 	- COMBOOT image
+; .com	- COMBOOT image
 ; .cbt	- COMBOOT image
 ; .c32  - COM32 image
 ; .bs	- Boot sector

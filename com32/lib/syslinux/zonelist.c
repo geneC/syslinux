@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2007 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -10,10 +10,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -188,7 +188,7 @@ int syslinux_memmap_largest(struct syslinux_memmap *list,
       best = list;
       best_size = size;
     }
-    
+
     list = list->next;
   }
 
@@ -222,7 +222,7 @@ struct syslinux_memmap *syslinux_dup_memmap(struct syslinux_memmap *list)
 {
   struct syslinux_memmap *newlist = NULL, **nlp = &newlist;
   struct syslinux_memmap *ml;
-  
+
   while (list) {
     ml = malloc(sizeof(*ml));
     if (!ml) {
@@ -234,7 +234,7 @@ struct syslinux_memmap *syslinux_dup_memmap(struct syslinux_memmap *list)
     ml->next = NULL;
     *nlp = ml;
     nlp = &ml->next;
-    
+
     list = list->next;
   }
 

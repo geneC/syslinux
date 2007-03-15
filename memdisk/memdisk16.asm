@@ -223,7 +223,7 @@ A20Type		dw 0			; Default = unknown
 ;
 %define	io_delay	call _io_delay
 %define IO_DELAY_PORT	80h		; Invalid port (we hope!)
-%define disable_wait 	32		; How long to wait for a disable
+%define disable_wait	32		; How long to wait for a disable
 
 %define A20_DUNNO	0		; A20 type unknown
 %define A20_NONE	1		; A20 always on?

@@ -717,7 +717,7 @@ bcopy:
 		mov ax,2400h		; Disable A20
 		int 15h
 .skip_a20d:
-		popfd 			; <A>
+		popfd			; <A>
 		jmp .done
 
 .protmode:

@@ -896,7 +896,7 @@ comapi_shufflerm:
 
 		section .data
 
-%macro 		int21 2
+%macro		int21 2
 		db %1
 		dw %2
 %endmacro

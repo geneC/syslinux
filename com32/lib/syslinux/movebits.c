@@ -347,7 +347,7 @@ syslinux_compute_movelist(struct syslinux_movelist **moves,
        Then move a chunk of ourselves into place. */
     for ( op = &f->next, o = *op ; o ; op = &o->next, o = *op ) {
 
-	dprintf("O: 0x%08x bytes 	at 0x%08x -> 0x%08x\n",
+	dprintf("O: 0x%08x bytes	at 0x%08x -> 0x%08x\n",
 		o->len, o->src, o->dst);
 
       if ( !(o->src <= needbase && o->src+o->len > needbase) )
@@ -438,7 +438,7 @@ syslinux_compute_movelist(struct syslinux_movelist **moves,
   }
 
   rv = 0;
- bail:  
+ bail:
   if (mmap)
     syslinux_free_memmap(mmap);
   return rv;

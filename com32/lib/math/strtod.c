@@ -1,7 +1,7 @@
 /*
  * strtod.c
  *
- * Convert string to double 
+ * Convert string to double
  *
  * Copyright (C) 2002 Michael Ringgaard. All rights reserved.
  * Copyright (C) 2006-2007 H. Peter Anvin.
@@ -9,16 +9,16 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer.  
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.  
+ *    documentation and/or other materials provided with the distribution.
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission. 
- * 
+ *    without specific prior written permission.
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -61,8 +61,8 @@ double strtod(const char *str, char **endptr)
 
   // Handle optional sign
   negative = 0;
-  switch (*p) 
-  {             
+  switch (*p)
+  {
     case '-': negative = 1; // Fall through to increment position
     case '+': p++;
   }
@@ -81,7 +81,7 @@ double strtod(const char *str, char **endptr)
   }
 
   // Process decimal part
-  if (*p == '.') 
+  if (*p == '.')
   {
     p++;
 
@@ -106,25 +106,25 @@ double strtod(const char *str, char **endptr)
   if (negative) number = -number;
 
   // Process an exponent string
-  if (*p == 'e' || *p == 'E') 
+  if (*p == 'e' || *p == 'E')
   {
     // Handle optional sign
     negative = 0;
-    switch(*++p) 
-    {   
+    switch(*++p)
+    {
       case '-': negative = 1;   // Fall through to increment pos
       case '+': p++;
     }
 
     // Process string of digits
     n = 0;
-    while (isdigit(*p)) 
-    {   
+    while (isdigit(*p))
+    {
       n = n * 10 + (*p - '0');
       p++;
     }
 
-    if (negative) 
+    if (negative)
       exponent -= n;
     else
       exponent += n;
@@ -141,9 +141,9 @@ double strtod(const char *str, char **endptr)
   p10 = 10.;
   n = exponent;
   if (n < 0) n = -n;
-  while (n) 
+  while (n)
   {
-    if (n & 1) 
+    if (n & 1)
     {
       if (exponent < 0)
         number /= p10;
@@ -159,4 +159,3 @@ double strtod(const char *str, char **endptr)
 
   return number;
 }
-

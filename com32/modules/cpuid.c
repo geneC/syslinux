@@ -183,7 +183,7 @@ void generic_identify(struct cpuinfo_x86 *c)
 {
         u32 tfms, xlvl;
         int junk;
- 	/* Get vendor name */
+	/* Get vendor name */
 	cpuid(0x00000000, &c->cpuid_level,
               (int *)&c->x86_vendor_id[0],
               (int *)&c->x86_vendor_id[8],

@@ -403,11 +403,11 @@ getlinsec_ebios:
 		popad
 		lea sp,[si+16]			; Remove DAPA
 		jc .error
-        	pop bp
+		pop bp
 		add eax,edi			; Advance sector pointer
 		sub bp,di			; Sectors left
                 shl di,SECTOR_SHIFT		; 512-byte sectors
-                add bx,di                   	; Advance buffer pointer
+                add bx,di			; Advance buffer pointer
                 and bp,bp
                 jnz .loop
 
@@ -525,7 +525,7 @@ disk_error:
 kaboom:
 		xor si,si
 		mov ss,si
-		mov sp,StackBuf-4 	; Reset stack
+		mov sp,StackBuf-4	; Reset stack
 		mov ds,si		; Reset data segment
 		pop dword [fdctab]	; Restore FDC table
 .patch:					; When we have full code, intercept here
@@ -1164,7 +1164,7 @@ kaboom2:
 ;
 ;	       This verifies that a filename is < FILENAME_MAX characters,
 ;	       doesn't contain whitespace, zero-pads the output buffer,
-; 	       and removes trailing dots and redundant slashes, plus changes
+;	       and removes trailing dots and redundant slashes, plus changes
 ;              backslashes to forward slashes,
 ;	       so "repe cmpsb" can do a compare, and the path-searching routine
 ;              gets a bit of an easier job.
@@ -1465,10 +1465,10 @@ nextcluster_fat28:
 
 ;
 ; nextsector:	Given a sector in EAX on input, return the next sector
-;	     	of the same filesystem object, which may be the root
-;              	directory or a cluster chain.  Returns  EOF.
+;		of the same filesystem object, which may be the root
+;		directory or a cluster chain.  Returns  EOF.
 ;
-;	      	Assumes CS == DS.
+;		Assumes CS == DS.
 ;
 nextsector:
 		push edi

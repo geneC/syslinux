@@ -181,7 +181,7 @@ int make_block_map(uint32_t *sectors, int len, int dev_fd, int fd)
     block = nblock++;
     if (ioctl(fd, FIBMAP, &block) < 0)
       die("ioctl FIBMAP failed");
-    
+
     for (i = 0; i < blocksize; i++) {
       if (len <= 0)
 	break;
@@ -214,7 +214,7 @@ int do_mount(int dev_fd, int *cookie, const char *mntpath, const char *fstype)
       unsigned int n = 0;
       struct loop_info64 loopinfo;
       int loop_fd;
-      
+
       for ( n = 0 ; loop_fd < 0 ; n++ ) {
 	snprintf(devfdname, sizeof devfdname, "/dev/loop%u", n);
 	loop_fd = open(devfdname, O_RDWR);
@@ -228,20 +228,20 @@ int do_mount(int dev_fd, int *cookie, const char *mntpath, const char *fstype)
 	  else
 	    continue;
 	}
-	
+
 	if ( ioctl(loop_fd, LOOP_GET_STATUS64, &loopinfo) ||
 	     (loopinfo.lo_offset = filesystem_offset,
 	      ioctl(loop_fd, LOOP_SET_STATUS64, &loopinfo)) )
 	  die("cannot set up loopback device");
       }
-      
+
       *cookie = loop_fd;
     } else {
       snprintf(devfdname, sizeof devfdname, "/proc/%lu/fd/%d",
 	       (unsigned long)mypid, dev_fd);
       *cookie = -1;
-    }   
-    
+    }
+
     return mount(devfdname, mntpath, fstype,
 		 MS_NOEXEC|MS_NOSUID, "umask=077,quiet");
   }
@@ -253,7 +253,7 @@ int do_mount(int dev_fd, int *cookie, const char *mntpath, const char *fstype)
 
     snprintf(devfdname, sizeof devfdname, "/proc/%lu/fd/%d",
 	     (unsigned long)mypid, dev_fd);
-    
+
     f = fork();
     if ( f < 0 ) {
       return -1;
@@ -269,7 +269,7 @@ int do_mount(int dev_fd, int *cookie, const char *mntpath, const char *fstype)
 	    devfdname, mntpath, NULL);
       _exit(255);		/* execl failed */
     }
-    
+
     w = waitpid(f, &status, 0);
     return ( w != f || status ) ? -1 : 0;
   }
@@ -283,16 +283,16 @@ void do_umount(const char *mntpath, int cookie)
 {
 #if DO_DIRECT_MOUNT
   int loop_fd = cookie;
-  
+
   if ( umount2(mntpath, 0) )
     die("could not umount path");
-  
+
   if ( loop_fd != -1 ) {
     ioctl(loop_fd, LOOP_CLR_FD, 0); /* Free loop device */
     close(loop_fd);
     loop_fd = -1;
   }
-  
+
 #else
   pid_t f = fork();
   pid_t w;
@@ -305,7 +305,7 @@ void do_umount(const char *mntpath, int cookie)
   } else if ( f == 0 ) {
     execl(_PATH_UMOUNT, _PATH_UMOUNT, mntpath, NULL);
   }
-  
+
   w = waitpid(f, &status, 0);
   if ( w != f || status ) {
     exit(1);

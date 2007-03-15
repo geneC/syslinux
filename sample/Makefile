@@ -28,7 +28,7 @@ CFLAGS     = $(M32) -W -Wall -march=i386 -Os -fomit-frame-pointer -I../com32/inc
 SFLAGS     = $(M32) -march=i386
 LDFLAGS    = -s
 OBJCOPY    = objcopy
-PPMTOLSS16 = 	../ppmtolss16
+PPMTOLSS16 =	../ppmtolss16
 LIB	   = liboldcom32.a
 
 LIBOBJS	   = conio.o atou.o skipatou.o printf.o c32exit.o

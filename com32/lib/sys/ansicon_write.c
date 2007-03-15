@@ -50,7 +50,7 @@ static void ansicon_set_cursor(int, int, int);
 static struct term_state ts;
 struct ansi_ops __ansicon_ops = {
   .erase	= ansicon_erase,
-  .write_char 	= ansicon_write_char,
+  .write_char	= ansicon_write_char,
   .showcursor   = ansicon_showcursor,
   .set_cursor   = ansicon_set_cursor,
   .scroll_up    = ansicon_scroll_up,

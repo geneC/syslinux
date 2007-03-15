@@ -8,45 +8,45 @@
 #include <stdint.h>
 
 /* Segment types */
-#define PT_NULL    	0
-#define PT_LOAD    	1
-#define PT_DYNAMIC 	2
-#define PT_INTERP  	3
-#define PT_NOTE    	4
-#define PT_SHLIB   	5
-#define PT_PHDR    	6
-#define PT_LOOS    	0x60000000
-#define PT_HIOS    	0x6fffffff
-#define PT_LOPROC  	0x70000000
-#define PT_HIPROC  	0x7fffffff
+#define PT_NULL		0
+#define PT_LOAD		1
+#define PT_DYNAMIC	2
+#define PT_INTERP	3
+#define PT_NOTE		4
+#define PT_SHLIB	5
+#define PT_PHDR		6
+#define PT_LOOS		0x60000000
+#define PT_HIOS		0x6fffffff
+#define PT_LOPROC	0x70000000
+#define PT_HIPROC	0x7fffffff
 #define PT_GNU_EH_FRAME	0x6474e550	/* Extension, eh? */
 
 /* ELF file types */
-#define ET_NONE   	0
-#define ET_REL    	1
-#define ET_EXEC   	2
-#define ET_DYN    	3
-#define ET_CORE   	4
-#define ET_LOPROC 	0xff00
-#define ET_HIPROC 	0xffff
+#define ET_NONE		0
+#define ET_REL		1
+#define ET_EXEC		2
+#define ET_DYN		3
+#define ET_CORE		4
+#define ET_LOPROC	0xff00
+#define ET_HIPROC	0xffff
 
 /* ELF machine types */
-#define EM_NONE  	0
-#define EM_M32   	1
-#define EM_SPARC 	2
-#define EM_386   	3
-#define EM_68K   	4
-#define EM_88K   	5
-#define EM_486   	6	/* Not used in Linux at least */
-#define EM_860   	7
+#define EM_NONE		0
+#define EM_M32		1
+#define EM_SPARC	2
+#define EM_386		3
+#define EM_68K		4
+#define EM_88K		5
+#define EM_486		6	/* Not used in Linux at least */
+#define EM_860		7
 #define EM_MIPS         8	/* R3k, bigendian(?) */
-#define EM_MIPS_RS4_BE 	10	/* R4k BE */
-#define EM_PARISC      	15
-#define EM_SPARC32PLUS 	18
-#define EM_PPC         	20
-#define EM_PPC64       	21
+#define EM_MIPS_RS4_BE	10	/* R4k BE */
+#define EM_PARISC	15
+#define EM_SPARC32PLUS	18
+#define EM_PPC		20
+#define EM_PPC64	21
 #define EM_S390         22
-#define EM_SH          	42
+#define EM_SH		42
 #define EM_SPARCV9	43	/* v9 = SPARC64 */
 #define EM_H8_300H      47
 #define EM_H8S          48
@@ -103,10 +103,10 @@
 #define AT_GID		13	/* real gid */
 #define AT_EGID		14	/* effective gid */
 #define AT_PLATFORM	15	/* string identifying CPU for optimizations */
-#define AT_HWCAP  	16	/* arch dependent hints at CPU capabilities */
-#define AT_CLKTCK 	17	/* frequency at which times() increments */
+#define AT_HWCAP	16	/* arch dependent hints at CPU capabilities */
+#define AT_CLKTCK	17	/* frequency at which times() increments */
 /* 18..22 = ? */
-#define AT_SECURE 	23	/* secure mode boolean */
+#define AT_SECURE	23	/* secure mode boolean */
 
 /* Program header permission flags */
 #define PF_X            0x1

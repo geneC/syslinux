@@ -19,7 +19,7 @@
 ;
 ; Format of leading byte
 ; 1-128		= x verbatim bytes follow
-; 129-255 	= (x-126) times subsequent byte
+; 129-255	= (x-126) times subsequent byte
 ; 0		= end of data
 ;
 

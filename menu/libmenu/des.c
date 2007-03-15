@@ -395,7 +395,7 @@ des_init(void)
 static void
 setup_ip_maskl(void)
 {
-  int    	i, j, k, inbit, obit;
+  int		i, j, k, inbit, obit;
   my_u_int32_t	*il;
 
   for (k = 0; k < 8; k++) {
@@ -415,7 +415,7 @@ setup_ip_maskl(void)
 static void
 setup_ip_maskr(void)
 {
-  int    	i, j, k, inbit, obit;
+  int		i, j, k, inbit, obit;
   my_u_int32_t	*ir;
 
   for (k = 0; k < 8; k++) {
@@ -435,7 +435,7 @@ setup_ip_maskr(void)
 static void
 setup_fp_maskl(void)
 {
-  int    	i, j, k, inbit, obit;
+  int		i, j, k, inbit, obit;
   my_u_int32_t	*fl;
 
   for (k = 0; k < 8; k++) {
@@ -455,7 +455,7 @@ setup_fp_maskl(void)
 static void
 setup_fp_maskr(void)
 {
-  int    	i, j, k, inbit, obit;
+  int		i, j, k, inbit, obit;
   my_u_int32_t	*fr;
 
   for (k = 0; k < 8; k++) {
@@ -475,7 +475,7 @@ setup_fp_maskr(void)
 static void
 setup_key_perm_maskl(void)
 {
-  int    	i, j, k, inbit, obit;
+  int		i, j, k, inbit, obit;
   my_u_int32_t	*il;
 
   for (k = 0; k < 8; k++) {
@@ -497,7 +497,7 @@ setup_key_perm_maskl(void)
 static void
 setup_key_perm_maskr(void)
 {
-  int    	i, j, k, inbit, obit;
+  int		i, j, k, inbit, obit;
   my_u_int32_t	*ir;
 
   for (k = 0; k < 8; k++) {
@@ -519,7 +519,7 @@ setup_key_perm_maskr(void)
 static void
 setup_comp_maskl(void)
 {
-  int    	i, j, k, inbit, obit;
+  int		i, j, k, inbit, obit;
   my_u_int32_t	*il;
 
   for (k = 0; k < 8; k++) {
@@ -541,7 +541,7 @@ setup_comp_maskl(void)
 static void
 setup_comp_maskr(void)
 {
-  int    	i, j, k, inbit, obit;
+  int		i, j, k, inbit, obit;
   my_u_int32_t	*ir;
 
   for (k = 0; k < 8; k++) {
@@ -563,7 +563,7 @@ setup_comp_maskr(void)
 static void
 setup_psbox(void)
 {
-  int    	i, j, b;
+  int		i, j, b;
   my_u_int32_t	*p;
 
   for (b = 0; b < 4; b++)

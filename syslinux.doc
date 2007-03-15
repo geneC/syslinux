@@ -296,7 +296,7 @@ SERIAL port [[baudrate] flowcontrol]
 
 	"flowcontrol" is a combination of the following bits:
 	0x001 - Assert DTR
- 	0x002 - Assert RTS
+	0x002 - Assert RTS
 	0x010 - Wait for CTS assertion
 	0x020 - Wait for DSR assertion
 	0x040 - Wait for RI assertion

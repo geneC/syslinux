@@ -144,9 +144,9 @@ syntax:
 		# You need an entry like this for every host
 		# unless you're using dynamic addresses
 	        host <hostname> {
-        	        hardware ethernet <ethernet address>;
-               		fixed-address <hostname>;
-        	}
+		        hardware ethernet <ethernet address>;
+			fixed-address <hostname>;
+		}
 	}
 
 Note that if your particular TFTP daemon runs under chroot (tftp-hpa
@@ -184,9 +184,9 @@ vendor-class-identifier" if you are using DHCP 3.0):
 		# You need an entry like this for every host
 		# unless you're using dynamic addresses
 	        host <hostname> {
-        	        hardware ethernet <ethernet address>;
-               		fixed-address <hostname>;
-        	}
+		        hardware ethernet <ethernet address>;
+			fixed-address <hostname>;
+		}
 	}
 
 Here, the boot file name is obtained from the PXE server.
@@ -218,9 +218,9 @@ configurations correctly; however, there are no guarantees:
 		# You need an entry like this for every host
 		# unless you're using dynamic addresses
 	        host <hostname> {
-        	        hardware ethernet <ethernet address>;
-               		fixed-address <hostname>;
-        	}
+		        hardware ethernet <ethernet address>;
+			fixed-address <hostname>;
+		}
 	}
 
 Note that this *will not* boot some clients that *will* boot with the

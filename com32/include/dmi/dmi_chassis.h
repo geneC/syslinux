@@ -13,32 +13,32 @@
 #ifndef DMI_CHASSIS_H
 #define DMI_CHASSIS_H
 
-#define CHASSIS_MANUFACTURER_SIZE      	32
-#define CHASSIS_TYPE_SIZE		16	
-#define CHASSIS_LOCK_SIZE		16	
-#define CHASSIS_VERSION_SIZE   		16
-#define CHASSIS_SERIAL_SIZE  		32
-#define CHASSIS_ASSET_TAG_SIZE  	32
-#define CHASSIS_BOOT_UP_STATE_SIZE  	32
-#define CHASSIS_POWER_SUPPLY_STATE_SIZE  	32
-#define CHASSIS_THERMAL_STATE_SIZE  	32
-#define CHASSIS_SECURITY_STATUS_SIZE  	32
-#define CHASSIS_OEM_INFORMATION_SIZE  	32
+#define CHASSIS_MANUFACTURER_SIZE	32
+#define CHASSIS_TYPE_SIZE		16
+#define CHASSIS_LOCK_SIZE		16
+#define CHASSIS_VERSION_SIZE		16
+#define CHASSIS_SERIAL_SIZE		32
+#define CHASSIS_ASSET_TAG_SIZE		32
+#define CHASSIS_BOOT_UP_STATE_SIZE	32
+#define CHASSIS_POWER_SUPPLY_STATE_SIZE		32
+#define CHASSIS_THERMAL_STATE_SIZE	32
+#define CHASSIS_SECURITY_STATUS_SIZE	32
+#define CHASSIS_OEM_INFORMATION_SIZE	32
 
 typedef struct {
-char manufacturer[CHASSIS_MANUFACTURER_SIZE];	
-char type[CHASSIS_TYPE_SIZE];	
-char lock[CHASSIS_LOCK_SIZE];	
-char version[CHASSIS_VERSION_SIZE];	
-char serial[CHASSIS_SERIAL_SIZE];	
-char asset_tag[CHASSIS_ASSET_TAG_SIZE];	
-char boot_up_state[CHASSIS_BOOT_UP_STATE_SIZE];	
-char power_supply_state[CHASSIS_POWER_SUPPLY_STATE_SIZE];	
-char thermal_state[CHASSIS_THERMAL_STATE_SIZE];	
-char security_status[CHASSIS_SECURITY_STATUS_SIZE];	
-char oem_information[CHASSIS_OEM_INFORMATION_SIZE];	
-u16  height;	
-u16  nb_power_cords;	
+char manufacturer[CHASSIS_MANUFACTURER_SIZE];
+char type[CHASSIS_TYPE_SIZE];
+char lock[CHASSIS_LOCK_SIZE];
+char version[CHASSIS_VERSION_SIZE];
+char serial[CHASSIS_SERIAL_SIZE];
+char asset_tag[CHASSIS_ASSET_TAG_SIZE];
+char boot_up_state[CHASSIS_BOOT_UP_STATE_SIZE];
+char power_supply_state[CHASSIS_POWER_SUPPLY_STATE_SIZE];
+char thermal_state[CHASSIS_THERMAL_STATE_SIZE];
+char security_status[CHASSIS_SECURITY_STATUS_SIZE];
+char oem_information[CHASSIS_OEM_INFORMATION_SIZE];
+u16  height;
+u16  nb_power_cords;
 } s_chassis;
 
 static const char *dmi_chassis_type(u8 code)

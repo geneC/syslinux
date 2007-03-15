@@ -6,7 +6,7 @@
 
 #define MAX_VENDOR_NAME_SIZE 255
 #define MAX_PRODUCT_NAME_SIZE 255
-#define MAX_PCI_DEVICES  32 
+#define MAX_PCI_DEVICES  32
 #define MAX_PCI_BUSES   255
 
 typedef uint32_t pciaddr_t;

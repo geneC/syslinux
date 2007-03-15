@@ -48,7 +48,7 @@
 #	define ext2_debug(f, a...)	{ \
 					printk ("EXT2-fs DEBUG (%s, %d): %s:", \
 						__FILE__, __LINE__, __FUNCTION__); \
-				  	printk (f, ## a); \
+					printk (f, ## a); \
 					}
 #else
 #	define ext2_debug(f, a...)	/**/
@@ -331,7 +331,7 @@ struct ext2_super_block {
 	__u16	s_magic;		/* Magic signature */
 	__u16	s_state;		/* File system state */
 	__u16	s_errors;		/* Behaviour when detecting errors */
-	__u16	s_minor_rev_level; 	/* minor revision level */
+	__u16	s_minor_rev_level;	/* minor revision level */
 	__u32	s_lastcheck;		/* time of last check */
 	__u32	s_checkinterval;	/* max. time between checks */
 	__u32	s_creator_os;		/* OS */
@@ -351,15 +351,15 @@ struct ext2_super_block {
 	 * feature set, it must abort and not try to meddle with
 	 * things it doesn't understand...
 	 */
-	__u32	s_first_ino; 		/* First non-reserved inode */
-	__u16   s_inode_size; 		/* size of inode structure */
-	__u16	s_block_group_nr; 	/* block group # of this superblock */
-	__u32	s_feature_compat; 	/* compatible feature set */
-	__u32	s_feature_incompat; 	/* incompatible feature set */
-	__u32	s_feature_ro_compat; 	/* readonly-compatible feature set */
+	__u32	s_first_ino;		/* First non-reserved inode */
+	__u16   s_inode_size;		/* size of inode structure */
+	__u16	s_block_group_nr;	/* block group # of this superblock */
+	__u32	s_feature_compat;	/* compatible feature set */
+	__u32	s_feature_incompat;	/* incompatible feature set */
+	__u32	s_feature_ro_compat;	/* readonly-compatible feature set */
 	__u8	s_uuid[16];		/* 128-bit uuid for volume */
-	char	s_volume_name[16]; 	/* volume name */
-	char	s_last_mounted[64]; 	/* directory where last mounted */
+	char	s_volume_name[16];	/* volume name */
+	char	s_last_mounted[64];	/* directory where last mounted */
 	__u32	s_algorithm_usage_bitmap; /* For compression */
 	/*
 	 * Performance hints.  Directory preallocation should only
@@ -389,7 +389,7 @@ struct ext2_super_block {
  * Revision levels
  */
 #define EXT2_GOOD_OLD_REV	0	/* The good old (original) format */
-#define EXT2_DYNAMIC_REV	1 	/* V2 format w/ dynamic inode sizes */
+#define EXT2_DYNAMIC_REV	1	/* V2 format w/ dynamic inode sizes */
 
 #define EXT2_CURRENT_REV	EXT2_GOOD_OLD_REV
 #define EXT2_MAX_SUPP_REV	EXT2_DYNAMIC_REV
@@ -499,8 +499,8 @@ enum {
  *
  * NOTE: It must be a multiple of 4
  */
-#define EXT2_DIR_PAD		 	4
-#define EXT2_DIR_ROUND 			(EXT2_DIR_PAD - 1)
+#define EXT2_DIR_PAD			4
+#define EXT2_DIR_ROUND			(EXT2_DIR_PAD - 1)
 #define EXT2_DIR_REC_LEN(name_len)	(((name_len) + 8 + EXT2_DIR_ROUND) & \
 					 ~EXT2_DIR_ROUND)
 

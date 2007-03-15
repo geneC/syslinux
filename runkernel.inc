@@ -106,10 +106,10 @@ kernel_sane:	push ax
 ;
 construct_cmdline:
 		mov di,[CmdLinePtr]
-                mov si,boot_image        	; BOOT_IMAGE=
+                mov si,boot_image		; BOOT_IMAGE=
                 mov cx,boot_image_len
                 rep movsb
-                mov si,KernelCName       	; Unmangled kernel name
+                mov si,KernelCName		; Unmangled kernel name
                 mov cx,[KernelCNameLen]
                 rep movsb
                 mov al,' '                      ; Space
@@ -302,7 +302,7 @@ nk_noinitrd:
 ;
 ; Abandon hope, ye that enter here!  We do no longer permit aborts.
 ;
-                call abort_check        	; Last chance!!
+                call abort_check		; Last chance!!
 
 		mov si,ready_msg
 		call cwritestr
@@ -467,7 +467,7 @@ kill_motor:
 ; initrd, and are always loaded low.
 ;
 old_kernel:
-               	cmp word [InitRDPtr],0		; Old kernel can't have initrd
+		cmp word [InitRDPtr],0		; Old kernel can't have initrd
                 je load_old_kernel
                 mov si,err_oldkernel
                 jmp abort_load
@@ -615,7 +615,7 @@ loadinitrd:
                 mov si,crlf_msg
                 jmp abort_load
 
-no_high_mem:    				; Error routine
+no_high_mem:					; Error routine
 		mov si,err_nohighmem
                 jmp abort_load
 

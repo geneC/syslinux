@@ -137,7 +137,7 @@ sp_devspec:	resw 1				; IDE/SCSI information
 sp_buffer:	resw 1				; User-provided buffer
 sp_loadseg:	resw 1				; Load segment
 sp_sectors:	resw 1				; Sector count
-sp_chs:		resb 3  			; Simulated CHS geometry
+sp_chs:		resb 3				; Simulated CHS geometry
 sp_dummy:	resb 1				; Scratch, safe to overwrite
 
 ;
@@ -475,8 +475,8 @@ award_oldint13	dd	0						     ;;
 award_string	db	0b8h,1,2,0bbh,0,7ch,0b9h,6,0,0bah,80h,1,09ch,09ah    ;;
 									     ;;
 						;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-award_hack:	mov 	si,spec_err_msg		; Moved to this place from
-		call 	writemsg		; spec_query_faild
+award_hack:	mov	si,spec_err_msg		; Moved to this place from
+		call	writemsg		; spec_query_faild
 						;
 %ifdef DEBUG_MESSAGES				;
 						;
@@ -495,17 +495,17 @@ award_hack:	mov 	si,spec_err_msg		; Moved to this place from
 		call	writestr		;
 %endif						;
 		push	es			; save ES
-		mov 	ax,0f000h		; ES = BIOS Seg
-		mov 	es,ax			;
-	    	cld				;
-		xor 	di,di			; start at ES:DI = f000:0
-award_loop:	push 	di			; save DI
-		mov 	si,award_string		; scan for award_string
+		mov	ax,0f000h		; ES = BIOS Seg
+		mov	es,ax			;
+		cld				;
+		xor	di,di			; start at ES:DI = f000:0
+award_loop:	push	di			; save DI
+		mov	si,award_string		; scan for award_string
 		mov	cx,7			; length of award_string = 7dw
-		repz 	cmpsw			; compare
-		pop 	di			; restore DI
-		jcxz 	award_found		; jmp if found
-		inc 	di			; not found, inc di
+		repz	cmpsw			; compare
+		pop	di			; restore DI
+		jcxz	award_found		; jmp if found
+		inc	di			; not found, inc di
 		jno	award_loop		;
 						;
 award_failed:	pop	es			; No, not this way :-((
@@ -540,10 +540,10 @@ award_found:	mov	eax,[es:di+0eh]		; load possible int 13 addr
 		mov	si,award_not_crlf	;
 		call	writestr		;
 %endif						;
-		mov 	ax,4B01h		; try to read the spec packet
-		mov 	dl,[DriveNo]		; now ... it should not fail
-		mov 	si,spec_packet		; any longer
-		int 	13h			;
+		mov	ax,4B01h		; try to read the spec packet
+		mov	dl,[DriveNo]		; now ... it should not fail
+		mov	si,spec_packet		; any longer
+		int	13h			;
 		jc	award_fail2		;
 						;
 %ifdef DEBUG_MESSAGES				;
@@ -1529,7 +1529,7 @@ default_str	db 'default', 0
 default_len	equ ($-default_str)
 boot_dir	db '/boot'			; /boot/isolinux
 isolinux_dir	db '/isolinux', 0
-config_name 	db 'isolinux.cfg', 0
+config_name	db 'isolinux.cfg', 0
 err_disk_image	db 'Cannot load disk image (invalid file)?', CR, LF, 0
 
 %ifdef DEBUG_MESSAGES

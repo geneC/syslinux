@@ -29,13 +29,13 @@ int main(void)
   openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
   for (;;) {
-   	detect_cpu(&cpu);
-    	printf("Vendor      = %s\n",cpu.vendor);
-    	printf("Model       = %s\n",cpu.model);
-    	printf("Vendor ID   = %d\n",cpu.vendor_id);
-    	printf("Family      = %d\n",cpu.family);
-    	printf("Model ID    = %d\n",cpu.model_id);
-    	printf("Stepping    = %d\n",cpu.stepping);
+	detect_cpu(&cpu);
+	printf("Vendor      = %s\n",cpu.vendor);
+	printf("Model       = %s\n",cpu.model);
+	printf("Vendor ID   = %d\n",cpu.vendor_id);
+	printf("Family      = %d\n",cpu.family);
+	printf("Model ID    = %d\n",cpu.model_id);
+	printf("Stepping    = %d\n",cpu.stepping);
 	printf("Flags       = ");
 	if (cpu.flags.fpu)    printf("fpu ");
 	if (cpu.flags.vme)    printf("vme ");
@@ -74,7 +74,7 @@ int main(void)
 	printf("\n");
 	printf("SMP         = ");
 	if (cpu.flags.smp)    printf("yes\n");
-	else 		      printf("no\n");
+	else		      printf("no\n");
 	break;
   }
 

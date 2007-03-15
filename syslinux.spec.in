@@ -81,9 +81,9 @@ make CC='%{my_cc}' -C sample tidy
 cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_datadir}/syslinux
 cp %{buildroot}%{_datadir}/syslinux/*.c32	%{buildroot}/boot
 cp %{buildroot}%{_datadir}/syslinux/memdisk	%{buildroot}/boot
-cp %{buildroot}%{_datadir}/syslinux/*.c32 	%{buildroot}/tftpboot
+cp %{buildroot}%{_datadir}/syslinux/*.c32	%{buildroot}/tftpboot
 cp %{buildroot}%{_datadir}/syslinux/pxelinux.0 %{buildroot}/tftpboot
-cp %{buildroot}%{_datadir}/syslinux/memdisk 	%{buildroot}/tftpboot
+cp %{buildroot}%{_datadir}/syslinux/memdisk	%{buildroot}/tftpboot
 
 %clean
 rm -rf %{buildroot}

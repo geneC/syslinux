@@ -51,7 +51,7 @@ static void vesacon_scroll_up(const struct term_state *);
 static struct term_state ts;
 static struct ansi_ops op = {
   .erase	= vesacon_erase,
-  .write_char 	= vesacon_write_char,
+  .write_char	= vesacon_write_char,
   .showcursor   = vesacon_showcursor,
   .set_cursor   = __vesacon_set_cursor,	/* in drawtxt.c */
   .scroll_up    = vesacon_scroll_up,

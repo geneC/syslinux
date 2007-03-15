@@ -14,21 +14,21 @@
 #define DMI_PROCESSOR_H
 
 #include "stdbool.h"
-#define PROCESSOR_SOCKET_DESIGNATION_SIZE       	32
-#define PROCESSOR_TYPE_SIZE       	32
+#define PROCESSOR_SOCKET_DESIGNATION_SIZE		32
+#define PROCESSOR_TYPE_SIZE		32
 #define PROCESSOR_FAMILY_SIZE		32
 #define PROCESSOR_MANUFACTURER_SIZE     64
-#define PROCESSOR_VERSION_SIZE   	32
-#define PROCESSOR_VOLTAGE_SIZE		16	
-#define PROCESSOR_STATUS_SIZE		16	
+#define PROCESSOR_VERSION_SIZE		32
+#define PROCESSOR_VOLTAGE_SIZE		16
+#define PROCESSOR_STATUS_SIZE		16
 #define PROCESSOR_UPGRADE_SIZE		16
 #define PROCESSOR_CACHE_SIZE		16
-#define PROCESSOR_SERIAL_SIZE  		32
-#define PROCESSOR_ASSET_TAG_SIZE 	32
+#define PROCESSOR_SERIAL_SIZE		32
+#define PROCESSOR_ASSET_TAG_SIZE	32
 #define PROCESSOR_PART_NUMBER_SIZE	32
 #define PROCESSOR_ID_SIZE		32
 
-#define PROCESSOR_FLAGS_ELEMENTS	32	
+#define PROCESSOR_FLAGS_ELEMENTS	32
 /* Intel AP-485 revision 28, table 5 */
 static const char *cpu_flags_strings[32]={
                 "FPU (Floating-point unit on-chip)", /* 0 */
@@ -111,12 +111,12 @@ u8 minor_stepping;
 } __attribute__((__packed__)) s_signature;
 
 typedef struct {
-char socket_designation[PROCESSOR_SOCKET_DESIGNATION_SIZE];	
-char type[PROCESSOR_TYPE_SIZE];	
-char family[PROCESSOR_FAMILY_SIZE];	
-char manufacturer[PROCESSOR_MANUFACTURER_SIZE];	
-char version[PROCESSOR_VERSION_SIZE];	
-float voltage;	
+char socket_designation[PROCESSOR_SOCKET_DESIGNATION_SIZE];
+char type[PROCESSOR_TYPE_SIZE];
+char family[PROCESSOR_FAMILY_SIZE];
+char manufacturer[PROCESSOR_MANUFACTURER_SIZE];
+char version[PROCESSOR_VERSION_SIZE];
+float voltage;
 u16  external_clock;
 u16  max_speed;
 u16  current_speed;
@@ -125,10 +125,10 @@ char upgrade[PROCESSOR_UPGRADE_SIZE];
 char cache1[PROCESSOR_CACHE_SIZE];
 char cache2[PROCESSOR_CACHE_SIZE];
 char cache3[PROCESSOR_CACHE_SIZE];
-char serial[PROCESSOR_SERIAL_SIZE];	
-char asset_tag[PROCESSOR_ASSET_TAG_SIZE];	
-char part_number[PROCESSOR_PART_NUMBER_SIZE];	
-char id[PROCESSOR_ID_SIZE];	
+char serial[PROCESSOR_SERIAL_SIZE];
+char asset_tag[PROCESSOR_ASSET_TAG_SIZE];
+char part_number[PROCESSOR_PART_NUMBER_SIZE];
+char id[PROCESSOR_ID_SIZE];
 s_cpu_flags cpu_flags;
 s_signature signature;
 } s_processor;
@@ -414,7 +414,7 @@ static const char *dmi_processor_family(u8 code)
         };
 
         if(family[code]!=NULL) {
-                	return family[code];
+			return family[code];
 	}
         return out_of_spec;
 }

@@ -152,7 +152,7 @@ static int vesacon_set_mode(void)
 	  mi->rpos, mi->gpos, mi->bpos);
 
     /* Must be an LFB color graphics mode supported by the hardware.
-       
+
       The bits tested are:
        7 - linear frame buffer available
        4 - graphics mode
@@ -171,7 +171,7 @@ static int vesacon_set_mode(void)
        (depending on VESA version ) */
     pxf = PXF_NONE;		/* Not usable */
 
-    if (mi->bpp == 32 && 
+    if (mi->bpp == 32 &&
 	(mi->memory_layout == 4 ||
 	 (mi->memory_layout == 6 && mi->rpos == 16 && mi->gpos == 8 &&
 	  mi->bpos == 0)))

@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2007 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -10,10 +10,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -50,12 +50,12 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
   nd = syslinux_prepare_shuffle(fraglist, memmap);
   if (nd < 0)
     return -1;
-  
+
   regbuf = (char *)__com32.cs_bounce + (12*nd);
   memcpy(regbuf, regs, sizeof(*regs));
 
   memset(&ireg, 0, sizeof ireg);
-  
+
   ireg.eax.w[0] = 0x001b;
   ireg.edx.w[0] = bootflags;
   ireg.es       = SEG(__com32.cs_bounce);

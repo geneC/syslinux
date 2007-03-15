@@ -51,7 +51,7 @@ pc_append:      cmp byte [VKernel],0
                 mov di,AppendBuf
 		call getline
                 sub di,AppendBuf
-.app1:        	mov [AppendLen],di
+.app1:		mov [AppendLen],di
 		ret
 .vk:		mov di,VKernelBuf+vk_append	; "append" command (vkernel)
 		call getline
@@ -288,11 +288,11 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		mov di,VKernelBuf+vk_vname
 		call mangle_name		; Mangle virtual name
 		mov byte [VKernel],1		; We've seen a "label" statement
-		mov si,VKernelBuf+vk_vname 	; By default, rname == vname
+		mov si,VKernelBuf+vk_vname	; By default, rname == vname
 		; mov di,VKernelBuf+vk_rname	; -- already set
 		mov cx,FILENAME_MAX
 		rep movsb
-                mov si,AppendBuf         	; Default append==global append
+                mov si,AppendBuf		; Default append==global append
                 mov di,VKernelBuf+vk_append
                 mov cx,[AppendLen]
                 mov [VKernelBuf+vk_appendlen],cx

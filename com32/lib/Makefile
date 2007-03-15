@@ -15,13 +15,13 @@ LIBOBJS = \
 	strntoimax.o strntoumax.o strrchr.o strsep.o strspn.o strstr.o	\
 	strtoimax.o strtok.o strtol.o strtoll.o strtoul.o strtoull.o	\
 	strtoumax.o vfprintf.o vprintf.o vsnprintf.o vsprintf.o		\
-	asprintf.o vasprintf.o strlcpy.o strlcat.o 			\
+	asprintf.o vasprintf.o strlcpy.o strlcat.o			\
 	vsscanf.o							\
 	\
 	libgcc/__ashldi3.o libgcc/__udivdi3.o			\
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
-	libgcc/__divdi3.o libgcc/__moddi3.o 				\
+	libgcc/__divdi3.o libgcc/__moddi3.o				\
 	\
 	sys/intcall.o sys/farcall.o					\
 	sys/entry.o sys/exit.o sys/argv.o sys/times.o sys/idle.o	\
@@ -40,16 +40,16 @@ LIBOBJS = \
 	\
 	sys/ansicon_write.o sys/ansiserial_write.o			\
 	\
-	sys/vesacon_write.o sys/vesaserial_write.o 			\
+	sys/vesacon_write.o sys/vesaserial_write.o			\
 	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
 	sys/vesa/alphatbl.o						\
 	\
-	pci/cfgtype.o 							\
-	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o 		\
-	pci/writeb.o pci/writew.o pci/writel.o pci/writebios.o 		\
+	pci/cfgtype.o							\
+	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o		\
+	pci/writeb.o pci/writew.o pci/writel.o pci/writebios.o		\
 	\
-	zlib/adler32.o zlib/compress.o zlib/crc32.o zlib/gzio.o 	\
-	zlib/uncompr.o zlib/deflate.o zlib/trees.o zlib/zutil.o 	\
+	zlib/adler32.o zlib/compress.o zlib/crc32.o zlib/gzio.o		\
+	zlib/uncompr.o zlib/deflate.o zlib/trees.o zlib/zutil.o		\
 	zlib/inflate.o zlib/infback.o zlib/inftrees.o zlib/inffast.o	\
 	\
 	libpng/png.o libpng/pngset.o libpng/pngget.o libpng/pngrutil.o  \
@@ -85,7 +85,7 @@ libcom32.a : $(LIBOBJS)
 tidy:
 	rm -f sys/vesa/alphatbl.c
 	find . -name \*.o -print | xargs -r rm -f
-	find . -name .\*.d -print | xargs -r rm -f 
+	find . -name .\*.d -print | xargs -r rm -f
 
 clean: tidy
 	rm -f *.a
