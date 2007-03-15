@@ -69,6 +69,8 @@ LIBOBJS = \
 	syslinux/shuffle_rm.o syslinux/zonelist.o			\
 	syslinux/dump_mmap.o syslinux/dump_movelist.o			\
 	\
+	syslinux/load_linux.o						\
+	\
 	syslinux/pxe_get_cached.o
 
 BINDIR   = /usr/bin
