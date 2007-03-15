@@ -30,6 +30,11 @@
  *
  * Utility function to take a list of memory areas to shuffle and
  * convert it to a set of shuffle operations.
+ *
+ * Note: a lot of the functions in this file deal with "parent pointers",
+ * which are pointers to a pointer to a list, or part of the list.
+ * They can be pointers to a variable holding the list root pointer,
+ * or pointers to a next field of a previous entry.
  */
 
 #include <assert.h>
@@ -42,6 +47,13 @@
 #include <syslinux/movebits.h>
 
 #ifdef TEST
+# define DEBUG 1
+#else
+# define DEBUG 0
+#endif
+
+#if DEBUG
+# include <stdio.h>
 # define dprintf printf
 #else
 # define dprintf(...) ((void)0)
@@ -68,6 +80,10 @@ new_movelist(addr_t dst, addr_t src, addr_t len)
   return ml;
 }
 
+/*
+ * Take a chunk, entirely confined in **parentptr, and split it off so that
+ * it has its own structure.
+ */
 static struct syslinux_movelist **
 split_movelist(addr_t start, addr_t len, struct syslinux_movelist **parentptr)
 {
@@ -89,6 +105,7 @@ split_movelist(addr_t start, addr_t len, struct syslinux_movelist **parentptr)
     ml = m;			/* Continue processing the new node */
   }
 
+  /* Split off the end */
   if ( ml->len > len ) {
     addr_t l = ml->len - len;
 
@@ -101,6 +118,7 @@ split_movelist(addr_t start, addr_t len, struct syslinux_movelist **parentptr)
   return parentptr;
 }
 
+#if 0
 static void
 delete_movelist(struct syslinux_movelist **parentptr)
 {
@@ -108,6 +126,7 @@ delete_movelist(struct syslinux_movelist **parentptr)
   *parentptr = o->next;
   free(o);
 }
+#endif
 
 /*
  * Scan the freelist looking for a particular chunk of memory
@@ -187,6 +206,7 @@ allocate_from(addr_t start, addr_t len, struct syslinux_movelist **parentptr)
   free(c);
 }
 
+#if 0
 /*
  * Remove any chunk from the freelist which is already
  * claimed by source data.  This somewhat frivolously
@@ -206,6 +226,7 @@ tidy_freelist(struct syslinux_movelist **frags,
     frags = &f->next;
   }
 }
+#endif
 
 /*
  * moves is computed from "frags" and "freemem".  "space" lists
@@ -215,19 +236,75 @@ tidy_freelist(struct syslinux_movelist **frags,
 int
 syslinux_compute_movelist(struct syslinux_movelist **moves,
 			  struct syslinux_movelist *frags,
-			  struct syslinux_movelist *space)
+			  struct syslinux_memmap *memmap)
 {
-  struct syslinux_movelist *mv;
+  struct syslinux_memmap *mmap = NULL, *mm;
+  struct syslinux_movelist *mv, *space;
   struct syslinux_movelist *f, **fp, **ep;
   struct syslinux_movelist *o, **op;
-  *moves = NULL;
   addr_t needbase, needlen, copysrc, copydst, copylen;
   addr_t freebase, freelen;
+  addr_t mstart;
+  int m_ok;
+  int rv = -1;
 
-  if ( setjmp(new_movelist_bail) )
-    return -1;			/* malloc() failed */
+  dprintf("entering syslinux_compute_movelist()...\n");
 
-  tidy_freelist(&frags, &space);
+  if (setjmp(new_movelist_bail))
+    goto bail;
+
+  *moves = NULL;
+
+  /* Mark any memory that's in use by source material busy in the memory map */
+  mmap = syslinux_dup_memmap(memmap);
+  if (!mmap)
+    goto bail;
+
+#if DEBUG
+  dprintf("Initial memory map:\n");
+  syslinux_dump_memmap(stdout, mmap);
+#endif
+
+  for (f = frags; f; f = f->next) {
+    if (syslinux_add_memmap(&mmap, f->src, f->len, SMT_ALLOC))
+      goto bail;
+  }
+
+#if DEBUG
+  dprintf("Adjusted memory map:\n");
+  syslinux_dump_memmap(stdout, mmap);
+#endif
+
+  /* Compute the freelist in movelist format. */
+  space = NULL;
+  ep = &space;
+  mstart = -1;
+  m_ok = 0;
+
+  /* Yes, we really do want to run through the loop on SMT_END */
+  for (mm = mmap; mm; mm = mm->next) {
+    /* We can safely use to-be-zeroed memory as a scratch area. */
+    if (mmap->type == SMT_FREE || mmap->type == SMT_ZERO) {
+      if (!m_ok) {
+	m_ok = 1;
+	mstart = mmap->start;
+      }
+    } else {
+      if (m_ok) {
+	f = new_movelist(0, mstart, mmap->start - mstart);
+	*ep = f;
+	ep = &f->next;
+	m_ok = 0;
+      }
+    }
+
+    mmap = mmap->next;
+  }
+
+#if DEBUG
+  dprintf("Computed free list:\n");
+  syslinux_dump_movelist(stdout, space);
+#endif
 
   for ( fp = &frags, f = *fp ; f ; fp = &f->next, f = *fp ) {
     dprintf("@: 0x%08x bytes at 0x%08x -> 0x%08x\n",
@@ -333,8 +410,6 @@ syslinux_compute_movelist(struct syslinux_movelist **moves,
 
     if ( copylen < needlen ) {
       /* Didn't get all we wanted, so we have to split the chunk */
-      addr_t l;
-
       fp = split_movelist(f->src, copylen+(needbase-f->dst), fp);
       f = *fp;
     }
@@ -362,7 +437,11 @@ syslinux_compute_movelist(struct syslinux_movelist **moves,
     space = mv;
   }
 
-  return 0;
+  rv = 0;
+ bail:  
+  if (mmap)
+    syslinux_free_memmap(mmap);
+  return rv;
 }
 
 #ifdef TEST
@@ -403,6 +482,6 @@ int main(int argc, char *argv[])
     }
     return 0;
   }
-}
+ }
 
 #endif /* TEST */

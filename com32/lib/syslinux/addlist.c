@@ -25,6 +25,9 @@
  *
  * ----------------------------------------------------------------------- */
 
+#include <stdlib.h>
+#include <syslinux/movebits.h>
+
 int syslinux_add_movelist(struct syslinux_movelist **list,
 		      addr_t dst, addr_t src, addr_t len)
 {

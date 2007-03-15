@@ -12,6 +12,13 @@ Changes in 3.40:
 	  internationalization of menu messages.
 	* A new feature, TEXT HELP, allows the administrator to set
 	  a multi-line help message for individual selections.
+	* Fix API call 0x0012 (Shuffle and boot.)
+	* New API call 0x001a "Shuffle and boot to flat protected
+	  mode."
+	* Introduce a library interface for loading arbitrary binary
+	  formats with relatively easily understood code.  See
+	  the elf.c32 module for an example on how to use it.
+	* New module "elf.c32", to load a protected-mode ELF kernel.
 
 Changes in 3.36:
 	* MEMDISK: Disable EDD by default on floppy disks.  EDD can be

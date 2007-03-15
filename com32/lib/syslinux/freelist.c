@@ -31,7 +31,8 @@
  * Frees a syslinux_movelist
  */
 
-#include <syslinux/movelist.h>
+#include <stdlib.h>
+#include <syslinux/movebits.h>
 
 void syslinux_free_movelist(struct syslinux_movelist *list)
 {

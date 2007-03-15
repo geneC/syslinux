@@ -39,23 +39,8 @@
 #include <setjmp.h>
 #include <string.h>
 
+#include <com32.h>
 #include <syslinux/movebits.h>
-
-static struct movelist *
-new_movelist(addr_t src, addr_t len)
-{
-  struct movelist *ml = malloc(sizeof(struct movelist));
-
-  if ( !ml )
-    return NULL;
-
-  ml->dst = (addr_t)0;
-  ml->src = src;
-  ml->len = len;
-  ml->next = NULL;
-
-  return ml;
-}
 
 struct e820_entry {
   uint64_t start;
@@ -63,26 +48,26 @@ struct e820_entry {
   uint32_t type;
 };
 
-struct movelist *syslinux_memory_map(void)
+struct syslinux_memmap *syslinux_memory_map(void)
 {
   static com32sys_t ireg, zireg;
   com32sys_t oreg;
-  struct movelist *ml = NULL;
-  struct movelist **mlp = &ml;
-  struct movelist *me;
   struct e820_entry *e820buf = __com32.cs_bounce;
   uint64_t start, len, maxlen;
   int memfound = 0;
+  struct syslinux_memmap *mmap;
+  enum syslinux_memmap_types type;
+
+  mmap = syslinux_init_memmap();
+  if (!mmap)
+    goto bail;
 
   /* Use INT 12h to get DOS memory above 0x7c00 */
   __intcall(0x12, &zireg, &oreg);
   if (oreg.eax.w[0] > 31 && oreg.eax.w[0] <= 640) {
     addr_t dosmem = (oreg.eax.w[0] << 10) - 0x7c00;
-    me = new_movelist(0, 0x7c00, dosmem);
-    if (!me)
+    if (syslinux_add_memmap(&mmap, 0x7c00, dosmem, SMT_FREE))
       goto bail;
-    *mlp = me;
-    mlp = &me->next;
   }
 
   /* First try INT 15h AX=E820h */
@@ -101,82 +86,68 @@ struct movelist *syslinux_memory_map(void)
 	(oreg.ecx.l < 20))
       break;
 
-    if (e820buf.type == 1) {
-      start = e820buf.start;
-      len = e820buf.len;
+    type = e820buf->type == 1 ? SMT_FREE : SMT_RESERVED;
+    start = e820buf->start;
+    len = e820buf->len;
 
-      if (start < 0x100000000ULL) {
-	/* Don't rely on E820 being valid for low memory.  Doing so
-	   could mean stuff like overwriting the PXE stack even when
-	   using "keeppxe", etc. */
-	if (start < 0x100000ULL) {
-	  if (len > 0x100000ULL-start)
-	    len -= 0x100000ULL-start;
-	  else
-	    len = 0;
-	  start = 0x100000ULL;
-	}
-
-	maxlen = 0x100000000ULL-start;
-	if (len > maxlen)
-	  len = maxlen;
-
-	if (len) {
-	  me = new_movelist(0, (addr_t)start, (addr_t)len);
-	  if (!me)
-	    goto bail;
-	  *mlp = me;
-	  mlp = &me->next;
-	  memfound = 1;
-	}
+    if (start < 0x100000000ULL) {
+      /* Don't rely on E820 being valid for low memory.  Doing so
+	 could mean stuff like overwriting the PXE stack even when
+	 using "keeppxe", etc. */
+      if (start < 0x100000ULL) {
+	if (len > 0x100000ULL-start)
+	  len -= 0x100000ULL-start;
+	else
+	  len = 0;
+	start = 0x100000ULL;
+      }
+      
+      maxlen = 0x100000000ULL-start;
+      if (len > maxlen)
+	len = maxlen;
+      
+      if (len) {
+	if (syslinux_add_memmap(&mmap, (addr_t)start, (addr_t)len, type))
+	  goto bail;
+	memfound = 1;
       }
     }
-
+    
     ireg.ebx.l = oreg.ebx.l;
   } while (oreg.ebx.l);
 
   if (memfound)
-    return ml;
+    return mmap;
 
   /* Next try INT 15h AX=E801h */
   ireg.eax.w[0] = 0xe801;
   __intcall(0x15, &ireg, &oreg);
 
   if (!(oreg.eflags.l & EFLAGS_CF) && oreg.ecx.w[0]) {
-    me = new_movelist(0, (addr_t)1 << 20, oreg.ecx.w[0] << 10);
-    if (!me)
+    if (syslinux_add_memmap(&mmap, (addr_t)1 << 20, oreg.ecx.w[0] << 10,
+			    SMT_FREE))
       goto bail;
-    *mlp = me;
-    mlp = &me->next;
 
     if (oreg.edx.w[0]) {
-      me = new_movelist(0, (addr_t)16 << 20, oreg.edx.w[0] << 16);
-      if (!me)
+      if (syslinux_add_memmap(&mmap, (addr_t)16 << 20, oreg.edx.w[0] << 16,
+			      SMT_FREE))
 	goto bail;
-      *mlp = me;
-      mlp = &me->next;
     }
 
-    return ml;
+    return mmap;
   }
 
   /* Finally try INT 15h AH=88h */
   ireg.eax.w[0] = 0x8800;
   if (!(oreg.eflags.l & EFLAGS_CF) && oreg.eax.w[0]) {
-    me = new_movelist(0, (addr_t)1 << 20, oreg.eax.w[0] << 10);
-    if (!me)
+    if (syslinux_add_memmap(&mmap, (addr_t)1 << 20, oreg.ecx.w[0] << 10,
+			    SMT_FREE))
       goto bail;
-    *mlp = me;
-    mlp = &me->next;
   }
-
-  return ml;
+  
+  return mmap;
 
  bail:
-  while (ml) {
-    me = ml;
-    ml = ml->next;
-    free(ml);
-  }
+  syslinux_free_memmap(mmap);
   return NULL;
 }

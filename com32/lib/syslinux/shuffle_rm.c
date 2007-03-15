@@ -38,6 +38,7 @@
 #include <syslinux/movebits.h>
 
 int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
+			     struct syslinux_memmap *memmap,
 			     uint16_t bootflags,
 			     uint32_t edx, uint32_t esi, uint16_t ds,
 			     uint16_t cs, uint16_t ip)
@@ -45,7 +46,7 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
   int nd;
   com32sys_t ireg;
 
-  nd = syslinux_prepare_shuffle(fraglist);
+  nd = syslinux_prepare_shuffle(fraglist, memmap);
   if (nd < 0)
     return -1;
   

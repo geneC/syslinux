@@ -26,67 +26,23 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * shuffle.c
+ * dump_movelist.c
  *
- * Common code for "shuffle and boot" operation; generates a shuffle list
- * and puts it in the bounce buffer.  Returns the number of shuffle
- * descriptors.
+ * Writes a syslinux_movelist out to a specified file.  This is
+ * intended for debugging.
  */
 
-#include <stdlib.h>
-#include <inttypes.h>
-#include <com32.h>
+#include <stdio.h>
 #include <syslinux/movebits.h>
 
-struct shuffle_descriptor {
-  uint32_t dst, src, len;
-};
-
-int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
-			     struct syslinux_memmap *memmap)
+void syslinux_dump_movelist(FILE *file, struct syslinux_movelist *ml)
 {
-  struct syslinux_movelist *moves = NULL, *mp;
-  struct syslinux_memmap *ml;
-  struct shuffle_descriptor *dp;
-  int np, rv = -1;
-
-  if (syslinux_compute_movelist(&moves, fraglist, memmap))
-    goto bail;
-
-  dp = __com32.cs_bounce;
-  np = 0;
-
-  /* Copy the move sequence into the bounce buffer */
-  for (mp = moves; mp; mp = mp->next) {
-    if (np >= 65536/12)
-      goto bail;		/* Way too many descriptors... */
-    
-    dp->dst = mp->dst;
-    dp->src = mp->src;
-    dp->len = mp->len;
-    dp++; np++;
+  fprintf(file, "%10s %10s %10s\n"
+	  "--------------------------------\n",
+	  "Dest", "Src", "Length");
+  while (ml) {
+    fprintf(file, "0x%08x 0x%08x 0x%08x\n", ml->dst, ml->src, ml->len);
+    ml = ml->next;
   }
-
-  /* Copy any zeroing operations into the bounce buffer */
-  for (ml = memmap; ml->type != SMT_END; ml = ml->next) {
-    if (ml->type == SMT_ZERO) {
-      if (np >= 65536/12)
-	goto bail;
-
-      dp->dst = ml->start;
-      dp->src = (addr_t)-1;	/* bzero this region */
-      dp->len = ml->next->start - ml->start;
-      dp++; np++;
-    }
-  }
-
-  rv = np;
-
- bail:
-  /* This is safe only because free() doesn't use the bounce buffer!!!! */
-  if (moves)
-    syslinux_free_movelist(moves);
-
-  return rv;
 }
 
