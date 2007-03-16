@@ -96,6 +96,10 @@ static size_t initramfs_mkdirs(const char *filename, void *buffer,
   return bytes;
 }
 
+/*
+ * Create a file header (with optional parent directory entries)
+ * and add it to an initramfs chain
+ */
 int initramfs_mknod(struct initramfs *ihead, const char *filename,
 		    int do_mkdir,
 		    uint16_t mode, size_t len,
@@ -128,7 +132,7 @@ int initramfs_mknod(struct initramfs *ihead, const char *filename,
   pad = (-(sizeof(struct cpio_header)+namelen) & 3) + 1;
   memset(bp, 0, pad);
 
-  if (initramfs_add_data(ihead, buffer, bytes, bytes)) {
+  if (initramfs_add_data(ihead, buffer, bytes, bytes, 4)) {
     free(buffer);
     return -1;
   }
@@ -136,6 +140,11 @@ int initramfs_mknod(struct initramfs *ihead, const char *filename,
   return 0;
 }
 
+/*
+ * Add a file given data in memory to an initramfs chain.  This
+ * can be used to create nonfiles like symlinks by specifying an
+ * appropriate mode.
+ */
 int initramfs_add_file(struct initramfs *ihead, const void *data,
 		       size_t data_len, size_t len,
 		       const char *filename, int do_mkdir, uint32_t mode)
@@ -144,8 +153,8 @@ int initramfs_add_file(struct initramfs *ihead, const void *data,
 		      (mode & S_IFMT) ? mode : mode|S_IFREG,
 		      len, 0, 1))
     return -1;
-
-  return initramfs_add_data(ihead, data, data_len, len);
+    
+  return initramfs_add_data(ihead, data, data_len, len, 4);
 }
 
 int initramfs_add_trailer(struct initramfs *ihead)

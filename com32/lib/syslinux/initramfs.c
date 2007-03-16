@@ -47,9 +47,16 @@ struct initramfs *initramfs_init(void)
 }
 
 int initramfs_add_data(struct initramfs *ihead, const void *data,
-		       size_t data_len, size_t len)
+		       size_t data_len, size_t len, size_t align)
 {
   struct initramfs *in;
+
+  if (!len)
+    return 0;			/* Nothing to add... */
+
+  /* Alignment must be a power of 2, and <= INITRAMFS_MAX_ALIGN */
+  if (!align || (align & (align-1)) || align > INITRAMFS_MAX_ALIGN)
+    return -1;
 
   in = malloc(sizeof(*in));
   if (!in)
@@ -58,6 +65,7 @@ int initramfs_add_data(struct initramfs *ihead, const void *data,
   in->len = len;
   in->data = data;
   in->data_len = data_len;
+  in->align = align;
 
   in->next = ihead;
   in->prev = ihead->prev;

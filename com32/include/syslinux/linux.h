@@ -45,9 +45,11 @@
 struct initramfs {
   struct initramfs *prev, *next;
   size_t len;
+  size_t align;
   const void *data;
   size_t data_len;
 };
+#define INITRAMFS_MAX_ALIGN	4096
 
 int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 			struct initramfs *initramfs,
@@ -59,7 +61,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 
 struct initramfs *initramfs_init(void);
 int initramfs_add_data(struct initramfs *ihead, const void *data,
-		       size_t data_len, size_t len);
+		       size_t data_len, size_t len, size_t align);
 int initramfs_mknod(struct initramfs *ihead, const char *filename,
 		    int do_mkdir,
 		    uint16_t mode, size_t len,

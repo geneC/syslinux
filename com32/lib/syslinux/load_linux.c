@@ -93,8 +93,10 @@ static addr_t initramfs_size(struct initramfs *initramfs)
   if (!initramfs)
     return 0;
 
-  for (ip = initramfs->next; ip->len; ip = ip->next)
+  for (ip = initramfs->next; ip->len; ip = ip->next) {
+    size = (size+ip->align-1) & ~(ip->align-1);	/* Alignment */
     size += ip->len;
+  }
 
   return size;
 }
@@ -106,18 +108,30 @@ static int map_initramfs(struct syslinux_movelist **fraglist,
 			 addr_t addr)
 {
   struct initramfs *ip;
+  addr_t next_addr, len, pad;
 
   for (ip = initramfs->next; ip->len; ip = ip->next) {
+    len = ip->len;
+    next_addr = addr+len;
+
+    /* If this isn't the last entry, extend the zero-pad region
+       to enforce the alignment of the next chunk. */
+    if (ip->next->len) {
+      pad = -next_addr & (ip->next->align-1);
+      len += pad;
+      next_addr += pad;
+    }
+
     if (ip->data_len) {
-      if (syslinux_add_movelist(fraglist, addr, (addr_t)ip->data, ip->len))
+      if (syslinux_add_movelist(fraglist, addr, (addr_t)ip->data, len))
 	return -1;
     }
-    if (ip->len > ip->data_len) {
+    if (len > ip->data_len) {
       if (syslinux_add_memmap(mmap, addr+ip->data_len,
-			      ip->len-ip->data_len, SMT_ZERO))
+			      len-ip->data_len, SMT_ZERO))
 	return -1;
     }
-    addr += ip->len;
+    addr = next_addr;
   }
 
   return 0;
@@ -253,13 +267,14 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
   if (irf_size) {
     addr_t best_addr = 0;
     struct syslinux_memmap *ml;
+    const addr_t align_mask = INITRAMFS_MAX_ALIGN-1;
 
     if (irf_size) {
       for (ml = amap; ml->type != SMT_END; ml = ml->next) {
-	addr_t adj_start = (ml->start+0xfff) & ~0xfff; /* Page-aligned */
+	addr_t adj_start = (ml->start+align_mask) & ~align_mask;
 	if (ml->type == SMT_FREE &&
 	    ml->next->start - adj_start >= irf_size)
-	  best_addr = (ml->next->start - irf_size) & ~0xfff;
+	  best_addr = (ml->next->start - irf_size) & ~align_mask;
       }
 
       if (!best_addr)
