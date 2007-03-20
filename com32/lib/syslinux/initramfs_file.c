@@ -153,7 +153,7 @@ int initramfs_add_file(struct initramfs *ihead, const void *data,
 		      (mode & S_IFMT) ? mode : mode|S_IFREG,
 		      len, 0, 1))
     return -1;
-    
+
   return initramfs_add_data(ihead, data, data_len, len, 4);
 }
 
