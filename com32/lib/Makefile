@@ -64,7 +64,7 @@ LIBOBJS = \
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o			\
 	\
-	syslinux/idle.o	syslinux/features.o				\
+	syslinux/idle.o	syslinux/features.o syslinux/config.o		\
 	\
 	syslinux/addlist.o syslinux/freelist.o syslinux/memmap.o	\
 	syslinux/movebits.o syslinux/shuffle.o syslinux/shuffle_pm.o	\
