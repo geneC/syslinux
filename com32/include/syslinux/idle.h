@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2005 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2005-2007 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,27 +26,12 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * idle.c
- *
- * What to do in a busy loop...
+ * syslinux/idle.h
  */
 
-#ifdef __COM32__
+#ifndef _SYSLINUX_IDLE_H
+#define _SYSLINUX_IDLE_H
 
-#include <syslinux.h>
-
-void do_idle(void)
-{
-  syslinux_idle();
-}
-
-#else
-
-#include <sched.h>
-
-void do_idle(void)
-{
-  sched_yield();		/* As good as we can get... */
-}
+void syslinux_idle(void);
 
 #endif

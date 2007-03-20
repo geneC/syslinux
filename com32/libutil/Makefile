@@ -46,7 +46,7 @@ LNXCFLAGS  = -I./include -W -Wall -O -g
 LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 OBJCOPY    = objcopy
-LIBOBJS	   = ansiline.o ansiraw.o get_key.o idle.o sha1hash.o unbase64.o
+LIBOBJS	   = ansiline.o ansiraw.o get_key.o sha1hash.o unbase64.o
 LNXLIBOBJS = $(patsubst %.o,%.lo,$(LIBOBJS))
 
 .SUFFIXES: .lss .c .lo .o .elf .c32 .lnx

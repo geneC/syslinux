@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2005 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2005-2007 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -34,6 +34,18 @@
 #ifndef LIBUTIL_LIBUTIL_H
 #define LIBUTIL_LIBUTIL_H
 
-void do_idle(void);
+#ifdef __COM32__
+
+# include <syslinux/idle.h>
+
+# define do_idle syslinux_idle
+
+#else /* not __COM32__ */
+
+# include <sched.h>
+
+# define do_idle sched_yield
+
+#endif
 
 #endif

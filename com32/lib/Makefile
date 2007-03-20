@@ -24,7 +24,7 @@ LIBOBJS = \
 	libgcc/__divdi3.o libgcc/__moddi3.o				\
 	\
 	sys/intcall.o sys/farcall.o					\
-	sys/entry.o sys/exit.o sys/argv.o sys/times.o sys/idle.o	\
+	sys/entry.o sys/exit.o sys/argv.o sys/times.o			\
 	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
 	sys/isatty.o sys/fstat.o sys/openconsole.o sys/line_input.o	\
@@ -63,6 +63,8 @@ LIBOBJS = \
 	jpeg/rgba32.o jpeg/bgra32.o					\
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o			\
+	\
+	syslinux/idle.o							\
 	\
 	syslinux/addlist.o syslinux/freelist.o syslinux/memmap.o	\
 	syslinux/movebits.o syslinux/shuffle.o syslinux/shuffle_pm.o	\

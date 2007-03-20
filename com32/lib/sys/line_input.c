@@ -33,7 +33,7 @@
 
 #include "file.h"
 #include <errno.h>
-#include <syslinux.h>
+#include <syslinux/idle.h>
 
 ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
 		     ssize_t (*get_char)(struct file_info *, void *, size_t))
