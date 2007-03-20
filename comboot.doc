@@ -548,7 +548,7 @@ AX=0011h [3.05] Maximum number of shuffle descriptors
 	Typical values are 682 and 1365.
 
 
-AX=0012h [3.40] Cleanup, shuffle and boot
+AX=0012h [3.50] Cleanup, shuffle and boot
 	Input:	AX	0012h
 		DX	derivative-specific flags (see function 000Ch)
 		ES:DI	shuffle descriptor list (must be in low memory)
@@ -576,7 +576,7 @@ AX=0012h [3.40] Cleanup, shuffle and boot
 
 	The copies are overlap-safe, like memmove().
 
-	Starting in version 3.40, if the source address is -1
+	Starting in version 3.50, if the source address is -1
 	(FFFFFFFFh) then the block specified by the destination
 	address	and the length is set to all zero.
 
@@ -589,7 +589,7 @@ AX=0012h [3.40] Cleanup, shuffle and boot
 	(except DS, ESI and EDX) and the stack will be set up as they
 	were set up by the PXE ROM.
 
-	This interface was probably broken before version 3.40.
+	This interface was probably broken before version 3.50.
 
 
 AX=0013h [3.08] Idle loop call
@@ -648,7 +648,7 @@ AX=0016h [3.10] Run kernel image
 		DS:SI	Filename of kernel image (zero-terminated string)
 		ES:BX	Command line (zero-terminated string)
 		ECX	IPAPPEND flags [PXELINUX]
-		EDX	Type of file (since 3.40)
+		EDX	Type of file (since 3.50)
 	Output:	Does not return if successful; returns with CF=1 if
 		the kernel image is not found.
 
@@ -743,7 +743,7 @@ AX=0018h [3.30]	Query custom font
 	been loaded, AL contains zero.
 
 
-AX=0019h [3.40] Read disk [SYSLINUX, ISOLINUX, EXTLINUX]
+AX=0019h [3.50] Read disk [SYSLINUX, ISOLINUX, EXTLINUX]
 	Input:	AX	0019h
 		EDX	Sector number
 		ESI	Reserved - MUST BE ZERO
@@ -763,7 +763,7 @@ AX=0019h [3.40] Read disk [SYSLINUX, ISOLINUX, EXTLINUX]
 	disk error.
 
 
-AX=001Ah [3.40] Cleanup, shuffle and boot to flat protected mode
+AX=001Ah [3.50] Cleanup, shuffle and boot to flat protected mode
 	Input:	AX	001Ah
 		DX	derivative-specific flags (see function 000Ch)
 		ES:DI	shuffle descriptor list (must be in low memory)
@@ -800,7 +800,7 @@ AX=001Ah [3.40] Cleanup, shuffle and boot to flat protected mode
 	invoked code to set new	descriptor tables to its liking.
 
 
-AX=001Bh [3.40] Cleanup, shuffle and boot to real mode
+AX=001Bh [3.50] Cleanup, shuffle and boot to real mode
 	Input:	AX	001Ah
 		DX	derivative-specific flags (see function 000Ch)
 		ES:DI	shuffle descriptor list (must be in low memory)
