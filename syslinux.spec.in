@@ -73,14 +73,18 @@ mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_sbindir}
 mkdir -p %{buildroot}%{_datadir}/syslinux
 mkdir -p %{buildroot}%{_includedir}
-mkdir -p %{buildroot}/boot %{buildroot}/tftpboot/pxelinux.cfg
+mkdir -p %{buildroot}/boot/extlinux %{buildroot}/etc
+mkdir -p %{buildroot}/tftpboot/pxelinux.cfg
 make CC='%{my_cc}' install-all \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} SBINDIR=%{_sbindir} \
 	LIBDIR=%{_datadir} INCDIR=%{_includedir}
 make CC='%{my_cc}' -C sample tidy
 cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_datadir}/syslinux
-cp %{buildroot}%{_datadir}/syslinux/*.c32	%{buildroot}/boot
-cp %{buildroot}%{_datadir}/syslinux/memdisk	%{buildroot}/boot
+
+cp %{buildroot}%{_datadir}/syslinux/*.c32	%{buildroot}/boot/extlinux
+cp %{buildroot}%{_datadir}/syslinux/memdisk	%{buildroot}/boot/extlinux
+( cd %{buildroot}/etc && ln -s ../boot/extlinux/extlinux.conf . )
+
 cp %{buildroot}%{_datadir}/syslinux/*.c32	%{buildroot}/tftpboot
 cp %{buildroot}%{_datadir}/syslinux/pxelinux.0 %{buildroot}/tftpboot
 cp %{buildroot}%{_datadir}/syslinux/memdisk	%{buildroot}/tftpboot
@@ -110,7 +114,8 @@ rm -rf %{buildroot}
 
 %files extlinux
 %{_sbindir}/extlinux
-/boot
+/boot/extlinux
+%config /etc/extlinux.conf
 
 %files tftpboot
 /tftpboot
@@ -118,11 +123,20 @@ rm -rf %{buildroot}
 %post extlinux
 # If we have a /boot/extlinux.conf file, assume extlinux is our bootloader
 # and update it.
-if [ -f /boot/extlinux.conf ]; then extlinux --update /boot; fi
+if [ -f /boot/extlinux/extlinux.conf ]; then \
+	extlinux --update /boot/extlinux ; \
+elif [ -f /boot/extlinux.conf ]; then \
+	mkdir -p /boot/extlinux && \
+	mv /boot/extlinux.conf /boot/extlinux/extlinux.conf && \
+	extlinux --update /boot/extlinux ; \
+fi
 
 %postun
 
 %changelog
+* Thu Mar 15 2007 H. Peter Anvin <hpa@zytor.com>
+- Move extlinux /boot stuff into /boot/extlinux.
+
 * Thu Jan 25 2007 H. Peter Anvin <hpa@zytor.com>
 - Hacks to make the 32-bit version build correctly on 64-bit machines.
 
