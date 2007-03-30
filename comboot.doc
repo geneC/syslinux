@@ -580,6 +580,15 @@ AX=0012h [3.50] Cleanup, shuffle and boot
 	(FFFFFFFFh) then the block specified by the destination
 	address	and the length is set to all zero.
 
+	Starting in version 3.50, if the destination address is -1
+	(FFFFFFFFh) then the data block is loaded as a new set of
+	descriptors, and processing is continued (and unprocessed
+	descriptors are lost, this is thus typically only used as the
+	last descriptor in a block.)  The block must still fit in the
+	internal descriptor buffer (see function 0011h), but can, of
+	course, itself chain another block.
+
+
 	Normal boot sectors expect DL to contain the drive number,
 	and, for hard drives (DL >= 80h) DS:SI to contain a pointer to
 	the 16-byte partition table entry.  The memory between

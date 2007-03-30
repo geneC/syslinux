@@ -442,18 +442,26 @@ try_wbinvd:
 ; SS register.  That is the responsibility of the caller.
 ;
 ; Inputs:
-;	DS:BX		-> Pointer to list of (dst, src, len) pairs
+;	DS:BX		-> Pointer to list of (dst, src, len) pairs(*)
 ;	AX		-> Number of list entries
 ;	[CS:EntryPoint]	-> CS:IP to jump to
 ;	On stack	- initial state (fd, ad, ds, es, fs, gs)
 ;
+; (*) If dst == -1, then (src, len) entry refers to a set of new
+;		    descriptors to load.
+;     If src == -1, then the memory pointed to by (dst, len) is bzeroed;
+;		    this is handled inside the bcopy routine.
+;
 shuffle_and_boot:
+.restart:
 		and ax,ax
 		jz .done
 .loop:
 		mov edi,[bx]
 		mov esi,[bx+4]
 		mov ecx,[bx+8]
+		cmp edi, -1
+		je .reload
 		call bcopy
 		add bx,12
 		dec ax
@@ -467,6 +475,17 @@ shuffle_and_boot:
 		popad
 		popfd
 		jmp far [cs:EntryPoint]
+
+.reload:
+		mov bx, trackbuf	; Next descriptor
+		movzx edi,bx
+		push ecx		; Save byte count
+		call bcopy
+		pop eax			; Byte count
+		xor edx,edx
+		mov ecx,12
+		div ecx			; Convert to descriptor count
+		jmp .restart
 
 ;
 ; trampoline_to_pm:
