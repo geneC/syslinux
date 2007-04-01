@@ -12,9 +12,7 @@
 typedef uint32_t pciaddr_t;
 
 typedef struct {
-	char	 vendor_name[MAX_VENDOR_NAME_SIZE];
 	uint16_t vendor;
-	char	 product_name[MAX_PRODUCT_NAME_SIZE];
 	uint16_t product;
 	uint16_t sub_vendor;
 	uint16_t sub_product;

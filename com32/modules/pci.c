@@ -40,90 +40,6 @@ static char *skipspace(char *p)
   return p;
 }
 
-void remove_eol(char *string)
-{
-  int j = strlen(string);
-  int i = 0;
-  for (i = 0; i < j; i++)
-    if (string[i] == '\n')
-      string[i] = 0;
-}
-
-int hex_to_int(char *hexa)
-{
-  int i;
-  sscanf(hexa, "%x", &i);
-  return i;
-}
-
-void get_name_from_pci_ids(s_pci_device * pci_device)
-{
-  char line[MAX_LINE];
-  char *vendor = NULL;
-  char vendor_id[5];
-  char *product = NULL;
-  char product_id[5];
-  char sub_product_id[5];
-  char sub_vendor_id[5];
-  FILE *f;
-
-  f = fopen("pci.ids", "r");
-  if (!f)
-    return;
-
-  strcpy(pci_device->vendor_name, "Unknown");
-  strcpy(pci_device->product_name, "Unknown");
-  strcpy(vendor_id, "0000");
-  strcpy(product_id, "0000");
-  strcpy(sub_product_id, "0000");
-  strcpy(sub_vendor_id, "0000");
-
-  while (fgets(line, sizeof line, f)) {
-    if ((line[0] == '#') || (line[0] == ' ') || (line[0] == 'C')
-	|| (line[0] == 10))
-      continue;
-    if (line[0] != '\t') {
-      strncpy(vendor_id, line, 4);
-      vendor_id[4] = 0;
-      vendor = strdup(skipspace(strstr(line, " ")));
-      remove_eol(vendor);
-      strcpy(product_id, "0000");
-      strcpy(sub_product_id, "0000");
-      strcpy(sub_vendor_id, "0000");
-      if (strstr(vendor_id, "ffff"))
-	break;
-      if (hex_to_int(vendor_id) == pci_device->vendor)
-	strcpy(pci_device->vendor_name, vendor);
-    } else if ((line[0] == '\t') && (line[1] != '\t')) {
-      product = strdup(skipspace(strstr(line, " ")));
-      remove_eol(product);
-      strncpy(product_id, &line[1], 4);
-      product_id[4] = 0;
-      strcpy(sub_product_id, "0000");
-      strcpy(sub_vendor_id, "0000");
-      if ((hex_to_int(vendor_id) == pci_device->vendor)
-	  && (hex_to_int(product_id) == pci_device->product))
-	strcpy(pci_device->product_name, product);
-    } else if ((line[0] == '\t') && (line[1] == '\t')) {
-      product = skipspace(strstr(line, " "));
-      product = strdup(skipspace(strstr(product, " ")));
-      remove_eol(product);
-      strncpy(sub_vendor_id, &line[2], 4);
-      sub_vendor_id[4] = 0;
-      strncpy(sub_product_id, &line[7], 4);
-      sub_product_id[4] = 0;
-      if ((hex_to_int(vendor_id) == pci_device->vendor)
-	  && (hex_to_int(product_id) == pci_device->product)
-	  && (hex_to_int(sub_product_id) ==
-	      pci_device->sub_product)
-	  && (hex_to_int(sub_vendor_id) ==
-	      pci_device->sub_vendor))
-	strcpy(pci_device->product_name, product);
-    }
-  }
-  fclose(f);
-}
-
 struct match *find_pci_device(s_pci_device_list * pci_device_list,
 			      struct match *list)
 {
@@ -200,9 +116,6 @@ int pci_scan(s_pci_bus_list * pci_bus_list, s_pci_device_list * pci_device_list)
 	if (hdrtype & 0x80)
 	  maxfunc = 7;	/* Multifunction device */
 
-	//      if ( hdrtype & 0x7f )
-	//        continue;             /* Ignore bridge devices */
-
 	rid = pci_readb(a + 0x08);
 	sid = pci_readl(a + 0x2c);
 	s_pci_device *pci_device =
@@ -214,7 +127,6 @@ int pci_scan(s_pci_bus_list * pci_bus_list, s_pci_device_list * pci_device_list)
 	pci_device->sub_vendor = (sid << 16) >> 16;
 	pci_device->revision = rid;
 	pci_device_list->count++;
-	get_name_from_pci_ids(pci_device);
 	dprintf
 	  ("Scanning: BUS %02x DID %08x (%04x:%04x) SID %08x RID %02x\n",
 	   bus, did, did >> 16, (did << 16) >> 16,
@@ -230,7 +142,6 @@ int pci_scan(s_pci_bus_list * pci_bus_list, s_pci_device_list * pci_device_list)
 
   /* Detecting pci buses that have pci devices connected */
   for (bus = 0; bus <= 0xff; bus++) {
-
     if (pci_bus_list->pci_bus[bus].pci_device_count > 0) {
       pci_bus_list->count++;
     }
