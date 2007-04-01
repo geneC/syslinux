@@ -109,6 +109,26 @@ get_did(char *p, uint32_t *idptr, uint32_t *maskptr)
   return p;
 }
 
+static char *
+get_rid_range(char *p, uint8_t *rid_min, uint8_t *rid_max)
+{
+  unsigned long r0, r1;
+
+  p = skipspace(p+3);
+
+  r0 = strtoul(p, &p, 16);
+  if ( *p == '-' ) {
+    r1 = strtoul(p+1, &p, 16);
+  } else {
+    r1 = r0;
+  }
+
+  *rid_min = r0;
+  *rid_max = r1;
+
+  return p;
+}
+
 static struct match *
 parse_config(const char *filename)
 {
@@ -151,19 +171,7 @@ parse_config(const char *filename)
       } else if ( looking_at(p, "sid") ) {
 	p = get_did(p+3, &m->sid, &m->sid_mask);
       } else if ( looking_at(p, "rid") ) {
-	unsigned long r0, r1;
-
-	p = skipspace(p+3);
-
-	r0 = strtoul(p, &p, 16);
-	if ( *p == '-' ) {
-	  r1 = strtoul(p+1, &p, 16);
-	} else {
-	  r1 = r0;
-	}
-
-	m->rid_min = r0;
-	m->rid_max = r1;
+	p = get_rid_range(p+3, &m->rid_min, &m->rid_max);
       } else {
 	char *e;
 
