@@ -46,14 +46,14 @@ struct match *find_pci_device(s_pci_device_list * pci_device_list,
   int pci_dev;
   uint32_t did, sid;
   struct match *m;
-  for (pci_dev = 0; pci_dev < pci_device_list->count; pci_dev++) {
-    s_pci_device *pci_device =
-      &pci_device_list->pci_device[pci_dev];
-    sid =
-      ((pci_device->sub_product) << 16 | (pci_device->
-					  sub_vendor));
-    did = ((pci_device->product << 16) | (pci_device->vendor));
-    for (m = list; m; m = m->next) {
+  for (m = list; m; m = m->next) {
+    for (pci_dev = 0; pci_dev < pci_device_list->count; pci_dev++) {
+      s_pci_device *pci_device =
+	&pci_device_list->pci_device[pci_dev];
+      sid =
+	((pci_device->sub_product) << 16 | (pci_device->
+					    sub_vendor));
+      did = ((pci_device->product << 16) | (pci_device->vendor));
       if (((did ^ m->did) & m->did_mask) == 0 &&
 	  ((sid ^ m->sid) & m->sid_mask) == 0 &&
 	  pci_device->revision >= m->rid_min
