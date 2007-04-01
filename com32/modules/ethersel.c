@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2005 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2005-2007 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -148,7 +148,6 @@ parse_config(const char *filename)
 
       if ( looking_at(p, "did") ) {
 	p = get_did(p+3, &m->did, &m->did_mask);
-	m->did_mask = 0xffffffff;
       } else if ( looking_at(p, "sid") ) {
 	p = get_did(p+3, &m->sid, &m->sid_mask);
       } else if ( looking_at(p, "rid") ) {
