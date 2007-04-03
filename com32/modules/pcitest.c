@@ -31,31 +31,46 @@
 #endif
 
 char display_line;
-#define moreprintf(...) do { display_line++; if (display_line == 24) { char tempbuf[10]; display_line=0; printf("Press enter to continue\n"); fgets(tempbuf, sizeof tempbuf, stdin);}  printf ( __VA_ARGS__); } while (0);
+#define moreprintf(...)				\
+  do {						\
+    display_line++;				\
+    if (display_line == 24) {			\
+      char tempbuf[10];				\
+      display_line=0;				\
+      printf("Press enter to continue\n");	\
+      fgets(tempbuf, sizeof tempbuf, stdin);	\
+    }						\
+    printf ( __VA_ARGS__);			\
+  } while (0);
 
 void display_pci_devices(s_pci_device_list *pci_device_list) {
-	int pci_dev;
-	for (pci_dev=0; pci_dev<pci_device_list->count;pci_dev++) {
-		s_pci_device *pci_device = &pci_device_list->pci_device[pci_dev];
-		printf("PCI: Vendor=%04x Product=%04x Sub_vendor=%04x Sub_Product=%04x Release=%02x\n",pci_device->vendor,pci_device->product,pci_device->sub_vendor,pci_device->sub_product,pci_device->revision);
-	}
-	printf("PCI: %d devices found\n",pci_device_list->count);
+  int pci_dev;
+  for (pci_dev=0; pci_dev < pci_device_list->count; pci_dev++) {
+    s_pci_device *pci_device = &pci_device_list->pci_device[pci_dev];
+    printf("PCI: Vendor=%04x Product=%04x Sub_vendor=%04x Sub_Product=%04x Release=%02x\n",
+	   pci_device->vendor, pci_device->product,
+	   pci_device->sub_vendor, pci_device->sub_product,
+	   pci_device->revision);
+  }
+  printf("PCI: %d devices found\n",pci_device_list->count);
 }
 
 void display_pci_bus(s_pci_bus_list *pci_bus_list, bool display_pci_devices) {
-	int bus;
-	for (bus=0; bus<pci_bus_list->count;bus++) {
-		s_pci_bus pci_bus = pci_bus_list->pci_bus[bus];
-		printf("\nPCI BUS No %d:\n",pci_bus.id);
-		if (display_pci_devices) {
-			int pci_dev;
-			for (pci_dev=0;pci_dev<pci_bus.pci_device_count;pci_dev++) {
-				s_pci_device pci_device=*(pci_bus.pci_device[pci_dev]);
-				printf("%s:%s#(%04x:%04x[%04x:%04x])\n",pci_device.vendor_name,pci_device.product_name,pci_device.vendor,pci_device.product,pci_device.sub_vendor,pci_device.sub_product);
-			}
-		}
-	}
-	printf("PCI: %d buses found\n",pci_bus_list->count);
+  int bus;
+  for (bus=0; bus<pci_bus_list->count;bus++) {
+    s_pci_bus pci_bus = pci_bus_list->pci_bus[bus];
+    printf("\nPCI BUS No %d:\n", pci_bus.id);
+    if (display_pci_devices) {
+      int pci_dev;
+      for (pci_dev=0; pci_dev < pci_bus.pci_device_count; pci_dev++) {
+	s_pci_device pci_device=*(pci_bus.pci_device[pci_dev]);
+	printf("#(%04x:%04x[%04x:%04x])\n",
+	       pci_device.vendor, pci_device.product,
+	       pci_device.sub_vendor, pci_device.sub_product);
+      }
+    }
+  }
+  printf("PCI: %d buses found\n",pci_bus_list->count);
 }
 
 int main(int argc, char *argv[])
