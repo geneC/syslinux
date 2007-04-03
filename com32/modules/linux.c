@@ -156,6 +156,7 @@ int main(int argc, char *argv[])
       fprintf(stderr, "%s: unknown option: %s\n", progname, arg);
       return 1;
     }
+    argp++;
   }
 
   if (!arg) {
