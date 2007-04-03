@@ -77,7 +77,7 @@ all: $(MODULES) $(TESTFILES)
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
 
-pcitest.elf : pcitest.o pci.o $(LIBS)
+pcitest.elf : pcitest.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 cpuidtest.elf : cpuidtest.o cpuid.o $(LIBS)
@@ -92,7 +92,7 @@ menu.elf : menu.o menumain.o readconfig.o $(LIBS)
 vesamenu.elf : vesamenu.o menumain.o readconfig.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-ethersel.elf : ethersel.o pci.o $(LIBS)
+ethersel.elf : ethersel.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 menu.lnx : menu.lo readconfig.lo $(LNXLIBS)

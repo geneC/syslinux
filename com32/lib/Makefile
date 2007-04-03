@@ -44,7 +44,7 @@ LIBOBJS = \
 	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
 	sys/vesa/alphatbl.o						\
 	\
-	pci/cfgtype.o							\
+	pci/cfgtype.o pci/scan.o					\
 	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o		\
 	pci/writeb.o pci/writew.o pci/writel.o pci/writebios.o		\
 	\
