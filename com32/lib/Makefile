@@ -71,6 +71,9 @@ LIBOBJS = \
 	syslinux/shuffle_rm.o syslinux/zonelist.o			\
 	syslinux/dump_mmap.o syslinux/dump_movelist.o			\
 	\
+	syslinux/run_default.o syslinux/run_command.o 			\
+	syslinux/cleanup.o						\
+	\
 	syslinux/loadfile.o						\
 	syslinux/load_linux.o syslinux/initramfs.o			\
 	syslinux/initramfs_file.o syslinux/initramfs_loadfile.o		\
