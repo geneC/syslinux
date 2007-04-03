@@ -49,8 +49,8 @@ int pxe_get_cached_info(int level, void **buf, size_t *len)
   memset(&regs, 0, sizeof regs);
   regs.eax.w[0] = 0x0009;
   regs.ebx.w[0] = PXENV_GET_CACHED_INFO;
-  regs.es       = SEG(__com32.cs_bounce);
-  regs.edi.w[0] = OFFS(__com32.cs_bounce);
+  regs.es       = SEG(gci);
+  regs.edi.w[0] = OFFS(gci);
 
   bbuf = &gci[1];
 
