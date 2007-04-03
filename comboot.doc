@@ -444,7 +444,7 @@ AX=000Bh [2.00]	Get Serial Console Configuration
 AX=000Ch [2.00]	Perform final cleanup
 	Input:	AX	000Ch
 		DX	derivative-specific flags (0000h = clean up all)
-	Output:	Does not return
+	Output:	None
 
 	This routine performs any "final cleanup" the boot loader
 	would normally perform before loading a kernel, such as
