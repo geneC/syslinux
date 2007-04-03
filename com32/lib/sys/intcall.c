@@ -4,7 +4,7 @@
 
 #include <com32.h>
 
-void __intcall(uint8_t __i, const com32sys_t *__sr, com32sys_t *__dr)
+void __intcall(uint8_t vector, const com32sys_t *ireg, com32sys_t *oreg)
 {
-  __com32.cs_intcall(__i, __sr, __dr);
+  __com32.cs_intcall(vector, ireg, oreg);
 }
