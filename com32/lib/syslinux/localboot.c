@@ -25,30 +25,18 @@
  *
  * ----------------------------------------------------------------------- */
 
-/*
- * syslinux/boot.h
- *
- * SYSLINUX boot API invocation
- */
+#include <syslinux/boot.h>
+#include <stddef.h>
+#include <com32.h>
 
-#ifndef _SYSLINUX_BOOT_H
-#define _SYSLINUX_BOOT_H
+/* This returns only on failure */
 
-#include <stdint.h>
-#include <klibc/compiler.h>
+void syslinux_local_boot(uint16_t flags)
+{
+  static com32sys_t ireg;
 
-__noreturn syslinux_run_command(const char *);
-__noreturn syslinux_run_default(void);
+  ireg.eax.w[0] = 0x0014;
+  ireg.edx.w[0] = flags;
 
-void syslinux_local_boot(uint16_t flags);
-
-void syslinux_final_cleanup(uint16_t flags);
-
-void syslinux_chain_bootstrap(uint16_t flags, const void *bootstrap,
-			      uint32_t bootstrap_len, uint32_t edx,
-			      uint32_t esi, uint16_t ds);
-
-void syslinux_run_kernel_image(const char *filename, const char *cmdline,
-			       uint32_t ipappend_flags, uint32_t type);
-
-#endif /* _SYSLINUX_BOOT_H */
+  __intcall(0x22, &ireg, NULL);
+}
