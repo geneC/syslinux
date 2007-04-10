@@ -29,10 +29,10 @@
 	.text
 
 	.globl	bootsec
-stack   = 0x7c00
-driveno	= (stack-6)
-heads	= (stack-8)
-sectors	= (stack-10)
+stack		= 0x7c00
+driveno		= (stack-6)
+sectors		= (stack-8)
+secpercyl	= (stack-10)
 
 BIOS_page = 0x462
 
@@ -89,12 +89,13 @@ next:
 	/* Get (C)HS geometry */
 	movb	$0x08, %ah
 	int	$0x13
+	andw	$0x3f, %cx	/* Sector count */
+	pushw	%cx		/* Save sectors on the stack */
 	xorw	%ax, %ax
 	movb	%dh, %al	/* dh = number of heads */
 	incw	%ax		/* From 0-based to count */
-	pushw	%ax		/* Save heads on the stack */
-	andw	$0x3f, %cx	/* Sector count */
-	pushw	%cx		/* Save sectors on the stack */
+	mulw	%cx		/* Heads*sectors -> sectors per cylinder */
+	pushw	%ax		/* Save sectors/cylinder on the stack */
 
 	xorl	%eax, %eax
 	pushl	%eax		/* Base */
@@ -112,18 +113,16 @@ read_sector:
 read_sector_cbios:
 	movl	%eax, %edx
 	shrl	$16, %edx
-	divw	(sectors)
-	incw	%dx
-	movw	%dx, %cx
-	xorw	%dx, %dx
-	divw	(heads)
-	/* dx = head, ax = cylinder */
+	divw	(secpercyl)
+	rorb	%ah
+	rorb	%ah
+	movb	%ah, %cl
 	movb	%al, %ch
-	shrw	$2, %ax
-	shrw	%ax
-	andb	$0xc0, %al
-	orb	%al, %cl
-	movb	%dl, %dh
+	movw	%dx, %ax
+	divb	(sectors)
+	movb	%al, %dh
+	incb	%ah
+	orb	%ah, %cl
 	movw	$bootsec, %bx
 	movw	$0x0201, %ax
 	jmp	read_common

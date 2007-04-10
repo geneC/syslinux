@@ -1,6 +1,6 @@
 ; -----------------------------------------------------------------------
 ;
-;   Copyright 2003-2004 H. Peter Anvin - All Rights Reserved
+;   Copyright 2003-2007 H. Peter Anvin - All Rights Reserved
 ;
 ;   Permission is hereby granted, free of charge, to any person
 ;   obtaining a copy of this software and associated documentation
@@ -81,12 +81,13 @@ next:
 ;
 		mov ah,08h			; Get drive parameters
 		int 13h
+		and cx,3Fh			; Max sector number
+		mov [Sectors],cx
 		xor ax,ax
 		mov al,dh
 		inc ax				; From 0-based to count
-		mov [Heads],ax
-		and cl,3Fh			; Max sector number
-		mov [Sectors],cl
+		mul cx				; Heads*Sectors
+		mov [SecPerCyl],ax
 		; Note: we actually don't care about the number of
 		; cylinders, since that's the highest-order division
 
@@ -142,18 +143,18 @@ no_ebios:
 		push di
 		mov ax,[di+8]
 		mov dx,[di+10]
-		div word [Sectors]
-		inc dx
-		mov cx,dx			; Sector #
-		xor dx,dx
-		div word [Heads]
-		; DX = head #, AX = cylinder #
-		mov ch,al
-		shr ax,1
-		shr ax,1
-		and al,0C0h
-		or cl,al
-		mov dh,dl			; Head #
+		div word [SecPerCyl]	; AX = cylinder DX = sec in cyl
+		ror ah,1
+		ror ah,1
+		mov cl,ah
+		mov ch,al			; CL = cyl[9:8], CH = cyl[7:0]
+
+		mov ax,dx
+		div byte [Sectors]		; AL = head AH = sector
+		mov dh,al
+		inc ah
+		or cl,ah			; CX = cylinder and sector
+		
 		mov dl,[DriveNo]
 		mov bx,7C00h
 		mov ax,0201h			; Read one sector
@@ -207,7 +208,7 @@ dapa:
 		dd 0				; LBA (MSW)
 
 ; CHS information
-Heads:		dw 0
+SecPerCyl:	dw 0				; Heads*Sectors
 Sectors:	dw 0
 
 ; Error messages
