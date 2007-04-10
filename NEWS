@@ -20,6 +20,9 @@ Changes in 3.50:
 	  formats with relatively easily understood code.  See
 	  the elf.c32 module for an example on how to use it.
 	* New module "elf.c32", to load a protected-mode ELF kernel.
+	* MBR (old and new): Fix bug in CHS mode when LBA >
+	  65535*sectors.
+	* vesamenu: fix decoding of palettized PNG images.
 
 Changes in 3.36:
 	* MEMDISK: Disable EDD by default on floppy disks.  EDD can be
