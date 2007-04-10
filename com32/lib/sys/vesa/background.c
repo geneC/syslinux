@@ -122,23 +122,16 @@ static int read_png_file(FILE *fp)
   /* Set the appropriate set of transformations.  We need to end up
      with 32-bit BGRA format, no more, no less. */
 
+  /* Expand to RGB first... */
+
   switch (info_ptr->color_type) {
+  case PNG_COLOR_TYPE_GRAY:
   case PNG_COLOR_TYPE_GRAY_ALPHA:
     png_set_gray_to_rgb(png_ptr);
-    /* fall through */
-
-  case PNG_COLOR_TYPE_RGB_ALPHA:
     break;
 
-  case PNG_COLOR_TYPE_GRAY:
-    png_set_gray_to_rgb(png_ptr);
-    /* fall through */
-
   case PNG_COLOR_TYPE_RGB:
-    if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
-      png_set_tRNS_to_alpha(png_ptr);
-    else
-      png_set_add_alpha(png_ptr, ~0, PNG_FILLER_AFTER);
+  case PNG_COLOR_TYPE_RGB_ALPHA:
     break;
 
   case PNG_COLOR_TYPE_PALETTE:
@@ -147,6 +140,20 @@ static int read_png_file(FILE *fp)
 
   default:
     /* Huh? */
+    break;
+  }
+
+  /* ... then add an alpha channel ... */
+  switch (info_ptr->color_type) {
+  case PNG_COLOR_TYPE_GRAY_ALPHA:
+  case PNG_COLOR_TYPE_RGB_ALPHA:
+    break;
+
+  default:
+    if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
+      png_set_tRNS_to_alpha(png_ptr);
+    else
+      png_set_add_alpha(png_ptr, ~0, PNG_FILLER_AFTER);
     break;
   }
 
