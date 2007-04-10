@@ -123,42 +123,23 @@ static int read_png_file(FILE *fp)
      with 32-bit BGRA format, no more, no less. */
 
   /* Expand to RGB first... */
-
-  switch (info_ptr->color_type) {
-  case PNG_COLOR_TYPE_GRAY:
-  case PNG_COLOR_TYPE_GRAY_ALPHA:
-    png_set_gray_to_rgb(png_ptr);
-    break;
-
-  case PNG_COLOR_TYPE_RGB:
-  case PNG_COLOR_TYPE_RGB_ALPHA:
-    break;
-
-  case PNG_COLOR_TYPE_PALETTE:
+  if (info_ptr->color_type & PNG_COLOR_MASK_PALETTE)
     png_set_palette_to_rgb(png_ptr);
-    break;
+  else if (!(info_ptr->color_type & PNG_COLOR_MASK_COLOR))
+    png_set_gray_to_rgb(png_ptr);
 
-  default:
-    /* Huh? */
-    break;
-  }
-
-  /* ... then add an alpha channel ... */
-  switch (info_ptr->color_type) {
-  case PNG_COLOR_TYPE_GRAY_ALPHA:
-  case PNG_COLOR_TYPE_RGB_ALPHA:
-    break;
-
-  default:
+  /* Add alpha channel, if need be */
+  if (!(png_ptr->color_type & PNG_COLOR_MASK_ALPHA)) {
     if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
       png_set_tRNS_to_alpha(png_ptr);
     else
       png_set_add_alpha(png_ptr, ~0, PNG_FILLER_AFTER);
-    break;
   }
 
+  /* Adjust the byte order, if necessary */
   png_set_bgr(png_ptr);
 
+  /* Make sure we end up with 8-bit data */
   if (info_ptr->bit_depth == 16)
     png_set_strip_16(png_ptr);
   else if (info_ptr->bit_depth < 8)
