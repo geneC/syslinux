@@ -99,6 +99,12 @@ static unsigned long long suffix_number(const char *str)
   return v;
 }
 
+/* Truncate to 32 bits, with saturate */
+static inline uint32_t saturate32(unsigned long long v)
+{
+  return (v > 0xffffffff) ? 0xffffffff : (uint32_t)v;
+}
+
 /* Stitch together the command line from a set of argv's */
 static char *make_cmdline(char **argv)
 {
@@ -196,7 +202,7 @@ int main(int argc, char *argv[])
 
   /* Look for specific command-line arguments we care about */
   if ((arg = find_argument(argp, "mem=")))
-    mem_limit = suffix_number(arg);
+    mem_limit = saturate32(suffix_number(arg));
 
   if ((arg = find_argument(argp, "vga=")))
     video_mode = strtoul(arg, NULL, 0);
