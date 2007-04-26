@@ -26,38 +26,40 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * syslinux/boot.h
+ * runimage.c
  *
- * SYSLINUX boot API invocation
+ * Load and run a syslinux image.
  */
 
-#ifndef _SYSLINUX_BOOT_H
-#define _SYSLINUX_BOOT_H
+#include <stdlib.h>
+#include <string.h>
+#include <syslinux/boot.h>
+#include <com32.h>
 
-#include <stdint.h>
-#include <klibc/compiler.h>
-
-__noreturn syslinux_run_command(const char *);
-__noreturn syslinux_run_default(void);
-
-void syslinux_local_boot(uint16_t flags);
-
-void syslinux_final_cleanup(uint16_t flags);
-
-void syslinux_chain_bootstrap(uint16_t flags, const void *bootstrap,
-			      uint32_t bootstrap_len, uint32_t edx,
-			      uint32_t esi, uint16_t ds);
-
-#define IMAGE_TYPE_KERNEL	0
-#define IMAGE_TYPE_LINUX	1
-#define IMAGE_TYPE_BOOT		2
-#define IMAGE_TYPE_BSS		3
-#define IMAGE_TYPE_PXE		4
-#define IMAGE_TYPE_FDIMAGE	5
-#define IMAGE_TYPE_COMBOOT	6
-#define IMAGE_TYPE_COM32	7
-#define IMAGE_TYPE_CONFIG	8
 void syslinux_run_kernel_image(const char *filename, const char *cmdline,
-			       uint32_t ipappend_flags, uint32_t type);
+			       uint32_t ipappend_flags, uint32_t type)
+{
+  static com32sys_t ireg;
+  char *bbfilename, *bbcmdline, *bbptr;
+  int bytes;
 
-#endif /* _SYSLINUX_BOOT_H */
+  bbptr = __com32.cs_bounce;
+
+  bytes = strlen(filename)+1;
+  memcpy(bbfilename = bbptr, filename, bytes);
+  bbptr += bytes;
+
+  bytes = strlen(cmdline)+1;
+  memcpy(bbcmdline = bbptr, filename, bytes);
+  bbptr += bytes;
+
+  ireg.eax.w[0] = 0x0016;
+  ireg.ds	= SEG(bbfilename);
+  ireg.esi.w[0] = OFFS(bbfilename);
+  ireg.es	= SEG(bbcmdline);
+  ireg.ebx.w[0] = OFFS(bbcmdline);
+  ireg.ecx.l	= ipappend_flags;
+  ireg.edx.l	= type;
+
+  __intcall(0x22, &ireg, 0);
+}
