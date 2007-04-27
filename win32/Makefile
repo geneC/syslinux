@@ -31,9 +31,9 @@ WINCC       = gcc
 WINAR	    = ar
 WINRANLIB   = ranlib
 else
-WINCC       = mingw-gcc
-WINAR	    = mingw-ar
-WINRANLIB   = mingw-ranlib
+WINCC       = i386-mingw32-gcc
+WINAR	    = i386-mingw32-ar
+WINRANLIB   = i386-mingw32-ranlib
 endif
 
 WINCFLAGS   = -W -Wall -Wno-sign-compare -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
