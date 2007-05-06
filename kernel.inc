@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2007 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -56,17 +56,24 @@ su_heapend	resw 1			; 0224
 su_pad1		resw 1			; 0226
 su_cmd_line_ptr	resd 1			; 0228
 su_ramdisk_max	resd 1			; 022C
-		resb (9000h-12)-($-$$)	; Were bootsect.S puts it...
-linux_stack	equ $			; 8FF4
-linux_fdctab	equ $
-		resb 9000h-($-$$)
-cmd_line_here	equ $			; 9000 Should be out of the way
+		resb (0e000h-12)-($-$$)	; Were bootsect.S puts it...
+linux_stack	equ $			; BFF4
+linux_fdctab	resb 12
+cmd_line_here	equ $			; C000 Should be out of the way
 		endstruc
 
 ;
-; Kernel command line signature
+; Old kernel command line signature
 ;
 CMD_MAGIC	equ 0A33Fh		; Command line magic
+
+;
+; If we're loading the command line old-style, we need a smaller
+; heap.
+;
+old_cmd_line_here equ 9000h
+old_linux_fdctab  equ old_cmd_line_here-12
+old_linux_stack   equ old_linux_fdctab
 
 ;
 ; Magic number of su_header field

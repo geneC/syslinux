@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2006 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2007 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -205,16 +205,18 @@ cmdline_end:
 ;
 ; Now check if we have a large kernel, which needs to be loaded high
 ;
+prepare_header:
 		mov dword [RamdiskMax], HIGHMEM_MAX	; Default initrd limit
 		cmp dword [es:su_header],HEADER_ID	; New setup code ID
 		jne old_kernel		; Old kernel, load low
-		cmp word [es:su_version],0200h	; Setup code version 2.0
-		jb old_kernel		; Old kernel, load low
-                cmp word [es:su_version],0201h	; Version 2.01+?
+		mov ax,[es:su_version]
+		cmp ax,0200h			; Setup code version 2.0
+		jb old_kernel			; Old kernel, load low
+		cmp ax,0201h			; Version 2.01+?
                 jb new_kernel                   ; If 2.00, skip this step
                 mov word [es:su_heapend],linux_stack	; Set up the heap
                 or byte [es:su_loadflags],80h	; Let the kernel know we care
-		cmp word [es:su_version],0203h	; Version 2.03+?
+		cmp ax,0203h			; Version 2.03+?
 		jb new_kernel			; Not 2.03+
 		mov eax,[es:su_ramdisk_max]
 		mov [RamdiskMax],eax		; Set the ramdisk limit
@@ -320,7 +322,7 @@ nk_noinitrd:
 		mov fs,ax
 
 ;
-; Copy command line.  Unfortunately, the kernel boot protocol requires
+; Copy command line.  Unfortunately, the old kernel boot protocol requires
 ; the command line to exist in the 9xxxxh range even if the rest of the
 ; setup doesn't.
 ;
@@ -332,26 +334,38 @@ nk_noinitrd:
 		; New cmdline protocol
 		; Store 32-bit (flat) pointer to command line
 		mov dword [fs:su_cmd_line_ptr],(real_mode_seg << 4) + cmd_line_here
-		jmp short in_proper_place
+		jmp in_proper_place
 
 need_high_cmdline:
 ;
-; Copy command line up to 90000h
+; Copy command line to 90000h (old style) -- this happens either if
+; we have a zImage kernel or the protocol is less than 2.02.
 ;
 		mov ax,9000h			; Note AL <- 0
 		mov es,ax
 		mov si,cmd_line_here
-		mov di,si
+		mov di,old_cmd_line_here
 		mov [fs:kern_cmd_magic],word CMD_MAGIC ; Store magic
 		mov [fs:kern_cmd_offset],di	; Store pointer
+		mov word [HeapEnd],old_linux_stack
+		mov ax,255			; Max cmdline limit
+		cmp word [fs:su_version],0201h
+		jb .adjusted
+		; Protocol 2.01+
+		mov word [fs:su_heapend],old_linux_stack
+		jbe .adjusted
+		; Protocol 2.02+
+		mov dword [fs:su_cmd_line_ptr],0x90000+old_cmd_line_here
+		mov ax,4095			; 2.02+ allow a higher limit
+.adjusted:
 
 		mov cx,[CmdLineLen]
-		cmp cx,255
+		cmp cx,ax
 		jna .len_ok
-		mov cx,255			; Protocol < 0x202 has 255 as hard limit
+		mov cx,ax			; Truncate the command line
 .len_ok:
 		fs rep movsb
-		stosb				; Final null, note AL == 0 already
+		stosb				; Final null, note AL=0 already
 
 		push fs
 		pop es
@@ -419,8 +433,8 @@ root_not_floppy:
 ;
 %if IS_SYSLINUX || IS_MDSLINUX
 		lgs si,[cs:fdctab]
-		mov di,linux_fdctab
-		mov cx,6			; 12 bytes
+		mov di,[cs:HeapEnd]
+		mov cx,6
 		gs rep movsw
 		mov [cs:fdctab],word linux_fdctab ; Save new floppy tab pos
 		mov [cs:fdctab+2],es
@@ -445,13 +459,15 @@ kill_motor:
 ; Set up segment registers and the Linux real-mode stack
 ; Note: es == the real mode segment
 ;
+
 		cli
 		mov bx,es
 		mov ds,bx
 		mov fs,bx
 		mov gs,bx
 		mov ss,bx
-		mov sp,linux_stack
+		mov sp,[cs:HeapEnd]
+
 ;
 ; We're done... now RUN THAT KERNEL!!!!
 ; Setup segment == real mode segment + 020h; we need to jump to offset
@@ -622,6 +638,8 @@ no_high_mem:					; Error routine
                 ret
 
 		section .data
+		alignb 2
+HeapEnd		dw linux_stack		; Default end of heap
 boot_image      db 'BOOT_IMAGE='
 boot_image_len  equ $-boot_image
 

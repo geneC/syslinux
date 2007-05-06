@@ -81,9 +81,6 @@ struct linux_header {
 #define LOAD_HIGH	0x01
 #define CAN_USE_HEAP	0x80
 
-/* Offset for the command line versus the real mode code */
-#define CMDLINE_OFFSET	0x9000
-
 /* Get the combined size of the initramfs */
 static addr_t initramfs_size(struct initramfs *initramfs)
 {
@@ -147,7 +144,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
   size_t real_mode_size, prot_mode_size;
   addr_t real_mode_base, prot_mode_base;
   addr_t irf_size;
-  size_t cmdline_size;
+  size_t cmdline_size, cmdline_offset;
   struct syslinux_rm_regs regs;
   struct syslinux_movelist *fraglist = NULL;
   struct syslinux_memmap *mmap = NULL;
@@ -159,8 +156,9 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
     goto bail;
 
   /* Copy the header into private storage */
+  /* Use whdr to modify the actual kernel header */
   memcpy(&hdr, kernel_buf, sizeof hdr);
-  whdr = (struct linux_header *)kernel_buf; /* Writable header */
+  whdr = (struct linux_header *)kernel_buf;
 
   if (hdr.boot_flag != BOOT_MAGIC)
     goto bail;
@@ -189,6 +187,11 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
     cmdline[cmdline_size-1] = '\0';
   }
 
+  if (hdr.version < 0x0202 || !(hdr.loadflags & 0x01))
+    cmdline_offset = (0x9ff0 - cmdline_size) & ~15;
+  else
+    cmdline_offset = (0xfff0 - cmdline_size) & ~15;
+
   real_mode_size = (hdr.setup_sects+1) << 9;
   real_mode_base = (hdr.loadflags & LOAD_HIGH) ? 0x10000 : 0x90000;
   prot_mode_base = (hdr.loadflags & LOAD_HIGH) ? 0x100000 : 0x10000;
@@ -203,16 +206,16 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
   if (hdr.version >= 0x0200) {
     whdr->type_of_loader = 0x30; /* SYSLINUX unknown module */
     if (hdr.version >= 0x0201) {
-      whdr->heap_end_ptr = CMDLINE_OFFSET - 0x0200;
+      whdr->heap_end_ptr = cmdline_offset - 0x0200;
       whdr->loadflags |= CAN_USE_HEAP;
     }
     if (hdr.version >= 0x0202) {
-      whdr->cmd_line_ptr = real_mode_base + CMDLINE_OFFSET;
+      whdr->cmd_line_ptr = real_mode_base+cmdline_offset;
     } else {
       whdr->old_cmd_line_magic  = OLD_CMDLINE_MAGIC;
-      whdr->old_cmd_line_offset = CMDLINE_OFFSET;
+      whdr->old_cmd_line_offset = cmdline_offset;
       /* Be paranoid and round up to a multiple of 16 */
-      whdr->setup_move_size = (CMDLINE_OFFSET+cmdline_size+15) & ~15;
+      whdr->setup_move_size = (cmdline_offset+cmdline_size+15) & ~15;
     }
   }
 
@@ -236,17 +239,17 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
   if (syslinux_add_movelist(&fraglist, real_mode_base, (addr_t)kernel_buf,
 			    real_mode_size))
     goto bail;
-  if (syslinux_add_memmap(&amap, real_mode_base, CMDLINE_OFFSET+cmdline_size,
+  if (syslinux_add_memmap(&amap, real_mode_base, cmdline_offset+cmdline_size,
 			  SMT_ALLOC))
     goto bail;
 
   /* Zero region between real mode code and cmdline */
   if (syslinux_add_memmap(&mmap, real_mode_base+real_mode_size,
-			  CMDLINE_OFFSET-real_mode_size, SMT_ZERO))
+			  cmdline_offset-real_mode_size, SMT_ZERO))
     goto bail;
 
   /* Command line */
-  if (syslinux_add_movelist(&fraglist, real_mode_base+CMDLINE_OFFSET,
+  if (syslinux_add_movelist(&fraglist, real_mode_base+cmdline_offset,
 			    (addr_t)cmdline, cmdline_size))
     goto bail;
 
@@ -296,7 +299,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
   regs.es = regs.ds = regs.ss = regs.fs = regs.gs = real_mode_base >> 4;
   regs.cs = (real_mode_base >> 4)+0x20;
   /* regs.ip = 0; */
-  regs.esp.w[0] = CMDLINE_OFFSET;
+  regs.esp.w[0] = cmdline_offset;
 
   syslinux_shuffle_boot_rm(fraglist, mmap, 0, &regs);
 
