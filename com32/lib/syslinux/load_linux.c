@@ -190,7 +190,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
   if (hdr.version < 0x0202 || !(hdr.loadflags & 0x01))
     cmdline_offset = (0x9ff0 - cmdline_size) & ~15;
   else
-    cmdline_offset = (0xfff0 - cmdline_size) & ~15;
+    cmdline_offset = 0x10000;
 
   real_mode_size = (hdr.setup_sects+1) << 9;
   real_mode_base = (hdr.loadflags & LOAD_HIGH) ? 0x10000 : 0x90000;

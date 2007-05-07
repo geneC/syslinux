@@ -57,9 +57,9 @@ su_pad1		resw 1			; 0226
 su_cmd_line_ptr	resd 1			; 0228
 su_ramdisk_max	resd 1			; 022C
 		resb (0e000h-12)-($-$$)	; Were bootsect.S puts it...
-linux_stack	equ $			; BFF4
+linux_stack	equ $			; DFF4
 linux_fdctab	resb 12
-cmd_line_here	equ $			; C000 Should be out of the way
+cmd_line_here	equ $			; E000 Should be out of the way
 		endstruc
 
 ;
@@ -71,7 +71,7 @@ CMD_MAGIC	equ 0A33Fh		; Command line magic
 ; If we're loading the command line old-style, we need a smaller
 ; heap.
 ;
-old_cmd_line_here equ 9000h
+old_cmd_line_here equ 9800h
 old_linux_fdctab  equ old_cmd_line_here-12
 old_linux_stack   equ old_linux_fdctab
 

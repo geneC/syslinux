@@ -214,7 +214,8 @@ prepare_header:
 		jb old_kernel			; Old kernel, load low
 		cmp ax,0201h			; Version 2.01+?
                 jb new_kernel                   ; If 2.00, skip this step
-                mov word [es:su_heapend],linux_stack	; Set up the heap
+		; Set up the heap (assuming loading high for now)
+                mov word [es:su_heapend],linux_stack-512
                 or byte [es:su_loadflags],80h	; Let the kernel know we care
 		cmp ax,0203h			; Version 2.03+?
 		jb new_kernel			; Not 2.03+
@@ -319,6 +320,7 @@ nk_noinitrd:
 ; capable of starting their setup from a different address.
 ;
 		mov ax,real_mode_seg
+		mov es,ax
 		mov fs,ax
 
 ;
@@ -327,34 +329,38 @@ nk_noinitrd:
 ; setup doesn't.
 ;
 		cli				; In case of hooked interrupts
+		mov dx,[fs:su_version]		; cmdline protocol version
 		test byte [LoadFlags],LOAD_HIGH
 		jz need_high_cmdline
-		cmp word [fs:su_version],0202h	; Support new cmdline protocol?
+		cmp dx,0202h			; Support new cmdline protocol?
 		jb need_high_cmdline
 		; New cmdline protocol
 		; Store 32-bit (flat) pointer to command line
-		mov dword [fs:su_cmd_line_ptr],(real_mode_seg << 4) + cmd_line_here
+		; This is the "high" location, since we have bzImage
+		mov dword [fs:su_cmd_line_ptr],(real_mode_seg << 4)+cmd_line_here
 		jmp in_proper_place
 
 need_high_cmdline:
 ;
-; Copy command line to 90000h (old style) -- this happens either if
-; we have a zImage kernel or the protocol is less than 2.02.
+; Copy command line down to fit in high conventional memory
+; -- this happens if we have a zImage kernel or the protocol
+; is less than 2.02.
 ;
-		mov ax,9000h			; Note AL <- 0
-		mov es,ax
 		mov si,cmd_line_here
 		mov di,old_cmd_line_here
 		mov [fs:kern_cmd_magic],word CMD_MAGIC ; Store magic
 		mov [fs:kern_cmd_offset],di	; Store pointer
 		mov word [HeapEnd],old_linux_stack
 		mov ax,255			; Max cmdline limit
-		cmp word [fs:su_version],0201h
+		cmp dx,0201h
 		jb .adjusted
 		; Protocol 2.01+
-		mov word [fs:su_heapend],old_linux_stack
+		mov word [fs:su_heapend],old_linux_stack-512
 		jbe .adjusted
 		; Protocol 2.02+
+		; Note that the only reason we would end up here is
+		; because we have a zImage, so we anticipate the move
+		; to 90000h already...
 		mov dword [fs:su_cmd_line_ptr],0x90000+old_cmd_line_here
 		mov ax,4095			; 2.02+ allow a higher limit
 .adjusted:
@@ -366,9 +372,10 @@ need_high_cmdline:
 .len_ok:
 		fs rep movsb
 		stosb				; Final null, note AL=0 already
-
-		push fs
-		pop es
+		cmp dx,0200h
+		jb .nomovesize
+		mov [es:su_movesize],di		; Tell the kernel what to move
+.nomovesize:
 
 		test byte [LoadFlags],LOAD_HIGH
 		jnz in_proper_place		; If high load, we're done
@@ -380,9 +387,9 @@ need_high_cmdline:
 ;
 		mov ax,9000h
 		mov es,ax
-		mov cx,[SetupSecs]
-		inc cx				; Setup + boot sector
-		shl cx,7			; Sectors -> dwords
+		mov cx,di			; == su_movesize (from above)
+		add cx,3			; Round up
+		shr cx,2			; Convert to dwords
 		xor si,si
 		xor di,di
 		fs rep movsd			; Copy setup + boot sector
@@ -403,7 +410,8 @@ need_high_cmdline:
 		xor eax,eax
 		rep stosd			; Clear region
 ;
-; Copy the kernel down to the "low" location
+; Copy the kernel down to the "low" location (the kernel will then
+; move itself again, sigh.)
 ;
 		mov ecx,[KernelSize]
 		mov esi,100000h
@@ -441,7 +449,8 @@ root_not_floppy:
 %endif
 ;
 ; Linux wants the floppy motor shut off before starting the kernel,
-; at least bootsect.S seems to imply so.
+; at least bootsect.S seems to imply so.  If we don't load the floppy
+; driver, this is *definitely* so!
 ;
 kill_motor:
 		xor ax,ax
@@ -466,7 +475,9 @@ kill_motor:
 		mov fs,bx
 		mov gs,bx
 		mov ss,bx
-		mov sp,[cs:HeapEnd]
+		mov sp,strict word linux_stack
+		; Point HeapEnd to the immediate of the instruction above
+HeapEnd		equ $-2			; Self-modifying code!  Fun!
 
 ;
 ; We're done... now RUN THAT KERNEL!!!!
@@ -638,8 +649,6 @@ no_high_mem:					; Error routine
                 ret
 
 		section .data
-		alignb 2
-HeapEnd		dw linux_stack		; Default end of heap
 boot_image      db 'BOOT_IMAGE='
 boot_image_len  equ $-boot_image
 
