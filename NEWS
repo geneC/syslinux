@@ -24,6 +24,8 @@ Changes in 3.50:
 	  65535*sectors.
 	* vesamenu: fix decoding of palettized PNG images.
 	* Update the Linux kernel boot protocol.
+	* PXELINUX: Press Ctrl-N at the boot prompt to read out the
+	  network info.
 
 Changes in 3.36:
 	* MEMDISK: Disable EDD by default on floppy disks.  EDD can be

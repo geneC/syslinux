@@ -89,6 +89,10 @@ not_ascii:	mov byte [FuncFlag],0
 		je command_done
 		cmp al,'F' & 1Fh		; <Ctrl-F>
 		je set_func_flag
+%if IS_PXELINUX
+		cmp al,'N' & 1Fh		; <Ctrl-N>
+		je show_network_info
+%endif
 		cmp al,'U' & 1Fh		; <Ctrl-U>
 		je kill_command			; Kill input line
 		cmp al,'V' & 1Fh		; <Ctrl-V>
@@ -102,7 +106,8 @@ backspace:	cmp di,command_line		; Make sure there is anything
 		dec di				; Unstore one character
 		mov si,wipe_char		; and erase it from the screen
 		call cwritestr
-		jmp short get_char_2
+get_char_2:
+		jmp short get_char
 
 kill_command:
 		call crlf
@@ -114,8 +119,7 @@ force_text_mode:
 
 set_func_flag:
 		mov byte [FuncFlag],1
-get_char_2:
-		jmp short get_char
+		jmp short get_char_2
 
 ctrl_f_0:	add al,10			; <Ctrl-F>0 == F10
 ctrl_f:		sub al,'1'
@@ -171,6 +175,24 @@ fk_wrcmd:
 		call cwritestr			; Write command line so far
 fk_nofile:	pop di
 		jmp short get_char_2
+
+;
+; Show network info (in the form of the ipappend strings)
+;
+%if IS_PXELINUX
+show_network_info:
+		mov si,IPAppends		; See comboot.doc
+		mov cx,numIPAppends
+.loop:
+		lodsw
+		push si
+		mov si,ax
+		call cwritestr
+		call crlf
+		pop si
+		loop .loop
+		jmp fk_wrcmd
+%endif
 
 ;
 ; Jump here to run the default command line
