@@ -181,6 +181,8 @@ fk_nofile:	pop di
 ;
 %if IS_PXELINUX
 show_network_info:
+		push di				; Command line write pointer
+		call crlf
 		mov si,IPAppends		; See comboot.doc
 		mov cx,numIPAppends
 .loop:
