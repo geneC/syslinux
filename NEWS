@@ -23,6 +23,7 @@ Changes in 3.50:
 	* MBR (old and new): Fix bug in CHS mode when LBA >
 	  65535*sectors.
 	* vesamenu: fix decoding of palettized PNG images.
+	* Update the Linux kernel boot protocol.
 
 Changes in 3.36:
 	* MEMDISK: Disable EDD by default on floppy disks.  EDD can be
