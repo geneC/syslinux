@@ -26,6 +26,8 @@ Changes in 3.50:
 	* Update the Linux kernel boot protocol.
 	* PXELINUX: Press Ctrl-N at the boot prompt to read out the
 	  network info.
+	* Instead of the (non-existent) MAC, use the client identifier
+	  for networks like Infiniband and Firewire/1394.
 
 Changes in 3.36:
 	* MEMDISK: Disable EDD by default on floppy disks.  EDD can be

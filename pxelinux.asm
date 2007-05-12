@@ -7,7 +7,7 @@
 ;  network booting API.  It is based on the SYSLINUX boot loader for
 ;  MS-DOS floppies.
 ;
-;   Copyright (C) 1994-2006  H. Peter Anvin
+;   Copyright (C) 1994-2007  H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -212,11 +212,12 @@ RealBaseMem	resw 1			; Amount of DOS memory after freeing
 OverLoad	resb 1			; Set if DHCP packet uses "overloading"
 
 ; The relative position of these fields matter!
+MAC_MAX		equ  32			; Handle hardware addresses this long
 MACLen		resb 1			; MAC address len
 MACType		resb 1			; MAC address type
-MAC		resb 16			; Actual MAC address
+MAC		resb MAC_MAX+1		; Actual MAC address
 BOOTIFStr	resb 7			; Space for "BOOTIF="
-MACStr		resb 3*17		; MAC address as a string
+MACStr		resb 3*(MAC_MAX+1)	; MAC address as a string
 
 ;
 ; PXE packets which don't need static initialization
@@ -573,41 +574,22 @@ query_bootp:
 ;
 .save_mac:
 		movzx cx,byte [trackbuf+bootp.hardlen]
+		cmp cx,16
+		jna .mac_ok
+		xor cx,cx		; Bad hardware address length
+.mac_ok:
 		mov [MACLen],cl
 		mov al,[trackbuf+bootp.hardware]
 		mov [MACType],al
 		mov si,trackbuf+bootp.macaddr
 		mov di,MAC
-		push cx
-		rep movsb
-		mov cx,MAC+16
-		sub cx,di
-		xor ax,ax
-		rep stosb
-
-		mov si,bootif_str
-		mov di,BOOTIFStr
-		mov cx,bootif_str_len
 		rep movsb
 
-		pop cx
-		mov si,MACType
-		inc cx
-		mov bx,hextbl_lower
-.hexify_mac:
-		lodsb
-		mov ah,al
-		shr al,4
-		xlatb
-		stosb
-		mov al,ah
-		and al,0Fh
-		xlatb
-		stosb
-		mov al,'-'
-		stosb
-		loop .hexify_mac
-		mov [di-1],byte 0		; Null-terminate and strip final colon
+; Enable this if we really need to zero-pad this field...
+;		mov cx,MAC+MAC_MAX+1
+;		sub cx,di
+;		xor ax,ax
+;		rep stosb
 
 ;
 ; Now, get the boot file and other info.  This lives in the CACHED_REPLY
@@ -628,6 +610,34 @@ query_bootp:
 		pop cx				; Forget status
 		mov cx,[pxe_bootp_query_pkt_3.buffersize]
 		call parse_dhcp			; Parse DHCP packet
+
+;
+; Generate the bootif string, and the hardware-based config string.
+;
+make_bootif_string:
+		mov si,bootif_str
+		mov di,BOOTIFStr
+		mov cx,bootif_str_len
+		rep movsb
+
+		movzx cx,byte [MACLen]
+		mov si,MACType
+		inc cx
+		mov bx,hextbl_lower
+.hexify_mac:
+		lodsb
+		mov ah,al
+		shr al,4
+		xlatb
+		stosb
+		mov al,ah
+		and al,0Fh
+		xlatb
+		stosb
+		mov al,'-'
+		stosb
+		loop .hexify_mac
+		mov [di-1],byte 0		; Null-terminate and strip final colon
 ;
 ; Generate ip= option
 ;
@@ -1997,6 +2007,7 @@ gendotquad:
 ; BootFile	- boot file name
 ; DNSServers	- DNS server IPs
 ; LocalDomain	- Local domain name
+; MACLen, MAC	- Client identifier, if MACLen == 0
 ;
 ; This assumes the DHCP packet is in "trackbuf" and the length
 ; of the packet in in CX on entry.
@@ -2085,23 +2096,55 @@ parse_some_dhcp_options:
 		cmp dl,dh	; Is the option value valid?
 		jb .opt_done
 
-		cmp dl,1	; SUBNET MASK option
-		jne .not_subnet
+		mov bx,dhcp_option_list
+.find_option:
+		cmp bx,dhcp_option_list_end
+		jae .opt_done
+		cmp dl,[bx]
+		je .found_option
+		add bx,3
+		jmp .find_option
+.found_option:
+		pushad
+		call [bx+1]
+		popad
+
+; Fall through
+		; Unknown option.  Skip to the next one.
+.opt_done:
+		add si,ax
+		jmp .loop
+.done:
+		ret
+
+		section .data
+dhcp_option_list:
+		section .text
+
+%macro dopt 2
+		section .data
+		db %1
+		dw dopt_%2
+		section .text
+dopt_%2:
+%endmacro
+
+;
+; Parse individual DHCP options.  SI points to the option data and
+; AX to the option length.  DL contains the option number.
+; All registers are saved around the routine.
+;
+	dopt 1, subnet_mask
 		mov ebx,[si]
 		mov [Netmask],ebx
-		jmp .opt_done
-.not_subnet:
+		ret
 
-		cmp dl,3	; ROUTER option
-		jne .not_router
+	dopt 3, router
 		mov ebx,[si]
 		mov [Gateway],ebx
-		jmp .opt_done
-.not_router:
+		ret
 
-		cmp dl,6	; DNS SERVERS option
-		jne .not_dns
-		pusha
+	dopt 6, dns_servers
 		mov cx,ax
 		shr cx,2
 		cmp cl,DNS_MAX_SERVERS
@@ -2111,13 +2154,9 @@ parse_some_dhcp_options:
 		mov di,DNSServers
 		rep movsd
 		mov [LastDNSServer],di
-		popa
-		jmp .opt_done
-.not_dns:
+		ret
 
-		cmp dl,15	; DNS LOCAL DOMAIN option
-		jne .not_localdomain
-		pusha
+	dopt 16, local_domain
 		mov bx,si
 		add bx,ax
 		xor ax,ax
@@ -2125,85 +2164,75 @@ parse_some_dhcp_options:
 		mov di,LocalDomain
 		call dns_mangle	; Convert to DNS label set
 		mov [bx],al	; Restore ending byte
-		popa
-		jmp .opt_done
-.not_localdomain:
+		ret
 
-		cmp dl,43	; VENDOR ENCAPSULATED option
-		jne .not_vendor
-		pusha
+	dopt 43, vendor_encaps
 		mov dh,208	; Only recognize PXELINUX options
 		mov cx,ax	; Length of option = max bytes to parse
 		call parse_some_dhcp_options	; Parse recursive structure
-		popa
-		jmp .opt_done
-.not_vendor:
+		ret
 
-		cmp dl,52	; OPTION OVERLOAD option
-		jne .not_overload
+	dopt 52, option_overload
 		mov bl,[si]
 		mov [OverLoad],bl
-		jmp .opt_done
-.not_overload:
+		ret
 
-		cmp dl,67	; BOOTFILE NAME option
-		jne .not_bootfile
+	dopt 61, client_identifier
+		cmp ax,MAC_MAX		; Too long?
+		ja .skip
+		cmp [MACLen],ah		; Only do this if MACLen == 0
+		jne .skip
+		mov [MACLen],al
+		mov di,MAC
+		jmp dhcp_copyoption
+.skip:		ret
+
+	dopt 64, bootfile_name
 		mov di,BootFile
-		jmp short .copyoption
-.done:
-		ret		; This is here to make short jumps easier
-.not_bootfile:
+		jmp dhcp_copyoption
 
-		cmp dl,208	; PXELINUX MAGIC option
-		jne .not_pl_magic
-		cmp al,4	; Must have length == 4
-		jne .opt_done
+	dopt 208, pxelinux_magic
+		cmp al,4		; Must have length == 4
+		jne .done
 		cmp dword [si], htonl(0xF100747E)	; Magic number
-		jne .opt_done
-		or byte [DHCPMagic], byte 1		; Found magic #
-		jmp short .opt_done
-.not_pl_magic:
+		jne .done
+		or byte [DHCPMagic],1	; Found magic #
+.done:		ret
 
-		cmp dl,209	; PXELINUX CONFIGFILE option
-		jne .not_pl_config
+	dopt 209, pxelinux_configfile
 		mov di,ConfigName
-		or byte [DHCPMagic], byte 2	; Got config file
-		jmp short .copyoption
-.not_pl_config:
+		or byte [DHCPMagic],2	; Got config file
+		jmp dhcp_copyoption
 
-		cmp dl,210	; PXELINUX PATHPREFIX option
-		jne .not_pl_prefix
+	dopt 210, pxelinux_pathprefix
 		mov di,PathPrefix
-		or byte [DHCPMagic], byte 4	; Got path prefix
-		jmp short .copyoption
-.not_pl_prefix:
+		or byte [DHCPMagic],4	; Got path prefix
+		jmp dhcp_copyoption
 
-		cmp dl,211	; PXELINUX REBOOTTIME option
-		jne .not_pl_timeout
+	dopt 211, pxelinux_reboottime
 		cmp al,4
-		jne .opt_done
+		jne .done
 		mov ebx,[si]
-		xchg bl,bh	; Convert to host byte order
+		xchg bl,bh		; Convert to host byte order
 		rol ebx,16
 		xchg bl,bh
 		mov [RebootTime],ebx
-		or byte [DHCPMagic], byte 8	; Got RebootTime
-		; jmp short .opt_done
-.not_pl_timeout:
-
-		; Unknown option.  Skip to the next one.
-.opt_done:
-		add si,ax
-.opt_done_noskip:
-		jmp .loop
+		or byte [DHCPMagic],8	; Got RebootTime
+.done:		ret
 
 		; Common code for copying an option verbatim
-.copyoption:
-		xchg cx,ax
+		; Copies the option into ES:DI and null-terminates it.
+		; Returns with AX=0 and SI past the option.
+dhcp_copyoption:
+		xchg cx,ax	; CX <- option length
 		rep movsb
-		xchg cx,ax	; Now ax == 0
+		xchg cx,ax	; AX <- 0
 		stosb		; Null-terminate
-		jmp short .opt_done_noskip
+		ret
+
+		section .data
+dhcp_option_list_end:
+		section .text
 
 ;
 ; genipopt
