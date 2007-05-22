@@ -208,7 +208,7 @@ cmdline_end:
 prepare_header:
 		mov dword [RamdiskMax], HIGHMEM_MAX	; Default initrd limit
 		cmp dword [es:su_header],HEADER_ID	; New setup code ID
-		jne old_kernel		; Old kernel, load low
+		jne old_kernel			; Old kernel, load low
 		mov ax,[es:su_version]
 		cmp ax,0200h			; Setup code version 2.0
 		jb old_kernel			; Old kernel, load low
@@ -228,8 +228,6 @@ prepare_header:
 ;
 new_kernel:
 		mov byte [es:su_loader],my_id	; Show some ID
-		movzx ax,byte [es:bs_setupsecs]	; Variable # of setup sectors
-		mov [SetupSecs],ax
 		xor eax,eax
 		mov [es:su_ramdisklen],eax	; No initrd loaded yet
 
@@ -245,6 +243,13 @@ new_kernel:
 ; jumping to it.
 ;
 read_kernel:
+		movzx ax,byte [es:bs_setupsecs]	; Setup sectors
+		and ax,ax
+		jnz .sects_ok
+		mov al,4			; 0 = 4 setup sectors
+.sects_ok:
+		mov [SetupSecs],ax
+
                 mov si,KernelCName		; Print kernel name part of
                 call cwritestr                  ; "Loading" message
                 mov si,dotdot_msg		; Print dots
@@ -328,8 +333,9 @@ nk_noinitrd:
 ; the command line to exist in the 9xxxxh range even if the rest of the
 ; setup doesn't.
 ;
+setup_command_line:
 		cli				; In case of hooked interrupts
-		mov dx,[fs:su_version]		; cmdline protocol version
+		mov dx,[KernelVersion]
 		test byte [LoadFlags],LOAD_HIGH
 		jz need_high_cmdline
 		cmp dx,0202h			; Support new cmdline protocol?
@@ -494,13 +500,14 @@ HeapEnd		equ $-2			; Self-modifying code!  Fun!
 ; initrd, and are always loaded low.
 ;
 old_kernel:
-		cmp word [InitRDPtr],0		; Old kernel can't have initrd
-                je load_old_kernel
+		xor ax,ax
+		cmp word [InitRDPtr],ax		; Old kernel can't have initrd
+                je .load
                 mov si,err_oldkernel
                 jmp abort_load
-load_old_kernel:
-		mov word [SetupSecs],4		; Always 4 setup sectors
-		mov byte [LoadFlags],0		; Always low
+.load:
+		mov byte [LoadFlags],al		; Always low
+		mov word [KernelVersion],ax	; Version 0.00
 		jmp read_kernel
 
 ;
@@ -661,4 +668,5 @@ KernelEnd	resd 1			; Ending address of the kernel image
 CmdLineLen	resw 1			; Length of command line including null
 SetupSecs	resw 1			; Number of setup sectors
 InitRDPtr	resw 1			; Pointer to initrd= option in command line
+KernelVersion	resw 1			; Kernel protocol version
 LoadFlags	resb 1			; Loadflags from kernel
