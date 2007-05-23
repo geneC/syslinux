@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2006 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2007 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@ keywd_size	equ 8	; Bytes per keyword
 keywd_table:
 		keyword menu,		pc_comment
 		keyword text,		pc_text
+		keyword include,	pc_filecmd,	pc_include
 		keyword append,		pc_append
 		keyword default,	pc_default
 		keyword display,	pc_filecmd,	get_msg_file

@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2006 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2007 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -145,7 +145,7 @@ pc_setint16:
 
 ;
 ; Generic file-processing commands:
-; "display", "font", "kbdmap"
+; "display", "font", "kbdmap", "include"
 ;
 pc_filecmd:	push ax				; Function to tailcall
 		call pc_getline
@@ -155,6 +155,14 @@ pc_filecmd:	push ax				; Function to tailcall
 		jnz .ok
 		pop ax				; Drop the successor function
 .ok:		ret				; Tailcall if OK, error return
+
+;
+; "include" command (invoked from pc_filecmd)
+;
+pc_include:	call openfd
+		jz .err
+		inc word [IncludeLevel]
+.err:		ret
 
 ;
 ; "serial" command
@@ -355,9 +363,14 @@ parse_config:
 		xor ax,ax
 		mov cx,vk_size
 		rep stosb
+
 .again:
-		call getcommand
-                jnc .again			; If not EOF do it again
+		call getcommand			; Parse one command
+                jnc .again			; If not EOF...
+		call close
+		dec word [IncludeLevel]		; Still parsing?
+		jnz .again
+
 		;
 		; The fall through to commit_vk to commit any final
 		; VKernel being read
@@ -414,6 +427,7 @@ ForcePrompt	dw 0			; Force prompt
 NoEscape	dw 0			; No escape
 AllowImplicit   dw 1                    ; Allow implicit kernels
 AllowOptions	dw 1			; User-specified options allowed
+IncludeLevel	dw 1			; Nesting level
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 VKernelBytes	dw 0			; Number of bytes used by vkernels
 VKernel		db 0			; Have we seen any "label" statements?
