@@ -210,6 +210,7 @@ prepare_header:
 		cmp dword [es:su_header],HEADER_ID	; New setup code ID
 		jne old_kernel			; Old kernel, load low
 		mov ax,[es:su_version]
+		mov [KernelVersion],ax
 		cmp ax,0200h			; Setup code version 2.0
 		jb old_kernel			; Old kernel, load low
 		cmp ax,0201h			; Version 2.01+?
