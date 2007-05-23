@@ -2,7 +2,7 @@
 
 		   A suite of bootloaders for Linux
 
-		Copyright (C) 1994-2005 H. Peter Anvin
+		Copyright (C) 1994-2007 H. Peter Anvin
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -108,6 +108,12 @@ SYSLINUX unless otherwise noted.  See the respective .doc files.
 
 # comment
 	A comment line.  The whitespace after the hash mark is mandatory.
+
+INCLUDE filename
+	Inserts the contents of another file at this point in the
+	configuration file. Files can currently be nested up to 16
+	levels deep, but it is not guaranteed that more than 8 levels
+	will be supported in the future.
 
 DEFAULT kernel options...
         Sets the default command line.  If SYSLINUX boots automatically,
