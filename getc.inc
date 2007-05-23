@@ -148,6 +148,11 @@ getc:
 		jmp .got_data
 
 .empty:
+		; CX == 0 at this point; gc_bufbytes was clobbered
+		; by the subtract; we need to restore it to zero so
+		; we will continue to get EOF on any further attempts
+		; to read the file.
+		mov [di+gc_bufbytes],cx
 		popad
 		stc
 		jmp .ret
