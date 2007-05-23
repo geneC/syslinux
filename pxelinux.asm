@@ -41,7 +41,7 @@ PKT_TIMEOUT	equ 12			; Initial timeout, timer ticks @ 55 ms
 ; For Ethernet MTU is normally 1500.  Unfortunately there seems to
 ; be a fair number of networks with "substandard" MTUs which break.
 ; The code assumes TFTP_LARGEBLK <= 2K.
-TFTP_MTU	equ 1472
+TFTP_MTU	equ 1440
 TFTP_LARGEBLK	equ (TFTP_MTU-20-8-4)	; MTU - IP hdr - UDP hdr - TFTP hdr
 ; Standard TFTP block size
 TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)
