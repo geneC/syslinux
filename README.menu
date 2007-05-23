@@ -124,11 +124,14 @@ MENU BACKGROUND filename
 	be 640x480 pixels and either in PNG or JPEG format.
 
 
+INCLUDE filename
 MENU INCLUDE filename
 
 	Include the contents of the configuration file filename at
-	this point.  Keep in mind that the included data is only seen
-	by the menu system; the core syslinux code does not parse this
+	this point.
+
+	In the case of MENU INCLUDE, the included data is only seen by
+	the menu system; the core syslinux code does not parse this
 	command, so any labels defined in it are unavailable.
 
 

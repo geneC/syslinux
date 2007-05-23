@@ -576,6 +576,9 @@ static void parse_config_file(FILE *f)
 	  break;
 	}
       }
+    } else if ( (ep = looking_at(p, "include")) ) {
+	p = skipspace(ep);
+	parse_one_config(p);
     } else if ( looking_at(p, "append") ) {
       char *a = strdup(skipspace(p+6));
       if ( ld.label )
