@@ -13,9 +13,9 @@
 		section .text
 
 		struc cptr
-.sector:	resd 1				; Sector number
-.prev:		resw 1				; LRU pointer to previous (less recent)
-.next:		resw 1				; LRU pointer to next (more recent)
+.sector:	resd 1		; Sector number
+.prev:		resw 1		; LRU pointer to previous (less recent)
+.next:		resw 1		; LRU pointer to next (more recent)
 		endstruc
 cptr_size_lg2	equ 3
 
@@ -36,6 +36,52 @@ initcache:
 		mov bx,di
 		add di,cptr_size
 		loop .loop
+		ret
+
+;
+; cache_remove_lru:
+;	Remove a cache block from the expiry list.  Can be used to
+;	lock down a cache block for future use.
+;
+;	SI = cache block offset (any offset inside the block is OK)
+;	Assumes CS == DS
+;
+cache_remove_lru:
+		pusha
+
+		; Get metadata pointer
+		shr si,SECTOR_SHIFT-cptr_size_lg2
+		add si,CachePtrs+cptr_size
+
+		mov bx,[si+cptr.prev]
+		mov di,[si+cptr.next]
+		mov [bx+cptr.next],di
+		mov [di+cptr.prev],bx
+
+		popa
+		ret
+
+;
+; cache_add_lru:
+;	Add back a cache block to the expiry chain that was removed.
+;
+;	SI = cache block offset (any offset inside the block is OK)
+;	Assumes CS == DS
+;
+cache_add_lru:
+		pusha
+
+		; Get metadata pointer
+		shr si,SECTOR_SHIFT-cptr_size_lg2
+		add si,CachePtrs+cptr_size
+
+		mov bx,[CachePtrs+cptr.prev]
+		mov [si+cptr.prev],bx
+		mov [bx+cptr.next],si
+		mov [CachePtrs+cptr.prev],si
+		mov word [si+cptr.next],CachePtrs
+
+		popa
 		ret
 
 ;
@@ -82,21 +128,14 @@ getcachesector:
 		; Update LRU, then compute buffer address
 		TRACER 'H'
 
-		; Remove from current position in the list
-		mov bx,[si+cptr.prev]
-		mov di,[si+cptr.next]
-		mov [bx+cptr.next],di
-		mov [di+cptr.prev],bx
-
-		; Add to just before head node
-		mov bx,[CachePtrs+cptr.prev]
-		mov [si+cptr.prev],bx
-		mov [bx+cptr.next],si
-		mov [CachePtrs+cptr.prev],si
-		mov word [si+cptr.next],CachePtrs
-
 		sub si,CachePtrs+cptr_size
 		shl si,SECTOR_SHIFT-cptr_size_lg2	; Buffer address
+
+		; Remove from current position in the list
+		call cache_remove_lru
+
+		; Add to just before head node
+		call cache_add_lru
 
 		pop di
 		pop bx
