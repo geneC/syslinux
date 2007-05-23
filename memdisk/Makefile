@@ -12,8 +12,10 @@
 
 VERSION := $(shell cat ../version)
 
-gcc_ok   = $(shell if gcc $(1) -c -x c /dev/null -o /dev/null 2>/dev/null; \
-	           then echo $(1); else echo $(2); fi)
+TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
+
+gcc_ok   = $(shell tmpf=$(TMPFILE); if gcc $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
+	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
 
 M32     := $(call gcc_ok,-m32,)
 ALIGN   := $(call gcc_ok,-falign-functions=0 -falign-jumps=0 -falign-loops=0,-malign-functions=0 -malign-jumps=0 -malign-loops=0)
