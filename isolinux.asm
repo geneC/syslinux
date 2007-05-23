@@ -1144,6 +1144,15 @@ local_boot:
 %include "abort.inc"
 
 ;
+; close_file:
+;	     Deallocates a file structure (pointer in SI)
+;	     Assumes CS == DS.
+;
+close_file:
+		mov dword [si],0		; First dword == file_left
+		ret
+
+;
 ; searchdir:
 ;
 ;	Open a file

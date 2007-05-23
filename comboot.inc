@@ -433,8 +433,11 @@ comapi_read:
 ; INT 22h AX=0008h	Close file
 ;
 comapi_close:
-		; Do nothing for now.  Eventually implement
-		; an internal API for this.
+		mov si,P_SI
+		and si,si
+		jz .nothing
+		call close_file
+.nothing:
 		clc
 		ret
 

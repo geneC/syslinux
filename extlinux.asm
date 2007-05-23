@@ -1034,11 +1034,11 @@ ThisInode	resb EXT2_GOOD_OLD_INODE_SIZE	; The most recently opened inode
 
 		section .text
 ;
-; close:
+; close_file:
 ;	     Deallocates a file structure (pointer in SI)
 ;	     Assumes CS == DS.
 ;
-close:
+close_file:
 		mov dword [si],0		; First dword == file_left
 		ret
 
@@ -1099,7 +1099,7 @@ searchdir:
 
 		; Otherwise, something bad...
 .err:
-		call close
+		call close_file
 .err_noclose:
 		xor eax,eax
 		xor si,si
@@ -1177,7 +1177,7 @@ searchdir:
 .finish:
 		pop bx			; Adjust stack (di)
 		pop si
-		call close		; Close directory
+		call close_file		; Close directory
 		pop bx			; Adjust stack (flags)
 		jmp .open
 
@@ -1204,7 +1204,7 @@ searchdir:
 
 		; It's a fast symlink
 .fast_symlink:
-		call close		; We've got all we need
+		call close_file		; We've got all we need
 		mov si,ThisInode+i_block
 
 		push di

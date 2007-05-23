@@ -1070,6 +1070,18 @@ memory_scan_for_pxenv_struct:
 		ret
 
 ;
+; close_file:
+;	     Deallocates a file structure (pointer in SI)
+;	     Assumes CS == DS.
+;
+; XXX: We should check to see if this file is still open on the server
+; side and send a courtesy ERROR packet to the server.
+;
+close_file:
+		mov word [si],0		; Not in use
+		ret
+
+;
 ; searchdir:
 ;
 ;	Open a TFTP connection to the server
