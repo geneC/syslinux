@@ -67,7 +67,8 @@ vk_end:		equ $			; Should be <= vk_size
 ; Segment assignments in the bottom 640K
 ; 0000h - main code/data segment (and BIOS segment)
 ;
-real_mode_seg	equ 3000h
+real_mode_seg	equ 4000h
+cache_seg	equ 3000h		; 64K area for metadata cache
 vk_seg          equ 2000h		; Virtual kernels
 xfer_buf_seg	equ 1000h		; Bounce buffer for I/O to high mem
 comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
@@ -837,7 +838,12 @@ all_read:
 %include "init.inc"
 %include "cpuinit.inc"
 
-		; Patch the writechr routine to point to the full code
+;
+; Initialize the metadata cache
+;
+		call initcache
+
+; Patch the writechr routine to point to the full code
 		mov word [writechr+1], writechr_full-(writechr+3)
 
 ; Tell the user we got this far...
@@ -1483,6 +1489,7 @@ getfssec:
 %include "highmem.inc"		; High memory sizing
 %include "strcpy.inc"		; strcpy()
 %include "rawcon.inc"		; Console I/O w/o using the console functions
+%include "cache.inc"
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
