@@ -434,10 +434,7 @@ comapi_read:
 ;
 comapi_close:
 		mov si,P_SI
-		and si,si
-		jz .nothing
 		call close_file
-.nothing:
 		clc
 		ret
 

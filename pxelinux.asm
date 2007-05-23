@@ -1078,8 +1078,10 @@ memory_scan_for_pxenv_struct:
 ; side and send a courtesy ERROR packet to the server.
 ;
 close_file:
+		and si,si
+		jz .closed
 		mov word [si],0		; Not in use
-		ret
+.closed:	ret
 
 ;
 ; searchdir:

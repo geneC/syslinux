@@ -162,9 +162,6 @@ close:
 		push si
 		mov bx,[CurrentGetC]
 		mov si,[bx+gc_file]
-		and si,si
-		jz .closed
-.closed:
 		call close_file
 		add bx,getc_file_size
 		mov [CurrentGetC],bx

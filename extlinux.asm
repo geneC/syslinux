@@ -1039,8 +1039,10 @@ ThisInode	resb EXT2_GOOD_OLD_INODE_SIZE	; The most recently opened inode
 ;	     Assumes CS == DS.
 ;
 close_file:
+		and si,si
+		jz .closed
 		mov dword [si],0		; First dword == file_left
-		ret
+.closed:	ret
 
 ;
 ; searchdir:
