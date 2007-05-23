@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2002 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2007 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -15,80 +15,173 @@
 ;;
 ;; Simple file handling library (open, getc, ungetc)
 ;;
+;; WARNING: This interface uses the real_mode_seg/comboot_seg.
+;;
+
+MAX_GETC_LG2	equ 4			; Max number of file nesting
+MAX_GETC	equ (1 << MAX_GETC_LG2)
+bytes_per_getc_lg2	equ 16-MAX_GETC_LG2
+bytes_per_getc		equ (1 << bytes_per_getc_lg2)
+secs_per_getc	equ bytes_per_getc/SECTOR_SIZE
+MAX_UNGET	equ 5			; Max bytes that can be pushed back
+
+		struc getc_file
+gc_file		resw 1			; File pointer
+gc_bufbytes	resw 1			; Bytes left in buffer
+gc_bytes	resd 1			; Bytes left in file
+gc_bufdata	resw 1			; Pointer to data in buffer
+gc_unget_cnt	resb 1			; Character pushed back count
+gc_unget_buf	resb MAX_UNGET		; Character pushed back buffer
+		endstruc
+getc_file_lg2	equ 4			; Size of getc_file as a power of 2
+
+%ifndef DEPEND
+%if (getc_file_size != (1 << getc_file_lg2))
+%error "getc_file_size != (1 << getc_file_lg2)"
+%endif
+%endif
 
 ;
 ; open,getc:	Load a file a character at a time for parsing in a manner
-;		similar to the C library getc routine.	Only one simultaneous
-;		use is supported.  Note: "open" trashes the trackbuf.
+;		similar to the C library getc routine.
+;		Up to MAX_GETC files can be open at the same time,
+;		they are accessed in a stack-like fashion.
+;
+;		All routines assume CS == DS.
 ;
 ;		open:	Input:	mangled filename in DS:DI
 ;			Output: ZF set on file not found or zero length
 ;
 ;		openfd:	Input:	file handle in SI
-;			Output:	none
+;			Output:	ZF set on getc stack overflow
 ;
 ;		getc:	Output: CF set on end of file
 ;				Character loaded in AL
+;
+;		close:	Output:	CF set if nothing open
 ;
 open:
 		call searchdir
 		jz openfd.ret
 openfd:
-		pushf
-		mov [FBytes],ax
-		mov [FBytes+2],dx
-		mov eax,[FBytes]
-		add eax,SECTOR_SIZE-1
-		shr eax,SECTOR_SHIFT
-		mov [FSectors],eax	; Number of sectors
-		mov [FNextClust],si	; Cluster pointer
-		mov ax,[EndOfGetCBuf]	; Pointer at end of buffer ->
-		mov [FPtr],ax		;  nothing loaded yet
-		popf			; Restore no ZF
+		push bx
+
+		mov bx,[CurrentGetC]
+		sub bx,getc_file_size
+		cmp bx,GetCStack
+		jb .stack_full		; Excessive nesting
+		mov [CurrentGetC],bx
+
+		mov [bx+gc_file],si	; File pointer
+		mov [bx+gc_bytes],ax	; Bytes available
+		mov [bx+gc_bytes+2],dx
+		xor ax,ax
+		mov [bx+gc_bufbytes],ax		; Buffer empty
+		mov [bx+gc_unget_cnt],al	; ungetc buffer empty
+		
+		inc ax			; ZF <- 0
+		pop bx
 .ret:		ret
 
+.stack_full:
+		call close_file
+		xor ax,ax		; ZF <- 1
+		pop bx
+		ret
+
 getc:
-		stc			; If we exit here -> EOF
-		mov ecx,[FBytes]
-		jecxz .ret
-		mov si,[FPtr]
-		cmp si,[EndOfGetCBuf]
-		jb .loaded
-		; Buffer empty -- load another set
-		mov ecx,[FSectors]
-		cmp ecx,trackbufsize >> SECTOR_SHIFT
-		jna .oksize
-		mov ecx,trackbufsize >> SECTOR_SHIFT
-.oksize:	sub [FSectors],ecx	; Reduce remaining clusters
-		mov si,[FNextClust]
-		push es			; ES may be != DS, save old ES
-		push ds
-		pop es
-		mov bx,getcbuf
 		push bx
-		call getfssec		; Load a trackbuf full of data
-		mov [FNextClust],si	; Store new next pointer
-		pop si			; SI -> newly loaded data
-		pop es			; Restore ES
-.loaded:	lodsb			; Load a byte, increment SI
-		mov [FPtr],si		; Update next byte pointer
-		dec dword [FBytes]	; Update bytes left counter
-		clc			; Not EOF
-.ret:		ret
+		push si
+		push di
+		push es
+
+		mov di,[CurrentGetC]
+		movzx bx,byte [di+gc_unget_cnt]
+		and bx,bx
+		jnz .have_unget
+
+		mov ax,real_mode_seg	; Borrow the real_mode_seg
+		mov es,ax
+.got_data:
+		sub word [di+gc_bufbytes],1
+		jc .get_data		; Was it zero already?
+		mov si,[di+gc_bufdata]
+		mov al,[es:si]
+		inc si
+		mov [di+gc_bufdata],si
+.done:
+		clc
+.ret:
+		pop es
+		pop di
+		pop si
+		pop bx
+		ret
+.have_unget:
+		dec bx
+		mov al,[di+bx+gc_unget_buf]
+		mov [di+gc_unget_cnt],bl
+		jmp .done
+
+.get_data:
+		pushad
+		; Compute start of buffer
+		mov bx,di
+		sub bx,GetCStack
+		shl bx,bytes_per_getc_lg2-getc_file_lg2
+
+		mov [di+gc_bufdata],bx
+		mov si,[di+gc_file]
+		mov ecx,[di+gc_bytes]
+		jecxz .empty
+		cmp ecx,bytes_per_getc
+		jna .sizeok
+		mov ecx,bytes_per_getc
+.sizeok:
+		mov [di+gc_bufbytes],cx
+		sub [di+gc_bytes],ecx
+		add cx,SECTOR_SIZE-1
+		shr cx,SECTOR_SHIFT
+		call getfssec
+		mov [di+gc_file],si
+		popad
+		jmp .got_data
+
+.empty:
+		popad
+		stc
+		jmp .ret
+
+close:
+		push bx
+		push si
+		mov bx,[CurrentGetC]
+		mov si,[bx+gc_file]
+		and si,si
+		jz .closed
+.closed:
+		call close_file
+		add bx,getc_file_size
+		mov [CurrentGetC],bx
+		pop si
+		pop bx
+		ret
 
 ;
 ; ungetc:	Push a character (in AL) back into the getc buffer
-;		Note: if more than one byte is pushed back, this may cause
-;		bytes to be written below the getc buffer boundary.  If there
-;		is a risk for this to occur, the getcbuf base address should
-;		be moved up.
+;		Note: if more than MAX_UNGET bytes are pushed back, all
+;		hell will break loose.
 ;
 ungetc:
-		mov si,[FPtr]
-		dec si
-		mov [si],al
-		mov [FPtr],si
-		inc dword [FBytes]
+		push di
+		push bx
+		mov di,[CurrentGetC]
+		movzx bx,[di+gc_unget_cnt]
+		mov [bx+di+gc_unget_buf],al
+		inc bx
+		mov [di+gc_unget_cnt],bl
+		pop bx
+		pop di
 		ret
 
 ;
@@ -140,7 +233,7 @@ getint:
 ;		Return CF on error
 ;		DS:SI points to first character after number
 ;
-;               Syntaxes accepted: [-]dec, [-]0+oct, [-]0x+hex, val+K, val+M
+;               Syntaxes accepted: [-]dec, [-]0+oct, [-]0x+hex, val+[KMG]
 ;
 parseint:
                 push eax
@@ -181,7 +274,7 @@ parseint:
                 call unhexchar
                 jc .km                ; Not a (hex) digit
                 cmp al,cl
-		jae .km		; Invalid for base
+		jae .km			; Invalid for base
 		imul ebx,ecx		; Multiply accumulated by base
                 add ebx,eax             ; Add current digit
 		lodsb
@@ -194,6 +287,8 @@ parseint:
 		je .isk
 		cmp al,'m'
 		je .ism
+		cmp al,'g'
+		je .isg
 		dec si			; Back up
 .fini:		and bp,bp
 		jz .ret		; CF=0!
@@ -205,20 +300,21 @@ parseint:
 		ret
 .err:		stc
 		jmp short .ret
-.isk:		shl ebx,10		; x 2^10
-		jmp short .done
-.ism:		shl ebx,20		; x 2^20
-		jmp short .done
-
+.isg:		shl ebx,10		; * 2^30
+.ism:		shl ebx,10		; * 2^20
+.isk:		shl ebx,10		; * 2^10
+		jmp .fini
 
 		section .bss
 		alignb 4
 NumBuf		resb 15			; Buffer to load number
 NumBufEnd	resb 1			; Last byte in NumBuf
-FBytes		resd 1			; Number of bytes left in getc file
-FSectors	resd 1			; Number of sectors in getc file
-FNextClust	resw 1			; Pointer to next cluster in d:o
-FPtr		resw 1			; Pointer to next char in buffer
+
+GetCStack	resb getc_file_size*MAX_GETC
+.end		equ $
+
+		section .data
+CurrentGetC	dw GetCStack.end	; GetCStack empty
 
 ;
 ; unhexchar:    Convert a hexadecimal digit in AL to the equivalent number;
