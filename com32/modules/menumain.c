@@ -57,6 +57,7 @@ int (*draw_background)(const char *filename);
  * 13 - pwdentry	Password box contents
  * 14 - timeout_msg	Timeout message
  * 15 - timeout		Timeout counter
+ * 16 - help		Current entry help text
  */
 
 static const struct color_table default_color_table[] = {
