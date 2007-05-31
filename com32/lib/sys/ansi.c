@@ -82,7 +82,7 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
     switch ( ch ) {
     case 1 ... 5:
       st->state = st_tbl;
-      st->tbl_chars = ch;
+      st->parms[0] = ch;
       break;
     case '\b':
       if ( xy.x > 0 ) xy.x--;
@@ -376,7 +376,7 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
     break;
 
   case st_tbl:
-    st->parms[0] = 0;
+    st->parms[1] = 0;
     if ( ch == '#' )
       st->state = st_tblc;
     else
@@ -389,22 +389,24 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
       const char *p;
 
       if (n < 10) {
-	st->parms[0] = st->parms[0]*10+n;
+	st->parms[1] = st->parms[1]*10+n;
 
-	if (! --st->tbl_chars) {
-	  if (st->parms[0] < console_color_table_size) {
+	if (! --st->parms[0]) {
+	  if (st->parms[1] < console_color_table_size) {
 	    /* Set the color table index */
-	    st->cindex = st->parms[0];
-	    
+	    st->cindex = st->parms[1];
+
 	    /* See if there are any other attributes we care about */
-	    p = console_color_table[st->parms[0]].ansi;
-	    st->state = st_esc;
-	    __ansi_putchar(ti, '[');
-	    __ansi_putchar(ti, '0');
-	    __ansi_putchar(ti, ';');
-	    while (*p)
-	      __ansi_putchar(ti, *p++);
-	    __ansi_putchar(ti, 'm');
+	    p = console_color_table[st->parms[1]].ansi;
+	    if (p) {
+	      st->state = st_esc;
+	      __ansi_putchar(ti, '[');
+	      __ansi_putchar(ti, '0');
+	      __ansi_putchar(ti, ';');
+	      while (*p)
+		__ansi_putchar(ti, *p++);
+	      __ansi_putchar(ti, 'm');
+	    }
 	  }
 	  st->state = st_init;
 	}
