@@ -53,7 +53,8 @@ ssize_t __xserial_write(struct file_info *fp, const void *buf, size_t count)
 {
   const char *bufp = buf;
   size_t n = 0;
-  static enum { st_0, st_1, st_2, st_3 } state = st_0;
+  static enum { st_init, st_tbl, st_tblc } state = st_init;
+  static int ndigits;
   static int ncolor = 0;
   int num;
   const char *p;
@@ -64,52 +65,45 @@ ssize_t __xserial_write(struct file_info *fp, const void *buf, size_t count)
     unsigned char ch = *bufp++;
 
     switch (state) {
-    case st_0:
-      if (ch == '\1') {
-	state = st_1;
+    case st_init:
+      if (ch >= 1 && ch <= 5) {
+	state = st_tbl;
+	ndigits = ch;
       } else {
 	emit(ch);
       }
       break;
 
-    case st_1:
+    case st_tbl:
       if (ch == '#') {
-	state = st_2;
+	state = st_tblc;
 	ncolor = 0;
       } else {
-	state = st_0;
+	state = st_init;
       }
       break;
 
-    case st_2:
+    case st_tblc:
       num = ch-'0';
       if (num < 10) {
-	ncolor = num*10;
-	state = st_3;
-      } else {
-	state = st_0;
-      }
-      break;
-
-    case st_3:
-      num = ch-'0';
-      if (num < 10) {
-	ncolor += num;
-
-	if (ncolor < console_color_table_size) {
-	  emit('\033');
-	  emit('[');
-	  emit('0');
-	  emit(';');
-	  for (p = console_color_table[ncolor].ansi; *p; p++)
-	    emit(*p);
-	  emit('m');
+	ncolor = (ncolor*10)+num;
+	if (--ndigits == 0) {
+	  if (ncolor < console_color_table_size) {
+	    emit('\033');
+	    emit('[');
+	    emit('0');
+	    emit(';');
+	    for (p = console_color_table[ncolor].ansi; *p; p++)
+	      emit(*p);
+	    emit('m');
+	  }
+	  state = st_init;
 	}
+      } else {
+	state = st_init;
       }
-      state = st_0;
       break;
     }
-
     n++;
   }
 
