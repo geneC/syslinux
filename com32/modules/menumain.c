@@ -476,7 +476,7 @@ edit_cmdline(char *input, int top)
     if ( redraw > 0 ) {
       /* Redraw the command line */
       printf("\033[?25l\033[%d;1H\1#9> \2#10%s",
-	     CMDLINE_ROW, pad_line(cmdline, 0, prev_len));
+	     CMDLINE_ROW, pad_line(cmdline, 0, max(len, prev_len));
       printf("\2#10\033[%d;3H%s\033[?25h",
 	     CMDLINE_ROW, pad_line(cmdline, 0, cursor));
       prev_len = len;
