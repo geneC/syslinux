@@ -35,6 +35,7 @@
 #include <string.h>
 #include <com32.h>
 #include <minmax.h>
+#include <syslinux/config.h>
 #include "file.h"
 
 ssize_t __serial_write(struct file_info *fp, const void *buf, size_t count)
@@ -44,6 +45,9 @@ ssize_t __serial_write(struct file_info *fp, const void *buf, size_t count)
   size_t n = 0;
 
   (void)fp;
+
+  if (!syslinux_serial_console_info()->iobase)
+    return count;		/* Nothing to do */
 
   memset(&ireg, 0, sizeof ireg);
   ireg.eax.b[1] = 0x04;

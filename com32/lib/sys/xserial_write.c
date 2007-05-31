@@ -37,6 +37,7 @@
 #include <com32.h>
 #include <minmax.h>
 #include <colortbl.h>
+#include <syslinux/config.h>
 #include "file.h"
 
 static void emit(char ch)
@@ -60,6 +61,9 @@ ssize_t __xserial_write(struct file_info *fp, const void *buf, size_t count)
   const char *p;
 
   (void)fp;
+
+  if (!syslinux_serial_console_info()->iobase)
+    return count;		/* Nothing to do */
 
   while ( count-- ) {
     unsigned char ch = *bufp++;
