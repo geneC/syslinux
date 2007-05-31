@@ -72,13 +72,13 @@ got_ascii:	cmp al,7Fh			; <DEL> == <BS>
 		cmp di,command_line		; Space must not be first
 		je short get_char
 enter_char:	test byte [FuncFlag],1
-		je ctrl_f			; Keystroke after <Ctrl-F>
+		jnz ctrl_f			; Keystroke after <Ctrl-F>
 		cmp di,max_cmd_len+command_line ; Check there's space
 		jnb short get_char
 		stosb				; Save it
 		call writechr			; Echo to screen
 		jmp short get_char
-not_ascii:	mov byte [FuncFlag],0
+not_ascii:
 		cmp al,0Dh			; Enter
 		je command_done
 		cmp al,'F' & 1Fh		; <Ctrl-F>
