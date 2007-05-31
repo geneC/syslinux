@@ -97,4 +97,17 @@ struct vesa_info {
 
 extern struct vesa_info __vesa_info;
 
+#if 0
+static inline void vesa_debug(uint32_t color, int pos)
+{
+  uint32_t *stp = (uint32_t *)__vesa_info.mi.lfb_ptr;
+  stp[pos*3] = color;
+}
+#else
+static inline void vesa_debug(uint32_t color, int pos)
+{
+  (void)color; (void)pos;
+}
+#endif
+
 #endif /* LIB_SYS_VESA_H */
