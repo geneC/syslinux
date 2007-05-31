@@ -30,6 +30,8 @@ Changes in 3.50:
 	  for networks like Infiniband and Firewire/1394.
 	* Add a new INCLUDE command to the core syslinux parser.
 	* Allow binding help text to F11 and F12.
+	* Disabled the polling for ARP during idle.  It is simply too
+	  slow on some (broken!) PXE stacks.
 
 Changes in 3.36:
 	* MEMDISK: Disable EDD by default on floppy disks.  EDD can be
