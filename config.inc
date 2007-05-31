@@ -23,6 +23,7 @@ max_cmd_len	equ 511			; Must be &3; 255 is the kernel limit
 HIGHMEM_MAX	equ 037FFFFFFh		; DEFAULT highest address for an initrd
 DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
 BAUD_DIVISOR	equ 115200		; Serial port parameter
+MAX_FKEYS	equ 12			; Number of F-key help files
 
 %assign	DO_WBINVD 0			; Should we use WBINVD or not?
 

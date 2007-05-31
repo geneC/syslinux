@@ -72,14 +72,8 @@ got_ascii:	cmp al,7Fh			; <DEL> == <BS>
 		cmp di,command_line		; Space must not be first
 		je short get_char
 enter_char:	test byte [FuncFlag],1
-		jz .not_ctrl_f
-		mov byte [FuncFlag],0
-		cmp al,'0'
-		jb .not_ctrl_f
-		je ctrl_f_0
-		cmp al,'9'
-		jbe ctrl_f
-.not_ctrl_f:	cmp di,max_cmd_len+command_line ; Check there's space
+		je ctrl_f			; Keystroke after <Ctrl-F>
+		cmp di,max_cmd_len+command_line ; Check there's space
 		jnb short get_char
 		stosb				; Save it
 		call writechr			; Echo to screen
@@ -121,19 +115,44 @@ set_func_flag:
 		mov byte [FuncFlag],1
 		jmp short get_char_2
 
-ctrl_f_0:	add al,10			; <Ctrl-F>0 == F10
-ctrl_f:		sub al,'1'
+ctrl_f:
 		xor ah,ah
-		jmp short show_help
+		mov [FuncFlag],ah
+		cmp al,'0'
+		jb get_char_2
+		je .zero			; <Ctrl-F>0 = F10
+		or al,20h			; Lower case
+		cmp al,'9'
+		jna .digit
+		cmp al,'a'			; F10-F12 = <Ctrl-F>A, B, C
+		jb get_char_2
+		cmp al,'c'
+		ja get_char_2
+		sub al,'a'-10
+		jmp show_help
+.zero:
+		mov al,10
+		jmp show_help
+.digit:
+		sub al,'1'
+		jmp show_help
 
 func_key:
 		; AL = 0 if we get here
 		xchg al,ah
 		cmp al,68			; F10
-		ja short get_char_2
+		ja .f11_f12
 		sub al,59			; F1
-		jb short get_char_2
-show_help:	; AX = func key # (0 = F1, 9 = F10)
+		jb get_char_2
+		jmp show_help
+.f11_f12:
+		cmp al,87			; F11
+		jb get_char_2
+		cmp al,88			; F12
+		ja get_char_2
+		sub al,87-10
+
+show_help:	; AX = func key # (0 = F1, 9 = F10, 11 = F12)
 		push di				; Save end-of-cmdline pointer
 		shl ax,FILENAME_MAX_LG2		; Convert to pointer
 		add ax,FKeyName
@@ -174,7 +193,7 @@ fk_wrcmd:
 		mov si,command_line
 		call cwritestr			; Write command line so far
 fk_nofile:	pop di
-		jmp short get_char_2
+		jmp get_char
 
 ;
 ; Show network info (in the form of the ipappend strings)

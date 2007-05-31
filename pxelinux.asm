@@ -308,18 +308,7 @@ _start1:
 ;
 ; Initialize screen (if we're using one)
 ;
-		; Now set up screen parameters
-		call adjust_screen
-
-		; Wipe the F-key area
-		mov al,NULLFILE
-		mov di,FKeyName
-		mov cx,10*(1 << FILENAME_MAX_LG2)
-		push es			; Save ES -> PXE structure
-		push ds			; ES <- DS
-		pop es
-		rep stosb
-		pop es			; Restore ES
+%include "init.inc"
 
 ;
 ; Tell the user we got this far
@@ -699,7 +688,6 @@ udp_init:
 ;
 ; Common initialization code
 ;
-%include "init.inc"
 %include "cpuinit.inc"
 
 ;

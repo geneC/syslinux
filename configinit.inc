@@ -33,7 +33,7 @@ reset_config:
 %if NULLFILE != 0
 		mov al,NULLFILE
 		mov di,FKeyName
-		mov cx,10*(1 << FILENAME_MAX_LG2)
+		mov cx,MAX_FKEYS*(1 << FILENAME_MAX_LG2)
 		rep stosb
 %endif
 %endif

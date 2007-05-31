@@ -85,6 +85,8 @@ keywd_table:
 		keyword f9,		pc_fkey,	FKeyN(9)
 		keyword f10,		pc_fkey,	FKeyN(10)
 		keyword f0,		pc_fkey,	FKeyN(10)
+		keyword f11,		pc_fkey,	FKeyN(11)
+		keyword f12,		pc_fkey,	FKeyN(12)
 %if IS_PXELINUX
 		keyword ipappend,	pc_ipappend
 %endif

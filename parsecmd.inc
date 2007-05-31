@@ -100,7 +100,7 @@ AppendBuf       resb max_cmd_len+1	; append=
 Ontimeout	resb max_cmd_len+1	; ontimeout
 Onerror		resb max_cmd_len+1	; onerror
 KbdMap		resb 256		; Keyboard map
-FKeyName	resb 10*FILENAME_MAX	; File names for F-key help
+FKeyName	resb MAX_FKEYS*FILENAME_MAX	; File names for F-key help
 KernelCNameLen	resw 1			; Length of unmangled kernel name
 InitRDCNameLen	resw 1			; Length of unmangled initrd name
 %if IS_SYSLINUX

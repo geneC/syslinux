@@ -384,18 +384,19 @@ F1 filename
 F2 filename
    ...etc...
 F9 filename
-F0 filename
+F10 filename
+F11 filename
+F11 filename
         Displays the indicated file on the screen when a function key is
         pressed at the boot: prompt.  This can be used to implement
         pre-boot online help (presumably for the kernel command line
-        options.)  Note that F10 MUST be entered in the config file as
-        "F0", not "F10", and that there is currently no way to bind
-        file names to F11 and F12.  Please see the section below on
-        DISPLAY files.
+        options.)  Please see the section below on DISPLAY files.
 
 	When using the serial console, press <Ctrl-F><digit> to get to
-	the help screens, e.g. <Ctrl-F><2> to get to the F2 screen,
-	and <Ctrl-F><0> for the F10 one.
+	the help screens, e.g. <Ctrl-F><2> to get to the F2 screen.
+	For F10-F12, hit <Ctrl-F><A>, <Ctrl-F>B, <Ctrl-F>C.  For
+	compatiblity with earlier versions, F10 can also be entered as
+	<Ctrl-F>0.
 
 Blank lines are ignored.
 
