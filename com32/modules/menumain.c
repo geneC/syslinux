@@ -787,7 +787,7 @@ run_menu(void)
       }
       *tq = '\0';
 
-      printf("\033[%d;%dH\2#14 %s ", TIMEOUT_ROW, 1+((WIDTH-nc)>>1), buf);
+      printf("\033[%d;%dH\2#14 %s ", TIMEOUT_ROW, HSHIFT+1+((WIDTH-nc)>>1), buf);
       to_clear = 1;
     } else {
       to_clear = 0;
