@@ -94,6 +94,8 @@ struct menu_parameter mparm[] = {
   { "timeoutrow", 20 },
   { "helpmsgrow", 22 },
   { "helpmsgendrow", -1 },
+  { "hshift", 0 },
+  { "vshift", 0 },
   { NULL, 0 }
 };
 
@@ -101,13 +103,15 @@ struct menu_parameter mparm[] = {
 #define MARGIN		mparm[1].value
 #define PASSWD_MARGIN	mparm[2].value
 #define MENU_ROWS	mparm[3].value
-#define TABMSG_ROW	mparm[4].value
-#define CMDLINE_ROW	mparm[5].value
+#define TABMSG_ROW	(mparm[4].value+VSHIFT)
+#define CMDLINE_ROW	(mparm[5].value+VSHIFT)
 #define END_ROW		mparm[6].value
-#define PASSWD_ROW	mparm[7].value
-#define TIMEOUT_ROW	mparm[8].value
-#define HELPMSG_ROW	mparm[9].value
+#define PASSWD_ROW	(mparm[7].value+VSHIFT)
+#define TIMEOUT_ROW	(mparm[8].value+VSHIFT)
+#define HELPMSG_ROW	(mparm[9].value+VSHIFT)
 #define HELPMSGEND_ROW	mparm[10].value
+#define HSHIFT		mparm[11].value
+#define VSHIFT		mparm[12].value
 
 static void
 install_default_color_table(void)
@@ -189,10 +193,10 @@ display_entry(const struct menu_entry *entry, const char *attrib,
 static void
 draw_row(int y, int sel, int top, int sbtop, int sbbot)
 {
-  int i = (y-4)+top;
+  int i = (y-4-VSHIFT)+top;
 
   printf("\033[%d;%dH\1#01\016x\017%s ",
-	 y, MARGIN+1, (i == sel) ? "\1#05" : "\1#03");
+	 y, MARGIN+1+HSHIFT, (i == sel) ? "\1#05" : "\1#03");
 
   if ( i >= nentries ) {
     fputs(pad_line("", 0, WIDTH-2*MARGIN-4), stdout);
@@ -376,24 +380,25 @@ draw_menu(int sel, int top, int edit_line)
     sbtop += 4;  sbbot += 4;	/* Starting row of scrollbar */
   }
 
-  printf("\033[1;%dH\1#01\016l", MARGIN+1);
-  for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
+  printf("\033[%d;%dH\1#01\016l", VSHIFT+1, HSHIFT+MARGIN+1);
+  for ( x = 2+HSHIFT ; x <= (WIDTH-2*MARGIN-1)+HSHIFT ; x++ )
     putchar('q');
 
-  printf("k\033[2;%dH\1#01x\017\1#02 %s \1#01\016x",
-	 MARGIN+1,
+  printf("k\033[%d;%dH\1#01x\017\1#02 %s \1#01\016x",
+	 VSHIFT+2,
+	 HSHIFT+MARGIN+1,
 	 pad_line(messages[MSG_TITLE].msg, 1, WIDTH-2*MARGIN-4));
 
-  printf("\033[3;%dH\1#01t", MARGIN+1);
-  for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
+  printf("\033[%d;%dH\1#01t", VSHIFT+3, HSHIFT+MARGIN+1);
+  for ( x = 2+HSHIFT ; x <= (WIDTH-2*MARGIN-1)+HSHIFT ; x++ )
     putchar('q');
   fputs("u\017", stdout);
 
-  for ( y = 4 ; y < 4+MENU_ROWS ; y++ )
+  for ( y = 4+VSHIFT ; y < 4+VSHIFT+MENU_ROWS ; y++ )
     draw_row(y, sel, top, sbtop, sbbot);
 
-  printf("\033[%d;%dH\1#01\016m", y, MARGIN+1);
-  for ( x = 2 ; x <= WIDTH-2*MARGIN-1 ; x++ )
+  printf("\033[%d;%dH\1#01\016m", y, HSHIFT+MARGIN+1);
+  for ( x = 2+HSHIFT ; x <= (WIDTH-2*MARGIN-1)+HSHIFT ; x++ )
     putchar('q');
   fputs("j\017", stdout);
 
@@ -662,8 +667,8 @@ run_menu(void)
       draw_menu(entry, top, 1);
       display_help(menu_entries[entry].helptext);
     } else if ( entry != prev_entry ) {
-      draw_row(prev_entry-top+4, entry, top, 0, 0);
-      draw_row(entry-top+4, entry, top, 0, 0);
+      draw_row(prev_entry-top+4+VSHIFT, entry, top, 0, 0);
+      draw_row(entry-top+4+VSHIFT, entry, top, 0, 0);
       display_help(menu_entries[entry].helptext);
     }
 
@@ -802,7 +807,7 @@ run_menu(void)
 	int ok = 1;
 
 	key_timeout = 0;	/* Cancels timeout */
-	draw_row(entry-top+4, -1, top, 0, 0);
+	draw_row(entry-top+4+VSHIFT, -1, top, 0, 0);
 
 	if ( menu_master_passwd ) {
 	  ok = ask_passwd(NULL);
@@ -819,7 +824,7 @@ run_menu(void)
 	  done = !!cmdline;
 	  clear = 1;		/* In case we hit [Esc] and done is null */
 	} else {
-	  draw_row(entry-top+4, entry, top, 0, 0);
+	  draw_row(entry-top+4+VSHIFT, entry, top, 0, 0);
 	}
       }
       break;
@@ -830,7 +835,7 @@ run_menu(void)
 	clear = 1;
 	key_timeout = 0;
 
-	draw_row(entry-top+4, -1, top, 0, 0);
+	draw_row(entry-top+4+VSHIFT, -1, top, 0, 0);
 
 	if ( menu_master_passwd )
 	  done = ask_passwd(NULL);

@@ -267,6 +267,8 @@ MENU PASSWORDROW 11
 MENU TIMEOUTROW 20
 MENU HELPMSGROW 22
 MENU HELPMSGENDROW -1
+MENU HSHIFT 0
+MENU VSHIFT 0
 
 	These options control the layout of the menu on the screen.
 	The values above are the defaults.
