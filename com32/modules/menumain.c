@@ -39,7 +39,7 @@
 int (*draw_background)(const char *filename);
 
 /*
- * The color/attribute indexes (\1#XX) are as follows
+ * The color/attribute indexes (\1#X, \2#XX, \3#XXX) are as follows
  *
  * 00 - screen		Rest of the screen
  * 01 - border		Border area
@@ -195,25 +195,25 @@ draw_row(int y, int sel, int top, int sbtop, int sbbot)
 {
   int i = (y-4-VSHIFT)+top;
 
-  printf("\033[%d;%dH\1#01\016x\017%s ",
-	 y, MARGIN+1+HSHIFT, (i == sel) ? "\1#05" : "\1#03");
+  printf("\033[%d;%dH\2#01\016x\017%s ",
+	 y, MARGIN+1+HSHIFT, (i == sel) ? "\2#05" : "\2#03");
 
   if ( i >= nentries ) {
     fputs(pad_line("", 0, WIDTH-2*MARGIN-4), stdout);
   } else {
     display_entry(&menu_entries[i],
-		  (i == sel) ? "\1#05" : "\1#03",
-		  (i == sel) ? "\1#06" : "\1#04",
+		  (i == sel) ? "\2#05" : "\2#03",
+		  (i == sel) ? "\2#06" : "\2#04",
 		  WIDTH-2*MARGIN-4);
   }
 
   if ( nentries <= MENU_ROWS ) {
-    printf(" \1#01\016x\017");
+    printf(" \2#01\016x\017");
   } else if ( sbtop > 0 ) {
     if ( y >= sbtop && y <= sbbot )
-      printf(" \1#07\016a\017");
+      printf(" \2#07\016a\017");
     else
-      printf(" \1#01\016x\017");
+      printf(" \2#01\016x\017");
   } else {
     putchar(' ');		/* Don't modify the scrollbar */
   }
@@ -294,7 +294,7 @@ ask_passwd(const char *menu_entry)
   int key;
   int x;
 
-  printf("\033[%d;%dH\1#11\016l", PASSWD_ROW, PASSWD_MARGIN+1);
+  printf("\033[%d;%dH\2#11\016l", PASSWD_ROW, PASSWD_MARGIN+1);
   for ( x = 2 ; x <= WIDTH-2*PASSWD_MARGIN-1 ; x++ )
     putchar('q');
 
@@ -306,7 +306,7 @@ ask_passwd(const char *menu_entry)
   for ( x = 2 ; x <= WIDTH-2*PASSWD_MARGIN-1 ; x++ )
     putchar('q');
 
-  printf("j\017\033[%d;%dH\1#12 %s \033[%d;%dH\1#13",
+  printf("j\017\033[%d;%dH\2#12 %s \033[%d;%dH\2#13",
 	 PASSWD_ROW, (WIDTH-(strlen(messages[MSG_PASSPROMPT].msg)+2))/2,
 	 messages[MSG_PASSPROMPT].msg, PASSWD_ROW+1, PASSWD_MARGIN+3);
 
@@ -380,16 +380,16 @@ draw_menu(int sel, int top, int edit_line)
     sbtop += 4;  sbbot += 4;	/* Starting row of scrollbar */
   }
 
-  printf("\033[%d;%dH\1#01\016l", VSHIFT+1, HSHIFT+MARGIN+1);
+  printf("\033[%d;%dH\2#01\016l", VSHIFT+1, HSHIFT+MARGIN+1);
   for ( x = 2+HSHIFT ; x <= (WIDTH-2*MARGIN-1)+HSHIFT ; x++ )
     putchar('q');
 
-  printf("k\033[%d;%dH\1#01x\017\1#02 %s \1#01\016x",
+  printf("k\033[%d;%dH\2#01x\017\2#02 %s \2#01\016x",
 	 VSHIFT+2,
 	 HSHIFT+MARGIN+1,
 	 pad_line(messages[MSG_TITLE].msg, 1, WIDTH-2*MARGIN-4));
 
-  printf("\033[%d;%dH\1#01t", VSHIFT+3, HSHIFT+MARGIN+1);
+  printf("\033[%d;%dH\2#01t", VSHIFT+3, HSHIFT+MARGIN+1);
   for ( x = 2+HSHIFT ; x <= (WIDTH-2*MARGIN-1)+HSHIFT ; x++ )
     putchar('q');
   fputs("u\017", stdout);
@@ -397,7 +397,7 @@ draw_menu(int sel, int top, int edit_line)
   for ( y = 4+VSHIFT ; y < 4+VSHIFT+MENU_ROWS ; y++ )
     draw_row(y, sel, top, sbtop, sbbot);
 
-  printf("\033[%d;%dH\1#01\016m", y, HSHIFT+MARGIN+1);
+  printf("\033[%d;%dH\2#01\016m", y, HSHIFT+MARGIN+1);
   for ( x = 2+HSHIFT ; x <= (WIDTH-2*MARGIN-1)+HSHIFT ; x++ )
     putchar('q');
   fputs("j\017", stdout);
@@ -407,14 +407,14 @@ draw_menu(int sel, int top, int edit_line)
   else
     tabmsg = messages[MSG_NOTAB].msg;
 
-  printf("\1#08\033[%d;1H%s", TABMSG_ROW, pad_line(tabmsg, 1, WIDTH));
-  printf("\1#00\033[%d;1H", END_ROW);
+  printf("\2#08\033[%d;1H%s", TABMSG_ROW, pad_line(tabmsg, 1, WIDTH));
+  printf("\2#00\033[%d;1H", END_ROW);
 }
 
 static void
 clear_screen(void)
 {
-  fputs("\033e\033%@\033)0\033(B\1#00\033[?25l\033[2J", stdout);
+  fputs("\033e\033%@\033)0\033(B\2#00\033[?25l\033[2J", stdout);
 }
 
 static void
@@ -425,9 +425,9 @@ display_help(const char *text)
 
   if (!text) {
     text = "";
-    printf("\1#00\033[%d;1H", HELPMSG_ROW);
+    printf("\2#00\033[%d;1H", HELPMSG_ROW);
   } else {
-    printf("\1#16\033[%d;1H", HELPMSG_ROW);
+    printf("\2#16\033[%d;1H", HELPMSG_ROW);
   }
 
   for (p = text, row = HELPMSG_ROW; *p && row <= HELPMSGEND_ROW; p++) {
@@ -477,9 +477,9 @@ edit_cmdline(char *input, int top)
 
     if ( redraw > 0 ) {
       /* Redraw the command line */
-      printf("\033[?25l\033[%d;1H\1#09> \1#10%s",
+      printf("\033[?25l\033[%d;1H\2#09> \2#10%s",
 	     CMDLINE_ROW, pad_line(cmdline, 0, prev_len));
-      printf("\1#10\033[%d;3H%s\033[?25h",
+      printf("\2#10\033[%d;3H%s\033[?25h",
 	     CMDLINE_ROW, pad_line(cmdline, 0, cursor));
       prev_len = len;
       redraw = 0;
@@ -688,7 +688,7 @@ run_menu(void)
 
       while ((size_t)(tq-buf) < (sizeof buf-16) && (tc = *tp)) {
 	if (tc == '#') {
-	  nnc = sprintf(tq, "\1#15%d\1#14", tol);
+	  nnc = sprintf(tq, "\2#15%d\2#14", tol);
 	  tq += nnc;
 	  nc += nnc-8;		/* 8 formatting characters */
 	} else {
@@ -699,7 +699,7 @@ run_menu(void)
       }
       *tq = '\0';
 
-      printf("\033[%d;%dH\1#14 %s ", TIMEOUT_ROW, 1+((WIDTH-nc)>>1), buf);
+      printf("\033[%d;%dH\2#14 %s ", TIMEOUT_ROW, 1+((WIDTH-nc)>>1), buf);
       to_clear = 1;
     } else {
       to_clear = 0;
@@ -711,7 +711,7 @@ run_menu(void)
     if ( key != KEY_NONE ) {
       timeout_left = key_timeout;
       if ( to_clear )
-	printf("\033[%d;1H\1#00\033[K", TIMEOUT_ROW);
+	printf("\033[%d;1H\2#00\033[K", TIMEOUT_ROW);
     }
 
     switch ( key ) {
@@ -815,7 +815,7 @@ run_menu(void)
 	  draw_menu(-1, top, 0);
 	} else {
 	  /* Erase [Tab] message and help text*/
-	  printf("\033[%d;1H\1#00\033[K", TABMSG_ROW);
+	  printf("\033[%d;1H\2#00\033[K", TABMSG_ROW);
 	  display_help(NULL);
 	}
 

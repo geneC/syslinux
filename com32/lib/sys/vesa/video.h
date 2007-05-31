@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2006 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2006-2007 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -41,9 +41,12 @@
 #define TEXT_PIXEL_ROWS (VIDEO_Y_SIZE-2*VIDEO_BORDER)
 #define TEXT_PIXEL_COLS (VIDEO_X_SIZE-2*VIDEO_BORDER)
 
+typedef uint16_t attr_t;
+
 struct vesa_char {
   uint8_t ch;			/* Character */
-  uint8_t attr;			/* Color table index */
+  uint8_t _filler;		/* Currently unused */
+  attr_t  attr;			/* Color table index */
 };
 
 /* Pixel formats in order of decreasing preference; PXF_NONE should be last */
@@ -71,9 +74,9 @@ int __vesacon_init_background(void);
 int vesacon_load_background(const char *);
 int __vesacon_init(void);
 void __vesacon_init_cursor(int);
-void __vesacon_erase(int, int, int, int, uint8_t);
-void __vesacon_scroll_up(int, uint8_t);
-void __vesacon_write_char(int, int, uint8_t, uint8_t);
+void __vesacon_erase(int, int, int, int, attr_t);
+void __vesacon_scroll_up(int, attr_t);
+void __vesacon_write_char(int, int, uint8_t, attr_t);
 void __vesacon_redraw_text(void);
 void __vesacon_doit(void);
 void __vesacon_set_cursor(int, int, int);

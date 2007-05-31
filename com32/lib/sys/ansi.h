@@ -13,9 +13,8 @@ enum ansi_state {
   st_init,
   st_esc,
   st_csi,
-  st_soh,
-  st_sohc,
-  st_sohc1,
+  st_tbl,
+  st_tblc,
 };
 
 struct curxy {
@@ -37,6 +36,7 @@ struct term_state {
   struct curxy saved_xy;
   int cursor;
   enum ansi_state state;
+  int tbl_chars;		/* Digits to get in st_tblc */
   int pvt;			/* Private code? */
   int nparms;			/* Number of parameters seen */
   int parms[ANSI_MAX_PARMS];

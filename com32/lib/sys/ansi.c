@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2004-2006 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2007 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -80,8 +80,9 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
   switch ( st->state ) {
   case st_init:
     switch ( ch ) {
-    case 1:
-      st->state = st_soh;
+    case 1 ... 5:
+      st->state = st_tbl;
+      st->tbl_chars = ch;
       break;
     case '\b':
       if ( xy.x > 0 ) xy.x--;
@@ -374,49 +375,42 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
     }
     break;
 
-  case st_soh:
+  case st_tbl:
+    st->parms[0] = 0;
     if ( ch == '#' )
-      st->state = st_sohc;
+      st->state = st_tblc;
     else
       st->state = st_init;
     break;
 
-  case st_sohc:
+  case st_tblc:
     {
-      int n = (unsigned char)ch - '0';
-      if (n < 10) {
-	st->parms[0] = n*10;
-	st->state = st_sohc1;
-      } else {
-	st->state = st_init;
-      }
-    }
-    break;
-
-  case st_sohc1:
-    {
-      int n = (unsigned char)ch - '0';
+      unsigned int n = (unsigned char)ch - '0';
       const char *p;
 
       if (n < 10) {
-	st->parms[0] += n;
-	if (st->parms[0] < console_color_table_size) {
-	  /* Set the color table index */
-	  st->cindex = st->parms[0];
+	st->parms[0] = st->parms[0]*10+n;
 
-	  /* See if there are any other attributes we care about */
-	  p = console_color_table[st->parms[0]].ansi;
-	  st->state = st_esc;
-	  __ansi_putchar(ti, '[');
-	  __ansi_putchar(ti, '0');
-	  __ansi_putchar(ti, ';');
-	  while (*p)
-	    __ansi_putchar(ti, *p++);
-	  __ansi_putchar(ti, 'm');
+	if (! --st->tbl_chars) {
+	  if (st->parms[0] < console_color_table_size) {
+	    /* Set the color table index */
+	    st->cindex = st->parms[0];
+	    
+	    /* See if there are any other attributes we care about */
+	    p = console_color_table[st->parms[0]].ansi;
+	    st->state = st_esc;
+	    __ansi_putchar(ti, '[');
+	    __ansi_putchar(ti, '0');
+	    __ansi_putchar(ti, ';');
+	    while (*p)
+	      __ansi_putchar(ti, *p++);
+	    __ansi_putchar(ti, 'm');
+	  }
+	  st->state = st_init;
 	}
+      } else {
+	st->state = st_init;
       }
-
-      st->state = st_init;
     }
     break;
   }

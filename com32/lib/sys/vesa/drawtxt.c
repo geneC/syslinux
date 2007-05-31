@@ -240,7 +240,7 @@ static inline void vesacon_touch(int row, int col, int rows, int cols)
 }
 
 /* Erase a region of the screen */
-void __vesacon_erase(int x0, int y0, int x1, int y1, uint8_t attr)
+void __vesacon_erase(int x0, int y0, int x1, int y1, attr_t attr)
 {
   int y;
   struct vesa_char *ptr = &__vesacon_text_display
@@ -260,7 +260,7 @@ void __vesacon_erase(int x0, int y0, int x1, int y1, uint8_t attr)
 }
 
 /* Scroll the screen up */
-void __vesacon_scroll_up(int nrows, uint8_t attr)
+void __vesacon_scroll_up(int nrows, attr_t attr)
 {
   struct vesa_char *fromptr = &__vesacon_text_display
     [(nrows+1)*(TEXT_PIXEL_COLS/FONT_WIDTH+2)];
@@ -282,7 +282,7 @@ void __vesacon_scroll_up(int nrows, uint8_t attr)
 }
 
 /* Draw one character text at a specific area of the screen */
-void __vesacon_write_char(int x, int y, uint8_t ch, uint8_t attr)
+void __vesacon_write_char(int x, int y, uint8_t ch, attr_t attr)
 {
   struct vesa_char *ptr = &__vesacon_text_display
     [(y+1)*(TEXT_PIXEL_COLS/FONT_WIDTH+2)+(x+1)];
