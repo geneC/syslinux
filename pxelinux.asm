@@ -53,15 +53,26 @@ SECTOR_SIZE	equ TFTP_BLOCKSIZE
 
 ;
 ; This is what we need to do when idle
-;
-%define HAVE_IDLE 1			; idle is not a noop
+; *** This is disabled because some PXE stacks wait for unacceptably
+; *** long if there are no packets receivable.
 
+%define HAVE_IDLE 0			; idle is not a noop
+
+%if HAVE_IDLE
 %macro	RESET_IDLE 0
 	call reset_idle
 %endmacro
 %macro	DO_IDLE 0
 	call check_for_arp
 %endmacro
+%else
+%macro	RESET_IDLE 0
+	; Nothing
+%endmacro
+%macro	DO_IDLE 0
+	; Nothing
+%endmacro
+%endif
 
 ;
 ; TFTP operation codes
@@ -2282,6 +2293,8 @@ genipopt:
 ; passed since the last poll, and reset this when a character is
 ; received (RESET_IDLE).
 ;
+%if HAVE_IDLE
+
 reset_idle:
 		push ax
 		mov ax,[cs:BIOS_timer]
@@ -2320,6 +2333,8 @@ check_for_arp:
 		popad
 		RESET_IDLE
 		ret
+
+%endif ; HAVE_IDLE
 
 ; -----------------------------------------------------------------------------
 ;  Common modules
