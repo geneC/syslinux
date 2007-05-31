@@ -80,7 +80,7 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
   uint32_t *bgrowptr, *bgptr, bgval, fgval;
   uint32_t fgcolor = 0, bgcolor = 0, color;
   uint8_t chbits = 0, chxbits = 0, chsbits = 0;
-  int i, j, pixrow, pixsrow;
+  int i, j, jx, pixrow, pixsrow;
   struct vesa_char *rowptr, *rowsptr, *cptr, *csptr;
   unsigned int bytes_per_pixel = __vesacon_bytes_per_pixel;
   unsigned long pixel_offset, bytes_per_row;
@@ -138,12 +138,12 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
      operation at the end.  Note that this code depends on the fact that
      all characters begin on dword boundaries in the frame buffer. */
 
-    for (j = width*ncols+1; j >= 0; j--) {
+    for (jx = 1, j = width*ncols+1; j >= 0; j--) {
       chbits <<= 1;
       chsbits <<= 1;
       chxbits <<= 1;
 
-      switch (j % width) {
+      switch (jx) {
       case 1:
 	chbits = __vesacon_graphics_font[cptr->ch][pixrow];
 	if (__unlikely(cptr == cursor_pointer))
@@ -155,6 +155,7 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 	fgcolor = console_color_table[cptr->attr].argb_fg;
 	bgcolor = console_color_table[cptr->attr].argb_bg;
 	cptr++;
+	jx--;
 	break;
       case 0:
 	chsbits = __vesacon_graphics_font[csptr->ch][pixsrow];
@@ -164,8 +165,10 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 	chsbits &= (sha & 0x02) ? 0xff : 0x00;
 	chsbits ^= (sha & 0x01) ? 0xff : 0x00;
 	csptr++;
+	jx = width-1;
 	break;
       default:
+	jx--;
 	break;
       }
 
