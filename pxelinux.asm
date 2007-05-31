@@ -308,8 +308,11 @@ _start1:
 ;
 ; Initialize screen (if we're using one)
 ;
+		push es			; Save ES -> PXE entry structure
+		push ds
+		pop es			; ES <- DS
 %include "init.inc"
-
+		pop es			; Restore ES -> PXE entry structure
 ;
 ; Tell the user we got this far
 ;
