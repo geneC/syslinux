@@ -381,8 +381,8 @@ static uint32_t parse_argb(char **p)
       hexval2(sp+dl*2);
     break;
   case 8:			/* #aarrggbb */
-    /* 12 is indistinguishable from #rrrrggggbbbb,
-       assume that is a more common format */
+    /* #aaarrrgggbbb is indistinguishable from #rrrrggggbbbb,
+       assume the latter is a more common format */
   case 16:			/* #aaaarrrrggggbbbb */
     dl = len/4;
     argb =
