@@ -30,9 +30,7 @@
 #include <sha1.h>
 #include <base64.h>
 #include <colortbl.h>
-#ifdef __COM32__
 #include <com32.h>
-#endif
 
 #include "menu.h"
 
@@ -864,7 +862,6 @@ run_menu(void)
 static void
 execute(const char *cmdline, enum kernel_type type)
 {
-#ifdef __COM32__
   com32sys_t ireg;
   const char *p, **pp;
   char *q = __com32.cs_bounce;
@@ -914,11 +911,6 @@ execute(const char *cmdline, enum kernel_type type)
   __intcall(0x22, &ireg, NULL);
 
   /* If this returns, something went bad; return to menu */
-#else
-  /* For testing... */
-  printf("\n\033[0m>>> %s\n", cmdline);
-  exit(0);
-#endif
 }
 
 int menu_main(int argc, char *argv[])
