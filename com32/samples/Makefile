@@ -40,7 +40,7 @@ LNXLIBS	   = ../libutil/libutil_lnx.a
 
 .SUFFIXES: .lss .c .o .elf .c32 .lnx
 
-all:	hello.c32 cat.c32 resolv.c32 vesainfo.c32 \
+all:	hello.c32 cat.c32 resolv.c32 vesainfo.c32 serialinfo.c32 \
 	fancyhello.c32 fancyhello.lnx \
 	keytest.c32 keytest.lnx \
 
