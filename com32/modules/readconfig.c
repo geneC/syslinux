@@ -38,6 +38,8 @@ char *onerror     = NULL;
 char *menu_master_passwd = NULL;
 char *menu_background = NULL;
 
+struct fkey_help fkeyhelp[12];
+
 struct menu_entry menu_entries[MAX_ENTRIES];
 struct menu_entry hide_entries[MAX_ENTRIES];
 struct menu_entry *menu_hotkeys[256];
@@ -439,11 +441,31 @@ static char *is_message_name(char *cmdstr, struct messages **msgptr)
   return NULL;
 }
 
+static char *is_fkey(char *cmdstr, int *fkeyno)
+{
+  char *q;
+  int no;
+
+  if (cmdstr[0] != 'f')
+    return NULL;
+
+  no = strtoul(cmdstr+1, &q, 10);
+  if (!my_isspace(*q))
+    return NULL;
+
+  if (no < 0 || no > 12)
+    return NULL;
+
+  *fkeyno = (no == 0) ? 10 : no-1;
+  return q;
+}
+
 static void parse_config_file(FILE *f)
 {
   char line[MAX_LINE], *p, *ep, ch;
   enum kernel_type type;
   struct messages *msgptr;
+  int fkeyno;
 
   while ( fgets(line, sizeof line, f) ) {
     p = strchr(line, '\r');
@@ -576,9 +598,25 @@ static void parse_config_file(FILE *f)
 	  break;
 	}
       }
+    } else if ( (ep = is_fkey(p, &fkeyno)) ) {
+      p = skipspace(ep);
+      if (fkeyhelp[fkeyno].textname) {
+	free((void *)fkeyhelp[fkeyno].textname);
+	fkeyhelp[fkeyno].textname = NULL;
+      }
+      if (fkeyhelp[fkeyno].background) {
+	free((void *)fkeyhelp[fkeyno].background);
+	fkeyhelp[fkeyno].background = NULL;
+      }
+
+      fkeyhelp[fkeyno].textname = dup_word(&p);
+      if (*p) {
+	p = skipspace(p);
+	fkeyhelp[fkeyno].background = dup_word(&p);
+      }
     } else if ( (ep = looking_at(p, "include")) ) {
-	p = skipspace(ep);
-	parse_one_config(p);
+      p = skipspace(ep);
+      parse_one_config(p);
     } else if ( looking_at(p, "append") ) {
       char *a = strdup(skipspace(p+6));
       if ( ld.label )

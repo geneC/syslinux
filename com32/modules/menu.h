@@ -104,6 +104,12 @@ extern char *menu_passprompt_msg;
 
 extern char *menu_background;
 
+struct fkey_help {
+  const char *textname;
+  const char *background;
+};
+extern struct fkey_help fkeyhelp[12];
+
 void parse_configs(char **argv);
 extern int (*draw_background)(const char *filename);
 
