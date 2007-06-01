@@ -24,6 +24,7 @@
 #include <sys/times.h>
 #include <inttypes.h>
 #include <unistd.h>
+#include <colortbl.h>
 
 #ifndef CLK_TCK
 # define CLK_TCK sysconf(_SC_CLK_TCK)
@@ -121,5 +122,12 @@ static inline int my_isspace(char c)
 int menu_main(int argc, char *argv[]);
 void console_prepare(void);
 void console_cleanup(void);
+
+void set_msg_colors_global(unsigned int fg, unsigned int bg,
+			   enum color_table_shadow shadow);
+
+extern const int message_base_color;
+int mygetkey(clock_t timeout);
+int show_message_file(const char *filename, const char *background);
 
 #endif /* MENU_H */

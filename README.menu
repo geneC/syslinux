@@ -179,7 +179,9 @@ MENU COLOR element ansi foreground background shadow
 	timeout_msg     Timeout message
 	timeout         Timeout counter
 	help		Help text
+	msgXX		Message (F-key) file attribute XX
 
+	... where XX is two hexadecimal digits (the "plain text" is 07).
 
 	"ansi" is a sequence of semicolon-separated ECMA-48 Set
 	Graphics Rendition (<ESC>[m) sequences:
@@ -216,20 +218,17 @@ MENU COLOR element ansi foreground background shadow
 	These are used (a) in text mode, and (b) on the serial
 	console.
 
-
 	"foreground" and "background" are color codes in #AARRGGBB
 	notation, where AA RR GG BB are hexadecimal digits for alpha
 	(opacity), red, green and blue, respectively.  #00000000
 	represents fully transparent, and #ffffffff represents opaque
 	white.
 
-
 	"shadow" controls the handling of the graphical console text
 	shadow.  Permitted values are "none" (no shadowing), "std" or
 	"standard" (standard shadowing - foreground pixels are
 	raised), "all" (both background and foreground raised), and
 	"rev" or "reverse" (background pixels are raised.)
-
 
 	If any field is set to "*" or omitted (at the end of the line)
 	then that field is left unchanged.
@@ -254,6 +253,7 @@ MENU COLOR element ansi foreground background shadow
 	menu color timeout_msg	37;40      #80ffffff #00000000 std
 	menu color timeout	1;37;40    #c0ffffff #00000000 std
 	menu color help		37;40      #c0ffffff #00000000 std
+	menu color msg07	37;40      #c0ffffff #40000000 std
 
 
 MENU WIDTH 80
@@ -275,6 +275,18 @@ MENU VSHIFT 0
 
 	A negative value is relative to the calculated length of the
 	screen (25 for text mode, 28 for VESA graphics mode.)
+
+
+F1 textfile background
+...
+F12 textfile background
+
+	Displays full-screen help (also available at the command line.)
+	The same control code sequences as in the command line
+	interface are supported, although some are ignored.
+
+	Additionally, a second argument allows a different background
+	image to be displayed.
 
 
 The menu system honours the TIMEOUT command; if TIMEOUT is specified

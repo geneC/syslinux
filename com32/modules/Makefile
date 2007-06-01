@@ -88,10 +88,10 @@ cpuidtest.elf : cpuidtest.o cpuid.o $(LIBS)
 dmitest.elf : dmitest.o dmi_utils.o dmi.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-menu.elf : menu.o menumain.o readconfig.o $(LIBS)
+menu.elf : menu.o menumain.o readconfig.o printmsg.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-vesamenu.elf : vesamenu.o menumain.o readconfig.o $(LIBS)
+vesamenu.elf : vesamenu.o menumain.o readconfig.o printmsg.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 ethersel.elf : ethersel.o $(LIBS)

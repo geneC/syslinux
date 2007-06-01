@@ -79,6 +79,7 @@ static const struct color_table default_color_table[] = {
 };
 
 #define NCOLORS (sizeof default_color_table/sizeof(struct color_table))
+const int message_base_color = NCOLORS;
 
 struct menu_parameter mparm[] = {
   { "width", 80 },
@@ -111,13 +112,39 @@ struct menu_parameter mparm[] = {
 #define HSHIFT		mparm[11].value
 #define VSHIFT		mparm[12].value
 
+void set_msg_colors_global(unsigned int fg, unsigned int bg,
+			   enum color_table_shadow shadow)
+{
+  struct color_table *cp = console_color_table+message_base_color;
+  unsigned int i;
+  unsigned int fgh, bgh;
+
+  static const unsigned int pc2rgb[8] =
+    { 0x000000, 0x0000ff, 0x00ff00, 0x00ffff, 0xff0000, 0xff00ff, 0xffff00,
+      0xffffff };
+
+  fg &= 0xff000000;		/* Alpha only */
+  bg &= 0xff000000;		/* Alpha only */
+
+  fgh = (0x80000000+(fg >> 1)) & 0xff000000;
+  bgh = (0x80000000+(bg >> 1)) & 0xff000000;
+
+  for (i = 0; i < 256; i++) {
+    cp->argb_fg = pc2rgb[i & 7] | ((i & 0x08) ? fgh : fg);
+    cp->argb_bg = pc2rgb[(i >> 4) & 7] | ((i & 0x80) ? bgh : bg);
+    cp->shadow  = shadow;
+    cp++;
+  }
+}
+
 static void
 install_default_color_table(void)
 {
   unsigned int i;
   const struct color_table *dp;
   struct color_table *cp;
-  static struct color_table color_table[NCOLORS];
+  static struct color_table color_table[NCOLORS+256];
+  static const int pc2ansi[8] = {0, 4, 2, 6, 1, 5, 3, 7};
 
   dp = default_color_table;
   cp = color_table;
@@ -133,8 +160,23 @@ install_default_color_table(void)
     dp++;
   }
 
+  for (i = 0; i < 256; i++) {
+    if (!cp->name)
+      asprintf((char **)&cp->name, "msg%02x", i);
+
+    if (cp->ansi)
+      free((void *)cp->ansi);
+    
+    asprintf((char **)&cp->ansi, "%s3%d;4%d", (i & 8) ? "1;" : "",
+	     pc2ansi[i & 7], pc2ansi[(i >> 4) & 7]);
+
+    cp++;
+  }
+
   console_color_table = color_table;
-  console_color_table_size = NCOLORS;
+  console_color_table_size = NCOLORS+256;
+
+  set_msg_colors_global(0xc0000000, 0x40000000, SHADOW_NORMAL);
 }
 
 static char *
@@ -250,7 +292,7 @@ passwd_compare(const char *passwd, const char *entry)
 
 static jmp_buf timeout_jump;
 
-static int mygetkey(clock_t timeout)
+int mygetkey(clock_t timeout)
 {
   clock_t t0, t;
   clock_t tto, to;
@@ -450,6 +492,38 @@ display_help(const char *text)
   }
 }
 
+static void show_fkey(int key)
+{
+  int fkey;
+
+  while (1) {
+    switch (key) {
+    case KEY_F1:  fkey =  0;  break;
+    case KEY_F2:  fkey =  1;  break;
+    case KEY_F3:  fkey =  2;  break;
+    case KEY_F4:  fkey =  3;  break;
+    case KEY_F5:  fkey =  4;  break;
+    case KEY_F6:  fkey =  5;  break;
+    case KEY_F7:  fkey =  6;  break;
+    case KEY_F8:  fkey =  7;  break;
+    case KEY_F9:  fkey =  8;  break;
+    case KEY_F10: fkey =  9;  break;
+    case KEY_F11: fkey = 10;  break;
+    case KEY_F12: fkey = 11;  break;
+    default: fkey = -1; break;
+    }
+    
+    if (fkey == -1)
+      break;
+
+    if (fkeyhelp[fkey].textname)
+      key = show_message_file(fkeyhelp[fkey].textname,
+			      fkeyhelp[fkey].background);
+    else
+      break;
+  }
+}
+
 static const char *
 edit_cmdline(char *input, int top)
 {
@@ -577,6 +651,22 @@ edit_cmdline(char *input, int top)
 	cursor = len;
 	redraw = 1;
       }
+      break;
+
+    case KEY_F1:
+    case KEY_F2:
+    case KEY_F3:
+    case KEY_F4:
+    case KEY_F5:
+    case KEY_F6:
+    case KEY_F7:
+    case KEY_F8:
+    case KEY_F9:
+    case KEY_F10:
+    case KEY_F11:
+    case KEY_F12:
+      show_fkey(key);
+      redraw = 1;
       break;
 
     default:
@@ -798,6 +888,22 @@ run_menu(void)
     case KEY_END:
       entry = nentries - 1;
       top = max(0, nentries-MENU_ROWS);
+      break;
+
+    case KEY_F1:
+    case KEY_F2:
+    case KEY_F3:
+    case KEY_F4:
+    case KEY_F5:
+    case KEY_F6:
+    case KEY_F7:
+    case KEY_F8:
+    case KEY_F9:
+    case KEY_F10:
+    case KEY_F11:
+    case KEY_F12:
+      show_fkey(key);
+      clear = 1;
       break;
 
     case KEY_TAB:
