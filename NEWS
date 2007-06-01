@@ -30,6 +30,7 @@ Changes in 3.50:
 	  for networks like Infiniband and Firewire/1394.
 	* Add a new INCLUDE command to the core syslinux parser.
 	* Allow binding help text to F11 and F12.
+	* F-key help now available in the simple menu system.
 	* Disabled the polling for ARP during idle.  It is simply too
 	  slow on some (broken!) PXE stacks.
 
