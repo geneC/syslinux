@@ -140,17 +140,17 @@ ctrl_f:
 func_key:
 		; AL = 0 if we get here
 		xchg al,ah
-		cmp al,68			; F10
+		cmp al,44h			; F10
 		ja .f11_f12
-		sub al,59			; F1
+		sub al,3Bh			; F1
 		jb get_char_2
 		jmp show_help
 .f11_f12:
-		cmp al,87			; F11
+		cmp al,85h			; F11
 		jb get_char_2
-		cmp al,88			; F12
+		cmp al,86h			; F12
 		ja get_char_2
-		sub al,87-10
+		sub al,85h-10
 
 show_help:	; AX = func key # (0 = F1, 9 = F10, 11 = F12)
 		push di				; Save end-of-cmdline pointer
