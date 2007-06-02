@@ -58,9 +58,11 @@ const char *program;
 struct my_options {
   unsigned int sectors;
   unsigned int heads;
+  int raid_mode;
 } opt = {
   .sectors = 0,
   .heads = 0,
+  .raid_mode = 0,
 };
 
 static void __attribute__((noreturn)) usage(int rv)
@@ -72,6 +74,7 @@ static void __attribute__((noreturn)) usage(int rv)
 	  "  --zip        -z  Force zipdrive geometry (-H 64 -S 32)\n"
 	  "  --sectors=#  -S  Force the number of sectors per track\n"
 	  "  --heads=#    -H  Force number of heads\n"
+	  "  --raid       -r  Fall back to the next device on boot failure\n"
 	  "\n"
 	  "  Note: geometry is determined at boot time for devices which\n"
 	  "  are considered hard disks by the BIOS.  Unfortunately, this is\n"
@@ -86,19 +89,18 @@ static void __attribute__((noreturn)) usage(int rv)
 }
 
 static const struct option long_options[] = {
-  { "install",  0, NULL, 'i' },
-  { "update",   0, NULL, 'U' },
-  { "zipdrive", 0, NULL, 'z' },
-  { "sectors",  1, NULL, 'S' },
-  { "heads",    1, NULL, 'H' },
-  { "version",  0, NULL, 'v' },
-  { "help",     0, NULL, 'h' },
+  { "install",   0, NULL, 'i' },
+  { "update",    0, NULL, 'U' },
+  { "zipdrive",  0, NULL, 'z' },
+  { "sectors",   1, NULL, 'S' },
+  { "heads",     1, NULL, 'H' },
+  { "raid-mode", 0, NULL, 'r' },
+  { "version",   0, NULL, 'v' },
+  { "help",      0, NULL, 'h' },
   { 0, 0, 0, 0 }
 };
 
-static const char short_options[] = "iUuzS:H:vh";
-
-
+static const char short_options[] = "iUuzS:H:rvh";
 
 #if defined(__linux__) && !defined(BLKGETSIZE64)
 /* This takes a u64, but the size field says size_t.  Someone screwed big. */
@@ -183,6 +185,11 @@ static inline uint32_t get_32(const unsigned char *p)
   return (uint32_t)p[0] + ((uint32_t)p[1] << 8) +
     ((uint32_t)p[2] << 16) + ((uint32_t)p[3] << 24);
 #endif
+}
+
+static inline void set_8(unsigned char *p, uint8_t v)
+{
+  *(uint8_t *)p = v;
 }
 
 static inline void set_16(unsigned char *p, uint16_t v)
@@ -475,6 +482,14 @@ patch_file_and_bootblock(int fd, int dirfd, int devfd)
   set_16(boot_block+bsSecPerTrack, geo.sectors);
   set_16(boot_block+bsHeads, geo.heads);
   set_32(boot_block+bsHiddenSecs, geo.start);
+
+  /* If we're in RAID mode then patch the appropriate instruction;
+     either way write the proper boot signature */
+  i = get_16(boot_block+0x1FE);
+  if (opt.raid_mode)
+    set_16(boot_block+i, 0x18CD);	/* INT 18h */
+
+  set_16(boot_block+0x1FE, 0xAA55);
 
   /* Construct the boot file */
 
@@ -781,6 +796,9 @@ main(int argc, char *argv[])
 	exit(EX_USAGE);
       }
       break;
+    case 'r':
+      opt.raid_mode = 1;
+      break;
     case 'i':
       update_only = 0;
       break;
@@ -805,8 +823,8 @@ main(int argc, char *argv[])
     usage(EX_USAGE);
 
   if ( update_only == -1 ) {
-    fprintf(stderr, "%s: warning: a future version will require --install or --update\n",
-	    program);
+    fprintf(stderr, "%s: warning: a future version will require "
+	    "--install or --update\n", program);
     update_only = 0;
   }
 
