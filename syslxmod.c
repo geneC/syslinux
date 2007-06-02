@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 1998-2004 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1998-2007 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -127,13 +127,6 @@ static inline void set_32(unsigned char *p, uint32_t v)
 #endif
 }
 
-/* Patch the code so that we're running in stupid mode */
-void syslinux_make_stupid(void)
-{
-  /* Access only one sector at a time */
-  set_16(syslinux_bootsect+0x1FC, 1);
-}
-
 void syslinux_make_bootsect(void *bs)
 {
   unsigned char *bootsect = bs;
@@ -237,7 +230,8 @@ const char *syslinux_check_bootsect(const void *bs)
  *
  * Return 0 if successful, otherwise -1.
  */
-int syslinux_patch(const uint32_t *sectors, int nsectors)
+int syslinux_patch(const uint32_t *sectors, int nsectors,
+		   int stupid, int raid_mode)
 {
   unsigned char *patcharea, *p;
   int nsect = (syslinux_ldlinux_len+511) >> 9;
@@ -246,6 +240,17 @@ int syslinux_patch(const uint32_t *sectors, int nsectors)
 
   if ( nsectors < nsect )
     return -1;
+
+  /* Patch in options, as appropriate */
+  if (stupid) {
+    /* Access only one sector at a time */
+    set_16(syslinux_bootsect+0x1FC, 1);
+  }
+
+  i = get_16(syslinux_bootsect+0x1FE);
+  if (raid_mode)
+    set_16(syslinux_bootsect+i, 0x18CD); /* INT 18h */
+  set_16(syslinux_bootsect+0x1FE, 0xAA55);
 
   /* First sector need pointer in boot sector */
   set_32(syslinux_bootsect+0x1F8, *sectors++);

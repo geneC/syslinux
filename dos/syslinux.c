@@ -36,7 +36,7 @@ uint16_t dos_version;
 
 void __attribute__((noreturn)) usage(void)
 {
-  puts("Usage: syslinux [-sfma][-d directory] <drive>: [bootsecfile]\n");
+  puts("Usage: syslinux [-sfmar][-d directory] <drive>: [bootsecfile]\n");
   exit(1);
 }
 
@@ -489,6 +489,8 @@ int main(int argc, char *argv[])
   int writembr = 0;		/* -m (write MBR) option */
   int set_active = 0;		/* -a (set partition active) option */
   const char *subdir = NULL;
+  int stupid = 0;
+  int raid_mode = 0;
 
   dprintf("argv = %p\n", argv);
   for ( i = 0 ; i <= argc ; i++ )
@@ -507,7 +509,10 @@ int main(int argc, char *argv[])
       while ( *opt ) {
 	switch ( *opt ) {
 	case 's':		/* Use "safe, slow and stupid" code */
-	  syslinux_make_stupid();
+	  stupid = 1;
+	  break;
+	case 'r':		/* RAID mode */
+	  raid_mode = 1;
 	  break;
 	case 'f':		/* Force install */
 	  force = 1;
@@ -635,7 +640,7 @@ int main(int argc, char *argv[])
   /*
    * Patch ldlinux.sys and the boot sector
    */
-  syslinux_patch(sectors, nsectors);
+  syslinux_patch(sectors, nsectors, stupid, raid_mode);
 
   /*
    * Write the now-patched first sector of ldlinux.sys

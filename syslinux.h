@@ -28,9 +28,6 @@ extern unsigned char syslinux_mbr[];
 extern unsigned int  syslinux_mbr_len;
 extern int           syslinux_mbr_mtime;
 
-/* This switches the boot sector to "stupid mode" */
-void syslinux_make_stupid(void);
-
 /* This takes a boot sector and merges in the syslinux fields */
 void syslinux_make_bootsect(void *);
 
@@ -38,6 +35,7 @@ void syslinux_make_bootsect(void *);
 const char *syslinux_check_bootsect(const void *bs);
 
 /* This patches the boot sector and ldlinux.sys based on a sector map */
-int syslinux_patch(const uint32_t *sectors, int nsectors);
+int syslinux_patch(const uint32_t *sectors, int nsectors,
+		   int stupid, int raid_mode);
 
 #endif

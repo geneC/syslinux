@@ -81,7 +81,7 @@ int loop_fd = -1;		/* Loop device */
 
 void __attribute__((noreturn)) usage(void)
 {
-  fprintf(stderr, "Usage: %s [-sf][-d directory][-o offset] device\n", program);
+  fprintf(stderr, "Usage: %s [-sfr][-d directory][-o offset] device\n", program);
   exit(1);
 }
 
@@ -324,12 +324,15 @@ int main(int argc, char *argv[])
   int err = 0;
   char mntname[128];
   char *ldlinux_name, **argp, *opt;
-  int force = 0;		/* -f (force) option */
   const char *subdir = NULL;
   uint32_t sectors[65]; /* 65 is maximum possible */
   int nsectors = 0;
   const char *errmsg;
   int mnt_cookie;
+
+  int force = 0;		/* -f (force) option */
+  int stupid = 0;		/* -s (stupid) option */
+  int raid_mode = 0;		/* -r (RAID) option */
 
   (void)argc;			/* Unused */
 
@@ -348,7 +351,9 @@ int main(int argc, char *argv[])
 
       while ( *opt ) {
 	if ( *opt == 's' ) {
-	  syslinux_make_stupid();	/* Use "safe, slow and stupid" code */
+	  stupid = 1;
+	} else if ( *opt == 'r' ) {
+	  raid_mode = 1;
 	} else if ( *opt == 'f' ) {
 	  force = 1;		/* Force install */
 	} else if ( *opt == 'd' && argp[1] ) {
@@ -525,7 +530,7 @@ umount:
   /*
    * Patch ldlinux.sys and the boot sector
    */
-  syslinux_patch(sectors, nsectors);
+  syslinux_patch(sectors, nsectors, stupid, raid_mode);
 
   /*
    * Write the now-patched first sector of ldlinux.sys

@@ -233,7 +233,7 @@ int libfat_readfile(intptr_t pp, void *buf, size_t secsize, libfat_sector_t sect
 
 noreturn usage(void)
 {
-  fprintf(stderr, "Usage: syslinux.exe [-sfma][-d directory] <drive>: [bootsecfile]\n");
+  fprintf(stderr, "Usage: syslinux.exe [-sfmar][-d directory] <drive>: [bootsecfile]\n");
   exit(1);
 }
 
@@ -261,6 +261,8 @@ int main(int argc, char *argv[])
   int force = 0;		/* -f (force) option */
   int mbr = 0;			/* -m (MBR) option */
   int setactive = 0;		/* -a (set partition active) */
+  int stupid = 0;		/* -s (stupid) option */
+  int raid_mode = 0;		/* -r (RAID) option */
 
   (void)argc;
 
@@ -281,7 +283,10 @@ int main(int argc, char *argv[])
       while ( *opt ) {
 	switch ( *opt ) {
 	case 's':		/* Use "safe, slow and stupid" code */
-	  syslinux_make_stupid();
+	  stupid = 1;
+	  break;
+	case 'r':		/* RAID mode */
+	  raid_mode = 1;
 	  break;
 	case 'f':		/* Force install */
 	  force = 1;
@@ -424,7 +429,7 @@ int main(int argc, char *argv[])
   /*
    * Patch ldlinux.sys and the boot sector
    */
-  syslinux_patch(sectors, nsectors);
+  syslinux_patch(sectors, nsectors, stupid, raid_mode);
 
   /*
    * Rewrite the file

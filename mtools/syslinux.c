@@ -45,7 +45,7 @@ off_t filesystem_offset = 0;	/* Offset of filesystem */
 
 void __attribute__((noreturn)) usage(void)
 {
-  fprintf(stderr, "Usage: %s [-sf][-d directory][-o offset] device\n", program);
+  fprintf(stderr, "Usage: %s [-sfr][-d directory][-o offset] device\n", program);
   exit(1);
 }
 
@@ -129,7 +129,6 @@ int main(int argc, char *argv[])
   struct stat st;
   int status;
   char **argp, *opt;
-  int force = 0;		/* -f (force) option */
   char mtools_conf[] = "/tmp/syslinux-mtools-XXXXXX";
   const char *subdir = NULL;
   int mtc_fd;
@@ -139,6 +138,10 @@ int main(int argc, char *argv[])
   int32_t ldlinux_cluster;
   int nsectors;
   const char *errmsg;
+
+  int force = 0;              /* -f (force) option */
+  int stupid = 0;             /* -s (stupid) option */
+  int raid_mode = 0;          /* -r (RAID) option */
 
   (void)argc;			/* Unused */
 
@@ -155,7 +158,9 @@ int main(int argc, char *argv[])
 
       while ( *opt ) {
 	if ( *opt == 's' ) {
-	  syslinux_make_stupid();	/* Use "safe, slow and stupid" code */
+	  stupid = 1;
+	} else if ( *opt == 'r' ) {
+	  raid_mode = 1;
 	} else if ( *opt == 'f' ) {
 	  force = 1;		/* Force install */
 	} else if ( *opt == 'd' && argp[1] ) {
@@ -255,7 +260,7 @@ int main(int argc, char *argv[])
   libfat_close(fs);
 
   /* Patch ldlinux.sys and the boot sector */
-  syslinux_patch(sectors, nsectors);
+  syslinux_patch(sectors, nsectors, stupid, raid_mode);
 
   /* Write the now-patched first sector of ldlinux.sys */
   xpwrite(dev_fd, syslinux_ldlinux, 512,
