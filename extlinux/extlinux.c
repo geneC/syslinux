@@ -187,11 +187,6 @@ static inline uint32_t get_32(const unsigned char *p)
 #endif
 }
 
-static inline void set_8(unsigned char *p, uint8_t v)
-{
-  *(uint8_t *)p = v;
-}
-
 static inline void set_16(unsigned char *p, uint16_t v)
 {
 #if defined(__i386__) || defined(__x86_64__)
