@@ -534,7 +534,9 @@ kaboom:
 		jmp short .loop
 .done:
 		cbw			; AH <- 0
-		int 16h			; Wait for keypress
+.again:		int 16h			; Wait for keypress
+					; NB: replaced by int 18h if
+					; chosen at install time..
 		int 19h			; And try once more to boot...
 .norge:		jmp short .norge	; If int 19h returned; this is the end
 
@@ -557,7 +559,11 @@ bailmsg:	db 'Boot error', 0Dh, 0Ah, 0
 
 FirstSector	dd 0xDEADBEEF			; Location of sector 1
 MaxTransfer	dw 0x007F			; Max transfer size
-bootsignature	dw 0AA55h
+
+; This field will be filled in 0xAA55 by the installer, but we abuse it
+; to house a pointer to the INT 16h instruction at
+; kaboom.again, which gets patched to INT 18h in RAID mode.
+bootsignature	dw kaboom.again-$
 
 ;
 ; ===========================================================================
@@ -1331,10 +1337,16 @@ unmangle_name:	call strcpy
 kaboom2:
 		mov si,err_bootfailed
 		call cwritestr
+		cmp byte [kaboom.again+1],18h	; INT 18h version?
+		je .int18
 		call getchar
 		call vgaclearmode
 		int 19h			; And try once more to boot...
 .norge:		jmp short .norge	; If int 19h returned; this is the end
+.int18:
+		call vgaclearmode
+		int 18h
+.noreg:		jmp short .noreg	; Nynorsk
 
 
 ;
