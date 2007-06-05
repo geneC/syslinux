@@ -440,6 +440,7 @@ draw_menu(int sel, int top, int edit_line)
   int x, y;
   int sbtop = 0, sbbot = 0;
   const char *tabmsg;
+  int tabmsg_len;
 
   if ( nentries > MENU_ROWS ) {
     int sblen = MENU_ROWS*MENU_ROWS/nentries;
@@ -476,7 +477,10 @@ draw_menu(int sel, int top, int edit_line)
   else
     tabmsg = messages[MSG_NOTAB].msg;
 
-  printf("\1#8\033[%d;1H%s", TABMSG_ROW, pad_line(tabmsg, 1, WIDTH));
+  tabmsg_len = strlen(tabmsg);
+
+  printf("\1#8\033[%d;%dH%s",
+	 TABMSG_ROW, 1+HSHIFT+((WIDTH-tabmsg_len)>>1), tabmsg);
   printf("\1#0\033[%d;1H", END_ROW);
 }
 
@@ -816,7 +820,8 @@ run_menu(void)
       }
       *tq = '\0';
 
-      printf("\033[%d;%dH\2#14 %s ", TIMEOUT_ROW, HSHIFT+1+((WIDTH-nc)>>1), buf);
+      printf("\033[%d;%dH\2#14 %s ", TIMEOUT_ROW,
+	     HSHIFT+1+((WIDTH-nc-2)>>1), buf);
       to_clear = 1;
     } else {
       to_clear = 0;
