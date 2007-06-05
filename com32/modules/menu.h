@@ -123,11 +123,14 @@ int menu_main(int argc, char *argv[]);
 void console_prepare(void);
 void console_cleanup(void);
 
-void set_msg_colors_global(unsigned int fg, unsigned int bg,
-			   enum color_table_shadow shadow);
-
 extern const int message_base_color;
 int mygetkey(clock_t timeout);
 int show_message_file(const char *filename, const char *background);
+
+#define MSG_COLORS_DEF_FG	0x90ffffff
+#define MSG_COLORS_DEF_BG	0x80ffffff
+#define MSG_COLORS_DEF_SHADOW	SHADOW_NORMAL
+void set_msg_colors_global(unsigned int fg, unsigned int bg,
+			   enum color_table_shadow shadow);
 
 #endif /* MENU_H */

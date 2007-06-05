@@ -19,13 +19,13 @@
 
 int (*draw_background)(const char *filename);
 
-static int hexval(char c)
+static int hexval(int c)
 {
-  if (c >= '0' || c <= '9')
+  if (c >= '0' && c <= '9')
     return c-'0';
 
   c |= 0x20;
-  if (c >= 'a' || c <= 'f')
+  if (c >= 'a' && c <= 'f')
     return c-'a'+10;
 
   return 0;

@@ -558,6 +558,43 @@ static void parse_config_file(FILE *f)
 	  }
 	  cptr++;
 	}
+      } else if ((ep = looking_at(p, "msgcolor")) ||
+		 (ep = looking_at(p, "msgcolour"))) {
+	unsigned int fg_mask = MSG_COLORS_DEF_FG;
+	unsigned int bg_mask = MSG_COLORS_DEF_BG;
+	enum color_table_shadow shadow = MSG_COLORS_DEF_SHADOW;
+
+	p = skipspace(ep);
+	if (*p) {
+	  if (!looking_at(p, "*"))
+	    fg_mask = parse_argb(&p);
+	  
+	  p = skipspace(p);
+	  if (*p) {
+	    if (!looking_at(p, "*"))
+	      bg_mask = parse_argb(&p);
+
+	    p = skipspace(p);
+	    switch (*p | 0x20) {
+	    case 'n':
+	      shadow = SHADOW_NONE;
+	      break;
+	    case 's':
+	      shadow = SHADOW_NORMAL;
+	      break;
+	    case 'a':
+	      shadow = SHADOW_ALL;
+	      break;
+	    case 'r':
+	      shadow = SHADOW_REVERSE;
+	      break;
+	    default:
+	      /* go with default */
+	      break;
+	    }
+	  }
+	}
+	set_msg_colors_global(fg_mask, bg_mask, shadow);
       } else {
 	/* Unknown, check for layout parameters */
 	struct menu_parameter *pp;

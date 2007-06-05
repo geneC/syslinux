@@ -253,7 +253,19 @@ MENU COLOR element ansi foreground background shadow
 	menu color timeout_msg	37;40      #80ffffff #00000000 std
 	menu color timeout	1;37;40    #c0ffffff #00000000 std
 	menu color help		37;40      #c0ffffff #00000000 std
-	menu color msg07	37;40      #c0ffffff #40000000 std
+	menu color msg07	37;40      #90ffffff #00000000 std
+
+
+MENU MSGCOLOR fg_filter bg_filter shadow
+
+	Sets *all* the msgXX colors to a color scheme derived from the
+	fg_filter and bg_filter values.  Background color zero is
+	always treated as transparent.  The default corresponds to:
+
+	menu msgcolor #90ffffff #80ffffff std
+
+	This directive should come before any directive that
+	customizes individual msgXX colors.
 
 
 MENU WIDTH 80
