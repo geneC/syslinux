@@ -45,7 +45,7 @@ static int draw_message_file(const char *filename)
     case st_init:
       switch (ch) {
       case '\f':
-	fputs("\033[2J", stdout);
+	fputs("\033[2J\033[H", stdout);
 	break;
       case 15:			/* SI */
 	state = st_si_1;
