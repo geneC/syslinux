@@ -126,7 +126,7 @@ void set_msg_colors_global(unsigned int fg, unsigned int bg,
 
   /* Converting PC RGBI to sensible RGBA values is an "interesting"
      proposition.  This algorithm may need plenty of tweaking. */
-  
+
   fga = fg & 0xff000000;
   fgh = ((fg >> 1) & 0xff000000) | 0x80000000;
 
@@ -192,7 +192,7 @@ install_default_color_table(void)
 
     if (cp->ansi)
       free((void *)cp->ansi);
-    
+
     asprintf((char **)&cp->ansi, "%s3%d;4%d", (i & 8) ? "1;" : "",
 	     pc2ansi[i & 7], pc2ansi[(i >> 4) & 7]);
 
@@ -543,7 +543,7 @@ static void show_fkey(int key)
     case KEY_F12: fkey = 11;  break;
     default: fkey = -1; break;
     }
-    
+
     if (fkey == -1)
       break;
 

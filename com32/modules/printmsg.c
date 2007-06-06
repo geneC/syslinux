@@ -105,5 +105,3 @@ int show_message_file(const char *filename, const char *background)
 
   return rv;
 }
-
-      

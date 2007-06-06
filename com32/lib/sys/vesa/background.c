@@ -283,10 +283,10 @@ int vesacon_load_background(const char *filename)
 
   if (!fp)
     goto err;
-  
+
   if (fread(header, 1, 8, fp) != 8)
     goto err;
-  
+
   if (!png_sig_cmp(header, 0, 8)) {
     rv = read_png_file(fp);
   } else if (!jpeg_sig_cmp(header, 8)) {
@@ -295,11 +295,11 @@ int vesacon_load_background(const char *filename)
 
   /* This actually displays the stuff */
   draw_background();
-  
+
  err:
   if (fp)
     fclose(fp);
-  
+
   return rv;
 }
 

@@ -568,7 +568,7 @@ static void parse_config_file(FILE *f)
 	if (*p) {
 	  if (!looking_at(p, "*"))
 	    fg_mask = parse_argb(&p);
-	  
+
 	  p = skipspace(p);
 	  if (*p) {
 	    if (!looking_at(p, "*"))
