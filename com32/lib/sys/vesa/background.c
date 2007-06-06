@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2006 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2006-2007 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -46,7 +46,7 @@ static size_t filesize(FILE *fp)
     return st.st_size;
 }
 
-/*** FIX: This really should be alpha-blended with color index 0 */
+/*** FIX: This really should be alpha-blended with color index 0 ***/
 
 /* For best performance, "start" should be a multiple of 4, to assure
    aligned dwords. */
@@ -228,11 +228,14 @@ static int read_jpeg_file(FILE *fp, uint8_t *header, int len)
 }
 
 /* Simple grey Gaussian hole, enough to look interesting */
-static void default_background(void)
+int vesacon_default_background(void)
 {
   int x, y, dx, dy, dy2;
   uint8_t *bgptr = (uint8_t *)&__vesacon_background;
   uint8_t k;
+
+  if (__vesacon_pixel_format == PXF_NONE)
+    return 0;			/* Not in graphics mode */
 
   for (y = 0, dy = -VIDEO_Y_SIZE/2; y < VIDEO_Y_SIZE; y++, dy++) {
     dy2 = dy*dy;
@@ -244,6 +247,27 @@ static void default_background(void)
       bgptr += 4;		/* Dummy alpha */
     }
   }
+
+  draw_background();
+  return 0;
+}
+
+/* Set the background to a single flat color */
+int vesacon_set_background(unsigned int rgb)
+{
+  void *bgptr = __vesacon_background;
+  unsigned int count = VIDEO_X_SIZE*VIDEO_Y_SIZE;
+
+  if (__vesacon_pixel_format == PXF_NONE)
+    return 0;			/* Not in graphics mode */
+
+  asm("cld; rep; stosl"
+      : "+D" (bgptr), "+c" (count)
+      : "a" (rgb)
+      : "memory");
+
+  draw_background();
+  return 0;
 }
 
 int vesacon_load_background(const char *filename)
@@ -255,31 +279,27 @@ int vesacon_load_background(const char *filename)
   if (__vesacon_pixel_format == PXF_NONE)
     return 0;			/* Not in graphics mode */
 
-  if (!filename) {
-    default_background();
-  } else {
-    fp = fopen(filename, "r");
+  fp = fopen(filename, "r");
 
-    if (!fp)
-      goto err;
-
-    if (fread(header, 1, 8, fp) != 8)
-      goto err;
-
-    if (!png_sig_cmp(header, 0, 8)) {
-      rv = read_png_file(fp);
-    } else if (!jpeg_sig_cmp(header, 8)) {
-      rv = read_jpeg_file(fp, header, 8);
-    }
+  if (!fp)
+    goto err;
+  
+  if (fread(header, 1, 8, fp) != 8)
+    goto err;
+  
+  if (!png_sig_cmp(header, 0, 8)) {
+    rv = read_png_file(fp);
+  } else if (!jpeg_sig_cmp(header, 8)) {
+    rv = read_jpeg_file(fp, header, 8);
   }
 
   /* This actually displays the stuff */
   draw_background();
-
+  
  err:
   if (fp)
     fclose(fp);
-
+  
   return rv;
 }
 

@@ -34,8 +34,6 @@
 
 #include "menu.h"
 
-int (*draw_background)(const char *filename);
-
 /*
  * The color/attribute indexes (\1#X, \2#XX, \3#XXX) are as follows
  *
@@ -1079,8 +1077,7 @@ int menu_main(int argc, char *argv[])
     if (mparm[i].value < 0)
       mparm[i].value = max(mparm[i].value+rows, 0);
 
-  if (draw_background)
-    draw_background(menu_background);
+  draw_background(menu_background);
 
   if ( !nentries ) {
     fputs("No LABEL entries found in configuration file!\n", stdout);

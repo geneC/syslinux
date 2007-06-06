@@ -337,7 +337,7 @@ unsigned int hexval2(const char *p)
   return (hexval(p[0]) << 4)+hexval(p[1]);
 }
 
-static uint32_t parse_argb(char **p)
+uint32_t parse_argb(char **p)
 {
   char *sp = *p;
   char *ep;

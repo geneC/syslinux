@@ -112,7 +112,7 @@ struct fkey_help {
 extern struct fkey_help fkeyhelp[12];
 
 void parse_configs(char **argv);
-extern int (*draw_background)(const char *filename);
+int draw_background(const char *filename);
 
 static inline int my_isspace(char c)
 {
@@ -122,6 +122,7 @@ static inline int my_isspace(char c)
 int my_isxdigit(char c);
 unsigned int hexval(char c);
 unsigned int hexval2(const char *p);
+uint32_t parse_argb(char **p);
 
 int menu_main(int argc, char *argv[]);
 void console_prepare(void);

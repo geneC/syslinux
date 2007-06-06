@@ -118,10 +118,12 @@ MENU MASTER PASSWD passwd
 	work.
 
 
-MENU BACKGROUND filename
+MENU BACKGROUND background
 
-	For vesamenu.c32, sets the background image.  The image should
-	be 640x480 pixels and either in PNG or JPEG format.
+	For vesamenu.c32, sets the background image.  The background
+	can either be a color (see MENU COLOR) or the name of an image
+	file, which should be 640x480 pixels and either in PNG or JPEG
+	format.
 
 
 INCLUDE filename
@@ -289,16 +291,16 @@ MENU VSHIFT 0
 	screen (25 for text mode, 28 for VESA graphics mode.)
 
 
-F1 textfile background_file
+F1 textfile background
 ...
-F12 textfile background_file
+F12 textfile background
 
 	Displays full-screen help (also available at the command line.)
 	The same control code sequences as in the command line
 	interface are supported, although some are ignored.
 
 	Additionally, a second argument allows a different background
-	image file (see MENU BACKGROUND) to be displayed.
+	image (see MENU BACKGROUND for supported formats) to be displayed.
 
 
 The menu system honours the TIMEOUT command; if TIMEOUT is specified

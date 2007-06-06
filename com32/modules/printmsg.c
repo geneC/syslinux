@@ -17,8 +17,6 @@
 
 #include "menu.h"
 
-int (*draw_background)(const char *filename);
-
 static int draw_message_file(const char *filename)
 {
   FILE *f;

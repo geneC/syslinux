@@ -30,6 +30,12 @@ void console_cleanup(void)
   /* Nothing special to do */
 }
 
+int draw_background(const char *arg)
+{
+  /* Nothing to do... */
+  (void)arg;
+}
+
 int main(int argc, char *argv[])
 {
   console_ansi_raw();

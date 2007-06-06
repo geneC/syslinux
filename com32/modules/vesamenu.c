@@ -21,6 +21,8 @@
 
 #include <stdio.h>
 #include <console.h>
+#include <syslinux/vesacon.h>
+
 #include "menu.h"
 
 void console_prepare(void)
@@ -34,13 +36,18 @@ void console_cleanup(void)
   fputs("\033[0m\033[20l", stdout);
 }
 
-int vesacon_load_background(const char *);
+int draw_background(const char *what)
+{
+  if (!what)
+    return vesacon_default_background();
+  else if (what[0] == '#')
+    return vesacon_set_background(parse_argb((char **)&what));
+  else
+    return vesacon_load_background(what);
+}
 
 int main(int argc, char *argv[])
 {
   openconsole(&dev_rawcon_r, &dev_vesaserial_w);
-
-  draw_background = vesacon_load_background;
-
   return menu_main(argc, argv);
 }
