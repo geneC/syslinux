@@ -261,10 +261,10 @@ int vesacon_set_background(unsigned int rgb)
   if (__vesacon_pixel_format == PXF_NONE)
     return 0;			/* Not in graphics mode */
 
-  asm("cld; rep; stosl"
-      : "+D" (bgptr), "+c" (count)
-      : "a" (rgb)
-      : "memory");
+  asm volatile("cld; rep; stosl"
+	       : "+D" (bgptr), "+c" (count)
+	       : "a" (rgb)
+	       : "memory");
 
   draw_background();
   return 0;
