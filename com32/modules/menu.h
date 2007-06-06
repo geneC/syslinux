@@ -119,6 +119,10 @@ static inline int my_isspace(char c)
   return (unsigned char)c <= ' ';
 }
 
+int my_isxdigit(char c);
+unsigned int hexval(char c);
+unsigned int hexval2(const char *p);
+
 int menu_main(int argc, char *argv[]);
 void console_prepare(void);
 void console_cleanup(void);

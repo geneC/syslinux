@@ -312,7 +312,7 @@ dup_word(char **p)
   return dp;
 }
 
-static int my_isxdigit(char c)
+int my_isxdigit(char c)
 {
   unsigned int uc = c;
 
@@ -320,7 +320,7 @@ static int my_isxdigit(char c)
     ((uc|0x20)-'a') < 6;
 }
 
-static unsigned int hexval(char c)
+unsigned int hexval(char c)
 {
   unsigned char uc = c | 0x20;
   unsigned int v;
@@ -332,7 +332,7 @@ static unsigned int hexval(char c)
   return uc-'a'+10;
 }
 
-static unsigned int hexval2(const char *p)
+unsigned int hexval2(const char *p)
 {
   return (hexval(p[0]) << 4)+hexval(p[1]);
 }

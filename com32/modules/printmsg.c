@@ -19,18 +19,6 @@
 
 int (*draw_background)(const char *filename);
 
-static int hexval(int c)
-{
-  if (c >= '0' && c <= '9')
-    return c-'0';
-
-  c |= 0x20;
-  if (c >= 'a' && c <= 'f')
-    return c-'a'+10;
-
-  return 0;
-}
-
 static int draw_message_file(const char *filename)
 {
   FILE *f;
@@ -49,7 +37,7 @@ static int draw_message_file(const char *filename)
     return -1;
 
   /* Clear screen, hide cursor, default attribute */
-  printf("\033e\033%@\033)0\033(B\3#%03d\033[?25l\033[2J\033[H",
+  printf("\033e\033%%@\033)0\033(B\3#%03d\033[?25l\033[2J\033[H",
 	 message_base_color+0x07);
 
   while (!eof && (ch = getc(f)) != EOF) {
