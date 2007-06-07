@@ -570,7 +570,7 @@ MaxTransfer	dw 0x007F			; Max transfer size
 ; This field will be filled in 0xAA55 by the installer, but we abuse it
 ; to house a pointer to the INT 16h instruction at
 ; kaboom.again, which gets patched to INT 18h in RAID mode.
-bootsignature	dw kaboom.again-$
+bootsignature	dw kaboom.again-bootsec
 
 ;
 ; ===========================================================================
