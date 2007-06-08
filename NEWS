@@ -33,6 +33,7 @@ Changes in 3.50:
 	* F-key help now available in the simple menu system.
 	* Disabled the polling for ARP during idle.  It is simply too
 	  slow on some (broken!) PXE stacks.
+	* PXELINUX: also try to fetch the config file based on UUID.
 
 Changes in 3.36:
 	* MEMDISK: Disable EDD by default on floppy disks.  EDD can be

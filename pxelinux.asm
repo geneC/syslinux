@@ -221,6 +221,7 @@ LocalBootType	resw 1			; Local boot return code
 PktTimeout	resw 1			; Timeout for current packet
 RealBaseMem	resw 1			; Amount of DOS memory after freeing
 OverLoad	resb 1			; Set if DHCP packet uses "overloading"
+DHCPMagic	resb 1			; PXELINUX magic flags
 
 ; The relative position of these fields matter!
 MAC_MAX		equ  32			; Handle hardware addresses this long
@@ -229,6 +230,9 @@ MACType		resb 1			; MAC address type
 MAC		resb MAC_MAX+1		; Actual MAC address
 BOOTIFStr	resb 7			; Space for "BOOTIF="
 MACStr		resb 3*(MAC_MAX+1)	; MAC address as a string
+
+; One byte extra since dhcp_copyoption zero-terminates
+UUID		resb 16+1		; UUID, from the PXE stack
 
 ;
 ; PXE packets which don't need static initialization
@@ -532,43 +536,25 @@ have_entrypoint:
 		mov [LocalDomain],al		; No LocalDomain received
 
 ;
+; The DHCP client identifiers are best gotten from the DHCPREQUEST
+; packet (query info 1).
+;
+query_bootp_1:
+		mov dl,1
+		call pxe_get_cached_info
+		call parse_dhcp
+
+		; We don't use flags from the request packet, so
+		; this is a good time to initialize DHCPMagic...
+		mov byte [DHCPMagic],0
+
+;
 ; Now attempt to get the BOOTP/DHCP packet that brought us life (and an IP
 ; address).  This lives in the DHCPACK packet (query info 2).
 ;
-query_bootp:
-		mov di,pxe_bootp_query_pkt_2
-		mov bx,PXENV_GET_CACHED_INFO
-
-		call pxenv
-		push word [pxe_bootp_query_pkt_2.status]
-		jc .pxe_err1
-		cmp ax,byte 0
-		je .pxe_ok
-.pxe_err1:
-		mov di,pxe_bootp_size_query_pkt
-		mov bx,PXENV_GET_CACHED_INFO
-
-		call pxenv
-		jc .pxe_err
-.pxe_size:
-		mov ax,[pxe_bootp_size_query_pkt.buffersize]
-		call writehex4
-		call crlf
-
-.pxe_err:
-		mov si,err_pxefailed
-		call writestr
-		call writehex4
-		mov al, ' '
-		call writechr
-		pop ax				; Status
-		call writehex4
-		call crlf
-		jmp kaboom			; We're dead
-
-.pxe_ok:
-		pop cx				; Forget status
-		mov cx,[pxe_bootp_query_pkt_2.buffersize]
+query_bootp_2:
+		mov dl,2
+		call pxe_get_cached_info
 		call parse_dhcp			; Parse DHCP packet
 ;
 ; Save away MAC address (assume this is in query info 2.  If this
@@ -598,20 +584,8 @@ query_bootp:
 ; Now, get the boot file and other info.  This lives in the CACHED_REPLY
 ; packet (query info 3).
 ;
-		mov [pxe_bootp_size_query_pkt.packettype], byte 3
-
-		mov di,pxe_bootp_query_pkt_3
-		mov bx,PXENV_GET_CACHED_INFO
-
-		call pxenv
-		push word [pxe_bootp_query_pkt_3.status]
-		jc .pxe_err1
-		cmp ax,byte 0
-		jne .pxe_err1
-
-		; Packet loaded OK...
-		pop cx				; Forget status
-		mov cx,[pxe_bootp_query_pkt_3.buffersize]
+		mov dl,3
+		call pxe_get_cached_info
 		call parse_dhcp			; Parse DHCP packet
 
 ;
@@ -778,49 +752,58 @@ config_scan:
 		mov cx,cfgprefix_len
 		rep movsb
 
+		; Have to guess config file name...
+
+		; Try loading by UUID.
+		cmp byte [HaveUUID],0
+		je .no_uuid
+
+		push di
+		mov bx,uuid_dashes
+		mov si,UUID
+.gen_uuid:
+		movzx cx,byte [bx]
+		jcxz .done_uuid
+		inc bx
+		call uchexbytes
+		mov al,'-'
+		stosb
+		jmp .gen_uuid
+.done_uuid:
+		mov [di-1],cl		; Remove last dash and zero-terminate
+		pop di
+		call .try
+		jnz .success
+.no_uuid:
+
 		; Try loading by MAC address
-		; Have to guess config file name
 		push di
 		mov si,MACStr
 		mov cx,(3*17+1)/2
 		rep movsw
-		call .try
 		pop di
-		jnz .success
-
-.scan_ip:
-		mov cx,8
-		mov eax,[MyIP]
-		xchg ah,al			; Convert to host byte order
-		ror eax,16
-		xchg ah,al
-.hexify_loop:	rol eax,4
-		push eax
-		and al,0Fh
-		cmp al,10
-		jae .high
-.low:		add al,'0'
-		jmp short .char
-.high:		add al,'A'-10
-.char:		stosb
-		pop eax
-		loop .hexify_loop
-
-		mov cx,9			; Up to 9 attempts
-
-.tryagain:	mov byte [di],0
-		cmp cx,byte 1
-		jne .not_default
-		pusha
-		mov si,default_str
-		mov cx,default_len
-		rep movsb			; Copy "default" string
-		popa
-.not_default:
 		call .try
 		jnz .success
-		dec di
+
+		; Nope, try hexadecimal IP prefixes...
+.scan_ip:
+		mov cx,4
+		mov si,MyIP
+		call uchexbytes			; Convert to hex string
+
+		mov cx,8			; Up to 8 attempts
+.tryagain:
+		mov byte [di],0			; Zero-terminate string
+		call .try
+		jnz .success
+		dec di				; Drop one character
 		loop .tryagain
+
+		; Final attempt: "default" string
+		mov si,default_str		; "default" string
+		call strcpy
+		call .try
+		jnz .success
 
 		mov si,err_noconfig
 		call writestr
@@ -2006,6 +1989,82 @@ gendotquad:
 		pop cx
 		pop eax
 		ret
+;
+; uchexbytes
+;
+; Take a number of bytes in memory and convert to upper-case hexadecimal
+;
+; Input:
+;	DS:SI	= input bytes
+;	ES:DI	= output buffer
+;	CX	= number of bytes
+; Output:
+;	DS:SI	= first byte after
+;	ES:DI	= first byte after
+;	CX = 0
+;
+; Trashes AX
+;
+uchexbytes:
+.loop:
+	lodsb
+	mov ah,al
+	shr al,4
+	call .outchar
+	mov al,ah
+	call .outchar
+	loop .loop
+	ret
+.outchar:
+	and al,0Fh
+	add al,'0'
+	cmp al,'9'
+	jna .done
+	add al,'A'-'9'-1	
+.done:	stosb
+	ret
+
+;
+; pxe_get_cached_info
+;
+; Get a DHCP packet from the PXE stack into the trackbuf.
+;
+; Input:
+;	DL = packet type
+; Output:
+;	CX = buffer size
+;
+; Assumes CS == DS == ES.
+;
+pxe_get_cached_info:
+		pushad
+		mov di,pxe_bootp_query_pkt
+		push di
+		xor ax,ax
+		stosw		; Status
+		movzx ax,dl
+		stosw		; Packet type
+		mov ax,trackbufsize
+		stosw		; Buffer size
+		mov ax,trackbuf
+		stosw		; Buffer offset
+		xor ax,ax
+		stosw		; Buffer segment
+
+		pop di		; DI -> parameter set
+		mov bx,PXENV_GET_CACHED_INFO
+		call pxenv
+		jc .err
+		and ax,ax
+		jnz .err
+
+		popad
+		mov cx,[pxe_bootp_query_pkt.buffersize]
+		ret
+
+.err:
+		mov si,err_pxefailed
+		jmp kaboom
 
 ;
 ; parse_dhcp
@@ -2215,6 +2274,18 @@ dopt_%2:
 		mov di,BootFile
 		jmp dhcp_copyoption
 
+	dopt 97, uuid_client_identifier
+		cmp ax,17		; type byte + 16 bytes UUID
+		jne .skip
+		cmp [si],ah		; type 0 == UUID
+		jne .skip
+		inc si
+		dec ax
+		mov byte [HaveUUID],1	; Got UUID
+		mov di,UUID
+		jmp dhcp_copyoption
+.skip:		ret
+
 	dopt 208, pxelinux_magic
 		cmp al,4		; Must have length == 4
 		jne .done
@@ -2256,6 +2327,11 @@ dhcp_copyoption:
 
 		section .data
 dhcp_option_list_end:
+		section .text
+
+		section .data
+HaveUUID	db 0
+uuid_dashes	db 4,2,2,2,6,0	; Bytes per UUID dashed section
 		section .text
 
 ;
@@ -2433,7 +2509,6 @@ crlf_msg	db CR, LF
 null_msg	db 0
 crff_msg	db CR, FF, 0
 default_str	db 'default', 0
-default_len	equ ($-default_str)
 syslinux_banner	db CR, LF, 'PXELINUX ', version_str, ' ', date, ' ', 0
 cfgprefix	db 'pxelinux.cfg/'		; No final null!
 cfgprefix_len	equ ($-cfgprefix)
@@ -2484,27 +2559,15 @@ old_api_unload:
 ;
 ; PXE query packets partially filled in
 ;
-pxe_bootp_query_pkt_2:
-.status:	dw 0			; Status
-.packettype:	dw 2			; DHCPACK packet
-.buffersize:	dw trackbufsize		; Packet size
-.buffer:	dw trackbuf, 0		; seg:off of buffer
-.bufferlimit:	dw trackbufsize		; Unused
+		section .bss
+pxe_bootp_query_pkt:
+.status:	resw 1			; Status
+.packettype:	resw 1			; Boot server packet type
+.buffersize:	resw 1			; Packet size
+.buffer:	resw 2			; seg:off of buffer
+.bufferlimit:	resw 1			; Unused
 
-pxe_bootp_query_pkt_3:
-.status:	dw 0			; Status
-.packettype:	dw 3			; Boot server packet
-.buffersize:	dw trackbufsize		; Packet size
-.buffer:	dw trackbuf, 0		; seg:off of buffer
-.bufferlimit:	dw trackbufsize		; Unused
-
-pxe_bootp_size_query_pkt:
-.status:	dw 0			; Status
-.packettype:	dw 2			; DHCPACK packet
-.buffersize:	dw 0			; Packet size
-.buffer:	dw 0, 0			; seg:off of buffer
-.bufferlimit:	dw 0			; Unused
-
+		section .data
 pxe_udp_open_pkt:
 .status:	dw 0			; Status
 .sip:		dd 0			; Source (our) IP
@@ -2594,4 +2657,3 @@ EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 %error trackbufsize must be a multiple of TFTP_BLOCKSIZE
 %endif
 %endif
-DHCPMagic	db 0			; DHCP site-specific option info

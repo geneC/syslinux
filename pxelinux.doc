@@ -2,7 +2,7 @@
 
     A bootloader for Linux using the PXE network booting protocol
 
-		Copyright (C) 1994-2004 H. Peter Anvin
+		Copyright (C) 1994-2007 H. Peter Anvin
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -40,7 +40,13 @@ system may be booted from the same server, the configuration file name
 depends on the IP address of the booting machine.  PXELINUX will
 search for its config file on the boot server in the following way:
 
-  First, it will search for the config file using the hardware type
+  First, it will search for the config file using the client UUID, if
+  one is provided by the PXE stack (note, some BIOSes don't have a
+  valid UUID, and you might end up with something like all 1's.)  This is
+  in the standard UUID format using hexadecimal upper digits, e.g.
+  B8945908-D6A6-41A9-611D-74A6AB80B83D.
+
+  Next, it will search for the config file using the hardware type
   (using its ARP type code) and address, all in lower case hexadecimal
   with dash separators; for example, for an Ethernet (ARP type 1)
   with address 88:99:AA:BB:CC:DD it would search for the filename
@@ -56,9 +62,11 @@ search for its config file on the boot server in the following way:
   (in lower case).
 
   As an example, if the boot file name is /mybootdir/pxelinux.0, the
-  Ethernet MAC address is 88:99:AA:BB:CC:DD and the IP address
-  192.0.2.91, it will try:
+  UUID is B8945908-D6A6-41A9-611D-74A6AB80B83D, the Ethernet MAC
+  address is 88:99:AA:BB:CC:DD and the IP address 192.0.2.91, it will
+  try:
 
+	/mybootdir/pxelinux.cfg/B8945908-D6A6-41A9-611D-74A6AB80B83D
 	/mybootdir/pxelinux.cfg/01-88-99-aa-bb-cc-dd
 	/mybootdir/pxelinux.cfg/C000025B
 	/mybootdir/pxelinux.cfg/C000025
@@ -81,10 +89,11 @@ default if it cannot find any configuration file at all; instead it
 will reboot after the timeout interval has expired.  This keeps a
 machine from getting stuck indefinitely due to a boot server failure.
 
-PXELINUX does not support MTFTP, and I have no immediate plans of
-doing so.  It is of course possible to use MTFTP for the initial boot,
-if you have such a setup.  MTFTP server setup is beyond the scope of
-this document.
+PXELINUX does not support MTFTP, and I have no plans of doing so, as
+MTFTP is inherently broken for files more than 65535 packets (about
+92 MB) in size.  It is of course possible to use MTFTP for the initial
+boot, if you have such a setup.  MTFTP server setup is beyond the
+scope of this document.
 
 
     ++++ SETTING UP THE TFTP SERVER ++++
