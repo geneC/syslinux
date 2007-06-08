@@ -600,21 +600,15 @@ make_bootif_string:
 		movzx cx,byte [MACLen]
 		mov si,MACType
 		inc cx
-		mov bx,hextbl_lower
 .hexify_mac:
-		lodsb
-		mov ah,al
-		shr al,4
-		xlatb
-		stosb
-		mov al,ah
-		and al,0Fh
-		xlatb
-		stosb
+		push cx
+		mov cl,1		; CH == 0 already
+		call lchexbytes
 		mov al,'-'
 		stosb
+		pop cx
 		loop .hexify_mac
-		mov [di-1],byte 0		; Null-terminate and strip final colon
+		mov [di-1],cl		; Null-terminate and strip final dash
 ;
 ; Generate ip= option
 ;
@@ -765,7 +759,7 @@ config_scan:
 		movzx cx,byte [bx]
 		jcxz .done_uuid
 		inc bx
-		call uchexbytes
+		call lchexbytes
 		mov al,'-'
 		stosb
 		jmp .gen_uuid
@@ -1990,9 +1984,10 @@ gendotquad:
 		pop eax
 		ret
 ;
-; uchexbytes
+; uchexbytes/lchexbytes
 ;
-; Take a number of bytes in memory and convert to upper-case hexadecimal
+; Take a number of bytes in memory and convert to upper/lower-case
+; hexadecimal
 ;
 ; Input:
 ;	DS:SI	= input bytes
@@ -2003,9 +1998,15 @@ gendotquad:
 ;	ES:DI	= first byte after
 ;	CX = 0
 ;
-; Trashes AX
+; Trashes AX, DX
 ;
+
+lchexbytes:
+	mov dl,'a'-'9'-1
+	jmp xchexbytes
 uchexbytes:
+	mov dl,'A'-'9'-1
+xchexbytes:
 .loop:
 	lodsb
 	mov ah,al
@@ -2020,8 +2021,9 @@ uchexbytes:
 	add al,'0'
 	cmp al,'9'
 	jna .done
-	add al,'A'-'9'-1	
-.done:	stosb
+	add al,dl
+.done:
+	stosb
 	ret
 
 ;
@@ -2447,7 +2449,6 @@ writestr	equ cwritestr
 
 		section .data
 
-hextbl_lower	db '0123456789abcdef'
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
 		db CR, LF, 0
 boot_prompt	db 'boot: ', 0

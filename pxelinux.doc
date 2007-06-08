@@ -43,8 +43,8 @@ search for its config file on the boot server in the following way:
   First, it will search for the config file using the client UUID, if
   one is provided by the PXE stack (note, some BIOSes don't have a
   valid UUID, and you might end up with something like all 1's.)  This is
-  in the standard UUID format using hexadecimal upper digits, e.g.
-  B8945908-D6A6-41A9-611D-74A6AB80B83D.
+  in the standard UUID format using lower case hexadecimal digits, e.g.
+  b8945908-d6a6-41a9-611d-74a6ab80b83d.
 
   Next, it will search for the config file using the hardware type
   (using its ARP type code) and address, all in lower case hexadecimal
@@ -62,11 +62,11 @@ search for its config file on the boot server in the following way:
   (in lower case).
 
   As an example, if the boot file name is /mybootdir/pxelinux.0, the
-  UUID is B8945908-D6A6-41A9-611D-74A6AB80B83D, the Ethernet MAC
+  UUID is b8945908-d6a6-41a9-611d-74a6ab80b83d, the Ethernet MAC
   address is 88:99:AA:BB:CC:DD and the IP address 192.0.2.91, it will
   try:
 
-	/mybootdir/pxelinux.cfg/B8945908-D6A6-41A9-611D-74A6AB80B83D
+	/mybootdir/pxelinux.cfg/b8945908-d6a6-41a9-611d-74a6ab80b83d
 	/mybootdir/pxelinux.cfg/01-88-99-aa-bb-cc-dd
 	/mybootdir/pxelinux.cfg/C000025B
 	/mybootdir/pxelinux.cfg/C000025
