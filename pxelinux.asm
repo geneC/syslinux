@@ -775,8 +775,7 @@ config_scan:
 		; Try loading by MAC address
 		push di
 		mov si,MACStr
-		mov cx,(3*17+1)/2
-		rep movsw
+		call strcpy
 		pop di
 		call .try
 		jnz .success
