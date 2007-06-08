@@ -231,8 +231,10 @@ MAC		resb MAC_MAX+1		; Actual MAC address
 BOOTIFStr	resb 7			; Space for "BOOTIF="
 MACStr		resb 3*(MAC_MAX+1)	; MAC address as a string
 
-; One byte extra since dhcp_copyoption zero-terminates
-UUID		resb 16+1		; UUID, from the PXE stack
+; The relative position of these fields matter!
+UUIDType	resb 1			; Type byte from DHCP option
+UUID		resb 16			; UUID, from the PXE stack
+UUIDNull	resb 1			; dhcp_copyoption zero-terminates
 
 ;
 ; PXE packets which don't need static initialization
@@ -2279,12 +2281,11 @@ dopt_%2:
 	dopt 97, uuid_client_identifier
 		cmp ax,17		; type byte + 16 bytes UUID
 		jne .skip
-		cmp [si],ah		; type 0 == UUID
-		jne .skip
-		inc si
-		dec ax
+		mov dl,[si]		; Must have type 0 == UUID
+		or dl,[HaveUUID]	; Capture only the first instance
+		jnz .skip
 		mov byte [HaveUUID],1	; Got UUID
-		mov di,UUID
+		mov di,UUIDType
 		jmp dhcp_copyoption
 .skip:		ret
 
