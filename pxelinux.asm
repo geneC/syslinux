@@ -2196,8 +2196,16 @@ dopt_%2:
 	dopt 61, client_identifier
 		cmp ax,MAC_MAX		; Too long?
 		ja .skip
+		cmp ax,2		; Too short?
+		jb .skip
 		cmp [MACLen],ah		; Only do this if MACLen == 0
 		jne .skip
+		push ax
+		lodsb			; Client identifier type
+		cmp al,[MACType]
+		pop ax
+		jne .skip		; Client identifier is not a MAC
+		dec ax
 		mov [MACLen],al
 		mov di,MAC
 		jmp dhcp_copyoption
