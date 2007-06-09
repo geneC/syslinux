@@ -34,6 +34,9 @@ Changes in 3.50:
 	* Disabled the polling for ARP during idle.  It is simply too
 	  slow on some (broken!) PXE stacks.
 	* PXELINUX: also try to fetch the config file based on UUID.
+	* SYSLINUX/EXTLINUX: New RAID mode (-r) which calls the BIOS
+	  to load the next device (typically the next drive) on boot
+	  failure.
 
 Changes in 3.36:
 	* MEMDISK: Disable EDD by default on floppy disks.  EDD can be
