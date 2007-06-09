@@ -34,7 +34,7 @@ LDFLAGS  = -O2 -s $(LDHASH)
 AR	 = ar
 RANLIB   = ranlib
 
-NASM	 = nasm -O99
+NASM	 = nasm
 NINCLUDE =
 BINDIR   = /usr/bin
 SBINDIR  = /sbin
@@ -137,32 +137,11 @@ version.h: version version.pl
 kwdhash.gen: keywords genhash.pl
 	$(PERL) genhash.pl < keywords > kwdhash.gen
 
-ldlinux.bin: ldlinux.asm kwdhash.gen version.gen
-	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
-		-DMAP=$(@:.bin=.map) -l $(@:.bin=.lst) -o $@ $<
-	$(PERL) checkov.pl ldlinux.map $@
-
-pxelinux.bin: pxelinux.asm kwdhash.gen version.gen
-	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
-		-DMAP=$(@:.bin=.map) -l $(@:.bin=.lst) -o $@ $<
-	$(PERL) checkov.pl $(@:.bin=.map) $@
-
-isolinux.bin: isolinux.asm kwdhash.gen version.gen checksumiso.pl
-	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
-		-DMAP=$(@:.bin=.map) -l $(@:.bin=.lst) -o $@ $<
-	$(PERL) checkov.pl $(@:.bin=.map) $@
-	$(PERL) checksumiso.pl $@
-
-# Special verbose version of isolinux.bin
-isolinux-debug.bin: isolinux-debug.asm kwdhash.gen version.gen checksumiso.pl
-	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
-		-DMAP=$(@:.bin=.map) -l $(@:.bin=.lst) -o $@ $<
-	$(PERL) checkov.pl $(@:.bin=.map) $@
-	$(PERL) checksumiso.pl $@
-
-extlinux.bin: extlinux.asm kwdhash.gen version.gen
-	$(NASM) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
-		-DMAP=$(@:.bin=.map) -l $(@:.bin=.lst) -o $@ $<
+# Standard rule for {ldlinux,pxelinux,isolinux,isolinux-debug,extlinux}.bin
+%.bin: %.asm kwdhash.gen version.gen
+	$(NASM) -O99 -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
+		-DMAP=$(@:.bin=.map) -l $(@:.bin=.lsr) -o $@ $<
+	$(PERL) lstadjust.pl $(@:.bin=.lsr) $(@:.bin=.map) $(@:.bin=.lst)
 	$(PERL) checkov.pl $(@:.bin=.map) $@
 
 pxelinux.0: pxelinux.bin
@@ -184,7 +163,7 @@ mbr_bin.c: mbr/mbr.bin bin2c.pl
 	$(PERL) bin2c.pl syslinux_mbr < $< > $@
 
 copybs.com: copybs.asm
-	$(NASM) -f bin -l copybs.lst -o copybs.com copybs.asm
+	$(NASM) -O99 -f bin -l copybs.lst -o copybs.com copybs.asm
 
 bootsect_bin.c: ldlinux.bss bin2c.pl
 	$(PERL) bin2c.pl syslinux_bootsect < $< > $@
@@ -229,7 +208,7 @@ install-all: install install-lib
 
 local-tidy:
 	rm -f *.o *_bin.c stupid.* patch.offset
-	rm -f *.lst *.map
+	rm -f *.lsr *.lst *.map
 	rm -f $(OBSOLETE)
 
 tidy: local-tidy

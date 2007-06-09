@@ -56,7 +56,7 @@ all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 \
 	$(OBJCOPY) -O binary $< $@
 
 %.com: %.asm
-	$(NASM) -f bin -o $@ -l $*.lst $<
+	$(NASM) -O99 -f bin -o $@ -l $*.lst $<
 
 $(LIB): $(LIBOBJS)
 	rm -f $@
