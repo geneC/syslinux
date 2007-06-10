@@ -851,7 +851,7 @@ load_config:
 		mov di,ConfigName
 		call strcpy
 
-		mov si,ConfigName
+		mov di,ConfigName
 		call open
 		jz no_config_file
 
