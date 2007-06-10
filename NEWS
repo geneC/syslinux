@@ -2,6 +2,9 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 3.51:
+	* EXTLINUX: Fix failure to find the configuration file.
+
 Changes in 3.50:
 	* New keywords allow the type of file to be specified in the
 	  configuration file.
