@@ -33,6 +33,8 @@ while (defined($line = <MAP>)) {
 close(MAP);
 
 $offset = 0;
+@ostack = ();
+
 while (defined($line = <LST>)) {
     chomp $line;
     
@@ -41,15 +43,16 @@ while (defined($line = <LST>)) {
 	$source = $1;
     }
 
-    if ($source =~ /^\S*\s+(\S+)\s+(\S+)/) {
-	$op = $1;
-	$arg = $2;
-
-	if ($op =~ /^(|\[)section$/i) {
-	    $offset = $vstart{$arg};
-	} elsif ($op =~ /^(absolute|\[absolute|struc)$/i) {
-	    $offset = 0;
-	}
+    ($label, $op, $arg, $tail) = split(/\s+/, $source);
+    if ($op =~ /^(|\[)section$/i) {
+	$offset = $vstart{$arg};
+    } elsif ($op =~ /^(absolute|\[absolute)$/i) {
+	$offset = 0;
+    } elsif ($op =~ /^struc$/i) {
+	push(@ostack, $offset);
+	$offset = 0;
+    } elsif ($op =~ /^endstruc$/i) {
+	$offset = pop(@ostack);
     }
 
     if ($line =~ /^(\s*[0-9]+ )([0-9A-F]{8})(\s.*)$/) {
