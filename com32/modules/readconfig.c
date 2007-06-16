@@ -446,7 +446,7 @@ static char *is_fkey(char *cmdstr, int *fkeyno)
   char *q;
   int no;
 
-  if (cmdstr[0] != 'f')
+  if ((cmdstr[0]|0x20) != 'f')
     return NULL;
 
   no = strtoul(cmdstr+1, &q, 10);
