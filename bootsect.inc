@@ -108,6 +108,7 @@ replace_bootstrap:
 		; Prepare for shutting down
 		;
 		call vgaclearmode
+		call cleanup_hardware
 
 		;
 		; Set up initial stack frame (not used by PXE if keeppxe is

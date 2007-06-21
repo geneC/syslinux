@@ -823,12 +823,6 @@ config_scan:
 .success:
 
 ;
-; Now we have the config file open.  Parse the config file and
-; run the user interface.
-;
-%include "ui.inc"
-
-;
 ; Linux kernel loading code is common.  However, we need to define
 ; a couple of helper macros...
 ;
@@ -858,19 +852,11 @@ config_scan:
 		call unload_pxe
 %endmacro
 
-%include "runkernel.inc"
-
 ;
-; COMBOOT-loading code
+; Now we have the config file open.  Parse the config file and
+; run the user interface.
 ;
-%include "comboot.inc"
-%include "com32.inc"
-%include "cmdline.inc"
-
-;
-; Boot sector loading code
-;
-%include "bootsect.inc"
+%include "ui.inc"
 
 ;
 ; Boot to the local disk by returning the appropriate PXE magic.
@@ -893,11 +879,6 @@ local_boot:
 		mov ax,[cs:LocalBootType]
 		popfd
 		retf				; Return to PXE
-
-;
-; Abort loading code
-;
-%include "abort.inc"
 
 ;
 ; kaboom: write a message and bail out.  Wait for quite a while,

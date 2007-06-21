@@ -926,28 +926,6 @@ getfattype:
 %include "ui.inc"
 
 ;
-; Linux kernel loading code is common.
-;
-%include "runkernel.inc"
-
-;
-; COMBOOT-loading code
-;
-%include "comboot.inc"
-%include "com32.inc"
-%include "cmdline.inc"
-
-;
-; Boot sector loading code
-;
-%include "bootsect.inc"
-
-;
-; Abort loading code
-;
-%include "abort.inc"
-
-;
 ; allocate_file: Allocate a file structure
 ;
 ;		If successful:

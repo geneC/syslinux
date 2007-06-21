@@ -945,23 +945,6 @@ load_config:
 %include "ui.inc"
 
 ;
-; Linux kernel loading code is common.
-;
-%include "runkernel.inc"
-
-;
-; COMBOOT-loading code
-;
-%include "comboot.inc"
-%include "com32.inc"
-%include "cmdline.inc"
-
-;
-; Boot sector loading code
-;
-%include "bootsect.inc"
-
-;
 ; Enable disk emulation.  The kind of disk we emulate is dependent on the size of
 ; the file: 1200K, 1440K or 2880K floppy, otherwise harddisk.
 ;
@@ -1131,11 +1114,6 @@ local_boot:
 .int18:
 		int 18h				; Hope this does the right thing...
 		jmp kaboom			; If we returned, oh boy...
-
-;
-; Abort loading code
-;
-%include "abort.inc"
 
 ;
 ; close_file:

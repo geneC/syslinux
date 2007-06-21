@@ -625,3 +625,29 @@ FuncFlag	resb 1			; Escape sequences received from keyboard
 KernelType	resb 1			; Kernel type, from vkernel, if known
 
 		section .text
+;
+; Linux kernel loading code is common.
+;
+%include "runkernel.inc"
+
+;
+; COMBOOT-loading code
+;
+%include "comboot.inc"
+%include "com32.inc"
+%include "cmdline.inc"
+
+;
+; Boot sector loading code
+;
+%include "bootsect.inc"
+
+;
+; Abort loading code
+;
+%include "abort.inc"
+
+;
+; Hardware cleanup common code
+;
+%include "cleanup.inc"

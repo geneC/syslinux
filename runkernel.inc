@@ -454,16 +454,8 @@ root_not_floppy:
 		mov [cs:fdctab],word linux_fdctab ; Save new floppy tab pos
 		mov [cs:fdctab+2],es
 %endif
-;
-; Linux wants the floppy motor shut off before starting the kernel,
-; at least bootsect.S seems to imply so.  If we don't load the floppy
-; driver, this is *definitely* so!
-;
-kill_motor:
-		xor ax,ax
-		xor dx,dx
-		int 13h
 
+		call cleanup_hardware
 ;
 ; If we're debugging, wait for a keypress so we can read any debug messages
 ;

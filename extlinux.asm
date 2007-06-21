@@ -862,24 +862,6 @@ load_config:
 %include "ui.inc"
 
 ;
-; Linux kernel loading code is common.
-;
-%include "runkernel.inc"
-
-;
-; COMBOOT-loading code
-;
-%include "comboot.inc"
-%include "com32.inc"
-%include "cmdline.inc"
-
-;
-; Boot sector loading code
-;
-%include "bootsect.inc"
-
-
-;
 ; getlinsec_ext: same as getlinsec, except load any sector from the zero
 ;		 block as all zeros; use to load any data derived
 ;		 from an ext2 block pointer, i.e. anything *except the
@@ -907,11 +889,6 @@ getlinsec_ext:
 		dec bp
 		jnz getlinsec_ext
 		ret
-
-;
-; Abort loading code
-;
-%include "abort.inc"
 
 ;
 ; allocate_file: Allocate a file structure
