@@ -632,7 +632,7 @@ loadinitrd:
 
 		pop es
 		pop ds
-		jmp crlf			; Print carriage return and return
+		ret
 
 .notthere:
                 mov si,err_noinitrd
