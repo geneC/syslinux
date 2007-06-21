@@ -592,12 +592,6 @@ loadinitrd:
 		mov es,ax
 
 		push ecx			; Bytes to load
-		cmp dword [es:su_ramdisklen],0
-		je .nopadding			; Don't pad the last initrd
-		add ecx,4095
-		and cx,0F000h
-.nopadding:
-		add [es:su_ramdisklen],ecx
 		mov edx,[HighMemSize]		; End of memory
 		dec edx
 		mov eax,[RamdiskMax]		; Highest address allowed by kernel
@@ -612,10 +606,22 @@ loadinitrd:
 		cmp edx,[KernelEnd]		; Are we hitting the kernel image?
 		jb no_high_mem
 
+		cmp dword [es:su_ramdisklen],0
+		je .highest
+		; The total length has to include the padding between
+		; different ramdisk files, so consider "the length" the
+		; total amount we're about to adjust the base pointer.
+		mov ecx,[es:su_ramdiskat]
+		sub ecx,edx
+.highest:
+		add [es:su_ramdisklen],ecx
+
                 mov [es:su_ramdiskat],edx	; Load address
+                mov edi,edx			; initrd load address
+
+		dec edx				; Note: RamdiskMax is addr-1
 		mov [RamdiskMax],edx		; Next initrd loaded here
 
-                mov edi,edx			; initrd load address
 		push si
 		mov si,crlfloading_msg		; Write "Loading "
 		call cwritestr
