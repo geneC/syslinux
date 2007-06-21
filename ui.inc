@@ -600,7 +600,12 @@ is_disk_image	equ is_bad_image
 %endif
 
 		section .data
+boot_prompt	db 'boot: ', 0
+wipe_char	db BS, ' ', BS, 0
 err_badimage	db 'Invalid image type for this media type!', CR, LF, 0
+err_notfound	db 'Could not find kernel image: ',0
+err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
+
 
 		align 2, db 0
 kerneltype_table:

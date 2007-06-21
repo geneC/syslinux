@@ -63,3 +63,7 @@ error_or_command:
 		and cx,cx
 		jnz on_error
 		jmp enter_command
+
+		section .data
+aborted_msg	db ' aborted.', CR, LF
+

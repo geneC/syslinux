@@ -1555,40 +1555,8 @@ getfatsector:
 		section .data
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
 		db CR, LF, 0
-boot_prompt	db 'boot: ', 0
-wipe_char	db BS, ' ', BS, 0
-err_notfound	db 'Could not find kernel image: ',0
-err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
-err_noram	db 'It appears your computer has less than '
-		asciidec dosram_k
-		db 'K of low ("DOS")'
-		db CR, LF
-		db 'RAM.  Linux needs at least this amount to boot.  If you get'
-		db CR, LF
-		db 'this message in error, hold down the Ctrl key while'
-		db CR, LF
-		db 'booting, and I will take your word for it.', CR, LF, 0
-err_badcfg      db 'Unknown keyword in syslinux.cfg.', CR, LF, 0
-err_noparm      db 'Missing parameter in syslinux.cfg.', CR, LF, 0
-err_noinitrd    db CR, LF, 'Could not find ramdisk image: ', 0
-err_nohighmem   db 'Not enough memory to load specified kernel.', CR, LF, 0
-err_highload    db CR, LF, 'Kernel transfer failure.', CR, LF, 0
-err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
-                db CR, LF, 0
-err_notdos	db ': attempted DOS system call', CR, LF, 0
-err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
-err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: please change disks and press '
 		db 'a key to continue.', CR, LF, 0
-ready_msg	db 'Ready.', CR, LF, 0
-crlfloading_msg	db CR, LF
-loading_msg     db 'Loading ', 0
-dotdot_msg      db '.'
-dot_msg         db '.', 0
-aborted_msg	db ' aborted.'			; Fall through to crlf_msg!
-crlf_msg	db CR, LF
-null_msg	db 0
-crff_msg	db CR, FF, 0
 syslinux_cfg1	db '/boot'			; /boot/syslinux/syslinux.cfg
 syslinux_cfg2	db '/syslinux'			; /syslinux/syslinux.cfg
 syslinux_cfg3	db '/'				; /syslinux.cfg

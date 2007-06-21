@@ -72,3 +72,15 @@ skip_checks:
 		mov byte [try_wbinvd],0c3h		; Near RET
 is_486:
 %endif	; DO_WBINVD
+
+		section .data
+err_noram	db 'It appears your computer has less than '
+		asciidec dosram_k
+		db 'K of low ("DOS")'
+		db CR, LF
+		db 'RAM.  Linux needs at least this amount to boot.  If you get'
+		db CR, LF
+		db 'this message in error, hold down the Ctrl key while'
+		db CR, LF
+		db 'booting, and I will take your word for it.', CR, LF, 0
+		section .text

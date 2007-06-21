@@ -649,6 +649,16 @@ no_high_mem:					; Error routine
                 ret
 
 		section .data
+crlfloading_msg	db CR, LF
+loading_msg     db 'Loading ', 0
+dotdot_msg      db '.'
+dot_msg         db '.', 0
+ready_msg	db 'ready.', CR, LF, 0
+err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
+                db CR, LF, 0
+err_noinitrd    db CR, LF, 'Could not find ramdisk image: ', 0
+err_nohighmem   db 'Not enough memory to load specified kernel.', CR, LF, 0
+
 boot_image      db 'BOOT_IMAGE='
 boot_image_len  equ $-boot_image
 

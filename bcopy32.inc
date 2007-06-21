@@ -308,6 +308,11 @@ a20_fast:
 
 		mov si, err_a20
 		jmp abort_load
+
+		section .data
+err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
+		section .bcopy32
+
 ;
 ; A20 unmasked, proceed...
 ;

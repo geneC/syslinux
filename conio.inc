@@ -384,6 +384,13 @@ debug_tracer:	pushad
 		ret
 %endif	; DEBUG_TRACERS
 
+		section .data
+%if IS_ISOLINUX == 0			; Defined elsewhere for ISOLINUX
+crlf_msg	db CR, LF
+null_msg	db 0
+%endif
+crff_msg	db CR, FF, 0
+
 		section .config
 		; This is a word to pc_setint16 can set it
 DisplayCon	dw 01h			; Console display enabled
