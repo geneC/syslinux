@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2003-2005 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2003-2007 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -17,8 +17,13 @@
  *
  * Usage: chain hd<disk#> [<partition>]
  *        chain fd<disk#>
+ *	  chain mbr:<id> [<partition>]
  *
- * ... e.g. "chain hd0 1" will boot the first partition on the first hard disk.
+ * ... e.g. "chain hd0 1" will boot the first partition on the first hard
+ * disk.
+ *
+ * The mbr: syntax means search all the hard disks until one with a
+ * specific MBR serial number (bytes 440-443) is found.
  *
  * Partitions 1-4 are primary, 5+ logical, 0 = boot MBR (default.)
  */
@@ -72,6 +77,7 @@ int get_disk_params(int disk)
   static com32sys_t getparm, parm, getebios, ebios;
 
   disk_info.disk = disk;
+  disk_info.ebios = disk_info.cbios = 0;
 
   /* Get EBIOS support */
   getebios.eax.w[0] = 0x4100;
@@ -169,6 +175,25 @@ int read_sector(void *buf, unsigned int lba)
   return int13_retry(&inreg, NULL);
 }
 
+/* Search for a specific drive, based on the MBR signature; bytes
+   440-443. */
+int find_disk(uint32_t mbr_sig, void *buf)
+{
+  int drive;
+
+  for (drive = 0x80; drive <= 0xff; drive++) {
+    if (get_disk_params(drive))
+      continue;			/* Drive doesn't exist */
+    if (read_sector(buf, 0))
+      continue;			/* Cannot read sector */
+
+    if (*(uint32_t *)((char *)buf + 440) == mbr_sig)
+      return drive;
+  }
+
+  return -1;
+}
+
 /* A DOS partition table entry */
 struct part_entry {
   uint8_t active_flag;		/* 0x80 if "active" */
@@ -185,8 +210,8 @@ struct part_entry {
 
 
 /* Search for a logical partition.  Logical partitions are actually implemented
-   as recursive partition tables; theoretically they're supposed to form a linked
-   list, but other structures have been seen.
+   as recursive partition tables; theoretically they're supposed to form a
+   linked list, but other structures have been seen.
 
    To make things extra confusing: data partition offsets are relative to where
    the data partition record is stored, whereas extended partition offsets
@@ -195,7 +220,9 @@ struct part_entry {
 
 int nextpart;			/* Number of the next logical partition */
 
-struct part_entry *find_logical_partition(int whichpart, char *table, struct part_entry *self, struct part_entry *root)
+struct part_entry *
+find_logical_partition(int whichpart, char *table, struct part_entry *self,
+		       struct part_entry *root)
 {
   struct part_entry *ptab = (struct part_entry *)(table + 0x1be);
   struct part_entry *found;
@@ -278,27 +305,8 @@ int main(int argc, char *argv[])
   openconsole(&dev_null_r, &dev_stdcon_w);
 
   if ( argc < 2 ) {
-    error("Usage: chain.c32 (hd|fd)# [partition]\n");
+    error("Usage: chain.c32 (hd#|fd#|mbr:#) [partition]\n");
     goto bail;
-  }
-
-  drivename = argv[1];
-  partition = argv[2];		/* Possibly null */
-
-  hd = 0;
-  if ( (drivename[0] == 'h' || drivename[0] == 'f') &&
-       drivename[1] == 'd' ) {
-    hd = drivename[0] == 'h';
-    drivename += 2;
-  }
-  drive = (hd ? 0x80 : 0) | strtoul(drivename, NULL, 0);
-  whichpart = 0;		/* Default */
-
-  if ( partition )
-    whichpart = strtoul(partition, NULL, 0);
-
-  if ( !(drive & 0x80) && whichpart ) {
-    error("Warning: Partitions of floppy devices may not work\n");
   }
 
   /* Divvy up the bounce buffer.  To keep things sector-
@@ -308,8 +316,36 @@ int main(int argc, char *argv[])
   dapa = (struct ebios_dapa *)__com32.cs_bounce;
   mbr  = (char *)__com32.cs_bounce + SECTOR;
 
-  /* Get the disk geometry (not needed for MBR) */
-  if ( get_disk_params(drive) && whichpart ) {
+  drivename = argv[1];
+  partition = argv[2];		/* Possibly null */
+
+  hd = 0;
+  if ( !memcmp(drivename, "mbr:", 4) ) {
+    drive = find_disk(strtoul(drivename+4, NULL, 0), mbr);
+    if (drive == -1) {
+      error("Unable to find requested MBR signature\n");
+      goto bail;
+    }
+  } else {
+    if ( (drivename[0] == 'h' || drivename[0] == 'f') &&
+	 drivename[1] == 'd' ) {
+      hd = drivename[0] == 'h';
+      drivename += 2;
+    }
+    drive = (hd ? 0x80 : 0) | strtoul(drivename, NULL, 0);
+  }
+
+  whichpart = 0;		/* Default */
+
+  if ( partition )
+    whichpart = strtoul(partition, NULL, 0);
+
+  if ( !(drive & 0x80) && whichpart ) {
+    error("Warning: Partitions of floppy devices may not work\n");
+  }
+
+  /* Get the disk geometry and disk access setup */
+  if ( get_disk_params(drive) ) {
     error("Cannot get disk parameters\n");
     goto bail;
   }
