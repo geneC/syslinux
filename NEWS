@@ -6,9 +6,13 @@ Changes in 3.52:
 	* Handle capitalized F-key commands in the menu system.
 	* Fix padding error when loading multiple ramdisks.
 	* Workaround for VMware crashing when trying to print a
-	  message during early kernel boot.
+	  message during early kernel boot (does not seem to work,
+	  consider deleting.)
 	* chain.c32: add the ability to search for a specific MBR
 	  signature at runtime.
+	* Fall back to the server identity option if the siaddr field
+	  in the DHCP header isn't set.  This seems to match the
+	  behaviour of most PXE stacks.
 
 Changes in 3.51:
 	* EXTLINUX: Fix failure to find the configuration file.

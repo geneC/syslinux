@@ -2236,6 +2236,15 @@ dopt_%2:
 		mov [OverLoad],bl
 		ret
 
+	dopt 54, server
+		mov eax,[si]
+		cmp dword [ServerIP],0
+		jne .skip		; Already have a next server IP
+		cmp al,224		; Class D or higher
+		jae .skip
+		mov [ServerIP],eax
+.skip:		ret
+
 	dopt 61, client_identifier
 		cmp ax,MAC_MAX		; Too long?
 		ja .skip
