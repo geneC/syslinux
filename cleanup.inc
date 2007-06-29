@@ -33,6 +33,7 @@ cleanup_hardware:
 		xor dx,dx
 		int 13h
 
+%if 0		; This bug report has not been substantiated!
 ; Vmware crashes if we scroll in the decompressor!  Try to detect vmware
 ; and if it is Vmware, clear the screen...
 		mov eax,'VMXh'
@@ -46,4 +47,6 @@ cleanup_hardware:
 		mov ax,0x0003		; Set mode (clear screen/home cursor)
 		int 10h
 .no_vmware:
+%endif
+
 		ret
