@@ -766,6 +766,9 @@ void setup(syscall_t cs_syscall, void *cs_bounce)
     pptr->drivecnt = bios_drives;
   }
 
+  /* Add ourselves to the drive count */
+  pptr->drivecnt++;
+
   /* Discontiguous drive space.  There is no really good solution for this. */
   if ( pptr->drivecnt <= (geometry->driveno & 0x7f) )
     pptr->drivecnt = (geometry->driveno & 0x7f) + 1;
