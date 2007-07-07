@@ -39,6 +39,22 @@ sub is_linux() {
 	"return \$sysname eq \'Linux\'; }";
 }
 
+sub get_random() {
+    # Get a 32-bit random number
+    my $rfd, $rnd;
+    my $rid;
+
+    if (sysopen($rfd, '/dev/urandom', O_RDONLY) &&
+	sysread($rfd, $rnd, 4) == 4) {
+	$rid = unpack("V", $rnd);
+    }
+
+    close($rfd) if (defined($rfd));
+    return $rid if (defined($rid));
+
+    # This sucks but is better than nothing...
+    return ($$+time()) & 0xffffffff;
+}
 
 $is_linux = is_linux();
 if ( $is_linux ) {
@@ -50,10 +66,13 @@ if ( $is_linux ) {
 %opt = ();
 @args = ();
 
-for $a ( @ARGV ) {
+while (defined($a = shift(@ARGV))) {
     if ( $a =~ /^\-/ ) {
 	foreach $o ( split(//, substr($a,1)) ) {
 	    $opt{$o} = 1;
+	    if ($o eq 'i') {
+		$id = shift(@ARGV);
+	    }
 	}
     } else {
 	push(@args, $a);
@@ -105,13 +124,14 @@ if ( $c == 0 && $file ne '' ) {
 
 if ( $file eq '' || $c < 1 || $c > 1024 ||
      $h < 1 || $h > 256 || $s < 1 || $s > 63 ) {
-    print STDERR "Usage: $0 [-doFMz4] file c h s (max: 1024 256 63)\n";
+    print STDERR "Usage: $0 [-doFMz4][-i id] file c h s (max: 1024 256 63)\n";
     print STDERR "    -d    add DOSEMU header\n";
     print STDERR "    -o    print filesystem offset to stdout\n";
     print STDERR "    -F    format partition as FAT32\n";
     print STDERR "    -M    \"c\" argument is megabytes, calculate cylinders\n";
     print STDERR "    -z    use zipdisk geometry (h=64 s=32)\n";
     print STDERR "    -4    use partition entry 4 (standard for zipdisks)\n";
+    print STDERR "    -i    specify the MBR ID\n";
     exit 1;
 }
 
@@ -138,11 +158,18 @@ while ( $line = <DATA> ) {
 	$mbr .= chr(hex($byte));
     }
 }
-if ( length($mbr) > 446 ) {
+if ( length($mbr) > 440 ) {
     die "$0: Bad MBR code\n";
 }
 
-$mbr .= "\0" x (446 - length($mbr));
+$mbr .= "\0" x (440 - length($mbr));
+if (defined($id)) {
+    $id = to_int($id);
+} else {
+    $id = get_random();
+}
+$mbr .= pack("V", $id);		# Offset 440: MBR ID
+$mbr .= "\0\0";			# Offset 446: actual partition table
 
 print OUTPUT $mbr;
 
