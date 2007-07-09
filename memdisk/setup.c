@@ -60,6 +60,18 @@ typedef union {
   } fd;
 } dpt_t;
 
+/* EDD disk parameter table */
+struct edd_dpt {
+  uint16_t len;			/* Length of table */
+  uint16_t flags;		/* Information flags */
+  uint32_t c;			/* Physical cylinders (count!) */
+  uint32_t h;			/* Physical heads (count!) */
+  uint32_t s;			/* Physical sectors/track (count!) */
+  uint64_t sectors;		/* Total sectors */
+  uint16_t bytespersec;		/* Bytes/sector */
+  uint16_t dpte_off, dpte_seg;	/* DPTE pointer */
+};
+
 struct patch_area {
   uint32_t diskbuf;
   uint32_t disksize;
@@ -97,6 +109,7 @@ struct patch_area {
   uint16_t statusptr;
 
   dpt_t dpt;
+  struct edd_dpt edd_dpt;
 };
 
 /* This is the header in the boot sector/setup area */
@@ -673,6 +686,22 @@ void setup(syscall_t cs_syscall, void *cs_bounce)
     pptr->dpt.fd.mstart   = 0x05;
 
     pptr->dpt.fd.old_fd_dpt = rdz_32(BIOS_INT1E);
+  }
+
+  /* Set up an EDD drive parameter table */
+  pptr->edd_dpt.sectors = geometry->sectors;
+  /* The EDD spec has this as <= 15482880  sectors (1024x240x63);
+     this seems to make very little sense.  Try for something saner. */
+  if (geometry->c <= 1024 && geometry->h <= 255 && geometry->s <= 63) {
+    pptr->edd_dpt.c = geometry->c;
+    pptr->edd_dpt.h = geometry->h;
+    pptr->edd_dpt.s = geometry->s;
+    pptr->edd_dpt.flags |= 0x0002; /* Geometry valid */
+  }
+  if (!(geometry->driveno & 0x80)) {
+    /* Floppy drive.  Mark it as a removable device with
+       media change notification; media is present. */
+    pptr->edd_dpt.flags |= 0x0014;
   }
 
   /* The size is given by hptr->total_size plus the size of the E820

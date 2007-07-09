@@ -275,6 +275,8 @@ CheckIfReady:				; These are always-successful noop functions
 Recalibrate:
 InitWithParms:
 DetectChange:
+EDDDetectChange:
+EDDLock:
 SetMode:
 success:
 		xor ax,ax		; Always successful
@@ -335,8 +337,9 @@ EDDPresence:
 		cmp P_BX,55AAh
 		jne Invalid
 		mov P_BX,0AA55h		; EDD signature
-		mov P_AX,02100h		; EDD 1.1
-		mov P_CX,0001h		; Fixed disk access subset
+		mov P_AX,03000h		; EDD 3.0
+		mov P_CX,0003h		; Bit 0 - Fixed disk access subset
+					; Bit 1 - Locking and ejecting subset
 		pop ax			; Drop return address
 		xor ax,ax		; Success
 		jmp DoneWeird		; Success, but AH != 0, sigh...
@@ -372,23 +375,22 @@ EDDGetParms:
 
 		mov es,P_DS
 		mov di,P_SI
-		mov cx,30		; Length of our DPT
-		cmp [es:di],cx
-		jae .oksize
+		mov si,EDD_DPT
 
-		mov cx,26
-		cmp [es:di],cx
+		lodsw			; Length of our DPT
+		mov cx,[es:di]
+		cmp cx,26		; Minimum size
 		jb .overrun
 
+		cmp cx,ax
+		jb .oksize
+		mov cx,ax
 
 .oksize:
-		mov [si],cx
-
-		; This should be done by the installer...
-		mov eax,[DiskSize]
-		mov [si+16],eax
-
-		mov si,EDD_DPT
+		mov ax,cx
+		stosw
+		dec cx
+		dec cx
 		rep movsb
 
 		xor ax,ax
@@ -466,15 +468,17 @@ edd_setup_regs:
 		movzx edi,word [es:si+6]	; Segment
 		shl edi,4
 		add esi,edi
-
 		jmp .got_address
 
 .linear_address:
-		cmp dx,24			; Must be large enough to hold linear address
+		cmp dx,24		; Must be large enough to hold
+					; linear address
 		jb .baddapa
 
-		cmp dword [es:si+20],0		; > 4 GB addresses not supported
-		jne .overrun
+		cmp dword [es:si+20],0	; > 4 GB addresses not supported
+		mov ax,0900h		; "Data boundary error" - bogus, but
+					; no really better code available
+		jne .error
 
 		mov esi,[es:si+16]
 
@@ -503,10 +507,16 @@ edd_setup_regs:
 		ret
 
 .overrun:
+		mov ax,0200h		; "Address mark not found" =
+					; LBA beyond end of disk
+.error:
 		and word [es:si+2],0	; No sectors transferred
-		mov ax,0200h
 		pop es
 		pop ax
+		ret
+
+EDDEject:
+		mov ax,0B200h		; Volume Not Removable
 		ret
 
 %endif ; EDD
@@ -863,29 +873,16 @@ Int13Funcs	dw Reset		; 00h - RESET
 		dw EDDRead		; 42h - EDD READ
 		dw EDDWrite		; 43h - EDD WRITE
 		dw EDDVerify		; 44h - EDD VERIFY
-		dw Invalid		; 45h - EDD LOCK/UNLOCK MEDIA
-		dw Invalid		; 46h - EDD EJECT
+		dw EDDLock		; 45h - EDD LOCK/UNLOCK MEDIA
+		dw EDDEject		; 46h - EDD EJECT
 		dw EDDSeek		; 47h - EDD SEEK
 		dw EDDGetParms		; 48h - EDD GET PARAMETERS
+		dw EDDDetectChange	; 49h - EDD MEDIA CHANGE STATUS
 %endif
 
 Int13FuncsEnd	equ $
 Int13FuncsCnt	equ (Int13FuncsEnd-Int13Funcs) >> 1
 
-%if EDD
-EDD_DPT:
-.length		dw 30
-		; Bit 0 - DMA boundaries handled transparently
-		; Bit 3 - Device supports write verify
-.info		dw 0009h
-.cylinders	dd 0			; No physical geometry
-.heads		dd 0			; No physical geometry
-.sectors	dd 0			; No physical geometry
-.totalsize	dd 0, 0			; Total number of sectors
-.bytespersec	dw SECTORSIZE
-.eddtable	dw -1, -1		; Invalid EDD table
-
-%endif
 
 		alignb 8, db 0
 Shaker		dw ShakerEnd-$
@@ -901,7 +898,6 @@ Shaker_DS:	dd 0x0000ffff		; 4GB data segment
 ShakerEnd	equ $
 
 		alignb 8, db 0
-
 
 Mover		dd 0, 0, 0, 0		; Must be zero
 		dw 0ffffh		; 64 K segment size
@@ -955,9 +951,23 @@ MyStack		dw 0			; Offset of stack
 StatusPtr	dw 0			; Where to save status (zeroseg ptr)
 
 DPT		times 16 db 0		; BIOS parameter table pointer (floppies)
+%if EDD
+EDD_DPT:
+.length		dw 30
+.info		dw 0029h
+		; Bit 0 - DMA boundaries handled transparently
+		; Bit 3 - Device supports write verify
+		; Bit 5 - Media is lockable
+.cylinders	dd 0			; Filled in by installer
+.heads		dd 0			; Filled in by installer
+.sectors	dd 0			; Filled in by installer
+.totalsize	dd 0, 0			; Filled in by installer
+.bytespersec	dw SECTORSIZE
+.eddtable	dw -1, -1		; Invalid DPTE pointer
+
+%endif
 
 		; End patch area
-
 Stack		dd 0			; Saved SS:ESP on invocation
 		dw 0
 SavedAX		dw 0			; AX saved on invocation
