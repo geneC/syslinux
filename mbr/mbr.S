@@ -80,8 +80,10 @@ next:
 	shrw	%cx		/* Bit 0 = fixed disk subset */
 	jnc	1f
 
-	/* We have EBIOS; patch in jump to skip over read_sector_cbios */
-	movw	$0xeb+((read_common-read_sector_cbios-2)<< 8), (read_sector_cbios)
+	/* We have EBIOS; patch in the following code at
+	   read_sector_cbios: movb $0x42, %ah ;  jmp read_common */
+	movl	$0xeb42b4+((read_common-read_sector_cbios-4) << 24), \
+		(read_sector_cbios)
 
 1:
 	popw	%dx
@@ -120,9 +122,9 @@ read_sector:
 	pushw	$1	/* Sector count */
 	pushw	$16	/* Size of packet */
 	movw	%sp, %si
-	movb	$0x42, %ah
 
 	/* This chunk is skipped if we have ebios */
+	/* Do not clobber %eax before this chunk! */
 read_sector_cbios:
 	divl	(secpercyl)
 	shlb	$6, %ah
