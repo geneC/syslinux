@@ -99,7 +99,7 @@ next:
 	pushw	%ax		/* Save sectors/cylinder on the stack */
 
 	xorl	%eax, %eax	/* Base */
-	xorl	%edx, %edx	/* Root: %edx <- 0 */
+	cdq			/* Root (%edx <- 0) */
 	call	scan_partition_table
 
 	/* If we get here, we have no OS */
