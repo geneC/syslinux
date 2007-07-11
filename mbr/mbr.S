@@ -32,7 +32,7 @@
 stack		= 0x7c00
 driveno		= (stack-6)
 sectors		= (stack-8)
-secpercyl	= (stack-10)
+secpercyl	= (stack-12)
 
 BIOS_page = 0x462
 
@@ -92,6 +92,7 @@ next:
 	andw	$0x3f, %cx	/* Sector count */
 	pushw	%cx		/* Save sectors on the stack */
 	xorw	%ax, %ax
+	pushw	%ax		/* High word of sectors/cylinder */
 	movb	%dh, %al	/* dh = number of heads */
 	incw	%ax		/* From 0-based to count */
 	mulw	%cx		/* Heads*sectors -> sectors per cylinder */
@@ -111,9 +112,8 @@ next:
  */
 read_sector:
 read_sector_cbios:
-	movl	%eax, %edx
-	shrl	$16, %edx
-	divw	(secpercyl)
+	xorl	%edx, %edx
+	divl	(secpercyl)
 	rorb	%ah
 	rorb	%ah
 	movb	%ah, %cl
