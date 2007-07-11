@@ -122,8 +122,8 @@ read_sector_cbios:
 	xchgw	%dx, %ax
 	divb	(sectors)
 	movb	%al, %dh
-	incb	%ah
 	orb	%ah, %cl
+	incw	%cx	/* Sectors are 1-based */
 	movw	$0x0201, %ax
 	jmp	read_common
 read_sector_ebios:
