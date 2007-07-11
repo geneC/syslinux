@@ -107,9 +107,10 @@ next:
 
 /*
  * read_sector: read a single sector pointed to by %eax to 0x7c00.
- * CF is set on error.  All registers clobbered.
+ * CF is set on error.  All registers saved.
  */
 read_sector:
+	pushal
 read_sector_cbios:
 	xorl	%edx, %edx
 	divl	(secpercyl)
@@ -132,18 +133,18 @@ read_sector_ebios:
 read_common:
 	movb	(driveno), %dl
 	int	$0x13
+	popal
 	ret
 
 /*
  * read_partition_table:
  *	Read a partition table (pointed to by %eax), and copy
  *	the partition table into the ptab buffer.
- *	Preserve registers.
+ *	Clobbers %si, %di, and %cx, other registers preserved.
  */
 ptab	= _start+446
 
 read_partition_table:
-	pushal
 	call	read_sector
 	jc	20f
 	movw	$bootsec+446, %si
@@ -151,7 +152,6 @@ read_partition_table:
 	movw	$(16*4/2), %cx
 	rep ; movsw
 20:
-	popal
 	ret
 
 /*
@@ -173,18 +173,18 @@ scan_partition_table:
 	movw	%sp, %bp
 
 	/* Search for active partitions */
-	movw	$ptab, %di
+	movw	$ptab, %bx
 	movw	$4, %cx
 	xorw	%ax, %ax
-	push	%di
+	push	%bx
 	push	%cx
 5:
-	testb	$0x80, (%di)
+	testb	$0x80, (%bx)
 	jz	6f
 	incw	%ax
-	movw	%di, %si
+	movw	%bx, %si
 6:
-	addw	$16, %di
+	addw	$16, %bx
 	loopw	5b
 
 	decw	%ax		/* Number of active partitions found */
@@ -192,10 +192,10 @@ scan_partition_table:
 	jns	too_many_active
 
 	/* No active partitions found, look for extended partitions */
-	popw	%di		/* %di <- ptab */
+	popw	%bx		/* %bx <- ptab */
 	popw	%cx		/* %cx <- 4    */
 7:
-	movb	4(%di), %al
+	movb	4(%bx), %al
 	cmpb	$0x0f, %al	/* 0x0f = Win9x extended */
 	je	8f
 	andb	$~0x80, %al	/* 0x85 = Linux extended */
@@ -206,7 +206,7 @@ scan_partition_table:
 	   try to scan it.  If the scan returns, re-load the current
 	   partition table and resume scan. */
 8:
-	movl	8(%di), %eax		/* Partition table offset */
+	movl	8(%bx), %eax		/* Partition table offset */
 	movl	20(%bp), %edx		/* "Root" */
 	addl	%edx, %eax		/* Compute location of new ptab */
 	andl	%edx, %edx		/* Is this the MBR? */
@@ -224,7 +224,7 @@ scan_partition_table:
 	/* fall through */
 9:
 	/* Not an extended partition */
-	addw	$16, %di
+	addw	$16, %bx
 	loopw	7b
 
 	/* Nothing found, return */
@@ -239,9 +239,7 @@ boot:
 	movl	8(%si), %eax
 	addl	28(%bp), %eax
 	movl	%eax, 8(%si)	/* Adjust in-memory partition table entry */
-	pushw	%si
 	call	read_sector
-	popw	%si		/* ds:si -> partition table entry */
 	jc	disk_error
 	cmpw	$0xaa55, (bootsec+510)
 	jne	missing_os		/* Not a valid boot sector */
