@@ -218,7 +218,7 @@ scan_partition_table:
 	call	scan_partition_table
 11:
 	/* This returned, so we need to reload the current partition table */
-	movl	28(%bp), %eax
+	movl	28(%bp), %eax		/* "Base" */
 	call	read_partition_table
 
 	/* fall through */
@@ -238,10 +238,10 @@ scan_partition_table:
 boot:
 	movl	8(%si), %eax
 	addl	28(%bp), %eax
-	movl	%eax, 8(%si)
+	movl	%eax, 8(%si)	/* Adjust in-memory partition table entry */
 	pushw	%si
 	call	read_sector
-	popw	%si
+	popw	%si		/* ds:si -> partition table entry */
 	jc	disk_error
 	cmpw	$0xaa55, (bootsec+510)
 	jne	missing_os		/* Not a valid boot sector */
