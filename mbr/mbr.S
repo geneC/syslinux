@@ -80,8 +80,8 @@ next:
 	shrw	%cx		/* Bit 0 = fixed disk subset */
 	jnc	1f
 
-	/* We have EBIOS; patch in a jump to read_sector_ebios */
-	movw	$0xeb+((read_sector_ebios-read_sector_cbios-2)<< 8), (read_sector_cbios)
+	/* We have EBIOS; patch in jump to skip over read_sector_cbios */
+	movw	$0xeb+((read_common-read_sector_cbios-2)<< 8), (read_sector_cbios)
 
 1:
 	popw	%dx
@@ -111,9 +111,18 @@ next:
  */
 read_sector:
 	pushal
-	movw	%sp, %bp
 	xorl	%edx, %edx
 	movw	$bootsec, %bx
+	pushl	%edx	/* MSW of LBA */
+	pushl	%eax	/* LSW of LBA */
+	pushw	%es	/* Buffer segment */
+	pushw	%bx	/* Buffer offset */
+	pushw	$1	/* Sector count */
+	pushw	$16	/* Size of packet */
+	movw	%sp, %si
+	movb	$0x42, %ah
+
+	/* This chunk is skipped if we have ebios */
 read_sector_cbios:
 	divl	(secpercyl)
 	shlb	$6, %ah
@@ -125,20 +134,11 @@ read_sector_cbios:
 	orb	%ah, %cl
 	incw	%cx	/* Sectors are 1-based */
 	movw	$0x0201, %ax
-	jmp	read_common
-read_sector_ebios:
-	pushl	%edx	/* MSW of LBA */
-	pushl	%eax	/* LSW of LBA */
-	pushw	%es	/* Buffer segment */
-	pushw	%bx	/* Buffer offset */
-	pushw	$1	/* Sector count */
-	pushw	$16	/* Size of packet */
-	movw	%sp, %si
-	movb	$0x42, %ah
+
 read_common:
 	movb	(driveno), %dl
 	int	$0x13
-	movw	%bp, %sp
+	addw	$16, %sp	/* Drop DAPA */
 	popal
 	ret
 
