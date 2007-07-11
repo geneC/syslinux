@@ -77,8 +77,8 @@ next:
 	jc	1f
 	cmpw	$0xaa55, %bx
 	jne	1f
-	testb	$0x01, %cl
-	jz	1f
+	shrw	%cx		/* Bit 0 = fixed disk subset */
+	jnc	1f
 
 	/* We have EBIOS; patch in a jump to read_sector_ebios */
 	movw	$0xeb+((read_sector_ebios-read_sector_cbios-2)<< 8), (read_sector_cbios)
@@ -288,7 +288,9 @@ too_many_active_msg:
 	.ascii	"Multiple active partitions."
 	.byte	0
 
+#ifndef NO_ALIGN
 	.balign	4
+#endif
 dapa:
 	.short	16		/* Size of packet */
 	.short	1		/* Sector count */
