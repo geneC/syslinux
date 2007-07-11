@@ -232,11 +232,11 @@ scan_partition_table:
 
 /*
  * boot: invoke the actual bootstrap. (%si) points to the partition
- *	 table entry, and 22(%bp) has the partition table base.
+ *	 table entry, and 28(%bp) has the partition table base.
  */
 boot:
 	movl	8(%si), %eax
-	addl	22(%bp), %eax
+	addl	28(%bp), %eax
 	movl	%eax, 8(%si)
 	pushw	%si
 	call	read_sector
