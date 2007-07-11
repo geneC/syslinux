@@ -176,6 +176,8 @@ scan_partition_table:
 	movw	$ptab, %di
 	movw	$4, %cx
 	xorw	%ax, %ax
+	push	%di
+	push	%cx
 5:
 	testb	$0x80, (%di)
 	jz	6f
@@ -185,13 +187,13 @@ scan_partition_table:
 	addw	$16, %di
 	loopw	5b
 
-	cmpw	$1, %ax		/* Number of active partitions found */
-	je	boot
-	ja	too_many_active
+	decw	%ax		/* Number of active partitions found */
+	jz	boot
+	jns	too_many_active
 
 	/* No active partitions found, look for extended partitions */
-	movw	$ptab, %di
-	movb	$4, %cl		/* cx == 0 here */
+	popw	%di		/* %di <- ptab */
+	popw	%cx		/* %cx <- 4    */
 7:
 	movb	4(%di), %al
 	cmpb	$0x0f, %al	/* 0x0f = Win9x extended */
