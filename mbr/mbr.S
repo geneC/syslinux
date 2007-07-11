@@ -111,28 +111,33 @@ next:
  */
 read_sector:
 	pushal
-read_sector_cbios:
+	movw	%sp, %si
 	xorl	%edx, %edx
+	movw	$bootsec, %bx
+read_sector_cbios:
 	divl	(secpercyl)
-	rorb	%ah
-	rorb	%ah
+	shlb	$6, %ah
 	movb	%ah, %cl
 	movb	%al, %ch
-	movw	%dx, %ax
+	xchgw	%dx, %ax
 	divb	(sectors)
 	movb	%al, %dh
 	incb	%ah
 	orb	%ah, %cl
-	movw	$bootsec, %bx
 	movw	$0x0201, %ax
 	jmp	read_common
 read_sector_ebios:
-	movw	$dapa, %si
-	movl	%eax, 8(%si)
+	pushl	%edx	/* MSW of LBA */
+	pushl	%eax	/* LSW of LBA */
+	pushw	%es	/* Buffer segment */
+	pushw	%bx	/* Buffer offset */
+	pushw	$1	/* Sector count */
+	pushw	$16	/* Size of packet */
 	movb	$0x42, %ah
 read_common:
 	movb	(driveno), %dl
 	int	$0x13
+	movw	%si, %sp
 	popal
 	ret
 
@@ -286,14 +291,3 @@ disk_error_msg:
 too_many_active_msg:
 	.ascii	"Multiple active partitions."
 	.byte	0
-
-#ifndef NO_ALIGN
-	.balign	4
-#endif
-dapa:
-	.short	16		/* Size of packet */
-	.short	1		/* Sector count */
-	.short	0x7c00		/* Buffer offset */
-	.short	0		/* Buffer segment */
-	.long	0		/* LSW of LBA */
-	.long	0		/* MSW of LBA */
