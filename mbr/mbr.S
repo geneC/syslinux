@@ -111,7 +111,7 @@ next:
  */
 read_sector:
 	pushal
-	movw	%sp, %si
+	movw	%sp, %bp
 	xorl	%edx, %edx
 	movw	$bootsec, %bx
 read_sector_cbios:
@@ -133,11 +133,12 @@ read_sector_ebios:
 	pushw	%bx	/* Buffer offset */
 	pushw	$1	/* Sector count */
 	pushw	$16	/* Size of packet */
+	movw	%sp, %si
 	movb	$0x42, %ah
 read_common:
 	movb	(driveno), %dl
 	int	$0x13
-	movw	%si, %sp
+	movw	%bp, %sp
 	popal
 	ret
 
