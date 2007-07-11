@@ -98,9 +98,8 @@ next:
 	mulw	%cx		/* Heads*sectors -> sectors per cylinder */
 	pushw	%ax		/* Save sectors/cylinder on the stack */
 
-	xorl	%eax, %eax
-	pushl	%eax		/* Base */
-	pushl	%eax		/* Root */
+	xorl	%eax, %eax	/* Base */
+	xorl	%edx, %edx	/* Root: %edx <- 0 */
 	call	scan_partition_table
 
 	/* If we get here, we have no OS */
@@ -158,15 +157,19 @@ read_partition_table:
 /*
  * scan_partition_table:
  *	Scan a partition table currently loaded in the partition table
- *	area.  Preserve 16-bit registers.
+ *	area.  Preserve all registers.
  *
- *	On stack:
- *	  18(%bp) - root (offset from MBR, or 0 for MBR)
- *	  22(%bp) - base (location of this partition table)
+ *      On entry:
+ *	  %eax - base (location of this partition table)
+ *	  %edx - root (offset from MBR, or 0 for MBR)
+ *
+ *      These get pushed into stack slots:
+ *        28(%bp) - %eax - base
+ *	  20(%bp) - %edx - root
  */
 
 scan_partition_table:
-	pusha
+	pushal
 	movw	%sp, %bp
 
 	/* Search for active partitions */
@@ -175,7 +178,7 @@ scan_partition_table:
 	xorw	%ax, %ax
 5:
 	testb	$0x80, (%di)
-	jz 6f
+	jz	6f
 	incw	%ax
 	movw	%di, %si
 6:
@@ -203,21 +206,18 @@ scan_partition_table:
 	   partition table and resume scan. */
 8:
 	movl	8(%di), %eax		/* Partition table offset */
-	movl	18(%bp), %edx		/* "Root" */
+	movl	20(%bp), %edx		/* "Root" */
 	addl	%edx, %eax		/* Compute location of new ptab */
 	andl	%edx, %edx		/* Is this the MBR? */
 	jnz	10f
 	movl	%eax, %edx		/* Offset -> root if this was MBR */
 10:
-	pushl	%eax			/* Push new base */
-	pushl	%edx			/* Push new root */
 	call	read_partition_table
-	jc 11f
+	jc	11f
 	call	scan_partition_table
 11:
-	addw	$8, %sp
 	/* This returned, so we need to reload the current partition table */
-	movl	22(%bp), %eax
+	movl	28(%bp), %eax
 	call	read_partition_table
 
 	/* fall through */
@@ -227,7 +227,7 @@ scan_partition_table:
 	loopw	7b
 
 	/* Nothing found, return */
-	popa
+	popal
 	ret
 
 /*
