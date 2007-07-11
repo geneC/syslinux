@@ -194,11 +194,10 @@ scan_partition_table:
 	movb	$4, %cl		/* cx == 0 here */
 7:
 	movb	4(%di), %al
-	cmpb	$0x05, %al	/* MS-DOS extended */
+	cmpb	$0x0f, %al	/* 0x0f = Win9x extended */
 	je	8f
-	cmpb	$0x0f, %al	/* Win9x extended */
-	je	8f
-	cmpb	$0x85, %al	/* Linux extended */
+	andb	$~0x80, %al	/* 0x85 = Linux extended */
+	cmpb	$0x05, %al	/* 0x05 = MS-DOS extended */
 	jne	9f
 
 	/* It is an extended partition.  Read the extended partition and
