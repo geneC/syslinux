@@ -285,7 +285,9 @@ error:
 	jmp	2b
 3:
 	int	$0x18		/* Boot failure */
-	jmp	.		/* Die */
+die:
+	hlt
+	jmp	die
 
 missing_os_msg:
 	.ascii	"Missing operating system.\r\n"
