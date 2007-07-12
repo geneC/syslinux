@@ -288,11 +288,11 @@ error:
 	jmp	.		/* Die */
 
 missing_os_msg:
-	.ascii	"Missing operating system."
+	.ascii	"Missing operating system.\r\n"
 	.byte	0
 disk_error_msg:
-	.ascii	"Operating system load error."
+	.ascii	"Operating system load error.\r\n"
 	.byte	0
 too_many_active_msg:
-	.ascii	"Multiple active partitions."
+	.ascii	"Multiple active partitions.\r\n"
 	.byte	0
