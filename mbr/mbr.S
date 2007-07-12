@@ -148,18 +148,20 @@ read_common:
  * read_partition_table:
  *	Read a partition table (pointed to by %eax), and copy
  *	the partition table into the ptab buffer.
+ *
  *	Clobbers %si, %di, and %cx, other registers preserved.
+ *	%cx = 0 on exit.
+ *
+ *	On error, CF is set and ptab is overwritten with junk.
  */
 ptab	= _start+446
 
 read_partition_table:
 	call	read_sector
-	jc	20f
 	movw	$bootsec+446, %si
 	movw	$ptab, %di
 	movw	$(16*4/2), %cx
 	rep ; movsw
-20:
 	ret
 
 /*
