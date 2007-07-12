@@ -105,7 +105,10 @@ next:
 	call	scan_partition_table
 
 	/* If we get here, we have no OS */
-	jmp	missing_os
+missing_os:
+	call	error
+	.ascii	"Missing operating system.\r\n"
+	.byte	0
 
 /*
  * read_sector: read a single sector pointed to by %eax to 0x7c00.
@@ -241,6 +244,11 @@ scan_partition_table:
 	popal
 	ret
 
+too_many_active:
+	call	error
+	.ascii	"Multiple active partitions.\r\n"
+	.byte	0
+
 /*
  * boot: invoke the actual bootstrap. (%si) points to the partition
  *	 table entry, and 28(%bp) has the partition table base.
@@ -260,20 +268,17 @@ boot:
 	cli
 	jmp	bootsec
 
-/*
- * error messages
- */
-missing_os:
-	movw	$missing_os_msg, %si
-	jmp	error
 disk_error:
-	movw	$disk_error_msg, %si
-	jmp	error
-too_many_active:
-	movw	$too_many_active_msg, %si
-	/* jmp error */
+	call	error
+	.ascii	"Operating system load error.\r\n"
+	.byte	0
 
+/*
+ * Print error messages.  This is invoked with "call", with the
+ * error message at the return address.
+ */
 error:
+	popw	%si
 2:
 	lodsb
 	andb	%al, %al
@@ -288,13 +293,3 @@ error:
 die:
 	hlt
 	jmp	die
-
-missing_os_msg:
-	.ascii	"Missing operating system.\r\n"
-	.byte	0
-disk_error_msg:
-	.ascii	"Operating system load error.\r\n"
-	.byte	0
-too_many_active_msg:
-	.ascii	"Multiple active partitions.\r\n"
-	.byte	0
