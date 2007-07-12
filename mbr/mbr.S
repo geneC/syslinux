@@ -262,12 +262,12 @@ boot:
 	jc	disk_error
 	cmpw	$0xaa55, (bootsec+510)
 	jne	missing_os		/* Not a valid boot sector */
-	movw	$driveno, %sp
+	movw	$driveno, %sp	/* driveno == bootsec-6 */
 	popw	%dx		/* dl -> drive number */
 	popw	%di		/* es:di -> $PnP vector */
 	popw	%es
 	cli
-	jmp	bootsec
+	jmpw	*%sp		/* %sp == bootsec */
 
 disk_error:
 	call	error
