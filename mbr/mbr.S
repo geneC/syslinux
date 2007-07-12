@@ -128,6 +128,7 @@ read_sector:
 
 	/* This chunk is skipped if we have ebios */
 	/* Do not clobber %eax before this chunk! */
+	/* This also relies on %bx and %edx as set up above. */
 read_sector_cbios:
 	divl	(secpercyl)
 	shlb	$6, %ah
