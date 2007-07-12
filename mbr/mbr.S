@@ -93,12 +93,13 @@ next:
 	int	$0x13
 	andw	$0x3f, %cx	/* Sector count */
 	pushw	%cx		/* Save sectors on the stack */
-	xorw	%ax, %ax
-	pushw	%ax		/* High word of sectors/cylinder */
-	movb	%dh, %al	/* dh = number of heads */
-	incw	%ax		/* From 0-based to count */
+	movzbw	%dh, %ax	/* dh = max head */
+	incw	%ax		/* From 0-based max to count */
 	mulw	%cx		/* Heads*sectors -> sectors per cylinder */
-	pushw	%ax		/* Save sectors/cylinder on the stack */
+
+	/* Save sectors/cylinder on the stack */
+	pushw	%dx		/* High word */
+	pushw	%ax		/* Low word */
 
 	xorl	%eax, %eax	/* Base */
 	cdq			/* Root (%edx <- 0) */
