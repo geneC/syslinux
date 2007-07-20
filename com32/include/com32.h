@@ -82,6 +82,7 @@ extern struct com32_sys_args {
 void __intcall(uint8_t __i, const com32sys_t *__sr, com32sys_t *__dr);
 void __farcall(uint16_t __es, uint16_t __eo,
 	       const com32sys_t *__sr, com32sys_t *__dr);
+extern const com32sys_t __com32_zero_regs;
 
 /*
  * These functions convert between linear pointers in the range
