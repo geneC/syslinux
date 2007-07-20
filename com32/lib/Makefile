@@ -23,7 +23,7 @@ LIBOBJS = \
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
 	libgcc/__divdi3.o libgcc/__moddi3.o				\
 	\
-	sys/intcall.o sys/farcall.o					\
+	sys/intcall.o sys/farcall.o sys/zeroregs.o			\
 	sys/entry.o sys/exit.o sys/argv.o sys/times.o			\
 	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
@@ -64,7 +64,7 @@ LIBOBJS = \
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o			\
 	\
-	syslinux/idle.o							\
+	syslinux/idle.o	syslinux/reboot.o				\
 	syslinux/features.o syslinux/config.o syslinux/serial.o		\
 	\
 	syslinux/addlist.o syslinux/freelist.o syslinux/memmap.o	\
