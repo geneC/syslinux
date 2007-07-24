@@ -30,6 +30,7 @@ int defentry     = 0;
 int allowedit    = 1;		/* Allow edits of the command line */
 int timeout      = 0;
 int shiftkey     = 0;		/* Only display menu if shift key pressed */
+int hiddenmenu   = 0;
 long long totaltimeout = 0;
 
 char *ontimeout   = NULL;
@@ -506,6 +507,8 @@ static void parse_config_file(FILE *f)
 	if (menu_background)
 	  free(menu_background);
 	menu_background = dup_word(&p);
+      } else if ( (ep = looking_at(p, "hidden")) ) {
+	hiddenmenu = 1;
       } else if ( (ep = is_message_name(p, &msgptr)) ) {
 	free(msgptr->msg);
 	msgptr->msg = strdup(skipspace(ep));

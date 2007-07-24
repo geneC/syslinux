@@ -93,6 +93,7 @@ struct menu_parameter mparm[] = {
   { "helpmsgendrow", -1 },
   { "hshift", 0 },
   { "vshift", 0 },
+  { "hiddenrow", 20 },
   { NULL, 0 }
 };
 
@@ -109,6 +110,7 @@ struct menu_parameter mparm[] = {
 #define HELPMSGEND_ROW	mparm[10].value
 #define HSHIFT		mparm[11].value
 #define VSHIFT		mparm[12].value
+#define HIDDEN_ROW	mparm[13].value
 
 void set_msg_colors_global(unsigned int fg, unsigned int bg,
 			   enum color_table_shadow shadow)
@@ -728,6 +730,58 @@ shift_is_held(void)
   return !!(shift_bits & 0x5d);	/* Caps/Scroll/Alt/Shift */
 }
 
+static void
+print_timeout_message(int tol, int row, const char *msg)
+{
+  char buf[256];
+  int nc = 0, nnc;
+  const char *tp = msg;
+  char tc;
+  char *tq = buf;
+
+  while ((size_t)(tq-buf) < (sizeof buf-16) && (tc = *tp)) {
+    if (tc == '#') {
+      nnc = sprintf(tq, "\2#15%d\2#14", tol);
+      tq += nnc;
+      nc += nnc-8;		/* 8 formatting characters */
+    } else {
+      *tq++ = tc;
+      nc++;
+    }
+    tp++;
+  }
+  *tq = '\0';
+
+  printf("\033[%d;%dH\2#14 %s ", row, HSHIFT+1+((WIDTH-nc-2)>>1), buf);
+}
+
+static const char *
+do_hidden_menu(void)
+{
+  int key;
+  int timeout_left, this_timeout;
+
+  if ( !setjmp(timeout_jump) ) {
+    timeout_left = timeout;
+
+    while (!timeout || timeout_left) {
+      int tol = timeout_left/CLK_TCK;
+
+      print_timeout_message(tol, HIDDEN_ROW, messages[MSG_AUTOBOOT].msg);
+
+      this_timeout = min(timeout_left, CLK_TCK);
+      key = mygetkey(this_timeout);
+
+      if (key != KEY_NONE)
+	return NULL;		/* Key pressed */
+
+      timeout_left -= this_timeout;
+    }
+  }
+
+  return menu_entries[defentry].cmdline; /* Default entry */
+}
+
 static const char *
 run_menu(void)
 {
@@ -745,6 +799,16 @@ run_menu(void)
   /* If we're in shiftkey mode, exit immediately unless a shift key is pressed */
   if ( shiftkey && !shift_is_held() ) {
     return menu_entries[defentry].cmdline;
+  }
+
+  /* Handle hiddenmenu */
+  if ( hiddenmenu ) {
+    cmdline = do_hidden_menu();
+    if (cmdline)
+      return cmdline;
+
+    /* Otherwise display the menu now */
+    hiddenmenu = 0;
   }
 
   /* Handle both local and global timeout */
@@ -798,28 +862,8 @@ run_menu(void)
       key_timeout = 0;
 
     if ( key_timeout ) {
-      char buf[256];
       int tol = timeout_left/CLK_TCK;
-      int nc = 0, nnc;
-      const char *tp = messages[MSG_AUTOBOOT].msg;
-      char tc;
-      char *tq = buf;
-
-      while ((size_t)(tq-buf) < (sizeof buf-16) && (tc = *tp)) {
-	if (tc == '#') {
-	  nnc = sprintf(tq, "\2#15%d\2#14", tol);
-	  tq += nnc;
-	  nc += nnc-8;		/* 8 formatting characters */
-	} else {
-	  *tq++ = tc;
-	  nc++;
-	}
-	tp++;
-      }
-      *tq = '\0';
-
-      printf("\033[%d;%dH\2#14 %s ", TIMEOUT_ROW,
-	     HSHIFT+1+((WIDTH-nc-2)>>1), buf);
+      print_timeout_message(tol, TIMEOUT_ROW, messages[MSG_AUTOBOOT].msg);
       to_clear = 1;
     } else {
       to_clear = 0;

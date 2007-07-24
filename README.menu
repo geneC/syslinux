@@ -41,6 +41,11 @@ MENU TITLE title
 	Give the menu a title.  The title is presented at the top of
 	the menu.
 
+MENU HIDDEN
+
+	Do not display the actual menu unless the user presses a key.
+	All that is displayed is a timeout message.     
+     
 MENU LABEL label
 
 	(Only valid after a LABEL statement.)
@@ -281,6 +286,7 @@ MENU PASSWORDROW 11
 MENU TIMEOUTROW 20
 MENU HELPMSGROW 22
 MENU HELPMSGENDROW -1
+MENU HIDDENROW 20
 MENU HSHIFT 0
 MENU VSHIFT 0
 

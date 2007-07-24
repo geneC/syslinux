@@ -94,6 +94,7 @@ extern int defentry;
 extern int allowedit;
 extern int timeout;
 extern int shiftkey;
+extern int hiddenmenu;
 extern long long totaltimeout;
 
 extern char *ontimeout;
