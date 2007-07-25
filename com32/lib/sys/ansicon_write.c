@@ -88,14 +88,14 @@ int __ansicon_open(struct file_info *fp)
     if ( (signed char)oreg.ebx.b[1] < 0 ) {
       ti.disabled = 1;
     } else {
+      /* Force text mode */
+      ireg.eax.w[0] = 0x0005;
+      __intcall(0x22, &ireg, NULL);
+
       /* Initial state */
       ti.rows = BIOS_ROWS ? BIOS_ROWS+1 : 25;
       ti.cols = BIOS_COLS;
       __ansi_init(&ti);
-
-      /* Force text mode */
-      ireg.eax.w[0] = 0x0005;
-      __intcall(0x22, &ireg, NULL);
 
       /* Get cursor shape and position */
       ireg.eax.b[1] = 0x03;

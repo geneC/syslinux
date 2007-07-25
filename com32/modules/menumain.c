@@ -761,6 +761,8 @@ do_hidden_menu(void)
   int key;
   int timeout_left, this_timeout;
 
+  clear_screen();
+
   if ( !setjmp(timeout_jump) ) {
     timeout_left = timeout;
 
