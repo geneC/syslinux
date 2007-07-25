@@ -93,7 +93,7 @@ struct menu_parameter mparm[] = {
   { "helpmsgendrow", -1 },
   { "hshift", 0 },
   { "vshift", 0 },
-  { "hiddenrow", 20 },
+  { "hiddenrow", -2 },
   { NULL, 0 }
 };
 
@@ -793,9 +793,6 @@ run_menu(void)
   const char *cmdline = NULL;
   volatile clock_t key_timeout, timeout_left, this_timeout;
 
-  /* Note: for both key_timeout and timeout == 0 means no limit */
-  timeout_left = key_timeout = timeout;
-
   /* If we're in shiftkey mode, exit immediately unless a shift key is pressed */
   if ( shiftkey && !shift_is_held() ) {
     return menu_entries[defentry].cmdline;
@@ -807,9 +804,14 @@ run_menu(void)
     if (cmdline)
       return cmdline;
 
-    /* Otherwise display the menu now */
+    /* Otherwise display the menu now; the timeout has already been
+       cancelled, since the user pressed a key. */
     hiddenmenu = 0;
+    timeout = 0;
   }
+
+  /* Note: for both key_timeout and timeout == 0 means no limit */
+  timeout_left = key_timeout = timeout;
 
   /* Handle both local and global timeout */
   if ( setjmp(timeout_jump) ) {
