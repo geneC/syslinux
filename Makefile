@@ -85,7 +85,8 @@ ISUBDIRS = mtools unix extlinux sample com32
 DOCS     = COPYING NEWS README TODO BUGS *.doc sample menu com32
 OTHER    = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
 	   keytab-lilo.pl version version.pl sys2ansi.pl \
-	   ppmtolss16 lss16toppm memdisk bin2hex.pl mkdiskimage.in
+	   ppmtolss16 lss16toppm memdisk bin2hex.pl mkdiskimage.in \
+	   sha1pass md5pass
 OBSOLETE = pxelinux.bin
 
 # Things to install in /usr/bin

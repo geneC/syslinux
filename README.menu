@@ -102,11 +102,16 @@ ENDTEXT
 MENU PASSWD passwd
 
 	(Only valid after a LABEL statement.)
+
 	Sets a password on this menu entry.  "passwd" can be either a
-	cleartext password or a SHA-1 encrypted password; use the
-	included Perl script "sha1pass" to encrypt passwords.
-	(Obviously, if you don't encrypt your passwords they will not
-	be very secure at all.)
+	cleartext password, a SHA-1 encrypted password (starting with
+	$4$), or and MD5 encrypted password (starting with $1$).
+
+	Use the included Perl scripts "sha1pass" or "md5pass" to
+	encrypt passwords.  MD5 passwords are compatible with most
+	Unix password file utilities; SHA-1 passwords are probably
+	unique to SYSLINUX.  Obviously, if you don't encrypt your
+	passwords they will not be very secure at all.
 
 	If you are using passwords, you want to make sure you also use
 	the settings "NOESCAPE 1", "PROMPT 0", and either set

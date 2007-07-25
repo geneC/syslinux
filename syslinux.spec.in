@@ -100,6 +100,8 @@ rm -rf %{buildroot}
 %{_bindir}/ppmtolss16
 %{_bindir}/lss16toppm
 %{_bindir}/gethostip
+%{_bindir}/sha1pass
+%{_bindir}/md5pass
 %{_datadir}/syslinux/*.com
 %{_datadir}/syslinux/*.exe
 %{_datadir}/syslinux/*.c32
