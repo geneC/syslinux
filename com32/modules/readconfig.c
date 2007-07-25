@@ -49,7 +49,7 @@ struct messages messages[MSG_COUNT] = {
   [MSG_TITLE] =
   { "title", "", NULL },
   [MSG_AUTOBOOT] =
-  { "autoboot", "Automatic boot in # seconds", NULL },
+  { "autoboot", "Automatic boot in # second{,s}...", NULL },
   [MSG_TAB] =
   { "tabmsg", "Press [Tab] to edit options", NULL },
   [MSG_NOTAB] =

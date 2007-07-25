@@ -149,8 +149,10 @@ MENU INCLUDE filename
 
 MENU AUTOBOOT message
 
-	Replaces the message "Automatic boot in # seconds".  The
+	Replaces the message "Automatic boot in # second{,s}...".  The
 	symbol # is replaced with the number of seconds remaining.
+	The syntax "{singular,[dual,]plural}" can be used to conjugate
+	appropriately.
 
 
 MENU TABMSG message

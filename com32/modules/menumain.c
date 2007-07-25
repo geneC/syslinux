@@ -756,19 +756,65 @@ print_timeout_message(int tol, int row, const char *msg)
   char *tq = buf;
 
   while ((size_t)(tq-buf) < (sizeof buf-16) && (tc = *tp)) {
+    tp++;
     if (tc == '#') {
       nnc = sprintf(tq, "\2#15%d\2#14", tol);
       tq += nnc;
       nc += nnc-8;		/* 8 formatting characters */
+    } else if (tc == '{') {
+      /* Deal with {singular[,dual],plural} constructs */
+      struct {
+	const char *s, *e;
+      } tx[3];
+      const char *tpp;
+      int n = 0;
+
+      memset(tx, 0, sizeof tx);
+
+      tx[0].s = tp;
+
+      while (*tp && *tp != '}') {
+	if (*tp == ',' && n < 2) {
+	  tx[n].e = tp;
+	  n++;
+	  tx[n].s = tp+1;
+	}
+	tp++;
+      }
+      tx[n].e = tp;
+
+      if (*tp)
+	tp++;			/* Skip final bracket */
+
+      if (!tx[1].s)
+	tx[1] = tx[0];
+      if (!tx[2].s)
+	tx[2] = tx[1];
+
+      /* Now [0] is singular, [1] is dual, and [2] is plural,
+	 even if the user only specified some of them. */
+
+      switch (tol) {
+      case 1: n = 0; break;
+      case 2: n = 1; break;
+      default: n = 2; break;
+      }
+
+      for (tpp = tx[n].s; tpp < tx[n].e; tpp++) {
+	if ((size_t)(tq-buf) < (sizeof buf)) {
+	  *tq++ = *tpp;
+	  nc++;
+	}
+      }
     } else {
       *tq++ = tc;
       nc++;
     }
-    tp++;
   }
   *tq = '\0';
 
-  printf("\033[%d;%dH\2#14 %s ", row, HSHIFT+1+((WIDTH-nc-2)>>1), buf);
+  /* Let's hope 4 spaces on each side is enough... */
+  printf("\033[%d;%dH\2#14    %s    ", row, HSHIFT+1+((WIDTH-nc-8)>>1), buf);
 }
 
 static const char *
