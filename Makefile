@@ -90,7 +90,8 @@ OTHER    = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
 OBSOLETE = pxelinux.bin
 
 # Things to install in /usr/bin
-INSTALL_BIN   =	mtools/syslinux gethostip ppmtolss16 lss16toppm
+INSTALL_BIN   =	mtools/syslinux gethostip ppmtolss16 lss16toppm \
+		sha1pass md5pass
 # Things to install in /sbin
 INSTALL_SBIN  = extlinux/extlinux
 # Things to install in /usr/lib/syslinux
