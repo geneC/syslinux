@@ -21,6 +21,9 @@
 %include "head.inc"
 %include "pxe.inc"
 
+; gPXE extensions support
+%define GPXE	1
+
 ;
 ; Some semi-configurable constants... change on your own risk.
 ;
@@ -155,6 +158,9 @@ BOOTP_OPTION_MAGIC	equ htonl(0x63825363)	; See RFC 2132
 ; UDP port.  The size of this structure must be a power of 2.
 ; HBO = host byte order; NBO = network byte order
 ; (*) = written by options negotiation code, must be dword sized
+;
+; For a gPXE connection, we set the local port number to -1 and the
+; remote port number contains the gPXE file handle.
 ;
 		struc open_file_t
 tftp_localport	resw 1			; Local port number	(0 = not in use)
@@ -1072,6 +1078,10 @@ searchdir:
 		call allocate_socket
 		jz .ret
 
+%if GPXE
+		cmp dword [di], -1	; gPXE connection?
+		je .gpxe
+%endif ; GPXE
 		mov ax,PKT_RETRY	; Retry counter
 		mov word [PktTimeout],PKT_TIMEOUT	; Initial timeout
 
@@ -1275,12 +1285,14 @@ searchdir:
 		mov eax,[si+tftp_filesize]
 		cmp eax,-1
 		jz .no_tsize
+		pop bp			; Junk
+		pop bp			; Junk (retry counter)
+
+.got_file:				; SI->socket structure, EAX = size
 		mov edx,eax
 		shr edx,16		; DX:AX == EAX
 
 		and eax,eax		; Set ZF depending on file size
-		pop bp			; Junk
-		pop bp			; Junk (retry counter)
 		jz .error_si		; ZF = 1 need to free the socket
 .ret:
 		pop bp
@@ -1319,6 +1331,35 @@ searchdir:
 .error_si:				; Socket pointer already in SI
 		call free_socket	; ZF <- 1, SI <- 0
 		jmp .ret
+
+
+%if GPXE
+.gpxe:
+		; Create s_PXENV_FILE_OPEN structure on stack
+		push bx
+		add si,4		; Point to the actual URL
+		mov di,gpxe_file_open
+		mov [di+4],si
+		mov [di+6],ds
+		mov bx,PXENV_FILE_OPEN
+		call pxenv
+		pop si			; Packet pointer in SI
+		jc .error_si
+		
+		mov ax,[di+2]
+		mov word [si+tftp_localport],-1	; gPXE URL
+		mov [si+tftp_remoteport],ax
+		mov di,gpxe_get_file_size
+		mov [di+2],ax
+
+		mov bx,PXENV_GET_FILE_SIZE
+		call pxenv
+		jc .error
+
+		mov eax,[di+4]
+		mov [si+tftp_filesize],eax
+		jmp .got_file
+%endif ; GPXE
 
 ;
 ; allocate_socket: Allocate a local UDP port structure
@@ -1434,10 +1475,29 @@ parse_dotquad:
 ;	       so "repe cmpsb" can do a compare.
 ;
 ;	       The first four bytes of the manged name is the IP address of
-;	       the download host.
+;	       the download host, 0 for no host, or -1 for a gPXE URL.
 ;
 mangle_name:
 		push di
+%if GPXE
+		; Look for the sequence :// as being indicative of a URL
+		push si
+.url_hunt:
+		mov eax,[si]
+		and al,al
+		jz .not_url
+		shr eax,8
+		cmp eax,'://'
+		je .is_url
+		inc si
+		jmp .url_hunt
+.is_url:
+		pop si
+		or eax,-1
+		jmp .prefix_done
+.not_url:
+		pop si
+%endif ; GPXE
 		push si
 		mov eax,[ServerIP]
 		cmp byte [si],0
@@ -1516,6 +1576,8 @@ unmangle_name:
 		lodsd
 		and eax,eax
 		jz .noip
+		cmp eax,-1
+		jz .noip			; URL
 		call gendotquad
 		mov ax,'::'
 		stosw
@@ -1647,20 +1709,80 @@ getfssec:	push si
 
 		pushad
 		push es
+		mov ax,ds
+		mov es,ax
+
 		mov si,bx
+%if GPXE
+		cmp word [si+tftp_localport], -1
+		jne .get_packet_tftp
+		call get_packet_gpxe
+		jmp .gotten
+.get_packet_tftp:
+%endif ; GPXE
 		call get_packet
+.gotten:
 		pop es
 		popad
 
 		jmp .need_more
 
+%if GPXE
+;
+; Get a fresh packet from a gPXE socket; expects fs -> pktbuf_seg
+; and ds:si -> socket structure
+;
+; Assumes CS == DS == ES.
+;
+get_packet_gpxe:
+		mov di,gpxe_file_read
+		mov ax,[si+tftp_remoteport]	; gPXE filehandle
+		mov [di+2],ax
+		mov word [di+4],PKTBUF_SIZE
+		mov ax,[si+tftp_pktbuf]
+		mov [di+6],ax
+		mov [si+tftp_dataptr],ax
+		mov [di+8],fs
+
+.again:
+		mov bx,PXENV_FILE_READ
+		call pxenv
+		; XXX: FIX THIS: Need to be able to distinguish
+		; error, EOF, and no data
+		jc .again
+
+		movzx eax,word [di+4]		; Bytes read
+		mov [si+tftp_bytesleft],ax	; Bytes in buffer
+		add [si+tftp_filepos],eax	; Position in file
+
+		and ax,ax
+		jnz .got_stuff
+
+		; We got EOF here, make sure the upper layers know
+		mov eax,[si+tftp_filepos]
+		mov [si+tftp_filesize],eax
+
+.got_stuff:
+		; If we're done here, close the file
+		mov eax,[si+tftp_filepos]
+		cmp [si+tftp_filesize],eax
+		ja .done
+
+		; Reuse the previous [es:di] structure since the
+		; relevant fields are all the same
+		mov bx,PXENV_FILE_CLOSE
+		call pxenv
+		; Ignore return...
+.done:
+		ret
+%endif ; GPXE
+
 ;
 ; Get a fresh packet; expects fs -> pktbuf_seg and ds:si -> socket structure
 ;
+; Assumes CS == DS == ES.
+;
 get_packet:
-		mov ax,ds
-		mov es,ax
-
 .packet_loop:
 		; Start by ACKing the previous packet; this should cause the
 		; next packet to be sent.
@@ -2550,6 +2672,27 @@ pxe_udp_read_pkt:
 .lport:		dw 0			; Local port
 .buffersize:	dw 0			; Max packet size
 .buffer:	dw 0, 0			; seg:off of buffer
+
+%if GPXE
+
+gpxe_file_open:
+.status:	dw 0			; Status
+.filehandle:	dw 0			; FileHandle
+.filename:	dd 0			; seg:off of FileName
+.reserved:	dd 0
+
+gpxe_get_file_size:
+.status:	dw 0			; Status
+.filehandle:	dw 0			; FileHandle
+.filesize:	dd 0			; FileSize
+
+gpxe_file_read:
+.status:	dw 0			; Status
+.filehandle:	dw 0			; FileHandle
+.buffersize:	dw 0			; BufferSize
+.buffer:	dd 0			; seg:off of buffer
+
+%endif ; GPXE
 
 ;
 ; Misc initialized (data) variables
