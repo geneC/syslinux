@@ -1078,10 +1078,6 @@ searchdir:
 		call allocate_socket
 		jz .ret
 
-%if GPXE
-		cmp dword [di], -1	; gPXE connection?
-		je .gpxe
-%endif ; GPXE
 		mov ax,PKT_RETRY	; Retry counter
 		mov word [PktTimeout],PKT_TIMEOUT	; Initial timeout
 
@@ -1108,6 +1104,11 @@ searchdir:
 
 .noprefix:
 		call strcpy		; Filename
+%if GPXE
+		mov si,packet_buf+2
+		call is_url
+		jnc .gpxe
+%endif
 
 		mov [bx+tftp_remoteip],eax
 
@@ -1335,9 +1336,11 @@ searchdir:
 
 %if GPXE
 .gpxe:
-		; Create s_PXENV_FILE_OPEN structure on stack
+		pop si
+		pop si
+
 		push bx
-		add si,4		; Point to the actual URL
+		mov si,packet_buf+2	; Completed URL
 		mov di,gpxe_file_open
 		mov [di+4],si
 		mov [di+6],ds
@@ -1465,6 +1468,33 @@ parse_dotquad:
 		dec si				; CF unchanged!
 		pop cx
 		ret
+
+;
+; is_url:      Return CF=0 if and only if the buffer pointed to by
+; 	       DS:SI is a URL (contains ://).  No registers modified.
+;
+%if GPXE
+is_url:
+		push si
+		push eax
+.loop:
+		mov eax,[si]
+		inc si
+		and al,al
+		jz .not_url
+		and eax,0FFFFFFh
+		cmp eax,'://'
+		jne .loop
+.done:
+		; CF=0 here
+		pop eax
+		pop si
+		ret
+.not_url:
+		stc
+		jmp .done
+%endif
+
 ;
 ; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
 ;	       to by ES:DI; ends on encountering any whitespace.
@@ -1480,23 +1510,11 @@ parse_dotquad:
 mangle_name:
 		push di
 %if GPXE
-		; Look for the sequence :// as being indicative of a URL
-		push si
-.url_hunt:
-		mov eax,[si]
-		and al,al
-		jz .not_url
-		shr eax,8
-		cmp eax,'://'
-		je .is_url
-		inc si
-		jmp .url_hunt
-.is_url:
-		pop si
-		or eax,-1
+		call is_url
+		jc .not_url
+		or eax,-1			; It's a URL
 		jmp .prefix_done
 .not_url:
-		pop si
 %endif ; GPXE
 		push si
 		mov eax,[ServerIP]
