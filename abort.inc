@@ -67,3 +67,5 @@ error_or_command:
 		section .data
 aborted_msg	db ' aborted.', CR, LF
 
+		section .text
+

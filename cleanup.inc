@@ -16,6 +16,7 @@
 ;; Some final tidying before jumping to a kernel or bootsector
 ;;
 
+		section .text
 ;
 ; cleanup_hardware:
 ;
