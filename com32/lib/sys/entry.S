@@ -49,12 +49,13 @@ _start:
 		# Copy COM32 invocation parameters
 		leal 4(%esp),%esi		# Argument list
 		movl $__com32,%edi
-		movl $6,%ecx
+		movl $5,%ecx
 		movl %esp,-4(%edi)		# Save the initial stack ptr
 		cmpl (%esi),%ecx
 		jbe 1f
 		movl (%esi),%ecx
-1:		rep ; movsl
+1:		inc %ecx			# Copy the argument count, too
+		rep ; movsl
 
 		# Parse the command line (assumes REGPARM)
 		movl __com32+4,%edx		# Command line
