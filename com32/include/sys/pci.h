@@ -4,36 +4,43 @@
 #include <inttypes.h>
 #include <sys/io.h>
 
-#define MAX_VENDOR_NAME_SIZE 255
-#define MAX_PRODUCT_NAME_SIZE 255
 #define MAX_PCI_DEVICES  32
 #define MAX_PCI_BUSES   255
 
 typedef uint32_t pciaddr_t;
 
-typedef struct {
+/* a structure for extended pci information */
+struct pci_dev_info {
+	char     *vendor_name;
+	char     *product_name;
+	char	 *linux_kernel_module;
+};
+
+/* a struct to represent a pci device */
+struct pci_device {
 	uint16_t vendor;
 	uint16_t product;
 	uint16_t sub_vendor;
 	uint16_t sub_product;
 	uint8_t  revision;
-} s_pci_device;
+	struct pci_dev_info *pci_dev_info;
+};
 
-typedef struct {
+struct pci_bus {
 	uint16_t id;
-	s_pci_device *pci_device[MAX_PCI_DEVICES];
+	struct pci_device *pci_device[MAX_PCI_DEVICES];
 	uint8_t pci_device_count;
-} s_pci_bus;
+};
 
-typedef struct {
-	s_pci_device  pci_device[MAX_PCI_DEVICES];
+struct pci_device_list {
+	struct pci_device pci_device[MAX_PCI_DEVICES];
 	uint8_t count;
-} s_pci_device_list;
+};
 
-typedef struct {
-	s_pci_bus pci_bus[MAX_PCI_BUSES];
+struct pci_bus_list {
+	struct pci_bus pci_bus[MAX_PCI_BUSES];
 	uint8_t count;
-} s_pci_bus_list;
+};
 
 struct match {
   struct match *next;
@@ -69,6 +76,8 @@ void pci_writeb(uint8_t, pciaddr_t);
 void pci_writew(uint16_t, pciaddr_t);
 void pci_writel(uint32_t, pciaddr_t);
 
-extern int pci_scan(s_pci_bus_list *pci_bus_list, s_pci_device_list *pci_device_list);
-extern struct match * find_pci_device(s_pci_device_list *pci_device_list, struct match *list);
+extern int pci_scan(struct pci_bus_list *pci_bus_list, struct pci_device_list *pci_device_list);
+extern struct match * find_pci_device(struct pci_device_list *pci_device_list, struct match *list);
+extern void get_name_from_pci_ids(struct pci_device_list *pci_device_list);
+extern void get_module_name_from_pci_ids(struct pci_device_list *pci_device_list);
 #endif /* _SYS_PCI_H */

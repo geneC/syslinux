@@ -214,8 +214,8 @@ execute(const char *cmdline)
 int main(int argc, char *argv[])
 {
   struct match *list, *match;
-  s_pci_device_list pci_device_list;
-  s_pci_bus_list pci_bus_list;
+  struct pci_device_list pci_device_list;
+  struct pci_bus_list pci_bus_list;
 
   openconsole(&dev_null_r, &dev_stdcon_w);
   pci_scan(&pci_bus_list,&pci_device_list);
