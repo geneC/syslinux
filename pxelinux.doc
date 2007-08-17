@@ -373,6 +373,30 @@ UNDI stacks in memory.  (If you don't know what this means, you
 probably don't need it.)
 
 
+    ++++ PROBLEMS WITH YOUR PXE STACK ++++
+
+There are a number of extremely broken PXE stacks in the field.  The
+gPXE project (formerly known as Etherboot) provides an open-source PXE
+stack that works with a number of cards, and which can be loaded from
+a CD-ROM, USB key, or floppy if desired.
+
+Information on gPXE is available from:
+
+	http://www.etherboot.org/
+
+... and ready-to-use ROM or disk images from:
+
+	http://www.rom-o-matic.net/
+
+Some cards, like may systems with the SiS 900, has a PXE stack which
+works just barely well enough to load a single file, but doesn't
+handle the more advanced items required by PXELINUX.  If so, it is
+possible to use the built-in PXE stack to load gPXE, which can then
+load PXELINUX.  See:
+
+	http://www.etherboot.org/wiki/pxechaining
+
+
     ++++ CURRENTLY KNOWN PROBLEMS ++++
 
 The following problems are known with PXELINUX, so far:
