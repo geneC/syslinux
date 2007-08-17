@@ -103,4 +103,4 @@ unprerel:
 
 preupload:
 	scp $(PRERELDIR)/$(LATEST_PREREL).* $(UPLOAD)/Testing
-	cg-push -t $(LATEST_PREREL)
+	git push --tags
