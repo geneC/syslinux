@@ -37,7 +37,7 @@ char display_line;
     if (display_line == 24) {			\
       char tempbuf[10];				\
       display_line=0;				\
-      printf("Press enter to continue\n");	\
+      printf("Press Enter to continue\n");	\
       fgets(tempbuf, sizeof tempbuf, stdin);	\
     }						\
     printf ( __VA_ARGS__);			\
@@ -47,8 +47,10 @@ void display_pci_devices(struct pci_device_list *pci_device_list) {
   int pci_dev;
   for (pci_dev=0; pci_dev < pci_device_list->count; pci_dev++) {
     struct pci_device *pci_device = &pci_device_list->pci_device[pci_dev];
-    printf("PCI: Vendor=%04x(%s) Product=%04x(%s) Sub_vendor=%04x Sub_Product=%04x Release=%02x\n",
-	   pci_device->vendor,pci_device->pci_dev_info->vendor_name, pci_device->product, pci_device->pci_dev_info->product_name,
+    printf("PCI: Vendor=%04x(%s) Product=%04x(%s) "
+	   "Sub_vendor=%04x Sub_Product=%04x Release=%02x\n",
+	   pci_device->vendor, pci_device->pci_dev_info->vendor_name,
+	   pci_device->product, pci_device->pci_dev_info->product_name,
 	   pci_device->sub_vendor, pci_device->sub_product,
 	   pci_device->revision);
   }
@@ -67,11 +69,15 @@ void display_pci_bus(struct pci_bus_list *pci_bus_list, bool display_pci_devices
 	printf("%s :%04x:%04x[%04x:%04x]) %s:%s\n",
 		pci_device.pci_dev_info->linux_kernel_module,
 	       pci_device.vendor, pci_device.product,
-	        pci_device.sub_vendor, pci_device.sub_product, pci_device.pci_dev_info->vendor_name,pci_device.pci_dev_info->product_name);
+	        pci_device.sub_vendor, pci_device.sub_product,
+	       pci_device.pci_dev_info->vendor_name,
+	       pci_device.pci_dev_info->product_name);
       }
     }
   }
-  printf("PCI: %d buse(s) found\n",pci_bus_list->count);
+  printf("PCI: %d bus%s found\n",
+	 pci_bus_list->count,
+	 pci_bus_list->count == 1 ? "es" : "");
 }
 
 int main(int argc, char *argv[])
