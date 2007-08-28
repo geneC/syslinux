@@ -464,10 +464,10 @@ edd_setup_regs:
 		cmp dword [es:si+4],-1
 		je .linear_address
 
-		movzx esi,word [es:si+4]	; Offset
+		movzx ebx,word [es:si+4]	; Offset
 		movzx edi,word [es:si+6]	; Segment
 		shl edi,4
-		add esi,edi
+		add ebx,edi
 		jmp .got_address
 
 .linear_address:
@@ -480,23 +480,24 @@ edd_setup_regs:
 					; no really better code available
 		jne .error
 
-		mov esi,[es:si+16]
+		mov ebx,[es:si+16]
 
 .got_address:
 		cmp dword [es:si+12],0		; LBA too large?
 		jne .overrun
 
 		movzx ecx, word [es:si+2]	; Sectors to transfer
-		mov edi,[es:si+8]		; Starting sector
-		mov eax,edi
+		mov esi,[es:si+8]		; Starting sector
+		mov eax,esi
 		add eax,ecx
 		jc .overrun
 		cmp eax,[DiskSize]
 		ja .overrun
 
 		shl ecx,SECTORSIZE_LG2-2	; Convert to dwords
-		shl edi,SECTORSIZE_LG2		; Convert to an offset
-		add edi,[DiskBuf]
+		shl esi,SECTORSIZE_LG2		; Convert to an offset
+		add esi,[DiskBuf]
+		mov edi,ebx
 		pop es
 		ret
 
