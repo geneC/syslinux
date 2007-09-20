@@ -297,7 +297,7 @@ initial_csum:	xor edi,edi
 		mov ax,4B01h			; Get disk emulation status
 		mov dl,[DriveNo]
 		mov si,spec_packet
-		int 13h
+		call int13
 		jc award_hack			; changed for BrokenAwardHack
 		mov dl,[DriveNo]
 		cmp [sp_drive],dl		; Should contain the drive number
@@ -570,7 +570,7 @@ spec_query_failed:
 		mov ax,4B01h
 		mov si,spec_packet
 		mov byte [si],13		; Size of buffer
-		int 13h
+		call int13
 		popa
 		jc .still_broken
 
@@ -657,6 +657,23 @@ writechr_simple:
 		ret
 
 ;
+; int13: save all the segment registers and call INT 13h
+;	 Some CD-ROM BIOSes have been found to corrupt segment registers.
+;
+int13:
+
+		push ds
+		push es
+		push fs
+		push gs
+		int 13h
+		pop gs
+		pop fs
+		pop es
+		pop ds
+		ret
+
+;
 ; Get one sector.  Convenience entry point.
 ;
 getonesec:
@@ -707,7 +724,7 @@ getlinsec:
 		; INT 13h with retry
 xint13:		mov byte [RetryCount],retry_count
 .try:		pushad
-		int 13h
+		call int13
 		jc .error
 		add sp,byte 8*4			; Clean up stack
 		ret
@@ -1051,7 +1068,7 @@ is_disk_image:
 		lss sp,[InitStack]
 		TRACER 'X'
 
-		int 13h
+		call int13
 
 		; If this returns, we have problems
 .bad_image:
