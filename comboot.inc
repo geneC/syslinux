@@ -187,6 +187,7 @@ comboot_int21:	cli
 		clc
 		call ax			; Call the invoked function
 comboot_resume:
+		mov bp,sp		; In case the function clobbers BP
 		setc P_FLAGSL		; Propagate CF->error
 		popad
 		pop gs
