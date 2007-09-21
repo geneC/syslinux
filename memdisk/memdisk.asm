@@ -91,7 +91,9 @@ Pointers:	dw Int13Start
 		dw Int15Start
 		dw PatchArea
 		dw TotalSize
+		dw IretPtr
 
+IretPtr		equ Int13Start.iret
 Int13Start:
 		; Swap stack
 		mov [cs:Stack],esp
@@ -139,7 +141,7 @@ Int13Start:
 		pop ax
 		pop bp
 		lss esp,[cs:Stack]
-		iret
+.iret:		iret
 
 .our_drive:
 		; Set up standard entry frame
