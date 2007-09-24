@@ -32,7 +32,7 @@
  * memptr points to available memory.
  */
 
-#include <inttypes.h>
+#include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
 

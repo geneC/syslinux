@@ -44,7 +44,7 @@ CSRC     = setup.c msetup.c e820func.c conio.c unzip.c
 SSRC     = start32.S memcpy.S memset.S
 NASMSRC  = memdisk.asm memdisk16.asm
 
-all: memdisk e820test
+all: memdisk # e820test
 
 # tidy, clean removes everything except the final binary
 tidy:
