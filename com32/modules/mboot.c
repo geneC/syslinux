@@ -30,7 +30,6 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include <malloc.h>
 #include <consoles.h>
 #include <zlib.h>
 #include <com32.h>

@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2001-2006 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2001-2007 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ struct memdisk_header {
   uint16_t int15_offs;
   uint16_t patch_offs;
   uint16_t total_size;
+  uint16_t iret_offs;
 };
 
 /* The Disk Parameter Table may be required */
@@ -762,37 +763,46 @@ void setup(syscall_t cs_syscall, void *cs_bounce)
     ranges[--nranges].type = -1;
   }
 
-  /* Query drive parameters of this type */
-  memset(&regs, 0, sizeof regs);
-  regs.es = 0;
-  regs.eax.b[1] = 0x08;
-  regs.edx.b[0] = geometry->driveno & 0x80;
-  syscall(0x13, &regs, &regs);
-
-  if ( regs.eflags.l & 1 ) {
-    printf("INT 13 08: Failure, assuming this is the only drive\n");
+  if (getcmditem("nopass") != CMD_NOTFOUND) {
+    /* nopass specified - we're the only drive by definition */
+    printf("nopass specified - we're the only drive\n");
+    bios_drives = 0;
     pptr->drivecnt = 0;
+    pptr->oldint13 = driverptr+hptr->iret_offs;
   } else {
-    printf("INT 13 08: Success, count = %u, BPT = %04x:%04x\n",
-	   regs.edx.b[0], regs.es, regs.edi.w[0]);
-    pptr->drivecnt = regs.edx.b[0];
-  }
-
-  /* Compare what INT 13h returned with the appropriate equipment byte */
-  if ( geometry->driveno & 0x80 ) {
-    bios_drives = rdz_8(BIOS_HD_COUNT);
-  } else {
-    uint8_t equip = rdz_8(BIOS_EQUIP);
-
-    if (equip & 1)
-      bios_drives = (equip >> 6)+1;
-    else
-      bios_drives = 0;
-  }
-
-  if (pptr->drivecnt > bios_drives) {
-    printf("BIOS equipment byte says count = %d, go with that\n", bios_drives);
-    pptr->drivecnt = bios_drives;
+    /* Query drive parameters of this type */
+    memset(&regs, 0, sizeof regs);
+    regs.es = 0;
+    regs.eax.b[1] = 0x08;
+    regs.edx.b[0] = geometry->driveno & 0x80;
+    syscall(0x13, &regs, &regs);
+    
+    if ( regs.eflags.l & 1 ) {
+      printf("INT 13 08: Failure, assuming this is the only drive\n");
+      pptr->drivecnt = 0;
+    } else {
+      printf("INT 13 08: Success, count = %u, BPT = %04x:%04x\n",
+	     regs.edx.b[0], regs.es, regs.edi.w[0]);
+      pptr->drivecnt = regs.edx.b[0];
+    }
+    
+    /* Compare what INT 13h returned with the appropriate equipment byte */
+    if ( geometry->driveno & 0x80 ) {
+      bios_drives = rdz_8(BIOS_HD_COUNT);
+    } else {
+      uint8_t equip = rdz_8(BIOS_EQUIP);
+      
+      if (equip & 1)
+	bios_drives = (equip >> 6)+1;
+      else
+	bios_drives = 0;
+    }
+    
+    if (pptr->drivecnt > bios_drives) {
+      printf("BIOS equipment byte says count = %d, go with that\n",
+	     bios_drives);
+      pptr->drivecnt = bios_drives;
+    }
   }
 
   /* Add ourselves to the drive count */

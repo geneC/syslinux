@@ -32,8 +32,6 @@
  * UNIX password
  */
 
-#include "crypt.h"
-
 static char itoa64[] =		/* 0 ... 63 => ascii - 64 */
 	"./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 

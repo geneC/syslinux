@@ -73,11 +73,12 @@ BTARGET  = kwdhash.gen version.gen version.h \
 	   ldlinux.bss ldlinux.sys ldlinux.bin \
 	   pxelinux.0 isolinux.bin isolinux-debug.bin \
 	   extlinux.bin extlinux.bss extlinux.sys
-BOBJECTS = $(BTARGET) mbr/mbr.bin dos/syslinux.com win32/syslinux.exe memdisk/memdisk
+BOBJECTS = $(BTARGET) mbr/mbr.bin dos/syslinux.com win32/syslinux.exe \
+	memdisk/memdisk memdump/memdump.com
 # BESUBDIRS and IESUBDIRS are "early", i.e. before the root; BSUBDIRS
 # and ISUBDIRS are "late", after the root.
 BESUBDIRS = mbr
-BSUBDIRS = memdisk dos win32
+BSUBDIRS = memdisk memdump dos win32
 ITARGET  = copybs.com gethostip mkdiskimage
 IOBJECTS = $(ITARGET) mtools/syslinux unix/syslinux extlinux/extlinux
 IESUBDIRS =
