@@ -150,8 +150,8 @@ replace_bootstrap:
 		cmp dword [fs:bx], "$PnP"
 		jz .foundpnp
 		inc bx
-		cmp bx,-3		; Don't get a segment overflow error!
-		jb .findpnp
+		cmp bx,-21h		; Don't get a segment overflow error!
+		jbe .findpnp
 		jmp .donepnp		; No $PnP header found
 .foundpnp:
 		movzx cx,byte [fs:bx+5]	; Size of $PnP header
