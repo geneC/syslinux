@@ -77,12 +77,6 @@ static void get_bytes(void *buf, size_t len, struct file_info *finfo,
   }
 }
 
-static uint32_t pci_readl(int bus, int devfn, int reg)
-{
-  outl(0x80000000 | (bus << 16) | (devfn << 8) | reg, 0xcf8);
-  return inl(0xcfc);
-}
-
 int main(int argc, char *argv[])
 {
   uint16_t bios_ports[4];
@@ -96,12 +90,6 @@ int main(int argc, char *argv[])
     };
   struct file_info finfo;
   const char serial_banner[] = "Now being Ymodem download...\r\n";
-
-  puts("Hello, world...\n");
-
-  printf("03:02.00 id  = 0x%08x\n", pci_readl(3,2<<3,0));
-  printf("03:02.00 cmd = 0x%08x\n", pci_readl(3,2<<3,4));
-  printf("03:02.00 bar = 0x%08x\n", pci_readl(3,2<<3,0x10));
 
   if (argc < 4)
     die("usage: memdump port prefix start,len...");
