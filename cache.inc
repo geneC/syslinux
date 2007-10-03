@@ -103,7 +103,7 @@ getcachesector:
 		pop cx
 		ret
 
-		section .latebss
+		section .bss
 
 		; Each CachePtr contains:
 		; - Block pointer

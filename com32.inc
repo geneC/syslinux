@@ -350,7 +350,7 @@ com32_sys_resume:
 
 		bits 16
 
-		section .bss
+		section .bss1
 		alignb 4
 RealModeSSSP	resd 1			; Real-mode SS:SP
 PMESP		resd 1			; Protected-mode ESP

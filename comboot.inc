@@ -967,5 +967,5 @@ feature_flags_len equ ($-feature_flags)
 err_notdos	db ': attempted DOS system call', CR, LF, 0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
 
-		section .latebss
+		section .bss1
 ConfigName	resb	FILENAME_MAX

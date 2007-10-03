@@ -210,7 +210,7 @@ PXEStack	resd 1			; Saved stack during PXE call
 ; writing a received ARP packet into low memory.
 RBFG_brainfuck	resb 0E00h
 
-		section .latebss
+		section .bss
 		alignb 4
 RebootTime	resd 1			; Reboot timeout, if set by option
 StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure

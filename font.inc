@@ -123,10 +123,7 @@ vidrows_ok:	mov [VidRows],al
 		popa
 		ret
 
-
-; VGA font buffer at the end of memory (so loading a font works even
-; in graphics mode, but don't put too much pressure on the .bss)
-		section .latebss
+		section .bss
 vgafontbuf	resb 8192
 
 		section .data
@@ -134,7 +131,7 @@ vgafontbuf	resb 8192
 VGAFontSize	dw 16			; Defaults to 16 byte font
 UserFont	db 0			; Using a user-specified font
 
-		section .bss
+		section .bss1
 		alignb 4
 GXPixCols	resw 1			; Graphics mode pixel columns
 GXPixRows	resw 1			; Graphics mode pixel rows

@@ -42,24 +42,24 @@ STACK_START	equ TEXT_START-STACK_SIZE
 ;
 		org TEXT_START
 
-		; NASM BUG: refers to hacks to handle NASM 0.98.38 bugs; might need
-		; conditional compilation
+		; Use .earlybss for things that MUST be in low memory.
+		section .earlybss	nobits start=BSS_START
+		section .bcopy32	align=4 valign=16 follows=.data vfollows=.earlybss
+		section .config		align=4 valign=16 follows=.bcopy32 vfollows=.bcopy32
+		section .config.end	nobits valign=4 vfollows=.config
 
-		section .earlybss nobits start=BSS_START
-		section .bcopy32  align=4 valign=16 follows=.data vfollows=.earlybss
-		section .config	  align=4 valign=16 follows=.bcopy32 vfollows=.bcopy32
-		section .config.end nobits align=4 follows=.config
+		; Use .bss1 for things that doesn't have to be in low memory,
+		; but are in order to offload .bss
+		section .bss1		nobits valign=16 vfollows=.config.end
 
-		; NASM BUG: follows= here should be vfollows=
-		section .bss      nobits align=256 follows=.config.end
+		section .text		start=TEXT_START
+		; NASM BUG: .data always follows .text; can't override
+		section .data		align=16 ; follows=.text
 
-		section .text	  start=TEXT_START
-		; NASM BUG: follows=.text not accepted here
-		section .data	  align=16 ; follows=.text
+		section .adv		progbits align=1 follows=.config
 
-		; NASM BUG: We would like to do follows=.bcopy32
-		section .latebss  nobits align=16 start=LATEBSS_START
+		section .bss		nobits align=16 follows=.adv
 
 		; Reserve space for stack
-		section .stack	  nobits align=16 start=STACK_START
+		section .stack		nobits align=16 start=STACK_START
 Stack		resb	STACK_SIZE

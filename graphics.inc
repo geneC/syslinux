@@ -346,7 +346,7 @@ linear_color	db 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0
 		; of this byte.
 UsingVGA	db 0
 
-		section .latebss
+		section .bss1
 		alignb 2
 GraphXSize	resw 1			; Width of splash screen file
 VGAPos		resw 1			; Pointer into VGA memory
