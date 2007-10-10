@@ -35,6 +35,7 @@ AR	 = ar
 RANLIB   = ranlib
 
 NASM	 = nasm
+NASMOPT  = -O9999
 NINCLUDE =
 BINDIR   = /usr/bin
 SBINDIR  = /sbin
@@ -142,7 +143,7 @@ kwdhash.gen: keywords genhash.pl
 
 # Standard rule for {ldlinux,pxelinux,isolinux,isolinux-debug,extlinux}.bin
 %.bin: %.asm kwdhash.gen version.gen
-	$(NASM) -O99 -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
+	$(NASM) $(NASMOPT) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-DMAP=$(@:.bin=.map) -l $(@:.bin=.lsr) -o $@ $<
 	$(PERL) lstadjust.pl $(@:.bin=.lsr) $(@:.bin=.map) $(@:.bin=.lst)
 	$(PERL) checkov.pl $(@:.bin=.map) $@
@@ -166,7 +167,7 @@ mbr_bin.c: mbr/mbr.bin bin2c.pl
 	$(PERL) bin2c.pl syslinux_mbr < $< > $@
 
 copybs.com: copybs.asm
-	$(NASM) -O99 -f bin -l copybs.lst -o copybs.com copybs.asm
+	$(NASM) $(NASMOPT) -f bin -l copybs.lst -o copybs.com copybs.asm
 
 bootsect_bin.c: ldlinux.bss bin2c.pl
 	$(PERL) bin2c.pl syslinux_bootsect < $< > $@

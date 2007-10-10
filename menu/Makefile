@@ -1,6 +1,6 @@
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 2001-2005 H. Peter Anvin - All Rights Reserved
+##   Copyright 2001-2007 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ CC         = gcc
 LD         = ld -m elf_i386
 AR	   = ar
 NASM	   = nasm
+NASMOPT	   = -O9999
 RANLIB	   = ranlib
 COM32DIR   = ../com32
 LUDIR      = $(COM32DIR)/libutil

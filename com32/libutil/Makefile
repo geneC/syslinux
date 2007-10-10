@@ -1,6 +1,6 @@
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 2001-2004 H. Peter Anvin - All Rights Reserved
+##   Copyright 2001-2007 H. Peter Anvin - All Rights Reserved
 ##
 ##   Permission is hereby granted, free of charge, to any person
 ##   obtaining a copy of this software and associated documentation
@@ -40,6 +40,7 @@ CC         = gcc
 LD         = ld -m elf_i386
 AR	   = ar
 NASM	   = nasm
+NASMOPT	   = -O9999
 RANLIB	   = ranlib
 CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -D__COM32__ -W -Wall -march=i386 -Os -fomit-frame-pointer -I./include -I../include
 SFLAGS     = $(M32) -D__COM32__ -march=i386
