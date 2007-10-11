@@ -81,7 +81,9 @@ LIBOBJS = \
 	syslinux/initramfs_file.o syslinux/initramfs_loadfile.o		\
 	syslinux/initramfs_archive.o					\
 	\
-	syslinux/pxe_get_cached.o
+	syslinux/pxe_get_cached.o					\
+	\
+	syslinux/adv.o syslinux/advwrite.o
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib

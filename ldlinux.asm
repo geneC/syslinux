@@ -827,13 +827,13 @@ genfatinfo:
 		bsr cx,ax
 		mov [ClustShift],cl
 		push cx
-		add cl,9
+		add cl,SECTOR_SHIFT
 		mov [ClustByteShift],cl
 		pop cx
 		dec ax
 		mov [ClustMask],eax
 		inc ax
-		shl eax,9
+		shl eax,SECTOR_SHIFT
 		mov [ClustSize],eax
 
 ;
@@ -867,14 +867,6 @@ getfattype:
 ;
 %include "cpuinit.inc"
 %include "init.inc"
-
-;
-; Clear Files structures
-;
-		mov di,Files
-		mov cx,(MAX_OPEN*open_file_t_size)/4
-		xor eax,eax
-		rep stosd
 
 ;
 ; Initialize the metadata cache
@@ -1550,6 +1542,7 @@ getfatsector:
 %include "highmem.inc"		; High memory sizing
 %include "strcpy.inc"           ; strcpy()
 %include "cache.inc"		; Metadata disk cache
+%include "adv.inc"		; Auxillary Data Vector
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section

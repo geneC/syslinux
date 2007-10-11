@@ -1493,6 +1493,7 @@ getfssec:
 %include "highmem.inc"		; High memory sizing
 %include "strcpy.inc"		; strcpy()
 %include "rawcon.inc"		; Console I/O w/o using the console functions
+%include "adv.inc"		; Auxillary Data Vector
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section

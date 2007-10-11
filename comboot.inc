@@ -592,6 +592,7 @@ comapi_dnsresolv:
 		mov si,P_BX
 		call dns_resolv
 		mov P_EAX,eax
+		clc
 		ret
 %else
 comapi_dnsresolv equ comapi_err
@@ -898,6 +899,20 @@ comapi_shufflerm:
 		stc
 		ret
 
+;
+; INT 22h AX=001Ch	Get pointer to auxillary data vector
+;
+comapi_getadv:
+		mov P_ES,ds
+		mov P_BX,adv0.data
+		mov P_CX,ADV_LEN
+		ret
+
+;
+; INT 22h AX=001Dh	Write auxillary data vector
+;
+comapi_writeadv	equ adv_write
+
 		section .data
 
 %macro		int21 2
@@ -948,6 +963,8 @@ int22_table:
 		dw comapi_readdisk	; 0019 read disk
 		dw comapi_shufflepm	; 001A cleanup, shuffle and boot to pm
 		dw comapi_shufflerm	; 001B cleanup, shuffle and boot to rm
+		dw comapi_getadv	; 001C get pointer to ADV
+		dw comapi_writeadv	; 001D write ADV to disk
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

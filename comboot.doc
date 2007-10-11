@@ -828,7 +828,7 @@ AX=001Ah [3.50] Cleanup, shuffle and boot to flat protected mode
 
 
 AX=001Bh [3.50] Cleanup, shuffle and boot to real mode
-	Input:	AX	001Ah
+	Input:	AX	001Bh
 		DX	derivative-specific flags (see function 000Ch)
 		ES:DI	shuffle descriptor list (must be in low memory)
 		CX	number of shuffle descriptors
@@ -869,3 +869,25 @@ AX=001Bh [3.50] Cleanup, shuffle and boot to real mode
 	};
 
 	Interrupts are off and DF=0 on entry.
+
+
+AX=001Ch [3.53] Get pointer to auxilliary data vector
+	Input:	AX	001Ch
+	Output:	ES:BX	Auxilliary data vector
+		CX	Size of the ADV (currently 500 bytes)
+
+	The auxillary data vector is a tagged data structure used
+	to carry a small amount of information (up to 500 bytes) from
+	one boot to another.
+
+
+AX=001Dh [3.53]	Write auxilliary data vector
+	Input:	AX	001Dh
+	Output:	None
+
+	Write the auxilliary data vector back to disk.  Returns
+	failure for non-disk-based derivatives unless the "auxdata"
+	configuration command is used to specify a disk location.
+
+	In a future version, PXELINUX may end up attempting to save
+	the ADV on the server via TFTP write.

@@ -17,6 +17,8 @@ load_config_file:
 		call parse_config		; Parse configuration file
 no_config_file:
 
+		call adv_init
+
 ;
 ; Check whether or not we are supposed to display the boot prompt.
 ;

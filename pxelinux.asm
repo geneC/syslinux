@@ -2433,6 +2433,7 @@ writestr	equ cwritestr
 %include "strcpy.inc"		; strcpy()
 %include "rawcon.inc"		; Console I/O w/o using the console functions
 %include "dnsresolv.inc"	; DNS resolver
+%include "adv.inc"		; Auxillary Data Vector
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section

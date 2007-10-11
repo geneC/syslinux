@@ -56,7 +56,7 @@ STACK_START	equ TEXT_START-STACK_SIZE
 		; NASM BUG: .data always follows .text; can't override
 		section .data		align=16 ; follows=.text
 
-		section .adv		progbits align=1 follows=.config
+		section .adv		progbits align=512 follows=.config
 
 		; .uibss contains bss data which is guaranteed to be
 		; safe to clobber during the loading of the image.  This

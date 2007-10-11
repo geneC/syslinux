@@ -112,7 +112,7 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
 		; ends at 4800h
 
-		section .bss
+		section .bss1
 SuperBlock	resb 1024		; ext2 superblock
 SuperInfo	resq 16			; DOS superblock expanded
 ClustSize	resd 1			; Bytes/cluster ("block")
@@ -1528,7 +1528,8 @@ getfssec:
 %include "highmem.inc"		; High memory sizing
 %include "strcpy.inc"           ; strcpy()
 %include "strecpy.inc"          ; strcpy with end pointer check
-%include "cache.inc"
+%include "cache.inc"		; Metadata disk cache
+%include "adv.inc"		; Auxillary Data Vector
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
