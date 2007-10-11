@@ -54,6 +54,7 @@ bcopy_gdt:	dw bcopy_gdt_size-1	; Null descriptor - contains GDT
 		; TSS segment to keep Intel VT happy.  Intel VT is
 		; unhappy about anything that doesn't smell like a
 		; full-blown 32-bit OS.
+.tss:
 		dw 104-1, DummyTSS	; 30h 32-bit task state segment
 		dd 00008900h		; present, dpl 0, 104 bytes @DummyTSS
 bcopy_gdt_size:	equ $-bcopy_gdt
@@ -86,6 +87,8 @@ bcopy:		push eax
 
 		cli
 		call enable_a20
+
+		mov byte [bcopy_gdt.tss+5],89h	; Mark TSS unbusy
 
 		mov bx,ss		; Save the stack segment value!
 

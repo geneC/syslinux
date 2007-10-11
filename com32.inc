@@ -82,6 +82,8 @@ com32_enter_pm:
 		call enable_a20
 
 .a20ok:
+		mov byte [bcopy_gdt.tss+5],89h	; Mark TSS unbusy
+
 		lgdt [bcopy_gdt]	; We can use the same GDT just fine
 		lidt [com32_pmidt]	; Set up the IDT
 		mov eax,cr0
