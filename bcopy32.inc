@@ -40,17 +40,22 @@ __bcopy_start:
 bcopy_gdt:	dw bcopy_gdt_size-1	; Null descriptor - contains GDT
 		dd bcopy_gdt		; pointer for LGDT instruction
 		dw 0
-		dd 0000ffffh		; Code segment, use16, readable,
+		dd 0000ffffh		; 08h Code segment, use16, readable,
 		dd 00009b00h		; present, dpl 0, cover 64K
-		dd 0000ffffh		; Data segment, use16, read/write,
+		dd 0000ffffh		; 10h Data segment, use16, read/write,
 		dd 008f9300h		; present, dpl 0, cover all 4G
-		dd 0000ffffh		; Data segment, use16, read/write,
+		dd 0000ffffh		; 18h Data segment, use16, read/write,
 		dd 00009300h		; present, dpl 0, cover 64K
-		; The rest are used for COM32 only
-		dd 0000ffffh		; Code segment, use32, readable,
+		; The next two segments are used for COM32 only
+		dd 0000ffffh		; 20h Code segment, use32, readable,
 		dd 00cf9b00h		; present, dpl 0, cover all 4G
-		dd 0000ffffh		; Data segment, use32, read/write,
+		dd 0000ffffh		; 28h Data segment, use32, read/write,
 		dd 00cf9300h		; present, dpl 0, cover all 4G
+		; TSS segment to keep Intel VT happy.  Intel VT is
+		; unhappy about anything that doesn't smell like a
+		; full-blown 32-bit OS.
+		dw 104-1, DummyTSS	; 30h 32-bit task state segment
+		dd 00008900h		; present, dpl 0, 104 bytes @DummyTSS
 bcopy_gdt_size:	equ $-bcopy_gdt
 
 ;
@@ -100,10 +105,15 @@ bcopy:		push eax
 		; ss is NOT zero in general, so we have to preserve
 		; the value.
 
-		mov ax,18h		; Real-mode-like segment
+		mov al,18h		; Real-mode-like segment
 		mov fs,ax
 		mov gs,ax
 		mov ss,ax
+
+		mov al,30h		; Intel VT really doesn't want
+		ltr ax			; an invalid TR and LDTR, so give
+		xor ax,ax		; it something that it can use...
+		lldt ax			; (sigh)
 
 		cmp esi,-1
 		je .bzero
@@ -535,4 +545,13 @@ A20Tries	resb 1			; Times until giving up on A20
 ; For the PM case, it is 9*5 = 45 bytes long; for the RM case it is
 ; 8*6 to set the GPRs, 6*5 to set the segment registers (including a dummy
 ; setting of CS), 5 bytes to set CS:IP, for a total of 83 bytes.
+;
 TrampolineBuf	resb 83			; Shuffle and boot trampoline
+
+;
+; Space for a dummy task state segment.  It should never be actually
+; accessed, but just in case it is, point to a chunk of memory not used
+; for anything real.
+;
+		alignb 4
+DummyTSS	resb 104

@@ -94,11 +94,15 @@ com32_enter_pm:
 		xor eax,eax		; Available for future use...
 		mov fs,eax
 		mov gs,eax
+		lldt ax
 
 		mov al,28h		; Set up data segments
 		mov es,eax
 		mov ds,eax
 		mov ss,eax
+
+		mov al,30h		; Be nice to Intel's VT by
+		ltr ax			; giving it a valid TR
 
 		mov esp,[PMESP]		; Load protmode %esp if available
 		jmp ebx			; Go to where we need to go
