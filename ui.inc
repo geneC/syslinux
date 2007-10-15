@@ -18,6 +18,31 @@ load_config_file:
 no_config_file:
 
 		call adv_init
+;
+; Check for an ADV boot-once entry
+;
+		mov dl,ADV_BOOTONCE
+		call adv_get
+		jcxz .no_bootonce
+
+.have_bootone:
+		; We apparently have a boot-once set; clear it and
+		; then execute the boot-once...
+
+		; Save the boot-once data; SI = data, CX = length
+		mov di,command_line
+		rep movsb
+		xor ax,ax
+		stosb
+
+		; Clear the boot-once data from the ADV
+		xor cx,cx			; Set to zero = delete
+		call adv_set
+		jc .err
+		call adv_write
+.err:		jmp load_kernel
+
+.no_bootonce:
 
 ;
 ; Check whether or not we are supposed to display the boot prompt.

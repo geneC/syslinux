@@ -27,6 +27,14 @@
 ;; has no special meaning.
 ;;
 
+;;
+;; List of ADV tags...
+;;
+ADV_BOOTONCE	equ 1
+
+;;
+;; Other ADV data...
+;;
 ADV_MAGIC1	equ 0x5a2d2fa5			; Head signature
 ADV_MAGIC2	equ 0xa3041767			; Total checksum
 ADV_MAGIC3	equ 0xdd28bf64			; Tail signature
