@@ -2263,7 +2263,7 @@ dopt_%2:
 		jmp dhcp_copyoption
 .skip:		ret
 
-	dopt 64, bootfile_name
+	dopt 67, bootfile_name
 		mov di,BootFile
 		jmp dhcp_copyoption
 
