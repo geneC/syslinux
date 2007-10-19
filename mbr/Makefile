@@ -47,3 +47,5 @@ tidy:
 
 clean: tidy
 	rm -f *.bin
+
+spotless: clean

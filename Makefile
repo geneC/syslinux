@@ -126,7 +126,9 @@ all:
 
 all-local: $(BTARGET) $(ITARGET) $(BINFILES)
 
-installer: installer-local
+installer:
+	set -e ; for i in $(IESUBDIRS); do $(MAKE) -C $$i all ; done
+	$(MAKE) installer-local
 	set -e ; for i in $(ISUBDIRS); do $(MAKE) -C $$i all ; done
 	-ls -l $(BOBJECTS) $(IOBJECTS)
 
@@ -216,13 +218,13 @@ local-tidy:
 	rm -f $(OBSOLETE)
 
 tidy: local-tidy
-	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 local-clean:
 	rm -f $(ITARGET)
 
 clean: local-tidy local-clean
-	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 dist: tidy
 	for dir in . sample memdisk ; do \
@@ -233,7 +235,7 @@ local-spotless:
 	rm -f $(BTARGET) .depend *.so.*
 
 spotless: local-clean dist local-spotless
-	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 .depend:
 	rm -f .depend
