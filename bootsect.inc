@@ -149,6 +149,7 @@ replace_bootstrap:
 .findpnp:
 		cmp dword [fs:bx], "$PnP"
 		jz .foundpnp
+.againpnp:
 		inc bx
 		cmp bx,-21h		; Don't get a segment overflow error!
 		jbe .findpnp
@@ -156,7 +157,7 @@ replace_bootstrap:
 .foundpnp:
 		movzx cx,byte [fs:bx+5]	; Size of $PnP header
 		cmp cl,21h
-		jb .findpnp		; Invalid $PnP header (too short)
+		jb .againpnp		; Invalid $PnP header (too short)
 		push bx
 		xor ax,ax
 .checkpnp:
