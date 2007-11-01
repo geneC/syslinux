@@ -188,7 +188,7 @@ $bcyl    = ($h > 1) ? 0 : 1;
 $ehead   = $h-1;
 $esect   = $s + ((($cc-1) & 0x300) >> 2);
 $ecyl    = ($cc-1) & 0xff;
-if ( $cc > 1024 ) {
+if ( $c > 1024 ) {
     $fstype = 0x0e;
 } elsif ( $psize > 65536 ) {
     $fstype = 0x06;
@@ -275,13 +275,13 @@ print OUTPUT pack("V", ($offset-$header_size)>>9);
 
 # Set the partition type
 if ( $opt{'F'} ) {
-    if ( $cc > 1024 ) {
+    if ( $c > 1024 ) {
 	$fstype = 0x0c;		# FAT32 LBA
     } else {
 	$fstype = 0x0b;
     }
 } else {
-    if ( $cc > 1024 ) {
+    if ( $c > 1024 ) {
 	$fstype = 0x0e;		# FAT16 LBA
     } elsif ( $psize > 65536 ) {
 	$fstype = 0x06;		# FAT16 > 32MB
