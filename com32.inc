@@ -82,14 +82,14 @@ com32_enter_pm:
 		call enable_a20
 
 .a20ok:
-		mov byte [bcopy_gdt.tss+5],89h	; Mark TSS unbusy
+		mov byte [bcopy_gdt.TSS+5],89h	; Mark TSS unbusy
 
 		lgdt [bcopy_gdt]	; We can use the same GDT just fine
 		lidt [com32_pmidt]	; Set up the IDT
 		mov eax,cr0
 		or al,1
 		mov cr0,eax		; Enter protected mode
-		jmp 20h:.in_pm
+		jmp PM_CS32:.in_pm
 
 		bits 32
 .in_pm:
@@ -98,12 +98,12 @@ com32_enter_pm:
 		mov gs,eax
 		lldt ax
 
-		mov al,28h		; Set up data segments
+		mov al,PM_DS32		; Set up data segments
 		mov es,eax
 		mov ds,eax
 		mov ss,eax
 
-		mov al,30h		; Be nice to Intel's VT by
+		mov al,PM_TSS		; Be nice to Intel's VT by
 		ltr ax			; giving it a valid TR
 
 		mov esp,[PMESP]		; Load protmode %esp if available
@@ -182,11 +182,11 @@ com32_enter_rm:
 		cld
 		mov [PMESP],esp		; Save exit %esp
 		xor esp,esp		; Make sure the high bits are zero
-		jmp 08h:.in_pm16	; Return to 16-bit mode first
+		jmp PM_CS16:.in_pm16	; Return to 16-bit mode first
 
 		bits 16
 .in_pm16:
-		mov ax,18h		; Real-mode-like segment
+		mov ax,PM_DS16_RM	; Real-mode-like segment
 		mov es,ax
 		mov ds,ax
 		mov ss,ax

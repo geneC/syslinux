@@ -37,24 +37,38 @@ __bcopy_start:
 		; This is in the .text segment since it needs to be
 		; contiguous with the rest of the bcopy stuff
 
-bcopy_gdt:	dw bcopy_gdt_size-1	; Null descriptor - contains GDT
+; GDT descriptor entry
+%macro desc 1
+bcopy_gdt.%1:
+PM_%1		equ bcopy_gdt.%1-bcopy_gdt
+%endmacro
+
+bcopy_gdt:
+		dw bcopy_gdt_size-1	; Null descriptor - contains GDT
 		dd bcopy_gdt		; pointer for LGDT instruction
 		dw 0
+
+	desc CS16
 		dd 0000ffffh		; 08h Code segment, use16, readable,
 		dd 00009b00h		; present, dpl 0, cover 64K
+	desc DS16_4G
 		dd 0000ffffh		; 10h Data segment, use16, read/write,
 		dd 008f9300h		; present, dpl 0, cover all 4G
+	desc DS16_RM
 		dd 0000ffffh		; 18h Data segment, use16, read/write,
 		dd 00009300h		; present, dpl 0, cover 64K
 		; The next two segments are used for COM32 only
+	desc CS32
 		dd 0000ffffh		; 20h Code segment, use32, readable,
 		dd 00cf9b00h		; present, dpl 0, cover all 4G
+	desc DS32
 		dd 0000ffffh		; 28h Data segment, use32, read/write,
 		dd 00cf9300h		; present, dpl 0, cover all 4G
+
 		; TSS segment to keep Intel VT happy.  Intel VT is
 		; unhappy about anything that doesn't smell like a
 		; full-blown 32-bit OS.
-.tss:
+	desc TSS
 		dw 104-1, DummyTSS	; 30h 32-bit task state segment
 		dd 00008900h		; present, dpl 0, 104 bytes @DummyTSS
 bcopy_gdt_size:	equ $-bcopy_gdt
@@ -88,7 +102,7 @@ bcopy:		push eax
 		cli
 		call enable_a20
 
-		mov byte [bcopy_gdt.tss+5],89h	; Mark TSS unbusy
+		mov byte [bcopy_gdt.TSS+5],89h	; Mark TSS unbusy
 
 		mov bx,ss		; Save the stack segment value!
 
@@ -96,9 +110,9 @@ bcopy:		push eax
 		mov eax,cr0
 		or al,1
 		mov cr0,eax		; Enter protected mode
-		jmp 08h:.in_pm
+		jmp PM_CS16:.in_pm
 
-.in_pm:		mov ax,10h		; Data segment selector
+.in_pm:		mov ax,PM_DS16_4G	; Data segment selector
 		mov es,ax
 		mov ds,ax
 
@@ -108,12 +122,12 @@ bcopy:		push eax
 		; ss is NOT zero in general, so we have to preserve
 		; the value.
 
-		mov al,18h		; Real-mode-like segment
+		mov al,PM_DS16_RM	; Real-mode-like segment
 		mov fs,ax
 		mov gs,ax
 		mov ss,ax
 
-		mov al,30h		; Intel VT really doesn't want
+		mov al,PM_TSS		; Intel VT really doesn't want
 		ltr ax			; an invalid TR and LDTR, so give
 		xor ax,ax		; it something that it can use...
 		lldt ax			; (sigh)
@@ -166,7 +180,7 @@ bcopy:		push eax
 		; jmp .exit
 
 .exit:
-		mov ax,18h		; "Real-mode-like" data segment
+		mov ax,PM_DS16_RM	; "Real-mode-like" data segment
 		mov es,ax
 		mov ds,ax
 
@@ -518,13 +532,13 @@ trampoline_to_pm:
 		mov eax,cr0
 		or al,1
 		mov cr0,eax		; Enter protected mode
-		mov ax,28h		; 32-bit data segment selector
+		mov ax,PM_DS32		; 32-bit data segment selector
 		mov es,ax
 		mov ds,ax
 		mov ss,ax
 		mov fs,ax
 		mov gs,ax
-		jmp 020h:TrampolineBuf	; 20h = 32-bit code segment
+		jmp PM_CS32:TrampolineBuf
 
 		align 2
 A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
