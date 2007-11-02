@@ -2609,7 +2609,6 @@ ServerPort	dw TFTP_PORT		; TFTP server port
 BufSafe		dw trackbufsize/TFTP_BLOCKSIZE	; Clusters we can load into trackbuf
 BufSafeSec	dw trackbufsize/512	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
-EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 %ifndef DEPEND
 %if ( trackbufsize % TFTP_BLOCKSIZE ) != 0
 %error trackbufsize must be a multiple of TFTP_BLOCKSIZE

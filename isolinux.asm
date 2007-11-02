@@ -1572,7 +1572,6 @@ img_table:
 BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf
 BufSafeSec	dw trackbufsize/SECTOR_SIZE	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
-EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 %ifndef DEPEND
 %if ( trackbufsize % SECTOR_SIZE ) != 0
 %error trackbufsize must be a multiple of SECTOR_SIZE
