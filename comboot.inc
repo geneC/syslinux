@@ -869,6 +869,7 @@ comapi_shufflerm:
 		stosb				; MOV AX,imm16 opcode
 		fs movsw			; imm16
 		mov ax,bx
+		add bh,8
 		stosw				; MOV xS,AX
 		loop .segtramp
 
