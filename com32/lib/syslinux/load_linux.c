@@ -38,6 +38,16 @@
 #include <syslinux/bootrm.h>
 #include <syslinux/movebits.h>
 
+#ifndef DEBUG
+# define DEBUG 0
+#endif
+#if DEBUG
+# include <stdio.h>
+# define dprintf printf
+#else
+# define dprintf(f, ...) ((void)0)
+#endif
+
 struct linux_header {
   uint8_t  boot_sector_1[0x0020];
   uint16_t old_cmd_line_magic;
@@ -225,6 +235,11 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
   if (!mmap || !amap)
     goto bail;
 
+#if DEBUG
+  dprintf("Initial memory map:\n");
+  syslinux_dump_memmap(stdout, mmap);
+#endif
+
   /* If the user has specified a memory limit, mark that as unavailable.
      Question: should we mark this off-limit in the mmap as well (meaning
      it's unavailable to the boot loader, which probably has already touched
@@ -300,6 +315,17 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
   regs.cs = (real_mode_base >> 4)+0x20;
   /* regs.ip = 0; */
   regs.esp.w[0] = cmdline_offset;
+
+#if DEBUG
+  dprintf("Final memory map:\n");
+  syslinux_dump_memmap(stdout, mmap);
+
+  dprintf("Final available map:\n");
+  syslinux_dump_memmap(stdout, amap);
+
+  dprintf("Initial movelist:\n");
+  syslinux_dump_movelist(stdout, fraglist);
+#endif
 
   syslinux_shuffle_boot_rm(fraglist, mmap, 0, &regs);
 
