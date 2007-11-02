@@ -873,9 +873,8 @@ comapi_shufflerm:
 		stosw				; MOV xS,AX
 		loop .segtramp
 
-		; Clobber the MOV CS,AX instruction.  This changes it
-		; into [89 C8], a harmless "MOV AX,CX".
-		mov byte [di-22], 89h
+		; Clobber the MOV CS,AX instruction.
+		mov word [di-22], 9090h		; NOP NOP
 
 		; Generate GPR-loading instructions
 		mov ax,0B866h			; MOV EAX,imm32
