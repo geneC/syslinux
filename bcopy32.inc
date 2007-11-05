@@ -532,7 +532,8 @@ trampoline_to_pm:
 		mov eax,cr0
 		or al,1
 		mov cr0,eax		; Enter protected mode
-		mov ax,PM_DS32		; 32-bit data segment selector
+		jmp .next		; Near jump to synchronize on 386/486
+.next:		mov ax,PM_DS32		; 32-bit data segment selector
 		mov es,ax
 		mov ds,ax
 		mov ss,ax
