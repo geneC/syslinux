@@ -105,7 +105,11 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
 ;		ends at 4800h
 
-		section .bss
+		; Some of these are touched before the whole image
+		; is loaded.  DO NOT move this to .bss, since the beginning
+		; of .bss might be clobbered when loading the last fractional
+		; sector.
+		section .bss1
 		alignb 4
 ISOFileName	resb 64			; ISO filename canonicalization buffer
 ISOFileNameEnd	equ $
