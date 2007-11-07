@@ -106,9 +106,7 @@ getcbuf		resb trackbufsize
 ;		ends at 4800h
 
 		; Some of these are touched before the whole image
-		; is loaded.  DO NOT move this to .bss, since the beginning
-		; of .bss might be clobbered when loading the last fractional
-		; sector.
+		; is loaded.  DO NOT move this to .uibss.
 		section .bss1
 		alignb 4
 ISOFileName	resb 64			; ISO filename canonicalization buffer

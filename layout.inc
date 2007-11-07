@@ -58,7 +58,14 @@ STACK_START	equ TEXT_START-STACK_SIZE
 
 		section .adv		progbits align=1 follows=.config
 
-		section .bss		nobits align=16 follows=.adv
+		; .uibss contains bss data which is guaranteed to be
+		; safe to clobber during the loading of the image.  This
+		; is because while loading the primary image we will clobber
+		; the spillover from the last fractional sector load.
+		section .uibss		nobits align=16 follows=.adv
+
+		; Normal bss...
+		section .bss		nobits align=16 follows=.uibss
 
 		; Reserve space for stack
 		section .stack		nobits align=16 start=STACK_START
