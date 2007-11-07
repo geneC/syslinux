@@ -528,18 +528,26 @@ shuffle_and_boot:
 trampoline_to_pm:
 		cli
 		call enable_a20
+		mov byte [cs:bcopy_gdt.TSS+5],89h	; Mark TSS unbusy
 		o32 lgdt [cs:bcopy_gdt]
 		mov eax,cr0
 		or al,1
 		mov cr0,eax		; Enter protected mode
-		jmp .next		; Near jump to synchronize on 386/486
-.next:		mov ax,PM_DS32		; 32-bit data segment selector
-		mov es,ax
+		jmp PM_CS32:.next	; Synchronize and go to 32-bit mode
+		
+		bits 32
+.next:		xor ax,ax
+		lldt ax			; TR <- 0 to be nice to Intel VT
+		mov al,PM_TSS
+		ltr ax			; Bogus TSS to be nice to Intel VTeg
+		mov al,PM_DS32
+		mov es,ax		; 32-bit data segment selector
 		mov ds,ax
 		mov ss,ax
 		mov fs,ax
 		mov gs,ax
-		jmp PM_CS32:TrampolineBuf
+		jmp word TrampolineBuf
+		bits 16
 
 		align 2
 A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
