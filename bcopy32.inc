@@ -539,7 +539,7 @@ trampoline_to_pm:
 .next:		xor ax,ax
 		lldt ax			; TR <- 0 to be nice to Intel VT
 		mov al,PM_TSS
-		ltr ax			; Bogus TSS to be nice to Intel VTeg
+		ltr ax			; Bogus TSS to be nice to Intel VT
 		mov al,PM_DS32
 		mov es,ax		; 32-bit data segment selector
 		mov ds,ax
