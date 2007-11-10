@@ -536,7 +536,7 @@ trampoline_to_pm:
 		jmp PM_CS32:.next	; Synchronize and go to 32-bit mode
 		
 		bits 32
-.next:		xor ax,ax
+.next:		xor eax,eax
 		lldt ax			; TR <- 0 to be nice to Intel VT
 		mov al,PM_TSS
 		ltr ax			; Bogus TSS to be nice to Intel VT
