@@ -7,11 +7,12 @@ LIBOBJS = \
 	putchar.o setjmp.o						\
 	fputs.o fread2.o fread.o free.o fwrite2.o fwrite.o getopt.o	\
 	lrand48.o malloc.o stack.o memccpy.o memchr.o memcmp.o		\
-	memcpy.o memmem.o memmove.o memset.o memswap.o exit.o onexit.o	\
+	memcpy.o mempcpy.o memmem.o memmove.o memset.o memswap.o	\
+	exit.o onexit.o	\
 	perror.o printf.o puts.o qsort.o realloc.o seed48.o snprintf.o	\
 	sprintf.o srand48.o sscanf.o stack.o strcasecmp.o strcat.o	\
 	strchr.o strcmp.o strcpy.o strdup.o strerror.o strlen.o		\
-	strncasecmp.o strncat.o strncmp.o strncpy.o strndup.o		\
+	strncasecmp.o strncat.o strncmp.o strncpy.o stpncpy.o strndup.o	\
 	strntoimax.o strntoumax.o strrchr.o strsep.o strspn.o strstr.o	\
 	strtoimax.o strtok.o strtol.o strtoll.o strtoul.o strtoull.o	\
 	strtoumax.o vfprintf.o vprintf.o vsnprintf.o vsprintf.o		\
