@@ -24,7 +24,7 @@
 ;	Can trash any registers.
 ;
 cleanup_hardware:
-
+		pushad
 ;
 ; Linux wants the floppy motor shut off before starting the kernel,
 ; at least bootsect.S seems to imply so.  If we don't load the floppy
@@ -50,4 +50,5 @@ cleanup_hardware:
 .no_vmware:
 %endif
 
+		popad
 		ret
