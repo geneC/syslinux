@@ -119,7 +119,7 @@ InitStack	resd 1			; Initial stack pointer (SS:SP)
 DiskSys		resw 1			; Last INT 13h call
 ImageSectors	resw 1			; isolinux.bin size, sectors
 DiskError	resb 1			; Error code for disk I/O
-DriveNo		resb 1			; CD-ROM BIOS drive number
+DriveNumber		resb 1			; CD-ROM BIOS drive number
 ISOFlags	resb 1			; Flags for ISO directory search
 RetryCount      resb 1			; Used for disk access retries
 
@@ -268,7 +268,7 @@ initial_csum:	xor edi,edi
 		loop .loop
 		mov [FirstSecSum],edi
 
-		mov [DriveNo],dl
+		mov [DriveNumber],dl
 %ifdef DEBUG_MESSAGES
 		mov si,startup_msg
 		call writemsg
@@ -297,11 +297,11 @@ initial_csum:	xor edi,edi
 		; Note: use passed-in DL value rather than 7Fh because
 		; at least some BIOSes will get the wrong value otherwise
 		mov ax,4B01h			; Get disk emulation status
-		mov dl,[DriveNo]
+		mov dl,[DriveNumber]
 		mov si,spec_packet
 		call int13
 		jc award_hack			; changed for BrokenAwardHack
-		mov dl,[DriveNo]
+		mov dl,[DriveNumber]
 		cmp [sp_drive],dl		; Should contain the drive number
 		jne spec_query_failed
 
@@ -543,7 +543,7 @@ award_found:	mov	eax,[es:di+0eh]		; load possible int 13 addr
 		call	writestr		;
 %endif						;
 		mov	ax,4B01h		; try to read the spec packet
-		mov	dl,[DriveNo]		; now ... it should not fail
+		mov	dl,[DriveNumber]	; now ... it should not fail
 		mov	si,spec_packet		; any longer
 		int	13h			;
 		jc	award_fail2		;
@@ -588,14 +588,14 @@ spec_query_failed:
 		; Okay, good enough...
 		mov si,alright_msg
 		call writemsg
-		mov [DriveNo],dl
+		mov [DriveNumber],dl
 .found_drive:	jmp found_drive
 
 		; Award BIOS 4.51 apparently passes garbage in sp_drive,
 		; but if this was the drive number originally passed in
 		; DL then consider it "good enough"
 .maybe_broken:
-		cmp byte [DriveNo],dl
+		cmp byte [DriveNumber],dl
 		je .found_drive
 
 .still_broken:	dec dx
@@ -607,7 +607,7 @@ spec_query_failed:
 		; 4B01h, so we can't query a spec packet no matter
 		; what.  If we got a drive number in DL, then try to
 		; use it, and if it works, then well...
-		mov dl,[DriveNo]
+		mov dl,[DriveNumber]
 		cmp dl,81h			; Should be 81-FF at least
 		jb fatal_error			; If not, it's hopeless
 
@@ -708,7 +708,7 @@ getlinsec:
 .bp_ok:
 		mov [si+2],bp
 		push si
-		mov dl,[DriveNo]
+		mov dl,[DriveNumber]
 		mov ah,42h			; Extended Read
 		call xint13
 		pop si
@@ -1066,7 +1066,7 @@ is_disk_image:
 
 		mov ax,4C00h			; Enable emulation and boot
 		mov si,dspec_packet
-		mov dl,[DriveNo]
+		mov dl,[DriveNumber]
 		lss sp,[InitStack]
 		TRACER 'X'
 

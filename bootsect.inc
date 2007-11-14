@@ -79,7 +79,7 @@ load_bootsec:
 		rep movsw
 		pop si			; DS:SI points to partition info
 %elif IS_ISOLINUX
-		mov dl,[DriveNo]
+		mov dl,[DriveNumber]
 %elif IS_PXELINUX
 		mov byte [KeepPXE],1	; Chainloading another NBP
 		call reset_pxe

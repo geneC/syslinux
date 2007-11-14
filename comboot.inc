@@ -478,7 +478,7 @@ comapi_derinfo:
 		mov ax,[InitStack+2]
 		mov P_FS,ax
 %elif IS_ISOLINUX
-		mov al,[DriveNo]
+		mov al,[DriveNumber]
 		mov P_DL,al
 		mov P_ES,cs
 		mov P_BX,spec_packet
