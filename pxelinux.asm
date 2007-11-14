@@ -2607,7 +2607,6 @@ ServerPort	dw TFTP_PORT		; TFTP server port
 ;
 		alignb 4, db 0
 BufSafe		dw trackbufsize/TFTP_BLOCKSIZE	; Clusters we can load into trackbuf
-BufSafeSec	dw trackbufsize/512	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 %ifndef DEPEND
 %if ( trackbufsize % TFTP_BLOCKSIZE ) != 0

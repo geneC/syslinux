@@ -1571,7 +1571,6 @@ debug_magic	dw 0D00Dh		; Debug code sentinel
 
 		alignb 4, db 0
 BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf
-BufSafeSec	dw trackbufsize/SECTOR_SIZE	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 %ifndef DEPEND
 %if ( trackbufsize % SECTOR_SIZE ) != 0
