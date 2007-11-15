@@ -460,13 +460,7 @@ comapi_pxecall	equ comapi_err			; Not available
 ;
 comapi_derinfo:
 		mov P_AL,my_id
-%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
-		mov al,[DriveNumber]
-		mov P_DL,al
-		mov P_ES,cs
-		mov P_BX,PartInfo
-		mov P_CL,SECTOR_SHIFT
-%elif IS_PXELINUX
+%if IS_PXELINUX
 		mov ax,[APIVer]
 		mov P_DX,ax
 		mov ax,[StrucPtr]
@@ -477,12 +471,21 @@ comapi_derinfo:
 		mov P_SI,ax
 		mov ax,[InitStack+2]
 		mov P_FS,ax
-%elif IS_ISOLINUX
+%else
+		; Physical medium...
+
+		mov P_CL,SECTOR_SHIFT
 		mov al,[DriveNumber]
 		mov P_DL,al
+		mov P_FS,cs
+		mov P_SI,OrigESDI
+%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
+		mov P_ES,cs
+		mov P_BX,PartInfo
+%elif IS_ISOLINUX
 		mov P_ES,cs
 		mov P_BX,spec_packet
-		mov P_CL,SECTOR_SHIFT
+%endif
 %endif
 		clc
 		ret

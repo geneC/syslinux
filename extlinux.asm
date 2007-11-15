@@ -148,7 +148,8 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 StackBuf	equ $-44-32		; Start the stack here (grow down - 4K)
 PartInfo	equ StackBuf		; Saved partition table entry
 FloppyTable	equ PartInfo+16		; Floppy info table (must follow PartInfo)
-OrigFDCTabPtr	equ StackBuf-4		; The high dword on the stack
+OrigFDCTabPtr	equ StackBuf-8		; The 2nd high dword on the stack
+OrigESDI	equ StackBuf-4		; The high dword on the stack
 
 ;
 ; Primary entry point.  Tempting as though it may be, we can't put the
@@ -217,12 +218,14 @@ start:
 		xor ax,ax
 		mov ss,ax
 		mov sp,StackBuf		; Just below BSS
+		push es			; Save initial ES:DI -> $PnP pointer
+		push di
 		mov es,ax
 ;
 ; DS:SI may contain a partition table entry.  Preserve it for us.
 ;
 		mov cx,8		; Save partition info
-		mov di,sp
+		mov di,PartInfo
 		rep movsw
 
 		mov ds,ax		; Now we can initialize DS...

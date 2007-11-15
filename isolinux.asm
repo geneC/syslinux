@@ -215,9 +215,10 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 ;; CD-ROM sector (2K) of the file, so the number one priority is actually
 ;; loading the rest.
 ;;
-StackBuf	equ $-44			; 44 bytes needed for
-						; the bootsector chainloading
-						; code!
+StackBuf	equ $-44		; 44 bytes needed for
+					; the bootsector chainloading
+					; code!
+OrigESDI	equ StackBuf-4          ; The high dword on the stack
 
 bootsec		equ $
 
@@ -241,6 +242,8 @@ _start1:	mov [cs:InitStack],sp		; Save initial stack pointer
 		xor ax,ax
 		mov ss,ax
 		mov sp,StackBuf			; Set up stack
+		push es			; Save initial ES:DI -> $PnP pointer
+		push di
 		mov ds,ax
 		mov es,ax
 		mov fs,ax
@@ -828,7 +831,6 @@ crlf_msg	db CR, LF
 null_msg	db 0
 
 		alignb 4, db 0
-StackPtr	dw StackBuf, 0			; SS:SP for stack reset
 MaxTransfer	dw 32				; Max sectors per transfer
 
 rl_checkpt	equ $				; Must be <= 800h

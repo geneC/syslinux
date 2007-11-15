@@ -367,8 +367,18 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 		DL	drive number
 		CL	sector size as a power of 2 (9 = 512 bytes) [3.35]
 		ES:BX	pointer to partition table entry (if DL >= 80h)
+		FS:SI	pointer to initial ES:DI value [3.53]
 
 		Note: This function was broken in EXTLINUX 3.00-3.02.
+
+		On boot, ES:DI is supposed to point to the BIOS $PnP
+		structure, although in practice most operating systems
+		will search for it in memory.  However, preserving
+		this while chainloading is probably a good idea.
+
+		Note that FS:SI is a pointer to a memory location
+		containing the original ES:DI value, not the value
+		itself.
 
 
 	[PXELINUX]
@@ -417,6 +427,7 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 		DL	drive number
 		CL	11 (sector size as a power of 2) [3.35]
 		ES:BX	pointer to El Torito spec packet
+		FS:SI	pointer to initial ES:DI value [3.53]
 
 		Note: Some very broken El Torito implementations do
 		not provide the spec packet information.  If so, ES:BX
