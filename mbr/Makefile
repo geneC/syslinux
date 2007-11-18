@@ -46,6 +46,6 @@ tidy:
 	rm -f *.o *.elf *.lst
 
 clean: tidy
-	rm -f *.bin
 
 spotless: clean
+	rm -f *.bin
