@@ -2,6 +2,21 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 3.53:
+	* Fix bugs related to the $PnP BIOS functionality on some
+	  platforms.
+	* PXELINUX: Fix the "naked" version of :: (suppress prefix.)
+	* elf.c32: better error messages.
+	* Faster operation under Intel VT virtualization.
+	* PXELINUX: Fix DHCP bootfile option.
+	* mkdiskimage: Support more than 1024 cylinders.
+	* (Hopefully) fix installer on non-x86 platforms.
+	* Fix shuffle_and_boot_rm, used by linux.c32.
+	* Fix shuffle_and_boot_pm on 386/486.
+	* ISOLINUX (at least): fix bss memory overwrite hang.
+	* MBR: Fix booting from logical partitions.
+	* Code cleanups.
+
 Changes in 3.52:
 	* Handle capitalized F-key commands in the menu system.
 	* Fix padding error when loading multiple ramdisks.
