@@ -1382,11 +1382,13 @@ free_socket:
 
 ;
 ; parse_dotquad:
-;	       Read a dot-quad pathname in DS:SI and output an IP
-;	       address in EAX, with SI pointing to the first
-;	       nonmatching character.
+;		Read a dot-quad pathname in DS:SI and output an IP
+;		address in EAX, with SI pointing to the first
+;		nonmatching character.
 ;
-;	       Return CF=1 on error.
+;		Return CF=1 on error.
+;
+;		No segment assumptions permitted.
 ;
 parse_dotquad:
 		push cx
@@ -1436,10 +1438,12 @@ parse_dotquad:
 ;	       The first four bytes of the manged name is the IP address of
 ;	       the download host.
 ;
+;              No segment assumptions permitted.
+;
 mangle_name:
 		push di
 		push si
-		mov eax,[ServerIP]
+		mov eax,[cs:ServerIP]
 		cmp byte [si],0
 		je .noip			; Null filename?!?!
 		cmp word [si],'::'		; Leading ::?
