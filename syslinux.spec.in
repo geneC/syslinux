@@ -11,7 +11,7 @@ Source0: ftp://ftp.kernel.org/pub/linux/utils/boot/syslinux/%{name}-%{VERSION}.t
 ExclusiveArch: i386 i486 i586 i686 athlon pentium4 x86_64
 Packager: H. Peter Anvin <hpa@zytor.com>
 Buildroot: %{_tmppath}/%{name}-%{VERSION}-root
-BuildPrereq: nasm >= 0.98.38, perl
+BuildPrereq: nasm >= 0.98.38, perl, netpbm-progs
 Autoreq: 0
 %ifarch x86_64
 Requires: mtools, libc.so.6()(64bit)
@@ -136,6 +136,10 @@ fi
 %postun
 
 %changelog
+* Mon Nov 19 2007 Bernard Li <bernard@vanhpc.org>
+- Added netpbm-progs (provides pngtopnm) to BuildPrereq (this should be
+  changed to BuildRequires since it is deprecated...)
+
 * Thu Mar 15 2007 H. Peter Anvin <hpa@zytor.com>
 - Move extlinux /boot stuff into /boot/extlinux.
 
