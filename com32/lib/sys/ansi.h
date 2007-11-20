@@ -23,7 +23,6 @@ struct curxy {
 
 struct term_state {
   struct curxy xy;
-  int attr;			/* Current display attribute */
   int cindex;			/* SOH color index */
   int vtgraphics;		/* VT graphics on/off */
   int intensity;

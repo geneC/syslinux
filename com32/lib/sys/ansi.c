@@ -52,7 +52,6 @@ static const struct term_state default_state =
   .state = st_init,
   .pvt = 0,
   .nparms = 0,
-  .xy = { 0, 0 },
 };
 
 /* DEC VT graphics to codepage 437 table (characters 0x60-0x7F only) */
