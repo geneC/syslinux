@@ -892,10 +892,15 @@ run_menu(void)
   }
 
   while ( !done ) {
-    if ( entry < 0 )
+    if ( entry <= 0 ) {
       entry = 0;
-    else if ( entry >= nentries )
+      while ( entry < nentries && menu_entries[entry].disabled ) entry++;
+    }
+
+    if ( entry >= nentries ) {
       entry = nentries-1;
+      while ( entry > 0 && menu_entries[entry].disabled ) entry--;
+    }
 
     if ( top < 0 || top < entry-MENU_ROWS+1 )
       top = max(0, entry-MENU_ROWS+1);
@@ -978,19 +983,27 @@ run_menu(void)
 
     case KEY_UP:
     case KEY_CTRL('P'):
-      if ( entry > 0 ) {
-	entry--;
+      while ( entry > 0 && entry-- && menu_entries[entry].disabled ) {
 	if ( entry < top )
 	  top -= MENU_ROWS;
+      }
+
+      if ( entry == 0 ) {
+        while ( menu_entries[entry].disabled )
+          entry++;
       }
       break;
 
     case KEY_DOWN:
     case KEY_CTRL('N'):
-      if ( entry < nentries-1 ) {
-	entry++;
+      while ( entry < nentries-1 && entry++ && menu_entries[entry].disabled ) {
 	if ( entry >= top+MENU_ROWS )
 	  top += MENU_ROWS;
+      }
+
+      if ( entry == nentries-1 ) {
+        while ( menu_entries[entry].disabled )
+          entry--;
       }
       break;
 

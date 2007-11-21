@@ -37,6 +37,7 @@ struct menu_entry {
   char *passwd;
   char *helptext;
   unsigned char hotkey;
+  unsigned char disabled;
 };
 
 enum kernel_type {
