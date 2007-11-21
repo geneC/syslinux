@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------
 #
-#   Copyright 2003-2004 H. Peter Anvin - All Rights Reserved
+#   Copyright 2003-2007 H. Peter Anvin - All Rights Reserved
 #
 #   Permission is hereby granted, free of charge, to any person
 #   obtaining a copy of this software and associated documentation
@@ -27,7 +27,9 @@
 
 # COM32 start up code - must be linked first in the binary
 
-
+/* Number of arguments in our version of the entry structure */
+#define COM32_ARGS 6
+	
 		.section ".init","ax"
 		.globl _start
 		.type _start, @function
@@ -49,7 +51,7 @@ _start:
 		# Copy COM32 invocation parameters
 		leal 4(%esp),%esi		# Argument list
 		movl $__com32,%edi
-		movl $5,%ecx
+		movl $COM32_ARGS,%ecx
 		movl %esp,-4(%edi)		# Save the initial stack ptr
 		cmpl (%esi),%ecx
 		jbe 1f
@@ -87,4 +89,4 @@ _start:
 		.globl __entry_esp
 __entry_esp:	.space 4
 		.globl __com32
-__com32:	.space 4*6
+__com32:	.space 4*(COM32_ARGS+1)

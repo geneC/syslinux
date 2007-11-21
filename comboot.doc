@@ -85,6 +85,7 @@ The following arguments are passed to the program on the stack:
  [ESP+16] dword Pointer to low memory bounce buffer
  [ESP+20] dword Size of low memory bounce buffer
  [ESP+24] dword Pointer to FAR call helper function (new in 2.05)
+ [ESP+28] dword Pointer to CDECL helper function (new in 3.xx)
 
 This corresponds to the following C prototype, available in the file
 com32/include/com32.h:
@@ -95,7 +96,9 @@ int _start(unsigned int __nargs,
 	   void (*__intcall)(uint8_t, com32sys_t *, com32sys_t *),
 	   void *__bounce_ptr,
 	   unsigned int __bounce_len,
-	   void (*__farcall)(uint32_t, uint16_t, com32sys_t *, com32sys_t *));
+	   void (*__farcall)(uint32_t, com32sys_t *, com32sys_t *),
+	   int (*__cfarcall)(uint32_t, void *, size_t)
+	   );
 
 The intcall helper function can be used to issue BIOS or SYSLINUX API
 calls, and takes the interrupt number as first argument.  The second
@@ -137,6 +140,10 @@ in size, is available, to copy data in and out.
 The farcall helper function behaves similarly, but takes as its first
 argument the CS:IP (in the form (CS << 16) + IP) of procedure to be
 invoked via a FAR CALL.
+
+The cfarcall helper function takes (CS << 16)+IP, a pointer to a stack
+frame, a size of that stack frame, and returns the return value of EAX
+(which may need to be appropriate truncated by the user.)
 
 
 	++++ SYSLINUX API CALLS +++

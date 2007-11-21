@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2006 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2007 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -164,12 +164,13 @@ com32_call_start:
 
 		; Now everything is set up for interrupts...
 
+		push dword com32_cfarcall	; Cfarcall entry point
 		push dword com32_farcall	; Farcall entry point
 		push dword (1 << 16)		; 64K bounce buffer
 		push dword (comboot_seg << 4)	; Bounce buffer address
 		push dword com32_intcall	; Intcall entry point
 		push dword command_line		; Command line pointer
-		push dword 5			; Argument count
+		push dword 6			; Argument count
 		sti				; Interrupts OK now
 		call pm_entry			; Run the program...
 		; ... on return, fall through to com32_exit ...
@@ -232,7 +233,7 @@ com32_int_rm:
 		jmp com32_enter_pm		; Go back to PM
 
 ;
-; 16-bit system call handling code
+; 16-bit intcall/farcall handling code
 ;
 com32_sys_rm:
 		pop gs
@@ -253,7 +254,18 @@ com32_sys_rm:
 		push es
 		push fs
 		push gs
-		mov ebx,com32_sys_resume
+		mov ebx,com32_syscall.resume
+		jmp com32_enter_pm
+
+;
+; 16-bit cfarcall handing code
+;
+com32_cfar_rm:
+		retf
+.return:
+		mov sp,[cs:Com32SysSP]
+		mov [cs:RealModeEAX],eax
+		mov ebx,com32_cfarcall.resume
 		jmp com32_enter_pm
 
 ;
@@ -335,7 +347,7 @@ com32_syscall:
 		; On return, the 44-byte return structure is on the
 		; real-mode stack, plus the 10 additional bytes used
 		; by the target address (see above.)
-com32_sys_resume:
+.resume:
 		movzx esi,word [word RealModeSSSP]
 		movzx eax,word [word RealModeSSSP+2]
 		mov edi,[esp+12*4]	; Dest regs
@@ -354,11 +366,53 @@ com32_sys_resume:
 		popfd
 		ret			; Return to 32-bit program
 
+;
+; Cfarcall invocation.  We copy the stack frame to the real-mode stack,
+; followed by the return CS:IP and the CS:IP of the target function.
+;
+com32_cfarcall:
+		pushfd
+		pushad
+
+		cld
+		mov ecx,[esp+12*4]		; Size of stack frame
+
+		movzx edi,word [word RealModeSSSP]
+		movzx ebx,word [word RealModeSSSP+2]
+		mov [word Com32SysSP],di
+		sub edi,ecx		; Allocate space for stack frame
+		and edi,~3		; Round
+		sub edi,4*2		; Return pointer, return value
+		mov [word RealModeSSSP],di
+		shl ebx,4
+		add edi,ebx		; Create linear address
+
+		mov eax,[esp+10*4]	; CS:IP
+		stosd			; Save to stack frame
+		mov eax,com32_cfar_rm.return	; Return seg:off
+		stosd
+		mov esi,[esp+11*4]	; Stack frame
+		mov eax,ecx		; Copy the stack frame
+		rep movsd
+		mov ecx,eax
+		and ecx,3
+		rep movsb
+
+		mov bx,com32_cfar_rm
+		jmp com32_enter_rm
+
+.resume:
+		popad
+		mov eax,[word RealModeEAX]
+		popfd
+		ret
+
 		bits 16
 
 		section .bss1
 		alignb 4
 RealModeSSSP	resd 1			; Real-mode SS:SP
+RealModeEAX	resd 1			; Real mode EAX
 PMESP		resd 1			; Protected-mode ESP
 Com32SysSP	resw 1			; SP saved during COM32 syscall
 
