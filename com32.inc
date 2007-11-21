@@ -393,6 +393,7 @@ com32_cfarcall:
 		stosd
 		mov esi,[esp+11*4]	; Stack frame
 		mov eax,ecx		; Copy the stack frame
+		shr ecx,2
 		rep movsd
 		mov ecx,eax
 		and ecx,3
