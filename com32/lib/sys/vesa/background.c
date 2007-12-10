@@ -57,8 +57,8 @@ static void draw_background_line(int line, int start, int npixels)
   unsigned int bytes_per_pixel = __vesacon_bytes_per_pixel;
   enum vesa_pixel_format pixel_format = __vesacon_pixel_format;
   uint8_t *fbptr = (uint8_t *)__vesa_info.mi.lfb_ptr +
-    (line*VIDEO_X_SIZE+start)*bytes_per_pixel;
-
+    line*__vesa_info.mi.logical_scan + start*bytes_per_pixel;
+  
   lbp = line_buf;
   while (npixels--)
     lbp = format_pixel(lbp, *bgptr++, pixel_format);

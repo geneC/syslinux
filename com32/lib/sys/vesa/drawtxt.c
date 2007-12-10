@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2006 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2006-2007 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -83,7 +83,7 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
   int i, j, jx, pixrow, pixsrow;
   struct vesa_char *rowptr, *rowsptr, *cptr, *csptr;
   unsigned int bytes_per_pixel = __vesacon_bytes_per_pixel;
-  unsigned long pixel_offset, bytes_per_row;
+  unsigned long pixel_offset;
   uint8_t row_buffer[VIDEO_X_SIZE*4], *rowbufptr;
   uint8_t *fbrowptr;
   uint8_t sha;
@@ -108,8 +108,9 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
     break;
   }
 
-  bytes_per_row = bytes_per_pixel*VIDEO_X_SIZE;
-  fbrowptr = ((uint8_t *)__vesa_info.mi.lfb_ptr)+pixel_offset*bytes_per_pixel;
+  fbrowptr = ((uint8_t *)__vesa_info.mi.lfb_ptr) + 
+    (row*height+VIDEO_BORDER) * __vesa_info.mi.logical_scan +
+    (col*width+VIDEO_BORDER) * bytes_per_pixel;
 
   /* Note that we keep a 1-character guard area around the real text area... */
   rowptr  = &__vesacon_text_display[(row+1)*(TEXT_PIXEL_COLS/FONT_WIDTH+2)+(col+1)];
@@ -197,7 +198,7 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
     copy_dword(fbrowptr, row_buffer, (rowbufptr-row_buffer) >> 2);
 
     bgrowptr += VIDEO_X_SIZE;
-    fbrowptr += bytes_per_row;
+    fbrowptr += __vesa_info.mi.logical_scan;
 
     if (++pixrow == height) {
       rowptr += TEXT_PIXEL_COLS/FONT_WIDTH+2;
