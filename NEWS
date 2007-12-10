@@ -2,6 +2,13 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 3.54:
+	* Add "menu separator", "menu indent", "menu disabled"
+	  (see README.menu).
+	* vesamenu: fix handing of VESA modes with noncontiguous
+	  memory buffers.  In particular, Qemu/KVM sets up such a mode
+	  when Cirrus Logic emulation is enabled (which is the default.)
+
 Changes in 3.53:
 	* Fix bugs related to the $PnP BIOS functionality on some
 	  platforms.

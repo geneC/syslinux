@@ -46,6 +46,10 @@ MENU HIDDEN
 	Do not display the actual menu unless the user presses a key.
 	All that is displayed is a timeout message.     
      
+MENU SEPARATOR
+
+	Insert an empty line in the menu.
+
 MENU LABEL label
 
 	(Only valid after a LABEL statement.)
@@ -75,6 +79,59 @@ MENU LABEL label
 	Keep in mind that the LABELs, not MENU LABELs, must be unique,
 	or odd things will happen to the command-line.
 
+
+MENU INDENT count
+
+	(Only valid after a LABEL statement.)
+	Will add "count" spaces in front of the displayed menu entry.
+
+MENU DISABLE
+
+	(Only valid after a LABEL statement.)
+	Makes the entry unselectable.  This allows you to make a
+	section in your menu with different options below it.
+	for example:
+	
+	# Entries for network boots
+	LABEL
+		MENU LABEL Network:
+		MENU DISABLE
+	
+	# Soft Cap Linux
+	LABEL softcap
+		MENU LABEL Soft Cap ^Linux 9.6.36
+		MENU INDENT 1
+		KERNEL softcap-9.6.36.bzi
+		APPEND whatever
+
+	# Dos 6.22
+	LABEL dos
+		MENU LABEL ^Dos 6.22
+		MENU INDENT 1
+		KERNEL memdisk
+		APPEND initrd=dos622.imz
+
+	# Separator
+	MENU SEPARATOR
+
+	# Entries for local boots
+	LABEL
+		MENU LABEL Local:
+		MENU DISABLE
+
+	# Windows 2000
+	LABEL w2k
+		MENU LABEL ^Windows 2000
+		MENU INDENT 1
+		KERNEL chain.c32
+		APPEND hd0 1
+
+	# Windows XP
+	LABEL xp
+		MENU LABEL Windows ^XP
+		MENU INDENT 1
+		KERNEL chain.c32
+		APPEND hd0 2
 
 MENU HIDE
 
