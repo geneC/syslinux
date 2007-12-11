@@ -7,7 +7,14 @@ Changes in 3.54:
 	  (see README.menu).
 	* vesamenu: fix handing of VESA modes with noncontiguous
 	  memory buffers.  In particular, Qemu/KVM sets up such a mode
-	  when Cirrus Logic emulation is enabled (which is the default.)
+	  when Cirrus Logic emulation is enabled (which is the
+	  default.)
+	* Support for calling real mode functions using far calls,
+	  with argument on the stack.  This was implemented to support
+	  the BIOS BBS specification, but subsequent experiments show
+	  that the most common BIOS core on the planet, Phoenix,
+	  passes the presence check but doesn't actually implement the
+	  functionality.
 
 Changes in 3.53:
 	* Fix bugs related to the $PnP BIOS functionality on some
