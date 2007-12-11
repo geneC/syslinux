@@ -85,7 +85,7 @@ The following arguments are passed to the program on the stack:
  [ESP+16] dword Pointer to low memory bounce buffer
  [ESP+20] dword Size of low memory bounce buffer
  [ESP+24] dword Pointer to FAR call helper function (new in 2.05)
- [ESP+28] dword Pointer to CDECL helper function (new in 3.xx)
+ [ESP+28] dword Pointer to CDECL helper function (new in 3.54)
 
 This corresponds to the following C prototype, available in the file
 com32/include/com32.h:
