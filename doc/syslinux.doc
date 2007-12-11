@@ -30,6 +30,20 @@ extlinux.doc for what differs in these versions.
 Help with cleaning up the docs would be greatly appreciated.
 
 
+   ++++ Options ++++
+
+These are the options common to all versions of Syslinux:
+
+	-s	Safe, slow, stupid; uses simpler code that boots better
+	-f	Force installing
+
+These are only in the Windows version:
+
+	-m	Mbr; install a bootable MBR sector to the beginning of the
+		drive.
+	-a	Active; marks the partition used active (=bootable)
+
+
    ++++ CREATING A BOOTABLE LINUX FLOPPY +++
 
 In order to create a bootable Linux floppy using SYSLINUX, prepare a
