@@ -12,7 +12,7 @@ Changes in 3.54:
 	* Support for calling real mode functions using far calls,
 	  with argument on the stack.  This was implemented to support
 	  the BIOS BBS specification, but subsequent experiments show
-	  that the most common BIOS core on the planet, Phoenix,
+	  that the at least one of the most common BIOS cores, Award,
 	  passes the presence check but doesn't actually implement the
 	  functionality.
 
