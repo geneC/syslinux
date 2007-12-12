@@ -78,7 +78,7 @@ openfd:
 		xor ax,ax
 		mov [bx+gc_bufbytes],ax		; Buffer empty
 		mov [bx+gc_unget_cnt],al	; ungetc buffer empty
-		
+
 		inc ax			; ZF <- 0
 		pop bx
 .ret:		ret

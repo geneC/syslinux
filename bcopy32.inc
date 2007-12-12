@@ -534,7 +534,7 @@ trampoline_to_pm:
 		or al,1
 		mov cr0,eax		; Enter protected mode
 		jmp PM_CS32:.next	; Synchronize and go to 32-bit mode
-		
+
 		bits 32
 .next:		xor eax,eax
 		lldt ax			; TR <- 0 to be nice to Intel VT
