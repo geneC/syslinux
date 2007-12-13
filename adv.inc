@@ -64,12 +64,25 @@ adv1:
 		; the intended location of the ADV
 		;
 adv_init:
-		cmp dword [ADVSec0],0
+		cmp byte [ADVDrive],-1
 		jne adv_read
 
-		; Here, poke the proper values of ADVSec0, 1
-		; based on the position of the syslinux file
-
+%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
+		;
+		; Update pointers to default ADVs...
+		;
+		mov bx,[LDLSectors]
+		shl bx,2
+		mov ecx,[bsHidden]
+		mov eax,[bx+SectorPtrs-8]
+		mov edx,[bx+SectorPtrs-4]
+		add eax,ecx
+		add edx,ecx
+		mov [ADVSec0],eax
+		mov [ADVSec1],edx
+		mov al,[DriveNumber]
+		mov [ADVDrive],al
+%endif
 		; ** fall through to adv_verify **
 
 		;
@@ -456,9 +469,12 @@ adv_read_write:
 
 		section .data
 		align 4, db 0
-ADVSec0		dd 1
-ADVSec1		dd 2
-ADVSecPerTrack	dw 0
-ADVHeads	dw 0
-ADVDrive	db 80h
-ADVOp		db 0
+ADVDrive	db -1			; No ADV defined
+
+		section .bss
+		alignb 4
+ADVSec0		resd 1
+ADVSec1		resd 1
+ADVSecPerTrack	resw 1
+ADVHeads	resw 1
+ADVOp		resb 1

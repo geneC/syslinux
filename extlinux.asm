@@ -591,11 +591,16 @@ ldlinux_magic	dd LDLINUX_MAGIC
 ; LDLINUX_MAGIC, plus 8 bytes.
 ;
 patch_area:
-LDLDwords	dw 0		; Total dwords starting at ldlinux_sys
-LDLSectors	dw 0		; Number of sectors - (bootsec+this sec)
+LDLDwords	dw 0		; Total dwords starting at ldlinux_sys,
+				; not including ADVs
+LDLSectors	dw 0		; Number of sectors, not including
+				; bootsec & this sec, but including the two ADVs
 CheckSum	dd 0		; Checksum starting at ldlinux_sys
 				; value = LDLINUX_MAGIC - [sum of dwords]
 CurrentDir	dd 2		; "Current" directory inode number
+
+; Pointer to auxilliary data vector, for the benefit of the installer.
+ADVPtr		dw adv0
 
 ; Space for up to 64 sectors, the theoretical maximum
 SectorPtrs	times 64 dd 0
