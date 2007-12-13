@@ -241,11 +241,15 @@ known to fall into this category.
 
 PXELINUX (starting with version 1.62) supports the following
 nonstandard DHCP options, which depending on your DHCP server you may
-be able to use to customize the specific behaviour of PXELINUX:
+be able to use to customize the specific behaviour of PXELINUX.  See
+RFC 5071 for some additional information about these options.
 
 Option 208	pxelinux.magic
-	- Must be set to F1:00:74:7E (241.0.116.126) for PXELINUX to
-	  recognize any special DHCP options whatsoever.
+	- Earlier versions of PXELINUX required this to be set to
+	  F1:00:74:7E (241.0.116.126) for PXELINUX to
+	  recognize any special DHCP options whatsoever.  As of
+	  PXELINUX 3.55, this option is deprecated and is no longer
+	  required.
 
 Option 209	pxelinux.configfile
 	- Specifies the PXELINUX configuration file name.

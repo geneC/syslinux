@@ -548,7 +548,12 @@ query_bootp_1:
 
 		; We don't use flags from the request packet, so
 		; this is a good time to initialize DHCPMagic...
-		mov byte [DHCPMagic],0
+		; Initialize it to 1 meaning we will accept options found;
+		; in earlier versions of PXELINUX bit 0 was used to indicate
+		; we have found option 208 with the appropriate magic number;
+		; we no longer require that, but MAY want to re-introduce
+		; it in the future for vendor encapsulated options.
+		mov byte [DHCPMagic],1
 
 ;
 ; Now attempt to get the BOOTP/DHCP packet that brought us life (and an IP
@@ -2281,14 +2286,6 @@ dopt_%2:
 		mov di,UUIDType
 		jmp dhcp_copyoption
 .skip:		ret
-
-	dopt 208, pxelinux_magic
-		cmp al,4		; Must have length == 4
-		jne .done
-		cmp dword [si], htonl(0xF100747E)	; Magic number
-		jne .done
-		or byte [DHCPMagic],1	; Found magic #
-.done:		ret
 
 	dopt 209, pxelinux_configfile
 		mov di,ConfigName
