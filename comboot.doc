@@ -871,7 +871,7 @@ AX=001Bh [3.50] Cleanup, shuffle and boot to real mode
 	Interrupts are off and DF=0 on entry.
 
 
-AX=001Ch [3.53] Get pointer to auxilliary data vector
+AX=001Ch [3.xx] Get pointer to auxilliary data vector
 	Input:	AX	001Ch
 	Output:	ES:BX	Auxilliary data vector
 		CX	Size of the ADV (currently 500 bytes)
@@ -881,7 +881,7 @@ AX=001Ch [3.53] Get pointer to auxilliary data vector
 	one boot to another.
 
 
-AX=001Dh [3.53]	Write auxilliary data vector
+AX=001Dh [3.xx]	Write auxilliary data vector
 	Input:	AX	001Dh
 	Output:	None
 
