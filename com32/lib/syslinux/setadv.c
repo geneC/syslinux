@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2007 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -10,10 +10,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -54,6 +54,11 @@ int syslinux_setadv(int tag, size_t size, const void *data)
     return -1;			/* Impossible tag value */
   }
 
+  if (size > 255) {
+    errno = ENOSPC;		/* Max 255 bytes for a data item */
+    return -1;
+  }
+
   left = syslinux_adv_size();
   p = advtmp = alloca(left);
   memcpy(p, syslinux_adv_ptr(), left); /* Make working copy */
@@ -86,16 +91,18 @@ int syslinux_setadv(int tag, size_t size, const void *data)
   /* Now (p, left) reflects the position to write in and how much space
      we have for our data. */
 
-  if (left < size+2) {
-    errno = ENOSPC;		/* Not enough space for data */
-    return -1;
+  if (size) {
+    if (left < size+2) {
+      errno = ENOSPC;		/* Not enough space for data */
+      return -1;
+    }
+
+    *p++ = tag;
+    *p++ = size;
+    memcpy(p, data, size);
+    left -= size+2;
   }
 
-  *p++ = tag;
-  *p++ = size;
-  memcpy(p, data, size);
-  left -= size+2;
-      
   memset(p, 0, left);
 
   /* If we got here, everything went OK, commit the write to low memory */
@@ -103,4 +110,3 @@ int syslinux_setadv(int tag, size_t size, const void *data)
 
   return 0;
 }
-
