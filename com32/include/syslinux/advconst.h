@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *
+ *   
  *   Copyright 2007 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -10,10 +10,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *
+ *   
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *
+ *   
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -26,32 +26,18 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * syslinux/adv.h
+ * syslinux/advconst.h
+ *
+ * ADV defined constants
+ *
+ * Defined in a separate file so it can be used by non-COM32 code.
+ * Some of these constants are also defined in adv.inc, they better match...
  */
 
-#ifndef _SYSLINUX_ADV_H
-#define _SYSLINUX_ADV_H
+#ifndef _SYSLINUX_ADVCONST_H
+#define _SYSLINUX_ADVCONST_H
 
-#include <klibc/extern.h>
-#include <stddef.h>
-#include <syslinux/advconst.h>
+#define ADV_END		0
+#define ADV_BOOTONCE	1
 
-__extern void *__syslinux_adv_ptr;
-__extern size_t __syslinux_adv_size;
-
-static inline void *syslinux_adv_ptr(void)
-{
-  return __syslinux_adv_ptr;
-}
-
-static inline size_t syslinux_adv_size(void)
-{
-  return __syslinux_adv_size;
-}
-
-__extern int syslinux_adv_write(void);
-
-__extern int syslinux_setadv(int, size_t, const void *);
-__extern const void *syslinux_getadv(int, size_t *);
-
-#endif /* _SYSLINUX_ADV_H */
+#endif /* _SYSLINUX_ADVCONST_H */

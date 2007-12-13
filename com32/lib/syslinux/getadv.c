@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *
+ *   
  *   Copyright 2007 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -10,10 +10,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *
+ *   
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *
+ *   
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -26,32 +26,43 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * syslinux/adv.h
+ * syslinux/getadv.c
+ *
+ * Get a data item from the auxilliary data vector.  Returns a pointer
+ * and sets *size on success; NULL on failure.
  */
 
-#ifndef _SYSLINUX_ADV_H
-#define _SYSLINUX_ADV_H
+#include <syslinux/adv.h>
+#include <klibc/compiler.h>
+#include <inttypes.h>
 
-#include <klibc/extern.h>
-#include <stddef.h>
-#include <syslinux/advconst.h>
-
-__extern void *__syslinux_adv_ptr;
-__extern size_t __syslinux_adv_size;
-
-static inline void *syslinux_adv_ptr(void)
+const void *syslinux_getadv(int tag, size_t *size)
 {
-  return __syslinux_adv_ptr;
+  const uint8_t *p;
+  size_t left, len;
+
+  p = syslinux_adv_ptr();
+  left = syslinux_adv_size();
+
+  while (left >= 2) {
+    uint8_t ptag = *p++;
+    size_t  plen = *p++;
+    left -= 2;
+
+    if (ptag == ADV_END)
+      return NULL;		/* Not found */
+
+    if (left < plen)
+      return NULL;		/* Item overrun */
+
+    if (ptag == tag) {
+      *size = plen;
+      return p;
+    }
+
+    p    += plen;
+    left -= plen;
+  }
+
+  return NULL;
 }
-
-static inline size_t syslinux_adv_size(void)
-{
-  return __syslinux_adv_size;
-}
-
-__extern int syslinux_adv_write(void);
-
-__extern int syslinux_setadv(int, size_t, const void *);
-__extern const void *syslinux_getadv(int, size_t *);
-
-#endif /* _SYSLINUX_ADV_H */
