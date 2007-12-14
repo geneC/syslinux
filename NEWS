@@ -2,6 +2,17 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 3.60:
+	* Support for "auxilliary data vector", a small amount of
+	  writable storage.  Currently only supported for EXTLINUX,
+	  but the infrastructure is there for the other derivatives,
+	  assuming a suitable storage location can be found.
+	* EXTLINUX: boot-once support (--once, --clear-once, and
+	  --reset-adv).
+	* A command is now required to the EXTLINUX installer, i.e. at
+	  least one of --install, --update, --once, --clear-once, or
+	  --reset-adv.
+
 Changes in 3.55:
 	* PXELINUX: as per RFC 5071, PXELINUX no longer requires the
 	  use of the magic cookie option (208) for unencapsulated
