@@ -599,9 +599,6 @@ CheckSum	dd 0		; Checksum starting at ldlinux_sys
 				; value = LDLINUX_MAGIC - [sum of dwords]
 CurrentDir	dd 2		; "Current" directory inode number
 
-; Pointer to auxilliary data vector, for the benefit of the installer.
-ADVPtr		dw adv0
-
 ; Space for up to 64 sectors, the theoretical maximum
 SectorPtrs	times 64 dd 0
 

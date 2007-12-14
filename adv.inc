@@ -46,16 +46,16 @@ adv_retries	equ 6				; Disk retries
 		section .adv
 		; Introduce the ADVs to valid but blank
 adv0:
-.head		dd ADV_MAGIC1
-.csum		dd ADV_MAGIC2
-.data		times ADV_LEN db 0
-.tail		dd ADV_MAGIC3
+.head		resd 1
+.csum		resd 1
+.data		resb ADV_LEN
+.tail		resd 1
 .end
 adv1:
-.head		dd ADV_MAGIC1
-.csum		dd ADV_MAGIC2
-.data		times ADV_LEN db 0
-.tail		dd ADV_MAGIC3
+.head		resd 1
+.csum		resd 1
+.data		resb ADV_LEN
+.tail		resd 1
 .end
 		section .text
 
@@ -67,7 +67,8 @@ adv_init:
 		cmp byte [ADVDrive],-1
 		jne adv_read
 
-%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
+;%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
+%if IS_EXTLINUX		; Not yet implemented for the other derivatives
 		;
 		; Update pointers to default ADVs...
 		;

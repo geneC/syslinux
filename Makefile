@@ -181,7 +181,7 @@ extlinux_bss_bin.c: extlinux.bss bin2c.pl
 	$(PERL) bin2c.pl extlinux_bootsect < $< > $@
 
 extlinux_sys_bin.c: extlinux.sys bin2c.pl
-	$(PERL) bin2c.pl extlinux_image < $< > $@
+	$(PERL) bin2c.pl extlinux_image 512 < $< > $@
 
 libsyslinux.a: bootsect_bin.o ldlinux_bin.o mbr_bin.o syslxmod.o
 	rm -f $@

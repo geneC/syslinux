@@ -56,7 +56,12 @@ STACK_START	equ TEXT_START-STACK_SIZE
 		; NASM BUG: .data always follows .text; can't override
 		section .data		align=16 ; follows=.text
 
-		section .adv		progbits align=512 follows=.config
+		; This empty section works around a NASM bug with regards
+		; to follows= and nobits sections following a section which
+		; has VMA != LMA.
+		section .advpad		progbits align=512 follows=.config
+
+		section .adv		nobits align=512 follows=.advpad
 
 		; .uibss contains bss data which is guaranteed to be
 		; safe to clobber during the loading of the image.  This
