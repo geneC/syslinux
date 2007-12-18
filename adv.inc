@@ -298,11 +298,15 @@ adv_write:
 		je .bad
 		cmp dword [ADVSec1],0
 		je .bad
+		cmp byte [ADVDrive],-1
+		je .bad
+
 		push ax
 		call adv_cleanup
 		mov ah,3			; Write
 		call adv_read_write
 		pop ax
+
 		clc
 		ret
 .bad:						; No location for ADV set
@@ -470,12 +474,12 @@ adv_read_write:
 
 		section .data
 		align 4, db 0
+ADVSec0		db 0			; Undefined
+ADVSec1		db 0			; Undefined
 ADVDrive	db -1			; No ADV defined
 
 		section .bss
 		alignb 4
-ADVSec0		resd 1
-ADVSec1		resd 1
 ADVSecPerTrack	resw 1
 ADVHeads	resw 1
 ADVOp		resb 1
