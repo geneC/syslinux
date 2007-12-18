@@ -18,7 +18,10 @@ Changes in 3.55:
 	  use of the magic cookie option (208) for unencapsulated
 	  options.  Currently it does not require it for
 	  vendor-encapsulated options (vendor-option-space) either,
-	  but that MAY be reverted in the future if it causes problems.
+	  but that MAY be reverted in the future if it causes
+	  problems.
+	* Documentation text files moved to a common "doc" directory;
+	  man pages from the Debian project added to the "man" directory.
 
 Changes in 3.54:
 	* Add "menu separator", "menu indent", "menu disabled"
