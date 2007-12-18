@@ -79,7 +79,7 @@ make CC='%{my_cc}' install-all \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} SBINDIR=%{_sbindir} \
 	LIBDIR=%{_datadir} INCDIR=%{_includedir}
 make CC='%{my_cc}' -C sample tidy
-cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_datadir}/syslinux
+cp mkdiskimage syslinux2ansi.pl keytab-lilo.pl %{buildroot}%{_datadir}/syslinux
 
 cp %{buildroot}%{_datadir}/syslinux/*.c32	%{buildroot}/boot/extlinux
 cp %{buildroot}%{_datadir}/syslinux/memdisk	%{buildroot}/boot/extlinux
@@ -94,8 +94,9 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root)
-%doc NEWS README* *.doc memdisk/*.doc COPYING
+%doc COPYING NEWS doc/*
 %doc sample
+%doc %{_mandir}/man
 %{_bindir}/syslinux
 %{_bindir}/ppmtolss16
 %{_bindir}/lss16toppm

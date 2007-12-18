@@ -41,6 +41,7 @@ BINDIR   = /usr/bin
 SBINDIR  = /sbin
 LIBDIR   = /usr/lib
 AUXDIR   = $(LIBDIR)/syslinux
+MANDIR	 = /usr/man
 INCDIR   = /usr/include
 
 PERL     = perl
@@ -206,6 +207,10 @@ install: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)
 	install -m 644 -c $(INSTALL_AUX) $(INSTALLROOT)$(AUXDIR)
 	-install -m 644 -c $(INSTALL_AUX_OPT) $(INSTALLROOT)$(AUXDIR)
+	mkdir -m 755 -p $(INSTALLROOT)$(MANDIR)/man1
+	install -m 644 -c man/*.1 $(INSTALLROOT)$(MANDIR)/man1
+	: mkdir -m 755 -p $(INSTALLROOT)$(MANDIR)/man8
+	: install -m 644 -c man/*.8 $(INSTALLROOT)$(MANDIR)/man8
 	$(MAKE) -C com32 install
 
 install-lib: installer
