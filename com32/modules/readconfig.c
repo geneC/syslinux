@@ -161,6 +161,9 @@ struct labeldata {
   unsigned int ipappend;
   unsigned int menuhide;
   unsigned int menudefault;
+  unsigned int menuseparator;
+  unsigned int menudisabled;
+  unsigned int menuindent;
 };
 
 static void
@@ -177,6 +180,14 @@ record(struct labeldata *ld, char *append)
     me->passwd      = ld->passwd;
     me->helptext    = ld->helptext;
     me->hotkey = 0;
+    me->disabled = 0;
+
+    if ( ld->menuindent ) {
+      char *n = (char *)malloc(ld->menuindent + strlen(me->displayname) + 1);
+      memset(n, 32, ld->menuindent);
+      strcpy(n + ld->menuindent, me->displayname);
+      me->displayname = n;
+    }
 
     if ( ld->menulabel ) {
       unsigned char *p = (unsigned char *)strchr(ld->menulabel, '^');
@@ -207,6 +218,20 @@ record(struct labeldata *ld, char *append)
 	       kernel_types[ld->type], ld->kernel, s, a, ipoptions);
     }
 
+    if ( ld->menuseparator ) 
+      me->displayname = "";
+
+    if ( ld->menuseparator || ld->menudisabled ) {
+      me->label    = NULL;
+      me->passwd   = NULL;
+      me->disabled = 1;
+
+      if ( me->cmdline ) 
+        free(me->cmdline);
+
+      me->cmdline = NULL;
+    }
+
     ld->label = NULL;
     ld->passwd = NULL;
 
@@ -222,7 +247,7 @@ record(struct labeldata *ld, char *append)
       if ( me->hotkey )
 	menu_hotkeys[me->hotkey] = me;
 
-      if ( ld->menudefault )
+      if ( ld->menudefault && !ld->menudisabled && !ld->menuseparator )
 	defentry = nentries;
 
       nentries++;
@@ -598,6 +623,18 @@ static void parse_config_file(FILE *f)
 	  }
 	}
 	set_msg_colors_global(fg_mask, bg_mask, shadow);
+      } else if ( looking_at(p, "separator") ) {
+        record(&ld, append);
+        memset(&ld, 0, sizeof(struct labeldata));
+        ld.label = "";
+	ld.menuseparator = 1;
+        record(&ld, append);
+        memset(&ld, 0, sizeof(struct labeldata));
+      } else if ( looking_at(p, "disable") ||
+		  looking_at(p, "disabled")) {
+	ld.menudisabled = 1;
+      } else if ( looking_at(p, "indent") ) {
+        ld.menuindent = atoi(skipspace(p+6));
       } else {
 	/* Unknown, check for layout parameters */
 	struct menu_parameter *pp;
@@ -674,7 +711,8 @@ static void parse_config_file(FILE *f)
       ld.menulabel = NULL;
       ld.helptext  = NULL;
       ld.ipappend  = ipappend;
-      ld.menudefault = ld.menuhide = 0;
+      ld.menudefault = ld.menuhide = ld.menuseparator =
+	ld.menudisabled = ld.menuindent = 0;
     } else if ( (ep = is_kernel_type(p, &type)) ) {
       if ( ld.label ) {
 	free(ld.kernel);
@@ -731,6 +769,7 @@ void parse_configs(char **argv)
   /* Other initialization */
 
   get_ipappend();
+  memset(&ld, 0, sizeof(struct labeldata));
 
   /* Actually process the files */
 

@@ -112,7 +112,7 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
 		; ends at 4800h
 
-		section .bss
+		section .bss1
 SuperBlock	resb 1024		; ext2 superblock
 SuperInfo	resq 16			; DOS superblock expanded
 ClustSize	resd 1			; Bytes/cluster ("block")
@@ -148,7 +148,8 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 StackBuf	equ $-44-32		; Start the stack here (grow down - 4K)
 PartInfo	equ StackBuf		; Saved partition table entry
 FloppyTable	equ PartInfo+16		; Floppy info table (must follow PartInfo)
-OrigFDCTabPtr	equ StackBuf-4		; The high dword on the stack
+OrigFDCTabPtr	equ StackBuf-8		; The 2nd high dword on the stack
+OrigESDI	equ StackBuf-4		; The high dword on the stack
 
 ;
 ; Primary entry point.  Tempting as though it may be, we can't put the
@@ -217,12 +218,14 @@ start:
 		xor ax,ax
 		mov ss,ax
 		mov sp,StackBuf		; Just below BSS
+		push es			; Save initial ES:DI -> $PnP pointer
+		push di
 		mov es,ax
 ;
 ; DS:SI may contain a partition table entry.  Preserve it for us.
 ;
 		mov cx,8		; Save partition info
-		mov di,sp
+		mov di,PartInfo
 		rep movsw
 
 		mov ds,ax		; Now we can initialize DS...
@@ -588,8 +591,10 @@ ldlinux_magic	dd LDLINUX_MAGIC
 ; LDLINUX_MAGIC, plus 8 bytes.
 ;
 patch_area:
-LDLDwords	dw 0		; Total dwords starting at ldlinux_sys
-LDLSectors	dw 0		; Number of sectors - (bootsec+this sec)
+LDLDwords	dw 0		; Total dwords starting at ldlinux_sys,
+				; not including ADVs
+LDLSectors	dw 0		; Number of sectors, not including
+				; bootsec & this sec, but including the two ADVs
 CheckSum	dd 0		; Checksum starting at ldlinux_sys
 				; value = LDLINUX_MAGIC - [sum of dwords]
 CurrentDir	dd 2		; "Current" directory inode number
@@ -1525,7 +1530,8 @@ getfssec:
 %include "highmem.inc"		; High memory sizing
 %include "strcpy.inc"           ; strcpy()
 %include "strecpy.inc"          ; strcpy with end pointer check
-%include "cache.inc"
+%include "cache.inc"		; Metadata disk cache
+%include "adv.inc"		; Auxillary Data Vector
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
@@ -1571,9 +1577,7 @@ debug_magic	dw 0D00Dh		; Debug code sentinel
 
 		alignb 4, db 0
 BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf
-BufSafeSec	dw trackbufsize/SECTOR_SIZE	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
-EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 %ifndef DEPEND
 %if ( trackbufsize % SECTOR_SIZE ) != 0
 %error trackbufsize must be a multiple of SECTOR_SIZE

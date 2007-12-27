@@ -207,8 +207,8 @@ scan_partition_table:
 	jns	too_many_active
 
 	/* No active partitions found, look for extended partitions */
-	popw	%bx		/* %bx <- ptab */
 	popw	%cx		/* %cx <- 4    */
+	popw	%bx		/* %bx <- ptab */
 7:
 	movb	4(%bx), %al
 	cmpb	$0x0f, %al	/* 0x0f = Win9x extended */

@@ -8,7 +8,7 @@ LDHASH  := $(call gcc_ok,-Wl$(comma)--hash-style=both,)
 
 CC	 = gcc
 OPTFLAGS = -g -Os
-INCLUDES = -I. -I..
+INCLUDES = -I. -I.. -I../libinstaller
 CFLAGS	 = -W -Wall -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = $(LDHASH) -s
 
@@ -17,7 +17,7 @@ OBJS	 = $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
 .SUFFIXES: .c .o .i .s .S
 
-VPATH = .:..:../libfat
+VPATH = .:..:../libinstaller
 
 all: installer
 

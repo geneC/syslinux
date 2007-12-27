@@ -460,13 +460,7 @@ comapi_pxecall	equ comapi_err			; Not available
 ;
 comapi_derinfo:
 		mov P_AL,my_id
-%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
-		mov al,[DriveNumber]
-		mov P_DL,al
-		mov P_ES,cs
-		mov P_BX,PartInfo
-		mov P_CL,SECTOR_SHIFT
-%elif IS_PXELINUX
+%if IS_PXELINUX
 		mov ax,[APIVer]
 		mov P_DX,ax
 		mov ax,[StrucPtr]
@@ -477,12 +471,21 @@ comapi_derinfo:
 		mov P_SI,ax
 		mov ax,[InitStack+2]
 		mov P_FS,ax
-%elif IS_ISOLINUX
-		mov al,[DriveNo]
+%else
+		; Physical medium...
+
+		mov P_CL,SECTOR_SHIFT
+		mov al,[DriveNumber]
 		mov P_DL,al
+		mov P_FS,cs
+		mov P_SI,OrigESDI
+%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
+		mov P_ES,cs
+		mov P_BX,PartInfo
+%elif IS_ISOLINUX
 		mov P_ES,cs
 		mov P_BX,spec_packet
-		mov P_CL,SECTOR_SHIFT
+%endif
 %endif
 		clc
 		ret
@@ -589,6 +592,7 @@ comapi_dnsresolv:
 		mov si,P_BX
 		call dns_resolv
 		mov P_EAX,eax
+		clc
 		ret
 %else
 comapi_dnsresolv equ comapi_err
@@ -869,12 +873,12 @@ comapi_shufflerm:
 		stosb				; MOV AX,imm16 opcode
 		fs movsw			; imm16
 		mov ax,bx
+		add bh,8
 		stosw				; MOV xS,AX
 		loop .segtramp
 
-		; Clobber the MOV CS,AX instruction.  This changes it
-		; into [89 C8], a harmless "MOV AX,CX".
-		mov byte [di-22], 89h
+		; Clobber the MOV CS,AX instruction.
+		mov word [di-22], 9090h		; NOP NOP
 
 		; Generate GPR-loading instructions
 		mov ax,0B866h			; MOV EAX,imm32
@@ -894,6 +898,20 @@ comapi_shufflerm:
 .error:
 		stc
 		ret
+
+;
+; INT 22h AX=001Ch	Get pointer to auxillary data vector
+;
+comapi_getadv:
+		mov P_ES,ds
+		mov P_BX,adv0.data
+		mov P_CX,ADV_LEN
+		ret
+
+;
+; INT 22h AX=001Dh	Write auxillary data vector
+;
+comapi_writeadv	equ adv_write
 
 		section .data
 
@@ -945,6 +963,8 @@ int22_table:
 		dw comapi_readdisk	; 0019 read disk
 		dw comapi_shufflepm	; 001A cleanup, shuffle and boot to pm
 		dw comapi_shufflerm	; 001B cleanup, shuffle and boot to rm
+		dw comapi_getadv	; 001C get pointer to ADV
+		dw comapi_writeadv	; 001D write ADV to disk
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0
@@ -967,5 +987,5 @@ feature_flags_len equ ($-feature_flags)
 err_notdos	db ': attempted DOS system call', CR, LF, 0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
 
-		section .latebss
+		section .bss1
 ConfigName	resb	FILENAME_MAX

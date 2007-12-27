@@ -141,7 +141,8 @@ int boot_elf(void *ptr, size_t len, char **argv)
       dprintf("Segment at 0x%08x len 0x%08x\n", ph->p_paddr, ph->p_memsz);
 
       if (syslinux_memmap_type(amap, ph->p_paddr, ph->p_memsz) != SMT_FREE) {
-	dprintf("Region not free!\n");
+	printf("Memory segment at 0x%08x (len 0x%08x) is unavailable\n",
+	       ph->p_paddr, ph->p_memsz);
 	goto bail;		/* Memory region unavailable */
       }
 

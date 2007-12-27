@@ -74,14 +74,17 @@ extern struct com32_sys_args {
   void *cs_bounce;
   uint32_t cs_bounce_size;
   void __cdecl (*cs_farcall)(uint32_t, const com32sys_t *, com32sys_t *);
+  int __cdecl (*cs_cfarcall)(uint32_t, const void *, uint32_t);
 } __com32;
 
 /*
  * System call wrapper functions
  */
 void __intcall(uint8_t __i, const com32sys_t *__sr, com32sys_t *__dr);
-void __farcall(uint16_t __es, uint16_t __eo,
+void __farcall(uint16_t __cs, uint16_t __ip,
 	       const com32sys_t *__sr, com32sys_t *__dr);
+int __cfarcall(uint16_t __cs, uint16_t __ip,
+	       const void *__stack, uint32_t __stack_size);
 extern const com32sys_t __com32_zero_regs;
 
 /*

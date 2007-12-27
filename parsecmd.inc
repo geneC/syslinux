@@ -96,7 +96,7 @@ getcommand:
 err_badcfg      db 'Unknown keyword in syslinux.cfg.', CR, LF, 0
 err_noparm      db 'Missing parameter in syslinux.cfg.', CR, LF, 0
 
-		section .latebss
+		section .uibss
 		alignb 4
 vk_size		equ (vk_end + 3) & ~3
 VKernelBuf:	resb vk_size		; "Current" vkernel

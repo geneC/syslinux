@@ -79,7 +79,7 @@ load_bootsec:
 		rep movsw
 		pop si			; DS:SI points to partition info
 %elif IS_ISOLINUX
-		mov dl,[DriveNo]
+		mov dl,[DriveNumber]
 %elif IS_PXELINUX
 		mov byte [KeepPXE],1	; Chainloading another NBP
 		call reset_pxe
@@ -142,37 +142,14 @@ replace_bootstrap:
 		; For PXE, ES:BX -> PXENV+, and this would corrupt
 		; that use.
 
-		; Hunt for $PnP header if one exists
-		mov ax,0F000h
-		mov fs,ax
-		xor bx,bx
-.findpnp:
-		cmp dword [fs:bx], "$PnP"
-		jz .foundpnp
-		inc bx
-		cmp bx,-3		; Don't get a segment overflow error!
-		jb .findpnp
-		jmp .donepnp		; No $PnP header found
-.foundpnp:
-		movzx cx,byte [fs:bx+5]	; Size of $PnP header
-		cmp cl,21h
-		jb .findpnp		; Invalid $PnP header (too short)
-		push bx
-		xor ax,ax
-.checkpnp:
-		add al,byte [fs:bx]
-		inc bx
-		loop .checkpnp
-		pop bx
-		and al,al
-		jnz .findpnp
+		; Restore ES:DI -> $PnP (if we were ourselves called
+		; that way...)
+		mov ax,[OrigESDI]
+		mov bx,[OrigESDI+2]
 
-		; Found a valid $PnP header, point ES:DI to it
-		mov [es:di+8], bx	; New DI
-		mov [es:di+4], fs	; New ES
+		mov [es:di+8],ax	; New DI
+		mov [es:di+4],bx	; New ES
 %endif
-
-.donepnp:
 		pop bx			; Copy from...
 		pop ax			; Copy list count
 

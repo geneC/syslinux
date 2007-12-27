@@ -150,7 +150,7 @@ dns_skiplabel:
 .rdata:		equ $
 		endstruc
 
-		section .latebss
+		section .bss
 		alignb 2
 DNSSendBuf	resb DNS_MAX_PACKET
 DNSRecvBuf	resb DNS_MAX_PACKET
@@ -182,7 +182,9 @@ LastDNSServer	dw DNSServers
 ; Points to a null-terminated or :-terminated string in DS:SI
 ; and returns the name in EAX if it exists and can be found.
 ; If EAX = 0 on exit, the lookup failed.
-
+;
+; No segment assumptions permitted.
+;
 		section .text
 dns_resolv:
 		push ds

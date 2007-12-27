@@ -154,7 +154,8 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 StackBuf	equ $-44-32		; Start the stack here (grow down - 4K)
 PartInfo	equ StackBuf		; Saved partition table entry
 FloppyTable	equ PartInfo+16		; Floppy info table (must follow PartInfo)
-OrigFDCTabPtr	equ StackBuf-4		; The high dword on the stack
+OrigFDCTabPtr	equ StackBuf-8		; The 2nd high dword on the stack
+OrigESDI	equ StackBuf-4		; The high dword on the stack
 
 ;
 ; Primary entry point.  Tempting as though it may be, we can't put the
@@ -224,12 +225,14 @@ start:
 		xor ax,ax
 		mov ss,ax
 		mov sp,StackBuf		; Just below BSS
+		push es			; Save initial ES:DI -> $PnP pointer
+		push di
 		mov es,ax
 ;
 ; DS:SI may contain a partition table entry.  Preserve it for us.
 ;
 		mov cx,8		; Save partition info
-		mov di,sp
+		mov di,PartInfo
 		rep movsw
 
 		mov ds,ax		; Now we can initialize DS...
@@ -824,13 +827,13 @@ genfatinfo:
 		bsr cx,ax
 		mov [ClustShift],cl
 		push cx
-		add cl,9
+		add cl,SECTOR_SHIFT
 		mov [ClustByteShift],cl
 		pop cx
 		dec ax
 		mov [ClustMask],eax
 		inc ax
-		shl eax,9
+		shl eax,SECTOR_SHIFT
 		mov [ClustSize],eax
 
 ;
@@ -864,14 +867,6 @@ getfattype:
 ;
 %include "cpuinit.inc"
 %include "init.inc"
-
-;
-; Clear Files structures
-;
-		mov di,Files
-		mov cx,(MAX_OPEN*open_file_t_size)/4
-		xor eax,eax
-		rep stosd
 
 ;
 ; Initialize the metadata cache
@@ -1547,6 +1542,7 @@ getfatsector:
 %include "highmem.inc"		; High memory sizing
 %include "strcpy.inc"           ; strcpy()
 %include "cache.inc"		; Metadata disk cache
+%include "adv.inc"		; Auxillary Data Vector
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
@@ -1594,9 +1590,7 @@ debug_magic	dw 0D00Dh		; Debug code sentinel
 
 		alignb 4, db 0
 BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf
-BufSafeSec	dw trackbufsize/SECTOR_SIZE	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
-EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 %ifndef DEPEND
 %if ( trackbufsize % SECTOR_SIZE ) != 0
 %error trackbufsize must be a multiple of SECTOR_SIZE

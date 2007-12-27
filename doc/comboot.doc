@@ -85,6 +85,7 @@ The following arguments are passed to the program on the stack:
  [ESP+16] dword Pointer to low memory bounce buffer
  [ESP+20] dword Size of low memory bounce buffer
  [ESP+24] dword Pointer to FAR call helper function (new in 2.05)
+ [ESP+28] dword Pointer to CDECL helper function (new in 3.54)
 
 This corresponds to the following C prototype, available in the file
 com32/include/com32.h:
@@ -95,7 +96,9 @@ int _start(unsigned int __nargs,
 	   void (*__intcall)(uint8_t, com32sys_t *, com32sys_t *),
 	   void *__bounce_ptr,
 	   unsigned int __bounce_len,
-	   void (*__farcall)(uint32_t, uint16_t, com32sys_t *, com32sys_t *));
+	   void (*__farcall)(uint32_t, com32sys_t *, com32sys_t *),
+	   int (*__cfarcall)(uint32_t, void *, size_t)
+	   );
 
 The intcall helper function can be used to issue BIOS or SYSLINUX API
 calls, and takes the interrupt number as first argument.  The second
@@ -137,6 +140,10 @@ in size, is available, to copy data in and out.
 The farcall helper function behaves similarly, but takes as its first
 argument the CS:IP (in the form (CS << 16) + IP) of procedure to be
 invoked via a FAR CALL.
+
+The cfarcall helper function takes (CS << 16)+IP, a pointer to a stack
+frame, a size of that stack frame, and returns the return value of EAX
+(which may need to be appropriate truncated by the user.)
 
 
 	++++ SYSLINUX API CALLS +++
@@ -367,8 +374,18 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 		DL	drive number
 		CL	sector size as a power of 2 (9 = 512 bytes) [3.35]
 		ES:BX	pointer to partition table entry (if DL >= 80h)
+		FS:SI	pointer to initial ES:DI value [3.53]
 
 		Note: This function was broken in EXTLINUX 3.00-3.02.
+
+		On boot, ES:DI is supposed to point to the BIOS $PnP
+		structure, although in practice most operating systems
+		will search for it in memory.  However, preserving
+		this while chainloading is probably a good idea.
+
+		Note that FS:SI is a pointer to a memory location
+		containing the original ES:DI value, not the value
+		itself.
 
 
 	[PXELINUX]
@@ -417,6 +434,7 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 		DL	drive number
 		CL	11 (sector size as a power of 2) [3.35]
 		ES:BX	pointer to El Torito spec packet
+		FS:SI	pointer to initial ES:DI value [3.53]
 
 		Note: Some very broken El Torito implementations do
 		not provide the spec packet information.  If so, ES:BX
@@ -810,7 +828,7 @@ AX=001Ah [3.50] Cleanup, shuffle and boot to flat protected mode
 
 
 AX=001Bh [3.50] Cleanup, shuffle and boot to real mode
-	Input:	AX	001Ah
+	Input:	AX	001Bh
 		DX	derivative-specific flags (see function 000Ch)
 		ES:DI	shuffle descriptor list (must be in low memory)
 		CX	number of shuffle descriptors
@@ -851,3 +869,26 @@ AX=001Bh [3.50] Cleanup, shuffle and boot to real mode
 	};
 
 	Interrupts are off and DF=0 on entry.
+
+
+AX=001Ch [3.60] Get pointer to auxilliary data vector
+	Input:	AX	001Ch
+	Output:	ES:BX	Auxilliary data vector
+		CX	Size of the ADV (currently 500 bytes)
+
+	The auxillary data vector is a tagged data structure used
+	to carry a small amount of information (up to 500 bytes) from
+	one boot to another.
+
+
+AX=001Dh [3.60]	Write auxilliary data vector
+	Input:	AX	001Dh
+	Output:	None
+
+	Write the auxilliary data vector back to disk.  Returns
+	failure for non-disk-based derivatives unless the "auxdata"
+	configuration command is used to specify a disk location
+	(not yet implemented.)
+
+	In a future version, PXELINUX may end up attempting to save
+	the ADV on the server via TFTP write.

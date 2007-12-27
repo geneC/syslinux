@@ -436,7 +436,7 @@ VKernel		db 0			; Have we seen any "label" statements?
 IPAppend	db 0			; Default IPAPPEND option
 %endif
 
-		section .latebss
+		section .uibss
                 alignb 4		; For the good of REP MOVSD
 command_line	resb max_cmd_len+2	; Command line buffer
 		alignb 4

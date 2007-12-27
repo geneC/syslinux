@@ -74,25 +74,31 @@ write32(le32_t *_p, uint32_t _v)
 /* Generic, mostly portable versions */
 
 static inline unsigned short
-read16(le16_t *_p)
+read16(le16_t *_pp)
 {
+  uint8_t *_p = *_pp;
   uint16_t _v;
 
-  _v  = p[0];
-  _v |= p[1] << 8;
+  _v  = _p[0];
+  _v |= _p[1] << 8;
   return _v;
 }
 
 static inline void
-write16(le16_t *_p, uint16_t _v)
+write16(le16_t *_pp, uint16_t _v)
 {
+  uint8_t *_p = *_pp;
+
   _p[0] = _v & 0xFF;
   _p[1] = (_v >> 8) & 0xFF;
 }
 
 static inline unsigned int
-read32(le32_t *_p)
+read32(le32_t *_pp)
 {
+  uint8_t *_p = *_pp;
+  uint32_t _v;
+
   _v  = _p[0];
   _v |= _p[1] << 8;
   _v |= _p[2] << 16;
@@ -101,8 +107,10 @@ read32(le32_t *_p)
 }
 
 static inline void
-write32(le32_t *_p, uint32_t _v)
+write32(le32_t *_pp, uint32_t _v)
 {
+  uint8_t *_p = *_pp;
+
   _p[0] = _v & 0xFF;
   _p[1] = (_v >> 8) & 0xFF;
   _p[2] = (_v >> 16) & 0xFF;

@@ -68,6 +68,7 @@ union syslinux_derivative_info {
     uint16_t ax;
     uint16_t cx;
     uint16_t dx;
+    uint16_t _pad;
     const void *esbx;
     const void *fssi;
     const void *gsdi;
@@ -79,13 +80,16 @@ union syslinux_derivative_info {
     uint8_t ch;
     uint8_t drive_number;
     uint8_t dh;
+    uint16_t _pad;
     const void *ptab_ptr;
+    const uint32_t *esdi_ptr;
   } disk;			/* syslinux/extlinux */
   struct {
     uint8_t filesystem;
     uint8_t ah;
     uint16_t cx;
     uint16_t apiver;
+    uint16_t _pad;
     const void *pxenvptr;
     const void *stack;
   } pxe;			/* pxelinux */
@@ -96,7 +100,9 @@ union syslinux_derivative_info {
     uint8_t ch;
     uint8_t drive_number;
     uint8_t dh;
+    uint16_t _pad;
     const void *spec_packet;
+    const uint32_t *esdi_ptr;
   } iso;			/* isolinux */
 };
 

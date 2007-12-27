@@ -78,7 +78,7 @@ openfd:
 		xor ax,ax
 		mov [bx+gc_bufbytes],ax		; Buffer empty
 		mov [bx+gc_unget_cnt],al	; ungetc buffer empty
-		
+
 		inc ax			; ZF <- 0
 		pop bx
 .ret:		ret
@@ -307,7 +307,7 @@ parseint:
 .isk:		shl ebx,10		; * 2^10
 		jmp .fini
 
-		section .bss
+		section .bss1
 		alignb 4
 NumBuf		resb 15			; Buffer to load number
 NumBufEnd	resb 1			; Last byte in NumBuf

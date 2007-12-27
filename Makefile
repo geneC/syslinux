@@ -35,11 +35,13 @@ AR	 = ar
 RANLIB   = ranlib
 
 NASM	 = nasm
+NASMOPT  = -O9999
 NINCLUDE =
 BINDIR   = /usr/bin
 SBINDIR  = /sbin
 LIBDIR   = /usr/lib
 AUXDIR   = $(LIBDIR)/syslinux
+MANDIR	 = /usr/man
 INCDIR   = /usr/include
 
 PERL     = perl
@@ -125,7 +127,9 @@ all:
 
 all-local: $(BTARGET) $(ITARGET) $(BINFILES)
 
-installer: installer-local
+installer:
+	set -e ; for i in $(IESUBDIRS); do $(MAKE) -C $$i all ; done
+	$(MAKE) installer-local
 	set -e ; for i in $(ISUBDIRS); do $(MAKE) -C $$i all ; done
 	-ls -l $(BOBJECTS) $(IOBJECTS)
 
@@ -142,7 +146,7 @@ kwdhash.gen: keywords genhash.pl
 
 # Standard rule for {ldlinux,pxelinux,isolinux,isolinux-debug,extlinux}.bin
 %.bin: %.asm kwdhash.gen version.gen
-	$(NASM) -O99 -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
+	$(NASM) $(NASMOPT) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-DMAP=$(@:.bin=.map) -l $(@:.bin=.lsr) -o $@ $<
 	$(PERL) lstadjust.pl $(@:.bin=.lsr) $(@:.bin=.map) $(@:.bin=.lst)
 	$(PERL) checkov.pl $(@:.bin=.map) $@
@@ -166,7 +170,7 @@ mbr_bin.c: mbr/mbr.bin bin2c.pl
 	$(PERL) bin2c.pl syslinux_mbr < $< > $@
 
 copybs.com: copybs.asm
-	$(NASM) -O99 -f bin -l copybs.lst -o copybs.com copybs.asm
+	$(NASM) $(NASMOPT) -f bin -l copybs.lst -o copybs.com copybs.asm
 
 bootsect_bin.c: ldlinux.bss bin2c.pl
 	$(PERL) bin2c.pl syslinux_bootsect < $< > $@
@@ -178,7 +182,7 @@ extlinux_bss_bin.c: extlinux.bss bin2c.pl
 	$(PERL) bin2c.pl extlinux_bootsect < $< > $@
 
 extlinux_sys_bin.c: extlinux.sys bin2c.pl
-	$(PERL) bin2c.pl extlinux_image < $< > $@
+	$(PERL) bin2c.pl extlinux_image 512 < $< > $@
 
 libsyslinux.a: bootsect_bin.o ldlinux_bin.o mbr_bin.o syslxmod.o
 	rm -f $@
@@ -203,6 +207,10 @@ install: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)
 	install -m 644 -c $(INSTALL_AUX) $(INSTALLROOT)$(AUXDIR)
 	-install -m 644 -c $(INSTALL_AUX_OPT) $(INSTALLROOT)$(AUXDIR)
+	mkdir -m 755 -p $(INSTALLROOT)$(MANDIR)/man1
+	install -m 644 -c man/*.1 $(INSTALLROOT)$(MANDIR)/man1
+	: mkdir -m 755 -p $(INSTALLROOT)$(MANDIR)/man8
+	: install -m 644 -c man/*.8 $(INSTALLROOT)$(MANDIR)/man8
 	$(MAKE) -C com32 install
 
 install-lib: installer
@@ -215,13 +223,13 @@ local-tidy:
 	rm -f $(OBSOLETE)
 
 tidy: local-tidy
-	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 local-clean:
 	rm -f $(ITARGET)
 
 clean: local-tidy local-clean
-	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 dist: tidy
 	for dir in . sample memdisk ; do \
@@ -232,7 +240,7 @@ local-spotless:
 	rm -f $(BTARGET) .depend *.so.*
 
 spotless: local-clean dist local-spotless
-	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 .depend:
 	rm -f .depend

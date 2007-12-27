@@ -11,7 +11,7 @@ Source0: ftp://ftp.kernel.org/pub/linux/utils/boot/syslinux/%{name}-%{VERSION}.t
 ExclusiveArch: i386 i486 i586 i686 athlon pentium4 x86_64
 Packager: H. Peter Anvin <hpa@zytor.com>
 Buildroot: %{_tmppath}/%{name}-%{VERSION}-root
-BuildPrereq: nasm >= 0.98.38, perl
+BuildPrereq: nasm >= 0.98.39, perl, netpbm-progs
 Autoreq: 0
 %ifarch x86_64
 Requires: mtools, libc.so.6()(64bit)
@@ -79,7 +79,7 @@ make CC='%{my_cc}' install-all \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} SBINDIR=%{_sbindir} \
 	LIBDIR=%{_datadir} INCDIR=%{_includedir}
 make CC='%{my_cc}' -C sample tidy
-cp mkdiskimage sys2ansi.pl keytab-lilo.pl %{buildroot}%{_datadir}/syslinux
+cp mkdiskimage syslinux2ansi.pl keytab-lilo.pl %{buildroot}%{_datadir}/syslinux
 
 cp %{buildroot}%{_datadir}/syslinux/*.c32	%{buildroot}/boot/extlinux
 cp %{buildroot}%{_datadir}/syslinux/memdisk	%{buildroot}/boot/extlinux
@@ -94,8 +94,9 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root)
-%doc NEWS README* *.doc memdisk/*.doc COPYING
+%doc COPYING NEWS doc/*
 %doc sample
+%doc %{_mandir}/man
 %{_bindir}/syslinux
 %{_bindir}/ppmtolss16
 %{_bindir}/lss16toppm
@@ -136,6 +137,10 @@ fi
 %postun
 
 %changelog
+* Mon Nov 19 2007 Bernard Li <bernard@vanhpc.org>
+- Added netpbm-progs (provides pngtopnm) to BuildPrereq (this should be
+  changed to BuildRequires since it is deprecated...)
+
 * Thu Mar 15 2007 H. Peter Anvin <hpa@zytor.com>
 - Move extlinux /boot stuff into /boot/extlinux.
 

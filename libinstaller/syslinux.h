@@ -14,6 +14,7 @@
 #define SYSLINUX_H
 
 #include <inttypes.h>
+#include "advconst.h"
 
 /* The standard boot sector and ldlinux image */
 extern unsigned char syslinux_bootsect[];
@@ -37,5 +38,14 @@ const char *syslinux_check_bootsect(const void *bs);
 /* This patches the boot sector and ldlinux.sys based on a sector map */
 int syslinux_patch(const uint32_t *sectors, int nsectors,
 		   int stupid, int raid_mode);
+
+/* ADV information */
+#define ADV_SIZE	512		/* Total size */
+#define ADV_LEN		(ADV_SIZE-3*4)  /* Usable data size */
+extern unsigned char syslinux_adv[2*ADV_SIZE];
+
+int syslinux_setadv(int tag, size_t size, const void *data);
+void syslinux_reset_adv(unsigned char *advbuf);
+int syslinux_validate_adv(unsigned char *advbuf);
 
 #endif

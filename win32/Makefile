@@ -36,11 +36,12 @@ WINAR	    = i386-mingw32-ar
 WINRANLIB   = i386-mingw32-ranlib
 endif
 
-WINCFLAGS   = -W -Wall -Wno-sign-compare -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+WINCFLAGS   = -W -Wall -Wno-sign-compare -Os -fomit-frame-pointer \
+	-D_FILE_OFFSET_BITS=64
 WINPIC      =
 WINLDFLAGS  = -Os -s
 endif
-WINCFLAGS += -I. -I.. -I../libfat
+WINCFLAGS += -I. -I.. -I../libfat -I../libinstaller
 
 WINCC_IS_GOOD := $(shell $(WINCC) $(WINCFLAGS) $(WINLDFLAGS) -o hello.exe hello.c >/dev/null 2>&1 ; echo $$?)
 
@@ -50,7 +51,7 @@ SRCS     = syslinux.c ../syslxmod.c ../bootsect_bin.c ../ldlinux_bin.c \
 	   ../mbr_bin.c $(wildcard ../libfat/*.c)
 OBJS     = $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
-VPATH = .:..:../libfat
+VPATH = .:..:../libfat:../libinstaller
 
 TARGETS = syslinux.exe
 

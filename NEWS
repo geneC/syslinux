@@ -2,12 +2,63 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
-Changes in 3.60:
+Changes in 3.70:
 	* PXELINUX: Support enhanced capabilities when running on top
 	  of gPXE (http://www.etherboot.org/).  In particular, support
 	  URL-style syntax for filenames, and any protocol that gPXE
 	  supports (except, currently, iSCSI and AoE.)  This feature
 	  is currently highly experimental.
+
+Changes in 3.60:
+	* Support for "auxilliary data vector", a small amount of
+	  writable storage.  Currently only supported for EXTLINUX,
+	  but the infrastructure is there for the other derivatives,
+	  assuming a suitable storage location can be found.
+	* EXTLINUX: boot-once support (--once, --clear-once, and
+	  --reset-adv).
+	* A command is now required to the EXTLINUX installer, i.e. at
+	  least one of --install, --update, --once, --clear-once, or
+	  --reset-adv.
+
+Changes in 3.55:
+	* PXELINUX: as per RFC 5071, PXELINUX no longer requires the
+	  use of the magic cookie option (208) for unencapsulated
+	  options.  Currently it does not require it for
+	  vendor-encapsulated options (vendor-option-space) either,
+	  but that MAY be reverted in the future if it causes
+	  problems.
+	* Documentation text files moved to a common "doc" directory;
+	  man pages from the Debian project added to the "man" directory.
+
+Changes in 3.54:
+	* Add "menu separator", "menu indent", "menu disabled"
+	  (see README.menu).
+	* vesamenu: fix handing of VESA modes with noncontiguous
+	  memory buffers.  In particular, Qemu/KVM sets up such a mode
+	  when Cirrus Logic emulation is enabled (which is the
+	  default.)
+	* Support for calling real mode functions using far calls,
+	  with argument on the stack.  This was implemented to support
+	  the BIOS BBS specification, but subsequent experiments show
+	  that the at least one of the most common BIOS cores, Award,
+	  passes the presence check but doesn't actually implement the
+	  functionality.
+
+Changes in 3.53:
+	* Fix bugs related to the $PnP BIOS functionality on some
+	  platforms.
+	* PXELINUX: Fix the "naked" version of :: (suppress prefix.)
+	* elf.c32: better error messages.
+	* Faster operation under Intel VT virtualization.
+	* PXELINUX: Fix DHCP bootfile option.
+	* mkdiskimage: Support more than 1024 cylinders.
+	* (Hopefully) fix installer on non-x86 platforms.
+	* Fix shuffle_and_boot_rm, used by linux.c32.
+	* Fix shuffle_and_boot_pm on 386/486.
+	* ISOLINUX (at least): fix bss memory overwrite hang.
+	* MBR: Fix booting from logical partitions.
+	* Code cleanups.
+>>>>>>> syslinux-3.60-pre6:NEWS
 
 Changes in 3.52:
 	* Handle capitalized F-key commands in the menu system.

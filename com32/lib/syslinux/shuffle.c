@@ -38,6 +38,16 @@
 #include <com32.h>
 #include <syslinux/movebits.h>
 
+#ifndef DEBUG
+# define DEBUG 0
+#endif
+#if DEBUG
+# include <stdio.h>
+# define dprintf printf
+#else
+# define dprintf(f, ...) ((void)0)
+#endif
+
 struct shuffle_descriptor {
   uint32_t dst, src, len;
 };
@@ -52,6 +62,11 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
 
   if (syslinux_compute_movelist(&moves, fraglist, memmap))
     goto bail;
+
+#if DEBUG
+  dprintf("Final movelist:\n");
+  syslinux_dump_movelist(stdout, moves);
+#endif
 
   dp = __com32.cs_bounce;
   np = 0;

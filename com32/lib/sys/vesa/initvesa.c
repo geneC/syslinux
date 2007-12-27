@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 1999-2006 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1999-2007 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -163,7 +163,7 @@ static int vesacon_set_mode(void)
     if ( (mi->mode_attr & 0x009b) != 0x009b )
       continue;
 
-    /* Must be 640x480, 32 bpp */
+    /* Must be 640x480 */
     if ( mi->h_res != VIDEO_X_SIZE || mi->v_res != VIDEO_Y_SIZE )
       continue;
 

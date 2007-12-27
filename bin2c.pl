@@ -18,12 +18,14 @@
 eval { use bytes; };
 eval { binmode STDIN; };
 
-if ( $#ARGV != 0 ) {
-    print STDERR "Usage: $0 table_name < input_file > output_file\n";
+($table_name, $pad) = @ARGV;
+
+if ( !defined($table_name) ) {
+    print STDERR "Usage: $0 table_name [pad] < input_file > output_file\n";
     exit 1;
 }
 
-($table_name) = @ARGV;
+$pad = 1 if ($pad < 1);
 
 printf "unsigned char %s[] = {\n", $table_name;
 
@@ -45,6 +47,24 @@ while ( ($n = read(STDIN, $data, 4096)) > 0 ) {
 	    print "\t";
 	}
 	printf("0x%02x", unpack("C", $byte));
+	$pos++;
+    }
+}
+
+$align = $total_len % $pad;
+if ($align != 0) {
+    $n = $pad - $align;
+    $total_len += $n;
+    for ( $i = 0 ; $i < $n ; $i++ ) {
+	if ( $pos >= $linelen ) {
+	    print ",\n\t";
+	    $pos = 0;
+	} elsif ( $pos > 0 ) {
+	    print ", ";
+	} else {	
+	    print "\t";
+	}
+	print '0x00';
 	$pos++;
     }
 }

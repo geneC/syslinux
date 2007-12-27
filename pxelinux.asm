@@ -216,7 +216,7 @@ PXEStack	resd 1			; Saved stack during PXE call
 ; writing a received ARP packet into low memory.
 RBFG_brainfuck	resb 0E00h
 
-		section .latebss
+		section .bss
 		alignb 4
 RebootTime	resd 1			; Reboot timeout, if set by option
 StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure
@@ -554,7 +554,12 @@ query_bootp_1:
 
 		; We don't use flags from the request packet, so
 		; this is a good time to initialize DHCPMagic...
-		mov byte [DHCPMagic],0
+		; Initialize it to 1 meaning we will accept options found;
+		; in earlier versions of PXELINUX bit 0 was used to indicate
+		; we have found option 208 with the appropriate magic number;
+		; we no longer require that, but MAY want to re-introduce
+		; it in the future for vendor encapsulated options.
+		mov byte [DHCPMagic],1
 
 ;
 ; Now attempt to get the BOOTP/DHCP packet that brought us life (and an IP
@@ -1426,11 +1431,13 @@ free_socket:
 
 ;
 ; parse_dotquad:
-;	       Read a dot-quad pathname in DS:SI and output an IP
-;	       address in EAX, with SI pointing to the first
-;	       nonmatching character.
+;		Read a dot-quad pathname in DS:SI and output an IP
+;		address in EAX, with SI pointing to the first
+;		nonmatching character.
 ;
-;	       Return CF=1 on error.
+;		Return CF=1 on error.
+;
+;		No segment assumptions permitted.
 ;
 parse_dotquad:
 		push cx
@@ -1507,6 +1514,8 @@ is_url:
 ;	       The first four bytes of the manged name is the IP address of
 ;	       the download host, 0 for no host, or -1 for a gPXE URL.
 ;
+;              No segment assumptions permitted.
+;
 mangle_name:
 		push di
 %if GPXE
@@ -1517,7 +1526,7 @@ mangle_name:
 .not_url:
 %endif ; GPXE
 		push si
-		mov eax,[ServerIP]
+		mov eax,[cs:ServerIP]
 		cmp byte [si],0
 		je .noip			; Null filename?!?!
 		cmp word [si],'::'		; Leading ::?
@@ -2403,7 +2412,7 @@ dopt_%2:
 		jmp dhcp_copyoption
 .skip:		ret
 
-	dopt 64, bootfile_name
+	dopt 67, bootfile_name
 		mov di,BootFile
 		jmp dhcp_copyoption
 
@@ -2417,14 +2426,6 @@ dopt_%2:
 		mov di,UUIDType
 		jmp dhcp_copyoption
 .skip:		ret
-
-	dopt 208, pxelinux_magic
-		cmp al,4		; Must have length == 4
-		jne .done
-		cmp dword [si], htonl(0xF100747E)	; Magic number
-		jne .done
-		or byte [DHCPMagic],1	; Found magic #
-.done:		ret
 
 	dopt 209, pxelinux_configfile
 		mov di,ConfigName
@@ -2572,6 +2573,7 @@ writestr	equ cwritestr
 %include "strcpy.inc"		; strcpy()
 %include "rawcon.inc"		; Console I/O w/o using the console functions
 %include "dnsresolv.inc"	; DNS resolver
+%include "adv.inc"		; Auxillary Data Vector
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
@@ -2768,9 +2770,7 @@ ServerPort	dw TFTP_PORT		; TFTP server port
 ;
 		alignb 4, db 0
 BufSafe		dw trackbufsize/TFTP_BLOCKSIZE	; Clusters we can load into trackbuf
-BufSafeSec	dw trackbufsize/512	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
-EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 %ifndef DEPEND
 %if ( trackbufsize % TFTP_BLOCKSIZE ) != 0
 %error trackbufsize must be a multiple of TFTP_BLOCKSIZE

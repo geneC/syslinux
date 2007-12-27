@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 1998-2005 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1998-2007 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ typedef uint64_t u64;
 
 #include "ext2_fs.h"
 #include "../version.h"
+#include "syslxint.h"
 
 #ifdef DEBUG
 # define dprintf printf
@@ -59,10 +60,14 @@ struct my_options {
   unsigned int sectors;
   unsigned int heads;
   int raid_mode;
+  int reset_adv;
+  const char *set_once;
 } opt = {
   .sectors = 0,
   .heads = 0,
   .raid_mode = 0,
+  .reset_adv = 0,
+  .set_once = NULL,
 };
 
 static void __attribute__((noreturn)) usage(int rv)
@@ -75,6 +80,9 @@ static void __attribute__((noreturn)) usage(int rv)
 	  "  --sectors=#  -S  Force the number of sectors per track\n"
 	  "  --heads=#    -H  Force number of heads\n"
 	  "  --raid       -r  Fall back to the next device on boot failure\n"
+	  "  --once=...   -o  Execute a command once upon boot\n"
+	  "  --clear-once -O  Clear the boot-once command\n"
+	  "  --reset-adv      Reset auxilliary data\n"
 	  "\n"
 	  "  Note: geometry is determined at boot time for devices which\n"
 	  "  are considered hard disks by the BIOS.  Unfortunately, this is\n"
@@ -88,19 +96,27 @@ static void __attribute__((noreturn)) usage(int rv)
   exit(rv);
 }
 
+enum long_only_opt {
+  OPT_NONE,
+  OPT_RESET_ADV,
+};
+
 static const struct option long_options[] = {
-  { "install",   0, NULL, 'i' },
-  { "update",    0, NULL, 'U' },
-  { "zipdrive",  0, NULL, 'z' },
-  { "sectors",   1, NULL, 'S' },
-  { "heads",     1, NULL, 'H' },
-  { "raid-mode", 0, NULL, 'r' },
-  { "version",   0, NULL, 'v' },
-  { "help",      0, NULL, 'h' },
+  { "install",    0, NULL, 'i' },
+  { "update",     0, NULL, 'U' },
+  { "zipdrive",   0, NULL, 'z' },
+  { "sectors",    1, NULL, 'S' },
+  { "heads",      1, NULL, 'H' },
+  { "raid-mode",  0, NULL, 'r' },
+  { "version",    0, NULL, 'v' },
+  { "help",       0, NULL, 'h' },
+  { "once",       1, NULL, 'o' },
+  { "clear-once", 0, NULL, 'O' },
+  { "reset-adv",  0, NULL, OPT_RESET_ADV },
   { 0, 0, 0, 0 }
 };
 
-static const char short_options[] = "iUuzS:H:rvh";
+static const char short_options[] = "iUuzS:H:rvho:O";
 
 #if defined(__linux__) && !defined(BLKGETSIZE64)
 /* This takes a u64, but the size field says size_t.  Someone screwed big. */
@@ -158,65 +174,9 @@ enum bs_offsets {
 #define bsCode	    bs32Code	/* The common safe choice */
 #define bsCodeLen   (bsSignature-bs32Code)
 
-/*
- * Access functions for littleendian numbers, possibly misaligned.
- */
-static inline uint8_t get_8(const unsigned char *p)
-{
-  return *(const uint8_t *)p;
-}
-
-static inline uint16_t get_16(const unsigned char *p)
-{
-#if defined(__i386__) || defined(__x86_64__)
-  /* Littleendian and unaligned-capable */
-  return *(const uint16_t *)p;
-#else
-  return (uint16_t)p[0] + ((uint16_t)p[1] << 8);
-#endif
-}
-
-static inline uint32_t get_32(const unsigned char *p)
-{
-#if defined(__i386__) || defined(__x86_64__)
-  /* Littleendian and unaligned-capable */
-  return *(const uint32_t *)p;
-#else
-  return (uint32_t)p[0] + ((uint32_t)p[1] << 8) +
-    ((uint32_t)p[2] << 16) + ((uint32_t)p[3] << 24);
-#endif
-}
-
-static inline void set_16(unsigned char *p, uint16_t v)
-{
-#if defined(__i386__) || defined(__x86_64__)
-  /* Littleendian and unaligned-capable */
-  *(uint16_t *)p = v;
-#else
-  p[0] = (v & 0xff);
-  p[1] = ((v >> 8) & 0xff);
-#endif
-}
-
-static inline void set_32(unsigned char *p, uint32_t v)
-{
-#if defined(__i386__) || defined(__x86_64__)
-  /* Littleendian and unaligned-capable */
-  *(uint32_t *)p = v;
-#else
-  p[0] = (v & 0xff);
-  p[1] = ((v >> 8) & 0xff);
-  p[2] = ((v >> 16) & 0xff);
-  p[3] = ((v >> 24) & 0xff);
-#endif
-}
-
 #ifndef EXT2_SUPER_OFFSET
 #define EXT2_SUPER_OFFSET 1024
 #endif
-
-#define SECTOR_SHIFT	9	/* 512-byte sectors */
-#define SECTOR_SIZE	(1 << SECTOR_SHIFT)
 
 const char *program;
 
@@ -490,6 +450,7 @@ patch_file_and_bootblock(int fd, int dirfd, int devfd)
 
   dprintf("directory inode = %lu\n", (unsigned long) dirst.st_ino);
   nsect = (boot_image_len+SECTOR_SIZE-1) >> SECTOR_SHIFT;
+  nsect += 2;			/* Two sectors for the ADV */
   sectp = alloca(sizeof(uint32_t)*nsect);
   if ( sectmap(fd, sectp, nsect) ) {
     perror("bmap");
@@ -505,9 +466,10 @@ patch_file_and_bootblock(int fd, int dirfd, int devfd)
   patcharea = p+8;
 
   /* Set up the totals */
-  dw = boot_image_len >> 2; /* COMPLETE dwords! */
+  dw = boot_image_len >> 2;	/* COMPLETE dwords, excluding ADV */
   set_16(patcharea, dw);
-  set_16(patcharea+2, nsect);	/* Does not include the first sector! */
+  set_16(patcharea+2, nsect);	/* Not including the first sector, but
+				   including the ADV */
   set_32(patcharea+8, dirst.st_ino); /* "Current" directory */
 
   /* Set the sector pointers */
@@ -527,6 +489,163 @@ patch_file_and_bootblock(int fd, int dirfd, int devfd)
     csum -= get_32(p);		/* Negative checksum */
 
   set_32(patcharea+4, csum);
+}
+
+/*
+ * Read the ADV from an existing instance, or initialize if invalid.
+ * Returns -1 on fatal errors, 0 if ADV is okay, and 1 if no valid
+ * ADV was found.
+ */
+int
+read_adv(const char *path)
+{
+  char *file;
+  int fd = -1;
+  struct stat st;
+  int err = 0;
+
+  asprintf(&file, "%s%sextlinux.sys",
+	   path,
+	   path[0] && path[strlen(path)-1] == '/' ? "" : "/");
+
+  if ( !file ) {
+    perror(program);
+    return -1;
+  }
+
+  fd = open(file, O_RDONLY);
+  if ( fd < 0 ) {
+    if ( errno != ENOENT ) {
+      err = -1;
+    } else {
+      syslinux_reset_adv(syslinux_adv);
+    }
+  } else if (fstat(fd, &st)) {
+    err = -1;
+  } else if (st.st_size < 2*ADV_SIZE) {
+    /* Too small to be useful */
+    syslinux_reset_adv(syslinux_adv);
+    err = 0;			/* Nothing to read... */
+  } else if (xpread(fd, syslinux_adv, 2*ADV_SIZE,
+		    st.st_size-2*ADV_SIZE) != 2*ADV_SIZE) {
+    err = -1;
+  } else {
+    /* We got it... maybe? */
+    err = syslinux_validate_adv(syslinux_adv) ? 1 : 0;
+  }
+
+  if (err < 0)
+    perror(file);
+
+  if (fd >= 0)
+    close(fd);
+  if (file)
+    free(file);
+
+  return err;
+}
+
+/*
+ * Update the ADV in an existing installation.
+ */
+int
+write_adv(const char *path)
+{
+  unsigned char advtmp[2*ADV_SIZE];
+  char *file;
+  int fd = -1;
+  struct stat st, xst;
+  int err = 0;
+  int flags, nflags;
+
+  asprintf(&file, "%s%sextlinux.sys",
+	   path,
+	   path[0] && path[strlen(path)-1] == '/' ? "" : "/");
+
+  if ( !file ) {
+    perror(program);
+    return -1;
+  }
+
+  fd = open(file, O_RDONLY);
+  if ( fd < 0 ) {
+    err = -1;
+  } else if (fstat(fd, &st)) {
+    err = -1;
+  } else if (st.st_size < 2*ADV_SIZE) {
+    /* Too small to be useful */
+    err = -2;
+  } else if (xpread(fd, advtmp, 2*ADV_SIZE,
+		    st.st_size-2*ADV_SIZE) != 2*ADV_SIZE) {
+    err = -1;
+  } else {
+    /* We got it... maybe? */
+    err = syslinux_validate_adv(advtmp) ? -2 : 0;
+    if (!err) {
+      /* Got a good one, write our own ADV here */
+      if (!ioctl(fd, EXT2_IOC_GETFLAGS, &flags)) {
+	nflags = flags & ~EXT2_IMMUTABLE_FL;
+	if (nflags != flags)
+	  ioctl(fd, EXT2_IOC_SETFLAGS, &nflags);
+      }
+      if (!(st.st_mode & S_IWUSR))
+	fchmod(fd, st.st_mode | S_IWUSR);
+
+      /* Need to re-open read-write */
+      close(fd);
+      fd = open(file, O_RDWR|O_SYNC);
+      if (fd < 0) {
+	err = -1;
+      } else if (fstat(fd, &xst) || xst.st_ino != st.st_ino ||
+		 xst.st_dev != st.st_dev || xst.st_size != st.st_size) {
+	fprintf(stderr, "%s: race condition on write\n", file);
+	err = -2;
+      }
+      /* Write our own version ... */
+      if (xpwrite(fd, syslinux_adv, 2*ADV_SIZE,
+		  st.st_size-2*ADV_SIZE) != 2*ADV_SIZE) {
+	err = -1;
+      }
+
+      sync();
+
+      if (!(st.st_mode & S_IWUSR))
+	fchmod(fd, st.st_mode);
+
+      if (nflags != flags)
+	ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
+    }
+  }
+
+  if (err == -2)
+    fprintf(stderr, "%s: cannot write auxilliary data (need --update)?\n",
+	    file);
+  else if (err == -1)
+    perror(file);
+
+  if (fd >= 0)
+    close(fd);
+  if (file)
+    free(file);
+
+  return err;
+}
+
+/*
+ * Make any user-specified ADV modifications
+ */
+int modify_adv(void)
+{
+  int rv = 0;
+
+  if (opt.set_once) {
+    if (syslinux_setadv(ADV_BOOTONCE, strlen(opt.set_once), opt.set_once)) {
+      fprintf(stderr, "%s: not enough space for boot-once command\n", program);
+      rv = -1;
+    }
+  }
+
+  return rv;
 }
 
 /*
@@ -595,14 +714,15 @@ install_file(const char *path, int devfd, struct stat *rst)
   }
   close(fd);
 
-  fd = open(file, O_WRONLY|O_TRUNC|O_CREAT, S_IRUSR|S_IRGRP|S_IROTH);
+  fd = open(file, O_WRONLY|O_TRUNC|O_CREAT|O_SYNC, S_IRUSR|S_IRGRP|S_IROTH);
   if ( fd < 0 ) {
     perror(file);
     goto bail;
   }
 
   /* Write it the first time */
-  if ( xpwrite(fd, boot_image, boot_image_len, 0) != boot_image_len ) {
+  if ( xpwrite(fd, boot_image, boot_image_len, 0) != boot_image_len ||
+       xpwrite(fd, syslinux_adv, 2*ADV_SIZE, boot_image_len) != 2*ADV_SIZE ) {
     fprintf(stderr, "%s: write failure on %s\n", program, file);
     goto bail;
   }
@@ -610,8 +730,9 @@ install_file(const char *path, int devfd, struct stat *rst)
   /* Map the file, and patch the initial sector accordingly */
   patch_file_and_bootblock(fd, dirfd, devfd);
 
-  /* Write it again - this relies on the file being overwritten in place! */
-  if ( xpwrite(fd, boot_image, boot_image_len, 0) != boot_image_len ) {
+  /* Write the first sector again - this relies on the file being
+     overwritten in place! */
+  if ( xpwrite(fd, boot_image, SECTOR_SIZE, 0) != SECTOR_SIZE ) {
     fprintf(stderr, "%s: write failure on %s\n", program, file);
     goto bail;
   }
@@ -665,6 +786,17 @@ static void device_cleanup(void)
 }
 #endif
 
+/* Verify that a device fd and a pathname agree.
+   Return 0 on valid, -1 on error. */
+static int validate_device(const char *path, int devfd)
+{
+  struct stat pst, dst;
+
+  if (stat(path, &pst) || fstat(devfd, &dst))
+    return -1;
+
+  return (pst.st_dev == dst.st_rdev) ? 0 : -1;
+}
 
 int
 install_loader(const char *path, int update_only)
@@ -738,12 +870,30 @@ install_loader(const char *path, int update_only)
     return 1;
   }
 
+  /* Verify that the device we opened is the device intended */
+  if (validate_device(path, devfd)) {
+    fprintf(stderr, "%s: path %s doesn't match device %s\n",
+	    program, path, devname);
+    return 1;
+  }
+
   if ( update_only && !already_installed(devfd) ) {
     fprintf(stderr, "%s: no previous extlinux boot sector found\n", program);
     return 1;
   }
 
-  install_file(path, devfd, &fst);
+  /* Read a pre-existing ADV, if already installed */
+  if (opt.reset_adv)
+    syslinux_reset_adv(syslinux_adv);
+  else if (read_adv(path) < 0)
+    return 1;
+
+  if (modify_adv() < 0)
+    return 1;
+
+  /* Install extlinux.sys */
+  if (install_file(path, devfd, &fst))
+    return 1;
 
   if ( fst.st_dev != st.st_dev ) {
     fprintf(stderr, "%s: file system changed under us - aborting!\n",
@@ -757,6 +907,26 @@ install_loader(const char *path, int update_only)
   sync();
 
   return rv;
+}
+
+/*
+ * Modify the ADV of an existing installation
+ */
+int
+modify_existing_adv(const char *path)
+{
+  if (opt.reset_adv)
+    syslinux_reset_adv(syslinux_adv);
+  else if (read_adv(path) < 0)
+    return 1;
+    
+  if (modify_adv() < 0)
+    return 1;
+
+  if (write_adv(path) < 0)
+    return 1;
+
+  return 0;
 }
 
 int
@@ -804,6 +974,15 @@ main(int argc, char *argv[])
     case 'h':
       usage(0);
       break;
+    case 'o':
+      opt.set_once = optarg;
+      break;
+    case 'O':
+      opt.set_once = "";
+      break;
+    case OPT_RESET_ADV:
+      opt.reset_adv = 1;
+      break;
     case 'v':
       fputs("extlinux " VERSION "\n", stderr);
       exit(0);
@@ -818,9 +997,11 @@ main(int argc, char *argv[])
     usage(EX_USAGE);
 
   if ( update_only == -1 ) {
-    fprintf(stderr, "%s: warning: a future version will require "
-	    "--install or --update\n", program);
-    update_only = 0;
+    if (opt.reset_adv || opt.set_once) {
+      return modify_existing_adv(directory);
+    } else {
+      usage(EX_USAGE);
+    }
   }
 
   return install_loader(directory, update_only);

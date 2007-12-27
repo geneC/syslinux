@@ -55,6 +55,7 @@
  * 14 - timeout_msg	Timeout message
  * 15 - timeout		Timeout counter
  * 16 - help		Current entry help text
+ * 17 - disabled        Disabled menu item
  */
 
 static const struct color_table default_color_table[] = {
@@ -75,6 +76,7 @@ static const struct color_table default_color_table[] = {
   { "timeout_msg", "37;40",     0x80ffffff, 0x00000000, SHADOW_NORMAL },
   { "timeout",     "1;37;40",   0xc0ffffff, 0x00000000, SHADOW_NORMAL },
   { "help",        "37;40",     0xc0ffffff, 0x00000000, SHADOW_NORMAL },
+  { "disabled",    "1;30;44",   0x60cccccc, 0x00000000, SHADOW_NORMAL },
 };
 
 #define NCOLORS (sizeof default_color_table/sizeof(struct color_table))
@@ -264,16 +266,18 @@ static void
 draw_row(int y, int sel, int top, int sbtop, int sbbot)
 {
   int i = (y-4-VSHIFT)+top;
+  int dis = (i < nentries) && menu_entries[i].disabled;
 
   printf("\033[%d;%dH\1#1\016x\017%s ",
-	 y, MARGIN+1+HSHIFT, (i == sel) ? "\1#5" : "\1#3");
+	 y, MARGIN+1+HSHIFT,
+	 (i == sel) ? "\1#5" : dis ? "\2#17" : "\1#3");
 
   if ( i >= nentries ) {
     fputs(pad_line("", 0, WIDTH-2*MARGIN-4), stdout);
   } else {
     display_entry(&menu_entries[i],
-		  (i == sel) ? "\1#5" : "\1#3",
-		  (i == sel) ? "\1#6" : "\1#4",
+		  (i == sel) ? "\1#5" : dis ? "\2#17" : "\1#3",
+		  (i == sel) ? "\1#6" : dis ? "\2#17" : "\1#4",
 		  WIDTH-2*MARGIN-4);
   }
 
@@ -892,10 +896,15 @@ run_menu(void)
   }
 
   while ( !done ) {
-    if ( entry < 0 )
+    if ( entry <= 0 ) {
       entry = 0;
-    else if ( entry >= nentries )
+      while ( entry < nentries && menu_entries[entry].disabled ) entry++;
+    }
+
+    if ( entry >= nentries ) {
       entry = nentries-1;
+      while ( entry > 0 && menu_entries[entry].disabled ) entry--;
+    }
 
     if ( top < 0 || top < entry-MENU_ROWS+1 )
       top = max(0, entry-MENU_ROWS+1);
@@ -978,19 +987,27 @@ run_menu(void)
 
     case KEY_UP:
     case KEY_CTRL('P'):
-      if ( entry > 0 ) {
-	entry--;
+      while ( entry > 0 && entry-- && menu_entries[entry].disabled ) {
 	if ( entry < top )
 	  top -= MENU_ROWS;
+      }
+
+      if ( entry == 0 ) {
+        while ( menu_entries[entry].disabled )
+          entry++;
       }
       break;
 
     case KEY_DOWN:
     case KEY_CTRL('N'):
-      if ( entry < nentries-1 ) {
-	entry++;
+      while ( entry < nentries-1 && entry++ && menu_entries[entry].disabled ) {
 	if ( entry >= top+MENU_ROWS )
 	  top += MENU_ROWS;
+      }
+
+      if ( entry == nentries-1 ) {
+        while ( menu_entries[entry].disabled )
+          entry--;
       }
       break;
 

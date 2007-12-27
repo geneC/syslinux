@@ -1,6 +1,6 @@
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 2001-2004 H. Peter Anvin - All Rights Reserved
+##   Copyright 2001-2007 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ CC         = gcc
 LD         = ld -m elf_i386
 AR	   = ar
 NASM	   = nasm
+NASMOPT	   = -O9999
 RANLIB	   = ranlib
 CFLAGS     = $(M32) -W -Wall -march=i386 -Os -fomit-frame-pointer -I../com32/include
 SFLAGS     = $(M32) -march=i386
@@ -56,7 +57,7 @@ all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 \
 	$(OBJCOPY) -O binary $< $@
 
 %.com: %.asm
-	$(NASM) -O99 -f bin -o $@ -l $*.lst $<
+	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 
 $(LIB): $(LIBOBJS)
 	rm -f $@

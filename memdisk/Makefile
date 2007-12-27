@@ -30,7 +30,8 @@ LDFLAGS  = $(M32) -g
 INCLUDE  = -I../com32/include
 LD	 = ld -m elf_i386
 NASM     = nasm
-NFLAGS   = -O99 -dVERSION='"$(VERSION)"' -dDATE='"$(DATE)"' -dWITH_EDD
+NASMOPT  = -O9999
+NFLAGS   = -dVERSION='"$(VERSION)"' -dDATE='"$(DATE)"' -dWITH_EDD
 NINCLUDE =
 OBJCOPY  = objcopy
 PERL     = perl
@@ -57,7 +58,7 @@ spotless: clean
 	rm -f memdisk .depend
 
 %.o: %.asm
-	$(NASM) $(NFLAGS) -f elf -l $*.lst -o $@ $<
+	$(NASM) $(NASMOPT) $(NFLAGS) $(NINCLUDE) -f elf -l $*.lst -o $@ $<
 
 %.o: %.s
 	$(CC) $(SFLAGS) -c -o $@ $<
@@ -90,7 +91,7 @@ spotless: clean
 %.o: %.c
 
 %.bin: %.asm
-	$(NASM) -f bin $(NFLAGS) $(NINCLUDE) -o $@ -l $*.lst $<
+	$(NASM) -f bin $(NASMOPT) $(NFLAGS) $(NINCLUDE) -o $@ -l $*.lst $<
 
 memdisk16.elf: $(OBJS16)
 	$(LD) -Ttext 0 -o $@ $^

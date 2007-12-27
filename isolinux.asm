@@ -105,7 +105,9 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 getcbuf		resb trackbufsize
 ;		ends at 4800h
 
-		section .bss
+		; Some of these are touched before the whole image
+		; is loaded.  DO NOT move this to .uibss.
+		section .bss1
 		alignb 4
 ISOFileName	resb 64			; ISO filename canonicalization buffer
 ISOFileNameEnd	equ $
@@ -117,7 +119,7 @@ InitStack	resd 1			; Initial stack pointer (SS:SP)
 DiskSys		resw 1			; Last INT 13h call
 ImageSectors	resw 1			; isolinux.bin size, sectors
 DiskError	resb 1			; Error code for disk I/O
-DriveNo		resb 1			; CD-ROM BIOS drive number
+DriveNumber		resb 1			; CD-ROM BIOS drive number
 ISOFlags	resb 1			; Flags for ISO directory search
 RetryCount      resb 1			; Used for disk access retries
 
@@ -213,9 +215,10 @@ xbs_vgatmpbuf	equ 2*trackbufsize
 ;; CD-ROM sector (2K) of the file, so the number one priority is actually
 ;; loading the rest.
 ;;
-StackBuf	equ $-44			; 44 bytes needed for
-						; the bootsector chainloading
-						; code!
+StackBuf	equ $-44		; 44 bytes needed for
+					; the bootsector chainloading
+					; code!
+OrigESDI	equ StackBuf-4          ; The high dword on the stack
 
 bootsec		equ $
 
@@ -239,6 +242,8 @@ _start1:	mov [cs:InitStack],sp		; Save initial stack pointer
 		xor ax,ax
 		mov ss,ax
 		mov sp,StackBuf			; Set up stack
+		push es			; Save initial ES:DI -> $PnP pointer
+		push di
 		mov ds,ax
 		mov es,ax
 		mov fs,ax
@@ -266,7 +271,7 @@ initial_csum:	xor edi,edi
 		loop .loop
 		mov [FirstSecSum],edi
 
-		mov [DriveNo],dl
+		mov [DriveNumber],dl
 %ifdef DEBUG_MESSAGES
 		mov si,startup_msg
 		call writemsg
@@ -295,11 +300,11 @@ initial_csum:	xor edi,edi
 		; Note: use passed-in DL value rather than 7Fh because
 		; at least some BIOSes will get the wrong value otherwise
 		mov ax,4B01h			; Get disk emulation status
-		mov dl,[DriveNo]
+		mov dl,[DriveNumber]
 		mov si,spec_packet
 		call int13
 		jc award_hack			; changed for BrokenAwardHack
-		mov dl,[DriveNo]
+		mov dl,[DriveNumber]
 		cmp [sp_drive],dl		; Should contain the drive number
 		jne spec_query_failed
 
@@ -541,7 +546,7 @@ award_found:	mov	eax,[es:di+0eh]		; load possible int 13 addr
 		call	writestr		;
 %endif						;
 		mov	ax,4B01h		; try to read the spec packet
-		mov	dl,[DriveNo]		; now ... it should not fail
+		mov	dl,[DriveNumber]	; now ... it should not fail
 		mov	si,spec_packet		; any longer
 		int	13h			;
 		jc	award_fail2		;
@@ -586,14 +591,14 @@ spec_query_failed:
 		; Okay, good enough...
 		mov si,alright_msg
 		call writemsg
-		mov [DriveNo],dl
+		mov [DriveNumber],dl
 .found_drive:	jmp found_drive
 
 		; Award BIOS 4.51 apparently passes garbage in sp_drive,
 		; but if this was the drive number originally passed in
 		; DL then consider it "good enough"
 .maybe_broken:
-		cmp byte [DriveNo],dl
+		cmp byte [DriveNumber],dl
 		je .found_drive
 
 .still_broken:	dec dx
@@ -605,7 +610,7 @@ spec_query_failed:
 		; 4B01h, so we can't query a spec packet no matter
 		; what.  If we got a drive number in DL, then try to
 		; use it, and if it works, then well...
-		mov dl,[DriveNo]
+		mov dl,[DriveNumber]
 		cmp dl,81h			; Should be 81-FF at least
 		jb fatal_error			; If not, it's hopeless
 
@@ -706,7 +711,7 @@ getlinsec:
 .bp_ok:
 		mov [si+2],bp
 		push si
-		mov dl,[DriveNo]
+		mov dl,[DriveNumber]
 		mov ah,42h			; Extended Read
 		call xint13
 		pop si
@@ -826,7 +831,6 @@ crlf_msg	db CR, LF
 null_msg	db 0
 
 		alignb 4, db 0
-StackPtr	dw StackBuf, 0			; SS:SP for stack reset
 MaxTransfer	dw 32				; Max sectors per transfer
 
 rl_checkpt	equ $				; Must be <= 800h
@@ -1064,7 +1068,7 @@ is_disk_image:
 
 		mov ax,4C00h			; Enable emulation and boot
 		mov si,dspec_packet
-		mov dl,[DriveNo]
+		mov dl,[DriveNumber]
 		lss sp,[InitStack]
 		TRACER 'X'
 
@@ -1489,6 +1493,7 @@ getfssec:
 %include "highmem.inc"		; High memory sizing
 %include "strcpy.inc"		; strcpy()
 %include "rawcon.inc"		; Console I/O w/o using the console functions
+%include "adv.inc"		; Auxillary Data Vector
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
@@ -1570,9 +1575,7 @@ img_table:
 ;
 		alignb 4, db 0
 BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf
-BufSafeSec	dw trackbufsize/SECTOR_SIZE	; = how many sectors?
 BufSafeBytes	dw trackbufsize		; = how many bytes?
-EndOfGetCBuf	dw getcbuf+trackbufsize	; = getcbuf+BufSafeBytes
 %ifndef DEPEND
 %if ( trackbufsize % SECTOR_SIZE ) != 0
 %error trackbufsize must be a multiple of SECTOR_SIZE
