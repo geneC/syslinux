@@ -135,8 +135,8 @@ bcopy:		push eax
 		cmp esi,-1
 		je .bzero
 
-		cmp esi,edi		; If source > destination, we might
-		ja .reverse		; have to copy backwards
+		cmp esi,edi		; If source < destination, we might
+		jb .reverse		; have to copy backwards
 
 .forward:
 		mov al,cl		; Save low bits
