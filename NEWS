@@ -21,7 +21,10 @@ Changes in 3.55:
 	  but that MAY be reverted in the future if it causes
 	  problems.
 	* Documentation text files moved to a common "doc" directory;
-	  man pages from the Debian project added to the "man" directory.
+	  man pages from the Debian project added to the "man"
+	  directory.
+	* Correct bug with self-overlapping memory areas when using
+	  the shuffle interface.
 
 Changes in 3.54:
 	* Add "menu separator", "menu indent", "menu disabled"

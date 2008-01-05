@@ -96,7 +96,7 @@ rm -rf %{buildroot}
 %defattr(-,root,root)
 %doc COPYING NEWS doc/*
 %doc sample
-%doc %{_mandir}/man
+%{_mandir}/man/man*/*
 %{_bindir}/syslinux
 %{_bindir}/ppmtolss16
 %{_bindir}/lss16toppm
