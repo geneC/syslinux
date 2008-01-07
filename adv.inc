@@ -90,6 +90,9 @@ adv_init:
 		; Initialize the ADV data structure in memory
 		;
 adv_verify:
+		cmp byte [ADVDrive],-1		; No ADV configured, still?
+		je .reset			; Then unconditionally reset
+
 		mov si,adv0
 		call .check_adv
 		jz .ok				; Primary ADV okay
@@ -98,6 +101,7 @@ adv_verify:
 		jz .adv1ok
 
 		; Neither ADV is usable; initialize to blank
+.reset:
 		mov di,adv0
 		mov eax,ADV_MAGIC1
 		stosd
