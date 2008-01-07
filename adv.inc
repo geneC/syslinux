@@ -1,11 +1,11 @@
 ;; -----------------------------------------------------------------------
-;;
-;;   Copyright 2007 H. Peter Anvin - All Rights Reserved
+;;   
+;;   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
-;;   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
-;;   Boston MA 02111-1307, USA; either version 2 of the License, or
+;;   the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
+;;   Boston MA 02110-1301, USA; either version 2 of the License, or
 ;;   (at your option) any later version; incorporated herein by reference.
 ;;
 ;; -----------------------------------------------------------------------
@@ -474,8 +474,8 @@ adv_read_write:
 
 		section .data
 		align 4, db 0
-ADVSec0		db 0			; Undefined
-ADVSec1		db 0			; Undefined
+ADVSec0		dd 0			; Not specified
+ADVSec1		dd 0			; Not specified
 ADVDrive	db -1			; No ADV defined
 
 		section .bss
