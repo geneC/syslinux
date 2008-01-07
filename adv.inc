@@ -98,7 +98,7 @@ adv_verify:
 		jz .adv1ok
 
 		; Neither ADV is usable; initialize to blank
-		mov si,adv0
+		mov di,adv0
 		mov eax,ADV_MAGIC1
 		stosd
 		mov eax,ADV_MAGIC2
