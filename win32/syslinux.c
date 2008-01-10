@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2003 Lars Munch Christensen - All Rights Reserved
- *   Copyright 1998-2007 H. Peter Anvin - All Rights Reserved
+ *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
  *
  *   Based on the Linux installer program for SYSLINUX by H. Peter Anvin
  *
