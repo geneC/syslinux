@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2007 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -135,8 +135,8 @@ bcopy:		push eax
 		cmp esi,-1
 		je .bzero
 
-		cmp esi,edi		; If source > destination, we might
-		ja .reverse		; have to copy backwards
+		cmp esi,edi		; If source < destination, we might
+		jb .reverse		; have to copy backwards
 
 .forward:
 		mov al,cl		; Save low bits

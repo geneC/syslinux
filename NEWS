@@ -28,7 +28,10 @@ Changes in 3.55:
 	  but that MAY be reverted in the future if it causes
 	  problems.
 	* Documentation text files moved to a common "doc" directory;
-	  man pages from the Debian project added to the "man" directory.
+	  man pages from the Debian project added to the "man"
+	  directory.
+	* Correct bug with self-overlapping memory areas when using
+	  the shuffle interface.
 
 Changes in 3.54:
 	* Add "menu separator", "menu indent", "menu disabled"
@@ -58,7 +61,6 @@ Changes in 3.53:
 	* ISOLINUX (at least): fix bss memory overwrite hang.
 	* MBR: Fix booting from logical partitions.
 	* Code cleanups.
->>>>>>> syslinux-3.60-pre6:NEWS
 
 Changes in 3.52:
 	* Handle capitalized F-key commands in the menu system.

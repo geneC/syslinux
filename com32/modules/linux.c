@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -204,8 +204,22 @@ int main(int argc, char *argv[])
   if ((arg = find_argument(argp, "mem=")))
     mem_limit = saturate32(suffix_number(arg));
 
-  if ((arg = find_argument(argp, "vga=")))
-    video_mode = strtoul(arg, NULL, 0);
+  if ((arg = find_argument(argp, "vga="))) {
+    switch (arg[0] | 0x20) {
+    case 'a':			/* "ask" */
+      video_mode = 0xfffd;
+      break;
+    case 'e':			/* "ext" */
+      video_mode = 0xfffe;
+      break;
+    case 'n':			/* "normal" */
+      video_mode = 0xffff;
+      break;
+    default:
+      video_mode = strtoul(arg, NULL, 0);
+      break;
+    }
+  }
 
   if ((arg = find_argument(argp, "initrd="))) {
     do {

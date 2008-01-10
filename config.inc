@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 2002-2007 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2002-2008 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -39,6 +39,6 @@ MAX_FKEYS	equ 12			; Number of F-key help files
 ;
 %define	version_str	VERSION		; Must be 4 characters long!
 %define date		DATE_STR	; Defined from the Makefile
-%define	year		'2007'
+%define	year		'2008'
 
 %endif ; _CONFIG_INC
