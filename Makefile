@@ -61,7 +61,7 @@ VERSION  = $(shell cat version)
 # with their own Makefiles.  Finally, there is a list of those
 # directories.
 #
-CSRC     = syslxmod.c gethostip.c
+CSRC     = gethostip.c
 NASMSRC  = $(wildcard *.asm)
 SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
 
@@ -183,14 +183,6 @@ extlinux_bss_bin.c: extlinux.bss bin2c.pl
 
 extlinux_sys_bin.c: extlinux.sys bin2c.pl
 	$(PERL) bin2c.pl extlinux_image 512 < $< > $@
-
-libsyslinux.a: bootsect_bin.o ldlinux_bin.o mbr_bin.o syslxmod.o
-	rm -f $@
-	$(AR) cq $@ $^
-	$(RANLIB) $@
-
-$(LIB_SO): bootsect_bin.o ldlinux_bin.o syslxmod.o
-	$(CC) $(LDFLAGS) -shared -Wl,-soname,$(LIB_SONAME) -o $@ $^
 
 gethostip: gethostip.o
 	$(CC) $(LDFLAGS) -o $@ $^
