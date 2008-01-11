@@ -77,7 +77,7 @@ mkdir -p %{buildroot}/boot/extlinux %{buildroot}/etc
 mkdir -p %{buildroot}/tftpboot/pxelinux.cfg
 make CC='%{my_cc}' install-all \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} SBINDIR=%{_sbindir} \
-	LIBDIR=%{_datadir} INCDIR=%{_includedir}
+	LIBDIR=%{_datadir} MANDIR=%{_mandir} INCDIR=%{_includedir}
 make CC='%{my_cc}' -C sample tidy
 cp mkdiskimage syslinux2ansi.pl keytab-lilo.pl %{buildroot}%{_datadir}/syslinux
 
