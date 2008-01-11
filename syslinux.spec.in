@@ -77,7 +77,7 @@ mkdir -p %{buildroot}/boot/extlinux %{buildroot}/etc
 mkdir -p %{buildroot}/tftpboot/pxelinux.cfg
 make CC='%{my_cc}' install-all \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} SBINDIR=%{_sbindir} \
-	LIBDIR=%{_datadir} INCDIR=%{_includedir}
+	LIBDIR=%{_datadir} MANDIR=%{_mandir} INCDIR=%{_includedir}
 make CC='%{my_cc}' -C sample tidy
 cp mkdiskimage syslinux2ansi.pl keytab-lilo.pl %{buildroot}%{_datadir}/syslinux
 
@@ -96,7 +96,7 @@ rm -rf %{buildroot}
 %defattr(-,root,root)
 %doc COPYING NEWS doc/*
 %doc sample
-%{_mandir}/man/man*/*
+%{_mandir}/man*/*
 %{_bindir}/syslinux
 %{_bindir}/ppmtolss16
 %{_bindir}/lss16toppm
@@ -137,6 +137,9 @@ fi
 %postun
 
 %changelog
+* Thu Jan 10 2008 H. Peter Anvin <hpa@zytor.com>
+- Add man pages.
+
 * Mon Nov 19 2007 Bernard Li <bernard@vanhpc.org>
 - Added netpbm-progs (provides pngtopnm) to BuildPrereq (this should be
   changed to BuildRequires since it is deprecated...)
