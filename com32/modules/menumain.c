@@ -299,14 +299,14 @@ static int passwd_compare_sha1(const char *passwd, const char *entry)
   SHA1_CTX ctx;
   unsigned char sha1[20], pwdsha1[20];
 
+  SHA1Init(&ctx);
+
   if ( (p = strchr(passwd+3, '$')) ) {
     SHA1Update(&ctx, (void *)passwd+3, p-(passwd+3));
     p++;
   } else {
     p = passwd+3;		/* Assume no salt */
   }
-
-  SHA1Init(&ctx);
 
   SHA1Update(&ctx, (void *)entry, strlen(entry));
   SHA1Final(sha1, &ctx);
