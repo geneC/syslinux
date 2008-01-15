@@ -38,6 +38,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <minmax.h>
 #include <sys/stat.h>
 #include <elf.h>
 #include <console.h>
@@ -133,33 +134,36 @@ int boot_elf(void *ptr, size_t len, char **argv)
   ph = (Elf32_Phdr *)(cptr+eh->e_phoff);
 
   for (i = 0; i < eh->e_phnum; i++) {
-    if (ph->p_type == PT_LOAD && ph->p_memsz >= ph->p_filesz) {
+    if (ph->p_type == PT_LOAD || ph->p_type == PT_PHDR) {
       /* This loads at p_paddr, which is arguably the correct semantics.
 	 The SysV spec says that SysV loads at p_vaddr (and thus Linux does,
 	 too); that is, however, a major brainfuckage in the spec. */
+      addr_t addr  = ph->p_paddr;
+      addr_t msize = ph->p_memsz;
+      addr_t dsize = min(msize, ph->p_filesz);
 
-      dprintf("Segment at 0x%08x len 0x%08x\n", ph->p_paddr, ph->p_memsz);
+      dprintf("Segment at 0x%08x data 0x%08x len 0x%08x\n",
+	      addr, dsize, msize);
 
-      if (syslinux_memmap_type(amap, ph->p_paddr, ph->p_memsz) != SMT_FREE) {
+      if (syslinux_memmap_type(amap, addr, msize) != SMT_FREE) {
 	printf("Memory segment at 0x%08x (len 0x%08x) is unavailable\n",
-	       ph->p_paddr, ph->p_memsz);
+	       addr, msize);
 	goto bail;		/* Memory region unavailable */
       }
 
       /* Mark this region as allocated in the available map */
-      if (syslinux_add_memmap(&amap, ph->p_paddr, ph->p_memsz, SMT_ALLOC))
+      if (syslinux_add_memmap(&amap, addr, dsize, SMT_ALLOC))
 	goto bail;
 
       if (ph->p_filesz) {
 	/* Data present region.  Create a move entry for it. */
-	if (syslinux_add_movelist(&ml, ph->p_paddr, (addr_t)cptr+ph->p_offset,
-				  ph->p_filesz))
+	if (syslinux_add_movelist(&ml, addr, (addr_t)cptr+ph->p_offset,
+				  dsize))
 	  goto bail;
       }
-      if (ph->p_memsz > ph->p_filesz) {
+      if (msize > dsize) {
 	/* Zero-filled region.  Mark as a zero region in the memory map. */
-	if (syslinux_add_memmap(&mmap, ph->p_paddr+ph->p_filesz,
-				ph->p_memsz - ph->p_filesz, SMT_ZERO))
+	if (syslinux_add_memmap(&mmap, addr+dsize, msize-dsize, SMT_ZERO))
 	  goto bail;
       }
     } else {
