@@ -2,7 +2,7 @@
 
     A bootloader for Linux using the PXE network booting protocol
 
-		Copyright (C) 1994-2007 H. Peter Anvin
+       Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no

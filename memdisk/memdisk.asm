@@ -6,7 +6,7 @@
 ;  A program to emulate an INT 13h disk BIOS from a "disk" in extended
 ;  memory.
 ;
-;   Copyright (C) 2001-2007  H. Peter Anvin
+;   Copyright 2001-2008 H. Peter Anvin - All Rights Reserved
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by

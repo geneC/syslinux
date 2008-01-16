@@ -4,8 +4,8 @@
  *  Loader for Multiboot-compliant kernels and modules.
  *
  *  Copyright (C) 2005 Tim Deegan <Tim.Deegan@cl.cam.ac.uk>
- *  Parts based on GNU GRUB, Copyright (C) 2000  Free Software Foundation, Inc.
- *  Parts based on SYSLINUX, Copyright (C) 1994-2005  H. Peter Anvin.
+ *  Parts based on GNU GRUB, Copyright 2000  Free Software Foundation, Inc.
+ *  Parts based on SYSLINUX, Copyright 1994-2008 H. Peter Anvin.
  *  Thanks to Ram Yalamanchili for the ELF section-header loading.
  *
  *  This program is free software; you can redistribute it and/or
