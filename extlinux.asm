@@ -1072,7 +1072,7 @@ searchdir:
 		push eax		; Save directory inode
 
 		call open_inode
-		jz .done		; If error, done
+		jz .missing		; If error, done
 
 		mov cx,[si+file_mode]
 		shr cx,S_IFSHIFT	; Get file type
@@ -1101,6 +1101,10 @@ searchdir:
 		pop cx
 		pop bx
 		ret
+
+.missing:
+		add sp,4		; Drop directory inode
+		jmp .done
 
 		;
 		; It's a file.
