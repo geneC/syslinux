@@ -144,7 +144,15 @@ version.h: version version.pl
 kwdhash.gen: keywords genhash.pl
 	$(PERL) genhash.pl < keywords > kwdhash.gen
 
-# Standard rule for {ldlinux,pxelinux,isolinux,isolinux-debug,extlinux}.bin
+# Standard rule for {isolinux,isolinux-debug}.bin
+iso%.bin: iso%.asm kwdhash.gen version.gen
+	$(NASM) $(NASMOPT) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
+		-DMAP=$(@:.bin=.map) -l $(@:.bin=.lsr) -o $@ $<
+	$(PERL) lstadjust.pl $(@:.bin=.lsr) $(@:.bin=.map) $(@:.bin=.lst)
+	$(PERL) checksumiso.pl $@
+	$(PERL) checkov.pl $(@:.bin=.map) $@
+
+# Standard rule for {ldlinux,pxelinux,extlinux}.bin
 %.bin: %.asm kwdhash.gen version.gen
 	$(NASM) $(NASMOPT) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-DMAP=$(@:.bin=.map) -l $(@:.bin=.lsr) -o $@ $<

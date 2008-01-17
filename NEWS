@@ -6,6 +6,8 @@ Changes in 3.61:
 	* EXTLINUX: fix crash when accessing an empty file.
 	* elf.c32: If a PHDR segment is present, load it.
 	* Fix SHA-1 passwords.
+	* ISOLINUX: fix booting when mastered without
+	  mkisofs -boot-info-table (broken since 3.50, sigh...)
 
 Changes in 3.60:
 	* Support for "auxilliary data vector", a small amount of
