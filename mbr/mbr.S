@@ -68,7 +68,7 @@ _start:
 next:
 	/* Check to see if we have EBIOS */
 	pushw	%dx		/* drive number */
-	movw	$0x4100, %ax
+	movb	$0x41, %ah	/* %al == 0 already */
 	movw	$0x55aa, %bx
 	xorw	%cx, %cx
 	xorb	%dh, %dh
