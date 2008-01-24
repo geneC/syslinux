@@ -36,6 +36,7 @@ typedef uint64_t u64;
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mount.h>
+#include <sys/vfs.h>
 
 #include <linux/fd.h>		/* Floppy geometry */
 #include <linux/hdreg.h>	/* Hard disk geometry */
@@ -804,6 +805,7 @@ install_loader(const char *path, int update_only)
   struct stat st, fst;
   int devfd, rv;
   const char *devname = NULL;
+  struct statfs sfs;
 #ifndef __KLIBC__
   struct mntent *mnt = NULL;
   struct stat dst;
@@ -812,6 +814,16 @@ install_loader(const char *path, int update_only)
 
   if ( stat(path, &st) || !S_ISDIR(st.st_mode) ) {
     fprintf(stderr, "%s: Not a directory: %s\n", program, path);
+    return 1;
+  }
+
+  if ( statfs(path, &sfs) ) {
+    fprintf(stderr, "%s: statfs %s: %s\n", program, path, strerror(errno));
+    return 1;
+  }
+
+  if ( sfs.f_type != EXT2_SUPER_MAGIC ) {
+    fprintf(stderr, "%s: not an ext2/ext3 filesystem: %s\n", program, path);
     return 1;
   }
 
