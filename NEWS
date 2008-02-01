@@ -8,6 +8,8 @@ Changes in 3.61:
 	* Fix SHA-1 and MD5 passwords.
 	* ISOLINUX: fix booting when mastered without
 	  mkisofs -boot-info-table (broken since 3.50, sigh...)
+	* Handle BIOSes which emit multiple contiguous valid
+	  memory regions in the e820 map.
 
 Changes in 3.60:
 	* Support for "auxilliary data vector", a small amount of
