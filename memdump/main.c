@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
       die("invalid range specification");
     len = strtoul(ep+1, NULL, 0);
 
-    sprintf(filename, "%s%#x,%#x.bin", prefix, start, len);
+    sprintf(filename, "%s%#x-%#x.bin", prefix, start, len);
     finfo.name = filename;
     finfo.size = len;
     finfo.pvt  = (void *)start;
