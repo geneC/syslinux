@@ -65,6 +65,6 @@ error_or_command:
 		jmp enter_command
 
 		section .data
-aborted_msg	db ' aborted.', CR, LF
+aborted_msg	db ' aborted.', CR, LF, 0
 
 		section .text
