@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -61,4 +61,3 @@ int passwd_compare(const char *passwd, const char *entry)
   else
     return 0;			/* Invalid encryption algorithm */
 }
-
