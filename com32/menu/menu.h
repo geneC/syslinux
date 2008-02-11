@@ -140,4 +140,7 @@ int show_message_file(const char *filename, const char *background);
 void set_msg_colors_global(unsigned int fg, unsigned int bg,
 			   enum color_table_shadow shadow);
 
+/* passwd.c */
+int passwd_compare(const char *passwd, const char *entry);
+
 #endif /* MENU_H */

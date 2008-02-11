@@ -50,7 +50,7 @@ COM32DIR = $(AUXDIR)/com32
 MODULES	  = menu.c32 vesamenu.c32
 TESTFILES =
 
-COMMONOBJS = menumain.o readconfig.o printmsg.o
+COMMONOBJS = menumain.o readconfig.o passwd.o printmsg.o
 
 all: $(MODULES) $(TESTFILES)
 
