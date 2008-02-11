@@ -13,6 +13,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 
+#include "xcrypt.h"
 
 /* Structure to save state of computation between the single steps.  */
 struct sha256_ctx
