@@ -10,7 +10,6 @@
  *
  * ----------------------------------------------------------------------- */
 
-#define _GNU_SOURCE		/* Needed for asprintf() on Linux */
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
