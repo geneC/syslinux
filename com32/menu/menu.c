@@ -34,6 +34,7 @@ int draw_background(const char *arg)
 {
   /* Nothing to do... */
   (void)arg;
+  return 0;
 }
 
 int main(int argc, char *argv[])
