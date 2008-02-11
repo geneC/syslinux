@@ -11,7 +11,7 @@
 ## -----------------------------------------------------------------------
 
 ##
-## COM32 standard modules
+## Simple menu system
 ##
 
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
@@ -47,9 +47,10 @@ AUXDIR   = $(LIBDIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-MODULES	  = chain.c32 ethersel.c32 mboot.c32 dmitest.c32 cpuidtest.c32 \
-	    pcitest.c32 elf.c32 linux.c32 reboot.c32 pmload.c32 meminfo.c32
+MODULES	  = menu.c32 vesamenu.c32
 TESTFILES =
+
+COMMONOBJS = menumain.o readconfig.o printmsg.o
 
 all: $(MODULES) $(TESTFILES)
 
@@ -80,16 +81,10 @@ all: $(MODULES) $(TESTFILES)
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
 
-pcitest.elf : pcitest.o $(LIBS)
+menu.elf : menu.o $(COMMONOBJS) $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-cpuidtest.elf : cpuidtest.o cpuid.o $(LIBS)
-	$(LD) $(LDFLAGS) -o $@ $^
-
-dmitest.elf : dmitest.o dmi_utils.o dmi.o $(LIBS)
-	$(LD) $(LDFLAGS) -o $@ $^
-
-ethersel.elf : ethersel.o $(LIBS)
+vesamenu.elf : vesamenu.o $(COMMONOBJS) $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy:
