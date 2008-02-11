@@ -3,9 +3,9 @@
 #
 
 	.text
-	.globl	memcpy
-	.type	memcpy, @function
-memcpy:
+	.globl	mempcpy
+	.type	mempcpy, @function
+mempcpy:
 	pushl	%esi
 	pushl	%edi
 #ifdef REGPARM
@@ -34,4 +34,4 @@ memcpy:
 	popl	%esi
 	ret
 
-	.size	memcpy, .-memcpy
+	.size	mempcpy, .-mempcpy
