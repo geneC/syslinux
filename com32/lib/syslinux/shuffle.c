@@ -34,8 +34,10 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <inttypes.h>
 #include <com32.h>
+#include <minmax.h>
 #include <syslinux/movebits.h>
 
 #ifndef DEBUG
@@ -52,55 +54,153 @@ struct shuffle_descriptor {
   uint32_t dst, src, len;
 };
 
+/* Allocate descriptor memory in these chunks */
+#define DESC_BLOCK_SIZE	256
+
 int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
 			     struct syslinux_memmap *memmap)
 {
   struct syslinux_movelist *moves = NULL, *mp;
-  struct syslinux_memmap *ml;
-  struct shuffle_descriptor *dp;
-  int np, rv = -1;
+  struct syslinux_memmap *rxmap = NULL, *ml;
+  struct shuffle_descriptor *dp, *dbuf;
+  int np, nb, rv = -1;
+  int desc_blocks;
+  addr_t desczone, descfree, descaddr, descoffs;
+  int nmoves, nzero;
+  struct shuffle_descriptor primaries[2];
 
-  if (syslinux_compute_movelist(&moves, fraglist, memmap))
+  /* Count the number of zero operations */
+  nzero = 0;
+  for (ml = memmap; ml->type != SMT_END; ml = ml->next) {
+    if (ml->type == SMT_ZERO)
+      nzero++;
+  }
+
+  rxmap = syslinux_dup_memmap(memmap);
+  for (mp = fraglist; mp; mp = mp->next) {
+    if (syslinux_add_memmap(&rxmap, mp->src, mp->len, SMT_ALLOC))
+      goto bail;
+  }
+    
+  if (syslinux_memmap_largest(rxmap, SMT_FREE, &desczone, &descfree))
     goto bail;
+
+  dprintf("desczone = 0x%08x, descfree = 0x%08x\n", desczone, descfree);
+
+  for (desc_blocks = (nzero+DESC_BLOCK_SIZE)/(DESC_BLOCK_SIZE-1) ; ;
+       desc_blocks++) {
+    addr_t descmem = desc_blocks*
+      sizeof(struct shuffle_descriptor)*DESC_BLOCK_SIZE;
+
+    if (descfree < descmem)
+      goto bail;		/* No memory block large enough */
+
+    descaddr = desczone + descfree - descmem;
+    if (syslinux_add_memmap(&rxmap, descaddr, descmem, SMT_ALLOC))
+      goto bail;
+
+#if DEBUG
+    syslinux_dump_movelist(stdout, fraglist);
+#endif
+
+    if (syslinux_compute_movelist(&moves, fraglist, rxmap))
+      goto bail;
+    
+    nmoves = 0;
+    for (mp = moves; mp; mp = mp->next)
+      nmoves++;
+
+    if ((nmoves+nzero) <= desc_blocks*(DESC_BLOCK_SIZE-1))
+      break;			/* Sufficient memory, yay */
+  }
 
 #if DEBUG
   dprintf("Final movelist:\n");
   syslinux_dump_movelist(stdout, moves);
 #endif
 
-  dp = __com32.cs_bounce;
-  np = 0;
+  syslinux_free_memmap(rxmap);
+  rxmap = NULL;
 
-  /* Copy the move sequence into the bounce buffer */
+  dbuf = malloc((nmoves+nzero+desc_blocks)*sizeof(struct shuffle_descriptor));
+  if (!dbuf)
+    goto bail;
+
+  descoffs = descaddr - (addr_t)dbuf;
+
+#if DEBUG
+  dprintf("nmoves = %d, nzero = %d, dbuf = %p, offs = 0x%08x\n",
+	  nmoves, nzero, dbuf, descoffs);
+#endif
+
+  /* Copy the move sequence into the descriptor buffer */
+  np = 0;
+  nb = 0;
+  dp = dbuf;
   for (mp = moves; mp; mp = mp->next) {
-    if (np >= 65536/12)
-      goto bail;		/* Way too many descriptors... */
+    if (nb == DESC_BLOCK_SIZE-1) {
+      dp->dst = -1;		/* Load new descriptors */
+      dp->src = (addr_t)(dp+1) + descoffs;
+      dp->len = sizeof(*dp)*min(nmoves, DESC_BLOCK_SIZE);
+      dprintf("[ %08x %08x %08x ]\n", dp->dst, dp->src, dp->len);
+      dp++; np++;
+      nb = 0;
+    }
 
     dp->dst = mp->dst;
     dp->src = mp->src;
     dp->len = mp->len;
-    dp++; np++;
+    dprintf("[ %08x %08x %08x ]\n", dp->dst, dp->src, dp->len);
+    dp++; np++; nb++;
   }
 
-  /* Copy any zeroing operations into the bounce buffer */
+  /* Copy bzero operations into the descriptor buffer */
   for (ml = memmap; ml->type != SMT_END; ml = ml->next) {
     if (ml->type == SMT_ZERO) {
-      if (np >= 65536/12)
-	goto bail;
-
+      if (nb == DESC_BLOCK_SIZE-1) {
+	dp->dst = (addr_t)-1;	/* Load new descriptors */
+	dp->src = (addr_t)(dp+1) + descoffs;
+	dp->len = sizeof(*dp)*min(nmoves, DESC_BLOCK_SIZE);
+	dprintf("[ %08x %08x %08x ]\n", dp->dst, dp->src, dp->len);
+	dp++; np++;
+	nb = 0;
+      }
+      
       dp->dst = ml->start;
-      dp->src = (addr_t)-1;	/* bzero this region */
+      dp->src = (addr_t)-1;	/* bzero region */
       dp->len = ml->next->start - ml->start;
-      dp++; np++;
+      dprintf("[ %08x %08x %08x ]\n", dp->dst, dp->src, dp->len);
+      dp++; np++; nb++;
     }
   }
 
-  rv = np;
+  /* Set up the primary descriptors in the bounce buffer.
+     The first one moves the descriptor list into its designated safe
+     zone, the second one loads the first descriptor block. */
+  dp = primaries;
+
+  dp->dst = descaddr;
+  dp->src = (addr_t)dbuf;
+  dp->len = np*sizeof(*dp);
+  dprintf("< %08x %08x %08x >\n", dp->dst, dp->src, dp->len);
+  dp++;
+
+  dp->dst = (addr_t)-1;
+  dp->src = descaddr;
+  dp->len = sizeof(*dp)*min(np, DESC_BLOCK_SIZE);
+  dprintf("< %08x %08x %08x >\n", dp->dst, dp->src, dp->len);
+  dp++;
+
+  memcpy(__com32.cs_bounce, primaries, 2*sizeof(*dp));
+
+  rv = 2;			/* Always two primaries */
 
  bail:
   /* This is safe only because free() doesn't use the bounce buffer!!!! */
   if (moves)
     syslinux_free_movelist(moves);
+  if (rxmap)
+    syslinux_free_memmap(rxmap);
 
   return rv;
 }
