@@ -52,6 +52,23 @@ STACK_START	equ TEXT_START-STACK_SIZE
 		; but are in order to offload .bss
 		section .bss1		nobits valign=16 vfollows=.config.end
 
+		; Warning here: RBFG build 22 randomly overwrites
+		; memory location [0x5680,0x576c), possibly more.  It
+		; seems that it gets confused and screws up the
+		; pointer to its own internal packet buffer and starts
+		; writing a received ARP packet into low memory.
+%if IS_PXELINUX
+		section .rbfg		nobits start=0x5680
+RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
+%endif
+
+		; For section following .rbfg
+%if IS_PXELINUX
+		section .bss2		nobits valign=16 vfollows=.rbfg
+%else
+		section .bss2		nobits valign=16 vfollows=.bss1
+%endif
+
 		section .text		start=TEXT_START
 		; NASM BUG: .data always follows .text; can't override
 		section .data		align=16 ; follows=.text

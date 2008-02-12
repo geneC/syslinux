@@ -186,12 +186,7 @@ tftp_pktbuf	resw 1			; Packet buffer offset
 		section .earlybss
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
-getcbuf		resb trackbufsize
-		; ends at 4800h
-
-		; Put some large buffers here, before RBFG_brainfuck,
-		; where we can still carefully control the address
-		; assignments...
+		; ends at 2800h
 
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
@@ -203,12 +198,6 @@ DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
 IPOption	resb 80			; ip= option buffer
 InitStack	resd 1			; Pointer to reset stack (SS:SP)
 PXEStack	resd 1			; Saved stack during PXE call
-
-; Warning here: RBFG build 22 randomly overwrites memory location
-; [0x5680,0x576c), possibly more.  It seems that it gets confused and
-; screws up the pointer to its own internal packet buffer and starts
-; writing a received ARP packet into low memory.
-RBFG_brainfuck	resb 0E00h
 
 		section .bss
 		alignb 4
@@ -818,7 +807,7 @@ config_scan:
 		call writestr
 		call crlf
 		mov si,di
-		mov di,getcbuf
+		mov di,KernelName	;  Borrow this buffer for mangled name
 		call mangle_name
 		call open
 		popa

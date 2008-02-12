@@ -102,8 +102,7 @@ dir_clust	resd 1			; Length in clusters
 		section .earlybss
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
-getcbuf		resb trackbufsize
-;		ends at 4800h
+;		ends at 2800h
 
 		; Some of these are touched before the whole image
 		; is loaded.  DO NOT move this to .uibss.

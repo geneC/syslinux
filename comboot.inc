@@ -604,7 +604,7 @@ comapi_dnsresolv equ comapi_err
 ; INT 22h AX=0011h	Maximum number of shuffle descriptors
 ;
 comapi_maxshuffle:
-		mov P_CX,(2*trackbufsize)/12
+		mov P_CX,trackbufsize/12
 		ret
 
 ;

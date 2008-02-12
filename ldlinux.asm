@@ -108,8 +108,7 @@ file_left	resd 1			; Number of sectors left
 		section .earlybss
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
-getcbuf		resb trackbufsize
-		; ends at 4800h
+		; ends at 2800h
 
 		section .bss
 		alignb 8

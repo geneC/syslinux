@@ -109,8 +109,7 @@ file_mode	resw 1
 		section .earlybss
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
-getcbuf		resb trackbufsize
-		; ends at 4800h
+		; ends at 2800h
 
 		section .bss1
 SuperBlock	resb 1024		; ext2 superblock
