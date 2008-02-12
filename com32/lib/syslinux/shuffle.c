@@ -64,7 +64,7 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
   struct syslinux_memmap *rxmap = NULL, *ml;
   struct shuffle_descriptor *dp, *dbuf;
   int np, nb, rv = -1;
-  int desc_blocks;
+  int desc_blocks, need_blocks;
   addr_t desczone, descfree, descaddr, descoffs;
   int nmoves, nzero;
   struct shuffle_descriptor primaries[2];
@@ -87,8 +87,8 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
 
   dprintf("desczone = 0x%08x, descfree = 0x%08x\n", desczone, descfree);
 
-  for (desc_blocks = (nzero+DESC_BLOCK_SIZE)/(DESC_BLOCK_SIZE-1) ; ;
-       desc_blocks++) {
+  desc_blocks = (nzero+DESC_BLOCK_SIZE)/(DESC_BLOCK_SIZE-1);
+  for (;;) {
     addr_t descmem = desc_blocks*
       sizeof(struct shuffle_descriptor)*DESC_BLOCK_SIZE;
 
@@ -110,8 +110,12 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
     for (mp = moves; mp; mp = mp->next)
       nmoves++;
 
-    if ((nmoves+nzero) <= desc_blocks*(DESC_BLOCK_SIZE-1))
+    need_blocks = (nmoves+nzero)/(DESC_BLOCK_SIZE-1);
+
+    if (desc_blocks >= need_blocks)
       break;			/* Sufficient memory, yay */
+
+    desc_blocks = need_blocks;	/* Try again... */
   }
 
 #if DEBUG
