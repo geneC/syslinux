@@ -76,8 +76,8 @@ struct messages {
 };
 extern struct messages messages[MSG_COUNT];
 
-/* 512 is the current definition inside syslinux */
-#define MAX_CMDLINE_LEN	 512
+/* 2048 is the current definition inside syslinux */
+#define MAX_CMDLINE_LEN	 2048
 
 #define MAX_ENTRIES	4096	/* Oughta be enough for anybody */
 extern struct menu_entry menu_entries[];
