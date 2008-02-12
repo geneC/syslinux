@@ -100,8 +100,9 @@ getc:
 		and bx,bx
 		jnz .have_unget
 
-		mov ax,real_mode_seg	; Borrow the real_mode_seg
-		mov es,ax
+		mov si,real_mode_seg	; Borrow the real_mode_seg
+		mov es,si
+
 .got_data:
 		sub word [di+gc_bufbytes],1
 		jc .get_data		; Was it zero already?
@@ -154,6 +155,7 @@ getc:
 		; to read the file.
 		mov [di+gc_bufbytes],cx
 		popad
+		xor al,al		; Return a predictable zero
 		stc
 		jmp .ret
 
