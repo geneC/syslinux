@@ -2,6 +2,13 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 3.62:
+	* Clean up garbage after "aborted." message.
+	* Clean up memdump.com filenames.
+	* Support SHA256 and SHA512 encrypted passwords.
+	* The shuffle library now can generate chained descriptors,
+	  thus allowing pretty much arbitrarily complex memory maps.
+
 Changes in 3.61:
 	* EXTLINUX: fix crash when accessing an empty file.
 	* elf.c32: If a PHDR segment is present, load it.
