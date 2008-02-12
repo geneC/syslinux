@@ -48,9 +48,10 @@ STACK_START	equ TEXT_START-STACK_SIZE
 		section .config		align=4 valign=16 follows=.bcopy32 vfollows=.bcopy32
 		section .config.end	nobits valign=4 vfollows=.config
 
-		; Use .bss1 for things that doesn't have to be in low memory,
-		; but are in order to offload .bss
-		section .bss1		nobits valign=16 vfollows=.config.end
+		; Use .bss for things that doesn't have to be in low memory;
+		; with .bss1 and .bss2 to offload.  .earlybss should be used
+		; for things that absolutely have to be below 0x7c00.
+		section .bss		nobits valign=16 vfollows=.config.end
 
 		; Warning here: RBFG build 22 randomly overwrites
 		; memory location [0x5680,0x576c), possibly more.  It
@@ -66,7 +67,7 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 %if IS_PXELINUX
 		section .bss2		nobits valign=16 vfollows=.rbfg
 %else
-		section .bss2		nobits valign=16 vfollows=.bss1
+		section .bss2		nobits valign=16 vfollows=.bss
 %endif
 
 		section .text		start=TEXT_START
@@ -87,7 +88,7 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		section .uibss		nobits align=16 follows=.adv
 
 		; Normal bss...
-		section .bss		nobits align=16 follows=.uibss
+		section .bss1		nobits align=16 follows=.uibss
 
 		; Reserve space for stack
 		section .stack		nobits align=16 start=STACK_START

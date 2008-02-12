@@ -111,7 +111,7 @@ trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 		; ends at 2800h
 
-		section .bss1
+		section .bss
 SuperBlock	resb 1024		; ext2 superblock
 SuperInfo	resq 16			; DOS superblock expanded
 ClustSize	resd 1			; Bytes/cluster ("block")

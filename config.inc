@@ -19,7 +19,7 @@
 %ifndef _CONFIG_INC
 %define _CONFIG_INC
 
-max_cmd_len	equ 511			; Must be &3; 255 is the kernel limit
+max_cmd_len	equ 2047		; Must be &3; 2047 is the kernel limit
 HIGHMEM_MAX	equ 037FFFFFFh		; DEFAULT highest address for an initrd
 DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
 BAUD_DIVISOR	equ 115200		; Serial port parameter
