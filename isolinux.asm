@@ -197,17 +197,6 @@ _spec_len	equ _spec_end - _spec_start
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
 
-;
-; Constants for the xfer_buf_seg
-;
-; The xfer_buf_seg is also used to store message file buffers.  We
-; need two trackbuffers (text and graphics), plus a work buffer
-; for the graphics decompressor.
-;
-xbs_textbuf	equ 0			; Also hard-coded, do not change
-xbs_vgabuf	equ trackbufsize
-xbs_vgatmpbuf	equ 2*trackbufsize
-
 		section .text
 ;;
 ;; Primary entry point.  Because BIOSes are buggy, we only load the first

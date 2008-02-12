@@ -145,23 +145,34 @@ pc_setint16:
 
 ;
 ; Generic file-processing commands:
-; "display", "font", "kbdmap", "include"
+; "font", "kbdmap",
 ;
 pc_filecmd:	push ax				; Function to tailcall
 		call pc_getline
 		mov di,MNameBuf
 		call mangle_name
-		call searchdir			; tailcall
+		call searchdir
 		jnz .ok
 		pop ax				; Drop the successor function
 .ok:		ret				; Tailcall if OK, error return
 
 ;
-; "include" command (invoked from pc_filecmd)
+; Commands that expect the file to be opened on top of the getc stack.
+; "display", "include"
 ;
-pc_include:	call openfd
-		jz .err
-		inc word [IncludeLevel]
+pc_opencmd:	push ax				; Function to tailcall
+		call pc_getline
+		mov di,MNameBuf
+		call mangle_name
+		call open
+		jnz .ok
+		pop ax				; Drop the successor function
+.ok:		ret				; Tailcall if OK, error return
+
+;
+; "include" command (invoked from pc_opencmd)
+;
+pc_include:	inc word [IncludeLevel]
 .err:		ret
 
 ;

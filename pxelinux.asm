@@ -242,17 +242,6 @@ pxe_unload_stack_pkt_len	equ $-pxe_unload_stack_pkt
 packet_buf	resb 2048		; Transfer packet
 packet_buf_size	equ $-packet_buf
 
-;
-; Constants for the xfer_buf_seg
-;
-; The xfer_buf_seg is also used to store message file buffers.  We
-; need two trackbuffers (text and graphics), plus a work buffer
-; for the graphics decompressor.
-;
-xbs_textbuf	equ 0			; Also hard-coded, do not change
-xbs_vgabuf	equ trackbufsize
-xbs_vgatmpbuf	equ 2*trackbufsize
-
 		section .text
 		;
 		; PXELINUX needs more BSS than the other derivatives;

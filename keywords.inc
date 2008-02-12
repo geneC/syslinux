@@ -47,10 +47,10 @@ keywd_size	equ 8	; Bytes per keyword
 keywd_table:
 		keyword menu,		pc_comment
 		keyword text,		pc_text
-		keyword include,	pc_filecmd,	pc_include
+		keyword include,	pc_opencmd,	pc_include
 		keyword append,		pc_append
 		keyword default,	pc_default
-		keyword display,	pc_filecmd,	get_msg_file
+		keyword display,	pc_opencmd,	get_msg_file
 		keyword font,		pc_filecmd,	loadfont
 		keyword implicit,	pc_setint16,	AllowImplicit
 		keyword kbdmap,		pc_filecmd,	loadkeys

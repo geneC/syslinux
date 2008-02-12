@@ -186,11 +186,9 @@ show_help:	; AX = func key # (0 = F1, 9 = F10, 11 = F12)
 		xchg di,ax
 		cmp byte [di+NULLOFFSET],NULLFILE
 		je short fk_nofile		; Undefined F-key
-		call searchdir
+		call open
 		jz short fk_nofile		; File not found
-		push si
 		call crlf
-		pop si
 		call get_msg_file
 		jmp short fk_wrcmd
 
