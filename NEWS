@@ -8,6 +8,8 @@ Changes in 3.62:
 	* Support SHA256 and SHA512 encrypted passwords.
 	* The shuffle library now can generate chained descriptors,
 	  thus allowing pretty much arbitrarily complex memory maps.
+	* Handle command lines up to 2047 characters, the current
+	  Linux kernel limit.
 
 Changes in 3.61:
 	* EXTLINUX: fix crash when accessing an empty file.
