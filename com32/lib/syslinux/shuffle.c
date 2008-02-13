@@ -89,16 +89,27 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
       nzero++;
   }
 
+  /* Find the larges contiguous region unused by input *and* output;
+     this is where we put the move descriptor list */
+
   rxmap = syslinux_dup_memmap(memmap);
+  if (!rxmap)
+    goto bail;
   for (mp = fraglist; mp; mp = mp->next) {
-    if (syslinux_add_memmap(&rxmap, mp->src, mp->len, SMT_ALLOC))
+    if (syslinux_add_memmap(&rxmap, mp->src, mp->len, SMT_ALLOC) ||
+	syslinux_add_memmap(&rxmap, mp->dst, mp->len, SMT_ALLOC))
       goto bail;
   }
-    
   if (syslinux_memmap_largest(rxmap, SMT_FREE, &desczone, &descfree))
     goto bail;
 
+  syslinux_free_memmap(rxmap);
+
   dprintf("desczone = 0x%08x, descfree = 0x%08x\n", desczone, descfree);
+
+  rxmap = syslinux_dup_memmap(memmap);
+  if (!rxmap)
+    goto bail;
 
   desc_blocks = (nzero+DESC_BLOCK_SIZE)/(DESC_BLOCK_SIZE-1);
   for (;;) {
@@ -108,8 +119,9 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
     if (descfree < descmem)
       goto bail;		/* No memory block large enough */
 
+    /* Mark memory used by shuffle descriptors as reserved */
     descaddr = desczone + descfree - descmem;
-    if (syslinux_add_memmap(&rxmap, descaddr, descmem, SMT_ALLOC))
+    if (syslinux_add_memmap(&rxmap, descaddr, descmem, SMT_RESERVED))
       goto bail;
 
 #if DEBUG
@@ -118,7 +130,7 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
 
     if (syslinux_compute_movelist(&moves, fraglist, rxmap))
       goto bail;
-    
+
     nmoves = 0;
     for (mp = moves; mp; mp = mp->next)
       nmoves++;
@@ -182,7 +194,7 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
 	dp++; np++;
 	nb = 0;
       }
-      
+
       dp->dst = ml->start;
       dp->src = (addr_t)-1;	/* bzero region */
       dp->len = ml->next->start - ml->start;
