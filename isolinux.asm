@@ -562,7 +562,7 @@ spec_query_failed:
 .test_loop:	pusha
 		mov ax,4B01h
 		mov si,spec_packet
-		mov byte [si],13		; Size of buffer
+		mov byte [si],13h		; Size of buffer
 		call int13
 		popa
 		jc .still_broken
