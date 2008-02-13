@@ -39,6 +39,7 @@
 #include <com32.h>
 #include <minmax.h>
 #include <syslinux/movebits.h>
+#include <klibc/compiler.h>
 
 #ifndef DEBUG
 # define DEBUG 0
@@ -54,8 +55,20 @@ struct shuffle_descriptor {
   uint32_t dst, src, len;
 };
 
+static int desc_block_size;
+
+static void __constructor __syslinux_get_desc_block_size(void)
+{
+  static com32sys_t reg;
+
+  reg.eax.w[0] = 0x0011;
+  __intcall(0x22, &reg, &reg);
+
+  desc_block_size = (reg.eflags.l & EFLAGS_CF) ? 256 : reg.ecx.w[0];
+}
+
 /* Allocate descriptor memory in these chunks */
-#define DESC_BLOCK_SIZE	256
+#define DESC_BLOCK_SIZE	desc_block_size
 
 int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
 			     struct syslinux_memmap *memmap)
