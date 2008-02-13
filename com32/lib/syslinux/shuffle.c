@@ -64,7 +64,7 @@ static void __constructor __syslinux_get_desc_block_size(void)
   reg.eax.w[0] = 0x0011;
   __intcall(0x22, &reg, &reg);
 
-  desc_block_size = (reg.eflags.l & EFLAGS_CF) ? 256 : reg.ecx.w[0];
+  desc_block_size = (reg.eflags.l & EFLAGS_CF) ? 64 : reg.ecx.w[0];
 }
 
 /* Allocate descriptor memory in these chunks */

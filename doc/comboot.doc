@@ -561,9 +561,9 @@ AX=0011h [3.05] Maximum number of shuffle descriptors
 	Output:	CX	maximum number of descriptors
 
 	This routine reports the maximum number of shuffle descriptors
-	permitted in a call to function 0012h.
+	permitted in a call to functions 0012h, 001Ah and 001Bh.
 
-	This is guaranteed to be at least 256.  For the current
+	This is guaranteed to be at least 64.  For the current
 	version, this is 682 for all derivatives.
 
 
