@@ -1490,8 +1490,9 @@ mangle_name:
 ; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
 ;                filename to the conventional representation.  This is needed
 ;                for the BOOT_IMAGE= parameter for the kernel.
-;                NOTE: A 13-byte buffer is mandatory, even if the string is
-;                known to be shorter.
+;
+;                NOTE: The output buffer needs to be able to hold an
+;		 expanded IP address.
 ;
 ;                DS:SI -> input mangled file name
 ;                ES:DI -> output buffer
