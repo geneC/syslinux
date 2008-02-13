@@ -36,6 +36,7 @@
 
 #include <stdint.h>
 #include <com32.h>
+#include <syslinux/movebits.h>
 
 /* This register set is used by the shuffle and boot interface.  It is
    a completely different structure from what the __intcall() and
@@ -61,5 +62,9 @@ struct syslinux_rm_regs {
   uint16_t cs;			/* Offset 46 */
 };
 
+int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
+			     struct syslinux_memmap *memmap,
+			     uint16_t bootflags,
+			     struct syslinux_rm_regs *regs);
 
 #endif /* _SYSLINUX_BOOTRM_H */

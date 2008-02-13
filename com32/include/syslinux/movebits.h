@@ -43,10 +43,6 @@ struct syslinux_memmap {
 };
 
 
-/* Defined in <syslinux/bootpm.h> and <syslinux/bootrm.h> respectively */
-struct syslinux_pm_regs;
-struct syslinux_rm_regs;
-
 /*
  * moves is computed from "fraglist" and "memmap".  Areas that are
  * to be zeroed should be marked as such in the memmap, not in the
@@ -65,14 +61,6 @@ int syslinux_allocate_from_list(struct syslinux_movelist **freelist,
 				addr_t dst, addr_t len);
 int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
 			     struct syslinux_memmap *memmap);
-int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
-			     struct syslinux_memmap *memmap,
-			     uint16_t bootflags,
-			     struct syslinux_rm_regs *regs);
-int syslinux_shuffle_boot_pm(struct syslinux_movelist *fraglist,
-			     struct syslinux_memmap *memmap,
-			     uint16_t bootflags,
-			     struct syslinux_pm_regs *regs);
 
 /* Operatons on struct syslinux_memmap */
 struct syslinux_memmap *syslinux_init_memmap(void);

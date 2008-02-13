@@ -35,6 +35,7 @@
 #define _SYSLINUX_BOOTPM_H
 
 #include <stdint.h>
+#include <syslinux/movebits.h>
 
 struct syslinux_pm_regs {
   uint32_t eax;			/* Offset  0 */
@@ -48,5 +49,11 @@ struct syslinux_pm_regs {
 
   uint32_t eip;			/* Offset 32 */
 };
+
+int syslinux_shuffle_boot_pm(struct syslinux_movelist *fraglist,
+			     struct syslinux_memmap *memmap,
+			     uint16_t bootflags,
+			     struct syslinux_pm_regs *regs);
+
 
 #endif /* _SYSLINUX_BOOTPM_H */
