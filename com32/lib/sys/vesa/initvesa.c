@@ -34,14 +34,13 @@
 
 #include <inttypes.h>
 #include <com32.h>
-#include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
+#include <string.h>
 #include <sys/fpu.h>
 #include "vesa.h"
 #include "video.h"
 #include "fill.h"
+#include "debug.h"
 
 struct vesa_info __vesa_info;
 
@@ -53,28 +52,6 @@ unsigned int __vesacon_bytes_per_pixel;
 uint8_t __vesacon_graphics_font[FONT_MAX_CHARS][FONT_MAX_HEIGHT];
 
 uint32_t __vesacon_background[VIDEO_Y_SIZE][VIDEO_X_SIZE];
-
-ssize_t __serial_write(void *fp, const void *buf, size_t count);
-
-static inline void debug(const char *str, ...)
-{
-#if 0
-  va_list va;
-  char buf[65536];
-  size_t len;
-
-  va_start(va, str);
-  len = vsnprintf(buf, sizeof buf, str, va);
-  va_end(va);
-
-  if (len >= sizeof buf)
-    len = sizeof buf - 1;
-
-  __serial_write(NULL, buf, len);
-#else
-  (void)str;
-#endif
-}
 
 static void unpack_font(uint8_t *dst, uint8_t *src, int height)
 {
