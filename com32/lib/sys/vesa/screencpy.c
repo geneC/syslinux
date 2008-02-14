@@ -80,13 +80,14 @@ static void set_window_pos(size_t win_pos)
 {
   static com32sys_t ireg;
 
+  wi.win_pos = win_pos;
+
   if (wi.win_num < 0)
-    return;
+    return;			/* This should never happen... */
 
   ireg.eax.w[0] = 0x4F05;
   ireg.ebx.b[0] = wi.win_num;
   ireg.edx.w[0] = win_pos >> wi.win_gshift;
-  wi.win_pos = win_pos;
 
   __intcall(0x10, &ireg, NULL);
 }

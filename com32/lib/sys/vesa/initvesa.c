@@ -75,13 +75,14 @@ static int vesacon_paged_mode_ok(const struct vesa_mode_info *mi)
 {
   int i;
 
+  if (!is_power_of_2(mi->win_size) ||
+      !is_power_of_2(mi->win_grain) ||
+      mi->win_grain > mi->win_size)
+    return 0;			/* Impossible... */
+
   for (i = 0; i < 2; i++) {
-    if ((mi->win_attr[i] & 0x05) == 0x05 &&
-	mi->win_seg[i] &&
-	is_power_of_2(mi->win_size) &&
-	is_power_of_2(mi->win_grain) &&
-	mi->win_grain <= mi->win_size)
-      return 1;			/* We can deal with this... */
+    if ((mi->win_attr[i] & 0x05) == 0x05 && mi->win_seg[i])
+      return 1;			/* Usable window */
   }
 
   return 0;			/* Nope... */
@@ -121,7 +122,8 @@ static int vesacon_set_mode(void)
   /* Copy general info */
   memcpy(&__vesa_info.gi, gi, sizeof *gi);
 
-  /* Search for a 640x480 32-bit linear frame buffer mode */
+  /* Search for a 640x480 mode with a suitable color and memory model... */
+
   mode_ptr = GET_PTR(gi->video_mode_ptr);
   bestmode = 0;
   bestpxf  = PXF_NONE;
