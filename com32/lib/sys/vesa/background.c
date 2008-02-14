@@ -63,7 +63,7 @@ static void draw_background_line(int line, int start, int npixels)
   while (npixels--)
     lbp = format_pixel(lbp, *bgptr++, pixel_format);
 
-  memcpy(fbptr, line_buf, lbp-line_buf);
+  __vesacon_copy_to_screen(fbptr, line_buf, lbp-line_buf);
 }
 
 /* This draws the border, then redraws the text area */

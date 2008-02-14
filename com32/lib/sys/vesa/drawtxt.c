@@ -195,7 +195,8 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
     /* Copy to frame buffer */
     /* Note that the dword_count is rounded down, not up.  That's because
        the row_buffer includes a spillover pixel. */
-    copy_dword(fbrowptr, row_buffer, (rowbufptr-row_buffer) >> 2);
+    __vesacon_copy_to_screen(fbrowptr, row_buffer,
+			     (rowbufptr-row_buffer) & ~3);
 
     bgrowptr += VIDEO_X_SIZE;
     fbrowptr += __vesa_info.mi.logical_scan;
