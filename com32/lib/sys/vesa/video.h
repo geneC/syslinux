@@ -60,7 +60,8 @@ enum vesa_pixel_format {
 };
 extern enum vesa_pixel_format __vesacon_pixel_format;
 extern unsigned int __vesacon_bytes_per_pixel;
-typedef void * (*__vesacon_format_pixels_t)(void *, const uint32_t *, size_t);
+typedef const void * (*__vesacon_format_pixels_t)(void *, const uint32_t *,
+						  size_t);
 extern __vesacon_format_pixels_t __vesacon_format_pixels;
 extern const __vesacon_format_pixels_t __vesacon_format_pixels_list[PXF_NONE];
 

@@ -34,23 +34,21 @@
 #include <inttypes.h>
 #include "video.h"
 
-/* Format a pixel and return the advanced pointer.
-   THIS FUNCTION IS ALLOWED TO WRITE BEYOND THE END OF THE PIXEL. */
+/*
+ * Format a sequence of pixels.  The first argument is the line buffer;
+ * we can use it to write up to 4 bytes past the end of the last pixel.
+ * Return the place we should be copying from, this is usually the
+ * buffer address, but doesn't *have* to be.
+ */
 
-static inline uint32_t *copy_dword(uint32_t *dst, const uint32_t *src,
-				   size_t dword_count)
+static const void *
+format_pxf_bgra32(void *ptr, const uint32_t *p, size_t n)
 {
-  asm volatile("cld; rep; movsl"
-	       : "+D" (dst), "+S" (src), "+c" (dword_count));
-  return dst;			/* Updated destination pointer */
+  return p;			/* No conversion needed! */
 }
 
-static void *format_pxf_bgra32(void *ptr, const uint32_t *p, size_t n)
-{
-  return copy_dword(ptr, p, n);
-}
-
-static void *format_pxf_bgr24(void *ptr, const uint32_t *p, size_t n)
+static const void *
+format_pxf_bgr24(void *ptr, const uint32_t *p, size_t n)
 {
   char *q = ptr;
 
@@ -58,10 +56,11 @@ static void *format_pxf_bgr24(void *ptr, const uint32_t *p, size_t n)
     *(uint32_t *)q = *p++;
     q += 3;
   }
-  return q;
+  return ptr;
 }
 
-static void *format_pxf_le_rgb16_565(void *ptr, const uint32_t *p, size_t n)
+static const void *
+format_pxf_le_rgb16_565(void *ptr, const uint32_t *p, size_t n)
 {
   uint32_t bgra;
   uint16_t *q = ptr;
@@ -73,10 +72,11 @@ static void *format_pxf_le_rgb16_565(void *ptr, const uint32_t *p, size_t n)
       ((bgra >> (2+8-5)) & (0x3f << 5)) +
       ((bgra >> (3+16-11)) & (0x1f << 11));
   }
-  return q;
+  return ptr;
 }
 
-static void *format_pxf_le_rgb15_555(void *ptr, const uint32_t *p, size_t n)
+static const void *
+format_pxf_le_rgb15_555(void *ptr, const uint32_t *p, size_t n)
 {
   uint32_t bgra;
   uint16_t *q = ptr;
@@ -88,7 +88,7 @@ static void *format_pxf_le_rgb15_555(void *ptr, const uint32_t *p, size_t n)
       ((bgra >> (2+8-5)) & (0x1f << 5)) +
       ((bgra >> (3+16-10)) & (0x1f << 10));
   }
-  return q;
+  return ptr;
 }
 
 __vesacon_format_pixels_t __vesacon_format_pixels;

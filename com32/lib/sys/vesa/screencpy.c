@@ -98,9 +98,8 @@ void __vesacon_copy_to_screen(size_t dst, const uint32_t *src, size_t npixels)
   char rowbuf[bytes+4];
   const char *s;
 
-  __vesacon_format_pixels(rowbuf, src, npixels);
+  s = (const char *)__vesacon_format_pixels(rowbuf, src, npixels);
 
-  s = rowbuf;
   while (bytes) {
     win_off = dst & omask;
     win_pos = dst & ~omask;
