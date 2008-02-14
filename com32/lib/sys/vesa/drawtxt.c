@@ -93,21 +93,6 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
   pixel_offset = ((row*height+VIDEO_BORDER)*VIDEO_X_SIZE)+
     (col*width+VIDEO_BORDER);
 
-  switch (__vesacon_pixel_format) {
-  case PXF_BGR24:
-    bytes_per_pixel = 3;
-    break;
-  case PXF_BGRA32:
-    bytes_per_pixel = 4;
-    break;
-  case PXF_LE_RGB16_565:
-    bytes_per_pixel = 2;
-    break;
-  default:
-    bytes_per_pixel = 0;
-    break;
-  }
-
   fbrowptr = ((uint8_t *)__vesa_info.mi.lfb_ptr) + 
     (row*height+VIDEO_BORDER) * __vesa_info.mi.logical_scan +
     (col*width+VIDEO_BORDER) * bytes_per_pixel;
