@@ -44,6 +44,7 @@
 static const void *
 format_pxf_bgra32(void *ptr, const uint32_t *p, size_t n)
 {
+  (void)ptr; (void)n;
   return p;			/* No conversion needed! */
 }
 
