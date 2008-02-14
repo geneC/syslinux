@@ -66,6 +66,18 @@ static inline __attribute__((always_inline))
     }
     break;
 
+  case PXF_LE_RGB15_555:
+    {
+      uint16_t pxv =
+	((bgra >> 3) & 0x1f) +
+	((bgra >> (2+8-5)) & (0x1f << 5)) +
+	((bgra >> (3+16-10)) & (0x1f << 10));
+
+      *(uint16_t *)ptr = pxv;
+      ptr = (uint16_t *)ptr + 1;
+    }
+    break;
+
   case PXF_NONE:		/* Shuts up gcc */
     break;
   }

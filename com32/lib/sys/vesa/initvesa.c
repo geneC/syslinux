@@ -212,6 +212,11 @@ static int vesacon_set_mode(void)
 	      (mi->memory_layout == 6 && mi->rpos == 11 && mi->gpos == 5 &&
 	       mi->bpos == 0)))
       pxf = PXF_LE_RGB16_565;
+    else if (mi->bpp == 15 &&
+	     (mi->memory_layout == 4 ||
+	      (mi->memory_layout == 6 && mi->rpos == 10 && mi->gpos == 5 &&
+	       mi->bpos == 0)))
+      pxf = PXF_LE_RGB15_555;
 
     if (pxf < bestpxf) {
       debug("Best mode so far, pxf = %d\n", pxf);

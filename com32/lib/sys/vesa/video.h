@@ -55,6 +55,7 @@ enum vesa_pixel_format {
   PXF_BGR24,			/* 24-bit BGR */
   PXF_BGRA32,			/* 32-bit BGRA */
   PXF_LE_RGB16_565,		/* 16-bit littleendian 5:6:5 RGB */
+  PXF_LE_RGB15_555,		/* 15-bit littleendian 5:5:5 RGB */
   PXF_NONE
 };
 
