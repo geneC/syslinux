@@ -56,8 +56,9 @@ void __vesacon_init_copy_to_screen(void)
     /* Linear frame buffer */
 
     wi.win_base = (char *)mi->lfb_ptr;
-    wi.win_size = 0;		/* 4 GB, i.e. one huge window */
+    wi.win_size = 1 << 31;	/* 2 GB, i.e. one huge window */
     wi.win_pos  = 0;		/* Already positioned (only one position...) */
+    wi.win_num  = -1;		/* Not a window */
   } else {
     /* Paged frame buffer */
     
@@ -78,6 +79,9 @@ void __vesacon_init_copy_to_screen(void)
 static void set_window_pos(size_t win_pos)
 {
   static com32sys_t ireg;
+
+  if (wi.win_num < 0)
+    return;
 
   ireg.eax.w[0] = 0x4F05;
   ireg.ebx.b[0] = wi.win_num;
