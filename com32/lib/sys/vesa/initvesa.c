@@ -236,6 +236,7 @@ static int vesacon_set_mode(void)
   mi = &__vesa_info.mi;
   mode = bestmode;
   __vesacon_bytes_per_pixel = (mi->bpp+7) >> 3;
+  __vesacon_format_pixels = __vesacon_format_pixels_list[bestpxf];
 
   /* Download the SYSLINUX- or BIOS-provided font */
   rm.eax.w[0] = 0x0018;		/* Query custom font */

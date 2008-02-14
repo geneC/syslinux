@@ -35,7 +35,6 @@
 #include <minmax.h>
 #include "vesa.h"
 #include "video.h"
-#include "fmtpixel.h"
 
 static size_t filesize(FILE *fp)
 {
@@ -52,18 +51,12 @@ static size_t filesize(FILE *fp)
    aligned dwords. */
 static void draw_background_line(int line, int start, int npixels)
 {
-  uint8_t line_buf[VIDEO_X_SIZE*4], *lbp;
   uint32_t *bgptr = &__vesacon_background[line][start];
   unsigned int bytes_per_pixel = __vesacon_bytes_per_pixel;
-  enum vesa_pixel_format pixel_format = __vesacon_pixel_format;
   uint8_t *fbptr = (uint8_t *)__vesa_info.mi.lfb_ptr +
     line*__vesa_info.mi.logical_scan + start*bytes_per_pixel;
   
-  lbp = line_buf;
-  while (npixels--)
-    lbp = format_pixel(lbp, *bgptr++, pixel_format);
-
-  __vesacon_copy_to_screen(fbptr, line_buf, lbp-line_buf);
+  __vesacon_copy_to_screen(fbptr, bgptr, npixels);
 }
 
 /* This draws the border, then redraws the text area */

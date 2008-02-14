@@ -26,13 +26,10 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * fmtpixel.h
+ * fmtpixel.c
  *
- * Inline function to format a single pixel
+ * Functions to format a single pixel
  */
-
-#ifndef LIB_SYS_VESA_FMTPIXEL_H
-#define LIB_SYS_VESA_FMTPIXEL_H
 
 #include <inttypes.h>
 #include "video.h"
@@ -40,49 +37,65 @@
 /* Format a pixel and return the advanced pointer.
    THIS FUNCTION IS ALLOWED TO WRITE BEYOND THE END OF THE PIXEL. */
 
-static inline __attribute__((always_inline))
-  void *format_pixel(void *ptr, uint32_t bgra, enum vesa_pixel_format fmt)
+static inline uint32_t *copy_dword(uint32_t *dst, const uint32_t *src,
+				   size_t dword_count)
 {
-  switch (fmt) {
-  case PXF_BGRA32:
-    *(uint32_t *)ptr = bgra;
-    ptr = (uint32_t *)ptr + 1;
-    break;
-
-  case PXF_BGR24:
-    *(uint32_t *)ptr = bgra;
-    ptr = (uint8_t *)ptr + 3;
-    break;
-
-  case PXF_LE_RGB16_565:
-    {
-      uint16_t pxv =
-	((bgra >> 3) & 0x1f) +
-	((bgra >> (2+8-5)) & (0x3f << 5)) +
-	((bgra >> (3+16-11)) & (0x1f << 11));
-
-      *(uint16_t *)ptr = pxv;
-      ptr = (uint16_t *)ptr + 1;
-    }
-    break;
-
-  case PXF_LE_RGB15_555:
-    {
-      uint16_t pxv =
-	((bgra >> 3) & 0x1f) +
-	((bgra >> (2+8-5)) & (0x1f << 5)) +
-	((bgra >> (3+16-10)) & (0x1f << 10));
-
-      *(uint16_t *)ptr = pxv;
-      ptr = (uint16_t *)ptr + 1;
-    }
-    break;
-
-  case PXF_NONE:		/* Shuts up gcc */
-    break;
-  }
-
-  return ptr;
+  asm volatile("cld; rep; movsl"
+	       : "+D" (dst), "+S" (src), "+c" (dword_count));
+  return dst;			/* Updated destination pointer */
 }
 
-#endif /* LIB_SYS_VESA_FMTPIXEL_H */
+static void *format_pxf_bgra32(void *ptr, const uint32_t *p, size_t n)
+{
+  return copy_dword(ptr, p, n);
+}
+
+static void *format_pxf_bgr24(void *ptr, const uint32_t *p, size_t n)
+{
+  char *q = ptr;
+
+  while (n--) {
+    *(uint32_t *)q = *p++;
+    q += 3;
+  }
+  return q;
+}
+
+static void *format_pxf_le_rgb16_565(void *ptr, const uint32_t *p, size_t n)
+{
+  uint32_t bgra;
+  uint16_t *q = ptr;
+
+  while (n--) {
+    bgra = *p++;
+    *q++ =
+      ((bgra >> 3) & 0x1f) +
+      ((bgra >> (2+8-5)) & (0x3f << 5)) +
+      ((bgra >> (3+16-11)) & (0x1f << 11));
+  }
+  return q;
+}
+
+static void *format_pxf_le_rgb15_555(void *ptr, const uint32_t *p, size_t n)
+{
+  uint32_t bgra;
+  uint16_t *q = ptr;
+
+  while (n--) {
+    bgra = *p++;
+    *q++ =
+      ((bgra >> 3) & 0x1f) +
+      ((bgra >> (2+8-5)) & (0x1f << 5)) +
+      ((bgra >> (3+16-10)) & (0x1f << 10));
+  }
+  return q;
+}
+
+__vesacon_format_pixels_t __vesacon_format_pixels;
+
+const __vesacon_format_pixels_t __vesacon_format_pixels_list[PXF_NONE] = {
+  [PXF_BGRA32]       = format_pxf_bgra32,
+  [PXF_BGR24]        = format_pxf_bgr24,
+  [PXF_LE_RGB16_565] = format_pxf_le_rgb16_565,
+  [PXF_LE_RGB15_555] = format_pxf_le_rgb15_555,
+};

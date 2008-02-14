@@ -29,7 +29,6 @@
 #include <colortbl.h>
 #include "vesa.h"
 #include "video.h"
-#include "fmtpixel.h"
 #include "fill.h"
 
 /*
@@ -84,7 +83,7 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
   struct vesa_char *rowptr, *rowsptr, *cptr, *csptr;
   unsigned int bytes_per_pixel = __vesacon_bytes_per_pixel;
   unsigned long pixel_offset;
-  uint8_t row_buffer[VIDEO_X_SIZE*4], *rowbufptr;
+  uint32_t row_buffer[VIDEO_X_SIZE], *rowbufptr;
   uint8_t *fbrowptr;
   uint8_t sha;
 
@@ -174,14 +173,11 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 	color &= 0x3f3f3f;
       }
 
-      rowbufptr = format_pixel(rowbufptr, color, __vesacon_pixel_format);
+      *rowbufptr++ = color;
     }
 
     /* Copy to frame buffer */
-    /* Note that the dword_count is rounded down, not up.  That's because
-       the row_buffer includes a spillover pixel. */
-    __vesacon_copy_to_screen(fbrowptr, row_buffer,
-			     (rowbufptr-row_buffer) & ~3);
+    __vesacon_copy_to_screen(fbrowptr, row_buffer, rowbufptr-row_buffer);
 
     bgrowptr += VIDEO_X_SIZE;
     fbrowptr += __vesa_info.mi.logical_scan;

@@ -42,7 +42,7 @@ static struct win_info {
 } wi;
 
 static void *
-vesacon_copy_to_paged_screen(void *dst, const void *src, size_t len);
+memcpy_to_paged_screen(void *dst, const void *src, size_t len);
 
 static inline int __constfunc ilog2(unsigned int x)
 {
@@ -50,15 +50,17 @@ static inline int __constfunc ilog2(unsigned int x)
   return x;
 }
 
+static void * (*memcpy_to_screen)(void *, const void *, size_t);
+
 void __vesacon_init_copy_to_screen(void)
 {
   struct vesa_mode_info * const mi = &__vesa_info.mi;
   int winn;
 
   if (mi->mode_attr & 0x0080) {
-    __vesacon_copy_to_screen = memcpy; /* Really easy... */
+    memcpy_to_screen = memcpy;
   } else {
-    __vesacon_copy_to_screen = vesacon_copy_to_paged_screen;
+    memcpy_to_screen = memcpy_to_paged_screen;
 
     mi->lfb_ptr = 0;		/* Zero-base this */
     wi.win_pos = -1;		/* Undefined position */
@@ -76,8 +78,17 @@ void __vesacon_init_copy_to_screen(void)
   }
 }
 
+void __vesacon_copy_to_screen(void *dst, const uint32_t *src, size_t npixels)
+{
+  size_t bytes = npixels * __vesacon_bytes_per_pixel;
+  char rowbuf[bytes+4];
+
+  __vesacon_format_pixels(rowbuf, src, npixels);
+  memcpy_to_screen(dst, rowbuf, bytes);
+}
+
 static void *
-vesacon_copy_to_paged_screen(void *dst, const void *src, size_t len)
+memcpy_to_paged_screen(void *dst, const void *src, size_t len)
 {
   size_t win_pos, win_off;
   size_t win_size = wi.win_size;
@@ -86,18 +97,16 @@ vesacon_copy_to_paged_screen(void *dst, const void *src, size_t len)
   size_t l;
   size_t d = (size_t)dst;
   const char *s = src;
-  com32sys_t ireg;
-
-  memset(&ireg, 0, sizeof ireg);
-  ireg.eax.w[0] = 0x4F05;	/* VBE Window Control */
-  /* BH = 0 -> Set memory window */
-  ireg.ebx.b[0] = wi.win_num;
 
   while (len) {
     win_off = d & omask;
     win_pos = d & ~omask;
 
     if (win_pos != wi.win_pos) {
+      com32sys_t ireg;
+      memset(&ireg, 0, sizeof ireg);
+      ireg.eax.w[0] = 0x4F05;
+      ireg.ebx.b[0] = wi.win_num;
       ireg.edx.w[0] = win_pos >> wi.win_gshift;
       __intcall(0x10, &ireg, NULL);
       wi.win_pos = win_pos;
