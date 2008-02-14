@@ -100,7 +100,7 @@ void __vesacon_copy_to_screen(size_t dst, const uint32_t *src, size_t npixels)
   char *win_base = wi.win_base;
   size_t l;
   size_t bytes = npixels * __vesacon_bytes_per_pixel;
-  char rowbuf[bytes+4];
+  char rowbuf[bytes+4] __aligned(4);
   const char *s;
 
   s = (const char *)__vesacon_format_pixels(rowbuf, src, npixels);
