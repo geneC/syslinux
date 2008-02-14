@@ -84,7 +84,7 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
   unsigned int bytes_per_pixel = __vesacon_bytes_per_pixel;
   unsigned long pixel_offset;
   uint32_t row_buffer[VIDEO_X_SIZE], *rowbufptr;
-  uint8_t *fbrowptr;
+  size_t fbrowptr;
   uint8_t sha;
 
   bgrowptr  = &__vesacon_background[row*height+VIDEO_BORDER][col*width+VIDEO_BORDER];
@@ -92,8 +92,7 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
   pixel_offset = ((row*height+VIDEO_BORDER)*VIDEO_X_SIZE)+
     (col*width+VIDEO_BORDER);
 
-  fbrowptr = ((uint8_t *)__vesa_info.mi.lfb_ptr) + 
-    (row*height+VIDEO_BORDER) * __vesa_info.mi.logical_scan +
+  fbrowptr = (row*height+VIDEO_BORDER) * __vesa_info.mi.logical_scan +
     (col*width+VIDEO_BORDER) * bytes_per_pixel;
 
   /* Note that we keep a 1-character guard area around the real text area... */

@@ -53,8 +53,7 @@ static void draw_background_line(int line, int start, int npixels)
 {
   uint32_t *bgptr = &__vesacon_background[line][start];
   unsigned int bytes_per_pixel = __vesacon_bytes_per_pixel;
-  uint8_t *fbptr = (uint8_t *)__vesa_info.mi.lfb_ptr +
-    line*__vesa_info.mi.logical_scan + start*bytes_per_pixel;
+  size_t fbptr = line*__vesa_info.mi.logical_scan + start*bytes_per_pixel;
   
   __vesacon_copy_to_screen(fbptr, bgptr, npixels);
 }
