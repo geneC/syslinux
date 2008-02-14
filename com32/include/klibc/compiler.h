@@ -115,4 +115,8 @@
 /* Packed structures */
 #define __packed	__attribute__((packed))
 
+/* Alignment */
+#define __aligned(x)	__attribute__((aligned(x)))
+#define __alignas(x)	__attribute__((aligned(__alignof__(x))))
+
 #endif
