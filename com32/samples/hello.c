@@ -20,21 +20,16 @@
 #include <stdio.h>
 #include <console.h>
 
-int main(void)
+int main(int argc, char *argv[])
 {
-  char buffer[1024];
+  int i;
 
   openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
   printf("Hello, World!\n");
 
-  for (;;) {
-    printf("> ");
-    fgets(buffer, sizeof buffer, stdin);
-    if ( !strncmp(buffer, "exit", 4) )
-      break;
-    printf(": %s", buffer);
-  }
+  for (i = 1; i < argc; i++)
+    printf("%s%c", argv[i], (i == argc-1) ? '\n' : ' ');
 
   return 0;
 }
