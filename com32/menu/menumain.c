@@ -415,7 +415,7 @@ draw_menu(int sel, int top, int edit_line)
   if ( nentries > MENU_ROWS ) {
     int sblen = MENU_ROWS*MENU_ROWS/nentries;
     sbtop = (MENU_ROWS-sblen+1)*top/(nentries-MENU_ROWS+1);
-    sbbot = sbtop + sblen - 1;
+    sbbot = max(sbtop, sbtop+sblen-1);
 
     sbtop += 4;  sbbot += 4;	/* Starting row of scrollbar */
   }
