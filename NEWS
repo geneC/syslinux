@@ -12,6 +12,9 @@ Changes in 3.62:
 	  Linux kernel limit.
 	* vesamenu: support systems without linear framebuffer support
 	  (sigh, what is this, 1993?) and 15-bit RGB modes.
+	* Move the label storage (for the command-line interface) to
+	  high memory, removing the size limit and freeing up 64K of
+	  low memory.
 
 Changes in 3.61:
 	* EXTLINUX: fix crash when accessing an empty file.

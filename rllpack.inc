@@ -1,5 +1,4 @@
-; -*- fundamental -*-
-; -----------------------------------------------------------------------
+; -*- fundamental -*- ---------------------------------------------------
 ;
 ;   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
 ;
@@ -22,29 +21,37 @@
 ; 129-255	= (x-126) times subsequent byte
 ; 0		= end of data
 ;
+; These structures are stored *in reverse order* in high memory.
+; High memory pointers point to one byte beyond the end.
+;
 
 		section .text
 
 ;
 ; rllpack:
-;	Pack CX bytes from DS:SI into ES:DI
-;	Returns updated SI, DI and CX = number of bytes output
+;	Pack CX bytes from SI into EDI.
+;	Returns updated SI and EDI.
 ;
 rllpack:
-		push ax
-		push bx
+		push word .pmentry
+		call simple_pm_call
+		ret
+
+.pmentry:
 		push cx
-		push bp
-		push di
+		push ebx
+		push edx
 .startseq:
 		xor ax,ax		; Zero byte
-		xor bx,bx		; Run length zero
-		mov bp,di		; Pointer to header byte
-		stosb			; Store header byte (might be zero)
+		xor ebx,ebx		; Run length zero
+		dec edi
+		mov edx,edi		; Pointer to header byte
+		mov [edi],al
 		jcxz .done_null
 .stdbyte:
 		lodsb
-		stosb
+		dec edi
+		mov [edi],al
 		dec cx
 		cmp ah,al
 		je .same
@@ -53,7 +60,7 @@ rllpack:
 		xor bx,bx
 .plainbyte:
 		inc bx
-		inc byte [es:bp]
+		inc byte [edx]
 		jcxz .done
 		jns .stdbyte
 		jmp .startseq
@@ -61,18 +68,20 @@ rllpack:
 		cmp bl,2
 		jb .plainbyte
 		; 3 bytes or more in a row, time to convert sequence
-		sub byte [es:bp],bl
+		sub [edx],bl
 		jnz .normal
-		dec di			; We killed a whole stretch, remove start byte
+		inc edi			; We killed a whole stretch,
+					; drop start byte
 .normal:
 		inc bx
-		sub di,bx
-		mov bp,di
+		add edi,ebx
 		mov al,bl
 		add al,126
-		stosb
-		mov al,ah
-		stosb
+		dec edi
+		mov edx,edi
+		mov [edi],al
+		dec edi
+		mov [edi],ah
 .getrun:
 		jcxz .done
 		cmp bl,255-126
@@ -81,52 +90,57 @@ rllpack:
 		cmp al,ah
 		jne .nomatch
 		inc bx
-		inc byte [es:bp]
+		inc byte [edx]
 		dec cx
 		jmp .getrun
 .nomatch:
 		dec si
 		jmp .startseq
 .done:
-		xor al,al
-		stosb
+		dec edi
+		mov [edi],cl		; CX = 0 here
 .done_null:
-		pop dx
-		sub dx,di
-		neg dx
-		pop bp
+		pop edx
+		pop ebx
 		pop cx
-		pop bx
-		pop ax
 		ret
 ;
 ; rllunpack:
-;	Unpack bytes from DS:SI into ES:DI
-;	On return SI, DI are updated and CX contains number of bytes output
+;	Unpack bytes from ESI into DI
+;	On return ESI, DI are updated and CX contains number of bytes output.
 ;
 rllunpack:
-		push ax
+		push word .pmentry
+		call simple_pm_call
+		ret
+
+.pmentry:
 		push di
 		xor cx,cx
 .header:
-		lodsb
+		dec esi
+		mov al,[esi]
 		and al,al
 		jz .done
 		cmp al,129
 		jae .isrun
 		; Not a run
 		mov cl,al
-		rep movsb
+.copy:
+		dec esi
+		mov al,[esi]
+		stosb
+		loop .copy
 		jmp .header
 .isrun:
 		sub al,126
 		mov cl,al
-		lodsb
+		dec esi
+		mov al,[esi]
 		rep stosb
 		jmp .header
 .done:
 		pop cx
 		sub cx,di
 		neg cx
-		pop ax
 		ret

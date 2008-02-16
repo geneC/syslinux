@@ -57,7 +57,6 @@ is_com32_image:
 		sub cx,si
 		fs rep movsb
 
-		call highmemsize	; We need the high memory size...
 		call comboot_setup_api	; Set up the COMBOOT-style API
 
 		mov edi,pm_entry	; Load address
@@ -115,9 +114,10 @@ com32_enter_pm:
 ;
 com32_call_start:
 		;
-		; Point the stack to the end of high memory
+		; Point the stack to the end of (permitted) high memory
 		;
-		mov esp,[word HighMemSize]
+		mov esp,[word HighMemRsvd]
+		xor sp,sp		; Align to a 64K boundary
 
 		;
 		; Set up the protmode IDT and the interrupt jump buffers

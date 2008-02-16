@@ -97,10 +97,14 @@ kernel_sane:	push ax
 ; Save the cluster pointer for later...
 ;
 		push si
+
 ;
-; Get the BIOS' idea of what the size of high memory is.
+; Initialize our end of memory pointer
 ;
-		call highmemsize
+		mov eax,[HighMemRsvd]
+		xor ax,ax			; Align to a 64K boundary
+		mov [MyHighMemSize],eax
+
 ;
 ; Construct the command line (append options have already been copied)
 ;
@@ -195,7 +199,7 @@ is_mem_cmd:
 %if HIGHMEM_SLOP != 0
 		sub ebx,HIGHMEM_SLOP
 %endif
-		mov [cs:HighMemSize],ebx
+		mov [cs:MyHighMemSize],ebx
 		jmp short skip_this_opt
 cmdline_end:
                 push cs                         ; Restore standard DS
@@ -256,7 +260,7 @@ read_kernel:
                 mov si,dotdot_msg		; Print dots
                 call cwritestr
 
-                mov eax,[HighMemSize]
+                mov eax,[MyHighMemSize]
 		sub eax,100000h			; Load address
 		cmp eax,[KernelSize]
 		jb no_high_mem		; Not enough high memory
@@ -592,7 +596,7 @@ loadinitrd:
 		mov es,ax
 
 		push ecx			; Bytes to load
-		mov edx,[HighMemSize]		; End of memory
+		mov edx,[MyHighMemSize]		; End of memory
 		dec edx
 		mov eax,[RamdiskMax]		; Highest address allowed by kernel
 		cmp edx,eax
@@ -670,6 +674,7 @@ boot_image_len  equ $-boot_image
 
 		section .bss
 		alignb 4
+MyHighMemSize	resd 1			; Possibly adjusted highmem size
 RamdiskMax	resd 1			; Highest address for ramdisk
 KernelSize	resd 1			; Size of kernel in bytes
 KernelSects	resd 1			; Size of kernel in sectors

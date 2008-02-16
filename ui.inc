@@ -297,19 +297,14 @@ clin_opt_ok:
 ; Now check if it is a "virtual kernel"
 ;
 vk_check:
-		xor si,si			; Beginning of vk_seg
+		mov esi,[HighMemSize]		; Start from top of memory
 .scan:
-		cmp si,[VKernelBytes]
-		jae .not_vk
-
-		push ds
-		push word vk_seg
-		pop ds
+		cmp esi,[VKernelEnd]
+		jbe .not_vk
 
 		mov di,VKernelBuf
 		call rllunpack
-		pop ds
-		; SI updated on return
+		; ESI updated on return
 
 		sub di,cx			; Return to beginning of buf
 		push si

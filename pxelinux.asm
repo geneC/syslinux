@@ -101,7 +101,7 @@ TFTP_EOPTNEG	equ htons(8)		; Option negotiation failure
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
 ; Since there is no room in the bottom 64K for all of these, we
-; stick them at vk_seg:0000 and copy them down before we need them.
+; stick them in high memory and copy them down before we need them.
 ;
 		struc vkernel
 vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
@@ -119,9 +119,8 @@ vk_end:		equ $			; Should be <= vk_size
 ; Segment assignments in the bottom 640K
 ; 0000h - main code/data segment (and BIOS segment)
 ;
-real_mode_seg	equ 4000h
-pktbuf_seg	equ 3000h		; Packet buffers segments
-vk_seg          equ 2000h		; Virtual kernels
+real_mode_seg	equ 3000h
+pktbuf_seg	equ 2000h		; Packet buffers segments
 xfer_buf_seg	equ 1000h		; Bounce buffer for I/O to high mem
 comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 
