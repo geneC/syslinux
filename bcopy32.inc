@@ -190,7 +190,9 @@ simple_pm_call:
 		pop fs
 		pop es
 		pop ds
+%if DISABLE_A20
 		call disable_a20
+%endif
 
 		popfd			; Re-enables interrupts
 		pop ebp
@@ -412,6 +414,8 @@ a20_test:
 		pop es
 		ret
 
+%if DISABLE_A20
+
 disable_a20:
 		pushad
 ;
@@ -463,6 +467,8 @@ a20d_dunno:
 a20d_none:
 		popad
 		ret
+
+%endif
 
 ;
 ; Routine to empty the 8042 KBC controller.  If dl != 0
@@ -594,8 +600,9 @@ trampoline_to_pm:
 
 		align 2
 A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
+%if DISABLE_A20
 A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
-a20_adjust_cnt	equ ($-A20List)/2
+%endif
 
 A20Type		dw A20_NONE		; A20 type
 
