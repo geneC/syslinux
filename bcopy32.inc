@@ -95,7 +95,7 @@ bcopy_gdt_size:	equ $-bcopy_gdt
 ;	EDI	- first byte after target
 ;
 bcopy:		pushad
-		mov bx,pm_bcopy
+		push word pm_bcopy
 		call simple_pm_call
 		popad
 		add edi,ecx
@@ -112,15 +112,20 @@ bcopy:		pushad
 ; for the duration of the routine.  Don't run for too long at a time.
 ;
 ; Inputs:
-;	BX	- routine to execute
-;	ECX, EDX, EBP, ESI and EDI passed to the called routine
+;	On stack	- pm entrypoint
+;	EAX, EBP preserved until real-mode exit
+;	EBX, ECX, EDX, ESI and EDI passed to the called routine
 ;
 ; Outputs:
-;	EAX, EBX destroyed
+;	EAX, EBP restored from real-mode entry
 ;	All other registers as returned from called function
+;	PM entrypoint cleaned off stack
 ;
 simple_pm_call:
-		pushf			; Saves, among others, the IF flag
+		push eax
+		push ebp
+		mov bp,sp
+		pushfd			; Saves, among others, the IF flag
 		push ds
 		push es
 		push fs
@@ -165,14 +170,14 @@ simple_pm_call:
 		xor ax,ax		; it something that it can use...
 		lldt ax			; (sigh)
 
-		call bx			; Call actual routine
+		call [bp+2*4+2]		; Call actual routine
 
 .exit:
 		mov ax,PM_DS16_RM	; "Real-mode-like" data segment
 		mov es,ax
 		mov ds,ax
 
-		pop bx			; Previous value for ss
+		pop bp			; Previous value for ss
 
 		mov eax,cr0
 		and al,~1
@@ -180,15 +185,17 @@ simple_pm_call:
 		jmp 0:.in_rm
 
 .in_rm:		; Back in real mode
-		mov ss,bx
+		mov ss,bp
 		pop gs
 		pop fs
 		pop es
 		pop ds
 		call disable_a20
 
-		popf			; Re-enables interrupts
-		ret
+		popfd			; Re-enables interrupts
+		pop ebp
+		pop eax
+		ret 2			; Drops the pm entry
 
 ;
 ; pm_bcopy:
