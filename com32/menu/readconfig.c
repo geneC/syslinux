@@ -40,8 +40,9 @@ char *menu_background = NULL;
 
 struct fkey_help fkeyhelp[12];
 
-struct menu_entry menu_entries[MAX_ENTRIES];
-struct menu_entry hide_entries[MAX_ENTRIES];
+struct menu_entry *menu_entries = NULL;
+struct menu_entry *hide_entries = NULL;
+static int menu_entries_space = 0, hide_entries_space = 0;
 struct menu_entry *menu_hotkeys[256];
 
 struct messages messages[MSG_COUNT] = {
@@ -170,7 +171,18 @@ record(struct labeldata *ld, char *append)
 {
   char ipoptions[256], *ipp;
   int i;
-  struct menu_entry *me = &menu_entries[nentries];
+  struct menu_entry *me;
+
+  if (nentries >= menu_entries_space) {
+    if (!menu_entries_space)
+      menu_entries_space = 1;
+    else
+      menu_entries_space <<= 1;
+
+    menu_entries = realloc(menu_entries,
+			   menu_entries_space*sizeof *menu_entries);
+  }
+  me = &menu_entries[nentries];
 
   if ( ld->label ) {
     char *a, *s;
@@ -182,7 +194,7 @@ record(struct labeldata *ld, char *append)
     me->disabled = 0;
 
     if ( ld->menuindent ) {
-      char *n = (char *)malloc(ld->menuindent + strlen(me->displayname) + 1);
+      char *n = malloc(ld->menuindent + strlen(me->displayname) + 1);
       memset(n, 32, ld->menuindent);
       strcpy(n + ld->menuindent, me->displayname);
       me->displayname = n;
@@ -252,10 +264,23 @@ record(struct labeldata *ld, char *append)
       nentries++;
     }
     else {
-      hide_entries[nhidden].displayname = me->displayname;
-      hide_entries[nhidden].label       = me->label;
-      hide_entries[nhidden].cmdline     = me->cmdline;
-      hide_entries[nhidden].passwd      = me->passwd;
+      struct menu_entry *he;
+
+      if (nhidden >= hide_entries_space) {
+	if (!hide_entries_space)
+	  hide_entries_space = 1;
+	else
+	  hide_entries_space <<= 1;
+
+	hide_entries = realloc(hide_entries,
+			       hide_entries_space*sizeof *hide_entries);
+      }
+      he = &hide_entries[nhidden];
+
+      he->displayname = me->displayname;
+      he->label       = me->label;
+      he->cmdline     = me->cmdline;
+      he->passwd      = me->passwd;
 
       me->displayname = NULL;
       me->label       = NULL;
