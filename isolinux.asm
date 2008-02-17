@@ -320,7 +320,7 @@ found_drive:
 		call writemsg
 %endif
 
-		; No such luck.  See if the the spec packet contained one.
+		; No such luck.  See if the spec packet contained one.
 		mov eax,[sp_lba]
 		and eax,eax
 		jz set_file			; Good enough
@@ -578,15 +578,23 @@ spec_query_failed:
 		; Okay, good enough...
 		mov si,alright_msg
 		call writemsg
-		mov [DriveNumber],dl
+.found_drive0:	mov [DriveNumber],dl
 .found_drive:	jmp found_drive
 
 		; Award BIOS 4.51 apparently passes garbage in sp_drive,
 		; but if this was the drive number originally passed in
 		; DL then consider it "good enough"
 .maybe_broken:
-		cmp byte [DriveNumber],dl
+		mov al,[DriveNumber]
+		cmp al,dl
 		je .found_drive
+
+		; Intel Classic R+ computer with Adaptec 1542CP BIOS 1.02
+		; passes garbage in sp_drive, and the drive number originally
+		; passed in DL does not have 80h bit set.
+		or al,80h
+		cmp al,dl
+		je .found_drive0
 
 .still_broken:	dec dx
 		cmp dl, 80h
