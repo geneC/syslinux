@@ -30,12 +30,15 @@
 # define CLK_TCK sysconf(_SC_CLK_TCK)
 #endif
 
+struct menu;
+
 struct menu_entry {
   char *displayname;
   char *label;
-  char *cmdline;
   char *passwd;
   char *helptext;
+  char *cmdline;
+  struct menu *submenu;
   unsigned char hotkey;
   unsigned char disabled;
 };
@@ -57,7 +60,7 @@ enum kernel_type {
   KT_CONFIG,			/* Configuration file */
 };
 
-extern const char *kernel_types[];
+extern const char * const kernel_types[];
 
 /* Configurable messages */
 enum message_number {
@@ -69,48 +72,58 @@ enum message_number {
 
   MSG_COUNT
 };
+
 struct messages {
   const char *name;		/* Message configuration name */
   const char *defmsg;		/* Default message text */
-  char *msg;			/* Actual message text */
 };
-extern struct messages messages[MSG_COUNT];
 
-/* 2048 is the current definition inside syslinux */
-#define MAX_CMDLINE_LEN	 2048
-
-extern struct menu_entry *menu_entries;
-extern struct menu_entry *menu_hotkeys[256];
+extern const struct messages messages[MSG_COUNT];
 
 struct menu_parameter {
   const char *name;
   int value;
 };
 
-extern struct menu_parameter mparm[];
-
-extern int nentries;
-extern int defentry;
-extern int allowedit;
-extern int timeout;
-extern int shiftkey;
-extern int hiddenmenu;
-extern long long totaltimeout;
-
-extern char *ontimeout;
-extern char *onerror;
-extern char *menu_master_passwd;
-extern char *menu_tab_msg;
-extern char *menu_autoboot_msg;
-extern char *menu_passprompt_msg;
-
-extern char *menu_background;
+extern const struct menu_parameter mparm[NPARAMS];
 
 struct fkey_help {
   const char *textname;
   const char *background;
 };
-extern struct fkey_help fkeyhelp[12];
+
+struct menu {
+  struct menu *parent;
+
+  struct menu_entry *menu_entries;
+  struct menu_entry *menu_hotkeys[256];
+
+  const char *messages[MSG_COUNT];
+  int mparm[NPARAMS];
+
+  int nentries;
+  int nentries_space;
+  int defentry;
+  int allowedit;
+  int timeout;
+  int shiftkey;
+  bool hiddenmenu;
+  long long totaltimeout;
+
+  char *ontimeout;
+  char *onerror;
+  char *menu_master_passwd;
+  char *menu_background;
+
+  struct color_table *color_table;
+
+  struct fkey_help fkeyhelp[12];
+};
+
+extern struct menu *root_menu;
+
+/* 2048 is the current definition inside syslinux */
+#define MAX_CMDLINE_LEN	 2048
 
 void parse_configs(char **argv);
 int draw_background(const char *filename);

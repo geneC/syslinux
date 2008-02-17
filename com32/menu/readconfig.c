@@ -46,16 +46,11 @@ static int menu_entries_space = 0, hide_entries_space = 0;
 struct menu_entry *menu_hotkeys[256];
 
 struct messages messages[MSG_COUNT] = {
-  [MSG_TITLE] =
-  { "title", "", NULL },
-  [MSG_AUTOBOOT] =
-  { "autoboot", "Automatic boot in # second{,s}...", NULL },
-  [MSG_TAB] =
-  { "tabmsg", "Press [Tab] to edit options", NULL },
-  [MSG_NOTAB] =
-  { "notabmsg", "", NULL },
-  [MSG_PASSPROMPT] =
-  { "passprompt", "Password required", NULL },
+  [MSG_TITLE]      =  { "title",    "" },
+  [MSG_AUTOBOOT]   =  { "autoboot", "Automatic boot in # second{,s}..." },
+  [MSG_TAB]        =  { "tabmsg",   "Press [Tab] to edit options", NULL },
+  [MSG_NOTAB]      =  { "notabmsg", "" },
+  [MSG_PASSPROMPT] =  { "passprompt", "Password required", NULL },
 };
 
 #define astrdup(x) ({ char *__x = (x); \
@@ -120,7 +115,7 @@ get_config(void)
 #endif
 }
 
-#define MAX_LINE 512
+#define MAX_LINE 4096
 
 static char *
 skipspace(char *p)
@@ -148,6 +143,39 @@ looking_at(char *line, const char *kwd)
     return NULL;		/* Didn't see the keyword */
 
   return my_isspace(*p) ? p : NULL; /* Must be EOL or whitespace */
+}
+
+struct menu *start_menu(struct menu *parent)
+{
+  struct menu *m = malloc(sizeof(struct menu));
+  int i;
+
+  if (parent) {
+    /* Submenu */
+    memcpy(m, parent, sizeof *m);
+
+    m->menu_entries = NULL;
+    memset(m->menu_hotkeys, 0, sizeof m->menu_hotkeys);
+
+    m->parent = parent;
+    m->nentries = 0;
+    m->nentries_space = 0;
+    m->defentry = 0;
+    m->color_table = default_color_table(parent->color_table);
+  } else {
+    /* Root menu */
+
+    memset(m, 0, sizeof *m);
+
+    for (i = 0; i < MSG_COUNT; i++)
+      m->messages[i] = messages.defmsg[i];
+    for (i = 0; i < NPARAMS; i++)
+      m->mparm[i] = mparm[i].value;
+
+    m->color_table = default_color_table(NULL);
+  }
+
+  return m;
 }
 
 struct labeldata {
