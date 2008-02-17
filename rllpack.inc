@@ -18,7 +18,8 @@
 ;
 ; Format of leading byte
 ; 1-128		= x verbatim bytes follow
-; 129-255	= (x-126) times subsequent byte
+; 129-223	= (x-126) times subsequent byte
+; 224-255	= (x-224)*256+(next byte) times the following byte
 ; 0		= end of data
 ;
 ; These structures are stored *in reverse order* in high memory.
@@ -46,8 +47,8 @@ rllpack:
 		xor ebx,ebx		; Run length zero
 		dec edi
 		mov edx,edi		; Pointer to header byte
-		mov [edi],al
-		jcxz .done_null
+		mov [edi],al		; Create header byte
+		jcxz .done		; If done, this was the terminator
 .stdbyte:
 		lodsb
 		dec edi
@@ -61,7 +62,7 @@ rllpack:
 .plainbyte:
 		inc bx
 		inc byte [edx]
-		jcxz .done
+		jcxz .startseq
 		jns .stdbyte
 		jmp .startseq
 .same:
@@ -74,32 +75,35 @@ rllpack:
 					; drop start byte
 .normal:
 		inc bx
-		add edi,ebx
-		mov al,bl
-		add al,126
-		dec edi
-		mov edx,edi
-		mov [edi],al
-		dec edi
-		mov [edi],ah
+		add edi,ebx		; Remove the stored run bytes
 .getrun:
-		jcxz .done
-		cmp bl,255-126
-		jae .startseq
+		jcxz .nomatch
 		lodsb
 		cmp al,ah
 		jne .nomatch
+		cmp bx,(256-224)*256-1	; Maximum run size
+		jae .nomatch
 		inc bx
-		inc byte [edx]
 		dec cx
 		jmp .getrun
 .nomatch:
-		dec si
+		cmp bx,224-126
+		jae .twobyte
+.onebyte:
+		add bl,126
+		dec edi
+		mov [edi],bl
+		jmp .storebyte
+.twobyte:
+		add bh,224
+		sub edi,2
+		mov [edi],bx
+.storebyte:
+		dec edi
+		mov [edi],ah
+		dec si			; Reload subsequent byte
 		jmp .startseq
 .done:
-		dec edi
-		mov [edi],cl		; CX = 0 here
-.done_null:
 		pop edx
 		pop ebx
 		pop cx
@@ -119,13 +123,11 @@ rllunpack:
 		xor cx,cx
 .header:
 		dec esi
-		mov al,[esi]
-		and al,al
-		jz .done
-		cmp al,129
+		mov cl,[esi]
+		jcxz .done
+		cmp cl,129
 		jae .isrun
 		; Not a run
-		mov cl,al
 .copy:
 		dec esi
 		mov al,[esi]
@@ -133,12 +135,20 @@ rllunpack:
 		loop .copy
 		jmp .header
 .isrun:
-		sub al,126
-		mov cl,al
+		cmp cl,224
+		jae .longrun
+		sub cl,126
+.dorun:
 		dec esi
 		mov al,[esi]
 		rep stosb
 		jmp .header
+.longrun:
+		sub cl,224
+		mov ch,cl
+		dec esi
+		mov cl,[esi]
+		jmp .dorun
 .done:
 		pop cx
 		sub cx,di
