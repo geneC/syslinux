@@ -164,13 +164,23 @@ static int vesacon_set_mode(void)
       continue;
 
     /* We don't support multibank (interlaced memory) modes */
-    if ( mi->banks > 1 )
+    /* 
+     *  Note: The Bochs VESA BIOS (vbe.c 1.58 2006/08/19) violates the
+     * specification which states that banks == 1 for unbanked modes;
+     * fortunately it does report bank_size == 0 for those.
+     */
+    if ( mi->banks > 1 && mi->bank_size ) {
+      debug("bad: banks = %d, banksize = %d, pages = %d\r\n",
+	    mi->banks, mi->bank_size, mi->image_pages);
       continue;
+    }
 
     /* Must be either a flat-framebuffer mode, or be an acceptable
        paged mode */
-    if ( !(mi->mode_attr & 0x0080) && !vesacon_paged_mode_ok(mi) )
+    if ( !(mi->mode_attr & 0x0080) && !vesacon_paged_mode_ok(mi) ) {
+      debug("bad: invalid paged mode\r\n");
       continue;
+    }
 
     /* Must either be a packed-pixel mode or a direct color mode
        (depending on VESA version ); must be a supported pixel format */
@@ -198,7 +208,7 @@ static int vesacon_set_mode(void)
       pxf = PXF_LE_RGB15_555;
 
     if (pxf < bestpxf) {
-      debug("Best mode so far, pxf = %d\n", pxf);
+      debug("Best mode so far, pxf = %d\r\n", pxf);
 
       /* Best mode so far... */
       bestmode = mode;
@@ -302,7 +312,7 @@ int __vesacon_init(void)
 
   init_text_display();
 
-  debug("Mode set, now drawing at %#p\n", __vesa_info.mi.lfb_ptr);
+  debug("Mode set, now drawing at %#p\r\n", __vesa_info.mi.lfb_ptr);
 
   __vesacon_init_background();
 
