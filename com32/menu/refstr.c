@@ -66,6 +66,7 @@ int vrsprintf(const char **bufp, const char *fmt, va_list ap)
 
   *(unsigned int *)p = 1;
   p += sizeof(unsigned int);
+  *bufp = p;
 
   return vsnprintf(p, bytes, fmt, ap);
 }
