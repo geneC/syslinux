@@ -22,10 +22,11 @@
 #include <stddef.h>
 #include <stdarg.h>
 
-static inline const char *refstr_get(const char *r)
+static inline __attribute__((always_inline))
+const char *refstr_get(const char *r)
 {
-  unsigned int *ref = (unsigned int *)r - 1;
-  ref++;
+  if (r)
+    ((unsigned int *)r)[-1]++;
   return r;
 }
 
