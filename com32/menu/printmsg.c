@@ -102,17 +102,18 @@ static int draw_message_file(const char *filename)
 int show_message_file(const char *filename, const char *background)
 {
   int rv = KEY_NONE;
+  const char *old_background = NULL;
 
-  if (background && (!menu_background || strcmp(background, menu_background)))
-    draw_background(background);
-  else
-    background = NULL;
+  if (background) {
+    old_background = current_background;
+    set_background(background);
+  }
 
   if ( !(rv = draw_message_file(filename)) )
     rv = mygetkey(0);		/* Wait for keypress */
 
-  if (background)
-    draw_background(menu_background);
+  if (old_background)
+    set_background(old_background);
 
   return rv;
 }

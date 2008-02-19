@@ -18,9 +18,10 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include "refstr.h"
 
-const char *refstr_mkn(const char *str, size_t len)
+const char *refstrndup(const char *str, size_t len)
 {
   char *r;
 
@@ -33,9 +34,9 @@ const char *refstr_mkn(const char *str, size_t len)
   return r;
 }
 
-const char *refstr_mk(const char *str)
+const char *refstrdup(const char *str)
 {
-  refstr *r;
+  char *r;
   size_t len;
 
   len = strlen(str);
@@ -47,10 +48,48 @@ const char *refstr_mk(const char *str)
   return r;
 }
 
+int vrsprintf(const char **bufp, const char *fmt, va_list ap)
+{
+  va_list ap1;
+  int bytes;
+  char *p;
+
+  va_copy(ap1, ap);
+  bytes = vsnprintf(NULL, 0, fmt, ap1)+1;
+  va_end(ap1);
+
+  p = malloc(bytes+sizeof(unsigned int));
+  if ( !p ) {
+    *bufp = NULL;
+    return -1;
+  }
+
+  *(unsigned int *)p = 1;
+  p += sizeof(unsigned int);
+
+  return vsnprintf(p, bytes, fmt, ap);
+}
+
+int rsprintf(const char **bufp, const char *fmt, ...)
+{
+  int rv;
+  va_list ap;
+
+  va_start(ap, fmt);
+  rv = vrsprintf(bufp, fmt, ap);
+  va_end(ap);
+
+  return rv;
+}
+
 void refstr_put(const char *r)
 {
-  unsigned int *ref = (unsigned int *)r - 1;
+  unsigned int *ref;
 
-  if (!--*ref)
-    free(ref);
+  if (r) {
+    ref = (unsigned int *)r - 1;
+    
+    if (!--*ref)
+      free(ref);
+  }
 }

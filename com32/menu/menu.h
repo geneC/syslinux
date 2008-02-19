@@ -25,12 +25,23 @@
 #include <inttypes.h>
 #include <unistd.h>
 #include <colortbl.h>
+#include <stdbool.h>
+#include "refstr.h"
 
 #ifndef CLK_TCK
 # define CLK_TCK sysconf(_SC_CLK_TCK)
 #endif
 
 struct menu;
+
+enum menu_action {
+  MA_CMD,			/* Execute a command */
+  MA_DISABLED,			/* Disabled menu entry */
+  MA_SUBMENU,			/* This is a submenu entry */
+  MA_GOTO,			/* Go to another menu */
+  MA_GOTO_UNRES,		/* Unresolved go to */
+  MA_QUIT,			/* Quit to CLI */
+};
 
 struct menu_entry {
   char *displayname;
@@ -39,9 +50,15 @@ struct menu_entry {
   char *helptext;
   char *cmdline;
   struct menu *submenu;
+  struct menu_entry *next;	/* Linked list of all labels across menus */
+  enum menu_action action;
   unsigned char hotkey;
-  unsigned char disabled;
 };
+
+static inline bool is_disabled(struct menu_entry *me)
+{
+  return me->action == MA_DISABLED;
+}
 
 enum kernel_type {
   /* Meta-types for internal use */
@@ -61,6 +78,26 @@ enum kernel_type {
 };
 
 extern const char * const kernel_types[];
+
+/* Configurable integer parameters */
+enum parameter_number {
+  P_WIDTH,
+  P_MARGIN,
+  P_PASSWD_MARGIN,
+  P_MENU_ROWS,
+  P_TABMSG_ROW,
+  P_CMDLINE_ROW,
+  P_END_ROW,
+  P_PASSWD_ROW,
+  P_TIMEOUT_ROW,
+  P_HELPMSG_ROW,
+  P_HELPMSGEND_ROW,
+  P_HSHIFT,
+  P_VSHIFT,
+  P_HIDDEN_ROW,
+  
+  NPARAMS
+};
 
 /* Configurable messages */
 enum message_number {
@@ -93,7 +130,10 @@ struct fkey_help {
 };
 
 struct menu {
+  struct menu *next;		/* Linked list of all menus */
+  const char *label;		/* Goto label for this menu */
   struct menu *parent;
+  int parent_entry;
 
   struct menu_entry *menu_entries;
   struct menu_entry *menu_hotkeys[256];
@@ -120,10 +160,15 @@ struct menu {
   struct fkey_help fkeyhelp[12];
 };
 
-extern struct menu *root_menu;
+extern struct menu *root_menu, *start_menu, *hide_menu, *menu_list;
 
 /* 2048 is the current definition inside syslinux */
 #define MAX_CMDLINE_LEN	 2048
+
+/* These are global parameters regardless of which menu we're displaying */
+extern int shiftkey;
+extern int hiddenmenu;
+extern long long totaltimeout;
 
 void parse_configs(char **argv);
 int draw_background(const char *filename);
@@ -146,13 +191,22 @@ extern const int message_base_color;
 int mygetkey(clock_t timeout);
 int show_message_file(const char *filename, const char *background);
 
+/* passwd.c */
+int passwd_compare(const char *passwd, const char *entry);
+
+/* colors.c */
 #define MSG_COLORS_DEF_FG	0x90ffffff
 #define MSG_COLORS_DEF_BG	0x80ffffff
 #define MSG_COLORS_DEF_SHADOW	SHADOW_NORMAL
-void set_msg_colors_global(unsigned int fg, unsigned int bg,
+void set_msg_colors_global(struct color_table *tbl,
+			   unsigned int fg, unsigned int bg,
 			   enum color_table_shadow shadow);
+struct color_table *default_color_table(void);
+struct color_table *copy_color_table(const struct color_table *master);
+extern const int message_base_color;
 
-/* passwd.c */
-int passwd_compare(const char *passwd, const char *entry);
+/* background.c */
+extern const char *current_background;
+void set_background(const char *new_background);
 
 #endif /* MENU_H */

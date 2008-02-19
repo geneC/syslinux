@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *
+ *   
  *   Copyright 2008 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -10,29 +10,18 @@
  *
  * ----------------------------------------------------------------------- */
 
-/*
- * refstr.h
- *
- * Simple reference-counted strings
- */
+#include <consoles.h>
+#include <string.h>
+#include "menu.h"
 
-#ifndef REFSTR_H
-#define REFSTR_H
+const char *current_background = NULL;
 
-#include <stddef.h>
-#include <stdarg.h>
-
-static inline const char *refstr_get(const char *r)
+void set_background(const char *new_background)
 {
-  unsigned int *ref = (unsigned int *)r - 1;
-  ref++;
-  return r;
+  if (!current_background ||
+      strcmp(current_background, new_background)) {
+    draw_background(new_background);
+    current_background = new_background;
+  }
 }
 
-void refstr_put(const char *);
-const char *refstrdup(const char *);
-const char *refstrndup(const char *, size_t);
-int rsprintf(const char **, const char *, ...);
-int vrsprintf(const char **, const char *, va_list);
-
-#endif

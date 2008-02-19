@@ -30,37 +30,41 @@
 
 #include "menu.h"
 
+/* The symbol "cm" always refers to the current menu across this file... */
+static const struct menu *cm;
+
 const struct menu_parameter mparm[NPARAMS] = {
-  { "width", 80 },
-  { "margin", 10 },
-  { "passwordmargin", 3 },
-  { "rows", 12 },
-  { "tabmsgrow", 18 },
-  { "cmdlinerow", 18 },
-  { "endrow", -1 },
-  { "passwordrow", 11 },
-  { "timeoutrow", 20 },
-  { "helpmsgrow", 22 },
-  { "helpmsgendrow", -1 },
-  { "hshift", 0 },
-  { "vshift", 0 },
-  { "hiddenrow", -2 },
+  [P_WIDTH]		= { "width", 0 },
+  [P_MARGIN]		= { "margin", 10 },
+  [P_PASSWD_MARGIN]	= { "passwordmargin", 3 },
+  [P_MENU_ROWS]		= { "rows", 12 },
+  [P_TABMSG_ROW]	= { "tabmsgrow", 18 },
+  [P_CMDLINE_ROW]	= { "cmdlinerow", 18 },
+  [P_END_ROW]		= { "endrow", -1 },
+  [P_PASSWD_ROW]	= { "passwordrow", 11 },
+  [P_TIMEOUT_ROW]	= { "timeoutrow", 20 },
+  [P_HELPMSG_ROW]	= { "helpmsgrow", 22 },
+  [P_HELPMSGEND_ROW]	= { "helpmsgendrow", -1 },
+  [P_HSHIFT]		= { "hshift", 0 },
+  [P_VSHIFT]		= { "vshift", 0 },
+  [P_HIDDEN_ROW]	= { "hiddenrow", -2 },
 };
 
-#define WIDTH		mparm[0].value
-#define MARGIN		mparm[1].value
-#define PASSWD_MARGIN	mparm[2].value
-#define MENU_ROWS	mparm[3].value
-#define TABMSG_ROW	(mparm[4].value+VSHIFT)
-#define CMDLINE_ROW	(mparm[5].value+VSHIFT)
-#define END_ROW		mparm[6].value
-#define PASSWD_ROW	(mparm[7].value+VSHIFT)
-#define TIMEOUT_ROW	(mparm[8].value+VSHIFT)
-#define HELPMSG_ROW	(mparm[9].value+VSHIFT)
-#define HELPMSGEND_ROW	mparm[10].value
-#define HSHIFT		mparm[11].value
-#define VSHIFT		mparm[12].value
-#define HIDDEN_ROW	mparm[13].value
+/* These macros assume "cm" is a pointer to the current menu */
+#define WIDTH		(cm->mparm[P_WIDTH])
+#define MARGIN		(cm->mparm[P_MARGIN])
+#define PASSWD_MARGIN	(cm->mparm[P_PASSWD_MARGIN])
+#define MENU_ROWS	(cm->mparm[P_MENU_ROWS])
+#define TABMSG_ROW	(cm->mparm[P_TABMSG_ROW]+VSHIFT)
+#define CMDLINE_ROW	(cm->mparm[P_CMDLINE_ROW]+VSHIFT)
+#define END_ROW		(cm->mparm[P_END_ROW])
+#define PASSWD_ROW	(cm->mparm[P_PASSWD_ROW]+VSHIFT)
+#define TIMEOUT_ROW	(cm->mparm[P_TIMEOUT_ROW]+VSHIFT)
+#define HELPMSG_ROW	(cm->mparm[P_HELPMSG_ROW]+VSHIFT)
+#define HELPMSGEND_ROW	(cm->mparm[P_HELPMSGEND_ROW])
+#define HSHIFT		(cm->mparm[P_HSHIFT])
+#define VSHIFT		(cm->mparm[P_VSHIFT])
+#define HIDDEN_ROW	(cm->mparm[P_HIDDEN_ROW])
 
 static char *
 pad_line(const char *text, int align, int width)
@@ -117,22 +121,22 @@ static void
 draw_row(int y, int sel, int top, int sbtop, int sbbot)
 {
   int i = (y-4-VSHIFT)+top;
-  int dis = (i < nentries) && menu_entries[i].disabled;
+  int dis = (i < cm->nentries) && is_disabled(&cm->menu_entries[i]);
 
   printf("\033[%d;%dH\1#1\016x\017%s ",
 	 y, MARGIN+1+HSHIFT,
 	 (i == sel) ? "\1#5" : dis ? "\2#17" : "\1#3");
 
-  if ( i >= nentries ) {
+  if ( i >= cm->nentries ) {
     fputs(pad_line("", 0, WIDTH-2*MARGIN-4), stdout);
   } else {
-    display_entry(&menu_entries[i],
+    display_entry(&cm->menu_entries[i],
 		  (i == sel) ? "\1#5" : dis ? "\2#17" : "\1#3",
 		  (i == sel) ? "\1#6" : dis ? "\2#17" : "\1#4",
 		  WIDTH-2*MARGIN-4);
   }
 
-  if ( nentries <= MENU_ROWS ) {
+  if ( cm->nentries <= MENU_ROWS ) {
     printf(" \1#1\016x\017");
   } else if ( sbtop > 0 ) {
     if ( y >= sbtop && y <= sbbot )
@@ -201,8 +205,8 @@ ask_passwd(const char *menu_entry)
     putchar('q');
 
   printf("j\017\033[%d;%dH\2#12 %s \033[%d;%dH\2#13",
-	 PASSWD_ROW, (WIDTH-(strlen(messages[MSG_PASSPROMPT].msg)+2))/2,
-	 messages[MSG_PASSPROMPT].msg, PASSWD_ROW+1, PASSWD_MARGIN+3);
+	 PASSWD_ROW, (WIDTH-(strlen(cm->messages[MSG_PASSPROMPT])+2))/2,
+	 cm->messages[MSG_PASSPROMPT], PASSWD_ROW+1, PASSWD_MARGIN+3);
 
   /* Actually allow user to type a password, then compare to the SHA1 */
   done = 0;
@@ -254,7 +258,8 @@ ask_passwd(const char *menu_entry)
 
   *p = '\0';
 
-  return (menu_master_passwd && passwd_compare(menu_master_passwd, user_passwd))
+  return (cm->menu_master_passwd &&
+	  passwd_compare(cm->menu_master_passwd, user_passwd))
     || (menu_entry && passwd_compare(menu_entry, user_passwd));
 }
 
@@ -267,9 +272,9 @@ draw_menu(int sel, int top, int edit_line)
   const char *tabmsg;
   int tabmsg_len;
 
-  if ( nentries > MENU_ROWS ) {
-    int sblen = MENU_ROWS*MENU_ROWS/nentries;
-    sbtop = (MENU_ROWS-sblen+1)*top/(nentries-MENU_ROWS+1);
+  if ( cm->nentries > MENU_ROWS ) {
+    int sblen = MENU_ROWS*MENU_ROWS/cm->nentries;
+    sbtop = (MENU_ROWS-sblen+1)*top/(cm->nentries-MENU_ROWS+1);
     sbbot = max(sbtop, sbtop+sblen-1);
 
     sbtop += 4;  sbbot += 4;	/* Starting row of scrollbar */
@@ -282,7 +287,7 @@ draw_menu(int sel, int top, int edit_line)
   printf("k\033[%d;%dH\1#1x\017\1#2 %s \1#1\016x",
 	 VSHIFT+2,
 	 HSHIFT+MARGIN+1,
-	 pad_line(messages[MSG_TITLE].msg, 1, WIDTH-2*MARGIN-4));
+	 pad_line(cm->messages[MSG_TITLE], 1, WIDTH-2*MARGIN-4));
 
   printf("\033[%d;%dH\1#1t", VSHIFT+3, HSHIFT+MARGIN+1);
   for ( x = 2+HSHIFT ; x <= (WIDTH-2*MARGIN-1)+HSHIFT ; x++ )
@@ -297,10 +302,10 @@ draw_menu(int sel, int top, int edit_line)
     putchar('q');
   fputs("j\017", stdout);
 
-  if ( edit_line && allowedit && !menu_master_passwd )
-    tabmsg = messages[MSG_TAB].msg;
+  if ( edit_line && cm->allowedit && !cm->menu_master_passwd )
+    tabmsg = cm->messages[MSG_TAB];
   else
-    tabmsg = messages[MSG_NOTAB].msg;
+    tabmsg = cm->messages[MSG_NOTAB];
 
   tabmsg_len = strlen(tabmsg);
 
@@ -374,9 +379,9 @@ static void show_fkey(int key)
     if (fkey == -1)
       break;
 
-    if (fkeyhelp[fkey].textname)
-      key = show_message_file(fkeyhelp[fkey].textname,
-			      fkeyhelp[fkey].background);
+    if (cm->fkeyhelp[fkey].textname)
+      key = show_message_file(cm->fkeyhelp[fkey].textname,
+			      cm->fkeyhelp[fkey].background);
     else
       break;
   }
@@ -626,6 +631,15 @@ print_timeout_message(int tol, int row, const char *msg)
   printf("\033[%d;%dH\2#14    %s    ", row, HSHIFT+1+((WIDTH-nc-8)>>1), buf);
 }
 
+/* Set the background screen, etc. */
+static void
+prepare_screen_for_menu(void)
+{
+  console_color_table = cm->color_table;
+  console_color_table_size = message_base_color+256;
+  set_background(cm->menu_background);
+}
+
 static const char *
 do_hidden_menu(void)
 {
@@ -635,12 +649,12 @@ do_hidden_menu(void)
   clear_screen();
 
   if ( !setjmp(timeout_jump) ) {
-    timeout_left = timeout;
+    timeout_left = cm->timeout;
 
-    while (!timeout || timeout_left) {
+    while (!cm->timeout || timeout_left) {
       int tol = timeout_left/CLK_TCK;
 
-      print_timeout_message(tol, HIDDEN_ROW, messages[MSG_AUTOBOOT].msg);
+      print_timeout_message(tol, HIDDEN_ROW, cm->messages[MSG_AUTOBOOT]);
 
       this_timeout = min(timeout_left, CLK_TCK);
       key = mygetkey(this_timeout);
@@ -652,7 +666,7 @@ do_hidden_menu(void)
     }
   }
 
-  return menu_entries[defentry].cmdline; /* Default entry */
+  return cm->menu_entries[cm->defentry].cmdline; /* Default entry */
 }
 
 static const char *
@@ -660,19 +674,25 @@ run_menu(void)
 {
   int key;
   int done = 0;
-  volatile int entry = defentry, prev_entry = -1;
+  volatile int entry = cm->defentry, prev_entry = -1;
   int top = 0, prev_top = -1;
   int clear = 1, to_clear;
   const char *cmdline = NULL;
   volatile clock_t key_timeout, timeout_left, this_timeout;
 
   /* Note: for both key_timeout and timeout == 0 means no limit */
-  timeout_left = key_timeout = timeout;
+  timeout_left = key_timeout = cm->timeout;
 
-  /* If we're in shiftkey mode, exit immediately unless a shift key is pressed */
+  /* If we're in shiftkey mode, exit immediately unless a shift key
+     is pressed */
   if ( shiftkey && !shift_is_held() ) {
-    return menu_entries[defentry].cmdline;
+    return cm->menu_entries[cm->defentry].cmdline;
+  } else {
+    shiftkey = 0;
   }
+
+  /* Do this before hiddenmenu handling, so we show the background */
+  prepare_screen_for_menu();
 
   /* Handle hiddenmenu */
   if ( hiddenmenu ) {
@@ -688,33 +708,35 @@ run_menu(void)
 
   /* Handle both local and global timeout */
   if ( setjmp(timeout_jump) ) {
-    entry = defentry;
+    entry = cm->defentry;
 
     if ( top < 0 || top < entry-MENU_ROWS+1 )
       top = max(0, entry-MENU_ROWS+1);
-    else if ( top > entry || top > max(0,nentries-MENU_ROWS) )
-      top = min(entry, max(0,nentries-MENU_ROWS));
+    else if ( top > entry || top > max(0, cm->nentries-MENU_ROWS) )
+      top = min(entry, max(0, cm->nentries-MENU_ROWS));
 
-    draw_menu(ontimeout ? -1 : entry, top, 1);
-    cmdline = ontimeout ? ontimeout : menu_entries[entry].cmdline;
+    draw_menu(cm->ontimeout ? -1 : entry, top, 1);
+    cmdline = cm->ontimeout ? cm->ontimeout : cm->menu_entries[entry].cmdline;
     done = 1;
   }
 
   while ( !done ) {
     if ( entry <= 0 ) {
       entry = 0;
-      while ( entry < nentries && menu_entries[entry].disabled ) entry++;
+      while (entry < cm->nentries && is_disabled(&cm->menu_entries[entry]))
+	entry++;
     }
 
-    if ( entry >= nentries ) {
-      entry = nentries-1;
-      while ( entry > 0 && menu_entries[entry].disabled ) entry--;
+    if ( entry >= cm->nentries ) {
+      entry = cm->nentries-1;
+      while (entry > 0 && is_disabled(&cm->menu_entries[entry]))
+	entry--;
     }
 
     if ( top < 0 || top < entry-MENU_ROWS+1 )
       top = max(0, entry-MENU_ROWS+1);
-    else if ( top > entry || top > max(0,nentries-MENU_ROWS) )
-      top = min(entry, max(0,nentries-MENU_ROWS));
+    else if ( top > entry || top > max(0, cm->nentries-MENU_ROWS) )
+      top = min(entry, max(0, cm->nentries-MENU_ROWS));
 
     /* Start with a clear screen */
     if ( clear ) {
@@ -728,22 +750,22 @@ run_menu(void)
 
     if ( top != prev_top ) {
       draw_menu(entry, top, 1);
-      display_help(menu_entries[entry].helptext);
+      display_help(cm->menu_entries[entry].helptext);
     } else if ( entry != prev_entry ) {
       draw_row(prev_entry-top+4+VSHIFT, entry, top, 0, 0);
       draw_row(entry-top+4+VSHIFT, entry, top, 0, 0);
-      display_help(menu_entries[entry].helptext);
+      display_help(cm->menu_entries[entry].helptext);
     }
 
     prev_entry = entry;  prev_top = top;
 
     /* Cursor movement cancels timeout */
-    if ( entry != defentry )
+    if ( entry != cm->defentry )
       key_timeout = 0;
 
     if ( key_timeout ) {
       int tol = timeout_left/CLK_TCK;
-      print_timeout_message(tol, TIMEOUT_ROW, messages[MSG_AUTOBOOT].msg);
+      print_timeout_message(tol, TIMEOUT_ROW, cm->messages[MSG_AUTOBOOT]);
       to_clear = 1;
     } else {
       to_clear = 0;
@@ -781,37 +803,38 @@ run_menu(void)
     case KEY_ENTER:
     case KEY_CTRL('J'):
       key_timeout = 0;		/* Cancels timeout */
-      if ( menu_entries[entry].passwd ) {
+      if ( cm->menu_entries[entry].passwd ) {
 	clear = 1;
-	done = ask_passwd(menu_entries[entry].passwd);
+	done = ask_passwd(cm->menu_entries[entry].passwd);
       } else {
 	done = 1;
       }
-      cmdline = menu_entries[entry].cmdline;
+      cmdline = cm->menu_entries[entry].cmdline;
       break;
 
     case KEY_UP:
     case KEY_CTRL('P'):
-      while ( entry > 0 && entry-- && menu_entries[entry].disabled ) {
+      while (entry > 0 && entry-- && is_disabled(&cm->menu_entries[entry])) {
 	if ( entry < top )
 	  top -= MENU_ROWS;
       }
 
       if ( entry == 0 ) {
-        while ( menu_entries[entry].disabled )
+        while (is_disabled(&cm->menu_entries[entry]))
           entry++;
       }
       break;
 
     case KEY_DOWN:
     case KEY_CTRL('N'):
-      while ( entry < nentries-1 && entry++ && menu_entries[entry].disabled ) {
+      while (entry < cm->nentries-1 && entry++ &&
+	     is_disabled(&cm->menu_entries[entry])) {
 	if ( entry >= top+MENU_ROWS )
 	  top += MENU_ROWS;
       }
 
-      if ( entry == nentries-1 ) {
-        while ( menu_entries[entry].disabled )
+      if ( entry >= cm->nentries-1 ) {
+        while (is_disabled(&cm->menu_entries[entry]))
           entry--;
       }
       break;
@@ -850,8 +873,8 @@ run_menu(void)
 
     case KEY_CTRL('E'):
     case KEY_END:
-      entry = nentries - 1;
-      top = max(0, nentries-MENU_ROWS);
+      entry = cm->nentries - 1;
+      top = max(0, cm->nentries-MENU_ROWS);
       break;
 
     case KEY_F1:
@@ -871,13 +894,13 @@ run_menu(void)
       break;
 
     case KEY_TAB:
-      if ( allowedit ) {
+      if ( cm->allowedit ) {
 	int ok = 1;
 
 	key_timeout = 0;	/* Cancels timeout */
 	draw_row(entry-top+4+VSHIFT, -1, top, 0, 0);
 
-	if ( menu_master_passwd ) {
+	if ( cm->menu_master_passwd ) {
 	  ok = ask_passwd(NULL);
 	  clear_screen();
 	  draw_menu(-1, top, 0);
@@ -888,7 +911,7 @@ run_menu(void)
 	}
 
 	if ( ok ) {
-	  cmdline = edit_cmdline(menu_entries[entry].cmdline, top);
+	  cmdline = edit_cmdline(cm->menu_entries[entry].cmdline, top);
 	  done = !!cmdline;
 	  clear = 1;		/* In case we hit [Esc] and done is null */
 	} else {
@@ -898,23 +921,23 @@ run_menu(void)
       break;
     case KEY_CTRL('C'):		/* Ctrl-C */
     case KEY_ESC:		/* Esc */
-      if ( allowedit ) {
+      if ( cm->allowedit ) {
 	done = 1;
 	clear = 1;
 	key_timeout = 0;
 
 	draw_row(entry-top+4+VSHIFT, -1, top, 0, 0);
 
-	if ( menu_master_passwd )
+	if ( cm->menu_master_passwd )
 	  done = ask_passwd(NULL);
       }
       break;
     default:
       if ( key > 0 && key < 0xFF ) {
 	key &= ~0x20;		/* Upper case */
-	if ( menu_hotkeys[key] ) {
+	if ( cm->menu_hotkeys[key] ) {
 	  key_timeout = 0;
-	  entry = menu_hotkeys[key] - menu_entries;
+	  entry = cm->menu_hotkeys[key] - cm->menu_entries;
 	  /* Should we commit at this point? */
 	}
       }
@@ -933,7 +956,7 @@ static void
 execute(const char *cmdline, enum kernel_type type)
 {
   com32sys_t ireg;
-  const char *p, **pp;
+  const char *p, * const *pp;
   char *q = __com32.cs_bounce;
   const char *kernel, *args;
 
@@ -986,6 +1009,7 @@ execute(const char *cmdline, enum kernel_type type)
 int menu_main(int argc, char *argv[])
 {
   const char *cmdline;
+  struct menu *m;
   int rows, cols;
   int i;
 
@@ -993,26 +1017,29 @@ int menu_main(int argc, char *argv[])
 
   console_prepare();
 
-  install_default_color_table();
   if (getscreensize(1, &rows, &cols)) {
     /* Unknown screen size? */
     rows = 24;
     cols = 80;
   }
 
-  WIDTH = cols;
   parse_configs(argv+1);
+  cm = start_menu;
 
-  /* If anyone has specified negative parameters, consider them
-     relative to the bottom row of the screen. */
-  for (i = 0; mparm[i].name; i++)
-    if (mparm[i].value < 0)
-      mparm[i].value = max(mparm[i].value+rows, 0);
+  /* Some postprocessing for all menus */
+  for (m = menu_list; m; m = m->next) {
+    if (!m->mparm[P_WIDTH])
+      m->mparm[P_WIDTH] = cols;
 
-  draw_background(menu_background);
+    /* If anyone has specified negative parameters, consider them
+       relative to the bottom row of the screen. */
+    for (i = 0; i < NPARAMS; i++)
+      if (m->mparm[i] < 0)
+	m->mparm[i] = max(m->mparm[i]+rows, 0);
+  }
 
-  if ( !nentries ) {
-    fputs("No LABEL entries found in configuration file!\n", stdout);
+  if ( !cm->nentries ) {
+    fputs("Initial menu has no LABEL entries!\n", stdout);
     return 1;			/* Error! */
   }
 
@@ -1024,8 +1051,8 @@ int menu_main(int argc, char *argv[])
 
     if ( cmdline ) {
       execute(cmdline, KT_NONE);
-      if ( onerror )
-	execute(onerror, KT_NONE);
+      if ( cm->onerror )
+	execute(cm->onerror, KT_NONE);
     } else {
       return 0;			/* Exit */
     }

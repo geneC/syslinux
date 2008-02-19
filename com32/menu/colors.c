@@ -10,6 +10,9 @@
  *
  * ----------------------------------------------------------------------- */
 
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 #include <colortbl.h>
 #include "menu.h"
 
@@ -36,7 +39,7 @@
  * 17 - disabled        Disabled menu item
  */
 
-static const struct color_table default_color_table[] = {
+static const struct color_table default_colors[] = {
   { "screen",      "37;40",     0x80ffffff, 0x00000000, SHADOW_NORMAL },
   { "border",      "30;44",     0x40000000, 0x00000000, SHADOW_NORMAL },
   { "title",       "1;36;44",   0xc00090f0, 0x00000000, SHADOW_NORMAL },
@@ -57,10 +60,10 @@ static const struct color_table default_color_table[] = {
   { "disabled",    "1;30;44",   0x60cccccc, 0x00000000, SHADOW_NORMAL },
 };
 
-#define NCOLORS (sizeof default_color_table/sizeof(struct color_table))
+#define NCOLORS (sizeof default_colors/sizeof default_colors[0])
 const int message_base_color = NCOLORS;
 
-
+/* Algorithmically generate the msgXX colors */
 void set_msg_colors_global(struct color_table *tbl,
 			   unsigned int fg, unsigned int bg,
 			   enum color_table_shadow shadow)
@@ -115,59 +118,67 @@ void set_msg_colors_global(struct color_table *tbl,
   }
 }
 
-struct color_table *default_color_table(const struct color_table *base)
+struct color_table *default_color_table(void)
 {
-  unsigned int i, ncolors;
+  unsigned int i;
   const struct color_table *dp;
   struct color_table *cp;
   struct color_table *color_table;
   static const int pc2ansi[8] = {0, 4, 2, 6, 1, 5, 3, 7};
-
-  if (!base)
-    base = default_color_table;
+  static char msg_names[6*256];
+  char *mp;
 
   color_table = calloc(NCOLORS+256, sizeof(struct color_table));
 
-  dp = base;
+  dp = default_colors;
   cp = color_table;
 
-  if (base == default_color_table)
-    ncolors = NCOLORS;
-  else
-    ncolors = NCOLORS+256;
-
-  for (i = 0; i < ncolors; i++) {
-    if (cp->ansi)
-      free((void *)cp->ansi);
-
+  for (i = 0; i < NCOLORS; i++) {
     *cp = *dp;
-    cp->ansi = strdup(dp->ansi);
-
+    cp->ansi = refstrdup(dp->ansi);
     cp++;
     dp++;
   }
 
-  if (base == default_color_table) {
-    for (i = 0; i < 256; i++) {
-      if (!cp->name)
-	asprintf((char **)&cp->name, "msg%02x", i);
-      
-      if (cp->ansi)
-	free((void *)cp->ansi);
-      
-      asprintf((char **)&cp->ansi, "%s3%d;4%d", (i & 8) ? "1;" : "",
-	       pc2ansi[i & 7], pc2ansi[(i >> 4) & 7]);
-      
-      cp++;
-    }
+  mp = msg_names;
+  for (i = 0; i < 256; i++) {
+    cp->name = mp;
+    mp += sprintf(mp, "msg%02x", i)+1;
     
-    /*** XXX: This needs to move to run_menu() ***/
-    console_color_table = color_table;
-    console_color_table_size = NCOLORS+256;
+    rsprintf(&cp->ansi, "%s3%d;4%d", (i & 8) ? "1;" : "",
+	     pc2ansi[i & 7], pc2ansi[(i >> 4) & 7]);
+    cp++;
+  }
     
-    set_msg_colors_global(color_table, MSG_COLORS_DEF_FG, MSG_COLORS_DEF_BG,
-			  MSG_COLORS_DEF_SHADOW);
+  /*** XXX: This needs to move to run_menu() ***/
+  console_color_table = color_table;
+  console_color_table_size = NCOLORS+256;
+  
+  set_msg_colors_global(color_table, MSG_COLORS_DEF_FG,
+			MSG_COLORS_DEF_BG, MSG_COLORS_DEF_SHADOW);
+
+  return color_table;
+}
+
+struct color_table *copy_color_table(const struct color_table *master)
+{
+  const struct color_table *dp;
+  struct color_table *color_table, *cp;
+  unsigned int i;
+
+  color_table = calloc(NCOLORS+256, sizeof(struct color_table));
+
+  dp = master;
+  cp = color_table;
+
+  for (i = 0; i < NCOLORS+256; i++) {
+    *cp = *dp;
+    cp->ansi = refstr_get(dp->ansi);
+    cp++;
+    dp++;
   }
 
   return color_table;
 }
+
+  

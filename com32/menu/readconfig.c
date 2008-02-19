@@ -17,40 +17,29 @@
 #include <alloca.h>
 #include <inttypes.h>
 #include <colortbl.h>
-#ifdef __COM32__
-# include <com32.h>
-#endif
+#include <com32.h>
+#include <syslinux/config.h>
 
 #include "menu.h"
 
-int nentries     = 0;
-int nhidden      = 0;
-int defentry     = 0;
-int allowedit    = 1;		/* Allow edits of the command line */
-int timeout      = 0;
+/* Root menu, starting menu, hidden menu, and list of all menus */
+struct menu *root_menu, *start_menu, *hide_menu, *menu_list;
+
+/* These are global parameters regardless of which menu we're displaying */
 int shiftkey     = 0;		/* Only display menu if shift key pressed */
 int hiddenmenu   = 0;
 long long totaltimeout = 0;
 
-char *ontimeout   = NULL;
-char *onerror     = NULL;
+/* Linked list of all entires, hidden or not; used by unlabel() */
+static struct menu_entry *all_entries;
+static struct menu_entry **all_entries_end = &all_entries;
 
-char *menu_master_passwd = NULL;
-char *menu_background = NULL;
-
-struct fkey_help fkeyhelp[12];
-
-struct menu_entry *menu_entries = NULL;
-struct menu_entry *hide_entries = NULL;
-static int menu_entries_space = 0, hide_entries_space = 0;
-struct menu_entry *menu_hotkeys[256];
-
-struct messages messages[MSG_COUNT] = {
+const struct messages messages[MSG_COUNT] = {
   [MSG_TITLE]      =  { "title",    "" },
   [MSG_AUTOBOOT]   =  { "autoboot", "Automatic boot in # second{,s}..." },
-  [MSG_TAB]        =  { "tabmsg",   "Press [Tab] to edit options", NULL },
+  [MSG_TAB]        =  { "tabmsg",   "Press [Tab] to edit options" },
   [MSG_NOTAB]      =  { "notabmsg", "" },
-  [MSG_PASSPROMPT] =  { "passprompt", "Password required", NULL },
+  [MSG_PASSPROMPT] =  { "passprompt", "Password required" },
 };
 
 #define astrdup(x) ({ char *__x = (x); \
@@ -60,7 +49,7 @@ struct messages messages[MSG_COUNT] = {
                       __p; })
 
 /* Must match enum kernel_type */
-const char *kernel_types[] = {
+const char * const kernel_types[] = {
   "none",
   "localboot",
   "kernel",
@@ -75,44 +64,20 @@ const char *kernel_types[] = {
   NULL
 };
 
-const char *ipappends[32];
-
-static void
-get_ipappend(void)
+/*
+ * Search the list of all menus for a specific label
+ */
+static struct menu *
+find_menu(const char *label)
 {
-#ifdef __COM32__
-  static com32sys_t r;
-  uint16_t *ipp;
-  int i;
-  int nipappends;
-
-  r.eax.w[0] = 0x000F;
-  __intcall(0x22, &r, &r);
-
-  nipappends = min(r.ecx.w[0], 32);
-  ipp        = MK_PTR(r.es, r.ebx.w[0]);
-  for ( i = 0 ; i < nipappends ; i++ ) {
-    ipappends[i] = MK_PTR(r.es, *ipp++);
+  struct menu *m;
+  
+  for (m = menu_list; m; m = m->next) {
+    if (!strcmp(label, m->label))
+      return m;
   }
-#else
-  ipappends[0] = "ip=foo:bar:baz:quux";
-  ipappends[1] = "BOOTIF=01-aa-bb-cc-dd-ee-ff";
-#endif
-}
 
-static const char *
-get_config(void)
-{
-#ifdef __COM32__
-  static com32sys_t r;
-
-  r.eax.w[0] = 0x000E;
-  __intcall(0x22, &r, &r);
-
-  return MK_PTR(r.es, r.ebx.w[0]);
-#else
-  return "syslinux.cfg";	/* Dummy default name */
-#endif
+  return NULL;
 }
 
 #define MAX_LINE 4096
@@ -145,7 +110,7 @@ looking_at(char *line, const char *kwd)
   return my_isspace(*p) ? p : NULL; /* Must be EOL or whitespace */
 }
 
-struct menu *start_menu(struct menu *parent)
+static struct menu *new_menu(struct menu *parent, const char *label)
 {
   struct menu *m = malloc(sizeof(struct menu));
   int i;
@@ -158,22 +123,27 @@ struct menu *start_menu(struct menu *parent)
     memset(m->menu_hotkeys, 0, sizeof m->menu_hotkeys);
 
     m->parent = parent;
+    m->parent_entry = parent->nentries-1; /* Last current entry */
     m->nentries = 0;
     m->nentries_space = 0;
     m->defentry = 0;
-    m->color_table = default_color_table(parent->color_table);
+    m->color_table = copy_color_table(parent->color_table);
   } else {
     /* Root menu */
-
     memset(m, 0, sizeof *m);
 
     for (i = 0; i < MSG_COUNT; i++)
-      m->messages[i] = messages.defmsg[i];
+      m->messages[i] = strdup(messages[i].defmsg);
     for (i = 0; i < NPARAMS; i++)
       m->mparm[i] = mparm[i].value;
 
-    m->color_table = default_color_table(NULL);
+    m->allowedit = 1;		/* Allow edits of the command line */
+    m->color_table = default_color_table();
   }
+
+  m->label = strdup(label);
+  m->next = menu_list;
+  menu_list = m;
 
   return m;
 }
@@ -195,22 +165,30 @@ struct labeldata {
 };
 
 static void
-record(struct labeldata *ld, char *append)
+record(struct menu *m, struct labeldata *ld, char *append)
 {
   char ipoptions[256], *ipp;
   int i;
   struct menu_entry *me;
+  const struct syslinux_ipappend_strings *ipappend;
 
-  if (nentries >= menu_entries_space) {
-    if (!menu_entries_space)
-      menu_entries_space = 1;
+  if (!ld->label)
+    return;			/* Nothing defined */
+
+  /* Hidden entries are recorded on a special "hidden menu" */
+  if (ld->menuhide)
+    m = hide_menu;
+
+  if (m->nentries >= m->nentries_space) {
+    if (!m->nentries_space)
+      m->nentries_space = 1;
     else
-      menu_entries_space <<= 1;
+      m->nentries_space <<= 1;
 
-    menu_entries = realloc(menu_entries,
-			   menu_entries_space*sizeof *menu_entries);
+    m->menu_entries = realloc(m->menu_entries, m->nentries_space*
+			      sizeof(struct menu_entry));
   }
-  me = &menu_entries[nentries];
+  me = &m->menu_entries[m->nentries];
 
   if ( ld->label ) {
     char *a, *s;
@@ -219,11 +197,11 @@ record(struct labeldata *ld, char *append)
     me->passwd      = ld->passwd;
     me->helptext    = ld->helptext;
     me->hotkey = 0;
-    me->disabled = 0;
+    me->action = MA_CMD;
 
     if ( ld->menuindent ) {
       char *n = malloc(ld->menuindent + strlen(me->displayname) + 1);
-      memset(n, 32, ld->menuindent);
+      memset(n, ' ', ld->menuindent);
       strcpy(n + ld->menuindent, me->displayname);
       me->displayname = n;
     }
@@ -232,7 +210,7 @@ record(struct labeldata *ld, char *append)
       unsigned char *p = (unsigned char *)strchr(ld->menulabel, '^');
       if ( p && p[1] ) {
 	int hotkey = p[1] & ~0x20;
-	if ( !menu_hotkeys[hotkey] ) {
+	if ( !m->menu_hotkeys[hotkey] ) {
 	  me->hotkey = hotkey;
 	}
       }
@@ -240,9 +218,10 @@ record(struct labeldata *ld, char *append)
 
     ipp = ipoptions;
     *ipp = '\0';
-    for ( i = 0 ; i < 32 ; i++ ) {
-      if ( (ld->ipappend & (1U << i)) && ipappends[i] )
-	ipp += sprintf(ipp, " %s", ipappends[i]);
+    ipappend = syslinux_ipappend_strings();
+    for (i = 0; i < ipappend->count; i++) {
+      if ( (ld->ipappend & (1U << i)) && ipappend->ptr[i] )
+	ipp += sprintf(ipp, " %s", ipappend->ptr[i]);
     }
 
     a = ld->append;
@@ -263,7 +242,7 @@ record(struct labeldata *ld, char *append)
     if ( ld->menuseparator || ld->menudisabled ) {
       me->label    = NULL;
       me->passwd   = NULL;
-      me->disabled = 1;
+      me->action   = MA_DISABLED;
 
       if ( me->cmdline )
         free(me->cmdline);
@@ -282,41 +261,16 @@ record(struct labeldata *ld, char *append)
       ld->append = NULL;
     }
 
-    if ( !ld->menuhide ) {
-      if ( me->hotkey )
-	menu_hotkeys[me->hotkey] = me;
+    if ( me->hotkey )
+      m->menu_hotkeys[me->hotkey] = me;
+    
+    if ( ld->menudefault && !ld->menudisabled && !ld->menuseparator )
+      m->defentry = m->nentries;
 
-      if ( ld->menudefault && !ld->menudisabled && !ld->menuseparator )
-	defentry = nentries;
+    *all_entries_end = me;
+    all_entries_end = &me->next;
 
-      nentries++;
-    }
-    else {
-      struct menu_entry *he;
-
-      if (nhidden >= hide_entries_space) {
-	if (!hide_entries_space)
-	  hide_entries_space = 1;
-	else
-	  hide_entries_space <<= 1;
-
-	hide_entries = realloc(hide_entries,
-			       hide_entries_space*sizeof *hide_entries);
-      }
-      he = &hide_entries[nhidden];
-
-      he->displayname = me->displayname;
-      he->label       = me->label;
-      he->cmdline     = me->cmdline;
-      he->passwd      = me->passwd;
-
-      me->displayname = NULL;
-      me->label       = NULL;
-      me->cmdline     = NULL;
-      me->passwd      = NULL;
-
-      nhidden++;
-    }
+    m->nentries++;
   }
 }
 
@@ -327,7 +281,7 @@ unlabel(char *str)
   const char *p;
   char *q;
   struct menu_entry *me;
-  int i, pos;
+  int pos;
 
   p = str;
   while ( *p && !my_isspace(*p) )
@@ -336,24 +290,7 @@ unlabel(char *str)
   /* p now points to the first byte beyond the kernel name */
   pos = p-str;
 
-  for ( i = 0 ; i < nentries ; i++ ) {
-    me = &menu_entries[i];
-
-    if ( !strncmp(str, me->label, pos) && !me->label[pos] ) {
-      /* Found matching label */
-      q = malloc(strlen(me->cmdline) + strlen(p) + 1);
-      strcpy(q, me->cmdline);
-      strcat(q, p);
-
-      free(str);
-
-      return q;
-    }
-  }
-
-  for ( i = 0 ; i < nhidden ; i++ ) {
-    me = &hide_entries[i];
-
+  for ( me = all_entries ; me ; me = me->next ) {
     if ( !strncmp(str, me->label, pos) && !me->label[pos] ) {
       /* Found matching label */
       q = malloc(strlen(me->cmdline) + strlen(p) + 1);
@@ -490,7 +427,7 @@ static int parse_one_config(const char *filename);
 
 static char *is_kernel_type(char *cmdstr, enum kernel_type *type)
 {
-  const char **p;
+  const char * const *p;
   char *q;
   enum kernel_type t = KT_NONE;
 
@@ -504,14 +441,14 @@ static char *is_kernel_type(char *cmdstr, enum kernel_type *type)
   return NULL;
 }
 
-static char *is_message_name(char *cmdstr, struct messages **msgptr)
+static char *is_message_name(char *cmdstr, enum message_number *msgnr)
 {
   char *q;
-  int i;
+  enum message_number i;
 
   for (i = 0; i < MSG_COUNT; i++) {
     if ((q = looking_at(cmdstr, messages[i].name))) {
-      *msgptr = &messages[i];
+      *msgnr = i;
       return q;
     }
   }
@@ -538,12 +475,15 @@ static char *is_fkey(char *cmdstr, int *fkeyno)
   return q;
 }
 
+static struct menu *current_menu;
+
 static void parse_config_file(FILE *f)
 {
   char line[MAX_LINE], *p, *ep, ch;
   enum kernel_type type;
-  struct messages *msgptr;
+  enum message_number msgnr;
   int fkeyno;
+  struct menu *m = current_menu;
 
   while ( fgets(line, sizeof line, f) ) {
     p = strchr(line, '\r');
@@ -570,25 +510,29 @@ static void parse_config_file(FILE *f)
       } else if ( looking_at(p, "shiftkey") ) {
 	shiftkey = 1;
       } else if ( looking_at(p, "onerror") ) {
-	onerror = strdup(skipspace(p+7));
+	m->onerror = strdup(skipspace(p+7));
       } else if ( looking_at(p, "master") ) {
 	p = skipspace(p+6);
 	if ( looking_at(p, "passwd") ) {
-	  menu_master_passwd = strdup(skipspace(p+6));
+	  /* XXX: need refcount */
+	  m->menu_master_passwd = strdup(skipspace(p+6));
 	}
       } else if ( (ep = looking_at(p, "include")) ) {
 	p = skipspace(ep);
 	parse_one_config(p);
       } else if ( (ep = looking_at(p, "background")) ) {
 	p = skipspace(ep);
-	if (menu_background)
-	  free(menu_background);
-	menu_background = dup_word(&p);
+	/* XXX: need refcount */
+	if (m->menu_background)
+	  free(m->menu_background);
+	m->menu_background = dup_word(&p);
       } else if ( (ep = looking_at(p, "hidden")) ) {
 	hiddenmenu = 1;
-      } else if ( (ep = is_message_name(p, &msgptr)) ) {
-	free(msgptr->msg);
-	msgptr->msg = strdup(skipspace(ep));
+      } else if ( (ep = is_message_name(p, &msgnr)) ) {
+	/* XXX: need refcount */
+	if (m->messages[msgnr])
+	  free((void *)m->messages[msgnr]);
+	m->messages[msgnr] = strdup(skipspace(ep));
       } else if ((ep = looking_at(p, "color")) ||
 		 (ep = looking_at(p, "colour"))) {
 	int i;
@@ -674,13 +618,13 @@ static void parse_config_file(FILE *f)
 	    }
 	  }
 	}
-	set_msg_colors_global(fg_mask, bg_mask, shadow);
+	set_msg_colors_global(m->color_table, fg_mask, bg_mask, shadow);
       } else if ( looking_at(p, "separator") ) {
-        record(&ld, append);
+        record(root_menu, &ld, append);
         memset(&ld, 0, sizeof(struct labeldata));
         ld.label = "";
 	ld.menuseparator = 1;
-        record(&ld, append);
+        record(root_menu, &ld, append);
         memset(&ld, 0, sizeof(struct labeldata));
       } else if ( looking_at(p, "disable") ||
 		  looking_at(p, "disabled")) {
@@ -689,10 +633,10 @@ static void parse_config_file(FILE *f)
         ld.menuindent = atoi(skipspace(p+6));
       } else {
 	/* Unknown, check for layout parameters */
-	struct menu_parameter *pp;
-	for ( pp = mparm ; pp->name ; pp++ ) {
-	  if ( (ep = looking_at(p, pp->name)) ) {
-	    pp->value = atoi(skipspace(ep));
+	enum parameter_number mp;
+	for (mp = 0; mp < NPARAMS; mp++) {
+	  if ( (ep = looking_at(p, mparm[mp].name)) ) {
+	    m->mparm[mp] = atoi(skipspace(ep));
 	    break;
 	  }
 	}
@@ -729,19 +673,23 @@ static void parse_config_file(FILE *f)
       }
     } else if ( (ep = is_fkey(p, &fkeyno)) ) {
       p = skipspace(ep);
-      if (fkeyhelp[fkeyno].textname) {
-	free((void *)fkeyhelp[fkeyno].textname);
-	fkeyhelp[fkeyno].textname = NULL;
+      if (m->fkeyhelp[fkeyno].textname) {
+	/* XXX: refcount */
+	free((void *)m->fkeyhelp[fkeyno].textname);
+	m->fkeyhelp[fkeyno].textname = NULL;
       }
-      if (fkeyhelp[fkeyno].background) {
-	free((void *)fkeyhelp[fkeyno].background);
-	fkeyhelp[fkeyno].background = NULL;
+      if (m->fkeyhelp[fkeyno].background) {
+	/* XXX: refcount */
+	free((void *)m->fkeyhelp[fkeyno].background);
+	m->fkeyhelp[fkeyno].background = NULL;
       }
 
-      fkeyhelp[fkeyno].textname = dup_word(&p);
+      /* XXX: refcount */
+      m->fkeyhelp[fkeyno].textname = dup_word(&p);
       if (*p) {
 	p = skipspace(p);
-	fkeyhelp[fkeyno].background = dup_word(&p);
+	/* XXX: refcount */
+	m->fkeyhelp[fkeyno].background = dup_word(&p);
       }
     } else if ( (ep = looking_at(p, "include")) ) {
       p = skipspace(ep);
@@ -754,7 +702,7 @@ static void parse_config_file(FILE *f)
 	append = a;
     } else if ( looking_at(p, "label") ) {
       p = skipspace(p+5);
-      record(&ld, append);
+      record(root_menu, &ld, append);
       ld.label     = strdup(p);
       ld.kernel    = strdup(p);
       ld.type      = KT_KERNEL;
@@ -772,13 +720,13 @@ static void parse_config_file(FILE *f)
 	ld.type = type;
       }
     } else if ( looking_at(p, "timeout") ) {
-      timeout = (atoi(skipspace(p+7))*CLK_TCK+9)/10;
+      m->timeout = (atoi(skipspace(p+7))*CLK_TCK+9)/10;
     } else if ( looking_at(p, "totaltimeout") ) {
       totaltimeout = (atoll(skipspace(p+13))*CLK_TCK+9)/10;
     } else if ( looking_at(p, "ontimeout") ) {
-      ontimeout = strdup(skipspace(p+9));
+      m->ontimeout = strdup(skipspace(p+9));
     } else if ( looking_at(p, "allowoptions") ) {
-      allowedit = atoi(skipspace(p+12));
+      m->allowedit = atoi(skipspace(p+12));
     } else if ( looking_at(p, "ipappend") ) {
       if (ld.label)
         ld.ipappend = atoi(skipspace(p+8));
@@ -793,7 +741,7 @@ static int parse_one_config(const char *filename)
   FILE *f;
 
   if (!strcmp(filename, "~"))
-    filename = get_config();
+    filename = syslinux_config_file();
 
   f = fopen(filename, "r");
   if ( !f )
@@ -805,26 +753,39 @@ static int parse_one_config(const char *filename)
   return 0;
 }
 
+static void resolve_gotos(void)
+{
+  struct menu_entry *me;
+  struct menu *m;
+
+  for (me = all_entries; me; me = me->next) {
+    if (me->action == MA_GOTO_UNRES) {
+      m = find_menu(me->cmdline);
+      if (m) {
+	me->submenu = m;
+	me->action = MA_GOTO;
+      } else {
+	me->action = MA_DISABLED;
+      }
+    }
+  }
+}
+
 void parse_configs(char **argv)
 {
   const char *filename;
-  int i;
+  struct menu *m;
 
-  /* Initialize defaults */
-
-  for (i = 0; i < MSG_COUNT; i++) {
-    if (messages[i].msg)
-      free(messages[i].msg);
-    messages[i].msg = strdup(messages[i].defmsg);
-  }
+  /* Initialize defaults for the root and hidden menus */
+  hide_menu = new_menu(NULL, ".hidden");
+  root_menu = new_menu(NULL, ".top");
+  start_menu = root_menu;
 
   /* Other initialization */
-
-  get_ipappend();
   memset(&ld, 0, sizeof(struct labeldata));
 
   /* Actually process the files */
-
+  current_menu = root_menu;
   if ( !*argv ) {
     parse_one_config("~");
   } else {
@@ -833,13 +794,15 @@ void parse_configs(char **argv)
   }
 
   /* On final EOF process the last label statement */
-
-  record(&ld, append);
+  record(current_menu, &ld, append);
 
   /* Common postprocessing */
+  resolve_gotos();
 
-  if ( ontimeout )
-    ontimeout = unlabel(ontimeout);
-  if ( onerror )
-    onerror = unlabel(onerror);
+  for (m = menu_list; m; m = m->next) {
+    if ( m->ontimeout )
+      m->ontimeout = unlabel(m->ontimeout);
+    if ( m->onerror )
+      m->onerror = unlabel(m->onerror);
+  }
 }
