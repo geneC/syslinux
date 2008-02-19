@@ -388,7 +388,7 @@ static void show_fkey(int key)
 }
 
 static const char *
-edit_cmdline(char *input, int top)
+edit_cmdline(const char *input, int top)
 {
   static char cmdline[MAX_CMDLINE_LEN];
   int key, len, prev_len, cursor;

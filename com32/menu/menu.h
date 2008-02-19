@@ -44,11 +44,11 @@ enum menu_action {
 };
 
 struct menu_entry {
-  char *displayname;
-  char *label;
-  char *passwd;
+  const char *displayname;
+  const char *label;
+  const char *passwd;
   char *helptext;
-  char *cmdline;
+  const char *cmdline;
   struct menu *submenu;
   struct menu_entry *next;	/* Linked list of all labels across menus */
   enum menu_action action;
@@ -115,8 +115,6 @@ struct messages {
   const char *defmsg;		/* Default message text */
 };
 
-extern const struct messages messages[MSG_COUNT];
-
 struct menu_parameter {
   const char *name;
   int value;
@@ -133,7 +131,7 @@ struct menu {
   struct menu *next;		/* Linked list of all menus */
   const char *label;		/* Goto label for this menu */
   struct menu *parent;
-  int parent_entry;
+  struct menu_entry *parent_entry; /* Entry for self in parent */
 
   struct menu_entry *menu_entries;
   struct menu_entry *menu_hotkeys[256];
@@ -146,14 +144,11 @@ struct menu {
   int defentry;
   int allowedit;
   int timeout;
-  int shiftkey;
-  bool hiddenmenu;
-  long long totaltimeout;
 
-  char *ontimeout;
-  char *onerror;
-  char *menu_master_passwd;
-  char *menu_background;
+  const char *ontimeout;
+  const char *onerror;
+  const char *menu_master_passwd;
+  const char *menu_background;
 
   struct color_table *color_table;
 

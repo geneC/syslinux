@@ -22,6 +22,9 @@
 
 #include "menu.h"
 
+/* Empty refstring */
+const char *empty_string;
+
 /* Root menu, starting menu, hidden menu, and list of all menus */
 struct menu *root_menu, *start_menu, *hide_menu, *menu_list;
 
@@ -34,7 +37,7 @@ long long totaltimeout = 0;
 static struct menu_entry *all_entries;
 static struct menu_entry **all_entries_end = &all_entries;
 
-const struct messages messages[MSG_COUNT] = {
+static const struct messages messages[MSG_COUNT] = {
   [MSG_TITLE]      =  { "title",    "" },
   [MSG_AUTOBOOT]   =  { "autoboot", "Automatic boot in # second{,s}..." },
   [MSG_TAB]        =  { "tabmsg",   "Press [Tab] to edit options" },
@@ -112,28 +115,39 @@ looking_at(char *line, const char *kwd)
 
 static struct menu *new_menu(struct menu *parent, const char *label)
 {
-  struct menu *m = malloc(sizeof(struct menu));
+  struct menu *m = calloc(1, sizeof(struct menu));
   int i;
+
+  m->label = refstrdup(label);
 
   if (parent) {
     /* Submenu */
-    memcpy(m, parent, sizeof *m);
-
-    m->menu_entries = NULL;
-    memset(m->menu_hotkeys, 0, sizeof m->menu_hotkeys);
-
     m->parent = parent;
-    m->parent_entry = parent->nentries-1; /* Last current entry */
-    m->nentries = 0;
-    m->nentries_space = 0;
-    m->defentry = 0;
-    m->color_table = copy_color_table(parent->color_table);
-  } else {
-    /* Root menu */
-    memset(m, 0, sizeof *m);
+    m->parent_entry = &parent->menu_entries[parent->nentries-1];
 
     for (i = 0; i < MSG_COUNT; i++)
-      m->messages[i] = strdup(messages[i].defmsg);
+      m->messages[i] = refstr_get(parent->messages[i]);
+
+    memcpy(m->mparm, parent->mparm, sizeof m->mparm);
+
+    m->allowedit = parent->allowedit;
+    m->timeout   = parent->timeout;
+
+    m->ontimeout = refstr_get(parent->ontimeout);
+    m->onerror   = refstr_get(parent->onerror);
+    m->menu_master_passwd = refstr_get(parent->menu_master_passwd);
+    m->menu_background = refstr_get(parent->menu_background);
+
+    m->color_table = copy_color_table(parent->color_table);
+
+    for (i = 0; i < 12; i++) {
+      m->fkeyhelp[i].textname = refstr_get(parent->fkeyhelp[i].textname);
+      m->fkeyhelp[i].background = refstr_get(parent->fkeyhelp[i].background);
+    }
+  } else {
+    /* Root menu */
+    for (i = 0; i < MSG_COUNT; i++)
+      m->messages[i] = refstrdup(messages[i].defmsg);
     for (i = 0; i < NPARAMS; i++)
       m->mparm[i] = mparm[i].value;
 
@@ -141,7 +155,6 @@ static struct menu *new_menu(struct menu *parent, const char *label)
     m->color_table = default_color_table();
   }
 
-  m->label = strdup(label);
   m->next = menu_list;
   menu_list = m;
 
@@ -149,12 +162,12 @@ static struct menu *new_menu(struct menu *parent, const char *label)
 }
 
 struct labeldata {
-  char *label;
-  char *kernel;
+  const char *label;
+  const char *kernel;
   enum kernel_type type;
-  char *append;
-  char *menulabel;
-  char *passwd;
+  const char *append;
+  const char *menulabel;
+  const char *passwd;
   char *helptext;
   unsigned int ipappend;
   unsigned int menuhide;
@@ -165,9 +178,8 @@ struct labeldata {
 };
 
 static void
-record(struct menu *m, struct labeldata *ld, char *append)
+record(struct menu *m, struct labeldata *ld, const char *append)
 {
-  char ipoptions[256], *ipp;
   int i;
   struct menu_entry *me;
   const struct syslinux_ipappend_strings *ipappend;
@@ -191,8 +203,11 @@ record(struct menu *m, struct labeldata *ld, char *append)
   me = &m->menu_entries[m->nentries];
 
   if ( ld->label ) {
-    char *a, *s;
-    me->displayname = ld->menulabel ? ld->menulabel : ld->label;
+    char ipoptions[4096], *ipp;
+    const char *a;
+    char *s;
+
+    me->displayname = ld->menulabel ? ld->menulabel : refstr_get(ld->label);
     me->label       = ld->label;
     me->passwd      = ld->passwd;
     me->helptext    = ld->helptext;
@@ -200,10 +215,11 @@ record(struct menu *m, struct labeldata *ld, char *append)
     me->action = MA_CMD;
 
     if ( ld->menuindent ) {
-      char *n = malloc(ld->menuindent + strlen(me->displayname) + 1);
-      memset(n, ' ', ld->menuindent);
-      strcpy(n + ld->menuindent, me->displayname);
-      me->displayname = n;
+      const char *dn;
+
+      rsprintf(&dn, "%*s%s", ld->menuindent, "", me->displayname);
+      refstr_put(me->displayname);
+      me->displayname = dn;
     }
 
     if ( ld->menulabel ) {
@@ -225,41 +241,39 @@ record(struct menu *m, struct labeldata *ld, char *append)
     }
 
     a = ld->append;
-    if ( !a ) a = append;
-    if ( !a || (a[0] == '-' && !a[1]) ) a = "";
+    if ( !a )
+      a = append;
+    if ( !a || (a[0] == '-' && !a[1]) )
+      a = "";
     s = a[0] ? " " : "";
     if (ld->type == KT_KERNEL) {
-      asprintf(&me->cmdline, "%s%s%s%s",
+      rsprintf(&me->cmdline, "%s%s%s%s",
 	       ld->kernel, s, a, ipoptions);
     } else {
-      asprintf(&me->cmdline, ".%s %s%s%s%s",
+      rsprintf(&me->cmdline, ".%s %s%s%s%s",
 	       kernel_types[ld->type], ld->kernel, s, a, ipoptions);
     }
+    refstr_put(ld->kernel);
+    ld->kernel = NULL;
+    refstr_put(ld->append);
+    ld->append = NULL;
 
-    if ( ld->menuseparator )
-      me->displayname = "";
+    if ( ld->menuseparator ) {
+      refstr_put(me->displayname);
+      me->displayname = refstr_get(empty_string);
+    }
 
     if ( ld->menuseparator || ld->menudisabled ) {
       me->label    = NULL;
       me->passwd   = NULL;
       me->action   = MA_DISABLED;
 
-      if ( me->cmdline )
-        free(me->cmdline);
-
+      refstr_put(me->cmdline);
       me->cmdline = NULL;
     }
 
     ld->label = NULL;
     ld->passwd = NULL;
-
-    free(ld->kernel);
-    ld->kernel = NULL;
-
-    if ( ld->append ) {
-      free(ld->append);
-      ld->append = NULL;
-    }
 
     if ( me->hotkey )
       m->menu_hotkeys[me->hotkey] = me;
@@ -274,12 +288,12 @@ record(struct menu *m, struct labeldata *ld, char *append)
   }
 }
 
-static char *
-unlabel(char *str)
+static const char *
+unlabel(const char *str)
 {
   /* Convert a CLI-style command line to an executable command line */
   const char *p;
-  char *q;
+  const char *q;
   struct menu_entry *me;
   int pos;
 
@@ -293,12 +307,8 @@ unlabel(char *str)
   for ( me = all_entries ; me ; me = me->next ) {
     if ( !strncmp(str, me->label, pos) && !me->label[pos] ) {
       /* Found matching label */
-      q = malloc(strlen(me->cmdline) + strlen(p) + 1);
-      strcpy(q, me->cmdline);
-      strcat(q, p);
-
-      free(str);
-
+      rsprintf(&q, "%s%s", me->cmdline, p);
+      refstr_put(str);
       return q;
     }
   }
@@ -306,25 +316,17 @@ unlabel(char *str)
   return str;
 }
 
-static char *
-dup_word(char **p)
+static const char *
+refdup_word(char **p)
 {
   char *sp = *p;
   char *ep = sp;
-  char *dp;
-  size_t len;
 
   while (*ep && !my_isspace(*ep))
     ep++;
 
   *p = ep;
-  len = ep-sp;
-
-  dp = malloc(len+1);
-  memcpy(dp, sp, len);
-  dp[len] = '\0';
-
-  return dp;
+  return refstrndup(sp, ep-sp);
 }
 
 int my_isxdigit(char c)
@@ -419,7 +421,7 @@ uint32_t parse_argb(char **p)
  * files work as expected, which is that everything works the
  * same way as if the files had been concatenated together.
  */
-static char *append = NULL;
+static const char *append = NULL;
 static unsigned int ipappend = 0;
 static struct labeldata ld;
 
@@ -499,40 +501,43 @@ static void parse_config_file(FILE *f)
       p = skipspace(p+4);
 
       if ( looking_at(p, "label") ) {
-	if ( ld.label )
-	  ld.menulabel = strdup(skipspace(p+5));
+	if ( ld.label ) {
+	  refstr_put(ld.menulabel);
+	  ld.menulabel = refstrdup(skipspace(p+5));
+	} else if ( m->parent_entry ) {
+	  refstr_put(m->parent_entry->displayname);
+	  m->parent_entry->displayname = refstrdup(skipspace(p+5));
+	}
       } else if ( looking_at(p, "default") ) {
 	ld.menudefault = 1;
       } else if ( looking_at(p, "hide") ) {
 	ld.menuhide = 1;
       } else if ( looking_at(p, "passwd") ) {
-	ld.passwd = strdup(skipspace(p+6));
+	refstr_put(ld.passwd);
+	ld.passwd = refstrdup(skipspace(p+6));
       } else if ( looking_at(p, "shiftkey") ) {
 	shiftkey = 1;
       } else if ( looking_at(p, "onerror") ) {
-	m->onerror = strdup(skipspace(p+7));
+	refstr_put(m->onerror);
+	m->onerror = refstrdup(skipspace(p+7));
       } else if ( looking_at(p, "master") ) {
 	p = skipspace(p+6);
 	if ( looking_at(p, "passwd") ) {
-	  /* XXX: need refcount */
-	  m->menu_master_passwd = strdup(skipspace(p+6));
+	  refstr_put(m->menu_master_passwd);
+	  m->menu_master_passwd = refstrdup(skipspace(p+6));
 	}
       } else if ( (ep = looking_at(p, "include")) ) {
 	p = skipspace(ep);
 	parse_one_config(p);
       } else if ( (ep = looking_at(p, "background")) ) {
 	p = skipspace(ep);
-	/* XXX: need refcount */
-	if (m->menu_background)
-	  free(m->menu_background);
-	m->menu_background = dup_word(&p);
+	refstr_put(m->menu_background);
+	m->menu_background = refdup_word(&p);
       } else if ( (ep = looking_at(p, "hidden")) ) {
 	hiddenmenu = 1;
       } else if ( (ep = is_message_name(p, &msgnr)) ) {
-	/* XXX: need refcount */
-	if (m->messages[msgnr])
-	  free((void *)m->messages[msgnr]);
-	m->messages[msgnr] = strdup(skipspace(ep));
+	refstr_put(m->messages[msgnr]);
+	m->messages[msgnr] = refstrdup(skipspace(ep));
       } else if ((ep = looking_at(p, "color")) ||
 		 (ep = looking_at(p, "colour"))) {
 	int i;
@@ -546,8 +551,8 @@ static void parse_config_file(FILE *f)
 	      if (looking_at(p, "*")) {
 		p++;
 	      } else {
-		free((void *)cptr->ansi);
-		cptr->ansi = dup_word(&p);
+		refstr_put(cptr->ansi);
+		cptr->ansi = refdup_word(&p);
 	      }
 
 	      p = skipspace(p);
@@ -674,37 +679,37 @@ static void parse_config_file(FILE *f)
     } else if ( (ep = is_fkey(p, &fkeyno)) ) {
       p = skipspace(ep);
       if (m->fkeyhelp[fkeyno].textname) {
-	/* XXX: refcount */
-	free((void *)m->fkeyhelp[fkeyno].textname);
+	refstr_put(m->fkeyhelp[fkeyno].textname);
 	m->fkeyhelp[fkeyno].textname = NULL;
       }
       if (m->fkeyhelp[fkeyno].background) {
-	/* XXX: refcount */
-	free((void *)m->fkeyhelp[fkeyno].background);
+	refstr_put(m->fkeyhelp[fkeyno].background);
 	m->fkeyhelp[fkeyno].background = NULL;
       }
 
-      /* XXX: refcount */
-      m->fkeyhelp[fkeyno].textname = dup_word(&p);
+      refstr_put(m->fkeyhelp[fkeyno].textname);
+      m->fkeyhelp[fkeyno].textname = refdup_word(&p);
       if (*p) {
 	p = skipspace(p);
-	/* XXX: refcount */
-	m->fkeyhelp[fkeyno].background = dup_word(&p);
+	m->fkeyhelp[fkeyno].background = refdup_word(&p);
       }
     } else if ( (ep = looking_at(p, "include")) ) {
       p = skipspace(ep);
       parse_one_config(p);
     } else if ( looking_at(p, "append") ) {
-      char *a = strdup(skipspace(p+6));
-      if ( ld.label )
+      const char *a = refstrdup(skipspace(p+6));
+      if ( ld.label ) {
+	refstr_put(ld.append);
 	ld.append = a;
-      else
+      } else {
+	refstr_put(append);
 	append = a;
+      }
     } else if ( looking_at(p, "label") ) {
       p = skipspace(p+5);
       record(root_menu, &ld, append);
-      ld.label     = strdup(p);
-      ld.kernel    = strdup(p);
+      ld.label     = refstrdup(p);
+      ld.kernel    = refstrdup(p);
       ld.type      = KT_KERNEL;
       ld.passwd    = NULL;
       ld.append    = NULL;
@@ -715,8 +720,8 @@ static void parse_config_file(FILE *f)
 	ld.menudisabled = ld.menuindent = 0;
     } else if ( (ep = is_kernel_type(p, &type)) ) {
       if ( ld.label ) {
-	free(ld.kernel);
-	ld.kernel = strdup(skipspace(ep));
+	refstr_put(ld.kernel);
+	ld.kernel = refstrdup(skipspace(ep));
 	ld.type = type;
       }
     } else if ( looking_at(p, "timeout") ) {
@@ -724,7 +729,7 @@ static void parse_config_file(FILE *f)
     } else if ( looking_at(p, "totaltimeout") ) {
       totaltimeout = (atoll(skipspace(p+13))*CLK_TCK+9)/10;
     } else if ( looking_at(p, "ontimeout") ) {
-      m->ontimeout = strdup(skipspace(p+9));
+      m->ontimeout = refstrdup(skipspace(p+9));
     } else if ( looking_at(p, "allowoptions") ) {
       m->allowedit = atoi(skipspace(p+12));
     } else if ( looking_at(p, "ipappend") ) {
@@ -761,6 +766,8 @@ static void resolve_gotos(void)
   for (me = all_entries; me; me = me->next) {
     if (me->action == MA_GOTO_UNRES) {
       m = find_menu(me->cmdline);
+      refstr_put(me->cmdline);
+      me->cmdline = NULL;
       if (m) {
 	me->submenu = m;
 	me->action = MA_GOTO;
@@ -775,6 +782,8 @@ void parse_configs(char **argv)
 {
   const char *filename;
   struct menu *m;
+
+  empty_string = refstrdup("");
 
   /* Initialize defaults for the root and hidden menus */
   hide_menu = new_menu(NULL, ".hidden");
