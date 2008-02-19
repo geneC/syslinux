@@ -35,6 +35,7 @@
 struct menu;
 
 enum menu_action {
+  MA_NONE,			/* Undefined value */
   MA_CMD,			/* Execute a command */
   MA_DISABLED,			/* Disabled menu entry */
   MA_SUBMENU,			/* This is a submenu entry */

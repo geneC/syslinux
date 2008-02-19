@@ -95,6 +95,13 @@ display_entry(const struct menu_entry *entry, const char *attrib,
 	      const char *hotattrib, int width)
 {
   const char *p = entry->displayname;
+  bool is_submenu = (entry->action == MA_SUBMENU || entry->action == MA_GOTO);
+
+  if (!p)
+    p = "";
+
+  if (is_submenu)
+    width -= 2;
 
   while ( width ) {
     if ( *p ) {
@@ -115,6 +122,9 @@ display_entry(const struct menu_entry *entry, const char *attrib,
       width--;
     }
   }
+
+  if (is_submenu)
+    fputs(" >", stdout);
 }
 
 static void
@@ -743,6 +753,8 @@ run_menu(void)
       /* Clear and redraw whole screen */
       /* Enable ASCII on G0 and DEC VT on G1; do it in this order
 	 to avoid confusing the Linux console */
+      if (clear >= 2)
+	prepare_screen_for_menu();
       clear_screen();
       clear = 0;
       prev_entry = prev_top = -1;
@@ -809,7 +821,30 @@ run_menu(void)
       } else {
 	done = 1;
       }
-      cmdline = cm->menu_entries[entry].cmdline;
+      cmdline = NULL;
+      if (done) {
+	switch (cm->menu_entries[entry].action) {
+	case MA_CMD:
+	  cmdline = cm->menu_entries[entry].cmdline;
+	  break;
+	case MA_SUBMENU:
+	case MA_GOTO:
+	  done = 0;
+	  clear = 2;
+	  cm = cm->menu_entries[entry].submenu;
+	  entry = top = 0;
+	  break;
+	case MA_QUIT:
+	  /* Quit menu system */
+	  done = 1;
+	  clear = 1;
+	  draw_row(entry-top+4+VSHIFT, -1, top, 0, 0);
+	  break;
+	default:
+	  done = 0;
+	  break;
+	}
+      }
       break;
 
     case KEY_UP:
@@ -1024,7 +1059,6 @@ int menu_main(int argc, char *argv[])
   }
 
   parse_configs(argv+1);
-  cm = start_menu;
 
   /* Some postprocessing for all menus */
   for (m = menu_list; m; m = m->next) {
@@ -1043,6 +1077,7 @@ int menu_main(int argc, char *argv[])
     return 1;			/* Error! */
   }
 
+  cm = start_menu;
   for(;;) {
     cmdline = run_menu();
 

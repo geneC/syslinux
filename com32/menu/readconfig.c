@@ -113,7 +113,9 @@ looking_at(char *line, const char *kwd)
   return my_isspace(*p) ? p : NULL; /* Must be EOL or whitespace */
 }
 
-static struct menu *new_menu(struct menu *parent, const char *label)
+static struct menu * new_menu(struct menu *parent,
+			      struct menu_entry *parent_entry,
+			      const char *label)
 {
   struct menu *m = calloc(1, sizeof(struct menu));
   int i;
@@ -123,10 +125,15 @@ static struct menu *new_menu(struct menu *parent, const char *label)
   if (parent) {
     /* Submenu */
     m->parent = parent;
-    m->parent_entry = &parent->menu_entries[parent->nentries-1];
+    m->parent_entry = parent_entry;
+    parent_entry->action = MA_SUBMENU;
+    parent_entry->submenu = m;
 
     for (i = 0; i < MSG_COUNT; i++)
       m->messages[i] = refstr_get(parent->messages[i]);
+
+    refstr_put(m->messages[MSG_TITLE]);
+    m->messages[MSG_TITLE] = refstr_get(empty_string);
 
     memcpy(m->mparm, parent->mparm, sizeof m->mparm);
 
@@ -175,7 +182,62 @@ struct labeldata {
   unsigned int menuseparator;
   unsigned int menudisabled;
   unsigned int menuindent;
+  enum menu_action action;
 };
+
+/* Menu currently being parsed */
+static struct menu *current_menu;
+
+static void
+clear_label_data(struct labeldata *ld)
+{
+  refstr_put(ld->label);
+  refstr_put(ld->kernel);
+  refstr_put(ld->append);
+  refstr_put(ld->menulabel);
+  refstr_put(ld->passwd);
+
+  memset(ld, 0, sizeof *ld);
+}
+
+static struct menu_entry *new_entry(struct menu *m)
+{
+  struct menu_entry *me;
+
+  if (m->nentries >= m->nentries_space) {
+    if (!m->nentries_space)
+      m->nentries_space = 1;
+    else
+      m->nentries_space <<= 1;
+
+    m->menu_entries = realloc(m->menu_entries, m->nentries_space*
+			      sizeof(struct menu_entry));
+  }
+
+  me = &m->menu_entries[m->nentries++];
+  memset(me, 0, sizeof *me);
+
+  *all_entries_end = me;
+  all_entries_end = &me->next;
+
+  return me;
+}
+
+static void consider_for_hotkey(struct menu *m, struct menu_entry *me)
+{
+  unsigned char *p =
+    (unsigned char *)strchr(me->displayname, '^');
+
+  if (me->action != MA_DISABLED) {
+    if ( p && p[1] ) {
+      int hotkey = p[1] & ~0x20;
+      if ( !m->menu_hotkeys[hotkey] ) {
+	me->hotkey = hotkey;
+	m->menu_hotkeys[hotkey] = me;
+      }
+    }
+  }
+}
 
 static void
 record(struct menu *m, struct labeldata *ld, const char *append)
@@ -191,28 +253,20 @@ record(struct menu *m, struct labeldata *ld, const char *append)
   if (ld->menuhide)
     m = hide_menu;
 
-  if (m->nentries >= m->nentries_space) {
-    if (!m->nentries_space)
-      m->nentries_space = 1;
-    else
-      m->nentries_space <<= 1;
-
-    m->menu_entries = realloc(m->menu_entries, m->nentries_space*
-			      sizeof(struct menu_entry));
-  }
-  me = &m->menu_entries[m->nentries];
-
   if ( ld->label ) {
     char ipoptions[4096], *ipp;
     const char *a;
     char *s;
 
-    me->displayname = ld->menulabel ? ld->menulabel : refstr_get(ld->label);
-    me->label       = ld->label;
-    me->passwd      = ld->passwd;
+    me = new_entry(m);
+
+    me->displayname = ld->menulabel
+      ? refstr_get(ld->menulabel) : refstr_get(ld->label);
+    me->label       = refstr_get(ld->label);
+    me->passwd      = refstr_get(ld->passwd);
     me->helptext    = ld->helptext;
-    me->hotkey = 0;
-    me->action = MA_CMD;
+    me->hotkey 	    = 0;
+    me->action	    = ld->action ? ld->action : MA_CMD;
 
     if ( ld->menuindent ) {
       const char *dn;
@@ -222,74 +276,83 @@ record(struct menu *m, struct labeldata *ld, const char *append)
       me->displayname = dn;
     }
 
-    if ( ld->menulabel ) {
-      unsigned char *p = (unsigned char *)strchr(ld->menulabel, '^');
-      if ( p && p[1] ) {
-	int hotkey = p[1] & ~0x20;
-	if ( !m->menu_hotkeys[hotkey] ) {
-	  me->hotkey = hotkey;
-	}
-      }
-    }
-
-    ipp = ipoptions;
-    *ipp = '\0';
-    ipappend = syslinux_ipappend_strings();
-    for (i = 0; i < ipappend->count; i++) {
-      if ( (ld->ipappend & (1U << i)) && ipappend->ptr[i] )
-	ipp += sprintf(ipp, " %s", ipappend->ptr[i]);
-    }
-
-    a = ld->append;
-    if ( !a )
-      a = append;
-    if ( !a || (a[0] == '-' && !a[1]) )
-      a = "";
-    s = a[0] ? " " : "";
-    if (ld->type == KT_KERNEL) {
-      rsprintf(&me->cmdline, "%s%s%s%s",
-	       ld->kernel, s, a, ipoptions);
-    } else {
-      rsprintf(&me->cmdline, ".%s %s%s%s%s",
-	       kernel_types[ld->type], ld->kernel, s, a, ipoptions);
-    }
-    refstr_put(ld->kernel);
-    ld->kernel = NULL;
-    refstr_put(ld->append);
-    ld->append = NULL;
-
     if ( ld->menuseparator ) {
       refstr_put(me->displayname);
       me->displayname = refstr_get(empty_string);
     }
 
     if ( ld->menuseparator || ld->menudisabled ) {
-      me->label    = NULL;
-      me->passwd   = NULL;
       me->action   = MA_DISABLED;
-
-      refstr_put(me->cmdline);
-      me->cmdline = NULL;
+      refstr_put(me->label);
+      me->label    = NULL;
+      refstr_put(me->passwd);
+      me->passwd   = NULL;
     }
 
-    ld->label = NULL;
-    ld->passwd = NULL;
+    if (ld->menulabel)
+      consider_for_hotkey(m, me);
 
-    if ( me->hotkey )
-      m->menu_hotkeys[me->hotkey] = me;
-    
-    if ( ld->menudefault && !ld->menudisabled && !ld->menuseparator )
-      m->defentry = m->nentries;
+    switch (me->action) {
+    case MA_CMD:
+      ipp = ipoptions;
+      *ipp = '\0';
+      
+      if (ld->ipappend) {
+	ipappend = syslinux_ipappend_strings();
+	for (i = 0; i < ipappend->count; i++) {
+	  if ( (ld->ipappend & (1U << i)) && ipappend->ptr[i] )
+	    ipp += sprintf(ipp, " %s", ipappend->ptr[i]);
+	}
+      }
 
-    *all_entries_end = me;
-    all_entries_end = &me->next;
+      a = ld->append;
+      if ( !a )
+	a = append;
+      if ( !a || (a[0] == '-' && !a[1]) )
+	a = "";
+      s = a[0] ? " " : "";
+      if (ld->type == KT_KERNEL) {
+	rsprintf(&me->cmdline, "%s%s%s%s",
+		 ld->kernel, s, a, ipoptions);
+      } else {
+	rsprintf(&me->cmdline, ".%s %s%s%s%s",
+		 kernel_types[ld->type], ld->kernel, s, a, ipoptions);
+      }
+      break;
 
-    m->nentries++;
+    case MA_GOTO_UNRES:
+      me->cmdline = refstr_get(ld->kernel);
+      break;
+
+    default:
+      break;
+    }
+
+    if ( ld->menudefault && me->action == MA_CMD )
+      m->defentry = m->nentries-1;
   }
+
+  clear_label_data(ld);
 }
 
-static const char *
-unlabel(const char *str)
+static struct menu *begin_submenu(const char *tag)
+{
+  struct menu_entry *me;
+
+  if (!tag[0])
+    tag = NULL;
+
+  me = new_entry(current_menu);
+  me->displayname = refstrdup(tag);
+  return new_menu(current_menu, me, tag);
+}
+
+static struct menu *end_submenu(void)
+{
+  return current_menu->parent ? current_menu->parent : current_menu;
+}
+
+static const char *unlabel(const char *str)
 {
   /* Convert a CLI-style command line to an executable command line */
   const char *p;
@@ -477,8 +540,6 @@ static char *is_fkey(char *cmdstr, int *fkeyno)
   return q;
 }
 
-static struct menu *current_menu;
-
 static void parse_config_file(FILE *f)
 {
   char line[MAX_LINE], *p, *ep, ch;
@@ -507,14 +568,25 @@ static void parse_config_file(FILE *f)
 	} else if ( m->parent_entry ) {
 	  refstr_put(m->parent_entry->displayname);
 	  m->parent_entry->displayname = refstrdup(skipspace(p+5));
+	  consider_for_hotkey(m, m->parent_entry);
+	  if (!m->messages[MSG_TITLE][0]) {
+	    /* MENU LABEL -> MENU TITLE on submenu */
+	    refstr_put(m->messages[MSG_TITLE]);
+	    m->messages[MSG_TITLE] = refstr_get(m->parent_entry->displayname);
+	  }
 	}
       } else if ( looking_at(p, "default") ) {
 	ld.menudefault = 1;
       } else if ( looking_at(p, "hide") ) {
 	ld.menuhide = 1;
       } else if ( looking_at(p, "passwd") ) {
-	refstr_put(ld.passwd);
-	ld.passwd = refstrdup(skipspace(p+6));
+	if ( ld.label ) {
+	  refstr_put(ld.passwd);
+	  ld.passwd = refstrdup(skipspace(p+6));
+	} else if ( m->parent_entry ) {
+	  refstr_put(m->parent_entry->passwd);
+	  m->parent_entry->passwd = refstrdup(skipspace(p+6));
+	}
       } else if ( looking_at(p, "shiftkey") ) {
 	shiftkey = 1;
       } else if ( looking_at(p, "onerror") ) {
@@ -625,17 +697,32 @@ static void parse_config_file(FILE *f)
 	}
 	set_msg_colors_global(m->color_table, fg_mask, bg_mask, shadow);
       } else if ( looking_at(p, "separator") ) {
-        record(root_menu, &ld, append);
-        memset(&ld, 0, sizeof(struct labeldata));
-        ld.label = "";
+        record(m, &ld, append);
+        ld.label = refstr_get(empty_string);
 	ld.menuseparator = 1;
-        record(root_menu, &ld, append);
-        memset(&ld, 0, sizeof(struct labeldata));
+        record(m, &ld, append);
       } else if ( looking_at(p, "disable") ||
 		  looking_at(p, "disabled")) {
 	ld.menudisabled = 1;
       } else if ( looking_at(p, "indent") ) {
         ld.menuindent = atoi(skipspace(p+6));
+      } else if ( looking_at(p, "begin") ) {
+        record(m, &ld, append);
+	m = current_menu = begin_submenu(skipspace(p+5));
+      } else if ( looking_at(p, "end") ) {
+        record(m, &ld, append);
+	m = current_menu = end_submenu();
+      } else if ( looking_at(p, "quit") ) {
+	if (ld.label)
+	  ld.action = MA_QUIT;
+      } else if ( looking_at(p, "goto") ) {
+	if (ld.label) {
+	  ld.action = MA_GOTO_UNRES;
+	  refstr_put(ld.kernel);
+	  ld.kernel = refstrdup(skipspace(p+4));
+	}
+      } else if ( looking_at(p, "start") ) {
+	start_menu = m;
       } else {
 	/* Unknown, check for layout parameters */
 	enum parameter_number mp;
@@ -707,7 +794,7 @@ static void parse_config_file(FILE *f)
       }
     } else if ( looking_at(p, "label") ) {
       p = skipspace(p+5);
-      record(root_menu, &ld, append);
+      record(m, &ld, append);
       ld.label     = refstrdup(p);
       ld.kernel    = refstrdup(p);
       ld.type      = KT_KERNEL;
@@ -786,8 +873,8 @@ void parse_configs(char **argv)
   empty_string = refstrdup("");
 
   /* Initialize defaults for the root and hidden menus */
-  hide_menu = new_menu(NULL, ".hidden");
-  root_menu = new_menu(NULL, ".top");
+  hide_menu = new_menu(NULL, NULL, ".hidden");
+  root_menu = new_menu(NULL, NULL, ".top");
   start_menu = root_menu;
 
   /* Other initialization */
