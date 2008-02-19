@@ -25,6 +25,9 @@ const char *refstrndup(const char *str, size_t len)
 {
   char *r;
 
+  if (!str)
+    return NULL;
+
   len = strnlen(str, len);
   r = malloc(sizeof(unsigned int)+len+1);
   *(unsigned int *)r = 1;
@@ -38,6 +41,9 @@ const char *refstrdup(const char *str)
 {
   char *r;
   size_t len;
+
+  if (!str)
+    return NULL;
 
   len = strlen(str);
   r = malloc(sizeof(unsigned int)+len+1);
