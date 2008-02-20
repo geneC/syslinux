@@ -180,6 +180,7 @@ struct labeldata {
   unsigned int menudisabled;
   unsigned int menuindent;
   enum menu_action action;
+  struct menu *submenu;
 };
 
 /* Menu currently being parsed */
@@ -319,6 +320,11 @@ record(struct menu *m, struct labeldata *ld, const char *append)
 
     case MA_GOTO_UNRES:
       me->cmdline = refstr_get(ld->kernel);
+      break;
+
+    case MA_GOTO:
+    case MA_EXIT:
+      me->submenu = ld->submenu;
       break;
 
     default:
@@ -726,6 +732,11 @@ static void parse_config_file(FILE *f)
 	  ld.action = MA_GOTO_UNRES;
 	  refstr_put(ld.kernel);
 	  ld.kernel = refstrdup(skipspace(p+4));
+	}
+      } else if ( looking_at(p, "exit") ) {
+	if (ld.label && m->parent) {
+	  ld.action = MA_EXIT;
+	  ld.submenu = m->parent;
 	}
       } else if ( looking_at(p, "start") ) {
 	start_menu = m;

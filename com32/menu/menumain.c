@@ -95,12 +95,24 @@ display_entry(const struct menu_entry *entry, const char *attrib,
 	      const char *hotattrib, int width)
 {
   const char *p = entry->displayname;
-  bool is_submenu = (entry->action == MA_SUBMENU || entry->action == MA_GOTO);
+  char marker;
 
   if (!p)
     p = "";
 
-  if (is_submenu)
+  switch (entry->action) {
+  case MA_SUBMENU:
+    marker = '>';
+    break;
+  case MA_EXIT:
+    marker = '<';
+    break;
+  default:
+    marker = 0;
+    break;
+  }
+
+  if (marker)
     width -= 2;
 
   while ( width ) {
@@ -123,8 +135,10 @@ display_entry(const struct menu_entry *entry, const char *attrib,
     }
   }
 
-  if (is_submenu)
-    fputs(" >", stdout);
+  if (marker) {
+    putchar(' ');
+    putchar(marker);
+  }
 }
 
 static void
@@ -832,6 +846,7 @@ run_menu(void)
 	  break;
 	case MA_SUBMENU:
 	case MA_GOTO:
+	case MA_EXIT:
 	  done = 0;
 	  clear = 2;
 	  cm = me->submenu;

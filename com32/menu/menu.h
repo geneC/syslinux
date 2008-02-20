@@ -42,6 +42,7 @@ enum menu_action {
   MA_GOTO,			/* Go to another menu */
   MA_GOTO_UNRES,		/* Unresolved go to */
   MA_QUIT,			/* Quit to CLI */
+  MA_EXIT,			/* Exit to higher-level menu */
 };
 
 struct menu_entry {
