@@ -928,6 +928,8 @@ void parse_configs(char **argv)
   resolve_gotos();
 
   for (m = menu_list; m; m = m->next) {
+    m->curentry = m->defentry;	/* All menus start at their defaults */
+
     if ( m->ontimeout )
       m->ontimeout = unlabel(m->ontimeout);
     if ( m->onerror )

@@ -31,7 +31,7 @@
 #include "menu.h"
 
 /* The symbol "cm" always refers to the current menu across this file... */
-static const struct menu *cm;
+static struct menu *cm;
 
 const struct menu_parameter mparm[NPARAMS] = {
   [P_WIDTH]		= { "width", 0 },
@@ -698,8 +698,10 @@ run_menu(void)
 {
   int key;
   int done = 0;
-  volatile int entry = cm->defentry, prev_entry = -1;
-  int top = 0, prev_top = -1;
+  volatile int entry = cm->curentry;
+  int prev_entry = -1;
+  volatile int top = cm->curtop;
+  int prev_top = -1;
   int clear = 1, to_clear;
   const char *cmdline = NULL;
   volatile clock_t key_timeout, timeout_left, this_timeout;
@@ -787,6 +789,8 @@ run_menu(void)
     }
 
     prev_entry = entry;  prev_top = top;
+    cm->curentry = entry;
+    cm->curtop = top;
 
     /* Cursor movement cancels timeout */
     if ( entry != cm->defentry )
@@ -850,8 +854,8 @@ run_menu(void)
 	  done = 0;
 	  clear = 2;
 	  cm = me->submenu;
-	  entry = cm->defentry;
-	  top = 0;
+	  entry = cm->curentry;
+	  top = cm->curtop;
 	  break;
 	case MA_QUIT:
 	  /* Quit menu system */
@@ -978,7 +982,8 @@ run_menu(void)
       if ( cm->parent ) {
 	cm = cm->parent;
 	clear = 2;
-	entry = top = 0;
+	entry = cm->curentry;
+	top = cm->curtop;
       } else if ( cm->allowedit ) {
 	done = 1;
 	clear = 1;

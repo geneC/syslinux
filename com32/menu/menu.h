@@ -148,6 +148,9 @@ struct menu {
   int allowedit;
   int timeout;
 
+  int curentry;
+  int curtop;
+
   const char *title;
   const char *ontimeout;
   const char *onerror;
