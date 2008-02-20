@@ -225,6 +225,14 @@ MENU QUIT
 	PASSWD can of course be set for this label.
 
 
+MENU START
+
+	(Only valid inside MENU BEGIN ... MENU END)
+
+	Indicates that the menu system should start at the menu being
+	defined instead of at the top-level menu.
+
+
 INCLUDE filename [tagname]
 MENU INCLUDE filename [tagname]
 
