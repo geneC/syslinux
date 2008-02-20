@@ -120,6 +120,7 @@ static struct menu * new_menu(struct menu *parent,
   int i;
 
   m->label = refstrdup(label);
+  m->title = refstr_get(empty_string);
 
   if (parent) {
     /* Submenu */
@@ -136,7 +137,6 @@ static struct menu * new_menu(struct menu *parent,
     m->allowedit = parent->allowedit;
     m->timeout   = parent->timeout;
 
-    m->title	 = refstr_get(empty_string);
     m->ontimeout = refstr_get(parent->ontimeout);
     m->onerror   = refstr_get(parent->onerror);
     m->menu_master_passwd = refstr_get(parent->menu_master_passwd);
