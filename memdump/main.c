@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
       .write = serial_write,
     };
   struct file_info finfo;
-  const char serial_banner[] = "Now beginning Ymodem download...\r\n";
+  const char serial_banner[] = "Now begin Ymodem download...\r\n";
 
   if (argc < 4)
     die("usage: memdump port prefix start,len...");
