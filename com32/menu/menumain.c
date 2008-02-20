@@ -659,7 +659,7 @@ static void
 prepare_screen_for_menu(void)
 {
   console_color_table = cm->color_table;
-  console_color_table_size = message_base_color+256;
+  console_color_table_size = menu_color_table_size;
   set_background(cm->menu_background);
 }
 

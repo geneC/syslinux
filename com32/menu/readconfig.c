@@ -627,8 +627,8 @@ static void parse_config_file(FILE *f)
 	int i;
 	struct color_table *cptr;
 	p = skipspace(ep);
-	cptr = console_color_table;
-	for ( i = 0; i < console_color_table_size; i++ ) {
+	cptr = m->color_table;
+	for ( i = 0; i < menu_color_table_size; i++ ) {
 	  if ( (ep = looking_at(p, cptr->name)) ) {
 	    p = skipspace(ep);
 	    if (*p) {

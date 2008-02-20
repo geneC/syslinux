@@ -189,7 +189,7 @@ int menu_main(int argc, char *argv[]);
 void console_prepare(void);
 void console_cleanup(void);
 
-extern const int message_base_color;
+extern const int message_base_color, menu_color_table_size;
 int mygetkey(clock_t timeout);
 int show_message_file(const char *filename, const char *background);
 

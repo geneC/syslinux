@@ -62,6 +62,7 @@ static const struct color_table default_colors[] = {
 
 #define NCOLORS (sizeof default_colors/sizeof default_colors[0])
 const int message_base_color = NCOLORS;
+const int menu_color_table_size = NCOLORS+256;
 
 /* Algorithmically generate the msgXX colors */
 void set_msg_colors_global(struct color_table *tbl,
