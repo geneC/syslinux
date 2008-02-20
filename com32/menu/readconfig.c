@@ -119,7 +119,7 @@ static struct menu * new_menu(struct menu *parent,
   struct menu *m = calloc(1, sizeof(struct menu));
   int i;
 
-  m->label = refstrdup(label);
+  m->label = label;
   m->title = refstr_get(empty_string);
 
   if (parent) {
@@ -347,7 +347,7 @@ static struct menu *begin_submenu(const char *tag)
 
   me = new_entry(current_menu);
   me->displayname = refstrdup(tag);
-  return new_menu(current_menu, me, tag);
+  return new_menu(current_menu, me, refstr_get(me->displayname));
 }
 
 static struct menu *end_submenu(void)
@@ -583,7 +583,7 @@ static void parse_config_file(FILE *f)
 	m->title = refstrdup(skipspace(p+5));
 	if (m->parent_entry) {
 	  /* MENU TITLE -> MENU LABEL on submenu */
-	  if (m->parent_entry->displayname == m->parent_entry->label) {
+	  if (m->parent_entry->displayname == m->label) {
 	    refstr_put(m->parent_entry->displayname);
 	    m->parent_entry->displayname = refstr_get(m->title);
 	  }
@@ -905,8 +905,8 @@ void parse_configs(char **argv)
   empty_string = refstrdup("");
 
   /* Initialize defaults for the root and hidden menus */
-  hide_menu = new_menu(NULL, NULL, ".hidden");
-  root_menu = new_menu(NULL, NULL, ".top");
+  hide_menu = new_menu(NULL, NULL, refstrdup(".hidden"));
+  root_menu = new_menu(NULL, NULL, refstrdup(".top"));
   start_menu = root_menu;
 
   /* Other initialization */
