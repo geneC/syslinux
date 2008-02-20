@@ -835,7 +835,8 @@ run_menu(void)
 	  done = 0;
 	  clear = 2;
 	  cm = me->submenu;
-	  entry = top = 0;
+	  entry = cm->defentry;
+	  top = 0;
 	  break;
 	case MA_QUIT:
 	  /* Quit menu system */
