@@ -144,16 +144,16 @@ struct color_table *default_color_table(void)
   for (i = 0; i < 256; i++) {
     cp->name = mp;
     mp += sprintf(mp, "msg%02x", i)+1;
-    
+
     rsprintf(&cp->ansi, "%s3%d;4%d", (i & 8) ? "1;" : "",
 	     pc2ansi[i & 7], pc2ansi[(i >> 4) & 7]);
     cp++;
   }
-    
+
   /*** XXX: This needs to move to run_menu() ***/
   console_color_table = color_table;
   console_color_table_size = NCOLORS+256;
-  
+
   set_msg_colors_global(color_table, MSG_COLORS_DEF_FG,
 			MSG_COLORS_DEF_BG, MSG_COLORS_DEF_SHADOW);
 
@@ -180,5 +180,3 @@ struct color_table *copy_color_table(const struct color_table *master)
 
   return color_table;
 }
-
-  

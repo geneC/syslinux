@@ -144,7 +144,7 @@ simple_pm_call:
 		mov [cs:bcopy_gdt.SS16+2],eax
 
 		push ss			; Save real-mode SS selector
-	
+
 		o32 lgdt [cs:bcopy_gdt]
 		mov eax,cr0
 		or al,1

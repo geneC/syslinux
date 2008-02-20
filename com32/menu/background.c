@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2008 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -24,4 +24,3 @@ void set_background(const char *new_background)
     current_background = new_background;
   }
 }
-

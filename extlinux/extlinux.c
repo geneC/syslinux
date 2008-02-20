@@ -931,7 +931,7 @@ modify_existing_adv(const char *path)
     syslinux_reset_adv(syslinux_adv);
   else if (read_adv(path) < 0)
     return 1;
-    
+
   if (modify_adv() < 0)
     return 1;
 

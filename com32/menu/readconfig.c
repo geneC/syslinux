@@ -73,7 +73,7 @@ static struct menu *
 find_menu(const char *label)
 {
   struct menu *m;
-  
+
   for (m = menu_list; m; m = m->next) {
     if (!strcmp(label, m->label))
       return m;
@@ -262,7 +262,7 @@ record(struct menu *m, struct labeldata *ld, const char *append)
     me->label       = refstr_get(ld->label);
     me->passwd      = refstr_get(ld->passwd);
     me->helptext    = ld->helptext;
-    me->hotkey 	    = 0;
+    me->hotkey	    = 0;
     me->action	    = ld->action ? ld->action : MA_CMD;
 
     if ( ld->menuindent ) {
@@ -293,7 +293,7 @@ record(struct menu *m, struct labeldata *ld, const char *append)
     case MA_CMD:
       ipp = ipoptions;
       *ipp = '\0';
-      
+
       if (ld->ipappend) {
 	ipappend = syslinux_ipappend_strings();
 	for (i = 0; i < ipappend->count; i++) {

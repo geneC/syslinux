@@ -61,7 +61,7 @@ if ($align != 0) {
 	    $pos = 0;
 	} elsif ( $pos > 0 ) {
 	    print ", ";
-	} else {	
+	} else {
 	    print "\t";
 	}
 	print '0x00';

@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2008 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -10,10 +10,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -61,13 +61,13 @@ void __vesacon_init_copy_to_screen(void)
     wi.win_num  = -1;		/* Not a window */
   } else {
     /* Paged frame buffer */
-    
+
     /* We have already tested that *one* of these is usable */
     if ((mi->win_attr[0] & 0x05) == 0x05 && mi->win_seg[0])
       winn = 0;
     else
       winn = 1;
-    
+
     wi.win_num    = winn;
     wi.win_base   = (char *)(mi->win_seg[winn] << 4);
     wi.win_size   = mi->win_size << 10;

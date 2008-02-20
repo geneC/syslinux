@@ -74,7 +74,7 @@ It works the same way as SYSLINUX, with a few slight modifications.
    The --once, --clear-once, and --reset-adv commands can be combined
    with --install or --update, if desired.  The ADV is preserved
    across updates, unless --reset-adv is specified.
-   
+
 
 Note that EXTLINUX installs in the filesystem partition like a
 well-behaved bootloader :)  Thus, it needs a master boot record in the

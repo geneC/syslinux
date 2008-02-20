@@ -97,7 +97,7 @@ enum parameter_number {
   P_HSHIFT,
   P_VSHIFT,
   P_HIDDEN_ROW,
-  
+
   NPARAMS
 };
 

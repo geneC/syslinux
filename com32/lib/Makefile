@@ -85,7 +85,7 @@ LIBOBJS = \
 	\
 	syslinux/pxe_get_cached.o					\
 	\
-	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o 		\
+	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o		\
 	syslinux/setadv.o
 
 BINDIR   = /usr/bin

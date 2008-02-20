@@ -29,7 +29,7 @@
 
 /* Number of arguments in our version of the entry structure */
 #define COM32_ARGS 6
-	
+
 		.section ".init","ax"
 		.globl _start
 		.type _start, @function

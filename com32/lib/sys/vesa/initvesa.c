@@ -164,7 +164,7 @@ static int vesacon_set_mode(void)
       continue;
 
     /* We don't support multibank (interlaced memory) modes */
-    /* 
+    /*
      *  Note: The Bochs VESA BIOS (vbe.c 1.58 2006/08/19) violates the
      * specification which states that banks == 1 for unbanked modes;
      * fortunately it does report bank_size == 0 for those.

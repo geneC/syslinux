@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2008 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -95,7 +95,7 @@ void refstr_put(const char *r)
 
   if (r) {
     ref = (unsigned int *)r - 1;
-    
+
     if (!--*ref)
       free(ref);
   }

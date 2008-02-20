@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -37,11 +37,11 @@ static void cleanup_adv(unsigned char *advbuf)
 
   /* Make sure both copies agree, and update the checksum */
   set_32(advbuf, ADV_MAGIC1);
-  
+
   csum = ADV_MAGIC2;
   for (i = 8; i < ADV_SIZE-4; i += 4)
     csum -= get_32(advbuf+i);
-  
+
   set_32(advbuf+4, csum);
   set_32(advbuf+ADV_SIZE-4, ADV_MAGIC3);
 
@@ -157,4 +157,3 @@ int syslinux_validate_adv(unsigned char *advbuf)
     return -1;
   }
 }
-

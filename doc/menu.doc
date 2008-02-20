@@ -44,8 +44,8 @@ MENU TITLE title
 MENU HIDDEN
 
 	Do not display the actual menu unless the user presses a key.
-	All that is displayed is a timeout message.     
-     
+	All that is displayed is a timeout message.
+
 MENU SEPARATOR
 
 	Insert an empty line in the menu.
@@ -91,12 +91,12 @@ MENU DISABLE
 	Makes the entry unselectable.  This allows you to make a
 	section in your menu with different options below it.
 	for example:
-	
+
 	# Entries for network boots
 	LABEL -
 		MENU LABEL Network:
 		MENU DISABLE
-	
+
 	# Soft Cap Linux
 	LABEL softcap
 		MENU LABEL Soft Cap ^Linux 9.6.36
@@ -223,7 +223,7 @@ MENU QUIT
 	WARNING: if MENU MASTER PASSWD or ALLOWOPTIONS 0 is set, this
 	will still allow exiting to the CLI; however, a separate MENU
 	PASSWD can of course be set for this label.
-	
+
 
 INCLUDE filename [tagname]
 MENU INCLUDE filename [tagname]
