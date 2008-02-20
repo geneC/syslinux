@@ -16,6 +16,10 @@ Changes in 3.62:
 	  high memory, removing the size limit and freeing up 64K of
 	  low memory.
 	* Get rid of 4096-entry limit in the simple menu system.
+	* New hierarchial submenu support: see MENU BEGIN, MENU END,
+	  MENU GOTO in doc/menu.doc.
+	* MENU QUIT allows creating a menu entry for returning to the
+	  command line.
 
 Changes in 3.61:
 	* EXTLINUX: fix crash when accessing an empty file.

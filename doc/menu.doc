@@ -93,7 +93,7 @@ MENU DISABLE
 	for example:
 	
 	# Entries for network boots
-	LABEL
+	LABEL -
 		MENU LABEL Network:
 		MENU DISABLE
 	
@@ -115,7 +115,7 @@ MENU DISABLE
 	MENU SEPARATOR
 
 	# Entries for local boots
-	LABEL
+	LABEL -
 		MENU LABEL Local:
 		MENU DISABLE
 
@@ -152,6 +152,7 @@ Help text ...
 ENDTEXT
 
 	(Only valid after a LABEL statement.)
+
 	Specifies a help text that should be displayed when a particular
 	selection is highlighted.
 
@@ -192,6 +193,37 @@ MENU BACKGROUND background
 	file, which should be 640x480 pixels and either in PNG or JPEG
 	format.
 
+
+MENU BEGIN [tagname]
+MENU END
+
+	Begin/end a submenu.  The entries between MENU BEGIN and MENU
+	END form a submenu, which is marked with a > mark on the right
+	hand of the screen.  Submenus inherit the properties of their
+	parent menus, but can override them, and can thus have their
+	own backgrounds, master passwords, titles, timeouts, messages
+	and so forth.
+
+
+MENU GOTO tagname
+
+	(Only valid after a LABEL statement.)
+
+	This label will transfer to the named submenu instead of
+	booting anything.  To transfer to the top-level menu, specify
+	"menu goto .top".
+
+
+MENU QUIT
+
+	(Only valid after a LABEL statement.)
+
+	This label quits the menu system.
+
+	WARNING: if MENU MASTER PASSWD or ALLOWOPTIONS 0 is set, this
+	will still allow exiting to the CLI; however, a separate MENU
+	PASSWD can of course be set for this label.
+	
 
 INCLUDE filename
 MENU INCLUDE filename
