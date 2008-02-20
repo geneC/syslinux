@@ -96,10 +96,10 @@ ethersel.elf : ethersel.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy:
-	rm -f *.o *.lo *.a *.lst *.elf
+	rm -f *.o *.lo *.a *.lst *.elf .*.d
 
 clean: tidy
-	rm -f *.lss *.c32 *.lnx *.com .*.d
+	rm -f *.lss *.c32 *.lnx *.com
 
 spotless: clean
 	rm -f *~ \#*

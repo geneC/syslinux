@@ -78,10 +78,10 @@ all:	hello.c32 cat.c32 resolv.c32 vesainfo.c32 serialinfo.c32 \
 	$(OBJCOPY) -O binary $< $@
 
 tidy:
-	rm -f *.o *.lo *.a *.lst *.elf
+	rm -f *.o *.lo *.a *.lst *.elf .*.d
 
 clean: tidy
-	rm -f *.lss *.c32 *.lnx *.com .*.d
+	rm -f *.lss *.c32 *.lnx *.com
 
 spotless: clean
 	rm -f *~ \#*
