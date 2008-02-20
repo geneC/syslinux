@@ -599,8 +599,7 @@ static void parse_config_file(FILE *f)
 	  m->menu_master_passwd = refstrdup(skipspace(p+6));
 	}
       } else if ( (ep = looking_at(p, "include")) ) {
-	p = skipspace(ep);
-	parse_one_config(p);
+	goto do_include;
       } else if ( (ep = looking_at(p, "background")) ) {
 	p = skipspace(ep);
 	refstr_put(m->menu_background);
@@ -781,8 +780,23 @@ static void parse_config_file(FILE *f)
 	m->fkeyhelp[fkeyno].background = refdup_word(&p);
       }
     } else if ( (ep = looking_at(p, "include")) ) {
-      p = skipspace(ep);
-      parse_one_config(p);
+    do_include:
+      {
+	const char *file;
+	p = skipspace(ep);
+	file = refdup_word(&p);
+	p = skipspace(p);
+	if (*p) {
+	  record(m, &ld, append);
+	  m = current_menu = begin_submenu(p);
+	  parse_one_config(file);
+	  record(m, &ld, append);
+	  m = current_menu = end_submenu();
+	} else {
+	  parse_one_config(file);
+	}
+	refstr_put(file);
+      }
     } else if ( looking_at(p, "append") ) {
       const char *a = refstrdup(skipspace(p+6));
       if ( ld.label ) {

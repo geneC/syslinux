@@ -225,8 +225,8 @@ MENU QUIT
 	PASSWD can of course be set for this label.
 	
 
-INCLUDE filename
-MENU INCLUDE filename
+INCLUDE filename [tagname]
+MENU INCLUDE filename [tagname]
 
 	Include the contents of the configuration file filename at
 	this point.
@@ -234,6 +234,10 @@ MENU INCLUDE filename
 	In the case of MENU INCLUDE, the included data is only seen by
 	the menu system; the core syslinux code does not parse this
 	command, so any labels defined in it are unavailable.
+
+	If a tagname is included, the whole file is considered to have
+	been bracketed with a MENU BEGIN tagname ... MENU END pair,
+	and will therefore show up as a submenu.
 
 
 MENU AUTOBOOT message
