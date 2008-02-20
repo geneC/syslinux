@@ -38,7 +38,6 @@ static struct menu_entry *all_entries;
 static struct menu_entry **all_entries_end = &all_entries;
 
 static const struct messages messages[MSG_COUNT] = {
-  [MSG_TITLE]      =  { "title",    "" },
   [MSG_AUTOBOOT]   =  { "autoboot", "Automatic boot in # second{,s}..." },
   [MSG_TAB]        =  { "tabmsg",   "Press [Tab] to edit options" },
   [MSG_NOTAB]      =  { "notabmsg", "" },
@@ -132,14 +131,12 @@ static struct menu * new_menu(struct menu *parent,
     for (i = 0; i < MSG_COUNT; i++)
       m->messages[i] = refstr_get(parent->messages[i]);
 
-    refstr_put(m->messages[MSG_TITLE]);
-    m->messages[MSG_TITLE] = refstr_get(empty_string);
-
     memcpy(m->mparm, parent->mparm, sizeof m->mparm);
 
     m->allowedit = parent->allowedit;
     m->timeout   = parent->timeout;
 
+    m->title	 = refstr_get(empty_string);
     m->ontimeout = refstr_get(parent->ontimeout);
     m->onerror   = refstr_get(parent->onerror);
     m->menu_master_passwd = refstr_get(parent->menu_master_passwd);
@@ -569,10 +566,20 @@ static void parse_config_file(FILE *f)
 	  refstr_put(m->parent_entry->displayname);
 	  m->parent_entry->displayname = refstrdup(skipspace(p+5));
 	  consider_for_hotkey(m, m->parent_entry);
-	  if (!m->messages[MSG_TITLE][0]) {
+	  if (!m->title[0]) {
 	    /* MENU LABEL -> MENU TITLE on submenu */
-	    refstr_put(m->messages[MSG_TITLE]);
-	    m->messages[MSG_TITLE] = refstr_get(m->parent_entry->displayname);
+	    refstr_put(m->title);
+	    m->title = refstr_get(m->parent_entry->displayname);
+	  }
+	}
+      } else if ( looking_at(p, "title") ) {
+	refstr_put(m->title);
+	m->title = refstrdup(skipspace(p+5));
+	if (m->parent_entry) {
+	  /* MENU TITLE -> MENU LABEL on submenu */
+	  if (m->parent_entry->displayname == m->parent_entry->label) {
+	    refstr_put(m->parent_entry->displayname);
+	    m->parent_entry->displayname = refstr_get(m->title);
 	  }
 	}
       } else if ( looking_at(p, "default") ) {

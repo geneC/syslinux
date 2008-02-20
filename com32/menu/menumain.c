@@ -297,7 +297,7 @@ draw_menu(int sel, int top, int edit_line)
   printf("k\033[%d;%dH\1#1x\017\1#2 %s \1#1\016x",
 	 VSHIFT+2,
 	 HSHIFT+MARGIN+1,
-	 pad_line(cm->messages[MSG_TITLE], 1, WIDTH-2*MARGIN-4));
+	 pad_line(cm->title, 1, WIDTH-2*MARGIN-4));
 
   printf("\033[%d;%dH\1#1t", VSHIFT+3, HSHIFT+MARGIN+1);
   for ( x = 2+HSHIFT ; x <= (WIDTH-2*MARGIN-1)+HSHIFT ; x++ )

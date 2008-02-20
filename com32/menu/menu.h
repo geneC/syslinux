@@ -147,6 +147,7 @@ struct menu {
   int allowedit;
   int timeout;
 
+  const char *title;
   const char *ontimeout;
   const char *onerror;
   const char *menu_master_passwd;
