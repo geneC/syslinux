@@ -45,6 +45,7 @@ enum menu_action {
 };
 
 struct menu_entry {
+  int entry;			/* Entry number inside menu */
   const char *displayname;
   const char *label;
   const char *passwd;
@@ -134,7 +135,7 @@ struct menu {
   struct menu *parent;
   struct menu_entry *parent_entry; /* Entry for self in parent */
 
-  struct menu_entry *menu_entries;
+  struct menu_entry **menu_entries;
   struct menu_entry *menu_hotkeys[256];
 
   const char *messages[MSG_COUNT];

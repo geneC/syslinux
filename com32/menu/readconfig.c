@@ -211,12 +211,12 @@ static struct menu_entry *new_entry(struct menu *m)
       m->nentries_space <<= 1;
 
     m->menu_entries = realloc(m->menu_entries, m->nentries_space*
-			      sizeof(struct menu_entry));
+			      sizeof(struct menu_entry *));
   }
 
-  me = &m->menu_entries[m->nentries++];
-  memset(me, 0, sizeof *me);
-
+  me = calloc(1, sizeof(struct menu_entry));
+  me->entry = m->nentries;
+  m->menu_entries[m->nentries++] = me;
   *all_entries_end = me;
   all_entries_end = &me->next;
 
@@ -367,8 +367,8 @@ static const char *unlabel(const char *str)
   /* p now points to the first byte beyond the kernel name */
   pos = p-str;
 
-  for ( me = all_entries ; me ; me = me->next ) {
-    if ( !strncmp(str, me->label, pos) && !me->label[pos] ) {
+  for (me = all_entries; me; me = me->next) {
+    if (!strncmp(str, me->label, pos) && !me->label[pos]) {
       /* Found matching label */
       rsprintf(&q, "%s%s", me->cmdline, p);
       refstr_put(str);

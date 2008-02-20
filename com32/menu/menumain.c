@@ -131,7 +131,7 @@ static void
 draw_row(int y, int sel, int top, int sbtop, int sbbot)
 {
   int i = (y-4-VSHIFT)+top;
-  int dis = (i < cm->nentries) && is_disabled(&cm->menu_entries[i]);
+  int dis = (i < cm->nentries) && is_disabled(cm->menu_entries[i]);
 
   printf("\033[%d;%dH\1#1\016x\017%s ",
 	 y, MARGIN+1+HSHIFT,
@@ -140,7 +140,7 @@ draw_row(int y, int sel, int top, int sbtop, int sbbot)
   if ( i >= cm->nentries ) {
     fputs(pad_line("", 0, WIDTH-2*MARGIN-4), stdout);
   } else {
-    display_entry(&cm->menu_entries[i],
+    display_entry(cm->menu_entries[i],
 		  (i == sel) ? "\1#5" : dis ? "\2#17" : "\1#3",
 		  (i == sel) ? "\1#6" : dis ? "\2#17" : "\1#4",
 		  WIDTH-2*MARGIN-4);
@@ -676,7 +676,7 @@ do_hidden_menu(void)
     }
   }
 
-  return cm->menu_entries[cm->defentry].cmdline; /* Default entry */
+  return cm->menu_entries[cm->defentry]->cmdline; /* Default entry */
 }
 
 static const char *
@@ -689,6 +689,7 @@ run_menu(void)
   int clear = 1, to_clear;
   const char *cmdline = NULL;
   volatile clock_t key_timeout, timeout_left, this_timeout;
+  const struct menu_entry *me;
 
   /* Note: for both key_timeout and timeout == 0 means no limit */
   timeout_left = key_timeout = cm->timeout;
@@ -696,7 +697,7 @@ run_menu(void)
   /* If we're in shiftkey mode, exit immediately unless a shift key
      is pressed */
   if ( shiftkey && !shift_is_held() ) {
-    return cm->menu_entries[cm->defentry].cmdline;
+    return cm->menu_entries[cm->defentry]->cmdline;
   } else {
     shiftkey = 0;
   }
@@ -726,22 +727,24 @@ run_menu(void)
       top = min(entry, max(0, cm->nentries-MENU_ROWS));
 
     draw_menu(cm->ontimeout ? -1 : entry, top, 1);
-    cmdline = cm->ontimeout ? cm->ontimeout : cm->menu_entries[entry].cmdline;
+    cmdline = cm->ontimeout ? cm->ontimeout : cm->menu_entries[entry]->cmdline;
     done = 1;
   }
 
   while ( !done ) {
     if ( entry <= 0 ) {
       entry = 0;
-      while (entry < cm->nentries && is_disabled(&cm->menu_entries[entry]))
+      while (entry < cm->nentries && is_disabled(cm->menu_entries[entry]))
 	entry++;
     }
 
     if ( entry >= cm->nentries ) {
       entry = cm->nentries-1;
-      while (entry > 0 && is_disabled(&cm->menu_entries[entry]))
+      while (entry > 0 && is_disabled(cm->menu_entries[entry]))
 	entry--;
     }
+
+    me = cm->menu_entries[entry];
 
     if ( top < 0 || top < entry-MENU_ROWS+1 )
       top = max(0, entry-MENU_ROWS+1);
@@ -762,11 +765,11 @@ run_menu(void)
 
     if ( top != prev_top ) {
       draw_menu(entry, top, 1);
-      display_help(cm->menu_entries[entry].helptext);
+      display_help(me->helptext);
     } else if ( entry != prev_entry ) {
       draw_row(prev_entry-top+4+VSHIFT, entry, top, 0, 0);
       draw_row(entry-top+4+VSHIFT, entry, top, 0, 0);
-      display_help(cm->menu_entries[entry].helptext);
+      display_help(me->helptext);
     }
 
     prev_entry = entry;  prev_top = top;
@@ -815,23 +818,23 @@ run_menu(void)
     case KEY_ENTER:
     case KEY_CTRL('J'):
       key_timeout = 0;		/* Cancels timeout */
-      if ( cm->menu_entries[entry].passwd ) {
+      if ( me->passwd ) {
 	clear = 1;
-	done = ask_passwd(cm->menu_entries[entry].passwd);
+	done = ask_passwd(me->passwd);
       } else {
 	done = 1;
       }
       cmdline = NULL;
       if (done) {
-	switch (cm->menu_entries[entry].action) {
+	switch (me->action) {
 	case MA_CMD:
-	  cmdline = cm->menu_entries[entry].cmdline;
+	  cmdline = me->cmdline;
 	  break;
 	case MA_SUBMENU:
 	case MA_GOTO:
 	  done = 0;
 	  clear = 2;
-	  cm = cm->menu_entries[entry].submenu;
+	  cm = me->submenu;
 	  entry = top = 0;
 	  break;
 	case MA_QUIT:
@@ -849,13 +852,13 @@ run_menu(void)
 
     case KEY_UP:
     case KEY_CTRL('P'):
-      while (entry > 0 && entry-- && is_disabled(&cm->menu_entries[entry])) {
+      while (entry > 0 && entry-- && is_disabled(cm->menu_entries[entry])) {
 	if ( entry < top )
 	  top -= MENU_ROWS;
       }
 
       if ( entry == 0 ) {
-        while (is_disabled(&cm->menu_entries[entry]))
+        while (is_disabled(cm->menu_entries[entry]))
           entry++;
       }
       break;
@@ -863,13 +866,13 @@ run_menu(void)
     case KEY_DOWN:
     case KEY_CTRL('N'):
       while (entry < cm->nentries-1 && entry++ &&
-	     is_disabled(&cm->menu_entries[entry])) {
+	     is_disabled(cm->menu_entries[entry])) {
 	if ( entry >= top+MENU_ROWS )
 	  top += MENU_ROWS;
       }
 
       if ( entry >= cm->nentries-1 ) {
-        while (is_disabled(&cm->menu_entries[entry]))
+        while (is_disabled(cm->menu_entries[entry]))
           entry--;
       }
       break;
@@ -929,7 +932,7 @@ run_menu(void)
       break;
 
     case KEY_TAB:
-      if ( cm->allowedit ) {
+      if ( cm->allowedit && me->action == MA_CMD ) {
 	int ok = 1;
 
 	key_timeout = 0;	/* Cancels timeout */
@@ -946,7 +949,7 @@ run_menu(void)
 	}
 
 	if ( ok ) {
-	  cmdline = edit_cmdline(cm->menu_entries[entry].cmdline, top);
+	  cmdline = edit_cmdline(me->cmdline, top);
 	  done = !!cmdline;
 	  clear = 1;		/* In case we hit [Esc] and done is null */
 	} else {
@@ -956,7 +959,11 @@ run_menu(void)
       break;
     case KEY_CTRL('C'):		/* Ctrl-C */
     case KEY_ESC:		/* Esc */
-      if ( cm->allowedit ) {
+      if ( cm->parent ) {
+	cm = cm->parent;
+	clear = 2;
+	entry = top = 0;
+      } else if ( cm->allowedit ) {
 	done = 1;
 	clear = 1;
 	key_timeout = 0;
@@ -972,7 +979,7 @@ run_menu(void)
 	key &= ~0x20;		/* Upper case */
 	if ( cm->menu_hotkeys[key] ) {
 	  key_timeout = 0;
-	  entry = cm->menu_hotkeys[key] - cm->menu_entries;
+	  entry = cm->menu_hotkeys[key]->entry;
 	  /* Should we commit at this point? */
 	}
       }
