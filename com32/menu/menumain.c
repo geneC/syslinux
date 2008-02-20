@@ -914,13 +914,17 @@ run_menu(void)
       break;
 
     case '-':
-      entry--;
-      top--;
+      do {
+	entry--;
+	top--;
+      } while (entry > 0 && is_disabled(cm->menu_entries[entry]));
       break;
 
     case '+':
-      entry++;
-      top++;
+      do {
+	entry++;
+	top++;
+      } while (entry < cm->nentries-1 && is_disabled(cm->menu_entries[entry]));
       break;
 
     case KEY_CTRL('A'):
