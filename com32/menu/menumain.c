@@ -297,10 +297,9 @@ draw_menu(int sel, int top, int edit_line)
   int tabmsg_len;
 
   if ( cm->nentries > MENU_ROWS ) {
-    int sblen = MENU_ROWS*MENU_ROWS/cm->nentries;
+    int sblen = max(MENU_ROWS*MENU_ROWS/cm->nentries, 1);
     sbtop = (MENU_ROWS-sblen+1)*top/(cm->nentries-MENU_ROWS+1);
-    sbbot = max(sbtop, sbtop+sblen-1);
-
+    sbbot = sbtop+sblen-1;
     sbtop += 4;  sbbot += 4;	/* Starting row of scrollbar */
   }
 
