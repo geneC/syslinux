@@ -27,7 +27,10 @@ AR	   = ar
 NASM	   = nasm
 NASMOPT	   = -O9999
 RANLIB	   = ranlib
-CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os -fomit-frame-pointer -I../libutil/include -I../include  -D__COM32__
+CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os \
+	     -fomit-frame-pointer -I../libutil/include -I../include \
+	     -D__COM32__ \
+	     -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d
 LNXCFLAGS  = -W -Wall -O -g -I../libutil/include
 LNXSFLAGS  = -g
 LNXLDFLAGS = -g
@@ -96,7 +99,7 @@ tidy:
 	rm -f *.o *.lo *.a *.lst *.elf
 
 clean: tidy
-	rm -f *.lss *.c32 *.lnx *.com
+	rm -f *.lss *.c32 *.lnx *.com .*.d
 
 spotless: clean
 	rm -f *~ \#*
@@ -104,3 +107,5 @@ spotless: clean
 install: all
 	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)
 	install -m 644 $(MODULES) $(INSTALLROOT)$(AUXDIR)
+
+-include .*.d
