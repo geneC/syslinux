@@ -1152,8 +1152,10 @@ searchdir:
 		mov si,[bp-6]			; TFTP pointer
 		mov bx,[bp-8]			; TID
 
+		; Make sure the packet actually came from the server
+		; This is technically not to the TFTP spec?
 		mov eax,[si+tftp_remoteip]
-		cmp [pxe_udp_read_pkt.sip],eax	; This is technically not to the TFTP spec?
+		cmp [pxe_udp_read_pkt.sip],eax
 		jne .no_packet
 
 		; Got packet - reset timeout
@@ -1170,7 +1172,7 @@ searchdir:
 		; Default blksize unless blksize option negotiated
 		mov word [si+tftp_blksize], TFTP_BLOCKSIZE
 
-		mov cx,[pxe_udp_read_pkt.buffersize]
+		movzx ecx,word [pxe_udp_read_pkt.buffersize]
 		sub cx,2		; CX <- bytes after opcode
 		jb .failure		; Garbled reply
 
@@ -1180,13 +1182,21 @@ searchdir:
 		cmp ax, TFTP_ERROR
 		je .bailnow		; ERROR reply: don't try again
 
+		; If the server doesn't support any options, we'll get
+		; a DATA reply instead of OACK.  Stash the data in
+		; the file buffer and go with the default value for
+		; all options...
+		cmp ax, TFTP_DATA
+		je .no_oack
+
 		cmp ax, TFTP_OACK
-		jne .no_tsize
+		jne .err_reply		; Unknown packet type
 
 		; Now we need to parse the OACK packet to get the transfer
-		; size.  SI -> first byte of options; CX -> byte count
+		; and packet sizes.
+		;  SI -> first byte of options; [E]CX -> byte count
 .parse_oack:
-		jcxz .no_tsize			; No options acked
+		jcxz .done_pkt			; No options acked
 .get_opt_name:
 		mov di,si
 		mov bx,si
@@ -1255,9 +1265,7 @@ searchdir:
 		pop si			; Junk
 		pop si			; We want the packet ptr in SI
 
-		mov eax,[si+tftp_filesize]
-		cmp eax,-1
-		jz .no_tsize
+		mov eax,[si+tftp_bytesleft]
 		mov edx,eax
 		shr edx,16		; DX:AX == EAX
 
@@ -1272,7 +1280,33 @@ searchdir:
 		pop es
 		ret
 
-.no_tsize:
+
+.no_oack:	; We got a DATA packet, meaning no options are
+		; suported.  Save the data away and consider the length
+		; undefined, *unless* this is the only data packet...
+		mov bx,[bp-6]		; File pointer
+		sub cx,2		; Too short?
+		jb .failure
+		lodsw			; Block number
+		cmp ax,1
+		jne .failure
+		mov [bx+tftp_lastpkt],ax
+		cmp cx,TFTP_BLOCKSIZE
+		ja .err_reply		; Corrupt...
+		je .unknown_size
+		mov [bx+tftp_filesize],ecx
+.unknown_size:	mov [bx+tftp_bytesleft],cx
+		mov ax,pktbuf_seg
+		push es
+		mov es,ax
+		mov di,tftp_pktbuf
+		mov [bx+tftp_dataptr],di
+		add cx,3
+		shr cx,2
+		rep movsd
+		pop es
+		jmp .done_pkt
+
 .err_reply:	; Option negotiation error.  Send ERROR reply.
 		; ServerIP and gateway are already programmed in
 		mov si,[bp-6]
