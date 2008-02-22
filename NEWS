@@ -20,6 +20,8 @@ Changes in 3.62:
 	  MENU GOTO in doc/menu.doc.
 	* MENU QUIT allows creating a menu entry for returning to the
 	  command line.
+	* ISOLINUX: Work around bug in certain Adaptec BIOSes,
+	  patch by Bruce Robson.
 
 Changes in 3.61:
 	* EXTLINUX: fix crash when accessing an empty file.
