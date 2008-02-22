@@ -293,7 +293,7 @@ AX=0006h [2.08] Open file
 	Input:	AX	0006h
 		ES:SI	null-terminated filename
 	Output:	SI	file handle
-		EAX	length of file in bytes
+		EAX	length of file in bytes, or -1
 		CX	file block size
 
 	Open a file for reading.  The exact syntax of the filenames
@@ -304,6 +304,9 @@ AX=0006h [2.08] Open file
 
 	Note: SYSLINUX considers a zero-length file to be nonexistent.
 
+	In 3.70 or later, EAX can contain -1 indicating that the file
+	length is unknown.
+
 
 AX=0007h [2.08] Read file
 
@@ -312,12 +315,17 @@ AX=0007h [2.08] Read file
 		ES:BX	buffer
 		CX	number of blocks to read
 	Output:	SI	file handle, or 0 if EOF was reached
+		EAX	number of bytes read [3.70]
 
 	Read blocks from a file.  Note that the file handle that is
 	returned in SI may not be the same value that was passed in.
 
 	If end of file was reached (SI=0), the file was automatically
 	closed.
+
+	In 3.70 or later, EAX returns the number of bytes read.  This
+	will always be a multiple of the block size unless EOF is
+	reached.
 
 	The address of the buffer (ES:BX) should be at least 512-byte
 	aligned.  SYSLINUX guarantees at least this alignment for the
