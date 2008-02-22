@@ -34,6 +34,8 @@
 
 struct menu;
 
+/* Note: the _UNRES variants must always be immediately after their
+   "normal" versions. */
 enum menu_action {
   MA_NONE,			/* Undefined value */
   MA_CMD,			/* Execute a command */
@@ -43,6 +45,7 @@ enum menu_action {
   MA_GOTO_UNRES,		/* Unresolved go to */
   MA_QUIT,			/* Quit to CLI */
   MA_EXIT,			/* Exit to higher-level menu */
+  MA_EXIT_UNRES,		/* Unresolved exit */
 };
 
 struct menu_entry {

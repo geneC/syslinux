@@ -348,6 +348,7 @@ record(struct menu *m, struct labeldata *ld, const char *append)
       break;
 
     case MA_GOTO_UNRES:
+    case MA_EXIT_UNRES:
       me->cmdline = refstr_get(ld->kernel);
       break;
 
@@ -763,9 +764,17 @@ static void parse_config_file(FILE *f)
 	  ld.kernel = refstrdup(skipspace(p+4));
 	}
       } else if ( looking_at(p, "exit") ) {
+	p = skipspace(p+4);
 	if (ld.label && m->parent) {
-	  ld.action = MA_EXIT;
-	  ld.submenu = m->parent;
+	  if (*p) {
+	    /* This is really just a goto, except for the marker */
+	    ld.action = MA_EXIT_UNRES;
+	    refstr_put(ld.kernel);
+	    ld.kernel = refstrdup(p);
+	  } else {
+	    ld.action = MA_EXIT;
+	    ld.submenu = m->parent;
+	  }
 	}
       } else if ( looking_at(p, "start") ) {
 	start_menu = m;
@@ -912,13 +921,14 @@ static void resolve_gotos(void)
   struct menu *m;
 
   for (me = all_entries; me; me = me->next) {
-    if (me->action == MA_GOTO_UNRES) {
+    if (me->action == MA_GOTO_UNRES ||
+	me->action == MA_EXIT_UNRES) {
       m = find_menu(me->cmdline);
       refstr_put(me->cmdline);
       me->cmdline = NULL;
       if (m) {
 	me->submenu = m;
-	me->action = MA_GOTO;
+	me->action--;		/* Drop the _UNRES */
       } else {
 	me->action = MA_DISABLED;
       }
