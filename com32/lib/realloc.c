@@ -65,10 +65,21 @@ void *realloc(void *ptr, size_t size)
 	nah->a.prev = ah;
 
 	/* Insert into free list */
-	nah->next_free = __malloc_head.next_free;
-	nah->prev_free = &__malloc_head;
-	__malloc_head.next_free = nah;
-	nah->next_free->prev_free = nah;
+	if (newsize > oldsize) {
+	  /* Hack: this free block is in the path of a memory object
+	     which has already been grown at least once.  As such, put
+	     it at the *end* of the freelist instead of the beginning;
+	     trying to save it for future realloc()s of the same block. */
+	  nah->prev_free = __malloc_head.prev_free;
+	  nah->next_free = &__malloc_head;
+	  __malloc_head.prev_free = nah;
+	  nah->prev_free->next_free = nah;
+	} else {
+	  nah->next_free = __malloc_head.next_free;
+	  nah->prev_free = &__malloc_head;
+	  __malloc_head.next_free = nah;
+	  nah->next_free->prev_free = nah;
+	}
       }
       /* otherwise, use up the whole block */
       return ptr;
