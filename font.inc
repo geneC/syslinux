@@ -21,12 +21,14 @@
 ;
 ; loadfont:	Load a .psf font file and install it onto the VGA console
 ;		(if we're not on a VGA screen then ignore.)  It is called with
-;		SI and DX:AX set by routine searchdir
+;		SI and EAX set by routine searchdir
 ;
 loadfont:
-		mov bx,trackbuf			; The trackbuf is >= 16K; the part
-		mov cx,[BufSafe]		; of a PSF file we care about is no
-		call getfssec			; more than 8K+4 bytes
+		; XXX: This can be 8K+4 bytes and the trackbuf is only
+		; guaranteed to be 8K in size...
+		mov bx,trackbuf
+		mov cx,[BufSafe]
+		call getfssec
 
 		mov ax,[trackbuf]		; Magic number
 		cmp ax,0436h

@@ -43,8 +43,7 @@ com32_rmidt:
 		section .text
 is_com32_image:
 		push si			; Save file handle
-		push dx			; File length held in DX:AX
-		push ax
+		push eax		; Save file length
 
 		call make_plain_cmdline
 		; Copy the command line into the low cmdline buffer

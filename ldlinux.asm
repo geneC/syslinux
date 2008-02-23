@@ -1045,7 +1045,7 @@ close_file:
 ;	     If successful:
 ;		ZF clear
 ;		SI		= file pointer
-;		DX:AX or EAX	= file length in bytes
+;		EAX		= file length in bytes
 ;	     If unsuccessful
 ;		ZF set
 ;
@@ -1089,8 +1089,6 @@ searchdir:
 		jnz .badfile		; If not a file, it's a bad thing
 
 		; SI and EAX are already set
-		mov edx,eax
-		shr edx,16		; Old 16-bit remnant...
 		and eax,eax		; EAX != 0
 		jz .badfile
 		ret			; Done!
@@ -1110,7 +1108,6 @@ searchdir:
 
 .notfound:
 		xor eax,eax
-		xor dx,dx
 		ret
 
 		section .bss

@@ -45,9 +45,7 @@
 ; obsolete.
 ;
 is_linux_kernel:
-		and dx,dx
-		jnz kernel_sane
-		cmp ax,1024			; Bootsect + 1 setup sect
+		cmp eax,1024			; Bootsect + 1 setup sect
 		jb kernel_corrupt
 kernel_sane:	push ax
 		push dx
@@ -587,10 +585,7 @@ loadinitrd:
                 mov di,InitRD
                 call searchdir                  ; Look for it in directory
 		jz .notthere
-
-		mov cx,dx
-		shl ecx,16
-		mov cx,ax			; ECX <- ram disk length
+		mov ecx,eax			; ECX <- ram disk length
 
 		mov ax,real_mode_seg
 		mov es,ax

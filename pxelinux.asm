@@ -1037,7 +1037,7 @@ close_file:
 ;	     If successful:
 ;		ZF clear
 ;		SI	= socket pointer
-;		DX:AX	= file length in bytes
+;		EAX	= file length in bytes, or -1 if unknown
 ;	     If unsuccessful
 ;		ZF set
 ;
@@ -1258,8 +1258,6 @@ searchdir:
 		mov eax,[si+tftp_filesize]
 		cmp eax,-1
 		jz .no_tsize
-		mov edx,eax
-		shr edx,16		; DX:AX == EAX
 
 		and eax,eax		; Set ZF depending on file size
 		pop bp			; Junk
