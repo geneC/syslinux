@@ -1265,7 +1265,7 @@ searchdir:
 		pop si			; Junk
 		pop si			; We want the packet ptr in SI
 
-		mov eax,[si+tftp_bytesleft]
+		mov eax,[si+tftp_filesize]
 		mov edx,eax
 		shr edx,16		; DX:AX == EAX
 
