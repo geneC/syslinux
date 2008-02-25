@@ -30,12 +30,9 @@
 
 	.globl	bootsec
 stack		= 0x7c00
-driveno		= (stack-6)
-sectors		= (stack-8)
-secpercyl	= (stack-12)
 
 /* Partition table header here */
-phdr		= 0x7e00	/* Above the boot sector and stack */
+phdr		= stack		/* Above the stack, overwritten by bootsect */
 /* Partition table sector here */
 /* To handle > 32K we need to play segment tricks... */
 psec		= _phdr + 512
@@ -62,9 +59,9 @@ _start:
 	movw	%ax, %ss
 	movw	$stack, %sp
 	movw	%sp, %si
-	pushw	%es		/* es:di -> $PnP header */
-	pushw	%di
-	pushw	%dx		/* dl -> drive number */
+	pushw	%es		/* 4(%bp) es:di -> $PnP header */
+	pushw	%di		/* 2(%bp) */
+	pushw	%dx		/* 0(%bp) = %dl -> drive number */
 	movw	%ax, %es
 	sti
 	cld
@@ -103,27 +100,29 @@ next:
 	movb	$0x08, %ah
 	int	$0x13
 	andw	$0x3f, %cx	/* Sector count */
-	pushw	%cx		/* Save sectors on the stack */
+	movw	%sp, %bp	/* %bp -> frame pointer: LEAVE UNCHANGED */
+	pushw	%cx		/* -2(%bp) Save sectors on the stack */
 	movzbw	%dh, %ax	/* dh = max head */
 	incw	%ax		/* From 0-based max to count */
 	mulw	%cx		/* Heads*sectors -> sectors per cylinder */
 
 	/* Save sectors/cylinder on the stack */
-	pushw	%dx		/* High word */
-	pushw	%ax		/* Low word */
+	pushw	%dx		/* -4(%bp) High word */
+	pushw	%ax		/* -6(%bp) Low word */
 
 	/* Load partition table header */
 	xorl	%eax,%eax
 	xorl	%edx,%edx
-	incl	%eax
-	movw	$phdr,%bx
+	incw	%ax
+	movw	$phdr, %bx
 	call	read_sector
 
 	/* Number of partition sectors */
 	/* We assume the partition table is 32K or less, and that
 	   the sector size is 512. */
-	movw	(phdr+80),%cx		/* NumberOfPartitionEntries */
-	movw	(phdr+84),%ax		/* SizeOfPartitionEntry */
+	/* Note: phdr == 6(%bp) */
+	movw	(80+6)(%bp),%cx		/* NumberOfPartitionEntries */
+	movw	(84+6)(%bp),%ax		/* SizeOfPartitionEntry */
 	pushw	%ax
 	pushw	%cx
 	mulw	%cx
@@ -132,8 +131,8 @@ next:
 	incw	%cx
 
 	/* Starting LBA of partition array */
-	movl	(phdr+72),%eax
-	movl	(phdr+76),%edx
+	movl	(72+6)(%bp),%eax
+	movl	(76+6)(%bp),%edx
 
 	pushw	%bx
 get_ptab:
@@ -197,7 +196,7 @@ boot:
 	call	read_sector
 	cmpw	$0xaa55, -2(%bx)
 	jne	missing_os	/* Not a valid boot sector */
-	movw	$driveno, %sp	/* driveno == bootsec-6 */
+	movw	%bp, %sp	/* driveno == bootsec-6 */
 	popw	%dx		/* dl -> drive number */
 	popw	%di		/* es:di -> $PnP vector */
 	popw	%es
@@ -239,19 +238,19 @@ read_sector:
 	/* This chunk is skipped if we have ebios */
 	/* Do not clobber %es:%bx or %edx:%eax before this chunk! */
 read_sector_cbios:
-	divl	(secpercyl)
+	divl	-6(%bp)	/* secpercyl */
 	shlb	$6, %ah
 	movb	%ah, %cl
 	movb	%al, %ch
 	xchgw	%dx, %ax
-	divb	(sectors)
+	divb	-2(%bp)	/* sectors */
 	movb	%al, %dh
 	orb	%ah, %cl
 	incw	%cx	/* Sectors are 1-based */
 	movw	$0x0201, %ax
 
 read_common:
-	movb	(driveno), %dl
+	movb	(%bp), %dl /* driveno */
 	int	$0x13
 	addw	$16, %sp	/* Drop DAPA */
 	popal
