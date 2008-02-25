@@ -164,11 +164,11 @@ find_part:
 	.ascii	"Boot partition not found\r\n"
 
 found_part:
-	movw	$dssi_out+16,%di
-	movw	%ax,%cx
-	rep; movsb
-	movw	$dssi_out,%si
-	movw	%si,%di
+	movw	%ax,%cx		/* Set up %cx for rep movsb further down */
+	
+	movw	$dssi_out,%di
+	pushw	%di
+	
 	/* 80 00 00 00 ee 00 00 00
 	   - bootable partition, type EFI (EE), no CHS information */
 	xorl	%eax,%eax
@@ -176,25 +176,28 @@ found_part:
 	stosl
 	movb	$0xee,%al
 	stosl
-	movl	(40+16)(%si),%eax
-	movl	(48+16)(%si),%edx
+	movl	40(%si),%eax
+	movl	48(%si),%edx
 	pushl	%eax
 	pushl	%edx
 	call	saturate_stosl		/* Partition start */
 
-	subl	(32+16)(%si),%eax
-	sbbl	(36+16)(%si),%edx
+	subl	32(%si),%eax
+	sbbl	36(%si),%edx
 	call	inc64
 	call	saturate_stosl		/* Partition length */
 
-/*
- * boot: invoke the actual bootstrap. (%si) points to the
- * partition information in memory, and the block offset is
- * on the stack.
- */
-boot:
+	rep; movsb			/* GPT entry follows MBR entry */
 	popl	%edx
 	popl	%eax
+	popw	%si
+
+/*
+ * boot: invoke the actual bootstrap. %ds:%si points to the
+ * partition information in memory, and %edx:%eax to the boot sector
+ * on disk.
+ */
+boot:
 	call	read_sector
 	cmpw	$0xaa55, (bootsec+510)
 	jne	missing_os	/* Not a valid boot sector */
