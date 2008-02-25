@@ -122,8 +122,8 @@ next:
 	/* Number of partition sectors */
 	/* We assume the partition table is 32K or less, and that
 	   the sector size is 512. */
-	movw	(phdr+0x80),%cx		/* NumberOfPartitionEntries */
-	movw	(phdr+0x84),%ax		/* SizeOfPartitionEntry */
+	movw	(phdr+80),%cx		/* NumberOfPartitionEntries */
+	movw	(phdr+84),%ax		/* SizeOfPartitionEntry */
 	pushw	%ax
 	pushw	%cx
 	mulw	%cx
@@ -132,8 +132,8 @@ next:
 	incw	%cx
 
 	/* Starting LBA of partition array */
-	movl	(phdr+0x72),%eax
-	movl	(phdr+0x76),%edx
+	movl	(phdr+72),%eax
+	movl	(phdr+76),%edx
 
 	pushw	%bx
 get_ptab:
