@@ -173,10 +173,12 @@ found_part:
 	stosl
 	movb	$0xee,%al
 	stosl
-	movl	40(%si),%eax
-	movl	48(%si),%edx
+	movl	32(%si),%eax
+	movl	36(%si),%edx
 	call	saturate_stosl		/* Partition start */
 
+	movl	40(%si),%eax
+	movl	48(%si),%edx
 	subl	32(%si),%eax
 	sbbl	36(%si),%edx
 	call	inc64
