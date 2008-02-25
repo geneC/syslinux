@@ -178,8 +178,6 @@ found_part:
 	stosl
 	movl	40(%si),%eax
 	movl	48(%si),%edx
-	pushl	%eax
-	pushl	%edx
 	call	saturate_stosl		/* Partition start */
 
 	subl	32(%si),%eax
@@ -188,16 +186,15 @@ found_part:
 	call	saturate_stosl		/* Partition length */
 
 	rep; movsb			/* GPT entry follows MBR entry */
-	popl	%edx
-	popl	%eax
 	popw	%si
 
 /*
  * boot: invoke the actual bootstrap. %ds:%si points to the
- * partition information in memory, and %edx:%eax to the boot sector
- * on disk.
+ * partition information in memory.
  */
 boot:
+	movl	(40+16)(%si),%eax
+	movl	(48+16)(%si),%edx
 	call	read_sector
 	cmpw	$0xaa55, (bootsec+510)
 	jne	missing_os	/* Not a valid boot sector */
