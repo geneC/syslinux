@@ -115,6 +115,7 @@ next:
 	xorl	%edx,%edx
 	incw	%ax
 	movw	$phdr, %bx
+	pushw	%bx		/* -8(%bp) phdr == bootsect */
 	call	read_sector
 
 	/* Number of partition sectors */
@@ -189,12 +190,13 @@ found_part:
 
 /*
  * boot: invoke the actual bootstrap. %ds:%si points to the
- * partition information in memory.
+ * partition information in memory.  The top word on the stack
+ * is phdr == 0x7c00 == the address of the boot sector.
  */
 boot:
 	movl	(32+16)(%si),%eax
 	movl	(36+16)(%si),%edx
-	movw	$bootsec,%bx
+	popw	%bx
 	call	read_sector
 	cmpw	$0xaa55, -2(%bx)
 	jne	missing_os	/* Not a valid boot sector */
