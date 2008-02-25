@@ -195,7 +195,7 @@ boot:
 	movl	(48+16)(%si),%edx
 	movw	$bootsec,%bx
 	call	read_sector
-	cmpw	$0xaa55, (bootsec+510)
+	cmpw	$0xaa55, -2(%bx)
 	jne	missing_os	/* Not a valid boot sector */
 	movw	$driveno, %sp	/* driveno == bootsec-6 */
 	popw	%dx		/* dl -> drive number */
