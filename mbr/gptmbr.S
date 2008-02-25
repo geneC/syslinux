@@ -195,6 +195,7 @@ found_part:
 boot:
 	movl	(40+16)(%si),%eax
 	movl	(48+16)(%si),%edx
+	movw	$bootsec,%bx
 	call	read_sector
 	cmpw	$0xaa55, (bootsec+510)
 	jne	missing_os	/* Not a valid boot sector */
