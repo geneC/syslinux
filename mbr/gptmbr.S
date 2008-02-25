@@ -113,7 +113,7 @@ next:
 	/* Load partition table header */
 	xorl	%eax,%eax
 	xorl	%edx,%edx
-	incw	%ax
+	incw	%ax		/* %edx:%eax = 1 */
 	movw	$phdr, %bx
 	pushw	%bx		/* -8(%bp) phdr == bootsect */
 	call	read_sector
