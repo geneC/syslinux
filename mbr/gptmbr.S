@@ -256,7 +256,7 @@ read_common:
 	addw	$16, %sp	/* Drop DAPA */
 	popal
 	jc	disk_error
-	addw	$512, %bx	/* POint to the next buffer */
+	addb	$2, %bh		/* bx += 512: point to the next buffer */
 	ret
 
 disk_error:
