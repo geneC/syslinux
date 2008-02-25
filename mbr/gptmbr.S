@@ -35,10 +35,10 @@ sectors		= (stack-8)
 secpercyl	= (stack-12)
 
 /* Partition table header here */
-phdr		= _start + 512
+phdr		= 0x7e00	/* Above the boot sector and stack */
 /* Partition table sector here */
 /* To handle > 32K we need to play segment tricks... */
-psec		= 0x8000	/* Above the boot sector and stack */
+psec		= _phdr + 512
 
 /* BootGUID */
 bootguid	= _start + 0x1a8
@@ -135,11 +135,9 @@ next:
 	movl	(phdr+0x72),%eax
 	movl	(phdr+0x76),%edx
 
-	movw	$psec,%bx
 	pushw	%bx
 get_ptab:
 	call	read_sector
-	addw	$512,%bx
 	call	inc64
 	loopw	get_ptab
 
@@ -258,6 +256,7 @@ read_common:
 	addw	$16, %sp	/* Drop DAPA */
 	popal
 	jc	disk_error
+	addw	$512, %bx	/* POint to the next buffer */
 	ret
 
 disk_error:
