@@ -161,7 +161,7 @@ find_part:
 	.ascii	"Boot partition not found\r\n"
 
 found_part:
-	movw	%ax,%cx		/* Set up %cx for rep movsb further down */
+	xchgw	%ax,%cx		/* Set up %cx for rep movsb further down */
 	
 	movw	$dssi_out,%di
 	pushw	%di
