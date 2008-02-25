@@ -153,7 +153,7 @@ find_part:
 	addw	$16,%si
 	movw	$bootguid,%di
 	movw	$8,%cx
-	rep; cmpsw
+	repe; cmpsw
 	popw	%si
 	popw	%cx
 	je found_part
