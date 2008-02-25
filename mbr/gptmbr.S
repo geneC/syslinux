@@ -192,8 +192,8 @@ found_part:
  * partition information in memory.
  */
 boot:
-	movl	(40+16)(%si),%eax
-	movl	(48+16)(%si),%edx
+	movl	(32+16)(%si),%eax
+	movl	(36+16)(%si),%edx
 	movw	$bootsec,%bx
 	call	read_sector
 	cmpw	$0xaa55, -2(%bx)
