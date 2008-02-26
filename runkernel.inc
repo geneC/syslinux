@@ -58,9 +58,6 @@ kernel_sane:	push ax
 		push word real_mode_seg
 		pop es
 
-		movzx eax,ax			; Fix this by using a 32-bit
-		shl edx,16			; register for the kernel size
-		or eax,edx
 		mov [KernelSize],eax
 		add eax,SECTOR_SIZE-1
 		shr eax,SECTOR_SHIFT
