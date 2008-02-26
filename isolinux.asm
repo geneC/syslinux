@@ -961,8 +961,8 @@ load_config:
 %include "ui.inc"
 
 ;
-; Enable disk emulation.  The kind of disk we emulate is dependent on the size of
-; the file: 1200K, 1440K or 2880K floppy, otherwise harddisk.
+; Enable disk emulation.  The kind of disk we emulate is dependent on the
+; size of the file: 1200K, 1440K or 2880K floppy, otherwise harddisk.
 ;
 is_disk_image:
 		TRACER CR
@@ -970,8 +970,7 @@ is_disk_image:
 		TRACER 'D'
 		TRACER ':'
 
-		shl edx,16
-		mov dx,ax			; Set EDX <- file size
+		mov edx,eax			; File size
 		mov di,img_table
 		mov cx,img_table_count
 		mov eax,[si+file_sector]	; Starting LBA of file
@@ -1152,7 +1151,7 @@ close_file:
 ;	     If successful:
 ;		ZF clear
 ;		SI		= file pointer
-;		DX:AX or EAX	= file length in bytes
+;		EAX		= file length in bytes
 ;	     If unsuccessful
 ;		ZF set
 ;
@@ -1269,8 +1268,6 @@ searchdir_iso:
 		shr eax,SECTOR_SHIFT
 		mov [bx+file_left],eax
 		pop eax
-		mov edx,eax
-		shr edx,16
 		and bx,bx			; ZF = 0
 		mov si,bx
 		pop es

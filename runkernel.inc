@@ -45,9 +45,7 @@
 ; obsolete.
 ;
 is_linux_kernel:
-		and dx,dx
-		jnz kernel_sane
-		cmp ax,1024			; Bootsect + 1 setup sect
+		cmp eax,1024			; Bootsect + 1 setup sect
 		jb kernel_corrupt
 kernel_sane:	push ax
 		push dx
@@ -60,9 +58,6 @@ kernel_sane:	push ax
 		push word real_mode_seg
 		pop es
 
-		movzx eax,ax			; Fix this by using a 32-bit
-		shl edx,16			; register for the kernel size
-		or eax,edx
 		mov [KernelSize],eax
 		add eax,SECTOR_SIZE-1
 		shr eax,SECTOR_SHIFT
@@ -587,10 +582,7 @@ loadinitrd:
                 mov di,InitRD
                 call searchdir                  ; Look for it in directory
 		jz .notthere
-
-		mov cx,dx
-		shl ecx,16
-		mov cx,ax			; ECX <- ram disk length
+		mov ecx,eax			; ECX <- ram disk length
 
 		mov ax,real_mode_seg
 		mov es,ax

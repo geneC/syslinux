@@ -534,16 +534,15 @@ kernel_good_saved:
 		; COMBOOT function INT 22h, AX=0016h.
 		mov si,[Kernel_SI]
 		mov eax,[Kernel_EAX]
-		mov dx,[Kernel_EAX+2]
 
 kernel_good:
-		pusha
+		pushad
 		mov si,KernelName
 		mov di,KernelCName
 		call unmangle_name
 		sub di,KernelCName
 		mov [KernelCNameLen],di
-		popa
+		popad
 
 		push di
 		push ax
@@ -558,7 +557,7 @@ kernel_good:
 		pop di
 
 ;
-; At this point, DX:AX contains the size of the kernel, SI contains
+; At this point, EAX contains the size of the kernel, SI contains
 ; the file handle/cluster pointer, and ECX contains the extension (if any.)
 ;
 		movzx di,byte [KernelType]

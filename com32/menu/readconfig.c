@@ -93,6 +93,36 @@ skipspace(char *p)
   return p;
 }
 
+/* Strip ^ from a string, returning a new reference to the same refstring
+   if none present */
+static const char *strip_caret(const char *str)
+{
+  const char *p, *r;
+  char *q;
+  int carets = 0;
+
+  p = str;
+  for (;;) {
+    p = strchr(p, '^');
+    if (!p)
+      break;
+    carets++;
+    p++;
+  }
+
+  if (!carets)
+    return refstr_get(str);
+
+  r = q = refstr_alloc(strlen(str)-carets);
+  for (p = str; *p; p++)
+    if (*p != '^')
+      *q++ = *p;
+
+  *q = '\0';			/* refstr_alloc() already did this... */
+
+  return r;
+}
+
 /* Check to see if we are at a certain keyword (case insensitive) */
 /* Returns a pointer to the first character past the keyword */
 static char *
@@ -223,12 +253,11 @@ static struct menu_entry *new_entry(struct menu *m)
 
 static void consider_for_hotkey(struct menu *m, struct menu_entry *me)
 {
-  unsigned char *p =
-    (unsigned char *)strchr(me->displayname, '^');
+  const char *p = strchr(me->displayname, '^');
 
   if (me->action != MA_DISABLED) {
     if ( p && p[1] ) {
-      int hotkey = p[1] & ~0x20;
+      unsigned char hotkey = p[1] & ~0x20;
       if ( !m->menu_hotkeys[hotkey] ) {
 	me->hotkey = hotkey;
 	m->menu_hotkeys[hotkey] = me;
@@ -319,6 +348,7 @@ record(struct menu *m, struct labeldata *ld, const char *append)
       break;
 
     case MA_GOTO_UNRES:
+    case MA_EXIT_UNRES:
       me->cmdline = refstr_get(ld->kernel);
       break;
 
@@ -571,11 +601,11 @@ static void parse_config_file(FILE *f)
 	} else if ( m->parent_entry ) {
 	  refstr_put(m->parent_entry->displayname);
 	  m->parent_entry->displayname = refstrdup(skipspace(p+5));
-	  consider_for_hotkey(m, m->parent_entry);
+	  consider_for_hotkey(m->parent, m->parent_entry);
 	  if (!m->title[0]) {
 	    /* MENU LABEL -> MENU TITLE on submenu */
 	    refstr_put(m->title);
-	    m->title = refstr_get(m->parent_entry->displayname);
+	    m->title = strip_caret(m->parent_entry->displayname);
 	  }
 	}
       } else if ( looking_at(p, "title") ) {
@@ -734,9 +764,17 @@ static void parse_config_file(FILE *f)
 	  ld.kernel = refstrdup(skipspace(p+4));
 	}
       } else if ( looking_at(p, "exit") ) {
+	p = skipspace(p+4);
 	if (ld.label && m->parent) {
-	  ld.action = MA_EXIT;
-	  ld.submenu = m->parent;
+	  if (*p) {
+	    /* This is really just a goto, except for the marker */
+	    ld.action = MA_EXIT_UNRES;
+	    refstr_put(ld.kernel);
+	    ld.kernel = refstrdup(p);
+	  } else {
+	    ld.action = MA_EXIT;
+	    ld.submenu = m->parent;
+	  }
 	}
       } else if ( looking_at(p, "start") ) {
 	start_menu = m;
@@ -883,13 +921,14 @@ static void resolve_gotos(void)
   struct menu *m;
 
   for (me = all_entries; me; me = me->next) {
-    if (me->action == MA_GOTO_UNRES) {
+    if (me->action == MA_GOTO_UNRES ||
+	me->action == MA_EXIT_UNRES) {
       m = find_menu(me->cmdline);
       refstr_put(me->cmdline);
       me->cmdline = NULL;
       if (m) {
 	me->submenu = m;
-	me->action = MA_GOTO;
+	me->action--;		/* Drop the _UNRES */
       } else {
 	me->action = MA_DISABLED;
       }

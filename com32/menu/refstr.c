@@ -21,6 +21,19 @@
 #include <stdio.h>
 #include "refstr.h"
 
+/* Allocate space for a refstring of len bytes, plus final null */
+/* The final null is inserted in the string; the rest is uninitialized. */
+char *refstr_alloc(size_t len)
+{
+  char *r = malloc(sizeof(unsigned int)+len+1);
+  if (!r)
+    return NULL;
+  *(unsigned int *)r = 1;
+  r += sizeof(unsigned int);
+  r[len] = '\0';
+  return r;
+}
+
 const char *refstrndup(const char *str, size_t len)
 {
   char *r;
@@ -29,11 +42,9 @@ const char *refstrndup(const char *str, size_t len)
     return NULL;
 
   len = strnlen(str, len);
-  r = malloc(sizeof(unsigned int)+len+1);
-  *(unsigned int *)r = 1;
-  r += sizeof(unsigned int);
-  memcpy(r, str, len);
-  r[len] = '\0';
+  r = refstr_alloc(len);
+  if (r)
+    memcpy(r, str, len);
   return r;
 }
 
@@ -46,35 +57,27 @@ const char *refstrdup(const char *str)
     return NULL;
 
   len = strlen(str);
-  r = malloc(sizeof(unsigned int)+len+1);
-  *(unsigned int *)r = 1;
-  r += sizeof(unsigned int);
-  memcpy(r, str, len);
-  r[len] = '\0';
+  r = refstr_alloc(len);
+  if (r)
+    memcpy(r, str, len);
   return r;
 }
 
 int vrsprintf(const char **bufp, const char *fmt, va_list ap)
 {
   va_list ap1;
-  int bytes;
+  int len;
   char *p;
 
   va_copy(ap1, ap);
-  bytes = vsnprintf(NULL, 0, fmt, ap1)+1;
+  len = vsnprintf(NULL, 0, fmt, ap1);
   va_end(ap1);
 
-  p = malloc(bytes+sizeof(unsigned int));
-  if ( !p ) {
-    *bufp = NULL;
+  *bufp = p = refstr_alloc(len);
+  if ( !p )
     return -1;
-  }
 
-  *(unsigned int *)p = 1;
-  p += sizeof(unsigned int);
-  *bufp = p;
-
-  return vsnprintf(p, bytes, fmt, ap);
+  return vsnprintf(p, len+1, fmt, ap);
 }
 
 int rsprintf(const char **bufp, const char *fmt, ...)

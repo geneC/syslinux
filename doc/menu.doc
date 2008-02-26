@@ -214,12 +214,13 @@ MENU GOTO tagname
 	"menu goto .top".
 
 
-MENU EXIT
+MENU EXIT [tagname]
 
 	(Only valid after a label statement inside MENU BEGIN ...
 	MENU END)
 
-	Exit to the next higher menu.
+	Exit to the next higher menu, or, if tagname is specified, to
+	the named menu.
 
 
 MENU QUIT

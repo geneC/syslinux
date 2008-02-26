@@ -914,7 +914,7 @@ allocate_file:
 ;	     If successful:
 ;		ZF clear
 ;		SI	    = file pointer
-;		DX:AX = EAX = file length in bytes
+;		EAX         = file length in bytes
 ;		ThisInode   = the first 128 bytes of the inode
 ;	     If unsuccessful
 ;		ZF set
@@ -993,8 +993,6 @@ open_inode:
 		mov [bx+file_left],eax
 		pop eax
 		mov si,bx
-		mov edx,eax
-		shr edx,16			; 16-bitism, sigh
 		and eax,eax			; ZF clear unless zero-length file
 		pop gs
 		pop cx

@@ -31,6 +31,7 @@ const char *refstr_get(const char *r)
 }
 
 void refstr_put(const char *);
+char *refstr_alloc(size_t);
 const char *refstrdup(const char *);
 const char *refstrndup(const char *, size_t);
 int rsprintf(const char **, const char *, ...);

@@ -52,7 +52,7 @@ getc_file_lg2	equ 4			; Size of getc_file as a power of 2
 ;		open:	Input:	mangled filename in DS:DI
 ;			Output: ZF set on file not found or zero length
 ;
-;		openfd:	Input:	file handle in SI
+;		openfd:	Input:	file handle in SI, file size in EAX
 ;			Output:	ZF set on getc stack overflow
 ;
 ;		getc:	Output: CF set on end of file
@@ -73,8 +73,7 @@ openfd:
 		mov [CurrentGetC],bx
 
 		mov [bx+gc_file],si	; File pointer
-		mov [bx+gc_bytes],ax	; Bytes available
-		mov [bx+gc_bytes+2],dx
+		mov [bx+gc_bytes],eax	; Bytes available
 		xor ax,ax
 		mov [bx+gc_bufbytes],ax		; Buffer empty
 		mov [bx+gc_unget_cnt],al	; ungetc buffer empty

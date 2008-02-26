@@ -1037,7 +1037,7 @@ close_file:
 ;	     If successful:
 ;		ZF clear
 ;		SI	= socket pointer
-;		DX:AX	= file length in bytes
+;		EAX	= file length in bytes, or -1 if unknown
 ;	     If unsuccessful
 ;		ZF set
 ;
@@ -1266,9 +1266,6 @@ searchdir:
 		pop si			; We want the packet ptr in SI
 
 		mov eax,[si+tftp_filesize]
-		mov edx,eax
-		shr edx,16		; DX:AX == EAX
-
 		and eax,eax		; Set ZF depending on file size
 		pop bp			; Junk
 		pop bp			; Junk (retry counter)
