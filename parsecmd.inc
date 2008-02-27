@@ -93,8 +93,8 @@ getcommand:
 		jmp short .skipline
 
 		section .data
-err_badcfg      db 'Unknown keyword in syslinux.cfg.', CR, LF, 0
-err_noparm      db 'Missing parameter in syslinux.cfg.', CR, LF, 0
+err_badcfg      db 'Unknown keyword in configuration file.', CR, LF, 0
+err_noparm      db 'Missing parameter in configuration file.', CR, LF, 0
 
 		section .uibss
 		alignb 4
