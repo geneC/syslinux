@@ -37,15 +37,6 @@
 #include "vesa.h"
 #include "video.h"
 
-static size_t filesize(FILE *fp)
-{
-  struct stat st;
-  if (fstat(fileno(fp), &st))
-    return 0;
-  else
-    return st.st_size;
-}
-
 /*** FIX: This really should be alpha-blended with color index 0 ***/
 
 /* For best performance, "start" should be a multiple of 4, to assure
