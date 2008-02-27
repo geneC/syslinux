@@ -1286,14 +1286,24 @@ searchdir:
 		sub cx,2		; Too short?
 		jb .failure
 		lodsw			; Block number
-		cmp ax,1
+		cmp ax,htons(1)
 		jne .failure
 		mov [bx+tftp_lastpkt],ax
 		cmp cx,TFTP_BLOCKSIZE
 		ja .err_reply		; Corrupt...
-		je .unknown_size
+		je .not_eof
+		; This was the final EOF packet, already...
+		; We know the filesize, but we also want to ack the
+		; packet and set the EOF flag.
 		mov [bx+tftp_filesize],ecx
-.unknown_size:	mov [bx+tftp_bytesleft],cx
+		mov byte [bx+tftp_goteof],1
+		push si
+		mov si,bx
+		; AX = htons(1) already
+		call ack_packet
+		pop si
+.not_eof:
+		mov [bx+tftp_bytesleft],cx
 		mov ax,pktbuf_seg
 		push es
 		mov es,ax
