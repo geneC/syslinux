@@ -61,6 +61,10 @@
 
 ; Looks like a COMBOOT image but too large
 comboot_too_large:
+		and si,si
+		jnz .closed
+		call close_file
+.closed:
 		mov si,err_comlarge
 		call cwritestr
 		jmp enter_command
@@ -71,9 +75,6 @@ comboot_too_large:
 ; do, however, allow the execution of INT 20h to return to SYSLINUX.
 ;
 is_comboot_image:
-		cmp eax,0ff00h		; Max size in bytes
-		jae comboot_too_large
-
 		push si			; Save file handle
 
 		call make_plain_cmdline
@@ -124,9 +125,11 @@ is_comboot_image:
 		; Now actually load the file...
 		pop si			; File handle
 		mov bx,100h		; Load at <seg>:0100h
-		mov cx,0FF00h >> SECTOR_SHIFT
+		mov cx,10000h >> SECTOR_SHIFT
 					; Absolute maximum # of sectors
 		call getfssec
+		cmp ecx,0FF00h		; Maximum size
+		jae comboot_too_large
 
 		; And invoke the program...
 		mov ax,es
