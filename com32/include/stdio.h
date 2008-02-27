@@ -54,12 +54,7 @@ static __inline__ FILE *fdopen(int __fd, const char *__m)
 {
   (void)__m; return __create_file(__fd);
 }
-static __inline__ int fclose(FILE *__f)
-{
-  extern int close(int);
-  return close(fileno(__f));
-}
-
+__extern int fclose(FILE *__f);
 __extern int fputs(const char *, FILE *);
 __extern int puts(const char *);
 __extern int fputc(int, FILE *);
