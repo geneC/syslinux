@@ -1603,6 +1603,7 @@ PXEEntry	equ pxe_thunk.jump+1
 ;  On exit:
 ;	SI	-> TFTP socket pointer (or 0 on EOF)
 ;	CF = 1	-> Hit EOF
+;	ECX	-> number of bytes actually read
 ;
 getfssec:	push si
 		push fs
@@ -1613,6 +1614,7 @@ getfssec:	push si
 
 		movzx ecx,cx
 		shl ecx,TFTP_BLOCKSIZE_LG2	; Convert to bytes
+		push ecx			; Initial positioning
 		jz .hit_eof			; Nothing to do?
 
 .need_more:
@@ -1635,26 +1637,29 @@ getfssec:	push si
 		sub ecx,eax
 		jnz .need_more
 
-
 .hit_eof:
+		pop eax				; Initial request amount
+		xchg eax,ecx
+		sub ecx,eax			; ... minus anything not gotten
 		pop fs
 		pop si
 
 		; Is there anything left of this?
 		mov eax,[si+tftp_filesize]
 		sub eax,[si+tftp_filepos]
-		jnz .bytes_left	; CF <- 0
+		jnz .bytes_left
 
 		cmp [si+tftp_bytesleft],ax
-		jnz .bytes_left	; CF <- 0
+		jnz .bytes_left
 
 		; The socket is closed and the buffer drained
 		; Close socket structure and re-init for next user
 		call free_socket
 		stc
-.bytes_left:
 		ret
-
+.bytes_left:
+		clc
+		ret
 ;
 ; No data in buffer, check to see if we can get a packet...
 ;
@@ -1761,7 +1766,8 @@ get_packet:
 		call ack_packet
 		jmp .send_ok			; Reset timeout
 
-.right_packet:	; It's the packet we want.  We're also EOF if the size < blocksize
+.right_packet:	; It's the packet we want.  We're also EOF if the
+		; size < blocksize
 
 		pop cx				; <D> Don't need the retry count anymore
 

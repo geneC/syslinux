@@ -25,30 +25,35 @@
 ;
 ;		The xfer_buf_seg is used as a bounce buffer.
 ;
+;		Assumes CS == DS.
+;
 ;		The input address (EDI) should be dword aligned, and the final
 ;		stretch is padded with zeroes if necessary.
 ;
 ; Inputs:	SI  = file handle/cluster pointer
 ;		EDI = target address in high memory
-;		EAX = size of remaining file in bytes
+;		EAX = maximum number of bytes to load
 ;		DX  = zero-padding mask (e.g. 0003h for pad to dword)
 ;		BX  = subroutine to call at the top of each loop
 ;                     (to print status and check for abort)
+;		MyHighMemSize = maximum load address
 ;
 ; Outputs:	SI  = file handle/cluster pointer
-;		EDI = first untouched address (not including padding)
+;		EBX = first untouched address (not including padding)
+;		EDI = first untouched address (including padding)
+;		CF  = reached EOF
 ;
 load_high:
 		push es				; <AAA> ES
 
 		mov cx,xfer_buf_seg
 		mov es,cx
+		mov [PauseBird],bx
 
 .read_loop:
 		and si,si			; If SI == 0 then we have end of file
 		jz .eof
-		call bx
-		push bx				; <AA> Pausebird function
+		call [PauseBird]
 
 		push eax			; <A> Total bytes to transfer
 		cmp eax,(1 << 16)		; Max 64K in one transfer
@@ -65,34 +70,37 @@ load_high:
 		xor bx,bx			; ES:0
 		call getfssec			; Load the data into xfer_buf_seg
 		pop edi				; <C> Target buffer
-		pop ecx				; <B> Byte count this round
-		push ecx			; <B> Byte count this round
-		push edi			; <C> Target buffer
+		pushf				; <C> EOF status
+		lea ebx,[edi+ecx]		; End of data
 .fix_slop:
 		test cx,dx
 		jz .noslop
 		; The last dword fractional - pad with zeroes
 		; Zero-padding is critical for multi-file initramfs.
 		mov byte [es:ecx],0
-		inc ecx
+		inc cx
 		jmp short .fix_slop
 .noslop:
+		lea eax,[edi+ecx]
+		cmp eax,[MyHighMemSize]
+		ja .overflow
+
 		push esi			; <D> File handle/cluster pointer
 		mov esi,(xfer_buf_seg << 4)	; Source address
 		call bcopy			; Copy to high memory
 		pop esi				; <D> File handle/cluster pointer
-		pop edi				; <C> Target buffer
+		popf				; <C> EOF status
 		pop ecx				; <B> Byte count this round
 		pop eax				; <A> Total bytes to transfer
-		add edi,ecx
+		jc .eof
 		sub eax,ecx
-		pop bx				; <AA> Pausebird function
-		jnz .read_loop			; More to read...
-
-
+		jnz .read_loop			; More to read... (if ZF=1 then CF=0)
 .eof:
 		pop es				; <AAA> ES
 		ret
+
+.overflow:	mov si,err_nohighmem
+		jmp abort_load
 
 dot_pause:
 		push ax
@@ -100,3 +108,13 @@ dot_pause:
 		call writechr
 		pop ax
 		jmp abort_check			; Handles the return
+
+		section .data
+err_nohighmem   db CR, LF
+		db 'Not enough memory to load specified image.', CR, LF, 0
+
+		section .bss
+		alignb 2
+PauseBird	resw 1
+
+		section .text

@@ -537,11 +537,17 @@ kernel_good_saved:
 
 kernel_good:
 		pushad
+
 		mov si,KernelName
 		mov di,KernelCName
 		call unmangle_name
 		sub di,KernelCName
 		mov [KernelCNameLen],di
+
+		; Default memory limit, can be overridden by image loaders
+		mov eax,[HighMemRsvd]
+		mov [MyHighMemSize],eax
+
 		popad
 
 		push di
