@@ -88,7 +88,9 @@ comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 ;
 		struc open_file_t
 file_sector	resd 1			; Sector pointer (0 = structure free)
+file_bytesleft	resd 1			; Number of bytes left
 file_left	resd 1			; Number of sectors left
+		resd 1			; Unused
 		endstruc
 
 %ifndef DEPEND
@@ -1089,6 +1091,7 @@ searchdir:
 		jnz .badfile		; If not a file, it's a bad thing
 
 		; SI and EAX are already set
+		mov [si+file_bytesleft],eax
 		and eax,eax		; EAX != 0
 		jz .badfile
 		ret			; Done!
@@ -1341,20 +1344,30 @@ getfssec_edx:
 ;	CX	-> Sector count (0FFFFh = until end of file)
 ;                  Must not exceed the ES segment
 ;	Returns CF=1 on EOF (not necessarily error)
+;	ECX returns number of bytes read.
 ;	All arguments are advanced to reflect data read.
 ;
 getfssec:
 		push edx
 		movzx edx,cx
-		cmp edx,[si+4]
+		push edx		; Zero-extended CX
+		cmp edx,[si+file_left]
 		jbe .sizeok
-		mov edx,[si+4]
+		mov edx,[si+file_left]
 		mov cx,dx
 .sizeok:
-		sub [si+4],edx
-		mov edx,[si]
+		sub [si+file_left],edx
+		mov edx,[si+file_sector]
 		call getfssec_edx
-		mov [si],edx
+		mov [si+file_sector],edx
+		pop ecx			; Sectors requested read
+		pushf			; Save CF from getfssec_edx
+		shl ecx,SECTOR_SHIFT
+		cmp ecx,[si+file_bytesleft]
+		jna .noteof
+		mov ecx,[si+file_bytesleft]
+.noteof:	sub ecx,[si+file_bytesleft]
+		popf
 		pop edx
 		ret
 

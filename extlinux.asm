@@ -85,7 +85,7 @@ comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 ; File structure.  This holds the information for each currently open file.
 ;
 		struc open_file_t
-file_left	resd 1			; Number of sectors left (0 = free)
+file_bytesleft	resd 1			; Number of bytes left (0 = free)
 file_sector	resd 1			; Next linear sector to read
 file_in_sec	resd 1			; Sector where inode lives
 file_in_off	resw 1
@@ -987,11 +987,7 @@ open_inode:
 		mov ax,[ThisInode+i_mode]
 		mov [bx+file_mode],ax
 		mov eax,[ThisInode+i_size]
-		push eax
-		add eax,SECTOR_SIZE-1
-		shr eax,SECTOR_SHIFT
-		mov [bx+file_left],eax
-		pop eax
+		mov [bx+file_bytesleft],eax
 		mov si,bx
 		and eax,eax			; ZF clear unless zero-length file
 		pop gs
@@ -1013,7 +1009,7 @@ ThisInode	resb EXT2_GOOD_OLD_INODE_SIZE	; The most recently opened inode
 close_file:
 		and si,si
 		jz .closed
-		mov dword [si],0		; First dword == file_left
+		mov dword [si],0		; First dword == file_bytesleft
 .closed:	ret
 
 ;
@@ -1435,6 +1431,7 @@ linsector:
 ;	CX	-> Sector count (0FFFFh = until end of file)
 ;                  Must not exceed the ES segment
 ;	Returns CF=1 on EOF (not necessarily error)
+;	On return ECX = number of bytes read
 ;	All arguments are advanced to reflect data read.
 ;
 getfssec:
@@ -1444,9 +1441,13 @@ getfssec:
 		push edi
 
 		movzx ecx,cx
-		cmp ecx,[si]			; Number of sectors left
+		push ecx			; Sectors requested read
+		mov eax,[si+file_bytesleft]
+		add eax,SECTOR_SIZE-1
+		shr eax,SECTOR_SHIFT
+		cmp ecx,eax			; Number of sectors left
 		jbe .lenok
-		mov cx,[si]
+		mov cx,ax
 .lenok:
 .getfragment:
 		mov eax,[si+file_sector]	; Current start index
@@ -1485,12 +1486,18 @@ getfssec:
 		add bx,bp			; Adjust buffer pointer
 		pop bp
 		add [si+file_sector],ebp	; Next sector index
-		sub [si],ebp			; Sectors consumed
 		jcxz .done
 		jnz .getfragment
 		; Fall through
 .done:
-		cmp dword [si],1		; Did we run out of file?
+		pop ecx				; Sectors requested read
+		shl ecx,SECTOR_SHIFT
+		cmp ecx,[si+file_bytesleft]
+		jb .noteof
+		mov ecx,[si+file_bytesleft]
+.noteof:	sub [si+file_bytesleft],ecx
+		; Did we run out of file?
+		cmp dword [si+file_bytesleft],1
 		; CF set if [SI] < 1, i.e. == 0
 		pop edi
 		pop edx
