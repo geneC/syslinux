@@ -1327,7 +1327,7 @@ searchdir:
 		call pxenv
 
 		; Write an error message and explode
-		mov si,err_oldtftp
+		mov si,err_damage
 		call writestr
 		jmp kaboom
 
@@ -2488,7 +2488,7 @@ err_nopxe	db "No !PXE or PXENV+ API found; we're dead...", CR, LF, 0
 err_pxefailed	db 'PXE API call failed, error ', 0
 err_udpinit	db 'Failed to initialize UDP stack', CR, LF, 0
 err_noconfig	db 'Unable to locate configuration file', CR, LF, 0
-err_oldtftp	db 'TFTP server does not support the tsize option', CR, LF, 0
+err_damage	db 'TFTP server sent an incomprehesible reply', CR, LF, 0
 found_pxenv	db 'Found PXENV+ structure', CR, LF, 0
 using_pxenv_msg db 'Old PXE API detected, using PXENV+ structure', CR, LF, 0
 apiver_str	db 'PXE API version is ',0
