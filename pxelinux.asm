@@ -165,7 +165,8 @@ tftp_blksize	resd 1			; Block size for this connection(*)
 tftp_bytesleft	resw 1			; Unclaimed data bytes
 tftp_lastpkt	resw 1			; Sequence number of last packet (NBO)
 tftp_dataptr	resw 1			; Pointer to available data
-		resw 2			; Currently unusued
+tftp_goteof	resb 1			; 1 if the EOF packet received
+		resb 3			; Currently unusued
 		; At end since it should not be zeroed on socked close
 tftp_pktbuf	resw 1			; Packet buffer offset
 		endstruc
@@ -1605,42 +1606,51 @@ PXEEntry	equ pxe_thunk.jump+1
 ;	CF = 1	-> Hit EOF
 ;	ECX	-> number of bytes actually read
 ;
-getfssec:	push si
+getfssec:	push eax
+		push edi
+		push bx
+		push si
 		push fs
 		mov di,bx
-		mov bx,si
 		mov ax,pktbuf_seg
 		mov fs,ax
 
+		xor eax,eax
 		movzx ecx,cx
 		shl ecx,TFTP_BLOCKSIZE_LG2	; Convert to bytes
-		push ecx			; Initial positioning
+		push ecx			; Initial request size
 		jz .hit_eof			; Nothing to do?
 
 .need_more:
-		push ecx
+		call fill_buffer
+		movzx eax,word [si+tftp_bytesleft]
+		and ax,ax
+		jz .hit_eof
 
-		movzx eax,word [bx+tftp_bytesleft]
+		push ecx
 		cmp ecx,eax
 		jna .ok_size
 		mov ecx,eax
-		jcxz .need_packet		; No bytes available?
 .ok_size:
-
 		mov ax,cx			; EAX<31:16> == ECX<31:16> == 0
-		mov si,[bx+tftp_dataptr]
-		sub [bx+tftp_bytesleft],cx
+		mov bx,[si+tftp_dataptr]
+		sub [si+tftp_bytesleft],cx
+		xchg si,bx
 		fs rep movsb			; Copy from packet buffer
-		mov [bx+tftp_dataptr],si
+		xchg si,bx
+		mov [si+tftp_dataptr],bx
 
 		pop ecx
 		sub ecx,eax
 		jnz .need_more
 
 .hit_eof:
+		call fill_buffer
+
 		pop eax				; Initial request amount
 		xchg eax,ecx
 		sub ecx,eax			; ... minus anything not gotten
+
 		pop fs
 		pop si
 
@@ -1649,41 +1659,50 @@ getfssec:	push si
 		sub eax,[si+tftp_filepos]
 		jnz .bytes_left
 
-		cmp [si+tftp_bytesleft],ax
-		jnz .bytes_left
+		cmp [si+tftp_bytesleft],ax	; AX == 0
+		jne .bytes_left
 
+		cmp byte [si+tftp_goteof],0
+		je .done
+		; I'm 99% sure this can't happen, but...
+		call fill_buffer		; Receive/ACK the EOF packet
+.done:
 		; The socket is closed and the buffer drained
 		; Close socket structure and re-init for next user
 		call free_socket
 		stc
-		ret
+		jmp .ret
 .bytes_left:
 		clc
+.ret:
+		pop bx
+		pop edi
+		pop eax
 		ret
-;
-; No data in buffer, check to see if we can get a packet...
-;
-.need_packet:
-		pop ecx
-		mov eax,[bx+tftp_filesize]
-		cmp eax,[bx+tftp_filepos]
-		je .hit_eof			; Already EOF'd; socket already closed
 
-		pushad
+;
+; Get a fresh packet if the buffer is drained, and we haven't hit
+; EOF yet.  The buffer should be filled immediately after draining!
+;
+; expects fs -> pktbuf_seg and ds:si -> socket structure
+;
+fill_buffer:
+		cmp word [si+tftp_bytesleft],0
+		je .empty
+		ret				; Otherwise, nothing to do
+
+.empty:
 		push es
-		mov si,bx
-		call get_packet
-		pop es
-		popad
-
-		jmp .need_more
-
-;
-; Get a fresh packet; expects fs -> pktbuf_seg and ds:si -> socket structure
-;
-get_packet:
+		pushad
 		mov ax,ds
 		mov es,ax
+
+		; Note: getting the EOF packet is not the same thing
+		; as tftp_filepos == tftp_filesize; if the EOF packet
+		; is empty the latter condition can be true without
+		; having gotten the official EOF.
+		cmp byte [si+tftp_goteof],0
+		jne .ret			; Alread EOF
 
 .packet_loop:
 		; Start by ACKing the previous packet; this should cause the
@@ -1776,10 +1795,6 @@ get_packet:
 		movzx ecx,word [pxe_udp_read_pkt.buffersize]
 		sub cx,byte 4			; Skip TFTP header
 
-		; If this is a zero-length block, don't mess with the pointers,
-		; since we may have just set up the previous block that way
-		jz .last_block
-
 		; Set pointer to data block
 		lea ax,[bx+4]			; Data past TFTP header
 		mov [si+tftp_dataptr],ax
@@ -1788,27 +1803,25 @@ get_packet:
 		mov [si+tftp_bytesleft],cx
 
 		cmp cx,[si+tftp_blksize]	; Is it a full block?
-		jb .last_block			; If so, it's not EOF
+		jb .last_block			; If not, it's EOF
 
-		; If we had the exact right number of bytes, always get
-		; one more packet to get the (zero-byte) EOF packet and
-		; close the socket.
-		mov eax,[si+tftp_filepos]
-		cmp [si+tftp_filesize],eax
-		je .packet_loop
-
+.ret:
+		popad
+		pop es
 		ret
 
 
 .last_block:	; Last block - ACK packet immediately
+		TRACER 'L'
 		mov ax,[fs:bx+2]
 		call ack_packet
 
 		; Make sure we know we are at end of file
 		mov eax,[si+tftp_filepos]
 		mov [si+tftp_filesize],eax
+		mov byte [si+tftp_goteof],1
 
-		ret
+		jmp .ret
 
 ;
 ; ack_packet:
