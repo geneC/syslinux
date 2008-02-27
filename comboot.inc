@@ -128,8 +128,8 @@ is_comboot_image:
 		mov cx,10000h >> SECTOR_SHIFT
 					; Absolute maximum # of sectors
 		call getfssec
-		cmp ecx,0FF00h		; Maximum size
-		jae comboot_too_large
+		cmp ecx,65536-256-2	; Maximum size
+		ja comboot_too_large
 
 		; And invoke the program...
 		mov ax,es
