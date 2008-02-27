@@ -31,7 +31,8 @@ void *realloc(void *ptr, size_t size)
   /* Add the obligatory arena header, and round up */
   newsize = (size+2*sizeof(struct arena_header)-1) & ARENA_SIZE_MASK;
 
-  if ( oldsize >= newsize && newsize >= (oldsize >> 2) ) {
+  if ( oldsize >= newsize && newsize >= (oldsize >> 2) &&
+       oldsize-newsize < 4096 ) {
     /* This allocation is close enough already. */
     return ptr;
   } else {
