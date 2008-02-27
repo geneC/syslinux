@@ -425,6 +425,7 @@ comapi_read:
 		jnc .noteof
 		xor si,si		; SI <- 0 on EOF, CF <- 0
 .noteof:	mov P_SI,si
+		mov P_ECX,ecx
 		ret
 
 ;

@@ -315,7 +315,7 @@ AX=0007h [2.08] Read file
 		ES:BX	buffer
 		CX	number of blocks to read
 	Output:	SI	file handle, or 0 if EOF was reached
-		EAX	number of bytes read [3.70]
+		ECX	number of bytes read [3.70]
 
 	Read blocks from a file.  Note that the file handle that is
 	returned in SI may not be the same value that was passed in.
@@ -323,7 +323,7 @@ AX=0007h [2.08] Read file
 	If end of file was reached (SI=0), the file was automatically
 	closed.
 
-	In 3.70 or later, EAX returns the number of bytes read.  This
+	In 3.70 or later, ECX returns the number of bytes read.  This
 	will always be a multiple of the block size unless EOF is
 	reached.
 

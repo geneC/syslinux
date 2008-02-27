@@ -65,7 +65,7 @@ ssize_t __file_read(struct file_info *fp, void *buf, size_t count)
       }
 
       fp->i.filedes = oreg.esi.w[0];
-      fp->i.nbytes = min(fp->i.length-fp->i.offset, (unsigned)MAXBLOCK);
+      fp->i.nbytes = oreg.ecx.l;
       fp->i.datap = fp->i.buf;
       memcpy(fp->i.buf, __com32.cs_bounce, fp->i.nbytes);
     }

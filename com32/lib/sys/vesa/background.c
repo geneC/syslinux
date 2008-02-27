@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <minmax.h>
+#include <syslinux/loadfile.h>
 #include "vesa.h"
 #include "video.h"
 
@@ -172,19 +173,16 @@ static int jpeg_sig_cmp(uint8_t *bytes, int len)
 static int read_jpeg_file(FILE *fp, uint8_t *header, int len)
 {
   struct jdec_private *jdec = NULL;
-  unsigned char *jpeg_file = NULL;
-  size_t length_of_file = filesize(fp);
+  void *jpeg_file = NULL;
+  size_t length_of_file;
   unsigned int width, height;
   int rv = -1;
   unsigned char *components[1];
   unsigned int bytes_per_row[1];
 
-  jpeg_file = malloc(length_of_file);
-  if (!jpeg_file)
-    goto err;
-
-  memcpy(jpeg_file, header, len);
-  if (fread(jpeg_file+len, 1, length_of_file-len, fp) != length_of_file-len)
+  rv = floadfile(fp, &jpeg_file, &length_of_file, header, len);
+  fclose(fp);
+  if (rv)
     goto err;
 
   jdec = tinyjpeg_init();
