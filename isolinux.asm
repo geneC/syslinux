@@ -76,7 +76,9 @@ comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 ;
 		struc open_file_t
 file_sector	resd 1			; Sector pointer (0 = structure free)
+file_bytesleft	resd 1			; Number of bytes left
 file_left	resd 1			; Number of sectors left
+		resd 1			; Unused
 		endstruc
 
 %ifndef DEPEND
@@ -105,7 +107,7 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 
 		; Some of these are touched before the whole image
 		; is loaded.  DO NOT move this to .uibss.
-		section .bss1
+		section .bss2
 		alignb 4
 ISOFileName	resb 64			; ISO filename canonicalization buffer
 ISOFileNameEnd	equ $
@@ -1263,6 +1265,7 @@ searchdir_iso:
 		mov eax,[si+2]			; Location of extent
 		mov [bx+file_sector],eax
 		mov eax,[si+10]			; Data length
+		mov [bx+file_bytesleft],eax
 		push eax
 		add eax,SECTOR_SIZE-1
 		shr eax,SECTOR_SHIFT
@@ -1429,6 +1432,7 @@ unmangle_name:	call strcpy
 ;  On exit:
 ;	SI	-> File pointer (or 0 on EOF)
 ;	CF = 1	-> Hit EOF
+;	ECX	-> Bytes actually read
 ;
 getfssec:
 		TRACER 'F'
@@ -1441,8 +1445,8 @@ getfssec:
 		cmp ecx,[si+file_left]
 		jna .ok_size
 		mov ecx,[si+file_left]
-.ok_size:
 
+.ok_size:
 		mov bp,cx
 		push cx
 		push si
@@ -1456,13 +1460,24 @@ getfssec:
 		add [si+file_sector],ecx
 		sub [si+file_left],ecx
 		ja .not_eof			; CF = 0
-
-		xor ecx,ecx
-		mov [si+file_sector],ecx	; Mark as unused
-		xor si,si
 		stc
 
 .not_eof:
+		pushf
+		shl ecx,SECTOR_SHIFT		; Convert to bytes
+		cmp ecx,[si+file_bytesleft]
+		jb .not_all
+		mov ecx,[si+file_bytesleft]
+.not_all:	sub [si+file_bytesleft],ecx
+		popf
+		jnc .ret
+		push eax
+		xor eax,eax
+		mov [si+file_sector],eax	; Unused
+		mov si,ax
+		pop eax
+		stc
+.ret:
 		pop ds
 		TRACER 'f'
 		ret
