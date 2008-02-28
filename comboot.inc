@@ -61,10 +61,7 @@
 
 ; Looks like a COMBOOT image but too large
 comboot_too_large:
-		and si,si
-		jnz .closed
 		call close_file
-.closed:
 		mov si,err_comlarge
 		call cwritestr
 		jmp enter_command

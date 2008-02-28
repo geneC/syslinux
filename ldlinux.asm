@@ -1034,7 +1034,8 @@ search_dos_dir:
 close_file:
 		and si,si
 		jz .closed
-		mov dword [si],0		; First dword == file_left
+		mov dword [si],0		; First dword == file_sector
+		xor si,si
 .closed:	ret
 
 ;
@@ -1092,6 +1093,11 @@ searchdir:
 
 		; SI and EAX are already set
 		mov [si+file_bytesleft],eax
+		push eax
+		add eax,SECTOR_SIZE-1
+		shr eax,SECTOR_SHIFT
+		mov [si+file_left],eax	; Sectors left
+		pop eax
 		and eax,eax		; EAX != 0
 		jz .badfile
 		ret			; Done!
@@ -1361,14 +1367,18 @@ getfssec:
 		call getfssec_edx
 		mov [si+file_sector],edx
 		pop ecx			; Sectors requested read
-		pushf			; Save CF from getfssec_edx
 		shl ecx,SECTOR_SHIFT
 		cmp ecx,[si+file_bytesleft]
-		jna .noteof
-		mov ecx,[si+file_bytesleft]
-.noteof:	sub ecx,[si+file_bytesleft]
-		popf
+		ja .eof
+.noteof:
+		sub [si+file_bytesleft],ecx	; CF <- 0
 		pop edx
+		ret
+.eof:
+		mov ecx,[si+file_bytesleft]
+		call close_file
+		pop edx
+		stc
 		ret
 
 ;

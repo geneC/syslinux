@@ -1141,6 +1141,7 @@ close_file:
 		and si,si
 		jz .closed
 		mov dword [si],0		; First dword == file_left
+		xor si,si
 .closed:	ret
 
 ;

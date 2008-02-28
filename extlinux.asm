@@ -1010,6 +1010,7 @@ close_file:
 		and si,si
 		jz .closed
 		mov dword [si],0		; First dword == file_bytesleft
+		xor si,si
 .closed:	ret
 
 ;
