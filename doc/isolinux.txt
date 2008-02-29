@@ -26,7 +26,7 @@ well (not tested.)
 To create an image, create a directory called "isolinux" (or, if you
 prefer, "boot/isolinux") underneath the root directory of your ISO
 image master file tree.  Copy isolinux.bin, a config file called
-"isolinux.cfg" (see syslinux.doc for details on the configuration
+"isolinux.cfg" (see syslinux.txt for details on the configuration
 file), and all necessary files (kernels, initrd, display files, etc.)
 into this directory, then use the following command to create your ISO
 image (add additional options as appropriate, such as -J or -R):
