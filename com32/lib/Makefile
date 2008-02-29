@@ -29,7 +29,11 @@ LIBOBJS = \
 	sys/entry.o sys/exit.o sys/argv.o sys/times.o			\
 	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
-	sys/isatty.o sys/fstat.o sys/openconsole.o sys/line_input.o	\
+	sys/isatty.o sys/fstat.o					\
+	\
+	sys/zfile.o sys/zfopen.o					\
+	\
+	sys/openconsole.o sys/line_input.o				\
 	sys/colortable.o sys/screensize.o				\
 	\
 	sys/stdcon_read.o sys/stdcon_write.o sys/rawcon_read.o		\
@@ -78,7 +82,8 @@ LIBOBJS = \
 	syslinux/run_default.o syslinux/run_command.o			\
 	syslinux/cleanup.o syslinux/localboot.o	syslinux/runimage.o	\
 	\
-	syslinux/loadfile.o						\
+	syslinux/loadfile.o syslinux/floadfile.o syslinux/zloadfile.o	\
+	\
 	syslinux/load_linux.o syslinux/initramfs.o			\
 	syslinux/initramfs_file.o syslinux/initramfs_loadfile.o		\
 	syslinux/initramfs_archive.o					\

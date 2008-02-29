@@ -26,9 +26,9 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * loadfile.c
+ * zloadfile.c
  *
- * Read the contents of a data file into a malloc'd buffer
+ * Read the contents of a possibly compressed data file into a malloc'd buffer
  */
 
 #include <stdio.h>
@@ -37,17 +37,18 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <syslinux/zio.h>
 
 #include <syslinux/loadfile.h>
 
 #define INCREMENTAL_CHUNK 1024*1024
 
-int loadfile(const char *filename, void **ptr, size_t *len)
+int zloadfile(const char *filename, void **ptr, size_t *len)
 {
   FILE *f;
   int rv;
 
-  f = fopen(filename, "r");
+  f = zfopen(filename, "r");
   if ( !f )
     return -1;
 

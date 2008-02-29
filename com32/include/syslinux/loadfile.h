@@ -9,6 +9,7 @@
 #define LOADFILE_ZERO_PAD	64
 
 int loadfile(const char *, void **, size_t *);
+int zloadfile(const char *, void **, size_t *);
 int floadfile(FILE *, void **, size_t *, const void *, size_t);
 
 #endif
