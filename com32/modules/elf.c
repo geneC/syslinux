@@ -281,7 +281,7 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  if (loadfile(argv[1], &data, &data_len)) {
+  if (zloadfile(argv[1], &data, &data_len)) {
     error("Unable to load file\n");
     return 1;
   }
