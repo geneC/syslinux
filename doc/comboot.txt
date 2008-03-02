@@ -460,7 +460,7 @@ AX=000Bh [2.00]	Get Serial Console Configuration
 	Input:	AX	000Bh
 	Output:	DX	serial port I/O base (e.g. 3F8h = COM1...)
 		CX	baud rate divisor (1 = 115200 bps, 2 = 57600 bps...)
-		BX	flow control configuration bits (see syslinux.doc)
+		BX	flow control configuration bits (see syslinux.txt)
 			-> bit 15 is set if the video console is disabled
 
 	If no serial port is configured, DX will be set to 0 and the
@@ -655,7 +655,7 @@ AX=0014h [3.10] Local boot [PXELINUX, ISOLINUX]
 	configuration file option.  The parameter in DX is the same
 	parameter as would be entered after "localboot" in the
 	configuration file; this parameter is derivative-specific --
-	see syslinux.doc for the definition.
+	see syslinux.txt for the definition.
 
 
 AX=0015h [3.10] Get feature flags

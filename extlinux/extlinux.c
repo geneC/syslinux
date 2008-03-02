@@ -40,7 +40,9 @@ typedef uint64_t u64;
 
 #include <linux/fd.h>		/* Floppy geometry */
 #include <linux/hdreg.h>	/* Hard disk geometry */
+#define statfs _kernel_statfs	/* HACK to deal with broken 2.4 distros */
 #include <linux/fs.h>		/* FIGETBSZ, FIBMAP */
+#undef statfs
 
 #include "ext2_fs.h"
 #include "../version.h"
