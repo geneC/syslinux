@@ -214,4 +214,7 @@ extern const int message_base_color;
 extern const char *current_background;
 void set_background(const char *new_background);
 
+/* execute.c */
+void execute(const char *cmdline, enum kernel_type type);
+
 #endif /* MENU_H */
