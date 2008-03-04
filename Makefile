@@ -232,9 +232,9 @@ clean: local-tidy local-clean
 	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 dist: tidy
-	for dir in . sample memdisk ; do \
-		( cd $$dir && rm -f *~ \#* core ) ; \
-	done
+	find . \( -name '*~' -o -name '#*' -o -name core \
+		-o -name '.*.d' -o -name .depend \) -type f -print0 \
+	| xargs -0rt rm -f
 
 local-spotless:
 	rm -f $(BTARGET) .depend *.so.*
