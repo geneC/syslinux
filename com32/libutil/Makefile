@@ -42,7 +42,11 @@ AR	   = ar
 NASM	   = nasm
 NASMOPT	   = -O9999
 RANLIB	   = ranlib
-CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -D__COM32__ -W -Wall -march=i386 -Os -fomit-frame-pointer -I./include -I../include
+CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os \
+	     -fomit-frame-pointer -D__COM32__ \
+	     -nostdinc -iwithprefix include \
+	     -I./include -I../include \
+	     -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d
 SFLAGS     = $(M32) -D__COM32__ -march=i386
 LDFLAGS    = -T ../lib/com32.ld
 LNXCFLAGS  = -I./include -W -Wall -O -g -D_GNU_SOURCE
@@ -112,3 +116,5 @@ spotless: clean
 install: all
 	mkdir -m 755 -p $(INSTALLROOT)$(COM32DIR)
 	install -m 644 libutil_com.a libutil_lnx.a $(INSTALLROOT)$(COM32DIR)
+
+-include .*.d
