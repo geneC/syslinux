@@ -37,19 +37,19 @@ static inline struct vesa_char *vesacon_fill(struct vesa_char *ptr,
 {
   switch (sizeof(struct vesa_char)) {
   case 1:
-    asm volatile("cld; rep; stosb"
+    asm volatile("rep; stosb"
 		 : "+D" (ptr), "+c" (count)
 		 : "a" (fill)
 		 : "memory");
     break;
   case 2:
-    asm volatile("cld; rep; stosw"
+    asm volatile("rep; stosw"
 		 : "+D" (ptr), "+c" (count)
 		 : "a" (fill)
 		 : "memory");
     break;
   case 4:
-    asm volatile("cld; rep; stosl"
+    asm volatile("rep; stosl"
 		 : "+D" (ptr), "+c" (count)
 		 : "a" (fill)
 		 : "memory");

@@ -835,7 +835,7 @@ static void trampoline_start(section_t *secs, int sec_count,
             /* asm bzero() code from com32/lib/memset.c */
             char *q = (char *) secs[i].dest;
             size_t nl = secs[i].size >> 2;
-            asm volatile("cld ; rep ; stosl ; movl %3,%0 ; rep ; stosb"
+            asm volatile("rep ; stosl ; movl %3,%0 ; rep ; stosb"
                          : "+c" (nl), "+D" (q)
                          : "a" (0x0U), "r" (secs[i].size & 3));
         } else {
@@ -844,12 +844,12 @@ static void trampoline_start(section_t *secs, int sec_count,
             char *q = (char *) secs[i].dest;
             size_t n = secs[i].size;
             if ( q < p ) {
-                asm volatile("cld ; rep ; movsb"
+                asm volatile("rep ; movsb"
                              : "+c" (n), "+S" (p), "+D" (q));
             } else {
                 p += (n-1);
                 q += (n-1);
-                asm volatile("std ; rep ; movsb"
+                asm volatile("std ; rep ; movsb ; cld"
                              : "+c" (n), "+S" (p), "+D" (q));
             }
         }

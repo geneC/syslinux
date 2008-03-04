@@ -19,7 +19,6 @@ memcpy:
 	movl	%ecx, %edx
 
 	shrl	$2, %ecx
-	cld
 	rep ; movsl
 
 	jnc	1f		# The shrl had carry out if odd word count

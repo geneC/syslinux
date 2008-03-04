@@ -40,7 +40,7 @@ static int cursor_x, cursor_y;
 
 static inline void *copy_dword(void *dst, void *src, size_t dword_count)
 {
-  asm volatile("cld; rep; movsl"
+  asm volatile("rep; movsl"
 	       : "+D" (dst), "+S" (src), "+c" (dword_count));
   return dst;			/* Updated destination pointer */
 }
