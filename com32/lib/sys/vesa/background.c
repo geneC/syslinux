@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <minmax.h>
+#include <stdbool.h>
 #include <syslinux/loadfile.h>
 #include "vesa.h"
 #include "video.h"
@@ -242,12 +243,138 @@ int vesacon_set_background(unsigned int rgb)
   if (__vesacon_pixel_format == PXF_NONE)
     return 0;			/* Not in graphics mode */
 
-  asm volatile("cld; rep; stosl"
+  asm volatile("rep; stosl"
 	       : "+D" (bgptr), "+c" (count)
 	       : "a" (rgb)
 	       : "memory");
 
   draw_background();
+  return 0;
+}
+
+struct lss16_header {
+  uint32_t magic;
+  uint16_t xsize;
+  uint16_t ysize;
+};
+
+#define LSS16_MAGIC 0x1413f33d
+
+static inline int lss16_sig_cmp(const void *header, int len)
+{
+  const struct lss16_header *h = header;
+
+  if (len != 8)
+    return 1;
+
+  return !(h->magic == LSS16_MAGIC &&
+	   h->xsize <= VIDEO_X_SIZE && h->ysize <= VIDEO_Y_SIZE);
+}
+
+static int read_lss16_file(FILE *fp, const void *header, int header_len)
+{
+  const struct lss16_header *h = header;
+  uint32_t colors[16], color;
+  bool has_nybble;
+  uint8_t byte;
+  int count;
+  int nybble, prev;
+  enum state {
+    st_start,
+    st_c0,
+    st_c1,
+    st_c2,
+    st_run,
+  } state;
+  int i, x, y;
+  uint32_t *bgptr = (void *)__vesacon_background;
+
+  /* Assume the header, 8 bytes, has already been loaded. */
+  if (header_len != 8)
+    return -1;
+
+  for (i = 0; i < 16; i++) {
+    uint8_t rgb[3];
+    if (fread(rgb, 1, 3, fp) != 3)
+      return -1;
+
+    colors[i] = (((rgb[0] & 63)*255/63) << 16) +
+      (((rgb[1] & 63)*255/63) << 8) +
+      ((rgb[2] & 63)*255/63);
+  }
+
+  /* By spec, the state machine is per row */
+  for (y = 0; y < h->ysize; y++) {
+    state = st_start;
+    has_nybble = false;
+    color = colors[prev = 0];	/* By specification */
+    count = 0;
+
+    for (x = 0; x < h->xsize;) {
+      if (!has_nybble) {
+	if (fread(&byte, 1, 1, fp) != 1)
+	  return -1;
+	nybble = byte & 0xf;
+	has_nybble = true;
+      } else {
+	nybble = byte >> 4;
+	has_nybble = false;
+      }
+
+      switch (state) {
+      case st_start:
+	if (nybble != prev) {
+	  *bgptr++ = color = colors[prev = nybble];
+	  x++;
+	} else {
+	  state = st_c0;
+	}
+	break;
+
+      case st_c0:
+	if (nybble == 0) {
+	  state = st_c1;
+	} else {
+	  count = nybble;
+	  state = st_run;
+	}
+	break;
+
+      case st_c1:
+	count = nybble + 16;
+	state = st_c2;
+	break;
+
+      case st_c2:
+	count += nybble << 4;
+	state = st_run;
+	break;
+
+      case st_run:
+	/* Can't happen */
+	break;
+      }
+
+      if (state == st_run) {
+	count = min(count, h->xsize-x);
+	x += count;
+	asm volatile("rep; stosl"
+		     : "+D" (bgptr), "+c" (count) : "a" (color));
+	state = st_start;
+      }
+    }
+
+    /* Zero-fill rest of row */
+    i = VIDEO_X_SIZE-x;
+    asm volatile("rep; stosl"
+	       : "+D" (bgptr), "+c" (i) : "a" (0) : "memory");
+  }
+
+  /* Zero-fill rest of screen */
+  i = (VIDEO_Y_SIZE-y)*VIDEO_X_SIZE;
+  asm volatile("rep; stosl"
+	       : "+D" (bgptr), "+c" (i) : "a" (0) : "memory");
+
   return 0;
 }
 
@@ -272,6 +399,8 @@ int vesacon_load_background(const char *filename)
     rv = read_png_file(fp);
   } else if (!jpeg_sig_cmp(header, 8)) {
     rv = read_jpeg_file(fp, header, 8);
+  } else if (!lss16_sig_cmp(header, 8)) {
+    rv = read_lss16_file(fp, header, 8);
   }
 
   /* This actually displays the stuff */
