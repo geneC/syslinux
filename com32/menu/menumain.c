@@ -803,7 +803,7 @@ run_menu(void)
       to_clear = 0;
     }
 
-    this_timeout = min(min(key_timeout, timeout_left), CLK_TCK);
+    this_timeout = min(min(key_timeout, timeout_left), (clock_t)CLK_TCK);
     key = mygetkey(this_timeout);
 
     if ( key != KEY_NONE ) {

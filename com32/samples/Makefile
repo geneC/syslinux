@@ -28,8 +28,9 @@ NASM	   = nasm
 NASMOPT	   = -O9999
 RANLIB	   = ranlib
 CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os \
-	     -fomit-frame-pointer -I../libutil/include -I../include \
-	     -D__COM32__ \
+	     -fomit-frame-pointer -D__COM32__ \
+	     -nostdinc -iwithprefix include \
+	     -I../libutil/include -I../include \
 	     -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d
 LNXCFLAGS  = -W -Wall -O -g -I../libutil/include
 LNXSFLAGS  = -g
