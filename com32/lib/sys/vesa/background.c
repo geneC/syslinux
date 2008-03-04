@@ -284,7 +284,6 @@ static int read_lss16_file(FILE *fp, const void *header, int header_len)
     st_c0,
     st_c1,
     st_c2,
-    st_run,
   } state;
   int i, x, y;
   uint32_t *bgptr = (void *)__vesacon_background;
@@ -310,7 +309,8 @@ static int read_lss16_file(FILE *fp, const void *header, int header_len)
     color = colors[prev = 0];	/* By specification */
     count = 0;
 
-    for (x = 0; x < h->xsize;) {
+    x = 0;
+    while (x < h->xsize) {
       if (!has_nybble) {
 	if (fread(&byte, 1, 1, fp) != 1)
 	  return -1;
@@ -336,7 +336,7 @@ static int read_lss16_file(FILE *fp, const void *header, int header_len)
 	  state = st_c1;
 	} else {
 	  count = nybble;
-	  state = st_run;
+	  goto do_run;
 	}
 	break;
 
@@ -347,20 +347,15 @@ static int read_lss16_file(FILE *fp, const void *header, int header_len)
 
       case st_c2:
 	count += nybble << 4;
-	state = st_run;
-	break;
+	goto do_run;
 
-      case st_run:
-	/* Can't happen */
-	break;
-      }
-
-      if (state == st_run) {
+      do_run:
 	count = min(count, h->xsize-x);
 	x += count;
 	asm volatile("rep; stosl"
 		     : "+D" (bgptr), "+c" (count) : "a" (color));
 	state = st_start;
+	break;
       }
     }
 
