@@ -16,7 +16,7 @@
 
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if gcc $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
+gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
 	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
 
 M32     := $(call gcc_ok,-m32,) $(call gcc_ok,-fno-stack-protector,)
@@ -49,7 +49,7 @@ all:	hello.c32 cat.c32 resolv.c32 vesainfo.c32 serialinfo.c32 \
 	localboot.c32 \
 	fancyhello.c32 fancyhello.lnx \
 	keytest.c32 keytest.lnx \
-	advdump.c32
+	advdump.c32 readpit.c32
 
 .PRECIOUS: %.o
 %.o: %.S

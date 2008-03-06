@@ -19,7 +19,7 @@ MAKEFLAGS = -r
 
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if gcc $(1) dummy.c -o $$tmpf 2>/dev/null; \
+gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) dummy.c -o $$tmpf 2>/dev/null; \
 	           then echo '$(1)'; else echo '$(2)'; fi; rm -f $$tmpf)
 
 comma   := ,
