@@ -11,9 +11,9 @@ typedef uint32_t pciaddr_t;
 
 /* a structure for extended pci information */
 struct pci_dev_info {
-	char     *vendor_name;
-	char     *product_name;
-	char	 *linux_kernel_module;
+	char     vendor_name[255];
+	char     product_name[255];
+	char	 linux_kernel_module[64];
 };
 
 /* a struct to represent a pci device */
