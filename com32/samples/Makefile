@@ -49,7 +49,7 @@ all:	hello.c32 cat.c32 resolv.c32 vesainfo.c32 serialinfo.c32 \
 	localboot.c32 \
 	fancyhello.c32 fancyhello.lnx \
 	keytest.c32 keytest.lnx \
-	advdump.c32 readpit.c32
+	advdump.c32
 
 .PRECIOUS: %.o
 %.o: %.S
