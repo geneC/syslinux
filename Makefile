@@ -19,7 +19,7 @@ MAKEFLAGS = -r
 
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if gcc $(1) dummy.c -o $$tmpf 2>/dev/null; \
+gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) dummy.c -o $$tmpf 2>/dev/null; \
 	           then echo '$(1)'; else echo '$(2)'; fi; rm -f $$tmpf)
 
 comma   := ,
@@ -232,9 +232,9 @@ clean: local-tidy local-clean
 	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 dist: tidy
-	for dir in . sample memdisk ; do \
-		( cd $$dir && rm -f *~ \#* core ) ; \
-	done
+	find . \( -name '*~' -o -name '#*' -o -name core \
+		-o -name '.*.d' -o -name .depend \) -type f -print0 \
+	| xargs -0rt rm -f
 
 local-spotless:
 	rm -f $(BTARGET) .depend *.so.*

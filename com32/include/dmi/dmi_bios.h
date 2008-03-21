@@ -22,7 +22,7 @@
 #define BIOS_BIOS_REVISION_SIZE		16
 #define BIOS_FIRMWARE_REVISION_SIZE	16
 
-#define BIOS_CHAR_NB_ELEMENTS		27
+#define BIOS_CHAR_NB_ELEMENTS		28
 #define BIOS_CHAR_X1_NB_ELEMENTS	8
 #define BIOS_CHAR_X2_NB_ELEMENTS	3
 
@@ -58,8 +58,8 @@ static const char *bios_charac_strings[]={
    "NEC PC-98" /* 31 */
 };
 
-/* this struct have BIOS_CHAR_NB_ELEMENTS */
-/* each bool is associated to the relevant message above */
+/* this struct has BIOS_CHAR_NB_ELEMENTS */
+/* each bool is associated with the relevant message above */
 typedef struct {
 bool bios_characteristics_not_supported;
 bool isa;
@@ -102,8 +102,8 @@ static const char *bios_charac_x1_strings[]={
      "Smart battery is supported" /* 7 */
 };
 
-/* this struct have BIOS_CHAR_X1_NB_ELEMENTS */
-/* each bool is associated to the relevant message above */
+/* this struct has BIOS_CHAR_X1_NB_ELEMENTS */
+/* each bool is associated with the relevant message above */
 typedef struct {
 bool acpi;
 bool usb_legacy;
@@ -121,8 +121,8 @@ static const char *bios_charac_x2_strings[]={
     "Targeted content distribution is supported" /* 2 */
 };
 
-/* this struct have BIOS_CHAR_X2_NB_ELEMENTS */
-/* each bool is associated to the relevant message above */
+/* this struct has BIOS_CHAR_X2_NB_ELEMENTS */
+/* each bool is associated with the relevant message above */
 typedef struct {
 bool bios_boot_specification;
 bool bios_network_boot_by_keypress;

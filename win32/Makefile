@@ -63,7 +63,7 @@ all:
 endif
 
 tidy:
-	-rm -f *.o *.i *.s *.a .*.d *_bin.c
+	-rm -f *.o *.i *.s *.a .*.d *_bin.c hello.exe
 
 clean: tidy
 

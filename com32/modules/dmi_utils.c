@@ -31,18 +31,18 @@
 
 void display_bios_characteristics(s_dmi *dmi) {
 int i;
-  for (i=0;i<=BIOS_CHAR_NB_ELEMENTS; i++) {
+  for (i=0;i<BIOS_CHAR_NB_ELEMENTS; i++) {
         if (((bool *)(& dmi->bios.characteristics))[i] == true) {
                moreprintf("\t\t%s\n", bios_charac_strings[i]);
                 }
   }
-  for (i=0;i<=BIOS_CHAR_X1_NB_ELEMENTS; i++) {
+  for (i=0;i<BIOS_CHAR_X1_NB_ELEMENTS; i++) {
         if (((bool *)(& dmi->bios.characteristics_x1))[i] == true) {
                moreprintf("\t\t%s\n", bios_charac_x1_strings[i]);
                 }
   }
 
-  for (i=0;i<=BIOS_CHAR_X2_NB_ELEMENTS; i++) {
+  for (i=0;i<BIOS_CHAR_X2_NB_ELEMENTS; i++) {
         if (((bool *)(& dmi->bios.characteristics_x2))[i] == true) {
                moreprintf("\t\t%s\n", bios_charac_x2_strings[i]);
                 }

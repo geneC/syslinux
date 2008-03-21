@@ -2099,6 +2099,27 @@ pxe_get_cached_info:
 		jmp kaboom
 
 ;
+; ip_ok
+;
+; Tests an IP address in EAX for validity; return with ZF=1 for bad.
+; We used to refuse class E, but class E addresses are likely to become
+; assignable unicast addresses in the near future.
+;
+ip_ok:
+		push ax
+		cmp eax,-1		; Refuse the all-ones address
+		jz .out
+		and al,al		; Refuse network zero
+		jz .out
+		cmp al,127		; Refuse loopback
+		jz .out
+		and al,0F0h
+		cmp al,224		; Refuse class D
+.out:
+		pop ax
+		ret
+
+;
 ; parse_dhcp
 ;
 ; Parse a DHCP packet.  This includes dealing with "overloaded"
@@ -2123,17 +2144,14 @@ pxe_get_cached_info:
 parse_dhcp:
 		mov byte [OverLoad],0		; Assume no overload
 		mov eax, [trackbuf+bootp.yip]
-		and eax, eax
+		call ip_ok
 		jz .noyip
-		cmp al,224			; Class D or higher -> bad
-		jae .noyip
 		mov [MyIP], eax
 .noyip:
 		mov eax, [trackbuf+bootp.sip]
 		and eax, eax
+		call ip_ok
 		jz .nosip
-		cmp al,224			; Class D or higher -> bad
-		jae .nosip
 		mov [ServerIP], eax
 .nosip:
 		sub cx, bootp.options
@@ -2288,8 +2306,8 @@ dopt_%2:
 		mov eax,[si]
 		cmp dword [ServerIP],0
 		jne .skip		; Already have a next server IP
-		cmp al,224		; Class D or higher
-		jae .skip
+		call ip_ok
+		jz .skip
 		mov [ServerIP],eax
 .skip:		ret
 
