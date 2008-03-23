@@ -80,6 +80,11 @@ struct file_info {
   const struct input_dev *iop;	/* Input operations */
   const struct output_dev *oop;	/* Output operations */
 
+  /* Output file data */
+  struct {
+    int rows, cols;		/* Rows and columns */
+  } o;
+
   /* Structure used for input blocking */
   struct {
     int blocklg2;		/* Blocksize log 2 */
@@ -89,13 +94,9 @@ struct file_info {
     uint16_t _filler;		/* Unused */
     size_t nbytes;		/* Number of bytes available in buffer */
     char *datap;		/* Current data pointer */
+    void *pvt;			/* Private pointer for driver */
     char buf[MAXBLOCK];
   } i;
-
-  /* Output file data */
-  struct {
-    int rows, cols;		/* Rows and columns */
-  } o;
 };
 
 extern struct file_info __file_info[NFILES];

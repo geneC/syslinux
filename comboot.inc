@@ -61,6 +61,7 @@
 
 ; Looks like a COMBOOT image but too large
 comboot_too_large:
+		call close_file
 		mov si,err_comlarge
 		call cwritestr
 		jmp enter_command
@@ -71,11 +72,6 @@ comboot_too_large:
 ; do, however, allow the execution of INT 20h to return to SYSLINUX.
 ;
 is_comboot_image:
-		and dx,dx
-		jnz comboot_too_large
-		cmp ax,0ff00h		; Max size in bytes
-		jae comboot_too_large
-
 		push si			; Save file handle
 
 		call make_plain_cmdline
@@ -126,9 +122,11 @@ is_comboot_image:
 		; Now actually load the file...
 		pop si			; File handle
 		mov bx,100h		; Load at <seg>:0100h
-		mov cx,0FF00h >> SECTOR_SHIFT
+		mov cx,10000h >> SECTOR_SHIFT
 					; Absolute maximum # of sectors
 		call getfssec
+		cmp ecx,65536-256-2	; Maximum size
+		ja comboot_too_large
 
 		; And invoke the program...
 		mov ax,es
@@ -409,8 +407,7 @@ comapi_open:
 		pop ds
 		call searchdir
 		jz comapi_err
-		mov P_AX,ax
-		mov P_HAX,dx
+		mov P_EAX,eax
 		mov P_CX,SECTOR_SIZE
 		mov P_SI,si
 		clc
@@ -428,6 +425,7 @@ comapi_read:
 		jnc .noteof
 		xor si,si		; SI <- 0 on EOF, CF <- 0
 .noteof:	mov P_SI,si
+		mov P_ECX,ecx
 		ret
 
 ;
@@ -604,7 +602,7 @@ comapi_dnsresolv equ comapi_err
 ; INT 22h AX=0011h	Maximum number of shuffle descriptors
 ;
 comapi_maxshuffle:
-		mov P_CX,(2*trackbufsize)/12
+		mov P_CX,trackbufsize/12
 		ret
 
 ;
@@ -698,8 +696,7 @@ comapi_runkernel:
 
 		; The kernel image was found, so we can load it...
 		mov [Kernel_SI],si
-		mov [Kernel_EAX],ax
-		mov [Kernel_EAX+2],dx
+		mov [Kernel_EAX],eax
 
 		; It's not just possible, but quite likely, that ES:BX
 		; points into real_mode_seg, so we need to exercise some

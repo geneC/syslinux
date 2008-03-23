@@ -45,62 +45,39 @@
 ; obsolete.
 ;
 is_linux_kernel:
-		and dx,dx
-		jnz kernel_sane
-		cmp ax,1024			; Bootsect + 1 setup sect
-		jb kernel_corrupt
-kernel_sane:	push ax
-		push dx
-		push si
+		push si				; <A> file pointer
 		mov si,loading_msg
                 call cwritestr
+                mov si,KernelCName		; Print kernel name part of
+                call cwritestr                  ; "Loading" message
+
+
 ;
 ; Now start transferring the kernel
 ;
 		push word real_mode_seg
 		pop es
 
-		movzx eax,ax			; Fix this by using a 32-bit
-		shl edx,16			; register for the kernel size
-		or eax,edx
-		mov [KernelSize],eax
-		add eax,SECTOR_SIZE-1
-		shr eax,SECTOR_SHIFT
-                mov [KernelSects],eax		; Total sectors in kernel
-
-;
-; Now, if we transfer these straight, we'll hit 64K boundaries.	 Hence we
-; have to see if we're loading more than 64K, and if so, load it step by
-; step.
-;
-
 ;
 ; Start by loading the bootsector/setup code, to see if we need to
 ; do something funky.  It should fit in the first 32K (loading 64K won't
 ; work since we might have funny stuff up near the end of memory).
-; If we have larger than 32K clusters, yes, we're hosed.
 ;
-		call abort_check		; Check for abort key
-		mov ecx,8000h >> SECTOR_SHIFT	; Half a moby (32K)
-		cmp ecx,[KernelSects]
-		jna .normalkernel
-		mov ecx,[KernelSects]
-.normalkernel:
-		sub [KernelSects],ecx
+		call dot_pause			; Check for abort key
+		mov cx,8000h >> SECTOR_SHIFT	; Half a moby (32K)
 		xor bx,bx
-                pop si                          ; Cluster pointer on stack
+                pop si                          ; <A> file pointer
 		call getfssec
+		cmp cx,1024
+		jb kernel_corrupt
                 cmp word [es:bs_bootsign],0AA55h
 		jne kernel_corrupt		; Boot sec signature missing
 
 ;
-; Save the cluster pointer for later...
+; Save the file pointer for later...
 ;
-		push si
-;
-; Get the BIOS' idea of what the size of high memory is.
-;
-		call highmemsize
+		push si				; <A> file pointer
+
 ;
 ; Construct the command line (append options have already been copied)
 ;
@@ -151,7 +128,7 @@ get_next_opt:   lodsb
 		or byte [cs:KeepPXE],1
 .notkeep:
 %endif
-                push es                         ; Save ES -> real_mode_seg
+                push es                         ; <B> ES -> real_mode_seg
                 push cs
                 pop es                          ; Set ES <- normal DS
                 mov di,initrd_cmd
@@ -166,7 +143,7 @@ get_next_opt:   lodsb
 .noramdisk:
 		xor ax,ax
 		mov [cs:InitRDPtr],ax
-.not_initrd:	pop es                          ; Restore ES -> real_mode_seg
+.not_initrd:	pop es                          ; <B> ES -> real_mode_seg
 skip_this_opt:  lodsb                           ; Load from command line
                 cmp al,' '
                 ja skip_this_opt
@@ -195,7 +172,7 @@ is_mem_cmd:
 %if HIGHMEM_SLOP != 0
 		sub ebx,HIGHMEM_SLOP
 %endif
-		mov [cs:HighMemSize],ebx
+		mov [cs:MyHighMemSize],ebx
 		jmp short skip_this_opt
 cmdline_end:
                 push cs                         ; Restore standard DS
@@ -238,6 +215,16 @@ new_kernel:
 ;
                 mov al,[es:su_loadflags]
 		mov [LoadFlags],al
+
+		; Cap the ramdisk memory range if appropriate
+		mov eax,[RamdiskMax]
+		cmp eax,[MyHighMemSize]
+		ja .ok
+		mov [MyHighMemSize],eax
+.ok:
+
+any_kernel:
+
 ;
 ; Load the kernel.  We always load it at 100000h even if we're supposed to
 ; load it "low"; for a "low" load we copy it down to low memory right before
@@ -249,46 +236,33 @@ read_kernel:
 		jnz .sects_ok
 		mov al,4			; 0 = 4 setup sectors
 .sects_ok:
+		inc ax				; Including the boot sector
 		mov [SetupSecs],ax
 
-                mov si,KernelCName		; Print kernel name part of
-                call cwritestr                  ; "Loading" message
-                mov si,dotdot_msg		; Print dots
-                call cwritestr
+		call dot_pause
 
-                mov eax,[HighMemSize]
-		sub eax,100000h			; Load address
-		cmp eax,[KernelSize]
-		jb no_high_mem		; Not enough high memory
 ;
 ; Move the stuff beyond the setup code to high memory at 100000h
 ;
 		movzx esi,word [SetupSecs]	; Setup sectors
-		inc si				; plus 1 boot sector
                 shl si,9			; Convert to bytes
                 mov ecx,8000h			; 32K
 		sub ecx,esi			; Number of bytes to copy
-		push ecx
 		add esi,(real_mode_seg << 4)	; Pointer to source
                 mov edi,100000h                 ; Copy to address 100000h
 
                 call bcopy			; Transfer to high memory
 
+		pop si				; <A> File pointer
+		and si,si			; EOF already?
+		jz high_load_done
+
 		; On exit EDI -> where to load the rest
 
-                mov si,dot_msg			; Progress report
-                call cwritestr
-                call abort_check
-
-		pop ecx				; Number of bytes in the initial portion
-		pop si				; Restore file handle/cluster pointer
-		mov eax,[KernelSize]
-		sub eax,8000h			; Amount of kernel not yet loaded
-		jbe high_load_done		; Zero left (tiny kernel)
-
-		xor dx,dx			; No padding needed
-		mov bx,dot_pause		; Print dots...
-		call load_high			; Copy the file
+		mov bx,dot_pause
+		or eax,-1			; Load the whole file
+		mov dx,3			; Pad to dword
+		call load_high
 
 high_load_done:
 		mov [KernelEnd],edi
@@ -297,6 +271,19 @@ high_load_done:
 
                 mov si,dot_msg
                 call cwritestr
+;
+; Some older kernels (1.2 era) would have more than 4 setup sectors, but
+; would not rely on the boot protocol to manage that.  These kernels fail
+; if they see protected-mode kernel data after the setup sectors, so
+; clear that memory.
+;
+		mov di,[SetupSecs]
+		shl di,9
+		xor eax,eax
+		mov cx,cmd_line_here
+		sub cx,di
+		shr cx,2
+		rep stosd
 
 ;
 ; Now see if we have an initial RAMdisk; if so, do requisite computation
@@ -304,10 +291,12 @@ high_load_done:
 ; if we tried to load initrd using an old kernel
 ;
 load_initrd:
-                cmp word [InitRDPtr],0
-                jz nk_noinitrd
+		xor eax,eax
+                cmp [InitRDPtr],ax
+                jz .noinitrd
 		call parse_load_initrd
-nk_noinitrd:
+.noinitrd:
+
 ;
 ; Abandon hope, ye that enter here!  We do no longer permit aborts.
 ;
@@ -315,8 +304,6 @@ nk_noinitrd:
 
 		mov si,ready_msg
 		call cwritestr
-
-		call vgaclearmode		; We can't trust ourselves after this
 
 		UNLOAD_PREP			; Module-specific hook
 
@@ -330,24 +317,34 @@ nk_noinitrd:
 		mov fs,ax
 
 ;
+; If the default root device is set to FLOPPY (0000h), change to
+; /dev/fd0 (0200h)
+;
+		cmp word [es:bs_rootdev],byte 0
+		jne root_not_floppy
+		mov word [es:bs_rootdev],0200h
+root_not_floppy:
+
+;
 ; Copy command line.  Unfortunately, the old kernel boot protocol requires
 ; the command line to exist in the 9xxxxh range even if the rest of the
 ; setup doesn't.
 ;
 setup_command_line:
-		cli				; In case of hooked interrupts
 		mov dx,[KernelVersion]
 		test byte [LoadFlags],LOAD_HIGH
-		jz need_high_cmdline
+		jz .need_high_cmdline
 		cmp dx,0202h			; Support new cmdline protocol?
-		jb need_high_cmdline
+		jb .need_high_cmdline
 		; New cmdline protocol
 		; Store 32-bit (flat) pointer to command line
 		; This is the "high" location, since we have bzImage
 		mov dword [fs:su_cmd_line_ptr],(real_mode_seg << 4)+cmd_line_here
-		jmp in_proper_place
+		mov word [HeapEnd],linux_stack
+		mov word [fs:su_heapend],linux_stack-512
+		jmp .setup_done
 
-need_high_cmdline:
+.need_high_cmdline:
 ;
 ; Copy command line down to fit in high conventional memory
 ; -- this happens if we have a zImage kernel or the protocol
@@ -369,7 +366,7 @@ need_high_cmdline:
 		; because we have a zImage, so we anticipate the move
 		; to 90000h already...
 		mov dword [fs:su_cmd_line_ptr],0x90000+old_cmd_line_here
-		mov ax,4095			; 2.02+ allow a higher limit
+		mov ax,old_max_cmd_len		; 2.02+ allow a higher limit
 .adjusted:
 
 		mov cx,[CmdLineLen]
@@ -379,112 +376,112 @@ need_high_cmdline:
 .len_ok:
 		fs rep movsb
 		stosb				; Final null, note AL=0 already
+		mov [CmdLineEnd],di
 		cmp dx,0200h
 		jb .nomovesize
 		mov [es:su_movesize],di		; Tell the kernel what to move
 .nomovesize:
+.setup_done:
+
+;
+; Time to start setting up move descriptors
+;
+setup_move:
+		mov di,trackbuf
+		xor cx,cx			; Number of descriptors
+
+		mov bx,es			; real_mode_seg
+		mov fs,bx
+		push ds				; We need DS == ES == CS here
+		pop es
 
 		test byte [LoadFlags],LOAD_HIGH
-		jnz in_proper_place		; If high load, we're done
+		jnz .loading_high
 
-;
-; Loading low; we can't assume it's safe to run in place.
-;
-; Copy real_mode stuff up to 90000h
-;
-		mov ax,9000h
-		mov es,ax
-		mov cx,di			; == su_movesize (from above)
-		add cx,3			; Round up
-		shr cx,2			; Convert to dwords
-		xor si,si
-		xor di,di
-		fs rep movsd			; Copy setup + boot sector
-;
-; Some kernels in the 1.2 ballpark but pre-bzImage have more than 4
-; setup sectors, but the boot protocol had not yet been defined.  They
-; rely on a signature to figure out if they need to copy stuff from
-; the "protected mode" kernel area.  Unfortunately, we used that area
-; as a transfer buffer, so it's going to find the signature there.
-; Hence, zero the low 32K beyond the setup area.
-;
-		mov di,[SetupSecs]
-		inc di				; Setup + boot sector
-		mov cx,32768/512		; Sectors/32K
-		sub cx,di			; Remaining sectors
-		shl di,9			; Sectors -> bytes
-		shl cx,7			; Sectors -> dwords
-		xor eax,eax
-		rep stosd			; Clear region
-;
-; Copy the kernel down to the "low" location (the kernel will then
-; move itself again, sigh.)
-;
-		mov ecx,[KernelSize]
-		mov esi,100000h
-		mov edi,10000h
-		call bcopy
+; Loading low: move real_mode stuff to 90000h, then move the kernel down
+		mov eax,90000h
+		stosd
+		mov eax,real_mode_seg << 4
+		stosd
+		movzx eax,word [CmdLineEnd]
+		stosd
+		inc cx
 
-;
-; Now everything is where it needs to be...
-;
-; When we get here, es points to the final segment, either
-; 9000h or real_mode_seg
-;
-in_proper_place:
+		mov eax,10000h			; Target address of low kernel
+		stosd
+		mov eax,100000h			; Where currently loaded
+		stosd
+		neg eax
+		add eax,[KernelEnd]
+		stosd
+		inc cx
 
-;
-; If the default root device is set to FLOPPY (0000h), change to
-; /dev/fd0 (0200h)
-;
-		cmp word [es:bs_rootdev],byte 0
-		jne root_not_floppy
-		mov word [es:bs_rootdev],0200h
-root_not_floppy:
+		mov bx,9000h			; Revised real mode segment
 
-;
-; Copy the disk table to high memory, then re-initialize the floppy
-; controller
-;
-%if IS_SYSLINUX || IS_MDSLINUX
-		lgs si,[cs:fdctab]
-		mov di,[cs:HeapEnd]
-		mov cx,6
-		gs rep movsw
-		mov [cs:fdctab],word linux_fdctab ; Save new floppy tab pos
-		mov [cs:fdctab+2],es
+.loading_high:
+
+		cmp word [InitRDPtr],0		; Did we have an initrd?
+		je .no_initrd
+
+		mov eax,[fs:su_ramdiskat]
+		stosd
+		mov eax,[InitRDStart]
+		stosd
+		mov eax,[fs:su_ramdisklen]
+		stosd
+		inc cx
+
+.no_initrd:
+		push cx				; Length of descriptor list
+		push word trackbuf
+
+%ifdef DEBUG_TRACERS
+		pushad
+		mov si,trackbuf
+.foo:
+		lodsd
+		call writehex8
+		mov al,'.'
+		call writechr
+		lodsd
+		call writehex8
+		mov al,'.'
+		call writechr
+		lodsd
+		call writehex8
+		call crlf
+		loop .foo
+		popad
 %endif
 
-		call cleanup_hardware
-;
-; If we're debugging, wait for a keypress so we can read any debug messages
-;
-%ifdef debug
-                xor ax,ax
-                int 16h
-%endif
+		mov dword [EntryPoint],run_linux_kernel
+		; BX points to the final real mode segment, and will be loaded
+		; into DS.
+		jmp replace_bootstrap
+
+
+run_linux_kernel:
 ;
 ; Set up segment registers and the Linux real-mode stack
-; Note: es == the real mode segment
+; Note: ds == the real mode segment
 ;
-
 		cli
-		mov bx,es
-		mov ds,bx
-		mov fs,bx
-		mov gs,bx
-		mov ss,bx
+		mov ax,ds
+		mov ss,ax
 		mov sp,strict word linux_stack
 		; Point HeapEnd to the immediate of the instruction above
 HeapEnd		equ $-2			; Self-modifying code!  Fun!
+		mov es,ax
+		mov fs,ax
+		mov gs,ax
 
 ;
 ; We're done... now RUN THAT KERNEL!!!!
 ; Setup segment == real mode segment + 020h; we need to jump to offset
 ; zero in the real mode segment.
 ;
-		add bx,020h
-		push bx
+		add ax,020h
+		push ax
 		push word 0h
 		retf
 
@@ -501,14 +498,16 @@ old_kernel:
 .load:
 		mov byte [LoadFlags],al		; Always low
 		mov word [KernelVersion],ax	; Version 0.00
-		jmp read_kernel
+		jmp any_kernel
 
 ;
 ; parse_load_initrd
 ;
-; Parse an initrd= option and load the initrds.  Note that we load
-; from the high end of memory first, so we parse this option from
-; left to right.
+; Parse an initrd= option and load the initrds.  This sets
+; InitRDStart and InitRDEnd with dword padding between; we then
+; do a global memory shuffle to move it to the end of memory.
+;
+; On entry, EDI points to where to start loading.
 ;
 parse_load_initrd:
 		push es
@@ -518,47 +517,50 @@ parse_load_initrd:
 		push cs
 		pop es			; DS == real_mode_seg, ES == CS
 
+		mov [cs:InitRDStart],edi
+		mov [cs:InitRDEnd],edi
+
 		mov si,[cs:InitRDPtr]
-.find_end:
-		lodsb
-		cmp al,' '
-		ja .find_end
-		; Now SI points to one character beyond the
-		; byte that ended this option.
 
 .get_chunk:
-		dec si
+		; DS:SI points to the start of a name
 
-		; DS:SI points to a termination byte
+		mov bx,si
+.find_end:
+		lodsb
+		cmp al,','
+		je .got_end
+		cmp al,' '
+		jbe .got_end
+		jmp .find_end
 
-		xor ax,ax
-		xchg al,[si]		; Zero-terminate
-		push si			; Save ending byte address
-		push ax			; Save ending byte
+.got_end:
+		push ax			; Terminating character
+		push si			; Next filename (if any)
+		mov byte [si-1],0	; Zero-terminate
+		mov si,bx		; Current filename
 
-.find_start:
-		dec si
-		cmp si,[cs:InitRDPtr]
-		je .got_start
-		cmp byte [si],','
-		jne .find_start
-
-		; It's a comma byte
-		inc si
-
-.got_start:
-		push si
+		push di
 		mov di,InitRD		; Target buffer for mangled name
 		call mangle_name
-		call loadinitrd
-		pop si
-
-		pop ax
 		pop di
-		mov [di],al		; Restore ending byte
+		call loadinitrd
 
-		cmp si,[cs:InitRDPtr]
-		ja .get_chunk
+		pop si
+		pop ax
+		mov [si-1],al		; Restore ending byte
+
+		cmp al,','
+		je .get_chunk
+
+		; Compute the initrd target location
+		mov edx,[cs:InitRDEnd]
+		sub edx,[cs:InitRDStart]
+		mov [su_ramdisklen],edx
+		mov eax,[cs:MyHighMemSize]
+		sub eax,edx
+		and ax,0F000h		; Round to a page boundary
+		mov [su_ramdiskat],eax
 
 		pop ds
 		pop es
@@ -568,6 +570,9 @@ parse_load_initrd:
 ; Load RAM disk into high memory
 ;
 ; Input:	InitRD		- set to the mangled name of the initrd
+;		EDI		- location to load
+; Output:	EDI		- location for next initrd
+; 		InitRDEnd	- updated
 ;
 loadinitrd:
 		push ds
@@ -575,6 +580,7 @@ loadinitrd:
 		mov ax,cs			; CS == DS == ES
 		mov ds,ax
 		mov es,ax
+		push edi
                 mov si,InitRD
                 mov di,InitRDCName
                 call unmangle_name              ; Create human-readable name
@@ -582,45 +588,8 @@ loadinitrd:
                 mov [InitRDCNameLen],di
                 mov di,InitRD
                 call searchdir                  ; Look for it in directory
+		pop edi
 		jz .notthere
-
-		mov cx,dx
-		shl ecx,16
-		mov cx,ax			; ECX <- ram disk length
-
-		mov ax,real_mode_seg
-		mov es,ax
-
-		push ecx			; Bytes to load
-		mov edx,[HighMemSize]		; End of memory
-		dec edx
-		mov eax,[RamdiskMax]		; Highest address allowed by kernel
-		cmp edx,eax
-		jna .memsize_ok
-		mov edx,eax			; Adjust to fit inside limit
-.memsize_ok:
-		inc edx
-                and dx,0F000h			; Round down to 4K boundary
-		sub edx,ecx			; Subtract size of ramdisk
-                and dx,0F000h			; Round down to 4K boundary
-		cmp edx,[KernelEnd]		; Are we hitting the kernel image?
-		jb no_high_mem
-
-		cmp dword [es:su_ramdisklen],0
-		je .highest
-		; The total length has to include the padding between
-		; different ramdisk files, so consider "the length" the
-		; total amount we're about to adjust the base pointer.
-		mov ecx,[es:su_ramdiskat]
-		sub ecx,edx
-.highest:
-		add [es:su_ramdisklen],ecx
-
-                mov [es:su_ramdiskat],edx	; Load address
-                mov edi,edx			; initrd load address
-
-		dec edx				; Note: RamdiskMax is addr-1
-		mov [RamdiskMax],edx		; Next initrd loaded here
 
 		push si
 		mov si,crlfloading_msg		; Write "Loading "
@@ -631,10 +600,10 @@ loadinitrd:
                 call cwritestr
 		pop si
 
-		pop eax				; Bytes to load
-		mov dx,0FFFh			; Pad to page
-		mov bx,dot_pause		; Print dots...
-		call load_high			; Load the file
+		mov dx,3
+		mov bx,dot_pause
+		call load_high
+		mov [InitRDEnd],ebx
 
 		pop es
 		pop ds
@@ -663,19 +632,22 @@ ready_msg	db 'ready.', CR, LF, 0
 err_oldkernel   db 'Cannot load a ramdisk with an old kernel image.'
                 db CR, LF, 0
 err_noinitrd    db CR, LF, 'Could not find ramdisk image: ', 0
-err_nohighmem   db 'Not enough memory to load specified kernel.', CR, LF, 0
 
 boot_image      db 'BOOT_IMAGE='
 boot_image_len  equ $-boot_image
 
 		section .bss
 		alignb 4
+MyHighMemSize	resd 1			; Possibly adjusted highmem size
 RamdiskMax	resd 1			; Highest address for ramdisk
 KernelSize	resd 1			; Size of kernel in bytes
 KernelSects	resd 1			; Size of kernel in sectors
 KernelEnd	resd 1			; Ending address of the kernel image
+InitRDStart	resd 1			; Start of initrd (pre-relocation)
+InitRDEnd	resd 1			; End of initrd (pre-relocation)
 CmdLineLen	resw 1			; Length of command line including null
-SetupSecs	resw 1			; Number of setup sectors
+CmdLineEnd	resw 1			; End of the command line in real_mode_seg
+SetupSecs	resw 1			; Number of setup sectors (+bootsect)
 InitRDPtr	resw 1			; Pointer to initrd= option in command line
 KernelVersion	resw 1			; Kernel protocol version
 LoadFlags	resb 1			; Loadflags from kernel

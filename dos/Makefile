@@ -1,6 +1,6 @@
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if gcc $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
+gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
 	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
 
 M32       := $(call gcc_ok,-m32,) $(call gcc_ok,-ffreestanding,) \
@@ -11,7 +11,8 @@ CC	 = gcc
 LD       = ld -m elf_i386
 OBJCOPY  = objcopy
 OPTFLAGS = -g -Os -march=i386 -falign-functions=0 -falign-jumps=0 -falign-loops=0 -fomit-frame-pointer
-INCLUDES = -include code16.h -I. -I.. -I../libfat -I ../libinstaller
+INCLUDES = -include code16.h -nostdinc -iwithprefix include \
+	   -I. -I.. -I../libfat -I ../libinstaller
 CFLAGS	 = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -msoft-float $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = -T com16.ld
 AR       = ar

@@ -68,7 +68,7 @@ _start:
 next:
 	/* Check to see if we have EBIOS */
 	pushw	%dx		/* drive number */
-	movw	$0x4100, %ax
+	movb	$0x41, %ah	/* %al == 0 already */
 	movw	$0x55aa, %bx
 	xorw	%cx, %cx
 	xorb	%dh, %dh
@@ -109,7 +109,6 @@ next:
 missing_os:
 	call	error
 	.ascii	"Missing operating system.\r\n"
-	.byte	0
 
 /*
  * read_sector: read a single sector pointed to by %eax to 0x7c00.
@@ -249,7 +248,6 @@ scan_partition_table:
 too_many_active:
 	call	error
 	.ascii	"Multiple active partitions.\r\n"
-	.byte	0
 
 /*
  * boot: invoke the actual bootstrap. (%si) points to the partition
@@ -273,7 +271,6 @@ boot:
 disk_error:
 	call	error
 	.ascii	"Operating system load error.\r\n"
-	.byte	0
 
 /*
  * Print error messages.  This is invoked with "call", with the
@@ -283,14 +280,13 @@ error:
 	popw	%si
 2:
 	lodsb
-	andb	%al, %al
-	jz	3f
 	movb	$0x0e, %ah
 	movb	(BIOS_page), %bh
 	movb	$0x07, %bl
-	int	$0x10
-	jmp	2b
-3:
+	int	$0x10		/* May destroy %bp */
+	cmpb	$10, %al	/* Newline? */
+	jne	2b
+
 	int	$0x18		/* Boot failure */
 die:
 	hlt

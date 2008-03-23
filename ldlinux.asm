@@ -11,7 +11,7 @@
 ;  from MS-LOSS, and can be especially useful in conjunction with the
 ;  umsdos filesystem.
 ;
-;   Copyright (C) 1994-2007   H. Peter Anvin
+;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@ SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
 ; Since there is no room in the bottom 64K for all of these, we
-; stick them at vk_seg:0000 and copy them down before we need them.
+; stick them in high memory and copy them down before we need them.
 ;
 		struc vkernel
 vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
@@ -78,9 +78,8 @@ vk_end:		equ $			; Should be <= vk_size
 ;
 ; 0000h - main code/data segment (and BIOS segment)
 ;
-real_mode_seg	equ 4000h
-cache_seg	equ 3000h		; 64K area for metadata cache
-vk_seg          equ 2000h		; Virtual kernels
+real_mode_seg	equ 3000h
+cache_seg	equ 2000h		; 64K area for metadata cache
 xfer_buf_seg	equ 1000h		; Bounce buffer for I/O to high mem
 comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 
@@ -89,7 +88,9 @@ comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 ;
 		struc open_file_t
 file_sector	resd 1			; Sector pointer (0 = structure free)
+file_bytesleft	resd 1			; Number of bytes left
 file_left	resd 1			; Number of sectors left
+		resd 1			; Unused
 		endstruc
 
 %ifndef DEPEND
@@ -108,8 +109,7 @@ file_left	resd 1			; Number of sectors left
 		section .earlybss
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
-getcbuf		resb trackbufsize
-		; ends at 4800h
+		; ends at 2800h
 
 		section .bss
 		alignb 8
@@ -132,18 +132,6 @@ ClustByteShift	resb 1			; Shift count for bytes/cluster
 
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
-
-;
-; Constants for the xfer_buf_seg
-;
-; The xfer_buf_seg is also used to store message file buffers.  We
-; need two trackbuffers (text and graphics), plus a work buffer
-; for the graphics decompressor.
-;
-xbs_textbuf	equ 0			; Also hard-coded, do not change
-xbs_vgabuf	equ trackbufsize
-xbs_vgatmpbuf	equ 2*trackbufsize
-
 
 		section .text
 ;
@@ -1046,7 +1034,8 @@ search_dos_dir:
 close_file:
 		and si,si
 		jz .closed
-		mov dword [si],0		; First dword == file_left
+		mov dword [si],0		; First dword == file_sector
+		xor si,si
 .closed:	ret
 
 ;
@@ -1059,7 +1048,7 @@ close_file:
 ;	     If successful:
 ;		ZF clear
 ;		SI		= file pointer
-;		DX:AX or EAX	= file length in bytes
+;		EAX		= file length in bytes
 ;	     If unsuccessful
 ;		ZF set
 ;
@@ -1103,8 +1092,12 @@ searchdir:
 		jnz .badfile		; If not a file, it's a bad thing
 
 		; SI and EAX are already set
-		mov edx,eax
-		shr edx,16		; Old 16-bit remnant...
+		mov [si+file_bytesleft],eax
+		push eax
+		add eax,SECTOR_SIZE-1
+		shr eax,SECTOR_SHIFT
+		mov [si+file_left],eax	; Sectors left
+		pop eax
 		and eax,eax		; EAX != 0
 		jz .badfile
 		ret			; Done!
@@ -1124,7 +1117,6 @@ searchdir:
 
 .notfound:
 		xor eax,eax
-		xor dx,dx
 		ret
 
 		section .bss
@@ -1358,21 +1350,35 @@ getfssec_edx:
 ;	CX	-> Sector count (0FFFFh = until end of file)
 ;                  Must not exceed the ES segment
 ;	Returns CF=1 on EOF (not necessarily error)
+;	ECX returns number of bytes read.
 ;	All arguments are advanced to reflect data read.
 ;
 getfssec:
 		push edx
 		movzx edx,cx
-		cmp edx,[si+4]
+		push edx		; Zero-extended CX
+		cmp edx,[si+file_left]
 		jbe .sizeok
-		mov edx,[si+4]
+		mov edx,[si+file_left]
 		mov cx,dx
 .sizeok:
-		sub [si+4],edx
-		mov edx,[si]
+		sub [si+file_left],edx
+		mov edx,[si+file_sector]
 		call getfssec_edx
-		mov [si],edx
+		mov [si+file_sector],edx
+		pop ecx			; Sectors requested read
+		shl ecx,SECTOR_SHIFT
+		cmp ecx,[si+file_bytesleft]
+		ja .eof
+.noteof:
+		sub [si+file_bytesleft],ecx	; CF <- 0
 		pop edx
+		ret
+.eof:
+		mov ecx,[si+file_bytesleft]
+		call close_file
+		pop edx
+		stc
 		ret
 
 ;

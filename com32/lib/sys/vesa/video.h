@@ -55,14 +55,19 @@ enum vesa_pixel_format {
   PXF_BGR24,			/* 24-bit BGR */
   PXF_BGRA32,			/* 32-bit BGRA */
   PXF_LE_RGB16_565,		/* 16-bit littleendian 5:6:5 RGB */
+  PXF_LE_RGB15_555,		/* 15-bit littleendian 5:5:5 RGB */
   PXF_NONE
 };
+extern enum vesa_pixel_format __vesacon_pixel_format;
+extern unsigned int __vesacon_bytes_per_pixel;
+typedef const void * (*__vesacon_format_pixels_t)(void *, const uint32_t *,
+						  size_t);
+extern __vesacon_format_pixels_t __vesacon_format_pixels;
+extern const __vesacon_format_pixels_t __vesacon_format_pixels_list[PXF_NONE];
 
 extern struct vesa_char *__vesacon_text_display;
 
 extern int __vesacon_font_height, __vesacon_text_rows;
-extern enum vesa_pixel_format __vesacon_pixel_format;
-extern unsigned int __vesacon_bytes_per_pixel;
 extern uint8_t __vesacon_graphics_font[FONT_MAX_CHARS][FONT_MAX_HEIGHT];
 extern uint32_t __vesacon_background[VIDEO_Y_SIZE][VIDEO_X_SIZE];
 extern uint32_t __vesacon_shadowfb[VIDEO_Y_SIZE][VIDEO_X_SIZE];
@@ -80,5 +85,7 @@ void __vesacon_write_char(int, int, uint8_t, attr_t);
 void __vesacon_redraw_text(void);
 void __vesacon_doit(void);
 void __vesacon_set_cursor(int, int, int);
+void __vesacon_copy_to_screen(size_t, const uint32_t *, size_t);
+void __vesacon_init_copy_to_screen(void);
 
 #endif /* LIB_SYS_VESA_VIDEO_H */

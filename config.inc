@@ -19,13 +19,24 @@
 %ifndef _CONFIG_INC
 %define _CONFIG_INC
 
-max_cmd_len	equ 511			; Must be &3; 255 is the kernel limit
+max_cmd_len	equ 2047		; Must be &3; 2047 is the kernel limit
 HIGHMEM_MAX	equ 037FFFFFFh		; DEFAULT highest address for an initrd
 DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
 BAUD_DIVISOR	equ 115200		; Serial port parameter
 MAX_FKEYS	equ 12			; Number of F-key help files
 
 %assign	DO_WBINVD 0			; Should we use WBINVD or not?
+
+;
+; Set this to return the A20 gate to its previous state, instead of
+; leaving it open.  This has caused problems, because there appear
+; to be a race condition between disabling the A20 gate and trying to
+; re-enter protected mode, causing the A20 gate disable to take effect
+; after we have already done the A20 enabled check, with disastrous
+; consequences.  Plus, there seems to be little or no demand for it.
+;
+%assign DISABLE_A20	0
+
 
 ;
 ; Version number definitinons

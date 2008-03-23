@@ -5,7 +5,7 @@
 ;
 ;  A program to boot Linux kernels off an ext2/ext3 filesystem.
 ;
-;   Copyright (C) 1994-2007  H. Peter Anvin
+;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ SYMLINK_SECTORS	equ 2			; Max number of sectors in a symlink
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
 ; Since there is no room in the bottom 64K for all of these, we
-; stick them at vk_seg:0000 and copy them down before we need them.
+; stick them in high memory and copy them down before we need them.
 ;
 		struc vkernel
 vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
@@ -76,9 +76,8 @@ vk_end:		equ $			; Should be <= vk_size
 ;
 ; 0000h - main code/data segment (and BIOS segment)
 ;
-real_mode_seg	equ 4000h
-cache_seg	equ 3000h		; 64K area for metadata cache
-vk_seg          equ 2000h		; Virtual kernels
+real_mode_seg	equ 3000h
+cache_seg	equ 2000h		; 64K area for metadata cache
 xfer_buf_seg	equ 1000h		; Bounce buffer for I/O to high mem
 comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 
@@ -86,7 +85,7 @@ comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 ; File structure.  This holds the information for each currently open file.
 ;
 		struc open_file_t
-file_left	resd 1			; Number of sectors left (0 = free)
+file_bytesleft	resd 1			; Number of bytes left (0 = free)
 file_sector	resd 1			; Next linear sector to read
 file_in_sec	resd 1			; Sector where inode lives
 file_in_off	resw 1
@@ -109,10 +108,9 @@ file_mode	resw 1
 		section .earlybss
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
-getcbuf		resb trackbufsize
-		; ends at 4800h
+		; ends at 2800h
 
-		section .bss1
+		section .bss
 SuperBlock	resb 1024		; ext2 superblock
 SuperInfo	resq 16			; DOS superblock expanded
 ClustSize	resd 1			; Bytes/cluster ("block")
@@ -126,18 +124,6 @@ ClustByteShift	resb 1			; Shift count for bytes/cluster
 
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
-
-;
-; Constants for the xfer_buf_seg
-;
-; The xfer_buf_seg is also used to store message file buffers.  We
-; need two trackbuffers (text and graphics), plus a work buffer
-; for the graphics decompressor.
-;
-xbs_textbuf	equ 0			; Also hard-coded, do not change
-xbs_vgabuf	equ trackbufsize
-xbs_vgatmpbuf	equ 2*trackbufsize
-
 
 		section .text
 ;
@@ -928,7 +914,7 @@ allocate_file:
 ;	     If successful:
 ;		ZF clear
 ;		SI	    = file pointer
-;		DX:AX = EAX = file length in bytes
+;		EAX         = file length in bytes
 ;		ThisInode   = the first 128 bytes of the inode
 ;	     If unsuccessful
 ;		ZF set
@@ -1001,14 +987,8 @@ open_inode:
 		mov ax,[ThisInode+i_mode]
 		mov [bx+file_mode],ax
 		mov eax,[ThisInode+i_size]
-		push eax
-		add eax,SECTOR_SIZE-1
-		shr eax,SECTOR_SHIFT
-		mov [bx+file_left],eax
-		pop eax
+		mov [bx+file_bytesleft],eax
 		mov si,bx
-		mov edx,eax
-		shr edx,16			; 16-bitism, sigh
 		and eax,eax			; ZF clear unless zero-length file
 		pop gs
 		pop cx
@@ -1029,7 +1009,8 @@ ThisInode	resb EXT2_GOOD_OLD_INODE_SIZE	; The most recently opened inode
 close_file:
 		and si,si
 		jz .closed
-		mov dword [si],0		; First dword == file_left
+		mov dword [si],0		; First dword == file_bytesleft
+		xor si,si
 .closed:	ret
 
 ;
@@ -1072,7 +1053,7 @@ searchdir:
 		push eax		; Save directory inode
 
 		call open_inode
-		jz .done		; If error, done
+		jz .missing		; If error, done
 
 		mov cx,[si+file_mode]
 		shr cx,S_IFSHIFT	; Get file type
@@ -1101,6 +1082,10 @@ searchdir:
 		pop cx
 		pop bx
 		ret
+
+.missing:
+		add sp,4		; Drop directory inode
+		jmp .done
 
 		;
 		; It's a file.
@@ -1298,8 +1283,6 @@ mangle_name:
 ; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
 ;                filename to the conventional representation.  This is needed
 ;                for the BOOT_IMAGE= parameter for the kernel.
-;                NOTE: A 13-byte buffer is mandatory, even if the string is
-;                known to be shorter.
 ;
 ;                DS:SI -> input mangled file name
 ;                ES:DI -> output buffer
@@ -1449,6 +1432,7 @@ linsector:
 ;	CX	-> Sector count (0FFFFh = until end of file)
 ;                  Must not exceed the ES segment
 ;	Returns CF=1 on EOF (not necessarily error)
+;	On return ECX = number of bytes read
 ;	All arguments are advanced to reflect data read.
 ;
 getfssec:
@@ -1458,9 +1442,13 @@ getfssec:
 		push edi
 
 		movzx ecx,cx
-		cmp ecx,[si]			; Number of sectors left
+		push ecx			; Sectors requested read
+		mov eax,[si+file_bytesleft]
+		add eax,SECTOR_SIZE-1
+		shr eax,SECTOR_SHIFT
+		cmp ecx,eax			; Number of sectors left
 		jbe .lenok
-		mov cx,[si]
+		mov cx,ax
 .lenok:
 .getfragment:
 		mov eax,[si+file_sector]	; Current start index
@@ -1499,12 +1487,18 @@ getfssec:
 		add bx,bp			; Adjust buffer pointer
 		pop bp
 		add [si+file_sector],ebp	; Next sector index
-		sub [si],ebp			; Sectors consumed
 		jcxz .done
 		jnz .getfragment
 		; Fall through
 .done:
-		cmp dword [si],1		; Did we run out of file?
+		pop ecx				; Sectors requested read
+		shl ecx,SECTOR_SHIFT
+		cmp ecx,[si+file_bytesleft]
+		jb .noteof
+		mov ecx,[si+file_bytesleft]
+.noteof:	sub [si+file_bytesleft],ecx
+		; Did we run out of file?
+		cmp dword [si+file_bytesleft],1
 		; CF set if [SI] < 1, i.e. == 0
 		pop edi
 		pop edx

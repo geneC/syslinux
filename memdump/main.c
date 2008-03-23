@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
       .write = serial_write,
     };
   struct file_info finfo;
-  const char serial_banner[] = "Now being Ymodem download...\r\n";
+  const char serial_banner[] = "Now begin Ymodem download...\r\n";
 
   if (argc < 4)
     die("usage: memdump port prefix start,len...");
@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
       die("invalid range specification");
     len = strtoul(ep+1, NULL, 0);
 
-    sprintf(filename, "%s%#x,%#x", prefix, start, len);
+    sprintf(filename, "%s%#x-%#x.bin", prefix, start, len);
     finfo.name = filename;
     finfo.size = len;
     finfo.pvt  = (void *)start;

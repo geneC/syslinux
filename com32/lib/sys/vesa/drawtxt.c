@@ -29,7 +29,6 @@
 #include <colortbl.h>
 #include "vesa.h"
 #include "video.h"
-#include "fmtpixel.h"
 #include "fill.h"
 
 /*
@@ -41,7 +40,7 @@ static int cursor_x, cursor_y;
 
 static inline void *copy_dword(void *dst, void *src, size_t dword_count)
 {
-  asm volatile("cld; rep; movsl"
+  asm volatile("rep; movsl"
 	       : "+D" (dst), "+S" (src), "+c" (dword_count));
   return dst;			/* Updated destination pointer */
 }
@@ -84,8 +83,8 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
   struct vesa_char *rowptr, *rowsptr, *cptr, *csptr;
   unsigned int bytes_per_pixel = __vesacon_bytes_per_pixel;
   unsigned long pixel_offset;
-  uint8_t row_buffer[VIDEO_X_SIZE*4], *rowbufptr;
-  uint8_t *fbrowptr;
+  uint32_t row_buffer[VIDEO_X_SIZE], *rowbufptr;
+  size_t fbrowptr;
   uint8_t sha;
 
   bgrowptr  = &__vesacon_background[row*height+VIDEO_BORDER][col*width+VIDEO_BORDER];
@@ -93,23 +92,7 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
   pixel_offset = ((row*height+VIDEO_BORDER)*VIDEO_X_SIZE)+
     (col*width+VIDEO_BORDER);
 
-  switch (__vesacon_pixel_format) {
-  case PXF_BGR24:
-    bytes_per_pixel = 3;
-    break;
-  case PXF_BGRA32:
-    bytes_per_pixel = 4;
-    break;
-  case PXF_LE_RGB16_565:
-    bytes_per_pixel = 2;
-    break;
-  default:
-    bytes_per_pixel = 0;
-    break;
-  }
-
-  fbrowptr = ((uint8_t *)__vesa_info.mi.lfb_ptr) + 
-    (row*height+VIDEO_BORDER) * __vesa_info.mi.logical_scan +
+  fbrowptr = (row*height+VIDEO_BORDER) * __vesa_info.mi.logical_scan +
     (col*width+VIDEO_BORDER) * bytes_per_pixel;
 
   /* Note that we keep a 1-character guard area around the real text area... */
@@ -189,13 +172,11 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 	color &= 0x3f3f3f;
       }
 
-      rowbufptr = format_pixel(rowbufptr, color, __vesacon_pixel_format);
+      *rowbufptr++ = color;
     }
 
     /* Copy to frame buffer */
-    /* Note that the dword_count is rounded down, not up.  That's because
-       the row_buffer includes a spillover pixel. */
-    copy_dword(fbrowptr, row_buffer, (rowbufptr-row_buffer) >> 2);
+    __vesacon_copy_to_screen(fbrowptr, row_buffer, rowbufptr-row_buffer);
 
     bgrowptr += VIDEO_X_SIZE;
     fbrowptr += __vesa_info.mi.logical_scan;

@@ -43,8 +43,7 @@ com32_rmidt:
 		section .text
 is_com32_image:
 		push si			; Save file handle
-		push dx			; File length held in DX:AX
-		push ax
+		push eax		; Save file length
 
 		call make_plain_cmdline
 		; Copy the command line into the low cmdline buffer
@@ -57,7 +56,6 @@ is_com32_image:
 		sub cx,si
 		fs rep movsb
 
-		call highmemsize	; We need the high memory size...
 		call comboot_setup_api	; Set up the COMBOOT-style API
 
 		mov edi,pm_entry	; Load address
@@ -115,9 +113,10 @@ com32_enter_pm:
 ;
 com32_call_start:
 		;
-		; Point the stack to the end of high memory
+		; Point the stack to the end of (permitted) high memory
 		;
-		mov esp,[word HighMemSize]
+		mov esp,[word HighMemRsvd]
+		xor sp,sp		; Align to a 64K boundary
 
 		;
 		; Set up the protmode IDT and the interrupt jump buffers
@@ -210,7 +209,9 @@ com32_enter_rm:
 		jmp bx			; Go to whereever we need to go...
 
 com32_done:
+%if DISABLE_A20
 		call disable_a20
+%endif
 		sti
 		jmp enter_command
 

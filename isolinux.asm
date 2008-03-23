@@ -8,7 +8,7 @@
 ;  available.  It is based on the SYSLINUX boot loader for MS-DOS
 ;  floppies.
 ;
-;   Copyright (C) 1994-2006  H. Peter Anvin
+;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
 ; Since there is no room in the bottom 64K for all of these, we
-; stick them at vk_seg:0000 and copy them down before we need them.
+; stick them in high memory and copy them down before we need them.
 ;
 		struc vkernel
 vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
@@ -67,8 +67,7 @@ vk_end:		equ $			; Should be <= vk_size
 ; Segment assignments in the bottom 640K
 ; 0000h - main code/data segment (and BIOS segment)
 ;
-real_mode_seg	equ 3000h
-vk_seg          equ 2000h		; Virtual kernels
+real_mode_seg	equ 2000h
 xfer_buf_seg	equ 1000h		; Bounce buffer for I/O to high mem
 comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 
@@ -77,7 +76,9 @@ comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 ;
 		struc open_file_t
 file_sector	resd 1			; Sector pointer (0 = structure free)
+file_bytesleft	resd 1			; Number of bytes left
 file_left	resd 1			; Number of sectors left
+		resd 1			; Unused
 		endstruc
 
 %ifndef DEPEND
@@ -102,12 +103,11 @@ dir_clust	resd 1			; Length in clusters
 		section .earlybss
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
-getcbuf		resb trackbufsize
-;		ends at 4800h
+;		ends at 2800h
 
 		; Some of these are touched before the whole image
 		; is loaded.  DO NOT move this to .uibss.
-		section .bss1
+		section .bss2
 		alignb 4
 ISOFileName	resb 64			; ISO filename canonicalization buffer
 ISOFileNameEnd	equ $
@@ -197,17 +197,6 @@ _spec_len	equ _spec_end - _spec_start
 
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
-
-;
-; Constants for the xfer_buf_seg
-;
-; The xfer_buf_seg is also used to store message file buffers.  We
-; need two trackbuffers (text and graphics), plus a work buffer
-; for the graphics decompressor.
-;
-xbs_textbuf	equ 0			; Also hard-coded, do not change
-xbs_vgabuf	equ trackbufsize
-xbs_vgatmpbuf	equ 2*trackbufsize
 
 		section .text
 ;;
@@ -333,7 +322,7 @@ found_drive:
 		call writemsg
 %endif
 
-		; No such luck.  See if the the spec packet contained one.
+		; No such luck.  See if the spec packet contained one.
 		mov eax,[sp_lba]
 		and eax,eax
 		jz set_file			; Good enough
@@ -574,7 +563,7 @@ spec_query_failed:
 .test_loop:	pusha
 		mov ax,4B01h
 		mov si,spec_packet
-		mov byte [si],13		; Size of buffer
+		mov byte [si],13h		; Size of buffer
 		call int13
 		popa
 		jc .still_broken
@@ -591,15 +580,23 @@ spec_query_failed:
 		; Okay, good enough...
 		mov si,alright_msg
 		call writemsg
-		mov [DriveNumber],dl
+.found_drive0:	mov [DriveNumber],dl
 .found_drive:	jmp found_drive
 
 		; Award BIOS 4.51 apparently passes garbage in sp_drive,
 		; but if this was the drive number originally passed in
 		; DL then consider it "good enough"
 .maybe_broken:
-		cmp byte [DriveNumber],dl
+		mov al,[DriveNumber]
+		cmp al,dl
 		je .found_drive
+
+		; Intel Classic R+ computer with Adaptec 1542CP BIOS 1.02
+		; passes garbage in sp_drive, and the drive number originally
+		; passed in DL does not have 80h bit set.
+		or al,80h
+		cmp al,dl
+		je .found_drive0
 
 .still_broken:	dec dx
 		cmp dl, 80h
@@ -966,8 +963,8 @@ load_config:
 %include "ui.inc"
 
 ;
-; Enable disk emulation.  The kind of disk we emulate is dependent on the size of
-; the file: 1200K, 1440K or 2880K floppy, otherwise harddisk.
+; Enable disk emulation.  The kind of disk we emulate is dependent on the
+; size of the file: 1200K, 1440K or 2880K floppy, otherwise harddisk.
 ;
 is_disk_image:
 		TRACER CR
@@ -975,8 +972,7 @@ is_disk_image:
 		TRACER 'D'
 		TRACER ':'
 
-		shl edx,16
-		mov dx,ax			; Set EDX <- file size
+		mov edx,eax			; File size
 		mov di,img_table
 		mov cx,img_table_count
 		mov eax,[si+file_sector]	; Starting LBA of file
@@ -1145,6 +1141,7 @@ close_file:
 		and si,si
 		jz .closed
 		mov dword [si],0		; First dword == file_left
+		xor si,si
 .closed:	ret
 
 ;
@@ -1157,7 +1154,7 @@ close_file:
 ;	     If successful:
 ;		ZF clear
 ;		SI		= file pointer
-;		DX:AX or EAX	= file length in bytes
+;		EAX		= file length in bytes
 ;	     If unsuccessful
 ;		ZF set
 ;
@@ -1269,13 +1266,12 @@ searchdir_iso:
 		mov eax,[si+2]			; Location of extent
 		mov [bx+file_sector],eax
 		mov eax,[si+10]			; Data length
+		mov [bx+file_bytesleft],eax
 		push eax
 		add eax,SECTOR_SIZE-1
 		shr eax,SECTOR_SHIFT
 		mov [bx+file_left],eax
 		pop eax
-		mov edx,eax
-		shr edx,16
 		and bx,bx			; ZF = 0
 		mov si,bx
 		pop es
@@ -1416,8 +1412,6 @@ mangle_name:
 ; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
 ;                filename to the conventional representation.  This is needed
 ;                for the BOOT_IMAGE= parameter for the kernel.
-;                NOTE: A 13-byte buffer is mandatory, even if the string is
-;                known to be shorter.
 ;
 ;                DS:SI -> input mangled file name
 ;                ES:DI -> output buffer
@@ -1439,6 +1433,7 @@ unmangle_name:	call strcpy
 ;  On exit:
 ;	SI	-> File pointer (or 0 on EOF)
 ;	CF = 1	-> Hit EOF
+;	ECX	-> Bytes actually read
 ;
 getfssec:
 		TRACER 'F'
@@ -1451,8 +1446,8 @@ getfssec:
 		cmp ecx,[si+file_left]
 		jna .ok_size
 		mov ecx,[si+file_left]
-.ok_size:
 
+.ok_size:
 		mov bp,cx
 		push cx
 		push si
@@ -1466,13 +1461,24 @@ getfssec:
 		add [si+file_sector],ecx
 		sub [si+file_left],ecx
 		ja .not_eof			; CF = 0
-
-		xor ecx,ecx
-		mov [si+file_sector],ecx	; Mark as unused
-		xor si,si
 		stc
 
 .not_eof:
+		pushf
+		shl ecx,SECTOR_SHIFT		; Convert to bytes
+		cmp ecx,[si+file_bytesleft]
+		jb .not_all
+		mov ecx,[si+file_bytesleft]
+.not_all:	sub [si+file_bytesleft],ecx
+		popf
+		jnc .ret
+		push eax
+		xor eax,eax
+		mov [si+file_sector],eax	; Unused
+		mov si,ax
+		pop eax
+		stc
+.ret:
 		pop ds
 		TRACER 'f'
 		ret

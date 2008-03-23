@@ -70,7 +70,7 @@ struct vesa_mode_info {
   uint8_t   banks;
   uint8_t   memory_layout;
   uint8_t   bank_size;
-  uint8_t   image_planes;
+  uint8_t   image_pages;
   uint8_t   page_function;
 
   uint8_t   rmask;

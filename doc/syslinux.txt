@@ -2,7 +2,7 @@
 
 		   A suite of bootloaders for Linux
 
-		Copyright (C) 1994-2007 H. Peter Anvin
+       Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -24,8 +24,8 @@ The SYSLINUX suite contains the following boot loaders
 	EXTLINUX - Linux ext2/ext3 filesystem
 
 For historical reasons, some of the sections in this document applies
-to the FAT loader only; see pxelinux.doc, isolinux.doc and
-extlinux.doc for what differs in these versions.
+to the FAT loader only; see pxelinux.txt, isolinux.txt and
+extlinux.txt for what differs in these versions.
 
 Help with cleaning up the docs would be greatly appreciated.
 
@@ -118,7 +118,7 @@ relative to that same directory, unless preceded with a slash or
 backslash.
 
 All options here applies to PXELINUX, ISOLINUX and EXTLINUX as well as
-SYSLINUX unless otherwise noted.  See the respective .doc files.
+SYSLINUX unless otherwise noted.  See the respective .txt files.
 
 # comment
 	A comment line.  The whitespace after the hash mark is mandatory.
@@ -173,7 +173,7 @@ IPAPPEND flag_val			[PXELINUX only]
 		BOOTIF=<hardware-address-of-boot-interface>
 
 	... in dash-separated hexadecimal with leading hardware type
-	(same as for the configuration file; see pxelinux.doc.)
+	(same as for the configuration file; see pxelinux.txt.)
 
 	This allows an initrd program to determine from which
 	interface the system booted.
@@ -371,7 +371,7 @@ KBDMAP keymap
 	used heavily on the Linux kernel command line.)
 
 	The included program keytab-lilo.pl from the LILO distribution
-	can be used to create such keymaps.  The file keytab-lilo.doc
+	can be used to create such keymaps.  The file keytab-lilo.txt
 	contains the documentation for this program.
 
 DISPLAY filename
@@ -553,7 +553,7 @@ considered to be the one specified regardless of the filename.
       ++++ BOOTING DOS (OR OTHER SIMILAR OPERATING SYSTEMS) ++++
 
 This section applies to SYSLINUX only, not to PXELINUX or ISOLINUX.
-See isolinux.doc for an equivalent procedure for ISOLINUX.
+See isolinux.txt for an equivalent procedure for ISOLINUX.
 
 This is the recommended procedure for creating a SYSLINUX disk that
 can boot either DOS or Linux.  This example assumes the drive is A: in
@@ -633,7 +633,7 @@ similar to DOS ".com" files.  A 32-bit version, called COM32, is also
 provided.  A simple API provides access to a limited set of filesystem
 and console functions.
 
-See the file comboot.doc for more information on COMBOOT and COM32
+See the file comboot.txt for more information on COMBOOT and COM32
 programs.
 
 
@@ -665,7 +665,7 @@ that is bootable on the largest possible number of machines:
 A CD-ROM is so much faster than a floppy that the -s option shouldn't
 matter from a speed perspective.
 
-Of course, you probably want to use ISOLINUX instead.  See isolinux.doc.
+Of course, you probably want to use ISOLINUX instead.  See isolinux.txt.
 
 
    ++++ BOOTING FROM A FAT FILESYSTEM PARTITION ON A HARD DISK ++++

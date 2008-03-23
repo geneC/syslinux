@@ -1,5 +1,5 @@
 ;; -----------------------------------------------------------------------
-;;   
+;;
 ;;   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
@@ -50,13 +50,13 @@ adv0:
 .csum		resd 1
 .data		resb ADV_LEN
 .tail		resd 1
-.end
+.end		equ $
 adv1:
 .head		resd 1
 .csum		resd 1
 .data		resb ADV_LEN
 .tail		resd 1
-.end
+.end		equ $
 		section .text
 
 		;

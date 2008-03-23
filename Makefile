@@ -19,7 +19,7 @@ MAKEFLAGS = -r
 
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if gcc $(1) dummy.c -o $$tmpf 2>/dev/null; \
+gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) dummy.c -o $$tmpf 2>/dev/null; \
 	           then echo '$(1)'; else echo '$(2)'; fi; rm -f $$tmpf)
 
 comma   := ,
@@ -61,7 +61,7 @@ VERSION  = $(shell cat version)
 # with their own Makefiles.  Finally, there is a list of those
 # directories.
 #
-CSRC     = syslxmod.c gethostip.c
+CSRC     = gethostip.c
 NASMSRC  = $(wildcard *.asm)
 SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
 
@@ -144,7 +144,15 @@ version.h: version version.pl
 kwdhash.gen: keywords genhash.pl
 	$(PERL) genhash.pl < keywords > kwdhash.gen
 
-# Standard rule for {ldlinux,pxelinux,isolinux,isolinux-debug,extlinux}.bin
+# Standard rule for {isolinux,isolinux-debug}.bin
+iso%.bin: iso%.asm kwdhash.gen version.gen
+	$(NASM) $(NASMOPT) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
+		-DMAP=$(@:.bin=.map) -l $(@:.bin=.lsr) -o $@ $<
+	$(PERL) lstadjust.pl $(@:.bin=.lsr) $(@:.bin=.map) $(@:.bin=.lst)
+	$(PERL) checksumiso.pl $@
+	$(PERL) checkov.pl $(@:.bin=.map) $@
+
+# Standard rule for {ldlinux,pxelinux,extlinux}.bin
 %.bin: %.asm kwdhash.gen version.gen
 	$(NASM) $(NASMOPT) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
 		-DMAP=$(@:.bin=.map) -l $(@:.bin=.lsr) -o $@ $<
@@ -183,14 +191,6 @@ extlinux_bss_bin.c: extlinux.bss bin2c.pl
 
 extlinux_sys_bin.c: extlinux.sys bin2c.pl
 	$(PERL) bin2c.pl extlinux_image 512 < $< > $@
-
-libsyslinux.a: bootsect_bin.o ldlinux_bin.o mbr_bin.o syslxmod.o
-	rm -f $@
-	$(AR) cq $@ $^
-	$(RANLIB) $@
-
-$(LIB_SO): bootsect_bin.o ldlinux_bin.o syslxmod.o
-	$(CC) $(LDFLAGS) -shared -Wl,-soname,$(LIB_SONAME) -o $@ $^
 
 gethostip: gethostip.o
 	$(CC) $(LDFLAGS) -o $@ $^
@@ -232,9 +232,9 @@ clean: local-tidy local-clean
 	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 dist: tidy
-	for dir in . sample memdisk ; do \
-		( cd $$dir && rm -f *~ \#* core ) ; \
-	done
+	find . \( -name '*~' -o -name '#*' -o -name core \
+		-o -name '.*.d' -o -name .depend \) -type f -print0 \
+	| xargs -0rt rm -f
 
 local-spotless:
 	rm -f $(BTARGET) .depend *.so.*

@@ -43,54 +43,31 @@ loadkeys_ret:	ret
 
 ;
 ; get_msg_file: Load a text file and write its contents to the screen,
-;               interpreting color codes.  Is called with SI and DX:AX
-;               set by routine searchdir
+;               interpreting color codes.  Call with the file already
+;		on the top of the open/getc stack.
+;
+;		Assumes CS == DS == ES.
 ;
 get_msg_file:
-		push es
-		shl edx,16			; EDX <- DX:AX (length of file)
-		mov dx,ax
-		mov ax,xfer_buf_seg		; Use for temporary storage
-		mov es,ax
-
                 mov byte [TextAttribute],07h	; Default grey on white
 		mov byte [DisplayMask],07h	; Display text in all modes
 		call msg_initvars
 
-get_msg_chunk:  push edx			; EDX = length of file
-		xor bx,bx			; == xbs_textbuf
-		mov cx,[BufSafe]
-		call getfssec
-		pop edx
-		push si				; Save current cluster
-		xor si,si			; == xbs_textbuf
-		mov cx,[BufSafeBytes]		; Number of bytes left in chunk
 print_msg_file:
-		push cx
-		push edx
-		es lodsb
+.getc:
+		call getc
+		jc .done
                 cmp al,1Ah                      ; DOS EOF?
-		je msg_done_pop
-		push si
-		mov cl,[UsingVGA]
+		je .done
+		movzx cx,byte [UsingVGA]
 		and cl,01h
 		inc cx				; CL <- 01h = text mode,
 						;       02h = graphics mode
                 call [NextCharJump]		; Do what shall be done
-		pop si
-		pop edx
-                pop cx
-		dec edx
-		jz msg_done
-		loop print_msg_file
-		pop si
-		jmp short get_msg_chunk
-msg_done_pop:
-                add sp,byte 6			; Drop pushed EDX, CX
-msg_done:
-		pop si
-		pop es
-		ret
+		jmp .getc
+.done:
+		jmp close			; Tailcall!
+
 msg_putchar:                                    ; Normal character
                 cmp al,0Fh                      ; ^O = color code follows
                 je msg_ctrl_o
@@ -221,16 +198,12 @@ msg_novga:
 		jmp short msg_initvars
 
 msg_viewimage:
-		push es
-		push ds
-		pop es				; ES <- DS
 		mov si,[VGAFilePtr]
 		mov byte [si],0			; Zero-terminate filename
 		mov si,VGAFileBuf
 		mov di,VGAFileMBuf
 		call mangle_name
-		call searchdir
-		pop es
+		call open
 		jz msg_putcharnext		; Not there
 		call vgadisplayfile
 		; Fall through

@@ -17,17 +17,13 @@
 ;
 ; vgadisplayfile:
 ;	Display a graphical splash screen.
+;	The file is already opened on the top of the getc stack.
 ;
-; Input:
-;
-; SI	= cluster/socket pointer
+;	Assumes CS == DS == ES.
 ;
 		section .text
 
 vgadisplayfile:
-		mov [VGACluster],si
-		push es
-
 		; This is a cheap and easy way to make sure the screen is
 		; cleared in case we were in graphics mode already
 		call vgaclearmode
@@ -35,26 +31,27 @@ vgadisplayfile:
 		jnz .error_nz
 
 .graphalready:
-		mov ax,xfer_buf_seg		; Use as temporary storage
-		mov es,ax
-		mov fs,ax
-
-		call vgagetchunk		; Get the first chunk
+		; Load the header.
+		mov cx,4+2*2+16*3
+		mov di,LSSHeader
+.gethdr:
+		call getc
+		stosb
+		loop .gethdr
+		jc .error
 
 		; The header WILL be in the first chunk.
-		cmp dword [es:xbs_vgabuf],0x1413f33d	; Magic number
+		cmp dword [LSSMagic],0x1413f33d	; Magic number
 .error_nz:	jne .error
-		mov ax,[es:xbs_vgabuf+4]
-		mov [GraphXSize],ax
 
-		mov dx,xbs_vgabuf+8		; Color map offset
+		mov dx,GraphColorMap		; Color map offset
 		mov ax,1012h			; Set RGB registers
 		xor bx,bx			; First register number
 		mov cx,16			; 16 registers
 		int 10h
 
 .movecursor:
-		mov ax,[es:xbs_vgabuf+6]	; Number of pixel rows
+		mov ax,[GraphYSize]		; Number of pixel rows
 		mov dx,[VGAFontSize]
 		add ax,dx
 		dec ax
@@ -70,50 +67,46 @@ vgadisplayfile:
 		xor bx,bx
 		int 10h				; Set cursor below image
 
-		mov cx,[es:xbs_vgabuf+6]	; Number of graphics rows
-
-		mov si,xbs_vgabuf+8+3*16	; Beginning of pixel data
+		mov cx,[GraphYSize]		; Number of graphics rows
 		mov word [VGAPos],0
 
 .drawpixelrow:
 		push cx
-		mov cx,[GraphXSize]
-		mov di,xbs_vgatmpbuf		; Row buffer
-		call rledecode			; Decode one row
-		push si
-		mov si,xbs_vgatmpbuf
-		mov di,si
-		add di,[GraphXSize]
+		mov di,VGARowBuffer
+		; Pre-clear the row buffer
+		push di
 		mov cx,640/4
 		xor eax,eax
-		rep stosd			; Clear rest of row
+		rep stosd
+		pop di
+		push di
+		mov cx,[GraphXSize]
+		call rledecode			; Decode one row
+		pop si
+		push es
 		mov di,0A000h			; VGA segment
 		mov es,di
 		mov di,[VGAPos]
 		mov bp,640
 		call packedpixel2vga
-		add word [VGAPos],byte 80	; Advance to next pixel row
-		push fs
+		add word [VGAPos],80
 		pop es
-		pop si
 		pop cx
 		loop .drawpixelrow
 
 .error:
-		pop es
-		ret
+		jmp close			; Tailcall!
 
 ;
 ; rledecode:
 ;	Decode a pixel row in RLE16 format.
 ;
-; FS:SI	-> input
-; CX -> pixel count
-; ES:DI -> output (packed pixel)
+; getc stack	-> input
+; CX		-> pixel count
+; ES:DI		-> output (packed pixel)
 ;
 rledecode:
-		shl esi,1		; Nybble pointer
-		xor dl,dl		; Last pixel
+		xor dx,dx		; DL = last pixel, DH = nybble buffer
 .loop:
 		call .getnybble
 		cmp al,dl
@@ -123,15 +116,12 @@ rledecode:
 		dec cx
 		jnz .loop
 .done:
-		shr esi,1
-		adc si,byte 0
 		ret
 .run:
 		xor bx,bx
 		call .getnybble
-		and al,al
+		or bl,al
 		jz .longrun
-		mov bl,al
 .dorun:
 		push cx
 		mov cx,bx
@@ -143,60 +133,32 @@ rledecode:
 		jmp short .done
 .longrun:
 		call .getnybble
-		mov ah,al
+		mov bl,al
 		call .getnybble
 		shl al,4
-		or al,ah
-		mov bl,al
+		or bl,al
 		add bx,16
 		jmp short .dorun
+
 .getnybble:
-		shr esi,1
-		fs lodsb
-		jc .high
-		dec si
+		test dh,10h
+		jz .low
+		and dh,0Fh
+		mov al,dh
+		ret
+.low:
+		call getc
+		mov dh,al
+		shr dh,4
+		or dh,10h		; Nybble already read
 		and al,0Fh
-		stc
-		rcl esi,1
-		ret
-.high:
-		shr al,4
-		cmp si,xbs_vgabuf+trackbufsize	; Chunk overrun
-		jb .nonewchunk
-		call vgagetchunk
-		mov si,xbs_vgabuf		; Start at beginning of buffer
-.nonewchunk:
-		shl esi,1
-		ret
-
-;
-; vgagetchunk:
-;	Get a new trackbufsize chunk of VGA image data
-;
-; On input, ES is assumed to point to the buffer segment.
-;
-vgagetchunk:
-		pushad
-		mov si,[VGACluster]
-		and si,si
-		jz .eof				; EOF overrun, not much to do...
-
-		mov cx,[BufSafe]		; One trackbuf worth of data
-		mov bx,xbs_vgabuf
-		call getfssec
-
-		jnc .noteof
-		xor si,si
-.noteof:	mov [VGACluster],si
-
-.eof:		popad
 		ret
 
 ;
 ; packedpixel2vga:
 ;	Convert packed-pixel to VGA bitplanes
 ;
-; FS:SI -> packed pixel string
+; DS:SI -> packed pixel string
 ; BP    -> pixel count (multiple of 8)
 ; ES:DI -> output
 ;
@@ -214,7 +176,7 @@ packedpixel2vga:
 		mov cx,8
 .loop2:
 		xchg cx,bx
-		fs lodsb
+		lodsb
 		shr al,cl
 		rcl ch,1	; VGA is bigendian.  Sigh.
 		xchg cx,bx
@@ -347,12 +309,15 @@ linear_color	db 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0
 UsingVGA	db 0
 
 		section .bss1
-		alignb 2
+		alignb 4
+LSSHeader	equ $
+LSSMagic	resd 1			; Magic number
 GraphXSize	resw 1			; Width of splash screen file
+GraphYSize	resw 1			; Height of splash screen file
+GraphColorMap	resb 3*16
 VGAPos		resw 1			; Pointer into VGA memory
-VGACluster	resw 1			; Cluster pointer for VGA image file
 VGAFilePtr	resw 1			; Pointer into VGAFileBuf
-TextColorReg	resb 17			; VGA color registers for text mode
+; TextColorReg	resb 17			; VGA color registers for text mode
 %if IS_SYSLINUX
 VGAFileBuf	resb FILENAME_MAX+2	; Unmangled VGA image name
 %else
@@ -360,3 +325,7 @@ VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
 %endif
 VGAFileBufEnd	equ $
 VGAFileMBuf	resb FILENAME_MAX	; Mangled VGA image name
+
+; We need a buffer of 640+80 bytes.  At this point, command_line should
+; not be in use, so use that buffer.
+VGARowBuffer	equ command_line

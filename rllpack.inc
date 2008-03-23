@@ -1,5 +1,4 @@
-; -*- fundamental -*-
-; -----------------------------------------------------------------------
+; -*- fundamental -*- ---------------------------------------------------
 ;
 ;   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
 ;
@@ -19,32 +18,41 @@
 ;
 ; Format of leading byte
 ; 1-128		= x verbatim bytes follow
-; 129-255	= (x-126) times subsequent byte
+; 129-223	= (x-126) times subsequent byte
+; 224-255	= (x-224)*256+(next byte) times the following byte
 ; 0		= end of data
+;
+; These structures are stored *in reverse order* in high memory.
+; High memory pointers point to one byte beyond the end.
 ;
 
 		section .text
 
 ;
 ; rllpack:
-;	Pack CX bytes from DS:SI into ES:DI
-;	Returns updated SI, DI and CX = number of bytes output
+;	Pack CX bytes from SI into EDI.
+;	Returns updated SI and EDI.
 ;
 rllpack:
-		push ax
-		push bx
+		push word .pmentry
+		call simple_pm_call
+		ret
+
+.pmentry:
 		push cx
-		push bp
-		push di
+		push ebx
+		push edx
 .startseq:
 		xor ax,ax		; Zero byte
-		xor bx,bx		; Run length zero
-		mov bp,di		; Pointer to header byte
-		stosb			; Store header byte (might be zero)
-		jcxz .done_null
+		xor ebx,ebx		; Run length zero
+		dec edi
+		mov edx,edi		; Pointer to header byte
+		mov [edi],al		; Create header byte
+		jcxz .done		; If done, this was the terminator
 .stdbyte:
 		lodsb
-		stosb
+		dec edi
+		mov [edi],al
 		dec cx
 		cmp ah,al
 		je .same
@@ -53,80 +61,96 @@ rllpack:
 		xor bx,bx
 .plainbyte:
 		inc bx
-		inc byte [es:bp]
-		jcxz .done
+		inc byte [edx]
+		jcxz .startseq
 		jns .stdbyte
 		jmp .startseq
 .same:
 		cmp bl,2
 		jb .plainbyte
 		; 3 bytes or more in a row, time to convert sequence
-		sub byte [es:bp],bl
+		sub [edx],bl
 		jnz .normal
-		dec di			; We killed a whole stretch, remove start byte
+		inc edi			; We killed a whole stretch,
+					; drop start byte
 .normal:
 		inc bx
-		sub di,bx
-		mov bp,di
-		mov al,bl
-		add al,126
-		stosb
-		mov al,ah
-		stosb
+		add edi,ebx		; Remove the stored run bytes
 .getrun:
-		jcxz .done
-		cmp bl,255-126
-		jae .startseq
+		jcxz .nomatch
 		lodsb
 		cmp al,ah
 		jne .nomatch
+		cmp bx,(256-224)*256-1	; Maximum run size
+		jae .nomatch
 		inc bx
-		inc byte [es:bp]
 		dec cx
 		jmp .getrun
 .nomatch:
-		dec si
+		cmp bx,224-126
+		jae .twobyte
+.onebyte:
+		add bl,126
+		dec edi
+		mov [edi],bl
+		jmp .storebyte
+.twobyte:
+		add bh,224
+		sub edi,2
+		mov [edi],bx
+.storebyte:
+		dec edi
+		mov [edi],ah
+		dec si			; Reload subsequent byte
 		jmp .startseq
 .done:
-		xor al,al
-		stosb
-.done_null:
-		pop dx
-		sub dx,di
-		neg dx
-		pop bp
+		pop edx
+		pop ebx
 		pop cx
-		pop bx
-		pop ax
 		ret
 ;
 ; rllunpack:
-;	Unpack bytes from DS:SI into ES:DI
-;	On return SI, DI are updated and CX contains number of bytes output
+;	Unpack bytes from ESI into DI
+;	On return ESI, DI are updated and CX contains number of bytes output.
 ;
 rllunpack:
-		push ax
+		push word .pmentry
+		call simple_pm_call
+		ret
+
+.pmentry:
 		push di
 		xor cx,cx
 .header:
-		lodsb
-		and al,al
-		jz .done
-		cmp al,129
+		dec esi
+		mov cl,[esi]
+		jcxz .done
+		cmp cl,129
 		jae .isrun
 		; Not a run
-		mov cl,al
-		rep movsb
+.copy:
+		dec esi
+		mov al,[esi]
+		stosb
+		loop .copy
 		jmp .header
 .isrun:
-		sub al,126
-		mov cl,al
-		lodsb
+		cmp cl,224
+		jae .longrun
+		sub cl,126
+.dorun:
+		dec esi
+		mov al,[esi]
 		rep stosb
 		jmp .header
+.longrun:
+		sub cl,224
+		mov ch,cl
+		dec esi
+		mov cl,[esi]
+		jmp .dorun
 .done:
 		pop cx
 		sub cx,di
 		neg cx
-		pop ax
 		ret

@@ -10,9 +10,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/param.h>
+#include <minmax.h>
 #include <sys/types.h>
 
+#include "xcrypt.h"
+
+#define MIN(x,y) min(x,y)
+#define MAX(x,y) max(x,y)
 
 /* Structure to save state of computation between the single steps.  */
 struct sha256_ctx

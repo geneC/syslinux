@@ -150,7 +150,7 @@ dns_skiplabel:
 .rdata:		equ $
 		endstruc
 
-		section .bss1
+		section .bss2
 		alignb 2
 DNSSendBuf	resb DNS_MAX_PACKET
 DNSRecvBuf	resb DNS_MAX_PACKET

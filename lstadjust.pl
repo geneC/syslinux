@@ -37,7 +37,7 @@ $offset = 0;
 
 while (defined($line = <LST>)) {
     chomp $line;
-    
+
     $source = substr($line, 40);
     if ($source =~ /^([^;]*);/) {
 	$source = $1;
@@ -61,4 +61,3 @@ while (defined($line = <LST>)) {
 
     print OUT $line, "\n";
 }
-

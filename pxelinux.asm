@@ -7,7 +7,7 @@
 ;  network booting API.  It is based on the SYSLINUX boot loader for
 ;  MS-DOS floppies.
 ;
-;   Copyright (C) 1994-2007  H. Peter Anvin
+;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -104,7 +104,7 @@ TFTP_EOPTNEG	equ htons(8)		; Option negotiation failure
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
 ; Since there is no room in the bottom 64K for all of these, we
-; stick them at vk_seg:0000 and copy them down before we need them.
+; stick them in high memory and copy them down before we need them.
 ;
 		struc vkernel
 vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
@@ -122,9 +122,8 @@ vk_end:		equ $			; Should be <= vk_size
 ; Segment assignments in the bottom 640K
 ; 0000h - main code/data segment (and BIOS segment)
 ;
-real_mode_seg	equ 4000h
-pktbuf_seg	equ 3000h		; Packet buffers segments
-vk_seg          equ 2000h		; Virtual kernels
+real_mode_seg	equ 3000h
+pktbuf_seg	equ 2000h		; Packet buffers segments
 xfer_buf_seg	equ 1000h		; Bounce buffer for I/O to high mem
 comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 
@@ -172,7 +171,8 @@ tftp_blksize	resd 1			; Block size for this connection(*)
 tftp_bytesleft	resw 1			; Unclaimed data bytes
 tftp_lastpkt	resw 1			; Sequence number of last packet (NBO)
 tftp_dataptr	resw 1			; Pointer to available data
-		resw 2			; Currently unusued
+tftp_goteof	resb 1			; 1 if the EOF packet received
+		resb 3			; Currently unusued
 		; At end since it should not be zeroed on socked close
 tftp_pktbuf	resw 1			; Packet buffer offset
 		endstruc
@@ -192,12 +192,7 @@ tftp_pktbuf	resw 1			; Packet buffer offset
 		section .earlybss
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
-getcbuf		resb trackbufsize
-		; ends at 4800h
-
-		; Put some large buffers here, before RBFG_brainfuck,
-		; where we can still carefully control the address
-		; assignments...
+		; ends at 2800h
 
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
@@ -209,12 +204,6 @@ DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
 IPOption	resb 80			; ip= option buffer
 InitStack	resd 1			; Pointer to reset stack (SS:SP)
 PXEStack	resd 1			; Saved stack during PXE call
-
-; Warning here: RBFG build 22 randomly overwrites memory location
-; [0x5680,0x576c), possibly more.  It seems that it gets confused and
-; screws up the pointer to its own internal packet buffer and starts
-; writing a received ARP packet into low memory.
-RBFG_brainfuck	resb 0E00h
 
 		section .bss
 		alignb 4
@@ -254,20 +243,10 @@ pxe_unload_stack_pkt_len	equ $-pxe_unload_stack_pkt
 		alignb 16
 		; BOOTP/DHCP packet buffer
 
+		section .bss2
 		alignb 16
 packet_buf	resb 2048		; Transfer packet
 packet_buf_size	equ $-packet_buf
-
-;
-; Constants for the xfer_buf_seg
-;
-; The xfer_buf_seg is also used to store message file buffers.  We
-; need two trackbuffers (text and graphics), plus a work buffer
-; for the graphics decompressor.
-;
-xbs_textbuf	equ 0			; Also hard-coded, do not change
-xbs_vgabuf	equ trackbufsize
-xbs_vgatmpbuf	equ 2*trackbufsize
 
 		section .text
 		;
@@ -824,7 +803,7 @@ config_scan:
 		call writestr
 		call crlf
 		mov si,di
-		mov di,getcbuf
+		mov di,KernelName	;  Borrow this buffer for mangled name
 		call mangle_name
 		call open
 		popa
@@ -1065,7 +1044,7 @@ close_file:
 ;	     If successful:
 ;		ZF clear
 ;		SI	= socket pointer
-;		DX:AX	= file length in bytes
+;		EAX	= file length in bytes, or -1 if unknown
 ;	     If unsuccessful
 ;		ZF set
 ;
@@ -1185,8 +1164,10 @@ searchdir:
 		mov si,[bp-6]			; TFTP pointer
 		mov bx,[bp-8]			; TID
 
+		; Make sure the packet actually came from the server
+		; This is technically not to the TFTP spec?
 		mov eax,[si+tftp_remoteip]
-		cmp [pxe_udp_read_pkt.sip],eax	; This is technically not to the TFTP spec?
+		cmp [pxe_udp_read_pkt.sip],eax
 		jne .no_packet
 
 		; Got packet - reset timeout
@@ -1203,7 +1184,7 @@ searchdir:
 		; Default blksize unless blksize option negotiated
 		mov word [si+tftp_blksize], TFTP_BLOCKSIZE
 
-		mov cx,[pxe_udp_read_pkt.buffersize]
+		movzx ecx,word [pxe_udp_read_pkt.buffersize]
 		sub cx,2		; CX <- bytes after opcode
 		jb .failure		; Garbled reply
 
@@ -1213,13 +1194,21 @@ searchdir:
 		cmp ax, TFTP_ERROR
 		je .bailnow		; ERROR reply: don't try again
 
+		; If the server doesn't support any options, we'll get
+		; a DATA reply instead of OACK.  Stash the data in
+		; the file buffer and go with the default value for
+		; all options...
+		cmp ax, TFTP_DATA
+		je .no_oack
+
 		cmp ax, TFTP_OACK
-		jne .no_tsize
+		jne .err_reply		; Unknown packet type
 
 		; Now we need to parse the OACK packet to get the transfer
-		; size.  SI -> first byte of options; CX -> byte count
+		; and packet sizes.
+		;  SI -> first byte of options; [E]CX -> byte count
 .parse_oack:
-		jcxz .no_tsize			; No options acked
+		jcxz .done_pkt			; No options acked
 .get_opt_name:
 		mov di,si
 		mov bx,si
@@ -1289,15 +1278,7 @@ searchdir:
 		pop si			; We want the packet ptr in SI
 
 		mov eax,[si+tftp_filesize]
-		cmp eax,-1
-		jz .no_tsize
-		pop bp			; Junk
-		pop bp			; Junk (retry counter)
-
 .got_file:				; SI->socket structure, EAX = size
-		mov edx,eax
-		shr edx,16		; DX:AX == EAX
-
 		and eax,eax		; Set ZF depending on file size
 		jz .error_si		; ZF = 1 need to free the socket
 .ret:
@@ -1307,7 +1288,43 @@ searchdir:
 		pop es
 		ret
 
-.no_tsize:
+
+.no_oack:	; We got a DATA packet, meaning no options are
+		; suported.  Save the data away and consider the length
+		; undefined, *unless* this is the only data packet...
+		mov bx,[bp-6]		; File pointer
+		sub cx,2		; Too short?
+		jb .failure
+		lodsw			; Block number
+		cmp ax,htons(1)
+		jne .failure
+		mov [bx+tftp_lastpkt],ax
+		cmp cx,TFTP_BLOCKSIZE
+		ja .err_reply		; Corrupt...
+		je .not_eof
+		; This was the final EOF packet, already...
+		; We know the filesize, but we also want to ack the
+		; packet and set the EOF flag.
+		mov [bx+tftp_filesize],ecx
+		mov byte [bx+tftp_goteof],1
+		push si
+		mov si,bx
+		; AX = htons(1) already
+		call ack_packet
+		pop si
+.not_eof:
+		mov [bx+tftp_bytesleft],cx
+		mov ax,pktbuf_seg
+		push es
+		mov es,ax
+		mov di,tftp_pktbuf
+		mov [bx+tftp_dataptr],di
+		add cx,3
+		shr cx,2
+		rep movsd
+		pop es
+		jmp .done_pkt
+
 .err_reply:	; Option negotiation error.  Send ERROR reply.
 		; ServerIP and gateway are already programmed in
 		mov si,[bp-6]
@@ -1320,7 +1337,7 @@ searchdir:
 		call pxenv
 
 		; Write an error message and explode
-		mov si,err_oldtftp
+		mov si,err_damage
 		call writestr
 		jmp kaboom
 
@@ -1589,8 +1606,9 @@ mangle_name:
 ; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
 ;                filename to the conventional representation.  This is needed
 ;                for the BOOT_IMAGE= parameter for the kernel.
-;                NOTE: A 13-byte buffer is mandatory, even if the string is
-;                known to be shorter.
+;
+;                NOTE: The output buffer needs to be able to hold an
+;		 expanded IP address.
 ;
 ;                DS:SI -> input mangled file name
 ;                ES:DI -> output buffer
@@ -1673,73 +1691,106 @@ PXEEntry	equ pxe_thunk.jump+1
 ;  On exit:
 ;	SI	-> TFTP socket pointer (or 0 on EOF)
 ;	CF = 1	-> Hit EOF
+;	ECX	-> number of bytes actually read
 ;
-getfssec:	push si
+getfssec:	push eax
+		push edi
+		push bx
+		push si
 		push fs
 		mov di,bx
-		mov bx,si
 		mov ax,pktbuf_seg
 		mov fs,ax
 
+		xor eax,eax
 		movzx ecx,cx
 		shl ecx,TFTP_BLOCKSIZE_LG2	; Convert to bytes
+		push ecx			; Initial request size
 		jz .hit_eof			; Nothing to do?
 
 .need_more:
-		push ecx
+		call fill_buffer
+		movzx eax,word [si+tftp_bytesleft]
+		and ax,ax
+		jz .hit_eof
 
-		movzx eax,word [bx+tftp_bytesleft]
+		push ecx
 		cmp ecx,eax
 		jna .ok_size
 		mov ecx,eax
-		jcxz .need_packet		; No bytes available?
 .ok_size:
-
 		mov ax,cx			; EAX<31:16> == ECX<31:16> == 0
-		mov si,[bx+tftp_dataptr]
-		sub [bx+tftp_bytesleft],cx
+		mov bx,[si+tftp_dataptr]
+		sub [si+tftp_bytesleft],cx
+		xchg si,bx
 		fs rep movsb			; Copy from packet buffer
-		mov [bx+tftp_dataptr],si
+		xchg si,bx
+		mov [si+tftp_dataptr],bx
 
 		pop ecx
 		sub ecx,eax
 		jnz .need_more
 
-
 .hit_eof:
+		call fill_buffer
+
+		pop eax				; Initial request amount
+		xchg eax,ecx
+		sub ecx,eax			; ... minus anything not gotten
+
 		pop fs
 		pop si
 
 		; Is there anything left of this?
 		mov eax,[si+tftp_filesize]
 		sub eax,[si+tftp_filepos]
-		jnz .bytes_left	; CF <- 0
+		jnz .bytes_left
 
-		cmp [si+tftp_bytesleft],ax
-		jnz .bytes_left	; CF <- 0
+		cmp [si+tftp_bytesleft],ax	; AX == 0
+		jne .bytes_left
 
+		cmp byte [si+tftp_goteof],0
+		je .done
+		; I'm 99% sure this can't happen, but...
+		call fill_buffer		; Receive/ACK the EOF packet
+.done:
 		; The socket is closed and the buffer drained
 		; Close socket structure and re-init for next user
 		call free_socket
 		stc
+		jmp .ret
 .bytes_left:
+		clc
+.ret:
+		pop bx
+		pop edi
+		pop eax
 		ret
 
 ;
-; No data in buffer, check to see if we can get a packet...
+; Get a fresh packet if the buffer is drained, and we haven't hit
+; EOF yet.  The buffer should be filled immediately after draining!
 ;
-.need_packet:
-		pop ecx
-		mov eax,[bx+tftp_filesize]
-		cmp eax,[bx+tftp_filepos]
-		je .hit_eof			; Already EOF'd; socket already closed
+; expects fs -> pktbuf_seg and ds:si -> socket structure
+;
+fill_buffer:
+		cmp word [si+tftp_bytesleft],0
+		je .empty
+		ret				; Otherwise, nothing to do
 
-		pushad
+.empty:
 		push es
+		pushad
 		mov ax,ds
 		mov es,ax
 
-		mov si,bx
+		; Note: getting the EOF packet is not the same thing
+		; as tftp_filepos == tftp_filesize; if the EOF packet
+		; is empty the latter condition can be true without
+		; having gotten the official EOF.
+		cmp byte [si+tftp_goteof],0
+		jne .gotten			; Alread EOF
+
 %if GPXE
 		cmp word [si+tftp_localport], -1
 		jne .get_packet_tftp
@@ -1751,8 +1802,7 @@ getfssec:	push si
 .gotten:
 		pop es
 		popad
-
-		jmp .need_more
+		ret
 
 %if GPXE
 ;
@@ -1786,6 +1836,7 @@ get_packet_gpxe:
 		jnz .got_stuff
 
 		; We got EOF here, make sure the upper layers know
+		mov byte [si+tftp_goteof],1
 		mov eax,[si+tftp_filepos]
 		mov [si+tftp_filesize],eax
 
@@ -1891,7 +1942,8 @@ get_packet:
 		call ack_packet
 		jmp .send_ok			; Reset timeout
 
-.right_packet:	; It's the packet we want.  We're also EOF if the size < blocksize
+.right_packet:	; It's the packet we want.  We're also EOF if the
+		; size < blocksize
 
 		pop cx				; <D> Don't need the retry count anymore
 
@@ -1899,10 +1951,6 @@ get_packet:
 
 		movzx ecx,word [pxe_udp_read_pkt.buffersize]
 		sub cx,byte 4			; Skip TFTP header
-
-		; If this is a zero-length block, don't mess with the pointers,
-		; since we may have just set up the previous block that way
-		jz .last_block
 
 		; Set pointer to data block
 		lea ax,[bx+4]			; Data past TFTP header
@@ -1912,27 +1960,25 @@ get_packet:
 		mov [si+tftp_bytesleft],cx
 
 		cmp cx,[si+tftp_blksize]	; Is it a full block?
-		jb .last_block			; If so, it's not EOF
+		jb .last_block			; If not, it's EOF
 
-		; If we had the exact right number of bytes, always get
-		; one more packet to get the (zero-byte) EOF packet and
-		; close the socket.
-		mov eax,[si+tftp_filepos]
-		cmp [si+tftp_filesize],eax
-		je .packet_loop
-
+.ret:
+		popad
+		pop es
 		ret
 
 
 .last_block:	; Last block - ACK packet immediately
+		TRACER 'L'
 		mov ax,[fs:bx+2]
 		call ack_packet
 
 		; Make sure we know we are at end of file
 		mov eax,[si+tftp_filepos]
 		mov [si+tftp_filesize],eax
+		mov byte [si+tftp_goteof],1
 
-		ret
+		jmp .ret
 
 ;
 ; ack_packet:
@@ -2200,6 +2246,27 @@ pxe_get_cached_info:
 		jmp kaboom
 
 ;
+; ip_ok
+;
+; Tests an IP address in EAX for validity; return with ZF=1 for bad.
+; We used to refuse class E, but class E addresses are likely to become
+; assignable unicast addresses in the near future.
+;
+ip_ok:
+		push ax
+		cmp eax,-1		; Refuse the all-ones address
+		jz .out
+		and al,al		; Refuse network zero
+		jz .out
+		cmp al,127		; Refuse loopback
+		jz .out
+		and al,0F0h
+		cmp al,224		; Refuse class D
+.out:
+		pop ax
+		ret
+
+;
 ; parse_dhcp
 ;
 ; Parse a DHCP packet.  This includes dealing with "overloaded"
@@ -2224,17 +2291,14 @@ pxe_get_cached_info:
 parse_dhcp:
 		mov byte [OverLoad],0		; Assume no overload
 		mov eax, [trackbuf+bootp.yip]
-		and eax, eax
+		call ip_ok
 		jz .noyip
-		cmp al,224			; Class D or higher -> bad
-		jae .noyip
 		mov [MyIP], eax
 .noyip:
 		mov eax, [trackbuf+bootp.sip]
 		and eax, eax
+		call ip_ok
 		jz .nosip
-		cmp al,224			; Class D or higher -> bad
-		jae .nosip
 		mov [ServerIP], eax
 .nosip:
 		sub cx, bootp.options
@@ -2389,8 +2453,8 @@ dopt_%2:
 		mov eax,[si]
 		cmp dword [ServerIP],0
 		jne .skip		; Already have a next server IP
-		cmp al,224		; Class D or higher
-		jae .skip
+		call ip_ok
+		jz .skip
 		mov [ServerIP],eax
 .skip:		ret
 
@@ -2589,7 +2653,7 @@ err_nopxe	db "No !PXE or PXENV+ API found; we're dead...", CR, LF, 0
 err_pxefailed	db 'PXE API call failed, error ', 0
 err_udpinit	db 'Failed to initialize UDP stack', CR, LF, 0
 err_noconfig	db 'Unable to locate configuration file', CR, LF, 0
-err_oldtftp	db 'TFTP server does not support the tsize option', CR, LF, 0
+err_damage	db 'TFTP server sent an incomprehesible reply', CR, LF, 0
 found_pxenv	db 'Found PXENV+ structure', CR, LF, 0
 using_pxenv_msg db 'Old PXE API detected, using PXENV+ structure', CR, LF, 0
 apiver_str	db 'PXE API version is ',0

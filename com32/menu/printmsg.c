@@ -1,4 +1,15 @@
-#define _GNU_SOURCE		/* Needed for asprintf() on Linux */
+/* ----------------------------------------------------------------------- *
+ *
+ *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
+ *   Boston MA 02110-1301, USA; either version 2 of the License, or
+ *   (at your option) any later version; incorporated herein by reference.
+ *
+ * ----------------------------------------------------------------------- */
+
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
@@ -91,17 +102,18 @@ static int draw_message_file(const char *filename)
 int show_message_file(const char *filename, const char *background)
 {
   int rv = KEY_NONE;
+  const char *old_background = NULL;
 
-  if (background && (!menu_background || strcmp(background, menu_background)))
-    draw_background(background);
-  else
-    background = NULL;
+  if (background) {
+    old_background = current_background;
+    set_background(background);
+  }
 
   if ( !(rv = draw_message_file(filename)) )
     rv = mygetkey(0);		/* Wait for keypress */
 
-  if (background)
-    draw_background(menu_background);
+  if (old_background)
+    set_background(old_background);
 
   return rv;
 }

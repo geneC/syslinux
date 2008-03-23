@@ -293,7 +293,7 @@ AX=0006h [2.08] Open file
 	Input:	AX	0006h
 		ES:SI	null-terminated filename
 	Output:	SI	file handle
-		EAX	length of file in bytes
+		EAX	length of file in bytes, or -1
 		CX	file block size
 
 	Open a file for reading.  The exact syntax of the filenames
@@ -304,6 +304,9 @@ AX=0006h [2.08] Open file
 
 	Note: SYSLINUX considers a zero-length file to be nonexistent.
 
+	In 3.70 or later, EAX can contain -1 indicating that the file
+	length is unknown.
+
 
 AX=0007h [2.08] Read file
 
@@ -312,12 +315,17 @@ AX=0007h [2.08] Read file
 		ES:BX	buffer
 		CX	number of blocks to read
 	Output:	SI	file handle, or 0 if EOF was reached
+		ECX	number of bytes read [3.70]
 
 	Read blocks from a file.  Note that the file handle that is
 	returned in SI may not be the same value that was passed in.
 
 	If end of file was reached (SI=0), the file was automatically
 	closed.
+
+	In 3.70 or later, ECX returns the number of bytes read.  This
+	will always be a multiple of the block size unless EOF is
+	reached.
 
 	The address of the buffer (ES:BX) should be at least 512-byte
 	aligned.  SYSLINUX guarantees at least this alignment for the
@@ -452,7 +460,7 @@ AX=000Bh [2.00]	Get Serial Console Configuration
 	Input:	AX	000Bh
 	Output:	DX	serial port I/O base (e.g. 3F8h = COM1...)
 		CX	baud rate divisor (1 = 115200 bps, 2 = 57600 bps...)
-		BX	flow control configuration bits (see syslinux.doc)
+		BX	flow control configuration bits (see syslinux.txt)
 			-> bit 15 is set if the video console is disabled
 
 	If no serial port is configured, DX will be set to 0 and the
@@ -561,9 +569,10 @@ AX=0011h [3.05] Maximum number of shuffle descriptors
 	Output:	CX	maximum number of descriptors
 
 	This routine reports the maximum number of shuffle descriptors
-	permitted in a call to function 0012h.
+	permitted in a call to functions 0012h, 001Ah and 001Bh.
 
-	Typical values are 682 and 1365.
+	This is guaranteed to be at least 64.  For the current
+	version, this is 682 for all derivatives.
 
 
 AX=0012h [3.50] Cleanup, shuffle and boot
@@ -646,7 +655,7 @@ AX=0014h [3.10] Local boot [PXELINUX, ISOLINUX]
 	configuration file option.  The parameter in DX is the same
 	parameter as would be entered after "localboot" in the
 	configuration file; this parameter is derivative-specific --
-	see syslinux.doc for the definition.
+	see syslinux.txt for the definition.
 
 
 AX=0015h [3.10] Get feature flags

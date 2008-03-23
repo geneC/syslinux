@@ -71,6 +71,13 @@ bcopy_gdt:
 	desc TSS
 		dw 104-1, DummyTSS	; 30h 32-bit task state segment
 		dd 00008900h		; present, dpl 0, 104 bytes @DummyTSS
+
+		; 16-bit stack segment, which may have a different
+		; base from DS16 (e.g. if we're booted from PXELINUX)
+	desc SS16
+		dd 0000ffffh		; 38h Data segment, use16, read/write,
+		dd 00009300h		; present, dpl 0, cover 64K
+
 bcopy_gdt_size:	equ $-bcopy_gdt
 
 ;
@@ -86,14 +93,39 @@ bcopy_gdt_size:	equ $-bcopy_gdt
 ; Outputs:
 ;	ESI	- first byte after source (garbage if ESI == -1 on entry)
 ;	EDI	- first byte after target
-;	ECX	- zero
 ;
-bcopy:		push eax
-		push ebx
-		push esi
-		push edi
-		push ecx
-		pushf			; Saves, among others, the IF flag
+bcopy:		pushad
+		push word pm_bcopy
+		call simple_pm_call
+		popad
+		add edi,ecx
+		add esi,ecx
+		ret
+
+;
+; This routine is used to invoke a simple routine in 16-bit protected
+; mode (with 32-bit DS and ES, and working 16-bit stack.)
+; Note that all segment registers including CS, except possibly SS,
+; are zero-based in the protected-mode routine.
+;
+; No interrupt thunking services are provided; interrupts are disabled
+; for the duration of the routine.  Don't run for too long at a time.
+;
+; Inputs:
+;	On stack	- pm entrypoint
+;	EAX, EBP preserved until real-mode exit
+;	EBX, ECX, EDX, ESI and EDI passed to the called routine
+;
+; Outputs:
+;	EAX, EBP restored from real-mode entry
+;	All other registers as returned from called function
+;	PM entrypoint cleaned off stack
+;
+simple_pm_call:
+		push eax
+		push ebp
+		mov bp,sp
+		pushfd			; Saves, among others, the IF flag
 		push ds
 		push es
 		push fs
@@ -102,36 +134,77 @@ bcopy:		push eax
 		cli
 		call enable_a20
 
-		mov byte [bcopy_gdt.TSS+5],89h	; Mark TSS unbusy
+		mov byte [cs:bcopy_gdt.TSS+5],89h	; Mark TSS unbusy
 
-		mov bx,ss		; Save the stack segment value!
+		; Convert the stack segment to a base
+		xor eax,eax
+		mov ax,ss
+		shl eax,4
+		or eax,93000000h
+		mov [cs:bcopy_gdt.SS16+2],eax
+
+		push ss			; Save real-mode SS selector
 
 		o32 lgdt [cs:bcopy_gdt]
 		mov eax,cr0
 		or al,1
 		mov cr0,eax		; Enter protected mode
 		jmp PM_CS16:.in_pm
+.in_pm:
+		mov ax,PM_SS16		; Make stack usable
+		mov ss,ax
 
-.in_pm:		mov ax,PM_DS16_4G	; Data segment selector
+		mov al,PM_DS16_4G	; Data segment selector
 		mov es,ax
 		mov ds,ax
 
-		; Set ss, fs, and gs, in case we're on a virtual machine
-		; running on Intel VT hardware -- it can't deal with a
-		; partial transition, for no good reason.  However,
-		; ss is NOT zero in general, so we have to preserve
-		; the value.
+		; Set fs, gs, tr, and ldtr in case we're on a virtual
+		; machine running on Intel VT hardware -- it can't
+		; deal with a partial transition, for no good reason.
 
 		mov al,PM_DS16_RM	; Real-mode-like segment
 		mov fs,ax
 		mov gs,ax
-		mov ss,ax
-
 		mov al,PM_TSS		; Intel VT really doesn't want
 		ltr ax			; an invalid TR and LDTR, so give
 		xor ax,ax		; it something that it can use...
 		lldt ax			; (sigh)
 
+		call [bp+2*4+2]		; Call actual routine
+
+.exit:
+		mov ax,PM_DS16_RM	; "Real-mode-like" data segment
+		mov es,ax
+		mov ds,ax
+
+		pop bp			; Previous value for ss
+
+		mov eax,cr0
+		and al,~1
+		mov cr0,eax		; Disable protected mode
+		jmp 0:.in_rm
+
+.in_rm:		; Back in real mode
+		mov ss,bp
+		pop gs
+		pop fs
+		pop es
+		pop ds
+%if DISABLE_A20
+		call disable_a20
+%endif
+
+		popfd			; Re-enables interrupts
+		pop ebp
+		pop eax
+		ret 2			; Drops the pm entry
+
+;
+; pm_bcopy:
+;
+;	This is the protected-mode core of the "bcopy" routine.
+;
+pm_bcopy:
 		cmp esi,-1
 		je .bzero
 
@@ -147,7 +220,7 @@ bcopy:		push eax
 
 		mov cl,al		; Copy any fractional dword
 		a32 rep movsb
-		jmp .exit
+		ret
 
 .reverse:
 		std			; Reverse copy
@@ -166,7 +239,7 @@ bcopy:		push eax
 		a32 rep movsd
 
 		cld
-		jmp .exit
+		ret
 
 .bzero:
 		xor eax,eax
@@ -177,34 +250,6 @@ bcopy:		push eax
 
 		mov cx,si		; Write fractional dword
 		a32 rep stosb
-		; jmp .exit
-
-.exit:
-		mov ax,PM_DS16_RM	; "Real-mode-like" data segment
-		mov es,ax
-		mov ds,ax
-
-		mov eax,cr0
-		and al,~1
-		mov cr0,eax		; Disable protected mode
-		jmp 0:.in_rm
-
-.in_rm:		; Back in real mode
-		mov ss,bx
-		pop gs
-		pop fs
-		pop es
-		pop ds
-		call disable_a20
-
-		popf			; Re-enables interrupts
-		pop eax
-		pop edi
-		pop esi
-		add edi,eax
-		add esi,eax
-		pop ebx
-		pop eax
 		ret
 
 ;
@@ -369,6 +414,8 @@ a20_test:
 		pop es
 		ret
 
+%if DISABLE_A20
+
 disable_a20:
 		pushad
 ;
@@ -420,6 +467,8 @@ a20d_dunno:
 a20d_none:
 		popad
 		ret
+
+%endif
 
 ;
 ; Routine to empty the 8042 KBC controller.  If dl != 0
@@ -551,8 +600,9 @@ trampoline_to_pm:
 
 		align 2
 A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
+%if DISABLE_A20
 A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
-a20_adjust_cnt	equ ($-A20List)/2
+%endif
 
 A20Type		dw A20_NONE		; A20 type
 

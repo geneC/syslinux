@@ -16,7 +16,7 @@
 
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if gcc $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
+gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
 	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
 
 M32     := $(call gcc_ok,-m32,) $(call gcc_ok,-fno-stack-protector,)
@@ -27,7 +27,11 @@ AR	   = ar
 NASM	   = nasm
 NASMOPT	   = -O9999
 RANLIB	   = ranlib
-CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os -fomit-frame-pointer -I../libutil/include -I../include  -D__COM32__
+CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os \
+	     -fomit-frame-pointer -D__COM32__ \
+	     -nostdinc -iwithprefix include \
+	     -I../libutil/include -I../include \
+	     -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d
 LNXCFLAGS  = -W -Wall -O -g -I../libutil/include
 LNXSFLAGS  = -g
 LNXLDFLAGS = -g
@@ -75,7 +79,7 @@ all:	hello.c32 cat.c32 resolv.c32 vesainfo.c32 serialinfo.c32 \
 	$(OBJCOPY) -O binary $< $@
 
 tidy:
-	rm -f *.o *.lo *.a *.lst *.elf
+	rm -f *.o *.lo *.a *.lst *.elf .*.d
 
 clean: tidy
 	rm -f *.lss *.c32 *.lnx *.com
@@ -84,3 +88,5 @@ spotless: clean
 	rm -f *~ \#*
 
 install:	# Don't install samples
+
+-include .*.d

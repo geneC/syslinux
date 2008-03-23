@@ -16,7 +16,7 @@
 
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if gcc $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
+gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
 	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
 
 M32       := $(call gcc_ok,-m32,) $(call gcc_ok,-ffreestanding,) $(call gcc_ok,-fno-stack-protector,)
@@ -33,6 +33,8 @@ LDFLAGS    = -s
 OBJCOPY    = objcopy
 PPMTOLSS16 =	../ppmtolss16
 LIB	   = liboldcom32.a
+GZIP	   = gzip
+PNGTOPNM   = pngtopnm
 
 LIBOBJS	   = conio.o atou.o skipatou.o printf.o c32exit.o
 
@@ -64,10 +66,13 @@ $(LIB): $(LIBOBJS)
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
-syslogo.lss:	syslogo.png $(PPMTOLSS16)
-	pngtopnm syslogo.png | \
+%.lss:	%.ppm.gz $(PPMTOLSS16)
+	$(GZIP) -cd $< | \
 		$(PPMTOLSS16) \#000000=0 \#d0d0d0=7 \#f6f6f6=15	\
-		> syslogo.lss
+		> $@
+
+%.ppm.gz: %.png
+	$(PNGTOPNM) $< | gzip -9 > $@
 
 tidy:
 	rm -f *.o *.a *.lst *.elf

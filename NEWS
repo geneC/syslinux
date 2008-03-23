@@ -8,6 +8,44 @@ Changes in 3.70:
 	  URL-style syntax for filenames, and any protocol that gPXE
 	  supports (except, currently, iSCSI and AoE.)  This feature
 	  is currently highly experimental.
+	* Substantial infrastructure changes to support files whose
+	  length aren't known at open time (typically network
+	  connections.)  Please note that the semantics of some of the
+	  comboot APIs have changed slightly; please see doc/comboot.doc.
+	* PXELINUX: We no longer require a TFTP server which supports
+	  the tsize option for all transfers.
+
+Changes in 3.62:
+	* Clean up garbage after "aborted." message.
+	* Clean up memdump.com filenames.
+	* Support SHA256 and SHA512 encrypted passwords.
+	* The shuffle library now can generate chained descriptors,
+	  thus allowing pretty much arbitrarily complex memory maps.
+	* Handle command lines up to 2047 characters, the current
+	  Linux kernel limit.
+	* vesamenu: support systems without linear framebuffer support
+	  (sigh, what is this, 1993?) and 15-bit RGB modes.
+	* Move the label storage (for the command-line interface) to
+	  high memory, removing the size limit and freeing up 64K of
+	  low memory.
+	* Get rid of 4096-entry limit in the simple menu system.
+	* New hierarchial submenu support: see MENU BEGIN, MENU END,
+	  MENU GOTO in doc/menu.txt.
+	* MENU QUIT allows creating a menu entry for returning to the
+	  command line.
+	* ISOLINUX: Work around bug in certain Adaptec BIOSes,
+	  patch by Bruce Robson.
+	* pngtopnm dependency removed from samples/ directory.
+	* Text documentation files (in doc/) renamed *.doc -> *.txt.
+
+Changes in 3.61:
+	* EXTLINUX: fix crash when accessing an empty file.
+	* elf.c32: If a PHDR segment is present, load it.
+	* Fix SHA-1 and MD5 passwords.
+	* ISOLINUX: fix booting when mastered without
+	  mkisofs -boot-info-table (broken since 3.50, sigh...)
+	* Handle BIOSes which emit multiple contiguous valid
+	  memory regions in the e820 map.
 
 Changes in 3.60:
 	* Support for "auxilliary data vector", a small amount of

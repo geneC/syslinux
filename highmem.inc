@@ -21,20 +21,26 @@
 
 ;
 ; This is set up as a subroutine; it will set up the global variable
-; HighMemSize.  All registers are preserved.  Assumes DS == CS.
+; HighMemSize.  All registers are preserved.
 ;
 highmemsize:
 		push es
 		pushad
 
+		push cs
+		pop es
+
 ;
 ; First, try INT 15:E820 (get BIOS memory map)
 ;
+; Note: we may have to scan this multiple times, because some (daft) BIOSes
+; report main memory as multiple contiguous ranges...
+;
 get_e820:
-		xor ebx,ebx			; Start with first record
 		mov dword [E820Max],-(1 << 20)	; Max amount of high memory
-		mov dword [E820Mem],ebx		; Detected amount of high memory
-		mov es,bx			; Need ES = DS = 0 for now
+		mov dword [E820Mem],(1 << 20)	; End of detected high memory
+.start_over:
+		xor ebx,ebx			; Start with first record
 		jmp short .do_e820		; Skip "at end" check first time!
 .int_loop:	and ebx,ebx			; If we're back at beginning...
 		jz .e820_done			; ... we're done
@@ -57,45 +63,44 @@ get_e820:
 ;
 		cmp dword [E820Buf+4], byte 0
 		ja .int_loop			; Start >= 4 GB?
-		mov edx, (1 << 20)
-		sub edx, [E820Buf]
-		jnb .ram_range			; Start >= 1 MB?
-		; If we get here, it starts > 1 MB but < 4 GB; if this is a
-		; *non*-memory range, remember this as unusable; some BIOSes
-		; get the length of primary RAM wrong!
-		cmp dword [E820Buf+16], byte 1
-		je .int_loop			; If it's memory, don't worry about it
-		neg edx				; This means what for memory limit?
-		cmp edx,[E820Max]		; Better or worse
-		jnb .int_loop
-		mov [E820Max],edx
+		mov eax, [E820Buf]
+		cmp dword [E820Buf+16],1
+		je .is_ram			; Is it memory?
+		;
+		; Non-memory range.  Remember this as a limit; some BIOSes get the length
+		; of primary RAM incorrect!
+		;
+		cmp eax, (1 << 20)
+		jb .int_loop			; Starts in lowmem region
+		cmp eax,[E820Max]
+		jae .int_loop			; Already above limit
+		mov [E820Max],eax		; Set limit
 		jmp .int_loop
 
-.ram_range:
-		stc
-		sbb eax,eax			; eax <- 0xFFFFFFFF
-		cmp dword [E820Buf+12], byte 0
-		ja .huge			; Size >= 4 GB
-		mov eax, [E820Buf+8]
-.huge:		sub eax, edx			; Adjust size to start at 1 MB
-		jbe .int_loop			; Completely below 1 MB?
-
-		; Now EAX contains the size of memory 1 MB...up
-		cmp dword [E820Buf+16], byte 1
-		jne .int_loop			; High memory isn't usable memory!!!!
-
-		; We're good!
+.is_ram:
+		cmp eax,[E820Mem]
+		ja .int_loop			; Not contiguous with our starting point
+		add eax,[E820Buf+8]
+		jc .overflow
+		cmp dword [E820Buf+12],0
+		je .nooverflow
+.overflow:
+		or eax,-1
+.nooverflow:
+		cmp eax,[E820Mem]
+		jbe .int_loop			; All is below our baseline
 		mov [E820Mem],eax
-		jmp .int_loop			; Still need to add low 1 MB
+		jmp .start_over			; Start over in case we find an adjacent range
 
 .e820_done:
 		mov eax,[E820Mem]
-		and eax,eax
-		jz no_e820			; Nothing found by E820?
-		cmp eax,[E820Max]		; Make sure we're not limited
-		jna got_highmem_add1mb
+		cmp eax,[E820Max]
+		jna .not_limited
 		mov eax,[E820Max]
-		jmp got_highmem_add1mb
+.not_limited:
+		cmp eax,(1 << 20)
+		ja got_highmem			; Did we actually find memory?
+		; otherwise fall through
 
 ;
 ; INT 15:E820 failed.  Try INT 15:E801.
@@ -125,7 +130,6 @@ no_e801:
 e801_hole:
 		and eax,0ffffh
 		shl eax,10			; Convert from kilobytes
-got_highmem_add1mb:
 		add eax,(1 << 20)		; First megabyte
 got_highmem:
 %if HIGHMEM_SLOP != 0

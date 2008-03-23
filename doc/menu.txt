@@ -44,8 +44,8 @@ MENU TITLE title
 MENU HIDDEN
 
 	Do not display the actual menu unless the user presses a key.
-	All that is displayed is a timeout message.     
-     
+	All that is displayed is a timeout message.
+
 MENU SEPARATOR
 
 	Insert an empty line in the menu.
@@ -91,12 +91,12 @@ MENU DISABLE
 	Makes the entry unselectable.  This allows you to make a
 	section in your menu with different options below it.
 	for example:
-	
+
 	# Entries for network boots
-	LABEL
+	LABEL -
 		MENU LABEL Network:
 		MENU DISABLE
-	
+
 	# Soft Cap Linux
 	LABEL softcap
 		MENU LABEL Soft Cap ^Linux 9.6.36
@@ -115,7 +115,7 @@ MENU DISABLE
 	MENU SEPARATOR
 
 	# Entries for local boots
-	LABEL
+	LABEL -
 		MENU LABEL Local:
 		MENU DISABLE
 
@@ -152,6 +152,7 @@ Help text ...
 ENDTEXT
 
 	(Only valid after a LABEL statement.)
+
 	Specifies a help text that should be displayed when a particular
 	selection is highlighted.
 
@@ -193,8 +194,56 @@ MENU BACKGROUND background
 	format.
 
 
-INCLUDE filename
-MENU INCLUDE filename
+MENU BEGIN [tagname]
+MENU END
+
+	Begin/end a submenu.  The entries between MENU BEGIN and MENU
+	END form a submenu, which is marked with a > mark on the right
+	hand of the screen.  Submenus inherit the properties of their
+	parent menus, but can override them, and can thus have their
+	own backgrounds, master passwords, titles, timeouts, messages
+	and so forth.
+
+
+MENU GOTO tagname
+
+	(Only valid after a LABEL statement.)
+
+	This label will transfer to the named submenu instead of
+	booting anything.  To transfer to the top-level menu, specify
+	"menu goto .top".
+
+
+MENU EXIT [tagname]
+
+	(Only valid after a label statement inside MENU BEGIN ...
+	MENU END)
+
+	Exit to the next higher menu, or, if tagname is specified, to
+	the named menu.
+
+
+MENU QUIT
+
+	(Only valid after a LABEL statement.)
+
+	This label quits the menu system.
+
+	WARNING: if MENU MASTER PASSWD or ALLOWOPTIONS 0 is set, this
+	will still allow exiting to the CLI; however, a separate MENU
+	PASSWD can of course be set for this label.
+
+
+MENU START
+
+	(Only valid inside MENU BEGIN ... MENU END)
+
+	Indicates that the menu system should start at the menu being
+	defined instead of at the top-level menu.
+
+
+INCLUDE filename [tagname]
+MENU INCLUDE filename [tagname]
 
 	Include the contents of the configuration file filename at
 	this point.
@@ -202,6 +251,10 @@ MENU INCLUDE filename
 	In the case of MENU INCLUDE, the included data is only seen by
 	the menu system; the core syslinux code does not parse this
 	command, so any labels defined in it are unavailable.
+
+	If a tagname is included, the whole file is considered to have
+	been bracketed with a MENU BEGIN tagname ... MENU END pair,
+	and will therefore show up as a submenu.
 
 
 MENU AUTOBOOT message

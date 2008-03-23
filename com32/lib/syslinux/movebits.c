@@ -80,6 +80,21 @@ new_movelist(addr_t dst, addr_t src, addr_t len)
   return ml;
 }
 
+static struct syslinux_movelist *
+dup_movelist(struct syslinux_movelist *src)
+{
+  struct syslinux_movelist *dst = NULL, **dstp = &dst, *ml;
+
+  while (src) {
+    ml = new_movelist(src->dst, src->src, src->len);
+    *dstp = ml;
+    dstp = &ml->next;
+    src = src->next;
+  }
+
+  return dst;
+}
+
 /*
  * Take a chunk, entirely confined in **parentptr, and split it off so that
  * it has its own structure.
@@ -118,7 +133,6 @@ split_movelist(addr_t start, addr_t len, struct syslinux_movelist **parentptr)
   return parentptr;
 }
 
-#if 0
 static void
 delete_movelist(struct syslinux_movelist **parentptr)
 {
@@ -126,7 +140,13 @@ delete_movelist(struct syslinux_movelist **parentptr)
   *parentptr = o->next;
   free(o);
 }
-#endif
+
+static void
+free_movelist(struct syslinux_movelist **parentptr)
+{
+  while (*parentptr)
+    delete_movelist(parentptr);
+}
 
 /*
  * Scan the freelist looking for a particular chunk of memory
@@ -235,10 +255,11 @@ tidy_freelist(struct syslinux_movelist **frags,
 
 int
 syslinux_compute_movelist(struct syslinux_movelist **moves,
-			  struct syslinux_movelist *frags,
+			  struct syslinux_movelist *ifrags,
 			  struct syslinux_memmap *memmap)
 {
   struct syslinux_memmap *mmap = NULL, *mm;
+  struct syslinux_movelist *frags = NULL;
   struct syslinux_movelist *mv, *space;
   struct syslinux_movelist *f, **fp, **ep;
   struct syslinux_movelist *o, **op;
@@ -259,6 +280,8 @@ syslinux_compute_movelist(struct syslinux_movelist **moves,
   mmap = syslinux_dup_memmap(memmap);
   if (!mmap)
     goto bail;
+
+  frags = dup_movelist(ifrags);
 
 #if DEBUG
   dprintf("Initial memory map:\n");
@@ -361,7 +384,7 @@ syslinux_compute_movelist(struct syslinux_movelist **moves,
       } else {
 	ep = free_area_max(&space);
 	if ( !ep )
-	  return -1;		/* Stuck! */
+	  goto bail;		/* Stuck! */
 	copydst = (*ep)->src;
 	copylen = (*ep)->len;
       }
@@ -403,7 +426,7 @@ syslinux_compute_movelist(struct syslinux_movelist **moves,
       }
       goto move_chunk;
     }
-    return -1;			/* Stuck! */
+    goto bail;			/* Stuck! */
 
   move_chunk:
     /* We're allowed to move the chunk into place now. */
@@ -441,6 +464,8 @@ syslinux_compute_movelist(struct syslinux_movelist **moves,
  bail:
   if (mmap)
     syslinux_free_memmap(mmap);
+  if (frags)
+    free_movelist(&frags);
   return rv;
 }
 

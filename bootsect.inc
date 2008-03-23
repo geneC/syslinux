@@ -34,9 +34,6 @@ is_bss_sector:
 		mov byte [CopySuper],superblock_len
 %endif
 load_bootsec:
-		xchg dx,ax
-		shl eax,16
-		xchg dx,ax		; Now EAX = file length
 		mov edi, 100000h
 		mov [trackbuf+4],edi	; Copy from this address
 		push edi		; Save load address

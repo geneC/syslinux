@@ -31,7 +31,7 @@
 
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if gcc $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
+gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
 	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
 
 M32     := $(call gcc_ok,-m32,) $(call gcc_ok,-fno-stack-protector,)
@@ -42,10 +42,14 @@ AR	   = ar
 NASM	   = nasm
 NASMOPT	   = -O9999
 RANLIB	   = ranlib
-CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -D__COM32__ -W -Wall -march=i386 -Os -fomit-frame-pointer -I./include -I../include
+CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os \
+	     -fomit-frame-pointer -D__COM32__ \
+	     -nostdinc -iwithprefix include \
+	     -I./include -I../include \
+	     -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d
 SFLAGS     = $(M32) -D__COM32__ -march=i386
 LDFLAGS    = -T ../lib/com32.ld
-LNXCFLAGS  = -I./include -W -Wall -O -g
+LNXCFLAGS  = -I./include -W -Wall -O -g -D_GNU_SOURCE
 LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 OBJCOPY    = objcopy
@@ -101,7 +105,7 @@ libutil_lnx.a: $(LNXLIBOBJS)
 	$(OBJCOPY) -O binary $< $@
 
 tidy:
-	rm -f *.o *.lo *.lst *.elf
+	rm -f *.o *.lo *.lst *.elf .*.d
 
 clean: tidy
 	rm -f *.lss *.a *.c32 *.lnx *.com
@@ -112,3 +116,5 @@ spotless: clean
 install: all
 	mkdir -m 755 -p $(INSTALLROOT)$(COM32DIR)
 	install -m 644 libutil_com.a libutil_lnx.a $(INSTALLROOT)$(COM32DIR)
+
+-include .*.d

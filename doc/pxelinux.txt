@@ -2,7 +2,7 @@
 
     A bootloader for Linux using the PXE network booting protocol
 
-		Copyright (C) 1994-2007 H. Peter Anvin
+       Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -23,7 +23,7 @@ PROM for many network cards.
     ++++ HOW TO CONFIGURE PXELINUX ++++
 
 PXELINUX operates in many ways like SYSLINUX.  If you are not familiar
-with SYSLINUX, read syslinux.doc first, since this documentation only
+with SYSLINUX, read syslinux.txt first, since this documentation only
 explains the differences.
 
 On the TFTP server, create the directory "/tftpboot", and copy the
@@ -34,7 +34,7 @@ following files to it:
 	any kernel or initrd images you want to boot
 
 Finally, create the directory "/tftpboot/pxelinux.cfg".  The
-configuration file (equivalent of syslinux.cfg -- see syslinux.doc for
+configuration file (equivalent of syslinux.cfg -- see syslinux.txt for
 the options here) will live in this directory.  Because more than one
 system may be booted from the same server, the configuration file name
 depends on the IP address of the booting machine.  PXELINUX will
@@ -413,4 +413,4 @@ The following problems are known with PXELINUX, so far:
 + Boot sectors/disk images are not supported yet.
 
 If you have additional problems, please contact the SYSLINUX mailing
-list (see syslinux.doc for the address.)
+list (see syslinux.txt for the address.)

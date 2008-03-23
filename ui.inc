@@ -186,11 +186,9 @@ show_help:	; AX = func key # (0 = F1, 9 = F10, 11 = F12)
 		xchg di,ax
 		cmp byte [di+NULLOFFSET],NULLFILE
 		je short fk_nofile		; Undefined F-key
-		call searchdir
+		call open
 		jz short fk_nofile		; File not found
-		push si
 		call crlf
-		pop si
 		call get_msg_file
 		jmp short fk_wrcmd
 
@@ -299,19 +297,14 @@ clin_opt_ok:
 ; Now check if it is a "virtual kernel"
 ;
 vk_check:
-		xor si,si			; Beginning of vk_seg
+		mov esi,[HighMemSize]		; Start from top of memory
 .scan:
-		cmp si,[VKernelBytes]
-		jae .not_vk
-
-		push ds
-		push word vk_seg
-		pop ds
+		cmp esi,[VKernelEnd]
+		jbe .not_vk
 
 		mov di,VKernelBuf
 		call rllunpack
-		pop ds
-		; SI updated on return
+		; ESI updated on return
 
 		sub di,cx			; Return to beginning of buf
 		push si
@@ -541,16 +534,21 @@ kernel_good_saved:
 		; COMBOOT function INT 22h, AX=0016h.
 		mov si,[Kernel_SI]
 		mov eax,[Kernel_EAX]
-		mov dx,[Kernel_EAX+2]
 
 kernel_good:
-		pusha
+		pushad
+
 		mov si,KernelName
 		mov di,KernelCName
 		call unmangle_name
 		sub di,KernelCName
 		mov [KernelCNameLen],di
-		popa
+
+		; Default memory limit, can be overridden by image loaders
+		mov eax,[HighMemRsvd]
+		mov [MyHighMemSize],eax
+
+		popad
 
 		push di
 		push ax
@@ -565,7 +563,7 @@ kernel_good:
 		pop di
 
 ;
-; At this point, DX:AX contains the size of the kernel, SI contains
+; At this point, EAX contains the size of the kernel, SI contains
 ; the file handle/cluster pointer, and ECX contains the extension (if any.)
 ;
 		movzx di,byte [KernelType]

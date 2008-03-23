@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2006-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2008 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,51 +26,33 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * fmtpixel.h
+ * syslinux/ipappend.c
  *
- * Inline function to format a single pixel
+ * Get ipappend strings
  */
 
-#ifndef LIB_SYS_VESA_FMTPIXEL_H
-#define LIB_SYS_VESA_FMTPIXEL_H
+#include <syslinux/config.h>
+#include <klibc/compiler.h>
+#include <com32.h>
 
-#include <inttypes.h>
-#include "video.h"
+struct syslinux_ipappend_strings __syslinux_ipappend_strings;
+static const char *syslinux_ipappend_string_list[32];
 
-/* Format a pixel and return the advanced pointer.
-   THIS FUNCTION IS ALLOWED TO WRITE BEYOND THE END OF THE PIXEL. */
-
-static inline __attribute__((always_inline))
-  void *format_pixel(void *ptr, uint32_t bgra, enum vesa_pixel_format fmt)
+void __constructor __syslinux_get_ipappend_strings(void)
 {
-  switch (fmt) {
-  case PXF_BGRA32:
-    *(uint32_t *)ptr = bgra;
-    ptr = (uint32_t *)ptr + 1;
-    break;
+  static com32sys_t reg;
+  int i;
 
-  case PXF_BGR24:
-    *(uint32_t *)ptr = bgra;
-    ptr = (uint8_t *)ptr + 3;
-    break;
+  reg.eax.w[0] = 0x000f;
+  __intcall(0x22, &reg, &reg);
 
-  case PXF_LE_RGB16_565:
-    {
-      uint16_t pxv =
-	((bgra >> 3) & 0x1f) +
-	((bgra >> (2+8-5)) & (0x3f << 5)) +
-	((bgra >> (3+16-11)) & (0x1f << 11));
-
-      *(uint16_t *)ptr = pxv;
-      ptr = (uint16_t *)ptr + 1;
+  if (!(reg.eflags.l & EFLAGS_CF)) {
+    __syslinux_ipappend_strings.count = reg.ecx.w[0];
+    __syslinux_ipappend_strings.ptr =
+      syslinux_ipappend_string_list;
+    for (i = 0; i < reg.ecx.w[0]; i++) {
+      syslinux_ipappend_string_list[i] =
+	MK_PTR(reg.es, *(uint16_t *)MK_PTR(reg.es, reg.ebx.w[0]+i*2));
     }
-    break;
-
-  case PXF_NONE:		/* Shuts up gcc */
-    break;
   }
-
-  return ptr;
 }
-
-#endif /* LIB_SYS_VESA_FMTPIXEL_H */

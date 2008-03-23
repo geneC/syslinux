@@ -89,18 +89,19 @@ void get_module_name_from_pci_ids(struct pci_device_list *pci_device_list)
   /* adding a pci_dev_info member if needed*/
   for (pci_dev=0; pci_dev < pci_device_list->count; pci_dev++) {
     struct pci_device *pci_device = &(pci_device_list->pci_device[pci_dev]);
-    
+
     /* initialize the pci_dev_info structure if it doesn't exist yet. */
     if (! pci_device->pci_dev_info) {
-      pci_device->pci_dev_info = calloc(1,sizeof (struct pci_device));
+      pci_device->pci_dev_info = calloc(1,sizeof *pci_device->pci_dev_info);
+
       if (!pci_device->pci_dev_info) {
 	printf("Can't allocate memory\n");
 	return;
       }
     }
-    pci_device->pci_dev_info->linux_kernel_module=strdup("unknown");
+    strlcpy(pci_device->pci_dev_info->linux_kernel_module,"unknown",7);
   }
-  
+
   /* Opening the modules.pcimap (ofa linux kernel) from the boot device*/
   f=fopen("modules.pcimap","r");
   if (!f)
@@ -116,7 +117,7 @@ void get_module_name_from_pci_ids(struct pci_device_list *pci_device_list)
     /*skipping unecessary lines */
     if ((line[0] == '#') || (line[0] == ' ') || (line[0] == 10))
         continue;
-    
+
     char *result = NULL;
     int field=0;
 
@@ -143,7 +144,7 @@ void get_module_name_from_pci_ids(struct pci_device_list *pci_device_list)
     for (pci_dev=0; pci_dev < pci_device_list->count; pci_dev++) {
       struct pci_device *pci_device =
 	&pci_device_list->pci_device[pci_dev];
-      
+
       if (hex_to_int(vendor_id) == pci_device->vendor &&
 	  hex_to_int(product_id) == pci_device->product &&
 	  (hex_to_int(sub_product_id) & pci_device->sub_product)
@@ -162,9 +163,9 @@ void get_module_name_from_pci_ids(struct pci_device_list *pci_device_list)
 void get_name_from_pci_ids(struct pci_device_list *pci_device_list)
 {
   char line[MAX_LINE];
-  char *vendor=NULL;
+  char vendor[255];
   char vendor_id[5];
-  char *product=NULL;
+  char product[255];
   char product_id[5];
   char sub_product_id[5];
   char sub_vendor_id[5];
@@ -178,23 +179,22 @@ void get_name_from_pci_ids(struct pci_device_list *pci_device_list)
 
     /* initialize the pci_dev_info structure if it doesn't exist yet. */
     if (! pci_device->pci_dev_info) {
-      pci_device->pci_dev_info = calloc(1,sizeof (struct pci_device));
+      pci_device->pci_dev_info = calloc(1,sizeof *pci_device->pci_dev_info);
 
       if (!pci_device->pci_dev_info) {
 	printf("Can't allocate memory\n");
 	return;
       }
     }
-    
-    pci_device->pci_dev_info->vendor_name=strdup("unknown");
-    pci_device->pci_dev_info->product_name=strdup("unknown");
+
+    strlcpy(pci_device->pci_dev_info->vendor_name,"unknown",7);
+    strlcpy(pci_device->pci_dev_info->product_name,"unknown",7);
   }
 
   /* Opening the pci.ids from the boot device*/
   f=fopen("pci.ids","r");
   if (!f)
         return;
-
   strcpy(vendor_id,"0000");
   strcpy(product_id,"0000");
   strcpy(sub_product_id,"0000");
@@ -203,7 +203,6 @@ void get_name_from_pci_ids(struct pci_device_list *pci_device_list)
 
   /* for each line we found in the pci.ids*/
   while ( fgets(line, sizeof line, f) ) {
-
     /* Skipping uncessary lines */
     if ((line[0] == '#') || (line[0] == ' ') || (line[0] == 'C') ||
 	(line[0] == 10))
@@ -212,13 +211,13 @@ void get_name_from_pci_ids(struct pci_device_list *pci_device_list)
     if (line[0] != '\t') {
 
 	/* the 4th first chars are the vendor_id */
-        strncpy(vendor_id,line,4);
+        strlcpy(vendor_id,line,4);
 
 	/* the vendor name is the next field*/
         vendor_id[4]=0;
-        vendor=strdup(skipspace(strstr(line," ")));
-        remove_eol(vendor);
+        strlcpy(vendor,skipspace(strstr(line," ")),255);
 
+        remove_eol(vendor);
 	/* init product_id, sub_product and sub_vendor */
         strcpy(product_id,"0000");
         strcpy(sub_product_id,"0000");
@@ -226,24 +225,23 @@ void get_name_from_pci_ids(struct pci_device_list *pci_device_list)
 
 	/* ffff is an invalid vendor id */
 	if (strstr(vendor_id,"ffff")) break;
-
 	/* assign the vendor_name to any matching pci device*/
 	for (pci_dev=0; pci_dev < pci_device_list->count; pci_dev++) {
 	  struct pci_device *pci_device =
 	    &pci_device_list->pci_device[pci_dev];
 
 	  if (hex_to_int(vendor_id) == pci_device->vendor)
-	    pci_device->pci_dev_info->vendor_name=strdup(vendor);
+	    strlcpy(pci_device->pci_dev_info->vendor_name,vendor,255);
 	}
     /* if we have a tab + a char, it means this is a product id */
     } else if ((line[0] == '\t') && (line[1] != '\t')) {
 
 	/* the product name the second field */
-        product=strdup(skipspace(strstr(line," ")));
+        strlcpy(product,skipspace(strstr(line," ")),255);
         remove_eol(product);
 
 	/* the product id is first field */
-	strncpy(product_id,&line[1],4);
+	strlcpy(product_id,&line[1],4);
         product_id[4]=0;
 
 	/* init sub_product and sub_vendor */
@@ -256,35 +254,35 @@ void get_name_from_pci_ids(struct pci_device_list *pci_device_list)
 	    &pci_device_list->pci_device[pci_dev];
 	  if (hex_to_int(vendor_id) == pci_device->vendor &&
 	      hex_to_int(product_id) == pci_device->product)
-	    pci_device->pci_dev_info->product_name=strdup(product);
+	    strlcpy(pci_device->pci_dev_info->product_name,product,255);
 	}
 
     /* if we have two tabs, it means this is a sub product */
     } else if ((line[0] == '\t') && (line[1] == '\t')) {
-      
+
       /* the product name is last field */
-      product=skipspace(strstr(line," "));
-      product=strdup(skipspace(strstr(product," ")));
+      strlcpy(product,skipspace(strstr(line," ")),255);
+      strlcpy(product,skipspace(strstr(product," ")),255);
       remove_eol(product);
-      
+
       /* the sub_vendor id is first field */
-      strncpy(sub_vendor_id,&line[2],4);
+      strlcpy(sub_vendor_id,&line[2],4);
       sub_vendor_id[4]=0;
-      
+
       /* the sub_vendor id is second field */
-      strncpy(sub_product_id,&line[7],4);
+      strlcpy(sub_product_id,&line[7],4);
       sub_product_id[4]=0;
-      
+
       /* assign the product_name to any matching pci device*/
       for (pci_dev=0; pci_dev < pci_device_list->count; pci_dev++) {
 	struct pci_device *pci_device =
 	  &pci_device_list->pci_device[pci_dev];
-	
+
 	if (hex_to_int(vendor_id) == pci_device->vendor &&
 	    hex_to_int(product_id) == pci_device->product &&
 	    hex_to_int(sub_product_id) == pci_device->sub_product &&
 	    hex_to_int(sub_vendor_id) == pci_device->sub_vendor)
-	  pci_device->pci_dev_info->product_name=strdup(product);
+	  strlcpy(pci_device->pci_dev_info->product_name,product,255);
       }
     }
   }

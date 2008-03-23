@@ -4,41 +4,50 @@
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
- *   Boston MA 02111-1307, USA; either version 2 of the License, or
+ *   the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
+ *   Boston MA 02110-1301, USA; either version 2 of the License, or
  *   (at your option) any later version; incorporated herein by reference.
  *
  * ----------------------------------------------------------------------- */
 
 /*
- * menu.c
+ * vesamenu.c
  *
  * Simple menu system which displays a list and allows the user to select
  * a command line and/or edit it.
+ *
+ * VESA graphics version.
  */
 
-#include <consoles.h>
+#include <stdio.h>
+#include <console.h>
+#include <syslinux/vesacon.h>
+
 #include "menu.h"
 
 void console_prepare(void)
 {
-  /* Nothing special to do */
+  fputs("\033[0m\033[20h\033[25l", stdout);
 }
 
 void console_cleanup(void)
 {
-  /* Nothing special to do */
+  /* For the serial console, be nice and clean up */
+  fputs("\033[0m\033[20l", stdout);
 }
 
-int draw_background(const char *arg)
+int draw_background(const char *what)
 {
-  /* Nothing to do... */
-  (void)arg;
+  if (!what)
+    return vesacon_default_background();
+  else if (what[0] == '#')
+    return vesacon_set_background(parse_argb((char **)&what));
+  else
+    return vesacon_load_background(what);
 }
 
 int main(int argc, char *argv[])
 {
-  console_ansi_raw();
-
+  openconsole(&dev_rawcon_r, &dev_vesaserial_w);
   return menu_main(argc, argv);
 }

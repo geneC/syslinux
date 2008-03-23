@@ -34,14 +34,13 @@
 
 #include <inttypes.h>
 #include <com32.h>
-#include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
+#include <string.h>
 #include <sys/fpu.h>
 #include "vesa.h"
 #include "video.h"
 #include "fill.h"
+#include "debug.h"
 
 struct vesa_info __vesa_info;
 
@@ -54,28 +53,6 @@ uint8_t __vesacon_graphics_font[FONT_MAX_CHARS][FONT_MAX_HEIGHT];
 
 uint32_t __vesacon_background[VIDEO_Y_SIZE][VIDEO_X_SIZE];
 
-ssize_t __serial_write(void *fp, const void *buf, size_t count);
-
-static inline void debug(const char *str, ...)
-{
-#if 0
-  va_list va;
-  char buf[65536];
-  size_t len;
-
-  va_start(va, str);
-  len = vsnprintf(buf, sizeof buf, str, va);
-  va_end(va);
-
-  if (len >= sizeof buf)
-    len = sizeof buf - 1;
-
-  __serial_write(NULL, buf, len);
-#else
-  (void)str;
-#endif
-}
-
 static void unpack_font(uint8_t *dst, uint8_t *src, int height)
 {
   int i;
@@ -87,6 +64,28 @@ static void unpack_font(uint8_t *dst, uint8_t *src, int height)
     dst += FONT_MAX_HEIGHT;
     src += height;
   }
+}
+
+static int __constfunc is_power_of_2(unsigned int x)
+{
+  return x && !(x & (x-1));
+}
+
+static int vesacon_paged_mode_ok(const struct vesa_mode_info *mi)
+{
+  int i;
+
+  if (!is_power_of_2(mi->win_size) ||
+      !is_power_of_2(mi->win_grain) ||
+      mi->win_grain > mi->win_size)
+    return 0;			/* Impossible... */
+
+  for (i = 0; i < 2; i++) {
+    if ((mi->win_attr[i] & 0x05) == 0x05 && mi->win_seg[i])
+      return 1;			/* Usable window */
+  }
+
+  return 0;			/* Nope... */
 }
 
 static int vesacon_set_mode(void)
@@ -117,23 +116,21 @@ static int vesacon_set_mode(void)
     return 1;			/* Function call failed */
   if ( gi->signature != VESA_MAGIC )
     return 2;			/* No magic */
-#if 1
-  /* Linear frame buffer is a VBE 2.0 feature.  In theory this
-     test is redundant given that we check the bitmasks. */
-  if ( gi->version < 0x0200 ) {
-    return 3;			/* VESA 2.0 not supported */
-  }
-#endif
+  if ( gi->version < 0x0102 )
+    return 3;			/* VESA 1.2+ required */
 
   /* Copy general info */
   memcpy(&__vesa_info.gi, gi, sizeof *gi);
 
-  /* Search for a 640x480 32-bit linear frame buffer mode */
+  /* Search for a 640x480 mode with a suitable color and memory model... */
+
   mode_ptr = GET_PTR(gi->video_mode_ptr);
   bestmode = 0;
   bestpxf  = PXF_NONE;
 
   while ((mode = *mode_ptr++) != 0xFFFF) {
+    mode &= 0x1FF;		/* The rest are attributes of sorts */
+
     debug("Found mode: 0x%04x\r\n", mode);
 
     memset(mi, 0, sizeof *mi);
@@ -154,21 +151,39 @@ static int vesacon_set_mode(void)
     /* Must be an LFB color graphics mode supported by the hardware.
 
       The bits tested are:
-       7 - linear frame buffer available
        4 - graphics mode
        3 - color mode
        1 - mode information available (mandatory in VBE 1.2+)
        0 - mode supported by hardware
     */
-    if ( (mi->mode_attr & 0x009b) != 0x009b )
+    if ( (mi->mode_attr & 0x001b) != 0x001b )
       continue;
 
     /* Must be 640x480 */
     if ( mi->h_res != VIDEO_X_SIZE || mi->v_res != VIDEO_Y_SIZE )
       continue;
 
+    /* We don't support multibank (interlaced memory) modes */
+    /*
+     *  Note: The Bochs VESA BIOS (vbe.c 1.58 2006/08/19) violates the
+     * specification which states that banks == 1 for unbanked modes;
+     * fortunately it does report bank_size == 0 for those.
+     */
+    if ( mi->banks > 1 && mi->bank_size ) {
+      debug("bad: banks = %d, banksize = %d, pages = %d\r\n",
+	    mi->banks, mi->bank_size, mi->image_pages);
+      continue;
+    }
+
+    /* Must be either a flat-framebuffer mode, or be an acceptable
+       paged mode */
+    if ( !(mi->mode_attr & 0x0080) && !vesacon_paged_mode_ok(mi) ) {
+      debug("bad: invalid paged mode\r\n");
+      continue;
+    }
+
     /* Must either be a packed-pixel mode or a direct color mode
-       (depending on VESA version ) */
+       (depending on VESA version ); must be a supported pixel format */
     pxf = PXF_NONE;		/* Not usable */
 
     if (mi->bpp == 32 &&
@@ -186,9 +201,14 @@ static int vesacon_set_mode(void)
 	      (mi->memory_layout == 6 && mi->rpos == 11 && mi->gpos == 5 &&
 	       mi->bpos == 0)))
       pxf = PXF_LE_RGB16_565;
+    else if (mi->bpp == 15 &&
+	     (mi->memory_layout == 4 ||
+	      (mi->memory_layout == 6 && mi->rpos == 10 && mi->gpos == 5 &&
+	       mi->bpos == 0)))
+      pxf = PXF_LE_RGB15_555;
 
     if (pxf < bestpxf) {
-      debug("Best mode so far, pxf = %d\n", pxf);
+      debug("Best mode so far, pxf = %d\r\n", pxf);
 
       /* Best mode so far... */
       bestmode = mode;
@@ -204,7 +224,8 @@ static int vesacon_set_mode(void)
 
   mi = &__vesa_info.mi;
   mode = bestmode;
-  __vesacon_bytes_per_pixel = mi->bpp >> 3;
+  __vesacon_bytes_per_pixel = (mi->bpp+7) >> 3;
+  __vesacon_format_pixels = __vesacon_format_pixels_list[bestpxf];
 
   /* Download the SYSLINUX- or BIOS-provided font */
   rm.eax.w[0] = 0x0018;		/* Query custom font */
@@ -226,10 +247,14 @@ static int vesacon_set_mode(void)
 
   /* Now set video mode */
   rm.eax.w[0] = 0x4F02;		/* Set SVGA video mode */
-  rm.ebx.w[0] = mode | 0x4000;	/* Clear video RAM, use linear fb */
+  if (mi->mode_attr & 0x0080)
+    mode |= 0x4000;		/* Request linear framebuffer if supported */
+  rm.ebx.w[0] = mode;
   __intcall(0x10, &rm, &rm);
   if ( rm.eax.w[0] != 0x004F )
     return 9;			/* Failed to set mode */
+
+  __vesacon_init_copy_to_screen();
 
   /* Tell syslinux we changed video mode */
   rm.eax.w[0] = 0x0017;		/* Report video mode change */
@@ -287,7 +312,7 @@ int __vesacon_init(void)
 
   init_text_display();
 
-  debug("Mode set, now drawing at %#p\n", __vesa_info.mi.lfb_ptr);
+  debug("Mode set, now drawing at %#p\r\n", __vesa_info.mi.lfb_ptr);
 
   __vesacon_init_background();
 

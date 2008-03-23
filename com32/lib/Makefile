@@ -4,7 +4,7 @@ include MCONFIG
 LIBOBJS = \
 	abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o		\
 	ctypes.o errno.o fgetc.o fgets.o fopen.o fprintf.o fputc.o	\
-	putchar.o setjmp.o						\
+	fclose.o putchar.o setjmp.o					\
 	fputs.o fread2.o fread.o free.o fwrite2.o fwrite.o getopt.o	\
 	lrand48.o malloc.o stack.o memccpy.o memchr.o memcmp.o		\
 	memcpy.o mempcpy.o memmem.o memmove.o memset.o memswap.o	\
@@ -12,6 +12,7 @@ LIBOBJS = \
 	perror.o printf.o puts.o qsort.o realloc.o seed48.o snprintf.o	\
 	sprintf.o srand48.o sscanf.o stack.o strcasecmp.o strcat.o	\
 	strchr.o strcmp.o strcpy.o strdup.o strerror.o strlen.o		\
+	strnlen.o							\
 	strncasecmp.o strncat.o strncmp.o strncpy.o stpncpy.o strndup.o	\
 	strntoimax.o strntoumax.o strrchr.o strsep.o strspn.o strstr.o	\
 	strtoimax.o strtok.o strtol.o strtoll.o strtoul.o strtoull.o	\
@@ -28,7 +29,11 @@ LIBOBJS = \
 	sys/entry.o sys/exit.o sys/argv.o sys/times.o			\
 	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
-	sys/isatty.o sys/fstat.o sys/openconsole.o sys/line_input.o	\
+	sys/isatty.o sys/fstat.o					\
+	\
+	sys/zfile.o sys/zfopen.o					\
+	\
+	sys/openconsole.o sys/line_input.o				\
 	sys/colortable.o sys/screensize.o				\
 	\
 	sys/stdcon_read.o sys/stdcon_write.o sys/rawcon_read.o		\
@@ -43,7 +48,7 @@ LIBOBJS = \
 	\
 	sys/vesacon_write.o sys/vesaserial_write.o			\
 	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
-	sys/vesa/alphatbl.o						\
+	sys/vesa/alphatbl.o sys/vesa/screencpy.o sys/vesa/fmtpixel.o	\
 	\
 	pci/cfgtype.o pci/scan.o					\
 	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o		\
@@ -67,6 +72,7 @@ LIBOBJS = \
 	\
 	syslinux/idle.o	syslinux/reboot.o				\
 	syslinux/features.o syslinux/config.o syslinux/serial.o		\
+	syslinux/ipappend.o						\
 	\
 	syslinux/addlist.o syslinux/freelist.o syslinux/memmap.o	\
 	syslinux/movebits.o syslinux/shuffle.o syslinux/shuffle_pm.o	\
@@ -76,14 +82,15 @@ LIBOBJS = \
 	syslinux/run_default.o syslinux/run_command.o			\
 	syslinux/cleanup.o syslinux/localboot.o	syslinux/runimage.o	\
 	\
-	syslinux/loadfile.o						\
+	syslinux/loadfile.o syslinux/floadfile.o syslinux/zloadfile.o	\
+	\
 	syslinux/load_linux.o syslinux/initramfs.o			\
 	syslinux/initramfs_file.o syslinux/initramfs_loadfile.o		\
 	syslinux/initramfs_archive.o					\
 	\
 	syslinux/pxe_get_cached.o					\
 	\
-	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o 		\
+	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o		\
 	syslinux/setadv.o
 
 BINDIR   = /usr/bin

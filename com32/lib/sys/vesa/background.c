@@ -33,18 +33,10 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <minmax.h>
+#include <stdbool.h>
+#include <syslinux/loadfile.h>
 #include "vesa.h"
 #include "video.h"
-#include "fmtpixel.h"
-
-static size_t filesize(FILE *fp)
-{
-  struct stat st;
-  if (fstat(fileno(fp), &st))
-    return 0;
-  else
-    return st.st_size;
-}
 
 /*** FIX: This really should be alpha-blended with color index 0 ***/
 
@@ -52,18 +44,11 @@ static size_t filesize(FILE *fp)
    aligned dwords. */
 static void draw_background_line(int line, int start, int npixels)
 {
-  uint8_t line_buf[VIDEO_X_SIZE*4], *lbp;
   uint32_t *bgptr = &__vesacon_background[line][start];
   unsigned int bytes_per_pixel = __vesacon_bytes_per_pixel;
-  enum vesa_pixel_format pixel_format = __vesacon_pixel_format;
-  uint8_t *fbptr = (uint8_t *)__vesa_info.mi.lfb_ptr +
-    line*__vesa_info.mi.logical_scan + start*bytes_per_pixel;
-  
-  lbp = line_buf;
-  while (npixels--)
-    lbp = format_pixel(lbp, *bgptr++, pixel_format);
+  size_t fbptr = line*__vesa_info.mi.logical_scan + start*bytes_per_pixel;
 
-  memcpy(fbptr, line_buf, lbp-line_buf);
+  __vesacon_copy_to_screen(fbptr, bgptr, npixels);
 }
 
 /* This draws the border, then redraws the text area */
@@ -180,19 +165,16 @@ static int jpeg_sig_cmp(uint8_t *bytes, int len)
 static int read_jpeg_file(FILE *fp, uint8_t *header, int len)
 {
   struct jdec_private *jdec = NULL;
-  unsigned char *jpeg_file = NULL;
-  size_t length_of_file = filesize(fp);
+  void *jpeg_file = NULL;
+  size_t length_of_file;
   unsigned int width, height;
   int rv = -1;
   unsigned char *components[1];
   unsigned int bytes_per_row[1];
 
-  jpeg_file = malloc(length_of_file);
-  if (!jpeg_file)
-    goto err;
-
-  memcpy(jpeg_file, header, len);
-  if (fread(jpeg_file+len, 1, length_of_file-len, fp) != length_of_file-len)
+  rv = floadfile(fp, &jpeg_file, &length_of_file, header, len);
+  fclose(fp);
+  if (rv)
     goto err;
 
   jdec = tinyjpeg_init();
@@ -261,12 +243,133 @@ int vesacon_set_background(unsigned int rgb)
   if (__vesacon_pixel_format == PXF_NONE)
     return 0;			/* Not in graphics mode */
 
-  asm volatile("cld; rep; stosl"
+  asm volatile("rep; stosl"
 	       : "+D" (bgptr), "+c" (count)
 	       : "a" (rgb)
 	       : "memory");
 
   draw_background();
+  return 0;
+}
+
+struct lss16_header {
+  uint32_t magic;
+  uint16_t xsize;
+  uint16_t ysize;
+};
+
+#define LSS16_MAGIC 0x1413f33d
+
+static inline int lss16_sig_cmp(const void *header, int len)
+{
+  const struct lss16_header *h = header;
+
+  if (len != 8)
+    return 1;
+
+  return !(h->magic == LSS16_MAGIC &&
+	   h->xsize <= VIDEO_X_SIZE && h->ysize <= VIDEO_Y_SIZE);
+}
+
+static int read_lss16_file(FILE *fp, const void *header, int header_len)
+{
+  const struct lss16_header *h = header;
+  uint32_t colors[16], color;
+  bool has_nybble;
+  uint8_t byte;
+  int count;
+  int nybble, prev;
+  enum state {
+    st_start,
+    st_c0,
+    st_c1,
+    st_c2,
+  } state;
+  int i, x, y;
+  uint32_t *bgptr = (void *)__vesacon_background;
+
+  /* Assume the header, 8 bytes, has already been loaded. */
+  if (header_len != 8)
+    return -1;
+
+  for (i = 0; i < 16; i++) {
+    uint8_t rgb[3];
+    if (fread(rgb, 1, 3, fp) != 3)
+      return -1;
+
+    colors[i] = (((rgb[0] & 63)*255/63) << 16) +
+      (((rgb[1] & 63)*255/63) << 8) +
+      ((rgb[2] & 63)*255/63);
+  }
+
+  /* By spec, the state machine is per row */
+  for (y = 0; y < h->ysize; y++) {
+    state = st_start;
+    has_nybble = false;
+    color = colors[prev = 0];	/* By specification */
+    count = 0;
+
+    x = 0;
+    while (x < h->xsize) {
+      if (!has_nybble) {
+	if (fread(&byte, 1, 1, fp) != 1)
+	  return -1;
+	nybble = byte & 0xf;
+	has_nybble = true;
+      } else {
+	nybble = byte >> 4;
+	has_nybble = false;
+      }
+
+      switch (state) {
+      case st_start:
+	if (nybble != prev) {
+	  *bgptr++ = color = colors[prev = nybble];
+	  x++;
+	} else {
+	  state = st_c0;
+	}
+	break;
+
+      case st_c0:
+	if (nybble == 0) {
+	  state = st_c1;
+	} else {
+	  count = nybble;
+	  goto do_run;
+	}
+	break;
+
+      case st_c1:
+	count = nybble + 16;
+	state = st_c2;
+	break;
+
+      case st_c2:
+	count += nybble << 4;
+	goto do_run;
+
+      do_run:
+	count = min(count, h->xsize-x);
+	x += count;
+	asm volatile("rep; stosl"
+		     : "+D" (bgptr), "+c" (count) : "a" (color));
+	state = st_start;
+	break;
+      }
+    }
+
+    /* Zero-fill rest of row */
+    i = VIDEO_X_SIZE-x;
+    asm volatile("rep; stosl"
+	       : "+D" (bgptr), "+c" (i) : "a" (0) : "memory");
+  }
+
+  /* Zero-fill rest of screen */
+  i = (VIDEO_Y_SIZE-y)*VIDEO_X_SIZE;
+  asm volatile("rep; stosl"
+	       : "+D" (bgptr), "+c" (i) : "a" (0) : "memory");
+
   return 0;
 }
 
@@ -291,6 +394,8 @@ int vesacon_load_background(const char *filename)
     rv = read_png_file(fp);
   } else if (!jpeg_sig_cmp(header, 8)) {
     rv = read_jpeg_file(fp, header, 8);
+  } else if (!lss16_sig_cmp(header, 8)) {
+    rv = read_lss16_file(fp, header, 8);
   }
 
   /* This actually displays the stuff */

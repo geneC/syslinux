@@ -23,12 +23,11 @@ MAX_GETC	equ (1 << MAX_GETC_LG2)
 bytes_per_getc_lg2	equ 16-MAX_GETC_LG2
 bytes_per_getc		equ (1 << bytes_per_getc_lg2)
 secs_per_getc	equ bytes_per_getc/SECTOR_SIZE
-MAX_UNGET	equ 5			; Max bytes that can be pushed back
+MAX_UNGET	equ 9			; Max bytes that can be pushed back
 
 		struc getc_file
 gc_file		resw 1			; File pointer
 gc_bufbytes	resw 1			; Bytes left in buffer
-gc_bytes	resd 1			; Bytes left in file
 gc_bufdata	resw 1			; Pointer to data in buffer
 gc_unget_cnt	resb 1			; Character pushed back count
 gc_unget_buf	resb MAX_UNGET		; Character pushed back buffer
@@ -52,7 +51,7 @@ getc_file_lg2	equ 4			; Size of getc_file as a power of 2
 ;		open:	Input:	mangled filename in DS:DI
 ;			Output: ZF set on file not found or zero length
 ;
-;		openfd:	Input:	file handle in SI
+;		openfd:	Input:	file handle in SI, file size in EAX
 ;			Output:	ZF set on getc stack overflow
 ;
 ;		getc:	Output: CF set on end of file
@@ -73,8 +72,6 @@ openfd:
 		mov [CurrentGetC],bx
 
 		mov [bx+gc_file],si	; File pointer
-		mov [bx+gc_bytes],ax	; Bytes available
-		mov [bx+gc_bytes+2],dx
 		xor ax,ax
 		mov [bx+gc_bufbytes],ax		; Buffer empty
 		mov [bx+gc_unget_cnt],al	; ungetc buffer empty
@@ -100,8 +97,9 @@ getc:
 		and bx,bx
 		jnz .have_unget
 
-		mov ax,real_mode_seg	; Borrow the real_mode_seg
-		mov es,ax
+		mov si,real_mode_seg	; Borrow the real_mode_seg
+		mov es,si
+
 .got_data:
 		sub word [di+gc_bufbytes],1
 		jc .get_data		; Was it zero already?
@@ -132,28 +130,24 @@ getc:
 
 		mov [di+gc_bufdata],bx
 		mov si,[di+gc_file]
-		mov ecx,[di+gc_bytes]
-		jecxz .empty
-		cmp ecx,bytes_per_getc
-		jna .sizeok
-		mov ecx,bytes_per_getc
-.sizeok:
-		mov [di+gc_bufbytes],cx
-		sub [di+gc_bytes],ecx
-		add cx,SECTOR_SIZE-1
-		shr cx,SECTOR_SHIFT
+		and si,si
+		mov [di+gc_bufbytes],si	; In case SI == 0
+		jz .empty
+		mov cx,bytes_per_getc >> SECTOR_SHIFT
 		call getfssec
+		mov [di+gc_bufbytes],cx
 		mov [di+gc_file],si
+		jcxz .empty
 		popad
+		TRACER 'd'
 		jmp .got_data
 
 .empty:
-		; CX == 0 at this point; gc_bufbytes was clobbered
-		; by the subtract; we need to restore it to zero so
-		; we will continue to get EOF on any further attempts
-		; to read the file.
-		mov [di+gc_bufbytes],cx
+		TRACER 'e'
+		; [di+gc_bufbytes] is zero already, thus we will continue
+		; to get EOF on any further attempts to read the file.
 		popad
+		xor al,al		; Return a predictable zero
 		stc
 		jmp .ret
 

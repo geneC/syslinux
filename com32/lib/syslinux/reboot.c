@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -10,10 +10,10 @@
  *   sell copies of the Software, and to permit persons to whom
  *   the Software is furnished to do so, subject to the following
  *   conditions:
- *   
+ *
  *   The above copyright notice and this permission notice shall
  *   be included in all copies or substantial portions of the Software.
- *   
+ *
  *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -38,7 +38,7 @@
 __noreturn syslinux_reboot(int warm)
 {
   uint16_t * const reboot_flag = (uint16_t *)0x472;
-  
+
   *reboot_flag = warm ? 0x1234 : 0;
   __farcall(0xf000, 0xfff0, &__com32_zero_regs, NULL);
 

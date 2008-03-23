@@ -145,23 +145,34 @@ pc_setint16:
 
 ;
 ; Generic file-processing commands:
-; "display", "font", "kbdmap", "include"
+; "font", "kbdmap",
 ;
 pc_filecmd:	push ax				; Function to tailcall
 		call pc_getline
 		mov di,MNameBuf
 		call mangle_name
-		call searchdir			; tailcall
+		call searchdir
 		jnz .ok
 		pop ax				; Drop the successor function
 .ok:		ret				; Tailcall if OK, error return
 
 ;
-; "include" command (invoked from pc_filecmd)
+; Commands that expect the file to be opened on top of the getc stack.
+; "display", "include"
 ;
-pc_include:	call openfd
-		jz .err
-		inc word [IncludeLevel]
+pc_opencmd:	push ax				; Function to tailcall
+		call pc_getline
+		mov di,MNameBuf
+		call mangle_name
+		call open
+		jnz .ok
+		pop ax				; Drop the successor function
+.ok:		ret				; Tailcall if OK, error return
+
+;
+; "include" command (invoked from pc_opencmd)
+;
+pc_include:	inc word [IncludeLevel]
 .err:		ret
 
 ;
@@ -388,23 +399,12 @@ commit_vk:
 		xor ax,ax
 		rep stosb
 
-		; Pack temporarily into trackbuf
+		; Pack into high memory
 		mov si,VKernelBuf
-		mov di,trackbuf
+		mov edi,[VKernelEnd]
 		mov cx,vk_size
 		call rllpack
-		; Now DX = number of bytes
-		mov di,[VKernelBytes]
-		mov cx,dx
-		add dx,di
-		jc .overflow			; If > 1 segment
-		mov [VKernelBytes],dx
-		mov si,trackbuf
-		push es
-		push word vk_seg
-		pop es
-		rep movsb
-		pop es
+		mov [VKernelEnd],edi
 		ret
 .overflow:
 		mov si,vk_overflow_msg
@@ -415,6 +415,14 @@ commit_vk:
 vk_overflow_msg	db 'Out of memory parsing config file', CR, LF, 0
 SerialNotice	db 1			; Only print this once
 
+		section .bss
+		alignb 4
+VKernelEnd	resd 1			; Lowest high memory address used
+
+		; This symbol should be used by loaders to indicate
+		; the highest address *they* are allowed to use.
+HighMemRsvd	equ VKernelEnd
+					; by vkernels
 		section .config
 		align 4, db 0
 KbdTimeout      dd 0                    ; Keyboard timeout (if any)
@@ -429,7 +437,6 @@ AllowImplicit   dw 1                    ; Allow implicit kernels
 AllowOptions	dw 1			; User-specified options allowed
 IncludeLevel	dw 1			; Nesting level
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
-VKernelBytes	dw 0			; Number of bytes used by vkernels
 VKernel		db 0			; Have we seen any "label" statements?
 
 %if IS_PXELINUX

@@ -154,7 +154,7 @@ no_ebios:
 		mov dh,al
 		inc ah
 		or cl,ah			; CX = cylinder and sector
-		
+
 		mov dl,[DriveNo]
 		mov bx,7C00h
 		mov ax,0201h			; Read one sector

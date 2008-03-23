@@ -2,7 +2,7 @@
 
        A bootloader for Linux using ISO 9660/El Torito CD-ROMs
 
-		Copyright (C) 1994-2003 H. Peter Anvin
+       Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -26,7 +26,7 @@ well (not tested.)
 To create an image, create a directory called "isolinux" (or, if you
 prefer, "boot/isolinux") underneath the root directory of your ISO
 image master file tree.  Copy isolinux.bin, a config file called
-"isolinux.cfg" (see syslinux.doc for details on the configuration
+"isolinux.cfg" (see syslinux.txt for details on the configuration
 file), and all necessary files (kernels, initrd, display files, etc.)
 into this directory, then use the following command to create your ISO
 image (add additional options as appropriate, such as -J or -R):

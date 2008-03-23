@@ -25,9 +25,9 @@
 ##
 ## N	... if N is != previous pixel, one pixel of color N
 ## ... otherwise run sequence follows ...
-## M    ... if M > 0 then run length is M+1
+## M    ... if M > 0 then run length is M
 ## ... otherwise run sequence is encoded in two nybbles,
-##     littleendian, +17
+##     littleendian, +16
 ##
 ## The nybble sequences are on a per-row basis; runs may not extend
 ## across rows and odd-nybble rows are zero-padded.

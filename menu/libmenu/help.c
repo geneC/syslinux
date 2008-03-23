@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include "string.h"
 #include "com32io.h"
-#include <loadfile.h> // to read entire file into memory
+#include <syslinux/loadfile.h> // to read entire file into memory
 
 char helpbasedir[HELPDIRLEN]; // name of help directory limited to HELPDIRLEN
 
