@@ -435,25 +435,6 @@ setup_move:
 		push cx				; Length of descriptor list
 		push word trackbuf
 
-%ifdef DEBUG_TRACERS
-		pushad
-		mov si,trackbuf
-.foo:
-		lodsd
-		call writehex8
-		mov al,'.'
-		call writechr
-		lodsd
-		call writehex8
-		mov al,'.'
-		call writechr
-		lodsd
-		call writehex8
-		call crlf
-		loop .foo
-		popad
-%endif
-
 		mov dword [EntryPoint],run_linux_kernel
 		; BX points to the final real mode segment, and will be loaded
 		; into DS.
