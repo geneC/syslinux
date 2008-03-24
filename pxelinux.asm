@@ -1280,6 +1280,8 @@ searchdir:
 		mov eax,[si+tftp_filesize]
 .got_file:				; SI->socket structure, EAX = size
 		and eax,eax		; Set ZF depending on file size
+		pop bp			; Junk
+		pop bp			; Junk (retry counter)
 		jz .error_si		; ZF = 1 need to free the socket
 .ret:
 		pop bp
@@ -1693,7 +1695,8 @@ PXEEntry	equ pxe_thunk.jump+1
 ;	CF = 1	-> Hit EOF
 ;	ECX	-> number of bytes actually read
 ;
-getfssec:	push eax
+getfssec:
+		push eax
 		push edi
 		push bx
 		push si
@@ -1789,7 +1792,7 @@ fill_buffer:
 		; is empty the latter condition can be true without
 		; having gotten the official EOF.
 		cmp byte [si+tftp_goteof],0
-		jne .gotten			; Alread EOF
+		jne .ret			; Already EOF
 
 %if GPXE
 		cmp word [si+tftp_localport], -1
@@ -1798,69 +1801,9 @@ fill_buffer:
 		jmp .gotten
 .get_packet_tftp:
 %endif ; GPXE
-		call get_packet
 .gotten:
-		pop es
-		popad
-		ret
 
-%if GPXE
-;
-; Get a fresh packet from a gPXE socket; expects fs -> pktbuf_seg
-; and ds:si -> socket structure
-;
-; Assumes CS == DS == ES.
-;
-get_packet_gpxe:
-		mov di,gpxe_file_read
-		mov ax,[si+tftp_remoteport]	; gPXE filehandle
-		mov [di+2],ax
-		mov word [di+4],PKTBUF_SIZE
-		mov ax,[si+tftp_pktbuf]
-		mov [di+6],ax
-		mov [si+tftp_dataptr],ax
-		mov [di+8],fs
-
-.again:
-		mov bx,PXENV_FILE_READ
-		call pxenv
-		; XXX: FIX THIS: Need to be able to distinguish
-		; error, EOF, and no data
-		jc .again
-
-		movzx eax,word [di+4]		; Bytes read
-		mov [si+tftp_bytesleft],ax	; Bytes in buffer
-		add [si+tftp_filepos],eax	; Position in file
-
-		and ax,ax
-		jnz .got_stuff
-
-		; We got EOF here, make sure the upper layers know
-		mov byte [si+tftp_goteof],1
-		mov eax,[si+tftp_filepos]
-		mov [si+tftp_filesize],eax
-
-.got_stuff:
-		; If we're done here, close the file
-		mov eax,[si+tftp_filepos]
-		cmp [si+tftp_filesize],eax
-		ja .done
-
-		; Reuse the previous [es:di] structure since the
-		; relevant fields are all the same
-		mov bx,PXENV_FILE_CLOSE
-		call pxenv
-		; Ignore return...
-.done:
-		ret
-%endif ; GPXE
-
-;
-; Get a fresh packet; expects fs -> pktbuf_seg and ds:si -> socket structure
-;
-; Assumes CS == DS == ES.
-;
-get_packet:
+		; TFTP code...
 .packet_loop:
 		; Start by ACKing the previous packet; this should cause the
 		; next packet to be sent.
@@ -2017,6 +1960,59 @@ ack_packet:
 		cmp ax,byte 0			; ZF = 1 if write OK
 		popad
 		ret
+
+%if GPXE
+;
+; Get a fresh packet from a gPXE socket; expects fs -> pktbuf_seg
+; and ds:si -> socket structure
+;
+; Assumes CS == DS == ES.
+;
+get_packet_gpxe:
+		TRACER 'g'
+
+		mov ax,[si+tftp_remoteport]	; gPXE filehandle
+		mov [di+2],ax
+		mov word [di+4],PKTBUF_SIZE
+		mov ax,[si+tftp_pktbuf]
+		mov [di+6],ax
+		mov [si+tftp_dataptr],ax
+		mov [di+8],fs
+
+.again:
+		mov bx,PXENV_FILE_READ
+		call pxenv
+		; XXX: FIX THIS: Need to be able to distinguish
+		; error, EOF, and no data
+		jc .again
+
+		movzx eax,word [di+4]		; Bytes read
+		mov [si+tftp_bytesleft],ax	; Bytes in buffer
+		add [si+tftp_filepos],eax	; Position in file
+
+		and ax,ax
+		jnz .got_stuff
+
+		; We got EOF here, make sure the upper layers know
+		mov eax,[si+tftp_filepos]
+		mov [si+tftp_filesize],eax
+
+.got_stuff:
+		; If we're done here, close the file
+		mov eax,[si+tftp_filepos]
+		cmp [si+tftp_filesize],eax
+		ja .done		; Not EOF, there is still data...
+
+		; Reuse the previous [es:di] structure since the
+		; relevant fields are all the same
+		mov byte [si+tftp_goteof],1
+
+		mov bx,PXENV_FILE_CLOSE
+		call pxenv
+		; Ignore return...
+.done:
+		ret
+%endif ; GPXE
 
 ;
 ; unload_pxe:
