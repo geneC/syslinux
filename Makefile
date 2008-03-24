@@ -43,6 +43,7 @@ LIBDIR   = /usr/lib
 AUXDIR   = $(LIBDIR)/syslinux
 MANDIR	 = /usr/man
 INCDIR   = /usr/include
+TFTPBOOT = /tftpboot
 
 PERL     = perl
 
@@ -216,6 +217,13 @@ install: installer
 install-lib: installer
 
 install-all: install install-lib
+
+NETINSTALLABLE = pxelinux.0 memdisk/memdisk memdump/memdump.com \
+	com32/menu/*.c32 com32/modules/*.c32
+
+netinstall: installer
+	mkdir -p $(INSTALLROOT)$(TFTPBOOT)
+	install -m 644 $(NETINSTALLABLE) $(INSTALLROOT)$(TFTPBOOT)
 
 local-tidy:
 	rm -f *.o *_bin.c stupid.* patch.offset
