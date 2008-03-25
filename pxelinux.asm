@@ -1280,11 +1280,9 @@ searchdir:
 		mov eax,[si+tftp_filesize]
 .got_file:				; SI->socket structure, EAX = size
 		and eax,eax		; Set ZF depending on file size
-		pop bp			; Junk
-		pop bp			; Junk (retry counter)
 		jz .error_si		; ZF = 1 need to free the socket
 .ret:
-		pop bp
+		leave			; SP <- BP, POP BP
 		pop cx
 		pop bx
 		pop es
@@ -1360,19 +1358,15 @@ searchdir:
 
 %if GPXE
 .gpxe:
-		pop si
-		pop si
-
-		push bx
-		mov si,packet_buf+2	; Completed URL
+		push bx			; Socket pointer
 		mov di,gpxe_file_open
-		mov [di+4],si
+		mov word [di+4],packet_buf+2	; Completed URL
 		mov [di+6],ds
 		mov bx,PXENV_FILE_OPEN
 		call pxenv
-		pop si			; Packet pointer in SI
+		pop si			; Socket pointer in SI
 		jc .error_si
-		
+
 		mov ax,[di+2]
 		mov word [si+tftp_localport],-1	; gPXE URL
 		mov [si+tftp_remoteport],ax
@@ -1381,9 +1375,10 @@ searchdir:
 
 		mov bx,PXENV_GET_FILE_SIZE
 		call pxenv
-		jc .error
-
-		mov eax,[di+4]
+		mov eax,[di+4]		; File size
+		jnc .oksize
+		or eax,-1		; Size unknown
+.oksize:
 		mov [si+tftp_filesize],eax
 		jmp .got_file
 %endif ; GPXE
@@ -1497,7 +1492,7 @@ parse_dotquad:
 
 ;
 ; is_url:      Return CF=0 if and only if the buffer pointed to by
-; 	       DS:SI is a URL (contains ://).  No registers modified.
+;	       DS:SI is a URL (contains ://).  No registers modified.
 ;
 %if GPXE
 is_url:
@@ -1798,10 +1793,9 @@ fill_buffer:
 		cmp word [si+tftp_localport], -1
 		jne .get_packet_tftp
 		call get_packet_gpxe
-		jmp .gotten
+		jmp .ret
 .get_packet_tftp:
 %endif ; GPXE
-.gotten:
 
 		; TFTP code...
 .packet_loop:
@@ -1912,7 +1906,6 @@ fill_buffer:
 
 
 .last_block:	; Last block - ACK packet immediately
-		TRACER 'L'
 		mov ax,[fs:bx+2]
 		call ack_packet
 
@@ -1969,17 +1962,17 @@ ack_packet:
 ; Assumes CS == DS == ES.
 ;
 get_packet_gpxe:
-		TRACER 'g'
+		mov di,gpxe_file_read
 
 		mov ax,[si+tftp_remoteport]	; gPXE filehandle
 		mov [di+2],ax
-		mov word [di+4],PKTBUF_SIZE
 		mov ax,[si+tftp_pktbuf]
 		mov [di+6],ax
 		mov [si+tftp_dataptr],ax
 		mov [di+8],fs
 
 .again:
+		mov word [di+4],PKTBUF_SIZE
 		mov bx,PXENV_FILE_READ
 		call pxenv
 		; XXX: FIX THIS: Need to be able to distinguish
@@ -1991,15 +1984,15 @@ get_packet_gpxe:
 		add [si+tftp_filepos],eax	; Position in file
 
 		and ax,ax
+		mov eax,[si+tftp_filepos]
+
 		jnz .got_stuff
 
 		; We got EOF here, make sure the upper layers know
-		mov eax,[si+tftp_filepos]
 		mov [si+tftp_filesize],eax
 
 .got_stuff:
 		; If we're done here, close the file
-		mov eax,[si+tftp_filepos]
 		cmp [si+tftp_filesize],eax
 		ja .done		; Not EOF, there is still data...
 
@@ -2213,6 +2206,11 @@ xchexbytes:
 ;
 pxe_get_cached_info:
 		pushad
+		mov si,get_packet_msg
+		call writestr
+		mov al,dl
+		call writehex2
+		call crlf
 		mov di,pxe_bootp_query_pkt
 		push di
 		xor ax,ax
@@ -2239,8 +2237,15 @@ pxe_get_cached_info:
 
 .err:
 		mov si,err_pxefailed
+		call writestr
+		call writehex4
+		call crlf
 		jmp kaboom
 
+		section .data
+get_packet_msg	db 'Getting cached packet ', 0
+
+		section .text
 ;
 ; ip_ok
 ;
