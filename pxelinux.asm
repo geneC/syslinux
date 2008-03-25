@@ -1373,10 +1373,14 @@ searchdir:
 		mov di,gpxe_get_file_size
 		mov [di+2],ax
 
+%if 0
+		; Disable this for now since gPXE doesn't always
+		; return valid information in PXENV_GET_FILE_SIZE
 		mov bx,PXENV_GET_FILE_SIZE
 		call pxenv
 		mov eax,[di+4]		; File size
 		jnc .oksize
+%endif
 		or eax,-1		; Size unknown
 .oksize:
 		mov [si+tftp_filesize],eax
