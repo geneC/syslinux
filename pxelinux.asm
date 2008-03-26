@@ -2019,15 +2019,17 @@ get_packet_gpxe:
 		mov word [di+4],PKTBUF_SIZE
 		mov bx,PXENV_FILE_READ
 		call pxenv
-		; XXX: FIX THIS: Need to be able to distinguish
-		; error, EOF, and no data
-		jc .again
+		jnc .ok				; Got data or EOF
+		cmp word [di],PXENV_STATUS_TFTP_OPEN	; == EWOULDBLOCK
+		je .again
+		jmp kaboom			; Otherwise error...
 
+.ok:
 		movzx eax,word [di+4]		; Bytes read
 		mov [si+tftp_bytesleft],ax	; Bytes in buffer
 		add [si+tftp_filepos],eax	; Position in file
 
-		and ax,ax
+		and ax,ax			; EOF?
 		mov eax,[si+tftp_filepos]
 
 		jnz .got_stuff
