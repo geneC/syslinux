@@ -14,6 +14,10 @@ Changes in 3.70:
 	  comboot APIs have changed slightly; please see doc/comboot.doc.
 	* PXELINUX: We no longer require a TFTP server which supports
 	  the tsize option for all transfers.
+	* PXELINUX: EXTREMELY EXPERIMENTAL: Support running on top of
+	  the gPXE "PXEXT" PXE API extensions included with gPXE
+	  0.9.4(?) or higher.  This allows booting over other
+	  protocols than TFTP.
 
 Changes in 3.62:
 	* Clean up garbage after "aborted." message.
