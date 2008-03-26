@@ -409,7 +409,7 @@ old_api:	; Need to use a PXENV+ structure
 		call writestr
 
 		mov eax,[es:bx+0Ah]		; PXE RM API
-		mov [PXENVEntry],eax
+		mov [PXEEntry],eax
 
 		mov si,undi_data_msg
 		call writestr
@@ -450,11 +450,11 @@ old_api:	; Need to use a PXENV+ structure
 
 		mov si,pxenventry_msg
 		call writestr
-		mov ax,[PXENVEntry+2]
+		mov ax,[PXEEntry+2]
 		call writehex4
 		mov al,':'
 		call writechr
-		mov ax,[PXENVEntry]
+		mov ax,[PXEEntry]
 		call writehex4
 		call crlf
 		jmp have_entrypoint
@@ -1090,7 +1090,7 @@ searchdir:
 		call strcpy		; Filename
 %if GPXE
 		mov si,packet_buf+2
-		call is_url
+		call is_gpxe
 		jnc .gpxe
 %endif
 
@@ -1146,8 +1146,7 @@ searchdir:
 		mov di,pxe_udp_read_pkt
 		mov bx,PXENV_UDP_READ
 		call pxenv
-		and ax,ax
-		jz .got_packet			; Wait for packet
+		jnc .got_packet			; Wait for packet
 .no_packet:
 		mov dx,[BIOS_timer]
 		cmp dx,[bp-12]
@@ -1360,6 +1359,7 @@ searchdir:
 .gpxe:
 		push bx			; Socket pointer
 		mov di,gpxe_file_open
+		mov word [di],2		; PXENV_STATUS_BAD_FUNC
 		mov word [di+4],packet_buf+2	; Completed URL
 		mov [di+6],ds
 		mov bx,PXENV_FILE_OPEN
@@ -1518,6 +1518,55 @@ is_url:
 .not_url:
 		stc
 		jmp .done
+
+;
+; is_gpxe:     Return CF=0 if and only if the buffer pointed to by
+;	       DS:SI is a URL (contains ://) *and* the gPXE extensions
+;	       API is available.  No registers modified.
+;
+is_gpxe:
+		call is_url
+		jc .ret			; Not a URL, don't bother
+.again:
+		cmp byte [HasGPXE],1
+		ja .unknown
+		; CF=1 if not available (0),
+		; CF=0 if known available (1).
+.ret:		ret
+
+.unknown:
+		; If we get here, the gPXE status is unknown.
+		push es
+		pushad
+		push ds
+		pop es
+		mov di,gpxe_file_api_check
+		mov bx,PXENV_FILE_API_CHECK	; BH = 0
+		call pxenv
+		jc .nogood
+		cmp dword [di+4],0xe9c17b20
+		jne .nogood
+		mov ax,[di+12]		; Don't care about the upper half...
+		not ax			; Set bits of *missing* functions...
+		and ax,01001011b	; The functions we care about
+		setz bh
+		jz .done
+.nogood:
+		mov si,gpxe_warning_msg
+		call writestr
+.done:
+		mov [HasGPXE],bh
+		popad
+		pop es
+		jmp .again
+
+		section .data
+gpxe_warning_msg
+		db 'URL syntax, but gPXE extensions not detected, '
+		db 'trying plain TFTP...', CR, LF, 0
+HasGPXE		db -1			; Unknown
+		section .text
+
 %endif
 
 ;
@@ -1642,43 +1691,39 @@ unmangle_name:
 ; some PXE stacks seem to not like being invoked from anything but
 ; the initial stack, so humour it.
 ;
-
+; While we're at it, save and restore all registers.
+;
 pxenv:
+		pushad
 %if USE_PXE_PROVIDED_STACK == 0
 		mov [cs:PXEStack],sp
 		mov [cs:PXEStack+2],ss
 		lss sp,[cs:InitStack]
 %endif
-.jump:		call 0:pxe_thunk		; Default to calling the thunk
+		; This works either for the PXENV+ or the !PXE calling
+		; convention, as long as we ignore CF (which is redundant
+		; with AX anyway.)
+		push es
+		push di
+		push bx
+.jump:		call 0:0
+		add sp,6
+		add ax,-1			; Set CF unless AX was 0
+
 %if USE_PXE_PROVIDED_STACK == 0
 		lss sp,[cs:PXEStack]
 %endif
+
+		; This clobbers the AX return, but we don't use it
+		; except for testing it against zero (and setting CF),
+		; which we did above.  For anything else,
+		; use the Status field in the reply.
+		popad
 		cld				; Make sure DF <- 0
 		ret
 
 ; Must be after function def due to NASM bug
-PXENVEntry	equ pxenv.jump+1
-
-;
-; pxe_thunk
-;
-; Convert from the PXENV+ calling convention (BX, ES, DI) to the !PXE
-; calling convention (using the stack.)
-;
-; This is called as a far routine so that we can just stick it into
-; the PXENVEntry variable.
-;
-pxe_thunk:	push es
-		push di
-		push bx
-.jump:		call 0:0
-		add sp,byte 6
-		cmp ax,byte 1
-		cmc				; Set CF unless ax == 0
-		retf
-
-; Must be after function def due to NASM bug
-PXEEntry	equ pxe_thunk.jump+1
+PXEEntry	equ pxenv.jump+1
 
 ;
 ; getfssec: Get multiple clusters from a file, given the starting cluster.
@@ -1840,11 +1885,8 @@ fill_buffer:
 		mov [pxe_udp_read_pkt.lport],ax
 		mov di,pxe_udp_read_pkt
 		mov bx,PXENV_UDP_READ
-		push si				; <G>
 		call pxenv
-		pop si				; <G>
-		and ax,ax
-		jz .recv_ok
+		jnc .recv_ok
 
 		; No packet, or receive failure
 		mov dx,[BIOS_timer]
@@ -1929,7 +1971,6 @@ fill_buffer:
 ;	SI	= TFTP block
 ;	AX	= Packet # to ack (network byte order)
 ; Exit:
-;	ZF = 0 -> Error
 ;	All registers preserved
 ;
 ; This function uses the pxe_udp_write_pkt but not the packet_buf.
@@ -1954,7 +1995,6 @@ ack_packet:
 		mov di,pxe_udp_write_pkt
 		mov bx,PXENV_UDP_WRITE
 		call pxenv
-		cmp ax,byte 0			; ZF = 1 if write OK
 		popad
 		ret
 
@@ -2763,6 +2803,14 @@ pxe_udp_read_pkt:
 .buffer:	dw 0, 0			; seg:off of buffer
 
 %if GPXE
+
+gpxe_file_api_check:
+.status:	dw 0			; Status
+.size:		dw 20			; Size in bytes
+.magic:		dd 0x91d447b2		; Magic number
+.provider:	dd 0
+.apimask:	dd 0
+.flags:		dd 0
 
 gpxe_file_open:
 .status:	dw 0			; Status
