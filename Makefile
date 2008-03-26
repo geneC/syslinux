@@ -74,7 +74,7 @@ BINFILES = bootsect_bin.c ldlinux_bin.c mbr_bin.c \
 # mingw suite installed
 BTARGET  = kwdhash.gen version.gen version.h \
 	   ldlinux.bss ldlinux.sys ldlinux.bin \
-	   pxelinux.0 isolinux.bin isolinux-debug.bin \
+	   pxelinux.0 gpxelinux.0 isolinux.bin isolinux-debug.bin \
 	   extlinux.bin extlinux.bss extlinux.sys
 BOBJECTS = $(BTARGET) mbr/mbr.bin dos/syslinux.com win32/syslinux.exe \
 	memdisk/memdisk memdump/memdump.com
@@ -99,7 +99,7 @@ INSTALL_BIN   =	mtools/syslinux gethostip ppmtolss16 lss16toppm \
 # Things to install in /sbin
 INSTALL_SBIN  = extlinux/extlinux
 # Things to install in /usr/lib/syslinux
-INSTALL_AUX   =	pxelinux.0 isolinux.bin isolinux-debug.bin \
+INSTALL_AUX   =	pxelinux.0 gpxelinux.0 isolinux.bin isolinux-debug.bin \
 		dos/syslinux.com copybs.com memdisk/memdisk mbr/mbr.bin
 INSTALL_AUX_OPT = win32/syslinux.exe
 
@@ -161,7 +161,11 @@ iso%.bin: iso%.asm kwdhash.gen version.gen
 	$(PERL) checkov.pl $(@:.bin=.map) $@
 
 pxelinux.0: pxelinux.bin
-	cp pxelinux.bin pxelinux.0
+	cp -f $< $@
+
+gpxelinux.0: pxelinux.0
+	$(MAKE) -C gpxe/src bin/undionly.kpxe
+	cp -f gpxe/src/bin/undionly.kpxe $@
 
 ldlinux.bss: ldlinux.bin
 	dd if=$< of=$@ bs=512 count=1
@@ -229,6 +233,7 @@ local-tidy:
 	rm -f *.o *_bin.c stupid.* patch.offset
 	rm -f *.lsr *.lst *.map
 	rm -f $(OBSOLETE)
+	$(MAKE) -C gpxe/src veryclean
 
 tidy: local-tidy
 	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done

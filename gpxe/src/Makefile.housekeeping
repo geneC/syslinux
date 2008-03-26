@@ -1,0 +1,603 @@
+# -*- makefile -*- : Force emacs to use Makefile mode
+
+# This file contains various boring housekeeping functions that would
+# otherwise seriously clutter up the main Makefile.
+
+# Objects to be removed by "make clean"
+#
+CLEANUP	:= $(BIN)/*.* # *.* to avoid catching the "CVS" directory
+
+# Version number calculations 
+#
+VERSION_MAJOR	= 0
+VERSION_MINOR	= 9
+VERSION_PATCH	= 3
+EXTRAVERSION	=	
+MM_VERSION	= $(VERSION_MAJOR).$(VERSION_MINOR)
+VERSION		= $(MM_VERSION).$(VERSION_PATCH)$(EXTRAVERSION)
+CFLAGS		+= -DVERSION_MAJOR=$(VERSION_MAJOR) \
+		   -DVERSION_MINOR=$(VERSION_MINOR) \
+		   -DVERSION=\"$(VERSION)\"
+IDENT		= '$(@F) $(VERSION) (GPL) etherboot.org'
+version :
+	@$(ECHO) $(VERSION)
+
+configure : 
+	@$(ECHO) "No configuration needed."
+
+install :
+	@$(ECHO) "No installation required. Generated images will be placed in the" $(BIN) "directory."
+
+# Check for tools that can cause failed builds
+#
+.toolcheck : Makefile Config
+	@if $(CC) -v 2>&1 | grep -is 'gcc version 2\.96' > /dev/null; then \
+		$(ECHO) 'gcc 2.96 is unsuitable for compiling Etherboot'; \
+		$(ECHO) 'Use gcc 2.95 or gcc 3.x instead'; \
+		exit 1; \
+	fi
+	@if [ `perl -e 'use bytes; print chr(255)' | wc -c` = 2 ]; then \
+		$(ECHO) 'Your Perl version has a Unicode handling bug'; \
+		$(ECHO) 'Execute this command before compiling Etherboot:'; \
+		$(ECHO) 'export LANG=$${LANG%.UTF-8}'; \
+		exit 1; \
+	fi
+	@$(TOUCH) $@
+VERYCLEANUP	+= .toolcheck
+
+# Find a usable "echo -e" substitute.
+#
+TAB 			:= $(shell $(PRINTF) '\t')
+ECHO_E_ECHO		:= $(ECHO)
+ECHO_E_ECHO_E		:= $(ECHO) -e
+ECHO_E_BIN_ECHO 	:= /bin/echo
+ECHO_E_BIN_ECHO_E 	:= /bin/echo -e
+ECHO_E_ECHO_TAB		:= $(shell $(ECHO_E_ECHO) '\t' | cat)
+ECHO_E_ECHO_E_TAB	:= $(shell $(ECHO_E_ECHO_E) '\t' | cat)
+ECHO_E_BIN_ECHO_TAB 	:= $(shell $(ECHO_E_BIN_ECHO) '\t')
+ECHO_E_BIN_ECHO_E_TAB 	:= $(shell $(ECHO_E_BIN_ECHO_E) '\t')
+
+ifeq ($(ECHO_E_ECHO_TAB),$(TAB))
+ECHO_E		?= $(ECHO_E_ECHO)
+endif
+ifeq ($(ECHO_E_ECHO_E_TAB),$(TAB))
+ECHO_E		?= $(ECHO_E_ECHO_E)
+endif
+ifeq ($(ECHO_E_BIN_ECHO_TAB),$(TAB))
+ECHO_E		?= $(ECHO_E_BIN_ECHO)
+endif
+ifeq ($(ECHO_E_BIN_ECHO_E_TAB),$(TAB))
+ECHO_E		?= $(ECHO_E_BIN_ECHO_E)
+endif
+
+.echocheck :
+ifdef ECHO_E
+	@$(TOUCH) $@
+else
+	@$(PRINTF) '%24s : x%sx\n' 'tab' '$(TAB)'
+	@$(PRINTF) '%24s : x%sx\n' '"$(ECHO_E_ECHO) \t"' \
+				    '$(ECHO_E_ECHO_TAB)'
+	@$(PRINTF) '%24s : x%sx\n' '"$(ECHO_E_ECHO_E) \t"' \
+				    '$(ECHO_E_ECHO_E_TAB)'
+	@$(PRINTF) '%24s : x%sx\n' '"$(ECHO_E_BIN_ECHO) \t"' \
+				    '$(ECHO_E_BIN_ECHO_TAB)'
+	@$(PRINTF) '%24s : x%sx\n' '"$(ECHO_E_BIN_ECHO_E) \t"' \
+				    '$(ECHO_E_BIN_ECHO_E_TAB)'
+	@$(ECHO) "No usable \"echo -e\" substitute found"
+	@exit 1
+endif
+VERYCLEANUP	+= .echocheck
+
+echo :
+	@$(ECHO) "Using \"$(ECHO_E)\" for \"echo -e\""
+
+# Build verbosity
+#
+ifeq ($(V),1)
+Q = 
+QM = @\#
+else
+Q = @
+QM = @
+endif
+
+# Check for an old version of gas (binutils 2.9.1)
+#
+OLDGAS	:= $(shell $(AS) --version | grep -q '2\.9\.1' && $(ECHO) -DGAS291)
+CFLAGS	+= $(OLDGAS)
+oldgas :
+	@$(ECHO) $(oldgas)
+
+# Some widespread patched versions of gcc include -fstack-protector by
+# default, even when -ffreestanding is specified.  We therefore need
+# to disable -fstack-protector if the compiler supports it.
+#
+SP_TEST = $(CC) -fno-stack-protector -x c -E - < /dev/null >/dev/null 2>&1
+SP_FLAGS := $(shell $(SP_TEST) && $(ECHO) '-fno-stack-protector')
+CFLAGS	+= $(SP_FLAGS)
+
+# compiler.h is needed for our linking and debugging system
+#
+CFLAGS	+= -include compiler.h
+
+# config/%.h files are generated from config.h using mkconfig.pl
+config/%.h : config.h
+	$(MKCONFIG) $<
+CLEANUP	+= config/*.h
+
+# SRCDIRS lists all directories containing source files.
+srcdirs :
+	@$(ECHO) $(SRCDIRS)
+
+# SRCS lists all .c or .S files found in any SRCDIR
+#
+SRCS	+= $(wildcard $(patsubst %,%/*.c,$(SRCDIRS)))
+SRCS	+= $(wildcard $(patsubst %,%/*.S,$(SRCDIRS)))
+srcs :
+	@$(ECHO) $(SRCS)
+
+# AUTO_SRCS lists all files in SRCS that are not mentioned in
+# NON_AUTO_SRCS.  Files should be added to NON_AUTO_SRCS if they
+# cannot be built using the standard build template.
+#
+AUTO_SRCS = $(filter-out $(NON_AUTO_SRCS),$(SRCS))
+autosrcs :
+	@$(ECHO) $(AUTO_SRCS)
+
+# We automatically generate rules for any file mentioned in AUTO_SRCS
+# using the following set of templates.  It would be cleaner to use
+# $(eval ...), but this function exists only in GNU make >= 3.80.
+
+# src_template : generate Makefile rules for a given source file
+#
+# $(1) is the full path to the source file (e.g. "drivers/net/rtl8139.c")
+# $(2) is the full path to the .d file (e.g. "bin/deps/drivers/net/rtl8139.d")
+# $(3) is the source type (e.g. "c")
+# $(4) is the source base name (e.g. "rtl8139")
+#
+define src_template
+
+	@$(ECHO) "Generating Makefile rules for $(1)"
+	@$(MKDIR) -p $(dir $(2))
+	@$(RM) $(2)
+	@$(TOUCH) $(2)
+	$(foreach OBJ,$(if $(OBJS_$(4)),$(OBJS_$(4)),$(4)), \
+		$(call obj_template,$(1),$(2),$(3),$(OBJ)))
+	@$(PARSEROM) $(1) >> $(2)
+
+endef
+
+# obj_template : generate Makefile rules for a given resultant object
+# of a particular source file.  (We can have multiple objects per
+# source file via the OBJS_xxx list.)
+#
+# $(1) is the full path to the source file (e.g. "drivers/net/rtl8139.c")
+# $(2) is the full path to the .d file (e.g. "bin/deps/drivers/net/rtl8139.d")
+# $(3) is the source type (e.g. "c")
+# $(4) is the object name (e.g. "rtl8139")
+#
+define obj_template
+
+	@$(CPP) $(CFLAGS) $(CFLAGS_$(3)) $(CFLAGS_$(4)) -DOBJECT=$(4) \
+		-Wno-error -MM $(1) -MT "$(4)_DEPS" -MG -MP | \
+		sed 's/_DEPS\s*:/_DEPS =/' >> $(2)
+	@$(ECHO_E) '\n$$(BIN)/$(4).o : $(1) $$(MAKEDEPS) $$($(4)_DEPS)' \
+		 '\n\t$$(QM)$(ECHO) "  [BUILD] $$@"\n' \
+		 '\n\t$$(RULE_$(3))\n' \
+		 '\nBOBJS += $$(BIN)/$(4).o\n' \
+		 $(foreach TGT,$(DEBUG_TARGETS), \
+		    $(if $(RULE_$(3)_to_$(TGT)), \
+		    '\n$$(BIN)/$(4).$(TGT) : $(1) $$(MAKEDEPS) $$($(4)_DEPS)' \
+		    '\n\t$$(QM)$(ECHO) "  [BUILD] $$@"\n' \
+		    '\n\t$$(RULE_$(3)_to_$(TGT))\n' \
+		    '\n$(TGT)_OBJS += $$(BIN)/$(4).$(TGT)\n' ) ) \
+		 '\n$(2) : $$($(4)_DEPS)\n' \
+		 '\nTAGS : $$($(4)_DEPS)\n' \
+		>> $(2)
+
+endef
+
+# Rule to generate the Makefile rules files to be included
+#
+$(BIN)/deps/%.d : % $(MAKEDEPS) $(PARSEROM)
+	$(if $(filter $(AUTO_SRCS),$<),$(call src_template,$<,$@,$(subst .,,$(suffix $<)),$(basename $(notdir $<))),@$(ECHO) 'ERROR: $< is not an AUTO_SRC' ; exit 1)
+
+# Calculate and include the list of Makefile rules files
+#
+AUTO_DEPS	= $(patsubst %,$(BIN)/deps/%.d,$(AUTO_SRCS))
+include $(AUTO_DEPS)
+autodeps :
+	@$(ECHO) $(AUTO_DEPS)
+VERYCLEANUP	+= $(BIN)/deps
+
+# The following variables are created by the Makefile rules files
+#
+bobjs :
+	@$(ECHO) $(BOBJS)
+drivers :
+	@$(ECHO) $(DRIVERS)
+.PHONY : drivers
+roms :
+	@$(ECHO) $(ROMS)
+
+# Embedded binary
+$(BIN)/embedimg.bin: $(EMBEDDED_IMAGE)
+	$(QM)$(ECHO) "  [COPY] $@"
+	$(Q)$(CP) -f $(EMBEDDED_IMAGE) $@
+
+$(BIN)/embed.o: $(BIN)/embedimg.bin
+CFLAGS_embed = -DEMBEDIMG=\"$(BIN)/embedimg.bin\"
+
+# Generate the NIC file from the parsed source files.  The NIC file is
+# only for rom-o-matic.
+#
+$(BIN)/NIC : $(AUTO_DEPS)
+	@$(ECHO) '# This is an automatically generated file, do not edit' > $@
+	@$(ECHO) '# It does not affect anything in the build, ' \
+	     'it is only for rom-o-matic' >> $@
+	@$(ECHO) >> $@
+	@perl -ne 'chomp; print "$$1\n" if /\# NIC\t(.*)$$/' $^ >> $@
+CLEANUP		+= $(BIN)/NIC
+
+# Analyse a target name (e.g. "bin/dfe538--prism2_pci.zrom.tmp") and
+# derive the variables:
+# 
+# TGT_ELEMENTS : the elements of the target (e.g. "dfe538 prism2_pci")
+# TGT_PREFIX   : the prefix type (e.g. "zrom")
+# TGT_DRIVERS  : the driver for each element (e.g. "rtl8139 prism2_pci")
+# TGT_ROM_NAME : the ROM name (e.g. "dfe538")
+# TGT_MEDIA    : the media type (e.g. "rom")
+#
+DRIVERS_gpxe	= $(DRIVERS)
+CARD_DRIVER	= $(firstword $(DRIVER_$(1)) $(1))
+TGT_ELEMENTS	= $(subst --, ,$(firstword $(subst ., ,$(notdir $@))))
+TGT_PREFIX	= $(word 2,$(subst ., ,$(notdir $@)))
+TGT_ROM_NAME	= $(firstword $(TGT_ELEMENTS))
+TGT_DRIVERS	= $(strip $(if $(DRIVERS_$(TGT_ROM_NAME)), \
+			       $(DRIVERS_$(TGT_ROM_NAME)), \
+			       $(foreach TGT_ELEMENT,$(TGT_ELEMENTS), \
+			         $(call CARD_DRIVER,$(TGT_ELEMENT))) ))
+TGT_MEDIA	= $(subst z,,$(TGT_PREFIX))
+
+# Look up ROM IDs for the current target
+# (e.g. "bin/dfe538--prism2_pci.zrom.tmp") and derive the variables:
+#
+# TGT_PCI_VENDOR : the PCI vendor ID (e.g. "0x1186")
+# TGT_PCI_DEVICE : the PCI device ID (e.g. "0x1300")
+#
+TGT_PCI_VENDOR	= $(PCI_VENDOR_$(TGT_ROM_NAME))
+TGT_PCI_DEVICE	= $(PCI_DEVICE_$(TGT_ROM_NAME))
+
+# Calculate link-time options for the current target
+# (e.g. "bin/dfe538--prism2_pci.zrom.tmp") and derive the variables:
+#
+# TGT_LD_DRIVERS : symbols to require in order to drag in the relevant drivers
+#		   (e.g. "obj_rtl8139 obj_prism2_pci")
+# TGT_LD_IDS :     symbols to define in order to fill in ID structures in the
+#		   ROM header (e.g."pci_vendor_id=0x1186 pci_device_id=0x1300")
+#
+TGT_LD_DRIVERS	= $(subst -,_,$(patsubst %,obj_%,$(TGT_DRIVERS)))
+TGT_LD_PREFIX	= obj_$(TGT_PREFIX)prefix
+TGT_LD_IDS	= $(if $(TGT_PCI_VENDOR),pci_vendor_id=$(TGT_PCI_VENDOR)) \
+		  $(if $(TGT_PCI_DEVICE),pci_device_id=$(TGT_PCI_DEVICE))
+
+# Calculate linker flags based on link-time options for the current
+# target type (e.g. "bin/dfe538--prism2_pci.zrom.tmp") and derive the
+# variables:
+#
+# TGT_LD_FLAGS : target-specific flags to pass to linker (e.g.
+#		 "-u obj_zpciprefix -u obj_rtl8139 -u obj_prism2_pci
+#		  --defsym pci_vendor=0x1186 --defsym pci_device=0x1300")
+#
+TGT_LD_FLAGS	= $(foreach SYM,$(TGT_LD_PREFIX) $(TGT_LD_DRIVERS) obj_config,\
+		    -u $(SYM) --defsym check_$(SYM)=$(SYM) ) \
+		  $(patsubst %,--defsym %,$(TGT_LD_IDS))
+
+# Calculate makerom flags for the specific target
+# (e.g. "bin/dfe538--prism2_pci.zrom.tmp") and derive the variables:
+#
+# TGT_MAKEROM_FLAGS : target-specific flags for makerom (e.g.
+#		      "-p 0x1186,0x1300")
+#
+TGT_MAKEROM_FLAGS = $(strip $(MAKEROM_FLAGS_$(TGT_ROM_NAME)) \
+       $(if $(TGT_PCI_VENDOR),$(strip -p $(TGT_PCI_VENDOR),$(TGT_PCI_DEVICE))))
+
+# Calculate list of debugging versions of objects to be included in
+# the target.
+#
+COMMA		:= ,
+DEBUG_LIST	= $(subst $(COMMA), ,$(DEBUG))
+DEBUG_OBJ_LEVEL	= $(firstword $(word 2,$(subst :, ,$(1))) 1)
+DEBUG_OBJ_BASE	= $(word 1,$(subst :, ,$(1))).dbg$(call DEBUG_OBJ_LEVEL,$(1))
+DEBUG_OBJ	= $(BIN)/$(call DEBUG_OBJ_BASE,$(1)).o
+DEBUG_ORIG_OBJ	= $(BIN)/$(word 1,$(subst :, ,$(1))).o
+DEBUG_OBJS	= $(foreach D,$(DEBUG_LIST),$(call DEBUG_OBJ,$(D)))
+DEBUG_ORIG_OBJS	= $(foreach D,$(DEBUG_LIST),$(call DEBUG_ORIG_OBJ,$(D)))
+BLIB_OBJS	= $(DEBUG_OBJS) $(filter-out $(DEBUG_ORIG_OBJS),$(BOBJS))
+
+# Print out all derived information for a given target.
+#
+$(BIN)/%.info :
+	@$(ECHO) 'Elements             : $(TGT_ELEMENTS)'
+	@$(ECHO) 'Prefix               : $(TGT_PREFIX)'
+	@$(ECHO) 'Drivers              : $(TGT_DRIVERS)'
+	@$(ECHO) 'ROM name             : $(TGT_ROM_NAME)'
+	@$(ECHO) 'Media                : $(TGT_MEDIA)'
+	@$(ECHO)
+	@$(ECHO) 'PCI vendor           : $(TGT_PCI_VENDOR)'
+	@$(ECHO) 'PCI device           : $(TGT_PCI_DEVICE)'
+	@$(ECHO)
+	@$(ECHO) 'LD driver symbols    : $(TGT_LD_DRIVERS)'
+	@$(ECHO) 'LD prefix symbols    : $(TGT_LD_PREFIX)'
+	@$(ECHO) 'LD ID symbols        : $(TGT_LD_IDS)'
+	@$(ECHO)
+	@$(ECHO) 'LD target flags      : $(TGT_LD_FLAGS)'
+	@$(ECHO)
+	@$(ECHO) 'makerom target flags : $(TGT_MAKEROM_FLAGS)'
+	@$(ECHO)
+	@$(ECHO) 'Debugging objects    : $(DEBUG_OBJS)'
+	@$(ECHO) 'Replaced objects     : $(DEBUG_ORIG_OBJS)'
+
+# List of objects included in the last build of blib.  This is needed
+# in order to correctly rebuild blib whenever the list of objects
+# changes.
+#
+BLIB_LIST	= $(BIN)/.blib.list
+ifneq ($(shell cat $(BLIB_LIST)),$(BLIB_OBJS))
+$(shell $(ECHO) "$(BLIB_OBJS)" > $(BLIB_LIST))
+endif
+
+$(BLIB_LIST) :
+
+VERYCLEANUP	+= $(BLIB_LIST)
+
+# Library of all objects
+#
+BLIB		= $(BIN)/blib.a
+$(BLIB) : $(BLIB_OBJS) $(BLIB_LIST) $(MAKEDEPS)
+	$(Q)$(RM) $(BLIB)
+	$(QM)$(ECHO) "  [AR] $@"
+	$(Q)$(AR) r $@ $(BLIB_OBJS)
+	$(Q)$(RANLIB) $@
+blib : $(BLIB)
+
+# Build an intermediate object file from the objects required for the
+# specified target.
+#
+$(BIN)/%.tmp : $(BLIB) $(MAKEDEPS) $(LDSCRIPT) 
+	$(QM)$(ECHO) "  [LD] $@"
+	$(Q)$(LD) $(LDFLAGS) -T $(LDSCRIPT) $(TGT_LD_FLAGS) $(BLIB) -o $@ \
+		-Map $(BIN)/$*.tmp.map
+	$(Q)$(OBJDUMP) -ht $@ | $(SORTOBJDUMP) >> $(BIN)/$*.tmp.map
+
+# Keep intermediate object file (useful for debugging)
+.SECONDARY : $(BIN)/%.tmp
+
+# Show a linker map for the specified target
+#
+$(BIN)/%.map : $(BIN)/%.tmp
+	@less $(BIN)/$*.tmp.map
+
+# Extract compression information from intermediate object file
+#
+$(BIN)/%.zinfo : $(BIN)/%.tmp
+	$(QM)$(ECHO) "  [ZINFO] $@"
+	$(Q)$(OBJCOPY) -O binary -j .zinfo $< $@
+
+# Build raw binary file from intermediate object file
+#
+$(BIN)/%.bin : $(BIN)/%.tmp
+	$(QM)$(ECHO) "  [BIN] $@"
+	$(Q)$(OBJCOPY) -O binary -R .zinfo $< $@
+
+# Compress raw binary file
+#
+$(BIN)/%.zbin : $(BIN)/%.bin $(BIN)/%.zinfo $(ZBIN)
+	$(QM)$(ECHO) "  [ZBIN] $@"
+	$(Q)$(ZBIN) $(BIN)/$*.bin $(BIN)/$*.zinfo > $@
+
+# Build bochs symbol table
+$(BIN)/%.bxs : $(BIN)/%.tmp
+	$(NM) $< | cut -d" " -f1,3 > $@
+
+# Rules for each media format.  These are generated and placed in an
+# external Makefile fragment.  We could do this via $(eval ...), but
+# that would require make >= 3.80.
+# 
+# Note that there's an alternative way to generate most .rom images:
+# they can be copied from their 'master' ROM image using cp and
+# reprocessed with makerom to add the PCI IDs and ident string.  The
+# relevant rule would look something like:
+#
+#   $(BIN)/dfe538%rom : $(BIN)/rtl8139%rom
+#	cat $< $@
+#	$(FINALISE_rom)
+# 
+# You can derive the ROM/driver relationships using the variables
+# DRIVER_<rom> and/or ROMS_<driver>.
+# 
+# We don't currently do this, because (a) it would require generating
+# yet more Makefile fragments (since you need a rule for each ROM in
+# ROMS), and (b) the linker is so fast that it probably wouldn't make
+# much difference to the overall build time.
+
+media :
+	@$(ECHO) $(MEDIA)
+
+AUTO_MEDIA	= $(filter-out $(NON_AUTO_MEDIA),$(MEDIA))
+automedia :
+	@$(ECHO) $(AUTO_MEDIA)
+
+# media_template : create Makefile rules for specified media
+#
+# $(1) is the media name (e.g. "rom")
+# $(2) is the full path to the .d file (e.g. "bin/deps/rom.media.d")
+#
+define media_template
+
+	@$(ECHO) "Generating Makefile rules for $(1) media"
+	@$(MKDIR) -p $(dir $(2))
+	@$(RM) $(2)
+	@$(TOUCH) $(2)
+	@$(ECHO_E) '$$(BIN)/%.$(1) : $$(BIN)/%.$(1).zbin' \
+		  '\n\t$$(QM)$(ECHO) "  [FINISH] $$@"' \
+		  '\n\t$$(Q)$$(CP) $$< $$@' \
+		  '\n\t$$(Q)$$(FINALISE_$(1))' \
+		> $(2)
+
+endef
+
+# Rule to generate the Makefile rules to be included
+#
+$(BIN)/deps/%.media.d : $(MAKEDEPS)
+	$(if $(filter $(AUTO_MEDIA),$*), \
+		$(call media_template,$*,$@), \
+		@$(ECHO) 'ERROR: $* is not an AUTO_MEDIA' ; exit 1)
+
+# Calculate and include the list of Makefile rules files
+#
+MEDIA_DEPS		= $(patsubst %,$(BIN)/deps/%.media.d,$(AUTO_MEDIA))
+mediadeps :
+	@$(ECHO) $(MEDIA_DEPS)
+include $(MEDIA_DEPS)
+
+# The "allXXXs" targets for each suffix
+#
+allall: allroms allzroms allpxes allisos alldsks
+allroms allzroms : all%s : $(foreach ROM,$(ROMS),$(BIN)/$(ROM).%)
+allpxes allisos alldsks : all%s : $(foreach DRIVER,$(DRIVERS),$(BIN)/$(DRIVER).%)
+
+# Alias for gpxe.%
+#
+$(BIN)/etherboot.% : $(BIN)/gpxe.%
+	ln -sf $(notdir $<) $@
+
+# Wrap up binary blobs
+#
+$(BIN)/%.o : payload/%.img
+	$(QM)echo "  [WRAP] $@"
+	$(Q)$(LD) -b binary -r -o $@ $< --undefined obj_payload \
+		--defsym obj_$*=0
+
+BOBJS += $(patsubst payload/%.img,$(BIN)/%.o,$(wildcard payload/*.img))
+
+# The compression utilities
+#
+$(NRV2B) : util/nrv2b.c $(MAKEDEPS)
+	$(QM)$(ECHO) "  [HOSTCC] $@"
+	$(Q)$(HOST_CC) -O2 -DENCODE -DDECODE -DMAIN -DVERBOSE -DNDEBUG \
+		       -DBITSIZE=32 -DENDIAN=0 -o $@ $<
+CLEANUP	+= $(NRV2B)
+
+$(ZBIN) : util/zbin.c util/nrv2b.c $(MAKEDEPS)
+	$(QM)$(ECHO) "  [HOSTCC] $@"
+	$(Q)$(HOST_CC) -O2 -o $@ $<
+CLEANUP += $(ZBIN)
+
+# Auto-incrementing build serial number.  Append "bs" to your list of
+# build targets to get a serial number printed at the end of the
+# build.  Enable -DBUILD_SERIAL in order to see it when the code runs.
+#
+BUILDSERIAL_H		= config/.buildserial.h
+BUILDSERIAL_NOW		= config/.buildserial.now
+BUILDSERIAL_NEXT	= config/.buildserial.next
+
+$(BUILDSERIAL_NOW) $(BUILDSERIAL_NEXT) :
+	$(ECHO) 1 > $@
+
+$(BUILDSERIAL_H) : $(BUILDSERIAL_NOW) $(BUILDSERIAL_NEXT)
+	$(ECHO) '#define BUILD_SERIAL_NUM $(shell cat $<)' > $@
+
+ifeq ($(filter bs,$(MAKECMDGOALS)),bs)
+$(shell diff -q $(BUILDSERIAL_NOW) $(BUILDSERIAL_NEXT) > /dev/null || \
+	cp -f $(BUILDSERIAL_NEXT) $(BUILDSERIAL_NOW))
+endif
+
+bs : $(BUILDSERIAL_NOW)
+	@$(ECHO) $$(( $(shell cat $<) + 1 )) > $(BUILDSERIAL_NEXT)
+	@$(ECHO) "Build serial number is $(shell cat $<)"
+
+# List of available architectures
+#
+ARCHS	= $(filter-out CVS,$(patsubst arch/%,%,$(wildcard arch/*)))
+archs :
+	@$(ECHO) $(ARCHS)
+
+OTHER_ARCHS	= $(filter-out $(ARCH),$(ARCHS))
+otherarchs :
+	@$(ECHO) $(OTHER_ARCHS)
+
+# Build the TAGS file for emacs
+#
+TAGS : TAGS.$(ARCH)
+
+TAGS.$(ARCH) : 
+	ctags -e -R -f $@ --exclude=bin \
+		$(foreach ARCH,$(OTHER_ARCHS),--exclude=arch/$(ARCH))
+CLEANUP	+= TAGS*
+
+# Symbol table checks
+#
+SYMTAB	= $(BIN)/symtab
+$(SYMTAB) : $(BLIB)
+	$(OBJDUMP) -w -t $< > $@
+
+CLEANUP	+= $(BIN)/symtab
+
+symcheck : $(SYMTAB)
+	$(SYMCHECK) $<
+
+# Force rebuild for any given target
+#
+$(BIN)/%.rebuild :
+	rm -f $(BIN)/$*
+	$(MAKE) $(MAKEFLAGS) $(BIN)/$*
+
+# Documentation
+#
+$(BIN)/doxygen.cfg : doxygen.cfg $(MAKEDEPS)
+	$(PERL) -pe 's{\@SRCDIRS\@}{$(SRCDIRS)}; ' \
+		-e  's{\@BIN\@}{$(BIN)}; ' \
+		-e  's{\@ARCH\@}{$(ARCH)}; ' \
+		$< > $@
+
+$(BIN)/doc : $(BIN)/doxygen.cfg
+	$(DOXYGEN) $<
+
+.PHONY : $(BIN)/doc
+
+VERYCLEANUP	+= $(BIN)/doc
+
+doc : $(BIN)/doc
+
+docview :
+	@[ -f $(BIN)/doc/html/index.html ] || $(MAKE) $(BIN)/doc
+	@if [ -n "$$BROWSER" ] ; then \
+		( $$BROWSER $(BIN)/doc/html/index.html & ) ; \
+	else \
+		$(ECHO) "Documentation index in $(BIN)/doc/html/index.html" ; \
+	fi
+
+# Clean-up
+#
+clean :
+	$(RM) $(CLEANUP)
+
+veryclean : clean
+	$(RM) -r $(VERYCLEANUP)
+
+# Make clean tarballs for release
+
+tarball : ../VERSION
+	($(ECHO) -n $(VERSION) ''; date -u +'%Y-%m-%d') > ../VERSION
+	$(RM) -r /tmp/$(USER)/gpxe-$(VERSION)
+	mkdir -p /tmp/$(USER)/gpxe-$(VERSION)
+	cp -rP .. /tmp/$(USER)/gpxe-$(VERSION)
+	( cd /tmp/$(USER)/gpxe-$(VERSION)/src ; $(MAKE) veryclean ; $(RM) -r bin/deps )
+	( cd /tmp/$(USER); tar cf /tmp/$(USER)/gpxe-$(VERSION).tar --exclude ".git*" --exclude "#*" \
+	  --exclude "*~" gpxe-$(VERSION) )
+	bzip2 -9 < /tmp/$(USER)/gpxe-$(VERSION).tar > /tmp/$(USER)/gpxe-$(VERSION).tar.bz2
+	gzip -9 < /tmp/$(USER)/gpxe-$(VERSION).tar > /tmp/$(USER)/gpxe-$(VERSION).tar.gz
+	$(RM) -r /tmp/$(USER)/gpxe-$(VERSION)
+	$(RM) /tmp/$(USER)/gpxe-$(VERSION).tar
+	( cd /tmp/$(USER) ; tar -zxf /tmp/$(USER)/gpxe-$(VERSION).tar.gz )
