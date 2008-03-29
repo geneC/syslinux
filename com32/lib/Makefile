@@ -13,7 +13,8 @@ LIBOBJS = \
 	sprintf.o srand48.o sscanf.o stack.o strcasecmp.o strcat.o	\
 	strchr.o strcmp.o strcpy.o strdup.o strerror.o strlen.o		\
 	strnlen.o							\
-	strncasecmp.o strncat.o strncmp.o strncpy.o stpncpy.o strndup.o	\
+	strncasecmp.o strncat.o strncmp.o strncpy.o strndup.o		\
+	stpcpy.o stpncpy.o 						\
 	strntoimax.o strntoumax.o strrchr.o strsep.o strspn.o strstr.o	\
 	strtoimax.o strtok.o strtol.o strtoll.o strtoul.o strtoull.o	\
 	strtoumax.o vfprintf.o vprintf.o vsnprintf.o vsprintf.o		\
@@ -72,7 +73,7 @@ LIBOBJS = \
 	\
 	syslinux/idle.o	syslinux/reboot.o				\
 	syslinux/features.o syslinux/config.o syslinux/serial.o		\
-	syslinux/ipappend.o						\
+	syslinux/ipappend.o syslinux/dsinfo.o syslinux/version.o	\
 	\
 	syslinux/addlist.o syslinux/freelist.o syslinux/memmap.o	\
 	syslinux/movebits.o syslinux/shuffle.o syslinux/shuffle_pm.o	\
