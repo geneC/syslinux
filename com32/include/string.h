@@ -33,6 +33,7 @@ __extern char *strncat(char *, const char *, size_t);
 __extern size_t strlcat(char *, const char *, size_t);
 __extern int strncmp(const char *, const char *, size_t);
 __extern char *strncpy(char *, const char *, size_t);
+__extern char *stpcpy(char *, const char *);
 __extern char *stpncpy(char *, const char *, size_t);
 __extern size_t strlcpy(char *, const char *, size_t);
 __extern char *strpbrk(const char *, const char *);
