@@ -18,6 +18,8 @@ Changes in 3.70:
 	  the gPXE "PXEXT" PXE API extensions included with gPXE
 	  0.9.4(?) or higher.  This allows booting over other
 	  protocols than TFTP.
+	* PXELINUX: Integrate with the gPXE source base; unified image
+	  now included as "gpxelinux.0".
 
 Changes in 3.62:
 	* Clean up garbage after "aborted." message.
