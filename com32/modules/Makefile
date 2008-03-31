@@ -52,7 +52,8 @@ INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
 MODULES	  = chain.c32 ethersel.c32 mboot.c32 dmitest.c32 cpuidtest.c32 \
-	    pcitest.c32 elf.c32 linux.c32 reboot.c32 pmload.c32 meminfo.c32
+	    pcitest.c32 elf.c32 linux.c32 reboot.c32 pmload.c32 meminfo.c32 \
+	    sdi.c32
 TESTFILES =
 
 all: $(MODULES) $(TESTFILES)
