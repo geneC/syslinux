@@ -222,7 +222,7 @@ install-lib: installer
 
 install-all: install install-lib
 
-NETINSTALLABLE = pxelinux.0 memdisk/memdisk memdump/memdump.com \
+NETINSTALLABLE = pxelinux.0 gpxelinux.0 memdisk/memdisk memdump/memdump.com \
 	com32/menu/*.c32 com32/modules/*.c32
 
 netinstall: installer
