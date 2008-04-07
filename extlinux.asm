@@ -1116,25 +1116,32 @@ searchdir:
 		jmp .skipslash
 
 .readdir:
-		mov bx,trackbuf
-		push bx
 		mov cx,[SecPerClust]
+		push cx
+		shl cx,SECTOR_SHIFT
+		mov bx,trackbuf
+		add cx,bx
+		mov [EndBlock],cx
+		pop cx
+		push bx
 		call getfssec
 		pop bx
 		pushf			; Save EOF flag
 		push si			; Save filesystem pointer
 .getent:
-		cmp dword [bx+d_inode],0
-		je .endblock
+		cmp bx,[EndBlock]
+		jae .endblock
 
 		push di
+		cmp dword [bx+d_inode],0	; Zero inode = void entry
+		je .nope
+
 		movzx cx,byte [bx+d_name_len]
 		lea si,[bx+d_name]
 		repe cmpsb
 		je .maybe
 .nope:
 		pop di
-
 		add bx,[bx+d_rec_len]
 		jmp .getent
 
@@ -1232,6 +1239,7 @@ SymlinkBuf	resb	SYMLINK_SECTORS*SECTOR_SIZE+64
 SymlinkTmpBuf	 equ	trackbuf
 SymlinkTmpBufEnd equ	trackbuf+SYMLINK_SECTORS*SECTOR_SIZE+64
 ThisDir		resd	1
+EndBlock	resw	1
 SymlinkCtr	resb	1
 
 		section .text
