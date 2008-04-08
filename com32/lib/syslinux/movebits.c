@@ -46,10 +46,12 @@
 
 #include <syslinux/movebits.h>
 
-#ifdef TEST
-# define DEBUG 1
-#else
-# define DEBUG 0
+#ifndef DEBUG
+# ifdef TEST
+#  define DEBUG 1
+# else
+#  define DEBUG 0
+# endif
 #endif
 
 #if DEBUG
@@ -265,14 +267,19 @@ syslinux_compute_movelist(struct syslinux_movelist **moves,
   struct syslinux_movelist *o, **op;
   addr_t needbase, needlen, copysrc, copydst, copylen;
   addr_t freebase, freelen;
-  addr_t mstart;
+  addr_t mstart, avail;
+  addr_t cbyte;
   int m_ok;
   int rv = -1;
+  int reverse;
+  int again;
 
   dprintf("entering syslinux_compute_movelist()...\n");
 
-  if (setjmp(new_movelist_bail))
+  if (setjmp(new_movelist_bail)) {
+    dprintf("Out of working memory!\n");
     goto bail;
+  }
 
   *moves = NULL;
 
@@ -289,8 +296,10 @@ syslinux_compute_movelist(struct syslinux_movelist **moves,
 #endif
 
   for (f = frags; f; f = f->next) {
-    if (syslinux_add_memmap(&mmap, f->src, f->len, SMT_ALLOC))
+    if (syslinux_add_memmap(&mmap, f->src, f->len, SMT_ALLOC)) {
+      dprintf("Cannot generate free map\n");
       goto bail;
+    }
   }
 
 #if DEBUG
@@ -324,141 +333,204 @@ syslinux_compute_movelist(struct syslinux_movelist **moves,
     mmap = mmap->next;
   }
 
+  do {
+    again = 0;
+
 #if DEBUG
-  dprintf("Computed free list:\n");
-  syslinux_dump_movelist(stdout, space);
+    dprintf("Current free list:\n");
+    syslinux_dump_movelist(stdout, space);
+    dprintf("Current frag list:\n");
+    syslinux_dump_movelist(stdout, frags);
 #endif
 
-  for ( fp = &frags, f = *fp ; f ; fp = &f->next, f = *fp ) {
-    dprintf("@: 0x%08x bytes at 0x%08x -> 0x%08x\n",
-	    f->len, f->src, f->dst);
+    fp = &frags;
+    while ( (f = *fp) ) {
+      dprintf("@: 0x%08x bytes at 0x%08x -> 0x%08x\n",
+	      f->len, f->src, f->dst);
 
-    if ( f->src == f->dst ) {
-      //delete_movelist(fp);	/* Already in the right place! */
-      continue;
-    }
+      if ( f->src == f->dst ) {
+	delete_movelist(fp);
+	continue;
+      }
 
-    /* See if we can move this chunk into place by claiming
-       the destination, or in the case of partial overlap, the
-       missing portion. */
+      /* See if we can move this chunk into place by claiming
+	 the destination, or in the case of partial overlap, the
+	 missing portion. */
 
-    needbase = f->dst;
-    needlen  = f->len;
-
-    dprintf("need: base = 0x%08x, len = 0x%08x\n", needbase, needlen);
-
-    if ( f->src < f->dst && (f->dst - f->src) < f->len ) {
-      /* "Shift up" type overlap */
-      needlen  = f->dst - f->src;
-      needbase = f->dst + (f->len - needlen);
-    } else if ( f->src > f->dst && (f->src - f->dst) < f->len ) {
-      /* "Shift down" type overlap */
       needbase = f->dst;
-      needlen  = f->src - f->dst;
-    }
+      needlen  = f->len;
 
-    if ( (ep = is_free_zone(needbase, 1, &space)) ) {
-      /* We can move at least part of this chunk into place without further ado */
-      copylen = min(needlen, (*ep)->len);
-      allocate_from(needbase, copylen, ep);
-      goto move_chunk;
-    }
+      dprintf("need: base = 0x%08x, len = 0x%08x\n", needbase, needlen);
 
-    /* At this point, we need to evict something out of our space.
-       Find the object occupying the first byte of our target space,
-       and move it out (the whole object if we can, otherwise a subset.)
-       Then move a chunk of ourselves into place. */
-    for ( op = &f->next, o = *op ; o ; op = &o->next, o = *op ) {
+      reverse = 0;
+      cbyte = f->dst;		/* "Critical byte" */
+      if ( f->src < f->dst && (f->dst - f->src) < f->len ) {
+	/* "Shift up" type overlap */
+	needlen  = f->dst - f->src;
+	needbase = f->dst + (f->len - needlen);
+	cbyte = f->dst + f->len - 1;
+	reverse = 1;
+      } else if ( f->src > f->dst && (f->src - f->dst) < f->len ) {
+	/* "Shift down" type overlap */
+	needbase = f->dst;
+	needlen  = f->src - f->dst;
+      }
 
-	dprintf("O: 0x%08x bytes	at 0x%08x -> 0x%08x\n",
+      dprintf("need: base = 0x%08x, len = 0x%08x, "
+	      "reverse = %d, cbyte = 0x%08x\n",
+	      needbase, needlen, reverse, cbyte);
+
+      ep = is_free_zone(cbyte, 1, &space);
+      if (ep) {
+	if (reverse)
+	  avail = needbase+needlen - (*ep)->src;
+	else
+	  avail = (*ep)->len - (needbase - (*ep)->src);
+      } else {
+	avail = 0;
+      }
+
+      if (avail) {
+	/* We can move at least part of this chunk into place without
+	   further ado */
+	dprintf("space: start 0x%08x, len 0x%08x, free 0x%08x\n",
+		(*ep)->src, (*ep)->len, avail);
+	copylen = min(needlen, avail);
+
+	if (reverse)
+	  allocate_from(needbase+needlen-copylen, copylen, ep);
+	else
+	  allocate_from(needbase, copylen, ep);
+
+	goto move_chunk;
+      }
+
+      /* At this point, we need to evict something out of our space.
+	 Find the object occupying the critical byte of our target space,
+	 and move it out (the whole object if we can, otherwise a subset.)
+	 Then move a chunk of ourselves into place. */
+      for ( op = &f->next, o = *op ; o ; op = &o->next, o = *op ) {
+
+	dprintf("O: 0x%08x bytes at 0x%08x -> 0x%08x\n",
 		o->len, o->src, o->dst);
 
-      if ( !(o->src <= needbase && o->src+o->len > needbase) )
-	continue;		/* Not what we're looking for... */
+	if ( !(o->src <= cbyte && o->src+o->len > cbyte) )
+	  continue;		/* Not what we're looking for... */
 
-      /* Find somewhere to put it... */
-      if ( (ep = free_area(o->len, &space)) ) {
-	/* We got what we wanted... */
-	copydst = (*ep)->src;
-	copylen = o->len;
-      } else {
-	ep = free_area_max(&space);
-	if ( !ep )
-	  goto bail;		/* Stuck! */
-	copydst = (*ep)->src;
-	copylen = (*ep)->len;
+	/* Find somewhere to put it... */
+
+	if ( (ep = is_free_zone(o->dst, o->len, &space)) ) {
+	  /* Score!  We can move it into place directly... */
+	  copydst = o->dst;
+	  copylen = o->len;
+	} else if ( (ep = free_area(o->len, &space)) ) {
+	  /* We can move the whole chunk */
+	  copydst = (*ep)->src;
+	  copylen = o->len;
+	} else {
+	  /* Well, copy as much as we can... */
+	  ep = free_area_max(&space);
+	  if ( !ep ) {
+	    dprintf("No free memory at all!\n");
+	    goto bail;		/* Stuck! */
+	  }
+
+	  /* Make sure we include the critical byte */
+	  copydst = (*ep)->src;
+	  if (reverse) {
+	    copysrc = max(o->src, cbyte+1 - (*ep)->len);
+	    copylen = cbyte+1 - copysrc;
+	  } else {
+	    copysrc = cbyte;
+	    copylen = min((*ep)->len, o->len - (cbyte-o->src));
+	  }
+	}
+	allocate_from(copydst, copylen, ep);
+
+	if ( copylen < o->len ) {
+	  op = split_movelist(copysrc, copylen, op);
+	  o = *op;
+	}
+
+	mv = new_movelist(copydst, copysrc, copylen);
+	dprintf("C: 0x%08x bytes at 0x%08x -> 0x%08x\n",
+		mv->len, mv->src, mv->dst);
+	*moves = mv;
+	moves = &mv->next;
+
+	o->src = copydst;
+
+	if ( copylen > needlen ) {
+	  /* We don't need all the memory we freed up.  Mark it free. */
+	  if ( copysrc < needbase ) {
+	    mv = new_movelist(0, copysrc, needbase-copysrc);
+	    mv->next = space;
+	    space = mv;
+	    copylen -= (needbase-copysrc);
+	  }
+	  if ( copylen > needlen ) {
+	    mv = new_movelist(0, copysrc+needlen, copylen-needlen);
+	    mv->next = space;
+	    space = mv;
+	    copylen = needlen;
+	  }
+	}
+	reverse = 0;
+	goto move_chunk;
       }
-      allocate_from(copydst, copylen, ep);
+      dprintf("Cannot find the chunk containing the critical byte\n");
+      goto bail;			/* Stuck! */
 
-      if ( copylen >= o->len - (needbase-o->src) ) {
-	copysrc = o->src + (o->len - copylen);
-      } else {
-	copysrc = o->src;
+    move_chunk:
+      /* We're allowed to move the chunk into place now. */
+
+      copydst = f->dst;
+      copysrc = f->src;
+
+      dprintf("Q: copylen = 0x%08x, needlen = 0x%08x\n", copylen, needlen);
+
+      if ( copylen < needlen ) {
+	if (reverse) {
+	  copydst += (f->len-copylen);
+	  copysrc += (f->len-copylen);
+	}
+      
+	dprintf("X: 0x%08x bytes at 0x%08x -> 0x%08x\n",
+		copylen, copysrc, copydst);
+
+	/* Didn't get all we wanted, so we have to split the chunk */
+	fp = split_movelist(copysrc, copylen, fp); /* Is this right? */
+	f = *fp;
       }
 
-      if ( copylen < o->len ) {
-	op = split_movelist(copysrc, copylen, op);
-	o = *op;
-      }
-
-      mv = new_movelist(copydst, copysrc, copylen);
-      dprintf("C: 0x%08x bytes at 0x%08x -> 0x%08x\n",
+      mv = new_movelist(f->dst, f->src, f->len);
+      dprintf("A: 0x%08x bytes at 0x%08x -> 0x%08x\n",
 	      mv->len, mv->src, mv->dst);
       *moves = mv;
       moves = &mv->next;
 
-      o->src = copydst;
-
-      if ( copylen > needlen ) {
-	/* We don't need all the memory we freed up.  Mark it free. */
-	if ( copysrc < needbase ) {
-	  mv = new_movelist(0, copysrc, needbase-copysrc);
-	  mv->next = space;
-	  space = mv;
-	  copylen -= (needbase-copysrc);
-	}
-	if ( copylen > needlen ) {
-	  mv = new_movelist(0, copysrc+needlen, copylen-needlen);
-	  mv->next = space;
-	  space = mv;
-	  copylen = needlen;
-	}
+      /* Figure out what memory we just freed up */
+      if ( f->dst > f->src ) {
+	freebase = f->src;
+	freelen  = min(f->len, f->dst-f->src);
+      } else if ( f->src >= f->dst+f->len ) {
+	freebase = f->src;
+	freelen  = f->len;
+      } else {
+	freelen  = f->src-f->dst;
+	freebase = f->dst+f->len;
       }
-      goto move_chunk;
+
+      dprintf("F: 0x%08x bytes at 0x%08x\n", freelen, freebase);
+
+      mv = new_movelist(0, freebase, freelen);
+      mv->next = space;
+      space = mv;
+      
+      delete_movelist(fp);
+      again = 1;		/* At least one chunk was moved */
     }
-    goto bail;			/* Stuck! */
-
-  move_chunk:
-    /* We're allowed to move the chunk into place now. */
-
-    if ( copylen < needlen ) {
-      /* Didn't get all we wanted, so we have to split the chunk */
-      fp = split_movelist(f->src, copylen+(needbase-f->dst), fp);
-      f = *fp;
-    }
-
-    mv = new_movelist(f->dst, f->src, f->len);
-    dprintf("A: 0x%08x bytes at 0x%08x -> 0x%08x\n",
-	    mv->len, mv->src, mv->dst);
-    *moves = mv;
-    moves = &mv->next;
-
-    /* Figure out what memory we just freed up */
-    if ( f->dst > f->src ) {
-      freebase = f->src;
-      freelen  = min(f->len, f->dst-f->src);
-    } else if ( f->src >= f->dst+f->len ) {
-      freebase = f->src;
-      freelen  = f->len;
-    } else {
-      freelen  = f->src-f->dst;
-      freebase = f->dst+f->len;
-    }
-
-    mv = new_movelist(0, freebase, freelen);
-    mv->next = space;
-    space = mv;
-  }
+  } while (again);
 
   rv = 0;
  bail:
