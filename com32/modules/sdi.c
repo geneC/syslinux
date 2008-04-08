@@ -150,10 +150,14 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  fputs("Loading ", stdout);
+  fputs(argv[1], stdout);
+  fputs("... ", stdout);
   if (loadfile(argv[1], &data, &data_len)) {
-    error("Unable to load file\n");
+    error("failed!\n");
     return 1;
   }
+  fputs("ok\n", stdout);
 
   boot_sdi(data, data_len);
   error("Invalid SDI file or insufficient memory\n");
