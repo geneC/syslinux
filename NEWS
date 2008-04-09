@@ -2,6 +2,20 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 3.63:
+	* Fix errors in the PCI and DMI detection modules (Erwan Velu,
+	  Sebastian Herbszt).
+	* Fix host dependencies and other issues in the build system.
+	* PXELINUX: Allow class E addresses as unicast.
+	* sdi.c32: module to load Microsoft System Deployment Images.
+	* EXTLINUX: Correct reading directories with deleted entries.
+	* Shuffle library: correct the handling of certain geometries
+	  (an upward move with source material blocking the move); as
+	  required by sdi.c32 but theoretically possible for other
+	  formats as well.
+	* Add "make netinstall" to install /tftpboot.
+	* Fix some documentation files that didn't get moved/renamed.
+
 Changes in 3.62:
 	* Clean up garbage after "aborted." message.
 	* Clean up memdump.com filenames.
