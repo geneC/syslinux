@@ -76,7 +76,7 @@ int syslinux_add_memmap(struct syslinux_memmap **list,
 {
   addr_t last;
   struct syslinux_memmap *mp, **mpp;
-  struct syslinux_memmap *mpi, **mppi;
+  struct syslinux_memmap *mpi;
   struct syslinux_memmap *range;
   enum syslinux_memmap_types oldtype;
 
@@ -93,9 +93,6 @@ int syslinux_add_memmap(struct syslinux_memmap **list,
     oldtype = mp->type;
     mpp = &mp->next;
   }
-
-  /* Remember where we started messing with things. */
-  mppi = mpp;
 
   if (start < mp->start || mp->type == SMT_END) {
     range = malloc(sizeof(*range));
@@ -129,9 +126,11 @@ int syslinux_add_memmap(struct syslinux_memmap **list,
   /* Now the map is correct, but quite possibly not optimal.  Scan the
      map for ranges which are redundant and remove them.  This is
      technically excessive, since we scan the list to the end even
-     though only part of it could have changed.  Eventually we might
-     care enough to save an end pointer from the operation above. */
-  mpi = *mppi;
+     though only part of it could have changed.  In particular, the first
+     entry that could change is one earlier than the first one changed
+     above, and once we stop changing things, there shouldn't be any
+     more changes. */
+  mpi = *list;
   while (mpi->type != SMT_END) {
     mp = mpi->next;
     if (mpi->type == mp->type) {
