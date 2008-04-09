@@ -8,6 +8,8 @@ Changes in 3.63:
 	* Fix host dependencies and other issues in the build system.
 	* PXELINUX: Allow class E addresses as unicast.
 	* sdi.c32: module to load Microsoft System Deployment Images.
+	  For additional information, please see:
+	    http://msdn2.microsoft.com/en-us/library/ms838543.aspx
 	* EXTLINUX: Correct reading directories with deleted entries.
 	* Shuffle library: correct the handling of certain geometries
 	  (an upward move with source material blocking the move); as
