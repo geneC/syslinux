@@ -20,7 +20,7 @@
 #include "memdisk.h"		/* For memset() */
 #include "e820.h"
 
-#define MAXRANGES	64
+#define MAXRANGES	1024
 /* All of memory starts out as one range of "indeterminate" type */
 struct e820range ranges[MAXRANGES];
 int nranges;
