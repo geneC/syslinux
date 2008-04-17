@@ -33,7 +33,7 @@ LDFLAGS    = -s
 OBJCOPY    = objcopy
 PPMTOLSS16 =	../ppmtolss16
 LIB	   = liboldcom32.a
-GZIP	   = gzip
+GZIPPROG   = gzip
 PNGTOPNM   = pngtopnm
 
 LIBOBJS	   = conio.o atou.o skipatou.o printf.o c32exit.o
@@ -67,7 +67,7 @@ $(LIB): $(LIBOBJS)
 	$(RANLIB) $@
 
 %.lss:	%.ppm.gz $(PPMTOLSS16)
-	$(GZIP) -cd $< | \
+	$(GZIPPROG) -cd $< | \
 		$(PPMTOLSS16) \#000000=0 \#d0d0d0=7 \#f6f6f6=15	\
 		> $@
 
