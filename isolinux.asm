@@ -1092,46 +1092,6 @@ is_disk_image:
 .done_sector:	ret
 
 ;
-; Boot a specified local disk.  AX specifies the BIOS disk number; or
-; 0xFFFF in case we should execute INT 18h ("next device.")
-;
-local_boot:
-		call vgaclearmode
-		lss sp,[cs:Stack]		; Restore stack pointer
-		xor dx,dx
-		mov ds,dx
-		mov es,dx
-		mov fs,dx
-		mov gs,dx
-		mov si,localboot_msg
-		call writestr
-		cmp ax,-1
-		je .int18
-
-		; Load boot sector from the specified BIOS device and jump to it.
-		mov dl,al
-		xor dh,dh
-		push dx
-		xor ax,ax			; Reset drive
-		call xint13
-		mov ax,0201h			; Read one sector
-		mov cx,0001h			; C/H/S = 0/0/1 (first sector)
-		mov bx,trackbuf
-		call xint13
-		pop dx
-		cli				; Abandon hope, ye who enter here
-		mov si,trackbuf
-		mov di,07C00h
-		mov cx,512			; Probably overkill, but should be safe
-		rep movsd
-		lss sp,[cs:InitStack]
-		jmp 0:07C00h			; Jump to new boot sector
-
-.int18:
-		int 18h				; Hope this does the right thing...
-		jmp kaboom			; If we returned, oh boy...
-
-;
 ; close_file:
 ;	     Deallocates a file structure (pointer in SI)
 ;	     Assumes CS == DS.
@@ -1487,6 +1447,7 @@ getfssec:
 %include "strcpy.inc"		; strcpy()
 %include "rawcon.inc"		; Console I/O w/o using the console functions
 %include "adv.inc"		; Auxillary Data Vector
+%include "localboot.inc"	; Disk-based local boot
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
@@ -1494,7 +1455,6 @@ getfssec:
 
 		section .data
 
-localboot_msg	db 'Booting from local disk...', CR, LF, 0
 default_str	db 'default', 0
 default_len	equ ($-default_str)
 boot_dir	db '/boot'			; /boot/isolinux

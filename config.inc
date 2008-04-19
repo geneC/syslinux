@@ -28,6 +28,11 @@ MAX_FKEYS	equ 12			; Number of F-key help files
 %assign	DO_WBINVD 0			; Should we use WBINVD or not?
 
 ;
+; Local boot supported
+;
+%assign	HAS_LOCALBOOT 1
+
+;
 ; Set this to return the A20 gate to its previous state, instead of
 ; leaving it open.  This has caused problems, because there appear
 ; to be a race condition between disabling the A20 gate and trying to

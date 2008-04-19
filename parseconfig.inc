@@ -81,7 +81,8 @@ pc_ipappend:	call getint
 ;
 ; "localboot" command (PXELINUX, ISOLINUX)
 ;
-%if IS_PXELINUX || IS_ISOLINUX
+%if HAS_LOCALBOOT
+
 pc_localboot:	call getint
 		cmp byte [VKernel],0		; ("label" section only)
 		je .err
@@ -97,7 +98,8 @@ pc_localboot:	call getint
 		mov [VKernelBuf+vk_rname+1], bx	; Return type
 %endif
 .err:		ret
-%endif
+
+%endif ; HAS_LOCALBOOT
 
 ;
 ; "kernel", "config", ... command

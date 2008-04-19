@@ -661,13 +661,13 @@ comapi_idle	equ comapi_err
 ;
 ; INT 22h AX=0014h	Local boot
 ;
-%if IS_PXELINUX || IS_ISOLINUX
+%if HAS_LOCALBOOT
 comapi_localboot:
 		mov ax,P_DX
 		jmp local_boot
 %else
 comapi_localboot equ comapi_err
-%endif
+%endif ; HAS_LOCALBOOT
 
 ;
 ; INT 22h AX=0015h	Feature flags

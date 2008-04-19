@@ -343,7 +343,7 @@ vk_check:
 		mov al, [VKernelBuf+vk_type]
 		mov [KernelType], al
 
-%if IS_PXELINUX || IS_ISOLINUX
+%if HAS_LOCALBOOT
 		; Is this a "localboot" pseudo-kernel?
 %if IS_PXELINUX
 		cmp byte [VKernelBuf+vk_rname+4], 0
