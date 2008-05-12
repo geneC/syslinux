@@ -1,4 +1,5 @@
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
+CC	= gcc
 
 gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) ../dummy.c -o $$tmpf 2>/dev/null; \
 	           then echo '$(1)'; else echo '$(2)'; fi; rm -f $$tmpf)
@@ -6,7 +7,6 @@ gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) ../dummy.c -o $$tmpf 2>/dev/nu
 comma   := ,
 LDHASH  := $(call gcc_ok,-Wl$(comma)--hash-style=both,)
 
-CC	 = gcc
 OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libinstaller
 CFLAGS	 = -W -Wall -Wno-sign-compare -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)

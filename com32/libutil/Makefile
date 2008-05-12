@@ -30,13 +30,13 @@
 ##
 
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
+CC	= gcc
 
 gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
 	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
 
 M32     := $(call gcc_ok,-m32,) $(call gcc_ok,-fno-stack-protector,)
 
-CC         = gcc
 LD         = ld -m elf_i386
 AR	   = ar
 NASM	   = nasm
