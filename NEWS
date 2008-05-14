@@ -5,6 +5,10 @@ them.
 Changes in 3.64:
 	* SYSLINUX/EXTLINUX: support "localboot" with the same feature
 	  set as ISOLINUX.
+	* Add an experimental MBR for GPT partition tables.
+	* Use $(CC) when determining compile flags.
+	* chain.c32: fix booting from logical partitions (Sergey
+	  Vlasov.)
 
 Changes in 3.63:
 	* Fix errors in the PCI and DMI detection modules (Erwan Velu,
