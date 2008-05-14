@@ -204,6 +204,7 @@ boot:
 	popw	%dx		/* dl -> drive number */
 	popw	%di		/* es:di -> $PnP vector */
 	popw	%es
+	movl	$0x54504721,%eax /* !GPT magic number */
 	cli
 	jmpw	*%sp		/* %sp == bootsec */
 
