@@ -29,7 +29,7 @@ PERL	   = perl
 
 .SUFFIXES: .S .s .o .elf
 
-all:	mbr.bin
+all:	mbr.bin gptmbr.bin
 
 .PRECIOUS: %.o
 %.o: %.S
@@ -41,6 +41,13 @@ mbr.elf: mbr.o mbr.ld
 mbr.bin: mbr.elf checksize.pl
 	$(OBJCOPY) -O binary $< $@
 	$(PERL) checksize.pl mbr.bin 440
+
+gptmbr.elf: gptmbr.o mbr.ld
+	$(LD) -T mbr.ld -e _start -o $@ $<
+
+gptmbr.bin: gptmbr.elf checksize.pl
+	$(OBJCOPY) -O binary $< $@
+	$(PERL) checksize.pl gptmbr.bin 424
 
 tidy:
 	rm -f *.o *.elf *.lst
