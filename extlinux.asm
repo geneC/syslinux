@@ -1534,6 +1534,7 @@ getfssec:
 %include "strecpy.inc"          ; strcpy with end pointer check
 %include "cache.inc"		; Metadata disk cache
 %include "adv.inc"		; Auxillary Data Vector
+%include "localboot.inc"	; Disk-based local boot
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section

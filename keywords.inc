@@ -90,7 +90,7 @@ keywd_table:
 %if IS_PXELINUX
 		keyword ipappend,	pc_ipappend
 %endif
-%if IS_PXELINUX || IS_ISOLINUX
+%if HAS_LOCALBOOT
 		keyword localboot,	pc_localboot
 %endif
 

@@ -228,7 +228,7 @@ find_logical_partition(int whichpart, char *table, struct part_entry *self,
   struct part_entry *found;
   int i;
 
-  if ( *(uint16_t *)(ptab + 0x1fe) != 0xaa55 )
+  if ( *(uint16_t *)(table + 0x1fe) != 0xaa55 )
     return NULL;		/* Signature missing */
 
   /* We are assumed to already having enumerated all the data partitions

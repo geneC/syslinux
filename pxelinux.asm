@@ -852,6 +852,8 @@ config_scan:
 ; Boot to the local disk by returning the appropriate PXE magic.
 ; AX contains the appropriate return code.
 ;
+%if HAS_LOCALBOOT
+
 local_boot:
 		push cs
 		pop ds
@@ -869,6 +871,8 @@ local_boot:
 		mov ax,[cs:LocalBootType]
 		popfd
 		retf				; Return to PXE
+
+%endif
 
 ;
 ; kaboom: write a message and bail out.  Wait for quite a while,
