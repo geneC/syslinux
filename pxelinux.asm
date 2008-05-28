@@ -1712,6 +1712,7 @@ pxenv:
 		push bx
 .jump:		call 0:0
 		add sp,6
+		mov [cs:PXEStatus],ax
 		add ax,-1			; Set CF unless AX was 0
 
 %if USE_PXE_PROVIDED_STACK == 0
@@ -1722,12 +1723,20 @@ pxenv:
 		; except for testing it against zero (and setting CF),
 		; which we did above.  For anything else,
 		; use the Status field in the reply.
+		; For the COMBOOT function, the value is saved in
+		; the PXEStatus variable.
 		popad
 		cld				; Make sure DF <- 0
 		ret
 
 ; Must be after function def due to NASM bug
 PXEEntry	equ pxenv.jump+1
+
+		section .bss
+		alignb 2
+PXEStatus	resb 2
+		
+		section .text
 
 ;
 ; getfssec: Get multiple clusters from a file, given the starting cluster.

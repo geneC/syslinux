@@ -446,8 +446,8 @@ comapi_pxecall:
 		mov es,P_ES
 		mov di,P_DI
 		call pxenv
+		mov ax,[PXEStatus]
 		mov P_AX,ax
-		clc
 		ret
 %else
 comapi_pxecall	equ comapi_err			; Not available
