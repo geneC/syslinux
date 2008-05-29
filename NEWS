@@ -20,6 +20,9 @@ Changes in 3.70:
 	  protocols than TFTP.
 	* PXELINUX: Integrate with the gPXE source base; unified image
 	  now included as "gpxelinux.0".
+	* The source tree has been restructured; files that were
+	  previously in the root have moved into the core, dos, gpxe,
+	  and utils directories.
 
 Changes in 3.64:
 	* SYSLINUX/EXTLINUX: support "localboot" with the same feature
