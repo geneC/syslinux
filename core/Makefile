@@ -157,18 +157,16 @@ clean: tidy
 	rm -f $(ITARGET)
 
 spotless: clean
-	rm -f $(BTARGET) .depend *.so.*
+	rm -f $(BTARGET) .depend
 
 .depend:
 	rm -f .depend
 	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -MM $$csrc >> .depend ; done
 	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.o/'` -M $$nsrc >> .depend ; done
 
-local-depend:
+depend:
 	rm -f .depend
 	$(MAKE) .depend
-
-depend: local-depend
 
 # Include dependencies file
 include .depend
