@@ -26,7 +26,7 @@ clean: tidy
 	rm -f $(TARGETS)
 
 dist:
-	$(MAKE) -C src veryclean
+	$(MAKE) -C src veryclean > /dev/null 2>&1
 
 spotless: clean dist
 
