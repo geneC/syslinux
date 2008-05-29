@@ -56,7 +56,7 @@ gptmbr.bin: gptmbr.elf checksize.pl
 	$(PERL) checksize.pl gptmbr.bin 424
 
 tidy dist:
-	rm -f *.o *.elf *.lst
+	rm -f *.o *.elf *.lst *_bin.c
 
 clean: tidy
 
