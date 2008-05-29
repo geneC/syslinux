@@ -80,11 +80,12 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		section .bss1		write nobits align=16
 
 		; Symbols from linker script
-		extern Stack
-		extern section..bcopy32.start
-		extern section..config.start
-		extern section..config.vstart
-		extern section..config.end.start
+%macro SECINFO 1
+		extern __%1_start, __%1_lma, __%1_end
+		extern __%1_len, __%1_dwords
+%endmacro
+		SECINFO bcopy32
+		SECINFO config
 
 		global _start
 

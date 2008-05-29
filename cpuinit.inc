@@ -42,9 +42,9 @@ skip_checks:
 ;
 ; Initialize the bcopy32 code in low memory
 ;
-		mov si,section..bcopy32.start
-		mov di,__bcopy_start
-		mov cx,__bcopy_size >> 2
+		mov si,__bcopy32_lma
+		mov di,__bcopy32_start
+		mov cx,__bcopy32_dwords
 		rep movsd
 
 ;

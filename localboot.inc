@@ -26,10 +26,7 @@
 
 local_boot:
 		call vgaclearmode
-		lss sp,[cs:Stack]		; Restore stack pointer
-		xor dx,dx
-		mov ds,dx
-		mov es,dx
+		RESET_STACK_AND_SEGS dx		; dx <- 0
 		mov fs,dx
 		mov gs,dx
 		mov si,localboot_msg

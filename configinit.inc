@@ -23,11 +23,9 @@ reset_config:
 
 		; Initialize the .config section
 		xor eax,eax
-		mov si,section..config.start
-		mov di,section..config.vstart
-		mov cx,section..config.end.start
-		sub cx,di
-		shr cx,2
+		mov si,__config_lma
+		mov di,__config_start
+		mov cx,__config_dwords
 		rep movsd
 
 %ifndef DEPEND
