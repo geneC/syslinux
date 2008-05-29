@@ -42,11 +42,12 @@ official:
 
 release:
 	test -d release
-	rm -f '$(GIT_DIR)'/refs/tags/syslinux-$(VERSION)
-	cg-tag -f syslinux-$(VERSION)
+	git tag -a -m syslinux-$(VERSION) -f syslinux-$(VERSION)
 	-rm -rf release/syslinux-$(VERSION)
 	-rm -f release/syslinux-$(VERSION).*
-	cd release && env GIT_DIR='$(ABS_GIT_DIR)' cg-export -r syslinux-$(VERSION) syslinux-$(VERSION)
+	mkdir -p release/syslinux-$(VERSION)
+	git archive --format=tar syslinux-$(VERSION) | \
+		tar -x -f - -C release/syslinux-$(VERSION)
 	find release/syslinux-$(VERSION) \
 		\( -name '*~' -or -name '#*' \) -type f -print0 | \
 		xargs -0rt rm -f
@@ -70,12 +71,12 @@ RPMPREREL := $(shell $(PERL) -e 'printf "%.2f.%d\n", $(VERSION)-0.01, $(PRERELNO
 
 prerel:
 	test -d release
-	rm -f '$(GIT_DIR)'/refs/tags/$(PREREL)
-	cg-tag $(PREREL)
+	git tag -a -m $(PREREL) -f $(PREREL)
 	mkdir -p $(PRERELDIR) $(PRERELDIR)/uu
 	-rm -rf $(PRERELDIR)/$(PREREL)
 	-rm -f $(PRERELDIR)/$(PREREL).*
-	cd $(PRERELDIR) && env GIT_DIR='$(ABS_GIT_DIR)' cg-export -r $(PREREL) $(PREREL)
+	git archive --format=tar $(PREREL) | \
+		tar -x -f - -C $(PRERELDIR)/$(PREREL)
 	find $(PRERELDIR)/$(PREREL) \
 		\( -name '*~' -or -name '#*' \) -type f -print0 | \
 		xargs -0rt rm -f
