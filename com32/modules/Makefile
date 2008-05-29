@@ -98,7 +98,7 @@ dmitest.elf : dmitest.o dmi_utils.o dmi.o $(LIBS)
 ethersel.elf : ethersel.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-tidy:
+tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d
 
 clean: tidy

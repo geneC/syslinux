@@ -104,7 +104,7 @@ libutil_lnx.a: $(LNXLIBOBJS)
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
 
-tidy:
+tidy dist:
 	rm -f *.o *.lo *.lst *.elf .*.d
 
 clean: tidy

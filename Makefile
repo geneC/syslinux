@@ -20,6 +20,8 @@ MAKE      += -r
 
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
 
+CC	 = gcc
+
 gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) dummy.c -o $$tmpf 2>/dev/null; \
 	           then echo '$(1)'; else echo '$(2)'; fi; rm -f $$tmpf)
 
@@ -27,7 +29,6 @@ comma   := ,
 LDHASH  := $(call gcc_ok,-Wl$(comma)--hash-style=both,)
 
 OSTYPE   = $(shell uname -msr)
-CC	 = gcc
 INCLUDE  =
 CFLAGS   = -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 PIC      = -fPIC
@@ -66,63 +67,35 @@ VERSION  = $(shell cat version)
 # with their own Makefiles.  Finally, there is a list of those
 # directories.
 #
-CSRC     = gethostip.c
-NASMSRC  = $(wildcard *.asm)
-SOURCES = $(CSRC) *.h $(NASMSRC) *.inc
-
-# _bin.c files required by both BTARGET and ITARGET installers
-BINFILES = bootsect_bin.c ldlinux_bin.c mbr_bin.c \
-	   extlinux_bss_bin.c extlinux_sys_bin.c
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
-BTARGET  = kwdhash.gen version.gen version.h \
-	   ldlinux.bss ldlinux.sys ldlinux.bin \
-	   pxelinux.0 gpxelinux.0 isolinux.bin isolinux-debug.bin \
-	   extlinux.bin extlinux.bss extlinux.sys
-BOBJECTS = $(BTARGET) mbr/mbr.bin dos/syslinux.com win32/syslinux.exe \
+BTARGET  = version.gen version.h
+BOBJECTS = $(BTARGET) \
+	mbr/mbr.bin mbr/gptmbr.bin \
+	core/pxelinux.0 core/isolinux.bin core/isolinux-debug.bin \
+	gpxe/gpxelinux.0 dos/syslinux.com win32/syslinux.exe \
 	memdisk/memdisk memdump/memdump.com
 # BESUBDIRS and IESUBDIRS are "early", i.e. before the root; BSUBDIRS
 # and ISUBDIRS are "late", after the root.
-BESUBDIRS = mbr
-BSUBDIRS = memdisk memdump dos win32
-ITARGET  = copybs.com gethostip mkdiskimage
-IOBJECTS = $(ITARGET) mtools/syslinux unix/syslinux extlinux/extlinux
+BESUBDIRS = mbr core
+BSUBDIRS = memdisk memdump gpxe dos win32
+ITARGET  = 
+IOBJECTS = $(ITARGET) dos/copybs.com utils/gethostip utils/mkdiskimage \
+	mtools/syslinux linux/syslinux extlinux/extlinux
 IESUBDIRS =
-ISUBDIRS = mtools unix extlinux sample com32
-DOCS     = COPYING NEWS README TODO BUGS *.doc sample menu com32
-OTHER    = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
-	   keytab-lilo.pl version version.pl sys2ansi.pl \
-	   ppmtolss16 lss16toppm memdisk bin2hex.pl mkdiskimage.in \
-	   sha1pass md5pass
-OBSOLETE = pxelinux.bin
+ISUBDIRS = mtools linux extlinux utils com32 sample
 
 # Things to install in /usr/bin
-INSTALL_BIN   =	mtools/syslinux gethostip ppmtolss16 lss16toppm \
-		sha1pass md5pass
+INSTALL_BIN   =	mtools/syslinux utils/gethostip utils/ppmtolss16 \
+		utils/lss16toppm utils/sha1pass utils/md5pass
 # Things to install in /sbin
 INSTALL_SBIN  = extlinux/extlinux
 # Things to install in /usr/lib/syslinux
-INSTALL_AUX   =	pxelinux.0 gpxelinux.0 isolinux.bin isolinux-debug.bin \
-		dos/syslinux.com copybs.com memdisk/memdisk mbr/mbr.bin
+INSTALL_AUX   =	core/pxelinux.0 gpxe/gpxelinux.0 core/isolinux.bin \
+		core/isolinux-debug.bin \
+		dos/syslinux.com dos/copybs.com memdisk/memdisk mbr/mbr.bin
 INSTALL_AUX_OPT = win32/syslinux.exe
-
-# The DATE is set on the make command line when building binaries for
-# official release.  Otherwise, substitute a hex string that is pretty much
-# guaranteed to be unique to be unique from build to build.
-ifndef HEXDATE
-HEXDATE := $(shell $(PERL) now.pl ldlinux.asm pxelinux.asm isolinux.asm)
-endif
-ifndef DATE
-DATE    := $(HEXDATE)
-endif
-MAKE    += DATE=$(DATE) HEXDATE=$(HEXDATE)
-
-#
-# NOTE: If you don't have the mingw compiler suite installed, you probably
-# want to remove win32 from this list; otherwise you're going to get an
-# error every time you try to build.
-#
 
 all:
 	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) ; do $(MAKE) -C $$i $@ ; done
@@ -130,7 +103,7 @@ all:
 	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 	-ls -l $(BOBJECTS) $(IOBJECTS)
 
-all-local: $(BTARGET) $(ITARGET) $(BINFILES)
+all-local: $(BTARGET) $(ITARGET)
 
 installer:
 	set -e ; for i in $(IESUBDIRS); do $(MAKE) -C $$i all ; done
@@ -145,74 +118,6 @@ version.gen: version version.pl
 
 version.h: version version.pl
 	$(PERL) version.pl $< $@ '#define'
-
-kwdhash.gen: keywords genhash.pl
-	$(PERL) genhash.pl < keywords > kwdhash.gen
-
-.PRECIOUS: %.elf
-
-# Standard rule for {isolinux,isolinux-debug}.bin
-iso%.bin: iso%.elf
-	$(OBJCOPY) -O binary $< $@
-	$(PERL) checksumiso.pl $@
-
-# Standard rule for {ldlinux,pxelinux,extlinux}.bin
-%.bin: %.elf
-	$(OBJCOPY) -O binary $< $@
-
-%.o: %.asm kwdhash.gen version.gen
-	$(NASM) $(NASMOPT) -f elf -F stabs -DDATE_STR="'$(DATE)'" \
-		-DHEXDATE="$(HEXDATE)" \
-		-l $(@:.o=.lsr) -o $@ $<
-
-%.elf: %.o syslinux.ld
-	$(LD) -m elf_i386 -T syslinux.ld -M -o $@ $< > $(@:.elf=.map)
-	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
-	$(PERL) lstadjust.pl $(@:.elf=.lsr) $(@:.elf=.sec) $(@:.elf=.lst)
-
-pxelinux.0: pxelinux.bin
-	cp -f $< $@
-
-gpxelinux.0: pxelinux.0
-	$(MAKE) -C gpxe/src bin/undionly.kpxe
-	cp -f gpxe/src/bin/undionly.kpxe $@
-
-ldlinux.bss: ldlinux.bin
-	dd if=$< of=$@ bs=512 count=1
-
-ldlinux.sys: ldlinux.bin
-	dd if=$< of=$@ bs=512 skip=1
-
-extlinux.bss: extlinux.bin
-	dd if=$< of=$@ bs=512 count=1
-
-extlinux.sys: extlinux.bin
-	dd if=$< of=$@ bs=512 skip=1
-
-mbr_bin.c: mbr/mbr.bin bin2c.pl
-	$(PERL) bin2c.pl syslinux_mbr < $< > $@
-
-copybs.com: copybs.asm
-	$(NASM) $(NASMOPT) -f bin -l copybs.lst -o copybs.com copybs.asm
-
-bootsect_bin.c: ldlinux.bss bin2c.pl
-	$(PERL) bin2c.pl syslinux_bootsect < $< > $@
-
-ldlinux_bin.c: ldlinux.sys bin2c.pl
-	$(PERL) bin2c.pl syslinux_ldlinux < $< > $@
-
-extlinux_bss_bin.c: extlinux.bss bin2c.pl
-	$(PERL) bin2c.pl extlinux_bootsect < $< > $@
-
-extlinux_sys_bin.c: extlinux.sys bin2c.pl
-	$(PERL) bin2c.pl extlinux_image 512 < $< > $@
-
-gethostip: gethostip.o
-	$(CC) $(LDFLAGS) -o $@ $^
-
-mkdiskimage: mkdiskimage.in mbr/mbr.bin bin2hex.pl
-	$(PERL) bin2hex.pl < mbr/mbr.bin | cat mkdiskimage.in - > $@
-	chmod a+x $@
 
 install: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR)
@@ -246,7 +151,6 @@ local-tidy:
 
 tidy: local-tidy
 	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
-	$(MAKE) -C gpxe/src veryclean
 
 local-clean:
 	rm -f $(ITARGET)
@@ -254,36 +158,29 @@ local-clean:
 clean: local-tidy local-clean
 	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
-dist: tidy
+local-dist:
 	find . \( -name '*~' -o -name '#*' -o -name core \
 		-o -name '.*.d' -o -name .depend \) -type f -print0 \
 	| xargs -0rt rm -f
 
+dist: local-dist local-tidy
+	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+
 local-spotless:
 	rm -f $(BTARGET) .depend *.so.*
 
-spotless: local-clean dist local-spotless
+spotless: local-clean local-dist local-spotless
 	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
-.depend:
-	rm -f .depend
-	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -MM $$csrc >> .depend ; done
-	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.o/'` -M $$nsrc >> .depend ; done
-
 local-depend:
-	rm -f .depend
-	$(MAKE) .depend
 
 depend: local-depend
 	$(MAKE) -C memdisk depend
 
-# Shortcut to build unix/syslinux using klibc
+# Shortcut to build linux/syslinux using klibc
 klibc:
 	$(MAKE) clean
-	$(MAKE) CC=klcc ITARGET= ISUBDIRS='unix extlinux' BSUBDIRS=
+	$(MAKE) CC=klcc ITARGET= ISUBDIRS='linux extlinux' BSUBDIRS=
 
 # Hook to add private Makefile targets for the maintainer.
 -include Makefile.private
-
-# Include dependencies file
-include .depend

@@ -30,7 +30,7 @@ TARGETS = memdump.com
 
 all: $(TARGETS)
 
-tidy:
+tidy dist:
 	-rm -f *.o *.i *.s *.a .*.d *.elf
 
 clean: tidy

@@ -107,7 +107,7 @@ libcom32.a : $(LIBOBJS)
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
-tidy:
+tidy dist:
 	rm -f sys/vesa/alphatbl.c
 	find . -name \*.o -print | xargs -r rm -f
 	find . -name .\*.d -print | xargs -r rm -f

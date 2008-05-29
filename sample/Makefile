@@ -32,7 +32,7 @@ CFLAGS     = $(M32) -W -Wall -march=i386 -Os -fomit-frame-pointer -I../com32/inc
 SFLAGS     = $(M32) -march=i386
 LDFLAGS    = -s
 OBJCOPY    = objcopy
-PPMTOLSS16 =	../ppmtolss16
+PPMTOLSS16 = ../utils/ppmtolss16
 LIB	   = liboldcom32.a
 GZIPPROG   = gzip
 PNGTOPNM   = pngtopnm
@@ -75,7 +75,7 @@ $(LIB): $(LIBOBJS)
 %.ppm.gz: %.png
 	$(PNGTOPNM) $< | gzip -9 > $@
 
-tidy:
+tidy dist:
 	rm -f *.o *.a *.lst *.elf
 
 # Don't specify *.com since mdiskchk.com can't be built using Linux tools

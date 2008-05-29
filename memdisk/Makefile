@@ -49,7 +49,7 @@ NASMSRC  = memdisk.asm memdisk16.asm
 all: memdisk # e820test
 
 # tidy, clean removes everything except the final binary
-tidy:
+tidy dist:
 	rm -f *.o *.s *.o16 *.s16 *.bin *.lst *.elf e820test
 
 clean: tidy

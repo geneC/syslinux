@@ -74,7 +74,7 @@ libmenu/libmenu.a: $(LIBMENU)
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
-tidy:
+tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf
 
 libclean:

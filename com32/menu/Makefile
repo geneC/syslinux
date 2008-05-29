@@ -92,7 +92,7 @@ menu.elf : menu.o $(COMMONOBJS) $(LIBS)
 vesamenu.elf : vesamenu.o $(COMMONOBJS) $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-tidy:
+tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d
 
 clean: tidy

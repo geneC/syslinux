@@ -383,4 +383,4 @@ CFLAGS_wd	= -DINCLUDE_WD -DWD_DEFAULT_MEM=0xCC000
 #
 # SYSLINUX: Local addition to build PXELINUX combined image
 #
-EMBEDDED_IMAGE	= ../../pxelinux.0
+EMBEDDED_IMAGE	= ../core/pxelinux.0

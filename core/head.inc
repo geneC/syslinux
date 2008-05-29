@@ -18,6 +18,7 @@
 ;
 
 %ifndef _HEAD_INC
+%define _HEAD_INC
 
 %include "macros.inc"
 %include "config.inc"

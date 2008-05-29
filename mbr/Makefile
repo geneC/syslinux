@@ -22,34 +22,40 @@ gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>
 M32       := $(call gcc_ok,-m32,) $(call gcc_ok,-ffreestanding,) $(call gcc_ok,-fno-stack-protector)
 
 CC         = gcc
-LD         = ld -m elf_i386
+LD         = ld 
+LDFLAGS	   = -m elf_i386
 SFLAGS	   = $(M32) -march=i386
 OBJCOPY	   = objcopy
 PERL	   = perl
 
 .SUFFIXES: .S .s .o .elf
 
-all:	mbr.bin gptmbr.bin
+all:	mbr.bin mbr_bin.c gptmbr.bin gptmbr_bin.c 
 
 .PRECIOUS: %.o
 %.o: %.S
 	$(CC) $(SFLAGS) -Wa,-a=$*.lst -c -o $@ $<
 
+%_bin.c: %.bin ../bin2c.pl
+	$(PERL) ../bin2c.pl syslinux_$* < $< > $@
+
 mbr.elf: mbr.o mbr.ld
-	$(LD) -T mbr.ld -e _start -o $@ $<
+	$(LD) $(LDFLAGS) -T mbr.ld -e _start -o $@ $<
 
 mbr.bin: mbr.elf checksize.pl
 	$(OBJCOPY) -O binary $< $@
 	$(PERL) checksize.pl mbr.bin 440
 
+mbr_bin.c: mbr.bin
+
 gptmbr.elf: gptmbr.o mbr.ld
-	$(LD) -T mbr.ld -e _start -o $@ $<
+	$(LD) $(LDFLAGS) -T mbr.ld -e _start -o $@ $<
 
 gptmbr.bin: gptmbr.elf checksize.pl
 	$(OBJCOPY) -O binary $< $@
 	$(PERL) checksize.pl gptmbr.bin 424
 
-tidy:
+tidy dist:
 	rm -f *.o *.elf *.lst
 
 clean: tidy

@@ -13,16 +13,16 @@ CFLAGS	 = -W -Wall -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = $(LDHASH) -s
 
 SRCS     = syslinux.c ../libinstaller/syslxmod.c \
-	   ../bootsect_bin.c ../ldlinux_bin.c
+	   ../core/bootsect_bin.c ../core/ldlinux_bin.c
 OBJS	 = $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
 .SUFFIXES: .c .o .i .s .S
 
-VPATH = .:..:../libinstaller
+VPATH = .:../libinstaller:../core
 
 all: installer
 
-tidy:
+tidy dist:
 	-rm -f *.o *.i *.s *.a .*.d
 
 clean: tidy

@@ -78,7 +78,7 @@ all:	hello.c32 cat.c32 resolv.c32 vesainfo.c32 serialinfo.c32 \
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
 
-tidy:
+tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d
 
 clean: tidy

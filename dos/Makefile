@@ -9,35 +9,38 @@ M32       := $(call gcc_ok,-m32,) $(call gcc_ok,-ffreestanding,) \
 	$(call gcc_ok,-fno-stack-protector,) \
 	$(call gcc_ok,-fno-top-level-reorder,$(call gcc_ok,-fno-unit-at-a-time))
 
-LD       = ld -m elf_i386
+NASM	 = nasm
+NASMOPT  = -O9999
+
+LD       = ld
+LDFLAGS	 = -m elf_i386 -T com16.ld
 OBJCOPY  = objcopy
 OPTFLAGS = -g -Os -march=i386 -falign-functions=0 -falign-jumps=0 -falign-loops=0 -fomit-frame-pointer
 INCLUDES = -include code16.h -nostdinc -iwithprefix include \
 	   -I. -I.. -I../libfat -I ../libinstaller
 CFLAGS	 = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -msoft-float $(OPTFLAGS) $(INCLUDES)
-LDFLAGS	 = -T com16.ld
 AR       = ar
 RANLIB   = ranlib
 LIBGCC  := $(shell $(CC) --print-libgcc)
 
 SRCS     = syslinux.c \
 	   ../libinstaller/syslxmod.c \
-	   ../bootsect_bin.c ../ldlinux_bin.c ../mbr_bin.c \
+	   ../core/bootsect_bin.c ../core/ldlinux_bin.c ../mbr/mbr_bin.c \
            $(wildcard ../libfat/*.c)
 OBJS	 = crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
 LIBOBJS	 = conio.o memcpy.o memset.o  skipatou.o atou.o malloc.o free.o \
 	   argv.o printf.o __divdi3.o __udivmoddi4.o
 
-.SUFFIXES: .c .o .i .s .S .elf .com
+.SUFFIXES: .c .o .i .s .S .elf .com .asm .lst
 
-VPATH = .:..:../libfat:../libinstaller
+VPATH = .:../libfat:../libinstaller:../core:../mbr
 
-TARGETS = syslinux.com
+TARGETS = syslinux.com copybs.com
 
 all: $(TARGETS)
 
-tidy:
-	-rm -f *.o *.i *.s *.a .*.d *.elf
+tidy dist:
+	-rm -f *.o *.i *.s *.a .*.d *.elf *.lst
 
 clean: tidy
 
@@ -67,5 +70,7 @@ syslinux.com: syslinux.elf
 	$(CC) -Wp,-MT,$@,-MD,.$@.d $(CFLAGS) -D__ASSEMBLY__ -c -o $@ $<
 %.s: %.S
 	$(CC) $(CFLAGS) -E -o $@ $<
+%.com: %.asm
+	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 
 -include .*.d
