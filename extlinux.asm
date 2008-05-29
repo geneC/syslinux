@@ -143,7 +143,7 @@ OrigESDI	equ StackBuf-4		; The high dword on the stack
 ; "magic number" (using the term very loosely) for the DOS superblock.
 ;
 bootsec		equ $
-		jmp short start		; 2 bytes
+_start:		jmp short start		; 2 bytes
 		nop			; 1 byte
 ;
 ; "Superblock" follows -- it's in the boot sector, so it's already

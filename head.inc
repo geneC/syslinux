@@ -21,10 +21,10 @@
 
 %include "macros.inc"
 %include "config.inc"
+%include "layout.inc"
 %include "kernel.inc"
 %include "bios.inc"
 %include "tracers.inc"
-%include "layout.inc"
 %include "stack.inc"
 
 %endif ; _HEAD_INC

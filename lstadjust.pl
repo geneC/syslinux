@@ -18,16 +18,10 @@ open(OUT, "> $outfile\0")
     or die "$0: cannot create: $outfile: $!\n";
 
 %vstart = ();
-undef $sec;
 
 while (defined($line = <MAP>)) {
-    chomp $line;
-    if ($line =~ /^\-+\s+Section\s+(\S+)\s+\-/) {
-	$sec = $1;
-    }
-    next unless (defined($sec));
-    if ($line =~ /^vstart:\s+([0-9a-f]+)/i) {
-	$vstart{$sec} = hex $1;
+    if ($line =~ /^\s*([0-9]+)\s+(\S+)\s+([0-9a-f]+)\s+([0-9a-f]+)\s+([0-9a-f]+)\s+([0-9a-f]+)\s+2\*\*([0-9]+)/i) {
+	$vstart{$2} = hex $4;
     }
 }
 close(MAP);

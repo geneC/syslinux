@@ -15,7 +15,8 @@
 #
 
 # No builtin rules
-MAKEFLAGS = -r
+MAKEFLAGS += -r
+MAKE      += -r
 
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
 
@@ -33,6 +34,9 @@ PIC      = -fPIC
 LDFLAGS  = -O2 -s $(LDHASH)
 AR	 = ar
 RANLIB   = ranlib
+LD	 = ld
+OBJCOPY  = objcopy
+OBJDUMP  = objdump
 
 NASM	 = nasm
 NASMOPT  = -O9999
@@ -145,20 +149,26 @@ version.h: version version.pl
 kwdhash.gen: keywords genhash.pl
 	$(PERL) genhash.pl < keywords > kwdhash.gen
 
+.PRECIOUS: %.elf
+
 # Standard rule for {isolinux,isolinux-debug}.bin
-iso%.bin: iso%.asm kwdhash.gen version.gen
-	$(NASM) $(NASMOPT) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
-		-DMAP=$(@:.bin=.map) -l $(@:.bin=.lsr) -o $@ $<
-	$(PERL) lstadjust.pl $(@:.bin=.lsr) $(@:.bin=.map) $(@:.bin=.lst)
+iso%.bin: iso%.elf
+	$(OBJCOPY) -O binary $< $@
 	$(PERL) checksumiso.pl $@
-	$(PERL) checkov.pl $(@:.bin=.map) $@
 
 # Standard rule for {ldlinux,pxelinux,extlinux}.bin
-%.bin: %.asm kwdhash.gen version.gen
-	$(NASM) $(NASMOPT) -f bin -DDATE_STR="'$(DATE)'" -DHEXDATE="$(HEXDATE)" \
-		-DMAP=$(@:.bin=.map) -l $(@:.bin=.lsr) -o $@ $<
-	$(PERL) lstadjust.pl $(@:.bin=.lsr) $(@:.bin=.map) $(@:.bin=.lst)
-	$(PERL) checkov.pl $(@:.bin=.map) $@
+%.bin: %.elf
+	$(OBJCOPY) -O binary $< $@
+
+%.o: %.asm kwdhash.gen version.gen
+	$(NASM) $(NASMOPT) -f elf -F stabs -DDATE_STR="'$(DATE)'" \
+		-DHEXDATE="$(HEXDATE)" \
+		-l $(@:.o=.lsr) -o $@ $<
+
+%.elf: %.o syslinux.ld
+	$(LD) -m elf_i386 -T syslinux.ld -M -o $@ $< > $(@:.elf=.map)
+	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
+	$(PERL) lstadjust.pl $(@:.elf=.lsr) $(@:.elf=.sec) $(@:.elf=.lst)
 
 pxelinux.0: pxelinux.bin
 	cp -f $< $@
@@ -230,13 +240,13 @@ netinstall: installer
 	install -m 644 $(NETINSTALLABLE) $(INSTALLROOT)$(TFTPBOOT)
 
 local-tidy:
-	rm -f *.o *_bin.c stupid.* patch.offset
-	rm -f *.lsr *.lst *.map
+	rm -f *.o *.elf *_bin.c stupid.* patch.offset
+	rm -f *.lsr *.lst *.map *.sec
 	rm -f $(OBSOLETE)
-	$(MAKE) -C gpxe/src veryclean
 
 tidy: local-tidy
 	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+	$(MAKE) -C gpxe/src veryclean
 
 local-clean:
 	rm -f $(ITARGET)
@@ -258,7 +268,7 @@ spotless: local-clean dist local-spotless
 .depend:
 	rm -f .depend
 	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -MM $$csrc >> .depend ; done
-	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc >> .depend ; done
+	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.o/'` -M $$nsrc >> .depend ; done
 
 local-depend:
 	rm -f .depend

@@ -12,7 +12,8 @@ INCLUDES = -I. -I.. -I../libinstaller
 CFLAGS	 = -W -Wall -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = $(LDHASH) -s
 
-SRCS     = syslinux.c ../syslxmod.c ../bootsect_bin.c ../ldlinux_bin.c
+SRCS     = syslinux.c ../libinstaller/syslxmod.c \
+	   ../bootsect_bin.c ../ldlinux_bin.c
 OBJS	 = $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
 .SUFFIXES: .c .o .i .s .S

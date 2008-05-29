@@ -21,7 +21,8 @@ RANLIB   = ranlib
 LIBGCC  := $(shell $(CC) --print-libgcc)
 
 SRCS     = syslinux.c \
-	   ../syslxmod.c ../bootsect_bin.c ../ldlinux_bin.c ../mbr_bin.c \
+	   ../libinstaller/syslxmod.c \
+	   ../bootsect_bin.c ../ldlinux_bin.c ../mbr_bin.c \
            $(wildcard ../libfat/*.c)
 OBJS	 = crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
 LIBOBJS	 = conio.o memcpy.o memset.o  skipatou.o atou.o malloc.o free.o \
