@@ -75,6 +75,7 @@ prerel:
 	mkdir -p $(PRERELDIR) $(PRERELDIR)/uu
 	-rm -rf $(PRERELDIR)/$(PREREL)
 	-rm -f $(PRERELDIR)/$(PREREL).*
+	mkdir -p $(PRERELDIR)/$(PREREL)
 	git archive --format=tar $(PREREL) | \
 		tar -x -f - -C $(PRERELDIR)/$(PREREL)
 	find $(PRERELDIR)/$(PREREL) \
