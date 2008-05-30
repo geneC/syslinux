@@ -13,49 +13,10 @@
 #
 # Main Makefile for SYSLINUX
 #
+topdir = .
+include $(topdir)/MCONFIG
 
-# No builtin rules
-MAKEFLAGS += -r
-MAKE      += -r
-
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
-
-CC	 = gcc
-
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) dummy.c -o $$tmpf 2>/dev/null; \
-	           then echo '$(1)'; else echo '$(2)'; fi; rm -f $$tmpf)
-
-comma   := ,
-LDHASH  := $(call gcc_ok,-Wl$(comma)--hash-style=both,)
-
-OSTYPE   = $(shell uname -msr)
-INCLUDE  =
-CFLAGS   = -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
-PIC      = -fPIC
-LDFLAGS  = -O2 -s $(LDHASH)
-AR	 = ar
-RANLIB   = ranlib
-LD	 = ld
-OBJCOPY  = objcopy
-OBJDUMP  = objdump
-
-NASM	 = nasm
-NASMOPT  = -O9999
-NINCLUDE =
-BINDIR   = /usr/bin
-SBINDIR  = /sbin
-LIBDIR   = /usr/lib
-AUXDIR   = $(LIBDIR)/syslinux
-MANDIR	 = /usr/man
-INCDIR   = /usr/include
-TFTPBOOT = /tftpboot
-
-PERL     = perl
-
-VERSION  = $(shell cat version)
-
-%.o: %.c
-	$(CC) $(INCLUDE) $(CFLAGS) -c $<
+VERSION := $(shell cat version)
 
 #
 # The BTARGET refers to objects that are derived from ldlinux.asm; we
@@ -87,15 +48,27 @@ IESUBDIRS =
 ISUBDIRS = mtools linux extlinux utils com32 sample
 
 # Things to install in /usr/bin
-INSTALL_BIN   =	mtools/syslinux utils/gethostip utils/ppmtolss16 \
-		utils/lss16toppm utils/sha1pass utils/md5pass
+INSTALL_BIN   =	mtools/syslinux
 # Things to install in /sbin
 INSTALL_SBIN  = extlinux/extlinux
 # Things to install in /usr/lib/syslinux
 INSTALL_AUX   =	core/pxelinux.0 gpxe/gpxelinux.0 core/isolinux.bin \
 		core/isolinux-debug.bin \
-		dos/syslinux.com dos/copybs.com memdisk/memdisk mbr/mbr.bin
+		dos/syslinux.com dos/copybs.com win32/syslinux.exe \
+		memdisk/memdisk memdump/memdump.com \
+		mbr/mbr.bin mbr/gptmbr.bin
 INSTALL_AUX_OPT = win32/syslinux.exe
+
+# These directories manage their own installables
+INSTALLSUBDIRS = com32 utils
+
+# Things to install in /boot/extlinux
+EXTBOOTINSTALL = memdisk/memdisk memdump/memdump.com \
+		 com32/menu/*.c32 com32/modules/*.c32
+
+# Things to install in /tftpboot
+NETINSTALLABLE = core/pxelinux.0 gpxe/gpxelinux.0 memdisk/memdisk \
+		 memdump/memdump.com com32/menu/*.c32 com32/modules/*.c32
 
 all:
 	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) ; do $(MAKE) -C $$i $@ ; done
@@ -119,7 +92,7 @@ version.gen: version version.pl
 version.h: version version.pl
 	$(PERL) version.pl $< $@ '#define'
 
-install: installer
+local-install: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR)
 	install -m 755 -c $(INSTALL_BIN) $(INSTALLROOT)$(BINDIR)
 	mkdir -m 755 -p $(INSTALLROOT)$(SBINDIR)
@@ -131,18 +104,19 @@ install: installer
 	install -m 644 -c man/*.1 $(INSTALLROOT)$(MANDIR)/man1
 	: mkdir -m 755 -p $(INSTALLROOT)$(MANDIR)/man8
 	: install -m 644 -c man/*.8 $(INSTALLROOT)$(MANDIR)/man8
-	$(MAKE) -C com32 install
 
-install-lib: installer
-
-install-all: install install-lib
-
-NETINSTALLABLE = pxelinux.0 gpxelinux.0 memdisk/memdisk memdump/memdump.com \
-	com32/menu/*.c32 com32/modules/*.c32
+install: local-install
+	set -e ; for i in $(INSTALLSUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
 netinstall: installer
 	mkdir -p $(INSTALLROOT)$(TFTPBOOT)
 	install -m 644 $(NETINSTALLABLE) $(INSTALLROOT)$(TFTPBOOT)
+
+extbootinstall: installer
+	mkdir -m 755 -p $(INSTALLROOT)$(EXTLINUXDIR)
+	install -m 644 $(EXTBOOTINSTALL) $(INSTALLROOT)$(EXTLINUXDIR)
+
+install-all: install netinstall extbootinstall
 
 local-tidy:
 	rm -f *.o *.elf *_bin.c stupid.* patch.offset

@@ -47,7 +47,8 @@ LNXLIBS	   = ../libutil/libutil_lnx.a
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib
-AUXDIR   = $(LIBDIR)/syslinux
+DATADIR	 = /usr/share
+AUXDIR   = $(DATADIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 

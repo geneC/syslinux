@@ -23,6 +23,11 @@ Changes in 3.70:
 	* The source tree has been restructured; files that were
 	  previously in the root have moved into the core, dos, gpxe,
 	  and utils directories.
+	* "make install", "make netinstall", and "make extbootinstall"
+	  have been updated massively.  "make install-all" now installs
+	  all three.
+	* Change default dir for auxiliary files from
+	  /usr/lib/syslinux to /usr/share/syslinux.
 
 Changes in 3.64:
 	* SYSLINUX/EXTLINUX: support "localboot" with the same feature

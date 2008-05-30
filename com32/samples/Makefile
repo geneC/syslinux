@@ -38,7 +38,6 @@ LNXLDFLAGS = -g
 SFLAGS     = -D__COM32__ -march=i386
 LDFLAGS    = -T ../lib/com32.ld
 OBJCOPY    = objcopy
-PPMTOLSS16 =	../ppmtolss16
 LIBGCC    := $(shell $(CC) --print-libgcc)
 LIBS	   = ../libutil/libutil_com.a ../lib/libcom32.a $(LIBGCC)
 LNXLIBS	   = ../libutil/libutil_lnx.a

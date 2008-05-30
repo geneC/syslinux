@@ -1,21 +1,12 @@
 # -*- makefile -*-
 
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
-CC	= gcc
-
-gcc_ok  = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
-	  then echo $(1); else echo $(2); fi; rm -f $$tmpf)
+topdir = ../..
+include $(topdir)/MCONFIG
 
 GCCOPT := $(call gcc_ok,-m32,) $(call gcc_ok,-fno-stack-protector,)
 
-LD	= ld
 INCLUDE	= -I.
-AR	= ar
-RANLIB	= ranlib
-NM	= nm
-PERL	= perl
 STRIP	= strip --strip-all -R .comment -R .note
-OBJCOPY	= objcopy
 
 # zlib and libpng configuration flags
 LIBFLAGS = -DDYNAMIC_CRC_TABLE -DPNG_NO_CONSOLE_IO \

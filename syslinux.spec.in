@@ -69,25 +69,13 @@ make CC='%{my_cc}' -C sample tidy
 
 %install
 rm -rf %{buildroot}
-mkdir -p %{buildroot}%{_bindir}
-mkdir -p %{buildroot}%{_sbindir}
-mkdir -p %{buildroot}%{_datadir}/syslinux
-mkdir -p %{buildroot}%{_includedir}
-mkdir -p %{buildroot}/boot/extlinux %{buildroot}/etc
-mkdir -p %{buildroot}/tftpboot/pxelinux.cfg
 make CC='%{my_cc}' install-all \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} SBINDIR=%{_sbindir} \
-	LIBDIR=%{_datadir} MANDIR=%{_mandir} INCDIR=%{_includedir}
+	LIBDIR=%{_libdir} DATADIR=%{_datadir} \
+	MANDIR=%{_mandir} INCDIR=%{_includedir} \
+	TFTPBOOT=/tftpboot EXTLINUXDIR=/boot/extlinux
 make CC='%{my_cc}' -C sample tidy
-cp mkdiskimage syslinux2ansi.pl keytab-lilo.pl %{buildroot}%{_datadir}/syslinux
-
-cp %{buildroot}%{_datadir}/syslinux/*.c32	%{buildroot}/boot/extlinux
-cp %{buildroot}%{_datadir}/syslinux/memdisk	%{buildroot}/boot/extlinux
 ( cd %{buildroot}/etc && ln -s ../boot/extlinux/extlinux.conf . )
-
-cp %{buildroot}%{_datadir}/syslinux/*.c32	%{buildroot}/tftpboot
-cp %{buildroot}%{_datadir}/syslinux/pxelinux.0 %{buildroot}/tftpboot
-cp %{buildroot}%{_datadir}/syslinux/memdisk	%{buildroot}/tftpboot
 
 %clean
 rm -rf %{buildroot}
@@ -97,20 +85,13 @@ rm -rf %{buildroot}
 %doc COPYING NEWS doc/*
 %doc sample
 %{_mandir}/man*/*
-%{_bindir}/syslinux
-%{_bindir}/ppmtolss16
-%{_bindir}/lss16toppm
-%{_bindir}/gethostip
-%{_bindir}/sha1pass
-%{_bindir}/md5pass
+%{_bindir}/*
 %{_datadir}/syslinux/*.com
 %{_datadir}/syslinux/*.exe
 %{_datadir}/syslinux/*.c32
 %{_datadir}/syslinux/*.bin
 %{_datadir}/syslinux/*.0
 %{_datadir}/syslinux/memdisk
-%{_datadir}/syslinux/*.pl
-%{_datadir}/syslinux/mkdiskimage
 
 %files devel
 %{_datadir}/syslinux/com32
@@ -137,6 +118,9 @@ fi
 %postun
 
 %changelog
+* Thu May 29 2008 H. Peter Anvin <hpa@zytor.com>
+- Use install targets; clean up various paths.
+
 * Thu Jan 10 2008 H. Peter Anvin <hpa@zytor.com>
 - Add man pages.
 

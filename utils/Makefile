@@ -13,29 +13,17 @@
 #
 # SYSLINUX utilities
 #
-# No builtin rules
-MAKEFLAGS += -r
-MAKE      += -r
 
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
-
-CC	 = gcc
-
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) dummy.c -o $$tmpf 2>/dev/null; \
-	           then echo '$(1)'; else echo '$(2)'; fi; rm -f $$tmpf)
-
-comma   := ,
-LDHASH  := $(call gcc_ok,-Wl$(comma)--hash-style=both,)
+topdir = ..
+include $(topdir)/MCONFIG
 
 CFLAGS   = -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
-LDFLAGS  = -O2 -s $(LDHASH)
-LD	 = ld
-PERL	 = perl
+LDFLAGS  = -O2 -s
 
 TARGETS	 = mkdiskimage gethostip
 ASIS     = keytab-lilo lss16toppm md5pass ppmtolss16 sha1pass syslinux2ansi
 
-all: mkdiskimage gethostip
+all: $(TARGETS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -56,3 +44,7 @@ clean: tidy
 spotless: clean
 
 installer: all
+
+install: installer
+	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR)
+	install -m 755 $(TARGETS) $(ASIS) $(INSTALLROOT)$(BINDIR)
