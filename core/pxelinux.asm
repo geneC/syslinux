@@ -1552,7 +1552,7 @@ is_gpxe:
 		jmp .again
 
 		section .data
-gpxe_warning_msg
+gpxe_warning_msg:
 		db 'URL syntax, but gPXE extensions not detected, '
 		db 'trying plain TFTP...', CR, LF, 0
 HasGPXE		db -1			; Unknown
