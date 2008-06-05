@@ -317,19 +317,39 @@ hermon_cmd_write_mtt ( struct hermon *hermon,
 }
 
 static inline int
-hermon_cmd_sw2hw_eq ( struct hermon *hermon, unsigned int index,
-		      const struct hermonprm_eqc *eqc ) {
+hermon_cmd_map_eq ( struct hermon *hermon, unsigned long index_map,
+		    const struct hermonprm_event_mask *mask ) {
 	return hermon_cmd ( hermon,
-			    HERMON_HCR_IN_CMD ( HERMON_HCR_SW2HW_EQ,
-						1, sizeof ( *eqc ) ),
-			    0, eqc, index, NULL );
+			    HERMON_HCR_IN_CMD ( HERMON_HCR_MAP_EQ,
+						0, sizeof ( *mask ) ),
+			    0, mask, index_map, NULL );
 }
 
 static inline int
-hermon_cmd_hw2sw_eq ( struct hermon *hermon, unsigned int index ) {
+hermon_cmd_sw2hw_eq ( struct hermon *hermon, unsigned int index,
+		      const struct hermonprm_eqc *eqctx ) {
 	return hermon_cmd ( hermon,
-			    HERMON_HCR_VOID_CMD ( HERMON_HCR_HW2SW_EQ ),
-			    1, NULL, index, NULL );
+			    HERMON_HCR_IN_CMD ( HERMON_HCR_SW2HW_EQ,
+						1, sizeof ( *eqctx ) ),
+			    0, eqctx, index, NULL );
+}
+
+static inline int
+hermon_cmd_hw2sw_eq ( struct hermon *hermon, unsigned int index,
+		      struct hermonprm_eqc *eqctx ) {
+	return hermon_cmd ( hermon,
+			    HERMON_HCR_OUT_CMD ( HERMON_HCR_HW2SW_EQ,
+						 1, sizeof ( *eqctx ) ),
+			    1, NULL, index, eqctx );
+}
+
+static inline int
+hermon_cmd_query_eq ( struct hermon *hermon, unsigned int index,
+		      struct hermonprm_eqc *eqctx ) {
+	return hermon_cmd ( hermon,
+			    HERMON_HCR_OUT_CMD ( HERMON_HCR_QUERY_EQ,
+						 1, sizeof ( *eqctx ) ),
+			    0, NULL, index, eqctx );
 }
 
 static inline int
@@ -373,6 +393,15 @@ hermon_cmd_rtr2rts_qp ( struct hermon *hermon, unsigned long qpn,
 			const struct hermonprm_qp_ee_state_transitions *ctx ) {
 	return hermon_cmd ( hermon,
 			    HERMON_HCR_IN_CMD ( HERMON_HCR_RTR2RTS_QP,
+						1, sizeof ( *ctx ) ),
+			    0, ctx, qpn, NULL );
+}
+
+static inline int
+hermon_cmd_rts2rts_qp ( struct hermon *hermon, unsigned long qpn,
+			const struct hermonprm_qp_ee_state_transitions *ctx ) {
+	return hermon_cmd ( hermon,
+			    HERMON_HCR_IN_CMD ( HERMON_HCR_RTS2RTS_QP,
 						1, sizeof ( *ctx ) ),
 			    0, ctx, qpn, NULL );
 }
@@ -646,7 +675,7 @@ static int hermon_create_cq ( struct ib_device *ibdev,
 	MLX_FILL_1 ( &cqctx, 2,
 		     page_offset, ( hermon_cq->mtt.page_offset >> 5 ) );
 	MLX_FILL_2 ( &cqctx, 3,
-		     usr_page, HERMON_UAR_PAGE,
+		     usr_page, HERMON_UAR_NON_EQ_PAGE,
 		     log_cq_size, fls ( cq->num_cqes - 1 ) );
 	MLX_FILL_1 ( &cqctx, 7, mtt_base_addr_l,
 		     ( hermon_cq->mtt.mtt_base_addr >> 3 ) );
@@ -752,6 +781,11 @@ static int hermon_create_qp ( struct ib_device *ibdev,
 		goto err_hermon_qp;
 	}
 
+	/* Calculate doorbell address */
+	hermon_qp->send.doorbell =
+		( hermon->uar + HERMON_UAR_NON_EQ_PAGE * HERMON_PAGE_SIZE +
+		  HERMON_DB_POST_SND_OFFSET );
+
 	/* Allocate work queue buffer */
 	hermon_qp->send.num_wqes = ( qp->send.num_wqes /* headroom */ + 1 +
 				( 2048 / sizeof ( hermon_qp->send.wqe[0] ) ) );
@@ -796,7 +830,7 @@ static int hermon_create_qp ( struct ib_device *ibdev,
 		     qpc_eec_data.log_sq_stride,
 		     ( fls ( sizeof ( hermon_qp->send.wqe[0] ) - 1 ) - 4 ) );
 	MLX_FILL_1 ( &qpctx, 5,
-		     qpc_eec_data.usr_page, HERMON_UAR_PAGE );
+		     qpc_eec_data.usr_page, HERMON_UAR_NON_EQ_PAGE );
 	MLX_FILL_1 ( &qpctx, 33, qpc_eec_data.cqn_snd, qp->send.cq->cqn );
 	MLX_FILL_1 ( &qpctx, 38, qpc_eec_data.page_offset,
 		     ( hermon_qp->mtt.page_offset >> 6 ) );
@@ -857,6 +891,39 @@ static int hermon_create_qp ( struct ib_device *ibdev,
 	hermon_bitmask_free ( hermon->qp_inuse, qpn_offset, 1 );
  err_qpn_offset:
 	return rc;
+}
+
+/**
+ * Modify queue pair
+ *
+ * @v ibdev		Infiniband device
+ * @v qp		Queue pair
+ * @v mod_list		Modification list
+ * @ret rc		Return status code
+ */
+static int hermon_modify_qp ( struct ib_device *ibdev,
+			      struct ib_queue_pair *qp,
+			      unsigned long mod_list ) {
+	struct hermon *hermon = ib_get_drvdata ( ibdev );
+	struct hermonprm_qp_ee_state_transitions qpctx;
+	unsigned long optparammask = 0;
+	int rc;
+
+	/* Construct optparammask */
+	if ( mod_list & IB_MODIFY_QKEY )
+		optparammask |= HERMON_QP_OPT_PARAM_QKEY;
+
+	/* Issue RTS2RTS_QP */
+	memset ( &qpctx, 0, sizeof ( qpctx ) );
+	MLX_FILL_1 ( &qpctx, 0, opt_param_mask, optparammask );
+	MLX_FILL_1 ( &qpctx, 44, qpc_eec_data.q_key, qp->qkey );
+	if ( ( rc = hermon_cmd_rts2rts_qp ( hermon, qp->qpn, &qpctx ) ) != 0 ){
+		DBGC ( hermon, "Hermon %p RTS2RTS_QP failed: %s\n",
+		       hermon, strerror ( rc ) );
+		return rc;
+	}
+
+	return 0;
 }
 
 /**
@@ -975,9 +1042,8 @@ static int hermon_post_send ( struct ib_device *ibdev,
 	/* Ring doorbell register */
 	MLX_FILL_1 ( &db_reg.send, 0, qn, qp->qpn );
 	DBGCP ( hermon, "Ringing doorbell %08lx with %08lx\n",
-		virt_to_phys ( hermon->uar + HERMON_DB_POST_SND_OFFSET ),
-		db_reg.dword[0] );
-	writel ( db_reg.dword[0], ( hermon->uar + HERMON_DB_POST_SND_OFFSET ));
+		virt_to_phys ( hermon_send_wq->doorbell ), db_reg.dword[0] );
+	writel ( db_reg.dword[0], ( hermon_send_wq->doorbell ) );
 
 	/* Update work queue's index */
 	wq->next_idx++;
@@ -1155,7 +1221,217 @@ static void hermon_poll_cq ( struct ib_device *ibdev,
 
 		/* Update doorbell record */
 		MLX_FILL_1 ( &hermon_cq->doorbell, 0, update_ci,
-			     ( cq->next_idx & 0xffffffUL ) );
+			     ( cq->next_idx & 0x00ffffffUL ) );
+	}
+}
+
+/***************************************************************************
+ *
+ * Event queues
+ *
+ ***************************************************************************
+ */
+
+/**
+ * Create event queue
+ *
+ * @v hermon		Hermon device
+ * @ret rc		Return status code
+ */
+static int hermon_create_eq ( struct hermon *hermon ) {
+	struct hermon_event_queue *hermon_eq = &hermon->eq;
+	struct hermonprm_eqc eqctx;
+	struct hermonprm_event_mask mask;
+	unsigned int i;
+	int rc;
+
+	/* Select event queue number */
+	hermon_eq->eqn = ( 4 * hermon->cap.reserved_uars );
+	if ( hermon_eq->eqn < hermon->cap.reserved_eqs )
+		hermon_eq->eqn = hermon->cap.reserved_eqs;
+
+	/* Calculate doorbell address */
+	hermon_eq->doorbell =
+		( hermon->uar + HERMON_DB_EQ_OFFSET ( hermon_eq->eqn ) );
+
+	/* Allocate event queue itself */
+	hermon_eq->eqe_size =
+		( HERMON_NUM_EQES * sizeof ( hermon_eq->eqe[0] ) );
+	hermon_eq->eqe = malloc_dma ( hermon_eq->eqe_size,
+				      sizeof ( hermon_eq->eqe[0] ) );
+	if ( ! hermon_eq->eqe ) {
+		rc = -ENOMEM;
+		goto err_eqe;
+	}
+	memset ( hermon_eq->eqe, 0, hermon_eq->eqe_size );
+	for ( i = 0 ; i < HERMON_NUM_EQES ; i++ ) {
+		MLX_FILL_1 ( &hermon_eq->eqe[i].generic, 7, owner, 1 );
+	}
+	barrier();
+
+	/* Allocate MTT entries */
+	if ( ( rc = hermon_alloc_mtt ( hermon, hermon_eq->eqe,
+				       hermon_eq->eqe_size,
+				       &hermon_eq->mtt ) ) != 0 )
+		goto err_alloc_mtt;
+
+	/* Hand queue over to hardware */
+	memset ( &eqctx, 0, sizeof ( eqctx ) );
+	MLX_FILL_1 ( &eqctx, 0, st, 0xa /* "Fired" */ );
+	MLX_FILL_1 ( &eqctx, 2,
+		     page_offset, ( hermon_eq->mtt.page_offset >> 5 ) );
+	MLX_FILL_1 ( &eqctx, 3, log_eq_size, fls ( HERMON_NUM_EQES - 1 ) );
+	MLX_FILL_1 ( &eqctx, 7, mtt_base_addr_l,
+		     ( hermon_eq->mtt.mtt_base_addr >> 3 ) );
+	if ( ( rc = hermon_cmd_sw2hw_eq ( hermon, hermon_eq->eqn,
+					  &eqctx ) ) != 0 ) {
+		DBGC ( hermon, "Hermon %p SW2HW_EQ failed: %s\n",
+		       hermon, strerror ( rc ) );
+		goto err_sw2hw_eq;
+	}
+
+	/* Map events to this event queue */
+	memset ( &mask, 0, sizeof ( mask ) );
+	MLX_FILL_1 ( &mask, 1, port_state_change, 1 );
+	if ( ( rc = hermon_cmd_map_eq ( hermon,
+					( HERMON_MAP_EQ | hermon_eq->eqn ),
+					&mask ) ) != 0 ) {
+		DBGC ( hermon, "Hermon %p MAP_EQ failed: %s\n",
+		       hermon, strerror ( rc )  );
+		goto err_map_eq;
+	}
+
+	DBGC ( hermon, "Hermon %p EQN %#lx ring at [%p,%p])\n",
+	       hermon, hermon_eq->eqn, hermon_eq->eqe,
+	       ( ( ( void * ) hermon_eq->eqe ) + hermon_eq->eqe_size ) );
+	return 0;
+
+ err_map_eq:
+	hermon_cmd_hw2sw_eq ( hermon, hermon_eq->eqn, &eqctx );
+ err_sw2hw_eq:
+	hermon_free_mtt ( hermon, &hermon_eq->mtt );
+ err_alloc_mtt:
+	free_dma ( hermon_eq->eqe, hermon_eq->eqe_size );
+ err_eqe:
+	memset ( hermon_eq, 0, sizeof ( *hermon_eq ) );
+	return rc;
+}
+
+/**
+ * Destroy event queue
+ *
+ * @v hermon		Hermon device
+ */
+static void hermon_destroy_eq ( struct hermon *hermon ) {
+	struct hermon_event_queue *hermon_eq = &hermon->eq;
+	struct hermonprm_eqc eqctx;
+	struct hermonprm_event_mask mask;
+	int rc;
+
+	/* Unmap events from event queue */
+	memset ( &mask, 0, sizeof ( mask ) );
+	MLX_FILL_1 ( &mask, 1, port_state_change, 1 );
+	if ( ( rc = hermon_cmd_map_eq ( hermon,
+					( HERMON_UNMAP_EQ | hermon_eq->eqn ),
+					&mask ) ) != 0 ) {
+		DBGC ( hermon, "Hermon %p FATAL MAP_EQ failed to unmap: %s\n",
+		       hermon, strerror ( rc ) );
+		/* Continue; HCA may die but system should survive */
+	}
+
+	/* Take ownership back from hardware */
+	if ( ( rc = hermon_cmd_hw2sw_eq ( hermon, hermon_eq->eqn,
+					  &eqctx ) ) != 0 ) {
+		DBGC ( hermon, "Hermon %p FATAL HW2SW_EQ failed: %s\n",
+		       hermon, strerror ( rc ) );
+		/* Leak memory and return; at least we avoid corruption */
+		return;
+	}
+
+	/* Free MTT entries */
+	hermon_free_mtt ( hermon, &hermon_eq->mtt );
+
+	/* Free memory */
+	free_dma ( hermon_eq->eqe, hermon_eq->eqe_size );
+	memset ( hermon_eq, 0, sizeof ( *hermon_eq ) );
+}
+
+/**
+ * Handle port state event
+ *
+ * @v hermon		Hermon device
+ * @v eqe		Port state change event queue entry
+ */
+static void hermon_event_port_state_change ( struct hermon *hermon,
+					     union hermonprm_event_entry *eqe){
+	unsigned int port;
+	int link_up;
+
+	/* Get port and link status */
+	port = ( MLX_GET ( &eqe->port_state_change, data.p ) - 1 );
+	link_up = ( MLX_GET ( &eqe->generic, event_sub_type ) & 0x04 );
+	DBGC ( hermon, "Hermon %p port %d link %s\n", hermon, ( port + 1 ),
+	       ( link_up ? "up" : "down" ) );
+
+	/* Sanity check */
+	if ( port >= HERMON_NUM_PORTS ) {
+		DBGC ( hermon, "Hermon %p port %d does not exist!\n",
+		       hermon, ( port + 1 ) );
+		return;
+	}
+
+	/* Notify Infiniband core of link state change */
+	ib_link_state_changed ( hermon->ibdev[port] );
+}
+
+/**
+ * Poll event queue
+ *
+ * @v ibdev		Infiniband device
+ */
+static void hermon_poll_eq ( struct ib_device *ibdev ) {
+	struct hermon *hermon = ib_get_drvdata ( ibdev );
+	struct hermon_event_queue *hermon_eq = &hermon->eq;
+	union hermonprm_event_entry *eqe;
+	union hermonprm_doorbell_register db_reg;
+	unsigned int eqe_idx_mask;
+	unsigned int event_type;
+
+	while ( 1 ) {
+		/* Look for event entry */
+		eqe_idx_mask = ( HERMON_NUM_EQES - 1 );
+		eqe = &hermon_eq->eqe[hermon_eq->next_idx & eqe_idx_mask];
+		if ( MLX_GET ( &eqe->generic, owner ) ^
+		     ( ( hermon_eq->next_idx & HERMON_NUM_EQES ) ? 1 : 0 ) ) {
+			/* Entry still owned by hardware; end of poll */
+			break;
+		}
+		DBGCP ( hermon, "Hermon %p event:\n", hermon );
+		DBGCP_HD ( hermon, eqe, sizeof ( *eqe ) );
+
+		/* Handle event */
+		event_type = MLX_GET ( &eqe->generic, event_type );
+		switch ( event_type ) {
+		case HERMON_EV_PORT_STATE_CHANGE:
+			hermon_event_port_state_change ( hermon, eqe );
+			break;
+		default:
+			DBGC ( hermon, "Hermon %p unrecognised event type "
+			       "%#x:\n", hermon, event_type );
+			DBGC_HD ( hermon, eqe, sizeof ( *eqe ) );
+			break;
+		}
+
+		/* Update event queue's index */
+		hermon_eq->next_idx++;
+
+		/* Ring doorbell */
+		MLX_FILL_1 ( &db_reg.event, 0,
+			     ci, ( hermon_eq->next_idx & 0x00ffffffUL ) );
+		DBGCP ( hermon, "Ringing doorbell %08lx with %08lx\n",
+			virt_to_phys ( hermon_eq->doorbell ),
+			db_reg.dword[0] );
+		writel ( db_reg.dword[0], hermon_eq->doorbell );
 	}
 }
 
@@ -1356,10 +1632,12 @@ static struct ib_device_operations hermon_ib_operations = {
 	.create_cq	= hermon_create_cq,
 	.destroy_cq	= hermon_destroy_cq,
 	.create_qp	= hermon_create_qp,
+	.modify_qp	= hermon_modify_qp,
 	.destroy_qp	= hermon_destroy_qp,
 	.post_send	= hermon_post_send,
 	.post_recv	= hermon_post_recv,
 	.poll_cq	= hermon_poll_cq,
+	.poll_eq	= hermon_poll_eq,
 	.open		= hermon_open,
 	.close		= hermon_close,
 	.mcast_attach	= hermon_mcast_attach,
@@ -1900,9 +2178,8 @@ static int hermon_probe ( struct pci_device *pci,
 	/* Get PCI BARs */
 	hermon->config = ioremap ( pci_bar_start ( pci, HERMON_PCI_CONFIG_BAR),
 				   HERMON_PCI_CONFIG_BAR_SIZE );
-	hermon->uar = ioremap ( ( pci_bar_start ( pci, HERMON_PCI_UAR_BAR ) +
-				  HERMON_UAR_PAGE * HERMON_PAGE_SIZE ),
-				HERMON_PAGE_SIZE );
+	hermon->uar = ioremap ( pci_bar_start ( pci, HERMON_PCI_UAR_BAR ),
+				HERMON_UAR_NON_EQ_PAGE * HERMON_PAGE_SIZE );
 
 	/* Allocate space for mailboxes */
 	hermon->mailbox_in = malloc_dma ( HERMON_MBOX_SIZE,
@@ -1945,6 +2222,10 @@ static int hermon_probe ( struct pci_device *pci,
 	if ( ( rc = hermon_setup_mpt ( hermon ) ) != 0 )
 		goto err_setup_mpt;
 
+	/* Set up event queue */
+	if ( ( rc = hermon_create_eq ( hermon ) ) != 0 )
+		goto err_create_eq;
+
 	/* Register Infiniband devices */
 	for ( i = 0 ; i < HERMON_NUM_PORTS ; i++ ) {
 		if ( ( rc = register_ibdev ( hermon->ibdev[i] ) ) != 0 ) {
@@ -1960,6 +2241,8 @@ static int hermon_probe ( struct pci_device *pci,
  err_register_ibdev:
 	for ( ; i >= 0 ; i-- )
 		unregister_ibdev ( hermon->ibdev[i] );
+	hermon_destroy_eq ( hermon );
+ err_create_eq:
  err_setup_mpt:
 	hermon_cmd_close_hca ( hermon );
  err_init_hca:
@@ -1975,7 +2258,7 @@ static int hermon_probe ( struct pci_device *pci,
 	i = ( HERMON_NUM_PORTS - 1 );
  err_alloc_ibdev:
 	for ( ; i >= 0 ; i-- )
-		free_ibdev ( hermon->ibdev[i] );
+		ibdev_put ( hermon->ibdev[i] );
 	free ( hermon );
  err_alloc_hermon:
 	return rc;
@@ -1992,6 +2275,7 @@ static void hermon_remove ( struct pci_device *pci ) {
 
 	for ( i = ( HERMON_NUM_PORTS - 1 ) ; i >= 0 ; i-- )
 		unregister_ibdev ( hermon->ibdev[i] );
+	hermon_destroy_eq ( hermon );
 	hermon_cmd_close_hca ( hermon );
 	hermon_free_icm ( hermon );
 	hermon_stop_firmware ( hermon );
@@ -1999,7 +2283,7 @@ static void hermon_remove ( struct pci_device *pci ) {
 	free_dma ( hermon->mailbox_out, HERMON_MBOX_SIZE );
 	free_dma ( hermon->mailbox_in, HERMON_MBOX_SIZE );
 	for ( i = ( HERMON_NUM_PORTS - 1 ) ; i >= 0 ; i-- )
-		free_ibdev ( hermon->ibdev[i] );
+		ibdev_put ( hermon->ibdev[i] );
 	free ( hermon );
 }
 

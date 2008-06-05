@@ -85,11 +85,24 @@ pnpheader:
 	.equ pnpheader_len, . - pnpheader
 	.size pnpheader, . - pnpheader
 
+/* Manufacturer string */
 mfgstr:
 	.asciz	"http://etherboot.org"
 	.size mfgstr, . - mfgstr
+
+/* Product string
+ *
+ * Defaults to "gPXE".  If the ROM image is writable at initialisation
+ * time, it will be filled in to include the PCI bus:dev.fn number of
+ * the card as well.
+ */
 prodstr:
-	.asciz	"gPXE"
+	.ascii	"gPXE"
+prodstr_separator:
+	.byte	0
+	.ascii	"(PCI "
+prodstr_pci_id:
+	.asciz	"xx:xx.x)"		/* Filled in by init code */
 	.size prodstr, . - prodstr
 	
 undiheader:
@@ -117,27 +130,37 @@ init:
 	pushaw
 	pushw	%ds
 	pushw	%es
+	pushw	%fs
 	cld
 	pushw	%cs
 	popw	%ds
+	pushw	$0x40
+	popw	%fs
+	movw	%di, %bx
+	xorw	%di, %di
 	/* Print message as early as possible */
 	movw	$init_message, %si
 	call	print_message
+	call	print_pci_busdevfn
+	/* Fill in product name string, if possible */
+	movw	$prodstr_pci_id, %di
+	call	print_pci_busdevfn
+	movb	$' ', prodstr_separator
+	xorw	%di, %di
 	/* Check for PnP BIOS */
-	testw	$0x0f, %di	/* PnP signature must be aligned - bochs    */
+	testw	$0x0f, %bx	/* PnP signature must be aligned - bochs    */
 	jnz	hook_int19	/* uses unalignment to indicate 'fake' PnP. */
-	cmpl	$PNP_SIGNATURE, %es:0(%di)
+	cmpl	$PNP_SIGNATURE, %es:0(%bx)
 	jne	hook_int19
 	/* Is PnP: print PnP message */
 	movw	$init_message_pnp, %si
 	call	print_message
-	xchgw	%bx, %bx
 	/* Check for BBS */
-	pushw	%es:0x1b(%di)	/* Real-mode data segment */
+	pushw	%es:0x1b(%bx)	/* Real-mode data segment */
 	pushw	%ds		/* &(bbs_version) */
 	pushw	$bbs_version
 	pushw	$PNP_GET_BBS_VERSION
-	lcall	*%es:0xd(%di)
+	lcall	*%es:0xd(%bx)
 	addw	$8, %sp
 	testw	%ax, %ax
 	jne	hook_int19
@@ -155,18 +178,18 @@ hook_int19:
 	popl	%es:( 0x19 * 4 )
 hook_bbs:
 	/* Check for PMM */
-	movw	$( 0xe000 - 1 ), %di
+	movw	$( 0xe00 - 1 ), %bx
 pmm_scan:
-	incw	%di
+	incw	%bx
 	jz	no_pmm
-	movw	%di, %es
+	movw	%bx, %es
 	cmpl	$PMM_SIGNATURE, %es:0
 	jne	pmm_scan
-	xorw	%bx, %bx
+	xorw	%dx, %dx
 	xorw	%si, %si
 	movzbw	%es:5, %cx
 1:	es lodsb
-	addb	%al, %bl
+	addb	%al, %dl
 	loop	1b
 	jnz	pmm_scan
 	/* PMM found: print PMM message */
@@ -207,11 +230,53 @@ gotpmm:	/* PMM allocation succeeded: copy ROM to PMM block */
 	loop	1b
 	subb	%bl, checksum
 	popal
-no_pmm:
-	/* Print CRLF to terminate messages */
-	movw	$'\n', %ax
-	call	print_character
+no_pmm:	/* Prompt for POST-time shell */
+	movw	$init_message_prompt, %si
+	call	print_message
+	/* Empty the keyboard buffer before waiting for input */
+empty_keyboard_buffer:
+	movb	$0x01, %ah
+	int	$0x16
+	jz	1f
+	xorw	%ax, %ax
+	int	$0x16
+	jmp	empty_keyboard_buffer
+1:	/* Wait for up to 3s for a key press */
+	movw	$(18 * 3), %cx	/* Approx 3s worth of timer ticks */
+wait_for_key:
+	decw	%cx
+	jz	no_key_pressed
+	/* Wait for timer tick to be updated */
+	movl	%fs:(0x6c), %eax
+1:	pushf
+	sti
+	hlt
+	popf
+	cmpl	%fs:(0x6c), %eax
+	je	1b
+	/* Check to see if a key was pressed */
+	movb	$0x01, %ah
+	int	$0x16
+	jz	wait_for_key
+	/* Check to see if key was Ctrl-B */
+	cmpb	$0x02, %al
+	je	1f
+	/* Key was not Ctrl-B: remove from buffer and stop waiting */
+	xorw	%ax, %ax
+	int	$0x16
+	jmp	no_key_pressed
+1:	/* Key was Ctrl-B: leave in keyboard buffer and invoke gPXE.
+	 * The keypress will be picked up by the initial shell
+	 * prompt, and we will drop into a shell.
+	 */
+	pushw	%cs
+	call	exec
+no_key_pressed:
+	/* Print blank lines to terminate messages */
+	movw	$init_message_end, %si
+	call	print_message
 	/* Restore registers */
+	popw	%fs
 	popw	%es
 	popw	%ds
 	popaw
@@ -221,23 +286,29 @@ no_pmm:
 	.size init, . - init
 
 init_message:
-	.asciz	"gPXE (http://etherboot.org) -"
+	.asciz	"gPXE (http://etherboot.org) - PCI "
 	.size	init_message, . - init_message
 init_message_pnp:
 	.asciz	" PnP"
-	.size init_message_pnp, . - init_message_pnp
+	.size	init_message_pnp, . - init_message_pnp
 init_message_bbs:
 	.asciz	" BBS"
-	.size init_message_bbs, . - init_message_bbs
+	.size	init_message_bbs, . - init_message_bbs
 init_message_pmm:
 	.asciz	" PMM"
-	.size init_message_pmm, . - init_message_pmm
+	.size	init_message_pmm, . - init_message_pmm
 init_message_pmm_failed:
 	.asciz	"(failed)"
-	.size init_message_pmm_failed, . - init_message_pmm_failed
+	.size	init_message_pmm_failed, . - init_message_pmm_failed
 init_message_int19:
 	.asciz	" INT19"
-	.size init_message_int19, . - init_message_int19
+	.size	init_message_int19, . - init_message_int19
+init_message_prompt:
+	.asciz	"\nPress Ctrl-B to configure gPXE..."
+	.size	init_message_prompt, . - init_message_prompt
+init_message_end:
+	.asciz	"\n\n\n"
+	.size	init_message_end, . - init_message_end
 
 /* ROM image location
  *
@@ -292,6 +363,7 @@ exec:	/* Set %ds = %cs */
 
 	/* Print message as soon as possible */
 	movw	$exec_message, %si
+	xorw	%di, %di
 	call	print_message
 
 	/* Store magic word on BIOS stack and remember BIOS %ss:sp */
@@ -340,7 +412,7 @@ exec:	/* Set %ds = %cs */
 	.previous
 
 exec_message:
-	.asciz	"gPXE starting boot\n"
+	.asciz	"Entering gPXE\n"
 	.size exec_message, . - exec_message
 
 /* UNDI loader

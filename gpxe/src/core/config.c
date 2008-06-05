@@ -54,7 +54,7 @@
 REQUIRE_OBJECT ( bios_console );
 #endif
 #ifdef CONSOLE_SERIAL
-REQUIRE_OBJECT ( serial );
+REQUIRE_OBJECT ( serial_console );
 #endif
 #ifdef CONSOLE_DIRECT_VGA
 REQUIRE_OBJECT ( video_subr );
@@ -198,6 +198,6 @@ REQUIRE_OBJECT ( sanboot_cmd );
 #ifdef NULL_TRAP
 REQUIRE_OBJECT ( nulltrap );
 #endif
-#ifdef DUMP_GDBSYM
-REQUIRE_OBJECT ( gdbsym );
+#ifdef GDBSTUB
+REQUIRE_OBJECT ( gdbidt );
 #endif

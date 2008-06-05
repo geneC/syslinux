@@ -164,6 +164,8 @@
 #undef	BUILD_ID		/* Include a custom build ID string,
 				 * e.g "test-foo" */
 #undef	NULL_TRAP		/* Attempt to catch NULL function calls */
-#undef	DUMP_GDBSYM		/* Dump GDB symbol table information */
+#undef	GDBSTUB			/* Remote GDB debugging */
 
 /* @END general.h */
+
+/* @TRYSOURCE config-local.h */

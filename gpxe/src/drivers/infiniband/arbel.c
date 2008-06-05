@@ -276,19 +276,30 @@ arbel_cmd_sw2hw_mpt ( struct arbel *arbel, unsigned int index,
 }
 
 static inline int
-arbel_cmd_sw2hw_eq ( struct arbel *arbel, unsigned int index,
-		     const struct arbelprm_eqc *eqc ) {
+arbel_cmd_map_eq ( struct arbel *arbel, unsigned long index_map,
+		   const struct arbelprm_event_mask *mask ) {
 	return arbel_cmd ( arbel,
-			   ARBEL_HCR_IN_CMD ( ARBEL_HCR_SW2HW_EQ,
-					      1, sizeof ( *eqc ) ),
-			   0, eqc, index, NULL );
+			   ARBEL_HCR_IN_CMD ( ARBEL_HCR_MAP_EQ,
+					      0, sizeof ( *mask ) ),
+			   0, mask, index_map, NULL );
 }
 
 static inline int
-arbel_cmd_hw2sw_eq ( struct arbel *arbel, unsigned int index ) {
+arbel_cmd_sw2hw_eq ( struct arbel *arbel, unsigned int index,
+		     const struct arbelprm_eqc *eqctx ) {
 	return arbel_cmd ( arbel,
-			   ARBEL_HCR_VOID_CMD ( ARBEL_HCR_HW2SW_EQ ),
-			   1, NULL, index, NULL );
+			   ARBEL_HCR_IN_CMD ( ARBEL_HCR_SW2HW_EQ,
+					      1, sizeof ( *eqctx ) ),
+			   0, eqctx, index, NULL );
+}
+
+static inline int
+arbel_cmd_hw2sw_eq ( struct arbel *arbel, unsigned int index,
+		     struct arbelprm_eqc *eqctx ) {
+	return arbel_cmd ( arbel,
+			   ARBEL_HCR_OUT_CMD ( ARBEL_HCR_HW2SW_EQ,
+					       1, sizeof ( *eqctx ) ),
+			   1, NULL, index, eqctx );
 }
 
 static inline int
@@ -332,6 +343,15 @@ arbel_cmd_rtr2rts_qpee ( struct arbel *arbel, unsigned long qpn,
 			 const struct arbelprm_qp_ee_state_transitions *ctx ) {
 	return arbel_cmd ( arbel,
 			   ARBEL_HCR_IN_CMD ( ARBEL_HCR_RTR2RTS_QPEE,
+					      1, sizeof ( *ctx ) ),
+			   0, ctx, qpn, NULL );
+}
+
+static inline int
+arbel_cmd_rts2rts_qp ( struct arbel *arbel, unsigned long qpn,
+		       const struct arbelprm_qp_ee_state_transitions *ctx ) {
+	return arbel_cmd ( arbel,
+			   ARBEL_HCR_IN_CMD ( ARBEL_HCR_RTS2RTS_QPEE,
 					      1, sizeof ( *ctx ) ),
 			   0, ctx, qpn, NULL );
 }
@@ -836,6 +856,39 @@ static int arbel_create_qp ( struct ib_device *ibdev,
 }
 
 /**
+ * Modify queue pair
+ *
+ * @v ibdev		Infiniband device
+ * @v qp		Queue pair
+ * @v mod_list		Modification list
+ * @ret rc		Return status code
+ */
+static int arbel_modify_qp ( struct ib_device *ibdev,
+			     struct ib_queue_pair *qp,
+			     unsigned long mod_list ) {
+	struct arbel *arbel = ib_get_drvdata ( ibdev );
+	struct arbelprm_qp_ee_state_transitions qpctx;
+	unsigned long optparammask = 0;
+	int rc;
+
+	/* Construct optparammask */
+	if ( mod_list & IB_MODIFY_QKEY )
+		optparammask |= ARBEL_QPEE_OPT_PARAM_QKEY;
+
+	/* Issue RTS2RTS_QP */
+	memset ( &qpctx, 0, sizeof ( qpctx ) );
+	MLX_FILL_1 ( &qpctx, 0, opt_param_mask, optparammask );
+	MLX_FILL_1 ( &qpctx, 44, qpc_eec_data.q_key, qp->qkey );
+	if ( ( rc = arbel_cmd_rts2rts_qp ( arbel, qp->qpn, &qpctx ) ) != 0 ){
+		DBGC ( arbel, "Arbel %p RTS2RTS_QP failed: %s\n",
+		       arbel, strerror ( rc ) );
+		return rc;
+	}
+
+	return 0;
+}
+
+/**
  * Destroy queue pair
  *
  * @v ibdev		Infiniband device
@@ -1204,6 +1257,205 @@ static void arbel_poll_cq ( struct ib_device *ibdev,
 
 /***************************************************************************
  *
+ * Event queues
+ *
+ ***************************************************************************
+ */
+
+/**
+ * Create event queue
+ *
+ * @v arbel		Arbel device
+ * @ret rc		Return status code
+ */
+static int arbel_create_eq ( struct arbel *arbel ) {
+	struct arbel_event_queue *arbel_eq = &arbel->eq;
+	struct arbelprm_eqc eqctx;
+	struct arbelprm_event_mask mask;
+	unsigned int i;
+	int rc;
+
+	/* Select event queue number */
+	arbel_eq->eqn = arbel->limits.reserved_eqs;
+
+	/* Calculate doorbell address */
+	arbel_eq->doorbell = ( arbel->eq_ci_doorbells +
+			       ARBEL_DB_EQ_OFFSET ( arbel_eq->eqn ) );
+
+	/* Allocate event queue itself */
+	arbel_eq->eqe_size =
+		( ARBEL_NUM_EQES * sizeof ( arbel_eq->eqe[0] ) );
+	arbel_eq->eqe = malloc_dma ( arbel_eq->eqe_size,
+				     sizeof ( arbel_eq->eqe[0] ) );
+	if ( ! arbel_eq->eqe ) {
+		rc = -ENOMEM;
+		goto err_eqe;
+	}
+	memset ( arbel_eq->eqe, 0, arbel_eq->eqe_size );
+	for ( i = 0 ; i < ARBEL_NUM_EQES ; i++ ) {
+		MLX_FILL_1 ( &arbel_eq->eqe[i].generic, 7, owner, 1 );
+	}
+	barrier();
+
+	/* Hand queue over to hardware */
+	memset ( &eqctx, 0, sizeof ( eqctx ) );
+	MLX_FILL_1 ( &eqctx, 0, st, 0xa /* "Fired" */ );
+	MLX_FILL_1 ( &eqctx, 2,
+		     start_address_l, virt_to_phys ( arbel_eq->eqe ) );
+	MLX_FILL_1 ( &eqctx, 3, log_eq_size, fls ( ARBEL_NUM_EQES - 1 ) );
+	MLX_FILL_1 ( &eqctx, 6, pd, ARBEL_GLOBAL_PD );
+	MLX_FILL_1 ( &eqctx, 7, lkey, arbel->reserved_lkey );
+	if ( ( rc = arbel_cmd_sw2hw_eq ( arbel, arbel_eq->eqn,
+					 &eqctx ) ) != 0 ) {
+		DBGC ( arbel, "Arbel %p SW2HW_EQ failed: %s\n",
+		       arbel, strerror ( rc ) );
+		goto err_sw2hw_eq;
+	}
+
+	/* Map events to this event queue */
+	memset ( &mask, 0, sizeof ( mask ) );
+	MLX_FILL_1 ( &mask, 1, port_state_change, 1 );
+	if ( ( rc = arbel_cmd_map_eq ( arbel,
+				       ( ARBEL_MAP_EQ | arbel_eq->eqn ),
+				       &mask ) ) != 0 ) {
+		DBGC ( arbel, "Arbel %p MAP_EQ failed: %s\n",
+		       arbel, strerror ( rc )  );
+		goto err_map_eq;
+	}
+
+	DBGC ( arbel, "Arbel %p EQN %#lx ring at [%p,%p])\n",
+	       arbel, arbel_eq->eqn, arbel_eq->eqe,
+	       ( ( ( void * ) arbel_eq->eqe ) + arbel_eq->eqe_size ) );
+	return 0;
+
+ err_map_eq:
+	arbel_cmd_hw2sw_eq ( arbel, arbel_eq->eqn, &eqctx );
+ err_sw2hw_eq:
+	free_dma ( arbel_eq->eqe, arbel_eq->eqe_size );
+ err_eqe:
+	memset ( arbel_eq, 0, sizeof ( *arbel_eq ) );
+	return rc;
+}
+
+/**
+ * Destroy event queue
+ *
+ * @v arbel		Arbel device
+ */
+static void arbel_destroy_eq ( struct arbel *arbel ) {
+	struct arbel_event_queue *arbel_eq = &arbel->eq;
+	struct arbelprm_eqc eqctx;
+	struct arbelprm_event_mask mask;
+	int rc;
+
+	/* Unmap events from event queue */
+	memset ( &mask, 0, sizeof ( mask ) );
+	MLX_FILL_1 ( &mask, 1, port_state_change, 1 );
+	if ( ( rc = arbel_cmd_map_eq ( arbel,
+				       ( ARBEL_UNMAP_EQ | arbel_eq->eqn ),
+				       &mask ) ) != 0 ) {
+		DBGC ( arbel, "Arbel %p FATAL MAP_EQ failed to unmap: %s\n",
+		       arbel, strerror ( rc ) );
+		/* Continue; HCA may die but system should survive */
+	}
+
+	/* Take ownership back from hardware */
+	if ( ( rc = arbel_cmd_hw2sw_eq ( arbel, arbel_eq->eqn,
+					 &eqctx ) ) != 0 ) {
+		DBGC ( arbel, "Arbel %p FATAL HW2SW_EQ failed: %s\n",
+		       arbel, strerror ( rc ) );
+		/* Leak memory and return; at least we avoid corruption */
+		return;
+	}
+
+	/* Free memory */
+	free_dma ( arbel_eq->eqe, arbel_eq->eqe_size );
+	memset ( arbel_eq, 0, sizeof ( *arbel_eq ) );
+}
+
+/**
+ * Handle port state event
+ *
+ * @v arbel		Arbel device
+ * @v eqe		Port state change event queue entry
+ */
+static void arbel_event_port_state_change ( struct arbel *arbel,
+					    union arbelprm_event_entry *eqe){
+	unsigned int port;
+	int link_up;
+
+	/* Get port and link status */
+	port = ( MLX_GET ( &eqe->port_state_change, data.p ) - 1 );
+	link_up = ( MLX_GET ( &eqe->generic, event_sub_type ) & 0x04 );
+	DBGC ( arbel, "Arbel %p port %d link %s\n", arbel, ( port + 1 ),
+	       ( link_up ? "up" : "down" ) );
+
+	/* Sanity check */
+	if ( port >= ARBEL_NUM_PORTS ) {
+		DBGC ( arbel, "Arbel %p port %d does not exist!\n",
+		       arbel, ( port + 1 ) );
+		return;
+	}
+
+	/* Notify Infiniband core of link state change */
+	ib_link_state_changed ( arbel->ibdev[port] );
+}
+
+/**
+ * Poll event queue
+ *
+ * @v ibdev		Infiniband device
+ */
+static void arbel_poll_eq ( struct ib_device *ibdev ) {
+	struct arbel *arbel = ib_get_drvdata ( ibdev );
+	struct arbel_event_queue *arbel_eq = &arbel->eq;
+	union arbelprm_event_entry *eqe;
+	union arbelprm_eq_doorbell_register db_reg;
+	unsigned int eqe_idx_mask;
+	unsigned int event_type;
+
+	while ( 1 ) {
+		/* Look for event entry */
+		eqe_idx_mask = ( ARBEL_NUM_EQES - 1 );
+		eqe = &arbel_eq->eqe[arbel_eq->next_idx & eqe_idx_mask];
+		if ( MLX_GET ( &eqe->generic, owner ) != 0 ) {
+			/* Entry still owned by hardware; end of poll */
+			break;
+		}
+		DBGCP ( arbel, "Arbel %p event:\n", arbel );
+		DBGCP_HD ( arbel, eqe, sizeof ( *eqe ) );
+
+		/* Handle event */
+		event_type = MLX_GET ( &eqe->generic, event_type );
+		switch ( event_type ) {
+		case ARBEL_EV_PORT_STATE_CHANGE:
+			arbel_event_port_state_change ( arbel, eqe );
+			break;
+		default:
+			DBGC ( arbel, "Arbel %p unrecognised event type "
+			       "%#x:\n", arbel, event_type );
+			DBGC_HD ( arbel, eqe, sizeof ( *eqe ) );
+			break;
+		}
+
+		/* Return ownership to hardware */
+		MLX_FILL_1 ( &eqe->generic, 7, owner, 1 );
+		barrier();
+
+		/* Update event queue's index */
+		arbel_eq->next_idx++;
+
+		/* Ring doorbell */
+		MLX_FILL_1 ( &db_reg.ci, 0, ci, arbel_eq->next_idx );
+		DBGCP ( arbel, "Ringing doorbell %08lx with %08lx\n",
+			virt_to_phys ( arbel_eq->doorbell ),
+			db_reg.dword[0] );
+		writel ( db_reg.dword[0], arbel_eq->doorbell );
+	}
+}
+
+/***************************************************************************
+ *
  * Infiniband link-layer operations
  *
  ***************************************************************************
@@ -1399,10 +1651,12 @@ static struct ib_device_operations arbel_ib_operations = {
 	.create_cq	= arbel_create_cq,
 	.destroy_cq	= arbel_destroy_cq,
 	.create_qp	= arbel_create_qp,
+	.modify_qp	= arbel_modify_qp,
 	.destroy_qp	= arbel_destroy_qp,
 	.post_send	= arbel_post_send,
 	.post_recv	= arbel_post_recv,
 	.poll_cq	= arbel_poll_cq,
+	.poll_eq	= arbel_poll_eq,
 	.open		= arbel_open,
 	.close		= arbel_close,
 	.mcast_attach	= arbel_mcast_attach,
@@ -1431,6 +1685,7 @@ static int arbel_start_firmware ( struct arbel *arbel ) {
 	unsigned int log2_fw_pages;
 	size_t fw_size;
 	physaddr_t fw_base;
+	uint64_t eq_set_ci_base_addr;
 	int rc;
 
 	/* Get firmware parameters */
@@ -1447,6 +1702,10 @@ static int arbel_start_firmware ( struct arbel *arbel ) {
 	fw_pages = ( 1 << log2_fw_pages );
 	DBGC ( arbel, "Arbel %p requires %d kB for firmware\n",
 	       arbel, ( fw_pages * 4 ) );
+	eq_set_ci_base_addr =
+		( ( (uint64_t) MLX_GET ( &fw, eq_set_ci_base_addr_h ) << 32 ) |
+		  ( (uint64_t) MLX_GET ( &fw, eq_set_ci_base_addr_l ) ) );
+	arbel->eq_ci_doorbells = ioremap ( eq_set_ci_base_addr, 0x200 );
 
 	/* Enable locally-attached memory.  Ignore failure; there may
 	 * be no attached memory.
@@ -1549,6 +1808,7 @@ static int arbel_get_limits ( struct arbel *arbel ) {
 	arbel->limits.reserved_cqs =
 		( 1 << MLX_GET ( &dev_lim, log2_rsvd_cqs ) );
 	arbel->limits.cqc_entry_size = MLX_GET ( &dev_lim, cqc_entry_sz );
+	arbel->limits.reserved_eqs = MLX_GET ( &dev_lim, num_rsvd_eqs );
 	arbel->limits.reserved_mtts =
 		( 1 << MLX_GET ( &dev_lim, log2_rsvd_mtts ) );
 	arbel->limits.mtt_entry_size = MLX_GET ( &dev_lim, mtt_entry_sz );
@@ -1679,7 +1939,7 @@ static int arbel_alloc_icm ( struct arbel *arbel,
 	icm_offset += icm_usage ( log_num_rdbs, 32 );
 
 	/* Event queue contexts */
-	log_num_eqs = 6;
+	log_num_eqs =  fls ( arbel->limits.reserved_eqs + ARBEL_MAX_EQS - 1 );
 	MLX_FILL_2 ( init_hca, 33,
 		     qpc_eec_cqc_eqc_rdb_parameters.eqc_base_addr_l,
 		     ( icm_offset >> 6 ),
@@ -1908,6 +2168,10 @@ static int arbel_probe ( struct pci_device *pci,
 	if ( ( rc = arbel_setup_mpt ( arbel ) ) != 0 )
 		goto err_setup_mpt;
 
+	/* Set up event queue */
+	if ( ( rc = arbel_create_eq ( arbel ) ) != 0 )
+		goto err_create_eq;
+
 	/* Register Infiniband devices */
 	for ( i = 0 ; i < ARBEL_NUM_PORTS ; i++ ) {
 		if ( ( rc = register_ibdev ( arbel->ibdev[i] ) ) != 0 ) {
@@ -1923,6 +2187,8 @@ static int arbel_probe ( struct pci_device *pci,
  err_register_ibdev:
 	for ( ; i >= 0 ; i-- )
 		unregister_ibdev ( arbel->ibdev[i] );
+	arbel_destroy_eq ( arbel );
+ err_create_eq:
  err_setup_mpt:
 	arbel_cmd_close_hca ( arbel );
  err_init_hca:
@@ -1938,7 +2204,7 @@ static int arbel_probe ( struct pci_device *pci,
 	i = ( ARBEL_NUM_PORTS - 1 );
  err_alloc_ibdev:
 	for ( ; i >= 0 ; i-- )
-		free_ibdev ( arbel->ibdev[i] );
+		ibdev_put ( arbel->ibdev[i] );
 	free ( arbel );
  err_alloc_arbel:
 	return rc;
@@ -1955,6 +2221,7 @@ static void arbel_remove ( struct pci_device *pci ) {
 
 	for ( i = ( ARBEL_NUM_PORTS - 1 ) ; i >= 0 ; i-- )
 		unregister_ibdev ( arbel->ibdev[i] );
+	arbel_destroy_eq ( arbel );
 	arbel_cmd_close_hca ( arbel );
 	arbel_free_icm ( arbel );
 	arbel_stop_firmware ( arbel );
@@ -1962,7 +2229,7 @@ static void arbel_remove ( struct pci_device *pci ) {
 	free_dma ( arbel->mailbox_out, ARBEL_MBOX_SIZE );
 	free_dma ( arbel->mailbox_in, ARBEL_MBOX_SIZE );
 	for ( i = ( ARBEL_NUM_PORTS - 1 ) ; i >= 0 ; i-- )
-		free_ibdev ( arbel->ibdev[i] );
+		ibdev_put ( arbel->ibdev[i] );
 	free ( arbel );
 }
 

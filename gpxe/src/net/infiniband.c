@@ -29,6 +29,7 @@
 #include <gpxe/netdevice.h>
 #include <gpxe/iobuf.h>
 #include <gpxe/ipoib.h>
+#include <gpxe/process.h>
 #include <gpxe/infiniband.h>
 
 /** @file
@@ -36,6 +37,9 @@
  * Infiniband protocol
  *
  */
+
+/** List of Infiniband devices */
+struct list_head ib_devices = LIST_HEAD_INIT ( ib_devices );
 
 /**
  * Create completion queue
@@ -153,14 +157,40 @@ struct ib_queue_pair * ib_create_qp ( struct ib_device *ibdev,
 }
 
 /**
+ * Modify queue pair
+ *
+ * @v ibdev		Infiniband device
+ * @v qp		Queue pair
+ * @v mod_list		Modification list
+ * @v qkey		New queue key, if applicable
+ * @ret rc		Return status code
+ */
+int ib_modify_qp ( struct ib_device *ibdev, struct ib_queue_pair *qp,
+		   unsigned long mod_list, unsigned long qkey ) {
+	int rc;
+
+	DBGC ( ibdev, "IBDEV %p modifying QPN %#lx\n", ibdev, qp->qpn );
+
+	if ( mod_list & IB_MODIFY_QKEY )
+		qp->qkey = qkey;
+
+	if ( ( rc = ibdev->op->modify_qp ( ibdev, qp, mod_list ) ) != 0 ) {
+		DBGC ( ibdev, "IBDEV %p could not modify QPN %#lx: %s\n",
+		       ibdev, qp->qpn, strerror ( rc ) );
+		return rc;
+	}
+
+	return 0;
+}
+
+/**
  * Destroy queue pair
  *
  * @v ibdev		Infiniband device
  * @v qp		Queue pair
  */
-void ib_destroy_qp ( struct ib_device *ibdev,
-		     struct ib_queue_pair *qp ) {
-	DBGC ( ibdev, "IBDEV %p destroying queue pair %#lx\n",
+void ib_destroy_qp ( struct ib_device *ibdev, struct ib_queue_pair *qp ) {
+	DBGC ( ibdev, "IBDEV %p destroying QPN %#lx\n",
 	       ibdev, qp->qpn );
 	ibdev->op->destroy_qp ( ibdev, qp );
 	list_del ( &qp->send.list );
@@ -280,38 +310,6 @@ static int ib_get_pkey_table ( struct ib_device *ibdev,
 }
 
 /**
- * Wait for link up
- *
- * @v ibdev		Infiniband device
- * @ret rc		Return status code
- *
- * This function shouldn't really exist.  Unfortunately, IB links take
- * a long time to come up, and we can't get various key parameters
- * e.g. our own IPoIB MAC address without information from the subnet
- * manager).  We should eventually make link-up an asynchronous event.
- */
-static int ib_wait_for_link ( struct ib_device *ibdev ) {
-	struct ib_mad_port_info port_info;
-	unsigned int retries;
-	int rc;
-
-	printf ( "Waiting for Infiniband link-up..." );
-	for ( retries = 20 ; retries ; retries-- ) {
-		if ( ( rc = ib_get_port_info ( ibdev, &port_info ) ) != 0 )
-			continue;
-		if ( ( ( port_info.port_state__link_speed_supported ) & 0xf )
-		     == 4 ) {
-			printf ( "ok\n" );
-			return 0;
-		}
-		printf ( "." );
-		sleep ( 1 );
-	}
-	printf ( "failed\n" );
-	return -ENODEV;
-};
-
-/**
  * Get MAD parameters
  *
  * @v ibdev		Infiniband device
@@ -326,9 +324,13 @@ static int ib_get_mad_params ( struct ib_device *ibdev ) {
 	} u;
 	int rc;
 
-	/* Port info gives us the first half of the port GID and the SM LID */
+	/* Port info gives us the link state, the first half of the
+	 * port GID and the SM LID.
+	 */
 	if ( ( rc = ib_get_port_info ( ibdev, &u.port_info ) ) != 0 )
 		return rc;
+	ibdev->link_up = ( ( u.port_info.port_state__link_speed_supported
+			     & 0xf ) == 4 );
 	memcpy ( &ibdev->port_gid.u.bytes[0], u.port_info.gid_prefix, 8 );
 	ibdev->sm_lid = ntohs ( u.port_info.mastersm_lid );
 
@@ -350,6 +352,50 @@ static int ib_get_mad_params ( struct ib_device *ibdev ) {
 
 	return 0;
 }
+
+/***************************************************************************
+ *
+ * Event queues
+ *
+ ***************************************************************************
+ */
+
+/**
+ * Handle Infiniband link state change
+ *
+ * @v ibdev		Infiniband device
+ */
+void ib_link_state_changed ( struct ib_device *ibdev ) {
+	int rc;
+
+	/* Update MAD parameters */
+	if ( ( rc = ib_get_mad_params ( ibdev ) ) != 0 ) {
+		DBGC ( ibdev, "IBDEV %p could not update MAD parameters: %s\n",
+		       ibdev, strerror ( rc ) );
+		return;
+	}
+
+	/* Notify IPoIB of link state change */
+	ipoib_link_state_changed ( ibdev );
+}
+
+/**
+ * Single-step the Infiniband event queue
+ *
+ * @v process		Infiniband event queue process
+ */
+static void ib_step ( struct process *process __unused ) {
+	struct ib_device *ibdev;
+
+	list_for_each_entry ( ibdev, &ib_devices, list ) {
+		ibdev->op->poll_eq ( ibdev );
+	}
+}
+
+/** Infiniband event queue process */
+struct process ib_process __permanent_process = {
+	.step = ib_step,
+};
 
 /***************************************************************************
  *
@@ -387,13 +433,13 @@ struct ib_device * alloc_ibdev ( size_t priv_size ) {
 int register_ibdev ( struct ib_device *ibdev ) {
 	int rc;
 
+	/* Add to device list */
+	ibdev_get ( ibdev );
+	list_add_tail ( &ibdev->list, &ib_devices );
+
 	/* Open link */
 	if ( ( rc = ib_open ( ibdev ) ) != 0 )
 		goto err_open;
-
-	/* Wait for link */
-	if ( ( rc = ib_wait_for_link ( ibdev ) ) != 0 )
-		goto err_wait_for_link;
 
 	/* Get MAD parameters */
 	if ( ( rc = ib_get_mad_params ( ibdev ) ) != 0 )
@@ -406,13 +452,16 @@ int register_ibdev ( struct ib_device *ibdev ) {
 		goto err_ipoib_probe;
 	}
 
+	DBGC ( ibdev, "IBDEV %p registered (phys %s)\n", ibdev,
+	       ibdev->dev->name );
 	return 0;
 
  err_ipoib_probe:
  err_get_mad_params:
- err_wait_for_link:
 	ib_close ( ibdev );
  err_open:
+	list_del ( &ibdev->list );
+	ibdev_put ( ibdev );
 	return rc;
 }
 
@@ -422,16 +471,13 @@ int register_ibdev ( struct ib_device *ibdev ) {
  * @v ibdev		Infiniband device
  */
 void unregister_ibdev ( struct ib_device *ibdev ) {
+
+	/* Close device */
 	ipoib_remove ( ibdev );
 	ib_close ( ibdev );
-}
 
-/**
- * Free Infiniband device
- *
- * @v ibdev		Infiniband device
- */
-void free_ibdev ( struct ib_device *ibdev ) {
-	free ( ibdev );
+	/* Remove from device list */
+	list_del ( &ibdev->list );
+	ibdev_put ( ibdev );
+	DBGC ( ibdev, "IBDEV %p unregistered\n", ibdev );
 }
-
