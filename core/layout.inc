@@ -48,22 +48,17 @@ LATEBSS_START	equ 0B800h
 		; for things that absolutely have to be below 0x7c00.
 		section .bss		write nobits align=16
 
+%if 0 ; IS_PXELINUX
 		; Warning here: RBFG build 22 randomly overwrites
 		; memory location [0x5680,0x576c), possibly more.  It
 		; seems that it gets confused and screws up the
 		; pointer to its own internal packet buffer and starts
 		; writing a received ARP packet into low memory.
-%if IS_PXELINUX
 		section .rbfg		write nobits
 RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 %endif
 
-		; For section following .rbfg
-%if IS_PXELINUX
 		section .bss2		write nobits align=16
-%else
-		section .bss2		write nobits align=16
-%endif
 
 		section .text		exec write progbits align=16
 		section .data		write progbits align=16
