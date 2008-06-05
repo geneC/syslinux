@@ -40,7 +40,7 @@ BOBJECTS = $(BTARGET) \
 # BESUBDIRS and IESUBDIRS are "early", i.e. before the root; BSUBDIRS
 # and ISUBDIRS are "late", after the root.
 BESUBDIRS = 
-BSUBDIRS = core memdisk mbr memdump gpxe dos win32
+BSUBDIRS = codepage core memdisk mbr memdump gpxe dos win32
 ITARGET  = 
 IOBJECTS = $(ITARGET) dos/copybs.com utils/gethostip utils/mkdiskimage \
 	mtools/syslinux linux/syslinux extlinux/extlinux
