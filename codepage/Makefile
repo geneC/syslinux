@@ -13,5 +13,7 @@ clean:
 
 dist: tidy
 
+spotless: clean
+
 %.bin: %.txt cptable.pl UnicodeData
 	$(PERL) cptable.pl UnicodeData $< $@
