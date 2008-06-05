@@ -104,7 +104,7 @@ iso%.bin: iso%.elf
 	$(OBJCOPY) -O binary $< $@
 
 %.o: %.asm kwdhash.gen ../version.gen
-	$(NASM) $(NASMOPT) -f elf -F stabs -DDATE_STR="'$(DATE)'" \
+	$(NASM) $(NASMOPT) -f elf -g -F stabs -DDATE_STR="'$(DATE)'" \
 		-DHEXDATE="$(HEXDATE)" \
 		-l $(@:.o=.lsr) -o $@ $<
 
