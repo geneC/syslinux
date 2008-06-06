@@ -1,0 +1,14 @@
+SYSLINUX ELF Module Loading Support
+===================================
+
+This file will contain any relevant information regarding building, integrating
+and testing ELF module loading support in SYSLINUX.
+
+
+Initial Development
+===================
+
+As the ELF modules handling code matures, building and testing will be done
+separately from the main SYSLINUX building flow. I have created a Makefile
+target that build an user space executable that tests the ELF loading code on
+a given ELF object. 
