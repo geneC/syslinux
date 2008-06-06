@@ -40,7 +40,7 @@ void print_elf_info(const char *file_name) {
 	
 	elf_header = (Elf32_Ehdr*)elf_addr;
 	
-	printf("Magic:\t\t");
+	printf("Identification:\t");
 	for (i=0; i < EI_NIDENT; i++) {
 		printf("%d ", elf_header->e_ident[i]);
 	}
