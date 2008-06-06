@@ -28,6 +28,7 @@ Changes in 3.70:
 	  all three.
 	* Change default dir for auxiliary files from
 	  /usr/lib/syslinux to /usr/share/syslinux.
+	* SYSLINUX: VFAT long filename support.
 
 Changes in 3.64:
 	* SYSLINUX/EXTLINUX: support "localboot" with the same feature

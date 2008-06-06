@@ -6,14 +6,14 @@ GENFILES	= $(patsubst %.txt,%.bin,$(CPSRC))
 
 all: $(GENFILES)
 
-tidy:
+%.bin: %.txt cptable.pl UnicodeData
+	$(PERL) cptable.pl UnicodeData $< $@
 
-clean:
+tidy:
 	rm -f $(GENFILES)
+
+clean: tidy
 
 dist: tidy
 
 spotless: clean
-
-%.bin: %.txt cptable.pl UnicodeData
-	$(PERL) cptable.pl UnicodeData $< $@

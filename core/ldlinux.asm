@@ -957,10 +957,26 @@ search_dos_dir:
 		jnz .alloc_failure
 
 		push cx
+		push dx
 		push gs
 		push es
 		push ds
 		pop es				; ES = DS
+
+		; Compute the value of a possible VFAT longname
+		; "last" entry (which, of course, comes first...)
+		push ax
+		push dx
+		mov ax,[NameLen]
+		add ax,12
+		xor dx,dx
+		mov cx,13
+		div cx
+		or al,40h
+		mov [VFATInit],al
+		mov [VFATNext],al
+		pop dx
+		pop ax
 
 .scansector:
 		; EAX <- directory sector to scan
@@ -971,9 +987,108 @@ search_dos_dir:
 .scanentry:
 		cmp byte [gs:si],0
 		jz .failure			; Hit directory high water mark
-		test byte [gs:si+11],8		; Ignore volume labels and
-						; VFAT long filename entries
+		cmp word [gs:si+11],0Fh		; Long filename
+		jne .short_entry
+
+		; Process a VFAT long entry
+		pusha
+		mov al,[gs:si]
+		cmp al,[VFATNext]
+		jne .not_us
+		mov bl,[gs:si+13]
+		test al,40h
+		jz .match_csum
+		; Get the initial checksum value
+		mov [VFATCsum],bl
+		jmp .done_csum
+.match_csum:
+		cmp bl,[VFATCsum]
+		jne .not_us			; Checksum mismatch
+.done_csum:
+		and ax,03fh
+		jz .not_us			; Can't be zero...
+		dec ax
+		mov [VFATNext],al		; Optimistically...
+		mov bx,ax
+		shl bx,2			; *4
+		add ax,bx			; *5
+		add bx,bx			; *8
+		add bx,ax			; *13
+		cmp bx,[NameLen]
+		jae .not_us
+		mov di,[NameStart]
+		inc si
+		mov cx,13
+.vfat_cmp:
+		gs lodsw
+		push bx
+		cmp bx,[NameLen]
+		jae .vfat_tail
+		movzx bx,byte [bx+di]
+		shl bx,2
+		cmp ax,[ucs_codepage+bx]	; Primary case
+		je .ucs_ok
+		cmp ax,[ucs_codepage+bx+2]	; Alternate case
+		je .ucs_ok
+		; Mismatch...
+		jmp .not_us_pop
+.vfat_tail:
+		; *AT* the end we should have 0x0000, *AFTER* the end
+		; we should have 0xFFFF...
+		je .vfat_end
+		inc ax			; 0xFFFF -> 0x0000
+.vfat_end:
+		and ax,ax
+		jnz .not_us_pop
+.ucs_ok:
+		pop bx
+		inc bx
+		cmp cx,3
+		je .vfat_adj_add2
+		cmp cx,9
+		jne .vfat_adj_add0
+.vfat_adj_add3:	inc si
+.vfat_adj_add2:	inc si
+.vfat_adj_add1:	inc si
+.vfat_adj_add0:
+		loop .vfat_cmp
+		; Okay, if we got here we had a match on this particular
+		; entry... live to see another one.
+		popa
+		jmp .next_entry
+
+.not_us_pop:
+		pop bx
+.not_us:
+		popa
+		jmp .nomatch
+		
+.short_entry:
+		test byte [gs:si+11],8		; Ignore volume labels
 		jnz .nomatch
+
+		cmp byte [VFATNext],0		; Do we have a longname match?
+		jne .no_long_match
+
+		; We already have a VFAT longname match, however,
+		; the match is only valid if the checksum matches
+		push cx
+		push si
+		push ax
+		xor ax,ax
+		mov cx,11
+.csum_loop:
+		gs lodsb
+		ror ah,1
+		add ah,al
+		loop .csum_loop
+		cmp ah,[VFATCsum]
+		pop ax
+		pop si
+		pop cx
+		je .found			; Got a match on longname
+
+.no_long_match:					; Look for a shortname match
 		push cx
 		push si
 		push di
@@ -983,10 +1098,15 @@ search_dos_dir:
 		pop di
 		pop si
 		pop cx
-		jz .found
+		je .found
 .nomatch:
+		; Reset the VFAT matching state machine
+		mov dh,[VFATInit]
+		mov [VFATNext],dh
+.next_entry:
 		add si,32
-		loop .scanentry
+		dec cx
+		jnz .scanentry
 
 		call nextsector
 		jnc .scansector			; CF is set if we're at end
@@ -995,6 +1115,7 @@ search_dos_dir:
 .failure:
 		pop es
 		pop gs
+		pop dx
 		pop cx
 .alloc_failure:
 		pop bx
@@ -1022,10 +1143,22 @@ search_dos_dir:
 
 		pop es
 		pop gs
+		pop dx
 		pop cx
 		pop bx
 		ret
 
+		section .data
+		alignb 4
+ucs_codepage:
+		incbin "codepage.bin"
+
+		section .bss
+VFATInit	resb 1
+VFATNext	resb 1
+VFATCsum	resb 1
+
+		section .text
 ;
 ; close_file:
 ;	     Deallocates a file structure (pointer in SI)
@@ -1219,13 +1352,19 @@ unmangle_name:	call strcpy
 ;
 ; mangle_dos_name:
 ;		Mangle a DOS filename component pointed to by DS:SI
-;		into [MangledBuf]; ends on encountering any whitespace or slash.
+;		into [MangledBuf]; ends on encountering any whitespace or
+;		slash.
+;
+;		WARNING: saves pointers into the buffer for longname
+;		matches!
+;
 ;		Assumes CS == DS == ES.
 ;
 
 mangle_dos_name:
 		pusha
 		mov di,MangledBuf
+		mov [NameStart],si
 
 		mov cx,11			; # of bytes to write
 .loop:
@@ -1255,13 +1394,26 @@ mangle_dos_name:
                 xlatb
 .not_lower:	stosb
 		loop .loop			; Don't continue if too long
+		; Find the end for the benefit of longname search
+.find_end:
+		lodsb
+		cmp al,' '
+		jna .end
+		cmp al,'/'
+		jne .find_end
 .end:
+		dec si
+		sub si,[NameStart]
+		mov [NameLen],si
 		mov al,' '			; Space-fill name
 		rep stosb			; Doesn't do anything if CX=0
 		popa
 		ret				; Done
 
 		section .bss
+		alignb 2
+NameStart	resw 1
+NameLen		resw 1
 MangledBuf	resb 11
 
 		section .text

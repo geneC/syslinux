@@ -45,6 +45,11 @@ PERL     = perl
 
 VERSION := $(shell cat ../version)
 
+# This is very similar to cp437; technically it's for Norway and Denmark,
+# but it's unlikely the characters that are different will be used in
+# filenames by other users.
+CODEPAGE = cp865
+
 # _bin.c files required by both BTARGET and ITARGET installers
 BINFILES = bootsect_bin.c ldlinux_bin.c \
 	   extlinux_bss_bin.c extlinux_sys_bin.c
@@ -140,6 +145,12 @@ extlinux_bss_bin.c: extlinux.bss ../bin2c.pl
 extlinux_sys_bin.c: extlinux.sys ../bin2c.pl
 	$(PERL) ../bin2c.pl extlinux_image 512 < $< > $@
 
+# NASM prior to 2.03 wouldn't auto-generate this dependency...
+ldlinux.o: codepage.bin
+
+codepage.bin: ../codepage/$(CODEPAGE).bin
+	cp -f $< $@
+
 install: installer
 
 install-lib: installer
@@ -149,12 +160,12 @@ install-all: install install-lib
 netinstall: installer
 
 tidy dist:
-	rm -f *.o *.elf *_bin.c stupid.* patch.offset
+	rm -f codepage.bin *.o *.elf stupid.* patch.offset
 	rm -f *.lsr *.lst *.map *.sec
 	rm -f $(OBSOLETE)
 
 clean: tidy
-	rm -f $(ITARGET)
+	rm -f $(ITARGET) *_bin.c
 
 spotless: clean
 	rm -f $(BTARGET) .depend
