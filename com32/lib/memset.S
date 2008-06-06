@@ -26,61 +26,61 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * memcpy.S
+ * memset.S
  *
- * Reasonably efficient memcpy, using aligned transfers at least
+ * Reasonably efficient memset, using aligned transfers at least
  * for the destination operand.
  */
 
+	.globl	memset
+	.type	memset,@function
 	.text
-	.globl	memcpy
-	.type	memcpy, @function
-memcpy:
-	jecxz	1f
+memset:
+	jecxz	6f
 
-	pushl	%esi
 	pushl	%edi
+	pushl	%ebx
 	pushl	%eax		/* Return value */
 
 	movl	%eax,%edi
-	movl	%edx,%esi
-
+	movb	%dl,%dh
+	movzwl	%dx,%eax
+	shll	$16,%edx
+	orl	%edx,%eax
+	
 	/* Initial alignment */
 	movl	%edi,%edx
 	shrl	$1,%edx
-	jnc	11f
-	movsb
+	jnc	1f
+	stosb
 	decl	%ecx
-11:
-	movb	%cl,%al
+1:
+	movb	%cl,%bl
 	cmpl	$2,%ecx
-	jb	13f
-
+	jb	3f
 	shrl	$1,%edx
-	jnc	12f
-	movsw
+	jnc	2f
+	stosw
 	subl	$2,%ecx
-12:
+2:
 	/* Bulk transfer */
-	movb	%cl,%al
+	movb	%cl,%bl
 	shrl	$2,%ecx
-	rep; movsl
+	rep; stosl
 
-	/* Final alignment */
-	testb	$2,%al
-	jz	14f
-	movsw
-13:
-14:
-	testb	$1,%al
-	jz	15f
-	movsb
-15:
-
+	testb	$2,%bl
+	jz	4f
+	stosw
+3:
+4:
+	testb	$1,%bl
+	jz	5f
+	stosb
+5:
 	popl	%eax		/* Return value */
+	popl	%ebx
 	popl	%edi
-	popl	%esi
-1:	
+6:
 	ret
 
-	.size	memcpy, .-memcpy
+	.size	memset, .-memset

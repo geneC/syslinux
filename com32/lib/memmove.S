@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2008 rPath, Inc. - All Rights Reserved
+ *   Copyright 2008 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -28,16 +28,20 @@
 /*
  * memmove.S
  *
- * Reasonably efficient memmove
+ * Reasonably efficient memmove, using aligned transfers at least
+ * for the destination operand.
  */
 
 	.globl	memmove
 	.type	memmove,@function
 	.text
 memmove:
+	jecxz	3f
+
 	pushl	%esi
 	pushl	%edi
-
+	pushl	%eax		/* Return value */
+	
 	movl	%eax,%edi
 	movl	%edx,%esi
 
@@ -45,35 +49,91 @@ memmove:
 	jb	1f
 
 	/* source >= dest, forwards move */
-	movl	%ecx,%edx
+
+	/* Initial alignment */
+	movl	%edi,%edx
+	shrl	$1,%edx
+	jnc	11f
+	movsb
+	decl	%ecx
+11:
+	movb	%cl,%al
+	cmpl	$2,%ecx
+	jb	13f
+
+	shrl	$1,%edx
+	jnc	12f
+	movsw
+	subl	$2,%ecx
+12:
+	/* Bulk transfer */
+	movb	%cl,%al
 	shrl	$2,%ecx
-	andl	$3,%edx
-
 	rep; movsl
-	movl	%edx,%ecx
-	rep; movsb
 
+	/* Final alignment */
+	testb	$2,%al
+	jz	14f
+	movsw
+13:
+14:
+	testb	$1,%al
+	jz	15f
+	movsb
+15:
 	jmp	2f
+
+
 1:
 	/* source < dest, backwards move */
-	leal	-4(%ecx,%esi),%esi
-	leal	-4(%ecx,%edi),%edi
-
-	movl	%ecx,%edx
-	shrl	$2,%ecx
-	andl	$3,%edx
-
 	std
-	rep; movsl
-	movl	%edx,%ecx
-	addl	$3,%esi
-	addl	$3,%edi
-	rep; movsb
-	cld
+	leal	-1(%ecx,%esi),%esi
+	leal	-1(%ecx,%edi),%edi
 
+	/* Initial alignment */
+	movl	%edi,%edx
+	shrl	$1,%edx
+	jnc	21f
+	movsb
+	decl	%ecx
+21:
+	decl	%esi
+	decl	%edi
+	movb	%cl,%al
+	cmpl	$2,%ecx
+	jb	23f
+	shrl	$1,%edx
+	jnc	22f
+	movsw
+	subl	$2,%ecx
+22:
+	/* Bulk transfer */
+	subl	$2,%esi
+	subl	$2,%edi
+	movb	%cl,%al
+	shrl	$2,%ecx
+	rep; movsl
+
+	/* Final alignment */
+	addl	$2,%esi
+	addl	$2,%edi
+	testb	$2,%al
+	jz	24f
+	movsw
+23:
+24:
+	incl	%esi
+	incl	%edi
+	testb	$1,%al
+	jz	25f
+	movsb
+25:
+	cld
 2:
+	popl	%eax		/* Return value */
 	popl	%edi
 	popl	%esi
+3:
 	ret
 
 	.size	memmove, .-memmove
