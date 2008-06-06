@@ -38,3 +38,5 @@
 /utils/mkdiskimage
 /version.h
 /version.mk
+/.cproject
+/.project
