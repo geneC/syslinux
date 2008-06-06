@@ -94,13 +94,14 @@ bcopy_gdt_size:	equ $-bcopy_gdt
 ;	ESI	- first byte after source (garbage if ESI == -1 on entry)
 ;	EDI	- first byte after target
 ;
-bcopy:		pushad
+bcopy:		jecxz .ret
+		pushad
 		push word pm_bcopy
 		call simple_pm_call
 		popad
 		add edi,ecx
 		add esi,ecx
-		ret
+.ret:		ret
 
 ;
 ; This routine is used to invoke a simple routine in 16-bit protected
@@ -203,6 +204,10 @@ simple_pm_call:
 ; pm_bcopy:
 ;
 ;	This is the protected-mode core of the "bcopy" routine.
+;	Try to do aligned transfers; if the src and dst are relatively
+;	misaligned, align the dst.
+;
+;	ECX is guaranteed to not be zero on entry.
 ;
 pm_bcopy:
 		cmp esi,-1
@@ -212,44 +217,124 @@ pm_bcopy:
 		jb .reverse		; have to copy backwards
 
 .forward:
+		; Initial alignment
+		mov dx,di
+		shr dx,1
+		jnc .faa1
+		a32 movsb
+		dec ecx
+.faa1:
+		mov al,cl
+		cmp ecx,2
+		jb .f_tiny
+
+		shr dx,1
+		jnc .faa2
+		a32 movsw
+		sub ecx,2
+.faa2:
+
+		; Bulk transfer
 		mov al,cl		; Save low bits
-		and al,3
 		shr ecx,2		; Convert to dwords
 		a32 rep movsd		; Do our business
 		; At this point ecx == 0
 
-		mov cl,al		; Copy any fractional dword
-		a32 rep movsb
+		test al,2
+		jz .fab2
+		a32 movsw
+.fab2:
+.f_tiny:
+		test al,1
+		jz .fab1
+		a32 movsb
+.fab1:
 		ret
 
 .reverse:
 		std			; Reverse copy
+
 		lea esi,[esi+ecx-1]	; Point to final byte
 		lea edi,[edi+ecx-1]
-		mov eax,ecx
-		and ecx,3
-		shr eax,2
-		a32 rep movsb
 
-		; Change ESI/EDI to point to the last dword, instead
-		; of the last byte.
-		sub esi,3
-		sub edi,3
-		mov ecx,eax
+		; Initial alignment
+		mov dx,di
+		shr dx,1
+		jnc .raa1
+		a32 movsb
+		dec ecx
+.raa1:
+
+		dec esi
+		dec edi
+		mov al,cl
+		cmp ecx,2
+		jb .r_tiny
+		shr dx,1
+		jnc .raa2
+		a32 movsw
+		sub ecx,2
+.raa2:
+
+		; Bulk copy
+		sub esi,2
+		sub edi,2
+		mov al,cl		; Save low bits
+		shr ecx,2
 		a32 rep movsd
 
+		; Final alignment
+.r_final:
+		add esi,2
+		add edi,2
+		test al,2
+		jz .rab2
+		a32 movsw
+.rab2:
+.r_tiny:
+		inc esi
+		inc edi
+		test al,1
+		jz .rab1
+		a32 movsb
+.rab1:
 		cld
 		ret
 
 .bzero:
 		xor eax,eax
-		mov si,cx		; Save low bits
-		and si,3
+
+		; Initial alignment
+		mov dx,di
+		shr dx,1
+		jnc .zaa1
+		a32 stosb
+		dec ecx
+.zaa1:
+
+		mov bl,cl
+		cmp ecx,2
+		jb .z_tiny
+		shr dx,1
+		jnc .zaa2
+		a32 stosw
+		sub ecx,2
+.zaa2:
+
+		; Bulk
+		mov bl,cl		; Save low bits
 		shr ecx,2
 		a32 rep stosd
 
-		mov cx,si		; Write fractional dword
-		a32 rep stosb
+		test bl,2
+		jz .zab2
+		a32 stosw
+.zab2:
+.z_tiny:
+		test bl,1
+		jz .zab1
+		a32 stosb
+.zab1:
 		ret
 
 ;
