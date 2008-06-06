@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "elf.h"
+#include <elf.h>
 
 void print_usage() {
 	fprintf(stderr, "Usage:\n");
@@ -47,11 +47,11 @@ void print_elf_info(const char *file_name) {
 	printf("\n");
 	printf("Type:\t\t%u\n", elf_header->e_type);
 	printf("Machine:\t%u\n", elf_header->e_machine);
-	printf("Version:\t%lu\n", elf_header->e_version);
-	printf("Entry:\t\t0x%08lx\n", elf_header->e_entry);
-	printf("PHT Offset:\t0x%08lx\n", elf_header->e_phoff);
-	printf("SHT Offset:\t0x%08lx\n", elf_header->e_shoff);
-	printf("Flags:\t\t%lu\n", elf_header->e_flags);
+	printf("Version:\t%u\n", elf_header->e_version);
+	printf("Entry:\t\t0x%08x\n", elf_header->e_entry);
+	printf("PHT Offset:\t0x%08x\n", elf_header->e_phoff);
+	printf("SHT Offset:\t0x%08x\n", elf_header->e_shoff);
+	printf("Flags:\t\t%u\n", elf_header->e_flags);
 	printf("Header size:\t%u (Structure size: %u)\n", elf_header->e_ehsize,
 			sizeof(Elf32_Ehdr));
 	
