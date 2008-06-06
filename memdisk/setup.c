@@ -551,10 +551,10 @@ static uint32_t pnp_install_check(void)
  * Returns the drive number (which is then passed in %dl to the
  * called routine.)
  */
-syscall_t syscall;
+__cdecl syscall_t syscall;
 void *sys_bounce;
 
-void setup(syscall_t cs_syscall, void *cs_bounce)
+__cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
 {
   unsigned int bin_size = (int) &_binary_memdisk_bin_size;
   struct memdisk_header *hptr;

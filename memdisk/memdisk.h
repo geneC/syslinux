@@ -25,8 +25,10 @@
 /* The real-mode segment */
 #define LOW_SEG 0x0800
 
+#define __cdecl __attribute__((cdecl,regparm(0)))
+
 typedef void (*syscall_t)(uint8_t, com32sys_t *, com32sys_t *);
-extern syscall_t syscall;
+extern __cdecl syscall_t syscall;
 extern void *sys_bounce;
 
 /* What to call when we're dead */

@@ -24,7 +24,7 @@ ALIGN   := $(call gcc_ok,-falign-functions=0 -falign-jumps=0 -falign-loops=0,-ma
 FREE    := $(call gcc_ok,-ffreestanding,) $(call gcc_ok,-fno-stack-protector,)
 
 CFLAGS   =  $(M32) $(FREE) -g -W -Wall -Wno-sign-compare \
-	   -Os -fomit-frame-pointer -march=i386 $(ALIGN) \
+	   -Os -fomit-frame-pointer -march=i386 -mregparm=3 $(ALIGN) \
 	   -DVERSION='"$(VERSION)"' -DDATE='"$(DATE)"'
 SFLAGS	 = $(M32) -march=i386 -D__ASSEMBLY__
 LDFLAGS  = $(M32) -g
