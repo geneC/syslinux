@@ -362,19 +362,6 @@ struct geometry {
   uint8_t driveno;		/* Drive no */
 };
 
-static const struct geometry geometries[] =
-{
-  {  360*2, 40,  2,  9, 0, 0x01, 0 }, /*  360 K */
-  {  720*2, 80,  2,  9, 0, 0x03, 0 }, /*  720 K*/
-  { 1200*2, 80,  2, 15, 0, 0x02, 0 }, /* 1200 K */
-  { 1440*2, 80,  2, 18, 0, 0x04, 0 }, /* 1440 K */
-  { 1680*2, 80,  2, 21, 0, 0x04, 0 }, /* 1680 K */
-  { 1722*2, 82,  2, 21, 0, 0x04, 0 }, /* 1722 K */
-  { 2880*2, 80,  2, 36, 0, 0x06, 0 }, /* 2880 K */
-  { 3840*2, 80,  2, 48, 0, 0x06, 0 }, /* 3840 K */
-};
-#define known_geometries (sizeof(geometries)/sizeof(struct geometry))
-
 /* Format of a DOS partition table entry */
 struct ptab_entry {
   uint8_t active;
@@ -399,7 +386,7 @@ struct dosemu_header {
 
 const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 {
-  static struct geometry hd_geometry = { 0, 0, 0, 0, 0, 0, 0x80 };
+  static struct geometry hd_geometry;
   struct ptab_entry ptab[4];	/* Partition table buffer */
   struct dosemu_header dosemu;
   unsigned int sectors, v;
@@ -416,11 +403,52 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
     offset = v;
 
   sectors = (size-offset) >> 9;
-  for ( i = 0 ; i < known_geometries ; i++ ) {
-    if ( sectors == geometries[i].sectors ) {
-      hd_geometry = geometries[i];
-      break;
+
+  if (sectors < 4096*2) {
+    int ok = 0;
+    unsigned int xsectors = sectors;
+
+    while (!ok) {
+      /* Assume it's a floppy drive, guess a geometry */
+      unsigned int type, track;
+
+      if (xsectors < 320*2) {
+	c = 40; h = 1; type = 1;
+      } else if (xsectors < 640*2) {
+	c = 40; h = 2; type = 1;
+      } else if (xsectors < 1200*2) {
+	c = 80; h = 2; type = 3;
+      } else if (xsectors < 1440*2) {
+	c = 80; h = 2; type = 2;
+    } else if (xsectors < 2880*2) {
+	c = 80; h = 2; type = 4;
+      } else {
+	c = 80; h = 2; type = 6;
+      }
+      track = c*h;
+      while (c < 256) {
+	s = xsectors/track;
+	if (s < 63 && (xsectors % track) == 0) {
+	  ok = 1;
+	  break;
+	}
+	c++;
+	track += h;
+      }      
+      if (ok) {
+	hd_geometry.driveno = 0;
+	hd_geometry.c = c;
+	hd_geometry.h = h;
+	hd_geometry.s = s;
+      } else {
+	/* No valid floppy geometry, fake it by simulating broken
+	   sectors at the end of the image... */
+	xsectors++;
+      }
     }
+  } else {
+    /* Hard disk */
+    hd_geometry.driveno = 0x80;
   }
 
   hd_geometry.sectors = sectors;
@@ -606,10 +634,11 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
   else
     do_edd = (geometry->driveno & 0x80) ? 1 : 0;
 
-  printf("Disk is %s %d, %u K, C/H/S = %u/%u/%u, EDD %s\n",
+  printf("Disk is %s %d, %u%s K, C/H/S = %u/%u/%u, EDD %s\n",
 	 (geometry->driveno & 0x80) ? "hard disk" : "floppy",
 	 geometry->driveno & 0x7f,
 	 geometry->sectors >> 1,
+	 (geometry->sectors & 1) ? ".5" : "",
 	 geometry->c, geometry->h, geometry->s,
 	 do_edd ? "on" : "off");
 
