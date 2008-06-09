@@ -1,5 +1,5 @@
 ; -----------------------------------------------------------------------
-;   
+;
 ;   Copyright 1999-2008 H. Peter Anvin - All Rights Reserved
 ;
 ;   This program is free software; you can redistribute it and/or modify
@@ -51,7 +51,7 @@ local_boot:
 		jnc .ok
 		dec bp
 		jnz .again
-		jmp kaboom			; Failure...	
+		jmp kaboom			; Failure...
 .ok:
 		pop dx
 		cli				; Abandon hope, ye who enter here

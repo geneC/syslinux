@@ -13,7 +13,7 @@ SECTIONS
 {
 	/* "Early" sections (before the load) */
 	. = 0x0800;
-	
+
 	.earlybss : {
 		__earlybss_start = .;
 		*(.earlybss)
@@ -81,7 +81,7 @@ SECTIONS
 	      *(.data)
 	      __data_end = .;
 	}
-      	__data_len = __data_end - __data_start;
+	__data_len = __data_end - __data_start;
 	__data_dwords = (__data_len + 3) >> 2;
 
 	. = ALIGN(4);

@@ -434,7 +434,7 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 	}
 	c++;
 	track += h;
-      }      
+      }
       if (ok) {
 	hd_geometry.driveno = 0;
 	hd_geometry.c = c;

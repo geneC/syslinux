@@ -1072,7 +1072,7 @@ search_dos_dir:
 .not_us:
 		popa
 		jmp .nomatch
-		
+
 .short_entry:
 		test byte [gs:si+11],8		; Ignore volume labels
 		jnz .nomatch

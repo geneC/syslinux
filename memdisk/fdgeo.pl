@@ -51,4 +51,3 @@ if ($ok) {
 } else {
     print "No valid geometry found (MEMDISK will fake it)\n";
 }
-

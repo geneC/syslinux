@@ -61,7 +61,7 @@ The PMBR boot code loads the first sector of the bootable partition,
 and passes in DL=<disk number>, ES:DI=<pointer to $PnP>, sets EAX to
 0x54504721 ("!GPT") and points DS:SI to a structure of the following
 form:
-	
+
 	Offset	Size	Contents
 	---------------------------------------------------------
 	  0	  1	0x80 (this is a bootable partition)
@@ -86,7 +86,3 @@ also informs the OS that the GPT partition information is present.
 Currently, this is compatible with Syslinux as long as the Syslinux
 partition is < 2 TB; this probably will be improved in a future
 version.
-
-
-	  
-

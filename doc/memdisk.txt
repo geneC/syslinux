@@ -32,7 +32,7 @@ b) If the disk image is less than 4,194,304 bytes (4096K, 4 MB) it is
    assumed to be a floppy image and MEMDISK will try to guess its
    geometry based on the size of the file.  MEMDISK recognizes all the
    standard floppy sizes as well as common extended formats:
-   
+
      163,840 bytes  (160K) c=40 h=1 s=8		5.25" SSSD
      184,320 bytes  (180K) c=40 h=1 s=9		5.25" SSSD
      327,680 bytes  (320K) c=40 h=2 s=8		5.25" DSDD

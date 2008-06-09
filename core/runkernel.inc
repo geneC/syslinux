@@ -553,7 +553,7 @@ parse_load_initrd:
 ; Input:	InitRD		- set to the mangled name of the initrd
 ;		EDI		- location to load
 ; Output:	EDI		- location for next initrd
-; 		InitRDEnd	- updated
+;		InitRDEnd	- updated
 ;
 loadinitrd:
 		push ds

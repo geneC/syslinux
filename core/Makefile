@@ -34,7 +34,7 @@ OBJCOPY  = objcopy
 OBJDUMP  = objdump
 
 OPTFLAGS = -g -Os -march=i386 -falign-functions=0 -falign-jumps=0 -falign-loops=0 -fomit-frame-pointer
-INCLUDES = 
+INCLUDES =
 CFLAGS	 = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -msoft-float $(OPTFLAGS) $(INCLUDES)
 
 NASM	 = nasm

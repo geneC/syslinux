@@ -1724,7 +1724,7 @@ PXEEntry	equ pxenv.jump+1
 		section .bss
 		alignb 2
 PXEStatus	resb 2
-		
+
 		section .text
 
 ;
