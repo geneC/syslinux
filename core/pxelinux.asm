@@ -54,12 +54,7 @@ TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
 SECTOR_SHIFT	equ TFTP_BLOCKSIZE_LG2
 SECTOR_SIZE	equ TFTP_BLOCKSIZE
 
-;
-; This is what we need to do when idle
-; *** This is disabled because some PXE stacks wait for unacceptably
-; *** long if there are no packets receivable.
-
-%define HAVE_IDLE 0			; idle is not a noop
+%define HAVE_IDLE 1			; idle is not a noop
 
 %if HAVE_IDLE
 %macro	RESET_IDLE 0
@@ -652,6 +647,12 @@ udp_init:
 %include "cpuinit.inc"
 
 ;
+; Detect NIC type and initialize the idle mechanism
+;
+		call pxe_detect_nic_type
+		RESET_IDLE
+
+;
 ; Now we're all set to start with our *real* business.	First load the
 ; configuration file (if any) and parse it.
 ;
@@ -1091,7 +1092,6 @@ searchdir:
 		mov bx,[bx]
 		push bx			; [bp-8]  - TID (local port no)
 
-		mov [pxe_udp_write_pkt.status],byte 0
 		mov [pxe_udp_write_pkt.sip],eax
 		; Now figure out the gateway
 		xor eax,[MyIP]
@@ -1127,7 +1127,6 @@ searchdir:
 
 .pkt_loop:	mov bx,[bp-8]		; TID
 		mov di,packet_buf
-		mov word [pxe_udp_read_pkt.status],0
 		mov [pxe_udp_read_pkt.buffer],di
 		mov [pxe_udp_read_pkt.buffer+2],ds
 		mov word [pxe_udp_read_pkt.buffersize],packet_buf_size
@@ -1691,6 +1690,9 @@ pxenv:
 		mov [cs:PXEStack+2],ss
 		lss sp,[cs:InitStack]
 %endif
+		; Pre-clear the Status field
+		mov word [es:di],cs
+
 		; This works either for the PXENV+ or the !PXE calling
 		; convention, as long as we ignore CF (which is redundant
 		; with AX anyway.)
@@ -2621,6 +2623,9 @@ genipopt:
 ; passed since the last poll, and reset this when a character is
 ; received (RESET_IDLE).
 ;
+; Note: we only do this if pxe_detect_nic_type has cleared the
+; "idle is noop" bit in feature_flags.
+;
 %if HAVE_IDLE
 
 reset_idle:
@@ -2631,13 +2636,15 @@ reset_idle:
 		ret
 
 check_for_arp:
+		test byte [cs:feature_flags],2
+		jnz .ret
 		push ax
 		mov ax,[cs:BIOS_timer]
 		sub ax,[cs:IdleTimer]
 		cmp ax,4
 		pop ax
 		jae .need_poll
-		ret
+.ret:		ret
 .need_poll:	pushad
 		push ds
 		push es
@@ -2645,7 +2652,6 @@ check_for_arp:
 		mov ds,ax
 		mov es,ax
 		mov di,packet_buf
-		mov [pxe_udp_read_pkt.status],al	; 0
 		mov [pxe_udp_read_pkt.buffer],di
 		mov [pxe_udp_read_pkt.buffer+2],ds
 		mov word [pxe_udp_read_pkt.buffersize],packet_buf_size
@@ -2684,6 +2690,7 @@ writestr	equ cwritestr
 %include "strcpy.inc"		; strcpy()
 %include "rawcon.inc"		; Console I/O w/o using the console functions
 %include "dnsresolv.inc"	; DNS resolver
+%include "pxeidle.inc"		; Idle mechanism
 %include "adv.inc"		; Auxillary Data Vector
 
 ; -----------------------------------------------------------------------------

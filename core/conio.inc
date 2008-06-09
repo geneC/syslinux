@@ -282,6 +282,7 @@ write_serial_str:
 ;
 pollchar:
 		pushad
+		DO_IDLE
 		mov ah,11h		; Poll keyboard
 		int 16h
 		jnz .done		; Keyboard response
@@ -306,7 +307,6 @@ pollchar:
 ; getchar: Read a character from keyboard or serial port
 ;
 getchar:
-		RESET_IDLE
 .again:
 		DO_IDLE
 		mov ah,11h		; Poll keyboard
@@ -339,7 +339,9 @@ getchar:
 		jz .func_key
 		mov bx,KbdMap		; Convert character sets
 		xlatb
-.func_key:	ret
+.func_key:
+		RESET_IDLE		; Character received
+		ret
 
 %ifdef DEBUG_TRACERS
 ;

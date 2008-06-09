@@ -971,14 +971,12 @@ zero_string	db 0			; Empty, null-terminated string
 
 ;
 ; This is the feature flag array for INT 22h AX=0015h
+;
+; Note: PXELINUX clears the idle is noop flag if appropriate
+; in pxe_detect_nic_type
+;
 feature_flags:
-%if IS_PXELINUX
-		db 1			; Have local boot, idle not noop
-%elif IS_ISOLINUX
 		db 3			; Have local boot, idle is noop
-%else
-		db 2			; No local boot, idle is noop
-%endif
 feature_flags_len equ ($-feature_flags)
 
 err_notdos	db ': attempted DOS system call', CR, LF, 0
