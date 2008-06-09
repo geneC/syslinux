@@ -7,71 +7,17 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include <elf.h>
+#include "elf_module.h"
 
 void print_usage() {
 	fprintf(stderr, "Usage:\n");
 	fprintf(stderr, "\telftest objfile\n");
 }
 
-void print_elf_info(const char *file_name) {
-	int elf_fd = open(file_name, O_RDONLY);
-	void *elf_addr = NULL;
-	Elf32_Ehdr *elf_header;
-	struct stat elf_stat;
-	int i;
-	
-	if (elf_fd < 0) {
-		perror("Could not open object file");
-		goto error;
-	}
-	
-	if (fstat(elf_fd, &elf_stat) < 0) {
-		perror("Could not get file information");
-		goto error;
-	}
-	
-	elf_addr = mmap(NULL, elf_stat.st_size, PROT_READ, MAP_PRIVATE, elf_fd, 0);
-	
-	if (elf_addr == NULL) {
-		perror("Could not map the file into memory");
-		goto error;
-	}
-	
-	elf_header = (Elf32_Ehdr*)elf_addr;
-	
-	printf("Identification:\t");
-	for (i=0; i < EI_NIDENT; i++) {
-		printf("%d ", elf_header->e_ident[i]);
-	}
-	printf("\n");
-	printf("Type:\t\t%u\n", elf_header->e_type);
-	printf("Machine:\t%u\n", elf_header->e_machine);
-	printf("Version:\t%u\n", elf_header->e_version);
-	printf("Entry:\t\t0x%08x\n", elf_header->e_entry);
-	printf("PHT Offset:\t0x%08x\n", elf_header->e_phoff);
-	printf("SHT Offset:\t0x%08x\n", elf_header->e_shoff);
-	printf("Flags:\t\t%u\n", elf_header->e_flags);
-	printf("Header size:\t%u (Structure size: %u)\n", elf_header->e_ehsize,
-			sizeof(Elf32_Ehdr));
-	
-	
-	munmap(elf_addr, elf_stat.st_size);
-	close(elf_fd);
-	
-	return;
-	
-error:
-	if (elf_addr != NULL)
-		munmap(elf_addr, elf_stat.st_size);
-	
-	if (elf_fd >= 0)
-		close(elf_fd);
-	exit(2);
-}
-
 int main(int argc, char **argv) {
-	const char *file_name = NULL;
+	int res;
+	struct elf_module *module;
+	const char *module_name = NULL;
 	
 	// Skip program name
 	argc--;
@@ -82,9 +28,37 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 	
-	file_name = argv[0];
+	module_name = argv[0];
 	
-	print_elf_info(file_name);
+	res = modules_init();
+	
+	if (res < 0) {
+		fprintf(stderr, "Could not initialize module subsystem\n");
+		exit(1);
+	}
+	
+	module = module_alloc(module_name);
+	
+	if (module == NULL) {
+		fprintf(stderr, "Could not allocate the module\n");
+		goto error;
+	}
+	
+	res = module_load(module);
+	
+	if (res < 0) {
+		fprintf(stderr, "Could not load the module\n");
+		goto error;
+	}
+	
+	module_unload(module);
+	
+	modules_term();
 	
 	return 0;
+	
+error:
+	modules_term();
+	
+	return 1;
 }
