@@ -146,9 +146,9 @@ extlinux_sys_bin.c: extlinux.sys ../bin2c.pl
 	$(PERL) ../bin2c.pl extlinux_image 512 < $< > $@
 
 # NASM prior to 2.03 wouldn't auto-generate this dependency...
-ldlinux.o: codepage.bin
+ldlinux.o: codepage.cp
 
-codepage.bin: ../codepage/$(CODEPAGE).bin
+codepage.cp: ../codepage/$(CODEPAGE).cp
 	cp -f $< $@
 
 install: installer
@@ -160,7 +160,7 @@ install-all: install install-lib
 netinstall: installer
 
 tidy dist:
-	rm -f codepage.bin *.o *.elf stupid.* patch.offset
+	rm -f codepage.cp *.o *.elf stupid.* patch.offset
 	rm -f *.lsr *.lst *.map *.sec
 	rm -f $(OBSOLETE)
 

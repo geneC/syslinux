@@ -1,16 +1,16 @@
 PERL		= perl
 CPSRC		= $(wildcard *.txt)
-GENFILES	= $(patsubst %.txt,%.bin,$(CPSRC))
+GENFILES	= $(patsubst %.txt,%.cp,$(CPSRC))
 
-.SUFFIXES: .txt .bin
+.SUFFIXES: .txt .cp
 
 all: $(GENFILES)
 
-%.bin: %.txt cptable.pl UnicodeData
+%.cp: %.txt cptable.pl UnicodeData
 	$(PERL) cptable.pl UnicodeData $< $@
 
 tidy:
-	rm -f $(GENFILES)
+	rm -f *.cp *.bin
 
 clean: tidy
 

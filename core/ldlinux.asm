@@ -93,6 +93,16 @@ file_left	resd 1			; Number of sectors left
 		resd 1			; Unused
 		endstruc
 
+;
+; Structure for codepage files
+;
+		struc cp
+.magic		resd 2			; 8-byte magic number
+.reserved	resd 6			; Reserved for future use
+.uppercase	resb 256		; Internal upper-case table
+.unicode	resw 2*256		; Unicode matching table
+		endstruc
+
 %ifndef DEPEND
 %if (open_file_t_size & (open_file_t_size-1))
 %error "open_file_t is not a power of 2"
@@ -1026,9 +1036,9 @@ search_dos_dir:
 		jae .vfat_tail
 		movzx bx,byte [bx+di]
 		shl bx,2
-		cmp ax,[ucs_codepage+bx]	; Primary case
+		cmp ax,[cp_unicode+bx]		; Primary case
 		je .ucs_ok
-		cmp ax,[ucs_codepage+bx+2]	; Alternate case
+		cmp ax,[cp_unicode+bx+2]	; Alternate case
 		je .ucs_ok
 		; Mismatch...
 		jmp .not_us_pop
@@ -1150,8 +1160,14 @@ search_dos_dir:
 
 		section .data
 		alignb 4
-ucs_codepage:
-		incbin "codepage.bin"
+		; Note: we have no use of the first 32 bytes (header),
+		; nor of the folloing 32 bytes (case mapping of control
+		; characters), as long as we adjust the offsets appropriately.
+codepage	equ $-(32+32)
+codepage_data:	incbin "codepage.cp",32+32
+cp_uppercase	equ	codepage+cp.uppercase
+cp_unicode	equ	codepage+cp.unicode
+codepage_end	equ $
 
 		section .bss
 VFATInit	resb 1
@@ -1367,6 +1383,7 @@ mangle_dos_name:
 		mov [NameStart],si
 
 		mov cx,11			; # of bytes to write
+		mov bx,cp_uppercase		; Case-conversion table
 .loop:
 		lodsb
 		cmp al,' '			; If control or space, end
@@ -1375,24 +1392,8 @@ mangle_dos_name:
 		je .end
 		cmp al,'.'			; Period -> space-fill
 		je .is_period
-		cmp al,'a'
-		jb .not_lower
-		cmp al,'z'
-		ja .not_uslower
-		sub al,020h
-		jmp short .not_lower
-.is_period:	mov al,' '			; We need to space-fill
-.period_loop:	cmp cx,3			; If <= 3 characters left
-		jbe .loop			; Just ignore it
-		stosb				; Otherwise, write a period
-		loop .period_loop		; Dec CX and (always) jump
-.not_uslower:	cmp al,ucase_low
-		jb .not_lower
-		cmp al,ucase_high
-		ja .not_lower
-		mov bx,ucase_tab-ucase_low
-                xlatb
-.not_lower:	stosb
+		xlatb				; Convert to upper case
+		stosb
 		loop .loop			; Don't continue if too long
 		; Find the end for the benefit of longname search
 .find_end:
@@ -1410,27 +1411,18 @@ mangle_dos_name:
 		popa
 		ret				; Done
 
+.is_period:
+		mov al,' '			; We need to space-fill
+.period_loop:	cmp cx,3			; If <= 3 characters left
+		jbe .loop			; Just ignore it
+		stosb				; Otherwise, write a space
+		loop .period_loop		; Dec CX and *always* jump
+
 		section .bss
 		alignb 2
 NameStart	resw 1
 NameLen		resw 1
 MangledBuf	resb 11
-
-		section .text
-;
-; Case tables for extended characters; this is technically code page 865,
-; but code page 437 users will probably not miss not being able to use the
-; cent sign in kernel images too much :-)
-;
-; The table only covers the range 129 to 164; the rest we can deal with.
-;
-		section .data
-
-ucase_low	equ 129
-ucase_high	equ 164
-ucase_tab	db 154, 144, 'A', 142, 'A', 143, 128, 'EEEIII'
-		db 142, 143, 144, 146, 146, 'O', 153, 'OUUY', 153, 154
-		db 157, 156, 157, 158, 159, 'AIOU', 165
 
 		section .text
 ;
