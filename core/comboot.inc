@@ -151,10 +151,11 @@ comboot_setup_api:
 		mov di,DOSErrTramp	; Error trampolines
 		mov cx,32
 		push cx
-		mov eax,0EB7A6A20h	; push 20h; jmp <tramp>
+		mov eax,02EB206Ah	; push 20h; jmp $+4
 .loop1:		stosd
-		add eax,1-(4 << 16)
+		inc ah
 		loop .loop1
+		dec di
 		mov byte [di-1],0E9h
 		mov ax,comboot_bogus-2
 		sub ax,di
@@ -220,8 +221,8 @@ comboot_bad_int21:
 ; Attempted to execute invalid DOS system call
 ; The interrupt number is on the stack.
 comboot_bogus:	cli			; Don't trust anyone
-		pop edi			; CS:IP
 		pop dx			; Interrupt number
+		pop edi			; CS:IP
 		mov cx,err_notdos
 		push comboot_bogus_tail
 		jmp comboot_exit_msg
