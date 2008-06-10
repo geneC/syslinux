@@ -25,6 +25,7 @@
 %define		P_FLAGSH	byte [bp+45]
 %define		P_CS		word [bp+42]
 %define		P_IP		word [bp+40]
+%define		P_CSIP		dword [bp+40]
 %define		P_DS		word [bp+38]
 %define		P_ES		word [bp+36]
 %define		P_FS		word [bp+34]
@@ -147,16 +148,32 @@ comboot_return:	cli			; Don't trust anyone
 ; by the COM32 code.
 ;
 comboot_setup_api:
-		mov di,4*0x20		; DOS interrupt vectors
-		mov eax,comboot_return	; INT 20h = exit
+		mov di,DOSErrTramp	; Error trampolines
+		mov cx,32
+		push cx
+		mov eax,0EB7A6A20h	; push 20h; jmp <tramp>
+.loop1:		stosd
+		add eax,1-(4 << 16)
+		loop .loop1
+		mov byte [di-1],0E9h
+		mov ax,comboot_bogus-2
+		sub ax,di
+		stosw
+
+		mov eax,DOSErrTramp
+		pop cx			; CX <- 32
+		mov di,4*20h		; DOS interrupt vectors
+		push di
+.loop2:		stosd
+		add ax,4
+		loop .loop2
+		pop di
+		mov ax,comboot_return	; INT 20h = exit
 		stosd
 		mov ax,comboot_int21	; INT 21h = DOS-compatible syscalls
 		stosd
 		mov ax,comboot_int22	; INT 22h = proprietary syscalls
 		stosd
-		mov ax,comboot_bogus
-		mov cx,29		; All remaining DOS vectors
-		rep stosd
 		ret
 
 ; INT 21h: generic DOS system call
@@ -194,11 +211,33 @@ comboot_resume:
 		pop ds
 		iret
 
-; Attempted to execute non-21h DOS system call
+comboot_bad_int21:
+		mov ax,P_AX
+		push P_CSIP
+		push 21h
+		; Fall through
+
+; Attempted to execute invalid DOS system call
+; The interrupt number is on the stack.
 comboot_bogus:	cli			; Don't trust anyone
+		pop edi			; CS:IP
+		pop dx			; Interrupt number
 		mov cx,err_notdos
-		push enter_command
+		push comboot_bogus_tail
 		jmp comboot_exit_msg
+comboot_bogus_tail:
+		xchg ax,dx
+		call writehex2		; Interrupt number
+		mov al,' '
+		call writechr
+		xchg ax,dx
+		call writehex4		; Function number (AX)
+		mov al,' '
+		call writechr
+		mov eax,edi
+		call writehex8		; CS:IP of the origin
+		call crlf
+		jmp enter_command
 
 ;
 ; Generic COMBOOT return to command line code
@@ -209,7 +248,7 @@ comboot_exit:
 		xor cx,cx
 comboot_exit_msg:
 		pop bx			; Return address
-		RESET_STACK_AND_SEGS AX
+		RESET_STACK_AND_SEGS SI
 		call adjust_screen	; The COMBOOT program might have changed the screen
 		jcxz .nomsg
 		mov si,KernelCName
@@ -927,7 +966,7 @@ int21_table:
 		int21	0Bh, comboot_checkkey
 		int21	30h, comboot_checkver
 		int21	4Ch, comboot_return
-		int21	 -1, comboot_bogus
+		int21	 -1, comboot_bad_int21
 int21_count	equ ($-int21_table)/3
 
 		align 2, db 0
@@ -979,8 +1018,10 @@ feature_flags:
 		db 3			; Have local boot, idle is noop
 feature_flags_len equ ($-feature_flags)
 
-err_notdos	db ': attempted DOS system call', CR, LF, 0
+err_notdos	db ': attempted DOS system call INT ',0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
 
 		section .bss1
+		alignb 4
+DOSErrTramp	resd	33		; Error trampolines
 ConfigName	resb	FILENAME_MAX

@@ -1522,6 +1522,7 @@ getfssec:
 %include "conio.inc"		; Console I/O
 %include "plaincon.inc"		; writechr
 %include "writestr.inc"		; String output
+%include "writehex.inc"		; Hexadecimal output
 %include "configinit.inc"	; Initialize configuration
 %include "parseconfig.inc"	; High-level config file handling
 %include "parsecmd.inc"		; Low-level config file handling

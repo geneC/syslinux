@@ -1158,7 +1158,7 @@ search_dos_dir:
 		ret
 
 		section .data
-		alignb 4
+		align 4, db 0
 		; Note: we have no use of the first 32 bytes (header),
 		; nor of the folloing 32 bytes (case mapping of control
 		; characters), as long as we adjust the offsets appropriately.
@@ -1681,6 +1681,7 @@ getfatsector:
 %include "conio.inc"		; Console I/O
 %include "plaincon.inc"		; writechr
 %include "writestr.inc"		; String output
+%include "writehex.inc"		; Hexadecimal output
 %include "configinit.inc"	; Initialize configuration
 %include "parseconfig.inc"	; High-level config file handling
 %include "parsecmd.inc"		; Low-level config file handling
