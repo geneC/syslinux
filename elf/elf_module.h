@@ -10,6 +10,8 @@
 #define MODULE_ELF_CLASS		ELFCLASS32
 #define MODULE_ELF_DATA			ELFDATA2LSB
 #define MODULE_ELF_VERSION		EV_CURRENT
+#define MODULE_ELF_TYPE			ET_DYN
+#define MODULE_ELF_MACHINE		EM_386
 
 
 typedef int (*module_init_func)();
@@ -27,6 +29,10 @@ struct elf_module {
 	
 	void				*file_image; // The image of the module file in memory
 	uint32_t			file_size; // The size of the module file
+	
+	void				*module_addr; // The module location in the memory
+	Elf32_Addr			base_addr;	// The base address of the module
+	Elf32_Word			module_size; // The module size in memory
 	
 	// Information for modules loaded in user space
 #ifdef ELF_USERSPACE_TEST
