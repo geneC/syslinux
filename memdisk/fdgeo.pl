@@ -33,6 +33,7 @@ if ($sec < 320*2) {
 } else {
     printf "%.1fK, %d sectors: ", $sec/2, $sec;
     print "Considered a hard disk\n";
+    exit 2;
 }
 
 $ok = 0;
@@ -48,6 +49,8 @@ while ($c < 256) {
 printf "%.1fK, %d sectors: ", $sec/2, $sec;
 if ($ok) {
     print "c=$c, h=$h, s=$s, type=$type\n";
+    exit 0;
 } else {
     print "No valid geometry found (MEMDISK will fake it)\n";
+    exit 1;
 }
