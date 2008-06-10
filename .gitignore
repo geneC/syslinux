@@ -4,6 +4,7 @@
 *.bss
 *.c32
 *.com
+*.cp
 *.d
 *.elf
 *.exe
