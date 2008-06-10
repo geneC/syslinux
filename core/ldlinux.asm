@@ -956,9 +956,11 @@ allocate_file:
 ;		ZF clear
 ;		SI	= file pointer
 ;		EAX	= file length (MAY BE ZERO!)
-;		DL	= file attributes
+;		DL	= file attribute
+;               DH	= clobbered
 ;	     If unsuccessful
 ;		ZF set
+;		EAX, SI, DX clobbered
 ;
 
 search_dos_dir:
@@ -967,7 +969,6 @@ search_dos_dir:
 		jnz .alloc_failure
 
 		push cx
-		push dx
 		push gs
 		push es
 		push ds
@@ -1125,7 +1126,6 @@ search_dos_dir:
 .failure:
 		pop es
 		pop gs
-		pop dx
 		pop cx
 .alloc_failure:
 		pop bx
@@ -1153,7 +1153,6 @@ search_dos_dir:
 
 		pop es
 		pop gs
-		pop dx
 		pop cx
 		pop bx
 		ret
