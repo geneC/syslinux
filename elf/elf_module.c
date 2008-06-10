@@ -274,6 +274,84 @@ static int load_segments(struct elf_module *module) {
 	return 0;
 }
 
+
+static int resolve_symbols(struct elf_module *module) {
+	int i;
+	Elf32_Ehdr *elf_hdr = elf_get_header(module->file_image);
+	Elf32_Phdr *dyn_ph; // The program header for the dynamic section
+	
+	Elf32_Dyn  *dyn_entry; // The table of dynamic linking information
+	
+	for (i=0; i < elf_hdr->e_phnum; i++) {
+		dyn_ph = elf_get_ph(module->file_image, i);
+		
+		if (dyn_ph->p_type == PT_DYNAMIC)
+			break;
+		else
+			dyn_ph = NULL;
+	}
+	
+	if (dyn_ph == NULL) {
+		fprintf(stderr, "Dynamic relocation information not found\n");
+		return -1;
+	}
+	
+	dyn_entry = (Elf32_Dyn*)(module->file_image + dyn_ph->p_offset);
+	
+	
+	while (dyn_entry->d_tag != DT_NULL) {
+		switch (dyn_entry->d_tag) {
+		case DT_NEEDED:
+			// TODO: Manage dependencies here
+			break;
+		case DT_PLTRELSZ:
+			
+		case DT_PLTGOT:
+			
+		case DT_HASH:
+		case DT_GNU_HASH:	// TODO: Add support for this one, too (50% faster)
+			
+		case DT_STRTAB:
+			
+		case DT_SYMTAB:
+			
+		case DT_RELA:
+			
+		case DT_RELASZ:
+			
+		case DT_RELAENT:
+			
+		case DT_STRSZ:
+			
+		case DT_SYMENT:
+			
+		case DT_INIT:
+			
+		case DT_FINI:
+			
+		case DT_REL:
+			
+		case DT_RELSZ:
+			
+		case DT_RELENT:
+			
+		case DT_PLTREL:
+			
+		case DT_JMPREL:
+			printf("Recognized DYN tag: %d\n", dyn_entry->d_tag);
+			break;
+		default:
+			printf("Custom DYN tag: 0x%08x\n", dyn_entry->d_tag);
+			break;
+		}
+		
+		dyn_entry++;
+	}
+	
+	
+	return 0;
+}
+
 // Loads the module into the system
 int module_load(struct elf_module *module) {
 	int res;
@@ -301,8 +379,11 @@ int module_load(struct elf_module *module) {
 	
 	CHECKED(res, load_segments(module), error);
 	
-	// The file image is no longer neededchar
+	CHECKED(res, resolve_symbols(module), error);
+	
+	// The file image is no longer needed
 	CHECKED(res, unload_image(module), error);
+	
 	
 	return 0;
 	
