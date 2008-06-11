@@ -23,4 +23,6 @@ static inline Elf32_Phdr *elf_get_ph(void *elf_image, int index) {
 	return (Elf32_Phdr*)((Elf32_Off)elf_pht + index * elf_hdr->e_phentsize);
 }
 
+extern unsigned long elf_hash(const unsigned char *name);
+
 #endif /*ELF_UTILS_H_*/

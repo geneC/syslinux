@@ -418,3 +418,25 @@ int module_unload(struct elf_module *module) {
 	
 	return 0;
 }
+
+
+Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
+	unsigned long h = elf_hash((const unsigned char*)name);
+	
+	Elf32_Word *bkt = module->hash_table + 2;
+	Elf32_Word *chn = module->hash_table + 2 + module->hash_table[0];
+	
+	Elf32_Word crt_index = bkt[h % module->hash_table[0]];
+	Elf32_Sym *crt_sym;
+	
+	while (crt_index != STN_UNDEF) {
+		crt_sym = (Elf32_Sym*)(module->sym_table + crt_index*module->syment_size);
+		
+		if (strcmp(name, module->str_table + crt_sym->st_name) == 0)
+			return crt_sym;
+		
+		crt_index = chn[crt_index];
+	}
+	
+	return NULL;
+}

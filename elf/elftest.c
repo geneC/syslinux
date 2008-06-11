@@ -11,7 +11,7 @@
 
 void print_usage() {
 	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\telftest objfile\n");
+	fprintf(stderr, "\telftest objfile [symbol ...]\n");
 }
 
 int main(int argc, char **argv) {
@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
 	argc--;
 	argv++;
 	
-	if (argc != 1) {
+	if (argc < 1) {
 		print_usage();
 		return 1;
 	}
@@ -50,6 +50,21 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Could not load the module\n");
 		goto error;
 	}
+	
+	argc--;
+	argv++;
+	
+	while (argc > 0) {
+		if (module_find_symbol(argv[0], module) != NULL) {
+			printf("Symbol %s found\n", argv[0]);
+		} else {
+			printf("Symbol %s not found\n", argv[0]);
+		}
+		
+		argc--;
+		argv++;
+	}
+	
 	
 	module_unload(module);
 	

@@ -33,7 +33,7 @@ all: test-prog test-module
 # The testing user-space application
 test-prog: $(TESTPROG)
 
-$(TESTPROG): elftest.o elf_module.o
+$(TESTPROG): elftest.o elf_module.o elf_utils.o
 	$(CC) -o $@ $^
 
 	

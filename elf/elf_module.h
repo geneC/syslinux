@@ -73,4 +73,6 @@ extern int module_load(struct elf_module *module);
 // Unloads the module from the system and releases all the associated memory
 extern int module_unload(struct elf_module *module);
 
+extern Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module);
+
 #endif /*ELF_MODULE_H_*/
