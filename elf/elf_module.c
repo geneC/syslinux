@@ -62,24 +62,24 @@ static int load_image(struct elf_module *module) {
 	strcpy(file_name, module->name);
 	strcat(file_name, ".so");
 	
-	module->file_fd = open(file_name, O_RDONLY);
+	module->_file_fd = open(file_name, O_RDONLY);
 	
-	if (module->file_fd < 0) {
+	if (module->_file_fd < 0) {
 		perror("Could not open object file");
 		goto error;
 	}
 	
-	if (fstat(module->file_fd, &elf_stat) < 0) {
+	if (fstat(module->_file_fd, &elf_stat) < 0) {
 		perror("Could not get file information");
 		goto error;
 	}
 	
-	module->file_size = elf_stat.st_size;
+	module->_file_size = elf_stat.st_size;
 	
-	module->file_image = mmap(NULL, module->file_size, PROT_READ, MAP_PRIVATE, 
-			module->file_fd, 0);
+	module->_file_image = mmap(NULL, module->_file_size, PROT_READ, MAP_PRIVATE, 
+			module->_file_fd, 0);
 		
-	if (module->file_image == NULL) {
+	if (module->_file_image == NULL) {
 		perror("Could not map the file into memory");
 		goto error;
 	}
@@ -87,25 +87,25 @@ static int load_image(struct elf_module *module) {
 	return 0;
 	
 error:
-	if (module->file_image != NULL) {
-		munmap(module->file_image, module->file_size);
-		module->file_image = NULL;
+	if (module->_file_image != NULL) {
+		munmap(module->_file_image, module->_file_size);
+		module->_file_image = NULL;
 	}
 	
-	if (module->file_fd > 0) {
-		close(module->file_fd);
-		module->file_fd = 0;
+	if (module->_file_fd > 0) {
+		close(module->_file_fd);
+		module->_file_fd = 0;
 	}
 	return -1;
 }
 
 
 static int unload_image(struct elf_module *module) {
-	munmap(module->file_image, module->file_size);
-	module->file_image = NULL;
+	munmap(module->_file_image, module->_file_size);
+	module->_file_image = NULL;
 	
-	close(module->file_fd);
-	module->file_fd = 0;
+	close(module->_file_fd);
+	module->_file_fd = 0;
 	
 	return 0;
 }
@@ -148,7 +148,7 @@ struct elf_module *module_alloc(const char *name) {
 // Performs verifications on ELF header to assure that the open file is a
 // valid SYSLINUX ELF module.
 static int check_header(struct elf_module *module) {
-	Elf32_Ehdr *elf_hdr = elf_get_header(module->file_image);
+	Elf32_Ehdr *elf_hdr = elf_get_header(module->_file_image);
 	
 	// Check the header magic
 	if (elf_hdr->e_ident[EI_MAG0] != ELFMAG0 ||
@@ -197,7 +197,7 @@ static int check_header(struct elf_module *module) {
 
 static int load_segments(struct elf_module *module) {
 	int i;
-	Elf32_Ehdr *elf_hdr = elf_get_header(module->file_image);
+	Elf32_Ehdr *elf_hdr = elf_get_header(module->_file_image);
 	Elf32_Phdr *cr_pht;
 	
 	Elf32_Addr min_addr  = 0x00000000; // Min. ELF vaddr
@@ -208,7 +208,7 @@ static int load_segments(struct elf_module *module) {
 	
 	// Compute the memory needings of the module
 	for (i=0; i < elf_hdr->e_phnum; i++) {
-		cr_pht = elf_get_ph(module->file_image, i);
+		cr_pht = elf_get_ph(module->_file_image, i);
 		
 		if (cr_pht->p_type == PT_LOAD) {
 			if (i == 0) {
@@ -252,12 +252,12 @@ static int load_segments(struct elf_module *module) {
 	memset(module->module_addr, 0, module->module_size);
 	
 	for (i = 0; i < elf_hdr->e_phnum; i++) {
-		cr_pht = elf_get_ph(module->file_image, i);
+		cr_pht = elf_get_ph(module->_file_image, i);
 		
 		if (cr_pht->p_type == PT_LOAD) {
 			// Copy the segment at its destination
 			memcpy((void*)(module->base_addr + cr_pht->p_vaddr),
-					module->file_image + cr_pht->p_offset,
+					module->_file_image + cr_pht->p_offset,
 					cr_pht->p_filesz);
 			
 			printf("Loadable segment of size 0x%08x copied from vaddr 0x%08x at 0x%08x\n",
@@ -274,16 +274,15 @@ static int load_segments(struct elf_module *module) {
 	return 0;
 }
 
-
-static int resolve_symbols(struct elf_module *module) {
+static int prepare_dynlinking(struct elf_module *module) {
 	int i;
-	Elf32_Ehdr *elf_hdr = elf_get_header(module->file_image);
+	Elf32_Ehdr *elf_hdr = elf_get_header(module->_file_image);
 	Elf32_Phdr *dyn_ph; // The program header for the dynamic section
 	
 	Elf32_Dyn  *dyn_entry; // The table of dynamic linking information
 	
 	for (i=0; i < elf_hdr->e_phnum; i++) {
-		dyn_ph = elf_get_ph(module->file_image, i);
+		dyn_ph = elf_get_ph(module->_file_image, i);
 		
 		if (dyn_ph->p_type == PT_DYNAMIC)
 			break;
@@ -296,34 +295,56 @@ static int resolve_symbols(struct elf_module *module) {
 		return -1;
 	}
 	
-	dyn_entry = (Elf32_Dyn*)(module->file_image + dyn_ph->p_offset);
+	module->_dyn_info = (Elf32_Dyn*)(module->_file_image + dyn_ph->p_offset); 
 	
+	dyn_entry = module->_dyn_info;
 	
 	while (dyn_entry->d_tag != DT_NULL) {
 		switch (dyn_entry->d_tag) {
 		case DT_NEEDED:
 			// TODO: Manage dependencies here
 			break;
-		case DT_PLTRELSZ:
-			
-		case DT_PLTGOT:
-			
 		case DT_HASH:
+			module->hash_table = (Elf32_Word*)(dyn_entry->d_un.d_ptr + module->base_addr);
+			break;
 		case DT_GNU_HASH:	// TODO: Add support for this one, too (50% faster)
-			
+			module->ghash_table = (Elf32_Word*)(dyn_entry->d_un.d_ptr + module->base_addr);
+			break;
 		case DT_STRTAB:
-			
+			module->str_table = (char*)(dyn_entry->d_un.d_ptr + module->base_addr);
+			break;
 		case DT_SYMTAB:
-			
+			module->sym_table = (void*)(dyn_entry->d_un.d_ptr + module->base_addr);
+			break;
+		case DT_STRSZ:
+			module->strtable_size = dyn_entry->d_un.d_val;
+			break;
+		case DT_SYMENT:
+			module->syment_size = dyn_entry->d_un.d_val;
+			break;
+		}
+		
+		dyn_entry++;
+	}
+	
+	
+	return 0;
+}
+
+static int resolve_symbols(struct elf_module *module) {
+	Elf32_Dyn  *dyn_entry = module->_dyn_info;
+	
+	while (dyn_entry->d_tag != DT_NULL) {
+		switch(dyn_entry->d_tag) {
 		case DT_RELA:
 			
 		case DT_RELASZ:
 			
 		case DT_RELAENT:
 			
-		case DT_STRSZ:
+		case DT_PLTRELSZ:
 			
-		case DT_SYMENT:
+		case DT_PLTGOT: // The first entry in the GOT
 			
 		case DT_INIT:
 			
@@ -340,14 +361,10 @@ static int resolve_symbols(struct elf_module *module) {
 		case DT_JMPREL:
 			printf("Recognized DYN tag: %d\n", dyn_entry->d_tag);
 			break;
-		default:
-			printf("Custom DYN tag: 0x%08x\n", dyn_entry->d_tag);
-			break;
 		}
 		
 		dyn_entry++;
 	}
-	
 	
 	return 0;
 }
@@ -372,12 +389,13 @@ int module_load(struct elf_module *module) {
 	CHECKED(res, check_header(module), error);
 	
 	// Obtain the ELF header
-	elf_hdr = elf_get_header(module->file_image);
+	elf_hdr = elf_get_header(module->_file_image);
 
 	// DEBUG
 	print_elf_ehdr(elf_hdr);
 	
 	CHECKED(res, load_segments(module), error);
+	CHECKED(res, prepare_dynlinking(module), error);
 	
 	CHECKED(res, resolve_symbols(module), error);
 	

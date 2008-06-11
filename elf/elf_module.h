@@ -27,16 +27,28 @@ struct elf_module {
 	module_init_func	init_func;	// The initialization entry point
 	module_exit_func	exit_func;	// The module finalization code
 	
-	void				*file_image; // The image of the module file in memory
-	uint32_t			file_size; // The size of the module file
 	
 	void				*module_addr; // The module location in the memory
 	Elf32_Addr			base_addr;	// The base address of the module
 	Elf32_Word			module_size; // The module size in memory
 	
+	Elf32_Word			*hash_table;	// The symbol hash table
+	Elf32_Word			*ghash_table;	// The GNU style hash table
+	char				*str_table;		// The string table
+	void 				*sym_table;		// The symbol table
+	
+	Elf32_Word			strtable_size;	// The size of the string table
+	Elf32_Word			syment_size;	// The size of a symbol entry
+	
+	
+	// Transient - Data available while the module is loading
+	void				*_file_image; // The image of the module file in memory
+	uint32_t			_file_size; // The size of the module file
+	Elf32_Dyn			*_dyn_info;	// Dynamic loading information
+	
 	// Information for modules loaded in user space
 #ifdef ELF_USERSPACE_TEST
-	int					file_fd;	// The file descriptor of the open file
+	int					_file_fd;	// The file descriptor of the open file
 #endif
 };
 
