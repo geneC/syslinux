@@ -40,6 +40,7 @@ $(TESTPROG): elftest.o elf_module.o elf_utils.o
 # The shared module to test on
 test-module: $(TESTMODULE)
 
+# $(TESTMODULE): CFLAGS += -fPIC
 $(TESTMODULE): hello.o
 	$(CC) -shared -o $@ $^
 

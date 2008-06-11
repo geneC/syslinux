@@ -36,6 +36,7 @@ struct elf_module {
 	Elf32_Word			*ghash_table;	// The GNU style hash table
 	char				*str_table;		// The string table
 	void 				*sym_table;		// The symbol table
+	void				*got;			// The Global Offset Table
 	
 	Elf32_Word			strtable_size;	// The size of the string table
 	Elf32_Word			syment_size;	// The size of a symbol entry
@@ -74,5 +75,10 @@ extern int module_load(struct elf_module *module);
 extern int module_unload(struct elf_module *module);
 
 extern Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module);
+extern Elf32_Sym *global_find_symbol(const char *name, struct elf_module **module);
+
+static inline void *module_get_absolute(Elf32_Addr addr, struct elf_module *module) {
+	return (void*)(module->base_addr + addr);
+}
 
 #endif /*ELF_MODULE_H_*/

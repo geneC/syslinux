@@ -52,6 +52,29 @@ static void print_elf_ehdr(Elf32_Ehdr *ehdr) {
 	printf("Header size:\t%u (Structure size: %u)\n", ehdr->e_ehsize,
 			sizeof(Elf32_Ehdr));
 }
+
+static void print_elf_symbols(struct elf_module *module) {
+	Elf32_Word *bkt = module->hash_table + 2;
+	Elf32_Word *chn = module->hash_table + 2 + module->hash_table[0];
+	Elf32_Word i, crt_index;
+	Elf32_Sym *crt_sym;
+	
+	printf("Bucket count: %d \n", module->hash_table[0]);
+	printf("Chain count: %d (Non GNU-Hash: %d)\n", module->hash_table[1],
+			module->ghash_table[1]);
+	
+	for (i = 0; i < module->hash_table[0]; i++) {
+		printf("Bucket %d:\n", i);
+		crt_index = bkt[i];
+		
+		while (crt_index != STN_UNDEF) {
+			crt_sym = (Elf32_Sym*)(module->sym_table + crt_index*module->syment_size);
+			
+			printf("%s\n", module->str_table + crt_sym->st_name);
+			crt_index = chn[crt_index];
+		}
+	}
+}
 #endif //ELF_USERSPACE_TEST
 
 #ifdef ELF_USERSPACE_TEST
@@ -256,14 +279,14 @@ static int load_segments(struct elf_module *module) {
 		
 		if (cr_pht->p_type == PT_LOAD) {
 			// Copy the segment at its destination
-			memcpy((void*)(module->base_addr + cr_pht->p_vaddr),
+			memcpy(module_get_absolute(cr_pht->p_vaddr, module),
 					module->_file_image + cr_pht->p_offset,
 					cr_pht->p_filesz);
 			
 			printf("Loadable segment of size 0x%08x copied from vaddr 0x%08x at 0x%08x\n",
 					cr_pht->p_filesz,
 					cr_pht->p_vaddr,
-					module->base_addr + cr_pht->p_vaddr);
+					(Elf32_Addr)module_get_absolute(cr_pht->p_vaddr, module));
 		}
 	}
 	
@@ -305,22 +328,29 @@ static int prepare_dynlinking(struct elf_module *module) {
 			// TODO: Manage dependencies here
 			break;
 		case DT_HASH:
-			module->hash_table = (Elf32_Word*)(dyn_entry->d_un.d_ptr + module->base_addr);
+			module->hash_table = 
+				(Elf32_Word*)module_get_absolute(dyn_entry->d_un.d_ptr, module);
 			break;
 		case DT_GNU_HASH:	// TODO: Add support for this one, too (50% faster)
-			module->ghash_table = (Elf32_Word*)(dyn_entry->d_un.d_ptr + module->base_addr);
+			module->ghash_table = 
+				(Elf32_Word*)module_get_absolute(dyn_entry->d_un.d_ptr, module);
 			break;
 		case DT_STRTAB:
-			module->str_table = (char*)(dyn_entry->d_un.d_ptr + module->base_addr);
+			module->str_table = 
+				(char*)module_get_absolute(dyn_entry->d_un.d_ptr, module);
 			break;
 		case DT_SYMTAB:
-			module->sym_table = (void*)(dyn_entry->d_un.d_ptr + module->base_addr);
+			module->sym_table = 
+				module_get_absolute(dyn_entry->d_un.d_ptr, module);
 			break;
 		case DT_STRSZ:
 			module->strtable_size = dyn_entry->d_un.d_val;
 			break;
 		case DT_SYMENT:
 			module->syment_size = dyn_entry->d_un.d_val;
+			break;
+		case DT_PLTGOT: // The first entry in the GOT
+			module->got = module_get_absolute(dyn_entry->d_un.d_ptr, module);
 			break;
 		}
 		
@@ -331,39 +361,168 @@ static int prepare_dynlinking(struct elf_module *module) {
 	return 0;
 }
 
+static int perform_relocation(struct elf_module *module, Elf32_Rel *rel) {
+	Elf32_Word *dest = module_get_absolute(rel->r_offset, module);
+	
+	Elf32_Word sym = ELF32_R_SYM(rel->r_info);
+	unsigned char type = ELF32_R_TYPE(rel->r_info);
+	
+	switch (type) {
+	case R_386_NONE:
+		// Do nothing
+		break;
+	case R_386_32:
+		break;
+	case R_386_PC32:
+		break;
+	case R_386_COPY:
+		break;
+	case R_386_GLOB_DAT:
+		break;
+	case R_386_JMP_SLOT:
+		break;
+	case R_386_RELATIVE:
+		*dest = module->base_addr + *dest;
+		break;
+	case R_386_GOTOFF:
+		break;
+	case R_386_GOTPC:
+		break;
+	default:
+		fprintf(stderr, "Relocation type %d not supported\n", type);
+		return -1;
+	}
+	
+	return 0;
+}
+
 static int resolve_symbols(struct elf_module *module) {
 	Elf32_Dyn  *dyn_entry = module->_dyn_info;
+	int i, res;
+	
+	Elf32_Word plt_rel_size = 0;
+	void *plt_rel = NULL;
+	
+	void *rel = NULL;
+	Elf32_Word rel_size = 0;
+	Elf32_Word rel_entry = 0;
+	
+	// The current relocation
+	Elf32_Rel *crt_rel;
 	
 	while (dyn_entry->d_tag != DT_NULL) {
 		switch(dyn_entry->d_tag) {
-		case DT_RELA:
 			
-		case DT_RELASZ:
-			
-		case DT_RELAENT:
-			
+		// PLT relocation information
 		case DT_PLTRELSZ:
-			
-		case DT_PLTGOT: // The first entry in the GOT
-			
-		case DT_INIT:
-			
-		case DT_FINI:
-			
-		case DT_REL:
-			
-		case DT_RELSZ:
-			
-		case DT_RELENT:
-			
+			plt_rel_size = dyn_entry->d_un.d_val;
+			break;
 		case DT_PLTREL:
-			
+			if (dyn_entry->d_un.d_val != DT_REL) {
+				fprintf(stderr, "Unsupported PLT relocation\n");
+				return -1;
+			}
 		case DT_JMPREL:
-			printf("Recognized DYN tag: %d\n", dyn_entry->d_tag);
+			plt_rel = module_get_absolute(dyn_entry->d_un.d_ptr, module);
+			break;
+			
+		// Standard relocation information
+		case DT_REL:
+			rel = module_get_absolute(dyn_entry->d_un.d_ptr, module);
+			break;
+		case DT_RELSZ:
+			rel_size = dyn_entry->d_un.d_val;
+			break;
+		case DT_RELENT:
+			rel_entry = dyn_entry->d_un.d_val;
+			break;
+		
+		// Module initialization and termination
+		case DT_INIT:
+			// TODO Implement initialization functions
+			break;
+		case DT_FINI:
+			// TODO Implement finalization functions
 			break;
 		}
 		
 		dyn_entry++;
+	}
+	
+	if (rel_size > 0) {
+		// Process standard relocations
+		for (i = 0; i < rel_size/rel_entry; i++) {
+			crt_rel = (Elf32_Rel*)(rel + i*rel_entry);
+			
+			res = perform_relocation(module, crt_rel);
+			
+			if (res < 0)
+				return res;
+		}
+		
+	}
+	
+	if (plt_rel_size > 0) {
+		// TODO: Permit this lazily
+		// Process PLT relocations
+		for (i = 0; i < plt_rel_size/sizeof(Elf32_Rel); i++) {
+			crt_rel = (Elf32_Rel*)(plt_rel + i*sizeof(Elf32_Rel));
+			
+			res = perform_relocation(module, crt_rel);
+			
+			if (res < 0)
+				return res;
+		}
+	}
+	
+	return 0;
+}
+
+static int check_symbols(struct elf_module *module) {
+	int i;
+	Elf32_Sym *crt_sym, *ref_sym;
+	char *crt_name;
+	struct elf_module *crt_module;
+	
+	int strong_count;
+	int weak_count;
+	
+	// The chain count gives the number of symbols
+	for (i = 0; i < module->hash_table[1]; i++) {
+		crt_sym = (Elf32_Sym*)(module->sym_table + i * module->syment_size);
+		crt_name = module->str_table + crt_sym->st_name;
+		
+		strong_count = 0;
+		weak_count = 0;
+		
+		list_for_each_entry(crt_module, &modules, list) {
+			ref_sym = module_find_symbol(crt_name, crt_module);
+			
+			// If we found a definition for our symbol...
+			if (ref_sym != NULL && ref_sym->st_shndx != SHN_UNDEF) {
+				switch (ELF32_ST_BIND(ref_sym->st_info)) {
+				case STB_GLOBAL:
+					strong_count++;
+					break;
+				case STB_WEAK:
+					weak_count++;
+					break;
+				}
+			}
+		}
+		
+		if (crt_sym->st_shndx == SHN_UNDEF) {
+			// We have an undefined symbol
+			if (strong_count == 0 && weak_count == 0) {
+				fprintf(stderr, "Symbol %s is undefined\n", crt_name);
+				return -1;
+			}
+		} else {
+			if (strong_count > 0 && ELF32_ST_BIND(ref_sym->st_info) == STB_GLOBAL) {
+				fprintf(stderr, "Symbol %s is defined more than once\n", crt_name);
+				return -1;
+			}
+		}
 	}
 	
 	return 0;
@@ -397,6 +556,9 @@ int module_load(struct elf_module *module) {
 	CHECKED(res, load_segments(module), error);
 	CHECKED(res, prepare_dynlinking(module), error);
 	
+	// DEBUG
+	print_elf_symbols(module);
+	
 	CHECKED(res, resolve_symbols(module), error);
 	
 	// The file image is no longer needed
@@ -429,6 +591,7 @@ Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
 	Elf32_Word crt_index = bkt[h % module->hash_table[0]];
 	Elf32_Sym *crt_sym;
 	
+	
 	while (crt_index != STN_UNDEF) {
 		crt_sym = (Elf32_Sym*)(module->sym_table + crt_index*module->syment_size);
 		
@@ -439,4 +602,32 @@ Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
 	}
 	
 	return NULL;
+}
+
+Elf32_Sym *global_find_symbol(const char *name, struct elf_module **module) {
+	struct elf_module *crt_module;
+	Elf32_Sym *crt_sym;
+	Elf32_Sym *result;
+	
+	list_for_each_entry(crt_module, &modules, list) {
+		crt_sym = module_find_symbol(name, crt_module);
+		
+		if (crt_sym != NULL && crt_sym->st_shndx != SHN_UNDEF) {
+			switch (ELF32_ST_BIND(crt_sym->st_info)) {
+			case STB_GLOBAL:
+				if (module != NULL) {
+					*module = crt_module;
+				}
+				return crt_sym;
+			case STB_WEAK:
+				if (module != NULL) {
+					*module = crt_module;
+				}
+				result = crt_sym;
+				break;
+			}
+		}
+	}
+	
+	return result;
 }

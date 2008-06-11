@@ -6,6 +6,8 @@
 // Undefined symbol
 extern int undef_symbol;
 
+int exported_symbol;
+
 // Undefined function
 extern void undef_func(int param);
 
