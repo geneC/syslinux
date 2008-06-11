@@ -4,8 +4,9 @@
 #include <inttypes.h>
 #include <sys/io.h>
 
+#define MAX_PCI_FUNC      8
 #define MAX_PCI_DEVICES  32
-#define MAX_PCI_BUSES   255
+#define MAX_PCI_BUSES   256
 
 typedef uint32_t pciaddr_t;
 

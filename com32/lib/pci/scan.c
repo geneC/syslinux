@@ -351,8 +351,8 @@ int pci_scan(struct pci_bus_list * pci_bus_list, struct pci_device_list * pci_de
   dprintf("PCI configuration type %d\n", cfgtype);
   dprintf("Scanning PCI Buses\n");
 
-  /* We try to detect 255 buses */
-  for (bus = 0; bus <= MAX_PCI_BUSES; bus++) {
+  /* We try to detect 256 buses */
+  for (bus = 0; bus < MAX_PCI_BUSES; bus++) {
 
     dprintf("Probing bus 0x%02x... \n", bus);
 
@@ -360,9 +360,9 @@ int pci_scan(struct pci_bus_list * pci_bus_list, struct pci_device_list * pci_de
     pci_bus_list->pci_bus[bus].pci_device_count = 0;
     pci_bus_list->count = 0;;
 
-    for (dev = 0; dev <= 0x1f; dev++) {
-      maxfunc = 0;
-      for (func = 0; func <= maxfunc; func++) {
+    for (dev = 0; dev < MAX_PCI_DEVICES ; dev++) {
+      maxfunc = 1;		/* Assume a single-function device */
+      for (func = 0; func < maxfunc; func++) {
 	a = pci_mkaddr(bus, dev, func, 0);
 
 	did = pci_readl(a);
@@ -374,7 +374,7 @@ int pci_scan(struct pci_bus_list * pci_bus_list, struct pci_device_list * pci_de
 	hdrtype = pci_readb(a + 0x0e);
 
 	if (hdrtype & 0x80)
-	  maxfunc = 7;	/* Multifunction device */
+	  maxfunc = MAX_PCI_FUNC; /* Multifunction device */
 
 	rid = pci_readb(a + 0x08);
 	sid = pci_readl(a + 0x2c);
@@ -401,7 +401,7 @@ int pci_scan(struct pci_bus_list * pci_bus_list, struct pci_device_list * pci_de
   }
 
   /* Detecting pci buses that have pci devices connected */
-  for (bus = 0; bus <= 0xff; bus++) {
+  for (bus = 0; bus < MAX_PCI_BUSES; bus++) {
     if (pci_bus_list->pci_bus[bus].pci_device_count > 0) {
       pci_bus_list->count++;
     }
