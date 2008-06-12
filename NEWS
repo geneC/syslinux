@@ -27,7 +27,9 @@ Changes in 3.70:
 	* SYSLINUX: VFAT long filename support.
 	* MEMDISK: Any image less than 4096K (4 MB) is treated as a
 	  floppy disk.  The geometry-guessing code will recognize all
-	  common extended formats, but 
+	  common extended formats, but it is still possible some very
+	  exotic formats need geometry specification.  Large floppies
+	  and very small harddisks still need explicit specification.
 
 Changes in 3.64:
 	* SYSLINUX/EXTLINUX: support "localboot" with the same feature
