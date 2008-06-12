@@ -11,12 +11,16 @@ int exported_symbol;
 // Undefined function
 extern void undef_func(int param);
 
-int hello_init() {
+int test_func(void) {
+	return undef_symbol++;
+}
+
+static int hello_init(void) {
 	undef_symbol++;
 	
 	return 0;
 }
 
-void hello_exit() {
+static void hello_exit(void) {
 	undef_func(undef_symbol);
 }

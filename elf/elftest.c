@@ -11,7 +11,28 @@
 
 void print_usage() {
 	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\telftest objfile [symbol ...]\n");
+	fprintf(stderr, "\telftest objfile ...\n");
+}
+
+void test_hello() {
+	int i;
+	
+	struct elf_module *module;
+	Elf32_Sym *symbol;
+	
+	symbol = global_find_symbol("undef_func", &module);
+	
+	void (*undef_func)(int) = module_get_absolute(symbol->st_value, module);
+	
+	symbol = global_find_symbol("test_func", &module);
+	
+	int (*test_func)(void) = module_get_absolute(symbol->st_value, module); 
+	
+	undef_func(0);
+	
+	for (i=0; i < 10; i++) {
+		printf("%d\n", test_func());
+	}
 }
 
 int main(int argc, char **argv) {
@@ -28,45 +49,35 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 	
-	module_name = argv[0];
-	
 	res = modules_init();
-	
+		
 	if (res < 0) {
 		fprintf(stderr, "Could not initialize module subsystem\n");
 		exit(1);
 	}
 	
-	module = module_alloc(module_name);
-	
-	if (module == NULL) {
-		fprintf(stderr, "Could not allocate the module\n");
-		goto error;
-	}
-	
-	res = module_load(module);
-	
-	if (res < 0) {
-		fprintf(stderr, "Could not load the module\n");
-		goto error;
-	}
-	
-	argc--;
-	argv++;
-	
 	while (argc > 0) {
-		if (module_find_symbol(argv[0], module) != NULL) {
-			printf("Symbol %s found\n", argv[0]);
-		} else {
-			printf("Symbol %s not found\n", argv[0]);
+		module_name = argv[0];
+		
+		module = module_alloc(module_name);
+			
+		if (module == NULL) {
+			fprintf(stderr, "Could not allocate the module\n");
+			goto error;
+		}
+		
+		res = module_load(module);
+			
+		if (res < 0) {
+			fprintf(stderr, "Could not load the module\n");
+			goto error;
 		}
 		
 		argc--;
 		argv++;
 	}
 	
-	
-	module_unload(module);
+	test_hello();
 	
 	modules_term();
 	

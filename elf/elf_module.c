@@ -364,29 +364,60 @@ static int prepare_dynlinking(struct elf_module *module) {
 static int perform_relocation(struct elf_module *module, Elf32_Rel *rel) {
 	Elf32_Word *dest = module_get_absolute(rel->r_offset, module);
 	
+	// The symbol reference index
 	Elf32_Word sym = ELF32_R_SYM(rel->r_info);
 	unsigned char type = ELF32_R_TYPE(rel->r_info);
+	
+	// The symbol definition (if applicable)
+	Elf32_Sym *sym_def = NULL;
+	struct elf_module *sym_module = NULL;
+	Elf32_Addr sym_addr = 0x0;
+	
+	if (sym > 0) {
+		// Find out details about the symbol
+		
+		// The symbol reference
+		Elf32_Sym *sym_ref = 
+			(Elf32_Sym*)(module->sym_table + sym * module->syment_size);
+		
+		// The symbol definition
+		sym_def =
+			global_find_symbol(module->str_table + sym_ref->st_name,
+					&sym_module);
+		
+		if (sym_def == NULL) {
+			fprintf(stderr, "Cannot perform relocation for symbol %s\n",
+					module->str_table + sym_ref->st_name);
+			return 0;
+		}
+		
+		// Compute the absolute symbol virtual address
+		sym_addr = (Elf32_Addr)module_get_absolute(sym_def->st_value, sym_module);
+		
+	}
 	
 	switch (type) {
 	case R_386_NONE:
 		// Do nothing
 		break;
 	case R_386_32:
+		*dest += sym_addr;
 		break;
 	case R_386_PC32:
+		*dest += sym_addr - (Elf32_Addr)dest;
 		break;
 	case R_386_COPY:
+		if (sym_addr > 0) {
+			memcpy((void*)dest, (void*)sym_addr, sym_def->st_size);
+		}
 		break;
 	case R_386_GLOB_DAT:
-		break;
 	case R_386_JMP_SLOT:
+		// Maybe TODO: Keep track of the GOT entries allocations
+		*dest = sym_addr;
 		break;
 	case R_386_RELATIVE:
-		*dest = module->base_addr + *dest;
-		break;
-	case R_386_GOTOFF:
-		break;
-	case R_386_GOTPC:
+		*dest += module->base_addr;
 		break;
 	default:
 		fprintf(stderr, "Relocation type %d not supported\n", type);
@@ -488,7 +519,7 @@ static int check_symbols(struct elf_module *module) {
 	int weak_count;
 	
 	// The chain count gives the number of symbols
-	for (i = 0; i < module->hash_table[1]; i++) {
+	for (i = 1; i < module->hash_table[1]; i++) {
 		crt_sym = (Elf32_Sym*)(module->sym_table + i * module->syment_size);
 		crt_name = module->str_table + crt_sym->st_name;
 		
@@ -515,12 +546,12 @@ static int check_symbols(struct elf_module *module) {
 			// We have an undefined symbol
 			if (strong_count == 0 && weak_count == 0) {
 				fprintf(stderr, "Symbol %s is undefined\n", crt_name);
-				return -1;
+				//return -1;
 			}
 		} else {
 			if (strong_count > 0 && ELF32_ST_BIND(ref_sym->st_info) == STB_GLOBAL) {
-				fprintf(stderr, "Symbol %s is defined more than once\n", crt_name);
-				return -1;
+				fprintf(stderr, "Warning: Symbol %s is defined more than once\n", crt_name);
+				//return -1;
 			}
 		}
 	}
@@ -553,12 +584,21 @@ int module_load(struct elf_module *module) {
 	// DEBUG
 	print_elf_ehdr(elf_hdr);
 	
+	// Load the segments in the memory
 	CHECKED(res, load_segments(module), error);
+	// Obtain dynamic linking information
 	CHECKED(res, prepare_dynlinking(module), error);
 	
 	// DEBUG
 	print_elf_symbols(module);
 	
+	// Check the symbols for duplicates / missing definitions
+	CHECKED(res, check_symbols(module), error);
+	
+	// Add the module at the beginning of the module list
+	list_add(&module->list, &modules);
+	
+	// Perform the relocations
 	CHECKED(res, resolve_symbols(module), error);
 	
 	// The file image is no longer needed
@@ -606,8 +646,8 @@ Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
 
 Elf32_Sym *global_find_symbol(const char *name, struct elf_module **module) {
 	struct elf_module *crt_module;
-	Elf32_Sym *crt_sym;
-	Elf32_Sym *result;
+	Elf32_Sym *crt_sym = NULL;
+	Elf32_Sym *result = NULL;
 	
 	list_for_each_entry(crt_module, &modules, list) {
 		crt_sym = module_find_symbol(name, crt_module);
@@ -620,10 +660,13 @@ Elf32_Sym *global_find_symbol(const char *name, struct elf_module **module) {
 				}
 				return crt_sym;
 			case STB_WEAK:
-				if (module != NULL) {
-					*module = crt_module;
+				// Consider only the first weak symbol
+				if (result == NULL) {
+					if (module != NULL) {
+						*module = crt_module;
+					}
+					result = crt_sym;
 				}
-				result = crt_sym;
 				break;
 			}
 		}

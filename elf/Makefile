@@ -10,7 +10,7 @@ RM = rm -f
 ################
 # Build options
 
-CFLAGS = -Wall -DELF_USERSPACE_TEST
+CFLAGS = -g3 -O0 -Wall -DELF_USERSPACE_TEST
 
 LDFLAGS = 
 
@@ -20,8 +20,6 @@ LDFLAGS =
 # Test executable name
 TESTPROG = elftest
 
-# Test module name
-TESTMODULE = hello.so
 
 ###############
 # Make targets
@@ -38,10 +36,13 @@ $(TESTPROG): elftest.o elf_module.o elf_utils.o
 
 	
 # The shared module to test on
-test-module: $(TESTMODULE)
+test-module: hello_def.so hello_ref.so
 
-# $(TESTMODULE): CFLAGS += -fPIC
-$(TESTMODULE): hello.o
+
+hello_def.so: hello_def.o
+	$(CC) -shared -o $@ $^
+	
+hello_ref.so: hello_ref.o
 	$(CC) -shared -o $@ $^
 
 
@@ -49,5 +50,5 @@ $(TESTMODULE): hello.o
 clean:
 	-$(RM) *.o
 	-$(RM) $(TESTPROG)
-	-$(RM) $(TESTMODULE)
+	-$(RM) *.so
 	
