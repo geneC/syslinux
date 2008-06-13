@@ -32,7 +32,7 @@ Changes in 3.70:
 	  and very small harddisks still need explicit specification.
 	* chain.c32: option -swap to support swapping of BIOS drive
 	  numbers.  This is necessary to boot certain operating systems
-	  from a secondary drive.
+	  (DOS, Windows) from a secondary drive.
 	* chain.c32: option -file to support loading a boot file from
 	  the SYSLINUX filesystem instead of loading the boot sector
 	  from the drive.
