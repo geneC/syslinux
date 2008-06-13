@@ -15,9 +15,9 @@
  *
  * Chainload a hard disk (currently rather braindead.)
  *
- * Usage: chain hd<disk#> [<partition>]
- *        chain fd<disk#>
- *	  chain mbr:<id> [<partition>]
+ * Usage: chain hd<disk#> [<partition>] [-ntldr] [-file <loader>]
+ *        chain fd<disk#> [-ntldr] [-file <loader>]
+ *	  chain mbr:<id> [<partition>] [-ntldr] [-file <loader>]
  *
  * ... e.g. "chain hd0 1" will boot the first partition on the first hard
  * disk.
@@ -26,6 +26,13 @@
  * specific MBR serial number (bytes 440-443) is found.
  *
  * Partitions 1-4 are primary, 5+ logical, 0 = boot MBR (default.)
+ *
+ * -file <loader> loads the file <loader> **from the SYSLINUX filesystem**
+ * instead of loading the boot sector.
+ *
+ * -ntldr jumps to 07C0:0000 instead of 0000:7C00, not sure if this is
+ * really necessary.
+ *
  */
 
 #include <com32.h>
@@ -34,6 +41,9 @@
 #include <ctype.h>
 #include <string.h>
 #include <console.h>
+#include <stdbool.h>
+#include <syslinux/loadfile.h>
+#include <syslinux/bootrm.h>
 
 #define SECTOR 512		/* bytes/sector */
 
@@ -45,7 +55,7 @@ static inline void error(const char *msg)
 /*
  * Call int 13h, but with retry on failure.  Especially floppies need this.
  */
-int int13_retry(const com32sys_t *inreg, com32sys_t *outreg)
+static int int13_retry(const com32sys_t *inreg, com32sys_t *outreg)
 {
   int retry = 6;		/* Number of retries */
   com32sys_t tmpregs;
@@ -72,7 +82,7 @@ struct diskinfo {
   int sect;
 } disk_info;
 
-int get_disk_params(int disk)
+static int get_disk_params(int disk)
 {
   static com32sys_t getparm, parm, getebios, ebios;
 
@@ -126,7 +136,7 @@ struct ebios_dapa {
   uint64_t lba;
 } *dapa;
 
-int read_sector(void *buf, unsigned int lba)
+static int read_sector(void *buf, unsigned int lba)
 {
   com32sys_t inreg;
 
@@ -177,7 +187,7 @@ int read_sector(void *buf, unsigned int lba)
 
 /* Search for a specific drive, based on the MBR signature; bytes
    440-443. */
-int find_disk(uint32_t mbr_sig, void *buf)
+static int find_disk(uint32_t mbr_sig, void *buf)
 {
   int drive;
 
@@ -220,7 +230,7 @@ struct part_entry {
 
 int nextpart;			/* Number of the next logical partition */
 
-struct part_entry *
+static struct part_entry *
 find_logical_partition(int whichpart, char *table, struct part_entry *self,
 		       struct part_entry *root)
 {
@@ -293,20 +303,85 @@ find_logical_partition(int whichpart, char *table, struct part_entry *self,
   return NULL;
 }
 
+static void do_boot(uint16_t keeppxe, void *boot_sector,
+		    size_t boot_size, struct syslinux_rm_regs *regs)
+{
+  struct syslinux_memmap *mmap;
+  struct syslinux_movelist *mlist = NULL;
+
+  mmap = syslinux_memory_map();
+
+  if (!mmap) {
+    error("Cannot read system memory map");
+    return;
+  }
+
+  if (syslinux_memmap_type(mmap, 0x7c00, boot_size) != SMT_FREE) {
+    error("Loader file too large");
+    return;
+  }
+
+  if (syslinux_add_movelist(&mlist, 0x7c00, (addr_t)boot_sector, boot_size)) {
+    error("Out of memory");
+    return;
+  }
+
+  fputs("Booting...\n", stdout);
+
+  syslinux_shuffle_boot_rm(mlist, mmap, keeppxe, regs);
+
+  /* If we get here, badness happened */
+  error("Chainboot failed!\n");
+}
 
 int main(int argc, char *argv[])
 {
-  char *mbr, *boot_sector = NULL;
+  char *mbr;
+  void *boot_sector = NULL;
   struct part_entry *partinfo;
+  struct syslinux_rm_regs regs;
   char *drivename, *partition;
   int hd, drive, whichpart;
-  static com32sys_t inreg;	/* In bss, so zeroed automatically */
+  int i;
+  uint16_t keeppxe = 0;
+  bool ntldr = false;
+  const char *load_file;
+  size_t boot_size = SECTOR;
 
   openconsole(&dev_null_r, &dev_stdcon_w);
 
-  if ( argc < 2 ) {
-    error("Usage: chain.c32 (hd#|fd#|mbr:#) [partition]\n");
+  drivename = NULL;
+  partition = NULL;
+  load_file = NULL;
+
+  /* Prepare the register set */
+  memset(&regs, 0, sizeof regs);
+
+  for (i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "-file") && argv[i+1]) {
+      load_file = argv[++i];
+    } else if (!strcmp(argv[i], "-ntldr")) {
+      ntldr = true;
+    } else if (!strcmp(argv[i], "keeppxe")) {
+      keeppxe = 3;
+    } else {
+      if (!drivename)
+	drivename = argv[i];
+      else if (!partition)
+	partition = argv[i];
+    }
+  }
+
+  if ( !drivename ) {
+    error("Usage: chain.c32 (hd#|fd#|mbr:#) [partition] [-ntldr] "
+	  "[-file loader]\n");
     goto bail;
+  }
+
+  if (ntldr) {
+    regs.es = regs.cs = regs.ss = regs.ds = regs.fs = regs.gs = 0x07c0;
+  } else {
+    regs.ip = regs.esp.l = 0x7c00;
   }
 
   /* Divvy up the bounce buffer.  To keep things sector-
@@ -334,6 +409,8 @@ int main(int argc, char *argv[])
     }
     drive = (hd ? 0x80 : 0) | strtoul(drivename, NULL, 0);
   }
+
+  regs.edx.b[0] = drive;
 
   whichpart = 0;		/* Default */
 
@@ -380,32 +457,28 @@ int main(int argc, char *argv[])
   }
 
   /* Do the actual chainloading */
-  if ( partinfo ) {
+  if (load_file) {
+    if ( loadfile(load_file, &boot_sector, &boot_size) ) {
+      error("Failed to load the boot file\n");
+      goto bail;
+    }
+  } else if (partinfo) {
     /* Actually read the boot sector */
     /* Pick the first buffer that isn't already in use */
-    boot_sector = (char *)(((unsigned long)partinfo + 511) & ~511);
+    boot_sector = (void *)(((uintptr_t)partinfo + 511) & ~511);
     if ( read_sector(boot_sector, partinfo->start_lba) ) {
       error("Cannot read boot sector\n");
       goto bail;
     }
+  }
 
+  if (partinfo) {
     /* 0x7BE is the canonical place for the first partition entry. */
-    inreg.esi.w[0] = 0x7be;
+    regs.esi.w[0] = 0x7be;
     memcpy((char *)0x7be, partinfo, sizeof(*partinfo));
   }
 
-  fputs("Booting...\n", stdout);
-
-  inreg.eax.w[0] = 0x000d;	/* Clean up and chain boot */
-  inreg.edx.w[0] = 0;		/* Should be 3 for "keeppxe" */
-  inreg.edi.l    = (uint32_t)boot_sector;
-  inreg.ecx.l    = SECTOR;	/* One sector */
-  inreg.ebx.b[0] = drive;	/* DL = drive no */
-
-  __intcall(0x22, &inreg, NULL);
-
-  /* If we get here, badness happened */
-  error("Chainboot failed!\n");
+  do_boot(keeppxe, boot_sector, boot_size, &regs);
 
 bail:
   return 255;
