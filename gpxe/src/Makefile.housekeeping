@@ -12,7 +12,7 @@ CLEANUP	:= $(BIN)/*.* # *.* to avoid catching the "CVS" directory
 VERSION_MAJOR	= 0
 VERSION_MINOR	= 9
 VERSION_PATCH	= 3
-EXTRAVERSION	=	
+EXTRAVERSION	= +
 MM_VERSION	= $(VERSION_MAJOR).$(VERSION_MINOR)
 VERSION		= $(MM_VERSION).$(VERSION_PATCH)$(EXTRAVERSION)
 CFLAGS		+= -DVERSION_MAJOR=$(VERSION_MAJOR) \
@@ -371,7 +371,7 @@ $(BIN)/%.tmp : $(BLIB) $(MAKEDEPS) $(LDSCRIPT)
 	$(Q)$(OBJDUMP) -ht $@ | $(SORTOBJDUMP) >> $(BIN)/$*.tmp.map
 
 # Keep intermediate object file (useful for debugging)
-.SECONDARY : $(BIN)/%.tmp
+.PRECIOUS : $(BIN)/%.tmp
 
 # Show a linker map for the specified target
 #
