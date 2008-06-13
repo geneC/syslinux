@@ -15,24 +15,32 @@
  *
  * Chainload a hard disk (currently rather braindead.)
  *
- * Usage: chain hd<disk#> [<partition>] [-ntldr] [-file <loader>]
- *        chain fd<disk#> [-ntldr] [-file <loader>]
- *	  chain mbr:<id> [<partition>] [-ntldr] [-file <loader>]
+ * Usage: chain hd<disk#> [<partition>] [options]
+ *        chain fd<disk#> [options]
+ *	  chain mbr:<id> [<partition>] [options]
  *
  * ... e.g. "chain hd0 1" will boot the first partition on the first hard
  * disk.
+ *
  *
  * The mbr: syntax means search all the hard disks until one with a
  * specific MBR serial number (bytes 440-443) is found.
  *
  * Partitions 1-4 are primary, 5+ logical, 0 = boot MBR (default.)
  *
- * -file <loader> loads the file <loader> **from the SYSLINUX filesystem**
- * instead of loading the boot sector.
+ * Options:
  *
- * -ntldr jumps to 07C0:0000 instead of 0000:7C00, not sure if this is
- * really necessary.
+ * -file <loader>:
+ *	loads the file <loader> **from the SYSLINUX filesystem**
+ *	instead of loading the boot sector.
  *
+ * -ntldr:
+ *	jumps to 07C0:0000 instead of 0000:7C00, not sure if this is
+ *	really necessary.
+ *
+ * -swap:
+ *	if the disk is not fd0/hd0, install a BIOS stub which swaps
+ *	the drive numbers.
  */
 
 #include <com32.h>
@@ -46,6 +54,13 @@
 #include <syslinux/bootrm.h>
 
 #define SECTOR 512		/* bytes/sector */
+
+static struct options {
+  const char *loadfile;
+  uint16_t keeppxe;
+  bool ntldr;
+  bool swap;
+} opt;
 
 static inline void error(const char *msg)
 {
@@ -303,11 +318,16 @@ find_logical_partition(int whichpart, char *table, struct part_entry *self,
   return NULL;
 }
 
-static void do_boot(uint16_t keeppxe, void *boot_sector,
-		    size_t boot_size, struct syslinux_rm_regs *regs)
+static void do_boot(void *boot_sector, size_t boot_size,
+		    struct syslinux_rm_regs *regs)
 {
+  uint16_t * const bios_fbm  = (uint16_t *)0x413;
+  uint32_t * const int13_vec = (uint32_t *)(0x13*4);
+  uint16_t old_bios_fbm  = *bios_fbm;
+  uint32_t old_int13_vec = *int13_vec;
   struct syslinux_memmap *mmap;
   struct syslinux_movelist *mlist = NULL;
+  addr_t dosmem = old_bios_fbm << 10;
 
   mmap = syslinux_memory_map();
 
@@ -315,6 +335,39 @@ static void do_boot(uint16_t keeppxe, void *boot_sector,
     error("Cannot read system memory map");
     return;
   }
+
+  if (opt.swap) {
+    uint8_t *p;
+    uint8_t driveno   = regs->edx.b[0];
+    uint8_t swapdrive = driveno & 0x80;
+
+    regs->edx.b[0] = swapdrive;
+    
+    dosmem -= 1024;
+    p = (uint8_t *)dosmem;
+
+    /* Install swapper stub */
+    *p++ = 0x80;		/* cmp dl,swapdrive */
+    *p++ = 0xfa;
+    *p++ = swapdrive;
+    *p++ = 0x74;		/* je swap1 */
+    *p++ = 0x09;
+    *p++ = 0x80;		/* cmp dl,driveno */
+    *p++ = 0xfa;
+    *p++ = driveno;
+    *p++ = 0x75;		/* je noswap */
+    *p++ = 0x06;
+    *p++ = 0xb2;		/* mov dl,swapdrive */
+    *p++ = swapdrive;
+    *p++ = 0xeb;		/* jmp noswap */
+    *p++ = 0x02;
+    *p++ = 0xb2;		/* swap1: mov dl,driveno */
+    *p++ = driveno;
+    *p++ = 0xea;		/* noswap: jmp far <oldint13> */
+    *(uint32_t *)p = old_int13_vec;
+  }
+
+  syslinux_add_memmap(&mmap, dosmem, 0xa0000-dosmem, SMT_RESERVED);
 
   if (syslinux_memmap_type(mmap, 0x7c00, boot_size) != SMT_FREE) {
     error("Loader file too large");
@@ -328,9 +381,19 @@ static void do_boot(uint16_t keeppxe, void *boot_sector,
 
   fputs("Booting...\n", stdout);
 
-  syslinux_shuffle_boot_rm(mlist, mmap, keeppxe, regs);
+  if (opt.swap) {
+    /* Do this as late as possible */
+    *bios_fbm  = dosmem >> 10;
+    *int13_vec = dosmem << 12;
+  }
+
+  syslinux_shuffle_boot_rm(mlist, mmap, opt.keeppxe, regs);
 
   /* If we get here, badness happened */
+  if (opt.swap) {
+    *bios_fbm  = old_bios_fbm;
+    *int13_vec = old_int13_vec;
+  }
   error("Chainboot failed!\n");
 }
 
@@ -343,27 +406,25 @@ int main(int argc, char *argv[])
   char *drivename, *partition;
   int hd, drive, whichpart;
   int i;
-  uint16_t keeppxe = 0;
-  bool ntldr = false;
-  const char *load_file;
   size_t boot_size = SECTOR;
 
   openconsole(&dev_null_r, &dev_stdcon_w);
 
   drivename = NULL;
   partition = NULL;
-  load_file = NULL;
 
   /* Prepare the register set */
   memset(&regs, 0, sizeof regs);
 
   for (i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "-file") && argv[i+1]) {
-      load_file = argv[++i];
+      opt.loadfile = argv[++i];
     } else if (!strcmp(argv[i], "-ntldr")) {
-      ntldr = true;
+      opt.ntldr = true;
+    } else if (!strcmp(argv[i], "-swap")) {
+      opt.swap = true;
     } else if (!strcmp(argv[i], "keeppxe")) {
-      keeppxe = 3;
+      opt.keeppxe = 3;
     } else {
       if (!drivename)
 	drivename = argv[i];
@@ -373,12 +434,12 @@ int main(int argc, char *argv[])
   }
 
   if ( !drivename ) {
-    error("Usage: chain.c32 (hd#|fd#|mbr:#) [partition] [-ntldr] "
+    error("Usage: chain.c32 (hd#|fd#|mbr:#) [partition] [-swap][-ntldr] "
 	  "[-file loader]\n");
     goto bail;
   }
 
-  if (ntldr) {
+  if (opt.ntldr) {
     regs.es = regs.cs = regs.ss = regs.ds = regs.fs = regs.gs = 0x07c0;
   } else {
     regs.ip = regs.esp.l = 0x7c00;
@@ -457,8 +518,8 @@ int main(int argc, char *argv[])
   }
 
   /* Do the actual chainloading */
-  if (load_file) {
-    if ( loadfile(load_file, &boot_sector, &boot_size) ) {
+  if (opt.loadfile) {
+    if ( loadfile(opt.loadfile, &boot_sector, &boot_size) ) {
       error("Failed to load the boot file\n");
       goto bail;
     }
@@ -478,7 +539,7 @@ int main(int argc, char *argv[])
     memcpy((char *)0x7be, partinfo, sizeof(*partinfo));
   }
 
-  do_boot(keeppxe, boot_sector, boot_size, &regs);
+  do_boot(boot_sector, boot_size, &regs);
 
 bail:
   return 255;
