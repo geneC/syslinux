@@ -328,6 +328,8 @@ static void do_boot(void *boot_sector, size_t boot_size,
   struct syslinux_memmap *mmap;
   struct syslinux_movelist *mlist = NULL;
   addr_t dosmem = old_bios_fbm << 10;
+  uint8_t driveno   = regs->edx.b[0];
+  uint8_t swapdrive = driveno & 0x80;
 
   mmap = syslinux_memory_map();
 
@@ -336,10 +338,8 @@ static void do_boot(void *boot_sector, size_t boot_size,
     return;
   }
 
-  if (opt.swap) {
+  if (opt.swap && driveno != swapdrive) {
     uint8_t *p;
-    uint8_t driveno   = regs->edx.b[0];
-    uint8_t swapdrive = driveno & 0x80;
 
     regs->edx.b[0] = swapdrive;
     
