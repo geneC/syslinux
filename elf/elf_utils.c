@@ -14,3 +14,14 @@ unsigned long elf_hash(const unsigned char *name) {
 	
 	return h;
 }
+
+unsigned long elf_gnu_hash(const unsigned char *name) {
+	unsigned long h = 5381;
+	unsigned char c;
+	
+	for (c = *name; c != '\0'; c = *++name) {
+		h = h * 33 + c;
+	}
+	
+	return h & 0xFFFFFFFF;
+}

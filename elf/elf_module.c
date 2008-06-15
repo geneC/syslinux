@@ -622,11 +622,15 @@ int module_unload(struct elf_module *module) {
 }
 
 
-Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
+static Elf32_Sym *module_find_symbol_sysv(const char *name, struct elf_module *module) {
 	unsigned long h = elf_hash((const unsigned char*)name);
+	Elf32_Word *cr_word = module->hash_table;
 	
-	Elf32_Word *bkt = module->hash_table + 2;
-	Elf32_Word *chn = module->hash_table + 2 + module->hash_table[0];
+	Elf32_Word nbucket = *cr_word++;
+	cr_word++; // Skip nchain
+	
+	Elf32_Word *bkt = cr_word;
+	Elf32_Word *chn = cr_word + nbucket;
 	
 	Elf32_Word crt_index = bkt[h % module->hash_table[0]];
 	Elf32_Sym *crt_sym;
@@ -642,6 +646,76 @@ Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
 	}
 	
 	return NULL;
+}
+
+static Elf32_Sym *module_find_symbol_gnu(const char *name, struct elf_module *module) {
+	unsigned long h = elf_gnu_hash((const unsigned char*)name);
+	
+	// Setup code (TODO: Optimize this by computing only once)
+	Elf32_Word *cr_word = module->ghash_table;
+	Elf32_Word nbucket = *cr_word++;
+	Elf32_Word symbias = *cr_word++;
+	Elf32_Word bitmask_nwords = *cr_word++;
+	
+	if ((bitmask_nwords & (bitmask_nwords - 1)) != 0) {
+		fprintf(stderr, "Warning: Invalid GNU Hash structure\n");
+		return NULL;
+	}
+	
+	Elf32_Word gnu_shift = *cr_word++;
+	
+	Elf32_Addr *gnu_bitmask = (Elf32_Addr*)cr_word;
+	cr_word += MODULE_ELF_CLASS_SIZE / 32 * bitmask_nwords;
+	
+	Elf32_Word *gnu_buckets = cr_word;
+	cr_word += nbucket;
+	
+	Elf32_Word *gnu_chain_zero = cr_word - symbias;
+	
+	// Computations
+	Elf32_Word bitmask_word = gnu_bitmask[(h / MODULE_ELF_CLASS_SIZE) & 
+	                                       (bitmask_nwords - 1)];
+	
+	unsigned int hashbit1 = h & (MODULE_ELF_CLASS_SIZE - 1);
+	unsigned int hashbit2 = (h >> gnu_shift) & (MODULE_ELF_CLASS_SIZE - 1);
+	
+	if ((bitmask_word >> hashbit1) & (bitmask_word >> hashbit2) & 1) {
+		unsigned long rem;
+		Elf32_Word bucket;
+		
+		rem = h % nbucket;
+		
+		bucket = gnu_buckets[rem];
+		
+		if (bucket != 0) {
+			const Elf32_Word* hasharr = &gnu_chain_zero[bucket];
+			
+			do {
+				if (((*hasharr ^ h ) >> 1) == 0) {
+					Elf32_Sym *crt_sym = (Elf32_Sym*)(module->sym_table + 
+							(hasharr - gnu_chain_zero) * module->syment_size);
+					
+					if (strcmp(name, module->str_table + crt_sym->st_name) == 0) {
+						return crt_sym;
+					}
+				}
+			} while ((*hasharr++ & 1u) == 0);
+		}
+	}
+	
+	return NULL;
+}
+
+Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
+	Elf32_Sym *result = NULL;
+	
+	if (module->ghash_table != NULL)
+		result = module_find_symbol_gnu(name, module);
+	
+	if (result == NULL)
+		result = module_find_symbol_sysv(name, module);
+	
+	return result;
 }
 
 Elf32_Sym *global_find_symbol(const char *name, struct elf_module **module) {

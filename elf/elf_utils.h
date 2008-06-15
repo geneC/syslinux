@@ -24,5 +24,6 @@ static inline Elf32_Phdr *elf_get_ph(void *elf_image, int index) {
 }
 
 extern unsigned long elf_hash(const unsigned char *name);
+extern unsigned long elf_gnu_hash(const unsigned char *name);
 
 #endif /*ELF_UTILS_H_*/
