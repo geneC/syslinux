@@ -50,7 +50,7 @@ abort_load:
 		mov bx,error_or_command
 abort_load_chain:
 		RESET_STACK_AND_SEGS AX
-                call cwritestr                  ; Expects SI -> error msg
+                call writestr                  ; Expects SI -> error msg
 
 		; Return to the command prompt
 		jmp bx

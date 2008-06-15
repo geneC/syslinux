@@ -29,12 +29,12 @@ crlf:		push ax
 		ret
 
 ;
-; cwritestr: write a null-terminated string to the console, saving
+; writestr: write a null-terminated string to the console, saving
 ;            registers on entry.
 ;
-; Note: writestr and cwritestr are distinct in SYSLINUX (only)
+; Note: writestr_early and writestr are distinct in SYSLINUX (only)
 ;
-cwritestr:
+writestr:
 		pushfd
                 pushad
 .top:		lodsb

@@ -623,7 +623,7 @@ ldlinux_ent:
 ; Tell the user we got this far
 ;
 		mov si,syslinux_banner
-		call writestr
+		call writestr_early
 
 ;
 ; Tell the user if we're using EBIOS or CBIOS
@@ -635,7 +635,7 @@ print_bios:
 		mov si,ebios_name
 .cbios:
 		mov [BIOSName],si
-		call writestr
+		call writestr_early
 
 		section .bss
 %define	HAVE_BIOSNAME 1
@@ -697,7 +697,7 @@ verify_checksum:
 ; Uh-oh, something went bad...
 ;
 		mov si,checksumerr_msg
-		call writestr
+		call writestr_early
 		jmp kaboom
 
 ;
@@ -707,11 +707,11 @@ verify_checksum:
 
 ;
 ;
-; writestr: write a null-terminated string to the console
+; writestr_early: write a null-terminated string to the console
 ;	    This assumes we're on page 0.  This is only used for early
 ;           messages, so it should be OK.
 ;
-writestr:
+writestr_early:
 .loop:		lodsb
 		and al,al
                 jz .return
@@ -769,7 +769,7 @@ all_read:
 ; in Sector 1, but makes a lot more sense here.
 ;
 		mov si,copyright_str
-		call writestr
+		call writestr_early
 
 
 ;
@@ -1281,7 +1281,7 @@ PrevDir		resd 1			; Last scanned directory
 
 kaboom2:
 		mov si,err_bootfailed
-		call cwritestr
+		call writestr
 		cmp byte [kaboom.again+1],18h	; INT 18h version?
 		je .int18
 		call getchar

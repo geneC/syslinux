@@ -34,7 +34,7 @@ dosram_k	equ (real_mode_seg+0x1000) >> 6	; Minimum DOS memory (K)
 		cmp ax,dosram_k
 		jae enough_ram
 		mov si,err_noram
-		call writestr
+		call writestr_early
 		jmp kaboom
 enough_ram:
 skip_checks:

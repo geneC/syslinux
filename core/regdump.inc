@@ -43,7 +43,7 @@ dumpregs:
 	mov si,[di]
 	inc di
 	inc di
-	call cwritestr
+	call writestr
 	mov eax,[bp]
 	add bp,4
 	call writehex8
@@ -54,7 +54,7 @@ dumpregs:
 	mov si,[di]
 	inc di
 	inc di
-	call cwritestr
+	call writestr
 	mov eax,[bp]
 	inc bp
 	inc bp

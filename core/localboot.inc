@@ -30,7 +30,7 @@ local_boot:
 		mov fs,dx
 		mov gs,dx
 		mov si,localboot_msg
-		call writestr
+		call writestr_early
 		cmp ax,-1
 		je .int18
 

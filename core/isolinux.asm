@@ -242,10 +242,10 @@ _start1:	mov [cs:InitStack],sp		; Save initial stack pointer
 		cld
 		; Show signs of life
 		mov si,syslinux_banner
-		call writestr
+		call writestr_early
 %ifdef DEBUG_MESSAGES
 		mov si,copyright_str
-		call writestr
+		call writestr_early
 %endif
 
 		;
@@ -486,7 +486,7 @@ award_hack:	mov	si,spec_err_msg		; Moved to this place from
 						;
 		call	writehex8		;
 		mov	si,award_not_crlf	;
-		call	writestr		;
+		call	writestr_early		;
 %endif						;
 		push	es			; save ES
 		mov	ax,0f000h		; ES = BIOS Seg
@@ -532,7 +532,7 @@ award_found:	mov	eax,[es:di+0eh]		; load possible int 13 addr
 		pop	eax			;
 		call	writehex8		;
 		mov	si,award_not_crlf	;
-		call	writestr		;
+		call	writestr_early		;
 %endif						;
 		mov	ax,4B01h		; try to read the spec packet
 		mov	dl,[DriveNumber]	; now ... it should not fail
@@ -633,9 +633,9 @@ fatal_error:
 writemsg:	push ax
 		push si
 		mov si,isolinux_str
-		call writestr
+		call writestr_early
 		pop si
-		call writestr
+		call writestr_early
 		pop ax
 		ret
 
@@ -760,11 +760,11 @@ xint13:		mov byte [RetryCount],retry_count
 		mov al,[DiskError]
 		call writehex2
 		mov si,oncall_str
-		call writestr
+		call writestr_early
 		mov ax,[DiskSys]
 		call writehex4
 		mov si,ondrive_str
-		call writestr
+		call writestr_early
 		mov al,dl
 		call writehex2
 		call crlf
@@ -777,7 +777,7 @@ xint13:		mov byte [RetryCount],retry_count
 kaboom:
 		RESET_STACK_AND_SEGS AX
 		mov si,err_bootfailed
-		call cwritestr
+		call writestr
 		call getchar
 		cli
 		mov word [BIOS_magic],0	; Cold reboot
@@ -788,7 +788,7 @@ kaboom:
 ; -----------------------------------------------------------------------------
 
 %include "writestr.inc"		; String output
-writestr	equ cwritestr
+writestr_early	equ writestr
 %include "writehex.inc"		; Hexadecimal output
 
 ; -----------------------------------------------------------------------------
@@ -861,7 +861,7 @@ all_read:
 ; Tell the user we got this far...
 %ifndef DEBUG_MESSAGES			; Gets messy with debugging on
 		mov si,copyright_str
-		call writestr
+		call writestr_early
 %endif
 
 ;
@@ -1073,7 +1073,7 @@ is_disk_image:
 		; If this returns, we have problems
 .bad_image:
 		mov si,err_disk_image
-		call cwritestr
+		call writestr
 		jmp enter_command
 
 ;

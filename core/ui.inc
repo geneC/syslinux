@@ -58,7 +58,7 @@ enter_command:
 		jne auto_boot			; always run default cmd
 
 		mov si,boot_prompt
-		call cwritestr
+		call writestr
 
 		mov byte [FuncFlag],0		; <Ctrl-F> not pressed
 		mov di,command_line
@@ -126,7 +126,7 @@ backspace:	cmp di,command_line		; Make sure there is anything
 		je get_char			; to erase
 		dec di				; Unstore one character
 		mov si,wipe_char		; and erase it from the screen
-		call cwritestr
+		call writestr
 get_char_2:
 		jmp short get_char
 
@@ -195,13 +195,13 @@ show_help:	; AX = func key # (0 = F1, 9 = F10, 11 = F12)
 print_version:
 		push di				; Command line write pointer
 		mov si,syslinux_banner
-		call cwritestr
+		call writestr
 %ifdef HAVE_BIOSNAME
 		mov si,[BIOSName]
-		call cwritestr
+		call writestr
 %endif
 		mov si,copyright_str
-		call cwritestr
+		call writestr
 
 		; ... fall through ...
 
@@ -211,12 +211,12 @@ print_version:
 		; of DI (the command line write pointer) is on the stack.
 fk_wrcmd:
 		mov si,boot_prompt
-		call cwritestr
+		call writestr
 		pop di				; Command line write pointer
 		push di
 		mov byte [di],0			; Null-terminate command line
 		mov si,command_line
-		call cwritestr			; Write command line so far
+		call writestr			; Write command line so far
 fk_nofile:	pop di
 		jmp get_char
 
@@ -233,7 +233,7 @@ show_network_info:
 		lodsw
 		push si
 		mov si,ax
-		call cwritestr
+		call writestr
 		call crlf
 		pop si
 		loop .loop
@@ -421,9 +421,9 @@ bad_kernel:
 		push di
                 call unmangle_name              ; Get human form
 		mov si,err_notfound		; Complain about missing kernel
-		call cwritestr
+		call writestr
 		pop si				; KernelCName
-                call cwritestr
+                call writestr
                 mov si,crlf_msg
                 jmp abort_load                  ; Ask user for clue
 
@@ -610,7 +610,7 @@ is_config_file:
 ; This is an image type we can't deal with
 is_bad_image:
 		mov si,err_badimage
-		call cwritestr
+		call writestr
 		jmp enter_command
 
 %if IS_SYSLINUX || IS_MDSLINUX

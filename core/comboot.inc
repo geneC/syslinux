@@ -64,7 +64,7 @@
 comboot_too_large:
 		call close_file
 		mov si,err_comlarge
-		call cwritestr
+		call writestr
 		jmp enter_command
 
 ;
@@ -253,9 +253,9 @@ comboot_exit_msg:
 		call adjust_screen	; The COMBOOT program might have changed the screen
 		jcxz .nomsg
 		mov si,KernelCName
-		call cwritestr
+		call writestr
 		mov si,cx
-		call cwritestr
+		call writestr
 .nomsg:
 		jmp bx
 
@@ -397,7 +397,7 @@ comapi_nop:
 comapi_writestr:
 		mov ds,P_ES
 		mov si,P_BX
-		call writestr
+		call writestr_early
 		clc
 		ret
 

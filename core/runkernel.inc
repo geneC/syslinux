@@ -47,9 +47,9 @@
 is_linux_kernel:
 		push si				; <A> file pointer
 		mov si,loading_msg
-                call cwritestr
+                call writestr
                 mov si,KernelCName		; Print kernel name part of
-                call cwritestr                  ; "Loading" message
+                call writestr                  ; "Loading" message
 
 
 ;
@@ -270,7 +270,7 @@ high_load_done:
                 mov es,ax
 
                 mov si,dot_msg
-                call cwritestr
+                call writestr
 ;
 ; Some older kernels (1.2 era) would have more than 4 setup sectors, but
 ; would not rely on the boot protocol to manage that.  These kernels fail
@@ -303,7 +303,7 @@ load_initrd:
                 call abort_check		; Last chance!!
 
 		mov si,ready_msg
-		call cwritestr
+		call writestr
 
 		UNLOAD_PREP			; Module-specific hook
 
@@ -574,11 +574,11 @@ loadinitrd:
 
 		push si
 		mov si,crlfloading_msg		; Write "Loading "
-		call cwritestr
+		call writestr
                 mov si,InitRDCName		; Write ramdisk name
-                call cwritestr
+                call writestr
                 mov si,dotdot_msg		; Write dots
-                call cwritestr
+                call writestr
 		pop si
 
 		mov dx,3
@@ -592,9 +592,9 @@ loadinitrd:
 
 .notthere:
                 mov si,err_noinitrd
-                call cwritestr
+                call writestr
                 mov si,InitRDCName
-                call cwritestr
+                call writestr
                 mov si,crlf_msg
                 jmp abort_load
 

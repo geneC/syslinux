@@ -301,10 +301,10 @@ _start1:
 ; Tell the user we got this far
 ;
 		mov si,syslinux_banner
-		call writestr
+		call writestr_early
 
 		mov si,copyright_str
-		call writestr
+		call writestr_early
 
 ;
 ; Assume API version 2.1, in case we find the !PXE structure without
@@ -352,7 +352,7 @@ _start1:
 		jnc have_pxenv
 
 no_pxe:		mov si,err_nopxe
-		call writestr
+		call writestr_early
 		jmp kaboom
 
 have_pxenv:
@@ -360,10 +360,10 @@ have_pxenv:
 		mov [StrucPtr+2],es
 
 		mov si,found_pxenv
-		call writestr
+		call writestr_early
 
 		mov si,apiver_str
-		call writestr
+		call writestr_early
 		mov ax,[es:bx+6]
 		mov [APIVer],ax
 		call writehex4
@@ -388,28 +388,28 @@ have_pxenv:
 
 old_api:	; Need to use a PXENV+ structure
 		mov si,using_pxenv_msg
-		call writestr
+		call writestr_early
 
 		mov eax,[es:bx+0Ah]		; PXE RM API
 		mov [PXEEntry],eax
 
 		mov si,undi_data_msg
-		call writestr
+		call writestr_early
 		mov ax,[es:bx+20h]
 		call writehex4
 		call crlf
 		mov si,undi_data_len_msg
-		call writestr
+		call writestr_early
 		mov ax,[es:bx+22h]
 		call writehex4
 		call crlf
 		mov si,undi_code_msg
-		call writestr
+		call writestr_early
 		mov ax,[es:bx+24h]
 		call writehex4
 		call crlf
 		mov si,undi_code_len_msg
-		call writestr
+		call writestr_early
 		mov ax,[es:bx+26h]
 		call writehex4
 		call crlf
@@ -431,7 +431,7 @@ old_api:	; Need to use a PXENV+ structure
 		mov [RealBaseMem],ax
 
 		mov si,pxenventry_msg
-		call writestr
+		call writestr_early
 		mov ax,[PXEEntry+2]
 		call writehex4
 		mov al,':'
@@ -449,22 +449,22 @@ have_pxe:
 		mov [PXEEntry],eax
 
 		mov si,undi_data_msg
-		call writestr
+		call writestr_early
 		mov eax,[es:bx+2Ah]
 		call writehex8
 		call crlf
 		mov si,undi_data_len_msg
-		call writestr
+		call writestr_early
 		mov ax,[es:bx+2Eh]
 		call writehex4
 		call crlf
 		mov si,undi_code_msg
-		call writestr
+		call writestr_early
 		mov ax,[es:bx+32h]
 		call writehex8
 		call crlf
 		mov si,undi_code_len_msg
-		call writestr
+		call writestr_early
 		mov ax,[es:bx+36h]
 		call writehex4
 		call crlf
@@ -485,7 +485,7 @@ have_pxe:
 		mov [RealBaseMem],ax
 
 		mov si,pxeentry_msg
-		call writestr
+		call writestr_early
 		mov ax,[PXEEntry+2]
 		call writehex4
 		mov al,':'
@@ -601,16 +601,16 @@ make_bootif_string:
 		xchg ah,al
 
 		mov si,myipaddr_msg
-		call writestr
+		call writestr_early
 		call writehex8
 		mov al,' '
 		call writechr
 		pop si				; DotQuadBuf
-		call writestr
+		call writestr_early
 		call crlf
 
 		mov si,IPOption
-		call writestr
+		call writestr_early
 		call crlf
 
 ;
@@ -637,7 +637,7 @@ udp_init:
 		cmp word [pxe_udp_open_pkt.status], byte 0
 		je .success
 .failed:	mov si,err_udpinit
-		call writestr
+		call writestr_early
 		jmp kaboom
 .success:
 
@@ -699,9 +699,9 @@ prefix:		test byte [DHCPMagic], 04h	; Did we get a path prefix option
 		cld
 .got_prefix:
 		mov si,tftpprefix_msg
-		call writestr
+		call writestr_early
 		mov si,PathPrefix
-		call writestr
+		call writestr_early
 		call crlf
 
 ;
@@ -779,16 +779,16 @@ config_scan:
 		jnz .success
 
 		mov si,err_noconfig
-		call writestr
+		call writestr_early
 		jmp kaboom
 
 .try:
 		pusha
 		mov si,trying_msg
-		call writestr
+		call writestr_early
 		mov di,ConfigName
 		mov si,di
-		call writestr
+		call writestr_early
 		call crlf
 		mov si,di
 		mov di,KernelName	;  Borrow this buffer for mangled name
@@ -848,7 +848,7 @@ local_boot:
 		mov [LocalBootType],ax
 		call vgaclearmode
 		mov si,localboot_msg
-		call writestr
+		call writestr_early
 		; Restore the environment we were called with
 		lss sp,[InitStack]
 		pop gs
@@ -869,7 +869,7 @@ local_boot:
 kaboom:
 		RESET_STACK_AND_SEGS AX
 .patch:		mov si,bailmsg
-		call writestr		; Returns with AL = 0
+		call writestr_early		; Returns with AL = 0
 .drain:		call pollchar
 		jz .drained
 		call getchar
@@ -916,7 +916,7 @@ memory_scan_for_pxe_struct:
 		mov ax,cs
 		mov ds,ax
 		mov si,trymempxe_msg
-		call writestr
+		call writestr_early
 		mov ax,[BIOS_fbm]	; Starting segment
 		shl ax,(10-4)		; Kilobytes -> paragraphs
 ;		mov ax,01000h		; Start to look here
@@ -927,7 +927,7 @@ memory_scan_for_pxe_struct:
 		jae .not_found
 		call writehex4
 		mov si,fourbs_msg
-		call writestr
+		call writestr_early
 		mov es,ax
 		mov edx,[es:0]
 		cmp edx,'!PXE'
@@ -954,7 +954,7 @@ memory_scan_for_pxe_struct:
 		clc
 		ret
 .not_found:	mov si,notfound_msg
-		call writestr
+		call writestr_early
 		popa
 		pop ds
 		stc
@@ -973,7 +973,7 @@ memory_scan_for_pxe_struct:
 memory_scan_for_pxenv_struct:
 		pusha
 		mov si,trymempxenv_msg
-		call writestr
+		call writestr_early
 ;		mov ax,[BIOS_fbm]	; Starting segment
 ;		shl ax,(10-4)		; Kilobytes -> paragraphs
 		mov ax,01000h		; Start to look here
@@ -1007,7 +1007,7 @@ memory_scan_for_pxenv_struct:
 		clc
 		ret
 .not_found:	mov si,notfound_msg
-		call writestr
+		call writestr_early
 		popad
 		stc
 		ret
@@ -1327,7 +1327,7 @@ searchdir:
 
 		; Write an error message and explode
 		mov si,err_damage
-		call writestr
+		call writestr_early
 		jmp kaboom
 
 .bailnow:	mov word [bp-2],1	; Immediate error - no retry
@@ -1543,7 +1543,7 @@ is_gpxe:
 		jz .done
 .nogood:
 		mov si,gpxe_warning_msg
-		call writestr
+		call writestr_early
 .done:
 		mov [HasGPXE],bh
 		popad
@@ -2125,7 +2125,7 @@ unload_pxe:
 
 .cant_free:
 		mov si,cant_free_msg
-		call writestr
+		call writestr_early
 		push ax
 		xchg bx,ax
 		call writehex4
@@ -2255,7 +2255,7 @@ xchexbytes:
 pxe_get_cached_info:
 		pushad
 		mov si,get_packet_msg
-		call writestr
+		call writestr_early
 		mov al,dl
 		call writehex2
 		call crlf
@@ -2285,7 +2285,7 @@ pxe_get_cached_info:
 
 .err:
 		mov si,err_pxefailed
-		call writestr
+		call writestr_early
 		call writehex4
 		call crlf
 		jmp kaboom
@@ -2677,7 +2677,7 @@ check_for_arp:
 %include "getc.inc"		; getc et al
 %include "conio.inc"		; Console I/O
 %include "writestr.inc"		; String output
-writestr	equ cwritestr
+writestr_early	equ writestr
 %include "writehex.inc"		; Hexadecimal output
 %include "configinit.inc"	; Initialize configuration
 %include "parseconfig.inc"	; High-level config file handling

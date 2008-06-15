@@ -75,7 +75,7 @@ getcommand:
 		mov si,err_noparm
 		mov al,10		; Already at EOL
 .error:
-		call cwritestr
+		call writestr
 		jmp short .skipline
 
 .found_keywd:	lodsw			; Load argument into ax
