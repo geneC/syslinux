@@ -692,6 +692,7 @@ verify_checksum:
 ;           messages, so it should be OK.
 ;
 writestr_early:
+		pushad
 .loop:		lodsb
 		and al,al
                 jz .return
@@ -699,7 +700,8 @@ writestr_early:
 		mov bx,0007h		; Attribute
 		int 10h
 		jmp short .loop
-.return:	ret
+.return:	popad
+		ret
 
 
 ; getlinsecsr: save registers, call getlinsec, restore registers
