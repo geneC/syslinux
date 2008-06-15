@@ -328,7 +328,7 @@ pc_label:	call commit_vk			; Commit any current vkernel
 ; "say" command
 ;
 pc_say:		call pc_getline			; "say" command
-		call writestr_early
+		call writestr
 		jmp crlf			; tailcall
 
 ;
@@ -410,7 +410,7 @@ commit_vk:
 		ret
 .overflow:
 		mov si,vk_overflow_msg
-		call writestr_early
+		call writestr
 		ret
 
 		section .data

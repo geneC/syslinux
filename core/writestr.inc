@@ -32,7 +32,8 @@ crlf:		push ax
 ; writestr: write a null-terminated string to the console, saving
 ;            registers on entry.
 ;
-; Note: writestr_early and writestr are distinct in SYSLINUX (only)
+; Note: writestr_early and writestr are distinct in
+; SYSLINUX and EXTLINUX, but not PXELINUX and ISOLINUX
 ;
 writestr:
 		pushfd

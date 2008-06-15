@@ -397,7 +397,7 @@ comapi_nop:
 comapi_writestr:
 		mov ds,P_ES
 		mov si,P_BX
-		call writestr_early
+		call writestr
 		clc
 		ret
 
