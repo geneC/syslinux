@@ -7,12 +7,16 @@
 # Usage:
 #	cptable.pl UnicodeData cpXXX.txt cpXXX.bin
 #
+# Note: for the format of the UnicodeData file, see:
+# http://www.unicode.org/Public/UNIDATA/UCD.html
+#
 
 ($ucd, $cpin, $cpout) = @ARGV;
 
 %ucase   = ();
 %lcase   = ();
 %tcase   = ();
+%decomp  = ();
 
 open(UCD, '<', $ucd) or die;
 while (defined($line = <UCD>)) {
@@ -22,6 +26,15 @@ while (defined($line = <UCD>)) {
     $ucase{$n} = hex $f[12] if ($f[12] ne '');
     $lcase{$n} = hex $f[13] if ($f[13] ne '');
     $tcase{$n} = hex $f[14] if ($f[14] ne '');
+    if ($f[5] =~ /^[0-9A-F\s]+$/) {
+	# This character has a canonical decomposition.
+	# The regular expression rejects angle brackets, so other
+	# decompositions aren't permitted.
+	$decomp{$n} = [];
+	foreach my $dch (split(' ', $f[5])) {
+	    push(@{$decomp{$n}}, hex $dch);
+	}
+    }
 }
 close(UCD);
 
@@ -53,8 +66,16 @@ print CPOUT pack("VVVVVV", 0, 0, 0, 0, 0, 0);
 # Self (shortname) uppercase table
 #
 for ($i = 0; $i < 256; $i++) {
-    $u = $tabx{$ucase{$xtab[$i]}};
-    $u = $i unless (defined($u));
+    $uuc = $ucase{$xtab[$i]};	# Unicode upper case
+    if (defined($tabx{$uuc})) {
+	# Straight-forward conversion
+	$u = $tabx{$uuc};
+    } elsif (defined($tabx{${$decomp{$uuc}}[0]})) {
+	# Upper case equivalent stripped of accents
+	$u = $tabx{${$decomp{$uuc}}[0]};
+    } else {
+	$u = $i;
+    }
     print CPOUT pack("C", $u);
 }
 
