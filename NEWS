@@ -36,6 +36,13 @@ Changes in 3.70:
 	* chain.c32: option -file to support loading a boot file from
 	  the SYSLINUX filesystem instead of loading the boot sector
 	  from the drive.
+	* chain.c32: option -seg to control the load location.
+	* chain.c32: option -ntldr as a shorthand for "-seg 0x2000
+	  -file"; use this to load one of WinNT's loaders:
+
+	  chain.c32 hd0 1 -ntldr /MiniNT/setupldr.bin
+
+	  Note that the file needs to be in the SYSLINUX filesystem.
 
 Changes in 3.64:
 	* SYSLINUX/EXTLINUX: support "localboot" with the same feature

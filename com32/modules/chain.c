@@ -34,9 +34,11 @@
  *	loads the file <loader> **from the SYSLINUX filesystem**
  *	instead of loading the boot sector.
  *
- * -ntldr:
- *	jumps to 07C0:0000 instead of 0000:7C00, not sure if this is
- *	really necessary.
+ * -seg <segment>:
+ *	loads at and jumps to <seg>:0000 instead of 0000:7C00.
+ *
+ * -ntldr <loader>:
+ *	equivalent to -seg 0x2000 -file <loader>, used with WinNT's loaders
  *
  * -swap:
  *	if the disk is not fd0/hd0, install a BIOS stub which swaps
@@ -58,7 +60,7 @@
 static struct options {
   const char *loadfile;
   uint16_t keeppxe;
-  bool ntldr;
+  uint16_t seg;
   bool swap;
 } opt;
 
@@ -141,7 +143,8 @@ static int get_disk_params(int disk)
 }
 
 /*
- * Get a disk block; buf is REQUIRED TO BE IN LOW MEMORY.
+ * Get a disk block and return a malloc'd buffer.
+ * Uses the disk number and information from disk_info.
  */
 struct ebios_dapa {
   uint16_t len;
@@ -151,9 +154,11 @@ struct ebios_dapa {
   uint64_t lba;
 } *dapa;
 
-static int read_sector(void *buf, unsigned int lba)
+static void *read_sector(unsigned int lba)
 {
   com32sys_t inreg;
+  void *buf = __com32.cs_bounce;
+  void *data;
 
   memset(&inreg, 0, sizeof inreg);
 
@@ -175,7 +180,7 @@ static int read_sector(void *buf, unsigned int lba)
       /* We failed to get the geometry */
 
       if ( lba )
-	return -1;		/* Can only read MBR */
+	return NULL;		/* Can only read MBR */
 
       s = 1;  h = 0;  c = 0;
     } else {
@@ -186,7 +191,7 @@ static int read_sector(void *buf, unsigned int lba)
     }
 
     if ( s > 63 || h > 256 || c > 1023 )
-      return -1;
+      return NULL;
 
     inreg.eax.w[0] = 0x0201;	/* Read one sector */
     inreg.ecx.b[1] = c & 0xff;
@@ -197,7 +202,13 @@ static int read_sector(void *buf, unsigned int lba)
     inreg.es       = SEG(buf);
   }
 
-  return int13_retry(&inreg, NULL);
+  if (int13_retry(&inreg, NULL))
+    return NULL;
+
+  data = malloc(SECTOR);
+  if (data)
+    memcpy(data, buf, SECTOR);
+  return data;
 }
 
 /* Search for a specific drive, based on the MBR signature; bytes
@@ -205,17 +216,18 @@ static int read_sector(void *buf, unsigned int lba)
 static int find_disk(uint32_t mbr_sig, void *buf)
 {
   int drive;
+  bool is_me;
 
   for (drive = 0x80; drive <= 0xff; drive++) {
     if (get_disk_params(drive))
       continue;			/* Drive doesn't exist */
-    if (read_sector(buf, 0))
+    if (!(buf = read_sector(0)))
       continue;			/* Cannot read sector */
-
-    if (*(uint32_t *)((char *)buf + 440) == mbr_sig)
+    is_me = (*(uint32_t *)((char *)buf + 440) == mbr_sig);
+    free(buf);
+    if (is_me)
       return drive;
   }
-
   return -1;
 }
 
@@ -249,8 +261,11 @@ static struct part_entry *
 find_logical_partition(int whichpart, char *table, struct part_entry *self,
 		       struct part_entry *root)
 {
+  static struct part_entry ltab_entry;
   struct part_entry *ptab = (struct part_entry *)(table + 0x1be);
   struct part_entry *found;
+  char *sector;
+
   int i;
 
   if ( *(uint16_t *)(table + 0x1fe) != 0xaa55 )
@@ -280,8 +295,10 @@ find_logical_partition(int whichpart, char *table, struct part_entry *self,
 	continue;
 
       /* OK, it's a data partition.  Is it the one we're looking for? */
-      if ( nextpart++ == whichpart )
-	return &ptab[i];
+      if ( nextpart++ == whichpart ) {
+	memcpy(&ltab_entry, &ptab[i], sizeof ltab_entry);
+	return &ltab_entry;
+      }
     }
   }
 
@@ -306,11 +323,13 @@ find_logical_partition(int whichpart, char *table, struct part_entry *self,
 	continue;
 
     /* Process this partition */
-    if ( read_sector(table+SECTOR, ptab[i].start_lba) )
+    if ( !(sector = read_sector(ptab[i].start_lba)) )
       continue;			/* Read error, must be invalid */
 
-    if ( (found = find_logical_partition(whichpart, table+SECTOR, &ptab[i],
-					 root ? root : &ptab[i])) )
+    found = find_logical_partition(whichpart, sector, &ptab[i],
+				   root ? root : &ptab[i]);
+    free(sector);
+    if (found)
       return found;
   }
 
@@ -321,6 +340,14 @@ find_logical_partition(int whichpart, char *table, struct part_entry *self,
 static void do_boot(void *boot_sector, size_t boot_size,
 		    struct syslinux_rm_regs *regs)
 {
+  static const uint8_t swapstub[] = {
+    0x53,			/* 00: push bx */
+    0x0f,0xb6,0xda,		/* 01: movzx bx,dl */
+    0x2e,0x8a,0x57,0x10, 	/* 04: mov dl,[cs:bx+16] */
+    0x5b,			/* 08: pop bx */
+    0xea,0,0,0,0,		/* 09: jmp far 0:0 */
+    0x90,0x90,			/* 0E: nop; nop */
+  };
   uint16_t * const bios_fbm  = (uint16_t *)0x413;
   uint32_t * const int13_vec = (uint32_t *)(0x13*4);
   uint16_t old_bios_fbm  = *bios_fbm;
@@ -330,6 +357,8 @@ static void do_boot(void *boot_sector, size_t boot_size,
   addr_t dosmem = old_bios_fbm << 10;
   uint8_t driveno   = regs->edx.b[0];
   uint8_t swapdrive = driveno & 0x80;
+  int i;
+  addr_t loadbase = opt.seg ? (opt.seg << 4) : 0x7c00;
 
   mmap = syslinux_memory_map();
 
@@ -347,34 +376,29 @@ static void do_boot(void *boot_sector, size_t boot_size,
     p = (uint8_t *)dosmem;
 
     /* Install swapper stub */
-    *p++ = 0x80;		/* cmp dl,swapdrive */
-    *p++ = 0xfa;
-    *p++ = swapdrive;
-    *p++ = 0x74;		/* je swap1 */
-    *p++ = 0x09;
-    *p++ = 0x80;		/* cmp dl,driveno */
-    *p++ = 0xfa;
-    *p++ = driveno;
-    *p++ = 0x75;		/* je noswap */
-    *p++ = 0x06;
-    *p++ = 0xb2;		/* mov dl,swapdrive */
-    *p++ = swapdrive;
-    *p++ = 0xeb;		/* jmp noswap */
-    *p++ = 0x02;
-    *p++ = 0xb2;		/* swap1: mov dl,driveno */
-    *p++ = driveno;
-    *p++ = 0xea;		/* noswap: jmp far <oldint13> */
-    *(uint32_t *)p = old_int13_vec;
+    memset(p, 0, 1024);		/* For debugging... */
+    memcpy(p, swapstub, sizeof swapstub);
+    *(uint32_t *)&p[0x0a] = old_int13_vec;
+    p += sizeof swapstub;
+
+    /* Mapping table; start out with identity mapping everything */
+    for (i = 0; i < 256; i++)
+      p[i] = i;
+
+    /* And the actual swap */
+    p[driveno] = swapdrive;
+    p[swapdrive] = driveno;
   }
 
   syslinux_add_memmap(&mmap, dosmem, 0xa0000-dosmem, SMT_RESERVED);
 
-  if (syslinux_memmap_type(mmap, 0x7c00, boot_size) != SMT_FREE) {
+  if (syslinux_memmap_type(mmap, loadbase, boot_size) != SMT_FREE) {
     error("Loader file too large");
     return;
   }
 
-  if (syslinux_add_movelist(&mlist, 0x7c00, (addr_t)boot_sector, boot_size)) {
+  if (syslinux_add_movelist(&mlist, loadbase, (addr_t)boot_sector,
+			    boot_size)) {
     error("Out of memory");
     return;
   }
@@ -419,8 +443,16 @@ int main(int argc, char *argv[])
   for (i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "-file") && argv[i+1]) {
       opt.loadfile = argv[++i];
-    } else if (!strcmp(argv[i], "-ntldr")) {
-      opt.ntldr = true;
+    } else if (!strcmp(argv[i], "-seg") && argv[i+1]) {
+      uint32_t segval = strtoul(argv[++i], NULL, 0);
+      if (segval < 0x7c0 || segval > 0x9f000) {
+	error("Invalid segment");
+	goto bail;
+      }
+      opt.seg = segval;
+    } else if (!strcmp(argv[i], "-ntldr") && argv[i+1]) {
+      opt.seg = 0x2000;		/* NTLDR wants this address */
+      opt.loadfile = argv[++i];
     } else if (!strcmp(argv[i], "-swap")) {
       opt.swap = true;
     } else if (!strcmp(argv[i], "keeppxe")) {
@@ -434,13 +466,12 @@ int main(int argc, char *argv[])
   }
 
   if ( !drivename ) {
-    error("Usage: chain.c32 (hd#|fd#|mbr:#) [partition] [-swap][-ntldr] "
-	  "[-file loader]\n");
+    error("Usage: chain.c32 (hd#|fd#|mbr:#) [partition] [options]\n");
     goto bail;
   }
 
-  if (opt.ntldr) {
-    regs.es = regs.cs = regs.ss = regs.ds = regs.fs = regs.gs = 0x07c0;
+  if (opt.seg) {
+    regs.es = regs.cs = regs.ss = regs.ds = regs.fs = regs.gs = opt.seg;
   } else {
     regs.ip = regs.esp.l = 0x7c00;
   }
@@ -489,7 +520,7 @@ int main(int argc, char *argv[])
   }
 
   /* Get MBR */
-  if ( read_sector(mbr, 0) ) {
+  if ( !(mbr = read_sector(0)) ) {
     error("Cannot read Master Boot Record\n");
     goto bail;
   }
@@ -519,6 +550,7 @@ int main(int argc, char *argv[])
 
   /* Do the actual chainloading */
   if (opt.loadfile) {
+    fputs("Loading the boot file...\n", stdout);
     if ( loadfile(opt.loadfile, &boot_sector, &boot_size) ) {
       error("Failed to load the boot file\n");
       goto bail;
@@ -526,8 +558,7 @@ int main(int argc, char *argv[])
   } else if (partinfo) {
     /* Actually read the boot sector */
     /* Pick the first buffer that isn't already in use */
-    boot_sector = (void *)(((uintptr_t)partinfo + 511) & ~511);
-    if ( read_sector(boot_sector, partinfo->start_lba) ) {
+    if ( !(boot_sector = read_sector(partinfo->start_lba)) ) {
       error("Cannot read boot sector\n");
       goto bail;
     }
