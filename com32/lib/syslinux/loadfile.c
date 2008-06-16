@@ -31,6 +31,7 @@
  * Read the contents of a data file into a malloc'd buffer
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -45,14 +46,18 @@
 int loadfile(const char *filename, void **ptr, size_t *len)
 {
   FILE *f;
-  int rv;
+  int rv, e;
 
   f = fopen(filename, "r");
   if ( !f )
     return -1;
 
   rv = floadfile(f, ptr, len, NULL, 0);
+  e = errno;
+
   fclose(f);
 
+  if (rv)
+    errno = e;
   return rv;
 }
