@@ -4,15 +4,9 @@
 
 - PXELINUX: Support changing the default server and boot file prefix?
 
-- Support loading a new configuration file.
-
-- Library support for "shuffle and boot" extension.
-
 - Library support for all the comboot system calls.
 
 - Deal with non-512-byte sectors (if I can get media which does...)
-
-- Add support for getting the hardware address on Infinibad.
 
 
 *** Future projects:
@@ -20,11 +14,6 @@
 - Clean up the command-line parsing.
 
 - Cleaned up documentation, with a real man page.
-
-- Support files that span multiple input media (SYSLINUX)
-  -> Seems to be getting less important; floppies are dying?
-
-- Clean up the handling of sections.
 
 - API call to get directory listing.
 
