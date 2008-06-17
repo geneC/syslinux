@@ -3,16 +3,6 @@
 #include <stdio.h>
 #include <elf.h>
 
-#ifdef ELF_USERSPACE_TEST
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <unistd.h>
-
-#endif //ELF_USERSPACE_TEST
-
 #include "linux_list.h"
 #include "elf_module.h"
 #include "elf_utils.h"
@@ -77,74 +67,76 @@ static void print_elf_symbols(struct elf_module *module) {
 }
 #endif //ELF_USERSPACE_TEST
 
-#ifdef ELF_USERSPACE_TEST
-static int load_image(struct elf_module *module) {
+static int image_load(struct elf_module *module) {
 	char file_name[MODULE_NAME_SIZE+3]; // Include the extension
-	struct stat elf_stat;
 	
 	strcpy(file_name, module->name);
 	strcat(file_name, ".so");
 	
-	module->_file_fd = open(file_name, O_RDONLY);
+	module->_file = fopen(file_name, "rb");
 	
-	if (module->_file_fd < 0) {
+	if (module->_file == NULL) {
 		perror("Could not open object file");
 		goto error;
 	}
-	
-	if (fstat(module->_file_fd, &elf_stat) < 0) {
-		perror("Could not get file information");
-		goto error;
-	}
-	
-	module->_file_size = elf_stat.st_size;
-	
-	module->_file_image = mmap(NULL, module->_file_size, PROT_READ, MAP_PRIVATE, 
-			module->_file_fd, 0);
-		
-	if (module->_file_image == NULL) {
-		perror("Could not map the file into memory");
-		goto error;
-	}
+
+	module->_cr_offset = 0;
 	
 	return 0;
 	
 error:
-	if (module->_file_image != NULL) {
-		munmap(module->_file_image, module->_file_size);
-		module->_file_image = NULL;
+	if (module->_file != NULL) {
+		fclose(module->_file);
+		module->_file = NULL;
 	}
 	
-	if (module->_file_fd > 0) {
-		close(module->_file_fd);
-		module->_file_fd = 0;
-	}
 	return -1;
 }
 
 
-static int unload_image(struct elf_module *module) {
-	munmap(module->_file_image, module->_file_size);
-	module->_file_image = NULL;
-	
-	close(module->_file_fd);
-	module->_file_fd = 0;
+static int image_unload(struct elf_module *module) {
+	fclose(module->_file);
+	module->_cr_offset = 0;
 	
 	return 0;
 }
 
-
-#else
-static int load_image(struct elf_module *module) {
-	// TODO: Implement SYSLINUX specific code here
+static int image_read(void *buff, size_t size, struct elf_module *module) {
+	size_t result = fread(buff, size, 1, module->_file);
+	
+	if (result < 1)
+		return -1;
+	
+	printf("[DBG] Read %u\n", size);
+	module->_cr_offset += size;
 	return 0;
 }
 
-static int unload_image(struct elf_module *module) {
-	// TODO: Implement SYSLINUX specific code here
+static int image_skip(size_t size, struct elf_module *module) {
+	void *skip_buff = NULL;
+	size_t result;
+	
+	if (size == 0)
+		return 0;
+	
+	skip_buff = malloc(size);
+	result = fread(skip_buff, size, 1, module->_file);
+	free(skip_buff);
+	
+	if (result < 1)
+		return -1;
+	
+	printf("[DBG] Skipped %u\n", size);
+	module->_cr_offset += size;
 	return 0;
 }
-#endif //ELF_USERSPACE_TEST
+
+static int image_seek(Elf32_Off offset, struct elf_module *module) {
+	if (offset < module->_cr_offset) // Cannot seek backwards
+		return -1;
+	
+	return image_skip(offset - module->_cr_offset, module);
+}
 
 
 // Initialization of the module subsystem
@@ -170,9 +162,7 @@ struct elf_module *module_alloc(const char *name) {
 
 // Performs verifications on ELF header to assure that the open file is a
 // valid SYSLINUX ELF module.
-static int check_header(struct elf_module *module) {
-	Elf32_Ehdr *elf_hdr = elf_get_header(module->_file_image);
-	
+static int check_header(Elf32_Ehdr *elf_hdr) {
 	// Check the header magic
 	if (elf_hdr->e_ident[EI_MAG0] != ELFMAG0 ||
 		elf_hdr->e_ident[EI_MAG1] != ELFMAG1 ||
@@ -218,22 +208,38 @@ static int check_header(struct elf_module *module) {
 	return 0;
 }
 
-static int load_segments(struct elf_module *module) {
+/*
+ * 
+ * The implementation assumes that the loadable segments are present
+ * in the PHT sorted by their offsets, so that only forward seeks would
+ * be necessary.
+ */
+static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 	int i;
-	Elf32_Ehdr *elf_hdr = elf_get_header(module->_file_image);
+	int res = 0;
+	void *pht = NULL;
 	Elf32_Phdr *cr_pht;
 	
 	Elf32_Addr min_addr  = 0x00000000; // Min. ELF vaddr
 	Elf32_Addr max_addr  = 0x00000000; // Max. ELF vaddr
 	Elf32_Word max_align = sizeof(void*); // Min. align of posix_memalign()
-	Elf32_Addr min_alloc, max_alloc;   // Min. and max. aligned allocables 
+	Elf32_Addr min_alloc, max_alloc;   // Min. and max. aligned allocables
 	
+	Elf32_Addr dyn_addr = 0x00000000;
+	
+	// Get to the PHT
+	image_seek(elf_hdr->e_phoff, module);
+	
+	// Load the PHT
+	pht = malloc(elf_hdr->e_phnum * elf_hdr->e_phentsize);
+	image_read(pht, elf_hdr->e_phnum * elf_hdr->e_phentsize, module);
 	
 	// Compute the memory needings of the module
 	for (i=0; i < elf_hdr->e_phnum; i++) {
-		cr_pht = elf_get_ph(module->_file_image, i);
+		cr_pht = (Elf32_Phdr*)(pht + i * elf_hdr->e_phentsize);
 		
-		if (cr_pht->p_type == PT_LOAD) {
+		switch (cr_pht->p_type) {
+		case PT_LOAD: 
 			if (i == 0) {
 				min_addr = cr_pht->p_vaddr;
 			} else {
@@ -242,12 +248,24 @@ static int load_segments(struct elf_module *module) {
 			
 			max_addr = MAX(max_addr, cr_pht->p_vaddr + cr_pht->p_memsz);
 			max_align = MAX(max_align, cr_pht->p_align);
+			break;
+		case PT_DYNAMIC:
+			dyn_addr = cr_pht->p_vaddr;
+			break;
+		default:
+			// Unsupported - ignore
+			break;
 		}
 	}
 	
 	if (max_addr - min_addr == 0) {
 		// No loadable segments
 		fprintf(stderr, "No loadable segments found\n");
+		return -1;
+	}
+	
+	if (dyn_addr == 0) {
+		fprintf(stderr, "No dynamic information segment found\n");
 		return -1;
 	}
 	
@@ -275,13 +293,33 @@ static int load_segments(struct elf_module *module) {
 	memset(module->module_addr, 0, module->module_size);
 	
 	for (i = 0; i < elf_hdr->e_phnum; i++) {
-		cr_pht = elf_get_ph(module->_file_image, i);
+		cr_pht = (Elf32_Phdr*)(pht + i * elf_hdr->e_phentsize);
 		
 		if (cr_pht->p_type == PT_LOAD) {
 			// Copy the segment at its destination
-			memcpy(module_get_absolute(cr_pht->p_vaddr, module),
-					module->_file_image + cr_pht->p_offset,
-					cr_pht->p_filesz);
+			if (cr_pht->p_offset < module->_cr_offset) {
+				// The segment contains data before the current offset
+				// It can be discarded without worry - it would contain only
+				// headers
+				Elf32_Off aux_off = module->_cr_offset - cr_pht->p_offset;
+				
+				if (image_read(module_get_absolute(cr_pht->p_vaddr, module) + aux_off,
+						cr_pht->p_filesz - aux_off, module) < 0) {
+					res = -1;
+					goto out;
+				}
+			} else {
+				if (image_seek(cr_pht->p_offset, module) < 0) {
+					res = -1;
+					goto out;
+				}
+				
+				if (image_read(module_get_absolute(cr_pht->p_vaddr, module), 
+						cr_pht->p_filesz, module) < 0) {
+					res = -1;
+					goto out;
+				}
+			}
 			
 			printf("Loadable segment of size 0x%08x copied from vaddr 0x%08x at 0x%08x\n",
 					cr_pht->p_filesz,
@@ -290,37 +328,22 @@ static int load_segments(struct elf_module *module) {
 		}
 	}
 	
+	// Setup dynamic segment location
+	module->dyn_table = module_get_absolute(dyn_addr, module);
+	
 	printf("Base address: 0x%08x, aligned at 0x%08x\n", module->base_addr,
 			max_align);
 	printf("Module size: 0x%08x\n", module->module_size);
 	
-	return 0;
+out:
+	// Free up allocated memory
+	free(pht);
+	
+	return res;
 }
 
-static int prepare_dynlinking(struct elf_module *module) {
-	int i;
-	Elf32_Ehdr *elf_hdr = elf_get_header(module->_file_image);
-	Elf32_Phdr *dyn_ph; // The program header for the dynamic section
-	
-	Elf32_Dyn  *dyn_entry; // The table of dynamic linking information
-	
-	for (i=0; i < elf_hdr->e_phnum; i++) {
-		dyn_ph = elf_get_ph(module->_file_image, i);
-		
-		if (dyn_ph->p_type == PT_DYNAMIC)
-			break;
-		else
-			dyn_ph = NULL;
-	}
-	
-	if (dyn_ph == NULL) {
-		fprintf(stderr, "Dynamic relocation information not found\n");
-		return -1;
-	}
-	
-	module->_dyn_info = (Elf32_Dyn*)(module->_file_image + dyn_ph->p_offset); 
-	
-	dyn_entry = module->_dyn_info;
+static int prepare_dynlinking(struct elf_module *module) {	
+	Elf32_Dyn  *dyn_entry = module->dyn_table;
 	
 	while (dyn_entry->d_tag != DT_NULL) {
 		switch (dyn_entry->d_tag) {
@@ -428,7 +451,7 @@ static int perform_relocation(struct elf_module *module, Elf32_Rel *rel) {
 }
 
 static int resolve_symbols(struct elf_module *module) {
-	Elf32_Dyn  *dyn_entry = module->_dyn_info;
+	Elf32_Dyn  *dyn_entry = module->dyn_table;
 	int i, res;
 	
 	Elf32_Word plt_rel_size = 0;
@@ -562,30 +585,30 @@ static int check_symbols(struct elf_module *module) {
 // Loads the module into the system
 int module_load(struct elf_module *module) {
 	int res;
-	Elf32_Ehdr *elf_hdr;
+	Elf32_Ehdr elf_hdr;
+	
 	
 	INIT_LIST_HEAD(&module->list);
 	INIT_LIST_HEAD(&module->deps);
 	
 	
 	// Get a mapping/copy of the ELF file in memory
-	res = load_image(module);
+	res = image_load(module);
 	
 	if (res < 0) {
 		return res;
 	}
 	
-	// Checking the header signature and members
-	CHECKED(res, check_header(module), error);
+	CHECKED(res, image_read(&elf_hdr, sizeof(Elf32_Ehdr), module), error);
 	
-	// Obtain the ELF header
-	elf_hdr = elf_get_header(module->_file_image);
+	// Checking the header signature and members
+	CHECKED(res, check_header(&elf_hdr), error);
 
 	// DEBUG
-	print_elf_ehdr(elf_hdr);
+	print_elf_ehdr(&elf_hdr);
 	
 	// Load the segments in the memory
-	CHECKED(res, load_segments(module), error);
+	CHECKED(res, load_segments(module, &elf_hdr), error);
 	// Obtain dynamic linking information
 	CHECKED(res, prepare_dynlinking(module), error);
 	
@@ -602,13 +625,13 @@ int module_load(struct elf_module *module) {
 	CHECKED(res, resolve_symbols(module), error);
 	
 	// The file image is no longer needed
-	CHECKED(res, unload_image(module), error);
+	CHECKED(res, image_unload(module), error);
 	
 	
 	return 0;
 	
 error:
-	unload_image(module);
+	image_unload(module);
 	
 	return res;
 }

@@ -1,6 +1,7 @@
 #ifndef ELF_MODULE_H_
 #define ELF_MODULE_H_
 
+#include <stdio.h>
 #include <elf.h>
 #include <stdint.h>
 #include "linux_list.h"
@@ -38,27 +39,22 @@ struct elf_module {
 	char				*str_table;		// The string table
 	void 				*sym_table;		// The symbol table
 	void				*got;			// The Global Offset Table
+	Elf32_Dyn			*dyn_table;		// Dynamic loading information table
 	
 	Elf32_Word			strtable_size;	// The size of the string table
 	Elf32_Word			syment_size;	// The size of a symbol entry
 	
 	
 	// Transient - Data available while the module is loading
-	void				*_file_image; // The image of the module file in memory
-	uint32_t			_file_size; // The size of the module file
-	Elf32_Dyn			*_dyn_info;	// Dynamic loading information
-	
-	// Information for modules loaded in user space
-#ifdef ELF_USERSPACE_TEST
-	int					_file_fd;	// The file descriptor of the open file
-#endif
+	FILE				*_file;	// The file object of the open file
+	Elf32_Off			_cr_offset; // The current offset in the open file
 };
 
 // Structure encapsulating a module dependency need
 struct module_dep {
 	struct list_head	list;		// The list entry in the dependency list
 	
-	char				name[MODULE_NAME_SIZE];		// The name of the module
+	struct elf_module	*module;
 };
 
 // Initialization of the module subsystem
