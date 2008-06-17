@@ -37,6 +37,7 @@ void test_hello() {
 
 int main(int argc, char **argv) {
 	int res;
+	int i;
 	struct elf_module *module;
 	const char *module_name = NULL;
 	
@@ -56,8 +57,8 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 	
-	while (argc > 0) {
-		module_name = argv[0];
+	for (i=0; i < argc; i++){
+		module_name = argv[i];
 		
 		module = module_alloc(module_name);
 			
@@ -73,11 +74,21 @@ int main(int argc, char **argv) {
 			goto error;
 		}
 		
-		argc--;
-		argv++;
 	}
 	
 	test_hello();
+	
+	for (i=argc-1; i >= 0; i--) {
+		module_name = argv[i];
+		module = module_find(module_name);
+		
+		res = module_unload(module);
+		
+		if (res < 0) {
+			fprintf(stderr, "Could not unload the module\n");
+			goto error;
+		}
+	}
 	
 	modules_term();
 	

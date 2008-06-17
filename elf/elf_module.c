@@ -95,7 +95,10 @@ error:
 
 
 static int image_unload(struct elf_module *module) {
-	fclose(module->_file);
+	if (module->_file != NULL) {
+		fclose(module->_file);
+		module->_file = NULL;
+	}
 	module->_cr_offset = 0;
 	
 	return 0;
@@ -155,9 +158,34 @@ struct elf_module *module_alloc(const char *name) {
 	
 	memset(result, 0, sizeof(struct elf_module));
 	
+	INIT_LIST_HEAD(&result->list);
+	INIT_LIST_HEAD(&result->required);
+	INIT_LIST_HEAD(&result->dependants);
+	
 	strncpy(result->name, name, MODULE_NAME_SIZE);
 	
 	return result;
+}
+
+static struct module_dep *module_dep_alloc(struct elf_module *module) {
+	struct module_dep *result = malloc(sizeof(struct module_dep));
+	
+	INIT_LIST_HEAD (&result->list);
+	
+	result->module = module;
+	
+	return result;
+}
+
+struct elf_module *module_find(const char *name) {
+	struct elf_module *cr_module;
+	
+	list_for_each_entry(cr_module, &modules, list) {
+		if (strcmp(cr_module->name, name) == 0)
+			return cr_module;
+	}
+	
+	return NULL;
 }
 
 // Performs verifications on ELF header to assure that the open file is a
@@ -261,12 +289,12 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 	if (max_addr - min_addr == 0) {
 		// No loadable segments
 		fprintf(stderr, "No loadable segments found\n");
-		return -1;
+		goto out;
 	}
 	
 	if (dyn_addr == 0) {
 		fprintf(stderr, "No dynamic information segment found\n");
-		return -1;
+		goto out;
 	}
 	
 	// The minimum address that should be allocated
@@ -283,7 +311,7 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 			max_alloc-min_alloc) != 0) {
 		
 		fprintf(stderr, "Could not allocate segments\n");
-		return -1;
+		goto out;
 	}
 	
 	module->base_addr = (Elf32_Addr)(module->module_addr) - min_alloc;
@@ -337,7 +365,8 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 	
 out:
 	// Free up allocated memory
-	free(pht);
+	if (pht != NULL)
+		free(pht);
 	
 	return res;
 }
@@ -384,6 +413,59 @@ static int prepare_dynlinking(struct elf_module *module) {
 	return 0;
 }
 
+static int enforce_dependency(struct elf_module *req, struct elf_module *dep) {
+	struct module_dep *crt_dep;
+	struct module_dep *new_dep;
+	
+	list_for_each_entry(crt_dep, &req->dependants, list) {
+		if (crt_dep->module == dep) {
+			// The dependency is already enforced
+			return 0;
+		}
+	}
+	
+	new_dep = module_dep_alloc(req);
+	list_add(&new_dep->list, &dep->required);
+	
+	new_dep = module_dep_alloc(dep);
+	list_add(&new_dep->list, &req->dependants);
+	
+	return 0;
+}
+
+static int clear_dependency(struct elf_module *req, struct elf_module *dep) {
+	struct module_dep *crt_dep = NULL;
+	int found = 0;
+	
+	list_for_each_entry(crt_dep, &req->dependants, list) {
+		if (crt_dep->module == dep) {
+			found = 1;
+			break;
+		}
+	}
+	
+	if (found) {
+		list_del(&crt_dep->list);
+		free(crt_dep);
+	}
+	
+	found = 0;
+	
+	list_for_each_entry(crt_dep, &dep->required, list) {
+		if (crt_dep->module == req) {
+			found = 1;
+			break;
+		}
+	}
+	
+	if (found) {
+		list_del(&crt_dep->list);
+		free(crt_dep);
+	}
+	
+	return 0;
+}
+
 static int perform_relocation(struct elf_module *module, Elf32_Rel *rel) {
 	Elf32_Word *dest = module_get_absolute(rel->r_offset, module);
 	
@@ -409,14 +491,20 @@ static int perform_relocation(struct elf_module *module, Elf32_Rel *rel) {
 					&sym_module);
 		
 		if (sym_def == NULL) {
-			fprintf(stderr, "Cannot perform relocation for symbol %s\n",
+			// This should never happen
+			fprintf(stderr, "Warning: Cannot perform relocation for symbol %s\n",
 					module->str_table + sym_ref->st_name);
+			// TODO: Return an error
 			return 0;
 		}
 		
 		// Compute the absolute symbol virtual address
 		sym_addr = (Elf32_Addr)module_get_absolute(sym_def->st_value, sym_module);
 		
+		if (sym_module != module) {
+			// Create a dependency
+			enforce_dependency(sym_module, module);
+		}
 	}
 	
 	switch (type) {
@@ -443,8 +531,8 @@ static int perform_relocation(struct elf_module *module, Elf32_Rel *rel) {
 		*dest += module->base_addr;
 		break;
 	default:
-		fprintf(stderr, "Relocation type %d not supported\n", type);
-		return -1;
+		fprintf(stderr, "Warning: Relocation type %d not supported\n", type);
+		break;
 	}
 	
 	return 0;
@@ -569,6 +657,7 @@ static int check_symbols(struct elf_module *module) {
 			// We have an undefined symbol
 			if (strong_count == 0 && weak_count == 0) {
 				fprintf(stderr, "Symbol %s is undefined\n", crt_name);
+				// TODO: Return an error
 				//return -1;
 			}
 		} else {
@@ -586,11 +675,6 @@ static int check_symbols(struct elf_module *module) {
 int module_load(struct elf_module *module) {
 	int res;
 	Elf32_Ehdr elf_hdr;
-	
-	
-	INIT_LIST_HEAD(&module->list);
-	INIT_LIST_HEAD(&module->deps);
-	
 	
 	// Get a mapping/copy of the ELF file in memory
 	res = image_load(module);
@@ -622,15 +706,23 @@ int module_load(struct elf_module *module) {
 	list_add(&module->list, &modules);
 	
 	// Perform the relocations
-	CHECKED(res, resolve_symbols(module), error);
+	resolve_symbols(module);
 	
 	// The file image is no longer needed
-	CHECKED(res, image_unload(module), error);
+	image_unload(module);
 	
 	
 	return 0;
 	
 error:
+	// Remove the module from the module list (if applicable)
+	list_del_init(&module->list);
+	
+	if (module->module_addr != NULL) {
+		free(module->module_addr);
+		module->module_addr = NULL;
+	}
+	
 	image_unload(module);
 	
 	return res;
@@ -638,7 +730,24 @@ error:
 
 // Unloads the module from the system and releases all the associated memory
 int module_unload(struct elf_module *module) {
+	struct module_dep *crt_dep, *tmp;
+	// Make sure nobody needs us
+	if (!list_empty(&module->dependants)) {
+		fprintf(stderr, "Module is required by other modules.\n");
+		return -1;
+	}
 	
+	// Remove any dependency information
+	list_for_each_entry_safe(crt_dep, tmp, &module->required, list) {
+		clear_dependency(crt_dep->module, module);
+	}
+	
+	// Remove the module from the module list
+	list_del_init(&module->list);
+	
+	// Release the loaded segments
+	free(module->module_addr);
+	// Release the module structure
 	free(module);
 	
 	return 0;

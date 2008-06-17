@@ -23,7 +23,8 @@ typedef void (*module_exit_func)();
 struct elf_module {
 	char				name[MODULE_NAME_SIZE]; 		// The module name
 	
-	struct list_head	deps;		// Head of module dependency list
+	struct list_head	required;		// Head of the required modules list
+	struct list_head	dependants;		// Head of module dependants list
 	struct list_head	list;		// The list entry in the module list
 	
 	module_init_func	init_func;	// The initialization entry point
@@ -70,6 +71,8 @@ extern int module_load(struct elf_module *module);
 
 // Unloads the module from the system and releases all the associated memory
 extern int module_unload(struct elf_module *module);
+
+extern struct elf_module *module_find(const char *name);
 
 extern Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module);
 extern Elf32_Sym *global_find_symbol(const char *name, struct elf_module **module);
