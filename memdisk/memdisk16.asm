@@ -294,12 +294,19 @@ a20_kbc:
 
 		mov byte [A20Type], A20_KBC	; Starting KBC command sequence
 
-		mov al,0D1h			; Command write
+		mov al,0D1h			; Write output port
 		out 064h, al
 		call empty_8042_uncond
 
 		mov al,0DFh			; A20 on
 		out 060h, al
+		call empty_8042_uncond
+
+		; Apparently the UHCI spec assumes that A20 toggle
+		; ends with a null command (assumed to be for sychronization?)
+		; Put it here to see if it helps anything...
+		mov al,0FFh			; Null command
+		out 064h, al
 		call empty_8042_uncond
 
 		; Verify that A20 actually is enabled.  Do that by
@@ -424,12 +431,19 @@ a20d_fast:
 ;
 a20d_kbc:
 		call empty_8042_uncond
+
 		mov al,0D1h
-		out 064h, al		; Command write
+		out 064h, al		; Write output port
 		call empty_8042_uncond
+
 		mov al,0DDh		; A20 off
 		out 060h, al
 		call empty_8042_uncond
+
+		mov al,0FFh		; Null command/synchronization
+		out 064h, al
+		call empty_8042_uncond
+
 		; Wait a bit for it to take effect
 a20d_snooze:
 		push cx
