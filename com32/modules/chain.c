@@ -558,6 +558,12 @@ int main(int argc, char *argv[])
     } else if (!strcmp(argv[i], "-ntldr") && argv[i+1]) {
       opt.seg = 0x2000;		/* NTLDR wants this address */
       opt.loadfile = argv[++i];
+    } else if (!strcmp(argv[i], "-freedos") && argv[i+1]) {
+      opt.seg = 0x60;		/* FREEDOS wants this address */
+      opt.loadfile = argv[++i];
+    } else if (!strcmp(argv[i], "-msdos") && argv[i+1]) {
+      opt.seg = 0x70;		/* MS-DOS 2.0+ wants this address */
+      opt.loadfile = argv[++i];
     } else if (!strcmp(argv[i], "-swap")) {
       opt.swap = true;
     } else if (!strcmp(argv[i], "keeppxe")) {
