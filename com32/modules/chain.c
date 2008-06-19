@@ -341,22 +341,11 @@ find_logical_partition(int whichpart, char *table, struct part_entry *self,
 static void do_boot(void *boot_sector, size_t boot_size,
 		    struct syslinux_rm_regs *regs)
 {
-  static const uint8_t swapstub[] = {
-    0x53,			/* 00: push bx */
-    0x0f,0xb6,0xda,		/* 01: movzx bx,dl */
-    0x2e,0x8a,0x57,0x10,	/* 04: mov dl,[cs:bx+16] */
-    0x5b,			/* 08: pop bx */
-    0xea,0,0,0,0,		/* 09: jmp far 0:0 */
-    0x90,0x90,			/* 0E: nop; nop */
-  };
   uint16_t * const bios_fbm  = (uint16_t *)0x413;
-  uint32_t * const int13_vec = (uint32_t *)(0x13*4);
-  uint16_t old_bios_fbm  = *bios_fbm;
-  uint32_t old_int13_vec = *int13_vec;
+  addr_t dosmem = *bios_fbm << 10; /* Technically a low bound */
   struct syslinux_memmap *mmap;
   struct syslinux_movelist *mlist = NULL;
-  addr_t dosmem = old_bios_fbm << 10;
-  addr_t protect;
+  addr_t endimage;
   uint8_t driveno   = regs->edx.b[0];
   uint8_t swapdrive = driveno & 0x80;
   int i;
@@ -369,29 +358,6 @@ static void do_boot(void *boot_sector, size_t boot_size,
     return;
   }
 
-  if (opt.swap && driveno != swapdrive) {
-    uint8_t *p;
-
-    regs->ebx.b[0] = regs->edx.b[0] = swapdrive;
-
-    dosmem -= 1024;
-    p = (uint8_t *)dosmem;
-
-    /* Install swapper stub */
-    memset(p, 0, 1024);		/* For debugging... */
-    memcpy(p, swapstub, sizeof swapstub);
-    *(uint32_t *)&p[0x0a] = old_int13_vec;
-    p += sizeof swapstub;
-
-    /* Mapping table; start out with identity mapping everything */
-    for (i = 0; i < 256; i++)
-      p[i] = i;
-
-    /* And the actual swap */
-    p[driveno] = swapdrive;
-    p[swapdrive] = driveno;
-  }
-
   if (loadbase < 0x7c00) {
     /* Special hack: if we are to be loaded below 0x7c00, we need to handle
        the part that goes below 0x7c00 specially, since that's where the
@@ -401,87 +367,154 @@ static void do_boot(void *boot_sector, size_t boot_size,
        The only tricky bit is that we need to set up registers for our
        move, and then restore them to what they should be at the end of
        the code. */
-    static const uint8_t copy_down_code[] = {
-      0xf3, 0x66, 0xa5,		/* rep movsd */
-      0xbe, 0, 0,		/* mov si,0 */
-      0xbf, 0, 0,		/* mov di,0 */
-      0x8e, 0xde,		/* mov ds,si */
-      0x8e, 0xc7,		/* mov es,di */
-      0x66, 0xb9, 0, 0, 0, 0,	/* mov ecx,0 */
-      0x66, 0xbe, 0, 0, 0, 0,	/* mov esi,0 */
-      0x66, 0xbf, 0, 0, 0, 0,	/* mov edi,0 */
-      0xea, 0, 0, 0, 0,		/* jmp 0:0 */
+    static uint8_t copy_down_code[] = {
+      0xf3, 0x66, 0xa5,		/* 00: rep movsd */
+      0xbe, 0, 0,		/* 03: mov si,0 */
+      0xbf, 0, 0,		/* 06: mov di,0 */
+      0x8e, 0xde,		/* 09: mov ds,si */
+      0x8e, 0xc7,		/* 0b: mov es,di */
+      0x66, 0xb9, 0, 0, 0, 0,	/* 0d: mov ecx,0 */
+      0x66, 0xbe, 0, 0, 0, 0,	/* 13: mov esi,0 */
+      0x66, 0xbf, 0, 0, 0, 0,	/* 19: mov edi,0 */
+      0xea, 0, 0, 0, 0,		/* 1f: jmp 0:0 */
       /* pad out to segment boundary */
-      0x90, 0x90, 0x90, 0x90,
-      0x90, 0x90, 0x90, 0x90,
-      0x90, 0x90, 0x90, 0x90,
+      0x90, 0x90, 0x90, 0x90,	/* 24: ... */
+      0x90, 0x90, 0x90, 0x90,	/* 28: ... */
+      0x90, 0x90, 0x90, 0x90,	/* 2c: ... */
     };
-    uint8_t *p;
     size_t low_size  = min(boot_size, 0x7c00-loadbase);
     size_t high_size = boot_size - low_size;
+    size_t low_addr  = (0x7c00 + high_size + 15) & ~15;
+    size_t move_addr = (low_addr + low_size + 15) & ~15;
     const size_t move_size = sizeof copy_down_code;
 
-    if (boot_size >= dosmem-move_size-0x7c00)
+    if (move_addr+move_size >= dosmem-0x7c00)
       goto too_big;
+
+    *(uint16_t *)&copy_down_code[0x04] = regs->ds;
+    *(uint16_t *)&copy_down_code[0x07] = regs->es;
+    *(uint32_t *)&copy_down_code[0x0f] = regs->ecx.l;
+    *(uint32_t *)&copy_down_code[0x15] = regs->esi.l;
+    *(uint32_t *)&copy_down_code[0x1b] = regs->edi.l;
+    *(uint16_t *)&copy_down_code[0x20] = regs->ip;
+    *(uint16_t *)&copy_down_code[0x22] = regs->cs;
+
+    regs->ecx.l = (low_size+3) >> 2;
+    regs->esi.l = 0;
+    regs->edi.l = loadbase & 15;
+    regs->ds    = low_addr >> 4;
+    regs->es    = loadbase >> 4;
+    regs->cs    = move_addr >> 4;
+    regs->ip    = 0;
+
+    endimage = move_addr + move_size;
 
     if (high_size)
       if (syslinux_add_movelist(&mlist, 0x7c00,
 				(addr_t)boot_sector+low_size, high_size))
 	goto enomem;
-
-    if (syslinux_add_movelist(&mlist, (dosmem-low_size-move_size) & ~15,
+    if (syslinux_add_movelist(&mlist, low_addr,
 			      (addr_t)boot_sector, low_size))
       goto enomem;
-
-    p = (uint8_t *)dosmem-move_size;
-    protect = (addr_t)p;
-    memcpy(p, copy_down_code, move_size);
-    *(uint16_t *)(p+0x04) = regs->ds;
-    *(uint16_t *)(p+0x07) = regs->es;
-    *(uint32_t *)(p+0x0f) = regs->ecx.l;
-    *(uint32_t *)(p+0x15) = regs->esi.l;
-    *(uint32_t *)(p+0x1b) = regs->edi.l;
-    *(uint16_t *)(p+0x20) = regs->ip;
-    *(uint16_t *)(p+0x22) = regs->cs;
-
-    regs->ecx.l = (low_size+3) >> 2;
-    regs->esi.l = 0;
-    regs->edi.l = loadbase & 15;
-    regs->ds    = (dosmem-low_size-move_size) >> 4;
-    regs->es    = loadbase >> 4;
-    regs->cs    = (addr_t)p >> 4;
-    regs->ip    = 0;
+    if (syslinux_add_movelist(&mlist, move_addr,
+			      (addr_t)copy_down_code, move_size))
+      goto enomem;
   } else {
     /* Nothing below 0x7c00, much simpler... */
 
     if (boot_size >= dosmem-0x7c00)
       goto too_big;
 
-    protect = dosmem;
+    endimage = loadbase + boot_size;
 
     if (syslinux_add_movelist(&mlist, loadbase, (addr_t)boot_sector,
 			      boot_size))
       goto enomem;
   }
 
+  if (opt.swap && driveno != swapdrive) {
+    static const uint8_t swapstub_master[] = {
+      /* The actual swap code */
+      0x53,			/* 00: push bx */
+      0x0f,0xb6,0xda,		/* 01: movzx bx,dl */
+      0x2e,0x8a,0x57,0x60,	/* 04: mov dl,[cs:bx+0x60] */
+      0x5b,			/* 08: pop bx */
+      0xea,0,0,0,0,		/* 09: jmp far 0:0 */
+      0x90,0x90,		/* 0E: nop; nop */
+      /* Code to install this in the right location */
+      /* Entry with DS = CS; ES = SI = 0; CX = 256 */
+      0x26,0x66,0x8b,0x7c,0x4c,	/* 10: mov edi,[es:si+4*0x13] */
+      0x66,0x89,0x3e,0x0a,0x00,	/* 15: mov [0x0A],edi */
+      0x26,0x8b,0x3e,0x13,0x04,	/* 1A: mov di,[es:0x413] */
+      0x4f,			/* 1F: dec di */
+      0x26,0x89,0x3e,0x13,0x04,	/* 20: mov [es:0x413],di */
+      0x66,0xc1,0xe7,0x16,	/* 25: shl edi,16+6 */
+      0x26,0x66,0x89,0x7c,0x4c,	/* 29: mov [es:si+4*0x13],edi */
+      0x66,0xc1,0xef,0x10,	/* 2E: shr edi,16 */
+      0x8e,0xc7,		/* 32: mov es,di */
+      0x31,0xff,		/* 34: xor di,di */
+      0xf3,0x66,0xa5,		/* 36: rep movsd */
+      0xbe,0,0,			/* 39: mov si,0 */
+      0xbf,0,0,			/* 3C: mov di,0 */
+      0x8e,0xde,		/* 3F: mov ds,si */
+      0x8e,0xc7,		/* 41: mov es,di */
+      0x66,0xb9,0,0,0,0,	/* 43: mov ecx,0 */
+      0x66,0xbe,0,0,0,0,	/* 49: mov esi,0 */
+      0x66,0xbf,0,0,0,0,	/* 4F: mov edi,0 */
+      0xea,0,0,0,0,		/* 55: jmp 0:0 */
+      /* pad out to segment boundary */
+      0x90, 0x90,		/* 5A: ... */
+      0x90, 0x90, 0x90, 0x90,	/* 5C: ... */
+    };
+    static uint8_t swapstub[1024];
+    uint8_t *p;
+
+    regs->ebx.b[0] = regs->edx.b[0] = swapdrive;
+
+    /* Note: we can't rely on either INT 13h nor the dosmem
+       vector to be correct at this stage, so we have to use an
+       installer stub to put things in the right place.
+       Round the installer location to a 1K boundary so the only
+       possible overlap is the identity mapping. */
+    endimage = (endimage + 1023) & ~1023;
+
+    /* Create swap stub */
+    memcpy(swapstub, swapstub_master, sizeof swapstub_master);
+    *(uint16_t *)&swapstub[0x3a] = regs->ds;
+    *(uint16_t *)&swapstub[0x3d] = regs->es;
+    *(uint32_t *)&swapstub[0x45] = regs->ecx.l;
+    *(uint32_t *)&swapstub[0x4b] = regs->esi.l;
+    *(uint32_t *)&swapstub[0x51] = regs->edi.l;
+    *(uint16_t *)&swapstub[0x56] = regs->ip;
+    *(uint16_t *)&swapstub[0x58] = regs->cs;
+    p = &swapstub[sizeof swapstub_master];
+
+    /* Mapping table; start out with identity mapping everything */
+    for (i = 0; i < 256; i++)
+      p[i] = i;
+
+    /* And the actual swap */
+    p[driveno] = swapdrive;
+    p[swapdrive] = driveno;
+
+    /* Adjust registers */
+    regs->ds = regs->cs = endimage >> 4;
+    regs->es = regs->esi.l = 0;
+    regs->ecx.l = sizeof swapstub >> 2;
+    regs->ip = 0x10;		/* Installer offset */
+
+    if (syslinux_add_movelist(&mlist, endimage, (addr_t)swapstub,
+			      sizeof swapstub))
+      goto enomem;
+
+    endimage += sizeof swapstub;
+  }
+
   /* Tell the shuffler not to muck with this area... */
-  syslinux_add_memmap(&mmap, protect, 0xa0000-protect, SMT_RESERVED);
+  syslinux_add_memmap(&mmap, endimage, 0xa0000-endimage, SMT_RESERVED);
 
   fputs("Booting...\n", stdout);
-
-  if (opt.swap) {
-    /* Do this as late as possible */
-    *bios_fbm  = dosmem >> 10;
-    *int13_vec = dosmem << 12;
-  }
-
   syslinux_shuffle_boot_rm(mlist, mmap, opt.keeppxe, regs);
-
-  /* If we get here, badness happened */
-  if (opt.swap) {
-    *bios_fbm  = old_bios_fbm;
-    *int13_vec = old_int13_vec;
-  }
   error("Chainboot failed!\n");
   return;
 
