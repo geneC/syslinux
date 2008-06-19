@@ -368,19 +368,19 @@ static void do_boot(void *boot_sector, size_t boot_size,
        move, and then restore them to what they should be at the end of
        the code. */
     static uint8_t copy_down_code[] = {
-      0xf3, 0x66, 0xa5,		/* 00: rep movsd */
-      0xbe, 0, 0,		/* 03: mov si,0 */
-      0xbf, 0, 0,		/* 06: mov di,0 */
-      0x8e, 0xde,		/* 09: mov ds,si */
-      0x8e, 0xc7,		/* 0b: mov es,di */
-      0x66, 0xb9, 0, 0, 0, 0,	/* 0d: mov ecx,0 */
-      0x66, 0xbe, 0, 0, 0, 0,	/* 13: mov esi,0 */
-      0x66, 0xbf, 0, 0, 0, 0,	/* 19: mov edi,0 */
-      0xea, 0, 0, 0, 0,		/* 1f: jmp 0:0 */
+      0xf3,0x66,0xa5,		/* 00: rep movsd */
+      0xbe,0,0,			/* 03: mov si,0 */
+      0xbf,0,0,			/* 06: mov di,0 */
+      0x8e,0xde,		/* 09: mov ds,si */
+      0x8e,0xc7,		/* 0b: mov es,di */
+      0x66,0xb9,0,0,0,0,	/* 0d: mov ecx,0 */
+      0x66,0xbe,0,0,0,0,	/* 13: mov esi,0 */
+      0x66,0xbf,0,0,0,0,	/* 19: mov edi,0 */
+      0xea,0,0,0,0,		/* 1f: jmp 0:0 */
       /* pad out to segment boundary */
-      0x90, 0x90, 0x90, 0x90,	/* 24: ... */
-      0x90, 0x90, 0x90, 0x90,	/* 28: ... */
-      0x90, 0x90, 0x90, 0x90,	/* 2c: ... */
+      0x90,0x90,0x90,0x90,	/* 24: ... */
+      0x90,0x90,0x90,0x90,	/* 28: ... */
+      0x90,0x90,0x90,0x90,	/* 2c: ... */
     };
     size_t low_size  = min(boot_size, 0x7c00-loadbase);
     size_t high_size = boot_size - low_size;
@@ -463,8 +463,8 @@ static void do_boot(void *boot_sector, size_t boot_size,
       0x66,0xbf,0,0,0,0,	/* 4F: mov edi,0 */
       0xea,0,0,0,0,		/* 55: jmp 0:0 */
       /* pad out to segment boundary */
-      0x90, 0x90,		/* 5A: ... */
-      0x90, 0x90, 0x90, 0x90,	/* 5C: ... */
+      0x90,0x90,		/* 5A: ... */
+      0x90,0x90,0x90,0x90,	/* 5C: ... */
     };
     static uint8_t swapstub[1024];
     uint8_t *p;
