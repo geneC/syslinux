@@ -44,8 +44,8 @@
 struct syslinux_rm_regs {
   uint16_t es;			/* Offset  0 */
   uint16_t _unused_cs;		/* Offset  2 */
-  uint16_t ds;			/* Offset  4 */
-  uint16_t ss;			/* Offset  6 */
+  uint16_t ss;			/* Offset  4 */
+  uint16_t ds;			/* Offset  6 */
   uint16_t fs;			/* Offset  8 */
   uint16_t gs;			/* Offset 10 */
 
