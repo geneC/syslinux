@@ -18,7 +18,8 @@
 
 		section .text
 ;
-; writedec[bwl]: Write a hex number in (AL, AX, EAX) to the console
+; writedec[bwl]: Write an unsigned decimal number in (AL, AX, EAX)
+;                to the console
 ;
 writedecb:
 		pushad
