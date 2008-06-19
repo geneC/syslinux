@@ -51,6 +51,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <console.h>
+#include <minmax.h>
 #include <stdbool.h>
 #include <syslinux/loadfile.h>
 #include <syslinux/bootrm.h>
@@ -343,7 +344,7 @@ static void do_boot(void *boot_sector, size_t boot_size,
   static const uint8_t swapstub[] = {
     0x53,			/* 00: push bx */
     0x0f,0xb6,0xda,		/* 01: movzx bx,dl */
-    0x2e,0x8a,0x57,0x10, 	/* 04: mov dl,[cs:bx+16] */
+    0x2e,0x8a,0x57,0x10,	/* 04: mov dl,[cs:bx+16] */
     0x5b,			/* 08: pop bx */
     0xea,0,0,0,0,		/* 09: jmp far 0:0 */
     0x90,0x90,			/* 0E: nop; nop */
@@ -355,6 +356,7 @@ static void do_boot(void *boot_sector, size_t boot_size,
   struct syslinux_memmap *mmap;
   struct syslinux_movelist *mlist = NULL;
   addr_t dosmem = old_bios_fbm << 10;
+  addr_t protect;
   uint8_t driveno   = regs->edx.b[0];
   uint8_t swapdrive = driveno & 0x80;
   int i;
@@ -370,8 +372,8 @@ static void do_boot(void *boot_sector, size_t boot_size,
   if (opt.swap && driveno != swapdrive) {
     uint8_t *p;
 
-    regs->edx.b[0] = swapdrive;
-    
+    regs->ebx.b[0] = regs->edx.b[0] = swapdrive;
+
     dosmem -= 1024;
     p = (uint8_t *)dosmem;
 
@@ -390,18 +392,80 @@ static void do_boot(void *boot_sector, size_t boot_size,
     p[swapdrive] = driveno;
   }
 
-  syslinux_add_memmap(&mmap, dosmem, 0xa0000-dosmem, SMT_RESERVED);
+  if (loadbase < 0x7c00) {
+    /* Special hack: if we are to be loaded below 0x7c00, we need to handle
+       the part that goes below 0x7c00 specially, since that's where the
+       shuffler lives.  To deal with that, stuff the balance at the end
+       of low memory and put a small copy stub there.
 
-  if (syslinux_memmap_type(mmap, loadbase, boot_size) != SMT_FREE) {
-    error("Loader file too large");
-    return;
+       The only tricky bit is that we need to set up registers for our
+       move, and then restore them to what they should be at the end of
+       the code. */
+    static const uint8_t copy_down_code[] = {
+      0xf3, 0x66, 0xa5,		/* rep movsd */
+      0xbe, 0, 0,		/* mov si,0 */
+      0xbf, 0, 0,		/* mov di,0 */
+      0x8e, 0xde,		/* mov ds,si */
+      0x8e, 0xc7,		/* mov es,di */
+      0x66, 0xb9, 0, 0, 0, 0,	/* mov ecx,0 */
+      0x66, 0xbe, 0, 0, 0, 0,	/* mov esi,0 */
+      0x66, 0xbf, 0, 0, 0, 0,	/* mov edi,0 */
+      0xea, 0, 0, 0, 0,		/* jmp 0:0 */
+      /* pad out to segment boundary */
+      0x90, 0x90, 0x90, 0x90,
+      0x90, 0x90, 0x90, 0x90,
+      0x90, 0x90, 0x90, 0x90,
+    };
+    uint8_t *p;
+    size_t low_size  = min(boot_size, 0x7c00-loadbase);
+    size_t high_size = boot_size - low_size;
+    const size_t move_size = sizeof copy_down_code;
+
+    if (boot_size >= dosmem-move_size-0x7c00)
+      goto too_big;
+
+    if (high_size)
+      if (syslinux_add_movelist(&mlist, 0x7c00,
+				(addr_t)boot_sector+low_size, high_size))
+	goto enomem;
+
+    if (syslinux_add_movelist(&mlist, (dosmem-low_size-move_size) & ~15,
+			      (addr_t)boot_sector, low_size))
+      goto enomem;
+
+    p = (uint8_t *)dosmem-move_size;
+    protect = (addr_t)p;
+    memcpy(p, copy_down_code, move_size);
+    *(uint16_t *)(p+0x04) = regs->ds;
+    *(uint16_t *)(p+0x07) = regs->es;
+    *(uint32_t *)(p+0x0f) = regs->ecx.l;
+    *(uint32_t *)(p+0x15) = regs->esi.l;
+    *(uint32_t *)(p+0x1b) = regs->edi.l;
+    *(uint16_t *)(p+0x20) = regs->ip;
+    *(uint16_t *)(p+0x22) = regs->cs;
+
+    regs->ecx.l = (low_size+3) >> 2;
+    regs->esi.l = 0;
+    regs->edi.l = loadbase & 15;
+    regs->ds    = (dosmem-low_size-move_size) >> 4;
+    regs->es    = loadbase >> 4;
+    regs->cs    = (addr_t)p >> 4;
+    regs->ip    = 0;
+  } else {
+    /* Nothing below 0x7c00, much simpler... */
+
+    if (boot_size >= dosmem-0x7c00)
+      goto too_big;
+
+    protect = dosmem;
+
+    if (syslinux_add_movelist(&mlist, loadbase, (addr_t)boot_sector,
+			      boot_size))
+      goto enomem;
   }
 
-  if (syslinux_add_movelist(&mlist, loadbase, (addr_t)boot_sector,
-			    boot_size)) {
-    error("Out of memory");
-    return;
-  }
+  /* Tell the shuffler not to muck with this area... */
+  syslinux_add_memmap(&mmap, protect, 0xa0000-protect, SMT_RESERVED);
 
   fputs("Booting...\n", stdout);
 
@@ -419,6 +483,15 @@ static void do_boot(void *boot_sector, size_t boot_size,
     *int13_vec = old_int13_vec;
   }
   error("Chainboot failed!\n");
+  return;
+
+too_big:
+  error("Loader file too large");
+  return;
+
+enomem:
+  error("Out of memory");
+  return;
 }
 
 int main(int argc, char *argv[])
@@ -445,7 +518,7 @@ int main(int argc, char *argv[])
       opt.loadfile = argv[++i];
     } else if (!strcmp(argv[i], "-seg") && argv[i+1]) {
       uint32_t segval = strtoul(argv[++i], NULL, 0);
-      if (segval < 0x7c0 || segval > 0x9f000) {
+      if (segval < 0x50 || segval > 0x9f000) {
 	error("Invalid segment");
 	goto bail;
       }
@@ -502,7 +575,8 @@ int main(int argc, char *argv[])
     drive = (hd ? 0x80 : 0) | strtoul(drivename, NULL, 0);
   }
 
-  regs.edx.b[0] = drive;
+  /* DOS kernels want the drive number in BL instead of DL.  Indulge them. */
+  regs.ebx.b[0] = regs.edx.b[0] = drive;
 
   whichpart = 0;		/* Default */
 
