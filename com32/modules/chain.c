@@ -469,8 +469,6 @@ static void do_boot(void *boot_sector, size_t boot_size,
     static uint8_t swapstub[1024];
     uint8_t *p;
 
-    regs->ebx.b[0] = regs->edx.b[0] = swapdrive;
-
     /* Note: we can't rely on either INT 13h nor the dosmem
        vector to be correct at this stage, so we have to use an
        installer stub to put things in the right place.
@@ -502,6 +500,7 @@ static void do_boot(void *boot_sector, size_t boot_size,
     regs->es = regs->esi.l = 0;
     regs->ecx.l = sizeof swapstub >> 2;
     regs->ip = 0x10;		/* Installer offset */
+    regs->ebx.b[0] = regs->edx.b[0] = swapdrive;
 
     if (syslinux_add_movelist(&mlist, endimage, (addr_t)swapstub,
 			      sizeof swapstub))
