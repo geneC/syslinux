@@ -528,7 +528,7 @@ enomem:
 
 int main(int argc, char *argv[])
 {
-  char *mbr;
+  char *mbr, *p;
   void *boot_sector = NULL;
   struct part_entry *partinfo;
   struct syslinux_rm_regs regs;
@@ -546,39 +546,44 @@ int main(int argc, char *argv[])
   memset(&regs, 0, sizeof regs);
 
   for (i = 1; i < argc; i++) {
-    if (!strcmp(argv[i], "-file") && argv[i+1]) {
-      opt.loadfile = argv[++i];
-    } else if (!strcmp(argv[i], "-seg") && argv[i+1]) {
-      uint32_t segval = strtoul(argv[++i], NULL, 0);
+    if (!strncmp(argv[i], "file=", 5)) {
+      opt.loadfile = argv[i]+5;
+    } else if (!strncmp(argv[i], "seg=", 4)) {
+      uint32_t segval = strtoul(argv[i]+4, NULL, 0);
       if (segval < 0x50 || segval > 0x9f000) {
 	error("Invalid segment");
 	goto bail;
       }
       opt.seg = segval;
-    } else if (!strcmp(argv[i], "-ntldr") && argv[i+1]) {
+    } else if (!strncmp(argv[i], "ntldr=", 6)) {
       opt.seg = 0x2000;		/* NTLDR wants this address */
-      opt.loadfile = argv[++i];
-    } else if (!strcmp(argv[i], "-freedos") && argv[i+1]) {
+      opt.loadfile = argv[i]+6;
+    } else if (!strncmp(argv[i], "freedos=", 8)) {
       opt.seg = 0x60;		/* FREEDOS wants this address */
-      opt.loadfile = argv[++i];
-    } else if (!strcmp(argv[i], "-msdos") && argv[i+1]) {
+      opt.loadfile = argv[i]+8;
+    } else if (!strncmp(argv[i], "msdos=", 6) ||
+	       !strncmp(argv[i], "pcdos=", 6)) {
       opt.seg = 0x70;		/* MS-DOS 2.0+ wants this address */
-      opt.loadfile = argv[++i];
-    } else if (!strcmp(argv[i], "-swap")) {
+      opt.loadfile = argv[i]+6;
+    } else if (!strcmp(argv[i], "swap")) {
       opt.swap = true;
     } else if (!strcmp(argv[i], "keeppxe")) {
       opt.keeppxe = 3;
+    } else if (((argv[i][0] == 'h' || argv[i][0] == 'f') && argv[i][1] == 'd')
+	       || !strncmp(argv[i], "mbr:", 4)
+	       || !strncmp(argv[i], "mbr=", 4)) {
+      drivename = argv[i];
+      p = strchr(drivename, ',');
+      if (p) {
+	*p = '\0';
+	partition = p+1;
+      } else if (argv[i+1] && argv[i+1][0] >= '0' && argv[i+1][0] <= '9') {
+	partition = argv[++i];
+      }
     } else {
-      if (!drivename)
-	drivename = argv[i];
-      else if (!partition)
-	partition = argv[i];
+      error("Usage: chain.c32 (hd#|fd#|mbr:#)[,partition] [options]\n");
+      goto bail;
     }
-  }
-
-  if ( !drivename ) {
-    error("Usage: chain.c32 (hd#|fd#|mbr:#) [partition] [options]\n");
-    goto bail;
   }
 
   if (opt.seg) {
@@ -598,7 +603,7 @@ int main(int argc, char *argv[])
   partition = argv[2];		/* Possibly null */
 
   hd = 0;
-  if ( !memcmp(drivename, "mbr:", 4) ) {
+  if ( !strncmp(drivename, "mbr", 3) ) {
     drive = find_disk(strtoul(drivename+4, NULL, 0), mbr);
     if (drive == -1) {
       error("Unable to find requested MBR signature\n");

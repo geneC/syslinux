@@ -30,19 +30,23 @@ Changes in 3.70:
 	  common extended formats, but it is still possible some very
 	  exotic formats need geometry specification.  Large floppies
 	  and very small harddisks still need explicit specification.
-	* chain.c32: option -swap to support swapping of BIOS drive
+	* chain.c32: option "swap" to support swapping of BIOS drive
 	  numbers.  This is necessary to boot certain operating systems
 	  (DOS, Windows) from a secondary drive.
-	* chain.c32: option -file to support loading a boot file from
+	* chain.c32: option "file=" to support loading a boot file from
 	  the SYSLINUX filesystem instead of loading the boot sector
 	  from the drive.
-	* chain.c32: option -seg to control the load location.
-	* chain.c32: option -ntldr as a shorthand for "-seg 0x2000
-	  -file"; use this to load one of WinNT's loaders:
+	* chain.c32: option "seg=" to control the load location.
+	* chain.c32: option "ntldr=" as a shorthand for "seg=0x2000
+	  file="; use this to load one of WinNT's loaders:
 
-	  chain.c32 hd0 1 -ntldr /MiniNT/setupldr.bin
+	  chain.c32 hd0 1 ntldr=/MiniNT/setupldr.bin
 
 	  Note that the file needs to be in the SYSLINUX filesystem.
+	* chain.32: options "freedos=" and "msdos="/"pcdos=" as
+	  shorthands for "seg=0x60 file=" and "seg=0x70 file="
+	  respectively; use this to load FreeDOS's kernel.sys, MS-DOS's
+	  io.sys or PC-DOS's ibmbio.sys.
 
 Changes in 3.64:
 	* SYSLINUX/EXTLINUX: support "localboot" with the same feature
