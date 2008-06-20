@@ -47,6 +47,10 @@ Changes in 3.70:
 	  shorthands for "seg=0x60 file=" and "seg=0x70 file="
 	  respectively; use this to load FreeDOS's kernel.sys, MS-DOS's
 	  io.sys or PC-DOS's ibmbio.sys.
+	* Change to the A20 algorithm which *MIGHT* help systems that
+	  have systems which freeze when Syslinux is used with USB
+	  keyboards.  Note that this has been hard do verify, so I
+	  would greatly appreciate feedback on it.
 
 Changes in 3.64:
 	* SYSLINUX/EXTLINUX: support "localboot" with the same feature
