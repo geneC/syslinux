@@ -39,20 +39,25 @@ getcommand:
 		cmp al,'#'		; Leading hash mark -> comment
 		je .skipline
 
+		; Abuse the trackbuf by putting the keyword there for
+		; possible error messaging...
+		mov di,trackbuf
+		stosb
 		or al,20h		; Convert to lower case
 		movzx ebx,al		; Hash for a one-char keyword
 .read_loop:
-		push ebx
 		call getc
-		pop ebx
 		jc .eof
 		cmp al,' '		; Whitespace
 		jbe .done
+		stosb
 		or al,20h
 		rol ebx,5
 		xor bl,al
 		jmp short .read_loop
 .done:		call ungetc
+		xor ax,ax
+		stosb			; Null-terminate the trackbuf
 		call skipspace
 		jz .eof
 		jc .noparm
@@ -68,7 +73,11 @@ getcommand:
 
 		; Otherwise unrecognized keyword
 		mov si,err_badcfg
-		jmp short .error
+		call writestr
+		mov si,trackbuf
+		call writestr
+		call crlf
+		jmp short .skipline
 
 		; No parameter
 .noparm:
@@ -93,7 +102,7 @@ getcommand:
 		jmp short .skipline
 
 		section .data
-err_badcfg      db 'Unknown keyword in configuration file.', CR, LF, 0
+err_badcfg      db 'Unknown keyword in configuration file: ',0
 err_noparm      db 'Missing parameter in configuration file.', CR, LF, 0
 
 		section .uibss
