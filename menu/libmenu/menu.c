@@ -695,10 +695,11 @@ void fix_submenus()
      for (j=0; j < m->numitems; j++)
      {
          mi = m->items[j];
-         // if submenu with non-trivial data string
-         // again using hack that itemdata is a union data type
-         if ( mi->data && ((mi->action == OPT_SUBMENU) || (mi->action == OPT_RADIOMENU)) )
+         // if item is a submenu and has non-empty non-trivial data string
+         if (mi->data && strlen(mi->data) > 0 &&
+             ((mi->action == OPT_SUBMENU) || (mi->action == OPT_RADIOMENU)) ) {
             mi->itemdata.submenunum = find_menu_num (mi->data);
+         }
      }
   }
 }
