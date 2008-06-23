@@ -1503,13 +1503,13 @@ getfssec:
 .done:
 		pop ecx				; Sectors requested read
 		shl ecx,SECTOR_SHIFT
-		cmp ecx,[si+file_bytesleft]
-		jb .noteof
-		mov ecx,[si+file_bytesleft]
-.noteof:	sub [si+file_bytesleft],ecx
-		; Did we run out of file?
-		cmp dword [si+file_bytesleft],1
-		; CF set if [SI] < 1, i.e. == 0
+		sub [si+file_bytesleft],ecx
+		jnbe .noteof			; CF=0 in this case
+		add ecx,[si+file_bytesleft]	; Actual number of bytes left
+		sub [si+file_bytesleft],ecx	; ... all read
+		xor si,si			; File closed
+		stc				; We hit EOF
+.noteof:
 		pop edi
 		pop edx
 		pop eax
