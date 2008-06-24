@@ -118,4 +118,9 @@ SECTIONS
 	__bss1_dwords = (__bss1_len + 3) >> 2;
 
 	. = ASSERT(__bss1_end <= 0x10000, "64K overflow");
+
+	. = 0x100000;
+	.com32 : {
+		*(.com32)
+	}
 }

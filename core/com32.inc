@@ -26,8 +26,17 @@
 ; "mov ax,0x4cff; int 0x21" in 16-bit mode.  This will abort the
 ; program with an error if run in 16-bit mode.
 ;
-pm_idt:		equ 0x100000
-pm_entry:	equ 0x101000
+
+		; We need to make this a proper section rather
+		; than using absolute numbers, in order to work
+		; around a bug in GNU ld 2.17, which is still in
+		; use as of this writing in the form of Debian
+		; 4.0 (etch).
+		bits 32
+		section .com32 exec write nobits align=16
+pm_idt		equ 0x100000		; Needs to be absolute...
+		resb 4096
+pm_entry:				; Needs to not be...
 
 		bits 16
 		section .data
