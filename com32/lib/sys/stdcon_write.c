@@ -28,7 +28,7 @@
 /*
  * stdcon_write.c
  *
- * Writing to the console
+ * Writing to the console; \n -> \r\n conversion.
  */
 
 #include <errno.h>

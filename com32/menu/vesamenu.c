@@ -27,13 +27,13 @@
 
 void console_prepare(void)
 {
-  fputs("\033[0m\033[20h\033[25l", stdout);
+  fputs("\033[0m\033[25l", stdout);
 }
 
 void console_cleanup(void)
 {
   /* For the serial console, be nice and clean up */
-  fputs("\033[0m\033[20l", stdout);
+  fputs("\033[0m", stdout);
 }
 
 int draw_background(const char *what)

@@ -28,7 +28,7 @@
 /*
  * xserial_write.c
  *
- * Raw writing to the serial port; no \n -> \r\n translation, but
+ * Raw writing to the serial port; \n -> \r\n translation, and
  * convert \1# sequences.
  */
 
@@ -73,6 +73,9 @@ ssize_t __xserial_write(struct file_info *fp, const void *buf, size_t count)
       if (ch >= 1 && ch <= 5) {
 	state = st_tbl;
 	ndigits = ch;
+      } else if (ch == '\n') {
+	emit('\r');
+	emit('\n');
       } else {
 	emit(ch);
       }
