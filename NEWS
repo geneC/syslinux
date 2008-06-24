@@ -53,6 +53,7 @@ Changes in 3.70:
 	  would greatly appreciate feedback on it.
 	* Complex menu system: unbreak menus which has unnamed
 	  submenus, like complex.c.
+	* Fix newline on the serial port for some com32 modules.
 
 Changes in 3.64:
 	* SYSLINUX/EXTLINUX: support "localboot" with the same feature
