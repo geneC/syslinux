@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include <consoles.h>
+#include <console.h>
 #include <zlib.h>
 #include <com32.h>
 
@@ -928,7 +928,8 @@ int main(int argc, char **argv)
     int i;
 
     /* Say hello */
-    console_ansi_std();
+    openconsole(&dev_null_r, &dev_stdcon_w);
+
     printf("%s.  %s\n", version_string, copyright_string);
 
     if (argc < 2 || !strcmp(argv[1], module_separator)) {
