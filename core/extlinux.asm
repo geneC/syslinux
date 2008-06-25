@@ -1505,7 +1505,7 @@ getfssec:
 		shl ecx,SECTOR_SHIFT
 		sub [si+file_bytesleft],ecx
 		jnbe .noteof			; CF=0 in this case
-		add ecx,[si+file_bytesleft]	; Actual number of bytes left
+		add ecx,[si+file_bytesleft]	; Actual number of bytes read
 		call close_file
 		stc				; We hit EOF
 .noteof:
