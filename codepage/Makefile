@@ -6,8 +6,10 @@ GENFILES	= $(patsubst %.txt,%.cp,$(CPSRC))
 
 all: $(GENFILES)
 
+# This generates codepage files where the display and filesystem
+# codepages are both the same.
 %.cp: %.txt cptable.pl UnicodeData
-	$(PERL) cptable.pl UnicodeData $< $@
+	$(PERL) cptable.pl UnicodeData $< $< $@
 
 tidy:
 	rm -f *.cp *.bin
