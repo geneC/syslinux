@@ -1394,7 +1394,11 @@ mangle_dos_name:
 		cmp al,'.'			; Period -> space-fill
 		je .is_period
 		xlatb				; Convert to upper case
-		stosb
+		mov ah,cl			; If the first byte (only!)...
+		cmp ax,0BE5h			; ... equals E5 hex ...
+		jne .charok
+		mov al,05h			; ... change it to 05 hex
+.charok:	stosb
 		loop .loop			; Don't continue if too long
 		; Find the end for the benefit of longname search
 .find_end:
