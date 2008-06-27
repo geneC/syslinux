@@ -11,7 +11,7 @@ Changes in 3.70:
 	* Substantial infrastructure changes to support files whose
 	  length aren't known at open time (typically network
 	  connections.)  Please note that the semantics of some of the
-	  comboot APIs have changed slightly; please see doc/comboot.doc.
+	  comboot APIs have changed slightly; please see doc/comboot.txt.
 	* PXELINUX: We no longer require a TFTP server which supports
 	  the tsize option for all transfers.
 	* PXELINUX: Integrate with the gPXE source base; unified image
