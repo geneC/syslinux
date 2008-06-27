@@ -1397,7 +1397,6 @@ unmangle_name:	call strcpy
 ;
 getfssec:
 		TRACER 'F'
-
 		push ds
 		push cs
 		pop ds				; DS <- CS
@@ -1406,32 +1405,24 @@ getfssec:
 		cmp ecx,[si+file_left]
 		jna .ok_size
 		mov ecx,[si+file_left]
-
 .ok_size:
-		mov bp,cx
-		push cx
-		push si
+
+		pushad
 		mov eax,[si+file_sector]
+		mov bp,cx
 		TRACER 'l'
 		call getlinsec
-		xor ecx,ecx
-		pop si
-		pop cx
+		popad
 
+		; ECX[31:16] == 0 here...
 		add [si+file_sector],ecx
 		sub [si+file_left],ecx
-		ja .not_eof			; CF = 0
-		stc
-
-.not_eof:
-		pushf
 		shl ecx,SECTOR_SHIFT		; Convert to bytes
 		cmp ecx,[si+file_bytesleft]
 		jb .not_all
 		mov ecx,[si+file_bytesleft]
 .not_all:	sub [si+file_bytesleft],ecx
-		popf
-		jnc .ret
+		jnz .ret			; CF = 0 in this case...
 		push eax
 		xor eax,eax
 		mov [si+file_sector],eax	; Unused
