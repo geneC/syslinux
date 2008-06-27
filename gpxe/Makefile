@@ -23,7 +23,7 @@ all: $(TARGETS)
 tidy:
 
 clean: tidy
-	rm -f $(TARGETS)
+	rm -f $(TARGETS) src/bin/undionly.kpxe
 
 dist:
 	$(MAKE) -C src veryclean > /dev/null 2>&1
@@ -32,6 +32,8 @@ spotless: clean dist
 
 installer:
 
-gpxelinux.0: ../core/pxelinux.0
+src/bin/undionly.kpxe: ../core/pxelinux.0
 	$(MAKE) -C src EMBEDDED_IMAGE=../$< bin/undionly.kpxe
-	cp -f src/bin/undionly.kpxe $@
+
+gpxelinux.0: src/bin/undionly.kpxe
+	cp -f $< $@
