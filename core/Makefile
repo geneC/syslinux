@@ -50,17 +50,11 @@ VERSION := $(shell cat ../version)
 # filenames by other users.
 CODEPAGE = cp865
 
-# _bin.c files required by both BTARGET and ITARGET installers
-BINFILES = bootsect_bin.c ldlinux_bin.c \
-	   extlinux_bss_bin.c extlinux_sys_bin.c
-
-# syslinux.exe is BTARGET so as to not require everyone to have the
-# mingw suite installed
+# The targets to build in this directory...
 BTARGET  = kwdhash.gen \
 	   ldlinux.bss ldlinux.sys ldlinux.bin \
 	   pxelinux.0 isolinux.bin isolinux-debug.bin \
 	   extlinux.bin extlinux.bss extlinux.sys
-ITARGET  =
 
 # All primary source files for the main syslinux files
 NASMSRC	 = $(wildcard *.asm)
@@ -80,19 +74,7 @@ ifndef DATE
 DATE    := $(HEXDATE)
 endif
 
-#
-# NOTE: If you don't have the mingw compiler suite installed, you probably
-# want to remove win32 from this list; otherwise you're going to get an
-# error every time you try to build.
-#
-
-all:	all-local
-
-all-local: $(BTARGET) $(BINFILES)
-
-installer: installer-local
-
-installer-local: $(ITARGET) $(BINFILES)
+all: $(BTARGET)
 
 kwdhash.gen: keywords genhash.pl
 	$(PERL) genhash.pl < keywords > kwdhash.gen
@@ -133,18 +115,6 @@ extlinux.bss: extlinux.bin
 extlinux.sys: extlinux.bin
 	dd if=$< of=$@ bs=512 skip=1
 
-bootsect_bin.c: ldlinux.bss ../bin2c.pl
-	$(PERL) ../bin2c.pl syslinux_bootsect < $< > $@
-
-ldlinux_bin.c: ldlinux.sys ../bin2c.pl
-	$(PERL) ../bin2c.pl syslinux_ldlinux < $< > $@
-
-extlinux_bss_bin.c: extlinux.bss ../bin2c.pl
-	$(PERL) ../bin2c.pl extlinux_bootsect < $< > $@
-
-extlinux_sys_bin.c: extlinux.sys ../bin2c.pl
-	$(PERL) ../bin2c.pl extlinux_image 512 < $< > $@
-
 # NASM prior to 2.03 wouldn't auto-generate this dependency...
 ldlinux.o: codepage.cp
 
@@ -165,7 +135,6 @@ tidy dist:
 	rm -f $(OBSOLETE)
 
 clean: tidy
-	rm -f $(ITARGET)
 
 spotless: clean
 	rm -f $(BTARGET) *_bin.c .depend

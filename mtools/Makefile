@@ -12,14 +12,16 @@ INCLUDES = -I. -I.. -I../libfat -I../libinstaller
 CFLAGS	 = -W -Wall -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = $(LDHASH) -s
 
-SRCS     = syslinux.c ../libinstaller/syslxmod.c \
-	  ../core/bootsect_bin.c ../core/ldlinux_bin.c \
+SRCS     = syslinux.c \
+	   ../libinstaller/syslxmod.c \
+	   ../libinstaller/bootsect_bin.c \
+	   ../libinstaller/ldlinux_bin.c \
 	   $(wildcard ../libfat/*.c)
 OBJS	 = $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
 .SUFFIXES: .c .o .i .s .S
 
-VPATH = .:../libfat:../libinstaller:../core
+VPATH = .:../libfat:../libinstaller
 
 all: installer
 

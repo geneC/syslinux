@@ -12,13 +12,15 @@ INCLUDES = -I. -I.. -I../libinstaller
 CFLAGS	 = -W -Wall -Wno-sign-compare -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = $(LDHASH) # -s
 
-SRCS     = main.c ../libinstaller/setadv.c \
-	   ../core/extlinux_bss_bin.c ../core/extlinux_sys_bin.c
+SRCS     = main.c \
+	   ../libinstaller/setadv.c \
+	   ../libinstaller/extlinux_bss_bin.c \
+	   ../libinstaller/extlinux_sys_bin.c
 OBJS	 = $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
 .SUFFIXES: .c .o .i .s .S
 
-VPATH = .:../libinstaller:../core
+VPATH = .:../libinstaller
 
 all: installer
 

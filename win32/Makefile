@@ -47,12 +47,15 @@ WINCC_IS_GOOD := $(shell $(WINCC) $(WINCFLAGS) $(WINLDFLAGS) -o hello.exe hello.
 
 .SUFFIXES: .c .o .i .s .S
 
-SRCS     = syslinux.c ../libinstaller/syslxmod.c \
-	   ../core/bootsect_bin.c ../core/ldlinux_bin.c \
-	   ../mbr/mbr_bin.c $(wildcard ../libfat/*.c)
+SRCS     = syslinux.c \
+	   ../libinstaller/syslxmod.c \
+	   ../libinstaller/bootsect_bin.c \
+	   ../libinstaller/ldlinux_bin.c \
+	   ../libinstaller/mbr_bin.c \
+	   $(wildcard ../libfat/*.c)
 OBJS     = $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
-VPATH = .:../libfat:../libinstaller:../core:../mbr
+VPATH = .:../libfat:../libinstaller
 
 TARGETS = syslinux.exe
 

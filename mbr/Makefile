@@ -30,14 +30,11 @@ PERL	   = perl
 
 .SUFFIXES: .S .s .o .elf
 
-all:	mbr.bin mbr_bin.c gptmbr.bin gptmbr_bin.c 
+all:	mbr.bin gptmbr.bin
 
 .PRECIOUS: %.o
 %.o: %.S
 	$(CC) $(SFLAGS) -Wa,-a=$*.lst -c -o $@ $<
-
-%_bin.c: %.bin ../bin2c.pl
-	$(PERL) ../bin2c.pl syslinux_$* < $< > $@
 
 mbr.elf: mbr.o mbr.ld
 	$(LD) $(LDFLAGS) -T mbr.ld -e _start -o $@ $<
@@ -56,7 +53,7 @@ gptmbr.bin: gptmbr.elf checksize.pl
 	$(PERL) checksize.pl gptmbr.bin 424
 
 tidy dist:
-	rm -f *.o *.elf *.lst *_bin.c
+	rm -f *.o *.elf *.lst
 
 clean: tidy
 

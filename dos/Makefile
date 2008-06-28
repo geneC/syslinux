@@ -25,7 +25,9 @@ LIBGCC  := $(shell $(CC) --print-libgcc)
 
 SRCS     = syslinux.c \
 	   ../libinstaller/syslxmod.c \
-	   ../core/bootsect_bin.c ../core/ldlinux_bin.c ../mbr/mbr_bin.c \
+	   ../libinstaller/bootsect_bin.c \
+	   ../libinstaller/ldlinux_bin.c \
+	   ../libinstaller/mbr_bin.c \
            $(wildcard ../libfat/*.c)
 OBJS	 = crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
 LIBOBJS	 = conio.o memcpy.o memset.o  skipatou.o atou.o malloc.o free.o \
@@ -33,7 +35,7 @@ LIBOBJS	 = conio.o memcpy.o memset.o  skipatou.o atou.o malloc.o free.o \
 
 .SUFFIXES: .c .o .i .s .S .elf .com .asm .lst
 
-VPATH = .:../libfat:../libinstaller:../core:../mbr
+VPATH = .:../libfat:../libinstaller
 
 TARGETS = syslinux.com copybs.com
 

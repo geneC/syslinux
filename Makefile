@@ -37,15 +37,19 @@ BOBJECTS = $(BTARGET) \
 	core/pxelinux.0 core/isolinux.bin core/isolinux-debug.bin \
 	gpxe/gpxelinux.0 dos/syslinux.com win32/syslinux.exe \
 	memdisk/memdisk memdump/memdump.com
-# BESUBDIRS and IESUBDIRS are "early", i.e. before the root; BSUBDIRS
-# and ISUBDIRS are "late", after the root.
-BESUBDIRS = 
-BSUBDIRS = codepage core memdisk com32 mbr memdump gpxe sample dos win32
+
+# BSUBDIRs build the on-target binary components.
+# ISUBDIRs build the installer (host) components.
+#
+# Note: libinstaller is both a BSUBDIR and an ISUBDIR.  It contains
+# files that depend only on the B phase, but may have to be regenerated
+# for "make installer".
+BSUBDIRS = codepage core memdisk com32 mbr memdump gpxe sample \
+	   libinstaller dos win32
 ITARGET  = 
 IOBJECTS = $(ITARGET) dos/copybs.com utils/gethostip utils/mkdiskimage \
 	mtools/syslinux linux/syslinux extlinux/extlinux
-IESUBDIRS =
-ISUBDIRS = mtools linux extlinux utils
+ISUBDIRS = libinstaller mtools linux extlinux utils
 
 # Things to install in /usr/bin
 INSTALL_BIN   =	mtools/syslinux
@@ -71,7 +75,6 @@ NETINSTALLABLE = core/pxelinux.0 gpxe/gpxelinux.0 memdisk/memdisk \
 		 memdump/memdump.com com32/menu/*.c32 com32/modules/*.c32
 
 all:
-	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 	$(MAKE) all-local
 	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 	-ls -l $(BOBJECTS) $(IOBJECTS)
@@ -79,7 +82,6 @@ all:
 all-local: $(BTARGET) $(ITARGET)
 
 installer:
-	set -e ; for i in $(IESUBDIRS); do $(MAKE) -C $$i all ; done
 	$(MAKE) installer-local
 	set -e ; for i in $(ISUBDIRS); do $(MAKE) -C $$i all ; done
 	-ls -l $(BOBJECTS) $(IOBJECTS)
