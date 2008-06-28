@@ -75,6 +75,7 @@ make CC='%{my_cc}' install-all \
 	MANDIR=%{_mandir} INCDIR=%{_includedir} \
 	TFTPBOOT=/tftpboot EXTLINUXDIR=/boot/extlinux
 make CC='%{my_cc}' -C sample tidy
+mkdir -p %{buildroot}/etc
 ( cd %{buildroot}/etc && ln -s ../boot/extlinux/extlinux.conf . )
 
 %clean
