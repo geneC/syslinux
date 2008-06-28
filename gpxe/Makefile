@@ -25,10 +25,10 @@ tidy:
 clean: tidy
 
 dist:
-	rm -f $(TARGETS)
 	$(MAKE) -C src veryclean > /dev/null 2>&1
 
 spotless: clean dist
+	rm -f $(TARGETS)
 
 installer:
 
