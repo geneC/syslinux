@@ -23,9 +23,9 @@ all: $(TARGETS)
 tidy:
 
 clean: tidy
-	rm -f $(TARGETS) src/bin/undionly.kpxe
 
 dist:
+	rm -f $(TARGETS)
 	$(MAKE) -C src veryclean > /dev/null 2>&1
 
 spotless: clean dist

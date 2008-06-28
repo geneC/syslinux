@@ -165,10 +165,10 @@ tidy dist:
 	rm -f $(OBSOLETE)
 
 clean: tidy
-	rm -f $(ITARGET) *_bin.c
+	rm -f $(ITARGET)
 
 spotless: clean
-	rm -f $(BTARGET) .depend
+	rm -f $(BTARGET) *_bin.c .depend
 
 .depend:
 	rm -f .depend
