@@ -5,16 +5,16 @@
 # matching.)
 #
 # Usage:
-#	cptable.pl UnicodeData filesystem-cp.txt console-cp.txt output.cp
+#	cptable.pl UnicodeData console-cp.txt filesystem-cp.txt output.cp
 #
 # Note: for the format of the UnicodeData file, see:
 # http://www.unicode.org/Public/UNIDATA/UCD.html
 #
 
-($ucd, $cpfs, $cpco, $cpout) = @ARGV;
+($ucd, $cpco, $cpfs, $cpout) = @ARGV;
 
 if (!defined($cpout)) {
-    die "Usage: $0 UnicodeData fs-cp.txt console-cp.txt output.cp\n";
+    die "Usage: $0 UnicodeData console-cp.txt fs-cp.txt output.cp\n";
 }
 
 %ucase   = ();
