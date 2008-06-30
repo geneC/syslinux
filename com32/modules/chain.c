@@ -18,6 +18,7 @@
  * Usage: chain hd<disk#> [<partition>] [options]
  *        chain fd<disk#> [options]
  *	  chain mbr:<id> [<partition>] [options]
+ *	  chain boot [<partition>] [options]
  *
  * ... e.g. "chain hd0 1" will boot the first partition on the first hard
  * disk.
@@ -30,17 +31,24 @@
  *
  * Options:
  *
- * -file <loader>:
+ * file=<loader>:
  *	loads the file <loader> **from the SYSLINUX filesystem**
  *	instead of loading the boot sector.
  *
- * -seg <segment>:
+ * seg=<segment>:
  *	loads at and jumps to <seg>:0000 instead of 0000:7C00.
  *
- * -ntldr <loader>:
+ * ntldr=<loader>:
  *	equivalent to -seg 0x2000 -file <loader>, used with WinNT's loaders
  *
- * -swap:
+ * freedos=<loader>:
+ *	equivalent to -seg 0x60 -file <loader>, used with FreeDOS kernel.sys.
+ *
+ * msdos=<loader>
+ * pcdos=<loader>
+ *	equivalent to -seg 0x70 -file <loader>, used with DOS' io.sys.
+ *
+ * swap:
  *	if the disk is not fd0/hd0, install a BIOS stub which swaps
  *	the drive numbers.
  */
@@ -55,6 +63,7 @@
 #include <stdbool.h>
 #include <syslinux/loadfile.h>
 #include <syslinux/bootrm.h>
+#include <syslinux/config.h>
 
 #define SECTOR 512		/* bytes/sector */
 
@@ -539,7 +548,7 @@ int main(int argc, char *argv[])
 
   openconsole(&dev_null_r, &dev_stdcon_w);
 
-  drivename = NULL;
+  drivename = "boot";
   partition = NULL;
 
   /* Prepare the register set */
@@ -571,7 +580,8 @@ int main(int argc, char *argv[])
       opt.keeppxe = 3;
     } else if (((argv[i][0] == 'h' || argv[i][0] == 'f') && argv[i][1] == 'd')
 	       || !strncmp(argv[i], "mbr:", 4)
-	       || !strncmp(argv[i], "mbr=", 4)) {
+	       || !strncmp(argv[i], "mbr=", 4)
+	       || !strcmp(argv[i], "boot") || !strncmp(argv[i], "boot,", 5)) {
       drivename = argv[i];
       p = strchr(drivename, ',');
       if (p) {
@@ -581,7 +591,7 @@ int main(int argc, char *argv[])
 	partition = argv[++i];
       }
     } else {
-      error("Usage: chain.c32 (hd#|fd#|mbr:#)[,partition] [options]\n");
+      error("Usage: chain.c32 (hd#|fd#|mbr:#|boot)[,partition] [options]\n");
       goto bail;
     }
   }
@@ -609,13 +619,22 @@ int main(int argc, char *argv[])
       error("Unable to find requested MBR signature\n");
       goto bail;
     }
-  } else {
-    if ( (drivename[0] == 'h' || drivename[0] == 'f') &&
-	 drivename[1] == 'd' ) {
-      hd = drivename[0] == 'h';
-      drivename += 2;
-    }
+  } else if ((drivename[0] == 'h' || drivename[0] == 'f') &&
+	      drivename[1] == 'd') {
+    hd = drivename[0] == 'h';
+    drivename += 2;
     drive = (hd ? 0x80 : 0) | strtoul(drivename, NULL, 0);
+  } else if (!strcmp(drivename, "boot")) {
+    const union syslinux_derivative_info *sdi;
+    sdi = syslinux_derivative_info();
+    if (sdi->c.filesystem == SYSLINUX_FS_PXELINUX ||
+	sdi->c.filesystem == SYSLINUX_FS_ISOLINUX)
+      drive = 0x80;		/* Boot drive not available */
+    else
+      drive = sdi->disk.drive_number;
+  } else {
+    error("Unparsable drive specification\n");
+    goto bail;
   }
 
   /* DOS kernels want the drive number in BL instead of DL.  Indulge them. */

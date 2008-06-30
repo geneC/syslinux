@@ -54,6 +54,9 @@ Changes in 3.70:
 	* Complex menu system: unbreak menus which has unnamed
 	  submenus, like complex.c.
 	* Fix newline on the serial port for some com32 modules.
+	* chain.c32: support "boot" as the drive specification,
+	  indicating the drive from which it was booted
+	  (for syslinux/extlinux).
 
 Changes in 3.64:
 	* SYSLINUX/EXTLINUX: support "localboot" with the same feature
