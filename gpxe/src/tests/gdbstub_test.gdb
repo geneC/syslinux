@@ -3,14 +3,14 @@
 # Run:
 #   make bin/gpxe.hd.tmp
 #   make
-#   tests/gdbstub_test.gdb
+#   gdb
+#   (gdb) target remote :TCPPORT
+#   OR
+#   (gdb) target remote udp:IP:UDPPORT
+#   (gdb) source tests/gdbstub_test.gdb
 
 define gpxe_load_symbols
 	file bin/gpxe.hd.tmp
-end
-
-define gpxe_connect
-	target remote localhost:4444
 end
 
 define gpxe_assert
@@ -71,10 +71,46 @@ define gpxe_test_mem_write
 	gpxe_assert ({char}($esp)) (char)0x99 "gpxe_test_mem_write char"
 end
 
+define gpxe_test_step
+	c
+	si
+	gpxe_assert ({char}($eip-1)) (char)0x90 "gpxe_test_step" # nop = 0x90
+end
+
+define gpxe_test_awatch
+	awatch watch_me
+
+	c
+	gpxe_assert $ecx 0x600d0000 "gpxe_test_awatch read"
+	if $ecx == 0x600d0000
+		c
+	end
+
+	c
+	gpxe_assert $ecx 0x600d0001 "gpxe_test_awatch write"
+	if $ecx == 0x600d0001
+		c
+	end
+
+	delete
+end
+
+define gpxe_test_watch
+	watch watch_me
+	c
+	gpxe_assert $ecx 0x600d0002 "gpxe_test_watch"
+	if $ecx == 0x600d0002
+		c
+	end
+	delete
+end
+
 gpxe_load_symbols
-gpxe_connect
 gpxe_start_tests
 gpxe_test_regs_read
 gpxe_test_regs_write
 gpxe_test_mem_read
 gpxe_test_mem_write
+gpxe_test_step
+gpxe_test_awatch
+gpxe_test_watch

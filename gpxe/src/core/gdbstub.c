@@ -24,22 +24,24 @@
  */
 
 #include <stdlib.h>
-#include <stddef.h>
 #include <stdio.h>
+#include <string.h>
 #include <ctype.h>
-#include <assert.h>
-#include <gpxe/process.h>
-#include <gpxe/serial.h>
+#include <byteswap.h>
+#include <gpxe/gdbstub.h>
 #include "gdbmach.h"
 
 enum {
-	POSIX_EINVAL = 0x1c /* used to report bad arguments to GDB */
+	POSIX_EINVAL = 0x1c,  /* used to report bad arguments to GDB */
+	SIZEOF_PAYLOAD = 256, /* buffer size of GDB payload data */
 };
 
 struct gdbstub {
+	struct gdb_transport *trans;
+	int exit_handler; /* leave interrupt handler */
+
 	int signo;
 	gdbreg_t *regs;
-	int exit_handler; /* leave interrupt handler */
 
 	void ( * parse ) ( struct gdbstub *stub, char ch );
 	uint8_t cksum1;
@@ -47,9 +49,14 @@ struct gdbstub {
 	/* Buffer for payload data when parsing a packet.  Once the
 	 * packet has been received, this buffer is used to hold
 	 * the reply payload. */
-	char payload [ 256 ];
-	int len;
+	char buf [ SIZEOF_PAYLOAD + 4 ]; /* $...PAYLOAD...#XX */
+	char *payload;                   /* start of payload */
+	int len;                         /* length of payload */
 };
+
+/* Transports */
+static struct gdb_transport gdb_transport_start[0] __table_start ( struct gdb_transport, gdb_transports );
+static struct gdb_transport gdb_transport_end[0] __table_end ( struct gdb_transport, gdb_transports );
 
 /* Packet parser states */
 static void gdbstub_state_new ( struct gdbstub *stub, char ch );
@@ -67,20 +74,60 @@ static uint8_t gdbstub_to_hex_digit ( uint8_t b ) {
 	return ( b < 0xa ? '0' : 'a' - 0xa ) + b;
 }
 
-static void gdbstub_from_hex_buf ( char *dst, char *src, int len ) {
-	while ( len-- > 0 ) {
-		*dst = gdbstub_from_hex_digit ( *src++ );
-		if ( len-- > 0 ) {
-			*dst = (*dst << 4) | gdbstub_from_hex_digit ( *src++ );
+/*
+ * To make reading/writing device memory atomic, we check for
+ * 2- or 4-byte aligned operations and handle them specially.
+ */
+
+static void gdbstub_from_hex_buf ( char *dst, char *src, int lenbytes ) {
+	if ( lenbytes == 2 && ( ( unsigned long ) dst & 0x1 ) == 0 ) {
+		uint16_t i = gdbstub_from_hex_digit ( src [ 2 ] ) << 12 |
+			gdbstub_from_hex_digit ( src [ 3 ] ) << 8 |
+			gdbstub_from_hex_digit ( src [ 0 ] ) << 4 |
+			gdbstub_from_hex_digit ( src [ 1 ] );
+		* ( uint16_t * ) dst = cpu_to_le16 ( i );
+	} else if ( lenbytes == 4 && ( ( unsigned long ) dst & 0x3 ) == 0 ) {
+		uint32_t i = gdbstub_from_hex_digit ( src [ 6 ] ) << 28 |
+			gdbstub_from_hex_digit ( src [ 7 ] ) << 24 |
+			gdbstub_from_hex_digit ( src [ 4 ] ) << 20 |
+			gdbstub_from_hex_digit ( src [ 5 ] ) << 16 |
+			gdbstub_from_hex_digit ( src [ 2 ] ) << 12 |
+			gdbstub_from_hex_digit ( src [ 3 ] ) << 8 |
+			gdbstub_from_hex_digit ( src [ 0 ] ) << 4 |
+			gdbstub_from_hex_digit ( src [ 1 ] );
+		* ( uint32_t * ) dst = cpu_to_le32 ( i );
+	} else {
+		while ( lenbytes-- > 0 ) {
+			*dst++ = gdbstub_from_hex_digit ( src [ 0 ] ) << 4 |
+				gdbstub_from_hex_digit ( src [ 1 ] );
+			src += 2;
 		}
-		dst++;
 	}
 }
 
-static void gdbstub_to_hex_buf ( char *dst, char *src, int len ) {
-	while ( len-- > 0 ) {
-		*dst++ = gdbstub_to_hex_digit ( *src >> 4 );
-		*dst++ = gdbstub_to_hex_digit ( *src++ );
+static void gdbstub_to_hex_buf ( char *dst, char *src, int lenbytes ) {
+	if ( lenbytes == 2 && ( ( unsigned long ) src & 0x1 ) == 0 ) {
+		uint16_t i = cpu_to_le16 ( * ( uint16_t * ) src );
+		dst [ 0 ] = gdbstub_to_hex_digit ( i >> 4 );
+		dst [ 1 ] = gdbstub_to_hex_digit ( i );
+		dst [ 2 ] = gdbstub_to_hex_digit ( i >> 12 );
+		dst [ 3 ] = gdbstub_to_hex_digit ( i >> 8 );
+	} else if ( lenbytes == 4 && ( ( unsigned long ) src & 0x3 ) == 0 ) {
+		uint32_t i = cpu_to_le32 ( * ( uint32_t * ) src );
+		dst [ 0 ] = gdbstub_to_hex_digit ( i >> 4 );
+		dst [ 1 ] = gdbstub_to_hex_digit ( i );
+		dst [ 2 ] = gdbstub_to_hex_digit ( i >> 12 );
+		dst [ 3 ] = gdbstub_to_hex_digit ( i >> 8 );
+		dst [ 4 ] = gdbstub_to_hex_digit ( i >> 20 );
+		dst [ 5 ] = gdbstub_to_hex_digit ( i >> 16);
+		dst [ 6 ] = gdbstub_to_hex_digit ( i >> 28 );
+		dst [ 7 ] = gdbstub_to_hex_digit ( i >> 24 );
+	} else {
+		while ( lenbytes-- > 0 ) {
+			*dst++ = gdbstub_to_hex_digit ( *src >> 4 );
+			*dst++ = gdbstub_to_hex_digit ( *src );
+			src++;
+		}
 	}
 }
 
@@ -92,29 +139,13 @@ static uint8_t gdbstub_cksum ( char *data, int len ) {
 	return cksum;
 }
 
-static int gdbstub_getchar ( struct gdbstub *stub ) {
-	if ( stub->exit_handler ) {
-		return -1;
-	}
-	return serial_getc();
-}
-
-static void gdbstub_putchar ( struct gdbstub * stub __unused, char ch ) {
-	serial_putc ( ch );
-}
-
 static void gdbstub_tx_packet ( struct gdbstub *stub ) {
 	uint8_t cksum = gdbstub_cksum ( stub->payload, stub->len );
-	int i;
-
-	gdbstub_putchar ( stub, '$' );
-	for ( i = 0; i < stub->len; i++ ) {
-		gdbstub_putchar ( stub, stub->payload [ i ] );
-	}
-	gdbstub_putchar ( stub, '#' );
-	gdbstub_putchar ( stub, gdbstub_to_hex_digit ( cksum >> 4 ) );
-	gdbstub_putchar ( stub, gdbstub_to_hex_digit ( cksum ) );
-
+	stub->buf [ 0 ] = '$';
+	stub->buf [ stub->len + 1 ] = '#';
+	stub->buf [ stub->len + 2 ] = gdbstub_to_hex_digit ( cksum >> 4 );
+	stub->buf [ stub->len + 3 ] = gdbstub_to_hex_digit ( cksum );
+	stub->trans->send ( stub->buf, stub->len + 4 );
 	stub->parse = gdbstub_state_wait_ack;
 }
 
@@ -179,7 +210,7 @@ static void gdbstub_write_regs ( struct gdbstub *stub ) {
 		gdbstub_send_errno ( stub, POSIX_EINVAL );
 		return;
 	}
-	gdbstub_from_hex_buf ( ( char * ) stub->regs, &stub->payload [ 1 ], stub->len );
+	gdbstub_from_hex_buf ( ( char * ) stub->regs, &stub->payload [ 1 ], GDBMACH_SIZEOF_REGS );
 	gdbstub_send_ok ( stub );
 }
 
@@ -189,7 +220,7 @@ static void gdbstub_read_mem ( struct gdbstub *stub ) {
 		gdbstub_send_errno ( stub, POSIX_EINVAL );
 		return;
 	}
-	args [ 1 ] = ( args [ 1 ] < sizeof stub->payload / 2 ) ? args [ 1 ] : sizeof stub->payload / 2;
+	args [ 1 ] = ( args [ 1 ] < SIZEOF_PAYLOAD / 2 ) ? args [ 1 ] : SIZEOF_PAYLOAD / 2;
 	gdbstub_to_hex_buf ( stub->payload, ( char * ) args [ 0 ], args [ 1 ] );
 	stub->len = args [ 1 ] * 2;
 	gdbstub_tx_packet ( stub );
@@ -204,7 +235,7 @@ static void gdbstub_write_mem ( struct gdbstub *stub ) {
 		gdbstub_send_errno ( stub, POSIX_EINVAL );
 		return;
 	}
-	gdbstub_from_hex_buf ( ( char * ) args [ 0 ], &stub->payload [ colon + 1 ], stub->len - colon - 1 );
+	gdbstub_from_hex_buf ( ( char * ) args [ 0 ], &stub->payload [ colon + 1 ], ( stub->len - colon - 1 ) / 2 );
 	gdbstub_send_ok ( stub );
 }
 
@@ -216,6 +247,22 @@ static void gdbstub_continue ( struct gdbstub *stub, int single_step ) {
 	gdbmach_set_single_step ( stub->regs, single_step );
 	stub->exit_handler = 1;
 	/* Reply will be sent when we hit the next breakpoint or interrupt */
+}
+
+static void gdbstub_breakpoint ( struct gdbstub *stub ) {
+	unsigned long args [ 3 ];
+	int enable = stub->payload [ 0 ] == 'Z' ? 1 : 0;
+	if ( !gdbstub_get_packet_args ( stub, args, sizeof args / sizeof args [ 0 ], NULL ) ) {
+		gdbstub_send_errno ( stub, POSIX_EINVAL );
+		return;
+	}
+	if ( gdbmach_set_breakpoint ( args [ 0 ], args [ 1 ], args [ 2 ], enable ) ) {
+		gdbstub_send_ok ( stub );
+	} else {
+		/* Not supported */
+		stub->len = 0;
+		gdbstub_tx_packet ( stub );
+	}
 }
 
 static void gdbstub_rx_packet ( struct gdbstub *stub ) {
@@ -235,11 +282,18 @@ static void gdbstub_rx_packet ( struct gdbstub *stub ) {
 		case 'M':
 			gdbstub_write_mem ( stub );
 			break;
-		case 'c':
-			gdbstub_continue ( stub, 0 );
+		case 'c': /* Continue */
+		case 'k': /* Kill */
+		case 's': /* Step */
+		case 'D': /* Detach */
+			gdbstub_continue ( stub, stub->payload [ 0 ] == 's' );
+			if ( stub->payload [ 0 ] == 'D' ) {
+				gdbstub_send_ok ( stub );
+			}
 			break;
-		case 's':
-			gdbstub_continue ( stub, 1 );
+		case 'Z': /* Insert breakpoint */
+		case 'z': /* Remove breakpoint */
+			gdbstub_breakpoint ( stub );
 			break;
 		default:
 			stub->len = 0;
@@ -263,7 +317,7 @@ static void gdbstub_state_data ( struct gdbstub *stub, char ch ) {
 		stub->len = 0; /* retry new packet */
 	} else {
 		/* If the length exceeds our buffer, let the checksum fail */
-		if ( stub->len < ( int ) sizeof stub->payload ) {
+		if ( stub->len < SIZEOF_PAYLOAD ) {
 			stub->payload [ stub->len++ ] = ch;
 		}
 	}
@@ -282,12 +336,12 @@ static void gdbstub_state_cksum2 ( struct gdbstub *stub, char ch ) {
 	their_cksum = stub->cksum1 + gdbstub_from_hex_digit ( ch );
 	our_cksum = gdbstub_cksum ( stub->payload, stub->len );
 	if ( their_cksum == our_cksum ) {
-		gdbstub_putchar ( stub, '+' );
+		stub->trans->send ( "+", 1 );
 		if ( stub->len > 0 ) {
 			gdbstub_rx_packet ( stub );
 		}
 	} else {
-		gdbstub_putchar ( stub, '-' );
+		stub->trans->send ( "-", 1 );
 	}
 }
 
@@ -296,6 +350,10 @@ static void gdbstub_state_wait_ack ( struct gdbstub *stub, char ch ) {
 		stub->parse = gdbstub_state_new;
 	} else if ( ch == '-' ) {
 		gdbstub_tx_packet ( stub ); /* retransmit */
+	} else if ( ch == '$' ) {
+		/* GDB is reconnecting, drop our packet and listen to GDB */
+		stub->trans->send ( "-", 1 );
+		stub->parse = gdbstub_state_new;
 	}
 }
 
@@ -307,24 +365,38 @@ static struct gdbstub stub = {
 	.parse = gdbstub_state_new
 };
 
-__cdecl void gdbstub_handler ( int signo, gdbreg_t *regs ) {
-	int ch;
+void gdbstub_handler ( int signo, gdbreg_t *regs ) {
+	char packet [ SIZEOF_PAYLOAD + 4 ];
+	size_t len, i;
+
+	/* A transport must be set up */
+	if ( !stub.trans ) {
+		return;
+	}
+
 	stub.signo = signo;
 	stub.regs = regs;
 	stub.exit_handler = 0;
 	gdbstub_report_signal ( &stub );
-	while ( ( ch = gdbstub_getchar( &stub ) ) != -1 ) {
-		gdbstub_parse ( &stub, ch );
+	while ( !stub.exit_handler && ( len = stub.trans->recv ( packet, sizeof ( packet ) ) ) > 0 ) {
+		for ( i = 0; i < len; i++ ) {
+			gdbstub_parse ( &stub, packet [ i ] );
+		}
 	}
 }
 
-/* Activity monitor to detect packets from GDB when we are not active */
-static void gdbstub_activity_step ( struct process *process __unused ) {
-	if ( serial_ischar() ) {
-		gdbmach_breakpoint();
+struct gdb_transport *find_gdb_transport ( const char *name ) {
+	struct gdb_transport *trans;
+	for ( trans = gdb_transport_start; trans < gdb_transport_end; trans++ ) {
+		if ( strcmp ( trans->name, name ) == 0 ) {
+			return trans;
+		}
 	}
+	return NULL;
 }
 
-struct process gdbstub_activity_process __permanent_process = {
-	.step = gdbstub_activity_step,
-};
+void gdbstub_start ( struct gdb_transport *trans ) {
+	stub.trans = trans;
+	stub.payload = &stub.buf [ 1 ];
+	gdbmach_breakpoint();
+}
