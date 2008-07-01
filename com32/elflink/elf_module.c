@@ -19,14 +19,14 @@
 #define MAX(x,y)	(((x) > (y)) ? (x) : (y))
 
 // The list of loaded modules
-static LIST_HEAD(modules); 
+static LIST_HEAD(modules);
 
 
 // User-space debugging routines
 #ifdef ELF_USERSPACE_TEST
 static void print_elf_ehdr(Elf32_Ehdr *ehdr) {
 	int i;
-	
+
 	printf("Identification:\t");
 	for (i=0; i < EI_NIDENT; i++) {
 		printf("%d ", ehdr->e_ident[i]);
@@ -48,18 +48,18 @@ static void print_elf_symbols(struct elf_module *module) {
 	Elf32_Word *chn = module->hash_table + 2 + module->hash_table[0];
 	Elf32_Word i, crt_index;
 	Elf32_Sym *crt_sym;
-	
+
 	printf("Bucket count: %d \n", module->hash_table[0]);
 	printf("Chain count: %d (Non GNU-Hash: %d)\n", module->hash_table[1],
 			module->ghash_table[1]);
-	
+
 	for (i = 0; i < module->hash_table[0]; i++) {
 		printf("Bucket %d:\n", i);
 		crt_index = bkt[i];
-		
+
 		while (crt_index != STN_UNDEF) {
 			crt_sym = (Elf32_Sym*)(module->sym_table + crt_index*module->syment_size);
-			
+
 			printf("%s\n", module->str_table + crt_sym->st_name);
 			crt_index = chn[crt_index];
 		}
@@ -69,27 +69,27 @@ static void print_elf_symbols(struct elf_module *module) {
 
 static int image_load(struct elf_module *module) {
 	char file_name[MODULE_NAME_SIZE+3]; // Include the extension
-	
+
 	strcpy(file_name, module->name);
 	strcat(file_name, ".so");
-	
+
 	module->_file = fopen(file_name, "rb");
-	
+
 	if (module->_file == NULL) {
 		perror("Could not open object file");
 		goto error;
 	}
 
 	module->_cr_offset = 0;
-	
+
 	return 0;
-	
+
 error:
 	if (module->_file != NULL) {
 		fclose(module->_file);
 		module->_file = NULL;
 	}
-	
+
 	return -1;
 }
 
@@ -100,16 +100,16 @@ static int image_unload(struct elf_module *module) {
 		module->_file = NULL;
 	}
 	module->_cr_offset = 0;
-	
+
 	return 0;
 }
 
 static int image_read(void *buff, size_t size, struct elf_module *module) {
 	size_t result = fread(buff, size, 1, module->_file);
-	
+
 	if (result < 1)
 		return -1;
-	
+
 	printf("[DBG] Read %u\n", size);
 	module->_cr_offset += size;
 	return 0;
@@ -118,17 +118,17 @@ static int image_read(void *buff, size_t size, struct elf_module *module) {
 static int image_skip(size_t size, struct elf_module *module) {
 	void *skip_buff = NULL;
 	size_t result;
-	
+
 	if (size == 0)
 		return 0;
-	
+
 	skip_buff = malloc(size);
 	result = fread(skip_buff, size, 1, module->_file);
 	free(skip_buff);
-	
+
 	if (result < 1)
 		return -1;
-	
+
 	printf("[DBG] Skipped %u\n", size);
 	module->_cr_offset += size;
 	return 0;
@@ -137,7 +137,7 @@ static int image_skip(size_t size, struct elf_module *module) {
 static int image_seek(Elf32_Off offset, struct elf_module *module) {
 	if (offset < module->_cr_offset) // Cannot seek backwards
 		return -1;
-	
+
 	return image_skip(offset - module->_cr_offset, module);
 }
 
@@ -149,42 +149,42 @@ int modules_init() {
 
 // Termination of the module subsystem
 void modules_term() {
-	
+
 }
 
 // Allocates the structure for a new module
 struct elf_module *module_alloc(const char *name) {
 	struct elf_module *result = malloc(sizeof(struct elf_module));
-	
+
 	memset(result, 0, sizeof(struct elf_module));
-	
+
 	INIT_LIST_HEAD(&result->list);
 	INIT_LIST_HEAD(&result->required);
 	INIT_LIST_HEAD(&result->dependants);
-	
+
 	strncpy(result->name, name, MODULE_NAME_SIZE);
-	
+
 	return result;
 }
 
 static struct module_dep *module_dep_alloc(struct elf_module *module) {
 	struct module_dep *result = malloc(sizeof(struct module_dep));
-	
+
 	INIT_LIST_HEAD (&result->list);
-	
+
 	result->module = module;
-	
+
 	return result;
 }
 
 struct elf_module *module_find(const char *name) {
 	struct elf_module *cr_module;
-	
+
 	list_for_each_entry(cr_module, &modules, list) {
 		if (strcmp(cr_module->name, name) == 0)
 			return cr_module;
 	}
-	
+
 	return NULL;
 }
 
@@ -196,48 +196,48 @@ static int check_header(Elf32_Ehdr *elf_hdr) {
 		elf_hdr->e_ident[EI_MAG1] != ELFMAG1 ||
 		elf_hdr->e_ident[EI_MAG2] != ELFMAG2 ||
 		elf_hdr->e_ident[EI_MAG3] != ELFMAG3) {
-		
+
 		fprintf(stderr, "The file is not an ELF object\n");
 		return -1;
 	}
-	
+
 	if (elf_hdr->e_ident[EI_CLASS] != MODULE_ELF_CLASS) {
 		fprintf(stderr, "Invalid ELF class code\n");
 		return -1;
 	}
-	
+
 	if (elf_hdr->e_ident[EI_DATA] != MODULE_ELF_DATA) {
 		fprintf(stderr, "Invalid ELF data encoding\n");
 		return -1;
 	}
-	
+
 	if (elf_hdr->e_ident[EI_VERSION] != MODULE_ELF_VERSION ||
 			elf_hdr->e_version != MODULE_ELF_VERSION) {
 		fprintf(stderr, "Invalid ELF file version\n");
 		return -1;
 	}
-	
+
 	if (elf_hdr->e_type != MODULE_ELF_TYPE) {
 		fprintf(stderr, "The ELF file must be a shared object\n");
 		return -1;
 	}
-	
-	
+
+
 	if (elf_hdr->e_machine != MODULE_ELF_MACHINE) {
 		fprintf(stderr, "Invalid ELF architecture\n");
 		return -1;
 	}
-	
+
 	if (elf_hdr->e_phoff == 0x00000000) {
 		fprintf(stderr, "PHT missing\n");
 		return -1;
 	}
-	
+
 	return 0;
 }
 
 /*
- * 
+ *
  * The implementation assumes that the loadable segments are present
  * in the PHT sorted by their offsets, so that only forward seeks would
  * be necessary.
@@ -247,33 +247,33 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 	int res = 0;
 	void *pht = NULL;
 	Elf32_Phdr *cr_pht;
-	
+
 	Elf32_Addr min_addr  = 0x00000000; // Min. ELF vaddr
 	Elf32_Addr max_addr  = 0x00000000; // Max. ELF vaddr
 	Elf32_Word max_align = sizeof(void*); // Min. align of posix_memalign()
 	Elf32_Addr min_alloc, max_alloc;   // Min. and max. aligned allocables
-	
+
 	Elf32_Addr dyn_addr = 0x00000000;
-	
+
 	// Get to the PHT
 	image_seek(elf_hdr->e_phoff, module);
-	
+
 	// Load the PHT
 	pht = malloc(elf_hdr->e_phnum * elf_hdr->e_phentsize);
 	image_read(pht, elf_hdr->e_phnum * elf_hdr->e_phentsize, module);
-	
+
 	// Compute the memory needings of the module
 	for (i=0; i < elf_hdr->e_phnum; i++) {
 		cr_pht = (Elf32_Phdr*)(pht + i * elf_hdr->e_phentsize);
-		
+
 		switch (cr_pht->p_type) {
-		case PT_LOAD: 
+		case PT_LOAD:
 			if (i == 0) {
 				min_addr = cr_pht->p_vaddr;
 			} else {
 				min_addr = MIN(min_addr, cr_pht->p_vaddr);
 			}
-			
+
 			max_addr = MAX(max_addr, cr_pht->p_vaddr + cr_pht->p_memsz);
 			max_align = MAX(max_align, cr_pht->p_align);
 			break;
@@ -285,44 +285,44 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 			break;
 		}
 	}
-	
+
 	if (max_addr - min_addr == 0) {
 		// No loadable segments
 		fprintf(stderr, "No loadable segments found\n");
 		goto out;
 	}
-	
+
 	if (dyn_addr == 0) {
 		fprintf(stderr, "No dynamic information segment found\n");
 		goto out;
 	}
-	
+
 	// The minimum address that should be allocated
 	min_alloc = min_addr - (min_addr % max_align);
-	
+
 	// The maximum address that should be allocated
 	max_alloc = max_addr - (max_addr % max_align);
 	if (max_addr % max_align > 0)
 		max_alloc += max_align;
-	
-	
-	if (posix_memalign(&module->module_addr, 
-			max_align, 
+
+
+	if (elf_malloc(&module->module_addr,
+			max_align,
 			max_alloc-min_alloc) != 0) {
-		
+
 		fprintf(stderr, "Could not allocate segments\n");
 		goto out;
 	}
-	
+
 	module->base_addr = (Elf32_Addr)(module->module_addr) - min_alloc;
 	module->module_size = max_alloc - min_alloc;
-	
+
 	// Zero-initialize the memory
 	memset(module->module_addr, 0, module->module_size);
-	
+
 	for (i = 0; i < elf_hdr->e_phnum; i++) {
 		cr_pht = (Elf32_Phdr*)(pht + i * elf_hdr->e_phentsize);
-		
+
 		if (cr_pht->p_type == PT_LOAD) {
 			// Copy the segment at its destination
 			if (cr_pht->p_offset < module->_cr_offset) {
@@ -330,7 +330,7 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 				// It can be discarded without worry - it would contain only
 				// headers
 				Elf32_Off aux_off = module->_cr_offset - cr_pht->p_offset;
-				
+
 				if (image_read(module_get_absolute(cr_pht->p_vaddr, module) + aux_off,
 						cr_pht->p_filesz - aux_off, module) < 0) {
 					res = -1;
@@ -341,58 +341,58 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 					res = -1;
 					goto out;
 				}
-				
-				if (image_read(module_get_absolute(cr_pht->p_vaddr, module), 
+
+				if (image_read(module_get_absolute(cr_pht->p_vaddr, module),
 						cr_pht->p_filesz, module) < 0) {
 					res = -1;
 					goto out;
 				}
 			}
-			
+
 			printf("Loadable segment of size 0x%08x copied from vaddr 0x%08x at 0x%08x\n",
 					cr_pht->p_filesz,
 					cr_pht->p_vaddr,
 					(Elf32_Addr)module_get_absolute(cr_pht->p_vaddr, module));
 		}
 	}
-	
+
 	// Setup dynamic segment location
 	module->dyn_table = module_get_absolute(dyn_addr, module);
-	
+
 	printf("Base address: 0x%08x, aligned at 0x%08x\n", module->base_addr,
 			max_align);
 	printf("Module size: 0x%08x\n", module->module_size);
-	
+
 out:
 	// Free up allocated memory
 	if (pht != NULL)
 		free(pht);
-	
+
 	return res;
 }
 
-static int prepare_dynlinking(struct elf_module *module) {	
+static int prepare_dynlinking(struct elf_module *module) {
 	Elf32_Dyn  *dyn_entry = module->dyn_table;
-	
+
 	while (dyn_entry->d_tag != DT_NULL) {
 		switch (dyn_entry->d_tag) {
 		case DT_NEEDED:
 			// TODO: Manage dependencies here
 			break;
 		case DT_HASH:
-			module->hash_table = 
+			module->hash_table =
 				(Elf32_Word*)module_get_absolute(dyn_entry->d_un.d_ptr, module);
 			break;
 		case DT_GNU_HASH:	// TODO: Add support for this one, too (50% faster)
-			module->ghash_table = 
+			module->ghash_table =
 				(Elf32_Word*)module_get_absolute(dyn_entry->d_un.d_ptr, module);
 			break;
 		case DT_STRTAB:
-			module->str_table = 
+			module->str_table =
 				(char*)module_get_absolute(dyn_entry->d_un.d_ptr, module);
 			break;
 		case DT_SYMTAB:
-			module->sym_table = 
+			module->sym_table =
 				module_get_absolute(dyn_entry->d_un.d_ptr, module);
 			break;
 		case DT_STRSZ:
@@ -405,91 +405,91 @@ static int prepare_dynlinking(struct elf_module *module) {
 			module->got = module_get_absolute(dyn_entry->d_un.d_ptr, module);
 			break;
 		}
-		
+
 		dyn_entry++;
 	}
-	
-	
+
+
 	return 0;
 }
 
 static int enforce_dependency(struct elf_module *req, struct elf_module *dep) {
 	struct module_dep *crt_dep;
 	struct module_dep *new_dep;
-	
+
 	list_for_each_entry(crt_dep, &req->dependants, list) {
 		if (crt_dep->module == dep) {
 			// The dependency is already enforced
 			return 0;
 		}
 	}
-	
+
 	new_dep = module_dep_alloc(req);
 	list_add(&new_dep->list, &dep->required);
-	
+
 	new_dep = module_dep_alloc(dep);
 	list_add(&new_dep->list, &req->dependants);
-	
+
 	return 0;
 }
 
 static int clear_dependency(struct elf_module *req, struct elf_module *dep) {
 	struct module_dep *crt_dep = NULL;
 	int found = 0;
-	
+
 	list_for_each_entry(crt_dep, &req->dependants, list) {
 		if (crt_dep->module == dep) {
 			found = 1;
 			break;
 		}
 	}
-	
+
 	if (found) {
 		list_del(&crt_dep->list);
 		free(crt_dep);
 	}
-	
+
 	found = 0;
-	
+
 	list_for_each_entry(crt_dep, &dep->required, list) {
 		if (crt_dep->module == req) {
 			found = 1;
 			break;
 		}
 	}
-	
+
 	if (found) {
 		list_del(&crt_dep->list);
 		free(crt_dep);
 	}
-	
+
 	return 0;
 }
 
 static int perform_relocation(struct elf_module *module, Elf32_Rel *rel) {
 	Elf32_Word *dest = module_get_absolute(rel->r_offset, module);
-	
+
 	// The symbol reference index
 	Elf32_Word sym = ELF32_R_SYM(rel->r_info);
 	unsigned char type = ELF32_R_TYPE(rel->r_info);
-	
+
 	// The symbol definition (if applicable)
 	Elf32_Sym *sym_def = NULL;
 	struct elf_module *sym_module = NULL;
 	Elf32_Addr sym_addr = 0x0;
-	
+
 	if (sym > 0) {
 		// Find out details about the symbol
-		
+
 		// The symbol reference
-		Elf32_Sym *sym_ref = 
+		Elf32_Sym *sym_ref =
 			(Elf32_Sym*)(module->sym_table + sym * module->syment_size);
-		
+
 		// The symbol definition
 		sym_def =
 			global_find_symbol(module->str_table + sym_ref->st_name,
 					&sym_module);
-		
+
 		if (sym_def == NULL) {
 			// This should never happen
 			fprintf(stderr, "Warning: Cannot perform relocation for symbol %s\n",
@@ -497,16 +497,16 @@ static int perform_relocation(struct elf_module *module, Elf32_Rel *rel) {
 			// TODO: Return an error
 			return 0;
 		}
-		
+
 		// Compute the absolute symbol virtual address
 		sym_addr = (Elf32_Addr)module_get_absolute(sym_def->st_value, sym_module);
-		
+
 		if (sym_module != module) {
 			// Create a dependency
 			enforce_dependency(sym_module, module);
 		}
 	}
-	
+
 	switch (type) {
 	case R_386_NONE:
 		// Do nothing
@@ -534,27 +534,28 @@ static int perform_relocation(struct elf_module *module, Elf32_Rel *rel) {
 		fprintf(stderr, "Warning: Relocation type %d not supported\n", type);
 		break;
 	}
-	
+
 	return 0;
 }
 
 static int resolve_symbols(struct elf_module *module) {
 	Elf32_Dyn  *dyn_entry = module->dyn_table;
-	int i, res;
-	
+	unsigned int i;
+	int res;
+
 	Elf32_Word plt_rel_size = 0;
 	void *plt_rel = NULL;
-	
+
 	void *rel = NULL;
 	Elf32_Word rel_size = 0;
 	Elf32_Word rel_entry = 0;
-	
+
 	// The current relocation
 	Elf32_Rel *crt_rel;
-	
+
 	while (dyn_entry->d_tag != DT_NULL) {
 		switch(dyn_entry->d_tag) {
-			
+
 		// PLT relocation information
 		case DT_PLTRELSZ:
 			plt_rel_size = dyn_entry->d_un.d_val;
@@ -567,7 +568,7 @@ static int resolve_symbols(struct elf_module *module) {
 		case DT_JMPREL:
 			plt_rel = module_get_absolute(dyn_entry->d_un.d_ptr, module);
 			break;
-			
+
 		// Standard relocation information
 		case DT_REL:
 			rel = module_get_absolute(dyn_entry->d_un.d_ptr, module);
@@ -578,7 +579,7 @@ static int resolve_symbols(struct elf_module *module) {
 		case DT_RELENT:
 			rel_entry = dyn_entry->d_un.d_val;
 			break;
-		
+
 		// Module initialization and termination
 		case DT_INIT:
 			// TODO Implement initialization functions
@@ -587,59 +588,59 @@ static int resolve_symbols(struct elf_module *module) {
 			// TODO Implement finalization functions
 			break;
 		}
-		
+
 		dyn_entry++;
 	}
-	
+
 	if (rel_size > 0) {
 		// Process standard relocations
 		for (i = 0; i < rel_size/rel_entry; i++) {
 			crt_rel = (Elf32_Rel*)(rel + i*rel_entry);
-			
+
 			res = perform_relocation(module, crt_rel);
-			
+
 			if (res < 0)
 				return res;
 		}
-		
+
 	}
-	
+
 	if (plt_rel_size > 0) {
 		// TODO: Permit this lazily
 		// Process PLT relocations
 		for (i = 0; i < plt_rel_size/sizeof(Elf32_Rel); i++) {
 			crt_rel = (Elf32_Rel*)(plt_rel + i*sizeof(Elf32_Rel));
-			
+
 			res = perform_relocation(module, crt_rel);
-			
+
 			if (res < 0)
 				return res;
 		}
 	}
-	
+
 	return 0;
 }
 
 static int check_symbols(struct elf_module *module) {
-	int i;
+	unsigned int i;
 	Elf32_Sym *crt_sym, *ref_sym;
 	char *crt_name;
 	struct elf_module *crt_module;
-	
+
 	int strong_count;
 	int weak_count;
-	
+
 	// The chain count gives the number of symbols
 	for (i = 1; i < module->hash_table[1]; i++) {
 		crt_sym = (Elf32_Sym*)(module->sym_table + i * module->syment_size);
 		crt_name = module->str_table + crt_sym->st_name;
-		
+
 		strong_count = 0;
 		weak_count = 0;
-		
+
 		list_for_each_entry(crt_module, &modules, list) {
 			ref_sym = module_find_symbol(crt_name, crt_module);
-			
+
 			// If we found a definition for our symbol...
 			if (ref_sym != NULL && ref_sym->st_shndx != SHN_UNDEF) {
 				switch (ELF32_ST_BIND(ref_sym->st_info)) {
@@ -652,7 +653,7 @@ static int check_symbols(struct elf_module *module) {
 				}
 			}
 		}
-		
+
 		if (crt_sym->st_shndx == SHN_UNDEF) {
 			// We have an undefined symbol
 			if (strong_count == 0 && weak_count == 0) {
@@ -667,7 +668,7 @@ static int check_symbols(struct elf_module *module) {
 			}
 		}
 	}
-	
+
 	return 0;
 }
 
@@ -675,56 +676,60 @@ static int check_symbols(struct elf_module *module) {
 int module_load(struct elf_module *module) {
 	int res;
 	Elf32_Ehdr elf_hdr;
-	
+
 	// Get a mapping/copy of the ELF file in memory
 	res = image_load(module);
-	
+
 	if (res < 0) {
 		return res;
 	}
-	
+
 	CHECKED(res, image_read(&elf_hdr, sizeof(Elf32_Ehdr), module), error);
-	
+
 	// Checking the header signature and members
 	CHECKED(res, check_header(&elf_hdr), error);
 
 	// DEBUG
+#ifdef ELF_USERSPACE_TEST
 	print_elf_ehdr(&elf_hdr);
-	
+#endif // ELF_USERSPACE_TEST
+
 	// Load the segments in the memory
 	CHECKED(res, load_segments(module, &elf_hdr), error);
 	// Obtain dynamic linking information
 	CHECKED(res, prepare_dynlinking(module), error);
-	
+
 	// DEBUG
+#ifdef ELF_USERSPACE_TEST
 	print_elf_symbols(module);
-	
+#endif // ELF_USERSPACE_TEST
+
 	// Check the symbols for duplicates / missing definitions
 	CHECKED(res, check_symbols(module), error);
-	
+
 	// Add the module at the beginning of the module list
 	list_add(&module->list, &modules);
-	
+
 	// Perform the relocations
 	resolve_symbols(module);
-	
+
 	// The file image is no longer needed
 	image_unload(module);
-	
-	
+
+
 	return 0;
-	
+
 error:
 	// Remove the module from the module list (if applicable)
 	list_del_init(&module->list);
-	
+
 	if (module->module_addr != NULL) {
-		free(module->module_addr);
+		elf_free(module->module_addr);
 		module->module_addr = NULL;
 	}
-	
+
 	image_unload(module);
-	
+
 	return res;
 }
 
@@ -736,20 +741,20 @@ int module_unload(struct elf_module *module) {
 		fprintf(stderr, "Module is required by other modules.\n");
 		return -1;
 	}
-	
+
 	// Remove any dependency information
 	list_for_each_entry_safe(crt_dep, tmp, &module->required, list) {
 		clear_dependency(crt_dep->module, module);
 	}
-	
+
 	// Remove the module from the module list
 	list_del_init(&module->list);
-	
+
 	// Release the loaded segments
-	free(module->module_addr);
+	elf_free(module->module_addr);
 	// Release the module structure
 	free(module);
-	
+
 	return 0;
 }
 
@@ -757,76 +762,76 @@ int module_unload(struct elf_module *module) {
 static Elf32_Sym *module_find_symbol_sysv(const char *name, struct elf_module *module) {
 	unsigned long h = elf_hash((const unsigned char*)name);
 	Elf32_Word *cr_word = module->hash_table;
-	
+
 	Elf32_Word nbucket = *cr_word++;
 	cr_word++; // Skip nchain
-	
+
 	Elf32_Word *bkt = cr_word;
 	Elf32_Word *chn = cr_word + nbucket;
-	
+
 	Elf32_Word crt_index = bkt[h % module->hash_table[0]];
 	Elf32_Sym *crt_sym;
-	
-	
+
+
 	while (crt_index != STN_UNDEF) {
 		crt_sym = (Elf32_Sym*)(module->sym_table + crt_index*module->syment_size);
-		
+
 		if (strcmp(name, module->str_table + crt_sym->st_name) == 0)
 			return crt_sym;
-		
+
 		crt_index = chn[crt_index];
 	}
-	
+
 	return NULL;
 }
 
 static Elf32_Sym *module_find_symbol_gnu(const char *name, struct elf_module *module) {
 	unsigned long h = elf_gnu_hash((const unsigned char*)name);
-	
+
 	// Setup code (TODO: Optimize this by computing only once)
 	Elf32_Word *cr_word = module->ghash_table;
 	Elf32_Word nbucket = *cr_word++;
 	Elf32_Word symbias = *cr_word++;
 	Elf32_Word bitmask_nwords = *cr_word++;
-	
+
 	if ((bitmask_nwords & (bitmask_nwords - 1)) != 0) {
 		fprintf(stderr, "Warning: Invalid GNU Hash structure\n");
 		return NULL;
 	}
-	
+
 	Elf32_Word gnu_shift = *cr_word++;
-	
+
 	Elf32_Addr *gnu_bitmask = (Elf32_Addr*)cr_word;
 	cr_word += MODULE_ELF_CLASS_SIZE / 32 * bitmask_nwords;
-	
+
 	Elf32_Word *gnu_buckets = cr_word;
 	cr_word += nbucket;
-	
+
 	Elf32_Word *gnu_chain_zero = cr_word - symbias;
-	
+
 	// Computations
-	Elf32_Word bitmask_word = gnu_bitmask[(h / MODULE_ELF_CLASS_SIZE) & 
+	Elf32_Word bitmask_word = gnu_bitmask[(h / MODULE_ELF_CLASS_SIZE) &
 	                                       (bitmask_nwords - 1)];
-	
+
 	unsigned int hashbit1 = h & (MODULE_ELF_CLASS_SIZE - 1);
 	unsigned int hashbit2 = (h >> gnu_shift) & (MODULE_ELF_CLASS_SIZE - 1);
-	
+
 	if ((bitmask_word >> hashbit1) & (bitmask_word >> hashbit2) & 1) {
 		unsigned long rem;
 		Elf32_Word bucket;
-		
+
 		rem = h % nbucket;
-		
+
 		bucket = gnu_buckets[rem];
-		
+
 		if (bucket != 0) {
 			const Elf32_Word* hasharr = &gnu_chain_zero[bucket];
-			
+
 			do {
 				if (((*hasharr ^ h ) >> 1) == 0) {
-					Elf32_Sym *crt_sym = (Elf32_Sym*)(module->sym_table + 
+					Elf32_Sym *crt_sym = (Elf32_Sym*)(module->sym_table +
 							(hasharr - gnu_chain_zero) * module->syment_size);
-					
+
 					if (strcmp(name, module->str_table + crt_sym->st_name) == 0) {
 						return crt_sym;
 					}
@@ -834,19 +839,19 @@ static Elf32_Sym *module_find_symbol_gnu(const char *name, struct elf_module *mo
 			} while ((*hasharr++ & 1u) == 0);
 		}
 	}
-	
+
 	return NULL;
 }
 
 Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
 	Elf32_Sym *result = NULL;
-	
+
 	if (module->ghash_table != NULL)
 		result = module_find_symbol_gnu(name, module);
-	
+
 	if (result == NULL)
 		result = module_find_symbol_sysv(name, module);
-	
+
 	return result;
 }
 
@@ -854,10 +859,10 @@ Elf32_Sym *global_find_symbol(const char *name, struct elf_module **module) {
 	struct elf_module *crt_module;
 	Elf32_Sym *crt_sym = NULL;
 	Elf32_Sym *result = NULL;
-	
+
 	list_for_each_entry(crt_module, &modules, list) {
 		crt_sym = module_find_symbol(name, crt_module);
-		
+
 		if (crt_sym != NULL && crt_sym->st_shndx != SHN_UNDEF) {
 			switch (ELF32_ST_BIND(crt_sym->st_info)) {
 			case STB_GLOBAL:
@@ -877,6 +882,6 @@ Elf32_Sym *global_find_symbol(const char *name, struct elf_module **module) {
 			}
 		}
 	}
-	
+
 	return result;
 }

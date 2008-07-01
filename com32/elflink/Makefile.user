@@ -1,3 +1,6 @@
+## Builds a simple user-space application that tests the basic functionality
+## of the ELF linking routines.
+
 ## License would go here
 
 ########

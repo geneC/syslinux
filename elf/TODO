@@ -1,3 +1,0 @@
-* Check to see whether the module is already inserted.
-* Perform unloading cleanup properly.
-* Create a macro for reporting debugging information.
