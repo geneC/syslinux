@@ -175,6 +175,10 @@ comboot_setup_api:
 		stosd
 		mov ax,comboot_int22	; INT 22h = proprietary syscalls
 		stosd
+		; There exists at least one laptop where the VESA BIOS makes INT 2Fh calls
+		; back into DOS, for unknown reason...
+		mov ax,comboot_iret	; INT 2Fh = DOS callbacks
+		mov [di+(2Fh-23h)*4],eax
 		ret
 
 ; INT 21h: generic DOS system call
@@ -210,6 +214,7 @@ comboot_resume:
 		pop fs
 		pop es
 		pop ds
+comboot_iret:
 		iret
 
 comboot_bad_int21:
