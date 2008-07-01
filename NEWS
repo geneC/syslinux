@@ -57,8 +57,6 @@ Changes in 3.70:
 	* chain.c32: support "boot" as the drive specification,
 	  indicating the drive from which it was booted
 	  (for syslinux/extlinux).
-
-Changes in 3.64:
 	* SYSLINUX/EXTLINUX: support "localboot" with the same feature
 	  set as ISOLINUX.
 	* Add an experimental MBR for GPT partition tables.
