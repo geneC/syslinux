@@ -747,13 +747,12 @@ run_menu(void)
   }
 
   while ( !done ) {
-    if ( entry <= 0 ) {
+    if (entry <= 0) {
       entry = 0;
       while (entry < cm->nentries && is_disabled(cm->menu_entries[entry]))
 	entry++;
     }
-
-    if ( entry >= cm->nentries ) {
+    if (entry >= cm->nentries) {
       entry = cm->nentries-1;
       while (entry > 0 && is_disabled(cm->menu_entries[entry]))
 	entry--;
@@ -871,28 +870,23 @@ run_menu(void)
 
     case KEY_UP:
     case KEY_CTRL('P'):
-      while (entry > 0 && entry-- && is_disabled(cm->menu_entries[entry])) {
-	if ( entry < top )
+      while (entry > 0) {
+	entry--;
+	if (entry < top)
 	  top -= MENU_ROWS;
-      }
-
-      if ( entry == 0 ) {
-        while (is_disabled(cm->menu_entries[entry]))
-          entry++;
+	if (!is_disabled(cm->menu_entries[entry]))
+	  break;
       }
       break;
 
     case KEY_DOWN:
     case KEY_CTRL('N'):
-      while (entry < cm->nentries-1 && entry++ &&
-	     is_disabled(cm->menu_entries[entry])) {
-	if ( entry >= top+MENU_ROWS )
+      while (entry < cm->nentries-1) {
+	entry++;
+	if (entry >= top+MENU_ROWS)
 	  top += MENU_ROWS;
-      }
-
-      if ( entry >= cm->nentries-1 ) {
-        while (is_disabled(cm->menu_entries[entry]))
-          entry--;
+	if (!is_disabled(cm->menu_entries[entry]))
+	  break;
       }
       break;
 
@@ -902,6 +896,11 @@ run_menu(void)
     case '<':
       entry -= MENU_ROWS;
       top   -= MENU_ROWS;
+      while (entry > 0 && is_disabled(cm->menu_entries[entry])) {
+	  entry--;
+	  if (entry < top)
+	    top -= MENU_ROWS;
+      }
       break;
 
     case KEY_PGDN:
@@ -911,20 +910,29 @@ run_menu(void)
     case ' ':
       entry += MENU_ROWS;
       top   += MENU_ROWS;
+      while (entry < cm->nentries-1 && is_disabled(cm->menu_entries[entry])) {
+	entry++;
+	if (entry >= top+MENU_ROWS)
+	  top += MENU_ROWS;
+      }
       break;
 
     case '-':
-      do {
+      while (entry > 0) {
 	entry--;
 	top--;
-      } while (entry > 0 && is_disabled(cm->menu_entries[entry]));
+	if (!is_disabled(cm->menu_entries[entry]))
+	  break;
+      }
       break;
 
     case '+':
-      do {
+      while (entry < cm->nentries-1) {
 	entry++;
 	top++;
-      } while (entry < cm->nentries-1 && is_disabled(cm->menu_entries[entry]));
+	if (!is_disabled(cm->menu_entries[entry]))
+	  break;
+      }
       break;
 
     case KEY_CTRL('A'):

@@ -2,6 +2,12 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 3.71:
+	* Workaround for a VESA BIOS which tries to make DOS system
+	  calls(!!)
+	* Simple menu: fix navigation around disabled entries
+	  (or at least try to...)
+
 Changes in 3.70:
 	* PXELINUX: Support enhanced capabilities when running on top
 	  of gPXE (http://www.etherboot.org/).  In particular, support
