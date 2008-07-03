@@ -161,7 +161,7 @@ http://www.ctyme.com/rbrown.htm, for a detailed description.
 
 The MEMDISK info structure currently contains:
 
-	[ES:DI]		word	Total size of structure (currently 28 bytes)
+	[ES:DI]		word	Total size of structure (currently 30 bytes)
 	[ES:DI+2]	byte	MEMDISK minor version
 	[ES:DI+3]	byte	MEMDISK major version
 	[ES:DI+4]	dword	Pointer to MEMDISK data in high memory
@@ -171,9 +171,15 @@ The MEMDISK info structure currently contains:
 	[ES:DI+20]	16:16	Old INT 15h pointer
 	[ES:DI+24]	word	Amount of DOS memory before MEMDISK loaded
 	[ES:DI+26]	byte	Boot loader ID
+	[ES:DI+27]	byte	Currently unused
+	[ES:DI+28]	word	If nonzero, offset (vs ES) to installed DPT
+				This pointer+16 contains the original INT 1Eh
 
-MEMDISK 3.00 and higher has the size of this structure as 27; earlier
-versions had size 26 and did not include the boot loader ID.
+Sizes of this structure:
+
+3.71+		30 bytes	Added DPT pointer
+3.00-3.70	27 bytes	Added boot loader ID
+pre-3.00	26 bytes
 
 In addition, the following fields are available at [ES:0]:
 
@@ -185,8 +191,9 @@ this API can be used.
 
 The following code can be used to "disable" MEMDISK.  Note that it
 does not free the handler in DOS memory, and that running this from
-DOS will probably crash your machine (DOS doesn't like drives
-suddenly disappearing from underneath):
+DOS will probably crash your machine (DOS doesn't like drives suddenly
+disappearing from underneath.)  This is also not necessarily the best
+method for this.
 
 	mov eax, 454D0800h
 	mov ecx, 444D0000h
