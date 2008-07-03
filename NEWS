@@ -7,7 +7,10 @@ Changes in 3.71:
 	  calls(!!)
 	* Simple menu: fix navigation around disabled entries
 	  (or at least try to...)
-	* EXTLINUX: proper error message when confused about mount point.
+	* EXTLINUX: proper error message when confused about mount
+	  point.
+	* MEMDISK: be smarter about incompletely disabled floppies in
+	  the BIOS and about being the only BIOS.
 
 Changes in 3.70:
 	* PXELINUX: Support enhanced capabilities when running on top
