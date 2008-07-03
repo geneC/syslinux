@@ -19,6 +19,8 @@
 #ifndef MEMDISK_H
 #define MEMDISK_H
 
+#include <stddef.h>
+
 /* We use the com32 interface for calling 16-bit code */
 #include <com32.h>
 

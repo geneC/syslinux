@@ -917,7 +917,7 @@ Mover_dummy2:	dd 0, 0, 0, 0		; More space for the BIOS
 
 		alignb 4, db 0
 MemDisk_Info	equ $			; Pointed to by installation check
-MDI_Bytes	dw 27			; Total bytes in MDI structure
+MDI_Bytes	dw MDI_Len		; Total bytes in MDI structure
 MDI_Version	db VER_MINOR, VER_MAJOR	; MEMDISK version
 
 PatchArea	equ $			; This gets filled in by the installer
@@ -931,10 +931,18 @@ OldInt15	dd 0			; INT 15h in chain
 
 OldDosMem	dw 0			; Old position of DOS mem end
 BootLoaderID	db 0			; Boot loader ID from header
+		db 0			; pad
+
+DPT_ptr		dw 0			; If nonzero, pointer to DPT
+					; Original DPT pointer follows
+
+MDI_Len		equ $-MemDisk_Info
+
 ; ---- MDI structure ends here ---
 Int13MaxFunc	db Int13FuncsCnt-1	; Max INT 13h function (to disable EDD)
+		db 0			; pad
 
-		db 0, 0			; pad
+		dw 0			; pad
 MemInt1588	dw 0			; 1MB-65MB memory amount (1K)
 
 Cylinders	dw 0			; Cylinder count
@@ -954,6 +962,8 @@ MyStack		dw 0			; Offset of stack
 StatusPtr	dw 0			; Where to save status (zeroseg ptr)
 
 DPT		times 16 db 0		; BIOS parameter table pointer (floppies)
+OldInt1E	dd 0			; Previous INT 1E pointer (DPT)
+
 %if EDD
 EDD_DPT:
 .length		dw 30

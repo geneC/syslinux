@@ -55,7 +55,11 @@ typedef union {
     uint8_t ffill;		/* Format fill byte */
     uint8_t settle;		/* Head settle time (ms) */
     uint8_t mstart;		/* Motor start time */
-    uint8_t _pad1;		/* Padding */
+    uint8_t maxtrack;		/* Maximum track number */
+
+    uint8_t rate;		/* Data transfer rate */
+    uint8_t cmos;		/* CMOS type */
+    uint8_t pad[2];
 
     uint32_t old_fd_dpt;	/* Extension: pointer to old INT 1Eh */
   } fd;
@@ -83,10 +87,15 @@ struct patch_area {
 
   uint16_t olddosmem;
   uint8_t  bootloaderid;
+  uint8_t  _pad1;
+
+  uint16_t dpt_ptr;
+  /* End of the official MemDisk_Info */
   uint8_t  maxint13func;
 #define MAXINT13_NOEDD	0x16
+  uint8_t  _pad2;
 
-  uint8_t  _pad[2];
+  uint16_t _pad3;
   uint16_t memint1588;
 
   uint16_t cylinders;
@@ -597,6 +606,7 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
   uint32_t ramdisk_image, ramdisk_size;
   int bios_drives;
   int do_edd = -1;		/* -1 = default, 0 = no, 1 = yes */
+  int no_bpt;			/* No valid BPT presented */
 
   /* Set up global variables */
   syscall = cs_syscall;
@@ -714,6 +724,8 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
     pptr->dpt.fd.ffill    = 0xf6;
     pptr->dpt.fd.settle   = 0x0f;
     pptr->dpt.fd.mstart   = 0x05;
+    pptr->dpt.fd.maxtrack = geometry->c-1;
+    pptr->dpt.fd.cmos     = geometry->type > 5 ? 5 : geometry->type;
 
     pptr->dpt.fd.old_fd_dpt = rdz_32(BIOS_INT1E);
   }
@@ -798,6 +810,7 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
     bios_drives = 0;
     pptr->drivecnt = 0;
     pptr->oldint13 = driverptr+hptr->iret_offs;
+    no_bpt = 1;
   } else {
     /* Query drive parameters of this type */
     memset(&regs, 0, sizeof regs);
@@ -806,13 +819,17 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
     regs.edx.b[0] = geometry->driveno & 0x80;
     syscall(0x13, &regs, &regs);
 
-    if ( regs.eflags.l & 1 ) {
+    /* Note: per suggestion from the Interrupt List, consider
+       INT 13 08 to have failed if the sector count in CL is zero. */
+    if ((regs.eflags.l & 1) || !(regs.ecx.b[0] & 0x3f)) {
       printf("INT 13 08: Failure, assuming this is the only drive\n");
       pptr->drivecnt = 0;
+      no_bpt = 1;
     } else {
       printf("INT 13 08: Success, count = %u, BPT = %04x:%04x\n",
 	     regs.edx.b[0], regs.es, regs.edi.w[0]);
       pptr->drivecnt = regs.edx.b[0];
+      no_bpt = !(regs.es|regs.edi.w[0]);
     }
 
     /* Compare what INT 13h returned with the appropriate equipment byte */
@@ -848,20 +865,17 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
   /* Copy driver followed by E820 table followed by command line */
   {
     unsigned char *dpp = (unsigned char *)(driverseg << 4);
+
+    /* Adjust these pointers to point to the installed image */
+    /* Careful about the order here... the image isn't copied yet! */
+    pptr = (struct patch_area *)(dpp + hptr->patch_offs);
+    hptr = (struct memdisk_header *)dpp;
+
+    /* Actually copy to low memory */
     dpp = memcpy_endptr(dpp, &_binary_memdisk_bin_start, bin_size);
     dpp = memcpy_endptr(dpp, ranges, (nranges+1)*sizeof(ranges[0]));
     dpp = memcpy_endptr(dpp, shdr->cmdline, cmdlinelen+1);
   }
-
-  /* Install the interrupt handlers */
-  printf("old: int13 = %08x  int15 = %08x\n",
-	 rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
-
-  wrz_32(BIOS_INT13, driverptr+hptr->int13_offs);
-  wrz_32(BIOS_INT15, driverptr+hptr->int15_offs);
-
-  printf("new: int13 = %08x  int15 = %08x\n",
-	 rdz_32(BIOS_INT13), rdz_32(BIOS_INT15));
 
   /* Update various BIOS magic data areas (gotta love this shit) */
 
@@ -886,7 +900,27 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
       equip |= ((nflop-1) << 6) | 0x01;
 
     wrz_8(BIOS_EQUIP, equip);
+
+    /* Install DPT pointer if this was the only floppy */
+    if (getcmditem("dpt") != CMD_NOTFOUND ||
+	((nflop == 1 || no_bpt)
+	 && getcmditem("nodpt") == CMD_NOTFOUND)) {
+      /* Do install a replacement DPT into INT 1Eh */
+      pptr->dpt_ptr = hptr->patch_offs + offsetof(struct patch_area, dpt);
+    }
   }
+
+  /* Install the interrupt handlers */
+  printf("old: int13 = %08x  int15 = %08x  int1e = %08x\n",
+	 rdz_32(BIOS_INT13), rdz_32(BIOS_INT15), rdz_32(BIOS_INT1E));
+
+  wrz_32(BIOS_INT13, driverptr+hptr->int13_offs);
+  wrz_32(BIOS_INT15, driverptr+hptr->int15_offs);
+  if (pptr->dpt_ptr)
+    wrz_32(BIOS_INT1E, driverptr+pptr->dpt_ptr);
+
+  printf("new: int13 = %08x  int15 = %08x  int1e = %08x\n",
+	 rdz_32(BIOS_INT13), rdz_32(BIOS_INT15), rdz_32(BIOS_INT1E));
 
   /* Reboot into the new "disk"; this is also a test for the interrupt hooks */
   puts("Loading boot sector... ");
