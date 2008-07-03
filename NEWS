@@ -7,6 +7,7 @@ Changes in 3.71:
 	  calls(!!)
 	* Simple menu: fix navigation around disabled entries
 	  (or at least try to...)
+	* EXTLINUX: proper error message when confused about mount point.
 
 Changes in 3.70:
 	* PXELINUX: Support enhanced capabilities when running on top

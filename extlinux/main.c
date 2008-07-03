@@ -801,6 +801,32 @@ static int validate_device(const char *path, int devfd)
   return (pst.st_dev == dst.st_rdev) ? 0 : -1;
 }
 
+#ifndef __KLIBC__
+static const char *find_device(const char *mtab_file, dev_t dev)
+{
+  struct mntent *mnt;
+  struct stat dst;
+  FILE *mtab;
+  const char *devname = NULL;
+
+  mtab = setmntent(mtab_file, "r");
+  if (!mtab)
+    return NULL;
+  
+  while ( (mnt = getmntent(mtab)) ) {
+    if ( (!strcmp(mnt->mnt_type, "ext2") ||
+	  !strcmp(mnt->mnt_type, "ext3")) &&
+	 !stat(mnt->mnt_fsname, &dst) && dst.st_rdev == dev ) {
+      devname = strdup(mnt->mnt_fsname);
+      break;
+    }
+  }
+  endmntent(mtab);
+
+  return devname;
+}
+#endif
+
 int
 install_loader(const char *path, int update_only)
 {
@@ -808,11 +834,6 @@ install_loader(const char *path, int update_only)
   int devfd, rv;
   const char *devname = NULL;
   struct statfs sfs;
-#ifndef __KLIBC__
-  struct mntent *mnt = NULL;
-  struct stat dst;
-  FILE *mtab;
-#endif
 
   if ( stat(path, &st) || !S_ISDIR(st.st_mode) ) {
     fprintf(stderr, "%s: Not a directory: %s\n", program, path);
@@ -848,35 +869,17 @@ install_loader(const char *path, int update_only)
 
 #else
 
-  if ( (mtab = setmntent("/proc/mounts", "r")) ) {
-    while ( (mnt = getmntent(mtab)) ) {
-      if ( (!strcmp(mnt->mnt_type, "ext2") ||
-	    !strcmp(mnt->mnt_type, "ext3")) &&
-	   !stat(mnt->mnt_fsname, &dst) &&
-	   dst.st_rdev == st.st_dev ) {
-	devname = mnt->mnt_fsname;
-	break;
-      }
-    }
-  }
-
-  if ( !devname ) {
+  devname = find_device("/proc/mounts", st.st_dev);
+  if (!devname) {
     /* Didn't find it in /proc/mounts, try /etc/mtab */
-    if ( (mtab = setmntent("/etc/mtab", "r")) ) {
-      while ( (mnt = getmntent(mtab)) ) {
-	devname = mnt->mnt_fsname;
-	break;
-      }
-    }
+    devname = find_device("/etc/mtab", st.st_dev);
   }
-
-  if ( !devname ) {
+  if (!devname) {
     fprintf(stderr, "%s: cannot find device for path %s\n", program, path);
     return 1;
   }
 
   fprintf(stderr, "%s is device %s\n", path, devname);
-
 #endif
 
   if ( (devfd = open(devname, O_RDWR|O_SYNC)) < 0 ) {
