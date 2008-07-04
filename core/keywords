@@ -2,6 +2,7 @@ menu
 text
 include
 append
+initrd
 config
 default
 display

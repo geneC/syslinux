@@ -49,6 +49,7 @@ keywd_table:
 		keyword text,		pc_text
 		keyword include,	pc_opencmd,	pc_include
 		keyword append,		pc_append
+		keyword initrd,		pc_filename,	InitRD
 		keyword default,	pc_default
 		keyword display,	pc_opencmd,	get_msg_file
 		keyword font,		pc_filecmd,	loadfont
@@ -74,19 +75,19 @@ keywd_table:
 		keyword onerror,	pc_onerror
 		keyword allowoptions,	pc_setint16,	AllowOptions
 		keyword noescape,	pc_setint16,	NoEscape
-		keyword f1,		pc_fkey,	FKeyN(1)
-		keyword f2,		pc_fkey,	FKeyN(2)
-		keyword f3,		pc_fkey,	FKeyN(3)
-		keyword f4,		pc_fkey,	FKeyN(4)
-		keyword f5,		pc_fkey,	FKeyN(5)
-		keyword f6,		pc_fkey,	FKeyN(6)
-		keyword f7,		pc_fkey,	FKeyN(7)
-		keyword f8,		pc_fkey,	FKeyN(8)
-		keyword f9,		pc_fkey,	FKeyN(9)
-		keyword f10,		pc_fkey,	FKeyN(10)
-		keyword f0,		pc_fkey,	FKeyN(10)
-		keyword f11,		pc_fkey,	FKeyN(11)
-		keyword f12,		pc_fkey,	FKeyN(12)
+		keyword f1,		pc_filename,	FKeyN(1)
+		keyword f2,		pc_filename,	FKeyN(2)
+		keyword f3,		pc_filename,	FKeyN(3)
+		keyword f4,		pc_filename,	FKeyN(4)
+		keyword f5,		pc_filename,	FKeyN(5)
+		keyword f6,		pc_filename,	FKeyN(6)
+		keyword f7,		pc_filename,	FKeyN(7)
+		keyword f8,		pc_filename,	FKeyN(8)
+		keyword f9,		pc_filename,	FKeyN(9)
+		keyword f10,		pc_filename,	FKeyN(10)
+		keyword f0,		pc_filename,	FKeyN(10)
+		keyword f11,		pc_filename,	FKeyN(11)
+		keyword f12,		pc_filename,	FKeyN(12)
 %if IS_PXELINUX
 		keyword ipappend,	pc_ipappend
 %endif

@@ -200,6 +200,7 @@ struct labeldata {
   const char *kernel;
   enum kernel_type type;
   const char *append;
+  const char *initrd;
   const char *menulabel;
   const char *passwd;
   char *helptext;
@@ -222,6 +223,7 @@ clear_label_data(struct labeldata *ld)
   refstr_put(ld->label);
   refstr_put(ld->kernel);
   refstr_put(ld->append);
+  refstr_put(ld->initrd);
   refstr_put(ld->menulabel);
   refstr_put(ld->passwd);
 
@@ -323,6 +325,9 @@ record(struct menu *m, struct labeldata *ld, const char *append)
     case MA_CMD:
       ipp = ipoptions;
       *ipp = '\0';
+
+      if (ld->initrd)
+	ipp += sprintf(ipp, " initrd=%s", ld->initrd);
 
       if (ld->ipappend) {
 	ipappend = syslinux_ipappend_strings();
@@ -862,6 +867,14 @@ static void parse_config_file(FILE *f)
 	refstr_put(append);
 	append = a;
       }
+    } else if ( looking_at(p, "initrd") ) {
+      const char *a = refstrdup(skipspace(p+6));
+      if ( ld.label ) {
+	refstr_put(ld.initrd);
+	ld.initrd = a;
+      } else {
+	/* Ignore */
+      }
     } else if ( looking_at(p, "label") ) {
       p = skipspace(p+5);
       record(m, &ld, append);
@@ -870,6 +883,7 @@ static void parse_config_file(FILE *f)
       ld.type      = KT_KERNEL;
       ld.passwd    = NULL;
       ld.append    = NULL;
+      ld.initrd    = NULL;
       ld.menulabel = NULL;
       ld.helptext  = NULL;
       ld.ipappend  = ipappend;

@@ -11,6 +11,9 @@ Changes in 3.71:
 	  point.
 	* MEMDISK: be smarter about incompletely disabled floppies in
 	  the BIOS and about being the only BIOS.
+	* Optionally allow initrd to be specified on a separate line
+	  rather than as part of the "append" line.  This is not
+	  recommended, but apparently makes life easier for some tools.
 
 Changes in 3.70:
 	* PXELINUX: Support enhanced capabilities when running on top

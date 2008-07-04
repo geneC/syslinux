@@ -1550,13 +1550,6 @@ err_bootfailed	db CR, LF, 'Boot failed: please change disks and press '
 config_name	db 'extlinux.conf',0		; Unmangled form
 
 ;
-; Command line options we'd like to take a look at
-;
-; mem= and vga= are handled as normal 32-bit integer values
-initrd_cmd	db 'initrd='
-initrd_cmd_len	equ 7
-
-;
 ; Config file keyword table
 ;
 %include "keywords.inc"

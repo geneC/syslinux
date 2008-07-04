@@ -289,9 +289,9 @@ pc_serial:	call getint
 		ret
 
 ;
-; "F"-key command
+; Store mangled filename command
 ;
-pc_fkey:	push ax
+pc_filename:	push ax
 		call pc_getline
 		pop di
 		call mangle_name		; Mangle file name
@@ -301,6 +301,7 @@ pc_fkey:	push ax
 ; "label" command
 ;
 pc_label:	call commit_vk			; Commit any current vkernel
+		mov byte [InitRD+NULLOFFSET],NULLFILE	; No "initrd" statement
 		mov di,VKernelBuf		; Erase the vkernelbuf for better compression
 		mov cx,(vk_size >> 1)
 		xor ax,ax
@@ -392,10 +393,30 @@ parse_config:
 ; commit_vk: Store the current VKernelBuf into buffer segment
 ;
 commit_vk:
-		; For better compression, clean up the append field
-		mov ax,[VKernelBuf+vk_appendlen]
+		cmp byte [VKernel],0
+		jz .nolabel			; Nothing to commit...
+
 		mov di,VKernelBuf+vk_append
-		add di,ax
+		add di,[VKernelBuf+vk_appendlen]
+
+		; If we have an initrd statement, append it to the
+		; append statement
+		cmp byte [InitRD+NULLOFFSET],NULLFILE
+		je .noinitrd
+		
+		mov si,initrd_cmd
+		mov cx,initrd_cmd_len
+		rep movsb
+		mov si,InitRD
+		call unmangle_name
+		mov al,' '
+		stosb
+
+		; For better compression, clean up the append field
+.noinitrd:
+		mov ax,di
+		sub ax,VKernelBuf+vk_append
+		mov [VKernelBuf+vk_appendlen],ax
 		mov cx,max_cmd_len+1
 		sub cx,ax
 		xor ax,ax
@@ -407,6 +428,7 @@ commit_vk:
 		mov cx,vk_size
 		call rllpack
 		mov [VKernelEnd],edi
+.nolabel:
 		ret
 .overflow:
 		mov si,vk_overflow_msg

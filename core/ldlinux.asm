@@ -1716,13 +1716,6 @@ syslinux_cfg3	db '/'				; /syslinux.cfg
 config_name	db 'syslinux.cfg', 0		; syslinux.cfg
 
 ;
-; Command line options we'd like to take a look at
-;
-; mem= and vga= are handled as normal 32-bit integer values
-initrd_cmd	db 'initrd='
-initrd_cmd_len	equ 7
-
-;
 ; Config file keyword table
 ;
 %include "keywords.inc"

@@ -617,6 +617,13 @@ err_noinitrd    db CR, LF, 'Could not find ramdisk image: ', 0
 boot_image      db 'BOOT_IMAGE='
 boot_image_len  equ $-boot_image
 
+;
+; Command line options we'd like to take a look at
+;
+; mem= and vga= are handled as normal 32-bit integer values
+initrd_cmd	db 'initrd='
+initrd_cmd_len	equ $-initrd_cmd
+
 		section .bss
 		alignb 4
 MyHighMemSize	resd 1			; Possibly adjusted highmem size

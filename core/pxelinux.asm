@@ -2731,13 +2731,6 @@ syslinux_banner	db CR, LF, 'PXELINUX ', version_str, ' ', date, ' ', 0
 cfgprefix	db 'pxelinux.cfg/'		; No final null!
 cfgprefix_len	equ ($-cfgprefix)
 
-;
-; Command line options we'd like to take a look at
-;
-; mem= and vga= are handled as normal 32-bit integer values
-initrd_cmd	db 'initrd='
-initrd_cmd_len	equ $-initrd_cmd
-
 ; This one we make ourselves
 bootif_str	db 'BOOTIF='
 bootif_str_len	equ $-bootif_str

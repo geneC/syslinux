@@ -1472,12 +1472,6 @@ dbg_isodir_msg	db 'isolinux directory at LBA = ', 0
 dbg_config_msg	db 'About to load config file...', CR, LF, 0
 dbg_configok_msg	db 'Configuration file opened...', CR, LF, 0
 %endif
-;
-; Command line options we'd like to take a look at
-;
-; mem= and vga= are handled as normal 32-bit integer values
-initrd_cmd	db 'initrd='
-initrd_cmd_len	equ 7
 
 ;
 ; Config file keyword table
