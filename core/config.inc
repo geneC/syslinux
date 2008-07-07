@@ -46,9 +46,7 @@ MAX_FKEYS	equ 12			; Number of F-key help files
 ;
 ; Version number definitinons
 ;
-%ifndef DEPEND				; Generated file
 %include "../version.gen"
-%endif
 
 ;
 ; Copyright year...

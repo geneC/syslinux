@@ -38,6 +38,18 @@ NINCLUDE =
 OBJCOPY  = objcopy
 PERL     = perl
 
+SRCS	 = $(wildcard *.asm *.c *.h)
+
+# The DATE is set on the make command line when building binaries for
+# official release.  Otherwise, substitute a hex string that is pretty much
+# guaranteed to be unique to be unique from build to build.
+ifndef HEXDATE
+HEXDATE := $(shell $(PERL) ../now.pl $(SRCS))
+endif
+ifndef DATE
+DATE    := $(shell sh ../gen-id.sh $(HEXDATE))
+endif
+
 # Important: init.o16 must be first!!
 OBJS16   = init.o16 init32.o
 OBJS32   = start32.o setup.o msetup.o e820func.o conio.o memcpy.o memset.o \

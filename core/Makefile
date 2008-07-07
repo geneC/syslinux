@@ -69,10 +69,10 @@ ALLSRC   = $(NASMSRC) $(NASMHDR) $(CSRC) $(CHDR) $(OTHERSRC)
 # official release.  Otherwise, substitute a hex string that is pretty much
 # guaranteed to be unique to be unique from build to build.
 ifndef HEXDATE
-HEXDATE := $(shell $(PERL) now.pl $(SRCS))
+HEXDATE := $(shell $(PERL) ../now.pl $(SRCS))
 endif
 ifndef DATE
-DATE    := $(shell sh gen-id.sh $(HEXDATE))
+DATE    := $(shell sh ../gen-id.sh $(HEXDATE))
 endif
 
 all: $(BTARGET)

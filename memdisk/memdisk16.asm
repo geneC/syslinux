@@ -19,6 +19,8 @@
 ;; com32.inc in the main SYSLINUX distribution.
 ;;
 
+%include '../version.gen'
+
 MY_CS		equ 0x0800		; Segment address to use
 CS_BASE		equ (MY_CS << 4)	; Corresponding address
 
@@ -79,7 +81,7 @@ b_edx		dd 0			; EDX for boot sector invocation
 
 		section .rodata
 memdisk_version:
-		db "MEMDISK ", VERSION, " ", DATE, 0
+		db "MEMDISK ", VERSION_STR, " ", DATE, 0
 
 ;; -----------------------------------------------------------------------
 ;;  End kernel image header
