@@ -215,6 +215,8 @@ comboot_vectors:
 		dw comboot_err(3Eh)	; INT 3E = DOS FPU emulation
 		dw comboot_err(3Fh)	; INT 3F = DOS overlay manager
 
+		section .text
+
 ; INT 21h: generic DOS system call
 comboot_int21:	cli
 		push ds
