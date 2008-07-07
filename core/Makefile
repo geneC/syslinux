@@ -71,7 +71,7 @@ ifndef HEXDATE
 HEXDATE := $(shell $(PERL) now.pl $(SRCS))
 endif
 ifndef DATE
-DATE    := $(HEXDATE)
+DATE    := $(shell sh gen-id.sh $(HEXDATE))
 endif
 
 all: $(BTARGET)
