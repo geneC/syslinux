@@ -139,6 +139,9 @@ is_comboot_image:
 		jmp comboot_seg:100h	; Run it
 
 ; Proper return vector
+; Note: this gets invoked both via INT 21h and directly via INT 20h.
+; We don't need to cld explicitly here, because comboot_exit does that
+; when invoking RESET_STACK_AND_SEGS.
 comboot_return:	cli			; Don't trust anyone
 		push enter_command	; Normal return to command prompt
 		jmp comboot_exit
@@ -290,7 +293,7 @@ comboot_exit:
 		xor cx,cx
 comboot_exit_msg:
 		pop bx			; Return address
-		RESET_STACK_AND_SEGS SI
+		RESET_STACK_AND_SEGS SI	; Contains cld
 		call adjust_screen	; The COMBOOT program might have changed the screen
 		pusha
 		mov si,DOSSaveVectors
@@ -384,6 +387,7 @@ comboot_getchar:
 %ifdef HAVE_IDLE
 comboot_int28:
 		cli
+		cld
 		pushad
 		xor ax,ax
 		push ds
@@ -404,6 +408,7 @@ comboot_int28	equ comboot_iret
 ;
 comboot_int29:
 		cli
+		cld
 		call writechr			; Preserves registers!
 		iret
 
