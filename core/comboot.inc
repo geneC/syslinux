@@ -763,18 +763,16 @@ comapi_shuffle:
 ; *** FIX THIS ***
 ; The idle call seems to have detrimental effects on some machines when
 ; called from a COM32 context (WHY?) --  disable it for now.
+; *** IS THIS STILL TRUE? ***
 ;
-%if 0 ; def HAVE_IDLE
-
+%ifdef HAVE_IDLE
 comapi_idle:
 		DO_IDLE
 		clc
 		ret
 
 %else
-
 comapi_idle	equ comapi_err
-
 %endif
 
 ;
