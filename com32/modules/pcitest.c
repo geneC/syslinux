@@ -93,7 +93,7 @@ void display_pci_bus(struct pci_bus_list *pci_bus_list, bool display_pci_devices
   }
   printf("PCI: %d bus%s found\n",
 	 pci_bus_list->count,
-	 pci_bus_list->count == 1 ? "es" : "");
+	 pci_bus_list->count == 1 ? "" : "es");
 }
 
 int main(int argc, char *argv[])
