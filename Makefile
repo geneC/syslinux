@@ -15,8 +15,7 @@
 #
 topdir = .
 include $(topdir)/MCONFIG
-
-VERSION := $(shell cat version)
+-include $(topdir)/version.mk
 
 #
 # The BTARGET refers to objects that are derived from ldlinux.asm; we
@@ -31,7 +30,7 @@ VERSION := $(shell cat version)
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
-BTARGET  = version.gen version.h
+BTARGET  = version.gen version.h version.mk
 BOBJECTS = $(BTARGET) \
 	mbr/mbr.bin mbr/gptmbr.bin \
 	core/pxelinux.0 core/isolinux.bin core/isolinux-debug.bin \
@@ -46,7 +45,7 @@ BOBJECTS = $(BTARGET) \
 # for "make installer".
 BSUBDIRS = codepage core memdisk com32 mbr memdump gpxe sample \
 	   libinstaller dos win32
-ITARGET  = 
+ITARGET  =
 IOBJECTS = $(ITARGET) dos/copybs.com utils/gethostip utils/mkdiskimage \
 	mtools/syslinux linux/syslinux extlinux/extlinux
 ISUBDIRS = libinstaller mtools linux extlinux utils
@@ -89,10 +88,11 @@ installer:
 installer-local: $(ITARGET) $(BINFILES)
 
 version.gen: version version.pl
-	$(PERL) version.pl $< $@ '%define'
-
+	$(PERL) version.pl $< $@ '%define < @'
 version.h: version version.pl
-	$(PERL) version.pl $< $@ '#define'
+	$(PERL) version.pl $< $@ '#define < @'
+version.mk: version version.pl
+	$(PERL) version.pl $< $@ '< := @'
 
 local-install: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR)

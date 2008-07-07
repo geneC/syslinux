@@ -812,7 +812,7 @@ static const char *find_device(const char *mtab_file, dev_t dev)
   mtab = setmntent(mtab_file, "r");
   if (!mtab)
     return NULL;
-  
+
   while ( (mnt = getmntent(mtab)) ) {
     if ( (!strcmp(mnt->mnt_type, "ext2") ||
 	  !strcmp(mnt->mnt_type, "ext3")) &&
@@ -1001,7 +1001,8 @@ main(int argc, char *argv[])
       opt.reset_adv = 1;
       break;
     case 'v':
-      fputs("extlinux " VERSION "\n", stderr);
+      fputs("extlinux " VERSION_STR
+	    "  Copyright 1994-" YEAR_STR " H. Peter Anvin \n", stderr);
       exit(0);
     default:
       usage(EX_USAGE);

@@ -10,7 +10,8 @@
 ##
 ## -----------------------------------------------------------------------
 
-VERSION := $(shell cat ../version)
+topdir = ..
+include $(topdir)/version.mk
 
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
 
@@ -25,14 +26,14 @@ FREE    := $(call gcc_ok,-ffreestanding,) $(call gcc_ok,-fno-stack-protector,)
 
 CFLAGS   =  $(M32) $(FREE) -g -W -Wall -Wno-sign-compare \
 	   -Os -fomit-frame-pointer -march=i386 -mregparm=3 $(ALIGN) \
-	   -DVERSION='"$(VERSION)"' -DDATE='"$(DATE)"'
+	   -DDATE='"$(DATE)"'
 SFLAGS	 = $(M32) -march=i386 -D__ASSEMBLY__
 LDFLAGS  = $(M32) -g
 INCLUDE  = -I../com32/include
 LD	 = ld -m elf_i386
 NASM     = nasm
 NASMOPT  = -O9999
-NFLAGS   = -dVERSION='"$(VERSION)"' -dDATE='"$(DATE)"' -dWITH_EDD
+NFLAGS   = -dDATE='"$(DATE)"' -dWITH_EDD
 NINCLUDE =
 OBJCOPY  = objcopy
 PERL     = perl

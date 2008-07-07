@@ -15,11 +15,12 @@
 #include "conio.h"
 #include "version.h"
 #include "memdisk.h"
+#include "../version.h"
 
 const char memdisk_version[] =
-"MEMDISK " VERSION " " DATE;
+"MEMDISK " VERSION_STR " " DATE;
 const char copyright[] =
-"Copyright " FIRSTYEAR "-" COPYYEAR " H. Peter Anvin";
+"Copyright " FIRSTYEAR "-" YEAR_STR " H. Peter Anvin";
 
 extern const char _binary_memdisk_bin_start[], _binary_memdisk_bin_end[];
 extern const char _binary_memdisk_bin_size[]; /* Weird, I know */

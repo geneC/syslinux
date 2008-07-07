@@ -454,7 +454,7 @@ comapi_get_version:
 		; Number of API functions supported
 		mov P_AX,int22_count
 		; SYSLINUX version
-		mov P_CX,(VER_MAJOR << 8)+VER_MINOR
+		mov P_CX,(VERSION_MAJOR << 8)+VERSION_MINOR
 		; SYSLINUX derivative ID byte
 		mov P_DX,my_id
 		; For future use

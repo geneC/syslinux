@@ -18,6 +18,9 @@
 MAKEFLAGS += -r
 MAKE      += -r
 
+topdir = ..
+include $(topdir)/version.mk
+
 CC	 = gcc
 
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
@@ -42,8 +45,6 @@ NASMOPT  = -O9999
 NINCLUDE =
 
 PERL     = perl
-
-VERSION := $(shell cat ../version)
 
 # This is very similar to cp437; technically it's for Norway and Denmark,
 # but it's unlikely the characters that are different will be used in

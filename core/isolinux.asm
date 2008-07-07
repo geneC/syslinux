@@ -795,7 +795,7 @@ writestr_early	equ writestr
 ; Data that needs to be in the first sector
 ; -----------------------------------------------------------------------------
 
-syslinux_banner	db CR, LF, 'ISOLINUX ', VERSION, ' ', DATE_STR, ' ', 0
+syslinux_banner	db CR, LF, 'ISOLINUX ', VERSION_STR, ' ', DATE_STR, ' ', 0
 copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
 		db CR, LF, 0
 isolinux_str	db 'isolinux: ', 0

@@ -918,7 +918,7 @@ Mover_dummy2:	dd 0, 0, 0, 0		; More space for the BIOS
 		alignb 4, db 0
 MemDisk_Info	equ $			; Pointed to by installation check
 MDI_Bytes	dw MDI_Len		; Total bytes in MDI structure
-MDI_Version	db VER_MINOR, VER_MAJOR	; MEMDISK version
+MDI_Version	db VERSION_MINOR, VERSION_MAJOR	; MEMDISK version
 
 PatchArea	equ $			; This gets filled in by the installer
 
