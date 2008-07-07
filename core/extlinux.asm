@@ -565,7 +565,7 @@ ldlinux_sys:
 
 syslinux_banner	db 0Dh, 0Ah
 		db 'EXTLINUX '
-		db version_str, ' ', date, ' ', 0
+		db VERSION, ' ', DATE_STR, ' ', 0
 		db 0Dh, 0Ah, 1Ah	; EOF if we "type" this in DOS
 
 		align 8, db 0

@@ -2727,7 +2727,7 @@ localboot_msg	db 'Booting from local disk...', CR, LF, 0
 trying_msg	db 'Trying to load: ', 0
 fourbs_msg	db BS, BS, BS, BS, 0
 default_str	db 'default', 0
-syslinux_banner	db CR, LF, 'PXELINUX ', version_str, ' ', date, ' ', 0
+syslinux_banner	db CR, LF, 'PXELINUX ', VERSION, ' ', DATE_STR, ' ', 0
 cfgprefix	db 'pxelinux.cfg/'		; No final null!
 cfgprefix_len	equ ($-cfgprefix)
 

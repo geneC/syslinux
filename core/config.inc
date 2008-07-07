@@ -51,10 +51,8 @@ MAX_FKEYS	equ 12			; Number of F-key help files
 %endif
 
 ;
-; Should be updated with every release to avoid bootsector/SYS file mismatch
+; Copyright year...
 ;
-%define	version_str	VERSION		; Must be 4 characters long!
-%define date		DATE_STR	; Defined from the Makefile
 %define	year		'2008'
 
 %endif ; _CONFIG_INC
