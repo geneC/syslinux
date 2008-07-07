@@ -161,25 +161,59 @@ comboot_setup_api:
 		sub ax,di
 		stosw
 
-		mov eax,DOSErrTramp
 		pop cx			; CX <- 32
-		mov di,4*20h		; DOS interrupt vectors
-		push di
-.loop2:		stosd
-		add ax,4
+		mov si,4*20h		; DOS interrupt vectors
+		mov bx,comboot_vectors
+		mov di,DOSSaveVectors
+.loop2:
+		movsd
+		movzx eax,word [bx]
+		inc bx
+		inc bx
+		mov [si-4],eax
 		loop .loop2
-		pop di
-		mov ax,comboot_return	; INT 20h = exit
-		stosd
-		mov ax,comboot_int21	; INT 21h = DOS-compatible syscalls
-		stosd
-		mov ax,comboot_int22	; INT 22h = proprietary syscalls
-		stosd
-		; There exists at least one laptop where the VESA BIOS makes INT 2Fh calls
-		; back into DOS, for unknown reason...
-		mov ax,comboot_iret	; INT 2Fh = DOS callbacks
-		mov [di+(2Fh-23h)*4],eax
 		ret
+
+		section .bss
+		alignb 4
+DOSSaveVectors	resd 32
+
+		section .data
+%define comboot_err(x) (DOSErrTramp+4*((x)-20h))
+
+comboot_vectors:
+		dw comboot_return	; INT 20 = exit
+		dw comboot_int21	; INT 21 = DOS-compatible system calls
+		dw comboot_int22	; INT 22 = native system calls
+		dw comboot_err(23h)	; INT 23 = DOS Ctrl-C handler
+		dw comboot_err(24h)	; INT 24 = DOS critical error handler
+		dw comboot_err(25h)	; INT 25 = DOS absolute disk read
+		dw comboot_err(26h)	; INT 26 = DOS absolute disk write
+		dw comboot_err(27h)	; INT 27 = DOS TSR
+		dw comboot_int28	; INT 28 = DOS idle interrupt
+		dw comboot_int29	; INT 29 = DOS fast console output
+		dw comboot_err(2Ah)	; INT 2A = DOS network API (NetBIOS)
+		dw comboot_err(2Bh)	; INT 2B = DOS reserved
+		dw comboot_err(2Ch)	; INT 2C = DOS reserved
+		dw comboot_iret		; INT 2D = DOS reserved, AMIS
+		dw comboot_err(2Eh)	; INT 2E = DOS run command
+		dw comboot_iret		; INT 2F = DOS multiplex interrupt
+		dw comboot_err(30h)	; INT 30 = DOS CP/M system calls
+		dw comboot_err(31h)	; INT 31 = DPMI
+		dw comboot_err(32h)	; INT 32 = DOS reserved
+		dw comboot_iret		; INT 33 = DOS mouse API
+		dw comboot_err(34h)	; INT 34 = DOS FPU emulation
+		dw comboot_err(35h)	; INT 35 = DOS FPU emulation
+		dw comboot_err(36h)	; INT 36 = DOS FPU emulation
+		dw comboot_err(37h)	; INT 37 = DOS FPU emulation
+		dw comboot_err(38h)	; INT 38 = DOS FPU emulation
+		dw comboot_err(39h)	; INT 39 = DOS FPU emulation
+		dw comboot_err(3Ah)	; INT 3A = DOS FPU emulation
+		dw comboot_err(3Bh)	; INT 3B = DOS FPU emulation
+		dw comboot_err(3Ch)	; INT 3C = DOS FPU emulation
+		dw comboot_err(3Dh)	; INT 3D = DOS FPU emulation
+		dw comboot_err(3Eh)	; INT 3E = DOS FPU emulation
+		dw comboot_err(3Fh)	; INT 3F = DOS overlay manager
 
 ; INT 21h: generic DOS system call
 comboot_int21:	cli
@@ -256,6 +290,12 @@ comboot_exit_msg:
 		pop bx			; Return address
 		RESET_STACK_AND_SEGS SI
 		call adjust_screen	; The COMBOOT program might have changed the screen
+		pusha
+		mov si,DOSSaveVectors
+		mov di,4*20h
+		mov cx,20h
+		rep movsd		; Restore DOS-range vectors
+		popa
 		jcxz .nomsg
 		mov si,KernelCName
 		call writestr
@@ -335,6 +375,35 @@ comboot_getchar:
 .queued:	mov al,[APIKeyWait]
 		dec byte [APIKeyFlag]
 		jmp .done
+
+;
+; INT 28h - DOS idle
+;
+%ifdef HAVE_IDLE
+comboot_int28:
+		cli
+		pushad
+		xor ax,ax
+		push ds
+		push es
+		mov ds,ax
+		mov es,ax
+		DO_IDLE
+		pop es
+		pop ds
+		popad
+		iret
+%else
+comboot_int28	equ comboot_iret
+%endif
+
+;
+; INT 29h - DOS fast write character
+;
+comboot_int29:
+		cli
+		call writechr			; Preserves registers!
+		iret
 
 ;
 ; INT 22h - SYSLINUX-specific system calls
