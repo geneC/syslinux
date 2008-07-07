@@ -19,7 +19,7 @@ MAKEFLAGS += -r
 MAKE      += -r
 
 topdir = ..
-include $(topdir)/version.mk
+-include $(topdir)/version.mk
 
 CC	 = gcc
 

@@ -11,7 +11,7 @@
 ## -----------------------------------------------------------------------
 
 topdir = ..
-include $(topdir)/version.mk
+-include $(topdir)/version.mk
 
 TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
 
