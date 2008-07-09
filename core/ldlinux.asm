@@ -901,6 +901,8 @@ getfattype:
 		mov di,ConfigName
 		call strcpy
 
+		mov eax,[RootDir]	; Make the root directory ...
+		mov [CurrentDir],eax	; ... the current directory
 		mov di,syslinux_cfg1
 		call open
 		jnz .config_open
