@@ -179,9 +179,9 @@ IPAPPEND flag_val			[PXELINUX only]
 	interface the system booted.
 
 LABEL label
-  KERNEL image
-  APPEND options...
-  IPAPPEND flag_val			[PXELINUX only]
+    KERNEL image
+    APPEND options...
+    IPAPPEND flag_val			[PXELINUX only]
 	Indicates that if "label" is entered as the kernel to boot,
         SYSLINUX should instead boot "image", and the specified APPEND
 	and IPAPPEND options should be used instead of the ones
@@ -190,11 +190,8 @@ LABEL label
         "label", and if no APPEND is given the default is to use the
         global entry (if any).
 
-	Starting with version 2.20, LABEL statements are compressed
-	internally, therefore the maximum number of LABEL statements
-	depends on their complexity.  Typical is around 600.  SYSLINUX
-	will print an error message if the internal memory for labels
-	is overrun.
+	Starting with version 3.62, the number of LABEL statements is
+	virtually unlimited.
 
         Note that LILO uses the syntax:
         image = mykernel
@@ -212,25 +209,27 @@ LABEL label
 	Since version 3.32 label names are no longer mangled into DOS
 	format (for SYSLINUX.)
 
-  LINUX image			- Linux kernel image (default)
-  BOOT image			- Bootstrap program (.bs, .bin)
-  BSS image			- BSS image (.bss)
-  PXE image			- PXE Network Bootstrap Program (.0)
-  FDIMAGE image			- Floppy disk image (.img)
-  COMBOOT image			- COMBOOT program (.com, .cbt)
-  COM32 image			- COM32 program (.c32)
-  CONFIG image			- New configuration file
+    The following commands are available after a LABEL statement:
+
+    LINUX image			- Linux kernel image (default)
+    BOOT image			- Bootstrap program (.bs, .bin)
+    BSS image			- BSS image (.bss)
+    PXE image			- PXE Network Bootstrap Program (.0)
+    FDIMAGE image		- Floppy disk image (.img)
+    COMBOOT image		- COMBOOT program (.com, .cbt)
+    COM32 image			- COM32 program (.c32)
+    CONFIG image		- New configuration file
 	Using one of these keywords instead of KERNEL forces the
 	filetype, regardless of the filename.
 
 	CONFIG means restart the boot loader using a different
 	configuration file.
 
-  APPEND -
+    APPEND -
         Append nothing.  APPEND with a single hyphen as argument in a
         LABEL section can be used to override a global APPEND.
 
-  LOCALBOOT type			[ISOLINUX, PXELINUX]
+    LOCALBOOT type			[ISOLINUX, PXELINUX]
 	On PXELINUX, specifying "LOCALBOOT 0" instead of a "KERNEL"
 	option means invoking this particular label will cause a local
 	disk boot instead of booting a kernel.
@@ -250,6 +249,12 @@ LABEL label
 	report failure to the BIOS, which, on recent BIOSes, should
 	mean that the next boot device in the boot sequence should be
 	activated.
+
+    INITRD initrd_file
+	Starting with version 3.71, an initrd can be specified in a
+	separate statement (INITRD) instead of as part of the APPEND
+	statement; this functionally appends "initrd=initrd_file" to
+	the kernel command line.
 
 IMPLICIT flag_val
         If flag_val is 0, do not load a kernel image unless it has been
