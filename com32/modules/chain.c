@@ -51,6 +51,11 @@
  * swap:
  *	if the disk is not fd0/hd0, install a BIOS stub which swaps
  *	the drive numbers.
+ *
+ * hide:
+ *	change type of primary partitions with IDs 01, 04, 06, 07,
+ *	0b, 0c, or 0e to 1x, except for the selected partition, which
+ *	is converted the other way.
  */
 
 #include <com32.h>
@@ -72,6 +77,7 @@ static struct options {
   uint16_t keeppxe;
   uint16_t seg;
   bool swap;
+  bool hide;
 } opt;
 
 static inline void error(const char *msg)
@@ -221,12 +227,66 @@ static void *read_sector(unsigned int lba)
   return data;
 }
 
+static int write_sector(unsigned int lba, const void *buf)
+{
+  com32sys_t inreg;
+
+  memcpy(__com32.cs_bounce, buf, SECTOR);
+  memset(&inreg, 0, sizeof inreg);
+
+  if ( disk_info.ebios ) {
+    dapa->len = sizeof(*dapa);
+    dapa->count = 1;		/* 1 sector */
+    dapa->off = OFFS(buf);
+    dapa->seg = SEG(buf);
+    dapa->lba = lba;
+
+    inreg.esi.w[0] = OFFS(dapa);
+    inreg.ds       = SEG(dapa);
+    inreg.edx.b[0] = disk_info.disk;
+    inreg.eax.b[1] = 0x43;	/* Extended write */
+  } else {
+    unsigned int c, h, s, t;
+
+    if ( !disk_info.cbios ) {
+      /* We failed to get the geometry */
+
+      if ( lba )
+	return -1;		/* Can only write MBR */
+
+      s = 1;  h = 0;  c = 0;
+    } else {
+      s = (lba % disk_info.sect) + 1;
+      t = lba / disk_info.sect;	/* Track = head*cyl */
+      h = t % disk_info.head;
+      c = t / disk_info.head;
+    }
+
+    if ( s > 63 || h > 256 || c > 1023 )
+      return -1;
+
+    inreg.eax.w[0] = 0x0301;	/* Write one sector */
+    inreg.ecx.b[1] = c & 0xff;
+    inreg.ecx.b[0] = s + (c >> 6);
+    inreg.edx.b[1] = h;
+    inreg.edx.b[0] = disk_info.disk;
+    inreg.ebx.w[0] = OFFS(buf);
+    inreg.es       = SEG(buf);
+  }
+
+  if (int13_retry(&inreg, NULL))
+    return -1;
+
+  return 0;			/* ok */
+}
+
 /* Search for a specific drive, based on the MBR signature; bytes
    440-443. */
-static int find_disk(uint32_t mbr_sig, void *buf)
+static int find_disk(uint32_t mbr_sig)
 {
   int drive;
   bool is_me;
+  char *buf;
 
   for (drive = 0x80; drive <= 0xff; drive++) {
     if (get_disk_params(drive))
@@ -535,6 +595,37 @@ enomem:
   return;
 }
 
+static int hide_unhide(char *mbr, int part)
+{
+  int i;
+  struct part_entry *pt;
+  const uint16_t mask = (1 << 0x01)|(1 << 0x04)|(1 << 0x06)|(1 << 0x07)|
+                        (1 << 0x0b)|(1 << 0x0c)|(1 << 0x0e);
+  uint8_t t;
+  bool write_back = false;
+
+  for (i = 1; i <= 4; i++) {
+    pt = (struct part_entry *)&mbr[0x1be + 16*(i-1)];
+    t = pt->ostype;
+    if ((mask >> (t & ~0x10)) & 1) {
+      /* It's a hideable partition type */
+      if (i == part)
+	t &= ~0x10;	/* unhide */
+      else
+	t |= 0x10;	/* hide */
+    }
+    if (t != pt->ostype) {
+      write_back = true;
+      pt->ostype = t;
+    }
+  }
+
+  if (write_back)
+    return write_sector(0, mbr);
+  else
+    return 0;			/* Nothing to do, return OK */
+}
+
 int main(int argc, char *argv[])
 {
   char *mbr, *p;
@@ -576,6 +667,8 @@ int main(int argc, char *argv[])
       opt.loadfile = argv[i]+6;
     } else if (!strcmp(argv[i], "swap")) {
       opt.swap = true;
+    } else if (!strcmp(argv[i], "hide")) {
+      opt.hide = true;
     } else if (!strcmp(argv[i], "keeppxe")) {
       opt.keeppxe = 3;
     } else if (((argv[i][0] == 'h' || argv[i][0] == 'f') && argv[i][1] == 'd')
@@ -602,19 +695,12 @@ int main(int argc, char *argv[])
     regs.ip = regs.esp.l = 0x7c00;
   }
 
-  /* Divvy up the bounce buffer.  To keep things sector-
-     aligned, give the EBIOS DAPA the first sector, then
-     the MBR next, and the rest is used for the partition-
-     chasing stack. */
-  dapa = (struct ebios_dapa *)__com32.cs_bounce;
-  mbr  = (char *)__com32.cs_bounce + SECTOR;
-
   drivename = argv[1];
   partition = argv[2];		/* Possibly null */
 
   hd = 0;
   if ( !strncmp(drivename, "mbr", 3) ) {
-    drive = find_disk(strtoul(drivename+4, NULL, 0), mbr);
+    drive = find_disk(strtoul(drivename+4, NULL, 0));
     if (drive == -1) {
       error("Unable to find requested MBR signature\n");
       goto bail;
@@ -661,12 +747,21 @@ int main(int argc, char *argv[])
     goto bail;
   }
 
+  if (opt.hide) {
+    if (whichpart < 1 || whichpart > 4)
+      error("WARNING: hide specified without a non-primary partition\n");
+    if (hide_unhide(mbr, whichpart))
+      error("WARNING: failed to write MBR for 'hide'\n");
+  }
+
   if ( whichpart == 0 ) {
     /* Boot the MBR */
+
     partinfo = NULL;
     boot_sector = mbr;
   } else if ( whichpart <= 4 ) {
     /* Boot a primary partition */
+
     partinfo = &((struct part_entry *)(mbr + 0x1be))[whichpart-1];
     if ( partinfo->ostype == 0 ) {
       error("Invalid primary partition\n");
