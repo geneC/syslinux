@@ -244,7 +244,7 @@ static int write_sector(unsigned int lba, const void *buf)
     inreg.esi.w[0] = OFFS(dapa);
     inreg.ds       = SEG(dapa);
     inreg.edx.b[0] = disk_info.disk;
-    inreg.eax.b[1] = 0x43;	/* Extended write */
+    inreg.eax.w[0] = 0x4300;	/* Extended write */
   } else {
     unsigned int c, h, s, t;
 
@@ -278,6 +278,22 @@ static int write_sector(unsigned int lba, const void *buf)
     return -1;
 
   return 0;			/* ok */
+}
+
+static int write_verify_sector(unsigned int lba, const void *buf)
+{
+  char *rb;
+  int rv;
+
+  rv = write_sector(lba, buf);
+  if (rv)
+    return rv;		/* Write failure */
+  rb = read_sector(lba);
+  if (!rb)
+    return -1;		/* Readback failure */
+  rv = memcmp(buf, rb, SECTOR);
+  free(rb);
+  return rv ? -1 : 0;
 }
 
 /* Search for a specific drive, based on the MBR signature; bytes
@@ -621,9 +637,9 @@ static int hide_unhide(char *mbr, int part)
   }
 
   if (write_back)
-    return write_sector(0, mbr);
-  else
-    return 0;			/* Nothing to do, return OK */
+    return write_verify_sector(0, mbr);
+
+  return 0;			/* ok */
 }
 
 int main(int argc, char *argv[])
