@@ -20,16 +20,12 @@
 ;;
 
 ;
-; loadkeys:	Load a LILO-style keymap; SI and DX:AX set by searchdir
+; loadkeys:	Load a LILO-style keymap; SI and EAX set by searchdir
 ;
 		section .text
 
 loadkeys:
-		and dx,dx			; Should be 256 bytes exactly
-		jne loadkeys_ret
-		cmp ax,256
-		jne loadkeys_ret
-
+		cmp eax,256			; Should be 256 bytes exactly
 		mov bx,trackbuf
 		mov cx,1			; 1 cluster should be >= 256 bytes
 		call getfssec
