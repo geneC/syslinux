@@ -151,6 +151,26 @@ getc:
 		stc
 		jmp .ret
 
+;
+; This is similar to getc, except that we read up to CX bytes and
+; store them in ES:DI.  Eventually this could get optimized...
+;
+; On return, CX and DI are adjusted by the number of bytes actually read.
+;
+readc:
+		push ax
+.loop:
+		call getc
+		jc .out
+		stosb
+		loop .loop
+.out:
+		pop ax
+		ret
+
+;
+; close: close the top of the getc stack
+;
 close:
 		push bx
 		push si
