@@ -26,6 +26,8 @@
 
 loadkeys:
 		cmp eax,256			; Should be 256 bytes exactly
+		jne loadkeys_ret
+
 		mov bx,trackbuf
 		mov cx,1			; 1 cluster should be >= 256 bytes
 		call getfssec
