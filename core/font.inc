@@ -20,40 +20,48 @@
 
 ;
 ; loadfont:	Load a .psf font file and install it onto the VGA console
-;		(if we're not on a VGA screen then ignore.)  It is called with
-;		SI and EAX set by routine searchdir
+;		(if we're not on a VGA screen then ignore.)
+;		The font is on top of the getc stack.
 ;
+loadfont.err:	jmp close			; Tailcall the close routine
+
 loadfont:
-		; XXX: This can be 8K+4 bytes and the trackbuf is only
-		; guaranteed to be 8K in size...
-		mov bx,trackbuf
-		mov cx,[BufSafe]
-		call getfssec
+		mov di,trackbuf
+		mov cx,4
+		call readc			; Read header
+		jc .err
 
 		mov ax,[trackbuf]		; Magic number
 		cmp ax,0436h
-		jne lf_ret
+		jne .err
 
 		mov al,[trackbuf+2]		; File mode
 		cmp al,5			; Font modes 0-5 supported
-		ja lf_ret
+		ja .err
 
-		mov bh,byte [trackbuf+3]	; Height of font
+		xor bx,bx
+		mov bh,[trackbuf+3]		; Height of font
 		cmp bh,2			; VGA minimum
-		jb lf_ret
+		jb .err
 		cmp bh,32			; VGA maximum
-		ja lf_ret
+		ja .err
+
+		; Load the actual font
+		mov di,trackbuf
+		mov cx,bx			; Bytes = font height * 256
+		call readc
+		jc .err
+
+		call close
 
 		; Copy to font buffer
-		mov si,trackbuf+4		; Start of font data
+		mov si,trackbuf			; Start of font data
 		mov [VGAFontSize],bh
 		mov di,vgafontbuf
-		mov cx,(32*256) >> 2		; Maximum size
-		rep movsd
+		mov cx,bx
+		rep movsb
 
 		mov [UserFont], byte 1		; Set font flag
-
-		; Fall through to use_font
 
 ;
 ; use_font:
@@ -92,7 +100,7 @@ use_font:
 		shr ax,3			; 8 pixels/character
 		dec ax
 		mov [VidCols],al
-.lf_ret:	ret				; No need to call adjust_screen
+		ret				; No need to call adjust_screen
 
 .text:
 		mov cx,256
@@ -103,8 +111,6 @@ use_font:
 		xor bl,bl
 		mov ax,1103h			; Select page 0
 		int 10h
-
-lf_ret		equ use_font.lf_ret
 
 ;
 ; adjust_screen: Set the internal variables associated with the screen size.

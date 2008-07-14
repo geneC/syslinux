@@ -20,24 +20,30 @@
 ;;
 
 ;
-; loadkeys:	Load a LILO-style keymap; SI and EAX set by searchdir
+; loadkeys:	Load a LILO-style keymap; file is open on the top of the
+;		getc stack.
 ;
 		section .text
 
 loadkeys:
-		cmp eax,256			; Should be 256 bytes exactly
-		jne loadkeys_ret
+		mov cx,256
+		mov di,trackbuf
+		call readc
+		jc .done				; EOF already?
 
-		mov bx,trackbuf
-		mov cx,1			; 1 cluster should be >= 256 bytes
-		call getfssec
-
+		; Make sure we are at EOF now...
+		call getc
+		jnc .done			; We should be at EOF now!
+		
+		; It was okay, we can now move it into the KbdMap
 		mov si,trackbuf
 		mov di,KbdMap
 		mov cx,256 >> 2
 		rep movsd
 
-loadkeys_ret:	ret
+.done:
+		call close
+		ret
 
 ;
 ; get_msg_file: Load a text file and write its contents to the screen,

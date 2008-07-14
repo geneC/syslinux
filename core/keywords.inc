@@ -52,9 +52,9 @@ keywd_table:
 		keyword initrd,		pc_filename,	InitRD
 		keyword default,	pc_default
 		keyword display,	pc_opencmd,	get_msg_file
-		keyword font,		pc_filecmd,	loadfont
+		keyword font,		pc_opencmd,	loadfont
 		keyword implicit,	pc_setint16,	AllowImplicit
-		keyword kbdmap,		pc_filecmd,	loadkeys
+		keyword kbdmap,		pc_opencmd,	loadkeys
 		keyword kernel,		pc_kernel,	VK_KERNEL
 		keyword linux,		pc_kernel,	VK_LINUX
 		keyword boot,		pc_kernel,	VK_BOOT
