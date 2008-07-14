@@ -20,7 +20,7 @@ Changes in 3.71:
 	* chain.c32: option "hide" to support hiding and unhiding of
 	  primary partitions on the boot drive with DOS, Win, or OS/2
 	  partition types (01, 04, 06, 07, 0b, 0c, 0e).
-	* Unbreak the KEYMAP command (broken in 3.70).
+	* Unbreak the KBDMAP command (broken in 3.70).
 
 Changes in 3.70:
 	* PXELINUX: Support enhanced capabilities when running on top
