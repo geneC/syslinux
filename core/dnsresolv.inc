@@ -356,17 +356,21 @@ dns_resolv:
 		add si,ax
 		loop .parseanswer
 
-.badness:
-		; We got back no data from this server.  Unfortunately, for a recursive,
-		; non-authoritative query there is no such thing as an NXDOMAIN reply,
-		; which technically means we can't draw any conclusions.  However,
-		; in practice that means the domain doesn't exist.  If this turns out
-		; to be a problem, we may want to add code to go through all the servers
-		; before giving up.
+.badness: 
+		; We got back no data from this server.
+		; Unfortunately, for a recursive, non-authoritative
+		; query there is no such thing as an NXDOMAIN reply,
+		; which technically means we can't draw any
+		; conclusions.  However, in practice that means the
+		; domain doesn't exist.  If this turns out to be a
+		; problem, we may want to add code to go through all
+		; the servers before giving up.
 
-		; If the DNS server wasn't capable of recursion, and isn't capable
-		; of giving us an authoritative reply (i.e. neither AA or RA set),
-		; then at least try a different setver...
+		; If the DNS server wasn't capable of recursion, and
+		; isn't capable of giving us an authoritative reply
+		; (i.e. neither AA or RA set), then at least try a
+		; different setver...
+
 		test word [DNSRecvBuf+dnshdr.flags],htons(0480h)
 		jz .timeout
 
