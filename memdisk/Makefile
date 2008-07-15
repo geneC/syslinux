@@ -47,7 +47,7 @@ ifndef HEXDATE
 HEXDATE := $(shell $(PERL) ../now.pl $(SRCS))
 endif
 ifndef DATE
-DATE    := $(shell sh ../gen-id.sh $(HEXDATE))
+DATE    := $(shell sh ../gen-id.sh $(VERSION) $(HEXDATE))
 endif
 
 # Important: init.o16 must be first!!

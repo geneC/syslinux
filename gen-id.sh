@@ -1,20 +1,32 @@
 #!/bin/sh
 #
-# Create a 10-character ID for this build.  If we're using a git tree,
-# generate an ID of the form g[-*]XXXXXXXX (* = modified); otherwise use
-# the passed-in timestamp.
+# Create a build ID for this build.  If we're using a git tree,
+# generate an ID from "git describe", otherwise use the passed-in
+# timestamp.
+#
+# Usage: gen-id.sh version timestamp
 #
 
+ver="$1"
+tim="$1"
+
 if test -n "$GIT_DIR" -o -d ../.git -o -f ../.git; then
-    ver="$(git describe | cut -d- -f3-)"
-    if test -n "$ver"; then
+    id="$(git describe)"
+    if test -n "$id"; then
+	if test x"$(echo "$id" | cut -d- -f1)" = xsyslinux; then
+            id="$(echo "$id" | cut -d- -f2-)"
+            if test x"$(echo "$id" | cut -d- -f1)" = x"$ver"; then
+		id="$(echo "$id" | cut -d- -f2-)"
+            fi
+        fi
+    fi
+    if test -n "$id"; then
 	if test -n "$(git diff-index --name-only HEAD)"; then
-	    ver="${ver}"\*
+	    id="${id}"\*
 	fi
     fi
 fi
-if test -z "$ver"; then
-  echo "$1"
-else
-  echo "$ver"
+if test -z "$id"; then
+  id="$tim"
 fi
+echo "$id"
