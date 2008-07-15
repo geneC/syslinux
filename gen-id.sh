@@ -6,12 +6,10 @@
 #
 
 if test -n "$GIT_DIR" -o -d ../.git -o -f ../.git; then
-    ver="$(git rev-parse HEAD | cut -c1-8)"
+    ver="$(git describe | cut -d- -f3-)"
     if test -n "$ver"; then
 	if test -n "$(git diff-index --name-only HEAD)"; then
-	    ver='g*'"$ver"
-	else
-	    ver='g-'"$ver"
+	    ver="${ver}"\*
 	fi
     fi
 fi
