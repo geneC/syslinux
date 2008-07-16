@@ -88,35 +88,6 @@
 #define X86_FEATURE_LAHF_LM	(6*32+ 0) /* LAHF/SAHF in long mode */
 #define X86_FEATURE_CMP_LEGACY	(6*32+ 1) /* If yes HyperThreading not valid */
 
-#define cpu_has(c, bit)		test_bit(bit, (c)->x86_capability)
-#define boot_cpu_has(bit)	test_bit(bit, boot_cpu_data.x86_capability)
-
-#define cpu_has_fpu		boot_cpu_has(X86_FEATURE_FPU)
-#define cpu_has_vme		boot_cpu_has(X86_FEATURE_VME)
-#define cpu_has_de		boot_cpu_has(X86_FEATURE_DE)
-#define cpu_has_pse		boot_cpu_has(X86_FEATURE_PSE)
-#define cpu_has_tsc		boot_cpu_has(X86_FEATURE_TSC)
-#define cpu_has_pae		boot_cpu_has(X86_FEATURE_PAE)
-#define cpu_has_pge		boot_cpu_has(X86_FEATURE_PGE)
-#define cpu_has_apic		boot_cpu_has(X86_FEATURE_APIC)
-#define cpu_has_sep		boot_cpu_has(X86_FEATURE_SEP)
-#define cpu_has_mtrr		boot_cpu_has(X86_FEATURE_MTRR)
-#define cpu_has_mmx		boot_cpu_has(X86_FEATURE_MMX)
-#define cpu_has_fxsr		boot_cpu_has(X86_FEATURE_FXSR)
-#define cpu_has_xmm		boot_cpu_has(X86_FEATURE_XMM)
-#define cpu_has_xmm2		boot_cpu_has(X86_FEATURE_XMM2)
-#define cpu_has_xmm3		boot_cpu_has(X86_FEATURE_XMM3)
-#define cpu_has_ht		boot_cpu_has(X86_FEATURE_HT)
-#define cpu_has_mp		boot_cpu_has(X86_FEATURE_MP)
-#define cpu_has_nx		boot_cpu_has(X86_FEATURE_NX)
-#define cpu_has_k6_mtrr		boot_cpu_has(X86_FEATURE_K6_MTRR)
-#define cpu_has_cyrix_arr	boot_cpu_has(X86_FEATURE_CYRIX_ARR)
-#define cpu_has_centaur_mcr	boot_cpu_has(X86_FEATURE_CENTAUR_MCR)
-#define cpu_has_xstore		boot_cpu_has(X86_FEATURE_XSTORE)
-#define cpu_has_xstore_enabled	boot_cpu_has(X86_FEATURE_XSTORE_EN)
-#define cpu_has_xcrypt		boot_cpu_has(X86_FEATURE_XCRYPT)
-#define cpu_has_xcrypt_enabled	boot_cpu_has(X86_FEATURE_XCRYPT_EN)
-
 #endif /* __ASM_I386_CPUFEATURE_H */
 
 /*
