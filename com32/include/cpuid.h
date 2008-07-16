@@ -2,32 +2,40 @@
  *
  *   Copyright 2006 Erwan Velu - All Rights Reserved
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
- *   Boston MA 02111-1307, USA; either version 2 of the License, or
- *   (at your option) any later version; incorporated herein by reference.
+ *   Permission is hereby granted, free of charge, to any person
+ *   obtaining a copy of this software and associated documentation
+ *   files (the "Software"), to deal in the Software without
+ *   restriction, including without limitation the rights to use,
+ *   copy, modify, merge, publish, distribute, sublicense, and/or
+ *   sell copies of the Software, and to permit persons to whom
+ *   the Software is furnished to do so, subject to the following
+ *   conditions:
+ *
+ *   The above copyright notice and this permission notice shall
+ *   be included in all copies or substantial portions of the Software.
+ *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *   OTHER DEALINGS IN THE SOFTWARE.
  *
  * ----------------------------------------------------------------------- */
 
-#ifndef CPUID_H
-#define CPUID_H
+#ifndef _CPUID_H
+#define _CPUID_H
 
-#include "stdbool.h"
-#include "cpufeature.h"
-#define u32 unsigned int
-#define __u32 u32
-#define __u16 unsigned short
-#define __u8  unsigned char
+#include <stdbool.h>
+#include <stdint.h>
+#include <cpufeature.h>
+
 #define PAGE_SIZE 4096
 
 #define CPU_MODEL_SIZE  48
 #define CPU_VENDOR_SIZE 48
-
-typedef struct {
-        __u32 l;
-        __u32 h;
-} __u64;
 
 typedef struct {
 	bool fpu; /* Onboard FPU */
@@ -67,16 +75,16 @@ typedef struct {
 	bool nowext;/* AMD 3DNow! extensions */
 	bool now;   /* 3DNow! */
 	bool smp;  /* A smp configuration has been found*/
-}  __attribute__((__packed__)) s_cpu_flags;
+} s_cpu_flags;
 
 typedef struct {
-char vendor[CPU_VENDOR_SIZE];
-__u8 vendor_id;
-__u8 family;
-char model[CPU_MODEL_SIZE];
-__u8 model_id;
-__u8 stepping;
-s_cpu_flags flags;
+	char        vendor[CPU_VENDOR_SIZE];
+	uint8_t     vendor_id;
+	uint8_t     family;
+	char        model[CPU_MODEL_SIZE];
+	uint8_t     model_id;
+	uint8_t     stepping;
+	s_cpu_flags flags;
 } s_cpu;
 
 /**********************************************************************************/
@@ -118,7 +126,7 @@ s_cpu_flags flags;
 #define X86_VENDOR_NUM 9
 #define X86_VENDOR_UNKNOWN 0xff
 
-static inline int test_bit(int nr, const volatile unsigned long *addr)
+static inline bool test_bit(int nr, const uint32_t *addr)
 {
         return ((1UL << (nr & 31)) & (addr[nr >> 5])) != 0;
 }
@@ -132,26 +140,25 @@ static inline int test_bit(int nr, const volatile unsigned long *addr)
  */
 
 struct cpuinfo_x86 {
-        __u8    x86;            /* CPU family */
-        __u8    x86_vendor;     /* CPU vendor */
-        __u8    x86_model;
-        __u8    x86_mask;
-        char    wp_works_ok;    /* It doesn't on 386's */
-        char    hlt_works_ok;   /* Problems on some 486Dx4's and old 386's */
-        char    hard_math;
-        char    rfu;
-        int     cpuid_level;    /* Maximum supported CPUID level, -1=no CPUID */
-        unsigned long   x86_capability[NCAPINTS];
-        char    x86_vendor_id[16];
-        char    x86_model_id[64];
-        int     x86_cache_size;  /* in KB - valid for CPUS which support this
-                                    call  */
-        int     x86_cache_alignment;    /* In bytes */
-        char    fdiv_bug;
-        char    f00f_bug;
-        char    coma_bug;
-        char    pad0;
-        int     x86_power;
+        uint8_t  x86;            /* CPU family */
+        uint8_t  x86_vendor;     /* CPU vendor */
+        uint8_t  x86_model;
+        uint8_t  x86_mask;
+        char     wp_works_ok;    /* It doesn't on 386's */
+        char     hlt_works_ok;   /* Problems on some 486Dx4's and old 386's */
+        char     hard_math;
+        char     rfu;
+        int      cpuid_level;    /* Maximum supported CPUID level, -1=no CPUID */
+        uint32_t x86_capability[NCAPINTS];
+        char     x86_vendor_id[16];
+        char     x86_model_id[64];
+        int      x86_cache_size;	/* in KB, if available */
+        int	 x86_cache_alignment;    /* in bytes */
+        char     fdiv_bug;
+        char     f00f_bug;
+        char     coma_bug;
+        char     pad0;
+        int      x86_power;
         unsigned long loops_per_jiffy;
 #ifdef CONFIG_SMP
         cpumask_t llc_shared_map;       /* cpus sharing the last level cache */
@@ -197,6 +204,59 @@ static inline void cpuid(unsigned int op, unsigned int *eax, unsigned int *ebx, 
                 : "0" (op), "c"(0));
 }
 
+static inline unsigned int cpuid_eax(unsigned int op)
+{
+        unsigned int eax;
+
+        __asm__("cpuid"
+                : "=a" (eax)
+                : "0" (op)
+                : "bx", "cx", "dx");
+        return eax;
+}
+
+static inline unsigned int cpuid_ecx(unsigned int op)
+{
+        unsigned int eax, ecx;
+
+        __asm__("cpuid"
+                : "=a" (eax), "=c" (ecx)
+                : "0" (op)
+                : "bx", "dx" );
+        return ecx;
+}
+static inline unsigned int cpuid_edx(unsigned int op)
+{
+        unsigned int eax, edx;
+
+        __asm__("cpuid"
+                : "=a" (eax), "=d" (edx)
+                : "0" (op)
+                : "bx", "cx");
+        return edx;
+}
+
+/* Standard macro to see if a specific flag is changeable */
+static inline bool cpu_has_eflag(uint32_t flag)
+{
+        uint32_t f1, f2;
+
+        asm("pushfl\n\t"
+            "pushfl\n\t"
+            "popl %0\n\t"
+            "movl %0,%1\n\t"
+            "xorl %2,%0\n\t"
+            "pushl %0\n\t"
+            "popfl\n\t"
+            "pushfl\n\t"
+            "popl %0\n\t"
+            "popfl\n\t"
+            : "=&r" (f1), "=&r" (f2)
+            : "ir" (flag));
+
+        return ((f1^f2) & flag) != 0;
+}
+
 /*
  * Structure definitions for SMP machines following the
  * Intel Multiprocessing Specification 1.1 and 1.4.
@@ -211,16 +271,16 @@ static inline void cpuid(unsigned int op, unsigned int *eax, unsigned int *ebx, 
 
 struct intel_mp_floating
 {
-        char mpf_signature[4];          /* "_MP_"                       */
-        unsigned long mpf_physptr;      /* Configuration table address  */
-        unsigned char mpf_length;       /* Our length (paragraphs)      */
-        unsigned char mpf_specification;/* Specification version        */
-        unsigned char mpf_checksum;     /* Checksum (makes sum 0)       */
-        unsigned char mpf_feature1;     /* Standard or configuration ?  */
-        unsigned char mpf_feature2;     /* Bit7 set for IMCR|PIC        */
-        unsigned char mpf_feature3;     /* Unused (0)                   */
-        unsigned char mpf_feature4;     /* Unused (0)                   */
-        unsigned char mpf_feature5;     /* Unused (0)                   */
+        char     mpf_signature[4];      /* "_MP_"                       */
+        uint32_t mpf_physptr;		/* Configuration table address  */
+        uint8_t  mpf_length;		/* Our length (paragraphs)      */
+        uint8_t  mpf_specification;	/* Specification version        */
+        uint8_t  mpf_checksum;		/* Checksum (makes sum 0)       */
+        uint8_t  mpf_feature1;		/* Standard or configuration ?  */
+        uint8_t  mpf_feature2;		/* Bit7 set for IMCR|PIC        */
+        uint8_t  mpf_feature3;		/* Unused (0)                   */
+        uint8_t  mpf_feature4;		/* Unused (0)                   */
+        uint8_t  mpf_feature5;		/* Unused (0)                   */
 };
 
 

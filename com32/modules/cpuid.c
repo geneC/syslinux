@@ -23,8 +23,7 @@
  *   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *   OTHER DEALINGS IN THE SOFTWARE.
  *
- * -----------------------------------------------------------------------
-*/
+ * ----------------------------------------------------------------------- */
 
 #include <stdio.h>
 #include <string.h>
@@ -35,63 +34,11 @@ struct cpu_dev * cpu_devs[X86_VENDOR_NUM] = {};
 /*
 * CPUID functions returning a single datum
 */
-static inline unsigned int cpuid_eax(unsigned int op)
-{
-        unsigned int eax;
-
-        __asm__("cpuid"
-                : "=a" (eax)
-                : "0" (op)
-                : "bx", "cx", "dx");
-        return eax;
-}
-
-static inline unsigned int cpuid_ecx(unsigned int op)
-{
-        unsigned int eax, ecx;
-
-        __asm__("cpuid"
-                : "=a" (eax), "=c" (ecx)
-                : "0" (op)
-                : "bx", "dx" );
-        return ecx;
-}
-static inline unsigned int cpuid_edx(unsigned int op)
-{
-        unsigned int eax, edx;
-
-        __asm__("cpuid"
-                : "=a" (eax), "=d" (edx)
-                : "0" (op)
-                : "bx", "cx");
-        return edx;
-}
-
-/* Standard macro to see if a specific flag is changeable */
-static inline int flag_is_changeable_p(u32 flag)
-{
-        u32 f1, f2;
-
-        asm("pushfl\n\t"
-            "pushfl\n\t"
-            "popl %0\n\t"
-            "movl %0,%1\n\t"
-            "xorl %2,%0\n\t"
-            "pushl %0\n\t"
-            "popfl\n\t"
-            "pushfl\n\t"
-            "popl %0\n\t"
-            "popfl\n\t"
-            : "=&r" (f1), "=&r" (f2)
-            : "ir" (flag));
-
-        return ((f1^f2) & flag) != 0;
-}
 
 /* Probe for the CPUID instruction */
 static int have_cpuid_p(void)
 {
-        return flag_is_changeable_p(X86_EFLAGS_ID);
+        return cpu_has_eflag(X86_EFLAGS_ID);
 }
 
 static struct cpu_dev amd_cpu_dev = {
@@ -197,18 +144,19 @@ int get_model_name(struct cpuinfo_x86 *c)
 
 void generic_identify(struct cpuinfo_x86 *c)
 {
-        u32 tfms, xlvl;
-        int junk;
+	uint32_t tfms, xlvl, junk;
+
 	/* Get vendor name */
-	cpuid(0x00000000, &c->cpuid_level,
-              (int *)&c->x86_vendor_id[0],
-              (int *)&c->x86_vendor_id[8],
-              (int *)&c->x86_vendor_id[4]);
+	cpuid(0x00000000,
+	      (uint32_t *)&c->cpuid_level,
+              (uint32_t *)&c->x86_vendor_id[0],
+              (uint32_t *)&c->x86_vendor_id[8],
+              (uint32_t *)&c->x86_vendor_id[4]);
 
         get_cpu_vendor(c);
         /* Intel-defined flags: level 0x00000001 */
         if ( c->cpuid_level >= 0x00000001 ) {
-		u32 capability, excap;
+		uint32_t capability, excap;
                 cpuid(0x00000001, &tfms, &junk, &excap, &capability);
                 c->x86_capability[0] = capability;
                 c->x86_capability[4] = excap;
@@ -254,7 +202,7 @@ static int mpf_checksum(unsigned char *mp, int len)
 
 static int smp_scan_config (unsigned long base, unsigned long length)
 {
-        unsigned long *bp = base;
+        unsigned long *bp = (unsigned long *)base;
         struct intel_mp_floating *mpf;
 
 //        printf("Scan SMP from %p for %ld bytes.\n", bp,length);
