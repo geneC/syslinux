@@ -311,7 +311,7 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		call mangle_name		; Mangle virtual name
 		mov byte [VKernel],1		; We've seen a "label" statement
 		mov si,VKernelBuf+vk_vname	; By default, rname == vname
-		; mov di,VKernelBuf+vk_rname	; -- already set
+		mov di,VKernelBuf+vk_rname
 		mov cx,FILENAME_MAX
 		rep movsb
                 mov si,AppendBuf		; Default append==global append
