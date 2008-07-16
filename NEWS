@@ -22,6 +22,10 @@ Changes in 3.71:
 	  partition types (01, 04, 06, 07, 0b, 0c, 0e).
 	* Unbreak the KBDMAP command (broken in 3.70).
 	* EXTLINUX: fix the handling of the ADV when using CBIOS.
+	* ifcpu64.c32: simple COM32 module to select a 32- or 64-bit
+	  kernel (and optionally 32-bit kernels with or without PAE.)
+	  Eventually we want a scripting language for this
+	  kind of stuff...
 
 Changes in 3.70:
 	* PXELINUX: Support enhanced capabilities when running on top
