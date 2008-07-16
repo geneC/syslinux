@@ -111,7 +111,7 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 		alignb 4
 ISOFileName	resb 64			; ISO filename canonicalization buffer
 ISOFileNameEnd	equ $
-CurDir		resb dir_t_size		; Current directory
+CurrentDir	resb dir_t_size		; Current directory
 RootDir		resb dir_t_size		; Root directory
 FirstSecSum	resd 1			; Checksum of bytes 64-2048
 ImageDwords	resd 1			; isolinux.bin size, dwords
@@ -891,7 +891,7 @@ get_fs_structures:
 
 		mov eax,[trackbuf+156+2]
 		mov [RootDir+dir_lba],eax
-		mov [CurDir+dir_lba],eax
+		mov [CurrentDir+dir_lba],eax
 %ifdef DEBUG_MESSAGES
 		mov si,dbg_rootdir_msg
 		call writemsg
@@ -900,11 +900,11 @@ get_fs_structures:
 %endif
 		mov eax,[trackbuf+156+10]
 		mov [RootDir+dir_len],eax
-		mov [CurDir+dir_len],eax
+		mov [CurrentDir+dir_len],eax
 		add eax,SECTOR_SIZE-1
 		shr eax,SECTOR_SHIFT
 		mov [RootDir+dir_clust],eax
-		mov [CurDir+dir_clust],eax
+		mov [CurrentDir+dir_clust],eax
 
 		; Look for an isolinux directory, and if found,
 		; make it the current directory instead of the root
@@ -918,12 +918,12 @@ get_fs_structures:
 		call searchdir_iso
 		jz .no_isolinux_dir
 .found_dir:
-		mov [CurDir+dir_len],eax
+		mov [CurrentDir+dir_len],eax
 		mov eax,[si+file_left]
-		mov [CurDir+dir_clust],eax
+		mov [CurrentDir+dir_clust],eax
 		xor eax,eax			; Free this file pointer entry
 		xchg eax,[si+file_sector]
-		mov [CurDir+dir_lba],eax
+		mov [CurrentDir+dir_lba],eax
 %ifdef DEBUG_MESSAGES
 		push si
 		mov si,dbg_isodir_msg
@@ -1138,7 +1138,7 @@ searchdir_iso:
 		push es
 		push ds
 		pop es				; ES = DS
-		mov si,CurDir
+		mov si,CurrentDir
 		cmp byte [di],'/'		; If filename begins with slash
 		jne .not_rooted
 		inc di				; Skip leading slash
