@@ -168,12 +168,13 @@ struct ebios_dapa {
   uint16_t off;
   uint16_t seg;
   uint64_t lba;
-} *dapa;
+};
 
 static void *read_sector(unsigned int lba)
 {
   com32sys_t inreg;
-  void *buf = __com32.cs_bounce;
+  struct ebios_dapa *dapa = __com32.cs_bounce;
+  void *buf = (char *)__com32.cs_bounce + SECTOR;
   void *data;
 
   memset(&inreg, 0, sizeof inreg);
@@ -227,11 +228,13 @@ static void *read_sector(unsigned int lba)
   return data;
 }
 
-static int write_sector(unsigned int lba, const void *buf)
+static int write_sector(unsigned int lba, const void *data)
 {
   com32sys_t inreg;
+  struct ebios_dapa *dapa = __com32.cs_bounce;
+  void *buf = (char *)__com32.cs_bounce + SECTOR;
 
-  memcpy(__com32.cs_bounce, buf, SECTOR);
+  memcpy(buf, data, SECTOR);
   memset(&inreg, 0, sizeof inreg);
 
   if ( disk_info.ebios ) {
