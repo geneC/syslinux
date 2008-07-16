@@ -31,6 +31,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <cpufeature.h>
+#include <klibc/compiler.h>
 
 #define PAGE_SIZE 4096
 
@@ -126,7 +127,7 @@ typedef struct {
 #define X86_VENDOR_NUM 9
 #define X86_VENDOR_UNKNOWN 0xff
 
-static inline bool test_bit(int nr, const uint32_t *addr)
+static inline __purefunc bool test_bit(int nr, const uint32_t *addr)
 {
         return ((1UL << (nr & 31)) & (addr[nr >> 5])) != 0;
 }
@@ -204,7 +205,7 @@ static inline void cpuid(unsigned int op, unsigned int *eax, unsigned int *ebx, 
                 : "0" (op), "c"(0));
 }
 
-static inline unsigned int cpuid_eax(unsigned int op)
+static inline __constfunc unsigned int cpuid_eax(unsigned int op)
 {
         unsigned int eax;
 
@@ -215,7 +216,7 @@ static inline unsigned int cpuid_eax(unsigned int op)
         return eax;
 }
 
-static inline unsigned int cpuid_ecx(unsigned int op)
+static inline __constfunc unsigned int cpuid_ecx(unsigned int op)
 {
         unsigned int eax, ecx;
 
@@ -225,7 +226,7 @@ static inline unsigned int cpuid_ecx(unsigned int op)
                 : "bx", "dx" );
         return ecx;
 }
-static inline unsigned int cpuid_edx(unsigned int op)
+static inline __constfunc unsigned int cpuid_edx(unsigned int op)
 {
         unsigned int eax, edx;
 
@@ -237,7 +238,7 @@ static inline unsigned int cpuid_edx(unsigned int op)
 }
 
 /* Standard macro to see if a specific flag is changeable */
-static inline bool cpu_has_eflag(uint32_t flag)
+static inline __constfunc bool cpu_has_eflag(uint32_t flag)
 {
         uint32_t f1, f2;
 
