@@ -341,25 +341,6 @@ adv_read_write:
 		mov [ADVOp],ah
 		pushad
 
-		mov dl,[ADVDrive]
-		and dl,dl
-		; Floppies: can't trust INT 13h 08h, we better know
-		; the geometry a priori, which means it better be our
-		; boot device.  Handle that later.
-		; jns .floppy			; Floppy drive... urk
-
-		mov ah,08h			; Get disk parameters
-		int 13h
-		jc .noparm
-		and ah,ah
-		jnz .noparm
-		shr dx,8
-		inc dx
-		mov [ADVHeads],dx
-		and cx,3fh
-		mov [ADVSecPerTrack],cx
-
-.noparm:
 		; Check for EDD
 		mov bx,55AAh
 		mov ah,41h			; EDD existence query
@@ -367,6 +348,10 @@ adv_read_write:
 		int 13h
 		mov si,.cbios
 		jc .noedd
+		cmp bx,0AA55h
+		jne .noedd
+		test cl,1
+		jz .noedd
 		mov si,.ebios
 .noedd:
 
@@ -422,8 +407,38 @@ adv_read_write:
 		push eax
 		push bp
 
-		movzx esi,word [ADVSecPerTrack]
-		movzx edi,word [ADVHeads]
+		mov dl,[ADVDrive]
+		and dl,dl
+		; Floppies: can't trust INT 13h 08h, we better know
+		; the geometry a priori, which means it better be our
+		; boot device...
+		jns .noparm			; Floppy drive... urk
+
+		mov ah,08h			; Get disk parameters
+		int 13h
+		jc .noparm
+		and ah,ah
+		jnz .noparm
+		shr dx,8
+		inc dx
+		movzx edi,dx			; EDI = heads
+		and cx,3fh
+		movzx esi,cx			; ESI = sectors/track
+		jmp .parmok
+
+.noparm:
+		; No CHS info... this better be our boot drive, then
+%if IS_SYSLINUX || IS_EXTLINUX
+		cmp dl,[DriveNumber]
+		jne .cb_overflow		; Fatal error!
+		movzx esi,word [bsSecPerTrack]
+		movzx edi,word [bsHeads]
+%else
+		; Not a disk-based derivative... there is no hope
+		jmp .cb_overflow
+%endif
+
+.parmok:
                 ;
                 ; Dividing by sectors to get (track,sector): we may have
                 ; up to 2^18 tracks, so we need to use 32-bit arithmetric.
@@ -453,7 +468,7 @@ adv_read_write:
                 mov ch,al
                 mov dh,dl
                 mov dl,[ADVDrive]
-                xchg ax,bp              ; Sector to transfer count
+		mov al,01h		; Transfer one sector
                 mov ah,[ADVOp]		; Operation
 
 		mov bp,adv_retries
@@ -467,6 +482,7 @@ adv_read_write:
                 pop bp
                 pop eax
                 pop edx
+		pop si
                 ret
 
 .cb_error:
@@ -481,9 +497,7 @@ adv_read_write:
 ADVSec0		dd 0			; Not specified
 ADVSec1		dd 0			; Not specified
 ADVDrive	db -1			; No ADV defined
+ADVCHSInfo	db -1			; We have CHS info for this drive
 
 		section .bss
-		alignb 4
-ADVSecPerTrack	resw 1
-ADVHeads	resw 1
 ADVOp		resb 1
