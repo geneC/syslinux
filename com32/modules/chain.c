@@ -626,7 +626,7 @@ static int hide_unhide(char *mbr, int part)
   for (i = 1; i <= 4; i++) {
     pt = (struct part_entry *)&mbr[0x1be + 16*(i-1)];
     t = pt->ostype;
-    if ((mask >> (t & ~0x10)) & 1) {
+    if ((t <= 0x1f) && ((mask >> (t & ~0x10)) & 1)) {
       /* It's a hideable partition type */
       if (i == part)
 	t &= ~0x10;	/* unhide */
