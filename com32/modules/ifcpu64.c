@@ -36,43 +36,38 @@
 #include <cpuid.h>
 #include <syslinux/boot.h>
 
-static bool cpu_has_cpuid(void)
+static bool __constfunc cpu_has_cpuid(void)
 {
   return cpu_has_eflag(X86_EFLAGS_ID);
 }
 
-static bool cpu_has_level(uint32_t level)
+static bool __constfunc cpu_has_level(uint32_t level)
 {
-  uint32_t group = level & 0xffff0000;
-  uint32_t limit = cpuid_eax(group);
+  uint32_t group;
+  uint32_t limit;
+
+  if (!cpu_has_cpuid())
+    return false;
+
+  group = level & 0xffff0000;
+  limit = cpuid_eax(group);
+
   if ((limit & 0xffff0000) != group)
     return false;
+
   if (level > limit)
     return false;
 
   return true;
 }
 
-static bool cpu_has_pae(void)
+/* This only supports feature groups 0 and 1, corresponding to the
+   Intel and AMD EDX bit vectors.  We can add more later if need be. */
+static bool __constfunc cpu_has_feature(int x)
 {
-  if (!cpu_has_cpuid())
-    return false;
+  uint32_t level = ((x & 1) << 31) | 1;
 
-  if (!cpu_has_level(0x00000001))
-    return false;
-
-  return !!(cpuid_edx(0x00000001) & (X86_FEATURE_PAE & 31));
-}
-
-static bool cpu_has_lm(void)
-{
-  if (!cpu_has_cpuid())
-    return false;
-
-  if (!cpu_has_level(0x80000001))
-    return false;
-
-  return !!(cpuid_edx(0x80000001) & (X86_FEATURE_LM & 31));
+  return cpu_has_level(level) && ((cpuid_edx(level) >> (x & 31) & 1));
 }
 
 /* XXX: this really should be librarized */
@@ -119,8 +114,8 @@ int main(int argc, char *argv[])
       break;
   }
 
-  boot_args(cpu_has_lm()  ? args[0] :
-	    cpu_has_pae() ? args[1] :
+  boot_args(cpu_has_feature(X86_FEATURE_LM)  ? args[0] :
+	    cpu_has_feature(X86_FEATURE_PAE) ? args[1] :
 	    args[2]);
   return -1;
 }
