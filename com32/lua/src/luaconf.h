@@ -140,8 +140,9 @@
 ** CHANGE that if ptrdiff_t is not adequate on your machine. (On most
 ** machines, ptrdiff_t gives a good choice between int or long.)
 */
-#define LUA_INTEGER	ptrdiff_t
 
+/* Changed to long for use with integral Lua numbers. */
+#define LUA_INTEGER	long
 
 /*
 @@ LUA_API is a mark for all core API functions.
@@ -501,14 +502,31 @@
 ** ===================================================================
 */
 
+/* Define LUA_NUMBER_INTEGRAL to produce a system that uses no
+   floating point operations by changing the type of Lua numbers from
+   double to long.  It implements division and modulus so that 
+
+   x == (x / y) * y + x % y.  
+   
+   The exponentiation function returns zero for negative exponents.
+   Defining LUA_NUMBER_INTEGRAL also removes the difftime function,
+   and the math module should not be used.  The string.format function
+   no longer handles the floating point directives %e, %E, %f, %g, and
+   %G. */
+
+#define LUA_NUMBER_INTEGRAL
+#if defined LUA_NUMBER_INTEGRAL
+#define LUA_NUMBER	long
+#else
 #define LUA_NUMBER_DOUBLE
 #define LUA_NUMBER	double
+#endif
 
 /*
 @@ LUAI_UACNUMBER is the result of an 'usual argument conversion'
 @* over a number.
 */
-#define LUAI_UACNUMBER	double
+#define LUAI_UACNUMBER	LUA_NUMBER
 
 
 /*
@@ -518,11 +536,20 @@
 @@ LUAI_MAXNUMBER2STR is maximum size of previous conversion.
 @@ lua_str2number converts a string to a number.
 */
+#if defined LUA_NUMBER_INTEGRAL
+#define LUA_NUMBER_SCAN		"%ld"
+#define LUA_NUMBER_FMT		"%ld"
+#else
 #define LUA_NUMBER_SCAN		"%lf"
 #define LUA_NUMBER_FMT		"%.14g"
+#endif
 #define lua_number2str(s,n)	sprintf((s), LUA_NUMBER_FMT, (n))
 #define LUAI_MAXNUMBER2STR	32 /* 16 digits, sign, point, and \0 */
+#if defined LUA_NUMBER_INTEGRAL
+#define lua_str2number(s,p)	strtol((s), (p), 10)
+#else
 #define lua_str2number(s,p)	strtod((s), (p))
+#endif
 
 
 /*
@@ -533,9 +560,36 @@
 #define luai_numadd(a,b)	((a)+(b))
 #define luai_numsub(a,b)	((a)-(b))
 #define luai_nummul(a,b)	((a)*(b))
+#if defined LUA_NUMBER_INTEGRAL
+#define luai_numdiv(a,b)	\
+  (-1/2?			\
+   (a)/(b):			\
+   ((a)<0==(b)<0||(a)%(b)==0?	\
+    (a)/(b):			\
+    (a)/(b)-1))
+#define luai_nummod(a,b)	\
+  (-1/2?			\
+   (a)%(b):			\
+   ((a)<0==(b)<0||(a)%(b)==0?	\
+    (a)%(b):			\
+    (a)%(b)+(b)))
+#define luai_lnumdiv(a,b)	\
+  ((b)==0?			\
+   (luaG_runerror(L,"divide by zero"),0): \
+   luai_numdiv(a,b))
+#define luai_lnummod(a,b)	\
+  ((b)==0?			\
+   (luaG_runerror(L,"modulo by zero"),0): \
+   luai_nummod(a,b))
+LUA_NUMBER luai_ipow(LUA_NUMBER, LUA_NUMBER);
+#define luai_numpow(a,b)	(luai_ipow(a,b))
+#else
 #define luai_numdiv(a,b)	((a)/(b))
 #define luai_nummod(a,b)	((a) - floor((a)/(b))*(b))
+#define luai_lnumdiv(a,b)	(luai_numdiv(a,b))
+#define luai_lnummod(a,b)	(luai_nummod(a,b))
 #define luai_numpow(a,b)	(pow(a,b))
+#endif
 #define luai_numunm(a)		(-(a))
 #define luai_numeq(a,b)		((a)==(b))
 #define luai_numlt(a,b)		((a)<(b))

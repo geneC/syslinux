@@ -27,6 +27,25 @@
 #include "lvm.h"
 
 
+#if defined LUA_NUMBER_INTEGRAL
+LUA_NUMBER luai_ipow(LUA_NUMBER a, LUA_NUMBER b) {
+  if (b < 0)
+    return 0;
+  else if (b == 0)
+    return 1;
+  else {
+    LUA_NUMBER c = 1;
+    for (;;) {
+      if (b & 1)
+	c *= a;
+      b = b >> 1;
+      if (b == 0)
+	return c;
+      a *= a;
+    }
+  }
+}
+#endif
 
 /* limit for table tag-method chains (to avoid loops) */
 #define MAXTAGLOOP	100
@@ -322,8 +341,8 @@ static void Arith (lua_State *L, StkId ra, const TValue *rb,
       case TM_ADD: setnvalue(ra, luai_numadd(nb, nc)); break;
       case TM_SUB: setnvalue(ra, luai_numsub(nb, nc)); break;
       case TM_MUL: setnvalue(ra, luai_nummul(nb, nc)); break;
-      case TM_DIV: setnvalue(ra, luai_numdiv(nb, nc)); break;
-      case TM_MOD: setnvalue(ra, luai_nummod(nb, nc)); break;
+      case TM_DIV: setnvalue(ra, luai_lnumdiv(nb, nc)); break;
+      case TM_MOD: setnvalue(ra, luai_lnummod(nb, nc)); break;
       case TM_POW: setnvalue(ra, luai_numpow(nb, nc)); break;
       case TM_UNM: setnvalue(ra, luai_numunm(nb)); break;
       default: lua_assert(0); break;
@@ -481,11 +500,11 @@ void luaV_execute (lua_State *L, int nexeccalls) {
         continue;
       }
       case OP_DIV: {
-        arith_op(luai_numdiv, TM_DIV);
+        arith_op(luai_lnumdiv, TM_DIV);
         continue;
       }
       case OP_MOD: {
-        arith_op(luai_nummod, TM_MOD);
+        arith_op(luai_lnummod, TM_MOD);
         continue;
       }
       case OP_POW: {
