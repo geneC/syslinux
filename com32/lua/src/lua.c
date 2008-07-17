@@ -5,7 +5,7 @@
 */
 
 
-#include <signal.h>
+//#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +24,7 @@ static lua_State *globalL = NULL;
 static const char *progname = LUA_PROGNAME;
 
 
+#if 0
 
 static void lstop (lua_State *L, lua_Debug *ar) {
   (void)ar;  /* unused arg. */
@@ -31,13 +32,12 @@ static void lstop (lua_State *L, lua_Debug *ar) {
   luaL_error(L, "interrupted!");
 }
 
-
 static void laction (int i) {
   signal(i, SIG_DFL); /* if another SIGINT happens before lstop,
                               terminate process (default action) */
   lua_sethook(globalL, lstop, LUA_MASKCALL | LUA_MASKRET | LUA_MASKCOUNT, 1);
 }
-
+#endif
 
 static void print_usage (void) {
   fprintf(stderr,
@@ -98,9 +98,9 @@ static int docall (lua_State *L, int narg, int clear) {
   int base = lua_gettop(L) - narg;  /* function index */
   lua_pushcfunction(L, traceback);  /* push traceback function */
   lua_insert(L, base);  /* put it under chunk and args */
-  signal(SIGINT, laction);
+ /* signal(SIGINT, laction);*/
   status = lua_pcall(L, narg, (clear ? 0 : LUA_MULTRET), base);
-  signal(SIGINT, SIG_DFL);
+/*  signal(SIGINT, SIG_DFL);*/
   lua_remove(L, base);  /* remove traceback function */
   /* force a complete garbage collection in case of errors */
   if (status != 0) lua_gc(L, LUA_GCCOLLECT, 0);
