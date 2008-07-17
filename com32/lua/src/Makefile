@@ -30,25 +30,34 @@ RANLIB	   = ranlib
 CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os \
 	     -fomit-frame-pointer -D__COM32__ \
 	     -nostdinc -iwithprefix include \
-	     -I../libutil/include -I../include \
+	     -I../../libutil/include -I../../include \
 	     -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d
-LNXCFLAGS  = -W -Wall -O -g -I../libutil/include
+LNXCFLAGS  = -W -Wall -O -g -I../../libutil/include
 LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 SFLAGS     = -D__COM32__ -march=i386
-LDFLAGS    = -T ../lib/com32.ld
+LDFLAGS    = -T ../../lib/com32.ld
 OBJCOPY    = objcopy
 LIBGCC    := $(shell $(CC) --print-libgcc)
-LIBS	   = ../libutil/libutil_com.a ../lib/libcom32.a $(LIBGCC)
-LNXLIBS	   = ../libutil/libutil_lnx.a
+LIBS	   = ../../libutil/libutil_com.a ../../lib/libcom32.a liblua.a $(LIBGCC)
+LNXLIBS	   = ../../libutil/libutil_lnx.a
 
 .SUFFIXES: .lss .c .o .elf .c32 .lnx
 
-all:	hello.c32 cat.c32 resolv.c32 vesainfo.c32 serialinfo.c32 \
-	localboot.c32 \
-	fancyhello.c32 fancyhello.lnx \
-	keytest.c32 keytest.lnx \
-	advdump.c32
+LIBLUA_OBJS := lapi.o lcode.o ldebug.o ldo.o ldump.o lfunc.o
+LIBLUA_OBJS += lgc.o llex.o lmem.o  lobject.o lopcodes.o lparser.o
+LIBLUA_OBJS += lstate.o lstring.o ltable.o ltm.o lvm.o lzio.o lundump.o
+LIBLUA_OBJS += lauxlib.o linit.o
+
+CFLAGS += -DLUA_ANSI
+
+all:	liblua.a lua.c32
+
+liblua.a: $(LIBLUA_OBJS)
+	$(AR) cq $@ $^
+	$(RANLIB) $@
+
+
 
 .PRECIOUS: %.o
 %.o: %.S
