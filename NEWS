@@ -26,6 +26,7 @@ Changes in 3.71:
 	  kernel (and optionally 32-bit kernels with or without PAE.)
 	  Eventually we want a scripting language for this
 	  kind of stuff...
+	* Fix parsing of the SERIAL command without a baud rate specified.
 
 Changes in 3.70:
 	* PXELINUX: Support enhanced capabilities when running on top
