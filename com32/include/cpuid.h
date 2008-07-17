@@ -31,6 +31,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <cpufeature.h>
+#include <sys/cpu.h>
 #include <klibc/compiler.h>
 
 #define PAGE_SIZE 4096
@@ -189,74 +190,6 @@ struct cpu_dev {
         void            (*c_identify)(struct cpuinfo_x86 * c);
         unsigned int    (*c_size_cache)(struct cpuinfo_x86 * c, unsigned int size);
 };
-
-/*
- * Generic CPUID function
- * clear %ecx since some cpus (Cyrix MII) do not set or clear %ecx
- * resulting in stale register contents being returned.
- */
-static inline void cpuid(unsigned int op, unsigned int *eax, unsigned int *ebx, unsigned int *ecx, unsigned int *edx)
-{
-        __asm__("cpuid"
-                : "=a" (*eax),
-                  "=b" (*ebx),
-                  "=c" (*ecx),
-                  "=d" (*edx)
-                : "0" (op), "c"(0));
-}
-
-static inline __constfunc unsigned int cpuid_eax(unsigned int op)
-{
-        unsigned int eax;
-
-        __asm__("cpuid"
-                : "=a" (eax)
-                : "0" (op)
-                : "bx", "cx", "dx");
-        return eax;
-}
-
-static inline __constfunc unsigned int cpuid_ecx(unsigned int op)
-{
-        unsigned int eax, ecx;
-
-        __asm__("cpuid"
-                : "=a" (eax), "=c" (ecx)
-                : "0" (op)
-                : "bx", "dx" );
-        return ecx;
-}
-static inline __constfunc unsigned int cpuid_edx(unsigned int op)
-{
-        unsigned int eax, edx;
-
-        __asm__("cpuid"
-                : "=a" (eax), "=d" (edx)
-                : "0" (op)
-                : "bx", "cx");
-        return edx;
-}
-
-/* Standard macro to see if a specific flag is changeable */
-static inline __constfunc bool cpu_has_eflag(uint32_t flag)
-{
-        uint32_t f1, f2;
-
-        asm("pushfl\n\t"
-            "pushfl\n\t"
-            "popl %0\n\t"
-            "movl %0,%1\n\t"
-            "xorl %2,%0\n\t"
-            "pushl %0\n\t"
-            "popfl\n\t"
-            "pushfl\n\t"
-            "popl %0\n\t"
-            "popfl\n\t"
-            : "=&r" (f1), "=&r" (f2)
-            : "ir" (flag));
-
-        return ((f1^f2) & flag) != 0;
-}
 
 /*
  * Structure definitions for SMP machines following the
