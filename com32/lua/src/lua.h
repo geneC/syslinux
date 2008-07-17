@@ -15,6 +15,9 @@
 
 #include "luaconf.h"
 
+#define feof(x) 0
+#define ferror(x) 0
+
 
 #define LUA_VERSION	"Lua 5.1"
 #define LUA_RELEASE	"Lua 5.1.3"

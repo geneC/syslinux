@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <console.h>
 #define lua_c
 
 #include "lua.h"
@@ -321,7 +322,7 @@ static int runargs (lua_State *L, char **argv, int n) {
 
 
 static int handle_luainit (lua_State *L) {
-  const char *init = getenv(LUA_INIT);
+  const char *init = /*getenv(LUA_INIT)*/ NULL;
   if (init == NULL) return 0;  /* status OK */
   else if (init[0] == '@')
     return dofile(L, init+1);
@@ -377,6 +378,9 @@ static int pmain (lua_State *L) {
 int main (int argc, char **argv) {
   int status;
   struct Smain s;
+
+  openconsole(&dev_stdcon_r, &dev_stdcon_w);
+
   lua_State *L = lua_open();  /* create state */
   if (L == NULL) {
     l_message(argv[0], "cannot create state: not enough memory");
