@@ -589,7 +589,7 @@ static int ll_seeall (lua_State *L) {
 
 static void setpath (lua_State *L, const char *fieldname, const char *envname,
                                    const char *def) {
-  const char *path = getenv(envname);
+  const char *path = /*getenv(envname)*/ NULL;
   if (path == NULL)  /* no environment variable? */
     lua_pushstring(L, def);  /* use default */
   else {
