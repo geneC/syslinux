@@ -23,7 +23,8 @@ static inline void cpuid_count(uint32_t op, uint32_t cnt,
 			       uint32_t *eax, uint32_t *ebx,
 			       uint32_t *ecx, uint32_t *edx)
 {
-  asm("cpuid" : "=a" (*eax), "=b" (*ebx), "=c" (*ecx), "=d" (*edx)
+  asm("cpuid"
+      : "=a" (*eax), "=b" (*ebx), "=c" (*ecx), "=d" (*edx)
       : "a" (op), "c" (cnt));
 }
 static inline void cpuid(uint32_t op, uint32_t *eax, uint32_t *ebx,
