@@ -564,6 +564,7 @@ LUALIB_API int luaL_loadfile (lua_State *L, const char *filename) {
     lf.f = fopen(filename, "r");
     if (lf.f == NULL) return errfile(L, "open", fnameindex);
   }
+#if 0
   c = getc(lf.f);
   if (c == '#') {  /* Unix exec. file? */
     lf.extraline = 1;
@@ -578,6 +579,7 @@ LUALIB_API int luaL_loadfile (lua_State *L, const char *filename) {
     lf.extraline = 0;
   }
   ungetc(c, lf.f);
+#endif
   status = lua_load(L, getF, &lf, lua_tostring(L, -1));
   readstatus = ferror(lf.f);
   if (filename) fclose(lf.f);  /* close file (even in case of errors) */
