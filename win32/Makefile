@@ -28,7 +28,7 @@ else
 ifeq ($(findstring MINGW32,$(OSTYPE)),MINGW32)
 WINPREFIX  :=
 else
-WINPREFIX  := $(shell find-mingw.sh gcc)
+WINPREFIX  := $(shell ./find-mingw.sh gcc)
 endif
 WINCFLAGS  := -W -Wall -Wno-sign-compare -Os -fomit-frame-pointer \
 	      -D_FILE_OFFSET_BITS=64
