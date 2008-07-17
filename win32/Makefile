@@ -19,29 +19,26 @@
 
 OSTYPE   = $(shell uname -msr)
 ifeq ($(findstring CYGWIN,$(OSTYPE)),CYGWIN)
-WINCC       = gcc
-WINAR	    = ar
-WINRANLIB   = ranlib
-WINCFLAGS   = -mno-cygwin -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
-WINPIC	    =
-WINLDFLAGS  = -mno-cygwin -Os -s
+## Compiling on Cygwin
+WINPREFIX  :=
+WINCFLAGS  := -mno-cygwin -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+WINLDFLAGS := -mno-cygwin -Os -s
 else
+## Compiling on some variant of MinGW
 ifeq ($(findstring MINGW32,$(OSTYPE)),MINGW32)
-WINCC       = gcc
-WINAR	    = ar
-WINRANLIB   = ranlib
+WINPREFIX  :=
 else
-WINCC       = i386-mingw32-gcc
-WINAR	    = i386-mingw32-ar
-WINRANLIB   = i386-mingw32-ranlib
+WINPREFIX  := $(shell find-mingw.sh gcc)
 endif
-
-WINCFLAGS   = -W -Wall -Wno-sign-compare -Os -fomit-frame-pointer \
-	-D_FILE_OFFSET_BITS=64
-WINPIC      =
-WINLDFLAGS  = -Os -s
+WINCFLAGS  := -W -Wall -Wno-sign-compare -Os -fomit-frame-pointer \
+	      -D_FILE_OFFSET_BITS=64
+WINLDFLAGS := -Os -s
 endif
 WINCFLAGS += -I. -I.. -I../libfat -I../libinstaller
+
+WINCC      := $(WINPREFIX)gcc
+WINAR	   := $(WINPREFIX)ar
+WINRANLIB  := $(WINPREFIX)ranlib
 
 WINCC_IS_GOOD := $(shell $(WINCC) $(WINCFLAGS) $(WINLDFLAGS) -o hello.exe hello.c >/dev/null 2>&1 ; echo $$?)
 
