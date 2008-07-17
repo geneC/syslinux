@@ -29,7 +29,7 @@ static inline void cpuid_count(uint32_t op, uint32_t cnt,
 static inline void cpuid(uint32_t op, uint32_t *eax, uint32_t *ebx,
 			 uint32_t *ecx, uint32_t *edx)
 {
-  return cpuid_count(op, 0, eax, ebx, ecx, edx);
+  cpuid_count(op, 0, eax, ebx, ecx, edx);
 }
 static inline __constfunc uint32_t cpuid_eax(uint32_t level)
 {
