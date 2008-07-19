@@ -29,18 +29,18 @@ struct pci_device {
 
 struct pci_bus {
 	uint16_t id;
-	struct pci_device *pci_device[MAX_PCI_DEVICES];
-	uint8_t pci_device_count;
+	struct pci_device *pci_device[MAX_PCI_DEVICES * MAX_PCI_FUNC];
+	uint32_t pci_device_count;
 };
 
 struct pci_device_list {
-	struct pci_device pci_device[MAX_PCI_DEVICES];
-	uint8_t count;
+	struct pci_device pci_device[MAX_PCI_BUSES * MAX_PCI_DEVICES * MAX_PCI_FUNC];
+	uint32_t count;
 };
 
 struct pci_bus_list {
 	struct pci_bus pci_bus[MAX_PCI_BUSES];
-	uint8_t count;
+	uint32_t count;
 };
 
 struct match {
