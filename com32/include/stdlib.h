@@ -36,6 +36,8 @@ __extern __mallocfunc void *malloc(size_t);
 __extern __mallocfunc void *zalloc(size_t);
 __extern __mallocfunc void *calloc(size_t, size_t);
 __extern __mallocfunc void *realloc(void *, size_t);
+__extern int posix_memalign(void **memptr, size_t alignment,
+		size_t size);
 __extern long strtol(const char *, char **, int);
 __extern long long strtoll(const char *, char **, int);
 __extern unsigned long strtoul(const char *, char **, int);

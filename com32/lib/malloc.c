@@ -5,6 +5,7 @@
  */
 
 #include <stdlib.h>
+#include <errno.h>
 #include "init.h"
 #include "malloc.h"
 
@@ -117,4 +118,83 @@ void *malloc(size_t size)
 
   /* Nothing found... need to request a block from the kernel */
   return NULL;			/* No kernel to get stuff from */
+}
+
+int posix_memalign(void **memptr, size_t alignment, size_t size) {
+	struct free_arena_header *fp, *nfp;
+	uintptr_t align_mask, align_addr;
+
+	if (size == 0 || memptr == NULL) {
+		return EINVAL;
+	}
+
+	if ((alignment & (alignment - 1)) != 0)
+		return EINVAL;
+
+	// POSIX says to refuse alignments smaller than sizeof(void*)
+	if (alignment % sizeof(void*) != 0)
+		return EINVAL;
+
+	// The arena allocator can't handle alignments smaller than this
+	if (alignment < sizeof(struct arena_header)) {
+		alignment = sizeof(struct arena_header);
+	}
+	align_mask = ~(uintptr_t)(alignment - 1);
+
+	// Round up
+	size = (size + sizeof(struct arena_header) - 1) & ARENA_SIZE_MASK;
+
+	*memptr = NULL;
+
+	for (fp = __malloc_head.next_free; fp->a.type != ARENA_TYPE_HEAD;
+		fp = fp->next_free) {
+
+		if (fp->a.size <= size)
+			continue;
+
+		align_addr = (uintptr_t)fp;
+
+		// Ensure the alignment leaves some space before for the header
+		if (align_addr % alignment == 0) {
+			align_addr += alignment;
+		} else {
+			align_addr = (align_addr + alignment - 1) & align_mask;
+		}
+		if (align_addr - (uintptr_t)fp < 2*sizeof(struct arena_header))
+			align_addr += alignment;
+
+		// See if now we have enough space
+		if (align_addr + size > (uintptr_t)fp + fp->a.size)
+			continue;
+
+		// We have a winner...
+		if (align_addr - (uintptr_t)fp > sizeof(struct arena_header)) {
+			// We must split the block before the alignment point
+			nfp = (struct free_arena_header*)(align_addr - sizeof(struct arena_header));
+			nfp->a.type = ARENA_TYPE_FREE;
+			nfp->a.size = fp->a.size - ((uintptr_t)nfp - (uintptr_t)fp);
+			nfp->a.prev = fp;
+			nfp->a.next = fp->a.next;
+			nfp->prev_free = fp;
+			nfp->next_free = fp->next_free;
+
+			nfp->a.next->a.prev = nfp;
+			nfp->next_free->prev_free = nfp;
+
+			fp->a.size = (uintptr_t)nfp - (uintptr_t)fp;
+
+			fp->a.next = nfp;
+			fp->next_free = nfp;
+
+			*memptr = __malloc_from_block(nfp, size + sizeof(struct arena_header));
+		} else {
+			*memptr = __malloc_from_block(fp, size + sizeof(struct arena_header));
+		}
+
+	}
+
+	if (*memptr == NULL)
+		return ENOMEM;
+
+	return 0;
 }

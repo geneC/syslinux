@@ -14,12 +14,13 @@
 #define MALLOC_CHUNK_SIZE	65536
 #define MALLOC_CHUNK_MASK       (MALLOC_CHUNK_SIZE-1)
 
+
+struct free_arena_header;
+
 /*
  * This structure should be a power of two.  This becomes the
  * alignment unit.
  */
-struct free_arena_header;
-
 struct arena_header {
   size_t type;
   size_t size;			/* Also gives the location of the next entry */
