@@ -270,6 +270,7 @@ high_load_done:
 ; if they see protected-mode kernel data after the setup sectors, so
 ; clear that memory.
 ;
+		push di
 		mov di,[SetupSecs]
 		shl di,9
 		xor eax,eax
@@ -277,6 +278,7 @@ high_load_done:
 		sub cx,di
 		shr cx,2
 		rep stosd
+		pop di
 
 ;
 ; Now see if we have an initial RAMdisk; if so, do requisite computation
