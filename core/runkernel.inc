@@ -216,13 +216,6 @@ new_kernel:
                 mov al,[es:su_loadflags]
 		mov [LoadFlags],al
 
-		; Cap the ramdisk memory range if appropriate
-		mov eax,[RamdiskMax]
-		cmp eax,[MyHighMemSize]
-		ja .ok
-		mov [MyHighMemSize],eax
-.ok:
-
 any_kernel:
 
 ;
@@ -291,6 +284,12 @@ high_load_done:
 ; if we tried to load initrd using an old kernel
 ;
 load_initrd:
+		; Cap the ramdisk memory range if appropriate
+		mov eax,[RamdiskMax]
+		cmp eax,[MyHighMemSize]
+		ja .ok
+		mov [MyHighMemSize],eax
+.ok:
 		xor eax,eax
                 cmp [InitRDPtr],ax
                 jz .noinitrd
