@@ -312,10 +312,8 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		lodsb
 		cmp al,' '
 		jna .done
-		mov [di],al
-		inc di
-		dec cx
-		jnz .loop
+		stosb
+		loop .loop
 .done:
 		mov byte [VKernel],1		; We've seen a "label" statement
 		mov si,VKernelBuf+vk_vname	; By default, rname == vname

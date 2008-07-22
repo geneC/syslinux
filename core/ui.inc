@@ -309,24 +309,18 @@ vk_check:
 		sub di,cx			; Return to beginning of buf
 		push si
 		mov si,command_line
-		mov cx,FILENAME_MAX
 .loop:
-		dec cx
-		jz .done
 		lodsb
-		mov ah,[di]
-		inc di
-		cmp ah,al
-		je .match
-		jmp .nomatch
-.match:
 		cmp al,' '
-		jna .done
-		jmp .loop
+		jbe .done
+		scasb
+		je .loop
 .nomatch:
 		pop si
 		jmp .scan
 .done:
+		cmp byte [di],0			; Must match end of string
+		jne .nomatch
 		pop si
 
 ;
