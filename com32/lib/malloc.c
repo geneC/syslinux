@@ -160,7 +160,7 @@ int posix_memalign(void **memptr, size_t alignment, size_t size) {
 		} else {
 			align_addr = (align_addr + alignment - 1) & align_mask;
 		}
-		if (align_addr - (uintptr_t)fp < 2*sizeof(struct arena_header))
+		if (align_addr - (uintptr_t)fp == 2*sizeof(struct arena_header))
 			align_addr += alignment;
 
 		// See if now we have enough space
@@ -190,7 +190,7 @@ int posix_memalign(void **memptr, size_t alignment, size_t size) {
 		} else {
 			*memptr = __malloc_from_block(fp, size + sizeof(struct arena_header));
 		}
-
+		break;
 	}
 
 	if (*memptr == NULL)
