@@ -599,12 +599,6 @@ loadinitrd:
                 mov si,crlf_msg
                 jmp abort_load
 
-no_high_mem:					; Error routine
-		mov si,err_nohighmem
-                jmp abort_load
-
-                ret
-
 		section .data
 crlfloading_msg	db CR, LF
 loading_msg     db 'Loading ', 0
