@@ -115,6 +115,9 @@
 /* Packed structures */
 #define __packed	__attribute__((packed))
 
+/* Weak symbols */
+#define __weak          __attribute__((weak))
+
 /* Alignment */
 #define __aligned(x)	__attribute__((aligned(x)))
 #define __alignas(x)	__attribute__((aligned(__alignof__(x))))
