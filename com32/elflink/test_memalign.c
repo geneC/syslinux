@@ -3,8 +3,6 @@
 #include <console.h>
 #include <errno.h>
 
-#include "elf_module.h"
-
 void perform_allocation(int align) {
 	int res = 0;
 	int size = 100;

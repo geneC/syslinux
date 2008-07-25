@@ -13,7 +13,7 @@ RM = rm -f
 ################
 # Build options
 
-CFLAGS = -g3 -O0 -Wall -DELF_USERSPACE_TEST
+CFLAGS = -g3 -O0 -Wall -DELF_DEBUG
 
 LDFLAGS = 
 
@@ -21,7 +21,7 @@ LDFLAGS =
 # Generated files
 
 # Test executable name
-TESTPROG = elftest
+TESTPROG = test_user
 
 
 ###############
@@ -34,7 +34,7 @@ all: test-prog test-module
 # The testing user-space application
 test-prog: $(TESTPROG)
 
-$(TESTPROG): elftest.o elf_module.o elf_utils.o
+$(TESTPROG): test_user.o elf_module.o elf_utils.o
 	$(CC) -o $@ $^
 
 	

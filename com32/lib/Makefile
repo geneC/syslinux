@@ -7,7 +7,60 @@ NOGPL := 1
 topdir = ../..
 include MCONFIG
 
-LIBOBJS = \
+LIBPNGOBJS = \
+	libpng/png.o libpng/pngset.o libpng/pngget.o libpng/pngrutil.o  \
+	libpng/pngtrans.o libpng/pngwutil.o libpng/pngread.o		\
+	libpng/pngrio.o libpng/pngwio.o libpng/pngwrite.o		\
+	libpng/pngrtran.o libpng/pngwtran.o libpng/pngmem.o		\
+	libpng/pngerror.o libpng/pngpread.o
+	
+LIBZLIBOBJS = \
+	zlib/adler32.o zlib/compress.o zlib/crc32.o zlib/gzio.o		\
+	zlib/uncompr.o zlib/deflate.o zlib/trees.o zlib/zutil.o		\
+	zlib/inflate.o zlib/infback.o zlib/inftrees.o zlib/inffast.o
+	
+LIBJPGOBJS = \
+	jpeg/tinyjpeg.o jpeg/jidctflt.o	jpeg/decode1.o jpeg/decode3.o   \
+	jpeg/rgb24.o jpeg/bgr24.o jpeg/yuv420p.o jpeg/grey.o		\
+	jpeg/rgba32.o jpeg/bgra32.o
+	
+LIBENTRYOBJS = \
+	sys/intcall.o sys/farcall.o sys/cfarcall.o sys/zeroregs.o	\
+	sys/entry.o sys/exit.o sys/argv.o sys/times.o			\
+	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
+	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
+	sys/isatty.o sys/fstat.o
+	
+LIBVESAOBJS = \
+	sys/vesacon_write.o sys/vesaserial_write.o			\
+	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
+	sys/vesa/alphatbl.o sys/vesa/screencpy.o sys/vesa/fmtpixel.o	\
+	
+LIBSYSLINUXOBJS = \
+	syslinux/idle.o	syslinux/reboot.o				\
+	syslinux/features.o syslinux/config.o syslinux/serial.o		\
+	syslinux/ipappend.o syslinux/dsinfo.o syslinux/version.o	\
+	\
+	syslinux/addlist.o syslinux/freelist.o syslinux/memmap.o	\
+	syslinux/movebits.o syslinux/shuffle.o syslinux/shuffle_pm.o	\
+	syslinux/shuffle_rm.o syslinux/zonelist.o			\
+	syslinux/dump_mmap.o syslinux/dump_movelist.o			\
+	\
+	syslinux/run_default.o syslinux/run_command.o			\
+	syslinux/cleanup.o syslinux/localboot.o	syslinux/runimage.o	\
+	\
+	syslinux/loadfile.o syslinux/floadfile.o syslinux/zloadfile.o	\
+	\
+	syslinux/load_linux.o syslinux/initramfs.o			\
+	syslinux/initramfs_file.o syslinux/initramfs_loadfile.o		\
+	syslinux/initramfs_archive.o					\
+	\
+	syslinux/pxe_get_cached.o					\
+	\
+	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o		\
+	syslinux/setadv.o
+
+LIBOTHEROBJS = \
 	abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o		\
 	ctypes.o errno.o fgetc.o fgets.o fopen.o fprintf.o fputc.o	\
 	fclose.o putchar.o setjmp.o					\
@@ -16,9 +69,9 @@ LIBOBJS = \
 	memcpy.o mempcpy.o memmem.o memmove.o memset.o memswap.o	\
 	exit.o onexit.o	\
 	perror.o printf.o puts.o qsort.o realloc.o seed48.o snprintf.o	\
-	sprintf.o srand48.o sscanf.o stack.o strcasecmp.o strcat.o	\
-	strchr.o strcmp.o strcpy.o strpcpy.o strdup.o strlen.o		\
-	strerror.o strnlen.o						\
+	sprintf.o srand48.o sscanf.o strcasecmp.o strcat.o	\
+	strchr.o strcmp.o strcpy.o strdup.o strerror.o strlen.o		\
+	strnlen.o							\
 	strncasecmp.o strncat.o strncmp.o strncpy.o strndup.o		\
 	stpcpy.o stpncpy.o 						\
 	strntoimax.o strntoumax.o strrchr.o strsep.o strspn.o strstr.o	\
@@ -33,12 +86,6 @@ LIBOBJS = \
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
 	libgcc/__divdi3.o libgcc/__moddi3.o				\
-	\
-	sys/intcall.o sys/farcall.o sys/cfarcall.o sys/zeroregs.o	\
-	sys/entry.o sys/exit.o sys/argv.o sys/times.o			\
-	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
-	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
-	sys/isatty.o sys/fstat.o					\
 	\
 	sys/zfile.o sys/zfopen.o					\
 	\
@@ -55,53 +102,20 @@ LIBOBJS = \
 	\
 	sys/ansicon_write.o sys/ansiserial_write.o			\
 	\
-	sys/vesacon_write.o sys/vesaserial_write.o			\
-	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
-	sys/vesa/alphatbl.o sys/vesa/screencpy.o sys/vesa/fmtpixel.o	\
-	\
 	pci/cfgtype.o pci/scan.o					\
 	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o		\
 	pci/writeb.o pci/writew.o pci/writel.o pci/writebios.o		\
 	\
-	zlib/adler32.o zlib/compress.o zlib/crc32.o zlib/gzio.o		\
-	zlib/uncompr.o zlib/deflate.o zlib/trees.o zlib/zutil.o		\
-	zlib/inflate.o zlib/infback.o zlib/inftrees.o zlib/inffast.o	\
-	\
-	libpng/png.o libpng/pngset.o libpng/pngget.o libpng/pngrutil.o  \
-	libpng/pngtrans.o libpng/pngwutil.o libpng/pngread.o		\
-	libpng/pngrio.o libpng/pngwio.o libpng/pngwrite.o		\
-	libpng/pngrtran.o libpng/pngwtran.o libpng/pngmem.o		\
-	libpng/pngerror.o libpng/pngpread.o				\
-	\
-	jpeg/tinyjpeg.o jpeg/jidctflt.o	jpeg/decode1.o jpeg/decode3.o   \
-	jpeg/rgb24.o jpeg/bgr24.o jpeg/yuv420p.o jpeg/grey.o		\
-	jpeg/rgba32.o jpeg/bgra32.o					\
-	\
-	sys/x86_init_fpu.o math/pow.o math/strtod.o			\
-	\
-	syslinux/idle.o	syslinux/reboot.o				\
-	syslinux/features.o syslinux/config.o syslinux/serial.o		\
-	syslinux/ipappend.o syslinux/dsinfo.o syslinux/version.o	\
-	syslinux/keyboard.o						\
-	\
-	syslinux/addlist.o syslinux/freelist.o syslinux/memmap.o	\
-	syslinux/movebits.o syslinux/shuffle.o syslinux/shuffle_pm.o	\
-	syslinux/shuffle_rm.o syslinux/zonelist.o			\
-	syslinux/dump_mmap.o syslinux/dump_movelist.o			\
-	\
-	syslinux/run_default.o syslinux/run_command.o			\
-	syslinux/cleanup.o syslinux/localboot.o	syslinux/runimage.o	\
-	\
-	syslinux/loadfile.o syslinux/floadfile.o syslinux/zloadfile.o	\
-	\
-	syslinux/load_linux.o syslinux/initramfs.o			\
-	syslinux/initramfs_file.o syslinux/initramfs_loadfile.o		\
-	syslinux/initramfs_archive.o					\
-	\
-	syslinux/pxe_get_cached.o syslinux/pxe_get_nic.o		\
-	\
-	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o		\
-	syslinux/setadv.o
+	sys/x86_init_fpu.o math/pow.o math/strtod.o
+	
+LIBOBJS = \
+	$(LIBOTHEROBJS) \
+	$(LIBENTRYOBJS) \
+	$(LIBZLIBOBJS) \
+	$(LIBPNGOBJS) \
+	$(LIBVESAOBJS) \
+	$(LIBJPGOBJS) \
+	$(LIBSYSLINUXOBJS)
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib
@@ -110,17 +124,24 @@ AUXDIR   = $(DATADIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-all: libcom32.a
+all: libcom32.a klibc.dyn
 
 libcom32.a : $(LIBOBJS)
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
-tidy dist clean:
+klibc.dyn : $(LIBOTHEROBJS)
+	rm -f $@
+	$(LD) -shared -o $@ $(LIBOTHEROBJS)
+
+tidy dist:
 	rm -f sys/vesa/alphatbl.c
 	find . \( -name \*.o -o -name \*.a -o -name .\*.d -o -name \*.tmp \) -print0 | \
 		xargs -0r rm -f
+
+clean: tidy
+	rm -f *.a *.dyn
 
 spotless: clean
 	rm -f *.a

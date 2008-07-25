@@ -36,7 +36,7 @@ LNXCFLAGS  = -W -Wall -O -g -I../libutil/include
 LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 SFLAGS     = -D__COM32__ -march=i386
-LDFLAGS    = -T ../lib/com32.ld
+LDFLAGS    = -n -T ../lib/com32.ld
 OBJCOPY    = objcopy
 PPMTOLSS16 =	../ppmtolss16
 LIBGCC    := $(shell $(CC) --print-libgcc)
@@ -52,7 +52,7 @@ AUXDIR   = $(DATADIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-MODULES	  = elflink.c32
+MODULES	  = test_memalign.c32 test_com32.c32
 
 TESTFILES =
 
@@ -85,14 +85,19 @@ all: $(MODULES) $(TESTFILES)
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
 	
-elflink.elf : elflink.o elf_module.o elf_utils.o $(LIBS)
+test_memalign.elf : test_memalign.o  $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
+
+test_com32.elf: CFLAGS += -DELF_DEBUG
+test_com32.elf: test_com32.o elf_module.o elf_utils.o $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ $^
+	$(OBJCOPY) --extract-symbol $@ _root_.dyn
 
 tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d
 
 clean: tidy
-	rm -f *.lss *.c32 *.lnx *.com
+	rm -f *.lss *.c32 *.lnx *.com *.dyn
 
 spotless: clean
 	rm -f *~ \#*

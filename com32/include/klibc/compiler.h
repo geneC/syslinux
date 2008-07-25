@@ -126,4 +126,7 @@
 #define __common	__attribute__((common))
 #define __nocommon	__attribute__((nocommon))
 
+/* Weak symbols */
+#define __weak			__attribute__((weak))
+
 #endif

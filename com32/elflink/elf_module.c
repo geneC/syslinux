@@ -23,7 +23,7 @@ static LIST_HEAD(modules);
 
 
 // User-space debugging routines
-#ifdef ELF_USERSPACE_TEST
+#ifdef ELF_DEBUG
 static void print_elf_ehdr(Elf32_Ehdr *ehdr) {
 	int i;
 
@@ -65,15 +65,10 @@ static void print_elf_symbols(struct elf_module *module) {
 		}
 	}
 }
-#endif //ELF_USERSPACE_TEST
+#endif //ELF_DEBUG
 
 static int image_load(struct elf_module *module) {
-	char file_name[MODULE_NAME_SIZE+3]; // Include the extension
-
-	strcpy(file_name, module->name);
-	strcat(file_name, ".so");
-
-	module->_file = fopen(file_name, "rb");
+	module->_file = fopen(module->name, "rb");
 
 	if (module->_file == NULL) {
 		perror("Could not open object file");
@@ -623,7 +618,7 @@ static int resolve_symbols(struct elf_module *module) {
 
 static int check_symbols(struct elf_module *module) {
 	unsigned int i;
-	Elf32_Sym *crt_sym, *ref_sym;
+	Elf32_Sym *crt_sym = NULL, *ref_sym = NULL;
 	char *crt_name;
 	struct elf_module *crt_module;
 
@@ -690,19 +685,14 @@ int module_load(struct elf_module *module) {
 	CHECKED(res, check_header(&elf_hdr), error);
 
 	// DEBUG
-#ifdef ELF_USERSPACE_TEST
+#ifdef ELF_DEBUG
 	print_elf_ehdr(&elf_hdr);
-#endif // ELF_USERSPACE_TEST
+#endif // ELF_DEBUG
 
 	// Load the segments in the memory
 	CHECKED(res, load_segments(module, &elf_hdr), error);
 	// Obtain dynamic linking information
 	CHECKED(res, prepare_dynlinking(module), error);
-
-	// DEBUG
-#ifdef ELF_USERSPACE_TEST
-	print_elf_symbols(module);
-#endif // ELF_USERSPACE_TEST
 
 	// Check the symbols for duplicates / missing definitions
 	CHECKED(res, check_symbols(module), error);
