@@ -52,6 +52,10 @@ int main(int argc, char **argv) {
 	// Initializing the module subsystem
 	res = modules_com32_setup();
 
+	// Load klibc
+	mod_klibc = module_alloc(ELF_DIRECTORY KLIBC_NAME);
+	module_load(mod_klibc);
+
 	if (res != 0) {
 		printf("ERROR: Could not fully initialize the module!\n");
 		return res;

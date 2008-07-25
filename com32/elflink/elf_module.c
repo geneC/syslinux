@@ -731,7 +731,6 @@ static int check_symbols(struct elf_module *module) {
 	int strong_count;
 	int weak_count;
 
-	// The chain count gives the number of symbols
 	for (i = 1; i < module->symtable_size; i++) {
 		crt_sym = (Elf32_Sym*)(module->sym_table + i * module->syment_size);
 		crt_name = module->str_table + crt_sym->st_name;
@@ -859,6 +858,16 @@ int module_load_shallow(struct elf_module *module) {
 #ifdef ELF_DEBUG
 	print_elf_symbols(module);
 #endif // ELF_DEBUG
+
+	// Check the symbols for duplicates / missing definitions
+	CHECKED(res, check_symbols(module), error);
+
+	// Add the module at the beginning of the module list
+	list_add(&module->list, &modules);
+
+	// The file image is no longer needed
+	image_unload(module);
+
 
 	return 0;
 
