@@ -44,25 +44,14 @@ static void print_elf_ehdr(Elf32_Ehdr *ehdr) {
 }
 
 static void print_elf_symbols(struct elf_module *module) {
-	Elf32_Word *bkt = module->hash_table + 2;
-	Elf32_Word *chn = module->hash_table + 2 + module->hash_table[0];
-	Elf32_Word i, crt_index;
+	unsigned int i;
 	Elf32_Sym *crt_sym;
 
-	printf("Bucket count: %d \n", module->hash_table[0]);
-	printf("Chain count: %d (Non GNU-Hash: %d)\n", module->hash_table[1],
-			module->ghash_table[1]);
+	for (i = 1; i < module->symtable_size; i++) {
+		crt_sym = (Elf32_Sym*)(module->sym_table + i*module->syment_size);
 
-	for (i = 0; i < module->hash_table[0]; i++) {
-		printf("Bucket %d:\n", i);
-		crt_index = bkt[i];
+		printf("%s\n", module->str_table + crt_sym->st_name);
 
-		while (crt_index != STN_UNDEF) {
-			crt_sym = (Elf32_Sym*)(module->sym_table + crt_index*module->syment_size);
-
-			printf("%s\n", module->str_table + crt_sym->st_name);
-			crt_index = chn[crt_index];
-		}
 	}
 }
 #endif //ELF_DEBUG
@@ -185,7 +174,7 @@ struct elf_module *module_find(const char *name) {
 
 // Performs verifications on ELF header to assure that the open file is a
 // valid SYSLINUX ELF module.
-static int check_header(Elf32_Ehdr *elf_hdr) {
+static int check_header_common(Elf32_Ehdr *elf_hdr) {
 	// Check the header magic
 	if (elf_hdr->e_ident[EI_MAG0] != ELFMAG0 ||
 		elf_hdr->e_ident[EI_MAG1] != ELFMAG1 ||
@@ -212,14 +201,24 @@ static int check_header(Elf32_Ehdr *elf_hdr) {
 		return -1;
 	}
 
-	if (elf_hdr->e_type != MODULE_ELF_TYPE) {
-		fprintf(stderr, "The ELF file must be a shared object\n");
+	if (elf_hdr->e_machine != MODULE_ELF_MACHINE) {
+		fprintf(stderr, "Invalid ELF architecture\n");
 		return -1;
 	}
 
+	return 0;
+}
 
-	if (elf_hdr->e_machine != MODULE_ELF_MACHINE) {
-		fprintf(stderr, "Invalid ELF architecture\n");
+static int check_header(Elf32_Ehdr *elf_hdr) {
+	int res;
+
+	res = check_header_common(elf_hdr);
+
+	if (res != 0)
+		return res;
+
+	if (elf_hdr->e_type != MODULE_ELF_TYPE) {
+		fprintf(stderr, "The ELF file must be a shared object\n");
 		return -1;
 	}
 
@@ -231,6 +230,21 @@ static int check_header(Elf32_Ehdr *elf_hdr) {
 	return 0;
 }
 
+static int check_header_shallow(Elf32_Ehdr *elf_hdr) {
+	int res;
+
+	res = check_header_common(elf_hdr);
+
+	if (res != 0)
+		return res;
+
+	if (elf_hdr->e_shoff == 0x00000000) {
+		fprintf(stderr, "SHT missing\n");
+		return -1;
+	}
+
+	return 0;
+}
 /*
  *
  * The implementation assumes that the loadable segments are present
@@ -366,6 +380,92 @@ out:
 	return res;
 }
 
+static int load_shallow_sections(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
+	int i;
+	int res = 0;
+	void *sht = NULL;
+	void *buffer = NULL;
+	Elf32_Shdr *crt_sht;
+	Elf32_Off buff_offset;
+
+	Elf32_Off min_offset = 0xFFFFFFFF;
+	Elf32_Off max_offset = 0x00000000;
+	Elf32_Word max_align = 0x1;
+
+	Elf32_Off sym_offset = 0xFFFFFFFF;
+	Elf32_Off str_offset = 0xFFFFFFFF;
+
+
+	char *sh_strtable;
+
+	// We buffer the data up to the SHT
+	buff_offset = module->_cr_offset;
+
+	buffer = malloc(elf_hdr->e_shoff - buff_offset);
+	// Get to the SHT
+	image_read(buffer, elf_hdr->e_shoff - buff_offset, module);
+
+	// Load the SHT
+	sht = malloc(elf_hdr->e_shnum * elf_hdr->e_shentsize);
+	image_read(sht, elf_hdr->e_shnum * elf_hdr->e_shentsize, module);
+
+	// Get the string table of the section names
+	crt_sht = (Elf32_Shdr*)(sht + elf_hdr->e_shstrndx * elf_hdr->e_shentsize);
+	sh_strtable = (char*)(buffer + (crt_sht->sh_offset - buff_offset));
+
+	for (i = 0; i < elf_hdr->e_shnum; i++) {
+		crt_sht = (Elf32_Shdr*)(sht + i*elf_hdr->e_shentsize);
+
+		if (strcmp(".symtab", sh_strtable + crt_sht->sh_name) == 0) {
+			// We found the symbol table
+			min_offset = MIN(min_offset, crt_sht->sh_offset);
+			max_offset = MAX(max_offset, crt_sht->sh_offset + crt_sht->sh_size);
+			max_align = MAX(max_align, crt_sht->sh_addralign);
+
+			sym_offset = crt_sht->sh_offset;
+
+			module->syment_size = crt_sht->sh_entsize;
+			module->symtable_size = crt_sht->sh_size / crt_sht->sh_entsize;
+		}
+		if (strcmp(".strtab", sh_strtable + crt_sht->sh_name) == 0) {
+			// We found the string table
+			min_offset = MIN(min_offset, crt_sht->sh_offset);
+			max_offset = MAX(max_offset, crt_sht->sh_offset + crt_sht->sh_size);
+			max_align = MAX(max_align, crt_sht->sh_addralign);
+
+			str_offset = crt_sht->sh_offset;
+
+			module->strtable_size = crt_sht->sh_size;
+		}
+	}
+
+	if (elf_malloc(&module->module_addr, max_align,
+			max_offset - min_offset) != 0) {
+		fprintf(stderr, "Could not allocate sections\n");
+		goto out;
+	}
+
+	// Copy the data
+	image_seek(min_offset, module);
+	image_read(module->module_addr, max_offset - min_offset, module);
+
+	// Setup module information
+	module->module_size = max_offset - min_offset;
+	module->str_table = (char*)(module->module_addr + (str_offset - min_offset));
+	module->sym_table = module->module_addr + (sym_offset - min_offset);
+
+out:
+	// Release the SHT
+	if (sht != NULL)
+		free(sht);
+
+	// Release the buffer
+	if (buffer != NULL)
+		free(buffer);
+
+	return res;
+}
+
 static int prepare_dynlinking(struct elf_module *module) {
 	Elf32_Dyn  *dyn_entry = module->dyn_table;
 
@@ -378,7 +478,7 @@ static int prepare_dynlinking(struct elf_module *module) {
 			module->hash_table =
 				(Elf32_Word*)module_get_absolute(dyn_entry->d_un.d_ptr, module);
 			break;
-		case DT_GNU_HASH:	// TODO: Add support for this one, too (50% faster)
+		case DT_GNU_HASH:
 			module->ghash_table =
 				(Elf32_Word*)module_get_absolute(dyn_entry->d_un.d_ptr, module);
 			break;
@@ -404,6 +504,12 @@ static int prepare_dynlinking(struct elf_module *module) {
 		dyn_entry++;
 	}
 
+	// Now compute the number of symbols in the symbol table
+	if (module->ghash_table != NULL) {
+		module->symtable_size = module->ghash_table[1];
+	} else {
+		module->symtable_size = module->hash_table[1];
+	}
 
 	return 0;
 }
@@ -626,7 +732,7 @@ static int check_symbols(struct elf_module *module) {
 	int weak_count;
 
 	// The chain count gives the number of symbols
-	for (i = 1; i < module->hash_table[1]; i++) {
+	for (i = 1; i < module->symtable_size; i++) {
 		crt_sym = (Elf32_Sym*)(module->sym_table + i * module->syment_size);
 		crt_name = module->str_table + crt_sym->st_name;
 
@@ -679,6 +785,9 @@ int module_load(struct elf_module *module) {
 		return res;
 	}
 
+	// The module is a fully featured dynamic library
+	module->shallow = 0;
+
 	CHECKED(res, image_read(&elf_hdr, sizeof(Elf32_Ehdr), module), error);
 
 	// Checking the header signature and members
@@ -723,6 +832,42 @@ error:
 	return res;
 }
 
+int module_load_shallow(struct elf_module *module) {
+	int res;
+	Elf32_Ehdr elf_hdr;
+
+	res = image_load(module);
+
+	if (res < 0)
+		return res;
+
+	module->shallow = 1;
+
+	CHECKED(res, image_read(&elf_hdr, sizeof(Elf32_Ehdr), module), error);
+
+	// Checking the header signature and members
+	CHECKED(res, check_header_shallow(&elf_hdr), error);
+
+	// DEBUG
+#ifdef ELF_DEBUG
+	print_elf_ehdr(&elf_hdr);
+#endif // ELF_DEBUG
+
+	CHECKED(res, load_shallow_sections(module, &elf_hdr), error);
+
+	// DEBUG
+#ifdef ELF_DEBUG
+	print_elf_symbols(module);
+#endif // ELF_DEBUG
+
+	return 0;
+
+error:
+	image_unload(module);
+
+	return res;
+}
+
 // Unloads the module from the system and releases all the associated memory
 int module_unload(struct elf_module *module) {
 	struct module_dep *crt_dep, *tmp;
@@ -740,7 +885,7 @@ int module_unload(struct elf_module *module) {
 	// Remove the module from the module list
 	list_del_init(&module->list);
 
-	// Release the loaded segments
+	// Release the loaded segments or sections
 	elf_free(module->module_addr);
 	// Release the module structure
 	free(module);
@@ -833,14 +978,35 @@ static Elf32_Sym *module_find_symbol_gnu(const char *name, struct elf_module *mo
 	return NULL;
 }
 
+static Elf32_Sym *module_find_symbol_iterate(const char *name,
+		struct elf_module *module) {
+
+	unsigned int i;
+	Elf32_Sym *crt_sym;
+
+	for (i=1; i < module->symtable_size; i++) {
+		crt_sym = (Elf32_Sym*)(module->sym_table + i*module->syment_size);
+
+		if (strcmp(name, module->str_table + crt_sym->st_name) == 0) {
+			return crt_sym;
+		}
+	}
+
+	return NULL;
+}
+
 Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
 	Elf32_Sym *result = NULL;
 
 	if (module->ghash_table != NULL)
 		result = module_find_symbol_gnu(name, module);
 
-	if (result == NULL)
-		result = module_find_symbol_sysv(name, module);
+	if (result == NULL) {
+		if (module->hash_table != NULL)
+			result = module_find_symbol_sysv(name, module);
+		else
+			result = module_find_symbol_iterate(name, module);
+	}
 
 	return result;
 }

@@ -5,9 +5,11 @@
 #include "elf_module.h"
 
 #define KLIBC_NAME			"klibc.dyn"
+#define ROOT_NAME			"_root_.dyn"
 
 #define ELF_DIRECTORY		"/dyn/"
 
+static struct elf_module    *mod_root;
 static struct elf_module	*mod_klibc;
 
 int modules_com32_setup() {
@@ -19,16 +21,16 @@ int modules_com32_setup() {
 		return res;
 
 	////////////////////////////////////////
-	// Load the klibc module
+	// Load the root module
 
 	// Create its associated structure
-	mod_klibc = module_alloc(ELF_DIRECTORY KLIBC_NAME);
+	mod_root = module_alloc(ELF_DIRECTORY ROOT_NAME);
 
-	if (mod_klibc == NULL) {
+	if (mod_root == NULL) {
 		return -1;
 	}
 
-	res = module_load(mod_klibc);
+	res = module_load_shallow(mod_root);
 
 	if (res != 0) {
 		return res;

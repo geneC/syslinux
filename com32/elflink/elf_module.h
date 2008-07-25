@@ -22,30 +22,33 @@ typedef void (*module_exit_func)();
 // Structure encapsulating a module loaded in memory
 struct elf_module {
 	char				name[MODULE_NAME_SIZE]; 		// The module name
-	
+
+	int					shallow;	// Whether the module contains any code
+
 	struct list_head	required;		// Head of the required modules list
 	struct list_head	dependants;		// Head of module dependants list
 	struct list_head	list;		// The list entry in the module list
-	
+
 	module_init_func	init_func;	// The initialization entry point
 	module_exit_func	exit_func;	// The module finalization code
-	
-	
+
+
 	void				*module_addr; // The module location in the memory
 	Elf32_Addr			base_addr;	// The base address of the module
 	Elf32_Word			module_size; // The module size in memory
-	
+
 	Elf32_Word			*hash_table;	// The symbol hash table
 	Elf32_Word			*ghash_table;	// The GNU style hash table
 	char				*str_table;		// The string table
 	void 				*sym_table;		// The symbol table
 	void				*got;			// The Global Offset Table
 	Elf32_Dyn			*dyn_table;		// Dynamic loading information table
-	
+
 	Elf32_Word			strtable_size;	// The size of the string table
 	Elf32_Word			syment_size;	// The size of a symbol entry
-	
-	
+	Elf32_Word			symtable_size;	// The size of the symbol table
+
+
 	// Transient - Data available while the module is loading
 	FILE				*_file;	// The file object of the open file
 	Elf32_Off			_cr_offset; // The current offset in the open file
@@ -54,7 +57,7 @@ struct elf_module {
 // Structure encapsulating a module dependency need
 struct module_dep {
 	struct list_head	list;		// The list entry in the dependency list
-	
+
 	struct elf_module	*module;
 };
 
@@ -68,6 +71,8 @@ extern struct elf_module *module_alloc(const char *name);
 
 // Loads the module into the system
 extern int module_load(struct elf_module *module);
+// Loads a module containing only symbol information into the system
+extern int module_load_shallow(struct elf_module *module);
 
 // Unloads the module from the system and releases all the associated memory
 extern int module_unload(struct elf_module *module);

@@ -36,7 +36,7 @@ LNXCFLAGS  = -W -Wall -O -g -I../libutil/include
 LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 SFLAGS     = -D__COM32__ -march=i386
-LDFLAGS    = -n -T ../lib/com32.ld
+LDFLAGS    = -T ../lib/com32.ld
 OBJCOPY    = objcopy
 PPMTOLSS16 =	../ppmtolss16
 LIBGCC    := $(shell $(CC) --print-libgcc)
@@ -90,7 +90,7 @@ test_memalign.elf : test_memalign.o  $(LIBS)
 
 test_com32.elf: CFLAGS += -DELF_DEBUG
 test_com32.elf: test_com32.o elf_module.o elf_utils.o $(LIBS)
-	$(LD) $(LDFLAGS) -o $@ $^
+	$(LD) -n $(LDFLAGS) -o $@ $^
 	$(OBJCOPY) --extract-symbol $@ _root_.dyn
 
 tidy dist:
