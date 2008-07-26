@@ -29,6 +29,7 @@ unsigned long elf_gnu_hash(const unsigned char *name) {
 	return h & 0xFFFFFFFF;
 }
 
+#ifdef ELF_NO_POSIX_MEMALIGN
 
 struct memalign_info {
 	void 	*start_addr;
@@ -68,3 +69,21 @@ void elf_free(void *memptr) {
 
 	free(info->start_addr);
 }
+
+#else
+
+int elf_malloc(void **memptr, size_t alignment, size_t size) {
+	if ((alignment & (alignment - 1)) != 0)
+		return EINVAL;
+
+	if (alignment % sizeof(void*) != 0)
+		alignment = sizeof(void*);
+
+	return posix_memalign(memptr, alignment, size);
+}
+
+void elf_free(void *memptr) {
+	free(memptr);
+}
+
+#endif //ELF_NO_POSIX_MEMALIGN

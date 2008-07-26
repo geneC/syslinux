@@ -21,25 +21,31 @@
 // The list of loaded modules
 static LIST_HEAD(modules);
 
+#ifdef ELF_DEBUG
+#define DBG_PRINT(fmt, args...)	fprintf(stderr, "[DBG] " fmt, ##args)
+#else
+#define DBG_PRINT(fmt, args...)	// Expand to nothing
+#endif
+
 
 // User-space debugging routines
 #ifdef ELF_DEBUG
 static void print_elf_ehdr(Elf32_Ehdr *ehdr) {
 	int i;
 
-	printf("Identification:\t");
+	fprintf(stderr, "Identification:\t");
 	for (i=0; i < EI_NIDENT; i++) {
 		printf("%d ", ehdr->e_ident[i]);
 	}
-	printf("\n");
-	printf("Type:\t\t%u\n", ehdr->e_type);
-	printf("Machine:\t%u\n", ehdr->e_machine);
-	printf("Version:\t%u\n", ehdr->e_version);
-	printf("Entry:\t\t0x%08x\n", ehdr->e_entry);
-	printf("PHT Offset:\t0x%08x\n", ehdr->e_phoff);
-	printf("SHT Offset:\t0x%08x\n", ehdr->e_shoff);
-	printf("Flags:\t\t%u\n", ehdr->e_flags);
-	printf("Header size:\t%u (Structure size: %u)\n", ehdr->e_ehsize,
+	fprintf(stderr, "\n");
+	fprintf(stderr, "Type:\t\t%u\n", ehdr->e_type);
+	fprintf(stderr, "Machine:\t%u\n", ehdr->e_machine);
+	fprintf(stderr, "Version:\t%u\n", ehdr->e_version);
+	fprintf(stderr, "Entry:\t\t0x%08x\n", ehdr->e_entry);
+	fprintf(stderr, "PHT Offset:\t0x%08x\n", ehdr->e_phoff);
+	fprintf(stderr, "SHT Offset:\t0x%08x\n", ehdr->e_shoff);
+	fprintf(stderr, "Flags:\t\t%u\n", ehdr->e_flags);
+	fprintf(stderr, "Header size:\t%u (Structure size: %u)\n", ehdr->e_ehsize,
 			sizeof(Elf32_Ehdr));
 }
 
@@ -50,7 +56,7 @@ static void print_elf_symbols(struct elf_module *module) {
 	for (i = 1; i < module->symtable_size; i++) {
 		crt_sym = (Elf32_Sym*)(module->sym_table + i*module->syment_size);
 
-		printf("%s\n", module->str_table + crt_sym->st_name);
+		fprintf(stderr, "%s\n", module->str_table + crt_sym->st_name);
 
 	}
 }
@@ -60,7 +66,7 @@ static int image_load(struct elf_module *module) {
 	module->_file = fopen(module->name, "rb");
 
 	if (module->_file == NULL) {
-		perror("Could not open object file");
+		DBG_PRINT("Could not open object file '%s'\n", module->name);
 		goto error;
 	}
 
@@ -94,7 +100,7 @@ static int image_read(void *buff, size_t size, struct elf_module *module) {
 	if (result < 1)
 		return -1;
 
-	printf("[DBG] Read %u\n", size);
+	DBG_PRINT("[I/O] Read %u\n", size);
 	module->_cr_offset += size;
 	return 0;
 }
@@ -113,7 +119,7 @@ static int image_skip(size_t size, struct elf_module *module) {
 	if (result < 1)
 		return -1;
 
-	printf("[DBG] Skipped %u\n", size);
+	DBG_PRINT("[I/O] Skipped %u\n", size);
 	module->_cr_offset += size;
 	return 0;
 }
@@ -181,28 +187,28 @@ static int check_header_common(Elf32_Ehdr *elf_hdr) {
 		elf_hdr->e_ident[EI_MAG2] != ELFMAG2 ||
 		elf_hdr->e_ident[EI_MAG3] != ELFMAG3) {
 
-		fprintf(stderr, "The file is not an ELF object\n");
+		DBG_PRINT("The file is not an ELF object\n");
 		return -1;
 	}
 
 	if (elf_hdr->e_ident[EI_CLASS] != MODULE_ELF_CLASS) {
-		fprintf(stderr, "Invalid ELF class code\n");
+		DBG_PRINT("Invalid ELF class code\n");
 		return -1;
 	}
 
 	if (elf_hdr->e_ident[EI_DATA] != MODULE_ELF_DATA) {
-		fprintf(stderr, "Invalid ELF data encoding\n");
+		DBG_PRINT("Invalid ELF data encoding\n");
 		return -1;
 	}
 
 	if (elf_hdr->e_ident[EI_VERSION] != MODULE_ELF_VERSION ||
 			elf_hdr->e_version != MODULE_ELF_VERSION) {
-		fprintf(stderr, "Invalid ELF file version\n");
+		DBG_PRINT("Invalid ELF file version\n");
 		return -1;
 	}
 
 	if (elf_hdr->e_machine != MODULE_ELF_MACHINE) {
-		fprintf(stderr, "Invalid ELF architecture\n");
+		DBG_PRINT("Invalid ELF architecture\n");
 		return -1;
 	}
 
@@ -218,12 +224,12 @@ static int check_header(Elf32_Ehdr *elf_hdr) {
 		return res;
 
 	if (elf_hdr->e_type != MODULE_ELF_TYPE) {
-		fprintf(stderr, "The ELF file must be a shared object\n");
+		DBG_PRINT("The ELF file must be a shared object\n");
 		return -1;
 	}
 
 	if (elf_hdr->e_phoff == 0x00000000) {
-		fprintf(stderr, "PHT missing\n");
+		DBG_PRINT("PHT missing\n");
 		return -1;
 	}
 
@@ -239,7 +245,7 @@ static int check_header_shallow(Elf32_Ehdr *elf_hdr) {
 		return res;
 
 	if (elf_hdr->e_shoff == 0x00000000) {
-		fprintf(stderr, "SHT missing\n");
+		DBG_PRINT("SHT missing\n");
 		return -1;
 	}
 
@@ -297,12 +303,12 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 
 	if (max_addr - min_addr == 0) {
 		// No loadable segments
-		fprintf(stderr, "No loadable segments found\n");
+		DBG_PRINT("No loadable segments found\n");
 		goto out;
 	}
 
 	if (dyn_addr == 0) {
-		fprintf(stderr, "No dynamic information segment found\n");
+		DBG_PRINT("No dynamic information segment found\n");
 		goto out;
 	}
 
@@ -319,7 +325,7 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 			max_align,
 			max_alloc-min_alloc) != 0) {
 
-		fprintf(stderr, "Could not allocate segments\n");
+		DBG_PRINT("Could not allocate segments\n");
 		goto out;
 	}
 
@@ -358,7 +364,7 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 				}
 			}
 
-			printf("Loadable segment of size 0x%08x copied from vaddr 0x%08x at 0x%08x\n",
+			DBG_PRINT("Loadable segment of size 0x%08x copied from vaddr 0x%08x at 0x%08x\n",
 					cr_pht->p_filesz,
 					cr_pht->p_vaddr,
 					(Elf32_Addr)module_get_absolute(cr_pht->p_vaddr, module));
@@ -368,9 +374,9 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 	// Setup dynamic segment location
 	module->dyn_table = module_get_absolute(dyn_addr, module);
 
-	printf("Base address: 0x%08x, aligned at 0x%08x\n", module->base_addr,
+	DBG_PRINT("Base address: 0x%08x, aligned at 0x%08x\n", module->base_addr,
 			max_align);
-	printf("Module size: 0x%08x\n", module->module_size);
+	DBG_PRINT("Module size: 0x%08x\n", module->module_size);
 
 out:
 	// Free up allocated memory
@@ -441,7 +447,7 @@ static int load_shallow_sections(struct elf_module *module, Elf32_Ehdr *elf_hdr)
 
 	if (elf_malloc(&module->module_addr, max_align,
 			max_offset - min_offset) != 0) {
-		fprintf(stderr, "Could not allocate sections\n");
+		DBG_PRINT("Could not allocate sections\n");
 		goto out;
 	}
 
@@ -593,10 +599,10 @@ static int perform_relocation(struct elf_module *module, Elf32_Rel *rel) {
 
 		if (sym_def == NULL) {
 			// This should never happen
-			fprintf(stderr, "Warning: Cannot perform relocation for symbol %s\n",
+			DBG_PRINT("Cannot perform relocation for symbol %s\n",
 					module->str_table + sym_ref->st_name);
-			// TODO: Return an error
-			return 0;
+
+			return -1;
 		}
 
 		// Compute the absolute symbol virtual address
@@ -632,8 +638,8 @@ static int perform_relocation(struct elf_module *module, Elf32_Rel *rel) {
 		*dest += module->base_addr;
 		break;
 	default:
-		fprintf(stderr, "Warning: Relocation type %d not supported\n", type);
-		break;
+		DBG_PRINT("Relocation type %d not supported\n", type);
+		return -1;
 	}
 
 	return 0;
@@ -663,7 +669,7 @@ static int resolve_symbols(struct elf_module *module) {
 			break;
 		case DT_PLTREL:
 			if (dyn_entry->d_un.d_val != DT_REL) {
-				fprintf(stderr, "Unsupported PLT relocation\n");
+				DBG_PRINT("Unsupported PLT relocation\n");
 				return -1;
 			}
 		case DT_JMPREL:
@@ -757,14 +763,14 @@ static int check_symbols(struct elf_module *module) {
 		if (crt_sym->st_shndx == SHN_UNDEF) {
 			// We have an undefined symbol
 			if (strong_count == 0 && weak_count == 0) {
-				fprintf(stderr, "Symbol %s is undefined\n", crt_name);
-				// TODO: Return an error
-				//return -1;
+				DBG_PRINT("Symbol %s is undefined\n", crt_name);
+				return -1;
 			}
 		} else {
 			if (strong_count > 0 && ELF32_ST_BIND(ref_sym->st_info) == STB_GLOBAL) {
-				fprintf(stderr, "Warning: Symbol %s is defined more than once\n", crt_name);
-				//return -1;
+				// It's not an error - at relocation, the most recent symbol
+				// will be considered
+				DBG_PRINT("Symbol %s is defined more than once\n", crt_name);
 			}
 		}
 	}
@@ -792,11 +798,6 @@ int module_load(struct elf_module *module) {
 	// Checking the header signature and members
 	CHECKED(res, check_header(&elf_hdr), error);
 
-	// DEBUG
-#ifdef ELF_DEBUG
-	print_elf_ehdr(&elf_hdr);
-#endif // ELF_DEBUG
-
 	// Load the segments in the memory
 	CHECKED(res, load_segments(module, &elf_hdr), error);
 	// Obtain dynamic linking information
@@ -814,6 +815,7 @@ int module_load(struct elf_module *module) {
 	// The file image is no longer needed
 	image_unload(module);
 
+	DBG_PRINT("MODULE %s LOADED SUCCESSFULLY\n", module->name);
 
 	return 0;
 
@@ -847,17 +849,7 @@ int module_load_shallow(struct elf_module *module) {
 	// Checking the header signature and members
 	CHECKED(res, check_header_shallow(&elf_hdr), error);
 
-	// DEBUG
-#ifdef ELF_DEBUG
-	print_elf_ehdr(&elf_hdr);
-#endif // ELF_DEBUG
-
 	CHECKED(res, load_shallow_sections(module, &elf_hdr), error);
-
-	// DEBUG
-#ifdef ELF_DEBUG
-	print_elf_symbols(module);
-#endif // ELF_DEBUG
 
 	// Check the symbols for duplicates / missing definitions
 	CHECKED(res, check_symbols(module), error);
@@ -868,6 +860,7 @@ int module_load_shallow(struct elf_module *module) {
 	// The file image is no longer needed
 	image_unload(module);
 
+	DBG_PRINT("SHALLOW MODULE %s LOADED SUCCESSFULLY\n", module->name);
 
 	return 0;
 
@@ -882,7 +875,7 @@ int module_unload(struct elf_module *module) {
 	struct module_dep *crt_dep, *tmp;
 	// Make sure nobody needs us
 	if (!list_empty(&module->dependants)) {
-		fprintf(stderr, "Module is required by other modules.\n");
+		DBG_PRINT("Module is required by other modules.\n");
 		return -1;
 	}
 
@@ -939,7 +932,7 @@ static Elf32_Sym *module_find_symbol_gnu(const char *name, struct elf_module *mo
 	Elf32_Word bitmask_nwords = *cr_word++;
 
 	if ((bitmask_nwords & (bitmask_nwords - 1)) != 0) {
-		fprintf(stderr, "Warning: Invalid GNU Hash structure\n");
+		DBG_PRINT("Invalid GNU Hash structure\n");
 		return NULL;
 	}
 

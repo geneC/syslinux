@@ -7,36 +7,49 @@ NOGPL := 1
 topdir = ../..
 include MCONFIG
 
-LIBPNGOBJS = \
+# PNG library object files
+LIBPNG_OBJS = \
 	libpng/png.o libpng/pngset.o libpng/pngget.o libpng/pngrutil.o  \
 	libpng/pngtrans.o libpng/pngwutil.o libpng/pngread.o		\
 	libpng/pngrio.o libpng/pngwio.o libpng/pngwrite.o		\
 	libpng/pngrtran.o libpng/pngwtran.o libpng/pngmem.o		\
 	libpng/pngerror.o libpng/pngpread.o
 	
-LIBZLIBOBJS = \
+# ZIP library object files
+LIBZLIB_OBJS = \
 	zlib/adler32.o zlib/compress.o zlib/crc32.o zlib/gzio.o		\
 	zlib/uncompr.o zlib/deflate.o zlib/trees.o zlib/zutil.o		\
-	zlib/inflate.o zlib/infback.o zlib/inftrees.o zlib/inffast.o
+	zlib/inflate.o zlib/infback.o zlib/inftrees.o zlib/inffast.o\
+	\
+	sys/zfile.o sys/zfopen.o \
+	\
+	syslinux/zloadfile.o
 	
-LIBJPGOBJS = \
+# JPG library object files
+LIBJPG_OBJS = \
 	jpeg/tinyjpeg.o jpeg/jidctflt.o	jpeg/decode1.o jpeg/decode3.o   \
 	jpeg/rgb24.o jpeg/bgr24.o jpeg/yuv420p.o jpeg/grey.o		\
 	jpeg/rgba32.o jpeg/bgra32.o
 	
-LIBENTRYOBJS = \
+LIBVESA_OBJS = \
+	sys/vesacon_write.o sys/vesaserial_write.o			\
+	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
+	sys/vesa/alphatbl.o sys/vesa/screencpy.o sys/vesa/fmtpixel.o
+	
+LIBPCI_OBJS = \
+	pci/cfgtype.o pci/scan.o					\
+	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o		\
+	pci/writeb.o pci/writew.o pci/writel.o pci/writebios.o
+	
+# COM32 core object files
+LIBENTRY_OBJS = \
 	sys/intcall.o sys/farcall.o sys/cfarcall.o sys/zeroregs.o	\
 	sys/entry.o sys/exit.o sys/argv.o sys/times.o			\
 	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
 	sys/isatty.o sys/fstat.o
 	
-LIBVESAOBJS = \
-	sys/vesacon_write.o sys/vesaserial_write.o			\
-	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
-	sys/vesa/alphatbl.o sys/vesa/screencpy.o sys/vesa/fmtpixel.o	\
-	
-LIBSYSLINUXOBJS = \
+LIBSYSLINUX_OBJS = \
 	syslinux/idle.o	syslinux/reboot.o				\
 	syslinux/features.o syslinux/config.o syslinux/serial.o		\
 	syslinux/ipappend.o syslinux/dsinfo.o syslinux/version.o	\
@@ -49,7 +62,7 @@ LIBSYSLINUXOBJS = \
 	syslinux/run_default.o syslinux/run_command.o			\
 	syslinux/cleanup.o syslinux/localboot.o	syslinux/runimage.o	\
 	\
-	syslinux/loadfile.o syslinux/floadfile.o syslinux/zloadfile.o	\
+	syslinux/loadfile.o syslinux/floadfile.o \
 	\
 	syslinux/load_linux.o syslinux/initramfs.o			\
 	syslinux/initramfs_file.o syslinux/initramfs_loadfile.o		\
@@ -59,8 +72,29 @@ LIBSYSLINUXOBJS = \
 	\
 	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o		\
 	syslinux/setadv.o
+	
+LIBGCC_OBJS = \
+	libgcc/__ashldi3.o libgcc/__udivdi3.o			\
+	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
+	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
+	libgcc/__divdi3.o libgcc/__moddi3.o
+	
+LIBCONSOLE_OBJS = \
+	\
+	sys/openconsole.o sys/line_input.o				\
+	sys/colortable.o sys/screensize.o				\
+	\
+	sys/stdcon_read.o sys/stdcon_write.o sys/rawcon_read.o		\
+	sys/rawcon_write.o sys/err_read.o sys/err_write.o		\
+	sys/null_read.o sys/null_write.o sys/serial_write.o		\
+	\
+	sys/xserial_write.o						\
+	\
+	sys/ansi.o							\
+	\
+	sys/ansicon_write.o sys/ansiserial_write.o
 
-LIBOTHEROBJS = \
+LIBOTHER_OBJS = \
 	abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o		\
 	ctypes.o errno.o fgetc.o fgets.o fopen.o fprintf.o fputc.o	\
 	fclose.o putchar.o setjmp.o					\
@@ -108,14 +142,24 @@ LIBOTHEROBJS = \
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o
 	
+MINLIBOBJS = \
+	$(LIBOTHER_OBJS) \
+	$(LIBENTRY_OBJS) \
+	$(LIBSYSLINUX_OBJS) \
+	$(LIBGCC_OBJS) \
+	$(LIBCONSOLE_OBJS)
+	
+DYNLIBOBJS = \
+	$(LIBZLIB_OBJS) \
+	$(LIBPNG_OBJS) \
+	$(LIBJPG_OBJS) \
+	$(LIBPCI_OBJS) \
+	$(LIBVESA_OBJS)
+	
 LIBOBJS = \
-	$(LIBOTHEROBJS) \
-	$(LIBENTRYOBJS) \
-	$(LIBZLIBOBJS) \
-	$(LIBPNGOBJS) \
-	$(LIBVESAOBJS) \
-	$(LIBJPGOBJS) \
-	$(LIBSYSLINUXOBJS)
+	$(MINLIBOBJS) \
+	$(DYNLIBOBJS)
+
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib
@@ -124,16 +168,21 @@ AUXDIR   = $(DATADIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-all: libcom32.a klibc.dyn
+all: libcom32.a libcom32min.a klibc.dyn
 
 libcom32.a : $(LIBOBJS)
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
-
-klibc.dyn : $(LIBOTHEROBJS)
+	
+libcom32min.a : $(MINLIBOBJS)
 	rm -f $@
-	$(LD) -shared -o $@ $(LIBOTHEROBJS)
+	$(AR) cq $@ $^
+	$(RANLIB) $@
+
+klibc.dyn : $(DYNLIBOBJS)
+	rm -f $@
+	$(LD) -shared -o $@ $(DYNLIBOBJS)
 
 tidy dist:
 	rm -f sys/vesa/alphatbl.c

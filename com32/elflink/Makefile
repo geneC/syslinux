@@ -89,8 +89,8 @@ test_memalign.elf : test_memalign.o  $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 test_com32.elf: CFLAGS += -DELF_DEBUG
-test_com32.elf: test_com32.o elf_module.o elf_utils.o $(LIBS)
-	$(LD) -n $(LDFLAGS) -o $@ $^
+test_com32.elf: test_com32.o elf_module.o elf_utils.o ../libutil/libutil_com.a ../lib/libcom32min.a $(LIBGCC)
+	$(LD) -n $(LDFLAGS) -o $@ test_com32.o elf_module.o elf_utils.o ../libutil/libutil_com.a $(LIBGCC) --whole-archive ../lib/libcom32min.a 
 	$(OBJCOPY) --extract-symbol $@ _root_.dyn
 
 tidy dist:
