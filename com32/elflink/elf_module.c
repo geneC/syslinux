@@ -842,8 +842,8 @@ int module_load(struct elf_module *module) {
 	// The file image is no longer needed
 	image_unload(module);
 
-	DBG_PRINT("MODULE %s LOADED SUCCESSFULLY (&init@0x%08X, &exit@0x%08X)\n",
-			module->name, module->init_func, module->exit_func);
+	DBG_PRINT("MODULE %s LOADED SUCCESSFULLY (init@0x%08X, exit@0x%08X)\n",
+			module->name, *(module->init_func), *(module->exit_func));
 
 	return 0;
 
@@ -917,6 +917,9 @@ int module_unload(struct elf_module *module) {
 
 	// Release the loaded segments or sections
 	elf_free(module->module_addr);
+
+	DBG_PRINT("%s MODULE %s UNLOADED\n", module->shallow ? "SHALLOW" : "",
+			module->name);
 	// Release the module structure
 	free(module);
 

@@ -63,6 +63,24 @@ int modules_com32_load(char *name) {
 	return res;
 }
 
+void modules_com32_unload(char *name) {
+	char full_name[MODULE_NAME_SIZE];
+
+	strcpy(full_name, ELF_DIRECTORY);
+	strcat(full_name, name);
+
+	struct elf_module *module = module_find(full_name);
+
+	if (module != NULL) {
+		if (*(module->exit_func) != NULL) {
+			(*(module->exit_func))();
+		}
+		module_unload(module);
+	} else {
+		printf("Cannot find module %s for unloading\n", full_name);
+	}
+}
+
 void print_usage() {
 	printf("Usage: test_com32 module ...\n");
 	printf("Where:\n");
@@ -91,8 +109,14 @@ int main(int argc, char **argv) {
 	// Initializing the module subsystem
 	res = modules_com32_setup();
 
+	// Load the modules...
 	for (i = 0; i < argc; i++) {
 		modules_com32_load(argv[i]);
+	}
+
+	// ...then unload them
+	for (i = argc-1; i >= 0; i--) {
+		modules_com32_unload(argv[i]);
 	}
 
 	modules_com32_finalize();
