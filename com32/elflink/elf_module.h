@@ -16,8 +16,8 @@
 #define MODULE_ELF_MACHINE		EM_386
 
 
-typedef int (*module_init_func)();
-typedef void (*module_exit_func)();
+typedef int (*module_init_func)(void);
+typedef void (*module_exit_func)(void);
 
 // Structure encapsulating a module loaded in memory
 struct elf_module {
@@ -62,9 +62,9 @@ struct module_dep {
 };
 
 // Initialization of the module subsystem
-extern int modules_init();
+extern int modules_init(void);
 // Termination of the module subsystem
-extern void modules_term();
+extern void modules_term(void);
 
 // Allocates the structure for a new module
 extern struct elf_module *module_alloc(const char *name);

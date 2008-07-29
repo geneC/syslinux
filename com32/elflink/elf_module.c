@@ -133,12 +133,12 @@ static int image_seek(Elf32_Off offset, struct elf_module *module) {
 
 
 // Initialization of the module subsystem
-int modules_init() {
+int modules_init(void) {
 	return 0;
 }
 
 // Termination of the module subsystem
-void modules_term() {
+void modules_term(void) {
 
 }
 
@@ -770,7 +770,7 @@ static int check_symbols(struct elf_module *module) {
 			if (strong_count > 0 && ELF32_ST_BIND(ref_sym->st_info) == STB_GLOBAL) {
 				// It's not an error - at relocation, the most recent symbol
 				// will be considered
-				DBG_PRINT("Symbol %s is defined more than once\n", crt_name);
+				DBG_PRINT("Info: Symbol %s is defined more than once\n", crt_name);
 			}
 		}
 	}

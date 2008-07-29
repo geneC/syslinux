@@ -84,16 +84,26 @@ SECTIONS
     KEEP (*(.fini_array))
     KEEP (*(SORT(.fini_array.*)))
   }
+  __ctors_start = .;
   .ctors          :
   {
     KEEP (*(SORT(.ctors.*)))
     KEEP (*(.ctors))
+    __module_init_ptr = .;
+    KEEP (*(.ctors_module))
+    LONG(0x00000000)
   }
+  
+  __dtors_start = .;
   .dtors          :
   {
     KEEP (*(SORT(.dtors.*)))
     KEEP (*(.dtors))
+    __module_exit_ptr = .;
+    KEEP (*(.dtors_module))
+    LONG(0x00000000)
   }
+  
   .jcr            : { KEEP (*(.jcr)) }
   .data.rel.ro : { *(.data.rel.ro.local* .gnu.linkonce.d.rel.ro.local.*) *(.data.rel.ro* .gnu.linkonce.d.rel.ro.*) }
   .dynamic        : { *(.dynamic) }
@@ -107,8 +117,8 @@ SECTIONS
     SORT(CONSTRUCTORS)
   }
   .data1          : { *(.data1) }
-  _edata = .; PROVIDE (edata = .);
-  __bss_start = .;
+  PROVIDE (edata = .);
+  PROVIDE (_edata = .); 
   .bss            :
   {
    *(.dynbss)
@@ -123,8 +133,9 @@ SECTIONS
   }
   . = ALIGN(32 / 8);
   . = ALIGN(32 / 8);
-  _end = .; PROVIDE (end = .);
-  /*. = DATA_SEGMENT_END (.); -> -> This gives a "invalid assignment to location counter" error */
+  PROVIDE (_end = .); 
+  PROVIDE (end = .);
+  /*. = DATA_SEGMENT_END (.); -> This gives a "invalid assignment to location counter" error */
   /* Stabs debugging sections.  */
   .stab          0 : { *(.stab) }
   .stabstr       0 : { *(.stabstr) }
