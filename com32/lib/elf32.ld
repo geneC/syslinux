@@ -70,6 +70,7 @@ SECTIONS
   PROVIDE (etext = .);
   .rodata         : { *(.rodata .rodata.* .gnu.linkonce.r.*) }
   .rodata1        : { *(.rodata1) }
+  . = ALIGN(4);
   .preinit_array     :
   {
     KEEP (*(.preinit_array))
@@ -84,9 +85,10 @@ SECTIONS
     KEEP (*(.fini_array))
     KEEP (*(SORT(.fini_array.*)))
   }
-  __ctors_start = .;
+ 
   .ctors          :
   {
+  	__ctors_start = .;
     KEEP (*(SORT(.ctors.*)))
     KEEP (*(.ctors))
     __module_init_ptr = .;
@@ -94,9 +96,9 @@ SECTIONS
     LONG(0x00000000)
   }
   
-  __dtors_start = .;
   .dtors          :
   {
+  	__dtors_start = .;
     KEEP (*(SORT(.dtors.*)))
     KEEP (*(.dtors))
     __module_exit_ptr = .;
