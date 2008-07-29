@@ -15,6 +15,9 @@
 #define MODULE_ELF_TYPE			ET_DYN
 #define MODULE_ELF_MACHINE		EM_386
 
+#define MODULE_ELF_INIT_PTR		"__module_init_ptr"
+#define MODULE_ELF_EXIT_PTR		"__module_exit_ptr"
+
 
 typedef int (*module_init_func)(void);
 typedef void (*module_exit_func)(void);
@@ -29,8 +32,8 @@ struct elf_module {
 	struct list_head	dependants;		// Head of module dependants list
 	struct list_head	list;		// The list entry in the module list
 
-	module_init_func	init_func;	// The initialization entry point
-	module_exit_func	exit_func;	// The module finalization code
+	module_init_func	*init_func;	// The initialization entry point
+	module_exit_func	*exit_func;	// The module finalization code
 
 
 	void				*module_addr; // The module location in the memory

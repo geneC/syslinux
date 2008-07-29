@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <console.h>
+#include <string.h>
 
 #include "elf_module.h"
 
@@ -10,7 +11,6 @@
 #define ELF_DIRECTORY		"/dyn/"
 
 static struct elf_module    *mod_root;
-static struct elf_module	*mod_klibc;
 
 int modules_com32_setup() {
 	int res;
@@ -39,26 +39,60 @@ int modules_com32_setup() {
 	return 0;
 }
 
+int modules_com32_load(char *name) {
+	char full_name[MODULE_NAME_SIZE];
+	int res;
+
+	strcpy(full_name, ELF_DIRECTORY);
+	strcat(full_name, name);
+
+	struct elf_module *module = module_alloc(full_name);
+
+	res = module_load(module);
+
+	if (res != 0)
+		return res;
+
+	if (*(module->init_func) != NULL) {
+		res = (*(module->init_func))();
+		printf("Initialization function returned: %d\n", res);
+	} else {
+		printf("No initialization function present.\n");
+	}
+
+	return res;
+}
+
+void print_usage() {
+	printf("Usage: test_com32 module ...\n");
+	printf("Where:\n");
+	printf("\tmodule\tThe name of an ELF module to load, eg. hello.dyn\n");
+	printf("\n");
+}
+
 void modules_com32_finalize() {
 	modules_term();
 }
 
 int main(int argc, char **argv) {
-	int res;
+	int res, i;
 
 	// Open a standard r/w console
 	openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
+	argc--;
+	argv++;
+
+	if (argc == 0) {
+		print_usage();
+		return 1;
+	}
+
 	// Initializing the module subsystem
 	res = modules_com32_setup();
 
-	// Load klibc
-	mod_klibc = module_alloc(ELF_DIRECTORY KLIBC_NAME);
-	module_load(mod_klibc);
-
-	if (res != 0) {
-		printf("ERROR: Could not fully initialize the module!\n");
-		return res;
+	for (i = 0; i < argc; i++) {
+		modules_com32_load(argv[i]);
 	}
 
 	modules_com32_finalize();

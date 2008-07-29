@@ -778,6 +778,28 @@ static int check_symbols(struct elf_module *module) {
 	return 0;
 }
 
+static int extract_operations(struct elf_module *module) {
+	Elf32_Sym *init_sym = module_find_symbol(MODULE_ELF_INIT_PTR, module);
+	Elf32_Sym *exit_sym = module_find_symbol(MODULE_ELF_EXIT_PTR, module);
+
+	if (init_sym == NULL) {
+		DBG_PRINT("Cannot find initialization routine.\n");
+		return -1;
+	}
+	if (exit_sym == NULL) {
+		DBG_PRINT("Cannot find exit routine.\n");
+		return -1;
+	}
+
+	module->init_func = (module_init_func*)module_get_absolute(
+								init_sym->st_value, module);
+
+	module->exit_func = (module_exit_func*)module_get_absolute(
+								exit_sym->st_value, module);
+
+	return 0;
+}
+
 // Loads the module into the system
 int module_load(struct elf_module *module) {
 	int res;
@@ -806,16 +828,22 @@ int module_load(struct elf_module *module) {
 	// Check the symbols for duplicates / missing definitions
 	CHECKED(res, check_symbols(module), error);
 
+	// Obtain constructors and destructors
+	CHECKED(res, extract_operations(module), error);
+
 	// Add the module at the beginning of the module list
 	list_add(&module->list, &modules);
 
 	// Perform the relocations
 	resolve_symbols(module);
 
+
+
 	// The file image is no longer needed
 	image_unload(module);
 
-	DBG_PRINT("MODULE %s LOADED SUCCESSFULLY\n", module->name);
+	DBG_PRINT("MODULE %s LOADED SUCCESSFULLY (&init@0x%08X, &exit@0x%08X)\n",
+			module->name, module->init_func, module->exit_func);
 
 	return 0;
 
