@@ -182,7 +182,7 @@ libcom32min.a : $(MINLIBOBJS)
 
 klibc.dyn : $(DYNLIBOBJS)
 	rm -f $@
-	$(LD) -shared -o $@ $(DYNLIBOBJS)
+	$(LD) -shared -T elf32.ld -o $@ $(DYNLIBOBJS)
 
 tidy dist:
 	rm -f sys/vesa/alphatbl.c
