@@ -814,6 +814,13 @@ int main(int argc, char *argv[])
     }
   }
 
+  if (!opt.loadfile) {
+    if (*(uint16_t *)((char *)boot_sector+boot_size-2) != 0xaa55) {
+      error("Boot sector signature not found (unbootable disk/partition?)\n");
+      goto bail;
+    }
+  }
+
   if (partinfo) {
     /* 0x7BE is the canonical place for the first partition entry. */
     regs.esi.w[0] = 0x7be;
