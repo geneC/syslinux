@@ -61,6 +61,21 @@ static inline pciaddr_t pci_mkaddr(uint32_t bus, uint32_t dev,
     ((func & 0x07) << 8) | (reg & 0xff);
 }
 
+static inline int pci_bus(pciaddr_t addr)
+{
+  return (addr >> 16) & 0xff;
+}
+
+static inline int pci_dev(pciaddr_t addr)
+{
+  return (addr >> 11) & 0x1f;
+}
+
+static inline int pci_func(pciaddr_t addr)
+{
+  return (addr >> 8) & 0x07;
+}
+
 enum pci_config_type {
   PCI_CFG_NONE          = -1,	/* badness */
   PCI_CFG_AUTO		= 0,	/* autodetect */
