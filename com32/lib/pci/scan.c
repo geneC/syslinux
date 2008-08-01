@@ -363,6 +363,9 @@ int pci_scan(struct pci_bus_list * pci_bus_list, struct pci_device_list * pci_de
     for (dev = 0; dev < MAX_PCI_DEVICES ; dev++) {
       maxfunc = 1;		/* Assume a single-function device */
       for (func = 0; func < maxfunc; func++) {
+	struct pci_device *pci_device =
+ 	  &pci_device_list->pci_device[pci_device_list->count];
+
 	a = pci_mkaddr(bus, dev, func, 0);
 
 	did = pci_readl(a);
@@ -378,15 +381,16 @@ int pci_scan(struct pci_bus_list * pci_bus_list, struct pci_device_list * pci_de
 
 	rid = pci_readb(a + 0x08);
 	sid = pci_readl(a + 0x2c);
-	struct pci_device *pci_device =
-	  &pci_device_list->
-	  pci_device[pci_device_list->count];
+
+	pci_device->addr = a;
 	pci_device->product = did >> 16;
 	pci_device->sub_product = sid >> 16;
 	pci_device->vendor = (did << 16) >> 16;
 	pci_device->sub_vendor = (sid << 16) >> 16;
 	pci_device->revision = rid;
 	pci_device_list->count++;
+	pci_device++;
+
 	dprintf
 	  ("Scanning: BUS %02x DID %08x (%04x:%04x) SID %08x RID %02x\n",
 	   bus, did, did >> 16, (did << 16) >> 16,

@@ -19,6 +19,7 @@ struct pci_dev_info {
 
 /* a struct to represent a pci device */
 struct pci_device {
+	pciaddr_t addr;
 	uint16_t vendor;
 	uint16_t product;
 	uint16_t sub_vendor;
