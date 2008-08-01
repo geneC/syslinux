@@ -28,7 +28,10 @@ Changes in 3.71:
 	  kind of stuff; a Lua module is under development.
 	* Fix parsing of the SERIAL command without a baud rate
 	  specified.
-	* chain.c32: error out when try to boot an unbootable partition.
+	* chain.c32: error out when try to boot an unbootable
+	  partition.
+	* SYSLINUX: when building the Win32 installer, search for
+	  MinGW under a large number of possible names.
 
 Changes in 3.70:
 	* PXELINUX: Support enhanced capabilities when running on top
