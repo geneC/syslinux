@@ -19,7 +19,7 @@ LIBOBJS = \
 	strtoimax.o strtok.o strtol.o strtoll.o strtoul.o strtoull.o	\
 	strtoumax.o vfprintf.o vprintf.o vsnprintf.o vsprintf.o		\
 	asprintf.o vasprintf.o strlcpy.o strlcat.o			\
-	vsscanf.o							\
+	vsscanf.o zalloc.o						\
 	\
 	libgcc/__ashldi3.o libgcc/__udivdi3.o			\
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\

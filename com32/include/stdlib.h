@@ -37,6 +37,7 @@ static __inline__ long long llabs(long long __n) {
 }
 
 __extern __mallocfunc void *malloc(size_t);
+__extern __mallocfunc void *zalloc(size_t);
 __extern __mallocfunc void *calloc(size_t, size_t);
 __extern __mallocfunc void *realloc(void *, size_t);
 __extern long strtol(const char *, char **, int);
