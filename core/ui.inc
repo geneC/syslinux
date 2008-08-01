@@ -308,12 +308,20 @@ vk_check:
 
 		sub di,cx			; Return to beginning of buf
 		push si
-		mov si,KernelName
-		mov cx,FILENAME_MAX
-		es repe cmpsb
+		mov si,command_line
+.loop:
+		lodsb
+		cmp al,' '
+		jbe .done
+		scasb
+		je .loop
+.nomatch:
 		pop si
-		je .found
 		jmp .scan
+.done:
+		cmp byte [di],0			; Must match end of string
+		jne .nomatch
+		pop si
 
 ;
 ; We *are* using a "virtual kernel"

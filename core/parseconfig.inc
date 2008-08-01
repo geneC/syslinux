@@ -307,7 +307,14 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		rep stosw
 		call pc_getline
 		mov di,VKernelBuf+vk_vname
-		call mangle_name		; Mangle virtual name
+		mov cx,FILENAME_MAX-1
+.loop:
+		lodsb
+		cmp al,' '
+		jna .done
+		stosb
+		loop .loop
+.done:
 		mov byte [VKernel],1		; We've seen a "label" statement
 		mov si,VKernelBuf+vk_vname	; By default, rname == vname
 		mov di,VKernelBuf+vk_rname
