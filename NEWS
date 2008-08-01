@@ -25,8 +25,10 @@ Changes in 3.71:
 	* ifcpu64.c32: simple COM32 module to select a 32- or 64-bit
 	  kernel (and optionally 32-bit kernels with or without PAE.)
 	  Eventually we want a scripting language for this
-	  kind of stuff...
-	* Fix parsing of the SERIAL command without a baud rate specified.
+	  kind of stuff; a Lua module is under development.
+	* Fix parsing of the SERIAL command without a baud rate
+	  specified.
+	* chain.c32: error out when try to boot an unbootable partition.
 
 Changes in 3.70:
 	* PXELINUX: Support enhanced capabilities when running on top
