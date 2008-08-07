@@ -36,3 +36,4 @@
 /utils/gethostip
 /utils/mkdiskimage
 /version.h
+/version.mk
