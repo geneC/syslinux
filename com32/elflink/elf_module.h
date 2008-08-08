@@ -6,23 +6,74 @@
 #include <stdint.h>
 #include "linux_list.h"
 
+/*
+ * The maximum length of the module file name (including path), stored
+ * in the struct module descriptor.
+ */
 #define MODULE_NAME_SIZE		64
 
-#define MODULE_ELF_CLASS		ELFCLASS32
-#define MODULE_ELF_CLASS_SIZE	32
-#define MODULE_ELF_DATA			ELFDATA2LSB
-#define MODULE_ELF_VERSION		EV_CURRENT
-#define MODULE_ELF_TYPE			ET_DYN
-#define MODULE_ELF_MACHINE		EM_386
+/*
+ * Accepted values for various ELF header parameters found in an ELF dynamic
+ * object.
+ */
+#define MODULE_ELF_CLASS		ELFCLASS32		// 32-bit modules
+#define MODULE_ELF_CLASS_SIZE	32				// Size of a word value
+#define MODULE_ELF_DATA			ELFDATA2LSB		// Word endianess
+#define MODULE_ELF_VERSION		EV_CURRENT		// Object version
+#define MODULE_ELF_TYPE			ET_DYN			// Executable type (shared object - .so)
+#define MODULE_ELF_MACHINE		EM_386			// Target architecture
 
-#define MODULE_ELF_INIT_PTR		"__module_init_ptr"
-#define MODULE_ELF_EXIT_PTR		"__module_exit_ptr"
+#define MODULE_ELF_INIT_PTR		"__module_init_ptr"	// Initialization pointer symbol name
+#define MODULE_ELF_EXIT_PTR		"__module_exit_ptr"	// Finalization pointer symbol name
 
+/*
+ * Initialization and finalization function signatures
+ */
 
+/**
+ * module_init_func - pointer to a initialization routine
+ *
+ * The initialization routine is called after all module constructors were invoked.
+ * It takes no parameters and returns 0 if the module was initialized successfully,
+ * or a non-zero value if errors have occurred.
+ */
 typedef int (*module_init_func)(void);
+
+/**
+ * module_exit_func - pointer to a finalization routine
+ *
+ * The finalization routine is called before the module destructors are to be invoked.
+ * It simply executes some cleanup code, without error reporting.
+ */
 typedef void (*module_exit_func)(void);
 
-// Structure encapsulating a module loaded in memory
+
+/**
+ * struct elf_module - structure encapsulating a module loaded in memory.
+ *
+ * Each SYSLINUX ELF module must have an associated struct elf_module descriptor
+ * that keeps track of memory allocations, symbol information, and various other
+ * resources needed by the module itself or by other modules that depend on it.
+ *
+ * There are two types of modules:
+ *  - regular modules, which are actual memory images of a loaded & linked shared
+ *  object (ELF file). Memory is reserved for the struct elf_module structure itself
+ *  and for the object loadable sections read from the file.
+ *  - shallow modules, which are not associated with an ELF shared object, but contain
+ *  metainformation about a memory region already present and containing the
+ *  actual code and data. One particular usage of shallow modules is to access
+ *  symbol information from the root COM32 module loaded by the SYSLINUX core.
+ *  As their name suggests, memory is reserved only for the elf_module structure
+ *  itself and optionally for a usually small memory region containing metainformation
+ *  (symbol information).
+ *
+ *  Module descriptors are related to each other through dependency information. A module
+ *  can depend on symbols from other modules, and in turn it can provide symbols used
+ *  by other dependant modules. This relationship can be described as a directed
+ *  acyclic graph (DAG). The graph is stored using double linked lists of
+ *  predecessors and successors. There is also a global linked list containing all
+ *  the modules currently loaded.
+ */
 struct elf_module {
 	char				name[MODULE_NAME_SIZE]; 		// The module name
 
@@ -57,34 +108,141 @@ struct elf_module {
 	Elf32_Off			_cr_offset; // The current offset in the open file
 };
 
-// Structure encapsulating a module dependency need
+/**
+ * struct module_dep - structure encapsulating a module dependency need
+ *
+ * This structure represents an item in a double linked list of predecessors or
+ * successors. The item contents is a pointer to the corresponding module descriptor.
+ */
 struct module_dep {
 	struct list_head	list;		// The list entry in the dependency list
 
-	struct elf_module	*module;
+	struct elf_module	*module;	// The target module descriptor
 };
 
-// Initialization of the module subsystem
+/**
+ * modules_init - initialize the module subsystem.
+ *
+ * This function must be called before any module operation is to be performed.
+ */
 extern int modules_init(void);
-// Termination of the module subsystem
+
+
+/**
+ * modules_term - releases all resources pertaining to the module subsystem.
+ *
+ * This function should be called after all module operations.
+ */
 extern void modules_term(void);
 
-// Allocates the structure for a new module
+
+/**
+ * module_alloc - reserves space for a new module descriptor.
+ * @name: 	the file name of the module to be loaded.
+ *
+ * The function simply allocates a new module descriptor and initializes its fields
+ * in order to be used by subsequent loading operations.
+ */
 extern struct elf_module *module_alloc(const char *name);
 
-// Loads the module into the system
+
+/**
+ * module_load - loads a regular ELF module into memory.
+ * @module:	the module descriptor returned by module_alloc.
+ *
+ * The function reads the module file, checks whether the file has a
+ * valid structure, then loads into memory the code and the data and performs
+ * any symbol relocations. A module dependency is created automatically when the
+ * relocated symbol is defined in a different module.
+ *
+ * The function returns 0 if the operation is completed successfully, and
+ * a non-zero value if an error occurs. Possible errors include invalid module
+ * structure, missing symbol definitions (unsatisfied dependencies) and memory
+ * allocation issues.
+ */
 extern int module_load(struct elf_module *module);
-// Loads a module containing only symbol information into the system
+
+
+/**
+ * module_load_shallow - loads a shallow ELF module into memory.
+ * @module:	the module descriptor returned by module_alloc.
+ *
+ * The function reads the module file, checks whether the file has a valid
+ * structure, then loads into memory the module metadata. The metadata currently
+ * contains a symbol table that describes code & data allocated by other means.
+ * Its current use is to describe the root COM32 module to the rest of the
+ * module subsystem.
+ */
 extern int module_load_shallow(struct elf_module *module);
 
-// Unloads the module from the system and releases all the associated memory
+/**
+ * module_unload - unloads the module from the system.
+ * @module: the module descriptor structure.
+ *
+ * The function checks to see whether the module can be safely removed, then
+ * it releases all the associated memory. This function can be applied both
+ * for standard modules and for shallow modules.
+ *
+ * A module can be safely removed from the system when no other modules reference
+ * symbols from it.
+ */
 extern int module_unload(struct elf_module *module);
 
+/**
+ * module_find - searches for a module by its name.
+ * @name: the name of the module, as it was specified in module_alloc.
+ *
+ * The function returns a pointer to the module descriptor, if found, or
+ * NULL otherwise.
+ */
 extern struct elf_module *module_find(const char *name);
 
+/**
+ * module_find_symbol - searches for a symbol definition in a given module.
+ * @name: the name of the symbol to be found.
+ * @module: the module descriptor structure.
+ *
+ * The function searches the module symbol table for a symbol matching exactly
+ * the name provided. The operation uses the following search algorithms, in this
+ * order:
+ *  - If a GNU hash table is present in the module, it is used to find the symbol.
+ *  - If the symbol cannot be found with the first method (either the hash table
+ *  is not present or the symbol is not found) and if a regular (SysV) hash table
+ *  is present, a search is performed on the SysV hash table. If the symbol is not
+ *  found, NULL is returned.
+ *  - If the second method cannot be applied, a linear search is performed by
+ *  inspecting every symbol in the symbol table.
+ *
+ *  If the symbol is found, a pointer to its descriptor structure is returned, and
+ *  NULL otherwise.
+ */
 extern Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module);
+
+/**
+ * global_find_symbol - searches for a symbol definition in the entire module namespace.
+ * @name: the name of the symbol to be found.
+ * @module: an optional (may be NULL) pointer to a module descriptor variable that
+ * will hold the module where the symbol was found.
+ *
+ * The function search for the given symbol name in all the modules currently
+ * loaded in the system, in the reverse module loading order. That is, the most
+ * recently loaded module is searched first, followed by the previous one, until
+ * the first loaded module is reached.
+ *
+ * If no module contains the symbol, NULL is returned, otherwise the return value is
+ * a pointer to the symbol descriptor structure. If the module parameter is not NULL,
+ * it is filled with the address of the module descriptor where the symbol is defined.
+ */
 extern Elf32_Sym *global_find_symbol(const char *name, struct elf_module **module);
 
+/**
+ * module_get_absolute - converts an memory address relative to a module base address
+ * to its absolute value in RAM.
+ * @addr: the relative address to convert.
+ * @module: the module whose base address is used for the conversion.
+ *
+ * The function returns a pointer to the absolute memory address.
+ */
 static inline void *module_get_absolute(Elf32_Addr addr, struct elf_module *module) {
 	return (void*)(module->base_addr + addr);
 }
