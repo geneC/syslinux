@@ -46,7 +46,7 @@ static void quick_sort_range(int *nums, int l, int u) {
 
 	swap(&nums[l], &nums[randint(l, u)]);
 
-	m = 1;
+	m = l;
 	for (i = l+1; i <= u; i++) {
 		if (nums[i] < nums[l])
 			swap(&nums[++m], &nums[i]);
