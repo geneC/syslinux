@@ -37,5 +37,5 @@ long nrand48(unsigned short xsubi[3])
 
 long lrand48(void)
 {
-  return (long)((uint32_t)(mrand48() >> 1));
+  return (long)((uint32_t)mrand48() >> 1);
 }
