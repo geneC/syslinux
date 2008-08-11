@@ -180,7 +180,7 @@ libcom32.a : $(LIBOBJS)
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 	
-libcom32min.a : CFLAGS += -DELF_DEBUG
+$(LIBMODULE_OBJS) : CFLAGS += -DELF_DEBUG
 libcom32min.a : $(MINLIBOBJS)
 	rm -f $@
 	$(AR) cq $@ $^
