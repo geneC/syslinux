@@ -108,6 +108,9 @@
 # define __unusedfunc
 #endif
 
+/* Used symbol */
+#define __used				__attribute__((used))
+
 /* Constructors and destructors */
 #define __constructor	__attribute__((constructor))
 #define __destructor	__attribute__((destructor))

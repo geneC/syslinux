@@ -49,6 +49,10 @@ LIBENTRY_OBJS = \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
 	sys/isatty.o sys/fstat.o
 	
+LIBMODULE_OBJS = \
+	sys/module/common.o sys/module/elf_module.o		\
+	sys/module/shallow_module.o	sys/module/elfutils.o
+	
 LIBSYSLINUX_OBJS = \
 	syslinux/idle.o	syslinux/reboot.o				\
 	syslinux/features.o syslinux/config.o syslinux/serial.o		\
@@ -147,7 +151,8 @@ MINLIBOBJS = \
 	$(LIBENTRY_OBJS) \
 	$(LIBSYSLINUX_OBJS) \
 	$(LIBGCC_OBJS) \
-	$(LIBCONSOLE_OBJS)
+	$(LIBCONSOLE_OBJS) \
+	$(LIBMODULE_OBJS)
 	
 DYNLIBOBJS = \
 	$(LIBZLIB_OBJS) \

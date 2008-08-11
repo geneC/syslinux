@@ -3,7 +3,7 @@
 #include <console.h>
 #include <string.h>
 
-#include "elf_module.h"
+#include <sys/module.h>
 
 #define KLIBC_NAME			"klibc.dyn"
 #define ROOT_NAME			"_root_.dyn"

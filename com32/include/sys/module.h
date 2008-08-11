@@ -1,10 +1,18 @@
-#ifndef ELF_MODULE_H_
-#define ELF_MODULE_H_
+/**
+ * syslinux/module.h
+ *
+ * Dynamic ELF modules definitions and services.
+ */
+
+
+#ifndef MODULE_H_
+#define MODULE_H_
 
 #include <stdio.h>
 #include <elf.h>
 #include <stdint.h>
-#include "linux_list.h"
+#include <linux/list.h>
+
 
 /*
  * The maximum length of the module file name (including path), stored
@@ -13,39 +21,26 @@
 #define MODULE_NAME_SIZE		64
 
 /*
- * Accepted values for various ELF header parameters found in an ELF dynamic
- * object.
- */
-#define MODULE_ELF_CLASS		ELFCLASS32		// 32-bit modules
-#define MODULE_ELF_CLASS_SIZE	32				// Size of a word value
-#define MODULE_ELF_DATA			ELFDATA2LSB		// Word endianess
-#define MODULE_ELF_VERSION		EV_CURRENT		// Object version
-#define MODULE_ELF_TYPE			ET_DYN			// Executable type (shared object - .so)
-#define MODULE_ELF_MACHINE		EM_386			// Target architecture
-
-#define MODULE_ELF_INIT_PTR		"__module_init_ptr"	// Initialization pointer symbol name
-#define MODULE_ELF_EXIT_PTR		"__module_exit_ptr"	// Finalization pointer symbol name
-
-/*
  * Initialization and finalization function signatures
  */
 
+
 /**
- * module_init_func - pointer to a initialization routine
+ * module_init_t - pointer to a initialization routine
  *
  * The initialization routine is called after all module constructors were invoked.
  * It takes no parameters and returns 0 if the module was initialized successfully,
  * or a non-zero value if errors have occurred.
  */
-typedef int (*module_init_func)(void);
+typedef int (*module_init_t)(void);
 
 /**
- * module_exit_func - pointer to a finalization routine
+ * module_exit_t - pointer to a finalization routine
  *
  * The finalization routine is called before the module destructors are to be invoked.
  * It simply executes some cleanup code, without error reporting.
  */
-typedef void (*module_exit_func)(void);
+typedef void (*module_exit_t)(void);
 
 
 /**
@@ -83,8 +78,8 @@ struct elf_module {
 	struct list_head	dependants;		// Head of module dependants list
 	struct list_head	list;		// The list entry in the module list
 
-	module_init_func	*init_func;	// The initialization entry point
-	module_exit_func	*exit_func;	// The module finalization code
+	module_init_t		*init_func;	// The initialization entry point
+	module_exit_t		*exit_func;	// The module finalization code
 
 
 	void				*module_addr; // The module location in the memory
@@ -119,6 +114,45 @@ struct module_dep {
 
 	struct elf_module	*module;	// The target module descriptor
 };
+
+
+
+#ifdef DYNAMIC_MODULE
+
+/*
+ * This portion is included by dynamic (ELF) module source files.
+ */
+
+
+
+#define MODULE_INIT(fn)	static module_init_t __module_init \
+	__used __attribute__((section(".ctors_module")))  = fn
+
+#define MODULE_EXIT(fn) static module_exit_t __module_exit \
+	__used __attribute__((section(".dtors_module")))  = fn
+
+#else
+
+/*
+ * This portion is included by the core COM32 module.
+ */
+
+/*
+ * Accepted values for various ELF header parameters found in an ELF dynamic
+ * object.
+ */
+#define MODULE_ELF_CLASS		ELFCLASS32		// 32-bit modules
+#define MODULE_ELF_CLASS_SIZE	32				// Size of a word value
+#define MODULE_ELF_DATA			ELFDATA2LSB		// Word endianess
+#define MODULE_ELF_VERSION		EV_CURRENT		// Object version
+#define MODULE_ELF_TYPE			ET_DYN			// Executable type (shared object - .so)
+#define MODULE_ELF_MACHINE		EM_386			// Target architecture
+
+/**
+ * Names of symbols with special meaning (treated as special cases at linking)
+ */
+#define MODULE_ELF_INIT_PTR		"__module_init_ptr"	// Initialization pointer symbol name
+#define MODULE_ELF_EXIT_PTR		"__module_exit_ptr"	// Finalization pointer symbol name
 
 /**
  * modules_init - initialize the module subsystem.
@@ -247,4 +281,6 @@ static inline void *module_get_absolute(Elf32_Addr addr, struct elf_module *modu
 	return (void*)(module->base_addr + addr);
 }
 
-#endif /*ELF_MODULE_H_*/
+#endif // DYNAMIC_MODULE
+
+#endif // MODULE_H_
