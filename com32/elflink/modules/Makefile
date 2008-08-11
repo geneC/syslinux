@@ -51,7 +51,7 @@ AUXDIR   = $(DATADIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-MODULES	  = hello.dyn
+MODULES	  = hello.dyn sort.dyn
 
 TESTFILES =
 
@@ -82,6 +82,9 @@ all: $(MODULES) $(TESTFILES)
 	$(CC) $(LNXLDFLAGS) -o $@ $^
 	
 hello.dyn : hello.o  $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ $^
+	
+sort.dyn : sort.o $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:

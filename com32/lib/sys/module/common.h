@@ -2,7 +2,7 @@
  * common.h - Common internal operations performed by the module subsystem
  *
  *  Created on: Aug 11, 2008
- *      Author: Stefan Bucur <stefanb[at]zytor.com>
+ *      Author: Stefan Bucur <stefanb@zytor.com>
  */
 
 #ifndef COMMON_H_
