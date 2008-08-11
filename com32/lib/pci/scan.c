@@ -322,10 +322,12 @@ struct pci_domain *pci_scan(void)
   dprintf("Scanning PCI Buses\n");
 
   for (nbus = 0; nbus < MAX_PCI_BUSES; nbus++) {
-    dprintf("Probing bus 0x%02x... \n", bus);
+    dprintf("Probing bus 0x%02x... \n", nbus);
+    bus = NULL;
 
     for (ndev = 0; ndev < MAX_PCI_DEVICES; ndev++) {
       maxfunc = 1;		/* Assume a single-function device */
+      slot = NULL;
 
       for (nfunc = 0; nfunc < maxfunc; nfunc++) {
 	a = pci_mkaddr(nbus, ndev, nfunc, 0);
@@ -372,7 +374,7 @@ struct pci_domain *pci_scan(void)
 
 	dprintf
 	  ("Scanning: BUS %02x DID %08x (%04x:%04x) SID %08x RID %02x\n",
-	   bus, did, did >> 16, (did << 16) >> 16,
+	   nbus, did, did >> 16, (did << 16) >> 16,
 	   sid, rcid & 0xff);
       }
     }
