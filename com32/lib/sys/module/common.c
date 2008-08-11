@@ -98,7 +98,6 @@ int image_read(void *buff, size_t size, struct elf_module *module) {
 	if (result < 1)
 		return -1;
 
-	DBG_PRINT("[I/O] Read %u\n", size);
 	module->_cr_offset += size;
 	return 0;
 }
@@ -117,7 +116,6 @@ int image_skip(size_t size, struct elf_module *module) {
 	if (result < 1)
 		return -1;
 
-	DBG_PRINT("[I/O] Skipped %u\n", size);
 	module->_cr_offset += size;
 	return 0;
 }

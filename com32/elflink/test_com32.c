@@ -5,6 +5,8 @@
 
 #include <sys/module.h>
 
+#define INFO_PRINT(fmt, args...)	printf("[COM32] " fmt, ##args)
+
 #define KLIBC_NAME			"klibc.dyn"
 #define ROOT_NAME			"_root_.dyn"
 
@@ -55,9 +57,9 @@ int modules_com32_load(char *name) {
 
 	if (*(module->init_func) != NULL) {
 		res = (*(module->init_func))();
-		printf("Initialization function returned: %d\n", res);
+		INFO_PRINT("Initialization function returned: %d\n", res);
 	} else {
-		printf("No initialization function present.\n");
+		INFO_PRINT("No initialization function present.\n");
 	}
 
 	return res;
@@ -77,7 +79,7 @@ void modules_com32_unload(char *name) {
 		}
 		module_unload(module);
 	} else {
-		printf("Cannot find module %s for unloading\n", full_name);
+		INFO_PRINT("Module %s is not loaded\n", full_name);
 	}
 }
 
@@ -106,13 +108,19 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
+	INFO_PRINT("Setting up the module subsystem...\n");
+
 	// Initializing the module subsystem
 	res = modules_com32_setup();
+
+	INFO_PRINT("Loading all the specified modules...\n");
 
 	// Load the modules...
 	for (i = 0; i < argc; i++) {
 		modules_com32_load(argv[i]);
 	}
+
+	INFO_PRINT("Unloading all the specified modules...\n");
 
 	// ...then unload them
 	for (i = argc-1; i >= 0; i--) {
