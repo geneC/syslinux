@@ -11,38 +11,58 @@
 typedef uint32_t pciaddr_t;
 
 /* a structure for extended pci information */
+/* XXX: use pointers for these? */
 struct pci_dev_info {
-	char     vendor_name[255];
-	char     product_name[255];
-	char	 linux_kernel_module[64];
+  char vendor_name[256];
+  char product_name[256];
+  char linux_kernel_module[64];
 };
 
-/* a struct to represent a pci device */
+/* PCI device (really, function) */
 struct pci_device {
-	pciaddr_t addr;
-	uint16_t vendor;
-	uint16_t product;
-	uint16_t sub_vendor;
-	uint16_t sub_product;
-	uint8_t  revision;
-	struct pci_dev_info *pci_dev_info;
+  union {
+    struct {
+      uint16_t vendor;
+      uint16_t product;
+      uint16_t sub_vendor;
+      uint16_t sub_product;
+      uint8_t  revision;
+      uint8_t  class[3];
+    };
+    struct {
+      uint32_t vid_did;
+      uint32_t svid_sdid;
+      uint32_t rid_class;
+    };
+  };
+  struct pci_dev_info *dev_info;
+  struct pci_device *next;
 };
 
+/* PCI device ("slot") structure */
+struct pci_slot {
+  struct pci_device *func[MAX_PCI_FUNC];
+};
+
+/* PCI bus structure */
 struct pci_bus {
-	uint16_t id;
-	struct pci_device *pci_device[MAX_PCI_DEVICES * MAX_PCI_FUNC];
-	uint32_t pci_device_count;
+  struct pci_slot *slot[MAX_PCI_DEVICES];
 };
 
-struct pci_device_list {
-	struct pci_device pci_device[MAX_PCI_BUSES * MAX_PCI_DEVICES * MAX_PCI_FUNC];
-	uint32_t count;
+/* PCI domain structure */
+struct pci_domain {
+  struct pci_bus *bus[MAX_PCI_BUSES];
 };
 
-struct pci_bus_list {
-	struct pci_bus pci_bus[MAX_PCI_BUSES];
-	uint32_t count;
-};
+/* Iterate over a PCI domain */
+#define for_each_pci_func(funcp, domain) \
+  for (int __pci_bus = 0; __pci_bus < MAX_PCI_BUSES; __pci_bus++) \
+    if ((domain)->bus[__pci_bus]) \
+      for (int __pci_slot = 0; __pci_slot < MAX_PCI_DEVICES; __pci_slot++) \
+	if ((domain)->bus[__pci_bus]->slot[__pci_slot]) \
+	  for (int __pci_func = 0; __pci_func < MAX_PCI_FUNC; __pci_func++) \
+	    if (((funcp) = (domain)->bus[__pci_bus]->slot[__pci_slot]-> \
+		 func[__pci_func]))
 
 struct match {
   struct match *next;
@@ -93,8 +113,11 @@ void pci_writeb(uint8_t, pciaddr_t);
 void pci_writew(uint16_t, pciaddr_t);
 void pci_writel(uint32_t, pciaddr_t);
 
-extern int pci_scan(struct pci_bus_list *pci_bus_list, struct pci_device_list *pci_device_list);
-extern struct match * find_pci_device(struct pci_device_list *pci_device_list, struct match *list);
-extern void get_name_from_pci_ids(struct pci_device_list *pci_device_list);
-extern void get_module_name_from_pci_ids(struct pci_device_list *pci_device_list);
+struct pci_domain *pci_scan(void);
+void free_pci_domain(struct pci_domain *domain);
+struct match * find_pci_device(const struct pci_domain *pci_domain,
+			       struct match *list);
+int get_name_from_pci_ids(struct pci_domain *pci_domain);
+int get_module_name_from_pci_ids(struct pci_domain *pci_domain);
+
 #endif /* _SYS_PCI_H */

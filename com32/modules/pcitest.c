@@ -59,59 +59,38 @@ char display_line;
     printf ( __VA_ARGS__);			\
   } while (0);
 
-void display_pci_devices(struct pci_device_list *pci_device_list) {
-  int pci_dev;
-  for (pci_dev=0; pci_dev < pci_device_list->count; pci_dev++) {
-    struct pci_device *pci_device = &pci_device_list->pci_device[pci_dev];
-    printf("PCI: Vendor=%04x(%s) Product=%04x(%s) "
-	   "Sub_vendor=%04x Sub_Product=%04x Release=%02x\n",
-	   pci_device->vendor, pci_device->pci_dev_info->vendor_name,
-	   pci_device->product, pci_device->pci_dev_info->product_name,
-	   pci_device->sub_vendor, pci_device->sub_product,
-	   pci_device->revision);
+void display_pci_devices(struct pci_domain *pci_domain) {
+  struct pci_device *pci_device;
+  int ndev = 0;
+  for_each_pci_func(pci_device, pci_domain) {
+	printf("[%02x:%02x.%01x]: %s: %04x:%04x[%04x:%04x]) %s:%s\n",
+	       __pci_bus, __pci_slot, __pci_func,
+	       pci_device->dev_info->linux_kernel_module,
+	       pci_device->vendor, pci_device->product,
+	       pci_device->sub_vendor, pci_device->sub_product,
+	       pci_device->dev_info->vendor_name,
+	       pci_device->dev_info->product_name);
+    ndev++;
   }
-  printf("PCI: %d devices found\n",pci_device_list->count);
-}
-
-void display_pci_bus(struct pci_bus_list *pci_bus_list, bool display_pci_devices) {
-  int bus;
-  for (bus=0; bus<pci_bus_list->count;bus++) {
-    struct pci_bus pci_bus = pci_bus_list->pci_bus[bus];
-    printf("\nPCI BUS No %d:\n", pci_bus.id);
-    if (display_pci_devices) {
-      int pci_dev;
-      for (pci_dev=0; pci_dev < pci_bus.pci_device_count; pci_dev++) {
-	struct pci_device pci_device=*(pci_bus.pci_device[pci_dev]);
-	printf("%s :%04x:%04x[%04x:%04x]) %s:%s\n",
-		pci_device.pci_dev_info->linux_kernel_module,
-	       pci_device.vendor, pci_device.product,
-	        pci_device.sub_vendor, pci_device.sub_product,
-	       pci_device.pci_dev_info->vendor_name,
-	       pci_device.pci_dev_info->product_name);
-      }
-    }
-  }
-  printf("PCI: %d bus%s found\n",
-	 pci_bus_list->count,
-	 pci_bus_list->count == 1 ? "" : "es");
+  printf("PCI: %d devices found\n", ndev);
 }
 
 int main(int argc, char *argv[])
 {
-  struct pci_device_list pci_device_list;
-  struct pci_bus_list pci_bus_list;
+  struct pci_domain *pci_domain;
+
   openconsole(&dev_null_r, &dev_stdcon_w);
 
   /* Scanning to detect pci buses and devices */
-  pci_scan(&pci_bus_list,&pci_device_list);
+  pci_domain = pci_scan();
 
   /* Assigning product & vendor name for each device*/
-  get_name_from_pci_ids(&pci_device_list);
+  get_name_from_pci_ids(pci_domain);
 
   /* Detecting which kernel module should match each device */
-  get_module_name_from_pci_ids(&pci_device_list);
+  get_module_name_from_pci_ids(pci_domain);
 
   /* display the pci devices we found */
-  display_pci_bus(&pci_bus_list,true);
+  display_pci_devices(pci_domain);
   return 1;
 }

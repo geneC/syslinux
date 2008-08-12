@@ -192,18 +192,19 @@ parse_config(const char *filename)
 int main(int argc, char *argv[])
 {
   struct match *list, *match;
-  struct pci_device_list pci_device_list;
-  struct pci_bus_list pci_bus_list;
+  struct pci_domain *pci_domain;
 
   openconsole(&dev_null_r, &dev_stdcon_w);
-  pci_scan(&pci_bus_list,&pci_device_list);
+  pci_domain = pci_scan();
 
-  list = parse_config(argc < 2 ? NULL : argv[1]);
+  if (pci_domain) {
+    list = parse_config(argc < 2 ? NULL : argv[1]);
 
-  match = find_pci_device(&pci_device_list,list);
+    match = find_pci_device(pci_domain, list);
 
-  if ( match )
-    syslinux_run_command(match->filename);
+    if ( match )
+      syslinux_run_command(match->filename);
+  }
 
   /* On error, return to the command line */
   fputs("Error: no recognized network card found!\n", stderr);
