@@ -20,14 +20,16 @@ CC	= gcc
 gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
 	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
 
-M32     := $(call gcc_ok,-m32,) $(call gcc_ok,-fno-stack-protector,)
+GCCOPT := $(call gcc_ok,-std=gnu99,) \
+	  $(call gcc_ok,-m32,) \
+	  $(call gcc_ok,-fno-stack-protector,) \
 
 LD         = ld -m elf_i386
 AR	   = ar
 NASM	   = nasm
 NASMOPT	   = -O9999
 RANLIB	   = ranlib
-CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os \
+CFLAGS     = $(GCCOPT) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os \
 	     -fomit-frame-pointer -D__COM32__ \
 	     -nostdinc -iwithprefix include \
 	     -I../libutil/include -I../include \
