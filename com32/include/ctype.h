@@ -8,7 +8,7 @@
 #define _CTYPE_H
 
 #ifndef __CTYPE_NO_INLINE
-# define __ctype_inline extern __inline__
+# define __ctype_inline static __inline__
 #else
 # define __ctype_inline
 #endif
