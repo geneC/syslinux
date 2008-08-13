@@ -12,8 +12,8 @@
 struct free_arena_header __malloc_head =
 {
   {
+    (void*)0,
     ARENA_TYPE_HEAD,
-    0,
     &__malloc_head,
     &__malloc_head,
   },
@@ -47,8 +47,8 @@ static void __constructor init_memory_arena(void)
     __stack_size = total_space - 4*sizeof(struct arena_header);
 
   fp = (struct free_arena_header *)start;
-  fp->a.type = ARENA_TYPE_FREE;
-  fp->a.size = total_space - __stack_size;
+  ARENA_TYPE_SET(fp->a.attrs, ARENA_TYPE_FREE);
+  ARENA_SIZE_SET(fp->a.attrs, total_space - __stack_size);
 
   /* Insert into chains */
   fp->a.next = fp->a.prev = &__malloc_head;
@@ -62,7 +62,7 @@ static void *__malloc_from_block(struct free_arena_header *fp, size_t size)
   size_t fsize;
   struct free_arena_header *nfp, *na;
 
-  fsize = fp->a.size;
+  fsize = ARENA_SIZE_GET(fp->a.attrs);
 
   /* We need the 2* to account for the larger requirements of a free block */
   if ( fsize >= size+2*sizeof(struct arena_header) ) {
@@ -70,10 +70,10 @@ static void *__malloc_from_block(struct free_arena_header *fp, size_t size)
     nfp = (struct free_arena_header *)((char *)fp + size);
     na = fp->a.next;
 
-    nfp->a.type = ARENA_TYPE_FREE;
-    nfp->a.size = fsize-size;
-    fp->a.type  = ARENA_TYPE_USED;
-    fp->a.size  = size;
+    ARENA_TYPE_SET(nfp->a.attrs, ARENA_TYPE_FREE);
+    ARENA_SIZE_SET(nfp->a.attrs, fsize-size);
+    ARENA_TYPE_SET(fp->a.attrs, ARENA_TYPE_USED);
+    ARENA_SIZE_SET(fp->a.attrs, size);
 
     /* Insert into all-block chain */
     nfp->a.prev = fp;
@@ -88,7 +88,7 @@ static void *__malloc_from_block(struct free_arena_header *fp, size_t size)
     fp->prev_free->next_free = nfp;
   } else {
     /* Allocate the whole block */
-    fp->a.type = ARENA_TYPE_USED;
+    ARENA_TYPE_SET(fp->a.attrs, ARENA_TYPE_USED);
 
     /* Remove from free chain */
     fp->next_free->prev_free = fp->prev_free;
@@ -108,9 +108,9 @@ void *malloc(size_t size)
   /* Add the obligatory arena header, and round up */
   size = (size+2*sizeof(struct arena_header)-1) & ARENA_SIZE_MASK;
 
-  for ( fp = __malloc_head.next_free ; fp->a.type != ARENA_TYPE_HEAD ;
+  for ( fp = __malloc_head.next_free ; ARENA_TYPE_GET(fp->a.attrs) != ARENA_TYPE_HEAD ;
 	fp = fp->next_free ) {
-    if ( fp->a.size >= size ) {
+    if ( ARENA_SIZE_GET(fp->a.attrs) >= size ) {
       /* Found fit -- allocate out of this block */
       return __malloc_from_block(fp, size);
     }
@@ -146,10 +146,10 @@ int posix_memalign(void **memptr, size_t alignment, size_t size) {
 
 	*memptr = NULL;
 
-	for (fp = __malloc_head.next_free; fp->a.type != ARENA_TYPE_HEAD;
+	for (fp = __malloc_head.next_free; ARENA_TYPE_GET(fp->a.attrs) != ARENA_TYPE_HEAD;
 		fp = fp->next_free) {
 
-		if (fp->a.size <= size)
+		if (ARENA_SIZE_GET(fp->a.attrs) <= size)
 			continue;
 
 		align_addr = (uintptr_t)fp;
@@ -164,15 +164,16 @@ int posix_memalign(void **memptr, size_t alignment, size_t size) {
 			align_addr += alignment;
 
 		// See if now we have enough space
-		if (align_addr + size > (uintptr_t)fp + fp->a.size)
+		if (align_addr + size > (uintptr_t)fp + ARENA_SIZE_GET(fp->a.attrs))
 			continue;
 
 		// We have a winner...
 		if (align_addr - (uintptr_t)fp > sizeof(struct arena_header)) {
 			// We must split the block before the alignment point
 			nfp = (struct free_arena_header*)(align_addr - sizeof(struct arena_header));
-			nfp->a.type = ARENA_TYPE_FREE;
-			nfp->a.size = fp->a.size - ((uintptr_t)nfp - (uintptr_t)fp);
+			ARENA_TYPE_SET(nfp->a.attrs, ARENA_TYPE_FREE);
+			ARENA_SIZE_SET(nfp->a.attrs,
+					ARENA_SIZE_GET(fp->a.attrs) - ((uintptr_t)nfp - (uintptr_t)fp));
 			nfp->a.prev = fp;
 			nfp->a.next = fp->a.next;
 			nfp->prev_free = fp;
@@ -181,7 +182,7 @@ int posix_memalign(void **memptr, size_t alignment, size_t size) {
 			nfp->a.next->a.prev = nfp;
 			nfp->next_free->prev_free = nfp;
 
-			fp->a.size = (uintptr_t)nfp - (uintptr_t)fp;
+			ARENA_SIZE_SET(fp->a.attrs, (uintptr_t)nfp - (uintptr_t)fp);
 
 			fp->a.next = nfp;
 			fp->next_free = nfp;

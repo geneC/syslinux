@@ -14,22 +14,23 @@ __free_block(struct free_arena_header *ah)
 
   pah = ah->a.prev;
   nah = ah->a.next;
-  if ( pah->a.type == ARENA_TYPE_FREE &&
-       (char *)pah+pah->a.size == (char *)ah ) {
+  if ( ARENA_TYPE_GET(pah->a.attrs) == ARENA_TYPE_FREE &&
+       (char *)pah+ARENA_SIZE_GET(pah->a.attrs) == (char *)ah ) {
     /* Coalesce into the previous block */
-    pah->a.size += ah->a.size;
+    ARENA_SIZE_SET(pah->a.attrs, ARENA_SIZE_GET(pah->a.attrs) +
+    		ARENA_SIZE_GET(ah->a.attrs));
     pah->a.next = nah;
     nah->a.prev = pah;
 
 #ifdef DEBUG_MALLOC
-    ah->a.type = ARENA_TYPE_DEAD;
+    ARENA_TYPE_SET(ah->a.attrs, ARENA_TYPE_DEAD);
 #endif
 
     ah = pah;
     pah = ah->a.prev;
   } else {
     /* Need to add this block to the free chain */
-    ah->a.type = ARENA_TYPE_FREE;
+    ARENA_TYPE_SET(ah->a.attrs, ARENA_TYPE_FREE);
 
     ah->next_free = __malloc_head.next_free;
     ah->prev_free = &__malloc_head;
@@ -39,9 +40,10 @@ __free_block(struct free_arena_header *ah)
 
   /* In either of the previous cases, we might be able to merge
      with the subsequent block... */
-  if ( nah->a.type == ARENA_TYPE_FREE &&
-       (char *)ah+ah->a.size == (char *)nah ) {
-    ah->a.size += nah->a.size;
+  if ( ARENA_TYPE_GET(nah->a.attrs) == ARENA_TYPE_FREE &&
+       (char *)ah+ARENA_SIZE_GET(ah->a.attrs) == (char *)nah ) {
+    ARENA_SIZE_SET(ah->a.attrs, ARENA_SIZE_GET(ah->a.attrs) +
+    		ARENA_SIZE_GET(nah->a.attrs));
 
     /* Remove the old block from the chains */
     nah->next_free->prev_free = nah->prev_free;
@@ -50,7 +52,7 @@ __free_block(struct free_arena_header *ah)
     nah->a.next->a.prev = ah;
 
 #ifdef DEBUG_MALLOC
-    nah->a.type = ARENA_TYPE_DEAD;
+    ARENA_TYPE_SET(nah->a.attrs, ARENA_TYPE_DEAD);
 #endif
   }
 
@@ -69,7 +71,7 @@ void free(void *ptr)
     ((struct arena_header *)ptr - 1);
 
 #ifdef DEBUG_MALLOC
-  assert( ah->a.type == ARENA_TYPE_USED );
+  assert( ARENA_TYPE_GET(ah->a.attrs) == ARENA_TYPE_USED );
 #endif
 
   __free_block(ah);

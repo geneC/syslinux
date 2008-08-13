@@ -26,7 +26,7 @@ void *realloc(void *ptr, size_t size)
     ((struct arena_header *)ptr - 1);
 
   /* Actual size of the old block */
-  oldsize = ah->a.size;
+  oldsize = ARENA_SIZE_GET(ah->a.attrs);
 
   /* Add the obligatory arena header, and round up */
   newsize = (size+2*sizeof(struct arena_header)-1) & ARENA_SIZE_MASK;
@@ -39,15 +39,16 @@ void *realloc(void *ptr, size_t size)
     xsize = oldsize;
 
     nah = ah->a.next;
-    if ((char *)nah == (char *)ah + ah->a.size &&
-	nah->a.type == ARENA_TYPE_FREE &&
-	oldsize + nah->a.size >= newsize) {
+    if ((char *)nah == (char *)ah + ARENA_SIZE_GET(ah->a.attrs) &&
+	ARENA_TYPE_GET(nah->a.attrs) == ARENA_TYPE_FREE &&
+	oldsize + ARENA_SIZE_GET(nah->a.attrs) >= newsize) {
       /* Merge in subsequent free block */
       ah->a.next = nah->a.next;
       ah->a.next->a.prev = ah;
       nah->next_free->prev_free = nah->prev_free;
       nah->prev_free->next_free = nah->next_free;
-      xsize = (ah->a.size += nah->a.size);
+      xsize = (ARENA_SIZE_SET(ah->a.attrs, ARENA_SIZE_GET(ah->a.attrs) +
+    		  ARENA_SIZE_GET(nah->a.attrs)));
     }
 
     if (xsize >= newsize) {
@@ -55,9 +56,9 @@ void *realloc(void *ptr, size_t size)
       if (xsize >= newsize + 2*sizeof(struct arena_header)) {
 	/* Residual free block at end */
 	nah = (struct free_arena_header *)((char *)ah + newsize);
-	nah->a.type = ARENA_TYPE_FREE;
-	nah->a.size = xsize - newsize;
-	ah->a.size = newsize;
+	ARENA_TYPE_SET(nah->a.attrs, ARENA_TYPE_FREE);
+	ARENA_SIZE_SET(nah->a.attrs, xsize - newsize);
+	ARENA_SIZE_SET(ah->a.attrs, newsize);
 
 	/* Insert into block list */
 	nah->a.next = ah->a.next;
