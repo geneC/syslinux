@@ -42,6 +42,8 @@ typedef int (*module_init_t)(void);
  */
 typedef void (*module_exit_t)(void);
 
+typedef int (*module_main_t)(int, char**);
+
 
 /**
  * struct elf_module - structure encapsulating a module loaded in memory.
@@ -80,6 +82,7 @@ struct elf_module {
 
 	module_init_t		*init_func;	// The initialization entry point
 	module_exit_t		*exit_func;	// The module finalization code
+	module_main_t		*main_func; // The main function (for executable modules)
 
 
 	void				*module_addr; // The module location in the memory
@@ -123,13 +126,14 @@ struct module_dep {
  * This portion is included by dynamic (ELF) module source files.
  */
 
-
-
 #define MODULE_INIT(fn)	static module_init_t __module_init \
-	__used __attribute__((section(".ctors_module")))  = fn
+	__used __attribute__((section(".ctors_modinit")))  = fn
 
 #define MODULE_EXIT(fn) static module_exit_t __module_exit \
-	__used __attribute__((section(".dtors_module")))  = fn
+	__used __attribute__((section(".dtors_modexit")))  = fn
+
+#define MODULE_MAIN(fn) static module_main_t __module_main \
+	__used __attribute__((section(".ctors_modmain")))  = fn
 
 #else
 
@@ -153,6 +157,7 @@ struct module_dep {
  */
 #define MODULE_ELF_INIT_PTR		"__module_init_ptr"	// Initialization pointer symbol name
 #define MODULE_ELF_EXIT_PTR		"__module_exit_ptr"	// Finalization pointer symbol name
+#define MODULE_ELF_MAIN_PTR		"__module_main_ptr" // Entry pointer symbol name
 
 /**
  * modules_init - initialize the module subsystem.

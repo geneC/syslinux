@@ -16,11 +16,11 @@
 #define MAX_NUM			100
 
 
-static int hello_init(void) {
+static int hello_main(int argc, char **argv) {
 	int *nums = NULL;
 	int i;
 
-	printf("Hello, world, from 0x%08X!\n", (unsigned int)&hello_init);
+	printf("Hello, world, from 0x%08X!\n", (unsigned int)&hello_main);
 
 	nums = malloc(NUM_COUNT*sizeof(int));
 
@@ -47,9 +47,5 @@ static int hello_init(void) {
 	return 0;
 }
 
-static void hello_exit(void) {
-	printf("Good bye, cruel world!\n");
-}
 
-MODULE_INIT(hello_init);
-MODULE_EXIT(hello_exit);
+MODULE_MAIN(hello_main);

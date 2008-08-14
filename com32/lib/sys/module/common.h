@@ -29,7 +29,7 @@
 
 
 #ifdef ELF_DEBUG
-#define DBG_PRINT(fmt, args...)	fprintf(stderr, "[DBG] " fmt, ##args)
+#define DBG_PRINT(fmt, args...)	fprintf(stderr, "[ELF] " fmt, ##args)
 #else
 #define DBG_PRINT(fmt, args...)	// Expand to nothing
 #endif
