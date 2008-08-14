@@ -58,6 +58,7 @@ void *realloc(void *ptr, size_t size)
 	nah = (struct free_arena_header *)((char *)ah + newsize);
 	ARENA_TYPE_SET(nah->a.attrs, ARENA_TYPE_FREE);
 	ARENA_SIZE_SET(nah->a.attrs, xsize - newsize);
+	nah->a.tag = NULL;
 	ARENA_SIZE_SET(ah->a.attrs, newsize);
 
 	/* Insert into block list */
@@ -91,6 +92,8 @@ void *realloc(void *ptr, size_t size)
       newptr = malloc(size);
       if (newptr) {
 	memcpy(newptr, ptr, min(size,oldsize));
+	/* Retain tag from the old block */
+	__mem_set_tag(newptr, __mem_get_tag(ptr));
 	free(ptr);
       }
       return newptr;

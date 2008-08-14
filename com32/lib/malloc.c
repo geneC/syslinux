@@ -9,10 +9,15 @@
 #include "init.h"
 #include "malloc.h"
 
+/**
+ * The global tag used to label all the new allocations
+ */
+static void *__global_tag = NULL;
+
 struct free_arena_header __malloc_head =
 {
   {
-    (void*)0,
+    NULL,
     ARENA_TYPE_HEAD,
     &__malloc_head,
     &__malloc_head,
@@ -49,6 +54,7 @@ static void __constructor init_memory_arena(void)
   fp = (struct free_arena_header *)start;
   ARENA_TYPE_SET(fp->a.attrs, ARENA_TYPE_FREE);
   ARENA_SIZE_SET(fp->a.attrs, total_space - __stack_size);
+  fp->a.tag = NULL;
 
   /* Insert into chains */
   fp->a.next = fp->a.prev = &__malloc_head;
@@ -72,8 +78,10 @@ static void *__malloc_from_block(struct free_arena_header *fp, size_t size)
 
     ARENA_TYPE_SET(nfp->a.attrs, ARENA_TYPE_FREE);
     ARENA_SIZE_SET(nfp->a.attrs, fsize-size);
+    nfp->a.tag = NULL;
     ARENA_TYPE_SET(fp->a.attrs, ARENA_TYPE_USED);
     ARENA_SIZE_SET(fp->a.attrs, size);
+    fp->a.tag = __global_tag;
 
     /* Insert into all-block chain */
     nfp->a.prev = fp;
@@ -89,6 +97,7 @@ static void *__malloc_from_block(struct free_arena_header *fp, size_t size)
   } else {
     /* Allocate the whole block */
     ARENA_TYPE_SET(fp->a.attrs, ARENA_TYPE_USED);
+    fp->a.tag = __global_tag;
 
     /* Remove from free chain */
     fp->next_free->prev_free = fp->prev_free;
@@ -174,6 +183,7 @@ int posix_memalign(void **memptr, size_t alignment, size_t size) {
 			ARENA_TYPE_SET(nfp->a.attrs, ARENA_TYPE_FREE);
 			ARENA_SIZE_SET(nfp->a.attrs,
 					ARENA_SIZE_GET(fp->a.attrs) - ((uintptr_t)nfp - (uintptr_t)fp));
+			nfp->a.tag = NULL;
 			nfp->a.prev = fp;
 			nfp->a.next = fp->a.next;
 			nfp->prev_free = fp;
@@ -198,4 +208,22 @@ int posix_memalign(void **memptr, size_t alignment, size_t size) {
 		return ENOMEM;
 
 	return 0;
+}
+
+void *__mem_get_tag_global() {
+	return __global_tag;
+}
+
+void __mem_set_tag_global(void *tag) {
+	__global_tag = tag;
+}
+
+void *__mem_get_tag(void *memptr) {
+	struct arena_header *ah = (struct arena_header*)memptr - 1;
+	return ah->tag;
+}
+
+void __mem_set_tag(void *memptr, void *tag) {
+	struct arena_header *ah = (struct arena_header*)memptr - 1;
+	ah->tag = tag;
 }

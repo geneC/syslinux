@@ -38,6 +38,24 @@ __extern __mallocfunc void *calloc(size_t, size_t);
 __extern __mallocfunc void *realloc(void *, size_t);
 __extern int posix_memalign(void **memptr, size_t alignment,
 		size_t size);
+
+
+
+__extern void *__mem_get_tag_global();
+__extern void __mem_set_tag_global(void *tag);
+
+__extern void *__mem_get_tag(void *memptr);
+__extern void __mem_set_tag(void *memptr, void *tag);
+
+static __inline__ void *__malloc_tagged(size_t size, void *tag) {
+	void *result = malloc(size);
+	__mem_set_tag(result, tag);
+
+	return result;
+}
+
+
+
 __extern long strtol(const char *, char **, int);
 __extern long long strtoll(const char *, char **, int);
 __extern unsigned long strtoul(const char *, char **, int);

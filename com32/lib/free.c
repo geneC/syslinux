@@ -31,6 +31,7 @@ __free_block(struct free_arena_header *ah)
   } else {
     /* Need to add this block to the free chain */
     ARENA_TYPE_SET(ah->a.attrs, ARENA_TYPE_FREE);
+    ah->a.tag = NULL;
 
     ah->next_free = __malloc_head.next_free;
     ah->prev_free = &__malloc_head;
