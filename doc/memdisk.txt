@@ -114,6 +114,10 @@ e) MEMDISK by default supports EDD/EBIOS on hard disks, but not on
    edd		Enable EDD/EBIOS
    noedd	Disable EDD/EBIOS
 
+f) The following option can be used to pause to view the messages:
+
+   pause	Wait for a keypress right before booting
+
 
 Some interesting things to note:
 
