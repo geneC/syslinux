@@ -6,11 +6,12 @@
  */
 
 #include <sys/module.h>
+#include <sys/exec.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
 
-#include "exec.h"
+
 
 #define DBG_PRINT(fmt, args...)	fprintf(stderr, "[EXEC] " fmt, ##args)
 

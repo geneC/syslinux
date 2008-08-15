@@ -4,8 +4,7 @@
 #include <string.h>
 
 #include <sys/module.h>
-
-#include "exec.h"
+#include <sys/exec.h>
 
 #define INFO_PRINT(fmt, args...)	printf("[COM32] " fmt, ##args)
 
