@@ -5,129 +5,92 @@
 
 #include <sys/module.h>
 
+#include "exec.h"
+
 #define INFO_PRINT(fmt, args...)	printf("[COM32] " fmt, ##args)
 
-#define KLIBC_NAME			"klibc.dyn"
-#define ROOT_NAME			"_root_.dyn"
+#define MAX_COMMAND_SIZE 	80
+#define COMMAND_DELIM		" \t\n"
 
-#define ELF_DIRECTORY		"/dyn/"
 
-static struct elf_module    *mod_root;
 
-int modules_com32_setup() {
-	int res;
+void print_help() {
+	printf("List of available commands:\n");
+	printf("exit - exits the program\n");
+	printf("help - shows this message\n");
+	printf("load <library>... - loads the libraries into the environment\n");
+	printf("spawn <executable> <args> - launches an executable module\n");
+	printf("unload <library>... - unloads the libraries from the environment\n");
+	printf("list - prints the currently loaded modules\n");
+}
 
-	res = modules_init();
+void print_prompt() {
+	printf("\nelflink> ");
+}
 
-	if (res != 0)
-		return res;
+void read_command(char *cmd, int size) {
+	char *nl = NULL;
+	fgets(cmd, size, stdin);
 
-	////////////////////////////////////////
-	// Load the root module
+	// Strip the newline
+	nl = strchr(cmd, '\n');
 
-	// Create its associated structure
-	mod_root = module_alloc(ELF_DIRECTORY ROOT_NAME);
+	if (nl != NULL)
+		*nl = '\0';
+}
 
-	if (mod_root == NULL) {
-		return -1;
-	}
+int process_command(char *cmd) {
+	char *cmd_name;
 
-	res = module_load_shallow(mod_root);
+	cmd_name = strtok(cmd, COMMAND_DELIM);
 
-	if (res != 0) {
-		return res;
+	if (strcmp(cmd_name, "exit") == 0) {
+		printf("Goodbye!\n");
+		return 1;
+	} else if (strcmp(cmd_name, "help") == 0) {
+		print_help();
+	} else if (strcmp(cmd_name, "load") == 0) {
+
+	} else if (strcmp(cmd_name, "spawn") == 0) {
+
+	} else if (strcmp(cmd_name, "unload") == 0) {
+
+	} else if (strcmp(cmd_name, "list") == 0) {
+
 	}
 
 	return 0;
 }
 
-int modules_com32_load(char *name) {
-	char full_name[MODULE_NAME_SIZE];
-	int res;
 
-	strcpy(full_name, ELF_DIRECTORY);
-	strcat(full_name, name);
-
-	struct elf_module *module = module_alloc(full_name);
-
-	res = module_load(module);
-
-	if (res != 0)
-		return res;
-
-	if (*(module->init_func) != NULL) {
-		res = (*(module->init_func))();
-		INFO_PRINT("Initialization function returned: %d\n", res);
-	} else {
-		INFO_PRINT("No initialization function present.\n");
-	}
-
-	return res;
-}
-
-void modules_com32_unload(char *name) {
-	char full_name[MODULE_NAME_SIZE];
-
-	strcpy(full_name, ELF_DIRECTORY);
-	strcat(full_name, name);
-
-	struct elf_module *module = module_find(full_name);
-
-	if (module != NULL) {
-		if (*(module->exit_func) != NULL) {
-			(*(module->exit_func))();
-		}
-		module_unload(module);
-	} else {
-		INFO_PRINT("Module %s is not loaded\n", full_name);
-	}
-}
-
-void print_usage() {
-	printf("Usage: test_com32 module ...\n");
-	printf("Where:\n");
-	printf("\tmodule\tThe name of an ELF module to load, eg. hello.dyn\n");
-	printf("\n");
-}
-
-void modules_com32_finalize() {
-	modules_term();
-}
 
 int main(int argc, char **argv) {
-	int res, i;
+	int done = 0;
+	int res;
+	char command[MAX_COMMAND_SIZE] = {0};
 
 	// Open a standard r/w console
 	openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
-	argc--;
-	argv++;
-
-	if (argc == 0) {
-		print_usage();
-		return 1;
+	res = exec_init();
+	if (res != 0) {
+		printf("Failed to initialize the execution environment.\n");
+		return res;
+	} else {
+		printf("Execution environment initialized successfully.\n");
 	}
 
-	INFO_PRINT("Setting up the module subsystem...\n");
 
-	// Initializing the module subsystem
-	res = modules_com32_setup();
+	printf("\nFor a list of available commands, type 'help'.\n");
 
-	INFO_PRINT("Loading all the specified modules...\n");
+	do {
+		print_prompt();
+		read_command(command, MAX_COMMAND_SIZE);
+		done = process_command(command);
 
-	// Load the modules...
-	for (i = 0; i < argc; i++) {
-		modules_com32_load(argv[i]);
-	}
+	} while (!done);
 
-	INFO_PRINT("Unloading all the specified modules...\n");
-
-	// ...then unload them
-	for (i = argc-1; i >= 0; i--) {
-		modules_com32_unload(argv[i]);
-	}
-
-	modules_com32_finalize();
+	exec_term();
 
 	return 0;
 }
