@@ -20,6 +20,9 @@ static struct elf_module    *mod_root = NULL;
 static char *module_get_fullname(const char *name) {
 	static char name_buff[MODULE_NAME_SIZE];
 
+	if (name == NULL)
+		return NULL;
+
 	strcpy(name_buff, EXEC_DIRECTORY);
 	strcat(name_buff, name);
 
