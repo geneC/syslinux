@@ -23,7 +23,7 @@ __extern long atol(const char *);
 __extern long long atoll(const char *);
 __extern __noreturn exit(int);
 __extern __noreturn _Exit(int);
-__extern void free(void *);
+
 static __inline__ long labs(long __n) {
   return (__n < 0L) ? -__n : __n;
 }
@@ -39,6 +39,7 @@ __extern __mallocfunc void *realloc(void *, size_t);
 __extern int posix_memalign(void **memptr, size_t alignment,
 		size_t size);
 
+__extern void free(void *);
 
 
 __extern void *__mem_get_tag_global();
@@ -46,6 +47,8 @@ __extern void __mem_set_tag_global(void *tag);
 
 __extern void *__mem_get_tag(void *memptr);
 __extern void __mem_set_tag(void *memptr, void *tag);
+
+__extern void __free_tagged(void *tag);
 
 static __inline__ void *__malloc_tagged(size_t size, void *tag) {
 	void *result = malloc(size);

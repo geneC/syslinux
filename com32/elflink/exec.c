@@ -114,10 +114,21 @@ int spawnv(const char *name, const char **argv) {
 
 	if (*(module->main_func) != NULL) {
 		const char **last_arg = argv;
+		void *old_tag;
 		while (*last_arg != NULL)
 			last_arg++;
 
+		// Setup the memory allocation context
+		old_tag = __mem_get_tag_global();
+		__mem_set_tag_global(module);
+
+		// Execute the program
 		ret_val = (*(module->main_func))(last_arg - argv, argv);
+
+		// Clean up the allocation context
+		__free_tagged(module);
+		// Restore the allocation context
+		__mem_set_tag_global(old_tag);
 	} else {
 		// We can't execute without a main function
 		module_unload(module);

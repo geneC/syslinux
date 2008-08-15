@@ -79,3 +79,18 @@ void free(void *ptr)
 
   /* Here we could insert code to return memory to the system. */
 }
+
+void __free_tagged(void *tag) {
+	struct free_arena_header *fp, *nfp;
+
+	for (fp = __malloc_head.a.next, nfp = fp->a.next;
+			ARENA_TYPE_GET(fp->a.attrs) != ARENA_TYPE_HEAD;
+			fp = nfp, nfp = fp->a.next) {
+
+		if (ARENA_TYPE_GET(fp->a.attrs) == ARENA_TYPE_USED &&
+				fp->a.tag == tag) {
+			// Free this block
+			__free_block(fp);
+		}
+	}
+}
