@@ -67,6 +67,12 @@ int load_library(const char *name) {
 		return res;
 	}
 
+	if (*(module->main_func) != NULL) {
+		DBG_PRINT("Cannot load executable module as library.\n");
+		module_unload(module);
+		return -1;
+	}
+
 	if (*(module->init_func) != NULL) {
 		res = (*(module->init_func))();
 		DBG_PRINT("Initialization function returned: %d\n", res);
