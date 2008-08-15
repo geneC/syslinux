@@ -118,6 +118,12 @@ int module_load_shallow(struct elf_module *module) {
 	int res;
 	Elf32_Ehdr elf_hdr;
 
+	// Do not allow duplicate modules
+	if (module_find(module->name) != NULL) {
+		DBG_PRINT("Module already loaded.\n");
+		return -1;
+	}
+
 	res = image_load(module);
 
 	if (res < 0)

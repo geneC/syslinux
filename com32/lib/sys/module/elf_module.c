@@ -416,6 +416,12 @@ int module_load(struct elf_module *module) {
 	int res;
 	Elf32_Ehdr elf_hdr;
 
+	// Do not allow duplicate modules
+	if (module_find(module->name) != NULL) {
+		DBG_PRINT("Module already loaded.\n");
+		return -1;
+	}
+
 	// Get a mapping/copy of the ELF file in memory
 	res = image_load(module);
 

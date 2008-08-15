@@ -65,6 +65,7 @@ int load_library(const char *name) {
 
 
 	if (res != 0) {
+		module_unload(module);
 		return res;
 	}
 
@@ -106,7 +107,7 @@ int unload_library(const char *name) {
 }
 
 int spawnv(const char *name, const char **argv) {
-	int res, ret_val;
+	int res, ret_val = 0;
 
 	struct elf_module *module = module_alloc(module_get_fullname(name));
 
@@ -116,6 +117,7 @@ int spawnv(const char *name, const char **argv) {
 	res = module_load(module);
 
 	if (res != 0) {
+		module_unload(module);
 		return res;
 	}
 

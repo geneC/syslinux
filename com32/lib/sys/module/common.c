@@ -335,10 +335,12 @@ int module_unload(struct elf_module *module) {
 	list_del_init(&module->list);
 
 	// Release the loaded segments or sections
-	elf_free(module->module_addr);
+	if (module->module_addr != NULL) {
+		elf_free(module->module_addr);
 
-	DBG_PRINT("%s MODULE %s UNLOADED\n", module->shallow ? "SHALLOW" : "",
-			module->name);
+		DBG_PRINT("%s MODULE %s UNLOADED\n", module->shallow ? "SHALLOW" : "",
+				module->name);
+	}
 	// Release the module structure
 	free(module);
 
