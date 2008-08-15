@@ -109,6 +109,8 @@ int process_command(char *cmd) {
 		process_library(0);
 	} else if (strcmp(cmd_name, "list") == 0) {
 
+	} else {
+		printf("Unknown command. Type 'help' for a list of valid commands.\n");
 	}
 
 	return 0;
