@@ -42,6 +42,12 @@ typedef int (*module_init_t)(void);
  */
 typedef void (*module_exit_t)(void);
 
+/**
+ * module_main_t - pointer to an entry routine
+ *
+ * The entry routine is present only in executable modules, and represent
+ * the entry point for the program.
+ */
 typedef int (*module_main_t)(int, char**);
 
 
@@ -166,7 +172,7 @@ extern struct list_head modules_head;
 
 
 /**
- * for_each_module -
+ * for_each_module - iterator loop through the list of loaded modules.
  */
 #define for_each_module(m)	list_for_each_entry(m, &modules_head, list)
 
@@ -239,7 +245,11 @@ extern int module_load_shallow(struct elf_module *module);
 extern int module_unload(struct elf_module *module);
 
 /**
- * module_unloadable -
+ * module_unloadable - checks whether the given module can be unloaded.
+ * @module: the module descriptor structure
+ *
+ * A module can be unloaded from the system when no other modules depend on it,
+ * that is, no symbols are referenced from it.
  */
 extern int module_unloadable(struct elf_module *module);
 
