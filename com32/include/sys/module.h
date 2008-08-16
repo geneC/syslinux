@@ -160,6 +160,17 @@ struct module_dep {
 #define MODULE_ELF_MAIN_PTR		"__module_main_ptr" // Entry pointer symbol name
 
 /**
+ * modules_head - A global linked list containing all the loaded modules.
+ */
+extern struct list_head modules_head;
+
+
+/**
+ * for_each_module -
+ */
+#define for_each_module(m)	list_for_each_entry(m, &modules_head, list)
+
+/**
  * modules_init - initialize the module subsystem.
  *
  * This function must be called before any module operation is to be performed.

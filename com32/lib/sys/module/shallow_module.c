@@ -142,7 +142,7 @@ int module_load_shallow(struct elf_module *module) {
 	CHECKED(res, check_symbols(module), error);
 
 	// Add the module at the beginning of the module list
-	list_add(&module->list, &modules);
+	list_add(&module->list, &modules_head);
 
 	// The file image is no longer needed
 	image_unload(module);

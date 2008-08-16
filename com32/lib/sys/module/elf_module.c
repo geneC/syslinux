@@ -449,7 +449,7 @@ int module_load(struct elf_module *module) {
 	CHECKED(res, extract_operations(module), error);
 
 	// Add the module at the beginning of the module list
-	list_add(&module->list, &modules);
+	list_add(&module->list, &modules_head);
 
 	// Perform the relocations
 	resolve_symbols(module);

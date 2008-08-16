@@ -34,11 +34,6 @@
 #define DBG_PRINT(fmt, args...)	// Expand to nothing
 #endif
 
-/**
- * modules - A global linked list containing all the loaded modules.
- */
-extern struct list_head modules;
-
 // User-space debugging routines
 #ifdef ELF_DEBUG
 

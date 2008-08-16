@@ -19,7 +19,7 @@
 /**
  * The one and only list of loaded modules
  */
-LIST_HEAD(modules);
+LIST_HEAD(modules_head);
 
 // User-space debugging routines
 #ifdef ELF_DEBUG
@@ -166,7 +166,7 @@ struct module_dep *module_dep_alloc(struct elf_module *module) {
 struct elf_module *module_find(const char *name) {
 	struct elf_module *cr_module;
 
-	list_for_each_entry(cr_module, &modules, list) {
+	for_each_module(cr_module) {
 		if (strcmp(cr_module->name, name) == 0)
 			return cr_module;
 	}
@@ -282,7 +282,7 @@ int check_symbols(struct elf_module *module) {
 		strong_count = 0;
 		weak_count = 0;
 
-		list_for_each_entry(crt_module, &modules, list) {
+		for_each_module(crt_module) {
 			ref_sym = module_find_symbol(crt_name, crt_module);
 
 			// If we found a definition for our symbol...
@@ -470,7 +470,7 @@ Elf32_Sym *global_find_symbol(const char *name, struct elf_module **module) {
 	Elf32_Sym *crt_sym = NULL;
 	Elf32_Sym *result = NULL;
 
-	list_for_each_entry(crt_module, &modules, list) {
+	for_each_module(crt_module) {
 		crt_sym = module_find_symbol(name, crt_module);
 
 		if (crt_sym != NULL && crt_sym->st_shndx != SHN_UNDEF) {
