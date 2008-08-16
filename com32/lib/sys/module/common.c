@@ -316,12 +316,19 @@ int check_symbols(struct elf_module *module) {
 	return 0;
 }
 
+int module_unloadable(struct elf_module *module) {
+	if (!list_empty(&module->dependants))
+		return 0;
+
+	return 1;
+}
+
 
 // Unloads the module from the system and releases all the associated memory
 int module_unload(struct elf_module *module) {
 	struct module_dep *crt_dep, *tmp;
 	// Make sure nobody needs us
-	if (!list_empty(&module->dependants)) {
+	if (!module_unloadable(module)) {
 		DBG_PRINT("Module is required by other modules.\n");
 		return -1;
 	}

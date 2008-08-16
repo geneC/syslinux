@@ -239,6 +239,11 @@ extern int module_load_shallow(struct elf_module *module);
 extern int module_unload(struct elf_module *module);
 
 /**
+ * module_unloadable -
+ */
+extern int module_unloadable(struct elf_module *module);
+
+/**
  * module_find - searches for a module by its name.
  * @name: the name of the module, as it was specified in module_alloc.
  *

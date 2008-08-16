@@ -401,12 +401,21 @@ static int extract_operations(struct elf_module *module) {
 
 	module->init_func = (module_init_t*)module_get_absolute(
 								init_sym->st_value, module);
+	if (*(module->init_func) == NULL) {
+		module->init_func = NULL;
+	}
 
 	module->exit_func = (module_exit_t*)module_get_absolute(
 								exit_sym->st_value, module);
+	if (*(module->exit_func) == NULL) {
+		module->exit_func = NULL;
+	}
 
 	module->main_func = (module_main_t*)module_get_absolute(
 								main_sym->st_value, module);
+	if (*(module->main_func) == NULL) {
+		module->main_func = NULL;
+	}
 
 	return 0;
 }

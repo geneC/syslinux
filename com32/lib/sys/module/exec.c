@@ -69,13 +69,13 @@ int load_library(const char *name) {
 		return res;
 	}
 
-	if (*(module->main_func) != NULL) {
+	if (module->main_func != NULL) {
 		DBG_PRINT("Cannot load executable module as library.\n");
 		module_unload(module);
 		return -1;
 	}
 
-	if (*(module->init_func) != NULL) {
+	if (module->init_func != NULL) {
 		res = (*(module->init_func))();
 		DBG_PRINT("Initialization function returned: %d\n", res);
 	} else {
@@ -97,7 +97,11 @@ int unload_library(const char *name) {
 	if (module == NULL)
 		return -1;
 
-	if (*(module->exit_func) != NULL) {
+	if (!module_unloadable(module)) {
+		return -1;
+	}
+
+	if (module->exit_func != NULL) {
 		(*(module->exit_func))();
 	}
 
@@ -121,7 +125,7 @@ int spawnv(const char *name, const char **argv) {
 		return res;
 	}
 
-	if (*(module->main_func) != NULL) {
+	if (module->main_func != NULL) {
 		const char **last_arg = argv;
 		void *old_tag;
 		while (*last_arg != NULL)

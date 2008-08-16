@@ -14,7 +14,7 @@
 
 
 
-void print_help() {
+static void print_help() {
 	printf("List of available commands:\n");
 	printf("exit - exits the program\n");
 	printf("help - shows this message\n");
@@ -24,11 +24,11 @@ void print_help() {
 	printf("list - prints the currently loaded modules\n");
 }
 
-void print_prompt() {
+static void print_prompt() {
 	printf("\nelflink> ");
 }
 
-void read_command(char *cmd, int size) {
+static void read_command(char *cmd, int size) {
 	char *nl = NULL;
 	fgets(cmd, size, stdin);
 
@@ -39,7 +39,7 @@ void read_command(char *cmd, int size) {
 		*nl = '\0';
 }
 
-void process_spawn() {
+static void process_spawn() {
 	// Compose the command line
 	char **cmd_line = malloc((MAX_COMMAND_ARGS+1)*sizeof(char*));
 	int argc = 0, result;
@@ -68,7 +68,7 @@ void process_spawn() {
 	free(cmd_line);
 }
 
-void process_library(int load) {
+static void process_library(int load) {
 	char *crt_lib;
 	int result;
 
@@ -90,7 +90,24 @@ void process_library(int load) {
 	}
 }
 
-int process_command(char *cmd) {
+static void process_list() {
+	struct elf_module *module;
+	struct module_dep *crt_dep;
+
+	for_each_module(module) {
+		printf("%s (%dK, %s, %s) : ", module->name, module->module_size >> 10,
+				module->shallow ? "shallow" : "regular",
+				module->main_func == NULL ? "library" : "program");
+
+		list_for_each_entry(crt_dep, &module->required, list) {
+			printf("%s ", crt_dep->module->name);
+		}
+
+		printf("\n");
+	}
+}
+
+static int process_command(char *cmd) {
 	char *cmd_name;
 
 	cmd_name = strtok(cmd, COMMAND_DELIM);
@@ -107,7 +124,7 @@ int process_command(char *cmd) {
 	} else if (strcmp(cmd_name, "unload") == 0) {
 		process_library(0);
 	} else if (strcmp(cmd_name, "list") == 0) {
-
+		process_list();
 	} else {
 		printf("Unknown command. Type 'help' for a list of valid commands.\n");
 	}
