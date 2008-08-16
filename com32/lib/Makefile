@@ -7,6 +7,7 @@ NOGPL := 1
 topdir = ../..
 include MCONFIG
 
+## OPTIONAL OBJECTS, AVAILABLE AS DYNAMIC LINKED MODULES
 # PNG library object files
 LIBPNG_OBJS = \
 	libpng/png.o libpng/pngset.o libpng/pngget.o libpng/pngrutil.o  \
@@ -41,22 +42,9 @@ LIBPCI_OBJS = \
 	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o		\
 	pci/writeb.o pci/writew.o pci/writel.o pci/writebios.o
 	
-# COM32 core object files
-LIBENTRY_OBJS = \
-	sys/intcall.o sys/farcall.o sys/cfarcall.o sys/zeroregs.o	\
-	sys/entry.o sys/exit.o sys/argv.o sys/times.o			\
-	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
-	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
-	sys/isatty.o sys/fstat.o
-	
-LIBMODULE_OBJS = \
-	sys/module/common.o sys/module/elf_module.o		\
-	sys/module/shallow_module.o	sys/module/elfutils.o	\
-	sys/module/exec.o
-	
 LIBSYSLINUX_OBJS = \
-	syslinux/idle.o	syslinux/reboot.o				\
-	syslinux/features.o syslinux/config.o syslinux/serial.o		\
+	syslinux/reboot.o				\
+	syslinux/features.o syslinux/config.o 	\
 	syslinux/ipappend.o syslinux/dsinfo.o syslinux/version.o	\
 	\
 	syslinux/addlist.o syslinux/freelist.o syslinux/memmap.o	\
@@ -77,6 +65,24 @@ LIBSYSLINUX_OBJS = \
 	\
 	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o		\
 	syslinux/setadv.o
+
+
+## CORE OBJECTS, INCLUDED IN THE ROOT COM32 MODULE
+LIBENTRY_OBJS = \
+	sys/intcall.o sys/farcall.o sys/cfarcall.o sys/zeroregs.o	\
+	sys/entry.o sys/exit.o sys/argv.o sys/times.o			\
+	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
+	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
+	sys/isatty.o sys/fstat.o	\
+	\
+	syslinux/idle.o
+	
+LIBMODULE_OBJS = \
+	sys/module/common.o sys/module/elf_module.o		\
+	sys/module/shallow_module.o	sys/module/elfutils.o	\
+	sys/module/exec.o
+	
+
 	
 LIBGCC_OBJS = \
 	libgcc/__ashldi3.o libgcc/__udivdi3.o			\
@@ -97,7 +103,9 @@ LIBCONSOLE_OBJS = \
 	\
 	sys/ansi.o							\
 	\
-	sys/ansicon_write.o sys/ansiserial_write.o
+	sys/ansicon_write.o sys/ansiserial_write.o	\
+	\
+	syslinux/serial.o
 
 LIBOTHER_OBJS = \
 	abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o		\
@@ -150,17 +158,19 @@ LIBOTHER_OBJS = \
 MINLIBOBJS = \
 	$(LIBOTHER_OBJS) \
 	$(LIBENTRY_OBJS) \
-	$(LIBSYSLINUX_OBJS) \
 	$(LIBGCC_OBJS) \
 	$(LIBCONSOLE_OBJS) \
 	$(LIBMODULE_OBJS)
+	
 	
 DYNLIBOBJS = \
 	$(LIBZLIB_OBJS) \
 	$(LIBPNG_OBJS) \
 	$(LIBJPG_OBJS) \
 	$(LIBPCI_OBJS) \
-	$(LIBVESA_OBJS)
+	$(LIBVESA_OBJS) \
+	$(LIBSYSLINUX_OBJS)
+	
 	
 LIBOBJS = \
 	$(MINLIBOBJS) \
