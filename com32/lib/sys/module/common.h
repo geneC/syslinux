@@ -11,9 +11,9 @@
 #include <stdio.h>
 
 #include <sys/module.h>
-#include <sys/elfutils.h>
-
 #include <linux/list.h>
+
+#include "elfutils.h"
 
 
 // Performs an operation and jumps to a given label if an error occurs

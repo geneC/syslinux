@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include <sys/elfutils.h>
+#include "elfutils.h"
 
 unsigned long elf_hash(const unsigned char *name) {
 	unsigned long h = 0;

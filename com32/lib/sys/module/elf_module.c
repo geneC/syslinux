@@ -13,8 +13,8 @@
 
 #include <linux/list.h>
 #include <sys/module.h>
-#include <sys/elfutils.h>
 
+#include "elfutils.h"
 #include "common.h"
 
 

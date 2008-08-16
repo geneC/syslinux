@@ -5,10 +5,12 @@
  *      Author: Stefan Bucur <stefanb@zytor.com>
  */
 
-#include "common.h"
+
 
 #include <sys/module.h>
-#include <sys/elfutils.h>
+
+#include "common.h"
+#include "elfutils.h"
 
 
 static int check_header_shallow(Elf32_Ehdr *elf_hdr) {
