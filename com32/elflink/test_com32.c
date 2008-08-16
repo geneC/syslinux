@@ -8,12 +8,16 @@
 
 #define INFO_PRINT(fmt, args...)	printf("[COM32] " fmt, ##args)
 
-#define MAX_COMMAND_SIZE 	80
-#define COMMAND_DELIM		" \t\n"
-#define MAX_COMMAND_ARGS	(MAX_COMMAND_SIZE/2)
+#define MAX_COMMAND_SIZE 	80					 // Maximum size of the cmd line
+#define COMMAND_DELIM		" \t\n"				 // Whitespace delimiters
+#define MAX_COMMAND_ARGS	(MAX_COMMAND_SIZE/2) // Maximum argument count for
+												 // program execution
 
 
 
+/**
+ * print_help - Display usage instructions on the screen.
+ */
 static void print_help() {
 	printf("List of available commands:\n");
 	printf("exit - exits the program\n");
@@ -24,10 +28,20 @@ static void print_help() {
 	printf("list - prints the currently loaded modules\n");
 }
 
+/**
+ * print_prompt - Display the command prompt.
+ */
 static void print_prompt() {
 	printf("\nelflink> ");
 }
 
+/**
+ * read_command - Read a new command from the standard input.
+ * @cmd: the buffer to store the command
+ * @size: the maximum size of the string that can be stored in the buffer
+ *
+ * If the command is larger than the specified size, it is truncated.
+ */
 static void read_command(char *cmd, int size) {
 	char *nl = NULL;
 	fgets(cmd, size, stdin);
@@ -39,6 +53,11 @@ static void read_command(char *cmd, int size) {
 		*nl = '\0';
 }
 
+/**
+ * process_spawn - Handles the execution of a 'spawn' command.
+ *
+ * The command line is in the internal buffer of strtok.
+ */
 static void process_spawn() {
 	// Compose the command line
 	char **cmd_line = malloc((MAX_COMMAND_ARGS+1)*sizeof(char*));
@@ -68,6 +87,12 @@ static void process_spawn() {
 	free(cmd_line);
 }
 
+/**
+ * process_library - Handles the execution of the 'load' and 'unload' commands.
+ * @load: contains 1 if the libraries are to be loaded, 0 for unloading.
+ *
+ * The command line is in the internal buffer of strtok.
+ */
 static void process_library(int load) {
 	char *crt_lib;
 	int result;
@@ -90,6 +115,10 @@ static void process_library(int load) {
 	}
 }
 
+/**
+ * process_list - Handles the execution of the 'list' command.
+ *
+ */
 static void process_list() {
 	struct elf_module *module;
 	struct module_dep *crt_dep;
@@ -107,6 +136,12 @@ static void process_list() {
 	}
 }
 
+/**
+ * process_command - Recognizes the requested command and executes it.
+ * @cmd: the command to be executed.
+ *
+ * Returns 1 if the command was 'exit', 0 otherwise.
+ */
 static int process_command(char *cmd) {
 	char *cmd_name;
 
@@ -133,7 +168,9 @@ static int process_command(char *cmd) {
 }
 
 
-
+/**
+ * The entry point of 'test_com32' COM module.
+ */
 int main(int argc, char **argv) {
 	int done = 0;
 	int res;
