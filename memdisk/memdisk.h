@@ -40,11 +40,22 @@ extern void __attribute__((noreturn)) die(void);
 #define memcpy(a,b,c) __builtin_memcpy(a,b,c)
 #define memset(a,b,c) __builtin_memset(a,b,c)
 #define strcpy(a,b)   __builtin_strcpy(a,b)
-#define strlen(a)     __builtin_strlen(a)
+
+static inline size_t strlen(const char *__a)
+{
+  const char *__D;
+  size_t __c;
+
+  asm("repne;scasb"
+      : "=D" (__D), "=c" (__c)
+      : "D" (__a), "c" (-1), "a" (0), "m" (*__a));
+
+  return __D - __a - 1;
+}
 
 /* memcpy() but returns a pointer to end of buffer */
 static inline void *
-memcpy_endptr(void *__d, const void *__s, unsigned int __n)
+mempcpy(void *__d, const void *__s, unsigned int __n)
 {
   memcpy(__d, __s, __n);
   return (void *)((char *)__d + __n);

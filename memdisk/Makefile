@@ -11,26 +11,22 @@
 ## -----------------------------------------------------------------------
 
 topdir = ..
+include $(topdir)/MCONFIG
 -include $(topdir)/version.mk
 
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
+GCCOPT    := $(call gcc_ok,-m32,) \
+	     $(call gcc_ok,-ffreestanding,) \
+	     $(call gcc_ok,-fno-stack-protector) \
+	     $(call gcc_ok,-falign-functions=0,-malign-functions=0) \
+	     $(call gcc_ok,-falign-jumps=0,-malign-jumps=0) \
+	     $(call gcc_ok,-falign-loops=0,-malign-loops=0) \
+	     -march=i386 -Os -fomit-frame-pointer -mregparm=3 -DREGPARM=3
 
-CC	= gcc
-
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
-	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
-
-M32     := $(call gcc_ok,-m32,)
-ALIGN   := $(call gcc_ok,-falign-functions=0 -falign-jumps=0 -falign-loops=0,-malign-functions=0 -malign-jumps=0 -malign-loops=0)
-FREE    := $(call gcc_ok,-ffreestanding,) $(call gcc_ok,-fno-stack-protector,)
-
-CFLAGS   =  $(M32) $(FREE) -g -W -Wall -Wno-sign-compare \
-	   -Os -fomit-frame-pointer -march=i386 -mregparm=3 $(ALIGN) \
-	   -DDATE='"$(DATE)"'
-SFLAGS	 = $(M32) -march=i386 -D__ASSEMBLY__
-LDFLAGS  = $(M32) -g
-INCLUDE  = -I../com32/include
-LD	 = ld -m elf_i386
+CFLAGS   = $(GCCOPT) -g -W -Wall -Wno-sign-compare -DDATE='"$(DATE)"'
+SFLAGS	 = $(GCCOPT) -D__ASSEMBLY__
+LDFLAGS  = $(GCCOPT) -g
+INCLUDE  = -I$(topdir)/com32/include
+LD	+= -m elf_i386
 NASM     = nasm
 NASMOPT  = -O9999
 NFLAGS   = -dDATE='"$(DATE)"' -dWITH_EDD
@@ -63,7 +59,7 @@ all: memdisk # e820test
 
 # tidy, clean removes everything except the final binary
 tidy dist:
-	rm -f *.o *.s *.o16 *.s16 *.bin *.lst *.elf e820test
+	rm -f *.o *.s *.tmp *.o16 *.s16 *.bin *.lst *.elf e820test
 
 clean: tidy
 

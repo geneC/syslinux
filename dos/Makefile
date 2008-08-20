@@ -1,27 +1,38 @@
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
+## -----------------------------------------------------------------------
+##
+##   Copyright 2001-2008 H. Peter Anvin - All Rights Reserved
+##
+##   This program is free software; you can redistribute it and/or modify
+##   it under the terms of the GNU General Public License as published by
+##   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
+##   Boston MA 02111-1307, USA; either version 2 of the License, or
+##   (at your option) any later version; incorporated herein by reference.
+##
+## -----------------------------------------------------------------------
 
-CC	= gcc
+##
+## MS-DOS FAT installer
+##
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
-	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
+topdir = ..
+include $(topdir)/MCONFIG
 
-M32       := $(call gcc_ok,-m32,) $(call gcc_ok,-ffreestanding,) \
-	$(call gcc_ok,-fno-stack-protector,) \
-	$(call gcc_ok,-fno-top-level-reorder,$(call gcc_ok,-fno-unit-at-a-time))
+GCCOPT    := $(call gcc_ok,-m32,) \
+	     $(call gcc_ok,-ffreestanding,) \
+	     $(call gcc_ok,-fno-stack-protector,) \
+	     $(call gcc_ok,-falign-functions=0,-malign-functions=0) \
+	     $(call gcc_ok,-falign-jumps=0,-malign-jumps=0) \
+	     $(call gcc_ok,-falign-loops=0,-malign-loops=0) \
+	     -march=i386 -Os -fomit-frame-pointer -mregparm=3 -DREGPARM=3 \
+	     -msoft-float
 
-NASM	 = nasm
-NASMOPT  = -O9999
+LIBGCC  := $(shell $(CC) $(GCCOPT) --print-libgcc)
 
-LD       = ld
 LDFLAGS	 = -m elf_i386 -T com16.ld
-OBJCOPY  = objcopy
-OPTFLAGS = -g -Os -march=i386 -falign-functions=0 -falign-jumps=0 -falign-loops=0 -fomit-frame-pointer
+OPTFLAGS = -g
 INCLUDES = -include code16.h -nostdinc -iwithprefix include \
 	   -I. -I.. -I../libfat -I ../libinstaller
-CFLAGS	 = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -msoft-float $(OPTFLAGS) $(INCLUDES)
-AR       = ar
-RANLIB   = ranlib
-LIBGCC  := $(shell $(CC) --print-libgcc)
+CFLAGS	 = $(GCCOPT) -W -Wall -msoft-float $(OPTFLAGS) $(INCLUDES)
 
 SRCS     = syslinux.c \
 	   ../libinstaller/syslxmod.c \
@@ -42,7 +53,7 @@ TARGETS = syslinux.com copybs.com
 all: $(TARGETS)
 
 tidy dist:
-	-rm -f *.o *.i *.s *.a .*.d *.elf *.lst
+	-rm -f *.o *.i *.s *.a .*.d *.tmp *.elf *.lst
 
 clean: tidy
 
@@ -75,4 +86,4 @@ syslinux.com: syslinux.elf
 %.com: %.asm
 	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 
--include .*.d
+-include .*.d *.tmp

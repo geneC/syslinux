@@ -14,37 +14,8 @@
 ## samples for syslinux users
 ##
 
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
-CC	= gcc
-
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
-	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
-
-GCCOPT := $(call gcc_ok,-std=gnu99,) \
-	  $(call gcc_ok,-m32,) \
-	  $(call gcc_ok,-fno-stack-protector,) \
-
-LD         = ld -m elf_i386
-AR	   = ar
-NASM	   = nasm
-NASMOPT	   = -O9999
-RANLIB	   = ranlib
-CFLAGS     = $(GCCOPT) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os \
-	     -fomit-frame-pointer -D__COM32__ \
-	     -nostdinc -iwithprefix include \
-	     -I../libutil/include -I../include \
-	     -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d
-LNXCFLAGS  = -W -Wall -O -g -I../libutil/include
-LNXSFLAGS  = -g
-LNXLDFLAGS = -g
-SFLAGS     = -D__COM32__ -march=i386
-LDFLAGS    = -T ../lib/com32.ld
-OBJCOPY    = objcopy
-LIBGCC    := $(shell $(CC) --print-libgcc)
-LIBS	   = ../libutil/libutil_com.a ../lib/libcom32.a $(LIBGCC)
-LNXLIBS	   = ../libutil/libutil_lnx.a
-
-.SUFFIXES: .lss .c .o .elf .c32 .lnx
+topdir = ../..
+include ../MCONFIG
 
 all:	hello.c32 cat.c32 resolv.c32 vesainfo.c32 serialinfo.c32 \
 	localboot.c32 \
@@ -52,35 +23,8 @@ all:	hello.c32 cat.c32 resolv.c32 vesainfo.c32 serialinfo.c32 \
 	keytest.c32 keytest.lnx \
 	advdump.c32
 
-.PRECIOUS: %.o
-%.o: %.S
-	$(CC) $(SFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.o
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.elf
-%.elf: %.o $(LIBS)
-	$(LD) $(LDFLAGS) -o $@ $^
-
-.PRECIOUS: %.lo
-%.lo: %.S
-	$(CC) $(LNXSFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.lo
-%.lo: %.c
-	$(CC) $(LNXCFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.lnx
-%.lnx: %.lo $(LNXLIBS)
-	$(CC) $(LNXLDFLAGS) -o $@ $^
-
-%.c32: %.elf
-	$(OBJCOPY) -O binary $< $@
-
 tidy dist:
-	rm -f *.o *.lo *.a *.lst *.elf .*.d
+	rm -f *.o *.lo *.a *.lst *.elf .*.d *.tmp
 
 clean: tidy
 	rm -f *.lss *.c32 *.lnx *.com

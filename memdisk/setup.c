@@ -751,7 +751,7 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
      map -- 12 bytes per range; we may need as many as 2 additional
      ranges (each insertrange() can worst-case turn 1 area into 3)
      plus the terminating range, over what nranges currently show. */
-  cmdlinelen = strlen(shdr->cmdline)+1;
+  cmdlinelen  = strlen(shdr->cmdline)+1;
   total_size  =  hptr->total_size;		/* Actual memdisk code */
   total_size += (nranges+3)*sizeof(ranges[0]);  /* E820 memory ranges */
   total_size += cmdlinelen;	                /* Command line */
@@ -873,9 +873,9 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
     hptr = (struct memdisk_header *)dpp;
 
     /* Actually copy to low memory */
-    dpp = memcpy_endptr(dpp, &_binary_memdisk_bin_start, bin_size);
-    dpp = memcpy_endptr(dpp, ranges, (nranges+1)*sizeof(ranges[0]));
-    dpp = memcpy_endptr(dpp, shdr->cmdline, cmdlinelen+1);
+    dpp = mempcpy(dpp, &_binary_memdisk_bin_start, bin_size);
+    dpp = mempcpy(dpp, ranges, (nranges+1)*sizeof(ranges[0]));
+    dpp = mempcpy(dpp, shdr->cmdline, cmdlinelen+1);
   }
 
   /* Update various BIOS magic data areas (gotta love this shit) */

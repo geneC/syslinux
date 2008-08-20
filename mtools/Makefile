@@ -1,16 +1,10 @@
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
+topdir = ..
+include $(topdir)/MCONFIG
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) ../dummy.c -o $$tmpf 2>/dev/null; \
-	           then echo '$(1)'; else echo '$(2)'; fi; rm -f $$tmpf)
-
-comma   := ,
-LDHASH  := $(call gcc_ok,-Wl$(comma)--hash-style=both,)
-
-CC	 = gcc
 OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libfat -I../libinstaller
 CFLAGS	 = -W -Wall -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
-LDFLAGS	 = $(LDHASH) -s
+LDFLAGS	 = -s
 
 SRCS     = syslinux.c \
 	   ../libinstaller/syslxmod.c \
@@ -26,7 +20,7 @@ VPATH = .:../libfat:../libinstaller
 all: installer
 
 tidy dist:
-	-rm -f *.o *.i *.s *.a .*.d
+	-rm -f *.o *.i *.s *.a .*.d *.tmp
 
 clean: tidy
 	-rm -f syslinux
@@ -46,4 +40,4 @@ syslinux: $(OBJS)
 %.s: %.c
 	$(CC) $(CFLAGS) -S -o $@ $<
 
--include .*.d
+-include .*.d *.tmp

@@ -14,19 +14,16 @@
 # Makefile for MBR
 #
 
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
+topdir = ..
+include $(topdir)/MCONFIG
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
-	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
+GCCOPT    := $(call gcc_ok,-m32,) \
+	     $(call gcc_ok,-ffreestanding,) \
+	     $(call gcc_ok,-fno-stack-protector) \
+	     -march=i386 -Os
 
-M32       := $(call gcc_ok,-m32,) $(call gcc_ok,-ffreestanding,) $(call gcc_ok,-fno-stack-protector)
-
-CC         = gcc
-LD         = ld 
 LDFLAGS	   = -m elf_i386
-SFLAGS	   = $(M32) -march=i386
-OBJCOPY	   = objcopy
-PERL	   = perl
+SFLAGS	   = $(GCCOPT)
 
 .SUFFIXES: .S .s .o .elf
 

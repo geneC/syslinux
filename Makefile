@@ -122,7 +122,7 @@ install-all: install netinstall extbootinstall
 
 local-tidy:
 	rm -f *.o *.elf *_bin.c stupid.* patch.offset
-	rm -f *.lsr *.lst *.map *.sec
+	rm -f *.lsr *.lst *.map *.sec *.tmp
 	rm -f $(OBSOLETE)
 
 tidy: local-tidy

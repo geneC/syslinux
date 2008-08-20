@@ -29,44 +29,12 @@
 ## Utility companion library for the COM32 library
 ##
 
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
-CC	= gcc
+topdir = ../..
+include ../MCONFIG
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
-	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
-
-GCCOPT := $(call gcc_ok,-std=gnu99,) \
-	  $(call gcc_ok,-m32,) \
-	  $(call gcc_ok,-fno-stack-protector,) \
-
-LD         = ld -m elf_i386
-AR	   = ar
-NASM	   = nasm
-NASMOPT	   = -O9999
-RANLIB	   = ranlib
-CFLAGS     = $(GCCOPT) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os \
-	     -fomit-frame-pointer -D__COM32__ \
-	     -nostdinc -iwithprefix include \
-	     -I./include -I../include \
-	     -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d
-SFLAGS     = $(M32) -D__COM32__ -march=i386
-LDFLAGS    = -T ../lib/com32.ld
-LNXCFLAGS  = -I./include -W -Wall -O -g -D_GNU_SOURCE
-LNXSFLAGS  = -g
-LNXLDFLAGS = -g
-OBJCOPY    = objcopy
 LIBOBJS	   = ansiline.o ansiraw.o get_key.o sha1hash.o unbase64.o \
 	     md5.o crypt-md5.o sha256crypt.o sha512crypt.o base64.o
 LNXLIBOBJS = $(patsubst %.o,%.lo,$(LIBOBJS))
-
-.SUFFIXES: .lss .c .lo .o .elf .c32 .lnx
-
-BINDIR   = /usr/bin
-LIBDIR   = /usr/lib
-DATADIR	 = /usr/share
-AUXDIR   = $(DATADIR)/syslinux
-INCDIR   = /usr/include
-COM32DIR = $(AUXDIR)/com32
 
 all: libutil_com.a libutil_lnx.a
 
@@ -80,35 +48,8 @@ libutil_lnx.a: $(LNXLIBOBJS)
 	$(AR) cq $@ $(LNXLIBOBJS)
 	$(RANLIB) $@
 
-.PRECIOUS: %.o
-%.o: %.S
-	$(CC) $(SFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.o
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.elf
-%.elf: %.o $(LIB)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBGCC)
-
-.PRECIOUS: %.lo
-%.lo: %.S
-	$(CC) $(LNXSFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.lo
-%.lo: %.c
-	$(CC) $(LNXCFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.lnx
-%.lnx: %.lo
-	$(CC) $(LNXCFLAGS) -o $@ $^
-
-%.c32: %.elf
-	$(OBJCOPY) -O binary $< $@
-
 tidy dist:
-	rm -f *.o *.lo *.lst *.elf .*.d
+	rm -f *.o *.lo *.lst *.elf .*.d *.tmp
 
 clean: tidy
 	rm -f *.lss *.a *.c32 *.lnx *.com

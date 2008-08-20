@@ -20,25 +20,24 @@ MAKE      += -r
 
 topdir = ..
 -include $(topdir)/version.mk
+include $(topdir)/MCONFIG
 
-CC	 = gcc
+GCCOPT	:= $(call gcc_ok,-m32,) \
+	   $(call gcc_ok,-ffreestanding,) \
+	   $(call gcc_ok,-fno-stack-protector,) \
+	   $(call gcc_ok,-fno-top-level-reorder,\
+	     $(call gcc_ok,-fno-unit-at-a-time)) \
+	   -Os -march=i386 -mregparm=3 -DREGPARM=3 -msoft-float \
+	   -fomit-frame-pointer \
+	   $(call gcc_ok,-falign-functions=0,-malign-functions=0) \
+	   $(call gcc_ok,-falign-jumps=0,-malign-jumps=0) \
+	   $(call gcc_ok,-falign-loops=0,-malign-loops=0) \
 
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) dummy.c -o $$tmpf 2>/dev/null; \
-	           then echo '$(1)'; else echo '$(2)'; fi; rm -f $$tmpf)
-
-M32       := $(call gcc_ok,-m32,) $(call gcc_ok,-ffreestanding,) \
-	$(call gcc_ok,-fno-stack-protector,) \
-	$(call gcc_ok,-fno-top-level-reorder,$(call gcc_ok,-fno-unit-at-a-time))
-
-LD       = ld
 LDFLAGS	 = -m elf_i386
-OBJCOPY  = objcopy
-OBJDUMP  = objdump
 
-OPTFLAGS = -g -Os -march=i386 -falign-functions=0 -falign-jumps=0 -falign-loops=0 -fomit-frame-pointer
+OPTFLAGS = 
 INCLUDES =
-CFLAGS	 = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -msoft-float $(OPTFLAGS) $(INCLUDES)
+CFLAGS	 = $(GCCOPT) -W -Wall $(OPTFLAGS) $(INCLUDES)
 
 NASM	 = nasm
 NASMOPT  = -O9999

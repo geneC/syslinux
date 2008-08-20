@@ -64,7 +64,7 @@ all:
 endif
 
 tidy dist:
-	-rm -f *.o *.i *.s *.a .*.d *_bin.c hello.exe
+	-rm -f *.o *.i *.s *.a .*.d *.tmp *_bin.c hello.exe
 
 clean: tidy
 
@@ -84,4 +84,4 @@ syslinux.exe: $(OBJS)
 %.s: %.c
 	$(WINCC) $(WINCFLAGS) -S -o $@ $<
 
--include .*.d
+-include .*.d *.tmp
