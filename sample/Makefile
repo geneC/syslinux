@@ -15,18 +15,14 @@
 ##
 
 topdir = ..
-include $(topdir)/MCONFIG
+include $(topdir)/MCONFIG.embedded
 
-LD        += -m elf_i386
-CFLAGS     = $(GCCOPT) -W -Wall -I$(topdir)/com32/include
-SFLAGS     = $(GCCOPT)
-LDFLAGS    = -s
+INCLUDES   = -I$(com32)/include
+
 PPMTOLSS16 = $(topdir)/utils/ppmtolss16
 LIB	   = liboldcom32.a
 
 LIBOBJS	   = conio.o atou.o skipatou.o printf.o c32exit.o
-
-.SUFFIXES: .lss .c .o .elf .c32
 
 all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 \
      fd.c32 $(LIB)

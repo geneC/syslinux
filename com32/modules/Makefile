@@ -25,16 +25,16 @@ TESTFILES =
 
 all: $(MODULES) $(TESTFILES)
 
-pcitest.elf : pcitest.o $(LIBS)
+pcitest.elf : pcitest.o $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-cpuidtest.elf : cpuidtest.o cpuid.o $(LIBS)
+cpuidtest.elf : cpuidtest.o cpuid.o $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-dmitest.elf : dmitest.o dmi_utils.o dmi.o $(LIBS)
+dmitest.elf : dmitest.o dmi_utils.o dmi.o $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-ethersel.elf : ethersel.o $(LIBS)
+ethersel.elf : ethersel.o $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:

@@ -1,0 +1,35 @@
+## -*- makefile -*- ------------------------------------------------------
+##
+##   Copyright 2001-2008 H. Peter Anvin - All Rights Reserved
+##
+##   This program is free software; you can redistribute it and/or modify
+##   it under the terms of the GNU General Public License as published by
+##   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
+##   Boston MA 02111-1307, USA; either version 2 of the License, or
+##   (at your option) any later version; incorporated herein by reference.
+##
+## -----------------------------------------------------------------------
+
+##
+## Make configuration for embedded directories
+##
+
+include $(topdir)/MCONFIG
+
+GCCOPT    := $(call gcc_ok,-m32,) \
+	     $(call gcc_ok,-ffreestanding,) \
+	     $(call gcc_ok,-fno-stack-protector,) \
+	     $(call gcc_ok,-falign-functions=0,-malign-functions=0) \
+	     $(call gcc_ok,-falign-jumps=0,-malign-jumps=0) \
+	     $(call gcc_ok,-falign-loops=0,-malign-loops=0) \
+	     -march=i386 -Os -fomit-frame-pointer -mregparm=3 -DREGPARM=3 \
+	     -msoft-float
+
+LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
+
+LD        += -m elf_i386
+CFLAGS     = $(GCCOPT) -g -W -Wall $(OPTFLAGS) $(INCLUDES)
+SFLAGS     = $(CFLAGS) -D__ASSEMBLY__
+
+.SUFFIXES: .c .o .S .s .i .elf .com .bin .asm .lst .c32 .lss
+

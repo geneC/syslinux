@@ -11,28 +11,17 @@
 ## -----------------------------------------------------------------------
 
 topdir = ..
-include $(topdir)/MCONFIG
+include $(topdir)/MCONFIG.embedded
 -include $(topdir)/version.mk
-
-GCCOPT    := $(call gcc_ok,-m32,) \
-	     $(call gcc_ok,-ffreestanding,) \
-	     $(call gcc_ok,-fno-stack-protector) \
-	     $(call gcc_ok,-falign-functions=0,-malign-functions=0) \
-	     $(call gcc_ok,-falign-jumps=0,-malign-jumps=0) \
-	     $(call gcc_ok,-falign-loops=0,-malign-loops=0) \
-	     -march=i386 -Os -fomit-frame-pointer -mregparm=3 -DREGPARM=3
 
 CFLAGS   = $(GCCOPT) -g -W -Wall -Wno-sign-compare -DDATE='"$(DATE)"'
 SFLAGS	 = $(GCCOPT) -D__ASSEMBLY__
 LDFLAGS  = $(GCCOPT) -g
 INCLUDE  = -I$(topdir)/com32/include
-LD	+= -m elf_i386
 NASM     = nasm
 NASMOPT  = -O9999
 NFLAGS   = -dDATE='"$(DATE)"' -dWITH_EDD
 NINCLUDE =
-OBJCOPY  = objcopy
-PERL     = perl
 
 SRCS	 = $(wildcard *.asm *.c *.h)
 

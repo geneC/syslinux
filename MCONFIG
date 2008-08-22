@@ -50,3 +50,5 @@ NM       = nm
 RANLIB   = ranlib
 GZIPPROG = gzip
 PNGTOPNM = pngtopnm
+
+com32    = $(topdir)/com32

@@ -15,17 +15,7 @@
 #
 
 topdir = ..
-include $(topdir)/MCONFIG
-
-GCCOPT    := $(call gcc_ok,-m32,) \
-	     $(call gcc_ok,-ffreestanding,) \
-	     $(call gcc_ok,-fno-stack-protector) \
-	     -march=i386 -Os
-
-LDFLAGS	   = -m elf_i386
-SFLAGS	   = $(GCCOPT)
-
-.SUFFIXES: .S .s .o .elf
+include $(topdir)/MCONFIG.embedded
 
 all:	mbr.bin gptmbr.bin
 
