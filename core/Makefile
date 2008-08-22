@@ -19,31 +19,11 @@ MAKEFLAGS += -r
 MAKE      += -r
 
 topdir = ..
+include $(topdir)/MCONFIG.embedded
 -include $(topdir)/version.mk
-include $(topdir)/MCONFIG
-
-GCCOPT	:= $(call gcc_ok,-m32,) \
-	   $(call gcc_ok,-ffreestanding,) \
-	   $(call gcc_ok,-fno-stack-protector,) \
-	   $(call gcc_ok,-fno-top-level-reorder,\
-	     $(call gcc_ok,-fno-unit-at-a-time)) \
-	   -Os -march=i386 -mregparm=3 -DREGPARM=3 -msoft-float \
-	   -fomit-frame-pointer \
-	   $(call gcc_ok,-falign-functions=0,-malign-functions=0) \
-	   $(call gcc_ok,-falign-jumps=0,-malign-jumps=0) \
-	   $(call gcc_ok,-falign-loops=0,-malign-loops=0) \
-
-LDFLAGS	 = -m elf_i386
 
 OPTFLAGS = 
 INCLUDES =
-CFLAGS	 = $(GCCOPT) -W -Wall $(OPTFLAGS) $(INCLUDES)
-
-NASM	 = nasm
-NASMOPT  = -O9999
-NINCLUDE =
-
-PERL     = perl
 
 # This is very similar to cp437; technically it's for Norway and Denmark,
 # but it's unlikely the characters that are different will be used in
