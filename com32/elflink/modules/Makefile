@@ -10,81 +10,19 @@
 ##
 ## -----------------------------------------------------------------------
 
-##
-## COM32 standard modules
-##
-
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
-CC	= gcc
-
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
-	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
-
-M32     := $(call gcc_ok,-m32,) $(call gcc_ok,-fno-stack-protector,)
-
-LD         = ld -m elf_i386
-AR	   = ar
-NASM	   = nasm
-NASMOPT	   = -O9999
-RANLIB	   = ranlib
-CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os \
-	     -fomit-frame-pointer -D__COM32__ -DDYNAMIC_MODULE \
-	     -nostdinc -iwithprefix include \
-	     -I../../libutil/include -I../../include \
-	     -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d
-LNXCFLAGS  = -W -Wall -O -g -I../libutil/include
-LNXSFLAGS  = -g
-LNXLDFLAGS = -g
-SFLAGS     = -D__COM32__ -march=i386
-LDFLAGS    = -shared -T ../../lib/elf32.ld
-OBJCOPY    = objcopy
-PPMTOLSS16 =	../ppmtolss16
-LIBGCC    := $(shell $(CC) --print-libgcc)
-LIBS	   =  $(LIBGCC)
-
-.SUFFIXES: .lss .c .o .dyn
-
-BINDIR   = /usr/bin
-LIBDIR   = /usr/lib
-DATADIR	 = /usr/share
-AUXDIR   = $(DATADIR)/syslinux
-INCDIR   = /usr/include
-COM32DIR = $(AUXDIR)/com32
+topdir = ../../..
+include MCONFIG
 
 MODULES	  = hello.dyn sort.dyn
 
 TESTFILES =
 
 all: $(MODULES) $(TESTFILES)
-
-.PRECIOUS: %.o
-%.o: %.S
-	$(CC) $(SFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.o
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
 	
-.PRECIOUS: %.dyn
-%.dyn: %.o $(LIBS)
-	$(LD) $(LDFLAGS) -o $@ $^
-
-.PRECIOUS: %.lo
-%.lo: %.S
-	$(CC) $(LNXSFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.lo
-%.lo: %.c
-	$(CC) $(LNXCFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.lnx
-%.lnx: %.lo $(LNXLIBS)
-	$(CC) $(LNXLDFLAGS) -o $@ $^
-	
-hello.dyn : hello.o  $(LIBS)
+hello.dyn : hello.o
 	$(LD) $(LDFLAGS) -o $@ $^
 	
-sort.dyn : sort.o $(LIBS)
+sort.dyn : sort.o
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:
