@@ -23,7 +23,7 @@ LNXLIBS	   = ../libutil/libutil_lnx.a
 MODULES	  = menu.c32 vesamenu.c32
 TESTFILES =
 
-COMMONOBJS = menumain.o readconfig.o passwd.o printmsg.o colors.o \
+COMMONOBJS = menumain.o readconfig.o passwd.o drain.o printmsg.o colors.o \
 	background.o refstr.o execute.o
 
 all: $(MODULES) $(TESTFILES)

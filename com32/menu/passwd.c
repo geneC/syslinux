@@ -19,26 +19,32 @@
 
 static int passwd_compare_sha1(const char *passwd, const char *entry)
 {
+  struct {
+    SHA1_CTX ctx;
+    unsigned char sha1[20], pwdsha1[20];
+  } d;
   const char *p;
-  SHA1_CTX ctx;
-  unsigned char sha1[20], pwdsha1[20];
+  int rv;
 
-  SHA1Init(&ctx);
+  SHA1Init(&d.ctx);
 
   if ( (p = strchr(passwd+3, '$')) ) {
-    SHA1Update(&ctx, (void *)passwd+3, p-(passwd+3));
+    SHA1Update(&d.ctx, (void *)passwd+3, p-(passwd+3));
     p++;
   } else {
     p = passwd+3;		/* Assume no salt */
   }
 
-  SHA1Update(&ctx, (void *)entry, strlen(entry));
-  SHA1Final(sha1, &ctx);
+  SHA1Update(&d.ctx, (void *)entry, strlen(entry));
+  SHA1Final(d.sha1, &d.ctx);
 
-  memset(pwdsha1, 0, 20);
-  unbase64(pwdsha1, 20, p);
+  memset(d.pwdsha1, 0, 20);
+  unbase64(d.pwdsha1, 20, p);
 
-  return !memcmp(sha1, pwdsha1, 20);
+  rv = !memcmp(d.sha1, d.pwdsha1, 20);
+
+  memset(&d, 0, sizeof d);
+  return rv;
 }
 
 static int passwd_compare_md5(const char *passwd, const char *entry)

@@ -217,4 +217,7 @@ void set_background(const char *new_background);
 /* execute.c */
 void execute(const char *cmdline, enum kernel_type type);
 
+/* drain.c */
+void drain_keyboard(void);
+
 #endif /* MENU_H */
