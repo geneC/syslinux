@@ -2,6 +2,18 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 3.72:
+	* Include the pxechain.com module from Jeffery Hutzelman at
+	  Carnegie Mellon University.  This allows chaining another
+	  PXE boot program while changing the DHCP packet passed to
+	  it.
+	* Reorganize the Makefile system.
+	* Major PCI core cleanups and other source cleanup.
+	* gPXE code updated.
+	* Try to avoid memory-snooping attacks on passwords.  Note
+	  that if someone has root on the box, they generally don't
+	  need to compromise the boot loader...
+
 Changes in 3.71:
 	* Workaround for a VESA BIOS which tries to make DOS system
 	  calls(!!)
