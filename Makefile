@@ -28,6 +28,11 @@ include $(topdir)/MCONFIG
 # directories.
 #
 
+# List of module objects that should be installed for all derivatives
+MODULES = memdisk/memdisk memdump/memdump.com \
+	  modules/*.com com32/menu/*.c32 com32/modules/*.c32
+
+
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
 BTARGET  = version.gen version.h version.mk
@@ -35,7 +40,7 @@ BOBJECTS = $(BTARGET) \
 	mbr/mbr.bin mbr/gptmbr.bin \
 	core/pxelinux.0 core/isolinux.bin core/isolinux-debug.bin \
 	gpxe/gpxelinux.0 dos/syslinux.com win32/syslinux.exe \
-	memdisk/memdisk memdump/memdump.com
+	$(MODULES)
 
 # BSUBDIRs build the on-target binary components.
 # ISUBDIRs build the installer (host) components.
@@ -58,20 +63,19 @@ INSTALL_SBIN  = extlinux/extlinux
 INSTALL_AUX   =	core/pxelinux.0 gpxe/gpxelinux.0 core/isolinux.bin \
 		core/isolinux-debug.bin \
 		dos/syslinux.com dos/copybs.com win32/syslinux.exe \
-		memdisk/memdisk memdump/memdump.com \
-		mbr/mbr.bin mbr/gptmbr.bin
+		mbr/mbr.bin mbr/gptmbr.bin \
+		$(MODULES)
 INSTALL_AUX_OPT = win32/syslinux.exe
 
 # These directories manage their own installables
 INSTALLSUBDIRS = com32 utils
 
 # Things to install in /boot/extlinux
-EXTBOOTINSTALL = memdisk/memdisk memdump/memdump.com \
-		 com32/menu/*.c32 com32/modules/*.c32
+EXTBOOTINSTALL = $(MODULES)
 
 # Things to install in /tftpboot
-NETINSTALLABLE = core/pxelinux.0 gpxe/gpxelinux.0 memdisk/memdisk \
-		 memdump/memdump.com com32/menu/*.c32 com32/modules/*.c32
+NETINSTALLABLE = core/pxelinux.0 gpxe/gpxelinux.0 \
+		 $(MODULES)
 
 all:
 	$(MAKE) all-local

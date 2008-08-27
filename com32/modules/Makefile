@@ -47,7 +47,5 @@ spotless: clean
 	rm -f *~ \#*
 
 install: all
-	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)
-	install -m 644 $(MODULES) $(INSTALLROOT)$(AUXDIR)
 
 -include .*.d
