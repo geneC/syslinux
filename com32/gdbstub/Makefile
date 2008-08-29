@@ -25,7 +25,7 @@ LNXLIBS	   = ../libutil/libutil_lnx.a
 MODULES	  = gdbstub.c32
 TESTFILES =
 
-OBJS = main.o
+OBJS = main.o int.o serial.o gdbstub.o
 
 all: $(MODULES) $(TESTFILES)
 
