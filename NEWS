@@ -33,13 +33,13 @@ Changes in 3.71:
 	* EXTLINUX: proper error message when confused about mount
 	  point.
 	* MEMDISK: be smarter about incompletely disabled floppies in
-	  the BIOS and about being the only BIOS.
+	  the BIOS and about being the only floppy.
 	* Optionally allow initrd to be specified on a separate line
 	  rather than as part of the "append" line.  This is not
 	  recommended, but apparently makes life easier for some
 	  tools.
 	* SYSLINUX: if no config file is present, set the current
-	  directory to the root directory (Sebastian Herbszt.)
+	  directory to the root directory (Sebastian Herbszt).
 	* chain.c32: option "hide" to support hiding and unhiding of
 	  primary partitions on the boot drive with DOS, Win, or OS/2
 	  partition types (01, 04, 06, 07, 0b, 0c, 0e).
