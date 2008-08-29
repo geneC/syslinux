@@ -48,7 +48,7 @@ BOBJECTS = $(BTARGET) \
 # Note: libinstaller is both a BSUBDIR and an ISUBDIR.  It contains
 # files that depend only on the B phase, but may have to be regenerated
 # for "make installer".
-BSUBDIRS = codepage core memdisk com32 mbr memdump gpxe sample \
+BSUBDIRS = codepage core memdisk modules com32 mbr memdump gpxe sample \
 	   libinstaller dos win32
 ITARGET  =
 IOBJECTS = $(ITARGET) dos/copybs.com utils/gethostip utils/mkdiskimage \
