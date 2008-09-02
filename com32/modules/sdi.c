@@ -13,7 +13,8 @@
 /*
  * sdi.c
  *
- * Loader for the Microsoft System Deployment Image (SDI) format
+ * Loader for the Microsoft System Deployment Image (SDI) format.
+ * Based on a historical patch by Remi Lefevre.
  */
 
 #include <stdio.h>
