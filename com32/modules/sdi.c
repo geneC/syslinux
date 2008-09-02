@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
   fputs("Loading ", stdout);
   fputs(argv[1], stdout);
   fputs("... ", stdout);
-  if (loadfile(argv[1], &data, &data_len)) {
+  if (zloadfile(argv[1], &data, &data_len)) {
     error("failed!\n");
     return 1;
   }
