@@ -13,6 +13,8 @@ Changes in 3.72:
 	* Try to avoid memory-snooping attacks on passwords.  Note
 	  that if someone has root on the box, they generally don't
 	  need to compromise the boot loader...
+	* ISOLINUX: fix crash when given a zero-length file.
+	* sdi.c32: support gzipped SDI images.
 
 Changes in 3.71:
 	* Workaround for a VESA BIOS which tries to make DOS system
