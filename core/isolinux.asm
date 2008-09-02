@@ -1232,7 +1232,8 @@ searchdir_iso:
 		shr eax,SECTOR_SHIFT
 		mov [bx+file_left],eax
 		pop eax
-		and bx,bx			; ZF = 0
+		jz .failure			; Empty file?
+		; ZF = 0
 		mov si,bx
 		pop es
 		ret
