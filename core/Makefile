@@ -62,7 +62,7 @@ kwdhash.gen: keywords genhash.pl
 .PRECIOUS: %.elf
 
 # Standard rule for {isolinux,isolinux-debug}.bin
-iso%.bin: iso%.elf
+iso%.bin: iso%.elf checksumiso.pl
 	$(OBJCOPY) -O binary $< $@
 	$(PERL) checksumiso.pl $@
 
