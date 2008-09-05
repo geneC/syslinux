@@ -15,6 +15,9 @@ Changes in 3.72:
 	  need to compromise the boot loader...
 	* ISOLINUX: fix crash when given a zero-length file.
 	* sdi.c32: support gzipped SDI images.
+	* ISOLINUX: support generating images which can be either
+	  a CD-ROM or a hard disk (USB disk, etc.)  See
+	  doc/isolinux.txt for more information.
 
 Changes in 3.71:
 	* Workaround for a VESA BIOS which tries to make DOS system
