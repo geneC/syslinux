@@ -235,7 +235,7 @@ bi_end:
 		; entry stack:
 		; 	- CBIOS Heads 
 		;	- CBIOS Sectors
-		;	- CBIOS flag
+		;	- EBIOS flag
 		;	- DX (including drive number)
 		;	- DI
 		;	- ES
@@ -749,6 +749,8 @@ getlinsec:	jmp word [cs:GetlinsecPtr]
 ; getlinsec implementation for floppy/HDD EBIOS (EDD)
 ;
 getlinsec_ebios:
+		xor edx,edx
+		shld edx,eax,2
  		shl eax,2			; Convert to HDD sectors
 		shl bp,2
 
@@ -781,6 +783,7 @@ getlinsec_ebios:
 		jc .error
 		pop bp
 		add eax,edi			; Advance sector pointer
+		adc edx,0
 		sub bp,di			; Sectors left
                 shl di,9			; 512-byte sectors
                 add bx,di			; Advance buffer pointer

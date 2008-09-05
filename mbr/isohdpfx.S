@@ -44,9 +44,10 @@ isolinux_start_hybrid		= 0x7c00+64+4
 /* Important: the top 6 words on the stack are passed to isolinux.bin */
 stack		= 0x7c00
 driveno		= (stack-6)
-sectors		= (stack-8)
-heads		= (stack-10)
-secpercyl	= (stack-14)
+ebios_flag	= (stack-8)
+sectors		= (stack-10)
+heads		= (stack-12)
+secpercyl	= (stack-16)
 
 BIOS_page = 0x462
 
@@ -92,8 +93,8 @@ next:
 	jc	1f
 	cmpw	$0xaa55, %bx
 	jne	1f
-	shrw	%cx		/* Bit 0 = fixed disk subset */
-	jnc	1f
+	andw	$1,%cx		/* Bit 0 = fixed disk subset */
+	jz	1f
 
 	/* We have EBIOS; patch in the following code at
 	   read_sector_cbios: movb $0x42, %ah ;  jmp read_common */
@@ -102,6 +103,7 @@ next:
 
 1:
 	popw	%dx
+	pushw	%cx		/* Save EBIOS flag */
 
 	/* Get (C)HS geometry */
 	movb	$0x08, %ah
