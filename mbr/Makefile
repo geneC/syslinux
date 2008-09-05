@@ -17,23 +17,25 @@
 topdir = ..
 include $(topdir)/MCONFIG.embedded
 
-all:	mbr.bin gptmbr.bin
+all:	mbr.bin gptmbr.bin isohdpfx.bin
 
 .PRECIOUS: %.o
 %.o: %.S
 	$(CC) $(SFLAGS) -Wa,-a=$*.lst -c -o $@ $<
 
-mbr.elf: mbr.o mbr.ld
+.PRECIOUS: %.elf
+%.elf: %.o mbr.ld
 	$(LD) $(LDFLAGS) -T mbr.ld -e _start -o $@ $<
 
 mbr.bin: mbr.elf checksize.pl
 	$(OBJCOPY) -O binary $< $@
 	$(PERL) checksize.pl mbr.bin 440
 
-mbr_bin.c: mbr.bin
+isohdpfx.bin: isohdpfx.elf checksize.pl
+	$(OBJCOPY) -O binary $< $@
+	$(PERL) checksize.pl mbr.bin 432
 
-gptmbr.elf: gptmbr.o mbr.ld
-	$(LD) $(LDFLAGS) -T mbr.ld -e _start -o $@ $<
+mbr_bin.c: mbr.bin
 
 gptmbr.bin: gptmbr.elf checksize.pl
 	$(OBJCOPY) -O binary $< $@
