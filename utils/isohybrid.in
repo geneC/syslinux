@@ -124,7 +124,7 @@ $mbr .= pack("V", $id);		# Offset 440: MBR ID
 $mbr .= "\0\0";			# Offset 446: actual partition table
 
 # Print partition table
-$psize = $c*$h*$s-$s;
+$psize   = $c*$h*$s;
 $bhead   = 0;
 $bsect   = 1;
 $bcyl    = 0;
@@ -132,18 +132,12 @@ $ehead   = $h-1;
 $esect   = $s + ((($cc-1) & 0x300) >> 2);
 $ecyl    = ($cc-1) & 0xff;
 $fstype  = 0x83;		# Linux (any better ideas?)
-$pentry  = 1;
-if ( $c > 1024 ) {
-    $fstype = 0x0e;
-} elsif ( $psize > 65536 ) {
-    $fstype = 0x06;
-} else {
-    $fstype = 0x04;
-}
+$pentry  = 1;			# First partition slot
+
 for ( $i = 1 ; $i <= 4 ; $i++ ) {
     if ( $i == $pentry ) {
 	$mbr .= pack("CCCCCCCCVV", 0x80, $bhead, $bsect, $bcyl, $fstype,
-		     $ehead, $esect, $ecyl, $s, $psize);
+		     $ehead, $esect, $ecyl, 0, $psize);
     } else {
 	$mbr .= "\0" x 16;
     }

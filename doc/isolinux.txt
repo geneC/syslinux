@@ -96,6 +96,11 @@ This image can then be copied using any raw disk writing tool (on Unix
 systems, typically "dd" or "cat") to a USB disk, or written to a
 CD-ROM using standard CD burning tools.
 
+The ISO 9660 filesystem is encapsulated in a partition (which starts
+at offset zero, which may confuse some systems.)  This makes it
+possible for the operating system, once booted, to use the remainder
+of the device for persistent storage by creating a second partition.
+
 
       ++++ BOOTING DOS (OR OTHER SIMILAR OPERATING SYSTEMS) ++++
 
