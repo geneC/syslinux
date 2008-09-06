@@ -118,7 +118,11 @@ ImageDwords	resd 1			; isolinux.bin size, dwords
 InitStack	resd 1			; Initial stack pointer (SS:SP)
 DiskSys		resw 1			; Last INT 13h call
 ImageSectors	resw 1			; isolinux.bin size, sectors
+; These following two are accessed as a single dword...
 GetlinsecPtr	resw 1			; The sector-read pointer
+BIOSName	resw 1			; Display string for BIOS type
+%define HAVE_BIOSNAME 1
+BIOSType	resw 1
 DiskError	resb 1			; Error code for disk I/O
 DriveNumber	resb 1			; CD-ROM BIOS drive number
 ISOFlags	resb 1			; Flags for ISO directory search
@@ -246,11 +250,11 @@ _hybrid_signature:
 
 _start_hybrid:
 		pop ax
-		mov si,getlinsec_ebios
+		mov si,bios_cbios
 		and ax,ax
-		jnz .ebios
-		mov si,getlinsec_cbios
-.ebios:
+		jz .cbios
+		mov si,bios_ebios
+.cbios:
 		pop word [cs:bsSecPerTrack]
 		pop word [cs:bsHeads]
 
@@ -261,7 +265,7 @@ _start_hybrid:
 %endif
 
 _start1:
-		mov si,getlinsec_cdrom
+		mov si,bios_cdrom
 _start_common:
 		mov [cs:InitStack],sp	; Save initial stack pointer
 		mov [cs:InitStack+2],ss
@@ -277,15 +281,19 @@ _start_common:
 		sti
 		cld
 
-		mov [GetlinsecPtr],si
+		mov [BIOSType],si
+		mov eax,[si]
+		mov [GetlinsecPtr],eax
 
 		; Show signs of life
 		mov si,syslinux_banner
 		call writestr_early
 %ifdef DEBUG_MESSAGES
 		mov si,copyright_str
-		call writestr_early
+%else
+		mov si,[BIOSName]
 %endif
+		call writestr_early
 
 		;
 		; Before modifying any memory, get the checksum of bytes
@@ -325,7 +333,7 @@ initial_csum:	xor edi,edi
 		inc word [dsp_sectors]
 
 		; Are we just pretending to be a CD-ROM?
-		cmp word [GetlinsecPtr],getlinsec_cdrom
+		cmp word [BIOSType],bios_cdrom
 		jne found_drive			; If so, no spec packet...
 
 		; Now figure out what we're actually doing
@@ -1049,7 +1057,19 @@ bailmsg		equ err_bootfailed
 crlf_msg	db CR, LF
 null_msg	db 0
 
+bios_cdrom_str	db 'ETCD', 0
+%ifndef DEBUG_MESSAGES
+bios_cbios_str	db 'CHDD', 0
+bios_ebios_str	db 'EHDD' ,0
+%endif
+
 		alignb 4, db 0
+bios_cdrom:	dw getlinsec_cdrom, bios_cdrom_str
+%ifndef DEBUG_MESSAGES
+bios_cbios:	dw getlinsec_cbios, bios_cbios_str
+bios_ebios:	dw getlinsec_ebios, bios_ebios_str
+%endif
+
 MaxTransfer	dw 32				; Max sectors per transfer
 
 rl_checkpt	equ $				; Must be <= 800h
