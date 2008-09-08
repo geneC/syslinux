@@ -29,17 +29,17 @@ all:	mbr.bin gptmbr.bin isohdpfx.bin
 
 mbr.bin: mbr.elf checksize.pl
 	$(OBJCOPY) -O binary $< $@
-	$(PERL) checksize.pl mbr.bin 440
+	$(PERL) checksize.pl $@ 440
 
 isohdpfx.bin: isohdpfx.elf checksize.pl
 	$(OBJCOPY) -O binary $< $@
-	$(PERL) checksize.pl mbr.bin 432
+	$(PERL) checksize.pl $@ 432
 
 mbr_bin.c: mbr.bin
 
 gptmbr.bin: gptmbr.elf checksize.pl
 	$(OBJCOPY) -O binary $< $@
-	$(PERL) checksize.pl gptmbr.bin 424
+	$(PERL) checksize.pl $@ 424
 
 tidy dist:
 	rm -f *.o *.elf *.lst
