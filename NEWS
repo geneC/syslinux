@@ -18,6 +18,8 @@ Changes in 3.72:
 	* ISOLINUX: support generating images which can be either
 	  a CD-ROM or a hard disk (USB disk, etc.)  See
 	  doc/isolinux.txt for more information.
+	* Remote gdb support for COM32 modules; patch from Stefan
+	  Hajnoczi.
 
 Changes in 3.71:
 	* Workaround for a VESA BIOS which tries to make DOS system
