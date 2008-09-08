@@ -76,6 +76,14 @@ if ($de_boot != 0x88 || $de_media != 0 ||
     die "$0: $file: unexpected boot catalog parameters\n";
 }
 
+# Now $de_lba should contain the CD sector number for isolinux.bin
+seek(FILE, $de_lba*2048+0x40, SEEK_SET) or die "$0: $file: $!\n";
+read(FILE, $ibsig, 4);
+if ($ibsig ne "\xfb\xc0\x78\x70") {
+    die "$0: $file: bootloader is missing isolinux.bin hybrid signature\n".
+	"Note: isolinux-debug.bin does not support hybrid booting\n";
+}
+
 # Get the total size of the image
 (@imgstat = stat(FILE)) or die "$0: $file: $!\n";
 $imgsize = $imgstat[7];
@@ -96,10 +104,9 @@ if ($c > 1024) {
     $cc = $c;
 }
 
-# Now $de_lba should contain the CD sector number for isolinux.bin
+# Print the MBR and partition table
 seek(FILE, 0, SEEK_SET) or die "$0: $file: $!\n";
 
-# Print the MBR and partition table
 $mbr = '';
 while ( $line = <DATA> ) {
     chomp $line;
