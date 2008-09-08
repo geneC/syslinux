@@ -44,8 +44,7 @@ sub get_random() {
     my $rfd, $rnd;
     my $rid;
 
-    if (sysopen($rfd, '/dev/urandom', O_RDONLY) &&
-	sysread($rfd, $rnd, 4) == 4) {
+    if (open($rfd, "< /dev/urandom\0") && read($rfd, $rnd, 4) == 4) {
 	$rid = unpack("V", $rnd);
     }
 
