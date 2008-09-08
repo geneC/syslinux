@@ -1032,8 +1032,8 @@ isolinux_str	db 'isolinux: ', 0
 %ifdef DEBUG_MESSAGES
 startup_msg:	db 'Starting up, DL = ', 0
 spec_ok_msg:	db 'Loaded spec packet OK, drive = ', 0
-secsize_msg:	db 'Sector size appears to be ', 0
-offset_msg:	db 'Loading main image from LBA = ', 0
+secsize_msg:	db 'Sector size ', 0
+offset_msg:	db 'Main image LBA = ', 0
 size_msg:	db 'Sectors to load = ', 0
 loaded_msg:	db 'Loaded boot image, verifying...', CR, LF, 0
 verify_msg:	db 'Image checksum verified.', CR, LF, 0
@@ -1043,8 +1043,8 @@ noinfotable_msg	db 'No boot info table, assuming single session disk...', CR, LF
 noinfoinspec_msg db 'Spec packet missing LBA information, trying to wing it...', CR, LF, 0
 spec_err_msg:	db 'Loading spec packet failed, trying to wing it...', CR, LF, 0
 maybe_msg:	db 'Found something at drive = ', 0
-alright_msg:	db 'Looks like it might be right, continuing...', CR, LF, 0
-nospec_msg	db 'Extremely broken BIOS detected, last ditch attempt with drive = ', 0
+alright_msg:	db 'Looks reasonable, continuing...', CR, LF, 0
+nospec_msg	db 'Extremely broken BIOS detected, last attempt with drive = ', 0
 nothing_msg:	db 'Failed to locate CD-ROM device; boot failed.', CR, LF
 trysbm_msg	db 'See http://syslinux.zytor.com/sbm for more information.', CR, LF, 0
 diskerr_msg:	db 'Disk error ', 0
@@ -1074,14 +1074,9 @@ MaxTransfer	dw 32				; Max sectors per transfer
 
 rl_checkpt	equ $				; Must be <= 800h
 
-rl_checkpt_off	equ ($-$$)
-%ifndef DEPEND
-%if rl_checkpt_off > 0x800
-; This only works for NASM 2.03+, but it's really nice then...
-%assign SPILL rl_checkpt_off-0x800
-%error Sector 0 overflow by SPILL bytes
-%endif
-%endif
+		; This pads to the end of sector 0 and errors out on
+		; overflow.
+		times 2048-($-$$) db 0
 
 ; ----------------------------------------------------------------------------
 ;  End of code and data that have to be in the first sector
