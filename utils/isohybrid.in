@@ -19,9 +19,6 @@
 use bytes;
 use integer;
 use Fcntl;
-use Errno;
-use Cwd;
-use IO::Handle;			# For flush()
 
 # Use this fake geometry (zipdrive-style...)
 $h = 64; $s = 32;
