@@ -58,6 +58,8 @@
  */
 #define TIMER_BIOS		/* 18Hz BIOS timer */
 #define TIMER_RDTSC		/* CPU TimeStamp Counter timer */
+#define BANNER_TIMEOUT	20	/* Tenths of a second for which the shell
+				   banner should appear */
 
 /* @END general.h */
 
@@ -129,6 +131,7 @@
 #define	IMAGE_PXE		/* PXE image support */
 #define IMAGE_SCRIPT		/* gPXE script image support */
 #define IMAGE_BZIMAGE		/* Linux bzImage image support */
+#define IMAGE_COMBOOT		/* SYSLINUX COMBOOT image support */
 
 /* @END general.h */ 
 

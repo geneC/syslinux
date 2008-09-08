@@ -164,7 +164,7 @@ struct dhcp_packet;
  * priority of multiple option blocks (e.g. options from non-volatile
  * storage versus options from a DHCP server).
  */
-#define DHCP_EB_PRIORITY DHCP_ENCAP_OPT ( DHCP_EB_ENCAP, 1 )
+#define DHCP_EB_PRIORITY DHCP_ENCAP_OPT ( DHCP_EB_ENCAP, 0x01 )
 
 /** "Your" IP address
  *
@@ -172,7 +172,7 @@ struct dhcp_packet;
  * field, in order to provide a consistent approach to storing and
  * processing options.  It should never be present in a DHCP packet.
  */
-#define DHCP_EB_YIADDR DHCP_ENCAP_OPT ( DHCP_EB_ENCAP, 2 )
+#define DHCP_EB_YIADDR DHCP_ENCAP_OPT ( DHCP_EB_ENCAP, 0x02 )
 
 /** "Server" IP address
  *
@@ -180,7 +180,16 @@ struct dhcp_packet;
  * field, in order to provide a consistent approach to storing and
  * processing options.  It should never be present in a DHCP packet.
  */
-#define DHCP_EB_SIADDR DHCP_ENCAP_OPT ( DHCP_EB_ENCAP, 3 )
+#define DHCP_EB_SIADDR DHCP_ENCAP_OPT ( DHCP_EB_ENCAP, 0x03 )
+
+/** Keep SAN drive registered
+ *
+ * If set to a non-zero value, gPXE will not detach any SAN drive
+ * after failing to boot from it.  (This option is required in order
+ * to perform a Windows Server 2008 installation direct to an iSCSI
+ * target.)
+ */
+#define DHCP_EB_KEEP_SAN DHCP_ENCAP_OPT ( DHCP_EB_ENCAP, 0x08 )
 
 /*
  * Tags in the range 0x10-0x7f are reserved for feature markers
@@ -231,6 +240,24 @@ struct dhcp_packet;
  * packet.
  */
 #define DHCP_EB_PASSWORD DHCP_ENCAP_OPT ( DHCP_EB_ENCAP, 0xbf )
+
+/** Reverse username
+ *
+ * This will be used as the reverse username (i.e. the username
+ * provided by the server) for any required authentication.  It is
+ * expected that this option's value will be held in non-volatile
+ * storage, rather than transmitted as part of a DHCP packet.
+ */
+#define DHCP_EB_REVERSE_USERNAME DHCP_ENCAP_OPT ( DHCP_EB_ENCAP, 0xc0 )
+
+/** Reverse password
+ *
+ * This will be used as the reverse password (i.e. the password
+ * provided by the server) for any required authentication.  It is
+ * expected that this option's value will be held in non-volatile
+ * storage, rather than transmitted as part of a DHCP packet.
+ */
+#define DHCP_EB_REVERSE_PASSWORD DHCP_ENCAP_OPT ( DHCP_EB_ENCAP, 0xc1 )
 
 /** iSCSI primary target IQN */
 #define DHCP_ISCSI_PRIMARY_TARGET_IQN 201
@@ -438,6 +465,10 @@ struct dhcphdr {
 
 /** Maximum time that we will wait for ProxyDHCP responses */
 #define PROXYDHCP_WAIT_TIME ( TICKS_PER_SEC * 1 )
+
+/** Timeouts for sending DHCP packets */
+#define DHCP_MIN_TIMEOUT ( 1 * TICKS_PER_SEC )
+#define DHCP_MAX_TIMEOUT ( 10 * TICKS_PER_SEC )
 
 /** Settings block name used for DHCP responses */
 #define DHCP_SETTINGS_NAME "dhcp"

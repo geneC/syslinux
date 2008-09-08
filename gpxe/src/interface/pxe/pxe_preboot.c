@@ -196,8 +196,7 @@ PXENV_EXIT_t pxenv_get_cached_info ( struct s_PXENV_GET_CACHED_INFO
 		 * fill it in.
 		 */
 		get_cached_info->Buffer.segment = rm_ds;
-		get_cached_info->Buffer.offset =
-			( unsigned ) ( __from_data16 ( info ) );
+		get_cached_info->Buffer.offset = __from_data16 ( info );
 		get_cached_info->BufferSize = sizeof ( *info );
 		DBG ( " returning %04x:%04x+%04x['%x']",
 		      get_cached_info->Buffer.segment,
@@ -319,7 +318,7 @@ PXENV_EXIT_t pxenv_stop_undi ( struct s_PXENV_STOP_UNDI *stop_undi ) {
 	pxe_set_netdev ( NULL );
 
 	/* Prepare for unload */
-	shutdown();
+	shutdown ( SHUTDOWN_BOOT );
 
 	stop_undi->Status = PXENV_STATUS_SUCCESS;
 	return PXENV_EXIT_SUCCESS;

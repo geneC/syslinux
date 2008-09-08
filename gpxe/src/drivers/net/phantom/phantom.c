@@ -1554,9 +1554,6 @@ static int phantom_map_crb ( struct phantom_nic *phantom,
 	unsigned long bar0_start;
 	unsigned long bar0_size;
 
-	/* CRB window is always in the last 32MB of BAR0 (which may be
-	 * a 32MB or a 128MB BAR).
-	 */
 	bar0_start = pci_bar_start ( pci, PCI_BASE_ADDRESS_0 );
 	bar0_size = pci_bar_size ( pci, PCI_BASE_ADDRESS_0 );
 	DBGC ( phantom, "Phantom %p BAR0 is %08lx+%lx\n",
@@ -1711,7 +1708,8 @@ static int phantom_init_cmdpeg ( struct phantom_nic *phantom ) {
 			 UNM_NIC_REG_DUMMY_BUF );
 
 	/* Tell the hardware that tuning is complete */
-	phantom_writel ( phantom, 1, UNM_ROMUSB_GLB_PEGTUNE_DONE );
+	phantom_writel ( phantom, UNM_ROMUSB_GLB_PEGTUNE_DONE_MAGIC,
+			 UNM_ROMUSB_GLB_PEGTUNE_DONE );
 
 	/* Wait for command PEG to finish initialising */
 	DBGC ( phantom, "Phantom %p initialising command PEG (will take up to "
@@ -1858,6 +1856,19 @@ static int phantom_probe ( struct pci_device *pci,
 		phantom_port->phantom = phantom;
 		phantom_port->port = i;
 	}
+
+	/* BUG5945 - need to hack PCI config space on P3 B1 silicon.
+	 * B2 will have this fixed; remove this hack when B1 is no
+	 * longer in use.
+	 */
+	for ( i = 0 ; i < 8 ; i++ ) {
+		uint32_t temp;
+		pci->devfn = PCI_DEVFN ( PCI_SLOT ( pci->devfn ), i );
+		pci_read_config_dword ( pci, 0xc8, &temp );
+		pci_read_config_dword ( pci, 0xc8, &temp );
+		pci_write_config_dword ( pci, 0xc8, 0xf1000 );
+	}
+	pci->devfn = PCI_DEVFN ( PCI_SLOT ( pci->devfn ), 0 );
 
 	/* Allocate dummy DMA buffer and perform initial hardware handshake */
 	phantom->dma_buf = malloc_dma ( sizeof ( *(phantom->dma_buf) ),

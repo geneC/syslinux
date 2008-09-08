@@ -277,9 +277,11 @@ static int multiboot_exec ( struct image *image ) {
 	/* Multiboot images may not return and have no callback
 	 * interface, so shut everything down prior to booting the OS.
 	 */
-	shutdown();
+	shutdown ( SHUTDOWN_BOOT );
 
 	/* Jump to OS with flat physical addressing */
+	DBGC ( image, "MULTIBOOT %p starting execution at %lx\n",
+	       image, entry );
 	__asm__ __volatile__ ( PHYS_CODE ( "call *%%edi\n\t" )
 			       : : "a" ( MULTIBOOT_BOOTLOADER_MAGIC ),
 			           "b" ( virt_to_phys ( &mbinfo ) ),
@@ -358,8 +360,11 @@ static int multiboot_load_raw ( struct image *image,
 
 	/* Verify and prepare segment */
 	offset = ( hdr->offset - hdr->mb.header_addr + hdr->mb.load_addr );
-	filesz = ( hdr->mb.load_end_addr - hdr->mb.load_addr );
-	memsz = ( hdr->mb.bss_end_addr - hdr->mb.load_addr );
+	filesz = ( hdr->mb.load_end_addr ?
+		   ( hdr->mb.load_end_addr - hdr->mb.load_addr ) :
+		   ( image->len - offset ) );
+	memsz = ( hdr->mb.bss_end_addr ?
+		  ( hdr->mb.bss_end_addr - hdr->mb.load_addr ) : filesz );
 	buffer = phys_to_user ( hdr->mb.load_addr );
 	if ( ( rc = prep_segment ( buffer, filesz, memsz ) ) != 0 ) {
 		DBGC ( image, "MULTIBOOT %p could not prepare segment: %s\n",

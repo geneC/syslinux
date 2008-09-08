@@ -35,7 +35,7 @@ ppxe:
 	.byte 0				/* StructCksum */
 	.byte 0				/* StructRev */
 	.byte 0				/* reserved_1 */
-	.word 0, 0			/* UNDIROMID */
+	.word undiheader, 0		/* UNDIROMID */
 	.word 0, 0			/* BaseROMID */
 	.word pxe_entry_sp, 0		/* EntryPointSP */
 	.word pxe_entry_esp, 0		/* EntryPointESP */
@@ -54,6 +54,11 @@ pxe_segments:
 	.equ	SegDescCnt, ( ( . - pxe_segments ) / 8 )
 	.equ	pxe_length, . - ppxe
 	.size	ppxe, . - ppxe
+
+	/* Define undiheader=0 as a weak symbol for non-ROM builds */
+	.section ".weak"
+	.weak	undiheader
+undiheader:
 
 /****************************************************************************
  * PXENV+ structure
@@ -98,6 +103,16 @@ pxenv:
  *   none
  ****************************************************************************
  */
+	/* Wyse Streaming Manager server (WLDRM13.BIN) assumes that
+	 * the PXENV+ entry point is at UNDI_CS:0000; apparently,
+	 * somebody at Wyse has difficulty distinguishing between the
+	 * words "may" and "must"...
+	 */
+	.section ".text16.null"
+	.code16
+pxenv_null_entry:
+	jmp	pxenv_entry
+
 	.section ".text16"
 	.code16
 pxenv_entry:

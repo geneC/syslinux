@@ -31,6 +31,16 @@ SECTIONS {
      */
 
     /*
+     * Weak symbols that need zero values if not otherwise defined
+     */
+
+    . = 0;
+    .weak : AT ( 0 ) {
+	*(.weak)
+    }
+    _assert = ASSERT ( ( . == 0 ), ".weak is non-zero length" );
+
+    /*
      * The prefix
      */
 
@@ -56,10 +66,12 @@ SECTIONS {
     . = _text16_link_addr;
     _text16 = .;
 
-    . += 1;			/* Prevent NULL being valid */
+    /* We need to allow code at the NULL address in .text16 */
 
     .text16 : AT ( _text16_load_offset + __text16 ) {
 	__text16 = .;
+	*(.text16.null)
+	. += 1;			/* Prevent NULL being valid */
 	*(.text16)
 	*(.text16.*)
 	_etext16_progbits = .;

@@ -105,6 +105,7 @@
 #define ERRFILE_e1000		     ( ERRFILE_DRIVER | 0x00480000 )
 #define ERRFILE_e1000_hw	     ( ERRFILE_DRIVER | 0x00490000 )
 #define ERRFILE_mtnic		     ( ERRFILE_DRIVER | 0x004a0000 )
+#define ERRFILE_phantom		     ( ERRFILE_DRIVER | 0x004b0000 )
 
 #define ERRFILE_scsi		     ( ERRFILE_DRIVER | 0x00700000 )
 #define ERRFILE_arbel		     ( ERRFILE_DRIVER | 0x00710000 )
@@ -154,6 +155,7 @@
 #define ERRFILE_ibft		      ( ERRFILE_OTHER | 0x000c0000 )
 #define ERRFILE_tls		      ( ERRFILE_OTHER | 0x000d0000 )
 #define ERRFILE_ifmgmt		      ( ERRFILE_OTHER | 0x000e0000 )
+#define ERRFILE_iscsiboot	      ( ERRFILE_OTHER | 0x000f0000 )
 
 /** @} */
 

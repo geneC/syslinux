@@ -86,8 +86,9 @@ static unsigned int extmemsize_e801 ( void ) {
 	}
 
 	extmem = ( extmem_1m_to_16m_k + ( extmem_16m_plus_64k * 64 ) );
-	DBG ( "INT 15,e801 extended memory size %d+64*%d=%d kB\n",
-	      extmem_1m_to_16m_k, extmem_16m_plus_64k, extmem );
+	DBG ( "INT 15,e801 extended memory size %d+64*%d=%d kB [100000,%x)\n",
+	      extmem_1m_to_16m_k, extmem_16m_plus_64k, extmem,
+	      ( 0x100000 + ( extmem * 1024 ) ) );
 	return extmem;
 }
 
@@ -103,7 +104,8 @@ static unsigned int extmemsize_88 ( void ) {
 	__asm__ __volatile__ ( REAL_CODE ( "int $0x15" )
 			       : "=a" ( extmem ) : "a" ( 0x8800 ) );
 
-	DBG ( "INT 15,88 extended memory size %d kB\n", extmem );
+	DBG ( "INT 15,88 extended memory size %d kB [100000, %x)\n",
+	      extmem, ( 0x100000 + ( extmem * 1024 ) ) );
 	return extmem;
 }
 
@@ -147,7 +149,7 @@ static int meme820 ( struct memory_map *memmap ) {
 					 "=b" ( next ), "=D" ( discard_D ),
 					 "=c" ( discard_c ), "=d" ( discard_d )
 				       : "a" ( 0xe820 ), "b" ( next ),
-					 "D" ( &__from_data16 ( e820buf ) ),
+					 "D" ( __from_data16 ( &e820buf ) ),
 					 "c" ( sizeof ( e820buf ) ),
 					 "d" ( SMAP )
 				       : "memory" );
@@ -203,7 +205,8 @@ void get_memmap ( struct memory_map *memmap ) {
 
 	/* Get base and extended memory sizes */
 	basemem = basememsize();
-	DBG ( "FBMS base memory size %d kB\n", basemem );
+	DBG ( "FBMS base memory size %d kB [0,%x)\n",
+	      basemem, ( basemem * 1024 ) );
 	extmem = extmemsize();
 	
 	/* Try INT 15,e820 first */

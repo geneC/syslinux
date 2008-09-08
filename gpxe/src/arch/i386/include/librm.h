@@ -51,15 +51,17 @@ extern char *text16;
 	( * ( ( typeof ( _text16_ ## variable ) * )			\
 	      & ( text16 [ ( size_t ) & ( _text16_ ## variable ) ] ) ) )
 
-#define __from_data16( variable )					\
-	( * ( ( typeof ( variable ) * )					\
-	      ( ( ( void * ) &(variable) ) - ( ( void * ) data16 ) ) ) )
+#define __from_data16( pointer )					\
+	( ( unsigned int )						\
+	  ( ( ( void * ) (pointer) ) - ( ( void * ) data16 ) ) )
 
-#define __from_text16( variable )					\
-	( * ( ( typeof ( variable ) * )					\
-	      ( ( ( void * ) &(variable) ) - ( ( void * ) text16 ) ) ) )
+#define __from_text16( pointer )					\
+	( ( unsigned int )						\
+	  ( ( ( void * ) (pointer) ) - ( ( void * ) text16 ) ) )
 
 /* Variables in librm.S, present in the normal data segment */
+extern uint16_t rm_sp;
+extern uint16_t rm_ss;
 extern uint16_t __data16 ( rm_cs );
 #define rm_cs __use_data16 ( rm_cs )
 extern uint16_t __text16 ( rm_ds );
@@ -276,6 +278,9 @@ static inline __attribute__ (( always_inline )) physaddr_t
 user_to_phys ( userptr_t buffer, off_t offset ) {
 	return virt_to_phys ( ( void * ) buffer + offset );
 }
+
+extern uint16_t copy_user_to_rm_stack ( userptr_t data, size_t size );
+extern void remove_user_from_rm_stack ( userptr_t data, size_t size );
 
 /* TEXT16_CODE: declare a fragment of code that resides in .text16 */
 #define TEXT16_CODE( asm_code_str )			\

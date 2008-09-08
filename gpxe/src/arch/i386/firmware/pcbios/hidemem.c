@@ -15,17 +15,19 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <assert.h>
 #include <realmode.h>
 #include <biosint.h>
 #include <basemem.h>
 #include <gpxe/init.h>
+#include <gpxe/memmap.h>
 #include <gpxe/hidemem.h>
 
 /** Alignment for hidden memory regions */
 #define ALIGN_HIDDEN 4096   /* 4kB page alignment should be enough */
 
 /**
- * A hidden region of Etherboot
+ * A hidden region of gPXE
  *
  * This represents a region that will be edited out of the system's
  * memory map.
@@ -34,24 +36,23 @@
  * changed.
  */
 struct hidden_region {
-	/* Physical start address */
-	physaddr_t start;
-	/* Physical end address */
-	physaddr_t end;
+	/** Physical start address */
+	uint64_t start;
+	/** Physical end address */
+	uint64_t end;
 };
 
-/**
- * List of hidden regions
- *
- * Must be terminated by a zero entry.
- */
-struct hidden_region __data16_array ( hidden_regions, [] ) = {
-	[TEXT] = { 0, 0 },
-	[BASEMEM] = { ( 640 * 1024 ), ( 640 * 1024 ) },
-	[EXTMEM] = { 0, 0 },
-	{ 0, 0, } /* Terminator */
-};
-#define hidden_regions __use_data16 ( hidden_regions )
+/** Hidden base memory */
+extern struct hidden_region __data16 ( hidemem_base );
+#define hidemem_base __use_data16 ( hidemem_base )
+
+/** Hidden umalloc memory */
+extern struct hidden_region __data16 ( hidemem_umalloc );
+#define hidemem_umalloc __use_data16 ( hidemem_umalloc )
+
+/** Hidden text memory */
+extern struct hidden_region __data16 ( hidemem_text );
+#define hidemem_text __use_data16 ( hidemem_text )
 
 /** Assembly routine in e820mangler.S */
 extern void int15();
@@ -60,14 +61,19 @@ extern void int15();
 extern struct segoff __text16 ( int15_vector );
 #define int15_vector __use_text16 ( int15_vector )
 
+/* The linker defines these symbols for us */
+extern char _text[];
+extern char _end[];
+
 /**
  * Hide region of memory from system memory map
  *
+ * @v region		Hidden memory region
  * @v start		Start of region
  * @v end		End of region
  */
-void hide_region ( unsigned int region_id, physaddr_t start, physaddr_t end ) {
-	struct hidden_region *region = &hidden_regions[region_id];
+static void hide_region ( struct hidden_region *region,
+			  physaddr_t start, physaddr_t end ) {
 
 	/* Some operating systems get a nasty shock if a region of the
 	 * E820 map seems to start on a non-page boundary.  Make life
@@ -76,21 +82,7 @@ void hide_region ( unsigned int region_id, physaddr_t start, physaddr_t end ) {
 	region->start = ( start & ~( ALIGN_HIDDEN - 1 ) );
 	region->end = ( ( end + ALIGN_HIDDEN - 1 ) & ~( ALIGN_HIDDEN - 1 ) );
 
-	DBG ( "Hiding region %d [%lx,%lx)\n",
-	      region_id, region->start, region->end );
-}
-
-/**
- * Hide Etherboot text
- *
- */
-static void hide_text ( void ) {
-
-	/* The linker defines these symbols for us */
-	extern char _text[];
-	extern char _end[];
-
-	hide_region ( TEXT, virt_to_phys ( _text ), virt_to_phys ( _end ) );
+	DBG ( "Hiding region [%llx,%llx)\n", region->start, region->end );
 }
 
 /**
@@ -102,7 +94,25 @@ void hide_basemem ( void ) {
 	 * hide_region(), because we don't want this rounded to the
 	 * nearest page boundary.
 	 */
-	hidden_regions[BASEMEM].start = ( get_fbms() * 1024 );
+	hidemem_base.start = ( get_fbms() * 1024 );
+}
+
+/**
+ * Hide umalloc() region
+ *
+ */
+void hide_umalloc ( physaddr_t start, physaddr_t end ) {
+	assert ( end <= virt_to_phys ( _text ) );
+	hide_region ( &hidemem_umalloc, start, end );
+}
+
+/**
+ * Hide .text and .data
+ *
+ */
+void hide_text ( void ) {
+	hide_region ( &hidemem_text, virt_to_phys ( _text ),
+		      virt_to_phys ( _end ) );
 }
 
 /**
@@ -112,14 +122,24 @@ void hide_basemem ( void ) {
  * returned by the BIOS.
  */
 static void hide_etherboot ( void ) {
+	struct memory_map memmap;
+
+	/* Dump memory map before mangling */
+	DBG ( "Hiding gPXE from system memory map\n" );
+	get_memmap ( &memmap );
 
 	/* Initialise the hidden regions */
-	hide_text();
 	hide_basemem();
+	hide_umalloc ( virt_to_phys ( _text ), virt_to_phys ( _text ) );
+	hide_text();
 
 	/* Hook INT 15 */
 	hook_bios_interrupt ( 0x15, ( unsigned int ) int15,
 			      &int15_vector );
+
+	/* Dump memory map after mangling */
+	DBG ( "Hidden gPXE from system memory map\n" );
+	get_memmap ( &memmap );
 }
 
 /**
@@ -128,7 +148,7 @@ static void hide_etherboot ( void ) {
  * Uninstalls the INT 15 handler installed by hide_etherboot(), if
  * possible.
  */
-static void unhide_etherboot ( void ) {
+static void unhide_etherboot ( int flags __unused ) {
 
 	/* If we have more than one hooked interrupt at this point, it
 	 * means that some other vector is still hooked, in which case
