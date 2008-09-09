@@ -82,10 +82,11 @@ For example, a simple configuration with pxelinux:
 /tftpboot/xpe.sdi
 /tftpboot/pxelinux.0
 /tftpboot/pxelinux.cfg/default with the following content:
+
 	DEFAULT 0
 	label 0 [WinXpe]
-	        KERNEL sdi.c32
-          APPEND xpe.sdi
+		KERNEL sdi.c32
+		APPEND xpe.sdi
 
 
    ++++ Error messages ++++
