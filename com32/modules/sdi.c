@@ -44,7 +44,7 @@ typedef uint8_t guid_t[16];
 struct SDIHeader {
   uint32_t Signature;
   char     Version[4];
-  uint64_t SDIReserved;
+  uint64_t MDBtype;
   uint64_t BootCodeOffset;
   uint64_t BootCodeSize;
   uint64_t VendorID;
