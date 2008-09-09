@@ -926,8 +926,7 @@ maxtrans:
 getlinsec_cdrom:
 		mov si,dapa			; Load up the DAPA
 		mov [si+4],bx
-		mov bx,es
-		mov [si+6],bx
+		mov [si+6],es
 		mov [si+8],eax
 .loop:
 		push bp				; Sectors left
