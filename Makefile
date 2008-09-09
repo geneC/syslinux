@@ -51,7 +51,8 @@ BOBJECTS = $(BTARGET) \
 BSUBDIRS = codepage core memdisk modules com32 mbr memdump gpxe sample \
 	   libinstaller dos win32
 ITARGET  =
-IOBJECTS = $(ITARGET) dos/copybs.com utils/gethostip utils/mkdiskimage \
+IOBJECTS = $(ITARGET) dos/copybs.com \
+	utils/gethostip utils/isohybrid utils/mkdiskimage \
 	mtools/syslinux linux/syslinux extlinux/extlinux
 ISUBDIRS = libinstaller mtools linux extlinux utils
 
