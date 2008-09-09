@@ -144,7 +144,7 @@ read_sector_cbios:
 read_common:
 	movb	(driveno), %dl
 	int	$0x13
-	addw	$16, %sp	/* Drop DAPA */
+	leaw	16(%si), %sp	/* Drop DAPA */
 	popal
 	ret
 
