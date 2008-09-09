@@ -82,9 +82,11 @@ getcommand:
 		; No parameter
 .noparm:
 		mov si,err_noparm
-		mov al,10		; Already at EOL
-.error:
 		call writestr
+		mov si,trackbuf
+		call writestr
+		call crlf
+		mov al,10		; Already at EOL
 		jmp short .skipline
 
 .found_keywd:	lodsw			; Load argument into ax
@@ -103,7 +105,7 @@ getcommand:
 
 		section .data
 err_badcfg      db 'Unknown keyword in configuration file: ',0
-err_noparm      db 'Missing parameter in configuration file.', CR, LF, 0
+err_noparm      db 'Missing parameter in configuration file. Keyword: ',0
 
 		section .uibss
 		alignb 4
