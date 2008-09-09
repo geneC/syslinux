@@ -131,7 +131,7 @@ next:
 	call	read_sector
 	jc	disk_error
 	incl	%eax
-	addw	$512, %bx
+	addb	$(512 >> 8), %bh
 	loopw	2b
 
 	/*
