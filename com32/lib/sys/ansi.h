@@ -47,6 +47,7 @@ struct ansi_ops {
   void (*showcursor)(const struct term_state *st);
   void (*scroll_up)(const struct term_state *st);
   void (*set_cursor)(int x, int y, int visible);
+  void (*beep)(void);
 };
 
 struct term_info {
@@ -58,5 +59,6 @@ struct term_info {
 
 void __ansi_init(const struct term_info *ti);
 void __ansi_putchar(const struct term_info *ti, uint8_t ch);
+void __ansicon_beep(void);
 
 #endif /* COM32_LIB_SYS_ANSI_H */

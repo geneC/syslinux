@@ -55,6 +55,7 @@ static struct ansi_ops op = {
   .showcursor   = vesacon_showcursor,
   .set_cursor   = __vesacon_set_cursor,	/* in drawtxt.c */
   .scroll_up    = vesacon_scroll_up,
+  .beep		= __ansicon_beep,
 };
 
 static struct term_info ti =
