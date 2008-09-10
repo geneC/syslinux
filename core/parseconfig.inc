@@ -463,6 +463,7 @@ OnerrorLen	dw 0			; Bytes in onerror command
 CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
 ForcePrompt	dw 0			; Force prompt
 NoEscape	dw 0			; No escape
+NoComplete	dw 0			; No label completion on TAB key
 AllowImplicit   dw 1                    ; Allow implicit kernels
 AllowOptions	dw 1			; User-specified options allowed
 IncludeLevel	dw 1			; Nesting level

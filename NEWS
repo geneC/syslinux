@@ -21,6 +21,9 @@ Changes in 3.72:
 	* Remote gdb support for COM32 modules; patch from Stefan
 	  Hajnoczi.
 	* Support beeps in F-key help in the simple menu system.
+	* Tab display of labels, based on a patch from Sebastian
+	  Herbszt.  Can be disabled with the NOCOMPLETE configuration
+	  command.
 
 Changes in 3.71:
 	* Workaround for a VESA BIOS which tries to make DOS system

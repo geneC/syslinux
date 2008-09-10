@@ -30,6 +30,7 @@ allowoptions
 ontimeout
 onerror
 noescape
+nocomplete
 f0
 f1
 f2
