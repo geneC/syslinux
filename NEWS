@@ -24,6 +24,8 @@ Changes in 3.72:
 	* Tab display of labels, based on a patch from Sebastian
 	  Herbszt.  Can be disabled with the NOCOMPLETE configuration
 	  command.
+	* "menu default" can now be specified after "menu begin", to
+	  indicate that a specific submenu should be the default entry.
 
 Changes in 3.71:
 	* Workaround for a VESA BIOS which tries to make DOS system
