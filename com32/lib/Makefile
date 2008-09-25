@@ -110,7 +110,7 @@ libcom32.a : $(LIBOBJS)
 
 tidy dist:
 	rm -f sys/vesa/alphatbl.c
-	find . -name \*.o -o -name .\*.d -o -name \*.tmp -print0 | \
+	find . \( -name \*.o -o -name .\*.d -o -name \*.tmp \) -print0 | \
 		xargs -0r rm -f
 
 clean: tidy
