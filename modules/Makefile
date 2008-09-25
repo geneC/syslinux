@@ -58,6 +58,6 @@ tidy dist:
 	rm -f *.o *.a *.lst *.elf
 
 clean: tidy
-	rm -f $(BINS)
 
 spotless: clean
+	rm -f $(BINS)

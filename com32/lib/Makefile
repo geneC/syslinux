@@ -108,15 +108,13 @@ libcom32.a : $(LIBOBJS)
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
-tidy dist:
+tidy dist clean:
 	rm -f sys/vesa/alphatbl.c
 	find . \( -name \*.o -o -name .\*.d -o -name \*.tmp \) -print0 | \
 		xargs -0r rm -f
 
-clean: tidy
-	rm -f *.a
-
 spotless: clean
+	rm -f *.a
 	rm -f *~ \#* */*~ */\#*
 
 install: all

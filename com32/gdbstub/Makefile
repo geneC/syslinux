@@ -32,13 +32,14 @@ all: $(MODULES) $(TESTFILES)
 gdbstub.elf : $(OBJS) $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-tidy dist:
+tidy dist clean:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d *.tmp
 
 clean: tidy
-	rm -f *.lss *.c32 *.lnx *.com
+	rm -f *.lnx
 
 spotless: clean
+	rm -f *.lss *.c32 *.com
 	rm -f *~ \#*
 
 install: all

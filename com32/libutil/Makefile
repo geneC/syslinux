@@ -52,7 +52,10 @@ tidy dist:
 	rm -f *.o *.lo *.lst *.elf .*.d *.tmp
 
 clean: tidy
-	rm -f *.lss *.a *.c32 *.lnx *.com
+	rm -f *.lnx libutil_lnx.a
+
+spotless: clean
+	rm -f *.lss *.a *.c32 *.com
 
 spotless: clean
 	rm -f *~ \#*
