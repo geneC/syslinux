@@ -1,6 +1,6 @@
-#
-# Implementation of _exit() for com32 based on c32entry.S
-#
+/*
+ * Implementation of _exit() for com32 based on c32entry.S
+ */
 	.text
 	.globl _exit
 	.type _exit, @function
@@ -9,7 +9,7 @@ _exit:
 	pushl %eax
 #endif
 
-	# Run any destructors
+	/* Run any destructors */
 	movl $__dtors_start, %esi
 2:
 	cmpl $__dtors_end, %esi

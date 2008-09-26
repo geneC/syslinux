@@ -1,8 +1,8 @@
-#
-# pow.S
-#
-# double pow(double base, double exponent)
-#
+/*
+ * pow.S
+ *
+ * double pow(double base, double exponent)
+ */
 
 	.text
 	.globl	pow
