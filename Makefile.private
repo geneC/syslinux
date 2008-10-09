@@ -72,7 +72,6 @@ RPMPREREL := $(shell $(PERL) -e 'printf "%.2f.%d\n", $(VERSION)-0.01, $(PRERELNO
 prerel:
 	test -d release
 	git tag -a -m $(PREREL) -f $(PREREL)
-	mkdir -p $(PRERELDIR) $(PRERELDIR)/uu
 	-rm -rf $(PRERELDIR)/$(PREREL)
 	-rm -f $(PRERELDIR)/$(PREREL).*
 	mkdir -p $(PRERELDIR)/$(PREREL)
@@ -90,8 +89,6 @@ prerel:
 	cd $(PRERELDIR)/$(PREREL) && rm -rf $(PRIVATE)
 	cd $(PRERELDIR) && tar cvvf - $(PREREL) | \
 		gzip -9 > $(PREREL).tar.gz
-	cd $(PRERELDIR) && \
-		uuencode $(PREREL).tar.gz $(PREREL).tar.gz > uu/$(PREREL).uu
 	cd $(PRERELDIR)/$(PREREL) && \
 		zip -9r ../$(PREREL).zip *
 	expr $(PRERELNO) + 1 > $(PRERELDIR)/.prerel
