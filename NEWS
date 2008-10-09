@@ -2,6 +2,10 @@ Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
 apply to that specific program only; other changes apply to all of
 them.
 
+Changes in 3.73:
+	* Upgrade gPXE to release version 0.9.5.
+	* Fix a number of build errors on various platforms.
+
 Changes in 3.72:
 	* Include the pxechain.com module from Jeffery Hutzelman at
 	  Carnegie Mellon University.  This allows chaining another
