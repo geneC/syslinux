@@ -104,8 +104,8 @@ memdisk32.elf: $(OBJS32)
 memdisk: memdisk16.bin memdisk32.bin postprocess.pl
 	$(PERL) postprocess.pl $@ memdisk16.bin memdisk32.bin
 
-e820test: e820func.o msetup.o e820test.o memdisk.o
-	$(CC) $(LDFLAGS) -o $@ $^
+e820test: e820test.c e820func.c msetup.c
+	$(CC) -m32 -g -W -Wall -DTEST -o $@ $^
 
 memdisk.o: memdisk.bin
 	$(LD) -r -b binary -o $@ $<
