@@ -441,6 +441,10 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 	Output:	AL	33h (ISOLINUX)
 		DL	drive number
 		CL	11 (sector size as a power of 2) [3.35]
+		CH	mode [3.73]
+			0 = El Torito
+			1 = Hybrid (hard disk), CBIOS mode
+			2 = Hybrid (hard disk), EBIOS mode
 		ES:BX	pointer to El Torito spec packet
 		FS:SI	pointer to initial ES:DI value [3.53]
 
@@ -797,6 +801,9 @@ AX=0019h [3.50] Read disk [SYSLINUX, ISOLINUX, EXTLINUX]
 
 	This routine reports "boot failed" (and does not return) on
 	disk error.
+
+	Note: for ISOLINUX in hybrid mode, this call uses simulated
+	2048-byte CD-ROM sector numbers.
 
 
 AX=001Ah [3.50] Cleanup, shuffle and boot to flat protected mode

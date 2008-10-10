@@ -97,7 +97,7 @@ union syslinux_derivative_info {
     uint8_t filesystem;
     uint8_t ah;
     uint8_t sector_shift;
-    uint8_t ch;
+    uint8_t cd_mode;
     uint8_t drive_number;
     uint8_t dh;
     uint16_t _pad;
