@@ -46,6 +46,7 @@ struct e820_entry {
   uint64_t start;
   uint64_t len;
   uint32_t type;
+  uint32_t extattr;
 };
 
 struct syslinux_memmap *syslinux_memory_map(void)
@@ -74,7 +75,7 @@ struct syslinux_memmap *syslinux_memory_map(void)
   ireg.eax.l    = 0xe820;
   ireg.edx.l    = 0x534d4150;
   ireg.ebx.l    = 0;
-  ireg.ecx.l    = 20;
+  ireg.ecx.l    = sizeof(*e820buf);
   ireg.es       = SEG(e820buf);
   ireg.edi.w[0] = OFFS(e820buf);
 
@@ -85,6 +86,12 @@ struct syslinux_memmap *syslinux_memory_map(void)
 	(oreg.eax.l != 0x534d4150) ||
 	(oreg.ecx.l < 20))
       break;
+
+    if (oreg.ecx.l >= 24)
+      e820buf->extattr = 1;	/* Enabled, normal */
+
+    if (!(e820buf->extattr & 1))
+      continue;
 
     type = e820buf->type == 1 ? SMT_FREE : SMT_RESERVED;
     start = e820buf->start;

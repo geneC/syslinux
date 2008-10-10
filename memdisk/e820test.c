@@ -36,17 +36,17 @@ void printranges(void) {
   int i;
 
   for ( i = 0 ; i < nranges ; i++ ) {
-    printf("%016llx %016llx %d\n",
+    printf("%016llx %016llx %d %x\n",
 	   ranges[i].start,
 	   ranges[i+1].start - ranges[i].start,
-	   ranges[i].type);
+	   ranges[i].type, ranges[i].extattr);
   }
 }
 
 int main(void)
 {
   uint64_t start, len;
-  uint32_t type;
+  uint32_t type, extattr;
   char line[BUFSIZ], *p;
 
   e820map_init();
@@ -55,11 +55,12 @@ int main(void)
   while ( fgets(line, BUFSIZ, stdin) ) {
     p = strchr(line, ':');
     p = p ? p+1 : line;
-    if ( sscanf(p, " %llx %llx %d", &start, &len, &type) == 3 ) {
+    extattr = 1;
+    if ( sscanf(p, " %llx %llx %d %x", &start, &len, &type, &extattr) >= 3 ) {
       putchar('\n');
-      printf("%016llx %016llx %d <-\n", start, len, type);
+      printf("%016llx %016llx %d %x <-\n", start, len, type, extattr);
       putchar('\n');
-      insertrange(start, len, type);
+      insertrange(start, len, type, extattr);
       printranges();
     }
   }
@@ -73,7 +74,7 @@ int main(void)
   putchar('\n');
 
   /* Now, steal a chunk (2K) of DOS memory and make sure it registered OK */
-  insertrange(dos_mem-2048, 2048, 2); /* Type 2 = reserved */
+  insertrange(dos_mem-2048, 2048, 2, 1); /* Type 2 = reserved */
 
   printranges();
   parse_mem();

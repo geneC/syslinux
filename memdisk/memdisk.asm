@@ -530,38 +530,46 @@ EDDEject:
 ;
 int15_e820:
 		cmp edx,534D4150h	; "SMAP"
-		jne near oldint15
+		jne oldint15
 		cmp ecx,20		; Need 20 bytes
 		jb err86
 		push ds
 		push cs
 		pop ds
+		push edx		; "SMAP"
 		and ebx,ebx
 		jne .renew
 		mov ebx,E820Table
 .renew:
-		add bx,12		; Advance to next
-		mov eax,[bx-4]		; Type
+		add bx,16		; Advance to next
+		mov eax,[bx-8]		; Type
 		and eax,eax		; Null type?
 		jz .renew		; If so advance to next
 		mov [es:di+16],eax
-		mov eax,[bx-12]		; Start addr (low)
+		and cl,~3
+		cmp ecx,24
+		jb .no_extattr
+		mov eax,[bx-4]		; Extended attributes
+		mov [es:di+20],eax
+		mov ecx,24		; Bytes loaded
+.no_extattr:
+		push ecx
+		mov eax,[bx-16]		; Start addr (low)
 		mov [es:di],eax
-		mov ecx,[bx-8]		; Start addr (high)
-		mov [es:di+4],ecx
+		mov ecx,[bx-12]		; Start addr (high)
+		mov [es:di+4],edx
 		mov eax,[bx]		; End addr (low)
-		mov ecx,[bx+4]		; End addr (high)
-		sub eax,[bx-12]		; Derive the length
-		sbb ecx,[bx-8]
+		mov edx,[bx+4]		; End addr (high)
+		sub eax,[bx-16]		; Derive the length
+		sbb edx,[bx-12]
 		mov [es:di+8],eax	; Length (low)
 		mov [es:di+12],ecx	; Length (high)
 		cmp dword [bx+8],-1	; Type of next = end?
 		jne .notdone
 		xor ebx,ebx		; Done with table
 .notdone:
-		mov eax,edx		; "SMAP"
+		pop eax			; "SMAP"
 		pop ds
-		mov ecx,20		; Bytes loaded
 int15_success:
 		mov byte [bp+6], 02h	; Clear CF
 		pop bp

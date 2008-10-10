@@ -27,6 +27,7 @@ static inline int get_e820(void)
     uint64_t base;
     uint64_t len;
     uint32_t type;
+    uint32_t extattr;
   } *buf = sys_bounce;
   uint32_t copied;
   int range_count = 0;
@@ -47,12 +48,18 @@ static inline int get_e820(void)
     if ( regs.eax.l != 0x534d4150 || copied < 20 )
       break;
 
-    printf("e820: %08x%08x %08x%08x %d\n",
+    if ( copied < 24 )
+      buf->extattr = 1;
+
+    printf("e820: %08x%08x %08x%08x %d [%x]\n",
 	   (uint32_t)(buf->base >> 32), (uint32_t)buf->base,
 	   (uint32_t)(buf->len >> 32), (uint32_t)buf->len,
-	   buf->type);
+	   buf->type, buf->extattr);
 
-    insertrange(buf->base, buf->len, buf->type);
+    if ( !(buf->extattr & 1) )
+      continue;			/* Disabled range, just ignore */
+
+    insertrange(buf->base, buf->len, buf->type, buf->extattr);
     range_count++;
 
   } while ( regs.ebx.l );
@@ -66,7 +73,7 @@ static inline void get_dos_mem(void)
 
   memset(&regs, 0, sizeof regs);
   syscall(0x12, &regs, &regs);
-  insertrange(0, (uint64_t)((uint32_t)regs.eax.w[0] << 10), 1);
+  insertrange(0, (uint64_t)((uint32_t)regs.eax.w[0] << 10), 1, 1);
   printf(" DOS: %d K\n", regs.eax.w[0]);
 }
 
@@ -82,10 +89,10 @@ static inline int get_e801(void)
 
   if ( !(err = regs.eflags.l & 1) ) {
     if ( regs.eax.w[0] ) {
-      insertrange(0x100000, (uint64_t)((uint32_t)regs.eax.w[0] << 10), 1);
+      insertrange(0x100000, (uint64_t)((uint32_t)regs.eax.w[0] << 10), 1, 1);
     }
     if ( regs.ebx.w[0] ) {
-      insertrange(0x1000000, (uint64_t)((uint32_t)regs.ebx.w[0] << 16), 1);
+      insertrange(0x1000000, (uint64_t)((uint32_t)regs.ebx.w[0] << 16), 1, 1);
     }
 
     printf("e801: %04x %04x\n", regs.eax.w[0], regs.ebx.w[0]);
@@ -107,7 +114,7 @@ static inline int get_88(void)
 
   if ( !(err = regs.eflags.l & 1) ) {
     if ( regs.eax.w[0] ) {
-      insertrange(0x100000, (uint64_t)((uint32_t)regs.eax.w[0] << 10), 1);
+      insertrange(0x100000, (uint64_t)((uint32_t)regs.eax.w[0] << 10), 1, 1);
     }
 
     printf("  88: %04x\n", regs.eax.w[0]);
