@@ -553,22 +553,22 @@ int15_e820:
 		mov [es:di+20],eax
 		mov ecx,24		; Bytes loaded
 .no_extattr:
-		push ecx
 		mov eax,[bx-16]		; Start addr (low)
+		mov edx,[bx-12]		; Start addr (high)
 		mov [es:di],eax
-		mov ecx,[bx-12]		; Start addr (high)
 		mov [es:di+4],edx
 		mov eax,[bx]		; End addr (low)
 		mov edx,[bx+4]		; End addr (high)
 		sub eax,[bx-16]		; Derive the length
 		sbb edx,[bx-12]
 		mov [es:di+8],eax	; Length (low)
-		mov [es:di+12],ecx	; Length (high)
+		mov [es:di+12],edx	; Length (high)
 		cmp dword [bx+8],-1	; Type of next = end?
 		jne .notdone
 		xor ebx,ebx		; Done with table
 .notdone:
 		pop eax			; "SMAP"
+		mov edx,eax		; Some systems expect eax = edx = SMAP
 		pop ds
 int15_success:
 		mov byte [bp+6], 02h	; Clear CF
