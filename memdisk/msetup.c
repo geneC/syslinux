@@ -17,9 +17,20 @@
  */
 
 #include <stdint.h>
-#include "memdisk.h"
-#include "conio.h"
+#ifdef TEST
+# include <string.h>
+# include <stdio.h>
+#else
+# include "memdisk.h"
+# include "conio.h"
+#endif
 #include "e820.h"
+
+uint32_t dos_mem  = 0;		/* 0-1MB */
+uint32_t low_mem  = 0;		/* 1-16MB */
+uint32_t high_mem = 0;		/* 16+ MB */
+
+#ifndef TEST
 
 static inline int get_e820(void)
 {
@@ -123,10 +134,6 @@ static inline int get_88(void)
   return err;
 }
 
-uint32_t dos_mem  = 0;		/* 0-1MB */
-uint32_t low_mem  = 0;		/* 1-16MB */
-uint32_t high_mem = 0;		/* 16+ MB */
-
 void get_mem(void)
 {
   if ( get_e820() ) {
@@ -140,6 +147,8 @@ void get_mem(void)
   }
 }
 
+#endif	/* TEST */
+
 #define PW(x) (1ULL << (x))
 
 void parse_mem(void)
@@ -149,7 +158,7 @@ void parse_mem(void)
   dos_mem = low_mem = high_mem = 0;
 
   /* Derive "dos mem", "high mem", and "low mem" from the range array */
-  for ( ep = ranges ; ep->type != -1 ; ep++ ) {
+  for ( ep = ranges ; ep->type != -1U ; ep++ ) {
     if ( ep->type == 1 ) {
       /* Only look at memory ranges */
       if ( ep->start == 0 ) {

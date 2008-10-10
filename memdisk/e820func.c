@@ -34,7 +34,7 @@ void e820map_init(void)
 {
   memset(ranges, 0, sizeof(ranges));
   nranges = 1;
-  ranges[1].type = -1;
+  ranges[1].type = -1U;
 }
 
 static void insertrange_at(int where, uint64_t start,
@@ -51,7 +51,7 @@ static void insertrange_at(int where, uint64_t start,
 
   nranges++;
   ranges[nranges].start   = 0ULL;
-  ranges[nranges].type    = (uint32_t)-1;
+  ranges[nranges].type    = -1U;
   ranges[nranges].extattr = 0;
 }
 
@@ -98,8 +98,7 @@ void insertrange(uint64_t start, uint64_t len, uint32_t type, uint32_t extattr)
   oldtype = ranges[0].type;
   oldattr = ranges[0].extattr;
   while ( i < nranges ) {
-    if ( ranges[i].type == oldtype &&
-	 ranges[i].extattr == oldattr ) {
+    if ( ranges[i].type == oldtype && ranges[i].extattr == oldattr ) {
       i++;
     } else {
       oldtype = ranges[i].type;
