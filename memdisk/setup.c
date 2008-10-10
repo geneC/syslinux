@@ -274,8 +274,8 @@ void unzip_if_needed(uint32_t *where_p, uint32_t *size_p)
   int i, okmem;
 
   /* Is it a gzip image? */
-  if (check_zip ((void *)where, size, &zbytes, &gzdatasize,
-                 &orig_crc, &offset) == 0) {
+  if (check_zip((void *)where, size, &zbytes, &gzdatasize,
+		&orig_crc, &offset) == 0) {
 
     if (offset + zbytes > size) {
       /* Assertion failure; check_zip is supposed to guarantee this
@@ -294,10 +294,13 @@ void unzip_if_needed(uint32_t *where_p, uint32_t *size_p)
       /* Must be memory */
       if ( ranges[i].type != 1 )
 	continue;
+      if (!(ranges[i].extattr & 1))
+	continue;
 
       /* Range start */
       if ( ranges[i].start >= 0xFFFFFFFF )
 	continue;
+
       startrange = (uint32_t)ranges[i].start;
 
       /* Range end (0 for end means 2^64) */
