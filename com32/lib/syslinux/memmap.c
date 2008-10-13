@@ -87,7 +87,7 @@ struct syslinux_memmap *syslinux_memory_map(void)
 	(oreg.ecx.l < 20))
       break;
 
-    if (oreg.ecx.l >= 24)
+    if (oreg.ecx.l < 24)
       e820buf->extattr = 1;	/* Enabled, normal */
 
     if (!(e820buf->extattr & 1))
