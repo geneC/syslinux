@@ -25,6 +25,7 @@ struct e820_data {
   uint64_t base;
   uint64_t len;
   uint32_t type;
+  uint32_t extattr;
 } __attribute__((packed));
 
 static const char * const e820_types[] = {
@@ -32,6 +33,7 @@ static const char * const e820_types[] = {
   "reserved",
   "ACPI reclaim",
   "ACPI NVS",
+  "unusable",
 };
 
 static void dump_e820(void)
@@ -48,17 +50,26 @@ static void dump_e820(void)
   ireg.edi.w[0] = OFFS(__com32.cs_bounce);
   ireg.es       = SEG(__com32.cs_bounce);
 
+  memset(&ed, 0, sizeof ed);
+  ed.extattr = 1;
+
   do {
+    memcpy(__com32.cs_bounce, &ed, sizeof ed);
+
     __intcall(0x15, &ireg, &oreg);
     if (oreg.eflags.l & EFLAGS_CF ||
-	oreg.eax.l != 0x534d4150)
+	oreg.eax.l != 0x534d4150 ||
+	oreg.ecx.l < 20)
       break;
 
     memcpy(&ed, __com32.cs_bounce, sizeof ed);
 
+    if (oreg.ecx.l < 24)
+      ed.extattr = 1;
+
     /* ebx base length end type */
-    printf("%8x %016llx %016llx %016llx %x",
-	   ireg.ebx.l, ed.base, ed.len, ed.base+ed.len, ed.type);
+    printf("%8x %016llx %016llx %016llx %d [%x]",
+	   ireg.ebx.l, ed.base, ed.len, ed.base+ed.len, ed.type, ed.extattr);
 
     type = ed.type - 1;
     if (type < sizeof(e820_types)/sizeof(e820_types[0]))
