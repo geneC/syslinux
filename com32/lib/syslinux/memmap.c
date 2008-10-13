@@ -78,6 +78,8 @@ struct syslinux_memmap *syslinux_memory_map(void)
   ireg.ecx.l    = sizeof(*e820buf);
   ireg.es       = SEG(e820buf);
   ireg.edi.w[0] = OFFS(e820buf);
+  memset(e820buf, 0, sizeof *e820buf);
+  e820buf->extattr = 1;
 
   do {
     __intcall(0x15, &ireg, &oreg);

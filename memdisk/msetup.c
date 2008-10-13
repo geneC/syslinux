@@ -45,6 +45,8 @@ static inline int get_e820(void)
   com32sys_t regs;
 
   memset(&regs, 0, sizeof regs);
+  memset(buf, 0, sizeof *buf);
+  buf->extattr = 1;
 
   do {
     regs.eax.l = 0x0000e820;

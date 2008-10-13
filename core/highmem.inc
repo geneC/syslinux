@@ -40,6 +40,11 @@ get_e820:
 		mov dword [E820Max],-(1 << 20)	; Max amount of high memory
 		mov dword [E820Mem],(1 << 20)	; End of detected high memory
 .start_over:
+		mov di,E820Buf
+		xor ax,ax
+		mov cx,12
+		rep stosw			; Clear buffer
+		mov byte [di-4],01h		; Initial extattr value
 		xor ebx,ebx			; Start with first record
 		jmp short .do_e820		; Skip "at end" check first time!
 .int_loop:	and ebx,ebx			; If we're back at beginning...
