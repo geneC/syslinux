@@ -5,6 +5,9 @@ them.
 Changes in 3.73:
 	* Upgrade gPXE to release version 0.9.5.
 	* Fix a number of build errors on various platforms.
+	* Handle systems with E820 "extended attributes" per ACPI 3.
+	  Someone "cleverly" decided to change the E820 spec in a
+	  backwards-incompatible manner!
 
 Changes in 3.72:
 	* Include the pxechain.com module from Jeffery Hutzelman at
