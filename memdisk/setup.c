@@ -115,6 +115,7 @@ struct patch_area {
 #define CONFIG_RAW	0x02
 #define CONFIG_SAFEINT	0x04
 #define CONFIG_BIGRAW	0x08		/* MUST be 8! */
+#define CONFIG_MODEMASK	0x0e
 
   uint16_t mystack;
   uint16_t statusptr;
@@ -648,14 +649,6 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
   else
     do_edd = (geometry->driveno & 0x80) ? 1 : 0;
 
-  printf("Disk is %s %d, %u%s K, C/H/S = %u/%u/%u, EDD %s\n",
-	 (geometry->driveno & 0x80) ? "hard disk" : "floppy",
-	 geometry->driveno & 0x7f,
-	 geometry->sectors >> 1,
-	 (geometry->sectors & 1) ? ".5" : "",
-	 geometry->c, geometry->h, geometry->s,
-	 do_edd ? "on" : "off");
-
   /* Reserve the ramdisk memory */
   insertrange(ramdisk_image, ramdisk_size, 2, 1);
   parse_mem();			/* Recompute variables */
@@ -682,27 +675,56 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
 
   pptr->bootloaderid = shdr->type_of_loader;
 
-  pptr->configflags = 0;
+  pptr->configflags = CONFIG_SAFEINT; /* Default */
   /* Set config flags */
   if ( getcmditem("ro") != CMD_NOTFOUND ) {
-    puts("Marking disk readonly\n");
     pptr->configflags |= CONFIG_READONLY;
   }
   if ( getcmditem("raw") != CMD_NOTFOUND ) {
-    puts("Using raw access to high memory\n");
-    pptr->configflags &= ~CONFIG_SAFEINT|CONFIG_BIGRAW;
+    pptr->configflags &= ~CONFIG_MODEMASK;
     pptr->configflags |= CONFIG_RAW;
   }
-  if ( getcmditem("safeint") != CMD_NOTFOUND ) {
-    puts("Using safe INT 15h access to high memory\n");
-    pptr->configflags &= ~CONFIG_RAW|CONFIG_BIGRAW;
-    pptr->configflags |= CONFIG_SAFEINT;
-  }
   if ( getcmditem("bigraw") != CMD_NOTFOUND ) {
-    puts("Using raw access to high memory - assuming big real mode\n");
-    pptr->configflags &= ~CONFIG_SAFEINT;
+    pptr->configflags &= ~CONFIG_MODEMASK;
     pptr->configflags |= CONFIG_BIGRAW|CONFIG_RAW;
   }
+  if ( getcmditem("int") != CMD_NOTFOUND ) {
+    pptr->configflags &= ~CONFIG_MODEMASK;
+    /* pptr->configflags |= 0; */
+  }
+  if ( getcmditem("safeint") != CMD_NOTFOUND ) {
+    pptr->configflags &= ~CONFIG_MODEMASK;
+    pptr->configflags |= CONFIG_SAFEINT;
+  }
+
+  printf("Disk is %s %d, %u%s K, C/H/S = %u/%u/%u, EDD %s, %s\n",
+	 (geometry->driveno & 0x80) ? "hard disk" : "floppy",
+	 geometry->driveno & 0x7f,
+	 geometry->sectors >> 1,
+	 (geometry->sectors & 1) ? ".5" : "",
+	 geometry->c, geometry->h, geometry->s,
+	 do_edd ? "on" : "off",
+	 pptr->configflags & CONFIG_READONLY ? "readonly" : "read-write");
+
+  puts("\nUsing ");
+  switch (pptr->configflags & CONFIG_MODEMASK) {
+  case 0:
+    puts("standard INT 15h");
+    break;
+  case CONFIG_SAFEINT:
+    puts("safe INT 15h");
+    break;
+  case CONFIG_RAW:
+    puts("raw");
+    break;
+  case CONFIG_RAW|CONFIG_BIGRAW:
+    puts("big real mode raw");
+    break;
+  default:
+    printf("unknown %#x", pptr->configflags & CONFIG_MODEMASK);
+    break;
+  }
+  puts(" access to high memory\n");
 
   /* pptr->maxint13func defaults to EDD enabled, if compiled in */
   if (!do_edd)

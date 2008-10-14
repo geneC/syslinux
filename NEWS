@@ -8,6 +8,7 @@ Changes in 3.73:
 	* Handle systems with E820 "extended attributes" per ACPI 3.
 	  Someone "cleverly" decided to change the E820 spec in a
 	  backwards-incompatible manner!
+	* MEMDISK: default to "safeint".
 
 Changes in 3.72:
 	* Include the pxechain.com module from Jeffery Hutzelman at
