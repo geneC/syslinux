@@ -706,7 +706,7 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
 	 do_edd ? "on" : "off",
 	 pptr->configflags & CONFIG_READONLY ? "readonly" : "read-write");
 
-  puts("\nUsing ");
+  puts("Using ");
   switch (pptr->configflags & CONFIG_MODEMASK) {
   case 0:
     puts("standard INT 15h");
