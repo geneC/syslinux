@@ -630,38 +630,17 @@ bcopy:
 		mov bx, real_int15_stub
 
 		test byte [ConfigFlags], CONFIG_RAW|CONFIG_SAFEINT
-		jz .anymode
+		jz .anymode		; Always do the real INT 15h
 
 		smsw ax			; Unprivileged!
 		test al,01h
-		jnz .protmode
+		jnz .protmode		; Protmode -> do real INT 15h
 
 .realmode:
-		test byte [ConfigFlags], CONFIG_RAW
-		jnz .raw
+		; Raw or Safeint mode, and we're in real mode...
 
-		; We're in real mode with CONFIG_SAFEINT, invoke INT 15h
-		; directly if the vector is unchanged, otherwise invoke
-		; the *old* INT 15h vector.
-
-		push ds
-		xor ax, ax
-		mov ds,ax
-
-		cmp word [4*0x15], Int15Start
-		jne .changed
-
-		mov ax, cs
-		cmp word [4*0x15+2], ax
-		jne .changed
-
-		pop ds
-		jmp .anymode		; INT 15h unchanged, safe to execute
-
-.changed:	; INT 15h modified, execute *old* INT 15h
-		pop ds
-		mov bx, fake_int15_stub
-		jmp .anymode
+		test byte [ConfigFlags], CONFIG_SAFEINT
+		jnz .fakeint15
 
 .raw:
 		TRACER 'r'
@@ -740,6 +719,15 @@ bcopy:
 .skip_a20d:
 		popfd			; <A>
 		jmp .done
+
+.fakeint15:
+		; We're in real mode with CONFIG_SAFEINT, invoke the
+		; original INT 15h vector.  We used to test for the
+		; INT 15h vector being unchanged here, but that is
+		; *us*; however, the test was wrong for years (always
+		; negative) so instead of fixing the test do what we
+		; tested and don't bother probing.
+		mov bx, fake_int15_stub
 
 .protmode:
 		TRACER 'p'
