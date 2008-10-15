@@ -1,6 +1,6 @@
-Starting with 1.47, changes marked with SYSLINUX/PXELINUX/ISOLINUX
-apply to that specific program only; other changes apply to all of
-them.
+Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
+or EXTLINUX apply to that specific program only; other changes apply
+to all derivatives.
 
 Changes in 3.73:
 	* Upgrade gPXE to release version 0.9.5.
@@ -9,6 +9,10 @@ Changes in 3.73:
 	  Someone "cleverly" decided to change the E820 spec in a
 	  backwards-incompatible manner!
 	* MEMDISK: default to "safeint".
+	* Adopt the moniker "The Syslinux Project", standard proper
+	  noun capitalization, to refer to the project as a whole.
+	  Thus, reserve the all-caps "SYSLINUX" to refer to the FAT
+	  loader.
 
 Changes in 3.72:
 	* Include the pxechain.com module from Jeffery Hutzelman at
