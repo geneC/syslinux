@@ -646,7 +646,7 @@ bcopy:
 
 		push ds
 		xor ax, ax
-		mov fs,ax
+		mov ds,ax
 
 		cmp word [4*0x15], Int15Start
 		jne .changed
