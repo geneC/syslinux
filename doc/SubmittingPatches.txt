@@ -1,6 +1,6 @@
-I don't have specific submission guidelines for SYSLINUX, but the ones
+I don't have specific submission guidelines for Syslinux, but the ones
 that appropriate to the Linux kernel are certainly good enough for
-SYSLINUX.
+Syslinux.
 
 In particular, however, I appreciate if patches sent follow the
 standard Linux submission format, as I can automatically import them

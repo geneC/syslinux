@@ -9,7 +9,7 @@ disk and a (very small - 2K typical) chunk of low (DOS) memory for the
 driver itself, then hooking the INT 13h (disk driver) and INT 15h
 (memory query) BIOS interrupts.
 
-To use it, type on the SYSLINUX command line:
+To use it, type on the Syslinux command line:
 
 memdisk initrd=diskimg.img
 

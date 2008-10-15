@@ -1,4 +1,4 @@
-			       SYSLINUX
+			 The Syslinux Project
 
 		   A suite of bootloaders for Linux
 
@@ -11,11 +11,11 @@ program.  Please see the included file COPYING for details.
 
 ----------------------------------------------------------------------
 
-      SYSLINUX now has a home page at http://syslinux.zytor.com/
+      Syslinux now has a home page at http://syslinux.zytor.com/
 
 ----------------------------------------------------------------------
 
-The SYSLINUX suite contains the following boot loaders
+The Syslinux suite contains the following boot loaders
 ("derivatives"), for their respective boot media:
 
 	SYSLINUX - MS-DOS/Windows FAT filesystem
@@ -24,8 +24,10 @@ The SYSLINUX suite contains the following boot loaders
 	EXTLINUX - Linux ext2/ext3 filesystem
 
 For historical reasons, some of the sections in this document applies
-to the FAT loader only; see pxelinux.txt, isolinux.txt and
-extlinux.txt for what differs in these versions.
+to the FAT loader (SYSLINUX) only; see pxelinux.txt, isolinux.txt and
+extlinux.txt for what differs in these versions.  The all-caps term
+"SYSLINUX" generally refers to the FAT loader, whereas "Syslinux"
+refers to the project as a whole.
 
 Help with cleaning up the docs would be greatly appreciated.
 
@@ -86,12 +88,12 @@ specific partition active.
 
 On boot time, by default, the kernel will be loaded from the image named
 LINUX on the boot floppy.  This default can be changed, see the section
-on the SYSLINUX config file.
+on the Syslinux config file.
 
 If the Shift or Alt keys are held down during boot, or the Caps or Scroll
-locks are set, SYSLINUX will display a LILO-style "boot:" prompt.  The
+locks are set, Syslinux will display a LILO-style "boot:" prompt.  The
 user can then type a kernel file name followed by any kernel parameters.
-The SYSLINUX loader does not need to know about the kernel file in
+The Syslinux loader does not need to know about the kernel file in
 advance; all that is required is that it is a file located in the root
 directory on the disk.
 
@@ -130,14 +132,14 @@ INCLUDE filename
 	will be supported in the future.
 
 DEFAULT kernel options...
-        Sets the default command line.  If SYSLINUX boots automatically,
+        Sets the default command line.  If Syslinux boots automatically,
         it will act just as if the entries after DEFAULT had been typed
         in at the "boot:" prompt.
 
         If no configuration file is present, or no DEFAULT entry is
         present in the config file, the default is "linux auto".
 
-	NOTE: Earlier versions of SYSLINUX used to automatically
+	NOTE: Earlier versions of Syslinux used to automatically
 	append the string "auto" to whatever the user specified using
 	the DEFAULT command.  As of version 1.54, this is no longer
 	true, as it caused problems when using a shell as a substitute
@@ -183,7 +185,7 @@ LABEL label
     APPEND options...
     IPAPPEND flag_val			[PXELINUX only]
 	Indicates that if "label" is entered as the kernel to boot,
-        SYSLINUX should instead boot "image", and the specified APPEND
+        Syslinux should instead boot "image", and the specified APPEND
 	and IPAPPEND options should be used instead of the ones
         specified in the global section of the file (before the first
         LABEL command.)  The default for "image" is the same as
@@ -198,7 +200,7 @@ LABEL label
           label = mylabel
           append = "myoptions"
 
-        ... whereas SYSLINUX uses the syntax:
+        ... whereas Syslinux uses the syntax:
         label mylabel
           kernel mykernel
           append myoptions
@@ -307,7 +309,7 @@ ONERROR kernel options...
 
 		foo bar baz
 
-	... SYSLINUX will execute the following as if entered by the
+	... Syslinux will execute the following as if entered by the
 	user:
 
 		xyzzy plugh foo bar baz
@@ -361,7 +363,7 @@ CONSOLE flag_val
 FONT filename
 	Load a font in .psf format before displaying any output
 	(except the copyright line, which is output as ldlinux.sys
-	itself is loaded.)  SYSLINUX only loads the font onto the
+	itself is loaded.)  Syslinux only loads the font onto the
 	video card; if the .psf file contains a Unicode table it is
 	ignored.  This only works on EGA and VGA cards; hopefully it
 	should do nothing on others.
@@ -425,7 +427,7 @@ Blank lines are ignored.
 
 Note that the configuration file is not completely decoded.  Syntax
 different from the one described above may still work correctly in this
-version of SYSLINUX, but may break in a future one.
+version of Syslinux, but may break in a future one.
 
 
    ++++ DISPLAY FILE FORMAT ++++
@@ -474,7 +476,7 @@ are interpreted:
 
 	Color indicies 0 and 7, in particular, should be chosen with
 	care: 0 is the background color, and 7 is the color used for
-	the text printed by SYSLINUX itself.
+	the text printed by Syslinux itself.
 
 <EM>					<EM> = <Ctrl-Y> = ASCII 25
 	If we are currently in graphics mode, return to text mode.
@@ -517,7 +519,7 @@ The command line prompt supports the following keystrokes:
 <Enter>		boot specified command line
 <BackSpace>	erase one character
 <Ctrl-U>	erase the whole line
-<Ctrl-V>	display the current SYSLINUX version
+<Ctrl-V>	display the current Syslinux version
 <Ctrl-W>	erase one word
 <Ctrl-X>	force text mode
 <F1>..<F10>	help screens (if configured)
@@ -528,7 +530,7 @@ The command line prompt supports the following keystrokes:
 
    ++++ COMBOOT IMAGES AND OTHER OPERATING SYSTEMS ++++
 
-This version of SYSLINUX supports chain loading of other operating
+This version of Syslinux supports chain loading of other operating
 systems (such as MS-DOS and its derivatives, including Windows 95/98),
 as well as COMBOOT-style standalone executables (a subset of DOS .COM
 files; see separate section below.)
@@ -536,7 +538,7 @@ files; see separate section below.)
 Chain loading requires the boot sector of the foreign operating system
 to be stored in a file in the root directory of the filesystem.
 Because neither Linux kernels, boot sector images, nor COMBOOT files
-have reliable magic numbers, SYSLINUX will look at the file extension.
+have reliable magic numbers, Syslinux will look at the file extension.
 The following extensions are recognized (case insensitive):
 
   none or other	Linux kernel image
@@ -549,7 +551,7 @@ The following extensions are recognized (case insensitive):
   .com		COMBOOT image (runnable from DOS)
   .img		Disk image [ISOLINUX only]
 
-For filenames given on the command line, SYSLINUX will search for the
+For filenames given on the command line, Syslinux will search for the
 file by adding extensions in the order listed above if the plain
 filename is not found.  Filenames in KERNEL statements must be fully
 qualified.
@@ -607,7 +609,7 @@ appropriate drive designator.
    ---- DOS/Windows procedure ----
 
 To make this installation in DOS only, you need the utility copybs.com
-(included with SYSLINUX) as well as the syslinux.com installer.  If
+(included with Syslinux) as well as the syslinux.com installer.  If
 you are on an WinNT-based system (WinNT, Win2k, WinXP or later), use
 syslinux.exe instead.
 
@@ -637,7 +639,7 @@ syslinux.exe instead.
 
    ++++ COMBOOT EXECUTABLES ++++
 
-SYSLINUX supports simple standalone programs, using a file format
+Syslinux supports simple standalone programs, using a file format
 similar to DOS ".com" files.  A 32-bit version, called COM32, is also
 provided.  A simple API provides access to a limited set of filesystem
 and console functions.
@@ -648,7 +650,7 @@ programs.
 
    ++++ NOVICE PROTECTION ++++
 
-SYSLINUX will attempt to detect booting on a machine with too little
+Syslinux will attempt to detect booting on a machine with too little
 memory, which means the Linux boot sequence cannot complete.  If so, a
 message is displayed and the boot sequence aborted.  Holding down the
 Ctrl key while booting disables this feature.
@@ -725,8 +727,8 @@ A list of problems, and workarounds (if known), is maintained at:
    ++++ BOOT LOADER IDS USED ++++
 
 The Linux boot protocol supports a "boot loader ID", a single byte
-where the upper nybble specifies a boot loader family (3 = SYSLINUX)
-and the lower nybble is version or, in the case of SYSLINUX, media:
+where the upper nybble specifies a boot loader family (3 = Syslinux)
+and the lower nybble is version or, in the case of Syslinux, media:
 
 	0x31 (49) = SYSLINUX
 	0x32 (50) = PXELINUX
@@ -739,8 +741,8 @@ In recent versions of Linux, this ID is available as
 
    ++++ BUG REPORTS ++++
 
-I would appreciate hearing of any problems you have with SYSLINUX.  I
-would also like to hear from you if you have successfully used SYSLINUX,
+I would appreciate hearing of any problems you have with Syslinux.  I
+would also like to hear from you if you have successfully used Syslinux,
 *especially* if you are using it for a distribution.
 
 If you are reporting problems, please include all possible information
@@ -748,7 +750,7 @@ about your system and your BIOS; the vast majority of all problems
 reported turn out to be BIOS or hardware bugs, and I need as much
 information as possible in order to diagnose the problems.
 
-There is a mailing list for discussion among SYSLINUX users and for
+There is a mailing list for discussion among Syslinux users and for
 announcements of new and test versions.  To join, or to browse the
 archive, go to:
 

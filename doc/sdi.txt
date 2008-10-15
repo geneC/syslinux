@@ -1,7 +1,7 @@
 		       SDI files
 
 
-PXELINUX, ISOLINUX and SYSLINUX support SDI files ( *.sdi ).
+Syslinux supports SDI files ( *.sdi ).
 
 Features:
  * Support for gzipped SDI images

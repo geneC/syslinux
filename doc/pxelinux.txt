@@ -11,7 +11,7 @@ program.  Please see the included file COPYING for details.
 
 ----------------------------------------------------------------------
 
-PXELINUX is a SYSLINUX derivative, for booting Linux off a network
+PXELINUX is a Syslinux derivative, for booting Linux off a network
 server, using a network ROM conforming to the Intel PXE (Pre-Execution
 Environment) specification.  PXELINUX is *not* a program that is
 intended to be flashed or burned into a PROM on the network card; if
@@ -29,7 +29,7 @@ explains the differences.
 On the TFTP server, create the directory "/tftpboot", and copy the
 following files to it:
 
-	pxelinux.0		- from the SYSLINUX distribution
+	pxelinux.0		- from the Syslinux distribution
 
 	any kernel or initrd images you want to boot
 
@@ -345,7 +345,7 @@ IP address::filename		(e.g. 192.0.2.1::filename)
 
 :: was chosen because it is unlikely to conflict with operating system
 usage.  However, if you happen to have an environment for which the
-special treatment of :: is a problem, please contact the SYSLINUX
+special treatment of :: is a problem, please contact the Syslinux
 mailing list.
 
 
@@ -412,5 +412,5 @@ The following problems are known with PXELINUX, so far:
   entry loop, so that we answer ARP requests.
 + Boot sectors/disk images are not supported yet.
 
-If you have additional problems, please contact the SYSLINUX mailing
+If you have additional problems, please contact the Syslinux mailing
 list (see syslinux.txt for the address.)
