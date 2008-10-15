@@ -2,6 +2,13 @@
  * Implementation of _exit() for com32 based on c32entry.S
  */
 	.text
+
+	.globl _Exit
+	.type _Exit, @function
+_Exit:
+	/* Just fall through to _exit */
+	.size _Exit, .-_Exit
+
 	.globl _exit
 	.type _exit, @function
 _exit:
