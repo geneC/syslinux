@@ -13,6 +13,9 @@ Changes in 3.73:
 	  noun capitalization, to refer to the project as a whole.
 	  Thus, reserve the all-caps "SYSLINUX" to refer to the FAT
 	  loader.
+	* mboot.c32: add "-solaris" option to pass DHCP information to
+	  the Solaris kernel; required for automatic Solaris boot
+	  without using Solaris' pxeboot program.
 
 Changes in 3.72:
 	* Include the pxechain.com module from Jeffery Hutzelman at
