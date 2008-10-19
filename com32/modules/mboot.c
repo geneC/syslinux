@@ -33,6 +33,7 @@
 #include <console.h>
 #include <zlib.h>
 #include <com32.h>
+#include <syslinux/pxe.h>
 
 #include "i386-elf.h"
 #include "mb_info.h"
@@ -53,6 +54,9 @@
 #define MEM_HOLE_START  0xa0000      /* Memory hole runs from 640k ... */
 #define MEM_HOLE_END    0x100000     /* ... to 1MB */
 #define X86_PAGE_SIZE   0x1000
+#define DHCP_ACK_SIZE   1500         /* Maximum size of the DHCP ACK package.
+                                        Probably too large since we're interested
+                                        in the first bunch of bytes only. */
 
 size_t __stack_size = STACK_SIZE;    /* How much stack we'll use */
 extern void *__mem_end;              /* Start of malloc() heap */
@@ -926,11 +930,25 @@ int main(int argc, char **argv)
     char *p;
     size_t mbi_run_addr, mbi_size, entry;
     int i;
+    int opt_solaris = 0;
+    void *dhcpdata;
+    size_t dhcplen;
 
     /* Say hello */
     openconsole(&dev_null_r, &dev_stdcon_w);
 
     printf("%s.  %s\n", version_string, copyright_string);
+
+    /* This is way too ugly. */
+    if (!strcmp("-solaris", argv[1])) {
+        opt_solaris = 1;
+        argv[1] = argv[0];
+        argv = &argv[1];
+        argc -= 1;
+    }
+
+    if (opt_solaris)
+        printf("Solaris DHCP passing enabled\n");
 
     if (argc < 2 || !strcmp(argv[1], module_separator)) {
         printf("Fatal: No kernel filename!\n");
@@ -958,6 +976,8 @@ int main(int argc, char **argv)
             mbi_size += strlen(argv[i]) + 1;
         }
     }
+    if (opt_solaris)
+        mbi_size += DHCP_ACK_SIZE;
 
     /* Allocate space in the load buffer for the MBI, all the command
      * lines, and all the module details. */
@@ -1029,6 +1049,29 @@ int main(int argc, char **argv)
     strcpy(p, version_string);
     mbi->boot_loader_name = ((size_t)p) - mbi_reloc_offset;
     p += strlen(version_string) + 1;
+
+    if (opt_solaris) {
+        /* Try to get the DHCP ACK packet from PXE */
+        if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK, &dhcpdata, &dhcplen)) {
+            /* Solaris expects the DHCP ACK packet to be passed in the drives_*
+               structure. However, the flags field must indicate that the
+               drives_structure is not being used.
+               Furthermore, the boot_device must be set to 0x20ffffff
+            */
+            dhcplen = MIN(dhcplen, DHCP_ACK_SIZE);
+            memcpy(p, dhcpdata, dhcplen);
+            mbi->drives_addr = ((size_t)p) - mbi_reloc_offset;
+            mbi->drives_length = dhcplen;
+            mbi->flags &= ~MB_INFO_DRIVE_INFO;
+            p += dhcplen;
+
+            mbi->boot_device = 0x20ffffff;
+            mbi->flags |= MB_INFO_BOOTDEV;
+        } else {
+            printf("Could not get DHCP information from PXE\n");
+            return 1;
+        }
+    }
 
     /* Now, do all the loading, and boot it */
     entry = load_kernel(mbi, (char *)(mbi->cmdline + mbi_reloc_offset));
