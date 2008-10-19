@@ -54,7 +54,7 @@
 #define MEM_HOLE_START  0xa0000      /* Memory hole runs from 640k ... */
 #define MEM_HOLE_END    0x100000     /* ... to 1MB */
 #define X86_PAGE_SIZE   0x1000
-#define DHCP_ACK_SIZE   1500         /* Maximum size of the DHCP ACK package.
+#define DHCP_ACK_SIZE   2048         /* Maximum size of the DHCP ACK package.
                                         Probably too large since we're interested
                                         in the first bunch of bytes only. */
 
