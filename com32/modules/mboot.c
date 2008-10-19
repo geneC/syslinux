@@ -930,7 +930,7 @@ int main(int argc, char **argv)
     char *p;
     size_t mbi_run_addr, mbi_size, entry;
     int i;
-    int opt_solaris = 0;
+    bool opt_solaris = false;
     void *dhcpdata;
     size_t dhcplen;
 
@@ -941,14 +941,11 @@ int main(int argc, char **argv)
 
     /* This is way too ugly. */
     if (!strcmp("-solaris", argv[1])) {
-        opt_solaris = 1;
+        opt_solaris = true;
         argv[1] = argv[0];
         argv = &argv[1];
         argc -= 1;
     }
-
-    if (opt_solaris)
-        printf("Solaris DHCP passing enabled\n");
 
     if (argc < 2 || !strcmp(argv[1], module_separator)) {
         printf("Fatal: No kernel filename!\n");
@@ -1051,8 +1048,10 @@ int main(int argc, char **argv)
     p += strlen(version_string) + 1;
 
     if (opt_solaris) {
+        printf("Solaris DHCP passing enabled... ");
         /* Try to get the DHCP ACK packet from PXE */
-        if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK, &dhcpdata, &dhcplen)) {
+        if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK,
+				 &dhcpdata, &dhcplen)) {
             /* Solaris expects the DHCP ACK packet to be passed in the drives_*
                structure. However, the flags field must indicate that the
                drives_structure is not being used.
@@ -1067,9 +1066,9 @@ int main(int argc, char **argv)
 
             mbi->boot_device = 0x20ffffff;
             mbi->flags |= MB_INFO_BOOTDEV;
+	    printf("ok\n");
         } else {
-            printf("Could not get DHCP information from PXE\n");
-            return 1;
+	    printf("not found.\n");
         }
     }
 
