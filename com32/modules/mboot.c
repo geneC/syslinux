@@ -582,71 +582,11 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
 
         /* This kernel will do: figure out where all the pieces will live */
 
-        if (mbh->flags & MULTIBOOT_AOUT_KLUDGE) {
+        /* Look for a bootable ELF32 header */
+        if ((load_size > sizeof(Elf32_Ehdr) &&
+            BOOTABLE_I386_ELF((*((Elf32_Ehdr *) load_addr))))) {
 
-            /* Use the offsets in the multiboot header */
-#ifdef DEBUG
-            printf("Using multiboot header.\n");
-#endif
-
-            /* Where is the code in the loaded file? */
-            seg_addr = ((char *)mbh) - (mbh->header_addr - mbh->load_addr);
-
-            /* How much code is there? */
-            run_addr = mbh->load_addr;
-            if (mbh->load_end_addr != 0)
-                seg_size = mbh->load_end_addr - mbh->load_addr;
-            else
-                seg_size = load_size - (seg_addr - load_addr);
-
-            /* How much memory will it take up? */
-            if (mbh->bss_end_addr != 0)
-                run_size = mbh->bss_end_addr - mbh->load_addr;
-            else
-                run_size = seg_size;
-
-            if (seg_size > run_size) {
-                printf("Fatal: can't put %i bytes of kernel into %i bytes "
-                       "of memory.\n", seg_size, run_size);
-                exit(1);
-            }
-            if (seg_addr + seg_size > load_addr + load_size) {
-                printf("Fatal: multiboot load segment runs off the "
-                       "end of the file.\n");
-                exit(1);
-            }
-
-            /* Does it fit where it wants to be? */
-            place_kernel_section(run_addr, run_size);
-
-            /* Put it on the relocation list */
-            if (seg_size < run_size) {
-                /* Set up the kernel BSS too */
-                if (seg_size > 0)
-                    add_section(run_addr, seg_addr, seg_size);
-                bss_size = run_size - seg_size;
-                add_section(run_addr + seg_size, NULL, bss_size);
-            } else {
-                /* No BSS */
-                add_section(run_addr, seg_addr, run_size);
-            }
-
-            /* Done. */
-            return mbh->entry_addr;
-
-        } else {
-
-            /* Now look for an ELF32 header */
             ehdr = (Elf32_Ehdr *)load_addr;
-            if (*(unsigned long *)ehdr != 0x464c457f
-                || ehdr->e_ident[EI_DATA] != ELFDATA2LSB
-                || ehdr->e_ident[EI_CLASS] != ELFCLASS32
-                || ehdr->e_machine != EM_386)
-            {
-                printf("Fatal: kernel has neither ELF32/x86 nor multiboot load"
-                       " headers.\n");
-                exit(1);
-            }
             if (ehdr->e_phoff + ehdr->e_phnum*sizeof (*phdr) > load_size) {
                 printf("Fatal: malformed ELF header overruns EOF.\n");
                 exit(1);
@@ -760,6 +700,60 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
 
             /* Done! */
             return ehdr->e_entry;
+        } else
+
+        /* Does the MB header specify load addresses? */
+        if (mbh->flags & MULTIBOOT_AOUT_KLUDGE) {
+
+            /* Use the offsets in the multiboot header */
+#ifdef DEBUG
+            printf("Using multiboot header.\n");
+#endif
+
+            /* Where is the code in the loaded file? */
+            seg_addr = ((char *)mbh) - (mbh->header_addr - mbh->load_addr);
+
+            /* How much code is there? */
+            run_addr = mbh->load_addr;
+            if (mbh->load_end_addr != 0)
+                seg_size = mbh->load_end_addr - mbh->load_addr;
+            else
+                seg_size = load_size - (seg_addr - load_addr);
+
+            /* How much memory will it take up? */
+            if (mbh->bss_end_addr != 0)
+                run_size = mbh->bss_end_addr - mbh->load_addr;
+            else
+                run_size = seg_size;
+
+            if (seg_size > run_size) {
+                printf("Fatal: can't put %i bytes of kernel into %i bytes "
+                       "of memory.\n", seg_size, run_size);
+                exit(1);
+            }
+            if (seg_addr + seg_size > load_addr + load_size) {
+                printf("Fatal: multiboot load segment runs off the "
+                       "end of the file.\n");
+                exit(1);
+            }
+
+            /* Does it fit where it wants to be? */
+            place_kernel_section(run_addr, run_size);
+
+            /* Put it on the relocation list */
+            if (seg_size < run_size) {
+                /* Set up the kernel BSS too */
+                if (seg_size > 0)
+                    add_section(run_addr, seg_addr, seg_size);
+                bss_size = run_size - seg_size;
+                add_section(run_addr + seg_size, NULL, bss_size);
+            } else {
+                /* No BSS */
+                add_section(run_addr, seg_addr, run_size);
+            }
+
+            /* Done. */
+            return mbh->entry_addr;
         }
     }
 
