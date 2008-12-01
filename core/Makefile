@@ -119,10 +119,15 @@ clean: tidy
 spotless: clean
 	rm -f $(BTARGET) *_bin.c .depend
 
+# Note: the extra echo '' is to deal with old versions of NASM which
+# did not properly terminate the dependency list.
 .depend:
 	rm -f .depend
 	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -MM $$csrc >> .depend ; done
-	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.o/'` -M $$nsrc >> .depend ; done
+	for nsrc in $(NASMSRC) ; do \
+		( $(NASM) -DDEPEND $(NINCLUDE) -o \
+	          `echo $$nsrc | sed -e 's/\.asm/\.o/'` -M $$nsrc ; \
+	          echo '' ) >> .depend ; done
 
 depend:
 	rm -f .depend
