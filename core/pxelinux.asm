@@ -2477,7 +2477,7 @@ dopt_%2:
 		mov [LastDNSServer],di
 		ret
 
-	dopt 16, local_domain
+	dopt 15, local_domain
 		mov bx,si
 		add bx,ax
 		xor ax,ax
