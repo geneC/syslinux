@@ -16,6 +16,10 @@ Changes in 3.73:
 	* mboot.c32: add "-solaris" option to pass DHCP information to
 	  the Solaris kernel; required for automatic Solaris boot
 	  without using Solaris' pxeboot program.
+	* New UI directive, which allows a more natural way to specify
+	  a menu system (or not.)  With the UI directive specifying
+	  the menu system, the DEFAULT directive can be used to select
+	  the default entry inside the menus.
 
 Changes in 3.72:
 	* Include the pxechain.com module from Jeffery Hutzelman at

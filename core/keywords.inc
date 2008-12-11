@@ -50,7 +50,8 @@ keywd_table:
 		keyword include,	pc_opencmd,	pc_include
 		keyword append,		pc_append
 		keyword initrd,		pc_filename,	InitRD
-		keyword default,	pc_default
+		keyword default,	pc_default,	1
+		keyword ui,		pc_default,	2
 		keyword display,	pc_opencmd,	get_msg_file
 		keyword font,		pc_opencmd,	loadfont
 		keyword implicit,	pc_setint16,	AllowImplicit

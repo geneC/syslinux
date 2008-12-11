@@ -145,6 +145,11 @@ DEFAULT kernel options...
 	true, as it caused problems when using a shell as a substitute
 	for "init."  You may want to include this option manually.
 
+UI module options...
+	Selects a specific user interface module (typically menu.c32
+	or vesamenu.c32).  The command-line interface treats this as a
+	directive that overrides the DEFAULT and PROMPT directives.
+
 APPEND options...
         Add one or more options to the kernel command line.  These are
         added both for automatic and manual boots.  The options are

@@ -18,12 +18,14 @@
 
 		section .text
 ;
-; "default" command
+; "default" or "ui" command, with level (1 = default, 2 = ui)
 ;
-pc_default:	mov di,default_cmd
+pc_default:	cmp ax,[DefaultLevel]
+		jb .skip
+		mov di,default_cmd
 		call getline
 		mov byte [di-1],0		; null-terminate
-		ret
+.skip:		ret
 
 ;
 ; "ontimeout" command
@@ -467,6 +469,7 @@ NoComplete	dw 0			; No label completion on TAB key
 AllowImplicit   dw 1                    ; Allow implicit kernels
 AllowOptions	dw 1			; User-specified options allowed
 IncludeLevel	dw 1			; Nesting level
+DefaultLevel	dw 0			; The current level of default
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 VKernel		db 0			; Have we seen any "label" statements?
 

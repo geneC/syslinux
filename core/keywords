@@ -5,6 +5,7 @@ append
 initrd
 config
 default
+ui
 display
 font
 implicit
