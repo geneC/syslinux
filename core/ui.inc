@@ -108,6 +108,8 @@ enter_char:	test byte [FuncFlag],1
 not_ascii:
 		cmp al,0Dh			; Enter
 		je command_done
+		cmp al,09h			; Tab
+		je display_labels
 		cmp al,'F' & 1Fh		; <Ctrl-F>
 		je set_func_flag
 %if IS_PXELINUX
@@ -141,6 +143,49 @@ force_text_mode:
 set_func_flag:
 		mov byte [FuncFlag],1
 		jmp short get_char_2
+
+display_labels:
+		cmp word [NoComplete],0		; Label completion enabled?
+		jne get_char_2
+		push di				; Save pointer
+		mov cx,di
+		sub cx,command_line
+		call crlf
+		mov esi,[HighMemSize]		; Start from top of memory
+.scan:
+		cmp esi,[VKernelEnd]
+		jbe .not_vk
+
+		push cx				; save command line size
+
+		mov di,VKernelBuf
+		call rllunpack
+		; ESI updated on return
+
+		sub di,cx			; Return to beginning of buf
+		pop cx				; restore command line size
+		push si				; save SI
+		cmp cx,0
+		jz .print
+		push di
+		push cx
+		mov si,command_line
+		es repe cmpsb
+		pop cx
+		pop di
+		jne .next
+.print:
+		mov al,' '
+		call writechr
+
+		mov si,di
+		call writestr
+.next:
+		pop si				; restore SI
+		jmp .scan
+.not_vk:
+		call crlf
+		jmp fk_wrcmd
 
 ctrl_f:
 		xor ah,ah
@@ -308,12 +353,20 @@ vk_check:
 
 		sub di,cx			; Return to beginning of buf
 		push si
-		mov si,KernelName
-		mov cx,FILENAME_MAX
-		es repe cmpsb
+		mov si,command_line
+.loop:
+		lodsb
+		cmp al,' '
+		jbe .done
+		scasb
+		je .loop
+.nomatch:
 		pop si
-		je .found
 		jmp .scan
+.done:
+		cmp byte [di],0			; Must match end of string
+		jne .nomatch
+		pop si
 
 ;
 ; We *are* using a "virtual kernel"

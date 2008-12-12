@@ -1,7 +1,8 @@
-EXTLINUX is a new syslinux derivative, which boots from a Linux
+EXTLINUX is a new Syslinux derivative, which boots from a Linux
 ext2/ext3 filesystem.
 
-It works the same way as SYSLINUX, with a few slight modifications.
+It works the same way as SYSLINUX (see doc/syslinux.txt), with a few
+slight modifications.
 
 1. The installer is run on a *mounted* filesystem.  Run the extlinux
    installer on the directory in which you want extlinux installed:
@@ -53,7 +54,7 @@ It works the same way as SYSLINUX, with a few slight modifications.
 
 	extlinux --once 'command' /boot/extlinux
 
-   where 'command' is any command you could enter at the SYSLINUX
+   where 'command' is any command you could enter at the Syslinux
    command line.  It will be executed on the next boot and then
    erased.
 
@@ -78,7 +79,7 @@ It works the same way as SYSLINUX, with a few slight modifications.
 
 Note that EXTLINUX installs in the filesystem partition like a
 well-behaved bootloader :)  Thus, it needs a master boot record in the
-partition table; the mbr.bin shipped with SYSLINUX should work well.
+partition table; the mbr.bin shipped with Syslinux should work well.
 To install it just do:
 
 	cat mbr.bin > /dev/XXX
@@ -112,11 +113,11 @@ extlinux.  The "sync" command does not flush the log on the ext3
 filesystem.
 
 
-The SYSLINUX series boot loaders support chain loading other operating
-systems via a separate module, chain.c32 (located in
+The Syslinux Project boot loaders support chain loading other
+operating systems via a separate module, chain.c32 (located in
 com32/modules/chain.c32).  To use it, specify a LABEL in the
-configuration file with KERNEL chain.c32 and
-APPEND [hd|fd]<number> [<partition>]
+configuration file with KERNEL chain.c32 and APPEND [hd|fd]<number>
+[<partition>]
 
 For example:
 
@@ -127,4 +128,5 @@ LABEL cement
 	KERNEL chain.c32
 	APPEND hd0 2
 
-See also README.menu.
+See also doc/menu.txt.
+

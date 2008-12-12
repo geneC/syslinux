@@ -347,6 +347,9 @@ __cdecl void pxe_loader_call ( struct i386_all_regs *ix86 ) {
 	/* Copy parameter block from caller */
 	copy_from_user ( &params, uparams, 0, sizeof ( params ) );
 
+	/* Fill in ROM segment address */
+	ppxe.UNDIROMID.segment = ix86->segs.ds;
+
 	/* Set default status in case child routine fails to do so */
 	params.Status = PXENV_STATUS_FAILURE;
 
@@ -437,12 +440,13 @@ int pxe_start_nbp ( void ) {
 	__asm__ __volatile__ ( REAL_CODE ( "pushw %%cx\n\t"
 					   "pushw %%ax\n\t"
 					   "movw %%cx, %%es\n\t"
+					   "sti\n\t"
 					   "lcall $0, $0x7c00\n\t"
 					   "addw $4, %%sp\n\t" )
 			       : "=a" ( rc ), "=b" ( discard_b ),
 			         "=c" ( discard_c )
-			       :  "a" ( & __from_text16 ( ppxe ) ),
-			          "b" ( & __from_text16 ( pxenv ) ),
+			       :  "a" ( __from_text16 ( &ppxe ) ),
+			          "b" ( __from_text16 ( &pxenv ) ),
 			          "c" ( rm_cs )
 			       : "edx", "esi", "edi", "ebp", "memory" );
 

@@ -17,7 +17,7 @@
 
 eval { use bytes; }; eval { binmode STDOUT; };
 
-$DEFAULT_PATH = "/usr/lib/kbd/keytables";
+$DEFAULT_PATH = "/lib/kbd/keymaps";
 $DEFAULT_MAP = "us";
 $DEFAULT_EXT = ".map";
 
@@ -54,8 +54,8 @@ sub load_map
     local ($empty,$current);
 
     $map = $DEFAULT_MAP unless defined $map;
-    $map = $DEFAULT_PATH."/".$map unless $map =~ m|/|;
-    $map .= $DEFAULT_EXT unless $map =~ m|/[^/]+\.[^/]+$|;
+    # $map = $DEFAULT_PATH."/".$map unless $map =~ m|/|;
+    # $map .= $DEFAULT_EXT unless $map =~ m|/[^/]+\.[^/]+$|;
     if (!open(FILE,"loadkeys -m $map |")) {
 	print STDERR "loadkeys -m $map: $!\n";
 	exit 1;

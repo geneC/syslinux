@@ -65,9 +65,8 @@ not be a problem.
 ISOLINUX is by default built in two versions, one version with extra
 debugging messages enabled.  If you are having problems with ISOLINUX,
 I would greatly appreciate if you could try out the debugging version
-(isolinux-debug.bin) and let me know what it reports.
-
-YOU MAY WANT TO CONSIDER USING THE DEBUGGING VERSION BY DEFAULT.
+(isolinux-debug.bin) and let me know what it reports.  The debugging
+version does not include hybrid mode support (see below.)
 
 
       ++++ NOTE ON THE CONFIG FILE DIRECTORY ++++
@@ -76,6 +75,31 @@ ISOLINUX will search for the config file directory in the order
 /boot/isolinux, /isolinux, /.  The first directory that exists is
 used, even if it contains no files.  Therefore, please make sure that
 these directories don't exist if you don't want ISOLINUX to use them.
+
+
+      ++++ HYBRID CD-ROM/HARD DISK MODE ++++
+
+Starting in version 3.72, ISOLINUX supports a "hybrid mode" which can
+be booted from either CD-ROM or from a device which BIOS considers a
+hard disk or ZIP disk, e.g. a USB key or similar.
+
+To enable this mode, the .iso image should be postprocessed with the
+"isohybrid" script from the utils directory:
+
+	isohybrid filename.iso
+
+This script creates the necessary additional information to be able to
+boot in hybrid mode.  It also pads out the image to an even multiple
+of 1 MB.
+
+This image can then be copied using any raw disk writing tool (on Unix
+systems, typically "dd" or "cat") to a USB disk, or written to a
+CD-ROM using standard CD burning tools.
+
+The ISO 9660 filesystem is encapsulated in a partition (which starts
+at offset zero, which may confuse some systems.)  This makes it
+possible for the operating system, once booted, to use the remainder
+of the device for persistent storage by creating a second partition.
 
 
       ++++ BOOTING DOS (OR OTHER SIMILAR OPERATING SYSTEMS) ++++

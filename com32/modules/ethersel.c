@@ -35,23 +35,14 @@
 #include <console.h>
 #include <sys/pci.h>
 #include <com32.h>
+#include <syslinux/boot.h>
+#include <syslinux/config.h>
 
 #ifdef DEBUG
 # define dprintf printf
 #else
 # define dprintf(...) ((void)0)
 #endif
-
-static const char *
-get_config(void)
-{
-  static com32sys_t r;
-
-  r.eax.w[0] = 0x000E;
-  __intcall(0x22, &r, &r);
-
-  return MK_PTR(r.es, r.ebx.w[0]);
-}
 
 static char *
 skipspace(char *p)
@@ -139,7 +130,7 @@ parse_config(const char *filename)
   struct match *m;
 
   if ( !filename )
-    filename = get_config();
+    filename = syslinux_config_file();
 
   f = fopen(filename, "r");
   if ( !f )
@@ -198,34 +189,22 @@ parse_config(const char *filename)
   return list;
 }
 
-static void __attribute__((noreturn))
-execute(const char *cmdline)
-{
-  static com32sys_t ireg;
-
-  strcpy(__com32.cs_bounce, cmdline);
-  ireg.eax.w[0] = 0x0003;       /* Run command */
-  ireg.ebx.w[0] = OFFS(__com32.cs_bounce);
-  ireg.es = SEG(__com32.cs_bounce);
-  __intcall(0x22, &ireg, NULL);
-  exit(255);  /* Shouldn't return */
-}
-
 int main(int argc, char *argv[])
 {
   struct match *list, *match;
-  struct pci_device_list pci_device_list;
-  struct pci_bus_list pci_bus_list;
+  struct pci_domain *pci_domain;
 
   openconsole(&dev_null_r, &dev_stdcon_w);
-  pci_scan(&pci_bus_list,&pci_device_list);
+  pci_domain = pci_scan();
 
-  list = parse_config(argc < 2 ? NULL : argv[1]);
+  if (pci_domain) {
+    list = parse_config(argc < 2 ? NULL : argv[1]);
 
-  match = find_pci_device(&pci_device_list,list);
+    match = find_pci_device(pci_domain, list);
 
-  if ( match )
-    execute(match->filename);
+    if ( match )
+      syslinux_run_command(match->filename);
+  }
 
   /* On error, return to the command line */
   fputs("Error: no recognized network card found!\n", stderr);

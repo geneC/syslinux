@@ -17,7 +17,11 @@
  */
 
 #include <stdint.h>
+#ifdef TEST
+#include <string.h>
+#else
 #include "memdisk.h"		/* For memset() */
+#endif
 #include "e820.h"
 
 #define MAXRANGES	1024
@@ -30,28 +34,31 @@ void e820map_init(void)
 {
   memset(ranges, 0, sizeof(ranges));
   nranges = 1;
-  ranges[1].type = -1;
+  ranges[1].type = -1U;
 }
 
-static void insertrange_at(int where, uint64_t start, uint32_t type)
+static void insertrange_at(int where, uint64_t start,
+			   uint32_t type, uint32_t extattr)
 {
   int i;
 
   for ( i = nranges ; i > where ; i-- )
     ranges[i] = ranges[i-1];
 
-  ranges[where].start = start;
-  ranges[where].type  = type;
+  ranges[where].start   = start;
+  ranges[where].type    = type;
+  ranges[where].extattr = extattr;
 
   nranges++;
-  ranges[nranges].start = 0ULL;
-  ranges[nranges].type  = (uint32_t)-1;
+  ranges[nranges].start   = 0ULL;
+  ranges[nranges].type    = -1U;
+  ranges[nranges].extattr = 0;
 }
 
-void insertrange(uint64_t start, uint64_t len, uint32_t type)
+void insertrange(uint64_t start, uint64_t len, uint32_t type, uint32_t extattr)
 {
   uint64_t last;
-  uint32_t oldtype;
+  uint32_t oldtype, oldattr;
   int i, j;
 
   /* Remove this to make len == 0 mean all of memory */
@@ -61,35 +68,41 @@ void insertrange(uint64_t start, uint64_t len, uint32_t type)
   last = start+len-1;		/* May roll over */
 
   i = 0;
-  oldtype = -2;
-  while ( start > ranges[i].start && ranges[i].type != -1 ) {
+  oldtype = -2U;
+  oldattr = 0;
+  while ( start > ranges[i].start && ranges[i].type != -1U ) {
     oldtype = ranges[i].type;
+    oldattr = ranges[i].extattr;
     i++;
   }
 
   /* Consider the replacement policy.  This current one is "overwrite." */
 
-  if ( start < ranges[i].start || ranges[i].type == -1 )
-    insertrange_at(i++, start, type);
+  if ( start < ranges[i].start || ranges[i].type == -1U )
+    insertrange_at(i++, start, type, extattr);
 
   while ( i == 0 || last > ranges[i].start-1 ) {
     oldtype = ranges[i].type;
-    ranges[i].type = type;
+    oldattr = ranges[i].extattr;
+    ranges[i].type    = type;
+    ranges[i].extattr = extattr;
     i++;
   }
 
   if ( last < ranges[i].start-1 )
-    insertrange_at(i, last+1, oldtype);
+    insertrange_at(i, last+1, oldtype, oldattr);
 
   /* Now the map is correct, but quite possibly not optimal.  Scan the
      map for ranges which are redundant and remove them. */
   i = j = 1;
   oldtype = ranges[0].type;
+  oldattr = ranges[0].extattr;
   while ( i < nranges ) {
-    if ( ranges[i].type == oldtype ) {
+    if ( ranges[i].type == oldtype && ranges[i].extattr == oldattr ) {
       i++;
     } else {
       oldtype = ranges[i].type;
+      oldattr = ranges[i].extattr;
       if ( i != j )
 	ranges[j] = ranges[i];
       i++; j++;

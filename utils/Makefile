@@ -20,7 +20,7 @@ include $(topdir)/MCONFIG
 CFLAGS   = -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 LDFLAGS  = -O2 -s
 
-TARGETS	 = mkdiskimage gethostip
+TARGETS	 = mkdiskimage isohybrid gethostip
 ASIS     = keytab-lilo lss16toppm md5pass ppmtolss16 sha1pass syslinux2ansi
 
 all: $(TARGETS)
@@ -30,6 +30,10 @@ all: $(TARGETS)
 
 mkdiskimage: mkdiskimage.in ../mbr/mbr.bin bin2hex.pl
 	$(PERL) bin2hex.pl < ../mbr/mbr.bin | cat mkdiskimage.in - > $@
+	chmod a+x $@
+
+isohybrid: isohybrid.in ../mbr/isohdpfx.bin bin2hex.pl
+	$(PERL) bin2hex.pl < ../mbr/isohdpfx.bin | cat isohybrid.in - > $@
 	chmod a+x $@
 
 gethostip: gethostip.o

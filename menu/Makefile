@@ -14,29 +14,13 @@
 ## samples for syslinux users
 ##
 
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
+# This must be defined before MCONFIG is included
+LIBS   = libmenu/libmenu.a
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
-	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
+topdir = ..
+include $(topdir)/com32/MCONFIG
 
-M32     := $(call gcc_ok,-m32,) $(call gcc_ok,-fno-stack-protector,)
-
-CC         = gcc
-LD         = ld -m elf_i386
-AR	   = ar
-NASM	   = nasm
-NASMOPT	   = -O9999
-RANLIB	   = ranlib
-COM32DIR   = ../com32
-LUDIR      = $(COM32DIR)/libutil
-LDIR       = $(COM32DIR)/lib
-CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os -fomit-frame-pointer -I$(LUDIR)/include -I$(COM32DIR)/include  -Ilibmenu -D__COM32__
-SFLAGS     = -D__COM32__ -march=i386
-LDFLAGS    = -T $(LDIR)/com32.ld
-OBJCOPY    = objcopy
-LIBGCC    := $(shell $(CC) --print-libgcc)
-
-LIBS	   = libmenu/libmenu.a $(LUDIR)/libutil_com.a $(LDIR)/libcom32.a $(LIBGCC)
+CFLAGS	  += -I./libmenu
 
 LIBMENU = libmenu/syslnx.o libmenu/com32io.o libmenu/tui.o \
 	libmenu/menu.o libmenu/passwords.o libmenu/des.o libmenu/help.o
@@ -61,7 +45,7 @@ MENUS = $(CMENUS) $(IMENUS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.elf
-%.elf: %.o $(LIBS)
+%.elf: %.o libmenu/libmenu.a $(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 %.c32: %.elf

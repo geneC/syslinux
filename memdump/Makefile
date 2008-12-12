@@ -1,21 +1,25 @@
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
+## -----------------------------------------------------------------------
+##
+##   Copyright 2001-2008 H. Peter Anvin - All Rights Reserved
+##
+##   This program is free software; you can redistribute it and/or modify
+##   it under the terms of the GNU General Public License as published by
+##   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
+##   Boston MA 02111-1307, USA; either version 2 of the License, or
+##   (at your option) any later version; incorporated herein by reference.
+##
+## -----------------------------------------------------------------------
 
-CC	= gcc
+##
+## memory dump utility
+##
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
-	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
+topdir = ..
+include $(topdir)/MCONFIG.embedded
 
-M32       := $(call gcc_ok,-m32,) $(call gcc_ok,-ffreestanding,) $(call gcc_ok,-fno-stack-protector,)
-
-LD       = ld -m elf_i386
-OBJCOPY  = objcopy
-OPTFLAGS = -g -Os -march=i386 -falign-functions=0 -falign-jumps=0 -falign-loops=0 -fomit-frame-pointer
+OPTFLAGS = 
 INCLUDES = -include code16.h -I.
-CFLAGS	 = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -msoft-float $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = -T com16.ld
-AR       = ar
-RANLIB   = ranlib
-LIBGCC  := $(shell $(CC) --print-libgcc)
 
 SRCS     = main.c serial.c ymsend.c
 OBJS	 = crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
@@ -24,14 +28,12 @@ LIBOBJS	 = conio.o memcpy.o memset.o skipatou.o strtoul.o \
 
 .SUFFIXES: .c .o .i .s .S .elf .com
 
-VPATH = .:..:../libfat
-
 TARGETS = memdump.com
 
 all: $(TARGETS)
 
 tidy dist:
-	-rm -f *.o *.i *.s *.a .*.d *.elf
+	-rm -f *.o *.i *.s *.a .*.d *.tmp *.elf
 
 clean: tidy
 
@@ -62,4 +64,4 @@ memdump.com: memdump.elf
 %.s: %.S
 	$(CC) $(CFLAGS) -E -o $@ $<
 
--include .*.d
+-include .*.d *.tmp

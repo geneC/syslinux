@@ -216,13 +216,6 @@ new_kernel:
                 mov al,[es:su_loadflags]
 		mov [LoadFlags],al
 
-		; Cap the ramdisk memory range if appropriate
-		mov eax,[RamdiskMax]
-		cmp eax,[MyHighMemSize]
-		ja .ok
-		mov [MyHighMemSize],eax
-.ok:
-
 any_kernel:
 
 ;
@@ -277,6 +270,7 @@ high_load_done:
 ; if they see protected-mode kernel data after the setup sectors, so
 ; clear that memory.
 ;
+		push di
 		mov di,[SetupSecs]
 		shl di,9
 		xor eax,eax
@@ -284,6 +278,7 @@ high_load_done:
 		sub cx,di
 		shr cx,2
 		rep stosd
+		pop di
 
 ;
 ; Now see if we have an initial RAMdisk; if so, do requisite computation
@@ -291,6 +286,12 @@ high_load_done:
 ; if we tried to load initrd using an old kernel
 ;
 load_initrd:
+		; Cap the ramdisk memory range if appropriate
+		mov eax,[RamdiskMax]
+		cmp eax,[MyHighMemSize]
+		ja .ok
+		mov [MyHighMemSize],eax
+.ok:
 		xor eax,eax
                 cmp [InitRDPtr],ax
                 jz .noinitrd
@@ -597,12 +598,6 @@ loadinitrd:
                 call writestr
                 mov si,crlf_msg
                 jmp abort_load
-
-no_high_mem:					; Error routine
-		mov si,err_nohighmem
-                jmp abort_load
-
-                ret
 
 		section .data
 crlfloading_msg	db CR, LF

@@ -41,12 +41,20 @@ struct e820_entry {
 	uint64_t len;
 	/** Type of region */
 	uint32_t type;
+	/** Extended attributes (optional) */
+	uint32_t attrs;
 } __attribute__ (( packed ));
 
 #define E820_TYPE_RAM		1 /**< Normal memory */
 #define E820_TYPE_RESERVED	2 /**< Reserved and unavailable */
 #define E820_TYPE_ACPI		3 /**< ACPI reclaim memory */
 #define E820_TYPE_NVS		4 /**< ACPI NVS memory */
+
+#define E820_ATTR_ENABLED	0x00000001UL
+#define E820_ATTR_NONVOLATILE	0x00000002UL
+#define E820_ATTR_UNKNOWN	0xfffffffcUL
+
+#define E820_MIN_SIZE		20
 
 /** Buffer for INT 15,e820 calls */
 static struct e820_entry __bss16 ( e820buf );
@@ -86,8 +94,20 @@ static unsigned int extmemsize_e801 ( void ) {
 	}
 
 	extmem = ( extmem_1m_to_16m_k + ( extmem_16m_plus_64k * 64 ) );
-	DBG ( "INT 15,e801 extended memory size %d+64*%d=%d kB\n",
-	      extmem_1m_to_16m_k, extmem_16m_plus_64k, extmem );
+	DBG ( "INT 15,e801 extended memory size %d+64*%d=%d kB "
+	      "[100000,%llx)\n", extmem_1m_to_16m_k, extmem_16m_plus_64k,
+	      extmem, ( 0x100000 + ( ( ( uint64_t ) extmem ) * 1024 ) ) );
+
+	/* Sanity check.  Some BIOSes report the entire 4GB address
+	 * space as available, which cannot be correct (since that
+	 * would leave no address space available for 32-bit PCI
+	 * BARs).
+	 */
+	if ( extmem == ( 0x400000 - 0x400 ) ) {
+		DBG ( "INT 15,e801 reported whole 4GB; assuming insane\n" );
+		return 0;
+	}
+
 	return extmem;
 }
 
@@ -103,7 +123,8 @@ static unsigned int extmemsize_88 ( void ) {
 	__asm__ __volatile__ ( REAL_CODE ( "int $0x15" )
 			       : "=a" ( extmem ) : "a" ( 0x8800 ) );
 
-	DBG ( "INT 15,88 extended memory size %d kB\n", extmem );
+	DBG ( "INT 15,88 extended memory size %d kB [100000, %x)\n",
+	      extmem, ( 0x100000 + ( extmem * 1024 ) ) );
 	return extmem;
 }
 
@@ -135,8 +156,15 @@ static int meme820 ( struct memory_map *memmap ) {
 	struct memory_region *region = memmap->regions;
 	uint32_t next = 0;
 	uint32_t smap;
+	size_t size;
 	unsigned int flags;
-	unsigned int discard_c, discard_d, discard_D;
+	unsigned int discard_d, discard_D;
+
+	/* Clear the E820 buffer.  Do this once before starting,
+	 * rather than on each call; some BIOSes rely on the contents
+	 * being preserved between calls.
+	 */
+	memset ( &e820buf, 0, sizeof ( e820buf ) );
 
 	do {
 		__asm__ __volatile__ ( REAL_CODE ( "stc\n\t"
@@ -145,9 +173,9 @@ static int meme820 ( struct memory_map *memmap ) {
 						   "popw %w0\n\t" )
 				       : "=r" ( flags ), "=a" ( smap ),
 					 "=b" ( next ), "=D" ( discard_D ),
-					 "=c" ( discard_c ), "=d" ( discard_d )
+					 "=c" ( size ), "=d" ( discard_d )
 				       : "a" ( 0xe820 ), "b" ( next ),
-					 "D" ( &__from_data16 ( e820buf ) ),
+					 "D" ( __from_data16 ( &e820buf ) ),
 					 "c" ( sizeof ( e820buf ) ),
 					 "d" ( SMAP )
 				       : "memory" );
@@ -157,16 +185,41 @@ static int meme820 ( struct memory_map *memmap ) {
 			return -ENOTSUP;
 		}
 
+		if ( size < E820_MIN_SIZE ) {
+			DBG ( "INT 15,e820 returned only %zd bytes\n", size );
+			return -EINVAL;
+		}
+
 		if ( flags & CF ) {
 			DBG ( "INT 15,e820 terminated on CF set\n" );
 			break;
 		}
 
-		DBG ( "INT 15,e820 region [%llx,%llx) type %d\n",
+		DBG ( "INT 15,e820 region [%llx,%llx) type %d",
 		      e820buf.start, ( e820buf.start + e820buf.len ),
 		      ( int ) e820buf.type );
+		if ( size > offsetof ( typeof ( e820buf ), attrs ) ) {
+			DBG ( " (%s", ( ( e820buf.attrs & E820_ATTR_ENABLED )
+					? "enabled" : "disabled" ) );
+			if ( e820buf.attrs & E820_ATTR_NONVOLATILE )
+				DBG ( ", non-volatile" );
+			if ( e820buf.attrs & E820_ATTR_UNKNOWN )
+				DBG ( ", other [%08lx]", e820buf.attrs );
+			DBG ( ")" );
+		}
+		DBG ( "\n" );
+
+		/* Discard non-RAM regions */
 		if ( e820buf.type != E820_TYPE_RAM )
 			continue;
+
+		/* Check extended attributes, if present */
+		if ( size > offsetof ( typeof ( e820buf ), attrs ) ) {
+			if ( ! ( e820buf.attrs & E820_ATTR_ENABLED ) )
+				continue;
+			if ( e820buf.attrs & E820_ATTR_NONVOLATILE )
+				continue;
+		}
 
 		region->start = e820buf.start;
 		region->end = e820buf.start + e820buf.len;
@@ -183,6 +236,28 @@ static int meme820 ( struct memory_map *memmap ) {
 			break;
 		}
 	} while ( next != 0 );
+
+	/* Sanity checks.  Some BIOSes report complete garbage via INT
+	 * 15,e820 (especially at POST time), despite passing the
+	 * signature checks.  We currently check for a base memory
+	 * region (starting at 0) and at least one high memory region
+	 * (starting at 0x100000).
+	 */
+	if ( memmap->count < 2 ) {
+		DBG ( "INT 15,e820 returned only %d regions; assuming "
+		      "insane\n", memmap->count );
+		return -EINVAL;
+	}
+	if ( memmap->regions[0].start != 0 ) {
+		DBG ( "INT 15,e820 region 0 starts at %llx (expected 0); "
+		      "assuming insane\n", memmap->regions[0].start );
+		return -EINVAL;
+	}
+	if ( memmap->regions[1].start != 0x100000 ) {
+		DBG ( "INT 15,e820 region 1 starts at %llx (expected 100000); "
+		      "assuming insane\n", memmap->regions[0].start );
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -203,7 +278,8 @@ void get_memmap ( struct memory_map *memmap ) {
 
 	/* Get base and extended memory sizes */
 	basemem = basememsize();
-	DBG ( "FBMS base memory size %d kB\n", basemem );
+	DBG ( "FBMS base memory size %d kB [0,%x)\n",
+	      basemem, ( basemem * 1024 ) );
 	extmem = extmemsize();
 	
 	/* Try INT 15,e820 first */

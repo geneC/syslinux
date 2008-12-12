@@ -31,22 +31,20 @@
  */
 PXENV_EXIT_t undi_loader ( struct s_UNDI_LOADER *undi_loader ) {
 
-	DBG ( "[PXENV_UNDI_LOADER to CS %04x DS %04x]",
-	      undi_loader->UNDI_CS, undi_loader->UNDI_DS );
-
 	/* Perform one-time initialisation (e.g. heap) */
 	initialise();
+
+	DBG ( "[PXENV_UNDI_LOADER to CS %04x DS %04x]",
+	      undi_loader->UNDI_CS, undi_loader->UNDI_DS );
 
 	/* Set up PXE data structures */
 	pxe_init_structures();
 
 	/* Fill in UNDI loader structure */
 	undi_loader->PXEptr.segment = rm_cs;
-	undi_loader->PXEptr.offset =
-		( ( unsigned ) & __from_text16 ( ppxe ) );
+	undi_loader->PXEptr.offset = __from_text16 ( &ppxe );
 	undi_loader->PXENVptr.segment = rm_cs;
-	undi_loader->PXENVptr.offset =
-		( ( unsigned ) & __from_text16 ( pxenv ) );
+	undi_loader->PXENVptr.offset = __from_text16 ( &pxenv );
 
 	undi_loader->Status = PXENV_STATUS_SUCCESS;
 	return PXENV_EXIT_SUCCESS;

@@ -34,5 +34,7 @@
 /linux/syslinux
 /linux/syslinux-nomtools
 /utils/gethostip
+/utils/isohybrid
 /utils/mkdiskimage
 /version.h
+/version.mk

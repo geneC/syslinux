@@ -604,6 +604,10 @@ comapi_derinfo:
 %elif IS_ISOLINUX
 		mov P_ES,cs
 		mov P_BX,spec_packet
+		mov ax,[BIOSType]
+		sub ax,bios_cdrom
+		shr ax,2
+		mov P_CH,al		; Mode (el torito/cbios/ebios)
 %endif
 %endif
 		clc

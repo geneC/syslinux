@@ -13,7 +13,8 @@
 /*
  * sdi.c
  *
- * Loader for the Microsoft System Deployment Image (SDI) format
+ * Loader for the Microsoft System Deployment Image (SDI) format.
+ * Based on a historical patch by Remi Lefevre.
  */
 
 #include <stdio.h>
@@ -38,12 +39,25 @@
 # define dprintf(f, ...) ((void)0)
 #endif
 
+typedef uint8_t guid_t[16];
+
 struct SDIHeader {
   uint32_t Signature;
   char     Version[4];
-  uint64_t SDIReserved;
+  uint64_t MDBtype;
   uint64_t BootCodeOffset;
   uint64_t BootCodeSize;
+  uint64_t VendorID;
+  uint64_t DeviceID;
+  guid_t   DeviceModel;
+  uint64_t DeviceRole;
+  uint64_t Reserved1;
+  guid_t   RuntimeGUID;
+  uint64_t RuntimeOEMrev;
+  uint64_t Reserved2;
+  uint64_t PageAlignment;   /* BLOB alignment value in pages */
+  uint64_t Reserved3[48];
+  uint64_t Checksum;
 };
 
 #define SDI_LOAD_ADDR	(16 << 20) /* 16 MB */
@@ -138,6 +152,21 @@ static int boot_sdi(void *ptr, size_t len)
   return -1;
 }
 
+/*
+ * Check that the sum of all bytes from first 512 bytes (SDI header)
+ * is 0 modulo 256.
+ */
+int has_valid_header(unsigned char *header)
+{
+  unsigned char checksum;
+  unsigned int i;
+
+  checksum = 0;
+  for (i = 0; i < sizeof(struct SDIHeader); i++)
+    checksum += header[i];
+  return (!checksum);
+}
+
 int main(int argc, char *argv[])
 {
   void *data;
@@ -153,11 +182,16 @@ int main(int argc, char *argv[])
   fputs("Loading ", stdout);
   fputs(argv[1], stdout);
   fputs("... ", stdout);
-  if (loadfile(argv[1], &data, &data_len)) {
+  if (zloadfile(argv[1], &data, &data_len)) {
     error("failed!\n");
     return 1;
   }
   fputs("ok\n", stdout);
+
+  if (!has_valid_header(data)) {
+    error("SDI header is corrupted\n");
+    return 1;
+  }
 
   boot_sdi(data, data_len);
   error("Invalid SDI file or insufficient memory\n");

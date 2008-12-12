@@ -68,18 +68,19 @@ __extern char * fgets(char *, int, FILE *);
 __extern size_t _fread(void *, size_t, FILE *);
 __extern size_t _fwrite(const void *, size_t, FILE *);
 
-#ifndef __NO_FREAD_FWRITE_INLINES
-extern __inline__ size_t
-fread(void *__p, size_t __s, size_t __n, FILE *__f)
-{
-  return _fread(__p, __s*__n, __f)/__s;
-}
+__extern size_t fread(void *, size_t, size_t, FILE *);
+__extern size_t fwrite(const void *, size_t, size_t, FILE *);
 
-extern __inline__ size_t
-fwrite(void *__p, size_t __s, size_t __n, FILE *__f)
-{
-  return _fwrite(__p, __s*__n, __f)/__s;
-}
+#ifndef __NO_FREAD_FWRITE_INLINES
+#define fread(__p, __s, __n, __f)					\
+  ( (__builtin_constant_p(__s) && __s == 1)				\
+    ? _fread(__p, __n, __f)						\
+    : fread(__p,__s,__n,__f) )
+
+#define fwrite(__p, __s, __n, __f)					\
+  ( (__builtin_constant_p(__s) && __s == 1)				\
+    ? _fwrite(__p, __n, __f)						\
+    : fwrite(__p,__s,__n,__f) )
 #endif
 
 /* No seek, but we can tell */
@@ -98,7 +99,7 @@ __extern int asprintf(char **, const char *, ...);
 __extern int vasprintf(char **, const char *, va_list);
 
 /* No buffering, so no flushing needed */
-extern __inline__ int
+static __inline__ int
 fflush(FILE *__f)
 {
   (void)__f;

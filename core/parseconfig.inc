@@ -183,14 +183,13 @@ pc_include:	inc word [IncludeLevel]
 pc_serial:	call getint
 		jc .err
 		push bx				; Serial port #
+		xor ax,ax
+		mov [FlowControl],ax		; Default to no flow control
+		mov [FlowIgnore],al
 		call skipspace
-		jnc .ok
-		pop bx
-.err:		ret
-.ok:
+		jc .nobaud
 		call ungetc
 		call getint
-		mov [FlowControl], word 0	; Default to no flow control
 		jc .nobaud
 .valid_baud:
 		push ebx
@@ -250,7 +249,7 @@ pc_serial:	call getint
 
 		in al,dx			; Read back LCR (detect missing hw)
 		cmp al,03h			; If nothing here we'll read 00 or FF
-		jne .serial_port_bad		; Assume serial port busted
+		jne .err			; Assume serial port busted
 		dec dx
 		dec dx				; DX -> IER
 		xor al,al			; IRQ disable
@@ -284,7 +283,7 @@ pc_serial:	call getint
 .notfirst:
 		ret
 
-.serial_port_bad:
+.err:
 		mov [SerialPort], word 0
 		ret
 
@@ -308,7 +307,14 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		rep stosw
 		call pc_getline
 		mov di,VKernelBuf+vk_vname
-		call mangle_name		; Mangle virtual name
+		mov cx,FILENAME_MAX-1
+.loop:
+		lodsb
+		cmp al,' '
+		jna .done
+		stosb
+		loop .loop
+.done:
 		mov byte [VKernel],1		; We've seen a "label" statement
 		mov si,VKernelBuf+vk_vname	; By default, rname == vname
 		mov di,VKernelBuf+vk_rname
@@ -457,6 +463,7 @@ OnerrorLen	dw 0			; Bytes in onerror command
 CmdLinePtr	dw cmd_line_here	; Command line advancing pointer
 ForcePrompt	dw 0			; Force prompt
 NoEscape	dw 0			; No escape
+NoComplete	dw 0			; No label completion on TAB key
 AllowImplicit   dw 1                    ; Allow implicit kernels
 AllowOptions	dw 1			; User-specified options allowed
 IncludeLevel	dw 1			; Nesting level

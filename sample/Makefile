@@ -14,32 +14,15 @@
 ## samples for syslinux users
 ##
 
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
+topdir = ..
+include $(topdir)/MCONFIG.embedded
 
-CC 	= gcc
+INCLUDES   = -I$(com32)/include
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
-	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
-
-M32       := $(call gcc_ok,-m32,) $(call gcc_ok,-ffreestanding,) $(call gcc_ok,-fno-stack-protector,)
-
-LD         = ld -m elf_i386
-AR	   = ar
-NASM	   = nasm
-NASMOPT	   = -O9999
-RANLIB	   = ranlib
-CFLAGS     = $(M32) -W -Wall -march=i386 -Os -fomit-frame-pointer -I../com32/include
-SFLAGS     = $(M32) -march=i386
-LDFLAGS    = -s
-OBJCOPY    = objcopy
-PPMTOLSS16 = ../utils/ppmtolss16
+PPMTOLSS16 = $(topdir)/utils/ppmtolss16
 LIB	   = liboldcom32.a
-GZIPPROG   = gzip
-PNGTOPNM   = pngtopnm
 
 LIBOBJS	   = conio.o atou.o skipatou.o printf.o c32exit.o
-
-.SUFFIXES: .lss .c .o .elf .c32
 
 all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 \
      fd.c32 $(LIB)

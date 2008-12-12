@@ -14,43 +14,32 @@
 # Makefile for MBR
 #
 
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
+topdir = ..
+include $(topdir)/MCONFIG.embedded
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
-	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
-
-M32       := $(call gcc_ok,-m32,) $(call gcc_ok,-ffreestanding,) $(call gcc_ok,-fno-stack-protector)
-
-CC         = gcc
-LD         = ld 
-LDFLAGS	   = -m elf_i386
-SFLAGS	   = $(M32) -march=i386
-OBJCOPY	   = objcopy
-PERL	   = perl
-
-.SUFFIXES: .S .s .o .elf
-
-all:	mbr.bin gptmbr.bin
+all:	mbr.bin gptmbr.bin isohdpfx.bin
 
 .PRECIOUS: %.o
 %.o: %.S
 	$(CC) $(SFLAGS) -Wa,-a=$*.lst -c -o $@ $<
 
-mbr.elf: mbr.o mbr.ld
+.PRECIOUS: %.elf
+%.elf: %.o mbr.ld
 	$(LD) $(LDFLAGS) -T mbr.ld -e _start -o $@ $<
 
 mbr.bin: mbr.elf checksize.pl
 	$(OBJCOPY) -O binary $< $@
-	$(PERL) checksize.pl mbr.bin 440
+	$(PERL) checksize.pl $@ 440
+
+isohdpfx.bin: isohdpfx.elf checksize.pl
+	$(OBJCOPY) -O binary $< $@
+	$(PERL) checksize.pl $@ 432
 
 mbr_bin.c: mbr.bin
 
-gptmbr.elf: gptmbr.o mbr.ld
-	$(LD) $(LDFLAGS) -T mbr.ld -e _start -o $@ $<
-
 gptmbr.bin: gptmbr.elf checksize.pl
 	$(OBJCOPY) -O binary $< $@
-	$(PERL) checksize.pl gptmbr.bin 424
+	$(PERL) checksize.pl $@ 424
 
 tidy dist:
 	rm -f *.o *.elf *.lst

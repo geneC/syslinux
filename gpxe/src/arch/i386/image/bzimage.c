@@ -34,7 +34,6 @@
 #include <gpxe/image.h>
 #include <gpxe/segment.h>
 #include <gpxe/init.h>
-#include <gpxe/initrd.h>
 #include <gpxe/cpio.h>
 #include <gpxe/features.h>
 
@@ -188,8 +187,8 @@ static size_t bzimage_load_initrd ( struct image *image,
 	struct cpio_header cpio;
         size_t offset = 0;
 
-	/* Ignore images which aren't initrds */
-	if ( initrd->type != &initrd_image_type )
+	/* Do not include kernel image itself as an initrd */
+	if ( initrd == image )
 		return 0;
 
 	/* Create cpio header before non-prebuilt images */
@@ -349,7 +348,7 @@ static int bzimage_exec ( struct image *image ) {
 		       sizeof ( bzhdr ) );
 
 	/* Prepare for exiting */
-	shutdown();
+	shutdown ( SHUTDOWN_BOOT );
 
 	DBGC ( image, "bzImage %p jumping to RM kernel at %04x:0000 "
 	       "(stack %04x:%04zx)\n", image,

@@ -624,7 +624,11 @@ static void parse_config_file(FILE *f)
 	  }
 	}
       } else if ( looking_at(p, "default") ) {
-	ld.menudefault = 1;
+	if (ld.label) {
+	  ld.menudefault = 1;
+	} else if (m->parent_entry) {
+	  m->parent->defentry = m->parent_entry->entry;
+	}
       } else if ( looking_at(p, "hide") ) {
 	ld.menuhide = 1;
       } else if ( looking_at(p, "passwd") ) {

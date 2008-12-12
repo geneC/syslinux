@@ -40,6 +40,11 @@ get_e820:
 		mov dword [E820Max],-(1 << 20)	; Max amount of high memory
 		mov dword [E820Mem],(1 << 20)	; End of detected high memory
 .start_over:
+		mov di,E820Buf
+		xor ax,ax
+		mov cx,12
+		rep stosw			; Clear buffer
+		mov byte [di-4],01h		; Initial extattr value
 		xor ebx,ebx			; Start with first record
 		jmp short .do_e820		; Skip "at end" check first time!
 .int_loop:	and ebx,ebx			; If we're back at beginning...
@@ -47,7 +52,7 @@ get_e820:
 .do_e820:	mov eax,0000E820h
 		mov edx,534D4150h		; "SMAP" backwards
 		xor ecx,ecx
-		mov cl,20			; ECX <- 20
+		mov cl,24			; ECX <- 24 (size of buffer)
 		mov di,E820Buf
 		int 15h
 		jnc .no_carry
@@ -58,6 +63,15 @@ get_e820:
 .no_carry:
 		cmp eax,534D4150h
 		jne no_e820
+		cmp cl,24
+		jb .no_ext_attr
+		;
+		; Some blithering idiot added a whole new field to E820,
+		; completely without regard for its implications...
+		;
+		test byte [E820Buf+20],1	; AddressRangeEnabled
+		jz .not_ram
+.no_ext_attr:		
 ;
 ; Look for a memory block starting at <= 1 MB and continuing upward
 ;
@@ -70,6 +84,7 @@ get_e820:
 		; Non-memory range.  Remember this as a limit; some BIOSes get the length
 		; of primary RAM incorrect!
 		;
+.not_ram:
 		cmp eax, (1 << 20)
 		jb .int_loop			; Starts in lowmem region
 		cmp eax,[E820Max]
@@ -142,7 +157,7 @@ got_highmem:
 
 		section .bss
 		alignb 4
-E820Buf		resd 5			; INT 15:E820 data buffer
+E820Buf		resd 6			; INT 15:E820 data buffer
 E820Mem		resd 1			; Memory detected by E820
 E820Max		resd 1			; Is E820 memory capped?
 HighMemSize	resd 1			; End of memory pointer (bytes)

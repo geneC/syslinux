@@ -19,7 +19,7 @@ LIBOBJS = \
 	strtoimax.o strtok.o strtol.o strtoll.o strtoul.o strtoull.o	\
 	strtoumax.o vfprintf.o vprintf.o vsnprintf.o vsprintf.o		\
 	asprintf.o vasprintf.o strlcpy.o strlcat.o			\
-	vsscanf.o							\
+	vsscanf.o zalloc.o						\
 	\
 	libgcc/__ashldi3.o libgcc/__udivdi3.o			\
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
@@ -108,15 +108,13 @@ libcom32.a : $(LIBOBJS)
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
-tidy dist:
+tidy dist clean:
 	rm -f sys/vesa/alphatbl.c
-	find . -name \*.o -print | xargs -r rm -f
-	find . -name .\*.d -print | xargs -r rm -f
-
-clean: tidy
-	rm -f *.a
+	find . \( -name \*.o -o -name .\*.d -o -name \*.tmp \) -print0 | \
+		xargs -0r rm -f
 
 spotless: clean
+	rm -f *.a
 	rm -f *~ \#* */*~ */\#*
 
 install: all

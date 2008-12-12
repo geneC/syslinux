@@ -1,27 +1,26 @@
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
+## -----------------------------------------------------------------------
+##
+##   Copyright 2001-2008 H. Peter Anvin - All Rights Reserved
+##
+##   This program is free software; you can redistribute it and/or modify
+##   it under the terms of the GNU General Public License as published by
+##   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
+##   Boston MA 02111-1307, USA; either version 2 of the License, or
+##   (at your option) any later version; incorporated herein by reference.
+##
+## -----------------------------------------------------------------------
 
-CC	= gcc
+##
+## MS-DOS FAT installer
+##
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) -c -x c /dev/null -o $$tmpf 2>/dev/null; \
-	           then echo $(1); else echo $(2); fi; rm -f $$tmpf)
+topdir = ..
+include $(topdir)/MCONFIG.embedded
 
-M32       := $(call gcc_ok,-m32,) $(call gcc_ok,-ffreestanding,) \
-	$(call gcc_ok,-fno-stack-protector,) \
-	$(call gcc_ok,-fno-top-level-reorder,$(call gcc_ok,-fno-unit-at-a-time))
-
-NASM	 = nasm
-NASMOPT  = -O9999
-
-LD       = ld
-LDFLAGS	 = -m elf_i386 -T com16.ld
-OBJCOPY  = objcopy
-OPTFLAGS = -g -Os -march=i386 -falign-functions=0 -falign-jumps=0 -falign-loops=0 -fomit-frame-pointer
+LDFLAGS	 = -T com16.ld
+OPTFLAGS = -g
 INCLUDES = -include code16.h -nostdinc -iwithprefix include \
 	   -I. -I.. -I../libfat -I ../libinstaller
-CFLAGS	 = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -msoft-float $(OPTFLAGS) $(INCLUDES)
-AR       = ar
-RANLIB   = ranlib
-LIBGCC  := $(shell $(CC) --print-libgcc)
 
 SRCS     = syslinux.c \
 	   ../libinstaller/syslxmod.c \
@@ -33,8 +32,6 @@ OBJS	 = crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
 LIBOBJS	 = conio.o memcpy.o memset.o  skipatou.o atou.o malloc.o free.o \
 	   argv.o printf.o __divdi3.o __udivmoddi4.o
 
-.SUFFIXES: .c .o .i .s .S .elf .com .asm .lst
-
 VPATH = .:../libfat:../libinstaller
 
 TARGETS = syslinux.com copybs.com
@@ -42,7 +39,7 @@ TARGETS = syslinux.com copybs.com
 all: $(TARGETS)
 
 tidy dist:
-	-rm -f *.o *.i *.s *.a .*.d *.elf *.lst
+	-rm -f *.o *.i *.s *.a .*.d *.tmp *.elf *.lst
 
 clean: tidy
 
@@ -75,4 +72,4 @@ syslinux.com: syslinux.elf
 %.com: %.asm
 	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 
--include .*.d
+-include .*.d *.tmp

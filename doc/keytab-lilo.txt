@@ -13,7 +13,7 @@ author may not be used to endorse or promote products derived from
 this software without specific prior written permission. This work
 is provided "as is" and without any express or implied warranties.
 
-To use a LILO keyboard table with SYSLINUX, specify the KBDMAP command
+To use a LILO keyboard table with Syslinux, specify the KBDMAP command
 in syslinux.cfg, for example:
 
 	kbdmap de.ktl

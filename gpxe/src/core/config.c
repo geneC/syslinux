@@ -158,6 +158,14 @@ REQUIRE_OBJECT ( bzimage );
 #ifdef IMAGE_ELTORITO
 REQUIRE_OBJECT ( eltorito );
 #endif
+#ifdef IMAGE_COMBOOT
+REQUIRE_OBJECT ( comboot );
+REQUIRE_OBJECT ( com32 );
+REQUIRE_OBJECT ( comboot_call );
+REQUIRE_OBJECT ( com32_call );
+REQUIRE_OBJECT ( com32_wrapper );
+REQUIRE_OBJECT ( comboot_resolv );
+#endif
 
 /*
  * Drag in all requested commands
@@ -205,3 +213,10 @@ REQUIRE_OBJECT ( gdbidt );
 REQUIRE_OBJECT ( gdbudp );
 REQUIRE_OBJECT ( gdbstub_cmd );
 #endif
+
+/*
+ * Drag in objects that are always required, but not dragged in via
+ * symbol dependencies.
+ *
+ */
+REQUIRE_OBJECT ( device );

@@ -33,7 +33,7 @@ spotless: clean dist
 installer:
 
 src/bin/undionly.kpxe: ../core/pxelinux.0
-	$(MAKE) -C src EMBEDDED_IMAGE=../$< bin/undionly.kpxe
+	$(MAKE) -C src EMBEDDED_IMAGE=../$< NO_WERROR=1 bin/undionly.kpxe
 
 gpxelinux.0: src/bin/undionly.kpxe
 	cp -f $< $@

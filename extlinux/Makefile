@@ -1,16 +1,27 @@
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
-CC	= gcc
+## -----------------------------------------------------------------------
+##
+##   Copyright 2001-2008 H. Peter Anvin - All Rights Reserved
+##
+##   This program is free software; you can redistribute it and/or modify
+##   it under the terms of the GNU General Public License as published by
+##   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
+##   Boston MA 02111-1307, USA; either version 2 of the License, or
+##   (at your option) any later version; incorporated herein by reference.
+##
+## -----------------------------------------------------------------------
 
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) ../dummy.c -o $$tmpf 2>/dev/null; \
-	           then echo '$(1)'; else echo '$(2)'; fi; rm -f $$tmpf)
+##
+## Linux ext2/ext3 installer
+##
 
-comma   := ,
-LDHASH  := $(call gcc_ok,-Wl$(comma)--hash-style=both,)
+topdir = ..
+include $(topdir)/MCONFIG
 
 OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libinstaller
-CFLAGS	 = -W -Wall -Wno-sign-compare -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
-LDFLAGS	 = $(LDHASH) # -s
+CFLAGS	 = -W -Wall -Wno-sign-compare -D_FILE_OFFSET_BITS=64 \
+	   $(OPTFLAGS) $(INCLUDES)
+LDFLAGS	 = # -s
 
 SRCS     = main.c \
 	   ../libinstaller/setadv.c \
@@ -25,7 +36,7 @@ VPATH = .:../libinstaller
 all: installer
 
 tidy dist:
-	-rm -f *.o *.i *.s *.a .*.d
+	-rm -f *.o *.i *.s *.a .*.d *.tmp
 
 clean: tidy
 	-rm -f extlinux
@@ -45,4 +56,4 @@ extlinux: $(OBJS)
 %.s: %.c
 	$(CC) $(CFLAGS) -S -o $@ $<
 
--include .*.d
+-include .*.d *.tmp

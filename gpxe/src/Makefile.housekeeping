@@ -11,8 +11,8 @@ CLEANUP	:= $(BIN)/*.* # *.* to avoid catching the "CVS" directory
 #
 VERSION_MAJOR	= 0
 VERSION_MINOR	= 9
-VERSION_PATCH	= 3
-EXTRAVERSION	= +
+VERSION_PATCH	= 5
+EXTRAVERSION	= 
 MM_VERSION	= $(VERSION_MAJOR).$(VERSION_MINOR)
 VERSION		= $(MM_VERSION).$(VERSION_PATCH)$(EXTRAVERSION)
 CFLAGS		+= -DVERSION_MAJOR=$(VERSION_MAJOR) \
@@ -58,16 +58,16 @@ ECHO_E_BIN_ECHO_TAB 	:= $(shell $(ECHO_E_BIN_ECHO) '\t')
 ECHO_E_BIN_ECHO_E_TAB 	:= $(shell $(ECHO_E_BIN_ECHO_E) '\t')
 
 ifeq ($(ECHO_E_ECHO_TAB),$(TAB))
-ECHO_E		?= $(ECHO_E_ECHO)
+ECHO_E		:= $(ECHO_E_ECHO)
 endif
 ifeq ($(ECHO_E_ECHO_E_TAB),$(TAB))
-ECHO_E		?= $(ECHO_E_ECHO_E)
+ECHO_E		:= $(ECHO_E_ECHO_E)
 endif
 ifeq ($(ECHO_E_BIN_ECHO_TAB),$(TAB))
-ECHO_E		?= $(ECHO_E_BIN_ECHO)
+ECHO_E		:= $(ECHO_E_BIN_ECHO)
 endif
 ifeq ($(ECHO_E_BIN_ECHO_E_TAB),$(TAB))
-ECHO_E		?= $(ECHO_E_BIN_ECHO_E)
+ECHO_E		:= $(ECHO_E_BIN_ECHO_E)
 endif
 
 .echocheck :
@@ -205,7 +205,7 @@ $(BIN)/deps/%.d : % $(MAKEDEPS) $(PARSEROM)
 # Calculate and include the list of Makefile rules files
 #
 AUTO_DEPS	= $(patsubst %,$(BIN)/deps/%.d,$(AUTO_SRCS))
-include $(AUTO_DEPS)
+-include $(AUTO_DEPS)
 autodeps :
 	@$(ECHO) $(AUTO_DEPS)
 VERYCLEANUP	+= $(BIN)/deps
@@ -459,7 +459,7 @@ $(BIN)/deps/%.media.d : $(MAKEDEPS)
 MEDIA_DEPS		= $(patsubst %,$(BIN)/deps/%.media.d,$(AUTO_MEDIA))
 mediadeps :
 	@$(ECHO) $(MEDIA_DEPS)
-include $(MEDIA_DEPS)
+-include $(MEDIA_DEPS)
 
 # The "allXXXs" targets for each suffix
 #

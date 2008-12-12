@@ -9,7 +9,7 @@ disk and a (very small - 2K typical) chunk of low (DOS) memory for the
 driver itself, then hooking the INT 13h (disk driver) and INT 15h
 (memory query) BIOS interrupts.
 
-To use it, type on the SYSLINUX command line:
+To use it, type on the Syslinux command line:
 
 memdisk initrd=diskimg.img
 
@@ -105,14 +105,22 @@ d) MEMDISK normally uses the BIOS "INT 15h mover" API to access high
    bigraw	Use raw access to protected mode memory, and leave the
 		CPU in "big real" mode afterwards.
 
+   int		Use plain INT 15h access to protected memory.  This assumes
+   		that anything which hooks INT 15h knows what it is doing.
+
    safeint	Use INT 15h access to protected memory, but invoke
 		INT 15h the way it was *before* MEMDISK was loaded.
+		This is the default since version 3.73.
 
 e) MEMDISK by default supports EDD/EBIOS on hard disks, but not on
    floppy disks.  This can be controlled with the options:
 
    edd		Enable EDD/EBIOS
    noedd	Disable EDD/EBIOS
+
+f) The following option can be used to pause to view the messages:
+
+   pause	Wait for a keypress right before booting
 
 
 Some interesting things to note:

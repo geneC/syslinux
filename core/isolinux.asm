@@ -118,10 +118,17 @@ ImageDwords	resd 1			; isolinux.bin size, dwords
 InitStack	resd 1			; Initial stack pointer (SS:SP)
 DiskSys		resw 1			; Last INT 13h call
 ImageSectors	resw 1			; isolinux.bin size, sectors
+; These following two are accessed as a single dword...
+GetlinsecPtr	resw 1			; The sector-read pointer
+BIOSName	resw 1			; Display string for BIOS type
+%define HAVE_BIOSNAME 1
+BIOSType	resw 1
 DiskError	resb 1			; Error code for disk I/O
-DriveNumber		resb 1			; CD-ROM BIOS drive number
+DriveNumber	resb 1			; CD-ROM BIOS drive number
 ISOFlags	resb 1			; Flags for ISO directory search
 RetryCount      resb 1			; Used for disk access retries
+bsSecPerTrack	resw 1			; Used in hybrid mode
+bsHeads		resw 1			; Used in hybrid mode
 
 _spec_start	equ $
 
@@ -225,12 +232,46 @@ bi_file:	dd 0				; LBA of boot file
 bi_length:	dd 0xdeadbeef			; Length of boot file
 bi_csum:	dd 0xdeadbeef			; Checksum of boot file
 bi_reserved:	times 10 dd 0xdeadbeef		; Reserved
+bi_end:
 
-_start1:	mov [cs:InitStack],sp		; Save initial stack pointer
+		; Custom entry point for the hybrid-mode disk.
+		; The following values will have been pushed onto the
+		; entry stack:
+		; 	- CBIOS Heads 
+		;	- CBIOS Sectors
+		;	- EBIOS flag
+		;	- DX (including drive number)
+		;	- DI
+		;	- ES
+		;       (top of stack)
+%ifndef DEBUG_MESSAGES
+_hybrid_signature:
+		dd 0x7078c0fb			; An arbitrary number...
+
+_start_hybrid:
+		pop ax
+		mov si,bios_cbios
+		and ax,ax
+		jz .cbios
+		mov si,bios_ebios
+.cbios:
+		pop word [cs:bsSecPerTrack]
+		pop word [cs:bsHeads]
+
+		pop dx
+		pop di
+		pop es
+		jmp _start_common
+%endif
+
+_start1:
+		mov si,bios_cdrom
+_start_common:
+		mov [cs:InitStack],sp	; Save initial stack pointer
 		mov [cs:InitStack+2],ss
 		xor ax,ax
 		mov ss,ax
-		mov sp,StackBuf			; Set up stack
+		mov sp,StackBuf		; Set up stack
 		push es			; Save initial ES:DI -> $PnP pointer
 		push di
 		mov ds,ax
@@ -238,22 +279,28 @@ _start1:	mov [cs:InitStack],sp		; Save initial stack pointer
 		mov fs,ax
 		mov gs,ax
 		sti
-
 		cld
+
+		mov [BIOSType],si
+		mov eax,[si]
+		mov [GetlinsecPtr],eax
+
 		; Show signs of life
 		mov si,syslinux_banner
 		call writestr_early
 %ifdef DEBUG_MESSAGES
 		mov si,copyright_str
-		call writestr_early
+%else
+		mov si,[BIOSName]
 %endif
+		call writestr_early
 
 		;
 		; Before modifying any memory, get the checksum of bytes
 		; 64-2048
 		;
 initial_csum:	xor edi,edi
-		mov si,_start1
+		mov si,bi_end
 		mov cx,(SECTOR_SIZE-64) >> 2
 .loop:		lodsd
 		add edi,eax
@@ -284,6 +331,10 @@ initial_csum:	xor edi,edi
 
 		; Other nonzero fields
 		inc word [dsp_sectors]
+
+		; Are we just pretending to be a CD-ROM?
+		cmp word [BIOSType],bios_cdrom
+		jne found_drive			; If so, no spec packet...
 
 		; Now figure out what we're actually doing
 		; Note: use passed-in DL value rather than 7Fh because
@@ -333,7 +384,7 @@ found_drive:
 %endif
 
 		; No such luck.  Get the Boot Record Volume, assuming single
-		; session disk, and that we're the first entry in the chain
+		; session disk, and that we're the first entry in the chain.
 		mov eax,17			; Assumed address of BRV
 		mov bx,trackbuf
 		call getonesec
@@ -356,7 +407,7 @@ set_file:
 found_file:
 		; Set up boot file sizes
 		mov eax,[bi_length]
-		sub eax,SECTOR_SIZE-3
+		sub eax,SECTOR_SIZE-3		; ... minus sector loaded
 		shr eax,2			; bytes->dwords
 		mov [ImageDwords],eax		; boot file dwords
 		add eax,(2047 >> 2)
@@ -685,20 +736,197 @@ getonesec:
 ;
 ; Get linear sectors - EBIOS LBA addressing, 2048-byte sectors.
 ;
-; Note that we can't always do this as a single request, because at least
-; Phoenix BIOSes has a 127-sector limit.  To be on the safe side, stick
-; to 32 sectors (64K) per request.
-;
 ; Input:
 ;	EAX	- Linear sector number
 ;	ES:BX	- Target buffer
 ;	BP	- Sector count
 ;
-getlinsec:
+getlinsec:	jmp word [cs:GetlinsecPtr]
+
+%ifndef DEBUG_MESSAGES
+
+;
+; First, the variants that we use when actually loading off a disk
+; (hybrid mode.)  These are adapted versions of the equivalent routines
+; in ldlinux.asm.
+;
+
+;
+; getlinsec_ebios:
+;
+; getlinsec implementation for floppy/HDD EBIOS (EDD)
+;
+getlinsec_ebios:
+		xor edx,edx
+		shld edx,eax,2
+ 		shl eax,2			; Convert to HDD sectors
+		shl bp,2
+
+.loop:
+                push bp                         ; Sectors left
+.retry2:
+		call maxtrans			; Enforce maximum transfer size
+		movzx edi,bp			; Sectors we are about to read
+		mov cx,retry_count
+.retry:
+
+		; Form DAPA on stack
+		push edx
+		push eax
+		push es
+		push bx
+		push di
+		push word 16
+		mov si,sp
+		pushad
+                mov dl,[DriveNumber]
+		push ds
+		push ss
+		pop ds				; DS <- SS
+                mov ah,42h                      ; Extended Read
+		int 13h
+		pop ds
+		popad
+		lea sp,[si+16]			; Remove DAPA
+		jc .error
+		pop bp
+		add eax,edi			; Advance sector pointer
+		adc edx,0
+		sub bp,di			; Sectors left
+                shl di,9			; 512-byte sectors
+                add bx,di			; Advance buffer pointer
+                and bp,bp
+                jnz .loop
+
+                ret
+
+.error:
+		; Some systems seem to get "stuck" in an error state when
+		; using EBIOS.  Doesn't happen when using CBIOS, which is
+		; good, since some other systems get timeout failures
+		; waiting for the floppy disk to spin up.
+
+		pushad				; Try resetting the device
+		xor ax,ax
+		mov dl,[DriveNumber]
+		int 13h
+		popad
+		loop .retry			; CX-- and jump if not zero
+
+		;shr word [MaxTransfer],1	; Reduce the transfer size
+		;jnz .retry2
+
+		; Total failure.  Try falling back to CBIOS.
+		mov word [GetlinsecPtr], getlinsec_cbios
+		;mov byte [MaxTransfer],63	; Max possibe CBIOS transfer
+
+		pop bp
+		jmp getlinsec_cbios.loop
+
+;
+; getlinsec_cbios:
+;
+; getlinsec implementation for legacy CBIOS
+;
+getlinsec_cbios:
+ 		shl eax,2			; Convert to HDD sectors
+		shl bp,2
+
+.loop:
+		push edx
+		push eax
+		push bp
+		push bx
+
+		movzx esi,word [bsSecPerTrack]
+		movzx edi,word [bsHeads]
+		;
+		; Dividing by sectors to get (track,sector): we may have
+		; up to 2^18 tracks, so we need to use 32-bit arithmetric.
+		;
+		div esi
+		xor cx,cx
+		xchg cx,dx		; CX <- sector index (0-based)
+					; EDX <- 0
+		; eax = track #
+		div edi			; Convert track to head/cyl
+
+		; We should test this, but it doesn't fit...
+		; cmp eax,1023
+		; ja .error
+
+		;
+		; Now we have AX = cyl, DX = head, CX = sector (0-based),
+		; BP = sectors to transfer, SI = bsSecPerTrack,
+		; ES:BX = data target
+		;
+
+		call maxtrans			; Enforce maximum transfer size
+
+		; Must not cross track boundaries, so BP <= SI-CX
+		sub si,cx
+		cmp bp,si
+		jna .bp_ok
+		mov bp,si
+.bp_ok:
+
+		shl ah,6		; Because IBM was STOOPID
+					; and thought 8 bits were enough
+					; then thought 10 bits were enough...
+		inc cx			; Sector numbers are 1-based, sigh
+		or cl,ah
+		mov ch,al
+		mov dh,dl
+		mov dl,[DriveNumber]
+		xchg ax,bp		; Sector to transfer count
+		mov ah,02h		; Read sectors
+		mov bp,retry_count
+.retry:
+		pushad
+		int 13h
+		popad
+		jc .error
+.resume:
+		movzx ecx,al		; ECX <- sectors transferred
+		shl ax,9		; Convert sectors in AL to bytes in AX
+		pop bx
+		add bx,ax
+		pop bp
+		pop eax
+		pop edx
+		add eax,ecx
+		sub bp,cx
+		jnz .loop
+		ret
+
+.error:
+		dec bp
+		jnz .retry
+
+		xchg ax,bp		; Sectors transferred <- 0
+		shr word [MaxTransfer],1
+		jnz .resume
+		jmp disk_error
+
+;
+; Truncate BP to MaxTransfer
+;
+maxtrans:
+		cmp bp,[MaxTransfer]
+		jna .ok
+		mov bp,[MaxTransfer]
+.ok:		ret
+
+%endif
+
+;
+; This is the variant we use for real CD-ROMs:
+; LBA, 2K sectors, some special error handling.
+;
+getlinsec_cdrom:
 		mov si,dapa			; Load up the DAPA
 		mov [si+4],bx
-		mov bx,es
-		mov [si+6],bx
+		mov [si+6],es
 		mov [si+8],eax
 .loop:
 		push bp				; Sectors left
@@ -774,6 +1002,7 @@ xint13:		mov byte [RetryCount],retry_count
 ; kaboom: write a message and bail out.  Wait for a user keypress,
 ;	  then do a hard reboot.
 ;
+disk_error:
 kaboom:
 		RESET_STACK_AND_SEGS AX
 		mov si,err_bootfailed
@@ -802,8 +1031,8 @@ isolinux_str	db 'isolinux: ', 0
 %ifdef DEBUG_MESSAGES
 startup_msg:	db 'Starting up, DL = ', 0
 spec_ok_msg:	db 'Loaded spec packet OK, drive = ', 0
-secsize_msg:	db 'Sector size appears to be ', 0
-offset_msg:	db 'Loading main image from LBA = ', 0
+secsize_msg:	db 'Sector size ', 0
+offset_msg:	db 'Main image LBA = ', 0
 size_msg:	db 'Sectors to load = ', 0
 loaded_msg:	db 'Loaded boot image, verifying...', CR, LF, 0
 verify_msg:	db 'Image checksum verified.', CR, LF, 0
@@ -813,8 +1042,8 @@ noinfotable_msg	db 'No boot info table, assuming single session disk...', CR, LF
 noinfoinspec_msg db 'Spec packet missing LBA information, trying to wing it...', CR, LF, 0
 spec_err_msg:	db 'Loading spec packet failed, trying to wing it...', CR, LF, 0
 maybe_msg:	db 'Found something at drive = ', 0
-alright_msg:	db 'Looks like it might be right, continuing...', CR, LF, 0
-nospec_msg	db 'Extremely broken BIOS detected, last ditch attempt with drive = ', 0
+alright_msg:	db 'Looks reasonable, continuing...', CR, LF, 0
+nospec_msg	db 'Extremely broken BIOS detected, last attempt with drive = ', 0
 nothing_msg:	db 'Failed to locate CD-ROM device; boot failed.', CR, LF
 trysbm_msg	db 'See http://syslinux.zytor.com/sbm for more information.', CR, LF, 0
 diskerr_msg:	db 'Disk error ', 0
@@ -827,17 +1056,26 @@ bailmsg		equ err_bootfailed
 crlf_msg	db CR, LF
 null_msg	db 0
 
+bios_cdrom_str	db 'ETCD', 0
+%ifndef DEBUG_MESSAGES
+bios_cbios_str	db 'CHDD', 0
+bios_ebios_str	db 'EHDD' ,0
+%endif
+
 		alignb 4, db 0
+bios_cdrom:	dw getlinsec_cdrom, bios_cdrom_str
+%ifndef DEBUG_MESSAGES
+bios_cbios:	dw getlinsec_cbios, bios_cbios_str
+bios_ebios:	dw getlinsec_ebios, bios_ebios_str
+%endif
+
 MaxTransfer	dw 32				; Max sectors per transfer
 
 rl_checkpt	equ $				; Must be <= 800h
 
-rl_checkpt_off	equ ($-$$)
-;%ifndef DEPEND
-;%if rl_checkpt_off > 0x800
-;%error "Sector 0 overflow"
-;%endif
-;%endif
+		; This pads to the end of sector 0 and errors out on
+		; overflow.
+		times 2048-($-$$) db 0
 
 ; ----------------------------------------------------------------------------
 ;  End of code and data that have to be in the first sector
@@ -1232,7 +1470,8 @@ searchdir_iso:
 		shr eax,SECTOR_SHIFT
 		mov [bx+file_left],eax
 		pop eax
-		and bx,bx			; ZF = 0
+		jz .failure			; Empty file?
+		; ZF = 0
 		mov si,bx
 		pop es
 		ret

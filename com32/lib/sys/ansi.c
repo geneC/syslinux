@@ -83,6 +83,9 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
       st->state = st_tbl;
       st->parms[0] = ch;
       break;
+    case '\a':
+      op->beep();
+      break;
     case '\b':
       if ( xy.x > 0 ) xy.x--;
       break;

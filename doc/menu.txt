@@ -1,4 +1,4 @@
-There are two menu systems included with SYSLINUX, the advanced menu
+There are two menu systems included with Syslinux, the advanced menu
 system, and the simple menu system.
 
 
@@ -20,7 +20,7 @@ See menu/README for more information.
 The simple menu system is a single module located at
 com32/modules/vesamenu.c32 (graphical) or com32/modules/menu.c32 (text
 mode only).  It uses the same configuration file as the regular
-SYSLINUX command line, and displays all the LABEL statements.
+Syslinux command line, and displays all the LABEL statements.
 
 To use the menu system, simply make sure [vesa]menu.c32 is in the
 appropriate location for your boot medium (the same directory as the
@@ -33,7 +33,7 @@ PROMPT 0
 
 
 There are a few menu additions to the command line, all starting with
-the keywords MENU or TEXT; like the rest of the SYSLINUX config file
+the keywords MENU or TEXT; like the rest of the Syslinux config file
 language, it is case insensitive:
 
 MENU TITLE title
@@ -168,7 +168,7 @@ MENU PASSWD passwd
 	Use the included Perl scripts "sha1pass" or "md5pass" to
 	encrypt passwords.  MD5 passwords are compatible with most
 	Unix password file utilities; SHA-1 passwords are probably
-	unique to SYSLINUX.  Obviously, if you don't encrypt your
+	unique to Syslinux.  Obviously, if you don't encrypt your
 	passwords they will not be very secure at all.
 
 	If you are using passwords, you want to make sure you also use
@@ -433,7 +433,7 @@ it will execute the ONTIMEOUT command if one exists, otherwise it will
 pick the default menu option.
 
 Normally, the user can press [Tab] to edit the menu entry, and [Esc]
-to return to the SYSLINUX command line.  However, if the configuration
+to return to the Syslinux command line.  However, if the configuration
 file specifies ALLOWOPTIONS 0, these keys will be disabled, and if
 MENU MASTER PASSWD is set, they require the master password.
 

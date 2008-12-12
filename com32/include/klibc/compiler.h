@@ -94,11 +94,11 @@
 
 /* likely/unlikely */
 #if defined(__GNUC__) && (__GNUC_MAJOR__ > 2 || (__GNUC_MAJOR__ == 2 && __GNUC_MINOR__ >= 95))
-# define __likely(x)   __builtin_expect((x), 1)
-# define __unlikely(x) __builtin_expect((x), 0)
+# define __likely(x)   __builtin_expect(!!(x), 1)
+# define __unlikely(x) __builtin_expect(!!(x), 0)
 #else
-# define __likely(x)   (x)
-# define __unlikely(x) (x)
+# define __likely(x)   (!!(x))
+# define __unlikely(x) (!!(x))
 #endif
 
 /* Possibly unused function */
@@ -114,6 +114,9 @@
 
 /* Packed structures */
 #define __packed	__attribute__((packed))
+
+/* Weak symbols */
+#define __weak          __attribute__((weak))
 
 /* Alignment */
 #define __aligned(x)	__attribute__((aligned(x)))

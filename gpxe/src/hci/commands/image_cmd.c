@@ -24,7 +24,6 @@
 #include <getopt.h>
 #include <gpxe/image.h>
 #include <gpxe/command.h>
-#include <gpxe/initrd.h>
 #include <usr/imgmgmt.h>
 
 /** @file
@@ -223,23 +222,6 @@ static int kernel_exec ( int argc, char **argv ) {
 }
 
 /**
- * The "initrd" command
- *
- * @v argc		Argument count
- * @v argv		Argument list
- * @ret rc		Exit code
- */
-static int initrd_exec ( int argc, char **argv ) {
-	int rc;
-
-	if ( ( rc = imgfetch_core_exec ( &initrd_image_type, IMG_FETCH,
-					 argc, argv ) ) != 0 )
-		return rc;
-
-	return 0;
-}
-
-/**
  * "imgload" command syntax message
  *
  * @v argv		Argument list
@@ -425,7 +407,7 @@ static int imgexec_exec ( int argc, char **argv ) {
 	} else {
 		image = imgautoselect();
 		if ( ! image ) {
-			printf ( "No loaded images\n" );
+			printf ( "No (unique) loaded image\n" );
 			return 1;
 		}
 	}
@@ -557,12 +539,12 @@ struct command image_commands[] __command = {
 		.exec = imgfetch_exec, /* synonym for "imgfetch" */
 	},
 	{
-		.name = "kernel",
-		.exec = kernel_exec,
+		.name = "initrd",
+		.exec = imgfetch_exec, /* synonym for "imgfetch" */
 	},
 	{
-		.name = "initrd",
-		.exec = initrd_exec,
+		.name = "kernel",
+		.exec = kernel_exec,
 	},
 	{
 		.name = "imgload",

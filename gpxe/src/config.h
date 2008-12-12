@@ -58,6 +58,8 @@
  */
 #define TIMER_BIOS		/* 18Hz BIOS timer */
 #define TIMER_RDTSC		/* CPU TimeStamp Counter timer */
+#define BANNER_TIMEOUT	20	/* Tenths of a second for which the shell
+				   banner should appear */
 
 /* @END general.h */
 
@@ -91,10 +93,10 @@
  */
 
 #define	DOWNLOAD_PROTO_TFTP	/* Trivial File Transfer Protocol */
-#undef	DOWNLOAD_PROTO_NFS	/* Network File System */
+#define	DOWNLOAD_PROTO_NFS	/* Network File System */
 #define	DOWNLOAD_PROTO_HTTP	/* Hypertext Transfer Protocol */
-#undef	DOWNLOAD_PROTO_HTTPS	/* Secure Hypertext Transfer Protocol */
-#undef	DOWNLOAD_PROTO_FTP	/* File Transfer Protocol */
+#define	DOWNLOAD_PROTO_HTTPS	/* Secure Hypertext Transfer Protocol */
+#define	DOWNLOAD_PROTO_FTP	/* File Transfer Protocol */
 #undef	DOWNLOAD_PROTO_TFTM	/* Multicast Trivial File Transfer Protocol */
 #undef	DOWNLOAD_PROTO_SLAM	/* Scalable Local Area Multicast */
 #undef	DOWNLOAD_PROTO_FSP	/* FSP? */
@@ -129,6 +131,7 @@
 #define	IMAGE_PXE		/* PXE image support */
 #define IMAGE_SCRIPT		/* gPXE script image support */
 #define IMAGE_BZIMAGE		/* Linux bzImage image support */
+#define IMAGE_COMBOOT		/* SYSLINUX COMBOOT image support */
 
 /* @END general.h */ 
 

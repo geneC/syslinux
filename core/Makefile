@@ -19,32 +19,11 @@ MAKEFLAGS += -r
 MAKE      += -r
 
 topdir = ..
+include $(topdir)/MCONFIG.embedded
 -include $(topdir)/version.mk
 
-CC	 = gcc
-
-TMPFILE = $(shell mktemp /tmp/gcc_ok.XXXXXX)
-gcc_ok   = $(shell tmpf=$(TMPFILE); if $(CC) $(1) dummy.c -o $$tmpf 2>/dev/null; \
-	           then echo '$(1)'; else echo '$(2)'; fi; rm -f $$tmpf)
-
-M32       := $(call gcc_ok,-m32,) $(call gcc_ok,-ffreestanding,) \
-	$(call gcc_ok,-fno-stack-protector,) \
-	$(call gcc_ok,-fno-top-level-reorder,$(call gcc_ok,-fno-unit-at-a-time))
-
-LD       = ld
-LDFLAGS	 = -m elf_i386
-OBJCOPY  = objcopy
-OBJDUMP  = objdump
-
-OPTFLAGS = -g -Os -march=i386 -falign-functions=0 -falign-jumps=0 -falign-loops=0 -fomit-frame-pointer
+OPTFLAGS = 
 INCLUDES =
-CFLAGS	 = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -msoft-float $(OPTFLAGS) $(INCLUDES)
-
-NASM	 = nasm
-NASMOPT  = -O9999
-NINCLUDE =
-
-PERL     = perl
 
 # This is very similar to cp437; technically it's for Norway and Denmark,
 # but it's unlikely the characters that are different will be used in
@@ -83,7 +62,7 @@ kwdhash.gen: keywords genhash.pl
 .PRECIOUS: %.elf
 
 # Standard rule for {isolinux,isolinux-debug}.bin
-iso%.bin: iso%.elf
+iso%.bin: iso%.elf checksumiso.pl
 	$(OBJCOPY) -O binary $< $@
 	$(PERL) checksumiso.pl $@
 
@@ -140,10 +119,15 @@ clean: tidy
 spotless: clean
 	rm -f $(BTARGET) *_bin.c .depend
 
+# Note: the extra echo '' is to deal with old versions of NASM which
+# did not properly terminate the dependency list.
 .depend:
 	rm -f .depend
 	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -MM $$csrc >> .depend ; done
-	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.o/'` -M $$nsrc >> .depend ; done
+	for nsrc in $(NASMSRC) ; do \
+		( $(NASM) -DDEPEND $(NINCLUDE) -o \
+	          `echo $$nsrc | sed -e 's/\.asm/\.o/'` -M $$nsrc ; \
+	          echo '' ) >> .depend ; done
 
 depend:
 	rm -f .depend

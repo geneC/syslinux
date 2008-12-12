@@ -215,6 +215,7 @@ ask_passwd(const char *menu_entry)
   int done;
   int key;
   int x;
+  int rv;
 
   printf("\033[%d;%dH\2#11\016l", PASSWD_ROW, PASSWD_MARGIN+1);
   for ( x = 2 ; x <= WIDTH-2*PASSWD_MARGIN-1 ; x++ )
@@ -231,6 +232,8 @@ ask_passwd(const char *menu_entry)
   printf("j\017\033[%d;%dH\2#12 %s \033[%d;%dH\2#13",
 	 PASSWD_ROW, (WIDTH-(strlen(cm->messages[MSG_PASSPROMPT])+2))/2,
 	 cm->messages[MSG_PASSPROMPT], PASSWD_ROW+1, PASSWD_MARGIN+3);
+
+  drain_keyboard();
 
   /* Actually allow user to type a password, then compare to the SHA1 */
   done = 0;
@@ -282,9 +285,15 @@ ask_passwd(const char *menu_entry)
 
   *p = '\0';
 
-  return (cm->menu_master_passwd &&
-	  passwd_compare(cm->menu_master_passwd, user_passwd))
+  rv = (cm->menu_master_passwd &&
+	passwd_compare(cm->menu_master_passwd, user_passwd))
     || (menu_entry && passwd_compare(menu_entry, user_passwd));
+
+  /* Clean up */
+  memset(user_passwd, 0, WIDTH);
+  drain_keyboard();
+
+  return rv;
 }
 
 

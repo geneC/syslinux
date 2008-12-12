@@ -29,10 +29,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 #include <console.h>
 #include <zlib.h>
 #include <com32.h>
+#include <syslinux/pxe.h>
 
 #include "i386-elf.h"
 #include "mb_info.h"
@@ -53,6 +56,9 @@
 #define MEM_HOLE_START  0xa0000      /* Memory hole runs from 640k ... */
 #define MEM_HOLE_END    0x100000     /* ... to 1MB */
 #define X86_PAGE_SIZE   0x1000
+#define DHCP_ACK_SIZE   2048         /* Maximum size of the DHCP ACK package.
+                                        Probably too large since we're interested
+                                        in the first bunch of bytes only. */
 
 size_t __stack_size = STACK_SIZE;    /* How much stack we'll use */
 extern void *__mem_end;              /* Start of malloc() heap */
@@ -576,71 +582,11 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
 
         /* This kernel will do: figure out where all the pieces will live */
 
-        if (mbh->flags & MULTIBOOT_AOUT_KLUDGE) {
+        /* Look for a bootable ELF32 header */
+        if ((load_size > sizeof(Elf32_Ehdr) &&
+            BOOTABLE_I386_ELF((*((Elf32_Ehdr *) load_addr))))) {
 
-            /* Use the offsets in the multiboot header */
-#ifdef DEBUG
-            printf("Using multiboot header.\n");
-#endif
-
-            /* Where is the code in the loaded file? */
-            seg_addr = ((char *)mbh) - (mbh->header_addr - mbh->load_addr);
-
-            /* How much code is there? */
-            run_addr = mbh->load_addr;
-            if (mbh->load_end_addr != 0)
-                seg_size = mbh->load_end_addr - mbh->load_addr;
-            else
-                seg_size = load_size - (seg_addr - load_addr);
-
-            /* How much memory will it take up? */
-            if (mbh->bss_end_addr != 0)
-                run_size = mbh->bss_end_addr - mbh->load_addr;
-            else
-                run_size = seg_size;
-
-            if (seg_size > run_size) {
-                printf("Fatal: can't put %i bytes of kernel into %i bytes "
-                       "of memory.\n", seg_size, run_size);
-                exit(1);
-            }
-            if (seg_addr + seg_size > load_addr + load_size) {
-                printf("Fatal: multiboot load segment runs off the "
-                       "end of the file.\n");
-                exit(1);
-            }
-
-            /* Does it fit where it wants to be? */
-            place_kernel_section(run_addr, run_size);
-
-            /* Put it on the relocation list */
-            if (seg_size < run_size) {
-                /* Set up the kernel BSS too */
-                if (seg_size > 0)
-                    add_section(run_addr, seg_addr, seg_size);
-                bss_size = run_size - seg_size;
-                add_section(run_addr + seg_size, NULL, bss_size);
-            } else {
-                /* No BSS */
-                add_section(run_addr, seg_addr, run_size);
-            }
-
-            /* Done. */
-            return mbh->entry_addr;
-
-        } else {
-
-            /* Now look for an ELF32 header */
             ehdr = (Elf32_Ehdr *)load_addr;
-            if (*(unsigned long *)ehdr != 0x464c457f
-                || ehdr->e_ident[EI_DATA] != ELFDATA2LSB
-                || ehdr->e_ident[EI_CLASS] != ELFCLASS32
-                || ehdr->e_machine != EM_386)
-            {
-                printf("Fatal: kernel has neither ELF32/x86 nor multiboot load"
-                       " headers.\n");
-                exit(1);
-            }
             if (ehdr->e_phoff + ehdr->e_phnum*sizeof (*phdr) > load_size) {
                 printf("Fatal: malformed ELF header overruns EOF.\n");
                 exit(1);
@@ -754,6 +700,60 @@ static size_t load_kernel(struct multiboot_info *mbi, char *cmdline)
 
             /* Done! */
             return ehdr->e_entry;
+        } else
+
+        /* Does the MB header specify load addresses? */
+        if (mbh->flags & MULTIBOOT_AOUT_KLUDGE) {
+
+            /* Use the offsets in the multiboot header */
+#ifdef DEBUG
+            printf("Using multiboot header.\n");
+#endif
+
+            /* Where is the code in the loaded file? */
+            seg_addr = ((char *)mbh) - (mbh->header_addr - mbh->load_addr);
+
+            /* How much code is there? */
+            run_addr = mbh->load_addr;
+            if (mbh->load_end_addr != 0)
+                seg_size = mbh->load_end_addr - mbh->load_addr;
+            else
+                seg_size = load_size - (seg_addr - load_addr);
+
+            /* How much memory will it take up? */
+            if (mbh->bss_end_addr != 0)
+                run_size = mbh->bss_end_addr - mbh->load_addr;
+            else
+                run_size = seg_size;
+
+            if (seg_size > run_size) {
+                printf("Fatal: can't put %i bytes of kernel into %i bytes "
+                       "of memory.\n", seg_size, run_size);
+                exit(1);
+            }
+            if (seg_addr + seg_size > load_addr + load_size) {
+                printf("Fatal: multiboot load segment runs off the "
+                       "end of the file.\n");
+                exit(1);
+            }
+
+            /* Does it fit where it wants to be? */
+            place_kernel_section(run_addr, run_size);
+
+            /* Put it on the relocation list */
+            if (seg_size < run_size) {
+                /* Set up the kernel BSS too */
+                if (seg_size > 0)
+                    add_section(run_addr, seg_addr, seg_size);
+                bss_size = run_size - seg_size;
+                add_section(run_addr + seg_size, NULL, bss_size);
+            } else {
+                /* No BSS */
+                add_section(run_addr, seg_addr, run_size);
+            }
+
+            /* Done. */
+            return mbh->entry_addr;
         }
     }
 
@@ -926,11 +926,22 @@ int main(int argc, char **argv)
     char *p;
     size_t mbi_run_addr, mbi_size, entry;
     int i;
+    bool opt_solaris = false;
+    void *dhcpdata;
+    size_t dhcplen;
 
     /* Say hello */
     openconsole(&dev_null_r, &dev_stdcon_w);
 
     printf("%s.  %s\n", version_string, copyright_string);
+
+    /* This is way too ugly. */
+    if (!strcmp("-solaris", argv[1])) {
+        opt_solaris = true;
+        argv[1] = argv[0];
+        argv = &argv[1];
+        argc -= 1;
+    }
 
     if (argc < 2 || !strcmp(argv[1], module_separator)) {
         printf("Fatal: No kernel filename!\n");
@@ -958,6 +969,8 @@ int main(int argc, char **argv)
             mbi_size += strlen(argv[i]) + 1;
         }
     }
+    if (opt_solaris)
+        mbi_size += DHCP_ACK_SIZE;
 
     /* Allocate space in the load buffer for the MBI, all the command
      * lines, and all the module details. */
@@ -1029,6 +1042,31 @@ int main(int argc, char **argv)
     strcpy(p, version_string);
     mbi->boot_loader_name = ((size_t)p) - mbi_reloc_offset;
     p += strlen(version_string) + 1;
+
+    if (opt_solaris) {
+        printf("Solaris DHCP passing enabled... ");
+        /* Try to get the DHCP ACK packet from PXE */
+        if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK,
+				 &dhcpdata, &dhcplen)) {
+            /* Solaris expects the DHCP ACK packet to be passed in the drives_*
+               structure. However, the flags field must indicate that the
+               drives_structure is not being used.
+               Furthermore, the boot_device must be set to 0x20ffffff
+            */
+            dhcplen = MIN(dhcplen, DHCP_ACK_SIZE);
+            memcpy(p, dhcpdata, dhcplen);
+            mbi->drives_addr = ((size_t)p) - mbi_reloc_offset;
+            mbi->drives_length = dhcplen;
+            mbi->flags &= ~MB_INFO_DRIVE_INFO;
+            p += dhcplen;
+
+            mbi->boot_device = 0x20ffffff;
+            mbi->flags |= MB_INFO_BOOTDEV;
+	    printf("ok\n");
+        } else {
+	    printf("not found.\n");
+        }
+    }
 
     /* Now, do all the loading, and boot it */
     entry = load_kernel(mbi, (char *)(mbi->cmdline + mbi_reloc_offset));

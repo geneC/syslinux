@@ -1,18 +1,18 @@
-#
-# arch/i386/setjmp.S
-#
-# setjmp/longjmp for the i386 architecture
-#
-
-#
-# The jmp_buf is assumed to contain the following, in order:
-#	%ebx
-#	%esp
-#	%ebp
-#	%esi
-#	%edi
-#	<return address>
-#
+/*
+ * arch/i386/setjmp.S
+ *
+ * setjmp/longjmp for the i386 architecture
+ *
+ *
+ *
+ * The jmp_buf is assumed to contain the following, in order:
+ *	%ebx
+ * 	%esp
+ *	%ebp
+ *	%esi
+ *	%edi
+ *	<return address>
+ */
 
 	.text
 	.align 4
