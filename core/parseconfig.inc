@@ -22,6 +22,7 @@
 ;
 pc_default:	cmp ax,[DefaultLevel]
 		jb .skip
+		mov [DefaultLevel],ax
 		mov di,default_cmd
 		call getline
 		mov byte [di-1],0		; null-terminate
