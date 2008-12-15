@@ -28,7 +28,7 @@ NASM	   = nasm
 NASMOPT	   = -O9999
 RANLIB	   = ranlib
 CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os \
-	     -fomit-frame-pointer -D__COM32__ \
+	     -fomit-frame-pointer -D__COM32__ -std=gnu99 \
 	     -nostdinc -iwithprefix include \
 	     -I../../libutil/include -I../../include \
 	     -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d
@@ -53,6 +53,7 @@ LIBLUA_OBJS += lauxlib.o lbaselib.o ldblib.o  ltablib.o \
 	lstrlib.o loadlib.o linit.o
 LIBLUA_OBJS += liolib.o
 LIBLUA_OBJS += dmi.o ../../modules/dmi.o
+LIBLUA_OBJS += pci.o
 
 CFLAGS += -DLUA_ANSI
 
@@ -61,6 +62,7 @@ all:	liblua.a lua.c32
 liblua.a: $(LIBLUA_OBJS)
 	$(AR) cq $@ $^
 	$(RANLIB) $@
+
 
 
 
