@@ -47,6 +47,7 @@ LNXLIBS	   = ../../libutil/libutil_lnx.a
 LIBLUA_OBJS := lapi.o lcode.o ldebug.o ldo.o ldump.o lfunc.o
 LIBLUA_OBJS += lgc.o llex.o lmem.o  lobject.o lopcodes.o lparser.o
 LIBLUA_OBJS += lstate.o lstring.o ltable.o ltm.o lvm.o lzio.o lundump.o
+LIBLUA_OBJS += syslinux.o
 
 LIBLUA_OBJS += lauxlib.o lbaselib.o ldblib.o  ltablib.o \
 	lstrlib.o loadlib.o linit.o
