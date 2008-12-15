@@ -54,6 +54,7 @@ LIBLUA_OBJS += lauxlib.o lbaselib.o ldblib.o  ltablib.o \
 LIBLUA_OBJS += liolib.o
 LIBLUA_OBJS += dmi.o ../../modules/dmi.o
 LIBLUA_OBJS += pci.o
+LIBLUA_OBJS += vesa.o
 
 CFLAGS += -DLUA_ANSI
 

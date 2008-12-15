@@ -48,6 +48,10 @@ LUALIB_API int (luaopen_syslinux) (lua_State *L);
 #define LUA_DMILIBNAME "dmi"
 LUALIB_API int (luaopen_dmi) (lua_State *L);
 
+#define LUA_VESALIBNAME "vesa"
+LUALIB_API int (luaopen_vesa) (lua_State *L);
+
+
 /* open all previous libraries */
 LUALIB_API void (luaL_openlibs) (lua_State *L); 
 
