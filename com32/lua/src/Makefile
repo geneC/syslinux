@@ -50,6 +50,7 @@ LIBLUA_OBJS += lstate.o lstring.o ltable.o ltm.o lvm.o lzio.o lundump.o
 
 LIBLUA_OBJS += lauxlib.o lbaselib.o ldblib.o  ltablib.o \
 	lstrlib.o loadlib.o linit.o
+LIBLUA_OBJS += liolib.o
 
 
 CFLAGS += -DLUA_ANSI
