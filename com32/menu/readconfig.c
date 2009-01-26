@@ -33,6 +33,10 @@ int shiftkey     = 0;		/* Only display menu if shift key pressed */
 int hiddenmenu   = 0;
 long long totaltimeout = 0;
 
+/* Keep track of global default */
+static int has_ui = 0;		/* DEFAULT only counts if UI is found */
+static const char *globaldefault = NULL;
+
 /* Linked list of all entires, hidden or not; used by unlabel() */
 static struct menu_entry *all_entries;
 static struct menu_entry **all_entries_end = &all_entries;
@@ -245,6 +249,7 @@ static struct menu_entry *new_entry(struct menu *m)
   }
 
   me = calloc(1, sizeof(struct menu_entry));
+  me->menu = m;
   me->entry = m->nentries;
   m->menu_entries[m->nentries++] = me;
   *all_entries_end = me;
@@ -388,6 +393,27 @@ static struct menu *begin_submenu(const char *tag)
 static struct menu *end_submenu(void)
 {
   return current_menu->parent ? current_menu->parent : current_menu;
+}
+
+static struct menu_entry *find_label(const char *str)
+{
+  const char *p;
+  struct menu_entry *me;
+  int pos;
+
+  p = str;
+  while ( *p && !my_isspace(*p) )
+    p++;
+
+  /* p now points to the first byte beyond the kernel name */
+  pos = p-str;
+
+  for (me = all_entries; me; me = me->next) {
+    if (!strncmp(str, me->label, pos) && !me->label[pos])
+      return me;
+  }
+
+  return NULL;
 }
 
 static const char *unlabel(const char *str)
@@ -912,6 +938,11 @@ static void parse_config_file(FILE *f)
         ld.ipappend = atoi(skipspace(p+8));
       else
 	ipappend = atoi(skipspace(p+8));
+    } else if ( looking_at(p, "default") ) {
+      refstr_put(globaldefault);
+      globaldefault = refstrdup(skipspace(p+7));
+    } else if ( looking_at(p, "ui") ) {
+      has_ui = 1;
     }
   }
 }
@@ -958,6 +989,7 @@ void parse_configs(char **argv)
 {
   const char *filename;
   struct menu *m;
+  struct menu_entry *me;
 
   empty_string = refstrdup("");
 
@@ -984,6 +1016,16 @@ void parse_configs(char **argv)
   /* Common postprocessing */
   resolve_gotos();
 
+  /* Handle global default */
+  if (has_ui && globaldefault) {
+    me = find_label(globaldefault);
+    if (me && me->menu != hide_menu) {
+      me->menu->defentry = me->entry;
+      start_menu = me->menu;
+    }
+  }
+
+  /* Final per-menu initialization, with all labels known */
   for (m = menu_list; m; m = m->next) {
     m->curentry = m->defentry;	/* All menus start at their defaults */
 

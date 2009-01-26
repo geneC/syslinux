@@ -49,7 +49,7 @@ enum menu_action {
 };
 
 struct menu_entry {
-  int entry;			/* Entry number inside menu */
+  struct menu *menu;		/* Parent menu */
   const char *displayname;
   const char *label;
   const char *passwd;
@@ -57,6 +57,7 @@ struct menu_entry {
   const char *cmdline;
   struct menu *submenu;
   struct menu_entry *next;	/* Linked list of all labels across menus */
+  int entry;			/* Entry number inside menu */
   enum menu_action action;
   unsigned char hotkey;
 };

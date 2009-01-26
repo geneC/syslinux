@@ -28,27 +28,30 @@ configuration file for SYSLINUX, EXTLINUX and ISOLINUX, and the same
 directory as pxelinux.0 for PXELINUX), and put the following options
 in your configuration file:
 
-DEFAULT menu.c32
-PROMPT 0
+UI menu.c32
 
 
-There are a few menu additions to the command line, all starting with
-the keywords MENU or TEXT; like the rest of the Syslinux config file
-language, it is case insensitive:
+There are a few menu additions to the configuration file, all starting
+with the keywords MENU or TEXT; like the rest of the Syslinux config
+file language, it is case insensitive:
+
 
 MENU TITLE title
 
 	Give the menu a title.  The title is presented at the top of
 	the menu.
 
+
 MENU HIDDEN
 
 	Do not display the actual menu unless the user presses a key.
 	All that is displayed is a timeout message.
 
+
 MENU SEPARATOR
 
 	Insert an empty line in the menu.
+
 
 MENU LABEL label
 
@@ -84,6 +87,7 @@ MENU INDENT count
 
 	(Only valid after a LABEL statement.)
 	Will add "count" spaces in front of the displayed menu entry.
+
 
 MENU DISABLE
 
@@ -142,8 +146,9 @@ MENU HIDE
 MENU DEFAULT
 
 	(Only valid after a LABEL statement.)
-	Indicates that this entry should be the default.  If no
-	default is specified, use the first one.
+
+	Indicates that this entry should be the default for this
+	particular submenu.  See also the DEFAULT directive below.
 
 
 TEXT HELP
@@ -239,7 +244,23 @@ MENU START
 	(Only valid inside MENU BEGIN ... MENU END)
 
 	Indicates that the menu system should start at the menu being
-	defined instead of at the top-level menu.
+	defined instead of at the top-level menu.  See also the
+	DEFAULT directive below.
+
+
+DEFAULT label
+
+	Set the global default.  If "label" points into a submenu,
+	that menu becomes the start menu; in other words, this
+	directive has the same effect as both MENU DEFAULT and MENU
+	START.
+
+	For backwards compatibility with earlier versions of Syslinux,
+	this directive is ignored unless the configuration file also
+	contains a UI directive.
+
+	Note: the CLI accepts options after the label, or even a
+	non-label.  The menu system does not support that.
 
 
 INCLUDE filename [tagname]

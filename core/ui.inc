@@ -48,10 +48,12 @@ no_config_file:
 ; Check whether or not we are supposed to display the boot prompt.
 ;
 check_for_key:
-		cmp word [ForcePrompt],0	; Force prompt?
-		jnz enter_command
 		test byte [KbdFlags],5Bh	; Shift Alt Caps Scroll
-		jz auto_boot			; If neither, default boot
+		jnz enter_command
+		cmp word [ForcePrompt],0	; Force prompt?
+		jz auto_boot
+		cmp word [DefaultLevel],1	; Active UI statement?
+		ja auto_boot
 
 enter_command:
 		cmp word [NoEscape],0		; If NOESCAPE, no prompt,
