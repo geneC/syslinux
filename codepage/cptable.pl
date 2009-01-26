@@ -118,6 +118,7 @@ for ($i = 0; $i < 256; $i++) {
 # Unicode (longname) matching table.
 # This only depends on the console codepage.
 #
+$pp0 = '';  $pp1 = '';
 for ($i = 0; $i < 256; $i++) {
     if (!defined($ytab[$i])) {
 	$p0 = $p1 = 0xffff;
@@ -136,8 +137,10 @@ for ($i = 0; $i < 256; $i++) {
     # Only the BMP is supported...
     $p0 = 0xffff if ($p0 > 0xffff);
     $p1 = 0xffff if ($p1 > 0xffff);
-    print CPOUT pack("vv", $p0, $p1);
+    $pp0 .= pack("v", $p0);
+    $pp1 .= pack("v", $p1);
 }
+print CPOUT $pp0, $pp1;
 close (CPOUT);
 
     
