@@ -16,6 +16,9 @@ Changes in 3.73:
 	* mboot.c32: add "-solaris" option to pass DHCP information to
 	  the Solaris kernel; required for automatic Solaris boot
 	  without using Solaris' pxeboot program.
+	* config.c32: trivial COM32 module to restart Syslinux with
+	  another configuration file from the command line (equivalent
+	  to the CONFIG command in the configuratin file.)
 
 Changes in 3.72:
 	* Include the pxechain.com module from Jeffery Hutzelman at
