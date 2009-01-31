@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,9 @@
 ;               returns with CF = 0.  On EOF, this function returns
 ;		with CF = 1.
 ; -------------------------------------------------------------------------
+
+getcommand.skipline:
+		call skipline
 
 getcommand:
 .find:
@@ -77,7 +80,7 @@ getcommand:
 		mov si,trackbuf
 		call writestr
 		call crlf
-		jmp short .skipline
+		jmp .skipline
 
 		; No parameter
 .noparm:
@@ -86,8 +89,7 @@ getcommand:
 		mov si,trackbuf
 		call writestr
 		call crlf
-		mov al,10		; Already at EOL
-		jmp short .skipline
+		jmp .find
 
 .found_keywd:	lodsw			; Load argument into ax
 		call [si]
@@ -97,11 +99,11 @@ getcommand:
 .eof:		stc
 		ret
 
-.skipline:	cmp al,10		; Search for LF
-		je .find
+skipline:	cmp al,10		; Search for LF
+		je .end
 		call getc
-		jc .eof
-		jmp short .skipline
+		jnc skipline
+.end:		ret
 
 		section .data
 err_badcfg      db 'Unknown keyword in configuration file: ',0
