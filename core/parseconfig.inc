@@ -291,7 +291,7 @@ pc_serial:	call getint
 		ret
 
 ;
-; Store mangled filename command
+; Store mangled filename command (F-keys, "initrd")
 ;
 pc_filename:	push ax
 		call pc_getline
@@ -344,7 +344,7 @@ pc_say:		call pc_getline			; "say" command
 ;
 ; "text" command; ignore everything until we get an "endtext" line
 ;
-pc_text:	call pc_getline			; Ignore rest of line
+pc_text:	call skipline			; Ignore rest of line
 .loop:
 		call pc_getline
 		jc .eof
