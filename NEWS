@@ -7,6 +7,7 @@ Changes in 3.74:
 	  a menu system (or not.)  With the UI directive specifying
 	  the menu system, the DEFAULT directive can be used to select
 	  the default entry inside the menus.
+	* kbdmap.c32: new module to load a new keyboard map dynamically.
 
 Changes in 3.73:
 	* Upgrade gPXE to release version 0.9.5.
