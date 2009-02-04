@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -1033,6 +1033,20 @@ comapi_getadv:
 ;
 comapi_writeadv	equ adv_write
 
+;
+; INT 22h AX=001Eh	Keyboard remapping table
+comapi_kbdtable:
+		cmp P_DX,0
+		jne .err
+		mov P_AX,1			; Version
+		mov P_CX,256			; Length
+		mov P_ES,cs
+		mov P_BX,KbdMap
+		ret
+.err:
+		stc
+		ret
+
 		section .data
 
 %macro		int21 2
@@ -1085,6 +1099,7 @@ int22_table:
 		dw comapi_shufflerm	; 001B cleanup, shuffle and boot to rm
 		dw comapi_getadv	; 001C get pointer to ADV
 		dw comapi_writeadv	; 001D write ADV to disk
+		dw comapi_kbdtable	; 001E keyboard remapping table
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

@@ -74,6 +74,7 @@ LIBOBJS = \
 	syslinux/idle.o	syslinux/reboot.o				\
 	syslinux/features.o syslinux/config.o syslinux/serial.o		\
 	syslinux/ipappend.o syslinux/dsinfo.o syslinux/version.o	\
+	syslinux/keyboard.o						\
 	\
 	syslinux/addlist.o syslinux/freelist.o syslinux/memmap.o	\
 	syslinux/movebits.o syslinux/shuffle.o syslinux/shuffle_pm.o	\

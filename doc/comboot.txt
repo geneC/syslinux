@@ -908,3 +908,16 @@ AX=001Dh [3.60]	Write auxilliary data vector
 
 	In a future version, PXELINUX may end up attempting to save
 	the ADV on the server via TFTP write.
+
+
+AX=001Eh [3.74] Keyboard remapping table
+	Input:	AX	001Eh
+		DX	0000h - all other values reserved
+	Output:	AX	format version (1)
+		CX	length in bytes (256)
+		ES:BX	pointer to keyboard table
+
+	This call queries the keyboard remapping table.  For the current
+	version, the format code is always 1 and the length is always
+	256.  This version can be updated simply by overwriting the version
+	in memory; this may not be true in the future.
