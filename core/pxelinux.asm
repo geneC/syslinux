@@ -704,6 +704,13 @@ prefix:		test byte [DHCPMagic], 04h	; Did we get a path prefix option
 		call writestr_early
 		call crlf
 
+		; Set CurrentDirName
+		push di
+		mov si,PathPrefix
+		mov di,CurrentDirName
+		call strcpy
+		pop di
+
 ;
 ; Load configuration file
 ;

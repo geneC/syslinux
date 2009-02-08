@@ -44,6 +44,11 @@ MAX_OPEN	equ (1 << MAX_OPEN_LG2)
 SECTOR_SHIFT	equ 9
 SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 
+DIRENT_SHIFT	equ 5
+DIRENT_SIZE	equ (1 << DIRENT_SHIFT)
+
+ROOT_DIR_WORD	equ 0x002F
+
 ;
 ; This is what we need to do when idle
 ;
@@ -900,19 +905,40 @@ getfattype:
 		mov si,config_name	; Save configuration file name
 		mov di,ConfigName
 		call strcpy
+		mov word [CurrentDirName],ROOT_DIR_WORD	; Write '/',0 to the CurrentDirName
 
 		mov eax,[RootDir]	; Make the root directory ...
 		mov [CurrentDir],eax	; ... the current directory
 		mov di,syslinux_cfg1
+		push di
 		call open
+		pop di
 		jnz .config_open
 		mov di,syslinux_cfg2
+		push di
 		call open
+		pop di
 		jnz .config_open
 		mov di,syslinux_cfg3
+		push di
 		call open
+		pop di
 		jz no_config_file
 .config_open:
+		push si
+		mov si,di
+		push si
+		mov di,CurrentDirName
+			; This is inefficient as it will copy more than needed
+			;   but not by too much
+		call strcpy
+		mov ax,config_name	;Cut it down
+		pop si
+		sub ax,si
+		mov di,CurrentDirName
+		add di,ax
+		mov byte [di],0
+		pop si
 		mov eax,[PrevDir]	; Make the directory with syslinux.cfg ...
 		mov [CurrentDir],eax	; ... the current directory
 
@@ -942,6 +968,37 @@ allocate_file:
 		loop .check
 		; ZF = 0 if we fell out of the loop
 .found:		pop cx
+		ret
+
+;
+; alloc_fill_dir:
+;	Allocate then fill a file structure for a directory starting in
+;	sector EAX.
+;
+;	Assumes DS == ES == CS.
+;
+;	     If successful:
+;		ZF clear
+;		SI	= file pointer
+;	     If unsuccessful
+;		ZF set
+;		EAX clobbered
+;
+alloc_fill_dir:
+		push bx
+		call allocate_file
+		jnz .alloc_failure
+.found:
+		mov si,bx
+		mov [si+file_sector],eax	; Current sector
+		mov dword [si+file_bytesleft],0	; Current offset
+		mov [si+file_left],eax		; Beginning sector
+		pop bx
+		ret
+
+.alloc_failure:
+		pop bx
+		xor eax,eax			; ZF <- 1
 		ret
 
 ;
@@ -1191,6 +1248,18 @@ close_file:
 .closed:	ret
 
 ;
+; close_dir:
+;	     Deallocates a directory structure (pointer in SI)
+;	     Assumes CS == DS.
+;
+close_dir:
+		and si,si
+		jz .closed
+		mov dword [si],0		; First dword == file_sector
+		xor si,si
+.closed:	ret
+
+;
 ; searchdir:
 ;
 ;	Open a file
@@ -1224,8 +1293,16 @@ searchdir:
 		cmp al,'/'
 		jne .findend
 .endpath:
-		xchg si,di
+		xchg si,di		; GRC: si begin; di end[ /]+1
 		pop eax			; <A> Current directory sector
+
+			; GRC Here I need to check if di-1 = si which signifies
+			;	we have the desired directory in EAX
+			; What about where the file name = "."; later
+		mov dx,di
+		dec dx
+		cmp dx,si
+		jz .founddir
 
 		mov [PrevDir],eax	; Remember last directory searched
 
@@ -1263,12 +1340,257 @@ searchdir:
 		xchg eax,[si+file_sector] ; Get sector number and free file structure
 		jmp .pathwalk		; Walk the next bit of the path
 
+		; Found the desired directory; ZF set but EAX not 0
+.founddir:
+		ret
+
 .badfile:
 		xor eax,eax
 		mov [si],eax		; Free file structure
 
 .notfound:
+		xor eax,eax		; Zero out EAX
+		ret
+
+;
+; readdir: Read one file from a directory
+;
+;	ES:DI	-> String buffer (filename)
+;	DS:SI	-> Pointer to open_file_t
+;	DS	Must be the SYSLINUX Data Segment
+;
+;	Returns the file's name in the filename string buffer
+;	EAX returns the file size
+;	EBX returns the beginning sector (currently without offsetting)
+;	DL returns the file type
+;	The directory handle's data is incremented to reflect a name read.
+;
+readdir:
+		push ecx
+		push bp		; Using bp to transfer between segment registers
+		push si
+		push es
+		push fs		; Using fs to store the current es (from COMBOOT)
+		push gs
+		mov bp,es
+		mov fs,bp
+		cmp si,0
+		jz .fail
+.load_handle:
+		mov eax,[ds:si+file_sector]	; Current sector
+		mov ebx,[ds:si+file_bytesleft]	; Current offset
+		cmp eax,0
+		jz .fail
+.fetch_cache:
+		call getcachesector
+.move_current:
+		add si,bx	; Resume last position in sector
+		mov ecx,SECTOR_SIZE	; 0 out high part
+		sub cx,bx
+		shr cx,5	; Number of entries left
+.scanentry:
+		cmp byte [gs:si],0
+		jz .fail
+		cmp word [gs:si+11],0Fh		; Long filename
+		jne .short_entry
+
+.vfat_entry:
+		push eax
+		push ecx
+		push si
+		push di
+.vfat_ln_info:		; Get info about the line that we're on
+		mov al,[gs:si]
+		test al,40h
+		jz .vfat_tail_ln
+		and al,03Fh
+		mov ah,1	; On beginning line
+		jmp .vfat_ck_ln
+
+.vfat_tail_ln:	; VFAT tail line processing (later in VFAT, head in name)
+		test al,80h	; Invalid data?
+		jnz .vfat_abort
+		mov ah,0	; Not on beginning line
+		cmp dl,al
+		jne .vfat_abort	; Is this the entry we need?
+		mov bl,[gs:si+13]
+		cmp bl,[VFATCsum]
+		jne .vfat_abort
+		jmp .vfat_cp_ln
+
+.vfat_ck_ln:		; Load this line's VFAT CheckSum
+		mov bl,[gs:si+13]
+		mov [VFATCsum],bl
+.vfat_cp_ln:		; Copy VFAT line
+		dec al		; Store the next line we need
+		mov dx,ax	; Use DX to store the progress
+		mov bx,13
+		mov ah,0
+		mul bl		; Offset for DI
+		add di,ax	; Increment DI
+		inc si		; Align to the real characters
+		mov cx,13	; 13 characters per VFAT DIRENT
+.vfat_cp_chr:
+		gs lodsw	; Unicode here!!
+		mov bp,ds
+		mov es,bp
+		call ucs2_to_cp	; Convert to local codepage
+		mov bp,fs
+		mov es,bp
+		jc .vfat_abort	;-; Use short name if character not on codepage
+		stosb		; CAN NOT OVERRIDE es
+		cmp al,0
+		jz .vfat_find_next	; Null-terminated string; don't process more
+		cmp cx,3
+		je .vfat_adj_add2
+		cmp cx,9
+		jne .vfat_adj_add0
+.vfat_adj_add3:	inc si
+.vfat_adj_add2:	inc si
+.vfat_adj_add1:	inc si
+.vfat_adj_add0:
+		loop .vfat_cp_chr
+		cmp dh,1	; Is this the first round?
+		jnz .vfat_find_next
+.vfat_null_term:	; Need to null-terminate if first line as we rolled over the end
+		mov al,0
+		stosb
+
+.vfat_find_next:	;Find the next part of the name
+		pop di
+		pop si
+		pop ecx
+		pop eax
+		cmp dl,0
+		jz .vfat_find_info	; We're done with the name
+		add si,DIRENT_SIZE
+		dec cx
+		jnz .vfat_entry
+		call nextsector
+		jnc .vfat_entry			; CF is set if we're at end
+		jmp .fail
+.vfat_find_info:	; Fetch next entry for the size/"INode"
+		add si,DIRENT_SIZE
+		dec cx
+		jnz .get_info
+		call nextsector
+		jnc .get_info			; CF is set if we're at end
+		jmp .fail
+.vfat_abort:		; Something went wrong, skip
+		pop di
+		pop si
+		pop ecx
+		pop eax
+		jmp .skip_entry
+
+.short_entry:
+		test byte [gs:si+11],8		; Ignore volume labels //HERE
+		jnz .skip_entry
+		mov edx,eax		;Save current sector
+		push cx
+		push si
+		push di
+		mov cx,8
+.short_file:
+		gs lodsb
+		cmp al,'.'
+		jz .short_dot
+.short_file_loop:
+		cmp al,' '
+		jz .short_skip_bs
+		stosb
+		loop .short_file_loop
+		jmp .short_period
+.short_skip_bs:		; skip blank spaces in FILENAME (before EXT)
+		add si,cx
+		dec si
+.short_period:
+		mov al,'.'
+		stosb
+		mov cx,3
+.short_ext:
+		gs lodsb
+		cmp al,' '
+		jz .short_done
+		stosb
+		loop .short_ext
+		jmp .short_done
+.short_dot:
+		stosb
+		gs lodsb
+		cmp al,' '
+		jz .short_done
+		stosb
+.short_done:
+		mov al,0	; Null-terminate the short strings
+		stosb
+		pop di
+		pop si
+		pop cx
+		mov eax,edx
+.get_info:
+		mov ebx,[gs:si+28]	; length
+		mov dl,[gs:si+11]	; type
+.next_entry:
+		add si,DIRENT_SIZE
+		dec cx
+		jnz .store_offset
+		call nextsector
+		jnc .store_sect			; CF is set if we're at end
+		jmp .fail
+
+.skip_entry:
+		add si,DIRENT_SIZE
+		dec cx
+		jnz .scanentry
+		call nextsector
+		jnc .scanentry			; CF is set if we're at end
+		jmp .fail
+
+.store_sect:
+		pop gs
+		pop fs
+		pop es
+		pop si
+		mov [ds:si+file_sector],eax
+		mov eax,0	; Now at beginning of new sector
+		jmp .success
+
+.store_offset:
+		pop gs
+		pop fs
+		pop es
+		pop si		; cx=num remain; SECTOR_SIZE-(cx*32)=cur pos
+		shl ecx,DIRENT_SHIFT
+		mov eax,SECTOR_SIZE
+		sub eax,ecx
+		and eax,0ffffh
+
+.success:
+		mov [ds:si+file_bytesleft],eax
+		; "INode" number = ((CurSector-RootSector)*SECTOR_SIZE + Offset)/DIRENT_SIZE)
+		mov ecx,eax
+		mov eax,[ds:si+file_sector]
+		sub eax,[RootDir]
+		shl eax,SECTOR_SHIFT
+		add eax,ecx
+		shr eax,DIRENT_SHIFT
+		dec eax
+		xchg eax,ebx	; -> EBX=INode, EAX=FileSize
+		jmp .done
+
+.fail:
+		pop gs
+		pop fs
+		pop es
+		pop si
+		call close_dir
 		xor eax,eax
+		stc
+.done:
+		pop bp
+		pop ecx
+.end:
 		ret
 
 		section .bss

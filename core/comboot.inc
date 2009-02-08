@@ -1047,6 +1047,72 @@ comapi_kbdtable:
 		stc
 		ret
 
+;
+; INT 22h AX=001Fh	Get current working directory
+;
+comapi_getcwd:
+		mov P_ES,cs
+		mov P_BX,CurrentDirName
+		clc
+		ret
+
+;
+; INT 22h AX=0020h	Open directory
+;
+%if IS_SYSLINUX
+comapi_opendir:
+		push ds
+		mov ds,P_ES
+		mov si,P_SI
+		mov di,InitRD
+		call mangle_name
+		pop ds
+		call searchdir
+		jnz comapi_err	; Didn't find a directory
+		cmp eax,0
+		jz comapi_err	; Found nothing
+			;ZF is unset
+		call alloc_fill_dir
+		mov P_EAX,eax
+		mov P_CX,SECTOR_SIZE
+		mov P_SI,si
+		clc
+		ret
+%else
+comapi_opendir	equ comapi_err
+%endif
+
+;
+; INT 22h AX=0021h	Read directory
+;
+%if IS_SYSLINUX
+comapi_readdir:
+		mov es,P_ES
+		mov di,P_DI
+		mov si,P_SI
+		call readdir
+		mov P_EAX,eax
+		mov P_DL,dl
+		mov P_EBX,ebx
+		mov P_SI,si
+		ret
+%else
+comapi_readdir	equ comapi_err
+%endif
+
+;
+; INT 22h AX=0022h	Close directory
+;
+%if IS_SYSLINUX
+comapi_closedir:
+		mov si,P_SI
+		call close_dir
+		clc
+		ret
+%else
+comapi_closedir	equ comapi_err
+%endif
+
 		section .data
 
 %macro		int21 2
@@ -1100,6 +1166,10 @@ int22_table:
 		dw comapi_getadv	; 001C get pointer to ADV
 		dw comapi_writeadv	; 001D write ADV to disk
 		dw comapi_kbdtable	; 001E keyboard remapping table
+		dw comapi_getcwd	; 001F get current working directory
+		dw comapi_opendir	; 0020 open directory
+		dw comapi_readdir	; 0021 read directory
+		dw comapi_closedir	; 0022 close directory
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0
@@ -1124,3 +1194,4 @@ err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
 		alignb 4
 DOSErrTramp	resd	33		; Error trampolines
 ConfigName	resb	FILENAME_MAX
+CurrentDirName	resb	FILENAME_MAX
