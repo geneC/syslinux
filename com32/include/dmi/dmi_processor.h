@@ -100,7 +100,7 @@ bool htt;
 bool tm;
 bool null_30;
 bool pbe;
-}  __attribute__((__packed__)) s_cpu_flags;
+}  __attribute__((__packed__)) s_dmi_cpu_flags;
 
 typedef struct {
 u8 type;
@@ -129,7 +129,7 @@ char serial[PROCESSOR_SERIAL_SIZE];
 char asset_tag[PROCESSOR_ASSET_TAG_SIZE];
 char part_number[PROCESSOR_PART_NUMBER_SIZE];
 char id[PROCESSOR_ID_SIZE];
-s_cpu_flags cpu_flags;
+s_dmi_cpu_flags cpu_flags;
 s_signature signature;
 } s_processor;
 
