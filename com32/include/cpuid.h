@@ -133,6 +133,9 @@ static inline __purefunc bool test_bit(int nr, const uint32_t *addr)
         return ((1UL << (nr & 31)) & (addr[nr >> 5])) != 0;
 }
 
+#define test_cpu_cap(c, bit)                                            \
+	         test_bit(bit, (unsigned long *)((c)->x86_capability))
+
 #define cpu_has(c, bit)                test_bit(bit, (c)->x86_capability)
 
 /*
@@ -168,6 +171,8 @@ struct cpuinfo_x86 {
         unsigned char x86_max_cores;    /* cpuid returned max cores value */
         unsigned char booted_cores;     /* number of cores as seen by OS */
         unsigned char apicid;
+        unsigned char x86_clflush_size;
+
 } __attribute__((__packed__));
 #endif
 

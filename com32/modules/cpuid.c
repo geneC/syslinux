@@ -144,7 +144,8 @@ int get_model_name(struct cpuinfo_x86 *c)
 
 void generic_identify(struct cpuinfo_x86 *c)
 {
-	uint32_t tfms, xlvl, junk;
+	uint32_t tfms, xlvl;
+	unsigned int ebx;
 
 	/* Get vendor name */
 	cpuid(0x00000000,
@@ -157,18 +158,18 @@ void generic_identify(struct cpuinfo_x86 *c)
         /* Intel-defined flags: level 0x00000001 */
         if ( c->cpuid_level >= 0x00000001 ) {
 		uint32_t capability, excap;
-                cpuid(0x00000001, &tfms, &junk, &excap, &capability);
+                cpuid(0x00000001, &tfms, &ebx, &excap, &capability);
                 c->x86_capability[0] = capability;
                 c->x86_capability[4] = excap;
                 c->x86 = (tfms >> 8) & 15;
                 c->x86_model = (tfms >> 4) & 15;
-                if (c->x86 == 0xf) {
+                if (c->x86 == 0xf)
                         c->x86 += (tfms >> 20) & 0xff;
+                if (c->x86 >= 0x6)
                         c->x86_model += ((tfms >> 16) & 0xF) << 4;
-                }
                 c->x86_mask = tfms & 15;
-		if (capability & (1<<19))
-                        c->x86_cache_alignment = ((junk >> 8) & 0xff) * 8;
+                if (test_cpu_cap(c, X86_FEATURE_CLFLSH))
+                        c->x86_clflush_size = ((ebx >> 8) & 0xff) * 8;
               } else {
                       /* Have CPUID level 0 only - unheard of */
                       c->x86 = 4;
@@ -317,13 +318,15 @@ void set_generic_info(struct cpuinfo_x86 *c,s_cpu *cpu) {
 void detect_cpu(s_cpu *cpu)
 {
          struct cpuinfo_x86 c;
-	 c.x86_cache_alignment = 32;
+	 c.x86_clflush_size = 32;
          c.x86_cache_size = -1;
          c.x86_vendor = X86_VENDOR_UNKNOWN;
          c.cpuid_level = -1;    /* CPUID not detected */
          c.x86_model = c.x86_mask = 0; /* So far unknown... */
          c.x86_vendor_id[0] = '\0'; /* Unset */
          c.x86_model_id[0] = '\0';  /* Unset */
+	 c.x86_max_cores = 1;
+	 memset(&c.x86_capability, 0, sizeof c.x86_capability);
 	 memset(&c.x86_vendor_id,'\0',CPU_VENDOR_SIZE);
 
          if (!have_cpuid_p())
