@@ -102,8 +102,8 @@ const char *bootloadername(uint8_t id)
     const char *name;
   } *lp, list[] =
     {
-      { 0x10, 0xf0, "LILO" },
-      { 0x20, 0xf0, "LOADLIN" },
+      { 0x00, 0xf0, "LILO" },
+      { 0x10, 0xf0, "LOADLIN" },
       { 0x31, 0xff, "SYSLINUX" },
       { 0x32, 0xff, "PXELINUX" },
       { 0x33, 0xff, "ISOLINUX" },
@@ -113,6 +113,8 @@ const char *bootloadername(uint8_t id)
       { 0x50, 0xf0, "ELILO" },
       { 0x70, 0xf0, "GrUB" },
       { 0x80, 0xf0, "U-Boot" },
+      { 0xA0, 0xf0, "Gujin" },
+      { 0xB0, 0xf0, "Qemu" },
       { 0x00, 0x00, "unknown" }
     };
 
