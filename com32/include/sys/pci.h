@@ -16,6 +16,7 @@ struct pci_dev_info {
   char vendor_name[256];
   char product_name[256];
   char linux_kernel_module[64];
+  char class_name[256];
 };
 
 /* PCI device (really, function) */
@@ -119,5 +120,6 @@ struct match * find_pci_device(const struct pci_domain *pci_domain,
 			       struct match *list);
 int get_name_from_pci_ids(struct pci_domain *pci_domain);
 int get_module_name_from_pci_ids(struct pci_domain *pci_domain);
+int get_class_name_from_pci_ids(struct pci_domain *pci_domain);
 
 #endif /* _SYS_PCI_H */

@@ -150,6 +150,92 @@ int get_module_name_from_pci_ids(struct pci_domain *domain)
   return 0;
 }
 
+/* Try to match any pci device to the appropriate class name */
+/* it uses the pci.ids from the boot device */
+int get_class_name_from_pci_ids(struct pci_domain *domain)
+{
+  char line[MAX_LINE];
+  char class_name[255];
+  char sub_class_name[255];
+  char class_id_str[5];
+  char sub_class_id_str[5];
+  FILE *f;
+  struct pci_device *dev;
+  bool class_mode=false;
+
+  /* Intializing the vendor/product name for each pci device to "unknown" */
+  /* adding a dev_info member if needed */
+  for_each_pci_func(dev, domain) {
+    /* initialize the dev_info structure if it doesn't exist yet. */
+    if (! dev->dev_info) {
+      dev->dev_info = zalloc(sizeof *dev->dev_info);
+      if (!dev->dev_info)
+	return -1;
+    }
+    strcpy(dev->dev_info->class_name,"unknown");
+  }
+
+  /* Opening the pci.ids from the boot device */
+  f = fopen("pci.ids","r");
+  if (!f)
+    return -1;
+
+  strcpy(class_name,"unknown");
+
+  /* for each line we found in the pci.ids */
+  while ( fgets(line, sizeof line, f) ) {
+    /* Skipping uncessary lines */
+    if ((line[0] == '#') || (line[0] == ' ') ||
+	(line[0] == 10))
+      continue;
+
+    /* Until we found a line starting with a 'C', we are not parsing classes */
+    if (line[0] == 'C')
+	    class_mode=true;
+    if (class_mode == false)
+		continue;
+
+    /* If the line doesn't start with a tab, it means that's a class name */
+    if (line[0] != '\t') {
+
+      /* ignore the two first char and then copy 2 chars (class id)*/
+      strlcpy(class_id_str,&line[2],2);
+      class_id_str[2]=0;
+
+      /* the class name is the next field */
+      strlcpy(class_name,skipspace(strstr(line," ")),255);
+      remove_eol(class_name);
+
+      /* assign the class_name to any matching pci device */
+      for_each_pci_func(dev, domain) {
+	if (hex_to_int(class_id_str) == dev->class[2])
+	  strlcpy(dev->dev_info->class_name,class_name,255);
+      }
+      /* if we have a tab + a char, it means this is a sub class name */
+    } else if ((line[0] == '\t') && (line[1] != '\t')) {
+
+      /* the sub class name the second field */
+      strlcpy(sub_class_name,skipspace(strstr(line," ")),255);
+      remove_eol(sub_class_name);
+
+      /* the sub class id is first field */
+      strlcpy(sub_class_id_str,&line[1],2);
+      sub_class_id_str[2]=0;
+
+      /* assign the product_name to any matching pci device */
+      for_each_pci_func(dev, domain) {
+	if (hex_to_int(class_id_str) == dev->class[2] &&
+	    hex_to_int(sub_class_id_str) == dev->class[1])
+	  strlcpy(dev->dev_info->class_name,sub_class_name,255);
+      }
+
+    }
+  }
+  fclose(f);
+  return 0;
+}
+
+
 /* Try to match any pci device to the appropriate vendor and product name */
 /* it uses the pci.ids from the boot device */
 int get_name_from_pci_ids(struct pci_domain *domain)
@@ -193,6 +279,7 @@ int get_name_from_pci_ids(struct pci_domain *domain)
     if ((line[0] == '#') || (line[0] == ' ') || (line[0] == 'C') ||
 	(line[0] == 10))
       continue;
+
     /* If the line doesn't start with a tab, it means that's a vendor id */
     if (line[0] != '\t') {
 
