@@ -77,16 +77,16 @@
 #define SCROLLBOX    176 // Filled char to display
 
 // Attributes of the menu system
-#define MAXMENUS      10 // Maximum number of menu's allowed
-#define MAXMENUSIZE   30 // Default value for max num of entries in each menu
-#define MAXMENUHEIGHT 14 // Maximum number of entries displayed
+#define MAXMENUS      30 // Maximum number of menu's allowed
+#define MAXMENUSIZE   60 // Default value for max num of entries in each menu
+#define MAXMENUHEIGHT 20 // Maximum number of entries displayed
 #define MENUBOXTYPE   BOX_SINSIN // Default box type Look at tui.h for other values
 
 // Upper bounds on lengths
 // We copy the given string, so user can reuse the space used to store incoming arguments.
 #define MENULEN       80 // Each menu entry is atmost MENULEN chars
 #define STATLEN       80 // Maximum length of status string
-#define TITLELEN       80 // Maximum length of title string
+#define TITLELEN      80 // Maximum length of title string
 #define ACTIONLEN     255 // Maximum length of an action string
 
 // Layout of menu
