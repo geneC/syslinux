@@ -71,7 +71,7 @@ const char *dmi_string(struct dmi_header *dm, u8 s);
 inline int dmi_checksum(u8 *buf);
 void parse_dmitable(s_dmi *dmi);
 void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi);
-int dmi_interate();
+int dmi_iterate();
 
 /* dmi_utils.c */
 void display_bios_characteristics(s_dmi *dmi);

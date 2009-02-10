@@ -314,7 +314,7 @@ inline int dmi_checksum(u8 *buf)
         return (sum==0);
 }
 
-int dmi_interate() {
+int dmi_iterate() {
   u8 buf[16];
   char *p,*q;
   p=(char *)0xF0000; /* The start address to look at the dmi table */

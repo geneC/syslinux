@@ -126,7 +126,7 @@ int main(void)
   s_dmi dmi;
   openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
-  if ( ! dmi_interate() ) {
+  if ( ! dmi_iterate() ) {
 	  printf("No DMI Structure found\n");
 	  return -1;
   }
