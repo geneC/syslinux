@@ -73,7 +73,6 @@ static void dmi_base_board_features(u8 code, s_dmi *dmi)
         {
                 int i;
 
-                printf("\n");
                 for(i=0; i<=4; i++)
                         if(code&(1<<i))
 			((bool *)(& dmi->base_board.features))[i]=true;
@@ -495,9 +494,6 @@ void parse_dmitable(s_dmi *dmi) {
            {
              dmi_decode(&h, dmitable.ver,dmi);
            }
-        else
-           printf("\t<TRUNCATED>\n");
-           printf("\n");
         data=next;
         i++;
   }
