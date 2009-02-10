@@ -45,9 +45,9 @@ all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 \
 	$(LD) -Ttext 0x101000 -e _start -o $@ $^
 
 hdt.o: hdt.c
-	$(CC) $(CFLAGS) -I$(topdir)/menu/libmenu/ -c -o $@ $<
+	$(CC) $(CFLAGS) -std=gnu99  -D__COM32__ -I$(topdir)/menu/libmenu/ -c -o $@ $<
 
-hdt.elf: hdt.o $(com32)/modules/cpuid.o $(topdir)/menu/libmenu/libmenu.a $(LIB) $(C_LIBS)
+hdt.elf: hdt.o $(com32)/modules/cpuid.o $(com32)/modules/dmi.o $(topdir)/menu/libmenu/libmenu.a $(LIB) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 %.c32: %.elf
