@@ -168,7 +168,7 @@ void generic_identify(struct cpuinfo_x86 *c)
                 if (c->x86 >= 0x6)
                         c->x86_model += ((tfms >> 16) & 0xF) << 4;
                 c->x86_mask = tfms & 15;
-                if (test_cpu_cap(c, X86_FEATURE_CLFLSH))
+                if (cpu_has(c, X86_FEATURE_CLFLSH))
                         c->x86_clflush_size = ((ebx >> 8) & 0xff) * 8;
               } else {
                       /* Have CPUID level 0 only - unheard of */

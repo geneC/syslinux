@@ -133,9 +133,6 @@ static inline __purefunc bool test_bit(int nr, const uint32_t *addr)
         return ((1UL << (nr & 31)) & (addr[nr >> 5])) != 0;
 }
 
-#define test_cpu_cap(c, bit)                                            \
-	         test_bit(bit, (unsigned long *)((c)->x86_capability))
-
 #define cpu_has(c, bit)                test_bit(bit, (c)->x86_capability)
 
 /*
