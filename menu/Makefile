@@ -64,7 +64,7 @@ tidy dist:
 libclean:
 	rm -f libmenu/*.o libmenu/*.a
 
-clean: tidy menuclean
+clean: tidy menuclean libclean
 	rm -f *.lss *.c32 *.com
 
 menuclean:
