@@ -1,17 +1,17 @@
 #!/usr/bin/perl
 
-eval { use bytes; }
-eval { binmode STDOUT; }
+eval { use bytes; };
+eval { binmode STDOUT; };
 
 $DEFAULT_MAP = "us";
-$DEFAULT_EXT = ".map";
+$DEFAULT_EXT = ".kmap";
 
 sub usage
 {
     print STDERR
       "usage: $0 [ -p old_code=new_code ] ...\n".
-      (" "x(8+length $0))."[path]default_layout[.map] ] ".
-      "[path]kbd_layout[.map]\n";
+      (" "x(8+length $0))."[path]default_layout[.kmap] ] ".
+      "[path]kbd_layout[.kmap]\n";
     exit 1;
 }
 
