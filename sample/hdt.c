@@ -100,8 +100,8 @@ void compute_PCI(unsigned char *menu,struct pci_domain **pci_domain) {
         snprintf(buffer,MENULEN,"%s : %s\n",
 		pci_device->dev_info->vendor_name,
 		pci_device->dev_info->product_name);
-        snprintf(infobar, MENULEN,"BUS:[%02x:%02x.%01x] PCI-ID:%04x:%04x[%04x:%04x] Kernel Module:%s\n",
-               __pci_bus, __pci_slot, __pci_func,
+        snprintf(infobar, MENULEN,"%02x:%02x.%01x # %s # ID:%04x:%04x[%04x:%04x] # Kmod:%s\n",
+               __pci_bus, __pci_slot, __pci_func,pci_device->dev_info->class_name,
                pci_device->vendor, pci_device->product,
                pci_device->sub_vendor, pci_device->sub_product,pci_device->dev_info->linux_kernel_module);
 	add_item(buffer,infobar,OPT_INACTIVE,NULL,0);
@@ -275,7 +275,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
 
 void setup_env() {
   openconsole(&dev_stdcon_r, &dev_stdcon_w);
-  init_menusystem(NULL);
+  init_menusystem("Hardware Detection Tool by Erwan Velu");
   set_window_size(1,1,23,78); // Leave some space around
 
  // Register the menusystem handler
@@ -301,12 +301,16 @@ void detect_hardware(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain) {
   /* Assigning product & vendor name for each device*/
   get_name_from_pci_ids(*pci_domain);
 
+  printf("PCI: Resolving class names\n");
+  /* Assigning class name for each device*/
+  get_class_name_from_pci_ids(*pci_domain);
+
   printf("PCI: Resolving module names\n");
   /* Detecting which kernel module should match each device */
   get_module_name_from_pci_ids(*pci_domain);
 }
 
-void compute_submenus(s_dmi *dmi, s_cpu *cpu, struct pci_domain *pci_domain) {
+void compute_submenus(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain) {
   compute_motherboard(&MOBO_MENU,dmi);
   compute_chassis(&CHASSIS_MENU,dmi);
   compute_bios(&BIOS_MENU,dmi);
