@@ -531,7 +531,7 @@ The command line prompt supports the following keystrokes:
 <Ctrl-V>	display the current Syslinux version
 <Ctrl-W>	erase one word
 <Ctrl-X>	force text mode
-<F1>..<F10>	help screens (if configured)
+<F1>..<F12>	help screens (if configured)
 <Ctrl-F><digit>	equivalent to F1..F10
 <Ctrl-C>	interrupt boot in progress
 <Esc>		interrupt boot in progress
