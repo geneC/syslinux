@@ -1437,8 +1437,8 @@ readdir:
 		jne .vfat_abort	; Is this the entry we need?
 		mov bl,[gs:si+13]
 		cmp bl,[VFATCsum]
-		jne .vfat_abort
-		jmp .vfat_cp_ln
+		je .vfat_cp_ln
+		jmp .vfat_abort
 
 .vfat_ck_ln:		; Load this line's VFAT CheckSum
 		mov bl,[gs:si+13]
@@ -1459,10 +1459,10 @@ readdir:
 		call ucs2_to_cp	; Convert to local codepage
 		mov bp,fs
 		mov es,bp
-		jc .vfat_abort	;-; Use short name if character not on codepage
+		jnz .vfat_abort	; Use short name if character not on codepage
 		stosb		; CAN NOT OVERRIDE es
 		cmp al,0
-		jz .vfat_find_next	; Null-terminated string; don't process more
+		jz .vfat_find_next ; Null-terminated string; don't process more
 		cmp cx,3
 		je .vfat_adj_add2
 		cmp cx,9
