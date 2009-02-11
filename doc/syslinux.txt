@@ -420,7 +420,7 @@ F2 filename
 F9 filename
 F10 filename
 F11 filename
-F11 filename
+F12 filename
         Displays the indicated file on the screen when a function key is
         pressed at the boot: prompt.  This can be used to implement
         pre-boot online help (presumably for the kernel command line
