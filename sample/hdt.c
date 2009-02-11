@@ -81,11 +81,15 @@ struct ebios_dapa {
   uint64_t lba;
 };
 
+// BYTE=8
+// WORD=16
+// DWORD=32
+// QWORD=64
 struct device_parameter {
  uint16_t len;
  uint16_t info;
  uint32_t cylinders;
- uint32_t head;
+ uint32_t heads;
  uint32_t sectors_per_track;
  uint64_t sectors;
  uint16_t bytes_per_sector;
@@ -94,10 +98,10 @@ struct device_parameter {
  uint8_t  device_path_lenght;
  uint8_t  device_path_reserved;
  uint16_t device_path_reserved_2;
- char     host_bus_type[4];
- char     interface_type[8];
- uint32_t interace_path;
- uint32_t device_path[2];
+ uint8_t  host_bus_type[4];
+ uint8_t  interface_type[8];
+ uint64_t interace_path;
+ uint64_t device_path[2];
  uint8_t  reserved;
  uint8_t  cheksum;
 };
@@ -264,10 +268,12 @@ static int get_disk_params(int disk, struct diskinfo *disk_info)
 
    __intcall(0x13, &inreg, &outreg);
 
-   if ( parm.eflags.l & EFLAGS_CF )
+   if ( outreg.eflags.l & EFLAGS_CF )
 	   printf("Error while detecting disk parameters\n");
 
    printf("RESULT=0x%X 0x%X 0x%X 0x%X\n",dp->host_bus_type[0],dp->host_bus_type[1],dp->host_bus_type[2],dp->host_bus_type[3]);
+   printf("RESULT=0x%X 0x%X 0x%X 0x%X\n",dp->interface_type[0],dp->interface_type[1],dp->interface_type[2],dp->interface_type[3]);
+   printf("RESULT= cylindres=%d heads=%d sect=%d bytes_per_sector=%d\n",dp->cylinders, dp->heads,dp->sectors/2/1024,dp->bytes_per_sector);
 return 0;
 }
 
