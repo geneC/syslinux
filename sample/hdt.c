@@ -34,6 +34,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <console.h>
 #include "com32io.h"
 #include "menu.h"
@@ -50,11 +51,134 @@
 #define PWDATTR 0x74
 #define EDITPROMPT 21
 
-//#define WITH_PCI 1
+#define WITH_PCI 1
 #define WITH_MENU_DISPLAY 1
+
+#define SECTOR 512              /* bytes/sector */
+
 unsigned char MAIN_MENU, CPU_MENU, MOBO_MENU, CHASSIS_MENU, BIOS_MENU, SYSTEM_MENU, PCI_MENU;
 unsigned char MEMORY_MENU,  MEMORY_SUBMENU[32], BATTERY_MENU;
 bool is_dmi_valid=false;
+
+struct diskinfo {
+  int disk;
+  int ebios;                    /* EBIOS supported on this disk */
+  int cbios;                    /* CHS geometry is valid */
+  int head;
+  int sect;
+  char edd_version[4];
+};
+
+/*
+ * Get a disk block and return a malloc'd buffer.
+ * Uses the disk number and information from disk_info.
+ */
+struct ebios_dapa {
+  uint16_t len;
+  uint16_t count;
+  uint16_t off;
+  uint16_t seg;
+  uint64_t lba;
+};
+
+struct device_parameter {
+ uint16_t len;
+ uint16_t info;
+ uint32_t cylinders;
+ uint32_t head;
+ uint32_t sectors_per_track;
+ uint64_t sectors;
+ uint16_t bytes_per_sector;
+ uint32_t dpte_pointer;
+ uint16_t device_path_information;
+ uint8_t  device_path_lenght;
+ uint8_t  device_path_reserved;
+ uint16_t device_path_reserved_2;
+ char     host_bus_type[4];
+ char     interface_type[8];
+ uint32_t interace_path;
+ uint32_t device_path[2];
+ uint8_t  reserved;
+ uint8_t  cheksum;
+};
+
+/*
+ * Call int 13h, but with retry on failure.  Especially floppies need this.
+ */
+static int int13_retry(const com32sys_t *inreg, com32sys_t *outreg)
+{
+  int retry = 6;                /* Number of retries */
+  com32sys_t tmpregs;
+
+  if ( !outreg ) outreg = &tmpregs;
+
+  while ( retry-- ) {
+    __intcall(0x13, inreg, outreg);
+    if ( !(outreg->eflags.l & EFLAGS_CF) )
+      return 0;                 /* CF=0, OK */
+  }
+
+  return -1;                    /* Error */
+}
+
+
+static void *read_sector(struct diskinfo disk_info, unsigned int lba)
+{
+  com32sys_t inreg;
+  struct ebios_dapa *dapa = __com32.cs_bounce;
+  void *buf = (char *)__com32.cs_bounce + SECTOR;
+  void *data;
+
+  memset(&inreg, 0, sizeof inreg);
+
+  if ( disk_info.ebios ) {
+    dapa->len = sizeof(*dapa);
+    dapa->count = 1;            /* 1 sector */
+    dapa->off = OFFS(buf);
+    dapa->seg = SEG(buf);
+    dapa->lba = lba;
+
+    inreg.esi.w[0] = OFFS(dapa);
+    inreg.ds       = SEG(dapa);
+    inreg.edx.b[0] = disk_info.disk;
+    inreg.eax.b[1] = 0x42;      /* Extended read */
+  } else {
+    unsigned int c, h, s, t;
+
+    if ( !disk_info.cbios ) {
+      /* We failed to get the geometry */
+
+      if ( lba )
+        return NULL;            /* Can only read MBR */
+
+      s = 1;  h = 0;  c = 0;
+    } else {
+      s = (lba % disk_info.sect) + 1;
+      t = lba / disk_info.sect; /* Track = head*cyl */
+      h = t % disk_info.head;
+      c = t / disk_info.head;
+    }
+  if ( s > 63 || h > 256 || c > 1023 )
+      return NULL;
+
+    inreg.eax.w[0] = 0x0201;    /* Read one sector */
+    inreg.ecx.b[1] = c & 0xff;
+    inreg.ecx.b[0] = s + (c >> 6);
+    inreg.edx.b[1] = h;
+    inreg.edx.b[0] = disk_info.disk;
+    inreg.ebx.w[0] = OFFS(buf);
+    inreg.es       = SEG(buf);
+  }
+
+  if (int13_retry(&inreg, NULL))
+    return NULL;
+
+  data = malloc(SECTOR);
+  if (data)
+    memcpy(data, buf, SECTOR);
+  return data;
+}
+
 
 TIMEOUTCODE ontimeout()
 {
@@ -83,6 +207,70 @@ void keys_handler(t_menusystem *ms, t_menuitem *mi,unsigned int scancode)
    }
 }
 
+
+static int get_disk_params(int disk, struct diskinfo *disk_info)
+{
+  static com32sys_t getparm, parm, getebios, ebios, inreg,outreg;
+  struct device_parameter *dp = __com32.cs_bounce;
+
+  memset(&inreg, 0, sizeof inreg);
+
+  disk_info[disk].disk = disk;
+  disk_info[disk].ebios = disk_info[disk].cbios = 0;
+
+  /* Get EBIOS support */
+  getebios.eax.w[0] = 0x4100;
+  getebios.ebx.w[0] = 0x55aa;
+  getebios.edx.b[0] = disk;
+  getebios.eflags.b[0] = 0x3;   /* CF set */
+
+  __intcall(0x13, &getebios, &ebios);
+
+  if ( !(ebios.eflags.l & EFLAGS_CF) &&
+       ebios.ebx.w[0] == 0xaa55 &&
+       (ebios.ecx.b[0] & 1) ) {
+    disk_info[disk].ebios = 1;
+    switch(ebios.eax.b[1]) {
+	    case 32:  strcpy(disk_info[disk].edd_version,"1.0"); break;
+	    case 33:  strcpy(disk_info[disk].edd_version,"1.1"); break;
+	    case 48:  strcpy(disk_info[disk].edd_version,"3.0"); break;
+	    default:  strcpy(disk_info[disk].edd_version,"0"); break;
+    }
+  }
+
+  /* Get disk parameters -- really only useful for
+     hard disks, but if we have a partitioned floppy
+     it's actually our best chance... */
+  getparm.eax.b[1] = 0x08;
+  getparm.edx.b[0] = disk;
+
+  __intcall(0x13, &getparm, &parm);
+
+  if ( parm.eflags.l & EFLAGS_CF )
+    return disk_info[disk].ebios ? 0 : -1;
+
+  disk_info[disk].head = parm.edx.b[1]+1;
+  disk_info[disk].sect = parm.ecx.b[0] & 0x3f;
+  if ( disk_info[disk].sect == 0 ) {
+    disk_info[disk].sect = 1;
+  } else {
+   disk_info[disk].cbios = 1;        /* Valid geometry */
+     }
+
+   inreg.esi.w[0] = OFFS(dp);
+   inreg.ds       = SEG(dp);
+   inreg.eax.w[0] = 0x4800;
+   inreg.edx.b[0] = disk;
+
+   __intcall(0x13, &inreg, &outreg);
+
+   if ( parm.eflags.l & EFLAGS_CF )
+	   printf("Error while detecting disk parameters\n");
+
+   printf("RESULT=0x%X 0x%X 0x%X 0x%X\n",dp->host_bus_type[0],dp->host_bus_type[1],dp->host_bus_type[2],dp->host_bus_type[3]);
+return 0;
+}
+
 int detect_dmi(s_dmi *dmi) {
   if ( ! dmi_iterate() ) {
              printf("No DMI Structure found\n");
@@ -91,6 +279,16 @@ int detect_dmi(s_dmi *dmi) {
 
   parse_dmitable(dmi);
  return 0;
+}
+
+void detect_disks(struct diskinfo *disk_info) {
+ char *buf;
+ for (int drive = 0x80; drive <= 0xff; drive++) {
+    if (get_disk_params(drive,disk_info))
+          continue;
+
+    printf("DISK: 0x%X, sector=%d head=%d : EDD=%s\n",drive,disk_info[drive].sect,disk_info[drive].head,disk_info[drive].edd_version);
+ }
 }
 
 void compute_PCI(unsigned char *menu,struct pci_domain **pci_domain) {
@@ -376,9 +574,12 @@ void setup_env() {
   reg_ontimeout(ontimeout,1000,0);
 }
 
-void detect_hardware(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain) {
+void detect_hardware(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain, struct diskinfo *disk_info) {
   printf("CPU: Detecting\n");
   detect_cpu(cpu);
+
+  printf("DISKS: Detecting\n");
+  detect_disks(disk_info);
 
   printf("DMI: Detecting Table\n");
   if (detect_dmi(dmi) == 0)
@@ -455,10 +656,11 @@ int main(void)
   s_dmi dmi;
   s_cpu cpu;
   struct pci_domain *pci_domain=NULL;
+  struct diskinfo disk_info[255];
 
   setup_env();
 
-  detect_hardware(&dmi,&cpu,&pci_domain);
+  detect_hardware(&dmi,&cpu,&pci_domain,disk_info);
 
   compute_submenus(&dmi,&cpu,&pci_domain);
 
