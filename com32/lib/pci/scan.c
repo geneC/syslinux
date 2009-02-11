@@ -134,14 +134,18 @@ int get_module_name_from_pci_ids(struct pci_domain *domain)
        /* Searching the next field */
        result = strtok( NULL, delims );
    }
+    int int_vendor_id=hex_to_int(vendor_id);
+    int int_sub_vendor_id=hex_to_int(sub_vendor_id);
+    int int_product_id=hex_to_int(product_id);
+    int int_sub_product_id=hex_to_int(sub_product_id);
     /* if a pci_device matches an entry, fill the linux_kernel_module with
        the appropriate kernel module */
     for_each_pci_func(dev, domain) {
-      if (hex_to_int(vendor_id) == dev->vendor &&
-	  hex_to_int(product_id) == dev->product &&
-	  (hex_to_int(sub_product_id) & dev->sub_product)
+      if (int_vendor_id == dev->vendor &&
+	  int_product_id == dev->product &&
+	  (int_sub_product_id & dev->sub_product)
 	  == dev->sub_product &&
-	  (hex_to_int(sub_vendor_id) & dev->sub_vendor)
+	  (int_sub_vendor_id & dev->sub_vendor)
 	  == dev->sub_vendor)
 	strcpy(dev->dev_info->linux_kernel_module, module_name);
     }
@@ -206,9 +210,10 @@ int get_class_name_from_pci_ids(struct pci_domain *domain)
       strlcpy(class_name,skipspace(strstr(line," ")),255);
       remove_eol(class_name);
 
+      int int_class_id_str=hex_to_int(class_id_str);
       /* assign the class_name to any matching pci device */
       for_each_pci_func(dev, domain) {
-	if (hex_to_int(class_id_str) == dev->class[2])
+	if (int_class_id_str == dev->class[2])
 	  strlcpy(dev->dev_info->class_name,class_name,255);
       }
       /* if we have a tab + a char, it means this is a sub class name */
@@ -222,10 +227,12 @@ int get_class_name_from_pci_ids(struct pci_domain *domain)
       strlcpy(sub_class_id_str,&line[1],2);
       sub_class_id_str[2]=0;
 
+      int int_class_id_str=hex_to_int(class_id_str);
+      int int_sub_class_id_str=hex_to_int(sub_class_id_str);
       /* assign the product_name to any matching pci device */
       for_each_pci_func(dev, domain) {
-	if (hex_to_int(class_id_str) == dev->class[2] &&
-	    hex_to_int(sub_class_id_str) == dev->class[1])
+	if (int_class_id_str == dev->class[2] &&
+	    int_sub_class_id_str == dev->class[1])
 	  strlcpy(dev->dev_info->class_name,sub_class_name,255);
       }
 
@@ -298,9 +305,11 @@ int get_name_from_pci_ids(struct pci_domain *domain)
 
       /* ffff is an invalid vendor id */
       if (strstr(vendor_id,"ffff")) break;
+
+      int int_vendor_id=hex_to_int(vendor_id);
       /* assign the vendor_name to any matching pci device */
       for_each_pci_func(dev, domain) {
-	if (hex_to_int(vendor_id) == dev->vendor)
+	if (int_vendor_id == dev->vendor)
 	  strlcpy(dev->dev_info->vendor_name,vendor,255);
       }
       /* if we have a tab + a char, it means this is a product id */
@@ -318,10 +327,12 @@ int get_name_from_pci_ids(struct pci_domain *domain)
       strcpy(sub_product_id,"0000");
       strcpy(sub_vendor_id,"0000");
 
+      int int_vendor_id=hex_to_int(vendor_id);
+      int int_product_id=hex_to_int(product_id);
       /* assign the product_name to any matching pci device */
       for_each_pci_func(dev, domain) {
-	if (hex_to_int(vendor_id) == dev->vendor &&
-	    hex_to_int(product_id) == dev->product)
+	if (int_vendor_id == dev->vendor &&
+	    int_product_id == dev->product)
 	  strlcpy(dev->dev_info->product_name,product,255);
       }
 
@@ -341,12 +352,16 @@ int get_name_from_pci_ids(struct pci_domain *domain)
       strlcpy(sub_product_id,&line[7],4);
       sub_product_id[4]=0;
 
+      int int_vendor_id=hex_to_int(vendor_id);
+      int int_sub_vendor_id=hex_to_int(sub_vendor_id);
+      int int_product_id=hex_to_int(product_id);
+      int int_sub_product_id=hex_to_int(sub_product_id);
       /* assign the product_name to any matching pci device */
       for_each_pci_func(dev, domain) {
-	if (hex_to_int(vendor_id) == dev->vendor &&
-	    hex_to_int(product_id) == dev->product &&
-	    hex_to_int(sub_product_id) == dev->sub_product &&
-	    hex_to_int(sub_vendor_id) == dev->sub_vendor)
+	if (int_vendor_id == dev->vendor &&
+	    int_product_id == dev->product &&
+	    int_sub_product_id == dev->sub_product &&
+	    int_sub_vendor_id == dev->sub_vendor)
 	  strlcpy(dev->dev_info->product_name,product,255);
       }
     }
