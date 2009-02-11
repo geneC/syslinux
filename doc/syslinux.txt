@@ -536,6 +536,7 @@ The command line prompt supports the following keystrokes:
 <Ctrl-F><digit>	equivalent to F1..F10
 <Ctrl-C>	interrupt boot in progress
 <Esc>		interrupt boot in progress
+<Ctrl-N>	display network information (PXELINUX only)
 
 
    ++++ COMBOOT IMAGES AND OTHER OPERATING SYSTEMS ++++

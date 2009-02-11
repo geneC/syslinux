@@ -89,6 +89,9 @@ default if it cannot find any configuration file at all; instead it
 will reboot after the timeout interval has expired.  This keeps a
 machine from getting stuck indefinitely due to a boot server failure.
 
+Starting in release 3.50, PXELINUX displays network information at
+the boot prompt pressing <Ctrl-N>.
+
 PXELINUX does not support MTFTP, and I have no plans of doing so, as
 MTFTP is inherently broken for files more than 65535 packets (about
 92 MB) in size.  It is of course possible to use MTFTP for the initial
