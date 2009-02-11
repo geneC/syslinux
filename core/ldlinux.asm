@@ -105,7 +105,8 @@ file_left	resd 1			; Number of sectors left
 .magic		resd 2			; 8-byte magic number
 .reserved	resd 6			; Reserved for future use
 .uppercase	resb 256		; Internal upper-case table
-.unicode	resw 2*256		; Unicode matching table
+.unicode	resw 256		; Unicode matching table
+.unicode_alt	resw 256		; Alternate Unicode matching table
 		endstruc
 
 %ifndef DEPEND
@@ -1097,10 +1098,10 @@ search_dos_dir:
 		cmp bx,[NameLen]
 		jae .vfat_tail
 		movzx bx,byte [bx+di]
-		shl bx,2
+		add bx,bx
 		cmp ax,[cp_unicode+bx]		; Primary case
 		je .ucs_ok
-		cmp ax,[cp_unicode+bx+2]	; Alternate case
+		cmp ax,[cp_unicode_alt+bx]	; Alternate case
 		je .ucs_ok
 		; Mismatch...
 		jmp .not_us_pop
@@ -1227,7 +1228,28 @@ codepage	equ $-(32+32)
 codepage_data:	incbin "codepage.cp",32+32
 cp_uppercase	equ	codepage+cp.uppercase
 cp_unicode	equ	codepage+cp.unicode
+cp_unicode_alt	equ	codepage+cp.unicode_alt
 codepage_end	equ $
+
+		section .text
+;
+; Input:  UCS-2 character in AX
+; Output: Single byte character in AL, ZF = 1
+;         On failure, returns ZF = 0
+;
+; Assumes CS == ES == 0.
+;
+ucs2_to_cp:
+		push di
+		push cx
+		mov di,cp_unicode
+		mov cx,512
+		repne scasw
+		xchg ax,cx
+		pop cx
+		pop di
+		not ax		; Doesn't change the flags!
+		ret
 
 		section .bss
 VFATInit	resb 1
