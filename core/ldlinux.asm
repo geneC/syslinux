@@ -1446,12 +1446,11 @@ readdir:
 .vfat_cp_ln:		; Copy VFAT line
 		dec al		; Store the next line we need
 		mov dx,ax	; Use DX to store the progress
-		mov bx,13
-		mov ah,0
-		mul bl		; Offset for DI
+		mov cx,13	; 13 characters per VFAT DIRENT
+		cbw		; AH <- 0
+		mul cl		; Offset for DI
 		add di,ax	; Increment DI
 		inc si		; Align to the real characters
-		mov cx,13	; 13 characters per VFAT DIRENT
 .vfat_cp_chr:
 		gs lodsw	; Unicode here!!
 		mov bp,ds
