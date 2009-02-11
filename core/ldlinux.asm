@@ -1237,17 +1237,19 @@ codepage_end	equ $
 ; Output: Single byte character in AL, ZF = 1
 ;         On failure, returns ZF = 0
 ;
-; Assumes CS == ES == 0.
-;
 ucs2_to_cp:
+		push es
 		push di
 		push cx
+		push cs
+		pop es
 		mov di,cp_unicode
 		mov cx,512
 		repne scasw
 		xchg ax,cx
 		pop cx
 		pop di
+		pop es
 		not ax		; Doesn't change the flags!
 		ret
 
@@ -1453,11 +1455,7 @@ readdir:
 		inc si		; Align to the real characters
 .vfat_cp_chr:
 		gs lodsw	; Unicode here!!
-		mov bp,ds
-		mov es,bp
 		call ucs2_to_cp	; Convert to local codepage
-		mov bp,fs
-		mov es,bp
 		jnz .vfat_abort	; Use short name if character not on codepage
 		stosb		; CAN NOT OVERRIDE es
 		cmp al,0
