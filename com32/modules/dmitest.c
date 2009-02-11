@@ -61,6 +61,22 @@ void display_memory(s_dmi *dmi) {
  }
 }
 
+void display_battery(s_dmi *dmi) {
+ moreprintf("Battery\n");
+ moreprintf("\tVendor              : %s\n",dmi->battery.manufacturer);
+ moreprintf("\tManufacture Date    : %s\n",dmi->battery.manufacture_date);
+ moreprintf("\tSerial              : %s\n",dmi->battery.serial);
+ moreprintf("\tName                : %s\n",dmi->battery.name);
+ moreprintf("\tChemistry           : %s\n",dmi->battery.chemistry);
+ moreprintf("\tDesign Capacity     : %s\n",dmi->battery.design_capacity);
+ moreprintf("\tDesign Voltage      : %s\n",dmi->battery.design_voltage);
+ moreprintf("\tSBDS                : %s\n",dmi->battery.sbds);
+ moreprintf("\tSBDS Manufact. Date : %s\n",dmi->battery.sbds_manufacture_date);
+ moreprintf("\tSBDS Chemistry      : %s\n",dmi->battery.sbds_chemistry);
+ moreprintf("\tMaximum Error       : %s\n",dmi->battery.maximum_error);
+ moreprintf("\tOEM Info            : %s\n",dmi->battery.oem_info);
+}
+
 void display_bios(s_dmi *dmi) {
  moreprintf("BIOS\n");
  moreprintf("\tVendor:   %s\n",dmi->bios.vendor);
@@ -156,7 +172,7 @@ int main(void)
   parse_dmitable(&dmi);
 
   for (;;) {
-    printf("Available commands are system, chassis, base_board, cpu, bios, memory, all, exit\n");
+    printf("Available commands are system, chassis, base_board, cpu, bios, memory, battery, all, exit\n");
     printf("dmi: ");
     fgets(buffer, sizeof buffer, stdin);
     if ( !strncmp(buffer, "exit", 4) )
@@ -173,6 +189,8 @@ int main(void)
 	    display_bios(&dmi);
     if ( !strncmp(buffer, "memory", 6) )
 	    display_memory(&dmi);
+    if ( !strncmp(buffer, "battery", 7) )
+	    display_battery(&dmi);
     if ( !strncmp(buffer, "all", 3) ) {
 	    display_bios(&dmi);
 	    display_system(&dmi);
@@ -180,6 +198,7 @@ int main(void)
 	    display_base_board(&dmi);
 	    display_cpu(&dmi);
 	    display_memory(&dmi);
+	    display_battery(&dmi);
     }
   }
 

@@ -35,6 +35,8 @@ static const char *bad_index = "<BAD INDEX>";
 #include "dmi_base_board.h"
 #include "dmi_chassis.h"
 #include "dmi_processor.h"
+#include "dmi_memory.h"
+#include "dmi_battery.h"
 
 extern char display_line;
 #define moreprintf(...) do { display_line++; if (display_line == 24) { char tempbuf[10]; display_line=0; printf("Press enter to continue"); fgets(tempbuf, sizeof tempbuf, stdin);}  printf ( __VA_ARGS__); } while (0);
@@ -63,6 +65,9 @@ typedef struct {
 	 s_base_board base_board;
 	 s_chassis chassis;
 	 s_processor processor;
+	 s_battery battery;
+	 s_memory memory[32];
+	 int memory_count;
 } s_dmi;
 
 void to_dmi_header(struct dmi_header *h, u8 *data);
