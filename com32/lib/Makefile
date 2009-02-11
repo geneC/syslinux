@@ -21,6 +21,8 @@ LIBOBJS = \
 	asprintf.o vasprintf.o strlcpy.o strlcat.o			\
 	vsscanf.o zalloc.o						\
 	\
+	opendir.o readdir.o closedir.o getcwd.o chdir.o fdopendir.o	\
+	\
 	libgcc/__ashldi3.o libgcc/__udivdi3.o			\
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
