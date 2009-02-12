@@ -306,12 +306,6 @@ int get_name_from_pci_ids(struct pci_domain *domain)
       /* ffff is an invalid vendor id */
       if (strstr(vendor_id,"ffff")) break;
 
-      int int_vendor_id=hex_to_int(vendor_id);
-      /* assign the vendor_name to any matching pci device */
-      for_each_pci_func(dev, domain) {
-	if (int_vendor_id == dev->vendor)
-	  strlcpy(dev->dev_info->vendor_name,vendor,255);
-      }
       /* if we have a tab + a char, it means this is a product id */
     } else if ((line[0] == '\t') && (line[1] != '\t')) {
 
@@ -332,8 +326,10 @@ int get_name_from_pci_ids(struct pci_domain *domain)
       /* assign the product_name to any matching pci device */
       for_each_pci_func(dev, domain) {
 	if (int_vendor_id == dev->vendor &&
-	    int_product_id == dev->product)
+	    int_product_id == dev->product) {
+	  strlcpy(dev->dev_info->vendor_name,vendor,255);
 	  strlcpy(dev->dev_info->product_name,product,255);
+	}
       }
 
       /* if we have two tabs, it means this is a sub product */
@@ -361,8 +357,10 @@ int get_name_from_pci_ids(struct pci_domain *domain)
 	if (int_vendor_id == dev->vendor &&
 	    int_product_id == dev->product &&
 	    int_sub_product_id == dev->sub_product &&
-	    int_sub_vendor_id == dev->sub_vendor)
+	    int_sub_vendor_id == dev->sub_vendor) {
+	  strlcpy(dev->dev_info->vendor_name,vendor,255);
 	  strlcpy(dev->dev_info->product_name,product,255);
+	}
       }
     }
   }
