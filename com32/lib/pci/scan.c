@@ -256,6 +256,7 @@ int get_name_from_pci_ids(struct pci_domain *domain)
   char sub_vendor_id[5];
   FILE *f;
   struct pci_device *dev;
+  bool skip_to_next_vendor=false;
 
   /* Intializing the vendor/product name for each pci device to "unknown" */
   /* adding a dev_info member if needed */
@@ -306,8 +307,18 @@ int get_name_from_pci_ids(struct pci_domain *domain)
       /* ffff is an invalid vendor id */
       if (strstr(vendor_id,"ffff")) break;
 
+      skip_to_next_vendor=true;
+      int int_vendor_id=hex_to_int(vendor_id);
+      for_each_pci_func(dev, domain) {
+	if (int_vendor_id == dev->vendor) {
+		skip_to_next_vendor=false;
+		continue;
+	}
+      }
       /* if we have a tab + a char, it means this is a product id */
     } else if ((line[0] == '\t') && (line[1] != '\t')) {
+
+      if (skip_to_next_vendor == true) continue;
 
       /* the product name the second field */
       strlcpy(product,skipspace(strstr(line," ")),255);
@@ -334,6 +345,8 @@ int get_name_from_pci_ids(struct pci_domain *domain)
 
       /* if we have two tabs, it means this is a sub product */
     } else if ((line[0] == '\t') && (line[1] == '\t')) {
+
+      if (skip_to_next_vendor == true) continue;
 
       /* the product name is last field */
       strlcpy(product,skipspace(strstr(line," ")),255);
