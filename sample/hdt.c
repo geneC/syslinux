@@ -267,7 +267,7 @@ void keys_handler(t_menusystem *ms, t_menuitem *mi,unsigned int scancode)
 static int get_disk_params(int disk, struct diskinfo *disk_info)
 {
   static com32sys_t getparm, parm, getebios, ebios, inreg,outreg;
-  char buffer[255];
+  //char buffer[255];
   struct device_parameter dp;
 //  struct ata_identify_device aid;
 
@@ -446,7 +446,6 @@ void compute_battery(unsigned char *menu, s_dmi *dmi) {
 
 
 void compute_disk_module(unsigned char *menu, struct diskinfo *disk_info, int disk_number) {
-  int i=disk_number;
   char buffer[MENULEN];
   struct diskinfo d = disk_info[disk_number];
   if (strlen(d.aid.model)<=0) return;
@@ -791,6 +790,7 @@ for (int i=0;i<dmi->memory_count;i++) {
   sprintf(buffer," Module <%d> ",i);
   add_item(buffer,"Memory Module",OPT_SUBMENU,NULL,MEMORY_SUBMENU[i]);
 }
+add_item("Run Test","Run Test",OPT_RUN,"memtest",0);
 }
 
 void compute_disks(unsigned char *menu, struct diskinfo *disk_info) {
@@ -861,8 +861,22 @@ int main(void)
   compute_main_menu();
 
 #ifdef WITH_MENU_DISPLAY
+  t_menuitem * curr;
+  char cmd[160];
+
   printf("Starting Menu\n");
-  showmenus(MAIN_MENU);
+  curr=showmenus(MAIN_MENU);
+  if (curr) {
+        if (curr->action == OPT_RUN)
+        {
+            strcpy(cmd,curr->data);
+
+	     if (issyslinux())
+               runsyslinuxcmd(cmd);
+            else csprint(cmd,0x07);
+            return 1; // Should not happen when run from SYSLINUX
+        }
+  }
 #endif
 
   return 0;
