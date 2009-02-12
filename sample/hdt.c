@@ -101,8 +101,6 @@ struct diskinfo {
   char host_bus_type[5];
   char interface_type[9];
   char interface_port;
-  char fwrev[ATA_ID_FW_REV_LEN+1];
-  char model[ATA_ID_PROD_LEN+1];
 } ATTR_PACKED;
 
 /*
@@ -269,14 +267,15 @@ void keys_handler(t_menusystem *ms, t_menuitem *mi,unsigned int scancode)
 static int get_disk_params(int disk, struct diskinfo *disk_info)
 {
   static com32sys_t getparm, parm, getebios, ebios, inreg,outreg;
-  struct device_parameter *dp = __com32.cs_bounce;
-  struct ata_identify_device *aid = __com32.cs_bounce;
-
-  memset(&inreg, 0, sizeof inreg);
+  char buffer[255];
+  struct device_parameter dp;
+//  struct ata_identify_device aid;
 
   disk_info[disk].disk = disk;
   disk_info[disk].ebios = disk_info[disk].cbios = 0;
 
+   memset(&getebios, 0, sizeof (com32sys_t));
+   memset(&ebios, 0, sizeof (com32sys_t));
   /* Get EBIOS support */
   getebios.eax.w[0] = 0x4100;
   getebios.ebx.w[0] = 0x55aa;
@@ -300,6 +299,8 @@ static int get_disk_params(int disk, struct diskinfo *disk_info)
   /* Get disk parameters -- really only useful for
      hard disks, but if we have a partitioned floppy
      it's actually our best chance... */
+  memset(&getparm, 0, sizeof (com32sys_t));
+  memset(&parm, 0, sizeof (com32sys_t));
   getparm.eax.b[1] = 0x08;
   getparm.edx.b[0] = disk;
 
@@ -316,44 +317,62 @@ static int get_disk_params(int disk, struct diskinfo *disk_info)
    disk_info[disk].cbios = 1;        /* Valid geometry */
      }
 
-   inreg.esi.w[0] = OFFS(dp);
-   inreg.ds       = SEG(dp);
+   memset(&dp, 0, sizeof(struct device_parameter));
+   //FIXME: memset to 0 make it fails
+//   memset(__com32.cs_bounce, 0, sizeof(struct device_parameter));
+   memset(&inreg, 0, sizeof(com32sys_t));
+
+   inreg.esi.w[0] = OFFS(__com32.cs_bounce);
+   inreg.ds       = SEG(__com32.cs_bounce);
    inreg.eax.w[0] = 0x4800;
    inreg.edx.b[0] = disk;
 
    __intcall(0x13, &inreg, &outreg);
 
-   if ( outreg.eflags.l & EFLAGS_CF ) {
+  memcpy(&dp, __com32.cs_bounce, sizeof (struct device_parameter));
+
+   if ( outreg.eflags.l & EFLAGS_CF) {
 	   printf("Disk 0x%X doesn't supports EDD 3.0\n",disk);
-	   return -1;
+//	   return -1;
   }
 
-   sprintf(disk_info[disk].host_bus_type,"%c%c%c%c",dp->host_bus_type[0],dp->host_bus_type[1],dp->host_bus_type[2],dp->host_bus_type[3]);
-   sprintf(disk_info[disk].interface_type,"%c%c%c%c%c%c%c%c",dp->interface_type[0],dp->interface_type[1],dp->interface_type[2],dp->interface_type[3],dp->interface_type[4],dp->interface_type[5],dp->interface_type[6],dp->interface_type[7]);
-   disk_info[disk].sectors=dp->sectors;
-   disk_info[disk].cylinders=dp->cylinders;
-   //FIXME
-   sprintf(disk_info[disk].model,"0x%X",disk);
+   sprintf(disk_info[disk].host_bus_type,"%c%c%c%c",dp.host_bus_type[0],dp.host_bus_type[1],dp.host_bus_type[2],dp.host_bus_type[3]);
+   sprintf(disk_info[disk].interface_type,"%c%c%c%c%c%c%c%c",dp.interface_type[0],dp.interface_type[1],dp.interface_type[2],dp.interface_type[3],dp.interface_type[4],dp.interface_type[5],dp.interface_type[6],dp.interface_type[7]);
+   disk_info[disk].sectors=dp.sectors;
+   disk_info[disk].cylinders=dp.cylinders;
+   //FIXME: we have to find a way to grab the model & fw
+   sprintf(disk_info[disk].aid.model,"0x%X",disk);
+   sprintf(disk_info[disk].aid.fw_rev,"%s","N/A");
+   sprintf(disk_info[disk].aid.serial_no,"%s","N/A");
 
+  /*
+   memset(__com32.cs_bounce, 0, sizeof(struct device_parameter));
+   memset(&aid, 0, sizeof(struct ata_identify_device));
    memset(&inreg, 0, sizeof inreg);
-   inreg.ebx.w[0] = OFFS(aid);
-   inreg.es       = SEG(aid);
+   inreg.ebx.w[0] = OFFS(__com32.cs_bounce+1024);
+   inreg.es       = SEG(__com32.cs_bounce+1024);
    inreg.eax.w[0] = 0x2500;
    inreg.edx.b[0] = disk;
 
   __intcall(0x13,&inreg, &outreg);
 
-   if ( outreg.eflags.l & EFLAGS_CF) {
+  memcpy(&aid, __com32.cs_bounce, sizeof (struct ata_identify_device));
+
+  if ( outreg.eflags.l & EFLAGS_CF) {
 	   printf("Disk 0x%X: Failed to Identify Device\n",disk);
 	   //FIXME
 	   return 0;
   }
 
-//   ata_id_c_string(id, disk_info[disk].fwrevbuf, ATA_ID_FW_REV, sizeof(disk_info[disk].fwrevbuf));
-//   ata_id_c_string(id, disk_info[disk].modelbuf, ATA_ID_PROD,  sizeof(disk_info[disk].modelbuf));
-//   printf ("Disk 0x%X : %s %s\n",disk, disk_info[disk].modelbuf, disk_info[disk].fwrevbuf);
+//   ata_id_c_string(aid, disk_info[disk].fwrev, ATA_ID_FW_REV, sizeof(disk_info[disk].fwrev));
+//   ata_id_c_string(aid, disk_info[disk].model, ATA_ID_PROD,  sizeof(disk_info[disk].model));
 
-
+  char buff[sizeof(struct ata_identify_device)];
+  memcpy(buff,&aid, sizeof (struct ata_identify_device));
+  for (int j=0;j<sizeof(struct ata_identify_device);j++)
+     printf ("model=|%c|\n",buff[j]);
+    printf ("Disk 0x%X : %s %s %s\n",disk, aid.model, aid.fw_rev,aid.serial_no);
+*/
 return 0;
 }
 
@@ -372,7 +391,7 @@ void detect_disks(struct diskinfo *disk_info) {
     if (get_disk_params(drive,disk_info))
           continue;
     struct diskinfo d=disk_info[drive];
-    printf("DISK 0x%X (%s %s): sectors=%d, sector/track=%d head=%d : EDD=%s\n",drive,d.host_bus_type,d.interface_type, d.sectors, d.sectors_per_track,d.heads,d.edd_version);
+    printf("  DISK 0x%X: %s %s: sectors=%d, sector/track=%d head=%d : EDD=%s\n",drive,d.host_bus_type,d.interface_type, d.sectors, d.sectors_per_track,d.heads,d.edd_version);
  }
 }
 
@@ -430,13 +449,45 @@ void compute_disk_module(unsigned char *menu, struct diskinfo *disk_info, int di
   int i=disk_number;
   char buffer[MENULEN];
   struct diskinfo d = disk_info[disk_number];
-  if (strlen(d.model)<=0) return;
+  if (strlen(d.aid.model)<=0) return;
 
    sprintf(buffer," Disk <%d> ",nb_sub_disk_menu);
   *menu = add_menu(buffer,-1);
 
-  sprintf(buffer,"Model        : %s",d.model);
+  sprintf(buffer,"Model        : %s",d.aid.model);
   add_item(buffer,"Model",OPT_INACTIVE,NULL,0);
+
+  // Compute device size
+  char previous_unit[3],unit[3]; //GB
+  int previous_size,size = d.sectors/2; // Converting to bytes
+  strcpy(unit,"KB");
+  strcpy(previous_unit,unit);
+  previous_size=size;
+  if (size>1000) {
+     size=size/1000;
+     strcpy(unit,"MB");
+     if (size>1000) {
+       previous_size=size;
+       size=size/1000;
+       strcpy(previous_unit,unit);
+       strcpy(unit,"GB");
+       if (size>1000) {
+        previous_size=size;
+        size=size/1000;
+        strcpy(previous_unit,unit);
+        strcpy(unit,"TB");
+       }
+     }
+  }
+
+  sprintf(buffer,"Size         : %d %s (%d %s)",size,unit,previous_size,previous_unit);
+  add_item(buffer,"Size",OPT_INACTIVE,NULL,0);
+
+  sprintf(buffer,"Firmware Rev.: %s",d.aid.fw_rev);
+  add_item(buffer,"Firmware Revision",OPT_INACTIVE,NULL,0);
+
+  sprintf(buffer,"Serial Number: %s",d.aid.serial_no);
+  add_item(buffer,"Serial Number",OPT_INACTIVE,NULL,0);
 
   sprintf(buffer,"Interface    : %s",d.interface_type);
   add_item(buffer,"Interface Type",OPT_INACTIVE,NULL,0);
