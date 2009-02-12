@@ -56,18 +56,54 @@
 
 #define SECTOR 512              /* bytes/sector */
 
+enum {
+        ATA_ID_FW_REV           = 23,
+	ATA_ID_PROD             = 27,
+        ATA_ID_FW_REV_LEN       = 8,
+        ATA_ID_PROD_LEN         = 40,
+};
+
 unsigned char MAIN_MENU, CPU_MENU, MOBO_MENU, CHASSIS_MENU, BIOS_MENU, SYSTEM_MENU, PCI_MENU;
-unsigned char MEMORY_MENU,  MEMORY_SUBMENU[32], BATTERY_MENU;
+unsigned char MEMORY_MENU,  MEMORY_SUBMENU[32], DISK_MENU, DISK_SUBMENU[32], BATTERY_MENU;
+int nb_sub_disk_menu=0;
 bool is_dmi_valid=false;
+
+#define ATTR_PACKED __attribute__((packed))
+
+struct ata_identify_device {
+  unsigned short words000_009[10];
+  unsigned char  serial_no[20];
+  unsigned short words020_022[3];
+  unsigned char  fw_rev[8];
+  unsigned char  model[40];
+  unsigned short words047_079[33];
+  unsigned short major_rev_num;
+  unsigned short minor_rev_num;
+  unsigned short command_set_1;
+  unsigned short command_set_2;
+  unsigned short command_set_extension;
+  unsigned short cfs_enable_1;
+  unsigned short word086;
+  unsigned short csf_default;
+  unsigned short words088_255[168];
+} ATTR_PACKED;
 
 struct diskinfo {
   int disk;
   int ebios;                    /* EBIOS supported on this disk */
   int cbios;                    /* CHS geometry is valid */
-  int head;
-  int sect;
+  int heads;
+  int sectors_per_track;
+  int sectors;
+  int cylinders;
   char edd_version[4];
-};
+  struct ata_identify_device aid; /* IDENTIFY xxx DEVICE data */
+  char host_bus_type[5];
+  char interface_type[9];
+  char interface_port;
+  char fwrev[ATA_ID_FW_REV_LEN+1];
+  char model[ATA_ID_PROD_LEN+1];
+} ATTR_PACKED;
 
 /*
  * Get a disk block and return a malloc'd buffer.
@@ -80,6 +116,8 @@ struct ebios_dapa {
   uint16_t seg;
   uint64_t lba;
 };
+
+
 
 // BYTE=8
 // WORD=16
@@ -104,7 +142,82 @@ struct device_parameter {
  uint64_t device_path[2];
  uint8_t  reserved;
  uint8_t  cheksum;
-};
+} ATTR_PACKED;
+
+/**
+ *      ata_id_string - Convert IDENTIFY DEVICE page into string
+ *      @id: IDENTIFY DEVICE results we will examine
+ *      @s: string into which data is output
+ *      @ofs: offset into identify device page
+ *      @len: length of string to return. must be an even number.
+ *
+ *      The strings in the IDENTIFY DEVICE page are broken up into
+ *      16-bit chunks.  Run through the string, and output each
+ *      8-bit chunk linearly, regardless of platform.
+ *
+ *      LOCKING:
+ *      caller.
+ */
+
+void ata_id_string(const uint16_t *id, unsigned char *s,
+                   unsigned int ofs, unsigned int len)
+{
+        unsigned int c;
+
+        while (len > 0) {
+                c = id[ofs] >> 8;
+                *s = c;
+                s++;
+
+                c = id[ofs] & 0xff;
+                *s = c;
+                s++;
+
+                ofs++;
+                len -= 2;
+        }
+}
+
+/**
+ *      ata_id_c_string - Convert IDENTIFY DEVICE page into C string
+ *      @id: IDENTIFY DEVICE results we will examine
+ *      @s: string into which data is output
+ *      @ofs: offset into identify device page
+ *      @len: length of string to return. must be an odd number.
+ *
+ *      This function is identical to ata_id_string except that it
+ *      trims trailing spaces and terminates the resulting string with
+ *      null.  @len must be actual maximum length (even number) + 1.
+ *
+ *      LOCKING:
+ *      caller.
+ */
+void ata_id_c_string(const uint16_t *id, unsigned char *s,
+                     unsigned int ofs, unsigned int len)
+{
+        unsigned char *p;
+
+        //WARN_ON(!(len & 1));
+
+        ata_id_string(id, s, ofs, len - 1);
+
+        p = s + strnlen(s, len - 1);
+        while (p > s && p[-1] == ' ')
+                p--;
+        *p = '\0';
+}
+
+
+static void printregs(const com32sys_t *r)
+{
+  printf("eflags = %08x  ds = %04x  es = %04x  fs = %04x  gs = %04x\n"
+         "eax = %08x  ebx = %08x  ecx = %08x  edx = %08x\n"
+         "ebp = %08x  esi = %08x  edi = %08x  esp = %08x\n",
+         r->eflags.l, r->ds, r->es, r->fs, r->gs,
+         r->eax.l, r->ebx.l, r->ecx.l, r->edx.l,
+         r->ebp.l, r->esi.l, r->edi.l, r->_unused_esp.l);
+}
+
 
 /*
  * Call int 13h, but with retry on failure.  Especially floppies need this.
@@ -124,65 +237,6 @@ static int int13_retry(const com32sys_t *inreg, com32sys_t *outreg)
 
   return -1;                    /* Error */
 }
-
-
-static void *read_sector(struct diskinfo disk_info, unsigned int lba)
-{
-  com32sys_t inreg;
-  struct ebios_dapa *dapa = __com32.cs_bounce;
-  void *buf = (char *)__com32.cs_bounce + SECTOR;
-  void *data;
-
-  memset(&inreg, 0, sizeof inreg);
-
-  if ( disk_info.ebios ) {
-    dapa->len = sizeof(*dapa);
-    dapa->count = 1;            /* 1 sector */
-    dapa->off = OFFS(buf);
-    dapa->seg = SEG(buf);
-    dapa->lba = lba;
-
-    inreg.esi.w[0] = OFFS(dapa);
-    inreg.ds       = SEG(dapa);
-    inreg.edx.b[0] = disk_info.disk;
-    inreg.eax.b[1] = 0x42;      /* Extended read */
-  } else {
-    unsigned int c, h, s, t;
-
-    if ( !disk_info.cbios ) {
-      /* We failed to get the geometry */
-
-      if ( lba )
-        return NULL;            /* Can only read MBR */
-
-      s = 1;  h = 0;  c = 0;
-    } else {
-      s = (lba % disk_info.sect) + 1;
-      t = lba / disk_info.sect; /* Track = head*cyl */
-      h = t % disk_info.head;
-      c = t / disk_info.head;
-    }
-  if ( s > 63 || h > 256 || c > 1023 )
-      return NULL;
-
-    inreg.eax.w[0] = 0x0201;    /* Read one sector */
-    inreg.ecx.b[1] = c & 0xff;
-    inreg.ecx.b[0] = s + (c >> 6);
-    inreg.edx.b[1] = h;
-    inreg.edx.b[0] = disk_info.disk;
-    inreg.ebx.w[0] = OFFS(buf);
-    inreg.es       = SEG(buf);
-  }
-
-  if (int13_retry(&inreg, NULL))
-    return NULL;
-
-  data = malloc(SECTOR);
-  if (data)
-    memcpy(data, buf, SECTOR);
-  return data;
-}
-
 
 TIMEOUTCODE ontimeout()
 {
@@ -216,6 +270,7 @@ static int get_disk_params(int disk, struct diskinfo *disk_info)
 {
   static com32sys_t getparm, parm, getebios, ebios, inreg,outreg;
   struct device_parameter *dp = __com32.cs_bounce;
+  struct ata_identify_device *aid = __com32.cs_bounce;
 
   memset(&inreg, 0, sizeof inreg);
 
@@ -253,10 +308,10 @@ static int get_disk_params(int disk, struct diskinfo *disk_info)
   if ( parm.eflags.l & EFLAGS_CF )
     return disk_info[disk].ebios ? 0 : -1;
 
-  disk_info[disk].head = parm.edx.b[1]+1;
-  disk_info[disk].sect = parm.ecx.b[0] & 0x3f;
-  if ( disk_info[disk].sect == 0 ) {
-    disk_info[disk].sect = 1;
+  disk_info[disk].heads = parm.edx.b[1]+1;
+  disk_info[disk].sectors_per_track = parm.ecx.b[0] & 0x3f;
+  if ( disk_info[disk].sectors_per_track == 0 ) {
+    disk_info[disk].sectors_per_track = 1;
   } else {
    disk_info[disk].cbios = 1;        /* Valid geometry */
      }
@@ -268,12 +323,37 @@ static int get_disk_params(int disk, struct diskinfo *disk_info)
 
    __intcall(0x13, &inreg, &outreg);
 
-   if ( outreg.eflags.l & EFLAGS_CF )
-	   printf("Error while detecting disk parameters\n");
+   if ( outreg.eflags.l & EFLAGS_CF ) {
+	   printf("Disk 0x%X doesn't supports EDD 3.0\n",disk);
+	   return -1;
+  }
 
-   printf("RESULT=0x%X 0x%X 0x%X 0x%X\n",dp->host_bus_type[0],dp->host_bus_type[1],dp->host_bus_type[2],dp->host_bus_type[3]);
-   printf("RESULT=0x%X 0x%X 0x%X 0x%X\n",dp->interface_type[0],dp->interface_type[1],dp->interface_type[2],dp->interface_type[3]);
-   printf("RESULT= cylindres=%d heads=%d sect=%d bytes_per_sector=%d\n",dp->cylinders, dp->heads,dp->sectors/2/1024,dp->bytes_per_sector);
+   sprintf(disk_info[disk].host_bus_type,"%c%c%c%c",dp->host_bus_type[0],dp->host_bus_type[1],dp->host_bus_type[2],dp->host_bus_type[3]);
+   sprintf(disk_info[disk].interface_type,"%c%c%c%c%c%c%c%c",dp->interface_type[0],dp->interface_type[1],dp->interface_type[2],dp->interface_type[3],dp->interface_type[4],dp->interface_type[5],dp->interface_type[6],dp->interface_type[7]);
+   disk_info[disk].sectors=dp->sectors;
+   disk_info[disk].cylinders=dp->cylinders;
+   //FIXME
+   sprintf(disk_info[disk].model,"0x%X",disk);
+
+   memset(&inreg, 0, sizeof inreg);
+   inreg.ebx.w[0] = OFFS(aid);
+   inreg.es       = SEG(aid);
+   inreg.eax.w[0] = 0x2500;
+   inreg.edx.b[0] = disk;
+
+  __intcall(0x13,&inreg, &outreg);
+
+   if ( outreg.eflags.l & EFLAGS_CF) {
+	   printf("Disk 0x%X: Failed to Identify Device\n",disk);
+	   //FIXME
+	   return 0;
+  }
+
+//   ata_id_c_string(id, disk_info[disk].fwrevbuf, ATA_ID_FW_REV, sizeof(disk_info[disk].fwrevbuf));
+//   ata_id_c_string(id, disk_info[disk].modelbuf, ATA_ID_PROD,  sizeof(disk_info[disk].modelbuf));
+//   printf ("Disk 0x%X : %s %s\n",disk, disk_info[disk].modelbuf, disk_info[disk].fwrevbuf);
+
+
 return 0;
 }
 
@@ -288,12 +368,11 @@ int detect_dmi(s_dmi *dmi) {
 }
 
 void detect_disks(struct diskinfo *disk_info) {
- char *buf;
  for (int drive = 0x80; drive <= 0xff; drive++) {
     if (get_disk_params(drive,disk_info))
           continue;
-
-    printf("DISK: 0x%X, sector=%d head=%d : EDD=%s\n",drive,disk_info[drive].sect,disk_info[drive].head,disk_info[drive].edd_version);
+    struct diskinfo d=disk_info[drive];
+    printf("DISK 0x%X (%s %s): sectors=%d, sector/track=%d head=%d : EDD=%s\n",drive,d.host_bus_type,d.interface_type, d.sectors, d.sectors_per_track,d.heads,d.edd_version);
  }
 }
 
@@ -346,6 +425,45 @@ void compute_battery(unsigned char *menu, s_dmi *dmi) {
   add_item(buffer,"OEM Info",OPT_INACTIVE,NULL,0);
 }
 
+
+void compute_disk_module(unsigned char *menu, struct diskinfo *disk_info, int disk_number) {
+  int i=disk_number;
+  char buffer[MENULEN];
+  struct diskinfo d = disk_info[disk_number];
+  if (strlen(d.model)<=0) return;
+
+   sprintf(buffer," Disk <%d> ",nb_sub_disk_menu);
+  *menu = add_menu(buffer,-1);
+
+  sprintf(buffer,"Model        : %s",d.model);
+  add_item(buffer,"Model",OPT_INACTIVE,NULL,0);
+
+  sprintf(buffer,"Interface    : %s",d.interface_type);
+  add_item(buffer,"Interface Type",OPT_INACTIVE,NULL,0);
+
+  sprintf(buffer,"Host Bus     : %s",d.host_bus_type);
+  add_item(buffer,"Host Bus Type",OPT_INACTIVE,NULL,0);
+
+  sprintf(buffer,"Sectors      : %d",d.sectors);
+  add_item(buffer,"Sectors",OPT_INACTIVE,NULL,0);
+
+  sprintf(buffer,"Heads        : %d",d.heads);
+  add_item(buffer,"Heads",OPT_INACTIVE,NULL,0);
+
+  sprintf(buffer,"Cylinders    : %d",d.cylinders);
+  add_item(buffer,"Cylinders",OPT_INACTIVE,NULL,0);
+
+  sprintf(buffer,"Sectors/Track: %d",d.sectors_per_track);
+  add_item(buffer,"Sectors per Track",OPT_INACTIVE,NULL,0);
+
+  sprintf(buffer,"Port         : 0x%X",disk_number);
+  add_item(buffer,"Port",OPT_INACTIVE,NULL,0);
+
+  sprintf(buffer,"EDD Version  : %s",d.edd_version);
+  add_item(buffer,"EDD Version",OPT_INACTIVE,NULL,0);
+
+  nb_sub_disk_menu++;
+}
 
 void compute_memory_module(unsigned char *menu, s_dmi *dmi, int slot_number) {
   int i=slot_number;
@@ -624,7 +742,23 @@ for (int i=0;i<dmi->memory_count;i++) {
 }
 }
 
-void compute_submenus(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain) {
+void compute_disks(unsigned char *menu, struct diskinfo *disk_info) {
+char buffer[MENULEN];
+nb_sub_disk_menu=0;
+
+for (int i=0;i<0xff;i++) {
+  compute_disk_module(&DISK_SUBMENU[nb_sub_disk_menu],disk_info,i);
+}
+
+*menu = add_menu(" Disks ",-1);
+
+for (int i=0;i<nb_sub_disk_menu;i++) {
+  sprintf(buffer," Disk <%d> ",i);
+  add_item(buffer,"Disk",OPT_SUBMENU,NULL,DISK_SUBMENU[i]);
+}
+}
+
+void compute_submenus(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain, struct diskinfo *disk_info) {
 if (is_dmi_valid) {
   compute_motherboard(&MOBO_MENU,dmi);
   compute_chassis(&CHASSIS_MENU,dmi);
@@ -634,6 +768,7 @@ if (is_dmi_valid) {
   compute_battery(&BATTERY_MENU,dmi);
 }
   compute_processor(&CPU_MENU,cpu,dmi);
+  compute_disks(&DISK_MENU,disk_info);
 #ifdef WITH_PCI
   compute_PCI(&PCI_MENU,pci_domain);
 #endif
@@ -642,7 +777,9 @@ if (is_dmi_valid) {
 void compute_main_menu() {
   MAIN_MENU = add_menu(" Main Menu ",-1);
   set_item_options(-1,24);
-  add_item("<P>rocessor","Main Processor",OPT_SUBMENU,NULL,CPU_MENU);
+ if (nb_sub_disk_menu>0)
+ add_item("<D>isks","Disks",OPT_SUBMENU,NULL,DISK_MENU);
+ add_item("<P>rocessor","Main Processor",OPT_SUBMENU,NULL,CPU_MENU);
 
 if (is_dmi_valid) {
   add_item("<M>otherboard","Motherboard",OPT_SUBMENU,NULL,MOBO_MENU);
@@ -668,7 +805,7 @@ int main(void)
 
   detect_hardware(&dmi,&cpu,&pci_domain,disk_info);
 
-  compute_submenus(&dmi,&cpu,&pci_domain);
+  compute_submenus(&dmi,&cpu,&pci_domain,disk_info);
 
   compute_main_menu();
 
