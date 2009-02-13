@@ -84,9 +84,9 @@
 
 // Upper bounds on lengths
 // We copy the given string, so user can reuse the space used to store incoming arguments.
-#define MENULEN       80 // Each menu entry is atmost MENULEN chars
-#define STATLEN       80 // Maximum length of status string
-#define TITLELEN      80 // Maximum length of title string
+#define MENULEN       78 // Each menu entry is atmost MENULEN chars
+#define STATLEN       78 // Maximum length of status string
+#define TITLELEN      78 // Maximum length of title string
 #define ACTIONLEN     255 // Maximum length of an action string
 
 // Layout of menu
