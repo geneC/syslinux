@@ -184,8 +184,6 @@ int get_class_name_from_pci_ids(struct pci_domain *domain)
   if (!f)
     return -1;
 
-  strcpy(class_name,"unknown");
-
   /* for each line we found in the pci.ids */
   while ( fgets(line, sizeof line, f) ) {
     /* Skipping uncessary lines */
@@ -198,7 +196,7 @@ int get_class_name_from_pci_ids(struct pci_domain *domain)
 	    class_mode=true;
     if (class_mode == false)
 		continue;
-
+    strncpy(class_name,"unknown",7);
     /* If the line doesn't start with a tab, it means that's a class name */
     if (line[0] != '\t') {
 
@@ -257,6 +255,10 @@ int get_name_from_pci_ids(struct pci_domain *domain)
   FILE *f;
   struct pci_device *dev;
   bool skip_to_next_vendor=false;
+  uint16_t int_vendor_id;
+  uint16_t int_product_id;
+  uint16_t int_sub_product_id;
+  uint16_t int_sub_vendor_id;
 
   /* Intializing the vendor/product name for each pci device to "unknown" */
   /* adding a dev_info member if needed */
@@ -267,8 +269,8 @@ int get_name_from_pci_ids(struct pci_domain *domain)
       if (!dev->dev_info)
 	return -1;
     }
-    strcpy(dev->dev_info->vendor_name,"unknown");
-    strcpy(dev->dev_info->product_name,"unknown");
+    strlcpy(dev->dev_info->vendor_name,"unknown",7);
+    strlcpy(dev->dev_info->product_name,"unknown",7);
   }
 
   /* Opening the pci.ids from the boot device */
@@ -276,10 +278,10 @@ int get_name_from_pci_ids(struct pci_domain *domain)
   if (!f)
     return -1;
 
-  strcpy(vendor_id,"0000");
-  strcpy(product_id,"0000");
-  strcpy(sub_product_id,"0000");
-  strcpy(sub_vendor_id,"0000");
+  strlcpy(vendor_id,"0000",4);
+  strlcpy(product_id,"0000",4);
+  strlcpy(sub_product_id,"0000",4);
+  strlcpy(sub_vendor_id,"0000",4);
 
   /* for each line we found in the pci.ids */
   while ( fgets(line, sizeof line, f) ) {
@@ -300,15 +302,12 @@ int get_name_from_pci_ids(struct pci_domain *domain)
 
       remove_eol(vendor);
       /* init product_id, sub_product and sub_vendor */
-      strcpy(product_id,"0000");
-      strcpy(sub_product_id,"0000");
-      strcpy(sub_vendor_id,"0000");
-
-      /* ffff is an invalid vendor id */
-      if (strstr(vendor_id,"ffff")) break;
+      strlcpy(product_id,"0000",4);
+      strlcpy(sub_product_id,"0000",4);
+      strlcpy(sub_vendor_id,"0000",4);
 
       skip_to_next_vendor=true;
-      int int_vendor_id=hex_to_int(vendor_id);
+      int_vendor_id=hex_to_int(vendor_id);
       for_each_pci_func(dev, domain) {
 	if (int_vendor_id == dev->vendor) {
 		skip_to_next_vendor=false;
@@ -316,9 +315,7 @@ int get_name_from_pci_ids(struct pci_domain *domain)
 	}
       }
       /* if we have a tab + a char, it means this is a product id */
-    } else if ((line[0] == '\t') && (line[1] != '\t')) {
-
-      if (skip_to_next_vendor == true) continue;
+    } else if ((line[0] == '\t') && (line[1] != '\t') && (skip_to_next_vendor == false)) {
 
       /* the product name the second field */
       strlcpy(product,skipspace(strstr(line," ")),255);
@@ -329,11 +326,11 @@ int get_name_from_pci_ids(struct pci_domain *domain)
       product_id[4]=0;
 
       /* init sub_product and sub_vendor */
-      strcpy(sub_product_id,"0000");
-      strcpy(sub_vendor_id,"0000");
+      strlcpy(sub_product_id,"0000",4);
+      strlcpy(sub_vendor_id,"0000",4);
 
-      int int_vendor_id=hex_to_int(vendor_id);
-      int int_product_id=hex_to_int(product_id);
+      int_vendor_id=hex_to_int(vendor_id);
+      int_product_id=hex_to_int(product_id);
       /* assign the product_name to any matching pci device */
       for_each_pci_func(dev, domain) {
 	if (int_vendor_id == dev->vendor &&
@@ -344,9 +341,7 @@ int get_name_from_pci_ids(struct pci_domain *domain)
       }
 
       /* if we have two tabs, it means this is a sub product */
-    } else if ((line[0] == '\t') && (line[1] == '\t')) {
-
-      if (skip_to_next_vendor == true) continue;
+    } else if ((line[0] == '\t') && (line[1] == '\t') && (skip_to_next_vendor == false)) {
 
       /* the product name is last field */
       strlcpy(product,skipspace(strstr(line," ")),255);
@@ -361,10 +356,10 @@ int get_name_from_pci_ids(struct pci_domain *domain)
       strlcpy(sub_product_id,&line[7],4);
       sub_product_id[4]=0;
 
-      int int_vendor_id=hex_to_int(vendor_id);
-      int int_sub_vendor_id=hex_to_int(sub_vendor_id);
-      int int_product_id=hex_to_int(product_id);
-      int int_sub_product_id=hex_to_int(sub_product_id);
+      int_vendor_id=hex_to_int(vendor_id);
+      int_sub_vendor_id=hex_to_int(sub_vendor_id);
+      int_product_id=hex_to_int(product_id);
+      int_sub_product_id=hex_to_int(sub_product_id);
       /* assign the product_name to any matching pci device */
       for_each_pci_func(dev, domain) {
 	if (int_vendor_id == dev->vendor &&
