@@ -64,7 +64,7 @@ enum {
 };
 
 unsigned char MAIN_MENU, CPU_MENU, MOBO_MENU, CHASSIS_MENU, BIOS_MENU, SYSTEM_MENU, PCI_MENU, KERNEL_MENU;
-unsigned char MEMORY_MENU,  MEMORY_SUBMENU[32], DISK_MENU, DISK_SUBMENU[32], BATTERY_MENU;
+unsigned char MEMORY_MENU,  MEMORY_SUBMENU[32], DISK_MENU, DISK_SUBMENU[32], PCI_SUBMENU[255],BATTERY_MENU;
 int nb_sub_disk_menu=0;
 bool is_dmi_valid=false;
 
@@ -395,22 +395,48 @@ void detect_disks(struct diskinfo *disk_info) {
  }
 }
 
-void compute_PCI(unsigned char *menu,struct pci_domain **pci_domain) {
+
+void compute_pci_device(unsigned char *menu,struct pci_device *pci_device,int pci_bus, int pci_slot, int pci_func) {
   char buffer[MENULEN];
   char infobar[STATLEN];
-  *menu = add_menu(" PCI Devices ",-1);
 
-  struct pci_device *pci_device;
-  for_each_pci_func(pci_device, *pci_domain) {
-        snprintf(buffer,59,"%s : %s\n",
-		pci_device->dev_info->vendor_name,
-		pci_device->dev_info->product_name);
-        snprintf(infobar, MENULEN,"%02x:%02x.%01x # %s # ID:%04x:%04x[%04x:%04x] # Kmod:%s\n",
+  *menu = add_menu(" PCI Devices ",-1);
+   set_menu_pos(7,17);
+   add_item(buffer,"Class Name",OPT_INACTIVE,NULL,0);
+   snprintf(buffer,59,"Class    :%s",pci_device->dev_info->class_name);
+   add_item(buffer,"Class Name",OPT_INACTIVE,NULL,0);
+   snprintf(buffer,59,"Location: %02x:%02x.%01x",pci_bus, pci_slot, pci_func);
+   add_item(buffer,"Location on the PCI Bus",OPT_INACTIVE,NULL,0);
+   snprintf(buffer,59,"PCI ID  : %04x:%04x[%04x:%04x]",pci_device->vendor, pci_device->product,pci_device->sub_vendor, pci_device->sub_product);
+   add_item(buffer,"PCI ID: vendor:product[sub_vendor:sub_product]",OPT_INACTIVE,NULL,0);
+   snprintf(buffer,59,"Module  : %s",pci_device->dev_info->linux_kernel_module);
+   add_item(buffer,"Related kernel module",OPT_INACTIVE,NULL,0);
+
+}
+
+void compute_PCI(unsigned char *menu, struct pci_domain **pci_domain) {
+ char buffer[MENULEN];
+ char menuname[255][MENULEN];
+ char infobar[255][STATLEN];
+ int i=0;
+ struct pci_device *pci_device;
+
+ for_each_pci_func(pci_device, *pci_domain) {
+   compute_pci_device(&PCI_SUBMENU[i],pci_device,__pci_bus,__pci_slot,__pci_func);
+   snprintf(menuname[i],59,"%s|%s",pci_device->dev_info->vendor_name,pci_device->dev_info->product_name);
+   snprintf(infobar[i], STATLEN,"%02x:%02x.%01x # %s # ID:%04x:%04x[%04x:%04x] # Kmod:%s\n",
                __pci_bus, __pci_slot, __pci_func,pci_device->dev_info->class_name,
                pci_device->vendor, pci_device->product,
                pci_device->sub_vendor, pci_device->sub_product,pci_device->dev_info->linux_kernel_module);
-	add_item(buffer,infobar,OPT_INACTIVE,NULL,0);
-  }
+   i++;
+ }
+
+*menu = add_menu(" PCI Devices ",-1);
+
+for (int j=0;j<i;j++) {
+//  sprintf(buffer," PCI <%d> ",j);
+  add_item(menuname[j],infobar[j],OPT_SUBMENU,NULL,PCI_SUBMENU[j]);
+}
 }
 
 void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
@@ -755,7 +781,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
 
 void setup_env() {
   openconsole(&dev_stdcon_r, &dev_stdcon_w);
-  init_menusystem("Hardware Detection Tool Version 0.1.0 by Erwan Velu");
+  init_menusystem("Hardware Detection Tool Version 0.1.1 by Erwan Velu");
   set_window_size(1,1,23,78); // Leave some space around
 
  // Register the menusystem handler
@@ -849,8 +875,13 @@ if (is_dmi_valid) {
 void compute_main_menu() {
   MAIN_MENU = add_menu(" Main Menu ",-1);
   set_item_options(-1,24);
+
  if (nb_sub_disk_menu>0)
+#ifdef WITH_PCI
+  add_item("PCI <D>evices","PCI Devices",OPT_SUBMENU,NULL,PCI_MENU);
+#endif
  add_item("<D>isks","Disks",OPT_SUBMENU,NULL,DISK_MENU);
+ add_item("<M>emory Modules","Memory Modules",OPT_SUBMENU,NULL,MEMORY_MENU);
  add_item("<P>rocessor","Main Processor",OPT_SUBMENU,NULL,CPU_MENU);
 
 if (is_dmi_valid) {
@@ -858,11 +889,9 @@ if (is_dmi_valid) {
   add_item("<B>ios","Bios",OPT_SUBMENU,NULL,BIOS_MENU);
   add_item("<C>hassis","Chassis",OPT_SUBMENU,NULL,CHASSIS_MENU);
   add_item("<S>ystem","System",OPT_SUBMENU,NULL,SYSTEM_MENU);
-  add_item("<M>emory Modules","Memory Modules",OPT_SUBMENU,NULL,MEMORY_MENU);
   add_item("Ba<t>tery","Battery",OPT_SUBMENU,NULL,BATTERY_MENU);
 }
 #ifdef WITH_PCI
-  add_item("PCI <D>evices","PCI Devices",OPT_SUBMENU,NULL,PCI_MENU);
   add_item("","",OPT_SEP,"",0);
   add_item("<K>ernel modules","Kernel Modules",OPT_SUBMENU,NULL,KERNEL_MENU);
 #endif
