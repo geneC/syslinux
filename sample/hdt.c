@@ -63,7 +63,7 @@ enum {
         ATA_ID_PROD_LEN         = 40,
 };
 
-unsigned char MAIN_MENU, CPU_MENU, MOBO_MENU, CHASSIS_MENU, BIOS_MENU, SYSTEM_MENU, PCI_MENU;
+unsigned char MAIN_MENU, CPU_MENU, MOBO_MENU, CHASSIS_MENU, BIOS_MENU, SYSTEM_MENU, PCI_MENU, KERNEL_MENU;
 unsigned char MEMORY_MENU,  MEMORY_SUBMENU[32], DISK_MENU, DISK_SUBMENU[32], BATTERY_MENU;
 int nb_sub_disk_menu=0;
 bool is_dmi_valid=false;
@@ -238,7 +238,7 @@ static int int13_retry(const com32sys_t *inreg, com32sys_t *outreg)
 
 TIMEOUTCODE ontimeout()
 {
-	  beep();
+	 // beep();
 	    return CODE_WAIT;
 }
 
@@ -397,12 +397,12 @@ void detect_disks(struct diskinfo *disk_info) {
 
 void compute_PCI(unsigned char *menu,struct pci_domain **pci_domain) {
   char buffer[MENULEN];
-  char infobar[MENULEN];
+  char infobar[STATLEN];
   *menu = add_menu(" PCI Devices ",-1);
 
   struct pci_device *pci_device;
   for_each_pci_func(pci_device, *pci_domain) {
-        snprintf(buffer,MENULEN,"%s : %s\n",
+        snprintf(buffer,59,"%s : %s\n",
 		pci_device->dev_info->vendor_name,
 		pci_device->dev_info->product_name);
         snprintf(infobar, MENULEN,"%02x:%02x.%01x # %s # ID:%04x:%04x[%04x:%04x] # Kmod:%s\n",
@@ -413,6 +413,24 @@ void compute_PCI(unsigned char *menu,struct pci_domain **pci_domain) {
   }
 }
 
+void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
+  char buffer[MENULEN];
+  char infobar[MENULEN];
+
+  *menu = add_menu(" Kernel Modules ",-1);
+  struct pci_device *pci_device;
+  for_each_pci_func(pci_device, *pci_domain) {
+	if (strcmp("unknown",pci_device->dev_info->linux_kernel_module)!=0) {
+         snprintf(buffer,MENULEN,"%s",pci_device->dev_info->linux_kernel_module);
+	 snprintf(infobar, MENULEN,"%04x:%04x %s : %s\n",
+               pci_device->vendor, pci_device->product,
+		pci_device->dev_info->vendor_name,
+                pci_device->dev_info->product_name);
+
+	 add_item(buffer,infobar,OPT_INACTIVE,NULL,0);
+	}
+  }
+}
 
 void compute_battery(unsigned char *menu, s_dmi *dmi) {
   char buffer[MENULEN];
@@ -737,7 +755,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
 
 void setup_env() {
   openconsole(&dev_stdcon_r, &dev_stdcon_w);
-  init_menusystem("Hardware Detection Tool by Erwan Velu");
+  init_menusystem("Hardware Detection Tool Version 0.1.0 by Erwan Velu");
   set_window_size(1,1,23,78); // Leave some space around
 
  // Register the menusystem handler
@@ -759,11 +777,12 @@ void detect_hardware(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain, str
   if (detect_dmi(dmi) == 0)
 		is_dmi_valid=true;
 
+#ifdef WITH_PCI
   printf("PCI: Detecting Devices\n");
   /* Scanning to detect pci buses and devices */
   *pci_domain = pci_scan();
 
-#ifdef WITH_PCI
+
   printf("PCI: Resolving names\n");
   /* Assigning product & vendor name for each device*/
   get_name_from_pci_ids(*pci_domain);
@@ -771,6 +790,7 @@ void detect_hardware(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain, str
   printf("PCI: Resolving class names\n");
   /* Assigning class name for each device*/
   get_class_name_from_pci_ids(*pci_domain);
+
 
   printf("PCI: Resolving module names\n");
   /* Detecting which kernel module should match each device */
@@ -822,6 +842,7 @@ if (is_dmi_valid) {
   compute_disks(&DISK_MENU,disk_info);
 #ifdef WITH_PCI
   compute_PCI(&PCI_MENU,pci_domain);
+  compute_KERNEL(&KERNEL_MENU,pci_domain);
 #endif
 }
 
@@ -842,6 +863,8 @@ if (is_dmi_valid) {
 }
 #ifdef WITH_PCI
   add_item("PCI <D>evices","PCI Devices",OPT_SUBMENU,NULL,PCI_MENU);
+  add_item("","",OPT_SEP,"",0);
+  add_item("<K>ernel modules","Kernel Modules",OPT_SUBMENU,NULL,KERNEL_MENU);
 #endif
 }
 
