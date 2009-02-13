@@ -441,8 +441,8 @@ void compute_pci_device(unsigned char *menu,struct pci_device *pci_device,int pc
 /* Main PCI Menu*/
 int compute_PCI(unsigned char *menu, struct pci_domain **pci_domain) {
  int i=0;
- char menuname[255][MENULEN];
- char infobar[255][STATLEN];
+ char menuname[255][MENULEN+1];
+ char infobar[255][STATLEN+1];
  struct pci_device *pci_device;
  printf("MENU: Computing PCI menu\n");
 
@@ -468,8 +468,8 @@ return 0;
 
 /* Main Kernel Menu*/
 void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
-  char buffer[SUBMENULEN];
-  char infobar[STATLEN];
+  char buffer[SUBMENULEN+1];
+  char infobar[STATLEN+1];
 
   *menu = add_menu(" Kernel Modules ",-1);
   menu_count++;
@@ -481,7 +481,7 @@ void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
   for_each_pci_func(pci_device, *pci_domain) {
 	/* No need to add unknown kernel modules*/
 	if (strcmp("unknown",pci_device->dev_info->linux_kernel_module)!=0) {
-         snprintf(buffer,SUBMENULEN,"%s (%s)",pci_device->dev_info->linux_kernel_module, pci_device->dev_info->class_name);
+         snprintf(buffer,sizeof buffer,"%s (%s)",pci_device->dev_info->linux_kernel_module, pci_device->dev_info->class_name);
 	 snprintf(infobar, STATLEN,"%04x:%04x %s : %s\n",
                pci_device->vendor, pci_device->product,
 		pci_device->dev_info->vendor_name,
@@ -494,55 +494,54 @@ void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
 
 /* Main Battery Menu*/
 void compute_battery(unsigned char *menu, s_dmi *dmi) {
-  char buffer[SUBMENULEN];
+  char buffer[SUBMENULEN+1];
   *menu = add_menu(" Battery ",-1);
   menu_count++;
   printf("MENU: Computing Battery menu\n");
   set_menu_pos(4,29);
-  snprintf(buffer,SUBMENULEN,"Vendor          : %s",dmi->battery.manufacturer);
+  snprintf(buffer, sizeof buffer,"Vendor          : %s",dmi->battery.manufacturer);
   add_item(buffer,"Vendor",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Manufacture Date: %s",dmi->battery.manufacture_date);
+  snprintf(buffer, sizeof buffer,"Manufacture Date: %s",dmi->battery.manufacture_date);
   add_item(buffer,"Manufacture Date",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Serial          : %s",dmi->battery.serial);
+  snprintf(buffer, sizeof buffer,"Serial          : %s",dmi->battery.serial);
   add_item(buffer,"Serial",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Name            : %s",dmi->battery.name);
+  snprintf(buffer, sizeof buffer,"Name            : %s",dmi->battery.name);
   add_item(buffer,"Name",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Chemistry       : %s",dmi->battery.chemistry);
+  snprintf(buffer, sizeof buffer,"Chemistry       : %s",dmi->battery.chemistry);
   add_item(buffer,"Chemistry",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Design Capacity : %s",dmi->battery.design_capacity);
+  snprintf(buffer, sizeof buffer,"Design Capacity : %s",dmi->battery.design_capacity);
   add_item(buffer,"Design Capacity",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Design Voltage  : %s",dmi->battery.design_voltage);
+  snprintf(buffer, sizeof buffer,"Design Voltage  : %s",dmi->battery.design_voltage);
   add_item(buffer,"Design Voltage",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"SBDS            : %s",dmi->battery.sbds);
+  snprintf(buffer, sizeof buffer,"SBDS            : %s",dmi->battery.sbds);
   add_item(buffer,"SBDS",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"SBDS Manuf. Date: %s",dmi->battery.sbds_manufacture_date);
+  snprintf(buffer, sizeof buffer,"SBDS Manuf. Date: %s",dmi->battery.sbds_manufacture_date);
   add_item(buffer,"SBDS Manufacture Date",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"SBDS Chemistry  : %s",dmi->battery.sbds_chemistry);
+  snprintf(buffer, sizeof buffer,"SBDS Chemistry  : %s",dmi->battery.sbds_chemistry);
   add_item(buffer,"SBDS Chemistry",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Maximum Error   : %s",dmi->battery.maximum_error);
+  snprintf(buffer, sizeof buffer,"Maximum Error   : %s",dmi->battery.maximum_error);
   add_item(buffer,"Maximum Error (%)",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"OEM Info        : %s",dmi->battery.oem_info);
+  snprintf(buffer, sizeof buffer,"OEM Info        : %s",dmi->battery.oem_info);
   add_item(buffer,"OEM Info",OPT_INACTIVE,NULL,0);
 }
 
 /* Compute the disk submenu */
-void compute_disk_module(unsigned char *menu, struct diskinfo *disk_info, int disk_number) {
-  char buffer[MENULEN];
-  struct diskinfo d = disk_info[disk_number];
+void compute_disk_module(unsigned char *menu, struct diskinfo *d,int disk_number) {
+  char buffer[MENULEN+1];
 
   /* No need to add no existing devices*/
-  if (strlen(d.aid.model)<=0) return;
+  if (strlen(d->aid.model)<=0) return;
 
-  sprintf(buffer," Disk <%d> ",nb_sub_disk_menu);
+  snprintf(buffer,sizeof buffer," Disk <%d> ",nb_sub_disk_menu);
   *menu = add_menu(buffer,-1);
   menu_count++;
 
-  sprintf(buffer,"Model        : %s",d.aid.model);
+  snprintf(buffer,sizeof buffer,"Model        : %s",d->aid.model);
   add_item(buffer,"Model",OPT_INACTIVE,NULL,0);
 
   /* Compute device size */
   char previous_unit[3],unit[3]; //GB
-  int previous_size,size = d.sectors/2; // Converting to bytes
+  int previous_size,size = d->sectors/2; // Converting to bytes
   strlcpy(unit,"KB",2);
   strlcpy(previous_unit,unit,2);
   previous_size=size;
@@ -566,34 +565,34 @@ void compute_disk_module(unsigned char *menu, struct diskinfo *disk_info, int di
   sprintf(buffer,"Size         : %d %s (%d %s)",size,unit,previous_size,previous_unit);
   add_item(buffer,"Size",OPT_INACTIVE,NULL,0);
 
-  sprintf(buffer,"Firmware Rev.: %s",d.aid.fw_rev);
+  sprintf(buffer,"Firmware Rev.: %s",d->aid.fw_rev);
   add_item(buffer,"Firmware Revision",OPT_INACTIVE,NULL,0);
 
-  sprintf(buffer,"Serial Number: %s",d.aid.serial_no);
+  sprintf(buffer,"Serial Number: %s",d->aid.serial_no);
   add_item(buffer,"Serial Number",OPT_INACTIVE,NULL,0);
 
-  sprintf(buffer,"Interface    : %s",d.interface_type);
+  sprintf(buffer,"Interface    : %s",d->interface_type);
   add_item(buffer,"Interface Type",OPT_INACTIVE,NULL,0);
 
-  sprintf(buffer,"Host Bus     : %s",d.host_bus_type);
+  sprintf(buffer,"Host Bus     : %s",d->host_bus_type);
   add_item(buffer,"Host Bus Type",OPT_INACTIVE,NULL,0);
 
-  sprintf(buffer,"Sectors      : %d",d.sectors);
+  sprintf(buffer,"Sectors      : %d",d->sectors);
   add_item(buffer,"Sectors",OPT_INACTIVE,NULL,0);
 
-  sprintf(buffer,"Heads        : %d",d.heads);
+  sprintf(buffer,"Heads        : %d",d->heads);
   add_item(buffer,"Heads",OPT_INACTIVE,NULL,0);
 
-  sprintf(buffer,"Cylinders    : %d",d.cylinders);
+  sprintf(buffer,"Cylinders    : %d",d->cylinders);
   add_item(buffer,"Cylinders",OPT_INACTIVE,NULL,0);
 
-  sprintf(buffer,"Sectors/Track: %d",d.sectors_per_track);
+  sprintf(buffer,"Sectors/Track: %d",d->sectors_per_track);
   add_item(buffer,"Sectors per Track",OPT_INACTIVE,NULL,0);
 
   sprintf(buffer,"Port         : 0x%X",disk_number);
   add_item(buffer,"Port",OPT_INACTIVE,NULL,0);
 
-  sprintf(buffer,"EDD Version  : %s",d.edd_version);
+  sprintf(buffer,"EDD Version  : %s",d->edd_version);
   add_item(buffer,"EDD Version",OPT_INACTIVE,NULL,0);
 
   nb_sub_disk_menu++;
@@ -602,7 +601,7 @@ void compute_disk_module(unsigned char *menu, struct diskinfo *disk_info, int di
 /* Compute the memory submenu */
 void compute_memory_module(unsigned char *menu, s_dmi *dmi, int slot_number) {
   int i=slot_number;
-  char buffer[MENULEN];
+  char buffer[MENULEN+1];
   sprintf(buffer," Module <%d> ",i);
   *menu = add_menu(buffer,-1);
   menu_count++;
@@ -656,128 +655,128 @@ void compute_memory_module(unsigned char *menu, s_dmi *dmi, int slot_number) {
 
 /* Compute Motherboard main menu */
 void compute_motherboard(unsigned char *menu,s_dmi *dmi) {
-  char buffer[SUBMENULEN];
+  char buffer[SUBMENULEN+1];
   printf("MENU: Computing motherboard menu\n");
   *menu = add_menu(" Motherboard ",-1);
   menu_count++;
   set_menu_pos(4,29);
-  snprintf(buffer,SUBMENULEN,"Vendor    : %s",dmi->base_board.manufacturer);
+  snprintf(buffer,sizeof buffer,"Vendor    : %s",dmi->base_board.manufacturer);
   add_item(buffer,"Vendor",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Product   : %s",dmi->base_board.product_name);
+  snprintf(buffer,sizeof buffer,"Product   : %s",dmi->base_board.product_name);
   add_item(buffer,"Product Name",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Version   : %s",dmi->base_board.version);
+  snprintf(buffer,sizeof buffer,"Version   : %s",dmi->base_board.version);
   add_item(buffer,"Version",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Serial    : %s",dmi->base_board.serial);
+  snprintf(buffer,sizeof buffer,"Serial    : %s",dmi->base_board.serial);
   add_item(buffer,"Serial Number",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Asset Tag : %s",dmi->base_board.asset_tag);
+  snprintf(buffer,sizeof buffer,"Asset Tag : %s",dmi->base_board.asset_tag);
   add_item(buffer,"Asset Tag",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Location  : %s",dmi->base_board.location);
+  snprintf(buffer,sizeof buffer,"Location  : %s",dmi->base_board.location);
   add_item(buffer,"Location",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Type      : %s",dmi->base_board.type);
+  snprintf(buffer,sizeof buffer,"Type      : %s",dmi->base_board.type);
   add_item(buffer,"Type",OPT_INACTIVE,NULL,0);
 }
 
 /* Compute System main menu */
 void compute_system(unsigned char *menu,s_dmi *dmi) {
-  char buffer[SUBMENULEN];
+  char buffer[SUBMENULEN+1];
   printf("MENU: Computing system menu\n");
   *menu = add_menu(" System ",-1);
   menu_count++;
   set_menu_pos(4,29);
-  snprintf(buffer,SUBMENULEN,"Vendor    : %s",dmi->system.manufacturer);
+  snprintf(buffer,sizeof buffer,"Vendor    : %s",dmi->system.manufacturer);
   add_item(buffer,"Vendor",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Product   : %s",dmi->system.product_name);
+  snprintf(buffer,sizeof buffer,"Product   : %s",dmi->system.product_name);
   add_item(buffer,"Product Name",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Version   : %s",dmi->system.version);
+  snprintf(buffer,sizeof buffer,"Version   : %s",dmi->system.version);
   add_item(buffer,"Version",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Serial    : %s",dmi->system.serial);
+  snprintf(buffer,sizeof buffer,"Serial    : %s",dmi->system.serial);
   add_item(buffer,"Serial Number",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"UUID      : %s",dmi->system.uuid);
+  snprintf(buffer,sizeof buffer,"UUID      : %s",dmi->system.uuid);
   add_item(buffer,"UUID",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Wakeup    : %s",dmi->system.wakeup_type);
+  snprintf(buffer,sizeof buffer,"Wakeup    : %s",dmi->system.wakeup_type);
   add_item(buffer,"Wakeup Type",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"SKU Number: %s",dmi->system.sku_number);
+  snprintf(buffer,sizeof buffer,"SKU Number: %s",dmi->system.sku_number);
   add_item(buffer,"SKU Number",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Family    : %s",dmi->system.family);
+  snprintf(buffer,sizeof buffer,"Family    : %s",dmi->system.family);
   add_item(buffer,"Family",OPT_INACTIVE,NULL,0);
 }
 
 /* Compute Chassis menu */
 void compute_chassis(unsigned char *menu,s_dmi *dmi) {
-  char buffer[SUBMENULEN];
+  char buffer[SUBMENULEN+1];
   printf("MENU: Computing chassis menu\n");
   *menu = add_menu(" Chassis ",-1);
   menu_count++;
   set_menu_pos(4,29);
-  snprintf(buffer,SUBMENULEN,"Vendor    : %s",dmi->chassis.manufacturer);
+  snprintf(buffer,sizeof buffer,"Vendor    : %s",dmi->chassis.manufacturer);
   add_item(buffer,"Vendor",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Type      : %s",dmi->chassis.type);
+  snprintf(buffer,sizeof buffer,"Type      : %s",dmi->chassis.type);
   add_item(buffer,"Type",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Version   : %s",dmi->chassis.version);
+  snprintf(buffer,sizeof buffer,"Version   : %s",dmi->chassis.version);
   add_item(buffer,"Version",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Serial    : %s",dmi->chassis.serial);
+  snprintf(buffer,sizeof buffer,"Serial    : %s",dmi->chassis.serial);
   add_item(buffer,"Serial Number",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Asset Tag : %s",dmi->chassis.asset_tag);
+  snprintf(buffer,sizeof buffer,"Asset Tag : %s",dmi->chassis.asset_tag);
   add_item(buffer,"Asset Tag",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Lock      : %s",dmi->chassis.lock);
+  snprintf(buffer,sizeof buffer,"Lock      : %s",dmi->chassis.lock);
   add_item(buffer,"Lock",OPT_INACTIVE,NULL,0);
 }
 
 /* Compute BIOS menu */
 void compute_bios(unsigned char *menu,s_dmi *dmi) {
-  char buffer[SUBMENULEN];
+  char buffer[SUBMENULEN+1];
   *menu = add_menu(" BIOS ",-1);
   menu_count++;
   printf("MENU: Computing BIOS menu\n");
   set_menu_pos(4,29);
-  snprintf(buffer,SUBMENULEN,"Vendor    : %s",dmi->bios.vendor);
+  snprintf(buffer,sizeof buffer,"Vendor    : %s",dmi->bios.vendor);
   add_item(buffer,"Vendor",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Version   : %s",dmi->bios.version);
+  snprintf(buffer,sizeof buffer,"Version   : %s",dmi->bios.version);
   add_item(buffer,"Version",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Release   : %s",dmi->bios.release_date);
+  snprintf(buffer,sizeof buffer,"Release   : %s",dmi->bios.release_date);
   add_item(buffer,"Release Date",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Bios Rev. : %s",dmi->bios.bios_revision);
+  snprintf(buffer,sizeof buffer,"Bios Rev. : %s",dmi->bios.bios_revision);
   add_item(buffer,"Bios Revision",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,SUBMENULEN,"Fw.  Rev. : %s",dmi->bios.firmware_revision);
+  snprintf(buffer,sizeof buffer,"Fw.  Rev. : %s",dmi->bios.firmware_revision);
   add_item(buffer,"Firmware Revision",OPT_INACTIVE,NULL,0);
 }
 
 /* Compute Processor menu */
 void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
-  char buffer[MENULEN];
-  char buffer1[MENULEN];
+  char buffer[MENULEN+1];
+  char buffer1[MENULEN+1];
   printf("MENU: Computing Processor menu\n");
   *menu = add_menu(" Main Processor ",-1);
   menu_count++;
-  snprintf(buffer,MENULEN,"Vendor    : %s",cpu->vendor);
+  snprintf(buffer,sizeof buffer,"Vendor    : %s",cpu->vendor);
   add_item(buffer,"Vendor",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Model     : %s",cpu->model);
+  snprintf(buffer,sizeof buffer,"Model     : %s",cpu->model);
   add_item(buffer,"Model",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Vendor ID : %d",cpu->vendor_id);
+  snprintf(buffer,sizeof buffer,"Vendor ID : %d",cpu->vendor_id);
   add_item(buffer,"Vendor ID",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Family ID : %d",cpu->family);
+  snprintf(buffer,sizeof buffer,"Family ID : %d",cpu->family);
   add_item(buffer,"Family ID",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Model  ID : %d",cpu->model_id);
+  snprintf(buffer,sizeof buffer,"Model  ID : %d",cpu->model_id);
   add_item(buffer,"Model ID",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Stepping  : %d",cpu->stepping);
+  snprintf(buffer,sizeof buffer,"Stepping  : %d",cpu->stepping);
   add_item(buffer,"Stepping",OPT_INACTIVE,NULL,0);
   if (is_dmi_valid) {
-   snprintf(buffer,MENULEN,"FSB       : %d",dmi->processor.external_clock);
+   snprintf(buffer,sizeof buffer,"FSB       : %d",dmi->processor.external_clock);
    add_item(buffer,"Front Side Bus (MHz)",OPT_INACTIVE,NULL,0);
-   snprintf(buffer,MENULEN,"Cur. Speed: %d",dmi->processor.current_speed);
+   snprintf(buffer,sizeof buffer,"Cur. Speed: %d",dmi->processor.current_speed);
    add_item(buffer,"Current Speed (MHz)",OPT_INACTIVE,NULL,0);
-   snprintf(buffer,MENULEN,"Max Speed : %d",dmi->processor.max_speed);
+   snprintf(buffer,sizeof buffer,"Max Speed : %d",dmi->processor.max_speed);
    add_item(buffer,"Max Speed (MHz)",OPT_INACTIVE,NULL,0);
-   snprintf(buffer,MENULEN,"Upgrade   : %s",dmi->processor.upgrade);
+   snprintf(buffer,sizeof buffer,"Upgrade   : %s",dmi->processor.upgrade);
    add_item(buffer,"Upgrade",OPT_INACTIVE,NULL,0);
   }
 
-  if (cpu->flags.smp)  snprintf(buffer,MENULEN,"SMP       : Yes");
-  else snprintf(buffer,MENULEN,"SMP       : No");
+  if (cpu->flags.smp)  snprintf(buffer,sizeof buffer,"SMP       : Yes");
+  else snprintf(buffer,sizeof buffer,"SMP       : No");
   add_item(buffer,"SMP system",OPT_INACTIVE,NULL,0);
 
-  if (cpu->flags.lm)  snprintf(buffer,MENULEN,"x86_64    : Yes");
-  else snprintf(buffer,MENULEN,"X86_64    : No");
+  if (cpu->flags.lm)  snprintf(buffer,sizeof buffer,"x86_64    : Yes");
+  else snprintf(buffer,sizeof buffer,"X86_64    : No");
   add_item(buffer,"x86_64 compatible processor",OPT_INACTIVE,NULL,0);
 
   buffer1[0]='\0';
@@ -788,7 +787,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
   if (cpu->flags.tsc) strcat(buffer1,"tsc ");
   if (cpu->flags.msr) strcat(buffer1,"msr ");
   if (cpu->flags.pae) strcat(buffer1,"pae ");
-  snprintf(buffer,MENULEN,"Flags     : %s",buffer1);
+  snprintf(buffer,sizeof buffer,"Flags     : %s",buffer1);
   add_item(buffer,"Flags",OPT_INACTIVE,NULL,0);
 
   buffer1[0]='\0';
@@ -799,7 +798,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
   if (cpu->flags.mtrr) strcat(buffer1,"mtrr ");
   if (cpu->flags.pge) strcat(buffer1,"pge ");
   if (cpu->flags.mca) strcat(buffer1,"mca ");
-  snprintf(buffer,MENULEN,"Flags     : %s",buffer1);
+  snprintf(buffer,sizeof buffer,"Flags     : %s",buffer1);
   add_item(buffer,"Flags",OPT_INACTIVE,NULL,0);
 
   buffer1[0]='\0';
@@ -808,7 +807,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
   if (cpu->flags.pse_36) strcat(buffer1,"pse_36 ");
   if (cpu->flags.psn)  strcat(buffer1,"psn ");
   if (cpu->flags.clflsh) strcat(buffer1,"clflsh ");
-  snprintf(buffer,MENULEN,"Flags     : %s",buffer1);
+  snprintf(buffer,sizeof buffer,"Flags     : %s",buffer1);
   add_item(buffer,"Flags",OPT_INACTIVE,NULL,0);
 
   buffer1[0]='\0';
@@ -816,7 +815,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
   if (cpu->flags.acpi) strcat(buffer1,"acpi ");
   if (cpu->flags.mmx)  strcat(buffer1,"mmx ");
   if (cpu->flags.sse)  strcat(buffer1,"sse ");
-  snprintf(buffer,MENULEN,"Flags     : %s",buffer1);
+  snprintf(buffer,sizeof buffer,"Flags     : %s",buffer1);
   add_item(buffer,"Flags",OPT_INACTIVE,NULL,0);
 
   buffer1[0]='\0';
@@ -826,7 +825,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
   if (cpu->flags.acc)  strcat(buffer1,"acc ");
   if (cpu->flags.syscall) strcat(buffer1,"syscall ");
   if (cpu->flags.mp)   strcat(buffer1,"mp ");
-  snprintf(buffer,MENULEN,"Flags     : %s",buffer1);
+  snprintf(buffer,sizeof buffer,"Flags     : %s",buffer1);
   add_item(buffer,"Flags",OPT_INACTIVE,NULL,0);
 
   buffer1[0]='\0';
@@ -835,7 +834,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
   if (cpu->flags.lm)     strcat(buffer1,"lm ");
   if (cpu->flags.nowext) strcat(buffer1,"3dnowext ");
   if (cpu->flags.now)    strcat(buffer1,"3dnow! ");
-  snprintf(buffer,MENULEN,"Flags     : %s",buffer1);
+  snprintf(buffer,sizeof buffer,"Flags     : %s",buffer1);
   add_item(buffer,"Flags",OPT_INACTIVE,NULL,0);
 
 }
@@ -903,7 +902,7 @@ void detect_hardware(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain, str
 
 /* Compute the Memory Menu*/
 void compute_memory(unsigned char *menu, s_dmi *dmi) {
- char buffer[MENULEN];
+ char buffer[MENULEN+1];
  printf("MENU: Computing Memory menu\n");
  for (int i=0;i<dmi->memory_count;i++) {
    compute_memory_module(&MEMORY_SUBMENU[i],dmi,i);
@@ -921,11 +920,11 @@ void compute_memory(unsigned char *menu, s_dmi *dmi) {
 
 /* Compute the Disk Menu*/
 void compute_disks(unsigned char *menu, struct diskinfo *disk_info) {
-  char buffer[MENULEN];
+  char buffer[MENULEN+1];
   nb_sub_disk_menu=0;
   printf("MENU: Computing Disks menu\n");
   for (int i=0;i<0xff;i++) {
-     compute_disk_module(&DISK_SUBMENU[nb_sub_disk_menu],disk_info,i);
+     compute_disk_module(&DISK_SUBMENU[nb_sub_disk_menu],&disk_info[i],i);
   }
 
   *menu = add_menu(" Disks ",-1);
@@ -989,7 +988,7 @@ int main(void)
   s_dmi dmi; /* DMI table */
   s_cpu cpu; /* CPU information */
   struct pci_domain *pci_domain=NULL; /* PCI Devices */
-  struct diskinfo disk_info[255];     /* Disk Information*/
+  struct diskinfo disk_info[256];     /* Disk Information*/
 
   /* Setup the environement */
   setup_env();
