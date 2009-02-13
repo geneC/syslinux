@@ -54,13 +54,6 @@
 #define WITH_PCI 1
 #define WITH_MENU_DISPLAY 1
 
-enum {
-        ATA_ID_FW_REV           = 23,
-	ATA_ID_PROD             = 27,
-        ATA_ID_FW_REV_LEN       = 8,
-        ATA_ID_PROD_LEN         = 40,
-};
-
 unsigned char MAIN_MENU, CPU_MENU, MOBO_MENU, CHASSIS_MENU, BIOS_MENU, SYSTEM_MENU, PCI_MENU, KERNEL_MENU;
 unsigned char MEMORY_MENU,  MEMORY_SUBMENU[32], DISK_MENU, DISK_SUBMENU[32], PCI_SUBMENU[128],BATTERY_MENU;
 int nb_sub_disk_menu=0;
@@ -69,6 +62,16 @@ bool is_dmi_valid=false;
 int menu_count=0;
 
 #define ATTR_PACKED __attribute__((packed))
+
+/* Useless stuff until I manage how to send ata packets */
+#ifdef ATA
+enum {
+        ATA_ID_FW_REV           = 23,
+	ATA_ID_PROD             = 27,
+        ATA_ID_FW_REV_LEN       = 8,
+        ATA_ID_PROD_LEN         = 40,
+};
+#endif
 
 struct ata_identify_device {
   unsigned short words000_009[10];
@@ -142,6 +145,7 @@ struct device_parameter {
  uint8_t  cheksum;
 } ATTR_PACKED;
 
+#ifdef ATA
 /**
  *      ata_id_string - Convert IDENTIFY DEVICE page into string
  *      @id: IDENTIFY DEVICE results we will examine
@@ -204,8 +208,9 @@ void ata_id_c_string(const uint16_t *id, unsigned char *s,
                 p--;
         *p = '\0';
 }
+#endif
 
-
+/* Display CPU registers for debugging purposes */
 static void printregs(const com32sys_t *r)
 {
   printf("eflags = %08x  ds = %04x  es = %04x  fs = %04x  gs = %04x\n"
@@ -236,12 +241,14 @@ static int int13_retry(const com32sys_t *inreg, com32sys_t *outreg)
   return -1;                    /* Error */
 }
 
+/* In the menu system, what to do on keyboard timeout */
 TIMEOUTCODE ontimeout()
 {
 	 // beep();
 	    return CODE_WAIT;
 }
 
+/* Keyboard handler for the menu system */
 void keys_handler(t_menusystem *ms, t_menuitem *mi,unsigned int scancode)
 {
    char nc;
@@ -263,17 +270,19 @@ void keys_handler(t_menusystem *ms, t_menuitem *mi,unsigned int scancode)
    }
 }
 
-
+/* Try to get information for a given disk*/
 static int get_disk_params(int disk, struct diskinfo *disk_info)
 {
   static com32sys_t getparm, parm, getebios, ebios, inreg,outreg;
-  //char buffer[255];
   struct device_parameter dp;
-//  struct ata_identify_device aid;
+#ifdef ATA
+  struct ata_identify_device aid;
+#endif
 
   disk_info[disk].disk = disk;
   disk_info[disk].ebios = disk_info[disk].cbios = 0;
 
+  /* Sending int 13h func 41h to query EBIOS information*/
    memset(&getebios, 0, sizeof (com32sys_t));
    memset(&ebios, 0, sizeof (com32sys_t));
   /* Get EBIOS support */
@@ -284,15 +293,16 @@ static int get_disk_params(int disk, struct diskinfo *disk_info)
 
   __intcall(0x13, &getebios, &ebios);
 
+  /* Detecting EDD support */
   if ( !(ebios.eflags.l & EFLAGS_CF) &&
        ebios.ebx.w[0] == 0xaa55 &&
        (ebios.ecx.b[0] & 1) ) {
     disk_info[disk].ebios = 1;
     switch(ebios.eax.b[1]) {
-	    case 32:  strcpy(disk_info[disk].edd_version,"1.0"); break;
-	    case 33:  strcpy(disk_info[disk].edd_version,"1.1"); break;
-	    case 48:  strcpy(disk_info[disk].edd_version,"3.0"); break;
-	    default:  strcpy(disk_info[disk].edd_version,"0"); break;
+	    case 32:  strlcpy(disk_info[disk].edd_version,"1.0",3); break;
+	    case 33:  strlcpy(disk_info[disk].edd_version,"1.1",3); break;
+	    case 48:  strlcpy(disk_info[disk].edd_version,"3.0",3); break;
+	    default:  strlcpy(disk_info[disk].edd_version,"0",1); break;
     }
   }
 
@@ -317,11 +327,12 @@ static int get_disk_params(int disk, struct diskinfo *disk_info)
    disk_info[disk].cbios = 1;        /* Valid geometry */
      }
 
+/* FIXME: memset to 0 make it fails
+ * memset(__com32.cs_bounce, 0, sizeof(struct device_pairameter)); */
    memset(&dp, 0, sizeof(struct device_parameter));
-   //FIXME: memset to 0 make it fails
-//   memset(__com32.cs_bounce, 0, sizeof(struct device_parameter));
    memset(&inreg, 0, sizeof(com32sys_t));
 
+   /* Requesting Extended Read Drive Parameters via int13h func 48h*/
    inreg.esi.w[0] = OFFS(__com32.cs_bounce);
    inreg.ds       = SEG(__com32.cs_bounce);
    inreg.eax.w[0] = 0x4800;
@@ -329,23 +340,29 @@ static int get_disk_params(int disk, struct diskinfo *disk_info)
 
    __intcall(0x13, &inreg, &outreg);
 
+  /* Saving bounce buffer before anything corrupt it */
   memcpy(&dp, __com32.cs_bounce, sizeof (struct device_parameter));
 
    if ( outreg.eflags.l & EFLAGS_CF) {
 	   printf("Disk 0x%X doesn't supports EDD 3.0\n",disk);
-//	   return -1;
+	   return -1;
   }
 
+   /* Copying result to the disk_info structure
+    * host_bus_type, interface_type, sectors & cylinders */
    sprintf(disk_info[disk].host_bus_type,"%c%c%c%c",dp.host_bus_type[0],dp.host_bus_type[1],dp.host_bus_type[2],dp.host_bus_type[3]);
    sprintf(disk_info[disk].interface_type,"%c%c%c%c%c%c%c%c",dp.interface_type[0],dp.interface_type[1],dp.interface_type[2],dp.interface_type[3],dp.interface_type[4],dp.interface_type[5],dp.interface_type[6],dp.interface_type[7]);
    disk_info[disk].sectors=dp.sectors;
    disk_info[disk].cylinders=dp.cylinders;
-   //FIXME: we have to find a way to grab the model & fw
+
+   /*FIXME: we have to find a way to grab the model & fw
+    * We do put dummy data until we found a solution */
    sprintf(disk_info[disk].aid.model,"0x%X",disk);
    sprintf(disk_info[disk].aid.fw_rev,"%s","N/A");
    sprintf(disk_info[disk].aid.serial_no,"%s","N/A");
 
-  /*
+  /* Useless stuff before I figure how to send ata packets */
+#ifdef ATA
    memset(__com32.cs_bounce, 0, sizeof(struct device_parameter));
    memset(&aid, 0, sizeof(struct ata_identify_device));
    memset(&inreg, 0, sizeof inreg);
@@ -372,10 +389,13 @@ static int get_disk_params(int disk, struct diskinfo *disk_info)
   for (int j=0;j<sizeof(struct ata_identify_device);j++)
      printf ("model=|%c|\n",buff[j]);
     printf ("Disk 0x%X : %s %s %s\n",disk, aid.model, aid.fw_rev,aid.serial_no);
-*/
+#endif
+
 return 0;
 }
 
+/* Detecting if a DMI table exist
+ * if yes, let's parse it */
 int detect_dmi(s_dmi *dmi) {
   if ( ! dmi_iterate() ) {
              printf("No DMI Structure found\n");
@@ -386,6 +406,7 @@ int detect_dmi(s_dmi *dmi) {
  return 0;
 }
 
+/* Try to detects disk from port 0x80 to 0xff*/
 void detect_disks(struct diskinfo *disk_info) {
  for (int drive = 0x80; drive <= 0xff; drive++) {
     if (get_disk_params(drive,disk_info))
@@ -395,7 +416,7 @@ void detect_disks(struct diskinfo *disk_info) {
  }
 }
 
-
+/* Dynamic submenu for the pci devices */
 void compute_pci_device(unsigned char *menu,struct pci_device *pci_device,int pci_bus, int pci_slot, int pci_func) {
   char buffer[56];
 
@@ -417,6 +438,7 @@ void compute_pci_device(unsigned char *menu,struct pci_device *pci_device,int pc
 
 }
 
+/* Main PCI Menu*/
 int compute_PCI(unsigned char *menu, struct pci_domain **pci_domain) {
  int i=0;
  char menuname[255][MENULEN];
@@ -424,6 +446,7 @@ int compute_PCI(unsigned char *menu, struct pci_domain **pci_domain) {
  struct pci_device *pci_device;
  printf("MENU: Computing PCI menu\n");
 
+ /* For every detected pci device, compute its submenu */
  for_each_pci_func(pci_device, *pci_domain) {
    compute_pci_device(&PCI_SUBMENU[i],pci_device,__pci_bus,__pci_slot,__pci_func);
    snprintf(menuname[i],59,"%s|%s",pci_device->dev_info->vendor_name,pci_device->dev_info->product_name);
@@ -443,16 +466,20 @@ int compute_PCI(unsigned char *menu, struct pci_domain **pci_domain) {
 return 0;
 }
 
+/* Main Kernel Menu*/
 void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
   char buffer[SUBMENULEN];
   char infobar[STATLEN];
 
   *menu = add_menu(" Kernel Modules ",-1);
-   menu_count++;
+  menu_count++;
   printf("MENU: Computing Kernel menu\n");
   set_menu_pos(4,29);
   struct pci_device *pci_device;
+
+ /* For every detected pci device, grab its kernel module to compute this submenu */
   for_each_pci_func(pci_device, *pci_domain) {
+	/* No need to add unknown kernel modules*/
 	if (strcmp("unknown",pci_device->dev_info->linux_kernel_module)!=0) {
          snprintf(buffer,SUBMENULEN,"%s (%s)",pci_device->dev_info->linux_kernel_module, pci_device->dev_info->class_name);
 	 snprintf(infobar, STATLEN,"%04x:%04x %s : %s\n",
@@ -465,10 +492,11 @@ void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
   }
 }
 
+/* Main Battery Menu*/
 void compute_battery(unsigned char *menu, s_dmi *dmi) {
   char buffer[SUBMENULEN];
   *menu = add_menu(" Battery ",-1);
-   menu_count++;
+  menu_count++;
   printf("MENU: Computing Battery menu\n");
   set_menu_pos(4,29);
   snprintf(buffer,SUBMENULEN,"Vendor          : %s",dmi->battery.manufacturer);
@@ -497,38 +525,40 @@ void compute_battery(unsigned char *menu, s_dmi *dmi) {
   add_item(buffer,"OEM Info",OPT_INACTIVE,NULL,0);
 }
 
-
+/* Compute the disk submenu */
 void compute_disk_module(unsigned char *menu, struct diskinfo *disk_info, int disk_number) {
   char buffer[MENULEN];
   struct diskinfo d = disk_info[disk_number];
+
+  /* No need to add no existing devices*/
   if (strlen(d.aid.model)<=0) return;
 
-   sprintf(buffer," Disk <%d> ",nb_sub_disk_menu);
+  sprintf(buffer," Disk <%d> ",nb_sub_disk_menu);
   *menu = add_menu(buffer,-1);
-   menu_count++;
+  menu_count++;
 
   sprintf(buffer,"Model        : %s",d.aid.model);
   add_item(buffer,"Model",OPT_INACTIVE,NULL,0);
 
-  // Compute device size
+  /* Compute device size */
   char previous_unit[3],unit[3]; //GB
   int previous_size,size = d.sectors/2; // Converting to bytes
-  strcpy(unit,"KB");
-  strcpy(previous_unit,unit);
+  strlcpy(unit,"KB",2);
+  strlcpy(previous_unit,unit,2);
   previous_size=size;
   if (size>1000) {
      size=size/1000;
-     strcpy(unit,"MB");
+     strlcpy(unit,"MB",2);
      if (size>1000) {
        previous_size=size;
        size=size/1000;
-       strcpy(previous_unit,unit);
-       strcpy(unit,"GB");
+       strlcpy(previous_unit,unit,2);
+       strlcpy(unit,"GB",2);
        if (size>1000) {
         previous_size=size;
         size=size/1000;
-        strcpy(previous_unit,unit);
-        strcpy(unit,"TB");
+        strlcpy(previous_unit,unit,2);
+        strlcpy(unit,"TB",2);
        }
      }
   }
@@ -569,12 +599,13 @@ void compute_disk_module(unsigned char *menu, struct diskinfo *disk_info, int di
   nb_sub_disk_menu++;
 }
 
+/* Compute the memory submenu */
 void compute_memory_module(unsigned char *menu, s_dmi *dmi, int slot_number) {
   int i=slot_number;
   char buffer[MENULEN];
   sprintf(buffer," Module <%d> ",i);
   *menu = add_menu(buffer,-1);
-   menu_count++;
+  menu_count++;
 
   sprintf(buffer,"Form Factor  : %s",dmi->memory[i].form_factor);
   add_item(buffer,"Form Factor",OPT_INACTIVE,NULL,0);
@@ -623,11 +654,12 @@ void compute_memory_module(unsigned char *menu, s_dmi *dmi, int slot_number) {
 
 }
 
+/* Compute Motherboard main menu */
 void compute_motherboard(unsigned char *menu,s_dmi *dmi) {
   char buffer[SUBMENULEN];
   printf("MENU: Computing motherboard menu\n");
   *menu = add_menu(" Motherboard ",-1);
-   menu_count++;
+  menu_count++;
   set_menu_pos(4,29);
   snprintf(buffer,SUBMENULEN,"Vendor    : %s",dmi->base_board.manufacturer);
   add_item(buffer,"Vendor",OPT_INACTIVE,NULL,0);
@@ -645,11 +677,12 @@ void compute_motherboard(unsigned char *menu,s_dmi *dmi) {
   add_item(buffer,"Type",OPT_INACTIVE,NULL,0);
 }
 
+/* Compute System main menu */
 void compute_system(unsigned char *menu,s_dmi *dmi) {
   char buffer[SUBMENULEN];
   printf("MENU: Computing system menu\n");
   *menu = add_menu(" System ",-1);
-   menu_count++;
+  menu_count++;
   set_menu_pos(4,29);
   snprintf(buffer,SUBMENULEN,"Vendor    : %s",dmi->system.manufacturer);
   add_item(buffer,"Vendor",OPT_INACTIVE,NULL,0);
@@ -669,30 +702,32 @@ void compute_system(unsigned char *menu,s_dmi *dmi) {
   add_item(buffer,"Family",OPT_INACTIVE,NULL,0);
 }
 
+/* Compute Chassis menu */
 void compute_chassis(unsigned char *menu,s_dmi *dmi) {
-  char buffer[MENULEN];
+  char buffer[SUBMENULEN];
   printf("MENU: Computing chassis menu\n");
   *menu = add_menu(" Chassis ",-1);
-   menu_count++;
+  menu_count++;
   set_menu_pos(4,29);
-  snprintf(buffer,MENULEN,"Vendor    : %s",dmi->chassis.manufacturer);
+  snprintf(buffer,SUBMENULEN,"Vendor    : %s",dmi->chassis.manufacturer);
   add_item(buffer,"Vendor",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Type      : %s",dmi->chassis.type);
+  snprintf(buffer,SUBMENULEN,"Type      : %s",dmi->chassis.type);
   add_item(buffer,"Type",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Version   : %s",dmi->chassis.version);
+  snprintf(buffer,SUBMENULEN,"Version   : %s",dmi->chassis.version);
   add_item(buffer,"Version",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Serial    : %s",dmi->chassis.serial);
+  snprintf(buffer,SUBMENULEN,"Serial    : %s",dmi->chassis.serial);
   add_item(buffer,"Serial Number",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Asset Tag : %s",dmi->chassis.asset_tag);
+  snprintf(buffer,SUBMENULEN,"Asset Tag : %s",dmi->chassis.asset_tag);
   add_item(buffer,"Asset Tag",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Lock      : %s",dmi->chassis.lock);
+  snprintf(buffer,SUBMENULEN,"Lock      : %s",dmi->chassis.lock);
   add_item(buffer,"Lock",OPT_INACTIVE,NULL,0);
 }
 
+/* Compute BIOS menu */
 void compute_bios(unsigned char *menu,s_dmi *dmi) {
   char buffer[SUBMENULEN];
   *menu = add_menu(" BIOS ",-1);
-   menu_count++;
+  menu_count++;
   printf("MENU: Computing BIOS menu\n");
   set_menu_pos(4,29);
   snprintf(buffer,SUBMENULEN,"Vendor    : %s",dmi->bios.vendor);
@@ -707,12 +742,13 @@ void compute_bios(unsigned char *menu,s_dmi *dmi) {
   add_item(buffer,"Firmware Revision",OPT_INACTIVE,NULL,0);
 }
 
+/* Compute Processor menu */
 void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
   char buffer[MENULEN];
   char buffer1[MENULEN];
   printf("MENU: Computing Processor menu\n");
   *menu = add_menu(" Main Processor ",-1);
-   menu_count++;
+  menu_count++;
   snprintf(buffer,MENULEN,"Vendor    : %s",cpu->vendor);
   add_item(buffer,"Vendor",OPT_INACTIVE,NULL,0);
   snprintf(buffer,MENULEN,"Model     : %s",cpu->model);
@@ -804,13 +840,17 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
 
 }
 
+/* Setup our environement */
 void setup_env() {
   char version[255];
+
+  /* Opening the syslinux console */
   openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
   sprintf(version,"%s %s by %s",PRODUCT_NAME,VERSION,AUTHOR);
   printf("%s\n",version);
 
+  /* Creating the menu */
   init_menusystem(version);
   set_window_size(1,1,23,78); // Leave some space around
 
@@ -822,6 +862,7 @@ void setup_env() {
   reg_ontimeout(ontimeout,1000,0);
 }
 
+/* Detect the hardware stuff */
 void detect_hardware(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain, struct diskinfo *disk_info) {
   printf("CPU: Detecting\n");
   detect_cpu(cpu);
@@ -860,49 +901,54 @@ void detect_hardware(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain, str
 #endif
 }
 
+/* Compute the Memory Menu*/
 void compute_memory(unsigned char *menu, s_dmi *dmi) {
-char buffer[MENULEN];
-printf("MENU: Computing Memory menu\n");
-for (int i=0;i<dmi->memory_count;i++) {
-  compute_memory_module(&MEMORY_SUBMENU[i],dmi,i);
-}
+ char buffer[MENULEN];
+ printf("MENU: Computing Memory menu\n");
+ for (int i=0;i<dmi->memory_count;i++) {
+   compute_memory_module(&MEMORY_SUBMENU[i],dmi,i);
+ }
 
-*menu = add_menu(" Modules ",-1);
-   menu_count++;
+ *menu = add_menu(" Modules ",-1);
+  menu_count++;
 
-for (int i=0;i<dmi->memory_count;i++) {
+ for (int i=0;i<dmi->memory_count;i++) {
   sprintf(buffer," Module <%d> ",i);
   add_item(buffer,"Memory Module",OPT_SUBMENU,NULL,MEMORY_SUBMENU[i]);
-}
-add_item("Run Test","Run Test",OPT_RUN,"memtest",0);
+ }
+ add_item("Run Test","Run Test",OPT_RUN,"memtest",0);
 }
 
+/* Compute the Disk Menu*/
 void compute_disks(unsigned char *menu, struct diskinfo *disk_info) {
-char buffer[MENULEN];
-nb_sub_disk_menu=0;
-printf("MENU: Computing Disks menu\n");
-for (int i=0;i<0xff;i++) {
-  compute_disk_module(&DISK_SUBMENU[nb_sub_disk_menu],disk_info,i);
+  char buffer[MENULEN];
+  nb_sub_disk_menu=0;
+  printf("MENU: Computing Disks menu\n");
+  for (int i=0;i<0xff;i++) {
+     compute_disk_module(&DISK_SUBMENU[nb_sub_disk_menu],disk_info,i);
+  }
+
+  *menu = add_menu(" Disks ",-1);
+  menu_count++;
+
+  for (int i=0;i<nb_sub_disk_menu;i++) {
+    sprintf(buffer," Disk <%d> ",i);
+    add_item(buffer,"Disk",OPT_SUBMENU,NULL,DISK_SUBMENU[i]);
+  }
 }
 
-*menu = add_menu(" Disks ",-1);
-   menu_count++;
-
-for (int i=0;i<nb_sub_disk_menu;i++) {
-  sprintf(buffer," Disk <%d> ",i);
-  add_item(buffer,"Disk",OPT_SUBMENU,NULL,DISK_SUBMENU[i]);
-}
-}
-
+/* Compute Main' Submenus*/
 void compute_submenus(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain, struct diskinfo *disk_info) {
-if (is_dmi_valid) {
-  compute_motherboard(&MOBO_MENU,dmi);
-  compute_chassis(&CHASSIS_MENU,dmi);
-  compute_system(&SYSTEM_MENU,dmi);
-  compute_memory(&MEMORY_MENU,dmi);
-  compute_bios(&BIOS_MENU,dmi);
-  compute_battery(&BATTERY_MENU,dmi);
-}
+ /* Compute this menus if a DMI table exist */
+  if (is_dmi_valid) {
+    compute_motherboard(&MOBO_MENU,dmi);
+    compute_chassis(&CHASSIS_MENU,dmi);
+    compute_system(&SYSTEM_MENU,dmi);
+    compute_memory(&MEMORY_MENU,dmi);
+    compute_bios(&BIOS_MENU,dmi);
+    compute_battery(&BATTERY_MENU,dmi);
+  }
+
   compute_processor(&CPU_MENU,cpu,dmi);
   compute_disks(&DISK_MENU,disk_info);
 #ifdef WITH_PCI
@@ -911,18 +957,19 @@ if (is_dmi_valid) {
 #endif
 }
 
+/* Compute Main Menu*/
 void compute_main_menu() {
   MAIN_MENU = add_menu(" Main Menu ",-1);
-   menu_count++;
+  menu_count++;
   set_item_options(-1,24);
 
- if (nb_sub_disk_menu>0)
 #ifdef WITH_PCI
   add_item("PCI <D>evices","PCI Devices",OPT_SUBMENU,NULL,PCI_MENU);
 #endif
- add_item("<D>isks","Disks",OPT_SUBMENU,NULL,DISK_MENU);
- add_item("<M>emory Modules","Memory Modules",OPT_SUBMENU,NULL,MEMORY_MENU);
- add_item("<P>rocessor","Main Processor",OPT_SUBMENU,NULL,CPU_MENU);
+  if (nb_sub_disk_menu>0)
+    add_item("<D>isks","Disks",OPT_SUBMENU,NULL,DISK_MENU);
+  add_item("<M>emory Modules","Memory Modules",OPT_SUBMENU,NULL,MEMORY_MENU);
+  add_item("<P>rocessor","Main Processor",OPT_SUBMENU,NULL,CPU_MENU);
 
 if (is_dmi_valid) {
   add_item("<M>otherboard","Motherboard",OPT_SUBMENU,NULL,MOBO_MENU);
@@ -939,17 +986,21 @@ if (is_dmi_valid) {
 
 int main(void)
 {
-  s_dmi dmi;
-  s_cpu cpu;
-  struct pci_domain *pci_domain=NULL;
-  struct diskinfo disk_info[255];
+  s_dmi dmi; /* DMI table */
+  s_cpu cpu; /* CPU information */
+  struct pci_domain *pci_domain=NULL; /* PCI Devices */
+  struct diskinfo disk_info[255];     /* Disk Information*/
 
+  /* Setup the environement */
   setup_env();
 
+  /* Detect every kind of hardware */
   detect_hardware(&dmi,&cpu,&pci_domain,disk_info);
 
+  /* Compute all sub menus */
   compute_submenus(&dmi,&cpu,&pci_domain,disk_info);
 
+  /* Compute main menu */
   compute_main_menu();
 
 #ifdef WITH_MENU_DISPLAY
@@ -958,12 +1009,15 @@ int main(void)
 
   printf("Starting Menu (%d menus)\n",menu_count);
   curr=showmenus(MAIN_MENU);
+  /* When we exit the menu, do we have something to do */
   if (curr) {
+        /* When want to execute something */
         if (curr->action == OPT_RUN)
         {
             strcpy(cmd,curr->data);
 
-	     if (issyslinux())
+	    /* Use specific syslinux call if needed */
+	    if (issyslinux())
                runsyslinuxcmd(cmd);
             else csprint(cmd,0x07);
             return 1; // Should not happen when run from SYSLINUX
