@@ -444,8 +444,8 @@ return 0;
 }
 
 void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
-  char buffer[MENULEN];
-  char infobar[MENULEN];
+  char buffer[SUBMENULEN];
+  char infobar[STATLEN];
 
   *menu = add_menu(" Kernel Modules ",-1);
    menu_count++;
@@ -454,8 +454,8 @@ void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
   struct pci_device *pci_device;
   for_each_pci_func(pci_device, *pci_domain) {
 	if (strcmp("unknown",pci_device->dev_info->linux_kernel_module)!=0) {
-         snprintf(buffer,MENULEN,"%s (%s)",pci_device->dev_info->linux_kernel_module, pci_device->dev_info->class_name);
-	 snprintf(infobar, MENULEN,"%04x:%04x %s : %s\n",
+         snprintf(buffer,SUBMENULEN,"%s (%s)",pci_device->dev_info->linux_kernel_module, pci_device->dev_info->class_name);
+	 snprintf(infobar, STATLEN,"%04x:%04x %s : %s\n",
                pci_device->vendor, pci_device->product,
 		pci_device->dev_info->vendor_name,
                 pci_device->dev_info->product_name);
@@ -466,34 +466,34 @@ void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
 }
 
 void compute_battery(unsigned char *menu, s_dmi *dmi) {
-  char buffer[MENULEN];
+  char buffer[SUBMENULEN];
   *menu = add_menu(" Battery ",-1);
    menu_count++;
   printf("MENU: Computing Battery menu\n");
   set_menu_pos(4,29);
-  snprintf(buffer,MENULEN,"Vendor          : %s",dmi->battery.manufacturer);
+  snprintf(buffer,SUBMENULEN,"Vendor          : %s",dmi->battery.manufacturer);
   add_item(buffer,"Vendor",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Manufacture Date: %s",dmi->battery.manufacture_date);
+  snprintf(buffer,SUBMENULEN,"Manufacture Date: %s",dmi->battery.manufacture_date);
   add_item(buffer,"Manufacture Date",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Serial          : %s",dmi->battery.serial);
+  snprintf(buffer,SUBMENULEN,"Serial          : %s",dmi->battery.serial);
   add_item(buffer,"Serial",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Name            : %s",dmi->battery.name);
+  snprintf(buffer,SUBMENULEN,"Name            : %s",dmi->battery.name);
   add_item(buffer,"Name",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Chemistry       : %s",dmi->battery.chemistry);
+  snprintf(buffer,SUBMENULEN,"Chemistry       : %s",dmi->battery.chemistry);
   add_item(buffer,"Chemistry",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Design Capacity : %s",dmi->battery.design_capacity);
+  snprintf(buffer,SUBMENULEN,"Design Capacity : %s",dmi->battery.design_capacity);
   add_item(buffer,"Design Capacity",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Design Voltage  : %s",dmi->battery.design_voltage);
+  snprintf(buffer,SUBMENULEN,"Design Voltage  : %s",dmi->battery.design_voltage);
   add_item(buffer,"Design Voltage",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"SBDS            : %s",dmi->battery.sbds);
+  snprintf(buffer,SUBMENULEN,"SBDS            : %s",dmi->battery.sbds);
   add_item(buffer,"SBDS",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"SBDS Manuf. Date: %s",dmi->battery.sbds_manufacture_date);
+  snprintf(buffer,SUBMENULEN,"SBDS Manuf. Date: %s",dmi->battery.sbds_manufacture_date);
   add_item(buffer,"SBDS Manufacture Date",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"SBDS Chemistry  : %s",dmi->battery.sbds_chemistry);
+  snprintf(buffer,SUBMENULEN,"SBDS Chemistry  : %s",dmi->battery.sbds_chemistry);
   add_item(buffer,"SBDS Chemistry",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Maximum Error   : %s",dmi->battery.maximum_error);
+  snprintf(buffer,SUBMENULEN,"Maximum Error   : %s",dmi->battery.maximum_error);
   add_item(buffer,"Maximum Error (%)",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"OEM Info        : %s",dmi->battery.oem_info);
+  snprintf(buffer,SUBMENULEN,"OEM Info        : %s",dmi->battery.oem_info);
   add_item(buffer,"OEM Info",OPT_INACTIVE,NULL,0);
 }
 
@@ -624,24 +624,24 @@ void compute_memory_module(unsigned char *menu, s_dmi *dmi, int slot_number) {
 }
 
 void compute_motherboard(unsigned char *menu,s_dmi *dmi) {
-  char buffer[MENULEN];
+  char buffer[SUBMENULEN];
   printf("MENU: Computing motherboard menu\n");
   *menu = add_menu(" Motherboard ",-1);
    menu_count++;
   set_menu_pos(4,29);
-  snprintf(buffer,MENULEN,"Vendor    : %s",dmi->base_board.manufacturer);
+  snprintf(buffer,SUBMENULEN,"Vendor    : %s",dmi->base_board.manufacturer);
   add_item(buffer,"Vendor",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Product   : %s",dmi->base_board.product_name);
+  snprintf(buffer,SUBMENULEN,"Product   : %s",dmi->base_board.product_name);
   add_item(buffer,"Product Name",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Version   : %s",dmi->base_board.version);
+  snprintf(buffer,SUBMENULEN,"Version   : %s",dmi->base_board.version);
   add_item(buffer,"Version",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Serial    : %s",dmi->base_board.serial);
+  snprintf(buffer,SUBMENULEN,"Serial    : %s",dmi->base_board.serial);
   add_item(buffer,"Serial Number",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Asset Tag : %s",dmi->base_board.asset_tag);
+  snprintf(buffer,SUBMENULEN,"Asset Tag : %s",dmi->base_board.asset_tag);
   add_item(buffer,"Asset Tag",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Location  : %s",dmi->base_board.location);
+  snprintf(buffer,SUBMENULEN,"Location  : %s",dmi->base_board.location);
   add_item(buffer,"Location",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Type      : %s",dmi->base_board.type);
+  snprintf(buffer,SUBMENULEN,"Type      : %s",dmi->base_board.type);
   add_item(buffer,"Type",OPT_INACTIVE,NULL,0);
 }
 
@@ -690,20 +690,20 @@ void compute_chassis(unsigned char *menu,s_dmi *dmi) {
 }
 
 void compute_bios(unsigned char *menu,s_dmi *dmi) {
-  char buffer[MENULEN];
+  char buffer[SUBMENULEN];
   *menu = add_menu(" BIOS ",-1);
    menu_count++;
   printf("MENU: Computing BIOS menu\n");
   set_menu_pos(4,29);
-  snprintf(buffer,MENULEN,"Vendor    : %s",dmi->bios.vendor);
+  snprintf(buffer,SUBMENULEN,"Vendor    : %s",dmi->bios.vendor);
   add_item(buffer,"Vendor",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Version   : %s",dmi->bios.version);
+  snprintf(buffer,SUBMENULEN,"Version   : %s",dmi->bios.version);
   add_item(buffer,"Version",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Release   : %s",dmi->bios.release_date);
+  snprintf(buffer,SUBMENULEN,"Release   : %s",dmi->bios.release_date);
   add_item(buffer,"Release Date",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Bios Rev. : %s",dmi->bios.bios_revision);
+  snprintf(buffer,SUBMENULEN,"Bios Rev. : %s",dmi->bios.bios_revision);
   add_item(buffer,"Bios Revision",OPT_INACTIVE,NULL,0);
-  snprintf(buffer,MENULEN,"Fw.  Rev. : %s",dmi->bios.firmware_revision);
+  snprintf(buffer,SUBMENULEN,"Fw.  Rev. : %s",dmi->bios.firmware_revision);
   add_item(buffer,"Firmware Revision",OPT_INACTIVE,NULL,0);
 }
 
