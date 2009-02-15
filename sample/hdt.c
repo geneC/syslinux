@@ -283,8 +283,9 @@ static int get_disk_params(int disk, struct diskinfo *disk_info)
   disk_info[disk].ebios = disk_info[disk].cbios = 0;
 
   /* Sending int 13h func 41h to query EBIOS information*/
-   memset(&getebios, 0, sizeof (com32sys_t));
-   memset(&ebios, 0, sizeof (com32sys_t));
+  memset(&getebios, 0, sizeof (com32sys_t));
+  memset(&ebios, 0, sizeof (com32sys_t));
+
   /* Get EBIOS support */
   getebios.eax.w[0] = 0x4100;
   getebios.ebx.w[0] = 0x55aa;
@@ -613,7 +614,7 @@ void compute_memory_module(unsigned char *menu, s_dmi *dmi, int slot_number) {
   add_item(buffer,"Memory Type",OPT_INACTIVE,NULL,0);
 
   sprintf(buffer,"Type Details : %s",dmi->memory[i].type_detail);
-  add_item(buffer,"Memory Ty^e Details",OPT_INACTIVE,NULL,0);
+  add_item(buffer,"Memory Type Details",OPT_INACTIVE,NULL,0);
 
   sprintf(buffer,"Speed        : %s",dmi->memory[i].speed);
   add_item(buffer,"Speed (MHz)",OPT_INACTIVE,NULL,0);
@@ -979,7 +980,7 @@ if (is_dmi_valid) {
 }
 #ifdef WITH_PCI
   add_item("","",OPT_SEP,"",0);
-  add_item("<K>ernel modules","Kernel Modules",OPT_SUBMENU,NULL,KERNEL_MENU);
+  add_item("<K>ernel Modules","Kernel Modules",OPT_SUBMENU,NULL,KERNEL_MENU);
 #endif
 }
 
