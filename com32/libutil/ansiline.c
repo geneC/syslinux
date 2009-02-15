@@ -82,7 +82,7 @@ void console_ansi_std(void)
   tcgetattr(0, &tio);
   tio.c_iflag &= ~ICRNL;
   tio.c_iflag |= IGNCR;
-  tio.c_cflag |= ICANON|ECHO;
+  tio.c_lflag |= ICANON|ECHO;
   tcsetattr(0, TCSANOW, &tio);
   fputs("\033[0m\033[20h", stdout);
 }
