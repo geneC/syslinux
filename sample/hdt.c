@@ -43,10 +43,12 @@
 #include "cpuid.h"
 #include "dmi/dmi.h"
 #include "sys/pci.h"
+#include "syslinux/config.h"
 
 #define PRODUCT_NAME "Hardware Detection Tool"
 #define AUTHOR "Erwan Velu"
-#define VERSION "0.1.3"
+#define CONTACT "erwan(dot)velu(point)free(dot)fr"
+#define VERSION "0.1.4"
 
 #define EDITPROMPT 21
 
@@ -56,6 +58,7 @@
 
 unsigned char MAIN_MENU, CPU_MENU, MOBO_MENU, CHASSIS_MENU, BIOS_MENU, SYSTEM_MENU, PCI_MENU, KERNEL_MENU;
 unsigned char MEMORY_MENU,  MEMORY_SUBMENU[32], DISK_MENU, DISK_SUBMENU[32], PCI_SUBMENU[128],BATTERY_MENU;
+unsigned char SYSLINUX_MENU, ABOUT_MENU;
 int nb_sub_disk_menu=0;
 int nb_pci_devices=0;
 bool is_dmi_valid=false;
@@ -1060,7 +1063,7 @@ void setup_env() {
 
   /* Creating the menu */
   init_menusystem(version);
-  set_window_size(1,1,23,78); // Leave some space around
+  set_window_size(0,0,24,80); // Leave some space around
 
  // Register the menusystem handler
  // reg_handler(HDLR_SCREEN,&msys_handler);
@@ -1121,7 +1124,7 @@ void compute_memory(unsigned char *menu, s_dmi *dmi) {
   menu_count++;
 
  for (int i=0;i<dmi->memory_count;i++) {
-  sprintf(buffer," Module <%d> ",i);
+  snprintf(buffer,sizeof buffer," Module <%d> ",i);
   add_item(buffer,"Memory Module",OPT_SUBMENU,NULL,MEMORY_SUBMENU[i]);
  }
  add_item("Run Test","Run Test",OPT_RUN,"memtest",0);
@@ -1140,9 +1143,82 @@ void compute_disks(unsigned char *menu, struct diskinfo *disk_info) {
   menu_count++;
 
   for (int i=0;i<nb_sub_disk_menu;i++) {
-    sprintf(buffer," Disk <%d> ",i);
+    snprintf(buffer,sizeof buffer," Disk <%d> ",i);
     add_item(buffer,"Disk",OPT_SUBMENU,NULL,DISK_SUBMENU[i]);
   }
+}
+
+/* Computing About menu*/
+void compute_aboutmenu(unsigned char *menu) {
+  char buffer[SUBMENULEN+1];
+  char statbuffer[STATLEN+1];
+
+  *menu = add_menu(" About ",-1);
+  menu_count++;
+  set_menu_pos(4,29);
+
+  snprintf(buffer, sizeof buffer, "Product : %s", PRODUCT_NAME);
+  snprintf(statbuffer, sizeof statbuffer, "Product : %s", PRODUCT_NAME);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+
+  snprintf(buffer, sizeof buffer, "Version : %s", VERSION);
+  snprintf(statbuffer, sizeof statbuffer, "Version : %s", VERSION);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+
+  snprintf(buffer, sizeof buffer, "Author  : %s", AUTHOR);
+  snprintf(statbuffer, sizeof statbuffer, "Author  : %s", AUTHOR);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+
+  snprintf(buffer, sizeof buffer, "Contact : %s", CONTACT);
+  snprintf(statbuffer, sizeof statbuffer, "Contact : %s", CONTACT);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+
+}
+
+/* Computing Syslinux menu*/
+void compute_syslinuxmenu(unsigned char *menu) {
+  char syslinux_fs[22];
+  char syslinux_fs_menu[24];
+  char buffer[SUBMENULEN+1];
+  char statbuffer[STATLEN+1];
+  const struct syslinux_version *sv;
+  memset(syslinux_fs,0,sizeof syslinux_fs);
+  memset(syslinux_fs_menu,0,sizeof syslinux_fs_menu);
+
+  sv = syslinux_version();
+  switch(sv->filesystem) {
+	case SYSLINUX_FS_SYSLINUX: strlcpy(syslinux_fs,"SYSlinux",9); break;
+	case SYSLINUX_FS_PXELINUX: strlcpy(syslinux_fs,"PXElinux",9); break;
+	case SYSLINUX_FS_ISOLINUX: strlcpy(syslinux_fs,"ISOlinux",9); break;
+	case SYSLINUX_FS_EXTLINUX: strlcpy(syslinux_fs,"EXTlinux",9); break;
+	case SYSLINUX_FS_UNKNOWN:
+	default: strlcpy(syslinux_fs,"Unknown Bootloader",sizeof syslinux_fs); break;
+  }
+  snprintf(syslinux_fs_menu,sizeof syslinux_fs_menu," %s ",syslinux_fs);
+  *menu = add_menu(syslinux_fs_menu,-1);
+  menu_count++;
+  set_menu_pos(4,29);
+
+  snprintf(buffer, sizeof buffer, "Bootloader : %s", syslinux_fs);
+  snprintf(statbuffer, sizeof statbuffer, "Bootloader: %s", syslinux_fs);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+
+  snprintf(buffer, sizeof buffer, "Version    : %s", sv->version_string+2);
+  snprintf(statbuffer, sizeof statbuffer, "Version: %s", sv->version_string+2);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+
+  snprintf(buffer, sizeof buffer, "Version    : %u",sv->version);
+  snprintf(statbuffer, sizeof statbuffer, "Version: %u",sv->version);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+
+  snprintf(buffer, sizeof buffer, "Max API    : %u",sv->max_api);
+  snprintf(statbuffer, sizeof statbuffer, "Max API: %u",sv->max_api);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+
+  snprintf(buffer, sizeof buffer, "Copyright  :%s", sv->copyright_string);
+  snprintf(statbuffer, sizeof statbuffer, "Copyright:%s", sv->copyright_string);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+
 }
 
 /* Compute Main' Submenus*/
@@ -1163,6 +1239,8 @@ void compute_submenus(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain, st
   compute_PCI(&PCI_MENU,pci_domain);
   compute_KERNEL(&KERNEL_MENU,pci_domain);
 #endif
+  compute_syslinuxmenu(&SYSLINUX_MENU);
+  compute_aboutmenu(&ABOUT_MENU);
 }
 
 /* Compute Main Menu*/
@@ -1186,10 +1264,12 @@ if (is_dmi_valid) {
   add_item("<S>ystem","System",OPT_SUBMENU,NULL,SYSTEM_MENU);
   add_item("Ba<t>tery","Battery",OPT_SUBMENU,NULL,BATTERY_MENU);
 }
-#ifdef WITH_PCI
   add_item("","",OPT_SEP,"",0);
+#ifdef WITH_PCI
   add_item("<K>ernel Modules","Kernel Modules",OPT_SUBMENU,NULL,KERNEL_MENU);
 #endif
+  add_item("<S>yslinux","Syslinux Information",OPT_SUBMENU,NULL,SYSLINUX_MENU);
+  add_item("<A>bout","About Menu",OPT_SUBMENU,NULL,ABOUT_MENU);
 }
 
 int main(void)
