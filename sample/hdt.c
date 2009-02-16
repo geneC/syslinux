@@ -1165,7 +1165,7 @@ void compute_aboutmenu(unsigned char *menu) {
   menu_count++;
   set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
-  printf("MENU: About Syslinux menu\n");
+  printf("MENU: Computing About menu\n");
 
   snprintf(buffer, sizeof buffer, "Product : %s", PRODUCT_NAME);
   snprintf(statbuffer, sizeof statbuffer, "Product : %s", PRODUCT_NAME);
