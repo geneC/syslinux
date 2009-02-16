@@ -1088,10 +1088,14 @@ void detect_hardware(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain, str
   detect_disks(disk_info);
 
   printf("DMI: Detecting Table\n");
-  if (detect_dmi(dmi) ==0 )
-		is_dmi_valid=true;
-
-  printf("DMI: Table found ! (version %d.%d)\n",dmi->dmitable.major_version,dmi->dmitable.minor_version);
+  if (detect_dmi(dmi) == -ENODMITABLE ) {
+   is_dmi_valid=false;
+   printf("DMI: ERROR ! Table not found ! \n");
+   printf("DMI: Many hardware components will not be detected ! \n");
+  } else {
+   is_dmi_valid=true;
+   printf("DMI: Table found ! (version %d.%d)\n",dmi->dmitable.major_version,dmi->dmitable.minor_version);
+  }
 
 #ifdef WITH_PCI
   printf("PCI: Detecting Devices\n");
