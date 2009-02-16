@@ -423,6 +423,7 @@ void detect_disks(struct diskinfo *disk_info) {
 void compute_pci_device(unsigned char *menu,struct pci_device *pci_device,int pci_bus, int pci_slot, int pci_func) {
   char buffer[56];
   char statbuffer[STATLEN];
+  char kernel_modules [LINUX_KERNEL_MODULE_SIZE*MAX_KERNEL_MODULES_PER_PCI_DEVICE];
 
   *menu = add_menu(" Details ",-1);
    menu_count++;
@@ -448,8 +449,19 @@ void compute_pci_device(unsigned char *menu,struct pci_device *pci_device,int pc
    snprintf(statbuffer,sizeof statbuffer,"vendor:product[sub_vendor:sub_product] : %04x:%04x[%04x:%04x]",pci_device->vendor, pci_device->product,pci_device->sub_vendor, pci_device->sub_product);
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
 
-   snprintf(buffer,sizeof buffer,"Module  : %s",pci_device->dev_info->linux_kernel_module);
-   snprintf(statbuffer,sizeof statbuffer,"Kernel Module: %s",pci_device->dev_info->linux_kernel_module);
+   if (pci_device->dev_info->linux_kernel_module_count>1) {
+    for (int i=0; i<pci_device->dev_info->linux_kernel_module_count;i++) {
+      if (i>0) {
+        strncat(kernel_modules," | ",3);
+      }
+      strncat(kernel_modules, pci_device->dev_info->linux_kernel_module[i],LINUX_KERNEL_MODULE_SIZE-1);
+    }
+    snprintf(buffer,sizeof buffer,"Modules : %s",kernel_modules);
+    snprintf(statbuffer,sizeof statbuffer,"Kernel Modules: %s",kernel_modules);
+   } else {
+    snprintf(buffer,sizeof buffer,"Module  : %s",pci_device->dev_info->linux_kernel_module[0]);
+    snprintf(statbuffer,sizeof statbuffer,"Kernel Module: %s",pci_device->dev_info->linux_kernel_module[0]);
+   }
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
 
 }
@@ -460,16 +472,27 @@ int compute_PCI(unsigned char *menu, struct pci_domain **pci_domain) {
  char menuname[255][MENULEN+1];
  char infobar[255][STATLEN+1];
  struct pci_device *pci_device;
+ char kernel_modules [LINUX_KERNEL_MODULE_SIZE*MAX_KERNEL_MODULES_PER_PCI_DEVICE];
+
  printf("MENU: Computing PCI menu\n");
 
  /* For every detected pci device, compute its submenu */
  for_each_pci_func(pci_device, *pci_domain) {
+   memset(kernel_modules,0,sizeof kernel_modules);
+   for (int i=0; i<pci_device->dev_info->linux_kernel_module_count;i++) {
+     if (i>0) {
+       strncat(kernel_modules," | ",3);
+     }
+     strncat(kernel_modules, pci_device->dev_info->linux_kernel_module[i],LINUX_KERNEL_MODULE_SIZE-1);
+   }
+   if (pci_device->dev_info->linux_kernel_module_count==0) strlcpy(kernel_modules,"unknown",7);
+
    compute_pci_device(&PCI_SUBMENU[i],pci_device,__pci_bus,__pci_slot,__pci_func);
    snprintf(menuname[i],59,"%s|%s",pci_device->dev_info->vendor_name,pci_device->dev_info->product_name);
    snprintf(infobar[i], STATLEN,"%02x:%02x.%01x # %s # ID:%04x:%04x[%04x:%04x] # Kmod:%s\n",
                __pci_bus, __pci_slot, __pci_func,pci_device->dev_info->class_name,
                pci_device->vendor, pci_device->product,
-               pci_device->sub_vendor, pci_device->sub_product,pci_device->dev_info->linux_kernel_module);
+               pci_device->sub_vendor, pci_device->sub_product,kernel_modules);
    i++;
  }
 
@@ -491,6 +514,7 @@ return 0;
 void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
   char buffer[SUBMENULEN+1];
   char infobar[STATLEN+1];
+  char kernel_modules [LINUX_KERNEL_MODULE_SIZE*MAX_KERNEL_MODULES_PER_PCI_DEVICE];
 
   *menu = add_menu(" Kernel Modules ",-1);
   menu_count++;
@@ -506,9 +530,17 @@ void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
   } else  {
    /* For every detected pci device, grab its kernel module to compute this submenu */
    for_each_pci_func(pci_device, *pci_domain) {
+	memset(kernel_modules,0,sizeof kernel_modules);
+	for (int i=0; i<pci_device->dev_info->linux_kernel_module_count;i++) {
+	  if (i>0) {
+	   strncat(kernel_modules," | ",3);
+          }
+          strncat(kernel_modules, pci_device->dev_info->linux_kernel_module[i],LINUX_KERNEL_MODULE_SIZE-1);
+        }
+
 	/* No need to add unknown kernel modules*/
-	if (strcmp("unknown",pci_device->dev_info->linux_kernel_module)!=0) {
-         snprintf(buffer,sizeof buffer,"%s (%s)",pci_device->dev_info->linux_kernel_module, pci_device->dev_info->class_name);
+	if (strlen(kernel_modules)>0) {
+         snprintf(buffer,sizeof buffer,"%s (%s)",kernel_modules, pci_device->dev_info->class_name);
 	 snprintf(infobar, sizeof infobar,"%04x:%04x %s : %s\n",
                pci_device->vendor, pci_device->product,
 		pci_device->dev_info->vendor_name,

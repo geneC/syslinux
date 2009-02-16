@@ -94,7 +94,9 @@ int get_module_name_from_pci_ids(struct pci_domain *domain)
       if (!dev->dev_info)
 	return -1;
     }
-    strcpy(dev->dev_info->linux_kernel_module, "unknown");
+    for (int i=0;i<MAX_KERNEL_MODULES_PER_PCI_DEVICE;i++) {
+     strlcpy(dev->dev_info->linux_kernel_module[i], "unknown",7);
+    }
   }
 
   /* Opening the modules.pcimap (of a linux kernel) from the boot device */
@@ -106,6 +108,7 @@ int get_module_name_from_pci_ids(struct pci_domain *domain)
   strcpy(product_id,"0000");
   strcpy(sub_product_id,"0000");
   strcpy(sub_vendor_id,"0000");
+  dev->dev_info->linux_kernel_module_count=0;
 
   /* for each line we found in the modules.pcimap */
   while ( fgets(line, sizeof line, f) ) {
@@ -146,8 +149,10 @@ int get_module_name_from_pci_ids(struct pci_domain *domain)
 	  (int_sub_product_id & dev->sub_product)
 	  == dev->sub_product &&
 	  (int_sub_vendor_id & dev->sub_vendor)
-	  == dev->sub_vendor)
-	strcpy(dev->dev_info->linux_kernel_module, module_name);
+	  == dev->sub_vendor) {
+	strcpy(dev->dev_info->linux_kernel_module[dev->dev_info->linux_kernel_module_count], module_name);
+	dev->dev_info->linux_kernel_module_count++;
+      }
     }
   }
   fclose(f);
@@ -159,8 +164,8 @@ int get_module_name_from_pci_ids(struct pci_domain *domain)
 int get_class_name_from_pci_ids(struct pci_domain *domain)
 {
   char line[MAX_LINE];
-  char class_name[255];
-  char sub_class_name[255];
+  char class_name[PCI_CLASS_NAME_SIZE];
+  char sub_class_name[PCI_CLASS_NAME_SIZE];
   char class_id_str[5];
   char sub_class_id_str[5];
   FILE *f;
@@ -176,7 +181,7 @@ int get_class_name_from_pci_ids(struct pci_domain *domain)
       if (!dev->dev_info)
 	return -1;
     }
-    strcpy(dev->dev_info->class_name,"unknown");
+    strlcpy(dev->dev_info->class_name,"unknown",7);
   }
 
   /* Opening the pci.ids from the boot device */
@@ -196,7 +201,7 @@ int get_class_name_from_pci_ids(struct pci_domain *domain)
 	    class_mode=true;
     if (class_mode == false)
 		continue;
-    strncpy(class_name,"unknown",7);
+    strlcpy(class_name,"unknown",7);
     /* If the line doesn't start with a tab, it means that's a class name */
     if (line[0] != '\t') {
 
@@ -205,20 +210,20 @@ int get_class_name_from_pci_ids(struct pci_domain *domain)
       class_id_str[2]=0;
 
       /* the class name is the next field */
-      strlcpy(class_name,skipspace(strstr(line," ")),255);
+      strlcpy(class_name,skipspace(strstr(line," ")),PCI_CLASS_NAME_SIZE-1);
       remove_eol(class_name);
 
       int int_class_id_str=hex_to_int(class_id_str);
       /* assign the class_name to any matching pci device */
       for_each_pci_func(dev, domain) {
 	if (int_class_id_str == dev->class[2])
-	  strlcpy(dev->dev_info->class_name,class_name,255);
+	  strlcpy(dev->dev_info->class_name,class_name,PCI_CLASS_NAME_SIZE-1);
       }
       /* if we have a tab + a char, it means this is a sub class name */
     } else if ((line[0] == '\t') && (line[1] != '\t')) {
 
       /* the sub class name the second field */
-      strlcpy(sub_class_name,skipspace(strstr(line," ")),255);
+      strlcpy(sub_class_name,skipspace(strstr(line," ")),PCI_CLASS_NAME_SIZE-1);
       remove_eol(sub_class_name);
 
       /* the sub class id is first field */
@@ -231,7 +236,7 @@ int get_class_name_from_pci_ids(struct pci_domain *domain)
       for_each_pci_func(dev, domain) {
 	if (int_class_id_str == dev->class[2] &&
 	    int_sub_class_id_str == dev->class[1])
-	  strlcpy(dev->dev_info->class_name,sub_class_name,255);
+	  strlcpy(dev->dev_info->class_name,sub_class_name,PCI_CLASS_NAME_SIZE-1);
       }
 
     }
@@ -246,9 +251,9 @@ int get_class_name_from_pci_ids(struct pci_domain *domain)
 int get_name_from_pci_ids(struct pci_domain *domain)
 {
   char line[MAX_LINE];
-  char vendor[255];
+  char vendor[PCI_VENDOR_NAME_SIZE];
   char vendor_id[5];
-  char product[255];
+  char product[PCI_PRODUCT_NAME_SIZE];
   char product_id[5];
   char sub_product_id[5];
   char sub_vendor_id[5];
@@ -298,7 +303,7 @@ int get_name_from_pci_ids(struct pci_domain *domain)
 
       /* the vendor name is the next field */
       vendor_id[4]=0;
-      strlcpy(vendor,skipspace(strstr(line," ")),255);
+      strlcpy(vendor,skipspace(strstr(line," ")),PCI_VENDOR_NAME_SIZE-1);
 
       remove_eol(vendor);
       /* init product_id, sub_product and sub_vendor */
@@ -318,7 +323,7 @@ int get_name_from_pci_ids(struct pci_domain *domain)
     } else if ((line[0] == '\t') && (line[1] != '\t') && (skip_to_next_vendor == false)) {
 
       /* the product name the second field */
-      strlcpy(product,skipspace(strstr(line," ")),255);
+      strlcpy(product,skipspace(strstr(line," ")),PCI_PRODUCT_NAME_SIZE-1);
       remove_eol(product);
 
       /* the product id is first field */
@@ -335,8 +340,8 @@ int get_name_from_pci_ids(struct pci_domain *domain)
       for_each_pci_func(dev, domain) {
 	if (int_vendor_id == dev->vendor &&
 	    int_product_id == dev->product) {
-	  strlcpy(dev->dev_info->vendor_name,vendor,255);
-	  strlcpy(dev->dev_info->product_name,product,255);
+	  strlcpy(dev->dev_info->vendor_name,vendor,PCI_VENDOR_NAME_SIZE-1);
+	  strlcpy(dev->dev_info->product_name,product,PCI_PRODUCT_NAME_SIZE-1);
 	}
       }
 
@@ -344,8 +349,8 @@ int get_name_from_pci_ids(struct pci_domain *domain)
     } else if ((line[0] == '\t') && (line[1] == '\t') && (skip_to_next_vendor == false)) {
 
       /* the product name is last field */
-      strlcpy(product,skipspace(strstr(line," ")),255);
-      strlcpy(product,skipspace(strstr(product," ")),255);
+      strlcpy(product,skipspace(strstr(line," ")),PCI_PRODUCT_NAME_SIZE-1);
+      strlcpy(product,skipspace(strstr(product," ")),PCI_PRODUCT_NAME_SIZE-1);
       remove_eol(product);
 
       /* the sub_vendor id is first field */
@@ -366,8 +371,8 @@ int get_name_from_pci_ids(struct pci_domain *domain)
 	    int_product_id == dev->product &&
 	    int_sub_product_id == dev->sub_product &&
 	    int_sub_vendor_id == dev->sub_vendor) {
-	  strlcpy(dev->dev_info->vendor_name,vendor,255);
-	  strlcpy(dev->dev_info->product_name,product,255);
+	  strlcpy(dev->dev_info->vendor_name,vendor,PCI_VENDOR_NAME_SIZE-1);
+	  strlcpy(dev->dev_info->product_name,product,PCI_PRODUCT_NAME_SIZE-1);
 	}
       }
     }

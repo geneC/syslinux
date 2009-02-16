@@ -46,7 +46,7 @@
 # define dprintf(...) ((void)0)
 #endif
 
-char display_line;
+char display_line=0;
 #define moreprintf(...)				\
   do {						\
     display_line++;				\
@@ -61,34 +61,82 @@ char display_line;
 
 void display_pci_devices(struct pci_domain *pci_domain) {
   struct pci_device *pci_device;
-  int ndev = 0;
+  char kernel_modules [LINUX_KERNEL_MODULE_SIZE*MAX_KERNEL_MODULES_PER_PCI_DEVICE];
+
   for_each_pci_func(pci_device, pci_domain) {
-	printf("[%02x:%02x.%01x]: %s: %04x:%04x[%04x:%04x]) %s:%s\n",
-	       __pci_bus, __pci_slot, __pci_func,
-	       pci_device->dev_info->linux_kernel_module,
-	       pci_device->vendor, pci_device->product,
-	       pci_device->sub_vendor, pci_device->sub_product,
-	       pci_device->dev_info->vendor_name,
-	       pci_device->dev_info->product_name);
-    ndev++;
+
+	memset(kernel_modules,0,sizeof kernel_modules);
+
+/*	printf("PCI: found %d kernel modules for  %04x:%04x[%04x:%04x]\n",
+		  pci_device->dev_info->linux_kernel_module_count,
+		  pci_device->vendor, pci_device->product,
+		  pci_device->sub_vendor, pci_device->sub_product);
+*/
+	for (int i=0; i<pci_device->dev_info->linux_kernel_module_count;i++) {
+	  if (i>0) {
+		  strncat(kernel_modules," | ",3);
+	  }
+	  strncat(kernel_modules, pci_device->dev_info->linux_kernel_module[i],LINUX_KERNEL_MODULE_SIZE-1);
+	}
+
+	moreprintf("%04x:%04x[%04x:%04x]: %s\n",
+		pci_device->vendor, pci_device->product,
+                pci_device->sub_vendor, pci_device->sub_product,
+		pci_device->dev_info->class_name);
+
+	moreprintf(" Vendor Name      : %s\n", pci_device->dev_info->vendor_name);
+	moreprintf(" Product Name     : %s\n", pci_device->dev_info->product_name);
+	moreprintf(" PCI bus position : %02x:%02x.%01x\n", __pci_bus, __pci_slot, __pci_func);
+	moreprintf(" Kernel modules   : %s\n\n",kernel_modules);
   }
-  printf("PCI: %d devices found\n", ndev);
 }
 
 int main(int argc, char *argv[])
 {
   struct pci_domain *pci_domain;
+  int return_code=0;
+  int nb_pci_devices=0;
 
-  openconsole(&dev_null_r, &dev_stdcon_w);
+  openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
   /* Scanning to detect pci buses and devices */
+  printf("PCI: Scanning PCI BUS\n");
   pci_domain = pci_scan();
 
-  /* Assigning product & vendor name for each device*/
-  get_name_from_pci_ids(pci_domain);
+  struct pci_device *pci_device;
+  for_each_pci_func(pci_device, pci_domain) {
+          nb_pci_devices++;
+  }
 
+ printf("PCI: %d PCI devices found\n",nb_pci_devices);
+
+
+  printf("PCI: Looking for device name\n");
+  /* Assigning product & vendor name for each device*/
+  return_code=get_name_from_pci_ids(pci_domain);
+  if (return_code == -ENOPCIIDS) {
+	  printf("PCI: ERROR !\n");
+	  printf("PCI: Unable to open pci.ids in the same directory as pcitest.c32.\n");
+	  printf("PCI: PCI Device names can't be computed.\n");
+  }
+
+  printf("PCI: Resolving class names\n");
+  /* Assigning class name for each device*/
+  return_code=get_class_name_from_pci_ids(pci_domain);
+  if (return_code == -ENOPCIIDS) {
+	  printf("PCI: ERROR !\n");
+	  printf("PCI: Unable to open pci.ids in the same directory as pcitest.c32.\n");
+	  printf("PCI: PCI class names can't be computed.\n");
+  }
+
+  printf("PCI: Looking for Kernel modules\n");
   /* Detecting which kernel module should match each device */
-  get_module_name_from_pci_ids(pci_domain);
+  return_code=get_module_name_from_pci_ids(pci_domain);
+  if (return_code == -ENOMODULESPCIMAP) {
+	  printf("PCI: ERROR !\n");
+	  printf("PCI: Unable to open modules.pcimap in the same directory as pcitest.c32.\n");
+	  printf("PCI: Kernel Module names can't be computed.\n");
+  }
 
   /* display the pci devices we found */
   display_pci_devices(pci_domain);

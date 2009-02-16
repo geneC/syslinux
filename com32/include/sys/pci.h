@@ -4,9 +4,14 @@
 #include <inttypes.h>
 #include <sys/io.h>
 
-#define MAX_PCI_FUNC      8
-#define MAX_PCI_DEVICES  32
-#define MAX_PCI_BUSES   256
+#define MAX_PCI_FUNC      	  8
+#define MAX_PCI_DEVICES  	 32
+#define MAX_PCI_BUSES   	256
+#define LINUX_KERNEL_MODULE_SIZE 64
+#define PCI_VENDOR_NAME_SIZE 	256
+#define PCI_PRODUCT_NAME_SIZE 	256
+#define PCI_CLASS_NAME_SIZE 	256
+#define MAX_KERNEL_MODULES_PER_PCI_DEVICE 10
 
 typedef uint32_t pciaddr_t;
 
@@ -18,10 +23,11 @@ enum {
 /* a structure for extended pci information */
 /* XXX: use pointers for these? */
 struct pci_dev_info {
-  char vendor_name[256];
-  char product_name[256];
-  char linux_kernel_module[64];
-  char class_name[256];
+  char vendor_name[PCI_VENDOR_NAME_SIZE];
+  char product_name[PCI_PRODUCT_NAME_SIZE];
+  char linux_kernel_module[LINUX_KERNEL_MODULE_SIZE][MAX_KERNEL_MODULES_PER_PCI_DEVICE];
+  int linux_kernel_module_count;
+  char class_name[PCI_CLASS_NAME_SIZE];
 };
 
 /* PCI device (really, function) */
