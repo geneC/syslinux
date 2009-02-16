@@ -101,9 +101,7 @@ int main(int argc, char *argv[])
   int i;
   int n;
 
-  for (i = 0; i < 3; i++)
-    args[i] = &argv[1];
-
+  args[0] = &argv[1];
   n = 1;
   for (i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--")) {
@@ -112,6 +110,10 @@ int main(int argc, char *argv[])
     }
     if (n >= 3)
       break;
+  }
+  while (n < 3) {
+    args[n] = args[n-1];
+    n++;
   }
 
   boot_args(cpu_has_feature(X86_FEATURE_LM)  ? args[0] :
