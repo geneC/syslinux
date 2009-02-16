@@ -313,36 +313,42 @@ inline int dmi_checksum(u8 *buf)
         return (sum==0);
 }
 
-int dmi_iterate() {
+int dmi_iterate(s_dmi *dmi) {
   u8 buf[16];
   char *p,*q;
   p=(char *)0xF0000; /* The start address to look at the dmi table */
   for (q = p; q < p + 0x10000; q += 16) {
         memcpy(buf, q, 15);
         if(memcmp(buf, "_DMI_", 5)==0 && dmi_checksum(buf)) {
-             dmitable.num  = buf[13]<<8|buf[12];
-             dmitable.len  = buf[7]<<8|buf[6];
-             dmitable.base = buf[11]<<24|buf[10]<<16|buf[9]<<8|buf[8];
-	     dmitable.ver  = (buf[0x06]<<8)+buf[0x07];
+             dmi->dmitable.num  = buf[13]<<8|buf[12];
+             dmi->dmitable.len  = buf[7]<<8|buf[6];
+             dmi->dmitable.base = buf[11]<<24|buf[10]<<16|buf[9]<<8|buf[8];
+	     dmi->dmitable.ver  = (buf[0x06]<<8)+buf[0x07];
 
              /*
               * DMI version 0.0 means that the real version is taken from
               * the SMBIOS version, which we don't know at this point.
              */
-             if(buf[14]!=0)
-                   printf("DMI %d.%d present.\n",buf[14]>>4, buf[14]&0x0F);
-             else
-                   printf("DMI present.\n");
+             if(buf[14]!=0) {
+		   dmi->dmitable.major_version=buf[14]>>4;
+		   dmi->dmitable.minor_version=buf[14]&0x0F;
+	     }
+             else {
+		   dmi->dmitable.major_version=0;
+		   dmi->dmitable.minor_version=0;
+
+	     }
+/*              printf("DMI present (version %d.%d)\n", dmitable.major_version,dmitable.minor_version);
               printf("%d structures occupying %d bytes.\n",dmitable.num, dmitable.len);
-              printf("DMI table at 0x%08X.\n",dmitable.base);
-	      return 1;
+              printf("DMI table at 0x%08X.\n",dmitable.base);*/
+	      return DMI_TABLE_PRESENT;
          }
   }
-  dmitable.base=0;
-  dmitable.num=0;
-  dmitable.ver=0;
-  dmitable.len=0;
-  return 0;
+  dmi->dmitable.base=0;
+  dmi->dmitable.num=0;
+  dmi->dmitable.ver=0;
+  dmi->dmitable.len=0;
+  return -ENODMITABLE;
 }
 
 void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
@@ -522,12 +528,12 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
 void parse_dmitable(s_dmi *dmi) {
   int i=0;
   u8 *data = NULL;
-  u8 buf[dmitable.len];
+  u8 buf[dmi->dmitable.len];
 
-  memcpy(buf,(int *)dmitable.base,sizeof(u8) * dmitable.len);
+  memcpy(buf,(int *)dmi->dmitable.base,sizeof(u8) * dmi->dmitable.len);
   data=buf;
   dmi->memory_count=0;
-  while(i<dmitable.num && data+4<=buf+dmitable.len) /* 4 is the length of an SMBIOS structure header */ {
+  while(i<dmi->dmitable.num && data+4<=buf+dmi->dmitable.len) /* 4 is the length of an SMBIOS structure header */ {
         u8 *next;
         struct dmi_header h;
         to_dmi_header(&h, data);
@@ -548,12 +554,12 @@ void parse_dmitable(s_dmi *dmi) {
 
         /* loo for the next handle */
         next=data+h.length;
-        while(next-buf+1<dmitable.len && (next[0]!=0 || next[1]!=0))
+        while(next-buf+1<dmi->dmitable.len && (next[0]!=0 || next[1]!=0))
                next++;
         next+=2;
-        if(next-buf<=dmitable.len)
+        if(next-buf<=dmi->dmitable.len)
            {
-             dmi_decode(&h, dmitable.ver,dmi);
+             dmi_decode(&h, dmi->dmitable.ver,dmi);
            }
         data=next;
         i++;

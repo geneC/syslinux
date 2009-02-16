@@ -32,7 +32,7 @@ pcitest.elf : pcitest.o $(LIBS) $(C_LIBS)
 cpuidtest.elf : cpuidtest.o cpuid.o $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-dmitest.elf : dmitest.o dmi_utils.o dmi.o $(LIBS) $(C_LIBS)
+dmitest.elf : dmi.o dmitest.o dmi_utils.o $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 ethersel.elf : ethersel.o $(LIBS) $(C_LIBS)

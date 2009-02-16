@@ -30,6 +30,8 @@ static const char *bad_index = "<BAD INDEX>";
 #define DWORD(x) (u32)(*(const u32 *)(x))
 #define QWORD(x) (*(const u64 *)(x))
 
+enum {DMI_TABLE_PRESENT = 100, ENODMITABLE};
+
 #include "dmi_bios.h"
 #include "dmi_system.h"
 #include "dmi_base_board.h"
@@ -46,9 +48,10 @@ u16 num;
 u16 len;
 u16 ver;
 u32 base;
+u16 major_version;
+u16 minor_version;
 } dmi_table;
 
-static dmi_table dmitable;
 
 
 struct dmi_header
@@ -68,6 +71,7 @@ typedef struct {
 	 s_battery battery;
 	 s_memory memory[32];
 	 int memory_count;
+	 dmi_table dmitable;
 } s_dmi;
 
 void to_dmi_header(struct dmi_header *h, u8 *data);
@@ -76,7 +80,7 @@ const char *dmi_string(struct dmi_header *dm, u8 s);
 inline int dmi_checksum(u8 *buf);
 void parse_dmitable(s_dmi *dmi);
 void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi);
-int dmi_iterate();
+int dmi_iterate(s_dmi *dmi);
 
 /* dmi_utils.c */
 void display_bios_characteristics(s_dmi *dmi);

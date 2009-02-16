@@ -56,6 +56,9 @@
 #define WITH_PCI 1
 #define WITH_MENU_DISPLAY 1
 
+#define SUBMENU_Y 3
+#define SUBMENU_X 29
+
 unsigned char MAIN_MENU, CPU_MENU, MOBO_MENU, CHASSIS_MENU, BIOS_MENU, SYSTEM_MENU, PCI_MENU, KERNEL_MENU;
 unsigned char MEMORY_MENU,  MEMORY_SUBMENU[32], DISK_MENU, DISK_SUBMENU[32], PCI_SUBMENU[128],BATTERY_MENU;
 unsigned char SYSLINUX_MENU, ABOUT_MENU;
@@ -403,9 +406,9 @@ return 0;
 /* Detecting if a DMI table exist
  * if yes, let's parse it */
 int detect_dmi(s_dmi *dmi) {
-  if ( ! dmi_iterate() ) {
+  if (dmi_iterate(dmi) == -ENODMITABLE ) {
              printf("No DMI Structure found\n");
-             return -1;
+             return -ENODMITABLE;
   }
 
   parse_dmitable(dmi);
@@ -430,7 +433,7 @@ void compute_pci_device(unsigned char *menu,struct pci_device *pci_device,int pc
 
   *menu = add_menu(" Details ",-1);
    menu_count++;
-   set_menu_pos(7,17);
+   set_menu_pos(5,17);
 
    snprintf(buffer,sizeof buffer,"Vendor  : %s",pci_device->dev_info->vendor_name);
    snprintf(statbuffer,sizeof statbuffer,"Vendor Name: %s",pci_device->dev_info->vendor_name);
@@ -518,12 +521,12 @@ void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
   char buffer[SUBMENULEN+1];
   char infobar[STATLEN+1];
   char kernel_modules [LINUX_KERNEL_MODULE_SIZE*MAX_KERNEL_MODULES_PER_PCI_DEVICE];
+  struct pci_device *pci_device;
 
   *menu = add_menu(" Kernel Modules ",-1);
   menu_count++;
   printf("MENU: Computing Kernel menu\n");
-  set_menu_pos(4,29);
-  struct pci_device *pci_device;
+  set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
   if (modules_pcimap == -ENOMODULESPCIMAP) {
     add_item("The modules.pcimap file is missing","Missing modules.pcimap file",OPT_INACTIVE,NULL,0);
@@ -562,7 +565,8 @@ void compute_battery(unsigned char *menu, s_dmi *dmi) {
   *menu = add_menu(" Battery ",-1);
   menu_count++;
   printf("MENU: Computing Battery menu\n");
-  set_menu_pos(4,29);
+  set_menu_pos(SUBMENU_Y,SUBMENU_X);
+
   snprintf(buffer, sizeof buffer,"Vendor          : %s",dmi->battery.manufacturer);
   snprintf(statbuffer, sizeof statbuffer,"Vendor: %s",dmi->battery.manufacturer);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
@@ -777,7 +781,7 @@ void compute_motherboard(unsigned char *menu,s_dmi *dmi) {
   printf("MENU: Computing motherboard menu\n");
   *menu = add_menu(" Motherboard ",-1);
   menu_count++;
-  set_menu_pos(4,29);
+  set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
   snprintf(buffer,sizeof buffer,"Vendor    : %s",dmi->base_board.manufacturer);
   snprintf(statbuffer,sizeof statbuffer,"Vendor: %s",dmi->base_board.manufacturer);
@@ -815,7 +819,7 @@ void compute_system(unsigned char *menu,s_dmi *dmi) {
   printf("MENU: Computing system menu\n");
   *menu = add_menu(" System ",-1);
   menu_count++;
-  set_menu_pos(4,29);
+  set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
   snprintf(buffer,sizeof buffer,"Vendor    : %s",dmi->system.manufacturer);
   snprintf(statbuffer,sizeof statbuffer,"Vendor: %s",dmi->system.manufacturer);
@@ -857,7 +861,8 @@ void compute_chassis(unsigned char *menu,s_dmi *dmi) {
   printf("MENU: Computing chassis menu\n");
   *menu = add_menu(" Chassis ",-1);
   menu_count++;
-  set_menu_pos(4,29);
+  set_menu_pos(SUBMENU_Y,SUBMENU_X);
+
   snprintf(buffer,sizeof buffer,"Vendor    : %s",dmi->chassis.manufacturer);
   snprintf(statbuffer,sizeof statbuffer,"Vendor: %s",dmi->chassis.manufacturer);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
@@ -890,7 +895,7 @@ void compute_bios(unsigned char *menu,s_dmi *dmi) {
   *menu = add_menu(" BIOS ",-1);
   menu_count++;
   printf("MENU: Computing BIOS menu\n");
-  set_menu_pos(4,29);
+  set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
   snprintf(buffer,sizeof buffer,"Vendor    : %s",dmi->bios.vendor);
   snprintf(statbuffer,sizeof statbuffer,"Vendor: %s",dmi->bios.vendor);
@@ -922,6 +927,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
   printf("MENU: Computing Processor menu\n");
   *menu = add_menu(" Main Processor ",-1);
   menu_count++;
+  set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
   snprintf(buffer,sizeof buffer,"Vendor    : %s",cpu->vendor);
   snprintf(statbuffer,sizeof statbuffer,"Vendor: %s",cpu->vendor);
@@ -1082,8 +1088,10 @@ void detect_hardware(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain, str
   detect_disks(disk_info);
 
   printf("DMI: Detecting Table\n");
-  if (detect_dmi(dmi) == 0)
+  if (detect_dmi(dmi) ==0 )
 		is_dmi_valid=true;
+
+  printf("DMI: Table found ! (version %d.%d)\n",dmi->dmitable.major_version,dmi->dmitable.minor_version);
 
 #ifdef WITH_PCI
   printf("PCI: Detecting Devices\n");
@@ -1155,7 +1163,9 @@ void compute_aboutmenu(unsigned char *menu) {
 
   *menu = add_menu(" About ",-1);
   menu_count++;
-  set_menu_pos(4,29);
+  set_menu_pos(SUBMENU_Y,SUBMENU_X);
+
+  printf("MENU: About Syslinux menu\n");
 
   snprintf(buffer, sizeof buffer, "Product : %s", PRODUCT_NAME);
   snprintf(statbuffer, sizeof statbuffer, "Product : %s", PRODUCT_NAME);
@@ -1182,6 +1192,9 @@ void compute_syslinuxmenu(unsigned char *menu) {
   char buffer[SUBMENULEN+1];
   char statbuffer[STATLEN+1];
   const struct syslinux_version *sv;
+
+  printf("MENU: Computing Syslinux menu\n");
+
   memset(syslinux_fs,0,sizeof syslinux_fs);
   memset(syslinux_fs_menu,0,sizeof syslinux_fs_menu);
 
@@ -1197,7 +1210,7 @@ void compute_syslinuxmenu(unsigned char *menu) {
   snprintf(syslinux_fs_menu,sizeof syslinux_fs_menu," %s ",syslinux_fs);
   *menu = add_menu(syslinux_fs_menu,-1);
   menu_count++;
-  set_menu_pos(4,29);
+  set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
   snprintf(buffer, sizeof buffer, "Bootloader : %s", syslinux_fs);
   snprintf(statbuffer, sizeof statbuffer, "Bootloader: %s", syslinux_fs);
@@ -1215,10 +1228,11 @@ void compute_syslinuxmenu(unsigned char *menu) {
   snprintf(statbuffer, sizeof statbuffer, "Max API: %u",sv->max_api);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
 
-  snprintf(buffer, sizeof buffer, "Copyright  :%s", sv->copyright_string);
-  snprintf(statbuffer, sizeof statbuffer, "Copyright:%s", sv->copyright_string);
-  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  add_item("","",OPT_SEP,"",0);
 
+  snprintf(buffer, sizeof buffer, "%s", sv->copyright_string+1);
+  snprintf(statbuffer, sizeof statbuffer, "%s", sv->copyright_string+1);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
 }
 
 /* Compute Main' Submenus*/
@@ -1250,25 +1264,25 @@ void compute_main_menu() {
   set_item_options(-1,24);
 
 #ifdef WITH_PCI
-  add_item("PCI <D>evices","PCI Devices",OPT_SUBMENU,NULL,PCI_MENU);
+  add_item("PCI <D>evices","PCI Devices Menu",OPT_SUBMENU,NULL,PCI_MENU);
 #endif
   if (nb_sub_disk_menu>0)
-    add_item("<D>isks","Disks",OPT_SUBMENU,NULL,DISK_MENU);
-  add_item("<M>emory Modules","Memory Modules",OPT_SUBMENU,NULL,MEMORY_MENU);
-  add_item("<P>rocessor","Main Processor",OPT_SUBMENU,NULL,CPU_MENU);
+    add_item("<D>isks","Disks Menu",OPT_SUBMENU,NULL,DISK_MENU);
+  add_item("<M>emory Modules","Memory Modules Menu",OPT_SUBMENU,NULL,MEMORY_MENU);
+  add_item("<P>rocessor","Main Processor Menu",OPT_SUBMENU,NULL,CPU_MENU);
 
 if (is_dmi_valid) {
-  add_item("<M>otherboard","Motherboard",OPT_SUBMENU,NULL,MOBO_MENU);
-  add_item("<B>ios","Bios",OPT_SUBMENU,NULL,BIOS_MENU);
-  add_item("<C>hassis","Chassis",OPT_SUBMENU,NULL,CHASSIS_MENU);
-  add_item("<S>ystem","System",OPT_SUBMENU,NULL,SYSTEM_MENU);
-  add_item("Ba<t>tery","Battery",OPT_SUBMENU,NULL,BATTERY_MENU);
+  add_item("M<o>therboard","Motherboard Menu",OPT_SUBMENU,NULL,MOBO_MENU);
+  add_item("<B>ios","Bios Menu",OPT_SUBMENU,NULL,BIOS_MENU);
+  add_item("<C>hassis","Chassis Menu",OPT_SUBMENU,NULL,CHASSIS_MENU);
+  add_item("<S>ystem","System Menu",OPT_SUBMENU,NULL,SYSTEM_MENU);
+  add_item("Ba<t>tery","Battery Menu",OPT_SUBMENU,NULL,BATTERY_MENU);
 }
   add_item("","",OPT_SEP,"",0);
 #ifdef WITH_PCI
-  add_item("<K>ernel Modules","Kernel Modules",OPT_SUBMENU,NULL,KERNEL_MENU);
+  add_item("<K>ernel Modules","Kernel Modules Menu",OPT_SUBMENU,NULL,KERNEL_MENU);
 #endif
-  add_item("<S>yslinux","Syslinux Information",OPT_SUBMENU,NULL,SYSLINUX_MENU);
+  add_item("<S>yslinux","Syslinux Information Menu",OPT_SUBMENU,NULL,SYSLINUX_MENU);
   add_item("<A>bout","About Menu",OPT_SUBMENU,NULL,ABOUT_MENU);
 }
 

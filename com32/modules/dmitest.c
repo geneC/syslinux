@@ -164,10 +164,15 @@ int main(void)
   s_dmi dmi;
   openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
-  if ( ! dmi_iterate() ) {
-	  printf("No DMI Structure found\n");
-	  return -1;
+  if (dmi_iterate(&dmi) == -ENODMITABLE) {
+	printf("No DMI Structure found\n");
+	return -1;
+  } else {
+       printf("DMI %d.%d present.\n",dmi.dmitable.major_version,dmi.dmitable.minor_version);
+       printf("%d structures occupying %d bytes.\n",dmi.dmitable.num, dmi.dmitable.len);
+       printf("DMI table at 0x%08X.\n",dmi.dmitable.base);
   }
+
 
   parse_dmitable(&dmi);
 
