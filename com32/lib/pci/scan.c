@@ -311,15 +311,23 @@ int get_name_from_pci_ids(struct pci_domain *domain)
       strlcpy(sub_product_id,"0000",4);
       strlcpy(sub_vendor_id,"0000",4);
 
+      /* Unless we found a matching device, we have to skip to the next vendor */
       skip_to_next_vendor=true;
+
       int_vendor_id=hex_to_int(vendor_id);
+      /* Iterate in all pci devices to find a matching vendor */
       for_each_pci_func(dev, domain) {
+	/* if one device that match this vendor */
 	if (int_vendor_id == dev->vendor) {
-		skip_to_next_vendor=false;
-		continue;
+	  /* copy the vendor name for this device */
+	  strlcpy(dev->dev_info->vendor_name,vendor,PCI_VENDOR_NAME_SIZE-1);
+	  /* Some pci devices match this vendor, so we have to found them */
+	  skip_to_next_vendor=false;
+	  /* Let's loop on the other devices as some may have the same vendor */
 	}
       }
-      /* if we have a tab + a char, it means this is a product id */
+      /* if we have a tab + a char, it means this is a product id
+       * but we only look at it if we own some pci devices of the current vendor*/
     } else if ((line[0] == '\t') && (line[1] != '\t') && (skip_to_next_vendor == false)) {
 
       /* the product name the second field */
@@ -345,7 +353,8 @@ int get_name_from_pci_ids(struct pci_domain *domain)
 	}
       }
 
-      /* if we have two tabs, it means this is a sub product */
+      /* if we have two tabs, it means this is a sub product
+       * but we only look at it if we own some pci devices of the current vendor*/
     } else if ((line[0] == '\t') && (line[1] == '\t') && (skip_to_next_vendor == false)) {
 
       /* the product name is last field */
