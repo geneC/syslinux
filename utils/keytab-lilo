@@ -1,32 +1,17 @@
 #!/usr/bin/perl
-# --------------------------------------------------------------------------
-# This program was taken from the LILO-20 distribution; only this header
-# was added.
-#
-# LILO program code, documentation and auxiliary programs are
-# Copyright 1992-1997 Werner Almesberger.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms of parts of or the
-# whole original or derived work are permitted provided that the
-# original work is properly attributed to the author. The name of the
-# author may not be used to endorse or promote products derived from
-# this software without specific prior written permission. This work
-# is provided "as is" and without any express or implied warranties.
-# --------------------------------------------------------------------------
 
-eval { use bytes; }; eval { binmode STDOUT; };
+eval { use bytes; };
+eval { binmode STDOUT; };
 
-$DEFAULT_PATH = "/lib/kbd/keymaps";
 $DEFAULT_MAP = "us";
-$DEFAULT_EXT = ".map";
+$DEFAULT_EXT = ".kmap";
 
 sub usage
 {
     print STDERR
       "usage: $0 [ -p old_code=new_code ] ...\n".
-      (" "x(8+length $0))."[path]default_layout[.map] ] ".
-      "[path]kbd_layout[.map]\n";
+      (" "x(8+length $0))."[path]default_layout[.kmap] ] ".
+      "[path]kbd_layout[.kmap]\n";
     exit 1;
 }
 
@@ -54,8 +39,7 @@ sub load_map
     local ($empty,$current);
 
     $map = $DEFAULT_MAP unless defined $map;
-    # $map = $DEFAULT_PATH."/".$map unless $map =~ m|/|;
-    # $map .= $DEFAULT_EXT unless $map =~ m|/[^/]+\.[^/]+$|;
+    $map .= $DEFAULT_EXT unless $map =~ m|/[^/]+\.[^/]+$|;
     if (!open(FILE,"loadkeys -m $map |")) {
 	print STDERR "loadkeys -m $map: $!\n";
 	exit 1;
@@ -64,9 +48,9 @@ sub load_map
     $empty = 1;
     while (<FILE>) {
 	chop;
-	if (/^u_short\s+(\S+)_map\[\S+\]\s+=\s+{\s*$/) {
+	if (/^(static\s+)?u_short\s+(\S+)_map\[\S*\]\s+=\s+{\s*$/) {
 	    die "active at beginning of map" if defined $current;
-	    $current = $pfx.":".$1;
+	    $current = $pfx.":".$2;
 	    next;
 	}
 	undef $current if /^};\s*$/;
