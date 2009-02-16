@@ -10,6 +10,11 @@
 
 typedef uint32_t pciaddr_t;
 
+enum {
+	ENOPCIIDS = 100,
+	ENOMODULESPCIMAP
+};
+
 /* a structure for extended pci information */
 /* XXX: use pointers for these? */
 struct pci_dev_info {

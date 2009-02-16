@@ -100,7 +100,7 @@ int get_module_name_from_pci_ids(struct pci_domain *domain)
   /* Opening the modules.pcimap (of a linux kernel) from the boot device */
   f=fopen("modules.pcimap", "r");
   if (!f)
-    return -1;
+    return -ENOMODULESPCIMAP;
 
   strcpy(vendor_id,"0000");
   strcpy(product_id,"0000");
@@ -182,7 +182,7 @@ int get_class_name_from_pci_ids(struct pci_domain *domain)
   /* Opening the pci.ids from the boot device */
   f = fopen("pci.ids","r");
   if (!f)
-    return -1;
+    return -ENOPCIIDS;
 
   /* for each line we found in the pci.ids */
   while ( fgets(line, sizeof line, f) ) {
@@ -276,7 +276,7 @@ int get_name_from_pci_ids(struct pci_domain *domain)
   /* Opening the pci.ids from the boot device */
   f = fopen("pci.ids","r");
   if (!f)
-    return -1;
+    return -ENOPCIIDS;
 
   strlcpy(vendor_id,"0000",4);
   strlcpy(product_id,"0000",4);

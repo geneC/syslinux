@@ -50,7 +50,7 @@
 
 #define EDITPROMPT 21
 
-#define SUBMENULEN 50
+#define SUBMENULEN 46
 #define WITH_PCI 1
 #define WITH_MENU_DISPLAY 1
 
@@ -60,6 +60,8 @@ int nb_sub_disk_menu=0;
 int nb_pci_devices=0;
 bool is_dmi_valid=false;
 int menu_count=0;
+int pci_ids=0;
+int modules_pcimap=0;
 
 #define ATTR_PACKED __attribute__((packed))
 
@@ -472,8 +474,13 @@ int compute_PCI(unsigned char *menu, struct pci_domain **pci_domain) {
  }
 
  *menu = add_menu(" PCI Devices ",-1);
-   menu_count++;
-
+  menu_count++;
+ if (pci_ids == -ENOPCIIDS) {
+    add_item("The pci.ids file is missing","Missing pci.ids file",OPT_INACTIVE,NULL,0);
+    add_item("PCI Device names  can't be computed.","Missing pci.ids file",OPT_INACTIVE,NULL,0);
+    add_item("Please put one in same dir as hdt","Missing pci.ids file",OPT_INACTIVE,NULL,0);
+    add_item("","",OPT_SEP,"",0);
+  }
  for (int j=0;j<i;j++) {
   add_item(menuname[j],infobar[j],OPT_SUBMENU,NULL,PCI_SUBMENU[j]);
  }
@@ -491,8 +498,14 @@ void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
   set_menu_pos(4,29);
   struct pci_device *pci_device;
 
- /* For every detected pci device, grab its kernel module to compute this submenu */
-  for_each_pci_func(pci_device, *pci_domain) {
+  if (modules_pcimap == -ENOMODULESPCIMAP) {
+    add_item("The modules.pcimap file is missing","Missing modules.pcimap file",OPT_INACTIVE,NULL,0);
+    add_item("Kernel modules can't be computed.","Missing modules.pcimap file",OPT_INACTIVE,NULL,0);
+    add_item("Please put one in same dir as hdt","Missing modules.pcimap file",OPT_INACTIVE,NULL,0);
+    add_item("","",OPT_SEP,"",0);
+  } else  {
+   /* For every detected pci device, grab its kernel module to compute this submenu */
+   for_each_pci_func(pci_device, *pci_domain) {
 	/* No need to add unknown kernel modules*/
 	if (strcmp("unknown",pci_device->dev_info->linux_kernel_module)!=0) {
          snprintf(buffer,sizeof buffer,"%s (%s)",pci_device->dev_info->linux_kernel_module, pci_device->dev_info->class_name);
@@ -503,6 +516,7 @@ void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
 
 	 add_item(buffer,infobar,OPT_INACTIVE,NULL,0);
 	}
+    }
   }
 }
 
@@ -1054,12 +1068,12 @@ void detect_hardware(s_dmi *dmi, s_cpu *cpu, struct pci_domain **pci_domain, str
 
   printf("PCI: Resolving class names\n");
   /* Assigning class name for each device*/
-  get_class_name_from_pci_ids(*pci_domain);
+  pci_ids=get_class_name_from_pci_ids(*pci_domain);
 
 
   printf("PCI: Resolving module names\n");
   /* Detecting which kernel module should match each device */
-  get_module_name_from_pci_ids(*pci_domain);
+  modules_pcimap=get_module_name_from_pci_ids(*pci_domain);
 #endif
 }
 
