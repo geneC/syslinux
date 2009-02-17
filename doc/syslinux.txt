@@ -38,6 +38,10 @@ These are the options common to all versions of Syslinux:
 
 	-s	Safe, slow, stupid; uses simpler code that boots better
 	-f	Force installing
+	-r	Raid mode.  If boot fails, tell the BIOS to boot the next
+		device in the boot sequence (usually the next hard disk)
+		instead of stopping with an error message.
+		This is useful for RAID-1 booting.
 
 These are only in the Windows version:
 
@@ -52,7 +56,7 @@ In order to create a bootable Linux floppy using SYSLINUX, prepare a
 normal MS-DOS formatted floppy.  Copy one or more Linux kernel files to
 it, then execute the DOS command:
 
-        syslinux [-sfma][-d directory] a:
+        syslinux [-sfrma][-d directory] a: [bootsecfile]
 
 (or whichever drive letter is appropriate; the [] meaning optional.)
 
@@ -64,7 +68,7 @@ WinNT/2000/XP.
 
 Under Linux, execute the command:
 
-	syslinux [-sf][-d directory][-o offset] /dev/fd0
+	syslinux [-sfr][-d directory][-o offset] /dev/fd0
 
 (or, again, whichever device is the correct one.)
 
