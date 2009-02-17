@@ -392,6 +392,8 @@ have_pxenv:
 
 		cmp ax,0201h			; API version 2.1 or higher
 		jb old_api
+		cmp byte [es:bx+8],2Ch		; Space for !PXE pointer?
+		jb old_api
 		mov si,bx
 		mov ax,es
 		les bx,[es:bx+28h]		; !PXE structure pointer
@@ -1020,6 +1022,7 @@ is_struc:
 		cmp word [es:bx+4],'V+'
 		jne .bad
 		movzx cx,[es:bx+8]
+		cmp cx,28h
 		jb .bad
 .checksum:
 		mov si,bx
