@@ -42,6 +42,9 @@ MAX_SYMLINKS	equ 64			; Maximum number of symlinks per lookup
 SYMLINK_SECTORS	equ 2			; Max number of sectors in a symlink
 					; (should be >= FILENAME_MAX)
 
+ROOT_DIR_WORD	equ 0x002F
+CUR_DIR_DWORD	equ 0x00002F2E
+
 ;
 ; This is what we need to do when idle
 ;
@@ -843,6 +846,8 @@ load_config:
 		mov si,config_name	; Save config file name
 		mov di,ConfigName
 		call strcpy
+		mov dword [CurrentDirName],CUR_DIR_DWORD	; Write './',0,0 to the CurrentDirName
+		call build_curdir_str
 
 		mov di,ConfigName
 		call open
@@ -1513,6 +1518,9 @@ getfssec:
 		pop edx
 		pop eax
 		pop ebp
+		ret
+
+build_curdir_str:
 		ret
 
 ; -----------------------------------------------------------------------------

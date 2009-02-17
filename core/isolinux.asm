@@ -36,6 +36,8 @@ MAX_OPEN	equ (1 << MAX_OPEN_LG2)
 SECTOR_SHIFT	equ 11			; 2048 bytes/sector (El Torito requirement)
 SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 
+ROOT_DIR_WORD	equ 0x002F
+
 ;
 ; This is what we need to do when idle
 ;
@@ -1147,15 +1149,33 @@ get_fs_structures:
 		; Look for an isolinux directory, and if found,
 		; make it the current directory instead of the root
 		; directory.
+		; Also copy the name of the directory to CurrentDirName
+		mov word [CurrentDirName],ROOT_DIR_WORD	; Write '/',0 to the CurrentDirName
 		mov di,boot_dir			; Search for /boot/isolinux
 		mov al,02h
+		push di
 		call searchdir_iso
+		pop di
 		jnz .found_dir
 		mov di,isolinux_dir
 		mov al,02h			; Search for /isolinux
+		push di
 		call searchdir_iso
+		pop di
 		jz .no_isolinux_dir
 .found_dir:
+		; Copy current directory name to CurrentDirName
+		push si
+		push di
+		mov si,di
+		mov di,CurrentDirName
+		call strcpy
+		mov byte [di],0	;done in case it's not word aligned
+		dec di
+		mov byte [di],'/'
+		pop di
+		pop si
+
 		mov [CurrentDir+dir_len],eax
 		mov eax,[si+file_left]
 		mov [CurrentDir+dir_clust],eax

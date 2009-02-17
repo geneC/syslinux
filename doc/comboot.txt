@@ -921,3 +921,46 @@ AX=001Eh [3.74] Keyboard remapping table
 	version, the format code is always 1 and the length is always
 	256.  This version can be updated simply by overwriting the version
 	in memory; this may not be true in the future.
+
+
+AX=001Fh [BETA-3.74+]	Get current working directory
+	Input:	AX	0001Eh
+	Output:	ES:BX	null-terminated directory name string
+
+	Returns the current working directory.  For SYSLINUX, ISOLINUX,
+	and PXELINUX, this will be an absolute path.  For EXTLINUX, it
+	currently returns "./".
+
+
+AX=0020h [BETA-3.74+] Open directory
+	Input:	AX	001Fh
+		ES:SI	/-null-terminated directory name
+	Output:	SI	directory handle
+		EAX	clobbered
+
+	Open a directory for reading.  Directory name must have a trailing
+	 "/" before the null (otherwise, you're looking for a file)(This
+	may change as this is a BETA call).
+
+
+AX=0021h [BETA-3.74+] Read directory
+	Input:	AX	0020h
+		SI	directory handle
+		ES:DI	buffer for file name
+	Output:	DL	Type of file
+		SI	directory handle, or 0 if end of directory was reached
+		EAX	Size of file
+		EBX	Inode of file
+
+	Read one filename from the directory, incrementing the directory
+	structure at SI as appropriate, storing the filename into the buffer
+	at ES:DI, and returning the type of the file in DL, the file length
+	in EAX, the INode/file number in EBX and the updated directory handle.
+
+
+AX=0022h [BETA-3.74+] Close directory
+	Input:	AX	001Fh
+		SI	directory handle
+	Output	SI	0
+
+	Closes a directory.
