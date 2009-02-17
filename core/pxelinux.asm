@@ -534,6 +534,9 @@ have_entrypoint:
 ; packet (query info 1).
 ;
 query_bootp_1:
+		mov si,get_packet_msg
+		call writestr_early
+
 		mov dl,1
 		call pxe_get_cached_info
 		call parse_dhcp
@@ -583,9 +586,11 @@ query_bootp_2:
 ; Now, get the boot file and other info.  This lives in the CACHED_REPLY
 ; packet (query info 3).
 ;
+query_bootp_3:
 		mov dl,3
 		call pxe_get_cached_info
 		call parse_dhcp			; Parse DHCP packet
+		call crlf
 
 ;
 ; Generate the bootif string, and the hardware-based config string.
@@ -2278,11 +2283,10 @@ xchexbytes:
 ;
 pxe_get_cached_info:
 		pushad
-		mov si,get_packet_msg
-		call writestr_early
+		mov al,' '
+		call writechr
 		mov al,dl
 		call writehex2
-		call crlf
 		mov di,pxe_bootp_query_pkt
 		push di
 		xor ax,ax
@@ -2315,7 +2319,7 @@ pxe_get_cached_info:
 		jmp kaboom
 
 		section .data
-get_packet_msg	db 'Getting cached packet ', 0
+get_packet_msg	db 'Getting cached packet', 0
 
 		section .text
 ;
