@@ -262,15 +262,13 @@ _start:
 		push fs
 		push gs
 
+		cld			; Copy upwards
 		xor ax,ax
 		mov ds,ax
 		mov es,ax
 
 		jmp 0:_start1		; Canonicalize address
 _start1:
-		mov bp,sp
-		les bx,[bp+48]		; ES:BX -> !PXE or PXENV+ structure
-
 		; That is all pushed onto the PXE stack.  Save the pointer
 		; to it and switch to an internal stack.
 		mov [InitStack],sp
@@ -283,20 +281,15 @@ _start1:
 		mov [BaseStack+4],ss
 %endif
 
-		cli			; Paranoia
 		lss esp,[BaseStack]
-
 		sti			; Stack set up and ready
-		cld			; Copy upwards
+
 
 ;
 ; Initialize screen (if we're using one)
 ;
-		push es			; Save ES -> PXE entry structure
-		push ds
-		pop es			; ES <- DS
 %include "init.inc"
-		pop es			; Restore ES -> PXE entry structure
+
 ;
 ; Tell the user we got this far
 ;
@@ -329,15 +322,15 @@ _start1:
 ; it if the API version is 2.1 or later.
 ;
 		; Plan A: !PXE structure as SS:[SP+4]
+		lgs ebp,[InitStack]	; GS:BP -> original stack
+		les bx,[gs:bp+48]
 		call is_pxe
 		je have_pxe
 
 		; Plan B: PXENV+ structure at [ES:BX]
 		inc byte [plan]
-		les bx,[InitStack]
-		push word [es:bx+24]			; Original BX
-		mov es,[es:bx+4]			; Original ES
-		pop bx
+		mov bx,[gs:bp+24]	; Original BX
+		mov es,[gs:bp+4]	; Original ES
 		call is_pxenv
 		je have_pxenv
 
@@ -363,12 +356,12 @@ no_int1a:
 		; Plan D: !PXE memory scan
 		inc byte [plan]
 		call memory_scan_for_pxe_struct		; !PXE scan
-		jnc have_pxe
+		je have_pxe
 
 		; Plan E: PXENV+ memory scan
 		inc byte [plan]
 		call memory_scan_for_pxenv_struct	; PXENV+ scan
-		jnc have_pxenv
+		je have_pxenv
 
 		; Found nothing at all!!
 no_pxe:
@@ -393,21 +386,19 @@ have_pxenv:
 		cmp ax,0201h			; API version 2.1 or higher
 		jb old_api
 		cmp byte [es:bx+8],2Ch		; Space for !PXE pointer?
-		jb old_api
-		mov si,bx
-		mov ax,es
+		jb .pxescan
 		les bx,[es:bx+28h]		; !PXE structure pointer
 		call is_pxe
 		je have_pxe
 
 		; Nope, !PXE structure missing despite API 2.1+, or at least
 		; the pointer is missing.  Do a last-ditch attempt to find it.
+.pxescan:
 		call memory_scan_for_pxe_struct
-		jnc have_pxe
+		je have_pxe
 
 		; Otherwise, no dice, use PXENV+ structure
-		mov bx,si
-		mov es,ax
+		les bx,[StrucPtr]
 
 old_api:	; Need to use a PXENV+ structure
 		mov si,using_pxenv_msg
@@ -484,7 +475,7 @@ have_pxe:
 		call crlf
 		mov si,undi_code_msg
 		call writestr_early
-		mov ax,[es:bx+32h]
+		mov eax,[es:bx+32h]
 		call writehex8
 		call crlf
 		mov si,undi_code_len_msg
@@ -939,73 +930,41 @@ kaboom:
 
 ;
 ; memory_scan_for_pxe_struct:
+; memory_scan_for_pxenv_struct:
 ;
-;	If none of the standard methods find the !PXE structure, look for it
-;	by scanning memory.
+;	If none of the standard methods find the !PXE/PXENV+ structure,
+;	look for it by scanning memory.
 ;
 ;	On exit, if found:
-;		CF = 0, ES:BX -> !PXE structure
-;	Otherwise CF = 1, BX destroyed
+;		ZF = 1, ES:BX -> !PXE structure
+;	Otherwise:
+;		ZF = 0
 ;
 ;	Assumes DS == CS
+;	Clobbers AX, BX, CX, DX, SI, ES
 ;
 memory_scan_for_pxe_struct:
-		push si
-		push ax
-		push dx
-		mov si,trymempxe_msg
 		mov dx,is_pxe
 		mov ax,[BIOS_fbm]	; Starting segment
 		shl ax,(10-4)		; Kilobytes -> paragraphs
 		jmp memory_scan_common
 
-;
-; memory_scan_for_pxenv_struct:
-;
-;	If none of the standard methods find the PXENV+ structure, look for it
-;	by scanning memory.
-;
-;	On exit, if found:
-;		CF = 0, ES:BX -> PXENV+ structure
-;	Otherwise:
-;		CF = 1, ES, BX destroyed
-;
-;	Assumes DS == CS
-;
 memory_scan_for_pxenv_struct:
-		push si
-		push ax
-		push dx
-		mov si,trymempxenv_msg
 		mov ax,1000h		; Starting segment
 		mov dx,is_pxenv
 		; fall through
 
 memory_scan_common:
-		call writestr_early
 		dec ax			; To skip inc ax
 .mismatch:
 		inc ax
-		cmp ax,0A000h		; End of memory
-		jae .not_found
+		cmp ax,0A000h-1		; End of memory
+		ja .not_found		; ZF = 0 on not found
 		mov es,ax
 		xor bx,bx
 		call dx
 		jne .mismatch
-.found:
-		mov ax,es
-		call writehex4
-		call crlf
-		clc
-		jmp .ret
 .not_found:
-		mov si,notfound_msg
-		call writestr_early
-		stc
-.ret:
-		pop dx
-		pop ax
-		pop si
 		ret
 
 ;
@@ -1016,19 +975,19 @@ memory_scan_common:
 ;
 ;	Return ZF = 1 on success
 ;
+;	Clobbers CX and SI
+;
 is_pxe		equ is_struc.pxe
 is_pxenv	equ is_struc.pxenv
 is_struc:
 .pxe:
-		pusha
 		cmp dword [es:bx],'!PXE'
 		jne .bad
 		movzx cx,byte [es:bx+4]
 		cmp cx,58h
 		jae .checksum
-		jmp .bad
+		ret
 .pxenv:
-		pusha
 		cmp dword [es:bx],'PXEN'
 		jne .bad
 		cmp word [es:bx+4],'V+'
@@ -1037,15 +996,15 @@ is_struc:
 		cmp cx,28h
 		jb .bad
 .checksum:
+		push ax
 		mov si,bx
 		xor ax,ax
 .loop:
 		es lodsb
 		add ah,al
 		loop .loop
-		and ah,ah		; ZF = 1 if structure checksum OK
+		pop ax
 .bad:
-		popa
 		ret
 		
 ;
