@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2009 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
     error("Syslinux core version mismatch\n");
     return 1;
   }
-  
+
   if (loadfile(argv[1], &kbdmap, &map_size)) {
     error("Keyboard map file load error\n");
     return 1;
@@ -52,5 +52,3 @@ int main(int argc, char *argv[])
   memcpy(kmap->map, kbdmap, map_size);
   return 0;
 }
-
-  
