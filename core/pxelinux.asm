@@ -322,7 +322,7 @@ _start1:
 ; it if the API version is 2.1 or later.
 ;
 		; Plan A: !PXE structure as SS:[SP+4]
-		lgs ebp,[InitStack]	; GS:BP -> original stack
+		lgs bp,[InitStack]	; GS:BP -> original stack
 		les bx,[gs:bp+48]
 		call is_pxe
 		je have_pxe
