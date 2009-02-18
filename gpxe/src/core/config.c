@@ -5,7 +5,8 @@
  * your option) any later version.
  */
 
-#include "config/general.h"
+#include <config/general.h>
+#include <config/console.h>
 
 /*
  * Build ID string calculations
@@ -38,19 +39,9 @@
 /*
  * Drag in all requested console types
  *
- * CONSOLE_DUAL sets both CONSOLE_FIRMWARE and CONSOLE_SERIAL for
- * legacy compatibility.
- *
  */
 
-#ifdef	CONSOLE_DUAL
-#undef	CONSOLE_FIRMWARE
-#define	CONSOLE_FIRMWARE	1
-#undef	CONSOLE_SERIAL
-#define	CONSOLE_SERIAL		1
-#endif
-
-#ifdef CONSOLE_FIRMWARE
+#ifdef CONSOLE_PCBIOS
 REQUIRE_OBJECT ( bios_console );
 #endif
 #ifdef CONSOLE_SERIAL
@@ -68,15 +59,8 @@ REQUIRE_OBJECT ( pc_kbd );
 #ifdef CONSOLE_SYSLOG
 REQUIRE_OBJECT ( syslog );
 #endif
-
-/*
- * Drag in all requested timers
- */
-#ifdef TIMER_BIOS
-REQUIRE_OBJECT ( timer_bios );
-#endif
-#ifdef TIMER_RDTSC
-REQUIRE_OBJECT ( timer_rdtsc );
+#ifdef CONSOLE_EFI
+REQUIRE_OBJECT ( efi_console );
 #endif
 
 /*
@@ -111,6 +95,17 @@ REQUIRE_OBJECT ( tftm );
 #endif
 #ifdef DOWNLOAD_PROTO_SLAM
 REQUIRE_OBJECT ( slam );
+#endif
+
+/*
+ * Drag in all requested SAN boot protocols
+ *
+ */
+#ifdef SANBOOT_PROTO_ISCSI
+REQUIRE_OBJECT ( iscsiboot );
+#endif
+#ifdef SANBOOT_PROTO_AOE
+REQUIRE_OBJECT ( aoeboot );
 #endif
 
 /*
@@ -166,6 +161,9 @@ REQUIRE_OBJECT ( com32_call );
 REQUIRE_OBJECT ( com32_wrapper );
 REQUIRE_OBJECT ( comboot_resolv );
 #endif
+#ifdef IMAGE_EFI
+REQUIRE_OBJECT ( efi_image );
+#endif
 
 /*
  * Drag in all requested commands
@@ -195,6 +193,9 @@ REQUIRE_OBJECT ( dhcp_cmd );
 #ifdef SANBOOT_CMD
 REQUIRE_OBJECT ( sanboot_cmd );
 #endif
+#ifdef LOGIN_CMD
+REQUIRE_OBJECT ( login_cmd );
+#endif
 
 /*
  * Drag in miscellaneous objects
@@ -220,3 +221,4 @@ REQUIRE_OBJECT ( gdbstub_cmd );
  *
  */
 REQUIRE_OBJECT ( device );
+REQUIRE_OBJECT ( embedded );

@@ -1,9 +1,7 @@
 	.text
 	.arch i386
-	.section ".prefix", "ax", @progbits
-	.section ".prefix.data", "aw", @progbits
 	.code16
-	.section ".prefix"
+	.section ".prefix", "ax", @progbits
 	.org 0
 
 nbi_header:
@@ -32,11 +30,11 @@ segment_header:
 	.byte	0
 	.byte	0x04		/* Last segment */
 	.long	0x00007e00
-imglen:	.long	_load_size - 512
-memlen:	.long	_load_size - 512
+imglen:	.long	_filesz - 512
+memlen:	.long	_filesz - 512
 	.size	segment_header, . - segment_header
 
-	.section ".zinfo.fixup", "a"	/* Compressor fixup information */
+	.section ".zinfo.fixup", "a", @progbits	/* Compressor fixups */
 	.ascii	"SUBL"
 	.long	imglen
 	.long	1
@@ -52,7 +50,7 @@ memlen:	.long	_load_size - 512
  *****************************************************************************
  */
 entry:
-	/* Install low and high memory regions */
+	/* Install gPXE */
 	call	install
 
 	/* Jump to .text16 segment */
@@ -64,7 +62,10 @@ entry:
 	pushl	$main
 	pushw	%cs
 	call	prot_call
-	popl	%eax /* discard */
+	popl	%ecx /* discard */
+
+	/* Uninstall gPXE */
+	call	uninstall
 
 	/* Reboot system */
 	int $0x19

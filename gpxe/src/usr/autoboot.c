@@ -23,14 +23,12 @@
 #include <gpxe/dhcp.h>
 #include <gpxe/settings.h>
 #include <gpxe/image.h>
-#include <gpxe/embedded.h>
+#include <gpxe/sanboot.h>
 #include <gpxe/uri.h>
 #include <usr/ifmgmt.h>
 #include <usr/route.h>
 #include <usr/dhcpmgmt.h>
 #include <usr/imgmgmt.h>
-#include <usr/iscsiboot.h>
-#include <usr/aoeboot.h>
 #include <usr/autoboot.h>
 
 /** @file
@@ -45,6 +43,12 @@
 /** Shutdown flags for exit */
 int shutdown_exit_flags = 0;
 
+/* SAN boot protocols */
+static struct sanboot_protocol sanboot_protocols[0] \
+	__table_start ( struct sanboot_protocol, sanboot_protocols );
+static struct sanboot_protocol sanboot_protocols_end[0] \
+	__table_end ( struct sanboot_protocol, sanboot_protocols );
+
 /**
  * Identify the boot network device
  *
@@ -55,37 +59,13 @@ static struct net_device * find_boot_netdev ( void ) {
 }
 
 /**
- * Boot embedded image
- *
- * @ret rc		Return status code
- */
-static int boot_embedded_image ( void ) {
-	struct image *image;
-	int rc;
-
-	image = embedded_image();
-	if ( !image )
-		return ENOENT;
-
-	if ( ( rc = imgload ( image ) ) != 0 ) {
-		printf ( "Could not load embedded image: %s\n",
-			 strerror ( rc ) );
-	} else if ( ( rc = imgexec ( image ) ) != 0 ) {
-		printf ( "Could not boot embedded image: %s\n",
-			 strerror ( rc ) );
-	}
-	image_put ( image );
-	return rc;
-}
-
-/**
  * Boot using next-server and filename
  *
  * @v filename		Boot filename
  * @ret rc		Return status code
  */
-static int boot_next_server_and_filename ( struct in_addr next_server,
-					   const char *filename ) {
+int boot_next_server_and_filename ( struct in_addr next_server,
+				    const char *filename ) {
 	struct uri *uri;
 	struct image *image;
 	char buf[ 23 /* tftp://xxx.xxx.xxx.xxx/ */ + strlen(filename) + 1 ];
@@ -141,12 +121,15 @@ static int boot_next_server_and_filename ( struct in_addr next_server,
  * @ret rc		Return status code
  */
 int boot_root_path ( const char *root_path ) {
+	struct sanboot_protocol *sanboot;
 
 	/* Quick hack */
-	if ( strncmp ( root_path, "iscsi:", 6 ) == 0 ) {
-		return iscsiboot ( root_path );
-	} else if ( strncmp ( root_path, "aoe:", 4 ) == 0 ) {
-		return aoeboot ( root_path );
+	for ( sanboot = sanboot_protocols ;
+	      sanboot < sanboot_protocols_end ; sanboot++ ) {
+		if ( strncmp ( root_path, sanboot->prefix,
+			       strlen ( sanboot->prefix ) ) == 0 ) {
+			return sanboot->boot ( root_path );
+		}
 	}
 
 	return -ENOTSUP;
@@ -159,8 +142,15 @@ int boot_root_path ( const char *root_path ) {
  * @ret rc		Return status code
  */
 static int netboot ( struct net_device *netdev ) {
+	struct setting vendor_class_id_setting
+		= { .tag = DHCP_VENDOR_CLASS_ID };
+	struct setting pxe_discovery_control_setting
+		= { .tag = DHCP_PXE_DISCOVERY_CONTROL };
+	struct setting pxe_boot_menu_setting
+		= { .tag = DHCP_PXE_BOOT_MENU };
 	char buf[256];
 	struct in_addr next_server;
+	unsigned int pxe_discovery_control;
 	int rc;
 
 	/* Open device and display device status */
@@ -181,10 +171,18 @@ static int netboot ( struct net_device *netdev ) {
 		return rc;
 	route();
 
-	/* Try to boot an embedded image if we have one */
-	rc = boot_embedded_image ();
-	if ( rc != ENOENT )
-		return rc;
+	/* Try PXE menu boot, if applicable */
+	fetch_string_setting ( NULL, &vendor_class_id_setting,
+			       buf, sizeof ( buf ) );
+	pxe_discovery_control =
+		fetch_uintz_setting ( NULL, &pxe_discovery_control_setting );
+	if ( ( strcmp ( buf, "PXEClient" ) == 0 ) &&
+	     setting_exists ( NULL, &pxe_boot_menu_setting ) &&
+	     ( ! ( ( pxe_discovery_control & PXEBS_SKIP ) &&
+		   setting_exists ( NULL, &filename_setting ) ) ) ) {
+		printf ( "Booting from PXE menu\n" );
+		return pxe_menu_boot ( netdev );
+	}
 
 	/* Try to download and boot whatever we are given as a filename */
 	fetch_ipv4_setting ( NULL, &next_server_setting, &next_server );

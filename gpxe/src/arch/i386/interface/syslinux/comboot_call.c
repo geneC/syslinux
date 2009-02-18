@@ -35,6 +35,8 @@
 #include <gpxe/process.h>
 #include <gpxe/serial.h>
 #include <gpxe/init.h>
+#include <gpxe/image.h>
+#include <usr/imgmgmt.h>
 
 /** The "SYSLINUX" version string */
 static char __data16_array ( syslinux_version, [] ) = "gPXE " VERSION;
@@ -51,6 +53,14 @@ static char __data16_array ( syslinux_configuration_file, [] ) = "";
 static uint8_t __data16 ( comboot_feature_flags ) = COMBOOT_FEATURE_IDLE_LOOP;
 #define comboot_feature_flags __use_data16 ( comboot_feature_flags )
 
+typedef union {
+	syslinux_pm_regs pm; syslinux_rm_regs rm;
+} syslinux_regs;
+
+/** Initial register values for INT 22h AX=1Ah and 1Bh */
+static syslinux_regs __text16 ( comboot_initial_regs );
+#define comboot_initial_regs __use_text16 ( comboot_initial_regs )
+
 static struct segoff __text16 ( int20_vector );
 #define int20_vector __use_text16 ( int20_vector )
 
@@ -65,12 +75,10 @@ extern void int21_wrapper ( void );
 extern void int22_wrapper ( void );
 
 /* setjmp/longjmp context buffer used to return after loading an image */
-jmp_buf comboot_return;
+rmjmp_buf comboot_return;
 
-/* Command line to execute when returning via comboot_return 
- * with COMBOOT_RETURN_RUN_KERNEL
- */
-char *comboot_kernel_cmdline;
+/* Replacement image when exiting with COMBOOT_EXIT_RUN_KERNEL */
+struct image *comboot_replacement_image;
 
 /* Mode flags set by INT 22h AX=0017h */
 static uint16_t comboot_graphics_mode = 0;
@@ -154,79 +162,101 @@ void comboot_force_text_mode ( void ) {
 
 
 /**
- * Run the kernel specified in comboot_kernel_cmdline
+ * Fetch kernel and optional initrd
  */
-void comboot_run_kernel ( )
-{
-	char *initrd;
-
-	comboot_force_text_mode ( );
-
-	DBG ( "COMBOOT: executing image '%s'\n", comboot_kernel_cmdline );
+static int comboot_fetch_kernel ( char *kernel_file, char *cmdline ) {
+	struct image *kernel = NULL;
+	struct image *initrd = NULL;
+	char *initrd_file;
+	int rc;
 
 	/* Find initrd= parameter, if any */
-	if ( ( initrd = strstr ( comboot_kernel_cmdline, "initrd=" ) ) ) {
-		char old_char = '\0';
-		char *initrd_end = strchr( initrd, ' ' );
+	if ( ( initrd_file = strstr ( cmdline, "initrd=" ) ) != NULL ) {
+		char *initrd_end;
 
-		/* Replace space after end of parameter
-		 * with a nul terminator if this is not
-		 * the last parameter
-		 */
-		if ( initrd_end ) {
-			old_char = *initrd_end;
+		/* skip "initrd=" */
+		initrd_file += 7;
+
+		/* Find terminating space, if any, and replace with NUL */
+		initrd_end = strchr ( initrd_file, ' ' );
+		if ( initrd_end )
 			*initrd_end = '\0';
+
+		DBG ( "COMBOOT: fetching initrd '%s'\n", initrd_file );
+
+		/* Allocate and fetch initrd */
+		initrd = alloc_image();
+		if ( ! initrd ) {
+			DBG ( "COMBOOT: could not allocate initrd\n" );
+			rc = -ENOMEM;
+			goto out;
+		}
+		if ( ( rc = imgfetch ( initrd, initrd_file,
+				       register_image ) ) != 0 ) {
+			DBG ( "COMBOOT: could not fetch initrd: %s\n",
+			      strerror ( rc ) );
+			goto out;
 		}
 
-		/* Replace = with space to get 'initrd filename'
-		 * command suitable for system()
-		 */
-		initrd[6] = ' ';
-
-		DBG( "COMBOOT: loading initrd '%s'\n", initrd );
-
-		system ( initrd );
-
-		/* Restore space after parameter */
-		if ( initrd_end ) {
-			*initrd_end = old_char;
-		}
-
-		/* Restore = */
-		initrd[6] = '=';
+		/* Restore space after initrd name, if applicable */
+		if ( initrd_end )
+			*initrd_end = ' ';
 	}
 
-	/* Load kernel */
-	DBG ( "COMBOOT: loading kernel '%s'\n", comboot_kernel_cmdline );
-	system ( comboot_kernel_cmdline );
+	DBG ( "COMBOOT: fetching kernel '%s'\n", kernel_file );
 
-	free ( comboot_kernel_cmdline );
+	/* Allocate and fetch kernel */
+	kernel = alloc_image();
+	if ( ! kernel ) {
+		DBG ( "COMBOOT: could not allocate kernel\n" );
+		rc = -ENOMEM;
+		goto out;
+	}
+	if ( ( rc = imgfetch ( kernel, kernel_file,
+			       register_image ) ) != 0 ) {
+		DBG ( "COMBOOT: could not fetch kernel: %s\n",
+		      strerror ( rc ) );
+		goto out;
+	}
+	if ( ( rc = image_set_cmdline ( kernel, cmdline ) ) != 0 ) {
+		DBG ( "COMBOOT: could not set kernel command line: %s\n",
+		      strerror ( rc ) );
+		goto out;
+	}
 
-	/* Boot */
-	system ( "boot" );
+	/* Store kernel as replacement image */
+	assert ( comboot_replacement_image == NULL );
+	comboot_replacement_image = image_get ( kernel );
 
-	DBG ( "COMBOOT: back from executing command\n" );
+ out:
+	/* Drop image references unconditionally; either we want to
+	 * discard them, or they have been registered and we should
+	 * drop out local reference.
+	 */
+	image_put ( kernel );
+	image_put ( initrd );
+	return rc;
 }
 
 
 /**
  * Terminate program interrupt handler
  */
-static __cdecl void int20 ( struct i386_all_regs *ix86 __unused ) {
-	longjmp ( comboot_return, COMBOOT_RETURN_EXIT );
+static __asmcall void int20 ( struct i386_all_regs *ix86 __unused ) {
+	rmlongjmp ( comboot_return, COMBOOT_EXIT );
 }
 
 
 /**
  * DOS-compatible API
  */
-static __cdecl void int21 ( struct i386_all_regs *ix86 ) {
+static __asmcall void int21 ( struct i386_all_regs *ix86 ) {
 	ix86->flags |= CF;
 
 	switch ( ix86->regs.ah ) {
 	case 0x00:
 	case 0x4C: /* Terminate program */
-		longjmp ( comboot_return, COMBOOT_RETURN_EXIT );
+		rmlongjmp ( comboot_return, COMBOOT_EXIT );
 		break;
 
 	case 0x01: /* Get Key with Echo */
@@ -287,14 +317,14 @@ static __cdecl void int21 ( struct i386_all_regs *ix86 ) {
 /**
  * SYSLINUX API
  */
-static __cdecl void int22 ( struct i386_all_regs *ix86 ) {
+static __asmcall void int22 ( struct i386_all_regs *ix86 ) {
 	ix86->flags |= CF;
 
 	switch ( ix86->regs.ax ) {
 	case 0x0001: /* Get Version */
 
 		/* Number of INT 22h API functions available */
-		ix86->regs.ax = 0x0018;
+		ix86->regs.ax = 0x001B;
 
 		/* SYSLINUX version number */
 		ix86->regs.ch = 0; /* major */
@@ -323,17 +353,15 @@ static __cdecl void int22 ( struct i386_all_regs *ix86 ) {
 			char cmd[len + 1];
 			copy_from_user ( cmd, cmd_u, 0, len + 1 );
 			DBG ( "COMBOOT: executing command '%s'\n", cmd );
-
-			comboot_kernel_cmdline = strdup ( cmd );
-
-			DBG ( "COMBOOT: returning to run image...\n" );
-			longjmp ( comboot_return, COMBOOT_RETURN_RUN_KERNEL );
+			system ( cmd );
+			DBG ( "COMBOOT: exiting after executing command...\n" );
+			rmlongjmp ( comboot_return, COMBOOT_EXIT_COMMAND );
 		}
 		break;
 
 	case 0x0004: /* Run default command */
 		/* FIXME: just exit for now */
-		longjmp ( comboot_return, COMBOOT_RETURN_EXIT );
+		rmlongjmp ( comboot_return, COMBOOT_EXIT_COMMAND );
 		break;
 
 	case 0x0005: /* Force text mode */
@@ -518,21 +546,21 @@ static __cdecl void int22 ( struct i386_all_regs *ix86 ) {
 			userptr_t cmd_u = real_to_user ( ix86->segs.es, ix86->regs.bx );
 			int file_len = strlen_user ( file_u, 0 );
 			int cmd_len = strlen_user ( cmd_u, 0 );
-			char file[file_len + 1 + cmd_len + 7 + 1];
+			char file[file_len + 1];
 			char cmd[cmd_len + 1];
 
-			memcpy( file, "kernel ", 7 );
-			copy_from_user ( file + 7, file_u, 0, file_len + 1 );
+			copy_from_user ( file, file_u, 0, file_len + 1 );
 			copy_from_user ( cmd, cmd_u, 0, cmd_len + 1 );
-			strcat ( file, " " );
-			strcat ( file, cmd );
 
-			DBG ( "COMBOOT: run kernel image '%s'\n", file );
-
-			comboot_kernel_cmdline = strdup ( file );			
-
-			DBG ( "COMBOOT: returning to run image...\n" );
-			longjmp ( comboot_return, COMBOOT_RETURN_RUN_KERNEL );
+			DBG ( "COMBOOT: run kernel %s %s\n", file, cmd );
+			comboot_fetch_kernel ( file, cmd );
+			/* Technically, we should return if we
+			 * couldn't load the kernel, but it's not safe
+			 * to do that since we have just overwritten
+			 * part of the COMBOOT program's memory space.
+			 */
+			DBG ( "COMBOOT: exiting to run kernel...\n" );
+			rmlongjmp ( comboot_return, COMBOOT_EXIT_RUN_KERNEL );
 		}
 		break;
 
@@ -547,6 +575,58 @@ static __cdecl void int22 ( struct i386_all_regs *ix86 ) {
 		ix86->segs.es = 0;
 		ix86->regs.bx = 0;
 		ix86->flags &= ~CF;
+		break;
+
+	case 0x001B: /* Cleanup, shuffle and boot to real mode */
+		if ( ix86->regs.cx > COMBOOT_MAX_SHUFFLE_DESCRIPTORS )
+			break;
+
+		/* Perform final cleanup */
+		shutdown ( SHUTDOWN_BOOT );
+
+		/* Perform sequence of copies */
+		shuffle ( ix86->segs.es, ix86->regs.di, ix86->regs.cx );
+
+		/* Copy initial register values to .text16 */
+		memcpy_user ( real_to_user ( rm_cs, (unsigned) __from_text16 ( &comboot_initial_regs ) ), 0,
+		              real_to_user ( ix86->segs.ds, ix86->regs.si ), 0,
+		              sizeof(syslinux_rm_regs) );
+
+		/* Load initial register values */
+		__asm__ __volatile__ (
+			REAL_CODE (
+				/* Point SS:SP at the register value structure */
+				"pushw %%cs\n\t"
+				"popw %%ss\n\t"
+				"movw $comboot_initial_regs, %%sp\n\t"
+
+				/* Segment registers */
+				"popw %%es\n\t"
+				"popw %%ax\n\t" /* Skip CS */
+				"popw %%ds\n\t"
+				"popw %%ax\n\t" /* Skip SS for now */
+				"popw %%fs\n\t"
+				"popw %%gs\n\t"
+
+				/* GP registers */
+				"popl %%eax\n\t"
+				"popl %%ecx\n\t"
+				"popl %%edx\n\t"
+				"popl %%ebx\n\t"
+				"popl %%ebp\n\t" /* Skip ESP for now */
+				"popl %%ebp\n\t"
+				"popl %%esi\n\t"
+				"popl %%edi\n\t"
+
+				/* Load correct SS:ESP */
+				"movw $(comboot_initial_regs + 6), %%sp\n\t"
+				"popw %%ss\n\t"
+				"movl %%cs:(comboot_initial_regs + 28), %%esp\n\t"
+
+				"ljmp *%%cs:(comboot_initial_regs + 44)\n\t"
+			)
+			: : );
+
 		break;
 
 	default:
@@ -595,4 +675,19 @@ void hook_comboot_interrupts ( ) {
 
 	hook_bios_interrupt ( 0x22, ( unsigned int ) int22_wrapper,
 	                      &int22_vector );
+}
+
+/**
+ * Unhook BIOS interrupts related to COMBOOT API (INT 20h, 21h, 22h)
+ */
+void unhook_comboot_interrupts ( ) {
+
+	unhook_bios_interrupt ( 0x20, ( unsigned int ) int20_wrapper,
+				&int20_vector );
+
+	unhook_bios_interrupt ( 0x21, ( unsigned int ) int21_wrapper,
+				&int21_vector );
+
+	unhook_bios_interrupt ( 0x22, ( unsigned int ) int22_wrapper,
+				&int22_vector );
 }

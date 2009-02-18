@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <realmode.h>
 #include <bios.h>
+#include <gpxe/io.h>
 #include <gpxe/timer.h>
 
 #define K_RDWR		0x60		/* keyboard data & cmds (read/write) */
@@ -48,9 +49,9 @@ static void empty_8042 ( void ) {
 	time = currticks() + TICKS_PER_SEC;	/* max wait of 1 second */
 	while ( ( inb ( K_CMD ) & ( K_IBUF_FUL | K_OBUF_FUL ) ) &&
 		currticks() < time ) {
-		SLOW_DOWN_IO;
-		( void ) inb ( K_RDWR );
-		SLOW_DOWN_IO;
+		iodelay();
+		( void ) inb_p ( K_RDWR );
+		iodelay();
 	}
 }
 
@@ -77,7 +78,7 @@ static int gateA20_is_set ( int retries ) {
 		/* Avoid false negatives */
 		test_pattern++;
 
-		SLOW_DOWN_IO;
+		iodelay();
 
 		/* Always retry at least once, to avoid false negatives */
 	} while ( retries-- >= 0 );
@@ -145,9 +146,9 @@ void gateA20_set ( void ) {
 			scp_a = inb ( SCP_A );
 			scp_a &= ~0x01; /* Avoid triggering a reset */
 			scp_a |= 0x02; /* Enable A20 */
-			SLOW_DOWN_IO;
+			iodelay();
 			outb ( scp_a, SCP_A );
-			SLOW_DOWN_IO;
+			iodelay();
 			if ( gateA20_is_set ( A20_SCPA_RETRIES ) ) {
 				DBG ( "Enabled gate A20 using "
 				      "Fast Gate A20\n" );

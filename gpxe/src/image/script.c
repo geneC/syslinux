@@ -43,10 +43,8 @@ static int script_exec ( struct image *image ) {
 	int rc;
 
 	/* Temporarily de-register image, so that a "boot" command
-	 * doesn't throw us into an execution loop.  Hold a reference
-	 * to avoid the image's being freed.
+	 * doesn't throw us into an execution loop.
 	 */
-	image_get ( image );
 	unregister_image ( image );
 
 	while ( offset < image->len ) {
@@ -80,7 +78,6 @@ static int script_exec ( struct image *image ) {
  done:
 	/* Re-register image and return */
 	register_image ( image );
-	image_put ( image );
 	return rc;
 }
 
@@ -93,6 +90,12 @@ static int script_exec ( struct image *image ) {
 static int script_load ( struct image *image ) {
 	static const char magic[] = "#!gpxe\n";
 	char test[ sizeof ( magic ) - 1 ];
+
+	/* Sanity check */
+	if ( image->len < sizeof ( test ) ) {
+		DBG ( "Too short to be a script\n" );
+		return -ENOEXEC;
+	}
 
 	/* Check for magic signature */
 	copy_from_user ( test, image->data, 0, sizeof ( test ) );

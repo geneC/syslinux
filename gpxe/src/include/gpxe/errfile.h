@@ -106,10 +106,13 @@
 #define ERRFILE_e1000_hw	     ( ERRFILE_DRIVER | 0x00490000 )
 #define ERRFILE_mtnic		     ( ERRFILE_DRIVER | 0x004a0000 )
 #define ERRFILE_phantom		     ( ERRFILE_DRIVER | 0x004b0000 )
+#define ERRFILE_ne2k_isa	     ( ERRFILE_DRIVER | 0x004c0000 )
+#define ERRFILE_b44		     ( ERRFILE_DRIVER | 0x004d0000 )
 
 #define ERRFILE_scsi		     ( ERRFILE_DRIVER | 0x00700000 )
 #define ERRFILE_arbel		     ( ERRFILE_DRIVER | 0x00710000 )
 #define ERRFILE_hermon		     ( ERRFILE_DRIVER | 0x00720000 )
+#define ERRFILE_linda		     ( ERRFILE_DRIVER | 0x00730000 )
 
 #define ERRFILE_aoe			( ERRFILE_NET | 0x00000000 )
 #define ERRFILE_arp			( ERRFILE_NET | 0x00010000 )
@@ -134,11 +137,16 @@
 #define ERRFILE_netdev_settings		( ERRFILE_NET | 0x00140000 )
 #define ERRFILE_dhcppkt			( ERRFILE_NET | 0x00150000 )
 #define ERRFILE_slam			( ERRFILE_NET | 0x00160000 )
+#define ERRFILE_ib_sma			( ERRFILE_NET | 0x00170000 )
+#define ERRFILE_ib_packet		( ERRFILE_NET | 0x00180000 )
+#define ERRFILE_icmp			( ERRFILE_NET | 0x00190000 )
 
 #define ERRFILE_image		      ( ERRFILE_IMAGE | 0x00000000 )
 #define ERRFILE_elf		      ( ERRFILE_IMAGE | 0x00010000 )
 #define ERRFILE_script		      ( ERRFILE_IMAGE | 0x00020000 )
 #define ERRFILE_segment		      ( ERRFILE_IMAGE | 0x00030000 )
+#define ERRFILE_efi_image	      ( ERRFILE_IMAGE | 0x00040000 )
+#define ERRFILE_embedded	      ( ERRFILE_IMAGE | 0x00050000 )
 
 #define ERRFILE_asn1		      ( ERRFILE_OTHER | 0x00000000 )
 #define ERRFILE_chap		      ( ERRFILE_OTHER | 0x00010000 )
@@ -156,6 +164,14 @@
 #define ERRFILE_tls		      ( ERRFILE_OTHER | 0x000d0000 )
 #define ERRFILE_ifmgmt		      ( ERRFILE_OTHER | 0x000e0000 )
 #define ERRFILE_iscsiboot	      ( ERRFILE_OTHER | 0x000f0000 )
+#define ERRFILE_efi_pci		      ( ERRFILE_OTHER | 0x00100000 )
+#define ERRFILE_efi_snp		      ( ERRFILE_OTHER | 0x00110000 )
+#define ERRFILE_smbios		      ( ERRFILE_OTHER | 0x00120000 )
+#define ERRFILE_smbios_settings	      ( ERRFILE_OTHER | 0x00130000 )
+#define ERRFILE_efi_smbios	      ( ERRFILE_OTHER | 0x00140000 )
+#define ERRFILE_pxemenu		      ( ERRFILE_OTHER | 0x00150000 )
+#define ERRFILE_x509		      ( ERRFILE_OTHER | 0x00160000 )
+#define ERRFILE_login_ui	      ( ERRFILE_OTHER | 0x00170000 )
 
 /** @} */
 

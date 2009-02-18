@@ -24,6 +24,7 @@
 #include <assert.h>
 #include <gpxe/if_arp.h>
 #include <gpxe/if_ether.h>
+#include <gpxe/in.h>
 #include <gpxe/netdevice.h>
 #include <gpxe/iobuf.h>
 #include <gpxe/ethernet.h>
@@ -41,19 +42,19 @@ static uint8_t eth_broadcast[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
  * Add Ethernet link-layer header
  *
  * @v iobuf		I/O buffer
- * @v netdev		Network device
- * @v net_protocol	Network-layer protocol
  * @v ll_dest		Link-layer destination address
+ * @v ll_source		Source link-layer address
+ * @v net_proto		Network-layer protocol, in network-byte order
+ * @ret rc		Return status code
  */
-static int eth_push ( struct io_buffer *iobuf, struct net_device *netdev,
-		      struct net_protocol *net_protocol,
-		      const void *ll_dest ) {
+static int eth_push ( struct io_buffer *iobuf, const void *ll_dest,
+		      const void *ll_source, uint16_t net_proto ) {
 	struct ethhdr *ethhdr = iob_push ( iobuf, sizeof ( *ethhdr ) );
 
 	/* Build Ethernet header */
 	memcpy ( ethhdr->h_dest, ll_dest, ETH_ALEN );
-	memcpy ( ethhdr->h_source, netdev->ll_addr, ETH_ALEN );
-	ethhdr->h_protocol = net_protocol->net_proto;
+	memcpy ( ethhdr->h_source, ll_source, ETH_ALEN );
+	ethhdr->h_protocol = net_proto;
 
 	return 0;
 }
@@ -62,14 +63,13 @@ static int eth_push ( struct io_buffer *iobuf, struct net_device *netdev,
  * Remove Ethernet link-layer header
  *
  * @v iobuf		I/O buffer
- * @v netdev		Network device
- * @v net_proto		Network-layer protocol, in network-byte order
- * @v ll_source		Source link-layer address
+ * @ret ll_dest		Link-layer destination address
+ * @ret ll_source	Source link-layer address
+ * @ret net_proto	Network-layer protocol, in network-byte order
  * @ret rc		Return status code
  */
-static int eth_pull ( struct io_buffer *iobuf,
-		      struct net_device *netdev __unused,
-		      uint16_t *net_proto, const void **ll_source ) {
+static int eth_pull ( struct io_buffer *iobuf, const void **ll_dest,
+		      const void **ll_source, uint16_t *net_proto ) {
 	struct ethhdr *ethhdr = iobuf->data;
 
 	/* Sanity check */
@@ -83,8 +83,9 @@ static int eth_pull ( struct io_buffer *iobuf,
 	iob_pull ( iobuf, sizeof ( *ethhdr ) );
 
 	/* Fill in required fields */
-	*net_proto = ethhdr->h_protocol;
+	*ll_dest = ethhdr->h_dest;
 	*ll_source = ethhdr->h_source;
+	*net_proto = ethhdr->h_protocol;
 
 	return 0;
 }
@@ -92,8 +93,8 @@ static int eth_pull ( struct io_buffer *iobuf,
 /**
  * Transcribe Ethernet address
  *
- * @v ll_addr	Link-layer address
- * @ret string	Link-layer address in human-readable format
+ * @v ll_addr		Link-layer address
+ * @ret string		Link-layer address in human-readable format
  */
 const char * eth_ntoa ( const void *ll_addr ) {
 	static char buf[18]; /* "00:00:00:00:00:00" */
@@ -103,6 +104,33 @@ const char * eth_ntoa ( const void *ll_addr ) {
 		  eth_addr[0], eth_addr[1], eth_addr[2],
 		  eth_addr[3], eth_addr[4], eth_addr[5] );
 	return buf;
+}
+
+/**
+ * Hash multicast address
+ *
+ * @v af		Address family
+ * @v net_addr		Network-layer address
+ * @v ll_addr		Link-layer address to fill in
+ * @ret rc		Return status code
+ */
+static int eth_mc_hash ( unsigned int af, const void *net_addr,
+			 void *ll_addr ) {
+	const uint8_t *net_addr_bytes = net_addr;
+	uint8_t *ll_addr_bytes = ll_addr;
+
+	switch ( af ) {
+	case AF_INET:
+		ll_addr_bytes[0] = 0x01;
+		ll_addr_bytes[1] = 0x00;
+		ll_addr_bytes[2] = 0x5e;
+		ll_addr_bytes[3] = net_addr_bytes[1] & 0x7f;
+		ll_addr_bytes[4] = net_addr_bytes[2];
+		ll_addr_bytes[5] = net_addr_bytes[3];
+		return 0;
+	default:
+		return -ENOTSUP;
+	}
 }
 
 /** Ethernet protocol */
@@ -115,4 +143,5 @@ struct ll_protocol ethernet_protocol __ll_protocol = {
 	.push		= eth_push,
 	.pull		= eth_pull,
 	.ntoa		= eth_ntoa,
+	.mc_hash	= eth_mc_hash,
 };

@@ -42,18 +42,14 @@ struct image_type pxe_image_type __image_type ( PROBE_PXE );
  * @ret rc		Return status code
  */
 static int pxe_exec ( struct image *image ) {
-	struct net_device *netdev;
 	int rc;
 
 	/* Ensure that PXE stack is ready to use */
 	pxe_init_structures();
 	pxe_hook_int1a();
 
-	/* Arbitrarily pick the first open network device to use for PXE */
-	for_each_netdev ( netdev ) {
-		pxe_set_netdev ( netdev );
-		break;
-	}
+	/* Arbitrarily pick the most recently opened network device */
+	pxe_set_netdev ( last_opened_netdev() );
 
 	/* Many things will break if pxe_netdev is NULL */
 	if ( ! pxe_netdev ) {
@@ -90,6 +86,12 @@ int pxe_load ( struct image *image ) {
 	 * have no signature we can check against.
 	 */
 	if ( filesz > ( 0xa0000 - 0x7c00 ) )
+		return -ENOEXEC;
+
+	/* Rejecting zero-length images is also useful, since these
+	 * end up looking to the user like bugs in gPXE.
+	 */
+	if ( ! filesz )
 		return -ENOEXEC;
 
 	/* There are no signature checks for PXE; we will accept anything */

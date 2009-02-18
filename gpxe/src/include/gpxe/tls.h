@@ -14,6 +14,7 @@
 #include <gpxe/crypto.h>
 #include <gpxe/md5.h>
 #include <gpxe/sha1.h>
+#include <gpxe/x509.h>
 
 /** A TLS header */
 struct tls_header {
@@ -109,6 +110,22 @@ struct tls_cipherspec {
 	void *mac_secret;
 };
 
+/** TLS pre-master secret */
+struct tls_pre_master_secret {
+	/** TLS version */
+	uint16_t version;
+	/** Random data */
+	uint8_t random[46];
+} __attribute__ (( packed ));
+
+/** TLS client random data */
+struct tls_client_random {
+	/** GMT Unix time */
+	uint32_t gmt_unix_time;
+	/** Random data */
+	uint8_t random[28];
+} __attribute__ (( packed ));
+
 /** A TLS session */
 struct tls_session {
 	/** Reference counter */
@@ -128,23 +145,20 @@ struct tls_session {
 	/** Next RX cipher specification */
 	struct tls_cipherspec rx_cipherspec_pending;
 	/** Premaster secret */
-	uint8_t pre_master_secret[48];
+	struct tls_pre_master_secret pre_master_secret;
 	/** Master secret */
 	uint8_t master_secret[48];
 	/** Server random bytes */
 	uint8_t server_random[32];
 	/** Client random bytes */
-	uint8_t client_random[32];
+	struct tls_client_random client_random;
 	/** MD5 context for handshake verification */
 	uint8_t handshake_md5_ctx[MD5_CTX_SIZE];
 	/** SHA1 context for handshake verification */
 	uint8_t handshake_sha1_ctx[SHA1_CTX_SIZE];
 
 	/** Hack: server RSA public key */
-	uint8_t *rsa_mod;
-	size_t rsa_mod_len;
-	uint8_t *rsa_pub_exp;
-	size_t rsa_pub_exp_len;
+	struct x509_rsa_public_key rsa;
 
 	/** TX sequence number */
 	uint64_t tx_seq;

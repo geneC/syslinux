@@ -45,6 +45,15 @@
 
 FEATURE ( FEATURE_PROTOCOL, "TFTP", DHCP_EB_FEATURE_TFTP, 1 );
 
+/* TFTP-specific error codes */
+#define ETFTP_INVALID_BLKSIZE	EUNIQ_01
+#define ETFTP_INVALID_TSIZE	EUNIQ_02
+#define ETFTP_MC_NO_PORT	EUNIQ_03
+#define ETFTP_MC_NO_MC		EUNIQ_04
+#define ETFTP_MC_INVALID_MC	EUNIQ_05
+#define ETFTP_MC_INVALID_IP	EUNIQ_06
+#define ETFTP_MC_INVALID_PORT	EUNIQ_07
+
 /**
  * A TFTP request
  *
@@ -504,7 +513,7 @@ static int tftp_process_blksize ( struct tftp_request *tftp,
 	if ( *end ) {
 		DBGC ( tftp, "TFTP %p got invalid blksize \"%s\"\n",
 		       tftp, value );
-		return -EINVAL;
+		return -( EINVAL | ETFTP_INVALID_BLKSIZE );
 	}
 	DBGC ( tftp, "TFTP %p blksize=%d\n", tftp, tftp->blksize );
 
@@ -526,7 +535,7 @@ static int tftp_process_tsize ( struct tftp_request *tftp,
 	if ( *end ) {
 		DBGC ( tftp, "TFTP %p got invalid tsize \"%s\"\n",
 		       tftp, value );
-		return -EINVAL;
+		return -( EINVAL | ETFTP_INVALID_TSIZE );
 	}
 	DBGC ( tftp, "TFTP %p tsize=%ld\n", tftp, tftp->tsize );
 
@@ -560,13 +569,13 @@ static int tftp_process_multicast ( struct tftp_request *tftp,
 	port = strchr ( addr, ',' );
 	if ( ! port ) {
 		DBGC ( tftp, "TFTP %p multicast missing port,mc\n", tftp );
-		return -EINVAL;
+		return -( EINVAL | ETFTP_MC_NO_PORT );
 	}
 	*(port++) = '\0';
 	mc = strchr ( port, ',' );
 	if ( ! mc ) {
 		DBGC ( tftp, "TFTP %p multicast missing mc\n", tftp );
-		return -EINVAL;
+		return -( EINVAL | ETFTP_MC_NO_MC );
 	}
 	*(mc++) = '\0';
 
@@ -575,7 +584,7 @@ static int tftp_process_multicast ( struct tftp_request *tftp,
 		tftp->flags &= ~TFTP_FL_SEND_ACK;
 	if ( *mc_end ) {
 		DBGC ( tftp, "TFTP %p multicast invalid mc %s\n", tftp, mc );
-		return -EINVAL;
+		return -( EINVAL | ETFTP_MC_INVALID_MC );
 	}
 	DBGC ( tftp, "TFTP %p is%s the master client\n",
 	       tftp, ( ( tftp->flags & TFTP_FL_SEND_ACK ) ? "" : " not" ) );
@@ -584,7 +593,7 @@ static int tftp_process_multicast ( struct tftp_request *tftp,
 		if ( inet_aton ( addr, &socket.sin.sin_addr ) == 0 ) {
 			DBGC ( tftp, "TFTP %p multicast invalid IP address "
 			       "%s\n", tftp, addr );
-			return -EINVAL;
+			return -( EINVAL | ETFTP_MC_INVALID_IP );
 		}
 		DBGC ( tftp, "TFTP %p multicast IP address %s\n",
 		       tftp, inet_ntoa ( socket.sin.sin_addr ) );
@@ -592,7 +601,7 @@ static int tftp_process_multicast ( struct tftp_request *tftp,
 		if ( *port_end ) {
 			DBGC ( tftp, "TFTP %p multicast invalid port %s\n",
 			       tftp, port );
-			return -EINVAL;
+			return -( EINVAL | ETFTP_MC_INVALID_PORT );
 		}
 		DBGC ( tftp, "TFTP %p multicast port %d\n",
 		       tftp, ntohs ( socket.sin.sin_port ) );
@@ -732,6 +741,11 @@ static int tftp_rx_data ( struct tftp_request *tftp,
 		rc = -EINVAL;
 		goto done;
 	}
+	if ( data->block == 0 ) {
+		DBGC ( tftp, "TFTP %p received data block 0\n", tftp );
+		rc = -EINVAL;
+		goto done;
+	}
 
 	/* Extract data */
 	block = ( ntohs ( data->block ) - 1 );
@@ -749,9 +763,8 @@ static int tftp_rx_data ( struct tftp_request *tftp,
 	memset ( &meta, 0, sizeof ( meta ) );
 	meta.whence = SEEK_SET;
 	meta.offset = offset;
-	rc = xfer_deliver_iob_meta ( &tftp->xfer, iobuf, &meta );
-	iobuf = NULL;
-	if ( rc != 0 ) {
+	if ( ( rc = xfer_deliver_iob_meta ( &tftp->xfer, iob_disown ( iobuf ),
+					    &meta ) ) != 0 ) {
 		DBGC ( tftp, "TFTP %p could not deliver data: %s\n",
 		       tftp, strerror ( rc ) );
 		goto done;
@@ -826,7 +839,7 @@ static int tftp_rx_error ( struct tftp_request *tftp, void *buf, size_t len ) {
  *
  * @v tftp		TFTP connection
  * @v iobuf		I/O buffer
- * @v meta		Transfer metadata, or NULL
+ * @v meta		Transfer metadata
  * @ret rc		Return status code
  */
 static int tftp_rx ( struct tftp_request *tftp,
@@ -841,11 +854,6 @@ static int tftp_rx ( struct tftp_request *tftp,
 	if ( len < sizeof ( *common ) ) {
 		DBGC ( tftp, "TFTP %p received underlength packet length "
 		       "%zd\n", tftp, len );
-		goto done;
-	}
-	if ( ! meta ) {
-		DBGC ( tftp, "TFTP %p received packet without metadata\n",
-		       tftp );
 		goto done;
 	}
 	if ( ! meta->src ) {
@@ -873,8 +881,7 @@ static int tftp_rx ( struct tftp_request *tftp,
 		rc = tftp_rx_oack ( tftp, iobuf->data, len );
 		break;
 	case htons ( TFTP_DATA ):
-		rc = tftp_rx_data ( tftp, iobuf );
-		iobuf = NULL;
+		rc = tftp_rx_data ( tftp, iob_disown ( iobuf ) );
 		break;
 	case htons ( TFTP_ERROR ):
 		rc = tftp_rx_error ( tftp, iobuf->data, len );
@@ -895,7 +902,7 @@ static int tftp_rx ( struct tftp_request *tftp,
  *
  * @v socket		Transport layer interface
  * @v iobuf		I/O buffer
- * @v meta		Transfer metadata, or NULL
+ * @v meta		Transfer metadata
  * @ret rc		Return status code
  */
 static int tftp_socket_deliver_iob ( struct xfer_interface *socket,
@@ -939,7 +946,7 @@ static struct xfer_interface_operations tftp_socket_operations = {
  *
  * @v mc_socket		Multicast transport layer interface
  * @v iobuf		I/O buffer
- * @v meta		Transfer metadata, or NULL
+ * @v meta		Transfer metadata
  * @ret rc		Return status code
  */
 static int tftp_mc_socket_deliver_iob ( struct xfer_interface *mc_socket,
@@ -977,11 +984,29 @@ static void tftp_xfer_close ( struct xfer_interface *xfer, int rc ) {
 	tftp_done ( tftp, rc );
 }
 
+/**
+ * Check flow control window
+ *
+ * @v xfer		Data transfer interface
+ * @ret len		Length of window
+ */
+static size_t tftp_xfer_window ( struct xfer_interface *xfer ) {
+	struct tftp_request *tftp =
+		container_of ( xfer, struct tftp_request, xfer );
+
+	/* We abuse this data-xfer method to convey the blocksize to
+	 * the caller.  This really should be done using some kind of
+	 * stat() method, but we don't yet have the facility to do
+	 * that.
+	 */
+	return tftp->blksize;
+}
+
 /** TFTP data transfer interface operations */
 static struct xfer_interface_operations tftp_xfer_operations = {
 	.close		= tftp_xfer_close,
 	.vredirect	= ignore_xfer_vredirect,
-	.window		= unlimited_xfer_window,
+	.window		= tftp_xfer_window,
 	.alloc_iob	= default_xfer_alloc_iob,
 	.deliver_iob	= xfer_deliver_as_raw,
 	.deliver_raw	= ignore_xfer_deliver_raw,

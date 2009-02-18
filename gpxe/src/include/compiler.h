@@ -59,6 +59,17 @@ __asm__ ( ".equ\t" OBJECT_SYMBOL_STR ", 0" );
 #define REQUIRE_OBJECT(object) \
 	__asm__ ( ".equ\tneed_" #object ", obj_" #object );
 
+/* Force visibility of all symbols to "hidden", i.e. inform gcc that
+ * all symbol references resolve strictly within our final binary.
+ * This avoids unnecessary PLT/GOT entries on x86_64.
+ *
+ * This is a stronger claim than specifying "-fvisibility=hidden",
+ * since it also affects symbols marked with "extern".
+ */
+#if __GNUC__ >= 4
+#pragma GCC visibility push(hidden)
+#endif
+
 /** @def DBG
  *
  * Print a debugging message.
@@ -131,11 +142,26 @@ extern void dbg_decolourise ( void );
 extern void dbg_hex_dump_da ( unsigned long dispaddr,
 			      const void *data, unsigned long len );
 
-/* Compatibility with existing Makefile */
 #if DEBUG_SYMBOL
-#define DBGLVL DEBUG_SYMBOL
+#define DBGLVL_MAX DEBUG_SYMBOL
+#else
+#define DBGLVL_MAX 0
+#endif
+
+/* Allow for selective disabling of enabled debug levels */
+#if DBGLVL_MAX
+int __debug_disable;
+#define DBGLVL ( DBGLVL_MAX & ~__debug_disable )
+#define DBG_DISABLE( level ) do {				\
+	__debug_disable |= ( (level) & DBGLVL_MAX );		\
+	} while ( 0 )
+#define DBG_ENABLE( level ) do {				\
+	__debug_disable &= ~( (level) & DBGLVL_MAX );		\
+	} while ( 0 )
 #else
 #define DBGLVL 0
+#define DBG_DISABLE( level ) do { } while ( 0 )
+#define DBG_ENABLE( level ) do { } while ( 0 )
 #endif
 
 #define DBGLVL_LOG	1
@@ -287,9 +313,6 @@ extern void dbg_hex_dump_da ( unsigned long dispaddr,
 /** Declare a variable or data structure as unused. */
 #define __unused __attribute__ (( unused ))
 
-/** Apply standard C calling conventions */
-#define __cdecl __attribute__ (( cdecl , regparm(0) ))
-
 /**
  * Declare a function as pure - i.e. without side effects
  */
@@ -325,6 +348,9 @@ extern void dbg_hex_dump_da ( unsigned long dispaddr,
 /** Declare a data structure to be aligned with 16-byte alignment */
 #define __aligned __attribute__ (( aligned ( 16 ) ))
 
+/** Declare a function to be always inline */
+#define __always_inline __attribute__ (( always_inline ))
+
 /**
  * Shared data.
  *
@@ -353,5 +379,7 @@ extern void dbg_hex_dump_da ( unsigned long dispaddr,
 #define barrier() __asm__ __volatile__ ( "" : : : "memory" )
 
 #endif /* ASSEMBLY */
+
+#include <bits/compiler.h>
 
 #endif /* COMPILER_H */

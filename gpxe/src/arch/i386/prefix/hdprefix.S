@@ -63,9 +63,9 @@ max_sector:
 max_head:
 	.byte	0
 load_length:
-	.long	_load_size_sect
+	.long	_filesz_sect
 	
-	.section ".zinfo.fixup", "a"	/* Compressor fixup information */
+	.section ".zinfo.fixup", "a", @progbits	/* Compressor fixups */
 	.ascii	"SUBL"
 	.long	load_length
 	.long	512
@@ -82,6 +82,7 @@ load_failed:
 	.byte 0x55, 0xaa
 
 start_image:
+	/* Install gPXE */
 	call	install
 
 	/* Set up real-mode stack */
@@ -97,7 +98,10 @@ start_image:
 	pushl	$main
 	pushw	%cs
 	call	prot_call
-	popl	%eax /* discard */
+	popl	%ecx /* discard */
+
+	/* Uninstall gPXE */
+	call	uninstall
 
 	/* Boot next device */
 	int $0x18

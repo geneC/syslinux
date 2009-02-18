@@ -45,17 +45,11 @@ typedef uint32_t nx_rcode_t;
 #define NXHAL_VERSION 1
 #include "nxhal_nic_interface.h"
 
-/** SPI controller maximum block size */
-#define UNM_SPI_BLKSIZE 4
-
 /** DMA buffer alignment */
 #define UNM_DMA_BUFFER_ALIGN 16
 
 /** Mark structure as DMA-aligned */
 #define __unm_dma_aligned __attribute__ (( aligned ( UNM_DMA_BUFFER_ALIGN ) ))
-
-/** Dummy DMA buffer size */
-#define UNM_DUMMY_DMA_SIZE 1024
 
 /******************************************************************************
  *
@@ -76,14 +70,19 @@ typedef uint32_t nx_rcode_t;
  * address by the phantom_crb_access_xxx() methods.
  */
 enum unm_reg_blocks {
-	UNM_CRB_BLK_PCIE,
-	UNM_CRB_BLK_CAM,
-	UNM_CRB_BLK_ROMUSB,
-	UNM_CRB_BLK_TEST,
+	UNM_CRB_BLK_PCIE	= 0x01,
+	UNM_CRB_BLK_CAM		= 0x22,
+	UNM_CRB_BLK_ROMUSB	= 0x33,
+	UNM_CRB_BLK_TEST	= 0x02,
+	UNM_CRB_BLK_PEG_0	= 0x11,
+	UNM_CRB_BLK_PEG_1	= 0x12,
+	UNM_CRB_BLK_PEG_2	= 0x13,
+	UNM_CRB_BLK_PEG_3	= 0x14,
+	UNM_CRB_BLK_PEG_4	= 0x0f,
 };
-#define UNM_CRB_BASE(blk)		( (blk) << 24 )
-#define UNM_CRB_BLK(reg)		( (reg) >> 24 )
-#define UNM_CRB_OFFSET(reg)		( (reg) & 0x00ffffff )
+#define UNM_CRB_BASE(blk)		( (blk) << 20 )
+#define UNM_CRB_BLK(reg)		( (reg) >> 20 )
+#define UNM_CRB_OFFSET(reg)		( (reg) & 0x000fffff )
 
 #define UNM_CRB_PCIE			UNM_CRB_BASE ( UNM_CRB_BLK_PCIE )
 #define UNM_PCIE_SEM2_LOCK		( UNM_CRB_PCIE + 0x1c010 )
@@ -101,6 +100,16 @@ enum unm_reg_blocks {
 #define UNM_CAM_RAM_DMESG_SIG(n)	( UNM_CAM_RAM + 0x0003c + (n) * 0x10 )
 #define UNM_CAM_RAM_DMESG_SIG_MAGIC		0xcafebabeUL
 #define UNM_CAM_RAM_NUM_DMESG_BUFFERS		5
+#define UNM_CAM_RAM_CLP_COMMAND		( UNM_CAM_RAM + 0x000c0 )
+#define UNM_CAM_RAM_CLP_COMMAND_LAST		0x00000080UL
+#define UNM_CAM_RAM_CLP_DATA_LO		( UNM_CAM_RAM + 0x000c4 )
+#define UNM_CAM_RAM_CLP_DATA_HI		( UNM_CAM_RAM + 0x000c8 )
+#define UNM_CAM_RAM_CLP_STATUS		( UNM_CAM_RAM + 0x000cc )
+#define UNM_CAM_RAM_CLP_STATUS_START		0x00000001UL
+#define UNM_CAM_RAM_CLP_STATUS_DONE		0x00000002UL
+#define UNM_CAM_RAM_CLP_STATUS_ERROR		0x0000ff00UL
+#define UNM_CAM_RAM_CLP_STATUS_UNINITIALISED	0xffffffffUL
+#define UNM_CAM_RAM_BOOT_ENABLE		( UNM_CAM_RAM + 0x000fc )
 #define UNM_CAM_RAM_WOL_PORT_MODE	( UNM_CAM_RAM + 0x00198 )
 #define UNM_CAM_RAM_MAC_ADDRS		( UNM_CAM_RAM + 0x001c0 )
 #define UNM_CAM_RAM_COLD_BOOT		( UNM_CAM_RAM + 0x001fc )
@@ -160,114 +169,24 @@ enum unm_reg_blocks {
 #define UNM_TEST_RDDATA_LO		( UNM_CRB_TEST + 0x000a8 )
 #define UNM_TEST_RDDATA_HI		( UNM_CRB_TEST + 0x000ac )
 
-/******************************************************************************
- *
- * Flash layout
- *
- */
+#define UNM_CRB_PEG_0			UNM_CRB_BASE ( UNM_CRB_BLK_PEG_0 )
+#define UNM_PEG_0_HALT_STATUS		( UNM_CRB_PEG_0 + 0x00030 )
+#define UNM_PEG_0_HALT			( UNM_CRB_PEG_0 + 0x0003c )
 
-/* Board configuration */
+#define UNM_CRB_PEG_1			UNM_CRB_BASE ( UNM_CRB_BLK_PEG_1 )
+#define UNM_PEG_1_HALT_STATUS		( UNM_CRB_PEG_1 + 0x00030 )
+#define UNM_PEG_1_HALT			( UNM_CRB_PEG_1 + 0x0003c )
 
-#define UNM_BRDCFG_START		0x4000
+#define UNM_CRB_PEG_2			UNM_CRB_BASE ( UNM_CRB_BLK_PEG_2 )
+#define UNM_PEG_2_HALT_STATUS		( UNM_CRB_PEG_2 + 0x00030 )
+#define UNM_PEG_2_HALT			( UNM_CRB_PEG_2 + 0x0003c )
 
-struct unm_board_info {
-	uint32_t header_version;
-	uint32_t board_mfg;
-	uint32_t board_type;
-	uint32_t board_num;
-	uint32_t chip_id;
-	uint32_t chip_minor;
-	uint32_t chip_major;
-	uint32_t chip_pkg;
-	uint32_t chip_lot;
-	uint32_t port_mask;
-	uint32_t peg_mask;
-	uint32_t icache_ok;
-	uint32_t dcache_ok;
-	uint32_t casper_ok;
-	uint32_t mac_addr_lo_0;
-	uint32_t mac_addr_lo_1;
-	uint32_t mac_addr_lo_2;
-	uint32_t mac_addr_lo_3;
-	uint32_t mn_sync_mode;
-	uint32_t mn_sync_shift_cclk;
-	uint32_t mn_sync_shift_mclk;
-	uint32_t mn_wb_en;
-	uint32_t mn_crystal_freq;
-	uint32_t mn_speed;
-	uint32_t mn_org;
-	uint32_t mn_depth;
-	uint32_t mn_ranks_0;
-	uint32_t mn_ranks_1;
-	uint32_t mn_rd_latency_0;
-	uint32_t mn_rd_latency_1;
-	uint32_t mn_rd_latency_2;
-	uint32_t mn_rd_latency_3;
-	uint32_t mn_rd_latency_4;
-	uint32_t mn_rd_latency_5;
-	uint32_t mn_rd_latency_6;
-	uint32_t mn_rd_latency_7;
-	uint32_t mn_rd_latency_8;
-	uint32_t mn_dll_val[18];
-	uint32_t mn_mode_reg;
-	uint32_t mn_ext_mode_reg;
-	uint32_t mn_timing_0;
-	uint32_t mn_timing_1;
-	uint32_t mn_timing_2;
-	uint32_t sn_sync_mode;
-	uint32_t sn_pt_mode;
-	uint32_t sn_ecc_en;
-	uint32_t sn_wb_en;
-	uint32_t sn_crystal_freq;
-	uint32_t sn_speed;
-	uint32_t sn_org;
-	uint32_t sn_depth;
-	uint32_t sn_dll_tap;
-	uint32_t sn_rd_latency;
-	uint32_t mac_addr_hi_0;
-	uint32_t mac_addr_hi_1;
-	uint32_t mac_addr_hi_2;
-	uint32_t mac_addr_hi_3;
-	uint32_t magic;
-	uint32_t mn_rdimm;
-	uint32_t mn_dll_override;
-};
+#define UNM_CRB_PEG_3			UNM_CRB_BASE ( UNM_CRB_BLK_PEG_3 )
+#define UNM_PEG_3_HALT_STATUS		( UNM_CRB_PEG_3 + 0x00030 )
+#define UNM_PEG_3_HALT			( UNM_CRB_PEG_3 + 0x0003c )
 
-#define UNM_BDINFO_VERSION		1
-#define UNM_BRDTYPE_P3_HMEZ		0x0022
-#define UNM_BRDTYPE_P3_10G_CX4_LP	0x0023
-#define UNM_BRDTYPE_P3_4_GB		0x0024
-#define UNM_BRDTYPE_P3_IMEZ		0x0025
-#define UNM_BRDTYPE_P3_10G_SFP_PLUS	0x0026
-#define UNM_BRDTYPE_P3_10000_BASE_T	0x0027
-#define UNM_BRDTYPE_P3_XG_LOM		0x0028
-#define UNM_BRDTYPE_P3_4_GB_MM		0x0029
-#define UNM_BRDTYPE_P3_10G_CX4		0x0031
-#define UNM_BRDTYPE_P3_10G_XFP		0x0032
-#define UNM_BDINFO_MAGIC		0x12345678
-
-/* User defined region */
-
-#define UNM_USER_START			0x3e8000
-
-#define UNM_FLASH_NUM_PORTS		4
-#define UNM_FLASH_NUM_MAC_PER_PORT	32
-
-struct unm_user_info {
-	uint8_t  flash_md5[16 * 64];
-	uint32_t bootld_version;
-	uint32_t bootld_size;
-	uint32_t image_version;
-	uint32_t image_size;
-	uint32_t primary_status;
-	uint32_t secondary_present;
-	/* MAC address , 4 ports, 32 address per port */
-	uint64_t mac_addr[UNM_FLASH_NUM_PORTS * UNM_FLASH_NUM_MAC_PER_PORT];
-	uint32_t sub_sys_id;
-	uint8_t  serial_num[32];
-	uint32_t bios_version;
-	uint32_t pxe_enable;
-	uint32_t vlan_tag[UNM_FLASH_NUM_PORTS];
-};
+#define UNM_CRB_PEG_4			UNM_CRB_BASE ( UNM_CRB_BLK_PEG_4 )
+#define UNM_PEG_4_HALT_STATUS		( UNM_CRB_PEG_4 + 0x00030 )
+#define UNM_PEG_4_HALT			( UNM_CRB_PEG_4 + 0x0003c )
 
 #endif /* _PHANTOM_H */

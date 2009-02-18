@@ -18,8 +18,6 @@
  */
 
 	.arch i386
-	.section ".prefix.lib", "awx", @progbits
-	.section ".data16", "aw", @progbits
 
 /**
  * High memory temporary load address
@@ -53,7 +51,7 @@
  *   %ds:di : next character in output buffer (if applicable)
  *****************************************************************************
  */
-	.section ".prefix.lib"
+	.section ".prefix.lib", "awx", @progbits
 	.code16
 	.globl	print_character
 print_character:
@@ -93,7 +91,7 @@ print_character:
  *   %ds:di : next character in output buffer (if applicable)
  *****************************************************************************
  */
-	.section ".prefix.lib"
+	.section ".prefix.lib", "awx", @progbits
 	.code16
 	.globl	print_message
 print_message:
@@ -123,7 +121,7 @@ print_message:
  *   %ds:di : next character in output buffer (if applicable)
  *****************************************************************************
  */
-	.section ".prefix.lib"
+	.section ".prefix.lib", "awx", @progbits
 	.code16
 	.globl	print_hex_dword
 print_hex_dword:
@@ -171,7 +169,7 @@ print_hex_nibble:
  *   %ds:di : next character in output buffer (if applicable)
  *****************************************************************************
  */
-	.section ".prefix.lib"
+	.section ".prefix.lib", "awx", @progbits
 	.code16
 	.globl	print_pci_busdevfn
 print_pci_busdevfn:
@@ -181,14 +179,14 @@ print_pci_busdevfn:
 	xchgb	%al, %ah
 	call	print_hex_byte
 	/* Print ":" */
-	movb	$':', %al
+	movb	$( ':' ), %al
 	call	print_character
 	/* Print device */
 	movb	%ah, %al
 	shrb	$3, %al
 	call	print_hex_byte
 	/* Print "." */
-	movb	$'.', %al
+	movb	$( '.' ), %al
 	call	print_character
 	/* Print function */
 	movb	%ah, %al
@@ -198,6 +196,39 @@ print_pci_busdevfn:
 	popw	%ax
 	ret
 	.size	print_pci_busdevfn, . - print_pci_busdevfn
+
+/*****************************************************************************
+ * Utility function: clear current line
+ *
+ * Parameters:
+ *   %ds:di : output buffer (or %di=0 to print to console)
+ * Returns:
+ *   %ds:di : next character in output buffer (if applicable)
+ *****************************************************************************
+ */
+	.section ".prefix.lib", "awx", @progbits
+	.code16
+	.globl	print_kill_line
+print_kill_line:
+	/* Preserve registers */
+	pushw	%ax
+	pushw	%cx
+	/* Print CR */
+	movb	$( '\r' ), %al
+	call	print_character
+	/* Print 79 spaces */
+	movb	$( ' ' ), %al
+	movw	$79, %cx
+1:	call	print_character
+	loop	1b
+	/* Print CR */
+	movb	$( '\r' ), %al
+	call	print_character
+	/* Restore registers and return */
+	popw	%cx
+	popw	%ax
+	ret
+	.size	print_kill_line, . - print_kill_line
 
 /****************************************************************************
  * pm_call (real-mode near call)
@@ -223,7 +254,7 @@ print_pci_busdevfn:
 #ifndef KEEP_IT_REAL
 
 	/* GDT for protected-mode calls */
-	.section ".prefix.lib"
+	.section ".prefix.lib", "awx", @progbits
 	.align 16
 pm_call_vars:
 gdt:
@@ -246,7 +277,7 @@ gdt_end:
 	.equ	gdt_length, . - gdt
 	.size	gdt, . - gdt
 
-	.section ".prefix.lib"
+	.section ".prefix.lib", "awx", @progbits
 	.align 16
 pm_saved_gdt:	
 	.long	0, 0
@@ -255,7 +286,7 @@ pm_saved_gdt:
 	.equ	pm_call_vars_size, . - pm_call_vars
 #define PM_CALL_VAR(x) ( -pm_call_vars_size + ( (x) - pm_call_vars ) )
 
-	.section ".prefix.lib"
+	.section ".prefix.lib", "awx", @progbits
 	.code16
 pm_call:
 	/* Preserve registers, flags, and RM return point */
@@ -308,7 +339,7 @@ pm_call:
 	/* Switch CPU to protected mode and load up segment registers */
 	pushl	%eax
 	cli
-	lgdt	PM_CALL_VAR(gdt)(%bp)
+	data32 lgdt PM_CALL_VAR(gdt)(%bp)
 	movl	%cr0, %eax
 	orb	$CR0_PE, %al
 	movl	%eax, %cr0
@@ -344,7 +375,7 @@ pm_call:
 	popw	%es
 	popw	%fs
 	popw	%gs
-	lgdt	PM_CALL_VAR(pm_saved_gdt)(%bp)
+	data32 lgdt PM_CALL_VAR(pm_saved_gdt)(%bp)
 	popfl
 	movw	%bp, %sp
 	popw	%bp
@@ -378,7 +409,7 @@ set_seg_base:
  *   None
  ****************************************************************************
  */
-	.section ".prefix.lib"
+	.section ".prefix.lib", "awx", @progbits
 	.code16
 copy_bytes:
 	pushl %ecx
@@ -403,7 +434,7 @@ copy_bytes:
  *   none
  ****************************************************************************
  */
-	.section ".prefix.lib"
+	.section ".prefix.lib", "awx", @progbits
 	.code16
 install_block:
 	
@@ -500,33 +531,91 @@ install_block:
  *   none
  ****************************************************************************
  */
-	.section ".prefix.lib"
+	.section ".prefix.lib", "awx", @progbits
 	.code16
 	.globl	alloc_basemem
 alloc_basemem:
+	/* Preserve registers */
+	pushw	%fs
+
 	/* FBMS => %ax as segment address */
-	movw	$0x40, %ax
-	movw	%ax, %fs
+	pushw	$0x40
+	popw	%fs
 	movw	%fs:0x13, %ax
 	shlw	$6, %ax
 
-	/* .data16 segment address */
-	subw	$_data16_size_pgh, %ax
+	/* Calculate .data16 segment address */
+	subw	$_data16_memsz_pgh, %ax
 	pushw	%ax
 
-	/* .text16 segment address */
-	subw	$_text16_size_pgh, %ax
+	/* Calculate .text16 segment address */
+	subw	$_text16_memsz_pgh, %ax
 	pushw	%ax
 
 	/* Update FBMS */
 	shrw	$6, %ax
 	movw	%ax, %fs:0x13
 
-	/* Return */
+	/* Retrieve .text16 and .data16 segment addresses */
 	popw	%ax
 	popw	%bx
+
+	/* Restore registers and return */
+	popw	%fs
 	ret
 	.size alloc_basemem, . - alloc_basemem
+
+/****************************************************************************
+ * free_basemem (real-mode near call)
+ *
+ * Free space allocated with alloc_basemem.
+ *
+ * Parameters:
+ *   %ax : .text16 segment address
+ *   %bx : .data16 segment address
+ * Returns:
+ *   %ax : 0 if successfully freed
+ * Corrupts:
+ *   none
+ ****************************************************************************
+ */
+	.section ".text16", "ax", @progbits
+	.code16
+	.globl	free_basemem
+free_basemem:
+	/* Preserve registers */
+	pushw	%fs
+
+	/* Check FBMS counter */
+	pushw	%ax
+	shrw	$6, %ax
+	pushw	$0x40
+	popw	%fs
+	cmpw	%ax, %fs:0x13
+	popw	%ax
+	jne	1f
+
+	/* Check hooked interrupt count */
+	cmpw	$0, %cs:hooked_bios_interrupts
+	jne	1f
+
+	/* OK to free memory */
+	addw	$_text16_memsz_pgh, %ax
+	addw	$_data16_memsz_pgh, %ax
+	shrw	$6, %ax
+	movw	%ax, %fs:0x13
+	xorw	%ax, %ax
+
+1:	/* Restore registers and return */
+	popw	%fs
+	ret
+	.size free_basemem, . - free_basemem
+
+	.section ".text16.data", "aw", @progbits
+	.globl	hooked_bios_interrupts
+hooked_bios_interrupts:
+	.word	0
+	.size	hooked_bios_interrupts, . - hooked_bios_interrupts
 
 /****************************************************************************
  * install (real-mode near call)
@@ -542,7 +631,7 @@ alloc_basemem:
  *   none
  ****************************************************************************
  */
-	.section ".prefix.lib"
+	.section ".prefix.lib", "awx", @progbits
 	.code16
 	.globl install
 install:
@@ -577,7 +666,7 @@ install:
  *   none
  ****************************************************************************
  */
-	.section ".prefix.lib"
+	.section ".prefix.lib", "awx", @progbits
 	.code16
 	.globl install_prealloc
 install_prealloc:
@@ -594,19 +683,19 @@ install_prealloc:
 	jnz	1f
 	movw	%cs, %si
 	shll	$4, %esi
-1:	addl	$_payload_offset, %esi
+1:	addl	$_payload_lma, %esi
 
 	/* Install .text16 and .data16 */
 	pushl	%edi
 	movzwl	%ax, %edi
 	shll	$4, %edi
-	movl	$_text16_size, %ecx
+	movl	$_text16_memsz, %ecx
 	movl	%ecx, %edx
 	call	install_block		/* .text16 */
 	movzwl	%bx, %edi
 	shll	$4, %edi
-	movl	$_data16_progbits_size, %ecx
-	movl	$_data16_size, %edx
+	movl	$_data16_filesz, %ecx
+	movl	$_data16_memsz, %edx
 	call	install_block		/* .data16 */
 	popl	%edi
 
@@ -622,8 +711,8 @@ install_prealloc:
 	 * prior to reading the E820 memory map and relocating
 	 * properly.
 	 */
-	movl	$_textdata_progbits_size, %ecx
-	movl	$_textdata_size, %edx
+	movl	$_textdata_filesz, %ecx
+	movl	$_textdata_memsz, %edx
 	call	install_block
 
 	/* Initialise librm at current location */
@@ -659,7 +748,7 @@ install_prealloc:
 	.size install_prealloc, . - install_prealloc
 
 	/* Vectors for far calls to .text16 functions */
-	.section ".data16"
+	.section ".data16", "aw", @progbits
 #ifdef KEEP_IT_REAL
 init_libkir_vector:
 	.word init_libkir
@@ -676,30 +765,53 @@ prot_call_vector:
 	.size prot_call_vector, . - prot_call_vector
 #endif
 
+/****************************************************************************
+ * uninstall (real-mode near call)
+ *
+ * Uninstall all text and data segments.
+ *
+ * Parameters:
+ *   %ax  : .text16 segment address
+ *   %bx  : .data16 segment address
+ * Returns:
+ *   none
+ * Corrupts:
+ *   none
+ ****************************************************************************
+ */
+	.section ".text16", "ax", @progbits
+	.code16
+	.globl uninstall
+uninstall:
+	call	free_basemem
+	ret
+	.size uninstall, . - uninstall
+
+
 
 	/* File split information for the compressor */
 #if COMPRESS
-	.section ".zinfo", "a"
+	.section ".zinfo", "a", @progbits
 	.ascii	"COPY"
-	.long	_prefix_load_offset
-	.long	_prefix_progbits_size
+	.long	_prefix_lma
+	.long	_prefix_filesz
 	.long	_max_align
 	.ascii	"PACK"
-	.long	_text16_load_offset
-	.long	_text16_progbits_size
+	.long	_text16_lma
+	.long	_text16_filesz
 	.long	_max_align
 	.ascii	"PACK"
-	.long	_data16_load_offset
-	.long	_data16_progbits_size
+	.long	_data16_lma
+	.long	_data16_filesz
 	.long	_max_align
 	.ascii	"PACK"
-	.long	_textdata_load_offset
-	.long	_textdata_progbits_size
+	.long	_textdata_lma
+	.long	_textdata_filesz
 	.long	_max_align
 #else /* COMPRESS */
-	.section ".zinfo", "a"
+	.section ".zinfo", "a", @progbits
 	.ascii	"COPY"
-	.long	_prefix_load_offset
-	.long	_load_size
+	.long	_prefix_lma
+	.long	_filesz
 	.long	_max_align
 #endif /* COMPRESS */

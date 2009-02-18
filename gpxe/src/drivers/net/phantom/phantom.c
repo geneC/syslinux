@@ -25,12 +25,14 @@
 #include <assert.h>
 #include <byteswap.h>
 #include <gpxe/pci.h>
+#include <gpxe/io.h>
 #include <gpxe/malloc.h>
 #include <gpxe/iobuf.h>
 #include <gpxe/netdevice.h>
 #include <gpxe/if_ether.h>
 #include <gpxe/ethernet.h>
 #include <gpxe/spi.h>
+#include <gpxe/settings.h>
 #include "phantom.h"
 
 /**
@@ -40,11 +42,8 @@
  *
  */
 
-/** Maximum time to wait for SPI lock */
-#define PHN_SPI_LOCK_TIMEOUT_MS 100
-
-/** Maximum time to wait for SPI command to be issued */
-#define PHN_SPI_CMD_TIMEOUT_MS 100
+/** Maximum number of ports */
+#define PHN_MAX_NUM_PORTS 4
 
 /** Maximum time to wait for command PEG to initialise
  *
@@ -70,6 +69,9 @@
 
 /** Maximum time to wait for test memory */
 #define PHN_TEST_MEM_TIMEOUT_MS 100
+
+/** Maximum time to wait for CLP command to be issued */
+#define PHN_CLP_CMD_TIMEOUT_MS 500
 
 /** Link state poll frequency
  *
@@ -105,10 +107,41 @@ struct phantom_descriptor_rings {
 	volatile uint32_t cmd_cons;
 };
 
-/** A Phantom NIC port */
-struct phantom_nic_port {
-	/** Phantom NIC containing this port */
-	struct phantom_nic *phantom;
+/** RX context creation request and response buffers */
+struct phantom_create_rx_ctx_rqrsp {
+	struct {
+		struct nx_hostrq_rx_ctx_s rx_ctx;
+		struct nx_hostrq_rds_ring_s rds;
+		struct nx_hostrq_sds_ring_s sds;
+	} __unm_dma_aligned hostrq;
+	struct {
+		struct nx_cardrsp_rx_ctx_s rx_ctx;
+		struct nx_cardrsp_rds_ring_s rds;
+		struct nx_cardrsp_sds_ring_s sds;
+	} __unm_dma_aligned cardrsp;
+};
+
+/** TX context creation request and response buffers */
+struct phantom_create_tx_ctx_rqrsp {
+	struct {
+		struct nx_hostrq_tx_ctx_s tx_ctx;
+	} __unm_dma_aligned hostrq;
+	struct {
+		struct nx_cardrsp_tx_ctx_s tx_ctx;
+	} __unm_dma_aligned cardrsp;
+};
+
+/** A Phantom NIC */
+struct phantom_nic {
+	/** BAR 0 */
+	void *bar0;
+	/** Current CRB window */
+	unsigned long crb_window;
+	/** CRB window access method */
+	unsigned long ( *crb_access ) ( struct phantom_nic *phantom,
+					unsigned long reg );
+
+
 	/** Port number */
 	unsigned int port;
 
@@ -143,73 +176,18 @@ struct phantom_nic_port {
 	struct io_buffer *cds_iobuf[PHN_NUM_CDS];
 
 
+	/** Descriptor rings */
+	struct phantom_descriptor_rings *desc;
+
+
+	/** Last known link state */
+	uint32_t link_state;
 	/** Link state poll timer */
 	unsigned long link_poll_timer;
 
 
-	/** Descriptor rings */
-	struct phantom_descriptor_rings *desc;
-};
-
-/** RX context creation request and response buffers */
-struct phantom_create_rx_ctx_rqrsp {
-	struct {
-		struct nx_hostrq_rx_ctx_s rx_ctx;
-		struct nx_hostrq_rds_ring_s rds;
-		struct nx_hostrq_sds_ring_s sds;
-	} __unm_dma_aligned hostrq;
-	struct {
-		struct nx_cardrsp_rx_ctx_s rx_ctx;
-		struct nx_cardrsp_rds_ring_s rds;
-		struct nx_cardrsp_sds_ring_s sds;
-	} __unm_dma_aligned cardrsp;
-};
-
-/** TX context creation request and response buffers */
-struct phantom_create_tx_ctx_rqrsp {
-	struct {
-		struct nx_hostrq_tx_ctx_s tx_ctx;
-	} __unm_dma_aligned hostrq;
-	struct {
-		struct nx_cardrsp_tx_ctx_s tx_ctx;
-	} __unm_dma_aligned cardrsp;
-};
-
-/** A Phantom DMA buffer area */
-union phantom_dma_buffer {
-	/** Dummy area required for (read-only) self-tests */
-	uint8_t dummy_dma[UNM_DUMMY_DMA_SIZE];
-	/** RX context creation request and response buffers */
-	struct phantom_create_rx_ctx_rqrsp create_rx_ctx;
-	/** TX context creation request and response buffers */
-	struct phantom_create_tx_ctx_rqrsp create_tx_ctx;
-};
-
-/** A Phantom NIC */
-struct phantom_nic {
-	/** BAR 0 */
-	void *bar0;
-	/** Current CRB window */
-	unsigned long crb_window;
-	/** CRB window access method */
-	unsigned long ( *crb_access ) ( struct phantom_nic *phantom,
-					unsigned long reg );
-
-	/** Number of ports */
-	int num_ports;
-	/** Per-port network devices */
-	struct net_device *netdev[UNM_FLASH_NUM_PORTS];
-
-	/** DMA buffers */
-	union phantom_dma_buffer *dma_buf;
-
-	/** Flash memory SPI bus */
-	struct spi_bus spi_bus;
-	/** Flash memory SPI device */
-	struct spi_device flash;
-
-	/** Last known link state */
-	uint32_t link_state;
+	/** Non-volatile settings */
+	struct settings settings;
 };
 
 /***************************************************************************
@@ -227,21 +205,8 @@ struct phantom_nic {
  */
 static unsigned long phantom_crb_access_128m ( struct phantom_nic *phantom,
 					       unsigned long reg ) {
-	static const uint32_t reg_window[] = {
-		[UNM_CRB_BLK_PCIE]	= 0x0000000,
-		[UNM_CRB_BLK_CAM]	= 0x2000000,
-		[UNM_CRB_BLK_ROMUSB]	= 0x2000000,
-		[UNM_CRB_BLK_TEST]	= 0x0000000,
-	};
-	static const uint32_t reg_bases[] = {
-		[UNM_CRB_BLK_PCIE]	= 0x6100000,
-		[UNM_CRB_BLK_CAM]	= 0x6200000,
-		[UNM_CRB_BLK_ROMUSB]	= 0x7300000,
-		[UNM_CRB_BLK_TEST]	= 0x6200000,
-	};
-	unsigned int block = UNM_CRB_BLK ( reg );
-	unsigned long offset = UNM_CRB_OFFSET ( reg );
-	uint32_t window = reg_window[block];
+	unsigned long offset = ( 0x6000000 + ( reg & 0x1ffffff ) );
+	uint32_t window = ( reg & 0x2000000 );
 	uint32_t verify_window;
 
 	if ( phantom->crb_window != window ) {
@@ -257,7 +222,7 @@ static unsigned long phantom_crb_access_128m ( struct phantom_nic *phantom,
 		phantom->crb_window = window;
 	}
 
-	return ( reg_bases[block] + offset );
+	return offset;
 }
 
 /**
@@ -269,21 +234,8 @@ static unsigned long phantom_crb_access_128m ( struct phantom_nic *phantom,
  */
 static unsigned long phantom_crb_access_32m ( struct phantom_nic *phantom,
 					      unsigned long reg ) {
-	static const uint32_t reg_window[] = {
-		[UNM_CRB_BLK_PCIE]	= 0x0000000,
-		[UNM_CRB_BLK_CAM]	= 0x2000000,
-		[UNM_CRB_BLK_ROMUSB]	= 0x2000000,
-		[UNM_CRB_BLK_TEST]	= 0x0000000,
-	};
-	static const uint32_t reg_bases[] = {
-		[UNM_CRB_BLK_PCIE]	= 0x0100000,
-		[UNM_CRB_BLK_CAM]	= 0x0200000,
-		[UNM_CRB_BLK_ROMUSB]	= 0x1300000,
-		[UNM_CRB_BLK_TEST]	= 0x0200000,
-	};
-	unsigned int block = UNM_CRB_BLK ( reg );
-	unsigned long offset = UNM_CRB_OFFSET ( reg );
-	uint32_t window = reg_window[block];
+	unsigned long offset = ( reg & 0x1ffffff );
+	uint32_t window = ( reg & 0x2000000 );
 	uint32_t verify_window;
 
 	if ( phantom->crb_window != window ) {
@@ -299,7 +251,7 @@ static unsigned long phantom_crb_access_32m ( struct phantom_nic *phantom,
 		phantom->crb_window = window;
 	}
 
-	return ( reg_bases[block] + offset );
+	return offset;
 }
 
 /**
@@ -311,31 +263,54 @@ static unsigned long phantom_crb_access_32m ( struct phantom_nic *phantom,
  */
 static unsigned long phantom_crb_access_2m ( struct phantom_nic *phantom,
 					     unsigned long reg ) {
-	static const uint32_t reg_window_hi[] = {
-		[UNM_CRB_BLK_PCIE]	= 0x77300000,
-		[UNM_CRB_BLK_CAM]	= 0x41600000,
-		[UNM_CRB_BLK_ROMUSB]	= 0x42100000,
-		[UNM_CRB_BLK_TEST]	= 0x29500000,
+	static const struct {
+		uint8_t block;
+		uint16_t window_hi;
+	} reg_window_hi[] = {
+		{ UNM_CRB_BLK_PCIE,	0x773 },
+		{ UNM_CRB_BLK_CAM,	0x416 },
+		{ UNM_CRB_BLK_ROMUSB,	0x421 },
+		{ UNM_CRB_BLK_TEST,	0x295 },
+		{ UNM_CRB_BLK_PEG_0,	0x340 },
+		{ UNM_CRB_BLK_PEG_1,	0x341 },
+		{ UNM_CRB_BLK_PEG_2,	0x342 },
+		{ UNM_CRB_BLK_PEG_3,	0x343 },
+		{ UNM_CRB_BLK_PEG_4,	0x34b },
 	};
 	unsigned int block = UNM_CRB_BLK ( reg );
 	unsigned long offset = UNM_CRB_OFFSET ( reg );
-	uint32_t window = ( reg_window_hi[block] | ( offset & 0x000f0000 ) );
+	uint32_t window;
 	uint32_t verify_window;
+	unsigned int i;
 
-	if ( phantom->crb_window != window ) {
+	for ( i = 0 ; i < ( sizeof ( reg_window_hi ) /
+			    sizeof ( reg_window_hi[0] ) ) ; i++ ) {
 
-		/* Write to the CRB window register */
-		writel ( window, phantom->bar0 + UNM_2M_CRB_WINDOW );
+		if ( reg_window_hi[i].block != block )
+			continue;
 
-		/* Ensure that the write has reached the card */
-		verify_window = readl ( phantom->bar0 + UNM_2M_CRB_WINDOW );
-		assert ( verify_window == window );
+		window = ( ( reg_window_hi[i].window_hi << 20 ) |
+			   ( offset & 0x000f0000 ) );
 
-		/* Record new window */
-		phantom->crb_window = window;
+		if ( phantom->crb_window != window ) {
+
+			/* Write to the CRB window register */
+			writel ( window, phantom->bar0 + UNM_2M_CRB_WINDOW );
+
+			/* Ensure that the write has reached the card */
+			verify_window = readl ( phantom->bar0 +
+						UNM_2M_CRB_WINDOW );
+			assert ( verify_window == window );
+
+			/* Record new window */
+			phantom->crb_window = window;
+		}
+
+		return ( 0x1e0000 + ( offset & 0xffff ) );
 	}
 
-	return ( 0x1e0000 + ( offset & 0xffff ) );
+	assert ( 0 );
+	return 0;
 }
 
 /**
@@ -401,8 +376,9 @@ static inline void phantom_write_hilo ( struct phantom_nic *phantom,
  * @v buf		8-byte buffer to fill
  * @ret rc		Return status code
  */
-static int phantom_read_test_mem ( struct phantom_nic *phantom,
-				   uint64_t offset, uint32_t buf[2] ) {
+static int phantom_read_test_mem_block ( struct phantom_nic *phantom,
+					 unsigned long offset,
+					 uint32_t buf[2] ) {
 	unsigned int retries;
 	uint32_t test_control;
 
@@ -429,199 +405,100 @@ static int phantom_read_test_mem ( struct phantom_nic *phantom,
 }
 
 /**
+ * Read single byte from Phantom test memory
+ *
+ * @v phantom		Phantom NIC
+ * @v offset		Offset within test memory
+ * @ret byte		Byte read, or negative error
+ */
+static int phantom_read_test_mem ( struct phantom_nic *phantom,
+				   unsigned long offset ) {
+	static union {
+		uint8_t bytes[8];
+		uint32_t dwords[2];
+	} cache;
+	static unsigned long cache_offset = -1UL;
+	unsigned long sub_offset;
+	int rc;
+
+	sub_offset = ( offset & ( sizeof ( cache ) - 1 ) );
+	offset = ( offset & ~( sizeof ( cache ) - 1 ) );
+
+	if ( cache_offset != offset ) {
+		if ( ( rc = phantom_read_test_mem_block ( phantom, offset,
+							  cache.dwords )) !=0 )
+			return rc;
+		cache_offset = offset;
+	}
+
+	return cache.bytes[sub_offset];
+}
+
+/**
  * Dump Phantom firmware dmesg log
  *
  * @v phantom		Phantom NIC
  * @v log		Log number
+ * @v max_lines		Maximum number of lines to show, or -1 to show all
+ * @ret rc		Return status code
  */
-static void phantom_dmesg ( struct phantom_nic *phantom, unsigned int log ) {
+static int phantom_dmesg ( struct phantom_nic *phantom, unsigned int log,
+			    unsigned int max_lines ) {
 	uint32_t head;
 	uint32_t tail;
 	uint32_t len;
 	uint32_t sig;
 	uint32_t offset;
-	union {
-		uint8_t bytes[8];
-		uint32_t dwords[2];
-	} buf;
-	unsigned int i;
-	int rc;
+	int byte;
 
 	/* Optimise out for non-debug builds */
 	if ( ! DBG_LOG )
-		return;
+		return 0;
 
+	/* Locate log */
 	head = phantom_readl ( phantom, UNM_CAM_RAM_DMESG_HEAD ( log ) );
 	len = phantom_readl ( phantom, UNM_CAM_RAM_DMESG_LEN ( log ) );
 	tail = phantom_readl ( phantom, UNM_CAM_RAM_DMESG_TAIL ( log ) );
 	sig = phantom_readl ( phantom, UNM_CAM_RAM_DMESG_SIG ( log ) );
-	DBGC ( phantom, "Phantom %p firmware dmesg buffer %d (%08lx-%08lx)\n",
+	DBGC ( phantom, "Phantom %p firmware dmesg buffer %d (%08x-%08x)\n",
 	       phantom, log, head, tail );
 	assert ( ( head & 0x07 ) == 0 );
 	if ( sig != UNM_CAM_RAM_DMESG_SIG_MAGIC ) {
-		DBGC ( phantom, "Warning: bad signature %08lx (want %08lx)\n",
+		DBGC ( phantom, "Warning: bad signature %08x (want %08lx)\n",
 		       sig, UNM_CAM_RAM_DMESG_SIG_MAGIC );
 	}
 
-	for ( offset = head ; offset < tail ; offset += 8 ) {
-		if ( ( rc = phantom_read_test_mem ( phantom, offset,
-						    buf.dwords ) ) != 0 ) {
-			DBGC ( phantom, "Phantom %p could not read from test "
-			       "memory: %s\n", phantom, strerror ( rc ) );
+	/* Locate start of last (max_lines) lines */
+	for ( offset = tail ; offset > head ; offset-- ) {
+		if ( ( byte = phantom_read_test_mem ( phantom,
+						      ( offset - 1 ) ) ) < 0 )
+			return byte;
+		if ( ( byte == '\n' ) && ( max_lines-- == 0 ) )
 			break;
-		}
-		for ( i = 0 ; ( ( i < sizeof ( buf ) ) &&
-				( offset + i ) < tail ) ; i++ ) {
-			DBG ( "%c", buf.bytes[i] );
-		}
+	}
+
+	/* Print lines */
+	for ( ; offset < tail ; offset++ ) {
+		if ( ( byte = phantom_read_test_mem ( phantom, offset ) ) < 0 )
+			return byte;
+		DBG ( "%c", byte );
 	}
 	DBG ( "\n" );
+	return 0;
 }
 
 /**
  * Dump Phantom firmware dmesg logs
  *
  * @v phantom		Phantom NIC
+ * @v max_lines		Maximum number of lines to show, or -1 to show all
  */
 static void __attribute__ (( unused ))
-phantom_dmesg_all ( struct phantom_nic *phantom ) {
+phantom_dmesg_all ( struct phantom_nic *phantom, unsigned int max_lines ) {
 	unsigned int i;
 
 	for ( i = 0 ; i < UNM_CAM_RAM_NUM_DMESG_BUFFERS ; i++ )
-		phantom_dmesg ( phantom, i );
-}
-
-/***************************************************************************
- *
- * SPI bus access (for flash memory)
- *
- */
-
-/**
- * Acquire Phantom SPI lock
- *
- * @v phantom		Phantom NIC
- * @ret rc		Return status code
- */
-static int phantom_spi_lock ( struct phantom_nic *phantom ) {
-	unsigned int retries;
-	uint32_t pcie_sem2_lock;
-
-	for ( retries = 0 ; retries < PHN_SPI_LOCK_TIMEOUT_MS ; retries++ ) {
-		pcie_sem2_lock = phantom_readl ( phantom, UNM_PCIE_SEM2_LOCK );
-		if ( pcie_sem2_lock != 0 )
-			return 0;
-		mdelay ( 1 );
-	}
-
-	DBGC ( phantom, "Phantom %p timed out waiting for SPI lock\n",
-	       phantom );
-	return -ETIMEDOUT;
-}
-
-/**
- * Wait for Phantom SPI command to complete
- *
- * @v phantom		Phantom NIC
- * @ret rc		Return status code
- */
-static int phantom_spi_wait ( struct phantom_nic *phantom ) {
-	unsigned int retries;
-	uint32_t glb_status;
-
-	for ( retries = 0 ; retries < PHN_SPI_CMD_TIMEOUT_MS ; retries++ ) {
-		glb_status = phantom_readl ( phantom, UNM_ROMUSB_GLB_STATUS );
-		if ( glb_status & UNM_ROMUSB_GLB_STATUS_ROM_DONE )
-			return 0;
-		mdelay ( 1 );
-	}
-
-	DBGC ( phantom, "Phantom %p timed out waiting for SPI command\n",
-	       phantom );
-	return -ETIMEDOUT;
-}
-
-/**
- * Release Phantom SPI lock
- *
- * @v phantom		Phantom NIC
- */
-static void phantom_spi_unlock ( struct phantom_nic *phantom ) {
-	phantom_readl ( phantom, UNM_PCIE_SEM2_UNLOCK );
-}
-
-/**
- * Read/write data via Phantom SPI bus
- *
- * @v bus		SPI bus
- * @v device		SPI device
- * @v command		Command
- * @v address		Address to read/write (<0 for no address)
- * @v data_out		TX data buffer (or NULL)
- * @v data_in		RX data buffer (or NULL)
- * @v len		Length of data buffer(s)
- * @ret rc		Return status code
- */
-static int phantom_spi_rw ( struct spi_bus *bus,
-			    struct spi_device *device,
-			    unsigned int command, int address,
-			    const void *data_out, void *data_in,
-			    size_t len ) {
-	struct phantom_nic *phantom =
-		container_of ( bus, struct phantom_nic, spi_bus );
-	uint32_t data;
-	int rc;
-
-	DBGCP ( phantom, "Phantom %p SPI command %x at %x+%zx\n",
-		phantom, command, address, len );
-	if ( data_out )
-		DBGCP_HDA ( phantom, address, data_out, len );
-
-	/* We support only exactly 4-byte reads */
-	if ( len != UNM_SPI_BLKSIZE ) {
-		DBGC ( phantom, "Phantom %p invalid SPI length %zx\n",
-		       phantom, len );
-		return -EINVAL;
-	}
-
-	/* Acquire SPI lock */
-	if ( ( rc = phantom_spi_lock ( phantom ) ) != 0 )
-		goto err_lock;
-
-	/* Issue SPI command as per the PRM */
-	if ( data_out ) {
-		memcpy ( &data, data_out, sizeof ( data ) );
-		phantom_writel ( phantom, data, UNM_ROMUSB_ROM_WDATA );
-	}
-	phantom_writel ( phantom, address, UNM_ROMUSB_ROM_ADDRESS );
-	phantom_writel ( phantom, ( device->address_len / 8 ),
-			 UNM_ROMUSB_ROM_ABYTE_CNT );
-	udelay ( 100 ); /* according to PRM */
-	phantom_writel ( phantom, 0, UNM_ROMUSB_ROM_DUMMY_BYTE_CNT );
-	phantom_writel ( phantom, command, UNM_ROMUSB_ROM_INSTR_OPCODE );
-
-	/* Wait for SPI command to complete */
-	if ( ( rc = phantom_spi_wait ( phantom ) ) != 0 )
-		goto err_wait;
-	
-	/* Reset address byte count and dummy byte count, because the
-	 * PRM asks us to.
-	 */
-	phantom_writel ( phantom, 0, UNM_ROMUSB_ROM_ABYTE_CNT );
-	udelay ( 100 ); /* according to PRM */
-	phantom_writel ( phantom, 0, UNM_ROMUSB_ROM_DUMMY_BYTE_CNT );
-
-	/* Read data, if applicable */
-	if ( data_in ) {
-		data = phantom_readl ( phantom, UNM_ROMUSB_ROM_RDATA );
-		memcpy ( data_in, &data, sizeof ( data ) );
-		DBGCP_HDA ( phantom, address, data_in, len );
-	}
-
- err_wait:
-	phantom_spi_unlock ( phantom );
- err_lock:
-	return rc;
+		phantom_dmesg ( phantom, i, max_lines );
 }
 
 /***************************************************************************
@@ -665,26 +542,24 @@ static int phantom_wait_for_cmd ( struct phantom_nic *phantom ) {
 /**
  * Issue command to firmware
  *
- * @v phantom_port	Phantom NIC port
+ * @v phantom		Phantom NIC
  * @v command		Firmware command
  * @v arg1		Argument 1
  * @v arg2		Argument 2
  * @v arg3		Argument 3
  * @ret rc		Return status code
  */
-static int phantom_issue_cmd ( struct phantom_nic_port *phantom_port,
+static int phantom_issue_cmd ( struct phantom_nic *phantom,
 			       uint32_t command, uint32_t arg1, uint32_t arg2,
 			       uint32_t arg3 ) {
-	struct phantom_nic *phantom = phantom_port->phantom;
 	uint32_t signature;
 	int rc;
 
 	/* Issue command */
-	signature = NX_CDRP_SIGNATURE_MAKE ( phantom_port->port,
+	signature = NX_CDRP_SIGNATURE_MAKE ( phantom->port,
 					     NXHAL_VERSION );
-	DBGC2 ( phantom, "Phantom %p port %d issuing command %08lx (%08lx, "
-		"%08lx, %08lx)\n", phantom, phantom_port->port,
-		command, arg1, arg2, arg3 );
+	DBGC2 ( phantom, "Phantom %p issuing command %08x (%08x, %08x, "
+		"%08x)\n", phantom, command, arg1, arg2, arg3 );
 	phantom_writel ( phantom, signature, UNM_NIC_REG_NX_SIGN );
 	phantom_writel ( phantom, arg1, UNM_NIC_REG_NX_ARG1 );
 	phantom_writel ( phantom, arg2, UNM_NIC_REG_NX_ARG2 );
@@ -705,36 +580,41 @@ static int phantom_issue_cmd ( struct phantom_nic_port *phantom_port,
 /**
  * Issue buffer-format command to firmware
  *
- * @v phantom_port	Phantom NIC port
+ * @v phantom		Phantom NIC
  * @v command		Firmware command
  * @v buffer		Buffer to pass to firmware
  * @v len		Length of buffer
  * @ret rc		Return status code
  */
-static int phantom_issue_buf_cmd ( struct phantom_nic_port *phantom_port,
+static int phantom_issue_buf_cmd ( struct phantom_nic *phantom,
 				   uint32_t command, void *buffer,
 				   size_t len ) {
 	uint64_t physaddr;
 
 	physaddr = virt_to_bus ( buffer );
-	return phantom_issue_cmd ( phantom_port, command, ( physaddr >> 32 ),
+	return phantom_issue_cmd ( phantom, command, ( physaddr >> 32 ),
 				   ( physaddr & 0xffffffffUL ), len );
 }
 
 /**
  * Create Phantom RX context
  *
- * @v phantom_port	Phantom NIC port
+ * @v phantom		Phantom NIC
  * @ret rc		Return status code
  */
-static int phantom_create_rx_ctx ( struct phantom_nic_port *phantom_port ) {
-	struct phantom_nic *phantom = phantom_port->phantom;
+static int phantom_create_rx_ctx ( struct phantom_nic *phantom ) {
 	struct phantom_create_rx_ctx_rqrsp *buf;
 	int rc;
+
+	/* Allocate context creation buffer */
+	buf = malloc_dma ( sizeof ( *buf ), UNM_DMA_BUFFER_ALIGN );
+	if ( ! buf ) {
+		rc = -ENOMEM;
+		goto out;
+	}
+	memset ( buf, 0, sizeof ( *buf ) );
 	
 	/* Prepare request */
-	buf = &phantom->dma_buf->create_rx_ctx;
-	memset ( buf, 0, sizeof ( *buf ) );
 	buf->hostrq.rx_ctx.host_rsp_dma_addr =
 		cpu_to_le64 ( virt_to_bus ( &buf->cardrsp ) );
 	buf->hostrq.rx_ctx.capabilities[0] =
@@ -749,197 +629,194 @@ static int phantom_create_rx_ctx ( struct phantom_nic_port *phantom_port ) {
 	buf->hostrq.rx_ctx.num_rds_rings = cpu_to_le16 ( 1 );
 	buf->hostrq.rx_ctx.num_sds_rings = cpu_to_le16 ( 1 );
 	buf->hostrq.rds.host_phys_addr =
-		cpu_to_le64 ( virt_to_bus ( phantom_port->desc->rds ) );
+		cpu_to_le64 ( virt_to_bus ( phantom->desc->rds ) );
 	buf->hostrq.rds.buff_size = cpu_to_le64 ( PHN_RX_BUFSIZE );
 	buf->hostrq.rds.ring_size = cpu_to_le32 ( PHN_NUM_RDS );
 	buf->hostrq.rds.ring_kind = cpu_to_le32 ( NX_RDS_RING_TYPE_NORMAL );
 	buf->hostrq.sds.host_phys_addr =
-		cpu_to_le64 ( virt_to_bus ( phantom_port->desc->sds ) );
+		cpu_to_le64 ( virt_to_bus ( phantom->desc->sds ) );
 	buf->hostrq.sds.ring_size = cpu_to_le32 ( PHN_NUM_SDS );
 
-	DBGC ( phantom, "Phantom %p port %d creating RX context\n",
-	       phantom, phantom_port->port );
+	DBGC ( phantom, "Phantom %p creating RX context\n", phantom );
 	DBGC2_HDA ( phantom, virt_to_bus ( &buf->hostrq ),
 		    &buf->hostrq, sizeof ( buf->hostrq ) );
 
 	/* Issue request */
-	if ( ( rc = phantom_issue_buf_cmd ( phantom_port,
+	if ( ( rc = phantom_issue_buf_cmd ( phantom,
 					    NX_CDRP_CMD_CREATE_RX_CTX,
 					    &buf->hostrq,
 					    sizeof ( buf->hostrq ) ) ) != 0 ) {
-		DBGC ( phantom, "Phantom %p port %d could not create RX "
-		       "context: %s\n",
-		       phantom, phantom_port->port, strerror ( rc ) );
+		DBGC ( phantom, "Phantom %p could not create RX context: "
+		       "%s\n", phantom, strerror ( rc ) );
 		DBGC ( phantom, "Request:\n" );
 		DBGC_HDA ( phantom, virt_to_bus ( &buf->hostrq ),
 			   &buf->hostrq, sizeof ( buf->hostrq ) );
 		DBGC ( phantom, "Response:\n" );
 		DBGC_HDA ( phantom, virt_to_bus ( &buf->cardrsp ),
 			   &buf->cardrsp, sizeof ( buf->cardrsp ) );
-		return rc;
+		goto out;
 	}
 
 	/* Retrieve context parameters */
-	phantom_port->rx_context_id =
+	phantom->rx_context_id =
 		le16_to_cpu ( buf->cardrsp.rx_ctx.context_id );
-	phantom_port->rds_producer_crb =
+	phantom->rds_producer_crb =
 		( UNM_CAM_RAM +
 		  le32_to_cpu ( buf->cardrsp.rds.host_producer_crb ));
-	phantom_port->sds_consumer_crb =
+	phantom->sds_consumer_crb =
 		( UNM_CAM_RAM +
 		  le32_to_cpu ( buf->cardrsp.sds.host_consumer_crb ));
 
-	DBGC ( phantom, "Phantom %p port %d created RX context (id %04x, "
-	       "port phys %02x virt %02x)\n", phantom, phantom_port->port,
-	       phantom_port->rx_context_id, buf->cardrsp.rx_ctx.phys_port,
-	       buf->cardrsp.rx_ctx.virt_port );
+	DBGC ( phantom, "Phantom %p created RX context (id %04x, port phys "
+	       "%02x virt %02x)\n", phantom, phantom->rx_context_id,
+	       buf->cardrsp.rx_ctx.phys_port, buf->cardrsp.rx_ctx.virt_port );
 	DBGC2_HDA ( phantom, virt_to_bus ( &buf->cardrsp ),
 		    &buf->cardrsp, sizeof ( buf->cardrsp ) );
-	DBGC ( phantom, "Phantom %p port %d RDS producer CRB is %08lx\n",
-	       phantom, phantom_port->port, phantom_port->rds_producer_crb );
-	DBGC ( phantom, "Phantom %p port %d SDS consumer CRB is %08lx\n",
-	       phantom, phantom_port->port, phantom_port->sds_consumer_crb );
+	DBGC ( phantom, "Phantom %p RDS producer CRB is %08lx\n",
+	       phantom, phantom->rds_producer_crb );
+	DBGC ( phantom, "Phantom %p SDS consumer CRB is %08lx\n",
+	       phantom, phantom->sds_consumer_crb );
 
-	return 0;
+ out:
+	free_dma ( buf, sizeof ( *buf ) );
+	return rc;
 }
 
 /**
  * Destroy Phantom RX context
  *
- * @v phantom_port	Phantom NIC port
+ * @v phantom		Phantom NIC
  * @ret rc		Return status code
  */
-static void phantom_destroy_rx_ctx ( struct phantom_nic_port *phantom_port ) {
-	struct phantom_nic *phantom = phantom_port->phantom;
+static void phantom_destroy_rx_ctx ( struct phantom_nic *phantom ) {
 	int rc;
 	
-	DBGC ( phantom, "Phantom %p port %d destroying RX context (id %04x)\n",
-	       phantom, phantom_port->port, phantom_port->rx_context_id );
+	DBGC ( phantom, "Phantom %p destroying RX context (id %04x)\n",
+	       phantom, phantom->rx_context_id );
 
 	/* Issue request */
-	if ( ( rc = phantom_issue_cmd ( phantom_port,
+	if ( ( rc = phantom_issue_cmd ( phantom,
 					NX_CDRP_CMD_DESTROY_RX_CTX,
-					phantom_port->rx_context_id,
+					phantom->rx_context_id,
 					NX_DESTROY_CTX_RESET, 0 ) ) != 0 ) {
-		DBGC ( phantom, "Phantom %p port %d could not destroy RX "
-		       "context: %s\n",
-		       phantom, phantom_port->port, strerror ( rc ) );
+		DBGC ( phantom, "Phantom %p could not destroy RX context: "
+		       "%s\n", phantom, strerror ( rc ) );
 		/* We're probably screwed */
 		return;
 	}
 
 	/* Clear context parameters */
-	phantom_port->rx_context_id = 0;
-	phantom_port->rds_producer_crb = 0;
-	phantom_port->sds_consumer_crb = 0;
+	phantom->rx_context_id = 0;
+	phantom->rds_producer_crb = 0;
+	phantom->sds_consumer_crb = 0;
 
 	/* Reset software counters */
-	phantom_port->rds_producer_idx = 0;
-	phantom_port->rds_consumer_idx = 0;
-	phantom_port->sds_consumer_idx = 0;
+	phantom->rds_producer_idx = 0;
+	phantom->rds_consumer_idx = 0;
+	phantom->sds_consumer_idx = 0;
 }
 
 /**
  * Create Phantom TX context
  *
- * @v phantom_port	Phantom NIC port
+ * @v phantom		Phantom NIC
  * @ret rc		Return status code
  */
-static int phantom_create_tx_ctx ( struct phantom_nic_port *phantom_port ) {
-	struct phantom_nic *phantom = phantom_port->phantom;
+static int phantom_create_tx_ctx ( struct phantom_nic *phantom ) {
 	struct phantom_create_tx_ctx_rqrsp *buf;
 	int rc;
 
-	/* Prepare request */
-	buf = &phantom->dma_buf->create_tx_ctx;
+	/* Allocate context creation buffer */
+	buf = malloc_dma ( sizeof ( *buf ), UNM_DMA_BUFFER_ALIGN );
+	if ( ! buf ) {
+		rc = -ENOMEM;
+		goto out;
+	}
 	memset ( buf, 0, sizeof ( *buf ) );
+
+	/* Prepare request */
 	buf->hostrq.tx_ctx.host_rsp_dma_addr =
 		cpu_to_le64 ( virt_to_bus ( &buf->cardrsp ) );
 	buf->hostrq.tx_ctx.cmd_cons_dma_addr =
-		cpu_to_le64 ( virt_to_bus ( &phantom_port->desc->cmd_cons ) );
-	buf->hostrq.tx_ctx.dummy_dma_addr =
-		cpu_to_le64 ( virt_to_bus ( phantom->dma_buf->dummy_dma ) );
+		cpu_to_le64 ( virt_to_bus ( &phantom->desc->cmd_cons ) );
 	buf->hostrq.tx_ctx.capabilities[0] =
 		cpu_to_le32 ( NX_CAP0_LEGACY_CONTEXT | NX_CAP0_LEGACY_MN );
 	buf->hostrq.tx_ctx.host_int_crb_mode =
 		cpu_to_le32 ( NX_HOST_INT_CRB_MODE_SHARED );
 	buf->hostrq.tx_ctx.cds_ring.host_phys_addr =
-		cpu_to_le64 ( virt_to_bus ( phantom_port->desc->cds ) );
+		cpu_to_le64 ( virt_to_bus ( phantom->desc->cds ) );
 	buf->hostrq.tx_ctx.cds_ring.ring_size = cpu_to_le32 ( PHN_NUM_CDS );
 
-	DBGC ( phantom, "Phantom %p port %d creating TX context\n",
-	       phantom, phantom_port->port );
+	DBGC ( phantom, "Phantom %p creating TX context\n", phantom );
 	DBGC2_HDA ( phantom, virt_to_bus ( &buf->hostrq ),
 		    &buf->hostrq, sizeof ( buf->hostrq ) );
 
 	/* Issue request */
-	if ( ( rc = phantom_issue_buf_cmd ( phantom_port,
+	if ( ( rc = phantom_issue_buf_cmd ( phantom,
 					    NX_CDRP_CMD_CREATE_TX_CTX,
 					    &buf->hostrq,
 					    sizeof ( buf->hostrq ) ) ) != 0 ) {
-		DBGC ( phantom, "Phantom %p port %d could not create TX "
-		       "context: %s\n",
-		       phantom, phantom_port->port, strerror ( rc ) );
+		DBGC ( phantom, "Phantom %p could not create TX context: "
+		       "%s\n", phantom, strerror ( rc ) );
 		DBGC ( phantom, "Request:\n" );
 		DBGC_HDA ( phantom, virt_to_bus ( &buf->hostrq ),
 			   &buf->hostrq, sizeof ( buf->hostrq ) );
 		DBGC ( phantom, "Response:\n" );
 		DBGC_HDA ( phantom, virt_to_bus ( &buf->cardrsp ),
 			   &buf->cardrsp, sizeof ( buf->cardrsp ) );
-		return rc;
+		goto out;
 	}
 
 	/* Retrieve context parameters */
-	phantom_port->tx_context_id =
+	phantom->tx_context_id =
 		le16_to_cpu ( buf->cardrsp.tx_ctx.context_id );
-	phantom_port->cds_producer_crb =
+	phantom->cds_producer_crb =
 		( UNM_CAM_RAM +
 		  le32_to_cpu(buf->cardrsp.tx_ctx.cds_ring.host_producer_crb));
 
-	DBGC ( phantom, "Phantom %p port %d created TX context (id %04x, "
-	       "port phys %02x virt %02x)\n", phantom, phantom_port->port,
-	       phantom_port->tx_context_id, buf->cardrsp.tx_ctx.phys_port,
-	       buf->cardrsp.tx_ctx.virt_port );
+	DBGC ( phantom, "Phantom %p created TX context (id %04x, port phys "
+	       "%02x virt %02x)\n", phantom, phantom->tx_context_id,
+	       buf->cardrsp.tx_ctx.phys_port, buf->cardrsp.tx_ctx.virt_port );
 	DBGC2_HDA ( phantom, virt_to_bus ( &buf->cardrsp ),
 		    &buf->cardrsp, sizeof ( buf->cardrsp ) );
-	DBGC ( phantom, "Phantom %p port %d CDS producer CRB is %08lx\n",
-	       phantom, phantom_port->port, phantom_port->cds_producer_crb );
+	DBGC ( phantom, "Phantom %p CDS producer CRB is %08lx\n",
+	       phantom, phantom->cds_producer_crb );
 
-	return 0;
+ out:
+	free_dma ( buf, sizeof ( *buf ) );
+	return rc;
 }
 
 /**
  * Destroy Phantom TX context
  *
- * @v phantom_port	Phantom NIC port
+ * @v phantom		Phantom NIC
  * @ret rc		Return status code
  */
-static void phantom_destroy_tx_ctx ( struct phantom_nic_port *phantom_port ) {
-	struct phantom_nic *phantom = phantom_port->phantom;
+static void phantom_destroy_tx_ctx ( struct phantom_nic *phantom ) {
 	int rc;
 	
-	DBGC ( phantom, "Phantom %p port %d destroying TX context (id %04x)\n",
-	       phantom, phantom_port->port, phantom_port->tx_context_id );
+	DBGC ( phantom, "Phantom %p destroying TX context (id %04x)\n",
+	       phantom, phantom->tx_context_id );
 
 	/* Issue request */
-	if ( ( rc = phantom_issue_cmd ( phantom_port,
+	if ( ( rc = phantom_issue_cmd ( phantom,
 					NX_CDRP_CMD_DESTROY_TX_CTX,
-					phantom_port->tx_context_id,
+					phantom->tx_context_id,
 					NX_DESTROY_CTX_RESET, 0 ) ) != 0 ) {
-		DBGC ( phantom, "Phantom %p port %d could not destroy TX "
-		       "context: %s\n",
-		       phantom, phantom_port->port, strerror ( rc ) );
+		DBGC ( phantom, "Phantom %p could not destroy TX context: "
+		       "%s\n", phantom, strerror ( rc ) );
 		/* We're probably screwed */
 		return;
 	}
 
 	/* Clear context parameters */
-	phantom_port->tx_context_id = 0;
-	phantom_port->cds_producer_crb = 0;
+	phantom->tx_context_id = 0;
+	phantom->cds_producer_crb = 0;
 
 	/* Reset software counters */
-	phantom_port->cds_producer_idx = 0;
-	phantom_port->cds_consumer_idx = 0;
+	phantom->cds_producer_idx = 0;
+	phantom->cds_consumer_idx = 0;
 }
 
 /***************************************************************************
@@ -951,11 +828,10 @@ static void phantom_destroy_tx_ctx ( struct phantom_nic_port *phantom_port ) {
 /**
  * Allocate Phantom RX descriptor
  *
- * @v phantom_port	Phantom NIC port
+ * @v phantom		Phantom NIC
  * @ret index		RX descriptor index, or negative error
  */
-static int phantom_alloc_rds ( struct phantom_nic_port *phantom_port ) {
-	struct phantom_nic *phantom = phantom_port->phantom;
+static int phantom_alloc_rds ( struct phantom_nic *phantom ) {
 	unsigned int rds_producer_idx;
 	unsigned int next_rds_producer_idx;
 
@@ -965,12 +841,11 @@ static int phantom_alloc_rds ( struct phantom_nic_port *phantom_port ) {
 	 * guaranteed never to be an overestimate of the number of
 	 * descriptors read by the hardware.
 	 */
-	rds_producer_idx = phantom_port->rds_producer_idx;
+	rds_producer_idx = phantom->rds_producer_idx;
 	next_rds_producer_idx = ( ( rds_producer_idx + 1 ) % PHN_NUM_RDS );
-	if ( next_rds_producer_idx == phantom_port->rds_consumer_idx ) {
-		DBGC ( phantom, "Phantom %p port %d RDS ring full (index %d "
-		       "not consumed)\n", phantom, phantom_port->port,
-		       next_rds_producer_idx );
+	if ( next_rds_producer_idx == phantom->rds_consumer_idx ) {
+		DBGC ( phantom, "Phantom %p RDS ring full (index %d not "
+		       "consumed)\n", phantom, next_rds_producer_idx );
 		return -ENOBUFS;
 	}
 
@@ -980,41 +855,38 @@ static int phantom_alloc_rds ( struct phantom_nic_port *phantom_port ) {
 /**
  * Post Phantom RX descriptor
  *
- * @v phantom_port	Phantom NIC port
+ * @v phantom		Phantom NIC
  * @v rds		RX descriptor
  */
-static void phantom_post_rds ( struct phantom_nic_port *phantom_port,
+static void phantom_post_rds ( struct phantom_nic *phantom,
 			       struct phantom_rds *rds ) {
-	struct phantom_nic *phantom = phantom_port->phantom;
 	unsigned int rds_producer_idx;
 	unsigned int next_rds_producer_idx;
 	struct phantom_rds *entry;
 
 	/* Copy descriptor to ring */
-	rds_producer_idx = phantom_port->rds_producer_idx;
-	entry = &phantom_port->desc->rds[rds_producer_idx];
+	rds_producer_idx = phantom->rds_producer_idx;
+	entry = &phantom->desc->rds[rds_producer_idx];
 	memcpy ( entry, rds, sizeof ( *entry ) );
-	DBGC2 ( phantom, "Phantom %p port %d posting RDS %ld (slot %d):\n",
-		phantom, phantom_port->port, NX_GET ( rds, handle ),
-		rds_producer_idx );
+	DBGC2 ( phantom, "Phantom %p posting RDS %ld (slot %d):\n",
+		phantom, NX_GET ( rds, handle ), rds_producer_idx );
 	DBGC2_HDA ( phantom, virt_to_bus ( entry ), entry, sizeof ( *entry ) );
 
 	/* Update producer index */
 	next_rds_producer_idx = ( ( rds_producer_idx + 1 ) % PHN_NUM_RDS );
-	phantom_port->rds_producer_idx = next_rds_producer_idx;
+	phantom->rds_producer_idx = next_rds_producer_idx;
 	wmb();
-	phantom_writel ( phantom, phantom_port->rds_producer_idx,
-			 phantom_port->rds_producer_crb );
+	phantom_writel ( phantom, phantom->rds_producer_idx,
+			 phantom->rds_producer_crb );
 }
 
 /**
  * Allocate Phantom TX descriptor
  *
- * @v phantom_port	Phantom NIC port
+ * @v phantom		Phantom NIC
  * @ret index		TX descriptor index, or negative error
  */
-static int phantom_alloc_cds ( struct phantom_nic_port *phantom_port ) {
-	struct phantom_nic *phantom = phantom_port->phantom;
+static int phantom_alloc_cds ( struct phantom_nic *phantom ) {
 	unsigned int cds_producer_idx;
 	unsigned int next_cds_producer_idx;
 
@@ -1022,12 +894,11 @@ static int phantom_alloc_cds ( struct phantom_nic_port *phantom_port ) {
 	 * in strict order, so we just check for a collision against
 	 * the consumer index.
 	 */
-	cds_producer_idx = phantom_port->cds_producer_idx;
+	cds_producer_idx = phantom->cds_producer_idx;
 	next_cds_producer_idx = ( ( cds_producer_idx + 1 ) % PHN_NUM_CDS );
-	if ( next_cds_producer_idx == phantom_port->cds_consumer_idx ) {
-		DBGC ( phantom, "Phantom %p port %d CDS ring full (index %d "
-		       "not consumed)\n", phantom, phantom_port->port,
-		       next_cds_producer_idx );
+	if ( next_cds_producer_idx == phantom->cds_consumer_idx ) {
+		DBGC ( phantom, "Phantom %p CDS ring full (index %d not "
+		       "consumed)\n", phantom, next_cds_producer_idx );
 		return -ENOBUFS;
 	}
 
@@ -1037,30 +908,29 @@ static int phantom_alloc_cds ( struct phantom_nic_port *phantom_port ) {
 /**
  * Post Phantom TX descriptor
  *
- * @v phantom_port	Phantom NIC port
+ * @v phantom		Phantom NIC
  * @v cds		TX descriptor
  */
-static void phantom_post_cds ( struct phantom_nic_port *phantom_port,
+static void phantom_post_cds ( struct phantom_nic *phantom,
 			       union phantom_cds *cds ) {
-	struct phantom_nic *phantom = phantom_port->phantom;
 	unsigned int cds_producer_idx;
 	unsigned int next_cds_producer_idx;
 	union phantom_cds *entry;
 
 	/* Copy descriptor to ring */
-	cds_producer_idx = phantom_port->cds_producer_idx;
-	entry = &phantom_port->desc->cds[cds_producer_idx];
+	cds_producer_idx = phantom->cds_producer_idx;
+	entry = &phantom->desc->cds[cds_producer_idx];
 	memcpy ( entry, cds, sizeof ( *entry ) );
-	DBGC2 ( phantom, "Phantom %p port %d posting CDS %d:\n",
-		phantom, phantom_port->port, cds_producer_idx );
+	DBGC2 ( phantom, "Phantom %p posting CDS %d:\n",
+		phantom, cds_producer_idx );
 	DBGC2_HDA ( phantom, virt_to_bus ( entry ), entry, sizeof ( *entry ) );
 
 	/* Update producer index */
 	next_cds_producer_idx = ( ( cds_producer_idx + 1 ) % PHN_NUM_CDS );
-	phantom_port->cds_producer_idx = next_cds_producer_idx;
+	phantom->cds_producer_idx = next_cds_producer_idx;
 	wmb();
-	phantom_writel ( phantom, phantom_port->cds_producer_idx,
-			 phantom_port->cds_producer_crb );
+	phantom_writel ( phantom, phantom->cds_producer_idx,
+			 phantom->cds_producer_crb );
 }
 
 /***************************************************************************
@@ -1072,19 +942,19 @@ static void phantom_post_cds ( struct phantom_nic_port *phantom_port,
 /**
  * Add/remove MAC address
  *
- * @v phantom_port	Phantom NIC port
+ * @v phantom		Phantom NIC
  * @v ll_addr		MAC address to add or remove
  * @v opcode		MAC request opcode
  * @ret rc		Return status code
  */
-static int phantom_update_macaddr ( struct phantom_nic_port *phantom_port,
+static int phantom_update_macaddr ( struct phantom_nic *phantom,
 				    const uint8_t *ll_addr,
 				    unsigned int opcode ) {
 	union phantom_cds cds;
 	int index;
 
 	/* Get descriptor ring entry */
-	index = phantom_alloc_cds ( phantom_port );
+	index = phantom_alloc_cds ( phantom );
 	if ( index < 0 )
 		return index;
 
@@ -1094,7 +964,7 @@ static int phantom_update_macaddr ( struct phantom_nic_port *phantom_port,
 		    nic_request.common.opcode, UNM_NIC_REQUEST );
 	NX_FILL_2 ( &cds, 1,
 		    nic_request.header.opcode, UNM_MAC_EVENT,
-		    nic_request.header.context_id, phantom_port->port );
+		    nic_request.header.context_id, phantom->port );
 	NX_FILL_7 ( &cds, 2,
 		    nic_request.body.mac_request.opcode, opcode,
 		    nic_request.body.mac_request.mac_addr_0, ll_addr[0],
@@ -1105,7 +975,7 @@ static int phantom_update_macaddr ( struct phantom_nic_port *phantom_port,
 		    nic_request.body.mac_request.mac_addr_5, ll_addr[5] );
 
 	/* Post descriptor */
-	phantom_post_cds ( phantom_port, &cds );
+	phantom_post_cds ( phantom, &cds );
 
 	return 0;
 }
@@ -1113,35 +983,33 @@ static int phantom_update_macaddr ( struct phantom_nic_port *phantom_port,
 /**
  * Add MAC address
  *
- * @v phantom_port	Phantom NIC port
+ * @v phantom		Phantom NIC
  * @v ll_addr		MAC address to add or remove
  * @ret rc		Return status code
  */
-static inline int phantom_add_macaddr ( struct phantom_nic_port *phantom_port,
+static inline int phantom_add_macaddr ( struct phantom_nic *phantom,
 					const uint8_t *ll_addr ) {
-	struct phantom_nic *phantom = phantom_port->phantom;
 
-	DBGC ( phantom, "Phantom %p port %d adding MAC address %s\n",
-	       phantom, phantom_port->port, eth_ntoa ( ll_addr ) );
+	DBGC ( phantom, "Phantom %p adding MAC address %s\n",
+	       phantom, eth_ntoa ( ll_addr ) );
 
-	return phantom_update_macaddr ( phantom_port, ll_addr, UNM_MAC_ADD );
+	return phantom_update_macaddr ( phantom, ll_addr, UNM_MAC_ADD );
 }
 
 /**
  * Remove MAC address
  *
- * @v phantom_port	Phantom NIC port
+ * @v phantom		Phantom NIC
  * @v ll_addr		MAC address to add or remove
  * @ret rc		Return status code
  */
-static inline int phantom_del_macaddr ( struct phantom_nic_port *phantom_port,
+static inline int phantom_del_macaddr ( struct phantom_nic *phantom,
 					const uint8_t *ll_addr ) {
-	struct phantom_nic *phantom = phantom_port->phantom;
 
-	DBGC ( phantom, "Phantom %p port %d removing MAC address %s\n",
-	       phantom, phantom_port->port, eth_ntoa ( ll_addr ) );
+	DBGC ( phantom, "Phantom %p removing MAC address %s\n",
+	       phantom, eth_ntoa ( ll_addr ) );
 
-	return phantom_update_macaddr ( phantom_port, ll_addr, UNM_MAC_DEL );
+	return phantom_update_macaddr ( phantom, ll_addr, UNM_MAC_DEL );
 }
 
 /***************************************************************************
@@ -1153,14 +1021,12 @@ static inline int phantom_del_macaddr ( struct phantom_nic_port *phantom_port,
 /**
  * Poll link state
  *
- * @v phantom		Phantom NIC
+ * @v netdev		Network device
  */
-static void phantom_poll_link_state ( struct phantom_nic *phantom ) {
-	struct net_device *netdev;
-	struct phantom_nic_port *phantom_port;
+static void phantom_poll_link_state ( struct net_device *netdev ) {
+	struct phantom_nic *phantom = netdev_priv ( netdev );
 	uint32_t xg_state_p3;
 	unsigned int link;
-	int i;
 
 	/* Read link state */
 	xg_state_p3 = phantom_readl ( phantom, UNM_NIC_REG_XG_STATE_P3 );
@@ -1170,32 +1036,26 @@ static void phantom_poll_link_state ( struct phantom_nic *phantom ) {
 		return;
 
 	/* Record new link state */
-	DBGC ( phantom, "Phantom %p new link state %08lx (was %08lx)\n",
+	DBGC ( phantom, "Phantom %p new link state %08x (was %08x)\n",
 	       phantom, xg_state_p3, phantom->link_state );
 	phantom->link_state = xg_state_p3;
 
-	/* Indicate per-port link state to gPXE */
-	for ( i = 0 ; i < phantom->num_ports ; i++ ) {
-		netdev = phantom->netdev[i];
-		phantom_port = netdev_priv ( netdev );
-		link = UNM_NIC_REG_XG_STATE_P3_LINK ( phantom_port->port,
-						      phantom->link_state );
-		switch ( link ) {
-		case UNM_NIC_REG_XG_STATE_P3_LINK_UP:
-			DBGC ( phantom, "Phantom %p port %d link is up\n",
-			       phantom, phantom_port->port );
-			netdev_link_up ( netdev );
-			break;
-		case UNM_NIC_REG_XG_STATE_P3_LINK_DOWN:
-			DBGC ( phantom, "Phantom %p port %d link is down\n",
-			       phantom, phantom_port->port );
-			netdev_link_down ( netdev );
-			break;
-		default:
-			DBGC ( phantom, "Phantom %p port %d bad link state "
-			       "%d\n", phantom, phantom_port->port, link );
-			break;
-		}
+	/* Indicate link state to gPXE */
+	link = UNM_NIC_REG_XG_STATE_P3_LINK ( phantom->port,
+					      phantom->link_state );
+	switch ( link ) {
+	case UNM_NIC_REG_XG_STATE_P3_LINK_UP:
+		DBGC ( phantom, "Phantom %p link is up\n", phantom );
+		netdev_link_up ( netdev );
+		break;
+	case UNM_NIC_REG_XG_STATE_P3_LINK_DOWN:
+		DBGC ( phantom, "Phantom %p link is down\n", phantom );
+		netdev_link_down ( netdev );
+		break;
+	default:
+		DBGC ( phantom, "Phantom %p bad link state %d\n",
+		       phantom, link );
+		break;
 	}
 }
 
@@ -1211,7 +1071,7 @@ static void phantom_poll_link_state ( struct phantom_nic *phantom ) {
  * @v netdev		Net device
  */
 static void phantom_refill_rx_ring ( struct net_device *netdev ) {
-	struct phantom_nic_port *phantom_port = netdev_priv ( netdev );
+	struct phantom_nic *phantom = netdev_priv ( netdev );
 	struct io_buffer *iobuf;
 	struct phantom_rds rds;
 	unsigned int handle;
@@ -1222,11 +1082,11 @@ static void phantom_refill_rx_ring ( struct net_device *netdev ) {
 		/* Skip this index if the descriptor has not yet been
 		 * consumed.
 		 */
-		if ( phantom_port->rds_iobuf[handle] != NULL )
+		if ( phantom->rds_iobuf[handle] != NULL )
 			continue;
 
 		/* Allocate descriptor ring entry */
-		index = phantom_alloc_rds ( phantom_port );
+		index = phantom_alloc_rds ( phantom );
 		assert ( PHN_RDS_MAX_FILL < PHN_NUM_RDS );
 		assert ( index >= 0 ); /* Guaranteed by MAX_FILL < NUM_RDS ) */
 
@@ -1247,11 +1107,11 @@ static void phantom_refill_rx_ring ( struct net_device *netdev ) {
 			    dma_addr, virt_to_bus ( iobuf->data ) );
 
 		/* Record I/O buffer */
-		assert ( phantom_port->rds_iobuf[handle] == NULL );
-		phantom_port->rds_iobuf[handle] = iobuf;
+		assert ( phantom->rds_iobuf[handle] == NULL );
+		phantom->rds_iobuf[handle] = iobuf;
 
 		/* Post descriptor */
-		phantom_post_rds ( phantom_port, &rds );
+		phantom_post_rds ( phantom, &rds );
 	}
 }
 
@@ -1262,24 +1122,24 @@ static void phantom_refill_rx_ring ( struct net_device *netdev ) {
  * @ret rc		Return status code
  */
 static int phantom_open ( struct net_device *netdev ) {
-	struct phantom_nic_port *phantom_port = netdev_priv ( netdev );
+	struct phantom_nic *phantom = netdev_priv ( netdev );
 	int rc;
 
 	/* Allocate and zero descriptor rings */
-	phantom_port->desc = malloc_dma ( sizeof ( *(phantom_port->desc) ),
+	phantom->desc = malloc_dma ( sizeof ( *(phantom->desc) ),
 					  UNM_DMA_BUFFER_ALIGN );
-	if ( ! phantom_port->desc ) {
+	if ( ! phantom->desc ) {
 		rc = -ENOMEM;
 		goto err_alloc_desc;
 	}
-	memset ( phantom_port->desc, 0, sizeof ( *(phantom_port->desc) ) );
+	memset ( phantom->desc, 0, sizeof ( *(phantom->desc) ) );
 
 	/* Create RX context */
-	if ( ( rc = phantom_create_rx_ctx ( phantom_port ) ) != 0 )
+	if ( ( rc = phantom_create_rx_ctx ( phantom ) ) != 0 )
 		goto err_create_rx_ctx;
 
 	/* Create TX context */
-	if ( ( rc = phantom_create_tx_ctx ( phantom_port ) ) != 0 )
+	if ( ( rc = phantom_create_tx_ctx ( phantom ) ) != 0 )
 		goto err_create_tx_ctx;
 
 	/* Fill the RX descriptor ring */
@@ -1293,26 +1153,26 @@ static int phantom_open ( struct net_device *netdev ) {
 	 * packets (or, failing that, promiscuous mode), but the
 	 * firmware doesn't currently support this.
 	 */
-	if ( ( rc = phantom_add_macaddr ( phantom_port,
+	if ( ( rc = phantom_add_macaddr ( phantom,
 				   netdev->ll_protocol->ll_broadcast ) ) != 0 )
 		goto err_add_macaddr_broadcast;
-	if ( ( rc = phantom_add_macaddr ( phantom_port,
+	if ( ( rc = phantom_add_macaddr ( phantom,
 					  netdev->ll_addr ) ) != 0 )
 		goto err_add_macaddr_unicast;
 
 	return 0;
 
-	phantom_del_macaddr ( phantom_port, netdev->ll_addr );
+	phantom_del_macaddr ( phantom, netdev->ll_addr );
  err_add_macaddr_unicast:
-	phantom_del_macaddr ( phantom_port,
+	phantom_del_macaddr ( phantom,
 			      netdev->ll_protocol->ll_broadcast );
  err_add_macaddr_broadcast:
-	phantom_destroy_tx_ctx ( phantom_port );
+	phantom_destroy_tx_ctx ( phantom );
  err_create_tx_ctx:
-	phantom_destroy_rx_ctx ( phantom_port );
+	phantom_destroy_rx_ctx ( phantom );
  err_create_rx_ctx:
-	free_dma ( phantom_port->desc, sizeof ( *(phantom_port->desc) ) );
-	phantom_port->desc = NULL;
+	free_dma ( phantom->desc, sizeof ( *(phantom->desc) ) );
+	phantom->desc = NULL;
  err_alloc_desc:
 	return rc;
 }
@@ -1323,32 +1183,32 @@ static int phantom_open ( struct net_device *netdev ) {
  * @v netdev		Net device
  */
 static void phantom_close ( struct net_device *netdev ) {
-	struct phantom_nic_port *phantom_port = netdev_priv ( netdev );
+	struct phantom_nic *phantom = netdev_priv ( netdev );
 	struct io_buffer *iobuf;
 	unsigned int i;
 
 	/* Shut down the port */
-	phantom_del_macaddr ( phantom_port, netdev->ll_addr );
-	phantom_del_macaddr ( phantom_port,
+	phantom_del_macaddr ( phantom, netdev->ll_addr );
+	phantom_del_macaddr ( phantom,
 			      netdev->ll_protocol->ll_broadcast );
-	phantom_destroy_tx_ctx ( phantom_port );
-	phantom_destroy_rx_ctx ( phantom_port );
-	free_dma ( phantom_port->desc, sizeof ( *(phantom_port->desc) ) );
-	phantom_port->desc = NULL;
+	phantom_destroy_tx_ctx ( phantom );
+	phantom_destroy_rx_ctx ( phantom );
+	free_dma ( phantom->desc, sizeof ( *(phantom->desc) ) );
+	phantom->desc = NULL;
 
 	/* Flush any uncompleted descriptors */
 	for ( i = 0 ; i < PHN_RDS_MAX_FILL ; i++ ) {
-		iobuf = phantom_port->rds_iobuf[i];
+		iobuf = phantom->rds_iobuf[i];
 		if ( iobuf ) {
 			free_iob ( iobuf );
-			phantom_port->rds_iobuf[i] = NULL;
+			phantom->rds_iobuf[i] = NULL;
 		}
 	}
 	for ( i = 0 ; i < PHN_NUM_CDS ; i++ ) {
-		iobuf = phantom_port->cds_iobuf[i];
+		iobuf = phantom->cds_iobuf[i];
 		if ( iobuf ) {
 			netdev_tx_complete_err ( netdev, iobuf, -ECANCELED );
-			phantom_port->cds_iobuf[i] = NULL;
+			phantom->cds_iobuf[i] = NULL;
 		}
 	}
 }
@@ -1362,12 +1222,12 @@ static void phantom_close ( struct net_device *netdev ) {
  */
 static int phantom_transmit ( struct net_device *netdev,
 			      struct io_buffer *iobuf ) {
-	struct phantom_nic_port *phantom_port = netdev_priv ( netdev );
+	struct phantom_nic *phantom = netdev_priv ( netdev );
 	union phantom_cds cds;
 	int index;
 
 	/* Get descriptor ring entry */
-	index = phantom_alloc_cds ( phantom_port );
+	index = phantom_alloc_cds ( phantom );
 	if ( index < 0 )
 		return index;
 
@@ -1378,19 +1238,19 @@ static int phantom_transmit ( struct net_device *netdev,
 		    tx.num_buffers, 1,
 		    tx.length, iob_len ( iobuf ) );
 	NX_FILL_2 ( &cds, 2,
-		    tx.port, phantom_port->port,
-		    tx.context_id, phantom_port->port );
+		    tx.port, phantom->port,
+		    tx.context_id, phantom->port );
 	NX_FILL_1 ( &cds, 4,
 		    tx.buffer1_dma_addr, virt_to_bus ( iobuf->data ) );
 	NX_FILL_1 ( &cds, 5,
 		    tx.buffer1_length, iob_len ( iobuf ) );
 
 	/* Record I/O buffer */
-	assert ( phantom_port->cds_iobuf[index] == NULL );
-	phantom_port->cds_iobuf[index] = iobuf;
+	assert ( phantom->cds_iobuf[index] == NULL );
+	phantom->cds_iobuf[index] = iobuf;
 
 	/* Post descriptor */
-	phantom_post_cds ( phantom_port, &cds );
+	phantom_post_cds ( phantom, &cds );
 
 	return 0;
 }
@@ -1401,8 +1261,7 @@ static int phantom_transmit ( struct net_device *netdev,
  * @v netdev	Network device
  */
 static void phantom_poll ( struct net_device *netdev ) {
-	struct phantom_nic_port *phantom_port = netdev_priv ( netdev );
-	struct phantom_nic *phantom = phantom_port->phantom;
+	struct phantom_nic *phantom = netdev_priv ( netdev );
 	struct io_buffer *iobuf;
 	unsigned int cds_consumer_idx;
 	unsigned int raw_new_cds_consumer_idx;
@@ -1414,33 +1273,33 @@ static void phantom_poll ( struct net_device *netdev ) {
 	unsigned int sds_opcode;
 
 	/* Check for TX completions */
-	cds_consumer_idx = phantom_port->cds_consumer_idx;
-	raw_new_cds_consumer_idx = phantom_port->desc->cmd_cons;
+	cds_consumer_idx = phantom->cds_consumer_idx;
+	raw_new_cds_consumer_idx = phantom->desc->cmd_cons;
 	new_cds_consumer_idx = le32_to_cpu ( raw_new_cds_consumer_idx );
 	while ( cds_consumer_idx != new_cds_consumer_idx ) {
-		DBGC2 ( phantom, "Phantom %p port %d CDS %d complete\n",
-			phantom, phantom_port->port, cds_consumer_idx );
+		DBGC2 ( phantom, "Phantom %p CDS %d complete\n",
+			phantom, cds_consumer_idx );
 		/* Completions may be for commands other than TX, so
 		 * there may not always be an associated I/O buffer.
 		 */
-		if ( ( iobuf = phantom_port->cds_iobuf[cds_consumer_idx] ) ) {
+		if ( ( iobuf = phantom->cds_iobuf[cds_consumer_idx] ) ) {
 			netdev_tx_complete ( netdev, iobuf );
-			phantom_port->cds_iobuf[cds_consumer_idx] = NULL;
+			phantom->cds_iobuf[cds_consumer_idx] = NULL;
 		}
 		cds_consumer_idx = ( ( cds_consumer_idx + 1 ) % PHN_NUM_CDS );
-		phantom_port->cds_consumer_idx = cds_consumer_idx;
+		phantom->cds_consumer_idx = cds_consumer_idx;
 	}
 
 	/* Check for received packets */
-	rds_consumer_idx = phantom_port->rds_consumer_idx;
-	sds_consumer_idx = phantom_port->sds_consumer_idx;
+	rds_consumer_idx = phantom->rds_consumer_idx;
+	sds_consumer_idx = phantom->sds_consumer_idx;
 	while ( 1 ) {
-		sds = &phantom_port->desc->sds[sds_consumer_idx];
+		sds = &phantom->desc->sds[sds_consumer_idx];
 		if ( NX_GET ( sds, owner ) == 0 )
 			break;
 
-		DBGC2 ( phantom, "Phantom %p port %d SDS %d status:\n",
-			phantom, phantom_port->port, sds_consumer_idx );
+		DBGC2 ( phantom, "Phantom %p SDS %d status:\n",
+			phantom, sds_consumer_idx );
 		DBGC2_HDA ( phantom, virt_to_bus ( sds ), sds, sizeof (*sds) );
 
 		/* Check received opcode */
@@ -1452,24 +1311,23 @@ static void phantom_poll ( struct net_device *netdev ) {
 			 * descriptor has been written.
 			 */
 			if ( NX_GET ( sds, total_length ) == 0 ) {
-				DBGC ( phantom, "Phantom %p port %d SDS %d "
-				       "incomplete; deferring\n", phantom,
-				       phantom_port->port, sds_consumer_idx );
+				DBGC ( phantom, "Phantom %p SDS %d "
+				       "incomplete; deferring\n",
+				       phantom, sds_consumer_idx );
 				/* Leave for next poll() */
 				break;
 			}
 
 			/* Process received packet */
 			sds_handle = NX_GET ( sds, handle );
-			iobuf = phantom_port->rds_iobuf[sds_handle];
+			iobuf = phantom->rds_iobuf[sds_handle];
 			assert ( iobuf != NULL );
 			iob_put ( iobuf, NX_GET ( sds, total_length ) );
 			iob_pull ( iobuf, NX_GET ( sds, pkt_offset ) );
-			DBGC2 ( phantom, "Phantom %p port %d RDS %d "
-				"complete\n",
-				phantom, phantom_port->port, sds_handle );
+			DBGC2 ( phantom, "Phantom %p RDS %d complete\n",
+				phantom, sds_handle );
 			netdev_rx ( netdev, iobuf );
-			phantom_port->rds_iobuf[sds_handle] = NULL;
+			phantom->rds_iobuf[sds_handle] = NULL;
 
 			/* Update RDS consumer counter.  This is a
 			 * lower bound for the number of descriptors
@@ -1480,13 +1338,12 @@ static void phantom_poll ( struct net_device *netdev ) {
 			 */
 			rds_consumer_idx =
 				( ( rds_consumer_idx + 1 ) % PHN_NUM_RDS );
-			phantom_port->rds_consumer_idx = rds_consumer_idx;
+			phantom->rds_consumer_idx = rds_consumer_idx;
 
 		} else {
 
-			DBGC ( phantom, "Phantom %p port %d unexpected SDS "
-			       "opcode %02x\n",
-			       phantom, phantom_port->port, sds_opcode );
+			DBGC ( phantom, "Phantom %p unexpected SDS opcode "
+			       "%02x\n", phantom, sds_opcode );
 			DBGC_HDA ( phantom, virt_to_bus ( sds ),
 				   sds, sizeof ( *sds ) );
 		}
@@ -1496,20 +1353,20 @@ static void phantom_poll ( struct net_device *netdev ) {
 
 		/* Update SDS consumer index */
 		sds_consumer_idx = ( ( sds_consumer_idx + 1 ) % PHN_NUM_SDS );
-		phantom_port->sds_consumer_idx = sds_consumer_idx;
+		phantom->sds_consumer_idx = sds_consumer_idx;
 		wmb();
-		phantom_writel ( phantom, phantom_port->sds_consumer_idx,
-				 phantom_port->sds_consumer_crb );
+		phantom_writel ( phantom, phantom->sds_consumer_idx,
+				 phantom->sds_consumer_crb );
 	}
 
 	/* Refill the RX descriptor ring */
 	phantom_refill_rx_ring ( netdev );
 
 	/* Occasionally poll the link state */
-	if ( phantom_port->link_poll_timer-- == 0 ) {
-		phantom_poll_link_state ( phantom );
+	if ( phantom->link_poll_timer-- == 0 ) {
+		phantom_poll_link_state ( netdev );
 		/* Reset the link poll timer */
-		phantom_port->link_poll_timer = PHN_LINK_POLL_FREQUENCY;
+		phantom->link_poll_timer = PHN_LINK_POLL_FREQUENCY;
 	}
 }
 
@@ -1520,9 +1377,8 @@ static void phantom_poll ( struct net_device *netdev ) {
  * @v enable	Interrupts should be enabled
  */
 static void phantom_irq ( struct net_device *netdev, int enable ) {
-	struct phantom_nic_port *phantom_port = netdev_priv ( netdev );
-	struct phantom_nic *phantom = phantom_port->phantom;
-	static const unsigned long sw_int_mask_reg[UNM_FLASH_NUM_PORTS] = {
+	struct phantom_nic *phantom = netdev_priv ( netdev );
+	static const unsigned long sw_int_mask_reg[PHN_MAX_NUM_PORTS] = {
 		UNM_NIC_REG_SW_INT_MASK_0,
 		UNM_NIC_REG_SW_INT_MASK_1,
 		UNM_NIC_REG_SW_INT_MASK_2,
@@ -1531,7 +1387,7 @@ static void phantom_irq ( struct net_device *netdev, int enable ) {
 
 	phantom_writel ( phantom,
 			 ( enable ? 1 : 0 ),
-			 sw_int_mask_reg[phantom_port->port] );
+			 sw_int_mask_reg[phantom->port] );
 }
 
 /** Phantom net device operations */
@@ -1542,6 +1398,336 @@ static struct net_device_operations phantom_operations = {
 	.poll		= phantom_poll,
 	.irq		= phantom_irq,
 };
+
+/***************************************************************************
+ *
+ * CLP settings
+ *
+ */
+
+/** Phantom CLP settings tag magic */
+#define PHN_CLP_TAG_MAGIC 0xc19c1900UL
+
+/** Phantom CLP settings tag magic mask */
+#define PHN_CLP_TAG_MAGIC_MASK 0xffffff00UL
+
+/** Phantom CLP data
+ *
+ */
+union phantom_clp_data {
+	/** Data bytes
+	 *
+	 * This field is right-aligned; if only N bytes are present
+	 * then bytes[0]..bytes[7-N] should be zero, and the data
+	 * should be in bytes[7-N+1] to bytes[7];
+	 */
+	uint8_t bytes[8];
+	/** Dwords for the CLP interface */
+	struct {
+		/** High dword, in network byte order */
+		uint32_t hi;
+		/** Low dword, in network byte order */
+		uint32_t lo;
+	} dwords;
+};
+#define PHN_CLP_BLKSIZE ( sizeof ( union phantom_clp_data ) )
+
+/**
+ * Wait for Phantom CLP command to complete
+ *
+ * @v phantom		Phantom NIC
+ * @ret rc		Return status code
+ */
+static int phantom_clp_wait ( struct phantom_nic *phantom ) {
+	unsigned int retries;
+	uint32_t status;
+
+	for ( retries = 0 ; retries < PHN_CLP_CMD_TIMEOUT_MS ; retries++ ) {
+		status = phantom_readl ( phantom, UNM_CAM_RAM_CLP_STATUS );
+		if ( status & UNM_CAM_RAM_CLP_STATUS_DONE )
+			return 0;
+		mdelay ( 1 );
+	}
+
+	DBGC ( phantom, "Phantom %p timed out waiting for CLP command\n",
+	       phantom );
+	return -ETIMEDOUT;
+}
+
+/**
+ * Issue Phantom CLP command
+ *
+ * @v phantom		Phantom NIC
+ * @v port		Virtual port number
+ * @v opcode		Opcode
+ * @v data_in		Data in, or NULL
+ * @v data_out		Data out, or NULL
+ * @v offset		Offset within data
+ * @v len		Data buffer length
+ * @ret len		Total transfer length (for reads), or negative error
+ */
+static int phantom_clp_cmd ( struct phantom_nic *phantom, unsigned int port,
+			     unsigned int opcode, const void *data_in,
+			     void *data_out, size_t offset, size_t len ) {
+	union phantom_clp_data data;
+	unsigned int index = ( offset / sizeof ( data ) );
+	unsigned int last = 0;
+	size_t in_frag_len;
+	uint8_t *in_frag;
+	uint32_t command;
+	uint32_t status;
+	size_t read_len;
+	unsigned int error;
+	size_t out_frag_len;
+	uint8_t *out_frag;
+	int rc;
+
+	/* Sanity checks */
+	assert ( ( offset % sizeof ( data ) ) == 0 );
+	if ( len > 255 ) {
+		DBGC ( phantom, "Phantom %p invalid CLP length %zd\n",
+		       phantom, len );
+		return -EINVAL;
+	}
+
+	/* Check that CLP interface is ready */
+	if ( ( rc = phantom_clp_wait ( phantom ) ) != 0 )
+		return rc;
+
+	/* Copy data in */
+	memset ( &data, 0, sizeof ( data ) );
+	if ( data_in ) {
+		assert ( offset < len );
+		in_frag_len = ( len - offset );
+		if ( in_frag_len > sizeof ( data ) ) {
+			in_frag_len = sizeof ( data );
+		} else {
+			last = 1;
+		}
+		in_frag = &data.bytes[ sizeof ( data ) - in_frag_len ];
+		memcpy ( in_frag, ( data_in + offset ), in_frag_len );
+		phantom_writel ( phantom, be32_to_cpu ( data.dwords.lo ),
+				 UNM_CAM_RAM_CLP_DATA_LO );
+		phantom_writel ( phantom, be32_to_cpu ( data.dwords.hi ),
+				 UNM_CAM_RAM_CLP_DATA_HI );
+	}
+
+	/* Issue CLP command */
+	command = ( ( index << 24 ) | ( ( data_in ? len : 0 ) << 16 ) |
+		    ( port << 8 ) | ( last << 7 ) | ( opcode << 0 ) );
+	phantom_writel ( phantom, command, UNM_CAM_RAM_CLP_COMMAND );
+	mb();
+	phantom_writel ( phantom, UNM_CAM_RAM_CLP_STATUS_START,
+			 UNM_CAM_RAM_CLP_STATUS );
+
+	/* Wait for command to complete */
+	if ( ( rc = phantom_clp_wait ( phantom ) ) != 0 )
+		return rc;
+
+	/* Get command status */
+	status = phantom_readl ( phantom, UNM_CAM_RAM_CLP_STATUS );
+	read_len = ( ( status >> 16 ) & 0xff );
+	error = ( ( status >> 8 ) & 0xff );
+	if ( error ) {
+		DBGC ( phantom, "Phantom %p CLP command error %02x\n",
+		       phantom, error );
+		return -EIO;
+	}
+
+	/* Copy data out */
+	if ( data_out ) {
+		data.dwords.lo = cpu_to_be32 ( phantom_readl ( phantom,
+						  UNM_CAM_RAM_CLP_DATA_LO ) );
+		data.dwords.hi = cpu_to_be32 ( phantom_readl ( phantom,
+						  UNM_CAM_RAM_CLP_DATA_HI ) );
+		out_frag_len = ( read_len - offset );
+		if ( out_frag_len > sizeof ( data ) )
+			out_frag_len = sizeof ( data );
+		out_frag = &data.bytes[ sizeof ( data ) - out_frag_len ];
+		if ( out_frag_len > ( len - offset ) )
+			out_frag_len = ( len - offset );
+		memcpy ( ( data_out + offset ), out_frag, out_frag_len );
+	}
+
+	return read_len;
+}
+
+/**
+ * Store Phantom CLP setting
+ *
+ * @v phantom		Phantom NIC
+ * @v port		Virtual port number
+ * @v setting		Setting number
+ * @v data		Data buffer
+ * @v len		Length of data buffer
+ * @ret rc		Return status code
+ */
+static int phantom_clp_store ( struct phantom_nic *phantom, unsigned int port,
+			       unsigned int setting, const void *data,
+			       size_t len ) {
+	unsigned int opcode = setting;
+	size_t offset;
+	int rc;
+
+	for ( offset = 0 ; offset < len ; offset += PHN_CLP_BLKSIZE ) {
+		if ( ( rc = phantom_clp_cmd ( phantom, port, opcode, data,
+					      NULL, offset, len ) ) < 0 )
+			return rc;
+	}
+	return 0;
+}
+
+/**
+ * Fetch Phantom CLP setting
+ *
+ * @v phantom		Phantom NIC
+ * @v port		Virtual port number
+ * @v setting		Setting number
+ * @v data		Data buffer
+ * @v len		Length of data buffer
+ * @ret len		Length of setting, or negative error
+ */
+static int phantom_clp_fetch ( struct phantom_nic *phantom, unsigned int port,
+			       unsigned int setting, void *data, size_t len ) {
+	unsigned int opcode = ( setting + 1 );
+	size_t offset = 0;
+	int read_len;
+
+	while ( 1 ) {
+		read_len = phantom_clp_cmd ( phantom, port, opcode, NULL,
+					     data, offset, len );
+		if ( read_len < 0 )
+			return read_len;
+		offset += PHN_CLP_BLKSIZE;
+		if ( offset >= ( unsigned ) read_len )
+			break;
+		if ( offset >= len )
+			break;
+	}
+	return read_len;
+}
+
+/** A Phantom CLP setting */
+struct phantom_clp_setting {
+	/** gPXE setting */
+	struct setting *setting;
+	/** Setting number */
+	unsigned int clp_setting;
+};
+
+/** Phantom CLP settings */
+static struct phantom_clp_setting clp_settings[] = {
+	{ &mac_setting, 0x01 },
+};
+
+/**
+ * Find Phantom CLP setting
+ *
+ * @v setting		gPXE setting
+ * @v clp_setting	Setting number, or 0 if not found
+ */
+static unsigned int
+phantom_clp_setting ( struct phantom_nic *phantom, struct setting *setting ) {
+	struct phantom_clp_setting *clp_setting;
+	unsigned int i;
+
+	/* Search the list of explicitly-defined settings */
+	for ( i = 0 ; i < ( sizeof ( clp_settings ) /
+			    sizeof ( clp_settings[0] ) ) ; i++ ) {
+		clp_setting = &clp_settings[i];
+		if ( setting_cmp ( setting, clp_setting->setting ) == 0 )
+			return clp_setting->clp_setting;
+	}
+
+	/* Allow for use of numbered settings */
+	if ( ( setting->tag & PHN_CLP_TAG_MAGIC_MASK ) == PHN_CLP_TAG_MAGIC )
+		return ( setting->tag & ~PHN_CLP_TAG_MAGIC_MASK );
+
+	DBGC2 ( phantom, "Phantom %p has no \"%s\" setting\n",
+		phantom, setting->name );
+
+	return 0;
+}
+
+/**
+ * Store Phantom CLP setting
+ *
+ * @v settings		Settings block
+ * @v setting		Setting to store
+ * @v data		Setting data, or NULL to clear setting
+ * @v len		Length of setting data
+ * @ret rc		Return status code
+ */
+static int phantom_store_setting ( struct settings *settings,
+				   struct setting *setting,
+				   const void *data, size_t len ) {
+	struct phantom_nic *phantom =
+		container_of ( settings, struct phantom_nic, settings );
+	unsigned int clp_setting;
+	int rc;
+
+	/* Find Phantom setting equivalent to gPXE setting */
+	clp_setting = phantom_clp_setting ( phantom, setting );
+	if ( ! clp_setting )
+		return -ENOTSUP;
+
+	/* Store setting */
+	if ( ( rc = phantom_clp_store ( phantom, phantom->port,
+					clp_setting, data, len ) ) != 0 ) {
+		DBGC ( phantom, "Phantom %p could not store setting \"%s\": "
+		       "%s\n", phantom, setting->name, strerror ( rc ) );
+		return rc;
+	}
+
+	return 0;
+}
+
+/**
+ * Fetch Phantom CLP setting
+ *
+ * @v settings		Settings block
+ * @v setting		Setting to fetch
+ * @v data		Buffer to fill with setting data
+ * @v len		Length of buffer
+ * @ret len		Length of setting data, or negative error
+ */
+static int phantom_fetch_setting ( struct settings *settings,
+				   struct setting *setting,
+				   void *data, size_t len ) {
+	struct phantom_nic *phantom =
+		container_of ( settings, struct phantom_nic, settings );
+	unsigned int clp_setting;
+	int read_len;
+	int rc;
+
+	/* Find Phantom setting equivalent to gPXE setting */
+	clp_setting = phantom_clp_setting ( phantom, setting );
+	if ( ! clp_setting )
+		return -ENOTSUP;
+
+	/* Fetch setting */
+	if ( ( read_len = phantom_clp_fetch ( phantom, phantom->port,
+					      clp_setting, data, len ) ) < 0 ){
+		rc = read_len;
+		DBGC ( phantom, "Phantom %p could not fetch setting \"%s\": "
+		       "%s\n", phantom, setting->name, strerror ( rc ) );
+		return rc;
+	}
+
+	return read_len;
+}
+
+/** Phantom CLP settings operations */
+static struct settings_operations phantom_settings_operations = {
+	.store		= phantom_store_setting,
+	.fetch		= phantom_fetch_setting,
+};
+
+/***************************************************************************
+ *
+ * Initialisation
+ *
+ */
 
 /**
  * Map Phantom CRB window
@@ -1556,8 +1742,15 @@ static int phantom_map_crb ( struct phantom_nic *phantom,
 
 	bar0_start = pci_bar_start ( pci, PCI_BASE_ADDRESS_0 );
 	bar0_size = pci_bar_size ( pci, PCI_BASE_ADDRESS_0 );
-	DBGC ( phantom, "Phantom %p BAR0 is %08lx+%lx\n",
-	       phantom, bar0_start, bar0_size );
+	DBGC ( phantom, "Phantom %p is PCI %02x:%02x.%x with BAR0 at "
+	       "%08lx+%lx\n", phantom, pci->bus, PCI_SLOT ( pci->devfn ),
+	       PCI_FUNC ( pci->devfn ), bar0_start, bar0_size );
+
+	if ( ! bar0_start ) {
+		DBGC ( phantom, "Phantom %p BAR not assigned; ignoring\n",
+		       phantom );
+		return -EINVAL;
+	}
 
 	switch ( bar0_size ) {
 	case ( 128 * 1024 * 1024 ) :
@@ -1592,71 +1785,23 @@ static int phantom_map_crb ( struct phantom_nic *phantom,
 }
 
 /**
- * Read Phantom flash contents
+ * Unhalt all PEGs
  *
  * @v phantom		Phantom NIC
- * @ret rc		Return status code
  */
-static int phantom_read_flash ( struct phantom_nic *phantom ) {
-	struct unm_board_info board_info;
-	int rc;
+static void phantom_unhalt_pegs ( struct phantom_nic *phantom ) {
+	uint32_t halt_status;
 
-	/* Initialise flash access */
-	phantom->spi_bus.rw = phantom_spi_rw;
-	phantom->flash.bus = &phantom->spi_bus;
-	init_m25p32 ( &phantom->flash );
-	/* Phantom doesn't support greater than 4-byte block sizes */
-	phantom->flash.nvs.block_size = UNM_SPI_BLKSIZE;
-
-	/* Read and verify board information */
-	if ( ( rc = nvs_read ( &phantom->flash.nvs, UNM_BRDCFG_START,
-			       &board_info, sizeof ( board_info ) ) ) != 0 ) {
-		DBGC ( phantom, "Phantom %p could not read board info: %s\n",
-		       phantom, strerror ( rc ) );
-		return rc;
-	}
-	if ( board_info.magic != UNM_BDINFO_MAGIC ) {
-		DBGC ( phantom, "Phantom %p has bad board info magic %lx\n",
-		       phantom, board_info.magic );
-		DBGC_HD ( phantom, &board_info, sizeof ( board_info ) );
-		return -EINVAL;
-	}
-	if ( board_info.header_version != UNM_BDINFO_VERSION ) {
-		DBGC ( phantom, "Phantom %p has bad board info version %lx\n",
-		       phantom, board_info.header_version );
-		DBGC_HD ( phantom, &board_info, sizeof ( board_info ) );
-		return -EINVAL;
-	}
-
-	/* Identify board type and number of ports */
-	switch ( board_info.board_type ) {
-	case UNM_BRDTYPE_P3_4_GB:
-	case UNM_BRDTYPE_P3_4_GB_MM:
-		phantom->num_ports = 4;
-		break;
-	case UNM_BRDTYPE_P3_HMEZ:
-	case UNM_BRDTYPE_P3_IMEZ:
-	case UNM_BRDTYPE_P3_10G_CX4:
-	case UNM_BRDTYPE_P3_10G_CX4_LP:
-	case UNM_BRDTYPE_P3_10G_SFP_PLUS:
-	case UNM_BRDTYPE_P3_XG_LOM:
-		phantom->num_ports = 2;
-		break;
-	case UNM_BRDTYPE_P3_10000_BASE_T:
-	case UNM_BRDTYPE_P3_10G_XFP:
-		phantom->num_ports = 1;
-		break;
-	default:
-		DBGC ( phantom, "Phantom %p unrecognised board type %#lx; "
-		       "assuming single-port\n",
-		       phantom, board_info.board_type );
-		phantom->num_ports = 1;
-		break;
-	}
-	DBGC ( phantom, "Phantom %p board type is %#lx (%d ports)\n",
-	       phantom, board_info.board_type, phantom->num_ports );
-
-	return 0;
+	halt_status = phantom_readl ( phantom, UNM_PEG_0_HALT_STATUS );
+	phantom_writel ( phantom, halt_status, UNM_PEG_0_HALT_STATUS );
+	halt_status = phantom_readl ( phantom, UNM_PEG_1_HALT_STATUS );
+	phantom_writel ( phantom, halt_status, UNM_PEG_1_HALT_STATUS );
+	halt_status = phantom_readl ( phantom, UNM_PEG_2_HALT_STATUS );
+	phantom_writel ( phantom, halt_status, UNM_PEG_2_HALT_STATUS );
+	halt_status = phantom_readl ( phantom, UNM_PEG_3_HALT_STATUS );
+	phantom_writel ( phantom, halt_status, UNM_PEG_3_HALT_STATUS );
+	halt_status = phantom_readl ( phantom, UNM_PEG_4_HALT_STATUS );
+	phantom_writel ( phantom, halt_status, UNM_PEG_4_HALT_STATUS );
 }
 
 /**
@@ -1668,7 +1813,6 @@ static int phantom_read_flash ( struct phantom_nic *phantom ) {
 static int phantom_init_cmdpeg ( struct phantom_nic *phantom ) {
 	uint32_t cold_boot;
 	uint32_t sw_reset;
-	physaddr_t dummy_dma_phys;
 	unsigned int retries;
 	uint32_t cmdpeg_state;
 	uint32_t last_cmdpeg_state = 0;
@@ -1681,6 +1825,11 @@ static int phantom_init_cmdpeg ( struct phantom_nic *phantom ) {
 	if ( cmdpeg_state == UNM_NIC_REG_CMDPEG_STATE_INITIALIZE_ACK ) {
 		DBGC ( phantom, "Phantom %p command PEG already initialized\n",
 		       phantom );
+		/* Unhalt the PEGs.  Previous firmware (e.g. BOFM) may
+		 * have halted the PEGs to prevent internal bus
+		 * collisions when the BIOS re-reads the expansion ROM.
+		 */
+		phantom_unhalt_pegs ( phantom );
 		return 0;
 	}
 
@@ -1691,13 +1840,13 @@ static int phantom_init_cmdpeg ( struct phantom_nic *phantom ) {
 		       phantom );
 		sw_reset = phantom_readl ( phantom, UNM_ROMUSB_GLB_SW_RESET );
 		if ( sw_reset != UNM_ROMUSB_GLB_SW_RESET_MAGIC ) {
-			DBGC ( phantom, "Phantom %p reset failed: %08lx\n",
+			DBGC ( phantom, "Phantom %p reset failed: %08x\n",
 			       phantom, sw_reset );
 			return -EIO;
 		}
 	} else {
 		DBGC ( phantom, "Phantom %p coming up from warm boot "
-		       "(%08lx)\n", phantom, cold_boot );
+		       "(%08x)\n", phantom, cold_boot );
 	}
 	/* Clear cold-boot flag */
 	phantom_writel ( phantom, 0, UNM_CAM_RAM_COLD_BOOT );
@@ -1707,10 +1856,7 @@ static int phantom_init_cmdpeg ( struct phantom_nic *phantom ) {
 			 UNM_CAM_RAM_WOL_PORT_MODE );
 
 	/* Pass dummy DMA area to card */
-	dummy_dma_phys = virt_to_bus ( phantom->dma_buf->dummy_dma );
-	DBGC ( phantom, "Phantom %p dummy DMA at %08lx\n",
-	       phantom, dummy_dma_phys );
-	phantom_write_hilo ( phantom, dummy_dma_phys,
+	phantom_write_hilo ( phantom, 0,
 			     UNM_NIC_REG_DUMMY_BUF_ADDR_LO,
 			     UNM_NIC_REG_DUMMY_BUF_ADDR_HI );
 	phantom_writel ( phantom, UNM_NIC_REG_DUMMY_BUF_INIT,
@@ -1728,7 +1874,7 @@ static int phantom_init_cmdpeg ( struct phantom_nic *phantom ) {
 					       UNM_NIC_REG_CMDPEG_STATE );
 		if ( cmdpeg_state != last_cmdpeg_state ) {
 			DBGC ( phantom, "Phantom %p command PEG state is "
-			       "%08lx after %d seconds...\n",
+			       "%08x after %d seconds...\n",
 			       phantom, cmdpeg_state, retries );
 			last_cmdpeg_state = cmdpeg_state;
 		}
@@ -1743,19 +1889,18 @@ static int phantom_init_cmdpeg ( struct phantom_nic *phantom ) {
 	}
 
 	DBGC ( phantom, "Phantom %p timed out waiting for command PEG to "
-	       "initialise (status %08lx)\n", phantom, cmdpeg_state );
+	       "initialise (status %08x)\n", phantom, cmdpeg_state );
 	return -ETIMEDOUT;
 }
 
 /**
  * Read Phantom MAC address
  *
- * @v phanton_port	Phantom NIC port
+ * @v phanton_port	Phantom NIC
  * @v ll_addr		Buffer to fill with MAC address
  */
-static void phantom_get_macaddr ( struct phantom_nic_port *phantom_port,
+static void phantom_get_macaddr ( struct phantom_nic *phantom,
 				  uint8_t *ll_addr ) {
-	struct phantom_nic *phantom = phantom_port->phantom;
 	union {
 		uint8_t mac_addr[2][ETH_ALEN];
 		uint32_t dwords[3];
@@ -1765,7 +1910,7 @@ static void phantom_get_macaddr ( struct phantom_nic_port *phantom_port,
 
 	/* Read the three dwords that include this MAC address and one other */
 	offset = ( UNM_CAM_RAM_MAC_ADDRS +
-		   ( 12 * ( phantom_port->port / 2 ) ) );
+		   ( 12 * ( phantom->port / 2 ) ) );
 	for ( i = 0 ; i < 3 ; i++, offset += 4 ) {
 		u.dwords[i] = phantom_readl ( phantom, offset );
 	}
@@ -1773,10 +1918,36 @@ static void phantom_get_macaddr ( struct phantom_nic_port *phantom_port,
 	/* Copy out the relevant MAC address */
 	for ( i = 0 ; i < ETH_ALEN ; i++ ) {
 		ll_addr[ ETH_ALEN - i - 1 ] =
-			u.mac_addr[ phantom_port->port & 1 ][i];
+			u.mac_addr[ phantom->port & 1 ][i];
 	}
-	DBGC ( phantom, "Phantom %p port %d MAC address is %s\n",
-	       phantom, phantom_port->port, eth_ntoa ( ll_addr ) );
+	DBGC ( phantom, "Phantom %p MAC address is %s\n",
+	       phantom, eth_ntoa ( ll_addr ) );
+}
+
+/**
+ * Check Phantom is enabled for boot
+ *
+ * @v phanton_port	Phantom NIC
+ * @ret rc		Return status code
+ *
+ * This is something of an ugly hack to accommodate an OEM
+ * requirement.  The NIC has only one expansion ROM BAR, rather than
+ * one per port.  To allow individual ports to be selectively
+ * enabled/disabled for PXE boot (as required), we must therefore
+ * leave the expansion ROM always enabled, and place the per-port
+ * enable/disable logic within the gPXE driver.
+ */
+static int phantom_check_boot_enable ( struct phantom_nic *phantom ) {
+	unsigned long boot_enable;
+
+	boot_enable = phantom_readl ( phantom, UNM_CAM_RAM_BOOT_ENABLE );
+	if ( ! ( boot_enable & ( 1 << phantom->port ) ) ) {
+		DBGC ( phantom, "Phantom %p PXE boot is disabled\n",
+		       phantom );
+		return -ENOTSUP;
+	}
+
+	return 0;
 }
 
 /**
@@ -1797,7 +1968,7 @@ static int phantom_init_rcvpeg ( struct phantom_nic *phantom ) {
 					       UNM_NIC_REG_RCVPEG_STATE );
 		if ( rcvpeg_state != last_rcvpeg_state ) {
 			DBGC ( phantom, "Phantom %p receive PEG state is "
-			       "%08lx after %d seconds...\n",
+			       "%08x after %d seconds...\n",
 			       phantom, rcvpeg_state, retries );
 			last_rcvpeg_state = rcvpeg_state;
 		}
@@ -1807,7 +1978,7 @@ static int phantom_init_rcvpeg ( struct phantom_nic *phantom ) {
 	}
 
 	DBGC ( phantom, "Phantom %p timed out waiting for receive PEG to "
-	       "initialise (status %08lx)\n", phantom, rcvpeg_state );
+	       "initialise (status %08x)\n", phantom, rcvpeg_state );
 	return -ETIMEDOUT;
 }
 
@@ -1820,25 +1991,27 @@ static int phantom_init_rcvpeg ( struct phantom_nic *phantom ) {
  */
 static int phantom_probe ( struct pci_device *pci,
 			   const struct pci_device_id *id __unused ) {
-	struct phantom_nic *phantom;
 	struct net_device *netdev;
-	struct phantom_nic_port *phantom_port;
-	int i;
+	struct phantom_nic *phantom;
+	struct settings *parent_settings;
 	int rc;
 
-	/* Phantom NICs expose multiple PCI functions, used for
-	 * virtualisation.  Ignore everything except function 0.
-	 */
-	if ( PCI_FUNC ( pci->devfn ) != 0 )
-	  return -ENODEV;
-
 	/* Allocate Phantom device */
-	phantom = zalloc ( sizeof ( *phantom ) );
-	if ( ! phantom ) {
+	netdev = alloc_etherdev ( sizeof ( *phantom ) );
+	if ( ! netdev ) {
 		rc = -ENOMEM;
-		goto err_alloc_phantom;
+		goto err_alloc_etherdev;
 	}
-	pci_set_drvdata ( pci, phantom );
+	netdev_init ( netdev, &phantom_operations );
+	phantom = netdev_priv ( netdev );
+	pci_set_drvdata ( pci, netdev );
+	netdev->dev = &pci->dev;
+	memset ( phantom, 0, sizeof ( *phantom ) );
+	phantom->port = PCI_FUNC ( pci->devfn );
+	assert ( phantom->port < PHN_MAX_NUM_PORTS );
+	settings_init ( &phantom->settings,
+			&phantom_settings_operations,
+			&netdev->refcnt, "clp", PHN_CLP_TAG_MAGIC );
 
 	/* Fix up PCI device */
 	adjust_pci_device ( pci );
@@ -1847,87 +2020,66 @@ static int phantom_probe ( struct pci_device *pci,
 	if ( ( rc = phantom_map_crb ( phantom, pci ) ) != 0 )
 		goto err_map_crb;
 
-	/* Read flash information */
-	if ( ( rc = phantom_read_flash ( phantom ) ) != 0 )
-		goto err_read_flash;
-
-	/* Allocate net devices for each port */
-	for ( i = 0 ; i < phantom->num_ports ; i++ ) {
-		netdev = alloc_etherdev ( sizeof ( *phantom_port ) );
-		if ( ! netdev ) {
-			rc = -ENOMEM;
-			goto err_alloc_etherdev;
-		}
-		phantom->netdev[i] = netdev;
-		netdev_init ( netdev, &phantom_operations );
-		phantom_port = netdev_priv ( netdev );
-		netdev->dev = &pci->dev;
-		phantom_port->phantom = phantom;
-		phantom_port->port = i;
-	}
-
 	/* BUG5945 - need to hack PCI config space on P3 B1 silicon.
 	 * B2 will have this fixed; remove this hack when B1 is no
 	 * longer in use.
 	 */
-	for ( i = 0 ; i < 8 ; i++ ) {
-		uint32_t temp;
-		pci->devfn = PCI_DEVFN ( PCI_SLOT ( pci->devfn ), i );
-		pci_read_config_dword ( pci, 0xc8, &temp );
-		pci_read_config_dword ( pci, 0xc8, &temp );
-		pci_write_config_dword ( pci, 0xc8, 0xf1000 );
+	if ( PCI_FUNC ( pci->devfn ) == 0 ) {
+		unsigned int i;
+		for ( i = 0 ; i < 8 ; i++ ) {
+			uint32_t temp;
+			pci->devfn = PCI_DEVFN ( PCI_SLOT ( pci->devfn ), i );
+			pci_read_config_dword ( pci, 0xc8, &temp );
+			pci_read_config_dword ( pci, 0xc8, &temp );
+			pci_write_config_dword ( pci, 0xc8, 0xf1000 );
+		}
+		pci->devfn = PCI_DEVFN ( PCI_SLOT ( pci->devfn ), 0 );
 	}
-	pci->devfn = PCI_DEVFN ( PCI_SLOT ( pci->devfn ), 0 );
 
-	/* Allocate dummy DMA buffer and perform initial hardware handshake */
-	phantom->dma_buf = malloc_dma ( sizeof ( *(phantom->dma_buf) ),
-					UNM_DMA_BUFFER_ALIGN );
-	if ( ! phantom->dma_buf )
-		goto err_dma_buf;
+	/* Initialise the command PEG */
 	if ( ( rc = phantom_init_cmdpeg ( phantom ) ) != 0 )
 		goto err_init_cmdpeg;
 
-	/* Initialise the receive firmware */
+	/* Initialise the receive PEG */
 	if ( ( rc = phantom_init_rcvpeg ( phantom ) ) != 0 )
 		goto err_init_rcvpeg;
 
 	/* Read MAC addresses */
-	for ( i = 0 ; i < phantom->num_ports ; i++ ) {
-		phantom_port = netdev_priv ( phantom->netdev[i] );
-		phantom_get_macaddr ( phantom_port,
-				      phantom->netdev[i]->ll_addr );
-	}
+	phantom_get_macaddr ( phantom, netdev->ll_addr );
+
+	/* Skip if boot disabled on NIC */
+	if ( ( rc = phantom_check_boot_enable ( phantom ) ) != 0 )
+		goto err_check_boot_enable;
 
 	/* Register network devices */
-	for ( i = 0 ; i < phantom->num_ports ; i++ ) {
-		if ( ( rc = register_netdev ( phantom->netdev[i] ) ) != 0 ) {
-			DBGC ( phantom, "Phantom %p could not register port "
-			       "%d: %s\n", phantom, i, strerror ( rc ) );
-			goto err_register_netdev;
-		}
+	if ( ( rc = register_netdev ( netdev ) ) != 0 ) {
+		DBGC ( phantom, "Phantom %p could not register net device: "
+		       "%s\n", phantom, strerror ( rc ) );
+		goto err_register_netdev;
+	}
+
+	/* Register settings blocks */
+	parent_settings = netdev_settings ( netdev );
+	if ( ( rc = register_settings ( &phantom->settings,
+					parent_settings ) ) != 0 ) {
+		DBGC ( phantom, "Phantom %p could not register settings: "
+		       "%s\n", phantom, strerror ( rc ) );
+		goto err_register_settings;
 	}
 
 	return 0;
 
-	i = ( phantom->num_ports - 1 );
+	unregister_settings ( &phantom->settings );
+ err_register_settings:
+	unregister_netdev ( netdev );
  err_register_netdev:
-	for ( ; i >= 0 ; i-- )
-		unregister_netdev ( phantom->netdev[i] );
+ err_check_boot_enable:
  err_init_rcvpeg:
  err_init_cmdpeg:
-	free_dma ( phantom->dma_buf, sizeof ( *(phantom->dma_buf) ) );
-	phantom->dma_buf = NULL;
- err_dma_buf:
-	i = ( phantom->num_ports - 1 );
- err_alloc_etherdev:
-	for ( ; i >= 0 ; i-- ) {
-		netdev_nullify ( phantom->netdev[i] );
-		netdev_put ( phantom->netdev[i] );
-	}
- err_read_flash:
  err_map_crb:
-	free ( phantom );
- err_alloc_phantom:
+	netdev_nullify ( netdev );
+	netdev_put ( netdev );
+ err_alloc_etherdev:
 	return rc;
 }
 
@@ -1937,18 +2089,13 @@ static int phantom_probe ( struct pci_device *pci,
  * @v pci		PCI device
  */
 static void phantom_remove ( struct pci_device *pci ) {
-	struct phantom_nic *phantom = pci_get_drvdata ( pci );
-	int i;
+	struct net_device *netdev = pci_get_drvdata ( pci );
+	struct phantom_nic *phantom = netdev_priv ( netdev );
 
-	for ( i = ( phantom->num_ports - 1 ) ; i >= 0 ; i-- )
-		unregister_netdev ( phantom->netdev[i] );
-	free_dma ( phantom->dma_buf, sizeof ( *(phantom->dma_buf) ) );
-	phantom->dma_buf = NULL;
-	for ( i = ( phantom->num_ports - 1 ) ; i >= 0 ; i-- ) {
-		netdev_nullify ( phantom->netdev[i] );
-		netdev_put ( phantom->netdev[i] );
-	}
-	free ( phantom );
+	unregister_settings ( &phantom->settings );
+	unregister_netdev ( netdev );
+	netdev_nullify ( netdev );
+	netdev_put ( netdev );
 }
 
 /** Phantom PCI IDs */

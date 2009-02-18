@@ -183,11 +183,16 @@ static void reprioritise_settings ( struct settings *settings ) {
  * @ret rc		Return status code
  */
 int register_settings ( struct settings *settings, struct settings *parent ) {
+	struct settings *old_settings;
 
 	/* NULL parent => add to settings root */
 	assert ( settings != NULL );
 	if ( parent == NULL )
 		parent = &settings_root;
+
+	/* Remove any existing settings with the same name */
+	if ( ( old_settings = find_child_settings ( parent, settings->name ) ))
+		unregister_settings ( old_settings );
 
 	/* Add to list of settings */
 	ref_get ( settings->refcnt );
@@ -279,7 +284,7 @@ struct settings * find_settings ( const char *name ) {
 /**
  * Store value of setting
  *
- * @v settings		Settings block
+ * @v settings		Settings block, or NULL
  * @v setting		Setting to store
  * @v data		Setting data, or NULL to clear setting
  * @v len		Length of setting data
@@ -289,9 +294,9 @@ int store_setting ( struct settings *settings, struct setting *setting,
 		    const void *data, size_t len ) {
 	int rc;
 
-	/* Sanity check */
+	/* NULL settings implies storing into the global settings root */
 	if ( ! settings )
-		return -ENODEV;
+		settings = &settings_root;
 
 	/* Store setting */
 	if ( ( rc = settings->op->store ( settings, setting,
@@ -332,6 +337,9 @@ int fetch_setting ( struct settings *settings, struct setting *setting,
 		    void *data, size_t len ) {
 	struct settings *child;
 	int ret;
+
+	/* Avoid returning uninitialised data on error */
+	memset ( data, 0, len );
 
 	/* NULL settings implies starting at the global settings root */
 	if ( ! settings )
@@ -387,6 +395,38 @@ int fetch_string_setting ( struct settings *settings, struct setting *setting,
 }
 
 /**
+ * Fetch value of string setting
+ *
+ * @v settings		Settings block, or NULL to search all blocks
+ * @v setting		Setting to fetch
+ * @v data		Buffer to allocate and fill with setting string data
+ * @ret len		Length of string setting, or negative error
+ *
+ * The resulting string is guaranteed to be correctly NUL-terminated.
+ * The returned length will be the length of the underlying setting
+ * data.  The caller is responsible for eventually freeing the
+ * allocated buffer.
+ */
+int fetch_string_setting_copy ( struct settings *settings,
+				struct setting *setting,
+				char **data ) {
+	int len;
+	int check_len;
+
+	len = fetch_setting_len ( settings, setting );
+	if ( len < 0 )
+		return len;
+
+	*data = malloc ( len + 1 );
+	if ( ! *data )
+		return -ENOMEM;
+
+	fetch_string_setting ( settings, setting, *data, ( len + 1 ) );
+	assert ( check_len == len );
+	return len;
+}
+
+/**
  * Fetch value of IPv4 address setting
  *
  * @v settings		Settings block, or NULL to search all blocks
@@ -417,20 +457,23 @@ int fetch_ipv4_setting ( struct settings *settings, struct setting *setting,
 int fetch_int_setting ( struct settings *settings, struct setting *setting,
 			long *value ) {
 	union {
-		long value;
 		uint8_t u8[ sizeof ( long ) ];
 		int8_t s8[ sizeof ( long ) ];
 	} buf;
 	int len;
 	int i;
 
-	buf.value = 0;
+	/* Avoid returning uninitialised data on error */
+	*value = 0;
+
+	/* Fetch raw (network-ordered, variable-length) setting */
 	len = fetch_setting ( settings, setting, &buf, sizeof ( buf ) );
 	if ( len < 0 )
 		return len;
 	if ( len > ( int ) sizeof ( buf ) )
 		return -ERANGE;
 
+	/* Convert to host-ordered signed long */
 	*value = ( ( buf.s8[0] >= 0 ) ? 0 : -1L );
 	for ( i = 0 ; i < len ; i++ ) {
 		*value = ( ( *value << 8 ) | buf.u8[i] );
@@ -452,10 +495,15 @@ int fetch_uint_setting ( struct settings *settings, struct setting *setting,
 	long svalue;
 	int len;
 
+	/* Avoid returning uninitialised data on error */
+	*value = 0;
+
+	/* Fetch as a signed long */
 	len = fetch_int_setting ( settings, setting, &svalue );
 	if ( len < 0 )
 		return len;
 
+	/* Mask off sign-extended bits */
 	*value = ( svalue & ( -1UL >> ( sizeof ( long ) - len ) ) );
 
 	return len;
@@ -469,7 +517,7 @@ int fetch_uint_setting ( struct settings *settings, struct setting *setting,
  * @ret value		Setting value, or zero
  */
 long fetch_intz_setting ( struct settings *settings, struct setting *setting ){
-	long value = 0;
+	long value;
 
 	fetch_int_setting ( settings, setting, &value );
 	return value;
@@ -484,7 +532,7 @@ long fetch_intz_setting ( struct settings *settings, struct setting *setting ){
  */
 unsigned long fetch_uintz_setting ( struct settings *settings,
 				    struct setting *setting ) {
-	unsigned long value = 0;
+	unsigned long value;
 
 	fetch_uint_setting ( settings, setting, &value );
 	return value;
@@ -655,6 +703,7 @@ static int parse_setting_name ( const char *name, struct settings **settings,
 			}
 			tmp++;
 		}
+		setting->tag |= (*settings)->tag_magic;
 	}
 
 	/* Identify setting type, if specified */
@@ -776,12 +825,15 @@ static int storef_uristring ( struct settings *settings,
 static int fetchf_uristring ( struct settings *settings,
 			      struct setting *setting,
 			      char *buf, size_t len ) {
-	size_t raw_len;
+	ssize_t raw_len;
 
 	/* We need to always retrieve the full raw string to know the
 	 * length of the encoded string.
 	 */
 	raw_len = fetch_setting ( settings, setting, NULL, 0 );
+	if ( raw_len < 0 )
+		return raw_len;
+
 	{
 		char raw_buf[ raw_len + 1 ];
        

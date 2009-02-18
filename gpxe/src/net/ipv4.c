@@ -188,7 +188,7 @@ static struct io_buffer * ipv4_reassemble ( struct io_buffer * iobuf ) {
 				free_iob ( iobuf );
 
 				/** Check if the fragment series is over */
-				if ( !iphdr->frags & IP_MASK_MOREFRAGS ) {
+				if ( ! ( iphdr->frags & IP_MASK_MOREFRAGS ) ) {
 					iobuf = fragbuf->frag_iob;
 					free_fragbuf ( fragbuf );
 					return iobuf;
@@ -266,7 +266,6 @@ static uint16_t ipv4_pshdr_chksum ( struct io_buffer *iobuf, uint16_t csum ) {
 static int ipv4_ll_addr ( struct in_addr dest, struct in_addr src,
 			  struct net_device *netdev, uint8_t *ll_dest ) {
 	struct ll_protocol *ll_protocol = netdev->ll_protocol;
-	uint8_t *dest_bytes = ( ( uint8_t * ) &dest );
 
 	if ( dest.s_addr == INADDR_BROADCAST ) {
 		/* Broadcast address */
@@ -274,17 +273,7 @@ static int ipv4_ll_addr ( struct in_addr dest, struct in_addr src,
 			 ll_protocol->ll_addr_len );
 		return 0;
 	} else if ( IN_MULTICAST ( ntohl ( dest.s_addr ) ) ) {
-		/* Special case: IPv4 multicast over Ethernet.	This
-		 * code may need to be generalised once we find out
-		 * what happens for other link layers.
-		 */
-		ll_dest[0] = 0x01;
-		ll_dest[1] = 0x00;
-		ll_dest[2] = 0x5e;
-		ll_dest[3] = dest_bytes[1] & 0x7f;
-		ll_dest[4] = dest_bytes[2];
-		ll_dest[5] = dest_bytes[3];
-		return 0;
+		return ll_protocol->mc_hash ( AF_INET, &dest, ll_dest );
 	} else {
 		/* Unicast address: resolve via ARP */
 		return arp_resolve ( netdev, &ipv4_protocol, &dest,
@@ -297,6 +286,7 @@ static int ipv4_ll_addr ( struct in_addr dest, struct in_addr src,
  *
  * @v iobuf		I/O buffer
  * @v tcpip		Transport-layer protocol
+ * @v st_src		Source network-layer address
  * @v st_dest		Destination network-layer address
  * @v netdev		Network device to use if no route found, or NULL
  * @v trans_csum	Transport-layer checksum to complete, or NULL
@@ -306,10 +296,12 @@ static int ipv4_ll_addr ( struct in_addr dest, struct in_addr src,
  */
 static int ipv4_tx ( struct io_buffer *iobuf,
 		     struct tcpip_protocol *tcpip_protocol,
+		     struct sockaddr_tcpip *st_src,
 		     struct sockaddr_tcpip *st_dest,
 		     struct net_device *netdev,
 		     uint16_t *trans_csum ) {
 	struct iphdr *iphdr = iob_push ( iobuf, sizeof ( *iphdr ) );
+	struct sockaddr_in *sin_src = ( ( struct sockaddr_in * ) st_src );
 	struct sockaddr_in *sin_dest = ( ( struct sockaddr_in * ) st_dest );
 	struct ipv4_miniroute *miniroute;
 	struct in_addr next_hop;
@@ -328,7 +320,11 @@ static int ipv4_tx ( struct io_buffer *iobuf,
 
 	/* Use routing table to identify next hop and transmitting netdev */
 	next_hop = iphdr->dest;
-	if ( ( miniroute = ipv4_route ( &next_hop ) ) ) {
+	if ( sin_src )
+		iphdr->src = sin_src->sin_addr;
+	if ( ( next_hop.s_addr != INADDR_BROADCAST ) &&
+	     ( ! IN_MULTICAST ( ntohl ( next_hop.s_addr ) ) ) &&
+	     ( ( miniroute = ipv4_route ( &next_hop ) ) != NULL ) ) {
 		iphdr->src = miniroute->address;
 		netdev = miniroute->netdev;
 	}
@@ -631,3 +627,6 @@ static int ipv4_create_routes ( void ) {
 struct settings_applicator ipv4_settings_applicator __settings_applicator = {
 	.apply = ipv4_create_routes,
 };
+
+/* Drag in ICMP */
+REQUIRE_OBJECT ( icmp );

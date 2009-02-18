@@ -1,6 +1,6 @@
 ## -----------------------------------------------------------------------
 ##   
-##   Copyright 2008 H. Peter Anvin - All Rights Reserved
+##   Copyright 2008-2009 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -32,8 +32,9 @@ spotless: clean dist
 
 installer:
 
-src/bin/undionly.kpxe: ../core/pxelinux.0
-	$(MAKE) -C src EMBEDDED_IMAGE=../$< NO_WERROR=1 bin/undionly.kpxe
+src/bin/undionly.kkpxe: pxelinux.gpxe ../core/pxelinux.0
+	$(MAKE) -C src bin/undionly.kkpxe NO_WERROR=1 \
+		EMBEDDED_IMAGE=../pxelinux.gpxe,../../core/pxelinux.0
 
-gpxelinux.0: src/bin/undionly.kpxe
+gpxelinux.0: src/bin/undionly.kkpxe
 	cp -f $< $@

@@ -24,10 +24,6 @@ struct undi_device {
 	SEGOFF16_t ppxe;
 	/** Entry point */
 	SEGOFF16_t entry;
-	/** Return stack */
-	UINT16_t return_stack[3];
-	/** Return type */
-	UINT16_t return_type;
 	/** Free base memory after load */
 	UINT16_t fbms;
 	/** Free base memory prior to load */
@@ -98,5 +94,11 @@ static inline void * undi_get_drvdata ( struct undi_device *undi ) {
 
 /** UNDI flag: START_UNDI has been called */
 #define UNDI_FL_STARTED 0x0001
+
+/** UNDI flag: UNDI_STARTUP and UNDI_INITIALIZE have been called */
+#define UNDI_FL_INITIALIZED 0x0002
+
+/** UNDI flag: keep stack resident */
+#define UNDI_FL_KEEP_ALL 0x0004
 
 #endif /* _UNDI_H */

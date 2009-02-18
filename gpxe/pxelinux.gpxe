@@ -1,0 +1,4 @@
+#!gpxe
+dhcp net0
+imgload pxelinux.0
+boot pxelinux.0

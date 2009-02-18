@@ -36,12 +36,41 @@
 #include <gpxe/xfer.h>
 #include <gpxe/open.h>
 #include <gpxe/filter.h>
+#include <gpxe/asn1.h>
+#include <gpxe/x509.h>
 #include <gpxe/tls.h>
 
 static int tls_send_plaintext ( struct tls_session *tls, unsigned int type,
 				const void *data, size_t len );
 static void tls_clear_cipher ( struct tls_session *tls,
 			       struct tls_cipherspec *cipherspec );
+
+/******************************************************************************
+ *
+ * Utility functions
+ *
+ ******************************************************************************
+ */
+
+/**
+ * Extract 24-bit field value
+ *
+ * @v field24		24-bit field
+ * @ret value		Field value
+ *
+ * TLS uses 24-bit integers in several places, which are awkward to
+ * parse in C.
+ */
+static unsigned long tls_uint24 ( uint8_t field24[3] ) {
+	return ( ( field24[0] << 16 ) + ( field24[1] << 8 ) + field24[2] );
+}
+
+/******************************************************************************
+ *
+ * Cleanup functions
+ *
+ ******************************************************************************
+ */
 
 /**
  * Free TLS session
@@ -57,8 +86,7 @@ static void free_tls ( struct refcnt *refcnt ) {
 	tls_clear_cipher ( tls, &tls->tx_cipherspec_pending );
 	tls_clear_cipher ( tls, &tls->rx_cipherspec );
 	tls_clear_cipher ( tls, &tls->rx_cipherspec_pending );
-	free ( tls->rsa_mod );
-	free ( tls->rsa_pub_exp );
+	x509_free_rsa_public_key ( &tls->rsa );
 	free ( tls->rx_data );
 
 	/* Free TLS structure itself */
@@ -270,16 +298,16 @@ static void tls_generate_master_secret ( struct tls_session *tls ) {
 	DBGC_HD ( tls, &tls->pre_master_secret,
 		  sizeof ( tls->pre_master_secret ) );
 	DBGC ( tls, "TLS %p client random bytes:\n", tls );
-	DBGC_HD ( tls, &tls->client_random, sizeof ( tls->server_random ) );
+	DBGC_HD ( tls, &tls->client_random, sizeof ( tls->client_random ) );
 	DBGC ( tls, "TLS %p server random bytes:\n", tls );
 	DBGC_HD ( tls, &tls->server_random, sizeof ( tls->server_random ) );
 
-	tls_prf_label ( tls, tls->pre_master_secret,
+	tls_prf_label ( tls, &tls->pre_master_secret,
 			sizeof ( tls->pre_master_secret ),
-			tls->master_secret, sizeof ( tls->master_secret ),
+			&tls->master_secret, sizeof ( tls->master_secret ),
 			"master secret",
-			tls->client_random, sizeof ( tls->client_random ),
-			tls->server_random, sizeof ( tls->server_random ) );
+			&tls->client_random, sizeof ( tls->client_random ),
+			&tls->server_random, sizeof ( tls->server_random ) );
 
 	DBGC ( tls, "TLS %p generated master secret:\n", tls );
 	DBGC_HD ( tls, &tls->master_secret, sizeof ( tls->master_secret ) );
@@ -304,10 +332,10 @@ static int tls_generate_keys ( struct tls_session *tls ) {
 	int rc;
 
 	/* Generate key block */
-	tls_prf_label ( tls, tls->master_secret, sizeof ( tls->master_secret ),
+	tls_prf_label ( tls, &tls->master_secret, sizeof ( tls->master_secret ),
 			key_block, sizeof ( key_block ), "key expansion",
-			tls->server_random, sizeof ( tls->server_random ),
-			tls->client_random, sizeof ( tls->client_random ) );
+			&tls->server_random, sizeof ( tls->server_random ),
+			&tls->client_random, sizeof ( tls->client_random ) );
 
 	/* Split key block into portions */
 	key = key_block;
@@ -604,7 +632,7 @@ static int tls_send_client_hello ( struct tls_session *tls ) {
 			      htonl ( sizeof ( hello ) -
 				      sizeof ( hello.type_length ) ) );
 	hello.version = htons ( TLS_VERSION_TLS_1_0 );
-	memcpy ( &hello.random, tls->client_random, sizeof ( hello.random ) );
+	memcpy ( &hello.random, &tls->client_random, sizeof ( hello.random ) );
 	hello.cipher_suite_len = htons ( sizeof ( hello.cipher_suites ) );
 	hello.cipher_suites[0] = htons ( TLS_RSA_WITH_AES_128_CBC_SHA );
 	hello.cipher_suites[1] = htons ( TLS_RSA_WITH_AES_256_CBC_SHA );
@@ -622,8 +650,8 @@ static int tls_send_client_hello ( struct tls_session *tls ) {
 static int tls_send_client_key_exchange ( struct tls_session *tls ) {
 	/* FIXME: Hack alert */
 	RSA_CTX *rsa_ctx;
-	RSA_pub_key_new ( &rsa_ctx, tls->rsa_mod, tls->rsa_mod_len,
-			  tls->rsa_pub_exp, tls->rsa_pub_exp_len );
+	RSA_pub_key_new ( &rsa_ctx, tls->rsa.modulus, tls->rsa.modulus_len,
+			  tls->rsa.exponent, tls->rsa.exponent_len );
 	struct {
 		uint32_t type_length;
 		uint16_t encrypted_pre_master_secret_len;
@@ -641,9 +669,9 @@ static int tls_send_client_key_exchange ( struct tls_session *tls ) {
 	DBGC ( tls, "RSA encrypting plaintext, modulus, exponent:\n" );
 	DBGC_HD ( tls, &tls->pre_master_secret,
 		  sizeof ( tls->pre_master_secret ) );
-	DBGC_HD ( tls, tls->rsa_mod, tls->rsa_mod_len );
-	DBGC_HD ( tls, tls->rsa_pub_exp, tls->rsa_pub_exp_len );
-	RSA_encrypt ( rsa_ctx, tls->pre_master_secret,
+	DBGC_HD ( tls, tls->rsa.modulus, tls->rsa.modulus_len );
+	DBGC_HD ( tls, tls->rsa.exponent, tls->rsa.exponent_len );
+	RSA_encrypt ( rsa_ctx, ( const uint8_t * ) &tls->pre_master_secret,
 		      sizeof ( tls->pre_master_secret ),
 		      key_xchg.encrypted_pre_master_secret, 0 );
 	DBGC ( tls, "RSA encrypt done.  Ciphertext:\n" );
@@ -685,7 +713,7 @@ static int tls_send_finished ( struct tls_session *tls ) {
 				 htonl ( sizeof ( finished ) -
 					 sizeof ( finished.type_length ) ) );
 	tls_verify_handshake ( tls, digest );
-	tls_prf_label ( tls, tls->master_secret, sizeof ( tls->master_secret ),
+	tls_prf_label ( tls, &tls->master_secret, sizeof ( tls->master_secret ),
 			finished.verify_data, sizeof ( finished.verify_data ),
 			"client finished", digest, sizeof ( digest ) );
 
@@ -761,17 +789,16 @@ static int tls_new_alert ( struct tls_session *tls, void *data, size_t len ) {
 }
 
 /**
- * Receive new Server Hello record
+ * Receive new Server Hello handshake record
  *
  * @v tls		TLS session
- * @v data		Plaintext record
- * @v len		Length of plaintext record
+ * @v data		Plaintext handshake record
+ * @v len		Length of plaintext handshake record
  * @ret rc		Return status code
  */
 static int tls_new_server_hello ( struct tls_session *tls,
 				  void *data, size_t len ) {
 	struct {
-		uint32_t type_length;
 		uint16_t version;
 		uint8_t random[32];
 		uint8_t session_id_len;
@@ -802,7 +829,7 @@ static int tls_new_server_hello ( struct tls_session *tls,
 	}
 
 	/* Copy out server random bytes */
-	memcpy ( tls->server_random, hello_a->random,
+	memcpy ( &tls->server_random, &hello_a->random,
 		 sizeof ( tls->server_random ) );
 
 	/* Select cipher suite */
@@ -818,72 +845,74 @@ static int tls_new_server_hello ( struct tls_session *tls,
 }
 
 /**
- * Receive new Certificate record
+ * Receive new Certificate handshake record
  *
  * @v tls		TLS session
- * @v data		Plaintext record
- * @v len		Length of plaintext record
+ * @v data		Plaintext handshake record
+ * @v len		Length of plaintext handshake record
  * @ret rc		Return status code
  */
 static int tls_new_certificate ( struct tls_session *tls,
 				 void *data, size_t len ) {
 	struct {
-		uint32_t type_length;
 		uint8_t length[3];
-		uint8_t first_cert_length[3];
-		uint8_t asn1_start[0];
+		uint8_t certificates[0];
 	} __attribute__ (( packed )) *certificate = data;
-	uint8_t *cert = certificate->asn1_start;
-	int offset = 0;
+	struct {
+		uint8_t length[3];
+		uint8_t certificate[0];
+	} __attribute__ (( packed )) *element =
+		  ( ( void * ) certificate->certificates );
+	size_t elements_len = tls_uint24 ( certificate->length );
+	void *end = ( certificate->certificates + elements_len );
+	struct asn1_cursor cursor;
+	int rc;
 
-	/* FIXME */
-	(void) len;
-
-	if (asn1_next_obj(cert, &offset, ASN1_SEQUENCE) < 0 ||
-	    asn1_next_obj(cert, &offset, ASN1_SEQUENCE) < 0 ||
-            asn1_skip_obj(cert, &offset, ASN1_EXPLICIT_TAG) ||
-            asn1_skip_obj(cert, &offset, ASN1_INTEGER) ||
-            asn1_skip_obj(cert, &offset, ASN1_SEQUENCE) ||
-            asn1_skip_obj(cert, &offset, ASN1_SEQUENCE) ||
-            asn1_skip_obj(cert, &offset, ASN1_SEQUENCE) ||
-            asn1_skip_obj(cert, &offset, ASN1_SEQUENCE) ||
-	    asn1_next_obj(cert, &offset, ASN1_SEQUENCE) < 0 ||
-            asn1_skip_obj(cert, &offset, ASN1_SEQUENCE) ||
-            asn1_next_obj(cert, &offset, ASN1_BIT_STRING) < 0) {
-		DBGC ( tls, "TLS %p invalid certificate\n", tls );
-		DBGC_HD ( tls, cert + offset, 64 );
-		return -EPERM;
+	/* Sanity check */
+	if ( end != ( data + len ) ) {
+		DBGC ( tls, "TLS %p received overlength Server Certificate\n",
+		       tls );
+		DBGC_HD ( tls, data, len );
+		return -EINVAL;
 	}
-	
-	offset++;
-	
-	if (asn1_next_obj(cert, &offset, ASN1_SEQUENCE) < 0) {
-		DBGC ( tls, "TLS %p invalid certificate\n", tls );
-		DBGC_HD ( tls, cert + offset, 64 );
-		return -EPERM;
-	}
-	
-	tls->rsa_mod_len = asn1_get_int(cert, &offset, &tls->rsa_mod);
-	tls->rsa_pub_exp_len = asn1_get_int(cert, &offset, &tls->rsa_pub_exp);
-	
-	DBGC_HD ( tls, tls->rsa_mod, tls->rsa_mod_len );
-	DBGC_HD ( tls, tls->rsa_pub_exp, tls->rsa_pub_exp_len );
 
-	return 0;
+	/* Traverse certificate chain */
+	do {
+		cursor.data = element->certificate;
+		cursor.len = tls_uint24 ( element->length );
+		if ( ( cursor.data + cursor.len ) > end ) {
+			DBGC ( tls, "TLS %p received corrupt Server "
+			       "Certificate\n", tls );
+			DBGC_HD ( tls, data, len );
+			return -EINVAL;
+		}
+
+		// HACK
+		if ( ( rc = x509_rsa_public_key ( &cursor,
+						  &tls->rsa ) ) != 0 ) {
+			DBGC ( tls, "TLS %p cannot determine RSA public key: "
+			       "%s\n", tls, strerror ( rc ) );
+			return rc;
+		}
+		return 0;
+
+		element = ( cursor.data + cursor.len );
+	} while ( element != end );
+
+	return -EINVAL;
 }
 
 /**
- * Receive new Server Hello Done record
+ * Receive new Server Hello Done handshake record
  *
  * @v tls		TLS session
- * @v data		Plaintext record
- * @v len		Length of plaintext record
+ * @v data		Plaintext handshake record
+ * @v len		Length of plaintext handshake record
  * @ret rc		Return status code
  */
 static int tls_new_server_hello_done ( struct tls_session *tls,
 				       void *data, size_t len ) {
 	struct {
-		uint32_t type_length;
 		char next[0];
 	} __attribute__ (( packed )) *hello_done = data;
 	void *end = hello_done->next;
@@ -910,11 +939,11 @@ static int tls_new_server_hello_done ( struct tls_session *tls,
 }
 
 /**
- * Receive new Finished record
+ * Receive new Finished handshake record
  *
  * @v tls		TLS session
- * @v data		Plaintext record
- * @v len		Length of plaintext record
+ * @v data		Plaintext handshake record
+ * @v len		Length of plaintext handshake record
  * @ret rc		Return status code
  */
 static int tls_new_finished ( struct tls_session *tls,
@@ -937,33 +966,47 @@ static int tls_new_finished ( struct tls_session *tls,
  */
 static int tls_new_handshake ( struct tls_session *tls,
 			       void *data, size_t len ) {
-	uint8_t *type = data;
+	struct {
+		uint8_t type;
+		uint8_t length[3];
+		uint8_t payload[0];
+	} __attribute__ (( packed )) *handshake = data;
+	void *payload = &handshake->payload;
+	size_t payload_len = tls_uint24 ( handshake->length );
+	void *end = ( payload + payload_len );
 	int rc;
 
-	switch ( *type ) {
+	/* Sanity check */
+	if ( end != ( data + len ) ) {
+		DBGC ( tls, "TLS %p received overlength Handshake\n", tls );
+		DBGC_HD ( tls, data, len );
+		return -EINVAL;
+	}
+
+	switch ( handshake->type ) {
 	case TLS_SERVER_HELLO:
-		rc = tls_new_server_hello ( tls, data, len );
+		rc = tls_new_server_hello ( tls, payload, payload_len );
 		break;
 	case TLS_CERTIFICATE:
-		rc = tls_new_certificate ( tls, data, len );
+		rc = tls_new_certificate ( tls, payload, payload_len );
 		break;
 	case TLS_SERVER_HELLO_DONE:
-		rc = tls_new_server_hello_done ( tls, data, len );
+		rc = tls_new_server_hello_done ( tls, payload, payload_len );
 		break;
 	case TLS_FINISHED:
-		rc = tls_new_finished ( tls, data, len );
+		rc = tls_new_finished ( tls, payload, payload_len );
 		break;
 	default:
 		DBGC ( tls, "TLS %p ignoring handshake type %d\n",
-		       tls, *type );
+		       tls, handshake->type );
 		rc = 0;
 		break;
 	}
 
 	/* Add to handshake digest (except for Hello Requests, which
-	 * are explicitly excludede).
+	 * are explicitly excluded).
 	 */
-	if ( *type != TLS_HELLO_REQUEST )
+	if ( handshake->type != TLS_HELLO_REQUEST )
 		tls_add_handshake ( tls, data, len );
 
 	return rc;
@@ -1710,13 +1753,12 @@ int add_tls ( struct xfer_interface *xfer, struct xfer_interface **next ) {
 	tls_clear_cipher ( tls, &tls->tx_cipherspec_pending );
 	tls_clear_cipher ( tls, &tls->rx_cipherspec );
 	tls_clear_cipher ( tls, &tls->rx_cipherspec_pending );
-	*( ( uint32_t * ) tls->client_random ) = 0; /* GMT Unix time */
-	tls_generate_random ( ( tls->client_random + 4 ),
-			      ( sizeof ( tls->client_random ) - 4 ) );
-	*( ( uint16_t * ) tls->pre_master_secret )
-		= htons ( TLS_VERSION_TLS_1_0 );
-	tls_generate_random ( ( tls->pre_master_secret + 2 ),
-			      ( sizeof ( tls->pre_master_secret ) - 2 ) );
+	tls->client_random.gmt_unix_time = 0;
+	tls_generate_random ( &tls->client_random.random,
+			      ( sizeof ( tls->client_random.random ) ) );
+	tls->pre_master_secret.version = htons ( TLS_VERSION_TLS_1_0 );
+	tls_generate_random ( &tls->pre_master_secret.random,
+			      ( sizeof ( tls->pre_master_secret.random ) ) );
 	digest_init ( &md5_algorithm, tls->handshake_md5_ctx );
 	digest_init ( &sha1_algorithm, tls->handshake_sha1_ctx );
 	tls->tx_state = TLS_TX_CLIENT_HELLO;

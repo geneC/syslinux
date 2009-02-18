@@ -41,6 +41,7 @@
 #include <gpxe/process.h>
 #include <gpxe/linebuf.h>
 #include <gpxe/features.h>
+#include <gpxe/base64.h>
 #include <gpxe/http.h>
 
 FEATURE ( FEATURE_PROTOCOL, "HTTP", DHCP_EB_FEATURE_HTTP, 1 );
@@ -142,6 +143,8 @@ static int http_response_to_rc ( unsigned int response ) {
 		return -ENOENT;
 	case 403:
 		return -EPERM;
+	case 401:
+		return -EACCES;
 	default:
 		return -EIO;
 	}
@@ -318,7 +321,7 @@ static int http_rx_data ( struct http_request *http,
  *
  * @v socket		Transport layer interface
  * @v iobuf		I/O buffer
- * @v meta		Data transfer metadata, or NULL
+ * @v meta		Data transfer metadata
  * @ret rc		Return status code
  */
 static int http_socket_deliver_iob ( struct xfer_interface *socket,
@@ -340,8 +343,7 @@ static int http_socket_deliver_iob ( struct xfer_interface *socket,
 			/* Once we're into the data phase, just fill
 			 * the data buffer
 			 */
-			rc = http_rx_data ( http, iobuf );
-			iobuf = NULL;
+			rc = http_rx_data ( http, iob_disown ( iobuf ) );
 			goto done;
 		case HTTP_RX_RESPONSE:
 		case HTTP_RX_HEADER:
@@ -388,18 +390,55 @@ static void http_step ( struct process *process ) {
 	const char *path = http->uri->path;
 	const char *host = http->uri->host;
 	const char *query = http->uri->query;
+	const char *user = http->uri->user;
+	const char *password =
+		( http->uri->password ? http->uri->password : "" );
+	size_t user_pw_len = ( user ? ( strlen ( user ) + 1 /* ":" */ +
+					strlen ( password ) ) : 0 );
+	size_t user_pw_base64_len = base64_encoded_len ( user_pw_len );
+	char user_pw[ user_pw_len + 1 /* NUL */ ];
+	char user_pw_base64[ user_pw_base64_len + 1 /* NUL */ ];
 	int rc;
 
 	if ( xfer_window ( &http->socket ) ) {
+
+		/* We want to execute only once */
 		process_del ( &http->process );
+
+		/* Construct authorisation, if applicable */
+		if ( user ) {
+			char *buf = user_pw;
+			ssize_t remaining = sizeof ( user_pw );
+			size_t len;
+
+			/* URI-decode the username and password */
+			len = uri_decode ( user, buf, remaining );
+			buf += len;
+			remaining -= len;
+			*(remaining--, buf++) = ':';
+			len = uri_decode ( password, buf, remaining );
+			buf += len;
+			remaining -= len;
+			assert ( remaining >= 0 );
+
+			/* Base64-encode the "user:password" string */
+			base64_encode ( user_pw, user_pw_base64 );
+		}
+
+		/* Send GET request */
 		if ( ( rc = xfer_printf ( &http->socket,
 					  "GET %s%s%s HTTP/1.0\r\n"
 					  "User-Agent: gPXE/" VERSION "\r\n"
+					  "%s%s%s"
 					  "Host: %s\r\n"
 					  "\r\n",
 					  ( path ? path : "/" ),
 					  ( query ? "?" : "" ),
 					  ( query ? query : "" ),
+					  ( user ?
+					    "Authorization: Basic " : "" ),
+					  ( user ? user_pw_base64 : "" ),
+					  ( user ? "\r\n" : "" ),
 					  host ) ) != 0 ) {
 			http_done ( http, rc );
 		}

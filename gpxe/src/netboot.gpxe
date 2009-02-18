@@ -1,0 +1,4 @@
+#!gpxe
+kernel http://www.zytor.com/netboot/pxelinux.0
+set filename http://www.zytor.com/netboot/pxelinux.0
+boot

@@ -144,8 +144,8 @@ got_sectors:
 	/* Jump to loaded copy */
 	ljmp	$SYSSEG, $start_runtime
 
-endseg:	.word SYSSEG + _load_size_pgh
-	.section ".zinfo.fixup", "a"	/* Compressor fixup information */
+endseg:	.word SYSSEG + _filesz_pgh
+	.section ".zinfo.fixup", "a", @progbits	/* Compressor fixups */
 	.ascii	"SUBW"
 	.long	endseg
 	.long	16
@@ -353,6 +353,7 @@ msg1end:
 	.word 0xAA55
 
 start_runtime:
+	/* Install gPXE */
 	call	install
 
 	/* Set up real-mode stack */
@@ -368,7 +369,10 @@ start_runtime:
 	pushl	$main
 	pushw	%cs
 	call	prot_call
-	popl	%eax /* discard */
+	popl	%ecx /* discard */
+
+	/* Uninstall gPXE */
+	call	uninstall
 
 	/* Boot next device */
 	int $0x18

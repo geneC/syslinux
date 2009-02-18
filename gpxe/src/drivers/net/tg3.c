@@ -1460,7 +1460,7 @@ static int tg3_stop_block(struct tg3 *tp, unsigned long ofs, uint32_t enable_bit
 	}
 
 	if (i == MAX_WAIT_CNT) {
-		printf( "tg3_stop_block timed out, ofs=%#lx enable_bit=%3lx\n",
+		printf( "tg3_stop_block timed out, ofs=%#lx enable_bit=%3x\n",
 		       ofs, enable_bit );
 		return -ENODEV;
 	}
@@ -1665,7 +1665,7 @@ static int tg3_restart_fw(struct tg3 *tp, uint32_t state)
 	if (i >= 100000 &&
 		    !(tp->tg3_flags2 & TG3_FLG2_SUN_5704) &&
 		    !(GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)) {
-		printf ( "Firmware will not restart magic=%#lx\n",
+		printf ( "Firmware will not restart magic=%#x\n",
 			val );
 		return -ENODEV;
 	}
@@ -3399,6 +3399,7 @@ PCI_ROM(0x14e4, 0x1677, "tg3-5751",        "Broadcom Tigon 3 5751"),
 PCI_ROM(0x14e4, 0x167a, "tg3-5754",        "Broadcom Tigon 3 5754"),
 PCI_ROM(0x14e4, 0x1693, "tg3-5787",	   "Broadcom Tigon 3 5787"),
 PCI_ROM(0x14e4, 0x1696, "tg3-5782",        "Broadcom Tigon 3 5782"),
+PCI_ROM(0x14e4, 0x169a, "tg3-5786",        "Broadcom Tigon 3 5786"),
 PCI_ROM(0x14e4, 0x169c, "tg3-5788",        "Broadcom Tigon 3 5788"),
 PCI_ROM(0x14e4, 0x169d, "tg3-5789",        "Broadcom Tigon 3 5789"),
 PCI_ROM(0x14e4, 0x16a6, "tg3-5702X",       "Broadcom Tigon 3 5702X"),

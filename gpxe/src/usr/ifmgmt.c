@@ -20,9 +20,11 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
+#include <console.h>
 #include <gpxe/netdevice.h>
 #include <gpxe/device.h>
 #include <gpxe/process.h>
+#include <gpxe/keys.h>
 #include <usr/ifmgmt.h>
 
 /** @file
@@ -59,6 +61,25 @@ void ifclose ( struct net_device *netdev ) {
 }
 
 /**
+ * Print network device error breakdown
+ *
+ * @v stats		Network device statistics
+ * @v prefix		Message prefix
+ */
+static void ifstat_errors ( struct net_device_stats *stats,
+			    const char *prefix ) {
+	unsigned int i;
+
+	for ( i = 0 ; i < ( sizeof ( stats->errors ) /
+			    sizeof ( stats->errors[0] ) ) ; i++ ) {
+		if ( stats->errors[i].count )
+			printf ( "  [%s: %d x \"%s\"]\n", prefix,
+				 stats->errors[i].count,
+				 strerror ( stats->errors[i].rc ) );
+	}
+}
+
+/**
  * Print status of network device
  *
  * @v netdev		Network device
@@ -69,8 +90,10 @@ void ifstat ( struct net_device *netdev ) {
 		 netdev->name, netdev_hwaddr ( netdev ), netdev->dev->name,
 		 ( ( netdev->state & NETDEV_OPEN ) ? "open" : "closed" ),
 		 ( netdev_link_ok ( netdev ) ? "up" : "down" ),
-		 netdev->stats.tx_ok, netdev->stats.tx_err,
-		 netdev->stats.rx_ok, netdev->stats.rx_err );
+		 netdev->tx_stats.good, netdev->tx_stats.bad,
+		 netdev->rx_stats.good, netdev->rx_stats.bad );
+	ifstat_errors ( &netdev->tx_stats, "TXE" );
+	ifstat_errors ( &netdev->rx_stats, "RXE" );
 }
 
 /**
@@ -80,12 +103,19 @@ void ifstat ( struct net_device *netdev ) {
  * @v max_wait_ms	Maximum time to wait, in ms
  */
 int iflinkwait ( struct net_device *netdev, unsigned int max_wait_ms ) {
+	int key;
+
 	while ( 1 ) {
 		if ( netdev_link_ok ( netdev ) )
 			return 0;
 		if ( max_wait_ms-- == 0 )
 			return -ETIMEDOUT;
 		step();
+		if ( iskey() ) {
+			key = getchar();
+			if ( key == CTRL_C )
+				return -ECANCELED;
+		}
 		mdelay ( 1 );
 	}
 }

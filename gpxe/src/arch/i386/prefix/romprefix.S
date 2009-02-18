@@ -14,6 +14,7 @@
 #define STACK_MAGIC ( 'L' + ( 'R' << 8 ) + ( 'E' << 16 ) + ( 'T' << 24 ) )
 #define PNP_GET_BBS_VERSION 0x60
 #define PMM_ALLOCATE 0x0000
+#define PMM_DEALLOCATE 0x0002
 
 /* ROM banner timeout.  Based on the configurable BANNER_TIMEOUT in
  * config.h, but converted to a number of (18Hz) timer ticks, and
@@ -30,7 +31,7 @@
 	.org	0x00
 romheader:
 	.word	0xAA55			/* BIOS extension signature */
-romheader_size:	.byte _load_size_sect	/* Size in 512-byte blocks */
+romheader_size:	.byte _filesz_sect	/* Size in 512-byte blocks */
 	jmp	init			/* Initialisation vector */
 checksum:
 	.byte	0
@@ -42,7 +43,7 @@ checksum:
 	.word	pnpheader
 	.size romheader, . - romheader
 	
-	.section ".zinfo.fixup", "a"	/* Compressor fixup information */
+	.section ".zinfo.fixup", "a", @progbits	/* Compressor fixups */
 	.ascii	"SUBB"
 	.long	romheader_size
 	.long	512
@@ -58,18 +59,18 @@ pciheader:
 	.byte	0x03			/* PCI data structure revision */
 	.byte	0x02, 0x00, 0x00	/* Class code */
 pciheader_image_length:
-	.word	_load_size_sect		/* Image length */
+	.word	_filesz_sect		/* Image length */
 	.word	0x0001			/* Revision level */
 	.byte	0x00			/* Code type */
 	.byte	0x80			/* Last image indicator */
 pciheader_runtime_length:
-	.word	_load_size_sect		/* Maximum run-time image length */
+	.word	_filesz_sect		/* Maximum run-time image length */
 	.word	0x0000			/* Configuration utility code header */
 	.word	0x0000			/* DMTF CLP entry point */
 	.equ pciheader_len, . - pciheader
 	.size pciheader, . - pciheader
 	
-	.section ".zinfo.fixup", "a"	/* Compressor fixup information */
+	.section ".zinfo.fixup", "a", @progbits	/* Compressor fixups */
 	.ascii	"SUBW"
 	.long	pciheader_image_length
 	.long	512
@@ -109,12 +110,12 @@ mfgstr:
 
 /* Product string
  *
- * Defaults to "gPXE".  If the ROM image is writable at initialisation
- * time, it will be filled in to include the PCI bus:dev.fn number of
- * the card as well.
+ * Defaults to PRODUCT_SHORT_NAME.  If the ROM image is writable at
+ * initialisation time, it will be filled in to include the PCI
+ * bus:dev.fn number of the card as well.
  */
 prodstr:
-	.ascii	"gPXE"
+	.ascii	PRODUCT_SHORT_NAME
 prodstr_separator:
 	.byte	0
 	.ascii	"(PCI "
@@ -130,9 +131,9 @@ undiheader:
 	.byte	0			/* Structure revision */
 	.byte	0,1,2			/* PXE version: 2.1.0 */
 	.word	undiloader		/* Offset to loader routine */
-	.word	_data16_size		/* Stack segment size */
-	.word	_data16_size		/* Data segment size */
-	.word	_text16_size		/* Code segment size */
+	.word	_data16_memsz		/* Stack segment size */
+	.word	_data16_memsz		/* Data segment size */
+	.word	_text16_memsz		/* Code segment size */
 	.ascii	"PCIR"			/* Bus type */
 	.equ undiheader_len, . - undiheader
 	.size undiheader, . - undiheader
@@ -174,10 +175,10 @@ init:
 	/* Fill in product name string, if possible */
 	movw	$prodstr_pci_id, %di
 	call	print_pci_busdevfn
-	movb	$' ', prodstr_separator
+	movb	$( ' ' ), prodstr_separator
 
 	/* Print segment address */
-	movb	$' ', %al
+	movb	$( ' ' ), %al
 	xorw	%di, %di
 	call	print_character
 	movw	%cs, %ax
@@ -190,26 +191,48 @@ init:
 	stc
 	movw	$0xb101, %ax
 	int	$0x1a
-	jc	1f
+	jc	no_pci3
 	cmpl	$PCI_SIGNATURE, %edx
-	jne	1f
+	jne	no_pci3
 	testb	%ah, %ah
-	jnz	1f
+	jnz	no_pci3
 	movw	$init_message_pci, %si
 	xorw	%di, %di
 	call	print_message
 	movb	%bh, %al
 	call	print_hex_nibble
-	movb	$'.', %al
+	movb	$( '.' ), %al
 	call	print_character
 	movb	%bl, %al
 	call	print_hex_byte
 	cmpb	$3, %bh
-	jae	2f
-1:	/* PCI <3.0: set %gs (runtime segment) = %cs (init-time segment) */
+	jb	no_pci3
+	/* PCI >=3.0: leave %gs as-is if sane */
+	movw	%gs, %ax
+	cmpw	$0xa000, %ax	/* Insane if %gs < 0xa000 */
+	jb	pci3_insane
+	movw	%cs, %bx	/* Sane if %cs == %gs */
+	cmpw	%bx, %ax
+	je	1f
+	movzbw	romheader_size, %cx /* Sane if %cs+len <= %gs */
+	shlw	$5, %cx
+	addw	%cx, %bx
+	cmpw	%bx, %ax
+	jae	1f
+	movw	%cs, %bx	/* Sane if %gs+len <= %cs */
+	addw	%cx, %ax
+	cmpw	%bx, %ax
+	jbe	1f
+pci3_insane: /* PCI 3.0 with insane %gs value: print error and ignore %gs */
+	movb	$( '!' ), %al
+	call	print_character
+	movw	%gs, %ax
+	call	print_hex_word
+no_pci3:
+	/* PCI <3.0: set %gs (runtime segment) = %cs (init-time segment) */
 	pushw	%cs
 	popw	%gs
-2:	popl	%edi
+1:	popl	%edi
 	popl	%edx
 	popl	%ebx
 
@@ -268,21 +291,52 @@ pmm_scan:
 	movw	$init_message_pmm, %si
 	xorw	%di, %di
 	call	print_message
-	/* Try to allocate 2MB block via PMM */
+	/* We have PMM and so a 1kB stack: preserve upper register halves */
+	pushal
+	/* Calculate required allocation size in %esi */
+	movzbl	romheader_size, %eax
+	shll	$9, %eax
+	addl	$_textdata_memsz, %eax
+	orw	$0xffff, %ax	/* Ensure allocation size is at least 64kB */
+	bsrl	%eax, %ecx
+	subw	$15, %cx	/* Round up and convert to 64kB count */
+	movw	$1, %si
+	shlw	%cl, %si
+pmm_loop:
+	/* Try to allocate block via PMM */
 	pushw	$0x0006		/* Aligned, extended memory */
 	pushl	$0xffffffff	/* No handle */
-	pushl	$( 0x00200000 / 16 ) /* 2MB in paragraphs */
+	movzwl	%si, %eax
+	shll	$12, %eax
+	pushl	%eax		/* Allocation size in paragraphs */
 	pushw	$PMM_ALLOCATE
 	lcall	*%es:7
 	addw	$12, %sp
+	/* Abort if allocation fails */
+	testw	%dx, %dx	/* %ax==0 even on success, since align>=64kB */
+	jz	pmm_fail
+	/* If block has A20==1, free block and try again with twice
+	 * the allocation size (and hence alignment).
+	 */
+	testw	$0x0010, %dx
+	jz	got_pmm
+	pushw	%dx
+	pushw	$0
+	pushw	$PMM_DEALLOCATE
+	lcall	*%es:7
+	addw	$6, %sp
+	addw	%si, %si
+	jmp	pmm_loop
+got_pmm: /* PMM allocation succeeded */
+	movw	%dx, ( image_source + 2 )
 	movw	%dx, %ax
 	xorw	%di, %di
 	call	print_hex_word
-	movw	%dx, ( image_source + 2 )
-	testw	%dx, %dx	/* %ax==0 even on success, since align=2MB */
-	jz	no_pmm
-	/* PMM allocation succeeded: copy ROM to PMM block */
-	pushal			/* PMM presence implies 1kB stack */
+	movb	$( '@' ), %al
+	call	print_character
+	movw	%si, %ax
+	call	print_hex_byte
+	/* Copy ROM to PMM block */
 	xorw	%ax, %ax
 	movw	%ax, %es
 	movl	image_source, %edi
@@ -291,24 +345,28 @@ pmm_scan:
 	shll	$9, %ecx
 	addr32 rep movsb	/* PMM presence implies flat real mode */
 	movl	%edi, decompress_to
-	/* Shrink ROM and update checksum */
+	/* Shrink ROM */
+	movb	$_prefix_memsz_sect, romheader_size
+pmm_fail:
+	/* Restore upper register halves */
+	popal
+no_pmm:
+
+	/* Update checksum */
 	xorw	%bx, %bx
 	xorw	%si, %si
-	movw	$_prefix_size_sect, %cx
-	movb	%cl, romheader_size
+	movzbw	romheader_size, %cx
 	shlw	$9, %cx
 1:	lodsb
 	addb	%al, %bl
 	loop	1b
 	subb	%bl, checksum
-	popal
-no_pmm:
 
 	/* Copy self to option ROM space.  Required for PCI3.0, which
 	 * loads us to a temporary location in low memory.  Will be a
 	 * no-op for lower PCI versions.
 	 */
-	movb	$' ', %al
+	movb	$( ' ' ), %al
 	xorw	%di, %di
 	call	print_character
 	movw	%gs, %ax
@@ -324,23 +382,28 @@ no_pmm:
 	movw	$init_message_prompt, %si
 	xorw	%di, %di
 	call	print_message
+	movw	$prodstr, %si
+	call	print_message
+	movw	$init_message_dots, %si
+	call	print_message
 	/* Wait for Ctrl-B */
 	movw	$0xff02, %bx
 	call	wait_for_key
 	/* Clear prompt */
 	pushf
-	movw	$clear_message, %si
 	xorw	%di, %di
+	call	print_kill_line
+	movw	$init_message_done, %si
 	call	print_message
 	popf
-	jnz	1f
+	jnz	2f
 	/* Ctrl-B was pressed: invoke gPXE.  The keypress will be
 	 * picked up by the initial shell prompt, and we will drop
 	 * into a shell.
 	 */
 	pushw	%cs
 	call	exec
-1:
+2:
 	/* Restore registers */
 	popw	%gs
 	popw	%fs
@@ -353,7 +416,26 @@ no_pmm:
 	lret
 	.size init, . - init
 
+/*
+ * Note to hardware vendors:
+ *
+ * If you wish to brand this boot ROM, please do so by defining the
+ * strings PRODUCT_NAME and PRODUCT_SHORT_NAME in config/general.h.
+ *
+ * While nothing in the GPL prevents you from removing all references
+ * to gPXE or http://etherboot.org, we prefer you not to do so.
+ *
+ * If you have an OEM-mandated branding requirement that cannot be
+ * satisfied simply by defining PRODUCT_NAME and PRODUCT_SHORT_NAME,
+ * please contact us.
+ *
+ * [ Including an ASCII NUL in PRODUCT_NAME is considered to be
+ *   bypassing the spirit of this request! ]
+ */
 init_message:
+	.ascii	"\n"
+	.ascii	PRODUCT_NAME
+	.ascii	"\n"
 	.asciz	"gPXE (http://etherboot.org) - "
 	.size	init_message, . - init_message
 init_message_pci:
@@ -372,11 +454,14 @@ init_message_int19:
 	.asciz	" INT19"
 	.size	init_message_int19, . - init_message_int19
 init_message_prompt:
-	.asciz	"\nPress Ctrl-B to configure gPXE..."
+	.asciz	"\nPress Ctrl-B to configure "
 	.size	init_message_prompt, . - init_message_prompt
-clear_message:
-	.asciz	"\r                                          \n\n"
-	.size	clear_message, . - clear_message
+init_message_dots:
+	.asciz	"..."
+	.size	init_message_dots, . - init_message_dots
+init_message_done:
+	.asciz	"\n\n"
+	.size	init_message_done, . - init_message_done
 
 /* ROM image location
  *
@@ -429,14 +514,15 @@ int19_entry:
 	call	print_message
 	movw	$int19_message_dots, %si
 	call	print_message
-	movw	$0xdf42, %bx
+	movw	$0xdf4e, %bx
 	call	wait_for_key
 	pushf
-	movw	$clear_message, %si
 	xorw	%di, %di
+	call	print_kill_line
+	movw	$int19_message_done, %si
 	call	print_message
 	popf
-	jnz	1f
+	jz	1f
 	/* Leave keypress in buffer and start gPXE.  The keypress will
 	 * cause the usual initial Ctrl-B prompt to be skipped.
 	 */
@@ -455,11 +541,14 @@ orig_int19:
 	.size	orig_int19, . - orig_int19
 
 int19_message_prompt:
-	.asciz	"Press B to boot from "
+	.asciz	"Press N to skip booting from "
 	.size	int19_message_prompt, . - int19_message_prompt
 int19_message_dots:
 	.asciz	"..."
 	.size	int19_message_dots, . - int19_message_dots
+int19_message_done:
+	.asciz	"\n\n"
+	.size	int19_message_done, . - int19_message_done
 	
 /* Execute as a boot device
  *
@@ -504,8 +593,11 @@ exec:	/* Set %ds = %cs */
 	pushl	$main
 	pushw	%cs
 	call	prot_call
-	/* No need to clean up stack; we are about to reload %ss:sp */
-	
+	popl	%ecx /* discard */
+
+	/* Uninstall gPXE */
+	call	uninstall
+
 	/* Restore BIOS stack */
 	movw	%dx, %ss
 	movw	%bp, %sp

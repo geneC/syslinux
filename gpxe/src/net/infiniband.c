@@ -46,10 +46,12 @@ struct list_head ib_devices = LIST_HEAD_INIT ( ib_devices );
  *
  * @v ibdev		Infiniband device
  * @v num_cqes		Number of completion queue entries
+ * @v op		Completion queue operations
  * @ret cq		New completion queue
  */
-struct ib_completion_queue * ib_create_cq ( struct ib_device *ibdev,
-					    unsigned int num_cqes ) {
+struct ib_completion_queue *
+ib_create_cq ( struct ib_device *ibdev, unsigned int num_cqes,
+	       struct ib_completion_queue_operations *op ) {
 	struct ib_completion_queue *cq;
 	int rc;
 
@@ -58,22 +60,28 @@ struct ib_completion_queue * ib_create_cq ( struct ib_device *ibdev,
 	/* Allocate and initialise data structure */
 	cq = zalloc ( sizeof ( *cq ) );
 	if ( ! cq )
-		return NULL;
+		goto err_alloc_cq;
 	cq->num_cqes = num_cqes;
 	INIT_LIST_HEAD ( &cq->work_queues );
+	cq->op = op;
 
 	/* Perform device-specific initialisation and get CQN */
 	if ( ( rc = ibdev->op->create_cq ( ibdev, cq ) ) != 0 ) {
 		DBGC ( ibdev, "IBDEV %p could not initialise completion "
 		       "queue: %s\n", ibdev, strerror ( rc ) );
-		free ( cq );
-		return NULL;
+		goto err_dev_create_cq;
 	}
 
 	DBGC ( ibdev, "IBDEV %p created %d-entry completion queue %p (%p) "
 	       "with CQN %#lx\n", ibdev, num_cqes, cq,
 	       ib_cq_get_drvdata ( cq ), cq->cqn );
 	return cq;
+
+	ibdev->op->destroy_cq ( ibdev, cq );
+ err_dev_create_cq:
+	free ( cq );
+ err_alloc_cq:
+	return NULL;
 }
 
 /**
@@ -120,7 +128,9 @@ struct ib_queue_pair * ib_create_qp ( struct ib_device *ibdev,
 		       ( num_recv_wqes * sizeof ( qp->recv.iobufs[0] ) ) );
 	qp = zalloc ( total_size );
 	if ( ! qp )
-		return NULL;
+		goto err_alloc_qp;
+	qp->ibdev = ibdev;
+	list_add ( &qp->list, &ibdev->qps );
 	qp->qkey = qkey;
 	qp->send.qp = qp;
 	qp->send.is_send = 1;
@@ -134,15 +144,13 @@ struct ib_queue_pair * ib_create_qp ( struct ib_device *ibdev,
 	qp->recv.num_wqes = num_recv_wqes;
 	qp->recv.iobufs = ( ( ( void * ) qp ) + sizeof ( *qp ) +
 			    ( num_send_wqes * sizeof ( qp->send.iobufs[0] ) ));
+	INIT_LIST_HEAD ( &qp->mgids );
 
 	/* Perform device-specific initialisation and get QPN */
 	if ( ( rc = ibdev->op->create_qp ( ibdev, qp ) ) != 0 ) {
 		DBGC ( ibdev, "IBDEV %p could not initialise queue pair: "
 		       "%s\n", ibdev, strerror ( rc ) );
-		list_del ( &qp->send.list );
-		list_del ( &qp->recv.list );
-		free ( qp );
-		return NULL;
+		goto err_dev_create_qp;
 	}
 
 	DBGC ( ibdev, "IBDEV %p created queue pair %p (%p) with QPN %#lx\n",
@@ -154,6 +162,15 @@ struct ib_queue_pair * ib_create_qp ( struct ib_device *ibdev,
 	       ibdev, qp->qpn, num_recv_wqes, qp->recv.iobufs,
 	       ( ( ( void * ) qp ) + total_size ) );
 	return qp;
+
+	ibdev->op->destroy_qp ( ibdev, qp );
+ err_dev_create_qp:
+	list_del ( &qp->send.list );
+	list_del ( &qp->recv.list );
+	list_del ( &qp->list );
+	free ( qp );
+ err_alloc_qp:
+	return NULL;
 }
 
 /**
@@ -190,12 +207,77 @@ int ib_modify_qp ( struct ib_device *ibdev, struct ib_queue_pair *qp,
  * @v qp		Queue pair
  */
 void ib_destroy_qp ( struct ib_device *ibdev, struct ib_queue_pair *qp ) {
+	struct io_buffer *iobuf;
+	unsigned int i;
+
 	DBGC ( ibdev, "IBDEV %p destroying QPN %#lx\n",
 	       ibdev, qp->qpn );
+
+	assert ( list_empty ( &qp->mgids ) );
+
+	/* Perform device-specific destruction */
 	ibdev->op->destroy_qp ( ibdev, qp );
+
+	/* Complete any remaining I/O buffers with errors */
+	for ( i = 0 ; i < qp->send.num_wqes ; i++ ) {
+		if ( ( iobuf = qp->send.iobufs[i] ) != NULL )
+			ib_complete_send ( ibdev, qp, iobuf, -ECANCELED );
+	}
+	for ( i = 0 ; i < qp->recv.num_wqes ; i++ ) {
+		if ( ( iobuf = qp->recv.iobufs[i] ) != NULL ) {
+			ib_complete_recv ( ibdev, qp, NULL, iobuf,
+					   -ECANCELED );
+		}
+	}
+
+	/* Remove work queues from completion queue */
 	list_del ( &qp->send.list );
 	list_del ( &qp->recv.list );
+
+	/* Free QP */
+	list_del ( &qp->list );
 	free ( qp );
+}
+
+/**
+ * Find queue pair by QPN
+ *
+ * @v ibdev		Infiniband device
+ * @v qpn		Queue pair number
+ * @ret qp		Queue pair, or NULL
+ */
+struct ib_queue_pair * ib_find_qp_qpn ( struct ib_device *ibdev,
+					unsigned long qpn ) {
+	struct ib_queue_pair *qp;
+
+	list_for_each_entry ( qp, &ibdev->qps, list ) {
+		if ( qp->qpn == qpn )
+			return qp;
+	}
+	return NULL;
+}
+
+/**
+ * Find queue pair by multicast GID
+ *
+ * @v ibdev		Infiniband device
+ * @v gid		Multicast GID
+ * @ret qp		Queue pair, or NULL
+ */
+struct ib_queue_pair * ib_find_qp_mgid ( struct ib_device *ibdev,
+					 struct ib_gid *gid ) {
+	struct ib_queue_pair *qp;
+	struct ib_multicast_gid *mgid;
+
+	list_for_each_entry ( qp, &ibdev->qps, list ) {
+		list_for_each_entry ( mgid, &qp->mgids, list ) {
+			if ( memcmp ( &mgid->gid, gid,
+				      sizeof ( mgid->gid ) ) == 0 ) {
+				return qp;
+			}
+		}
+	}
+	return NULL;
 }
 
 /**
@@ -217,141 +299,193 @@ struct ib_work_queue * ib_find_wq ( struct ib_completion_queue *cq,
 	return NULL;
 }
 
-/***************************************************************************
- *
- * Management datagram operations
- *
- ***************************************************************************
- */
-
 /**
- * Get port information
+ * Post send work queue entry
  *
  * @v ibdev		Infiniband device
- * @v port_info		Port information datagram to fill in
+ * @v qp		Queue pair
+ * @v av		Address vector
+ * @v iobuf		I/O buffer
  * @ret rc		Return status code
  */
-static int ib_get_port_info ( struct ib_device *ibdev,
-			      struct ib_mad_port_info *port_info ) {
-	struct ib_mad_hdr *hdr = &port_info->mad_hdr;
+int ib_post_send ( struct ib_device *ibdev, struct ib_queue_pair *qp,
+		   struct ib_address_vector *av,
+		   struct io_buffer *iobuf ) {
 	int rc;
 
-	/* Construct MAD */
-	memset ( port_info, 0, sizeof ( *port_info ) );
-	hdr->base_version = IB_MGMT_BASE_VERSION;
-	hdr->mgmt_class = IB_MGMT_CLASS_SUBN_LID_ROUTED;
-	hdr->class_version = 1;
-	hdr->method = IB_MGMT_METHOD_GET;
-	hdr->attr_id = htons ( IB_SMP_ATTR_PORT_INFO );
-	hdr->attr_mod = htonl ( ibdev->port );
+	/* Check queue fill level */
+	if ( qp->send.fill >= qp->send.num_wqes ) {
+		DBGC ( ibdev, "IBDEV %p QPN %#lx send queue full\n",
+		       ibdev, qp->qpn );
+		return -ENOBUFS;
+	}
 
-	if ( ( rc = ib_mad ( ibdev, hdr, sizeof ( *port_info ) ) ) != 0 ) {
-		DBGC ( ibdev, "IBDEV %p could not get port info: %s\n",
-		       ibdev, strerror ( rc ) );
+	/* Post to hardware */
+	if ( ( rc = ibdev->op->post_send ( ibdev, qp, av, iobuf ) ) != 0 ) {
+		DBGC ( ibdev, "IBDEV %p QPN %#lx could not post send WQE: "
+		       "%s\n", ibdev, qp->qpn, strerror ( rc ) );
 		return rc;
 	}
+
+	qp->send.fill++;
 	return 0;
 }
 
 /**
- * Get GUID information
+ * Post receive work queue entry
  *
  * @v ibdev		Infiniband device
- * @v guid_info		GUID information datagram to fill in
+ * @v qp		Queue pair
+ * @v iobuf		I/O buffer
  * @ret rc		Return status code
  */
-static int ib_get_guid_info ( struct ib_device *ibdev,
-			      struct ib_mad_guid_info *guid_info ) {
-	struct ib_mad_hdr *hdr = &guid_info->mad_hdr;
+int ib_post_recv ( struct ib_device *ibdev, struct ib_queue_pair *qp,
+		   struct io_buffer *iobuf ) {
 	int rc;
 
-	/* Construct MAD */
-	memset ( guid_info, 0, sizeof ( *guid_info ) );
-	hdr->base_version = IB_MGMT_BASE_VERSION;
-	hdr->mgmt_class = IB_MGMT_CLASS_SUBN_LID_ROUTED;
-	hdr->class_version = 1;
-	hdr->method = IB_MGMT_METHOD_GET;
-	hdr->attr_id = htons ( IB_SMP_ATTR_GUID_INFO );
+	/* Check queue fill level */
+	if ( qp->recv.fill >= qp->recv.num_wqes ) {
+		DBGC ( ibdev, "IBDEV %p QPN %#lx receive queue full\n",
+		       ibdev, qp->qpn );
+		return -ENOBUFS;
+	}
 
-	if ( ( rc = ib_mad ( ibdev, hdr, sizeof ( *guid_info ) ) ) != 0 ) {
-		DBGC ( ibdev, "IBDEV %p could not get GUID info: %s\n",
-		       ibdev, strerror ( rc ) );
+	/* Post to hardware */
+	if ( ( rc = ibdev->op->post_recv ( ibdev, qp, iobuf ) ) != 0 ) {
+		DBGC ( ibdev, "IBDEV %p QPN %#lx could not post receive WQE: "
+		       "%s\n", ibdev, qp->qpn, strerror ( rc ) );
 		return rc;
 	}
+
+	qp->recv.fill++;
 	return 0;
 }
 
 /**
- * Get partition key table
+ * Complete send work queue entry
  *
  * @v ibdev		Infiniband device
- * @v guid_info		Partition key table datagram to fill in
+ * @v qp		Queue pair
+ * @v iobuf		I/O buffer
+ * @v rc		Completion status code
+ */
+void ib_complete_send ( struct ib_device *ibdev, struct ib_queue_pair *qp,
+			struct io_buffer *iobuf, int rc ) {
+	qp->send.cq->op->complete_send ( ibdev, qp, iobuf, rc );
+	qp->send.fill--;
+}
+
+/**
+ * Complete receive work queue entry
+ *
+ * @v ibdev		Infiniband device
+ * @v qp		Queue pair
+ * @v av		Address vector
+ * @v iobuf		I/O buffer
+ * @v rc		Completion status code
+ */
+void ib_complete_recv ( struct ib_device *ibdev, struct ib_queue_pair *qp,
+			struct ib_address_vector *av,
+			struct io_buffer *iobuf, int rc ) {
+	qp->recv.cq->op->complete_recv ( ibdev, qp, av, iobuf, rc );
+	qp->recv.fill--;
+}
+
+/**
+ * Open port
+ *
+ * @v ibdev		Infiniband device
  * @ret rc		Return status code
  */
-static int ib_get_pkey_table ( struct ib_device *ibdev,
-			       struct ib_mad_pkey_table *pkey_table ) {
-	struct ib_mad_hdr *hdr = &pkey_table->mad_hdr;
+int ib_open ( struct ib_device *ibdev ) {
 	int rc;
 
-	/* Construct MAD */
-	memset ( pkey_table, 0, sizeof ( *pkey_table ) );
-	hdr->base_version = IB_MGMT_BASE_VERSION;
-	hdr->mgmt_class = IB_MGMT_CLASS_SUBN_LID_ROUTED;
-	hdr->class_version = 1;
-	hdr->method = IB_MGMT_METHOD_GET;
-	hdr->attr_id = htons ( IB_SMP_ATTR_PKEY_TABLE );
-
-	if ( ( rc = ib_mad ( ibdev, hdr, sizeof ( *pkey_table ) ) ) != 0 ) {
-		DBGC ( ibdev, "IBDEV %p could not get pkey table: %s\n",
-		       ibdev, strerror ( rc ) );
-		return rc;
+	/* Open device if this is the first requested opening */
+	if ( ibdev->open_count == 0 ) {
+		if ( ( rc = ibdev->op->open ( ibdev ) ) != 0 )
+			return rc;
 	}
+
+	/* Increment device open request counter */
+	ibdev->open_count++;
+
 	return 0;
 }
 
 /**
- * Get MAD parameters
+ * Close port
  *
  * @v ibdev		Infiniband device
+ */
+void ib_close ( struct ib_device *ibdev ) {
+
+	/* Decrement device open request counter */
+	ibdev->open_count--;
+
+	/* Close device if this was the last remaining requested opening */
+	if ( ibdev->open_count == 0 )
+		ibdev->op->close ( ibdev );
+}
+
+/**
+ * Attach to multicast group
+ *
+ * @v ibdev		Infiniband device
+ * @v qp		Queue pair
+ * @v gid		Multicast GID
  * @ret rc		Return status code
  */
-static int ib_get_mad_params ( struct ib_device *ibdev ) {
-	union {
-		/* This union exists just to save stack space */
-		struct ib_mad_port_info port_info;
-		struct ib_mad_guid_info guid_info;
-		struct ib_mad_pkey_table pkey_table;
-	} u;
+int ib_mcast_attach ( struct ib_device *ibdev, struct ib_queue_pair *qp,
+		      struct ib_gid *gid ) {
+	struct ib_multicast_gid *mgid;
 	int rc;
 
-	/* Port info gives us the link state, the first half of the
-	 * port GID and the SM LID.
-	 */
-	if ( ( rc = ib_get_port_info ( ibdev, &u.port_info ) ) != 0 )
-		return rc;
-	ibdev->link_up = ( ( u.port_info.port_state__link_speed_supported
-			     & 0xf ) == 4 );
-	memcpy ( &ibdev->port_gid.u.bytes[0], u.port_info.gid_prefix, 8 );
-	ibdev->sm_lid = ntohs ( u.port_info.mastersm_lid );
+	/* Add to software multicast GID list */
+	mgid = zalloc ( sizeof ( *mgid ) );
+	if ( ! mgid ) {
+		rc = -ENOMEM;
+		goto err_alloc_mgid;
+	}
+	memcpy ( &mgid->gid, gid, sizeof ( mgid->gid ) );
+	list_add ( &mgid->list, &qp->mgids );
 
-	/* GUID info gives us the second half of the port GID */
-	if ( ( rc = ib_get_guid_info ( ibdev, &u.guid_info ) ) != 0 )
-		return rc;
-	memcpy ( &ibdev->port_gid.u.bytes[8], u.guid_info.gid_local, 8 );
-
-	/* Get partition key */
-	if ( ( rc = ib_get_pkey_table ( ibdev, &u.pkey_table ) ) != 0 )
-		return rc;
-	ibdev->pkey = ntohs ( u.pkey_table.pkey[0][0] );
-
-	DBGC ( ibdev, "IBDEV %p port GID is %08lx:%08lx:%08lx:%08lx\n",
-	       ibdev, htonl ( ibdev->port_gid.u.dwords[0] ),
-	       htonl ( ibdev->port_gid.u.dwords[1] ),
-	       htonl ( ibdev->port_gid.u.dwords[2] ),
-	       htonl ( ibdev->port_gid.u.dwords[3] ) );
+	/* Add to hardware multicast GID list */
+	if ( ( rc = ibdev->op->mcast_attach ( ibdev, qp, gid ) ) != 0 )
+		goto err_dev_mcast_attach;
 
 	return 0;
+
+ err_dev_mcast_attach:
+	list_del ( &mgid->list );
+	free ( mgid );
+ err_alloc_mgid:
+	return rc;
 }
+
+/**
+ * Detach from multicast group
+ *
+ * @v ibdev		Infiniband device
+ * @v qp		Queue pair
+ * @v gid		Multicast GID
+ */
+void ib_mcast_detach ( struct ib_device *ibdev, struct ib_queue_pair *qp,
+		       struct ib_gid *gid ) {
+	struct ib_multicast_gid *mgid;
+
+	/* Remove from hardware multicast GID list */
+	ibdev->op->mcast_detach ( ibdev, qp, gid );
+
+	/* Remove from software multicast GID list */
+	list_for_each_entry ( mgid, &qp->mgids, list ) {
+		if ( memcmp ( &mgid->gid, gid, sizeof ( mgid->gid ) ) == 0 ) {
+			list_del ( &mgid->list );
+			free ( mgid );
+			break;
+		}
+	}
+}
+
 
 /***************************************************************************
  *
@@ -366,14 +500,6 @@ static int ib_get_mad_params ( struct ib_device *ibdev ) {
  * @v ibdev		Infiniband device
  */
 void ib_link_state_changed ( struct ib_device *ibdev ) {
-	int rc;
-
-	/* Update MAD parameters */
-	if ( ( rc = ib_get_mad_params ( ibdev ) ) != 0 ) {
-		DBGC ( ibdev, "IBDEV %p could not update MAD parameters: %s\n",
-		       ibdev, strerror ( rc ) );
-		return;
-	}
 
 	/* Notify IPoIB of link state change */
 	ipoib_link_state_changed ( ibdev );
@@ -420,6 +546,9 @@ struct ib_device * alloc_ibdev ( size_t priv_size ) {
 	if ( ibdev ) {
 		drv_priv = ( ( ( void * ) ibdev ) + sizeof ( *ibdev ) );
 		ib_set_drvdata ( ibdev, drv_priv );
+		INIT_LIST_HEAD ( &ibdev->qps );
+		ibdev->lid = IB_LID_NONE;
+		ibdev->pkey = IB_PKEY_NONE;
 	}
 	return ibdev;
 }
@@ -437,14 +566,6 @@ int register_ibdev ( struct ib_device *ibdev ) {
 	ibdev_get ( ibdev );
 	list_add_tail ( &ibdev->list, &ib_devices );
 
-	/* Open link */
-	if ( ( rc = ib_open ( ibdev ) ) != 0 )
-		goto err_open;
-
-	/* Get MAD parameters */
-	if ( ( rc = ib_get_mad_params ( ibdev ) ) != 0 )
-		goto err_get_mad_params;
-
 	/* Add IPoIB device */
 	if ( ( rc = ipoib_probe ( ibdev ) ) != 0 ) {
 		DBGC ( ibdev, "IBDEV %p could not add IPoIB device: %s\n",
@@ -457,9 +578,6 @@ int register_ibdev ( struct ib_device *ibdev ) {
 	return 0;
 
  err_ipoib_probe:
- err_get_mad_params:
-	ib_close ( ibdev );
- err_open:
 	list_del ( &ibdev->list );
 	ibdev_put ( ibdev );
 	return rc;
@@ -474,7 +592,6 @@ void unregister_ibdev ( struct ib_device *ibdev ) {
 
 	/* Close device */
 	ipoib_remove ( ibdev );
-	ib_close ( ibdev );
 
 	/* Remove from device list */
 	list_del ( &ibdev->list );
