@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2008-2009 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -33,11 +33,10 @@ union syslinux_derivative_info __syslinux_derivative_info;
 
 void __constructor __syslinux_get_derivative_info(void)
 {
-  static com32sys_t reg;
   com32sys_t * const r = &__syslinux_derivative_info.rr.r;
 
-  reg.eax.w[0] = 0x000A;
-  __intcall(0x22, &reg, r);
+  r->eax.w[0] = 0x000A;
+  __intcall(0x22, r, r);
 
   __syslinux_derivative_info.r.esbx = MK_PTR(r->es, r->ebx.w[0]);
   __syslinux_derivative_info.r.fssi = MK_PTR(r->fs, r->esi.w[0]);
