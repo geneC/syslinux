@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 
 char *getcwd(char *buf, size_t size)
 {
