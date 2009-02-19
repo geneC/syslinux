@@ -114,7 +114,7 @@ void ata_id_c_string(const uint16_t *id, unsigned char *s, unsigned int ofs, uns
 void ata_id_string(const uint16_t *id, unsigned char *s, unsigned int ofs, unsigned int len);
 int int13_retry(const com32sys_t *inreg, com32sys_t *outreg);
 void printregs(const com32sys_t *r);
-int get_disk_params(int disk, struct diskinfo *disk_info);
 #endif
 
+int get_disk_params(int disk, struct diskinfo *disk_info);
 #endif
