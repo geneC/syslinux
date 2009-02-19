@@ -14,7 +14,7 @@
 ## samples for syslinux users
 ##
 
-topdir = ..
+topdir = ../..
 include $(topdir)/MCONFIG.embedded
 
 INCLUDES   = -I$(com32)/include
