@@ -35,16 +35,15 @@ all:  hdt.c32 $(LIB)
 
 .PRECIOUS: %.o
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -std=gnu99  -D__COM32__ -I$(topdir)/menu/libmenu/ -c -o $@ $<
 
 .PRECIOUS: %.elf
 %.elf: c32entry.o %.o $(LIB)
 	$(LD) -Ttext 0x101000 -e _start -o $@ $^
 
-hdt.o: hdt.c
-	$(CC) $(CFLAGS) -std=gnu99  -D__COM32__ -I$(topdir)/menu/libmenu/ -c -o $@ $<
-
-hdt.elf: hdt.o $(com32)/modules/cpuid.o $(com32)/modules/dmi.o $(topdir)/menu/libmenu/libmenu.a $(LIB) $(C_LIBS)
+hdt.elf: hdt.o hdt-ata.o hdt-menu.o hdt-menu-pci.o hdt-menu-kernel.o \
+	 hdt-menu-disk.o hdt-menu-dmi.o hdt-menu-processor.o hdt-menu-syslinux.o hdt-menu-about.o \
+	$(com32)/modules/cpuid.o $(com32)/modules/dmi.o $(topdir)/menu/libmenu/libmenu.a $(LIB) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 %.c32: %.elf
@@ -63,6 +62,6 @@ tidy dist:
 
 # Don't specify *.com since mdiskchk.com can't be built using Linux tools
 clean: tidy
-	rm -f *.o *.c32
+	rm -f *.o *.c32 *.c~ *.h~ Makefile~
 
 spotless: clean
