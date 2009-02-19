@@ -62,11 +62,11 @@ int detect_dmi(s_dmi *dmi) {
 
 /* Try to detects disk from port 0x80 to 0xff*/
 void detect_disks(struct diskinfo *disk_info) {
- for (int drive = 0x80; drive <= 0xff; drive++) {
-    if (get_disk_params(drive,disk_info))
+ for (int drive = 0x80; drive < 0xff; drive++) {
+    if (get_disk_params(drive,disk_info) != 0)
           continue;
     struct diskinfo d=disk_info[drive];
-    printf("  DISK 0x%X: %s %s: sectors=%d, sector/track=%d head=%d : EDD=%s\n",drive,d.host_bus_type,d.interface_type, d.sectors, d.sectors_per_track,d.heads,d.edd_version);
+    printf("  DISK 0x%X: %s : %s %s: sectors=%d, s/t=%d head=%d : EDD=%s\n",drive,d.aid.model,d.host_bus_type,d.interface_type, d.sectors, d.sectors_per_track,d.heads,d.edd_version);
  }
 }
 
@@ -220,6 +220,8 @@ int main(void)
   s_cpu cpu; /* CPU information */
   struct pci_domain *pci_domain=NULL; /* PCI Devices */
   struct diskinfo disk_info[256];     /* Disk Information*/
+
+  memset(&disk_info,0,sizeof (disk_info));
 
   /* Setup the environement */
   setup_env();

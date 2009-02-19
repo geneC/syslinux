@@ -136,6 +136,8 @@ int get_disk_params(int disk, struct diskinfo *disk_info)
   struct ata_identify_device aid;
 #endif
 
+  memset(&(disk_info[disk]), 0, sizeof(struct diskinfo));
+
   disk_info[disk].disk = disk;
   disk_info[disk].ebios = disk_info[disk].cbios = 0;
 
@@ -207,16 +209,16 @@ int get_disk_params(int disk, struct diskinfo *disk_info)
 
    /* Copying result to the disk_info structure
     * host_bus_type, interface_type, sectors & cylinders */
-   sprintf(disk_info[disk].host_bus_type,"%c%c%c%c",dp.host_bus_type[0],dp.host_bus_type[1],dp.host_bus_type[2],dp.host_bus_type[3]);
-   sprintf(disk_info[disk].interface_type,"%c%c%c%c%c%c%c%c",dp.interface_type[0],dp.interface_type[1],dp.interface_type[2],dp.interface_type[3],dp.interface_type[4],dp.interface_type[5],dp.interface_type[6],dp.interface_type[7]);
+   snprintf(disk_info[disk].host_bus_type,sizeof disk_info[disk].host_bus_type,"%c%c%c%c",dp.host_bus_type[0],dp.host_bus_type[1],dp.host_bus_type[2],dp.host_bus_type[3]);
+   snprintf(disk_info[disk].interface_type,sizeof disk_info[disk].interface_type,"%c%c%c%c%c%c%c%c",dp.interface_type[0],dp.interface_type[1],dp.interface_type[2],dp.interface_type[3],dp.interface_type[4],dp.interface_type[5],dp.interface_type[6],dp.interface_type[7]);
    disk_info[disk].sectors=dp.sectors;
    disk_info[disk].cylinders=dp.cylinders;
 
    /*FIXME: we have to find a way to grab the model & fw
     * We do put dummy data until we found a solution */
-   sprintf(disk_info[disk].aid.model,"0x%X",disk);
-   sprintf(disk_info[disk].aid.fw_rev,"%s","N/A");
-   sprintf(disk_info[disk].aid.serial_no,"%s","N/A");
+   snprintf(disk_info[disk].aid.model,sizeof disk_info[disk].aid.model,"0x%X",disk);
+   snprintf(disk_info[disk].aid.fw_rev,sizeof disk_info[disk].aid.fw_rev,"%s","N/A");
+   snprintf(disk_info[disk].aid.serial_no,sizeof disk_info[disk].aid.serial_no,"%s","N/A");
 
   /* Useless stuff before I figure how to send ata packets */
 #ifdef ATA
