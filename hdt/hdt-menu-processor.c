@@ -30,8 +30,8 @@
 
 /* Compute Processor menu */
 void compute_processor(struct s_my_menu *menu,s_cpu *cpu, s_dmi *dmi) {
-  char buffer[MENULEN+1];
-  char buffer1[MENULEN+1];
+  char buffer[SUBMENULEN+1];
+  char buffer1[SUBMENULEN+1];
   char statbuffer[STATLEN+1];
 
   menu->menu = add_menu(" Main Processor ",-1);
