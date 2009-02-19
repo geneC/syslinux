@@ -122,4 +122,8 @@
 #define __aligned(x)	__attribute__((aligned(x)))
 #define __alignas(x)	__attribute__((aligned(__alignof__(x))))
 
+/* Handling of common (affect constructors/destructors) */
+#define __common	__attribute__((common))
+#define __nocommon	__attribute__((nocommon))
+
 #endif
