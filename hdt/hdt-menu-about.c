@@ -29,31 +29,36 @@
 #include "hdt-menu.h"
 
 /* Computing About menu*/
-void compute_aboutmenu(unsigned char *menu) {
+void compute_aboutmenu(struct s_my_menu *menu) {
   char buffer[SUBMENULEN+1];
   char statbuffer[STATLEN+1];
 
-  *menu = add_menu(" About ",-1);
-  menu_count++;
-  set_menu_pos(SUBMENU_Y,SUBMENU_X);
+  menu->menu = add_menu(" About ",-1);
+  menu->items_count=0;
 
-  printf("MENU: Computing About menu\n");
+  set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
   snprintf(buffer, sizeof buffer, "Product : %s", PRODUCT_NAME);
   snprintf(statbuffer, sizeof statbuffer, "Product : %s", PRODUCT_NAME);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   snprintf(buffer, sizeof buffer, "Version : %s", VERSION);
   snprintf(statbuffer, sizeof statbuffer, "Version : %s", VERSION);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   snprintf(buffer, sizeof buffer, "Author  : %s", AUTHOR);
   snprintf(statbuffer, sizeof statbuffer, "Author  : %s", AUTHOR);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   snprintf(buffer, sizeof buffer, "Contact : %s", CONTACT);
   snprintf(statbuffer, sizeof statbuffer, "Contact : %s", CONTACT);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
+
+  printf("MENU: About menu done (%d items)\n",menu->items_count);
 
 }
 

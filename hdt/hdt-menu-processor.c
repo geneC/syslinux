@@ -29,56 +29,65 @@
 #include "hdt-menu.h"
 
 /* Compute Processor menu */
-void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
+void compute_processor(struct s_my_menu *menu,s_cpu *cpu, s_dmi *dmi) {
   char buffer[MENULEN+1];
   char buffer1[MENULEN+1];
   char statbuffer[STATLEN+1];
 
-  printf("MENU: Computing Processor menu\n");
-  *menu = add_menu(" Main Processor ",-1);
-  menu_count++;
+  menu->menu = add_menu(" Main Processor ",-1);
+  menu->items_count=0;
   set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
   snprintf(buffer,sizeof buffer,"Vendor    : %s",cpu->vendor);
   snprintf(statbuffer,sizeof statbuffer,"Vendor: %s",cpu->vendor);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   snprintf(buffer,sizeof buffer,"Model     : %s",cpu->model);
   snprintf(statbuffer,sizeof statbuffer,"Model: %s",cpu->model);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   snprintf(buffer,sizeof buffer,"Vendor ID : %d",cpu->vendor_id);
   snprintf(statbuffer,sizeof statbuffer,"Vendor ID: %d",cpu->vendor_id);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   snprintf(buffer,sizeof buffer,"Family ID : %d",cpu->family);
   snprintf(statbuffer,sizeof statbuffer,"Family ID: %d",cpu->family);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   snprintf(buffer,sizeof buffer,"Model  ID : %d",cpu->model_id);
   snprintf(statbuffer,sizeof statbuffer,"Model  ID: %d",cpu->model_id);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   snprintf(buffer,sizeof buffer,"Stepping  : %d",cpu->stepping);
   snprintf(statbuffer,sizeof statbuffer,"Stepping: %d",cpu->stepping);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   if (is_dmi_valid) {
    snprintf(buffer,sizeof buffer,"FSB       : %d",dmi->processor.external_clock);
    snprintf(statbuffer,sizeof statbuffer,"Front Side Bus (MHz): %d",dmi->processor.external_clock);
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+   menu->items_count++;
 
    snprintf(buffer,sizeof buffer,"Cur. Speed: %d",dmi->processor.current_speed);
    snprintf(statbuffer,sizeof statbuffer,"Current Speed (MHz): %d",dmi->processor.current_speed);
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+   menu->items_count++;
 
    snprintf(buffer,sizeof buffer,"Max Speed : %d",dmi->processor.max_speed);
    snprintf(statbuffer,sizeof statbuffer,"Max Speed (MHz): %d",dmi->processor.max_speed);
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+   menu->items_count++;
 
    snprintf(buffer,sizeof buffer,"Upgrade   : %s",dmi->processor.upgrade);
    snprintf(statbuffer,sizeof statbuffer,"Upgrade: %s",dmi->processor.upgrade);
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+   menu->items_count++;
   }
 
   if (cpu->flags.smp) {
@@ -90,6 +99,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
           snprintf(statbuffer,sizeof statbuffer,"SMP: No");
   }
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   if (cpu->flags.lm) {
           snprintf(buffer,sizeof buffer,"x86_64    : Yes");
@@ -100,6 +110,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
           snprintf(statbuffer,sizeof statbuffer,"X86_64 compatible processor: No");
   }
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   buffer1[0]='\0';
   if (cpu->flags.fpu) strcat(buffer1,"fpu ");
@@ -112,6 +123,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
   snprintf(buffer,sizeof buffer,"Flags     : %s",buffer1);
   snprintf(statbuffer,sizeof statbuffer,"Flags: %s",buffer1);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   buffer1[0]='\0';
   if (cpu->flags.mce) strcat(buffer1,"mce ");
@@ -124,6 +136,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
   snprintf(buffer,sizeof buffer,"Flags     : %s",buffer1);
   snprintf(statbuffer,sizeof statbuffer,"Flags: %s",buffer1);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   buffer1[0]='\0';
   if (cpu->flags.cmov) strcat(buffer1,"cmov ");
@@ -134,6 +147,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
   snprintf(buffer,sizeof buffer,"Flags     : %s",buffer1);
   snprintf(statbuffer,sizeof statbuffer,"Flags: %s",buffer1);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   buffer1[0]='\0';
   if (cpu->flags.dts)  strcat(buffer1,"dts ");
@@ -143,6 +157,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
   snprintf(buffer,sizeof buffer,"Flags     : %s",buffer1);
   snprintf(statbuffer,sizeof statbuffer,"Flags: %s",buffer1);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   buffer1[0]='\0';
   if (cpu->flags.sse2) strcat(buffer1,"sse2 ");
@@ -154,6 +169,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
   snprintf(buffer,sizeof buffer,"Flags     : %s",buffer1);
   snprintf(statbuffer,sizeof statbuffer,"Flags: %s",buffer1);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
   buffer1[0]='\0';
   if (cpu->flags.nx)    strcat(buffer1,"nx ");
@@ -164,5 +180,7 @@ void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi) {
   snprintf(buffer,sizeof buffer,"Flags     : %s",buffer1);
   snprintf(statbuffer,sizeof statbuffer,"Flags: %s",buffer1);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
+  printf("MENU: Processor menu done (%d items)\n",menu->items_count);
 }

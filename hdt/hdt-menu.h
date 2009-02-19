@@ -41,45 +41,68 @@
 
 #define SUBMENU_Y 3
 #define SUBMENU_X 29
-unsigned char MAIN_MENU, CPU_MENU, MOBO_MENU, CHASSIS_MENU, BIOS_MENU, SYSTEM_MENU, PCI_MENU, KERNEL_MENU;
-unsigned char MEMORY_MENU,  MEMORY_SUBMENU[32], DISK_MENU, DISK_SUBMENU[32], PCI_SUBMENU[128],BATTERY_MENU;
-unsigned char SYSLINUX_MENU, ABOUT_MENU;
 
-static int menu_count=0;
+#define MAX_PCI_SUB_MENU 128
+#define MAX_MEMORY_SUB_MENU 32
+#define MAX_DISK_SUB_MENU 32
+
+struct s_my_menu {
+ unsigned char menu;
+ int items_count;
+};
+
+struct s_hdt_menu {
+	struct s_my_menu main_menu;
+	struct s_my_menu cpu_menu;
+	struct s_my_menu mobo_menu;
+	struct s_my_menu chassis_menu;
+	struct s_my_menu bios_menu;
+	struct s_my_menu system_menu;
+	struct s_my_menu pci_menu;
+	struct s_my_menu pci_sub_menu[MAX_PCI_SUB_MENU];
+	struct s_my_menu kernel_menu;
+	struct s_my_menu memory_menu;
+	struct s_my_menu memory_sub_menu[MAX_MEMORY_SUB_MENU];
+	struct s_my_menu disk_menu;
+	struct s_my_menu disk_sub_menu[MAX_DISK_SUB_MENU];
+	struct s_my_menu battery_menu;
+	struct s_my_menu syslinux_menu;
+	struct s_my_menu about_menu;
+	int total_menu_count; // sum of all menus we have
+};
 
 TIMEOUTCODE ontimeout();
 void keys_handler(t_menusystem *ms, t_menuitem *mi,unsigned int scancode);
 
 // PCI Stuff
 static int pci_ids=0;
-void compute_pci_device(unsigned char *menu,struct pci_device *pci_device,int pci_bus, int pci_slot, int pci_func);
-int compute_PCI(unsigned char *menu, struct pci_domain **pci_domain);
+void compute_pci_device(struct s_my_menu *menu,struct pci_device *pci_device,int pci_bus, int pci_slot, int pci_func);
+int compute_PCI(struct s_hdt_menu *hdt_menu, struct pci_domain **pci_domain);
 
 // KERNEL Stuff
 static int modules_pcimap=0;
-void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain);
+void compute_kernel(struct s_my_menu *menu,struct pci_domain **pci_domain);
 
 // Disk Stuff
-static int nb_sub_disk_menu=0;
-void compute_disk_module(unsigned char *menu, struct diskinfo *d,int disk_number);
-void compute_disks(unsigned char *menu, struct diskinfo *disk_info);
+int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu, struct diskinfo *d,int disk_number);
+void compute_disks(struct s_hdt_menu *menu, struct diskinfo *disk_info);
 
 // DMI Stuff
-void compute_motherboard(unsigned char *menu,s_dmi *dmi);
-void compute_battery(unsigned char *menu, s_dmi *dmi);
-void compute_system(unsigned char *menu,s_dmi *dmi);
-void compute_chassis(unsigned char *menu,s_dmi *dmi);
-void compute_bios(unsigned char *menu,s_dmi *dmi);
-void compute_memory(unsigned char *menu, s_dmi *dmi);
-void compute_memory_module(unsigned char *menu, s_dmi *dmi, int slot_number);
+void compute_motherboard(struct s_my_menu *menu,s_dmi *dmi);
+void compute_battery(struct s_my_menu *menu, s_dmi *dmi);
+void compute_system(struct s_my_menu *menu,s_dmi *dmi);
+void compute_chassis(struct s_my_menu *menu,s_dmi *dmi);
+void compute_bios(struct s_my_menu *menu,s_dmi *dmi);
+void compute_memory(struct s_hdt_menu *menu, s_dmi *dmi);
+void compute_memory_module(struct s_my_menu *menu, s_dmi *dmi, int slot_number);
 
 // Processor Stuff
 static bool is_dmi_valid=false;
-void compute_processor(unsigned char *menu,s_cpu *cpu, s_dmi *dmi);
+void compute_processor(struct s_my_menu *menu,s_cpu *cpu, s_dmi *dmi);
 
 // Syslinux stuff
-void compute_syslinuxmenu(unsigned char *menu);
+void compute_syslinuxmenu(struct s_my_menu *menu);
 
 // About menu
-void compute_aboutmenu(unsigned char *menu);
+void compute_aboutmenu(struct s_my_menu *menu);
 #endif

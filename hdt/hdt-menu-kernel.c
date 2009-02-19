@@ -29,15 +29,14 @@
 #include "hdt-menu.h"
 
 /* Main Kernel Menu*/
-void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
+void compute_kernel(struct s_my_menu  *menu,struct pci_domain **pci_domain) {
   char buffer[SUBMENULEN+1];
   char infobar[STATLEN+1];
   char kernel_modules [LINUX_KERNEL_MODULE_SIZE*MAX_KERNEL_MODULES_PER_PCI_DEVICE];
   struct pci_device *pci_device;
 
-  *menu = add_menu(" Kernel Modules ",-1);
-  menu_count++;
-  printf("MENU: Computing Kernel menu\n");
+  menu->menu = add_menu(" Kernel Modules ",-1);
+  menu->items_count=0;
   set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
   if (modules_pcimap == -ENOMODULESPCIMAP) {
@@ -64,8 +63,11 @@ void compute_KERNEL(unsigned char *menu,struct pci_domain **pci_domain) {
                 pci_device->dev_info->product_name);
 
          add_item(buffer,infobar,OPT_INACTIVE,NULL,0);
+	 menu->items_count++;
         }
     }
   }
+
+  printf("MENU: Kernel menu done (%d items)\n",menu->items_count);
 }
 

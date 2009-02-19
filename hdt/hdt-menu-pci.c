@@ -30,34 +30,39 @@
 
 
 /* Dynamic submenu for the pci devices */
-void compute_pci_device(unsigned char *menu,struct pci_device *pci_device,int pci_bus, int pci_slot, int pci_func) {
+void compute_pci_device(struct s_my_menu *menu,struct pci_device *pci_device,int pci_bus, int pci_slot, int pci_func) {
   char buffer[56];
   char statbuffer[STATLEN];
   char kernel_modules [LINUX_KERNEL_MODULE_SIZE*MAX_KERNEL_MODULES_PER_PCI_DEVICE];
 
-  *menu = add_menu(" Details ",-1);
-   menu_count++;
+   menu->menu = add_menu(" Details ",-1);
+   menu->items_count=0;
    set_menu_pos(5,17);
 
    snprintf(buffer,sizeof buffer,"Vendor  : %s",pci_device->dev_info->vendor_name);
    snprintf(statbuffer,sizeof statbuffer,"Vendor Name: %s",pci_device->dev_info->vendor_name);
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+   menu->items_count++;
 
    snprintf(buffer,sizeof buffer,"Product : %s",pci_device->dev_info->product_name);
    snprintf(statbuffer,sizeof statbuffer,"Product Name  %s",pci_device->dev_info->product_name);
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+   menu->items_count++;
 
    snprintf(buffer,sizeof buffer,"Class   : %s",pci_device->dev_info->class_name);
    snprintf(statbuffer,sizeof statbuffer,"Class Name: %s",pci_device->dev_info->class_name);
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+   menu->items_count++;
 
    snprintf(buffer,sizeof buffer,"Location: %02x:%02x.%01x",pci_bus, pci_slot, pci_func);
    snprintf(statbuffer,sizeof statbuffer,"Location on the PCI Bus: %02x:%02x.%01x",pci_bus, pci_slot, pci_func);
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+   menu->items_count++;
 
    snprintf(buffer,sizeof buffer,"PCI ID  : %04x:%04x[%04x:%04x]",pci_device->vendor, pci_device->product,pci_device->sub_vendor, pci_device->sub_product);
    snprintf(statbuffer,sizeof statbuffer,"vendor:product[sub_vendor:sub_product] : %04x:%04x[%04x:%04x]",pci_device->vendor, pci_device->product,pci_device->sub_vendor, pci_device->sub_product);
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+   menu->items_count++;
    if (pci_device->dev_info->linux_kernel_module_count>1) {
     for (int i=0; i<pci_device->dev_info->linux_kernel_module_count;i++) {
       if (i>0) {
@@ -72,17 +77,16 @@ void compute_pci_device(unsigned char *menu,struct pci_device *pci_device,int pc
     snprintf(statbuffer,sizeof statbuffer,"Kernel Module: %s",pci_device->dev_info->linux_kernel_module[0]);
    }
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+   menu->items_count++;
 }
 
 /* Main PCI Menu*/
-int compute_PCI(unsigned char *menu, struct pci_domain **pci_domain) {
+int compute_PCI(struct s_hdt_menu *hdt_menu, struct pci_domain **pci_domain) {
  int i=0;
  char menuname[255][MENULEN+1];
  char infobar[255][STATLEN+1];
  struct pci_device *pci_device;
  char kernel_modules [LINUX_KERNEL_MODULE_SIZE*MAX_KERNEL_MODULES_PER_PCI_DEVICE];
-
- printf("MENU: Computing PCI menu\n");
 
  /* For every detected pci device, compute its submenu */
  for_each_pci_func(pci_device, *pci_domain) {
@@ -95,7 +99,7 @@ int compute_PCI(unsigned char *menu, struct pci_domain **pci_domain) {
    }
    if (pci_device->dev_info->linux_kernel_module_count==0) strlcpy(kernel_modules,"unknown",7);
 
-   compute_pci_device(&PCI_SUBMENU[i],pci_device,__pci_bus,__pci_slot,__pci_func);
+   compute_pci_device(&(hdt_menu->pci_sub_menu[i]),pci_device,__pci_bus,__pci_slot,__pci_func);
    snprintf(menuname[i],59,"%s|%s",pci_device->dev_info->vendor_name,pci_device->dev_info->product_name);
    snprintf(infobar[i], STATLEN,"%02x:%02x.%01x # %s # ID:%04x:%04x[%04x:%04x] # Kmod:%s\n",
                __pci_bus, __pci_slot, __pci_func,pci_device->dev_info->class_name,
@@ -104,8 +108,8 @@ int compute_PCI(unsigned char *menu, struct pci_domain **pci_domain) {
    i++;
  }
 
- *menu = add_menu(" PCI Devices ",-1);
-  menu_count++;
+ hdt_menu->pci_menu.menu = add_menu(" PCI Devices ",-1);
+ hdt_menu->pci_menu.items_count=0;
  if (pci_ids == -ENOPCIIDS) {
     add_item("The pci.ids file is missing","Missing pci.ids file",OPT_INACTIVE,NULL,0);
     add_item("PCI Device names  can't be computed.","Missing pci.ids file",OPT_INACTIVE,NULL,0);
@@ -113,7 +117,9 @@ int compute_PCI(unsigned char *menu, struct pci_domain **pci_domain) {
     add_item("","",OPT_SEP,"",0);
   }
  for (int j=0;j<i;j++) {
-  add_item(menuname[j],infobar[j],OPT_SUBMENU,NULL,PCI_SUBMENU[j]);
+  add_item(menuname[j],infobar[j],OPT_SUBMENU,NULL,hdt_menu->pci_sub_menu[j].menu);
+  hdt_menu->pci_menu.items_count++;
  }
-return 0;
+ printf("MENU: PCI menu done (%d items)\n",hdt_menu->pci_menu.items_count);
+ return 0;
 }
