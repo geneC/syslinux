@@ -221,7 +221,11 @@ int main(void)
   struct pci_domain *pci_domain=NULL; /* PCI Devices */
   struct diskinfo disk_info[256];     /* Disk Information*/
 
+  /* Cleaning structures */
   memset(&disk_info,0,sizeof (disk_info));
+  memset(&dmi,0,sizeof (dmi));
+  memset(&cpu,0,sizeof (cpu));
+  memset(&hdt_menu,0,sizeof (hdt_menu));
 
   /* Setup the environement */
   setup_env();
