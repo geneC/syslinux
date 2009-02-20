@@ -44,11 +44,14 @@ void start_cli_mode(int argc, char *argv[]) {
   memset(cli_line,0,sizeof cli_line);
   printf("hdt:");
   fgets(cli_line, sizeof cli_line, stdin);
-    /* We use sizeof BLAH - 2 to remove the return char */
-    if ( !strncmp(cli_line, CLI_EXIT, sizeof CLI_EXIT - 2 ) )
+  cli_line[strlen(cli_line)-1]='\0';
+    /* We use sizeof BLAH - 1 to remove the last \0 */
+    if ( !strncmp(cli_line, CLI_EXIT, sizeof CLI_EXIT - 1) )
                   break;
-    if ( !strncmp(cli_line, CLI_HELP, sizeof CLI_HELP - 2) )
+    if ( !strncmp(cli_line, CLI_HELP, sizeof CLI_HELP - 1) )
                   show_cli_help();
+    if ( !strncmp(cli_line, CLI_SHOW, sizeof CLI_SHOW - 1) )
+		  main_show(strstr(cli_line,"show")+ sizeof CLI_SHOW, &hardware);
  }
 }
 
@@ -57,3 +60,18 @@ void show_cli_help() {
  printf("Available commands are : %s %s\n",CLI_EXIT,CLI_HELP);
 }
 
+void main_show_dmi(struct s_hardware *hardware) {
+ printf("Let's show dmi stuff !\n");
+}
+
+void main_show_pci(struct s_hardware *hardware) {
+ if (hardware->pci_detection==false) {
+	 detect_pci(hardware);
+ }
+ printf("%d PCI devices detected\n",hardware->nb_pci_devices);
+}
+
+void main_show(char *item, struct s_hardware *hardware) {
+ if (!strncmp(item,CLI_PCI, sizeof CLI_PCI)) main_show_pci(hardware);
+ if (!strncmp(item,CLI_DMI, sizeof CLI_DMI)) main_show_dmi(hardware);
+}

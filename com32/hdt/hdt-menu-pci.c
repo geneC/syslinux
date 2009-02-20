@@ -81,7 +81,7 @@ void compute_pci_device(struct s_my_menu *menu,struct pci_device *pci_device,int
 }
 
 /* Main PCI Menu*/
-int compute_PCI(struct s_hdt_menu *hdt_menu, struct pci_domain **pci_domain) {
+int compute_PCI(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware) {
  int i=0;
  char menuname[255][MENULEN+1];
  char infobar[255][STATLEN+1];
@@ -89,7 +89,7 @@ int compute_PCI(struct s_hdt_menu *hdt_menu, struct pci_domain **pci_domain) {
  char kernel_modules [LINUX_KERNEL_MODULE_SIZE*MAX_KERNEL_MODULES_PER_PCI_DEVICE];
 
  /* For every detected pci device, compute its submenu */
- for_each_pci_func(pci_device, *pci_domain) {
+ for_each_pci_func(pci_device, hardware->pci_domain) {
    memset(kernel_modules,0,sizeof kernel_modules);
    for (int i=0; i<pci_device->dev_info->linux_kernel_module_count;i++) {
      if (i>0) {
@@ -110,7 +110,7 @@ int compute_PCI(struct s_hdt_menu *hdt_menu, struct pci_domain **pci_domain) {
 
  hdt_menu->pci_menu.menu = add_menu(" PCI Devices ",-1);
  hdt_menu->pci_menu.items_count=0;
- if (pci_ids == -ENOPCIIDS) {
+ if (hardware->pci_ids_return_code == -ENOPCIIDS) {
     add_item("The pci.ids file is missing","Missing pci.ids file",OPT_INACTIVE,NULL,0);
     add_item("PCI Device names  can't be computed.","Missing pci.ids file",OPT_INACTIVE,NULL,0);
     add_item("Please put one in same dir as hdt","Missing pci.ids file",OPT_INACTIVE,NULL,0);

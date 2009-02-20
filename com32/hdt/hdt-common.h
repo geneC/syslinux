@@ -39,12 +39,20 @@ struct s_hardware {
   s_cpu cpu; /* CPU information */
   struct pci_domain *pci_domain; /* PCI Devices */
   struct diskinfo disk_info[256];     /* Disk Information*/
+  int pci_ids_return_code;
+  int modules_pcimap_return_code;
   int nb_pci_devices;
   bool is_dmi_valid;
+  bool dmi_detection; /* Does the dmi stuff have been already detected */
+  bool pci_detection; /* Does the pci stuff have been already detected */
+  bool cpu_detection; /* Does the cpu stuff have been already detected */
+  bool disk_detection; /* Does the disk stuff have been already detected */
 };
 
 char *find_argument(char **argv, const char *argument);
 int detect_dmi(struct s_hardware *hardware);
-void detect_disks(struct diskinfo *disk_info);
+void detect_disks(struct s_hardware *hardware);
+void detect_pci(struct s_hardware *hardware);
+void cpu_detect(struct s_hardware *hardware);
 void init_hardware(struct s_hardware *hardware);
 #endif

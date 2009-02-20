@@ -29,10 +29,15 @@
 #ifndef DEFINE_HDT_CLI_H
 #define DEFINE_HDT_CLI_H
 #include <stdio.h>
+#include "hdt-common.h"
 
 #define CLI_EXIT "exit"
 #define CLI_HELP "help"
+#define CLI_SHOW "show"
+#define CLI_PCI  "pci"
+#define CLI_DMI  "dmi"
 
 void show_cli_help();
 void start_cli_mode(int argc, char *argv[]);
+void main_show(char *item, struct s_hardware *hardware);
 #endif

@@ -29,7 +29,7 @@
 #include "hdt-menu.h"
 
 /* Main Kernel Menu*/
-void compute_kernel(struct s_my_menu  *menu,struct pci_domain **pci_domain) {
+void compute_kernel(struct s_my_menu  *menu,struct s_hardware *hardware) {
   char buffer[SUBMENULEN+1];
   char infobar[STATLEN+1];
   char kernel_modules [LINUX_KERNEL_MODULE_SIZE*MAX_KERNEL_MODULES_PER_PCI_DEVICE];
@@ -39,14 +39,14 @@ void compute_kernel(struct s_my_menu  *menu,struct pci_domain **pci_domain) {
   menu->items_count=0;
   set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
-  if (modules_pcimap == -ENOMODULESPCIMAP) {
+  if (hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) {
     add_item("The modules.pcimap file is missing","Missing modules.pcimap file",OPT_INACTIVE,NULL,0);
     add_item("Kernel modules can't be computed.","Missing modules.pcimap file",OPT_INACTIVE,NULL,0);
     add_item("Please put one in same dir as hdt","Missing modules.pcimap file",OPT_INACTIVE,NULL,0);
     add_item("","",OPT_SEP,"",0);
   } else  {
    /* For every detected pci device, grab its kernel module to compute this submenu */
-   for_each_pci_func(pci_device, *pci_domain) {
+   for_each_pci_func(pci_device, hardware->pci_domain) {
         memset(kernel_modules,0,sizeof kernel_modules);
         for (int i=0; i<pci_device->dev_info->linux_kernel_module_count;i++) {
           if (i>0) {

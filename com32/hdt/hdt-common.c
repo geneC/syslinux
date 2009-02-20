@@ -31,6 +31,12 @@
 #include <string.h>
 
 void init_hardware(struct s_hardware *hardware) {
+  hardware->pci_ids_return_code=0;
+  hardware->modules_pcimap_return_code=0;
+  hardware->cpu_detection=false;
+  hardware->pci_detection=false;
+  hardware->disk_detection=false;
+  hardware->dmi_detection=false;
   hardware->nb_pci_devices=0;
   hardware->is_dmi_valid=false;
   hardware->pci_domain=NULL;
@@ -44,8 +50,8 @@ void init_hardware(struct s_hardware *hardware) {
 /* Detecting if a DMI table exist
  * if yes, let's parse it */
 int detect_dmi(struct s_hardware *hardware) {
+  hardware->dmi_detection=true;
   if (dmi_iterate(&(hardware->dmi)) == -ENODMITABLE ) {
-             printf("No DMI Structure found\n");
 	     hardware->is_dmi_valid=false;
              return -ENODMITABLE;
   }
@@ -56,13 +62,47 @@ int detect_dmi(struct s_hardware *hardware) {
 }
 
 /* Try to detects disk from port 0x80 to 0xff*/
-void detect_disks(struct diskinfo *disk_info) {
+void detect_disks(struct s_hardware *hardware) {
+ hardware->disk_detection=true;
  for (int drive = 0x80; drive < 0xff; drive++) {
-    if (get_disk_params(drive,disk_info) != 0)
+    if (get_disk_params(drive,hardware->disk_info) != 0)
           continue;
-    struct diskinfo d=disk_info[drive];
+    struct diskinfo d=hardware->disk_info[drive];
     printf("  DISK 0x%X: %s : %s %s: sectors=%d, s/t=%d head=%d : EDD=%s\n",drive,d.aid.model,d.host_bus_type,d.interface_type, d.sectors, d.sectors_per_track,d.heads,d.edd_version);
  }
+}
+
+void detect_pci(struct s_hardware *hardware) {
+  hardware->pci_detection=true;
+  printf("PCI: Detecting Devices\n");
+  /* Scanning to detect pci buses and devices */
+  hardware->pci_domain = pci_scan();
+
+  struct pci_device *pci_device;
+  for_each_pci_func(pci_device, hardware->pci_domain) {
+          hardware->nb_pci_devices++;
+  }
+
+  printf("PCI: %d Devices Found\n",hardware->nb_pci_devices);
+
+  printf("PCI: Resolving names\n");
+  /* Assigning product & vendor name for each device*/
+  hardware->pci_ids_return_code=get_name_from_pci_ids(hardware->pci_domain);
+
+  printf("PCI: Resolving class names\n");
+  /* Assigning class name for each device*/
+  hardware->pci_ids_return_code=get_class_name_from_pci_ids(hardware->pci_domain);
+
+
+  printf("PCI: Resolving module names\n");
+  /* Detecting which kernel module should match each device */
+  hardware->modules_pcimap_return_code=get_module_name_from_pci_ids(hardware->pci_domain);
+
+}
+
+void cpu_detect(struct s_hardware *hardware) {
+  hardware->cpu_detection=true;
+  detect_cpu(&(hardware->cpu));
 }
 
 /* Find the last instance of a particular command line argument

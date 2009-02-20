@@ -132,8 +132,8 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware) 
   compute_processor(&(hdt_menu->cpu_menu),hardware);
   compute_disks(hdt_menu,hardware->disk_info);
 #ifdef WITH_PCI
-  compute_PCI(hdt_menu,&(hardware->pci_domain));
-  compute_kernel(&(hdt_menu->kernel_menu),&(hardware->pci_domain));
+  compute_PCI(hdt_menu,hardware);
+  compute_kernel(&(hdt_menu->kernel_menu),hardware);
 #endif
   compute_syslinuxmenu(&(hdt_menu->syslinux_menu));
   compute_aboutmenu(&(hdt_menu->about_menu));
@@ -194,41 +194,19 @@ if (hardware->is_dmi_valid) {
 
 void detect_hardware(struct s_hardware *hardware) {
   printf("CPU: Detecting\n");
-  detect_cpu(&(hardware->cpu));
+  cpu_detect(hardware);
 
   printf("DISKS: Detecting\n");
-  detect_disks(hardware->disk_info);
+  detect_disks(hardware);
 
   printf("DMI: Detecting Table\n");
-  if (detect_dmi(&(hardware->dmi)) == -ENODMITABLE ) {
+  if (detect_dmi(hardware) == -ENODMITABLE ) {
    printf("DMI: ERROR ! Table not found ! \n");
    printf("DMI: Many hardware components will not be detected ! \n");
   } else {
    printf("DMI: Table found ! (version %d.%d)\n",hardware->dmi.dmitable.major_version,hardware->dmi.dmitable.minor_version);
   }
 #ifdef WITH_PCI
-  printf("PCI: Detecting Devices\n");
-  /* Scanning to detect pci buses and devices */
-  hardware->pci_domain = pci_scan();
-
-  struct pci_device *pci_device;
-  for_each_pci_func(pci_device, hardware->pci_domain) {
-          hardware->nb_pci_devices++;
-  }
-
-  printf("PCI: %d Devices Found\n",hardware->nb_pci_devices);
-
-  printf("PCI: Resolving names\n");
-  /* Assigning product & vendor name for each device*/
-  get_name_from_pci_ids(hardware->pci_domain);
-
-  printf("PCI: Resolving class names\n");
-  /* Assigning class name for each device*/
-  pci_ids=get_class_name_from_pci_ids(hardware->pci_domain);
-
-
-  printf("PCI: Resolving module names\n");
-  /* Detecting which kernel module should match each device */
-  modules_pcimap=get_module_name_from_pci_ids(hardware->pci_domain);
+  detect_pci(hardware);
 #endif
 }

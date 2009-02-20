@@ -77,13 +77,11 @@ TIMEOUTCODE ontimeout();
 void keys_handler(t_menusystem *ms, t_menuitem *mi,unsigned int scancode);
 
 // PCI Stuff
-static int pci_ids=0;
 void compute_pci_device(struct s_my_menu *menu,struct pci_device *pci_device,int pci_bus, int pci_slot, int pci_func);
-int compute_PCI(struct s_hdt_menu *hdt_menu, struct pci_domain **pci_domain);
+int compute_PCI(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);
 
 // KERNEL Stuff
-static int modules_pcimap=0;
-void compute_kernel(struct s_my_menu *menu,struct pci_domain **pci_domain);
+void compute_kernel(struct s_my_menu *menu,struct s_hardware *hardware);
 
 // Disk Stuff
 int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu, struct diskinfo *d,int disk_number);
