@@ -45,6 +45,8 @@ char speed[MEMORY_SPEED_SIZE];
 char serial[MEMORY_SERIAL_SIZE];
 char asset_tag[MEMORY_ASSET_TAG_SIZE];
 char part_number[MEMORY_PART_NUMBER_SIZE];
+/* The filled field have to be set to true when the dmitable implement that item */
+bool filled;
 } s_memory;
 
 static void dmi_memory_array_error_handle(u16 code,char *array)

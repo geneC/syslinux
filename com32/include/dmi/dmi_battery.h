@@ -43,6 +43,8 @@ char maximum_error[BATTERY_MAXIMUM_ERROR_SIZE];
 char sbds_manufacture_date[BATTERY_SBDS_MANUFACTURE_DATE_SIZE];
 char sbds_chemistry[BATTERY_SBDS_CHEMISTRY_SIZE];
 char oem_info[BATTERY_OEM_INFO_SIZE];
+/* The filled field have to be set to true when the dmitable implement that item */
+bool filled;
 } s_battery;
 
 static const char *dmi_battery_chemistry(u8 code)

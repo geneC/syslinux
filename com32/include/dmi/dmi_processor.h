@@ -131,6 +131,8 @@ char part_number[PROCESSOR_PART_NUMBER_SIZE];
 char id[PROCESSOR_ID_SIZE];
 s_dmi_cpu_flags cpu_flags;
 s_signature signature;
+/* The filled field have to be set to true when the dmitable implement that item */
+bool filled;
 } s_processor;
 
 static const char *dmi_processor_type(u8 code)

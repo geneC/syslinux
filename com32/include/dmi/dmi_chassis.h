@@ -39,6 +39,8 @@ char security_status[CHASSIS_SECURITY_STATUS_SIZE];
 char oem_information[CHASSIS_OEM_INFORMATION_SIZE];
 u16  height;
 u16  nb_power_cords;
+/* The filled field have to be set to true when the dmitable implement that item */
+bool filled;
 } s_chassis;
 
 static const char *dmi_chassis_type(u8 code)

@@ -52,6 +52,8 @@ char asset_tag[BASE_BOARD_ASSET_TAG_SIZE];
 char location[BASE_BOARD_LOCATION_SIZE];
 char type[BASE_BOARD_TYPE_SIZE];
 s_base_board_features features;
+/* The filled field have to be set to true when the dmitable implement that item */
+bool filled;
 } s_base_board;
 
 #endif

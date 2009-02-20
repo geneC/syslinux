@@ -143,6 +143,8 @@ s_characteristics_x1 characteristics_x1;
 s_characteristics_x2 characteristics_x2;
 char bios_revision [BIOS_BIOS_REVISION_SIZE];
 char firmware_revision [BIOS_FIRMWARE_REVISION_SIZE];
+/* The filled field have to be set to true when the dmitable implement that item */
+bool filled;
 } s_bios;
 
 #endif

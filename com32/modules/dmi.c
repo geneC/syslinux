@@ -316,6 +316,17 @@ inline int dmi_checksum(u8 *buf)
 int dmi_iterate(s_dmi *dmi) {
   u8 buf[16];
   char *p,*q;
+
+  /* Until we found this elements in the dmitable, we consider them as not filled */
+  dmi->base_board.filled=false;
+  dmi->battery.filled=false;
+  dmi->bios.filled=false;
+  dmi->chassis.filled=false;
+  for (int i=0;i<MAX_DMI_MEMORY_ITEMS;i++)
+	  dmi->memory[i].filled=false;
+  dmi->processor.filled=false;
+  dmi->system.filled=false;
+
   p=(char *)0xF0000; /* The start address to look at the dmi table */
   for (q = p; q < p + 0x10000; q += 16) {
         memcpy(buf, q, 15);
@@ -363,6 +374,7 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
                 case 0: /* 3.3.1 BIOS Information */
 //                        printf("BIOS Information\n");
                         if(h->length<0x12) break;
+			dmi->bios.filled=true;
 			strcpy(dmi->bios.vendor,dmi_string(h,data[0x04]));
 			strcpy(dmi->bios.version,dmi_string(h,data[0x05]));
 			strcpy(dmi->bios.release_date,dmi_string(h,data[0x08]));
@@ -387,6 +399,7 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
                 case 1: /* 3.3.2 System Information */
 //                        printf("System Information\n");
                         if(h->length<0x08) break;
+			dmi->system.filled=true;
 			strcpy(dmi->system.manufacturer,dmi_string(h,data[0x04]));
 			strcpy(dmi->system.product_name,dmi_string(h,data[0x05]));
 			strcpy(dmi->system.version,dmi_string(h,data[0x06]));
@@ -402,6 +415,7 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
                 case 2: /* 3.3.3 Base Board Information */
 //                        printf("Base Board Information\n");
                         if(h->length<0x08) break;
+			dmi->base_board.filled=true;
 			strcpy(dmi->base_board.manufacturer,dmi_string(h,data[0x04]));
 			strcpy(dmi->base_board.product_name,dmi_string(h,data[0x05]));
 			strcpy(dmi->base_board.version,dmi_string(h,data[0x06]));
@@ -416,6 +430,7 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
                 case 3: /* 3.3.4 Chassis Information */
 //                        printf("Chassis Information\n");
                         if(h->length<0x09) break;
+			dmi->chassis.filled=true;
 			strcpy(dmi->chassis.manufacturer,dmi_string(h,data[0x04]));
                         strcpy(dmi->chassis.type,dmi_chassis_type(data[0x05]&0x7F));
                         strcpy(dmi->chassis.lock,dmi_chassis_lock(data[0x05]>>7));
@@ -437,6 +452,7 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
 			case 4: /* 3.3.5 Processor Information */
 //                        printf("Processor Information\n");
                         if(h->length<0x1A) break;
+			dmi->processor.filled=true;
 			strcpy(dmi->processor.socket_designation,dmi_string(h, data[0x04]));
                         strcpy(dmi->processor.type,dmi_processor_type(data[0x05]));
                         strcpy(dmi->processor.family,dmi_processor_family(data[0x06]));
@@ -462,9 +478,10 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
                         strcpy(dmi->processor.part_number,dmi_string(h, data[0x22]));
                         break;
                 case 17: /* 3.3.18 Memory Device */
+                        if (h->length < 0x15) break;
 			dmi->memory_count++;
 			s_memory *mem = &dmi->memory[dmi->memory_count-1];
-                        if (h->length < 0x15) break;
+			dmi->memory[dmi->memory_count-1].filled=true;
                         dmi_memory_array_error_handle(WORD(data + 0x06),mem->error);
                         dmi_memory_device_width(WORD(data + 0x08),mem->total_width);
                         dmi_memory_device_width(WORD(data + 0x0A),mem->data_width);
@@ -485,6 +502,7 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
                         break;
 		case 22: /* 3.3.23 Portable Battery */
                         if (h->length < 0x10) break;
+			dmi->battery.filled=true;
                         strcpy(dmi->battery.location,dmi_string(h, data[0x04]));
                         strcpy(dmi->battery.manufacturer,dmi_string(h, data[0x05]));
 

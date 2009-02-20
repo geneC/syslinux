@@ -13,6 +13,8 @@
 #ifndef DMI_H
 #define DMI_H
 
+#define MAX_DMI_MEMORY_ITEMS 32
+
 #define u32 unsigned int
 #define u16 unsigned short
 #define u8  unsigned char
@@ -69,7 +71,7 @@ typedef struct {
 	 s_chassis chassis;
 	 s_processor processor;
 	 s_battery battery;
-	 s_memory memory[32];
+	 s_memory memory[MAX_DMI_MEMORY_ITEMS];
 	 int memory_count;
 	 dmi_table dmitable;
 } s_dmi;
