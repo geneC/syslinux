@@ -26,39 +26,25 @@
  * -----------------------------------------------------------------------
 */
 
-/*
- * hdt.c
- *
- * An Hardware Detection Tool
- */
-
+#ifndef DEFINE_HDT_COMMON_H
+#define DEFINE_HDT_COMMON_H
 #include <stdio.h>
-#include <console.h>
-#include "hdt.h"
-#include "hdt-menu.h"
-#include "hdt-cli.h"
-#include "hdt-common.h"
+#include "sys/pci.h"
+#include "cpuid.h"
+#include "dmi/dmi.h"
+#include "hdt-ata.h"
 
+struct s_hardware {
+  s_dmi dmi; /* DMI table */
+  s_cpu cpu; /* CPU information */
+  struct pci_domain *pci_domain; /* PCI Devices */
+  struct diskinfo disk_info[256];     /* Disk Information*/
+  int nb_pci_devices;
+  bool is_dmi_valid;
+};
 
-int main(int argc, char *argv[])
-{
-  char version_string[256];
-  char *arg, **argp;
-  argp = argv+1;
-
-  snprintf(version_string,sizeof version_string,"%s %s by %s",PRODUCT_NAME,VERSION,AUTHOR);
-
-  /* Opening the syslinux console */
-  openconsole(&dev_stdcon_r, &dev_stdcon_w);
-
-  printf("%s\n",version_string);
-
-
-  if ((arg = find_argument(argp, "nomenu"))) {
-	  start_cli_mode(argc, argv);
-  } else{
-	 return start_menu_mode(version_string);
-  }
-
-  return 0;
-}
+char *find_argument(char **argv, const char *argument);
+int detect_dmi(struct s_hardware *hardware);
+void detect_disks(struct diskinfo *disk_info);
+void init_hardware(struct s_hardware *hardware);
+#endif

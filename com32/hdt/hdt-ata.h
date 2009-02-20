@@ -30,6 +30,7 @@
 #define DEFINE_HDT_ATA_H
 
 #include "hdt.h"
+#include <com32io.h>
 
 struct ata_identify_device {
   unsigned short words000_009[10];

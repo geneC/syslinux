@@ -30,8 +30,10 @@
 #define DEFINE_HDT_MENU_H
 #include <stdio.h>
 #include "menu.h"
-#include "cpuid.h"
+#include "help.h"
+//#include "cpuid.h"
 #include "sys/pci.h"
+#include "hdt-common.h"
 #include "dmi/dmi.h"
 #include "hdt-ata.h"
 
@@ -97,12 +99,17 @@ void compute_memory(struct s_hdt_menu *menu, s_dmi *dmi);
 void compute_memory_module(struct s_my_menu *menu, s_dmi *dmi, int slot_number);
 
 // Processor Stuff
-static bool is_dmi_valid=false;
-void compute_processor(struct s_my_menu *menu,s_cpu *cpu, s_dmi *dmi);
+void compute_processor(struct s_my_menu *menu,struct s_hardware *hardware);
 
 // Syslinux stuff
 void compute_syslinuxmenu(struct s_my_menu *menu);
 
 // About menu
 void compute_aboutmenu(struct s_my_menu *menu);
+
+int start_menu_mode(char *version_string);
+void setup_menu(char *version);
+void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);
+void compute_submenus(struct s_hdt_menu *hdt_menu,struct s_hardware *hardware);
+void detect_hardware(struct s_hardware *hardware);
 #endif

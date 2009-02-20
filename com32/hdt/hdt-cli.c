@@ -26,39 +26,34 @@
  * -----------------------------------------------------------------------
 */
 
-/*
- * hdt.c
- *
- * An Hardware Detection Tool
- */
-
-#include <stdio.h>
-#include <console.h>
-#include "hdt.h"
-#include "hdt-menu.h"
 #include "hdt-cli.h"
 #include "hdt-common.h"
+#include <stdlib.h>
+#include <string.h>
 
+/* Code that manage the cli mode */
+void start_cli_mode(int argc, char *argv[]) {
+ char cli_line[256];
+ struct s_hardware hardware;
 
-int main(int argc, char *argv[])
-{
-  char version_string[256];
-  char *arg, **argp;
-  argp = argv+1;
+  /* Cleaning structures */
+ init_hardware(&hardware);
 
-  snprintf(version_string,sizeof version_string,"%s %s by %s",PRODUCT_NAME,VERSION,AUTHOR);
-
-  /* Opening the syslinux console */
-  openconsole(&dev_stdcon_r, &dev_stdcon_w);
-
-  printf("%s\n",version_string);
-
-
-  if ((arg = find_argument(argp, "nomenu"))) {
-	  start_cli_mode(argc, argv);
-  } else{
-	 return start_menu_mode(version_string);
-  }
-
-  return 0;
+ printf("Entering CLI mode\n");
+ for (;;) {
+  memset(cli_line,0,sizeof cli_line);
+  printf("hdt:");
+  fgets(cli_line, sizeof cli_line, stdin);
+    /* We use sizeof BLAH - 2 to remove the return char */
+    if ( !strncmp(cli_line, CLI_EXIT, sizeof CLI_EXIT - 2 ) )
+                  break;
+    if ( !strncmp(cli_line, CLI_HELP, sizeof CLI_HELP - 2) )
+                  show_cli_help();
+ }
 }
+
+
+void show_cli_help() {
+ printf("Available commands are : %s %s\n",CLI_EXIT,CLI_HELP);
+}
+
