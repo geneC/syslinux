@@ -91,11 +91,11 @@ int compute_PCI(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware) {
  /* For every detected pci device, compute its submenu */
  for_each_pci_func(pci_device, hardware->pci_domain) {
    memset(kernel_modules,0,sizeof kernel_modules);
-   for (int i=0; i<pci_device->dev_info->linux_kernel_module_count;i++) {
-     if (i>0) {
+   for (int kmod=0; kmod<pci_device->dev_info->linux_kernel_module_count;kmod++) {
+     if (kmod>0) {
        strncat(kernel_modules," | ",3);
      }
-     strncat(kernel_modules, pci_device->dev_info->linux_kernel_module[i],LINUX_KERNEL_MODULE_SIZE-1);
+     strncat(kernel_modules, pci_device->dev_info->linux_kernel_module[kmod],LINUX_KERNEL_MODULE_SIZE-1);
    }
    if (pci_device->dev_info->linux_kernel_module_count==0) strlcpy(kernel_modules,"unknown",7);
 

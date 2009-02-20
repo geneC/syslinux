@@ -208,5 +208,6 @@ void detect_hardware(struct s_hardware *hardware) {
   }
 #ifdef WITH_PCI
   detect_pci(hardware);
+  printf("PCI: %d Devices Found\n",hardware->nb_pci_devices);
 #endif
 }

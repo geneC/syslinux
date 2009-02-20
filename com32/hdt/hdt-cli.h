@@ -34,10 +34,26 @@
 #define CLI_EXIT "exit"
 #define CLI_HELP "help"
 #define CLI_SHOW "show"
+#define CLI_HDT  "hdt"
 #define CLI_PCI  "pci"
 #define CLI_DMI  "dmi"
+#define CLI_DMI_BASE_BOARD "base_board"
+#define CLI_DMI_BATTERY "battery"
+#define CLI_DMI_BIOS "bios"
+#define CLI_DMI_CHASSIS "chassis"
+#define CLI_DMI_MEMORY "memory"
+#define CLI_DMI_PROCESSOR "processor"
+#define CLI_DMI_SYSTEM "system"
 
-void show_cli_help();
+struct s_cli_mode {
+ int mode;
+ char prompt[32];
+};
+
+enum { EXIT_MODE, HDT_MODE, PCI_MODE, DMI_MODE };
+
+void show_cli_help(struct s_cli_mode *cli_mode);
 void start_cli_mode(int argc, char *argv[]);
 void main_show(char *item, struct s_hardware *hardware);
+int do_exit(struct s_cli_mode *cli_mode);
 #endif

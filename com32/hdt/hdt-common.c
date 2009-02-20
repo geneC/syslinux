@@ -75,6 +75,7 @@ void detect_disks(struct s_hardware *hardware) {
 void detect_pci(struct s_hardware *hardware) {
   hardware->pci_detection=true;
   printf("PCI: Detecting Devices\n");
+
   /* Scanning to detect pci buses and devices */
   hardware->pci_domain = pci_scan();
 
@@ -82,8 +83,6 @@ void detect_pci(struct s_hardware *hardware) {
   for_each_pci_func(pci_device, hardware->pci_domain) {
           hardware->nb_pci_devices++;
   }
-
-  printf("PCI: %d Devices Found\n",hardware->nb_pci_devices);
 
   printf("PCI: Resolving names\n");
   /* Assigning product & vendor name for each device*/
