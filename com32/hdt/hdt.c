@@ -39,6 +39,7 @@
 #include "hdt-cli.h"
 #include "hdt-common.h"
 
+int display_line_nb=0;
 
 int main(int argc, char *argv[])
 {
@@ -49,7 +50,7 @@ int main(int argc, char *argv[])
   snprintf(version_string,sizeof version_string,"%s %s by %s",PRODUCT_NAME,VERSION,AUTHOR);
 
   /* Opening the syslinux console */
-  openconsole(&dev_stdcon_r, &dev_stdcon_w);
+  openconsole(&dev_stdcon_r, &dev_ansicon_w);
 
   printf("%s\n",version_string);
 

@@ -29,6 +29,7 @@
 #include "hdt-common.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 void init_hardware(struct s_hardware *hardware) {
   hardware->pci_ids_return_code=0;
@@ -119,3 +120,10 @@ char *find_argument(char **argv, const char *argument)
 
   return ptr;
 }
+
+void clear_screen(void)
+{
+  fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
+  display_line_nb=0;
+}
+

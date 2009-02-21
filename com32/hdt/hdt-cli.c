@@ -31,12 +31,24 @@
 #include <stdlib.h>
 #include <string.h>
 
-void set_mode(struct s_cli_mode *cli_mode, int mode) {
+void set_mode(struct s_cli_mode *cli_mode, int mode, struct s_hardware *hardware) {
  switch (mode) {
   case EXIT_MODE: cli_mode->mode=mode; snprintf(cli_mode->prompt,sizeof cli_mode->prompt,"%s:",CLI_EXIT); break;
   case HDT_MODE: cli_mode->mode=mode; snprintf(cli_mode->prompt,sizeof cli_mode->prompt,"%s:",CLI_HDT); break;
-  case PCI_MODE: cli_mode->mode=mode; snprintf(cli_mode->prompt,sizeof cli_mode->prompt,"%s:",CLI_PCI); break;
-  case DMI_MODE: cli_mode->mode=mode; snprintf(cli_mode->prompt,sizeof cli_mode->prompt,"%s:",CLI_DMI); break;
+  case PCI_MODE:
+	cli_mode->mode=mode;
+	snprintf(cli_mode->prompt,sizeof cli_mode->prompt,"%s:",CLI_PCI);
+	if (hardware->pci_detection==false) detect_pci(hardware);
+	break;
+  case DMI_MODE:
+	if (hardware->dmi_detection==false) detect_dmi(hardware);
+	if (hardware->is_dmi_valid==false) {
+          printf("No valid DMI table found, exiting.\n");
+          break;
+       }
+	cli_mode->mode=mode;
+	snprintf(cli_mode->prompt,sizeof cli_mode->prompt,"%s:",CLI_DMI);
+	break;
  }
 }
 
@@ -46,10 +58,10 @@ void start_cli_mode(int argc, char *argv[]) {
  struct s_hardware hardware;
  struct s_cli_mode cli_mode;
 
-  /* Cleaning structures */
+ /* Cleaning structures */
  init_hardware(&hardware);
 
- set_mode(&cli_mode,HDT_MODE);
+ set_mode(&cli_mode,HDT_MODE,&hardware);
 
  printf("Entering CLI mode\n");
 
@@ -65,7 +77,7 @@ void start_cli_mode(int argc, char *argv[]) {
 	   int mode=do_exit(&cli_mode);
 	   if (mode ==  EXIT_MODE)
 		   return;
-	   set_mode(&cli_mode,mode);
+	   set_mode(&cli_mode,mode,&hardware);
 	   continue;
     }
 
@@ -73,19 +85,24 @@ void start_cli_mode(int argc, char *argv[]) {
            show_cli_help(&cli_mode);
 	   continue;
     }
-    if ( !strncmp(cli_line, CLI_SHOW, sizeof CLI_SHOW - 1) ) {
-	   main_show(strstr(cli_line,"show")+ sizeof CLI_SHOW, &hardware);
-	   continue;
-    }
 
     if ( !strncmp(cli_line, CLI_PCI, sizeof CLI_PCI - 1) ) {
-	   set_mode(&cli_mode,PCI_MODE);
+	   set_mode(&cli_mode,PCI_MODE,&hardware);
 	   continue;
     }
     if ( !strncmp(cli_line, CLI_DMI, sizeof CLI_DMI - 1) ) {
-	   set_mode(&cli_mode,DMI_MODE);
+	   set_mode(&cli_mode,DMI_MODE,&hardware);
 	   continue;
     }
+    switch(cli_mode.mode) {
+     case DMI_MODE: handle_dmi_commands(cli_line,&cli_mode, &hardware); break;
+    }
+
+    if ( !strncmp(cli_line, CLI_SHOW, sizeof CLI_SHOW - 1) ) {
+	   main_show(strstr(cli_line,"show")+ sizeof CLI_SHOW, &hardware,&cli_mode);
+	   continue;
+    }
+
  }
 }
 
@@ -95,7 +112,7 @@ int do_exit(struct s_cli_mode *cli_mode) {
   case PCI_MODE: return HDT_MODE; break;
   case DMI_MODE: return HDT_MODE; break;
  }
-
+return HDT_MODE;
 }
 
 void show_cli_help(struct s_cli_mode *cli_mode) {
@@ -112,7 +129,7 @@ switch (cli_mode->mode) {
 }
 }
 
-void main_show(char *item, struct s_hardware *hardware) {
+void main_show(char *item, struct s_hardware *hardware, struct s_cli_mode *cli_mode) {
  if (!strncmp(item,CLI_PCI, sizeof CLI_PCI)) main_show_pci(hardware);
- if (!strncmp(item,CLI_DMI, sizeof CLI_DMI)) main_show_dmi(hardware);
+ if (!strncmp(item,CLI_DMI, sizeof CLI_DMI)) main_show_dmi(hardware,cli_mode);
 }

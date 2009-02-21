@@ -34,6 +34,20 @@
 #include "dmi/dmi.h"
 #include "hdt-ata.h"
 
+extern int display_line_nb;
+
+#define more_printf(...) do {\
+ if (display_line_nb == 23) {\
+   char tempbuf[10];\
+   printf("Press enter to continue\n");\
+   display_line_nb=0;\
+   fgets(tempbuf, sizeof tempbuf, stdin);\
+ }\
+ printf ( __VA_ARGS__);\
+ display_line_nb++; \
+} while (0);
+
+
 struct s_hardware {
   s_dmi dmi; /* DMI table */
   s_cpu cpu; /* CPU information */
@@ -55,4 +69,5 @@ void detect_disks(struct s_hardware *hardware);
 void detect_pci(struct s_hardware *hardware);
 void cpu_detect(struct s_hardware *hardware);
 void init_hardware(struct s_hardware *hardware);
+void clear_screen(void);
 #endif

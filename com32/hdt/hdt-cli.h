@@ -44,6 +44,7 @@
 #define CLI_DMI_MEMORY "memory"
 #define CLI_DMI_PROCESSOR "processor"
 #define CLI_DMI_SYSTEM "system"
+#define CLI_DMI_MODULES "modules"
 
 struct s_cli_mode {
  int mode;
@@ -54,6 +55,20 @@ enum { EXIT_MODE, HDT_MODE, PCI_MODE, DMI_MODE };
 
 void show_cli_help(struct s_cli_mode *cli_mode);
 void start_cli_mode(int argc, char *argv[]);
-void main_show(char *item, struct s_hardware *hardware);
+void main_show(char *item, struct s_hardware *hardware, struct s_cli_mode *cli_mode);
 int do_exit(struct s_cli_mode *cli_mode);
+
+//DMI STUFF
+void main_show_dmi(struct s_hardware *hardware,struct s_cli_mode *cli_mode);
+void handle_dmi_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware);
+void show_dmi_base_board(struct s_hardware *hardware);
+void show_dmi_system(struct s_hardware *hardware);
+void show_dmi_bios(struct s_hardware *hardware);
+void show_dmi_chassis(struct s_hardware *hardware);
+void show_dmi_cpu(struct s_hardware *hardware);
+void show_dmi_modules(struct s_hardware *hardware);
+
+//PCI STUFF
+void main_show_pci(struct s_hardware *hardware);
+
 #endif
