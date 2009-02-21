@@ -317,6 +317,16 @@ int dmi_iterate(s_dmi *dmi) {
   u8 buf[16];
   char *p,*q;
 
+  /* Cleaning structures */
+  memset(&(dmi->base_board),0,sizeof dmi->base_board);
+  memset(&(dmi->battery),0,sizeof dmi->battery);
+  memset(&(dmi->bios),0,sizeof dmi->bios);
+  memset(&(dmi->chassis),0,sizeof dmi->chassis);
+  for (int i=0;i<MAX_DMI_MEMORY_ITEMS;i++)
+	memset(&(dmi->memory[i]),0,sizeof dmi->memory);
+  memset(&(dmi->processor),0,sizeof dmi->processor);
+  memset(&(dmi->system),0,sizeof dmi->system);
+
   /* Until we found this elements in the dmitable, we consider them as not filled */
   dmi->base_board.filled=false;
   dmi->battery.filled=false;
@@ -326,6 +336,7 @@ int dmi_iterate(s_dmi *dmi) {
 	  dmi->memory[i].filled=false;
   dmi->processor.filled=false;
   dmi->system.filled=false;
+
 
   p=(char *)0xF0000; /* The start address to look at the dmi table */
   for (q = p; q < p + 0x10000; q += 16) {
