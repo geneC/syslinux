@@ -30,6 +30,64 @@
 #include "hdt-common.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <errno.h>
+
+void show_dmi_memory_modules(struct s_hardware *hardware) {
+ char bank_number[10];
+ char available_dmi_commands[1024];
+ bool found=false;
+ memset(available_dmi_commands,0,sizeof(available_dmi_commands));
+
+ for (int i=0;i<hardware->dmi.memory_count;i++) {
+   if (hardware->dmi.memory[i].filled==true) {
+	found=true;
+        strncat(available_dmi_commands,CLI_DMI_MEMORY_BANK,sizeof(CLI_DMI_MEMORY_BANK)-1);
+	memset(bank_number,0,sizeof(bank_number));
+	snprintf(bank_number,sizeof(bank_number),"%d ",i);
+        strncat(available_dmi_commands,bank_number,sizeof(bank_number));
+	printf("bank%d: %s %s@%s\n",i,hardware->dmi.memory[i].size, hardware->dmi.memory[i].type, hardware->dmi.memory[i].speed);
+ }
+}
+ if (found == true) {
+  printf("Type 'show bank<bank_number>' for more details.\n");
+ } else {
+  printf("No memory module found\n");
+ }
+}
+
+void show_dmi_memory_bank(struct s_hardware *hardware, const char *item) {
+ long bank = strtol(item,(char **) NULL,10);
+ if (errno == ERANGE) {
+  printf("This bank number is incorrect\n");
+  return;
+ }
+ if ((bank>=hardware->dmi.memory_count) || (bank<0)) {
+  printf("Bank %d number doesn't exists\n",bank);
+  return;
+ }
+
+ if (hardware->dmi.memory[bank].filled==false) {
+  printf("Bank %d doesn't contain any information\n",bank);
+  return;
+ }
+ printf("Memory Bank %d\n",bank);
+ more_printf(" Form Factor  : %s\n",hardware->dmi.memory[bank].form_factor);
+ more_printf(" Type         : %s\n",hardware->dmi.memory[bank].type);
+ more_printf(" Type Detail  : %s\n",hardware->dmi.memory[bank].type_detail);
+ more_printf(" Speed        : %s\n",hardware->dmi.memory[bank].speed);
+ more_printf(" Size         : %s\n",hardware->dmi.memory[bank].size);
+ more_printf(" Device Set   : %s\n",hardware->dmi.memory[bank].device_set);
+ more_printf(" Device Loc.  : %s\n",hardware->dmi.memory[bank].device_locator);
+ more_printf(" Bank Locator : %s\n",hardware->dmi.memory[bank].bank_locator);
+ more_printf(" Total Width  : %s\n",hardware->dmi.memory[bank].total_width);
+ more_printf(" Data Width   : %s\n",hardware->dmi.memory[bank].data_width);
+ more_printf(" Error        : %s\n",hardware->dmi.memory[bank].error);
+ more_printf(" Vendor       : %s\n",hardware->dmi.memory[bank].manufacturer);
+ more_printf(" Serial       : %s\n",hardware->dmi.memory[bank].serial);
+ more_printf(" Asset Tag    : %s\n",hardware->dmi.memory[bank].asset_tag);
+ more_printf(" Part Number  : %s\n",hardware->dmi.memory[bank].part_number);
+}
 
 void dmi_show(char *item, struct s_hardware *hardware) {
  if ( !strncmp(item, CLI_DMI_BASE_BOARD, sizeof(CLI_DMI_BASE_BOARD) - 1) ) {
@@ -50,6 +108,14 @@ void dmi_show(char *item, struct s_hardware *hardware) {
  } else
  if ( !strncmp(item, CLI_DMI_PROCESSOR, sizeof(CLI_DMI_PROCESSOR) - 1) ) {
    show_dmi_cpu(hardware);
+   return;
+ }
+ if ( !strncmp(item, CLI_DMI_MEMORY, sizeof(CLI_DMI_MEMORY) - 1) ) {
+   show_dmi_memory_modules(hardware);
+   return;
+ }
+ if ( !strncmp(item, CLI_DMI_MEMORY_BANK, sizeof(CLI_DMI_MEMORY_BANK) - 1) ) {
+   show_dmi_memory_bank(hardware,item+ sizeof(CLI_DMI_MEMORY_BANK)-1);
    return;
  }
  if ( !strncmp(item, CLI_DMI_MODULES, sizeof(CLI_DMI_MODULES) - 1) ) {
@@ -89,7 +155,7 @@ void show_dmi_modules(struct s_hardware *hardware) {
  for (int i=0;i<hardware->dmi.memory_count;i++) {
 	if (hardware->dmi.memory[i].filled==true) {
 		strncat(available_dmi_commands,CLI_DMI_MEMORY,sizeof(CLI_DMI_MEMORY)-1);
-		strncat(available_dmi_commands," ",1);
+		strncat(available_dmi_commands," bank<bank_number> ",19);
 		break;
 	}
  }

@@ -101,6 +101,10 @@ void start_cli_mode(int argc, char *argv[]) {
 	   set_mode(&cli_mode,PCI_MODE,&hardware);
 	   continue;
     }
+    if ( !strncmp(cli_line, CLI_CLEAR, sizeof(CLI_CLEAR) - 1) ) {
+	   clear_screen();
+	   continue;
+    }
     if ( !strncmp(cli_line, CLI_DMI, sizeof(CLI_DMI) - 1) ) {
 	   set_mode(&cli_mode,DMI_MODE,&hardware);
 	   continue;
@@ -129,13 +133,13 @@ return HDT_MODE;
 void show_cli_help(struct s_cli_mode *cli_mode) {
 switch (cli_mode->mode) {
 	case HDT_MODE:
-		printf("Available commands are : %s %s %s %s %s\n",CLI_EXIT,CLI_HELP,CLI_SHOW, CLI_PCI, CLI_DMI);
+		printf("Available commands are : %s %s %s %s %s %s\n",CLI_CLEAR, CLI_EXIT,CLI_HELP,CLI_SHOW, CLI_PCI, CLI_DMI);
 		break;
 	case PCI_MODE:
-		printf("Available commands are : %s %s %s\n",CLI_EXIT, CLI_HELP, CLI_SHOW);
+		printf("Available commands are : %s %s %s %s\n",CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW);
 		break;
 	case DMI_MODE:
-		printf("Available commands are : %s %s %s\n",CLI_EXIT, CLI_HELP, CLI_SHOW);
+		printf("Available commands are : %s %s %s %s\n",CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW);
 		break;
 }
 }
