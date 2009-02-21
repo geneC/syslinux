@@ -43,21 +43,21 @@ void init_hardware(struct s_hardware *hardware) {
   hardware->pci_domain=NULL;
 
   /* Cleaning structures */
-  memset(&(hardware->disk_info),0,sizeof (struct diskinfo));
-  memset(&(hardware->dmi),0,sizeof (s_dmi));
-  memset(&(hardware->cpu),0,sizeof (s_cpu));
+  memset(hardware->disk_info,0,sizeof(hardware->disk_info));
+  memset(&hardware->dmi,0,sizeof(hardware->dmi));
+  memset(&hardware->cpu,0,sizeof(hardware->cpu));
 }
 
 /* Detecting if a DMI table exist
  * if yes, let's parse it */
 int detect_dmi(struct s_hardware *hardware) {
   hardware->dmi_detection=true;
-  if (dmi_iterate(&(hardware->dmi)) == -ENODMITABLE ) {
+  if (dmi_iterate(&hardware->dmi) == -ENODMITABLE ) {
 	     hardware->is_dmi_valid=false;
              return -ENODMITABLE;
   }
 
-  parse_dmitable(&(hardware->dmi));
+  parse_dmitable(&hardware->dmi);
   hardware->is_dmi_valid=true;
  return 0;
 }
@@ -68,8 +68,8 @@ void detect_disks(struct s_hardware *hardware) {
  for (int drive = 0x80; drive < 0xff; drive++) {
     if (get_disk_params(drive,hardware->disk_info) != 0)
           continue;
-    struct diskinfo d=hardware->disk_info[drive];
-    printf("  DISK 0x%X: %s : %s %s: sectors=%d, s/t=%d head=%d : EDD=%s\n",drive,d.aid.model,d.host_bus_type,d.interface_type, d.sectors, d.sectors_per_track,d.heads,d.edd_version);
+    struct diskinfo *d=&hardware->disk_info[drive];
+    printf("  DISK 0x%X: %s : %s %s: sectors=%d, s/t=%d head=%d : EDD=%s\n",drive,d->aid.model,d->host_bus_type,d->interface_type, d->sectors, d->sectors_per_track,d-<heads,d->edd_version);
  }
 }
 
@@ -102,15 +102,15 @@ void detect_pci(struct s_hardware *hardware) {
 
 void cpu_detect(struct s_hardware *hardware) {
   hardware->cpu_detection=true;
-  detect_cpu(&(hardware->cpu));
+  detect_cpu(&hardware->cpu);
 }
 
 /* Find the last instance of a particular command line argument
    (which should include the final =; do not use for boolean arguments) */
-char *find_argument(char **argv, const char *argument)
+char *find_argument(const char **argv, const char *argument)
 {
   int la = strlen(argument);
-  char **arg;
+  const char **arg;
   char *ptr = NULL;
 
   for (arg = argv; *arg; arg++) {

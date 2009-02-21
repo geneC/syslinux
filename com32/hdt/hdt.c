@@ -52,6 +52,7 @@ int main(int argc, char *argv[])
   /* Opening the syslinux console */
   openconsole(&dev_stdcon_r, &dev_ansicon_w);
 
+  clear_screen();
   printf("%s\n",version_string);
 
 

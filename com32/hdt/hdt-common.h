@@ -41,7 +41,7 @@ extern int display_line_nb;
    char tempbuf[10];\
    printf("Press enter to continue\n");\
    display_line_nb=0;\
-   fgets(tempbuf, sizeof tempbuf, stdin);\
+   fgets(tempbuf, sizeof(tempbuf), stdin);\
  }\
  printf ( __VA_ARGS__);\
  display_line_nb++; \
