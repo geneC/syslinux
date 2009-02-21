@@ -51,7 +51,7 @@ int i;
 
 void display_base_board_features(s_dmi *dmi) {
 int i;
-  for (i=0;i<=BASE_BOARD_NB_ELEMENTS; i++) {
+  for (i=0;i<BASE_BOARD_NB_ELEMENTS; i++) {
         if (((bool *)(& dmi->base_board.features))[i] == true) {
                moreprintf("\t\t%s\n", base_board_features_strings[i]);
                 }
@@ -60,7 +60,7 @@ int i;
 
 void display_processor_flags(s_dmi *dmi) {
 int i;
-  for (i=0;i<=PROCESSOR_FLAGS_ELEMENTS; i++) {
+  for (i=0;i<PROCESSOR_FLAGS_ELEMENTS; i++) {
         if (((bool *)(& dmi->processor.cpu_flags))[i] == true) {
                moreprintf("\t\t%s\n", cpu_flags_strings[i]);
                 }
