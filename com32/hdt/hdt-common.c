@@ -69,7 +69,7 @@ void detect_disks(struct s_hardware *hardware) {
     if (get_disk_params(drive,hardware->disk_info) != 0)
           continue;
     struct diskinfo *d=&hardware->disk_info[drive];
-    printf("  DISK 0x%X: %s : %s %s: sectors=%d, s/t=%d head=%d : EDD=%s\n",drive,d->aid.model,d->host_bus_type,d->interface_type, d->sectors, d->sectors_per_track,d-<heads,d->edd_version);
+    printf("  DISK 0x%X: %s : %s %s: sectors=%d, s/t=%d head=%d : EDD=%s\n",drive,d->aid.model,d->host_bus_type,d->interface_type, d->sectors, d->sectors_per_track,d->heads,d->edd_version);
  }
 }
 

@@ -44,8 +44,7 @@ int display_line_nb=0;
 int main(int argc, char *argv[])
 {
   char version_string[256];
-  char *arg, **argp;
-  argp = argv+1;
+  char *arg;
 
   snprintf(version_string,sizeof version_string,"%s %s by %s",PRODUCT_NAME,VERSION,AUTHOR);
 
@@ -56,7 +55,7 @@ int main(int argc, char *argv[])
   printf("%s\n",version_string);
 
 
-  if ((arg = find_argument(argp, "nomenu"))) {
+  if ((arg = find_argument(argv+1, "nomenu"))) {
 	  start_cli_mode(argc, argv);
   } else{
 	 return start_menu_mode(version_string);

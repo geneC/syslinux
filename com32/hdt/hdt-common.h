@@ -63,7 +63,7 @@ struct s_hardware {
   bool disk_detection; /* Does the disk stuff have been already detected */
 };
 
-char *find_argument(char **argv, const char *argument);
+char *find_argument(const char **argv, const char *argument);
 int detect_dmi(struct s_hardware *hardware);
 void detect_disks(struct s_hardware *hardware);
 void detect_pci(struct s_hardware *hardware);

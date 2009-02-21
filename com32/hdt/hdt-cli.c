@@ -31,21 +31,32 @@
 #include <stdlib.h>
 #include <string.h>
 
-void set_mode(struct s_cli_mode *cli_mode, int mode, struct s_hardware *hardware) {
+void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode, struct s_hardware *hardware) {
  switch (mode) {
-  case EXIT_MODE: cli_mode->mode=mode; snprintf(cli_mode->prompt,sizeof cli_mode->prompt,"%s:",CLI_EXIT); break;
-  case HDT_MODE: cli_mode->mode=mode; snprintf(cli_mode->prompt,sizeof cli_mode->prompt,"%s:",CLI_HDT); break;
+  case EXIT_MODE:
+        cli_mode->mode=mode;
+        snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s:", CLI_EXIT);
+        break;
+
+  case HDT_MODE:
+        cli_mode->mode=mode;
+        snprintf(cli_mode->prompt, sizeof cli_mode->prompt, "%s:", CLI_HDT);
+        break;
+
   case PCI_MODE:
 	cli_mode->mode=mode;
-	snprintf(cli_mode->prompt,sizeof cli_mode->prompt,"%s:",CLI_PCI);
-	if (hardware->pci_detection==false) detect_pci(hardware);
+	snprintf(cli_mode->prompt,sizeof cli_mode->prompt,"%s:", CLI_PCI);
+	if (!hardware->pci_detection)
+          detect_pci(hardware);
 	break;
+
   case DMI_MODE:
-	if (hardware->dmi_detection==false) detect_dmi(hardware);
-	if (hardware->is_dmi_valid==false) {
+	if (!hardware->dmi_detection)
+          detect_dmi(hardware);
+	if (!hardware->is_dmi_valid) {
           printf("No valid DMI table found, exiting.\n");
           break;
-       }
+        }
 	cli_mode->mode=mode;
 	snprintf(cli_mode->prompt,sizeof cli_mode->prompt,"%s:",CLI_DMI);
 	break;
@@ -108,9 +119,9 @@ void start_cli_mode(int argc, char *argv[]) {
 
 int do_exit(struct s_cli_mode *cli_mode) {
  switch (cli_mode->mode) {
-  case HDT_MODE: return EXIT_MODE; break;
-  case PCI_MODE: return HDT_MODE; break;
-  case DMI_MODE: return HDT_MODE; break;
+  case HDT_MODE: return EXIT_MODE;
+  case PCI_MODE: return HDT_MODE;
+  case DMI_MODE: return HDT_MODE;
  }
 return HDT_MODE;
 }

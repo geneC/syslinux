@@ -46,12 +46,18 @@
 #define CLI_DMI_SYSTEM "system"
 #define CLI_DMI_MODULES "modules"
 
+typedef enum {
+  EXIT_MODE,
+  HDT_MODE,
+  PCI_MODE,
+  DMI_MODE
+} cli_mode_t;
+
 struct s_cli_mode {
- int mode;
+ cli_mode_t mode;
  char prompt[32];
 };
 
-enum { EXIT_MODE, HDT_MODE, PCI_MODE, DMI_MODE };
 
 void show_cli_help(struct s_cli_mode *cli_mode);
 void start_cli_mode(int argc, char *argv[]);
