@@ -14,6 +14,7 @@
 #define DMI_PROCESSOR_H
 
 #include "stdbool.h"
+#include "string.h"
 #define PROCESSOR_SOCKET_DESIGNATION_SIZE		32
 #define PROCESSOR_TYPE_SIZE		32
 #define PROCESSOR_FAMILY_SIZE		32
@@ -61,7 +62,7 @@ static const char *cpu_flags_strings[32]={
                 "SS (Self-snoop)",
                 "HTT (Hyper-threading technology)",
                 "TM (Thermal monitor supported)",
-                NULL, /* 30 */
+                "IA64 (IA64 capabilities)", /* 30 */
                 "PBE (Pending break enabled)" /* 31 */
 };
 
@@ -152,7 +153,7 @@ static const char *dmi_processor_type(u8 code)
         return out_of_spec;
 }
 
-static const char *dmi_processor_family(u8 code)
+static const char *dmi_processor_family(u8 code, char *manufacturer)
 {
         /* 3.3.5.2 */
         static const char *family[]={
@@ -176,8 +177,8 @@ static const char *dmi_processor_family(u8 code)
 		"Pentium III",
 		"M1",
 		"M2",
-		NULL, /* 0x14 */
-		NULL,
+		"Celeron M", /* 0x14 */
+		"Pentium 4 HT",
 		NULL,
 		NULL, /* 0x17 */
 		"Duron",
@@ -196,10 +197,10 @@ static const char *dmi_processor_family(u8 code)
 		"Power PC 620",
 		"Power PC x704",
 		"Power PC 750",
-		NULL, /* 0x28 */
-		NULL,
-		NULL,
-		NULL,
+		"Core 2 Duo", /* 0x28 */
+		"Core 2 Duo Mobile",
+		"Core Solo Mobile",
+		"Atom",
 		NULL,
 		NULL,
 		NULL,
@@ -290,16 +291,16 @@ static const char *dmi_processor_family(u8 code)
 		"Athlon 64",
 		"Opteron",
 		"Sempron",
-		NULL, /* 0x86 */
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL, /* 0x8F */
+		"Turion 64", /* 0x86 */
+		"Dual-Core Opteron",
+		"Atlhon 64 X2",
+		"Turion 64 X2",
+		"Quad-Core Opteron",
+		"Third-Generation Opteron",
+		"Phenom FX",
+		"Phenom X4",
+		"Phenom X2",
+		"Athlon X2",/* 0x8F */
 		"PA-RISC",
 		"PA-RISC 8500",
 		"PA-RISC 8000",
@@ -317,16 +318,16 @@ static const char *dmi_processor_family(u8 code)
 		NULL,
 		NULL, /* 0x9F */
 		"V30",
-		NULL, /* 0xA1 */
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
+		"Quad-Core Xeon 3200", /* 0xA1 */
+		"Dual-Core Xeon 3000",
+		"Quad-Core Xeon 5300",
+		"Dual-Core Xeon 5100",
+		"Dual-Core Xeon 5000",
+		"Dual-Core Xeon LV",
+		"Dual-Core Xeon ULV",
+		"Dual-Core Xeon 7100",
+		"Quad-Core Xeon 5400",
+		"Quad-Core Xeon", /* 0xAA */
 		NULL,
 		NULL,
 		NULL,
@@ -342,24 +343,35 @@ static const char *dmi_processor_family(u8 code)
 		"Athlon MP",
 		"Itanium 2",
 		"Pentium M",
-		NULL, /* 0xBA */
+		"Celeron D", /* 0xBA */
+		"Pentium D",
+		"Pentium EE",
+		"Core Solo", /* 0xBD */
 		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
+		"Core 2 Duo",
+		"Core 2 Solo",
+		"Core 2 Extreme",
+		"Core 2 Quad",
+		"Core 2 Extreme Mobile",
+		"Core 2 Duo Mobile",
+		"Core 2 Solo Mobile",
 		NULL,
 		NULL, /* 0xC7 */
 		"IBM390",
 		"G4",
 		"G5",
-		NULL, /* 0xCB */
+		"ESA/390 G6", /* 0xCB */
+		"z/Architectur",
+		NULL,
+		NULL,
+		NULL,
+		NULL, /*0xD0*/
+		NULL,
+		"C7-M",
+		"C7-D",
+		"C7",
+		"Eden",
+		NULL,/*0xD6*/
 		NULL,
 		NULL,
 		NULL,
@@ -369,29 +381,18 @@ static const char *dmi_processor_family(u8 code)
 		NULL,
 		NULL,
 		NULL,
+		NULL, /*0xE0*/
 		NULL,
 		NULL,
 		NULL,
 		NULL,
 		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
+		"Embedded Opteron Quad-Core",/* 0xE6*/
+		"Phenom Triple-Core" ,
+		"Turion Ultra Dual-Core Mobile",
+		"Turion Dual-Core Mobile",
+		"Athlon Dual-Core",
+		"Sempron SI",/*0xEB*/
 		NULL,
 		NULL,
 		NULL,
@@ -414,6 +415,18 @@ static const char *dmi_processor_family(u8 code)
 		NULL /* 0xFF */
 		/* master.mif has values beyond that, but they can't be used for DMI */
         };
+        /* Special case for ambiguous value 0xBE */
+        if (code == 0xBE)
+        {
+                /* Best bet based on manufacturer string */
+                if (strstr(manufacturer, "Intel") != NULL
+                 || strncasecmp(manufacturer, "Intel", 5) == 0)
+                        return "Core 2";
+                if (strstr(manufacturer, "AMD") != NULL
+                 || strncasecmp(manufacturer, "AMD", 3) == 0)
+                        return "K7";
+                return "Core 2 or K7";
+        }
 
         if(family[code]!=NULL) {
 			return family[code];
@@ -429,6 +442,8 @@ static const char *dmi_processor_status(u8 code)
                 "Disabled By User",
                 "Disabled By BIOS",
                 "Idle", /* 0x04 */
+		"<OUT OF SPEC>",
+		"<OUT OF SPEC>",
                 "Other" /* 0x07 */
         };
 
@@ -460,6 +475,12 @@ static const char *dmi_processor_upgrade(u8 code)
                 "Socket 754",
                 "Socket 940",
                 "Socket 939" /* 0x12 */
+		"Socket mPGA604",
+                "Socket LGA771",
+                "Socket LGA775",
+                "Socket S1",
+                "Socket AM2",
+                "Socket F (1207)"
         };
 
         if(code>=0x01 && code<=0x11)

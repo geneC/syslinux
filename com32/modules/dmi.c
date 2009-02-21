@@ -466,8 +466,8 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
 			dmi->processor.filled=true;
 			strcpy(dmi->processor.socket_designation,dmi_string(h, data[0x04]));
                         strcpy(dmi->processor.type,dmi_processor_type(data[0x05]));
-                        strcpy(dmi->processor.family,dmi_processor_family(data[0x06]));
 			strcpy(dmi->processor.manufacturer,dmi_string(h, data[0x07]));
+                        strcpy(dmi->processor.family,dmi_processor_family(data[0x06],dmi->processor.manufacturer));
                         dmi_processor_id(data[0x06], data+8, dmi_string(h, data[0x10]), dmi);
                         strcpy(dmi->processor.version,dmi_string(h, data[0x10]));
                         dmi_processor_voltage(data[0x11],dmi);
