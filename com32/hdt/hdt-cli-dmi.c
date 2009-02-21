@@ -32,73 +32,73 @@
 #include <string.h>
 
 void dmi_show(char *item, struct s_hardware *hardware) {
- if ( !strncmp(item, CLI_DMI_BASE_BOARD, sizeof CLI_DMI_BASE_BOARD - 1) ) {
+ if ( !strncmp(item, CLI_DMI_BASE_BOARD, sizeof(CLI_DMI_BASE_BOARD) - 1) ) {
    show_dmi_base_board(hardware);
    return;
  } else
- if ( !strncmp(item, CLI_DMI_SYSTEM, sizeof CLI_DMI_SYSTEM - 1) ) {
+ if ( !strncmp(item, CLI_DMI_SYSTEM, sizeof(CLI_DMI_SYSTEM) - 1) ) {
    show_dmi_system(hardware);
    return;
  } else
- if ( !strncmp(item, CLI_DMI_BIOS, sizeof CLI_DMI_BIOS - 1) ) {
+ if ( !strncmp(item, CLI_DMI_BIOS, sizeof(CLI_DMI_BIOS) - 1) ) {
    show_dmi_bios(hardware);
    return;
  } else
- if ( !strncmp(item, CLI_DMI_CHASSIS, sizeof CLI_DMI_CHASSIS - 1) ) {
+ if ( !strncmp(item, CLI_DMI_CHASSIS, sizeof(CLI_DMI_CHASSIS) - 1) ) {
    show_dmi_chassis(hardware);
    return;
  } else
- if ( !strncmp(item, CLI_DMI_PROCESSOR, sizeof CLI_DMI_PROCESSOR - 1) ) {
+ if ( !strncmp(item, CLI_DMI_PROCESSOR, sizeof(CLI_DMI_PROCESSOR) - 1) ) {
    show_dmi_cpu(hardware);
    return;
  }
- if ( !strncmp(item, CLI_DMI_MODULES, sizeof CLI_DMI_MODULES - 1) ) {
+ if ( !strncmp(item, CLI_DMI_MODULES, sizeof(CLI_DMI_MODULES) - 1) ) {
    show_dmi_modules(hardware);
    return;
  }
-
 }
 
+
 void handle_dmi_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware) {
- if ( !strncmp(cli_line, CLI_SHOW, sizeof CLI_SHOW - 1) ) {
-    dmi_show(strstr(cli_line,"show")+ sizeof CLI_SHOW, hardware);
+ if ( !strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1) ) {
+    dmi_show(strstr(cli_line,"show")+ sizeof(CLI_SHOW), hardware);
     return;
  }
 }
 
 void show_dmi_modules(struct s_hardware *hardware) {
  char available_dmi_commands[1024];
- memset(available_dmi_commands,0,sizeof available_dmi_commands);
+ memset(available_dmi_commands,0,sizeof(available_dmi_commands));
 
  if (hardware->dmi.base_board.filled==true) {
-	 strncat(available_dmi_commands,CLI_DMI_BASE_BOARD,sizeof CLI_DMI_BASE_BOARD-1);
+	 strncat(available_dmi_commands,CLI_DMI_BASE_BOARD,sizeof(CLI_DMI_BASE_BOARD)-1);
 	 strncat(available_dmi_commands," ",1);
  }
  if (hardware->dmi.battery.filled==true) {
-	 strncat(available_dmi_commands,CLI_DMI_BATTERY,sizeof CLI_DMI_BATTERY-1);
+	 strncat(available_dmi_commands,CLI_DMI_BATTERY,sizeof(CLI_DMI_BATTERY)-1);
 	 strncat(available_dmi_commands," ",1);
  }
  if (hardware->dmi.bios.filled==true) {
-	 strncat(available_dmi_commands,CLI_DMI_BIOS,sizeof CLI_DMI_BIOS-1);
+	 strncat(available_dmi_commands,CLI_DMI_BIOS,sizeof(CLI_DMI_BIOS)-1);
 	 strncat(available_dmi_commands," ",1);
  }
  if (hardware->dmi.chassis.filled==true) {
-	 strncat(available_dmi_commands,CLI_DMI_CHASSIS,sizeof CLI_DMI_CHASSIS-1);
+	 strncat(available_dmi_commands,CLI_DMI_CHASSIS,sizeof(CLI_DMI_CHASSIS)-1);
 	 strncat(available_dmi_commands," ",1);
  }
  for (int i=0;i<hardware->dmi.memory_count;i++) {
 	if (hardware->dmi.memory[i].filled==true) {
-		strncat(available_dmi_commands,CLI_DMI_MEMORY,sizeof CLI_DMI_MEMORY-1);
+		strncat(available_dmi_commands,CLI_DMI_MEMORY,sizeof(CLI_DMI_MEMORY)-1);
 		strncat(available_dmi_commands," ",1);
 		break;
 	}
  }
  if (hardware->dmi.processor.filled==true) {
-	 strncat(available_dmi_commands,CLI_DMI_PROCESSOR,sizeof CLI_DMI_PROCESSOR-1);
+	 strncat(available_dmi_commands,CLI_DMI_PROCESSOR,sizeof(CLI_DMI_PROCESSOR)-1);
 	 strncat(available_dmi_commands," ",1);
  }
  if (hardware->dmi.system.filled==true) {
-	 strncat(available_dmi_commands,CLI_DMI_SYSTEM,sizeof CLI_DMI_SYSTEM-1);
+	 strncat(available_dmi_commands,CLI_DMI_SYSTEM,sizeof(CLI_DMI_SYSTEM)-1);
 	 strncat(available_dmi_commands," ",1);
  }
  printf("Available DMI modules: %s\n",available_dmi_commands);
