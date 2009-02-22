@@ -33,61 +33,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-void show_dmi_memory_modules(struct s_hardware *hardware) {
- char bank_number[10];
- char available_dmi_commands[1024];
- bool found=false;
- memset(available_dmi_commands,0,sizeof(available_dmi_commands));
 
- for (int i=0;i<hardware->dmi.memory_count;i++) {
-   if (hardware->dmi.memory[i].filled==true) {
-	found=true;
-        strncat(available_dmi_commands,CLI_DMI_MEMORY_BANK,sizeof(CLI_DMI_MEMORY_BANK)-1);
-	memset(bank_number,0,sizeof(bank_number));
-	snprintf(bank_number,sizeof(bank_number),"%d ",i);
-        strncat(available_dmi_commands,bank_number,sizeof(bank_number));
-	printf("bank%d: %s %s@%s\n",i,hardware->dmi.memory[i].size, hardware->dmi.memory[i].type, hardware->dmi.memory[i].speed);
- }
-}
- if (found == true) {
-  printf("Type 'show bank<bank_number>' for more details.\n");
- } else {
-  printf("No memory module found\n");
- }
-}
-
-void show_dmi_memory_bank(struct s_hardware *hardware, const char *item) {
- long bank = strtol(item,(char **) NULL,10);
- if (errno == ERANGE) {
-  printf("This bank number is incorrect\n");
-  return;
- }
- if ((bank>=hardware->dmi.memory_count) || (bank<0)) {
-  printf("Bank %d number doesn't exists\n",bank);
-  return;
- }
-
- if (hardware->dmi.memory[bank].filled==false) {
-  printf("Bank %d doesn't contain any information\n",bank);
-  return;
- }
- printf("Memory Bank %d\n",bank);
- more_printf(" Form Factor  : %s\n",hardware->dmi.memory[bank].form_factor);
- more_printf(" Type         : %s\n",hardware->dmi.memory[bank].type);
- more_printf(" Type Detail  : %s\n",hardware->dmi.memory[bank].type_detail);
- more_printf(" Speed        : %s\n",hardware->dmi.memory[bank].speed);
- more_printf(" Size         : %s\n",hardware->dmi.memory[bank].size);
- more_printf(" Device Set   : %s\n",hardware->dmi.memory[bank].device_set);
- more_printf(" Device Loc.  : %s\n",hardware->dmi.memory[bank].device_locator);
- more_printf(" Bank Locator : %s\n",hardware->dmi.memory[bank].bank_locator);
- more_printf(" Total Width  : %s\n",hardware->dmi.memory[bank].total_width);
- more_printf(" Data Width   : %s\n",hardware->dmi.memory[bank].data_width);
- more_printf(" Error        : %s\n",hardware->dmi.memory[bank].error);
- more_printf(" Vendor       : %s\n",hardware->dmi.memory[bank].manufacturer);
- more_printf(" Serial       : %s\n",hardware->dmi.memory[bank].serial);
- more_printf(" Asset Tag    : %s\n",hardware->dmi.memory[bank].asset_tag);
- more_printf(" Part Number  : %s\n",hardware->dmi.memory[bank].part_number);
-}
 
 void dmi_show(char *item, struct s_hardware *hardware) {
  if ( !strncmp(item, CLI_DMI_BASE_BOARD, sizeof(CLI_DMI_BASE_BOARD) - 1) ) {
@@ -122,8 +68,12 @@ void dmi_show(char *item, struct s_hardware *hardware) {
    show_dmi_modules(hardware);
    return;
  }
-}
+ if ( !strncmp(item, CLI_DMI_BATTERY, sizeof(CLI_DMI_BATTERY) - 1) ) {
+   show_dmi_battery(hardware);
+   return;
+ }
 
+}
 
 void handle_dmi_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware) {
  if ( !strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1) ) {
@@ -280,6 +230,27 @@ void show_dmi_chassis(struct s_hardware *hardware) {
  more_printf(" NB Power Cords     : %u\n",hardware->dmi.chassis.nb_power_cords);
 }
 
+void show_dmi_battery(struct s_hardware *hardware) {
+ if (hardware->dmi.battery.filled==false) {
+	 printf("Battery module not available\n");
+	 return;
+ }
+ clear_screen();
+ more_printf("Battery \n");
+ more_printf(" Vendor             : %s\n",hardware->dmi.battery.manufacturer);
+ more_printf(" Manufacture Date   : %s\n",hardware->dmi.battery.manufacture_date);
+ more_printf(" Serial             : %s\n",hardware->dmi.battery.serial);
+ more_printf(" Name               : %s\n",hardware->dmi.battery.name);
+ more_printf(" Chemistry          : %s\n",hardware->dmi.battery.chemistry);
+ more_printf(" Design Capacity    : %s\n",hardware->dmi.battery.design_capacity);
+ more_printf(" Design Voltage     : %s\n",hardware->dmi.battery.design_voltage);
+ more_printf(" SBDS               : %s\n",hardware->dmi.battery.sbds);
+ more_printf(" SBDS Manuf. Date   : %s\n",hardware->dmi.battery.sbds_manufacture_date);
+ more_printf(" SBDS Chemistry     : %s\n",hardware->dmi.battery.sbds_chemistry);
+ more_printf(" Maximum Error      : %s\n",hardware->dmi.battery.maximum_error);
+ more_printf(" OEM Info           : %s\n",hardware->dmi.battery.oem_info);
+}
+
 void show_dmi_cpu(struct s_hardware *hardware) {
  if (hardware->dmi.processor.filled==false) {
 	 printf("Processor module not available\n");
@@ -315,4 +286,62 @@ void show_dmi_cpu(struct s_hardware *hardware) {
       }
  }
 
+}
+
+void show_dmi_memory_modules(struct s_hardware *hardware) {
+ char bank_number[10];
+ char available_dmi_commands[1024];
+ memset(available_dmi_commands,0,sizeof(available_dmi_commands));
+
+ if (hardware->dmi.memory_count <=0) {
+  printf("No memory module found\n");
+  return;
+ }
+
+ clear_screen();
+ more_printf("Memory Banks\n");
+ for (int i=0;i<hardware->dmi.memory_count;i++) {
+    if (hardware->dmi.memory[i].filled==true) {
+	/* When discovering the first item, let's clear the screen */
+        strncat(available_dmi_commands,CLI_DMI_MEMORY_BANK,sizeof(CLI_DMI_MEMORY_BANK)-1);
+	memset(bank_number,0,sizeof(bank_number));
+	snprintf(bank_number,sizeof(bank_number),"%d ",i);
+        strncat(available_dmi_commands,bank_number,sizeof(bank_number));
+	printf("bank%d: %s %s@%s\n",i,hardware->dmi.memory[i].size, hardware->dmi.memory[i].type, hardware->dmi.memory[i].speed);
+    }
+ }
+ printf("Type 'show bank<bank_number>' for more details.\n");
+}
+
+void show_dmi_memory_bank(struct s_hardware *hardware, const char *item) {
+ long bank = strtol(item,(char **) NULL,10);
+ if (errno == ERANGE) {
+  printf("This bank number is incorrect\n");
+  return;
+ }
+ if ((bank>=hardware->dmi.memory_count) || (bank<0)) {
+  printf("Bank %d number doesn't exists\n",bank);
+  return;
+ }
+
+ if (hardware->dmi.memory[bank].filled==false) {
+  printf("Bank %d doesn't contain any information\n",bank);
+  return;
+ }
+ printf("Memory Bank %d\n",bank);
+ more_printf(" Form Factor  : %s\n",hardware->dmi.memory[bank].form_factor);
+ more_printf(" Type         : %s\n",hardware->dmi.memory[bank].type);
+ more_printf(" Type Detail  : %s\n",hardware->dmi.memory[bank].type_detail);
+ more_printf(" Speed        : %s\n",hardware->dmi.memory[bank].speed);
+ more_printf(" Size         : %s\n",hardware->dmi.memory[bank].size);
+ more_printf(" Device Set   : %s\n",hardware->dmi.memory[bank].device_set);
+ more_printf(" Device Loc.  : %s\n",hardware->dmi.memory[bank].device_locator);
+ more_printf(" Bank Locator : %s\n",hardware->dmi.memory[bank].bank_locator);
+ more_printf(" Total Width  : %s\n",hardware->dmi.memory[bank].total_width);
+ more_printf(" Data Width   : %s\n",hardware->dmi.memory[bank].data_width);
+ more_printf(" Error        : %s\n",hardware->dmi.memory[bank].error);
+ more_printf(" Vendor       : %s\n",hardware->dmi.memory[bank].manufacturer);
+ more_printf(" Serial       : %s\n",hardware->dmi.memory[bank].serial);
+ more_printf(" Asset Tag    : %s\n",hardware->dmi.memory[bank].asset_tag);
+ more_printf(" Part Number  : %s\n",hardware->dmi.memory[bank].part_number);
 }

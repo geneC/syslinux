@@ -76,6 +76,9 @@ void show_dmi_bios(struct s_hardware *hardware);
 void show_dmi_chassis(struct s_hardware *hardware);
 void show_dmi_cpu(struct s_hardware *hardware);
 void show_dmi_modules(struct s_hardware *hardware);
+void show_dmi_memory_modules(struct s_hardware *hardware);
+void show_dmi_memory_bank(struct s_hardware *hardware, const char *item);
+void show_dmi_battery(struct s_hardware *hardware);
 
 //PCI STUFF
 void main_show_pci(struct s_hardware *hardware);
