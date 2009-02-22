@@ -72,15 +72,11 @@ void handle_hdt_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_h
 }
 
 /* Code that manage the cli mode */
-void start_cli_mode(int argc, char *argv[]) {
+void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[]) {
  char cli_line[256];
- struct s_hardware hardware;
  struct s_cli_mode cli_mode;
 
- /* Cleaning structures */
- init_hardware(&hardware);
-
- set_mode(&cli_mode,HDT_MODE,&hardware);
+ set_mode(&cli_mode,HDT_MODE,hardware);
 
  printf("Entering CLI mode\n");
 
@@ -96,7 +92,7 @@ void start_cli_mode(int argc, char *argv[]) {
 	   int mode=do_exit(&cli_mode);
 	   if (mode ==  EXIT_MODE)
 		   return;
-	   set_mode(&cli_mode,mode,&hardware);
+	   set_mode(&cli_mode,mode,hardware);
 	   continue;
     }
 
@@ -106,7 +102,7 @@ void start_cli_mode(int argc, char *argv[]) {
     }
 
     if ( !strncmp(cli_line, CLI_PCI, sizeof(CLI_PCI) - 1) ) {
-	   set_mode(&cli_mode,PCI_MODE,&hardware);
+	   set_mode(&cli_mode,PCI_MODE,hardware);
 	   continue;
     }
     if ( !strncmp(cli_line, CLI_CLEAR, sizeof(CLI_CLEAR) - 1) ) {
@@ -114,15 +110,15 @@ void start_cli_mode(int argc, char *argv[]) {
 	   continue;
     }
     if ( !strncmp(cli_line, CLI_DMI, sizeof(CLI_DMI) - 1) ) {
-	   set_mode(&cli_mode,DMI_MODE,&hardware);
+	   set_mode(&cli_mode,DMI_MODE,hardware);
 	   continue;
     }
     /* All commands before that line are common for all cli modes
      * the following will be specific for every mode */
     switch(cli_mode.mode) {
-     case DMI_MODE: handle_dmi_commands(cli_line,&cli_mode, &hardware); break;
-     case PCI_MODE: handle_pci_commands(cli_line,&cli_mode, &hardware); break;
-     case HDT_MODE: handle_hdt_commands(cli_line,&cli_mode, &hardware); break;
+     case DMI_MODE: handle_dmi_commands(cli_line,&cli_mode, hardware); break;
+     case PCI_MODE: handle_pci_commands(cli_line,&cli_mode, hardware); break;
+     case HDT_MODE: handle_hdt_commands(cli_line,&cli_mode, hardware); break;
      case EXIT_MODE: break; /* should not happend */
     }
  }

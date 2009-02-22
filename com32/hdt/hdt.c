@@ -45,8 +45,12 @@ int main(int argc, char *argv[])
 {
   char version_string[256];
   char *arg;
+  struct s_hardware hardware;
 
   snprintf(version_string,sizeof version_string,"%s %s by %s",PRODUCT_NAME,VERSION,AUTHOR);
+
+  /* Cleaning structures */
+  init_hardware(&hardware);
 
   /* Opening the syslinux console */
   openconsole(&dev_stdcon_r, &dev_ansicon_w);
@@ -55,9 +59,14 @@ int main(int argc, char *argv[])
   printf("%s\n",version_string);
 
   if ((arg = find_argument(argv+1, "nomenu"))) {
-	  start_cli_mode(argc, argv);
+	  start_cli_mode(&hardware, argc, argv);
   } else{
-	 return start_menu_mode(version_string);
+	 int return_code = start_menu_mode(&hardware, version_string);
+	 if (return_code == HDT_RETURN_TO_CLI) {
+	   start_cli_mode(&hardware,argc,argv);
+	 } else {
+	   return return_code;
+	 }
   }
 
   return 0;

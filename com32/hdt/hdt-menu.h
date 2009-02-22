@@ -105,7 +105,7 @@ void compute_syslinuxmenu(struct s_my_menu *menu);
 // About menu
 void compute_aboutmenu(struct s_my_menu *menu);
 
-int start_menu_mode(char *version_string);
+int start_menu_mode(struct s_hardware *hardware, char *version_string);
 void setup_menu(char *version);
 void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);
 void compute_submenus(struct s_hdt_menu *hdt_menu,struct s_hardware *hardware);

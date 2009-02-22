@@ -34,6 +34,10 @@
 #include "dmi/dmi.h"
 #include "hdt-ata.h"
 
+/* This two values are used for switching for the menu to the CLI mode*/
+#define HDT_SWITCH_TO_CLI "hdt_switch_to_cli"
+#define HDT_RETURN_TO_CLI 100
+
 extern int display_line_nb;
 
 #define more_printf(...) do {\

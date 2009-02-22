@@ -30,25 +30,22 @@
 
 
 
-int start_menu_mode(char *version_string) {
+int start_menu_mode(struct s_hardware *hardware, char *version_string) {
   struct s_hdt_menu hdt_menu;
-  struct s_hardware hardware;
 
-  /* Cleaning structures */
-  init_hardware(&hardware);
   memset(&hdt_menu,0,sizeof (hdt_menu));
 
   /* Detect every kind of hardware */
-  detect_hardware(&hardware);
+  detect_hardware(hardware);
 
   /* Setup the menu system*/
   setup_menu(version_string);
 
   /* Compute all sub menus */
-  compute_submenus(&hdt_menu, &hardware);
+  compute_submenus(&hdt_menu, hardware);
 
   /* Compute main menu */
-  compute_main_menu(&hdt_menu,&hardware);
+  compute_main_menu(&hdt_menu,hardware);
 
 #ifdef WITH_MENU_DISPLAY
   t_menuitem * curr;
@@ -61,7 +58,11 @@ int start_menu_mode(char *version_string) {
         /* When want to execute something */
         if (curr->action == OPT_RUN)
         {
-            strcpy(cmd,curr->data);
+	    /* Tweak, we want to switch to the cli*/
+	    if (! strncmp(curr->data,HDT_SWITCH_TO_CLI,sizeof(HDT_SWITCH_TO_CLI))) {
+	      return HDT_RETURN_TO_CLI;
+	    }
+	    strcpy(cmd,curr->data);
 
             /* Use specific syslinux call if needed */
             if (issyslinux())
@@ -154,7 +155,7 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu,struct s_hardware *hardware) 
   set_item_options(-1,24);
 
 #ifdef WITH_PCI
-  add_item("PCI <D>evices","PCI Devices Menu",OPT_SUBMENU,NULL,hdt_menu->pci_menu.menu);
+  add_item("PC<I> Devices","PCI Devices Menu",OPT_SUBMENU,NULL,hdt_menu->pci_menu.menu);
   hdt_menu->main_menu.items_count++;
   hdt_menu->total_menu_count+=hdt_menu->pci_menu.items_count;
 #endif
@@ -205,6 +206,7 @@ if (hardware->is_dmi_valid) {
 #endif
   add_item("<S>yslinux","Syslinux Information Menu",OPT_SUBMENU,NULL,hdt_menu->syslinux_menu.menu);
   hdt_menu->main_menu.items_count++;
+  add_item("S<w>itch to CLI","Switch to Command Line",OPT_RUN,HDT_SWITCH_TO_CLI,0);
   add_item("<A>bout","About Menu",OPT_SUBMENU,NULL,hdt_menu->about_menu.menu);
   hdt_menu->main_menu.items_count++;
 
