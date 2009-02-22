@@ -54,7 +54,6 @@ int main(int argc, char *argv[])
   clear_screen();
   printf("%s\n",version_string);
 
-
   if ((arg = find_argument(argv+1, "nomenu"))) {
 	  start_cli_mode(argc, argv);
   } else{

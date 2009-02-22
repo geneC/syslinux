@@ -31,19 +31,48 @@
 #include <stdlib.h>
 #include <string.h>
 
+void cli_detect_pci(struct s_hardware *hardware) {
+ bool error=false;
+ if (hardware->pci_detection==false) {
+	 detect_pci(hardware);
+	 if (hardware->pci_ids_return_code == -ENOPCIIDS) {
+		more_printf("The pci.ids file is missing, device names can't be computed.\n");
+		more_printf("Please put one in same dir as hdt\n");
+		error=true;
+	 }
+	 if (hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) {
+		more_printf("The modules.pcimap file is missing, device names can't be computed.\n");
+		more_printf("Please put one in same dir as hdt\n");
+		error=true;
+	 }
+	 if (error == true) {
+	   char tempbuf[10];\
+	   printf("Press enter to continue\n");\
+	   fgets(tempbuf, sizeof(tempbuf), stdin);\
+	 }
+ }
+}
+
 void main_show_pci(struct s_hardware *hardware) {
  int i=1;
  struct pci_device *pci_device;
  char kernel_modules [LINUX_KERNEL_MODULE_SIZE*MAX_KERNEL_MODULES_PER_PCI_DEVICE];
-
- if (hardware->pci_detection==false) {
-	 detect_pci(hardware);
- }
- printf("%d PCI devices detected\n",hardware->nb_pci_devices);
+ bool nopciids=false;
+ bool nomodulespcimap=false;
+ char first_line[81];
+ char second_line[81];
+ char third_line[81];
+ cli_detect_pci(hardware);
+ clear_screen();
+ more_printf("%d PCI devices detected\n",hardware->nb_pci_devices);
 
  if (hardware->pci_ids_return_code == -ENOPCIIDS) {
-    printf("The pci.ids file is missing, device names can't be computed. Please put one in same dir as hdt\n");
+    nopciids=true;
   }
+
+ if (hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) {
+    nomodulespcimap=true;
+ }
 
  /* For every detected pci device, compute its submenu */
  for_each_pci_func(pci_device, hardware->pci_domain) {
@@ -56,13 +85,43 @@ void main_show_pci(struct s_hardware *hardware) {
    }
    if (pci_device->dev_info->linux_kernel_module_count==0) strlcpy(kernel_modules,"unknown",7);
 
-   printf("%02d: %02x:%02x.%01x %s %s \n",
+   if ((nopciids == false) && (nomodulespcimap == false)) {
+    snprintf(first_line,sizeof(first_line),"%02d: %02x:%02x.%01x %s %s \n",
                i,__pci_bus, __pci_slot, __pci_func,pci_device->dev_info->vendor_name,
                pci_device->dev_info->product_name);
-   printf("        # %s # ID:%04x:%04x[%04x:%04x] # Kmod:%s\n",
+    snprintf(second_line,sizeof(second_line),"    # %-25s # ID:%04x:%04x[%04x:%04x]\n",
                pci_device->dev_info->class_name,
                pci_device->vendor, pci_device->product,
+               pci_device->sub_vendor, pci_device->sub_product);
+    snprintf(third_line,sizeof(third_line),  "    # Linux Kernel Module(s): %s \n",kernel_modules);
+    more_printf(first_line);
+    more_printf(second_line);
+    more_printf(third_line);
+    more_printf("\n");
+   } else if ((nopciids == true) && (nomodulespcimap == true)) {
+    more_printf("%02d: %02x:%02x.%01x %04x:%04x [%04x:%04x] \n",
+               i,__pci_bus, __pci_slot, __pci_func,
+               pci_device->vendor, pci_device->product,
                pci_device->sub_vendor, pci_device->sub_product,kernel_modules);
+
+   } else if ((nopciids == true) && (nomodulespcimap == false)) {
+    more_printf("%02d: %02x:%02x.%01x %04x:%04x [%04x:%04x] Kmod:%s\n",
+               i,__pci_bus, __pci_slot, __pci_func,
+               pci_device->vendor, pci_device->product,
+               pci_device->sub_vendor, pci_device->sub_product,kernel_modules,
+	       pci_device->sub_product,kernel_modules);
+   } else  if ((nopciids == false) && (nomodulespcimap == true)) {
+    snprintf(first_line,sizeof(first_line),"%02d: %02x:%02x.%01x %s %s \n",
+               i,__pci_bus, __pci_slot, __pci_func,pci_device->dev_info->vendor_name,
+               pci_device->dev_info->product_name);
+    snprintf(second_line,sizeof(second_line),"    # %-25s # ID:%04x:%04x[%04x:%04x]\n",
+               pci_device->dev_info->class_name,
+               pci_device->vendor, pci_device->product,
+               pci_device->sub_vendor, pci_device->sub_product);
+    more_printf(first_line);
+    more_printf(second_line);
+    more_printf("\n");
+   }
 
  i++;
  }
