@@ -977,8 +977,6 @@ memory_scan_common:
 ;
 ;	Clobbers CX and SI
 ;
-is_pxe		equ is_struc.pxe
-is_pxenv	equ is_struc.pxenv
 is_struc:
 .pxe:
 		cmp dword [es:bx],'!PXE'
@@ -1007,6 +1005,9 @@ is_struc:
 .bad:
 		ret
 		
+is_pxe		equ is_struc.pxe
+is_pxenv	equ is_struc.pxenv
+
 ;
 ; close_file:
 ;	     Deallocates a file structure (pointer in SI)
