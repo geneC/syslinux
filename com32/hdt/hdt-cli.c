@@ -35,17 +35,17 @@ void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode, struct s_hardware *h
  switch (mode) {
   case EXIT_MODE:
         cli_mode->mode=mode;
-        snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s:", CLI_EXIT);
+        snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ", CLI_EXIT);
         break;
 
   case HDT_MODE:
         cli_mode->mode=mode;
-        snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s:", CLI_HDT);
+        snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ", CLI_HDT);
         break;
 
   case PCI_MODE:
 	cli_mode->mode=mode;
-	snprintf(cli_mode->prompt,sizeof(cli_mode->prompt),"%s:", CLI_PCI);
+	snprintf(cli_mode->prompt,sizeof(cli_mode->prompt),"%s> ", CLI_PCI);
 	if (!hardware->pci_detection)
           cli_detect_pci(hardware);
 	break;
@@ -58,7 +58,7 @@ void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode, struct s_hardware *h
           break;
         }
 	cli_mode->mode=mode;
-	snprintf(cli_mode->prompt,sizeof(cli_mode->prompt),"%s:",CLI_DMI);
+	snprintf(cli_mode->prompt,sizeof(cli_mode->prompt),"%s> ",CLI_DMI);
 	break;
  }
 }
