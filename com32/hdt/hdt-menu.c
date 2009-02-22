@@ -121,12 +121,17 @@ void setup_menu(char *version) {
 void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware) {
  /* Compute this menus if a DMI table exist */
   if (hardware->is_dmi_valid) {
-    compute_motherboard(&(hdt_menu->mobo_menu),&(hardware->dmi));
-    compute_chassis(&(hdt_menu->chassis_menu),&(hardware->dmi));
-    compute_system(&(hdt_menu->system_menu),&(hardware->dmi));
-    compute_memory(hdt_menu,&(hardware->dmi));
-    compute_bios(&(hdt_menu->bios_menu),&(hardware->dmi));
-    compute_battery(&(hdt_menu->battery_menu),&(hardware->dmi));
+    if (hardware->dmi.base_board.filled==true) compute_motherboard(&(hdt_menu->mobo_menu),&(hardware->dmi));
+    if (hardware->dmi.chassis.filled==true) compute_chassis(&(hdt_menu->chassis_menu),&(hardware->dmi));
+    if (hardware->dmi.system.filled==true) compute_system(&(hdt_menu->system_menu),&(hardware->dmi));
+    for (int i=0;i<hardware->dmi.memory_count;i++) {
+	             if (hardware->dmi.memory[i].filled==true) {
+			compute_memory(hdt_menu,&(hardware->dmi));
+			break;
+		     }
+    }
+    if (hardware->dmi.bios.filled==true) compute_bios(&(hdt_menu->bios_menu),&(hardware->dmi));
+    if (hardware->dmi.battery.filled==true) compute_battery(&(hdt_menu->battery_menu),&(hardware->dmi));
   }
 
   compute_processor(&(hdt_menu->cpu_menu),hardware);
@@ -160,7 +165,7 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu,struct s_hardware *hardware) 
   }
 
   if (hdt_menu->memory_menu.items_count>0) {
-     add_item("<M>emory Modules","Memory Modules Menu",OPT_SUBMENU,NULL,hdt_menu->memory_menu.menu);
+     add_item("<M>emory","Memory Menu",OPT_SUBMENU,NULL,hdt_menu->memory_menu.menu);
      hdt_menu->main_menu.items_count++;
      hdt_menu->total_menu_count+=hdt_menu->memory_menu.items_count;
   }
@@ -168,16 +173,30 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu,struct s_hardware *hardware) 
   hdt_menu->main_menu.items_count++;
 
 if (hardware->is_dmi_valid) {
-  add_item("M<o>therboard","Motherboard Menu",OPT_SUBMENU,NULL,hdt_menu->mobo_menu.menu);
-  hdt_menu->main_menu.items_count++;
-  add_item("<B>ios","Bios Menu",OPT_SUBMENU,NULL,hdt_menu->bios_menu.menu);
-  hdt_menu->main_menu.items_count++;
-  add_item("<C>hassis","Chassis Menu",OPT_SUBMENU,NULL,hdt_menu->chassis_menu.menu);
-  hdt_menu->main_menu.items_count++;
-  add_item("<S>ystem","System Menu",OPT_SUBMENU,NULL,hdt_menu->system_menu.menu);
-  hdt_menu->main_menu.items_count++;
-  add_item("Ba<t>tery","Battery Menu",OPT_SUBMENU,NULL,hdt_menu->battery_menu.menu);
-  hdt_menu->main_menu.items_count++;
+  if (hardware->dmi.base_board.filled==true) {
+	add_item("M<o>therboard","Motherboard Menu",OPT_SUBMENU,NULL,hdt_menu->mobo_menu.menu);
+	hdt_menu->main_menu.items_count++;
+  }
+
+  if (hardware->dmi.bios.filled==true) {
+	add_item("<B>ios","Bios Menu",OPT_SUBMENU,NULL,hdt_menu->bios_menu.menu);
+	hdt_menu->main_menu.items_count++;
+  }
+
+  if (hardware->dmi.chassis.filled==true) {
+	add_item("<C>hassis","Chassis Menu",OPT_SUBMENU,NULL,hdt_menu->chassis_menu.menu);
+	hdt_menu->main_menu.items_count++;
+  }
+
+  if (hardware->dmi.system.filled==true) {
+	add_item("<S>ystem","System Menu",OPT_SUBMENU,NULL,hdt_menu->system_menu.menu);
+	hdt_menu->main_menu.items_count++;
+  }
+
+  if (hardware->dmi.battery.filled==true) {
+	add_item("Ba<t>tery","Battery Menu",OPT_SUBMENU,NULL,hdt_menu->battery_menu.menu);
+	hdt_menu->main_menu.items_count++;
+  }
 }
   add_item("","",OPT_SEP,"",0);
 #ifdef WITH_PCI

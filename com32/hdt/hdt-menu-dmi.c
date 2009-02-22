@@ -210,7 +210,7 @@ void compute_memory_module(struct s_my_menu *menu, s_dmi *dmi, int slot_number) 
   char buffer[MENULEN+1];
   char statbuffer[STATLEN+1];
 
-  sprintf(buffer," Module <%d> ",i);
+  sprintf(buffer," Bank <%d> ",i);
   menu->items_count=0;
   menu->menu = add_menu(buffer,-1);
 
@@ -298,12 +298,12 @@ void compute_memory(struct s_hdt_menu *menu, s_dmi *dmi) {
    compute_memory_module(&(menu->memory_sub_menu[i]),dmi,i);
  }
 
-  menu->memory_menu.menu = add_menu(" Modules ",-1);
+  menu->memory_menu.menu = add_menu(" Memory Banks ",-1);
   menu->memory_menu.items_count=0;
 
  for (int i=0;i<dmi->memory_count;i++) {
-  snprintf(buffer,sizeof buffer," Module <%d> ",i);
-  add_item(buffer,"Memory Module",OPT_SUBMENU,NULL,menu->memory_sub_menu[i].menu);
+  snprintf(buffer,sizeof buffer," Bank <%d> ",i);
+  add_item(buffer,"Memory Bank",OPT_SUBMENU,NULL,menu->memory_sub_menu[i].menu);
   menu->memory_menu.items_count++;
  }
  printf("MENU: Memory menu done (%d items)\n",menu->memory_menu.items_count);

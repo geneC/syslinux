@@ -75,7 +75,7 @@ static void dmi_memory_device_width(u16 code, char *width)
 static void dmi_memory_device_size(u16 code, char *size)
 {
  if (code == 0)
-     sprintf(size,"%s","No Module Installed");
+     sprintf(size,"%s","Free");
  else if (code == 0xFFFF)
      sprintf(size,"%s","Unknown");
  else {
