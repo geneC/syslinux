@@ -101,8 +101,8 @@ void detect_pci(struct s_hardware *hardware) {
 }
 
 void cpu_detect(struct s_hardware *hardware) {
-  hardware->cpu_detection=true;
   detect_cpu(&hardware->cpu);
+  hardware->cpu_detection=true;
 }
 
 /* Find the last instance of a particular command line argument

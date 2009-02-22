@@ -50,6 +50,15 @@ void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode, struct s_hardware *h
           cli_detect_pci(hardware);
 	break;
 
+  case CPU_MODE:
+	cli_mode->mode=mode;
+	snprintf(cli_mode->prompt,sizeof(cli_mode->prompt),"%s> ", CLI_CPU);
+	if (!hardware->dmi_detection)
+          detect_dmi(hardware);
+	if (!hardware->cpu_detection)
+          cpu_detect(hardware);
+	break;
+
   case DMI_MODE:
 	if (!hardware->dmi_detection)
           detect_dmi(hardware);
@@ -109,6 +118,10 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[]) {
 	   clear_screen();
 	   continue;
     }
+    if ( !strncmp(cli_line, CLI_CPU, sizeof(CLI_CPU) - 1) ) {
+	   set_mode(&cli_mode,CPU_MODE,hardware);
+	   continue;
+    }
     if ( !strncmp(cli_line, CLI_DMI, sizeof(CLI_DMI) - 1) ) {
 	   set_mode(&cli_mode,DMI_MODE,hardware);
 	   continue;
@@ -119,6 +132,7 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[]) {
      case DMI_MODE: handle_dmi_commands(cli_line,&cli_mode, hardware); break;
      case PCI_MODE: handle_pci_commands(cli_line,&cli_mode, hardware); break;
      case HDT_MODE: handle_hdt_commands(cli_line,&cli_mode, hardware); break;
+     case CPU_MODE: handle_cpu_commands(cli_line,&cli_mode, hardware); break;
      case EXIT_MODE: break; /* should not happend */
     }
  }
@@ -127,8 +141,9 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[]) {
 int do_exit(struct s_cli_mode *cli_mode) {
  switch (cli_mode->mode) {
   case HDT_MODE: return EXIT_MODE;
-  case PCI_MODE: return HDT_MODE;
-  case DMI_MODE: return HDT_MODE;
+  case PCI_MODE:
+  case DMI_MODE:
+  case CPU_MODE: return HDT_MODE;
   case EXIT_MODE: return EXIT_MODE; /* should not happend */
  }
 return HDT_MODE;
@@ -139,9 +154,8 @@ switch (cli_mode->mode) {
 	case HDT_MODE:
 		printf("Available commands are : %s %s %s %s %s %s\n",CLI_CLEAR, CLI_EXIT,CLI_HELP,CLI_SHOW, CLI_PCI, CLI_DMI);
 		break;
+	case CPU_MODE:
 	case PCI_MODE:
-		printf("Available commands are : %s %s %s %s\n",CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW);
-		break;
 	case DMI_MODE:
 		printf("Available commands are : %s %s %s %s\n",CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW);
 		break;
@@ -153,4 +167,5 @@ switch (cli_mode->mode) {
 void main_show(char *item, struct s_hardware *hardware, struct s_cli_mode *cli_mode) {
  if (!strncmp(item,CLI_PCI, sizeof (CLI_PCI))) main_show_pci(hardware);
  if (!strncmp(item,CLI_DMI, sizeof (CLI_DMI))) main_show_dmi(hardware,cli_mode);
+ if (!strncmp(item,CLI_CPU, sizeof (CLI_CPU))) main_show_cpu(hardware,cli_mode);
 }

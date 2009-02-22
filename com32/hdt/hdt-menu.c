@@ -120,8 +120,9 @@ void setup_menu(char *version) {
 
 /* Compute Main' Submenus*/
 void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware) {
- /* Compute this menus if a DMI table exist */
-  if (hardware->is_dmi_valid) {
+
+    /* Compute this menus if a DMI table exist */
+    if (hardware->is_dmi_valid) {
     if (hardware->dmi.base_board.filled==true) compute_motherboard(&(hdt_menu->mobo_menu),&(hardware->dmi));
     if (hardware->dmi.chassis.filled==true) compute_chassis(&(hdt_menu->chassis_menu),&(hardware->dmi));
     if (hardware->dmi.system.filled==true) compute_system(&(hdt_menu->system_menu),&(hardware->dmi));
@@ -146,7 +147,7 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware) 
 }
 
 void compute_main_menu(struct s_hdt_menu *hdt_menu,struct s_hardware *hardware) {
-
+  char menu_item[64];
   /* Let's count the number of menu we have */
   hdt_menu->total_menu_count=0;
   hdt_menu->main_menu.items_count=0;
@@ -155,18 +156,21 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu,struct s_hardware *hardware) 
   set_item_options(-1,24);
 
 #ifdef WITH_PCI
-  add_item("PC<I> Devices","PCI Devices Menu",OPT_SUBMENU,NULL,hdt_menu->pci_menu.menu);
+  snprintf(menu_item, sizeof (menu_item),    "PC<I> Devices(%2d)\n",hardware->nb_pci_devices);
+  add_item(menu_item,"PCI Devices Menu",OPT_SUBMENU,NULL,hdt_menu->pci_menu.menu);
   hdt_menu->main_menu.items_count++;
   hdt_menu->total_menu_count+=hdt_menu->pci_menu.items_count;
 #endif
   if (hdt_menu->disk_menu.items_count>0) {
-     add_item("<D>isks","Disks Menu",OPT_SUBMENU,NULL,hdt_menu->disk_menu.menu);
+     snprintf(menu_item, sizeof (menu_item), "<D>isks      (%2d)\n",hdt_menu->disk_menu.items_count);
+     add_item(menu_item,"Disks Menu",OPT_SUBMENU,NULL,hdt_menu->disk_menu.menu);
      hdt_menu->main_menu.items_count++;
      hdt_menu->total_menu_count+=hdt_menu->disk_menu.items_count;
   }
 
   if (hdt_menu->memory_menu.items_count>0) {
-     add_item("<M>emory","Memory Menu",OPT_SUBMENU,NULL,hdt_menu->memory_menu.menu);
+     snprintf(menu_item, sizeof (menu_item), "<M>emory     (%2d)\n",hdt_menu->memory_menu.items_count);
+     add_item(menu_item,"Memory Menu",OPT_SUBMENU,NULL,hdt_menu->memory_menu.menu);
      hdt_menu->main_menu.items_count++;
      hdt_menu->total_menu_count+=hdt_menu->memory_menu.items_count;
   }

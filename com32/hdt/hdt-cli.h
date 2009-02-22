@@ -39,13 +39,15 @@
 #define CLI_PCI  "pci"
 #define CLI_COMMANDS "commands"
 #define CLI_DMI  "dmi"
+#define CLI_CPU  "cpu"
 #define CLI_SHOW_LIST "list"
 
 typedef enum {
   EXIT_MODE,
   HDT_MODE,
   PCI_MODE,
-  DMI_MODE
+  DMI_MODE,
+  CPU_MODE,
 } cli_mode_t;
 
 struct s_cli_mode {
@@ -66,7 +68,7 @@ int do_exit(struct s_cli_mode *cli_mode);
 #define CLI_DMI_CHASSIS "chassis"
 #define CLI_DMI_MEMORY "memory"
 #define CLI_DMI_MEMORY_BANK "bank"
-#define CLI_DMI_PROCESSOR "processor"
+#define CLI_DMI_PROCESSOR "cpu"
 #define CLI_DMI_SYSTEM "system"
 
 void main_show_dmi(struct s_hardware *hardware,struct s_cli_mode *cli_mode);
@@ -87,4 +89,9 @@ void main_show_pci(struct s_hardware *hardware);
 void handle_pci_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware);
 void pci_show(char *item, struct s_hardware *hardware);
 void cli_detect_pci(struct s_hardware *hardware);
+
+//CPU STUFF
+void main_show_cpu(struct s_hardware *hardware,struct s_cli_mode *cli_mode);
+void handle_cpu_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware);
+void cpu_show(char *item, struct s_hardware *hardware);
 #endif
