@@ -47,7 +47,7 @@ void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode, struct s_hardware *h
 	cli_mode->mode=mode;
 	snprintf(cli_mode->prompt,sizeof(cli_mode->prompt),"%s:", CLI_PCI);
 	if (!hardware->pci_detection)
-          detect_pci(hardware);
+          cli_detect_pci(hardware);
 	break;
 
   case DMI_MODE:
@@ -61,6 +61,14 @@ void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode, struct s_hardware *h
 	snprintf(cli_mode->prompt,sizeof(cli_mode->prompt),"%s:",CLI_DMI);
 	break;
  }
+}
+
+void handle_hdt_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware) {
+    /* hdt cli mode specific commands */
+    if ( !strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1) ) {
+	   main_show(strstr(cli_line,"show")+ sizeof (CLI_SHOW), hardware,cli_mode);
+	   return;
+    }
 }
 
 /* Code that manage the cli mode */
@@ -109,15 +117,14 @@ void start_cli_mode(int argc, char *argv[]) {
 	   set_mode(&cli_mode,DMI_MODE,&hardware);
 	   continue;
     }
+    /* All commands before that line are common for all cli modes
+     * the following will be specific for every mode */
     switch(cli_mode.mode) {
      case DMI_MODE: handle_dmi_commands(cli_line,&cli_mode, &hardware); break;
+     case PCI_MODE: handle_pci_commands(cli_line,&cli_mode, &hardware); break;
+     case HDT_MODE: handle_hdt_commands(cli_line,&cli_mode, &hardware); break;
+     case EXIT_MODE: break; /* should not happend */
     }
-
-    if ( !strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1) ) {
-	   main_show(strstr(cli_line,"show")+ sizeof (CLI_SHOW), &hardware,&cli_mode);
-	   continue;
-    }
-
  }
 }
 
@@ -126,6 +133,7 @@ int do_exit(struct s_cli_mode *cli_mode) {
   case HDT_MODE: return EXIT_MODE;
   case PCI_MODE: return HDT_MODE;
   case DMI_MODE: return HDT_MODE;
+  case EXIT_MODE: return EXIT_MODE; /* should not happend */
  }
 return HDT_MODE;
 }
@@ -140,6 +148,8 @@ switch (cli_mode->mode) {
 		break;
 	case DMI_MODE:
 		printf("Available commands are : %s %s %s %s\n",CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW);
+		break;
+	case EXIT_MODE: /* Should not happend*/
 		break;
 }
 }

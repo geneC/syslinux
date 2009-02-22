@@ -64,7 +64,7 @@ void dmi_show(char *item, struct s_hardware *hardware) {
    show_dmi_memory_bank(hardware,item+ sizeof(CLI_DMI_MEMORY_BANK)-1);
    return;
  }
- if ( !strncmp(item, CLI_DMI_MODULES, sizeof(CLI_DMI_MODULES) - 1) ) {
+ if ( !strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1) ) {
    show_dmi_modules(hardware);
    return;
  }
