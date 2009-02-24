@@ -37,6 +37,7 @@
 #define CLI_SHOW "show"
 #define CLI_HDT  "hdt"
 #define CLI_PCI  "pci"
+#define CLI_NET  "net"
 #define CLI_COMMANDS "commands"
 #define CLI_DMI  "dmi"
 #define CLI_CPU  "cpu"
@@ -48,6 +49,7 @@ typedef enum {
   PCI_MODE,
   DMI_MODE,
   CPU_MODE,
+  NET_MODE,
 } cli_mode_t;
 
 struct s_cli_mode {
@@ -94,4 +96,7 @@ void cli_detect_pci(struct s_hardware *hardware);
 void main_show_cpu(struct s_hardware *hardware,struct s_cli_mode *cli_mode);
 void handle_cpu_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware);
 void cpu_show(char *item, struct s_hardware *hardware);
+
+//NET STUFF
+void main_show_net(struct s_hardware *hardware,struct s_cli_mode *cli_mode);
 #endif

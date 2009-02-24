@@ -141,6 +141,7 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[]) {
 int do_exit(struct s_cli_mode *cli_mode) {
  switch (cli_mode->mode) {
   case HDT_MODE: return EXIT_MODE;
+  case NET_MODE:
   case PCI_MODE:
   case DMI_MODE:
   case CPU_MODE: return HDT_MODE;
@@ -154,6 +155,7 @@ switch (cli_mode->mode) {
 	case HDT_MODE:
 		printf("Available commands are : %s %s %s %s %s %s\n",CLI_CLEAR, CLI_EXIT,CLI_HELP,CLI_SHOW, CLI_PCI, CLI_DMI);
 		break;
+	case NET_MODE:
 	case CPU_MODE:
 	case PCI_MODE:
 	case DMI_MODE:
@@ -168,4 +170,5 @@ void main_show(char *item, struct s_hardware *hardware, struct s_cli_mode *cli_m
  if (!strncmp(item,CLI_PCI, sizeof (CLI_PCI))) main_show_pci(hardware);
  if (!strncmp(item,CLI_DMI, sizeof (CLI_DMI))) main_show_dmi(hardware,cli_mode);
  if (!strncmp(item,CLI_CPU, sizeof (CLI_CPU))) main_show_cpu(hardware,cli_mode);
+ if (!strncmp(item,CLI_NET, sizeof (CLI_NET))) main_show_net(hardware,cli_mode);
 }

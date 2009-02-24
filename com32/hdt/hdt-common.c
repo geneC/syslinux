@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "syslinux/config.h"
 
 void init_hardware(struct s_hardware *hardware) {
   hardware->pci_ids_return_code=0;
@@ -38,14 +39,17 @@ void init_hardware(struct s_hardware *hardware) {
   hardware->pci_detection=false;
   hardware->disk_detection=false;
   hardware->dmi_detection=false;
+  hardware->pxe_detection=false;
   hardware->nb_pci_devices=0;
   hardware->is_dmi_valid=false;
+  hardware->is_pxe_valid=false;
   hardware->pci_domain=NULL;
 
   /* Cleaning structures */
   memset(hardware->disk_info,0,sizeof(hardware->disk_info));
-  memset(&hardware->dmi,0,sizeof(hardware->dmi));
-  memset(&hardware->cpu,0,sizeof(hardware->cpu));
+  memset(&hardware->dmi,0,sizeof(s_dmi));
+  memset(&hardware->cpu,0,sizeof(s_cpu));
+  memset(&hardware->gnt,0,sizeof(t_PXENV_UNDI_GET_NIC_TYPE));
 }
 
 /* Detecting if a DMI table exist
@@ -71,6 +75,30 @@ void detect_disks(struct s_hardware *hardware) {
     struct diskinfo *d=&hardware->disk_info[drive];
     printf("  DISK 0x%X: %s : %s %s: sectors=%d, s/t=%d head=%d : EDD=%s\n",drive,d->aid.model,d->host_bus_type,d->interface_type, d->sectors, d->sectors_per_track,d->heads,d->edd_version);
  }
+}
+
+int detect_pxe(struct s_hardware *hardware) {
+ void *dhcpdata;
+ size_t dhcplen;
+ const struct syslinux_version *sv;
+
+ hardware->pxe_detection=true;
+ memset(&hardware->gnt,0, sizeof(t_PXENV_UNDI_GET_NIC_TYPE));
+
+ sv = syslinux_version();
+ /* This code can only work if pxelinux is loaded*/
+ if (sv->filesystem != SYSLINUX_FS_PXELINUX) {
+	 printf("No valid PXE Rom found\n");
+	 return -1;
+ }
+ printf("PXE: PXElinux detected, Detecting parameters\n");
+
+ if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK, &dhcpdata, &dhcplen)) {
+        if (!pxe_get_nic_type(&hardware->gnt)) {
+	 hardware->is_pxe_valid=true;
+        }
+ }
+ return 0;
 }
 
 void detect_pci(struct s_hardware *hardware) {

@@ -32,6 +32,7 @@
 #include "sys/pci.h"
 #include "cpuid.h"
 #include "dmi/dmi.h"
+#include <syslinux/pxe.h>
 #include "hdt-ata.h"
 
 /* This two values are used for switching for the menu to the CLI mode*/
@@ -57,14 +58,19 @@ struct s_hardware {
   s_cpu cpu; /* CPU information */
   struct pci_domain *pci_domain; /* PCI Devices */
   struct diskinfo disk_info[256];     /* Disk Information*/
+  t_PXENV_UNDI_GET_NIC_TYPE gnt;
+
   int pci_ids_return_code;
   int modules_pcimap_return_code;
   int nb_pci_devices;
   bool is_dmi_valid;
+  bool is_pxe_valid;
+
   bool dmi_detection; /* Does the dmi stuff have been already detected */
   bool pci_detection; /* Does the pci stuff have been already detected */
   bool cpu_detection; /* Does the cpu stuff have been already detected */
   bool disk_detection; /* Does the disk stuff have been already detected */
+  bool pxe_detection; /* Does the pxe stuff have been already detected*/
 };
 
 char *find_argument(const char **argv, const char *argument);
@@ -72,6 +78,7 @@ int detect_dmi(struct s_hardware *hardware);
 void detect_disks(struct s_hardware *hardware);
 void detect_pci(struct s_hardware *hardware);
 void cpu_detect(struct s_hardware *hardware);
+int detect_pxe(struct s_hardware *hardware);
 void init_hardware(struct s_hardware *hardware);
 void clear_screen(void);
 #endif
