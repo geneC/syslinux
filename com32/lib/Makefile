@@ -92,7 +92,7 @@ LIBOBJS = \
 	syslinux/initramfs_file.o syslinux/initramfs_loadfile.o		\
 	syslinux/initramfs_archive.o					\
 	\
-	syslinux/pxe_get_cached.o					\
+	syslinux/pxe_get_cached.o syslinux/pxe_get_nic.o		\
 	\
 	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o		\
 	syslinux/setadv.o
