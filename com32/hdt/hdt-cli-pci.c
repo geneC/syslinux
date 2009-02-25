@@ -104,8 +104,11 @@ void show_pci_device(struct s_hardware *hardware, const char *item) {
  more_printf("PCI Bus       : %02d\n",bus);
  more_printf("PCI Slot      : %02d\n",slot);
  more_printf("PCI Func      : %02d\n",func);
- if ((hardware->pxe.pci_device != NULL) && (hardware->pxe.pci_device == pci_device)) {
-  more_printf("PXE           : Current boot device\n",func);
+
+ if (hardware->is_pxe_valid == true) {
+  more_printf("Mac Address   : %s\n",hardware->pxe.mac_addr);
+  if ((hardware->pxe.pci_device != NULL) && (hardware->pxe.pci_device == pci_device))
+   more_printf("PXE           : Current boot device\n",func);
  }
 }
 

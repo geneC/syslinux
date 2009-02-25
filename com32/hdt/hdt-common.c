@@ -55,7 +55,7 @@ void init_hardware(struct s_hardware *hardware) {
 /* Detecting if a DMI table exist
  * if yes, let's parse it */
 int detect_dmi(struct s_hardware *hardware) {
-  if (hardware->dmi_detection == true) return;
+  if (hardware->dmi_detection == true) return -1;
   hardware->dmi_detection=true;
   if (dmi_iterate(&hardware->dmi) == -ENODMITABLE ) {
 	     hardware->is_dmi_valid=false;
@@ -80,6 +80,7 @@ void detect_disks(struct s_hardware *hardware) {
 
 int detect_pxe(struct s_hardware *hardware) {
  void *dhcpdata;
+
  size_t dhcplen;
  const struct syslinux_version *sv;
  t_PXENV_UNDI_GET_NIC_TYPE gnt;
@@ -98,6 +99,17 @@ int detect_pxe(struct s_hardware *hardware) {
 
 // printf("PXE: PXElinux detected\n");
  if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK, &dhcpdata, &dhcplen)) {
+	pxe_bootp_t *dhcp=&hardware->pxe.dhcpdata;
+	memcpy(&hardware->pxe.dhcpdata,dhcpdata,dhcplen);
+	snprintf(hardware->pxe.mac_addr, sizeof(hardware->pxe.mac_addr), "%02x:%02x:%02x:%02x:%02x:%02x",
+			dhcp->CAddr[0],dhcp->CAddr[1],dhcp->CAddr[2],dhcp->CAddr[3],dhcp->CAddr[4],dhcp->CAddr[5]);
+
+	/* Saving Our IP address in a easy format*/
+	hardware->pxe.ip_addr[0]= hardware->pxe.dhcpdata.yip & 0xff;
+	hardware->pxe.ip_addr[1]= hardware->pxe.dhcpdata.yip >>8 & 0xff;
+	hardware->pxe.ip_addr[2]= hardware->pxe.dhcpdata.yip >>16 & 0xff;
+	hardware->pxe.ip_addr[3]= hardware->pxe.dhcpdata.yip >>24 & 0xff;
+
         if (!pxe_get_nic_type(&gnt)) {
 	 switch(gnt.NicType) {
 	         case PCI_NIC:
@@ -133,7 +145,8 @@ int detect_pxe(struct s_hardware *hardware) {
 		case PnP_NIC:
 		default:  return -1; break;
         }
-	if (hardware->pci_detection==false) detect_pci(hardware);
+	/* Let's try to find the associated pci device */
+	detect_pci(hardware);
 	hardware->pxe.pci_device=NULL;
 	hardware->pxe.pci_device_pos=0;
 	struct pci_device *pci_device;
@@ -147,7 +160,6 @@ int detect_pxe(struct s_hardware *hardware) {
 		   (pci_device->product == hardware->pxe.product_id)) {
 			   hardware->pxe.pci_device=pci_device;
 			   hardware->pxe.pci_device_pos=pci_number;
-		//	   printf("PXE: PCI device %d is the current boot device\n", pci_number);
 		   }
 	}
        }

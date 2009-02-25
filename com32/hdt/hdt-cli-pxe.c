@@ -49,19 +49,17 @@ void main_show_pxe(struct s_hardware *hardware,struct s_cli_mode *cli_mode) {
  more_printf(" PCI device no: %d \n", p->pci_device_pos);
 
  if (hardware->pci_ids_return_code == -ENOPCIIDS) {
- snprintf(buffer,sizeof(buffer)," PCI ID       : %04x:%04x[%04x:%04X] rev(%02x)\n",
+  snprintf(buffer,sizeof(buffer)," PCI ID       : %04x:%04x[%04x:%04X] rev(%02x)\n",
 		 p->vendor_id, p->product_id, p->subvendor_id, p->subproduct_id,
 		 p->rev);
- snprintf(buffer,sizeof(buffer)," PCI Bus pos. : %02x:%02x.%02x\n",
+  snprintf(buffer,sizeof(buffer)," PCI Bus pos. : %02x:%02x.%02x\n",
 		 p->pci_bus,p->pci_dev, p->pci_func);
-
- more_printf(buffer);
+  more_printf(buffer);
  } else {
- snprintf(buffer,sizeof(buffer)," Manufacturer : %s \n", p->pci_device->dev_info->vendor_name);
- more_printf(buffer);
- snprintf(buffer,sizeof(buffer)," Product      : %s \n", p->pci_device->dev_info->product_name);
- more_printf(buffer);
-
+  snprintf(buffer,sizeof(buffer)," Manufacturer : %s \n", p->pci_device->dev_info->vendor_name);
+  more_printf(buffer);
+  snprintf(buffer,sizeof(buffer)," Product      : %s \n", p->pci_device->dev_info->product_name);
+  more_printf(buffer);
  }
-
+ more_printf( " Addresses    : %d.%d.%d.%d @ %s\n",p->ip_addr[0], p->ip_addr[1], p->ip_addr[2], p->ip_addr[3],p->mac_addr);
 }

@@ -66,9 +66,13 @@ struct s_pxe {
  uint8_t sub_class;
  uint8_t prog_intf;
  uint8_t nictype;
+ char mac_addr[18]; /* The current mac address */
+ uint8_t ip_addr[4];
 
- struct pci_device *pci_device;
- uint8_t pci_device_pos;
+ pxe_bootp_t dhcpdata; /* The dhcp answer */
+ struct pci_device *pci_device; /* The matching pci device */
+ uint8_t pci_device_pos; /* It position in our pci sorted list*/
+
 };
 
 struct s_hardware {
