@@ -311,8 +311,8 @@ void set_generic_info(struct cpuinfo_x86 *c,s_cpu *cpu) {
 	cpu->vendor_id=c->x86_vendor;
 	cpu->model_id=c->x86_model;
 	cpu->stepping=c->x86_mask;
-	strncpy(cpu->vendor,cpu_devs[c->x86_vendor]->c_vendor,CPU_VENDOR_SIZE);
-	strncpy(cpu->model,c->x86_model_id,CPU_MODEL_SIZE);
+	strncpy(cpu->vendor,cpu_devs[c->x86_vendor]->c_vendor,sizeof(cpu->vendor));
+	strncpy(cpu->model,c->x86_model_id,sizeof(cpu->model));
 }
 
 void detect_cpu(s_cpu *cpu)
@@ -323,11 +323,10 @@ void detect_cpu(s_cpu *cpu)
          c.x86_vendor = X86_VENDOR_UNKNOWN;
          c.cpuid_level = -1;    /* CPUID not detected */
          c.x86_model = c.x86_mask = 0; /* So far unknown... */
-         c.x86_vendor_id[0] = '\0'; /* Unset */
-         c.x86_model_id[0] = '\0';  /* Unset */
 	 c.x86_max_cores = 1;
-	 memset(&c.x86_capability, 0, sizeof c.x86_capability);
-	 memset(&c.x86_vendor_id,'\0',CPU_VENDOR_SIZE);
+	 memset(&c.x86_capability, 0, sizeof(c.x86_capability));
+	 memset(&c.x86_vendor_id,0,sizeof(c.x86_vendor_id));
+	 memset(&c.x86_model_id,0,sizeof(c.x86_model_id));
 
          if (!have_cpuid_p())
                  return;
