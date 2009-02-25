@@ -43,6 +43,15 @@ void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode, struct s_hardware *h
         snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ", CLI_HDT);
         break;
 
+  case PXE_MODE:
+        cli_mode->mode=mode;
+        snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ", CLI_PXE);
+        break;
+
+  case KERNEL_MODE:
+        cli_mode->mode=mode;
+        snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ", CLI_KERNEL);
+
   case PCI_MODE:
 	cli_mode->mode=mode;
 	snprintf(cli_mode->prompt,sizeof(cli_mode->prompt),"%s> ", CLI_PCI);
@@ -141,6 +150,7 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[]) {
 int do_exit(struct s_cli_mode *cli_mode) {
  switch (cli_mode->mode) {
   case HDT_MODE: return EXIT_MODE;
+  case KERNEL_MODE:
   case PXE_MODE:
   case PCI_MODE:
   case DMI_MODE:
@@ -155,6 +165,7 @@ switch (cli_mode->mode) {
 	case HDT_MODE:
 		printf("Available commands are : %s %s %s %s %s %s\n",CLI_CLEAR, CLI_EXIT,CLI_HELP,CLI_SHOW, CLI_PCI, CLI_DMI);
 		break;
+	case KERNEL_MODE:
 	case PXE_MODE:
 	case CPU_MODE:
 	case PCI_MODE:
@@ -185,6 +196,7 @@ void main_show_summary(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
    main_show_pci(hardware);
    if (hardware->is_pxe_valid)
       main_show_pxe(hardware,cli_mode);
+   main_show_kernel(hardware,cli_mode);
 }
 
 void main_show(char *item, struct s_hardware *hardware, struct s_cli_mode *cli_mode) {
@@ -193,4 +205,5 @@ void main_show(char *item, struct s_hardware *hardware, struct s_cli_mode *cli_m
  if (!strncmp(item,CLI_DMI, sizeof (CLI_DMI))) main_show_dmi(hardware,cli_mode);
  if (!strncmp(item,CLI_CPU, sizeof (CLI_CPU))) main_show_cpu(hardware,cli_mode);
  if (!strncmp(item,CLI_PXE, sizeof (CLI_PXE))) main_show_pxe(hardware,cli_mode);
+ if (!strncmp(item,CLI_KERNEL, sizeof (CLI_KERNEL))) main_show_kernel(hardware,cli_mode);
 }

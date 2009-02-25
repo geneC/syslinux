@@ -38,6 +38,7 @@
 #define CLI_HDT  "hdt"
 #define CLI_PCI  "pci"
 #define CLI_PXE  "pxe"
+#define CLI_KERNEL "kernel"
 #define CLI_SUMMARY "summary"
 #define CLI_COMMANDS "commands"
 #define CLI_DMI  "dmi"
@@ -51,6 +52,7 @@ typedef enum {
   DMI_MODE,
   CPU_MODE,
   PXE_MODE,
+  KERNEL_MODE,
 } cli_mode_t;
 
 struct s_cli_mode {
@@ -100,4 +102,8 @@ void cpu_show(char *item, struct s_hardware *hardware);
 
 //PXE STUFF
 void main_show_pxe(struct s_hardware *hardware,struct s_cli_mode *cli_mode);
+
+//KERNEL STUFF
+void main_show_kernel(struct s_hardware *hardware,struct s_cli_mode *cli_mode);
+
 #endif
