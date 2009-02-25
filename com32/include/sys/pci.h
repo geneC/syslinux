@@ -12,6 +12,7 @@
 #define PCI_PRODUCT_NAME_SIZE 	256
 #define PCI_CLASS_NAME_SIZE 	256
 #define MAX_KERNEL_MODULES_PER_PCI_DEVICE 10
+#define MAX_PCI_CLASSES		256
 
 typedef uint32_t pciaddr_t;
 
@@ -27,7 +28,8 @@ struct pci_dev_info {
   char product_name[PCI_PRODUCT_NAME_SIZE];
   char linux_kernel_module[LINUX_KERNEL_MODULE_SIZE][MAX_KERNEL_MODULES_PER_PCI_DEVICE];
   int linux_kernel_module_count;
-  char class_name[PCI_CLASS_NAME_SIZE];
+  char class_name[PCI_CLASS_NAME_SIZE]; /* The most precise class name */
+  char category_name[PCI_CLASS_NAME_SIZE]; /*The general category*/
 };
 
 /* PCI device (really, function) */

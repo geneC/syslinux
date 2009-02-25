@@ -216,8 +216,11 @@ int get_class_name_from_pci_ids(struct pci_domain *domain)
       int int_class_id_str=hex_to_int(class_id_str);
       /* assign the class_name to any matching pci device */
       for_each_pci_func(dev, domain) {
-	if (int_class_id_str == dev->class[2])
+	if (int_class_id_str == dev->class[2]) {
 	  strlcpy(dev->dev_info->class_name,class_name,PCI_CLASS_NAME_SIZE-1);
+	  /* This value is usually the main category*/
+	  strlcpy(dev->dev_info->category_name,class_name+4,PCI_CLASS_NAME_SIZE-1);
+	}
       }
       /* if we have a tab + a char, it means this is a sub class name */
     } else if ((line[0] == '\t') && (line[1] != '\t')) {
