@@ -53,12 +53,30 @@ extern int display_line_nb;
 } while (0);
 
 
+struct s_pxe {
+ uint16_t vendor_id;
+ uint16_t product_id;
+ uint16_t subvendor_id;
+ uint16_t subproduct_id;
+ uint8_t rev;
+ uint8_t pci_bus;
+ uint8_t pci_dev;
+ uint8_t pci_func;
+ uint8_t base_class;
+ uint8_t sub_class;
+ uint8_t prog_intf;
+ uint8_t nictype;
+
+ struct pci_device *pci_device;
+ uint8_t pci_device_pos;
+};
+
 struct s_hardware {
   s_dmi dmi; /* DMI table */
   s_cpu cpu; /* CPU information */
   struct pci_domain *pci_domain; /* PCI Devices */
   struct diskinfo disk_info[256];     /* Disk Information*/
-  t_PXENV_UNDI_GET_NIC_TYPE gnt;
+  struct s_pxe pxe;
 
   int pci_ids_return_code;
   int modules_pcimap_return_code;

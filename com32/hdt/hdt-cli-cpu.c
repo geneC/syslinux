@@ -125,21 +125,19 @@ void handle_cpu_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_h
 }
 
 void main_show_cpu(struct s_hardware *hardware,struct s_cli_mode *cli_mode) {
- if (hardware->cpu_detection==false) {
-	 cpu_detect(hardware);
- }
- if (hardware->dmi_detection==false) {
-	 detect_dmi(hardware);
- }
-
- if ((hardware->cpu.flags.lm == false) && (hardware->cpu.flags.smp==false)) {
-    more_printf("CPU: %s %s @ %d MhZ : x86 32bits\n", hardware->cpu.vendor, hardware->cpu.model, hardware->dmi.processor.current_speed);
+  cpu_detect(hardware);
+  detect_dmi(hardware);
+  more_printf("CPU\n");
+  more_printf(" Manufacturer :  %s \n", hardware->cpu.vendor);
+  more_printf(" Product      :  %s \n", hardware->cpu.model);
+  if ((hardware->cpu.flags.lm == false) && (hardware->cpu.flags.smp==false)) {
+    more_printf(" Features     :  %d MhZ : x86 32bits\n", hardware->dmi.processor.current_speed);
  } else if ((hardware->cpu.flags.lm == false) && (hardware->cpu.flags.smp==true)) {
-    more_printf("CPU: %s %s @ %d MhZ : X86 32bits SMP\n", hardware->cpu.vendor, hardware->cpu.model, hardware->dmi.processor.current_speed);
+    more_printf(" Features     :  %d MhZ : x86 32bits SMP\n", hardware->dmi.processor.current_speed);
  } else  if ((hardware->cpu.flags.lm == true) && (hardware->cpu.flags.smp==false)) {
-    more_printf("CPU: %s %s @ %d MhZ : X86_64 64bits", hardware->cpu.vendor, hardware->cpu.model, hardware->dmi.processor.current_speed);
+    more_printf(" Features     :  %d MhZ : x86_64 64bits\n", hardware->dmi.processor.current_speed);
  } else {
-    more_printf("CPU: %s %s @ %d MhZ : X86_64 64bits SMP\n", hardware->cpu.vendor, hardware->cpu.model, hardware->dmi.processor.current_speed);
+    more_printf(" Features     :  %d MhZ : x86_64 64bits SMP\n", hardware->dmi.processor.current_speed);
  }
 
 }

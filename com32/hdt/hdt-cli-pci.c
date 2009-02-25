@@ -104,7 +104,9 @@ void show_pci_device(struct s_hardware *hardware, const char *item) {
  more_printf("PCI Bus       : %02d\n",bus);
  more_printf("PCI Slot      : %02d\n",slot);
  more_printf("PCI Func      : %02d\n",func);
-
+ if ((hardware->pxe.pci_device != NULL) && (hardware->pxe.pci_device == pci_device)) {
+  more_printf("PXE           : Current boot device\n",func);
+ }
 }
 
 void show_pci_devices(struct s_hardware *hardware) {
@@ -224,68 +226,8 @@ void main_show_pci(struct s_hardware *hardware) {
  char second_line[81];
  char third_line[81];
  cli_detect_pci(hardware);
- clear_screen();
- more_printf("%d PCI devices detected\n",hardware->nb_pci_devices);
 
- if (hardware->pci_ids_return_code == -ENOPCIIDS) {
-    nopciids=true;
-  }
-
- if (hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) {
-    nomodulespcimap=true;
- }
-
- /* For every detected pci device, compute its submenu */
- for_each_pci_func(pci_device, hardware->pci_domain) {
-   memset(kernel_modules,0,sizeof kernel_modules);
-   for (int kmod=0; kmod<pci_device->dev_info->linux_kernel_module_count;kmod++) {
-     if (kmod>0) {
-       strncat(kernel_modules," | ",3);
-     }
-     strncat(kernel_modules, pci_device->dev_info->linux_kernel_module[kmod],LINUX_KERNEL_MODULE_SIZE-1);
-   }
-   if (pci_device->dev_info->linux_kernel_module_count==0) strlcpy(kernel_modules,"unknown",7);
-
-   if ((nopciids == false) && (nomodulespcimap == false)) {
-    snprintf(first_line,sizeof(first_line),"%02d: %02x:%02x.%01x %s %s \n",
-               i,__pci_bus, __pci_slot, __pci_func,pci_device->dev_info->vendor_name,
-               pci_device->dev_info->product_name);
-    snprintf(second_line,sizeof(second_line),"    # %-25s # ID:%04x:%04x[%04x:%04x]\n",
-               pci_device->dev_info->class_name,
-               pci_device->vendor, pci_device->product,
-               pci_device->sub_vendor, pci_device->sub_product);
-    snprintf(third_line,sizeof(third_line),  "    # Linux Kernel Module(s): %s \n",kernel_modules);
-    more_printf(first_line);
-    more_printf(second_line);
-    more_printf(third_line);
-    more_printf("\n");
-   } else if ((nopciids == true) && (nomodulespcimap == true)) {
-    more_printf("%02d: %02x:%02x.%01x %04x:%04x [%04x:%04x] \n",
-               i,__pci_bus, __pci_slot, __pci_func,
-               pci_device->vendor, pci_device->product,
-               pci_device->sub_vendor, pci_device->sub_product,kernel_modules);
-
-   } else if ((nopciids == true) && (nomodulespcimap == false)) {
-    more_printf("%02d: %02x:%02x.%01x %04x:%04x [%04x:%04x] Kmod:%s\n",
-               i,__pci_bus, __pci_slot, __pci_func,
-               pci_device->vendor, pci_device->product,
-               pci_device->sub_vendor, pci_device->sub_product,kernel_modules,
-	       pci_device->sub_product,kernel_modules);
-   } else  if ((nopciids == false) && (nomodulespcimap == true)) {
-    snprintf(first_line,sizeof(first_line),"%02d: %02x:%02x.%01x %s %s \n",
-               i,__pci_bus, __pci_slot, __pci_func,pci_device->dev_info->vendor_name,
-               pci_device->dev_info->product_name);
-    snprintf(second_line,sizeof(second_line),"    # %-25s # ID:%04x:%04x[%04x:%04x]\n",
-               pci_device->dev_info->class_name,
-               pci_device->vendor, pci_device->product,
-               pci_device->sub_vendor, pci_device->sub_product);
-    more_printf(first_line);
-    more_printf(second_line);
-    more_printf("\n");
-   }
-
- i++;
- }
-
+ more_printf("PCI\n");
+ more_printf(" NB Devices   : %d\n",hardware->nb_pci_devices);
 
 }

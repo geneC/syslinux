@@ -141,7 +141,7 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[]) {
 int do_exit(struct s_cli_mode *cli_mode) {
  switch (cli_mode->mode) {
   case HDT_MODE: return EXIT_MODE;
-  case NET_MODE:
+  case PXE_MODE:
   case PCI_MODE:
   case DMI_MODE:
   case CPU_MODE: return HDT_MODE;
@@ -155,7 +155,7 @@ switch (cli_mode->mode) {
 	case HDT_MODE:
 		printf("Available commands are : %s %s %s %s %s %s\n",CLI_CLEAR, CLI_EXIT,CLI_HELP,CLI_SHOW, CLI_PCI, CLI_DMI);
 		break;
-	case NET_MODE:
+	case PXE_MODE:
 	case CPU_MODE:
 	case PCI_MODE:
 	case DMI_MODE:
@@ -166,9 +166,31 @@ switch (cli_mode->mode) {
 }
 }
 
+void main_show_summary(struct s_hardware *hardware, struct s_cli_mode *cli_mode) {
+   detect_pci(hardware); /* pxe is detected in the pci */
+   detect_dmi(hardware);
+   cpu_detect(hardware);
+   clear_screen();
+   main_show_cpu(hardware,cli_mode);
+   if (hardware->is_dmi_valid) {
+    more_printf("System\n");
+    more_printf(" Manufacturer : %s\n",hardware->dmi.system.manufacturer);
+    more_printf(" Product Name : %s\n",hardware->dmi.system.product_name);
+    more_printf(" Serial       : %s\n",hardware->dmi.system.serial);
+    more_printf("Bios\n");
+    more_printf(" Version      : %s\n",hardware->dmi.bios.version);
+    more_printf(" Release      : %s\n",hardware->dmi.bios.release_date);
+    show_dmi_memory_modules(hardware,false);
+   }
+   main_show_pci(hardware);
+   if (hardware->is_pxe_valid)
+      main_show_pxe(hardware,cli_mode);
+}
+
 void main_show(char *item, struct s_hardware *hardware, struct s_cli_mode *cli_mode) {
+ if (!strncmp(item,CLI_SUMMARY, sizeof (CLI_SUMMARY))) main_show_summary(hardware,cli_mode);
  if (!strncmp(item,CLI_PCI, sizeof (CLI_PCI))) main_show_pci(hardware);
  if (!strncmp(item,CLI_DMI, sizeof (CLI_DMI))) main_show_dmi(hardware,cli_mode);
  if (!strncmp(item,CLI_CPU, sizeof (CLI_CPU))) main_show_cpu(hardware,cli_mode);
- if (!strncmp(item,CLI_NET, sizeof (CLI_NET))) main_show_net(hardware,cli_mode);
+ if (!strncmp(item,CLI_PXE, sizeof (CLI_PXE))) main_show_pxe(hardware,cli_mode);
 }

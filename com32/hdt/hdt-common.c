@@ -49,12 +49,13 @@ void init_hardware(struct s_hardware *hardware) {
   memset(hardware->disk_info,0,sizeof(hardware->disk_info));
   memset(&hardware->dmi,0,sizeof(s_dmi));
   memset(&hardware->cpu,0,sizeof(s_cpu));
-  memset(&hardware->gnt,0,sizeof(t_PXENV_UNDI_GET_NIC_TYPE));
+  memset(&hardware->pxe,0,sizeof(struct s_pxe));
 }
 
 /* Detecting if a DMI table exist
  * if yes, let's parse it */
 int detect_dmi(struct s_hardware *hardware) {
+  if (hardware->dmi_detection == true) return;
   hardware->dmi_detection=true;
   if (dmi_iterate(&hardware->dmi) == -ENODMITABLE ) {
 	     hardware->is_dmi_valid=false;
@@ -81,27 +82,81 @@ int detect_pxe(struct s_hardware *hardware) {
  void *dhcpdata;
  size_t dhcplen;
  const struct syslinux_version *sv;
+ t_PXENV_UNDI_GET_NIC_TYPE gnt;
 
+ if (hardware->pxe_detection == true) return -1;
  hardware->pxe_detection=true;
- memset(&hardware->gnt,0, sizeof(t_PXENV_UNDI_GET_NIC_TYPE));
+ hardware->is_pxe_valid=false;
+ memset(&gnt,0, sizeof(t_PXENV_UNDI_GET_NIC_TYPE));
+ memset(&hardware->pxe,0, sizeof(struct s_pxe));
 
  sv = syslinux_version();
  /* This code can only work if pxelinux is loaded*/
  if (sv->filesystem != SYSLINUX_FS_PXELINUX) {
-	 printf("No valid PXE Rom found\n");
 	 return -1;
  }
- printf("PXE: PXElinux detected, Detecting parameters\n");
 
+// printf("PXE: PXElinux detected\n");
  if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK, &dhcpdata, &dhcplen)) {
-        if (!pxe_get_nic_type(&hardware->gnt)) {
-	 hardware->is_pxe_valid=true;
+        if (!pxe_get_nic_type(&gnt)) {
+	 switch(gnt.NicType) {
+	         case PCI_NIC:
+			 hardware->is_pxe_valid=true;
+			 hardware->pxe.vendor_id=gnt.info.pci.Vendor_ID;
+			 hardware->pxe.product_id=gnt.info.pci.Dev_ID;
+			 hardware->pxe.subvendor_id=gnt.info.pci.SubVendor_ID;
+			 hardware->pxe.subproduct_id=gnt.info.pci.SubDevice_ID,
+			 hardware->pxe.rev=gnt.info.pci.Rev;
+			 hardware->pxe.pci_bus= (gnt.info.pci.BusDevFunc >> 8) & 0xff;
+			 hardware->pxe.pci_dev= (gnt.info.pci.BusDevFunc >> 3) & 0x7;
+			 hardware->pxe.pci_func=gnt.info.pci.BusDevFunc & 0x03;
+			 hardware->pxe.base_class=gnt.info.pci.Base_Class;
+			 hardware->pxe.sub_class=gnt.info.pci.Sub_Class;
+			 hardware->pxe.prog_intf=gnt.info.pci.Prog_Intf;
+			 hardware->pxe.nictype=gnt.NicType;
+			 break;
+	         case CardBus_NIC:
+			 hardware->is_pxe_valid=true;
+			 hardware->pxe.vendor_id=gnt.info.cardbus.Vendor_ID;
+			 hardware->pxe.product_id=gnt.info.cardbus.Dev_ID;
+			 hardware->pxe.subvendor_id=gnt.info.cardbus.SubVendor_ID;
+			 hardware->pxe.subproduct_id=gnt.info.cardbus.SubDevice_ID,
+			 hardware->pxe.rev=gnt.info.cardbus.Rev;
+			 hardware->pxe.pci_bus= (gnt.info.cardbus.BusDevFunc >> 8) & 0xff;
+			 hardware->pxe.pci_dev= (gnt.info.cardbus.BusDevFunc >> 3) & 0x7;
+			 hardware->pxe.pci_func=gnt.info.cardbus.BusDevFunc & 0x03;
+			 hardware->pxe.base_class=gnt.info.cardbus.Base_Class;
+			 hardware->pxe.sub_class=gnt.info.cardbus.Sub_Class;
+			 hardware->pxe.prog_intf=gnt.info.cardbus.Prog_Intf;
+			 hardware->pxe.nictype=gnt.NicType;
+			 break;
+		case PnP_NIC:
+		default:  return -1; break;
         }
+	if (hardware->pci_detection==false) detect_pci(hardware);
+	hardware->pxe.pci_device=NULL;
+	hardware->pxe.pci_device_pos=0;
+	struct pci_device *pci_device;
+	int pci_number=0;
+	for_each_pci_func(pci_device, hardware->pci_domain) {
+		pci_number++;
+		if ((__pci_bus == hardware->pxe.pci_bus) &&
+		   (__pci_slot == hardware->pxe.pci_dev) &&
+		   (__pci_func == hardware->pxe.pci_func) &&
+		   (pci_device->vendor == hardware->pxe.vendor_id) &&
+		   (pci_device->product == hardware->pxe.product_id)) {
+			   hardware->pxe.pci_device=pci_device;
+			   hardware->pxe.pci_device_pos=pci_number;
+		//	   printf("PXE: PCI device %d is the current boot device\n", pci_number);
+		   }
+	}
+       }
  }
  return 0;
 }
 
 void detect_pci(struct s_hardware *hardware) {
+  if (hardware->pci_detection == true) return;
   hardware->pci_detection=true;
   printf("PCI: Detecting Devices\n");
 
@@ -126,9 +181,12 @@ void detect_pci(struct s_hardware *hardware) {
   /* Detecting which kernel module should match each device */
   hardware->modules_pcimap_return_code=get_module_name_from_pci_ids(hardware->pci_domain);
 
+  /* we try to detect the pxe stuff to populate the PXE: field of pci devices */
+  detect_pxe(hardware);
 }
 
 void cpu_detect(struct s_hardware *hardware) {
+  if (hardware->cpu_detection == true) return;
   detect_cpu(&hardware->cpu);
   hardware->cpu_detection=true;
 }

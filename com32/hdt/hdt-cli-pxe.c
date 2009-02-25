@@ -34,26 +34,34 @@
 #include <errno.h>
 #include <syslinux/pxe.h>
 
-void main_show_net(struct s_hardware *hardware,struct s_cli_mode *cli_mode) {
- char buffer[1024];
- memset(buffer,0,sizeof(buffer));
+void main_show_pxe(struct s_hardware *hardware,struct s_cli_mode *cli_mode) {
+ char buffer[81];
+ memset(buffer,0,sizeof(81));
 
- if (hardware->pxe_detection==false) detect_pxe(hardware);
+ detect_pxe(hardware);
+ more_printf("PXE\n");
  if (hardware->is_pxe_valid==false) {
-	 more_printf("No valid PXE rom found\n");
+	 more_printf(" No valid PXE ROM found\n");
 	 return;
  }
- t_PXENV_UNDI_GET_NIC_TYPE *g = &hardware->gnt;
- switch(hardware->gnt.NicType) {
-	 case PCI_NIC: more_printf("PCI NIC: %04x:%04x[%04x:%04X] rev(%02x) Bus(%02x:%02x.%02x) %02x.%02x %02x %02x\n",
-				       g->info.pci.Vendor_ID, g->info.pci.Dev_ID, g->info.pci.SubVendor_ID, g->info.pci.SubDevice_ID,
-				       g->info.pci.Rev, (g->info.pci.BusDevFunc >> 8) & 0xff, (g->info.pci.BusDevFunc >> 3) & 0x7,
-				       g->info.pci.BusDevFunc & 0x03,
-				       g->info.pci.Base_Class,
-				       g->info.pci.Sub_Class, g->info.pci.Prog_Intf);break;
-	 case PnP_NIC: break;
-	 case CardBus_NIC:break;
+
+ struct s_pxe *p = &hardware->pxe;
+ more_printf(" PCI device no: %d \n", p->pci_device_pos);
+
+ if (hardware->pci_ids_return_code == -ENOPCIIDS) {
+ snprintf(buffer,sizeof(buffer)," PCI ID       : %04x:%04x[%04x:%04X] rev(%02x)\n",
+		 p->vendor_id, p->product_id, p->subvendor_id, p->subproduct_id,
+		 p->rev);
+ snprintf(buffer,sizeof(buffer)," PCI Bus pos. : %02x:%02x.%02x\n",
+		 p->pci_bus,p->pci_dev, p->pci_func);
+
+ more_printf(buffer);
+ } else {
+ snprintf(buffer,sizeof(buffer)," Manufacturer : %s \n", p->pci_device->dev_info->vendor_name);
+ more_printf(buffer);
+ snprintf(buffer,sizeof(buffer)," Product      : %s \n", p->pci_device->dev_info->product_name);
+ more_printf(buffer);
+
  }
+
 }
-
-

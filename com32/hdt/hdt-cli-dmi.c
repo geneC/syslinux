@@ -57,7 +57,7 @@ void dmi_show(char *item, struct s_hardware *hardware) {
    return;
  }
  if ( !strncmp(item, CLI_DMI_MEMORY, sizeof(CLI_DMI_MEMORY) - 1) ) {
-   show_dmi_memory_modules(hardware);
+   show_dmi_memory_modules(hardware,true);
    return;
  }
  if ( !strncmp(item, CLI_DMI_MEMORY_BANK, sizeof(CLI_DMI_MEMORY_BANK) - 1) ) {
@@ -122,7 +122,7 @@ void show_dmi_modules(struct s_hardware *hardware) {
 
 void main_show_dmi(struct s_hardware *hardware,struct s_cli_mode *cli_mode) {
 
- if (hardware->dmi_detection==false) detect_dmi(hardware);
+ detect_dmi(hardware);
 
  if (hardware->is_dmi_valid==false) {
 	 printf("No valid DMI table found, exiting.\n");
@@ -288,7 +288,7 @@ void show_dmi_cpu(struct s_hardware *hardware) {
 
 }
 
-void show_dmi_memory_modules(struct s_hardware *hardware) {
+void show_dmi_memory_modules(struct s_hardware *hardware, bool clear) {
  char bank_number[10];
  char available_dmi_commands[1024];
  memset(available_dmi_commands,0,sizeof(available_dmi_commands));
@@ -298,7 +298,7 @@ void show_dmi_memory_modules(struct s_hardware *hardware) {
   return;
  }
 
- clear_screen();
+ if (clear) clear_screen();
  more_printf("Memory Banks\n");
  for (int i=0;i<hardware->dmi.memory_count;i++) {
     if (hardware->dmi.memory[i].filled==true) {
@@ -307,10 +307,11 @@ void show_dmi_memory_modules(struct s_hardware *hardware) {
 	memset(bank_number,0,sizeof(bank_number));
 	snprintf(bank_number,sizeof(bank_number),"%d ",i);
         strncat(available_dmi_commands,bank_number,sizeof(bank_number));
-	printf("bank%d: %s %s@%s\n",i,hardware->dmi.memory[i].size, hardware->dmi.memory[i].type, hardware->dmi.memory[i].speed);
+	if (strncmp(hardware->dmi.memory[i].size,"Free",4))
+	 printf(" bank %02d      : %s %s@%s\n",i,hardware->dmi.memory[i].size, hardware->dmi.memory[i].type, hardware->dmi.memory[i].speed);
     }
  }
- printf("Type 'show bank<bank_number>' for more details.\n");
+ //printf("Type 'show bank<bank_number>' for more details.\n");
 }
 
 void show_dmi_memory_bank(struct s_hardware *hardware, const char *item) {

@@ -37,7 +37,8 @@
 #define CLI_SHOW "show"
 #define CLI_HDT  "hdt"
 #define CLI_PCI  "pci"
-#define CLI_NET  "net"
+#define CLI_PXE  "pxe"
+#define CLI_SUMMARY "summary"
 #define CLI_COMMANDS "commands"
 #define CLI_DMI  "dmi"
 #define CLI_CPU  "cpu"
@@ -49,7 +50,7 @@ typedef enum {
   PCI_MODE,
   DMI_MODE,
   CPU_MODE,
-  NET_MODE,
+  PXE_MODE,
 } cli_mode_t;
 
 struct s_cli_mode {
@@ -81,7 +82,7 @@ void show_dmi_bios(struct s_hardware *hardware);
 void show_dmi_chassis(struct s_hardware *hardware);
 void show_dmi_cpu(struct s_hardware *hardware);
 void show_dmi_modules(struct s_hardware *hardware);
-void show_dmi_memory_modules(struct s_hardware *hardware);
+void show_dmi_memory_modules(struct s_hardware *hardware,bool clearscreen);
 void show_dmi_memory_bank(struct s_hardware *hardware, const char *item);
 void show_dmi_battery(struct s_hardware *hardware);
 
@@ -97,6 +98,6 @@ void main_show_cpu(struct s_hardware *hardware,struct s_cli_mode *cli_mode);
 void handle_cpu_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware);
 void cpu_show(char *item, struct s_hardware *hardware);
 
-//NET STUFF
-void main_show_net(struct s_hardware *hardware,struct s_cli_mode *cli_mode);
+//PXE STUFF
+void main_show_pxe(struct s_hardware *hardware,struct s_cli_mode *cli_mode);
 #endif
