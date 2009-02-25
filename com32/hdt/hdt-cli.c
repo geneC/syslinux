@@ -49,8 +49,10 @@ void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode, struct s_hardware *h
         break;
 
   case KERNEL_MODE:
+	detect_pci(hardware);
         cli_mode->mode=mode;
         snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ", CLI_KERNEL);
+	break;
 
   case PCI_MODE:
 	cli_mode->mode=mode;
@@ -69,7 +71,6 @@ void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode, struct s_hardware *h
 	break;
 
   case DMI_MODE:
-	if (!hardware->dmi_detection)
           detect_dmi(hardware);
 	if (!hardware->is_dmi_valid) {
           printf("No valid DMI table found, exiting.\n");
@@ -135,6 +136,10 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[]) {
 	   set_mode(&cli_mode,DMI_MODE,hardware);
 	   continue;
     }
+    if ( !strncmp(cli_line, CLI_KERNEL, sizeof(CLI_KERNEL) - 1) ) {
+	   set_mode(&cli_mode,KERNEL_MODE,hardware);
+	   continue;
+    }
     /* All commands before that line are common for all cli modes
      * the following will be specific for every mode */
     switch(cli_mode.mode) {
@@ -142,6 +147,7 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[]) {
      case PCI_MODE: handle_pci_commands(cli_line,&cli_mode, hardware); break;
      case HDT_MODE: handle_hdt_commands(cli_line,&cli_mode, hardware); break;
      case CPU_MODE: handle_cpu_commands(cli_line,&cli_mode, hardware); break;
+     case KERNEL_MODE: handle_kernel_commands(cli_line,&cli_mode, hardware); break;
      case EXIT_MODE: break; /* should not happend */
     }
  }

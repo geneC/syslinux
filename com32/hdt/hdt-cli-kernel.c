@@ -63,7 +63,7 @@ void main_show_kernel(struct s_hardware *hardware,struct s_cli_mode *cli_mode) {
      strncat(kernel_modules, pci_device->dev_info->linux_kernel_module[kmod],LINUX_KERNEL_MODULE_SIZE-1);
    }
 
-   if (pci_device->dev_info->linux_kernel_module_count>0) {
+   if ((pci_device->dev_info->linux_kernel_module_count>0) && (!strstr(buffer,kernel_modules))) {
 	   found=true;
 	   if (pci_device->dev_info->linux_kernel_module_count>1) strncat(buffer,"(",1);
 	   strncat(buffer, kernel_modules, sizeof(kernel_modules));
@@ -77,3 +77,64 @@ void main_show_kernel(struct s_hardware *hardware,struct s_cli_mode *cli_mode) {
 	 more_printf(buffer);
  }
 }
+
+void show_kernel_modules(struct s_hardware *hardware) {
+ int i=1;
+ struct pci_device *pci_device;
+ char kernel_modules [LINUX_KERNEL_MODULE_SIZE*MAX_KERNEL_MODULES_PER_PCI_DEVICE];
+ bool nopciids=false;
+ bool nomodulespcimap=false;
+ char first_line[81];
+ char second_line[81];
+ char modules[MAX_PCI_CLASSES][256];
+ char category_name[MAX_PCI_CLASSES][256];
+
+ clear_screen();
+ memset(&modules,0,sizeof(modules));
+
+ if (hardware->pci_ids_return_code == -ENOPCIIDS) {
+    nopciids=true;
+  }
+
+ if (hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) {
+    nomodulespcimap=true;
+ }
+
+ if ((nomodulespcimap==false) && (nopciids==false)) {
+  for_each_pci_func(pci_device, hardware->pci_domain) {
+   memset(kernel_modules,0,sizeof kernel_modules);
+
+   for (int kmod=0; kmod<pci_device->dev_info->linux_kernel_module_count;kmod++) {
+     strncat(kernel_modules, pci_device->dev_info->linux_kernel_module[kmod],LINUX_KERNEL_MODULE_SIZE-1);
+     strncat(kernel_modules," ",1);
+   }
+
+   if ((pci_device->dev_info->linux_kernel_module_count>0) && (!strstr(modules[pci_device->class[2]],kernel_modules))) {
+	   strncat(modules[pci_device->class[2]], kernel_modules, sizeof(kernel_modules));
+	   snprintf(category_name[pci_device->class[2]], sizeof(category_name[pci_device->class[2]]),"%s",pci_device->dev_info->category_name);
+   }
+  }
+  /* print the found items */
+  for (int i=0; i<MAX_PCI_CLASSES;i++) {
+        if (strlen(category_name[i])>1) {
+	more_printf("%s : %s\n",category_name[i], modules[i]);
+	}
+  }
+ }
+
+}
+
+void kernel_show(char *item, struct s_hardware *hardware) {
+ if ( !strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1) ) {
+   show_kernel_modules(hardware);
+   return;
+ }
+}
+
+void handle_kernel_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware) {
+ if ( !strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1) ) {
+    kernel_show(strstr(cli_line,"show")+ sizeof(CLI_SHOW), hardware);
+    return;
+ }
+}
+

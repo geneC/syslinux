@@ -100,7 +100,7 @@ int detect_pxe(struct s_hardware *hardware) {
 // printf("PXE: PXElinux detected\n");
  if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK, &dhcpdata, &dhcplen)) {
 	pxe_bootp_t *dhcp=&hardware->pxe.dhcpdata;
-	memcpy(&hardware->pxe.dhcpdata,dhcpdata,dhcplen);
+	memcpy(&hardware->pxe.dhcpdata,dhcpdata,sizeof(hardware->pxe.dhcpdata));
 	snprintf(hardware->pxe.mac_addr, sizeof(hardware->pxe.mac_addr), "%02x:%02x:%02x:%02x:%02x:%02x",
 			dhcp->CAddr[0],dhcp->CAddr[1],dhcp->CAddr[2],dhcp->CAddr[3],dhcp->CAddr[4],dhcp->CAddr[5]);
 
@@ -170,16 +170,17 @@ int detect_pxe(struct s_hardware *hardware) {
 void detect_pci(struct s_hardware *hardware) {
   if (hardware->pci_detection == true) return;
   hardware->pci_detection=true;
-  printf("PCI: Detecting Devices\n");
 
   /* Scanning to detect pci buses and devices */
   hardware->pci_domain = pci_scan();
 
+  hardware->nb_pci_devices=0;
   struct pci_device *pci_device;
   for_each_pci_func(pci_device, hardware->pci_domain) {
           hardware->nb_pci_devices++;
   }
 
+  printf("PCI: %d devices detected\n",hardware->nb_pci_devices);
   printf("PCI: Resolving names\n");
   /* Assigning product & vendor name for each device*/
   hardware->pci_ids_return_code=get_name_from_pci_ids(hardware->pci_domain);
