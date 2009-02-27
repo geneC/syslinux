@@ -143,7 +143,15 @@ next:
 	
 	cli
 	movw	$heads, %sp
-	jmp	isolinux_start_hybrid
+
+	/*
+	 * Use a ljmpw here to work around a bug in some unknown version
+	 * of gas or ld when it comes to jumping to an absolute symbol...
+	 *
+	 * Look more closely into it if we ever are short on space.
+	 */
+	ljmpw	$0, $isolinux_start_hybrid
+	jmpw	*%si
 
 bad_signature:
 	call	error
