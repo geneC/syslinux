@@ -384,7 +384,7 @@ have_pxenv:
 		call crlf
 
 		cmp ax,0201h			; API version 2.1 or higher
-		jb old_api
+		jb .old_api
 		cmp byte [es:bx+8],2Ch		; Space for !PXE pointer?
 		jb .pxescan
 		les bx,[es:bx+28h]		; !PXE structure pointer
@@ -398,121 +398,82 @@ have_pxenv:
 		je have_pxe
 
 		; Otherwise, no dice, use PXENV+ structure
+.old_api:
 		les bx,[StrucPtr]
-
-old_api:	; Need to use a PXENV+ structure
-		mov si,using_pxenv_msg
-		call writestr_early
-
-		mov eax,[es:bx+0Ah]		; PXE RM API
-		mov [PXEEntry],eax
-
-		mov si,undi_data_msg
-		call writestr_early
-		mov ax,[es:bx+20h]
-		call writehex4
-		call crlf
-		mov si,undi_data_len_msg
-		call writestr_early
-		mov ax,[es:bx+22h]
-		call writehex4
-		call crlf
-		mov si,undi_code_msg
-		call writestr_early
-		mov ax,[es:bx+24h]
-		call writehex4
-		call crlf
-		mov si,undi_code_len_msg
-		call writestr_early
-		mov ax,[es:bx+26h]
-		call writehex4
-		call crlf
-
-		; Compute base memory size from PXENV+ structure
-		xor esi,esi
-		movzx eax,word [es:bx+20h]	; UNDI data seg
-		cmp ax,[es:bx+24h]		; UNDI code seg
-		ja .use_data
-		mov ax,[es:bx+24h]
-		mov si,[es:bx+26h]
-		jmp short .combine
-.use_data:
-		mov si,[es:bx+22h]
-.combine:
-		shl eax,4
-		add eax,esi
-		shr eax,10			; Convert to kilobytes
-		mov [RealBaseMem],ax
+		push word [es:bx+22h]		; UNDI data len
+		push word [es:bx+20h]		; UNDI data seg
+		push word [es:bx+26h]		; UNDI code len
+		push word [es:bx+24h]		; UNDI code seg
+		push dword [es:bx+0Ah]		; PXENV+ entry point
 
 		mov si,pxenventry_msg
-		call writestr_early
-		mov ax,[PXEEntry+2]
-		call writehex4
-		mov al,':'
-		call writechr
-		mov ax,[PXEEntry]
-		call writehex4
-		mov si,viaplan_msg
-		call writestr_early
 		jmp have_entrypoint
 
 have_pxe:
 		mov [StrucPtr],bx
 		mov [StrucPtr+2],es
 
-		mov eax,[es:bx+10h]
-		mov [PXEEntry],eax
-
-		mov si,undi_data_msg
-		call writestr_early
-		mov eax,[es:bx+2Ah]
-		call writehex8
-		call crlf
-		mov si,undi_data_len_msg
-		call writestr_early
-		mov ax,[es:bx+2Eh]
-		call writehex4
-		call crlf
-		mov si,undi_code_msg
-		call writestr_early
-		mov eax,[es:bx+32h]
-		call writehex8
-		call crlf
-		mov si,undi_code_len_msg
-		call writestr_early
-		mov ax,[es:bx+36h]
-		call writehex4
-		call crlf
-
-		; Compute base memory size from !PXE structure
-		xor esi,esi
-		mov eax,[es:bx+2Ah]
-		cmp eax,[es:bx+32h]
-		ja .use_data
-		mov eax,[es:bx+32h]
-		mov si,[es:bx+36h]
-		jmp short .combine
-.use_data:
-		mov si,[es:bx+2Eh]
-.combine:
-		add eax,esi
-		shr eax,10
-		mov [RealBaseMem],ax
+		push word [es:bx+2Eh]		; UNDI data len
+		push word [es:bx+28h]		; UNDI data seg
+		push word [es:bx+36h]		; UNDI code len
+		push word [es:bx+30h]		; UNDI code seg
+		push dword [es:bx+10h]		; !PXE entry point
 
 		mov si,pxeentry_msg
-		call writestr_early
+
+have_entrypoint:
+		push cs
+		pop es				; Restore CS == DS == ES
+
+		call writestr_early		; !PXE or PXENV+ entry found
+
+		pop dword [PXEEntry]
 		mov ax,[PXEEntry+2]
 		call writehex4
 		mov al,':'
 		call writechr
 		mov ax,[PXEEntry]
 		call writehex4
+
 		mov si,viaplan_msg
 		call writestr_early
 
-have_entrypoint:
-		push cs
-		pop es				; Restore CS == DS == ES
+		mov si,undi_code_msg
+		call writestr_early
+		pop ax				; UNDI code segment
+		call writehex4
+		xchg dx,ax
+		mov si,len_msg
+		call writestr_early
+		pop ax				; UNDI code length
+		call writehex4
+		call crlf
+		add ax,15
+		shr ax,4
+		add dx,ax			; DX = seg of end of UNDI code
+
+		mov si,undi_data_msg
+		call writestr_early
+		pop ax				; UNDI data segment
+		call writehex4
+		xchg bx,ax
+		mov si,len_msg
+		call writestr_early
+		pop ax				; UNDI data length
+		call writehex4
+		call crlf
+		add ax,15
+		shr ax,4
+		add ax,bx			; AX = seg of end of UNDI data
+
+		cmp ax,dx
+		ja .data_on_top
+		xchg ax,ax
+.data_on_top:
+		; Could we safely add 63 here before the shift?
+		shr ax,6			; Convert to kilobytes
+		mov [RealBaseMem],ax
+
 
 ;
 ; Network-specific initialization
@@ -2704,7 +2665,6 @@ err_udpinit	db 'Failed to initialize UDP stack', CR, LF, 0
 err_noconfig	db 'Unable to locate configuration file', CR, LF, 0
 err_damage	db 'TFTP server sent an incomprehesible reply', CR, LF, 0
 found_pxenv	db 'Found PXENV+ structure', CR, LF, 0
-using_pxenv_msg db 'Old PXE API detected, using PXENV+ structure', CR, LF, 0
 apiver_str	db 'PXE API version is ',0
 pxeentry_msg	db '!PXE entry point found (we hope) at ', 0
 pxenventry_msg	db 'PXENV+ entry point found (we hope) at ', 0
@@ -2712,10 +2672,9 @@ viaplan_msg	db ' via plan '
 plan		db 'A', CR, LF, 0
 trymempxe_msg	db 'Scanning memory for !PXE structure... ', 0
 trymempxenv_msg	db 'Scanning memory for PXENV+ structure... ', 0
-undi_data_msg	  db 'UNDI data segment at:   ',0
-undi_data_len_msg db 'UNDI data segment size: ',0
-undi_code_msg	  db 'UNDI code segment at:   ',0
-undi_code_len_msg db 'UNDI code segment size: ',0
+undi_data_msg	db 'UNDI data segment at ',0
+undi_code_msg	db 'UNDI code segment at ',0
+len_msg		db ' len ', 0
 cant_free_msg	db 'Failed to free base memory, error ', 0
 notfound_msg	db 'not found', CR, LF, 0
 myipaddr_msg	db 'My IP address seems to be ',0
