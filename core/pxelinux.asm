@@ -2694,7 +2694,7 @@ writestr_early	equ writestr
 
 		section .data
 
-copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
+copyright_str   db ' Copyright (C) 1994-', YEAR, ' H. Peter Anvin'
 		db CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: press a key to retry, or wait for reset...', CR, LF, 0
 bailmsg		equ err_bootfailed

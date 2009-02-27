@@ -48,9 +48,4 @@ MAX_FKEYS	equ 12			; Number of F-key help files
 ;
 %include "../version.gen"
 
-;
-; Copyright year...
-;
-%define	year		'2008'
-
 %endif ; _CONFIG_INC

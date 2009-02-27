@@ -2049,7 +2049,7 @@ getfatsector:
 ; -----------------------------------------------------------------------------
 
 		section .data
-copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
+copyright_str   db ' Copyright (C) 1994-', YEAR, ' H. Peter Anvin'
 		db CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: please change disks and press '
 		db 'a key to continue.', CR, LF, 0
