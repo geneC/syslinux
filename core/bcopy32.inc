@@ -665,7 +665,6 @@ shuffle_and_boot:
 		xor edx,edx
 		mov ecx,12
 		div ecx			; Convert to descriptor count
-		xchg ecx,eax
 		jmp .restart
 
 ;
