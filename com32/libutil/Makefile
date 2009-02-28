@@ -56,8 +56,6 @@ clean: tidy
 
 spotless: clean
 	rm -f *.lss *.a *.c32 *.com
-
-spotless: clean
 	rm -f *~ \#*
 
 install: all
