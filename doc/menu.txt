@@ -451,7 +451,9 @@ F12 textfile background
 
 The menu system honours the TIMEOUT command; if TIMEOUT is specified
 it will execute the ONTIMEOUT command if one exists, otherwise it will
-pick the default menu option.
+pick the default menu option.  WARNING: the timeout action will bypass
+password protection even if one is set for the specified or default
+entry!
 
 Normally, the user can press [Tab] to edit the menu entry, and [Esc]
 to return to the Syslinux command line.  However, if the configuration
