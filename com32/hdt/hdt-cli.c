@@ -197,7 +197,7 @@ void main_show_summary(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
     more_printf("Bios\n");
     more_printf(" Version      : %s\n",hardware->dmi.bios.version);
     more_printf(" Release      : %s\n",hardware->dmi.bios.release_date);
-    show_dmi_memory_modules(hardware,false);
+    show_dmi_memory_modules(hardware,false,false);
    }
    main_show_pci(hardware);
    if (hardware->is_pxe_valid)
