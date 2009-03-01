@@ -271,7 +271,7 @@ void show_dmi_cpu(struct s_hardware *hardware) {
  more_printf(" Cpu Model          : %u\n",hardware->dmi.processor.signature.model);
  more_printf(" Cpu Stepping       : %u\n",hardware->dmi.processor.signature.stepping);
  more_printf(" Cpu Minor Stepping : %u\n",hardware->dmi.processor.signature.minor_stepping);
- //more_printf(" Voltage      %f\n",hardware->dmi.processor.voltage);
+// more_printf(" Voltage            : %f\n",hardware->dmi.processor.voltage);
  more_printf(" Status             : %s\n",hardware->dmi.processor.status);
  more_printf(" Upgrade            : %s\n",hardware->dmi.processor.upgrade);
  more_printf(" Cache L1 Handle    : %s\n",hardware->dmi.processor.cache1);

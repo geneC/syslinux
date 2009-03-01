@@ -140,6 +140,7 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware) 
   compute_disks(hdt_menu,hardware->disk_info);
 #ifdef WITH_PCI
   compute_PCI(hdt_menu,hardware);
+  compute_PXE(&(hdt_menu->pxe_menu),hardware);
   compute_kernel(&(hdt_menu->kernel_menu),hardware);
 #endif
   compute_syslinuxmenu(&(hdt_menu->syslinux_menu));
@@ -205,9 +206,15 @@ if (hardware->is_dmi_valid) {
 }
   add_item("","",OPT_SEP,"",0);
 #ifdef WITH_PCI
-  add_item("<K>ernel Modules","Kernel Modules Menu",OPT_SUBMENU,NULL,hdt_menu->kernel_menu.menu);
-  hdt_menu->main_menu.items_count++;
+  if (hardware->modules_pcimap_return_code != -ENOMODULESPCIMAP) {
+   add_item("<K>ernel Modules","Kernel Modules Menu",OPT_SUBMENU,NULL,hdt_menu->kernel_menu.menu);
+   hdt_menu->main_menu.items_count++;
+  }
 #endif
+  if (hardware->is_pxe_valid == true) {
+   add_item("P<X>E","PXE Information Menu",OPT_SUBMENU,NULL,hdt_menu->pxe_menu.menu);
+   hdt_menu->main_menu.items_count++;
+  }
   add_item("<S>yslinux","Syslinux Information Menu",OPT_SUBMENU,NULL,hdt_menu->syslinux_menu.menu);
   hdt_menu->main_menu.items_count++;
   add_item("S<w>itch to CLI","Switch to Command Line",OPT_RUN,HDT_SWITCH_TO_CLI,0);
