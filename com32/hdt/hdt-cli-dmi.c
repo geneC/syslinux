@@ -57,7 +57,7 @@ void dmi_show(char *item, struct s_hardware *hardware) {
    return;
  }
  if ( !strncmp(item, CLI_DMI_MEMORY, sizeof(CLI_DMI_MEMORY) - 1) ) {
-   show_dmi_memory_modules(hardware,true);
+   show_dmi_memory_modules(hardware,true,true);
    return;
  }
  if ( !strncmp(item, CLI_DMI_MEMORY_BANK, sizeof(CLI_DMI_MEMORY_BANK) - 1) ) {
@@ -271,7 +271,7 @@ void show_dmi_cpu(struct s_hardware *hardware) {
  more_printf(" Cpu Model          : %u\n",hardware->dmi.processor.signature.model);
  more_printf(" Cpu Stepping       : %u\n",hardware->dmi.processor.signature.stepping);
  more_printf(" Cpu Minor Stepping : %u\n",hardware->dmi.processor.signature.minor_stepping);
- //more_printf(" Voltage      %f\n",hardware->dmi.processor.voltage);
+// more_printf(" Voltage            : %f\n",hardware->dmi.processor.voltage);
  more_printf(" Status             : %s\n",hardware->dmi.processor.status);
  more_printf(" Upgrade            : %s\n",hardware->dmi.processor.upgrade);
  more_printf(" Cache L1 Handle    : %s\n",hardware->dmi.processor.cache1);
@@ -288,7 +288,7 @@ void show_dmi_cpu(struct s_hardware *hardware) {
 
 }
 
-void show_dmi_memory_modules(struct s_hardware *hardware, bool clear) {
+void show_dmi_memory_modules(struct s_hardware *hardware, bool clear, bool show_free_banks) {
  char bank_number[10];
  char available_dmi_commands[1024];
  memset(available_dmi_commands,0,sizeof(available_dmi_commands));
@@ -307,8 +307,12 @@ void show_dmi_memory_modules(struct s_hardware *hardware, bool clear) {
 	memset(bank_number,0,sizeof(bank_number));
 	snprintf(bank_number,sizeof(bank_number),"%d ",i);
         strncat(available_dmi_commands,bank_number,sizeof(bank_number));
+	if (show_free_banks==false) {
 	if (strncmp(hardware->dmi.memory[i].size,"Free",4))
 	 printf(" bank %02d      : %s %s@%s\n",i,hardware->dmi.memory[i].size, hardware->dmi.memory[i].type, hardware->dmi.memory[i].speed);
+	} else {
+	 printf(" bank %02d      : %s %s@%s\n",i,hardware->dmi.memory[i].size, hardware->dmi.memory[i].type, hardware->dmi.memory[i].speed);
+	}
     }
  }
  //printf("Type 'show bank<bank_number>' for more details.\n");

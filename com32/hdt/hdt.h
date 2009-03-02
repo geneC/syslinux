@@ -32,7 +32,7 @@
 #define PRODUCT_NAME "Hardware Detection Tool"
 #define AUTHOR "Erwan Velu"
 #define CONTACT "erwan(dot)velu(point)free(dot)fr"
-#define VERSION "0.2.0"
+#define VERSION "0.2.1"
 
 #define ATTR_PACKED __attribute__((packed))
 

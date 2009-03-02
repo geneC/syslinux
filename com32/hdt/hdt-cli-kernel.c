@@ -32,7 +32,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <syslinux/pxe.h>
 
 void main_show_kernel(struct s_hardware *hardware,struct s_cli_mode *cli_mode) {
  char buffer[1024];
