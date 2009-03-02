@@ -1027,8 +1027,9 @@ writestr_early	equ writestr
 ; -----------------------------------------------------------------------------
 
 syslinux_banner	db CR, LF, 'ISOLINUX ', VERSION_STR, ' ', DATE_STR, ' ', 0
-copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
-		db CR, LF, 0
+copyright_str   db ' Copyright (C) 1994-'
+		asciidec YEAR
+		db ' H. Peter Anvin', CR, LF, 0
 isolinux_str	db 'isolinux: ', 0
 %ifdef DEBUG_MESSAGES
 startup_msg:	db 'Starting up, DL = ', 0

@@ -1551,8 +1551,9 @@ build_curdir_str:
 ; -----------------------------------------------------------------------------
 
 		section .data
-copyright_str   db ' Copyright (C) 1994-', year, ' H. Peter Anvin'
-		db CR, LF, 0
+copyright_str   db ' Copyright (C) 1994-'
+		asciidec YEAR
+		db ' H. Peter Anvin', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: please change disks and press '
 		db 'a key to continue.', CR, LF, 0
 config_name	db 'extlinux.conf',0		; Unmangled form
