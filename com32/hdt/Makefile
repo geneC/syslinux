@@ -17,15 +17,15 @@
 topdir = ../..
 include $(topdir)/MCONFIG.embedded
 
-INCLUDES   = -I$(com32)/include
+INCLUDES   = -I$(com32)/include -I$(com32)/cmenu/libmenu
 
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 LIB	   = liboldcom32.a
 
-
-com32 = $(topdir)/com32
-C_LIBS	   = $(com32)/libutil/libutil_com.a $(com32)/lib/libcom32.a $(LIBGCC)
-LDFLAGS    = -m elf_i386 -T $(com32)/lib/com32.ld
+com32	= $(topdir)/com32
+LIBS	= $(LIB) $(com32)/cmenu/libmenu/libmenu.a \
+	$(com32)/libutil/libutil_com.a $(com32)/lib/libcom32.a $(LIBGCC)
+LDFLAGS	= -m elf_i386 -T $(com32)/lib/com32.ld
 
 all:  hdt.c32 $(LIB)
 
@@ -35,17 +35,20 @@ all:  hdt.c32 $(LIB)
 
 .PRECIOUS: %.o
 %.o: %.c
-	$(CC) $(CFLAGS) -std=gnu99  -D__COM32__ -I$(topdir)/menu/libmenu/ -c -o $@ $<
+	$(CC) $(CFLAGS) -std=gnu99  -D__COM32__ -c -o $@ $<
 
 .PRECIOUS: %.elf
 %.elf: c32entry.o %.o $(LIB)
 	$(LD) -Ttext 0x101000 -e _start -o $@ $^
 
 hdt.elf: hdt.o hdt-ata.o hdt-menu.o hdt-menu-pci.o hdt-menu-kernel.o \
-	 hdt-menu-disk.o hdt-menu-dmi.o hdt-menu-processor.o hdt-menu-syslinux.o hdt-menu-about.o \
-	 hdt-cli.o hdt-common.o hdt-cli-pci.o hdt-cli-dmi.o hdt-cli-cpu.o hdt-cli-pxe.o hdt-cli-kernel.o\
-	 hdt-menu-pxe.o\
-	$(com32)/modules/cpuid.o $(com32)/modules/dmi.o $(topdir)/menu/libmenu/libmenu.a $(LIB) $(C_LIBS)
+	hdt-menu-disk.o hdt-menu-dmi.o hdt-menu-processor.o \
+	hdt-menu-syslinux.o hdt-menu-about.o \
+	hdt-cli.o hdt-common.o hdt-cli-pci.o hdt-cli-dmi.o \
+	hdt-cli-cpu.o hdt-cli-pxe.o hdt-cli-kernel.o \
+	hdt-menu-pxe.o \
+	$(com32)/modules/cpuid.o $(com32)/modules/dmi.o \
+	$(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 %.c32: %.elf
