@@ -25,13 +25,7 @@
 
 #define BASE_BOARD_NB_ELEMENTS			5
 
-static const char *base_board_features_strings[]={
-                "Board is a hosting board", /* 0 */
-                "Board requires at least one daughter board",
-                "Board is removable",
-                "Board is replaceable",
-                "Board is hot swappable" /* 4 */
-};
+extern const char *base_board_features_strings[];
 
 /* this struct have BASE_BOARD_NB_ELEMENTS */
 /* each bool is associated to the relevant message above */

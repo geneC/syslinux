@@ -26,37 +26,7 @@
 #define BIOS_CHAR_X1_NB_ELEMENTS	8
 #define BIOS_CHAR_X2_NB_ELEMENTS	3
 
-static const char *bios_charac_strings[]={
-   "BIOS characteristics not supported", /* 3 */
-   "ISA is supported",
-   "MCA is supported",
-   "EISA is supported",
-   "PCI is supported",
-   "PC Card (PCMCIA) is supported",
-   "PNP is supported",
-   "APM is supported",
-   "BIOS is upgradeable",
-   "BIOS shadowing is allowed",
-   "VLB is supported",
-   "ESCD support is available",
-   "Boot from CD is supported",
-   "Selectable boot is supported",
-   "BIOS ROM is socketed",
-   "Boot from PC Card (PCMCIA) is supported",
-   "EDD is supported",
-   "Japanese floppy for NEC 9800 1.2 MB is supported (int 13h)",
-   "Japanese floppy for Toshiba 1.2 MB is supported (int 13h)",
-   "5.25\"/360 KB floppy services are supported (int 13h)",
-   "5.25\"/1.2 MB floppy services are supported (int 13h)",
-   "3.5\"/720 KB floppy services are supported (int 13h)",
-   "3.5\"/2.88 MB floppy services are supported (int 13h)",
-   "Print screen service is supported (int 5h)",
-   "8042 keyboard services are supported (int 9h)",
-   "Serial services are supported (int 14h)",
-   "Printer services are supported (int 17h)",
-   "CGA/mono video services are supported (int 10h)",
-   "NEC PC-98" /* 31 */
-};
+extern const char *bios_charac_strings[];
 
 /* this struct has BIOS_CHAR_NB_ELEMENTS */
 /* each bool is associated with the relevant message above */
@@ -91,16 +61,7 @@ bool cga_mono_support;
 bool nec_pc_98;
 }  __attribute__((__packed__)) s_characteristics;
 
-static const char *bios_charac_x1_strings[]={
-     "ACPI is supported", /* 0 */
-     "USB legacy is supported",
-     "AGP is supported",
-     "I2O boot is supported",
-     "LS-120 boot is supported",
-     "ATAPI Zip drive boot is supported",
-     "IEEE 1394 boot is supported",
-     "Smart battery is supported" /* 7 */
-};
+extern const char *bios_charac_x1_strings[];
 
 /* this struct has BIOS_CHAR_X1_NB_ELEMENTS */
 /* each bool is associated with the relevant message above */
@@ -115,11 +76,7 @@ bool ieee_1394_boot;
 bool smart_battery;
 } __attribute__((__packed__)) s_characteristics_x1;
 
-static const char *bios_charac_x2_strings[]={
-    "BIOS boot specification is supported", /* 0 */
-    "Function key-initiated network boot is supported",
-    "Targeted content distribution is supported" /* 2 */
-};
+extern const char *bios_charac_x2_strings[];
 
 /* this struct has BIOS_CHAR_X2_NB_ELEMENTS */
 /* each bool is associated with the relevant message above */
@@ -133,10 +90,10 @@ typedef struct {
 char vendor[BIOS_VENDOR_SIZE];
 char version[BIOS_VERSION_SIZE];
 char release_date[BIOS_RELEASE_SIZE];
-u16  address;
-u16  runtime_size;
+uint16_t  address;
+uint16_t  runtime_size;
 char runtime_size_unit[BIOS_RUNTIME_SIZE_UNIT_SIZE];
-u16  rom_size;
+uint16_t  rom_size;
 char rom_size_unit[BIOS_ROM_UNIT_SIZE];
 s_characteristics characteristics;
 s_characteristics_x1 characteristics_x1;

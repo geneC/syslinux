@@ -47,7 +47,7 @@ hdt.elf: hdt.o hdt-ata.o hdt-menu.o hdt-menu-pci.o hdt-menu-kernel.o \
 	hdt-cli.o hdt-common.o hdt-cli-pci.o hdt-cli-dmi.o \
 	hdt-cli-cpu.o hdt-cli-pxe.o hdt-cli-kernel.o \
 	hdt-menu-pxe.o \
-	$(com32)/modules/cpuid.o $(com32)/modules/dmi.o \
+	$(com32)/modules/cpuid.o \
 	$(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 

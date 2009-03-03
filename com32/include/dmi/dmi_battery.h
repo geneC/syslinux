@@ -13,6 +13,9 @@
 #ifndef DMI_BATTERY_H
 #define DMI_BATTERY_H
 
+#include <stdbool.h>
+#include <inttypes.h>
+
 #define BATTERY_LOCATION_SIZE		255
 #define BATTERY_MANUFACTURER_SIZE	255
 #define BATTERY_MANUFACTURE_DATE_SIZE	255
@@ -47,47 +50,8 @@ char oem_info[BATTERY_OEM_INFO_SIZE];
 bool filled;
 } s_battery;
 
-static const char *dmi_battery_chemistry(u8 code)
-{
-        /* 3.3.23.1 */
-        static const char *chemistry[] = {
-                "Other", /* 0x01 */
-                "Unknown",
-                "Lead Acid",
-                "Nickel Cadmium",
-                "Nickel Metal Hydride",
-                "Lithium Ion",
-                "Zinc Air",
-                "Lithium Polymer" /* 0x08 */
-        };
-
-        if (code >= 0x01 && code <= 0x08)
-                return chemistry[code - 0x01];
-        return out_of_spec;
-}
-
-static void dmi_battery_capacity(u16 code, u8 multiplier,char *capacity)
-{
-        if (code == 0)
-                sprintf(capacity,"%s","Unknown");
-        else
-                sprintf(capacity,"%u mWh", code * multiplier);
-}
-
-static void dmi_battery_voltage(u16 code, char *voltage)
-{
-        if (code == 0)
-                sprintf(voltage,"%s","Unknown");
-        else
-                sprintf(voltage,"%u mV", code);
-}
-
-static void dmi_battery_maximum_error(u8 code, char *error)
-{
-        if (code == 0xFF)
-                sprintf(error,"%s","Unknown");
-        else
-                sprintf(error,"%u%%", code);
-}
-
+const char *dmi_battery_chemistry(uint8_t code);
+void dmi_battery_capacity(uint16_t code, uint8_t multiplier,char *capacity);
+void dmi_battery_voltage(uint16_t code, char *voltage);
+void dmi_battery_maximum_error(uint8_t code, char *error);
 #endif
