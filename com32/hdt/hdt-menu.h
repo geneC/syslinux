@@ -70,6 +70,7 @@ struct s_hdt_menu {
 	struct s_my_menu battery_menu;
 	struct s_my_menu syslinux_menu;
 	struct s_my_menu about_menu;
+	struct s_my_menu summary_menu;
 	struct s_my_menu pxe_menu;
 	int total_menu_count; // sum of all menus we have
 };
@@ -105,6 +106,9 @@ void compute_syslinuxmenu(struct s_my_menu *menu);
 
 // About menu
 void compute_aboutmenu(struct s_my_menu *menu);
+
+// Summary menu
+void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware);
 
 //PXE menu
 void compute_PXE(struct s_my_menu  *menu,struct s_hardware *hardware);
