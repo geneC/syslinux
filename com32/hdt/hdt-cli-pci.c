@@ -176,6 +176,11 @@ void show_pci_devices(struct s_hardware *hardware) {
  }
 
 }
+void show_pci_help() {
+ more_printf("Show supports the following commands : \n");
+ more_printf(" %s\n",CLI_SHOW_LIST);
+ more_printf(" %s <device_number>\n",CLI_PCI_DEVICE);
+}
 
 void pci_show(char *item, struct s_hardware *hardware) {
  if ( !strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1) ) {
@@ -186,7 +191,7 @@ void pci_show(char *item, struct s_hardware *hardware) {
    show_pci_device(hardware,item+ sizeof(CLI_PCI_DEVICE)-1);
    return;
  }
-
+ show_pci_help();
 }
 
 void handle_pci_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware) {

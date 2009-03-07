@@ -63,3 +63,23 @@ void main_show_pxe(struct s_hardware *hardware,struct s_cli_mode *cli_mode) {
  }
  more_printf( " Addresses    : %d.%d.%d.%d @ %s\n",p->ip_addr[0], p->ip_addr[1], p->ip_addr[2], p->ip_addr[3],p->mac_addr);
 }
+
+void show_pxe_help() {
+ more_printf("Show supports the following commands : %s\n",CLI_SHOW_LIST);
+}
+
+void pxe_show(char *item, struct s_hardware *hardware) {
+ if ( !strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1) ) {
+   main_show_pxe(hardware,NULL);
+   return;
+ }
+ show_pxe_help();
+}
+
+void handle_pxe_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware) {
+ if ( !strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1) ) {
+    pxe_show(strstr(cli_line,"show")+ sizeof(CLI_SHOW), hardware);
+    return;
+ }
+}
+

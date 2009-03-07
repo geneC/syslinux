@@ -33,6 +33,8 @@
 #include <stdlib.h>
 #include <errno.h>
 
+
+
 void show_cpu(struct s_hardware *hardware) {
  char buffer[81];
  char buffer1[81];
@@ -109,12 +111,16 @@ if (hardware->cpu.flags.mce) strcat(buffer1,"mce ");
  more_printf(buffer);
 }
 
+void show_cpu_help() {
+ more_printf("Show supports the following commands : %s\n",CLI_CPU);
+}
+
 void cpu_show(char *item, struct s_hardware *hardware) {
  if ( !strncmp(item, CLI_CPU, sizeof(CLI_CPU) - 1) ) {
    show_cpu(hardware);
    return;
  }
-
+ show_cpu_help();
 }
 
 void handle_cpu_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware) {

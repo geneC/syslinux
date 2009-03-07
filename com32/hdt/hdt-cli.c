@@ -136,6 +136,10 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[]) {
 	   set_mode(&cli_mode,DMI_MODE,hardware);
 	   continue;
     }
+    if ( !strncmp(cli_line, CLI_PXE, sizeof(CLI_PXE) - 1) ) {
+	   set_mode(&cli_mode,PXE_MODE,hardware);
+	   continue;
+    }
     if ( !strncmp(cli_line, CLI_KERNEL, sizeof(CLI_KERNEL) - 1) ) {
 	   set_mode(&cli_mode,KERNEL_MODE,hardware);
 	   continue;
@@ -147,6 +151,7 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[]) {
      case PCI_MODE: handle_pci_commands(cli_line,&cli_mode, hardware); break;
      case HDT_MODE: handle_hdt_commands(cli_line,&cli_mode, hardware); break;
      case CPU_MODE: handle_cpu_commands(cli_line,&cli_mode, hardware); break;
+     case PXE_MODE: handle_pxe_commands(cli_line,&cli_mode, hardware); break;
      case KERNEL_MODE: handle_kernel_commands(cli_line,&cli_mode, hardware); break;
      case EXIT_MODE: break; /* should not happend */
     }
@@ -169,14 +174,17 @@ return HDT_MODE;
 void show_cli_help(struct s_cli_mode *cli_mode) {
 switch (cli_mode->mode) {
 	case HDT_MODE:
-		printf("Available commands are : %s %s %s %s %s %s\n",CLI_CLEAR, CLI_EXIT,CLI_HELP,CLI_SHOW, CLI_PCI, CLI_DMI);
+		printf("Available commands are : %s %s %s %s %s %s %s %s %s\n",
+				CLI_CLEAR, CLI_EXIT,CLI_HELP,CLI_SHOW, CLI_PCI,
+				CLI_DMI, CLI_PXE, CLI_KERNEL, CLI_CPU);
 		break;
 	case KERNEL_MODE:
 	case PXE_MODE:
 	case CPU_MODE:
 	case PCI_MODE:
 	case DMI_MODE:
-		printf("Available commands are : %s %s %s %s\n",CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW);
+		printf("Available commands are : %s %s %s %s\n",
+				CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW);
 		break;
 	case EXIT_MODE: /* Should not happend*/
 		break;
@@ -205,11 +213,22 @@ void main_show_summary(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
    main_show_kernel(hardware,cli_mode);
 }
 
+void show_main_help() {
+  more_printf("Show supports the following commands : \n");
+  more_printf(" %s\n",CLI_SUMMARY);
+  more_printf(" %s\n",CLI_PCI);
+  more_printf(" %s\n",CLI_DMI);
+  more_printf(" %s\n",CLI_CPU);
+  more_printf(" %s\n",CLI_PXE);
+  more_printf(" %s\n",CLI_KERNEL);
+}
+
 void main_show(char *item, struct s_hardware *hardware, struct s_cli_mode *cli_mode) {
- if (!strncmp(item,CLI_SUMMARY, sizeof (CLI_SUMMARY))) main_show_summary(hardware,cli_mode);
- if (!strncmp(item,CLI_PCI, sizeof (CLI_PCI))) main_show_pci(hardware);
- if (!strncmp(item,CLI_DMI, sizeof (CLI_DMI))) main_show_dmi(hardware,cli_mode);
- if (!strncmp(item,CLI_CPU, sizeof (CLI_CPU))) main_show_cpu(hardware,cli_mode);
- if (!strncmp(item,CLI_PXE, sizeof (CLI_PXE))) main_show_pxe(hardware,cli_mode);
- if (!strncmp(item,CLI_KERNEL, sizeof (CLI_KERNEL))) main_show_kernel(hardware,cli_mode);
+ if (!strncmp(item,CLI_SUMMARY, sizeof (CLI_SUMMARY))) { main_show_summary(hardware,cli_mode); return; }
+ if (!strncmp(item,CLI_PCI, sizeof (CLI_PCI))) { main_show_pci(hardware); return; }
+ if (!strncmp(item,CLI_DMI, sizeof (CLI_DMI))) { main_show_dmi(hardware,cli_mode); return; }
+ if (!strncmp(item,CLI_CPU, sizeof (CLI_CPU))) { main_show_cpu(hardware,cli_mode); return; }
+ if (!strncmp(item,CLI_PXE, sizeof (CLI_PXE))) { main_show_pxe(hardware,cli_mode); return; }
+ if (!strncmp(item,CLI_KERNEL, sizeof (CLI_KERNEL))) { main_show_kernel(hardware,cli_mode); return; }
+ show_main_help();
 }

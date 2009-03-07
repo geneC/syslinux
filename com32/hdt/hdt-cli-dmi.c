@@ -33,6 +33,13 @@
 #include <stdlib.h>
 #include <errno.h>
 
+void show_dmi_help(struct s_hardware *hardware) {
+ more_printf("Show supports the following commands : \n");
+ more_printf(" %s\n",CLI_SHOW_LIST);
+ more_printf(" <module_name>\n");
+ more_printf(" -\n");
+ show_dmi_modules(hardware);
+}
 
 
 void dmi_show(char *item, struct s_hardware *hardware) {
@@ -73,6 +80,7 @@ void dmi_show(char *item, struct s_hardware *hardware) {
    return;
  }
 
+ show_dmi_help(hardware);
 }
 
 void handle_dmi_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware) {
