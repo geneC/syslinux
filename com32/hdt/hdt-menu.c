@@ -144,7 +144,7 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware) 
   compute_kernel(&(hdt_menu->kernel_menu),hardware);
 #endif
   compute_summarymenu(&(hdt_menu->summary_menu),hardware);
-  compute_syslinuxmenu(&(hdt_menu->syslinux_menu));
+  compute_syslinuxmenu(&(hdt_menu->syslinux_menu),hardware);
   compute_aboutmenu(&(hdt_menu->about_menu));
 }
 

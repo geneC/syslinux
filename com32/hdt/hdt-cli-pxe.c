@@ -33,10 +33,15 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <syslinux/pxe.h>
+#include <syslinux/config.h>
 
 void main_show_pxe(struct s_hardware *hardware,struct s_cli_mode *cli_mode) {
  char buffer[81];
  memset(buffer,0,sizeof(81));
+ if (hardware->sv->filesystem == SYSLINUX_FS_PXELINUX) {
+	 more_printf("You are not currently using PXELINUX\n");
+	 return;
+ }
 
  detect_pxe(hardware);
  more_printf("PXE\n");

@@ -93,6 +93,9 @@ struct s_hardware {
   bool cpu_detection; /* Does the cpu stuff have been already detected */
   bool disk_detection; /* Does the disk stuff have been already detected */
   bool pxe_detection; /* Does the pxe stuff have been already detected*/
+
+ char syslinux_fs[22];
+ struct syslinux_version *sv;
 };
 
 char *find_argument(const char **argv, const char *argument);
@@ -103,4 +106,5 @@ void cpu_detect(struct s_hardware *hardware);
 int detect_pxe(struct s_hardware *hardware);
 void init_hardware(struct s_hardware *hardware);
 void clear_screen(void);
+void detect_syslinux(struct s_hardware *hardware);
 #endif

@@ -32,6 +32,18 @@
 #include <stdio.h>
 #include "syslinux/config.h"
 
+void detect_syslinux(struct s_hardware *hardware) {
+  hardware->sv = syslinux_version();
+  switch(hardware->sv->filesystem) {
+        case SYSLINUX_FS_SYSLINUX: strlcpy(hardware->syslinux_fs,"SYSlinux",9); break;
+        case SYSLINUX_FS_PXELINUX: strlcpy(hardware->syslinux_fs,"PXElinux",9); break;
+        case SYSLINUX_FS_ISOLINUX: strlcpy(hardware->syslinux_fs,"ISOlinux",9); break;
+        case SYSLINUX_FS_EXTLINUX: strlcpy(hardware->syslinux_fs,"EXTlinux",9); break;
+        case SYSLINUX_FS_UNKNOWN:
+        default: strlcpy(hardware->syslinux_fs,"Unknown Bootloader",sizeof hardware->syslinux_fs); break;
+  }
+}
+
 void init_hardware(struct s_hardware *hardware) {
   hardware->pci_ids_return_code=0;
   hardware->modules_pcimap_return_code=0;
@@ -50,6 +62,7 @@ void init_hardware(struct s_hardware *hardware) {
   memset(&hardware->dmi,0,sizeof(s_dmi));
   memset(&hardware->cpu,0,sizeof(s_cpu));
   memset(&hardware->pxe,0,sizeof(struct s_pxe));
+  memset(hardware->syslinux_fs,0,sizeof hardware->syslinux_fs);
 }
 
 /* Detecting if a DMI table exist
@@ -82,7 +95,6 @@ int detect_pxe(struct s_hardware *hardware) {
  void *dhcpdata;
 
  size_t dhcplen;
- const struct syslinux_version *sv;
  t_PXENV_UNDI_GET_NIC_TYPE gnt;
 
  if (hardware->pxe_detection == true) return -1;
@@ -91,9 +103,8 @@ int detect_pxe(struct s_hardware *hardware) {
  memset(&gnt,0, sizeof(t_PXENV_UNDI_GET_NIC_TYPE));
  memset(&hardware->pxe,0, sizeof(struct s_pxe));
 
- sv = syslinux_version();
  /* This code can only work if pxelinux is loaded*/
- if (sv->filesystem != SYSLINUX_FS_PXELINUX) {
+ if (hardware->sv->filesystem != SYSLINUX_FS_PXELINUX) {
 	 return -1;
  }
 

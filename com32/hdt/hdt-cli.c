@@ -30,6 +30,7 @@
 #include "hdt-common.h"
 #include <stdlib.h>
 #include <string.h>
+#include <syslinux/config.h>
 
 void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode, struct s_hardware *hardware) {
  switch (mode) {
@@ -44,6 +45,10 @@ void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode, struct s_hardware *h
         break;
 
   case PXE_MODE:
+	if (hardware->sv->filesystem == SYSLINUX_FS_PXELINUX) {
+		more_printf("You are not currently using PXELINUX\n");
+		break;
+	}
         cli_mode->mode=mode;
         snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ", CLI_PXE);
         break;
@@ -213,14 +218,15 @@ void main_show_summary(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
    main_show_kernel(hardware,cli_mode);
 }
 
-void show_main_help() {
+void show_main_help(struct s_hardware *hardware) {
   more_printf("Show supports the following commands : \n");
   more_printf(" %s\n",CLI_SUMMARY);
   more_printf(" %s\n",CLI_PCI);
   more_printf(" %s\n",CLI_DMI);
   more_printf(" %s\n",CLI_CPU);
-  more_printf(" %s\n",CLI_PXE);
   more_printf(" %s\n",CLI_KERNEL);
+  if (hardware->sv->filesystem == SYSLINUX_FS_PXELINUX)
+	  more_printf(" %s\n",CLI_PXE);
 }
 
 void main_show(char *item, struct s_hardware *hardware, struct s_cli_mode *cli_mode) {
@@ -230,5 +236,5 @@ void main_show(char *item, struct s_hardware *hardware, struct s_cli_mode *cli_m
  if (!strncmp(item,CLI_CPU, sizeof (CLI_CPU))) { main_show_cpu(hardware,cli_mode); return; }
  if (!strncmp(item,CLI_PXE, sizeof (CLI_PXE))) { main_show_pxe(hardware,cli_mode); return; }
  if (!strncmp(item,CLI_KERNEL, sizeof (CLI_KERNEL))) { main_show_kernel(hardware,cli_mode); return; }
- show_main_help();
+ show_main_help(hardware);
 }

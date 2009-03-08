@@ -30,55 +30,42 @@
 #include "hdt-menu.h"
 
 /* Computing Syslinux menu*/
-void compute_syslinuxmenu(struct s_my_menu *menu) {
-  char syslinux_fs[22];
+void compute_syslinuxmenu(struct s_my_menu *menu, struct s_hardware *hardware) {
   char syslinux_fs_menu[24];
   char buffer[SUBMENULEN+1];
   char statbuffer[STATLEN+1];
-  const struct syslinux_version *sv;
 
-
-  memset(syslinux_fs,0,sizeof syslinux_fs);
   memset(syslinux_fs_menu,0,sizeof syslinux_fs_menu);
 
-  sv = syslinux_version();
-  switch(sv->filesystem) {
-        case SYSLINUX_FS_SYSLINUX: strlcpy(syslinux_fs,"SYSlinux",9); break;
-        case SYSLINUX_FS_PXELINUX: strlcpy(syslinux_fs,"PXElinux",9); break;
-        case SYSLINUX_FS_ISOLINUX: strlcpy(syslinux_fs,"ISOlinux",9); break;
-        case SYSLINUX_FS_EXTLINUX: strlcpy(syslinux_fs,"EXTlinux",9); break;
-        case SYSLINUX_FS_UNKNOWN:
-        default: strlcpy(syslinux_fs,"Unknown Bootloader",sizeof syslinux_fs); break;
-  }
-  snprintf(syslinux_fs_menu,sizeof syslinux_fs_menu," %s ",syslinux_fs);
+  snprintf(syslinux_fs_menu,sizeof syslinux_fs_menu," %s ",hardware->syslinux_fs);
   menu->menu = add_menu(syslinux_fs_menu,-1);
   menu->items_count=0;
   set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
-  snprintf(buffer, sizeof buffer, "Bootloader : %s", syslinux_fs);
-  snprintf(statbuffer, sizeof statbuffer, "Bootloader: %s", syslinux_fs);
+  snprintf(buffer, sizeof buffer, "Bootloader : %s", hardware->syslinux_fs);
+  snprintf(statbuffer, sizeof statbuffer, "Bootloader: %s", hardware->syslinux_fs);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
   menu->items_count++;
 
-  snprintf(buffer, sizeof buffer, "Version    : %s", sv->version_string+2);
-  snprintf(statbuffer, sizeof statbuffer, "Version: %s", sv->version_string+2);
+  snprintf(buffer, sizeof buffer, "Version    : %s", hardware->sv->version_string+2);
+  snprintf(statbuffer, sizeof statbuffer, "Version: %s", hardware->sv->version_string+2);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
   menu->items_count++;
 
-  snprintf(buffer, sizeof buffer, "Version    : %u",sv->version);
-  snprintf(statbuffer, sizeof statbuffer, "Version: %u",sv->version);
+  snprintf(buffer, sizeof buffer, "Version    : %u",hardware->sv->version);
+  snprintf(statbuffer, sizeof statbuffer, "Version: %u",hardware->sv->version);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
   menu->items_count++;
 
-  snprintf(buffer, sizeof buffer, "Max API    : %u",sv->max_api);
-  snprintf(statbuffer, sizeof statbuffer, "Max API: %u",sv->max_api);
+  snprintf(buffer, sizeof buffer, "Max API    : %u",hardware->sv->max_api);
+  snprintf(statbuffer, sizeof statbuffer, "Max API: %u",hardware->sv->max_api);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
   menu->items_count++;
 
   add_item("","",OPT_SEP,"",0);
 
-  snprintf(buffer, sizeof buffer, "%s", sv->copyright_string+1);
-  snprintf(statbuffer, sizeof statbuffer, "%s", sv->copyright_string+1);
+  snprintf(buffer, sizeof buffer, "%s", hardware->sv->copyright_string+1);
+  snprintf(statbuffer, sizeof statbuffer, "%s", hardware->sv->copyright_string+1);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
   menu->items_count++;
 

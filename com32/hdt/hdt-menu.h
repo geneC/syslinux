@@ -102,7 +102,7 @@ void compute_memory_module(struct s_my_menu *menu, s_dmi *dmi, int slot_number);
 void compute_processor(struct s_my_menu *menu,struct s_hardware *hardware);
 
 // Syslinux stuff
-void compute_syslinuxmenu(struct s_my_menu *menu);
+void compute_syslinuxmenu(struct s_my_menu *menu,struct s_hardware *hardware);
 
 // About menu
 void compute_aboutmenu(struct s_my_menu *menu);
