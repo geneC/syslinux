@@ -46,19 +46,19 @@ void dmi_show(char *item, struct s_hardware *hardware) {
  if ( !strncmp(item, CLI_DMI_BASE_BOARD, sizeof(CLI_DMI_BASE_BOARD) - 1) ) {
    show_dmi_base_board(hardware);
    return;
- } else
+ }
  if ( !strncmp(item, CLI_DMI_SYSTEM, sizeof(CLI_DMI_SYSTEM) - 1) ) {
    show_dmi_system(hardware);
    return;
- } else
+ }
  if ( !strncmp(item, CLI_DMI_BIOS, sizeof(CLI_DMI_BIOS) - 1) ) {
    show_dmi_bios(hardware);
    return;
- } else
+ }
  if ( !strncmp(item, CLI_DMI_CHASSIS, sizeof(CLI_DMI_CHASSIS) - 1) ) {
    show_dmi_chassis(hardware);
    return;
- } else
+ }
  if ( !strncmp(item, CLI_DMI_PROCESSOR, sizeof(CLI_DMI_PROCESSOR) - 1) ) {
    show_dmi_cpu(hardware);
    return;
