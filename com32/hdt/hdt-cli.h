@@ -39,6 +39,7 @@
 #define CLI_PCI  "pci"
 #define CLI_PXE  "pxe"
 #define CLI_KERNEL "kernel"
+#define CLI_SYSLINUX "syslinux"
 #define CLI_SUMMARY "summary"
 #define CLI_COMMANDS "commands"
 #define CLI_DMI  "dmi"
@@ -53,6 +54,7 @@ typedef enum {
   CPU_MODE,
   PXE_MODE,
   KERNEL_MODE,
+  SYSLINUX_MODE,
 } cli_mode_t;
 
 struct s_cli_mode {
@@ -107,4 +109,8 @@ void handle_pxe_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_h
 //KERNEL STUFF
 void main_show_kernel(struct s_hardware *hardware,struct s_cli_mode *cli_mode);
 void handle_kernel_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware);
+
+//SYSLINUX STUFF
+void main_show_syslinux(struct s_hardware *hardware,struct s_cli_mode *cli_mode);
+void handle_syslinux_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware);
 #endif
