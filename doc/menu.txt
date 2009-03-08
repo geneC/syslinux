@@ -167,14 +167,20 @@ MENU PASSWD passwd
 	(Only valid after a LABEL statement.)
 
 	Sets a password on this menu entry.  "passwd" can be either a
-	cleartext password, a SHA-1 encrypted password (starting with
-	$4$), or and MD5 encrypted password (starting with $1$).
+	cleartext password or a password encrypted with one of the
+	following algorithms:
+
+	MD5		(Signature: $1$)
+	SHA-1		(Signature: $4$)
+	SHA-2-256	(Signature: $5$)
+	SHA-2-512:	(Signature: $6$)
 
 	Use the included Perl scripts "sha1pass" or "md5pass" to
 	encrypt passwords.  MD5 passwords are compatible with most
 	Unix password file utilities; SHA-1 passwords are probably
-	unique to Syslinux.  Obviously, if you don't encrypt your
-	passwords they will not be very secure at all.
+	unique to Syslinux; SHA-2 passwords are compatible with very
+	recent Linux distributions.  Obviously, if you don't encrypt
+	your passwords they will not be very secure at all.
 
 	If you are using passwords, you want to make sure you also use
 	the settings "NOESCAPE 1", "PROMPT 0", and either set
