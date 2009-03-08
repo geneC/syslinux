@@ -173,7 +173,7 @@ MENU PASSWD passwd
 	MD5		(Signature: $1$)
 	SHA-1		(Signature: $4$)
 	SHA-2-256	(Signature: $5$)
-	SHA-2-512:	(Signature: $6$)
+	SHA-2-512	(Signature: $6$)
 
 	Use the included Perl scripts "sha1pass" or "md5pass" to
 	encrypt passwords.  MD5 passwords are compatible with most
