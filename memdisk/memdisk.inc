@@ -6,7 +6,7 @@
 ;  A program to emulate an INT 13h disk BIOS from a "disk" in extended
 ;  memory.
 ;
-;   Copyright 2001-2008 H. Peter Anvin - All Rights Reserved
+;   Copyright 2001-2009 H. Peter Anvin - All Rights Reserved
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -21,12 +21,6 @@
 %endif
 
 ; %define DEBUG_TRACERS			; Uncomment to get debugging tracers
-
-%ifdef WITH_EDD
-%define EDD 1
-%else
-%define EDD 0
-%endif
 
 %ifdef DEBUG_TRACERS
 

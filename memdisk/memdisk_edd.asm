@@ -1,2 +1,2 @@
-%define WITH_EDD
+%define EDD 1
 %include "memdisk.inc"
