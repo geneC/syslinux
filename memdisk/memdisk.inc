@@ -878,7 +878,7 @@ Int13FuncsCnt	equ (Int13FuncsEnd-Int13Funcs) >> 1
 
 
 		alignb 8, db 0
-Shaker		dw ShakerEnd-$
+Shaker		dw ShakerEnd-$-1	; Descriptor table limit
 		dd 0			; Pointer to self
 		dw 0
 
