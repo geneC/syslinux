@@ -45,7 +45,7 @@ void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode, struct s_hardware *h
         break;
 
   case PXE_MODE:
-	if (hardware->sv->filesystem == SYSLINUX_FS_PXELINUX) {
+	if (hardware->sv->filesystem != SYSLINUX_FS_PXELINUX) {
 		more_printf("You are not currently using PXELINUX\n");
 		break;
 	}
