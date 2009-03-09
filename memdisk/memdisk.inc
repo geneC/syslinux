@@ -1,7 +1,7 @@
 ; -*- fundamental -*- (asm-mode sucks)
 ; ****************************************************************************
 ;
-;  memdisk.asm
+;  memdisk.inc
 ;
 ;  A program to emulate an INT 13h disk BIOS from a "disk" in extended
 ;  memory.
