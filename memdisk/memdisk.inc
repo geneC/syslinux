@@ -148,7 +148,7 @@ Int13Start:
 		mov bp,sp		; Point BP to the entry stack frame
 		TRACER 'F'
 		; Note: AH == P_AH here
-		cmp ah,[Int13MaxFunc]
+		cmp ah,[Int13FuncsCnt-1]
 		ja Invalid_jump
 		xor al,al		; AL = 0 is standard entry condition
 		mov di,ax
@@ -929,10 +929,6 @@ DPT_ptr		dw 0			; If nonzero, pointer to DPT
 MDI_Len		equ $-MemDisk_Info
 
 ; ---- MDI structure ends here ---
-Int13MaxFunc	db Int13FuncsCnt-1	; Max INT 13h function (to disable EDD)
-		db 0			; pad
-
-		dw 0			; pad
 MemInt1588	dw 0			; 1MB-65MB memory amount (1K)
 
 Cylinders	dw 0			; Cylinder count

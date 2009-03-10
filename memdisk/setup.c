@@ -96,10 +96,6 @@ struct patch_area {
 
   uint16_t dpt_ptr;
   /* End of the official MemDisk_Info */
-  uint8_t  maxint13func;
-  uint8_t  _pad2;
-
-  uint16_t _pad3;
   uint16_t memint1588;
 
   uint16_t cylinders;
