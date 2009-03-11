@@ -73,7 +73,7 @@ static int hex_to_int(char *hexa)
 
 /* Try to match any pci device to the appropriate kernel module */
 /* it uses the modules.pcimap from the boot device */
-int get_module_name_from_pci_ids(struct pci_domain *domain)
+int get_module_name_from_pci_ids(struct pci_domain *domain, char *modules_pcimap_path)
 {
   char line[MAX_LINE];
   char module_name[21]; // the module name field is 21 char long
@@ -100,7 +100,7 @@ int get_module_name_from_pci_ids(struct pci_domain *domain)
   }
 
   /* Opening the modules.pcimap (of a linux kernel) from the boot device */
-  f=fopen("modules.pcimap", "r");
+  f=fopen(modules_pcimap_path, "r");
   if (!f)
     return -ENOMODULESPCIMAP;
 
@@ -161,7 +161,7 @@ int get_module_name_from_pci_ids(struct pci_domain *domain)
 
 /* Try to match any pci device to the appropriate class name */
 /* it uses the pci.ids from the boot device */
-int get_class_name_from_pci_ids(struct pci_domain *domain)
+int get_class_name_from_pci_ids(struct pci_domain *domain, char *pciids_path)
 {
   char line[MAX_LINE];
   char class_name[PCI_CLASS_NAME_SIZE];
@@ -185,7 +185,7 @@ int get_class_name_from_pci_ids(struct pci_domain *domain)
   }
 
   /* Opening the pci.ids from the boot device */
-  f = fopen("pci.ids","r");
+  f = fopen(pciids_path,"r");
   if (!f)
     return -ENOPCIIDS;
 
@@ -251,7 +251,7 @@ int get_class_name_from_pci_ids(struct pci_domain *domain)
 
 /* Try to match any pci device to the appropriate vendor and product name */
 /* it uses the pci.ids from the boot device */
-int get_name_from_pci_ids(struct pci_domain *domain)
+int get_name_from_pci_ids(struct pci_domain *domain, char *pciids_path)
 {
   char line[MAX_LINE];
   char vendor[PCI_VENDOR_NAME_SIZE];
@@ -282,7 +282,7 @@ int get_name_from_pci_ids(struct pci_domain *domain)
   }
 
   /* Opening the pci.ids from the boot device */
-  f = fopen("pci.ids","r");
+  f = fopen(pciids_path,"r");
   if (!f)
     return -ENOPCIIDS;
 

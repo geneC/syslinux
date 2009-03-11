@@ -131,8 +131,8 @@ struct pci_domain *pci_scan(void);
 void free_pci_domain(struct pci_domain *domain);
 struct match * find_pci_device(const struct pci_domain *pci_domain,
 			       struct match *list);
-int get_name_from_pci_ids(struct pci_domain *pci_domain);
-int get_module_name_from_pci_ids(struct pci_domain *pci_domain);
-int get_class_name_from_pci_ids(struct pci_domain *pci_domain);
+int get_name_from_pci_ids(struct pci_domain *pci_domain, char *pciids_path);
+int get_module_name_from_pci_ids(struct pci_domain *pci_domain, char *modules_pcimap_path);
+int get_class_name_from_pci_ids(struct pci_domain *pci_domain, char *pciids_path);
 
 #endif /* _SYS_PCI_H */

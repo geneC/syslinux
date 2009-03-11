@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
 
   printf("PCI: Looking for device name\n");
   /* Assigning product & vendor name for each device*/
-  return_code=get_name_from_pci_ids(pci_domain);
+  return_code=get_name_from_pci_ids(pci_domain,"pci.ids");
   if (return_code == -ENOPCIIDS) {
 	  printf("PCI: ERROR !\n");
 	  printf("PCI: Unable to open pci.ids in the same directory as pcitest.c32.\n");
@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
 
   printf("PCI: Resolving class names\n");
   /* Assigning class name for each device*/
-  return_code=get_class_name_from_pci_ids(pci_domain);
+  return_code=get_class_name_from_pci_ids(pci_domain,"pci.ids");
   if (return_code == -ENOPCIIDS) {
 	  printf("PCI: ERROR !\n");
 	  printf("PCI: Unable to open pci.ids in the same directory as pcitest.c32.\n");
@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
 
   printf("PCI: Looking for Kernel modules\n");
   /* Detecting which kernel module should match each device */
-  return_code=get_module_name_from_pci_ids(pci_domain);
+  return_code=get_module_name_from_pci_ids(pci_domain,"modules.pcimap");
   if (return_code == -ENOMODULESPCIMAP) {
 	  printf("PCI: ERROR !\n");
 	  printf("PCI: Unable to open modules.pcimap in the same directory as pcitest.c32.\n");
