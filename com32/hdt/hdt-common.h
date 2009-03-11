@@ -96,6 +96,8 @@ struct s_hardware {
 
  char syslinux_fs[22];
  struct syslinux_version *sv;
+ char modules_pcimap_path[255];
+ char pciids_path[255];
 };
 
 char *find_argument(const char **argv, const char *argument);
@@ -107,4 +109,5 @@ int detect_pxe(struct s_hardware *hardware);
 void init_hardware(struct s_hardware *hardware);
 void clear_screen(void);
 void detect_syslinux(struct s_hardware *hardware);
+void detect_parameters(int argc, char *argv[], struct s_hardware *hardware);
 #endif

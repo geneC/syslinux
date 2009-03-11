@@ -52,6 +52,9 @@ int main(int argc, char *argv[])
   /* Cleaning structures */
   init_hardware(&hardware);
 
+  /* Detecting parameters */
+  detect_parameters(argc,argv,&hardware);
+
   /* Detecting Syslinux Version*/
   detect_syslinux(&hardware);
 

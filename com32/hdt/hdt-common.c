@@ -32,6 +32,16 @@
 #include <stdio.h>
 #include "syslinux/config.h"
 
+void detect_parameters(int argc, char *argv[], struct s_hardware *hardware) {
+ for (int i = 1; i < argc; i++) {
+   if (!strncmp(argv[i], "modules=", 8)) {
+      strncpy(hardware->modules_pcimap_path,argv[i]+8, sizeof(hardware->modules_pcimap_path));
+   } else if (!strncmp(argv[i], "pciids=",7 )) {
+      strncpy(hardware->pciids_path,argv[i]+7, sizeof(hardware->pciids_path));
+   }
+ }
+}
+
 void detect_syslinux(struct s_hardware *hardware) {
   hardware->sv = syslinux_version();
   switch(hardware->sv->filesystem) {
@@ -63,6 +73,10 @@ void init_hardware(struct s_hardware *hardware) {
   memset(&hardware->cpu,0,sizeof(s_cpu));
   memset(&hardware->pxe,0,sizeof(struct s_pxe));
   memset(hardware->syslinux_fs,0,sizeof hardware->syslinux_fs);
+  memset(hardware->pciids_path,0,sizeof hardware->pciids_path);
+  memset(hardware->modules_pcimap_path,0,sizeof hardware->modules_pcimap_path);
+  strcat(hardware->pciids_path,"pci.ids");
+  strcat(hardware->modules_pcimap_path,"modules.pcimap");
 }
 
 /* Detecting if a DMI table exist
@@ -194,16 +208,16 @@ void detect_pci(struct s_hardware *hardware) {
   printf("PCI: %d devices detected\n",hardware->nb_pci_devices);
   printf("PCI: Resolving names\n");
   /* Assigning product & vendor name for each device*/
-  hardware->pci_ids_return_code=get_name_from_pci_ids(hardware->pci_domain);
+  hardware->pci_ids_return_code=get_name_from_pci_ids(hardware->pci_domain, hardware->pciids_path);
 
   printf("PCI: Resolving class names\n");
   /* Assigning class name for each device*/
-  hardware->pci_ids_return_code=get_class_name_from_pci_ids(hardware->pci_domain);
+  hardware->pci_ids_return_code=get_class_name_from_pci_ids(hardware->pci_domain, hardware->pciids_path);
 
 
   printf("PCI: Resolving module names\n");
   /* Detecting which kernel module should match each device */
-  hardware->modules_pcimap_return_code=get_module_name_from_pci_ids(hardware->pci_domain);
+  hardware->modules_pcimap_return_code=get_module_name_from_pci_ids(hardware->pci_domain,hardware->modules_pcimap_path);
 
   /* we try to detect the pxe stuff to populate the PXE: field of pci devices */
   detect_pxe(hardware);
