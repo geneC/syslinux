@@ -47,7 +47,7 @@ void main_show_kernel(struct s_hardware *hardware,struct s_cli_mode *cli_mode) {
 // more_printf(" PCI device no: %d \n", p->pci_device_pos);
 
  if (hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) {
-	 more_printf(" Modules.pcimap is missing\n");
+	 more_printf(" modules.pcimap is missing\n");
 	 return;
  }
 
@@ -88,19 +88,24 @@ void show_kernel_modules(struct s_hardware *hardware) {
  char modules[MAX_PCI_CLASSES][256];
  char category_name[MAX_PCI_CLASSES][256];
 
- clear_screen();
+ detect_pci(hardware);
  memset(&modules,0,sizeof(modules));
 
  if (hardware->pci_ids_return_code == -ENOPCIIDS) {
     nopciids=true;
+    more_printf(" Missing pci.ids, we can't compute the list\n");
+    return;
   }
 
  if (hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) {
     nomodulespcimap=true;
+    more_printf(" Missing modules.pcimap, we can't compute the list\n");
+    return;
  }
 
- if ((nomodulespcimap==false) && (nopciids==false)) {
-  for_each_pci_func(pci_device, hardware->pci_domain) {
+ clear_screen();
+
+ for_each_pci_func(pci_device, hardware->pci_domain) {
    memset(kernel_modules,0,sizeof kernel_modules);
 
    for (int kmod=0; kmod<pci_device->dev_info->linux_kernel_module_count;kmod++) {
@@ -119,8 +124,10 @@ void show_kernel_modules(struct s_hardware *hardware) {
 	more_printf("%s : %s\n",category_name[i], modules[i]);
 	}
   }
- }
+}
 
+void show_kernel_help() {
+ more_printf("Show supports the following commands : %s\n",CLI_SHOW_LIST);
 }
 
 void kernel_show(char *item, struct s_hardware *hardware) {
@@ -128,6 +135,7 @@ void kernel_show(char *item, struct s_hardware *hardware) {
    show_kernel_modules(hardware);
    return;
  }
+ show_kernel_help();
 }
 
 void handle_kernel_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware) {
