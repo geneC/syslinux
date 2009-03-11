@@ -151,7 +151,6 @@ next:
 	 * Look more closely into it if we ever are short on space.
 	 */
 	ljmpw	$0, $isolinux_start_hybrid
-	jmpw	*%si
 
 bad_signature:
 	call	error
