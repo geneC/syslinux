@@ -17,14 +17,17 @@
 topdir = ../..
 include $(topdir)/MCONFIG.embedded
 
-INCLUDES   = -I$(com32)/include -I$(com32)/cmenu/libmenu
+INCLUDES   = -I$(com32)/include -I$(com32)/cmenu/libmenu -I$(com32)/gplinclude
 
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 LIB	   = liboldcom32.a
 
 com32	= $(topdir)/com32
 LIBS	= $(LIB) $(com32)/cmenu/libmenu/libmenu.a \
-	$(com32)/libutil/libutil_com.a $(com32)/lib/libcom32.a $(LIBGCC)
+	  $(com32)/gpllib/libcom32gpl.a \
+	  $(com32)/libutil/libutil_com.a $(com32)/lib/libcom32.a \
+          $(LIBGCC)
+
 LDFLAGS	= -m elf_i386 -T $(com32)/lib/com32.ld
 
 all:  hdt.c32 $(LIB)
@@ -48,7 +51,6 @@ hdt.elf: hdt.o hdt-ata.o hdt-menu.o hdt-menu-pci.o hdt-menu-kernel.o \
 	hdt-cli-cpu.o hdt-cli-pxe.o hdt-cli-kernel.o \
 	hdt-cli-syslinux.o \
 	hdt-menu-pxe.o hdt-menu-summary.o\
-	$(com32)/modules/cpuid.o \
 	$(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 

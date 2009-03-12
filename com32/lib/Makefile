@@ -63,9 +63,6 @@ LIBOBJS = \
 	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o		\
 	pci/writeb.o pci/writew.o pci/writel.o pci/writebios.o		\
 	\
-	dmi/dmi_battery.o dmi/dmi_chassis.o dmi/dmi_memory.o		\
-	dmi/dmi_processor.o dmi/dmi.o dmi/dmi_bios.o dmi/dmi_base_board.o \
-	\
 	zlib/adler32.o zlib/compress.o zlib/crc32.o zlib/gzio.o		\
 	zlib/uncompr.o zlib/deflate.o zlib/trees.o zlib/zutil.o		\
 	zlib/inflate.o zlib/infback.o zlib/inftrees.o zlib/inffast.o	\
