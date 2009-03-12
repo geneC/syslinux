@@ -24,7 +24,7 @@ GCCOPT := $(call gcc_ok,-std=gnu99,) \
 com32 = $(topdir)/com32
 
 ifneq ($(NOGPL),1)
-GPLLIB     = $(com32)/libcom32gpl.a
+GPLLIB     = $(com32)/gpllib/libcom32gpl.a
 GPLINCLUDE = -I$(com32)/gplinclude
 else
 GPLLIB     =
