@@ -3,9 +3,12 @@
 #
 
 # Include configuration rules
+topdir = ../..
 include ../lib/MCONFIG
 
-LIBOBJS = 
+REQFLAGS += -I../gplinclude
+
+LIBOBJS  = 
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib

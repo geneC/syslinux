@@ -4,6 +4,7 @@
 
 # Include configuration rules
 NOGPL := 1
+topdir = ../..
 include MCONFIG
 
 LIBOBJS = \
