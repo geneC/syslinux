@@ -14,6 +14,8 @@
 ## Makefile for the complex menu system
 ##
 
+NOGPL := 1
+
 # This must be defined before MCONFIG is included
 LIBS   = libmenu/libmenu.a
 

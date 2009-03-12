@@ -23,10 +23,18 @@ GCCOPT := $(call gcc_ok,-std=gnu99,) \
 
 com32 = $(topdir)/com32
 
+ifeq ($(NOGPL),1)
+GPLLIB     = $(com32)/libcom32gpl.a
+GPLINCLUDE = -I$(com32)/gplinclude
+else
+GPLLIB     =
+GPLINCLUDE =
+endif
+
 CFLAGS     = $(GCCOPT) -W -Wall -march=i386 \
 	     -fomit-frame-pointer -D__COM32__ \
 	     -nostdinc -iwithprefix include \
-	     -I$(com32)/libutil/include -I$(com32)/include
+	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE)
 SFLAGS     = $(GCCOPT) -D__COM32__ -march=i386
 LDFLAGS    = -m elf_i386 -T $(com32)/lib/com32.ld
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
@@ -35,7 +43,8 @@ LNXCFLAGS  = -I$(com32)/libutil/include -W -Wall -O -g -D_GNU_SOURCE
 LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 
-C_LIBS	   = $(com32)/libutil/libutil_com.a $(com32)/lib/libcom32.a $(LIBGCC)
+C_LIBS	   = $(com32)/libutil/libutil_com.a $(GPLLIB) \
+	     $(com32)/lib/libcom32.a $(LIBGCC)
 C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a
 
 .SUFFIXES: .lss .c .lo .o .elf .c32 .lnx

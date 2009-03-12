@@ -1,4 +1,9 @@
+#
+# ONLY INCLUDE MIT OR 2/3-BSD-LICENSED CODE IN THIS LIBRARY
+#
+
 # Include configuration rules
+NOGPL := 1
 include MCONFIG
 
 LIBOBJS = \
