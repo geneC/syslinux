@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -290,9 +290,9 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
     if (irf_size) {
       for (ml = amap; ml->type != SMT_END; ml = ml->next) {
 	addr_t adj_start = (ml->start+align_mask) & ~align_mask;
-	if (ml->type == SMT_FREE &&
-	    ml->next->start - adj_start >= irf_size)
-	  best_addr = (ml->next->start - irf_size) & ~align_mask;
+	addr_t adj_end   = ml->next->start & ~align_mask;
+	if (ml->type == SMT_FREE && adj_end-adj_start >= irf_size)
+	  best_addr = (adj_end - irf_size) & ~align_mask;
       }
 
       if (!best_addr)
