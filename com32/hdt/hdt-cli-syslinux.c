@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2006 Erwan Velu - All Rights Reserved
+ *   Copyright 2009 Erwan Velu - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,43 +26,40 @@
  * -----------------------------------------------------------------------
 */
 
-#include "stdio.h"
-#include "dmi/dmi.h"
+#include "hdt-cli.h"
+#include "hdt-common.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <syslinux/pxe.h>
+#include <syslinux/config.h>
 
-void display_bios_characteristics(s_dmi *dmi) {
-int i;
-  for (i=0;i<BIOS_CHAR_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->bios.characteristics))[i] == true) {
-               moreprintf("\t\t%s\n", bios_charac_strings[i]);
-                }
-  }
-  for (i=0;i<BIOS_CHAR_X1_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->bios.characteristics_x1))[i] == true) {
-               moreprintf("\t\t%s\n", bios_charac_x1_strings[i]);
-                }
-  }
-
-  for (i=0;i<BIOS_CHAR_X2_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->bios.characteristics_x2))[i] == true) {
-               moreprintf("\t\t%s\n", bios_charac_x2_strings[i]);
-                }
-  }
+void main_show_syslinux(struct s_hardware *hardware,struct s_cli_mode *cli_mode) {
+  more_printf("SYSLINUX\n");
+  more_printf(" Bootloader : %s\n", hardware->syslinux_fs);
+  more_printf(" Version    : %s\n", hardware->sv->version_string+2);
+  more_printf(" Version    : %u\n",hardware->sv->version);
+  more_printf(" Max API    : %u\n",hardware->sv->max_api);
+  more_printf(" Copyright  : %s\n", hardware->sv->copyright_string+1);
 }
 
-void display_base_board_features(s_dmi *dmi) {
-int i;
-  for (i=0;i<BASE_BOARD_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->base_board.features))[i] == true) {
-               moreprintf("\t\t%s\n", base_board_features_strings[i]);
-                }
-  }
+void show_syslinux_help() {
+ more_printf("Show supports the following commands : %s\n",CLI_SHOW_LIST);
 }
 
-void display_processor_flags(s_dmi *dmi) {
-int i;
-  for (i=0;i<PROCESSOR_FLAGS_ELEMENTS; i++) {
-        if (((bool *)(& dmi->processor.cpu_flags))[i] == true) {
-               moreprintf("\t\t%s\n", cpu_flags_strings[i]);
-                }
-  }
+void syslinux_show(char *item, struct s_hardware *hardware) {
+ if ( !strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1) ) {
+   main_show_syslinux(hardware,NULL);
+   return;
+ }
+ show_syslinux_help();
 }
+
+void handle_syslinux_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware) {
+ if ( !strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1) ) {
+    syslinux_show(strstr(cli_line,"show")+ sizeof(CLI_SHOW), hardware);
+    return;
+ }
+}
+

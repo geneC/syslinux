@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2006 Erwan Velu - All Rights Reserved
+ *   Copyright 2009 Erwan Velu - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,43 +26,54 @@
  * -----------------------------------------------------------------------
 */
 
-#include "stdio.h"
-#include "dmi/dmi.h"
+/*
+ * hdt.c
+ *
+ * An Hardware Detection Tool
+ */
 
-void display_bios_characteristics(s_dmi *dmi) {
-int i;
-  for (i=0;i<BIOS_CHAR_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->bios.characteristics))[i] == true) {
-               moreprintf("\t\t%s\n", bios_charac_strings[i]);
-                }
-  }
-  for (i=0;i<BIOS_CHAR_X1_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->bios.characteristics_x1))[i] == true) {
-               moreprintf("\t\t%s\n", bios_charac_x1_strings[i]);
-                }
+#include <stdio.h>
+#include <console.h>
+#include "hdt.h"
+#include "hdt-menu.h"
+#include "hdt-cli.h"
+#include "hdt-common.h"
+
+int display_line_nb=0;
+
+int main(int argc, char *argv[])
+{
+  char version_string[256];
+  char *arg;
+  struct s_hardware hardware;
+
+  snprintf(version_string,sizeof version_string,"%s %s by %s",PRODUCT_NAME,VERSION,AUTHOR);
+
+  /* Cleaning structures */
+  init_hardware(&hardware);
+
+  /* Detecting parameters */
+  detect_parameters(argc,argv,&hardware);
+
+  /* Detecting Syslinux Version*/
+  detect_syslinux(&hardware);
+
+  /* Opening the syslinux console */
+  openconsole(&dev_stdcon_r, &dev_ansicon_w);
+
+  clear_screen();
+  printf("%s\n",version_string);
+
+  if ((arg = find_argument(argv+1, "nomenu"))) {
+	  start_cli_mode(&hardware, argc, argv);
+  } else{
+	 int return_code = start_menu_mode(&hardware, version_string);
+	 if (return_code == HDT_RETURN_TO_CLI) {
+	   start_cli_mode(&hardware,argc,argv);
+	 } else {
+	   return return_code;
+	 }
   }
 
-  for (i=0;i<BIOS_CHAR_X2_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->bios.characteristics_x2))[i] == true) {
-               moreprintf("\t\t%s\n", bios_charac_x2_strings[i]);
-                }
-  }
-}
-
-void display_base_board_features(s_dmi *dmi) {
-int i;
-  for (i=0;i<BASE_BOARD_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->base_board.features))[i] == true) {
-               moreprintf("\t\t%s\n", base_board_features_strings[i]);
-                }
-  }
-}
-
-void display_processor_flags(s_dmi *dmi) {
-int i;
-  for (i=0;i<PROCESSOR_FLAGS_ELEMENTS; i++) {
-        if (((bool *)(& dmi->processor.cpu_flags))[i] == true) {
-               moreprintf("\t\t%s\n", cpu_flags_strings[i]);
-                }
-  }
+  return 0;
 }

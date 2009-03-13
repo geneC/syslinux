@@ -1,47 +1,35 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2006 Erwan Velu - All Rights Reserved
+ *   Pportions of this file taken from the dmidecode project
+ *
+ *   Copyright (C) 2000-2002 Alan Cox <alan@redhat.com>
+ *   Copyright (C) 2002-2008 Jean Delvare <khali@linux-fr.org>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
- *   Boston MA 02111-1307, USA; either version 2 of the License, or
- *   (at your option) any later version; incorporated herein by reference.
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
  *
- * ----------------------------------------------------------------------- */
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software
+ *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *
+ *   For the avoidance of doubt the "preferred form" of this code is one which
+ *   is in an open unpatent encumbered format. Where cryptographic key signing
+ *   forms part of the process of creating an executable the information
+ *   including keys needed to generate an equivalently functional executable
+ *   are deemed to be part of the source code.
+*/
 
-#ifndef DMI_CHASSIS_H
-#define DMI_CHASSIS_H
+#include <dmi/dmi.h>
+#include <stdio.h>
 
-#define CHASSIS_MANUFACTURER_SIZE	32
-#define CHASSIS_TYPE_SIZE		16
-#define CHASSIS_LOCK_SIZE		16
-#define CHASSIS_VERSION_SIZE		16
-#define CHASSIS_SERIAL_SIZE		32
-#define CHASSIS_ASSET_TAG_SIZE		32
-#define CHASSIS_BOOT_UP_STATE_SIZE	32
-#define CHASSIS_POWER_SUPPLY_STATE_SIZE		32
-#define CHASSIS_THERMAL_STATE_SIZE	32
-#define CHASSIS_SECURITY_STATUS_SIZE	32
-#define CHASSIS_OEM_INFORMATION_SIZE	32
-
-typedef struct {
-char manufacturer[CHASSIS_MANUFACTURER_SIZE];
-char type[CHASSIS_TYPE_SIZE];
-char lock[CHASSIS_LOCK_SIZE];
-char version[CHASSIS_VERSION_SIZE];
-char serial[CHASSIS_SERIAL_SIZE];
-char asset_tag[CHASSIS_ASSET_TAG_SIZE];
-char boot_up_state[CHASSIS_BOOT_UP_STATE_SIZE];
-char power_supply_state[CHASSIS_POWER_SUPPLY_STATE_SIZE];
-char thermal_state[CHASSIS_THERMAL_STATE_SIZE];
-char security_status[CHASSIS_SECURITY_STATUS_SIZE];
-char oem_information[CHASSIS_OEM_INFORMATION_SIZE];
-u16  height;
-u16  nb_power_cords;
-} s_chassis;
-
-static const char *dmi_chassis_type(u8 code)
+const char *dmi_chassis_type(uint8_t code)
 {
         /* 3.3.4.1 */
         static const char *type[]={
@@ -77,7 +65,7 @@ static const char *dmi_chassis_type(u8 code)
         return out_of_spec;
 }
 
-static const char *dmi_chassis_lock(u8 code)
+const char *dmi_chassis_lock(uint8_t code)
 {
         static const char *lock[]={
                 "Not Present", /* 0x00 */
@@ -87,7 +75,7 @@ static const char *dmi_chassis_lock(u8 code)
         return lock[code];
 }
 
-static const char *dmi_chassis_state(u8 code)
+const char *dmi_chassis_state(uint8_t code)
 {
         /* 3.3.4.2 */
         static const char *state[]={
@@ -104,7 +92,7 @@ static const char *dmi_chassis_state(u8 code)
         return out_of_spec;
 }
 
-static const char *dmi_chassis_security_status(u8 code)
+const char *dmi_chassis_security_status(uint8_t code)
 {
         /* 3.3.4.3 */
         static const char *status[]={
@@ -119,5 +107,3 @@ static const char *dmi_chassis_security_status(u8 code)
                 return(status[code-0x01]);
         return out_of_spec;
 }
-
-#endif

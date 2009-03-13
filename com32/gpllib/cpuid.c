@@ -1,29 +1,20 @@
-/* ----------------------------------------------------------------------- *
+/*
+ * Portions of this file taken from the Linux kernel,
+ * Copyright 1991-2009 Linus Torvalds and contributors
  *
- *   Copyright 2006 Erwan Velu - All Rights Reserved
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   Permission is hereby granted, free of charge, to any person
- *   obtaining a copy of this software and associated documentation
- *   files (the "Software"), to deal in the Software without
- *   restriction, including without limitation the rights to use,
- *   copy, modify, merge, publish, distribute, sublicense, and/or
- *   sell copies of the Software, and to permit persons to whom
- *   the Software is furnished to do so, subject to the following
- *   conditions:
- *
- *   The above copyright notice and this permission notice shall
- *   be included in all copies or substantial portions of the Software.
- *
- *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *   OTHER DEALINGS IN THE SOFTWARE.
- *
- * ----------------------------------------------------------------------- */
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+*/
 
 #include <stdio.h>
 #include <string.h>
@@ -144,7 +135,8 @@ int get_model_name(struct cpuinfo_x86 *c)
 
 void generic_identify(struct cpuinfo_x86 *c)
 {
-	uint32_t tfms, xlvl, junk;
+	uint32_t tfms, xlvl;
+	unsigned int ebx;
 
 	/* Get vendor name */
 	cpuid(0x00000000,
@@ -157,18 +149,18 @@ void generic_identify(struct cpuinfo_x86 *c)
         /* Intel-defined flags: level 0x00000001 */
         if ( c->cpuid_level >= 0x00000001 ) {
 		uint32_t capability, excap;
-                cpuid(0x00000001, &tfms, &junk, &excap, &capability);
+                cpuid(0x00000001, &tfms, &ebx, &excap, &capability);
                 c->x86_capability[0] = capability;
                 c->x86_capability[4] = excap;
                 c->x86 = (tfms >> 8) & 15;
                 c->x86_model = (tfms >> 4) & 15;
-                if (c->x86 == 0xf) {
+                if (c->x86 == 0xf)
                         c->x86 += (tfms >> 20) & 0xff;
+                if (c->x86 >= 0x6)
                         c->x86_model += ((tfms >> 16) & 0xF) << 4;
-                }
                 c->x86_mask = tfms & 15;
-		if (capability & (1<<19))
-                        c->x86_cache_alignment = ((junk >> 8) & 0xff) * 8;
+                if (cpu_has(c, X86_FEATURE_CLFLSH))
+                        c->x86_clflush_size = ((ebx >> 8) & 0xff) * 8;
               } else {
                       /* Have CPUID level 0 only - unheard of */
                       c->x86 = 4;
@@ -310,21 +302,22 @@ void set_generic_info(struct cpuinfo_x86 *c,s_cpu *cpu) {
 	cpu->vendor_id=c->x86_vendor;
 	cpu->model_id=c->x86_model;
 	cpu->stepping=c->x86_mask;
-	strncpy(cpu->vendor,cpu_devs[c->x86_vendor]->c_vendor,CPU_VENDOR_SIZE);
-	strncpy(cpu->model,c->x86_model_id,CPU_MODEL_SIZE);
+	strncpy(cpu->vendor,cpu_devs[c->x86_vendor]->c_vendor,sizeof(cpu->vendor));
+	strncpy(cpu->model,c->x86_model_id,sizeof(cpu->model));
 }
 
 void detect_cpu(s_cpu *cpu)
 {
          struct cpuinfo_x86 c;
-	 c.x86_cache_alignment = 32;
+	 c.x86_clflush_size = 32;
          c.x86_cache_size = -1;
          c.x86_vendor = X86_VENDOR_UNKNOWN;
          c.cpuid_level = -1;    /* CPUID not detected */
          c.x86_model = c.x86_mask = 0; /* So far unknown... */
-         c.x86_vendor_id[0] = '\0'; /* Unset */
-         c.x86_model_id[0] = '\0';  /* Unset */
-	 memset(&c.x86_vendor_id,'\0',CPU_VENDOR_SIZE);
+	 c.x86_max_cores = 1;
+	 memset(&c.x86_capability, 0, sizeof(c.x86_capability));
+	 memset(&c.x86_vendor_id,0,sizeof(c.x86_vendor_id));
+	 memset(&c.x86_model_id,0,sizeof(c.x86_model_id));
 
          if (!have_cpuid_p())
                  return;

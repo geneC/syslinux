@@ -14,23 +14,23 @@
 ## samples for syslinux users
 ##
 
-topdir = ..
+topdir = ../..
 include $(topdir)/MCONFIG.embedded
 
-INCLUDES   = -I$(com32)/include
+INCLUDES   = -I$(com32)/include -I$(com32)/cmenu/libmenu -I$(com32)/gplinclude
 
-PPMTOLSS16 = $(topdir)/utils/ppmtolss16
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 LIB	   = liboldcom32.a
 
-LIBOBJS	   = conio.o atou.o skipatou.o printf.o c32exit.o
+com32	= $(topdir)/com32
+LIBS	= $(LIB) $(com32)/cmenu/libmenu/libmenu.a \
+	  $(com32)/gpllib/libcom32gpl.a \
+	  $(com32)/libutil/libutil_com.a $(com32)/lib/libcom32.a \
+          $(LIBGCC)
 
-com32 = $(topdir)/com32
-C_LIBS	   = $(com32)/libutil/libutil_com.a $(com32)/lib/libcom32.a $(LIBGCC)
-LDFLAGS    = -m elf_i386 -T $(com32)/lib/com32.ld
+LDFLAGS	= -m elf_i386 -T $(com32)/lib/com32.ld
 
-all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 \
-     fd.c32 $(LIB)
+all:  hdt.c32 $(LIB)
 
 .PRECIOUS: %.o
 %.o: %.S
@@ -38,11 +38,21 @@ all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 \
 
 .PRECIOUS: %.o
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -std=gnu99  -D__COM32__ -c -o $@ $<
 
 .PRECIOUS: %.elf
 %.elf: c32entry.o %.o $(LIB)
 	$(LD) -Ttext 0x101000 -e _start -o $@ $^
+
+hdt.elf: hdt.o hdt-ata.o hdt-menu.o hdt-menu-pci.o hdt-menu-kernel.o \
+	hdt-menu-disk.o hdt-menu-dmi.o hdt-menu-processor.o \
+	hdt-menu-syslinux.o hdt-menu-about.o \
+	hdt-cli.o hdt-common.o hdt-cli-pci.o hdt-cli-dmi.o \
+	hdt-cli-cpu.o hdt-cli-pxe.o hdt-cli-kernel.o \
+	hdt-cli-syslinux.o \
+	hdt-menu-pxe.o hdt-menu-summary.o\
+	$(LIBS)
+	$(LD) $(LDFLAGS) -o $@ $^
 
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
@@ -50,24 +60,16 @@ all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 \
 %.com: %.asm
 	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 
-$(LIB): $(LIBOBJS)
+$(LIB):
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
-
-%.lss:	%.ppm.gz $(PPMTOLSS16)
-	$(GZIPPROG) -cd $< | \
-		$(PPMTOLSS16) \#000000=0 \#d0d0d0=7 \#f6f6f6=15	\
-		> $@
-
-%.ppm.gz: %.png
-	$(PNGTOPNM) $< | gzip -9 > $@
 
 tidy dist:
 	rm -f *.o *.a *.lst *.elf
 
 # Don't specify *.com since mdiskchk.com can't be built using Linux tools
 clean: tidy
-	rm -f *.lss *.o *.c32 comecho.com
+	rm -f *.o *.c32 *.c~ *.h~ Makefile~
 
 spotless: clean

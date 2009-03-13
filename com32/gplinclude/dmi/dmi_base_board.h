@@ -25,13 +25,7 @@
 
 #define BASE_BOARD_NB_ELEMENTS			5
 
-static const char *base_board_features_strings[]={
-                "Board is a hosting board", /* 0 */
-                "Board requires at least one daughter board",
-                "Board is removable",
-                "Board is replaceable",
-                "Board is hot swappable" /* 4 */
-};
+extern const char *base_board_features_strings[];
 
 /* this struct have BASE_BOARD_NB_ELEMENTS */
 /* each bool is associated to the relevant message above */
@@ -52,6 +46,8 @@ char asset_tag[BASE_BOARD_ASSET_TAG_SIZE];
 char location[BASE_BOARD_LOCATION_SIZE];
 char type[BASE_BOARD_TYPE_SIZE];
 s_base_board_features features;
+/* The filled field have to be set to true when the dmitable implement that item */
+bool filled;
 } s_base_board;
 
 #endif

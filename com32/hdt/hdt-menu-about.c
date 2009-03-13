@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2006 Erwan Velu - All Rights Reserved
+ *   Copyright 2009 Erwan Velu - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,43 +26,39 @@
  * -----------------------------------------------------------------------
 */
 
-#include "stdio.h"
-#include "dmi/dmi.h"
+#include "hdt-menu.h"
 
-void display_bios_characteristics(s_dmi *dmi) {
-int i;
-  for (i=0;i<BIOS_CHAR_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->bios.characteristics))[i] == true) {
-               moreprintf("\t\t%s\n", bios_charac_strings[i]);
-                }
-  }
-  for (i=0;i<BIOS_CHAR_X1_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->bios.characteristics_x1))[i] == true) {
-               moreprintf("\t\t%s\n", bios_charac_x1_strings[i]);
-                }
-  }
+/* Computing About menu*/
+void compute_aboutmenu(struct s_my_menu *menu) {
+  char buffer[SUBMENULEN+1];
+  char statbuffer[STATLEN+1];
 
-  for (i=0;i<BIOS_CHAR_X2_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->bios.characteristics_x2))[i] == true) {
-               moreprintf("\t\t%s\n", bios_charac_x2_strings[i]);
-                }
-  }
+  menu->menu = add_menu(" About ",-1);
+  menu->items_count=0;
+
+  set_menu_pos(SUBMENU_Y,SUBMENU_X);
+
+  snprintf(buffer, sizeof buffer, "Product : %s", PRODUCT_NAME);
+  snprintf(statbuffer, sizeof statbuffer, "Product : %s", PRODUCT_NAME);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Version : %s", VERSION);
+  snprintf(statbuffer, sizeof statbuffer, "Version : %s", VERSION);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Author  : %s", AUTHOR);
+  snprintf(statbuffer, sizeof statbuffer, "Author  : %s", AUTHOR);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Contact : %s", CONTACT);
+  snprintf(statbuffer, sizeof statbuffer, "Contact : %s", CONTACT);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
+
+  printf("MENU: About menu done (%d items)\n",menu->items_count);
+
 }
 
-void display_base_board_features(s_dmi *dmi) {
-int i;
-  for (i=0;i<BASE_BOARD_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->base_board.features))[i] == true) {
-               moreprintf("\t\t%s\n", base_board_features_strings[i]);
-                }
-  }
-}
-
-void display_processor_flags(s_dmi *dmi) {
-int i;
-  for (i=0;i<PROCESSOR_FLAGS_ELEMENTS; i++) {
-        if (((bool *)(& dmi->processor.cpu_flags))[i] == true) {
-               moreprintf("\t\t%s\n", cpu_flags_strings[i]);
-                }
-  }
-}

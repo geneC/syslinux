@@ -30,17 +30,60 @@
 #include <string.h>
 #include "dmi/dmi.h"
 
+const char *out_of_spec = "<OUT OF SPEC>";
+const char *bad_index = "<BAD INDEX>";
 
-
-void to_dmi_header(struct dmi_header *h, u8 *data)
+void dmi_bios_runtime_size(uint32_t code, s_dmi *dmi)
 {
-        h->type=data[0];
-        h->length=data[1];
-        h->handle=WORD(data+2);
-        h->data=data;
+        if(code&0x000003FF) {
+                dmi->bios.runtime_size=code;
+                strcpy(dmi->bios.runtime_size_unit,"bytes");
+        } else {
+                dmi->bios.runtime_size=code >>10;
+                strcpy(dmi->bios.runtime_size_unit,"KB");
+
+        }
 }
 
-void dmi_system_uuid(u8 *p, s_dmi *dmi)
+void dmi_bios_characteristics(uint64_t code, s_dmi *dmi)
+{
+        int i;
+        /*
+         * This isn't very clear what this bit is supposed to mean
+         */
+        //if(code.l&(1<<3))
+        if(code&&(1<<3))
+        {
+                ((bool *)(& dmi->bios.characteristics))[0]=true;
+                return;
+        }
+
+        for(i=4; i<=31; i++)
+                //if(code.l&(1<<i))
+                if(code&(1<<i))
+                        ((bool *)(& dmi->bios.characteristics))[i-3]=true;
+}
+
+void dmi_bios_characteristics_x1(uint8_t code, s_dmi *dmi)
+{
+        int i;
+
+        for(i=0; i<=7; i++)
+                if(code&(1<<i))
+                        ((bool *)(& dmi->bios.characteristics_x1))[i]=true;
+}
+
+void dmi_bios_characteristics_x2(uint8_t code, s_dmi *dmi)
+{
+        int i;
+
+        for(i=0; i<=2; i++)
+                if(code&(1<<i))
+                        ((bool *)(& dmi->bios.characteristics_x2))[i]=true;
+}
+
+
+void dmi_system_uuid(uint8_t *p, s_dmi *dmi)
 {
         int only0xFF=1, only0x00=1;
         int i;
@@ -67,20 +110,42 @@ void dmi_system_uuid(u8 *p, s_dmi *dmi)
                 p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
 }
 
-static void dmi_base_board_features(u8 code, s_dmi *dmi)
+void dmi_system_wake_up_type(uint8_t code, s_dmi *dmi)
+{
+        /* 3.3.2.1 */
+        static const char *type[]={
+                "Reserved", /* 0x00 */
+                "Other",
+                "Unknown",
+                "APM Timer",
+                "Modem Ring",
+                "LAN Remote",
+                "Power Switch",
+                "PCI PME#",
+                "AC Power Restored" /* 0x08 */
+        };
+
+        if(code<=0x08) {
+                strcpy(dmi->system.wakeup_type,type[code]);
+        } else {
+                strcpy(dmi->system.wakeup_type,out_of_spec);
+        }
+return;
+}
+
+static void dmi_base_board_features(uint8_t code, s_dmi *dmi)
 {
         if((code&0x1F)!=0)
         {
                 int i;
 
-                printf("\n");
                 for(i=0; i<=4; i++)
                         if(code&(1<<i))
-			((bool *)(& dmi->base_board.features))[i]=true;
+                        ((bool *)(& dmi->base_board.features))[i]=true;
         }
 }
 
-static void dmi_processor_voltage(u8 code, s_dmi *dmi)
+static void dmi_processor_voltage(uint8_t code, s_dmi *dmi)
 {
         /* 3.3.5.4 */
         static const float voltage[]={
@@ -100,14 +165,14 @@ static void dmi_processor_voltage(u8 code, s_dmi *dmi)
         }
 }
 
-static void dmi_processor_id(u8 type, u8 *p, const char *version, s_dmi *dmi)
+static void dmi_processor_id(uint8_t type, uint8_t *p, const char *version, s_dmi *dmi)
 {
         /*
          * Extra flags are now returned in the ECX register when one calls
          * the CPUID instruction. Their meaning is explained in table 6, but
          * DMI doesn't support this yet.
          */
-        u32 eax, edx;
+        uint32_t eax, edx;
         int sig=0;
 
         /*
@@ -119,7 +184,7 @@ static void dmi_processor_id(u8 type, u8 *p, const char *version, s_dmi *dmi)
 
         if(type==0x05) /* 80386 */
         {
-                u16 dx=WORD(p);
+                uint16_t dx=WORD(p);
                 /*
                  * 80386 have a different signature.
                  */
@@ -131,7 +196,7 @@ static void dmi_processor_id(u8 type, u8 *p, const char *version, s_dmi *dmi)
         }
         if(type==0x06) /* 80486 */
         {
-                u16 dx=WORD(p);
+                uint16_t dx=WORD(p);
                 /*
                  * Not all 80486 CPU support the CPUID instruction, we have to find
                  * wether the one we have here does or not. Note that this trick
@@ -207,77 +272,15 @@ static void dmi_processor_id(u8 type, u8 *p, const char *version, s_dmi *dmi)
 }
 
 
-void dmi_system_wake_up_type(u8 code, s_dmi *dmi)
+void to_dmi_header(struct dmi_header *h, uint8_t *data)
 {
-        /* 3.3.2.1 */
-        static const char *type[]={
-                "Reserved", /* 0x00 */
-                "Other",
-                "Unknown",
-                "APM Timer",
-                "Modem Ring",
-                "LAN Remote",
-                "Power Switch",
-                "PCI PME#",
-                "AC Power Restored" /* 0x08 */
-        };
-
-        if(code<=0x08) {
-                strcpy(dmi->system.wakeup_type,type[code]);
-	} else {
-                strcpy(dmi->system.wakeup_type,out_of_spec);
-	}
-return;
+        h->type=data[0];
+        h->length=data[1];
+        h->handle=WORD(data+2);
+        h->data=data;
 }
 
-void dmi_bios_runtime_size(u32 code, s_dmi *dmi)
-{
-        if(code&0x000003FF) {
-		dmi->bios.runtime_size=code;
-		strcpy(dmi->bios.runtime_size_unit,"bytes");
-	} else {
-		dmi->bios.runtime_size=code >>10;
-		strcpy(dmi->bios.runtime_size_unit,"KB");
-
-	}
-}
-
-void dmi_bios_characteristics(u64 code, s_dmi *dmi)
-{
-        int i;
-        /*
-         * This isn't very clear what this bit is supposed to mean
-         */
-        if(code.l&(1<<3))
-        {
-		((bool *)(& dmi->bios.characteristics))[0]=true;
-                return;
-        }
-
-        for(i=4; i<=31; i++)
-                if(code.l&(1<<i))
-			((bool *)(& dmi->bios.characteristics))[i-3]=true;
-}
-
-void dmi_bios_characteristics_x1(u8 code, s_dmi *dmi)
-{
-        int i;
-
-        for(i=0; i<=7; i++)
-                if(code&(1<<i))
-			((bool *)(& dmi->bios.characteristics_x1))[i]=true;
-}
-
-void dmi_bios_characteristics_x2(u8 code, s_dmi *dmi)
-{
-        int i;
-
-        for(i=0; i<=2; i++)
-                if(code&(1<<i))
-			((bool *)(& dmi->bios.characteristics_x2))[i]=true;
-}
-
-const char *dmi_string(struct dmi_header *dm, u8 s)
+const char *dmi_string(struct dmi_header *dm, uint8_t s)
 {
         char *bp=(char *)dm->data;
         size_t i, len;
@@ -305,9 +308,9 @@ const char *dmi_string(struct dmi_header *dm, u8 s)
         return bp;
 }
 
-inline int dmi_checksum(u8 *buf)
+int dmi_checksum(uint8_t *buf)
 {
-        u8 sum=0;
+        uint8_t sum=0;
         int a;
 
         for(a=0; a<15; a++)
@@ -315,41 +318,68 @@ inline int dmi_checksum(u8 *buf)
         return (sum==0);
 }
 
-int dmi_interate() {
-  u8 buf[16];
+int dmi_iterate(s_dmi *dmi) {
+  uint8_t buf[16];
   char *p,*q;
+
+  /* Cleaning structures */
+  memset(&dmi->base_board,0,sizeof (s_base_board));
+  memset(&dmi->battery,0,sizeof (s_battery));
+  memset(&dmi->bios,0,sizeof (s_bios));
+  memset(&dmi->chassis,0,sizeof (s_chassis));
+  for (int i=0;i<MAX_DMI_MEMORY_ITEMS;i++)
+	memset(&dmi->memory[i],0,sizeof (s_memory));
+  memset(&dmi->processor,0,sizeof (s_processor));
+  memset(&dmi->system,0,sizeof (s_system));
+
+  /* Until we found this elements in the dmitable, we consider them as not filled */
+  dmi->base_board.filled=false;
+  dmi->battery.filled=false;
+  dmi->bios.filled=false;
+  dmi->chassis.filled=false;
+  for (int i=0;i<MAX_DMI_MEMORY_ITEMS;i++)
+	  dmi->memory[i].filled=false;
+  dmi->processor.filled=false;
+  dmi->system.filled=false;
+
   p=(char *)0xF0000; /* The start address to look at the dmi table */
   for (q = p; q < p + 0x10000; q += 16) {
         memcpy(buf, q, 15);
         if(memcmp(buf, "_DMI_", 5)==0 && dmi_checksum(buf)) {
-             dmitable.num  = buf[13]<<8|buf[12];
-             dmitable.len  = buf[7]<<8|buf[6];
-             dmitable.base = buf[11]<<24|buf[10]<<16|buf[9]<<8|buf[8];
-	     dmitable.ver  = (buf[0x06]<<8)+buf[0x07];
+             dmi->dmitable.num  = buf[13]<<8|buf[12];
+             dmi->dmitable.len  = buf[7]<<8|buf[6];
+             dmi->dmitable.base = buf[11]<<24|buf[10]<<16|buf[9]<<8|buf[8];
+	     dmi->dmitable.ver  = (buf[0x06]<<8)+buf[0x07];
 
              /*
               * DMI version 0.0 means that the real version is taken from
               * the SMBIOS version, which we don't know at this point.
              */
-             if(buf[14]!=0)
-                   printf("DMI %d.%d present.\n",buf[14]>>4, buf[14]&0x0F);
-             else
-                   printf("DMI present.\n");
+             if(buf[14]!=0) {
+		   dmi->dmitable.major_version=buf[14]>>4;
+		   dmi->dmitable.minor_version=buf[14]&0x0F;
+	     }
+             else {
+		   dmi->dmitable.major_version=0;
+		   dmi->dmitable.minor_version=0;
+
+	     }
+/*              printf("DMI present (version %d.%d)\n", dmitable.major_version,dmitable.minor_version);
               printf("%d structures occupying %d bytes.\n",dmitable.num, dmitable.len);
-              printf("DMI table at 0x%08X.\n",dmitable.base);
-	      return 1;
+              printf("DMI table at 0x%08X.\n",dmitable.base);*/
+	      return DMI_TABLE_PRESENT;
          }
   }
-  dmitable.base=0;
-  dmitable.num=0;
-  dmitable.ver=0;
-  dmitable.len=0;
-  return 0;
+  dmi->dmitable.base=0;
+  dmi->dmitable.num=0;
+  dmi->dmitable.ver=0;
+  dmi->dmitable.len=0;
+  return -ENODMITABLE;
 }
 
-void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
+void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi *dmi)
 {
-        u8 *data=h->data;
+        uint8_t *data=h->data;
 
         /*
          * Note: DMI types 37, 38 and 39 are untested
@@ -359,6 +389,7 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
                 case 0: /* 3.3.1 BIOS Information */
 //                        printf("BIOS Information\n");
                         if(h->length<0x12) break;
+			dmi->bios.filled=true;
 			strcpy(dmi->bios.vendor,dmi_string(h,data[0x04]));
 			strcpy(dmi->bios.version,dmi_string(h,data[0x05]));
 			strcpy(dmi->bios.release_date,dmi_string(h,data[0x08]));
@@ -383,6 +414,7 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
                 case 1: /* 3.3.2 System Information */
 //                        printf("System Information\n");
                         if(h->length<0x08) break;
+			dmi->system.filled=true;
 			strcpy(dmi->system.manufacturer,dmi_string(h,data[0x04]));
 			strcpy(dmi->system.product_name,dmi_string(h,data[0x05]));
 			strcpy(dmi->system.version,dmi_string(h,data[0x06]));
@@ -398,6 +430,7 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
                 case 2: /* 3.3.3 Base Board Information */
 //                        printf("Base Board Information\n");
                         if(h->length<0x08) break;
+			dmi->base_board.filled=true;
 			strcpy(dmi->base_board.manufacturer,dmi_string(h,data[0x04]));
 			strcpy(dmi->base_board.product_name,dmi_string(h,data[0x05]));
 			strcpy(dmi->base_board.version,dmi_string(h,data[0x06]));
@@ -407,11 +440,12 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
                         dmi_base_board_features(data[0x09], dmi);
 			strcpy(dmi->base_board.location,dmi_string(h,data[0x0A]));
 			strcpy(dmi->base_board.type,dmi_string(h,data[0x0D]));
-                        if(h->length<0x0F+data[0x0E]*sizeof(u16)) break;
+                        if(h->length<0x0F+data[0x0E]*sizeof(uint16_t)) break;
                         break;
                 case 3: /* 3.3.4 Chassis Information */
 //                        printf("Chassis Information\n");
                         if(h->length<0x09) break;
+			dmi->chassis.filled=true;
 			strcpy(dmi->chassis.manufacturer,dmi_string(h,data[0x04]));
                         strcpy(dmi->chassis.type,dmi_chassis_type(data[0x05]&0x7F));
                         strcpy(dmi->chassis.lock,dmi_chassis_lock(data[0x05]>>7));
@@ -433,10 +467,11 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
 			case 4: /* 3.3.5 Processor Information */
 //                        printf("Processor Information\n");
                         if(h->length<0x1A) break;
+			dmi->processor.filled=true;
 			strcpy(dmi->processor.socket_designation,dmi_string(h, data[0x04]));
                         strcpy(dmi->processor.type,dmi_processor_type(data[0x05]));
-                        strcpy(dmi->processor.family,dmi_processor_family(data[0x06]));
 			strcpy(dmi->processor.manufacturer,dmi_string(h, data[0x07]));
+                        strcpy(dmi->processor.family,dmi_processor_family(data[0x06],dmi->processor.manufacturer));
                         dmi_processor_id(data[0x06], data+8, dmi_string(h, data[0x10]), dmi);
                         strcpy(dmi->processor.version,dmi_string(h, data[0x10]));
                         dmi_processor_voltage(data[0x11],dmi);
@@ -457,18 +492,82 @@ void dmi_decode(struct dmi_header *h, u16 ver, s_dmi *dmi)
                         strcpy(dmi->processor.asset_tag,dmi_string(h, data[0x21]));
                         strcpy(dmi->processor.part_number,dmi_string(h, data[0x22]));
                         break;
+                case 17: /* 3.3.18 Memory Device */
+                        if (h->length < 0x15) break;
+			dmi->memory_count++;
+			s_memory *mem = &dmi->memory[dmi->memory_count-1];
+			dmi->memory[dmi->memory_count-1].filled=true;
+                        dmi_memory_array_error_handle(WORD(data + 0x06),mem->error);
+                        dmi_memory_device_width(WORD(data + 0x08),mem->total_width);
+                        dmi_memory_device_width(WORD(data + 0x0A),mem->data_width);
+                        dmi_memory_device_size(WORD(data + 0x0C),mem->size);
+                        strcpy(mem->form_factor,dmi_memory_device_form_factor(data[0x0E]));
+                        dmi_memory_device_set(data[0x0F],mem->device_set);
+                        strcpy(mem->device_locator,dmi_string(h, data[0x10]));
+                        strcpy(mem->bank_locator,dmi_string(h, data[0x11]));
+                        strcpy(mem->type,dmi_memory_device_type(data[0x12]));
+                        dmi_memory_device_type_detail(WORD(data + 0x13),mem->type_detail);
+                        if (h->length < 0x17) break;
+                        dmi_memory_device_speed(WORD(data + 0x15),mem->speed);
+		        if (h->length < 0x1B) break;
+                        strcpy(mem->manufacturer, dmi_string(h, data[0x17]));
+                        strcpy(mem->serial,dmi_string(h, data[0x18]));
+                        strcpy(mem->asset_tag,dmi_string(h, data[0x19]));
+                        strcpy(mem->part_number,dmi_string(h, data[0x1A]));
+                        break;
+		case 22: /* 3.3.23 Portable Battery */
+                        if (h->length < 0x10) break;
+			dmi->battery.filled=true;
+                        strcpy(dmi->battery.location,dmi_string(h, data[0x04]));
+                        strcpy(dmi->battery.manufacturer,dmi_string(h, data[0x05]));
+
+			if (data[0x06] || h->length < 0x1A)
+				strcpy(dmi->battery.manufacture_date, dmi_string(h, data[0x06]));
+
+			if (data[0x07] || h->length < 0x1A)
+				strcpy(dmi->battery.serial, dmi_string(h, data[0x07]));
+
+			strcpy(dmi->battery.name,dmi_string(h, data[0x08]));
+
+			if (data[0x09] != 0x02 || h->length < 0x1A)
+                        strcpy(dmi->battery.chemistry,dmi_battery_chemistry(data[0x09]));
+
+			if (h->length < 0x1A)
+                                dmi_battery_capacity(WORD(data + 0x0A), 1,dmi->battery.design_capacity);
+                        else
+                                dmi_battery_capacity(WORD(data + 0x0A), data[0x15],dmi->battery.design_capacity);
+                        dmi_battery_voltage(WORD(data + 0x0C),dmi->battery.design_voltage);
+                        strcpy(dmi->battery.sbds,dmi_string(h, data[0x0E]));
+                        dmi_battery_maximum_error(data[0x0F],dmi->battery.maximum_error);
+                        if (h->length < 0x1A) break;
+                        if (data[0x07] == 0)
+			   sprintf(dmi->battery.sbds_serial,"%04X", WORD(data + 0x10));
+
+			if (data[0x06] == 0)
+				sprintf(dmi->battery.sbds_manufacture_date,"%u-%02u-%02u",
+						1980 + (WORD(data + 0x12) >> 9),
+						(WORD(data + 0x12) >> 5) & 0x0F,
+						WORD(data + 0x12) & 0x1F);
+                        if (data[0x09] == 0x02)
+				strcpy(dmi->battery.sbds_chemistry, dmi_string(h, data[0x14]));
+
+		//	sprintf(dmi->battery.oem_info,"0x%08X",DWORD(h, data+0x16));
+                        break;
+
+
         }
 }
 
 void parse_dmitable(s_dmi *dmi) {
   int i=0;
-  u8 *data = NULL;
-  u8 buf[dmitable.len];
+  uint8_t *data = NULL;
+  uint8_t buf[dmi->dmitable.len];
 
-  memcpy(buf,(int *)dmitable.base,sizeof(u8) * dmitable.len);
+  memcpy(buf,(int *)dmi->dmitable.base,sizeof(uint8_t) * dmi->dmitable.len);
   data=buf;
-  while(i<dmitable.num && data+4<=buf+dmitable.len) /* 4 is the length of an SMBIOS structure header */ {
-        u8 *next;
+  dmi->memory_count=0;
+  while(i<dmi->dmitable.num && data+4<=buf+dmi->dmitable.len) /* 4 is the length of an SMBIOS structure header */ {
+        uint8_t *next;
         struct dmi_header h;
         to_dmi_header(&h, data);
 
@@ -488,16 +587,13 @@ void parse_dmitable(s_dmi *dmi) {
 
         /* loo for the next handle */
         next=data+h.length;
-        while(next-buf+1<dmitable.len && (next[0]!=0 || next[1]!=0))
+        while(next-buf+1<dmi->dmitable.len && (next[0]!=0 || next[1]!=0))
                next++;
         next+=2;
-        if(next-buf<=dmitable.len)
+        if(next-buf<=dmi->dmitable.len)
            {
-             dmi_decode(&h, dmitable.ver,dmi);
+             dmi_decode(&h, dmi->dmitable.ver,dmi);
            }
-        else
-           printf("\t<TRUNCATED>\n");
-           printf("\n");
         data=next;
         i++;
   }

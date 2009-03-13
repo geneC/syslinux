@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2006 Erwan Velu - All Rights Reserved
+ *   Copyright 2009 Erwan Velu - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,43 +26,17 @@
  * -----------------------------------------------------------------------
 */
 
-#include "stdio.h"
-#include "dmi/dmi.h"
+#ifndef DEFINE_HDT_H
+#define DEFINE_HDT_H
 
-void display_bios_characteristics(s_dmi *dmi) {
-int i;
-  for (i=0;i<BIOS_CHAR_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->bios.characteristics))[i] == true) {
-               moreprintf("\t\t%s\n", bios_charac_strings[i]);
-                }
-  }
-  for (i=0;i<BIOS_CHAR_X1_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->bios.characteristics_x1))[i] == true) {
-               moreprintf("\t\t%s\n", bios_charac_x1_strings[i]);
-                }
-  }
+#define PRODUCT_NAME "Hardware Detection Tool"
+#define AUTHOR "Erwan Velu"
+#define CONTACT "erwan(dot)velu(point)free(dot)fr"
+#define VERSION "0.2.3"
 
-  for (i=0;i<BIOS_CHAR_X2_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->bios.characteristics_x2))[i] == true) {
-               moreprintf("\t\t%s\n", bios_charac_x2_strings[i]);
-                }
-  }
-}
+#define ATTR_PACKED __attribute__((packed))
 
-void display_base_board_features(s_dmi *dmi) {
-int i;
-  for (i=0;i<BASE_BOARD_NB_ELEMENTS; i++) {
-        if (((bool *)(& dmi->base_board.features))[i] == true) {
-               moreprintf("\t\t%s\n", base_board_features_strings[i]);
-                }
-  }
-}
+#define WITH_PCI 1
+#define WITH_MENU_DISPLAY 1
 
-void display_processor_flags(s_dmi *dmi) {
-int i;
-  for (i=0;i<PROCESSOR_FLAGS_ELEMENTS; i++) {
-        if (((bool *)(& dmi->processor.cpu_flags))[i] == true) {
-               moreprintf("\t\t%s\n", cpu_flags_strings[i]);
-                }
-  }
-}
+#endif

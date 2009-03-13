@@ -62,6 +62,38 @@ typedef struct {
   uint16_t seg;
 } segoff16_t;
 
+typedef struct {
+uint8_t opcode;
+#define BOOTP_REQ 1
+#define BOOTP_REP 2
+uint8_t Hardware;
+uint8_t Hardlen;
+uint8_t Gatehops;
+uint32_t ident;
+uint16_t seconds;
+uint16_t Flags;
+#define BOOTP_BCAST 0x8000
+in_addr_t cip; /* Client IP address*/
+in_addr_t yip; /* You IP address*/
+in_addr_t sip; /* next server IP address*/
+in_addr_t gip; /*relay agent IP address */
+mac_addr_t CAddr;
+uint8_t Sname[64];
+uint8_t bootfile[128];
+union
+  {
+    #define BOOTP_DHCPVEND 1024
+    uint8_t d[BOOTP_DHCPVEND];
+    struct {
+      uint8_t magic[4];
+      #define VM_RFC1048 0x63825363L
+      uint32_t flags;
+      uint8_t pad[56];
+    } v;
+  } vendor;
+} __packed pxe_bootp_t;
+
+
 /* Function calling structures and constants */
 
 typedef struct s_PXENV_GET_CACHED_INFO
@@ -528,5 +560,6 @@ typedef struct s_PXENV_UNDI_ISR
 
 /* SYSLINUX-defined PXE utility functions */
 int pxe_get_cached_info(int level, void **buf, size_t *len);
+int pxe_get_nic_type(t_PXENV_UNDI_GET_NIC_TYPE *gnt);
 
 #endif /* _SYSLINUX_PXE_H */

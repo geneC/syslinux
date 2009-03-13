@@ -31,6 +31,8 @@ char uuid[SYSTEM_UUID_SIZE];
 char wakeup_type[SYSTEM_WAKEUP_TYPE_SIZE];
 char sku_number[SYSTEM_SKU_NUMBER_SIZE];
 char family[SYSTEM_FAMILY_SIZE];
+/* The filled field have to be set to true when the dmitable implement that item */
+bool filled;
 } s_system;
 
 #endif
