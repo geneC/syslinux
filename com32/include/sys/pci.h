@@ -47,6 +47,7 @@ struct pci_device {
       uint32_t vid_did;
       uint32_t svid_sdid;
       uint32_t rid_class;
+      uint8_t  irq;
     };
   };
   struct pci_dev_info *dev_info;
@@ -134,5 +135,5 @@ struct match * find_pci_device(const struct pci_domain *pci_domain,
 int get_name_from_pci_ids(struct pci_domain *pci_domain, char *pciids_path);
 int get_module_name_from_pci_ids(struct pci_domain *pci_domain, char *modules_pcimap_path);
 int get_class_name_from_pci_ids(struct pci_domain *pci_domain, char *pciids_path);
-
+void gather_additional_pci_config(struct pci_domain *domain);
 #endif /* _SYS_PCI_H */

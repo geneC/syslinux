@@ -63,6 +63,14 @@ void compute_pci_device(struct s_my_menu *menu,struct pci_device *pci_device,int
    snprintf(statbuffer,sizeof statbuffer,"vendor:product[sub_vendor:sub_product] : %04x:%04x[%04x:%04x]",pci_device->vendor, pci_device->product,pci_device->sub_vendor, pci_device->sub_product);
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
    menu->items_count++;
+
+   if ((pci_device->irq>0) && (pci_device->irq<255)) {
+     snprintf(buffer,sizeof buffer,"IRQ     : %02d",pci_device->irq);
+     snprintf(statbuffer,sizeof statbuffer,"IRQ : %02d",pci_device->irq);
+     add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+     menu->items_count++;
+    }
+
    if (pci_device->dev_info->linux_kernel_module_count>1) {
     for (int i=0; i<pci_device->dev_info->linux_kernel_module_count;i++) {
       if (i>0) {

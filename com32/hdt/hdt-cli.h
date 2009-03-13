@@ -45,6 +45,7 @@
 #define CLI_DMI  "dmi"
 #define CLI_CPU  "cpu"
 #define CLI_SHOW_LIST "list"
+#define CLI_IRQ "irq"
 
 typedef enum {
   EXIT_MODE,

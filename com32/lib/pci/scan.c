@@ -83,7 +83,7 @@ int get_module_name_from_pci_ids(struct pci_domain *domain, char *modules_pcimap
   char sub_vendor_id[16];
   char sub_product_id[16];
   FILE *f;
-  struct pci_device *dev;
+  struct pci_device *dev=NULL;
 
   /* Intializing the linux_kernel_module for each pci device to "unknown" */
   /* adding a dev_info member if needed */
@@ -511,6 +511,33 @@ struct pci_domain *pci_scan(void)
   free_pci_domain(domain);
   return NULL;
 }
+
+/* gathering additional configuration*/
+void gather_additional_pci_config(struct pci_domain *domain)
+{
+  struct pci_bus    *bus    = NULL;
+  struct pci_slot   *slot   = NULL;
+  unsigned int nbus, ndev, nfunc, maxfunc;
+  pciaddr_t a;
+  int cfgtype;
+  cfgtype = pci_set_config_type(PCI_CFG_AUTO);
+  (void)cfgtype;
+
+  for (nbus = 0; nbus < MAX_PCI_BUSES; nbus++) {
+    bus = NULL;
+
+    for (ndev = 0; ndev < MAX_PCI_DEVICES; ndev++) {
+      maxfunc = 1;              /* Assume a single-function device */
+      slot = NULL;
+
+      for (nfunc = 0; nfunc < maxfunc; nfunc++) {
+        a = pci_mkaddr(nbus, ndev, nfunc, 0);
+        domain->bus[nbus]->slot[ndev]->func[nfunc]->irq = pci_readb(a + 0x3c);
+      }
+    }
+  }
+}
+
 
 void free_pci_domain(struct pci_domain *domain)
 {

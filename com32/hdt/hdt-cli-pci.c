@@ -101,6 +101,8 @@ void show_pci_device(struct s_hardware *hardware, const char *item) {
  more_printf("SubProduct ID : %04x\n",pci_device->sub_product);
  more_printf("Class ID      : %02x.%02x.%02x\n",pci_device->class[2], pci_device->class[1],pci_device->class[0]);
  more_printf("Revision      : %02x\n",pci_device->revision);
+ if ((pci_device->irq>0) && (pci_device->irq<255))
+   more_printf("IRQ           : %0d\n",pci_device->irq);
  more_printf("PCI Bus       : %02d\n",bus);
  more_printf("PCI Slot      : %02d\n",slot);
  more_printf("PCI Func      : %02d\n",func);
@@ -162,7 +164,7 @@ void show_pci_devices(struct s_hardware *hardware) {
     if (nomodulespcimap == true) {
 	more_printf("%02d: %04x:%04x [%04x:%04x] \n",
                i, pci_device->vendor, pci_device->product,
-               pci_device->sub_vendor, pci_device->sub_product,kernel_modules);
+               pci_device->sub_vendor, pci_device->sub_product);
     }
     else {
 	    more_printf("%02d: %04x:%04x [%04x:%04x] Kmod:%s\n",
@@ -176,15 +178,51 @@ void show_pci_devices(struct s_hardware *hardware) {
  }
 
 }
+
+void show_pci_irq(struct s_hardware *hardware) {
+ struct pci_device *pci_device;
+ bool nopciids=false;
+
+ clear_screen();
+ more_printf("%d PCI devices detected\n",hardware->nb_pci_devices);
+ more_printf("IRQ : product\n");
+ more_printf("-------------\n");
+ if (hardware->pci_ids_return_code == -ENOPCIIDS) {
+    nopciids=true;
+  }
+
+  /* For every detected pci device, compute its submenu */
+ for_each_pci_func(pci_device, hardware->pci_domain) {
+   /* Only display valid IRQs*/
+   if ((pci_device->irq>0) && (pci_device->irq<255)) {
+     if (nopciids == false)  {
+        more_printf("%02d  : %s %s \n",
+               pci_device->irq,pci_device->dev_info->vendor_name,
+               pci_device->dev_info->product_name);
+
+     } else {
+	more_printf("%02d  : %04x:%04x [%04x:%04x] \n",
+               pci_device->irq, pci_device->vendor, pci_device->product,
+               pci_device->sub_vendor, pci_device->sub_product);
+     }
+   }
+ }
+}
+
 void show_pci_help() {
  more_printf("Show supports the following commands : \n");
  more_printf(" %s\n",CLI_SHOW_LIST);
  more_printf(" %s <device_number>\n",CLI_PCI_DEVICE);
+ more_printf(" %s\n",CLI_IRQ);
 }
 
 void pci_show(char *item, struct s_hardware *hardware) {
  if ( !strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1) ) {
    show_pci_devices(hardware);
+   return;
+ }
+ if ( !strncmp(item, CLI_IRQ, sizeof(CLI_IRQ) - 1) ) {
+   show_pci_irq(hardware);
    return;
  }
  if ( !strncmp(item, CLI_PCI_DEVICE, sizeof(CLI_PCI_DEVICE) - 1) ) {
@@ -225,14 +263,6 @@ void cli_detect_pci(struct s_hardware *hardware) {
 }
 
 void main_show_pci(struct s_hardware *hardware) {
- int i=1;
- char kernel_modules [LINUX_KERNEL_MODULE_SIZE*MAX_KERNEL_MODULES_PER_PCI_DEVICE];
- struct pci_device *pci_device;
- bool nopciids=false;
- bool nomodulespcimap=false;
- char first_line[81];
- char second_line[81];
- char third_line[81];
  cli_detect_pci(hardware);
 
  more_printf("PCI\n");
