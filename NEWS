@@ -16,6 +16,8 @@ Changes in 3.74:
 	  large number of fragments.
 	* Documentation fixes by Vicente Jimenez Aguilar.
 	* gPXE updated to version 0.9.7.
+	* hdt.c32: Hardware Detection Tool, an interactive hardware
+	  analyzer module by Erwan Velu.
 
 Changes in 3.73:
 	* Upgrade gPXE to release version 0.9.5.
