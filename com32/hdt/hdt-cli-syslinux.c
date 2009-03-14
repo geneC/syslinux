@@ -49,7 +49,7 @@ void main_show_syslinux(struct s_hardware *hardware)
 static void show_syslinux_help()
 {
   more_printf("Show supports the following commands : %s\n",
-        CLI_SHOW_LIST);
+              CLI_SHOW_LIST);
 }
 
 static void syslinux_show(char *item, struct s_hardware *hardware)
