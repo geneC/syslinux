@@ -152,7 +152,7 @@ void show_cpu_help()
   more_printf("Show supports the following commands : %s\n", CLI_CPU);
 }
 
-void cpu_show(char *item, struct s_hardware *hardware)
+static void cpu_show(char *item, struct s_hardware *hardware)
 {
   if (!strncmp(item, CLI_CPU, sizeof(CLI_CPU) - 1)) {
     show_cpu(hardware);
