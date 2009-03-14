@@ -280,7 +280,7 @@ void main_show_summary(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
   main_show_pci(hardware);
 
   if (hardware->is_pxe_valid)
-    main_show_pxe(hardware, cli_mode);
+    main_show_pxe(hardware);
 
   main_show_kernel(hardware);
 }
@@ -319,7 +319,7 @@ void main_show(char *item, struct s_hardware *hardware,
     return;
   }
   if (!strncmp(item, CLI_PXE, sizeof(CLI_PXE))) {
-    main_show_pxe(hardware, cli_mode);
+    main_show_pxe(hardware);
     return;
   }
   if (!strncmp(item, CLI_SYSLINUX, sizeof(CLI_SYSLINUX))) {

@@ -36,7 +36,7 @@
 #include "hdt-cli.h"
 #include "hdt-common.h"
 
-void main_show_pxe(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
+void main_show_pxe(struct s_hardware *hardware)
 {
   char buffer[81];
   memset(buffer, 0, sizeof(81));
@@ -85,7 +85,7 @@ static void show_pxe_help()
 void pxe_show(char *item, struct s_hardware *hardware)
 {
   if (!strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1)) {
-    main_show_pxe(hardware, NULL);
+    main_show_pxe(hardware);
     return;
   }
   show_pxe_help();
