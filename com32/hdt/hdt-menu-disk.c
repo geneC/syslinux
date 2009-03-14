@@ -158,7 +158,7 @@ void compute_disks(struct s_hdt_menu *menu, struct diskinfo *disk_info)
   int nb_sub_disk_menu = 0;
   for (int i = 0; i < 0xff; i++) {
     if (compute_disk_module
-        (&(menu->disk_sub_menu), nb_sub_disk_menu, disk_info,
+        ((struct s_my_menu*) &(menu->disk_sub_menu), nb_sub_disk_menu, disk_info,
          i) == 0)
       nb_sub_disk_menu++;
   }
