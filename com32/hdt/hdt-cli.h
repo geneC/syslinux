@@ -106,7 +106,7 @@ void pci_show(char *item, struct s_hardware *hardware);
 void cli_detect_pci(struct s_hardware *hardware);
 
 // CPU STUFF
-void main_show_cpu(struct s_hardware *hardware, struct s_cli_mode *cli_mode);
+void main_show_cpu(struct s_hardware *hardware);
 void handle_cpu_commands(char *cli_line, struct s_hardware *hardware);
 
 // PXE STUFF

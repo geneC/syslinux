@@ -169,7 +169,7 @@ void handle_cpu_commands(char *cli_line, struct s_hardware *hardware)
   }
 }
 
-void main_show_cpu(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
+void main_show_cpu(struct s_hardware *hardware)
 {
   cpu_detect(hardware);
   detect_dmi(hardware);

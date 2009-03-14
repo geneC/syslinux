@@ -262,7 +262,7 @@ void main_show_summary(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
   detect_dmi(hardware);
   cpu_detect(hardware);
   clear_screen();
-  main_show_cpu(hardware, cli_mode);
+  main_show_cpu(hardware);
   if (hardware->is_dmi_valid) {
     more_printf("System\n");
     more_printf(" Manufacturer : %s\n",
@@ -315,7 +315,7 @@ void main_show(char *item, struct s_hardware *hardware,
     return;
   }
   if (!strncmp(item, CLI_CPU, sizeof(CLI_CPU))) {
-    main_show_cpu(hardware, cli_mode);
+    main_show_cpu(hardware);
     return;
   }
   if (!strncmp(item, CLI_PXE, sizeof(CLI_PXE))) {
