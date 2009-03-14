@@ -204,7 +204,7 @@ void show_pci_devices(struct s_hardware *hardware)
 
 }
 
-void show_pci_help()
+static void show_pci_help()
 {
   more_printf("Show supports the following commands : \n");
   more_printf(" %s\n", CLI_SHOW_LIST);
