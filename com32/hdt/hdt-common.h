@@ -115,7 +115,7 @@ struct s_hardware {
   bool vesa_detection;/* Does the vesa sutff have been already detected? */
 
   char syslinux_fs[22];
-  struct syslinux_version *sv;
+  const struct syslinux_version *sv;
   char modules_pcimap_path[255];
   char pciids_path[255];
 };
