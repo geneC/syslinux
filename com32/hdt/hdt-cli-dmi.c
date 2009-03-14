@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-void show_dmi_help(struct s_hardware *hardware)
+static void show_dmi_help(struct s_hardware *hardware)
 {
   more_printf("Show supports the following commands : \n");
   more_printf(" %s\n", CLI_SHOW_LIST);
