@@ -87,7 +87,7 @@ void main_show_kernel(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
   }
 }
 
-void show_kernel_modules(struct s_hardware *hardware)
+static void show_kernel_modules(struct s_hardware *hardware)
 {
   int i = 1;
   struct pci_device *pci_device;
