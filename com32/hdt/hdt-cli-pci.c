@@ -123,7 +123,7 @@ void show_pci_device(struct s_hardware *hardware, const char *item)
   }
 }
 
-void show_pci_devices(struct s_hardware *hardware)
+static void show_pci_devices(struct s_hardware *hardware)
 {
   int i = 1;
   struct pci_device *pci_device;
