@@ -46,7 +46,7 @@ void main_show_syslinux(struct s_hardware *hardware)
   more_printf(" Copyright  : %s\n", hardware->sv->copyright_string + 1);
 }
 
-void show_syslinux_help()
+static void show_syslinux_help()
 {
   more_printf("Show supports the following commands : %s\n",
         CLI_SHOW_LIST);
