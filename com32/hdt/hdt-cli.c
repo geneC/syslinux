@@ -33,8 +33,8 @@
 #include "hdt-cli.h"
 #include "hdt-common.h"
 
-void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode,
-              struct s_hardware *hardware)
+static void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode,
+                     struct s_hardware *hardware)
 {
   switch (mode) {
   case EXIT_MODE:
