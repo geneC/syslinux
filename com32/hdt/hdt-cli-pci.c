@@ -260,15 +260,6 @@ void cli_detect_pci(struct s_hardware *hardware)
 
 void main_show_pci(struct s_hardware *hardware)
 {
-  int i = 1;
-  char kernel_modules[LINUX_KERNEL_MODULE_SIZE *
-                      MAX_KERNEL_MODULES_PER_PCI_DEVICE];
-  struct pci_device *pci_device;
-  bool nopciids = false;
-  bool nomodulespcimap = false;
-  char first_line[81];
-  char second_line[81];
-  char third_line[81];
   cli_detect_pci(hardware);
 
   more_printf("PCI\n");
