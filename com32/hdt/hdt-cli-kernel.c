@@ -94,8 +94,6 @@ static void show_kernel_modules(struct s_hardware *hardware)
           MAX_KERNEL_MODULES_PER_PCI_DEVICE];
   bool nopciids = false;
   bool nomodulespcimap = false;
-  char first_line[81];
-  char second_line[81];
   char modules[MAX_PCI_CLASSES][256];
   char category_name[MAX_PCI_CLASSES][256];
 
