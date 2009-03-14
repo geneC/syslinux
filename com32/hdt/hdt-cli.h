@@ -118,8 +118,7 @@ void handle_pxe_commands(char *cli_line, struct s_cli_mode *cli_mode,
 
 // KERNEL STUFF
 void main_show_kernel(struct s_hardware *hardware);
-void handle_kernel_commands(char *cli_line, struct s_cli_mode *cli_mode,
-                            struct s_hardware *hardware);
+void handle_kernel_commands(char *cli_line, struct s_hardware *hardware);
 
 // SYSLINUX STUFF
 void main_show_syslinux(struct s_hardware *hardware);

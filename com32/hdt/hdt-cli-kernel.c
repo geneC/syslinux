@@ -163,8 +163,7 @@ void kernel_show(char *item, struct s_hardware *hardware)
   show_kernel_help();
 }
 
-void handle_kernel_commands(char *cli_line, struct s_cli_mode *cli_mode,
-          struct s_hardware *hardware)
+void handle_kernel_commands(char *cli_line, struct s_hardware *hardware)
 {
   if (!strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
     kernel_show(strstr(cli_line, "show") + sizeof(CLI_SHOW),
