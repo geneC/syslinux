@@ -73,7 +73,6 @@ struct s_pxe {
   pxe_bootp_t dhcpdata;           /* The dhcp answer */
   struct pci_device *pci_device;  /* The matching pci device */
   uint8_t pci_device_pos;         /* It position in our pci sorted list */
-  uint8_t pci_device_pos; /* It position in our pci sorted list*/
 };
 
 struct s_vesa_mode_info {
