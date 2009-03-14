@@ -103,6 +103,7 @@ void show_pci_device(struct s_hardware *hardware, const char *item) {
  more_printf("Revision      : %02x\n",pci_device->revision);
  if ((pci_device->dev_info->irq>0) && (pci_device->dev_info->irq<255))
    more_printf("IRQ           : %0d\n",pci_device->dev_info->irq);
+ more_printf("Latency       : %0d\n",pci_device->dev_info->latency);
  more_printf("PCI Bus       : %02d\n",bus);
  more_printf("PCI Slot      : %02d\n",slot);
  more_printf("PCI Func      : %02d\n",func);

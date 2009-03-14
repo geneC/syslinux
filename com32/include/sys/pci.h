@@ -31,6 +31,7 @@ struct pci_dev_info {
   char class_name[PCI_CLASS_NAME_SIZE]; /* The most precise class name */
   char category_name[PCI_CLASS_NAME_SIZE]; /*The general category*/
   uint8_t  irq;
+  uint8_t  latency;
 };
 
 /* PCI device (really, function) */

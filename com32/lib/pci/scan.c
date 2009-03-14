@@ -539,6 +539,7 @@ void gather_additional_pci_config(struct pci_domain *domain)
             return;
           }
         dev->dev_info->irq = pci_readb(a + 0x3c);
+        dev->dev_info->latency = pci_readb(a + 0x0d);
       }
     }
   }

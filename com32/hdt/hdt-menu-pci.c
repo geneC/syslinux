@@ -65,11 +65,16 @@ void compute_pci_device(struct s_my_menu *menu,struct pci_device *pci_device,int
    menu->items_count++;
 
    if ((pci_device->dev_info->irq>0) && (pci_device->dev_info->irq<255)) {
-     snprintf(buffer,sizeof buffer,"IRQ     : %02d",pci_device->dev_info->irq);
-     snprintf(statbuffer,sizeof statbuffer,"IRQ : %02d",pci_device->dev_info->irq);
+     snprintf(buffer,sizeof buffer,"IRQ     : %d",pci_device->dev_info->irq);
+     snprintf(statbuffer,sizeof statbuffer,"IRQ : %d",pci_device->dev_info->irq);
      add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
      menu->items_count++;
     }
+
+  snprintf(buffer,sizeof buffer,"Latency  : %d",pci_device->dev_info->latency);
+  snprintf(statbuffer,sizeof statbuffer,"Latency : %d",pci_device->dev_info->latency);
+  add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+  menu->items_count++;
 
    if (pci_device->dev_info->linux_kernel_module_count>1) {
     for (int i=0; i<pci_device->dev_info->linux_kernel_module_count;i++) {
