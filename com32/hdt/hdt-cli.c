@@ -203,7 +203,7 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[])
       handle_pxe_commands(cli_line, &cli_mode, hardware);
       break;
     case SYSLINUX_MODE:
-      handle_syslinux_commands(cli_line, &cli_mode, hardware);
+      handle_syslinux_commands(cli_line, hardware);
       break;
     case KERNEL_MODE:
       handle_kernel_commands(cli_line, &cli_mode, hardware);
