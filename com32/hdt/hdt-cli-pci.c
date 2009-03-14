@@ -211,7 +211,7 @@ static void show_pci_help()
   more_printf(" %s <device_number>\n", CLI_PCI_DEVICE);
 }
 
-void pci_show(char *item, struct s_hardware *hardware)
+static void pci_show(char *item, struct s_hardware *hardware)
 {
   if (!strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1)) {
     show_pci_devices(hardware);
