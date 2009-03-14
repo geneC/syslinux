@@ -83,8 +83,6 @@ TIMEOUTCODE ontimeout();
 void keys_handler(t_menusystem * ms, t_menuitem * mi, unsigned int scancode);
 
 // PCI Stuff
-void compute_pci_device(struct s_my_menu *menu, struct pci_device *pci_device,
-                        int pci_bus, int pci_slot, int pci_func);
 int compute_PCI(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);
 
 // KERNEL Stuff

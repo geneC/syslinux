@@ -29,8 +29,9 @@
 #include "hdt-menu.h"
 
 /* Dynamic submenu for pci devices */
-void compute_pci_device(struct s_my_menu *menu, struct pci_device *pci_device,
-      int pci_bus, int pci_slot, int pci_func)
+static void compute_pci_device(struct s_my_menu *menu,
+                               struct pci_device *pci_device,
+                               int pci_bus, int pci_slot, int pci_func)
 {
   char buffer[56];
   char statbuffer[STATLEN];
