@@ -109,7 +109,5 @@ void handle_syslinux_commands(char *cli_line, struct s_hardware *hardware);
 
 // VESA STUFF
 void main_show_vesa(struct s_hardware *hardware);
-void handle_vesa_commands(char *cli_line, struct s_cli_mode *cli_mode,
-                          struct s_hardware *hardware);
-
+void handle_vesa_commands(char *cli_line, struct s_hardware *hardware);
 #endif

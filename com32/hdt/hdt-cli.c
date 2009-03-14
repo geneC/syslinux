@@ -129,6 +129,7 @@ static void show_cli_help(struct s_cli_mode *cli_mode)
   case SYSLINUX_MODE:
   case KERNEL_MODE:
   case PXE_MODE:
+  case VESA_MODE:
   case CPU_MODE:
   case PCI_MODE:
   case DMI_MODE:
@@ -222,6 +223,9 @@ void start_cli_mode(struct s_hardware *hardware)
       break;
     case PXE_MODE:
       handle_pxe_commands(cli_line, hardware);
+      break;
+    case VESA_MODE:
+      handle_vesa_commands(cli_line, hardware);
       break;
     case SYSLINUX_MODE:
       handle_syslinux_commands(cli_line, hardware);
