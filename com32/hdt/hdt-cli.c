@@ -143,7 +143,7 @@ static void show_cli_help(struct s_cli_mode *cli_mode)
 }
 
 /* Code that manages the cli mode */
-void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[])
+void start_cli_mode(struct s_hardware *hardware)
 {
   char cli_line[256];
   struct s_cli_mode cli_mode;

@@ -67,12 +67,12 @@ int main(int argc, char *argv[])
   printf("%s\n", version_string);
 
   if ((arg = find_argument(argv + 1, "nomenu")))
-    start_cli_mode(&hardware, argc, argv);
+    start_cli_mode(&hardware);
   else {
     int return_code = start_menu_mode(&hardware, version_string);
 
     if (return_code == HDT_RETURN_TO_CLI)
-      start_cli_mode(&hardware,argc,argv);
+      start_cli_mode(&hardware);
     else
       return return_code;
   }
