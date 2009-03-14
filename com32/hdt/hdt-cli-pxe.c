@@ -76,7 +76,7 @@ void main_show_pxe(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
         p->ip_addr[1], p->ip_addr[2], p->ip_addr[3], p->mac_addr);
 }
 
-void show_pxe_help()
+static void show_pxe_help()
 {
   more_printf("Show supports the following commands : %s\n",
         CLI_SHOW_LIST);
