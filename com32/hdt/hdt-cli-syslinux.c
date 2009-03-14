@@ -52,7 +52,7 @@ void show_syslinux_help()
         CLI_SHOW_LIST);
 }
 
-void syslinux_show(char *item, struct s_hardware *hardware)
+static void syslinux_show(char *item, struct s_hardware *hardware)
 {
   if (!strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1)) {
     main_show_syslinux(hardware);
