@@ -67,7 +67,6 @@ struct s_cli_mode {
   char prompt[32];
 };
 
-void show_cli_help(struct s_cli_mode *cli_mode);
 void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[]);
 void main_show(char *item, struct s_hardware *hardware,
                struct s_cli_mode *cli_mode);

@@ -119,6 +119,29 @@ static void handle_hdt_commands(char *cli_line, struct s_cli_mode *cli_mode,
   }
 }
 
+static void show_cli_help(struct s_cli_mode *cli_mode)
+{
+  switch (cli_mode->mode) {
+  case HDT_MODE:
+    printf
+        ("Available commands are : %s %s %s %s %s %s %s %s %s %s\n",
+         CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW, CLI_PCI, CLI_DMI,
+         CLI_PXE, CLI_KERNEL, CLI_CPU, CLI_SYSLINUX);
+    break;
+  case SYSLINUX_MODE:
+  case KERNEL_MODE:
+  case PXE_MODE:
+  case CPU_MODE:
+  case PCI_MODE:
+  case DMI_MODE:
+    printf("Available commands are : %s %s %s %s\n",
+           CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW);
+    break;
+  case EXIT_MODE: /* Should not happen */
+    break;
+  }
+}
+
 /* Code that manages the cli mode */
 void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[])
 {
@@ -231,29 +254,6 @@ int do_exit(struct s_cli_mode *cli_mode)
     return EXIT_MODE; /* should not happen */
   }
   return HDT_MODE;
-}
-
-void show_cli_help(struct s_cli_mode *cli_mode)
-{
-  switch (cli_mode->mode) {
-  case HDT_MODE:
-    printf
-        ("Available commands are : %s %s %s %s %s %s %s %s %s %s\n",
-         CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW, CLI_PCI, CLI_DMI,
-         CLI_PXE, CLI_KERNEL, CLI_CPU, CLI_SYSLINUX);
-    break;
-  case SYSLINUX_MODE:
-  case KERNEL_MODE:
-  case PXE_MODE:
-  case CPU_MODE:
-  case PCI_MODE:
-  case DMI_MODE:
-    printf("Available commands are : %s %s %s %s\n",
-           CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW);
-    break;
-  case EXIT_MODE: /* Should not happen */
-    break;
-  }
 }
 
 void main_show_summary(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
