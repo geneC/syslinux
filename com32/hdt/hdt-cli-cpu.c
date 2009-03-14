@@ -147,7 +147,7 @@ void show_cpu(struct s_hardware *hardware)
   more_printf(buffer);
 }
 
-void show_cpu_help()
+static void show_cpu_help()
 {
   more_printf("Show supports the following commands : %s\n", CLI_CPU);
 }
