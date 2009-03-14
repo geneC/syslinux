@@ -34,7 +34,7 @@
 #include "hdt-cli.h"
 #include "hdt-common.h"
 
-void main_show_kernel(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
+void main_show_kernel(struct s_hardware *hardware)
 {
   char buffer[1024];
   struct pci_device *pci_device;

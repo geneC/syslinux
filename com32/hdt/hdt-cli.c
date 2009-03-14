@@ -282,7 +282,7 @@ void main_show_summary(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
   if (hardware->is_pxe_valid)
     main_show_pxe(hardware, cli_mode);
 
-  main_show_kernel(hardware, cli_mode);
+  main_show_kernel(hardware);
 }
 
 void show_main_help(struct s_hardware *hardware)
@@ -327,7 +327,7 @@ void main_show(char *item, struct s_hardware *hardware,
     return;
   }
   if (!strncmp(item, CLI_KERNEL, sizeof(CLI_KERNEL))) {
-    main_show_kernel(hardware, cli_mode);
+    main_show_kernel(hardware);
     return;
   }
 
