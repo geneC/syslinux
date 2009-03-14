@@ -24,7 +24,7 @@
  *   OTHER DEALINGS IN THE SOFTWARE.
  *
  * -----------------------------------------------------------------------
-*/
+ */
 
 #ifndef DEFINE_HDT_H
 #define DEFINE_HDT_H

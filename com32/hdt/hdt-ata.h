@@ -24,20 +24,20 @@
  *   OTHER DEALINGS IN THE SOFTWARE.
  *
  * -----------------------------------------------------------------------
-*/
+ */
 
 #ifndef DEFINE_HDT_ATA_H
 #define DEFINE_HDT_ATA_H
+#include <com32io.h>
 
 #include "hdt.h"
-#include <com32io.h>
 
 struct ata_identify_device {
   unsigned short words000_009[10];
-  unsigned char  serial_no[20];
+  unsigned char serial_no[20];
   unsigned short words020_022[3];
-  unsigned char  fw_rev[8];
-  unsigned char  model[40];
+  unsigned char fw_rev[8];
+  unsigned char model[40];
   unsigned short words047_079[33];
   unsigned short major_rev_num;
   unsigned short minor_rev_num;
@@ -52,8 +52,8 @@ struct ata_identify_device {
 
 struct diskinfo {
   int disk;
-  int ebios;                    /* EBIOS supported on this disk */
-  int cbios;                    /* CHS geometry is valid */
+  int ebios;                      /* EBIOS supported on this disk */
+  int cbios;                      /* CHS geometry is valid */
   int heads;
   int sectors_per_track;
   int sectors;
@@ -82,39 +82,40 @@ struct ebios_dapa {
 // DWORD=32
 // QWORD=64
 struct device_parameter {
- uint16_t len;
- uint16_t info;
- uint32_t cylinders;
- uint32_t heads;
- uint32_t sectors_per_track;
- uint64_t sectors;
- uint16_t bytes_per_sector;
- uint32_t dpte_pointer;
- uint16_t device_path_information;
- uint8_t  device_path_lenght;
- uint8_t  device_path_reserved;
- uint16_t device_path_reserved_2;
- uint8_t  host_bus_type[4];
- uint8_t  interface_type[8];
- uint64_t interace_path;
- uint64_t device_path[2];
- uint8_t  reserved;
- uint8_t  cheksum;
+  uint16_t len;
+  uint16_t info;
+  uint32_t cylinders;
+  uint32_t heads;
+  uint32_t sectors_per_track;
+  uint64_t sectors;
+  uint16_t bytes_per_sector;
+  uint32_t dpte_pointer;
+  uint16_t device_path_information;
+  uint8_t device_path_lenght;
+  uint8_t device_path_reserved;
+  uint16_t device_path_reserved_2;
+  uint8_t host_bus_type[4];
+  uint8_t interface_type[8];
+  uint64_t interace_path;
+  uint64_t device_path[2];
+  uint8_t reserved;
+  uint8_t cheksum;
 } ATTR_PACKED;
-
 
 /* Useless stuff until I manage how to send ata packets */
 #ifdef ATA
 enum {
-        ATA_ID_FW_REV           = 23,
-        ATA_ID_PROD             = 27,
-        ATA_ID_FW_REV_LEN       = 8,
-        ATA_ID_PROD_LEN         = 40,
+  ATA_ID_FW_REV = 23,
+  ATA_ID_PROD = 27,
+  ATA_ID_FW_REV_LEN = 8,
+  ATA_ID_PROD_LEN = 40,
 };
-void ata_id_c_string(const uint16_t *id, unsigned char *s, unsigned int ofs, unsigned int len);
-void ata_id_string(const uint16_t *id, unsigned char *s, unsigned int ofs, unsigned int len);
-int int13_retry(const com32sys_t *inreg, com32sys_t *outreg);
-void printregs(const com32sys_t *r);
+void ata_id_c_string(const uint16_t * id, unsigned char *s, unsigned int ofs,
+                     unsigned int len);
+void ata_id_string(const uint16_t * id, unsigned char *s, unsigned int ofs,
+                   unsigned int len);
+int int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
+void printregs(const com32sys_t * r);
 #endif
 
 int get_disk_params(int disk, struct diskinfo *disk_info);

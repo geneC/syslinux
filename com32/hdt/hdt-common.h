@@ -24,19 +24,20 @@
  *   OTHER DEALINGS IN THE SOFTWARE.
  *
  * -----------------------------------------------------------------------
-*/
+ */
 
 #ifndef DEFINE_HDT_COMMON_H
 #define DEFINE_HDT_COMMON_H
 #include <stdio.h>
+#include <syslinux/pxe.h>
 #include "sys/pci.h"
+
 #include "cpuid.h"
 #include "dmi/dmi.h"
-#include <syslinux/pxe.h>
 #include "hdt-ata.h"
 #include "../lib/sys/vesa/vesa.h"
 
-/* This two values are used for switching for the menu to the CLI mode*/
+/* This two values are used for switching for the menu to the CLI mode */
 #define HDT_SWITCH_TO_CLI "hdt_switch_to_cli"
 #define HDT_RETURN_TO_CLI 100
 #define MAX_VESA_MODES 255
@@ -54,26 +55,25 @@ extern int display_line_nb;
  display_line_nb++; \
 } while (0);
 
-
 struct s_pxe {
- uint16_t vendor_id;
- uint16_t product_id;
- uint16_t subvendor_id;
- uint16_t subproduct_id;
- uint8_t rev;
- uint8_t pci_bus;
- uint8_t pci_dev;
- uint8_t pci_func;
- uint8_t base_class;
- uint8_t sub_class;
- uint8_t prog_intf;
- uint8_t nictype;
- char mac_addr[18]; /* The current mac address */
- uint8_t ip_addr[4];
-
- pxe_bootp_t dhcpdata; /* The dhcp answer */
- struct pci_device *pci_device; /* The matching pci device */
- uint8_t pci_device_pos; /* It position in our pci sorted list*/
+  uint16_t vendor_id;
+  uint16_t product_id;
+  uint16_t subvendor_id;
+  uint16_t subproduct_id;
+  uint8_t rev;
+  uint8_t pci_bus;
+  uint8_t pci_dev;
+  uint8_t pci_func;
+  uint8_t base_class;
+  uint8_t sub_class;
+  uint8_t prog_intf;
+  uint8_t nictype;
+  char mac_addr[18];              /* The current mac address */
+  uint8_t ip_addr[4];
+  pxe_bootp_t dhcpdata;           /* The dhcp answer */
+  struct pci_device *pci_device;  /* The matching pci device */
+  uint8_t pci_device_pos;         /* It position in our pci sorted list */
+  uint8_t pci_device_pos; /* It position in our pci sorted list*/
 };
 
 struct s_vesa_mode_info {
@@ -94,10 +94,10 @@ struct s_vesa {
 };
 
 struct s_hardware {
-  s_dmi dmi; /* DMI table */
-  s_cpu cpu; /* CPU information */
-  struct pci_domain *pci_domain; /* PCI Devices */
-  struct diskinfo disk_info[256];     /* Disk Information*/
+  s_dmi dmi;                      /* DMI table */
+  s_cpu cpu;                      /* CPU information */
+  struct pci_domain *pci_domain;  /* PCI Devices */
+  struct diskinfo disk_info[256]; /* Disk Information */
   struct s_pxe pxe;
   struct s_vesa vesa;
 
@@ -108,15 +108,15 @@ struct s_hardware {
   bool is_pxe_valid;
   bool is_vesa_valid;
 
-  bool dmi_detection; /* Does the dmi stuff have been already detected */
-  bool pci_detection; /* Does the pci stuff have been already detected */
-  bool cpu_detection; /* Does the cpu stuff have been already detected */
-  bool disk_detection; /* Does the disk stuff have been already detected */
-  bool pxe_detection; /* Does the pxe stuff have been already detected*/
-  bool vesa_detection;/* Does the vesa sutff have been already detected*/
+  bool dmi_detection; /* Does the dmi stuff has already been detected? */
+  bool pci_detection; /* Does the pci stuff has already been detected? */
+  bool cpu_detection; /* Does the cpu stuff has already been detected? */
+  bool disk_detection;/* Does the disk stuff has already been detected? */
+  bool pxe_detection; /* Does the pxe stuff has already been detected? */
+  bool vesa_detection;/* Does the vesa sutff have been already detected? */
 
   char syslinux_fs[22];
-  const struct syslinux_version *sv;
+  struct syslinux_version *sv;
   char modules_pcimap_path[255];
   char pciids_path[255];
 };
