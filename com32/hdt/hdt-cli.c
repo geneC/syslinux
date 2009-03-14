@@ -197,7 +197,7 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[])
       handle_hdt_commands(cli_line, &cli_mode, hardware);
       break;
     case CPU_MODE:
-      handle_cpu_commands(cli_line, &cli_mode, hardware);
+      handle_cpu_commands(cli_line, hardware);
       break;
     case PXE_MODE:
       handle_pxe_commands(cli_line, hardware);
