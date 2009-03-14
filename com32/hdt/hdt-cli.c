@@ -256,7 +256,7 @@ int do_exit(struct s_cli_mode *cli_mode)
   return HDT_MODE;
 }
 
-void main_show_summary(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
+static void main_show_summary(struct s_hardware *hardware)
 {
   detect_pci(hardware); /* pxe is detected in the pci */
   detect_dmi(hardware);
@@ -303,7 +303,7 @@ void main_show(char *item, struct s_hardware *hardware,
                struct s_cli_mode *cli_mode)
 {
   if (!strncmp(item, CLI_SUMMARY, sizeof(CLI_SUMMARY))) {
-    main_show_summary(hardware, cli_mode);
+    main_show_summary(hardware);
     return;
   }
   if (!strncmp(item, CLI_PCI, sizeof(CLI_PCI))) {
