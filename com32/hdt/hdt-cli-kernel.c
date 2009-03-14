@@ -148,7 +148,7 @@ static void show_kernel_modules(struct s_hardware *hardware)
   }
 }
 
-void show_kernel_help()
+static void show_kernel_help()
 {
   more_printf("Show supports the following commands : %s\n",
               CLI_SHOW_LIST);
