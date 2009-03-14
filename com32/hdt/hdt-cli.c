@@ -191,7 +191,7 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[])
       handle_dmi_commands(cli_line, hardware);
       break;
     case PCI_MODE:
-      handle_pci_commands(cli_line, &cli_mode, hardware);
+      handle_pci_commands(cli_line, hardware);
       break;
     case HDT_MODE:
       handle_hdt_commands(cli_line, &cli_mode, hardware);

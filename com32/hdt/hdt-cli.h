@@ -90,8 +90,7 @@ void show_dmi_memory_modules(struct s_hardware *hardware, bool clearscreen,
 // PCI STUFF
 #define CLI_PCI_DEVICE "device"
 void main_show_pci(struct s_hardware *hardware);
-void handle_pci_commands(char *cli_line, struct s_cli_mode *cli_mode,
-                         struct s_hardware *hardware);
+void handle_pci_commands(char *cli_line, struct s_hardware *hardware);
 void pci_show(char *item, struct s_hardware *hardware);
 void cli_detect_pci(struct s_hardware *hardware);
 
