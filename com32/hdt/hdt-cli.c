@@ -108,13 +108,11 @@ static void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode,
   }
 }
 
-static void handle_hdt_commands(char *cli_line, struct s_cli_mode *cli_mode,
-                                struct s_hardware *hardware)
+static void handle_hdt_commands(char *cli_line, struct s_hardware *hardware)
 {
   /* hdt cli mode specific commands */
   if (!strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
-    main_show(strstr(cli_line, "show") + sizeof(CLI_SHOW), hardware,
-              cli_mode);
+    main_show(strstr(cli_line, "show") + sizeof(CLI_SHOW), hardware);
     return;
   }
 }
@@ -217,7 +215,7 @@ void start_cli_mode(struct s_hardware *hardware)
       handle_pci_commands(cli_line, hardware);
       break;
     case HDT_MODE:
-      handle_hdt_commands(cli_line, &cli_mode, hardware);
+      handle_hdt_commands(cli_line, hardware);
       break;
     case CPU_MODE:
       handle_cpu_commands(cli_line, hardware);
@@ -299,8 +297,7 @@ void show_main_help(struct s_hardware *hardware)
     more_printf(" %s\n", CLI_PXE);
 }
 
-void main_show(char *item, struct s_hardware *hardware,
-               struct s_cli_mode *cli_mode)
+void main_show(char *item, struct s_hardware *hardware)
 {
   if (!strncmp(item, CLI_SUMMARY, sizeof(CLI_SUMMARY))) {
     main_show_summary(hardware);
@@ -311,7 +308,7 @@ void main_show(char *item, struct s_hardware *hardware,
     return;
   }
   if (!strncmp(item, CLI_DMI, sizeof(CLI_DMI))) {
-    main_show_dmi(hardware, cli_mode);
+    main_show_dmi(hardware);
     return;
   }
   if (!strncmp(item, CLI_CPU, sizeof(CLI_CPU))) {

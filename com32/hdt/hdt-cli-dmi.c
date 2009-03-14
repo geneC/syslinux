@@ -392,14 +392,13 @@ void handle_dmi_commands(char *cli_line, struct s_hardware *hardware)
   }
 }
 
-void main_show_dmi(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
+void main_show_dmi(struct s_hardware *hardware)
 {
 
   detect_dmi(hardware);
 
   if (hardware->is_dmi_valid == false) {
     printf("No valid DMI table found, exiting.\n");
-    do_exit(cli_mode);
     return;
   }
   printf("DMI Table version %d.%d found\n",

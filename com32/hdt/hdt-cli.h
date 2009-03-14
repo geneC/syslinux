@@ -68,8 +68,7 @@ struct s_cli_mode {
 };
 
 void start_cli_mode(struct s_hardware *hardware);
-void main_show(char *item, struct s_hardware *hardware,
-               struct s_cli_mode *cli_mode);
+void main_show(char *item, struct s_hardware *hardware);
 int do_exit(struct s_cli_mode *cli_mode);
 
 // DMI STUFF
@@ -81,7 +80,7 @@ int do_exit(struct s_cli_mode *cli_mode);
 #define CLI_DMI_MEMORY_BANK "bank"
 #define CLI_DMI_PROCESSOR "cpu"
 #define CLI_DMI_SYSTEM "system"
-void main_show_dmi(struct s_hardware *hardware, struct s_cli_mode *cli_mode);
+void main_show_dmi(struct s_hardware *hardware);
 void handle_dmi_commands(char *cli_line, struct s_hardware *hardware);
 void show_dmi_memory_modules(struct s_hardware *hardware, bool clearscreen,
                              bool show_free_banks);
