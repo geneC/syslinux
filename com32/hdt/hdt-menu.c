@@ -224,7 +224,7 @@ if (hardware->is_dmi_valid) {
    hdt_menu->main_menu.items_count++;
   }
 #endif
-  add_item("<S>yslinux","Syslinux Information Menu",OPT_SUBMENU,NULL,hdt_menu->syslinux_menu.menu);
+  add_item("S<y>slinux","Syslinux Information Menu",OPT_SUBMENU,NULL,hdt_menu->syslinux_menu.menu);
   hdt_menu->main_menu.items_count++;
   add_item("S<u>mmary","Summary Information Menu",OPT_SUBMENU,NULL,hdt_menu->summary_menu.menu);
   hdt_menu->main_menu.items_count++;
