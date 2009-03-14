@@ -108,8 +108,8 @@ static void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode,
   }
 }
 
-void handle_hdt_commands(char *cli_line, struct s_cli_mode *cli_mode,
-                         struct s_hardware *hardware)
+static void handle_hdt_commands(char *cli_line, struct s_cli_mode *cli_mode,
+                                struct s_hardware *hardware)
 {
   /* hdt cli mode specific commands */
   if (!strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
