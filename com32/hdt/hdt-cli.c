@@ -188,7 +188,7 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[])
      */
     switch (cli_mode.mode) {
     case DMI_MODE:
-      handle_dmi_commands(cli_line, &cli_mode, hardware);
+      handle_dmi_commands(cli_line, hardware);
       break;
     case PCI_MODE:
       handle_pci_commands(cli_line, &cli_mode, hardware);

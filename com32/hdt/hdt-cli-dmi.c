@@ -86,8 +86,7 @@ void dmi_show(char *item, struct s_hardware *hardware)
   show_dmi_help(hardware);
 }
 
-void handle_dmi_commands(char *cli_line, struct s_cli_mode *cli_mode,
-       struct s_hardware *hardware)
+void handle_dmi_commands(char *cli_line, struct s_hardware *hardware)
 {
   if (!strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
     dmi_show(strstr(cli_line, "show") + sizeof(CLI_SHOW), hardware);
