@@ -40,12 +40,14 @@
 #define CLI_PXE  "pxe"
 #define CLI_KERNEL "kernel"
 #define CLI_SYSLINUX "syslinux"
+#define CLI_VESA "vesa"
 #define CLI_SUMMARY "summary"
 #define CLI_COMMANDS "commands"
 #define CLI_DMI  "dmi"
 #define CLI_CPU  "cpu"
 #define CLI_SHOW_LIST "list"
 #define CLI_IRQ "irq"
+#define CLI_MODES "modes"
 
 typedef enum {
   EXIT_MODE,
@@ -56,6 +58,7 @@ typedef enum {
   PXE_MODE,
   KERNEL_MODE,
   SYSLINUX_MODE,
+  VESA_MODE,
 } cli_mode_t;
 
 struct s_cli_mode {
@@ -114,4 +117,8 @@ void handle_kernel_commands(char *cli_line, struct s_cli_mode *cli_mode, struct 
 //SYSLINUX STUFF
 void main_show_syslinux(struct s_hardware *hardware,struct s_cli_mode *cli_mode);
 void handle_syslinux_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware);
+
+//VESA STUFF
+void main_show_vesa(struct s_hardware *hardware);
+void handle_vesa_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware);
 #endif

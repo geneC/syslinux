@@ -64,6 +64,11 @@ void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode, struct s_hardware *h
         snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ", CLI_SYSLINUX);
 	break;
 
+  case VESA_MODE:
+        cli_mode->mode=mode;
+        snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ", CLI_VESA);
+	break;
+
   case PCI_MODE:
 	cli_mode->mode=mode;
 	snprintf(cli_mode->prompt,sizeof(cli_mode->prompt),"%s> ", CLI_PCI);
@@ -158,6 +163,10 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[]) {
 	   set_mode(&cli_mode,SYSLINUX_MODE,hardware);
 	   continue;
     }
+    if ( !strncmp(cli_line, CLI_VESA, sizeof(CLI_VESA) - 1) ) {
+	   set_mode(&cli_mode,VESA_MODE,hardware);
+	   continue;
+    }
     /* All commands before that line are common for all cli modes
      * the following will be specific for every mode */
     switch(cli_mode.mode) {
@@ -166,6 +175,7 @@ void start_cli_mode(struct s_hardware *hardware, int argc, char *argv[]) {
      case HDT_MODE: handle_hdt_commands(cli_line,&cli_mode, hardware); break;
      case CPU_MODE: handle_cpu_commands(cli_line,&cli_mode, hardware); break;
      case PXE_MODE: handle_pxe_commands(cli_line,&cli_mode, hardware); break;
+     case VESA_MODE: handle_vesa_commands(cli_line,&cli_mode, hardware); break;
      case SYSLINUX_MODE: handle_syslinux_commands(cli_line,&cli_mode, hardware); break;
      case KERNEL_MODE: handle_kernel_commands(cli_line,&cli_mode, hardware); break;
      case EXIT_MODE: break; /* should not happend */
@@ -181,6 +191,7 @@ int do_exit(struct s_cli_mode *cli_mode) {
   case SYSLINUX_MODE:
   case PCI_MODE:
   case DMI_MODE:
+  case VESA_MODE:
   case CPU_MODE: return HDT_MODE;
   case EXIT_MODE: return EXIT_MODE; /* should not happend */
  }
@@ -190,15 +201,16 @@ return HDT_MODE;
 void show_cli_help(struct s_cli_mode *cli_mode) {
 switch (cli_mode->mode) {
 	case HDT_MODE:
-		printf("Available commands are : %s %s %s %s %s %s %s %s %s %s\n",
+		printf("Available commands are : %s %s %s %s %s %s %s %s %s %s %s\n",
 				CLI_CLEAR, CLI_EXIT,CLI_HELP,CLI_SHOW, CLI_PCI,
-				CLI_DMI, CLI_PXE, CLI_KERNEL, CLI_CPU, CLI_SYSLINUX);
+				CLI_DMI, CLI_PXE, CLI_KERNEL, CLI_CPU, CLI_SYSLINUX, CLI_VESA);
 		break;
 	case SYSLINUX_MODE:
 	case KERNEL_MODE:
 	case PXE_MODE:
 	case CPU_MODE:
 	case PCI_MODE:
+	case VESA_MODE:
 	case DMI_MODE:
 		printf("Available commands are : %s %s %s %s\n",
 				CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW);
@@ -238,6 +250,7 @@ void show_main_help(struct s_hardware *hardware) {
   more_printf(" %s\n",CLI_CPU);
   more_printf(" %s\n",CLI_KERNEL);
   more_printf(" %s\n",CLI_SYSLINUX);
+  more_printf(" %s\n",CLI_VESA);
   if (hardware->sv->filesystem == SYSLINUX_FS_PXELINUX)
 	  more_printf(" %s\n",CLI_PXE);
 }
@@ -250,5 +263,6 @@ void main_show(char *item, struct s_hardware *hardware, struct s_cli_mode *cli_m
  if (!strncmp(item,CLI_PXE, sizeof (CLI_PXE))) { main_show_pxe(hardware,cli_mode); return; }
  if (!strncmp(item,CLI_SYSLINUX, sizeof (CLI_SYSLINUX))) { main_show_syslinux(hardware,cli_mode); return; }
  if (!strncmp(item,CLI_KERNEL, sizeof (CLI_KERNEL))) { main_show_kernel(hardware,cli_mode); return; }
+ if (!strncmp(item,CLI_VESA, sizeof (CLI_VESA))) { main_show_vesa(hardware); return; }
  show_main_help(hardware);
 }

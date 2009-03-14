@@ -49,8 +49,8 @@ hdt.elf: hdt.o hdt-ata.o hdt-menu.o hdt-menu-pci.o hdt-menu-kernel.o \
 	hdt-menu-syslinux.o hdt-menu-about.o \
 	hdt-cli.o hdt-common.o hdt-cli-pci.o hdt-cli-dmi.o \
 	hdt-cli-cpu.o hdt-cli-pxe.o hdt-cli-kernel.o \
-	hdt-cli-syslinux.o \
-	hdt-menu-pxe.o hdt-menu-summary.o\
+	hdt-cli-syslinux.o hdt-cli-vesa.o\
+	hdt-menu-pxe.o hdt-menu-summary.o hdt-menu-vesa.o\
 	$(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 

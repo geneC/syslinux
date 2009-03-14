@@ -34,10 +34,12 @@
 #include "dmi/dmi.h"
 #include <syslinux/pxe.h>
 #include "hdt-ata.h"
+#include "../lib/sys/vesa/vesa.h"
 
 /* This two values are used for switching for the menu to the CLI mode*/
 #define HDT_SWITCH_TO_CLI "hdt_switch_to_cli"
 #define HDT_RETURN_TO_CLI 100
+#define MAX_VESA_MODES 255
 
 extern int display_line_nb;
 
@@ -72,7 +74,23 @@ struct s_pxe {
  pxe_bootp_t dhcpdata; /* The dhcp answer */
  struct pci_device *pci_device; /* The matching pci device */
  uint8_t pci_device_pos; /* It position in our pci sorted list*/
+};
 
+struct s_vesa_mode_info {
+ struct vesa_mode_info mi;
+ uint16_t mode;
+};
+
+struct s_vesa {
+ uint8_t major_version;
+ uint8_t minor_version;
+ struct s_vesa_mode_info vmi[MAX_VESA_MODES];
+ uint8_t vmi_count;
+ uint16_t total_memory;
+ char vendor[256];
+ char product[256];
+ char product_revision[256];
+ uint16_t software_rev;
 };
 
 struct s_hardware {
@@ -81,23 +99,26 @@ struct s_hardware {
   struct pci_domain *pci_domain; /* PCI Devices */
   struct diskinfo disk_info[256];     /* Disk Information*/
   struct s_pxe pxe;
+  struct s_vesa vesa;
 
   int pci_ids_return_code;
   int modules_pcimap_return_code;
   int nb_pci_devices;
   bool is_dmi_valid;
   bool is_pxe_valid;
+  bool is_vesa_valid;
 
   bool dmi_detection; /* Does the dmi stuff have been already detected */
   bool pci_detection; /* Does the pci stuff have been already detected */
   bool cpu_detection; /* Does the cpu stuff have been already detected */
   bool disk_detection; /* Does the disk stuff have been already detected */
   bool pxe_detection; /* Does the pxe stuff have been already detected*/
+  bool vesa_detection;/* Does the vesa sutff have been already detected*/
 
- char syslinux_fs[22];
- struct syslinux_version *sv;
- char modules_pcimap_path[255];
- char pciids_path[255];
+  char syslinux_fs[22];
+  const struct syslinux_version *sv;
+  char modules_pcimap_path[255];
+  char pciids_path[255];
 };
 
 char *find_argument(const char **argv, const char *argument);
@@ -110,4 +131,5 @@ void init_hardware(struct s_hardware *hardware);
 void clear_screen(void);
 void detect_syslinux(struct s_hardware *hardware);
 void detect_parameters(int argc, char *argv[], struct s_hardware *hardware);
+int detect_vesa(struct s_hardware *hardware);
 #endif

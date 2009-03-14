@@ -145,6 +145,7 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware) 
 #endif
   compute_summarymenu(&(hdt_menu->summary_menu),hardware);
   compute_syslinuxmenu(&(hdt_menu->syslinux_menu),hardware);
+  compute_VESA(hdt_menu,hardware);
   compute_aboutmenu(&(hdt_menu->about_menu));
 }
 
@@ -211,6 +212,11 @@ if (hardware->is_dmi_valid) {
    hdt_menu->main_menu.items_count++;
   }
 
+ if (hardware->is_vesa_valid == true) {
+   add_item("<V>ESA","VESA Information Menu",OPT_SUBMENU,NULL,hdt_menu->vesa_menu.menu);
+   hdt_menu->main_menu.items_count++;
+  }
+
   add_item("","",OPT_SEP,"",0);
 #ifdef WITH_PCI
   if (hardware->modules_pcimap_return_code != -ENOMODULESPCIMAP) {
@@ -250,4 +256,6 @@ void detect_hardware(struct s_hardware *hardware) {
   detect_pci(hardware);
   printf("PCI: %d Devices Found\n",hardware->nb_pci_devices);
 #endif
+  printf("VESA: Detecting\n");
+  detect_vesa(hardware);
 }

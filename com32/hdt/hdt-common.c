@@ -31,6 +31,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "syslinux/config.h"
+#include "../lib/sys/vesa/vesa.h"
 
 void detect_parameters(int argc, char *argv[], struct s_hardware *hardware) {
  for (int i = 1; i < argc; i++) {
@@ -57,11 +58,14 @@ void detect_syslinux(struct s_hardware *hardware) {
 void init_hardware(struct s_hardware *hardware) {
   hardware->pci_ids_return_code=0;
   hardware->modules_pcimap_return_code=0;
+
   hardware->cpu_detection=false;
   hardware->pci_detection=false;
   hardware->disk_detection=false;
   hardware->dmi_detection=false;
   hardware->pxe_detection=false;
+  hardware->vesa_detection=false;
+
   hardware->nb_pci_devices=0;
   hardware->is_dmi_valid=false;
   hardware->is_pxe_valid=false;
@@ -72,9 +76,12 @@ void init_hardware(struct s_hardware *hardware) {
   memset(&hardware->dmi,0,sizeof(s_dmi));
   memset(&hardware->cpu,0,sizeof(s_cpu));
   memset(&hardware->pxe,0,sizeof(struct s_pxe));
+  memset(&hardware->vesa,0,sizeof(struct s_vesa));
   memset(hardware->syslinux_fs,0,sizeof hardware->syslinux_fs);
   memset(hardware->pciids_path,0,sizeof hardware->pciids_path);
   memset(hardware->modules_pcimap_path,0,sizeof hardware->modules_pcimap_path);
+
+  /* Setting default values*/
   strcat(hardware->pciids_path,"pci.ids");
   strcat(hardware->modules_pcimap_path,"modules.pcimap");
 }
@@ -91,6 +98,70 @@ int detect_dmi(struct s_hardware *hardware) {
 
   parse_dmitable(&hardware->dmi);
   hardware->is_dmi_valid=true;
+ return 0;
+}
+
+/* Detection vesa stuff*/
+int detect_vesa(struct s_hardware *hardware) {
+  static com32sys_t rm;
+  struct vesa_general_info *gi;
+  struct vesa_mode_info *mi;
+  uint16_t mode, *mode_ptr;
+  char *oem_ptr;
+
+  if (hardware->vesa_detection == true) return -1;
+
+  hardware->vesa_detection=true;
+  hardware->is_vesa_valid=false;
+
+  /* Allocate space in the bounce buffer for these structures */
+  gi = &((struct vesa_info *)__com32.cs_bounce)->gi;
+  mi = &((struct vesa_info *)__com32.cs_bounce)->mi;
+
+  gi->signature = VBE2_MAGIC;   /* Get VBE2 extended data */
+  rm.eax.w[0] = 0x4F00;         /* Get SVGA general information */
+  rm.edi.w[0] = OFFS(gi);
+  rm.es      = SEG(gi);
+  __intcall(0x10, &rm, &rm);
+
+  if ( rm.eax.w[0] != 0x004F ) {
+    return -1;
+  };
+
+  mode_ptr = GET_PTR(gi->video_mode_ptr);
+  oem_ptr = GET_PTR(gi->oem_vendor_name_ptr);
+  strncpy(hardware->vesa.vendor,oem_ptr,sizeof(hardware->vesa.vendor));
+  oem_ptr = GET_PTR(gi->oem_product_name_ptr);
+  strncpy(hardware->vesa.product,oem_ptr,sizeof(hardware->vesa.product));
+  oem_ptr = GET_PTR(gi->oem_product_rev_ptr);
+  strncpy(hardware->vesa.product_revision,oem_ptr,sizeof(hardware->vesa.product_revision));
+
+  hardware->vesa.major_version=(gi->version >> 8) & 0xff;
+  hardware->vesa.minor_version=gi->version & 0xff;
+  hardware->vesa.total_memory=gi->total_memory;
+  hardware->vesa.software_rev=gi->oem_software_rev;
+
+  hardware->vesa.vmi_count=0;
+
+  while ((mode = *mode_ptr++) != 0xFFFF) {
+
+    rm.eax.w[0] = 0x4F01;       /* Get SVGA mode information */
+    rm.ecx.w[0] = mode;
+    rm.edi.w[0] = OFFS(mi);
+    rm.es  = SEG(mi);
+    __intcall(0x10, &rm, &rm);
+
+    /* Must be a supported mode */
+    if ( rm.eax.w[0] != 0x004f )
+      continue;
+
+    /* Saving detected values*/
+    memcpy(&hardware->vesa.vmi[hardware->vesa.vmi_count].mi,mi, sizeof(struct vesa_mode_info));
+    hardware->vesa.vmi[hardware->vesa.vmi_count].mode=mode;
+
+    hardware->vesa.vmi_count++;
+  }
+  hardware->is_vesa_valid=true;
  return 0;
 }
 
