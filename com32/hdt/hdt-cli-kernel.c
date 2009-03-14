@@ -89,7 +89,6 @@ void main_show_kernel(struct s_hardware *hardware)
 
 static void show_kernel_modules(struct s_hardware *hardware)
 {
-  int i = 1;
   struct pci_device *pci_device;
   char kernel_modules[LINUX_KERNEL_MODULE_SIZE *
           MAX_KERNEL_MODULES_PER_PCI_DEVICE];
