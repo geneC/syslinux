@@ -120,7 +120,7 @@ struct s_hardware {
   char pciids_path[255];
 };
 
-char *find_argument(const char **argv, const char *argument);
+const char *find_argument(const char **argv, const char *argument);
 int detect_dmi(struct s_hardware *hardware);
 void detect_disks(struct s_hardware *hardware);
 void detect_pci(struct s_hardware *hardware);

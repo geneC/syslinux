@@ -371,11 +371,11 @@ void cpu_detect(struct s_hardware *hardware)
  * Find the last instance of a particular command line argument
  * (which should include the final =; do not use for boolean arguments)
  */
-char *find_argument(const char **argv, const char *argument)
+const char *find_argument(const char **argv, const char *argument)
 {
   int la = strlen(argument);
   const char **arg;
-  char *ptr = NULL;
+  const char *ptr = NULL;
 
   for (arg = argv; *arg; arg++) {
     if (!memcmp(*arg, argument, la))
