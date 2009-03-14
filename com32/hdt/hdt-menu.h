@@ -100,8 +100,6 @@ void compute_system(struct s_my_menu *menu, s_dmi * dmi);
 void compute_chassis(struct s_my_menu *menu, s_dmi * dmi);
 void compute_bios(struct s_my_menu *menu, s_dmi * dmi);
 void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi);
-void compute_memory_module(struct s_my_menu *menu, s_dmi * dmi,
-                           int slot_number);
 
 // Processor Stuff
 void compute_processor(struct s_my_menu *menu, struct s_hardware *hardware);

@@ -246,7 +246,8 @@ void compute_motherboard(struct s_my_menu *menu, s_dmi * dmi)
 }
 
 /* Compute the Memory submenu */
-void compute_memory_module(struct s_my_menu *menu, s_dmi * dmi, int slot_number)
+static void compute_memory_module(struct s_my_menu *menu, s_dmi * dmi,
+                                  int slot_number)
 {
   int i = slot_number;
   char buffer[MENULEN + 1];
