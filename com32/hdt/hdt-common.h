@@ -129,6 +129,7 @@ int detect_pxe(struct s_hardware *hardware);
 void init_hardware(struct s_hardware *hardware);
 void clear_screen(void);
 void detect_syslinux(struct s_hardware *hardware);
-void detect_parameters(int argc, char *argv[], struct s_hardware *hardware);
+void detect_parameters(const int argc, const char *argv[],
+                       struct s_hardware *hardware);
 int detect_vesa(struct s_hardware *hardware);
 #endif

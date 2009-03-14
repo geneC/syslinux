@@ -42,10 +42,10 @@
 
 int display_line_nb = 0;
 
-int main(int argc, char *argv[])
+int main(const int argc, const char *argv[])
 {
   char version_string[256];
-  char *arg;
+  const char *arg;
   struct s_hardware hardware;
 
   snprintf(version_string, sizeof version_string, "%s %s by %s",

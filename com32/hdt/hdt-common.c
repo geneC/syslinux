@@ -34,7 +34,8 @@
 
 #include "hdt-common.h"
 
-void detect_parameters(int argc, char *argv[], struct s_hardware *hardware)
+void detect_parameters(const int argc, const char *argv[],
+                       struct s_hardware *hardware)
 {
   for (int i = 1; i < argc; i++) {
     if (!strncmp(argv[i], "modules=", 8)) {
