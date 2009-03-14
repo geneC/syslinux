@@ -82,20 +82,10 @@ int do_exit(struct s_cli_mode *cli_mode);
 #define CLI_DMI_MEMORY_BANK "bank"
 #define CLI_DMI_PROCESSOR "cpu"
 #define CLI_DMI_SYSTEM "system"
-
 void main_show_dmi(struct s_hardware *hardware, struct s_cli_mode *cli_mode);
-void handle_dmi_commands(char *cli_line, struct s_cli_mode *cli_mode,
-                         struct s_hardware *hardware);
-void show_dmi_base_board(struct s_hardware *hardware);
-void show_dmi_system(struct s_hardware *hardware);
-void show_dmi_bios(struct s_hardware *hardware);
-void show_dmi_chassis(struct s_hardware *hardware);
-void show_dmi_cpu(struct s_hardware *hardware);
-void show_dmi_modules(struct s_hardware *hardware);
+void handle_dmi_commands(char *cli_line, struct s_hardware *hardware);
 void show_dmi_memory_modules(struct s_hardware *hardware, bool clearscreen,
                              bool show_free_banks);
-void show_dmi_memory_bank(struct s_hardware *hardware, const char *item);
-void show_dmi_battery(struct s_hardware *hardware);
 
 // PCI STUFF
 #define CLI_PCI_DEVICE "device"

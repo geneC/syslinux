@@ -33,68 +33,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-static void show_dmi_help(struct s_hardware *hardware)
-{
-  more_printf("Show supports the following commands : \n");
-  more_printf(" %s\n", CLI_SHOW_LIST);
-  more_printf(" <module_name>\n");
-  more_printf(" -\n");
-  show_dmi_modules(hardware);
-}
-
-void dmi_show(char *item, struct s_hardware *hardware)
-{
-  if (!strncmp(item, CLI_DMI_BASE_BOARD, sizeof(CLI_DMI_BASE_BOARD) - 1)) {
-    show_dmi_base_board(hardware);
-    return;
-  }
-  if (!strncmp(item, CLI_DMI_SYSTEM, sizeof(CLI_DMI_SYSTEM) - 1)) {
-    show_dmi_system(hardware);
-    return;
-  }
-  if (!strncmp(item, CLI_DMI_BIOS, sizeof(CLI_DMI_BIOS) - 1)) {
-    show_dmi_bios(hardware);
-    return;
-  }
-  if (!strncmp(item, CLI_DMI_CHASSIS, sizeof(CLI_DMI_CHASSIS) - 1)) {
-    show_dmi_chassis(hardware);
-    return;
-  }
-  if (!strncmp(item, CLI_DMI_PROCESSOR, sizeof(CLI_DMI_PROCESSOR) - 1)) {
-    show_dmi_cpu(hardware);
-    return;
-  }
-  if (!strncmp(item, CLI_DMI_MEMORY, sizeof(CLI_DMI_MEMORY) - 1)) {
-    show_dmi_memory_modules(hardware, true, true);
-    return;
-  }
-  if (!strncmp
-      (item, CLI_DMI_MEMORY_BANK, sizeof(CLI_DMI_MEMORY_BANK) - 1)) {
-    show_dmi_memory_bank(hardware,
-             item + sizeof(CLI_DMI_MEMORY_BANK) - 1);
-    return;
-  }
-  if (!strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1)) {
-    show_dmi_modules(hardware);
-    return;
-  }
-  if (!strncmp(item, CLI_DMI_BATTERY, sizeof(CLI_DMI_BATTERY) - 1)) {
-    show_dmi_battery(hardware);
-    return;
-  }
-
-  show_dmi_help(hardware);
-}
-
-void handle_dmi_commands(char *cli_line, struct s_hardware *hardware)
-{
-  if (!strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
-    dmi_show(strstr(cli_line, "show") + sizeof(CLI_SHOW), hardware);
-    return;
-  }
-}
-
-void show_dmi_modules(struct s_hardware *hardware)
+static void show_dmi_modules(struct s_hardware *hardware)
 {
   char available_dmi_commands[1024];
   memset(available_dmi_commands, 0, sizeof(available_dmi_commands));
@@ -141,24 +80,16 @@ void show_dmi_modules(struct s_hardware *hardware)
   printf("Available DMI modules: %s\n", available_dmi_commands);
 }
 
-void main_show_dmi(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
+static void show_dmi_help(struct s_hardware *hardware)
 {
-
-  detect_dmi(hardware);
-
-  if (hardware->is_dmi_valid == false) {
-    printf("No valid DMI table found, exiting.\n");
-    do_exit(cli_mode);
-    return;
-  }
-  printf("DMI Table version %d.%d found\n",
-         hardware->dmi.dmitable.major_version,
-         hardware->dmi.dmitable.minor_version);
-
+  more_printf("Show supports the following commands : \n");
+  more_printf(" %s\n", CLI_SHOW_LIST);
+  more_printf(" <module_name>\n");
+  more_printf(" -\n");
   show_dmi_modules(hardware);
 }
 
-void show_dmi_base_board(struct s_hardware *hardware)
+static void show_dmi_base_board(struct s_hardware *hardware)
 {
   if (hardware->dmi.base_board.filled == false) {
     printf("Base_board module not available\n");
@@ -182,7 +113,7 @@ void show_dmi_base_board(struct s_hardware *hardware)
   }
 }
 
-void show_dmi_system(struct s_hardware *hardware)
+static void show_dmi_system(struct s_hardware *hardware)
 {
   if (hardware->dmi.system.filled == false) {
     printf("System module not available\n");
@@ -200,7 +131,7 @@ void show_dmi_system(struct s_hardware *hardware)
   more_printf(" Family       : %s\n", hardware->dmi.system.family);
 }
 
-void show_dmi_bios(struct s_hardware *hardware)
+static void show_dmi_bios(struct s_hardware *hardware)
 {
   if (hardware->dmi.bios.filled == false) {
     printf("Bios module not available\n");
@@ -245,7 +176,7 @@ void show_dmi_bios(struct s_hardware *hardware)
 
 }
 
-void show_dmi_chassis(struct s_hardware *hardware)
+static void show_dmi_chassis(struct s_hardware *hardware)
 {
   if (hardware->dmi.chassis.filled == false) {
     printf("Chassis module not available\n");
@@ -277,7 +208,7 @@ void show_dmi_chassis(struct s_hardware *hardware)
         hardware->dmi.chassis.nb_power_cords);
 }
 
-void show_dmi_battery(struct s_hardware *hardware)
+static void show_dmi_battery(struct s_hardware *hardware)
 {
   if (hardware->dmi.battery.filled == false) {
     printf("Battery module not available\n");
@@ -308,7 +239,7 @@ void show_dmi_battery(struct s_hardware *hardware)
         hardware->dmi.battery.oem_info);
 }
 
-void show_dmi_cpu(struct s_hardware *hardware)
+static void show_dmi_cpu(struct s_hardware *hardware)
 {
   if (hardware->dmi.processor.filled == false) {
     printf("Processor module not available\n");
@@ -364,49 +295,7 @@ void show_dmi_cpu(struct s_hardware *hardware)
   }
 }
 
-void show_dmi_memory_modules(struct s_hardware *hardware, bool clear,
-           bool show_free_banks)
-{
-  char bank_number[10];
-  char available_dmi_commands[1024];
-  memset(available_dmi_commands, 0, sizeof(available_dmi_commands));
-
-  if (hardware->dmi.memory_count <= 0) {
-    printf("No memory module found\n");
-    return;
-  }
-
-  if (clear)
-    clear_screen();
-  more_printf("Memory Banks\n");
-  for (int i = 0; i < hardware->dmi.memory_count; i++) {
-    if (hardware->dmi.memory[i].filled == true) {
-      /* When discovering the first item, let's clear the screen */
-      strncat(available_dmi_commands, CLI_DMI_MEMORY_BANK,
-        sizeof(CLI_DMI_MEMORY_BANK) - 1);
-      memset(bank_number, 0, sizeof(bank_number));
-      snprintf(bank_number, sizeof(bank_number), "%d ", i);
-      strncat(available_dmi_commands, bank_number,
-        sizeof(bank_number));
-      if (show_free_banks == false) {
-        if (strncmp
-            (hardware->dmi.memory[i].size, "Free", 4))
-          printf(" bank %02d      : %s %s@%s\n",
-                 i, hardware->dmi.memory[i].size,
-                 hardware->dmi.memory[i].type,
-                 hardware->dmi.memory[i].speed);
-      } else {
-        printf(" bank %02d      : %s %s@%s\n", i,
-               hardware->dmi.memory[i].size,
-               hardware->dmi.memory[i].type,
-               hardware->dmi.memory[i].speed);
-      }
-    }
-  }
-  //printf("Type 'show bank<bank_number>' for more details.\n");
-}
-
-void show_dmi_memory_bank(struct s_hardware *hardware, const char *item)
+static void show_dmi_memory_bank(struct s_hardware *hardware, const char *item)
 {
   long bank = strtol(item, (char **)NULL, 10);
   if (errno == ERANGE) {
@@ -449,4 +338,115 @@ void show_dmi_memory_bank(struct s_hardware *hardware, const char *item)
         hardware->dmi.memory[bank].asset_tag);
   more_printf(" Part Number  : %s\n",
         hardware->dmi.memory[bank].part_number);
+}
+
+void dmi_show(char *item, struct s_hardware *hardware)
+{
+  if (!strncmp(item, CLI_DMI_BASE_BOARD, sizeof(CLI_DMI_BASE_BOARD) - 1)) {
+    show_dmi_base_board(hardware);
+    return;
+  }
+  if (!strncmp(item, CLI_DMI_SYSTEM, sizeof(CLI_DMI_SYSTEM) - 1)) {
+    show_dmi_system(hardware);
+    return;
+  }
+  if (!strncmp(item, CLI_DMI_BIOS, sizeof(CLI_DMI_BIOS) - 1)) {
+    show_dmi_bios(hardware);
+    return;
+  }
+  if (!strncmp(item, CLI_DMI_CHASSIS, sizeof(CLI_DMI_CHASSIS) - 1)) {
+    show_dmi_chassis(hardware);
+    return;
+  }
+  if (!strncmp(item, CLI_DMI_PROCESSOR, sizeof(CLI_DMI_PROCESSOR) - 1)) {
+    show_dmi_cpu(hardware);
+    return;
+  }
+  if (!strncmp(item, CLI_DMI_MEMORY, sizeof(CLI_DMI_MEMORY) - 1)) {
+    show_dmi_memory_modules(hardware, true, true);
+    return;
+  }
+  if (!strncmp
+      (item, CLI_DMI_MEMORY_BANK, sizeof(CLI_DMI_MEMORY_BANK) - 1)) {
+    show_dmi_memory_bank(hardware,
+             item + sizeof(CLI_DMI_MEMORY_BANK) - 1);
+    return;
+  }
+  if (!strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1)) {
+    show_dmi_modules(hardware);
+    return;
+  }
+  if (!strncmp(item, CLI_DMI_BATTERY, sizeof(CLI_DMI_BATTERY) - 1)) {
+    show_dmi_battery(hardware);
+    return;
+  }
+
+  show_dmi_help(hardware);
+}
+
+void handle_dmi_commands(char *cli_line, struct s_hardware *hardware)
+{
+  if (!strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
+    dmi_show(strstr(cli_line, "show") + sizeof(CLI_SHOW), hardware);
+    return;
+  }
+}
+
+void main_show_dmi(struct s_hardware *hardware, struct s_cli_mode *cli_mode)
+{
+
+  detect_dmi(hardware);
+
+  if (hardware->is_dmi_valid == false) {
+    printf("No valid DMI table found, exiting.\n");
+    do_exit(cli_mode);
+    return;
+  }
+  printf("DMI Table version %d.%d found\n",
+         hardware->dmi.dmitable.major_version,
+         hardware->dmi.dmitable.minor_version);
+
+  show_dmi_modules(hardware);
+}
+
+void show_dmi_memory_modules(struct s_hardware *hardware, bool clear,
+           bool show_free_banks)
+{
+  char bank_number[10];
+  char available_dmi_commands[1024];
+  memset(available_dmi_commands, 0, sizeof(available_dmi_commands));
+
+  if (hardware->dmi.memory_count <= 0) {
+    printf("No memory module found\n");
+    return;
+  }
+
+  if (clear)
+    clear_screen();
+  more_printf("Memory Banks\n");
+  for (int i = 0; i < hardware->dmi.memory_count; i++) {
+    if (hardware->dmi.memory[i].filled == true) {
+      /* When discovering the first item, let's clear the screen */
+      strncat(available_dmi_commands, CLI_DMI_MEMORY_BANK,
+        sizeof(CLI_DMI_MEMORY_BANK) - 1);
+      memset(bank_number, 0, sizeof(bank_number));
+      snprintf(bank_number, sizeof(bank_number), "%d ", i);
+      strncat(available_dmi_commands, bank_number,
+        sizeof(bank_number));
+      if (show_free_banks == false) {
+        if (strncmp
+            (hardware->dmi.memory[i].size, "Free", 4))
+          printf(" bank %02d      : %s %s@%s\n",
+                 i, hardware->dmi.memory[i].size,
+                 hardware->dmi.memory[i].type,
+                 hardware->dmi.memory[i].speed);
+      } else {
+        printf(" bank %02d      : %s %s@%s\n", i,
+               hardware->dmi.memory[i].size,
+               hardware->dmi.memory[i].type,
+               hardware->dmi.memory[i].speed);
+      }
+    }
+  }
+  //printf("Type 'show bank<bank_number>' for more details.\n");
 }
