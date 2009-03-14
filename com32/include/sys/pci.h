@@ -30,6 +30,7 @@ struct pci_dev_info {
   int linux_kernel_module_count;
   char class_name[PCI_CLASS_NAME_SIZE]; /* The most precise class name */
   char category_name[PCI_CLASS_NAME_SIZE]; /*The general category*/
+  uint8_t  irq;
 };
 
 /* PCI device (really, function) */
@@ -47,7 +48,6 @@ struct pci_device {
       uint32_t vid_did;
       uint32_t svid_sdid;
       uint32_t rid_class;
-      uint8_t  irq;
     };
   };
   struct pci_dev_info *dev_info;

@@ -101,8 +101,8 @@ void show_pci_device(struct s_hardware *hardware, const char *item) {
  more_printf("SubProduct ID : %04x\n",pci_device->sub_product);
  more_printf("Class ID      : %02x.%02x.%02x\n",pci_device->class[2], pci_device->class[1],pci_device->class[0]);
  more_printf("Revision      : %02x\n",pci_device->revision);
- if ((pci_device->irq>0) && (pci_device->irq<255))
-   more_printf("IRQ           : %0d\n",pci_device->irq);
+ if ((pci_device->dev_info->irq>0) && (pci_device->dev_info->irq<255))
+   more_printf("IRQ           : %0d\n",pci_device->dev_info->irq);
  more_printf("PCI Bus       : %02d\n",bus);
  more_printf("PCI Slot      : %02d\n",slot);
  more_printf("PCI Func      : %02d\n",func);
@@ -194,15 +194,15 @@ void show_pci_irq(struct s_hardware *hardware) {
   /* For every detected pci device, compute its submenu */
  for_each_pci_func(pci_device, hardware->pci_domain) {
    /* Only display valid IRQs*/
-   if ((pci_device->irq>0) && (pci_device->irq<255)) {
+   if ((pci_device->dev_info->irq>0) && (pci_device->dev_info->irq<255)) {
      if (nopciids == false)  {
         more_printf("%02d  : %s %s \n",
-               pci_device->irq,pci_device->dev_info->vendor_name,
+               pci_device->dev_info->irq,pci_device->dev_info->vendor_name,
                pci_device->dev_info->product_name);
 
      } else {
 	more_printf("%02d  : %04x:%04x [%04x:%04x] \n",
-               pci_device->irq, pci_device->vendor, pci_device->product,
+               pci_device->dev_info->irq, pci_device->vendor, pci_device->product,
                pci_device->sub_vendor, pci_device->sub_product);
      }
    }

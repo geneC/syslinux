@@ -64,9 +64,9 @@ void compute_pci_device(struct s_my_menu *menu,struct pci_device *pci_device,int
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
    menu->items_count++;
 
-   if ((pci_device->irq>0) && (pci_device->irq<255)) {
-     snprintf(buffer,sizeof buffer,"IRQ     : %02d",pci_device->irq);
-     snprintf(statbuffer,sizeof statbuffer,"IRQ : %02d",pci_device->irq);
+   if ((pci_device->dev_info->irq>0) && (pci_device->dev_info->irq<255)) {
+     snprintf(buffer,sizeof buffer,"IRQ     : %02d",pci_device->dev_info->irq);
+     snprintf(statbuffer,sizeof statbuffer,"IRQ : %02d",pci_device->dev_info->irq);
      add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
      menu->items_count++;
     }

@@ -532,7 +532,13 @@ void gather_additional_pci_config(struct pci_domain *domain)
 
       for (nfunc = 0; nfunc < maxfunc; nfunc++) {
         a = pci_mkaddr(nbus, ndev, nfunc, 0);
-        domain->bus[nbus]->slot[ndev]->func[nfunc]->irq = pci_readb(a + 0x3c);
+	struct pci_device *dev = domain->bus[nbus]->slot[ndev]->func[nfunc];
+        if (! dev->dev_info) {
+          dev->dev_info = zalloc(sizeof *dev->dev_info);
+          if (!dev->dev_info)
+            return;
+          }
+        dev->dev_info->irq = pci_readb(a + 0x3c);
       }
     }
   }
