@@ -323,7 +323,7 @@ void main_show(char *item, struct s_hardware *hardware,
     return;
   }
   if (!strncmp(item, CLI_SYSLINUX, sizeof(CLI_SYSLINUX))) {
-    main_show_syslinux(hardware, cli_mode);
+    main_show_syslinux(hardware);
     return;
   }
   if (!strncmp(item, CLI_KERNEL, sizeof(CLI_KERNEL))) {

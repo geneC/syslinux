@@ -122,8 +122,7 @@ void handle_kernel_commands(char *cli_line, struct s_cli_mode *cli_mode,
                             struct s_hardware *hardware);
 
 // SYSLINUX STUFF
-void main_show_syslinux(struct s_hardware *hardware,
-                        struct s_cli_mode *cli_mode);
+void main_show_syslinux(struct s_hardware *hardware);
 void handle_syslinux_commands(char *cli_line, struct s_cli_mode *cli_mode,
                               struct s_hardware *hardware);
 
