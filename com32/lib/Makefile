@@ -43,7 +43,7 @@ LIBPCI_OBJS = \
 	pci/writeb.o pci/writew.o pci/writel.o pci/writebios.o
 	
 LIBSYSLINUX_OBJS = \
-	syslinux/reboot.o				\
+	syslinux/reboot.o syslinux/keyboard.o				\
 	syslinux/features.o syslinux/config.o 	\
 	syslinux/ipappend.o syslinux/dsinfo.o syslinux/version.o	\
 	\
@@ -61,7 +61,7 @@ LIBSYSLINUX_OBJS = \
 	syslinux/initramfs_file.o syslinux/initramfs_loadfile.o		\
 	syslinux/initramfs_archive.o					\
 	\
-	syslinux/pxe_get_cached.o					\
+	syslinux/pxe_get_cached.o syslinux/pxe_get_nic.o		\
 	\
 	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o		\
 	syslinux/setadv.o
@@ -118,7 +118,7 @@ LIBOTHER_OBJS = \
 	perror.o printf.o puts.o qsort.o realloc.o seed48.o snprintf.o	\
 	sprintf.o srand48.o sscanf.o strcasecmp.o strcat.o	\
 	strchr.o strcmp.o strcpy.o strdup.o strerror.o strlen.o		\
-	strnlen.o							\
+	strnlen.o strpcpy.o						\
 	strncasecmp.o strncat.o strncmp.o strncpy.o strndup.o		\
 	stpcpy.o stpncpy.o 						\
 	strntoimax.o strntoumax.o strrchr.o strsep.o strspn.o strstr.o	\
@@ -133,8 +133,6 @@ LIBOTHER_OBJS = \
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
 	libgcc/__divdi3.o libgcc/__moddi3.o				\
-	\
-	sys/zfile.o sys/zfopen.o					\
 	\
 	sys/openconsole.o sys/line_input.o				\
 	sys/colortable.o sys/screensize.o				\
