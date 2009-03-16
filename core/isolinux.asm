@@ -8,7 +8,7 @@
 ;  available.  It is based on the SYSLINUX boot loader for MS-DOS
 ;  floppies.
 ;
-;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -932,9 +932,9 @@ getlinsec_cdrom:
 		mov [si+8],eax
 .loop:
 		push bp				; Sectors left
-		cmp bp,[MaxTransfer]
+		cmp bp,[MaxTransferCD]
 		jbe .bp_ok
-		mov bp,[MaxTransfer]
+		mov bp,[MaxTransferCD]
 .bp_ok:
 		mov [si+2],bp
 		push si
@@ -979,7 +979,7 @@ xint13:		mov byte [RetryCount],retry_count
 		shr ah,1			; Otherwise, try to reduce
 		adc ah,0			; the max transfer size, but not to 0
 .setsize:
-		mov [MaxTransfer],ah
+		mov [MaxTransferCD],ah
 		mov [dapa+2],ah
 .again:
 		pop ax
@@ -1072,7 +1072,9 @@ bios_cbios:	dw getlinsec_cbios, bios_cbios_str
 bios_ebios:	dw getlinsec_ebios, bios_ebios_str
 %endif
 
-MaxTransfer	dw 32				; Max sectors per transfer
+; Maximum transfer size
+MaxTransfer	dw 127				; Hard disk modes
+MaxTransferCD	dw 32				; CD mode
 
 rl_checkpt	equ $				; Must be <= 800h
 
