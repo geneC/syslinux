@@ -56,12 +56,12 @@ void show_vesa_modes(struct s_hardware *hardware) {
     return;
   }
   clear_screen();
-  more_printf(" ResX x ResY x Bits : Kernel Mode : Vesa Mode\n",hardware->vesa.vmi_count);
-  more_printf("---------------------------------------------\n",hardware->vesa.vmi_count);
+  more_printf(" ResH. x ResV x Bits : vga= : Vesa Mode\n",hardware->vesa.vmi_count);
+  more_printf("----------------------------------------\n",hardware->vesa.vmi_count);
 
   for (int i=0;i<hardware->vesa.vmi_count;i++) {
     struct vesa_mode_info *mi=&hardware->vesa.vmi[i].mi;
-    more_printf("%5u %5u    %3u       %3d        0x%04x\n",
+    more_printf("%5u %5u    %3u     %3d     0x%04x\n",
                  mi->h_res, mi->v_res, mi->bpp, hardware->vesa.vmi[i].mode+0x200,hardware->vesa.vmi[i].mode);
   }
 }

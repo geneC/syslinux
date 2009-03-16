@@ -34,7 +34,7 @@ void compute_vesa_card(struct s_my_menu *menu, struct s_hardware *hardware) {
   char buffer[SUBMENULEN+1];
   char statbuffer[STATLEN+1];
 
-   menu->menu = add_menu(" VESA Card ",-1);
+   menu->menu = add_menu(" VESA Bios ",-1);
    menu->items_count=0;
    set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
@@ -96,7 +96,7 @@ int compute_VESA(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware) {
  hdt_menu->vesa_menu.menu = add_menu(" VESA ",-1);
  hdt_menu->vesa_menu.items_count=0;
 
- add_item("VESA Card","VESA Card",OPT_SUBMENU,NULL,hdt_menu->vesa_card_menu.menu);
+ add_item("VESA Bios","VESA Bios",OPT_SUBMENU,NULL,hdt_menu->vesa_card_menu.menu);
  hdt_menu->vesa_menu.items_count++;
  snprintf(buffer,sizeof buffer,"%s (%d)","Modes",hardware->vesa.vmi_count);
  add_item(buffer,"VESA Modes",OPT_SUBMENU,NULL,hdt_menu->vesa_modes_menu.menu);
