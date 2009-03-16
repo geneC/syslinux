@@ -17,6 +17,8 @@
 topdir = ../..
 include $(topdir)/MCONFIG.embedded
 
+MODULES = hdt.c32
+
 INCLUDES   = -I$(com32)/include -I$(com32)/cmenu/libmenu -I$(com32)/gplinclude
 
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
@@ -30,7 +32,7 @@ LIBS	= $(LIB) $(com32)/cmenu/libmenu/libmenu.a \
 
 LDFLAGS	= -m elf_i386 -T $(com32)/lib/com32.ld
 
-all:  hdt.c32 $(LIB)
+all:  $(MODULES) $(LIB)
 
 .PRECIOUS: %.o
 %.o: %.S
@@ -67,6 +69,8 @@ $(LIB):
 
 tidy dist:
 	rm -f *.o *.a *.lst *.elf
+
+install: all
 
 # Don't specify *.com since mdiskchk.com can't be built using Linux tools
 clean: tidy
