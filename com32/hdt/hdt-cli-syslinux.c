@@ -24,10 +24,8 @@
  *   OTHER DEALINGS IN THE SOFTWARE.
  *
  * -----------------------------------------------------------------------
-*/
+ */
 
-#include "hdt-cli.h"
-#include "hdt-common.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -35,31 +33,39 @@
 #include <syslinux/pxe.h>
 #include <syslinux/config.h>
 
-void main_show_syslinux(struct s_hardware *hardware,struct s_cli_mode *cli_mode) {
+#include "hdt-cli.h"
+#include "hdt-common.h"
+
+void main_show_syslinux(struct s_hardware *hardware)
+{
   more_printf("SYSLINUX\n");
   more_printf(" Bootloader : %s\n", hardware->syslinux_fs);
-  more_printf(" Version    : %s\n", hardware->sv->version_string+2);
-  more_printf(" Version    : %u\n",hardware->sv->version);
-  more_printf(" Max API    : %u\n",hardware->sv->max_api);
-  more_printf(" Copyright  : %s\n", hardware->sv->copyright_string+1);
+  more_printf(" Version    : %s\n", hardware->sv->version_string + 2);
+  more_printf(" Version    : %u\n", hardware->sv->version);
+  more_printf(" Max API    : %u\n", hardware->sv->max_api);
+  more_printf(" Copyright  : %s\n", hardware->sv->copyright_string + 1);
 }
 
-void show_syslinux_help() {
- more_printf("Show supports the following commands : %s\n",CLI_SHOW_LIST);
+static void show_syslinux_help()
+{
+  more_printf("Show supports the following commands : %s\n",
+              CLI_SHOW_LIST);
 }
 
-void syslinux_show(char *item, struct s_hardware *hardware) {
- if ( !strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1) ) {
-   main_show_syslinux(hardware,NULL);
-   return;
- }
- show_syslinux_help();
-}
-
-void handle_syslinux_commands(char *cli_line, struct s_cli_mode *cli_mode, struct s_hardware *hardware) {
- if ( !strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1) ) {
-    syslinux_show(strstr(cli_line,"show")+ sizeof(CLI_SHOW), hardware);
+static void syslinux_show(char *item, struct s_hardware *hardware)
+{
+  if (!strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1)) {
+    main_show_syslinux(hardware);
     return;
- }
+  }
+  show_syslinux_help();
 }
 
+void handle_syslinux_commands(char *cli_line, struct s_hardware *hardware)
+{
+  if (!strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
+    syslinux_show(strstr(cli_line, "show") + sizeof(CLI_SHOW),
+                  hardware);
+    return;
+  }
+}

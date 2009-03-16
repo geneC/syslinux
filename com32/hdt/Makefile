@@ -17,6 +17,8 @@
 topdir = ../..
 include $(topdir)/MCONFIG.embedded
 
+MODULES = hdt.c32
+
 INCLUDES   = -I$(com32)/include -I$(com32)/cmenu/libmenu -I$(com32)/gplinclude
 
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
@@ -30,7 +32,7 @@ LIBS	= $(LIB) $(com32)/cmenu/libmenu/libmenu.a \
 
 LDFLAGS	= -m elf_i386 -T $(com32)/lib/com32.ld
 
-all:  hdt.c32 $(LIB)
+all:  $(MODULES) $(LIB)
 
 .PRECIOUS: %.o
 %.o: %.S
@@ -49,8 +51,8 @@ hdt.elf: hdt.o hdt-ata.o hdt-menu.o hdt-menu-pci.o hdt-menu-kernel.o \
 	hdt-menu-syslinux.o hdt-menu-about.o \
 	hdt-cli.o hdt-common.o hdt-cli-pci.o hdt-cli-dmi.o \
 	hdt-cli-cpu.o hdt-cli-pxe.o hdt-cli-kernel.o \
-	hdt-cli-syslinux.o \
-	hdt-menu-pxe.o hdt-menu-summary.o\
+	hdt-cli-syslinux.o hdt-cli-vesa.o\
+	hdt-menu-pxe.o hdt-menu-summary.o hdt-menu-vesa.o\
 	$(LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
@@ -67,6 +69,8 @@ $(LIB):
 
 tidy dist:
 	rm -f *.o *.a *.lst *.elf
+
+install: all
 
 # Don't specify *.com since mdiskchk.com can't be built using Linux tools
 clean: tidy

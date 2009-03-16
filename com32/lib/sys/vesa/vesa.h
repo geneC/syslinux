@@ -38,7 +38,7 @@ struct vesa_general_info {
   far_ptr_t vendor_string;
   uint8_t   capabilities[4];
   far_ptr_t video_mode_ptr;
-  uint32_t  total_memory;
+  uint16_t  total_memory;
 
   uint16_t  oem_software_rev;
   far_ptr_t oem_vendor_name_ptr;

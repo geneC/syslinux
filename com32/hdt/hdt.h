@@ -24,7 +24,7 @@
  *   OTHER DEALINGS IN THE SOFTWARE.
  *
  * -----------------------------------------------------------------------
-*/
+ */
 
 #ifndef DEFINE_HDT_H
 #define DEFINE_HDT_H
@@ -32,7 +32,7 @@
 #define PRODUCT_NAME "Hardware Detection Tool"
 #define AUTHOR "Erwan Velu"
 #define CONTACT "erwan(dot)velu(point)free(dot)fr"
-#define VERSION "0.2.3"
+#define VERSION "0.2.4"
 
 #define ATTR_PACKED __attribute__((packed))
 

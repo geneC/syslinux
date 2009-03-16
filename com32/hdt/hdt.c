@@ -24,7 +24,7 @@
  *   OTHER DEALINGS IN THE SOFTWARE.
  *
  * -----------------------------------------------------------------------
-*/
+ */
 
 /*
  * hdt.c
@@ -34,45 +34,47 @@
 
 #include <stdio.h>
 #include <console.h>
+
 #include "hdt.h"
 #include "hdt-menu.h"
 #include "hdt-cli.h"
 #include "hdt-common.h"
 
-int display_line_nb=0;
+int display_line_nb = 0;
 
-int main(int argc, char *argv[])
+int main(const int argc, const char *argv[])
 {
   char version_string[256];
-  char *arg;
+  const char *arg;
   struct s_hardware hardware;
 
-  snprintf(version_string,sizeof version_string,"%s %s by %s",PRODUCT_NAME,VERSION,AUTHOR);
+  snprintf(version_string, sizeof version_string, "%s %s by %s",
+           PRODUCT_NAME,VERSION,AUTHOR);
 
   /* Cleaning structures */
   init_hardware(&hardware);
 
   /* Detecting parameters */
-  detect_parameters(argc,argv,&hardware);
+  detect_parameters(argc, argv, &hardware);
 
-  /* Detecting Syslinux Version*/
+  /* Detecting Syslinux version */
   detect_syslinux(&hardware);
 
-  /* Opening the syslinux console */
+  /* Opening the Syslinux console */
   openconsole(&dev_stdcon_r, &dev_ansicon_w);
 
   clear_screen();
-  printf("%s\n",version_string);
+  printf("%s\n", version_string);
 
-  if ((arg = find_argument(argv+1, "nomenu"))) {
-	  start_cli_mode(&hardware, argc, argv);
-  } else{
-	 int return_code = start_menu_mode(&hardware, version_string);
-	 if (return_code == HDT_RETURN_TO_CLI) {
-	   start_cli_mode(&hardware,argc,argv);
-	 } else {
-	   return return_code;
-	 }
+  if ((arg = find_argument(argv + 1, "nomenu")))
+    start_cli_mode(&hardware);
+  else {
+    int return_code = start_menu_mode(&hardware, version_string);
+
+    if (return_code == HDT_RETURN_TO_CLI)
+      start_cli_mode(&hardware);
+    else
+      return return_code;
   }
 
   return 0;
