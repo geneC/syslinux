@@ -19,7 +19,8 @@ include $(topdir)/MCONFIG.embedded
 
 MODULES = hdt.c32
 
-INCLUDES   = -I$(com32)/include -I$(com32)/cmenu/libmenu -I$(com32)/gplinclude
+INCLUDES   = -I$(com32)/include -I$(com32)/cmenu/libmenu -I$(com32)/gplinclude\
+	     -I$(com32)/libutil/include
 
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 LIB	   = liboldcom32.a
