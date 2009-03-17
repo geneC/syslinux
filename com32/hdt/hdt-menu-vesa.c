@@ -30,7 +30,7 @@
 
 
 /* Submenu for the vesa card */
-void compute_vesa_card(struct s_my_menu *menu, struct s_hardware *hardware) {
+static void compute_vesa_card(struct s_my_menu *menu, struct s_hardware *hardware) {
   char buffer[SUBMENULEN+1];
   char statbuffer[STATLEN+1];
 

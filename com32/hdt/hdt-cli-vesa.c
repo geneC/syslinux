@@ -66,11 +66,11 @@ void show_vesa_modes(struct s_hardware *hardware) {
   }
 }
 
-void show_vesa_help() {
+static void show_vesa_help() {
  more_printf("Show supports the following commands : %s %s\n",CLI_SHOW_LIST, CLI_MODES);
 }
 
-void vesa_show(char *item, struct s_hardware *hardware) {
+static void vesa_show(char *item, struct s_hardware *hardware) {
  if ( !strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1) ) {
    main_show_vesa(hardware);
    return;
