@@ -74,6 +74,7 @@ SECTIONS
   .data1          : { *(.data1) }
   _edata = .;
   PROVIDE (edata = .);
+  . = ALIGN(16);
   .bss            :
   {
    __bss_start = .;
@@ -83,10 +84,9 @@ SECTIONS
    /* Align here to ensure that the .bss section occupies space up to
       _end.  Align after .bss to ensure correct alignment even if the
       .bss section disappears because there are no input sections.  */
-   . = ALIGN(32 / 8);
+   . = ALIGN(4);
    __bss_end = .;
   }
-  . = ALIGN(32 / 8);
   _end = .;
   PROVIDE (end = .);
 
