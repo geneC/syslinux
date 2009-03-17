@@ -444,7 +444,7 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 {
   static struct geometry hd_geometry;
   struct dosemu_header dosemu;
-  unsigned int sectors, v;
+  unsigned int sectors, xsectors, v;
   unsigned int offset;
   int i;
   const char *p;
@@ -455,55 +455,7 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
   if ( CMD_HASDATA(p = getcmditem("offset")) && (v = atou(p)) )
     offset = v;
 
-  sectors = (size-offset) >> 9;
-
-  if (sectors < 4096*2) {
-    int ok = 0;
-    unsigned int xsectors = sectors;
-
-    while (!ok) {
-      /* Assume it's a floppy drive, guess a geometry */
-      unsigned int type, track;
-      int c, h, s;
-
-      if (xsectors < 320*2) {
-	c = 40; h = 1; type = 1;
-      } else if (xsectors < 640*2) {
-	c = 40; h = 2; type = 1;
-      } else if (xsectors < 1200*2) {
-	c = 80; h = 2; type = 3;
-      } else if (xsectors < 1440*2) {
-	c = 80; h = 2; type = 2;
-    } else if (xsectors < 2880*2) {
-	c = 80; h = 2; type = 4;
-      } else {
-	c = 80; h = 2; type = 6;
-      }
-      track = c*h;
-      while (c < 256) {
-	s = xsectors/track;
-	if (s < 63 && (xsectors % track) == 0) {
-	  ok = 1;
-	  break;
-	}
-	c++;
-	track += h;
-      }
-      if (ok) {
-	hd_geometry.driveno = 0;
-	hd_geometry.c = c;
-	hd_geometry.h = h;
-	hd_geometry.s = s;
-      } else {
-	/* No valid floppy geometry, fake it by simulating broken
-	   sectors at the end of the image... */
-	xsectors++;
-      }
-    }
-  } else {
-    /* Hard disk */
-    hd_geometry.driveno = 0x80;
-  }
+  sectors = xsectors = (size-offset) >> 9;
 
   hd_geometry.sectors = sectors;
   hd_geometry.offset  = offset;
@@ -528,12 +480,13 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
   if ( CMD_HASDATA(p = getcmditem("s")) && (v = atou(p)) )
     hd_geometry.s = v;
 
-  if ( !hd_geometry.c || !hd_geometry.h || !hd_geometry.s ) {
+  if ( !hd_geometry.h || !hd_geometry.s ) {
     int h, s, max_h, max_s;
     
-    max_h = max_s = 0;
+    max_h = hd_geometry.h;
+    max_s = hd_geometry.s;
 
-    if (!max_h && !max_s) {
+    if (!(max_h|max_s)) {
       /* Look for a FAT superblock and if we find something that looks
 	 enough like one, use geometry from that.  This takes care of
 	 megafloppy images and unpartitioned hard disks. */
@@ -560,44 +513,88 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
       }
     }
 
-    if (!max_h && !max_s) {
-      /* Not FAT, assume it is a hard disk image and scan for a
-	 partition table */
-      const struct ptab_entry *ptab = (const struct ptab_entry *)
-	((char *)where+hd_geometry.offset+(512-2-4*16));
+    if (!(max_h|max_s)) {
+      /* No FAT filesystem found to steal geometry from... */
+      if (sectors < 4096*2) {
+	int ok = 0;
+	unsigned int xsectors = sectors;
 
-      if (*(uint16_t *)((char *)where+512) == 0xaa55)
-	for ( i = 0 ; i < 4 ; i++ ) {
-	  if ( ptab[i].type && !(ptab[i].active & 0x7f) ) {
-	    s = (ptab[i].start_s & 0x3f);
-	    h = ptab[i].start_h + 1;
-	    
-	    if ( max_h < h ) max_h = h;
-	    if ( max_s < s ) max_s = s;
-	    
-	    s = (ptab[i].end_s & 0x3f);
-	    h = ptab[i].end_h + 1;
-	    
-	    if ( max_h < h ) max_h = h;
-	    if ( max_s < s ) max_s = s;
-	    
-	    hd_geometry.driveno = 0x80; /* Assume hard disk */
+	hd_geometry.driveno = 0; /* Assume floppy */
+	
+	while (!ok) {
+	  /* Assume it's a floppy drive, guess a geometry */
+	  unsigned int type, track;
+	  int c, h, s;
+	  
+	  if (xsectors < 320*2) {
+	    c = 40; h = 1; type = 1;
+	  } else if (xsectors < 640*2) {
+	    c = 40; h = 2; type = 1;
+	  } else if (xsectors < 1200*2) {
+	    c = 80; h = 2; type = 3;
+	  } else if (xsectors < 1440*2) {
+	    c = 80; h = 2; type = 2;
+	  } else if (xsectors < 2880*2) {
+	    c = 80; h = 2; type = 4;
+	  } else {
+	    c = 80; h = 2; type = 6;
+	  }
+	  track = c*h;
+	  while (c < 256) {
+	    s = xsectors/track;
+	    if (s < 63 && (xsectors % track) == 0) {
+	      ok = 1;
+	      break;
+	    }
+	    c++;
+	    track += h;
+	  }
+	  if (ok) {
+	    max_h = h;
+	    max_s = s;
+	  } else {
+	    /* No valid floppy geometry, fake it by simulating broken
+	       sectors at the end of the image... */
+	    xsectors++;
 	  }
 	}
+      } else {
+	/* Assume it is a hard disk image and scan for a partition table */
+	const struct ptab_entry *ptab = (const struct ptab_entry *)
+	  ((char *)where+hd_geometry.offset+(512-2-4*16));
+	      
+	hd_geometry.driveno = 0x80; /* Assume hard disk */
+	
+	if (*(uint16_t *)((char *)where+512) == 0xaa55)
+	  for ( i = 0 ; i < 4 ; i++ ) {
+	    if ( ptab[i].type && !(ptab[i].active & 0x7f) ) {
+	      s = (ptab[i].start_s & 0x3f);
+	      h = ptab[i].start_h + 1;
+	      
+	      if ( max_h < h ) max_h = h;
+	      if ( max_s < s ) max_s = s;
+	      
+	      s = (ptab[i].end_s & 0x3f);
+	      h = ptab[i].end_h + 1;
+	      
+	      if ( max_h < h ) max_h = h;
+	      if ( max_s < s ) max_s = s;
+	    }
+	  }
+      }
     }
 
     if (!max_h)
-      max_h = sectors > 2097152 ? 255 : 64;
+      max_h = xsectors > 2097152 ? 255 : 64;
     if (!max_s)
-      max_s = sectors > 2097152 ? 63 : 32;
-
-    if ( !hd_geometry.h )
-      hd_geometry.h = max_h;
-    if ( !hd_geometry.s )
-      hd_geometry.s = max_s;
-    if ( !hd_geometry.c )
-      hd_geometry.c = sectors/(hd_geometry.h*hd_geometry.s);
+      max_s = xsectors > 2097152 ? 63 : 32;
+    
+    hd_geometry.h = max_h;
+    hd_geometry.s = max_s;
   }
+
+  if ( !hd_geometry.c )
+    hd_geometry.c = xsectors/(hd_geometry.h*hd_geometry.s);
 
   if ( (p = getcmditem("floppy")) != CMD_NOTFOUND ) {
     hd_geometry.driveno = CMD_HASDATA(p) ? atou(p) & 0x7f : 0;
