@@ -533,32 +533,10 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
     
     max_h = max_s = 0;
 
-    if ( hd_geometry.driveno & 0x80 ) {
-      /* Hard disk image, need to examine the partition table for geometry */
-      const struct ptab_entry *ptab = (const struct ptab_entry *)
-	((char *)where+hd_geometry.offset+(512-2-4*16));
-
-      for ( i = 0 ; i < 4 ; i++ ) {
-	if ( ptab[i].type ) {
-	  s = (ptab[i].start_s & 0x3f);
-	  h = ptab[i].start_h + 1;
-	  
-	  if ( max_h < h ) max_h = h;
-	  if ( max_s < s ) max_s = s;
-	  
-	  s = (ptab[i].end_s & 0x3f);
-	  h = ptab[i].end_h + 1;
-	  
-	  if ( max_h < h ) max_h = h;
-	  if ( max_s < s ) max_s = s;
-	}
-      }
-    }
-
     if (!max_h && !max_s) {
-      /* Floppy image, or unpartitioned hard disk... look for a FAT
-	 superblock and if we find something that looks enough like one,
-	 use geometry from that. */
+      /* Look for a FAT superblock and if we find something that looks
+	 enough like one, use geometry from that.  This takes care of
+	 megafloppy images and unpartitioned hard disks. */
       const struct fat_extra *extra = NULL;
       const struct fat_super *fs = (const struct fat_super *)
 	((char *)where+hd_geometry.offset);
@@ -580,6 +558,32 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 	max_h = fs->bpb_numheads;
 	max_s = fs->bpb_secpertrk;
       }
+    }
+
+    if (!max_h && !max_s) {
+      /* Not FAT, assume it is a hard disk image and scan for a
+	 partition table */
+      const struct ptab_entry *ptab = (const struct ptab_entry *)
+	((char *)where+hd_geometry.offset+(512-2-4*16));
+
+      if (*(uint16_t *)((char *)where+512) == 0xaa55)
+	for ( i = 0 ; i < 4 ; i++ ) {
+	  if ( ptab[i].type && !(ptab[i].active & 0x7f) ) {
+	    s = (ptab[i].start_s & 0x3f);
+	    h = ptab[i].start_h + 1;
+	    
+	    if ( max_h < h ) max_h = h;
+	    if ( max_s < s ) max_s = s;
+	    
+	    s = (ptab[i].end_s & 0x3f);
+	    h = ptab[i].end_h + 1;
+	    
+	    if ( max_h < h ) max_h = h;
+	    if ( max_s < s ) max_s = s;
+	    
+	    hd_geometry.driveno = 0x80; /* Assume hard disk */
+	  }
+	}
     }
 
     if (!max_h)
