@@ -95,8 +95,8 @@ spotless: clean
 memdisk16.elf: $(OBJS16)
 	$(LD) -Ttext 0 -o $@ $^
 
-memdisk32.elf: $(OBJS32)
-	$(LD) -Ttext 0x100000 -o $@ $^
+memdisk32.elf: memdisk.ld $(OBJS32)
+	$(LD) -o $@ -T $^
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
