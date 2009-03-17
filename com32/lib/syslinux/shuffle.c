@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -44,11 +44,18 @@
 #ifndef DEBUG
 # define DEBUG 0
 #endif
+
+#define dprintf(f, ...) ((void)0)
+#define dprintf2(f, ...) ((void)0)
+
 #if DEBUG
 # include <stdio.h>
+# undef dprintf
 # define dprintf printf
-#else
-# define dprintf(f, ...) ((void)0)
+# if DEBUG > 1
+#  undef dprintf2
+#  define dprintf2 printf
+# endif
 #endif
 
 struct shuffle_descriptor {
@@ -76,8 +83,9 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
   struct syslinux_movelist *moves = NULL, *mp;
   struct syslinux_memmap *rxmap = NULL, *ml;
   struct shuffle_descriptor *dp, *dbuf;
-  int np, nb, rv = -1;
+  int np, nb, nl, rv = -1;
   int desc_blocks, need_blocks;
+  int need_ptrs;
   addr_t desczone, descfree, descaddr, descoffs;
   int nmoves, nzero;
   struct shuffle_descriptor primaries[2];
@@ -89,7 +97,7 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
       nzero++;
   }
 
-  /* Find the larges contiguous region unused by input *and* output;
+  /* Find the largest contiguous region unused by input *and* output;
      this is where we put the move descriptor list */
 
   rxmap = syslinux_dup_memmap(memmap);
@@ -111,7 +119,7 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
   if (!rxmap)
     goto bail;
 
-  desc_blocks = (nzero+DESC_BLOCK_SIZE)/(DESC_BLOCK_SIZE-1);
+  desc_blocks = (nzero+DESC_BLOCK_SIZE-1)/(DESC_BLOCK_SIZE-1);
   for (;;) {
     addr_t descmem = desc_blocks*
       sizeof(struct shuffle_descriptor)*DESC_BLOCK_SIZE;
@@ -124,7 +132,7 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
     if (syslinux_add_memmap(&rxmap, descaddr, descmem, SMT_RESERVED))
       goto bail;
 
-#if DEBUG
+#if DEBUG > 1
     syslinux_dump_movelist(stdout, fraglist);
 #endif
 
@@ -135,7 +143,7 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
     for (mp = moves; mp; mp = mp->next)
       nmoves++;
 
-    need_blocks = (nmoves+nzero)/(DESC_BLOCK_SIZE-1);
+    need_blocks = (nmoves+nzero+DESC_BLOCK_SIZE-1)/(DESC_BLOCK_SIZE-1);
 
     if (desc_blocks >= need_blocks)
       break;			/* Sufficient memory, yay */
@@ -143,7 +151,7 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
     desc_blocks = need_blocks;	/* Try again... */
   }
 
-#if DEBUG
+#if DEBUG > 1
   dprintf("Final movelist:\n");
   syslinux_dump_movelist(stdout, moves);
 #endif
@@ -151,7 +159,8 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
   syslinux_free_memmap(rxmap);
   rxmap = NULL;
 
-  dbuf = malloc((nmoves+nzero+desc_blocks)*sizeof(struct shuffle_descriptor));
+  need_ptrs = nmoves+nzero+desc_blocks-1;
+  dbuf = malloc(need_ptrs*sizeof(struct shuffle_descriptor));
   if (!dbuf)
     goto bail;
 
@@ -165,12 +174,13 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
   /* Copy the move sequence into the descriptor buffer */
   np = 0;
   nb = 0;
+  nl = nmoves+nzero;
   dp = dbuf;
   for (mp = moves; mp; mp = mp->next) {
     if (nb == DESC_BLOCK_SIZE-1) {
       dp->dst = -1;		/* Load new descriptors */
       dp->src = (addr_t)(dp+1) + descoffs;
-      dp->len = sizeof(*dp)*min(nmoves, DESC_BLOCK_SIZE);
+      dp->len = sizeof(*dp)*min(nl, DESC_BLOCK_SIZE);
       dprintf("[ %08x %08x %08x ]\n", dp->dst, dp->src, dp->len);
       dp++; np++;
       nb = 0;
@@ -179,8 +189,8 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
     dp->dst = mp->dst;
     dp->src = mp->src;
     dp->len = mp->len;
-    dprintf("[ %08x %08x %08x ]\n", dp->dst, dp->src, dp->len);
-    dp++; np++; nb++;
+    dprintf2("[ %08x %08x %08x ]\n", dp->dst, dp->src, dp->len);
+    dp++; np++; nb++; nl--;
   }
 
   /* Copy bzero operations into the descriptor buffer */
@@ -189,7 +199,7 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
       if (nb == DESC_BLOCK_SIZE-1) {
 	dp->dst = (addr_t)-1;	/* Load new descriptors */
 	dp->src = (addr_t)(dp+1) + descoffs;
-	dp->len = sizeof(*dp)*min(nmoves, DESC_BLOCK_SIZE);
+	dp->len = sizeof(*dp)*min(nl, DESC_BLOCK_SIZE);
 	dprintf("[ %08x %08x %08x ]\n", dp->dst, dp->src, dp->len);
 	dp++; np++;
 	nb = 0;
@@ -198,9 +208,14 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
       dp->dst = ml->start;
       dp->src = (addr_t)-1;	/* bzero region */
       dp->len = ml->next->start - ml->start;
-      dprintf("[ %08x %08x %08x ]\n", dp->dst, dp->src, dp->len);
-      dp++; np++; nb++;
+      dprintf2("[ %08x %08x %08x ]\n", dp->dst, dp->src, dp->len);
+      dp++; np++; nb++; nl--;
     }
+  }
+
+  if (np != need_ptrs) {
+    dprintf("!!! np = %d : nmoves = %d, nzero = %d, desc_blocks = %d\n",
+	    np, nmoves, nzero, desc_blocks);
   }
 
   /* Set up the primary descriptors in the bounce buffer.

@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -536,10 +536,16 @@ parse_load_initrd:
 		je .get_chunk
 
 		; Compute the initrd target location
+		; Note: we round to a page boundary twice here.  The first
+		; time it is to make sure we don't use any fractional page
+		; which may be valid RAM but which will be ignored by the
+		; kernel (and therefore is inaccessible.)  The second time
+		; it is to make sure we start out on page boundary.
 		mov edx,[cs:InitRDEnd]
 		sub edx,[cs:InitRDStart]
 		mov [su_ramdisklen],edx
 		mov eax,[cs:MyHighMemSize]
+		and ax,0F000h		; Round to a page boundary
 		sub eax,edx
 		and ax,0F000h		; Round to a page boundary
 		mov [su_ramdiskat],eax

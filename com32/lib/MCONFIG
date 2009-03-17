@@ -1,6 +1,5 @@
 # -*- makefile -*-
 
-topdir = ../..
 include $(topdir)/MCONFIG
 
 GCCOPT := $(call gcc_ok,-std=gnu99,) \

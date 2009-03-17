@@ -1,0 +1,481 @@
+/* ----------------------------------------------------------------------- *
+ *
+ *   Copyright 2009 Erwan Velu - All Rights Reserved
+ *
+ *   Permission is hereby granted, free of charge, to any person
+ *   obtaining a copy of this software and associated documentation
+ *   files (the "Software"), to deal in the Software without
+ *   restriction, including without limitation the rights to use,
+ *   copy, modify, merge, publish, distribute, sublicense, and/or
+ *   sell copies of the Software, and to permit persons to whom
+ *   the Software is furnished to do so, subject to the following
+ *   conditions:
+ *
+ *   The above copyright notice and this permission notice shall
+ *   be included in all copies or substantial portions of the Software.
+ *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *   OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * -----------------------------------------------------------------------
+ */
+
+#include "hdt-menu.h"
+
+/* Compute System main menu */
+void compute_system(struct s_my_menu *menu, s_dmi * dmi)
+{
+  char buffer[SUBMENULEN + 1];
+  char statbuffer[STATLEN + 1];
+
+  menu->menu = add_menu(" System ", -1);
+  menu->items_count = 0;
+  set_menu_pos(SUBMENU_Y, SUBMENU_X);
+
+  snprintf(buffer, sizeof buffer, "Vendor    : %s",
+     dmi->system.manufacturer);
+  snprintf(statbuffer, sizeof statbuffer, "Vendor: %s",
+     dmi->system.manufacturer);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Product   : %s",
+     dmi->system.product_name);
+  snprintf(statbuffer, sizeof statbuffer, "Product Name: %s",
+     dmi->system.product_name);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Version   : %s", dmi->system.version);
+  snprintf(statbuffer, sizeof statbuffer, "Version: %s",
+     dmi->system.version);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Serial    : %s", dmi->system.serial);
+  snprintf(statbuffer, sizeof statbuffer, "Serial Number: %s",
+     dmi->system.serial);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "UUID      : %s", dmi->system.uuid);
+  snprintf(statbuffer, sizeof statbuffer, "UUID: %s", dmi->system.uuid);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Wakeup    : %s",
+     dmi->system.wakeup_type);
+  snprintf(statbuffer, sizeof statbuffer, "Wakeup Type: %s",
+     dmi->system.wakeup_type);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "SKU Number: %s",
+     dmi->system.sku_number);
+  snprintf(statbuffer, sizeof statbuffer, "SKU Number: %s",
+     dmi->system.sku_number);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Family    : %s", dmi->system.family);
+  snprintf(statbuffer, sizeof statbuffer, "Family: %s",
+     dmi->system.family);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  printf("MENU: System menu done (%d items)\n", menu->items_count);
+}
+
+/* Compute Chassis menu */
+void compute_chassis(struct s_my_menu *menu, s_dmi * dmi)
+{
+  char buffer[SUBMENULEN + 1];
+  char statbuffer[STATLEN + 1];
+  menu->menu = add_menu(" Chassis ", -1);
+  menu->items_count = 0;
+  set_menu_pos(SUBMENU_Y, SUBMENU_X);
+
+  snprintf(buffer, sizeof buffer, "Vendor    : %s",
+     dmi->chassis.manufacturer);
+  snprintf(statbuffer, sizeof statbuffer, "Vendor: %s",
+     dmi->chassis.manufacturer);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Type      : %s", dmi->chassis.type);
+  snprintf(statbuffer, sizeof statbuffer, "Type: %s", dmi->chassis.type);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Version   : %s", dmi->chassis.version);
+  snprintf(statbuffer, sizeof statbuffer, "Version: %s",
+     dmi->chassis.version);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Serial    : %s", dmi->chassis.serial);
+  snprintf(statbuffer, sizeof statbuffer, "Serial Number: %s",
+     dmi->chassis.serial);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Asset Tag : %s",
+     dmi->chassis.asset_tag);
+  snprintf(statbuffer, sizeof statbuffer, "Asset Tag: %s",
+     dmi->chassis.asset_tag);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Lock      : %s", dmi->chassis.lock);
+  snprintf(statbuffer, sizeof statbuffer, "Lock: %s", dmi->chassis.lock);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  printf("MENU: Chassis menu done (%d items)\n", menu->items_count);
+}
+
+/* Compute BIOS menu */
+void compute_bios(struct s_my_menu *menu, s_dmi * dmi)
+{
+  char buffer[SUBMENULEN + 1];
+  char statbuffer[STATLEN + 1];
+
+  menu->menu = add_menu(" BIOS ", -1);
+  menu->items_count = 0;
+  set_menu_pos(SUBMENU_Y, SUBMENU_X);
+
+  snprintf(buffer, sizeof buffer, "Vendor    : %s", dmi->bios.vendor);
+  snprintf(statbuffer, sizeof statbuffer, "Vendor: %s", dmi->bios.vendor);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Version   : %s", dmi->bios.version);
+  snprintf(statbuffer, sizeof statbuffer, "Version: %s",
+     dmi->bios.version);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Release   : %s",
+     dmi->bios.release_date);
+  snprintf(statbuffer, sizeof statbuffer, "Release Date: %s",
+     dmi->bios.release_date);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Bios Rev. : %s",
+     dmi->bios.bios_revision);
+  snprintf(statbuffer, sizeof statbuffer, "Bios Revision: %s",
+     dmi->bios.bios_revision);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Fw.  Rev. : %s",
+     dmi->bios.firmware_revision);
+  snprintf(statbuffer, sizeof statbuffer, "Firmware Revision : %s",
+     dmi->bios.firmware_revision);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+
+  printf("MENU: BIOS menu done (%d items)\n", menu->items_count);
+}
+
+/* Compute Motherboard main menu */
+void compute_motherboard(struct s_my_menu *menu, s_dmi * dmi)
+{
+  char buffer[SUBMENULEN + 1];
+  char statbuffer[STATLEN + 1];
+
+  menu->menu = add_menu(" Motherboard ", -1);
+  menu->items_count = 0;
+  set_menu_pos(SUBMENU_Y, SUBMENU_X);
+
+  snprintf(buffer, sizeof buffer, "Vendor    : %s",
+     dmi->base_board.manufacturer);
+  snprintf(statbuffer, sizeof statbuffer, "Vendor: %s",
+     dmi->base_board.manufacturer);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Product   : %s",
+     dmi->base_board.product_name);
+  snprintf(statbuffer, sizeof statbuffer, "Product Name: %s",
+     dmi->base_board.product_name);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Version   : %s",
+     dmi->base_board.version);
+  snprintf(statbuffer, sizeof statbuffer, "Version: %s",
+     dmi->base_board.version);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Serial    : %s",
+     dmi->base_board.serial);
+  snprintf(statbuffer, sizeof statbuffer, "Serial Number: %s",
+     dmi->base_board.serial);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Asset Tag : %s",
+     dmi->base_board.asset_tag);
+  snprintf(statbuffer, sizeof statbuffer, "Asset Tag: %s",
+     dmi->base_board.asset_tag);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Location  : %s",
+     dmi->base_board.location);
+  snprintf(statbuffer, sizeof statbuffer, "Location: %s",
+     dmi->base_board.location);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Type      : %s", dmi->base_board.type);
+  snprintf(statbuffer, sizeof statbuffer, "Type: %s",
+     dmi->base_board.type);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  printf("MENU: Motherboard menu done (%d items)\n", menu->items_count);
+}
+
+/* Compute the Memory submenu */
+static void compute_memory_module(struct s_my_menu *menu, s_dmi * dmi,
+                                  int slot_number)
+{
+  int i = slot_number;
+  char buffer[MENULEN + 1];
+  char statbuffer[STATLEN + 1];
+
+  sprintf(buffer, " Bank <%d> ", i);
+  menu->items_count = 0;
+  menu->menu = add_menu(buffer, -1);
+
+  snprintf(buffer, sizeof buffer, "Form Factor  : %s",
+     dmi->memory[i].form_factor);
+  snprintf(statbuffer, sizeof statbuffer, "Form Factor: %s",
+     dmi->memory[i].form_factor);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Type         : %s",
+     dmi->memory[i].type);
+  snprintf(statbuffer, sizeof statbuffer, "Type: %s",
+     dmi->memory[i].type);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Type Details : %s",
+     dmi->memory[i].type_detail);
+  snprintf(statbuffer, sizeof statbuffer, "Type Details: %s",
+     dmi->memory[i].type_detail);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Speed        : %s",
+     dmi->memory[i].speed);
+  snprintf(statbuffer, sizeof statbuffer, "Speed (Mhz): %s",
+     dmi->memory[i].speed);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Size         : %s",
+     dmi->memory[i].size);
+  snprintf(statbuffer, sizeof statbuffer, "Size: %s",
+     dmi->memory[i].size);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Device Set   : %s",
+     dmi->memory[i].device_set);
+  snprintf(statbuffer, sizeof statbuffer, "Device Set: %s",
+     dmi->memory[i].device_set);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Device Loc.  : %s",
+     dmi->memory[i].device_locator);
+  snprintf(statbuffer, sizeof statbuffer, "Device Location: %s",
+     dmi->memory[i].device_locator);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Bank Locator : %s",
+     dmi->memory[i].bank_locator);
+  snprintf(statbuffer, sizeof statbuffer, "Bank Locator: %s",
+     dmi->memory[i].bank_locator);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Total Width  : %s",
+     dmi->memory[i].total_width);
+  snprintf(statbuffer, sizeof statbuffer, "Total bit Width: %s",
+     dmi->memory[i].total_width);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Data Width   : %s",
+     dmi->memory[i].data_width);
+  snprintf(statbuffer, sizeof statbuffer, "Data bit Width: %s",
+     dmi->memory[i].data_width);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Error        : %s",
+     dmi->memory[i].error);
+  snprintf(statbuffer, sizeof statbuffer, "Error: %s",
+     dmi->memory[i].error);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Vendor       : %s",
+     dmi->memory[i].manufacturer);
+  snprintf(statbuffer, sizeof statbuffer, "Vendor: %s",
+     dmi->memory[i].manufacturer);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Serial       : %s",
+     dmi->memory[i].serial);
+  snprintf(statbuffer, sizeof statbuffer, "Serial: %s",
+     dmi->memory[i].serial);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Asset Tag    : %s",
+     dmi->memory[i].asset_tag);
+  snprintf(statbuffer, sizeof statbuffer, "Asset Tag: %s",
+     dmi->memory[i].asset_tag);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Part Number  : %s",
+     dmi->memory[i].part_number);
+  snprintf(buffer, sizeof statbuffer, "Part Number: %s",
+     dmi->memory[i].part_number);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+}
+
+/* Compute the Memory menu */
+void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi)
+{
+  char buffer[MENULEN + 1];
+  for (int i = 0; i < dmi->memory_count; i++) {
+    compute_memory_module(&(menu->memory_sub_menu[i]), dmi, i);
+  }
+
+  menu->memory_menu.menu = add_menu(" Memory Banks ", -1);
+  menu->memory_menu.items_count = 0;
+
+  for (int i = 0; i < dmi->memory_count; i++) {
+    snprintf(buffer, sizeof buffer, " Bank <%d> ", i);
+    add_item(buffer, "Memory Bank", OPT_SUBMENU, NULL,
+       menu->memory_sub_menu[i].menu);
+    menu->memory_menu.items_count++;
+  }
+  printf("MENU: Memory menu done (%d items)\n",
+         menu->memory_menu.items_count);
+  add_item("Run Test", "Run Test", OPT_RUN, "memtest", 0);
+}
+
+/* Compute Main Battery menu */
+void compute_battery(struct s_my_menu *menu, s_dmi * dmi)
+{
+  char buffer[SUBMENULEN + 1];
+  char statbuffer[STATLEN + 1];
+  menu->menu = add_menu(" Battery ", -1);
+  menu->items_count = 0;
+  set_menu_pos(SUBMENU_Y, SUBMENU_X);
+
+  snprintf(buffer, sizeof buffer, "Vendor          : %s",
+     dmi->battery.manufacturer);
+  snprintf(statbuffer, sizeof statbuffer, "Vendor: %s",
+     dmi->battery.manufacturer);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Manufacture Date: %s",
+     dmi->battery.manufacture_date);
+  snprintf(statbuffer, sizeof statbuffer, "Manufacture Date: %s",
+     dmi->battery.manufacture_date);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Serial          : %s",
+     dmi->battery.serial);
+  snprintf(statbuffer, sizeof statbuffer, "Serial: %s",
+     dmi->battery.serial);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Name            : %s",
+     dmi->battery.name);
+  snprintf(statbuffer, sizeof statbuffer, "Name: %s", dmi->battery.name);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Chemistry       : %s",
+     dmi->battery.chemistry);
+  snprintf(statbuffer, sizeof statbuffer, "Chemistry: %s",
+     dmi->battery.chemistry);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Design Capacity : %s",
+     dmi->battery.design_capacity);
+  snprintf(statbuffer, sizeof statbuffer, "Design Capacity: %s",
+     dmi->battery.design_capacity);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Design Voltage  : %s",
+     dmi->battery.design_voltage);
+  snprintf(statbuffer, sizeof statbuffer, "Design Voltage : %s",
+     dmi->battery.design_voltage);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "SBDS            : %s",
+     dmi->battery.sbds);
+  snprintf(statbuffer, sizeof statbuffer, "SBDS: %s", dmi->battery.sbds);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "SBDS Manuf. Date: %s",
+     dmi->battery.sbds_manufacture_date);
+  snprintf(statbuffer, sizeof statbuffer, "SBDS Manufacture Date: %s",
+     dmi->battery.sbds_manufacture_date);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "SBDS Chemistry  : %s",
+     dmi->battery.sbds_chemistry);
+  snprintf(statbuffer, sizeof statbuffer, "SBDS Chemistry : %s",
+     dmi->battery.sbds_chemistry);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Maximum Error   : %s",
+     dmi->battery.maximum_error);
+  snprintf(statbuffer, sizeof statbuffer, "Maximum Error (%) : %s",
+     dmi->battery.maximum_error);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "OEM Info        : %s",
+     dmi->battery.oem_info);
+  snprintf(statbuffer, sizeof statbuffer, "OEM Info: %s",
+     dmi->battery.oem_info);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  printf("MENU: Battery menu done (%d items)\n", menu->items_count);
+}

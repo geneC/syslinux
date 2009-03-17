@@ -20,9 +20,14 @@ include $(topdir)/MCONFIG.embedded
 INCLUDES   = -I$(com32)/include
 
 PPMTOLSS16 = $(topdir)/utils/ppmtolss16
+LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 LIB	   = liboldcom32.a
 
 LIBOBJS	   = conio.o atou.o skipatou.o printf.o c32exit.o
+
+com32 = $(topdir)/com32
+C_LIBS	   = $(com32)/libutil/libutil_com.a $(com32)/lib/libcom32.a $(LIBGCC)
+LDFLAGS    = -m elf_i386 -T $(com32)/lib/com32.ld
 
 all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 \
      fd.c32 $(LIB)

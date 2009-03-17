@@ -39,6 +39,44 @@
 
 char display_line;
 
+void display_memory(s_dmi *dmi) {
+ int i;
+ for (i=0;i<dmi->memory_count;i++) {
+   moreprintf("Memory Bank %d\n",i);
+   moreprintf("\tForm Factor  : %s\n",dmi->memory[i].form_factor);
+   moreprintf("\tType         : %s\n",dmi->memory[i].type);
+   moreprintf("\tType Detail  : %s\n",dmi->memory[i].type_detail);
+   moreprintf("\tSpeed        : %s\n",dmi->memory[i].speed);
+   moreprintf("\tSize         : %s\n",dmi->memory[i].size);
+   moreprintf("\tDevice Set   : %s\n",dmi->memory[i].device_set);
+   moreprintf("\tDevice Loc.  : %s\n",dmi->memory[i].device_locator);
+   moreprintf("\tBank Locator : %s\n",dmi->memory[i].bank_locator);
+   moreprintf("\tTotal Width  : %s\n",dmi->memory[i].total_width);
+   moreprintf("\tData Width   : %s\n",dmi->memory[i].data_width);
+   moreprintf("\tError        : %s\n",dmi->memory[i].error);
+   moreprintf("\tVendor       : %s\n",dmi->memory[i].manufacturer);
+   moreprintf("\tSerial       : %s\n",dmi->memory[i].serial);
+   moreprintf("\tAsset Tag    : %s\n",dmi->memory[i].asset_tag);
+   moreprintf("\tPart Number  : %s\n",dmi->memory[i].part_number);
+ }
+}
+
+void display_battery(s_dmi *dmi) {
+ moreprintf("Battery\n");
+ moreprintf("\tVendor              : %s\n",dmi->battery.manufacturer);
+ moreprintf("\tManufacture Date    : %s\n",dmi->battery.manufacture_date);
+ moreprintf("\tSerial              : %s\n",dmi->battery.serial);
+ moreprintf("\tName                : %s\n",dmi->battery.name);
+ moreprintf("\tChemistry           : %s\n",dmi->battery.chemistry);
+ moreprintf("\tDesign Capacity     : %s\n",dmi->battery.design_capacity);
+ moreprintf("\tDesign Voltage      : %s\n",dmi->battery.design_voltage);
+ moreprintf("\tSBDS                : %s\n",dmi->battery.sbds);
+ moreprintf("\tSBDS Manufact. Date : %s\n",dmi->battery.sbds_manufacture_date);
+ moreprintf("\tSBDS Chemistry      : %s\n",dmi->battery.sbds_chemistry);
+ moreprintf("\tMaximum Error       : %s\n",dmi->battery.maximum_error);
+ moreprintf("\tOEM Info            : %s\n",dmi->battery.oem_info);
+}
+
 void display_bios(s_dmi *dmi) {
  moreprintf("BIOS\n");
  moreprintf("\tVendor:   %s\n",dmi->bios.vendor);
@@ -126,15 +164,20 @@ int main(void)
   s_dmi dmi;
   openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
-  if ( ! dmi_interate() ) {
-	  printf("No DMI Structure found\n");
-	  return -1;
+  if (dmi_iterate(&dmi) == -ENODMITABLE) {
+	printf("No DMI Structure found\n");
+	return -1;
+  } else {
+       printf("DMI %d.%d present.\n",dmi.dmitable.major_version,dmi.dmitable.minor_version);
+       printf("%d structures occupying %d bytes.\n",dmi.dmitable.num, dmi.dmitable.len);
+       printf("DMI table at 0x%08X.\n",dmi.dmitable.base);
   }
+
 
   parse_dmitable(&dmi);
 
   for (;;) {
-    printf("Available commands are system, chassis, base_board, cpu, bios, all, exit\n");
+    printf("Available commands are system, chassis, base_board, cpu, bios, memory, battery, all, exit\n");
     printf("dmi: ");
     fgets(buffer, sizeof buffer, stdin);
     if ( !strncmp(buffer, "exit", 4) )
@@ -149,12 +192,18 @@ int main(void)
 	    display_cpu(&dmi);
     if ( !strncmp(buffer, "bios", 4) )
 	    display_bios(&dmi);
+    if ( !strncmp(buffer, "memory", 6) )
+	    display_memory(&dmi);
+    if ( !strncmp(buffer, "battery", 7) )
+	    display_battery(&dmi);
     if ( !strncmp(buffer, "all", 3) ) {
 	    display_bios(&dmi);
 	    display_system(&dmi);
 	    display_chassis(&dmi);
 	    display_base_board(&dmi);
 	    display_cpu(&dmi);
+	    display_memory(&dmi);
+	    display_battery(&dmi);
     }
   }
 

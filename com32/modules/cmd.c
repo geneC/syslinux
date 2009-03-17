@@ -16,27 +16,10 @@
  * Execute arbitrary commands
  */
 
-#include <string.h>
-#include <alloca.h>
-#include <console.h>
 #include <com32.h>
 
-int main(int argc, const char *argv[])
+int main(void)
 {
-  size_t len = 0;
-  char *cmd;
-  char *tmp;
-  int i;
-
-  openconsole(&dev_stdcon_r, &dev_stdcon_w);
-
-  for (i = 1; i < argc; i++)
-    len += strlen(argv[i]) + 1;
-
-  tmp = cmd = alloca(len);
-
-  for (i = 1; i < argc; i++)
-    tmp += sprintf(tmp, "%s%s", argv[i], (i == argc-1) ? "" : " ");
-
-  syslinux_run_command(cmd);
+  syslinux_run_command(__com32.cs_cmdline);
+  return -1;
 }

@@ -1,6 +1,6 @@
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 2001-2008 H. Peter Anvin - All Rights Reserved
+##   Copyright 2001-2009 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -29,10 +29,14 @@ all: $(MODULES) $(TESTFILES)
 pcitest.elf : pcitest.o $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-cpuidtest.elf : cpuidtest.o cpuid.o $(LIBS) $(C_LIBS)
+cpuidtest.elf : cpuidtest.o $(GPLLIB) $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-dmitest.elf : dmitest.o dmi_utils.o dmi.o $(LIBS) $(C_LIBS)
+.PRECIOUS: %.o
+dmitest.o: dmitest.c
+	$(CC) $(CFLAGS) $(GPLINCLUDE) -c -o $@ $<
+
+dmitest.elf :  dmi_utils.o dmitest.o $(GPLLIB) $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 ethersel.elf : ethersel.o $(LIBS) $(C_LIBS)

@@ -1,6 +1,6 @@
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
+##   Copyright 1998-2009 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -29,8 +29,8 @@ include $(topdir)/MCONFIG
 #
 
 # List of module objects that should be installed for all derivatives
-MODULES = memdisk/memdisk memdump/memdump.com \
-	  modules/*.com com32/menu/*.c32 com32/modules/*.c32
+MODULES = memdisk/memdisk memdump/memdump.com modules/*.com \
+	com32/menu/*.c32 com32/modules/*.c32 com32/hdt/*.c32
 
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
