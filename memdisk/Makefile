@@ -124,4 +124,4 @@ depend:
 setup.s: ../version
 
 # Include dependencies file
-include .depend
+-include .depend
