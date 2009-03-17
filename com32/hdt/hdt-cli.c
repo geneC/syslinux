@@ -98,7 +98,7 @@ static void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode,
   case DMI_MODE:
     detect_dmi(hardware);
     if (!hardware->is_dmi_valid) {
-      printf("No valid DMI table found, exiting.\n");
+      more_printf("No valid DMI table found, exiting.\n");
       break;
     }
     cli_mode->mode = mode;
@@ -121,10 +121,11 @@ static void show_cli_help(struct s_cli_mode *cli_mode)
 {
   switch (cli_mode->mode) {
   case HDT_MODE:
-    printf
-        ("Available commands are : %s %s %s %s %s %s %s %s %s %s\n",
+    more_printf("Available commands are :\n");
+    more_printf
+        ("%s %s %s %s %s %s %s %s %s %s %s\n",
          CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW, CLI_PCI, CLI_DMI,
-         CLI_PXE, CLI_KERNEL, CLI_CPU, CLI_SYSLINUX);
+         CLI_PXE, CLI_KERNEL, CLI_CPU, CLI_SYSLINUX, CLI_VESA);
     break;
   case SYSLINUX_MODE:
   case KERNEL_MODE:
@@ -153,7 +154,7 @@ void start_cli_mode(struct s_hardware *hardware)
 
   for (;;) {
     memset(cli_line, 0, sizeof cli_line);
-    printf("%s", cli_mode.prompt);
+    more_printf("%s", cli_mode.prompt);
 
     fgets(cli_line, sizeof cli_line, stdin);
     /* We use sizeof BLAH - 1 to remove the last \0 */
@@ -331,6 +332,9 @@ void main_show(char *item, struct s_hardware *hardware)
     main_show_kernel(hardware);
     return;
   }
-
+  if (!strncmp(item, CLI_VESA, sizeof(CLI_VESA))) {
+    main_show_vesa(hardware);
+    return;
+  }
   show_main_help(hardware);
 }
