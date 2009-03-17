@@ -123,11 +123,11 @@ spotless: clean
 # did not properly terminate the dependency list.
 .depend:
 	rm -f .depend
-	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -MM $$csrc >> .depend ; done
+	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -MM $$csrc >> .depend ; done ; true
 	for nsrc in $(NASMSRC) ; do \
 		( $(NASM) -DDEPEND $(NINCLUDE) -o \
 	          `echo $$nsrc | sed -e 's/\.asm/\.o/'` -M $$nsrc ; \
-	          echo '' ) >> .depend ; done
+	          echo '' ) >> .depend ; done ; true
 
 depend:
 	rm -f .depend

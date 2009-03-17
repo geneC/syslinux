@@ -112,9 +112,12 @@ memdisk.o: memdisk.bin
 
 .depend:
 	rm -f .depend
-	for csrc in *.c ; do $(CC) $(INCLUDE) $(CFLAGS) -MM $$csrc >> .depend ; done
-	for ssrc in *.S ; do $(CC) $(INCLUDE) $(SFLAGS) -MM $$ssrc >> .depend ; done
-	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc >> .depend ; done
+	for csrc in *.c ; do $(CC) $(INCLUDE) $(CFLAGS) -MM $$csrc >> .depend ; done ; true
+	for ssrc in *.S ; do $(CC) $(INCLUDE) $(SFLAGS) -MM $$ssrc >> .depend ; done ; true
+	for nsrc in $(NASMSRC) ; do \
+		( $(NASM) -DDEPEND $(NINCLUDE) -o \
+		  `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc ; \
+		  echo '' ) >> .depend ; done ; true
 
 depend:
 	rm -f .depend
