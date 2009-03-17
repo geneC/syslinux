@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -26,12 +26,13 @@
 is_bootsector:
 %if IS_SYSLINUX || IS_MDSLINUX
 		; Transfer zero bytes
-		mov byte [CopySuper],0
+		push word 0
 		jmp short load_bootsec
 
 is_bss_sector:
 		; Transfer the superblock
-		mov byte [CopySuper],superblock_len
+SuperSize	equ $+1
+		push word superblock_len_fat16
 %endif
 load_bootsec:
 		mov edi, 100000h
@@ -49,15 +50,13 @@ load_bootsec:
 		mov [EntryPoint],eax	; Jump to this address when done
 
 %if IS_SYSLINUX || IS_MDSLINUX
-		movzx ecx,byte [CopySuper]
-		jcxz .not_bss
+		xchg eax,ecx		; ECX[31:16] <- 0
+		pop cx
 
 		; For a BSS boot sector we have to patch.
 		mov esi,superblock
 		mov edi,100000h+(superblock-bootsec)
 		call bcopy
-
-.not_bss:
 %endif
 
 		xor edx,edx

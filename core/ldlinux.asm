@@ -11,7 +11,7 @@
 ;  from MS-LOSS, and can be especially useful in conjunction with the
 ;  umsdos filesystem.
 ;
-;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -211,9 +211,13 @@ superinfo_size	equ ($-superblock)-1	; How much to expand
 		;
 		; This is as far as FAT12/16 and FAT32 are consistent
 		;
-		zb 54			; FAT12/16 need 26 more bytes,
-					; FAT32 need 54 more bytes
-superblock_len	equ $-superblock
+		; FAT12/16 need 26 more bytes,
+		; FAT32 need 54 more bytes
+		;
+superblock_len_fat16	equ $-superblock+26
+superblock_len_fat32	equ $-superblock+54
+		zb 54			; Maximum needed size
+superblock_max	equ $-superblock
 
 SecPerClust	equ bxSecPerClust
 ;
@@ -865,6 +869,7 @@ getfattype:
 		add eax,[DataArea]
 		mov [RootDir],eax
 		mov cl,nextcluster_fat28-(nextcluster+2)
+		mov byte [SuperSize],superblock_len_fat32
 .setsize:
 		mov byte [nextcluster+1],cl
 

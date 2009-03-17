@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2001-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2001-2009 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -384,7 +384,49 @@ struct ptab_entry {
   uint8_t end_h, end_s, end_c;
   uint32_t start;
   uint32_t size;
-};
+} __attribute__((packed));
+
+/* Format of a FAT filesystem superblock */
+struct fat_extra {
+  uint8_t  bs_drvnum;
+  uint8_t  bs_resv1;
+  uint8_t  bs_bootsig;
+  uint32_t bs_volid;
+  char     bs_vollab[11];
+  char     bs_filsystype[8];
+} __attribute__((packed));
+struct fat_super {
+  uint8_t  bs_jmpboot[3];
+  char     bs_oemname[8];
+  uint16_t bpb_bytspersec;
+  uint8_t  bpb_secperclus;
+  uint16_t bpb_rsvdseccnt;
+  uint8_t  bpb_numfats;
+  uint16_t bpb_rootentcnt;
+  uint16_t bpb_totsec16;
+  uint8_t  bpb_media;
+  uint16_t bpb_fatsz16;
+  uint16_t bpb_secpertrk;
+  uint16_t bpb_numheads;
+  uint32_t bpb_hiddsec;
+  uint32_t bpb_totsec32;
+  union {
+    struct {
+      struct fat_extra extra;
+    } fat16;
+    struct {
+      uint32_t bpb_fatsz32;
+      uint16_t bpb_extflags;
+      uint16_t bpb_fsver;
+      uint32_t bpb_rootclus;
+      uint16_t bpb_fsinfo;
+      uint16_t bpb_bkbootsec;
+      char     bpb_reserved[12];
+      /* Clever, eh?  Same fields, different offset... */
+      struct fat_extra extra;
+    } fat32 __attribute__((packed));
+  } x;
+} __attribute__((packed));
 
 /* Format of a DOSEMU header */
 struct dosemu_header {
@@ -401,13 +443,10 @@ struct dosemu_header {
 const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 {
   static struct geometry hd_geometry;
-  struct ptab_entry ptab[4];	/* Partition table buffer */
   struct dosemu_header dosemu;
-  unsigned int sectors, v;
-  unsigned int max_c, max_h, max_s;
-  unsigned int c, h, s, offset;
+  unsigned int sectors, xsectors, v;
+  unsigned int offset;
   int i;
-  int drive_specified;
   const char *p;
 
   printf("command line: %s\n", shdr->cmdline);
@@ -416,54 +455,7 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
   if ( CMD_HASDATA(p = getcmditem("offset")) && (v = atou(p)) )
     offset = v;
 
-  sectors = (size-offset) >> 9;
-
-  if (sectors < 4096*2) {
-    int ok = 0;
-    unsigned int xsectors = sectors;
-
-    while (!ok) {
-      /* Assume it's a floppy drive, guess a geometry */
-      unsigned int type, track;
-
-      if (xsectors < 320*2) {
-	c = 40; h = 1; type = 1;
-      } else if (xsectors < 640*2) {
-	c = 40; h = 2; type = 1;
-      } else if (xsectors < 1200*2) {
-	c = 80; h = 2; type = 3;
-      } else if (xsectors < 1440*2) {
-	c = 80; h = 2; type = 2;
-    } else if (xsectors < 2880*2) {
-	c = 80; h = 2; type = 4;
-      } else {
-	c = 80; h = 2; type = 6;
-      }
-      track = c*h;
-      while (c < 256) {
-	s = xsectors/track;
-	if (s < 63 && (xsectors % track) == 0) {
-	  ok = 1;
-	  break;
-	}
-	c++;
-	track += h;
-      }
-      if (ok) {
-	hd_geometry.driveno = 0;
-	hd_geometry.c = c;
-	hd_geometry.h = h;
-	hd_geometry.s = s;
-      } else {
-	/* No valid floppy geometry, fake it by simulating broken
-	   sectors at the end of the image... */
-	xsectors++;
-      }
-    }
-  } else {
-    /* Hard disk */
-    hd_geometry.driveno = 0x80;
-  }
+  sectors = xsectors = (size-offset) >> 9;
 
   hd_geometry.sectors = sectors;
   hd_geometry.offset  = offset;
@@ -488,51 +480,133 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
   if ( CMD_HASDATA(p = getcmditem("s")) && (v = atou(p)) )
     hd_geometry.s = v;
 
-  if ( (p = getcmditem("floppy")) != CMD_NOTFOUND ) {
-    hd_geometry.driveno = CMD_HASDATA(p) ? atou(p) & 0x7f : 0;
-    if ( hd_geometry.type == 0 )
-      hd_geometry.type = 0x10;	/* ATAPI floppy, e.g. LS-120 */
-    drive_specified = 1;
-  } else if ( (p = getcmditem("harddisk")) != CMD_NOTFOUND ) {
-    hd_geometry.driveno = CMD_HASDATA(p) ? atou(p) | 0x80 : 0x80;
-    hd_geometry.type = 0;
-    drive_specified = 1;
-  }
+  if ( !hd_geometry.h || !hd_geometry.s ) {
+    int h, s, max_h, max_s;
+    
+    max_h = hd_geometry.h;
+    max_s = hd_geometry.s;
 
-  if ( (hd_geometry.c == 0) || (hd_geometry.h == 0) ||
-       (hd_geometry.s == 0) ) {
-    /* Hard disk image, need to examine the partition table for geometry */
-    memcpy(&ptab, (char *)where+hd_geometry.offset+(512-2-4*16), sizeof ptab);
+    if (!(max_h|max_s)) {
+      /* Look for a FAT superblock and if we find something that looks
+	 enough like one, use geometry from that.  This takes care of
+	 megafloppy images and unpartitioned hard disks. */
+      const struct fat_extra *extra = NULL;
+      const struct fat_super *fs = (const struct fat_super *)
+	((char *)where+hd_geometry.offset);
 
-    max_c = max_h = 0;  max_s = 1;
-    for ( i = 0 ; i < 4 ; i++ ) {
-      if ( ptab[i].type ) {
-	c = ptab[i].start_c + (ptab[i].start_s >> 6);
-	s = (ptab[i].start_s & 0x3f);
-	h = ptab[i].start_h;
-
-	if ( max_c < c ) max_c = c;
-	if ( max_h < h ) max_h = h;
-	if ( max_s < s ) max_s = s;
-
-	c = ptab[i].end_c + (ptab[i].end_s >> 6);
-	s = (ptab[i].end_s & 0x3f);
-	h = ptab[i].end_h;
-
-	if ( max_c < c ) max_c = c;
-	if ( max_h < h ) max_h = h;
-	if ( max_s < s ) max_s = s;
+      if ((fs->bpb_media == 0xf0 || fs->bpb_media >= 0xf8) &&
+	  (fs->bs_jmpboot[0] == 0xe9 || fs->bs_jmpboot[0] == 0xeb) &&
+	  fs->bpb_bytspersec == 512 &&
+	  fs->bpb_numheads >= 1 && fs->bpb_numheads <= 256 &&
+	  fs->bpb_secpertrk >= 1 && fs->bpb_secpertrk <= 63) {
+	extra = fs->bpb_fatsz16 ? &fs->x.fat16.extra : &fs->x.fat32.extra;
+	if (!(extra->bs_bootsig == 0x29 &&
+	      extra->bs_filsystype[0] == 'F' &&
+	      extra->bs_filsystype[1] == 'A' &&
+	      extra->bs_filsystype[2] == 'T'))
+	  extra = NULL;
+      }
+      if (extra) {
+	hd_geometry.driveno = extra->bs_drvnum & 0x80;
+	max_h = fs->bpb_numheads;
+	max_s = fs->bpb_secpertrk;
       }
     }
 
-    max_c++; max_h++;		/* Convert to count (1-based) */
+    if (!(max_h|max_s)) {
+      /* No FAT filesystem found to steal geometry from... */
+      if (sectors < 4096*2) {
+	int ok = 0;
+	unsigned int xsectors = sectors;
 
-    if ( !hd_geometry.h )
-      hd_geometry.h = max_h;
-    if ( !hd_geometry.s )
-      hd_geometry.s = max_s;
-    if ( !hd_geometry.c )
-      hd_geometry.c = sectors/(hd_geometry.h*hd_geometry.s);
+	hd_geometry.driveno = 0; /* Assume floppy */
+	
+	while (!ok) {
+	  /* Assume it's a floppy drive, guess a geometry */
+	  unsigned int type, track;
+	  int c, h, s;
+	  
+	  if (xsectors < 320*2) {
+	    c = 40; h = 1; type = 1;
+	  } else if (xsectors < 640*2) {
+	    c = 40; h = 2; type = 1;
+	  } else if (xsectors < 1200*2) {
+	    c = 80; h = 2; type = 3;
+	  } else if (xsectors < 1440*2) {
+	    c = 80; h = 2; type = 2;
+	  } else if (xsectors < 2880*2) {
+	    c = 80; h = 2; type = 4;
+	  } else {
+	    c = 80; h = 2; type = 6;
+	  }
+	  track = c*h;
+	  while (c < 256) {
+	    s = xsectors/track;
+	    if (s < 63 && (xsectors % track) == 0) {
+	      ok = 1;
+	      break;
+	    }
+	    c++;
+	    track += h;
+	  }
+	  if (ok) {
+	    max_h = h;
+	    max_s = s;
+	  } else {
+	    /* No valid floppy geometry, fake it by simulating broken
+	       sectors at the end of the image... */
+	    xsectors++;
+	  }
+	}
+      } else {
+	/* Assume it is a hard disk image and scan for a partition table */
+	const struct ptab_entry *ptab = (const struct ptab_entry *)
+	  ((char *)where+hd_geometry.offset+(512-2-4*16));
+	      
+	hd_geometry.driveno = 0x80; /* Assume hard disk */
+	
+	if (*(uint16_t *)((char *)where+512) == 0xaa55)
+	  for ( i = 0 ; i < 4 ; i++ ) {
+	    if ( ptab[i].type && !(ptab[i].active & 0x7f) ) {
+	      s = (ptab[i].start_s & 0x3f);
+	      h = ptab[i].start_h + 1;
+	      
+	      if ( max_h < h ) max_h = h;
+	      if ( max_s < s ) max_s = s;
+	      
+	      s = (ptab[i].end_s & 0x3f);
+	      h = ptab[i].end_h + 1;
+	      
+	      if ( max_h < h ) max_h = h;
+	      if ( max_s < s ) max_s = s;
+	    }
+	  }
+      }
+    }
+
+    if (!max_h)
+      max_h = xsectors > 2097152 ? 255 : 64;
+    if (!max_s)
+      max_s = xsectors > 2097152 ? 63 : 32;
+    
+    hd_geometry.h = max_h;
+    hd_geometry.s = max_s;
+  }
+
+  if ( !hd_geometry.c )
+    hd_geometry.c = xsectors/(hd_geometry.h*hd_geometry.s);
+
+  if ( (p = getcmditem("floppy")) != CMD_NOTFOUND ) {
+    hd_geometry.driveno = CMD_HASDATA(p) ? atou(p) & 0x7f : 0;
+  } else if ( (p = getcmditem("harddisk")) != CMD_NOTFOUND ) {
+    hd_geometry.driveno = CMD_HASDATA(p) ? atou(p) | 0x80 : 0x80;
+  }
+
+  if (hd_geometry.driveno & 0x80) {
+    hd_geometry.type = 0;	/* Type = hard disk */
+  } else {
+    if (hd_geometry.type == 0)
+      hd_geometry.type = 0x10;	/* ATAPI floppy, e.g. LS-120 */
   }
 
   if ( (size-hd_geometry.offset) & 0x1ff ) {

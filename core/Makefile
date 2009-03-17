@@ -1,6 +1,6 @@
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
+##   Copyright 1998-2009 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -123,15 +123,15 @@ spotless: clean
 # did not properly terminate the dependency list.
 .depend:
 	rm -f .depend
-	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -MM $$csrc >> .depend ; done
+	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -MM $$csrc >> .depend ; done ; true
 	for nsrc in $(NASMSRC) ; do \
 		( $(NASM) -DDEPEND $(NINCLUDE) -o \
 	          `echo $$nsrc | sed -e 's/\.asm/\.o/'` -M $$nsrc ; \
-	          echo '' ) >> .depend ; done
+	          echo '' ) >> .depend ; done ; true
 
 depend:
 	rm -f .depend
 	$(MAKE) .depend
 
 # Include dependencies file
-include .depend
+-include .depend

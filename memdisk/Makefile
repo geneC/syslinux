@@ -95,8 +95,8 @@ spotless: clean
 memdisk16.elf: $(OBJS16)
 	$(LD) -Ttext 0 -o $@ $^
 
-memdisk32.elf: $(OBJS32)
-	$(LD) -Ttext 0x100000 -o $@ $^
+memdisk32.elf: memdisk.ld $(OBJS32)
+	$(LD) -o $@ -T $^
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
@@ -112,9 +112,12 @@ memdisk.o: memdisk.bin
 
 .depend:
 	rm -f .depend
-	for csrc in *.c ; do $(CC) $(INCLUDE) $(CFLAGS) -MM $$csrc >> .depend ; done
-	for ssrc in *.S ; do $(CC) $(INCLUDE) $(SFLAGS) -MM $$ssrc >> .depend ; done
-	for nsrc in $(NASMSRC) ; do $(NASM) -DDEPEND $(NINCLUDE) -o `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc >> .depend ; done
+	for csrc in *.c ; do $(CC) $(INCLUDE) $(CFLAGS) -MM $$csrc >> .depend ; done ; true
+	for ssrc in *.S ; do $(CC) $(INCLUDE) $(SFLAGS) -MM $$ssrc >> .depend ; done ; true
+	for nsrc in $(NASMSRC) ; do \
+		( $(NASM) -DDEPEND $(NINCLUDE) -o \
+		  `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc ; \
+		  echo '' ) >> .depend ; done ; true
 
 depend:
 	rm -f .depend
@@ -124,4 +127,4 @@ depend:
 setup.s: ../version
 
 # Include dependencies file
-include .depend
+-include .depend
