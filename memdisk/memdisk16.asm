@@ -1,7 +1,7 @@
 ;; -*- fundamental -*-
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,9 @@
 ;; com32.inc in the main SYSLINUX distribution.
 ;;
 
+%ifndef DEPEND
 %include '../version.gen'
+%endif
 
 MY_CS		equ 0x0800		; Segment address to use
 CS_BASE		equ (MY_CS << 4)	; Corresponding address
