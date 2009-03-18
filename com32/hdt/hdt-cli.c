@@ -261,6 +261,10 @@ void start_cli_mode(struct s_hardware *hardware)
 		//fgets(cli_line, sizeof cli_line, stdin);
 		current_key = get_key(stdin, 0);
 		switch (current_key) {
+		case KEY_CTRL('c'):
+			more_printf("\n");
+			display_prompt(cli_line, &cli_mode, &cur_pos);
+			break;
 		case KEY_TAB:
 			break;
 		case KEY_ENTER:
