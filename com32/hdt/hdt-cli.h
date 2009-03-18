@@ -32,6 +32,10 @@
 
 #include "hdt-common.h"
 
+#define MAX_LINE_SIZE 256
+
+#define CLI_SPACE " "
+#define CLI_LF "\n"
 #define CLI_CLEAR "clear"
 #define CLI_EXIT "exit"
 #define CLI_HELP "help"

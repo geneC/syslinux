@@ -233,13 +233,14 @@ static void exec_command(char *command, struct s_cli_mode *cli_mode,
 	}
 }
 
-static void display_prompt(char command[256], struct s_cli_mode *cli_mode,
+static void reset_prompt(char *command, struct s_cli_mode *cli_mode,
 			   int *cur_pos)
 {
 	/* No need to display the prompt if we exit */
 	if (cli_mode->mode != EXIT_MODE) {
-		memset(command, 0, sizeof command);
 		printf("%s", cli_mode->prompt);
+		/* Reset the line */
+		memset(command, '\0', MAX_LINE_SIZE);
 		*cur_pos = 0;
 	}
 }
@@ -247,7 +248,7 @@ static void display_prompt(char command[256], struct s_cli_mode *cli_mode,
 /* Code that manages the cli mode */
 void start_cli_mode(struct s_hardware *hardware)
 {
-	char cli_line[256];
+	char cli_line[MAX_LINE_SIZE];
 	struct s_cli_mode cli_mode;
 	int current_key = 0;
 	int cur_pos = 0;
@@ -255,7 +256,7 @@ void start_cli_mode(struct s_hardware *hardware)
 
 	printf("Entering CLI mode\n");
 
-	display_prompt(cli_line, &cli_mode, &cur_pos);
+	reset_prompt(cli_line, &cli_mode, &cur_pos);
 	while (cli_mode.mode != EXIT_MODE) {
 
 		//fgets(cli_line, sizeof cli_line, stdin);
@@ -266,7 +267,7 @@ void start_cli_mode(struct s_hardware *hardware)
 		case KEY_ENTER:
 			more_printf("\n");
 			exec_command(cli_line, &cli_mode, hardware);
-			display_prompt(cli_line, &cli_mode, &cur_pos);
+			reset_prompt(cli_line, &cli_mode, &cur_pos);
 			break;
 		case KEY_BACKSPACE:
 			/* Don't delete prompt */
@@ -287,11 +288,11 @@ void start_cli_mode(struct s_hardware *hardware)
 		case KEY_F1:
 			more_printf("\n");
 			exec_command(CLI_HELP, &cli_mode, hardware);
-			display_prompt(cli_line, &cli_mode, &cur_pos);
+			reset_prompt(cli_line, &cli_mode, &cur_pos);
 			break;
 		default:
 			/* Prevent overflow */
-			if (cur_pos > 254)
+			if (cur_pos > MAX_LINE_SIZE - 2)
 				break;
 			putchar(current_key);
 			cli_line[cur_pos] = current_key;
