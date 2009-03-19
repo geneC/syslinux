@@ -22,6 +22,8 @@ Changes in 3.74:
 	  for a large floppy disk image if (and only if) it is
 	  formatted with a FAT filesystem.
 	* SYSLINUX: fix the handling of .bss files on FAT12/16.
+	* Suppress the Loading ... message if "quiet" is specified on
+	  the kernel command line.
 
 Changes in 3.73:
 	* Upgrade gPXE to release version 0.9.5.

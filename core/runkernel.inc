@@ -46,11 +46,6 @@
 ;
 is_linux_kernel:
 		push si				; <A> file pointer
-		mov si,loading_msg
-                call writestr
-                mov si,KernelCName		; Print kernel name part of
-                call writestr                  ; "Loading" message
-
 
 ;
 ; Now start transferring the kernel
@@ -63,7 +58,7 @@ is_linux_kernel:
 ; do something funky.  It should fit in the first 32K (loading 64K won't
 ; work since we might have funny stuff up near the end of memory).
 ;
-		call dot_pause			; Check for abort key
+		call abort_check		; Check for abort key
 		mov cx,8000h >> SECTOR_SHIFT	; Half a moby (32K)
 		xor bx,bx
                 pop si                          ; <A> file pointer
@@ -102,83 +97,108 @@ construct_cmdline:
 ; interested in.  The original version of this code automatically assumed
 ; the first option was BOOT_IMAGE=, but that is no longer certain.
 ;
-		mov si,cmd_line_here
+parse_cmdline:
+		mov di,cmd_line_here
 		xor ax,ax
-                mov [InitRDPtr],ax		; No initrd= option (yet)
-                push es				; Set DS <- real_mode_seg
-                pop ds
-get_next_opt:   lodsb
+		mov [InitRDPtr],ax		; No initrd= option (yet)
+		mov [QuietBoot],al
+%if IS_PXELINUX
+		and byte [KeepPXE],~2
+%endif
+.skipspace:	mov al,[es:di]
+		inc di
+.skipspace_loaded:
 		and al,al
 		jz cmdline_end
 		cmp al,' '
-		jbe get_next_opt
-		dec si
-                mov eax,[si]
-                cmp eax,'vga='
-		je is_vga_cmd
-                cmp eax,'mem='
-		je is_mem_cmd
-%if IS_PXELINUX
-		cmp eax,'keep'			; Is it "keeppxe"?
-		jne .notkeep
-		cmp dword [si+3],'ppxe'
-		jne .notkeep
-		cmp byte [si+7],' '		; Must be whitespace or EOS
-		ja .notkeep
-		or byte [cs:KeepPXE],1
-.notkeep:
-%endif
-                push es                         ; <B> ES -> real_mode_seg
-                push cs
-                pop es                          ; Set ES <- normal DS
-                mov di,initrd_cmd
-		mov cx,initrd_cmd_len
-		repe cmpsb
-                jne .not_initrd
+		jbe .skipspace
+		dec di
 
+		; ES:DI now points to the beginning of an option
+		mov si,options_list
+.next_opt:
+		movzx cx,byte [si]
+		jcxz .skip_opt
+		push di
+		inc si
+		repe cmpsb
+		jne .no_match
+
+		; This either needs to have been an option with parameter,
+		; or be followed by EOL/whitespace
+		cmp byte [di-1],'='
+		je .is_match
+		cmp byte [di],' '
+		ja .no_match
+.is_match:
+		pop ax				; Drop option pointer on stack
+		call [si]
+.skip_opt:
+		mov al,[es:di]
+		inc di
 		cmp al,' '
-		jbe .noramdisk
-		mov [cs:InitRDPtr],si
-		jmp .not_initrd
-.noramdisk:
-		xor ax,ax
-		mov [cs:InitRDPtr],ax
-.not_initrd:	pop es                          ; <B> ES -> real_mode_seg
-skip_this_opt:  lodsb                           ; Load from command line
-                cmp al,' '
-                ja skip_this_opt
-                dec si
-                jmp short get_next_opt
-is_vga_cmd:
-                add si,4
-                mov eax,[si-1]
-                mov bx,-1
-                cmp eax,'=nor'			; vga=normal
-                je vc0
+		ja .skip_opt
+		jmp .skipspace_loaded
+.no_match:
+		pop di
+		add si,cx			; Skip remaining bytes
+		inc si				; Skip function pointer
+		inc si
+		jmp .next_opt
+
+opt_vga:
+		mov eax,[es:di-1]
+		mov bx,-1
+		cmp eax,'=nor'			; vga=normal
+		je .vc0
 		dec bx				; bx <- -2
-                cmp eax,'=ext'			; vga=ext
-                je vc0
-                dec bx				; bx <- -3
-                cmp eax,'=ask'			; vga=ask
-                je vc0
-                call parseint                   ; vga=<number>
-		jc skip_this_opt		; Not an integer
-vc0:		mov [bs_vidmode],bx		; Set video mode
-		jmp short skip_this_opt
-is_mem_cmd:
-                add si,4
-                call parseint
-		jc skip_this_opt		; Not an integer
+		cmp eax,'=ext'			; vga=ext
+		je .vc0
+		dec bx				; bx <- -3
+		cmp eax,'=ask'			; vga=ask
+		je .vc0
+		call parseint_esdi		; vga=<number>
+		jc .skip			; Not an integer
+.vc0:		mov [es:bs_vidmode],bx		; Set video mode
+.skip:
+		ret
+
+opt_mem:
+		call parseint_esdi
+		jc .skip
 %if HIGHMEM_SLOP != 0
 		sub ebx,HIGHMEM_SLOP
 %endif
-		mov [cs:MyHighMemSize],ebx
-		jmp short skip_this_opt
+		mov [MyHighMemSize],ebx
+.skip:
+		ret
+
+opt_quiet:
+		mov byte [QuietBoot],1
+		ret
+
+%if IS_PXELINUX
+opt_keeppxe:
+		or byte [KeepPXE],2		; KeepPXE set by command line
+		ret
+%endif
+
+opt_initrd:
+		mov ax,di
+		cmp byte [es:di],' '
+		ja .have_initrd
+		xor ax,ax
+.have_initrd:
+		mov [InitRDPtr],ax
+		ret
+
+;
+; After command line parsing...
+;
 cmdline_end:
-                push cs                         ; Restore standard DS
-                pop ds
-		sub si,cmd_line_here
-		mov [CmdLineLen],si		; Length including final null
+		sub di,cmd_line_here
+		mov [CmdLineLen],di		; Length including final null
+
 ;
 ; Now check if we have a large kernel, which needs to be loaded high
 ;
@@ -217,6 +237,10 @@ new_kernel:
 		mov [LoadFlags],al
 
 any_kernel:
+		mov si,loading_msg
+                call writestr_qchk
+                mov si,KernelCName		; Print kernel name part of
+                call writestr_qchk		; "Loading" message
 
 ;
 ; Load the kernel.  We always load it at 100000h even if we're supposed to
@@ -263,7 +287,8 @@ high_load_done:
                 mov es,ax
 
                 mov si,dot_msg
-                call writestr
+                call writestr_qchk
+
 ;
 ; Some older kernels (1.2 era) would have more than 4 setup sectors, but
 ; would not rely on the boot protocol to manage that.  These kernels fail
@@ -304,7 +329,7 @@ load_initrd:
                 call abort_check		; Last chance!!
 
 		mov si,ready_msg
-		call writestr
+		call writestr_qchk
 
 		UNLOAD_PREP			; Module-specific hook
 
@@ -581,13 +606,14 @@ loadinitrd:
 
 		push si
 		mov si,crlfloading_msg		; Write "Loading "
-		call writestr
+		call writestr_qchk
                 mov si,InitRDCName		; Write ramdisk name
-                call writestr
+                call writestr_qchk
                 mov si,dotdot_msg		; Write dots
-                call writestr
+                call writestr_qchk
 		pop si
 
+.li_skip_echo:
 		mov dx,3
 		mov bx,dot_pause
 		call load_high
@@ -605,6 +631,15 @@ loadinitrd:
                 mov si,crlf_msg
                 jmp abort_load
 
+;
+; writestr_qchk: writestr, except allows output to be suppressed
+;		assumes CS == DS
+;
+writestr_qchk:
+		test byte [QuietBoot],01h
+		jz writestr
+		ret
+
 		section .data
 crlfloading_msg	db CR, LF
 loading_msg     db 'Loading ', 0
@@ -621,9 +656,22 @@ boot_image_len  equ $-boot_image
 ;
 ; Command line options we'd like to take a look at
 ;
-; mem= and vga= are handled as normal 32-bit integer values
-initrd_cmd	db 'initrd='
-initrd_cmd_len	equ $-initrd_cmd
+%macro cmd_opt	2
+%strlen cmd_opt_len	%1
+	db cmd_opt_len
+	db %1
+	dw %2
+%endmacro
+options_list:
+		cmd_opt "vga=", opt_vga
+		cmd_opt "mem=", opt_mem
+		cmd_opt "quiet", opt_quiet
+str_initrd	equ $+1			; Pointer to "initrd=" in memory
+		cmd_opt "initrd=", opt_initrd
+%if IS_PXELINUX
+		cmd_opt "keeppxe", opt_keeppxe
+%endif
+		db 0
 
 		section .bss
 		alignb 4
@@ -637,6 +685,10 @@ InitRDEnd	resd 1			; End of initrd (pre-relocation)
 CmdLineLen	resw 1			; Length of command line including null
 CmdLineEnd	resw 1			; End of the command line in real_mode_seg
 SetupSecs	resw 1			; Number of setup sectors (+bootsect)
-InitRDPtr	resw 1			; Pointer to initrd= option in command line
 KernelVersion	resw 1			; Kernel protocol version
+;
+; These 
+;
+InitRDPtr	resw 1			; Pointer to initrd= option in command line
 LoadFlags	resb 1			; Loadflags from kernel
+QuietBoot	resb 1			; Set if a quiet boot is requested

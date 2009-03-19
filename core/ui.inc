@@ -309,6 +309,16 @@ command_done:
 
 load_kernel:					; Load the kernel now
 ;
+; Common initialization for all kernel types
+;
+		xor ax,ax
+		mov [InitRDPtr],ax
+		mov [QuietBoot],al
+%if IS_PXELINUX
+		mov [KeepPXE],al
+%endif
+
+;
 ; First we need to mangle the kernel name the way DOS would...
 ;
 		mov si,command_line

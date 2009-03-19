@@ -17,6 +17,18 @@
 ;
 
 		section .text
+
+;
+; dot_pause: same as abort_check, except prints a dot, too
+;            assumes CS == DS
+;
+dot_pause:
+		push si
+		mov si,dot_msg
+		call writestr_qchk
+		pop si
+		; fall through
+
 ;
 ; abort_check: let the user abort with <ESC> or <Ctrl-C>
 ;

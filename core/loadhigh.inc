@@ -102,13 +102,6 @@ load_high:
 .overflow:	mov si,err_nohighmem
 		jmp abort_load
 
-dot_pause:
-		push ax
-		mov al,'.'
-		call writechr
-		pop ax
-		jmp abort_check			; Handles the return
-
 		section .data
 err_nohighmem   db CR, LF
 		db 'Not enough memory to load specified image.', CR, LF, 0
