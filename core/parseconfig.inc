@@ -413,8 +413,8 @@ commit_vk:
 		cmp byte [InitRD+NULLOFFSET],NULLFILE
 		je .noinitrd
 		
-		mov si,initrd_cmd
-		mov cx,initrd_cmd_len
+		mov si,str_initrd
+		mov cx,7	; "initrd="
 		rep movsb
 		mov si,InitRD
 		call unmangle_name
