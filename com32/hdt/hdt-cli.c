@@ -370,7 +370,7 @@ void start_cli_mode(struct s_hardware *hardware)
 			break;
 		case KEY_ENTER:
 			more_printf("\n");
-			exec_command(cli.input, &cli, hardware);
+			exec_command(skipspace(cli.input), &cli, hardware);
 			reset_prompt(&cli);
 			break;
 		case KEY_BACKSPACE:
