@@ -35,7 +35,7 @@
 
 #define MAX_MODES 1
 struct commands_mode *list_modes[] = {
-  &dmi_mode,
+	&dmi_mode,
 };
 
 static void set_mode(struct s_cli *cli, cli_mode_t mode,
@@ -48,8 +48,7 @@ static void set_mode(struct s_cli *cli, cli_mode_t mode,
 
 	case HDT_MODE:
 		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
-			 CLI_HDT);
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ", CLI_HDT);
 		break;
 
 	case PXE_MODE:
@@ -58,15 +57,13 @@ static void set_mode(struct s_cli *cli, cli_mode_t mode,
 			break;
 		}
 		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
-			 CLI_PXE);
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ", CLI_PXE);
 		break;
 
 	case KERNEL_MODE:
 		detect_pci(hardware);
 		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
-			 CLI_KERNEL);
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ", CLI_KERNEL);
 		break;
 
 	case SYSLINUX_MODE:
@@ -77,22 +74,19 @@ static void set_mode(struct s_cli *cli, cli_mode_t mode,
 
 	case VESA_MODE:
 		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
-			 CLI_VESA);
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ", CLI_VESA);
 		break;
 
 	case PCI_MODE:
 		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
-			 CLI_PCI);
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ", CLI_PCI);
 		if (!hardware->pci_detection)
 			cli_detect_pci(hardware);
 		break;
 
 	case CPU_MODE:
 		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
-			 CLI_CPU);
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ", CLI_CPU);
 		if (!hardware->dmi_detection)
 			detect_dmi(hardware);
 		if (!hardware->cpu_detection)
@@ -106,8 +100,7 @@ static void set_mode(struct s_cli *cli, cli_mode_t mode,
 			break;
 		}
 		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
-			 CLI_DMI);
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ", CLI_DMI);
 		break;
 	}
 }
@@ -209,104 +202,113 @@ static void exec_command(char *command, struct s_cli *cli,
 	 * The following will be specific for every mode.
 	 */
 
-  int modes_iter = 0, modules_iter = 0;
+	int modes_iter = 0, modules_iter = 0;
 
-  /* Find the mode selected */
-  while (modes_iter < MAX_MODES &&
-         list_modes[modes_iter]->mode != cli->mode)
-    modes_iter++;
+	/* Find the mode selected */
+	while (modes_iter < MAX_MODES &&
+	       list_modes[modes_iter]->mode != cli->mode)
+		modes_iter++;
 
-  if (modes_iter != MAX_MODES) {
-    struct commands_mode *current_mode = list_modes[modes_iter];
+	if (modes_iter != MAX_MODES) {
+		struct commands_mode *current_mode = list_modes[modes_iter];
 
-    /*
-     * Find the type of command.
-     *
-     * The syntax of the cli is the following:
-     *    <type of command> <module on which to operate> <args>
-     * e.g.
-     *    dmi> show system
-     *    dmi> show bank 1
-     *    dmi> show memory 0 1
-     *    pci> show device 12
-     */
-    if (!strncmp(command, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
-      int module_len = 0, args_len = 0;
-      int argc = 0, args_iter = 0, argc_iter = 0;
-      char* module = NULL, * args = NULL, * args_cpy = NULL;
-      char** argv = NULL;
+		/*
+		 * Find the type of command.
+		 *
+		 * The syntax of the cli is the following:
+		 *    <type of command> <module on which to operate> <args>
+		 * e.g.
+		 *    dmi> show system
+		 *    dmi> show bank 1
+		 *    dmi> show memory 0 1
+		 *    pci> show device 12
+		 */
+		if (!strncmp(command, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
+			int module_len = 0, args_len = 0;
+			int argc = 0, args_iter = 0, argc_iter = 0;
+			char *module = NULL, *args = NULL, *args_cpy = NULL;
+			char **argv = NULL;
 
-      /* Get the module name and args */
-      while (strncmp(command + sizeof(CLI_SHOW) + module_len, CLI_SPACE, 1))
-        module_len++;
+			/* Get the module name and args */
+			while (strncmp
+			       (command + sizeof(CLI_SHOW) + module_len,
+				CLI_SPACE, 1))
+				module_len++;
 
-      /* cli_line is filled with \0 when initialized */
-      while (strncmp(command + sizeof(CLI_SHOW) + module_len + 1 + args_len,
-             "\0", 1))
-        args_len++;
+			/* cli_line is filled with \0 when initialized */
+			while (strncmp
+			       (command + sizeof(CLI_SHOW) + module_len + 1 +
+				args_len, "\0", 1))
+				args_len++;
 
-      module = malloc(module_len + 1);
-      strncpy(module, command + sizeof(CLI_SHOW), module_len);
-      module[module_len] = '\0';
+			module = malloc(module_len + 1);
+			strncpy(module, command + sizeof(CLI_SHOW), module_len);
+			module[module_len] = '\0';
 
-      /* Skip arguments handling if none is supplied */
-      if (!args_len)
-        goto find_callback;
+			/* Skip arguments handling if none is supplied */
+			if (!args_len)
+				goto find_callback;
 
-      args = malloc(args_len + 1);
-      strncpy(args, command + sizeof(CLI_SHOW) + module_len + 1,
-              args_len);
-      args[args_len] = '\0';
+			args = malloc(args_len + 1);
+			strncpy(args,
+				command + sizeof(CLI_SHOW) + module_len + 1,
+				args_len);
+			args[args_len] = '\0';
 
-      /* Compute the number of arguments */
-      args_cpy = args;
-read_argument:
-      args_iter = 0;
-      while (args_iter < args_len && strncmp(args_cpy + args_iter, CLI_SPACE, 1))
-        args_iter++;
-      argc++;
-      args_iter++;
-      args_cpy += args_iter;
-      args_len -= args_iter;
-      if (args_len > 0)
-        goto read_argument;
+			/* Compute the number of arguments */
+			args_cpy = args;
+ read_argument:
+			args_iter = 0;
+			while (args_iter < args_len
+			       && strncmp(args_cpy + args_iter, CLI_SPACE, 1))
+				args_iter++;
+			argc++;
+			args_iter++;
+			args_cpy += args_iter;
+			args_len -= args_iter;
+			if (args_len > 0)
+				goto read_argument;
 
-      /* Transform the arguments string into an array */
-      char* result = NULL;
-      argv = malloc(argc * sizeof(char *));
-      result = strtok(args, CLI_SPACE);
-      while (result != NULL) {
-        argv[argc_iter] = result;
-        argc_iter++;
-        result = strtok(NULL, CLI_SPACE);
-      }
+			/* Transform the arguments string into an array */
+			char *result = NULL;
+			argv = malloc(argc * sizeof(char *));
+			result = strtok(args, CLI_SPACE);
+			while (result != NULL) {
+				argv[argc_iter] = result;
+				argc_iter++;
+				result = strtok(NULL, CLI_SPACE);
+			}
 
-find_callback:
-      /* Find the callback to execute */
-      while (modules_iter < current_mode->show_modules->nb_modules &&
-             strncmp(module,
-                     current_mode->show_modules->modules[modules_iter].name,
-                     module_len + 1) != 0)
-        modules_iter++;
+ find_callback:
+			/* Find the callback to execute */
+			while (modules_iter <
+			       current_mode->show_modules->nb_modules
+			       && strncmp(module,
+					  current_mode->show_modules->
+					  modules[modules_iter].name,
+					  module_len + 1) != 0)
+				modules_iter++;
 
-      if (modules_iter != current_mode->show_modules->nb_modules) {
-        struct commands_module current_module =
-                          current_mode->show_modules->modules[modules_iter];
-        /* Execute the callback */
-        current_module.exec(argc, argv, hardware);
-      } else
-        printf("Module %s unknown.\n", module);
-        /* XXX Add a default help option for empty commands */
+			if (modules_iter !=
+			    current_mode->show_modules->nb_modules) {
+				struct commands_module current_module =
+				    current_mode->show_modules->
+				    modules[modules_iter];
+				/* Execute the callback */
+				current_module.exec(argc, argv, hardware);
+			} else
+				printf("Module %s unknown.\n", module);
+			/* XXX Add a default help option for empty commands */
 
-      free(module);
-      if (args_len) {
-        free(args);
-        free(argv);
-      }
-    }
-    /* Handle here other keywords such as 'set', ... */
-  } else
-    printf("Mode '%s' unknown.\n",command);
+			free(module);
+			if (args_len) {
+				free(args);
+				free(argv);
+			}
+		}
+		/* Handle here other keywords such as 'set', ... */
+	} else
+		printf("Mode '%s' unknown.\n", command);
 
 	/* Legacy cli */
 	switch (cli->mode) {
@@ -366,14 +368,15 @@ void start_cli_mode(struct s_hardware *hardware)
 		current_key = get_key(stdin, 0);
 		switch (current_key) {
 
-		/* clear until then end of line */
+			/* clear until then end of line */
 		case KEY_CTRL('k'):
 			/* Clear the end of the line */
 			fputs("\033[0K", stdout);
-			memset(&cli.input[cli.cursor_pos],0,strlen(cli.input)-cli.cursor_pos);
+			memset(&cli.input[cli.cursor_pos], 0,
+			       strlen(cli.input) - cli.cursor_pos);
 			break;
 
-		/* quit current line */
+			/* quit current line */
 		case KEY_CTRL('c'):
 			more_printf("\n");
 			reset_prompt(&cli);
@@ -381,47 +384,49 @@ void start_cli_mode(struct s_hardware *hardware)
 		case KEY_TAB:
 			break;
 
-		/* Let's move to left */
+			/* Let's move to left */
 		case KEY_LEFT:
-			if (cli.cursor_pos>0) {
-			 fputs("\033[1D", stdout);
-			 cli.cursor_pos--;
+			if (cli.cursor_pos > 0) {
+				fputs("\033[1D", stdout);
+				cli.cursor_pos--;
 			}
 			break;
 
-		/* Let's move to right */
+			/* Let's move to right */
 		case KEY_RIGHT:
-			if (cli.cursor_pos<strlen(cli.input)) {
-			 fputs("\033[1C", stdout);
-			 cli.cursor_pos++;
+			if (cli.cursor_pos < (int)strlen(cli.input)) {
+				fputs("\033[1C", stdout);
+				cli.cursor_pos++;
 			}
 			break;
 
-		/* Returning at the begining of the line*/
+			/* Returning at the begining of the line */
 		case KEY_CTRL('e'):
 		case KEY_END:
-			/* Calling with a 0 value will make the cursor move*/
-			/* So, let's move the cursor only if needed*/
-			if ((strlen(cli.input)-cli.cursor_pos)>0) {
-			memset(temp_command,0,sizeof(temp_command));
-			 sprintf(temp_command,"\033[%dC",strlen(cli.input)-cli.cursor_pos);
-			 /* Return to the begining of line */
-			 fputs(temp_command, stdout);
-			 cli.cursor_pos=strlen(cli.input);
+			/* Calling with a 0 value will make the cursor move */
+			/* So, let's move the cursor only if needed */
+			if ((strlen(cli.input) - cli.cursor_pos) > 0) {
+				memset(temp_command, 0, sizeof(temp_command));
+				sprintf(temp_command, "\033[%dC",
+					strlen(cli.input) - cli.cursor_pos);
+				/* Return to the begining of line */
+				fputs(temp_command, stdout);
+				cli.cursor_pos = strlen(cli.input);
 			}
 			break;
 
-		/* Returning at the begining of the line*/
+			/* Returning at the begining of the line */
 		case KEY_CTRL('a'):
 		case KEY_HOME:
-			/* Calling with a 0 value will make the cursor move*/
-			/* So, let's move the cursor only if needed*/
-			if (cli.cursor_pos>0) {
-			   memset(temp_command,0,sizeof(temp_command));
-			  sprintf(temp_command,"\033[%dD",cli.cursor_pos);
-			  /* Return to the begining of line */
-			  fputs(temp_command, stdout);
-			  cli.cursor_pos=0;
+			/* Calling with a 0 value will make the cursor move */
+			/* So, let's move the cursor only if needed */
+			if (cli.cursor_pos > 0) {
+				memset(temp_command, 0, sizeof(temp_command));
+				sprintf(temp_command, "\033[%dD",
+					cli.cursor_pos);
+				/* Return to the begining of line */
+				fputs(temp_command, stdout);
+				cli.cursor_pos = 0;
 			}
 			break;
 
@@ -435,16 +440,29 @@ void start_cli_mode(struct s_hardware *hardware)
 			if (cli.cursor_pos == 0)
 				break;
 
-			/* Return one char back */
-			fputs("\033[1D", stdout);
+			for (int c = cli.cursor_pos - 1;
+			     c < (int)strlen(cli.input) - 1; c++)
+				cli.input[c] = cli.input[c + 1];
+			cli.input[strlen(cli.input) - 1] = '\0';
 
-			/* Erase that char */
-			cli.input[cli.cursor_pos] = '\0';
-			cli.cursor_pos--;
-			putchar(' ');
-
-			/* Realign to the erased char */
+			/* Get one char back */
 			fputs("\033[1D", stdout);
+			/* Clear the end of the line */
+			fputs("\033[0K", stdout);
+
+			/* Print the resulting buffer */
+			printf("%s", cli.input + cli.cursor_pos - 1);
+
+			/* Realing to the place we were */
+			memset(temp_command, 0, sizeof(temp_command));
+			sprintf(temp_command, "\033[%dD",
+				strlen(cli.input + cli.cursor_pos - 1));
+			fputs(temp_command, stdout);
+			fputs("\033[1C", stdout);
+			/* Don't decrement the position unless
+			 * if we are at then end of the line*/
+			if (cli.cursor_pos > (int)strlen(cli.input))
+				cli.cursor_pos--;
 			break;
 		case KEY_F1:
 			more_printf("\n");
@@ -456,29 +474,35 @@ void start_cli_mode(struct s_hardware *hardware)
 			if (cli.cursor_pos > MAX_LINE_SIZE - 2)
 				break;
 			/* If we aren't at the end of the input line, let's insert */
-			if (cli.cursor_pos<(int)strlen(cli.input)) {
-			  char key[2];
-			  int trailing_chars=strlen(cli.input)-cli.cursor_pos;
-			  memset(temp_command,0,sizeof(temp_command));
-			  strncpy(temp_command,cli.input,cli.cursor_pos);
-			  sprintf(key,"%c",current_key);
-			  strncat(temp_command,key,1);
-			  strncat(temp_command,cli.input+cli.cursor_pos,trailing_chars);
-			  memset(cli.input,0,sizeof(cli.input));
-			  snprintf(cli.input,sizeof(cli.input),"%s",temp_command);
+			if (cli.cursor_pos < (int)strlen(cli.input)) {
+				char key[2];
+				int trailing_chars =
+				    strlen(cli.input) - cli.cursor_pos;
+				memset(temp_command, 0, sizeof(temp_command));
+				strncpy(temp_command, cli.input,
+					cli.cursor_pos);
+				sprintf(key, "%c", current_key);
+				strncat(temp_command, key, 1);
+				strncat(temp_command,
+					cli.input + cli.cursor_pos,
+					trailing_chars);
+				memset(cli.input, 0, sizeof(cli.input));
+				snprintf(cli.input, sizeof(cli.input), "%s",
+					 temp_command);
 
-			  /* Clear the end of the line */
-			  fputs("\033[0K", stdout);
+				/* Clear the end of the line */
+				fputs("\033[0K", stdout);
 
-			  /* Print the resulting buffer*/
-			  printf("%s",cli.input+cli.cursor_pos);
-  			  sprintf(temp_command,"\033[%dD",trailing_chars);
- 			  /* Return where we must put the new char */
-			  fputs(temp_command, stdout);
+				/* Print the resulting buffer */
+				printf("%s", cli.input + cli.cursor_pos);
+				sprintf(temp_command, "\033[%dD",
+					trailing_chars);
+				/* Return where we must put the new char */
+				fputs(temp_command, stdout);
 
 			} else {
-			  putchar(current_key);
-			  cli.input[cli.cursor_pos] = current_key;
+				putchar(current_key);
+				cli.input[cli.cursor_pos] = current_key;
 			}
 			cli.cursor_pos++;
 			break;
@@ -526,7 +550,7 @@ static void main_show_summary(struct s_hardware *hardware)
 			    hardware->dmi.bios.release_date);
 
 		int argc = 2;
-		char* argv[2] = {"0", "0"};
+		char *argv[2] = { "0", "0" };
 		show_dmi_memory_modules(argc, argv, hardware);
 	}
 	main_show_pci(hardware);
