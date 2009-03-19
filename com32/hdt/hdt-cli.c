@@ -306,7 +306,7 @@ find_callback:
     }
     /* Handle here other keywords such as 'set', ... */
   } else
-    printf("Mode unknown.\n");
+    printf("Mode '%s' unknown.\n",command);
 
 	/* Legacy cli */
 	switch (cli->mode) {
@@ -352,17 +352,27 @@ void start_cli_mode(struct s_hardware *hardware)
 {
 	struct s_cli cli;
 	int current_key = 0;
-	char ansi_command[MAX_LINE_SIZE];
+	char temp_command[MAX_LINE_SIZE];
 	set_mode(&cli, HDT_MODE, hardware);
 
 	printf("Entering CLI mode\n");
 
+	/* Display the cursor */
+	fputs("\033[?25h", stdout);
 	reset_prompt(&cli);
 	while (cli.mode != EXIT_MODE) {
 
 		//fgets(cli_line, sizeof cli_line, stdin);
 		current_key = get_key(stdin, 0);
 		switch (current_key) {
+
+		/* clear until then end of line */
+		case KEY_CTRL('k'):
+			/* Clear the end of the line */
+			fputs("\033[0K", stdout);
+			memset(&cli.input[cli.cursor_pos],0,strlen(cli.input)-cli.cursor_pos);
+			break;
+
 		/* quit current line */
 		case KEY_CTRL('c'):
 			more_printf("\n");
@@ -370,14 +380,51 @@ void start_cli_mode(struct s_hardware *hardware)
 			break;
 		case KEY_TAB:
 			break;
+
+		/* Let's move to left */
+		case KEY_LEFT:
+			if (cli.cursor_pos>0) {
+			 fputs("\033[1D", stdout);
+			 cli.cursor_pos--;
+			}
+			break;
+
+		/* Let's move to right */
+		case KEY_RIGHT:
+			if (cli.cursor_pos<strlen(cli.input)) {
+			 fputs("\033[1C", stdout);
+			 cli.cursor_pos++;
+			}
+			break;
+
+		/* Returning at the begining of the line*/
+		case KEY_CTRL('e'):
+		case KEY_END:
+			/* Calling with a 0 value will make the cursor move*/
+			/* So, let's move the cursor only if needed*/
+			if ((strlen(cli.input)-cli.cursor_pos)>0) {
+			memset(temp_command,0,sizeof(temp_command));
+			 sprintf(temp_command,"\033[%dC",strlen(cli.input)-cli.cursor_pos);
+			 /* Return to the begining of line */
+			 fputs(temp_command, stdout);
+			 cli.cursor_pos=strlen(cli.input);
+			}
+			break;
+
 		/* Returning at the begining of the line*/
 		case KEY_CTRL('a'):
 		case KEY_HOME:
-			sprintf(ansi_command,"\033[%dD",cli.cursor_pos);
-			/* Return to the begining of line */
-			fputs(ansi_command, stdout);
-			cli.cursor_pos=0;
+			/* Calling with a 0 value will make the cursor move*/
+			/* So, let's move the cursor only if needed*/
+			if (cli.cursor_pos>0) {
+			   memset(temp_command,0,sizeof(temp_command));
+			  sprintf(temp_command,"\033[%dD",cli.cursor_pos);
+			  /* Return to the begining of line */
+			  fputs(temp_command, stdout);
+			  cli.cursor_pos=0;
+			}
 			break;
+
 		case KEY_ENTER:
 			more_printf("\n");
 			exec_command(skipspace(cli.input), &cli, hardware);
@@ -408,8 +455,31 @@ void start_cli_mode(struct s_hardware *hardware)
 			/* Prevent overflow */
 			if (cli.cursor_pos > MAX_LINE_SIZE - 2)
 				break;
-			putchar(current_key);
-			cli.input[cli.cursor_pos] = current_key;
+			/* If we aren't at the end of the input line, let's insert */
+			if (cli.cursor_pos<(int)strlen(cli.input)) {
+			  char key[2];
+			  int trailing_chars=strlen(cli.input)-cli.cursor_pos;
+			  memset(temp_command,0,sizeof(temp_command));
+			  strncpy(temp_command,cli.input,cli.cursor_pos);
+			  sprintf(key,"%c",current_key);
+			  strncat(temp_command,key,1);
+			  strncat(temp_command,cli.input+cli.cursor_pos,trailing_chars);
+			  memset(cli.input,0,sizeof(cli.input));
+			  snprintf(cli.input,sizeof(cli.input),"%s",temp_command);
+
+			  /* Clear the end of the line */
+			  fputs("\033[0K", stdout);
+
+			  /* Print the resulting buffer*/
+			  printf("%s",cli.input+cli.cursor_pos);
+  			  sprintf(temp_command,"\033[%dD",trailing_chars);
+ 			  /* Return where we must put the new char */
+			  fputs(temp_command, stdout);
+
+			} else {
+			  putchar(current_key);
+			  cli.input[cli.cursor_pos] = current_key;
+			}
 			cli.cursor_pos++;
 			break;
 		}
