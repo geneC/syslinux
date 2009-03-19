@@ -67,9 +67,11 @@ typedef enum {
   VESA_MODE,
 } cli_mode_t;
 
-struct s_cli_mode {
+struct s_cli {
   cli_mode_t mode;
   char prompt[32];
+  char input[MAX_LINE_SIZE];
+  int cursor_pos;
 };
 
 /* A command-line command */
@@ -94,7 +96,7 @@ struct commands_mode dmi_mode;
 
 void start_cli_mode(struct s_hardware *hardware);
 void main_show(char *item, struct s_hardware *hardware);
-int do_exit(struct s_cli_mode *cli_mode);
+int do_exit(struct s_cli *cli);
 
 // DMI STUFF
 #define CLI_DMI_BASE_BOARD "base_board"

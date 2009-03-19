@@ -38,17 +38,17 @@ struct commands_mode *list_modes[] = {
   &dmi_mode,
 };
 
-static void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode,
+static void set_mode(struct s_cli *cli, cli_mode_t mode,
 		     struct s_hardware *hardware)
 {
 	switch (mode) {
 	case EXIT_MODE:
-		cli_mode->mode = mode;
+		cli->mode = mode;
 		break;
 
 	case HDT_MODE:
-		cli_mode->mode = mode;
-		snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ",
+		cli->mode = mode;
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
 			 CLI_HDT);
 		break;
 
@@ -57,41 +57,41 @@ static void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode,
 			more_printf("You are not currently using PXELINUX\n");
 			break;
 		}
-		cli_mode->mode = mode;
-		snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ",
+		cli->mode = mode;
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
 			 CLI_PXE);
 		break;
 
 	case KERNEL_MODE:
 		detect_pci(hardware);
-		cli_mode->mode = mode;
-		snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ",
+		cli->mode = mode;
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
 			 CLI_KERNEL);
 		break;
 
 	case SYSLINUX_MODE:
-		cli_mode->mode = mode;
-		snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ",
+		cli->mode = mode;
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
 			 CLI_SYSLINUX);
 		break;
 
 	case VESA_MODE:
-		cli_mode->mode = mode;
-		snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ",
+		cli->mode = mode;
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
 			 CLI_VESA);
 		break;
 
 	case PCI_MODE:
-		cli_mode->mode = mode;
-		snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ",
+		cli->mode = mode;
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
 			 CLI_PCI);
 		if (!hardware->pci_detection)
 			cli_detect_pci(hardware);
 		break;
 
 	case CPU_MODE:
-		cli_mode->mode = mode;
-		snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ",
+		cli->mode = mode;
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
 			 CLI_CPU);
 		if (!hardware->dmi_detection)
 			detect_dmi(hardware);
@@ -105,8 +105,8 @@ static void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode,
 			more_printf("No valid DMI table found, exiting.\n");
 			break;
 		}
-		cli_mode->mode = mode;
-		snprintf(cli_mode->prompt, sizeof(cli_mode->prompt), "%s> ",
+		cli->mode = mode;
+		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
 			 CLI_DMI);
 		break;
 	}
@@ -122,9 +122,9 @@ static void handle_hdt_commands(char *cli_line, struct s_hardware *hardware)
 	}
 }
 
-static void show_cli_help(struct s_cli_mode *cli_mode)
+static void show_cli_help(struct s_cli *cli)
 {
-	switch (cli_mode->mode) {
+	switch (cli->mode) {
 	case HDT_MODE:
 		more_printf("Available commands are :\n");
 		more_printf
@@ -147,25 +147,25 @@ static void show_cli_help(struct s_cli_mode *cli_mode)
 	}
 }
 
-static void exec_command(char *command, struct s_cli_mode *cli_mode,
+static void exec_command(char *command, struct s_cli *cli,
 			 struct s_hardware *hardware)
 {
 	/* We use sizeof BLAH - 1 to remove the last \0 */
 //  command[strlen(command) - 1] = '\0';
 
 	if (!strncmp(command, CLI_EXIT, sizeof(CLI_EXIT) - 1)) {
-		int mode = do_exit(cli_mode);
-		set_mode(cli_mode, mode, hardware);
+		int mode = do_exit(cli);
+		set_mode(cli, mode, hardware);
 		return;
 	}
 
 	if (!strncmp(command, CLI_HELP, sizeof(CLI_HELP) - 1)) {
-		show_cli_help(cli_mode);
+		show_cli_help(cli);
 		return;
 	}
 
 	if (!strncmp(command, CLI_PCI, sizeof(CLI_PCI) - 1)) {
-		set_mode(cli_mode, PCI_MODE, hardware);
+		set_mode(cli, PCI_MODE, hardware);
 		return;
 	}
 
@@ -175,32 +175,32 @@ static void exec_command(char *command, struct s_cli_mode *cli_mode,
 	}
 
 	if (!strncmp(command, CLI_CPU, sizeof(CLI_CPU) - 1)) {
-		set_mode(cli_mode, CPU_MODE, hardware);
+		set_mode(cli, CPU_MODE, hardware);
 		return;
 	}
 
 	if (!strncmp(command, CLI_DMI, sizeof(CLI_DMI) - 1)) {
-		set_mode(cli_mode, DMI_MODE, hardware);
+		set_mode(cli, DMI_MODE, hardware);
 		return;
 	}
 
 	if (!strncmp(command, CLI_PXE, sizeof(CLI_PXE) - 1)) {
-		set_mode(cli_mode, PXE_MODE, hardware);
+		set_mode(cli, PXE_MODE, hardware);
 		return;
 	}
 
 	if (!strncmp(command, CLI_KERNEL, sizeof(CLI_KERNEL) - 1)) {
-		set_mode(cli_mode, KERNEL_MODE, hardware);
+		set_mode(cli, KERNEL_MODE, hardware);
 		return;
 	}
 
 	if (!strncmp(command, CLI_SYSLINUX, sizeof(CLI_SYSLINUX) - 1)) {
-		set_mode(cli_mode, SYSLINUX_MODE, hardware);
+		set_mode(cli, SYSLINUX_MODE, hardware);
 		return;
 	}
 
 	if (!strncmp(command, CLI_VESA, sizeof(CLI_VESA) - 1)) {
-		set_mode(cli_mode, VESA_MODE, hardware);
+		set_mode(cli, VESA_MODE, hardware);
 		return;
 	}
 
@@ -213,7 +213,7 @@ static void exec_command(char *command, struct s_cli_mode *cli_mode,
 
   /* Find the mode selected */
   while (modes_iter < MAX_MODES &&
-         list_modes[modes_iter]->mode != cli_mode->mode)
+         list_modes[modes_iter]->mode != cli->mode)
     modes_iter++;
 
   if (modes_iter != MAX_MODES) {
@@ -309,7 +309,7 @@ find_callback:
     printf("Mode unknown.\n");
 
 	/* Legacy cli */
-	switch (cli_mode->mode) {
+	switch (cli->mode) {
 	case PCI_MODE:
 		handle_pci_commands(command, hardware);
 		break;
@@ -336,57 +336,54 @@ find_callback:
 	}
 }
 
-static void reset_prompt(char *command, struct s_cli_mode *cli_mode,
-			   int *cur_pos)
+static void reset_prompt(struct s_cli *cli)
 {
 	/* No need to display the prompt if we exit */
-	if (cli_mode->mode != EXIT_MODE) {
-		printf("%s", cli_mode->prompt);
+	if (cli->mode != EXIT_MODE) {
+		printf("%s", cli->prompt);
 		/* Reset the line */
-		memset(command, '\0', MAX_LINE_SIZE);
-		*cur_pos = 0;
+		memset(cli->input, '\0', MAX_LINE_SIZE);
+		cli->cursor_pos = 0;
 	}
 }
 
 /* Code that manages the cli mode */
 void start_cli_mode(struct s_hardware *hardware)
 {
-	char cli_line[MAX_LINE_SIZE];
-	struct s_cli_mode cli_mode;
+	struct s_cli cli;
 	int current_key = 0;
-	int cur_pos = 0;
-	set_mode(&cli_mode, HDT_MODE, hardware);
+	set_mode(&cli, HDT_MODE, hardware);
 
 	printf("Entering CLI mode\n");
 
-	reset_prompt(cli_line, &cli_mode, &cur_pos);
-	while (cli_mode.mode != EXIT_MODE) {
+	reset_prompt(&cli);
+	while (cli.mode != EXIT_MODE) {
 
 		//fgets(cli_line, sizeof cli_line, stdin);
 		current_key = get_key(stdin, 0);
 		switch (current_key) {
 		case KEY_CTRL('c'):
 			more_printf("\n");
-			reset_prompt(cli_line, &cli_mode, &cur_pos);
+			reset_prompt(&cli);
 			break;
 		case KEY_TAB:
 			break;
 		case KEY_ENTER:
 			more_printf("\n");
-			exec_command(cli_line, &cli_mode, hardware);
-			reset_prompt(cli_line, &cli_mode, &cur_pos);
+			exec_command(cli.input, &cli, hardware);
+			reset_prompt(&cli);
 			break;
 		case KEY_BACKSPACE:
 			/* Don't delete prompt */
-			if (cur_pos == 0)
+			if (cli.cursor_pos == 0)
 				break;
 
 			/* Return to the begining of line */
 			fputs("\033[1D", stdout);
 
 			/* Erase that char */
-			cli_line[cur_pos] = '\0';
-			cur_pos--;
+			cli.input[cli.cursor_pos] = '\0';
+			cli.cursor_pos--;
 			putchar(' ');
 
 			/* Realign to the erased char */
@@ -394,24 +391,24 @@ void start_cli_mode(struct s_hardware *hardware)
 			break;
 		case KEY_F1:
 			more_printf("\n");
-			exec_command(CLI_HELP, &cli_mode, hardware);
-			reset_prompt(cli_line, &cli_mode, &cur_pos);
+			exec_command(CLI_HELP, &cli, hardware);
+			reset_prompt(&cli);
 			break;
 		default:
 			/* Prevent overflow */
-			if (cur_pos > MAX_LINE_SIZE - 2)
+			if (cli.cursor_pos > MAX_LINE_SIZE - 2)
 				break;
 			putchar(current_key);
-			cli_line[cur_pos] = current_key;
-			cur_pos++;
+			cli.input[cli.cursor_pos] = current_key;
+			cli.cursor_pos++;
 			break;
 		}
 	}
 }
 
-int do_exit(struct s_cli_mode *cli_mode)
+int do_exit(struct s_cli *cli)
 {
-	switch (cli_mode->mode) {
+	switch (cli->mode) {
 	case HDT_MODE:
 		return EXIT_MODE;
 	case KERNEL_MODE:
