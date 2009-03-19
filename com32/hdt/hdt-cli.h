@@ -29,6 +29,7 @@
 #ifndef DEFINE_HDT_CLI_H
 #define DEFINE_HDT_CLI_H
 #include <stdio.h>
+#include <getkey.h>
 
 #include "hdt-common.h"
 
