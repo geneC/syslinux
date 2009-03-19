@@ -352,6 +352,7 @@ void start_cli_mode(struct s_hardware *hardware)
 {
 	struct s_cli cli;
 	int current_key = 0;
+	char ansi_command[MAX_LINE_SIZE];
 	set_mode(&cli, HDT_MODE, hardware);
 
 	printf("Entering CLI mode\n");
@@ -362,11 +363,20 @@ void start_cli_mode(struct s_hardware *hardware)
 		//fgets(cli_line, sizeof cli_line, stdin);
 		current_key = get_key(stdin, 0);
 		switch (current_key) {
+		/* quit current line */
 		case KEY_CTRL('c'):
 			more_printf("\n");
 			reset_prompt(&cli);
 			break;
 		case KEY_TAB:
+			break;
+		/* Returning at the begining of the line*/
+		case KEY_CTRL('a'):
+		case KEY_HOME:
+			sprintf(ansi_command,"\033[%dD",cli.cursor_pos);
+			/* Return to the begining of line */
+			fputs(ansi_command, stdout);
+			cli.cursor_pos=0;
 			break;
 		case KEY_ENTER:
 			more_printf("\n");
@@ -378,7 +388,7 @@ void start_cli_mode(struct s_hardware *hardware)
 			if (cli.cursor_pos == 0)
 				break;
 
-			/* Return to the begining of line */
+			/* Return one char back */
 			fputs("\033[1D", stdout);
 
 			/* Erase that char */
