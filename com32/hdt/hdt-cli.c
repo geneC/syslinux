@@ -33,6 +33,11 @@
 #include "hdt-cli.h"
 #include "hdt-common.h"
 
+#define MAX_MODES 1
+struct commands_mode *list_modes[] = {
+  &dmi_mode,
+};
+
 static void set_mode(struct s_cli_mode *cli_mode, cli_mode_t mode,
 		     struct s_hardware *hardware)
 {
@@ -203,10 +208,108 @@ static void exec_command(char *command, struct s_cli_mode *cli_mode,
 	 * All commands before that line are common for all cli modes.
 	 * The following will be specific for every mode.
 	 */
+
+  int modes_iter = 0, modules_iter = 0;
+
+  /* Find the mode selected */
+  while (modes_iter < MAX_MODES &&
+         list_modes[modes_iter]->mode != cli_mode->mode)
+    modes_iter++;
+
+  if (modes_iter != MAX_MODES) {
+    struct commands_mode *current_mode = list_modes[modes_iter];
+
+    /*
+     * Find the type of command.
+     *
+     * The syntax of the cli is the following:
+     *    <type of command> <module on which to operate> <args>
+     * e.g.
+     *    dmi> show system
+     *    dmi> show bank 1
+     *    dmi> show memory 0 1
+     *    pci> show device 12
+     */
+    if (!strncmp(command, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
+      int module_len = 0, args_len = 0;
+      int argc = 0, args_iter = 0, argc_iter = 0;
+      char* module = NULL, * args = NULL, * args_cpy = NULL;
+      char** argv = NULL;
+
+      /* Get the module name and args */
+      while (strncmp(command + sizeof(CLI_SHOW) + module_len, CLI_SPACE, 1))
+        module_len++;
+
+      /* cli_line is filled with \0 when initialized */
+      while (strncmp(command + sizeof(CLI_SHOW) + module_len + 1 + args_len,
+             "\0", 1))
+        args_len++;
+
+      module = malloc(module_len + 1);
+      strncpy(module, command + sizeof(CLI_SHOW), module_len);
+      module[module_len] = '\0';
+
+      /* Skip arguments handling if none is supplied */
+      if (!args_len)
+        goto find_callback;
+
+      args = malloc(args_len + 1);
+      strncpy(args, command + sizeof(CLI_SHOW) + module_len + 1,
+              args_len);
+      args[args_len] = '\0';
+
+      /* Compute the number of arguments */
+      args_cpy = args;
+read_argument:
+      args_iter = 0;
+      while (args_iter < args_len && strncmp(args_cpy + args_iter, CLI_SPACE, 1))
+        args_iter++;
+      argc++;
+      args_iter++;
+      args_cpy += args_iter;
+      args_len -= args_iter;
+      if (args_len > 0)
+        goto read_argument;
+
+      /* Transform the arguments string into an array */
+      char* result = NULL;
+      argv = malloc(argc * sizeof(char *));
+      result = strtok(args, CLI_SPACE);
+      while (result != NULL) {
+        argv[argc_iter] = result;
+        argc_iter++;
+        result = strtok(NULL, CLI_SPACE);
+      }
+
+find_callback:
+      /* Find the callback to execute */
+      while (modules_iter < current_mode->show_modules->nb_modules &&
+             strncmp(module,
+                     current_mode->show_modules->modules[modules_iter].name,
+                     module_len + 1) != 0)
+        modules_iter++;
+
+      if (modules_iter != current_mode->show_modules->nb_modules) {
+        struct commands_module current_module =
+                          current_mode->show_modules->modules[modules_iter];
+        /* Execute the callback */
+        current_module.exec(argc, argv, hardware);
+      } else
+        printf("Module %s unknown.\n", module);
+        /* XXX Add a default help option for empty commands */
+
+      free(module);
+      if (args_len) {
+        free(args);
+        free(argv);
+      }
+    }
+    /* Handle here other keywords such as 'set', ... */
+  } else
+    printf("Mode unknown.\n");
+
+	/* Legacy cli */
 	switch (cli_mode->mode) {
-	case DMI_MODE:
-		handle_dmi_commands(command, hardware);
-		break;
 	case PCI_MODE:
 		handle_pci_commands(command, hardware);
 		break;
@@ -340,7 +443,10 @@ static void main_show_summary(struct s_hardware *hardware)
 		more_printf(" Version      : %s\n", hardware->dmi.bios.version);
 		more_printf(" Release      : %s\n",
 			    hardware->dmi.bios.release_date);
-		show_dmi_memory_modules(hardware, false, false);
+
+		int argc = 2;
+		char* argv[2] = {"0", "0"};
+		show_dmi_memory_modules(argc, argv, hardware);
 	}
 	main_show_pci(hardware);
 
