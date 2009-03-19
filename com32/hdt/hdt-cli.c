@@ -264,7 +264,7 @@ void start_cli_mode(struct s_hardware *hardware)
 		switch (current_key) {
 		case KEY_CTRL('c'):
 			more_printf("\n");
-			display_prompt(cli_line, &cli_mode, &cur_pos);
+			reset_prompt(cli_line, &cli_mode, &cur_pos);
 			break;
 		case KEY_TAB:
 			break;
