@@ -115,41 +115,37 @@ parse_cmdline:
 		dec di
 
 		; ES:DI now points to the beginning of an option
-		mov bx,options_list
-		mov cx,options_list_len
+		mov si,options_list
 .next_opt:
+		movzx cx,byte [si]
+		jcxz .skip_opt
 		push di
-		mov si,[bx]
-		add bx,4
-.next_char:
-		lodsb
-		and al,al
-		jz .end_opt
-		scasb
-		jne .not_equal
-		cmp al,'='
-		jne .next_char
+		inc si
+		repe cmpsb
+		jne .no_match
+
+		; This either needs to have been an option with parameter,
+		; or be followed by EOL/whitespace
+		cmp byte [di-1],'='
+		je .is_match
+		cmp byte [di],' '
+		ja .no_match
 .is_match:
-		pop ax				; Drop pointer to the option
-		call [bx-2]
+		pop ax				; Drop option pointer on stack
+		call [si]
 .skip_opt:
 		mov al,[es:di]
 		inc di
 		cmp al,' '
 		ja .skip_opt
 		jmp .skipspace_loaded
-.not_equal:
+.no_match:
 		pop di
-		loop .next_opt
-		jmp .skip_opt
-.end_opt:
-		; End of a unitary option (no equal sign) - match whitespace
-		cmp byte [es:di],' '
-		ja .not_equal
-		jmp .is_match
+		add si,cx			; Skip remaining bytes
+		inc si				; Skip function pointer
+		inc si
+		jmp .next_opt
 
-		section .rodata
-		section .text
 opt_vga:
 		mov eax,[es:di-1]
 		mov bx,-1
@@ -660,23 +656,22 @@ boot_image_len  equ $-boot_image
 ;
 ; Command line options we'd like to take a look at
 ;
+%macro cmd_opt	2
+%strlen cmd_opt_len	%1
+	db cmd_opt_len
+	db %1
+	dw %2
+%endmacro
 options_list:
-		dw str_vga, opt_vga
-		dw str_mem, opt_mem
-		dw str_quiet, opt_quiet
-		dw str_initrd, opt_initrd
+		cmd_opt "vga=", opt_vga
+		cmd_opt "mem=", opt_mem
+		cmd_opt "quiet", opt_quiet
+str_initrd	equ $+1			; Pointer to "initrd=" in memory
+		cmd_opt "initrd=", opt_initrd
 %if IS_PXELINUX
-		dw str_keeppxe, opt_keeppxe
+		cmd_opt "keeppxe", opt_keeppxe
 %endif
-options_list_len	equ ($-options_list)/4
-
-str_vga		db 'vga='
-str_mem		db 'mem='
-str_quiet	db 'quiet',0
-str_initrd	db 'initrd='
-%if IS_PXELINUX
-str_keeppxe	db 'keeppxe',0
-%endif
+		db 0
 
 		section .bss
 		alignb 4
