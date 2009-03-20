@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2009 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -39,6 +39,7 @@
 #include <colortbl.h>
 #include <console.h>
 #include <klibc/compiler.h>
+#include <syslinux/config.h>
 #include "ansi.h"
 #include "file.h"
 #include "vesa/video.h"
@@ -66,7 +67,8 @@ static struct term_info ti =
     .op = &op
   };
 
-/* Reference counter to the screen, to keep track of if we need reinitialization. */
+/* Reference counter to the screen, to keep track of if we need
+   reinitialization. */
 static int vesacon_counter = 0;
 
 /* Common setup */
@@ -79,11 +81,10 @@ int __vesacon_open(struct file_info *fp)
 
   if (!vesacon_counter) {
     /* Are we disabled? */
-    ireg.eax.w[0] = 0x000b;
-    __intcall(0x22, &ireg, &oreg);
-
-    if ( (signed char)oreg.ebx.b[1] < 0 ) {
+    if (syslinux_serial_console_info()->flowctl & 0x8000) {
       ti.disabled = 1;
+      ti.rows = 25;
+      ti.cols = 80;
     } else {
       /* Switch mode */
       if (__vesacon_init()) {
@@ -147,7 +148,7 @@ ssize_t __vesacon_write(struct file_info *fp, const void *buf, size_t count)
   (void)fp;
 
   if ( ti.disabled )
-    return n;			/* Nothing to do */
+    return count;		/* Nothing to do */
 
   /* This only updates the shadow text buffer... */
   while ( count-- ) {
