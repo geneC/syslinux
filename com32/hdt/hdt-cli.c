@@ -297,7 +297,7 @@ static void exec_command(char *command, struct s_cli *cli,
 				/* Execute the callback */
 				current_module.exec(argc, argv, hardware);
 			} else
-				printf("Module %s unknown.\n", module);
+//				printf("Module %s unknown.\n", module);
 			/* XXX Add a default help option for empty commands */
 
 			free(module);
@@ -308,7 +308,7 @@ static void exec_command(char *command, struct s_cli *cli,
 		}
 		/* Handle here other keywords such as 'set', ... */
 	} else
-		printf("Mode '%s' unknown.\n", command);
+//		printf("Mode '%s' unknown.\n", command);
 
 	/* Legacy cli */
 	switch (cli->mode) {
