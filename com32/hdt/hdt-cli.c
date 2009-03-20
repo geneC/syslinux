@@ -352,22 +352,33 @@ static void reset_prompt(struct s_cli *cli)
 /* Code that manages the cli mode */
 void start_cli_mode(struct s_hardware *hardware)
 {
-	struct s_cli cli;
 	int current_key = 0;
+	int future_history_pos=1; /* Temp variable*/
+	bool display_history=true; /* Temp Variable*/
 	char temp_command[MAX_LINE_SIZE];
+
+	struct s_cli cli;
+	cli.cursor_pos=0;
+	memset(cli.input, '\0', MAX_LINE_SIZE);
+	memset(cli.history, '\0', sizeof(cli.history));
+	cli.history_pos=1;
+	cli.max_history_pos=1;
+
 	set_mode(&cli, HDT_MODE, hardware);
 
 	printf("Entering CLI mode\n");
 
 	/* Display the cursor */
 	fputs("\033[?25h", stdout);
+
 	reset_prompt(&cli);
+
 	while (cli.mode != EXIT_MODE) {
 
 		//fgets(cli_line, sizeof cli_line, stdin);
 		current_key = get_key(stdin, 0);
-		switch (current_key) {
 
+		switch (current_key) {
 			/* clear until then end of line */
 		case KEY_CTRL('k'):
 			/* Clear the end of the line */
@@ -376,15 +387,14 @@ void start_cli_mode(struct s_hardware *hardware)
 			       strlen(cli.input) - cli.cursor_pos);
 			break;
 
-			/* quit current line */
 		case KEY_CTRL('c'):
 			more_printf("\n");
 			reset_prompt(&cli);
 			break;
+
 		case KEY_TAB:
 			break;
 
-			/* Let's move to left */
 		case KEY_LEFT:
 			if (cli.cursor_pos > 0) {
 				fputs("\033[1D", stdout);
@@ -392,7 +402,6 @@ void start_cli_mode(struct s_hardware *hardware)
 			}
 			break;
 
-			/* Let's move to right */
 		case KEY_RIGHT:
 			if (cli.cursor_pos < (int)strlen(cli.input)) {
 				fputs("\033[1C", stdout);
@@ -400,7 +409,6 @@ void start_cli_mode(struct s_hardware *hardware)
 			}
 			break;
 
-			/* Returning at the begining of the line */
 		case KEY_CTRL('e'):
 		case KEY_END:
 			/* Calling with a 0 value will make the cursor move */
@@ -415,7 +423,6 @@ void start_cli_mode(struct s_hardware *hardware)
 			}
 			break;
 
-			/* Returning at the begining of the line */
 		case KEY_CTRL('a'):
 		case KEY_HOME:
 			/* Calling with a 0 value will make the cursor move */
@@ -430,11 +437,74 @@ void start_cli_mode(struct s_hardware *hardware)
 			}
 			break;
 
+		case KEY_UP:
+			/* We have to compute the next position*/
+			future_history_pos=cli.history_pos;
+			if (future_history_pos==1) {
+				future_history_pos=MAX_HISTORY_SIZE-1;
+			} else {
+				future_history_pos--;
+			}
+			/* Does the next position is valid */
+			if (strlen(cli.history[future_history_pos])==0) break;
+
+			/* Let's make that future position the one we use*/
+			cli.history_pos=future_history_pos;
+
+			/* Clear the line */
+			fputs("\033[2K", stdout);
+
+			/* Move to the begining of line*/
+			fputs("\033[0G", stdout);
+
+			reset_prompt(&cli);
+			printf("%s",cli.history[cli.history_pos]);
+			strncpy(cli.input,cli.history[cli.history_pos],sizeof(cli.input));
+			cli.cursor_pos=strlen(cli.input);
+			break;
+
+		case KEY_DOWN:
+			display_history=true;
+
+			/* We have to compute the next position*/
+			future_history_pos=cli.history_pos;
+			if (future_history_pos==MAX_HISTORY_SIZE-1) {
+				future_history_pos=1;
+			} else {
+				future_history_pos++;
+			}
+			/* Does the next position is valid */
+			if (strlen(cli.history[future_history_pos])==0) display_history = false;
+
+			/* An exception is made to reach the last empty line */
+			if (future_history_pos==cli.max_history_pos) display_history=true;
+			if (display_history==false) break;
+
+			/* Let's make that future position the one we use*/
+			cli.history_pos=future_history_pos;
+
+			/* Clear the line */
+			fputs("\033[2K", stdout);
+
+			/* Move to the begining of line*/
+			fputs("\033[0G", stdout);
+
+			reset_prompt(&cli);
+			printf("%s",cli.history[cli.history_pos]);
+			strncpy(cli.input,cli.history[cli.history_pos],sizeof(cli.input));
+			cli.cursor_pos=strlen(cli.input);
+			break;
+
 		case KEY_ENTER:
 			more_printf("\n");
+			if (cli.history_pos == MAX_HISTORY_SIZE-1) cli.history_pos=1;
+			strncpy(cli.history[cli.history_pos],skipspace(cli.input),sizeof(cli.history[cli.history_pos]));
+			cli.history_pos++;
+			if (cli.history_pos>cli.max_history_pos) cli.max_history_pos=cli.history_pos;
 			exec_command(skipspace(cli.input), &cli, hardware);
 			reset_prompt(&cli);
 			break;
+
 		case KEY_BACKSPACE:
 			/* Don't delete prompt */
 			if (cli.cursor_pos == 0)
@@ -464,12 +534,15 @@ void start_cli_mode(struct s_hardware *hardware)
 			if (cli.cursor_pos > (int)strlen(cli.input))
 				cli.cursor_pos--;
 			break;
+
 		case KEY_F1:
 			more_printf("\n");
 			exec_command(CLI_HELP, &cli, hardware);
 			reset_prompt(&cli);
 			break;
+
 		default:
+			if ( ( current_key < 0x20 ) || ( current_key > 0x7e ) ) break;
 			/* Prevent overflow */
 			if (cli.cursor_pos > MAX_LINE_SIZE - 2)
 				break;
