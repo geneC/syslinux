@@ -76,9 +76,10 @@ struct s_cli {
 
 /* A command-line command */
 struct commands_mode {
-  const unsigned int mode;
-  struct commands_module_descr* show_modules;
-  /* Future: set? */
+	const unsigned int mode;
+	struct commands_module_descr* default_modules;	/* Handle 1-token commands */
+	struct commands_module_descr* show_modules;	/* Handle show <module> <args> */
+	/* Future: set? */
 };
 
 struct commands_module {
@@ -92,11 +93,11 @@ struct commands_module_descr {
   const int nb_modules;
 };
 
+struct commands_mode hdt_mode;
 struct commands_mode dmi_mode;
 
 void start_cli_mode(struct s_hardware *hardware);
 void main_show(char *item, struct s_hardware *hardware);
-int do_exit(struct s_cli *cli);
 
 // DMI STUFF
 #define CLI_DMI_BASE_BOARD "base_board"

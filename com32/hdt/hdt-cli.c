@@ -33,22 +33,32 @@
 #include "hdt-cli.h"
 #include "hdt-common.h"
 
-#define MAX_MODES 1
+#define DEBUG 0
+#if DEBUG
+# define dprintf printf
+#else
+# define dprintf(f, ...) ((void)0)
+#endif
+
+
+#define MAX_MODES 2
 struct commands_mode *list_modes[] = {
+	&hdt_mode,
 	&dmi_mode,
 };
+struct s_cli hdt_cli;
 
-static void set_mode(struct s_cli *cli, cli_mode_t mode,
+static void set_mode(cli_mode_t mode,
 		     struct s_hardware *hardware)
 {
 	switch (mode) {
 	case EXIT_MODE:
-		cli->mode = mode;
+		hdt_cli.mode = mode;
 		break;
 
 	case HDT_MODE:
-		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ", CLI_HDT);
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_HDT);
 		break;
 
 	case PXE_MODE:
@@ -56,37 +66,37 @@ static void set_mode(struct s_cli *cli, cli_mode_t mode,
 			more_printf("You are not currently using PXELINUX\n");
 			break;
 		}
-		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ", CLI_PXE);
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_PXE);
 		break;
 
 	case KERNEL_MODE:
 		detect_pci(hardware);
-		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ", CLI_KERNEL);
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_KERNEL);
 		break;
 
 	case SYSLINUX_MODE:
-		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ",
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
 			 CLI_SYSLINUX);
 		break;
 
 	case VESA_MODE:
-		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ", CLI_VESA);
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_VESA);
 		break;
 
 	case PCI_MODE:
-		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ", CLI_PCI);
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_PCI);
 		if (!hardware->pci_detection)
 			cli_detect_pci(hardware);
 		break;
 
 	case CPU_MODE:
-		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ", CLI_CPU);
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_CPU);
 		if (!hardware->dmi_detection)
 			detect_dmi(hardware);
 		if (!hardware->cpu_detection)
@@ -99,8 +109,8 @@ static void set_mode(struct s_cli *cli, cli_mode_t mode,
 			more_printf("No valid DMI table found, exiting.\n");
 			break;
 		}
-		cli->mode = mode;
-		snprintf(cli->prompt, sizeof(cli->prompt), "%s> ", CLI_DMI);
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_DMI);
 		break;
 	}
 }
@@ -115,9 +125,9 @@ static void handle_hdt_commands(char *cli_line, struct s_hardware *hardware)
 	}
 }
 
-static void show_cli_help(struct s_cli *cli)
+static void show_cli_help()
 {
-	switch (cli->mode) {
+	switch (hdt_cli.mode) {
 	case HDT_MODE:
 		more_printf("Available commands are :\n");
 		more_printf
@@ -140,60 +150,157 @@ static void show_cli_help(struct s_cli *cli)
 	}
 }
 
-static void exec_command(char *command, struct s_cli *cli,
+/**
+ * parse_command_line - low level parser for the command line
+ * @command:	command line to parse
+ *
+ * The format of the command line is:
+ *	<main command> [<module on which to operate> [<args>]]
+ **/
+static void parse_command_line(char *line, char **command, char **module, char **argv)
+{
+	int argc, argc_iter, args_pos, token_found, len;
+	char *pch = NULL, *pch_next = NULL;
+
+	*command = NULL;
+	*module = NULL;
+
+	pch = line;
+	while (pch != NULL) {
+		pch_next = strchr(pch + 1, ' ');
+
+		/* End of line guaranteed to be zeroed */
+		if (pch_next == NULL)
+			len = (int) (strchr(pch + 1, '\0') - pch);
+		else
+			len = (int) (pch_next - pch);
+
+		if (token_found == 0) {
+			/* Main command to execute */
+			*command = malloc((len + 1) * sizeof(char));
+			strncpy(*command, pch, len);
+			(*command)[len] = NULL;
+			dprintf("CLI DEBUG: command = %s\n", *command);
+			args_pos += len + 1;
+		} else if (token_found == 1) {
+			/* Module */
+			*module = malloc((len + 1) * sizeof(char));
+			strncpy(*module, pch, len);
+			(*module)[len] = NULL;
+			dprintf("CLI DEBUG: module  = %s\n", *module);
+			args_pos += len + 1;
+		} else
+			argc++;
+
+		if (pch_next != NULL)
+			pch_next++;
+
+		token_found++;
+		pch = pch_next;
+	}
+	dprintf("CLI DEBUG: argc    = %d\n", argc);
+
+	/* Skip arguments handling if none is supplied */
+	if (!argc)
+		return;
+
+	/* Transform the arguments string into an array */
+	argv = malloc(argc * sizeof(char *));
+	pch = strtok(line + args_pos, CLI_SPACE);
+	while (pch != NULL) {
+		dprintf("CLI DEBUG: argv[%d] = %s\n", argc_iter, pch);
+		argv[argc_iter] = pch;
+		argc_iter++;
+		pch = strtok(NULL, CLI_SPACE);
+	}
+}
+
+/**
+ * find_module_callback - find a callback in a list of modules
+ * @module_name:	Name of the module to find
+ * @modules_list:	Lits of modules among which to find @module_name
+ * @module_found:	Pointer to the matched module, NULL if not found
+ *
+ * Given a module name and a list of possible modules, find the corresponding module
+ * structure that matches the module name and store it in @module_found.
+ **/
+static void find_module_callback(char* module_name, struct commands_module_descr* modules_list,
+				 struct commands_module** module_found)
+{
+	int modules_iter = 0;
+	int module_len = strlen(module_name);
+
+	if (modules_list == NULL)
+		goto not_found;
+
+	/* Find the callback to execute */
+	while (modules_iter < modules_list->nb_modules
+	       && strncmp(module_name,
+			  modules_list->modules[modules_iter].name,
+			  module_len) != 0)
+		modules_iter++;
+
+	if (modules_iter != modules_list->nb_modules) {
+		*module_found = &(modules_list->modules[modules_iter]);
+		return;
+	}
+
+not_found:
+	*module_found = NULL;
+	return;
+}
+
+static void exec_command(char *line,
 			 struct s_hardware *hardware)
 {
+	int modes_iter = 0, argc = 0;
+	char *command = NULL, *module = NULL;
+	char **argv = NULL;
+	struct commands_module* current_module = NULL;
+	struct commands_mode *current_mode;
+
 	/* We use sizeof BLAH - 1 to remove the last \0 */
 //  command[strlen(command) - 1] = '\0';
 
-	if (!strncmp(command, CLI_EXIT, sizeof(CLI_EXIT) - 1)) {
-		int mode = do_exit(cli);
-		set_mode(cli, mode, hardware);
+	/* XXX Extract this with a new grammar, e.g. set mode dmi */
+
+	if (!strncmp(line, CLI_HELP, sizeof(CLI_HELP) - 1)) {
+		show_cli_help();
 		return;
 	}
 
-	if (!strncmp(command, CLI_HELP, sizeof(CLI_HELP) - 1)) {
-		show_cli_help(cli);
+	if (!strncmp(line, CLI_PCI, sizeof(CLI_PCI) - 1)) {
+		set_mode(PCI_MODE, hardware);
 		return;
 	}
 
-	if (!strncmp(command, CLI_PCI, sizeof(CLI_PCI) - 1)) {
-		set_mode(cli, PCI_MODE, hardware);
+	if (!strncmp(line, CLI_CPU, sizeof(CLI_CPU) - 1)) {
+		set_mode(CPU_MODE, hardware);
 		return;
 	}
 
-	if (!strncmp(command, CLI_CLEAR, sizeof(CLI_CLEAR) - 1)) {
-		clear_screen();
+	if (!strncmp(line, CLI_DMI, sizeof(CLI_DMI) - 1)) {
+		set_mode(DMI_MODE, hardware);
 		return;
 	}
 
-	if (!strncmp(command, CLI_CPU, sizeof(CLI_CPU) - 1)) {
-		set_mode(cli, CPU_MODE, hardware);
+	if (!strncmp(line, CLI_PXE, sizeof(CLI_PXE) - 1)) {
+		set_mode(PXE_MODE, hardware);
 		return;
 	}
 
-	if (!strncmp(command, CLI_DMI, sizeof(CLI_DMI) - 1)) {
-		set_mode(cli, DMI_MODE, hardware);
+	if (!strncmp(line, CLI_KERNEL, sizeof(CLI_KERNEL) - 1)) {
+		set_mode(KERNEL_MODE, hardware);
 		return;
 	}
 
-	if (!strncmp(command, CLI_PXE, sizeof(CLI_PXE) - 1)) {
-		set_mode(cli, PXE_MODE, hardware);
+	if (!strncmp(line, CLI_SYSLINUX, sizeof(CLI_SYSLINUX) - 1)) {
+		set_mode(SYSLINUX_MODE, hardware);
 		return;
 	}
 
-	if (!strncmp(command, CLI_KERNEL, sizeof(CLI_KERNEL) - 1)) {
-		set_mode(cli, KERNEL_MODE, hardware);
-		return;
-	}
-
-	if (!strncmp(command, CLI_SYSLINUX, sizeof(CLI_SYSLINUX) - 1)) {
-		set_mode(cli, SYSLINUX_MODE, hardware);
-		return;
-	}
-
-	if (!strncmp(command, CLI_VESA, sizeof(CLI_VESA) - 1)) {
-		set_mode(cli, VESA_MODE, hardware);
+	if (!strncmp(line, CLI_VESA, sizeof(CLI_VESA) - 1)) {
+		set_mode(VESA_MODE, hardware);
 		return;
 	}
 
@@ -202,167 +309,124 @@ static void exec_command(char *command, struct s_cli *cli,
 	 * The following will be specific for every mode.
 	 */
 
-	int modes_iter = 0, modules_iter = 0;
-
 	/* Find the mode selected */
 	while (modes_iter < MAX_MODES &&
-	       list_modes[modes_iter]->mode != cli->mode)
+	       list_modes[modes_iter]->mode != hdt_cli.mode)
 		modes_iter++;
 
-	if (modes_iter != MAX_MODES) {
-		struct commands_mode *current_mode = list_modes[modes_iter];
-
-		/*
-		 * Find the type of command.
-		 *
-		 * The syntax of the cli is the following:
-		 *    <type of command> <module on which to operate> <args>
-		 * e.g.
-		 *    dmi> show system
-		 *    dmi> show bank 1
-		 *    dmi> show memory 0 1
-		 *    pci> show device 12
-		 */
-		if (!strncmp(command, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
-			int module_len = 0, args_len = 0;
-			int argc = 0, args_iter = 0, argc_iter = 0;
-			char *module = NULL, *args = NULL, *args_cpy = NULL;
-			char **argv = NULL;
-
-			/* Get the module name and args */
-			while (strncmp
-			       (command + sizeof(CLI_SHOW) + module_len,
-				CLI_SPACE, 1))
-				module_len++;
-
-			/* cli_line is filled with \0 when initialized */
-			while (strncmp
-			       (command + sizeof(CLI_SHOW) + module_len + 1 +
-				args_len, "\0", 1))
-				args_len++;
-
-			module = malloc(module_len + 1);
-			strncpy(module, command + sizeof(CLI_SHOW), module_len);
-			module[module_len] = '\0';
-
-			/* Skip arguments handling if none is supplied */
-			if (!args_len)
-				goto find_callback;
-
-			args = malloc(args_len + 1);
-			strncpy(args,
-				command + sizeof(CLI_SHOW) + module_len + 1,
-				args_len);
-			args[args_len] = '\0';
-
-			/* Compute the number of arguments */
-			args_cpy = args;
- read_argument:
-			args_iter = 0;
-			while (args_iter < args_len
-			       && strncmp(args_cpy + args_iter, CLI_SPACE, 1))
-				args_iter++;
-			argc++;
-			args_iter++;
-			args_cpy += args_iter;
-			args_len -= args_iter;
-			if (args_len > 0)
-				goto read_argument;
-
-			/* Transform the arguments string into an array */
-			char *result = NULL;
-			argv = malloc(argc * sizeof(char *));
-			result = strtok(args, CLI_SPACE);
-			while (result != NULL) {
-				argv[argc_iter] = result;
-				argc_iter++;
-				result = strtok(NULL, CLI_SPACE);
-			}
-
- find_callback:
-			/* Find the callback to execute */
-			while (modules_iter <
-			       current_mode->show_modules->nb_modules
-			       && strncmp(module,
-					  current_mode->show_modules->
-					  modules[modules_iter].name,
-					  module_len + 1) != 0)
-				modules_iter++;
-
-			if (modules_iter !=
-			    current_mode->show_modules->nb_modules) {
-				struct commands_module current_module =
-				    current_mode->show_modules->
-				    modules[modules_iter];
-				/* Execute the callback */
-				current_module.exec(argc, argv, hardware);
-			} else
-				printf("Module %s unknown.\n", module);
-			/* XXX Add a default help option for empty commands */
-
-			free(module);
-			if (args_len) {
-				free(args);
-				free(argv);
-			}
-		}
-		/* Handle here other keywords such as 'set', ... */
+	if (modes_iter == MAX_MODES) {
+		/* Shouldn't get here... */
+		printf("!!! BUG: Mode '%s' unknown.\n", hdt_cli.mode);
+		// XXX Will return; when done with refactoring.
+		goto old_cli;
 	} else
-		printf("Mode '%s' unknown.\n", command);
+		current_mode = list_modes[modes_iter];
 
+	/* This will allocate memory that will need to be freed */
+	parse_command_line(line, &command, &module, argv);
+
+	if (module == NULL) {
+		/*
+		 * A single word was specified: look at the list of default
+		 * commands in the current mode to see if there is a match.
+		 * If not, it may be a generic function (exit, help, ...). These
+		 * are stored in the list of default commands of the hdt mode.
+		 */
+		find_module_callback(command, current_mode->default_modules,
+				     &current_module);
+		if (current_module != NULL)
+			current_module->exec(argc, argv, hardware);
+		else {
+			find_module_callback(command, hdt_mode.default_modules,
+					     &current_module);
+			if (current_module != NULL) {
+				current_module->exec(argc, argv, hardware);
+				return;
+			}
+
+			printf("Command '%s' unknown.\n", command);
+		}
+	}
+
+
+	/*
+	 * Find the type of command.
+	 *
+	 * The syntax of the cli is the following:
+	 *    <type of command> <module on which to operate> <args>
+	 * e.g.
+	 *    dmi> show system
+	 *    dmi> show bank 1
+	 *    dmi> show memory 0 1
+	 *    pci> show device 12
+	 */
+	if (!strncmp(line, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
+		find_module_callback(module, current_mode->show_modules, &current_module);
+		/* Execute the callback */
+		if (current_module != NULL)
+			current_module->exec(argc, argv, hardware);
+		/* XXX Add a default help option for empty commands */
+	}
+	/* Handle here other keywords such as 'set', ... */
+
+	/* Let's not forget to clean ourselves */
+	free(command);
+	free(module);
+	free(argv);
+
+old_cli:
 	/* Legacy cli */
-	switch (cli->mode) {
+	switch (hdt_cli.mode) {
 	case PCI_MODE:
-		handle_pci_commands(command, hardware);
+		handle_pci_commands(line, hardware);
 		break;
 	case HDT_MODE:
-		handle_hdt_commands(command, hardware);
+		handle_hdt_commands(line, hardware);
 		break;
 	case CPU_MODE:
-		handle_cpu_commands(command, hardware);
+		handle_cpu_commands(line, hardware);
 		break;
 	case PXE_MODE:
-		handle_pxe_commands(command, hardware);
+		handle_pxe_commands(line, hardware);
 		break;
 	case VESA_MODE:
-		handle_vesa_commands(command, hardware);
+		handle_vesa_commands(line, hardware);
 		break;
 	case SYSLINUX_MODE:
-		handle_syslinux_commands(command, hardware);
+		handle_syslinux_commands(line, hardware);
 		break;
 	case KERNEL_MODE:
-		handle_kernel_commands(command, hardware);
+		handle_kernel_commands(line, hardware);
 		break;
 	case EXIT_MODE:
 		break;		/* should not happen */
 	}
 }
 
-static void reset_prompt(struct s_cli *cli)
+static void reset_prompt()
 {
 	/* No need to display the prompt if we exit */
-	if (cli->mode != EXIT_MODE) {
-		printf("%s", cli->prompt);
+	if (hdt_cli.mode != EXIT_MODE) {
+		printf("%s", hdt_cli.prompt);
 		/* Reset the line */
-		memset(cli->input, '\0', MAX_LINE_SIZE);
-		cli->cursor_pos = 0;
+		memset(hdt_cli.input, '\0', MAX_LINE_SIZE);
+		hdt_cli.cursor_pos = 0;
 	}
 }
 
 /* Code that manages the cli mode */
 void start_cli_mode(struct s_hardware *hardware)
 {
-	struct s_cli cli;
 	int current_key = 0;
 	char temp_command[MAX_LINE_SIZE];
-	set_mode(&cli, HDT_MODE, hardware);
+	set_mode(HDT_MODE, hardware);
 
 	printf("Entering CLI mode\n");
 
 	/* Display the cursor */
 	fputs("\033[?25h", stdout);
-	reset_prompt(&cli);
-	while (cli.mode != EXIT_MODE) {
+	reset_prompt();
+	while (hdt_cli.mode != EXIT_MODE) {
 
 		//fgets(cli_line, sizeof cli_line, stdin);
 		current_key = get_key(stdin, 0);
@@ -372,31 +436,31 @@ void start_cli_mode(struct s_hardware *hardware)
 		case KEY_CTRL('k'):
 			/* Clear the end of the line */
 			fputs("\033[0K", stdout);
-			memset(&cli.input[cli.cursor_pos], 0,
-			       strlen(cli.input) - cli.cursor_pos);
+			memset(&hdt_cli.input[hdt_cli.cursor_pos], 0,
+			       strlen(hdt_cli.input) - hdt_cli.cursor_pos);
 			break;
 
 			/* quit current line */
 		case KEY_CTRL('c'):
 			more_printf("\n");
-			reset_prompt(&cli);
+			reset_prompt();
 			break;
 		case KEY_TAB:
 			break;
 
 			/* Let's move to left */
 		case KEY_LEFT:
-			if (cli.cursor_pos > 0) {
+			if (hdt_cli.cursor_pos > 0) {
 				fputs("\033[1D", stdout);
-				cli.cursor_pos--;
+				hdt_cli.cursor_pos--;
 			}
 			break;
 
 			/* Let's move to right */
 		case KEY_RIGHT:
-			if (cli.cursor_pos < (int)strlen(cli.input)) {
+			if (hdt_cli.cursor_pos < (int)strlen(hdt_cli.input)) {
 				fputs("\033[1C", stdout);
-				cli.cursor_pos++;
+				hdt_cli.cursor_pos++;
 			}
 			break;
 
@@ -405,13 +469,13 @@ void start_cli_mode(struct s_hardware *hardware)
 		case KEY_END:
 			/* Calling with a 0 value will make the cursor move */
 			/* So, let's move the cursor only if needed */
-			if ((strlen(cli.input) - cli.cursor_pos) > 0) {
+			if ((strlen(hdt_cli.input) - hdt_cli.cursor_pos) > 0) {
 				memset(temp_command, 0, sizeof(temp_command));
 				sprintf(temp_command, "\033[%dC",
-					strlen(cli.input) - cli.cursor_pos);
+					strlen(hdt_cli.input) - hdt_cli.cursor_pos);
 				/* Return to the begining of line */
 				fputs(temp_command, stdout);
-				cli.cursor_pos = strlen(cli.input);
+				hdt_cli.cursor_pos = strlen(hdt_cli.input);
 			}
 			break;
 
@@ -420,30 +484,30 @@ void start_cli_mode(struct s_hardware *hardware)
 		case KEY_HOME:
 			/* Calling with a 0 value will make the cursor move */
 			/* So, let's move the cursor only if needed */
-			if (cli.cursor_pos > 0) {
+			if (hdt_cli.cursor_pos > 0) {
 				memset(temp_command, 0, sizeof(temp_command));
 				sprintf(temp_command, "\033[%dD",
-					cli.cursor_pos);
+					hdt_cli.cursor_pos);
 				/* Return to the begining of line */
 				fputs(temp_command, stdout);
-				cli.cursor_pos = 0;
+				hdt_cli.cursor_pos = 0;
 			}
 			break;
 
 		case KEY_ENTER:
 			more_printf("\n");
-			exec_command(skipspace(cli.input), &cli, hardware);
-			reset_prompt(&cli);
+			exec_command(skipspace(hdt_cli.input), hardware);
+			reset_prompt();
 			break;
 		case KEY_BACKSPACE:
 			/* Don't delete prompt */
-			if (cli.cursor_pos == 0)
+			if (hdt_cli.cursor_pos == 0)
 				break;
 
-			for (int c = cli.cursor_pos - 1;
-			     c < (int)strlen(cli.input) - 1; c++)
-				cli.input[c] = cli.input[c + 1];
-			cli.input[strlen(cli.input) - 1] = '\0';
+			for (int c = hdt_cli.cursor_pos - 1;
+			     c < (int)strlen(hdt_cli.input) - 1; c++)
+				hdt_cli.input[c] = hdt_cli.input[c + 1];
+			hdt_cli.input[strlen(hdt_cli.input) - 1] = '\0';
 
 			/* Get one char back */
 			fputs("\033[1D", stdout);
@@ -451,50 +515,50 @@ void start_cli_mode(struct s_hardware *hardware)
 			fputs("\033[0K", stdout);
 
 			/* Print the resulting buffer */
-			printf("%s", cli.input + cli.cursor_pos - 1);
+			printf("%s", hdt_cli.input + hdt_cli.cursor_pos - 1);
 
 			/* Realing to the place we were */
 			memset(temp_command, 0, sizeof(temp_command));
 			sprintf(temp_command, "\033[%dD",
-				strlen(cli.input + cli.cursor_pos - 1));
+				strlen(hdt_cli.input + hdt_cli.cursor_pos - 1));
 			fputs(temp_command, stdout);
 			fputs("\033[1C", stdout);
 			/* Don't decrement the position unless
 			 * if we are at then end of the line*/
-			if (cli.cursor_pos > (int)strlen(cli.input))
-				cli.cursor_pos--;
+			if (hdt_cli.cursor_pos > (int)strlen(hdt_cli.input))
+				hdt_cli.cursor_pos--;
 			break;
 		case KEY_F1:
 			more_printf("\n");
-			exec_command(CLI_HELP, &cli, hardware);
-			reset_prompt(&cli);
+			exec_command(CLI_HELP, hardware);
+			reset_prompt();
 			break;
 		default:
 			/* Prevent overflow */
-			if (cli.cursor_pos > MAX_LINE_SIZE - 2)
+			if (hdt_cli.cursor_pos > MAX_LINE_SIZE - 2)
 				break;
 			/* If we aren't at the end of the input line, let's insert */
-			if (cli.cursor_pos < (int)strlen(cli.input)) {
+			if (hdt_cli.cursor_pos < (int)strlen(hdt_cli.input)) {
 				char key[2];
 				int trailing_chars =
-				    strlen(cli.input) - cli.cursor_pos;
+				    strlen(hdt_cli.input) - hdt_cli.cursor_pos;
 				memset(temp_command, 0, sizeof(temp_command));
-				strncpy(temp_command, cli.input,
-					cli.cursor_pos);
+				strncpy(temp_command, hdt_cli.input,
+					hdt_cli.cursor_pos);
 				sprintf(key, "%c", current_key);
 				strncat(temp_command, key, 1);
 				strncat(temp_command,
-					cli.input + cli.cursor_pos,
+					hdt_cli.input + hdt_cli.cursor_pos,
 					trailing_chars);
-				memset(cli.input, 0, sizeof(cli.input));
-				snprintf(cli.input, sizeof(cli.input), "%s",
+				memset(hdt_cli.input, 0, sizeof(hdt_cli.input));
+				snprintf(hdt_cli.input, sizeof(hdt_cli.input), "%s",
 					 temp_command);
 
 				/* Clear the end of the line */
 				fputs("\033[0K", stdout);
 
 				/* Print the resulting buffer */
-				printf("%s", cli.input + cli.cursor_pos);
+				printf("%s", hdt_cli.input + hdt_cli.cursor_pos);
 				sprintf(temp_command, "\033[%dD",
 					trailing_chars);
 				/* Return where we must put the new char */
@@ -502,19 +566,25 @@ void start_cli_mode(struct s_hardware *hardware)
 
 			} else {
 				putchar(current_key);
-				cli.input[cli.cursor_pos] = current_key;
+				hdt_cli.input[hdt_cli.cursor_pos] = current_key;
 			}
-			cli.cursor_pos++;
+			hdt_cli.cursor_pos++;
 			break;
 		}
 	}
 }
 
-int do_exit(struct s_cli *cli)
+/**
+ * do_exit - shared help to exit a mode
+ **/
+void do_exit(int argc, char** argv, struct s_hardware *hardware)
 {
-	switch (cli->mode) {
+	int new_mode = HDT_MODE;
+
+	switch (hdt_cli.mode) {
 	case HDT_MODE:
-		return EXIT_MODE;
+		new_mode = EXIT_MODE;
+		break;
 	case KERNEL_MODE:
 	case PXE_MODE:
 	case SYSLINUX_MODE:
@@ -522,11 +592,16 @@ int do_exit(struct s_cli *cli)
 	case DMI_MODE:
 	case VESA_MODE:
 	case CPU_MODE:
-		return HDT_MODE;
+		new_mode = HDT_MODE;
+		break;
 	case EXIT_MODE:
-		return EXIT_MODE;	/* should not happen */
+		new_mode = EXIT_MODE;	/* should not happen */
+		break;
 	}
-	return HDT_MODE;
+
+	dprintf("CLI DEBUG: Switching from mode %d to mode %d\n", hdt_cli.mode,
+								  new_mode);
+	set_mode(new_mode, hardware);
 }
 
 static void main_show_summary(struct s_hardware *hardware)
@@ -611,3 +686,25 @@ void main_show(char *item, struct s_hardware *hardware)
 	}
 	show_main_help(hardware);
 }
+
+/* Default hdt mode */
+struct commands_module list_hdt_default_modules[] = {
+	{
+		.name = CLI_CLEAR,
+		.exec = clear_screen,
+	},
+	{
+		.name = CLI_EXIT,
+		.exec = do_exit,
+	},
+};
+
+struct commands_module_descr hdt_default_modules = {
+	.modules = list_hdt_default_modules,
+	.nb_modules = sizeof(list_hdt_default_modules)/2,
+};
+
+struct commands_mode hdt_mode = {
+	.mode = HDT_MODE,
+	.default_modules = &hdt_default_modules,
+};
