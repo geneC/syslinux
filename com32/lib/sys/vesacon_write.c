@@ -74,9 +74,6 @@ static int vesacon_counter = 0;
 /* Common setup */
 int __vesacon_open(struct file_info *fp)
 {
-  static com32sys_t ireg;	/* Auto-initalized to all zero */
-  com32sys_t oreg;
-
   (void)fp;
 
   if (!vesacon_counter) {
