@@ -55,38 +55,38 @@
 #define CLI_MODES "modes"
 
 typedef enum {
-  EXIT_MODE,
-  HDT_MODE,
-  PCI_MODE,
-  DMI_MODE,
-  CPU_MODE,
-  PXE_MODE,
-  KERNEL_MODE,
-  SYSLINUX_MODE,
-  VESA_MODE,
+	EXIT_MODE,
+	HDT_MODE,
+	PCI_MODE,
+	DMI_MODE,
+	CPU_MODE,
+	PXE_MODE,
+	KERNEL_MODE,
+	SYSLINUX_MODE,
+	VESA_MODE,
 } cli_mode_t;
 
 struct s_cli_mode {
-  cli_mode_t mode;
-  char prompt[32];
+	cli_mode_t mode;
+	char prompt[32];
 };
 
 /* A command-line command */
 struct commands_mode {
-  const unsigned int mode;
-  struct commands_module_descr* show_modules;
-  /* Future: set? */
+	const unsigned int mode;
+	struct commands_module_descr *show_modules;
+	/* Future: set? */
 };
 
 struct commands_module {
-  const char *name;
-  void ( * exec ) ( int argc, char** argv, struct s_hardware *hardware );
+	const char *name;
+	void (*exec) (int argc, char **argv, struct s_hardware * hardware);
 };
 
 /* Describe 'show', 'set', ... commands in a module */
 struct commands_module_descr {
-  struct commands_module* modules;
-  const int nb_modules;
+	struct commands_module *modules;
+	const int nb_modules;
 };
 
 struct commands_mode dmi_mode;
@@ -108,7 +108,8 @@ int do_exit(struct s_cli_mode *cli_mode);
 #define CLI_DMI_MAX_MODULES 9
 void main_show_dmi(struct s_hardware *hardware);
 void handle_dmi_commands(char *cli_line, struct s_hardware *hardware);
-void show_dmi_memory_modules(int argc, char** argv, struct s_hardware *hardware);
+void show_dmi_memory_modules(int argc, char **argv,
+			     struct s_hardware *hardware);
 
 // PCI STUFF
 #define CLI_PCI_DEVICE "device"
