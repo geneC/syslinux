@@ -46,10 +46,9 @@ extern int display_line_nb;
 
 #define more_printf(...) do {\
  if (display_line_nb == 23) {\
-   char tempbuf[10];\
-   printf("Press enter to continue\n");\
+   printf("\nPress any key to continue\n");\
    display_line_nb=0;\
-   fgets(tempbuf, sizeof(tempbuf), stdin);\
+   get_key(stdin, 0);\
  }\
  printf ( __VA_ARGS__);\
  display_line_nb++; \
@@ -121,6 +120,7 @@ struct s_hardware {
 };
 
 const char *find_argument(const char **argv, const char *argument);
+char *skipspace(char *p);
 int detect_dmi(struct s_hardware *hardware);
 void detect_disks(struct s_hardware *hardware);
 void detect_pci(struct s_hardware *hardware);

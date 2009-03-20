@@ -34,7 +34,7 @@
 
 #include <stdio.h>
 #include <console.h>
-
+#include <consoles.h>
 #include "hdt.h"
 #include "hdt-menu.h"
 #include "hdt-cli.h"
@@ -60,8 +60,9 @@ int main(const int argc, const char *argv[])
   /* Detecting Syslinux version */
   detect_syslinux(&hardware);
 
+  console_ansi_raw();
   /* Opening the Syslinux console */
-  openconsole(&dev_stdcon_r, &dev_ansicon_w);
+//  openconsole(&dev_stdcon_r, &dev_ansicon_w);
 
   clear_screen();
   printf("%s\n", version_string);

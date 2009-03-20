@@ -19,7 +19,8 @@ include $(topdir)/MCONFIG.embedded
 
 MODULES = hdt.c32
 
-INCLUDES   = -I$(com32)/include -I$(com32)/cmenu/libmenu -I$(com32)/gplinclude
+INCLUDES   = -I$(com32)/include -I$(com32)/cmenu/libmenu -I$(com32)/gplinclude\
+	     -I$(com32)/libutil/include
 
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 LIB	   = liboldcom32.a
@@ -40,11 +41,11 @@ all:  $(MODULES) $(LIB)
 
 .PRECIOUS: %.o
 %.o: %.c
-	$(CC) $(CFLAGS) -std=gnu99  -D__COM32__ -c -o $@ $<
+	@$(CC) $(CFLAGS) -std=gnu99  -D__COM32__ -c -o $@ $<
 
 .PRECIOUS: %.elf
 %.elf: c32entry.o %.o $(LIB)
-	$(LD) -Ttext 0x101000 -e _start -o $@ $^
+	@$(LD) -Ttext 0x101000 -e _start -o $@ $^
 
 hdt.elf: hdt.o hdt-ata.o hdt-menu.o hdt-menu-pci.o hdt-menu-kernel.o \
 	hdt-menu-disk.o hdt-menu-dmi.o hdt-menu-processor.o \
@@ -54,26 +55,26 @@ hdt.elf: hdt.o hdt-ata.o hdt-menu.o hdt-menu-pci.o hdt-menu-kernel.o \
 	hdt-cli-syslinux.o hdt-cli-vesa.o\
 	hdt-menu-pxe.o hdt-menu-summary.o hdt-menu-vesa.o\
 	$(LIBS)
-	$(LD) $(LDFLAGS) -o $@ $^
+	@$(LD) $(LDFLAGS) -o $@ $^
 
 %.c32: %.elf
-	$(OBJCOPY) -O binary $< $@
+	@$(OBJCOPY) -O binary $< $@
 
 %.com: %.asm
-	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
+	@$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 
 $(LIB):
-	rm -f $@
-	$(AR) cq $@ $^
-	$(RANLIB) $@
+	@rm -f $@
+	@$(AR) cq $@ $^
+	@$(RANLIB) $@
 
 tidy dist:
-	rm -f *.o *.a *.lst *.elf
+	@rm -f *.o *.a *.lst *.elf
 
 install: all
 
 # Don't specify *.com since mdiskchk.com can't be built using Linux tools
 clean: tidy
-	rm -f *.o *.c32 *.c~ *.h~ Makefile~
+	@rm -f *.o *.c32 *.c~ *.h~ Makefile~
 
 spotless: clean

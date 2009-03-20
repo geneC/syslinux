@@ -391,3 +391,13 @@ void clear_screen(void)
   fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
   display_line_nb = 0;
 }
+
+/* searching the next char that is not a space */
+char *skipspace(char *p)
+{
+  while (*p && *p <= ' ')
+    p++;
+
+  return p;
+}
+
