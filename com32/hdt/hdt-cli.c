@@ -644,9 +644,24 @@ void show_main_help(struct s_hardware *hardware)
 	more_printf(" %s\n", CLI_KERNEL);
 	more_printf(" %s\n", CLI_SYSLINUX);
 	more_printf(" %s\n", CLI_VESA);
+	more_printf(" %s\n", CLI_HDT);
 	if (hardware->sv->filesystem == SYSLINUX_FS_PXELINUX)
 		more_printf(" %s\n", CLI_PXE);
 }
+
+void main_show_hdt(struct s_hardware *hardware)
+{
+  more_printf("HDT\n");
+  more_printf(" Product     : %s\n", PRODUCT_NAME);
+  more_printf(" Version     : %s\n", VERSION);
+  more_printf(" Author      : %s\n", AUTHOR);
+  more_printf(" Contact     : %s\n", CONTACT);
+  char *contributors[NB_CONTRIBUTORS] = CONTRIBUTORS;
+  for (int c=0; c<NB_CONTRIBUTORS; c++) {
+   more_printf(" Contributor : %s\n", contributors[c]);
+  }
+}
+
 
 void main_show(char *item, struct s_hardware *hardware)
 {
@@ -680,6 +695,10 @@ void main_show(char *item, struct s_hardware *hardware)
 	}
 	if (!strncmp(item, CLI_VESA, sizeof(CLI_VESA))) {
 		main_show_vesa(hardware);
+		return;
+	}
+	if (!strncmp(item, CLI_HDT, sizeof(CLI_HDT))) {
+		main_show_hdt(hardware);
 		return;
 	}
 	show_main_help(hardware);
