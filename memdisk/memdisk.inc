@@ -1,12 +1,12 @@
 ; -*- fundamental -*- (asm-mode sucks)
 ; ****************************************************************************
 ;
-;  memdisk.asm
+;  memdisk.inc
 ;
 ;  A program to emulate an INT 13h disk BIOS from a "disk" in extended
 ;  memory.
 ;
-;   Copyright 2001-2008 H. Peter Anvin - All Rights Reserved
+;   Copyright 2001-2009 H. Peter Anvin - All Rights Reserved
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -21,12 +21,6 @@
 %endif
 
 ; %define DEBUG_TRACERS			; Uncomment to get debugging tracers
-
-%ifdef WITH_EDD
-%define EDD 1
-%else
-%define EDD 0
-%endif
 
 %ifdef DEBUG_TRACERS
 
@@ -154,7 +148,7 @@ Int13Start:
 		mov bp,sp		; Point BP to the entry stack frame
 		TRACER 'F'
 		; Note: AH == P_AH here
-		cmp ah,[Int13MaxFunc]
+		cmp ah,[Int13FuncsCnt-1]
 		ja Invalid_jump
 		xor al,al		; AL = 0 is standard entry condition
 		mov di,ax
@@ -884,7 +878,7 @@ Int13FuncsCnt	equ (Int13FuncsEnd-Int13Funcs) >> 1
 
 
 		alignb 8, db 0
-Shaker		dw ShakerEnd-$
+Shaker		dw ShakerEnd-$-1	; Descriptor table limit
 		dd 0			; Pointer to self
 		dw 0
 
@@ -935,10 +929,6 @@ DPT_ptr		dw 0			; If nonzero, pointer to DPT
 MDI_Len		equ $-MemDisk_Info
 
 ; ---- MDI structure ends here ---
-Int13MaxFunc	db Int13FuncsCnt-1	; Max INT 13h function (to disable EDD)
-		db 0			; pad
-
-		dw 0			; pad
 MemInt1588	dw 0			; 1MB-65MB memory amount (1K)
 
 Cylinders	dw 0			; Cylinder count
