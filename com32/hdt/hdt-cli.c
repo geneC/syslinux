@@ -125,29 +125,27 @@ static void handle_hdt_commands(char *cli_line, struct s_hardware *hardware)
 	}
 }
 
-static void show_cli_help()
+/**
+ * find_commands_mode - find the commands_mode struct associated to a mode
+ * @mode:	mode to look for
+ *
+ * Given a mode name, return a pointer to the associated commands_mode structure.
+ * Note: the current mode name is stored in hdt_cli.mode.
+ **/
+static struct commands_mode* find_commands_mode(cli_mode_t mode)
 {
-	switch (hdt_cli.mode) {
-	case HDT_MODE:
-		more_printf("Available commands are :\n");
-		more_printf
-		    ("%s %s %s %s %s %s %s %s %s %s %s\n",
-		     CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW, CLI_PCI, CLI_DMI,
-		     CLI_PXE, CLI_KERNEL, CLI_CPU, CLI_SYSLINUX, CLI_VESA);
-		break;
-	case SYSLINUX_MODE:
-	case KERNEL_MODE:
-	case PXE_MODE:
-	case VESA_MODE:
-	case CPU_MODE:
-	case PCI_MODE:
-	case DMI_MODE:
-		printf("Available commands are : %s %s %s %s\n",
-		       CLI_CLEAR, CLI_EXIT, CLI_HELP, CLI_SHOW);
-		break;
-	case EXIT_MODE:	/* Should not happen */
-		break;
-	}
+	int modes_iter = 0;
+
+	while (modes_iter < MAX_MODES &&
+	       list_modes[modes_iter]->mode != hdt_cli.mode)
+		modes_iter++;
+
+	/* Shouldn't get here... */
+	if (modes_iter == MAX_MODES)
+		return NULL;
+	else
+		return list_modes[modes_iter];
+
 }
 
 /**
@@ -157,7 +155,8 @@ static void show_cli_help()
  * The format of the command line is:
  *	<main command> [<module on which to operate> [<args>]]
  **/
-static void parse_command_line(char *line, char **command, char **module, char **argv)
+static void parse_command_line(char *line, char **command, char **module,
+			       char **argv)
 {
 	int argc, argc_iter, args_pos, token_found, len;
 	char *pch = NULL, *pch_next = NULL;
@@ -221,10 +220,11 @@ static void parse_command_line(char *line, char **command, char **module, char *
  * @modules_list:	Lits of modules among which to find @module_name
  * @module_found:	Pointer to the matched module, NULL if not found
  *
- * Given a module name and a list of possible modules, find the corresponding module
- * structure that matches the module name and store it in @module_found.
+ * Given a module name and a list of possible modules, find the corresponding
+ * module structure that matches the module name and store it in @module_found.
  **/
-static void find_module_callback(char* module_name, struct commands_module_descr* modules_list,
+static void find_module_callback(char* module_name,
+				 struct commands_module_descr* modules_list,
 				 struct commands_module** module_found)
 {
 	int modules_iter = 0;
@@ -250,10 +250,62 @@ not_found:
 	return;
 }
 
+/**
+ * show_cli_help - shared helper to show available commands
+ **/
+static void show_cli_help(int argc, char** argv, struct s_hardware *hardware)
+{
+	int j;
+	struct commands_mode *current_mode;
+	struct commands_module* associated_module = NULL;
+
+	current_mode = find_commands_mode(hdt_cli.mode);
+
+	more_printf("Available commands are:\n");
+
+	/* List first default modules of the mode */
+	if (current_mode->default_modules != NULL ) {
+		for (j = 0; j < current_mode->default_modules->nb_modules; j++) {
+			more_printf("%s ",
+				    current_mode->default_modules->modules[j].name);
+		}
+	}
+
+	/* List secondly the show modules of the mode */
+	if (current_mode->show_modules != NULL ) {
+		more_printf("show commands:\n");
+		for (j = 0; j < current_mode->show_modules->nb_modules; j++) {
+			more_printf("     %s\n",
+				    current_mode->show_modules->modules[j].name);
+		}
+	}
+
+	/* List finally the default modules of the hdt mode */
+	if (current_mode->mode != hdt_mode.mode && hdt_mode.default_modules != NULL ) {
+		for (j = 0; j < hdt_mode.default_modules->nb_modules; j++) {
+			/*
+			 * Any default command that is present in hdt mode but
+			 * not in the current mode is available. A default command
+			 * can be redefined in the current mode though. This next
+			 * call test this use case: if it is overwritten, do not
+			 * print it again.
+			 */
+			find_module_callback(hdt_mode.default_modules->modules[j].name,
+					     current_mode->default_modules,
+					     &associated_module);
+			if (associated_module == NULL)
+				more_printf("%s ",
+					    hdt_mode.default_modules->modules[j].name);
+		}
+		more_printf("\n");
+	}
+}
+
+
 static void exec_command(char *line,
 			 struct s_hardware *hardware)
 {
-	int modes_iter = 0, argc = 0;
+	int argc = 0;
 	char *command = NULL, *module = NULL;
 	char **argv = NULL;
 	struct commands_module* current_module = NULL;
@@ -263,11 +315,6 @@ static void exec_command(char *line,
 //  command[strlen(command) - 1] = '\0';
 
 	/* XXX Extract this with a new grammar, e.g. set mode dmi */
-
-	if (!strncmp(line, CLI_HELP, sizeof(CLI_HELP) - 1)) {
-		show_cli_help();
-		return;
-	}
 
 	if (!strncmp(line, CLI_PCI, sizeof(CLI_PCI) - 1)) {
 		set_mode(PCI_MODE, hardware);
@@ -310,17 +357,13 @@ static void exec_command(char *line,
 	 */
 
 	/* Find the mode selected */
-	while (modes_iter < MAX_MODES &&
-	       list_modes[modes_iter]->mode != hdt_cli.mode)
-		modes_iter++;
-
-	if (modes_iter == MAX_MODES) {
+	current_mode = find_commands_mode(hdt_cli.mode);
+	if (current_mode == NULL) {
 		/* Shouldn't get here... */
 		printf("!!! BUG: Mode '%s' unknown.\n", hdt_cli.mode);
 		// XXX Will return; when done with refactoring.
 		goto old_cli;
-	} else
-		current_mode = list_modes[modes_iter];
+	}
 
 	/* This will allocate memory that will need to be freed */
 	parse_command_line(line, &command, &module, argv);
@@ -575,9 +618,9 @@ void start_cli_mode(struct s_hardware *hardware)
 }
 
 /**
- * do_exit - shared help to exit a mode
+ * do_exit - shared helper to exit a mode
  **/
-void do_exit(int argc, char** argv, struct s_hardware *hardware)
+static void do_exit(int argc, char** argv, struct s_hardware *hardware)
 {
 	int new_mode = HDT_MODE;
 
@@ -697,14 +740,19 @@ struct commands_module list_hdt_default_modules[] = {
 		.name = CLI_EXIT,
 		.exec = do_exit,
 	},
+	{
+		.name = CLI_HELP,
+		.exec = show_cli_help,
+	},
 };
 
 struct commands_module_descr hdt_default_modules = {
 	.modules = list_hdt_default_modules,
-	.nb_modules = sizeof(list_hdt_default_modules)/2,
+	.nb_modules = 3,
 };
 
 struct commands_mode hdt_mode = {
 	.mode = HDT_MODE,
 	.default_modules = &hdt_default_modules,
+	.show_modules = NULL,
 };
