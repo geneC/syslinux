@@ -39,6 +39,7 @@ struct cli_mode_descr *list_modes[] = {
 	&syslinux_mode,
 	&pxe_mode,
 	&kernel_mode,
+	&cpu_mode,
 };
 
 /**
@@ -357,8 +358,6 @@ static void exec_command(char *line,
 	}
 	dprintf("CLI DEBUG: callback not found!\n", argc);
 
-	/* Handle here other keywords such as 'set', ... */
-
 	/* Let's not forget to clean ourselves */
 	free(command);
 	free(module);
@@ -369,9 +368,6 @@ old_cli:
 	switch (hdt_cli.mode) {
 	case PCI_MODE:
 		handle_pci_commands(line, hardware);
-		break;
-	case CPU_MODE:
-		handle_cpu_commands(line, hardware);
 		break;
 	case VESA_MODE:
 		handle_vesa_commands(line, hardware);
