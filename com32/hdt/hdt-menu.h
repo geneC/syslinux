@@ -60,6 +60,7 @@ struct s_hdt_menu {
   struct s_my_menu mobo_menu;
   struct s_my_menu chassis_menu;
   struct s_my_menu bios_menu;
+  struct s_my_menu ipmi_menu;
   struct s_my_menu system_menu;
   struct s_my_menu pci_menu;
   struct s_my_menu pci_sub_menu[MAX_PCI_SUB_MENU];
@@ -100,6 +101,7 @@ void compute_system(struct s_my_menu *menu, s_dmi * dmi);
 void compute_chassis(struct s_my_menu *menu, s_dmi * dmi);
 void compute_bios(struct s_my_menu *menu, s_dmi * dmi);
 void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi);
+void compute_ipmi(struct s_my_menu *menu, s_dmi * dmi);
 
 // Processor Stuff
 void compute_processor(struct s_my_menu *menu, struct s_hardware *hardware);

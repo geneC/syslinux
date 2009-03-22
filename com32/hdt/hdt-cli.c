@@ -625,6 +625,11 @@ static void main_show_summary(struct s_hardware *hardware)
 		int argc = 2;
 		char *argv[2] = { "0", "0" };
 		show_dmi_memory_modules(argc, argv, hardware);
+		if (hardware->dmi.ipmi.filled==true) {
+			more_printf("IPMI baseboard v%u.%u present\n",
+			  hardware->dmi.ipmi.major_specification_version,
+			  hardware->dmi.ipmi.minor_specification_version);
+		}
 	}
 	main_show_pci(hardware);
 

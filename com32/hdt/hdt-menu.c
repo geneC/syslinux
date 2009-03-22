@@ -128,6 +128,8 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
 
   /* Compute this menu if a DMI table exists */
   if (hardware->is_dmi_valid) {
+    if (hardware->dmi.ipmi.filled == true)
+      compute_ipmi(&hdt_menu->ipmi_menu, &hardware->dmi);
     if (hardware->dmi.base_board.filled == true)
       compute_motherboard(&(hdt_menu->mobo_menu),
               &(hardware->dmi));
@@ -152,6 +154,7 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
 
   compute_processor(&(hdt_menu->cpu_menu), hardware);
   compute_disks(hdt_menu, hardware->disk_info);
+
 #ifdef WITH_PCI
   compute_PCI(hdt_menu, hardware);
   compute_PXE(&(hdt_menu->pxe_menu), hardware);
@@ -230,6 +233,11 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
     if (hardware->dmi.battery.filled == true) {
       add_item("Ba<t>tery", "Battery Menu", OPT_SUBMENU, NULL,
          hdt_menu->battery_menu.menu);
+      hdt_menu->main_menu.items_count++;
+    }
+    if (hardware->dmi.ipmi.filled == true) {
+      add_item("I<P>MI", "IPMI Menu", OPT_SUBMENU, NULL,
+         hdt_menu->ipmi_menu.menu);
       hdt_menu->main_menu.items_count++;
     }
   }
