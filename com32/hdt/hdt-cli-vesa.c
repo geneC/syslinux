@@ -36,58 +36,62 @@
 void main_show_vesa(int argc __unused, char **argv __unused,
 		    struct s_hardware *hardware)
 {
-  detect_vesa(hardware);
-  if (hardware->is_vesa_valid==false) {
-    more_printf("No VESA BIOS detected\n");
-    return;
-  }
-  more_printf("VESA\n");
-  more_printf(" Vesa version : %d.%d\n",hardware->vesa.major_version, hardware->vesa.minor_version);
-  more_printf(" Vendor       : %s\n",hardware->vesa.vendor);
-  more_printf(" Product      : %s\n",hardware->vesa.product);
-  more_printf(" Product rev. : %s\n",hardware->vesa.product_revision);
-  more_printf(" Software rev.: %s\n",hardware->vesa.software_rev);
-  more_printf(" Memory (KB)  : %d\n",hardware->vesa.total_memory*64);
-  more_printf(" Modes        : %d\n",hardware->vesa.vmi_count);
+	detect_vesa(hardware);
+	if (hardware->is_vesa_valid == false) {
+		more_printf("No VESA BIOS detected\n");
+		return;
+	}
+	more_printf("VESA\n");
+	more_printf(" Vesa version : %d.%d\n", hardware->vesa.major_version,
+		    hardware->vesa.minor_version);
+	more_printf(" Vendor       : %s\n", hardware->vesa.vendor);
+	more_printf(" Product      : %s\n", hardware->vesa.product);
+	more_printf(" Product rev. : %s\n", hardware->vesa.product_revision);
+	more_printf(" Software rev.: %s\n", hardware->vesa.software_rev);
+	more_printf(" Memory (KB)  : %d\n", hardware->vesa.total_memory * 64);
+	more_printf(" Modes        : %d\n", hardware->vesa.vmi_count);
 }
 
-void show_vesa_modes(struct s_hardware *hardware) {
-  detect_vesa(hardware);
-  if (hardware->is_vesa_valid==false) {
-    more_printf("No VESA BIOS detected\n");
-    return;
-  }
-  clear_screen();
-  more_printf(" ResH. x ResV x Bits : vga= : Vesa Mode\n",hardware->vesa.vmi_count);
-  more_printf("----------------------------------------\n",hardware->vesa.vmi_count);
+static void show_vesa_modes(int argc __unused, char **argv __unused,
+			    struct s_hardware *hardware)
+{
+	detect_vesa(hardware);
+	if (hardware->is_vesa_valid == false) {
+		more_printf("No VESA BIOS detected\n");
+		return;
+	}
+	clear_screen();
+	more_printf(" ResH. x ResV x Bits : vga= : Vesa Mode\n",
+		    hardware->vesa.vmi_count);
+	more_printf("----------------------------------------\n",
+		    hardware->vesa.vmi_count);
 
-  for (int i=0;i<hardware->vesa.vmi_count;i++) {
-    struct vesa_mode_info *mi=&hardware->vesa.vmi[i].mi;
-    more_printf("%5u %5u    %3u     %3d     0x%04x\n",
-                 mi->h_res, mi->v_res, mi->bpp, hardware->vesa.vmi[i].mode+0x200,hardware->vesa.vmi[i].mode);
-  }
+	for (int i = 0; i < hardware->vesa.vmi_count; i++) {
+		struct vesa_mode_info *mi = &hardware->vesa.vmi[i].mi;
+		more_printf("%5u %5u    %3u     %3d     0x%04x\n",
+			    mi->h_res, mi->v_res, mi->bpp,
+			    hardware->vesa.vmi[i].mode + 0x200,
+			    hardware->vesa.vmi[i].mode);
+	}
 }
 
-static void show_vesa_help() {
- more_printf("Show supports the following commands : %s %s\n",CLI_SHOW_LIST, CLI_MODES);
-}
+struct cli_callback_descr list_vesa_show_modules[] = {
+	{
+	 .name = CLI_MODES,
+	 .exec = show_vesa_modes,
+	 },
+};
 
-static void vesa_show(char *item, struct s_hardware *hardware) {
- if ( !strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1) ) {
-   main_show_vesa(0, NULL, hardware);
-   return;
- }
- if ( !strncmp(item, CLI_MODES, sizeof(CLI_MODES) - 1) ) {
-   show_vesa_modes(hardware);
-   return;
- }
- show_vesa_help();
-}
+struct cli_module_descr vesa_show_modules = {
+	.modules = list_vesa_show_modules,
+	.nb_modules = 1,
+	.default_callback = main_show_vesa,
+};
 
-void handle_vesa_commands(char *cli_line, struct s_hardware *hardware) {
- if ( !strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1) ) {
-    vesa_show(strstr(cli_line,"show")+ sizeof(CLI_SHOW), hardware);
-    return;
- }
-}
-
+struct cli_mode_descr vesa_mode = {
+	.mode = VESA_MODE,
+	.name = CLI_VESA,
+	.default_modules = NULL,
+	.show_modules = &vesa_show_modules,
+	.set_modules = NULL,
+};
