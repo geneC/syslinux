@@ -306,13 +306,11 @@ static void exec_command(char *line,
 		}
 		else {
 			find_cli_callback_descr(command, hdt_mode.default_modules,
-					     &current_module);
+					        &current_module);
 			if (current_module != NULL) {
 				current_module->exec(argc, argv, hardware);
 				return;
 			}
-
-			printf("Command '%s' incorrect. See `help'.\n", command);
 		}
 	}
 

@@ -450,8 +450,9 @@ struct cli_callback_descr list_dmi_show_modules[] = {
 };
 
 struct cli_module_descr dmi_show_modules = {
-  .modules = list_dmi_show_modules,
-  .nb_modules = CLI_DMI_MAX_MODULES,
+	.modules = list_dmi_show_modules,
+	.nb_modules = CLI_DMI_MAX_MODULES,
+	.default_callback = main_show_dmi,
 };
 
 struct cli_mode_descr dmi_mode = {
