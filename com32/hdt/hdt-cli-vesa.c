@@ -33,7 +33,9 @@
 #include <stdlib.h>
 #include <errno.h>
 
-void main_show_vesa(struct s_hardware *hardware) {
+void main_show_vesa(int argc __unused, char **argv __unused,
+		    struct s_hardware *hardware)
+{
   detect_vesa(hardware);
   if (hardware->is_vesa_valid==false) {
     more_printf("No VESA BIOS detected\n");
@@ -72,7 +74,7 @@ static void show_vesa_help() {
 
 static void vesa_show(char *item, struct s_hardware *hardware) {
  if ( !strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1) ) {
-   main_show_vesa(hardware);
+   main_show_vesa(0, NULL, hardware);
    return;
  }
  if ( !strncmp(item, CLI_MODES, sizeof(CLI_MODES) - 1) ) {

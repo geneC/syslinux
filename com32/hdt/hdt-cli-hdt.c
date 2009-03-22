@@ -108,14 +108,24 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 			printf("%s ",
 			       current_mode->default_modules->modules[j].name);
 		}
+		printf("\n");
 	}
 
 	/* List secondly the show modules of the mode */
 	if (current_mode->show_modules != NULL ) {
-		more_printf("show commands:\n");
+		printf("show commands:\n");
 		for (j = 0; j < current_mode->show_modules->nb_modules; j++) {
-			printf("     %s\n",
+			printf("\t%s\n",
 			       current_mode->show_modules->modules[j].name);
+		}
+	}
+
+	/* List thirdly the set modules of the mode */
+	if (current_mode->set_modules != NULL ) {
+		printf("set commands:\n");
+		for (j = 0; j < current_mode->set_modules->nb_modules; j++) {
+			printf("\t%s\n",
+			       current_mode->set_modules->modules[j].name);
 		}
 	}
 
@@ -137,8 +147,44 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 				printf("%s ",
 				       hdt_mode.default_modules->modules[j].name);
 		}
+		printf("\n");
 	}
-	printf("\n");
+}
+
+/**
+ * main_show_summary - give an overview of the system
+ **/
+void main_show_summary(int argc __unused, char **argv __unused,
+		       struct s_hardware *hardware)
+{
+	detect_pci(hardware);	/* pxe is detected in the pci */
+	detect_dmi(hardware);
+	cpu_detect(hardware);
+	clear_screen();
+	main_show_cpu(argc, argv, hardware);
+	if (hardware->is_dmi_valid) {
+		more_printf("System\n");
+		more_printf(" Manufacturer : %s\n",
+			    hardware->dmi.system.manufacturer);
+		more_printf(" Product Name : %s\n",
+			    hardware->dmi.system.product_name);
+		more_printf(" Serial       : %s\n",
+			    hardware->dmi.system.serial);
+		more_printf("Bios\n");
+		more_printf(" Version      : %s\n", hardware->dmi.bios.version);
+		more_printf(" Release      : %s\n",
+			    hardware->dmi.bios.release_date);
+
+		int argc = 2;
+		char *argv[2] = { "0", "0" };
+		show_dmi_memory_modules(argc, argv, hardware);
+	}
+	main_show_pci(argc, argv, hardware);
+
+	if (hardware->is_pxe_valid)
+		main_show_pxe(argc, argv, hardware);
+
+	main_show_kernel(argc, argv, hardware);
 }
 
 /* Default hdt mode */
@@ -157,6 +203,41 @@ struct cli_callback_descr list_hdt_default_modules[] = {
 	},
 };
 
+struct cli_callback_descr list_hdt_show_modules[] = {
+	{
+		.name = CLI_SUMMARY,
+		.exec = main_show_summary,
+	},
+	{
+		.name = CLI_PCI,
+		.exec = main_show_pci,
+	},
+	{
+		.name = CLI_DMI,
+		.exec = main_show_dmi,
+	},
+	{
+		.name = CLI_CPU,
+		.exec = main_show_cpu,
+	},
+	{
+		.name = CLI_PXE,
+		.exec = main_show_pxe,
+	},
+	{
+		.name = CLI_SYSLINUX,
+		.exec = main_show_syslinux,
+	},
+	{
+		.name = CLI_KERNEL,
+		.exec = main_show_kernel,
+	},
+	{
+		.name = CLI_VESA,
+		.exec = main_show_vesa,
+	},
+};
+
 struct cli_callback_descr list_hdt_set_modules[] = {
 	{
 		.name = CLI_MODE,
@@ -169,6 +250,11 @@ struct cli_module_descr hdt_default_modules = {
 	.nb_modules = 3,
 };
 
+struct cli_module_descr hdt_show_modules = {
+	.modules = list_hdt_show_modules,
+	.nb_modules = 8,
+};
+
 struct cli_module_descr hdt_set_modules = {
 	.modules = list_hdt_set_modules,
 	.nb_modules = 1,
@@ -178,6 +264,6 @@ struct cli_mode_descr hdt_mode = {
 	.mode = HDT_MODE,
 	.name = CLI_HDT,
 	.default_modules = &hdt_default_modules,
-	.show_modules = NULL,
+	.show_modules = &hdt_show_modules,
 	.set_modules = &hdt_set_modules,
 };

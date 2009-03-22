@@ -36,7 +36,8 @@
 #include "hdt-cli.h"
 #include "hdt-common.h"
 
-void main_show_syslinux(struct s_hardware *hardware)
+void main_show_syslinux(int argc __unused, char **argv __unused,
+		        struct s_hardware *hardware)
 {
   more_printf("SYSLINUX\n");
   more_printf(" Bootloader : %s\n", hardware->syslinux_fs);
@@ -55,7 +56,7 @@ static void show_syslinux_help()
 static void syslinux_show(char *item, struct s_hardware *hardware)
 {
   if (!strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1)) {
-    main_show_syslinux(hardware);
+    main_show_syslinux(0, NULL, hardware);
     return;
   }
   show_syslinux_help();

@@ -140,33 +140,33 @@ void main_show(char *item, struct s_hardware *hardware);
 #define CLI_DMI_SYSTEM "system"
 #define CLI_DMI_LIST CLI_SHOW_LIST
 #define CLI_DMI_MAX_MODULES 9
-void main_show_dmi(struct s_hardware *hardware);
+void main_show_dmi(int argc, char **argv, struct s_hardware *hardware);
 void handle_dmi_commands(char *cli_line, struct s_hardware *hardware);
 void show_dmi_memory_modules(int argc, char** argv, struct s_hardware *hardware);
 
 // PCI STUFF
 #define CLI_PCI_DEVICE "device"
-void main_show_pci(struct s_hardware *hardware);
+void main_show_pci(int argc, char **argv, struct s_hardware *hardware);
 void handle_pci_commands(char *cli_line, struct s_hardware *hardware);
 void cli_detect_pci(struct s_hardware *hardware);
 
 // CPU STUFF
-void main_show_cpu(struct s_hardware *hardware);
+void main_show_cpu(int argc, char **argv, struct s_hardware *hardware);
 void handle_cpu_commands(char *cli_line, struct s_hardware *hardware);
 
 // PXE STUFF
-void main_show_pxe(struct s_hardware *hardware);
+void main_show_pxe(int argc, char **argv, struct s_hardware *hardware);
 void handle_pxe_commands(char *cli_line, struct s_hardware *hardware);
 
 // KERNEL STUFF
-void main_show_kernel(struct s_hardware *hardware);
+void main_show_kernel(int argc, char **argv, struct s_hardware *hardware);
 void handle_kernel_commands(char *cli_line, struct s_hardware *hardware);
 
 // SYSLINUX STUFF
-void main_show_syslinux(struct s_hardware *hardware);
+void main_show_syslinux(int argc, char **argv, struct s_hardware *hardware);
 void handle_syslinux_commands(char *cli_line, struct s_hardware *hardware);
 
 // VESA STUFF
-void main_show_vesa(struct s_hardware *hardware);
+void main_show_vesa(int argc, char **argv, struct s_hardware *hardware);
 void handle_vesa_commands(char *cli_line, struct s_hardware *hardware);
 #endif

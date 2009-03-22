@@ -38,16 +38,6 @@ struct cli_mode_descr *list_modes[] = {
 	&dmi_mode,
 };
 
-static void handle_hdt_commands(char *cli_line, struct s_hardware *hardware)
-{
-	/* hdt cli mode specific commands */
-	if (!strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
-		main_show(strstr(cli_line, "show") + sizeof(CLI_SHOW),
-			  hardware);
-		return;
-	}
-}
-
 /**
  * set_mode - set the current mode of the cli
  * @mode:	mode to set
@@ -309,8 +299,10 @@ static void exec_command(char *line,
 		 */
 		find_cli_callback_descr(command, current_mode->default_modules,
 				        &current_module);
-		if (current_module != NULL)
+		if (current_module != NULL) {
 			current_module->exec(argc, argv, hardware);
+			return;
+		}
 		else {
 			find_cli_callback_descr(command, hdt_mode.default_modules,
 					     &current_module);
@@ -319,7 +311,7 @@ static void exec_command(char *line,
 				return;
 			}
 
-			printf("Command '%s' unknown.\n", command);
+			printf("Command '%s' incorrect. See `help'.\n", command);
 		}
 	}
 
@@ -362,9 +354,6 @@ old_cli:
 	switch (hdt_cli.mode) {
 	case PCI_MODE:
 		handle_pci_commands(line, hardware);
-		break;
-	case HDT_MODE:
-		handle_hdt_commands(line, hardware);
 		break;
 	case CPU_MODE:
 		handle_cpu_commands(line, hardware);
@@ -555,87 +544,4 @@ void start_cli_mode(struct s_hardware *hardware)
 			break;
 		}
 	}
-}
-
-static void main_show_summary(struct s_hardware *hardware)
-{
-	detect_pci(hardware);	/* pxe is detected in the pci */
-	detect_dmi(hardware);
-	cpu_detect(hardware);
-	clear_screen();
-	main_show_cpu(hardware);
-	if (hardware->is_dmi_valid) {
-		more_printf("System\n");
-		more_printf(" Manufacturer : %s\n",
-			    hardware->dmi.system.manufacturer);
-		more_printf(" Product Name : %s\n",
-			    hardware->dmi.system.product_name);
-		more_printf(" Serial       : %s\n",
-			    hardware->dmi.system.serial);
-		more_printf("Bios\n");
-		more_printf(" Version      : %s\n", hardware->dmi.bios.version);
-		more_printf(" Release      : %s\n",
-			    hardware->dmi.bios.release_date);
-
-		int argc = 2;
-		char *argv[2] = { "0", "0" };
-		show_dmi_memory_modules(argc, argv, hardware);
-	}
-	main_show_pci(hardware);
-
-	if (hardware->is_pxe_valid)
-		main_show_pxe(hardware);
-
-	main_show_kernel(hardware);
-}
-
-void show_main_help(struct s_hardware *hardware)
-{
-	more_printf("Show supports the following commands : \n");
-	more_printf(" %s\n", CLI_SUMMARY);
-	more_printf(" %s\n", CLI_PCI);
-	more_printf(" %s\n", CLI_DMI);
-	more_printf(" %s\n", CLI_CPU);
-	more_printf(" %s\n", CLI_KERNEL);
-	more_printf(" %s\n", CLI_SYSLINUX);
-	more_printf(" %s\n", CLI_VESA);
-	if (hardware->sv->filesystem == SYSLINUX_FS_PXELINUX)
-		more_printf(" %s\n", CLI_PXE);
-}
-
-void main_show(char *item, struct s_hardware *hardware)
-{
-	if (!strncmp(item, CLI_SUMMARY, sizeof(CLI_SUMMARY))) {
-		main_show_summary(hardware);
-		return;
-	}
-	if (!strncmp(item, CLI_PCI, sizeof(CLI_PCI))) {
-		main_show_pci(hardware);
-		return;
-	}
-	if (!strncmp(item, CLI_DMI, sizeof(CLI_DMI))) {
-		main_show_dmi(hardware);
-		return;
-	}
-	if (!strncmp(item, CLI_CPU, sizeof(CLI_CPU))) {
-		main_show_cpu(hardware);
-		return;
-	}
-	if (!strncmp(item, CLI_PXE, sizeof(CLI_PXE))) {
-		main_show_pxe(hardware);
-		return;
-	}
-	if (!strncmp(item, CLI_SYSLINUX, sizeof(CLI_SYSLINUX))) {
-		main_show_syslinux(hardware);
-		return;
-	}
-	if (!strncmp(item, CLI_KERNEL, sizeof(CLI_KERNEL))) {
-		main_show_kernel(hardware);
-		return;
-	}
-	if (!strncmp(item, CLI_VESA, sizeof(CLI_VESA))) {
-		main_show_vesa(hardware);
-		return;
-	}
-	show_main_help(hardware);
 }

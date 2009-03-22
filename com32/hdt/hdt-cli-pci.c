@@ -299,7 +299,8 @@ void cli_detect_pci(struct s_hardware *hardware)
   }
 }
 
-void main_show_pci(struct s_hardware *hardware)
+void main_show_pci(int argc __unused, char **argv __unused,
+		   struct s_hardware *hardware)
 {
   cli_detect_pci(hardware);
 

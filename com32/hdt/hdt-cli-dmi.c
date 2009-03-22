@@ -330,7 +330,8 @@ static void show_dmi_memory_bank(int argc, char** argv,
         hardware->dmi.memory[bank].part_number);
 }
 
-void main_show_dmi(struct s_hardware *hardware)
+void main_show_dmi(int argc __unused, char **argv __unused,
+		   struct s_hardware *hardware)
 {
 
   detect_dmi(hardware);
