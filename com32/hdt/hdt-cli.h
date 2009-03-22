@@ -114,11 +114,12 @@ struct cli_callback_descr {
 };
 
 /* List of implemented modes */
-#define MAX_MODES 3
+#define MAX_MODES 4
 struct cli_mode_descr *list_modes[MAX_MODES];
 struct cli_mode_descr hdt_mode;
 struct cli_mode_descr dmi_mode;
 struct cli_mode_descr syslinux_mode;
+struct cli_mode_descr pxe_mode;
 
 /* cli helpers */
 void find_cli_mode_descr(cli_mode_t mode, struct cli_mode_descr **mode_found);
