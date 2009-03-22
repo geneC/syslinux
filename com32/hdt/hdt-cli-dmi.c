@@ -34,69 +34,39 @@
 #include "hdt-cli.h"
 #include "hdt-common.h"
 
-static void show_dmi_modules(int argc, char** argv,
+static void show_dmi_modules(int argc __unused, char** argv __unused,
                              struct s_hardware *hardware)
 {
   char available_dmi_commands[1024];
   memset(available_dmi_commands, 0, sizeof(available_dmi_commands));
 
-  if (hardware->dmi.base_board.filled == true) {
-    strncat(available_dmi_commands, CLI_DMI_BASE_BOARD,
-      sizeof(CLI_DMI_BASE_BOARD) - 1);
-    strncat(available_dmi_commands, " ", 1);
-  }
-  if (hardware->dmi.battery.filled == true) {
-    strncat(available_dmi_commands, CLI_DMI_BATTERY,
-      sizeof(CLI_DMI_BATTERY) - 1);
-    strncat(available_dmi_commands, " ", 1);
-  }
-  if (hardware->dmi.bios.filled == true) {
-    strncat(available_dmi_commands, CLI_DMI_BIOS,
-      sizeof(CLI_DMI_BIOS) - 1);
-    strncat(available_dmi_commands, " ", 1);
-  }
-  if (hardware->dmi.chassis.filled == true) {
-    strncat(available_dmi_commands, CLI_DMI_CHASSIS,
-      sizeof(CLI_DMI_CHASSIS) - 1);
-    strncat(available_dmi_commands, " ", 1);
-  }
-  for (int i = 0; i < hardware->dmi.memory_count; i++) {
-    if (hardware->dmi.memory[i].filled == true) {
-      strncat(available_dmi_commands, CLI_DMI_MEMORY,
-        sizeof(CLI_DMI_MEMORY) - 1);
-      strncat(available_dmi_commands, " bank<bank_number> ",
-        19);
-      break;
-    }
-  }
-  if (hardware->dmi.processor.filled == true) {
-    strncat(available_dmi_commands, CLI_DMI_PROCESSOR,
-      sizeof(CLI_DMI_PROCESSOR) - 1);
-    strncat(available_dmi_commands, " ", 1);
-  }
-  if (hardware->dmi.system.filled == true) {
-    strncat(available_dmi_commands, CLI_DMI_SYSTEM,
-      sizeof(CLI_DMI_SYSTEM) - 1);
-    strncat(available_dmi_commands, " ", 1);
-  }
-  printf("Available DMI modules: %s\n", available_dmi_commands);
+  printf("Available DMI modules on your system:\n");
+	if (hardware->dmi.base_board.filled == true)
+		printf("\t%s\n", CLI_DMI_BASE_BOARD);
+	if (hardware->dmi.battery.filled == true)
+		printf("\t%s\n", CLI_DMI_BATTERY);
+	if (hardware->dmi.bios.filled == true)
+		printf("\t%s\n", CLI_DMI_BIOS);
+	if (hardware->dmi.chassis.filled == true)
+		printf("\t%s\n", CLI_DMI_CHASSIS);
+	for (int i = 0; i < hardware->dmi.memory_count; i++) {
+		if (hardware->dmi.memory[i].filled == true) {
+			printf("\tbank <number>\n", CLI_DMI_MEMORY);
+			break;
+		}
+	}
+	if (hardware->dmi.processor.filled == true)
+		printf("\t%s\n", CLI_DMI_PROCESSOR);
+	if (hardware->dmi.system.filled == true)
+		printf("\t%s\n", CLI_DMI_SYSTEM);
 }
 
-static void show_dmi_help(int argc, char** argv,
-                          struct s_hardware *hardware)
-{
-  more_printf("Show supports the following commands : \n");
-  more_printf(" %s\n", CLI_SHOW_LIST);
-  more_printf(" <module_name>\n");
-  more_printf(" -\n");
-  show_dmi_modules(0, NULL, hardware);
-}
-
-static void show_dmi_base_board(int argc, char** argv,
+static void show_dmi_base_board(int argc __unused, char** argv __unused,
                                 struct s_hardware *hardware)
 {
   if (hardware->dmi.base_board.filled == false) {
-    printf("Base_board module not available\n");
+    printf("base_board information not found on your system, see "
+	   "`show list' to see which module is available.\n");
     return;
   }
   clear_screen();
@@ -117,11 +87,12 @@ static void show_dmi_base_board(int argc, char** argv,
   }
 }
 
-static void show_dmi_system(int argc, char** argv,
+static void show_dmi_system(int argc __unused, char** argv __unused,
                             struct s_hardware *hardware)
 {
   if (hardware->dmi.system.filled == false) {
-    printf("System module not available\n");
+    printf("system information not found on your system, see "
+	   "`show list' to see which module is available.\n");
     return;
   }
   clear_screen();
@@ -136,11 +107,12 @@ static void show_dmi_system(int argc, char** argv,
   more_printf(" Family       : %s\n", hardware->dmi.system.family);
 }
 
-static void show_dmi_bios(int argc, char** argv,
+static void show_dmi_bios(int argc __unused, char** argv __unused,
                           struct s_hardware *hardware)
 {
   if (hardware->dmi.bios.filled == false) {
-    printf("Bios module not available\n");
+    printf("bios information not found on your system, see "
+	   "`show list' to see which module is available.\n");
     return;
   }
   clear_screen();
@@ -182,11 +154,12 @@ static void show_dmi_bios(int argc, char** argv,
 
 }
 
-static void show_dmi_chassis(int argc, char** argv,
+static void show_dmi_chassis(int argc __unused, char** argv __unused,
                              struct s_hardware *hardware)
 {
   if (hardware->dmi.chassis.filled == false) {
-    printf("Chassis module not available\n");
+    printf("chassis information not found on your system, see "
+	   "`show list' to see which module is available.\n");
     return;
   }
   clear_screen();
@@ -215,11 +188,12 @@ static void show_dmi_chassis(int argc, char** argv,
         hardware->dmi.chassis.nb_power_cords);
 }
 
-static void show_dmi_battery(int argc, char** argv,
+static void show_dmi_battery(int argc __unused, char** argv __unused,
                              struct s_hardware *hardware)
 {
   if (hardware->dmi.battery.filled == false) {
-    printf("Battery module not available\n");
+    printf("battery information not found on your system, see "
+	   "`show list' to see which module is available.\n");
     return;
   }
   clear_screen();
@@ -247,11 +221,12 @@ static void show_dmi_battery(int argc, char** argv,
         hardware->dmi.battery.oem_info);
 }
 
-static void show_dmi_cpu(int argc, char** argv,
+static void show_dmi_cpu(int argc __unused, char** argv __unused,
                          struct s_hardware *hardware)
 {
   if (hardware->dmi.processor.filled == false) {
-    printf("Processor module not available\n");
+    printf("processor information not found on your system, see "
+	   "`show list' to see which module is available.\n");
     return;
   }
   clear_screen();
