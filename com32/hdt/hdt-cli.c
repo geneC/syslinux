@@ -40,6 +40,7 @@ struct cli_mode_descr *list_modes[] = {
 	&pxe_mode,
 	&kernel_mode,
 	&cpu_mode,
+	&pci_mode,
 };
 
 /**
@@ -366,9 +367,6 @@ static void exec_command(char *line,
 old_cli:
 	/* Legacy cli */
 	switch (hdt_cli.mode) {
-	case PCI_MODE:
-		handle_pci_commands(line, hardware);
-		break;
 	case VESA_MODE:
 		handle_vesa_commands(line, hardware);
 		break;
