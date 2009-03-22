@@ -38,6 +38,7 @@ struct cli_mode_descr *list_modes[] = {
 	&dmi_mode,
 	&syslinux_mode,
 	&pxe_mode,
+	&kernel_mode,
 };
 
 /**
@@ -374,9 +375,6 @@ old_cli:
 		break;
 	case VESA_MODE:
 		handle_vesa_commands(line, hardware);
-		break;
-	case KERNEL_MODE:
-		handle_kernel_commands(line, hardware);
 		break;
 	case EXIT_MODE:
 		break;		/* should not happen */
