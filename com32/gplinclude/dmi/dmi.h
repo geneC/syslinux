@@ -17,11 +17,6 @@
 
 #define PAGE_SIZE 4096
 
-/*typedef struct {
-        uint32_t l;
-        uint32_t h;
-} uint64_t;*/
-
 extern const char *out_of_spec;
 extern const char *bad_index;
 
@@ -38,6 +33,7 @@ enum {DMI_TABLE_PRESENT = 100, ENODMITABLE};
 #include "dmi_processor.h"
 #include "dmi_memory.h"
 #include "dmi_battery.h"
+#include "dmi_ipmi.h"
 
 extern char display_line;
 #define moreprintf(...) do { display_line++; if (display_line == 24) { char tempbuf[10]; display_line=0; printf("Press enter to continue"); fgets(tempbuf, sizeof tempbuf, stdin);}  printf ( __VA_ARGS__); } while (0);
@@ -69,6 +65,7 @@ typedef struct {
 	 s_processor processor;
 	 s_battery battery;
 	 s_memory memory[MAX_DMI_MEMORY_ITEMS];
+	 s_ipmi ipmi;
 	 int memory_count;
 	 dmi_table dmitable;
 } s_dmi;
