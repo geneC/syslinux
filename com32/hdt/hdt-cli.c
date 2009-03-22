@@ -267,6 +267,9 @@ not_found:
 	return;
 }
 
+/**
+ * exec_command - main logic to map the command line to callbacks
+ **/
 static void exec_command(char *line,
 			 struct s_hardware *hardware)
 {
@@ -276,21 +279,12 @@ static void exec_command(char *line,
 	struct cli_callback_descr* current_module = NULL;
 	struct cli_mode_descr *current_mode;
 
-	/* We use sizeof BLAH - 1 to remove the last \0 */
-//  command[strlen(command) - 1] = '\0';
-
-	/*
-	 * All commands before that line are common for all cli modes.
-	 * The following will be specific for every mode.
-	 */
-
 	/* Find the mode selected */
 	find_cli_mode_descr(hdt_cli.mode, &current_mode);
 	if (current_mode == NULL) {
 		/* Shouldn't get here... */
 		printf("!!! BUG: Mode '%s' unknown.\n", hdt_cli.mode);
-		// XXX Will return; when done with refactoring.
-		goto old_cli;
+		return;
 	}
 
 	/* This will allocate memory that will need to be freed */
@@ -364,13 +358,6 @@ static void exec_command(char *line,
 	free(command);
 	free(module);
 	free(argv);
-
-old_cli:
-	/* Legacy cli */
-	switch (hdt_cli.mode) {
-	case EXIT_MODE:
-		break;		/* should not happen */
-	}
 }
 
 static void reset_prompt()
