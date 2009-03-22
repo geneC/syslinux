@@ -36,6 +36,7 @@
 struct cli_mode_descr *list_modes[] = {
 	&hdt_mode,
 	&dmi_mode,
+	&syslinux_mode,
 };
 
 /**
@@ -333,12 +334,26 @@ static void exec_command(char *line,
 		/* Execute the callback */
 		if (current_module != NULL)
 			return current_module->exec(argc, argv, hardware);
+		else {
+			if (current_mode->show_modules->default_callback != NULL)
+				return current_mode->show_modules
+						   ->default_callback(argc,
+								      argv,
+								      hardware);
+		}
 	} else if (!strncmp(line, CLI_SET, sizeof(CLI_SET) - 1)) {
 		find_cli_callback_descr(module, current_mode->set_modules,
 					&current_module);
 		/* Execute the callback */
 		if (current_module != NULL)
 			return current_module->exec(argc, argv, hardware);
+		else {
+			if (current_mode->set_modules->default_callback != NULL)
+				return current_mode->set_modules
+						   ->default_callback(argc,
+								      argv,
+								      hardware);
+		}
 	}
 	dprintf("CLI DEBUG: callback not found!\n", argc);
 
@@ -363,9 +378,6 @@ old_cli:
 		break;
 	case VESA_MODE:
 		handle_vesa_commands(line, hardware);
-		break;
-	case SYSLINUX_MODE:
-		handle_syslinux_commands(line, hardware);
 		break;
 	case KERNEL_MODE:
 		handle_kernel_commands(line, hardware);

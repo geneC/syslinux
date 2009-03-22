@@ -47,26 +47,16 @@ void main_show_syslinux(int argc __unused, char **argv __unused,
   more_printf(" Copyright  : %s\n", hardware->sv->copyright_string + 1);
 }
 
-static void show_syslinux_help()
-{
-  more_printf("Show supports the following commands : %s\n",
-              CLI_SHOW_LIST);
-}
+struct cli_module_descr syslinux_show_modules = {
+	.modules = NULL,
+	.nb_modules = 0,
+	.default_callback = main_show_syslinux,
+};
 
-static void syslinux_show(char *item, struct s_hardware *hardware)
-{
-  if (!strncmp(item, CLI_SHOW_LIST, sizeof(CLI_SHOW_LIST) - 1)) {
-    main_show_syslinux(0, NULL, hardware);
-    return;
-  }
-  show_syslinux_help();
-}
-
-void handle_syslinux_commands(char *cli_line, struct s_hardware *hardware)
-{
-  if (!strncmp(cli_line, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
-    syslinux_show(strstr(cli_line, "show") + sizeof(CLI_SHOW),
-                  hardware);
-    return;
-  }
-}
+struct cli_mode_descr syslinux_mode = {
+	.mode = SYSLINUX_MODE,
+	.name = CLI_SYSLINUX,
+	.default_modules = NULL,
+	.show_modules = &syslinux_show_modules,
+	.set_modules = NULL,
+};

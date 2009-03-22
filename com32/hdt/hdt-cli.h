@@ -104,6 +104,7 @@ struct cli_mode_descr {
 struct cli_module_descr {
 	struct cli_callback_descr* modules;
 	const int nb_modules;
+	void ( * default_callback ) ( int argc, char** argv, struct s_hardware *hardware );
 };
 
 /* Describe a callback (belongs to a mode and a module) */
@@ -113,10 +114,11 @@ struct cli_callback_descr {
 };
 
 /* List of implemented modes */
-#define MAX_MODES 2
+#define MAX_MODES 3
 struct cli_mode_descr *list_modes[MAX_MODES];
 struct cli_mode_descr hdt_mode;
 struct cli_mode_descr dmi_mode;
+struct cli_mode_descr syslinux_mode;
 
 /* cli helpers */
 void find_cli_mode_descr(cli_mode_t mode, struct cli_mode_descr **mode_found);

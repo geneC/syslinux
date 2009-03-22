@@ -456,7 +456,7 @@ struct cli_module_descr dmi_show_modules = {
 
 struct cli_mode_descr dmi_mode = {
 	.mode = DMI_MODE,
-	.name = "dmi",
+	.name = CLI_DMI,
 	.default_modules = NULL,
 	.show_modules = &dmi_show_modules,
 	.set_modules = NULL,
