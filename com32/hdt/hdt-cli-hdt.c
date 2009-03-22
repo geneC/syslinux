@@ -112,7 +112,8 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 	}
 
 	/* List secondly the show modules of the mode */
-	if (current_mode->show_modules != NULL ) {
+	if (current_mode->show_modules != NULL &&
+	    current_mode->show_modules->nb_modules != 0) {
 		printf("show commands:\n");
 		for (j = 0; j < current_mode->show_modules->nb_modules; j++) {
 			printf("\t%s\n",
@@ -121,7 +122,8 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 	}
 
 	/* List thirdly the set modules of the mode */
-	if (current_mode->set_modules != NULL ) {
+	if (current_mode->set_modules != NULL &&
+	    current_mode->set_modules->nb_modules != 0) {
 		printf("set commands:\n");
 		for (j = 0; j < current_mode->set_modules->nb_modules; j++) {
 			printf("\t%s\n",
