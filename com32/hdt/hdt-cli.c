@@ -33,87 +33,10 @@
 #include "hdt-cli.h"
 #include "hdt-common.h"
 
-#define DEBUG 0
-#if DEBUG
-# define dprintf printf
-#else
-# define dprintf(f, ...) ((void)0)
-#endif
-
-
-#define MAX_MODES 2
-struct commands_mode *list_modes[] = {
+struct cli_mode_descr *list_modes[] = {
 	&hdt_mode,
 	&dmi_mode,
 };
-struct s_cli hdt_cli;
-
-static void set_mode(cli_mode_t mode,
-		     struct s_hardware *hardware)
-{
-	switch (mode) {
-	case EXIT_MODE:
-		hdt_cli.mode = mode;
-		break;
-
-	case HDT_MODE:
-		hdt_cli.mode = mode;
-		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_HDT);
-		break;
-
-	case PXE_MODE:
-		if (hardware->sv->filesystem != SYSLINUX_FS_PXELINUX) {
-			more_printf("You are not currently using PXELINUX\n");
-			break;
-		}
-		hdt_cli.mode = mode;
-		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_PXE);
-		break;
-
-	case KERNEL_MODE:
-		detect_pci(hardware);
-		hdt_cli.mode = mode;
-		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_KERNEL);
-		break;
-
-	case SYSLINUX_MODE:
-		hdt_cli.mode = mode;
-		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
-			 CLI_SYSLINUX);
-		break;
-
-	case VESA_MODE:
-		hdt_cli.mode = mode;
-		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_VESA);
-		break;
-
-	case PCI_MODE:
-		hdt_cli.mode = mode;
-		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_PCI);
-		if (!hardware->pci_detection)
-			cli_detect_pci(hardware);
-		break;
-
-	case CPU_MODE:
-		hdt_cli.mode = mode;
-		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_CPU);
-		if (!hardware->dmi_detection)
-			detect_dmi(hardware);
-		if (!hardware->cpu_detection)
-			cpu_detect(hardware);
-		break;
-
-	case DMI_MODE:
-		detect_dmi(hardware);
-		if (!hardware->is_dmi_valid) {
-			more_printf("No valid DMI table found, exiting.\n");
-			break;
-		}
-		hdt_cli.mode = mode;
-		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_DMI);
-		break;
-	}
-}
 
 static void handle_hdt_commands(char *cli_line, struct s_hardware *hardware)
 {
@@ -126,26 +49,123 @@ static void handle_hdt_commands(char *cli_line, struct s_hardware *hardware)
 }
 
 /**
- * find_commands_mode - find the commands_mode struct associated to a mode
- * @mode:	mode to look for
+ * set_mode - set the current mode of the cli
+ * @mode:	mode to set
  *
- * Given a mode name, return a pointer to the associated commands_mode structure.
+ * Unlike cli_set_mode, this function is not used by the cli directly.
+ **/
+void set_mode(cli_mode_t mode, struct s_hardware* hardware)
+{
+	int i;
+
+	switch (mode) {
+	case EXIT_MODE:
+		hdt_cli.mode = mode;
+		break;
+	case HDT_MODE:
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
+			 CLI_HDT);
+		break;
+	case PXE_MODE:
+		if (hardware->sv->filesystem != SYSLINUX_FS_PXELINUX) {
+			more_printf("You are not currently using PXELINUX\n");
+			break;
+		}
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
+			 CLI_PXE);
+		break;
+	case KERNEL_MODE:
+		detect_pci(hardware);
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
+			 CLI_KERNEL);
+		break;
+	case SYSLINUX_MODE:
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
+			 CLI_SYSLINUX);
+		break;
+	case VESA_MODE:
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
+			 CLI_VESA);
+		break;
+	case PCI_MODE:
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
+			 CLI_PCI);
+		if (!hardware->pci_detection)
+			cli_detect_pci(hardware);
+		break;
+	case CPU_MODE:
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
+			 CLI_CPU);
+		if (!hardware->dmi_detection)
+			detect_dmi(hardware);
+		if (!hardware->cpu_detection)
+			cpu_detect(hardware);
+		break;
+	case DMI_MODE:
+		detect_dmi(hardware);
+		if (!hardware->is_dmi_valid) {
+			more_printf("No valid DMI table found, exiting.\n");
+			break;
+		}
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
+			 CLI_DMI);
+		break;
+	default:
+		/* Invalid mode */
+		printf("Unknown mode, please choose among:\n");
+		for (i = 0; i < MAX_MODES; i++)
+			printf("\t%s\n", list_modes[i]->name);
+	}
+}
+
+/**
+ * mode_s_to_mode_t - given a mode string, return the cli_mode_t representation
+ **/
+cli_mode_t mode_s_to_mode_t(char *name)
+{
+	int i = 0;
+
+	for (i = 0; i < MAX_MODES; i++)
+		if (!strncmp(name, list_modes[i]->name,
+			     sizeof(list_modes[i]->name)))
+			break;
+
+	if (i == MAX_MODES)
+		return INVALID_MODE;
+	else
+		return list_modes[i]->mode;
+}
+
+/**
+ * find_cli_mode_descr - find the cli_mode_descr struct associated to a mode
+ * @mode:	mode to look for
+ * @mode_found:	store the mode if found, NULL otherwise
+ *
+ * Given a mode name, return a pointer to the associated cli_mode_descr
+ * structure.
  * Note: the current mode name is stored in hdt_cli.mode.
  **/
-static struct commands_mode* find_commands_mode(cli_mode_t mode)
+void find_cli_mode_descr(cli_mode_t mode, struct cli_mode_descr **mode_found)
 {
 	int modes_iter = 0;
 
 	while (modes_iter < MAX_MODES &&
-	       list_modes[modes_iter]->mode != hdt_cli.mode)
+	       list_modes[modes_iter]->mode != mode)
 		modes_iter++;
 
 	/* Shouldn't get here... */
 	if (modes_iter == MAX_MODES)
-		return NULL;
+		*mode_found = NULL;
 	else
-		return list_modes[modes_iter];
-
+		*mode_found = list_modes[modes_iter];
 }
 
 /**
@@ -156,13 +176,14 @@ static struct commands_mode* find_commands_mode(cli_mode_t mode)
  *	<main command> [<module on which to operate> [<args>]]
  **/
 static void parse_command_line(char *line, char **command, char **module,
-			       char **argv)
+			       int *argc, char **argv)
 {
-	int argc, argc_iter, args_pos, token_found, len;
+	int argc_iter, args_pos, token_found, len;
 	char *pch = NULL, *pch_next = NULL;
 
 	*command = NULL;
 	*module = NULL;
+	*argc = 0;
 
 	pch = line;
 	while (pch != NULL) {
@@ -178,18 +199,18 @@ static void parse_command_line(char *line, char **command, char **module,
 			/* Main command to execute */
 			*command = malloc((len + 1) * sizeof(char));
 			strncpy(*command, pch, len);
-			(*command)[len] = NULL;
+			(*command)[len] = '\0';
 			dprintf("CLI DEBUG: command = %s\n", *command);
 			args_pos += len + 1;
 		} else if (token_found == 1) {
 			/* Module */
 			*module = malloc((len + 1) * sizeof(char));
 			strncpy(*module, pch, len);
-			(*module)[len] = NULL;
+			(*module)[len] = '\0';
 			dprintf("CLI DEBUG: module  = %s\n", *module);
 			args_pos += len + 1;
 		} else
-			argc++;
+			(*argc)++;
 
 		if (pch_next != NULL)
 			pch_next++;
@@ -197,14 +218,14 @@ static void parse_command_line(char *line, char **command, char **module,
 		token_found++;
 		pch = pch_next;
 	}
-	dprintf("CLI DEBUG: argc    = %d\n", argc);
+	dprintf("CLI DEBUG: argc    = %d\n", *argc);
 
 	/* Skip arguments handling if none is supplied */
-	if (!argc)
+	if (!*argc)
 		return;
 
 	/* Transform the arguments string into an array */
-	argv = malloc(argc * sizeof(char *));
+	*argv = malloc(*argc * sizeof(char *));
 	pch = strtok(line + args_pos, CLI_SPACE);
 	while (pch != NULL) {
 		dprintf("CLI DEBUG: argv[%d] = %s\n", argc_iter, pch);
@@ -215,7 +236,7 @@ static void parse_command_line(char *line, char **command, char **module,
 }
 
 /**
- * find_module_callback - find a callback in a list of modules
+ * find_cli_callback_descr - find a callback in a list of modules
  * @module_name:	Name of the module to find
  * @modules_list:	Lits of modules among which to find @module_name
  * @module_found:	Pointer to the matched module, NULL if not found
@@ -223,9 +244,9 @@ static void parse_command_line(char *line, char **command, char **module,
  * Given a module name and a list of possible modules, find the corresponding
  * module structure that matches the module name and store it in @module_found.
  **/
-static void find_module_callback(char* module_name,
-				 struct commands_module_descr* modules_list,
-				 struct commands_module** module_found)
+void find_cli_callback_descr(const char* module_name,
+			     struct cli_module_descr* modules_list,
+			     struct cli_callback_descr** module_found)
 {
 	int modules_iter = 0;
 	int module_len = strlen(module_name);
@@ -250,106 +271,17 @@ not_found:
 	return;
 }
 
-/**
- * show_cli_help - shared helper to show available commands
- **/
-static void show_cli_help(int argc, char** argv, struct s_hardware *hardware)
-{
-	int j;
-	struct commands_mode *current_mode;
-	struct commands_module* associated_module = NULL;
-
-	current_mode = find_commands_mode(hdt_cli.mode);
-
-	more_printf("Available commands are:\n");
-
-	/* List first default modules of the mode */
-	if (current_mode->default_modules != NULL ) {
-		for (j = 0; j < current_mode->default_modules->nb_modules; j++) {
-			more_printf("%s ",
-				    current_mode->default_modules->modules[j].name);
-		}
-	}
-
-	/* List secondly the show modules of the mode */
-	if (current_mode->show_modules != NULL ) {
-		more_printf("show commands:\n");
-		for (j = 0; j < current_mode->show_modules->nb_modules; j++) {
-			more_printf("     %s\n",
-				    current_mode->show_modules->modules[j].name);
-		}
-	}
-
-	/* List finally the default modules of the hdt mode */
-	if (current_mode->mode != hdt_mode.mode && hdt_mode.default_modules != NULL ) {
-		for (j = 0; j < hdt_mode.default_modules->nb_modules; j++) {
-			/*
-			 * Any default command that is present in hdt mode but
-			 * not in the current mode is available. A default command
-			 * can be redefined in the current mode though. This next
-			 * call test this use case: if it is overwritten, do not
-			 * print it again.
-			 */
-			find_module_callback(hdt_mode.default_modules->modules[j].name,
-					     current_mode->default_modules,
-					     &associated_module);
-			if (associated_module == NULL)
-				more_printf("%s ",
-					    hdt_mode.default_modules->modules[j].name);
-		}
-		more_printf("\n");
-	}
-}
-
-
 static void exec_command(char *line,
 			 struct s_hardware *hardware)
 {
 	int argc = 0;
 	char *command = NULL, *module = NULL;
 	char **argv = NULL;
-	struct commands_module* current_module = NULL;
-	struct commands_mode *current_mode;
+	struct cli_callback_descr* current_module = NULL;
+	struct cli_mode_descr *current_mode;
 
 	/* We use sizeof BLAH - 1 to remove the last \0 */
 //  command[strlen(command) - 1] = '\0';
-
-	/* XXX Extract this with a new grammar, e.g. set mode dmi */
-
-	if (!strncmp(line, CLI_PCI, sizeof(CLI_PCI) - 1)) {
-		set_mode(PCI_MODE, hardware);
-		return;
-	}
-
-	if (!strncmp(line, CLI_CPU, sizeof(CLI_CPU) - 1)) {
-		set_mode(CPU_MODE, hardware);
-		return;
-	}
-
-	if (!strncmp(line, CLI_DMI, sizeof(CLI_DMI) - 1)) {
-		set_mode(DMI_MODE, hardware);
-		return;
-	}
-
-	if (!strncmp(line, CLI_PXE, sizeof(CLI_PXE) - 1)) {
-		set_mode(PXE_MODE, hardware);
-		return;
-	}
-
-	if (!strncmp(line, CLI_KERNEL, sizeof(CLI_KERNEL) - 1)) {
-		set_mode(KERNEL_MODE, hardware);
-		return;
-	}
-
-	if (!strncmp(line, CLI_SYSLINUX, sizeof(CLI_SYSLINUX) - 1)) {
-		set_mode(SYSLINUX_MODE, hardware);
-		return;
-	}
-
-	if (!strncmp(line, CLI_VESA, sizeof(CLI_VESA) - 1)) {
-		set_mode(VESA_MODE, hardware);
-		return;
-	}
 
 	/*
 	 * All commands before that line are common for all cli modes.
@@ -357,7 +289,7 @@ static void exec_command(char *line,
 	 */
 
 	/* Find the mode selected */
-	current_mode = find_commands_mode(hdt_cli.mode);
+	find_cli_mode_descr(hdt_cli.mode, &current_mode);
 	if (current_mode == NULL) {
 		/* Shouldn't get here... */
 		printf("!!! BUG: Mode '%s' unknown.\n", hdt_cli.mode);
@@ -366,7 +298,7 @@ static void exec_command(char *line,
 	}
 
 	/* This will allocate memory that will need to be freed */
-	parse_command_line(line, &command, &module, argv);
+	parse_command_line(line, &command, &module, &argc, argv);
 
 	if (module == NULL) {
 		/*
@@ -375,12 +307,12 @@ static void exec_command(char *line,
 		 * If not, it may be a generic function (exit, help, ...). These
 		 * are stored in the list of default commands of the hdt mode.
 		 */
-		find_module_callback(command, current_mode->default_modules,
-				     &current_module);
+		find_cli_callback_descr(command, current_mode->default_modules,
+				        &current_module);
 		if (current_module != NULL)
 			current_module->exec(argc, argv, hardware);
 		else {
-			find_module_callback(command, hdt_mode.default_modules,
+			find_cli_callback_descr(command, hdt_mode.default_modules,
 					     &current_module);
 			if (current_module != NULL) {
 				current_module->exec(argc, argv, hardware);
@@ -391,9 +323,8 @@ static void exec_command(char *line,
 		}
 	}
 
-
 	/*
-	 * Find the type of command.
+	 * A module has been specified! We now need to find the type of command.
 	 *
 	 * The syntax of the cli is the following:
 	 *    <type of command> <module on which to operate> <args>
@@ -402,14 +333,23 @@ static void exec_command(char *line,
 	 *    dmi> show bank 1
 	 *    dmi> show memory 0 1
 	 *    pci> show device 12
+	 *    hdt> set mode dmi
 	 */
 	if (!strncmp(line, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
-		find_module_callback(module, current_mode->show_modules, &current_module);
+		find_cli_callback_descr(module, current_mode->show_modules,
+					&current_module);
 		/* Execute the callback */
 		if (current_module != NULL)
-			current_module->exec(argc, argv, hardware);
-		/* XXX Add a default help option for empty commands */
+			return current_module->exec(argc, argv, hardware);
+	} else if (!strncmp(line, CLI_SET, sizeof(CLI_SET) - 1)) {
+		find_cli_callback_descr(module, current_mode->set_modules,
+					&current_module);
+		/* Execute the callback */
+		if (current_module != NULL)
+			return current_module->exec(argc, argv, hardware);
 	}
+	dprintf("CLI DEBUG: callback not found!\n", argc);
+
 	/* Handle here other keywords such as 'set', ... */
 
 	/* Let's not forget to clean ourselves */
@@ -617,36 +557,6 @@ void start_cli_mode(struct s_hardware *hardware)
 	}
 }
 
-/**
- * do_exit - shared helper to exit a mode
- **/
-static void do_exit(int argc, char** argv, struct s_hardware *hardware)
-{
-	int new_mode = HDT_MODE;
-
-	switch (hdt_cli.mode) {
-	case HDT_MODE:
-		new_mode = EXIT_MODE;
-		break;
-	case KERNEL_MODE:
-	case PXE_MODE:
-	case SYSLINUX_MODE:
-	case PCI_MODE:
-	case DMI_MODE:
-	case VESA_MODE:
-	case CPU_MODE:
-		new_mode = HDT_MODE;
-		break;
-	case EXIT_MODE:
-		new_mode = EXIT_MODE;	/* should not happen */
-		break;
-	}
-
-	dprintf("CLI DEBUG: Switching from mode %d to mode %d\n", hdt_cli.mode,
-								  new_mode);
-	set_mode(new_mode, hardware);
-}
-
 static void main_show_summary(struct s_hardware *hardware)
 {
 	detect_pci(hardware);	/* pxe is detected in the pci */
@@ -729,30 +639,3 @@ void main_show(char *item, struct s_hardware *hardware)
 	}
 	show_main_help(hardware);
 }
-
-/* Default hdt mode */
-struct commands_module list_hdt_default_modules[] = {
-	{
-		.name = CLI_CLEAR,
-		.exec = clear_screen,
-	},
-	{
-		.name = CLI_EXIT,
-		.exec = do_exit,
-	},
-	{
-		.name = CLI_HELP,
-		.exec = show_cli_help,
-	},
-};
-
-struct commands_module_descr hdt_default_modules = {
-	.modules = list_hdt_default_modules,
-	.nb_modules = 3,
-};
-
-struct commands_mode hdt_mode = {
-	.mode = HDT_MODE,
-	.default_modules = &hdt_default_modules,
-	.show_modules = NULL,
-};

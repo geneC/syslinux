@@ -409,7 +409,7 @@ usage:
   return;
 }
 
-struct commands_module list_dmi_show_modules[] = {
+struct cli_callback_descr list_dmi_show_modules[] = {
   {
     .name = CLI_DMI_BASE_BOARD,
     .exec = show_dmi_base_board,
@@ -448,12 +448,15 @@ struct commands_module list_dmi_show_modules[] = {
   },
 };
 
-struct commands_module_descr dmi_show_modules = {
+struct cli_module_descr dmi_show_modules = {
   .modules = list_dmi_show_modules,
   .nb_modules = CLI_DMI_MAX_MODULES,
 };
 
-struct commands_mode dmi_mode = {
-  .mode = DMI_MODE,
-  .show_modules = &dmi_show_modules,
+struct cli_mode_descr dmi_mode = {
+	.mode = DMI_MODE,
+	.name = "dmi",
+	.default_modules = NULL,
+	.show_modules = &dmi_show_modules,
+	.set_modules = NULL,
 };

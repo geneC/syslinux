@@ -51,6 +51,8 @@
 #define CLI_EXIT "exit"
 #define CLI_HELP "help"
 #define CLI_SHOW "show"
+#define CLI_SET "set"
+#define CLI_MODE "mode"
 #define CLI_HDT  "hdt"
 #define CLI_PCI  "pci"
 #define CLI_PXE  "pxe"
@@ -66,6 +68,7 @@
 #define CLI_MODES "modes"
 
 typedef enum {
+	INVALID_MODE,
 	EXIT_MODE,
 	HDT_MODE,
 	PCI_MODE,
@@ -83,29 +86,46 @@ struct s_cli {
   char input[MAX_LINE_SIZE];
   int cursor_pos;
 };
+struct s_cli hdt_cli;
 
-/* A command-line command */
-struct commands_mode {
+/* Describe a cli mode */
+struct cli_mode_descr {
 	const unsigned int mode;
-	struct commands_module_descr* default_modules;	/* Handle 1-token commands */
-	struct commands_module_descr* show_modules;	/* Handle show <module> <args> */
-	/* Future: set? */
+	const char* name;
+	/* Handle 1-token commands */
+	struct cli_module_descr* default_modules;
+	/* Handle show <module> <args> */
+	struct cli_module_descr* show_modules;
+	/* Handle set <module> <args> */
+	struct cli_module_descr* set_modules;
 };
 
-struct commands_module {
-  const char *name;
-  void ( * exec ) ( int argc, char** argv, struct s_hardware *hardware );
+/* Describe a subset of commands in a module (default, show, set, ...) */
+struct cli_module_descr {
+	struct cli_callback_descr* modules;
+	const int nb_modules;
 };
 
-/* Describe 'show', 'set', ... commands in a module */
-struct commands_module_descr {
-  struct commands_module* modules;
-  const int nb_modules;
+/* Describe a callback (belongs to a mode and a module) */
+struct cli_callback_descr {
+	const char *name;
+	void ( * exec ) ( int argc, char** argv, struct s_hardware *hardware );
 };
 
-struct commands_mode hdt_mode;
-struct commands_mode dmi_mode;
+/* List of implemented modes */
+#define MAX_MODES 2
+struct cli_mode_descr *list_modes[MAX_MODES];
+struct cli_mode_descr hdt_mode;
+struct cli_mode_descr dmi_mode;
 
+/* cli helpers */
+void find_cli_mode_descr(cli_mode_t mode, struct cli_mode_descr **mode_found);
+void find_cli_callback_descr(const char *module_name,
+			     struct cli_module_descr *modules_list,
+			     struct cli_callback_descr **module_found);
+cli_mode_t mode_s_to_mode_t(char *name);
+
+void set_mode(cli_mode_t mode, struct s_hardware *hardware);
 void start_cli_mode(struct s_hardware *hardware);
 void main_show(char *item, struct s_hardware *hardware);
 
