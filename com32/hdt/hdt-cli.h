@@ -80,11 +80,16 @@ typedef enum {
 	VESA_MODE,
 } cli_mode_t;
 
+#define PROMPT_SIZE 32
+#define MAX_HISTORY_SIZE 32
 struct s_cli {
 	cli_mode_t mode;
-	char prompt[32];
+	char prompt[PROMPT_SIZE];
 	char input[MAX_LINE_SIZE];
 	int cursor_pos;
+	char history[MAX_HISTORY_SIZE][MAX_LINE_SIZE];
+	int history_pos;
+	int max_history_pos;
 };
 struct s_cli hdt_cli;
 

@@ -46,7 +46,7 @@ extern int display_line_nb;
 
 #define more_printf(...) do {\
  if (display_line_nb == 23) {\
-   printf("Press any key to continue\n");\
+   printf("\nPress any key to continue\n");\
    display_line_nb=0;\
    get_key(stdin, 0);\
  }\

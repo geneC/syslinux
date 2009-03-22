@@ -189,6 +189,20 @@ void main_show_summary(int argc __unused, char **argv __unused,
 	main_show_kernel(argc, argv, hardware);
 }
 
+void main_show_hdt(int argc __unused, char **argv __unused,
+		   struct s_hardware *hardware __unused)
+{
+	more_printf("HDT\n");
+	more_printf(" Product     : %s\n", PRODUCT_NAME);
+	more_printf(" Version     : %s\n", VERSION);
+	more_printf(" Author      : %s\n", AUTHOR);
+	more_printf(" Contact     : %s\n", CONTACT);
+	char *contributors[NB_CONTRIBUTORS] = CONTRIBUTORS;
+	for (int c = 0; c < NB_CONTRIBUTORS; c++) {
+		more_printf(" Contributor : %s\n", contributors[c]);
+	}
+}
+
 /* Default hdt mode */
 struct cli_callback_descr list_hdt_default_modules[] = {
 	{
@@ -238,6 +252,11 @@ struct cli_callback_descr list_hdt_show_modules[] = {
 		.name = CLI_VESA,
 		.exec = main_show_vesa,
 	},
+	{
+		.name = CLI_HDT,
+		.exec = main_show_hdt,
+	},
+
 };
 
 struct cli_callback_descr list_hdt_set_modules[] = {
