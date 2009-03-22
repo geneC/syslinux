@@ -36,6 +36,7 @@
 
 %endif	; DEBUG_TRACERS
 
+; Flags we test our configuration against
 %define CONFIG_READONLY	0x01
 %define CONFIG_RAW	0x02
 %define CONFIG_SAFEINT	0x04
@@ -104,6 +105,8 @@ Int13Start:
 		xor dl,[cs:DriveNo]
 		pop dx
 		js .nomatch		; If SF=0, we have a class match here
+					; 0x00 the sign bit for FD
+					; 0x80 the sign bit for HD
 		jz .our_drive		; If ZF=1, we have an exact match
 		cmp dl,[cs:DriveNo]
 		jb .nomatch		; Drive < Our drive
@@ -115,13 +118,13 @@ Int13Start:
 		pushf
 		push bp
 		mov bp,sp
-		cmp byte [cs:SavedAX+1],08h
+		cmp byte [cs:SavedAX+1],08h	; Get drive params function?
 		je .norestoredl
-		cmp byte [cs:SavedAX+1],15h
+		cmp byte [cs:SavedAX+1],15h	; Get disk type function?
 		jne .restoredl
 		test byte [bp+4],80h	; Hard disk?
 		jnz .norestoredl
-.restoredl:
+.restoredl:				; DL should have number of drives
 		mov dl,[bp+4]
 .norestoredl:
 		push ax
@@ -129,7 +132,7 @@ Int13Start:
 		push ds
 		mov ax,[bp+2]		; Flags
 		lds ebx,[cs:Stack]
-		mov [bx+4],al		; Arithmetric flags
+		mov [bx+4],al		; Arithmetic flags
 		pop ds
 		pop ebx
 		pop ax
@@ -166,7 +169,7 @@ DoneWeird:
 		and ah,ah
 
 		lds ebx,[Stack]
-		; This sets the low byte (the arithmetric flags) of the
+		; This sets the low byte (the arithmetic flags) of the
 		; FLAGS on stack to either 00h (no flags) or 01h (CF)
 		; depending on if AH was zero or not.
 		setnz [bx+4]		; Set CF iff error
@@ -181,7 +184,8 @@ Reset:
 		TRACER 'R'
 		xor ax,ax		; Bottom of memory
 		mov es,ax
-		test dl,dl		; Always pass it on if we are resetting HD
+		test dl,dl		; Always pass it on if we are
+					; resetting HD
 		js .hard_disk		; Bit 7 set
 		; Some BIOSes get very unhappy if we pass a reset floppy
 		; command to them and don't actually have any floppies.
@@ -194,7 +198,8 @@ Reset:
 		jmp .pass_on		; ... otherwise pass it to the BIOS
 .hard_disk:
 		; ... same thing for hard disks, sigh ...
-		cmp byte [es:0x475],1	; BIOS variable for number of hard disks
+		cmp byte [es:0x475],1	; BIOS variable for number of hard
+					; disks
 		jbe success
 
 .pass_on:
@@ -354,7 +359,7 @@ EDDWrite:
 		TRACER 'w'
 
 		call edd_setup_regs
-		xchg esi,edi
+		xchg esi,edi		; Opposite direction of a Read!
 		call bcopy
 		xor ax,ax
 		ret
@@ -397,7 +402,8 @@ EDDGetParms:
 		ret
 %endif ; EDD
 
-		; Set up registers as for a "Read", and compares against disk size.
+		; Set up registers as for a "Read", and compares against disk
+		; size.
 		; WARNING: This fails immediately, even if we can transfer some
 		; sectors.  This isn't really the correct behaviour.
 setup_regs:
@@ -589,21 +595,22 @@ Int15Start:
 oldint15:	pop bp
 		jmp far [cs:OldInt15]
 
-int15_e801:
+int15_e801:				; Get mem size for > 64 MB config
 		mov ax,[cs:Mem1MB]
 		mov cx,ax
 		mov bx,[cs:Mem16MB]
 		mov dx,bx
 		jmp short int15_success
 
-int15_e881:
+int15_e881:				; Get mem size for > 64 MB config
+					; 32-bit code
 		mov eax,[cs:Mem1MB]
 		mov ecx,eax
 		mov ebx,[cs:Mem16MB]
 		mov edx,ebx
 		jmp short int15_success
 
-int15_88:
+int15_88:				; Get extended mem size
 		mov ax,[cs:MemInt1588]
 		jmp short int15_success
 
@@ -805,7 +812,8 @@ Int13Funcs	dw Reset		; 00h - RESET
 		dw Invalid		; 06h - FORMAT TRACK AND SET BAD FLAGS
 		dw Invalid		; 07h - FORMAT DRIVE AT TRACK
 		dw GetParms		; 08h - GET PARAMETERS
-		dw InitWithParms	; 09h - INITIALIZE CONTROLLER WITH DRIVE PARAMETERS
+		dw InitWithParms	; 09h - INITIALIZE CONTROLLER WITH
+					;	DRIVE PARAMETERS
 		dw Invalid		; 0Ah
 		dw Invalid		; 0Bh
 		dw Seek			; 0Ch - SEEK TO CYLINDER
