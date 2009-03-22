@@ -79,6 +79,12 @@ static void show_dmi_modules(int argc, char** argv,
       sizeof(CLI_DMI_SYSTEM) - 1);
     strncat(available_dmi_commands, " ", 1);
   }
+  if (hardware->dmi.ipmi.filled == true) {
+    strncat(available_dmi_commands, CLI_DMI_IPMI,
+      sizeof(CLI_DMI_IPMI) - 1);
+    strncat(available_dmi_commands, " ", 1);
+  }
+
   printf("Available DMI modules: %s\n", available_dmi_commands);
 }
 
@@ -213,6 +219,32 @@ static void show_dmi_chassis(int argc, char** argv,
   more_printf(" Height             : %u\n", hardware->dmi.chassis.height);
   more_printf(" NB Power Cords     : %u\n",
         hardware->dmi.chassis.nb_power_cords);
+}
+
+static void show_dmi_ipmi(int argc, char** argv,
+                             struct s_hardware *hardware)
+{
+  if (hardware->dmi.ipmi.filled == false) {
+    printf("IPMI module not available\n");
+    return;
+  }
+  clear_screen();
+  more_printf("IPMI\n");
+  more_printf(" Interface Type     : %s\n",
+        hardware->dmi.ipmi.interface_type);
+  more_printf(" Specification Ver. : %u.%u\n",
+	hardware->dmi.ipmi.major_specification_version,
+	hardware->dmi.ipmi.minor_specification_version);
+  more_printf(" I2C Slave Address  : 0x%02x\n",
+	hardware->dmi.ipmi.I2C_slave_address);
+  more_printf(" Nv Storage Address : %u\n",
+        hardware->dmi.ipmi.nv_address);
+  uint32_t high = hardware->dmi.ipmi.base_address >> 32;
+  uint32_t low  = hardware->dmi.ipmi.base_address & 0xFFFF;
+  more_printf(" Base Address       : %08X%08X\n",
+	high,(low & ~1));
+  more_printf(" IRQ                : %d\n",
+        hardware->dmi.ipmi.irq);
 }
 
 static void show_dmi_battery(int argc, char** argv,
@@ -466,6 +498,10 @@ struct commands_module list_dmi_show_modules[] = {
   {
     .name = CLI_DMI_SYSTEM,
     .exec = show_dmi_system,
+  },
+  {
+    .name = CLI_DMI_IPMI,
+    .exec = show_dmi_ipmi,
   },
   {
     .name = CLI_DMI_LIST,
