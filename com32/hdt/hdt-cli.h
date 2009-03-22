@@ -150,8 +150,9 @@ void main_show(char *item, struct s_hardware *hardware);
 #define CLI_DMI_MEMORY_BANK "bank"
 #define CLI_DMI_PROCESSOR "cpu"
 #define CLI_DMI_SYSTEM "system"
+#define CLI_DMI_IPMI "ipmi"
 #define CLI_DMI_LIST CLI_SHOW_LIST
-#define CLI_DMI_MAX_MODULES 9
+#define CLI_DMI_MAX_MODULES 10
 void main_show_dmi(int argc, char **argv, struct s_hardware *hardware);
 void show_dmi_memory_modules(int argc, char** argv, struct s_hardware *hardware);
 

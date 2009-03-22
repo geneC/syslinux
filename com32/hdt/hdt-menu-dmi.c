@@ -386,6 +386,65 @@ void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi)
   add_item("Run Test", "Run Test", OPT_RUN, "memtest", 0);
 }
 
+/* Compute Main IPMI menu */
+void compute_ipmi(struct s_my_menu *menu, s_dmi * dmi)
+{
+  char buffer[SUBMENULEN + 1];
+  char statbuffer[STATLEN + 1];
+  menu->menu = add_menu(" IPMI ", -1);
+  menu->items_count = 0;
+  set_menu_pos(SUBMENU_Y, SUBMENU_X);
+
+  snprintf(buffer, sizeof buffer, "Interface Type  : %s",
+     dmi->ipmi.interface_type);
+  snprintf(statbuffer, sizeof statbuffer, "Interface Type: %s",
+     dmi->ipmi.interface_type);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Spec. Version   : %u.%u",
+      dmi->ipmi.major_specification_version,
+      dmi->ipmi.minor_specification_version);
+  snprintf(statbuffer, sizeof statbuffer, "Specification Version: %u.u",
+      dmi->ipmi.major_specification_version,
+      dmi->ipmi.minor_specification_version);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "I2C Slave @     : 0x%02x",
+     dmi->ipmi.I2C_slave_address);
+  snprintf(statbuffer, sizeof statbuffer, "I2C Slave Address: 0x%02x",
+     dmi->ipmi.I2C_slave_address);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "NV Storage @    : %u",
+     dmi->ipmi.nv_address);
+  snprintf(statbuffer, sizeof statbuffer, "NV Storage Address: %u",
+     dmi->ipmi.nv_address);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  uint32_t high = dmi->ipmi.base_address >> 32;
+  uint32_t low  = dmi->ipmi.base_address & 0xFFFF;
+
+  snprintf(buffer, sizeof buffer, "Base Address    : %08X%08X",
+     high,(low & ~1));
+  snprintf(statbuffer, sizeof statbuffer, "Base Address : %08X%08X",
+     high,(low & ~1));
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "IRQ             : %d",
+     dmi->ipmi.irq);
+  snprintf(statbuffer, sizeof statbuffer, "IRQ : %d",
+     dmi->ipmi.irq);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  printf("MENU: IPMI menu done (%d items)\n", menu->items_count);
+}
+
 /* Compute Main Battery menu */
 void compute_battery(struct s_my_menu *menu, s_dmi * dmi)
 {

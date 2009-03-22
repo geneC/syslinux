@@ -553,8 +553,26 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi *dmi)
 
 		//	sprintf(dmi->battery.oem_info,"0x%08X",DWORD(h, data+0x16));
                         break;
-
-
+	      case 38: /* 3.3.39 IPMI Device Information */
+                        if (h->length < 0x10) break;
+			dmi->ipmi.filled=true;
+			snprintf(dmi->ipmi.interface_type,sizeof(dmi->ipmi.interface_type),
+				"%s", dmi_ipmi_interface_type(data[0x04]));
+			dmi->ipmi.major_specification_version=data[0x05] >> 4;
+			dmi->ipmi.minor_specification_version=data[0x05] & 0x0F;
+			dmi->ipmi.I2C_slave_address=data[0x06] >> 1;
+                        if (data[0x07] != 0xFF)
+				dmi->ipmi.nv_address=data[0x07];
+                        else
+				dmi->ipmi.nv_address=0; /* Not Present */
+                        dmi_ipmi_base_address(data[0x04], data + 0x08,
+                                &dmi->ipmi);
+                        if (h->length < 0x12) break;
+		        if (data[0x11] != 0x00)
+                        {
+                                dmi->ipmi.irq=data[0x11];
+                        }
+                        break;
         }
 }
 

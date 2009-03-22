@@ -32,7 +32,7 @@
 #define PRODUCT_NAME "Hardware Detection Tool"
 #define AUTHOR "Erwan Velu"
 #define CONTACT "erwan(dot)velu(point)free(dot)fr"
-#define VERSION "0.2.5"
+#define VERSION "0.2.6"
 #define NB_CONTRIBUTORS 2
 #define CONTRIBUTORS {"Pierre-Alexandre Meyer", "Sebastien Gonzalve"}
 
