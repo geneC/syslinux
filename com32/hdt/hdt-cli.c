@@ -603,4 +603,3 @@ void start_cli_mode(struct s_hardware *hardware)
 		}
 	}
 }
-}

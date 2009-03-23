@@ -59,7 +59,7 @@ static void show_dmi_modules(int argc __unused, char** argv __unused,
 		printf("\t%s\n", CLI_DMI_PROCESSOR);
 	if (hardware->dmi.system.filled == true)
 		printf("\t%s\n", CLI_DMI_SYSTEM);
-  	if (hardware->dmi.ipmifilled == true)
+  	if (hardware->dmi.ipmi.filled == true)
 		printf("\t%s\n", CLI_DMI_IPMI);
 }
 
@@ -190,7 +190,7 @@ static void show_dmi_chassis(int argc __unused, char** argv __unused,
         hardware->dmi.chassis.nb_power_cords);
 }
 
-static void show_dmi_ipmi(int argc, char** argv,
+static void show_dmi_ipmi(int argc __unused, char **argv __unused,
                              struct s_hardware *hardware)
 {
   if (hardware->dmi.ipmi.filled == false) {
@@ -216,7 +216,7 @@ static void show_dmi_ipmi(int argc, char** argv,
         hardware->dmi.ipmi.irq);
 }
 
-static void show_dmi_battery(int argc, char** argv,
+static void show_dmi_battery(int argc __unused, char** argv __unused,
                              struct s_hardware *hardware)
 {
   if (hardware->dmi.battery.filled == false) {
@@ -375,7 +375,7 @@ void main_show_dmi(int argc __unused, char **argv __unused,
   show_dmi_modules(0, NULL, hardware);
 }
 
-void show_dmi_memory_modules(int argc, char** argv,
+void show_dmi_memory_modules(int argc __unused, char** argv __unused,
                              struct s_hardware *hardware)
 {
   int clear = 1, show_free_banks = 1;
