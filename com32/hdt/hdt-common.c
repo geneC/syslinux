@@ -326,13 +326,17 @@ void detect_pci(struct s_hardware *hardware)
     return;
   hardware->pci_detection = true;
 
+  hardware->nb_pci_devices = 0;
+
   /* Scanning to detect pci buses and devices */
   hardware->pci_domain = pci_scan();
+
+  if (!hardware->pci_domain)
+    return;
 
   /* Gathering addtional information*/
   gather_additional_pci_config(hardware->pci_domain);
 
-  hardware->nb_pci_devices = 0;
   struct pci_device *pci_device;
   for_each_pci_func(pci_device, hardware->pci_domain) {
     hardware->nb_pci_devices++;
