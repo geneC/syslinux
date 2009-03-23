@@ -102,6 +102,10 @@ int main(int argc, char *argv[])
   /* Scanning to detect pci buses and devices */
   printf("PCI: Scanning PCI BUS\n");
   pci_domain = pci_scan();
+  if (!pci_domain) {
+	printf("PCI: no devices found!\n");
+	return 1;
+  }
 
   struct pci_device *pci_device;
   for_each_pci_func(pci_device, pci_domain) {
@@ -140,5 +144,5 @@ int main(int argc, char *argv[])
 
   /* display the pci devices we found */
   display_pci_devices(pci_domain);
-  return 1;
+  return 0;
 }
