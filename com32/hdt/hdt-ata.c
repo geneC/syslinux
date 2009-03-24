@@ -196,6 +196,10 @@ int get_disk_params(int disk, struct diskinfo *disk_info)
     disk_info[disk].cbios = 1;  /* Valid geometry */
   }
 
+  /* If geometry isn't valid, no need to try to get more info about the drive*/
+  /* Looks like in can confuse some optical drives */
+  if (disk_info[disk].cbios != 1) return 0;
+
 /* FIXME: memset to 0 make it fails
  * memset(__com32.cs_bounce, 0, sizeof(struct device_pairameter)); */
   memset(&dp, 0, sizeof(struct device_parameter));
