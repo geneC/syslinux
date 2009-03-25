@@ -441,9 +441,12 @@ struct pci_domain *pci_scan(void)
   int cfgtype;
 
   cfgtype = pci_set_config_type(PCI_CFG_AUTO);
-  (void)cfgtype;
 
   dprintf("PCI configuration type %d\n", cfgtype);
+
+  if (cfgtype == PCI_CFG_NONE)
+    return NULL;
+
   dprintf("Scanning PCI Buses\n");
 
   for (nbus = 0; nbus < MAX_PCI_BUSES; nbus++) {
@@ -520,8 +523,10 @@ void gather_additional_pci_config(struct pci_domain *domain)
   unsigned int nbus, ndev, nfunc, maxfunc;
   pciaddr_t a;
   int cfgtype;
+
   cfgtype = pci_set_config_type(PCI_CFG_AUTO);
-  (void)cfgtype;
+  if (cfgtype == PCI_CFG_NONE)
+    return;
 
   for (nbus = 0; nbus < MAX_PCI_BUSES; nbus++) {
     bus = NULL;

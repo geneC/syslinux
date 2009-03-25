@@ -44,7 +44,7 @@ void main_show_vesa(struct s_hardware *hardware) {
   more_printf(" Vendor       : %s\n",hardware->vesa.vendor);
   more_printf(" Product      : %s\n",hardware->vesa.product);
   more_printf(" Product rev. : %s\n",hardware->vesa.product_revision);
-  more_printf(" Software rev.: %s\n",hardware->vesa.software_rev);
+  more_printf(" Software rev.: %d\n",hardware->vesa.software_rev);
   more_printf(" Memory (KB)  : %d\n",hardware->vesa.total_memory*64);
   more_printf(" Modes        : %d\n",hardware->vesa.vmi_count);
 }

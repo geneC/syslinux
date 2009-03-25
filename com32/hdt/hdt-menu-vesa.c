@@ -58,8 +58,8 @@ static void compute_vesa_card(struct s_my_menu *menu, struct s_hardware *hardwar
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
    menu->items_count++;
 
-   snprintf(buffer,sizeof buffer,"Software Rev: %s",hardware->vesa.software_rev);
-   snprintf(statbuffer,sizeof statbuffer,"Software Revision: %s",hardware->vesa.software_rev);
+   snprintf(buffer,sizeof buffer,"Software Rev: %d",hardware->vesa.software_rev);
+   snprintf(statbuffer,sizeof statbuffer,"Software Revision: %d",hardware->vesa.software_rev);
    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
    menu->items_count++;
 
