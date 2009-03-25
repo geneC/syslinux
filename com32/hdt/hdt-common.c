@@ -92,7 +92,7 @@ void init_hardware(struct s_hardware *hardware)
   memset(&hardware->dmi, 0, sizeof(s_dmi));
   memset(&hardware->cpu, 0, sizeof(s_cpu));
   memset(&hardware->pxe, 0, sizeof(struct s_pxe));
-  memset(&hardware->vesa, 0, sizeof(struct s_pxe));
+  memset(&hardware->vesa, 0, sizeof(struct s_vesa));
   memset(hardware->syslinux_fs, 0, sizeof hardware->syslinux_fs);
   memset(hardware->pciids_path, 0, sizeof hardware->pciids_path);
   memset(hardware->modules_pcimap_path, 0,
