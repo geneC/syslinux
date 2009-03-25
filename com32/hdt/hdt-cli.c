@@ -325,27 +325,31 @@ static void exec_command(char *line,
 	 *    pci> show device 12
 	 *    hdt> set mode dmi
 	 */
-	if (!strncmp(line, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
+	if (!strncmp(command, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
+		dprintf("CLI DEBUG: %s command detected\n", CLI_SHOW);
 		find_cli_callback_descr(module, current_mode->show_modules,
 					&current_module);
 		/* Execute the callback */
 		if (current_module != NULL)
 			return current_module->exec(argc, argv, hardware);
 		else {
-			if (current_mode->show_modules->default_callback != NULL)
+			if (current_mode->show_modules != NULL &&
+			    current_mode->show_modules->default_callback != NULL)
 				return current_mode->show_modules
 						   ->default_callback(argc,
 								      argv,
 								      hardware);
 		}
-	} else if (!strncmp(line, CLI_SET, sizeof(CLI_SET) - 1)) {
+	} else if (!strncmp(command, CLI_SET, sizeof(CLI_SET) - 1)) {
+		dprintf("CLI DEBUG: %s command detected\n", CLI_SET);
 		find_cli_callback_descr(module, current_mode->set_modules,
 					&current_module);
 		/* Execute the callback */
 		if (current_module != NULL)
 			return current_module->exec(argc, argv, hardware);
 		else {
-			if (current_mode->set_modules->default_callback != NULL)
+			if (current_mode->set_modules != NULL &&
+			    current_mode->set_modules->default_callback != NULL)
 				return current_mode->set_modules
 						   ->default_callback(argc,
 								      argv,
