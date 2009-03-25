@@ -44,6 +44,28 @@ struct cli_mode_descr *list_modes[] = {
 	&vesa_mode,
 };
 
+/*
+ * .aliases = {"q", "quit"} won't work since it is an array of pointers, not an
+ * array of variables. There is no easy way around it besides declaring the arrays of
+ * strings first.
+ */
+char *exit_aliases[] = {"q", "quit"};
+char *help_aliases[] = {"h"};
+
+/* List of aliases */
+struct cli_alias hdt_aliases[] = {
+	{
+		.command = CLI_EXIT,
+		.nb_aliases = 2,
+		.aliases = exit_aliases,
+	},
+	{
+		.command = CLI_HELP,
+		.nb_aliases = 1,
+		.aliases = help_aliases,
+	},
+};
+
 /**
  * set_mode - set the current mode of the cli
  * @mode:	mode to set
@@ -165,8 +187,77 @@ void find_cli_mode_descr(cli_mode_t mode, struct cli_mode_descr **mode_found)
 }
 
 /**
+ * expand_aliases - resolve aliases mapping
+ * @line:	command line to parse
+ * @command:	first token in the line
+ * @module:	second token in the line
+ * @argc:	number of arguments
+ * @argv:	array of arguments
+ *
+ * We maintain a small list of static alises to enhance user experience.
+ * Only commands can be aliased (first token). Otherwise it can become really hairy...
+ **/
+static void expand_aliases(char *line __unused, char **command, char **module,
+			   int *argc, char **argv)
+{
+	struct cli_mode_descr *mode;
+	int i, j;
+
+	find_cli_mode_descr(mode_s_to_mode_t(*command), &mode);
+	if (mode != NULL && *module == NULL) {
+		/*
+		 * The user specified a mode instead of `set mode...', e.g.
+		 * `dmi' instead of `set mode dmi'
+		 */
+
+		/* *argv is NULL since *module is NULL */
+		*argc = 1;
+		*argv = malloc(*argc * sizeof(char *));
+		argv[0] = malloc((sizeof(*command) + 1) * sizeof(char));
+		strncpy(argv[0], *command, sizeof(*command) + 1);
+		dprintf("CLI DEBUG: ALIAS %s ", *command);
+
+		strncpy(*command, CLI_SET, sizeof(CLI_SET));	/* set */
+
+		*module = malloc(sizeof(CLI_MODE) * sizeof(char));
+		strncpy(*module, CLI_MODE, sizeof(CLI_MODE));	/* mode */
+
+		dprintf("--> %s %s %s\n", *command, *module, argv[0]);
+		goto out;
+	}
+
+	/* Simple aliases mapping a single command to another one */
+	for (i = 0; i < MAX_ALIASES; i++) {
+		for (j = 0; j < hdt_aliases[i].nb_aliases; j++) {
+			if (!strncmp(*command, hdt_aliases[i].aliases[j],
+			    sizeof(hdt_aliases[i].aliases[j]))) {
+				dprintf("CLI DEBUG: ALIAS %s ", *command);
+				strncpy(*command, hdt_aliases[i].command,
+					sizeof(hdt_aliases[i].command) + 1);
+				dprintf("--> %s\n", *command);
+				goto out; /* Don't allow chaining aliases */
+			}
+		}
+	}
+	return;
+
+out:
+	dprintf("CLI DEBUG: New parameters:\n");
+	dprintf("CLI DEBUG: command = %s\n", *command);
+	dprintf("CLI DEBUG: module  = %s\n", *module);
+	dprintf("CLI DEBUG: argc    = %d\n", *argc);
+	for (i = 0; i < *argc; i++)
+		dprintf("CLI DEBUG: argv[%d] = %s\n", i, argv[0]);
+	return;
+}
+
+/**
  * parse_command_line - low level parser for the command line
- * @command:	command line to parse
+ * @line:	command line to parse
+ * @command:	first token in the line
+ * @module:	second token in the line
+ * @argc:	number of arguments
+ * @argv:	array of arguments
  *
  * The format of the command line is:
  *	<main command> [<module on which to operate> [<args>]]
@@ -225,7 +316,8 @@ static void parse_command_line(char *line, char **command, char **module,
 	pch = strtok(line + args_pos, CLI_SPACE);
 	while (pch != NULL) {
 		dprintf("CLI DEBUG: argv[%d] = %s\n", argc_iter, pch);
-		argv[argc_iter] = pch;
+		argv[argc_iter] = malloc(sizeof(pch) * sizeof(char));
+		strncpy(argv[argc_iter], pch, sizeof(pch));
 		argc_iter++;
 		pch = strtok(NULL, CLI_SPACE);
 	}
@@ -259,6 +351,7 @@ void find_cli_callback_descr(const char* module_name,
 
 	if (modules_iter != modules_list->nb_modules) {
 		*module_found = &(modules_list->modules[modules_iter]);
+		dprintf("CLI DEBUG: module %s found\n", (*module_found)->name);
 		return;
 	}
 
@@ -273,7 +366,7 @@ not_found:
 static void exec_command(char *line,
 			 struct s_hardware *hardware)
 {
-	int argc = 0;
+	int argc, i = 0;
 	char *command = NULL, *module = NULL;
 	char **argv = NULL;
 	struct cli_callback_descr* current_module = NULL;
@@ -290,7 +383,11 @@ static void exec_command(char *line,
 	/* This will allocate memory that will need to be freed */
 	parse_command_line(line, &command, &module, &argc, argv);
 
+	/* Expand shortcuts, if needed */
+	expand_aliases(line, &command, &module, &argc, argv);
+
 	if (module == NULL) {
+		dprintf("CLI DEBUG: single command detected\n", CLI_SHOW);
 		/*
 		 * A single word was specified: look at the list of default
 		 * commands in the current mode to see if there is a match.
@@ -361,6 +458,8 @@ static void exec_command(char *line,
 	/* Let's not forget to clean ourselves */
 	free(command);
 	free(module);
+	for (i = 0; i < argc; i++)
+		free(argv[i]);
 	free(argv);
 }
 

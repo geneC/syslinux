@@ -118,6 +118,14 @@ struct cli_callback_descr {
 	void ( * exec ) ( int argc, char** argv, struct s_hardware *hardware );
 };
 
+/* Manage aliases */
+#define MAX_ALIASES 2
+struct cli_alias {
+	const char *command;	/* Original command */
+	const int nb_aliases;	/* Size of aliases array */
+	const char **aliases;	/* List of aliases */
+};
+
 /* List of implemented modes */
 #define MAX_MODES 8
 struct cli_mode_descr *list_modes[MAX_MODES];
