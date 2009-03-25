@@ -429,13 +429,17 @@ static void exec_command(char *line,
 		/* Execute the callback */
 		if (current_module != NULL)
 			return current_module->exec(argc, argv, hardware);
+		else if (current_mode->show_modules != NULL &&
+			 current_mode->show_modules->default_callback != NULL)
+			return current_mode->show_modules
+					   ->default_callback(argc,
+							      argv,
+							      hardware);
 		else {
-			if (current_mode->show_modules != NULL &&
-			    current_mode->show_modules->default_callback != NULL)
-				return current_mode->show_modules
-						   ->default_callback(argc,
-								      argv,
-								      hardware);
+			find_cli_callback_descr(module, hdt_mode.show_modules,
+					        &current_module);
+			if (current_module != NULL)
+				return current_module->exec(argc, argv, hardware);
 		}
 	} else if (!strncmp(command, CLI_SET, sizeof(CLI_SET) - 1)) {
 		dprintf("CLI DEBUG: %s command detected\n", CLI_SET);
@@ -444,13 +448,17 @@ static void exec_command(char *line,
 		/* Execute the callback */
 		if (current_module != NULL)
 			return current_module->exec(argc, argv, hardware);
+		else if (current_mode->set_modules != NULL &&
+			 current_mode->set_modules->default_callback != NULL)
+			return current_mode->set_modules
+					   ->default_callback(argc,
+							      argv,
+							      hardware);
 		else {
-			if (current_mode->set_modules != NULL &&
-			    current_mode->set_modules->default_callback != NULL)
-				return current_mode->set_modules
-						   ->default_callback(argc,
-								      argv,
-								      hardware);
+			find_cli_callback_descr(module, hdt_mode.set_modules,
+					        &current_module);
+			if (current_module != NULL)
+				return current_module->exec(argc, argv, hardware);
 		}
 	}
 	dprintf("CLI DEBUG: callback not found!\n", argc);
