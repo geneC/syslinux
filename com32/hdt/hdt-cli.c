@@ -497,6 +497,12 @@ void start_cli_mode(struct s_hardware *hardware)
 
 		case KEY_ENTER:
 			more_printf("\n");
+
+			/* We have to skip empty lines */
+			if (strlen(skipspace(cli.input))<1) {
+				reset_prompt(&cli);
+				break;
+			}
 			if (cli.history_pos == MAX_HISTORY_SIZE-1) cli.history_pos=1;
 			strncpy(cli.history[cli.history_pos],skipspace(cli.input),sizeof(cli.history[cli.history_pos]));
 			cli.history_pos++;
