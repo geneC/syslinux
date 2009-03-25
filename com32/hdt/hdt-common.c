@@ -297,6 +297,8 @@ int detect_pxe(struct s_hardware *hardware)
       }
       /* Let's try to find the associated pci device */
       detect_pci(hardware);
+
+      /* The firt pass try to find the exact pci device */
       hardware->pxe.pci_device = NULL;
       hardware->pxe.pci_device_pos = 0;
       struct pci_device *pci_device;
@@ -313,8 +315,34 @@ int detect_pxe(struct s_hardware *hardware)
           hardware->pxe.pci_device = pci_device;
           hardware->pxe.pci_device_pos =
               pci_number;
+	      return 0;
         }
       }
+
+      /* If we reach that part, it means the pci device pointed by
+       * the pxe rom wasn't found in our list.
+       * Let's try to find the device only by its pci ids.
+       * The pci device we'll match is maybe not exactly the good one
+       * as we can have the same pci id several times.
+       * At least, the pci id, the vendor/product will be right.
+       * That's clearly a workaround for some weird cases.
+       * This should happend very unlikely */
+      hardware->pxe.pci_device = NULL;
+      hardware->pxe.pci_device_pos = 0;
+      pci_number = 0;
+      for_each_pci_func(pci_device, hardware->pci_domain) {
+        pci_number++;
+        if ((pci_device->vendor ==
+             hardware->pxe.vendor_id)
+            && (pci_device->product ==
+          hardware->pxe.product_id)) {
+          hardware->pxe.pci_device = pci_device;
+          hardware->pxe.pci_device_pos =
+              pci_number;
+	      return 0;
+        }
+      }
+
     }
   }
   return 0;
