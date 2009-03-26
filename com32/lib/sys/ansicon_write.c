@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2009 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -38,6 +38,7 @@
 #include <minmax.h>
 #include <colortbl.h>
 #include <klibc/compiler.h>
+#include <syslinux/config.h>
 #include "file.h"
 #include "ansi.h"
 
@@ -83,11 +84,10 @@ int __ansicon_open(struct file_info *fp)
 
   if (!ansicon_counter) {
     /* Are we disabled? */
-    ireg.eax.w[0] = 0x000b;
-    __intcall(0x22, &ireg, &oreg);
-
-    if ( (signed char)oreg.ebx.b[1] < 0 ) {
+    if (syslinux_serial_console_info()->flowctl & 0x8000) {
       ti.disabled = 1;
+      ti.rows = 25;
+      ti.cols = 80;
     } else {
       /* Force text mode */
       ireg.eax.w[0] = 0x0005;
@@ -228,7 +228,7 @@ ssize_t __ansicon_write(struct file_info *fp, const void *buf, size_t count)
   (void)fp;
 
   if ( ti.disabled )
-    return n;			/* Nothing to do */
+    return count;		/* Nothing to do */
 
   while ( count-- ) {
     __ansi_putchar(&ti, *bufp++);

@@ -2056,7 +2056,7 @@ getfatsector:
 		section .data
 copyright_str   db ' Copyright (C) 1994-'
 		asciidec YEAR
-		db ' H. Peter Anvin', CR, LF, 0
+		db ' H. Peter Anvin and contributors', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: please change disks and press '
 		db 'a key to continue.', CR, LF, 0
 syslinux_cfg1	db '/boot'			; /boot/syslinux/syslinux.cfg
