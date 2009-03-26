@@ -273,7 +273,7 @@ struct cli_module_descr hdt_default_modules = {
 
 struct cli_module_descr hdt_show_modules = {
 	.modules = list_hdt_show_modules,
-	.nb_modules = 8,
+	.nb_modules = 9,
 };
 
 struct cli_module_descr hdt_set_modules = {
