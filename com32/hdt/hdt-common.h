@@ -96,6 +96,7 @@ struct s_hardware {
   s_cpu cpu;                      /* CPU information */
   struct pci_domain *pci_domain;  /* PCI Devices */
   struct diskinfo disk_info[256]; /* Disk Information */
+  int disks_count;		  /* Number of detected disks */
   struct s_pxe pxe;
   struct s_vesa vesa;
 

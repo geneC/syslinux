@@ -82,6 +82,7 @@ void init_hardware(struct s_hardware *hardware)
   hardware->cpu_detection = false;
   hardware->pci_detection = false;
   hardware->disk_detection = false;
+  hardware->disks_count=0;
   hardware->dmi_detection = false;
   hardware->pxe_detection = false;
   hardware->vesa_detection = false;
@@ -197,6 +198,7 @@ void detect_disks(struct s_hardware *hardware)
     if (get_disk_params(drive, hardware->disk_info) != 0)
       continue;
     struct diskinfo *d = &hardware->disk_info[drive];
+    hardware->disks_count++;
     printf
         ("  DISK 0x%X: %s : %s %s: sectors=%d, s/t=%d head=%d : EDD=%s\n",
          drive, d->aid.model, d->host_bus_type, d->interface_type,

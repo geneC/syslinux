@@ -153,7 +153,7 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
   }
 
   compute_processor(&(hdt_menu->cpu_menu), hardware);
-  compute_disks(hdt_menu, hardware->disk_info);
+  compute_disks(hdt_menu, hardware->disk_info, hardware);
 
 #ifdef WITH_PCI
   compute_PCI(hdt_menu, hardware);
