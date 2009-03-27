@@ -31,7 +31,8 @@
 /* Dynamic submenu for pci devices */
 static void compute_pci_device(struct s_my_menu *menu,
                                struct pci_device *pci_device,
-                               int pci_bus, int pci_slot, int pci_func)
+                               int pci_bus, int pci_slot, int pci_func,
+			       struct s_hardware *hardware)
 {
   char buffer[56];
   char statbuffer[STATLEN];
@@ -114,6 +115,21 @@ static void compute_pci_device(struct s_my_menu *menu,
   }
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu->items_count++;
+
+  if (hardware->is_pxe_valid == true) {
+    snprintf(buffer,sizeof buffer,"MAC Addr. : %s",hardware->pxe.mac_addr);
+    snprintf(statbuffer,sizeof statbuffer,"MAC Address : %s",hardware->pxe.mac_addr);
+    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+    menu->items_count++;
+
+    if ((hardware->pxe.pci_device != NULL)
+       && (hardware->pxe.pci_device == pci_device)) {
+       snprintf(buffer,sizeof buffer,"PXE       : %s","Current Boot device");
+       snprintf(statbuffer,sizeof statbuffer,"PXE : %s","Current Boot device");
+       add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+       menu->items_count++;
+     }
+  }
 }
 
 /* Main PCI menu */
@@ -143,7 +159,7 @@ int compute_PCI(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
       strlcpy(kernel_modules, "unknown", 7);
 
     compute_pci_device(&(hdt_menu->pci_sub_menu[i]), pci_device,
-           __pci_bus, __pci_slot, __pci_func);
+           __pci_bus, __pci_slot, __pci_func, hardware);
     snprintf(menuname[i], 59, "%s|%s",
        pci_device->dev_info->vendor_name,
        pci_device->dev_info->product_name);
