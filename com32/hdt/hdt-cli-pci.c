@@ -56,17 +56,17 @@ static void show_pci_device(int argc, char **argv,
 
 	/* Sanitize arguments */
 	if (argc <= 0) {
-		printf("show device <number>\n");
+		more_printf("show device <number>\n");
 		return;
 	} else
 		pcidev = strtol(argv[0], (char **)NULL, 10);
 
 	if (errno == ERANGE) {
-		printf("This PCI device number is incorrect\n");
+		more_printf("This PCI device number is incorrect\n");
 		return;
 	}
 	if ((pcidev > hardware->nb_pci_devices) || (pcidev <= 0)) {
-		printf("PCI device %d  doesn't exists\n", pcidev);
+		more_printf("PCI device %d  doesn't exists\n", pcidev);
 		return;
 	}
 	if (hardware->pci_ids_return_code == -ENOPCIIDS) {
@@ -87,7 +87,7 @@ static void show_pci_device(int argc, char **argv,
 	}
 
 	if (pci_device == NULL) {
-		printf("We were enabled to find PCI device %d\n", pcidev);
+		more_printf("We were enabled to find PCI device %d\n", pcidev);
 		return;
 	}
 
@@ -105,7 +105,7 @@ static void show_pci_device(int argc, char **argv,
 		strlcpy(kernel_modules, "unknown", 7);
 
 	clear_screen();
-	printf("PCI Device %d\n", pcidev);
+	more_printf("PCI Device %d\n", pcidev);
 
 	if (nopciids == false) {
 		more_printf("Vendor Name   : %s\n",
@@ -306,7 +306,7 @@ void cli_detect_pci(struct s_hardware *hardware)
 		}
 		if (error == true) {
 			char tempbuf[10];
-			printf("Press enter to continue\n");
+			more_printf("Press enter to continue\n");
 			fgets(tempbuf, sizeof(tempbuf), stdin);
 		}
 	}

@@ -138,9 +138,9 @@ void set_mode(cli_mode_t mode, struct s_hardware* hardware)
 		break;
 	default:
 		/* Invalid mode */
-		printf("Unknown mode, please choose among:\n");
+		more_printf("Unknown mode, please choose among:\n");
 		for (i = 0; i < MAX_MODES; i++)
-			printf("\t%s\n", list_modes[i]->name);
+			more_printf("\t%s\n", list_modes[i]->name);
 	}
 }
 
@@ -376,7 +376,7 @@ static void exec_command(char *line,
 	find_cli_mode_descr(hdt_cli.mode, &current_mode);
 	if (current_mode == NULL) {
 		/* Shouldn't get here... */
-		printf("!!! BUG: Mode '%s' unknown.\n", hdt_cli.mode);
+		more_printf("!!! BUG: Mode '%s' unknown.\n", hdt_cli.mode);
 		return;
 	}
 
@@ -475,7 +475,7 @@ static void reset_prompt()
 {
 	/* No need to display the prompt if we exit */
 	if (hdt_cli.mode != EXIT_MODE) {
-		printf("%s", hdt_cli.prompt);
+		more_printf("%s", hdt_cli.prompt);
 		/* Reset the line */
 		memset(hdt_cli.input, '\0', MAX_LINE_SIZE);
 		hdt_cli.cursor_pos = 0;
@@ -498,7 +498,7 @@ void start_cli_mode(struct s_hardware *hardware)
 
 	set_mode(HDT_MODE, hardware);
 
-	printf("Entering CLI mode\n");
+	more_printf("Entering CLI mode\n");
 
 	/* Display the cursor */
 	fputs("\033[?25h", stdout);

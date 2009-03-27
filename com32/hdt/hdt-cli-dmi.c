@@ -40,34 +40,34 @@ static void show_dmi_modules(int argc __unused, char** argv __unused,
   char available_dmi_commands[1024];
   memset(available_dmi_commands, 0, sizeof(available_dmi_commands));
 
-  printf("Available DMI modules on your system:\n");
+  more_printf("Available DMI modules on your system:\n");
 	if (hardware->dmi.base_board.filled == true)
-		printf("\t%s\n", CLI_DMI_BASE_BOARD);
+		more_printf("\t%s\n", CLI_DMI_BASE_BOARD);
 	if (hardware->dmi.battery.filled == true)
-		printf("\t%s\n", CLI_DMI_BATTERY);
+		more_printf("\t%s\n", CLI_DMI_BATTERY);
 	if (hardware->dmi.bios.filled == true)
-		printf("\t%s\n", CLI_DMI_BIOS);
+		more_printf("\t%s\n", CLI_DMI_BIOS);
 	if (hardware->dmi.chassis.filled == true)
-		printf("\t%s\n", CLI_DMI_CHASSIS);
+		more_printf("\t%s\n", CLI_DMI_CHASSIS);
 	for (int i = 0; i < hardware->dmi.memory_count; i++) {
 		if (hardware->dmi.memory[i].filled == true) {
-			printf("\tbank <number>\n", CLI_DMI_MEMORY);
+			more_printf("\tbank <number>\n", CLI_DMI_MEMORY);
 			break;
 		}
 	}
 	if (hardware->dmi.processor.filled == true)
-		printf("\t%s\n", CLI_DMI_PROCESSOR);
+		more_printf("\t%s\n", CLI_DMI_PROCESSOR);
 	if (hardware->dmi.system.filled == true)
-		printf("\t%s\n", CLI_DMI_SYSTEM);
+		more_printf("\t%s\n", CLI_DMI_SYSTEM);
   	if (hardware->dmi.ipmi.filled == true)
-		printf("\t%s\n", CLI_DMI_IPMI);
+		more_printf("\t%s\n", CLI_DMI_IPMI);
 }
 
 static void show_dmi_base_board(int argc __unused, char** argv __unused,
                                 struct s_hardware *hardware)
 {
   if (hardware->dmi.base_board.filled == false) {
-    printf("base_board information not found on your system, see "
+    more_printf("base_board information not found on your system, see "
 	   "`show list' to see which module is available.\n");
     return;
   }
@@ -93,7 +93,7 @@ static void show_dmi_system(int argc __unused, char** argv __unused,
                             struct s_hardware *hardware)
 {
   if (hardware->dmi.system.filled == false) {
-    printf("system information not found on your system, see "
+    more_printf("system information not found on your system, see "
 	   "`show list' to see which module is available.\n");
     return;
   }
@@ -113,7 +113,7 @@ static void show_dmi_bios(int argc __unused, char** argv __unused,
                           struct s_hardware *hardware)
 {
   if (hardware->dmi.bios.filled == false) {
-    printf("bios information not found on your system, see "
+    more_printf("bios information not found on your system, see "
 	   "`show list' to see which module is available.\n");
     return;
   }
@@ -160,7 +160,7 @@ static void show_dmi_chassis(int argc __unused, char** argv __unused,
                              struct s_hardware *hardware)
 {
   if (hardware->dmi.chassis.filled == false) {
-    printf("chassis information not found on your system, see "
+    more_printf("chassis information not found on your system, see "
 	   "`show list' to see which module is available.\n");
     return;
   }
@@ -194,7 +194,7 @@ static void show_dmi_ipmi(int argc __unused, char **argv __unused,
                              struct s_hardware *hardware)
 {
   if (hardware->dmi.ipmi.filled == false) {
-    printf("IPMI module not available\n");
+    more_printf("IPMI module not available\n");
     return;
   }
   clear_screen();
@@ -220,7 +220,7 @@ static void show_dmi_battery(int argc __unused, char** argv __unused,
                              struct s_hardware *hardware)
 {
   if (hardware->dmi.battery.filled == false) {
-    printf("battery information not found on your system, see "
+    more_printf("battery information not found on your system, see "
 	   "`show list' to see which module is available.\n");
     return;
   }
@@ -253,7 +253,7 @@ static void show_dmi_cpu(int argc __unused, char** argv __unused,
                          struct s_hardware *hardware)
 {
   if (hardware->dmi.processor.filled == false) {
-    printf("processor information not found on your system, see "
+    more_printf("processor information not found on your system, see "
 	   "`show list' to see which module is available.\n");
     return;
   }
@@ -317,20 +317,20 @@ static void show_dmi_memory_bank(int argc, char** argv,
     bank = strtol(argv[0], (char **)NULL, 10);
 
   if (errno == ERANGE || bank < 0) {
-    printf("This bank number is incorrect\n");
+    more_printf("This bank number is incorrect\n");
     return;
   }
 
   if ((bank >= hardware->dmi.memory_count) || (bank < 0)) {
-    printf("Bank %d number doesn't exists\n", bank);
+    more_printf("Bank %d number doesn't exists\n", bank);
     return;
   }
   if (hardware->dmi.memory[bank].filled == false) {
-    printf("Bank %d doesn't contain any information\n", bank);
+    more_printf("Bank %d doesn't contain any information\n", bank);
     return;
   }
 
-  printf("Memory Bank %d\n", bank);
+  more_printf("Memory Bank %d\n", bank);
   more_printf(" Form Factor  : %s\n",
         hardware->dmi.memory[bank].form_factor);
   more_printf(" Type         : %s\n", hardware->dmi.memory[bank].type);
@@ -365,10 +365,10 @@ void main_show_dmi(int argc __unused, char **argv __unused,
   detect_dmi(hardware);
 
   if (hardware->is_dmi_valid == false) {
-    printf("No valid DMI table found, exiting.\n");
+    more_printf("No valid DMI table found, exiting.\n");
     return;
   }
-  printf("DMI Table version %d.%d found\n",
+  more_printf("DMI Table version %d.%d found\n",
          hardware->dmi.dmitable.major_version,
          hardware->dmi.dmitable.minor_version);
 
@@ -398,7 +398,7 @@ void show_dmi_memory_modules(int argc __unused, char** argv __unused,
   memset(available_dmi_commands, 0, sizeof(available_dmi_commands));
 
   if (hardware->dmi.memory_count <= 0) {
-    printf("No memory module found\n");
+    more_printf("No memory module found\n");
     return;
   }
 
@@ -417,12 +417,12 @@ void show_dmi_memory_modules(int argc __unused, char** argv __unused,
       if (show_free_banks == false) {
         if (strncmp
             (hardware->dmi.memory[i].size, "Free", 4))
-          printf(" bank %02d      : %s %s@%s\n",
+          more_printf(" bank %02d      : %s %s@%s\n",
                  i, hardware->dmi.memory[i].size,
                  hardware->dmi.memory[i].type,
                  hardware->dmi.memory[i].speed);
       } else {
-        printf(" bank %02d      : %s %s@%s\n", i,
+        more_printf(" bank %02d      : %s %s@%s\n", i,
                hardware->dmi.memory[i].size,
                hardware->dmi.memory[i].type,
                hardware->dmi.memory[i].speed);
@@ -434,7 +434,7 @@ void show_dmi_memory_modules(int argc __unused, char** argv __unused,
   //printf("Type 'show bank<bank_number>' for more details.\n");
 
 usage:
-  printf("show memory <clear screen? <show free banks?>>\n");
+  more_printf("show memory <clear screen? <show free banks?>>\n");
   return;
 }
 

@@ -213,7 +213,7 @@ int get_disk_params(int disk, struct diskinfo *disk_info)
   memcpy(&dp, __com32.cs_bounce, sizeof(struct device_parameter));
 
   if (outreg.eflags.l & EFLAGS_CF) {
-    printf("Disk 0x%X doesn't supports EDD 3.0\n", disk);
+    more_printf("Disk 0x%X doesn't supports EDD 3.0\n", disk);
     return -1;
   }
 
@@ -256,7 +256,7 @@ int get_disk_params(int disk, struct diskinfo *disk_info)
   memcpy(&aid, __com32.cs_bounce, sizeof(struct ata_identify_device));
 
   if (outreg.eflags.l & EFLAGS_CF) {
-    printf("Disk 0x%X: Failed to Identify Device\n", disk);
+    more_printf("Disk 0x%X: Failed to Identify Device\n", disk);
     //FIXME
     return 0;
   }
@@ -266,8 +266,8 @@ int get_disk_params(int disk, struct diskinfo *disk_info)
   char buff[sizeof(struct ata_identify_device)];
   memcpy(buff, &aid, sizeof(struct ata_identify_device));
   for (int j = 0; j < sizeof(struct ata_identify_device); j++)
-    printf("model=|%c|\n", buff[j]);
-  printf("Disk 0x%X : %s %s %s\n", disk, aid.model, aid.fw_rev,
+    more_printf("model=|%c|\n", buff[j]);
+  more_printf("Disk 0x%X : %s %s %s\n", disk, aid.model, aid.fw_rev,
          aid.serial_no);
 #endif
 

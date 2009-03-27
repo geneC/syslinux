@@ -54,7 +54,7 @@ static void cli_set_mode(int argc, char **argv,
 	cli_mode_t new_mode;
 
 	if (argc <= 0) {
-		printf("Which mode?\n");
+		more_printf("Which mode?\n");
 		return;
 	}
 
@@ -100,23 +100,23 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 
 	find_cli_mode_descr(hdt_cli.mode, &current_mode);
 
-	printf("Available commands are:\n");
+	more_printf("Available commands are:\n");
 
 	/* List first default modules of the mode */
 	if (current_mode->default_modules != NULL ) {
 		for (j = 0; j < current_mode->default_modules->nb_modules; j++) {
-			printf("%s ",
+			more_printf("%s ",
 			       current_mode->default_modules->modules[j].name);
 		}
-		printf("\n");
+		more_printf("\n");
 	}
 
 	/* List secondly the show modules of the mode */
 	if (current_mode->show_modules != NULL &&
 	    current_mode->show_modules->nb_modules != 0) {
-		printf("show commands:\n");
+		more_printf("show commands:\n");
 		for (j = 0; j < current_mode->show_modules->nb_modules; j++) {
-			printf("\t%s\n",
+			more_printf("\t%s\n",
 			       current_mode->show_modules->modules[j].name);
 		}
 	}
@@ -124,9 +124,9 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 	/* List thirdly the set modules of the mode */
 	if (current_mode->set_modules != NULL &&
 	    current_mode->set_modules->nb_modules != 0) {
-		printf("set commands:\n");
+		more_printf("set commands:\n");
 		for (j = 0; j < current_mode->set_modules->nb_modules; j++) {
-			printf("\t%s\n",
+			more_printf("\t%s\n",
 			       current_mode->set_modules->modules[j].name);
 		}
 	}
@@ -146,10 +146,10 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 					     current_mode->default_modules,
 					     &associated_module);
 			if (associated_module == NULL)
-				printf("%s ",
+				more_printf("%s ",
 				       hdt_mode.default_modules->modules[j].name);
 		}
-		printf("\n");
+		more_printf("\n");
 	}
 }
 
