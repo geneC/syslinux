@@ -267,6 +267,12 @@ LABEL label
 	statement; this functionally appends "initrd=initrd_file" to
 	the kernel command line.
 
+	It supports multiple filenames separated by commas.
+	This is mostly useful for initramfs, which can be composed of
+	multiple separate cpio or cpio.gz archives.
+	Note: all files except the last one are zero-padded to a
+	4K page boundary.  This should not affect initramfs.)
+
 IMPLICIT flag_val
         If flag_val is 0, do not load a kernel image unless it has been
         explicitly named in a LABEL statement.  The default is 1.
