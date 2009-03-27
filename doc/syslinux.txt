@@ -429,7 +429,7 @@ F12 filename
 	When using the serial console, press <Ctrl-F><digit> to get to
 	the help screens, e.g. <Ctrl-F><2> to get to the F2 screen.
 	For F10-F12, hit <Ctrl-F><A>, <Ctrl-F>B, <Ctrl-F>C.  For
-	compatiblity with earlier versions, F10 can also be entered as
+	compatibility with earlier versions, F10 can also be entered as
 	<Ctrl-F>0.
 
 Blank lines are ignored.
