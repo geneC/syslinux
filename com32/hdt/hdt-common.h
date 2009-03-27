@@ -117,6 +117,7 @@ struct s_hardware {
   const struct syslinux_version *sv;
   char modules_pcimap_path[255];
   char pciids_path[255];
+  char memtest_label[255];
 };
 
 const char *find_argument(const char **argv, const char *argument);

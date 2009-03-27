@@ -44,6 +44,9 @@ void detect_parameters(const int argc, const char *argv[],
     } else if (!strncmp(argv[i], "pciids=", 7)) {
       strncpy(hardware->pciids_path, argv[i] + 7,
         sizeof(hardware->pciids_path));
+    } else if (!strncmp(argv[i], "memtest=", 8)) {
+      strncpy(hardware->memtest_label, argv[i] + 8,
+        sizeof(hardware->memtest_label));
     }
   }
 }
@@ -99,6 +102,7 @@ void init_hardware(struct s_hardware *hardware)
          sizeof hardware->modules_pcimap_path);
   strcat(hardware->pciids_path, "pci.ids");
   strcat(hardware->modules_pcimap_path, "modules.pcimap");
+  strcat(hardware->memtest_label, "memtest");
 }
 
 /*

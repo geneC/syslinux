@@ -141,7 +141,7 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
                &(hardware->dmi));
     for (int i = 0; i < hardware->dmi.memory_count; i++) {
       if (hardware->dmi.memory[i].filled == true) {
-        compute_memory(hdt_menu, &(hardware->dmi));
+        compute_memory(hdt_menu, &(hardware->dmi),hardware);
         break;
       }
     }

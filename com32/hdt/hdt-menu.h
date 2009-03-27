@@ -100,7 +100,7 @@ void compute_battery(struct s_my_menu *menu, s_dmi * dmi);
 void compute_system(struct s_my_menu *menu, s_dmi * dmi);
 void compute_chassis(struct s_my_menu *menu, s_dmi * dmi);
 void compute_bios(struct s_my_menu *menu, s_dmi * dmi);
-void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi);
+void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi, struct s_hardware *hardware);
 void compute_ipmi(struct s_my_menu *menu, s_dmi * dmi);
 
 // Processor Stuff
