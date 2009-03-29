@@ -73,7 +73,7 @@ static int hex_to_int(char *hexa)
 
 /* Try to match any pci device to the appropriate kernel module */
 /* it uses the modules.pcimap from the boot device */
-int get_module_name_from_pci_ids(struct pci_domain *domain, char *modules_pcimap_path)
+int get_module_name_from_pcimap(struct pci_domain *domain, char *modules_pcimap_path)
 {
   char line[MAX_LINE];
   char module_name[21]; // the module name field is 21 char long

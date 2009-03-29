@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
 
   printf("PCI: Looking for Kernel modules\n");
   /* Detecting which kernel module should match each device */
-  return_code=get_module_name_from_pci_ids(pci_domain,"modules.pcimap");
+  return_code=get_module_name_from_pcimap(pci_domain,"modules.pcimap");
   if (return_code == -ENOMODULESPCIMAP) {
 	  printf("PCI: ERROR !\n");
 	  printf("PCI: Unable to open modules.pcimap in the same directory as pcitest.c32.\n");

@@ -391,7 +391,7 @@ void detect_pci(struct s_hardware *hardware)
   printf("PCI: Resolving module names\n");
   /* Detecting which kernel module should match each device */
   hardware->modules_pcimap_return_code =
-      get_module_name_from_pci_ids(hardware->pci_domain,
+      get_module_name_from_pcimap(hardware->pci_domain,
            hardware->modules_pcimap_path);
 
   /* We try to detect the pxe stuff to populate the PXE: field of pci devices */
