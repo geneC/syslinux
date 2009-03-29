@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <getkey.h>
 #include "syslinux/config.h"
 #include "../lib/sys/vesa/vesa.h"
 

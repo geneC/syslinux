@@ -30,8 +30,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <console.h>
+#include <getkey.h>
 
 #include "com32io.h"
+#include "hdt-common.h"
 #include "hdt-ata.h"
 
 #ifdef ATA
