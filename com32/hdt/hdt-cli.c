@@ -66,6 +66,45 @@ struct cli_alias hdt_aliases[] = {
 	},
 };
 
+struct cli_mode_descr *current_mode;
+int autocomplete_backlog;
+
+struct autocomplete_list {
+	char autocomplete_token[MAX_LINE_SIZE];
+	struct autocomplete_list *next;
+};
+struct autocomplete_list* autocomplete_head = NULL;
+struct autocomplete_list* autocomplete_tail = NULL;
+struct autocomplete_list* autocomplete_last_seen = NULL;
+
+static void autocomplete_add_token_to_list(const char *token)
+{
+	struct autocomplete_list *new = malloc(sizeof(struct autocomplete_list));
+
+	strncpy(new->autocomplete_token, token, sizeof(new->autocomplete_token));
+	new->next = NULL;
+	autocomplete_backlog++;
+
+	if (autocomplete_tail != NULL)
+		autocomplete_tail->next = new;
+	if (autocomplete_head == NULL)
+		autocomplete_head = new;
+	autocomplete_tail = new;
+}
+
+static void autocomplete_destroy_list()
+{
+	struct autocomplete_list* tmp = NULL;
+
+	while (autocomplete_head != NULL) {
+		tmp = autocomplete_head->next;
+		free(autocomplete_head);
+		autocomplete_head = tmp;
+	}
+	autocomplete_backlog = 0;
+	autocomplete_last_seen = NULL;
+}
+
 /**
  * set_mode - set the current mode of the cli
  * @mode:	mode to set
@@ -141,6 +180,12 @@ void set_mode(cli_mode_t mode, struct s_hardware* hardware)
 		more_printf("Unknown mode, please choose among:\n");
 		for (i = 0; i < MAX_MODES; i++)
 			more_printf("\t%s\n", list_modes[i]->name);
+	}
+
+	find_cli_mode_descr(hdt_cli.mode, &current_mode);
+	if (current_mode == NULL) {
+		/* Shouldn't get here... */
+		more_printf("!!! BUG: Mode '%s' unknown.\n", hdt_cli.mode);
 	}
 }
 
@@ -265,7 +310,7 @@ out:
 static void parse_command_line(char *line, char **command, char **module,
 			       int *argc, char **argv)
 {
-	int argc_iter, args_pos, token_found, len;
+	int argc_iter = 0, args_pos = 0, token_found = 0, len = 0;
 	char *pch = NULL, *pch_next = NULL;
 
 	*command = NULL;
@@ -361,6 +406,157 @@ not_found:
 }
 
 /**
+ * autocomplete_command - print matching commands
+ * @command:	Beginning of the command
+ *
+ * Given a string @command, print all availables commands starting with
+ * @command. Commands are found within the list of commands for the current
+ * mode and the hdt mode (if the current mode is not hdt).
+ **/
+static void autocomplete_command(char *command)
+{
+	int j;
+	struct cli_callback_descr* associated_module = NULL;
+
+	/* First take care of the two special commands: 'show' and 'set' */
+	if (strncmp(CLI_SHOW, command, strlen(command)) == 0) {
+		more_printf("%s\n", CLI_SHOW);
+		autocomplete_add_token_to_list(CLI_SHOW);
+	}
+	if (strncmp(CLI_SET, command, strlen(command)) == 0) {
+		more_printf("%s\n", CLI_SET);
+		autocomplete_add_token_to_list(CLI_SET);
+	}
+
+	/*
+	 * Let's go now through the list of default_modules for the current mode
+	 * (single token commands for the current_mode)
+	 */
+	for (j = 0; j < current_mode->default_modules->nb_modules; j++) {
+		if (strncmp(current_mode->default_modules->modules[j].name,
+			    command,
+			    strlen(command)) == 0) {
+			more_printf("%s\n",
+				current_mode->default_modules->modules[j].name);
+			autocomplete_add_token_to_list(current_mode->default_modules->modules[j].name);
+		}
+	}
+
+	/*
+	 * Finally, if the current_mode is not hdt, list the available
+	 * default_modules of hdt (these are always available from any mode).
+	 */
+	if (current_mode->mode == HDT_MODE)
+		return;
+
+	for (j = 0; j < hdt_mode.default_modules->nb_modules; j++) {
+		/*
+		 * Any default command that is present in hdt mode but
+		 * not in the current mode is available. A default
+		 * command can be redefined in the current mode though.
+		 * This next call tests this use case: if it is
+		 * overwritten, do not print it again.
+		 */
+		find_cli_callback_descr(hdt_mode.default_modules->modules[j].name,
+					current_mode->default_modules,
+					&associated_module);
+		if (associated_module == NULL &&
+		    strncmp(command,
+			    hdt_mode.default_modules->modules[j].name,
+			    strlen(command)) == 0) {
+			more_printf("%s\n",
+				hdt_mode.default_modules->modules[j].name);
+			autocomplete_add_token_to_list(hdt_mode.default_modules->modules[j].name);
+		}
+	}
+}
+
+/**
+ * autocomplete_module - print matching modules
+ * @command:	Command on the command line (not NULL)
+ * @module:	Beginning of the module
+ *
+ * Given a command @command and a string @module, print all availables modules
+ * starting with @module for command @command. Commands are found within the
+ * list of commands for the current mode and the hdt mode (if the current mode
+ * is not hdt).
+ **/
+static void autocomplete_module(char *command, char* module)
+{
+	int j;
+	char autocomplete_full_line[MAX_LINE_SIZE];
+
+	if (strncmp(CLI_SHOW, command, strlen(command)) == 0) {
+		for (j = 0; j < current_mode->show_modules->nb_modules; j++) {
+			if (strncmp(current_mode->show_modules->modules[j].name,
+				    module,
+				    strlen(module)) == 0) {
+				more_printf("%s\n",
+					current_mode->show_modules->modules[j].name);
+				sprintf(autocomplete_full_line, "%s %s",
+					CLI_SHOW, current_mode->show_modules->modules[j].name);
+				autocomplete_add_token_to_list(autocomplete_full_line);
+			}
+		}
+	} else if (strncmp(CLI_SET, command, strlen(command)) == 0) {
+		for (j = 0; j < current_mode->set_modules->nb_modules; j++) {
+			if (strncmp(current_mode->set_modules->modules[j].name,
+				    module,
+				    strlen(module)) == 0) {
+				more_printf("%s\n",
+					current_mode->set_modules->modules[j].name);
+				sprintf(autocomplete_full_line, "%s %s",
+					CLI_SET, current_mode->set_modules->modules[j].name);
+				autocomplete_add_token_to_list(autocomplete_full_line);
+			}
+		}
+	}
+}
+
+/**
+ * autocomplete - find possible matches for a command line
+ * @line:	command line to parse
+ **/
+static void autocomplete(char *line)
+{
+	int i;
+	int argc = 0;
+	char *command = NULL, *module = NULL;
+	char **argv = NULL;
+
+	parse_command_line(line, &command, &module, &argc, argv);
+
+	/* If the user specified arguments, there is nothing we can complete */
+	if (argc != 0)
+		goto out;
+
+	/* No argument, (the start of) a module has been specified */
+	if (module != NULL) {
+		autocomplete_module(command, module);
+		goto out;
+	}
+
+	/* No argument, no module, (the start of) a command has been specified */
+	if (command != NULL) {
+		autocomplete_command(command);
+		goto out;
+	}
+
+	/* Nothing specified, list available commands */
+	//autocomplete_commands();
+
+out:
+	/* Let's not forget to clean ourselves */
+	free(command);
+	free(module);
+	for (i = 0; i < argc; i++)
+		free(argv[i]);
+	free(argv);
+	return;
+}
+
+
+/**
  * exec_command - main logic to map the command line to callbacks
  **/
 static void exec_command(char *line,
@@ -370,15 +566,6 @@ static void exec_command(char *line,
 	char *command = NULL, *module = NULL;
 	char **argv = NULL;
 	struct cli_callback_descr* current_module = NULL;
-	struct cli_mode_descr *current_mode;
-
-	/* Find the mode selected */
-	find_cli_mode_descr(hdt_cli.mode, &current_mode);
-	if (current_mode == NULL) {
-		/* Shouldn't get here... */
-		more_printf("!!! BUG: Mode '%s' unknown.\n", hdt_cli.mode);
-		return;
-	}
 
 	/* This will allocate memory that will need to be freed */
 	parse_command_line(line, &command, &module, &argc, argv);
@@ -396,18 +583,17 @@ static void exec_command(char *line,
 		 */
 		find_cli_callback_descr(command, current_mode->default_modules,
 				        &current_module);
-		if (current_module != NULL) {
-			current_module->exec(argc, argv, hardware);
-			return;
-		}
+		if (current_module != NULL)
+			return current_module->exec(argc, argv, hardware);
 		else {
 			find_cli_callback_descr(command, hdt_mode.default_modules,
 					        &current_module);
-			if (current_module != NULL) {
-				current_module->exec(argc, argv, hardware);
-				return;
-			}
+			if (current_module != NULL)
+				return current_module->exec(argc, argv, hardware);
 		}
+
+		more_printf("unknown command: '%s'\n", command);
+		return;
 	}
 
 	/*
@@ -441,6 +627,10 @@ static void exec_command(char *line,
 			if (current_module != NULL)
 				return current_module->exec(argc, argv, hardware);
 		}
+
+		more_printf("unknown module: '%s'\n", module);
+		return;
+
 	} else if (!strncmp(command, CLI_SET, sizeof(CLI_SET) - 1)) {
 		dprintf("CLI DEBUG: %s command detected\n", CLI_SET);
 		find_cli_callback_descr(module, current_mode->set_modules,
@@ -460,8 +650,13 @@ static void exec_command(char *line,
 			if (current_module != NULL)
 				return current_module->exec(argc, argv, hardware);
 		}
+
+		more_printf("unknown module: '%s'\n", module);
+		return;
+
 	}
-	dprintf("CLI DEBUG: callback not found!\n", argc);
+
+	more_printf("I don't understand: '%s'. Try 'help'.\n", line);
 
 	/* Let's not forget to clean ourselves */
 	free(command);
@@ -496,7 +691,14 @@ void start_cli_mode(struct s_hardware *hardware)
 	hdt_cli.history_pos=1;
 	hdt_cli.max_history_pos=1;
 
+	/* Find the mode selected */
 	set_mode(HDT_MODE, hardware);
+	find_cli_mode_descr(hdt_cli.mode, &current_mode);
+	if (current_mode == NULL) {
+		/* Shouldn't get here... */
+		more_printf("!!! BUG: Mode '%s' unknown.\n", hdt_cli.mode);
+		return;
+	}
 
 	more_printf("Entering CLI mode\n");
 
@@ -510,6 +712,10 @@ void start_cli_mode(struct s_hardware *hardware)
 		//fgets(cli_line, sizeof cli_line, stdin);
 		current_key = get_key(stdin, 0);
 
+		/* Reset autocomplete buffer unless TAB is pressed */
+		if (current_key != KEY_TAB)
+			autocomplete_destroy_list();
+
 		switch (current_key) {
 			/* clear until then end of line */
 		case KEY_CTRL('k'):
@@ -522,9 +728,6 @@ void start_cli_mode(struct s_hardware *hardware)
 		case KEY_CTRL('c'):
 			more_printf("\n");
 			reset_prompt();
-			break;
-
-		case KEY_TAB:
 			break;
 
 		case KEY_LEFT:
@@ -625,6 +828,30 @@ void start_cli_mode(struct s_hardware *hardware)
 			printf("%s",hdt_cli.history[hdt_cli.history_pos]);
 			strncpy(hdt_cli.input,hdt_cli.history[hdt_cli.history_pos],sizeof(hdt_cli.input));
 			hdt_cli.cursor_pos=strlen(hdt_cli.input);
+			break;
+
+		case KEY_TAB:
+			if (autocomplete_backlog) {
+				/* XXX Will go away */
+				fputs("\033[2K", stdout);
+				fputs("\033[0G", stdout);
+				reset_prompt();
+				printf("%s",autocomplete_last_seen->autocomplete_token);
+				strncpy(hdt_cli.input,autocomplete_last_seen->autocomplete_token,sizeof(hdt_cli.input));
+				hdt_cli.cursor_pos=strlen(hdt_cli.input);
+
+				/* Cycle through the list */
+				autocomplete_last_seen = autocomplete_last_seen->next;
+				if (autocomplete_last_seen == NULL) {
+					autocomplete_last_seen = autocomplete_head;
+				}
+			} else {
+				more_printf("\n");
+				autocomplete(skipspace(hdt_cli.input));
+				autocomplete_last_seen = autocomplete_head;
+
+				more_printf("%s%s", hdt_cli.prompt, hdt_cli.input);
+			}
 			break;
 
 		case KEY_ENTER:

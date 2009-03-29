@@ -115,20 +115,18 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 	if (current_mode->show_modules != NULL &&
 	    current_mode->show_modules->nb_modules != 0) {
 		more_printf("show commands:\n");
-		for (j = 0; j < current_mode->show_modules->nb_modules; j++) {
+		for (j = 0; j < current_mode->show_modules->nb_modules; j++)
 			more_printf("\t%s\n",
 			       current_mode->show_modules->modules[j].name);
-		}
 	}
 
 	/* List thirdly the set modules of the mode */
 	if (current_mode->set_modules != NULL &&
 	    current_mode->set_modules->nb_modules != 0) {
 		more_printf("set commands:\n");
-		for (j = 0; j < current_mode->set_modules->nb_modules; j++) {
+		for (j = 0; j < current_mode->set_modules->nb_modules; j++)
 			more_printf("\t%s\n",
 			       current_mode->set_modules->modules[j].name);
-		}
 	}
 
 	/* List finally the default modules of the hdt mode */
