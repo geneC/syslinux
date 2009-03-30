@@ -151,7 +151,7 @@ Int13Start:
 		mov bp,sp		; Point BP to the entry stack frame
 		TRACER 'F'
 		; Note: AH == P_AH here
-		cmp ah,[Int13FuncsCnt-1]
+		cmp ah,Int13FuncsCnt-1
 		ja Invalid_jump
 		xor al,al		; AL = 0 is standard entry condition
 		mov di,ax
