@@ -126,9 +126,10 @@ parse_cmdline:
 
 		; This either needs to have been an option with parameter,
 		; or be followed by EOL/whitespace
-		cmp byte [di-1],'='
+		mov ax,[es:di-1]		; AL = last chr; AH = following
+		cmp al,'='
 		je .is_match
-		cmp byte [di],' '
+		cmp ah,' '
 		ja .no_match
 .is_match:
 		pop ax				; Drop option pointer on stack
