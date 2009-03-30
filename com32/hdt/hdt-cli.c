@@ -50,7 +50,7 @@ struct cli_mode_descr *list_modes[] = {
  * strings first.
  */
 char *exit_aliases[] = {"q", "quit"};
-char *help_aliases[] = {"h"};
+char *help_aliases[] = {"h", "?"};
 
 /* List of aliases */
 struct cli_alias hdt_aliases[] = {
@@ -61,7 +61,7 @@ struct cli_alias hdt_aliases[] = {
 	},
 	{
 		.command = CLI_HELP,
-		.nb_aliases = 1,
+		.nb_aliases = 2,
 		.aliases = help_aliases,
 	},
 };
