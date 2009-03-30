@@ -585,6 +585,20 @@ static void exec_command(char *line,
 				        &current_module);
 		if (current_module != NULL)
 			return current_module->exec(argc, argv, hardware);
+		else if (!strncmp(command, CLI_SHOW, sizeof(CLI_SHOW) - 1) &&
+			 current_mode->show_modules != NULL &&
+			 current_mode->show_modules->default_callback != NULL)
+			return current_mode->show_modules
+					   ->default_callback(argc,
+							      argv,
+							      hardware);
+		else if (!strncmp(command, CLI_SET, sizeof(CLI_SET) - 1) &&
+			 current_mode->set_modules != NULL &&
+			 current_mode->set_modules->default_callback != NULL)
+			return current_mode->set_modules
+					   ->default_callback(argc,
+							      argv,
+							      hardware);
 		else {
 			find_cli_callback_descr(command, hdt_mode.default_modules,
 					        &current_module);
@@ -615,12 +629,6 @@ static void exec_command(char *line,
 		/* Execute the callback */
 		if (current_module != NULL)
 			return current_module->exec(argc, argv, hardware);
-		else if (current_mode->show_modules != NULL &&
-			 current_mode->show_modules->default_callback != NULL)
-			return current_mode->show_modules
-					   ->default_callback(argc,
-							      argv,
-							      hardware);
 		else {
 			find_cli_callback_descr(module, hdt_mode.show_modules,
 					        &current_module);
@@ -638,12 +646,6 @@ static void exec_command(char *line,
 		/* Execute the callback */
 		if (current_module != NULL)
 			return current_module->exec(argc, argv, hardware);
-		else if (current_mode->set_modules != NULL &&
-			 current_mode->set_modules->default_callback != NULL)
-			return current_mode->set_modules
-					   ->default_callback(argc,
-							      argv,
-							      hardware);
 		else {
 			find_cli_callback_descr(module, hdt_mode.set_modules,
 					        &current_module);
