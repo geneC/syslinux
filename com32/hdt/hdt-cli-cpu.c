@@ -40,22 +40,22 @@ void main_show_cpu(int argc __unused, char **argv __unused,
 	cpu_detect(hardware);
 	detect_dmi(hardware);
 	more_printf("CPU\n");
-	more_printf(" Manufacturer :  %s \n", hardware->cpu.vendor);
-	more_printf(" Product      :  %s \n", hardware->cpu.model);
+	more_printf(" Manufacturer : %s \n", hardware->cpu.vendor);
+	more_printf(" Product      : %s \n", hardware->cpu.model);
 	if ((hardware->cpu.flags.lm == false)
 	    && (hardware->cpu.flags.smp == false)) {
-		more_printf(" Features     :  %d MhZ : x86 32bits\n",
+		more_printf(" Features     : %d MhZ : x86 32bits\n",
 			    hardware->dmi.processor.current_speed);
 	} else if ((hardware->cpu.flags.lm == false)
 		   && (hardware->cpu.flags.smp == true)) {
-		more_printf(" Features     :  %d MhZ : x86 32bits SMP\n",
+		more_printf(" Features     : %d MhZ : x86 32bits SMP\n",
 			    hardware->dmi.processor.current_speed);
 	} else if ((hardware->cpu.flags.lm == true)
 		   && (hardware->cpu.flags.smp == false)) {
-		more_printf(" Features     :  %d MhZ : x86_64 64bits\n",
+		more_printf(" Features     : %d MhZ : x86_64 64bits\n",
 			    hardware->dmi.processor.current_speed);
 	} else {
-		more_printf(" Features     :  %d MhZ : x86_64 64bits SMP\n",
+		more_printf(" Features     : %d MhZ : x86_64 64bits SMP\n",
 			    hardware->dmi.processor.current_speed);
 	}
 }
