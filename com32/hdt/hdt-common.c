@@ -393,11 +393,19 @@ void clear_screen(void)
   display_line_nb = 0;
 }
 
-/* searching the next char that is not a space */
-char *skipspace(char *p)
+/* remove trailing & begining spaces */
+char *remove_spaces(char *p)
 {
-  while (*p && *p <= ' ')
+  char *save=p;
+  p+=strlen(p)-1;
+  while (*p && *p <= ' ') {
+   *p='\0';
+   p--;
+  }
+  p=save;
+  while (*p && *p <= ' ') {
     p++;
+  }
 
   return p;
 }

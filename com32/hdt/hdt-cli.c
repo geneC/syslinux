@@ -849,7 +849,7 @@ void start_cli_mode(struct s_hardware *hardware)
 					autocomplete_last_seen = autocomplete_head;
 			} else {
 				more_printf("\n");
-				autocomplete(skipspace(hdt_cli.input));
+				autocomplete(remove_spaces(hdt_cli.input));
 				autocomplete_last_seen = autocomplete_head;
 
 				more_printf("%s%s", hdt_cli.prompt, hdt_cli.input);
@@ -859,10 +859,10 @@ void start_cli_mode(struct s_hardware *hardware)
 		case KEY_ENTER:
 			more_printf("\n");
 			if (hdt_cli.history_pos == MAX_HISTORY_SIZE-1) hdt_cli.history_pos=1;
-			strncpy(hdt_cli.history[hdt_cli.history_pos],skipspace(hdt_cli.input),sizeof(hdt_cli.history[hdt_cli.history_pos]));
+			strncpy(hdt_cli.history[hdt_cli.history_pos],remove_spaces(hdt_cli.input),sizeof(hdt_cli.history[hdt_cli.history_pos]));
 			hdt_cli.history_pos++;
 			if (hdt_cli.history_pos>hdt_cli.max_history_pos) hdt_cli.max_history_pos=hdt_cli.history_pos;
-			exec_command(skipspace(hdt_cli.input), hardware);
+			exec_command(remove_spaces(hdt_cli.input), hardware);
 			reset_prompt();
 			break;
 
