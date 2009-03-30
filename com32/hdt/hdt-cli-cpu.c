@@ -120,8 +120,10 @@ static void show_cpu(int argc __unused, char **argv __unused,
 		strcat(buffer1, "pge ");
 	if (hardware->cpu.flags.mca)
 		strcat(buffer1, "mca ");
-	snprintf(buffer, sizeof buffer, "Flags     : %s\n", buffer1);
-	more_printf(buffer);
+	if (buffer1[0]) {
+		snprintf(buffer, sizeof buffer, "Flags     : %s\n", buffer1);
+		more_printf(buffer);
+	}
 
 	memset(buffer, 0, sizeof(buffer));
 	memset(buffer1, 0, sizeof(buffer1));
@@ -147,8 +149,10 @@ static void show_cpu(int argc __unused, char **argv __unused,
 		strcat(buffer1, "sse2 ");
 	if (hardware->cpu.flags.ss)
 		strcat(buffer1, "ss ");
-	snprintf(buffer, sizeof buffer, "Flags     : %s\n", buffer1);
-	more_printf(buffer);
+	if (buffer1[0]) {
+		snprintf(buffer, sizeof buffer, "Flags     : %s\n", buffer1);
+		more_printf(buffer);
+	}
 
 	memset(buffer, 0, sizeof(buffer));
 	memset(buffer1, 0, sizeof(buffer1));
@@ -170,8 +174,10 @@ static void show_cpu(int argc __unused, char **argv __unused,
 		strcat(buffer1, "3dnowext ");
 	if (hardware->cpu.flags.now)
 		strcat(buffer1, "3dnow! ");
-	snprintf(buffer, sizeof buffer, "Flags     : %s\n", buffer1);
-	more_printf(buffer);
+	if (buffer1[0]) {
+		snprintf(buffer, sizeof buffer, "Flags     : %s\n", buffer1);
+		more_printf(buffer);
+	}
 }
 
 struct cli_module_descr cpu_show_modules = {
