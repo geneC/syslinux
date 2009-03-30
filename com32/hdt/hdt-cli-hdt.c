@@ -44,6 +44,19 @@ static void cli_clear_screen(int argc __unused, char** argv __unused,
 }
 
 /**
+ * main_show_modes - show availables modes
+ **/
+static void main_show_modes(int argc __unused, char** argv __unused,
+			    struct s_hardware *hardware __unused)
+{
+	int i;
+
+	more_printf("Available modes:\n");
+	for (i = 0; i < MAX_MODES; i++)
+		more_printf("\t%s\n", list_modes[i]->name);
+}
+
+/**
  * cli_set_mode - set the mode of the cli, in the cli
  *
  * The mode number must be supplied in argv, position 0.
@@ -149,6 +162,8 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 		}
 		more_printf("\n");
 	}
+
+	main_show_modes(argc, argv, hardware);
 }
 
 /**
@@ -254,7 +269,10 @@ struct cli_callback_descr list_hdt_show_modules[] = {
 		.name = CLI_HDT,
 		.exec = main_show_hdt,
 	},
-
+	{
+		.name = "modes",
+		.exec = main_show_modes,
+	},
 };
 
 struct cli_callback_descr list_hdt_set_modules[] = {
@@ -271,7 +289,7 @@ struct cli_module_descr hdt_default_modules = {
 
 struct cli_module_descr hdt_show_modules = {
 	.modules = list_hdt_show_modules,
-	.nb_modules = 9,
+	.nb_modules = 10
 };
 
 struct cli_module_descr hdt_set_modules = {
