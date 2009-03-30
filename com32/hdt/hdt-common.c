@@ -393,6 +393,16 @@ void clear_screen(void)
   display_line_nb = 0;
 }
 
+/* remove begining spaces */
+char *skip_spaces(char *p)
+{
+  while (*p && *p <= ' ') {
+    p++;
+  }
+
+  return p;
+}
+
 /* remove trailing & begining spaces */
 char *remove_spaces(char *p)
 {

@@ -849,7 +849,7 @@ void start_cli_mode(struct s_hardware *hardware)
 					autocomplete_last_seen = autocomplete_head;
 			} else {
 				more_printf("\n");
-				autocomplete(remove_spaces(hdt_cli.input));
+				autocomplete(skip_spaces(hdt_cli.input));
 				autocomplete_last_seen = autocomplete_head;
 
 				more_printf("%s%s", hdt_cli.prompt, hdt_cli.input);
