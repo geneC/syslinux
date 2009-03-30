@@ -102,6 +102,7 @@ static void autocomplete_destroy_list()
 		autocomplete_head = tmp;
 	}
 	autocomplete_backlog = 0;
+	autocomplete_tail = NULL;
 	autocomplete_last_seen = NULL;
 }
 
@@ -844,9 +845,8 @@ void start_cli_mode(struct s_hardware *hardware)
 
 				/* Cycle through the list */
 				autocomplete_last_seen = autocomplete_last_seen->next;
-				if (autocomplete_last_seen == NULL) {
+				if (autocomplete_last_seen == NULL)
 					autocomplete_last_seen = autocomplete_head;
-				}
 			} else {
 				more_printf("\n");
 				autocomplete(skipspace(hdt_cli.input));
