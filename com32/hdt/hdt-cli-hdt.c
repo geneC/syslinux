@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <syslinux/config.h>
 
+#include "hdt-menu.h"
 #include "hdt-cli.h"
 #include "hdt-common.h"
 
@@ -167,6 +168,19 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 }
 
 /**
+ * show_cli_help - shared helper to show available commands
+ **/
+static void goto_menu(int argc __unused, char** argv __unused,
+		      struct s_hardware *hardware)
+{
+	char version_string[256];
+	snprintf(version_string, sizeof version_string, "%s %s by %s",
+		 PRODUCT_NAME, VERSION, AUTHOR);
+	start_menu_mode(hardware, version_string);
+	return;
+}
+
+/**
  * main_show_summary - give an overview of the system
  **/
 void main_show_summary(int argc __unused, char **argv __unused,
@@ -230,6 +244,10 @@ struct cli_callback_descr list_hdt_default_modules[] = {
 		.name = CLI_HELP,
 		.exec = show_cli_help,
 	},
+	{
+		.name = CLI_MENU,
+		.exec = goto_menu,
+	},
 };
 
 struct cli_callback_descr list_hdt_show_modules[] = {
@@ -284,7 +302,7 @@ struct cli_callback_descr list_hdt_set_modules[] = {
 
 struct cli_module_descr hdt_default_modules = {
 	.modules = list_hdt_default_modules,
-	.nb_modules = 3,
+	.nb_modules = 4,
 };
 
 struct cli_module_descr hdt_show_modules = {
