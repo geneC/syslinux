@@ -22,14 +22,14 @@ SECTIONS
 	__earlybss_len = __earlybss_end - __earlybss_start;
 	__earlybss_dwords = (__earlybss_len + 3) >> 2;
 
-	.bcopy32 : AT (__bcopy32_lma) {
-		FILL(0x90909090)
-		__bcopy32_start = .;
-		*(.bcopy32)
-		__bcopy32_end = .;
+	.bss : {
+		__bss_start = .;
+		*(.bss)
+		*(.bss2)
+		__bss_end = .;
 	}
-	__bcopy32_len = __bcopy32_end - __bcopy32_start;
-	__bcopy32_dwords = (__bcopy32_len + 3) >> 2;
+	__bss_len = __bss_end - __bss_start;
+	__bss_dwords = (__bss_len + 3) >> 2;
 
 	.config : AT (__config_lma) {
 		__config_start = .;
@@ -39,19 +39,11 @@ SECTIONS
 	__config_len = __config_end - __config_start;
 	__config_dwords = (__config_len + 3) >> 2;
 
-	.bss : AT(__bss_start) {
-		__bss_start = .;
-		*(.bss)
-		*(.bss2)
-		__bss_end = .;
-	}
-	__bss_len = __bss_end - __bss_start;
-	__bss_dwords = (__bss_len + 3) >> 2;
-
 	/* Stack */
 
-	. = 0x7c00 - STACK_LEN;
-	.stack : {
+	STACK_BASE = 0x7c00 - STACK_LEN;
+	. = STACK_BASE;
+	.stack : AT(STACK_BASE) {
 		__stack_start = .;
 		. += STACK_LEN;
 		__stack_end = .;
@@ -71,9 +63,15 @@ SECTIONS
 	__text_len = __text_end - __text_start;
 	__text_dwords = (__text_len + 3) >> 2;
 
-	. = ALIGN(4);
-	__bcopy32_lma = .;
-	. += SIZEOF(.bcopy32);
+	. = ALIGN(16);
+	.bcopyxx : {
+		FILL(0x90909090)
+		__bcopyxx_start = .;
+		*(.bcopyxx)
+		__bcopyxx_end = .;
+	}
+	__bcopyxx_len = __bcopyxx_end - __bcopyxx_start;
+	__bcopyxx_dwords = (__bcopyxx_len + 3) >> 2;
 
 	. = ALIGN(4);
 	.data : {
