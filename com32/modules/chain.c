@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2003-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -446,79 +446,16 @@ static void do_boot(void *boot_sector, size_t boot_size,
     return;
   }
 
-  if (loadbase < 0x7c00) {
-    /* Special hack: if we are to be loaded below 0x7c00, we need to handle
-       the part that goes below 0x7c00 specially, since that's where the
-       shuffler lives.  To deal with that, stuff the balance at the end
-       of low memory and put a small copy stub there.
+  /* Nothing below 0x7c00, much simpler... */
+  /* The 256 byte is a fudge factor... */ 
 
-       The only tricky bit is that we need to set up registers for our
-       move, and then restore them to what they should be at the end of
-       the code. */
-    static uint8_t copy_down_code[] = {
-      0xf3,0x66,0xa5,		/* 00: rep movsd */
-      0xbe,0,0,			/* 03: mov si,0 */
-      0xbf,0,0,			/* 06: mov di,0 */
-      0x8e,0xde,		/* 09: mov ds,si */
-      0x8e,0xc7,		/* 0b: mov es,di */
-      0x66,0xb9,0,0,0,0,	/* 0d: mov ecx,0 */
-      0x66,0xbe,0,0,0,0,	/* 13: mov esi,0 */
-      0x66,0xbf,0,0,0,0,	/* 19: mov edi,0 */
-      0xea,0,0,0,0,		/* 1f: jmp 0:0 */
-      /* pad out to segment boundary */
-      0x90,0x90,0x90,0x90,	/* 24: ... */
-      0x90,0x90,0x90,0x90,	/* 28: ... */
-      0x90,0x90,0x90,0x90,	/* 2c: ... */
-    };
-    size_t low_size  = min(boot_size, 0x7c00-loadbase);
-    size_t high_size = boot_size - low_size;
-    size_t low_addr  = (0x7c00 + high_size + 15) & ~15;
-    size_t move_addr = (low_addr + low_size + 15) & ~15;
-    const size_t move_size = sizeof copy_down_code;
-
-    if (move_addr+move_size >= dosmem-0x7c00)
+  if (boot_size >= dosmem - loadbase)
       goto too_big;
 
-    *(uint16_t *)&copy_down_code[0x04] = regs->ds;
-    *(uint16_t *)&copy_down_code[0x07] = regs->es;
-    *(uint32_t *)&copy_down_code[0x0f] = regs->ecx.l;
-    *(uint32_t *)&copy_down_code[0x15] = regs->esi.l;
-    *(uint32_t *)&copy_down_code[0x1b] = regs->edi.l;
-    *(uint16_t *)&copy_down_code[0x20] = regs->ip;
-    *(uint16_t *)&copy_down_code[0x22] = regs->cs;
+  endimage = loadbase + boot_size;
 
-    regs->ecx.l = (low_size+3) >> 2;
-    regs->esi.l = 0;
-    regs->edi.l = loadbase & 15;
-    regs->ds    = low_addr >> 4;
-    regs->es    = loadbase >> 4;
-    regs->cs    = move_addr >> 4;
-    regs->ip    = 0;
-
-    endimage = move_addr + move_size;
-
-    if (high_size)
-      if (syslinux_add_movelist(&mlist, 0x7c00,
-				(addr_t)boot_sector+low_size, high_size))
-	goto enomem;
-    if (syslinux_add_movelist(&mlist, low_addr,
-			      (addr_t)boot_sector, low_size))
-      goto enomem;
-    if (syslinux_add_movelist(&mlist, move_addr,
-			      (addr_t)copy_down_code, move_size))
-      goto enomem;
-  } else {
-    /* Nothing below 0x7c00, much simpler... */
-
-    if (boot_size >= dosmem-0x7c00)
-      goto too_big;
-
-    endimage = loadbase + boot_size;
-
-    if (syslinux_add_movelist(&mlist, loadbase, (addr_t)boot_sector,
-			      boot_size))
-      goto enomem;
-  }
+  if (syslinux_add_movelist(&mlist, loadbase, (addr_t)boot_sector, boot_size))
+    goto enomem;
 
   if (opt.swap && driveno != swapdrive) {
     static const uint8_t swapstub_master[] = {
