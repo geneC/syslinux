@@ -54,6 +54,7 @@ hdt.elf: hdt.o hdt-ata.o hdt-menu.o hdt-menu-pci.o hdt-menu-kernel.o \
 	hdt-cli-cpu.o hdt-cli-pxe.o hdt-cli-kernel.o \
 	hdt-cli-syslinux.o hdt-cli-vesa.o\
 	hdt-menu-pxe.o hdt-menu-summary.o hdt-menu-vesa.o\
+	lib-ansi.o\
 	$(LIBS)
 	@$(LD) $(LDFLAGS) -o $@ $^
 

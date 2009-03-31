@@ -32,8 +32,8 @@
 #include <getkey.h>
 #include "syslinux/config.h"
 #include "../lib/sys/vesa/vesa.h"
-
 #include "hdt-common.h"
+#include "lib-ansi.h"
 
 void detect_parameters(const int argc, const char *argv[],
                        struct s_hardware *hardware)
@@ -389,7 +389,12 @@ const char *find_argument(const char **argv, const char *argument)
 
 void clear_screen(void)
 {
-  fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
+  move_cursor_to_next_line();
+  disable_utf8();
+  set_g1_special_char();
+  set_us_g0_charset();
+  display_cursor(false);
+  clear_entire_screen();
   display_line_nb = 0;
 }
 
