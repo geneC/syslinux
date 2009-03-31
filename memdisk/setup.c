@@ -20,7 +20,7 @@
 const char memdisk_version[] =
 "MEMDISK " VERSION_STR " " DATE;
 const char copyright[] =
-"Copyright " FIRSTYEAR "-" YEAR_STR " H. Peter Anvin and contributors";
+"Copyright " FIRSTYEAR "-" YEAR_STR " H. Peter Anvin et al";
 
 extern const char _binary_memdisk_chs_bin_start[];
 extern const char _binary_memdisk_chs_bin_end[];

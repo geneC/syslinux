@@ -2657,7 +2657,7 @@ writestr_early	equ writestr
 
 copyright_str   db ' Copyright (C) 1994-'
 		asciidec YEAR
-		db ' H. Peter Anvin and contributors', CR, LF, 0
+		db ' H. Peter Anvin et al', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: press a key to retry, or wait for reset...', CR, LF, 0
 bailmsg		equ err_bootfailed
 err_nopxe	db "No !PXE or PXENV+ API found; we're dead...", CR, LF, 0
