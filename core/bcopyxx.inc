@@ -29,6 +29,17 @@
 
 		bits 32
 		section .bcopyxx
+		align 16
+bcopyxx_before:
+		; target > source, need reverse copy
+		lea esi,[esi+ecx-4]
+		lea edi,[edx+ecx-4]
+		std
+		rep movsd
+		cld
+		jmp eax
+
+		align 4
 bcopyxx_start	equ $
 ;
 ; pm_bcopy:
@@ -188,28 +199,34 @@ pm_bcopy:
 ;
 ;     If len == 0:  this marks the end of the list; dst indicates
 ;		    the entry point and src the mode (0 = pm, 1 = rm)
+;
+;
+; Note: we're hideously strict with the relocation, so we never touch
+; any memory we don't need to.  This is important for our own internal
+; use of the code.
+;
 pm_shuffle:
-		mov esi,bcopyxx_start
-		mov edi,bcopyxx_end
-		cmp edx,esi
-		je .safe		; This was too easy
-		cmp edx,edi
-		jae .at_end		; Safe area >= end
-
-		; Safe area < end; we may have an overlap, so copy
-		; ourselves to a safe distance beyond the end...
-		mov ecx,bcopyxx_dwords
-		lea edi,[esi+ecx*8]
-		mov eax,edi
-		rep movsd
-		mov esi,eax
-		jmp .at_end+(8*bcopyxx_dwords)	; Relative jump, is safe
-
-.at_end:
-		mov ecx,bcopyxx_dwords
 		mov edi,edx
+		mov esi,bcopyxx_start
+		mov ecx,bcopyxx_dwords
+		lea eax,[edx+.safe-bcopyxx_start]	; Resume point
+		cmp edx,bcopyxx_end
+		jae .no_overlap		; Safe area start >= end
+		lea ebp,[edx+bcopyxx_len]
+		cmp edi,ebp
+		jae .no_overlap		; Safe area end <= start
+		cmp edx,esi
+		je .safe		; OK, this was too easy
+
+		; OK, we have some overlap one way or the other.
+		; We bounce this to one of two routines *outside*
+		; the safe area... one on each side.
+		ja bcopyxx_before	; target > source
+		jmp bcopyxx_after	; source > target
+
+.no_overlap:
+		; No overlap, do the copying inside the safe area
 		rep movsd
-		lea eax,[edx+.safe-bcopyxx_start]
 		jmp eax			; Jump to safe location
 .safe:
 		; Give ourselves a safe stack
@@ -305,7 +322,7 @@ bcopy_gdt:
 bcopy_gdt_size:	equ $-bcopy_gdt
 
 		align 4, db 0
-bcopyxx_end	equ $
+bcopyxx_end	equ $			; *Must* be dword-aligned!
 bcopyxx_len	equ $-bcopyxx_start
 bcopyxx_dwords	equ bcopyxx_len >> 2
 
@@ -318,6 +335,13 @@ bcopyxx_safe	equ bcopyxx_len + bcopyxx_stack
 ; for anything real.
 ;
 DummyTSS	equ 0x800
+
+		bits 32
+		align 4
+bcopyxx_after:
+		; source > target, forward copy
+		rep movsd
+		jmp eax	
 
 		bits 16
 		section .text
