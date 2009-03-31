@@ -21,7 +21,7 @@
 ; cleanup_hardware:
 ;
 ;	Shut down anything transient.  *No segment assumptions*.
-;	Can trash any registers.
+;	Preserves all registers.
 ;
 cleanup_hardware:
 		pushad

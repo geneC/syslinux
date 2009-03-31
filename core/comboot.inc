@@ -649,16 +649,26 @@ comapi_cleanup:
 		mov eax,[OrigFDCTabPtr]
 		mov [fdctab],eax
 %endif
-		; Reset the floppy disk subsystem
-		xor ax,ax
-		xor dx,dx
-		int 13h
+		call cleanup_hardware
 		clc
 		ret
 
 ;
-; INT 22h AX=000Dh	Obsolete
+; INT 22h AX=000Dh	Clean up then replace bootstrap
 ;
+comapi_chainboot:
+		call comapi_cleanup
+		mov eax,P_EDI
+		mov [trackbuf+4],eax		; Copy from
+		mov eax,P_ECX
+		mov [trackbuf+8],eax		; Total bytes
+		mov eax,7C00h
+		mov [trackbuf],eax		; Copy to
+		push eax			; Entry point on stack
+		mov esi,P_ESI
+		mov edx,P_EBX
+		mov bx,P_DS
+		jmp replace_bootstrap_one
 
 ;
 ; INT 22h AX=000Eh	Get configuration file name
@@ -991,7 +1001,10 @@ comapi_shufsize:
 ; INT 22h AX=0024h	Cleanup, shuffle and boot raw
 ;
 comapi_shufraw:
-		ret
+		call comapi_cleanup
+		mov ebx,P_EDI
+		mov edx,P_EBX
+		jmp shuffle_and_boot_raw
 
 		section .data
 

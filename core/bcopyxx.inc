@@ -246,7 +246,7 @@ pm_shuffle:
 		jmp .loop
 .done:
 		and esi,esi
-		jnz pm_shuffle_real_mode
+		jz pm_shuffle_real_mode
 		jmp edi			; Protected mode entry
 
 		; We have a real-mode entry point, so we need to return

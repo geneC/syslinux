@@ -160,9 +160,8 @@ replace_bootstrap:
 		; Terminating entry...
 		lea eax,[di+12]
 		stosd
-		mov ax,1		; EAX[31:16] == 0 already
+		xor ax,ax		; EAX[31:16] == 0 already
 		stosd			; Real mode
-		dec ax
 		stosd			; End of list
 
 		; Copy the stub	
