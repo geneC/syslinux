@@ -1,6 +1,6 @@
 /* -----------------------------------------------------------------------
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -53,7 +53,6 @@ _start:
 	movw	%sp, %si
 	pushw	%es		/* es:di -> $PnP header */
 	pushw	%di
-	pushw	%dx		/* dl -> drive number */
 	movw	%ax, %es
 	sti
 	cld
@@ -64,8 +63,15 @@ _start:
 	rep; movsw
 
 	ljmpw	$0, $next
-
 next:
+	
+	/* Escape for the user: if Ctrl is pressed, assume drive hd0 */
+	testb	$0x04, 0x417	/* keyboard control flags: Ctrl pressed */
+	jz	1f
+	movb	$0x80, %dl
+1:
+	pushw	%dx		/* dl -> drive number */
+
 	/* Check to see if we have EBIOS */
 	pushw	%dx		/* drive number */
 	movb	$0x41, %ah	/* %al == 0 already */
