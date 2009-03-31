@@ -34,8 +34,9 @@ driveno		= (stack-6)
 sectors		= (stack-8)
 secpercyl	= (stack-12)
 
-BIOS_page = 0x462
-
+BIOS_kbdflags	= 0x417
+BIOS_page	= 0x462
+	
 	/* gas/ld has issues with doing this as absolute addresses... */
 	.section ".bootsec", "a", @nobits
 	.globl	bootsec
@@ -66,7 +67,7 @@ _start:
 next:
 	
 	/* Escape for the user: if Ctrl is pressed, assume drive hd0 */
-	testb	$0x04, 0x417	/* keyboard control flags: Ctrl pressed */
+	testb	$0x04, BIOS_kbdflags	/* Ctrl pressed */
 	jz	1f
 	movb	$0x80, %dl
 1:

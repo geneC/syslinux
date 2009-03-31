@@ -42,6 +42,7 @@ bootguid	= _start + 0x1a8
 /* Where we put DS:SI */
 dssi_out	= _start + 0x1be
 
+BIOS_kbdflags	= 0x417
 BIOS_page	= 0x462
 
 	/* gas/ld has issues with doing this as absolute addresses... */
@@ -73,7 +74,7 @@ _start:
 	ljmpw	$0, $next
 next:
 	/* Escape for the user: if Ctrl is pressed, assume drive hd0 */
-	testb	$0x04, 0x417	/* keyboard control flags: Ctrl pressed */
+	testb	$0x04, BIOS_kbdflags	/* Ctrl pressed */
 	jz	1f
 	movb	$0x80, %dl
 1:
