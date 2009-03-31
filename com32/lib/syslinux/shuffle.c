@@ -62,33 +62,42 @@ struct shuffle_descriptor {
   uint32_t dst, src, len;
 };
 
-static int desc_block_size;
+static int shuffler_size;
 
-static void __constructor __syslinux_get_desc_block_size(void)
+static void __constructor __syslinux_get_shuffer_size(void)
 {
   static com32sys_t reg;
 
-  reg.eax.w[0] = 0x0011;
+  reg.eax.w[0] = 0x0023;
   __intcall(0x22, &reg, &reg);
 
-  desc_block_size = (reg.eflags.l & EFLAGS_CF) ? 64 : reg.ecx.w[0];
+  shuffler_size = (reg.eflags.l & EFLAGS_CF) ? 2048 : reg.ecx.w[0];
 }
 
-/* Allocate descriptor memory in these chunks */
-#define DESC_BLOCK_SIZE	desc_block_size
+/*
+ * Allocate descriptor memory in these chunks; if this is large we may
+ * waste memory, if it is small we may get slow convergence.
+ */
+#define DESC_BLOCK_SIZE	256
 
-int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
-			     struct syslinux_memmap *memmap)
+int syslinux_do_shuffle(struct syslinux_movelist *fraglist,
+			struct syslinux_memmap *memmap,
+			addr_t entry_point, addr_t entry_type,
+			uint16_t bootflags)
 {
+  int rv = -1;
   struct syslinux_movelist *moves = NULL, *mp;
   struct syslinux_memmap *rxmap = NULL, *ml;
   struct shuffle_descriptor *dp, *dbuf;
-  int np, nb, nl, rv = -1;
+  int np;
   int desc_blocks, need_blocks;
   int need_ptrs;
   addr_t desczone, descfree, descaddr, descoffs;
   int nmoves, nzero;
-  struct shuffle_descriptor primaries[2];
+  com32sys_t ireg;
+
+  descaddr = 0;
+  dp = dbuf = NULL;
 
   /* Count the number of zero operations */
   nzero = 0;
@@ -98,10 +107,14 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
   }
 
   /* Find the largest contiguous region unused by input *and* output;
-     this is where we put the move descriptor list */
+     this is where we put the move descriptor list and safe area */
 
   rxmap = syslinux_dup_memmap(memmap);
   if (!rxmap)
+    goto bail;
+  /* Avoid using the low 1 MB for the shuffle area -- this avoids
+     possible interference with the real mode code or stack */
+  if (syslinux_add_memmap(&rxmap, 0, 1024*1024, SMT_ALLOC))
     goto bail;
   for (mp = fraglist; mp; mp = mp->next) {
     if (syslinux_add_memmap(&rxmap, mp->src, mp->len, SMT_ALLOC) ||
@@ -119,10 +132,13 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
   if (!rxmap)
     goto bail;
 
-  desc_blocks = (nzero+DESC_BLOCK_SIZE-1)/(DESC_BLOCK_SIZE-1);
+  desc_blocks = (nzero+DESC_BLOCK_SIZE-1)/DESC_BLOCK_SIZE;
   for (;;) {
+    /* We want (desc_blocks) allocation blocks, plus the terminating
+       descriptor, plus the shuffler safe area. */
     addr_t descmem = desc_blocks*
-      sizeof(struct shuffle_descriptor)*DESC_BLOCK_SIZE;
+      sizeof(struct shuffle_descriptor)*DESC_BLOCK_SIZE
+      + sizeof(struct shuffle_descriptor) + shuffler_size;
 
     if (descfree < descmem)
       goto bail;		/* No memory block large enough */
@@ -143,7 +159,7 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
     for (mp = moves; mp; mp = mp->next)
       nmoves++;
 
-    need_blocks = (nmoves+nzero+DESC_BLOCK_SIZE-1)/(DESC_BLOCK_SIZE-1);
+    need_blocks = (nmoves+nzero+DESC_BLOCK_SIZE-1)/DESC_BLOCK_SIZE;
 
     if (desc_blocks >= need_blocks)
       break;			/* Sufficient memory, yay */
@@ -159,7 +175,7 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
   syslinux_free_memmap(rxmap);
   rxmap = NULL;
 
-  need_ptrs = nmoves+nzero+desc_blocks-1;
+  need_ptrs = nmoves+nzero+1;
   dbuf = malloc(need_ptrs*sizeof(struct shuffle_descriptor));
   if (!dbuf)
     goto bail;
@@ -173,71 +189,38 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
 
   /* Copy the move sequence into the descriptor buffer */
   np = 0;
-  nb = 0;
-  nl = nmoves+nzero;
   dp = dbuf;
   for (mp = moves; mp; mp = mp->next) {
-    if (nb == DESC_BLOCK_SIZE-1) {
-      dp->dst = -1;		/* Load new descriptors */
-      dp->src = (addr_t)(dp+1) + descoffs;
-      dp->len = sizeof(*dp)*min(nl, DESC_BLOCK_SIZE);
-      dprintf("[ %08x %08x %08x ]\n", dp->dst, dp->src, dp->len);
-      dp++; np++;
-      nb = 0;
-    }
-
     dp->dst = mp->dst;
     dp->src = mp->src;
     dp->len = mp->len;
     dprintf2("[ %08x %08x %08x ]\n", dp->dst, dp->src, dp->len);
-    dp++; np++; nb++; nl--;
+    dp++; np++;
   }
 
   /* Copy bzero operations into the descriptor buffer */
   for (ml = memmap; ml->type != SMT_END; ml = ml->next) {
     if (ml->type == SMT_ZERO) {
-      if (nb == DESC_BLOCK_SIZE-1) {
-	dp->dst = (addr_t)-1;	/* Load new descriptors */
-	dp->src = (addr_t)(dp+1) + descoffs;
-	dp->len = sizeof(*dp)*min(nl, DESC_BLOCK_SIZE);
-	dprintf("[ %08x %08x %08x ]\n", dp->dst, dp->src, dp->len);
-	dp++; np++;
-	nb = 0;
-      }
-
       dp->dst = ml->start;
       dp->src = (addr_t)-1;	/* bzero region */
       dp->len = ml->next->start - ml->start;
       dprintf2("[ %08x %08x %08x ]\n", dp->dst, dp->src, dp->len);
-      dp++; np++; nb++; nl--;
+      dp++; np++;
     }
   }
+
+  /* Finally, record the termination entry */
+  dp->dst = entry_point;
+  dp->src = entry_type;
+  dp->len = 0;
+  dp++; np++;
 
   if (np != need_ptrs) {
     dprintf("!!! np = %d : nmoves = %d, nzero = %d, desc_blocks = %d\n",
 	    np, nmoves, nzero, desc_blocks);
   }
 
-  /* Set up the primary descriptors in the bounce buffer.
-     The first one moves the descriptor list into its designated safe
-     zone, the second one loads the first descriptor block. */
-  dp = primaries;
-
-  dp->dst = descaddr;
-  dp->src = (addr_t)dbuf;
-  dp->len = np*sizeof(*dp);
-  dprintf("< %08x %08x %08x >\n", dp->dst, dp->src, dp->len);
-  dp++;
-
-  dp->dst = (addr_t)-1;
-  dp->src = descaddr;
-  dp->len = sizeof(*dp)*min(np, DESC_BLOCK_SIZE);
-  dprintf("< %08x %08x %08x >\n", dp->dst, dp->src, dp->len);
-  dp++;
-
-  memcpy(__com32.cs_bounce, primaries, 2*sizeof(*dp));
-
-  rv = 2;			/* Always two primaries */
+  rv = 0;
 
  bail:
   /* This is safe only because free() doesn't use the bounce buffer!!!! */
@@ -246,5 +229,42 @@ int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
   if (rxmap)
     syslinux_free_memmap(rxmap);
 
-  return rv;
+  if (rv)
+    return rv;
+
+  /* Actually do it... */
+  memset(&ireg, 0, sizeof ireg);
+  ireg.edi.l = descaddr;
+  ireg.esi.l = (addr_t)dbuf;
+  ireg.ecx.l = (addr_t)dp-(addr_t)dbuf;
+  ireg.edx.w[0] = bootflags;
+  ireg.eax.w[0] = 0x0024;
+  __intcall(0x22, &ireg, NULL);
+
+  return -1;			/* Shouldn't have returned! */
+}
+
+/*
+ * Common helper routine: takes a memory map and blots out the
+ * zones which are used in the destination of a fraglist
+ */
+struct syslinux_memmap *
+syslinux_target_memmap(struct syslinux_movelist *fraglist,
+		       struct syslinux_memmap *memmap)
+{
+  struct syslinux_memmap *tmap;
+  struct syslinux_movelist *mp;
+
+  tmap = syslinux_dup_memmap(memmap);
+  if (!tmap)
+    return NULL;
+
+  for (mp = fraglist; mp; mp = mp->next) {
+    if (syslinux_add_memmap(&tmap, mp->dst, mp->len, SMT_ALLOC)) {
+      syslinux_free_memmap(tmap);
+      return NULL;
+    }
+  }
+
+  return tmap;
 }

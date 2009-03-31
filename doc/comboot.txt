@@ -897,8 +897,9 @@ AX=0023h [3.75] Get shuffler parameters
 AX=0024h [3.75] Cleanup, shuffle and boot, raw version
 	Input:	AX	0024h
 		DX	derivative-specific flags (see function 000Ch)
-		EDI	shuffle descriptor list
-		EBX	pointer to a "safe area" in memory
+		EDI	shuffle descriptor list safe area
+		ESI	shuffle descriptor list source
+		ECX	byte count of shuffle descriptor list
 	Output:	Does not return
 
 	This routine performs final cleanup, then performs a sequence
@@ -911,7 +912,7 @@ AX=0024h [3.75] Cleanup, shuffle and boot, raw version
 	address 7C00h.  Either the shuffle descriptor list or the safe
 	area (or both) may be located in high memory.
 
-	EDI points to a list of descriptors each of the form:
+	ESI points to a list of descriptors each of the form:
 
 		Offset	Size	Meaning
 		 0	dword	destination address
@@ -919,6 +920,13 @@ AX=0024h [3.75] Cleanup, shuffle and boot, raw version
 		 8	dword	length in bytes (0 = end of list)
 
 	The copies are overlap-safe, like memmove().
+
+	Before actually executing the move list, the list is moved to
+	the address specified in EDI.  The caller is responsibe to
+	ensure that the moved descriptor list plus a "safe area"
+	immediately afterwards (the size of which is specified by
+	function 0023h) is not disturbed by the copy sequence.  It is,
+	however, safe to overwrite descriptors already consumed.
 
 	If the source address is -1 (FFFFFFFFh) then the block
 	specified by the destination address and the length is set to
@@ -938,7 +946,3 @@ AX=0024h [3.75] Cleanup, shuffle and boot, raw version
 	point reloads all data segment registers at the earliest
 	possible point.
 
-	It is the responsibility of the caller that neither the
-	descriptor list nor the "safe area" is disturbed by the copy
-	sequence.  It is, however, safe to overwrite descriptors
-	already consumed.

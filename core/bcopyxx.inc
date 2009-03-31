@@ -30,16 +30,6 @@
 		bits 32
 		section .bcopyxx
 		align 16
-bcopyxx_before:
-		; target > source, need reverse copy
-		lea esi,[esi+ecx-4]
-		lea edi,[edx+ecx-4]
-		std
-		rep movsd
-		cld
-		jmp eax
-
-		align 4
 bcopyxx_start	equ $
 ;
 ; pm_bcopy:
@@ -52,6 +42,9 @@ bcopyxx_start	equ $
 ;
 	
 pm_bcopy:
+		push ebx
+		push edx
+
 		cmp esi,-1
 		je .bzero
 
@@ -91,6 +84,9 @@ pm_bcopy:
 		jz .fab1
 		a32 movsb
 .fab1:
+.done:
+		pop edx
+		pop ebx
 		ret
 
 .reverse:
@@ -141,7 +137,7 @@ pm_bcopy:
 		a32 movsb
 .rab1:
 		cld
-		ret
+		jmp short .done
 
 .bzero:
 		xor eax,eax
@@ -177,7 +173,7 @@ pm_bcopy:
 		jz .zab1
 		a32 stosb
 .zab1:
-		ret
+		jmp short .done
 
 ;
 ; shuffle_and_boot:
@@ -191,8 +187,10 @@ pm_bcopy:
 ; stub; *especially* when going to real mode.
 ;
 ; Inputs:
-;	EBX		-> Pointer to list of (dst, src, len) pairs(*)
-;	EDX		-> Pointer to safe memory area
+;	ESI		-> Pointer to list of (dst, src, len) pairs(*)
+;	EDI		-> Pointer to safe area for list + shuffler
+;			   (must not overlap this code nor the RM stack)
+;	ECX		-> Byte count of list area (for initial copy)
 ;
 ;     If src == -1: then the memory pointed to by (dst, len) is bzeroed;
 ;		    this is handled inside the bcopy routine.
@@ -200,32 +198,17 @@ pm_bcopy:
 ;     If len == 0:  this marks the end of the list; dst indicates
 ;		    the entry point and src the mode (0 = pm, 1 = rm)
 ;
-;
-; Note: we're hideously strict with the relocation, so we never touch
-; any memory we don't need to.  This is important for our own internal
-; use of the code.
-;
 pm_shuffle:
+		mov ebx,edi		; EBX <- descriptor list
+		lea edx,[edi+ecx]	; EDX <- shuffler end location
+		push edx
+		call pm_bcopy
+		pop edx
 		mov edi,edx
 		mov esi,bcopyxx_start
 		mov ecx,bcopyxx_dwords
 		lea eax,[edx+.safe-bcopyxx_start]	; Resume point
-		cmp edx,bcopyxx_end
-		jae .no_overlap		; Safe area start >= end
-		lea ebp,[edx+bcopyxx_len]
-		cmp edi,ebp
-		jae .no_overlap		; Safe area end <= start
-		cmp edx,esi
-		je .safe		; OK, this was too easy
-
-		; OK, we have some overlap one way or the other.
-		; We bounce this to one of two routines *outside*
-		; the safe area... one on each side.
-		ja bcopyxx_before	; target > source
-		jmp bcopyxx_after	; source > target
-
-.no_overlap:
-		; No overlap, do the copying inside the safe area
+		; Relocate this code
 		rep movsd
 		jmp eax			; Jump to safe location
 .safe:
@@ -335,13 +318,6 @@ bcopyxx_safe	equ bcopyxx_len + bcopyxx_stack
 ; for anything real.
 ;
 DummyTSS	equ 0x800
-
-		bits 32
-		align 4
-bcopyxx_after:
-		; source > target, forward copy
-		rep movsd
-		jmp eax	
 
 		bits 16
 		section .text

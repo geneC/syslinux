@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -63,11 +63,11 @@ struct syslinux_memmap *syslinux_memory_map(void)
   if (!mmap)
     goto bail;
 
-  /* Use INT 12h to get DOS memory above 0x7c00 */
+  /* Use INT 12h to get DOS memory 0x600 */
   __intcall(0x12, &zireg, &oreg);
   if (oreg.eax.w[0] > 31 && oreg.eax.w[0] <= 640) {
-    addr_t dosmem = (oreg.eax.w[0] << 10) - 0x7c00;
-    if (syslinux_add_memmap(&mmap, 0x7c00, dosmem, SMT_FREE))
+    addr_t dosmem = (oreg.eax.w[0] << 10) - 0x600;
+    if (syslinux_add_memmap(&mmap, 0x600, dosmem, SMT_FREE))
       goto bail;
   }
 

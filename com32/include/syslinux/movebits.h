@@ -59,8 +59,13 @@ int syslinux_add_movelist(struct syslinux_movelist **,
 			  addr_t dst, addr_t src, addr_t len);
 int syslinux_allocate_from_list(struct syslinux_movelist **freelist,
 				addr_t dst, addr_t len);
-int syslinux_prepare_shuffle(struct syslinux_movelist *fraglist,
-			     struct syslinux_memmap *memmap);
+int syslinux_do_shuffle(struct syslinux_movelist *fraglist,
+			struct syslinux_memmap *memmap,
+			addr_t entry_point, addr_t entry_type,
+			uint16_t bootflags);
+struct syslinux_memmap *
+syslinux_target_memmap(struct syslinux_movelist *fraglist,
+		       struct syslinux_memmap *memmap);
 
 /* Operatons on struct syslinux_memmap */
 struct syslinux_memmap *syslinux_init_memmap(void);

@@ -156,6 +156,7 @@ replace_bootstrap:
 		mov ebx,trackbuf
 		imul di,ax,12
 		add di,bx		; DI <- end of list
+		push di
 
 		; Terminating entry...
 		lea eax,[di+12]
@@ -169,15 +170,19 @@ replace_bootstrap:
 		mov cx,replace_stub.len >> 2
 		rep movsd
 		
+		xor eax,eax
+		pop cx			; ECX <- length of list
+
 		pop word [di+replace_stub.ss]
 		pop word [di+replace_stub.esp]
 		pop dword [di+replace_stub.csip]
 
-		movzx edx,di		; "Safe area"
-
 		cli
 		mov ss,[di+replace_stub.ss]
 		mov esp,[di+replace_stub.esp]
+
+		mov edi,trackbuf
+		mov esi,edi
 
 		jmp shuffle_and_boot_raw
 

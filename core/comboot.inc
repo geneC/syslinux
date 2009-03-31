@@ -1002,8 +1002,6 @@ comapi_shufsize:
 ;
 comapi_shufraw:
 		call comapi_cleanup
-		mov ebx,P_EDI
-		mov edx,P_EBX
 		jmp shuffle_and_boot_raw
 
 		section .data
