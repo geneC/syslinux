@@ -178,7 +178,8 @@ com32_call_start:
 		push dword (comboot_seg << 4)	; Bounce buffer address
 		push dword com32_intcall	; Intcall entry point
 		push dword command_line		; Command line pointer
-		push dword 6			; Argument count
+		push dword [HighMemSize]	; Memory managed by Syslinux
+		push dword 7			; Argument count
 		sti				; Interrupts OK now
 		call pm_entry			; Run the program...
 		; ... on return, fall through to com32_exit ...

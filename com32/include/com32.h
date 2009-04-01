@@ -75,6 +75,7 @@ extern struct com32_sys_args {
   uint32_t cs_bounce_size;
   void __cdecl (*cs_farcall)(uint32_t, const com32sys_t *, com32sys_t *);
   int __cdecl (*cs_cfarcall)(uint32_t, const void *, uint32_t);
+  uint32_t cs_memsize;
 } __com32;
 
 /*

@@ -79,6 +79,7 @@ struct syslinux_memmap *syslinux_memory_map(void)
   ireg.es       = SEG(e820buf);
   ireg.edi.w[0] = OFFS(e820buf);
   memset(e820buf, 0, sizeof *e820buf);
+  /* Set this in case the BIOS doesn't, but doesn't change %ecx to match. */
   e820buf->extattr = 1;
 
   do {

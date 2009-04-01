@@ -5,6 +5,8 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
+#include <com32.h>
 #include "init.h"
 #include "malloc.h"
 
@@ -31,10 +33,22 @@ static inline size_t sp(void)
   return sp;
 }
 
+struct e820_entry {
+  uint64_t start;
+  uint64_t len;
+  uint32_t type;
+  uint32_t extattr;
+};
+
+#define E820_MEM_MAX 0xfff00000	/* 4 GB - 1 MB */
+
 static void __constructor init_memory_arena(void)
 {
-  struct free_arena_header *fp;
+  struct free_arena_header *fp, *fx;
   size_t start, total_space;
+  static com32sys_t ireg;
+  com32sys_t oreg;
+  struct e820_entry *e820buf;
 
   start = (size_t)ARENA_ALIGN_UP(__mem_end);
   total_space = sp() - start;
@@ -46,14 +60,65 @@ static void __constructor init_memory_arena(void)
     __stack_size = total_space - 4*sizeof(struct arena_header);
 
   fp = (struct free_arena_header *)start;
-  fp->a.type = ARENA_TYPE_FREE;
   fp->a.size = total_space - __stack_size;
 
-  /* Insert into chains */
-  fp->a.next = fp->a.prev = &__malloc_head;
-  fp->next_free = fp->prev_free = &__malloc_head;
-  __malloc_head.a.next = __malloc_head.a.prev = fp;
-  __malloc_head.next_free = __malloc_head.prev_free = fp;
+  __inject_free_block(fp);
+
+  /* Scan E820 to see if there are any other suitable blocks */
+  if (!__com32.cs_memsize)
+    return;			/* Old Syslinux core, can't do this... */
+
+  e820buf = __com32.cs_bounce;
+  ireg.eax.w[0] = 0xe820;
+  ireg.edx.l    = 0x534d4150;
+  /* ireg.ebx.l    = 0; */
+  ireg.ecx.b[0] = sizeof(*e820buf);
+  ireg.es       = SEG(e820buf);
+  ireg.edi.w[0] = OFFS(e820buf);
+  memset(e820buf, 0, sizeof *e820buf);
+  /* Set this in case the BIOS doesn't, but doesn't change %ecx to match. */
+  e820buf->extattr = 1;
+
+  do {
+    size_t start, end, len;
+
+    __intcall(0x15, &ireg, &oreg);
+
+    if ((oreg.eflags.l & EFLAGS_CF) ||
+	(oreg.eax.l != 0x534d4150) ||
+	(oreg.ecx.l < 20))
+      break;
+
+    if (oreg.ecx.l > 20 && !(e820buf->extattr & 1))
+      continue;
+    if (e820buf->type != 1)
+      continue;
+
+    /* Careful... these may be truncated values */
+    start = e820buf->start;
+    len   = e820buf->len;
+
+    if (e820buf->start >= E820_MEM_MAX)
+      continue;
+    if (e820buf->len > E820_MEM_MAX - start)
+      len = E820_MEM_MAX - start;
+
+    /* Now all the values should be within range */
+    end = start + len;
+
+    if (end <= __com32.cs_memsize)
+      continue;
+    if (start <= __com32.cs_memsize) {
+      start = __com32.cs_memsize;
+      len = end - start;
+    }
+
+    if (len >= 2*sizeof(struct arena_header)) {
+      fp = (struct free_arena_header *)start;
+      fp->a.size = len;
+      __inject_free_block(fp);
+    }
+  } while ((ireg.ebx.l = oreg.ebx.l) != 0);
 }
 
 static void *__malloc_from_block(struct free_arena_header *fp, size_t size)

@@ -58,6 +58,42 @@ __free_block(struct free_arena_header *ah)
   return ah;
 }
 
+/*
+ * This is used to insert a block which is not previously on the
+ * free list.  Only the a.size field of the arena header is assumed
+ * to be valid.
+ */
+void __inject_free_block(struct free_arena_header *ah)
+{
+  struct free_arena_header *nah;
+  size_t a_end = (size_t)ah + ah->a.size;
+  size_t n_end;
+
+  for (nah = __malloc_head.a.next; nah->a.type != ARENA_TYPE_HEAD;
+       nah = nah->a.next) {
+    n_end = (size_t)nah + nah->a.size;
+
+    /* Is nah entirely beyond this block? */
+    if ((size_t)nah >= a_end)
+      break;
+
+    /* Is this block entirely beyond nah? */
+    if ((size_t)ah >= n_end)
+      continue;
+
+    /* Otherwise we have some sort of overlap - reject this block */
+    return;
+  }
+
+  /* Now, nah should point to the successor block */
+  ah->a.next = nah;
+  ah->a.prev = nah->a.prev;
+  nah->a.prev = ah;
+  ah->a.prev->a.next = ah;
+
+  __free_block(ah);
+}
+
 void free(void *ptr)
 {
   struct free_arena_header *ah;
