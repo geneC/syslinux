@@ -222,6 +222,7 @@ int syslinux_memmap_find(struct syslinux_memmap *list,
 	return 0;
       }
     }
+    list = list->next;
   }
 
   return -1;			/* Not found */
