@@ -11,7 +11,7 @@ Changes in 3.74:
 	  dynamically.
 	* isohybrid: workaround bug in some versions of binutils.
 	* Fix issue with the placement of the initrd on some machines.
-	* ifcpu64: fix handling of less than three argumetns.
+	* ifcpu64: fix handling of less than three arguments.
 	* Fix bug in the shuffle library when dealing with a very
 	  large number of fragments.
 	* Documentation fixes by Vicente Jimenez Aguilar.
