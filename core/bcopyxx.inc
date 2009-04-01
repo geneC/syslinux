@@ -40,10 +40,13 @@ bcopyxx_start	equ $
 ;
 ;	ECX is guaranteed to not be zero on entry.
 ;
+;	Clobbers ESI, EDI, ECX.
+;
 	
 pm_bcopy:
 		push ebx
 		push edx
+		push eax
 
 		cmp esi,-1
 		je .bzero
@@ -85,6 +88,7 @@ pm_bcopy:
 		a32 movsb
 .fab1:
 .done:
+		pop eax
 		pop edx
 		pop ebx
 		ret
@@ -201,9 +205,7 @@ pm_bcopy:
 pm_shuffle:
 		mov ebx,edi		; EBX <- descriptor list
 		lea edx,[edi+ecx]	; EDX <- shuffler end location
-		push edx
 		call pm_bcopy
-		pop edx
 		mov edi,edx
 		mov esi,bcopyxx_start
 		mov ecx,bcopyxx_dwords
@@ -223,9 +225,9 @@ pm_shuffle:
 		mov edi,[ebx]
 		mov esi,[ebx+4]
 		mov ecx,[ebx+8]
+		add ebx,12
 		jecxz .done
 		call pm_bcopy
-		add ebx,12
 		jmp .loop
 .done:
 		and esi,esi
