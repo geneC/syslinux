@@ -114,7 +114,7 @@ int syslinux_do_shuffle(struct syslinux_movelist *fraglist,
     goto bail;
   /* Avoid using the low 1 MB for the shuffle area -- this avoids
      possible interference with the real mode code or stack */
-  if (syslinux_add_memmap(&rxmap, 0, 1024*1024, SMT_ALLOC))
+  if (syslinux_add_memmap(&rxmap, 0, 1024*1024, SMT_RESERVED))
     goto bail;
   for (mp = fraglist; mp; mp = mp->next) {
     if (syslinux_add_memmap(&rxmap, mp->src, mp->len, SMT_ALLOC) ||
