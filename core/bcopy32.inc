@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -57,8 +57,10 @@ bcopy:		jecxz .ret
 ; shuffle_and_boot_raw:
 ;	The new version of shuffle and boot.
 ; Inputs:
-;	EBX		-> Pointer to list of (dst, src, len) pairs(*)
-;	EDX		-> Pointer to safe memory area
+;	ESI		-> Pointer to list of (dst, src, len) pairs(*)
+;	EDI		-> Pointer to safe area for list + shuffler
+;			   (must not overlap this code nor the RM stack)
+;	ECX		-> Byte count of list area (for initial copy)
 ;
 ;     If src == -1: then the memory pointed to by (dst, len) is bzeroed;
 ;		    this is handled inside the bcopy routine.
@@ -151,9 +153,6 @@ simple_pm_call:
 		mov eax,PM_DS16_RM	; "Real-mode-like" data segment
 		mov es,eax
 		mov ds,eax
-
-		mov bp,[.rm_ss]
-
 		mov ss,eax
 
 		mov eax,cr0
@@ -162,8 +161,7 @@ simple_pm_call:
 		jmp 0:.in_rm
 
 .in_rm:		; Back in real mode
-		mov ss,bp		; Restore the stack
-		mov esp,[cs:.rm_esp]
+		lss esp,[cs:.rm_esp]	; Restore the stack
 		pop gs
 		pop fs
 		pop es
