@@ -172,13 +172,13 @@ com32_call_start:
 
 		; Now everything is set up for interrupts...
 
+		push dword [HighMemSize]	; Memory managed by Syslinux
 		push dword com32_cfarcall	; Cfarcall entry point
 		push dword com32_farcall	; Farcall entry point
 		push dword (1 << 16)		; 64K bounce buffer
 		push dword (comboot_seg << 4)	; Bounce buffer address
 		push dword com32_intcall	; Intcall entry point
 		push dword command_line		; Command line pointer
-		push dword [HighMemSize]	; Memory managed by Syslinux
 		push dword 7			; Argument count
 		sti				; Interrupts OK now
 		call pm_entry			; Run the program...
