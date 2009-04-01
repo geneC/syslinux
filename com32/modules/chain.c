@@ -447,7 +447,6 @@ static void do_boot(void *boot_sector, size_t boot_size,
   }
 
   /* Nothing below 0x7c00, much simpler... */
-  /* The 256 byte is a fudge factor... */ 
 
   if (boot_size >= dosmem - loadbase)
       goto too_big;
