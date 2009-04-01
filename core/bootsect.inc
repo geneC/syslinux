@@ -170,7 +170,7 @@ replace_bootstrap:
 		mov cx,replace_stub.len >> 2
 		rep movsd
 		
-		xor eax,eax
+		xor ecx,ecx
 		pop cx			; ECX <- length of list
 
 		pop word [di+replace_stub.ss]
