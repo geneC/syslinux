@@ -431,6 +431,17 @@ static void autocomplete_command(char *command)
 	}
 
 	/*
+	 * Then, go through the modes for the special case
+	 *	'<mode>' -> 'set mode <mode>'
+	 */
+	for (j = 0; j < MAX_MODES; j++) {
+		if (strncmp(list_modes[j]->name, command, strlen(command)) == 0) {
+			more_printf("%s\n", list_modes[j]->name);
+			autocomplete_add_token_to_list(list_modes[j]->name);
+		}
+	}
+
+	/*
 	 * Let's go now through the list of default_modules for the current mode
 	 * (single token commands for the current_mode)
 	 */
