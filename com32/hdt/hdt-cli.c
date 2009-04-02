@@ -185,9 +185,10 @@ void set_mode(cli_mode_t mode, struct s_hardware* hardware)
 	}
 
 	find_cli_mode_descr(hdt_cli.mode, &current_mode);
-	if (current_mode == NULL) {
+	/* There is not cli_mode_descr struct for the exit mode */
+	if (current_mode == NULL && hdt_cli.mode != EXIT_MODE) {
 		/* Shouldn't get here... */
-		more_printf("!!! BUG: Mode '%s' unknown.\n", hdt_cli.mode);
+		more_printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
 	}
 }
 
@@ -428,6 +429,17 @@ static void autocomplete_command(char *command)
 	if (strncmp(CLI_SET, command, strlen(command)) == 0) {
 		more_printf("%s\n", CLI_SET);
 		autocomplete_add_token_to_list(CLI_SET);
+	}
+
+	/*
+	 * Then, go through the modes for the special case
+	 *	'<mode>' -> 'set mode <mode>'
+	 */
+	for (j = 0; j < MAX_MODES; j++) {
+		if (strncmp(list_modes[j]->name, command, strlen(command)) == 0) {
+			more_printf("%s\n", list_modes[j]->name);
+			autocomplete_add_token_to_list(list_modes[j]->name);
+		}
 	}
 
 	/*
@@ -700,7 +712,7 @@ void start_cli_mode(struct s_hardware *hardware)
 	find_cli_mode_descr(hdt_cli.mode, &current_mode);
 	if (current_mode == NULL) {
 		/* Shouldn't get here... */
-		more_printf("!!! BUG: Mode '%s' unknown.\n", hdt_cli.mode);
+		more_printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
 		return;
 	}
 
