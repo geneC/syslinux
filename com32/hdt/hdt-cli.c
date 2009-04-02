@@ -312,8 +312,9 @@ out:
 static void parse_command_line(char *line, char **command, char **module,
 			       int *argc, char **argv)
 {
-	int argc_iter = 0, args_pos = 0, token_found = 0, len = 0;
-	char *pch = NULL, *pch_next = NULL;
+	int argc_iter = 0, args_pos = 0, token_found = 0, token_len = 0;
+	int args_len = 0;
+	char *pch = NULL, *pch_next = NULL, *tmp_pch_next = NULL;
 
 	*command = NULL;
 	*module = NULL;
@@ -322,32 +323,47 @@ static void parse_command_line(char *line, char **command, char **module,
 	pch = line;
 	while (pch != NULL) {
 		pch_next = strchr(pch + 1, ' ');
+		tmp_pch_next = pch_next;
+
+		/*
+		 * Skip whitespaces if the user entered
+		 * 'set   mode        foo' for 'set mode foo'
+		 *  ^   ^
+		 *  |___|___ pch
+		 *      |___ pch_next <- wrong!
+		 *
+		 *  We still keep the position into tmp_pch_next to compute
+		 *  the lenght of the current token.
+		 */
+		while (pch_next != NULL && !strncmp(pch_next, CLI_SPACE, 1))
+			pch_next++;
 
 		/* End of line guaranteed to be zeroed */
-		if (pch_next == NULL)
-			len = (int) (strchr(pch + 1, '\0') - pch);
-		else
-			len = (int) (pch_next - pch);
+		if (pch_next == NULL) {
+			token_len = (int) (strchr(pch + 1, '\0') - pch);
+			args_len = token_len;
+		}
+		else {
+			token_len = (int) (tmp_pch_next - pch);
+			args_len = (int) (pch_next - pch);
+		}
 
 		if (token_found == 0) {
 			/* Main command to execute */
-			*command = malloc((len + 1) * sizeof(char));
-			strncpy(*command, pch, len);
-			(*command)[len] = '\0';
+			*command = malloc((token_len + 1) * sizeof(char));
+			strncpy(*command, pch, token_len);
+			(*command)[token_len] = '\0';
 			dprintf("CLI DEBUG: command = %s\n", *command);
-			args_pos += len + 1;
+			args_pos += args_len;
 		} else if (token_found == 1) {
 			/* Module */
-			*module = malloc((len + 1) * sizeof(char));
-			strncpy(*module, pch, len);
-			(*module)[len] = '\0';
+			*module = malloc((token_len + 1) * sizeof(char));
+			strncpy(*module, pch, token_len);
+			(*module)[token_len] = '\0';
 			dprintf("CLI DEBUG: module  = %s\n", *module);
-			args_pos += len + 1;
+			args_pos += args_len;
 		} else
 			(*argc)++;
-
-		if (pch_next != NULL)
-			pch_next++;
 
 		token_found++;
 		pch = pch_next;
@@ -367,6 +383,12 @@ static void parse_command_line(char *line, char **command, char **module,
 		strncpy(argv[argc_iter], pch, sizeof(pch));
 		argc_iter++;
 		pch = strtok(NULL, CLI_SPACE);
+		/*
+		 * strtok(NULL, CLI_SPACE) over a stream of spaces
+		 * will return an empty string
+		 */
+		while (pch != NULL && !strncmp(pch, "", 1))
+			pch = strtok(NULL, CLI_SPACE);
 	}
 }
 
