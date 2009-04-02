@@ -184,9 +184,10 @@ void set_mode(cli_mode_t mode, struct s_hardware* hardware)
 	}
 
 	find_cli_mode_descr(hdt_cli.mode, &current_mode);
-	if (current_mode == NULL) {
+	/* There is not cli_mode_descr struct for the exit mode */
+	if (current_mode == NULL && hdt_cli.mode != EXIT_MODE) {
 		/* Shouldn't get here... */
-		more_printf("!!! BUG: Mode '%s' unknown.\n", hdt_cli.mode);
+		more_printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
 	}
 }
 
@@ -699,7 +700,7 @@ void start_cli_mode(struct s_hardware *hardware)
 	find_cli_mode_descr(hdt_cli.mode, &current_mode);
 	if (current_mode == NULL) {
 		/* Shouldn't get here... */
-		more_printf("!!! BUG: Mode '%s' unknown.\n", hdt_cli.mode);
+		more_printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
 		return;
 	}
 
