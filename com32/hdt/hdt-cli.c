@@ -895,6 +895,29 @@ void start_cli_mode(struct s_hardware *hardware)
 			reset_prompt();
 			break;
 
+                case KEY_DELETE:
+                case KEY_DEL:
+                        /* No need to delete when input is empty */
+                        if (strlen(hdt_cli.input)==0) break;
+                        /* Don't delete when cursor is at the end of the line */
+                        if (hdt_cli.cursor_pos>=strlen(hdt_cli.input)) break;
+
+			for (int c = hdt_cli.cursor_pos;
+			     c < (int)strlen(hdt_cli.input) - 1; c++)
+				hdt_cli.input[c] = hdt_cli.input[c + 1];
+			hdt_cli.input[strlen(hdt_cli.input) - 1] = '\0';
+
+			/* Clear the end of the line */
+			clear_end_of_line();
+
+			/* Print the resulting buffer */
+			printf("%s", hdt_cli.input + hdt_cli.cursor_pos);
+
+			/* Replace the cursor at the proper place */
+			if (strlen(hdt_cli.input + hdt_cli.cursor_pos)>0)
+				move_cursor_left(strlen(hdt_cli.input + hdt_cli.cursor_pos));
+			break;
+
 		case KEY_BACKSPACE:
 			/* Don't delete prompt */
 			if (hdt_cli.cursor_pos == 0)
