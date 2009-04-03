@@ -318,7 +318,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	end = 640*1024;
 
       start = ALIGN_UP(start, 16);
-      if (start >= end)
+      if (start > 0x90000 || start >= end)
 	continue;
 
       if (end - start >= cmdline_offset+cmdline_size) {
