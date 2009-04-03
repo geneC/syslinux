@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -25,42 +25,13 @@
  *
  * ----------------------------------------------------------------------- */
 
-/*
- * memmap.c
- *
- * Create initial memory map for "shuffle and boot" operation
- */
+#ifndef _SYSLINUX_MEMSCAN_H
+#define _SYSLINUX_MEMSCAN_H
 
-#include <assert.h>
 #include <stdbool.h>
-#include <stdlib.h>
-#include <inttypes.h>
+#include <syslinux/movebits.h>	/* addr_t */
 
-#include <syslinux/memscan.h>
-#include <syslinux/movebits.h>
+typedef int (*scan_memory_callback)(void *, addr_t, addr_t, bool);
+int syslinux_scan_memory(scan_memory_callback callback, void *data);
 
-static int syslinux_memory_map_callback(void *map, addr_t start,
-					addr_t len, bool valid)
-{
-  struct syslinux_memmap **mmap = map;
-  return syslinux_add_memmap(mmap, start, len,
-			     valid ? SMT_FREE : SMT_RESERVED);
-}
-
-struct syslinux_memmap *syslinux_memory_map(void)
-{
-  struct syslinux_memmap *mmap;
-  enum syslinux_memmap_types type;
-  int rv;
-
-  mmap = syslinux_init_memmap();
-  if (!mmap)
-    return NULL;
-
-  if (syslinux_scan_memory(syslinux_memory_map_callback, &mmap)) {
-    syslinux_free_memmap(mmap);
-    return NULL;
-  }
-
-  return mmap;
-}
+#endif /* _SYSLINUX_MEMSCAN_H */
