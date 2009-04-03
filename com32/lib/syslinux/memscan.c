@@ -47,7 +47,7 @@ struct e820_entry {
   uint32_t extattr;
 };
 
-int syslinux_scan_memory(scan_memory_callback callback, void *data)
+int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
 {
   static com32sys_t ireg, zireg;
   com32sys_t oreg;
