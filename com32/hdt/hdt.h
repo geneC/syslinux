@@ -30,7 +30,7 @@
 #define DEFINE_HDT_H
 
 #define PRODUCT_NAME "Hardware Detection Tool"
-#define AUTHOR "Erwan Vèlu"
+#define AUTHOR "Erwan Velu"
 #define CONTACT "erwan(dot)velu(point)free(dot)fr"
 #define VERSION "0.2.7"
 #define NB_CONTRIBUTORS 2

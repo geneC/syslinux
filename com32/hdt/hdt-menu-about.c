@@ -54,7 +54,7 @@ void compute_aboutmenu(struct s_my_menu *menu)
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu->items_count++;
 
-  snprintf(buffer, sizeof buffer, "Contact     :  %s", CONTACT);
+  snprintf(buffer, sizeof buffer, "Contact     : %s", CONTACT);
   snprintf(statbuffer, sizeof statbuffer, "Contact : %s", CONTACT);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu->items_count++;
