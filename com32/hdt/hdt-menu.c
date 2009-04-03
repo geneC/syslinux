@@ -275,6 +275,7 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
      HDT_SWITCH_TO_CLI, 0);
   add_item("<A>bout", "About Menu", OPT_SUBMENU, NULL,
      hdt_menu->about_menu.menu);
+  add_item("E<x>it","Exit", OPT_EXITMENU,NULL,0);
   hdt_menu->main_menu.items_count++;
 
   hdt_menu->total_menu_count += hdt_menu->main_menu.items_count;
