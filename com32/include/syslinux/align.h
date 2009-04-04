@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2009 Erwan Velu - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -23,22 +23,25 @@
  *   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *   OTHER DEALINGS IN THE SOFTWARE.
  *
- * -----------------------------------------------------------------------
- */
+ * ----------------------------------------------------------------------- */
 
-#ifndef DEFINE_HDT_H
-#define DEFINE_HDT_H
+#ifndef _SYSLINUX_ALIGN_H
+#define _SYSLINUX_ALIGN_H
 
-#define PRODUCT_NAME "Hardware Detection Tool"
-#define AUTHOR "Erwan Velu"
-#define CONTACT "erwan(dot)velu(point)free(dot)fr"
-#define VERSION "0.2.7"
-#define NB_CONTRIBUTORS 2
-#define CONTRIBUTORS {"Pierre-Alexandre Meyer", "Sebastien Gonzalve"}
+#include <stdint.h>
 
-#define ATTR_PACKED __attribute__((packed))
+static inline uintptr_t __align_down(uintptr_t __p, uintptr_t __a)
+{
+  return __p & ~(__a - 1);
+}
+static inline uintptr_t __align_up(uintptr_t __p, uintptr_t __a)
+{
+  return (__p + __a - 1) & ~(__a - 1);
+}
 
-#define WITH_PCI 1
-#define WITH_MENU_DISPLAY 1
+#define ALIGN_UP(p,a) ((__typeof__(p))__align_up((uintptr_t)(p), (a)))
+#define ALIGN_DOWN(p,a) ((__typeof__(p))__align_down((uintptr_t)(p), (a)))
+#define ALIGN_UP_FOR(p,t) ALIGN_UP(p,sizeof(t))
+#define ALIGN_DOWN_FOR(p,t) ALIGN_DOWN(p,sizeof(t))
 
-#endif
+#endif /* _SYSLINUX_ALIGN_H */

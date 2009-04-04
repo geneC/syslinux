@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2009 Erwan Velu - All Rights Reserved
+ *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -23,22 +24,15 @@
  *   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *   OTHER DEALINGS IN THE SOFTWARE.
  *
- * -----------------------------------------------------------------------
- */
+ * ----------------------------------------------------------------------- */
 
-#ifndef DEFINE_HDT_H
-#define DEFINE_HDT_H
+#ifndef _SYSLINUX_MEMSCAN_H
+#define _SYSLINUX_MEMSCAN_H
 
-#define PRODUCT_NAME "Hardware Detection Tool"
-#define AUTHOR "Erwan Velu"
-#define CONTACT "erwan(dot)velu(point)free(dot)fr"
-#define VERSION "0.2.7"
-#define NB_CONTRIBUTORS 2
-#define CONTRIBUTORS {"Pierre-Alexandre Meyer", "Sebastien Gonzalve"}
+#include <stdbool.h>
+#include <syslinux/movebits.h>	/* addr_t */
 
-#define ATTR_PACKED __attribute__((packed))
+typedef int (*scan_memory_callback_t)(void *, addr_t, addr_t, bool);
+int syslinux_scan_memory(scan_memory_callback_t callback, void *data);
 
-#define WITH_PCI 1
-#define WITH_MENU_DISPLAY 1
-
-#endif
+#endif /* _SYSLINUX_MEMSCAN_H */

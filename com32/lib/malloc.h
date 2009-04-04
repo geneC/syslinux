@@ -52,3 +52,5 @@ struct free_arena_header {
 };
 
 extern struct free_arena_header __malloc_head;
+void __inject_free_block(struct free_arena_header *ah);
+

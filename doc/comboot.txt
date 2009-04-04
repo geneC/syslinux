@@ -79,13 +79,14 @@ The following arguments are passed to the program on the stack:
 
  Address  Size	Meaning
  [ESP]    dword Return (termination) address
- [ESP+4]  dword	Number of additional arguments (currently 5)
+ [ESP+4]  dword	Number of additional arguments (currently 7)
  [ESP+8]  dword	Pointer to the command line arguments (null-terminated string)
  [ESP+12] dword Pointer to INT call helper function
  [ESP+16] dword Pointer to low memory bounce buffer
  [ESP+20] dword Size of low memory bounce buffer
  [ESP+24] dword Pointer to FAR call helper function (new in 2.05)
  [ESP+28] dword Pointer to CDECL helper function (new in 3.54)
+ [ESP+32] dword Amount of memory controlled by the Syslinux core (new in 3.74)
 
 This corresponds to the following C prototype, available in the file
 com32/include/com32.h:

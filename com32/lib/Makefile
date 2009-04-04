@@ -84,6 +84,8 @@ LIBOBJS = \
 	syslinux/ipappend.o syslinux/dsinfo.o syslinux/version.o	\
 	syslinux/keyboard.o						\
 	\
+	syslinux/memscan.o						\
+	\
 	syslinux/addlist.o syslinux/freelist.o syslinux/memmap.o	\
 	syslinux/movebits.o syslinux/shuffle.o syslinux/shuffle_pm.o	\
 	syslinux/shuffle_rm.o syslinux/zonelist.o			\
