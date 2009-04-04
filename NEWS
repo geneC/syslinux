@@ -29,6 +29,12 @@ Changes in 3.74:
 	  presence of a memory hole.  The "linux.c32" module can be
 	  used to load a kernel (or memdisk) plus large initrd on
 	  such a system.
+	* MBR: produce alternate MBR variants which force the drive
+	  number to hd0 (_f variants), or force the drive number to
+	  hd0 if the Ctrl key is pressed (_c variants.)  Furthermore,
+	  add an MBR variant (altmbr*.bin) which ignores the active
+	  flag and instead boots the partition number specified in the
+	  byte at offset 439 decimal.
 
 Changes in 3.73:
 	* Upgrade gPXE to release version 0.9.5.

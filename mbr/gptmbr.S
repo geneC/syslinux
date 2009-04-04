@@ -1,6 +1,7 @@
 /* -----------------------------------------------------------------------
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -25,6 +26,8 @@
  *
  * ----------------------------------------------------------------------- */
 
+#include "adjust.h"
+
 	.code16
 	.text
 
@@ -42,6 +45,7 @@ bootguid	= _start + 0x1a8
 /* Where we put DS:SI */
 dssi_out	= _start + 0x1be
 
+BIOS_kbdflags	= 0x417
 BIOS_page	= 0x462
 
 	/* gas/ld has issues with doing this as absolute addresses... */
@@ -61,7 +65,6 @@ _start:
 	movw	%sp, %si
 	pushw	%es		/* 4(%bp) es:di -> $PnP header */
 	pushw	%di		/* 2(%bp) */
-	pushw	%dx		/* 0(%bp) = %dl -> drive number */
 	movw	%ax, %es
 	sti
 	cld
@@ -72,8 +75,11 @@ _start:
 	rep; movsw
 
 	ljmpw	$0, $next
-
 next:
+
+	ADJUST_DRIVE
+	pushw	%dx		/* 0(%bp) = %dl -> drive number */
+
 	/* Check to see if we have EBIOS */
 	pushw	%dx		/* drive number */
 	movb	$0x41, %ah	/* %al == 0 already */
@@ -163,10 +169,10 @@ find_part:
 
 found_part:
 	xchgw	%ax,%cx		/* Set up %cx for rep movsb further down */
-	
+
 	movw	$dssi_out,%di
 	pushw	%di
-	
+
 	/* 80 00 00 00 ee 00 00 00
 	   - bootable partition, type EFI (EE), no CHS information */
 	xorl	%eax,%eax
@@ -210,7 +216,7 @@ boot:
 
 missing_os:
 	call	error
-	.ascii	"Operating system not bootable\r\n"
+	.ascii	"OS not bootable\r\n"
 
 saturate_stosl:
 	pushl	%eax
