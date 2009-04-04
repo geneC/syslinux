@@ -59,9 +59,9 @@ int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
 
   /* Use INT 12h to get DOS memory above 0x7c00 */
   __intcall(0x12, &zireg, &oreg);
-  if (oreg.eax.w[0] > 2 && oreg.eax.w[0] <= 640) {
-    addr_t dosmem = (oreg.eax.w[0] << 10) - 0x504;
-    rv = callback(data, 0x504, dosmem, true);
+  if (oreg.eax.w[0] >= 32 && oreg.eax.w[0] <= 640) {
+    addr_t dosmem = (oreg.eax.w[0] << 10) - 0x7c00;
+    rv = callback(data, 0x7c00, dosmem, true);
     if (rv)
       return rv;
   }
