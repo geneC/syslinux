@@ -1,6 +1,7 @@
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+##   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
+##   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -17,33 +18,30 @@
 topdir = ..
 include $(topdir)/MCONFIG.embedded
 
-all:	mbr.bin altmbr.bin gptmbr.bin isohdpfx.bin
+all:	mbr.bin   altmbr.bin   gptmbr.bin   isohdpfx.bin   \
+	mbr_c.bin altmbr_c.bin gptmbr_c.bin isohdpfx_c.bin \
+	mbr_f.bin altmbr_f.bin gptmbr_f.bin isohdpfx_f.bin
 
 .PRECIOUS: %.o
-%.o: %.S
+%.o: %.S adjust.h
 	$(CC) $(SFLAGS) -Wa,-a=$*.lst -c -o $@ $<
+
+%_c.o: %.S adjust.h
+	$(CC) $(SFLAGS) -Wa,-a=$*_c.lst -DCTRL_80 -c -o $@ $<
+
+%_f.o: %.S adjust.h
+	$(CC) $(SFLAGS) -Wa,-a=$*_f.lst -DFORCE_80 -c -o $@ $<
 
 .PRECIOUS: %.elf
 %.elf: %.o mbr.ld
 	$(LD) $(LDFLAGS) -T mbr.ld -e _start -o $@ $<
 
-mbr.bin: mbr.elf checksize.pl
+%.bin: %.elf checksize.pl
 	$(OBJCOPY) -O binary $< $@
-	$(PERL) checksize.pl $@ 440
-
-altmbr.bin: altmbr.elf checksize.pl
-	$(OBJCOPY) -O binary $< $@
-	$(PERL) checksize.pl $@ 439 440
-
-isohdpfx.bin: isohdpfx.elf checksize.pl
-	$(OBJCOPY) -O binary $< $@
-	$(PERL) checksize.pl $@ 432
+	$(PERL) checksize.pl $@
+	$(CHMOD) -x $@
 
 mbr_bin.c: mbr.bin
-
-gptmbr.bin: gptmbr.elf checksize.pl
-	$(OBJCOPY) -O binary $< $@
-	$(PERL) checksize.pl $@ 424
 
 tidy dist:
 	rm -f *.o *.elf *.lst

@@ -1,6 +1,7 @@
 ## -----------------------------------------------------------------------
 ##
 ##   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
+##   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -19,6 +20,21 @@
 use bytes;
 
 ($file, $maxsize, $padsize) = @ARGV;
+
+if (!defined($maxsize)) {
+    # Defaults based on the filename
+    if ($file =~ /^mbr[^0-9a-z]/) {
+	$maxsize = $padsize = 440;
+    } elsif ($file =~ /^gptmbr[^0-9a-z]/) {
+	$maxsize = $padsize = 424;
+    } elsif ($file =~ /^isohdpfx[^0-9a-z]/) {
+	$maxsize = $padsize = 432;
+    } elsif ($file =~ /^altmbr[^0-9a-z]/) {
+	$maxsize = 439; $padsize = 440;
+    } else {
+	die "$0: no default size for filename: $file\n";
+    }
+}
 
 $padsize = $maxsize unless(defined($padsize));
 

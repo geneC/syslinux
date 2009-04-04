@@ -1,6 +1,7 @@
 /* -----------------------------------------------------------------------
  *
  *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -32,12 +33,14 @@
  * loader of a hard-coded offset, but that's good enough to load
  * ISOLINUX.
  */
-	
+
+#include "adjust.h"
+
 	.code16
 	.text
 
 HYBRID_MAGIC			= 0x7078c0fb
-isolinux_hybrid_signature 	= 0x7c00+64
+isolinux_hybrid_signature	= 0x7c00+64
 isolinux_start_hybrid		= 0x7c00+64+4
 
 	.globl	bootsec
@@ -81,12 +84,8 @@ _start:
 
 	ljmpw	$0, $next
 next:
-	
-	/* Escape for the user: if Ctrl is pressed, assume drive hd0 */
-	testb	$0x04, BIOS_kbdflags	/* Ctrl pressed */
-	jz	1f
-	movb	$0x80, %dl
-1:
+
+	ADJUST_DRIVE
 	pushw	%dx		/* dl -> drive number */
 
 	/* Check to see if we have EBIOS */
@@ -147,7 +146,7 @@ next:
 	 */
 	cmpl	$HYBRID_MAGIC,(isolinux_hybrid_signature)
 	jne	bad_signature
-	
+
 	cli
 	movw	$heads, %sp
 

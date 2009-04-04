@@ -26,6 +26,8 @@
  *
  * ----------------------------------------------------------------------- */
 
+#include "adjust.h"
+
 	.code16
 	.text
 
@@ -74,11 +76,8 @@ _start:
 
 	ljmpw	$0, $next
 next:
-	/* Escape for the user: if Ctrl is pressed, assume drive hd0 */
-	testb	$0x04, BIOS_kbdflags	/* Ctrl pressed */
-	jz	1f
-	movb	$0x80, %dl
-1:
+
+	ADJUST_DRIVE
 	pushw	%dx		/* 0(%bp) = %dl -> drive number */
 
 	/* Check to see if we have EBIOS */
@@ -170,10 +169,10 @@ find_part:
 
 found_part:
 	xchgw	%ax,%cx		/* Set up %cx for rep movsb further down */
-	
+
 	movw	$dssi_out,%di
 	pushw	%di
-	
+
 	/* 80 00 00 00 ee 00 00 00
 	   - bootable partition, type EFI (EE), no CHS information */
 	xorl	%eax,%eax

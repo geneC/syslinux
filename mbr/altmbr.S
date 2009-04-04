@@ -26,6 +26,8 @@
  *
  * ----------------------------------------------------------------------- */
 
+#include "adjust.h"
+
 	.code16
 	.text
 
@@ -66,12 +68,8 @@ _start:
 
 	ljmpw	$0, $next
 next:
-	
-	/* Escape for the user: if Ctrl is pressed, assume drive hd0 */
-	testb	$0x04, BIOS_kbdflags	/* Ctrl pressed */
-	jz	1f
-	movb	$0x80, %dl
-1:
+
+	ADJUST_DRIVE
 	pushw	%dx		/* dl -> drive number */
 
 	/* Check to see if we have EBIOS */
