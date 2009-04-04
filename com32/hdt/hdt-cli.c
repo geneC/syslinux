@@ -895,8 +895,8 @@ void start_cli_mode(struct s_hardware *hardware)
 			reset_prompt();
 			break;
 
+ 		case KEY_CTRL('d'):
                 case KEY_DELETE:
-                case KEY_DEL:
                         /* No need to delete when input is empty */
                         if (strlen(hdt_cli.input)==0) break;
                         /* Don't delete when cursor is at the end of the line */
@@ -918,6 +918,7 @@ void start_cli_mode(struct s_hardware *hardware)
 				move_cursor_left(strlen(hdt_cli.input + hdt_cli.cursor_pos));
 			break;
 
+		case KEY_DEL:
 		case KEY_BACKSPACE:
 			/* Don't delete prompt */
 			if (hdt_cli.cursor_pos == 0)
