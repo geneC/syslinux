@@ -58,7 +58,7 @@ spotless: clean
 	rm -f *.lss *.a *.c32 *.com
 	rm -f *~ \#*
 
-install: all
+install:
 	mkdir -m 755 -p $(INSTALLROOT)$(COM32DIR)
 	install -m 644 libutil_com.a libutil_lnx.a $(INSTALLROOT)$(COM32DIR)
 

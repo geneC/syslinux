@@ -128,7 +128,7 @@ spotless: clean
 	rm -f *.a
 	rm -f *~ \#* */*~ */\#*
 
-install: all
+install:
 	mkdir -m 755 -p $(INSTALLROOT)$(COM32DIR)
 	install -m 644 libcom32.a com32.ld $(INSTALLROOT)$(COM32DIR)
 	-rm -rf $(INSTALLROOT)$(COM32DIR)/include

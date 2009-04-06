@@ -42,7 +42,7 @@ spotless: clean
 	rm -f *.lss *.c32 *.com
 	rm -f *~ \#*
 
-install: all
+install:
 	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)
 	install -m 644 $(MODULES) $(INSTALLROOT)$(AUXDIR)
 
