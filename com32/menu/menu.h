@@ -174,6 +174,7 @@ extern struct menu *root_menu, *start_menu, *hide_menu, *menu_list;
 /* These are global parameters regardless of which menu we're displaying */
 extern int shiftkey;
 extern int hiddenmenu;
+extern bool menusave;
 extern long long totaltimeout;
 
 void parse_configs(char **argv);

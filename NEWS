@@ -37,6 +37,9 @@ Changes in 3.74:
 	  byte at offset 439 decimal.
 	* Add IPAPPEND strings to com32 modules, especially needed for
 	  linux.c32.
+	* New MENU SAVE directive which saves the latest menu
+	  selection until the next boot.  Currently only implemented for
+	  EXTLINUX.
 
 Changes in 3.73:
 	* Upgrade gPXE to release version 0.9.5.

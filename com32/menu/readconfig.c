@@ -12,6 +12,7 @@
  * ----------------------------------------------------------------------- */
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <minmax.h>
@@ -19,6 +20,7 @@
 #include <inttypes.h>
 #include <colortbl.h>
 #include <com32.h>
+#include <syslinux/adv.h>
 #include <syslinux/config.h>
 
 #include "menu.h"
@@ -33,6 +35,7 @@ struct menu *root_menu, *start_menu, *hide_menu, *menu_list;
 int shiftkey     = 0;		/* Only display menu if shift key pressed */
 int hiddenmenu   = 0;
 long long totaltimeout = 0;
+bool menusave    = false;
 
 /* Keep track of global default */
 static int has_ui = 0;		/* DEFAULT only counts if UI is found */
@@ -668,6 +671,8 @@ static void parse_config_file(FILE *f)
 	}
       } else if ( looking_at(p, "shiftkey") ) {
 	shiftkey = 1;
+      } else if ( looking_at(p, "save") ) {
+	menusave = true;
       } else if ( looking_at(p, "onerror") ) {
 	refstr_put(m->onerror);
 	m->onerror = refstrdup(skipspace(p+7));
@@ -1023,6 +1028,23 @@ void parse_configs(char **argv)
     if (me && me->menu != hide_menu) {
       me->menu->defentry = me->entry;
       start_menu = me->menu;
+    }
+  }
+
+  /* If "menu save" is active, let the ADV override the global default */
+  if (menusave) {
+    size_t len;
+    const char *lbl = syslinux_getadv(ADV_MENUSAVE, &len);
+    char *lstr;
+    if (lbl && len) {
+      lstr = refstr_alloc(len);
+      memcpy(lstr, lbl, len);	/* refstr_alloc() adds the final null */
+      me = find_label(lstr);
+      if (me && me->menu != hide_menu) {
+	me->menu->defentry = me->entry;
+	start_menu = me->menu;
+      }
+      refstr_put(lstr);
     }
   }
 
