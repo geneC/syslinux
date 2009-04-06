@@ -36,7 +36,7 @@ spotless: clean
 
 # Mixing in the GPL include files is suboptimal, but I'm not sure
 # there is a better way to do it.
-install:
+install: all
 	mkdir -m 755 -p $(INSTALLROOT)$(COM32DIR)
 	install -m 644 libcom32gpl.a $(INSTALLROOT)$(COM32DIR)
 	mkdir -p $(INSTALLROOT)$(COM32DIR)/include/
