@@ -61,6 +61,9 @@ void show_vesa_modes(struct s_hardware *hardware) {
 
   for (int i=0;i<hardware->vesa.vmi_count;i++) {
     struct vesa_mode_info *mi=&hardware->vesa.vmi[i].mi;
+    /* Sometimes, vesa bios reports 0x0 modes
+     * We don't need to display that ones */
+    if ((mi->h_res==0) || (mi->v_res==0)) continue;
     more_printf("%5u %5u    %3u     %3d     0x%04x\n",
                  mi->h_res, mi->v_res, mi->bpp, hardware->vesa.vmi[i].mode+0x200,hardware->vesa.vmi[i].mode);
   }

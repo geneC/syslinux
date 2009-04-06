@@ -79,6 +79,9 @@ void compute_vesa_modes(struct s_my_menu *menu, struct s_hardware *hardware) {
    set_menu_pos(SUBMENU_Y,SUBMENU_X);
    for (int i=0;i<hardware->vesa.vmi_count;i++) {
     struct vesa_mode_info *mi=&hardware->vesa.vmi[i].mi;
+    /* Sometimes, vesa bios reports 0x0 modes
+     * We don't need to display that ones */
+    if ((mi->h_res==0) || (mi->v_res==0)) continue;
     snprintf(buffer,sizeof buffer,"%4u x %4u x %2ubits vga=%3d",
                  mi->h_res, mi->v_res, mi->bpp, hardware->vesa.vmi[i].mode+0x200);
     snprintf(statbuffer,sizeof statbuffer,"%4ux%4ux%2ubits vga=%3d",
