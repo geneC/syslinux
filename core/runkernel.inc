@@ -20,11 +20,6 @@
 ;
 ; Hook macros, that may or may not be defined
 ;
-%ifndef HAVE_SPECIAL_APPEND
-%macro SPECIAL_APPEND 0
-%endmacro
-%endif
-
 %ifndef HAVE_UNLOAD_PREP
 %macro UNLOAD_PREP 0
 %endmacro
@@ -88,7 +83,7 @@ construct_cmdline:
                 mov al,' '                      ; Space
                 stosb
 
-		SPECIAL_APPEND			; Module-specific hook
+		call do_ip_append		; Handle IPAppend
 
                 mov si,[CmdOptPtr]              ; Options from user input
 		call strcpy
@@ -689,7 +684,7 @@ CmdLineEnd	resw 1			; End of the command line in real_mode_seg
 SetupSecs	resw 1			; Number of setup sectors (+bootsect)
 KernelVersion	resw 1			; Kernel protocol version
 ;
-; These 
+; These are derived from the command-line parser
 ;
 InitRDPtr	resw 1			; Pointer to initrd= option in command line
 LoadFlags	resb 1			; Loadflags from kernel

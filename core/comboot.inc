@@ -687,25 +687,12 @@ comapi_configfile:
 ;
 ; INT 22h AX=000Fh	Get IPAPPEND strings
 ;
-%if IS_PXELINUX
 comapi_ipappend:
 		mov P_ES,cs
 		mov P_CX,numIPAppends
 		mov P_BX,IPAppends
 		clc
 		ret
-
-		section .data
-		alignb 2, db 0
-IPAppends	dw IPOption
-		dw BOOTIFStr
-numIPAppends	equ ($-IPAppends)/2
-
-%else
-comapi_ipappend equ comapi_err
-%endif
-
-		section .text
 
 ;
 ; INT 22h AX=0010h	Resolve hostname
