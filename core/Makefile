@@ -118,7 +118,7 @@ tidy dist:
 clean: tidy
 
 spotless: clean
-	rm -f $(BTARGET) *_bin.c .depend
+	rm -f $(BTARGET) *.bin *_bin.c .depend
 
 # Note: the extra echo '' is to deal with old versions of NASM which
 # did not properly terminate the dependency list.

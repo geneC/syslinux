@@ -50,10 +50,9 @@ make_plain_cmdline:
 IPAppends	dw IPOption
 		dw BOOTIFStr
 numIPAppends	equ ($-IPAppends)/2
-
 %else
-numIPAppends	equ 0
 IPAppends	equ 0
+numIPAppends	equ 0
 %endif
 
 ;
@@ -64,7 +63,8 @@ IPAppends	equ 0
 		section .text
 
 do_ip_append:
-%if numIPAppends > 0
+%ifndef DEPEND
+ %if numIPAppends > 0
 		push cx
 		push bx
 		push si
@@ -89,5 +89,6 @@ do_ip_append:
 		pop si
 		pop bx
 		pop cx
+ %endif
 %endif
 		ret
