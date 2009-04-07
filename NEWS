@@ -40,6 +40,10 @@ Changes in 3.74:
 	* New MENU SAVE directive which saves the latest menu
 	  selection until the next boot.  Currently only implemented for
 	  EXTLINUX.
+	* gfxboot.com: *experimental* interface module to Steffen
+	  Winterfeldt's "gfxboot" graphical front end
+	  (http://gfxboot.sourceforge.net/).  Module by Sebastian Herbszt.
+
 
 Changes in 3.73:
 	* Upgrade gPXE to release version 0.9.5.
