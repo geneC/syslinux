@@ -38,7 +38,7 @@ void __constructor __syslinux_get_keyboard_map(void)
   __intcall(0x22, &reg, &reg);
   if (!(reg.eflags.l & EFLAGS_CF)) {
     __syslinux_keyboard_map.version = reg.eax.w[0];
-    __syslinux_keyboard_map.length  = reg.edx.w[0];
+    __syslinux_keyboard_map.length  = reg.ecx.w[0];
     __syslinux_keyboard_map.map = MK_PTR(reg.es, reg.ebx.w[0]);
   }
 }
