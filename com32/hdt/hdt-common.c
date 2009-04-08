@@ -101,6 +101,7 @@ void init_hardware(struct s_hardware *hardware)
   memset(hardware->pciids_path, 0, sizeof hardware->pciids_path);
   memset(hardware->modules_pcimap_path, 0,
          sizeof hardware->modules_pcimap_path);
+  memset(hardware->memtest_label, 0, sizeof hardware->memtest_label);
   strcat(hardware->pciids_path, "pci.ids");
   strcat(hardware->modules_pcimap_path, "modules.pcimap");
   strcat(hardware->memtest_label, "memtest");
