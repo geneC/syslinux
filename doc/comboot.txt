@@ -569,7 +569,7 @@ AX=0010h [3.00] Resolve hostname [PXELINUX]
 	all uses of IP addresses in PXE are also in network byte order.
 
 
-AX=0011h [3.05] Obsoleted in 3.75
+AX=0011h [3.05] Obsoleted in 3.80
 
 
 AX=0012h [3.50] Cleanup, shuffle and boot
@@ -799,10 +799,10 @@ AX=0019h [3.50] Read disk [SYSLINUX, ISOLINUX, EXTLINUX]
 	2048-byte CD-ROM sector numbers.
 
 
-AX=001Ah [3.50] Obsoleted in 3.75
+AX=001Ah [3.50] Obsoleted in 3.80
 
 
-AX=001Bh [3.50]	Obsoleted in 3.75
+AX=001Bh [3.50]	Obsoleted in 3.80
 
 
 AX=001Ch [3.60] Get pointer to auxilliary data vector
@@ -885,7 +885,7 @@ AX=0022h [3.74] Close directory
 	Closes a directory.
 
 
-AX=0023h [3.75] Get shuffler parameters
+AX=0023h [3.80] Get shuffler parameters
 	Input:	AX	0023h
 	Output:	CX	size of shuffler "safe area" in bytes
 		Other registers reserved for future use
@@ -895,7 +895,7 @@ AX=0023h [3.75] Get shuffler parameters
 	additional parameters.
 
 
-AX=0024h [3.75] Cleanup, shuffle and boot, raw version
+AX=0024h [3.80] Cleanup, shuffle and boot, raw version
 	Input:	AX	0024h
 		DX	derivative-specific flags (see function 000Ch)
 		EDI	shuffle descriptor list safe area
