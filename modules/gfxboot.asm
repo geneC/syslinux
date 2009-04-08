@@ -4,8 +4,13 @@
 ;
 ;   Copyright 2008-2009 Sebastian Herbszt
 ;
-;  This module is based on gfxboot integration patches by Steffen Winterfeldt.
-;  Some parts borrowed from Syslinux core.
+;  This module is based on the gfxboot integration patch by Steffen Winterfeldt:
+;
+;   Copyright 2001-2008 Steffen Winterfeldt
+;
+;  Some parts borrowed from Syslinux core:
+;
+;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
