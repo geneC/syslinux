@@ -1,6 +1,7 @@
 ; -----------------------------------------------------------------------
 ;
-;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
+;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -39,7 +40,6 @@ LATEBSS_START	equ 0B800h
 ;
 		; Use .earlybss for things that MUST be in low memory.
 		section .earlybss	nobits start=BSS_START
-		section .bcopy32	exec nowrite progbits align=4
 		section .config		write progbits align=4
 		section .config.end	write nobits   align=4
 
@@ -61,6 +61,7 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		section .bss2		write nobits align=16
 
 		section .text		exec write progbits align=16
+		section .bcopyxx	exec write progbits align=16
 		section .data		write progbits align=16
 
 		section .adv		write nobits align=512
@@ -79,7 +80,6 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		extern __%1_start, __%1_lma, __%1_end
 		extern __%1_len, __%1_dwords
 %endmacro
-		SECINFO bcopy32
 		SECINFO config
 
 		global _start

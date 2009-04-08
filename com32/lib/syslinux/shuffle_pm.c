@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -46,24 +47,38 @@ int syslinux_shuffle_boot_pm(struct syslinux_movelist *fraglist,
   int nd;
   com32sys_t ireg;
   char *regbuf;
+  uint8_t handoff_code[9*5], *p;
+  const uint32_t *rp;
+  int i, rv;
+  struct syslinux_memmap *tmap;
+  addr_t regstub, stublen, safe;
 
-  nd = syslinux_prepare_shuffle(fraglist, memmap);
-  if (nd < 0)
+  tmap = syslinux_target_memmap(fraglist, memmap);
+  if (!tmap)
     return -1;
 
-  regbuf = (char *)__com32.cs_bounce + (12*nd);
-  memcpy(regbuf, regs, sizeof(*regs));
+  regstub = 0x800;		/* Locate anywhere above this point */
+  stublen = sizeof handoff_code;
+  rv = syslinux_memmap_find(tmap, SMT_FREE, &regstub, &stublen);
+  syslinux_free_memmap(tmap);
+  if (rv)
+    return -1;
 
-  memset(&ireg, 0, sizeof ireg);
+  /* Build register-setting stub */
+  p = handoff_code;
+  rp = (const uint32_t *)regs;
+  for (i = 0; i < 8; i++) {
+    *p = 0xb8 + i;		/* MOV gpr,imm32 */
+    *(uint32_t *)(p+1) = *rp++;
+    p += 5;
+  }
+  *p = 0xe9;			/* JMP */
+  *(uint32_t *)(p+1) = regs->eip - regstub - sizeof handoff_code;
 
-  ireg.eax.w[0] = 0x001a;
-  ireg.edx.w[0] = bootflags;
-  ireg.es       = SEG(__com32.cs_bounce);
-  ireg.edi.l    = OFFS(__com32.cs_bounce);
-  ireg.ecx.l    = nd;
-  ireg.ds       = SEG(regbuf);
-  ireg.esi.l    = OFFS(regbuf);
-  __intcall(0x22, &ireg, NULL);
+  /* Add register-setting stub to shuffle list */
+  if (syslinux_add_movelist(&fraglist, regstub, (addr_t)handoff_code,
+			    sizeof handoff_code))
+    return -1;
 
-  return -1;			/* Too many descriptors? */
+  return syslinux_do_shuffle(fraglist, memmap, regstub, 1, bootflags);
 }

@@ -219,9 +219,6 @@ com32_enter_rm:
 		jmp bx			; Go to whereever we need to go...
 
 com32_done:
-%if DISABLE_A20
-		call disable_a20
-%endif
 		sti
 		jmp enter_command
 

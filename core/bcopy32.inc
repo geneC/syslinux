@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -26,59 +27,9 @@
 ; segments, but this stuff is painful enough as it is without having to rely
 ; on everything happening "as it ought to."
 ;
-; NOTE: this code is relocated into low memory, just after the .earlybss
-; segment, in order to support to "bcopy over self" operation.
-;
 
-		section .bcopy32
-		align 8
-__bcopy_start:
-
-		; This is in the .text segment since it needs to be
-		; contiguous with the rest of the bcopy stuff
-
-; GDT descriptor entry
-%macro desc 1
-bcopy_gdt.%1:
-PM_%1		equ bcopy_gdt.%1-bcopy_gdt
-%endmacro
-
-bcopy_gdt:
-		dw bcopy_gdt_size-1	; Null descriptor - contains GDT
-		dd bcopy_gdt		; pointer for LGDT instruction
-		dw 0
-
-	desc CS16
-		dd 0000ffffh		; 08h Code segment, use16, readable,
-		dd 00009b00h		; present, dpl 0, cover 64K
-	desc DS16_4G
-		dd 0000ffffh		; 10h Data segment, use16, read/write,
-		dd 008f9300h		; present, dpl 0, cover all 4G
-	desc DS16_RM
-		dd 0000ffffh		; 18h Data segment, use16, read/write,
-		dd 00009300h		; present, dpl 0, cover 64K
-		; The next two segments are used for COM32 only
-	desc CS32
-		dd 0000ffffh		; 20h Code segment, use32, readable,
-		dd 00cf9b00h		; present, dpl 0, cover all 4G
-	desc DS32
-		dd 0000ffffh		; 28h Data segment, use32, read/write,
-		dd 00cf9300h		; present, dpl 0, cover all 4G
-
-		; TSS segment to keep Intel VT happy.  Intel VT is
-		; unhappy about anything that doesn't smell like a
-		; full-blown 32-bit OS.
-	desc TSS
-		dw 104-1, DummyTSS	; 30h 32-bit task state segment
-		dd 00008900h		; present, dpl 0, 104 bytes @DummyTSS
-
-		; 16-bit stack segment, which may have a different
-		; base from DS16 (e.g. if we're booted from PXELINUX)
-	desc SS16
-		dd 0000ffffh		; 38h Data segment, use16, read/write,
-		dd 00009300h		; present, dpl 0, cover 64K
-
-bcopy_gdt_size:	equ $-bcopy_gdt
+		bits 16
+		section .text
 
 ;
 ; bcopy:
@@ -104,16 +55,37 @@ bcopy:		jecxz .ret
 .ret:		ret
 
 ;
-; This routine is used to invoke a simple routine in 16-bit protected
-; mode (with 32-bit DS and ES, and working 16-bit stack.)
-; Note that all segment registers including CS, except possibly SS,
-; are zero-based in the protected-mode routine.
+; shuffle_and_boot_raw:
+;	The new version of shuffle and boot.
+; Inputs:
+;	ESI		-> Pointer to list of (dst, src, len) pairs(*)
+;	EDI		-> Pointer to safe area for list + shuffler
+;			   (must not overlap this code nor the RM stack)
+;	ECX		-> Byte count of list area (for initial copy)
+;
+;     If src == -1: then the memory pointed to by (dst, len) is bzeroed;
+;		    this is handled inside the bcopy routine.
+;
+;     If len == 0:  this marks the end of the list; dst indicates
+;		    the entry point and src the mode (0 = pm, 1 = rm)
+;
+shuffle_and_boot_raw:
+		push word pm_shuffle
+		call simple_pm_call
+		; Never returns...
+		jmp kaboom
+
+;
+; This routine is used to invoke a simple routine in 32-bit protected
+; mode (with 32-bit zero-based CS, DS, ES, and SS, with ESP pointing to the
+; real-mode stack even if the real-mode stack was in a nonzero SS.)
 ;
 ; No interrupt thunking services are provided; interrupts are disabled
-; for the duration of the routine.  Don't run for too long at a time.
+; for the duration of the routine.  Don't run for too long at a time
+; unless you really mean it.
 ;
 ; Inputs:
-;	On stack	- pm entrypoint
+;	On stack	- pm entrypoint (IP only)
 ;	EAX, EBP preserved until real-mode exit
 ;	EBX, ECX, EDX, ESI and EDI passed to the called routine
 ;
@@ -125,7 +97,7 @@ bcopy:		jecxz .ret
 simple_pm_call:
 		push eax
 		push ebp
-		mov bp,sp
+		movzx ebp,sp		; BP is used as frame pointer
 		pushfd			; Saves, among others, the IF flag
 		push ds
 		push es
@@ -141,44 +113,48 @@ simple_pm_call:
 		xor eax,eax
 		mov ax,ss
 		shl eax,4
-		or eax,93000000h
-		mov [cs:bcopy_gdt.SS16+2],eax
+		add ebp,eax		; EBP is now an absolute frame ptr
 
-		push ss			; Save real-mode SS selector
+		; Save the old segmented stack pointer
+		mov [cs:.rm_esp],esp
+		mov [cs:.rm_ss],ss
 
 		o32 lgdt [cs:bcopy_gdt]
 		mov eax,cr0
 		or al,1
 		mov cr0,eax		; Enter protected mode
-		jmp PM_CS16:.in_pm
-.in_pm:
-		mov ax,PM_SS16		; Make stack usable
-		mov ss,ax
+		jmp PM_CS32:.in_pm
 
-		mov al,PM_DS16_4G	; Data segment selector
-		mov es,ax
-		mov ds,ax
+		bits 32
+.in_pm:
+		mov eax,PM_DS32
+		mov ss,eax
+		lea esp,[ebp-8*4-2*4]	; Flat mode stack
+		mov es,eax
+		mov ds,eax
 
 		; Set fs, gs, tr, and ldtr in case we're on a virtual
 		; machine running on Intel VT hardware -- it can't
 		; deal with a partial transition, for no good reason.
 
 		mov al,PM_DS16_RM	; Real-mode-like segment
-		mov fs,ax
-		mov gs,ax
+		mov fs,eax
+		mov gs,eax
 		mov al,PM_TSS		; Intel VT really doesn't want
 		ltr ax			; an invalid TR and LDTR, so give
-		xor ax,ax		; it something that it can use...
+		xor eax,eax		; it something that it can use...
 		lldt ax			; (sigh)
 
-		call [bp+2*4+2]		; Call actual routine
+		movzx eax,word [ebp+2*4+2]
+		call eax		; Call actual routine
 
+		jmp PM_CS16:.exit
+		bits 16
 .exit:
-		mov ax,PM_DS16_RM	; "Real-mode-like" data segment
-		mov es,ax
-		mov ds,ax
-
-		pop bp			; Previous value for ss
+		mov eax,PM_DS16_RM	; "Real-mode-like" data segment
+		mov es,eax
+		mov ds,eax
+		mov ss,eax
 
 		mov eax,cr0
 		and al,~1
@@ -186,157 +162,24 @@ simple_pm_call:
 		jmp 0:.in_rm
 
 .in_rm:		; Back in real mode
-		mov ss,bp
+		lss esp,[cs:.rm_esp]	; Restore the stack
 		pop gs
 		pop fs
 		pop es
 		pop ds
-%if DISABLE_A20
-		call disable_a20
-%endif
 
 		popfd			; Re-enables interrupts
 		pop ebp
 		pop eax
 		ret 2			; Drops the pm entry
 
-;
-; pm_bcopy:
-;
-;	This is the protected-mode core of the "bcopy" routine.
-;	Try to do aligned transfers; if the src and dst are relatively
-;	misaligned, align the dst.
-;
-;	ECX is guaranteed to not be zero on entry.
-;
-pm_bcopy:
-		cmp esi,-1
-		je .bzero
+		section .bss
+		alignb 4
+.rm_esp		resd 1
+.rm_ss		resw 1
 
-		cmp esi,edi		; If source < destination, we might
-		jb .reverse		; have to copy backwards
 
-.forward:
-		; Initial alignment
-		mov dx,di
-		shr dx,1
-		jnc .faa1
-		a32 movsb
-		dec ecx
-.faa1:
-		mov al,cl
-		cmp ecx,2
-		jb .f_tiny
-
-		shr dx,1
-		jnc .faa2
-		a32 movsw
-		sub ecx,2
-.faa2:
-
-		; Bulk transfer
-		mov al,cl		; Save low bits
-		shr ecx,2		; Convert to dwords
-		a32 rep movsd		; Do our business
-		; At this point ecx == 0
-
-		test al,2
-		jz .fab2
-		a32 movsw
-.fab2:
-.f_tiny:
-		test al,1
-		jz .fab1
-		a32 movsb
-.fab1:
-		ret
-
-.reverse:
-		std			; Reverse copy
-
-		lea esi,[esi+ecx-1]	; Point to final byte
-		lea edi,[edi+ecx-1]
-
-		; Initial alignment
-		mov dx,di
-		shr dx,1
-		jnc .raa1
-		a32 movsb
-		dec ecx
-.raa1:
-
-		dec esi
-		dec edi
-		mov al,cl
-		cmp ecx,2
-		jb .r_tiny
-		shr dx,1
-		jnc .raa2
-		a32 movsw
-		sub ecx,2
-.raa2:
-
-		; Bulk copy
-		sub esi,2
-		sub edi,2
-		mov al,cl		; Save low bits
-		shr ecx,2
-		a32 rep movsd
-
-		; Final alignment
-.r_final:
-		add esi,2
-		add edi,2
-		test al,2
-		jz .rab2
-		a32 movsw
-.rab2:
-.r_tiny:
-		inc esi
-		inc edi
-		test al,1
-		jz .rab1
-		a32 movsb
-.rab1:
-		cld
-		ret
-
-.bzero:
-		xor eax,eax
-
-		; Initial alignment
-		mov dx,di
-		shr dx,1
-		jnc .zaa1
-		a32 stosb
-		dec ecx
-.zaa1:
-
-		mov bl,cl
-		cmp ecx,2
-		jb .z_tiny
-		shr dx,1
-		jnc .zaa2
-		a32 stosw
-		sub ecx,2
-.zaa2:
-
-		; Bulk
-		mov bl,cl		; Save low bits
-		shr ecx,2
-		a32 rep stosd
-
-		test bl,2
-		jz .zab2
-		a32 stosw
-.zab2:
-.z_tiny:
-		test bl,1
-		jz .zab1
-		a32 stosb
-.zab1:
-		ret
-
+		section .text
 ;
 ; Routines to enable and disable (yuck) A20.  These routines are gathered
 ; from tips from a couple of sources, including the Linux kernel and
@@ -363,6 +206,15 @@ _io_delay:	out IO_DELAY_PORT,al
 		out IO_DELAY_PORT,al
 		ret
 
+		section .data
+		align 2
+A20Ptr		dw a20_dunno
+
+		section .bss
+A20Test		resw 1			; Counter for testing A20 status
+A20Tries	resb 1			; Times until giving up on A20
+
+		section .text
 enable_a20:
 		pushad
 		mov byte [cs:A20Tries],255 ; Times to try to make this work
@@ -378,15 +230,14 @@ try_enable_a20:
 ;
 ; If the A20 type is known, jump straight to type
 ;
-		mov bp,[cs:A20Type]
-		jmp word [cs:bp+A20List]
+		jmp word [cs:A20Ptr]
 
 ;
 ; First, see if we are on a system with no A20 gate
 ;
 a20_dunno:
 a20_none:
-		mov byte [cs:A20Type], A20_NONE
+		mov word [cs:A20Ptr], a20_none
 		call a20_test
 		jnz a20_done
 
@@ -394,7 +245,7 @@ a20_none:
 ; Next, try the BIOS (INT 15h AX=2401h)
 ;
 a20_bios:
-		mov byte [cs:A20Type], A20_BIOS
+		mov word [cs:A20Ptr], a20_bios
 		mov ax,2401h
 		pushf				; Some BIOSes muck with IF
 		int 15h
@@ -411,7 +262,7 @@ a20_kbc:
 		call empty_8042
 		jnz a20_done			; A20 live, no need to use KBC
 
-		mov byte [cs:A20Type], A20_KBC	; Starting KBC command sequence
+		mov word [cs:A20Ptr], a20_kbc	; Starting KBC command sequence
 
 		mov al,0D1h			; Write output port
 		out 064h, al
@@ -446,7 +297,7 @@ a20_kbc:
 ; Running out of options here.  Final attempt: enable the "fast A20 gate"
 ;
 a20_fast:
-		mov byte [cs:A20Type], A20_FAST	; Haven't used the KBC yet
+		mov word [cs:A20Ptr], a20_fast
 		in al, 092h
 		or al,02h
 		and al,~01h			; Don't accidentally reset the machine!
@@ -465,17 +316,15 @@ a20_fast:
 ; Oh bugger.  A20 is not responding.  Try frobbing it again; eventually give up
 ; and report failure to the user.
 ;
-
-
 		dec byte [cs:A20Tries]
-		jnz try_enable_a20
+		jnz a20_dunno		; Did we get the wrong type?
 
 		mov si, err_a20
 		jmp abort_load
 
 		section .data
 err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
-		section .bcopy32
+		section .text
 
 ;
 ; A20 unmasked, proceed...
@@ -505,69 +354,6 @@ a20_test:
 		pop cx
 		pop es
 		ret
-
-%if DISABLE_A20
-
-disable_a20:
-		pushad
-;
-; Flush the caches
-;
-%if DO_WBINVD
-		call try_wbinvd
-%endif
-
-		mov bp,[cs:A20Type]
-		jmp word [cs:bp+A20DList]
-
-a20d_bios:
-		mov ax,2400h
-		pushf				; Some BIOSes muck with IF
-		int 15h
-		popf
-		jmp short a20d_snooze
-
-;
-; Disable the "fast A20 gate"
-;
-a20d_fast:
-		in al, 092h
-		and al,~03h
-		out 092h, al
-		jmp short a20d_snooze
-
-;
-; Disable the keyboard controller A20 gate
-;
-a20d_kbc:
-		call empty_8042_uncond
-
-		mov al,0D1h
-		out 064h, al		; Write output port
-		call empty_8042_uncond
-
-		mov al,0DDh		; A20 off
-		out 060h, al
-		call empty_8042_uncond
-
-		mov al,0FFh		; Null command/synchronization
-		out 064h, al
-		call empty_8042_uncond
-
-		; Wait a bit for it to take effect
-a20d_snooze:
-		push cx
-		mov cx, disable_wait
-.delayloop:	call a20_test
-		jz .disabled
-		loop .delayloop
-.disabled:	pop cx
-a20d_dunno:
-a20d_none:
-		popad
-		ret
-
-%endif
 
 ;
 ; Routine to empty the 8042 KBC controller.  If dl != 0
@@ -604,129 +390,6 @@ try_wbinvd:
 %endif
 
 ;
-; shuffle_and_boot:
+; The 32-bit copy and shuffle code is "special", so it is in its own file
 ;
-; This routine is used to shuffle memory around, followed by
-; invoking an entry point somewhere in low memory.  This routine
-; can clobber any memory above 7C00h, we therefore have to move
-; necessary code into the trackbuf area before doing the copy,
-; and do adjustments to anything except BSS area references.
-;
-; NOTE: Since PXELINUX relocates itself, put all these
-; references in the ".earlybss" segment.
-;
-; After performing the copy, this routine resets the stack and
-; jumps to the specified entrypoint.
-;
-; IMPORTANT: This routine does not canonicalize the stack or the
-; SS register.  That is the responsibility of the caller.
-;
-; Inputs:
-;	DS:BX		-> Pointer to list of (dst, src, len) pairs(*)
-;	AX		-> Number of list entries
-;	[CS:EntryPoint]	-> CS:IP to jump to
-;	On stack	- initial state (fd, ad, ds, es, fs, gs)
-;
-; (*) If dst == -1, then (src, len) entry refers to a set of new
-;		    descriptors to load.
-;     If src == -1, then the memory pointed to by (dst, len) is bzeroed;
-;		    this is handled inside the bcopy routine.
-;
-shuffle_and_boot:
-.restart:
-		and ax,ax
-		jz .done
-.loop:
-		mov edi,[bx]
-		mov esi,[bx+4]
-		mov ecx,[bx+8]
-		cmp edi, -1
-		je .reload
-		call bcopy
-		add bx,12
-		dec ax
-		jnz .loop
-
-.done:
-		pop gs
-		pop fs
-		pop es
-		pop ds
-		popad
-		popfd
-		jmp far [cs:EntryPoint]
-
-.reload:
-		mov bx, trackbuf	; Next descriptor
-		movzx edi,bx
-		push ecx		; Save byte count
-		call bcopy
-		pop eax			; Byte count
-		xor edx,edx
-		mov ecx,12
-		div ecx			; Convert to descriptor count
-		jmp .restart
-
-;
-; trampoline_to_pm:
-;
-; This routine is chained to from shuffle_and_boot to invoke a
-; flat 32-bit protected mode operating system.
-;
-trampoline_to_pm:
-		cli
-		call enable_a20
-		mov byte [cs:bcopy_gdt.TSS+5],89h	; Mark TSS unbusy
-		o32 lgdt [cs:bcopy_gdt]
-		mov eax,cr0
-		or al,1
-		mov cr0,eax		; Enter protected mode
-		jmp PM_CS32:.next	; Synchronize and go to 32-bit mode
-
-		bits 32
-.next:		xor eax,eax
-		lldt ax			; TR <- 0 to be nice to Intel VT
-		mov al,PM_TSS
-		ltr ax			; Bogus TSS to be nice to Intel VT
-		mov al,PM_DS32
-		mov es,ax		; 32-bit data segment selector
-		mov ds,ax
-		mov ss,ax
-		mov fs,ax
-		mov gs,ax
-		jmp word TrampolineBuf
-		bits 16
-
-		align 2
-A20List		dw a20_dunno, a20_none, a20_bios, a20_kbc, a20_fast
-%if DISABLE_A20
-A20DList	dw a20d_dunno, a20d_none, a20d_bios, a20d_kbc, a20d_fast
-%endif
-
-A20Type		dw A20_NONE		; A20 type
-
-		; Total size of .bcopy32 section
-		alignb 4, db 0		; Even number of dwords
-__bcopy_size	equ $-__bcopy_start
-
-		section .earlybss
-		alignb 2
-EntryPoint	resd 1			; CS:IP for shuffle_and_boot
-A20Test		resw 1			; Counter for testing status of A20
-A20Tries	resb 1			; Times until giving up on A20
-
-;
-; This buffer contains synthesized code for shuffle-and-boot.
-; For the PM case, it is 9*5 = 45 bytes long; for the RM case it is
-; 8*6 to set the GPRs, 6*5 to set the segment registers (including a dummy
-; setting of CS), 5 bytes to set CS:IP, for a total of 83 bytes.
-;
-TrampolineBuf	resb 83			; Shuffle and boot trampoline
-
-;
-; Space for a dummy task state segment.  It should never be actually
-; accessed, but just in case it is, point to a chunk of memory not used
-; for anything real.
-;
-		alignb 4
-DummyTSS	resb 104
+%include "bcopyxx.inc"

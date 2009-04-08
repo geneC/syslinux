@@ -40,14 +40,6 @@ enough_ram:
 skip_checks:
 
 ;
-; Initialize the bcopy32 code in low memory
-;
-		mov si,__bcopy32_lma
-		mov di,__bcopy32_start
-		mov cx,__bcopy32_dwords
-		rep movsd
-
-;
 ; Check if we're 386 (as opposed to 486+); if so we need to blank out
 ; the WBINVD instruction
 ;

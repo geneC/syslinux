@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 2002-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2002-2009 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -31,17 +32,6 @@ MAX_FKEYS	equ 12			; Number of F-key help files
 ; Local boot supported
 ;
 %assign	HAS_LOCALBOOT 1
-
-;
-; Set this to return the A20 gate to its previous state, instead of
-; leaving it open.  This has caused problems, because there appear
-; to be a race condition between disabling the A20 gate and trying to
-; re-enter protected mode, causing the A20 gate disable to take effect
-; after we have already done the A20 enabled check, with disastrous
-; consequences.  Plus, there seems to be little or no demand for it.
-;
-%assign DISABLE_A20	0
-
 
 ;
 ; Version number definitinons

@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -198,6 +199,34 @@ int syslinux_memmap_largest(struct syslinux_memmap *list,
   *len = best_size;
 
   return 0;
+}
+
+/*
+ * Find the first (lowest address) zone of a specific type and of
+ * a certain minimum size, with an optional starting address.
+ * The input values of start and len are used as minima.
+ */
+int syslinux_memmap_find(struct syslinux_memmap *list,
+			 enum syslinux_memmap_types type,
+			 addr_t *start, addr_t *len)
+{
+  addr_t min_start = *start;
+  addr_t min_len = *len;
+
+  while (list->type != SMT_END) {
+    if (list->type == type && list->next->start > min_start) {
+      addr_t xstart = min_start > list->start ? min_start : list->start;
+      addr_t xlen = list->next->start - xstart;
+      if (xlen >= min_len) {
+	*start = xstart;
+	*len = xlen;
+	return 0;
+      }
+    }
+    list = list->next;
+  }
+
+  return -1;			/* Not found */
 }
 
 /*

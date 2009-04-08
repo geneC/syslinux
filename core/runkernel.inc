@@ -455,14 +455,12 @@ setup_move:
 		inc cx
 
 .no_initrd:
+		push dword run_linux_kernel
 		push cx				; Length of descriptor list
-		push word trackbuf
 
-		mov dword [EntryPoint],run_linux_kernel
 		; BX points to the final real mode segment, and will be loaded
 		; into DS.
 		jmp replace_bootstrap
-
 
 run_linux_kernel:
 ;

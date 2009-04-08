@@ -36,9 +36,8 @@ SuperSize	equ $+1
 		push word superblock_len_fat16
 %endif
 load_bootsec:
-		mov edi, 100000h
+		mov edi,100000h
 		mov [trackbuf+4],edi	; Copy from this address
-		push edi		; Save load address
 		xor dx,dx		; No padding
 		mov bx,abort_check	; Don't print dots, but allow abort
 		call load_high
@@ -48,10 +47,9 @@ load_bootsec:
 
 		mov eax,7C00h		; Entry point
 		mov [trackbuf],eax	; Copy to this address
-		mov [EntryPoint],eax	; Jump to this address when done
 
 %if IS_SYSLINUX || IS_MDSLINUX
-		xchg eax,ecx		; ECX[31:16] <- 0
+		xor ecx,ecx
 		pop cx
 
 		; For a BSS boot sector we have to patch.
@@ -59,6 +57,7 @@ load_bootsec:
 		mov edi,100000h+(superblock-bootsec)
 		call bcopy
 %endif
+		push eax		; Save entry point
 
 		xor edx,edx
 		xor esi,esi
@@ -78,27 +77,28 @@ load_bootsec:
 %elif IS_ISOLINUX
 		mov dl,[DriveNumber]
 %elif IS_PXELINUX
-		mov byte [KeepPXE],1	; Chainloading another NBP
+		mov byte [KeepPXE],03h	; Chainloading + keep PXE
 		call reset_pxe
 %endif
 		xor bx,bx
 
 ;
 ; replace_bootstrap for the special case where we have exactly one
-; descriptor, and it's the first entry in the trackbuf
+; descriptor.
 ;
 
 replace_bootstrap_one:
 		push word 1			; Length of descriptor list
-		push word trackbuf		; Address of descriptor list
 		; Fall through
 
 ;
 ; Entrypoint for "shut down and replace bootstrap" -- also invoked by
-; the COMBOOT API.  This routine expects two words on the stack:
-; address of the copy list (versus DS) and count.  Additionally,
-; the values of ESI and EDX are passed on to the new bootstrap;
-; the value of BX becomes the new DS.
+; the COMBOOT API.  This routine expects the entry point (CS, IP) and the
+; count of the descriptor sequence on the stack; the shuffle
+; descriptors start at the first byte of the trackbuf.
+;
+; The registers EDX and ESI are passed on to the called program,
+; and BX is passed on as DS.
 ;
 replace_bootstrap:
 		;
@@ -110,14 +110,13 @@ replace_bootstrap:
 		;
 		; Set up initial stack frame (not used by PXE if keeppxe is
 		; set - we use the PXE stack then.)
-		; AFTER THIS POINT ONLY .earlybss IS AVAILABLE, NOT .bss
 		;
 		xor ax,ax
 		mov ds,ax
 		mov es,ax
 
 %if IS_PXELINUX
-		test byte [KeepPXE],01h
+		test byte [KeepPXE],02h	; Bit 1 = chainloading PXE
 		jz .stdstack
 		les di,[InitStack]	; Reset stack to PXE original
 		jmp .stackok
@@ -147,12 +146,64 @@ replace_bootstrap:
 		mov [es:di+8],ax	; New DI
 		mov [es:di+4],bx	; New ES
 %endif
-		pop bx			; Copy from...
-		pop ax			; Copy list count
+		pop ax			; List length
+
+		push di
+		push es
+
+		push ds
+		pop es
+
+		mov ebx,trackbuf
+		imul di,ax,12
+		add di,bx		; DI <- end of list
+		push di
+
+		; Terminating entry...
+		lea eax,[di+12]
+		stosd
+		xor ax,ax		; EAX[31:16] == 0 already
+		stosd			; Real mode
+		stosd			; End of list
+
+		; Copy the stub	
+		mov si,replace_stub
+		mov cx,replace_stub.len >> 2
+		rep movsd
+		
+		xor ecx,ecx
+		pop cx			; ECX <- length of list
+
+		pop word [di+replace_stub.ss]
+		pop word [di+replace_stub.esp]
+		pop dword [di+replace_stub.csip]
 
 		cli
-		mov cx,es
-		mov ss,cx
-		movzx esp,di
+		mov ss,[di+replace_stub.ss]
+		mov esp,[di+replace_stub.esp]
 
-		jmp shuffle_and_boot
+		mov edi,trackbuf
+		mov esi,edi
+
+		jmp shuffle_and_boot_raw
+
+		; This stub gets run after the shuffle, but not in-place.
+		; THE ALIGNS ARE CRITICAL.
+		align 4
+replace_stub:
+		mov ax,strict word 0
+.ss		equ $-2-.end
+		mov ss,ax
+		mov esp,strict dword 0
+.esp:		equ $-4-.end
+		pop gs
+		pop fs
+		pop es
+		pop ds
+		popad
+		popfd
+		jmp 0:0
+.csip		equ $-4-.end
+		align 4
+.end:
+.len		equ $-replace_stub

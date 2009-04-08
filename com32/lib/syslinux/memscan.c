@@ -50,21 +50,29 @@ struct e820_entry {
 
 int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
 {
-  static com32sys_t ireg, zireg;
+  static com32sys_t ireg;
   com32sys_t oreg;
   struct e820_entry *e820buf = __com32.cs_bounce;
   uint64_t start, len, maxlen;
   int memfound = 0;
   int rv;
+  addr_t dosmem;
 
-  /* Use INT 12h to get DOS memory above 0x7c00 */
-  __intcall(0x12, &zireg, &oreg);
-  if (oreg.eax.w[0] >= 32 && oreg.eax.w[0] <= 640) {
-    addr_t dosmem = (oreg.eax.w[0] << 10) - 0x7c00;
-    rv = callback(data, 0x7c00, dosmem, true);
-    if (rv)
-      return rv;
+  /* Use INT 12h to get DOS memory above 0x504 */
+  __intcall(0x12, &__com32_zero_regs, &oreg);
+  dosmem = oreg.eax.w[0] << 10;
+  if (dosmem < 32*1024 || dosmem > 640*1024) {
+    /* INT 12h reports nonsense... now what? */
+    uint16_t ebda_seg = (uint16_t *)0x40e;
+    if (ebda_seg >= 0x8000 && ebda_seg < 0xa000)
+      dosmem = ebda_seg << 4;
+    else
+      dosmem = 640*1024;      /* Hope for the best... */
   }
+  dosmem = (oreg.eax.w[0] << 10) - 0x510;
+  rv = callback(data, 0x510, dosmem, true);
+  if (rv)
+    return rv;
 
   /* First try INT 15h AX=E820h */
   ireg.eax.l    = 0xe820;
