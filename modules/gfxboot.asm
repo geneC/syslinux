@@ -544,8 +544,8 @@ gfx_setup_menu:
 		mov di,[menu_seg]
 		mov [menu_desc+menu_ent_list+2],di
 
-		mov word [menu_desc+menu_default],0
-		mov [menu_desc+menu_default+2],di
+		mov word [menu_desc+menu_default],dentry_buf
+		mov [menu_desc+menu_default+2],cs
 
 		mov di,256
 		mov [menu_desc+menu_arg_list],di
@@ -699,6 +699,17 @@ parse_config:
 		pop si
 		jz .do_label
 
+		push si
+		push di
+		xor ecx,ecx
+		mov si,configbuf
+		mov di,default_keyword+1
+		mov cl, byte [default_keyword]
+		call memcmp
+		pop di
+		pop si
+		jz .do_default
+
 .nextline:
 		call skipline
 		jmp .read
@@ -720,6 +731,22 @@ parse_config:
 		pop di
 		pop es
 		inc word [label_cnt]
+
+		jmp .read
+
+.do_default:
+		call skipspace
+		jz .eof
+		jc .noparm
+		call ungetc
+		push es
+		push di
+		push cs
+		pop es
+		mov di,dentry_buf
+		call getline
+		pop di
+		pop es
 
 		jmp .read
 
@@ -854,6 +881,7 @@ configbuf		times trackbufsize db 0
 ungetc_cnt		db 0
 ungetcdata		db 0
 label_keyword		db 6,'label',0
+default_keyword		db 7,'default',0
 label_cnt		dw 0
 
 msg_progname		db 'gfxboot: ',0
@@ -875,6 +903,8 @@ gfx_slash		db '/', 0
 db0			db 0
 max_cmd_len  equ 2047
 command_line		times max_cmd_len+2 db 0
+dentry_buf		times 512 db 0
+dentry_buf_len		equ $ - dentry_buf
 
 ; menu entry descriptor
 menu_entries		equ 0
