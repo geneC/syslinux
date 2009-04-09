@@ -217,7 +217,7 @@ int get_disk_params(int disk, struct diskinfo *disk_info)
   memcpy(&dp, __com32.cs_bounce, sizeof(struct device_parameter));
 
   if (outreg.eflags.l & EFLAGS_CF) {
-    printf("Disk 0x%X doesn't supports EDD 3.0\n", disk);
+    printf("Disk 0x%X doesn't support EDD 3.0\n", disk);
     return -1;
   }
 
