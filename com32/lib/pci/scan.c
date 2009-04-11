@@ -73,7 +73,7 @@ static int hex_to_int(char *hexa)
 
 /* Try to match any pci device to the appropriate kernel module */
 /* it uses the modules.pcimap from the boot device */
-int get_module_name_from_pci_ids(struct pci_domain *domain, char *modules_pcimap_path)
+int get_module_name_from_pcimap(struct pci_domain *domain, char *modules_pcimap_path)
 {
   char line[MAX_LINE];
   char module_name[21]; // the module name field is 21 char long
@@ -441,9 +441,12 @@ struct pci_domain *pci_scan(void)
   int cfgtype;
 
   cfgtype = pci_set_config_type(PCI_CFG_AUTO);
-  (void)cfgtype;
 
   dprintf("PCI configuration type %d\n", cfgtype);
+
+  if (cfgtype == PCI_CFG_NONE)
+    return NULL;
+
   dprintf("Scanning PCI Buses\n");
 
   for (nbus = 0; nbus < MAX_PCI_BUSES; nbus++) {
@@ -520,8 +523,10 @@ void gather_additional_pci_config(struct pci_domain *domain)
   unsigned int nbus, ndev, nfunc, maxfunc;
   pciaddr_t a;
   int cfgtype;
+
   cfgtype = pci_set_config_type(PCI_CFG_AUTO);
-  (void)cfgtype;
+  if (cfgtype == PCI_CFG_NONE)
+    return;
 
   for (nbus = 0; nbus < MAX_PCI_BUSES; nbus++) {
     bus = NULL;

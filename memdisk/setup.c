@@ -20,10 +20,14 @@
 const char memdisk_version[] =
 "MEMDISK " VERSION_STR " " DATE;
 const char copyright[] =
-"Copyright " FIRSTYEAR "-" YEAR_STR " H. Peter Anvin";
+"Copyright " FIRSTYEAR "-" YEAR_STR " H. Peter Anvin and contributors";
 
-extern const char _binary_memdisk_bin_start[], _binary_memdisk_bin_end[];
-extern const char _binary_memdisk_bin_size[]; /* Weird, I know */
+extern const char _binary_memdisk_chs_bin_start[];
+extern const char _binary_memdisk_chs_bin_end[];
+extern const char _binary_memdisk_chs_bin_size[];
+extern const char _binary_memdisk_edd_bin_start[];
+extern const char _binary_memdisk_edd_bin_end[];
+extern const char _binary_memdisk_edd_bin_size[];
 
 struct memdisk_header {
   uint16_t int13_offs;
@@ -92,11 +96,6 @@ struct patch_area {
 
   uint16_t dpt_ptr;
   /* End of the official MemDisk_Info */
-  uint8_t  maxint13func;
-#define MAXINT13_NOEDD	0x16
-  uint8_t  _pad2;
-
-  uint16_t _pad3;
   uint16_t memint1588;
 
   uint16_t cylinders;
@@ -672,7 +671,8 @@ void *sys_bounce;
 
 __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
 {
-  unsigned int bin_size = (int) &_binary_memdisk_bin_size;
+  unsigned int bin_size;
+  char *memdisk_hook;
   struct memdisk_header *hptr;
   struct patch_area *pptr;
   uint16_t driverseg;
@@ -684,7 +684,7 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
   com32sys_t regs;
   uint32_t ramdisk_image, ramdisk_size;
   int bios_drives;
-  int do_edd = -1;		/* -1 = default, 0 = no, 1 = yes */
+  int do_edd = 1;		/* 0 = no, 1 = yes, default is yes */
   int no_bpt;			/* No valid BPT presented */
 
   /* Set up global variables */
@@ -723,13 +723,22 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
   else
     do_edd = (geometry->driveno & 0x80) ? 1 : 0;
 
+  /* Choose the appropriate installable memdisk hook */
+  if (do_edd) {
+    bin_size = (int) &_binary_memdisk_edd_bin_size;
+    memdisk_hook = (char *) &_binary_memdisk_edd_bin_start;
+  } else {
+    bin_size = (int) &_binary_memdisk_chs_bin_size;
+    memdisk_hook = (char *) &_binary_memdisk_chs_bin_start;
+  }
+
   /* Reserve the ramdisk memory */
   insertrange(ramdisk_image, ramdisk_size, 2, 1);
   parse_mem();			/* Recompute variables */
 
   /* Figure out where it needs to go */
-  hptr = (struct memdisk_header *) &_binary_memdisk_bin_start;
-  pptr = (struct patch_area *)(_binary_memdisk_bin_start + hptr->patch_offs);
+  hptr = (struct memdisk_header *) memdisk_hook;
+  pptr = (struct patch_area *)(memdisk_hook + hptr->patch_offs);
 
   dosmem_k = rdz_16(BIOS_BASEMEM);
   pptr->olddosmem = dosmem_k;
@@ -799,10 +808,6 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
     break;
   }
   puts(" access to high memory\n");
-
-  /* pptr->maxint13func defaults to EDD enabled, if compiled in */
-  if (!do_edd)
-    pptr->maxint13func = MAXINT13_NOEDD;
 
   /* Set up a drive parameter table */
   if ( geometry->driveno & 0x80 ) {
@@ -972,7 +977,7 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
     hptr = (struct memdisk_header *)dpp;
 
     /* Actually copy to low memory */
-    dpp = mempcpy(dpp, &_binary_memdisk_bin_start, bin_size);
+    dpp = mempcpy(dpp, memdisk_hook, bin_size);
     dpp = mempcpy(dpp, ranges, (nranges+1)*sizeof(ranges[0]));
     dpp = mempcpy(dpp, shdr->cmdline, cmdlinelen+1);
   }

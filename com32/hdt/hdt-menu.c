@@ -141,7 +141,7 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
                &(hardware->dmi));
     for (int i = 0; i < hardware->dmi.memory_count; i++) {
       if (hardware->dmi.memory[i].filled == true) {
-        compute_memory(hdt_menu, &(hardware->dmi));
+        compute_memory(hdt_menu, &(hardware->dmi),hardware);
         break;
       }
     }
@@ -153,7 +153,7 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
   }
 
   compute_processor(&(hdt_menu->cpu_menu), hardware);
-  compute_disks(hdt_menu, hardware->disk_info);
+  compute_disks(hdt_menu, hardware->disk_info, hardware);
 
 #ifdef WITH_PCI
   compute_PCI(hdt_menu, hardware);
@@ -275,6 +275,7 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
      HDT_SWITCH_TO_CLI, 0);
   add_item("<A>bout", "About Menu", OPT_SUBMENU, NULL,
      hdt_menu->about_menu.menu);
+  add_item("E<x>it","Exit", OPT_EXITMENU,NULL,0);
   hdt_menu->main_menu.items_count++;
 
   hdt_menu->total_menu_count += hdt_menu->main_menu.items_count;

@@ -12,8 +12,10 @@
 ## -----------------------------------------------------------------------
 
 #
-# Postprocess the memdisk binary.
-#
+# Postprocess the memdisk binary.  Used during the 'make' process.
+# We write memdisk16.bin out to the final memdisk kernel, pad it to an
+# integral 512-byte sector length, write this number of sectors into the
+# kernel header field "setup_sects", then append memdisk32.bin
 
 eval { use bytes; };
 

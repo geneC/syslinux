@@ -159,7 +159,7 @@ int compute_PCI(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
       strlcpy(kernel_modules, "unknown", 7);
 
     compute_pci_device(&(hdt_menu->pci_sub_menu[i]), pci_device,
-           __pci_bus, __pci_slot, __pci_func,hardware);
+           __pci_bus, __pci_slot, __pci_func, hardware);
     snprintf(menuname[i], 59, "%s|%s",
        pci_device->dev_info->vendor_name,
        pci_device->dev_info->product_name);

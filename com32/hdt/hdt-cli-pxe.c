@@ -56,7 +56,8 @@ void main_show_pxe(int argc __unused, char **argv __unused,
 	struct s_pxe *p = &hardware->pxe;
 	more_printf(" PCI device no: %d \n", p->pci_device_pos);
 
-	if (hardware->pci_ids_return_code == -ENOPCIIDS) {
+	if (hardware->pci_ids_return_code == -ENOPCIIDS ||
+	    (p->pci_device == NULL)) {
 		snprintf(buffer, sizeof(buffer),
 			 " PCI ID       : %04x:%04x[%04x:%04X] rev(%02x)\n",
 			 p->vendor_id, p->product_id, p->subvendor_id,

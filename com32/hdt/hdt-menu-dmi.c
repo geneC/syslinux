@@ -365,7 +365,7 @@ static void compute_memory_module(struct s_my_menu *menu, s_dmi * dmi,
 }
 
 /* Compute the Memory menu */
-void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi)
+void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi, struct s_hardware *hardware)
 {
   char buffer[MENULEN + 1];
   for (int i = 0; i < dmi->memory_count; i++) {
@@ -383,7 +383,7 @@ void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi)
   }
   printf("MENU: Memory menu done (%d items)\n",
          menu->memory_menu.items_count);
-  add_item("Run Test", "Run Test", OPT_RUN, "memtest", 0);
+  add_item("Run Test", "Run Test", OPT_RUN, hardware->memtest_label, 0);
 }
 
 /* Compute Main IPMI menu */

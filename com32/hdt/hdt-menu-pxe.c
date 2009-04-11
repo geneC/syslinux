@@ -43,7 +43,7 @@ void compute_PXE(struct s_my_menu *menu, struct s_hardware *hardware)
 
   struct s_pxe *p = &hardware->pxe;
 
-  if (hardware->pci_ids_return_code == -ENOPCIIDS) {
+  if ((hardware->pci_ids_return_code == -ENOPCIIDS) || (p->pci_device==NULL))  {
     snprintf(buffer, sizeof buffer, "PCI Vendor    : %d",
        p->vendor_id);
     snprintf(infobar, sizeof infobar, "PCI Vendor    : %d",

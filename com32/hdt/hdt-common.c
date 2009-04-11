@@ -45,6 +45,9 @@ void detect_parameters(const int argc, const char *argv[],
     } else if (!strncmp(argv[i], "pciids=", 7)) {
       strncpy(hardware->pciids_path, argv[i] + 7,
         sizeof(hardware->pciids_path));
+    } else if (!strncmp(argv[i], "memtest=", 8)) {
+      strncpy(hardware->memtest_label, argv[i] + 8,
+        sizeof(hardware->memtest_label));
     }
   }
 }
@@ -80,6 +83,7 @@ void init_hardware(struct s_hardware *hardware)
   hardware->cpu_detection = false;
   hardware->pci_detection = false;
   hardware->disk_detection = false;
+  hardware->disks_count=0;
   hardware->dmi_detection = false;
   hardware->pxe_detection = false;
   hardware->vesa_detection = false;
@@ -100,6 +104,7 @@ void init_hardware(struct s_hardware *hardware)
          sizeof hardware->modules_pcimap_path);
   strcat(hardware->pciids_path, "pci.ids");
   strcat(hardware->modules_pcimap_path, "modules.pcimap");
+  strcat(hardware->memtest_label, "memtest");
 }
 
 /*
@@ -194,6 +199,7 @@ void detect_disks(struct s_hardware *hardware)
     if (get_disk_params(drive, hardware->disk_info) != 0)
       continue;
     struct diskinfo *d = &hardware->disk_info[drive];
+    hardware->disks_count++;
     more_printf
         ("  DISK 0x%X: %s : %s %s: sectors=%d, s/t=%d head=%d : EDD=%s\n",
          drive, d->aid.model, d->host_bus_type, d->interface_type,
@@ -298,6 +304,8 @@ int detect_pxe(struct s_hardware *hardware)
       }
       /* Let's try to find the associated pci device */
       detect_pci(hardware);
+
+      /* The firt pass try to find the exact pci device */
       hardware->pxe.pci_device = NULL;
       hardware->pxe.pci_device_pos = 0;
       struct pci_device *pci_device;
@@ -314,8 +322,34 @@ int detect_pxe(struct s_hardware *hardware)
           hardware->pxe.pci_device = pci_device;
           hardware->pxe.pci_device_pos =
               pci_number;
+	      return 0;
         }
       }
+
+      /* If we reach that part, it means the pci device pointed by
+       * the pxe rom wasn't found in our list.
+       * Let's try to find the device only by its pci ids.
+       * The pci device we'll match is maybe not exactly the good one
+       * as we can have the same pci id several times.
+       * At least, the pci id, the vendor/product will be right.
+       * That's clearly a workaround for some weird cases.
+       * This should happend very unlikely */
+      hardware->pxe.pci_device = NULL;
+      hardware->pxe.pci_device_pos = 0;
+      pci_number = 0;
+      for_each_pci_func(pci_device, hardware->pci_domain) {
+        pci_number++;
+        if ((pci_device->vendor ==
+             hardware->pxe.vendor_id)
+            && (pci_device->product ==
+          hardware->pxe.product_id)) {
+          hardware->pxe.pci_device = pci_device;
+          hardware->pxe.pci_device_pos =
+              pci_number;
+	      return 0;
+        }
+      }
+
     }
   }
   return 0;
@@ -327,13 +361,17 @@ void detect_pci(struct s_hardware *hardware)
     return;
   hardware->pci_detection = true;
 
+  hardware->nb_pci_devices = 0;
+
   /* Scanning to detect pci buses and devices */
   hardware->pci_domain = pci_scan();
+
+  if (!hardware->pci_domain)
+    return;
 
   /* Gathering addtional information*/
   gather_additional_pci_config(hardware->pci_domain);
 
-  hardware->nb_pci_devices = 0;
   struct pci_device *pci_device;
   for_each_pci_func(pci_device, hardware->pci_domain) {
     hardware->nb_pci_devices++;
@@ -354,7 +392,7 @@ void detect_pci(struct s_hardware *hardware)
   more_printf("PCI: Resolving module names\n");
   /* Detecting which kernel module should match each device */
   hardware->modules_pcimap_return_code =
-      get_module_name_from_pci_ids(hardware->pci_domain,
+      get_module_name_from_pcimap(hardware->pci_domain,
            hardware->modules_pcimap_path);
 
   /* We try to detect the pxe stuff to populate the PXE: field of pci devices */
