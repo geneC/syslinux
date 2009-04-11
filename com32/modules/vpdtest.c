@@ -24,21 +24,45 @@
  *   OTHER DEALINGS IN THE SOFTWARE.
  *
  * -----------------------------------------------------------------------
+*/
+
+/*
+ * vpdtest.c
+ *
+ * VPD demo program using libcom32
  */
 
-#ifndef DEFINE_HDT_H
-#define DEFINE_HDT_H
+#include <string.h>
+#include <stdio.h>
+#include <console.h>
+#include "vpd/vpd.h"
 
-#define PRODUCT_NAME "Hardware Detection Tool"
-#define AUTHOR "Erwan Velu"
-#define CONTACT "erwan(dot)velu(point)free(dot)fr"
-#define VERSION "0.2.7"
-#define NB_CONTRIBUTORS 2
-#define CONTRIBUTORS {"Pierre-Alexandre Meyer", "Sebastien Gonzalve"}
+int main(void)
+{
+  char buffer[1024];
+  s_vpd vpd;
+  openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
-#define ATTR_PACKED __attribute__((packed))
+  if (vpd_decode(&vpd) == -ENOVPDTABLE) {
+	printf("No VPD Structure found\n");
+	return -1;
+  } else {
+       printf("VPD present at address : 0x%s\n",vpd.base_address);
+  }
+  if (strlen(vpd.bios_build_id)>0)
+	  printf("Bios Build ID                 : %s\n",vpd.bios_build_id);
+  if (strlen(vpd.bios_release_date)>0)
+	  printf("Bios Release Date             : %s\n",vpd.bios_release_date);
+  if (strlen(vpd.bios_version)>0)
+	  printf("Bios Version                  : %s\n",vpd.bios_version);
+  if (strlen(vpd.default_flash_filename)>0)
+	  printf("Default Flash Filename        : %s\n",vpd.default_flash_filename);
+  if (strlen(vpd.box_serial_number)>0)
+	  printf("Box Serial Number             : %s\n",vpd.box_serial_number);
+  if (strlen(vpd.motherboard_serial_number)>0)
+	  printf("Motherboard Serial Number     : %s\n",vpd.motherboard_serial_number);
+  if (strlen(vpd.machine_type_model)>0)
+	  printf("Machine Type/Model            : %s\n",vpd.machine_type_model);
 
-#define WITH_PCI 1
-#define WITH_MENU_DISPLAY 1
-
-#endif
+  return 0;
+}

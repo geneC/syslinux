@@ -887,6 +887,10 @@ void start_cli_mode(struct s_hardware *hardware)
 
 		case KEY_ENTER:
 			more_printf("\n");
+			if (strlen(remove_spaces(hdt_cli.input)) < 1) {
+				reset_prompt();
+				break;
+			}
 			if (hdt_cli.history_pos == MAX_HISTORY_SIZE-1) hdt_cli.history_pos=1;
 			strncpy(hdt_cli.history[hdt_cli.history_pos],remove_spaces(hdt_cli.input),sizeof(hdt_cli.history[hdt_cli.history_pos]));
 			hdt_cli.history_pos++;

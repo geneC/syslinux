@@ -242,21 +242,6 @@ getint:
 .loaded:	mov byte [di],0
 		mov si,NumBuf
 		; Fall through to parseint
-
-;
-; parseint_esdi:
-;		Same as parseint, but takes the input in ES:DI
-;
-parseint_esdi:
-		push ds
-		push es
-		pop ds
-		xchg si,di
-		call parseint
-		xchg si,di
-		pop ds
-		ret
-
 ;
 ; parseint:	Convert an integer to a number in EBX
 ;		Get characters from string in DS:SI
@@ -412,4 +397,18 @@ getline:
 		mov al,' '
 		stosb
 .xret:		popf
+		ret
+
+;
+; parseint_esdi:
+;		Same as parseint, but takes the input in ES:DI
+;
+parseint_esdi:
+		push ds
+		push es
+		pop ds
+		xchg si,di
+		call parseint
+		xchg si,di
+		pop ds
 		ret

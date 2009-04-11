@@ -152,10 +152,15 @@ int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
 }
 
 /* Compute the Disks menu */
-void compute_disks(struct s_hdt_menu *menu, struct diskinfo *disk_info)
+void compute_disks(struct s_hdt_menu *menu, struct diskinfo *disk_info, struct s_hardware *hardware)
 {
   char buffer[MENULEN + 1];
   int nb_sub_disk_menu = 0;
+
+  /* No need to compute that menu if no disks were detected */
+  menu->disk_menu.items_count = 0;
+  if (hardware->disks_count == 0) return;
+
   for (int i = 0; i < 0xff; i++) {
     if (compute_disk_module
         ((struct s_my_menu*) &(menu->disk_sub_menu), nb_sub_disk_menu, disk_info,
@@ -164,7 +169,6 @@ void compute_disks(struct s_hdt_menu *menu, struct diskinfo *disk_info)
   }
 
   menu->disk_menu.menu = add_menu(" Disks ", -1);
-  menu->disk_menu.items_count = 0;
 
   for (int i = 0; i < nb_sub_disk_menu; i++) {
     snprintf(buffer, sizeof buffer, " Disk <%d> ", i);

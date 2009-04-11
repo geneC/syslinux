@@ -20,7 +20,8 @@ include ../MCONFIG
 MODULES	  = chain.c32 config.c32 ethersel.c32 mboot.c32 dmitest.c32 \
 	    cpuidtest.c32 \
 	    pcitest.c32 elf.c32 linux.c32 reboot.c32 pmload.c32 meminfo.c32 \
-	    sdi.c32 sanboot.c32 ifcpu64.c32 vesainfo.c32 kbdmap.c32 cmd.c32
+	    sdi.c32 sanboot.c32 ifcpu64.c32 vesainfo.c32 kbdmap.c32 cmd.c32 \
+	    vpdtest.c32
 
 TESTFILES =
 

@@ -102,6 +102,10 @@ int main(int argc, char *argv[])
   /* Scanning to detect pci buses and devices */
   printf("PCI: Scanning PCI BUS\n");
   pci_domain = pci_scan();
+  if (!pci_domain) {
+	printf("PCI: no devices found!\n");
+	return 1;
+  }
 
   struct pci_device *pci_device;
   for_each_pci_func(pci_device, pci_domain) {
@@ -131,7 +135,7 @@ int main(int argc, char *argv[])
 
   printf("PCI: Looking for Kernel modules\n");
   /* Detecting which kernel module should match each device */
-  return_code=get_module_name_from_pci_ids(pci_domain,"modules.pcimap");
+  return_code=get_module_name_from_pcimap(pci_domain,"modules.pcimap");
   if (return_code == -ENOMODULESPCIMAP) {
 	  printf("PCI: ERROR !\n");
 	  printf("PCI: Unable to open modules.pcimap in the same directory as pcitest.c32.\n");
@@ -140,5 +144,5 @@ int main(int argc, char *argv[])
 
   /* display the pci devices we found */
   display_pci_devices(pci_domain);
-  return 1;
+  return 0;
 }
