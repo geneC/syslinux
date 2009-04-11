@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -19,11 +20,6 @@
 ;
 ; Hook macros, that may or may not be defined
 ;
-%ifndef HAVE_SPECIAL_APPEND
-%macro SPECIAL_APPEND 0
-%endmacro
-%endif
-
 %ifndef HAVE_UNLOAD_PREP
 %macro UNLOAD_PREP 0
 %endmacro
@@ -87,7 +83,7 @@ construct_cmdline:
                 mov al,' '                      ; Space
                 stosb
 
-		SPECIAL_APPEND			; Module-specific hook
+		call do_ip_append		; Handle IPAppend
 
                 mov si,[CmdOptPtr]              ; Options from user input
 		call strcpy
@@ -126,9 +122,10 @@ parse_cmdline:
 
 		; This either needs to have been an option with parameter,
 		; or be followed by EOL/whitespace
-		cmp byte [di-1],'='
+		mov ax,[es:di-1]		; AL = last chr; AH = following
+		cmp al,'='
 		je .is_match
-		cmp byte [di],' '
+		cmp ah,' '
 		ja .no_match
 .is_match:
 		pop ax				; Drop option pointer on stack
@@ -458,14 +455,12 @@ setup_move:
 		inc cx
 
 .no_initrd:
+		push dword run_linux_kernel
 		push cx				; Length of descriptor list
-		push word trackbuf
 
-		mov dword [EntryPoint],run_linux_kernel
 		; BX points to the final real mode segment, and will be loaded
 		; into DS.
 		jmp replace_bootstrap
-
 
 run_linux_kernel:
 ;
@@ -687,7 +682,7 @@ CmdLineEnd	resw 1			; End of the command line in real_mode_seg
 SetupSecs	resw 1			; Number of setup sectors (+bootsect)
 KernelVersion	resw 1			; Kernel protocol version
 ;
-; These 
+; These are derived from the command-line parser
 ;
 InitRDPtr	resw 1			; Pointer to initrd= option in command line
 LoadFlags	resb 1			; Loadflags from kernel

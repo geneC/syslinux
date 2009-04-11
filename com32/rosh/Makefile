@@ -33,6 +33,6 @@ spotless: clean
 	rm -f *.lss *.c32 *.com
 	rm -f *~ \#*
 
-install:	# Don't install samples
+install:
 
 -include .*.d

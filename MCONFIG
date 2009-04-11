@@ -36,6 +36,8 @@ NASMOPT  = -O9999
 
 PERL	 = perl
 
+CHMOD	 = chmod
+
 CC	 = gcc
 gcc_ok   = $(shell tmpf=gcc_ok.$$$$.tmp; \
 		   if $(CC) $(1) -c $(topdir)/dummy.c -o $$tmpf 2>/dev/null ; \

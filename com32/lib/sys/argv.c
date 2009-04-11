@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -35,8 +36,7 @@
 #include <inttypes.h>
 #include <stddef.h>
 #include <stdio.h>
-
-#define ALIGN_UP(p,t)       ((t *)(((uintptr_t)(p) + (sizeof(t)-1)) & ~(sizeof(t)-1)))
+#include <syslinux/align.h>
 
 extern char _end[];	     /* Symbol created by linker */
 void *__mem_end = &_end;     /* Global variable for use by malloc() */
@@ -75,7 +75,7 @@ int __parse_argv(char ***argv, const char *str)
   }
 
   /* Now create argv */
-  arg = ALIGN_UP(q,char *);
+  arg = ALIGN_UP_FOR(q, char *);
   *argv = arg;
   *arg++ = argv0;		/* argv[0] */
 

@@ -1,6 +1,7 @@
 ; -*- fundamental -*- ---------------------------------------------------
 ;
-;   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
+;   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
+;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -31,19 +32,22 @@
 ;
 ; rllpack:
 ;	Pack CX bytes from SI into EDI.
-;	Returns updated SI and EDI.
+;	Returns updated (E)SI and EDI.
 ;
 rllpack:
 		push word .pmentry
 		call simple_pm_call
 		ret
 
+		bits 32
 .pmentry:
-		push cx
+		push ecx
 		push ebx
 		push edx
+		movzx ecx,cx
+		movzx esi,si
 .startseq:
-		xor ax,ax		; Zero byte
+		xor eax,eax		; Zero byte
 		xor ebx,ebx		; Run length zero
 		dec edi
 		mov edx,edi		; Pointer to header byte
@@ -53,14 +57,14 @@ rllpack:
 		lodsb
 		dec edi
 		mov [edi],al
-		dec cx
+		dec ecx
 		cmp ah,al
 		je .same
 .diff:
 		mov ah,al
-		xor bx,bx
+		xor ebx,ebx
 .plainbyte:
-		inc bx
+		inc ebx
 		inc byte [edx]
 		jcxz .startseq
 		jns .stdbyte
@@ -74,7 +78,7 @@ rllpack:
 		inc edi			; We killed a whole stretch,
 					; drop start byte
 .normal:
-		inc bx
+		inc ebx
 		add edi,ebx		; Remove the stored run bytes
 .getrun:
 		jcxz .nomatch
@@ -83,8 +87,8 @@ rllpack:
 		jne .nomatch
 		cmp bx,(256-224)*256-1	; Maximum run size
 		jae .nomatch
-		inc bx
-		dec cx
+		inc ebx
+		dec ecx
 		jmp .getrun
 .nomatch:
 		cmp bx,224-126
@@ -101,26 +105,31 @@ rllpack:
 .storebyte:
 		dec edi
 		mov [edi],ah
-		dec si			; Reload subsequent byte
+		dec esi			; Reload subsequent byte
 		jmp .startseq
 .done:
 		pop edx
 		pop ebx
-		pop cx
+		pop ecx
 		ret
+
+		bits 16
 ;
 ; rllunpack:
-;	Unpack bytes from ESI into DI
-;	On return ESI, DI are updated and CX contains number of bytes output.
+;	Unpack bytes from SI into EDI
+;	On return (E)SI, EDI are updated and
+;	(E)CX contains number of bytes output.
 ;
 rllunpack:
 		push word .pmentry
 		call simple_pm_call
 		ret
 
+		bits 32
 .pmentry:
-		push di
-		xor cx,cx
+		push edi
+		movzx esi,si
+		xor ecx,ecx
 .header:
 		dec esi
 		mov cl,[esi]
@@ -150,7 +159,9 @@ rllunpack:
 		mov cl,[esi]
 		jmp .dorun
 .done:
-		pop cx
-		sub cx,di
-		neg cx
+		pop ecx
+		sub ecx,edi
+		neg ecx
 		ret
+
+		bits 16

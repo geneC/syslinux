@@ -192,30 +192,30 @@ scan_partition_table:
 	pushal
 	movw	%sp, %bp
 
-	/* Search for active partitions */
-	movw	$ptab, %bx
+	/* Scan the primary partition table */
+	movw	$ptab, %si
 	movw	$4, %cx
-	xorw	%ax, %ax
-	push	%bx
+	push	%si
 	push	%cx
+
+	/* Is it a primary partition? */
+	andl	%edx, %edx
+	jnz	6f
+
 5:
-	testb	$0x80, (%bx)
-	jz	6f
-	incw	%ax
-	movw	%bx, %si
-6:
+	decb	(partition)
+	jz	boot
 	addw	$16, %bx
 	loopw	5b
 
-	decw	%ax		/* Number of active partitions found */
-	jz	boot
-	jns	too_many_active
-
+6:
 	/* No active partitions found, look for extended partitions */
 	popw	%cx		/* %cx <- 4    */
-	popw	%bx		/* %bx <- ptab */
+	popw	%si		/* %si <- ptab */
 7:
-	movb	4(%bx), %al
+	movl	20(%bp), %edx		/* "Root" */
+
+	movb	4(%si), %al
 	cmpb	$0x0f, %al	/* 0x0f = Win9x extended */
 	je	8f
 	andb	$~0x80, %al	/* 0x85 = Linux extended */
@@ -226,8 +226,7 @@ scan_partition_table:
 	   try to scan it.  If the scan returns, re-load the current
 	   partition table and resume scan. */
 8:
-	movl	8(%bx), %eax		/* Partition table offset */
-	movl	20(%bp), %edx		/* "Root" */
+	movl	8(%si), %eax		/* Partition table offset */
 	addl	%edx, %eax		/* Compute location of new ptab */
 	andl	%edx, %edx		/* Is this the MBR? */
 	jnz	10f
@@ -244,22 +243,27 @@ scan_partition_table:
 	/* fall through */
 9:
 	/* Not an extended partition */
-	addw	$16, %bx
+	andb	%al, %al
+	jz	12f			/* Not a valid partition */
+	andl	%edx, %edx		/* Are we inside an extended part? */
+	/* If so, this is a logical partition */
+	decb	(partition)
+	je	boot
+12:
+	addw	$16, %si
 	loopw	7b
 
 	/* Nothing found, return */
 	popal
 	ret
 
-too_many_active:
-	call	error
-	.ascii	"Multiple active partitions.\r\n"
-
 /*
  * boot: invoke the actual bootstrap. (%si) points to the partition
  *	 table entry, and 28(%bp) has the partition table base.
  */
 boot:
+	cmpb	$0, 4(%si)
+	je	missing_os
 	movl	8(%si), %eax
 	addl	28(%bp), %eax
 	movl	%eax, 8(%si)	/* Adjust in-memory partition table entry */
@@ -297,3 +301,6 @@ error:
 die:
 	hlt
 	jmp	die
+
+/* Location of the partition configuration byte */
+partition = _start + 439

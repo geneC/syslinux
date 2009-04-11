@@ -12,6 +12,7 @@
 ;  umsdos filesystem.
 ;
 ;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
+;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -2056,7 +2057,7 @@ getfatsector:
 		section .data
 copyright_str   db ' Copyright (C) 1994-'
 		asciidec YEAR
-		db ' H. Peter Anvin and contributors', CR, LF, 0
+		db ' H. Peter Anvin et al', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: please change disks and press '
 		db 'a key to continue.', CR, LF, 0
 syslinux_cfg1	db '/boot'			; /boot/syslinux/syslinux.cfg

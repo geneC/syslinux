@@ -1,5 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
+ *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
  *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -25,20 +26,13 @@
  *
  * ----------------------------------------------------------------------- */
 
-#include <syslinux/keyboard.h>
-#include <com32.h>
+#ifndef _SYSLINUX_MEMSCAN_H
+#define _SYSLINUX_MEMSCAN_H
 
-struct syslinux_keyboard_map __syslinux_keyboard_map;
+#include <stdbool.h>
+#include <syslinux/movebits.h>	/* addr_t */
 
-void __constructor __syslinux_get_keyboard_map(void)
-{
-  static com32sys_t reg;
+typedef int (*scan_memory_callback_t)(void *, addr_t, addr_t, bool);
+int syslinux_scan_memory(scan_memory_callback_t callback, void *data);
 
-  reg.eax.w[0] = 0x001e;
-  __intcall(0x22, &reg, &reg);
-  if (!(reg.eflags.l & EFLAGS_CF)) {
-    __syslinux_keyboard_map.version = reg.eax.w[0];
-    __syslinux_keyboard_map.length  = reg.ecx.w[0];
-    __syslinux_keyboard_map.map = MK_PTR(reg.es, reg.ebx.w[0]);
-  }
-}
+#endif /* _SYSLINUX_MEMSCAN_H */

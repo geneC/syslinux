@@ -1,6 +1,7 @@
 ## -----------------------------------------------------------------------
 ##
 ##   Copyright 1998-2009 H. Peter Anvin - All Rights Reserved
+##   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -30,8 +31,8 @@ include $(topdir)/MCONFIG
 
 # List of module objects that should be installed for all derivatives
 MODULES = memdisk/memdisk memdump/memdump.com modules/*.com \
-	com32/menu/*.c32 com32/modules/*.c32 com32/hdt/*.c32
-
+	com32/menu/*.c32 com32/modules/*.c32 com32/hdt/*.c32 \
+	com32/rosh/*.c32
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
@@ -64,8 +65,7 @@ INSTALL_SBIN  = extlinux/extlinux
 INSTALL_AUX   =	core/pxelinux.0 gpxe/gpxelinux.0 core/isolinux.bin \
 		core/isolinux-debug.bin \
 		dos/syslinux.com dos/copybs.com win32/syslinux.exe \
-		mbr/mbr.bin mbr/gptmbr.bin \
-		$(MODULES)
+		mbr/*.bin $(MODULES)
 INSTALL_AUX_OPT = win32/syslinux.exe
 
 # These directories manage their own installables
