@@ -284,7 +284,6 @@ _start1:
 		lss esp,[BaseStack]
 		sti			; Stack set up and ready
 
-
 ;
 ; Initialize screen (if we're using one)
 ;
@@ -1622,6 +1621,7 @@ unmangle_name:
 ; While we're at it, save and restore all registers.
 ;
 pxenv:
+		pushfd
 		pushad
 %if USE_PXE_PROVIDED_STACK == 0
 		mov [cs:PXEStack],sp
@@ -1640,20 +1640,17 @@ pxenv:
 .jump:		call 0:0
 		add sp,6
 		mov [cs:PXEStatus],ax
-		add ax,-1			; Set CF unless AX was 0
-
 %if USE_PXE_PROVIDED_STACK == 0
 		lss sp,[cs:PXEStack]
 %endif
+		mov bp,sp
+		and ax,ax
+		setnz [bp+32]			; If AX != 0 set CF on return
 
-		; This clobbers the AX return, but we don't use it
-		; except for testing it against zero (and setting CF),
-		; which we did above.  For anything else,
-		; use the Status field in the reply.
-		; For the COMBOOT function, the value is saved in
+		; This clobbers the AX return, but we already saved it into
 		; the PXEStatus variable.
 		popad
-		cld				; Make sure DF <- 0
+		popfd				; Restore flags (incl. IF, DF)
 		ret
 
 ; Must be after function def due to NASM bug
