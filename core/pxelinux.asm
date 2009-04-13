@@ -39,8 +39,8 @@ MAX_OPEN_LG2	equ 5			; log2(Max number of open sockets)
 MAX_OPEN	equ (1 << MAX_OPEN_LG2)
 PKTBUF_SIZE	equ (65536/MAX_OPEN)	; Per-socket packet buffer size
 TFTP_PORT	equ htons(69)		; Default TFTP port
-PKT_RETRY	equ 6			; Packet transmit retry count
-PKT_TIMEOUT	equ 12			; Initial timeout, timer ticks @ 55 ms
+PKT_RETRY	equ 10			; Packet transmit retry count
+PKT_TIMEOUT	equ 2			; Initial timeout, timer ticks @ 55 ms
 ; Desired TFTP block size
 ; For Ethernet MTU is normally 1500.  Unfortunately there seems to
 ; be a fair number of networks with "substandard" MTUs which break.
