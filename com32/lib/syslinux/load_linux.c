@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -31,9 +32,11 @@
  * Load a Linux kernel (Image/zImage/bzImage).
  */
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
+#include <syslinux/align.h>
 #include <syslinux/linux.h>
 #include <syslinux/bootrm.h>
 #include <syslinux/movebits.h>
@@ -159,6 +162,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
   struct syslinux_movelist *fraglist = NULL;
   struct syslinux_memmap *mmap = NULL;
   struct syslinux_memmap *amap = NULL;
+  bool ok;
 
   cmdline_size = strlen(cmdline)+1;
 
@@ -188,6 +192,9 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 
   if (!memlimit || memlimit-1 > hdr.initrd_addr_max)
     memlimit = hdr.initrd_addr_max+1; /* Zero for no limit */
+
+  if (hdr.version < 0x0205)
+    hdr.relocatable_kernel = 0;
 
   if (hdr.version < 0x0206)
     hdr.cmdline_max_len = 256;
@@ -250,7 +257,79 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 
   /* Place the kernel in memory */
 
+  /* First, find a suitable place for the protected-mode code */
+  if (syslinux_memmap_type(amap, prot_mode_base, prot_mode_size)
+      != SMT_FREE) {
+    const struct syslinux_memmap *mp;
+    if (!hdr.relocatable_kernel)
+      goto bail;		/* Can't relocate - no hope */
+
+    ok = false;
+    for (mp = amap; mp; mp = mp->next) {
+      addr_t start, end;
+      start = mp->start;
+      end = mp->next->start;
+
+      if (mp->type != SMT_FREE)
+	continue;
+
+      if (end <= prot_mode_base)
+	continue;		/* Only relocate upwards */
+
+      if (start <= prot_mode_base)
+	start = prot_mode_base;
+
+      start = ALIGN_UP(start, hdr.kernel_alignment);
+      if (start >= end)
+	continue;
+
+      /* The 3* here is a total fudge factor... it's supposed to
+	 account for the fact that the kernel needs to be decompressed,
+	 and then followed by the BSS and BRK regions.  This doesn't,
+	 however, account for the fact that the kernel is decompressed
+	 into a whole other place, either. */
+      if (end - start >= 3*prot_mode_size) {
+	prot_mode_base = start;
+	ok = true;
+	break;
+      }
+    }
+
+    if (!ok)
+      goto bail;
+  }
+
   /* Real mode code */
+  if (syslinux_memmap_type(amap, real_mode_base,
+			   cmdline_offset+cmdline_size) != SMT_FREE) {
+    const struct syslinux_memmap *mp;
+
+    ok = false;
+    for (mp = amap; mp; mp = mp->next) {
+      addr_t start, end;
+      start = mp->start;
+      end = mp->next->start;
+
+      if (mp->type != SMT_FREE)
+	continue;
+
+      if (start < real_mode_base)
+	start = real_mode_base;	/* Lowest address we'll use */
+      if (end > 640*1024)
+	end = 640*1024;
+
+      start = ALIGN_UP(start, 16);
+      if (start > 0x90000 || start >= end)
+	continue;
+
+      if (end - start >= cmdline_offset+cmdline_size) {
+	real_mode_base = start;
+	ok = true;
+	break;
+      }
+    }
+  }
+
   if (syslinux_add_movelist(&fraglist, real_mode_base, (addr_t)kernel_buf,
 			    real_mode_size))
     goto bail;

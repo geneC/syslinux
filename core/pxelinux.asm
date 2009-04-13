@@ -8,6 +8,7 @@
 ;  MS-DOS floppies.
 ;
 ;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
+;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -205,7 +206,6 @@ PXEStack	resd 1			; Saved stack during PXE call
 RebootTime	resd 1			; Reboot timeout, if set by option
 StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure
 APIVer		resw 1			; PXE API version found
-IPOptionLen	resw 1			; Length of IPOption
 IdleTimer	resw 1			; Time to check for ARP?
 LocalBootType	resw 1			; Local boot return code
 PktTimeout	resw 1			; Timeout for current packet
@@ -794,25 +794,6 @@ config_scan:
 ; a couple of helper macros...
 ;
 
-; Handle "ipappend" option
-%define HAVE_SPECIAL_APPEND
-%macro	SPECIAL_APPEND 0
-		test byte [IPAppend],01h	; ip=
-		jz .noipappend1
-		mov si,IPOption
-		mov cx,[IPOptionLen]
-		rep movsb
-		mov al,' '
-		stosb
-.noipappend1:
-		test byte [IPAppend],02h
-		jz .noipappend2
-		mov si,BOOTIFStr
-		call strcpy
-		mov byte [es:di-1],' '		; Replace null with space
-.noipappend2:
-%endmacro
-
 ; Unload PXE stack
 %define HAVE_UNLOAD_PREP
 %macro	UNLOAD_PREP 0
@@ -965,7 +946,7 @@ is_struc:
 		pop ax
 .bad:
 		ret
-		
+
 is_pxe		equ is_struc.pxe
 is_pxenv	equ is_struc.pxenv
 
@@ -2563,8 +2544,6 @@ genipopt:
 		stosb
 		mov eax,[Netmask]
 		call gendotquad	; Zero-terminates its output
-		sub di,IPOption
-		mov [IPOptionLen],di
 		popad
 		ret
 
@@ -2657,7 +2636,7 @@ writestr_early	equ writestr
 
 copyright_str   db ' Copyright (C) 1994-'
 		asciidec YEAR
-		db ' H. Peter Anvin and contributors', CR, LF, 0
+		db ' H. Peter Anvin et al', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: press a key to retry, or wait for reset...', CR, LF, 0
 bailmsg		equ err_bootfailed
 err_nopxe	db "No !PXE or PXENV+ API found; we're dead...", CR, LF, 0

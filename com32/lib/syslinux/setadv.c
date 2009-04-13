@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -47,7 +48,7 @@
 int syslinux_setadv(int tag, size_t size, const void *data)
 {
   uint8_t *p, *advtmp;
-  size_t left;
+  size_t rleft, left;
 
   if ((unsigned)tag-1 > 254) {
     errno = EINVAL;
@@ -59,11 +60,11 @@ int syslinux_setadv(int tag, size_t size, const void *data)
     return -1;
   }
 
-  left = syslinux_adv_size();
+  rleft = left = syslinux_adv_size();
   p = advtmp = alloca(left);
   memcpy(p, syslinux_adv_ptr(), left); /* Make working copy */
 
-  while (left >= 2) {
+  while (rleft >= 2) {
     uint8_t ptag = p[0];
     size_t  plen = p[1]+2;
 
@@ -73,17 +74,19 @@ int syslinux_setadv(int tag, size_t size, const void *data)
     if (ptag == tag) {
       /* Found our tag.  Delete it. */
 
-      if (plen >= left) {
+      if (plen >= rleft) {
 	/* Entire remainder is our tag */
 	break;
       }
-      memmove(p, p+plen, left-plen);
+      memmove(p, p+plen, rleft-plen);
+      rleft -= plen;		/* Fewer bytes to read, but not to write */
     } else {
       /* Not our tag */
-      if (plen > left)
+      if (plen > rleft)
 	break;			/* Corrupt tag (overrun) - overwrite it */
 
       left -= plen;
+      rleft -= plen;
       p += plen;
     }
   }
@@ -100,6 +103,7 @@ int syslinux_setadv(int tag, size_t size, const void *data)
     *p++ = tag;
     *p++ = size;
     memcpy(p, data, size);
+    p += size;
     left -= size+2;
   }
 

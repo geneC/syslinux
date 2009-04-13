@@ -172,13 +172,14 @@ com32_call_start:
 
 		; Now everything is set up for interrupts...
 
+		push dword [HighMemSize]	; Memory managed by Syslinux
 		push dword com32_cfarcall	; Cfarcall entry point
 		push dword com32_farcall	; Farcall entry point
 		push dword (1 << 16)		; 64K bounce buffer
 		push dword (comboot_seg << 4)	; Bounce buffer address
 		push dword com32_intcall	; Intcall entry point
 		push dword command_line		; Command line pointer
-		push dword 6			; Argument count
+		push dword 7			; Argument count
 		sti				; Interrupts OK now
 		call pm_entry			; Run the program...
 		; ... on return, fall through to com32_exit ...
@@ -218,9 +219,6 @@ com32_enter_rm:
 		jmp bx			; Go to whereever we need to go...
 
 com32_done:
-%if DISABLE_A20
-		call disable_a20
-%endif
 		sti
 		jmp enter_command
 

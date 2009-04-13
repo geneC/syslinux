@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009 Intel Corporation; author H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -25,20 +25,23 @@
  *
  * ----------------------------------------------------------------------- */
 
-#include <syslinux/keyboard.h>
-#include <com32.h>
+#ifndef _SYSLINUX_ALIGN_H
+#define _SYSLINUX_ALIGN_H
 
-struct syslinux_keyboard_map __syslinux_keyboard_map;
+#include <stdint.h>
 
-void __constructor __syslinux_get_keyboard_map(void)
+static inline uintptr_t __align_down(uintptr_t __p, uintptr_t __a)
 {
-  static com32sys_t reg;
-
-  reg.eax.w[0] = 0x001e;
-  __intcall(0x22, &reg, &reg);
-  if (!(reg.eflags.l & EFLAGS_CF)) {
-    __syslinux_keyboard_map.version = reg.eax.w[0];
-    __syslinux_keyboard_map.length  = reg.ecx.w[0];
-    __syslinux_keyboard_map.map = MK_PTR(reg.es, reg.ebx.w[0]);
-  }
+  return __p & ~(__a - 1);
 }
+static inline uintptr_t __align_up(uintptr_t __p, uintptr_t __a)
+{
+  return (__p + __a - 1) & ~(__a - 1);
+}
+
+#define ALIGN_UP(p,a) ((__typeof__(p))__align_up((uintptr_t)(p), (a)))
+#define ALIGN_DOWN(p,a) ((__typeof__(p))__align_down((uintptr_t)(p), (a)))
+#define ALIGN_UP_FOR(p,t) ALIGN_UP(p,sizeof(t))
+#define ALIGN_DOWN_FOR(p,t) ALIGN_DOWN(p,sizeof(t))
+
+#endif /* _SYSLINUX_ALIGN_H */

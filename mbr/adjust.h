@@ -1,4 +1,4 @@
-/* ----------------------------------------------------------------------- *
+/* -*- asm -*- -----------------------------------------------------------
  *
  *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
@@ -25,20 +25,29 @@
  *
  * ----------------------------------------------------------------------- */
 
-#include <syslinux/keyboard.h>
-#include <com32.h>
+/*
+ * adjust.h
+ *
+ * Macros to adjust the drive number
+ */
 
-struct syslinux_keyboard_map __syslinux_keyboard_map;
+#ifndef ADJUST_H
+#define ADJUST_H
 
-void __constructor __syslinux_get_keyboard_map(void)
-{
-  static com32sys_t reg;
+#ifdef CTRL_80
+	.macro ADJUST_DRIVE
+	testb	$0x04, BIOS_kbdflags
+	jz	1f
+	movb	$0x80, %dl
+1:
+	.endm
+#elif defined(FORCE_80)
+	.macro ADJUST_DRIVE
+	movb	$0x80, %dl
+	.endm
+#else
+	.macro ADJUST_DRIVE
+	.endm
+#endif
 
-  reg.eax.w[0] = 0x001e;
-  __intcall(0x22, &reg, &reg);
-  if (!(reg.eflags.l & EFLAGS_CF)) {
-    __syslinux_keyboard_map.version = reg.eax.w[0];
-    __syslinux_keyboard_map.length  = reg.ecx.w[0];
-    __syslinux_keyboard_map.map = MK_PTR(reg.es, reg.ebx.w[0]);
-  }
-}
+#endif /* ADJUST_H */

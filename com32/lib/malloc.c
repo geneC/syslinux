@@ -5,6 +5,9 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
+#include <com32.h>
+#include <syslinux/memscan.h>
 #include "init.h"
 #include "malloc.h"
 
@@ -31,6 +34,39 @@ static inline size_t sp(void)
   return sp;
 }
 
+#define E820_MEM_MAX 0xfff00000	/* 4 GB - 1 MB */
+
+static int consider_memory_area(void *dummy, addr_t start,
+				addr_t len, bool valid)
+{
+  struct free_arena_header *fp;
+  addr_t end;
+
+  (void)dummy;
+
+  if (valid && start < E820_MEM_MAX) {
+    if (len > E820_MEM_MAX - start)
+      len = E820_MEM_MAX - start;
+
+    end = start + len;
+
+    if (end > __com32.cs_memsize) {
+      if (start <= __com32.cs_memsize) {
+	start = __com32.cs_memsize;
+	len = end - start;
+      }
+
+      if (len >= 2*sizeof(struct arena_header)) {
+	fp = (struct free_arena_header *)start;
+	fp->a.size = len;
+	__inject_free_block(fp);
+      }
+    }
+  }
+
+  return 0;
+}
+
 static void __constructor init_memory_arena(void)
 {
   struct free_arena_header *fp;
@@ -46,14 +82,15 @@ static void __constructor init_memory_arena(void)
     __stack_size = total_space - 4*sizeof(struct arena_header);
 
   fp = (struct free_arena_header *)start;
-  fp->a.type = ARENA_TYPE_FREE;
   fp->a.size = total_space - __stack_size;
 
-  /* Insert into chains */
-  fp->a.next = fp->a.prev = &__malloc_head;
-  fp->next_free = fp->prev_free = &__malloc_head;
-  __malloc_head.a.next = __malloc_head.a.prev = fp;
-  __malloc_head.next_free = __malloc_head.prev_free = fp;
+  __inject_free_block(fp);
+
+  /* Scan the memory map to look for other suitable regions */
+  if (!__com32.cs_memsize)
+    return;			/* Old Syslinux core, can't do this... */
+
+  syslinux_scan_memory(consider_memory_area, NULL);
 }
 
 static void *__malloc_from_block(struct free_arena_header *fp, size_t size)

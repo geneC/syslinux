@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -649,10 +650,7 @@ comapi_cleanup:
 		mov eax,[OrigFDCTabPtr]
 		mov [fdctab],eax
 %endif
-		; Reset the floppy disk subsystem
-		xor ax,ax
-		xor dx,dx
-		int 13h
+		call cleanup_hardware
 		clc
 		ret
 
@@ -667,12 +665,11 @@ comapi_chainboot:
 		mov [trackbuf+8],eax		; Total bytes
 		mov eax,7C00h
 		mov [trackbuf],eax		; Copy to
-		mov [EntryPoint],eax		; CS:IP entry point
+		push eax			; Entry point on stack
 		mov esi,P_ESI
 		mov edx,P_EBX
 		mov bx,P_DS
 		jmp replace_bootstrap_one
-
 
 ;
 ; INT 22h AX=000Eh	Get configuration file name
@@ -686,25 +683,12 @@ comapi_configfile:
 ;
 ; INT 22h AX=000Fh	Get IPAPPEND strings
 ;
-%if IS_PXELINUX
 comapi_ipappend:
 		mov P_ES,cs
 		mov P_CX,numIPAppends
 		mov P_BX,IPAppends
 		clc
 		ret
-
-		section .data
-		alignb 2, db 0
-IPAppends	dw IPOption
-		dw BOOTIFStr
-numIPAppends	equ ($-IPAppends)/2
-
-%else
-comapi_ipappend equ comapi_err
-%endif
-
-		section .text
 
 ;
 ; INT 22h AX=0010h	Resolve hostname
@@ -724,41 +708,12 @@ comapi_dnsresolv equ comapi_err
 		section .text
 
 ;
-; INT 22h AX=0011h	Maximum number of shuffle descriptors
+; INT 22h AX=0011h	Obsolete
 ;
-comapi_maxshuffle:
-		mov P_CX,trackbufsize/12
-		ret
 
 ;
-; INT 22h AX=0012h	Cleanup, shuffle and boot
+; INT 22h AX=0012h	Obsolete
 ;
-comapi_shuffle:
-		cmp P_CX,(2*trackbufsize)/12
-		ja .error
-
-		call comapi_cleanup
-
-		mov cx, P_CX
-		push cx				; On stack: descriptor count
-
-		lea cx,[ecx+ecx*2]		; CX *= 3
-
-		mov fs,P_ES
-		mov si,P_DI
-		mov di,trackbuf
-		push di				; On stack: descriptor list address
-		fs rep movsd			; Copy the list
-
-		mov eax,P_EBP
-		mov [EntryPoint],eax		; CS:IP entry point
-		mov esi,P_ESI
-		mov edx,P_EBX
-		mov bx,P_DS
-		jmp replace_bootstrap
-.error:
-		stc
-		ret
 
 ;
 ; INT 22h AX=0013h	Idle call
@@ -860,7 +815,7 @@ comapi_runkernel:
 		mov word [CmdOptPtr],zero_string
 		jmp kernel_good_saved
 
-.error		equ comapi_shuffle.error
+.error		equ comapi_usingvga.error
 
 ;
 ; INT 22h AX=0017h  Report video mode change
@@ -922,102 +877,12 @@ comapi_readdisk	equ comapi_err
 %endif
 
 ;
-; INT 22h AX=001Ah	Cleanup, shuffle and boot to flat protected mode
+; INT 22h AX=001Ah	Obsolete
 ;
-comapi_shufflepm:
-		cmp P_CX,(2*trackbufsize)/12
-		ja .error
-
-		call comapi_cleanup
-
-		mov cx, P_CX
-		push cx				; On stack: descriptor count
-
-		lea cx,[ecx+ecx*2]		; CX *= 3
-
-		mov fs,P_ES
-		mov si,P_DI
-		mov di,trackbuf
-		push di				; On stack: descriptor list address
-		fs rep movsd			; Copy the list
-
-		mov fs,P_DS
-		mov si,P_SI
-		mov edi,TrampolineBuf
-		mov al,0B8h			; MOV EAX opcode
-		mov cl,9
-.maketramp:
-		stosb				; MOV opcode
-		inc ax				; Next register opcode
-		fs movsd			; immediate value
-		loop .maketramp
-		mov byte [di-5],0E9h		; Last opcode is JMP
-		sub [di-4],edi			; Make JMP target relative
-
-		mov dword [EntryPoint],trampoline_to_pm
-		xor bx,bx			; DS on entry
-		jmp replace_bootstrap
-.error:
-		stc
-		ret
 
 ;
-; INT 22h AX=001Bh	Cleanup, shuffle and boot with register setting
+; INT 22h AX=001Bh	Obsolete
 ;
-comapi_shufflerm:
-		cmp P_CX,(2*trackbufsize)/12
-		ja .error
-
-		call comapi_cleanup
-
-		mov cx, P_CX
-		push cx				; On stack: descriptor count
-
-		lea cx,[ecx+ecx*2]		; CX *= 3
-
-		mov fs,P_ES
-		mov si,P_DI
-		mov di,trackbuf
-		push di				; On stack: descriptor list address
-		fs rep movsd			; Copy the list
-
-		mov fs,P_DS
-		mov si,P_SI
-		mov di,TrampolineBuf
-
-		; Generate segment-loading instructions
-		mov bx,0C08Eh			; MOV ES,AX
-		mov cl,6			; 6 segment registers (incl CS)
-.segtramp:
-		mov al,0B8h
-		stosb				; MOV AX,imm16 opcode
-		fs movsw			; imm16
-		mov ax,bx
-		add bh,8
-		stosw				; MOV xS,AX
-		loop .segtramp
-
-		; Clobber the MOV CS,AX instruction.
-		mov word [di-22], 9090h		; NOP NOP
-
-		; Generate GPR-loading instructions
-		mov ax,0B866h			; MOV EAX,imm32
-		mov cl,8			; 8 GPRs
-.gprtramp:
-		stosw				; MOV ExX,imm32 opcode
-		fs movsd			; imm32
-		inc ah
-		loop .gprtramp
-
-		mov al,0EAh			; JMP FAR imm16:imm16 opcode
-		stosb
-		fs movsd			; CS:IP
-
-		mov dword [EntryPoint],TrampolineBuf
-		jmp replace_bootstrap
-.error:
-		stc
-		ret
 
 ;
 ; INT 22h AX=001Ch	Get pointer to auxillary data vector
@@ -1113,6 +978,23 @@ comapi_closedir:
 comapi_closedir	equ comapi_err
 %endif
 
+;
+; INT 22h AX=0023h	Query shuffler size
+;
+comapi_shufsize:
+		mov P_CX,bcopyxx_safe
+		ret
+
+;
+; INT 22h AX=0024h	Cleanup, shuffle and boot raw
+;
+comapi_shufraw:
+		call comapi_cleanup
+		mov edi,P_EDI
+		mov esi,P_ESI
+		mov ecx,P_ECX
+		jmp shuffle_and_boot_raw
+
 		section .data
 
 %macro		int21 2
@@ -1148,12 +1030,12 @@ int22_table:
 		dw comapi_derinfo	; 000A derivative-specific info
 		dw comapi_serialcfg	; 000B get serial port config
 		dw comapi_cleanup	; 000C perform final cleanup
-		dw comapi_chainboot	; 000D clean up then bootstrap
+		dw comapi_err		; 000D clean up then bootstrap
 		dw comapi_configfile	; 000E get name of config file
 		dw comapi_ipappend	; 000F get ipappend strings
 		dw comapi_dnsresolv	; 0010 resolve hostname
-		dw comapi_maxshuffle	; 0011 maximum shuffle descriptors
-		dw comapi_shuffle	; 0012 cleanup, shuffle and boot
+		dw comapi_err		; 0011 maximum shuffle descriptors
+		dw comapi_err		; 0012 cleanup, shuffle and boot
 		dw comapi_idle		; 0013 idle call
 		dw comapi_localboot	; 0014 local boot
 		dw comapi_features	; 0015 feature flags
@@ -1161,8 +1043,8 @@ int22_table:
 		dw comapi_usingvga	; 0017 report video mode change
 		dw comapi_userfont	; 0018 query custom font
 		dw comapi_readdisk	; 0019 read disk
-		dw comapi_shufflepm	; 001A cleanup, shuffle and boot to pm
-		dw comapi_shufflerm	; 001B cleanup, shuffle and boot to rm
+		dw comapi_err		; 001A cleanup, shuffle and boot to pm
+		dw comapi_err		; 001B cleanup, shuffle and boot to rm
 		dw comapi_getadv	; 001C get pointer to ADV
 		dw comapi_writeadv	; 001D write ADV to disk
 		dw comapi_kbdtable	; 001E keyboard remapping table
@@ -1170,6 +1052,8 @@ int22_table:
 		dw comapi_opendir	; 0020 open directory
 		dw comapi_readdir	; 0021 read directory
 		dw comapi_closedir	; 0022 close directory
+		dw comapi_shufsize	; 0023 query shuffler size
+		dw comapi_shufraw	; 0024 cleanup, shuffle and boot raw
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

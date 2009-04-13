@@ -79,13 +79,14 @@ The following arguments are passed to the program on the stack:
 
  Address  Size	Meaning
  [ESP]    dword Return (termination) address
- [ESP+4]  dword	Number of additional arguments (currently 5)
+ [ESP+4]  dword	Number of additional arguments (currently 7)
  [ESP+8]  dword	Pointer to the command line arguments (null-terminated string)
  [ESP+12] dword Pointer to INT call helper function
  [ESP+16] dword Pointer to low memory bounce buffer
  [ESP+20] dword Size of low memory bounce buffer
  [ESP+24] dword Pointer to FAR call helper function (new in 2.05)
  [ESP+28] dword Pointer to CDECL helper function (new in 3.54)
+ [ESP+32] dword Amount of memory controlled by the Syslinux core (new in 3.74)
 
 This corresponds to the following C prototype, available in the file
 com32/include/com32.h:
@@ -568,15 +569,7 @@ AX=0010h [3.00] Resolve hostname [PXELINUX]
 	all uses of IP addresses in PXE are also in network byte order.
 
 
-AX=0011h [3.05] Maximum number of shuffle descriptors
-	Input:	AX	0011h
-	Output:	CX	maximum number of descriptors
-
-	This routine reports the maximum number of shuffle descriptors
-	permitted in a call to functions 0012h, 001Ah and 001Bh.
-
-	This is guaranteed to be at least 64.  For the current
-	version, this is 682 for all derivatives.
+AX=0011h [3.05] Obsoleted in 3.80
 
 
 AX=0012h [3.50] Cleanup, shuffle and boot
@@ -806,85 +799,10 @@ AX=0019h [3.50] Read disk [SYSLINUX, ISOLINUX, EXTLINUX]
 	2048-byte CD-ROM sector numbers.
 
 
-AX=001Ah [3.50] Cleanup, shuffle and boot to flat protected mode
-	Input:	AX	001Ah
-		DX	derivative-specific flags (see function 000Ch)
-		ES:DI	shuffle descriptor list (must be in low memory)
-		CX	number of shuffle descriptors
-		DS:SI	pointer to register values (must be in low memory)
-	Output:	Does not return
-		(if CX is too large the routine returns with CF=1)
-
-	This routine performs final cleanup, then performs a sequence
-	of copies, and jumps to a specified protected mode entry point.
-	This is otherwise similar to function 0012h; see that function
-	for the meaning of ES:DI and CX.
-
-	DS:SI points to the initial register file, which is a structure
-	of 9 dwords (available in <syslinux/bootpm.h>):
-
-	struct syslinux_pm_regs {
-	  uint32_t eax;			/* Offset  0 */
-	  uint32_t ecx;			/* Offset  4 */
-	  uint32_t edx;			/* Offset  8 */
-	  uint32_t ebx;			/* Offset 12 */
-	  uint32_t esp;			/* Offset 16 */
-	  uint32_t ebp;			/* Offset 20 */
-	  uint32_t esi;			/* Offset 24 */
-	  uint32_t edi;			/* Offset 28 */
-
-	  uint32_t eip;			/* Offset 32 */
-	};
-
-	Protected mode is entered with all data segments set up as a
-	flat 32-bit read/write segment and the code segment a flat 32-bit
-	read/execute segment.  Interrupts and paging is off, CPL=0, DF=0;
-	however, GDT, LDT and IDT are undefined, so it is up to the
-	invoked code to set new	descriptor tables to its liking.
+AX=001Ah [3.50] Obsoleted in 3.80
 
 
-AX=001Bh [3.50] Cleanup, shuffle and boot to real mode
-	Input:	AX	001Bh
-		DX	derivative-specific flags (see function 000Ch)
-		ES:DI	shuffle descriptor list (must be in low memory)
-		CX	number of shuffle descriptors
-		DS:SI	pointer to register values (must be in low memory)
-	Output:	Does not return
-		(if CX is too large the routine returns with CF=1)
-
-	This routine performs final cleanup, then performs a sequence
-	of copies, and jumps to a specified entry point.
-	This is similar to function 0012h but allow more control over
-	the initial register state; see that function for the meaning of
-	ES:DI and CX.
-
-	DS:SI points to the initial register file, which is a structure
-	in the following format (available in <syslinux/bootrm.h>;
-	note that this is a completely different structure from the
-	com32sys_t structure described at the top of this document!):
-
-	struct syslinux_rm_regs {
-	  uint16_t es;			/* Offset  0 */
-	  uint16_t _unused_cs;		/* Offset  2 */
-	  uint16_t ds;			/* Offset  4 */
-	  uint16_t ss;			/* Offset  6 */
-	  uint16_t fs;			/* Offset  8 */
-	  uint16_t gs;			/* Offset 10 */
-
-	  reg32_t eax;			/* Offset 12 */
-	  reg32_t ecx;			/* Offset 16 */
-	  reg32_t edx;			/* Offset 20 */
-	  reg32_t ebx;			/* Offset 24 */
-	  reg32_t esp;			/* Offset 28 */
-	  reg32_t ebp;			/* Offset 32 */
-	  reg32_t esi;			/* Offset 36 */
-	  reg32_t edi;			/* Offset 40 */
-
-	  uint16_t ip;			/* Offset 44 */
-	  uint16_t cs;			/* Offset 46 */
-	};
-
-	Interrupts are off and DF=0 on entry.
+AX=001Bh [3.50]	Obsoleted in 3.80
 
 
 AX=001Ch [3.60] Get pointer to auxilliary data vector
@@ -965,3 +883,67 @@ AX=0022h [3.74] Close directory
 	Output	SI	0
 
 	Closes a directory.
+
+
+AX=0023h [3.80] Get shuffler parameters
+	Input:	AX	0023h
+	Output:	CX	size of shuffler "safe area" in bytes
+		Other registers reserved for future use
+
+	This call gives the size of the required shuffler "safe area",
+	in bytes; for call 0024h.  In the future, it may provide
+	additional parameters.
+
+
+AX=0024h [3.80] Cleanup, shuffle and boot, raw version
+	Input:	AX	0024h
+		DX	derivative-specific flags (see function 000Ch)
+		EDI	shuffle descriptor list safe area
+		ESI	shuffle descriptor list source
+		ECX	byte count of shuffle descriptor list
+	Output:	Does not return
+
+	This routine performs final cleanup, then performs a sequence
+	of copies, and jumps to a specified real mode entry point.
+	This is a more general version of function 000Dh, which can
+	also be used to load other types of programs.
+
+	Unlike previous obsolete versions of this function, there are
+	no restrictions that copies must not touch memory below
+	address 7C00h.  Either the shuffle descriptor list or the safe
+	area (or both) may be located in high memory.
+
+	ESI points to a list of descriptors each of the form:
+
+		Offset	Size	Meaning
+		 0	dword	destination address
+		 4	dword	source address (-1 = zero)
+		 8	dword	length in bytes (0 = end of list)
+
+	The copies are overlap-safe, like memmove().
+
+	Before actually executing the move list, the list is moved to
+	the address specified in EDI.  The caller is responsibe to
+	ensure that the moved descriptor list plus a "safe area"
+	immediately afterwards (the size of which is specified by
+	function 0023h) is not disturbed by the copy sequence.  It is,
+	however, safe to overwrite descriptors already consumed.
+
+	If the source address is -1 (FFFFFFFFh) then the block
+	specified by the destination address and the length is set to
+	all zero.
+
+	The list is terminated by an entry with length 0.  For that
+	entry, the destination is used as an entry point, and the
+	source represents the type of entry point:
+
+		0	Real mode (dst is CS:IP)
+		1	Flat 32-bit protected mode (dst is EIP)
+
+	This routine does not set up any register state whatsoever,
+	including stack.  It is the responsibility of the caller to
+	make sure the entry point provided sets up any registers
+	needed.  This is particularly important that a real mode entry
+	point reloads all data segment registers at the earliest
+	possible point.
+

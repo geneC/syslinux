@@ -7,6 +7,7 @@
 ;  memory.
 ;
 ;   Copyright 2001-2009 H. Peter Anvin - All Rights Reserved
+;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -151,7 +152,7 @@ Int13Start:
 		mov bp,sp		; Point BP to the entry stack frame
 		TRACER 'F'
 		; Note: AH == P_AH here
-		cmp ah,[Int13FuncsCnt-1]
+		cmp ah,Int13FuncsCnt-1
 		ja Invalid_jump
 		xor al,al		; AL = 0 is standard entry condition
 		mov di,ax

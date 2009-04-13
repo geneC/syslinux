@@ -48,6 +48,12 @@ MENU HIDDEN
 	All that is displayed is a timeout message.
 
 
+MENU SHIFTKEY
+
+	Exit the menu system immediately unless either the Shift or Alt
+	key is pressed, or Caps Lock or Scroll Lock is set.
+
+
 MENU SEPARATOR
 
 	Insert an empty line in the menu.
@@ -267,6 +273,23 @@ DEFAULT label
 
 	Note: the CLI accepts options after the label, or even a
 	non-label.  The menu system does not support that.
+
+
+MENU SAVE
+
+	Remember the last entry selected and make that the default for
+	the next boot.  A password-protected menu entry is *not*
+	saved.  This requires the ADV data storage mechanism, which is
+	currently only implemented for EXTLINUX, although the other
+	Syslinux derivatives will accept the command (and ignore it.)
+
+	NOTE: MENU SAVE stores the LABEL tag of the selected entry;
+	this mechanism therefore relies on LABEL tags being unique.
+	On the other hand, it handles changes in the configuration
+	file gracefully.
+
+	The MENU SAVE information can be cleared with
+	"extlinux --reset-adv".
 
 
 INCLUDE filename [tagname]

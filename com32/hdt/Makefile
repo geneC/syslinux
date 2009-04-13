@@ -1,81 +1,47 @@
 ## -----------------------------------------------------------------------
 ##
 ##   Copyright 2001-2008 H. Peter Anvin - All Rights Reserved
+##   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
-##   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
-##   Boston MA 02111-1307, USA; either version 2 of the License, or
+##   the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
+##   Boston MA 02110-1301, USA; either version 2 of the License, or
 ##   (at your option) any later version; incorporated herein by reference.
 ##
 ## -----------------------------------------------------------------------
 
 ##
-## samples for syslinux users
+## Hardware Detection Tool
 ##
 
 topdir = ../..
-include $(topdir)/MCONFIG.embedded
+include ../MCONFIG
 
-MODULES = hdt.c32
+LIBS	   = ../cmenu/libmenu/libmenu.a ../libutil/libutil_com.a \
+	     ../lib/libcom32.a $(LIBGCC)
+CFLAGS    += -I$(com32)/cmenu/libmenu
 
-INCLUDES   = -I$(com32)/include -I$(com32)/cmenu/libmenu -I$(com32)/gplinclude\
-	     -I$(com32)/libutil/include
+MODULES	  = hdt.c32
+TESTFILES =
 
-LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
-LIB	   = liboldcom32.a
+OBJS	  = $(patsubst %.c,%.o,$(wildcard *.c))
 
-com32	= $(topdir)/com32
-LIBS	= $(LIB) $(com32)/cmenu/libmenu/libmenu.a \
-	  $(com32)/gpllib/libcom32gpl.a \
-	  $(com32)/libutil/libutil_com.a $(com32)/lib/libcom32.a \
-          $(LIBGCC)
+all: $(MODULES) $(TESTFILES)
 
-LDFLAGS	= -m elf_i386 -T $(com32)/lib/com32.ld
-
-all:  $(MODULES) $(LIB)
-
-.PRECIOUS: %.o
-%.o: %.S
-	$(CC) $(SFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.o
-%.o: %.c
-	@$(CC) $(CFLAGS) -std=gnu99  -D__COM32__ -c -o $@ $<
-
-.PRECIOUS: %.elf
-%.elf: c32entry.o %.o $(LIB)
-	@$(LD) -Ttext 0x101000 -e _start -o $@ $^
-
-hdt.elf: hdt.o hdt-ata.o hdt-menu.o hdt-menu-pci.o hdt-menu-kernel.o \
-	hdt-menu-disk.o hdt-menu-dmi.o hdt-menu-processor.o \
-	hdt-menu-syslinux.o hdt-menu-about.o \
-	hdt-cli.o hdt-cli-hdt.o hdt-common.o hdt-cli-pci.o hdt-cli-dmi.o \
-	hdt-cli-cpu.o hdt-cli-pxe.o hdt-cli-kernel.o \
-	hdt-cli-syslinux.o hdt-cli-vesa.o\
-	hdt-menu-pxe.o hdt-menu-summary.o hdt-menu-vesa.o\
-	lib-ansi.o\
-	$(LIBS)
-	@$(LD) $(LDFLAGS) -o $@ $^
-
-%.c32: %.elf
-	@$(OBJCOPY) -O binary $< $@
-
-%.com: %.asm
-	@$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
-
-$(LIB):
-	@rm -f $@
-	@$(AR) cq $@ $^
-	@$(RANLIB) $@
+hdt.elf : $(OBJS) $(LIBS) $(C_LIBS)
+	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:
-	@rm -f *.o *.a *.lst *.elf
+	rm -f *.o *.lo *.a *.lst *.elf .*.d *.tmp
 
-install: all
-
-# Don't specify *.com since mdiskchk.com can't be built using Linux tools
 clean: tidy
-	@rm -f *.o *.c32 *.c~ *.h~ Makefile~
+	rm -f *.lnx
 
 spotless: clean
+	rm -f *.lss *.c32 *.com
+	rm -f *~ \#*
+
+install:
+
+-include .*.d
