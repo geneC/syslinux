@@ -54,11 +54,11 @@ int main(const int argc, const char *argv[])
   /* Cleaning structures */
   init_hardware(&hardware);
 
-  /* Detecting parameters */
-  detect_parameters(argc, argv, &hardware);
-
   /* Detecting Syslinux version */
   detect_syslinux(&hardware);
+
+  /* Detecting parameters */
+  detect_parameters(argc, argv, &hardware);
 
   console_ansi_raw();
   /* Opening the Syslinux console */
