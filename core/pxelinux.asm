@@ -39,8 +39,6 @@ MAX_OPEN_LG2	equ 5			; log2(Max number of open sockets)
 MAX_OPEN	equ (1 << MAX_OPEN_LG2)
 PKTBUF_SIZE	equ (65536/MAX_OPEN)	; Per-socket packet buffer size
 TFTP_PORT	equ htons(69)		; Default TFTP port
-PKT_RETRY	equ 10			; Packet transmit retry count
-PKT_TIMEOUT	equ 2			; Initial timeout, timer ticks @ 55 ms
 ; Desired TFTP block size
 ; For Ethernet MTU is normally 1500.  Unfortunately there seems to
 ; be a fair number of networks with "substandard" MTUs which break.
@@ -991,10 +989,9 @@ searchdir:
 		call allocate_socket
 		jz .ret
 
-		mov ax,PKT_RETRY	; Retry counter
-		mov word [PktTimeout],PKT_TIMEOUT	; Initial timeout
+		mov ax,TimeoutTable	; Reset timeout
 
-.sendreq:	push ax			; [bp-2]  - Retry counter
+.sendreq:	push ax			; [bp-2]  - Timeout pointer
 		push si			; [bp-4]  - File name
 
 		mov di,packet_buf
@@ -1059,7 +1056,9 @@ searchdir:
 		;
 
 		; Packet transmitted OK, now we need to receive
-.getpacket:	push word [PktTimeout]	; [bp-10]
+.getpacket:	mov bx,[bp-2]
+		movzx bx,byte [bx]
+		push bx			; [bp-10] - timeout in ticks
 		push word [BIOS_timer]	; [bp-12]
 
 .pkt_loop:	mov bx,[bp-8]		; TID
@@ -1079,11 +1078,9 @@ searchdir:
 		cmp dx,[bp-12]
 		je .pkt_loop
 		mov [bp-12],dx
-		dec word [bp-10]		; Timeout
 		jnz .pkt_loop
 		pop ax	; Adjust stack
 		pop ax
-		shl word [PktTimeout],1		; Exponential backoff
 		jmp .failure
 
 .got_packet:
@@ -1097,7 +1094,7 @@ searchdir:
 		jne .no_packet
 
 		; Got packet - reset timeout
-		mov word [PktTimeout],PKT_TIMEOUT
+		mov word [bp-2],TimeoutTable
 
 		pop ax	; Adjust stack
 		pop ax
@@ -1273,8 +1270,9 @@ searchdir:
 		pop bx
 		pop si
 		pop ax
-		dec ax			; Retry counter
-		jnz .sendreq		; Try again
+		inc ax
+		cmp ax,TimeoutTableEnd
+		jb .sendreq		; Try again
 
 .error:		mov si,bx		; Socket pointer
 .error_si:				; Socket pointer already in SI
@@ -1787,10 +1785,10 @@ fill_buffer:
 .packet_loop:
 		; Start by ACKing the previous packet; this should cause the
 		; next packet to be sent.
-		mov cx,PKT_RETRY
-		mov word [PktTimeout],PKT_TIMEOUT
+		mov bx,TimeoutTable
 
-.send_ack:	push cx				; <D> Retry count
+.send_ack:	push bx				; <D> Retry pointer
+		movzx cx,byte [bx]		; Timeout
 
 		mov ax,[si+tftp_lastpkt]
 		call ack_packet			; Send ACK
@@ -1804,7 +1802,6 @@ fill_buffer:
 .send_ok:	; Now wait for packet.
 		mov dx,[BIOS_timer]		; Get current time
 
-		mov cx,[PktTimeout]
 .wait_data:	push cx				; <E> Timeout
 		push dx				; <F> Old time
 
@@ -1833,9 +1830,10 @@ fill_buffer:
 		je .wait_data			; Same clock tick
 		loop .wait_data			; Decrease timeout
 
-		pop cx				; <D> Didn't get any, send another ACK
-		shl word [PktTimeout],1		; Exponential backoff
-		loop .send_ack
+		pop bx				; <D> Didn't get any, send another ACK
+		inc bx
+		cmp bx,TimeoutTableEnd
+		jb .send_ack
 		jmp kaboom			; Forget it...
 
 .recv_ok:	pop dx				; <F>
@@ -1899,6 +1897,19 @@ fill_buffer:
 
 		jmp .ret
 
+;
+; TimeoutTable: list of timeouts (in 18.2 Hz timer ticks)
+;
+; This is roughly an exponential backoff...
+;
+		section .data
+TimeoutTable:
+		db 2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18
+		db 21, 26, 31, 37, 44, 53, 64, 77, 92, 110, 132
+		db 159, 191, 229, 255, 255, 255, 255
+TimeoutTableEnd	equ $
+
+		section .text
 ;
 ; ack_packet:
 ;
