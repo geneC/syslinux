@@ -51,6 +51,8 @@ int main(const int argc, const char *argv[])
   snprintf(version_string, sizeof version_string, "%s %s by %s",
            PRODUCT_NAME,VERSION,AUTHOR);
 
+  console_ansi_raw();
+
   /* Cleaning structures */
   init_hardware(&hardware);
 
@@ -60,7 +62,6 @@ int main(const int argc, const char *argv[])
   /* Detecting parameters */
   detect_parameters(argc, argv, &hardware);
 
-  console_ansi_raw();
   /* Opening the Syslinux console */
 //  openconsole(&dev_stdcon_r, &dev_ansicon_w);
 
