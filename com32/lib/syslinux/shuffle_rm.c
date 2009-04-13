@@ -44,47 +44,45 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
 			     uint16_t bootflags,
 			     struct syslinux_rm_regs *regs)
 {
-  int nd;
-  com32sys_t ireg;
-  char *regbuf;
   const struct syslinux_rm_regs_alt {
     uint16_t seg[6];
     uint32_t gpr[8];
     uint32_t csip;
+    bool sti;
   } *rp;
   int i, rv;
-  uint8_t handoff_code[5*5+8*6+5], *p;
-  struct syslinux_memmap *tmap, *tp;
-  addr_t regstub;
+  uint8_t handoff_code[5*5+8*6+1+5], *p;
+  struct syslinux_memmap *tmap;
+  addr_t regstub, stublen;
 
   tmap = syslinux_target_memmap(fraglist, memmap);
   if (!tmap)
     return -1;
 
   /* Search for a good place to put the real-mode register stub.
-     We prefer to put it as high as possible in the low 640K. */
-  regstub = 0;
-  for (tp = tmap; tp->type != SMT_END; tp = tp->next) {
-    addr_t xend, xlen;
-    if (tp->start >= 640*1024)
-      continue;
-    if (tp->type != SMT_FREE)
-      continue;
-    xend = tp->next->start;
-    if (xend > 640*1024)
-      xend = 640*1024;
-    xlen = xend - tp->start;
-    if (xlen < sizeof handoff_code)
-      continue;
-    regstub = xend - sizeof handoff_code; /* Best alternative so far */
+     We prefer it as low as possible above 0x800. */
+  regstub = 0x800;
+  stublen = sizeof handoff_code;
+  rv = syslinux_memmap_find(tmap, SMT_FREE, &regstub, &stublen);
+
+  if (rv || (regstub > 0x100000 - sizeof handoff_code)) {
+    /*
+     * Uh-oh.  This isn't real-mode accessible memory.
+     * It might be possible to do something insane here like
+     * putting the stub in the IRQ vectors, or in the 0x5xx segment.
+     * This code tries the 0x510-0x7ff range and hopes for the best.
+     */
+    regstub = 0x510;		/* Try the 0x5xx segment... */
+    stublen = sizeof handoff_code;
+    rv = syslinux_memmap_find(tmap, SMT_FREE, &regstub, &stublen);
+
+    if (!rv && (regstub > 0x100000 - sizeof handoff_code))
+      rv = -1;			/* No acceptable memory found */
   }
 
   syslinux_free_memmap(tmap);
-
-  /* XXX: it might be possible to do something insane here like
-     putting the stub in the IRQ vectors... */
-  if (!regstub)
-    return -1;			/* No space at all */
+  if (rv)
+    return -1;
 
   /* Build register-setting stub */
   p = handoff_code;
@@ -103,6 +101,8 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
     *(uint32_t *)(p+2) = rp->gpr[i];
     p += 6;
   }
+  *p++ = rp->sti ? 0xfb : 0xfa;	/* STI/CLI */
+
   *p++ = 0xea;			/* JMP FAR */
   *(uint32_t *)p = rp->csip;
 

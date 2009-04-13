@@ -35,6 +35,7 @@
 #define _SYSLINUX_BOOTRM_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <com32.h>
 #include <syslinux/movebits.h>
 
@@ -60,6 +61,8 @@ struct syslinux_rm_regs {
 
   uint16_t ip;			/* Offset 44 */
   uint16_t cs;			/* Offset 46 */
+
+  bool sti;			/* Offset 48 */
 };
 
 int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
