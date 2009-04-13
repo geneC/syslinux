@@ -847,8 +847,8 @@ comapi_userfont:
 		and al,al
 		jz .done
 		mov al,[VGAFontSize]
-		mov P_ES,ds
-		mov P_BX,vgafontbuf
+		mov P_ES,aux_seg
+		mov P_BX,aux.fontbuf
 
 .done:		; CF=0 here
 		mov P_AL,al

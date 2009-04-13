@@ -113,15 +113,6 @@ vk_end:		equ $			; Should be <= vk_size
 		endstruc
 
 ;
-; Segment assignments in the bottom 640K
-; 0000h - main code/data segment (and BIOS segment)
-;
-real_mode_seg	equ 3000h
-pktbuf_seg	equ 2000h		; Packet buffers segments
-xfer_buf_seg	equ 1000h		; Bounce buffer for I/O to high mem
-comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
-
-;
 ; BOOTP/DHCP packet pattern
 ;
 		struc bootp_t

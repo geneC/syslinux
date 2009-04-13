@@ -57,9 +57,14 @@ loadfont:
 		; Copy to font buffer
 		mov si,trackbuf			; Start of font data
 		mov [VGAFontSize],bh
-		mov di,vgafontbuf
+		push es
+		mov cx,aux_seg
+		mov es,cx
+		mov di,aux.fontbuf
 		mov cx,bx
-		rep movsb
+		shr cx,2
+		rep movsd
+		pop es
 
 		mov [UserFont], byte 1		; Set font flag
 
@@ -67,7 +72,7 @@ loadfont:
 ; use_font:
 ;	This routine activates whatever font happens to be in the
 ;	vgafontbuf, and updates the adjust_screen data.
-;       Must be called with CS = DS = ES
+;       Must be called with CS = DS
 ;
 use_font:
 		test byte [UsingVGA], ~03h	; Nonstandard mode?
@@ -78,9 +83,12 @@ use_font:
 		test [UserFont], byte 1		; Are we using a user-specified font?
 		jz adjust_screen		; If not, just do the normal stuff
 
-		mov bp,vgafontbuf
-		mov bh,[VGAFontSize]
+		push es
+		mov bp,aux_seg
+		mov es,bp
 
+		mov bp,aux.fontbuf		; ES:BP -> font
+		mov bh,[VGAFontSize]
 		xor bl,bl			; Needed by both INT 10h calls
 
 		test byte [UsingVGA], 01h	; Are we in graphics mode?
@@ -100,6 +108,7 @@ use_font:
 		shr ax,3			; 8 pixels/character
 		dec ax
 		mov [VidCols],al
+		pop es
 		ret				; No need to call adjust_screen
 
 .text:
@@ -107,6 +116,7 @@ use_font:
 		xor dx,dx
 		mov ax,1110h
 		int 10h				; Load into VGA RAM
+		pop es
 
 		xor bl,bl
 		mov ax,1103h			; Select page 0
@@ -130,9 +140,6 @@ vidrows_ok:	mov [VidRows],al
                 mov [VidCols],ah
 		popa
 		ret
-
-		section .bss
-vgafontbuf	resb 8192
 
 		section .data
 		alignz 2

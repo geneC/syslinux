@@ -74,18 +74,6 @@ vk_end:		equ $			; Should be <= vk_size
 		endstruc
 
 ;
-; Segment assignments in the bottom 640K
-; Stick to the low 512K in case we're using something like M-systems flash
-; which load a driver into low RAM (evil!!)
-;
-; 0000h - main code/data segment (and BIOS segment)
-;
-real_mode_seg	equ 3000h
-cache_seg	equ 2000h		; 64K area for metadata cache
-xfer_buf_seg	equ 1000h		; Bounce buffer for I/O to high mem
-comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
-
-;
 ; File structure.  This holds the information for each currently open file.
 ;
 		struc open_file_t

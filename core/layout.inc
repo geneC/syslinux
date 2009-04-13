@@ -85,3 +85,38 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		global _start
 
 		section .text
+
+;
+; Segment assignments in the bottom 640K
+; Keep the low-memory footprint as small as possible... overrun is a hard
+; failure!
+;
+; 0000h - main code/data segment (and BIOS segment)
+
+aux_seg		equ 1000h		; Currently holds the font buffer
+
+;
+; Contents of aux_seg
+;
+		struc aux
+.fontbuf	resb 8192
+		endstruc
+
+;
+; Bounce buffer for I/O to high mem
+; Note: we keep all the segments page-aligned, even if that probably
+; is somewhat excessive.  Sector alignment is obligatory, however.
+;
+xfer_buf_seg	equ aux_seg + (((aux_size + 4095) & ~4095) >> 4)
+
+%if IS_ISOLINUX
+; ISOLINUX doesn't have a block cache yet
+real_mode_seg	equ xfer_buf_seg + 1000h
+%else
+cache_seg	equ xfer_buf_seg + 1000h	; 64K area for metadata cache
+real_mode_seg	equ xfer_buf_seg + 2000h
+
+pktbuf_seg	equ cache_seg		; PXELINUX packet buffers
+%endif
+
+comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
