@@ -46,7 +46,7 @@ make_plain_cmdline:
 ;
 %if IS_PXELINUX
 		section .data
-		alignb 2, db 0
+		alignz 2
 IPAppends	dw IPOption
 		dw BOOTIFStr
 numIPAppends	equ ($-IPAppends)/2

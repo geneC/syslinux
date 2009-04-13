@@ -57,6 +57,13 @@
 %endmacro
 
 ;
+; Align with zero bytes in a progbits segment
+;
+%macro	alignz	1.nolist
+	times (((%1) - (($-$$) % (%1))) % (%1)) db 0
+%endmacro
+
+;
 ; Macro to emit an unsigned decimal number as a string
 ;
 %macro asciidec	1.nolist

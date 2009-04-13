@@ -2686,7 +2686,7 @@ bootif_str_len	equ $-bootif_str
 ; Extensions to search for (in *forward* order).
 ; (.bs and .bss are disabled for PXELINUX, since they are not supported)
 ;
-		align 4, db 0
+		alignz 4
 exten_table:	db '.cbt'		; COMBOOT (specific)
 		db '.0', 0, 0		; PXE bootstrap program
 		db '.com'		; COMBOOT (same as DOS)
@@ -2779,7 +2779,7 @@ gpxe_file_read:
 ;
 ; Misc initialized (data) variables
 ;
-		alignb 4, db 0
+		alignz 4
 BaseStack	dd StackBuf		; ESP of base stack
 		dw 0			; SS of base stack
 NextSocket	dw 49152		; Counter for allocating socket numbers
@@ -2798,7 +2798,7 @@ blksize_len	equ ($-blksize_str)
 		db 0
 tftp_tail_len	equ ($-tftp_tail)
 
-		alignb 2, db 0
+		alignz 2
 ;
 ; Options negotiation parsing table (string pointer, string len, offset
 ; into socket structure)
@@ -2816,7 +2816,7 @@ tftp_opt_err	dw TFTP_ERROR				; ERROR packet
 		db 'tsize option required', 0		; Error message
 tftp_opt_err_len equ ($-tftp_opt_err)
 
-		alignb 4, db 0
+		alignz 4
 ack_packet_buf:	dw TFTP_ACK, 0				; TFTP ACK packet
 
 ;
@@ -2830,7 +2830,7 @@ ServerPort	dw TFTP_PORT		; TFTP server port
 ;
 ; Variables that are uninitialized in SYSLINUX but initialized here
 ;
-		alignb 4, db 0
+		alignz 4
 BufSafe		dw trackbufsize/TFTP_BLOCKSIZE	; Clusters we can load into trackbuf
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 %ifndef DEPEND

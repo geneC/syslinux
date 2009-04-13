@@ -1015,7 +1015,7 @@ int21_table:
 		int21	 -1, comboot_bad_int21
 int21_count	equ ($-int21_table)/3
 
-		align 2, db 0
+		alignz 2
 int22_table:
 		dw comapi_err		; 0000 unimplemented syscall
 		dw comapi_get_version	; 0001 get SYSLINUX version

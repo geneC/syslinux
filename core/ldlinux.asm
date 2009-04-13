@@ -602,7 +602,7 @@ syslinux_banner	db 0Dh, 0Ah
 		db VERSION_STR, ' ', DATE_STR, ' ', 0
 		db 0Dh, 0Ah, 1Ah	; EOF if we "type" this in DOS
 
-		align 8, db 0
+		alignz 8
 ldlinux_magic	dd LDLINUX_MAGIC
 		dd LDLINUX_MAGIC^HEXDATE
 
@@ -1226,7 +1226,7 @@ search_dos_dir:
 		ret
 
 		section .data
-		align 4, db 0
+		alignz 4
 		; Note: we have no use of the first 32 bytes (header),
 		; nor of the folloing 32 bytes (case mapping of control
 		; characters), as long as we adjust the offsets appropriately.
@@ -2088,7 +2088,7 @@ exten_table_end:
 debug_magic	dw 0D00Dh		; Debug code sentinel
 %endif
 
-		alignb 4, db 0
+		alignz 4
 BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 %ifndef DEPEND

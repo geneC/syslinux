@@ -40,7 +40,7 @@ pm_entry:				; Needs to not be...
 
 		bits 16
 		section .data
-		align 2, db 0
+		alignz 2
 com32_pmidt:
 		dw 8*256		; Limit
 		dd pm_idt		; Address

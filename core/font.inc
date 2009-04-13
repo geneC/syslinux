@@ -135,7 +135,7 @@ vidrows_ok:	mov [VidRows],al
 vgafontbuf	resb 8192
 
 		section .data
-		align 2, db 0
+		alignz 2
 VGAFontSize	dw 16			; Defaults to 16 byte font
 UserFont	db 0			; Using a user-specified font
 

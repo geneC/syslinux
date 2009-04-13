@@ -698,7 +698,7 @@ err_notfound	db 'Could not find kernel image: ',0
 err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
 
 
-		align 2, db 0
+		alignz 2
 kerneltype_table:
 		dw is_unknown_filetype	; VK_KERNEL
 		dw is_linux_kernel	; VK_LINUX

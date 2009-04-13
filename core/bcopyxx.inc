@@ -307,7 +307,7 @@ bcopy_gdt:
 	
 bcopy_gdt_size:	equ $-bcopy_gdt
 
-		align 4, db 0
+		alignz 4
 bcopyxx_end	equ $			; *Must* be dword-aligned!
 bcopyxx_len	equ $-bcopyxx_start
 bcopyxx_dwords	equ bcopyxx_len >> 2

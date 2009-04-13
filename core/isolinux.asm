@@ -1066,7 +1066,7 @@ bios_cbios_str	db 'CHDD', 0
 bios_ebios_str	db 'EHDD' ,0
 %endif
 
-		alignb 4, db 0
+		alignz 4
 bios_cdrom:	dw getlinsec_cdrom, bios_cdrom_str
 %ifndef DEBUG_MESSAGES
 bios_cbios:	dw getlinsec_cbios, bios_cbios_str
@@ -1744,7 +1744,7 @@ dbg_configok_msg	db 'Configuration file opened...', CR, LF, 0
 ;
 ; Extensions to search for (in *forward* order).
 ;
-		align 4, db 0
+		alignz 4
 exten_table:	db '.cbt'		; COMBOOT (specific)
 		db '.img'		; Disk image
 		db '.bin'		; CD boot sector
@@ -1756,7 +1756,7 @@ exten_table_end:
 ;
 ; Floppy image table
 ;
-		align 4, db 0
+		alignz 4
 img_table_count	equ 3
 img_table:
 		dd 1200*1024		; 1200K floppy
@@ -1787,7 +1787,7 @@ img_table:
 ; **** ISOLINUX:: We may have to make this flexible, based on what the
 ; **** BIOS expects our "sector size" to be.
 ;
-		alignb 4, db 0
+		alignz 4
 BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 %ifndef DEPEND

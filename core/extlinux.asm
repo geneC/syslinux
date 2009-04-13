@@ -572,7 +572,7 @@ syslinux_banner	db 0Dh, 0Ah
 		db VERSION_STR, ' ', DATE_STR, ' ', 0
 		db 0Dh, 0Ah, 1Ah	; EOF if we "type" this in DOS
 
-		align 8, db 0
+		alignz 8
 ldlinux_magic	dd LDLINUX_MAGIC
 		dd LDLINUX_MAGIC^HEXDATE
 
@@ -1567,7 +1567,7 @@ config_name	db 'extlinux.conf',0		; Unmangled form
 ;
 ; Extensions to search for (in *forward* order).
 ;
-		align 4, db 0
+		alignz 4
 exten_table:	db '.cbt'		; COMBOOT (specific)
 		db '.img'		; Disk image
 		db '.bs', 0		; Boot sector
@@ -1583,7 +1583,7 @@ exten_table_end:
 debug_magic	dw 0D00Dh		; Debug code sentinel
 %endif
 
-		alignb 4, db 0
+		alignz 4
 BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 %ifndef DEPEND

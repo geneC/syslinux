@@ -55,7 +55,7 @@ pxe_detect_nic_type:
 ;; List of devices for which we want to actually issue idle calls.
 ;;
 		section .data
-		align 4, db 0
+		alignz 4
 pxe_idle_pci_list:
 ;
 ; Older Broadcom NICs; these need idle calls to avoid FIFO stalls.
