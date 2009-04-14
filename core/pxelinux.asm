@@ -197,7 +197,6 @@ StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure
 APIVer		resw 1			; PXE API version found
 IdleTimer	resw 1			; Time to check for ARP?
 LocalBootType	resw 1			; Local boot return code
-PktTimeout	resw 1			; Timeout for current packet
 RealBaseMem	resw 1			; Amount of DOS memory after freeing
 OverLoad	resb 1			; Set if DHCP packet uses "overloading"
 DHCPMagic	resb 1			; PXELINUX magic flags
@@ -1069,6 +1068,7 @@ searchdir:
 		cmp dx,[bp-12]
 		je .pkt_loop
 		mov [bp-12],dx
+		dec word [bp-10]
 		jnz .pkt_loop
 		pop ax	; Adjust stack
 		pop ax
@@ -1255,7 +1255,9 @@ searchdir:
 		call writestr_early
 		jmp kaboom
 
-.bailnow:	mov word [bp-2],1	; Immediate error - no retry
+.bailnow:
+		; Immediate error - no retry
+		mov word [bp-2],TimeoutTableEnd-1
 
 .failure:	pop bx			; Junk
 		pop bx
