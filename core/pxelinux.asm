@@ -2000,8 +2000,8 @@ get_packet_gpxe:
 ; the memory.
 ;
 unload_pxe:
-		test byte [KeepPXE],01h		; Should we keep PXE around?
-		jnz reset_pxe
+		cmp byte [KeepPXE],0		; Should we keep PXE around?
+		jne reset_pxe
 
 		push ds
 		push es

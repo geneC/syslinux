@@ -117,8 +117,8 @@ replace_bootstrap:
 		mov es,ax
 
 %if IS_PXELINUX
-		test byte [KeepPXE],01h
-		jz .stdstack
+		cmp byte [KeepPXE],0
+		je .stdstack
 		les di,[InitStack]	; Reset stack to PXE original
 		jmp .stackok
 %endif
