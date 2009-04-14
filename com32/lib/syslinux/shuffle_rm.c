@@ -51,7 +51,7 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
     bool sti;
   } *rp;
   int i, rv;
-  uint8_t handoff_code[5*5+8*6+1+5], *p;
+  uint8_t handoff_code[8+5*5+8*6+1+5], *p;
   struct syslinux_memmap *tmap;
   addr_t regstub, stublen;
 
@@ -59,11 +59,15 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
   if (!tmap)
     return -1;
 
-  /* Search for a good place to put the real-mode register stub.
-     We prefer it as low as possible above 0x800. */
+  /*
+   * Search for a good place to put the real-mode register stub.
+   * We prefer it as low as possible above 0x800.  KVM barfs horribly
+   * if we're not aligned to a paragraph boundary, so set the alignment
+   * appropriately.
+   */
   regstub = 0x800;
   stublen = sizeof handoff_code;
-  rv = syslinux_memmap_find(tmap, SMT_FREE, &regstub, &stublen);
+  rv = syslinux_memmap_find(tmap, SMT_FREE, &regstub, &stublen, 16);
 
   if (rv || (regstub > 0x100000 - sizeof handoff_code)) {
     /*
@@ -74,7 +78,7 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
      */
     regstub = 0x510;		/* Try the 0x5xx segment... */
     stublen = sizeof handoff_code;
-    rv = syslinux_memmap_find(tmap, SMT_FREE, &regstub, &stublen);
+    rv = syslinux_memmap_find(tmap, SMT_FREE, &regstub, &stublen, 16);
 
     if (!rv && (regstub > 0x100000 - sizeof handoff_code))
       rv = -1;			/* No acceptable memory found */
@@ -87,6 +91,12 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
   /* Build register-setting stub */
   p = handoff_code;
   rp = (const struct syslinux_rm_regs_alt *)regs;
+
+  *((uint32_t *)p) = 0xeac0220f; /* MOV CR0,EAX; JMP FAR */
+  *((uint16_t *)(p+4)) = 8;	 /* Offset */
+  *((uint16_t *)(p+6)) = regstub >> 4; /* Segment */
+  p += 8;
+
   for (i = 0; i < 6; i++) {
     if (i != 1) {		/* Skip CS */
       p[0] = 0xb8;		/* MOV AX,imm16 */
@@ -110,9 +120,6 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
   if (syslinux_add_movelist(&fraglist, regstub, (addr_t)handoff_code,
 			    sizeof handoff_code))
     return -1;
-
-  /* Convert regstub to a CS:IP entrypoint pair */
-  regstub = (SEG((void *)regstub) << 16) + OFFS((void *)regstub);
 
   return syslinux_do_shuffle(fraglist, memmap, regstub, 0, bootflags);
 }

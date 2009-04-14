@@ -41,7 +41,7 @@ LATEBSS_START	equ 0B800h
 		; Use .earlybss for things that MUST be in low memory.
 		section .earlybss	nobits start=BSS_START
 		section .config		write progbits align=4
-		section .config.end	write nobits   align=4
+		section .replacestub	exec write progbits align=16
 
 		; Use .bss for things that doesn't have to be in low memory;
 		; with .bss1 and .bss2 to offload.  .earlybss should be used
@@ -81,6 +81,7 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		extern __%1_len, __%1_dwords
 %endmacro
 		SECINFO config
+		SECINFO replacestub
 
 		global _start
 

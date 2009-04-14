@@ -239,10 +239,8 @@ pm_shuffle:
 		; to real mode... 
 pm_shuffle_real_mode:
 		call .here
-.here:		pop eax
-		mov ebx,eax
-		add eax,.next-.here
-		mov [ebx-.here+.rm_entry],edi
+.here:		pop ebx
+		mov eax,edi
 		mov [ebx-.here+bcopy_gdt.CS16+2],ax
 		shr eax,16
 		mov [ebx-.here+bcopy_gdt.CS16+4],al
@@ -253,16 +251,9 @@ pm_shuffle_real_mode:
 		mov fs,eax
 		mov gs,eax
 		mov ss,eax
-		jmp PM_CS16:0
-		bits 16
-.next:
 		mov eax,cr0
 		and al,~1
-		mov cr0,eax
-		jmp 0:0
-.rm_entry	equ $-4
-
-		bits 32
+		jmp PM_CS16:0
 
 		align	16
 ; GDT descriptor entry

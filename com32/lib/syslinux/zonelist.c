@@ -37,6 +37,7 @@
  */
 
 #include <stdlib.h>
+#include <syslinux/align.h>
 #include <syslinux/movebits.h>
 
 /*
@@ -208,15 +209,21 @@ int syslinux_memmap_largest(struct syslinux_memmap *list,
  */
 int syslinux_memmap_find(struct syslinux_memmap *list,
 			 enum syslinux_memmap_types type,
-			 addr_t *start, addr_t *len)
+			 addr_t *start, addr_t *len, addr_t align)
 {
   addr_t min_start = *start;
   addr_t min_len = *len;
 
   while (list->type != SMT_END) {
-    if (list->type == type && list->next->start > min_start) {
-      addr_t xstart = min_start > list->start ? min_start : list->start;
-      addr_t xlen = list->next->start - xstart;
+    if (list->type == type) {
+      addr_t xstart, xlen;
+      xstart = min_start > list->start ? min_start : list->start;
+      xstart = ALIGN_UP(xstart, align);
+
+      if (xstart >= list->next->start)
+	continue;
+
+      xlen = list->next->start - xstart;
       if (xlen >= min_len) {
 	*start = xstart;
 	*len = xlen;

@@ -160,42 +160,48 @@ replace_bootstrap:
 		push di
 
 		; Terminating entry...
-		lea eax,[di+12]
+		lea eax,[replace_stub]	; Entrypoint
+		push ax
 		stosd
 		xor ax,ax		; EAX[31:16] == 0 already
-		stosd			; Real mode
+		stosd			; 16-bit mode
 		stosd			; End of list
 
-		; Copy the stub	
-		mov si,replace_stub
-		mov cx,replace_stub.len >> 2
+		; Copy the stub
+		pop di
+		mov si,__replacestub_lma
+		mov cx,__replacestub_dwords
 		rep movsd
 		
 		xor ecx,ecx
 		pop cx			; ECX <- length of list
 
-		pop word [di+replace_stub.ss]
-		pop word [di+replace_stub.esp]
-		pop dword [di+replace_stub.csip]
+		pop word [replace_stub.ss]
+		pop word [replace_stub.esp]
+		pop dword [replace_stub.csip]
 
 		cli
-		mov ss,[di+replace_stub.ss]
-		mov esp,[di+replace_stub.esp]
+		mov ss,[replace_stub.ss]
+		mov esp,[replace_stub.esp]
 
 		mov edi,trackbuf
 		mov esi,edi
 
 		jmp shuffle_and_boot_raw
 
-		; This stub gets run after the shuffle, but not in-place.
-		; THE ALIGNS ARE CRITICAL.
-		align 4
+		; This stub gets run after the shuffle.  It is copied
+		; below 0x7c00 in order to properly handle the case
+		; of bootstrap replacement.
+		section .replacestub
 replace_stub:
+		mov cr0,eax
+		jmp 0:.next
+.next:
 		mov ax,strict word 0
-.ss		equ $-2-.end
+.ss		equ $-2
 		mov ss,ax
 		mov esp,strict dword 0
-.esp:		equ $-4-.end
+.esp		equ $-4
 		pop gs
 		pop fs
 		pop es
@@ -203,7 +209,6 @@ replace_stub:
 		popad
 		popfd
 		jmp 0:0
-.csip		equ $-4-.end
-		align 4
-.end:
-.len		equ $-replace_stub
+.csip		equ $-4
+
+		section .text
