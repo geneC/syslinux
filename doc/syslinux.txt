@@ -271,7 +271,7 @@ LABEL label
 	This is mostly useful for initramfs, which can be composed of
 	multiple separate cpio or cpio.gz archives.
 	Note: all files except the last one are zero-padded to a
-	4K page boundary.  This should not affect initramfs.)
+	4K page boundary.  This should not affect initramfs.
 
 IMPLICIT flag_val
         If flag_val is 0, do not load a kernel image unless it has been
