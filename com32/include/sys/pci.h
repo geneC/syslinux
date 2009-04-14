@@ -80,6 +80,16 @@ struct pci_domain {
 	    if (((funcp) = (domain)->bus[__pci_bus]->slot[__pci_slot]-> \
 		 func[__pci_func]))
 
+#define for_each_pci_func3(funcp, domain, addr) \
+  for (int __pci_bus = 0; __pci_bus < MAX_PCI_BUSES; __pci_bus++) \
+    if ((domain)->bus[__pci_bus]) \
+      for (int __pci_slot = 0; __pci_slot < MAX_PCI_DEVICES; __pci_slot++) \
+	if ((domain)->bus[__pci_bus]->slot[__pci_slot]) \
+	  for (int __pci_func = 0; __pci_func < MAX_PCI_FUNC; __pci_func++) \
+	    if (((addr) = pci_mkaddr(__pci_bus, __pci_slot, __pci_func, 0)), \
+		((funcp) = (domain)->bus[__pci_bus]->slot[__pci_slot]-> \
+		 func[__pci_func]))
+
 struct match {
   struct match *next;
   uint32_t did;
