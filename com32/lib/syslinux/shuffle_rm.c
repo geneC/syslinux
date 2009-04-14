@@ -92,28 +92,28 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
   p = handoff_code;
   rp = (const struct syslinux_rm_regs_alt *)regs;
 
-  *((uint32_t *)p) = 0xeac0220f; /* MOV CR0,EAX; JMP FAR */
-  *((uint16_t *)(p+4)) = 8;	 /* Offset */
-  *((uint16_t *)(p+6)) = regstub >> 4; /* Segment */
+  *(uint32_t *)p     = 0xeac0220f;	/* MOV CR0,EAX; JMP FAR */
+  *(uint16_t *)(p+4) = 8;		/* Offset */
+  *(uint16_t *)(p+6) = regstub >> 4;	/* Segment */
   p += 8;
 
   for (i = 0; i < 6; i++) {
-    if (i != 1) {		/* Skip CS */
-      p[0] = 0xb8;		/* MOV AX,imm16 */
+    if (i != 1) {			/* Skip CS */
+      p[0] = 0xb8;			/* MOV AX,imm16 */
       *(uint16_t *)(p+1) = rp->seg[i];
       *(uint16_t *)(p+3) = 0xc08e + (i << 11); /* MOV seg,AX */
       p += 5;
     }
   }
   for (i = 0; i < 8; i++) {
-    p[0] = 0x66;		/* MOV exx,imm32 */
+    p[0] = 0x66;			/* MOV exx,imm32 */
     p[1] = 0xb8 + i;
     *(uint32_t *)(p+2) = rp->gpr[i];
     p += 6;
   }
-  *p++ = rp->sti ? 0xfb : 0xfa;	/* STI/CLI */
+  *p++ = rp->sti ? 0xfb : 0xfa;		/* STI/CLI */
 
-  *p++ = 0xea;			/* JMP FAR */
+  *p++ = 0xea;				/* JMP FAR */
   *(uint32_t *)p = rp->csip;
 
   /* Add register-setting stub to shuffle list */
