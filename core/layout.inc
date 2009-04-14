@@ -94,28 +94,31 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 ;
 ; 0000h - main code/data segment (and BIOS segment)
 
-aux_seg		equ 1000h		; Currently holds the font buffer
+xfer_buf_seg	equ 1000h
+aux_seg		equ 2000h
 
 ;
 ; Contents of aux_seg
 ;
 		struc aux
 .fontbuf	resb 8192
+		alignb 4096		; Align the next segment to 4K
 		endstruc
+
+aux_seg_end	equ aux_seg + (aux_size >> 4)
 
 ;
 ; Bounce buffer for I/O to high mem
 ; Note: we keep all the segments page-aligned, even if that probably
 ; is somewhat excessive.  Sector alignment is obligatory, however.
 ;
-xfer_buf_seg	equ aux_seg + (((aux_size + 4095) & ~4095) >> 4)
 
 %if IS_ISOLINUX
 ; ISOLINUX doesn't have a block cache yet
-real_mode_seg	equ xfer_buf_seg + 1000h
+real_mode_seg	equ aux_seg_end
 %else
-cache_seg	equ xfer_buf_seg + 1000h	; 64K area for metadata cache
-real_mode_seg	equ xfer_buf_seg + 2000h
+cache_seg	equ aux_seg_end		; 64K area for metadata cache
+real_mode_seg	equ cache_seg + 1000h
 
 pktbuf_seg	equ cache_seg		; PXELINUX packet buffers
 %endif
