@@ -565,7 +565,7 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 	      
 	hd_geometry.driveno = 0x80; /* Assume hard disk */
 	
-	if (*(uint16_t *)((char *)where+512) == 0xaa55)
+	if (*(uint16_t *)((char *)where+512-2) == 0xaa55)
 	  for ( i = 0 ; i < 4 ; i++ ) {
 	    if ( ptab[i].type && !(ptab[i].active & 0x7f) ) {
 	      s = (ptab[i].start_s & 0x3f);
