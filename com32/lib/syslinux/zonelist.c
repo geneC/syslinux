@@ -220,14 +220,13 @@ int syslinux_memmap_find(struct syslinux_memmap *list,
       xstart = min_start > list->start ? min_start : list->start;
       xstart = ALIGN_UP(xstart, align);
 
-      if (xstart >= list->next->start)
-	continue;
-
-      xlen = list->next->start - xstart;
-      if (xlen >= min_len) {
-	*start = xstart;
-	*len = xlen;
-	return 0;
+      if (xstart < list->next->start) {
+	xlen = list->next->start - xstart;
+	if (xlen >= min_len) {
+	  *start = xstart;
+	  *len = xlen;
+	  return 0;
+	}
       }
     }
     list = list->next;
