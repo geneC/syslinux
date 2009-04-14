@@ -947,7 +947,9 @@ AX=0024h [3.80] Cleanup, shuffle and boot, raw version
 
 	For mode 0 (16-bit real mode), EAX will contain CR0 with bit 0
 	masked out, suitable for loading into CR0 to immediately enter
-	real mode.
+	real mode.  Note: if real-mode entry is planned,
+	(CS.base & 0xfff0000f) == 0 for compatibility with KVM, and
+	possibly other virtualization solutions.
 
 	In both mode 0 and mode 1, the data segments will be loaded
 	with base-zero read/write segments.  For mode 0, B=0 and the
