@@ -518,36 +518,25 @@ struct pci_domain *pci_scan(void)
 /* gathering additional configuration*/
 void gather_additional_pci_config(struct pci_domain *domain)
 {
-  struct pci_bus    *bus    = NULL;
-  struct pci_slot   *slot   = NULL;
-  unsigned int nbus, ndev, nfunc, maxfunc;
-  pciaddr_t a;
-  int cfgtype;
+  struct pci_device *dev;
+  pciaddr_t pci_addr;
+  int cfgtype, i=0;
 
   cfgtype = pci_set_config_type(PCI_CFG_AUTO);
   if (cfgtype == PCI_CFG_NONE)
     return;
 
-  for (nbus = 0; nbus < MAX_PCI_BUSES; nbus++) {
-    bus = NULL;
-
-    for (ndev = 0; ndev < MAX_PCI_DEVICES; ndev++) {
-      maxfunc = 1;              /* Assume a single-function device */
-      slot = NULL;
-
-      for (nfunc = 0; nfunc < maxfunc; nfunc++) {
-        a = pci_mkaddr(nbus, ndev, nfunc, 0);
-	struct pci_device *dev = domain->bus[nbus]->slot[ndev]->func[nfunc];
-        if (! dev->dev_info) {
+  for_each_pci_func(dev, domain) {
+    pci_addr = pci_mkaddr(__pci_bus, __pci_slot, __pci_func, 0);
+    if (! dev->dev_info) {
           dev->dev_info = zalloc(sizeof *dev->dev_info);
-          if (!dev->dev_info)
+          if (!dev->dev_info) {
             return;
+	  }
           }
-        dev->dev_info->irq = pci_readb(a + 0x3c);
-        dev->dev_info->latency = pci_readb(a + 0x0d);
-      }
-    }
-  }
+        dev->dev_info->irq = pci_readb(pci_addr + 0x3c);
+        dev->dev_info->latency = pci_readb(pci_addr + 0x0d);
+   }
 }
 
 
