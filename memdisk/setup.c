@@ -374,6 +374,7 @@ struct geometry {
   uint32_t offset;		/* Byte offset for disk */
   uint8_t type;		        /* Type byte for INT 13h AH=08h */
   uint8_t driveno;		/* Drive no */
+  const char *hsrc, *ssrc;	/* Origins of H and S geometries */
 };
 
 /* Format of a DOS partition table entry */
@@ -457,6 +458,8 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 
   sectors = xsectors = (size-offset) >> 9;
 
+  hd_geometry.hsrc    = "guess";
+  hd_geometry.ssrc    = "guess";
   hd_geometry.sectors = sectors;
   hd_geometry.offset  = offset;
 
@@ -471,14 +474,20 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
     hd_geometry.s = dosemu.s;
     hd_geometry.offset += dosemu.offset;
     sectors = (size-hd_geometry.offset) >> 9;
+
+    hd_geometry.hsrc = hd_geometry.ssrc = "DOSEMU";
   }
 
   if ( CMD_HASDATA(p = getcmditem("c")) && (v = atou(p)) )
     hd_geometry.c = v;
-  if ( CMD_HASDATA(p = getcmditem("h")) && (v = atou(p)) )
+  if ( CMD_HASDATA(p = getcmditem("h")) && (v = atou(p)) ) {
     hd_geometry.h = v;
-  if ( CMD_HASDATA(p = getcmditem("s")) && (v = atou(p)) )
+    hd_geometry.hsrc = "cmd";
+  }
+  if ( CMD_HASDATA(p = getcmditem("s")) && (v = atou(p)) ) {
     hd_geometry.s = v;
+    hd_geometry.ssrc = "cmd";
+  }
 
   if ( !hd_geometry.h || !hd_geometry.s ) {
     int h, s, max_h, max_s;
@@ -510,6 +519,7 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 	hd_geometry.driveno = extra->bs_drvnum & 0x80;
 	max_h = fs->bpb_numheads;
 	max_s = fs->bpb_secpertrk;
+	hd_geometry.hsrc = hd_geometry.ssrc = "FAT";
       }
     }
 
@@ -552,6 +562,7 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 	  if (ok) {
 	    max_h = h;
 	    max_s = s;
+	    hd_geometry.hsrc = hd_geometry.ssrc = "fd";
 	  } else {
 	    /* No valid floppy geometry, fake it by simulating broken
 	       sectors at the end of the image... */
@@ -565,7 +576,7 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 	      
 	hd_geometry.driveno = 0x80; /* Assume hard disk */
 	
-	if (*(uint16_t *)((char *)where+512-2) == 0xaa55)
+	if (*(uint16_t *)((char *)where+512-2) == 0xaa55) {
 	  for ( i = 0 ; i < 4 ; i++ ) {
 	    if ( ptab[i].type && !(ptab[i].active & 0x7f) ) {
 	      s = (ptab[i].start_s & 0x3f);
@@ -577,10 +588,17 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 	      s = (ptab[i].end_s & 0x3f);
 	      h = ptab[i].end_h + 1;
 	      
-	      if ( max_h < h ) max_h = h;
-	      if ( max_s < s ) max_s = s;
+	      if ( max_h < h ) {
+		max_h = h;
+		hd_geometry.hsrc = "MBR";
+	      }
+	      if ( max_s < s ) {
+		max_s = s;
+		hd_geometry.ssrc = "MBR";
+	      }
 	    }
 	  }
+	}
       }
     }
 
@@ -781,14 +799,15 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
     pptr->configflags |= CONFIG_SAFEINT;
   }
 
-  printf("Disk is %s %d, %u%s K, C/H/S = %u/%u/%u, EDD %s, %s\n",
-	 (geometry->driveno & 0x80) ? "hard disk" : "floppy",
+  printf("Disk is %s%d, %u%s K, C/H/S = %u/%u/%u (%s/%s), EDD %s, %s\n",
+	 (geometry->driveno & 0x80) ? "hd" : "fd",
 	 geometry->driveno & 0x7f,
 	 geometry->sectors >> 1,
 	 (geometry->sectors & 1) ? ".5" : "",
 	 geometry->c, geometry->h, geometry->s,
+	 geometry->hsrc, geometry->ssrc,
 	 do_edd ? "on" : "off",
-	 pptr->configflags & CONFIG_READONLY ? "readonly" : "read-write");
+	 pptr->configflags & CONFIG_READONLY ? "ro" : "rw");
 
   puts("Using ");
   switch (pptr->configflags & CONFIG_MODEMASK) {
