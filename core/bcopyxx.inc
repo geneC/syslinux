@@ -241,10 +241,11 @@ pm_shuffle_real_mode:
 		call .here
 .here:		pop ebx
 		mov eax,edi
-		mov [ebx-.here+bcopy_gdt.CS16+2],ax
+		add ebx,bcopy_gdt.CS16-.here
+		mov [ebx+2],ax
 		shr eax,16
-		mov [ebx-.here+bcopy_gdt.CS16+4],al
-		mov [ebx-.here+bcopy_gdt.CS16+7],ah
+		mov [ebx+4],al
+		mov [ebx+7],ah
 		mov eax,PM_DS16_RM
 		mov ds,eax
 		mov es,eax
