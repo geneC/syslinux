@@ -38,7 +38,7 @@ slight modifications.
 4. EXTLINUX now supports symbolic links.  However, extremely long
    symbolic links might hit the pathname limit.  Also, please note
    that absolute symbolic links are interpreted from the root *of the
-   filesystem*, which might be different from now the running system
+   filesystem*, which might be different from how the running system
    would interpret it (e.g. in the case of a separate /boot
    partition.)  Therefore, use relative symbolic links if at all
    possible.
