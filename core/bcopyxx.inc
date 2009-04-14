@@ -267,12 +267,16 @@ bcopy_gdt:
 		dd bcopy_gdt		; pointer for LGDT instruction
 		dw 0
 
+ 		; TSS segment to keep Intel VT happy.  Intel VT is
+		; unhappy about anything that doesn't smell like a
+		; full-blown 32-bit OS.
+	desc TSS
+		dw 104-1, DummyTSS	; 08h 32-bit task state segment
+		dd 00008900h		; present, dpl 0, 104 bytes @DummyTSS
+
 	desc CS16
-		dd 0000ffffh		; 08h Code segment, use16, readable,
+		dd 0000ffffh		; 10h Code segment, use16, readable,
 		dd 00009b00h		; present, dpl 0, cover 64K
-	desc DS16_4G
-		dd 0000ffffh		; 10h Data segment, use16, read/write,
-		dd 008f9300h		; present, dpl 0, cover all 4G
 	desc DS16_RM
 		dd 0000ffffh		; 18h Data segment, use16, read/write,
 		dd 00009300h		; present, dpl 0, cover 64K
@@ -282,19 +286,6 @@ bcopy_gdt:
 	desc DS32
 		dd 0000ffffh		; 28h Data segment, use32, read/write,
 		dd 00cf9300h		; present, dpl 0, cover all 4G
-
-		; TSS segment to keep Intel VT happy.  Intel VT is
-		; unhappy about anything that doesn't smell like a
-		; full-blown 32-bit OS.
-	desc TSS
-		dw 104-1, DummyTSS	; 30h 32-bit task state segment
-		dd 00008900h		; present, dpl 0, 104 bytes @DummyTSS
-
-		; 16-bit stack segment, which may have a different
-		; base from DS16 (e.g. if we're booted from PXELINUX)
-	desc SS16
-		dd 0000ffffh		; 38h Data segment, use16, read/write,
-		dd 00009300h		; present, dpl 0, cover 64K
 	
 bcopy_gdt_size:	equ $-bcopy_gdt
 
