@@ -299,10 +299,10 @@ bcopyxx_safe	equ bcopyxx_len + bcopyxx_stack
 
 ;
 ; Space for a dummy task state segment.  It should never be actually
-; accessed, but just in case it is, point to a chunk of memory not used
-; for anything real.
+; accessed, but just in case it is, point to a chunk of memory that
+; has a chance to not be used for anything real...
 ;
-DummyTSS	equ 0x800
+DummyTSS	equ 0x580
 
 		bits 16
 		section .text
