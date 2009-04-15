@@ -520,14 +520,13 @@ void gather_additional_pci_config(struct pci_domain *domain)
 {
   struct pci_device *dev;
   pciaddr_t pci_addr;
-  int cfgtype, i=0;
+  int cfgtype;
 
   cfgtype = pci_set_config_type(PCI_CFG_AUTO);
   if (cfgtype == PCI_CFG_NONE)
     return;
 
-  for_each_pci_func(dev, domain) {
-    pci_addr = pci_mkaddr(__pci_bus, __pci_slot, __pci_func, 0);
+  for_each_pci_func3(dev, domain,pci_addr) {
     if (! dev->dev_info) {
           dev->dev_info = zalloc(sizeof *dev->dev_info);
           if (!dev->dev_info) {
