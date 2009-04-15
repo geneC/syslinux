@@ -40,7 +40,7 @@
 
 keywd_size	equ 8	; Bytes per keyword
 
-		align 4, db 0
+		alignz 4
 
 %define FKeyN(n) (FKeyName+(((n)-1) << FILENAME_MAX_LG2))
 

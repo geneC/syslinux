@@ -777,17 +777,14 @@ comapi_runkernel:
 		mov [Kernel_EAX],eax
 
 		; It's not just possible, but quite likely, that ES:BX
-		; points into real_mode_seg, so we need to exercise some
-		; special care here... use xfer_buf_seg as an intermediary
+		; points into real_mode_seg or xfer_buf_seg, so we
+		; need to exercise some special care here... use
+		; trackbuf as an intermediary
 		push ds
-		push es
-		mov ax,xfer_buf_seg
 		mov ds,P_ES
 		mov si,P_BX
-		mov es,ax
-		xor di,di
+		mov di,trackbuf
 		call strcpy
-		pop es
 		pop ds
 
 %if IS_PXELINUX
@@ -799,18 +796,14 @@ comapi_runkernel:
 
 .finish:
 		; Copy the command line into its proper place
-		push ds
 		push es
-		mov ax,xfer_buf_seg
 		mov dx,real_mode_seg
-		mov ds,ax
 		mov es,dx
-		xor si,si
+		mov si,trackbuf
 		mov di,cmd_line_here
 		call strcpy
 		mov byte [es:di-1],' '		; Simulate APPEND
 		pop es
-		pop ds
 		mov [CmdLinePtr],di
 		mov word [CmdOptPtr],zero_string
 		jmp kernel_good_saved
@@ -847,8 +840,8 @@ comapi_userfont:
 		and al,al
 		jz .done
 		mov al,[VGAFontSize]
-		mov P_ES,ds
-		mov P_BX,vgafontbuf
+		mov P_ES,aux_seg
+		mov P_BX,aux.fontbuf
 
 .done:		; CF=0 here
 		mov P_AL,al
@@ -1015,7 +1008,7 @@ int21_table:
 		int21	 -1, comboot_bad_int21
 int21_count	equ ($-int21_table)/3
 
-		align 2, db 0
+		alignz 2
 int22_table:
 		dw comapi_err		; 0000 unimplemented syscall
 		dw comapi_get_version	; 0001 get SYSLINUX version

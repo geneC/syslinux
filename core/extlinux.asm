@@ -74,18 +74,6 @@ vk_end:		equ $			; Should be <= vk_size
 		endstruc
 
 ;
-; Segment assignments in the bottom 640K
-; Stick to the low 512K in case we're using something like M-systems flash
-; which load a driver into low RAM (evil!!)
-;
-; 0000h - main code/data segment (and BIOS segment)
-;
-real_mode_seg	equ 3000h
-cache_seg	equ 2000h		; 64K area for metadata cache
-xfer_buf_seg	equ 1000h		; Bounce buffer for I/O to high mem
-comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
-
-;
 ; File structure.  This holds the information for each currently open file.
 ;
 		struc open_file_t
@@ -572,7 +560,7 @@ syslinux_banner	db 0Dh, 0Ah
 		db VERSION_STR, ' ', DATE_STR, ' ', 0
 		db 0Dh, 0Ah, 1Ah	; EOF if we "type" this in DOS
 
-		align 8, db 0
+		alignz 8
 ldlinux_magic	dd LDLINUX_MAGIC
 		dd LDLINUX_MAGIC^HEXDATE
 
@@ -1567,7 +1555,7 @@ config_name	db 'extlinux.conf',0		; Unmangled form
 ;
 ; Extensions to search for (in *forward* order).
 ;
-		align 4, db 0
+		alignz 4
 exten_table:	db '.cbt'		; COMBOOT (specific)
 		db '.img'		; Disk image
 		db '.bs', 0		; Boot sector
@@ -1583,7 +1571,7 @@ exten_table_end:
 debug_magic	dw 0D00Dh		; Debug code sentinel
 %endif
 
-		alignb 4, db 0
+		alignz 4
 BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 %ifndef DEPEND

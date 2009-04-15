@@ -41,7 +41,7 @@ LATEBSS_START	equ 0B800h
 		; Use .earlybss for things that MUST be in low memory.
 		section .earlybss	nobits start=BSS_START
 		section .config		write progbits align=4
-		section .config.end	write nobits   align=4
+		section .replacestub	exec write progbits align=16
 
 		; Use .bss for things that doesn't have to be in low memory;
 		; with .bss1 and .bss2 to offload.  .earlybss should be used
@@ -81,7 +81,46 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		extern __%1_len, __%1_dwords
 %endmacro
 		SECINFO config
+		SECINFO replacestub
 
 		global _start
 
 		section .text
+
+;
+; Segment assignments in the bottom 640K
+; Keep the low-memory footprint as small as possible... overrun is a hard
+; failure!
+;
+; 0000h - main code/data segment (and BIOS segment)
+
+xfer_buf_seg	equ 1000h
+aux_seg		equ 2000h
+
+;
+; Contents of aux_seg
+;
+		struc aux
+.fontbuf	resb 8192
+		alignb 4096		; Align the next segment to 4K
+		endstruc
+
+aux_seg_end	equ aux_seg + (aux_size >> 4)
+
+;
+; Bounce buffer for I/O to high mem
+; Note: we keep all the segments page-aligned, even if that probably
+; is somewhat excessive.  Sector alignment is obligatory, however.
+;
+
+%if IS_ISOLINUX
+; ISOLINUX doesn't have a block cache yet
+real_mode_seg	equ aux_seg_end
+%else
+cache_seg	equ aux_seg_end		; 64K area for metadata cache
+real_mode_seg	equ cache_seg + 1000h
+
+pktbuf_seg	equ cache_seg		; PXELINUX packet buffers
+%endif
+
+comboot_seg	equ real_mode_seg	; COMBOOT image loading zone

@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -56,39 +57,39 @@
 %endmacro
 
 ;
+; Align with zero bytes in a progbits segment
+;
+%macro	alignz	1.nolist
+	times (((%1) - (($-$$) % (%1))) % (%1)) db 0
+%endmacro
+
+;
 ; Macro to emit an unsigned decimal number as a string
 ;
 %macro asciidec	1.nolist
-%ifndef DEPEND	; Not safe for "depend"
-%if %1 >= 1000000000
-	db ((%1/1000000000) % 10) + '0'
-%endif
-%if %1 >= 100000000
-	db ((%1/100000000) % 10) + '0'
-%endif
-%if %1 >= 10000000
-	db ((%1/10000000) % 10) + '0'
-%endif
-%if %1 >= 1000000
-	db ((%1/1000000) % 10) + '0'
-%endif
-%if %1 >= 100000
-	db ((%1/100000) % 10) + '0'
-%endif
-%if %1 >= 10000
-	db ((%1/10000) % 10) + '0'
-%endif
-%if %1 >= 1000
-	db ((%1/1000) % 10) + '0'
-%endif
-%if %1 >= 100
-	db ((%1/100) % 10) + '0'
-%endif
-%if %1 >= 10
-	db ((%1/10) % 10) + '0'
-%endif
-	db (%1 % 10) + '0'
-%endif
+  %ifndef DEPEND	; Not safe for "depend"
+    %push asciidec
+      %assign %$v %1
+      %if %$v == 0
+        db '0'
+      %else   
+        %assign %$dcount 0
+        %assign %$n %$v
+        %assign %$d 1
+        %rep 20
+          %if %$n != 0
+            %assign %$dcount %$dcount + 1
+            %assign %$n %$n / 10
+            %assign %$d %$d * 10
+          %endif
+        %endrep
+        %rep %$dcount
+	  %assign %$d %$d / 10
+          db ((%$v / %$d) % 10) + '0'
+        %endrep
+      %endif
+    %pop
+  %endif
 %endmacro
 
 ;
