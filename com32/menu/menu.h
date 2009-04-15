@@ -60,6 +60,7 @@ struct menu_entry {
   int entry;			/* Entry number inside menu */
   enum menu_action action;
   unsigned char hotkey;
+  bool save;			/* Save this entry if selected */
 };
 
 static inline bool is_disabled(struct menu_entry *me)
@@ -149,8 +150,10 @@ struct menu {
   int nentries;
   int nentries_space;
   int defentry;
-  int allowedit;
   int timeout;
+
+  bool allowedit;
+  bool save;			/* MENU SAVE default for this menu */
 
   int curentry;
   int curtop;
@@ -174,7 +177,6 @@ extern struct menu *root_menu, *start_menu, *hide_menu, *menu_list;
 /* These are global parameters regardless of which menu we're displaying */
 extern int shiftkey;
 extern int hiddenmenu;
-extern bool menusave;
 extern long long totaltimeout;
 
 void parse_configs(char **argv);
