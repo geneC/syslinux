@@ -89,7 +89,7 @@ static void compute_pci_device(struct s_my_menu *menu,
     menu->items_count++;
   }
 
-  snprintf(buffer,sizeof buffer,"Latency  : %d",pci_device->dev_info->latency);
+  snprintf(buffer, sizeof buffer, "Latency : %d",pci_device->dev_info->latency);
   snprintf(statbuffer,sizeof statbuffer,"Latency : %d",pci_device->dev_info->latency);
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
   menu->items_count++;
