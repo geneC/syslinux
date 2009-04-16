@@ -483,3 +483,7 @@ char *remove_spaces(char *p)
   return p;
 }
 
+/* Reset the more_printf counter */
+void reset_more_printf() {
+  display_line_nb=0;
+}
