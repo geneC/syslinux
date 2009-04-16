@@ -43,6 +43,7 @@ struct cli_mode_descr *list_modes[] = {
 	&cpu_mode,
 	&pci_mode,
 	&vesa_mode,
+	NULL,
 };
 
 /*
@@ -115,7 +116,7 @@ static void autocomplete_destroy_list()
  **/
 void set_mode(cli_mode_t mode, struct s_hardware* hardware)
 {
-	int i;
+	int i = 0;
 
 	switch (mode) {
 	case EXIT_MODE:
@@ -180,8 +181,10 @@ void set_mode(cli_mode_t mode, struct s_hardware* hardware)
 	default:
 		/* Invalid mode */
 		more_printf("Unknown mode, please choose among:\n");
-		for (i = 0; i < MAX_MODES; i++)
+		while (list_modes[i]) {
 			more_printf("\t%s\n", list_modes[i]->name);
+			i++;
+		}
 	}
 
 	find_cli_mode_descr(hdt_cli.mode, &current_mode);
@@ -199,12 +202,14 @@ cli_mode_t mode_s_to_mode_t(char *name)
 {
 	int i = 0;
 
-	for (i = 0; i < MAX_MODES; i++)
+	while (list_modes[i]) {
 		if (!strncmp(name, list_modes[i]->name,
 			     sizeof(list_modes[i]->name)))
 			break;
+		i++;
+	}
 
-	if (i == MAX_MODES)
+	if (!list_modes[i])
 		return INVALID_MODE;
 	else
 		return list_modes[i]->mode;
@@ -221,17 +226,17 @@ cli_mode_t mode_s_to_mode_t(char *name)
  **/
 void find_cli_mode_descr(cli_mode_t mode, struct cli_mode_descr **mode_found)
 {
-	int modes_iter = 0;
+	int i = 0;
 
-	while (modes_iter < MAX_MODES &&
-	       list_modes[modes_iter]->mode != mode)
-		modes_iter++;
+	while (list_modes[i] &&
+	       list_modes[i]->mode != mode)
+		i++;
 
 	/* Shouldn't get here... */
-	if (modes_iter == MAX_MODES)
+	if (!list_modes[i])
 		*mode_found = NULL;
 	else
-		*mode_found = list_modes[modes_iter];
+		*mode_found = list_modes[i];
 }
 
 /**
@@ -440,7 +445,7 @@ not_found:
  **/
 static void autocomplete_command(char *command)
 {
-	int j;
+	int j = 0;
 	struct cli_callback_descr* associated_module = NULL;
 
 	/* First take care of the two special commands: 'show' and 'set' */
@@ -457,11 +462,12 @@ static void autocomplete_command(char *command)
 	 * Then, go through the modes for the special case
 	 *	'<mode>' -> 'set mode <mode>'
 	 */
-	for (j = 0; j < MAX_MODES; j++) {
+	while (list_modes[j]) {
 		if (strncmp(list_modes[j]->name, command, strlen(command)) == 0) {
 			more_printf("%s\n", list_modes[j]->name);
 			autocomplete_add_token_to_list(list_modes[j]->name);
 		}
+		j++;
 	}
 
 	/*

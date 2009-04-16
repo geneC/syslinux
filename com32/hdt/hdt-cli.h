@@ -128,8 +128,7 @@ struct cli_alias {
 };
 
 /* List of implemented modes */
-#define MAX_MODES 8
-struct cli_mode_descr *list_modes[MAX_MODES];
+extern struct cli_mode_descr *list_modes[];
 struct cli_mode_descr hdt_mode;
 struct cli_mode_descr dmi_mode;
 struct cli_mode_descr syslinux_mode;

@@ -50,11 +50,13 @@ static void cli_clear_screen(int argc __unused, char** argv __unused,
 static void main_show_modes(int argc __unused, char** argv __unused,
 			    struct s_hardware *hardware __unused)
 {
-	int i;
+	int i = 0;
 
 	more_printf("Available modes:\n");
-	for (i = 0; i < MAX_MODES; i++)
+	while (list_modes[i]) {
 		more_printf("\t%s\n", list_modes[i]->name);
+		i++;
+	}
 }
 
 /**
