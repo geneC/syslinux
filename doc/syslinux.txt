@@ -2,7 +2,7 @@
 
 		   A suite of bootloaders for Linux
 
-       Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+	 Copyright 1994-2009 H. Peter Anvin and contributors
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -271,7 +271,7 @@ LABEL label
 	This is mostly useful for initramfs, which can be composed of
 	multiple separate cpio or cpio.gz archives.
 	Note: all files except the last one are zero-padded to a
-	4K page boundary.  This should not affect initramfs.)
+	4K page boundary.  This should not affect initramfs.
 
 IMPLICIT flag_val
         If flag_val is 0, do not load a kernel image unless it has been
