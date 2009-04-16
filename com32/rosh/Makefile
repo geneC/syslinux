@@ -21,7 +21,7 @@ rosh.o:	rosh.h
 
 rosh.lo:	rosh.h
 
-all:	rosh.lnx rosh.c32
+all:	rosh.c32
 
 tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d *.tmp
