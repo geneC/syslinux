@@ -42,19 +42,19 @@ void main_show_pxe(int argc __unused, char **argv __unused,
 	char buffer[81];
 	memset(buffer, 0, sizeof(81));
 	if (hardware->sv->filesystem != SYSLINUX_FS_PXELINUX) {
-		more_printf("You are not currently using PXELINUX\n");
+		printf("You are not currently using PXELINUX\n");
 		return;
 	}
 
 	detect_pxe(hardware);
-	more_printf("PXE\n");
+	printf("PXE\n");
 	if (hardware->is_pxe_valid == false) {
-		more_printf(" No valid PXE ROM found\n");
+		printf(" No valid PXE ROM found\n");
 		return;
 	}
 
 	struct s_pxe *p = &hardware->pxe;
-	more_printf(" PCI device no: %d \n", p->pci_device_pos);
+	printf(" PCI device no: %d \n", p->pci_device_pos);
 
 	if (hardware->pci_ids_return_code == -ENOPCIIDS ||
 	    (p->pci_device == NULL)) {
@@ -65,16 +65,16 @@ void main_show_pxe(int argc __unused, char **argv __unused,
 		snprintf(buffer, sizeof(buffer),
 			 " PCI Bus pos. : %02x:%02x.%02x\n", p->pci_bus,
 			 p->pci_dev, p->pci_func);
-		more_printf(buffer);
+		printf(buffer);
 	} else {
 		snprintf(buffer, sizeof(buffer), " Manufacturer : %s \n",
 			 p->pci_device->dev_info->vendor_name);
-		more_printf(buffer);
+		printf(buffer);
 		snprintf(buffer, sizeof(buffer), " Product      : %s \n",
 			 p->pci_device->dev_info->product_name);
-		more_printf(buffer);
+		printf(buffer);
 	}
-	more_printf(" Addresses    : %d.%d.%d.%d @ %s\n", p->ip_addr[0],
+	printf(" Addresses    : %d.%d.%d.%d @ %s\n", p->ip_addr[0],
 		    p->ip_addr[1], p->ip_addr[2], p->ip_addr[3], p->mac_addr);
 }
 

@@ -52,7 +52,7 @@ static void main_show_modes(int argc __unused, char** argv __unused,
 {
 	int i;
 
-	more_printf("Available modes:\n");
+	printf("Available modes:\n");
 	for (i = 0; i < MAX_MODES; i++)
 		more_printf("\t%s\n", list_modes[i]->name);
 }
@@ -68,7 +68,7 @@ static void cli_set_mode(int argc, char **argv,
 	cli_mode_t new_mode;
 
 	if (argc <= 0) {
-		more_printf("Which mode?\n");
+		printf("Which mode?\n");
 		return;
 	}
 
@@ -114,7 +114,7 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 
 	find_cli_mode_descr(hdt_cli.mode, &current_mode);
 
-	more_printf("Available commands are:\n");
+	printf("Available commands are:\n");
 
 	/* List first default modules of the mode */
 	if (current_mode->default_modules != NULL ) {
@@ -128,7 +128,7 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 	/* List secondly the show modules of the mode */
 	if (current_mode->show_modules != NULL &&
 	    current_mode->show_modules->nb_modules != 0) {
-		more_printf("show commands:\n");
+		printf("show commands:\n");
 		for (j = 0; j < current_mode->show_modules->nb_modules; j++)
 			more_printf("\t%s\n",
 			       current_mode->show_modules->modules[j].name);
@@ -137,7 +137,7 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 	/* List thirdly the set modules of the mode */
 	if (current_mode->set_modules != NULL &&
 	    current_mode->set_modules->nb_modules != 0) {
-		more_printf("set commands:\n");
+		printf("set commands:\n");
 		for (j = 0; j < current_mode->set_modules->nb_modules; j++)
 			more_printf("\t%s\n",
 			       current_mode->set_modules->modules[j].name);
@@ -158,10 +158,10 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 					     current_mode->default_modules,
 					     &associated_module);
 			if (associated_module == NULL)
-				more_printf("%s ",
+				printf("%s ",
 				       hdt_mode.default_modules->modules[j].name);
 		}
-		more_printf("\n");
+		printf("\n");
 	}
 
 	main_show_modes(argc, argv, hardware);
@@ -219,14 +219,14 @@ void main_show_summary(int argc __unused, char **argv __unused,
 void main_show_hdt(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware __unused)
 {
-	more_printf("HDT\n");
-	more_printf(" Product     : %s\n", PRODUCT_NAME);
-	more_printf(" Version     : %s\n", VERSION);
-	more_printf(" Author      : %s\n", AUTHOR);
-	more_printf(" Contact     : %s\n", CONTACT);
+	printf("HDT\n");
+	printf(" Product     : %s\n", PRODUCT_NAME);
+	printf(" Version     : %s\n", VERSION);
+	printf(" Author      : %s\n", AUTHOR);
+	printf(" Contact     : %s\n", CONTACT);
 	char *contributors[NB_CONTRIBUTORS] = CONTRIBUTORS;
 	for (int c = 0; c < NB_CONTRIBUTORS; c++) {
-		more_printf(" Contributor : %s\n", contributors[c]);
+		printf(" Contributor : %s\n", contributors[c]);
 	}
 }
 

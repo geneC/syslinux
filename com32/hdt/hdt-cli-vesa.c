@@ -38,18 +38,18 @@ void main_show_vesa(int argc __unused, char **argv __unused,
 {
 	detect_vesa(hardware);
 	if (hardware->is_vesa_valid == false) {
-		more_printf("No VESA BIOS detected\n");
+		printf("No VESA BIOS detected\n");
 		return;
 	}
-	more_printf("VESA\n");
-	more_printf(" Vesa version : %d.%d\n", hardware->vesa.major_version,
+	printf("VESA\n");
+	printf(" Vesa version : %d.%d\n", hardware->vesa.major_version,
 		    hardware->vesa.minor_version);
-	more_printf(" Vendor       : %s\n", hardware->vesa.vendor);
-	more_printf(" Product      : %s\n", hardware->vesa.product);
-	more_printf(" Product rev. : %s\n", hardware->vesa.product_revision);
-	more_printf(" Software rev.: %s\n", hardware->vesa.software_rev);
-	more_printf(" Memory (KB)  : %d\n", hardware->vesa.total_memory * 64);
-	more_printf(" Modes        : %d\n", hardware->vesa.vmi_count);
+	printf(" Vendor       : %s\n", hardware->vesa.vendor);
+	printf(" Product      : %s\n", hardware->vesa.product);
+	printf(" Product rev. : %s\n", hardware->vesa.product_revision);
+	printf(" Software rev.: %d\n", hardware->vesa.software_rev);
+	printf(" Memory (KB)  : %d\n", hardware->vesa.total_memory * 64);
+	printf(" Modes        : %d\n", hardware->vesa.vmi_count);
 }
 
 static void show_vesa_modes(int argc __unused, char **argv __unused,
@@ -57,14 +57,12 @@ static void show_vesa_modes(int argc __unused, char **argv __unused,
 {
 	detect_vesa(hardware);
 	if (hardware->is_vesa_valid == false) {
-		more_printf("No VESA BIOS detected\n");
+		printf("No VESA BIOS detected\n");
 		return;
 	}
-	clear_screen();
-	more_printf(" ResH. x ResV x Bits : vga= : Vesa Mode\n",
-		    hardware->vesa.vmi_count);
-	more_printf("----------------------------------------\n",
-		    hardware->vesa.vmi_count);
+	reset_more_printf();
+	printf(" ResH. x ResV x Bits : vga= : Vesa Mode\n");
+	printf("----------------------------------------\n");
 
 	for (int i = 0; i < hardware->vesa.vmi_count; i++) {
 		struct vesa_mode_info *mi = &hardware->vesa.vmi[i].mi;
@@ -73,7 +71,7 @@ static void show_vesa_modes(int argc __unused, char **argv __unused,
 		 * We don't need to display that ones.
 		 */
 		if ((mi->h_res == 0) || (mi->v_res == 0)) continue;
-		more_printf("%5u %5u    %3u     %3d     0x%04x\n",
+		printf("%5u %5u    %3u     %3d     0x%04x\n",
 			    mi->h_res, mi->v_res, mi->bpp,
 			    hardware->vesa.vmi[i].mode + 0x200,
 			    hardware->vesa.vmi[i].mode);

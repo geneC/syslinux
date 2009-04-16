@@ -453,7 +453,7 @@ void clear_screen(void)
   set_us_g0_charset();
   display_cursor(false);
   clear_entire_screen();
-  display_line_nb = 0;
+  reset_more_printf();
 }
 
 /* remove begining spaces */
