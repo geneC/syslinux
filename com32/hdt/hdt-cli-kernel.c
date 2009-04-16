@@ -115,8 +115,6 @@ static void show_kernel_modules(int argc __unused, char **argv __unused,
 		return;
 	}
 
-	clear_screen();
-
 	for_each_pci_func(pci_device, hardware->pci_domain) {
 		memset(kernel_modules, 0, sizeof kernel_modules);
 
