@@ -405,7 +405,7 @@ void compute_ipmi(struct s_my_menu *menu, s_dmi * dmi)
   snprintf(buffer, sizeof buffer, "Spec. Version   : %u.%u",
       dmi->ipmi.major_specification_version,
       dmi->ipmi.minor_specification_version);
-  snprintf(statbuffer, sizeof statbuffer, "Specification Version: %u.u",
+  snprintf(statbuffer, sizeof statbuffer, "Specification Version: %u.%u",
       dmi->ipmi.major_specification_version,
       dmi->ipmi.minor_specification_version);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
@@ -524,7 +524,7 @@ void compute_battery(struct s_my_menu *menu, s_dmi * dmi)
 
   snprintf(buffer, sizeof buffer, "Maximum Error   : %s",
      dmi->battery.maximum_error);
-  snprintf(statbuffer, sizeof statbuffer, "Maximum Error (%) : %s",
+  snprintf(statbuffer, sizeof statbuffer, "Maximum Error : %s",
      dmi->battery.maximum_error);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu->items_count++;

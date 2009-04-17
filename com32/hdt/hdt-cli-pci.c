@@ -122,8 +122,7 @@ void show_pci_device(struct s_hardware *hardware, const char *item)
     more_printf("Mac Address   : %s\n", hardware->pxe.mac_addr);
     if ((hardware->pxe.pci_device != NULL)
         && (hardware->pxe.pci_device == pci_device))
-      more_printf("PXE           : Current boot device\n",
-            func);
+      more_printf("PXE           : Current boot device\n");
   }
 }
 
@@ -198,7 +197,6 @@ static void show_pci_devices(struct s_hardware *hardware)
             ("%02d: %04x:%04x [%04x:%04x] Kmod:%s\n", i,
              pci_device->vendor, pci_device->product,
              pci_device->sub_vendor,
-             pci_device->sub_product, kernel_modules,
              pci_device->sub_product, kernel_modules);
       }
     }
