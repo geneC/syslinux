@@ -190,6 +190,7 @@ dns_resolv:
 		push ds
 		push es
 		push di
+		push bx
 		push cx
 		push dx
 
@@ -237,23 +238,25 @@ dns_resolv:
 		; Outer loop: exponential backoff
 		; Inner loop: scan the various DNS servers
 
-		mov dx,PKT_TIMEOUT
-		mov cx,PKT_RETRY
+		mov bx,TimeoutTable
 .backoff:
+		movzx dx,byte [bx]
 		mov si,DNSServers
 .servers:
 		cmp si,[LastDNSServer]
 		jb .moreservers
 
 .nomoreservers:
-		add dx,dx			; Exponential backoff
-		loop .backoff
+		inc bx
+		cmp bx,TimeoutTableEnd
+		jb .backoff
 
 		xor eax,eax			; Nothing...
 .done:
 		pop si
 		pop dx
 		pop cx
+		pop bx
 		pop di
 		pop es
 		pop ds
@@ -262,6 +265,7 @@ dns_resolv:
 .moreservers:
 		lodsd				; EAX <- next server
 		push si
+		push bx
 		push cx
 		push dx
 
@@ -348,7 +352,7 @@ dns_resolv:
 		;
 		mov eax,[si+10]
 .gotresult:
-		add sp,6			; Drop timeout information
+		add sp,8			; Drop timeout information
 		jmp .done
 
 .notsame:
@@ -380,5 +384,6 @@ dns_resolv:
 .timeout:
 		pop dx
 		pop cx
+		pop bx
 		pop si
 		jmp .servers

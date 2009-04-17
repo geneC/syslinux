@@ -39,8 +39,6 @@ MAX_OPEN_LG2	equ 5			; log2(Max number of open sockets)
 MAX_OPEN	equ (1 << MAX_OPEN_LG2)
 PKTBUF_SIZE	equ (65536/MAX_OPEN)	; Per-socket packet buffer size
 TFTP_PORT	equ htons(69)		; Default TFTP port
-PKT_RETRY	equ 6			; Packet transmit retry count
-PKT_TIMEOUT	equ 12			; Initial timeout, timer ticks @ 55 ms
 ; Desired TFTP block size
 ; For Ethernet MTU is normally 1500.  Unfortunately there seems to
 ; be a fair number of networks with "substandard" MTUs which break.
@@ -113,15 +111,6 @@ vk_append:	resb max_cmd_len+1	; Command line
 		alignb 4
 vk_end:		equ $			; Should be <= vk_size
 		endstruc
-
-;
-; Segment assignments in the bottom 640K
-; 0000h - main code/data segment (and BIOS segment)
-;
-real_mode_seg	equ 3000h
-pktbuf_seg	equ 2000h		; Packet buffers segments
-xfer_buf_seg	equ 1000h		; Bounce buffer for I/O to high mem
-comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 
 ;
 ; BOOTP/DHCP packet pattern
@@ -208,7 +197,6 @@ StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure
 APIVer		resw 1			; PXE API version found
 IdleTimer	resw 1			; Time to check for ARP?
 LocalBootType	resw 1			; Local boot return code
-PktTimeout	resw 1			; Timeout for current packet
 RealBaseMem	resw 1			; Amount of DOS memory after freeing
 OverLoad	resb 1			; Set if DHCP packet uses "overloading"
 DHCPMagic	resb 1			; PXELINUX magic flags
@@ -283,7 +271,6 @@ _start1:
 
 		lss esp,[BaseStack]
 		sti			; Stack set up and ready
-
 
 ;
 ; Initialize screen (if we're using one)
@@ -992,10 +979,9 @@ searchdir:
 		call allocate_socket
 		jz .ret
 
-		mov ax,PKT_RETRY	; Retry counter
-		mov word [PktTimeout],PKT_TIMEOUT	; Initial timeout
+		mov ax,TimeoutTable	; Reset timeout
 
-.sendreq:	push ax			; [bp-2]  - Retry counter
+.sendreq:	push ax			; [bp-2]  - Timeout pointer
 		push si			; [bp-4]  - File name
 
 		mov di,packet_buf
@@ -1060,7 +1046,9 @@ searchdir:
 		;
 
 		; Packet transmitted OK, now we need to receive
-.getpacket:	push word [PktTimeout]	; [bp-10]
+.getpacket:	mov bx,[bp-2]
+		movzx bx,byte [bx]
+		push bx			; [bp-10] - timeout in ticks
 		push word [BIOS_timer]	; [bp-12]
 
 .pkt_loop:	mov bx,[bp-8]		; TID
@@ -1080,11 +1068,10 @@ searchdir:
 		cmp dx,[bp-12]
 		je .pkt_loop
 		mov [bp-12],dx
-		dec word [bp-10]		; Timeout
+		dec word [bp-10]
 		jnz .pkt_loop
 		pop ax	; Adjust stack
 		pop ax
-		shl word [PktTimeout],1		; Exponential backoff
 		jmp .failure
 
 .got_packet:
@@ -1098,7 +1085,7 @@ searchdir:
 		jne .no_packet
 
 		; Got packet - reset timeout
-		mov word [PktTimeout],PKT_TIMEOUT
+		mov word [bp-2],TimeoutTable
 
 		pop ax	; Adjust stack
 		pop ax
@@ -1268,14 +1255,17 @@ searchdir:
 		call writestr_early
 		jmp kaboom
 
-.bailnow:	mov word [bp-2],1	; Immediate error - no retry
+.bailnow:
+		; Immediate error - no retry
+		mov word [bp-2],TimeoutTableEnd-1
 
 .failure:	pop bx			; Junk
 		pop bx
 		pop si
 		pop ax
-		dec ax			; Retry counter
-		jnz .sendreq		; Try again
+		inc ax
+		cmp ax,TimeoutTableEnd
+		jb .sendreq		; Try again
 
 .error:		mov si,bx		; Socket pointer
 .error_si:				; Socket pointer already in SI
@@ -1622,6 +1612,7 @@ unmangle_name:
 ; While we're at it, save and restore all registers.
 ;
 pxenv:
+		pushfd
 		pushad
 %if USE_PXE_PROVIDED_STACK == 0
 		mov [cs:PXEStack],sp
@@ -1640,20 +1631,17 @@ pxenv:
 .jump:		call 0:0
 		add sp,6
 		mov [cs:PXEStatus],ax
-		add ax,-1			; Set CF unless AX was 0
-
 %if USE_PXE_PROVIDED_STACK == 0
 		lss sp,[cs:PXEStack]
 %endif
+		mov bp,sp
+		and ax,ax
+		setnz [bp+32]			; If AX != 0 set CF on return
 
-		; This clobbers the AX return, but we don't use it
-		; except for testing it against zero (and setting CF),
-		; which we did above.  For anything else,
-		; use the Status field in the reply.
-		; For the COMBOOT function, the value is saved in
+		; This clobbers the AX return, but we already saved it into
 		; the PXEStatus variable.
 		popad
-		cld				; Make sure DF <- 0
+		popfd				; Restore flags (incl. IF, DF)
 		ret
 
 ; Must be after function def due to NASM bug
@@ -1790,10 +1778,10 @@ fill_buffer:
 .packet_loop:
 		; Start by ACKing the previous packet; this should cause the
 		; next packet to be sent.
-		mov cx,PKT_RETRY
-		mov word [PktTimeout],PKT_TIMEOUT
+		mov bx,TimeoutTable
 
-.send_ack:	push cx				; <D> Retry count
+.send_ack:	push bx				; <D> Retry pointer
+		movzx cx,byte [bx]		; Timeout
 
 		mov ax,[si+tftp_lastpkt]
 		call ack_packet			; Send ACK
@@ -1807,7 +1795,6 @@ fill_buffer:
 .send_ok:	; Now wait for packet.
 		mov dx,[BIOS_timer]		; Get current time
 
-		mov cx,[PktTimeout]
 .wait_data:	push cx				; <E> Timeout
 		push dx				; <F> Old time
 
@@ -1836,9 +1823,10 @@ fill_buffer:
 		je .wait_data			; Same clock tick
 		loop .wait_data			; Decrease timeout
 
-		pop cx				; <D> Didn't get any, send another ACK
-		shl word [PktTimeout],1		; Exponential backoff
-		loop .send_ack
+		pop bx				; <D> Didn't get any, send another ACK
+		inc bx
+		cmp bx,TimeoutTableEnd
+		jb .send_ack
 		jmp kaboom			; Forget it...
 
 .recv_ok:	pop dx				; <F>
@@ -1902,6 +1890,19 @@ fill_buffer:
 
 		jmp .ret
 
+;
+; TimeoutTable: list of timeouts (in 18.2 Hz timer ticks)
+;
+; This is roughly an exponential backoff...
+;
+		section .data
+TimeoutTable:
+		db 2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18
+		db 21, 26, 31, 37, 44, 53, 64, 77, 92, 110, 132
+		db 159, 191, 229, 255, 255, 255, 255
+TimeoutTableEnd	equ $
+
+		section .text
 ;
 ; ack_packet:
 ;
@@ -2000,8 +2001,8 @@ get_packet_gpxe:
 ; the memory.
 ;
 unload_pxe:
-		test byte [KeepPXE],01h		; Should we keep PXE around?
-		jnz reset_pxe
+		cmp byte [KeepPXE],0		; Should we keep PXE around?
+		jne reset_pxe
 
 		push ds
 		push es
@@ -2678,7 +2679,7 @@ bootif_str_len	equ $-bootif_str
 ; Extensions to search for (in *forward* order).
 ; (.bs and .bss are disabled for PXELINUX, since they are not supported)
 ;
-		align 4, db 0
+		alignz 4
 exten_table:	db '.cbt'		; COMBOOT (specific)
 		db '.0', 0, 0		; PXE bootstrap program
 		db '.com'		; COMBOOT (same as DOS)
@@ -2771,7 +2772,7 @@ gpxe_file_read:
 ;
 ; Misc initialized (data) variables
 ;
-		alignb 4, db 0
+		alignz 4
 BaseStack	dd StackBuf		; ESP of base stack
 		dw 0			; SS of base stack
 NextSocket	dw 49152		; Counter for allocating socket numbers
@@ -2790,7 +2791,7 @@ blksize_len	equ ($-blksize_str)
 		db 0
 tftp_tail_len	equ ($-tftp_tail)
 
-		alignb 2, db 0
+		alignz 2
 ;
 ; Options negotiation parsing table (string pointer, string len, offset
 ; into socket structure)
@@ -2808,7 +2809,7 @@ tftp_opt_err	dw TFTP_ERROR				; ERROR packet
 		db 'tsize option required', 0		; Error message
 tftp_opt_err_len equ ($-tftp_opt_err)
 
-		alignb 4, db 0
+		alignz 4
 ack_packet_buf:	dw TFTP_ACK, 0				; TFTP ACK packet
 
 ;
@@ -2822,7 +2823,7 @@ ServerPort	dw TFTP_PORT		; TFTP server port
 ;
 ; Variables that are uninitialized in SYSLINUX but initialized here
 ;
-		alignb 4, db 0
+		alignz 4
 BufSafe		dw trackbufsize/TFTP_BLOCKSIZE	; Clusters we can load into trackbuf
 BufSafeBytes	dw trackbufsize		; = how many bytes?
 %ifndef DEPEND

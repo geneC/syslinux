@@ -458,7 +458,7 @@ VKernelEnd	resd 1			; Lowest high memory address used
 HighMemRsvd	equ VKernelEnd
 					; by vkernels
 		section .config
-		align 4, db 0
+		alignz 4
 KbdTimeout      dd 0                    ; Keyboard timeout (if any)
 TotalTimeout	dd 0			; Total timeout (if any)
 AppendLen       dw 0                    ; Bytes in append= command

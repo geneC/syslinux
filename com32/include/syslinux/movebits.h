@@ -79,6 +79,9 @@ int syslinux_memmap_largest(struct syslinux_memmap *list,
 			    addr_t *start, addr_t *len);
 void syslinux_free_memmap(struct syslinux_memmap *list);
 struct syslinux_memmap *syslinux_dup_memmap(struct syslinux_memmap *list);
+int syslinux_memmap_find(struct syslinux_memmap *list,
+			 enum syslinux_memmap_types type,
+			 addr_t *start, addr_t *len, addr_t align);
 
 /* Debugging functions */
 void syslinux_dump_movelist(FILE *file, struct syslinux_movelist *ml);

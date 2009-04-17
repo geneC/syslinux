@@ -95,12 +95,6 @@ construct_cmdline:
 ;
 parse_cmdline:
 		mov di,cmd_line_here
-		xor ax,ax
-		mov [InitRDPtr],ax		; No initrd= option (yet)
-		mov [QuietBoot],al
-%if IS_PXELINUX
-		and byte [KeepPXE],~2
-%endif
 .skipspace:	mov al,[es:di]
 		inc di
 .skipspace_loaded:
@@ -176,7 +170,7 @@ opt_quiet:
 
 %if IS_PXELINUX
 opt_keeppxe:
-		or byte [KeepPXE],2		; KeepPXE set by command line
+		or byte [KeepPXE],1		; KeepPXE set by command line
 		ret
 %endif
 

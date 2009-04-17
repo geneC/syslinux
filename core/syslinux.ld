@@ -44,13 +44,22 @@ SECTIONS
 	__bss_len = __bss_end - __bss_start;
 	__bss_dwords = (__bss_len + 3) >> 2;
 
-	.config : AT (__config_lma) {
+ 	.config : AT (__config_lma) {
 		__config_start = .;
 		*(.config)
 		__config_end = .;
 	}
 	__config_len = __config_end - __config_start;
 	__config_dwords = (__config_len + 3) >> 2;
+
+	. = ALIGN(16);
+ 	.replacestub : AT (__replacestub_lma) {
+		__replacestub_start = .;
+		*(.replacestub)
+		__replacestub_end = .;
+	}
+	__replacestub_len = __replacestub_end - __replacestub_start;
+	__replacestub_dwords = (__replacestub_len + 3) >> 2;
 
 	/* Stack */
 
@@ -98,6 +107,10 @@ SECTIONS
 	. = ALIGN(4);
 	__config_lma = .;
 	. += SIZEOF(.config);
+
+	. = ALIGN(4);
+	__replacestub_lma = .;
+	. += SIZEOF(.replacestub);
 
 	/* ADV, must be the last intialized section */
 

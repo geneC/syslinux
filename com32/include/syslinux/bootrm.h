@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -35,6 +36,7 @@
 #define _SYSLINUX_BOOTRM_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <com32.h>
 #include <syslinux/movebits.h>
 
@@ -60,6 +62,8 @@ struct syslinux_rm_regs {
 
   uint16_t ip;			/* Offset 44 */
   uint16_t cs;			/* Offset 46 */
+
+  bool sti;			/* Offset 48 */
 };
 
 int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,

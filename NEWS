@@ -2,6 +2,17 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 3.75:
+	* PXELINUX: fix the "keeppxe" option, which was broken in
+	  3.74.
+	* MEMDISK: correct the extraction of geometry information from
+	  the MBR of a hard disk image, again broken in 3.74.
+	* extlinux(1) man page from Brian Pellin.
+	* Simple menu: MENU SAVE is now controllable on a menu-by-menu
+	  or entry-by-entry basis.
+	* gPXELINUX: fix interrupt-disabling bug.
+	* HDT: fix lockup on machines with certain PCI configurations.
+
 Changes in 3.74:
 	* New UI directive, which allows a more natural way to specify
 	  a menu system (or not.)  With the UI directive specifying
@@ -43,7 +54,6 @@ Changes in 3.74:
 	* gfxboot.com: *experimental* interface module to Steffen
 	  Winterfeldt's "gfxboot" graphical front end
 	  (http://gfxboot.sourceforge.net/).  Module by Sebastian Herbszt.
-
 
 Changes in 3.73:
 	* Upgrade gPXE to release version 0.9.5.

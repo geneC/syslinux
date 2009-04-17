@@ -493,7 +493,7 @@ adv_read_write:
 		jmp .cb_done
 
 		section .data
-		align 4, db 0
+		alignz 4
 ADVSec0		dd 0			; Not specified
 ADVSec1		dd 0			; Not specified
 ADVDrive	db -1			; No ADV defined

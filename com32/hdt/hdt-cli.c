@@ -129,7 +129,7 @@ void set_mode(cli_mode_t mode, struct s_hardware* hardware)
 		break;
 	case PXE_MODE:
 		if (hardware->sv->filesystem != SYSLINUX_FS_PXELINUX) {
-			more_printf("You are not currently using PXELINUX\n");
+			printf("You are not currently using PXELINUX\n");
 			break;
 		}
 		hdt_cli.mode = mode;
@@ -171,7 +171,7 @@ void set_mode(cli_mode_t mode, struct s_hardware* hardware)
 	case DMI_MODE:
 		detect_dmi(hardware);
 		if (!hardware->is_dmi_valid) {
-			more_printf("No valid DMI table found, exiting.\n");
+			printf("No valid DMI table found, exiting.\n");
 			break;
 		}
 		hdt_cli.mode = mode;
@@ -180,9 +180,9 @@ void set_mode(cli_mode_t mode, struct s_hardware* hardware)
 		break;
 	default:
 		/* Invalid mode */
-		more_printf("Unknown mode, please choose among:\n");
+		printf("Unknown mode, please choose among:\n");
 		while (list_modes[i]) {
-			more_printf("\t%s\n", list_modes[i]->name);
+			printf("\t%s\n", list_modes[i]->name);
 			i++;
 		}
 	}
@@ -191,7 +191,7 @@ void set_mode(cli_mode_t mode, struct s_hardware* hardware)
 	/* There is not cli_mode_descr struct for the exit mode */
 	if (current_mode == NULL && hdt_cli.mode != EXIT_MODE) {
 		/* Shouldn't get here... */
-		more_printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
+		printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
 	}
 }
 
@@ -450,11 +450,11 @@ static void autocomplete_command(char *command)
 
 	/* First take care of the two special commands: 'show' and 'set' */
 	if (strncmp(CLI_SHOW, command, strlen(command)) == 0) {
-		more_printf("%s\n", CLI_SHOW);
+		printf("%s\n", CLI_SHOW);
 		autocomplete_add_token_to_list(CLI_SHOW);
 	}
 	if (strncmp(CLI_SET, command, strlen(command)) == 0) {
-		more_printf("%s\n", CLI_SET);
+		printf("%s\n", CLI_SET);
 		autocomplete_add_token_to_list(CLI_SET);
 	}
 
@@ -464,7 +464,7 @@ static void autocomplete_command(char *command)
 	 */
 	while (list_modes[j]) {
 		if (strncmp(list_modes[j]->name, command, strlen(command)) == 0) {
-			more_printf("%s\n", list_modes[j]->name);
+			printf("%s\n", list_modes[j]->name);
 			autocomplete_add_token_to_list(list_modes[j]->name);
 		}
 		j++;
@@ -479,7 +479,7 @@ static void autocomplete_command(char *command)
 		if (strncmp(current_mode->default_modules->modules[j].name,
 			    command,
 			    strlen(command)) == 0) {
-			more_printf("%s\n",
+			printf("%s\n",
 				current_mode->default_modules->modules[j].name);
 			autocomplete_add_token_to_list(current_mode->default_modules->modules[j].name);
 		}
@@ -509,7 +509,7 @@ static void autocomplete_command(char *command)
 		    strncmp(command,
 			    hdt_mode.default_modules->modules[j].name,
 			    strlen(command)) == 0) {
-			more_printf("%s\n",
+			printf("%s\n",
 				hdt_mode.default_modules->modules[j].name);
 			autocomplete_add_token_to_list(hdt_mode.default_modules->modules[j].name);
 		}
@@ -537,7 +537,7 @@ static void autocomplete_module(char *command, char* module)
 			if (strncmp(current_mode->show_modules->modules[j].name,
 				    module,
 				    strlen(module)) == 0) {
-				more_printf("%s\n",
+				printf("%s\n",
 					current_mode->show_modules->modules[j].name);
 				sprintf(autocomplete_full_line, "%s %s",
 					CLI_SHOW, current_mode->show_modules->modules[j].name);
@@ -551,7 +551,7 @@ static void autocomplete_module(char *command, char* module)
 			if (strncmp(current_mode->set_modules->modules[j].name,
 				    module,
 				    strlen(module)) == 0) {
-				more_printf("%s\n",
+				printf("%s\n",
 					current_mode->set_modules->modules[j].name);
 				sprintf(autocomplete_full_line, "%s %s",
 					CLI_SET, current_mode->set_modules->modules[j].name);
@@ -655,7 +655,7 @@ static void exec_command(char *line,
 				return current_module->exec(argc, argv, hardware);
 		}
 
-		more_printf("unknown command: '%s'\n", command);
+		printf("unknown command: '%s'\n", command);
 		return;
 	}
 
@@ -685,7 +685,7 @@ static void exec_command(char *line,
 				return current_module->exec(argc, argv, hardware);
 		}
 
-		more_printf("unknown module: '%s'\n", module);
+		printf("unknown module: '%s'\n", module);
 		return;
 
 	} else if (!strncmp(command, CLI_SET, sizeof(CLI_SET) - 1)) {
@@ -702,12 +702,12 @@ static void exec_command(char *line,
 				return current_module->exec(argc, argv, hardware);
 		}
 
-		more_printf("unknown module: '%s'\n", module);
+		printf("unknown module: '%s'\n", module);
 		return;
 
 	}
 
-	more_printf("I don't understand: '%s'. Try 'help'.\n", line);
+	printf("I don't understand: '%s'. Try 'help'.\n", line);
 
 	/* Let's not forget to clean ourselves */
 	free(command);
@@ -721,7 +721,7 @@ static void reset_prompt()
 {
 	/* No need to display the prompt if we exit */
 	if (hdt_cli.mode != EXIT_MODE) {
-		more_printf("%s", hdt_cli.prompt);
+		printf("%s", hdt_cli.prompt);
 		/* Reset the line */
 		memset(hdt_cli.input, '\0', MAX_LINE_SIZE);
 		hdt_cli.cursor_pos = 0;
@@ -747,11 +747,11 @@ void start_cli_mode(struct s_hardware *hardware)
 	find_cli_mode_descr(hdt_cli.mode, &current_mode);
 	if (current_mode == NULL) {
 		/* Shouldn't get here... */
-		more_printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
+		printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
 		return;
 	}
 
-	more_printf("Entering CLI mode\n");
+	printf("Entering CLI mode\n");
 
 	/* Display the cursor */
 	display_cursor(true);
@@ -777,7 +777,7 @@ void start_cli_mode(struct s_hardware *hardware)
 			break;
 
 		case KEY_CTRL('c'):
-			more_printf("\n");
+			printf("\n");
 			reset_prompt();
 			break;
 
@@ -890,16 +890,16 @@ void start_cli_mode(struct s_hardware *hardware)
 				if (autocomplete_last_seen == NULL)
 					autocomplete_last_seen = autocomplete_head;
 			} else {
-				more_printf("\n");
+				printf("\n");
 				autocomplete(skip_spaces(hdt_cli.input));
 				autocomplete_last_seen = autocomplete_head;
 
-				more_printf("%s%s", hdt_cli.prompt, hdt_cli.input);
+				printf("%s%s", hdt_cli.prompt, hdt_cli.input);
 			}
 			break;
 
 		case KEY_ENTER:
-			more_printf("\n");
+			printf("\n");
 			if (strlen(remove_spaces(hdt_cli.input)) < 1) {
 				reset_prompt();
 				break;
@@ -912,12 +912,12 @@ void start_cli_mode(struct s_hardware *hardware)
 			reset_prompt();
 			break;
 
-		case KEY_CTRL('d'):
-		case KEY_DELETE:
-			/* No need to delete when input is empty */
-			if (strlen(hdt_cli.input)==0) break;
-			/* Don't delete when cursor is at the end of the line */
-			if (hdt_cli.cursor_pos>=strlen(hdt_cli.input)) break;
+ 		case KEY_CTRL('d'):
+                case KEY_DELETE:
+                        /* No need to delete when input is empty */
+                        if (strlen(hdt_cli.input)==0) break;
+                        /* Don't delete when cursor is at the end of the line */
+                        if (hdt_cli.cursor_pos>=strlen(hdt_cli.input)) break;
 
 			for (int c = hdt_cli.cursor_pos;
 			     c < (int)strlen(hdt_cli.input) - 1; c++)
@@ -966,7 +966,7 @@ void start_cli_mode(struct s_hardware *hardware)
 			break;
 
 		case KEY_F1:
-			more_printf("\n");
+			printf("\n");
 			exec_command(CLI_HELP, hardware);
 			reset_prompt();
 			break;

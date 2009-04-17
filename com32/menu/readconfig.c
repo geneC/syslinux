@@ -35,11 +35,11 @@ struct menu *root_menu, *start_menu, *hide_menu, *menu_list;
 int shiftkey     = 0;		/* Only display menu if shift key pressed */
 int hiddenmenu   = 0;
 long long totaltimeout = 0;
-bool menusave    = false;
 
 /* Keep track of global default */
 static int has_ui = 0;		/* DEFAULT only counts if UI is found */
 static const char *globaldefault = NULL;
+static bool menusave    = false; /* True if there is any "menu save" */
 
 /* Linked list of all entires, hidden or not; used by unlabel() */
 static struct menu_entry *all_entries;
@@ -174,6 +174,7 @@ static struct menu * new_menu(struct menu *parent,
 
     m->allowedit = parent->allowedit;
     m->timeout   = parent->timeout;
+    m->save      = parent->save;
 
     m->ontimeout = refstr_get(parent->ontimeout);
     m->onerror   = refstr_get(parent->onerror);
@@ -193,7 +194,7 @@ static struct menu * new_menu(struct menu *parent,
     for (i = 0; i < NPARAMS; i++)
       m->mparm[i] = mparm[i].value;
 
-    m->allowedit = 1;		/* Allow edits of the command line */
+    m->allowedit = true;	/* Allow edits of the command line */
     m->color_table = default_color_table();
   }
 
@@ -219,6 +220,7 @@ struct labeldata {
   unsigned int menudisabled;
   unsigned int menuindent;
   enum menu_action action;
+  int save;
   struct menu *submenu;
 };
 
@@ -305,6 +307,7 @@ record(struct menu *m, struct labeldata *ld, const char *append)
     me->helptext    = ld->helptext;
     me->hotkey	    = 0;
     me->action	    = ld->action ? ld->action : MA_CMD;
+    me->save        = ld->save ? (ld->save > 0) : m->save;
 
     if ( ld->menuindent ) {
       const char *dn;
@@ -673,6 +676,15 @@ static void parse_config_file(FILE *f)
 	shiftkey = 1;
       } else if ( looking_at(p, "save") ) {
 	menusave = true;
+	if (ld.label)
+	  ld.save = 1;
+	else
+	  m->save = true;
+      } else if ( looking_at(p, "nosave") ) {
+	if (ld.label)
+	  ld.save = -1;
+	else
+	  m->save = false;
       } else if ( looking_at(p, "onerror") ) {
 	refstr_put(m->onerror);
 	m->onerror = refstrdup(skipspace(p+7));
@@ -938,7 +950,7 @@ static void parse_config_file(FILE *f)
     } else if ( looking_at(p, "ontimeout") ) {
       m->ontimeout = refstrdup(skipspace(p+9));
     } else if ( looking_at(p, "allowoptions") ) {
-      m->allowedit = atoi(skipspace(p+12));
+      m->allowedit = !!atoi(skipspace(p+12));
     } else if ( looking_at(p, "ipappend") ) {
       if (ld.label)
         ld.ipappend = atoi(skipspace(p+8));

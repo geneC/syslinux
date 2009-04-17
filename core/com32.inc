@@ -40,7 +40,7 @@ pm_entry:				; Needs to not be...
 
 		bits 16
 		section .data
-		align 2, db 0
+		alignz 2
 com32_pmidt:
 		dw 8*256		; Limit
 		dd pm_idt		; Address
@@ -176,7 +176,7 @@ com32_call_start:
 		push dword com32_cfarcall	; Cfarcall entry point
 		push dword com32_farcall	; Farcall entry point
 		push dword (1 << 16)		; 64K bounce buffer
-		push dword (comboot_seg << 4)	; Bounce buffer address
+		push dword (xfer_buf_seg << 4)	; Bounce buffer address
 		push dword com32_intcall	; Intcall entry point
 		push dword command_line		; Command line pointer
 		push dword 7			; Argument count

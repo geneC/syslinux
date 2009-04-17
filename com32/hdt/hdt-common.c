@@ -35,6 +35,22 @@
 #include "hdt-common.h"
 #include "lib-ansi.h"
 
+/* ISOlinux requires a 8.3 format */
+void convert_isolinux_filename(char *filename, struct s_hardware *hardware) {
+  /* Exit if we are not running ISOLINUX */
+  if (hardware->sv->filesystem != SYSLINUX_FS_ISOLINUX) return;
+  /* Searching the dot */
+  char *dot=strchr(filename,'.');
+  /* Exiting if not dot exists in that string */
+  if (dot==NULL) return;
+  /* Exiting if the extension is 3 char or less */
+  if (strlen(dot)<=4) return;
+
+  /* We have an extension bigger than .blah
+   * so we have to shorten it to 3*/
+  dot[4]='\0';
+}
+
 void detect_parameters(const int argc, const char *argv[],
                        struct s_hardware *hardware)
 {
@@ -42,12 +58,15 @@ void detect_parameters(const int argc, const char *argv[],
     if (!strncmp(argv[i], "modules=", 8)) {
       strncpy(hardware->modules_pcimap_path, argv[i] + 8,
         sizeof(hardware->modules_pcimap_path));
+      convert_isolinux_filename(hardware->modules_pcimap_path,hardware);
     } else if (!strncmp(argv[i], "pciids=", 7)) {
       strncpy(hardware->pciids_path, argv[i] + 7,
         sizeof(hardware->pciids_path));
+      convert_isolinux_filename(hardware->pciids_path,hardware);
     } else if (!strncmp(argv[i], "memtest=", 8)) {
       strncpy(hardware->memtest_label, argv[i] + 8,
         sizeof(hardware->memtest_label));
+      convert_isolinux_filename(hardware->memtest_label,hardware);
     }
   }
 }
@@ -434,7 +453,7 @@ void clear_screen(void)
   set_us_g0_charset();
   display_cursor(false);
   clear_entire_screen();
-  display_line_nb = 0;
+  reset_more_printf();
 }
 
 /* remove begining spaces */
@@ -464,3 +483,7 @@ char *remove_spaces(char *p)
   return p;
 }
 
+/* Reset the more_printf counter */
+void reset_more_printf() {
+  display_line_nb=0;
+}

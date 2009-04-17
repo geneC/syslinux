@@ -121,6 +121,7 @@ struct s_hardware {
   char memtest_label[255];
 };
 
+void reset_more_printf();
 const char *find_argument(const char **argv, const char *argument);
 char *remove_spaces(char *p);
 char *skip_spaces(char *p);

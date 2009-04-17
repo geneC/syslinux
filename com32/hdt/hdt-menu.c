@@ -112,7 +112,7 @@ void setup_menu(char *version)
 {
   /* Creating the menu */
   init_menusystem(version);
-  set_window_size(0, 0, 24, 80);
+  set_window_size(0, 0, 25, 80);
 
   /* Register the menusystem handler */
   // reg_handler(HDLR_SCREEN,&msys_handler);
