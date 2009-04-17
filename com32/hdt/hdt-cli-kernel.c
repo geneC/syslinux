@@ -148,7 +148,6 @@ static void show_kernel_modules(int argc __unused, char **argv __unused,
 
 struct cli_module_descr kernel_show_modules = {
 	.modules = NULL,
-	.nb_modules = 0,
 	.default_callback = show_kernel_modules,
 };
 

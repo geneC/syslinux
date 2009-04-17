@@ -271,11 +271,14 @@ struct cli_callback_descr list_pci_show_modules[] = {
 	 .name = CLI_PCI_DEVICE,
 	 .exec = show_pci_device,
 	 },
+	{
+	 .name = NULL,
+	 .exec = NULL,
+	 },
 };
 
 struct cli_module_descr pci_show_modules = {
 	.modules = list_pci_show_modules,
-	.nb_modules = 2,
 	.default_callback = show_pci_devices,
 };
 

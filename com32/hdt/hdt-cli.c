@@ -418,13 +418,13 @@ void find_cli_callback_descr(const char* module_name,
 		goto not_found;
 
 	/* Find the callback to execute */
-	while (modules_iter < modules_list->nb_modules
-	       && strncmp(module_name,
-			  modules_list->modules[modules_iter].name,
-			  module_len) != 0)
+	while (modules_list->modules[modules_iter].name &&
+	       strncmp(module_name,
+		       modules_list->modules[modules_iter].name,
+		       module_len) != 0)
 		modules_iter++;
 
-	if (modules_iter != modules_list->nb_modules) {
+	if (modules_list->modules[modules_iter].name) {
 		*module_found = &(modules_list->modules[modules_iter]);
 		dprintf("CLI DEBUG: module %s found\n", (*module_found)->name);
 		return;
@@ -474,7 +474,8 @@ static void autocomplete_command(char *command)
 	 * Let's go now through the list of default_modules for the current mode
 	 * (single token commands for the current_mode)
 	 */
-	for (j = 0; j < current_mode->default_modules->nb_modules; j++) {
+	j = 0;
+	while (current_mode->default_modules->modules[j].name) {
 		if (strncmp(current_mode->default_modules->modules[j].name,
 			    command,
 			    strlen(command)) == 0) {
@@ -482,6 +483,7 @@ static void autocomplete_command(char *command)
 				current_mode->default_modules->modules[j].name);
 			autocomplete_add_token_to_list(current_mode->default_modules->modules[j].name);
 		}
+		j++;
 	}
 
 	/*
@@ -491,7 +493,8 @@ static void autocomplete_command(char *command)
 	if (current_mode->mode == HDT_MODE)
 		return;
 
-	for (j = 0; j < hdt_mode.default_modules->nb_modules; j++) {
+	j = 0;
+	while (hdt_mode.default_modules->modules[j].name) {
 		/*
 		 * Any default command that is present in hdt mode but
 		 * not in the current mode is available. A default
@@ -510,6 +513,7 @@ static void autocomplete_command(char *command)
 				hdt_mode.default_modules->modules[j].name);
 			autocomplete_add_token_to_list(hdt_mode.default_modules->modules[j].name);
 		}
+		j++;
 	}
 }
 
@@ -525,11 +529,11 @@ static void autocomplete_command(char *command)
  **/
 static void autocomplete_module(char *command, char* module)
 {
-	int j;
+	int j = 0;
 	char autocomplete_full_line[MAX_LINE_SIZE];
 
 	if (strncmp(CLI_SHOW, command, strlen(command)) == 0) {
-		for (j = 0; j < current_mode->show_modules->nb_modules; j++) {
+		while (current_mode->show_modules->modules[j].name) {
 			if (strncmp(current_mode->show_modules->modules[j].name,
 				    module,
 				    strlen(module)) == 0) {
@@ -539,9 +543,11 @@ static void autocomplete_module(char *command, char* module)
 					CLI_SHOW, current_mode->show_modules->modules[j].name);
 				autocomplete_add_token_to_list(autocomplete_full_line);
 			}
+		j++;
 		}
 	} else if (strncmp(CLI_SET, command, strlen(command)) == 0) {
-		for (j = 0; j < current_mode->set_modules->nb_modules; j++) {
+		j = 0;
+		while (current_mode->set_modules->modules[j].name) {
 			if (strncmp(current_mode->set_modules->modules[j].name,
 				    module,
 				    strlen(module)) == 0) {
@@ -551,6 +557,7 @@ static void autocomplete_module(char *command, char* module)
 					CLI_SET, current_mode->set_modules->modules[j].name);
 				autocomplete_add_token_to_list(autocomplete_full_line);
 			}
+			j++;
 		}
 	}
 }

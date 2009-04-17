@@ -49,7 +49,6 @@ void main_show_syslinux(int argc __unused, char **argv __unused,
 
 struct cli_module_descr syslinux_show_modules = {
 	.modules = NULL,
-	.nb_modules = 0,
 	.default_callback = main_show_syslinux,
 };
 

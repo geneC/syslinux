@@ -110,7 +110,7 @@ static void do_exit(int argc __unused, char** argv __unused,
 static void show_cli_help(int argc __unused, char** argv __unused,
 			  struct s_hardware *hardware __unused)
 {
-	int j;
+	int j = 0;
 	struct cli_mode_descr *current_mode;
 	struct cli_callback_descr* associated_module = NULL;
 
@@ -119,36 +119,46 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 	more_printf("Available commands are:\n");
 
 	/* List first default modules of the mode */
-	if (current_mode->default_modules != NULL ) {
-		for (j = 0; j < current_mode->default_modules->nb_modules; j++) {
+	if (current_mode->default_modules &&
+	    current_mode->default_modules->modules) {
+		while (current_mode->default_modules->modules[j].name) {
 			more_printf("%s ",
 			       current_mode->default_modules->modules[j].name);
+			j++;
 		}
 		more_printf("\n");
 	}
 
 	/* List secondly the show modules of the mode */
-	if (current_mode->show_modules != NULL &&
-	    current_mode->show_modules->nb_modules != 0) {
+	if (current_mode->show_modules &&
+	    current_mode->show_modules->modules) {
 		more_printf("show commands:\n");
-		for (j = 0; j < current_mode->show_modules->nb_modules; j++)
+		j = 0;
+		while (current_mode->show_modules->modules[j].name) {
 			more_printf("\t%s\n",
 			       current_mode->show_modules->modules[j].name);
+			j++;
+		}
 	}
 
 	/* List thirdly the set modules of the mode */
-	if (current_mode->set_modules != NULL &&
-	    current_mode->set_modules->nb_modules != 0) {
+	if (current_mode->set_modules &&
+	    current_mode->set_modules->modules) {
 		more_printf("set commands:\n");
-		for (j = 0; j < current_mode->set_modules->nb_modules; j++)
+		j = 0;
+		while (current_mode->set_modules->modules[j].name) {
 			more_printf("\t%s\n",
 			       current_mode->set_modules->modules[j].name);
+			j++;
+		}
 	}
 
 	/* List finally the default modules of the hdt mode */
 	if (current_mode->mode != hdt_mode.mode &&
-	    hdt_mode.default_modules != NULL ) {
-		for (j = 0; j < hdt_mode.default_modules->nb_modules; j++) {
+	    hdt_mode.default_modules &&
+	    hdt_mode.default_modules->modules) {
+		j = 0;
+		while (hdt_mode.default_modules->modules[j].name) {
 			/*
 			 * Any default command that is present in hdt mode but
 			 * not in the current mode is available. A default
@@ -162,6 +172,7 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 			if (associated_module == NULL)
 				more_printf("%s ",
 				       hdt_mode.default_modules->modules[j].name);
+			j++;
 		}
 		more_printf("\n");
 	}
@@ -250,6 +261,10 @@ struct cli_callback_descr list_hdt_default_modules[] = {
 		.name = CLI_MENU,
 		.exec = goto_menu,
 	},
+	{
+		.name = NULL,
+		.exec = NULL
+	},
 };
 
 struct cli_callback_descr list_hdt_show_modules[] = {
@@ -293,6 +308,10 @@ struct cli_callback_descr list_hdt_show_modules[] = {
 		.name = "modes",
 		.exec = main_show_modes,
 	},
+	{
+		.name = NULL,
+		.exec = NULL,
+	},
 };
 
 struct cli_callback_descr list_hdt_set_modules[] = {
@@ -300,22 +319,23 @@ struct cli_callback_descr list_hdt_set_modules[] = {
 		.name = CLI_MODE,
 		.exec = cli_set_mode,
 	},
+	{
+		.name = NULL,
+		.exec = NULL,
+	},
 };
 
 struct cli_module_descr hdt_default_modules = {
 	.modules = list_hdt_default_modules,
-	.nb_modules = 4,
 };
 
 struct cli_module_descr hdt_show_modules = {
 	.modules = list_hdt_show_modules,
-	.nb_modules = 10,
 	.default_callback = main_show_summary,
 };
 
 struct cli_module_descr hdt_set_modules = {
 	.modules = list_hdt_set_modules,
-	.nb_modules = 1,
 };
 
 struct cli_mode_descr hdt_mode = {
