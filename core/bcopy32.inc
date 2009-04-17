@@ -127,7 +127,7 @@ simple_pm_call:
 
 		bits 32
 .in_pm:
-		mov eax,PM_DS32
+		mov ax,PM_DS32
 		mov ss,eax
 		lea esp,[ebp-8*4-2*4]	; Flat mode stack
 		mov es,eax
@@ -137,7 +137,7 @@ simple_pm_call:
 		; machine running on Intel VT hardware -- it can't
 		; deal with a partial transition, for no good reason.
 
-		mov al,PM_DS16_RM	; Real-mode-like segment
+		mov al,PM_DS16		; Real-mode-like segment
 		mov fs,eax
 		mov gs,eax
 		mov al,PM_TSS		; Intel VT really doesn't want
@@ -151,7 +151,7 @@ simple_pm_call:
 		jmp PM_CS16:.exit
 		bits 16
 .exit:
-		mov eax,PM_DS16_RM	; "Real-mode-like" data segment
+		mov ax,PM_DS16		; "Real-mode-like" data segment
 		mov es,eax
 		mov ds,eax
 		mov ss,eax

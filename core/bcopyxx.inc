@@ -241,12 +241,15 @@ pm_shuffle_real_mode:
 		call .here
 .here:		pop ebx
 		mov eax,edi
-		add ebx,bcopy_gdt.CS16-.here
-		mov [ebx+2],ax
+		add ebx,bcopy_gdt-.here
+		mov [ebx+PM_CS16+2],ax
+		mov [ebx+PM_DS16+2],ax
 		shr eax,16
-		mov [ebx+4],al
-		mov [ebx+7],ah
-		mov eax,PM_DS16_RM
+		mov [ebx+PM_CS16+4],al
+		mov [ebx+PM_CS16+7],ah
+		mov [ebx+PM_DS16+4],al
+		mov [ebx+PM_DS16+7],ah
+		mov ax,PM_DS16
 		mov ds,eax
 		mov es,eax
 		mov fs,eax
@@ -278,7 +281,7 @@ bcopy_gdt:
 	desc CS16
 		dd 0000ffffh		; 10h Code segment, use16, readable,
 		dd 00009b00h		; present, dpl 0, cover 64K
-	desc DS16_RM
+	desc DS16
 		dd 0000ffffh		; 18h Data segment, use16, read/write,
 		dd 00009300h		; present, dpl 0, cover 64K
 	desc CS32
