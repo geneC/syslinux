@@ -43,6 +43,7 @@ struct cli_mode_descr *list_modes[] = {
 	&cpu_mode,
 	&pci_mode,
 	&vesa_mode,
+	&vpd_mode,
 	NULL,
 };
 
@@ -178,6 +179,17 @@ void set_mode(cli_mode_t mode, struct s_hardware* hardware)
 		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
 			 CLI_DMI);
 		break;
+	case VPD_MODE:
+		detect_vpd(hardware);
+		if (!hardware->is_vpd_valid) {
+			printf("No valid VPD table found, exiting.\n");
+			break;
+		}
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
+			 CLI_VPD);
+		break;
+
 	default:
 		/* Invalid mode */
 		printf("Unknown mode, please choose among:\n");

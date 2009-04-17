@@ -36,6 +36,7 @@
 #include "dmi/dmi.h"
 #include "hdt-ata.h"
 #include "../lib/sys/vesa/vesa.h"
+#include <vpd/vpd.h>
 
 /* This two values are used for switching for the menu to the CLI mode */
 #define HDT_SWITCH_TO_CLI "hdt_switch_to_cli"
@@ -94,6 +95,7 @@ struct s_vesa {
 struct s_hardware {
   s_dmi dmi;                      /* DMI table */
   s_cpu cpu;                      /* CPU information */
+  s_vpd vpd;                      /* VPD information */
   struct pci_domain *pci_domain;  /* PCI Devices */
   struct diskinfo disk_info[256]; /* Disk Information */
   int disks_count;		  /* Number of detected disks */
@@ -106,6 +108,7 @@ struct s_hardware {
   bool is_dmi_valid;
   bool is_pxe_valid;
   bool is_vesa_valid;
+  bool is_vpd_valid;
 
   bool dmi_detection; /* Does the dmi stuff has already been detected? */
   bool pci_detection; /* Does the pci stuff has already been detected? */
@@ -113,6 +116,7 @@ struct s_hardware {
   bool disk_detection;/* Does the disk stuff has already been detected? */
   bool pxe_detection; /* Does the pxe stuff has already been detected? */
   bool vesa_detection;/* Does the vesa sutff have been already detected? */
+  bool vpd_detection; /* Does the vpd stuff has already been detected? */
 
   char syslinux_fs[22];
   const struct syslinux_version *sv;
@@ -126,6 +130,7 @@ const char *find_argument(const char **argv, const char *argument);
 char *remove_spaces(char *p);
 char *skip_spaces(char *p);
 int detect_dmi(struct s_hardware *hardware);
+int detect_vpd(struct s_hardware *hardware);
 void detect_disks(struct s_hardware *hardware);
 void detect_pci(struct s_hardware *hardware);
 void cpu_detect(struct s_hardware *hardware);

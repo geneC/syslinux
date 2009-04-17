@@ -67,6 +67,7 @@
 #define CLI_SHOW_LIST "list"
 #define CLI_IRQ "irq"
 #define CLI_MODES "modes"
+#define CLI_VPD  "vpd"
 
 typedef enum {
 	INVALID_MODE,
@@ -79,6 +80,7 @@ typedef enum {
 	KERNEL_MODE,
 	SYSLINUX_MODE,
 	VESA_MODE,
+	VPD_MODE,
 } cli_mode_t;
 
 #define PROMPT_SIZE 32
@@ -136,6 +138,7 @@ struct cli_mode_descr kernel_mode;
 struct cli_mode_descr cpu_mode;
 struct cli_mode_descr pci_mode;
 struct cli_mode_descr vesa_mode;
+struct cli_mode_descr vpd_mode;
 
 /* cli helpers */
 void find_cli_mode_descr(cli_mode_t mode, struct cli_mode_descr **mode_found);
