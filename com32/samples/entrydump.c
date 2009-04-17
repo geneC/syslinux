@@ -35,8 +35,6 @@ int main(void)
 {
   const union syslinux_derivative_info *di;
   const struct stack_frame *sf;
-  int i;
-  const unsigned char *p;
 
   openconsole(&dev_null_r, &dev_stdcon_w);
 
