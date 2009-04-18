@@ -26,37 +26,18 @@
  * -----------------------------------------------------------------------
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <syslinux/pxe.h>
-#include <syslinux/config.h>
-
-#include "hdt-cli.h"
-#include "hdt-common.h"
-
-void main_show_syslinux(int argc __unused, char **argv __unused,
-		        struct s_hardware *hardware)
-{
-  more_printf("SYSLINUX\n");
-  more_printf(" Bootloader : %s\n", hardware->syslinux_fs);
-  more_printf(" Version    : %s\n", hardware->sv->version_string + 2);
-  more_printf(" Version    : %u\n", hardware->sv->version);
-  more_printf(" Max API    : %u\n", hardware->sv->max_api);
-  more_printf(" Copyright  : %s\n", hardware->sv->copyright_string + 1);
-}
-
-struct cli_module_descr syslinux_show_modules = {
-	.modules = NULL,
-	.nb_modules = 0,
-	.default_callback = main_show_syslinux,
-};
-
-struct cli_mode_descr syslinux_mode = {
-	.mode = SYSLINUX_MODE,
-	.name = CLI_SYSLINUX,
-	.default_modules = NULL,
-	.show_modules = &syslinux_show_modules,
-	.set_modules = NULL,
-};
+#ifndef DEFINE_LIB_ANSI_H
+#define DEFINE_LIB_ANSI_H
+void display_cursor(bool status);
+void clear_end_of_line();
+void move_cursor_left(int count);
+void move_cursor_right(int count);
+void clear_line();
+void clear_beginning_of_line();
+void move_cursor_to_column(int count);
+void move_cursor_to_next_line();
+void disable_utf8();
+void set_g1_special_char();
+void set_us_g0_charset();
+void clear_entire_screen();
+#endif

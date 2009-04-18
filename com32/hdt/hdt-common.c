@@ -29,10 +29,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <getkey.h>
 #include "syslinux/config.h"
 #include "../lib/sys/vesa/vesa.h"
-
 #include "hdt-common.h"
+#include "lib-ansi.h"
 
 void detect_parameters(const int argc, const char *argv[],
                        struct s_hardware *hardware)
@@ -200,7 +201,7 @@ void detect_disks(struct s_hardware *hardware)
       continue;
     struct diskinfo *d = &hardware->disk_info[drive];
     hardware->disks_count++;
-    printf
+    more_printf
         ("  DISK 0x%X: %s : %s %s: sectors=%d, s/t=%d head=%d : EDD=%s\n",
          drive, d->aid.model, d->host_bus_type, d->interface_type,
          d->sectors, d->sectors_per_track, d->heads,
@@ -377,19 +378,19 @@ void detect_pci(struct s_hardware *hardware)
     hardware->nb_pci_devices++;
   }
 
-  printf("PCI: %d devices detected\n", hardware->nb_pci_devices);
-  printf("PCI: Resolving names\n");
+  more_printf("PCI: %d devices detected\n", hardware->nb_pci_devices);
+  more_printf("PCI: Resolving names\n");
   /* Assigning product & vendor name for each device */
   hardware->pci_ids_return_code =
       get_name_from_pci_ids(hardware->pci_domain, hardware->pciids_path);
 
-  printf("PCI: Resolving class names\n");
+  more_printf("PCI: Resolving class names\n");
   /* Assigning class name for each device */
   hardware->pci_ids_return_code =
       get_class_name_from_pci_ids(hardware->pci_domain,
           hardware->pciids_path);
 
-  printf("PCI: Resolving module names\n");
+  more_printf("PCI: Resolving module names\n");
   /* Detecting which kernel module should match each device */
   hardware->modules_pcimap_return_code =
       get_module_name_from_pcimap(hardware->pci_domain,
@@ -427,15 +428,38 @@ const char *find_argument(const char **argv, const char *argument)
 
 void clear_screen(void)
 {
-  fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
+  move_cursor_to_next_line();
+  disable_utf8();
+  set_g1_special_char();
+  set_us_g0_charset();
+  display_cursor(false);
+  clear_entire_screen();
   display_line_nb = 0;
 }
 
-/* searching the next char that is not a space */
-char *skipspace(char *p)
+/* remove begining spaces */
+char *skip_spaces(char *p)
 {
-  while (*p && *p <= ' ')
+  while (*p && *p <= ' ') {
     p++;
+  }
+
+  return p;
+}
+
+/* remove trailing & begining spaces */
+char *remove_spaces(char *p)
+{
+  char *save=p;
+  p+=strlen(p)-1;
+  while (*p && *p <= ' ') {
+   *p='\0';
+   p--;
+  }
+  p=save;
+  while (*p && *p <= ' ') {
+    p++;
+  }
 
   return p;
 }

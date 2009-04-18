@@ -33,14 +33,27 @@
 
 #include "hdt-common.h"
 
+#define DEBUG 0
+#if DEBUG
+# define dprintf printf
+#else
+# define dprintf(f, ...) ((void)0)
+#endif
+
+/* Declare a variable or data structure as unused. */
+#define __unused __attribute__ (( unused ))
+
 #define MAX_LINE_SIZE 256
 
 #define CLI_SPACE " "
 #define CLI_LF "\n"
+#define CLI_MENU "menu"
 #define CLI_CLEAR "clear"
 #define CLI_EXIT "exit"
 #define CLI_HELP "help"
 #define CLI_SHOW "show"
+#define CLI_SET "set"
+#define CLI_MODE "mode"
 #define CLI_HDT  "hdt"
 #define CLI_PCI  "pci"
 #define CLI_PXE  "pxe"
@@ -56,52 +69,86 @@
 #define CLI_MODES "modes"
 
 typedef enum {
-  EXIT_MODE,
-  HDT_MODE,
-  PCI_MODE,
-  DMI_MODE,
-  CPU_MODE,
-  PXE_MODE,
-  KERNEL_MODE,
-  SYSLINUX_MODE,
-  VESA_MODE,
+	INVALID_MODE,
+	EXIT_MODE,
+	HDT_MODE,
+	PCI_MODE,
+	DMI_MODE,
+	CPU_MODE,
+	PXE_MODE,
+	KERNEL_MODE,
+	SYSLINUX_MODE,
+	VESA_MODE,
 } cli_mode_t;
 
 #define PROMPT_SIZE 32
 #define MAX_HISTORY_SIZE 32
 struct s_cli {
-  cli_mode_t mode;
-  char prompt[PROMPT_SIZE];
-  char input[MAX_LINE_SIZE];
-  int cursor_pos;
-  char history[MAX_HISTORY_SIZE][MAX_LINE_SIZE];
-  int history_pos;
-  int max_history_pos;
+	cli_mode_t mode;
+	char prompt[PROMPT_SIZE];
+	char input[MAX_LINE_SIZE];
+	uint8_t cursor_pos;
+	char history[MAX_HISTORY_SIZE][MAX_LINE_SIZE];
+	int history_pos;
+	int max_history_pos;
+};
+struct s_cli hdt_cli;
+
+/* Describe a cli mode */
+struct cli_mode_descr {
+	const unsigned int mode;
+	const char* name;
+	/* Handle 1-token commands */
+	struct cli_module_descr* default_modules;
+	/* Handle show <module> <args> */
+	struct cli_module_descr* show_modules;
+	/* Handle set <module> <args> */
+	struct cli_module_descr* set_modules;
 };
 
-/* A command-line command */
-struct commands_mode {
-  const unsigned int mode;
-  struct commands_module_descr* show_modules;
-  /* Future: set? */
+/* Describe a subset of commands in a module (default, show, set, ...) */
+struct cli_module_descr {
+	struct cli_callback_descr* modules;
+	const int nb_modules;
+	void ( * default_callback ) ( int argc, char** argv, struct s_hardware *hardware );
 };
 
-struct commands_module {
-  const char *name;
-  void ( * exec ) ( int argc, char** argv, struct s_hardware *hardware );
+/* Describe a callback (belongs to a mode and a module) */
+struct cli_callback_descr {
+	const char *name;
+	void ( * exec ) ( int argc, char** argv, struct s_hardware *hardware );
 };
 
-/* Describe 'show', 'set', ... commands in a module */
-struct commands_module_descr {
-  struct commands_module* modules;
-  const int nb_modules;
+/* Manage aliases */
+#define MAX_ALIASES 2
+struct cli_alias {
+	const char *command;	/* Original command */
+	const int nb_aliases;	/* Size of aliases array */
+	const char **aliases;	/* List of aliases */
 };
 
-struct commands_mode dmi_mode;
+/* List of implemented modes */
+#define MAX_MODES 8
+struct cli_mode_descr *list_modes[MAX_MODES];
+struct cli_mode_descr hdt_mode;
+struct cli_mode_descr dmi_mode;
+struct cli_mode_descr syslinux_mode;
+struct cli_mode_descr pxe_mode;
+struct cli_mode_descr kernel_mode;
+struct cli_mode_descr cpu_mode;
+struct cli_mode_descr pci_mode;
+struct cli_mode_descr vesa_mode;
 
+/* cli helpers */
+void find_cli_mode_descr(cli_mode_t mode, struct cli_mode_descr **mode_found);
+void find_cli_callback_descr(const char *module_name,
+			     struct cli_module_descr *modules_list,
+			     struct cli_callback_descr **module_found);
+cli_mode_t mode_s_to_mode_t(char *name);
+
+void set_mode(cli_mode_t mode, struct s_hardware *hardware);
 void start_cli_mode(struct s_hardware *hardware);
 void main_show(char *item, struct s_hardware *hardware);
-int do_exit(struct s_cli *cli);
 
 // DMI STUFF
 #define CLI_DMI_BASE_BOARD "base_board"
@@ -112,36 +159,29 @@ int do_exit(struct s_cli *cli);
 #define CLI_DMI_MEMORY_BANK "bank"
 #define CLI_DMI_PROCESSOR "cpu"
 #define CLI_DMI_SYSTEM "system"
-#define CLI_DMI_LIST CLI_SHOW_LIST
 #define CLI_DMI_IPMI "ipmi"
+#define CLI_DMI_LIST CLI_SHOW_LIST
 #define CLI_DMI_MAX_MODULES 10
-void main_show_dmi(struct s_hardware *hardware);
-void handle_dmi_commands(char *cli_line, struct s_hardware *hardware);
+void main_show_dmi(int argc, char **argv, struct s_hardware *hardware);
 void show_dmi_memory_modules(int argc, char** argv, struct s_hardware *hardware);
 
 // PCI STUFF
 #define CLI_PCI_DEVICE "device"
-void main_show_pci(struct s_hardware *hardware);
-void handle_pci_commands(char *cli_line, struct s_hardware *hardware);
+void main_show_pci(int argc, char **argv, struct s_hardware *hardware);
 void cli_detect_pci(struct s_hardware *hardware);
 
 // CPU STUFF
-void main_show_cpu(struct s_hardware *hardware);
-void handle_cpu_commands(char *cli_line, struct s_hardware *hardware);
+void main_show_cpu(int argc, char **argv, struct s_hardware *hardware);
 
 // PXE STUFF
-void main_show_pxe(struct s_hardware *hardware);
-void handle_pxe_commands(char *cli_line, struct s_hardware *hardware);
+void main_show_pxe(int argc, char **argv, struct s_hardware *hardware);
 
 // KERNEL STUFF
-void main_show_kernel(struct s_hardware *hardware);
-void handle_kernel_commands(char *cli_line, struct s_hardware *hardware);
+void main_show_kernel(int argc, char **argv, struct s_hardware *hardware);
 
 // SYSLINUX STUFF
-void main_show_syslinux(struct s_hardware *hardware);
-void handle_syslinux_commands(char *cli_line, struct s_hardware *hardware);
+void main_show_syslinux(int argc, char **argv, struct s_hardware *hardware);
 
 // VESA STUFF
-void main_show_vesa(struct s_hardware *hardware);
-void handle_vesa_commands(char *cli_line, struct s_hardware *hardware);
+void main_show_vesa(int argc, char **argv, struct s_hardware *hardware);
 #endif

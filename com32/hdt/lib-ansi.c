@@ -24,39 +24,74 @@
  *   OTHER DEALINGS IN THE SOFTWARE.
  *
  * -----------------------------------------------------------------------
+ *  Ansi Sequences can be found here :
+ *  http://ascii-table.com/ansi-escape-sequences-vt-100.php
+ *  http://en.wikipedia.org/wiki/ANSI_escape_code
  */
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <syslinux/pxe.h>
-#include <syslinux/config.h>
+#include <stdbool.h>
 
-#include "hdt-cli.h"
-#include "hdt-common.h"
-
-void main_show_syslinux(int argc __unused, char **argv __unused,
-		        struct s_hardware *hardware)
+void display_cursor(bool status)
 {
-  more_printf("SYSLINUX\n");
-  more_printf(" Bootloader : %s\n", hardware->syslinux_fs);
-  more_printf(" Version    : %s\n", hardware->sv->version_string + 2);
-  more_printf(" Version    : %u\n", hardware->sv->version);
-  more_printf(" Max API    : %u\n", hardware->sv->max_api);
-  more_printf(" Copyright  : %s\n", hardware->sv->copyright_string + 1);
+	if (status == true) {
+		fputs("\033[?25h", stdout);
+	} else {
+		fputs("\033[?25l", stdout);
+	}
 }
 
-struct cli_module_descr syslinux_show_modules = {
-	.modules = NULL,
-	.nb_modules = 0,
-	.default_callback = main_show_syslinux,
-};
+void clear_end_of_line() {
+	fputs("\033[0K", stdout);
+}
 
-struct cli_mode_descr syslinux_mode = {
-	.mode = SYSLINUX_MODE,
-	.name = CLI_SYSLINUX,
-	.default_modules = NULL,
-	.show_modules = &syslinux_show_modules,
-	.set_modules = NULL,
-};
+void move_cursor_left(int count) {
+	char buffer[10];
+	memset(buffer,0,sizeof(buffer));
+	sprintf(buffer,"\033[%dD",count);
+	fputs(buffer, stdout);
+}
+
+void move_cursor_right(int count) {
+	char buffer[10];
+	memset(buffer,0,sizeof(buffer));
+	sprintf(buffer,"\033[%dC",count);
+	fputs(buffer, stdout);
+}
+
+void clear_line() {
+	fputs("\033[2K", stdout);
+}
+
+void clear_beginning_of_line() {
+	fputs("\033[1K", stdout);
+}
+
+void move_cursor_to_column(int count) {
+	char buffer[10];
+        memset(buffer,0,sizeof(buffer));
+	sprintf(buffer,"\033[%dG",count);
+	fputs(buffer, stdout);
+}
+
+void move_cursor_to_next_line() {
+	fputs("\033e", stdout);
+}
+
+void disable_utf8() {
+	fputs("\033%@", stdout);
+}
+
+void set_g1_special_char(){
+	fputs("\033)0", stdout);
+}
+
+void set_us_g0_charset() {
+	fputs("\033(B\1#0", stdout);
+}
+
+void clear_entire_screen() {
+	fputs("\033[2J", stdout);
+}

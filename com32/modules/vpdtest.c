@@ -24,39 +24,45 @@
  *   OTHER DEALINGS IN THE SOFTWARE.
  *
  * -----------------------------------------------------------------------
+*/
+
+/*
+ * vpdtest.c
+ *
+ * VPD demo program using libcom32
  */
 
-#include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <syslinux/pxe.h>
-#include <syslinux/config.h>
+#include <stdio.h>
+#include <console.h>
+#include "vpd/vpd.h"
 
-#include "hdt-cli.h"
-#include "hdt-common.h"
-
-void main_show_syslinux(int argc __unused, char **argv __unused,
-		        struct s_hardware *hardware)
+int main(void)
 {
-  more_printf("SYSLINUX\n");
-  more_printf(" Bootloader : %s\n", hardware->syslinux_fs);
-  more_printf(" Version    : %s\n", hardware->sv->version_string + 2);
-  more_printf(" Version    : %u\n", hardware->sv->version);
-  more_printf(" Max API    : %u\n", hardware->sv->max_api);
-  more_printf(" Copyright  : %s\n", hardware->sv->copyright_string + 1);
+  char buffer[1024];
+  s_vpd vpd;
+  openconsole(&dev_stdcon_r, &dev_stdcon_w);
+
+  if (vpd_decode(&vpd) == -ENOVPDTABLE) {
+	printf("No VPD Structure found\n");
+	return -1;
+  } else {
+       printf("VPD present at address : 0x%s\n",vpd.base_address);
+  }
+  if (strlen(vpd.bios_build_id)>0)
+	  printf("Bios Build ID                 : %s\n",vpd.bios_build_id);
+  if (strlen(vpd.bios_release_date)>0)
+	  printf("Bios Release Date             : %s\n",vpd.bios_release_date);
+  if (strlen(vpd.bios_version)>0)
+	  printf("Bios Version                  : %s\n",vpd.bios_version);
+  if (strlen(vpd.default_flash_filename)>0)
+	  printf("Default Flash Filename        : %s\n",vpd.default_flash_filename);
+  if (strlen(vpd.box_serial_number)>0)
+	  printf("Box Serial Number             : %s\n",vpd.box_serial_number);
+  if (strlen(vpd.motherboard_serial_number)>0)
+	  printf("Motherboard Serial Number     : %s\n",vpd.motherboard_serial_number);
+  if (strlen(vpd.machine_type_model)>0)
+	  printf("Machine Type/Model            : %s\n",vpd.machine_type_model);
+
+  return 0;
 }
-
-struct cli_module_descr syslinux_show_modules = {
-	.modules = NULL,
-	.nb_modules = 0,
-	.default_callback = main_show_syslinux,
-};
-
-struct cli_mode_descr syslinux_mode = {
-	.mode = SYSLINUX_MODE,
-	.name = CLI_SYSLINUX,
-	.default_modules = NULL,
-	.show_modules = &syslinux_show_modules,
-	.set_modules = NULL,
-};
