@@ -31,7 +31,7 @@
 
 #define PRODUCT_NAME "Hardware Detection Tool"
 #define AUTHOR "Erwan Velu"
-#define CONTACT "erwan(dot)velu(point)free(dot)fr"
+#define CONTACT "hdt@zytor.com"
 #define VERSION "0.3.0"
 #define NB_CONTRIBUTORS 2
 #define CONTRIBUTORS {"Pierre-Alexandre Meyer", "Sebastien Gonzalve"}
