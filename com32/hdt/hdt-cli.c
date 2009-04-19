@@ -43,6 +43,7 @@ struct cli_mode_descr *list_modes[] = {
 	&cpu_mode,
 	&pci_mode,
 	&vesa_mode,
+	&disk_mode,
 };
 
 /*
@@ -176,6 +177,12 @@ void set_mode(cli_mode_t mode, struct s_hardware* hardware)
 		hdt_cli.mode = mode;
 		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
 			 CLI_DMI);
+		break;
+	case DISK_MODE:
+		detect_disks(hardware);
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
+			 CLI_DISK);
 		break;
 	default:
 		/* Invalid mode */

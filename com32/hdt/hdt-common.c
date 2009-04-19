@@ -34,6 +34,7 @@
 #include "../lib/sys/vesa/vesa.h"
 #include "hdt-common.h"
 #include "lib-ansi.h"
+#include <disk/util.h>
 
 void detect_parameters(const int argc, const char *argv[],
                        struct s_hardware *hardware)
@@ -195,18 +196,28 @@ int detect_vesa(struct s_hardware *hardware) {
 /* Try to detect disks from port 0x80 to 0xff */
 void detect_disks(struct s_hardware *hardware)
 {
-  hardware->disk_detection = true;
-  for (int drive = 0x80; drive < 0xff; drive++) {
-    if (get_disk_params(drive, hardware->disk_info) != 0)
-      continue;
-    struct diskinfo *d = &hardware->disk_info[drive];
-    hardware->disks_count++;
-    more_printf
-        ("  DISK 0x%X: %s : %s %s: sectors=%d, s/t=%d head=%d : EDD=%s\n",
-         drive, d->aid.model, d->host_bus_type, d->interface_type,
-         d->sectors, d->sectors_per_track, d->heads,
-         d->edd_version);
-  }
+	int i = -1;
+	int err;
+	char *error_msg;
+
+	if (hardware->disk_detection)
+		return;
+
+	hardware->disk_detection = true;
+	for (int drive = 0x80; drive < 0xff; drive++) {
+		i++;
+		hardware->disk_info[i].disk = drive;
+		err = get_drive_parameters(&hardware->disk_info[i]);
+		/* Do not show errors when a disk is not found (0x01) */
+		if (err && err != 0x01) {
+			get_error(err, &error_msg);
+			more_printf("Error 0x%Xh while reading disk 0x%X:\n\t%s\n",
+				err, drive, error_msg);
+			free(error_msg);
+		}
+		hardware->disks_count++;
+	}
+	free(error_msg);
 }
 
 int detect_pxe(struct s_hardware *hardware)

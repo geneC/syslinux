@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2009 Erwan Velu - All Rights Reserved
+ *   Copyright 2009 Pierre-Alexandre Meyer - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,13 +26,46 @@
  * -----------------------------------------------------------------------
  */
 
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
-#include <console.h>
-#include <disk/geom.h>
-#include <disk/util.h>
+#include <errno.h>
 
-#include "com32io.h"
+#include <disk/geom.h>
+
+#include "hdt-cli.h"
 #include "hdt-common.h"
-#include "hdt-ata.h"
+
+void main_show_disk(int argc __unused, char **argv __unused,
+		    struct s_hardware *hardware)
+{
+	int i = -1;
+
+	detect_disks(hardware);
+
+	for (int drive = 0x80; drive < 0xff; drive++) {
+		i++;
+		if (!hardware->disk_info[i].cbios)
+			continue; /* Invalid geometry */
+		struct driveinfo *d = &hardware->disk_info[i];
+		more_printf
+		    ("DISK 0x%X:\n\ts/t=%d, sectors=%d, cylinders=%d, heads=%d, b/s=%d\n"
+		     "\tBus type: %s, Interface type: %s\n\tEDD=%X (ebios=%d, cbios=%d)\n",
+		     d->disk, d->sectors_per_track, d->sectors, d->cylinder, d->heads,
+		     d->bytes_per_sector, d->host_bus_type, d->interface_type,
+		     d->edd_version, d->ebios, d->cbios);
+	}
+}
+
+struct cli_module_descr disk_show_modules = {
+	.modules = NULL,
+	.default_callback = main_show_disk,
+};
+
+struct cli_mode_descr disk_mode = {
+	.mode = DISK_MODE,
+	.name = CLI_DISK,
+	.default_modules = NULL,
+	.show_modules = &disk_show_modules,
+	.set_modules = NULL,
+};
