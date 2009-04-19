@@ -879,7 +879,7 @@ run_menu(void)
       }
       if (done && !me->passwd) {
 	/* Only save a new default if we don't have a password... */
-	if (menusave && me->label) {
+	if (me->save && me->label) {
 	  syslinux_setadv(ADV_MENUSAVE, strlen(me->label), me->label);
 	  syslinux_adv_write();
 	}

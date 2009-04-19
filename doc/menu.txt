@@ -276,6 +276,7 @@ DEFAULT label
 
 
 MENU SAVE
+MENU NOSAVE
 
 	Remember the last entry selected and make that the default for
 	the next boot.  A password-protected menu entry is *not*
@@ -289,7 +290,12 @@ MENU SAVE
 	file gracefully.
 
 	The MENU SAVE information can be cleared with
-	"extlinux --reset-adv".
+	"extlinux --reset-adv <bootdir>".
+
+	A MENU SAVE or MENU NOSAVE at the top of a (sub)menu affects
+	all entries underneath that (sub)menu except those that in
+	turn have MENU SAVE or MENU NOSAVE declared.  This can be used
+	to only save certain entires when selected.
 
 
 INCLUDE filename [tagname]

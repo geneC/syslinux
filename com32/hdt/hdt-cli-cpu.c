@@ -65,7 +65,7 @@ static void show_cpu(int argc __unused, char **argv __unused,
 {
 	char buffer[81];
 	char buffer1[81];
-	clear_screen();
+	reset_more_printf();
 	more_printf("CPU\n");
 	more_printf("Vendor    : %s\n", hardware->cpu.vendor);
 	more_printf("Model     : %s\n", hardware->cpu.model);
@@ -182,7 +182,6 @@ static void show_cpu(int argc __unused, char **argv __unused,
 
 struct cli_module_descr cpu_show_modules = {
 	.modules = NULL,
-	.nb_modules = 0,
 	.default_callback = show_cpu,
 };
 

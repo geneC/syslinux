@@ -68,6 +68,7 @@
 #define CLI_SHOW_LIST "list"
 #define CLI_IRQ "irq"
 #define CLI_MODES "modes"
+#define CLI_VPD  "vpd"
 
 typedef enum {
 	INVALID_MODE,
@@ -81,6 +82,7 @@ typedef enum {
 	SYSLINUX_MODE,
 	VESA_MODE,
 	DISK_MODE,
+	VPD_MODE,
 } cli_mode_t;
 
 #define PROMPT_SIZE 32
@@ -111,7 +113,6 @@ struct cli_mode_descr {
 /* Describe a subset of commands in a module (default, show, set, ...) */
 struct cli_module_descr {
 	struct cli_callback_descr* modules;
-	const int nb_modules;
 	void ( * default_callback ) ( int argc, char** argv, struct s_hardware *hardware );
 };
 
@@ -130,8 +131,7 @@ struct cli_alias {
 };
 
 /* List of implemented modes */
-#define MAX_MODES 9
-struct cli_mode_descr *list_modes[MAX_MODES];
+extern struct cli_mode_descr *list_modes[];
 struct cli_mode_descr hdt_mode;
 struct cli_mode_descr dmi_mode;
 struct cli_mode_descr syslinux_mode;
@@ -141,6 +141,7 @@ struct cli_mode_descr cpu_mode;
 struct cli_mode_descr pci_mode;
 struct cli_mode_descr vesa_mode;
 struct cli_mode_descr disk_mode;
+struct cli_mode_descr vpd_mode;
 
 /* cli helpers */
 void find_cli_mode_descr(cli_mode_t mode, struct cli_mode_descr **mode_found);
@@ -164,7 +165,6 @@ void main_show(char *item, struct s_hardware *hardware);
 #define CLI_DMI_SYSTEM "system"
 #define CLI_DMI_IPMI "ipmi"
 #define CLI_DMI_LIST CLI_SHOW_LIST
-#define CLI_DMI_MAX_MODULES 10
 void main_show_dmi(int argc, char **argv, struct s_hardware *hardware);
 void show_dmi_memory_modules(int argc, char** argv, struct s_hardware *hardware);
 

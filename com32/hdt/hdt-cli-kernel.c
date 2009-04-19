@@ -104,18 +104,16 @@ static void show_kernel_modules(int argc __unused, char **argv __unused,
 
 	if (hardware->pci_ids_return_code == -ENOPCIIDS) {
 		nopciids = true;
-		more_printf(" Missing pci.ids, we can't compute the list\n");
+		printf(" Missing pci.ids, we can't compute the list\n");
 		return;
 	}
 
 	if (hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) {
 		nomodulespcimap = true;
-		more_printf
+		printf
 		    (" Missing modules.pcimap, we can't compute the list\n");
 		return;
 	}
-
-	clear_screen();
 
 	for_each_pci_func(pci_device, hardware->pci_domain) {
 		memset(kernel_modules, 0, sizeof kernel_modules);
@@ -141,14 +139,13 @@ static void show_kernel_modules(int argc __unused, char **argv __unused,
 	/* Print the found items */
 	for (int i = 0; i < MAX_PCI_CLASSES; i++) {
 		if (strlen(category_name[i]) > 1) {
-			more_printf("%s : %s\n", category_name[i], modules[i]);
+			printf("%s : %s\n", category_name[i], modules[i]);
 		}
 	}
 }
 
 struct cli_module_descr kernel_show_modules = {
 	.modules = NULL,
-	.nb_modules = 0,
 	.default_callback = show_kernel_modules,
 };
 

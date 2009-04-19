@@ -39,17 +39,16 @@
 void main_show_syslinux(int argc __unused, char **argv __unused,
 		        struct s_hardware *hardware)
 {
-  more_printf("SYSLINUX\n");
-  more_printf(" Bootloader : %s\n", hardware->syslinux_fs);
-  more_printf(" Version    : %s\n", hardware->sv->version_string + 2);
-  more_printf(" Version    : %u\n", hardware->sv->version);
-  more_printf(" Max API    : %u\n", hardware->sv->max_api);
-  more_printf(" Copyright  : %s\n", hardware->sv->copyright_string + 1);
+  printf("SYSLINUX\n");
+  printf(" Bootloader : %s\n", hardware->syslinux_fs);
+  printf(" Version    : %s\n", hardware->sv->version_string + 2);
+  printf(" Version    : %u\n", hardware->sv->version);
+  printf(" Max API    : %u\n", hardware->sv->max_api);
+  printf(" Copyright  : %s\n", hardware->sv->copyright_string + 1);
 }
 
 struct cli_module_descr syslinux_show_modules = {
 	.modules = NULL,
-	.nb_modules = 0,
 	.default_callback = main_show_syslinux,
 };
 

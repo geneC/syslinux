@@ -112,7 +112,7 @@ void setup_menu(char *version)
 {
   /* Creating the menu */
   init_menusystem(version);
-  set_window_size(0, 0, 24, 80);
+  set_window_size(0, 0, 25, 80);
 
   /* Register the menusystem handler */
   // reg_handler(HDLR_SCREEN,&msys_handler);
@@ -153,6 +153,7 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
   }
 
   compute_processor(&(hdt_menu->cpu_menu), hardware);
+  compute_vpd(&(hdt_menu->vpd_menu), hardware);
   compute_disks(hdt_menu, hardware->disk_info, hardware);
 
 #ifdef WITH_PCI
@@ -242,6 +243,12 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
     }
   }
 
+ if (hardware->is_vpd_valid == true) {
+   add_item("VPD","VPD Information Menu", OPT_SUBMENU, NULL,
+      hdt_menu->vpd_menu.menu);
+   hdt_menu->main_menu.items_count++;
+  }
+
   if (hardware->is_pxe_valid == true) {
     add_item("P<X>E", "PXE Information Menu", OPT_SUBMENU, NULL,
        hdt_menu->pxe_menu.menu);
@@ -300,6 +307,10 @@ void detect_hardware(struct s_hardware *hardware)
            hardware->dmi.dmitable.major_version,
            hardware->dmi.dmitable.minor_version);
   }
+
+  printf("VPD: Detecting\n");
+  detect_vpd(hardware);
+
 #ifdef WITH_PCI
   detect_pci(hardware);
   printf("PCI: %d Devices Found\n", hardware->nb_pci_devices);

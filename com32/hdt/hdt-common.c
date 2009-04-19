@@ -36,6 +36,22 @@
 #include "lib-ansi.h"
 #include <disk/util.h>
 
+/* ISOlinux requires a 8.3 format */
+void convert_isolinux_filename(char *filename, struct s_hardware *hardware) {
+  /* Exit if we are not running ISOLINUX */
+  if (hardware->sv->filesystem != SYSLINUX_FS_ISOLINUX) return;
+  /* Searching the dot */
+  char *dot=strchr(filename,'.');
+  /* Exiting if not dot exists in that string */
+  if (dot==NULL) return;
+  /* Exiting if the extension is 3 char or less */
+  if (strlen(dot)<=4) return;
+
+  /* We have an extension bigger than .blah
+   * so we have to shorten it to 3*/
+  dot[4]='\0';
+}
+
 void detect_parameters(const int argc, const char *argv[],
                        struct s_hardware *hardware)
 {
@@ -43,12 +59,15 @@ void detect_parameters(const int argc, const char *argv[],
     if (!strncmp(argv[i], "modules=", 8)) {
       strncpy(hardware->modules_pcimap_path, argv[i] + 8,
         sizeof(hardware->modules_pcimap_path));
+      convert_isolinux_filename(hardware->modules_pcimap_path,hardware);
     } else if (!strncmp(argv[i], "pciids=", 7)) {
       strncpy(hardware->pciids_path, argv[i] + 7,
         sizeof(hardware->pciids_path));
+      convert_isolinux_filename(hardware->pciids_path,hardware);
     } else if (!strncmp(argv[i], "memtest=", 8)) {
       strncpy(hardware->memtest_label, argv[i] + 8,
         sizeof(hardware->memtest_label));
+      convert_isolinux_filename(hardware->memtest_label,hardware);
     }
   }
 }
@@ -88,9 +107,11 @@ void init_hardware(struct s_hardware *hardware)
   hardware->dmi_detection = false;
   hardware->pxe_detection = false;
   hardware->vesa_detection = false;
+  hardware->vpd_detection = false;
   hardware->nb_pci_devices = 0;
   hardware->is_dmi_valid = false;
   hardware->is_pxe_valid = false;
+  hardware->is_vpd_valid = false;
   hardware->pci_domain = NULL;
 
   /* Cleaning structures */
@@ -99,6 +120,7 @@ void init_hardware(struct s_hardware *hardware)
   memset(&hardware->cpu, 0, sizeof(s_cpu));
   memset(&hardware->pxe, 0, sizeof(struct s_pxe));
   memset(&hardware->vesa, 0, sizeof(struct s_vesa));
+  memset(&hardware->vpd, 0, sizeof(s_vpd));
   memset(hardware->syslinux_fs, 0, sizeof hardware->syslinux_fs);
   memset(hardware->pciids_path, 0, sizeof hardware->pciids_path);
   memset(hardware->modules_pcimap_path, 0,
@@ -126,6 +148,30 @@ int detect_dmi(struct s_hardware *hardware)
   parse_dmitable(&hardware->dmi);
   hardware->is_dmi_valid = true;
   return 0;
+}
+
+/**
+ * vpd_detection - populate the VPD structure
+ *
+ * VPD is a structure available on IBM machines.
+ * It is documented at:
+ *    http://www.pc.ibm.com/qtechinfo/MIGR-45120.html
+ * (XXX the page seems to be gone)
+ **/
+int detect_vpd(struct s_hardware *hardware)
+{
+	if (hardware->vpd_detection)
+		return -1;
+	else
+		hardware->vpd_detection = true;
+
+	if (vpd_decode(&hardware->vpd) == -ENOVPDTABLE) {
+		hardware->is_vpd_valid = false;
+		return -ENOVPDTABLE;
+	} else {
+		hardware->is_vpd_valid = true;
+		return 0;
+	}
 }
 
 /* Detection vesa stuff*/
@@ -445,7 +491,7 @@ void clear_screen(void)
   set_us_g0_charset();
   display_cursor(false);
   clear_entire_screen();
-  display_line_nb = 0;
+  reset_more_printf();
 }
 
 /* remove begining spaces */
@@ -475,3 +521,7 @@ char *remove_spaces(char *p)
   return p;
 }
 
+/* Reset the more_printf counter */
+void reset_more_printf() {
+  display_line_nb=0;
+}
