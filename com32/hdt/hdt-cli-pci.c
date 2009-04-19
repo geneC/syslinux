@@ -135,10 +135,11 @@ static void show_pci_device(int argc, char **argv,
 	printf("PCI Func      : %02d\n", func);
 
 	if (hardware->is_pxe_valid == true) {
-		printf("Mac Address   : %s\n", hardware->pxe.mac_addr);
 		if ((hardware->pxe.pci_device != NULL)
-		    && (hardware->pxe.pci_device == pci_device))
+		    && (hardware->pxe.pci_device == pci_device)) {
+			printf("Mac Address   : %s\n", hardware->pxe.mac_addr);
 			printf("PXE           : Current boot device\n");
+		}
 	}
 }
 
