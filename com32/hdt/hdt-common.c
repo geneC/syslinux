@@ -263,7 +263,6 @@ void detect_disks(struct s_hardware *hardware)
 		}
 		hardware->disks_count++;
 	}
-	free(error_msg);
 }
 
 int detect_pxe(struct s_hardware *hardware)
