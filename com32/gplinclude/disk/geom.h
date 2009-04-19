@@ -191,7 +191,7 @@ struct device_parameter {
 		} __attribute__ ((packed)) unknown;
 	} device_path;
 	uint8_t reserved;			/* reserved (0) */
-	uint8_t cheksum;			/* checksum of bytes 1Eh-40h (two's complement of sum, which makes
+	uint8_t checksum;			/* checksum of bytes 1Eh-40h (two's complement of sum, which makes
 					 * the 8-bit sum of bytes 1Eh-41h equal 00h) */
 } __attribute__ ((packed));
 
