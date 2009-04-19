@@ -285,6 +285,10 @@ struct cli_callback_descr list_hdt_show_modules[] = {
 		.exec = main_show_cpu,
 	},
 	{
+		.name = CLI_DISK,
+		.exec = main_show_disk,
+	},
+	{
 		.name = CLI_PXE,
 		.exec = main_show_pxe,
 	},
