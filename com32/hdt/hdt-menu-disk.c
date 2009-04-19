@@ -116,9 +116,9 @@ int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-  snprintf(buffer, sizeof buffer, "EDD Version  : %s",
+  snprintf(buffer, sizeof buffer, "EDD Version  : %X",
      d[disk_number].edd_version);
-  snprintf(statbuffer, sizeof statbuffer, "EDD Version: %s",
+  snprintf(statbuffer, sizeof statbuffer, "EDD Version: %X",
      d[disk_number].edd_version);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
