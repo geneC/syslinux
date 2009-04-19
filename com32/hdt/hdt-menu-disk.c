@@ -30,25 +30,14 @@
 
 /* Compute the disk submenu */
 int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
-                        struct diskinfo *d, int disk_number)
+                        struct driveinfo *d, int disk_number)
 {
   char buffer[MENULEN + 1];
   char statbuffer[STATLEN + 1];
 
-  /* No need to add no existing devices */
-  if (strlen(d[disk_number].aid.model) <= 0)
-    return -1;
-
-  snprintf(buffer, sizeof buffer, " Disk <%d> ", nb_sub_disk_menu);
+  snprintf(buffer, sizeof buffer, " Disk <0x%X> ", d[disk_number].disk);
   menu[nb_sub_disk_menu].menu = add_menu(buffer, -1);
   menu[nb_sub_disk_menu].items_count = 0;
-
-  snprintf(buffer, sizeof buffer, "Model        : %s",
-     d[disk_number].aid.model);
-  snprintf(statbuffer, sizeof statbuffer, "Model: %s",
-     d[disk_number].aid.model);
-  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  menu[nb_sub_disk_menu].items_count++;
 
   /* Compute device size */
   char previous_unit[3], unit[3]; //GB
@@ -77,20 +66,6 @@ int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
      unit, previous_size, previous_unit);
   snprintf(statbuffer, sizeof statbuffer, "Size: %d %s (%d %s)", size,
      unit, previous_size, previous_unit);
-  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  menu[nb_sub_disk_menu].items_count++;
-
-  snprintf(buffer, sizeof buffer, "Firmware Rev.: %s",
-     d[disk_number].aid.fw_rev);
-  snprintf(statbuffer, sizeof statbuffer, "Firmware Revision: %s",
-     d[disk_number].aid.fw_rev);
-  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  menu[nb_sub_disk_menu].items_count++;
-
-  snprintf(buffer, sizeof buffer, "Serial Number: %s",
-     d[disk_number].aid.serial_no);
-  snprintf(statbuffer, sizeof statbuffer, "Serial Number: %s",
-     d[disk_number].aid.serial_no);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
@@ -123,9 +98,9 @@ int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
   menu[nb_sub_disk_menu].items_count++;
 
   snprintf(buffer, sizeof buffer, "Cylinders    : %d",
-     d[disk_number].cylinders);
+     d[disk_number].cylinder);
   snprintf(statbuffer, sizeof statbuffer, "Cylinders: %d",
-     d[disk_number].cylinders);
+     d[disk_number].cylinder);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
@@ -136,8 +111,8 @@ int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-  snprintf(buffer, sizeof buffer, "Port         : 0x%X", disk_number);
-  snprintf(statbuffer, sizeof statbuffer, "Port: 0x%X", disk_number);
+  snprintf(buffer, sizeof buffer, "Port         : 0x%X", d[disk_number].disk);
+  snprintf(statbuffer, sizeof statbuffer, "Port: 0x%X", d[disk_number].disk);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
@@ -152,7 +127,7 @@ int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
 }
 
 /* Compute the Disks menu */
-void compute_disks(struct s_hdt_menu *menu, struct diskinfo *disk_info, struct s_hardware *hardware)
+void compute_disks(struct s_hdt_menu *menu, struct driveinfo *disk_info, struct s_hardware *hardware)
 {
   char buffer[MENULEN + 1];
   int nb_sub_disk_menu = 0;
@@ -161,17 +136,19 @@ void compute_disks(struct s_hdt_menu *menu, struct diskinfo *disk_info, struct s
   menu->disk_menu.items_count = 0;
   if (hardware->disks_count == 0) return;
 
-  for (int i = 0; i < 0xff; i++) {
-    if (compute_disk_module
+  for (int i = 0; i < hardware->disks_count; i++) {
+    if (!hardware->disk_info[i].cbios)
+      continue; /* Invalid geometry */
+    compute_disk_module
         ((struct s_my_menu*) &(menu->disk_sub_menu), nb_sub_disk_menu, disk_info,
-         i) == 0)
-      nb_sub_disk_menu++;
+         i);
+    nb_sub_disk_menu++;
   }
 
   menu->disk_menu.menu = add_menu(" Disks ", -1);
 
   for (int i = 0; i < nb_sub_disk_menu; i++) {
-    snprintf(buffer, sizeof buffer, " Disk <%d> ", i);
+    snprintf(buffer, sizeof buffer, " Disk <%d> ", i+1);
     add_item(buffer, "Disk", OPT_SUBMENU, NULL,
        menu->disk_sub_menu[i].menu);
     menu->disk_menu.items_count++;

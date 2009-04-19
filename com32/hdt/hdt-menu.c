@@ -286,8 +286,9 @@ void detect_hardware(struct s_hardware *hardware)
   printf("CPU: Detecting\n");
   cpu_detect(hardware);
 
-  printf("DISKS: Detecting\n");
+  printf("DISKS: Detecting...");
   detect_disks(hardware);
+  printf("done (%d disks found).\n", hardware->disks_count);
 
   printf("DMI: Detecting Table\n");
   if (detect_dmi(hardware) == -ENODMITABLE) {
