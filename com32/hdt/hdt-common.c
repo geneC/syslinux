@@ -220,7 +220,7 @@ void detect_disks(struct s_hardware *hardware)
       continue;
     struct diskinfo *d = &hardware->disk_info[drive];
     hardware->disks_count++;
-    more_printf
+    printf
         ("  DISK 0x%X: %s : %s %s: sectors=%d, s/t=%d head=%d : EDD=%s\n",
          drive, d->aid.model, d->host_bus_type, d->interface_type,
          d->sectors, d->sectors_per_track, d->heads,
@@ -397,19 +397,19 @@ void detect_pci(struct s_hardware *hardware)
     hardware->nb_pci_devices++;
   }
 
-  more_printf("PCI: %d devices detected\n", hardware->nb_pci_devices);
-  more_printf("PCI: Resolving names\n");
+  printf("PCI: %d devices detected\n", hardware->nb_pci_devices);
+  printf("PCI: Resolving names\n");
   /* Assigning product & vendor name for each device */
   hardware->pci_ids_return_code =
       get_name_from_pci_ids(hardware->pci_domain, hardware->pciids_path);
 
-  more_printf("PCI: Resolving class names\n");
+  printf("PCI: Resolving class names\n");
   /* Assigning class name for each device */
   hardware->pci_ids_return_code =
       get_class_name_from_pci_ids(hardware->pci_domain,
           hardware->pciids_path);
 
-  more_printf("PCI: Resolving module names\n");
+  printf("PCI: Resolving module names\n");
   /* Detecting which kernel module should match each device */
   hardware->modules_pcimap_return_code =
       get_module_name_from_pcimap(hardware->pci_domain,
