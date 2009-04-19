@@ -483,6 +483,39 @@ char *remove_spaces(char *p)
   return p;
 }
 
+/* delete multiple spaces, one is enough */
+char *del_multi_spaces(char *p) {
+ /* Saving the original pointer*/
+ char *save=p;
+
+ /* Let's parse the complete string
+  * As we search for a double spacing
+  * we have to be sure then string is
+  * long enough to be processed */
+ while (*p && *p+1) {
+
+   /* If we have two consecutive spaces*/
+   if ((*p == ' ') && (*(p+1) == ' ')) {
+
+    /* Let's copy to the current position
+     * the content from the second space*/
+    strncpy(p,p+1,strlen(p+1));
+
+    /* The string is 1 char smaller*/
+    *(p+strlen(p)-1)='\0';
+
+    /* Don't increment the pointer as we
+     * changed the content of the current position*/
+    continue;
+   }
+
+   /* Nothing as been found, let's see on the next char*/
+   p++;
+ }
+ /* Returning the original pointer*/
+ return save;
+}
+
 /* Reset the more_printf counter */
 void reset_more_printf() {
   display_line_nb=0;

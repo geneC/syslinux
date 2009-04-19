@@ -41,7 +41,7 @@ void main_show_cpu(int argc __unused, char **argv __unused,
 	detect_dmi(hardware);
 	more_printf("CPU\n");
 	more_printf(" Manufacturer : %s \n", hardware->cpu.vendor);
-	more_printf(" Product      : %s \n", hardware->cpu.model);
+	more_printf(" Product      : %s \n", del_multi_spaces(hardware->cpu.model));
 	if ((hardware->cpu.flags.lm == false)
 	    && (hardware->cpu.flags.smp == false)) {
 		more_printf(" Features     : %d MhZ : x86 32bits\n",

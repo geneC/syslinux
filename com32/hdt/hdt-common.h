@@ -125,6 +125,7 @@ void reset_more_printf();
 const char *find_argument(const char **argv, const char *argument);
 char *remove_spaces(char *p);
 char *skip_spaces(char *p);
+char *del_multi_spaces(char *p);
 int detect_dmi(struct s_hardware *hardware);
 void detect_disks(struct s_hardware *hardware);
 void detect_pci(struct s_hardware *hardware);
