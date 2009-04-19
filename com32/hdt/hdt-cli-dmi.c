@@ -172,7 +172,7 @@ static void show_dmi_chassis(int argc __unused, char** argv __unused,
         hardware->dmi.chassis.version);
   printf(" Serial             : %s\n", hardware->dmi.chassis.serial);
   printf(" Asset Tag          : %s\n",
-        hardware->dmi.chassis.asset_tag);
+        del_multiple_spaces(hardware->dmi.chassis.asset_tag));
   printf(" Boot up state      : %s\n",
         hardware->dmi.chassis.boot_up_state);
   printf(" Power supply state : %s\n",
