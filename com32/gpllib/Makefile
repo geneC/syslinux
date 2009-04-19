@@ -10,7 +10,8 @@ REQFLAGS += -I../gplinclude
 
 LIBOBJS  = dmi/dmi_battery.o dmi/dmi_chassis.o dmi/dmi_memory.o            \
            dmi/dmi_processor.o dmi/dmi.o dmi/dmi_bios.o dmi/dmi_base_board.o \
-	   dmi/dmi_ipmi.o cpuid.o vpd/vpd.o
+	   dmi/dmi_ipmi.o cpuid.o disk/geom.o disk/read.o disk/write.o \
+	   disk/util.o vpd/vpd.o
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib
