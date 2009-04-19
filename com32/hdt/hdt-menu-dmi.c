@@ -126,9 +126,9 @@ void compute_chassis(struct s_my_menu *menu, s_dmi * dmi)
   menu->items_count++;
 
   snprintf(buffer, sizeof buffer, "Asset Tag : %s",
-     del_multiple_spaces(dmi->chassis.asset_tag));
+     del_multi_spaces(dmi->chassis.asset_tag));
   snprintf(statbuffer, sizeof statbuffer, "Asset Tag: %s",
-     del_multiple_spaces(dmi->chassis.asset_tag));
+     del_multi_spaces(dmi->chassis.asset_tag));
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu->items_count++;
 
