@@ -25,7 +25,7 @@
 ; Load a boot sector
 ;
 is_bootsector:
-%if IS_SYSLINUX || IS_MDSLINUX
+%if IS_SYSLINUX
 		; Transfer zero bytes
 		push word 0
 		jmp short load_bootsec
@@ -48,7 +48,7 @@ load_bootsec:
 		mov eax,7C00h		; Entry point
 		mov [trackbuf],eax	; Copy to this address
 
-%if IS_SYSLINUX || IS_MDSLINUX
+%if IS_SYSLINUX
 		xor ecx,ecx
 		pop cx
 
@@ -61,7 +61,7 @@ load_bootsec:
 
 		xor edx,edx
 		xor esi,esi
-%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
+%if IS_SYSLINUX || IS_EXTLINUX
 		; Restore original FDC table
 		mov eax,[OrigFDCTabPtr]
 		mov [fdctab],eax

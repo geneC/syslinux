@@ -29,11 +29,6 @@
 %else
  %define IS_SYSLINUX 0
 %endif
-%ifdef IS_MDSLINUX
- %define MY_NAME 'MDSLINUX'
-%else
- %define IS_MDSLINUX 0
-%endif
 %ifdef IS_PXELINUX
  %define MY_NAME 'PXELINUX'
 %else
