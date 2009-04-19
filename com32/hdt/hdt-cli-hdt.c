@@ -54,7 +54,7 @@ static void main_show_modes(int argc __unused, char** argv __unused,
 
 	printf("Available modes:\n");
 	for (i = 0; i < MAX_MODES; i++)
-		more_printf("\t%s\n", list_modes[i]->name);
+		printf("\t%s\n", list_modes[i]->name);
 }
 
 /**
@@ -119,10 +119,10 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 	/* List first default modules of the mode */
 	if (current_mode->default_modules != NULL ) {
 		for (j = 0; j < current_mode->default_modules->nb_modules; j++) {
-			more_printf("%s ",
+			printf("%s ",
 			       current_mode->default_modules->modules[j].name);
 		}
-		more_printf("\n");
+		printf("\n");
 	}
 
 	/* List secondly the show modules of the mode */
@@ -130,7 +130,7 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 	    current_mode->show_modules->nb_modules != 0) {
 		printf("show commands:\n");
 		for (j = 0; j < current_mode->show_modules->nb_modules; j++)
-			more_printf("\t%s\n",
+			printf("\t%s\n",
 			       current_mode->show_modules->modules[j].name);
 	}
 
@@ -139,7 +139,7 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 	    current_mode->set_modules->nb_modules != 0) {
 		printf("set commands:\n");
 		for (j = 0; j < current_mode->set_modules->nb_modules; j++)
-			more_printf("\t%s\n",
+			printf("\t%s\n",
 			       current_mode->set_modules->modules[j].name);
 	}
 
