@@ -32,6 +32,8 @@
 #include <errno.h>
 
 #include <disk/geom.h>
+#include <disk/read.h>
+#include <disk/util.h>
 
 #include "hdt-cli.h"
 #include "hdt-common.h"
@@ -63,6 +65,27 @@ void main_show_disk(int argc __unused, char **argv __unused,
 			(int) d->edd_params.sectors_per_track);
 		more_printf("         Host bus: %s, Interface type: %s\n\n",
 			d->edd_params.host_bus_type, d->edd_params.interface_type);
+
+		char *mbr = read_mbr(d->disk);
+		if (!mbr) {
+			more_printf("Unable to read the mbr.");
+			continue;
+		}
+
+		more_printf("  # Boot    Start      End   Blocks Id Type\n");
+		struct part_entry *ptab = (struct part_entry *)(mbr + PARTITION_TABLES_OFFSET);
+		for (int i = 0; i < 4; i++) {
+			char *parttype;
+			if (ptab[i].ostype) {
+				get_label(ptab[i].ostype, &parttype);
+				more_printf("  %d  %s %8d %8d %8d %02X %s\n",
+				i, (ptab[i].active_flag == 0x80) ? " x " : "   ",
+				ptab[i].start_lba,
+				ptab[i].start_lba + ptab[i].length, ptab[i].length,
+				ptab[i].ostype, parttype);
+				free(parttype);
+			}
+		}
 	}
 }
 
