@@ -254,8 +254,12 @@ void detect_disks(struct s_hardware *hardware)
 		i++;
 		hardware->disk_info[i].disk = drive;
 		err = get_drive_parameters(&hardware->disk_info[i]);
-		/* Do not show errors when a disk is not found (0x01) */
-		if (err && err != 0x01) {
+
+		/* Do not print output when drive does not exists */
+		if (err == -1)
+			continue;
+
+		if (err) {
 			get_error(err, &error_msg);
 			more_printf("Error 0x%Xh while reading disk 0x%X:\n\t%s\n",
 				err, drive, error_msg);

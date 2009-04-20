@@ -48,12 +48,21 @@ void main_show_disk(int argc __unused, char **argv __unused,
 		if (!hardware->disk_info[i].cbios)
 			continue; /* Invalid geometry */
 		struct driveinfo *d = &hardware->disk_info[i];
-		more_printf
-		    ("DISK 0x%X:\n\ts/t=%d, sectors=%d, cylinders=%d, heads=%d, b/s=%d\n"
-		     "\tBus type: %s, Interface type: %s\n\tEDD=%X (ebios=%d, cbios=%d)\n",
-		     d->disk, d->sectors_per_track, d->sectors, d->cylinder, d->heads,
-		     d->bytes_per_sector, d->host_bus_type, d->interface_type,
-		     d->edd_version, d->ebios, d->cbios);
+
+		more_printf("DISK 0x%X:\n", d->disk);
+		more_printf("  C/H/S: %d heads, %d cylinders\n",
+			d->legacy_max_head + 1, d->legacy_max_cylinder + 1);
+		more_printf("         %d sectors/track, %d drives\n",
+			d->legacy_sectors_per_track, d->legacy_max_drive);
+		more_printf("  EDD:   ebios=%d, EDD version: %X\n",
+			d->ebios, d->edd_version);
+		more_printf("         %d heads, %d cylinders\n",
+			(int) d->edd_params.heads, (int) d->edd_params.cylinders);
+		more_printf("         %d sectors, %d bytes/sector, %d sectors/track\n",
+			(int) d->edd_params.sectors, (int) d->edd_params.bytes_per_sector,
+			(int) d->edd_params.sectors_per_track);
+		more_printf("         Host bus: %s, Interface type: %s\n\n",
+			d->edd_params.host_bus_type, d->edd_params.interface_type);
 	}
 }
 

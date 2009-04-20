@@ -41,7 +41,7 @@ int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
 
   /* Compute device size */
   char previous_unit[3], unit[3]; //GB
-  int previous_size, size = d[disk_number].sectors / 2; // Converting to bytes
+  int previous_size, size = d[disk_number].edd_params.sectors / 2; // Converting to bytes
   strlcpy(unit, "KB", 2);
   strlcpy(previous_unit, unit, 2);
   previous_size = size;
@@ -70,44 +70,44 @@ int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
   menu[nb_sub_disk_menu].items_count++;
 
   snprintf(buffer, sizeof buffer, "Interface    : %s",
-     d[disk_number].interface_type);
+     d[disk_number].edd_params.interface_type);
   snprintf(statbuffer, sizeof statbuffer, "Interface: %s",
-     d[disk_number].interface_type);
+     d[disk_number].edd_params.interface_type);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
   snprintf(buffer, sizeof buffer, "Host Bus     : %s",
-     d[disk_number].host_bus_type);
+     d[disk_number].edd_params.host_bus_type);
   snprintf(statbuffer, sizeof statbuffer, "Host Bus Type: %s",
-     d[disk_number].host_bus_type);
+     d[disk_number].edd_params.host_bus_type);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
   snprintf(buffer, sizeof buffer, "Sectors      : %d",
-     d[disk_number].sectors);
+     (int) d[disk_number].edd_params.sectors);
   snprintf(statbuffer, sizeof statbuffer, "Sectors: %d",
-     d[disk_number].sectors);
+     (int) d[disk_number].edd_params.sectors);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
   snprintf(buffer, sizeof buffer, "Heads        : %d",
-     d[disk_number].heads);
+     d[disk_number].legacy_max_head + 1);
   snprintf(statbuffer, sizeof statbuffer, "Heads: %d",
-     d[disk_number].heads);
+     d[disk_number].legacy_max_head + 1);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
   snprintf(buffer, sizeof buffer, "Cylinders    : %d",
-     d[disk_number].cylinder);
+     d[disk_number].legacy_max_cylinder + 1);
   snprintf(statbuffer, sizeof statbuffer, "Cylinders: %d",
-     d[disk_number].cylinder);
+     d[disk_number].legacy_max_cylinder + 1);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
   snprintf(buffer, sizeof buffer, "Sectors/Track: %d",
-     d[disk_number].sectors_per_track);
+     d[disk_number].legacy_sectors_per_track);
   snprintf(statbuffer, sizeof statbuffer, "Sectors per Track: %d",
-     d[disk_number].sectors_per_track);
+     d[disk_number].legacy_sectors_per_track);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
