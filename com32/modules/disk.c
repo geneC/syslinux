@@ -58,6 +58,6 @@ int main(int argc __attribute__ (( unused )),
 			(int) d->edd_params.sectors_per_track);
 		printf("         Host bus: %s, Interface type: %s\n\n",
 			d->edd_params.host_bus_type, d->edd_params.interface_type);
-		}
+	}
 	return 0;
 }
