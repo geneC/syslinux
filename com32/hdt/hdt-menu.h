@@ -91,8 +91,6 @@ int compute_PCI(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);
 void compute_kernel(struct s_my_menu *menu, struct s_hardware *hardware);
 
 // Disk Stuff
-int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
-                        struct driveinfo *d, int disk_number);
 void compute_disks(struct s_hdt_menu *menu, struct driveinfo *disk_info, struct s_hardware *hardware);
 
 // DMI Stuff

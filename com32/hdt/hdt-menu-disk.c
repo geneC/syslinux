@@ -26,102 +26,201 @@
  * -----------------------------------------------------------------------
  */
 
+#include <stdlib.h>
+#include <disk/geom.h>
+#include <disk/read.h>
+#include <disk/util.h>
 #include "hdt-menu.h"
 
+static void humanize_size(char *previous_unit, int *previous_size, char *unit, int *size, int sectors)
+{
+	*size = sectors / 2; // Converting to bytes
+	strlcpy(unit, "KB", 2);
+	strlcpy(previous_unit, unit, 2);
+	*previous_size = *size;
+	if (*size > 1000) {
+		*size = *size / 1000;
+		strlcpy(unit, "MB", 2);
+		if (*size > 1000) {
+			*previous_size = *size;
+			*size = *size / 1000;
+			strlcpy(previous_unit, unit, 2);
+			strlcpy(unit, "GB", 2);
+			if (*size > 1000) {
+				*previous_size = *size;
+				*size = *size / 1000;
+				strlcpy(previous_unit, unit, 2);
+				strlcpy(unit, "TB", 2);
+			}
+		}
+	}
+}
+
+static void compute_partition_info(int partnb,
+				   struct part_entry *ptab,
+				   char menu_title_ref[],
+				   char menu_title[])
+{
+	char buffer[56];
+	char statbuffer[STATLEN];
+	int previous_size, size;
+	char previous_unit[3], unit[3]; // GB
+	humanize_size(previous_unit, &previous_size, unit, &size, ptab->length);
+
+	add_named_menu(menu_title_ref, menu_title, -1);
+	set_menu_pos(5, 17);
+
+	snprintf(buffer, sizeof buffer, "Partition # : %d",
+		 partnb);
+	snprintf(statbuffer, sizeof statbuffer, "Partition #: %d",
+		 partnb);
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+
+	snprintf(buffer, sizeof buffer, "Bootable    : %s",
+		 (ptab->active_flag == 0x80) ? "Yes" : "No");
+	snprintf(statbuffer, sizeof statbuffer, "Bootable: %s",
+		 (ptab->active_flag == 0x80) ? "Yes" : "No");
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+
+	snprintf(buffer, sizeof buffer, "Start       : %d",
+		 ptab->start_lba);
+	snprintf(statbuffer, sizeof statbuffer, "Start: %d",
+		 ptab->start_lba);
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+
+	snprintf(buffer, sizeof buffer, "End         : %d",
+		 ptab->start_lba + ptab->length);
+	snprintf(statbuffer, sizeof statbuffer, "End: %d",
+		 ptab->start_lba + ptab->length);
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+
+	snprintf(buffer, sizeof buffer, "Length      : %d (%d %s)",
+		 ptab->length, size, unit);
+	snprintf(statbuffer, sizeof statbuffer, "Length: %d (%d %s)",
+		 ptab->length, size, unit);
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+
+	snprintf(buffer, sizeof buffer, "Id          : %X",
+		 ptab->ostype);
+	snprintf(statbuffer, sizeof statbuffer, "Id: %X",
+		 ptab->ostype);
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+
+	char *parttype;
+	get_label(ptab->ostype, &parttype);
+	snprintf(buffer, sizeof buffer, "Type        : %s",
+		 parttype);
+	snprintf(statbuffer, sizeof statbuffer, "Type: %s",
+		 parttype);
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+	free(parttype);
+}
+
 /* Compute the disk submenu */
-int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
-                        struct driveinfo *d, int disk_number)
+static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
+			       struct driveinfo *d, int disk_number)
 {
   char buffer[MENULEN + 1];
   char statbuffer[STATLEN + 1];
+  char *mbr = NULL;
 
   snprintf(buffer, sizeof buffer, " Disk <0x%X> ", d[disk_number].disk);
   menu[nb_sub_disk_menu].menu = add_menu(buffer, -1);
   menu[nb_sub_disk_menu].items_count = 0;
 
-  /* Compute device size */
-  char previous_unit[3], unit[3]; //GB
-  int previous_size, size = d[disk_number].edd_params.sectors / 2; // Converting to bytes
-  strlcpy(unit, "KB", 2);
-  strlcpy(previous_unit, unit, 2);
-  previous_size = size;
-  if (size > 1000) {
-    size = size / 1000;
-    strlcpy(unit, "MB", 2);
-    if (size > 1000) {
-      previous_size = size;
-      size = size / 1000;
-      strlcpy(previous_unit, unit, 2);
-      strlcpy(unit, "GB", 2);
-      if (size > 1000) {
-        previous_size = size;
-        size = size / 1000;
-        strlcpy(previous_unit, unit, 2);
-        strlcpy(unit, "TB", 2);
-      }
-    }
-  }
+  int previous_size, size;
+  char previous_unit[3], unit[3]; // GB
+  humanize_size(previous_unit, &previous_size, unit, &size, d[disk_number].edd_params.sectors);
 
-  snprintf(buffer, sizeof buffer, "Size         : %d %s (%d %s)", size,
+  snprintf(buffer, sizeof buffer, "Size          : %d %s (%d %s)", size,
      unit, previous_size, previous_unit);
   snprintf(statbuffer, sizeof statbuffer, "Size: %d %s (%d %s)", size,
      unit, previous_size, previous_unit);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-  snprintf(buffer, sizeof buffer, "Interface    : %s",
+  snprintf(buffer, sizeof buffer, "Interface     : %s",
      d[disk_number].edd_params.interface_type);
   snprintf(statbuffer, sizeof statbuffer, "Interface: %s",
      d[disk_number].edd_params.interface_type);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-  snprintf(buffer, sizeof buffer, "Host Bus     : %s",
+  snprintf(buffer, sizeof buffer, "Host Bus      : %s",
      d[disk_number].edd_params.host_bus_type);
   snprintf(statbuffer, sizeof statbuffer, "Host Bus Type: %s",
      d[disk_number].edd_params.host_bus_type);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-  snprintf(buffer, sizeof buffer, "Sectors      : %d",
+  snprintf(buffer, sizeof buffer, "Sectors       : %d",
      (int) d[disk_number].edd_params.sectors);
   snprintf(statbuffer, sizeof statbuffer, "Sectors: %d",
      (int) d[disk_number].edd_params.sectors);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-  snprintf(buffer, sizeof buffer, "Heads        : %d",
+  snprintf(buffer, sizeof buffer, "Heads         : %d",
      d[disk_number].legacy_max_head + 1);
   snprintf(statbuffer, sizeof statbuffer, "Heads: %d",
      d[disk_number].legacy_max_head + 1);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-  snprintf(buffer, sizeof buffer, "Cylinders    : %d",
+  snprintf(buffer, sizeof buffer, "Cylinders     : %d",
      d[disk_number].legacy_max_cylinder + 1);
   snprintf(statbuffer, sizeof statbuffer, "Cylinders: %d",
      d[disk_number].legacy_max_cylinder + 1);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-  snprintf(buffer, sizeof buffer, "Sectors/Track: %d",
+  snprintf(buffer, sizeof buffer, "Sectors/Track : %d",
      d[disk_number].legacy_sectors_per_track);
   snprintf(statbuffer, sizeof statbuffer, "Sectors per Track: %d",
      d[disk_number].legacy_sectors_per_track);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-  snprintf(buffer, sizeof buffer, "Port         : 0x%X", d[disk_number].disk);
-  snprintf(statbuffer, sizeof statbuffer, "Port: 0x%X", d[disk_number].disk);
+  snprintf(buffer, sizeof buffer, "Drive number  : 0x%X", d[disk_number].disk);
+  snprintf(statbuffer, sizeof statbuffer, "Drive number: 0x%X", d[disk_number].disk);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-  snprintf(buffer, sizeof buffer, "EDD Version  : %X",
+  snprintf(buffer, sizeof buffer, "EDD Version   : %X",
      d[disk_number].edd_version);
   snprintf(statbuffer, sizeof statbuffer, "EDD Version: %X",
      d[disk_number].edd_version);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
+
+	add_sep();
+
+	/* Compute disk partitions menus */
+	mbr = read_mbr(d[disk_number].disk);
+	if (mbr) {
+		struct part_entry *ptab = (struct part_entry *)(mbr + PARTITION_TABLES_OFFSET);
+		char menu_title[MENULEN + 1];
+		char menu_title_ref[MENULEN + 1];
+		/* The calls to add_item need to be done first to draw the main submenu first */
+		int submenu_done = 0;
+submenu_disk:
+		for (int i = 0; i < 4; i++) {
+			if (ptab[i].ostype) {
+				snprintf(menu_title_ref, sizeof menu_title_ref, "disk_%x_part_%d", d[disk_number].disk, i);
+				snprintf(menu_title, sizeof menu_title, "Disk <%X>, Partition %d", d[disk_number].disk, i);
+				if (!submenu_done)
+					add_item(menu_title, "Partition information (start, end, length, type, ...)",
+						 OPT_SUBMENU, menu_title_ref, 0);
+				else
+					compute_partition_info(i, &ptab[i], menu_title_ref, menu_title);
+			}
+			/* Now, draw the sub sub menus */
+			if (i == 3 && !submenu_done) {
+				submenu_done = 1;
+				goto submenu_disk;
+			}
+		}
+	}
 
   return 0;
 }
