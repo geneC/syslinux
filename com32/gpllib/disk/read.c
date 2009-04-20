@@ -6,6 +6,17 @@
 #include <disk/read.h>
 
 /**
+ **/
+void *read_mbr(int drive)
+{
+	struct driveinfo drive_info;
+	drive_info.disk = drive;
+
+	/* MBR: lba = 0, 1 sector */
+	return read_sectors(&drive_info, 0, 1);
+}
+
+/**
  * dev_read - read from a drive
  * @drive:	Drive number
  * @lba:	Position to start reading from
@@ -37,7 +48,7 @@ void *read_sectors(struct driveinfo* drive_info, const unsigned int lba,
 	void *buf = (char *)__com32.cs_bounce + sectors * SECTOR;
 	void *data;
 
-	if (get_drive_parameters(drive_info))
+	if (get_drive_parameters(drive_info) == -1)
 		return NULL;
 
 	memset(&inreg, 0, sizeof inreg);
@@ -59,14 +70,14 @@ void *read_sectors(struct driveinfo* drive_info, const unsigned int lba,
 		if (!drive_info->cbios) {
 			/* We failed to get the geometry */
 			if (lba)
-				return NULL;		/* Can only read MBR */
+				return NULL;	/* Can only read MBR */
 
 			s = 1;  h = 0;  c = 0;
 		} else
 			lba_to_chs(drive_info, lba, &s, &h, &c);
 
 		if ( s > 63 || h > 256 || c > 1023 )
-		  return NULL;
+			return NULL;
 
 		inreg.eax.w[0] = 0x0201;	/* Read one sector */
 		inreg.ecx.b[1] = c & 0xff;
