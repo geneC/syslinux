@@ -5,26 +5,6 @@
 
 #define SECTOR 512		/* bytes/sector */
 
-/*
- * Disk parameters
- */
-struct driveinfo {
-	int disk;
-	int ebios;			/* EBIOS supported on this disk */
-	int edd_version;		/* EBIOS major version */
-	int edd_functionality_subset;
-	int cbios;			/* CHS geometry is valid */
-	int heads;
-	int sectors;
-	int sectors_per_track;
-	int bytes_per_sector;
-	int cylinder;
-	int type;			/* Drive type (AT/PS2 floppies only) */
-	int drives;			/* Number of drives */
-	char host_bus_type[5];
-	char interface_type[8];
-};
-
 struct ebios_dapa {
 	uint16_t len;
 	uint16_t count;
@@ -39,7 +19,7 @@ struct ebios_dapa {
  * Note: if the size is less than 30 on call, the final DWORD will not be
  *       returned by a v2.x implementation; similarly for the Device Path info
  **/
-struct device_parameter {
+struct edd_device_parameters {
 	uint16_t len;				/* size of returned data */
 	/**
 	 * Bitfields for IBM/MS INT 13 Extensions information flags:
@@ -195,6 +175,25 @@ struct device_parameter {
 					 * the 8-bit sum of bytes 1Eh-41h equal 00h) */
 } __attribute__ ((packed));
 
+/*
+ * Disk parameters
+ */
+struct driveinfo {
+	int disk;				/* Disk port (0x80 - 0xff) */
+	/* Legacy C/H/S */
+	int cbios;				/* CHS geometry is valid */
+	int legacy_max_head;
+	int legacy_max_cylinder;
+	int legacy_sectors_per_track;
+	int legacy_max_drive;
+	int legacy_type;			/* Drive type (AT/PS2 floppies only) */
+	/* EDD support */
+	int ebios;				/* EBIOS supported on this disk */
+	int edd_version;			/* EBIOS major version */
+	int edd_functionality_subset;
+	struct edd_device_parameters edd_params;/* EDD parameters */
+};
+
 /**
  * Format of Phoenix Enhanced Disk Drive Spec translated drive parameter table:
  * Offset    Size    Description    (Table 00277)
@@ -297,8 +296,16 @@ static inline int chs_to_lba(const struct driveinfo* drive_info,
 			     const unsigned int cylinder, const unsigned int head,
 			     const unsigned int sector)
 {
-	return (sector - 1) + (head * drive_info->sectors_per_track) +
-	       (cylinder * (drive_info->heads + 1) * drive_info->sectors_per_track);
+	/* Use EDD, if valid */
+	if (drive_info->edd_params.sectors_per_track > 0 &&
+	    drive_info->edd_params.heads > 0)
+		return (sector - 1) + (head * drive_info->edd_params.sectors_per_track) +
+		       (cylinder * (drive_info->edd_params.heads) *
+		                    drive_info->edd_params.sectors_per_track);
+	else if (drive_info->cbios)
+		return (sector - 1) + (head * drive_info->legacy_sectors_per_track) +
+		       (cylinder * (drive_info->legacy_max_head + 1) *
+		                    drive_info->legacy_sectors_per_track);
 }
 
 void lba_to_chs(const struct driveinfo* drive_info, const int lba,

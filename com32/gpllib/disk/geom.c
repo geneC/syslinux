@@ -14,10 +14,19 @@ void lba_to_chs(const struct driveinfo* drive_info, const int lba,
 {
 	unsigned int track;
 
-	*cylinder = (lba % drive_info->sectors_per_track) + 1;
-	track = lba / drive_info->sectors_per_track;
-	*head = track % drive_info->heads;
-	*sector = track / drive_info->heads;
+	/* Use EDD, if valid */
+	if (drive_info->edd_params.sectors_per_track > 0 &&
+	    drive_info->edd_params.heads > 0) {
+		*cylinder = (lba % drive_info->edd_params.sectors_per_track) + 1;
+		track = lba / drive_info->edd_params.sectors_per_track;
+		*head = track % drive_info->edd_params.heads;
+		*sector = track / drive_info->edd_params.heads;
+	} else if (drive_info->cbios) {
+		*cylinder = (lba % drive_info->legacy_sectors_per_track) + 1;
+		track = lba / drive_info->legacy_sectors_per_track;
+		*head = track % (drive_info->legacy_max_head + 1);
+		*sector = track / (drive_info->legacy_max_head + 1);
+	}
 }
 
 /**
@@ -53,17 +62,17 @@ void lba_to_chs(const struct driveinfo* drive_info, const int lba,
  *       extended drive parameter table is valid (see #00273,#00278)
  *     3-15    reserved (0)
  **/
-static void detect_extensions(struct driveinfo* drive_info)
+static int detect_extensions(struct driveinfo* drive_info)
 {
 	com32sys_t getebios, ebios;
 
-	memset(&getebios, 0, sizeof(com32sys_t));
-	memset(&ebios, 0, sizeof(com32sys_t));
+	memset(&getebios, 0, sizeof getebios);
+	memset(&ebios, 0, sizeof ebios);
 
-	getebios.eax.w[0] = 0x4100;
+	getebios.eflags.b[0] = 0x3;	/* CF set */
 	getebios.ebx.w[0] = 0x55aa;
 	getebios.edx.b[0] = drive_info->disk;
-	getebios.eflags.b[0] = 0x3;	/* CF set */
+	getebios.eax.b[1] = 0x41;
 
 	__intcall(0x13, &getebios, &ebios);
 
@@ -72,7 +81,9 @@ static void detect_extensions(struct driveinfo* drive_info)
 		drive_info->ebios = 1;
 		drive_info->edd_version = ebios.eax.b[1];
 		drive_info->edd_functionality_subset = ebios.ecx.w[0];
-	}
+		return 0;
+	} else
+		return -1; /* Drive does not exist? */
 }
 
 /**
@@ -96,45 +107,22 @@ static void detect_extensions(struct driveinfo* drive_info)
 static int get_drive_parameters_with_extensions(struct driveinfo* drive_info)
 {
 	com32sys_t inreg, outreg;
-	struct device_parameter dp;
+	struct device_parameter *dp = __com32.cs_bounce;
 
-	memset(&inreg, 0, sizeof(com32sys_t));
-	memset(&outreg, 0, sizeof(com32sys_t));
-	memset(&dp, 0, sizeof(struct device_parameter));
+	memset(&inreg, 0, sizeof inreg);
 
-	inreg.esi.w[0] = OFFS(__com32.cs_bounce);
-	inreg.ds = SEG(__com32.cs_bounce);
-	inreg.eax.w[0] = 0x4800;
+	inreg.esi.w[0] = OFFS(dp);
+	inreg.ds = SEG(dp);
 	inreg.edx.b[0] = drive_info->disk;
+	inreg.eax.b[1] = 0x48;
 
 	__intcall(0x13, &inreg, &outreg);
-
-	/* Saving bounce buffer before anything corrupts it */
-	memcpy(&dp, __com32.cs_bounce, sizeof(struct device_parameter));
 
 	/* CF set on error */
 	if ( outreg.eflags.l & EFLAGS_CF )
 		return outreg.eax.b[1];
 
-	/* Override values found without extensions */
-	drive_info->cylinder = dp.cylinders;
-	drive_info->heads = dp.heads;
-	drive_info->sectors = dp.sectors;
-	drive_info->bytes_per_sector = dp.bytes_per_sector;
-
-	/* The rest of the functions is EDD v3.0+ only */
-	if (drive_info->edd_version < 0x30)
-		return 0;
-
-	/* "ISA" or "PCI" */
-	strncpy(drive_info->host_bus_type, (char *) dp.host_bus_type,
-		sizeof drive_info->host_bus_type);
-
-	strncpy(drive_info->interface_type, (char *) dp.interface_type,
-		sizeof drive_info->interface_type);
-
-	if ( drive_info->sectors > 0 )
-		drive_info->cbios = 1;	/* Valid geometry */
+	memcpy(&drive_info->edd_params, dp, sizeof drive_info->edd_params);
 
 	return 0;
 }
@@ -191,11 +179,14 @@ static int get_drive_parameters_without_extensions(struct driveinfo* drive_info)
 {
 	com32sys_t getparm, parm;
 
-	memset(&getparm, 0, sizeof(com32sys_t));
-	memset(&parm, 0, sizeof(com32sys_t));
+	memset(&getparm, 0, sizeof getparm);
+	memset(&parm, 0, sizeof parm);
 
-	getparm.eax.b[1] = 0x08;
+	/* Ralf Brown recommends setting ES:DI to 0:0 */
+	getparm.esi.w[0] = 0;
+	getparm.ds = 0;
 	getparm.edx.b[0] = drive_info->disk;
+	getparm.eax.b[1] = 0x08;
 
 	__intcall(0x13, &getparm, &parm);
 
@@ -203,32 +194,31 @@ static int get_drive_parameters_without_extensions(struct driveinfo* drive_info)
 	if ( parm.eflags.l & EFLAGS_CF )
 		return parm.eax.b[1];
 
-	/* DL contains the maximum drive number but it starts at 0! */
-	drive_info->drives = parm.edx.b[0] + 1;
+	/* DL contains the maximum drive number (it starts at 0) */
+	drive_info->legacy_max_drive = parm.edx.b[0];
 
 	// XXX broken
 	/* Drive specified greater than the bumber of attached drives */
 	//if (drive_info->disk > drive_info->drives)
 	//	return -1;
 
-	drive_info->type = parm.ebx.b[0];
+	drive_info->legacy_type = parm.ebx.b[0];
 
-	/* DH contains the maximum head number but it starts at 0! */
-	drive_info->heads = parm.edx.b[1] + 1;
+	/* DH contains the maximum head number (it starts at 0) */
+	drive_info->legacy_max_head = parm.edx.b[1];
 
 	/* Maximum sector number (bits 5-0) per track */
-	drive_info->sectors_per_track = parm.ecx.b[0] & 0x3f;
+	drive_info->legacy_sectors_per_track = parm.ecx.b[0] & 0x3f;
 
 	/*
 	 * Maximum cylinder number:
 	 *     CH = low eight bits of maximum cylinder number
 	 *     CL = high two bits of maximum cylinder number (bits 7-6)
 	 */
-	drive_info->cylinder = parm.ecx.b[1] +
-			      ((parm.ecx.b[0] & 0x40) * 256 +
-			       (parm.ecx.b[0] & 0x80) * 512);
+	drive_info->legacy_max_cylinder = parm.ecx.b[1] +
+			       ((parm.ecx.b[0] & 0xc0) << 2);
 
-	if ( drive_info->sectors_per_track > 0 )
+	if ( drive_info->legacy_sectors_per_track > 0 )
 		drive_info->cbios = 1;	/* Valid geometry */
 
 	return 0;
@@ -240,11 +230,11 @@ static int get_drive_parameters_without_extensions(struct driveinfo* drive_info)
  **/
 int get_drive_parameters(struct driveinfo *drive_info)
 {
-	detect_extensions(drive_info);
+	if (detect_extensions(drive_info))
+		return -1;
 
-	if (drive_info->ebios) {
-		get_drive_parameters_without_extensions(drive_info);
-		return get_drive_parameters_with_extensions(drive_info);
-	} else
-		return get_drive_parameters_without_extensions(drive_info);
+	if (drive_info->ebios)
+		get_drive_parameters_with_extensions(drive_info);
+
+	return get_drive_parameters_without_extensions(drive_info);
 }
