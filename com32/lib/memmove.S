@@ -41,7 +41,7 @@ memmove:
 	pushl	%esi
 	pushl	%edi
 	pushl	%eax		/* Return value */
-	
+
 	movl	%eax,%edi
 	movl	%edx,%esi
 

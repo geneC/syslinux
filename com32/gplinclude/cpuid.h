@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2006-2009 Erwan Velu - All Rights Reserved
  *
  *   Portions of this file taken from the Linux kernel,

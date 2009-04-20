@@ -77,4 +77,3 @@ const char *bios_charac_x2_strings[]={
     "Function key-initiated network boot is supported",
     "Targeted content distribution is supported" /* 2 */
 };
-

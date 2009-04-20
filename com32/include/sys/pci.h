@@ -4,13 +4,13 @@
 #include <inttypes.h>
 #include <sys/io.h>
 
-#define MAX_PCI_FUNC      	  8
-#define MAX_PCI_DEVICES  	 32
-#define MAX_PCI_BUSES   	256
+#define MAX_PCI_FUNC		  8
+#define MAX_PCI_DEVICES		 32
+#define MAX_PCI_BUSES		256
 #define LINUX_KERNEL_MODULE_SIZE 64
-#define PCI_VENDOR_NAME_SIZE 	256
-#define PCI_PRODUCT_NAME_SIZE 	256
-#define PCI_CLASS_NAME_SIZE 	256
+#define PCI_VENDOR_NAME_SIZE	256
+#define PCI_PRODUCT_NAME_SIZE	256
+#define PCI_CLASS_NAME_SIZE	256
 #define MAX_KERNEL_MODULES_PER_PCI_DEVICE 10
 #define MAX_PCI_CLASSES		256
 

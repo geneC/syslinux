@@ -172,7 +172,7 @@ replace_bootstrap:
 		mov si,__replacestub_lma
 		mov cx,__replacestub_dwords
 		rep movsd
-		
+
 		xor ecx,ecx
 		pop cx			; ECX <- length of list
 

@@ -70,4 +70,3 @@ void dmi_battery_maximum_error(uint8_t code, char *error)
         else
                 sprintf(error,"%u%%", code);
 }
-

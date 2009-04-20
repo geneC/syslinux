@@ -35,4 +35,3 @@ const char *base_board_features_strings[]={
                 "Board is replaceable",
                 "Board is hot swappable" /* 4 */
 };
-

@@ -91,4 +91,3 @@ void handle_vesa_commands(char *cli_line, struct s_hardware *hardware) {
     return;
  }
 }
-

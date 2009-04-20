@@ -43,7 +43,7 @@ bcopyxx_start	equ $
 ;
 ;	Clobbers ESI, EDI, ECX.
 ;
-	
+
 pm_bcopy:
 		push ebx
 		push edx
@@ -236,7 +236,7 @@ pm_shuffle:
 		jmp edi			; Protected mode entry
 
 		; We have a real-mode entry point, so we need to return
-		; to real mode... 
+		; to real mode...
 pm_shuffle_real_mode:
 		call .here
 .here:		pop ebx
@@ -271,7 +271,7 @@ bcopy_gdt:
 		dd bcopy_gdt		; pointer for LGDT instruction
 		dw 0
 
- 		; TSS segment to keep Intel VT happy.  Intel VT is
+		; TSS segment to keep Intel VT happy.  Intel VT is
 		; unhappy about anything that doesn't smell like a
 		; full-blown 32-bit OS.
 	desc TSS
@@ -290,7 +290,7 @@ bcopy_gdt:
 	desc DS32
 		dd 0000ffffh		; 28h Data segment, use32, read/write,
 		dd 00cf9300h		; present, dpl 0, cover all 4G
-	
+
 bcopy_gdt_size:	equ $-bcopy_gdt
 
 		alignz 4

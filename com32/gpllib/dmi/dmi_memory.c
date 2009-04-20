@@ -169,4 +169,3 @@ void dmi_memory_device_speed(uint16_t code, char *speed)
  else
       sprintf(speed,"%u MHz", code);
 }
-

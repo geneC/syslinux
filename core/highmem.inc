@@ -71,7 +71,7 @@ get_e820:
 		;
 		test byte [E820Buf+20],1	; AddressRangeEnabled
 		jz .not_ram
-.no_ext_attr:		
+.no_ext_attr:
 ;
 ; Look for a memory block starting at <= 1 MB and continuing upward
 ;

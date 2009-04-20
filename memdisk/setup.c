@@ -491,7 +491,7 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 
   if ( !hd_geometry.h || !hd_geometry.s ) {
     int h, s, max_h, max_s;
-    
+
     max_h = hd_geometry.h;
     max_s = hd_geometry.s;
 
@@ -530,12 +530,12 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 	unsigned int xsectors = sectors;
 
 	hd_geometry.driveno = 0; /* Assume floppy */
-	
+
 	while (!ok) {
 	  /* Assume it's a floppy drive, guess a geometry */
 	  unsigned int type, track;
 	  int c, h, s;
-	  
+
 	  if (xsectors < 320*2) {
 	    c = 40; h = 1; type = 1;
 	  } else if (xsectors < 640*2) {
@@ -573,21 +573,21 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 	/* Assume it is a hard disk image and scan for a partition table */
 	const struct ptab_entry *ptab = (const struct ptab_entry *)
 	  ((char *)where+hd_geometry.offset+(512-2-4*16));
-	      
+
 	hd_geometry.driveno = 0x80; /* Assume hard disk */
-	
+
 	if (*(uint16_t *)((char *)where+512-2) == 0xaa55) {
 	  for ( i = 0 ; i < 4 ; i++ ) {
 	    if ( ptab[i].type && !(ptab[i].active & 0x7f) ) {
 	      s = (ptab[i].start_s & 0x3f);
 	      h = ptab[i].start_h + 1;
-	      
+
 	      if ( max_h < h ) max_h = h;
 	      if ( max_s < s ) max_s = s;
-	      
+
 	      s = (ptab[i].end_s & 0x3f);
 	      h = ptab[i].end_h + 1;
-	      
+
 	      if ( max_h < h ) {
 		max_h = h;
 		hd_geometry.hsrc = "MBR";
@@ -606,7 +606,7 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
       max_h = xsectors > 2097152 ? 255 : 64;
     if (!max_s)
       max_s = xsectors > 2097152 ? 63 : 32;
-    
+
     hd_geometry.h = max_h;
     hd_geometry.s = max_s;
   }

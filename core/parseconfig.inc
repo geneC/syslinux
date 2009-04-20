@@ -413,7 +413,7 @@ commit_vk:
 		; append statement
 		cmp byte [InitRD+NULLOFFSET],NULLFILE
 		je .noinitrd
-		
+
 		mov si,str_initrd
 		mov cx,7	; "initrd="
 		rep movsb

@@ -242,7 +242,7 @@ ssize_t __ansicon_write(struct file_info *fp, const void *buf, size_t count)
 void __ansicon_beep(void)
 {
   static com32sys_t ireg;
-  
+
   ireg.eax.w[0] = 0x0e07;
   ireg.ebx.b[1] = BIOS_PAGE;
   __intcall(0x10, &ireg, NULL);

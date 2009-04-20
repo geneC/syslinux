@@ -34,7 +34,7 @@ loadkeys:
 		; Make sure we are at EOF now...
 		call getc
 		jnc .done			; We should be at EOF now!
-		
+
 		; It was okay, we can now move it into the KbdMap
 		mov si,trackbuf
 		mov di,KbdMap

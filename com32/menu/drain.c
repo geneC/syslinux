@@ -9,7 +9,7 @@ void drain_keyboard(void)
   /* Prevent "ghost typing" and keyboard buffer snooping */
   volatile char junk;
   int rv;
-  
+
   do {
     rv = read(0, (char *)&junk, 1);
   } while (rv > 0);
@@ -23,5 +23,3 @@ void drain_keyboard(void)
   memset((void *)0x41e, 0, 32); /* Clear the actual keyboard buffer */
   sti();
 }
-
-  

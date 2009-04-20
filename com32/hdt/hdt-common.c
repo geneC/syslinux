@@ -439,4 +439,3 @@ char *skipspace(char *p)
 
   return p;
 }
-
