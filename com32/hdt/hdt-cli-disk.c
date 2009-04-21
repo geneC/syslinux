@@ -109,6 +109,7 @@ static void process_ebr(struct driveinfo *drive_info, struct part_entry *ptab_ro
 {
 	int error;
 	char *error_buffer;
+	int offset;
 
 	/* The ebr is located at the first sector of the extended partition */
 	char* ebr = read_sectors(drive_info, ptab_root->start_lba, 1, &error);
@@ -121,7 +122,17 @@ static void process_ebr(struct driveinfo *drive_info, struct part_entry *ptab_ro
 	}
 
 	struct part_entry *ptab_child = (struct part_entry *)(ebr + PARTITION_TABLES_OFFSET);
-	return process_br(drive_info, ptab_child, ebr_seen, ptab_root);
+
+	if (!ptab_child->length)
+		return;
+
+	offset = ptab_child->start_lba + ptab_root->start_lba;
+
+	if ( offset + ptab_child->length <= ptab_root->start_lba ||
+	     offset >= ptab_root->start_lba + ptab_root->length )
+		return;
+	else
+		return process_br(drive_info, ptab_child, ebr_seen, ptab_root);
 }
 
 /**
