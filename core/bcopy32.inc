@@ -200,11 +200,12 @@ _io_delay:	out IO_DELAY_PORT,al
 		ret
 
 		section .data
-		align 2
+		alignz 2
 A20Ptr		dw a20_dunno
 
 		section .bss
-A20Test		resw 1			; Counter for testing A20 status
+		alignb 4
+A20Test		resd 1			; Counter for testing A20 status
 A20Tries	resb 1			; Times until giving up on A20
 
 		section .text
