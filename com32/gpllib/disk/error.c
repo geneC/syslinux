@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -118,6 +119,9 @@ void get_error(int status, char** buffer_ptr)
 	break;
 	case 0xFF:
 	strncpy(buffer, "sense operation failed (hard disk)", buffer_size);
+	break;
+	default:
+	snprintf(buffer, buffer_size, "unknown error 0x%X, buggy bios?", status);
 	break;
 	}
 }
