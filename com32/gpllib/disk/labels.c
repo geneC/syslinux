@@ -240,5 +240,6 @@ void get_label(int label, char** buffer_label)
 	//case 0xfe: strncpy(buffer, "Windows NT Disk Administrator hidden partition", buffer_size); break;
 	//case 0xfe: strncpy(buffer, "Linux Logical Volume Manager partition (old)", buffer_size); break;
 	case 0xff: strncpy(buffer, "Xenix Bad Block Table ", buffer_size); break;
+	default: strncpy(buffer, "Unknown", buffer_size); break;
 	}
 }
