@@ -189,15 +189,14 @@ simple_pm_call:
 ;
 ; We typically toggle A20 twice for every 64K transferred.
 ;
-%define	io_delay	call _io_delay
 %define IO_DELAY_PORT	80h		; Invalid port (we hope!)
-%define disable_wait	32		; How long to wait for a disable
 
 slow_out:	out dx, al		; Fall through
 
-_io_delay:	out IO_DELAY_PORT,al
+%macro io_delay 0
 		out IO_DELAY_PORT,al
-		ret
+		out IO_DELAY_PORT,al
+%endmacro
 
 		section .data
 		alignz 2
