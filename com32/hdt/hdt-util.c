@@ -27,6 +27,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 
 void sectors_to_size(int sectors, char *buffer)
 {
