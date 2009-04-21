@@ -29,7 +29,8 @@
 #include <stdlib.h>
 #include <disk/geom.h>
 #include <disk/read.h>
-#include <disk/util.h>
+#include <disk/partition.h>
+#include <disk/error.h>
 
 #include "hdt-menu.h"
 #include "hdt-util.h"
@@ -178,7 +179,7 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
 	add_sep();
 
 	/* Compute disk partitions menus */
-	mbr = read_mbr(d[disk_number].disk);
+	mbr = read_mbr(d[disk_number].disk, NULL);
 	if (mbr) {
 		struct part_entry *ptab = (struct part_entry *)(mbr + PARTITION_TABLES_OFFSET);
 		char menu_title[MENULEN + 1];

@@ -33,17 +33,21 @@
 
 #include <disk/geom.h>
 #include <disk/read.h>
-#include <disk/util.h>
+#include <disk/error.h>
+#include <disk/swsusp.h>
 
 #include "hdt-cli.h"
 #include "hdt-common.h"
 #include "hdt-util.h"
 
-static void process_br(struct driveinfo *drive_info, struct part_entry *ptab, int start);
+static void process_br(struct driveinfo *drive_info, struct part_entry *ptab, int start, struct part_entry *ptab_root);
 /**
  * show_partition_information - print information about a partition
  * @ptab:	part_entry describing the partition
  * @i:		Partition number (UI purposes only)
+ * @ptab_root:	part_entry describing the root partition (extended only)
+ * @drive_info:	driveinfo struct describing the drive on which the partition
+ *		is
  *
  * Note on offsets (from hpa, see chain.c32):
  *
@@ -52,19 +56,39 @@ static void process_br(struct driveinfo *drive_info, struct part_entry *ptab, in
  *  are relative to the beginning of the extended partition all the way back
  *  at the MBR... but still not absolute!
  **/
-static void show_partition_information(struct part_entry *ptab, int i)
+static void show_partition_information(struct part_entry *ptab, int i,
+				       struct part_entry *ptab_root,
+				       struct driveinfo *drive_info)
 {
 	char size[8];
 	char *parttype;
+	int error;
+	char *error_buffer;
+
+	/* Adjust offsets */
+	if (ptab_root)
+		ptab->start_lba +=  ptab_root->start_lba;
 
 	sectors_to_size(ptab->length, size);
 	get_label(ptab->ostype, &parttype);
-	more_printf("  %d  %s %8d %8d %s %02X %s\n",
+	more_printf("  %d  %s %8d %8d %s %02X %s",
 		    i, (ptab->active_flag == 0x80) ? " x " : "   ",
 		    ptab->start_lba,
 		    ptab->start_lba + ptab->length,
 		    size,
 		    ptab->ostype, parttype);
+
+	/* Extra info */
+	if (ptab->ostype == 0x82 && swsusp_check(drive_info, ptab, &error)) {
+		more_printf("%s", " (Swsusp sig. detected)");
+	} else if (error) {
+		get_error(error, &error_buffer);
+		more_printf("%s\n", error_buffer);
+		free(error_buffer);
+	}
+
+	more_printf("\n");
+
 	free(parttype);
 }
 
@@ -77,15 +101,21 @@ static void show_partition_information(struct part_entry *ptab, int i)
 static void process_ebr(struct driveinfo *drive_info, struct part_entry *ptab_root,
 		        int ebr_seen)
 {
+	int error;
+	char *error_buffer;
+
 	/* The ebr is located at the first sector of the extended partition */
-	char* ebr = read_sectors(drive_info, ptab_root->start_lba, 1);
+	char* ebr = read_sectors(drive_info, ptab_root->start_lba, 1, &error);
 	if (!ebr) {
-		more_printf("Unable to read the ebr.");
+		more_printf("Unable to read the ebr:\n");
+		get_error(error, &error_buffer);
+		more_printf("%s\n", error_buffer);
+		free(error_buffer);
 		return;
 	}
 
 	struct part_entry *ptab_child = (struct part_entry *)(ebr + PARTITION_TABLES_OFFSET);
-	return process_br(drive_info, ptab_child, ebr_seen);
+	return process_br(drive_info, ptab_child, ebr_seen, ptab_root);
 }
 
 /**
@@ -96,11 +126,14 @@ static void process_ebr(struct driveinfo *drive_info, struct part_entry *ptab_ro
  * @ebr_seen:	Number of ebr processed (UI purposes only)
  **/
 static void process_br(struct driveinfo *drive_info, struct part_entry *ptab,
-		       int ebr_seen)
+		       int ebr_seen, struct part_entry *ptab_root)
 {
 	for (int i = 0; i < 4; i++) {
 		if (ptab[i].ostype) {
-			show_partition_information(&ptab[i], ebr_seen * 4 + i + 1);
+			show_partition_information(&ptab[i],
+						   ebr_seen * 4 + i + 1,
+						   ptab_root,
+						   drive_info);
 
 			/* 3 types for extended partitions */
 			if ( ptab[i].ostype == 0x05 ||
@@ -115,6 +148,8 @@ void main_show_disk(int argc __unused, char **argv __unused,
 		    struct s_hardware *hardware)
 {
 	int i = -1;
+	int error;
+	char *error_buffer;
 
 	detect_disks(hardware);
 
@@ -139,15 +174,18 @@ void main_show_disk(int argc __unused, char **argv __unused,
 		more_printf("         Host bus: %s, Interface type: %s\n\n",
 			d->edd_params.host_bus_type, d->edd_params.interface_type);
 
-		char *mbr = read_mbr(d->disk);
+		char *mbr = read_mbr(d->disk, &error);
 		if (!mbr) {
 			more_printf("Unable to read the mbr.");
+			get_error(error, &error_buffer);
+			more_printf("%s\n", error_buffer);
+			free(error_buffer);
 			continue;
 		}
 
 		more_printf("  # Boot    Start      End    Size Id Type\n");
 		struct part_entry *ptab = (struct part_entry *)(mbr + PARTITION_TABLES_OFFSET);
-		process_br(d, ptab, 0);
+		process_br(d, ptab, 0, NULL);
 	}
 }
 
