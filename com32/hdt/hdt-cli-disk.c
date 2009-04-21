@@ -37,9 +37,9 @@
 
 #include "hdt-cli.h"
 #include "hdt-common.h"
+#include "hdt-util.h"
 
 static void process_br(struct driveinfo *drive_info, struct part_entry *ptab, int start);
-
 /**
  * show_partition_information - print information about a partition
  * @ptab:	part_entry describing the partition
@@ -54,12 +54,16 @@ static void process_br(struct driveinfo *drive_info, struct part_entry *ptab, in
  **/
 static void show_partition_information(struct part_entry *ptab, int i)
 {
+	char size[8];
 	char *parttype;
+
+	sectors_to_size(ptab->length, size);
 	get_label(ptab->ostype, &parttype);
-	more_printf("  %d  %s %8d %8d %8d %02X %s\n",
+	more_printf("  %d  %s %8d %8d %s %02X %s\n",
 		    i, (ptab->active_flag == 0x80) ? " x " : "   ",
 		    ptab->start_lba,
-		    ptab->start_lba + ptab->length, ptab->length,
+		    ptab->start_lba + ptab->length,
+		    size,
 		    ptab->ostype, parttype);
 	free(parttype);
 }
@@ -141,7 +145,7 @@ void main_show_disk(int argc __unused, char **argv __unused,
 			continue;
 		}
 
-		more_printf("  # Boot    Start      End   Blocks Id Type\n");
+		more_printf("  # Boot    Start      End    Size Id Type\n");
 		struct part_entry *ptab = (struct part_entry *)(mbr + PARTITION_TABLES_OFFSET);
 		process_br(d, ptab, 0);
 	}
