@@ -39,32 +39,6 @@ dosram_k	equ (real_mode_seg+0x1000) >> 6	; Minimum DOS memory (K)
 enough_ram:
 skip_checks:
 
-;
-; Check if we're 386 (as opposed to 486+); if so we need to blank out
-; the WBINVD instruction
-;
-; We check for 486 by setting EFLAGS.AC
-;
-%if DO_WBINVD
-		pushfd				; Save the good flags
-		pushfd
-		pop eax
-		mov ebx,eax
-		xor eax,(1 << 18)		; AC bit
-		push eax
-		popfd
-		pushfd
-		pop eax
-		popfd				; Restore the original flags
-		xor eax,ebx
-		jnz is_486
-;
-; 386 - Looks like we better blot out the WBINVD instruction
-;
-		mov byte [try_wbinvd],0c3h		; Near RET
-is_486:
-%endif	; DO_WBINVD
-
 		section .data
 err_noram	db 'It appears your computer has less than '
 		asciidec dosram_k

@@ -213,12 +213,6 @@ enable_a20:
 		mov byte [cs:A20Tries],255 ; Times to try to make this work
 
 try_enable_a20:
-;
-; Flush the caches
-;
-%if DO_WBINVD
-		call try_wbinvd
-%endif
 
 ;
 ; First, see if we are on a system with no A20 gate, or the A20 gate
@@ -373,15 +367,6 @@ empty_8042:
 		jnz empty_8042
 		io_delay
 .done:		ret
-
-;
-; Execute a WBINVD instruction if possible on this CPU
-;
-%if DO_WBINVD
-try_wbinvd:
-		wbinvd
-		ret
-%endif
 
 ;
 ; The 32-bit copy and shuffle code is "special", so it is in its own file
