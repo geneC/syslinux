@@ -2,8 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <disk/geom.h>
-#include <disk/util.h>
 #include <disk/read.h>
+#include <disk/util.h>
+#include <disk/common.h>
 
 /**
  * read_mbr - return a pointer to a malloced buffer containing the mbr

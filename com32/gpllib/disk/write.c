@@ -1,9 +1,9 @@
 #include <com32.h>
 #include <stdlib.h>
 #include <string.h>
-#include <disk/geom.h>
 #include <disk/read.h>
 #include <disk/write.h>
+#include <disk/common.h>
 #include <disk/util.h>
 
 /**
