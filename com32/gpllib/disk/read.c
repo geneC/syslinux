@@ -6,6 +6,8 @@
 #include <disk/read.h>
 
 /**
+ * read_mbr - return a pointer to a malloced buffer containing the mbr
+ * @drive:	Drive number
  **/
 void *read_mbr(int drive)
 {
