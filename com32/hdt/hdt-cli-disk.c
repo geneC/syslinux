@@ -62,19 +62,25 @@ static void show_partition_information(struct part_entry *ptab, int i,
 {
 	char size[8];
 	char *parttype;
-	int error;
+	int error = 0;
 	char *error_buffer;
+	int start;
 
-	/* Adjust offsets */
 	if (ptab_root)
-		ptab->start_lba +=  ptab_root->start_lba;
+		start = ptab->start_lba + ptab_root->start_lba;
+	else
+		start = ptab->start_lba;
 
-	sectors_to_size(ptab->length, size);
+	if (ptab->length > 0)
+		sectors_to_size(ptab->length, size);
+	else
+		memset(size, 0, sizeof size);
+
 	get_label(ptab->ostype, &parttype);
 	more_printf("  %d  %s %8d %8d %s %02X %s",
 		    i, (ptab->active_flag == 0x80) ? " x " : "   ",
-		    ptab->start_lba,
-		    ptab->start_lba + ptab->length,
+		    start,
+		    start + ptab->length,
 		    size,
 		    ptab->ostype, parttype);
 
