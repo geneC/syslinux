@@ -193,13 +193,6 @@ simple_pm_call:
 %define IO_DELAY_PORT	80h		; Invalid port (we hope!)
 %define disable_wait	32		; How long to wait for a disable
 
-; Note the skip of 2 here
-%define A20_DUNNO	0		; A20 type unknown
-%define A20_NONE	2		; A20 always on?
-%define A20_BIOS	4		; A20 BIOS enable
-%define A20_KBC		6		; A20 through KBC
-%define A20_FAST	8		; A20 through port 92h
-
 slow_out:	out dx, al		; Fall through
 
 _io_delay:	out IO_DELAY_PORT,al
@@ -228,22 +221,19 @@ try_enable_a20:
 %endif
 
 ;
-; If the A20 type is known, jump straight to type
+; First, see if we are on a system with no A20 gate, or the A20 gate
+; is already enabled for us...
 ;
-		jmp word [cs:A20Ptr]
-
-;
-; First, see if we are on a system with no A20 gate
-;
-a20_dunno:
 a20_none:
-		mov word [cs:A20Ptr], a20_none
 		call a20_test
 		jnz a20_done
+		; Otherwise, see if we had something memorized...
+		jmp word [cs:A20Ptr]
 
 ;
 ; Next, try the BIOS (INT 15h AX=2401h)
 ;
+a20_dunno:
 a20_bios:
 		mov word [cs:A20Ptr], a20_bios
 		mov ax,2401h
@@ -337,20 +327,24 @@ a20_done:	popad
 ; This routine tests if A20 is enabled (ZF = 0).  This routine
 ; must not destroy any register contents.
 ;
+; The no-write early out avoids the io_delay in the (presumably common)
+; case of A20 already enabled (e.g. from a previous call.)
+;
 a20_test:
 		push es
 		push cx
-		push ax
-		mov cx,0FFFFh		; HMA = segment 0FFFFh
+		push eax
+		mov cx,0FFFFh			; HMA = segment 0FFFFh
 		mov es,cx
-		mov cx,32		; Loop count
-		mov ax,[cs:A20Test]
-.a20_wait:	inc ax
-		mov [cs:A20Test],ax
-		io_delay		; Serialize, and fix delay
-		cmp ax,[es:A20Test+10h]
-		loopz .a20_wait
-.a20_done:	pop ax
+		mov eax,[cs:A20Test]
+		mov cx,32			; Loop count
+		jmp .test			; First iteration = early out
+.wait:		inc eax
+		mov [cs:A20Test],eax
+		io_delay			; Serialize, and fix delay
+.test:		cmp eax,[es:A20Test+10h]
+		loopz .wait
+.done:		pop eax
 		pop cx
 		pop es
 		ret
