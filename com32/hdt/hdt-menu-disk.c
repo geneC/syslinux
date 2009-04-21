@@ -30,31 +30,9 @@
 #include <disk/geom.h>
 #include <disk/read.h>
 #include <disk/util.h>
-#include "hdt-menu.h"
 
-static void humanize_size(char *previous_unit, int *previous_size, char *unit, int *size, int sectors)
-{
-	*size = sectors / 2; // Converting to bytes
-	strlcpy(unit, "KB", 2);
-	strlcpy(previous_unit, unit, 2);
-	*previous_size = *size;
-	if (*size > 1000) {
-		*size = *size / 1000;
-		strlcpy(unit, "MB", 2);
-		if (*size > 1000) {
-			*previous_size = *size;
-			*size = *size / 1000;
-			strlcpy(previous_unit, unit, 2);
-			strlcpy(unit, "GB", 2);
-			if (*size > 1000) {
-				*previous_size = *size;
-				*size = *size / 1000;
-				strlcpy(previous_unit, unit, 2);
-				strlcpy(unit, "TB", 2);
-			}
-		}
-	}
-}
+#include "hdt-menu.h"
+#include "hdt-util.h"
 
 static void compute_partition_info(int partnb,
 				   struct part_entry *ptab,
@@ -65,7 +43,9 @@ static void compute_partition_info(int partnb,
 	char statbuffer[STATLEN];
 	int previous_size, size;
 	char previous_unit[3], unit[3]; // GB
-	humanize_size(previous_unit, &previous_size, unit, &size, ptab->length);
+	char size_iec[8]; // GiB
+	sectors_to_size_dec(previous_unit, &previous_size, unit, &size, ptab->length);
+	sectors_to_size(ptab->length, size_iec);
 
 	add_named_menu(menu_title_ref, menu_title, -1);
 	set_menu_pos(5, 17);
@@ -94,10 +74,10 @@ static void compute_partition_info(int partnb,
 		 ptab->start_lba + ptab->length);
 	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
 
-	snprintf(buffer, sizeof buffer, "Length      : %d (%d %s)",
-		 ptab->length, size, unit);
-	snprintf(statbuffer, sizeof statbuffer, "Length: %d (%d %s)",
-		 ptab->length, size, unit);
+	snprintf(buffer, sizeof buffer, "Length      : %s/%d %s (%d)",
+		 size_iec, size, unit, ptab->length);
+	snprintf(statbuffer, sizeof statbuffer, "Length: %s/%d %s (%d)",
+		 size_iec, size, unit, ptab->length);
 	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
 
 	snprintf(buffer, sizeof buffer, "Id          : %X",
@@ -130,11 +110,13 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
 
   int previous_size, size;
   char previous_unit[3], unit[3]; // GB
-  humanize_size(previous_unit, &previous_size, unit, &size, d[disk_number].edd_params.sectors);
+  char size_iec[8]; // GiB
+  sectors_to_size_dec(previous_unit, &previous_size, unit, &size, d[disk_number].edd_params.sectors);
+  sectors_to_size(d[disk_number].edd_params.sectors, size_iec);
 
-  snprintf(buffer, sizeof buffer, "Size          : %d %s (%d %s)", size,
-     unit, previous_size, previous_unit);
-  snprintf(statbuffer, sizeof statbuffer, "Size: %d %s (%d %s)", size,
+  snprintf(buffer, sizeof buffer, "Size          : %s/%d %s (%d %s)", size_iec,
+     size, unit, previous_size, previous_unit);
+  snprintf(statbuffer, sizeof statbuffer, "Size: %s/%d %s (%d %s)", size_iec, size,
      unit, previous_size, previous_unit);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;

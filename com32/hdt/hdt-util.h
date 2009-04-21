@@ -29,4 +29,5 @@
 #ifndef DEFINE_HDT_UTIL_H
 #define DEFINE_HDT_UTIL_H
 void sectors_to_size(int, char *);
+void sectors_to_size_dec(char *, int *, char *, int *, int);
 #endif
