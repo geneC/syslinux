@@ -12,11 +12,12 @@
  * @lba:		Position to write
  * @data:		Buffer to write
  * @size:		Size of the buffer (number of sectors)
+ * @error:		Return the error code on failure
  **/
 int write_sectors(const struct driveinfo* drive_info, const unsigned int lba,
-		  const void *data, const int size)
+		  const void *data, const int size, int *error)
 {
-	com32sys_t inreg;
+	com32sys_t inreg, outreg;
 	struct ebios_dapa *dapa = __com32.cs_bounce;
 	void *buf = (char *)__com32.cs_bounce + size;
 
@@ -60,10 +61,15 @@ int write_sectors(const struct driveinfo* drive_info, const unsigned int lba,
 	}
 
 	/* Perform the write */
-	if (int13_retry(&inreg, NULL))
-		return -1;
-	else
+	if (int13_retry(&inreg, &outreg)) {
+		if (error)
+			*error = outreg.eax.b[1];
+		return -1;	/* Give up */
+	} else {
+		if (error)
+			*error = 0;
 		return 0;
+	}
 }
 
 /**
@@ -74,9 +80,9 @@ int write_sectors(const struct driveinfo* drive_info, const unsigned int lba,
  **/
 int write_verify_sector(struct driveinfo* drive_info,
 			const unsigned int lba,
-			const void *data)
+			const void *data, int *error)
 {
-	return write_verify_sectors(drive_info, lba, data, SECTOR);
+	return write_verify_sectors(drive_info, lba, data, SECTOR, error);
 }
 
 /**
@@ -88,16 +94,16 @@ int write_verify_sector(struct driveinfo* drive_info,
  **/
 int write_verify_sectors(struct driveinfo* drive_info,
 			 const unsigned int lba,
-			 const void *data, const int size)
+			 const void *data, const int size, int* error)
 {
 	char *rb;
 	int rv;
 
-	rv = write_sectors(drive_info, lba, data, size);
+	rv = write_sectors(drive_info, lba, data, size, error);
 	if (rv)
 		return rv;		/* Write failure */
 
-	rb = read_sectors(drive_info, lba, size);
+	rb = read_sectors(drive_info, lba, size, error);
 	if (!rb)
 		return -1;		/* Readback failure */
 

@@ -1,6 +1,7 @@
 #include <com32.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <disk/geom.h>
 #include <disk/read.h>
 #include <disk/util.h>
@@ -9,14 +10,15 @@
 /**
  * read_mbr - return a pointer to a malloced buffer containing the mbr
  * @drive:	Drive number
+ * @error:	Return the error code on failure
  **/
-void *read_mbr(int drive)
+void *read_mbr(int drive, int *error)
 {
 	struct driveinfo drive_info;
 	drive_info.disk = drive;
 
 	/* MBR: lba = 0, 1 sector */
-	return read_sectors(&drive_info, 0, 1);
+	return read_sectors(&drive_info, 0, 1, error);
 }
 
 /**
@@ -24,15 +26,16 @@ void *read_mbr(int drive)
  * @drive:	Drive number
  * @lba:	Position to start reading from
  * @sectors:	Number of sectors to read
+ * @error:	Return the error code on failure
  *
  * High-level routine to read from a hard drive.
  **/
-void *dev_read(int drive, unsigned int lba, int sectors)
+void *dev_read(int drive, unsigned int lba, int sectors, int *error)
 {
 	struct driveinfo drive_info;
 	drive_info.disk = drive;
 
-	return read_sectors(&drive_info, lba, sectors);
+	return read_sectors(&drive_info, lba, sectors, error);
 }
 
 /**
@@ -40,13 +43,14 @@ void *dev_read(int drive, unsigned int lba, int sectors)
  * @drive_info:		driveinfo struct describing the disk
  * @lba:		Position to read
  * @sectors:		Number of sectors to read
+ * @error:		Return the error code on failure
  *
  * Return a pointer to a malloc'ed buffer containing the data.
  **/
 void *read_sectors(struct driveinfo* drive_info, const unsigned int lba,
-		   const int sectors)
+		   const int sectors, int *error)
 {
-	com32sys_t inreg;
+	com32sys_t inreg, outreg;
 	struct ebios_dapa *dapa = __com32.cs_bounce;
 	void *buf = (char *)__com32.cs_bounce + sectors * SECTOR;
 	void *data;
@@ -92,8 +96,14 @@ void *read_sectors(struct driveinfo* drive_info, const unsigned int lba,
 	}
 
 	/* Perform the read */
-	if (int13_retry(&inreg, NULL))
+	if (int13_retry(&inreg, &outreg)) {
+		if (error)
+			*error = outreg.eax.b[1];
 		return NULL;	/* Give up */
+	} else {
+		if (error)
+			*error = 0;
+	}
 
 	data = malloc(sectors * SECTOR);
 	if (data)
