@@ -1408,6 +1408,8 @@ searchdir_iso:
 .not_rooted:
 		mov eax,[si+dir_clust]
 		mov [bx+file_left],eax
+		shl eax,SECTOR_SHIFT
+		mov [bx+file_bytesleft],eax
 		mov eax,[si+dir_lba]
 		mov [bx+file_sector],eax
 		mov edx,[si+dir_len]
