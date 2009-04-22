@@ -333,7 +333,7 @@ a20_test:
 		mov eax,[cs:A20Test]
 		mov cx,32			; Loop count
 		jmp .test			; First iteration = early out
-.wait:		inc eax
+.wait:		add eax,0x430aea41		; A large prime number
 		mov [cs:A20Test],eax
 		io_delay			; Serialize, and fix delay
 .test:		cmp eax,[es:A20Test+10h]
