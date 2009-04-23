@@ -244,7 +244,7 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
   }
 
  if (hardware->is_vpd_valid == true) {
-   add_item("VPD","VPD Information Menu", OPT_SUBMENU, NULL,
+   add_item("<V>PD","VPD Information Menu", OPT_SUBMENU, NULL,
       hdt_menu->vpd_menu.menu);
    hdt_menu->main_menu.items_count++;
   }
