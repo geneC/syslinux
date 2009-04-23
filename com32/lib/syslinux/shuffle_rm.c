@@ -42,8 +42,37 @@
 enum gpr_index { R_AX, R_CX, R_DX, R_BX, R_SP, R_BP, R_SI, R_DI };
 enum seg_index { R_ES, R_CS, R_SS, R_DS, R_FS, R_GS };
 
-#define MOV_TO_SEG(S,R) (0xc08e + ((R) << 8) + ((S) << 11))
-#define MOV_TO_R32(R)   (0xb866 + ((R) << 8))
+#define ST8(P,V)						\
+  do {								\
+    uint8_t *_p = (void *)(P);					\
+    *_p++ = (V);						\
+    (P) = (void *)_p;						\
+  } while (0);
+#define ST16(P,V)						\
+  do {								\
+    uint16_t *_p = (void *)(P);					\
+    *_p++ = (V);						\
+    (P) = (void *)_p;						\
+  } while (0)
+#define ST32(P,V)						\
+  do {								\
+    uint32_t *_p = (void *)(P);					\
+    *_p++ = (V);						\
+    (P) = (void *)_p;						\
+  } while (0)
+
+#define MOV_TO_SEG(P,S,R)					\
+    ST16(P, 0xc08e + ((R) << 8) + ((S) << 11))
+#define MOV_TO_R16(P,R,V)					\
+  do {								\
+    ST8(P, 0xb8 + (R));						\
+    ST16(P, V);							\
+  }  while (0)
+#define MOV_TO_R32(P,R,V)					\
+  do {								\
+    ST16(P, 0xb866 + ((R) << 8));				\
+    ST32(P, V);							\
+  } while (0)
 
 int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
 			     struct syslinux_memmap *memmap,
@@ -58,6 +87,7 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
   } *rp;
   int i, rv;
   uint8_t handoff_code[8+5*5+8*6+1+5], *p;
+  uint16_t off;
   struct syslinux_memmap *tmap;
   addr_t regstub, stublen;
   /* Assign GPRs for each sreg, don't use AX and SP */
@@ -102,46 +132,35 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
 
   /* Set up GPRs with segment registers - don't use AX */
   for (i = 0; i < 6; i++) {
-    if (i != R_CS) {
-      p[0] = 0xb8 + gpr_for_seg[i];	/* MOV reg,imm16 */
-      *(uint16_t *)(p+1) = rp->seg[i];
-      p += 3;
-    }
+    if (i != R_CS)
+      MOV_TO_R16(p, gpr_for_seg[i], rp->seg[i]);
   }
 
   /* Actual transition to real mode */
-  *(uint32_t *)p     = 0xeac0220f;	/* MOV CR0,EAX; JMP FAR */
-  *(uint16_t *)(p+4) = (p-handoff_code)+8;	/* Offset */
-  *(uint16_t *)(p+6) = regstub >> 4;		/* Segment */
-  p += 8;
+  ST32(p, 0xeac0220f);			/* MOV CR0,EAX; JMP FAR */
+  off = (p-handoff_code)+4;
+  ST16(p, off);				/* Offset */
+  ST16(p,regstub >> 4);			/* Segment */
 
   /* Load SS and ESP immediately */
-  *(uint16_t *)p     = MOV_TO_SEG(R_SS, R_BX);
-  *(uint16_t *)(p+2) = MOV_TO_R32(R_SP);
-  *(uint32_t *)(p+4) = rp->seg[R_SP];
-  p += 8;
+  MOV_TO_SEG(p, R_SS, R_BX);
+  MOV_TO_R32(p, R_SP, rp->seg[R_SP]);
 
   /* Load the other segments */
-  *(uint16_t *)p = MOV_TO_SEG(R_ES, R_CX);
-  p += 2;
-  *(uint16_t *)p = MOV_TO_SEG(R_DS, R_BP);
-  p += 2;
-  *(uint16_t *)p = MOV_TO_SEG(R_FS, R_SI);
-  p += 2;
-  *(uint16_t *)p = MOV_TO_SEG(R_GS, R_DI);
-  p += 2;
+  MOV_TO_SEG(p, R_ES, R_CX);
+  MOV_TO_SEG(p, R_DS, R_BP);
+  MOV_TO_SEG(p, R_FS, R_SI);
+  MOV_TO_SEG(p, R_GS, R_DI);
 
   for (i = 0; i < 8; i++) {
-    if (i != R_SP) {
-      *(uint16_t *)p = MOV_TO_R32(i);	/* MOV r32,imm32 */
-      *(uint32_t *)(p+2) = rp->gpr[i];
-      p += 6;
-    }
+    if (i != R_SP)
+      MOV_TO_R32(p, i, rp->gpr[i]);
   }
-  *p++ = rp->sti ? 0xfb : 0xfa;		/* STI/CLI */
 
-  *p++ = 0xea;				/* JMP FAR */
-  *(uint32_t *)p = rp->csip;
+  ST8(p, rp->sti ? 0xfb : 0xfa);	/* STI/CLI */
+
+  ST8(p, 0xea);				/* JMP FAR */
+  ST32(p, rp->csip);
 
   /* Add register-setting stub to shuffle list */
   if (syslinux_add_movelist(&fraglist, regstub, (addr_t)handoff_code,
