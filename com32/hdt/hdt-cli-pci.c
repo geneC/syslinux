@@ -200,7 +200,6 @@ static void show_pci_devices(int argc __unused, char **argv __unused,
 					 pci_device->sub_vendor,
 					 pci_device->sub_product);
 
-<<<<<<< HEAD:com32/hdt/hdt-cli-pci.c
 			more_printf(first_line);
 			more_printf(second_line);
 			more_printf("\n");
@@ -221,29 +220,6 @@ static void show_pci_devices(int argc __unused, char **argv __unused,
 		}
 		i++;
 	}
-=======
-      more_printf(first_line);
-      more_printf(second_line);
-      more_printf("\n");
-    } else if (nopciids == true) {
-      if (nomodulespcimap == true) {
-        more_printf("%02d: %04x:%04x [%04x:%04x] \n",
-              i, pci_device->vendor,
-              pci_device->product,
-              pci_device->sub_vendor,
-              pci_device->sub_product);
-      } else {
-        more_printf
-            ("%02d: %04x:%04x [%04x:%04x] Kmod:%s\n", i,
-             pci_device->vendor, pci_device->product,
-             pci_device->sub_vendor,
-             pci_device->sub_product, kernel_modules);
-      }
-    }
-    i++;
-  }
->>>>>>> 6af3d0ea72a6f6852bda7519278a0c6fdd16d2b5:com32/hdt/hdt-cli-pci.c
-
 }
 
 static void show_pci_irq(int argc __unused, char **argv __unused,
