@@ -106,9 +106,11 @@ void init_hardware(struct s_hardware *hardware)
   hardware->dmi_detection = false;
   hardware->pxe_detection = false;
   hardware->vesa_detection = false;
+  hardware->vpd_detection = false;
   hardware->nb_pci_devices = 0;
   hardware->is_dmi_valid = false;
   hardware->is_pxe_valid = false;
+  hardware->is_vpd_valid = false;
   hardware->pci_domain = NULL;
 
   /* Cleaning structures */
@@ -117,6 +119,7 @@ void init_hardware(struct s_hardware *hardware)
   memset(&hardware->cpu, 0, sizeof(s_cpu));
   memset(&hardware->pxe, 0, sizeof(struct s_pxe));
   memset(&hardware->vesa, 0, sizeof(struct s_vesa));
+  memset(&hardware->vpd, 0, sizeof(s_vpd));
   memset(hardware->syslinux_fs, 0, sizeof hardware->syslinux_fs);
   memset(hardware->pciids_path, 0, sizeof hardware->pciids_path);
   memset(hardware->modules_pcimap_path, 0,
@@ -144,6 +147,30 @@ int detect_dmi(struct s_hardware *hardware)
   parse_dmitable(&hardware->dmi);
   hardware->is_dmi_valid = true;
   return 0;
+}
+
+/**
+ * vpd_detection - populate the VPD structure
+ *
+ * VPD is a structure available on IBM machines.
+ * It is documented at:
+ *    http://www.pc.ibm.com/qtechinfo/MIGR-45120.html
+ * (XXX the page seems to be gone)
+ **/
+int detect_vpd(struct s_hardware *hardware)
+{
+	if (hardware->vpd_detection)
+		return -1;
+	else
+		hardware->vpd_detection = true;
+
+	if (vpd_decode(&hardware->vpd) == -ENOVPDTABLE) {
+		hardware->is_vpd_valid = false;
+		return -ENOVPDTABLE;
+	} else {
+		hardware->is_vpd_valid = true;
+		return 0;
+	}
 }
 
 /* Detection vesa stuff*/

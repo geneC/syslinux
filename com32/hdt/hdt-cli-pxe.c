@@ -80,7 +80,6 @@ void main_show_pxe(int argc __unused, char **argv __unused,
 
 struct cli_module_descr pxe_show_modules = {
 	.modules = NULL,
-	.nb_modules = 0,
 	.default_callback = main_show_pxe,
 };
 

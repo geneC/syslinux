@@ -83,11 +83,14 @@ struct cli_callback_descr list_vesa_show_modules[] = {
 	 .name = CLI_MODES,
 	 .exec = show_vesa_modes,
 	 },
+	{
+	 .name = NULL,
+	 .exec = NULL,
+	 },
 };
 
 struct cli_module_descr vesa_show_modules = {
 	.modules = list_vesa_show_modules,
-	.nb_modules = 1,
 	.default_callback = main_show_vesa,
 };
 

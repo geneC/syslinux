@@ -43,6 +43,8 @@ struct cli_mode_descr *list_modes[] = {
 	&cpu_mode,
 	&pci_mode,
 	&vesa_mode,
+	&vpd_mode,
+	NULL,
 };
 
 /*
@@ -115,7 +117,7 @@ static void autocomplete_destroy_list()
  **/
 void set_mode(cli_mode_t mode, struct s_hardware* hardware)
 {
-	int i;
+	int i = 0;
 
 	switch (mode) {
 	case EXIT_MODE:
@@ -177,11 +179,24 @@ void set_mode(cli_mode_t mode, struct s_hardware* hardware)
 		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
 			 CLI_DMI);
 		break;
+	case VPD_MODE:
+		detect_vpd(hardware);
+		if (!hardware->is_vpd_valid) {
+			printf("No valid VPD table found, exiting.\n");
+			break;
+		}
+		hdt_cli.mode = mode;
+		snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ",
+			 CLI_VPD);
+		break;
+
 	default:
 		/* Invalid mode */
 		printf("Unknown mode, please choose among:\n");
-		for (i = 0; i < MAX_MODES; i++)
+		while (list_modes[i]) {
 			printf("\t%s\n", list_modes[i]->name);
+			i++;
+		}
 	}
 
 	find_cli_mode_descr(hdt_cli.mode, &current_mode);
@@ -199,12 +214,14 @@ cli_mode_t mode_s_to_mode_t(char *name)
 {
 	int i = 0;
 
-	for (i = 0; i < MAX_MODES; i++)
+	while (list_modes[i]) {
 		if (!strncmp(name, list_modes[i]->name,
 			     sizeof(list_modes[i]->name)))
 			break;
+		i++;
+	}
 
-	if (i == MAX_MODES)
+	if (!list_modes[i])
 		return INVALID_MODE;
 	else
 		return list_modes[i]->mode;
@@ -221,17 +238,17 @@ cli_mode_t mode_s_to_mode_t(char *name)
  **/
 void find_cli_mode_descr(cli_mode_t mode, struct cli_mode_descr **mode_found)
 {
-	int modes_iter = 0;
+	int i = 0;
 
-	while (modes_iter < MAX_MODES &&
-	       list_modes[modes_iter]->mode != mode)
-		modes_iter++;
+	while (list_modes[i] &&
+	       list_modes[i]->mode != mode)
+		i++;
 
 	/* Shouldn't get here... */
-	if (modes_iter == MAX_MODES)
+	if (!list_modes[i])
 		*mode_found = NULL;
 	else
-		*mode_found = list_modes[modes_iter];
+		*mode_found = list_modes[i];
 }
 
 /**
@@ -413,13 +430,13 @@ void find_cli_callback_descr(const char* module_name,
 		goto not_found;
 
 	/* Find the callback to execute */
-	while (modules_iter < modules_list->nb_modules
-	       && strncmp(module_name,
-			  modules_list->modules[modules_iter].name,
-			  module_len) != 0)
+	while (modules_list->modules[modules_iter].name &&
+	       strncmp(module_name,
+		       modules_list->modules[modules_iter].name,
+		       module_len) != 0)
 		modules_iter++;
 
-	if (modules_iter != modules_list->nb_modules) {
+	if (modules_list->modules[modules_iter].name) {
 		*module_found = &(modules_list->modules[modules_iter]);
 		dprintf("CLI DEBUG: module %s found\n", (*module_found)->name);
 		return;
@@ -440,7 +457,7 @@ not_found:
  **/
 static void autocomplete_command(char *command)
 {
-	int j;
+	int j = 0;
 	struct cli_callback_descr* associated_module = NULL;
 
 	/* First take care of the two special commands: 'show' and 'set' */
@@ -457,18 +474,20 @@ static void autocomplete_command(char *command)
 	 * Then, go through the modes for the special case
 	 *	'<mode>' -> 'set mode <mode>'
 	 */
-	for (j = 0; j < MAX_MODES; j++) {
+	while (list_modes[j]) {
 		if (strncmp(list_modes[j]->name, command, strlen(command)) == 0) {
 			printf("%s\n", list_modes[j]->name);
 			autocomplete_add_token_to_list(list_modes[j]->name);
 		}
+		j++;
 	}
 
 	/*
 	 * Let's go now through the list of default_modules for the current mode
 	 * (single token commands for the current_mode)
 	 */
-	for (j = 0; j < current_mode->default_modules->nb_modules; j++) {
+	j = 0;
+	while (current_mode->default_modules->modules[j].name) {
 		if (strncmp(current_mode->default_modules->modules[j].name,
 			    command,
 			    strlen(command)) == 0) {
@@ -476,6 +495,7 @@ static void autocomplete_command(char *command)
 				current_mode->default_modules->modules[j].name);
 			autocomplete_add_token_to_list(current_mode->default_modules->modules[j].name);
 		}
+		j++;
 	}
 
 	/*
@@ -485,7 +505,8 @@ static void autocomplete_command(char *command)
 	if (current_mode->mode == HDT_MODE)
 		return;
 
-	for (j = 0; j < hdt_mode.default_modules->nb_modules; j++) {
+	j = 0;
+	while (hdt_mode.default_modules->modules[j].name) {
 		/*
 		 * Any default command that is present in hdt mode but
 		 * not in the current mode is available. A default
@@ -504,6 +525,7 @@ static void autocomplete_command(char *command)
 				hdt_mode.default_modules->modules[j].name);
 			autocomplete_add_token_to_list(hdt_mode.default_modules->modules[j].name);
 		}
+		j++;
 	}
 }
 
@@ -519,11 +541,11 @@ static void autocomplete_command(char *command)
  **/
 static void autocomplete_module(char *command, char* module)
 {
-	int j;
+	int j = 0;
 	char autocomplete_full_line[MAX_LINE_SIZE];
 
 	if (strncmp(CLI_SHOW, command, strlen(command)) == 0) {
-		for (j = 0; j < current_mode->show_modules->nb_modules; j++) {
+		while (current_mode->show_modules->modules[j].name) {
 			if (strncmp(current_mode->show_modules->modules[j].name,
 				    module,
 				    strlen(module)) == 0) {
@@ -533,9 +555,11 @@ static void autocomplete_module(char *command, char* module)
 					CLI_SHOW, current_mode->show_modules->modules[j].name);
 				autocomplete_add_token_to_list(autocomplete_full_line);
 			}
+		j++;
 		}
 	} else if (strncmp(CLI_SET, command, strlen(command)) == 0) {
-		for (j = 0; j < current_mode->set_modules->nb_modules; j++) {
+		j = 0;
+		while (current_mode->set_modules->modules[j].name) {
 			if (strncmp(current_mode->set_modules->modules[j].name,
 				    module,
 				    strlen(module)) == 0) {
@@ -545,6 +569,7 @@ static void autocomplete_module(char *command, char* module)
 					CLI_SET, current_mode->set_modules->modules[j].name);
 				autocomplete_add_token_to_list(autocomplete_full_line);
 			}
+			j++;
 		}
 	}
 }
