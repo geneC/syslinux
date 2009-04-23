@@ -56,4 +56,3 @@ void dmi_ipmi_base_address(uint8_t type, const uint8_t *p, s_ipmi *ipmi)
                 ipmi->base_address = QWORD(p);
         }
 }
-

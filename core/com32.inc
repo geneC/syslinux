@@ -196,7 +196,7 @@ com32_enter_rm:
 
 		bits 16
 .in_pm16:
-		mov ax,PM_DS16_RM	; Real-mode-like segment
+		mov ax,PM_DS16		; Real-mode-like segment
 		mov es,ax
 		mov ds,ax
 		mov ss,ax

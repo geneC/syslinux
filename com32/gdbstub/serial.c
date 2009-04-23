@@ -91,7 +91,7 @@ void serial_putc ( int ch ) {
 	int status;
 	for (;;) {
 		status = uart_readb(UART_BASE + UART_LSR);
-		if (status & UART_LSR_THRE) { 
+		if (status & UART_LSR_THRE) {
 			/* TX buffer emtpy */
 			uart_writeb(ch, UART_BASE + UART_TBR);
 			break;
@@ -165,7 +165,7 @@ void serial_init ( void ) {
 		goto out;
 	}
 	uart_writeb(lcs, UART_BASE + UART_LCR);
-	
+
 	/* disable interrupts */
 	uart_writeb(0x0, UART_BASE + UART_IER);
 

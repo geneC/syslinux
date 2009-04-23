@@ -216,16 +216,16 @@ void rosh_print_tc(struct termios *tio)
  */
 void rosh_console_raw()
 {
-// 	struct termios itio, ntio;
-// 	tcgetattr(0, &itio);
-// 	rosh_print_tc(&itio);
+//	struct termios itio, ntio;
+//	tcgetattr(0, &itio);
+//	rosh_print_tc(&itio);
 /*	ntio = itio;
 	ntio.c_lflag &= ~(ICANON|ECHO);
 	tcsetattr(0, TCSAFLUSH, &ntio);*/
 	console_ansi_raw();	/* Allows get_key to get just 1 key sequence
 		 (w/o delay or display */
-// 	tcgetattr(0, &ntio);
-// 	rosh_print_tc(&ntio);
+//	tcgetattr(0, &ntio);
+//	rosh_print_tc(&ntio);
 }
 
 /*
@@ -233,9 +233,9 @@ void rosh_console_raw()
  */
 void rosh_console_std()
 {
-// 	struct termios itio, ntio;
+//	struct termios itio, ntio;
 	console_ansi_std();
-// 	tcsetattr(0, TCSANOW, &itio);
+//	tcsetattr(0, TCSANOW, &itio);
 }
 
 /*
@@ -247,11 +247,11 @@ int rosh_getkey()
 	int inc;
 
 	inc = KEY_NONE;
-// 	rosh_console_raw();
+//	rosh_console_raw();
 	while (inc == KEY_NONE){
 		inc = get_key(stdin, 6000);
 	}
-// 	rosh_console_std();
+//	rosh_console_std();
 	return inc;
 }	/* rosh_getkey */
 
@@ -361,7 +361,7 @@ void rosh_dir_arg(const char *ifilstr, const char *pwdstr)
 	char filestr2[ROSH_PATH_SZ + 1];
 	int fd2, file2pos;
 #ifdef __COM32__
-// 	int inchar;
+//	int inchar;
 	char ty;
 #endif	/* __COM32__ */
 #endif	/* DO_DEBUG */
@@ -431,7 +431,7 @@ printf("DIR:'%s'    %8d %8d\n", d->dd_name, d->dd_fd, d->dd_sect);
 					}
 					printf("@%8d:%8d:%4d ", (int)de->d_ino, (int)de->d_size, de->d_mode);
 #endif	/* DO_DEBUG */
-// 					printf("%s\n", de->d_name);
+//					printf("%s\n", de->d_name);
 printf("'%s'\n", de->d_name);
 #ifdef DO_DEBUG
 // inchar = fgetc(stdin);
@@ -539,7 +539,7 @@ printf("--(%d/%d @%d)\n", bufcnt, buflen, bufpos);
 			bufpos = buflen;	break;
 		case ' ':
 			numln = rows - 1;
-// 		default:
+//		default:
 		}
 	}
 /*tcgetattr(0, &tio);
@@ -758,7 +758,7 @@ int rosh_prompt(const char *icmdstr)
 	int rv;
 	char cmdstr[ROSH_CMD_SZ];
 	char pwdstr[ROSH_PATH_SZ + 1], ipwdstr[ROSH_PATH_SZ + 1];
-/* 	int numchar;
+/*	int numchar;
 */	char do_exit;
 	char *c;
 
@@ -796,7 +796,7 @@ int main(int argc, char *argv[])
 	/* Initialization */
 	rv = 0;
 	console_ansi_std();
-// 	console_ansi_raw();
+//	console_ansi_raw();
 	if (argc != 1) {
 		rv = rosh_argcat(cmdstr, argc, argv, 1);
 	} else {

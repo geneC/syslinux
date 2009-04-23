@@ -79,7 +79,7 @@ mempcpy:
 	movl	%edi,%eax	/* Return value */
 	popl	%edi
 	popl	%esi
-1:	
+1:
 	ret
 
 	.size	mempcpy, .-mempcpy

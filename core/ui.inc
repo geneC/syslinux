@@ -678,7 +678,7 @@ is_bad_image:
 		call writestr
 		jmp enter_command
 
-%if IS_SYSLINUX || IS_MDSLINUX
+%if IS_SYSLINUX
 		; ok
 %else
 is_bss_sector	equ is_bad_image

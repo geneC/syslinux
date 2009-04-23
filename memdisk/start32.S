@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
- *   
+ *
  *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
  *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *

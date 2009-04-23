@@ -430,4 +430,3 @@ const char *cpu_flags_strings[PROCESSOR_FLAGS_ELEMENTS]={
                 "IA64 (IA64 capabilities)", /* 30 */
                 "PBE (Pending break enabled)" /* 31 */
 };
-

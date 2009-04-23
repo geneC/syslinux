@@ -80,7 +80,7 @@ memcpy:
 	popl	%eax		/* Return value */
 	popl	%edi
 	popl	%esi
-1:	
+1:
 	ret
 
 	.size	memcpy, .-memcpy

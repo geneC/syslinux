@@ -65,7 +65,7 @@ static inline __constfunc uint32_t cpuid_edx(uint32_t level)
 static inline __constfunc bool cpu_has_eflag(uint32_t flag)
 {
   uint32_t f1, f2;
-  
+
   asm("pushfl\n\t"
       "pushfl\n\t"
       "popl %0\n\t"
@@ -78,7 +78,7 @@ static inline __constfunc bool cpu_has_eflag(uint32_t flag)
       "popfl\n\t"
       : "=&r" (f1), "=&r" (f2)
       : "ir" (flag));
-  
+
   return ((f1^f2) & flag) != 0;
 }
 

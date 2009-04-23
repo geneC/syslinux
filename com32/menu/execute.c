@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------- *
- *   
+ *
  *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -67,4 +67,3 @@ void execute(const char *cmdline, enum kernel_type type)
 
   /* If this returns, something went bad; return to menu */
 }
-

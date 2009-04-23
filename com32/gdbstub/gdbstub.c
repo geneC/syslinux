@@ -152,12 +152,12 @@ static void gdbmach_commit_hwbp ( struct hwbp *bp ) {
 
 	/* Set/clear local enable bit */
 	dr7 &= ~( 0x3 << 2 * regnum );
- 	dr7 |= bp->enabled << 2 * regnum;
+	dr7 |= bp->enabled << 2 * regnum;
 }
 
 int gdbmach_set_breakpoint ( int type, unsigned long addr, size_t len, int enable ) {
 	struct hwbp *bp;
-	
+
 	/* Check and convert breakpoint type to x86 type */
 	switch ( type ) {
 		case GDBMACH_WATCH:

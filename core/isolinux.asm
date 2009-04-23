@@ -232,7 +232,7 @@ bi_end:
 		; Custom entry point for the hybrid-mode disk.
 		; The following values will have been pushed onto the
 		; entry stack:
-		; 	- CBIOS Heads 
+		;	- CBIOS Heads
 		;	- CBIOS Sectors
 		;	- EBIOS flag
 		;	- DX (including drive number)
@@ -754,7 +754,7 @@ getlinsec:	jmp word [cs:GetlinsecPtr]
 getlinsec_ebios:
 		xor edx,edx
 		shld edx,eax,2
- 		shl eax,2			; Convert to HDD sectors
+		shl eax,2			; Convert to HDD sectors
 		shl bp,2
 
 .loop:
@@ -824,7 +824,7 @@ getlinsec_ebios:
 ; getlinsec implementation for legacy CBIOS
 ;
 getlinsec_cbios:
- 		shl eax,2			; Convert to HDD sectors
+		shl eax,2			; Convert to HDD sectors
 		shl bp,2
 
 .loop:

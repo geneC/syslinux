@@ -51,8 +51,6 @@ static int syslinux_memory_map_callback(void *map, addr_t start,
 struct syslinux_memmap *syslinux_memory_map(void)
 {
   struct syslinux_memmap *mmap;
-  enum syslinux_memmap_types type;
-  int rv;
 
   mmap = syslinux_init_memmap();
   if (!mmap)

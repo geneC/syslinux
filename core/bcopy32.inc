@@ -127,7 +127,7 @@ simple_pm_call:
 
 		bits 32
 .in_pm:
-		mov eax,PM_DS32
+		mov ax,PM_DS32
 		mov ss,eax
 		lea esp,[ebp-8*4-2*4]	; Flat mode stack
 		mov es,eax
@@ -137,7 +137,7 @@ simple_pm_call:
 		; machine running on Intel VT hardware -- it can't
 		; deal with a partial transition, for no good reason.
 
-		mov al,PM_DS16_RM	; Real-mode-like segment
+		mov al,PM_DS16		; Real-mode-like segment
 		mov fs,eax
 		mov gs,eax
 		mov al,PM_TSS		; Intel VT really doesn't want
@@ -151,7 +151,7 @@ simple_pm_call:
 		jmp PM_CS16:.exit
 		bits 16
 .exit:
-		mov eax,PM_DS16_RM	; "Real-mode-like" data segment
+		mov ax,PM_DS16		; "Real-mode-like" data segment
 		mov es,eax
 		mov ds,eax
 		mov ss,eax
@@ -189,29 +189,22 @@ simple_pm_call:
 ;
 ; We typically toggle A20 twice for every 64K transferred.
 ;
-%define	io_delay	call _io_delay
 %define IO_DELAY_PORT	80h		; Invalid port (we hope!)
-%define disable_wait	32		; How long to wait for a disable
-
-; Note the skip of 2 here
-%define A20_DUNNO	0		; A20 type unknown
-%define A20_NONE	2		; A20 always on?
-%define A20_BIOS	4		; A20 BIOS enable
-%define A20_KBC		6		; A20 through KBC
-%define A20_FAST	8		; A20 through port 92h
 
 slow_out:	out dx, al		; Fall through
 
-_io_delay:	out IO_DELAY_PORT,al
+%macro io_delay 0
 		out IO_DELAY_PORT,al
-		ret
+		out IO_DELAY_PORT,al
+%endmacro
 
 		section .data
-		align 2
+		alignz 2
 A20Ptr		dw a20_dunno
 
 		section .bss
-A20Test		resw 1			; Counter for testing A20 status
+		alignb 4
+A20Test		resd 1			; Counter for testing A20 status
 A20Tries	resb 1			; Times until giving up on A20
 
 		section .text
@@ -220,30 +213,21 @@ enable_a20:
 		mov byte [cs:A20Tries],255 ; Times to try to make this work
 
 try_enable_a20:
-;
-; Flush the caches
-;
-%if DO_WBINVD
-		call try_wbinvd
-%endif
 
 ;
-; If the A20 type is known, jump straight to type
+; First, see if we are on a system with no A20 gate, or the A20 gate
+; is already enabled for us...
 ;
-		jmp word [cs:A20Ptr]
-
-;
-; First, see if we are on a system with no A20 gate
-;
-a20_dunno:
 a20_none:
-		mov word [cs:A20Ptr], a20_none
 		call a20_test
 		jnz a20_done
+		; Otherwise, see if we had something memorized...
+		jmp word [cs:A20Ptr]
 
 ;
 ; Next, try the BIOS (INT 15h AX=2401h)
 ;
+a20_dunno:
 a20_bios:
 		mov word [cs:A20Ptr], a20_bios
 		mov ax,2401h
@@ -337,20 +321,24 @@ a20_done:	popad
 ; This routine tests if A20 is enabled (ZF = 0).  This routine
 ; must not destroy any register contents.
 ;
+; The no-write early out avoids the io_delay in the (presumably common)
+; case of A20 already enabled (e.g. from a previous call.)
+;
 a20_test:
 		push es
 		push cx
-		push ax
-		mov cx,0FFFFh		; HMA = segment 0FFFFh
+		push eax
+		mov cx,0FFFFh			; HMA = segment 0FFFFh
 		mov es,cx
-		mov cx,32		; Loop count
-		mov ax,[cs:A20Test]
-.a20_wait:	inc ax
-		mov [cs:A20Test],ax
-		io_delay		; Serialize, and fix delay
-		cmp ax,[es:A20Test+10h]
-		loopz .a20_wait
-.a20_done:	pop ax
+		mov eax,[cs:A20Test]
+		mov cx,32			; Loop count
+		jmp .test			; First iteration = early out
+.wait:		add eax,0x430aea41		; A large prime number
+		mov [cs:A20Test],eax
+		io_delay			; Serialize, and fix delay
+.test:		cmp eax,[es:A20Test+10h]
+		loopz .wait
+.done:		pop eax
 		pop cx
 		pop es
 		ret
@@ -379,15 +367,6 @@ empty_8042:
 		jnz empty_8042
 		io_delay
 .done:		ret
-
-;
-; Execute a WBINVD instruction if possible on this CPU
-;
-%if DO_WBINVD
-try_wbinvd:
-		wbinvd
-		ret
-%endif
 
 ;
 ; The 32-bit copy and shuffle code is "special", so it is in its own file

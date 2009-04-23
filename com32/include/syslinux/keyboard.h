@@ -50,4 +50,3 @@ syslinux_keyboard_map(void)
 }
 
 #endif /* _SYSLINUX_KEYBOARD_H */
-

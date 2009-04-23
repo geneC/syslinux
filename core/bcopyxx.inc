@@ -43,7 +43,7 @@ bcopyxx_start	equ $
 ;
 ;	Clobbers ESI, EDI, ECX.
 ;
-	
+
 pm_bcopy:
 		push ebx
 		push edx
@@ -236,17 +236,20 @@ pm_shuffle:
 		jmp edi			; Protected mode entry
 
 		; We have a real-mode entry point, so we need to return
-		; to real mode... 
+		; to real mode...
 pm_shuffle_real_mode:
 		call .here
 .here:		pop ebx
 		mov eax,edi
-		add ebx,bcopy_gdt.CS16-.here
-		mov [ebx+2],ax
+		add ebx,bcopy_gdt-.here
+		mov [ebx+PM_CS16+2],ax
+		mov [ebx+PM_DS16+2],ax
 		shr eax,16
-		mov [ebx+4],al
-		mov [ebx+7],ah
-		mov eax,PM_DS16_RM
+		mov [ebx+PM_CS16+4],al
+		mov [ebx+PM_CS16+7],ah
+		mov [ebx+PM_DS16+4],al
+		mov [ebx+PM_DS16+7],ah
+		mov ax,PM_DS16
 		mov ds,eax
 		mov es,eax
 		mov fs,eax
@@ -268,7 +271,7 @@ bcopy_gdt:
 		dd bcopy_gdt		; pointer for LGDT instruction
 		dw 0
 
- 		; TSS segment to keep Intel VT happy.  Intel VT is
+		; TSS segment to keep Intel VT happy.  Intel VT is
 		; unhappy about anything that doesn't smell like a
 		; full-blown 32-bit OS.
 	desc TSS
@@ -278,7 +281,7 @@ bcopy_gdt:
 	desc CS16
 		dd 0000ffffh		; 10h Code segment, use16, readable,
 		dd 00009b00h		; present, dpl 0, cover 64K
-	desc DS16_RM
+	desc DS16
 		dd 0000ffffh		; 18h Data segment, use16, read/write,
 		dd 00009300h		; present, dpl 0, cover 64K
 	desc CS32
@@ -287,7 +290,7 @@ bcopy_gdt:
 	desc DS32
 		dd 0000ffffh		; 28h Data segment, use32, read/write,
 		dd 00cf9300h		; present, dpl 0, cover all 4G
-	
+
 bcopy_gdt_size:	equ $-bcopy_gdt
 
 		alignz 4
