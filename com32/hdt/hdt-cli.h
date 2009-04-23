@@ -184,4 +184,7 @@ void main_show_syslinux(int argc, char **argv, struct s_hardware *hardware);
 
 // VESA STUFF
 void main_show_vesa(int argc, char **argv, struct s_hardware *hardware);
+
+// VPD STUFF
+void main_show_vpd(int argc __unused, char **argv __unused, struct s_hardware *hardware);
 #endif

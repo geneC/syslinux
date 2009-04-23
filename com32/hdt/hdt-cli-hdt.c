@@ -305,6 +305,11 @@ struct cli_callback_descr list_hdt_show_modules[] = {
 		.exec = main_show_hdt,
 	},
 	{
+		.name = CLI_VPD,
+		.exec = main_show_vpd,
+	},
+
+	{
 		.name = "modes",
 		.exec = main_show_modes,
 	},
