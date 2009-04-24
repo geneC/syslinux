@@ -220,7 +220,7 @@ UUIDNull	resb 1			; dhcp_copyoption zero-terminates
 		alignb 4
 pxe_unload_stack_pkt:
 .status:	resw 1			; Status
-.reserved:	resw 10			; Reserved
+.reserved:	resb 10			; Reserved
 pxe_unload_stack_pkt_len	equ $-pxe_unload_stack_pkt
 
 		alignb 16
@@ -455,7 +455,7 @@ have_entrypoint:
 
 		cmp ax,dx
 		ja .data_on_top
-		xchg ax,ax
+		xchg ax,dx
 .data_on_top:
 		; Could we safely add 63 here before the shift?
 		shr ax,6			; Convert to kilobytes
@@ -2214,8 +2214,6 @@ pxe_get_cached_info:
 		mov bx,PXENV_GET_CACHED_INFO
 		call pxenv
 		jc .err
-		and ax,ax
-		jnz .err
 
 		popad
 		mov cx,[pxe_bootp_query_pkt.buffersize]
