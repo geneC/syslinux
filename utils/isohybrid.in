@@ -100,6 +100,13 @@ if ($c > 1024) {
     $cc = $c;
 }
 
+# Preserve id when run again
+seek(FILE, 440, SEEK_SET) or die "$0: $file: $!\n";
+read(FILE, $id, 4);
+if ($id eq "\x00\x00\x00\x00") {
+    $id = pack("V", get_random());
+}
+
 # Print the MBR and partition table
 seek(FILE, 0, SEEK_SET) or die "$0: $file: $!\n";
 
@@ -117,12 +124,7 @@ if ( length($mbr) > 432 ) {
 $mbr .= "\0" x (432 - length($mbr));
 
 $mbr .= pack("VV", $de_lba*4, 0); # Offset 432: LBA of isolinux.bin
-if (defined($id)) {
-    $id = to_int($id);
-} else {
-    $id = get_random();
-}
-$mbr .= pack("V", $id);		# Offset 440: MBR ID
+$mbr .= $id;				# Offset 440: MBR ID
 $mbr .= "\0\0";			# Offset 446: actual partition table
 
 # Print partition table
