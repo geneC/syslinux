@@ -17,7 +17,6 @@
 #
 
 use bytes;
-use integer;
 use Fcntl;
 
 # Use this fake geometry (zipdrive-style...)
@@ -92,7 +91,7 @@ $cylsize = $h*$s*512;
 $frac = $imgsize % $cylsize;
 $padding = ($frac > 0) ? $cylsize - $frac : 0;
 $imgsize += $padding;
-$c = $imgsize/$cylsize;
+$c = int($imgsize/$cylsize);
 if ($c > 1024) {
     print STDERR "Warning: more than 1024 cylinders ($c).\n";
     print STDERR "Not all BIOSes will be able to boot this device.\n";
