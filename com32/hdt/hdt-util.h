@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2009 Erwan Velu - All Rights Reserved
+ *   Copyright 2009 Pierre-Alexandre Meyer - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,13 +26,8 @@
  * -----------------------------------------------------------------------
  */
 
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <console.h>
-#include <disk/geom.h>
-#include <disk/util.h>
-
-#include "com32io.h"
-#include "hdt-common.h"
-#include "hdt-ata.h"
+#ifndef DEFINE_HDT_UTIL_H
+#define DEFINE_HDT_UTIL_H
+void sectors_to_size(int, char *);
+void sectors_to_size_dec(char *, int *, char *, int *, int);
+#endif

@@ -64,6 +64,7 @@
 #define CLI_COMMANDS "commands"
 #define CLI_DMI  "dmi"
 #define CLI_CPU  "cpu"
+#define CLI_DISK  "disk"
 #define CLI_SHOW_LIST "list"
 #define CLI_IRQ "irq"
 #define CLI_MODES "modes"
@@ -80,6 +81,7 @@ typedef enum {
 	KERNEL_MODE,
 	SYSLINUX_MODE,
 	VESA_MODE,
+	DISK_MODE,
 	VPD_MODE,
 } cli_mode_t;
 
@@ -138,6 +140,7 @@ struct cli_mode_descr kernel_mode;
 struct cli_mode_descr cpu_mode;
 struct cli_mode_descr pci_mode;
 struct cli_mode_descr vesa_mode;
+struct cli_mode_descr disk_mode;
 struct cli_mode_descr vpd_mode;
 
 /* cli helpers */
@@ -172,6 +175,9 @@ void cli_detect_pci(struct s_hardware *hardware);
 
 // CPU STUFF
 void main_show_cpu(int argc, char **argv, struct s_hardware *hardware);
+
+// DISK STUFF
+void main_show_disk(int argc, char **argv, struct s_hardware *hardware);
 
 // PXE STUFF
 void main_show_pxe(int argc, char **argv, struct s_hardware *hardware);

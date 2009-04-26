@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2009 Erwan Velu - All Rights Reserved
+ *   Copyright 2009 Pierre-Alexandre Meyer - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,13 +26,46 @@
  * -----------------------------------------------------------------------
  */
 
-#include <string.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <console.h>
-#include <disk/geom.h>
-#include <disk/util.h>
+#include <string.h>
 
-#include "com32io.h"
-#include "hdt-common.h"
-#include "hdt-ata.h"
+void sectors_to_size(int sectors, char *buffer)
+{
+	int b = (sectors / 2);
+	int mib = b >> 10;
+	int gib = mib >> 10;
+	int tib = gib >> 10;
+
+	if (tib > 0)
+		sprintf(buffer, "%3d TiB", tib);
+	else if (gib > 0)
+		sprintf(buffer, "%3d GiB", gib);
+	else if (mib > 0)
+		sprintf(buffer, "%3d MiB", mib);
+	else
+		sprintf(buffer, "%d b", b);
+}
+
+void sectors_to_size_dec(char *previous_unit, int *previous_size, char *unit, int *size, int sectors)
+{
+	*size = sectors / 2; // Converting to bytes
+	strlcpy(unit, "KB", 2);
+	strlcpy(previous_unit, unit, 2);
+	*previous_size = *size;
+	if (*size > 1000) {
+		*size = *size / 1000;
+		strlcpy(unit, "MB", 2);
+		if (*size > 1000) {
+			*previous_size = *size;
+			*size = *size / 1000;
+			strlcpy(previous_unit, unit, 2);
+			strlcpy(unit, "GB", 2);
+			if (*size > 1000) {
+				*previous_size = *size;
+				*size = *size / 1000;
+				strlcpy(previous_unit, unit, 2);
+				strlcpy(unit, "TB", 2);
+			}
+		}
+	}
+}
