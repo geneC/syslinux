@@ -50,8 +50,8 @@ static addr_t mboot_high_water_mark = 0;
  */
 addr_t map_data(const void *data, size_t len, int align, bool high)
 {
-  addr_t start = high ? mboot_high_water_mark : 0;
-  addr_t pad = (len+align-1) & ~(align-1);
+  addr_t start = high ? mboot_high_water_mark : 0x800;
+  addr_t pad = -len & (align-1);
   addr_t xlen = len+pad;
 
   if (syslinux_memmap_find(amap, SMT_FREE, &start, &xlen, align) ||
@@ -61,6 +61,8 @@ addr_t map_data(const void *data, size_t len, int align, bool high)
     printf("Cannot map %zu bytes\n", len+pad);
     return 0;
   }
+
+  dprintf("Mapping 0x%08x bytes (%#x pad) at 0x%08x\n", len, pad, start);
 
   if (start+len+pad > mboot_high_water_mark)
     mboot_high_water_mark = start+len+pad;
@@ -84,7 +86,6 @@ int map_image(void *ptr, size_t len)
   Elf32_Phdr *ph;
   Elf32_Shdr *sh;
   unsigned int i;
-  char *stack_frame = NULL;
   uint32_t bad_flags;
 
   regs.eax = MULTIBOOT_VALID;
@@ -139,8 +140,10 @@ int map_image(void *ptr, size_t len)
 
   mmap = syslinux_memory_map();
   amap = syslinux_dup_memmap(mmap);
-  if (!mmap || !amap)
+  if (!mmap || !amap) {
+    error("Failed to allocate initial memory map!\n");
     goto bail;
+  }
 
 #if DEBUG
   dprintf("Initial memory map:\n");
@@ -178,19 +181,25 @@ int map_image(void *ptr, size_t len)
 	}
 
 	/* Mark this region as allocated in the available map */
-	if (syslinux_add_memmap(&amap, addr, msize, SMT_ALLOC))
+	if (syslinux_add_memmap(&amap, addr, msize, SMT_ALLOC)) {
+	  error("Overlapping segments found in ELF header\n");
 	  goto bail;
+	}
 
 	if (ph->p_filesz) {
 	  /* Data present region.  Create a move entry for it. */
 	  if (syslinux_add_movelist(&ml, addr, (addr_t)cptr+ph->p_offset,
-				    dsize))
+				    dsize)) {
+	    error("Failed to map PHDR data\n");
 	    goto bail;
+	  }
 	}
 	if (msize > dsize) {
 	  /* Zero-filled region.  Mark as a zero region in the memory map. */
-	  if (syslinux_add_memmap(&mmap, addr+dsize, msize-dsize, SMT_ZERO))
+	  if (syslinux_add_memmap(&mmap, addr+dsize, msize-dsize, SMT_ZERO)) {
+	    error("Failed to map PHDR zero region\n");
 	    goto bail;
+	  }
 	}
 	if (addr+msize > mboot_high_water_mark)
 	  mboot_high_water_mark = addr+msize;
@@ -209,8 +218,10 @@ int map_image(void *ptr, size_t len)
 
       len = eh->e_shentsize * eh->e_shnum;
       addr = map_data(sh, len, 4096, true);
-      if (!addr)
+      if (!addr) {
+	error("Failed to map symbol table\n");
 	goto bail;
+      }
 
       mbinfo.flags |= MB_INFO_ELF_SHDR;
       mbinfo.syms.e.addr  = addr;
@@ -229,8 +240,10 @@ int map_image(void *ptr, size_t len)
 	align = sh[i].sh_addralign ? sh[i].sh_addralign : 0;
 	addr = map_data((char *)ptr + sh[i].sh_offset, sh[i].sh_size,
 			align, true);
-	if (!addr)
+	if (!addr) {
+	  error("Failed to map symbol section\n");
 	  goto bail;
+	}
 	sh[i].sh_addr = addr;
       }
     }
@@ -254,29 +267,34 @@ int map_image(void *ptr, size_t len)
       goto bail;		/* Memory region unavailable */
     }
     if (syslinux_add_memmap(&amap, mbh->load_addr,
-			    data_len+bss_len, SMT_ALLOC))
+			    data_len+bss_len, SMT_ALLOC)) {
+      error("Failed to claim a.out address space!\n");
       goto bail;
+    }
     if (data_len)
       if (syslinux_add_movelist(&ml, mbh->load_addr, (addr_t)data_ptr,
-				data_len))
+				data_len)) {
+	error("Failed to map a.out data\n");
 	goto bail;
+      }
     if (bss_len)
-      if (syslinux_add_memmap(&mmap, mbh->load_end_addr, bss_len, SMT_ZERO))
+      if (syslinux_add_memmap(&mmap, mbh->load_end_addr, bss_len, SMT_ZERO)) {
+	error("Failed to map a.out bss\n");
 	goto bail;
+      }
     if (mbh->bss_end_addr > mboot_high_water_mark)
       mboot_high_water_mark = mbh->bss_end_addr;
   } else {
-    printf("Invalid Multiboot image: neither ELF header nor a.out kludge found\n");
+    error("Invalid Multiboot image: neither ELF header nor a.out kludge found\n");
     goto bail;
   }
 
+  return 0;
+
  bail:
-  if (stack_frame)
-    free(stack_frame);
   syslinux_free_memmap(amap);
   syslinux_free_memmap(mmap);
   syslinux_free_movelist(ml);
-
   return -1;
 }
 
@@ -294,11 +312,15 @@ static void mboot_map_stack(void)
     return;			/* Not much we can do, here... */
 
   regs.esp = (start+len-32) & ~7;
+  dprintf("Mapping stack at 0x%08x\n", regs.esp);
   syslinux_add_memmap(&mmap, regs.esp, 32, SMT_ZERO);
 }
 
 void mboot_run(int bootflags)
 {
   mboot_map_stack();
+  
+  dprintf("Running, eip = 0x%08x, ebx = 0x%08x\n", regs.eip, regs.ebx);
+
   syslinux_shuffle_boot_pm(ml, mmap, bootflags, &regs);
 }

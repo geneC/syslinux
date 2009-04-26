@@ -160,8 +160,10 @@ int main(int argc, char *argv[])
 
   /* Load the files */
   nmodules = get_modules(argv+1, &modules);
-  if (nmodules < 1)
+  if (nmodules < 1) {
+    error("No modules found!\n");
     return 1;			/* Failure */
+  }
 
   /*
    * Map the primary image.  This should be done before mapping anything
@@ -178,8 +180,10 @@ int main(int argc, char *argv[])
 
   /* Map the mbinfo structure */
   regs.ebx = map_data(&mbinfo, sizeof mbinfo, 4, false);
-  if (!regs.ebx)
+  if (!regs.ebx) {
+    error("Failed to map Multiboot info structure!\n");
     return 1;
+  }
 
   /* Map the primary command line */
   if (modules[0].cmdline) {
