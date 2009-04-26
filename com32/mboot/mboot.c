@@ -108,14 +108,10 @@ static int get_modules(char **argv, struct module_data **mdp)
   mp = md;
   argp = argv;
   while (*argp) {
+    /* Note: it seems Grub transparently decompresses all compressed files,
+       not just the primary kernel. */
     printf("Loading %s... ", *argp);
-    if (md == mp) {
-      /* Transparently decompress the primary image */
-      rv = zloadfile(*argp, &mp->data, &mp->len);
-    } else {
-      /* Leave decompressing auxilliary modules to the OS */
-      rv = loadfile(*argp, &mp->data, &mp->len);
-    }
+    rv = zloadfile(*argp, &mp->data, &mp->len);
 
     if (rv) {
       printf("failed!\n");
@@ -140,6 +136,8 @@ static int get_modules(char **argv, struct module_data **mdp)
       *--p = '\0';
     }
     mp++;
+    if (*argp)
+      argp++;			/* Advance past module_separator */
   }
 
   return module_count;
