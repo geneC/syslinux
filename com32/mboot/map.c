@@ -280,7 +280,25 @@ int map_image(void *ptr, size_t len)
   return -1;
 }
 
+/*
+ * Set up a stack.  This isn't actually required by the spec, but it seems
+ * like a prudent thing to do.  Also, put enough zeros at the top of the
+ * stack that something that looks for an ELF invocation record will know
+ * there isn't one.
+ */
+static void mboot_map_stack(void)
+{
+  addr_t start, len;
+
+  if (syslinux_memmap_largest(amap, SMT_FREE, &start, &len) || len < 64)
+    return;			/* Not much we can do, here... */
+
+  regs.esp = (start+len-32) & ~7;
+  syslinux_add_memmap(&mmap, regs.esp, 32, SMT_ZERO);
+}
+
 void mboot_run(int bootflags)
 {
+  mboot_map_stack();
   syslinux_shuffle_boot_pm(ml, mmap, bootflags, &regs);
 }
