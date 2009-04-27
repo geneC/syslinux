@@ -2,6 +2,10 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 3.76:
+	* ISOLINUX: fix the handling of large directories.  Bug found
+	  and fixed by Steffen Winterfeldt.
+
 Changes in 3.75:
 	* PXELINUX: fix the "keeppxe" option, which was broken in
 	  3.74.
