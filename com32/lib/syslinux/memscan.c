@@ -57,8 +57,9 @@ int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
   int memfound = 0;
   int rv;
   addr_t dosmem;
+  const addr_t bios_data = 0x510; /* Amount to reserve for BIOS data */
 
-  /* Use INT 12h to get DOS memory above 0x504 */
+  /* Use INT 12h to get DOS memory */
   __intcall(0x12, &__com32_zero_regs, &oreg);
   dosmem = oreg.eax.w[0] << 10;
   if (dosmem < 32*1024 || dosmem > 640*1024) {
@@ -67,10 +68,9 @@ int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
     if (ebda_seg >= 0x8000 && ebda_seg < 0xa000)
       dosmem = ebda_seg << 4;
     else
-      dosmem = 640*1024;      /* Hope for the best... */
+      dosmem = 640*1024;	/* Hope for the best... */
   }
-  dosmem = (oreg.eax.w[0] << 10) - 0x510;
-  rv = callback(data, 0x510, dosmem, true);
+  rv = callback(data, bios_data, dosmem-bios_data, true);
   if (rv)
     return rv;
 
