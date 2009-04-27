@@ -430,16 +430,14 @@ void find_cli_callback_descr(const char* module_name,
 			     struct cli_callback_descr** module_found)
 {
 	int modules_iter = 0;
-	int module_len = strlen(module_name);
 
 	if (modules_list == NULL)
 		goto not_found;
 
 	/* Find the callback to execute */
 	while (modules_list->modules[modules_iter].name &&
-	       strncmp(module_name,
-		       modules_list->modules[modules_iter].name,
-		       strlen(modules_list->modules[modules_iter].name)) != 0)
+	       strcmp(module_name,
+		      modules_list->modules[modules_iter].name) != 0)
 		modules_iter++;
 
 	if (modules_list->modules[modules_iter].name) {
