@@ -232,8 +232,10 @@ pm_shuffle:
 		call pm_bcopy
 		jmp .loop
 .done:
+		push ecx		; == 0, for cleaning the flags register
 		and esi,esi
 		jz pm_shuffle_real_mode
+		popfd			; Clean the flags
 		jmp edi			; Protected mode entry
 
 		; We have a real-mode entry point, so we need to return
@@ -250,14 +252,16 @@ pm_shuffle_real_mode:
 		mov [ebx+PM_CS16+7],ah
 		mov [ebx+PM_DS16+4],al
 		mov [ebx+PM_DS16+7],ah
-		mov ax,PM_DS16
-		mov ds,eax
-		mov es,eax
-		mov fs,eax
-		mov gs,eax
-		mov ss,eax
 		mov eax,cr0
 		and al,~1
+		popfd			; Clean the flags
+		; No flag-changing instructions below...
+		mov dx,PM_DS16
+		mov ds,edx
+		mov es,edx
+		mov fs,edx
+		mov gs,edx
+		mov ss,edx
 		jmp PM_CS16:0
 
 		align	16
