@@ -94,6 +94,8 @@ static void compute_pci_device(struct s_my_menu *menu,
   add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
   menu->items_count++;
 
+  memset(kernel_modules,0,sizeof(kernel_modules));
+
   if (pci_device->dev_info->linux_kernel_module_count > 1) {
     for (int i = 0;
          i < pci_device->dev_info->linux_kernel_module_count; i++) {
