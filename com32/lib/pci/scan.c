@@ -95,7 +95,8 @@ int get_module_name_from_pcimap(struct pci_domain *domain, char *modules_pcimap_
 	return -1;
     }
     for (int i=0;i<MAX_KERNEL_MODULES_PER_PCI_DEVICE;i++) {
-     strlcpy(dev->dev_info->linux_kernel_module[i], "unknown",7);
+     if (strlen(dev->dev_info->linux_kernel_module[i])==0)
+       strlcpy(dev->dev_info->linux_kernel_module[i], "unknown",7);
     }
   }
 
@@ -595,7 +596,8 @@ int get_module_name_from_alias(struct pci_domain *domain, char *modules_alias_pa
 	return -1;
     }
     for (int i=0;i<MAX_KERNEL_MODULES_PER_PCI_DEVICE;i++) {
-     strlcpy(dev->dev_info->linux_kernel_module[i], "unknown",7);
+     if (strlen(dev->dev_info->linux_kernel_module[i])==0)
+       strlcpy(dev->dev_info->linux_kernel_module[i], "unknown",7);
     }
   }
 
