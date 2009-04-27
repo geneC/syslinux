@@ -2,6 +2,10 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 3.80:
+	* New shuffler mechanism and API.
+	* Rewritten mboot.c32 module.
+
 Changes in 3.76:
 	* ISOLINUX: fix the handling of large directories.  Bug found
 	  and fixed by Steffen Winterfeldt.
