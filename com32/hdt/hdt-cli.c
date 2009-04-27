@@ -439,7 +439,7 @@ void find_cli_callback_descr(const char* module_name,
 	while (modules_list->modules[modules_iter].name &&
 	       strncmp(module_name,
 		       modules_list->modules[modules_iter].name,
-		       module_len) != 0)
+		       strlen(modules_list->modules[modules_iter].name)) != 0)
 		modules_iter++;
 
 	if (modules_list->modules[modules_iter].name) {
