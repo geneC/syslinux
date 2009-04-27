@@ -294,7 +294,7 @@ void detect_hardware(struct s_hardware *hardware)
   printf("CPU: Detecting\n");
   cpu_detect(hardware);
 
-  printf("DISKS: Detecting");
+  printf("DISKS: Detecting\n");
   detect_disks(hardware);
 
   printf("DMI: Detecting Table\n");
