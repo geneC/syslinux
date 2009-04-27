@@ -119,14 +119,15 @@ static void compute_pci_device(struct s_my_menu *menu,
   menu->items_count++;
 
   if (hardware->is_pxe_valid == true) {
-    snprintf(buffer,sizeof buffer,"MAC Addr. : %s",hardware->pxe.mac_addr);
-    snprintf(statbuffer,sizeof statbuffer,"MAC Address : %s",hardware->pxe.mac_addr);
-    add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
-    menu->items_count++;
-
     if ((hardware->pxe.pci_device != NULL)
        && (hardware->pxe.pci_device == pci_device)) {
-       snprintf(buffer,sizeof buffer,"PXE       : %s","Current Boot device");
+
+       snprintf(buffer,sizeof buffer,"MAC Addr: %s",hardware->pxe.mac_addr);
+       snprintf(statbuffer,sizeof statbuffer,"MAC Address : %s",hardware->pxe.mac_addr);
+       add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
+       menu->items_count++;
+
+       snprintf(buffer,sizeof buffer,"PXE     : %s","Current Boot device");
        snprintf(statbuffer,sizeof statbuffer,"PXE : %s","Current Boot device");
        add_item(buffer,statbuffer,OPT_INACTIVE,NULL,0);
        menu->items_count++;
