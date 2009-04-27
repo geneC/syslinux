@@ -263,7 +263,8 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
 
   add_item("", "", OPT_SEP, "", 0);
 #ifdef WITH_PCI
-  if (hardware->modules_pcimap_return_code != -ENOMODULESPCIMAP) {
+  if ((hardware->modules_pcimap_return_code != -ENOMODULESPCIMAP) ||
+      (hardware->modules_alias_return_code != -ENOMODULESALIAS))  {
     add_item("<K>ernel Modules", "Kernel Modules Menu", OPT_SUBMENU,
        NULL, hdt_menu->kernel_menu.menu);
     hdt_menu->main_menu.items_count++;

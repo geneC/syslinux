@@ -41,13 +41,14 @@ void compute_kernel(struct s_my_menu *menu, struct s_hardware *hardware)
   menu->items_count = 0;
   set_menu_pos(SUBMENU_Y, SUBMENU_X);
 
-  if (hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) {
-    add_item("The modules.pcimap file is missing",
-       "Missing modules.pcimap file", OPT_INACTIVE, NULL, 0);
+  if ((hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) &&
+     (hardware->modules_alias_return_code == -ENOMODULESALIAS)) {
+    add_item("The modules.{pcimap|alias} file is missing",
+       "Missing modules.{pcimap|alias} file", OPT_INACTIVE, NULL, 0);
     add_item("Kernel modules can't be computed.",
-       "Missing modules.pcimap file", OPT_INACTIVE, NULL, 0);
-    add_item("Please put one in same dir as hdt",
-       "Missing modules.pcimap file", OPT_INACTIVE, NULL, 0);
+       "Missing modules.{pcimap|alias} file", OPT_INACTIVE, NULL, 0);
+    add_item("Please put one of them in same dir as hdt",
+       "Missing modules.{pcimap|alias} file", OPT_INACTIVE, NULL, 0);
     add_item("", "", OPT_SEP, "", 0);
   } else {
     /*

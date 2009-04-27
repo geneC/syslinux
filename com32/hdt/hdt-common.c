@@ -56,14 +56,18 @@ void detect_parameters(const int argc, const char *argv[],
                        struct s_hardware *hardware)
 {
   for (int i = 1; i < argc; i++) {
-    if (!strncmp(argv[i], "modules=", 8)) {
-      strncpy(hardware->modules_pcimap_path, argv[i] + 8,
+    if (!strncmp(argv[i], "modules_pcimap=", 15)) {
+      strncpy(hardware->modules_pcimap_path, argv[i] + 15,
         sizeof(hardware->modules_pcimap_path));
       convert_isolinux_filename(hardware->modules_pcimap_path,hardware);
     } else if (!strncmp(argv[i], "pciids=", 7)) {
       strncpy(hardware->pciids_path, argv[i] + 7,
         sizeof(hardware->pciids_path));
       convert_isolinux_filename(hardware->pciids_path,hardware);
+    } else if (!strncmp(argv[i], "modules_alias=", 14)) {
+      strncpy(hardware->modules_alias_path, argv[i] + 14,
+        sizeof(hardware->modules_alias_path));
+      convert_isolinux_filename(hardware->modules_alias_path,hardware);
     } else if (!strncmp(argv[i], "memtest=", 8)) {
       strncpy(hardware->memtest_label, argv[i] + 8,
         sizeof(hardware->memtest_label));
@@ -100,6 +104,7 @@ void init_hardware(struct s_hardware *hardware)
 {
   hardware->pci_ids_return_code = 0;
   hardware->modules_pcimap_return_code = 0;
+  hardware->modules_alias_return_code = 0;
   hardware->cpu_detection = false;
   hardware->pci_detection = false;
   hardware->disk_detection = false;
@@ -125,9 +130,12 @@ void init_hardware(struct s_hardware *hardware)
   memset(hardware->pciids_path, 0, sizeof hardware->pciids_path);
   memset(hardware->modules_pcimap_path, 0,
          sizeof hardware->modules_pcimap_path);
+  memset(hardware->modules_alias_path, 0,
+         sizeof hardware->modules_alias_path);
   memset(hardware->memtest_label, 0, sizeof hardware->memtest_label);
   strcat(hardware->pciids_path, "pci.ids");
   strcat(hardware->modules_pcimap_path, "modules.pcimap");
+  strcat(hardware->modules_alias_path, "modules.alias");
   strcat(hardware->memtest_label, "memtest");
 }
 
@@ -451,10 +459,16 @@ void detect_pci(struct s_hardware *hardware)
           hardware->pciids_path);
 
   printf("PCI: Resolving module names\n");
-  /* Detecting which kernel module should match each device */
+  /* Detecting which kernel module should match each device using modules.pcimap*/
   hardware->modules_pcimap_return_code =
       get_module_name_from_pcimap(hardware->pci_domain,
            hardware->modules_pcimap_path);
+
+  /* Detecting which kernel module should match each device using modules.alias*/
+  hardware->modules_alias_return_code =
+      get_module_name_from_alias(hardware->pci_domain,
+           hardware->modules_alias_path);
+
 
   /* We try to detect the pxe stuff to populate the PXE: field of pci devices */
   detect_pxe(hardware);
