@@ -176,7 +176,8 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
   char buffer[MENULEN + 1];
   char statbuffer[STATLEN + 1];
 
-  snprintf(buffer, sizeof buffer, " Disk <0x%X> ", d[disk_number].disk);
+  snprintf(buffer, sizeof buffer, " Disk <0x%X> (EDD %X)", d[disk_number].disk,
+		  d[disk_number].edd_version);
   menu[nb_sub_disk_menu].menu = add_menu(buffer, -1);
   menu[nb_sub_disk_menu].items_count = 0;
 
@@ -186,64 +187,37 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
   sectors_to_size_dec(previous_unit, &previous_size, unit, &size, d[disk_number].edd_params.sectors);
   sectors_to_size(d[disk_number].edd_params.sectors, size_iec);
 
-  snprintf(buffer, sizeof buffer, "Size          : %s/%d %s (%d %s)", remove_spaces(size_iec),
+  snprintf(buffer, sizeof buffer, "Size                 : %s/%d %s (%d %s)", remove_spaces(size_iec),
      size, unit, previous_size, previous_unit);
   snprintf(statbuffer, sizeof statbuffer, "Size: %s/%d %s (%d %s)", remove_spaces(size_iec), size,
      unit, previous_size, previous_unit);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-  snprintf(buffer, sizeof buffer, "Interface     : %s",
+  snprintf(buffer, sizeof buffer, "Host Bus / Interface : %s / %s",
+     remove_spaces(d[disk_number].edd_params.host_bus_type),
      d[disk_number].edd_params.interface_type);
-  snprintf(statbuffer, sizeof statbuffer, "Interface: %s",
+  snprintf(statbuffer, sizeof statbuffer, "Host Bus / Interface: %s / %s",
+     remove_spaces(d[disk_number].edd_params.host_bus_type),
      d[disk_number].edd_params.interface_type);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-  snprintf(buffer, sizeof buffer, "Host Bus      : %s",
-     d[disk_number].edd_params.host_bus_type);
-  snprintf(statbuffer, sizeof statbuffer, "Host Bus Type: %s",
-     d[disk_number].edd_params.host_bus_type);
-  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  menu[nb_sub_disk_menu].items_count++;
-
-  snprintf(buffer, sizeof buffer, "Sectors       : %d",
+  snprintf(buffer, sizeof buffer, "C / H / S            : %d / %d / %d",
+     d[disk_number].legacy_max_cylinder + 1,
+     d[disk_number].legacy_max_head + 1,
      (int) d[disk_number].edd_params.sectors);
-  snprintf(statbuffer, sizeof statbuffer, "Sectors: %d",
+  snprintf(statbuffer, sizeof statbuffer, "Cylinders / Heads / Sectors: %d / %d / %d",
+     d[disk_number].legacy_max_cylinder + 1,
+     d[disk_number].legacy_max_head + 1,
      (int) d[disk_number].edd_params.sectors);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-  snprintf(buffer, sizeof buffer, "Heads         : %d",
-     d[disk_number].legacy_max_head + 1);
-  snprintf(statbuffer, sizeof statbuffer, "Heads: %d",
-     d[disk_number].legacy_max_head + 1);
-  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  menu[nb_sub_disk_menu].items_count++;
-
-  snprintf(buffer, sizeof buffer, "Cylinders     : %d",
-     d[disk_number].legacy_max_cylinder + 1);
-  snprintf(statbuffer, sizeof statbuffer, "Cylinders: %d",
-     d[disk_number].legacy_max_cylinder + 1);
-  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  menu[nb_sub_disk_menu].items_count++;
-
-  snprintf(buffer, sizeof buffer, "Sectors/Track : %d",
+  snprintf(buffer, sizeof buffer, "Sectors/Track        : %d",
      d[disk_number].legacy_sectors_per_track);
   snprintf(statbuffer, sizeof statbuffer, "Sectors per Track: %d",
      d[disk_number].legacy_sectors_per_track);
-  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  menu[nb_sub_disk_menu].items_count++;
-
-  snprintf(buffer, sizeof buffer, "Drive number  : 0x%X", d[disk_number].disk);
-  snprintf(statbuffer, sizeof statbuffer, "Drive number: 0x%X", d[disk_number].disk);
-  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  menu[nb_sub_disk_menu].items_count++;
-
-  snprintf(buffer, sizeof buffer, "EDD Version   : %X",
-     d[disk_number].edd_version);
-  snprintf(statbuffer, sizeof statbuffer, "EDD Version: %X",
-     d[disk_number].edd_version);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
