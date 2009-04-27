@@ -177,7 +177,7 @@ void cli_detect_pci(struct s_hardware *hardware);
 void main_show_cpu(int argc, char **argv, struct s_hardware *hardware);
 
 // DISK STUFF
-void main_show_disk(int argc, char **argv, struct s_hardware *hardware);
+void disks_summary(int argc, char **argv, struct s_hardware *hardware);
 
 // PXE STUFF
 void main_show_pxe(int argc, char **argv, struct s_hardware *hardware);

@@ -100,12 +100,82 @@ static void show_partition_information(struct driveinfo *drive_info,
 	free(parttype);
 }
 
-void main_show_disk(int argc __unused, char **argv __unused,
+void main_show_disk(int argc, char **argv,
 		    struct s_hardware *hardware)
 {
-	int i = -1;
+	reset_more_printf();
+	if (!argc) {
+		more_printf("Which disk?\n");
+		return;
+	}
+
+	int drive = strtol(argv[0], (char**) NULL, 16);
+
+	if (drive < 0x80 || drive >= 0xff) {
+		more_printf("Invalid disk: %d.\n", drive);
+		return;
+	}
+
+	int i = drive - 0x80;
+	struct driveinfo *d = &hardware->disk_info[i];
 	int error;
 	char *error_buffer;
+	char disk_size[8];
+
+	detect_disks(hardware);
+	if (!hardware->disk_info[i].cbios)
+		return; /* Invalid geometry */
+
+	if ((int) d->edd_params.sectors > 0)
+		sectors_to_size((int) d->edd_params.sectors, disk_size);
+	else
+		memset(disk_size, 0, sizeof disk_size);
+
+	more_printf("DISK 0x%X:\n", d->disk);
+	more_printf("  C/H/S: %d cylinders, %d heads, %d sectors/track\n",
+		d->legacy_max_cylinder + 1, d->legacy_max_head + 1,
+		d->legacy_sectors_per_track);
+	more_printf("  EDD:   Version: %X\n", d->edd_version);
+	more_printf("         Size: %s, %d bytes/sector, %d sectors/track\n",
+		disk_size,
+		(int) d->edd_params.bytes_per_sector,
+		(int) d->edd_params.sectors_per_track);
+	more_printf("         Host bus: %s, Interface type: %s\n\n",
+		remove_spaces(d->edd_params.host_bus_type),
+		remove_spaces(d->edd_params.interface_type));
+
+	more_printf("   #  B       Start         End    Size Id Type\n");
+	error = 0;
+	if (parse_partition_table(d, &show_partition_information, &error)) {
+		if (error) {
+			more_printf("I/O error: ");
+			get_error(error, &error_buffer);
+			more_printf("%s\n", error_buffer);
+			free(error_buffer);
+		} else
+			more_printf("An unknown error occured.\n");
+		return;
+	}
+}
+
+void main_show_disks(int argc __unused, char **argv __unused,
+		     struct s_hardware *hardware)
+{
+	reset_more_printf();
+	detect_disks(hardware);
+
+	for (int drive = 0x80; drive < 0xff; drive++) {
+		char buf[5] = "";
+		sprintf(buf, "0x%x", drive);
+		char *argv[1] = { buf };
+		main_show_disk(1, argv, hardware);
+	}
+}
+
+void disks_summary(int argc __unused, char** argv __unused,
+		   struct s_hardware *hardware)
+{
+	int i = -1;
 
 	detect_disks(hardware);
 
@@ -125,33 +195,33 @@ void main_show_disk(int argc __unused, char **argv __unused,
 		more_printf("  C/H/S: %d cylinders, %d heads, %d sectors/track\n",
 			d->legacy_max_cylinder + 1, d->legacy_max_head + 1,
 			d->legacy_sectors_per_track);
-		more_printf("  EDD:   Version: %X\n", d->edd_version);
-		more_printf("         Size: %s, %d bytes/sector, %d sectors/track\n",
-			disk_size,
-			(int) d->edd_params.bytes_per_sector,
-			(int) d->edd_params.sectors_per_track);
+		more_printf("  EDD:   Version: %X, size: %s\n", d->edd_version,
+			disk_size);
 		more_printf("         Host bus: %s, Interface type: %s\n\n",
 			remove_spaces(d->edd_params.host_bus_type),
 			remove_spaces(d->edd_params.interface_type));
-
-		more_printf("   #  B       Start         End    Size Id Type\n");
-		error = 0;
-		if (parse_partition_table(d, &show_partition_information, &error)) {
-			if (error) {
-				more_printf("I/O error: ");
-				get_error(error, &error_buffer);
-				more_printf("%s\n", error_buffer);
-				free(error_buffer);
-			} else
-				more_printf("An unknown error occured.\n");
-			continue;
-		}
 	}
 }
 
+struct cli_callback_descr list_disk_show_modules[] = {
+	{
+		.name = "disks",
+		.exec = main_show_disks,
+	},
+	{
+		.name = "disk",
+		.exec = main_show_disk,
+	},
+	{
+		.name = NULL,
+		.exec = NULL,
+	},
+};
+
+
 struct cli_module_descr disk_show_modules = {
-	.modules = NULL,
-	.default_callback = main_show_disk,
+	.modules = list_disk_show_modules,
+	.default_callback = disks_summary,
 };
 
 struct cli_mode_descr disk_mode = {
