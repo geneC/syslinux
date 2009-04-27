@@ -17,37 +17,41 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifndef MBOOT_MB_HEADER_H
+#define MBOOT_MB_HEADER_H
+
+#include <inttypes.h>
+
 /*
  *  MultiBoot Header description
  */
 
-struct multiboot_header
-{
+struct multiboot_header {
   /* Must be MULTIBOOT_MAGIC - see below.  */
-  unsigned magic;
+  uint32_t magic;
 
   /* Feature flags - see below.  */
-  unsigned flags;
+  uint32_t flags;
 
   /*
    * Checksum
    *
    * The above fields plus this one must equal 0 mod 2^32.
    */
-  unsigned checksum;
+  uint32_t checksum;
 
   /* These are only valid if MULTIBOOT_AOUT_KLUDGE is set.  */
-  unsigned header_addr;
-  unsigned load_addr;
-  unsigned load_end_addr;
-  unsigned bss_end_addr;
-  unsigned entry_addr;
+  uint32_t header_addr;
+  uint32_t load_addr;
+  uint32_t load_end_addr;
+  uint32_t bss_end_addr;
+  uint32_t entry_addr;
 
   /* These are only valid if MULTIBOOT_VIDEO_MODE is set.  */
-  unsigned mode_type;
-  unsigned width;
-  unsigned height;
-  unsigned depth;
+  uint32_t mode_type;
+  uint32_t width;
+  uint32_t height;
+  uint32_t depth;
 };
 
 /*
@@ -55,14 +59,6 @@ struct multiboot_header
  * within the first MULTIBOOT_SEARCH bytes of the kernel image.
  */
 #define MULTIBOOT_SEARCH		8192
-#define MULTIBOOT_FOUND(addr, len) \
-  (! ((addr) & 0x3) \
-   && (len) >= 12 \
-   && *((int *) (addr)) == MULTIBOOT_MAGIC \
-   && ! (*((unsigned *) (addr)) + *((unsigned *) (addr + 4)) \
-	 + *((unsigned *) (addr + 8))) \
-   && (! (MULTIBOOT_AOUT_KLUDGE & *((int *) (addr + 4))) || (len) >= 32) \
-   && (! (MULTIBOOT_VIDEO_MODE & *((int *) (addr + 4))) || (len) >= 48))
 
 /* Magic value identifying the multiboot_header.  */
 #define MULTIBOOT_MAGIC			0x1BADB002
@@ -88,3 +84,5 @@ struct multiboot_header
 
 /* This flag indicates the use of the address fields in the header.  */
 #define MULTIBOOT_AOUT_KLUDGE		0x00010000
+
+#endif	/* MBOOT_MB_HEADER_H */

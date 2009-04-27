@@ -21,10 +21,12 @@
  *  The structure type "mod_list" is used by the "multiboot_info" structure.
  */
 
+#ifndef MBOOT_MB_INFO_H
+#define MBOOT_MB_INFO_H 
+
 #include <inttypes.h>
 
-struct mod_list
-{
+struct mod_list {
   /* the memory used goes from bytes 'mod_start' to 'mod_end-1' inclusive */
   uint32_t mod_start;
   uint32_t mod_end;
@@ -44,13 +46,11 @@ struct mod_list
  *  map has been reached.
  */
 
-struct AddrRangeDesc
-{
+struct AddrRangeDesc {
   uint32_t size;
   uint64_t BaseAddr;
   uint64_t Length;
   uint32_t Type;
-
   /* unspecified optional padding... */
 } __attribute__((packed));
 
@@ -59,8 +59,7 @@ struct AddrRangeDesc
 
 
 /* Drive Info structure.  */
-struct drive_info
-{
+struct drive_info {
   /* The size of this structure.  */
   uint32_t size;
 
@@ -85,8 +84,7 @@ struct drive_info
 
 
 /* APM BIOS info.  */
-struct apm_info
-{
+struct apm_info {
   uint16_t version;
   uint16_t cseg;
   uint32_t offset;
@@ -105,8 +103,7 @@ struct apm_info
  *  its address in the EAX register.
  */
 
-struct multiboot_info
-{
+struct multiboot_info {
   /* MultiBoot info version number */
   uint32_t flags;
 
@@ -124,29 +121,22 @@ struct multiboot_info
   uint32_t mods_count;
   uint32_t mods_addr;
 
-  union
-  {
-    struct
-    {
+  union {
+    struct {
       /* (a.out) Kernel symbol table info */
       uint32_t tabsize;
       uint32_t strsize;
       uint32_t addr;
       uint32_t pad;
-    }
-    a;
-
-    struct
-    {
+    } a;
+    struct {
       /* (ELF) Kernel section header table */
       uint32_t num;
       uint32_t size;
       uint32_t addr;
       uint32_t shndx;
-    }
-    e;
-  }
-  syms;
+    } e;
+  } syms;
 
   /* Memory Mapping buffer */
   uint32_t mmap_length;
@@ -217,3 +207,5 @@ struct multiboot_info
  */
 
 #define MULTIBOOT_VALID			0x2BADB002
+
+#endif /* MBOOT_MB_INFO_H */
