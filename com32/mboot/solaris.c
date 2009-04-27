@@ -1,7 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -44,8 +43,10 @@ void mboot_solaris_dhcp_hack(void)
 
   if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK, &dhcpdata, &dhcplen)) {
     mbinfo.drives_addr = map_data(dhcpdata, dhcplen, 4, 0);
-    mbinfo.drives_length = dhcplen;
-    mbinfo.boot_device = 0x20ffffff;
-    mbinfo.flags = (mbinfo.flags & ~MB_INFO_DRIVE_INFO) | MB_INFO_BOOTDEV;
+    if (mbinfo.drives_addr) {
+      mbinfo.drives_length = dhcplen;
+      mbinfo.boot_device = 0x20ffffff;
+      mbinfo.flags = (mbinfo.flags & ~MB_INFO_DRIVE_INFO) | MB_INFO_BOOTDEV;
+    }
   }
 }
