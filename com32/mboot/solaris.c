@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -27,68 +27,25 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * mboot.h
+ * solaris.c
  *
- * Module to load a multiboot kernel
+ * Solaris DHCP hack
+ *
+ * Solaris uses a nonstandard hack to pass DHCP information from a netboot.
  */
 
-#ifndef MBOOT_H
+#include "mboot.h"
+#include <syslinux/pxe.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <inttypes.h>
-#include <stdbool.h>
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <errno.h>
-#include <minmax.h>
-#include <sys/stat.h>
-#include <elf.h>
-#include <console.h>
-
-#include <syslinux/loadfile.h>
-#include <syslinux/movebits.h>
-#include <syslinux/bootpm.h>
-
-#include "mb_header.h"
-#include "mb_info.h"
-
-#define DEBUG 0
-#if DEBUG
-# define dprintf printf
-#else
-# define dprintf(f, ...) ((void)0)
-#endif
-
-static inline void error(const char *msg)
+void mboot_solaris_dhcp_hack(void)
 {
-  fputs(msg, stderr);
+  void *dhcpdata;
+  size_t dhcplen;
+
+  if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK, &dhcpdata, &dhcplen)) {
+    mbinfo.drives_addr = map_data(dhcpdata, dhcplen, 4, 0);
+    mbinfo.drives_length = dhcplen;
+    mbinfo.boot_device = 0x20ffffff;
+    mbinfo.flags = (mbinfo.flags & ~MB_INFO_DRIVE_INFO) | MB_INFO_BOOTDEV;
+  }
 }
-
-/* mboot.c */
-extern struct multiboot_info mbinfo;
-extern struct syslinux_pm_regs regs;
-extern struct my_options {
-  bool solaris;
-  bool aout;
-} opt;
-
-/* map.c */
-#define MAP_HIGH	1
-#define MAP_NOPAD	2
-addr_t map_data(const void *data, size_t len, size_t align, int flags);
-addr_t map_string(const char *string);
-int map_image(void *ptr, size_t len);
-void mboot_run(int bootflags);
-
-/* mem.c */
-void mboot_make_memmap(void);
-
-/* apm.c */
-void mboot_apm(void);
-
-/* solaris.c */
-void mboot_solaris_dhcp_hack(void);
-
-#endif /* MBOOT_H */

@@ -24,7 +24,7 @@ LNXLIBS	   = ../libutil/libutil_lnx.a
 MODULES	  = mboot.c32
 TESTFILES =
 
-OBJS = mboot.o map.o mem.o apm.o
+OBJS = mboot.o map.o mem.o apm.o solaris.o
 
 all: $(MODULES) $(TESTFILES)
 

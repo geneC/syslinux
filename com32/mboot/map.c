@@ -157,7 +157,7 @@ int map_image(void *ptr, size_t len)
    * This is insane, since it makes the AOUT_KLUDGE bit functionally
    * useless, but at least Solaris apparently depends on this behavior.
    */
-  if (eh) {
+  if (eh && !(opt.aout && mbh_len && (mbh->flags & MULTIBOOT_AOUT_KLUDGE))) {
     regs.eip = eh->e_entry;
 
     ph = (Elf32_Phdr *)(cptr+eh->e_phoff);

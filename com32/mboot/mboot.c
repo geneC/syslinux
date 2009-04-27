@@ -36,6 +36,7 @@
 
 struct multiboot_info mbinfo;
 struct syslinux_pm_regs regs;
+struct my_options opt;
 
 struct module_data {
   void *data;
@@ -152,15 +153,31 @@ int main(int argc, char *argv[])
 
   openconsole(&dev_null_r, &dev_stdcon_w);
 
-  if (argc < 2) {
-    error("Usage: mboot.c32 mboot_file args... [--- module args...]...\n");
+  argv++;
+
+  while (*argv) {
+    if (!strcmp(*argv, "-solaris"))
+      opt.solaris = true;
+    else if (!strcmp(*argv, "-aout"))
+      opt.aout = true;
+    else
+      break;
+    argv++;
+  }
+
+  if (!*argv) {
+    error("Usage: mboot.c32 [opts] mboot_file args... [--- module args...]...\n"
+	  "Options:\n"
+	  "  -solaris  Enable Solaris DHCP information passing\n"
+	  "  -aout     Use the \"a.out kludge\" if enabled, even for ELF\n"
+	  "            This matches the Multiboot spec, but differs from Grub\n");
     return 1;
   }
 
   /* Load the files */
-  nmodules = get_modules(argv+1, &modules);
+  nmodules = get_modules(argv, &modules);
   if (nmodules < 1) {
-    error("No modules found!\n");
+    error("No files found!\n");
     return 1;			/* Failure */
   }
 
@@ -195,6 +212,8 @@ int main(int argc, char *argv[])
   /* Add auxilliary information */
   mboot_make_memmap();
   mboot_apm();
+  if (opt.solaris)
+    mboot_solaris_dhcp_hack();
 
   /* Run it */
   mboot_run(keeppxe ? 3 : 0);
