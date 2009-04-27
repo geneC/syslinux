@@ -205,7 +205,8 @@ pm_bcopy:
 ;
 pm_shuffle:
 		mov ebx,edi		; EBX <- descriptor list
-		lea edx,[edi+ecx]	; EDX <- shuffler end location
+		lea edx,[edi+ecx+15]	; EDX <- where to relocate our code to
+		and edx,~15		; Align 16 to benefit the GDT
 		call pm_bcopy
 		mov edi,edx
 		mov esi,bcopyxx_start
@@ -299,7 +300,8 @@ bcopyxx_len	equ $-bcopyxx_start
 bcopyxx_dwords	equ bcopyxx_len >> 2
 
 bcopyxx_stack	equ 128			; We want this much stack
-bcopyxx_safe	equ bcopyxx_len + bcopyxx_stack
+		; The +15 is for alignment
+bcopyxx_safe	equ bcopyxx_len + bcopyxx_stack + 15
 
 ;
 ; Space for a dummy task state segment.  It should never be actually
