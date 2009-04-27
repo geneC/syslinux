@@ -206,7 +206,7 @@ void mboot_make_memmap(void)
   mbinfo.mem_upper = (highmem - 0x100000) >> 10;
   mbinfo.flags |= MB_INFO_MEMORY;
 
-  /* XXX: Should this be +4? */
+  /* The spec says this address should be +4, but Grub disagrees */
   mbinfo.mmap_addr = map_data(ard, nmap*sizeof *ard, 4, false);
   if (mbinfo.mmap_addr) {
     mbinfo.mmap_length = nmap*sizeof *ard;

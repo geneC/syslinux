@@ -56,13 +56,21 @@ static int map_modules(struct module_data *modules, int nmodules)
     return -1;
   }
 
+  map_list = map_data(mod_list, list_size, 16, 0);
+  if (!map_list) {
+    printf("Cannot map module list\n");
+    return -1;
+  }
+
   for (i = 0; i < nmodules; i++) {
     addr_t mod_map = 0;
     addr_t cmd_map = 0;
 
+    dprintf("Module %d cmdline: \"%s\"\n", i, modules[i].cmdline);
+
     cmd_map = map_string(modules[i].cmdline);
 
-    mod_map = map_data(modules[i].data, modules[i].len, 4096, true);
+    mod_map = map_data(modules[i].data, modules[i].len, 4096, MAP_HIGH);
     if (!mod_map) {
       printf("Failed to map module (memory fragmentation issue?)\n");
       return -1;
@@ -71,12 +79,6 @@ static int map_modules(struct module_data *modules, int nmodules)
     mod_list[i].mod_end = mod_map + modules[i].len;
     mod_list[i].cmdline = cmd_map;
     mod_list[i].pad = 0;
-  }
-
-  map_list = map_data(mod_list, list_size, 16, false);
-  if (!map_list) {
-    printf("Cannot map module list\n");
-    return -1;
   }
 
   mbinfo.flags |= MB_INFO_MODS;
@@ -88,7 +90,7 @@ static int map_modules(struct module_data *modules, int nmodules)
 static int get_modules(char **argv, struct module_data **mdp)
 {
   char **argp, **argx;
-  struct module_data *md, *mp;
+  struct module_data *mp;
   int rv;
   int module_count = 1;
   int arglen;
@@ -99,13 +101,12 @@ static int get_modules(char **argv, struct module_data **mdp)
       module_count++;
   }
 
-  *mdp = md = malloc(module_count * sizeof(struct module_data));
-  if (!md) {
+  *mdp = mp = malloc(module_count * sizeof(struct module_data));
+  if (!mp) {
     error("Out of memory!\n");
     return -1;
   }
 
-  mp = md;
   argp = argv;
   while (*argp) {
     /* Note: it seems Grub transparently decompresses all compressed files,
@@ -125,10 +126,10 @@ static int get_modules(char **argv, struct module_data **mdp)
       arglen += strlen(*argx)+1;
 
     if (arglen == 0) {
-      mp->cmdline = NULL;
+      mp->cmdline = strdup("");
     } else {
       char *p;
-      md->cmdline = p = malloc(arglen);
+      mp->cmdline = p = malloc(arglen);
       for ( ; *argp && strcmp(*argp, module_separator); argp++) {
 	p = strpcpy(p, *argp);
 	*p++ = ' ';
@@ -170,14 +171,8 @@ int main(int argc, char *argv[])
   if (map_image(modules[0].data, modules[0].len))
     return 1;
 
-  /* Map auxilliary images */
-  if (nmodules > 1) {
-    if (map_modules(modules+1, nmodules-1))
-      return 1;
-  }
-
   /* Map the mbinfo structure */
-  regs.ebx = map_data(&mbinfo, sizeof mbinfo, 4, false);
+  regs.ebx = map_data(&mbinfo, sizeof mbinfo, 4, 0);
   if (!regs.ebx) {
     error("Failed to map Multiboot info structure!\n");
     return 1;
@@ -186,8 +181,15 @@ int main(int argc, char *argv[])
   /* Map the primary command line */
   if (modules[0].cmdline) {
     mbinfo.cmdline = map_string(modules[0].cmdline);
+    dprintf("Main cmdline: \"%s\"\n", modules[0].cmdline);
     if (mbinfo.cmdline)
       mbinfo.flags |= MB_INFO_CMDLINE;
+  }
+
+  /* Map auxilliary images */
+  if (nmodules > 1) {
+    if (map_modules(modules+1, nmodules-1))
+      return 1;
   }
 
   /* Add auxilliary information */

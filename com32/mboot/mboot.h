@@ -71,7 +71,9 @@ extern struct multiboot_info mbinfo;
 extern struct syslinux_pm_regs regs;
 
 /* map.c */
-addr_t map_data(const void *data, size_t len, int align, bool high);
+#define MAP_HIGH	1
+#define MAP_NOPAD	2
+addr_t map_data(const void *data, size_t len, size_t align, int flags);
 addr_t map_string(const char *string);
 int map_image(void *ptr, size_t len);
 void mboot_run(int bootflags);

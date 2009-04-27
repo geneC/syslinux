@@ -37,7 +37,7 @@
 static struct syslinux_movelist *ml = NULL;
 static struct syslinux_memmap *mmap = NULL, *amap = NULL;
 static struct multiboot_header *mbh;
-static addr_t mboot_high_water_mark = 0;
+static addr_t mboot_high_water_mark = 0x100000;
 
 /*
  * Note: although there is no such thing in the spec, at least Xen makes
@@ -48,11 +48,11 @@ static addr_t mboot_high_water_mark = 0;
  * As a precaution, this also pads the data with zero up to the next
  * alignment datum.
  */
-addr_t map_data(const void *data, size_t len, int align, bool high)
+addr_t map_data(const void *data, size_t len, size_t align, int flags)
 {
-  addr_t start = high ? mboot_high_water_mark : 0x800;
-  addr_t pad = -len & (align-1);
-  addr_t xlen = len+pad;
+  addr_t start = (flags & MAP_HIGH) ? mboot_high_water_mark : 0x2000;
+  addr_t pad   = (flags & MAP_NOPAD) ? 0 : -len & (align-1);
+  addr_t xlen  = len+pad;
 
   if (syslinux_memmap_find(amap, SMT_FREE, &start, &xlen, align) ||
       syslinux_add_memmap(&amap, start, len+pad, SMT_ALLOC) ||
@@ -75,7 +75,7 @@ addr_t map_string(const char *string)
   if (!string)
     return 0;
   else
-    return map_data(string, strlen(string)+1, 4, true);
+    return map_data(string, strlen(string)+1, 1, 0);
 }
 
 int map_image(void *ptr, size_t len)
@@ -217,7 +217,11 @@ int map_image(void *ptr, size_t len)
       sh = (Elf32_Shdr *)((char *)eh + eh->e_shoff);
 
       len = eh->e_shentsize * eh->e_shnum;
-      addr = map_data(sh, len, 4096, true);
+      /*
+       * Align this, but don't pad -- in general this means a bunch of
+       * smaller sections gets packed into a single page.
+       */
+      addr = map_data(sh, len, 4096, MAP_HIGH|MAP_NOPAD);
       if (!addr) {
 	error("Failed to map symbol table\n");
 	goto bail;
@@ -239,7 +243,7 @@ int map_image(void *ptr, size_t len)
 
 	align = sh[i].sh_addralign ? sh[i].sh_addralign : 0;
 	addr = map_data((char *)ptr + sh[i].sh_offset, sh[i].sh_size,
-			align, true);
+			align, MAP_HIGH);
 	if (!addr) {
 	  error("Failed to map symbol section\n");
 	  goto bail;
