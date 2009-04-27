@@ -433,9 +433,9 @@ commit_vk:
 		rep stosb
 
 		; Pack into high memory
-		mov si,VKernelBuf
+		mov esi,VKernelBuf
 		mov edi,[VKernelEnd]
-		mov cx,vk_size
+		mov ecx,vk_size
 		call rllpack
 		mov [VKernelEnd],edi
 .nolabel:

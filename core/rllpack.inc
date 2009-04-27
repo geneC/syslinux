@@ -31,8 +31,8 @@
 
 ;
 ; rllpack:
-;	Pack CX bytes from SI into EDI.
-;	Returns updated (E)SI and EDI.
+;	Pack ECX bytes from ESI into EDI.
+;	Returns updated ESI and EDI.
 ;
 rllpack:
 		push word .pmentry
@@ -44,8 +44,6 @@ rllpack:
 		push ecx
 		push ebx
 		push edx
-		movzx ecx,cx
-		movzx esi,si
 .startseq:
 		xor eax,eax		; Zero byte
 		xor ebx,ebx		; Run length zero
@@ -116,9 +114,9 @@ rllpack:
 		bits 16
 ;
 ; rllunpack:
-;	Unpack bytes from SI into EDI
-;	On return (E)SI, EDI are updated and
-;	(E)CX contains number of bytes output.
+;	Unpack bytes from ESI into EDI
+;	On return ESI, EDI are updated and
+;	ECX contains number of bytes output.
 ;
 rllunpack:
 		push word .pmentry
@@ -128,7 +126,6 @@ rllunpack:
 		bits 32
 .pmentry:
 		push edi
-		movzx esi,si
 		xor ecx,ecx
 .header:
 		dec esi

@@ -161,7 +161,7 @@ display_labels:
 
 		push cx				; save command line size
 
-		mov di,VKernelBuf
+		mov edi,VKernelBuf
 		call rllunpack
 		; ESI updated on return
 
@@ -350,7 +350,7 @@ vk_check:
 		cmp esi,[VKernelEnd]
 		jbe .not_vk
 
-		mov di,VKernelBuf
+		mov edi,VKernelBuf
 		call rllunpack
 		; ESI updated on return
 
