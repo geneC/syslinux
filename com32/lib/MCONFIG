@@ -26,8 +26,7 @@ OPTFLAGS  = -Os -march=i386 -falign-functions=0 -falign-jumps=0 \
 	    -falign-labels=0 -ffast-math -fomit-frame-pointer
 WARNFLAGS = -W -Wall -Wpointer-arith -Wwrite-strings -Wstrict-prototypes -Winline
 
-CFLAGS  = -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d $(OPTFLAGS) \
-	  $(REQFLAGS) $(WARNFLAGS) $(LIBFLAGS)
+CFLAGS  = $(OPTFLAGS) $(REQFLAGS) $(WARNFLAGS) $(LIBFLAGS)
 LDFLAGS	= -m elf32_i386
 
 .SUFFIXES: .c .o .a .so .lo .i .S .s .ls .ss .lss
@@ -37,34 +36,34 @@ LDFLAGS	= -m elf32_i386
 % : %.S
 
 .c.o:
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -c -o $@ $<
 
 .c.i:
-	$(CC) $(CFLAGS) -E -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -E -o $@ $<
 
 .c.s:
-	$(CC) $(CFLAGS) -S -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -S -o $@ $<
 
 .S.o:
-	$(CC) $(CFLAGS) -D__ASSEMBLY__ -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -D__ASSEMBLY__ -c -o $@ $<
 
 .S.s:
-	$(CC) $(CFLAGS) -D__ASSEMBLY__ -E -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -D__ASSEMBLY__ -E -o $@ $<
 
 .S.lo:
-	$(CC) $(CFLAGS) $(SOFLAGS) -D__ASSEMBLY__ -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) $(SOFLAGS) -D__ASSEMBLY__ -c -o $@ $<
 
 .S.ls:
-	$(CC) $(CFLAGS) $(SOFLAGS) -D__ASSEMBLY__ -E -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) $(SOFLAGS) -D__ASSEMBLY__ -E -o $@ $<
 
 .s.o:
-	$(CC) $(CFLAGS) -x assembler -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -x assembler -c -o $@ $<
 
 .ls.lo:
-	$(CC) $(CFLAGS) $(SOFLAGS) -x assembler -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) $(SOFLAGS) -x assembler -c -o $@ $<
 
 .c.lo:
-	$(CC) $(CFLAGS) $(SOFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) $(SOFLAGS) -c -o $@ $<
 
 .c.ls:
-	$(CC) $(CFLAGS) $(SOFLAGS) -S -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) $(SOFLAGS) -S -o $@ $<

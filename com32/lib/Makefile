@@ -136,12 +136,12 @@ install: all
 
 # These files are performance critical, and doesn't compile well with -Os
 sys/vesa/drawtxt.o: sys/vesa/drawtxt.c
-	$(CC) $(CFLAGS) -O3 -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -O3 -c -o $@ $<
 
 sys/vesa/alphatbl.c: sys/vesa/alphatbl.pl
 	$(PERL) $< > $@
 
 jpeg/jidctflt.o: jpeg/jidctflt.c
-	$(CC) $(CFLAGS) -O3 -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -O3 -c -o $@ $<
 
 -include .*.d */.*.d */*/.*.d
