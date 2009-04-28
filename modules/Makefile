@@ -33,7 +33,7 @@ all: $(BINS)
 	$(OBJCOPY) -O binary $< $@
 
 %.com: %.asm
-	( $(NASM) -DDEPEND -o $@ $< ; echo '' ) >> .$@.d ; true
+	( $(NASM) -M -DDEPEND -o $@ $< ; echo '' ) > .$@.d ; true
 	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 
 $(LIB): $(LIBOBJS)

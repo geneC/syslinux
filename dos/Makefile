@@ -60,7 +60,7 @@ syslinux.com: syslinux.elf
 	$(OBJCOPY) -O binary $< $@
 
 %.com: %.asm
-	( $(NASM) -DDEPEND $(NASMOPT) -o $@ -M $< && echo '' ) > .$@.d; true
+	( $(NASM) -M -DDEPEND $(NASMOPT) -o $@ -M $< && echo '' ) > .$@.d; true
 	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 
 -include .*.d *.tmp

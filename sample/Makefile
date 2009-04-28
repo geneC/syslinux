@@ -42,7 +42,7 @@ all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 \
 	$(OBJCOPY) -O binary $< $@
 
 %.com: %.asm
-	( $(NASM) -DDEPEND -o $@ $< ; echo '' ) >> .$@.d ; true
+	( $(NASM) -M -DDEPEND -o $@ $< ; echo '' ) > .$@.d ; true
 	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 
 $(LIB): $(LIBOBJS)

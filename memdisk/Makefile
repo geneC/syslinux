@@ -62,12 +62,12 @@ memdisk16.o: memdisk16.asm
 %.o: %.asm
 
 memdisk16.o: memdisk16.asm
-	( $(NASM) -DDEPEND $(NFLAGS) $(NINCLUDE) -o $@ $< ; echo '' ) >> .$@.d ; true
+	( $(NASM) -M -DDEPEND $(NFLAGS) $(NINCLUDE) -o $@ $< ; echo '' ) > .$@.d ; true
 	$(NASM) -f elf $(NASMOPT) $(NFLAGS) $(NINCLUDE) -o $@ -l $*.lst $<
 
 .PRECIOUS: %.bin
 %.bin: %.asm
-	( $(NASM) -DDEPEND $(NFLAGS) $(NINCLUDE) -o $@ $< ; echo '' ) >> .$@.d ; true
+	( $(NASM) -M -DDEPEND $(NFLAGS) $(NINCLUDE) -o $@ $< ; echo '' ) > .$@.d ; true
 	$(NASM) -f bin $(NASMOPT) $(NFLAGS) $(NINCLUDE) -o $@ -l $*.lst $<
 
 memdisk_%.o: memdisk_%.bin
