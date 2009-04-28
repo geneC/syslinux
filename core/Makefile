@@ -72,7 +72,7 @@ iso%.bin: iso%.elf checksumiso.pl
 	$(OBJCOPY) -O binary $< $@
 
 %.o: %.asm kwdhash.gen ../version.gen
-	( $(NASM) -DDEPEND $(NINCLUDE) -o $@ -M $< && echo '' ) > .$@.d; true
+	( $(NASM) -DDEPEND $(NINCLUDE) -o $@ -M $< ; echo '' ) > .$@.d; true
 	$(NASM) $(NASMOPT) -f elf -g -F stabs -DDATE_STR="'$(DATE)'" \
 		-DHEXDATE="$(HEXDATE)" \
 		-l $(@:.o=.lsr) -o $@ $<

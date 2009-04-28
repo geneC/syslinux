@@ -23,13 +23,13 @@ all:	mbr.bin   altmbr.bin   gptmbr.bin   isohdpfx.bin   \
 	mbr_f.bin altmbr_f.bin gptmbr_f.bin isohdpfx_f.bin
 
 .PRECIOUS: %.o
-%.o: %.S adjust.h
+%.o: %.S
 	$(CC) $(MAKEDEPS) $(SFLAGS) -Wa,-a=$*.lst -c -o $@ $<
 
-%_c.o: %.S adjust.h
+%_c.o: %.S
 	$(CC) $(MAKEDEPS) $(SFLAGS) -Wa,-a=$*_c.lst -DCTRL_80 -c -o $@ $<
 
-%_f.o: %.S adjust.h
+%_f.o: %.S
 	$(CC) $(MAKEDEPS) $(SFLAGS) -Wa,-a=$*_f.lst -DFORCE_80 -c -o $@ $<
 
 .PRECIOUS: %.elf

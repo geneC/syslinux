@@ -24,12 +24,6 @@ BINS = pxechain.com gfxboot.com
 all: $(BINS)
 
 .PRECIOUS: %.o
-%.o: %.S
-	$(CC) $(SFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.o
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.elf
 %.elf: c32entry.o %.o $(LIB)
@@ -39,6 +33,7 @@ all: $(BINS)
 	$(OBJCOPY) -O binary $< $@
 
 %.com: %.asm
+	( $(NASM) -DDEPEND -o $@ $< ; echo '' ) >> .$@.d ; true
 	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 
 $(LIB): $(LIBOBJS)
@@ -55,9 +50,11 @@ $(LIB): $(LIBOBJS)
 	$(PNGTOPNM) $< | gzip -9 > $@
 
 tidy dist:
-	rm -f *.o *.a *.lst *.elf
+	rm -f *.o *.a *.lst *.elf .*.d
 
 clean: tidy
 
 spotless: clean
 	rm -f $(BINS)
+
+-include .*.d

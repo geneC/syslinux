@@ -33,12 +33,6 @@ all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 \
      fd.c32 $(LIB)
 
 .PRECIOUS: %.o
-%.o: %.S
-	$(CC) $(SFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.o
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.elf
 %.elf: c32entry.o %.o $(LIB)
@@ -48,6 +42,7 @@ all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 \
 	$(OBJCOPY) -O binary $< $@
 
 %.com: %.asm
+	( $(NASM) -DDEPEND -o $@ $< ; echo '' ) >> .$@.d ; true
 	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 
 $(LIB): $(LIBOBJS)
@@ -64,10 +59,12 @@ $(LIB): $(LIBOBJS)
 	$(PNGTOPNM) $< | gzip -9 > $@
 
 tidy dist:
-	rm -f *.o *.a *.lst *.elf
+	rm -f *.o *.a *.lst *.elf .*.d
 
 # Don't specify *.com since mdiskchk.com can't be built using Linux tools
 clean: tidy
 	rm -f *.lss *.o *.c32 comecho.com
 
 spotless: clean
+
+-include .*.d

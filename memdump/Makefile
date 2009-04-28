@@ -54,14 +54,14 @@ memdump.com: memdump.elf
 	$(OBJCOPY) -O binary $< $@
 
 %.o: %.c
-	$(CC) -Wp,-MT,$@,-MD,.$@.d $(CFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -c -o $@ $<
 %.i: %.c
-	$(CC) $(CFLAGS) -E -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -E -o $@ $<
 %.s: %.c
-	$(CC) $(CFLAGS) -S -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -S -o $@ $<
 %.o: %.S
-	$(CC) -Wp,-MT,$@,-MD,.$@.d $(CFLAGS) -D__ASSEMBLY__ -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(SFLAGS) -c -o $@ $<
 %.s: %.S
-	$(CC) $(CFLAGS) -E -o $@ $<
+	$(CC) $(MAKEDEPS) $(SFLAGS) -E -o $@ $<
 
 -include .*.d *.tmp
