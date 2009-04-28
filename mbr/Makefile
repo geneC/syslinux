@@ -24,13 +24,13 @@ all:	mbr.bin   altmbr.bin   gptmbr.bin   isohdpfx.bin   \
 
 .PRECIOUS: %.o
 %.o: %.S adjust.h
-	$(CC) $(SFLAGS) -Wa,-a=$*.lst -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(SFLAGS) -Wa,-a=$*.lst -c -o $@ $<
 
 %_c.o: %.S adjust.h
-	$(CC) $(SFLAGS) -Wa,-a=$*_c.lst -DCTRL_80 -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(SFLAGS) -Wa,-a=$*_c.lst -DCTRL_80 -c -o $@ $<
 
 %_f.o: %.S adjust.h
-	$(CC) $(SFLAGS) -Wa,-a=$*_f.lst -DFORCE_80 -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(SFLAGS) -Wa,-a=$*_f.lst -DFORCE_80 -c -o $@ $<
 
 .PRECIOUS: %.elf
 %.elf: %.o mbr.ld
@@ -44,7 +44,7 @@ all:	mbr.bin   altmbr.bin   gptmbr.bin   isohdpfx.bin   \
 mbr_bin.c: mbr.bin
 
 tidy dist:
-	rm -f *.o *.elf *.lst
+	rm -f *.o *.elf *.lst .*.d
 
 clean: tidy
 

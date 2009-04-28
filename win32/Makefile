@@ -78,10 +78,10 @@ syslinux.exe: $(OBJS)
 
 
 %.o: %.c
-	$(WINCC) -Wp,-MT,$@,-MMD,.$@.d $(WINCFLAGS) -c -o $@ $<
+	$(WINCC) $(UMAKEDEPS) $(WINCFLAGS) -c -o $@ $<
 %.i: %.c
-	$(WINCC) $(WINCFLAGS) -E -o $@ $<
+	$(WINCC) $(UMAKEDEPS) $(WINCFLAGS) -E -o $@ $<
 %.s: %.c
-	$(WINCC) $(WINCFLAGS) -S -o $@ $<
+	$(WINCC) $(UMAKEDEPS) $(WINCFLAGS) -S -o $@ $<
 
 -include .*.d *.tmp

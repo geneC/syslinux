@@ -26,7 +26,7 @@ ASIS     = keytab-lilo lss16toppm md5pass ppmtolss16 sha1pass syslinux2ansi
 all: $(TARGETS)
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(UMAKEDEPS) $(CFLAGS) -c -o $@ $<
 
 mkdiskimage: mkdiskimage.in ../mbr/mbr.bin bin2hex.pl
 	$(PERL) bin2hex.pl < ../mbr/mbr.bin | cat mkdiskimage.in - > $@
@@ -40,7 +40,7 @@ gethostip: gethostip.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
 tidy dist:
-	rm -f *.o
+	rm -f *.o .*.d
 
 clean: tidy
 	rm -f $(TARGETS)
@@ -52,3 +52,5 @@ installer: all
 install: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR)
 	install -m 755 $(TARGETS) $(ASIS) $(INSTALLROOT)$(BINDIR)
+
+-include .*.d
