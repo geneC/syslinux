@@ -32,10 +32,7 @@
  * Shuffle and boot to protected mode code
  */
 
-#include <stdlib.h>
 #include <inttypes.h>
-#include <com32.h>
-#include <string.h>
 #include <syslinux/movebits.h>
 #include <syslinux/bootpm.h>
 
@@ -44,14 +41,11 @@ int syslinux_shuffle_boot_pm(struct syslinux_movelist *fraglist,
 			     uint16_t bootflags,
 			     struct syslinux_pm_regs *regs)
 {
-  int nd;
-  com32sys_t ireg;
-  char *regbuf;
   uint8_t handoff_code[9*5], *p;
   const uint32_t *rp;
   int i, rv;
   struct syslinux_memmap *tmap;
-  addr_t regstub, stublen, safe;
+  addr_t regstub, stublen;
 
   tmap = syslinux_target_memmap(fraglist, memmap);
   if (!tmap)
