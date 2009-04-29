@@ -155,11 +155,6 @@ local-spotless:
 spotless: local-clean local-dist local-spotless
 	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
 
-local-depend:
-
-depend: local-depend
-	$(MAKE) -C memdisk depend
-
 # Shortcut to build linux/syslinux using klibc
 klibc:
 	$(MAKE) clean
