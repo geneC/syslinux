@@ -156,6 +156,7 @@ int main(int argc, char *argv[])
 
   openconsole(&dev_null_r, &dev_stdcon_w);
 
+  (void)argc;			/* Unused */
   argv++;
 
   while (*argv) {
