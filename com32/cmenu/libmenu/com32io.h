@@ -71,7 +71,7 @@ static inline unsigned char readbiosb(unsigned int ofs)
 
 static inline char getnumrows()
 {
-    return readbiosb(0x484); // Actually numrows - 1
+    return readbiosb(0x484)+1; // Actually numrows - 1
 }
 
 static inline char getnumcols(void)
