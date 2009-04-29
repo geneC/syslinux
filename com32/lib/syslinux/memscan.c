@@ -64,7 +64,7 @@ int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
   dosmem = oreg.eax.w[0] << 10;
   if (dosmem < 32*1024 || dosmem > 640*1024) {
     /* INT 12h reports nonsense... now what? */
-    uint16_t ebda_seg = (uint16_t *)0x40e;
+    uint16_t ebda_seg = *(uint16_t *)0x40e;
     if (ebda_seg >= 0x8000 && ebda_seg < 0xa000)
       dosmem = ebda_seg << 4;
     else
