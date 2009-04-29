@@ -121,7 +121,10 @@ static int get_modules(char **argv, struct module_data **mdp)
     }
     printf("ok\n");
 
-    argp++;
+    /* 
+     * Note: Grub includes the kernel filename in the command line, so we
+     * want to match that behavior.
+     */
     arglen = 0;
     for (argx = argp; *argx && strcmp(*argx, module_separator); argx++)
       arglen += strlen(*argx)+1;
