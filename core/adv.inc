@@ -384,7 +384,7 @@ adv_read_write:
 		mov si,sp
 		pushad
 		mov dl,[ADVDrive]
-		mov ax,4080h
+		mov ax,4000h
 		or ah,[ADVOp]
 		push ds
 		push ss
