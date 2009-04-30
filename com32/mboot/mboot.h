@@ -54,7 +54,7 @@
 #include "mb_header.h"
 #include "mb_info.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 # define dprintf printf
 #else
