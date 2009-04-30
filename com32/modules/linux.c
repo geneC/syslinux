@@ -63,48 +63,6 @@ static char *find_argument(char **argv, const char *argument)
   return ptr;
 }
 
-/* Get a value with a potential suffix (k/m/g/t/p/e) */
-static unsigned long long suffix_number(const char *str)
-{
-  char *ep;
-  unsigned long long v;
-  int shift;
-
-  v = strtoull(str, &ep, 0);
-  switch (*ep|0x20) {
-  case 'k':
-    shift = 10;
-    break;
-  case 'm':
-    shift = 20;
-    break;
-  case 'g':
-    shift = 30;
-    break;
-  case 't':
-    shift = 40;
-    break;
-  case 'p':
-    shift = 50;
-    break;
-  case 'e':
-    shift = 60;
-    break;
-  default:
-    shift = 0;
-    break;
-  }
-  v <<= shift;
-
-  return v;
-}
-
-/* Truncate to 32 bits, with saturate */
-static inline uint32_t saturate32(unsigned long long v)
-{
-  return (v > 0xffffffff) ? 0xffffffff : (uint32_t)v;
-}
-
 /* Stitch together the command line from a set of argv's */
 static char *make_cmdline(char **argv)
 {
@@ -137,8 +95,6 @@ static char *make_cmdline(char **argv)
 
 int main(int argc, char *argv[])
 {
-  uint32_t mem_limit = 0;
-  uint16_t video_mode = 0;
   const char *kernel_name;
   struct initramfs *initramfs;
   char *cmdline;
@@ -200,27 +156,6 @@ int main(int argc, char *argv[])
   if (!initramfs)
     goto bail;
 
-  /* Look for specific command-line arguments we care about */
-  if ((arg = find_argument(argp, "mem=")))
-    mem_limit = saturate32(suffix_number(arg));
-
-  if ((arg = find_argument(argp, "vga="))) {
-    switch (arg[0] | 0x20) {
-    case 'a':			/* "ask" */
-      video_mode = 0xfffd;
-      break;
-    case 'e':			/* "ext" */
-      video_mode = 0xfffe;
-      break;
-    case 'n':			/* "normal" */
-      video_mode = 0xffff;
-      break;
-    default:
-      video_mode = strtoul(arg, NULL, 0);
-      break;
-    }
-  }
-
   if ((arg = find_argument(argp, "initrd="))) {
     do {
       p = strchr(arg, ',');
@@ -248,8 +183,7 @@ int main(int argc, char *argv[])
   }
 
   /* This should not return... */
-  syslinux_boot_linux(kernel_data, kernel_len, initramfs, cmdline,
-		      video_mode, mem_limit);
+  syslinux_boot_linux(kernel_data, kernel_len, initramfs, cmdline);
 
  bail:
   fprintf(stderr, "Kernel load failure (insufficient memory?)\n");

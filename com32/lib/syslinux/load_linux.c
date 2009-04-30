@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -32,6 +32,7 @@
  * Load a Linux kernel (Image/zImage/bzImage).
  */
 
+#include <ctype.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -94,6 +95,74 @@ struct linux_header {
 #define LOAD_HIGH	0x01
 #define CAN_USE_HEAP	0x80
 
+/* Get a value with a potential suffix (k/m/g/t/p/e) */
+static unsigned long long suffix_number(const char *str)
+{
+  char *ep;
+  unsigned long long v;
+  int shift;
+
+  v = strtoull(str, &ep, 0);
+  switch (*ep|0x20) {
+  case 'k':
+    shift = 10;
+    break;
+  case 'm':
+    shift = 20;
+    break;
+  case 'g':
+    shift = 30;
+    break;
+  case 't':
+    shift = 40;
+    break;
+  case 'p':
+    shift = 50;
+    break;
+  case 'e':
+    shift = 60;
+    break;
+  default:
+    shift = 0;
+    break;
+  }
+  v <<= shift;
+
+  return v;
+}
+
+/* 
+ * Find the last instance of a particular command line argument
+ * (which should include the final =; do not use for boolean arguments)
+ * Note: the resulting string is typically not null-terminated.
+ */
+static const char *find_argument(const char *cmdline, const char *argument)
+{
+  const char *found = NULL;
+  const char *p = cmdline;
+  bool was_space = true;
+  size_t la = strlen(argument);
+
+  while (*p) {
+    if (isspace(*p)) {
+      was_space = true;
+    } else if (was_space) {
+      if (!memcmp(p, argument, la))
+	found = p+la;
+      was_space = false;
+    }
+    p++;
+  }
+
+  return found;
+}
+
+/* Truncate to 32 bits, with saturate */
+static inline uint32_t saturate32(unsigned long long v)
+{
+  return (v > 0xffffffff) ? 0xffffffff : (uint32_t)v;
+}
+
 /* Get the combined size of the initramfs */
 static addr_t initramfs_size(struct initramfs *initramfs)
 {
@@ -148,10 +217,7 @@ static int map_initramfs(struct syslinux_movelist **fraglist,
 }
 
 int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
-			struct initramfs *initramfs,
-			char *cmdline,
-			uint16_t video_mode,
-			uint32_t memlimit)
+			struct initramfs *initramfs, char *cmdline)
 {
   struct linux_header hdr, *whdr;
   size_t real_mode_size, prot_mode_size;
@@ -163,11 +229,35 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
   struct syslinux_memmap *mmap = NULL;
   struct syslinux_memmap *amap = NULL;
   bool ok;
+  uint32_t memlimit = 0;
+  uint16_t video_mode = 0;
+  const char *arg;
 
   cmdline_size = strlen(cmdline)+1;
 
   if (kernel_size < 2*512)
     goto bail;
+
+  /* Look for specific command-line arguments we care about */
+  if ((arg = find_argument(cmdline, "mem=")))
+    memlimit = saturate32(suffix_number(arg));
+
+  if ((arg = find_argument(cmdline, "vga="))) {
+    switch (arg[0] | 0x20) {
+    case 'a':			/* "ask" */
+      video_mode = 0xfffd;
+      break;
+    case 'e':			/* "ext" */
+      video_mode = 0xfffe;
+      break;
+    case 'n':			/* "normal" */
+      video_mode = 0xffff;
+      break;
+    default:
+      video_mode = strtoul(arg, NULL, 0);
+      break;
+    }
+  }
 
   /* Copy the header into private storage */
   /* Use whdr to modify the actual kernel header */
@@ -190,7 +280,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
   if (hdr.version < 0x0203)
     hdr.initrd_addr_max = 0x37ffffff;
 
-  if (!memlimit || memlimit-1 > hdr.initrd_addr_max)
+  if (!memlimit && memlimit-1 > hdr.initrd_addr_max)
     memlimit = hdr.initrd_addr_max+1; /* Zero for no limit */
 
   if (hdr.version < 0x0205)

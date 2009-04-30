@@ -52,10 +52,7 @@ struct initramfs {
 #define INITRAMFS_MAX_ALIGN	4096
 
 int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
-			struct initramfs *initramfs,
-			char *cmdline,
-			uint16_t video_mode,
-			uint32_t mem_limit);
+			struct initramfs *initramfs, char *cmdline);
 
 /* Initramfs manipulation functions */
 
