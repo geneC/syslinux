@@ -1,3 +1,22 @@
+/* ----------------------------------------------------------------------- *
+ *
+ *   Copyright 2009 Pierre-Alexandre Meyer
+ *
+ *   Some parts borrowed from chain.c32:
+ *
+ *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *
+ *   Some parts borrowed from Linux:
+ *
+ *   Copyright (C) 2002, 2003, 2004 Dell Inc.
+ *   by Matt Domsch <Matt_Domsch@dell.com>
+ *
+ *   This file is part of Syslinux, and is made available under
+ *   the terms of the GNU General Public License version 2.
+ *
+ * ----------------------------------------------------------------------- */
+
 #ifndef _GEOM_H_
 #define _GEOM_H_
 
