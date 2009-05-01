@@ -931,7 +931,7 @@ gfx_mem0_start		dd 0			; 44: low free memory start
 gfx_mem0_end		dd 0			; 48: low free memory end
 gfx_sysconfig_end	equ $
 
-			section .bss align=512
+			section .bss align=4096
 trackbufsize		equ 16384
 trackbuf		resb trackbufsize
 configbuf		resb trackbufsize
