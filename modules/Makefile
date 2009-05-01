@@ -50,7 +50,7 @@ $(LIB): $(LIBOBJS)
 	$(PNGTOPNM) $< | gzip -9 > $@
 
 tidy dist:
-	rm -f *.o *.a *.lst *.elf .*.d
+	rm -f *.o *.a *.lst *.elf *.map .*.d
 
 clean: tidy
 

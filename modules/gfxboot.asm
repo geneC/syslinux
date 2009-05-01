@@ -20,6 +20,8 @@
 ;
 ; ****************************************************************************
 
+		[map all gfxboot.map]
+
 		absolute 0
 pspInt20:	resw 1
 pspNextP:	resw 1
@@ -33,6 +35,15 @@ pspCmdArg:	resb 127
 		org 100h
 
 _start:
+		; Zero memory from the start of .bss to the stack
+		cld
+		mov di,section..bss.start
+		mov cx,sp
+		sub cx,di
+		shr cx,2
+		xor eax,eax
+		rep stosd
+
 		mov ax,2
 		mov bx, msg_progname
 		int 22h
@@ -866,23 +877,8 @@ memcmp:
 		ret
 
 		section .data
-derivative_id		db 0
-drivenumber		db 0
-sectorshift		db 0
-sectorsize		dw 0
-trackbufsize		equ 16384
-trackbuf		times trackbufsize db 0
-BufSafe			dw 0
-file_length		dd 0
-
-bufbytes		dw 0
-bufdata			dw 0
-configbuf		times trackbufsize db 0
-ungetc_cnt		db 0
-ungetcdata		db 0
 label_keyword		db 6,'label',0
 default_keyword		db 7,'default',0
-label_cnt		dw 0
 
 msg_progname		db 'gfxboot: ',0
 msg_config_file		db 'Configuration file',0
@@ -895,16 +891,8 @@ msg_unknown_file_size	db 'unknown file size',0dh,0ah,0
 msg_space		db ' ',0
 msg_crlf		db 0dh,0ah,0
 
-f_handle		dw 0
-f_size			dd 0
-fname_buf		times 64 db 0
-fname_buf_len		equ $ - fname_buf
 gfx_slash		db '/', 0
 db0			db 0
-max_cmd_len  equ 2047
-command_line		times max_cmd_len+2 db 0
-dentry_buf		times 512 db 0
-dentry_buf_len		equ $ - dentry_buf
 
 ; menu entry descriptor
 menu_entries		equ 0
@@ -914,26 +902,6 @@ menu_ent_size		equ 10
 menu_arg_list		equ 12		; seg:ofs
 menu_arg_size		equ 16
 sizeof_menu_desc	equ 18
-
-menu_desc		times sizeof_menu_desc db 0
-menu_seg		dw 0
-menu_off		dw 0
-
-gfx_mem_start_seg	dw 0
-gfx_mem_end_seg		dw 0
-
-			align 4, db 0
-gfx_mem			dd 0		; linear address
-gfx_save_area1		dd 0		; 64k
-gfx_save_area1_used	db 0		; != 0 if area1 is in use
-
-; interface to loadable gfx extension (seg:ofs values)
-gfx_bc_jt		dd 0
-
-gfx_bc_init		dd 0
-gfx_bc_done		dd 0
-gfx_bc_input		dd 0
-gfx_bc_menu_init	dd 0
 
 ; system config data (52 bytes)
 gfx_sysconfig		equ $
@@ -962,3 +930,56 @@ gfx_archive_end		dd 0			; 40: end of cpio archive
 gfx_mem0_start		dd 0			; 44: low free memory start
 gfx_mem0_end		dd 0			; 48: low free memory end
 gfx_sysconfig_end	equ $
+
+			section .bss align=512
+trackbufsize		equ 16384
+trackbuf		resb trackbufsize
+configbuf		resb trackbufsize
+
+dentry_buf		resb 512
+dentry_buf_len		equ $ - dentry_buf
+
+max_cmd_len		equ 2047
+command_line		resb max_cmd_len+2
+
+			alignb 4
+derivative_id		resb 1
+drivenumber		resb 1
+sectorshift		resb 1
+			resb 1			; Pad
+sectorsize		resw 1
+BufSafe			resw 1
+file_length		resd 1
+
+bufbytes		resw 1
+bufdata			resw 1
+ungetc_cnt		resb 1
+ungetcdata		resb 1
+
+f_handle		resw 1
+f_size			resd 1
+fname_buf		resb 64
+fname_buf_len		equ $ - fname_buf
+
+label_cnt		resw 1
+
+menu_desc		resb sizeof_menu_desc
+menu_seg		resw 1
+menu_off		resw 1
+
+gfx_mem_start_seg	resw 1
+gfx_mem_end_seg		resw 1
+
+			alignb 4
+gfx_mem			resd 1		; linear address
+gfx_save_area1		resd 1		; 64k
+gfx_save_area1_used	resb 1		; != 0 if area1 is in use
+
+			alignb 4
+; interface to loadable gfx extension (seg:ofs values)
+gfx_bc_jt		resd 1
+
+gfx_bc_init		resd 1
+gfx_bc_done		resd 1
+gfx_bc_input		resd 1
+gfx_bc_menu_init	resd 1
