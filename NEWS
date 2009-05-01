@@ -8,6 +8,7 @@ Changes in 3.80:
 	* The syslinux_boot_linux() function has been simplified.
 	* Don't hang trying to boot a "menu quit" label from the CLI.
 	* Fix problem with boot-once "sticking" on some BIOSes.
+	* isohybrid: fix problem with images over 2 GB in size.
 
 Changes in 3.76:
 	* ISOLINUX: fix the handling of large directories.  Bug found
