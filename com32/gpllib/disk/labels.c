@@ -1,3 +1,12 @@
+/* ----------------------------------------------------------------------- *
+ *
+ *   Copyright 2009 Pierre-Alexandre Meyer
+ *
+ *   This file is part of Syslinux, and is made available under
+ *   the terms of the GNU General Public License version 2.
+ *
+ * ----------------------------------------------------------------------- */
+
 #include <stdlib.h>
 #include <string.h>
 
