@@ -311,15 +311,14 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		loop .loop
 .done:
 		mov byte [VKernel],1		; We've seen a "label" statement
-		mov si,VKernelBuf+vk_vname	; By default, rname == vname
+		mov si,VKernelBuf+vk_vname	; By default, rname == mangled vname
 		mov di,VKernelBuf+vk_rname
-		mov cx,FILENAME_MAX
+		call mangle_name
+		mov si,AppendBuf		; Default append==global append
+		mov di,VKernelBuf+vk_append
+		mov cx,[AppendLen]
+		mov [VKernelBuf+vk_appendlen],cx
 		rep movsb
-                mov si,AppendBuf		; Default append==global append
-                mov di,VKernelBuf+vk_append
-                mov cx,[AppendLen]
-                mov [VKernelBuf+vk_appendlen],cx
-                rep movsb
 %if IS_PXELINUX					; PXELINUX only
 		mov al,[IPAppend]		; Default ipappend==global ipappend
 		mov [VKernelBuf+vk_ipappend],al
