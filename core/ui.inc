@@ -435,7 +435,7 @@ vk_check:
 get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/extension
 		mov di,KernelName+4*IS_PXELINUX
 		cmp byte [di],' '
-		jb bad_kernel			; Missing kernel name
+		jbe bad_kernel			; Missing kernel name
 		xor al,al
 		mov cx,FILENAME_MAX-5		; Need 4 chars + null
 		repne scasb			; Scan for final null
