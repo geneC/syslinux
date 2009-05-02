@@ -111,8 +111,6 @@ int map_image(void *ptr, size_t len)
   unsigned int i;
   uint32_t bad_flags;
 
-  regs.eax = MULTIBOOT_VALID;
-
   /*
    * Search for the multiboot header...
    */
@@ -325,5 +323,6 @@ void mboot_run(int bootflags)
   
   dprintf("Running, eip = 0x%08x, ebx = 0x%08x\n", regs.eip, regs.ebx);
 
+  regs.eax = MULTIBOOT_VALID;
   syslinux_shuffle_boot_pm(ml, mmap, bootflags, &regs);
 }
