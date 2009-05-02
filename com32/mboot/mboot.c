@@ -185,6 +185,9 @@ int main(int argc, char *argv[])
     return 1;			/* Failure */
   }
 
+  if (init_map())
+    return 1;			/* Failed to allocate intitial map */
+
   /*
    * Map the primary image.  This should be done before mapping anything
    * else, since it will have fixed address requirements.

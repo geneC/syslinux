@@ -81,6 +81,7 @@ addr_t map_data(const void *data, size_t len, size_t align, int flags);
 addr_t map_string(const char *string);
 int map_image(void *ptr, size_t len);
 void mboot_run(int bootflags);
+int init_map(void);
 
 /* mem.c */
 void mboot_make_memmap(void);

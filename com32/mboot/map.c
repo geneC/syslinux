@@ -78,6 +78,29 @@ addr_t map_string(const char *string)
     return map_data(string, strlen(string)+1, 1, 0);
 }
 
+int init_map(void)
+{
+  /*
+   * Note: mmap is the memory map (containing free and zeroed regions)
+   * needed by syslinux_shuffle_boot_pm(); amap is a map where we keep
+   * track ourselves which target memory ranges have already been
+   * allocated.
+   */
+  mmap = syslinux_memory_map();
+  amap = syslinux_dup_memmap(mmap);
+  if (!mmap || !amap) {
+    error("Failed to allocate initial memory map!\n");
+    return -1;
+  }
+
+#if DEBUG
+  dprintf("Initial memory map:\n");
+  syslinux_dump_memmap(stdout, mmap);
+#endif
+
+  return 0;
+}
+
 int map_image(void *ptr, size_t len)
 {
   int mbh_len;
@@ -121,12 +144,6 @@ int map_image(void *ptr, size_t len)
     }
   }
 
-  /*
-   * Note: mmap is the memory map (containing free and zeroed regions)
-   * needed by syslinux_shuffle_boot_pm(); amap is a map where we keep
-   * track ourselves which target memory ranges have already been
-   * allocated.
-   */
   if ( len < sizeof(Elf32_Ehdr) ||
        memcmp(eh->e_ident, "\x7f""ELF\1\1\1", 6) ||
        (eh->e_machine != EM_386 && eh->e_machine != EM_486 &&
@@ -137,18 +154,6 @@ int map_image(void *ptr, size_t len)
        !eh->e_phnum ||
        eh->e_phoff+eh->e_phentsize*eh->e_phnum > len )
     eh = NULL;			/* No valid ELF header found */
-
-  mmap = syslinux_memory_map();
-  amap = syslinux_dup_memmap(mmap);
-  if (!mmap || !amap) {
-    error("Failed to allocate initial memory map!\n");
-    goto bail;
-  }
-
-#if DEBUG
-  dprintf("Initial memory map:\n");
-  syslinux_dump_memmap(stdout, mmap);
-#endif
 
   /*
    * Note: the Multiboot Specification implies that AOUT_KLUDGE should
@@ -177,13 +182,13 @@ int map_image(void *ptr, size_t len)
 	if (syslinux_memmap_type(amap, addr, msize) != SMT_FREE) {
 	  printf("Memory segment at 0x%08x (len 0x%08x) is unavailable\n",
 		 addr, msize);
-	  goto bail;		/* Memory region unavailable */
+	  return -1;		/* Memory region unavailable */
 	}
 
 	/* Mark this region as allocated in the available map */
 	if (syslinux_add_memmap(&amap, addr, msize, SMT_ALLOC)) {
 	  error("Overlapping segments found in ELF header\n");
-	  goto bail;
+	  return -1;
 	}
 
 	if (ph->p_filesz) {
@@ -191,14 +196,14 @@ int map_image(void *ptr, size_t len)
 	  if (syslinux_add_movelist(&ml, addr, (addr_t)cptr+ph->p_offset,
 				    dsize)) {
 	    error("Failed to map PHDR data\n");
-	    goto bail;
+	    return -1;
 	  }
 	}
 	if (msize > dsize) {
 	  /* Zero-filled region.  Mark as a zero region in the memory map. */
 	  if (syslinux_add_memmap(&mmap, addr+dsize, msize-dsize, SMT_ZERO)) {
 	    error("Failed to map PHDR zero region\n");
-	    goto bail;
+	    return -1;
 	  }
 	}
 	if (addr+msize > mboot_high_water_mark)
@@ -224,7 +229,7 @@ int map_image(void *ptr, size_t len)
       addr = map_data(sh, len, 4096, MAP_HIGH|MAP_NOPAD);
       if (!addr) {
 	error("Failed to map symbol table\n");
-	goto bail;
+	return -1;
       }
 
       mbinfo.flags |= MB_INFO_ELF_SHDR;
@@ -246,7 +251,7 @@ int map_image(void *ptr, size_t len)
 			align, MAP_HIGH);
 	if (!addr) {
 	  error("Failed to map symbol section\n");
-	  goto bail;
+	  return -1;
 	}
 	sh[i].sh_addr = addr;
       }
@@ -268,38 +273,32 @@ int map_image(void *ptr, size_t len)
 	!= SMT_FREE) {
       printf("Memory segment at 0x%08x (len 0x%08x) is unavailable\n",
 	     mbh->load_addr, data_len+bss_len);
-      goto bail;		/* Memory region unavailable */
+      return -1;		/* Memory region unavailable */
     }
     if (syslinux_add_memmap(&amap, mbh->load_addr,
 			    data_len+bss_len, SMT_ALLOC)) {
       error("Failed to claim a.out address space!\n");
-      goto bail;
+      return -1;
     }
     if (data_len)
       if (syslinux_add_movelist(&ml, mbh->load_addr, (addr_t)data_ptr,
 				data_len)) {
 	error("Failed to map a.out data\n");
-	goto bail;
+	return -1;
       }
     if (bss_len)
       if (syslinux_add_memmap(&mmap, mbh->load_end_addr, bss_len, SMT_ZERO)) {
 	error("Failed to map a.out bss\n");
-	goto bail;
+	return -1;
       }
     if (mbh->bss_end_addr > mboot_high_water_mark)
       mboot_high_water_mark = mbh->bss_end_addr;
   } else {
     error("Invalid Multiboot image: neither ELF header nor a.out kludge found\n");
-    goto bail;
+    return -1;
   }
 
   return 0;
-
- bail:
-  syslinux_free_memmap(amap);
-  syslinux_free_memmap(mmap);
-  syslinux_free_movelist(ml);
-  return -1;
 }
 
 /*
