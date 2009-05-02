@@ -40,6 +40,21 @@
 #include <syslinux/align.h>
 #include <syslinux/movebits.h>
 
+#ifndef DEBUG
+# ifdef TEST
+#  define DEBUG 1
+# else
+#  define DEBUG 0
+# endif
+#endif
+
+#if DEBUG
+# include <stdio.h>
+# define dprintf printf
+#else
+# define dprintf(...) ((void)0)
+#endif
+
 /*
  * Create an empty syslinux_memmap list.
  */
@@ -78,9 +93,13 @@ int syslinux_add_memmap(struct syslinux_memmap **list,
 {
   addr_t last;
   struct syslinux_memmap *mp, **mpp;
-  struct syslinux_memmap *mpi;
   struct syslinux_memmap *range;
   enum syslinux_memmap_types oldtype;
+
+#if DEBUG
+  dprintf("Input memmap:\n");
+  syslinux_dump_memmap(stdout, *list);
+#endif
 
   /* Remove this to make len == 0 mean all of memory */
   if (len == 0)
@@ -90,59 +109,65 @@ int syslinux_add_memmap(struct syslinux_memmap **list,
   last = start+len-1;
 
   mpp = list;
-  oldtype = SMT_ERROR;
+  oldtype = SMT_END;		/* Impossible value */
   while (mp = *mpp, start > mp->start && mp->type != SMT_END) {
     oldtype = mp->type;
     mpp = &mp->next;
   }
 
   if (start < mp->start || mp->type == SMT_END) {
-    range = malloc(sizeof(*range));
-    if (!range)
-      return -1;
+    if (type != oldtype) {
+      /* Splice in a new start token */
+      range = malloc(sizeof(*range));
+      if (!range)
+	return -1;
 
-    range->start = start;
-    range->type  = type;
-    *mpp = range;
-    range->next = mp;
-    mpp = &range->next;
+      range->start = start;
+      range->type  = type;
+      *mpp = range;
+      range->next = mp;
+      mpp = &range->next;
+    }
+  } else {
+    /* mp is exactly aligned with the start of our region */
+    if (type != oldtype) {
+      /* Reclaim this entry as our own boundary marker */
+      oldtype = mp->type;
+      mp->type = type;
+      mpp = &mp->next;
+    }
   }
 
   while (mp = *mpp, last > mp->start-1) {
     oldtype = mp->type;
-    mp->type = type;
-    mpp = &mp->next;
+    *mpp = mp->next;
+    free(mp);
   }
 
   if (last < mp->start-1) {
-    range = malloc(sizeof(*range));
-    if (!range)
-      return -1;
+    if (oldtype != type) {
+      /* Need a new end token */
+      range = malloc(sizeof(*range));
+      if (!range)
+	return -1;
 
-    range->start = last+1;
-    range->type  = oldtype;
-    *mpp = range;
-    range->next = mp;
-  }
-
-  /* Now the map is correct, but quite possibly not optimal.  Scan the
-     map for ranges which are redundant and remove them.  This is
-     technically excessive, since we scan the list to the end even
-     though only part of it could have changed.  In particular, the first
-     entry that could change is one earlier than the first one changed
-     above, and once we stop changing things, there shouldn't be any
-     more changes. */
-  mpi = *list;
-  while (mpi->type != SMT_END) {
-    mp = mpi->next;
-    if (mpi->type == mp->type) {
-      mpi->next = mp->next;
+      range->start = last+1;
+      range->type  = oldtype;
+      *mpp = range;
+      range->next = mp;
+    }
+  } else {
+    if (mp->type == type) {
+      /* Merge this region with the following one */
+      *mpp = mp->next;
       free(mp);
-    } else {
-      /* Go on to the next one */
-      mpi = mp;
     }
   }
+
+#if DEBUG
+  dprintf("After adding (%#x,%#x,%d):\n", start, len, type);
+  syslinux_dump_memmap(stdout, *list);
+#endif
 
   return 0;
 }
