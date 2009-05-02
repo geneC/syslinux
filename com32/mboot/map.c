@@ -312,7 +312,7 @@ static void mboot_map_stack(void)
   if (syslinux_memmap_largest(amap, SMT_FREE, &start, &len) || len < 64)
     return;			/* Not much we can do, here... */
 
-  regs.esp = (start+len-32) & ~7;
+  regs.esp = (start+len-32) & ~15;
   dprintf("Mapping stack at 0x%08x\n", regs.esp);
   syslinux_add_memmap(&mmap, regs.esp, 32, SMT_ZERO);
 }
