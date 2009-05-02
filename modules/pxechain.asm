@@ -556,6 +556,3 @@ close_status:	dw 0
 PXEOpenParms:
 open_status:	dw 0
 open_ciaddr:    dd 0
-
-		section .bss
-ipaddrbuf:	resb 16
