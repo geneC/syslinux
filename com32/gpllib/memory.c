@@ -82,10 +82,6 @@ void get_type(int type, char *type_ptr, int type_ptr_sz)
  *	  chipset-defined address holes which are not in use and motherboard
  *	  memory-mapped devices, and all occurrences of the system BIOS as
  *	  reserved; standard PC address ranges will not be reported
- *
- *	 ACPI 3.0 added the extended flags support.  If bit 0
- *	   in the extended flags is zero, we're supposed to simply
- *	   ignore the entry -- a backwards incompatible change!
  **/
 void detect_memory_e820(struct e820entry *desc, int size_map, int *size_found)
 {
@@ -133,8 +129,13 @@ void detect_memory_e820(struct e820entry *desc, int size_map, int *size_found)
 
 		memcpy(&buf, __com32.cs_bounce, sizeof buf);
 
-		if (oreg.ecx.l < 24)
-			buf.ext_flags = 1;
+		/*
+		 * ACPI 3.0 added the extended flags support.  If bit 0
+		 * in the extended flags is zero, we're supposed to simply
+		 * ignore the entry -- a backwards incompatible change!
+		 */
+		if (oreg.ecx.l > 20 && !(buf.ext_flags & 1))
+			continue;
 
 		memcpy(&desc[count], &buf, sizeof buf);
 		count++;
