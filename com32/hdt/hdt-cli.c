@@ -776,8 +776,15 @@ void start_cli_mode(struct s_hardware *hardware)
 
 	while (hdt_cli.mode != EXIT_MODE) {
 
-		//fgets(cli_line, sizeof cli_line, stdin);
+		/* Let's put the cursor blinking until we get an input */
+		set_cursor_blink(true);
+
+		/* We wait endlessly for a keyboard input*/
 		current_key = get_key(stdin, 0);
+
+		/* We have to cancel the blinking mode to prevent
+		 * input text to blink */
+		set_cursor_blink(false);
 
 		/* Reset autocomplete buffer unless TAB is pressed */
 		if (current_key != KEY_TAB)
