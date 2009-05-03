@@ -663,23 +663,26 @@ int main(int argc, char *argv[])
   struct syslinux_movelist **fep = &frags;
   struct syslinux_movelist *mv, *moves;
   struct syslinux_memmap *memmap;
+  char line[BUFSIZ];
 
   (void)argc;
 
   memmap = syslinux_init_memmap();
 
   f = fopen(argv[1], "r");
-  while ( fscanf(f, "%lx %lx %lx", &s, &d, &l) == 3 ) {
-    if ( d ) {
-      if (s == -1UL) {
-	syslinux_add_memmap(&memmap, d, l, SMT_ZERO);
+  while ( fgets(line, sizeof line, f) != NULL ) {
+    if ( sscanf(line, "%lx %lx %lx", &s, &d, &l) == 3 ) {
+      if ( d ) {
+	if (s == -1UL) {
+	  syslinux_add_memmap(&memmap, d, l, SMT_ZERO);
+	} else {
+	  mv = new_movelist(d, s, l);
+	  *fep = mv;
+	  fep = &mv->next;
+	}
       } else {
-	mv = new_movelist(d, s, l);
-	*fep = mv;
-	fep = &mv->next;
+	syslinux_add_memmap(&memmap, s, l, SMT_FREE);
       }
-    } else {
-      syslinux_add_memmap(&memmap, s, l, SMT_FREE);
     }
   }
   fclose(f);
