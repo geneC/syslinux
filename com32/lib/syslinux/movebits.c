@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -43,6 +44,8 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <setjmp.h>
+#include <minmax.h>
+#include <stdbool.h>
 
 #include <syslinux/movebits.h>
 
@@ -60,9 +63,6 @@
 #else
 # define dprintf(...) ((void)0)
 #endif
-
-#define min(x,y) ((x) < (y) ? (x) : (y))
-#define max(x,y) ((x) > (y) ? (x) : (y))
 
 static jmp_buf new_movelist_bail;
 
@@ -230,6 +230,97 @@ allocate_from(struct syslinux_memmap **mmap, addr_t start, addr_t len)
 }
 
 /*
+ * Find chunks of a movelist which are one-to-many (one source, multiple
+ * destinations.)  Those chunks can get turned into post-shuffle copies,
+ * to avoid confusing the shuffler.
+ */
+static void shuffle_dealias(struct syslinux_movelist **fraglist,
+			    struct syslinux_movelist **postcopy)
+{
+  struct syslinux_movelist *mp, **mpp, *mx, *np;
+  addr_t ps, pe, xs, xe, delta;
+  bool advance;
+
+#if DEBUG
+  dprintf("Before alias resolution:\n");
+  syslinux_dump_movelist(stdout, *fraglist);
+#endif
+
+  *postcopy = NULL;
+
+  /*
+   * Note: as written, this is an O(n^2) algorithm; by producing a list
+   * sorted by destination address we could reduce it to O(n log n).
+   */
+  mpp = fraglist;
+  while ((mp = *mpp)) {
+    dprintf("mp -> (%#x,%#x,%#x)\n", mp->dst, mp->src, mp->len);
+    ps = mp->src;
+    pe = mp->src + mp->len - 1;
+    for (mx = *fraglist; mx != mp; mx = mx->next) {
+      dprintf("mx -> (%#x,%#x,%#x)\n", mx->dst, mx->src, mx->len);
+      /*
+       * If there is any overlap between mx and mp, mp should be
+       * modified and possibly split.
+       */
+      xs = mx->src;
+      xe = mx->src + mx->len - 1;
+
+      dprintf("?: %#x..%#x (inside %#x..%#x)\n", ps, pe, xs, xe);
+
+      if (pe <= xs || ps >= xe)
+	continue;		/* No overlap */
+
+      advance = false;
+      *mpp = mp->next;		/* Remove from list */
+
+      if (pe > xe) {
+	delta = pe-xe;
+	np = new_movelist(mp->dst+mp->len-delta, mp->src+mp->len-delta, delta);
+	mp->len -= delta; pe = xe;
+	np->next = *mpp;
+	*mpp = np;
+	advance = true;
+      }
+      if (ps < xs) {
+	delta = xs-ps;
+	np = new_movelist(mp->dst, ps, delta);
+	mp->src += delta; ps = mp->src;
+	mp->dst += delta;
+	mp->len -= delta;
+	np->next = *mpp;
+	*mpp = np;
+	advance = true;
+      }
+
+      assert(ps >= xs && pe <= xe);
+
+      dprintf("Overlap: %#x..%#x (inside %#x..%#x)\n", ps, pe, xs, xe);
+
+      mp->src = mx->dst + (ps-xs);
+      mp->next = *postcopy;
+      *postcopy = mp;
+
+      mp = *mpp;
+      
+      if (!advance)
+	goto restart;
+    }
+  
+    mpp = &mp->next;
+  restart:
+    ;
+  }
+
+#if DEBUG
+  dprintf("After alias resolution:\n");
+  syslinux_dump_movelist(stdout, *fraglist);
+  dprintf("Post-shuffle copies:\n");
+  syslinux_dump_movelist(stdout, *postcopy);
+#endif
+}
+
+/*
  * The code to actually emit moving of a chunk into its final place.
  */
 static void
@@ -304,7 +395,6 @@ move_chunk(struct syslinux_movelist ***moves,
  * moves is computed from "frags" and "freemem".  "space" lists
  * free memory areas at our disposal, and is (src, cnt) only.
  */
-
 int
 syslinux_compute_movelist(struct syslinux_movelist **moves,
 			  struct syslinux_movelist *ifrags,
@@ -313,6 +403,7 @@ syslinux_compute_movelist(struct syslinux_movelist **moves,
   struct syslinux_memmap *mmap = NULL;
   const struct syslinux_memmap *mm, *ep;
   struct syslinux_movelist *frags = NULL;
+  struct syslinux_movelist *postcopy = NULL;
   struct syslinux_movelist *mv;
   struct syslinux_movelist *f, **fp;
   struct syslinux_movelist *o, **op;
@@ -341,6 +432,9 @@ syslinux_compute_movelist(struct syslinux_movelist **moves,
     goto nomem;
 
   frags = dup_movelist(ifrags);
+
+  /* Process one-to-many conditions */
+  shuffle_dealias(&frags, &postcopy);
 
   for (mm = memmap; mm->type != SMT_END; mm = mm->next)
     add_freelist(&mmap, mm->start, mm->next->start - mm->start,
@@ -540,12 +634,20 @@ syslinux_compute_movelist(struct syslinux_movelist **moves,
     move_chunk(&moves, &mmap, fp, copylen);
   }
 
+  /* Finally, append the postcopy chain to the end of the moves list */
+  for (op = moves; (o = *op); op = &o->next)
+    ;				/* Locate the end of the list */
+  *op = postcopy;
+  postcopy = NULL;
+
   rv = 0;
  bail:
   if (mmap)
     syslinux_free_memmap(mmap);
   if (frags)
     free_movelist(&frags);
+  if (postcopy)
+    free_movelist(&postcopy);
   return rv;
 }
 
@@ -559,32 +661,42 @@ int main(int argc, char *argv[])
   unsigned long d, s, l;
   struct syslinux_movelist *frags;
   struct syslinux_movelist **fep = &frags;
-  struct syslinux_movelist *space;
-  struct syslinux_movelist **sep = &space;
   struct syslinux_movelist *mv, *moves;
+  struct syslinux_memmap *memmap;
+
+  (void)argc;
+
+  memmap = syslinux_init_memmap();
 
   f = fopen(argv[1], "r");
-  while ( fscanf(f, "%lx %lx %lx", &d, &s, &l) == 3 ) {
+  while ( fscanf(f, "%lx %lx %lx", &s, &d, &l) == 3 ) {
     if ( d ) {
-      mv = new_movelist(d, s, l);
-      *fep = mv;
-      fep = &mv->next;
+      if (s == -1UL) {
+	syslinux_add_memmap(&memmap, d, l, SMT_ZERO);
+      } else {
+	mv = new_movelist(d, s, l);
+	*fep = mv;
+	fep = &mv->next;
+      }
     } else {
-      mv = new_movelist(0, s, l);
-      *sep = mv;
-      sep = &mv->next;
+      syslinux_add_memmap(&memmap, s, l, SMT_FREE);
     }
   }
   fclose(f);
 
-  if ( syslinux_compute_movelist(&moves, frags, space) ) {
+  *fep = NULL;
+
+  printf("Input move list:\n");
+  syslinux_dump_movelist(stdout, frags);
+  printf("Input free list:\n");
+  syslinux_dump_memmap(stdout, memmap);
+
+  if ( syslinux_compute_movelist(&moves, frags, memmap) ) {
     printf("Failed to compute a move sequence\n");
     return 1;
   } else {
-    for ( mv = moves ; mv ; mv = mv->next ) {
-      printf("0x%08x bytes at 0x%08x -> 0x%08x\n",
-	     mv->len, mv->src, mv->dst);
-    }
+    printf("Final move list:\n");
+    syslinux_dump_movelist(stdout, moves);
     return 0;
   }
  }

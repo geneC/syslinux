@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -116,14 +117,8 @@ static int boot_sdi(void *ptr, size_t len)
   }
   if (syslinux_add_memmap(&amap, 0x7c00, hdr->BootCodeSize, SMT_ALLOC))
     goto bail;
-
-  /* The shuffle library doesn't handle duplication well... */
-  boot_blob = malloc(hdr->BootCodeSize);
-  if (!boot_blob)
-    goto bail;
-  memcpy(boot_blob, (char *)ptr + hdr->BootCodeOffset, hdr->BootCodeSize);
-
-  if (syslinux_add_movelist(&ml, 0x7c00, (addr_t)boot_blob, hdr->BootCodeSize))
+  if (syslinux_add_movelist(&ml, 0x7c00, (addr_t)ptr + hdr->BootCodeOffset,
+			    hdr->BootCodeSize))
     goto bail;
 
   /* **** Map the entire image to SDI_LOAD_ADDR **** */
