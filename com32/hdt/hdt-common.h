@@ -117,6 +117,7 @@ struct s_hardware {
 
   int pci_ids_return_code;
   int modules_pcimap_return_code;
+  int modules_alias_return_code;
   int nb_pci_devices;
   bool is_dmi_valid;
   bool is_pxe_valid;
@@ -134,6 +135,7 @@ struct s_hardware {
   char syslinux_fs[22];
   const struct syslinux_version *sv;
   char modules_pcimap_path[255];
+  char modules_alias_path[255];
   char pciids_path[255];
   char memtest_label[255];
 };

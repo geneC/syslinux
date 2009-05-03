@@ -374,22 +374,16 @@ void main_show_dmi(int argc __unused, char **argv __unused,
 void show_dmi_memory_modules(int argc __unused, char** argv __unused,
                              struct s_hardware *hardware)
 {
+  int clear = 1, show_free_banks = 1;
+
   /* Needed, if called by the memory mode */
   detect_dmi(hardware);
 
-  int clear = 1, show_free_banks = 1;
-
   /* Sanitize arguments */
   if (argc > 0) {
-    clear = strtol(argv[0], NULL, 10);
-    if (errno == ERANGE || clear < 0 || clear > 1)
-      goto usage;
-
-    if (argc > 1) {
-      show_free_banks = strtol(argv[1], NULL, 10);
+      show_free_banks = strtol(argv[0], NULL, 10);
       if (errno == ERANGE || show_free_banks < 0 || show_free_banks > 1)
         goto usage;
-    }
   }
 
   char bank_number[10];
@@ -401,8 +395,6 @@ void show_dmi_memory_modules(int argc __unused, char** argv __unused,
     return;
   }
 
-  if (clear)
-    clear_screen();
   more_printf("Memory Banks\n");
   for (int i = 0; i < hardware->dmi.memory_count; i++) {
     if (hardware->dmi.memory[i].filled == true) {

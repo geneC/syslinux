@@ -217,8 +217,8 @@ void main_show_summary(int argc __unused, char **argv __unused,
 		more_printf(" Release      : %s\n",
 			    hardware->dmi.bios.release_date);
 
-		int argc = 2;
-		char *argv[2] = { "0", "0" };
+		int argc = 1;
+		char *argv[1] = { "0" };
 		show_dmi_memory_modules(argc, argv, hardware);
 	}
 	main_show_pci(argc, argv, hardware);

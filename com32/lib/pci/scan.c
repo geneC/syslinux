@@ -95,7 +95,8 @@ int get_module_name_from_pcimap(struct pci_domain *domain, char *modules_pcimap_
 	return -1;
     }
     for (int i=0;i<MAX_KERNEL_MODULES_PER_PCI_DEVICE;i++) {
-     strlcpy(dev->dev_info->linux_kernel_module[i], "unknown",7);
+     if (strlen(dev->dev_info->linux_kernel_module[i])==0)
+       strlcpy(dev->dev_info->linux_kernel_module[i], "unknown",7);
     }
   }
 
@@ -569,4 +570,130 @@ void free_pci_domain(struct pci_domain *domain)
       free(domain);
     }
   }
+}
+
+/* Try to match any pci device to the appropriate kernel module */
+/* it uses the modules.alias from the boot device */
+int get_module_name_from_alias(struct pci_domain *domain, char *modules_alias_path)
+{
+  char line[MAX_LINE];
+  char module_name[21]; // the module name field is 21 char long
+  char delims[]="*";    // colums are separated by spaces
+  char vendor_id[16];
+  char product_id[16];
+  char sub_vendor_id[16];
+  char sub_product_id[16];
+  FILE *f;
+  struct pci_device *dev=NULL;
+
+  /* Intializing the linux_kernel_module for each pci device to "unknown" */
+  /* adding a dev_info member if needed */
+  for_each_pci_func(dev, domain) {
+    /* initialize the dev_info structure if it doesn't exist yet. */
+    if (! dev->dev_info) {
+      dev->dev_info = zalloc(sizeof *dev->dev_info);
+      if (!dev->dev_info)
+	return -1;
+    }
+    for (int i=0;i<MAX_KERNEL_MODULES_PER_PCI_DEVICE;i++) {
+     if (strlen(dev->dev_info->linux_kernel_module[i])==0)
+       strlcpy(dev->dev_info->linux_kernel_module[i], "unknown",7);
+    }
+  }
+
+  /* Opening the modules.pcimap (of a linux kernel) from the boot device */
+  f=fopen(modules_alias_path, "r");
+  if (!f)
+    return -ENOMODULESALIAS;
+
+  dev->dev_info->linux_kernel_module_count=0;
+
+  /* for each line we found in the modules.pcimap */
+  while ( fgets(line, sizeof line, f) ) {
+    /* skipping unecessary lines */
+    if ((line[0] == '#') || (strstr(line,"alias pci:v")==NULL))
+        continue;
+
+    /* Resetting temp buffer*/
+    memset(module_name,0,sizeof(module_name));
+    memset(vendor_id,0,sizeof(vendor_id));
+    memset(sub_vendor_id,0,sizeof(sub_vendor_id));
+    memset(product_id,0,sizeof(product_id));
+    memset(sub_product_id,0,sizeof(sub_product_id));
+    strcpy(vendor_id,"0000");
+    strcpy(product_id,"0000");
+    /* ffff will be used to match any device as in modules.alias
+     * a missing subvendor/product have to be considered as  0xFFFF*/
+    strcpy(sub_product_id,"ffff");
+    strcpy(sub_vendor_id,"ffff");
+
+    char *result = NULL;
+    int field=0;
+
+    /* looking for the next field */
+    result = strtok(line+strlen("alias pci:v"), delims);
+    while( result != NULL ) {
+	if (field==0) {
+
+		/* Searching for the vendor separator*/
+		char *temp = strstr(result,"d");
+		if (temp != NULL) {
+			strncpy(vendor_id,result,temp-result);
+			result+=strlen(vendor_id)+1;
+		}
+
+		/* Searching for the product separator*/
+		temp = strstr(result,"sv");
+		if (temp != NULL) {
+			strncpy(product_id,result,temp-result);
+			result+=strlen(product_id)+1;
+		}
+
+		/* Searching for the sub vendor separator*/
+		temp = strstr(result,"sd");
+		if (temp != NULL) {
+			strncpy(sub_vendor_id,result,temp-result);
+			result+=strlen(sub_vendor_id)+1;
+		}
+
+		/* Searching for the sub product separator*/
+		temp = strstr(result,"bc");
+		if (temp != NULL) {
+			strncpy(sub_product_id,result,temp-result);
+			result+=strlen(sub_product_id)+1;
+		}
+	/* That's the module name */
+	} else if ((strlen(result)>2) &&
+			(result[0]==0x20))
+		strcpy(module_name,result+1);
+		/* We have to replace \n by \0*/
+		module_name[strlen(module_name)-1]='\0';
+	field++;
+
+	/* Searching the next field */
+        result = strtok( NULL, delims );
+    }
+
+    /* Now we have extracted informations from the modules.alias
+     * Let's compare it with the devices we know*/
+    int int_vendor_id=hex_to_int(vendor_id);
+    int int_sub_vendor_id=hex_to_int(sub_vendor_id);
+    int int_product_id=hex_to_int(product_id);
+    int int_sub_product_id=hex_to_int(sub_product_id);
+    /* if a pci_device matches an entry, fill the linux_kernel_module with
+       the appropriate kernel module */
+    for_each_pci_func(dev, domain) {
+      if (int_vendor_id == dev->vendor &&
+	  int_product_id == dev->product &&
+	  (int_sub_product_id & dev->sub_product)
+	  == dev->sub_product &&
+	  (int_sub_vendor_id & dev->sub_vendor)
+	  == dev->sub_vendor) {
+	strcpy(dev->dev_info->linux_kernel_module[dev->dev_info->linux_kernel_module_count], module_name);
+	dev->dev_info->linux_kernel_module_count++;
+      }
+    }
+  }
+  fclose(f);
+  return 0;
 }
