@@ -50,10 +50,44 @@ static void show_memory_e820(int argc __unused, char **argv __unused,
 	}
 }
 
+static void show_memory_e801(int argc __unused, char **argv __unused,
+			     struct s_hardware *hardware __unused)
+{
+	int mem_low, mem_high = 0;
+
+	if (detect_memory_e801(&mem_low, &mem_high)) {
+		more_printf("e801 bogus!\n");
+	} else {
+		more_printf("e801: %d Kb (%d MiB) - %d Kb (%d MiB)\n",
+		mem_low, mem_low >> 10, mem_high << 6, mem_high >> 4);
+	}
+}
+
+static void show_memory_88(int argc __unused, char **argv __unused,
+			   struct s_hardware *hardware __unused)
+{
+	int mem_size = 0;
+
+	if (detect_memory_88(&mem_size)) {
+		more_printf("8800h bogus!\n");
+	} else {
+		more_printf("8800h memory size: %d Kb (%d MiB)\n", mem_size,
+								   mem_size >> 10);
+	}
+}
+
 struct cli_callback_descr list_memory_show_modules[] = {
 	{
 		.name = "e820",
 		.exec = show_memory_e820,
+	},
+	{
+		.name = "e801",
+		.exec = show_memory_e801,
+	},
+	{
+		.name = "88",
+		.exec = show_memory_88,
 	},
 	{
 		.name = NULL,
@@ -63,7 +97,7 @@ struct cli_callback_descr list_memory_show_modules[] = {
 
 struct cli_module_descr memory_show_modules = {
 	.modules = list_memory_show_modules,
-	.default_callback = NULL,
+	.default_callback = show_dmi_memory_modules,
 };
 
 struct cli_mode_descr memory_mode = {

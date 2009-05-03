@@ -374,6 +374,9 @@ void main_show_dmi(int argc __unused, char **argv __unused,
 void show_dmi_memory_modules(int argc __unused, char** argv __unused,
                              struct s_hardware *hardware)
 {
+  /* Needed, if called by the memory mode */
+  detect_dmi(hardware);
+
   int clear = 1, show_free_banks = 1;
 
   /* Sanitize arguments */
