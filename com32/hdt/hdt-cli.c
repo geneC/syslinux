@@ -971,14 +971,10 @@ void start_cli_mode(struct s_hardware *hardware)
 			/* Print the resulting buffer */
 			printf("%s", hdt_cli.input + hdt_cli.cursor_pos - 1);
 
-			/* Realing to the place we were */
-			move_cursor_left(strlen(hdt_cli.input + hdt_cli.cursor_pos - 1));
-			move_cursor_right(1);
+			/* Realing to a char before the place we were */
+			hdt_cli.cursor_pos--;
+			move_cursor_to_column(strlen(hdt_cli.prompt)+hdt_cli.cursor_pos+1);
 
-			/* Don't decrement the position unless
-			 * if we are at then end of the line*/
-			if (hdt_cli.cursor_pos > (int)strlen(hdt_cli.input))
-				hdt_cli.cursor_pos--;
 			break;
 
 		case KEY_F1:
