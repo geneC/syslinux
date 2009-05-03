@@ -769,12 +769,12 @@ void start_cli_mode(struct s_hardware *hardware)
 
 	printf("Entering CLI mode\n");
 
-	/* Display the cursor */
-	display_cursor(true);
-
 	reset_prompt();
 
 	while (hdt_cli.mode != EXIT_MODE) {
+
+		/* Display the cursor */
+		display_cursor(true);
 
 		/* Let's put the cursor blinking until we get an input */
 		set_cursor_blink(true);
