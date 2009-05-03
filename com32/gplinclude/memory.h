@@ -32,4 +32,6 @@ const char * const e820_types[5];
 
 void get_type(int, char*, int);
 void detect_memory_e820(struct e820entry *desc, int size_map, int *size_found);
+int detect_memory_e801(int*, int*);
+int detect_memory_88(int*);
 #endif

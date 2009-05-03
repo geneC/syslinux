@@ -146,3 +146,71 @@ void detect_memory_e820(struct e820entry *desc, int size_map, int *size_found)
 
 	*size_found = count;
 }
+
+/**
+ * detect_memory_e801
+ *
+ *INT 15 - Phoenix BIOS v4.0 - GET MEMORY SIZE FOR >64M CONFIGURATIONS
+ *	AX = E801h
+ *
+ * Return: CF clear if successful
+ *	    AX = extended memory between 1M and 16M, in K (max 3C00h = 15MB)
+ *	    BX = extended memory above 16M, in 64K blocks
+ *	    CX = configured memory 1M to 16M, in K
+ *	    DX = configured memory above 16M, in 64K blocks
+ *	CF set on error
+ *
+ * Notes: supported by the A03 level (6/14/94) and later XPS P90 BIOSes, as well
+ *	as the Compaq Contura, 3/8/93 DESKPRO/i, and 7/26/93 LTE Lite 386 ROM
+ *	BIOS
+ *	supported by AMI BIOSes dated 8/23/94 or later
+ *	on some systems, the BIOS returns AX=BX=0000h; in this case, use CX
+ *	  and DX instead of AX and BX
+ *	this interface is used by Windows NT 3.1, OS/2 v2.11/2.20, and is
+ *	  used as a fall-back by newer versions if AX=E820h is not supported
+ *	this function is not used by MS-DOS 6.0 HIMEM.SYS when an EISA machine
+ *	  (for example with parameter /EISA) (see also MEM F000h:FFD9h), or no
+ *	  Compaq machine was detected, or parameter /NOABOVE16 was given.
+ **/
+int detect_memory_e801(int* mem_size_below_16, int* mem_size_above_16)
+{
+	com32sys_t ireg, oreg;
+	memset(&ireg, 0, sizeof ireg);
+
+	ireg.eax.w[0] = 0xe801;
+
+	__intcall(0x15, &ireg, &oreg);
+
+	if (oreg.eflags.l & EFLAGS_CF)
+		return -1;
+
+	if (oreg.eax.w[0] > 0x3c00)
+		return -1;	/* Bogus! */
+
+	/* Linux seems to use ecx and edx by default if they are defined */
+	if (oreg.eax.w[0] || oreg.eax.w[0]) {
+		oreg.eax.w[0] = oreg.ecx.w[0];
+		oreg.ebx.w[0] = oreg.edx.w[0];
+	}
+
+	*mem_size_below_16 = oreg.eax.w[0]; /* 1K blocks */
+	*mem_size_above_16 = oreg.ebx.w[0]; /* 64K blocks */
+
+	return 0;
+}
+
+int detect_memory_88(int* mem_size)
+{
+	com32sys_t ireg, oreg;
+	memset(&ireg, 0, sizeof ireg);
+
+	ireg.eax.w[0] = 0x8800;
+
+	__intcall(0x15, &ireg, &oreg);
+
+	if (oreg.eflags.l & EFLAGS_CF)
+		return -1;
+
+	*mem_size = oreg.eax.w[0];
+	return 0;
+}
