@@ -141,11 +141,12 @@ int syslinux_do_shuffle(struct syslinux_movelist *fraglist,
       sizeof(struct shuffle_descriptor)*DESC_BLOCK_SIZE
       + sizeof(struct shuffle_descriptor) + shuffler_size;
 
-    if (descfree < descmem)
+    descaddr = (desczone + descfree - descmem) & ~3;
+
+    if (descaddr < desczone)
       goto bail;		/* No memory block large enough */
 
     /* Mark memory used by shuffle descriptors as reserved */
-    descaddr = desczone + descfree - descmem;
     if (syslinux_add_memmap(&rxmap, descaddr, descmem, SMT_RESERVED))
       goto bail;
 
