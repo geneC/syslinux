@@ -161,18 +161,25 @@ int map_image(void *ptr, size_t len)
    * useless, but at least Solaris apparently depends on this behavior.
    */
   if (eh && !(opt.aout && mbh_len && (mbh->flags & MULTIBOOT_AOUT_KLUDGE))) {
-    regs.eip = eh->e_entry;
+    regs.eip = eh->e_entry;	/* Can be overridden further down... */
 
     ph = (Elf32_Phdr *)(cptr+eh->e_phoff);
 
     for (i = 0; i < eh->e_phnum; i++) {
       if (ph->p_type == PT_LOAD || ph->p_type == PT_PHDR) {
-	/* This loads at p_paddr, which is arguably the correct semantics.
-	   The SysV spec says that SysV loads at p_vaddr (and thus Linux does,
-	   too); that is, however, a major brainfuckage in the spec. */
+	/* 
+	 * This loads at p_paddr, which matches Grub.  However, if
+	 * e_entry falls within the p_vaddr range of this PHDR, then
+	 * adjust it to match the p_paddr range... this is how Grub
+	 * behaves, so it's by definition correct (it doesn't have to
+	 * make sense...)
+	 */
 	addr_t addr  = ph->p_paddr;
 	addr_t msize = ph->p_memsz;
 	addr_t dsize = min(msize, ph->p_filesz);
+
+	if (eh->e_entry >= ph->p_vaddr && eh->e_entry < ph->p_vaddr + msize)
+	  regs.eip = eh->e_entry + (ph->p_paddr - ph->p_vaddr);
 
 	dprintf("Segment at 0x%08x data 0x%08x len 0x%08x\n",
 		addr, dsize, msize);
