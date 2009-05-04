@@ -10,8 +10,6 @@ Changes in 3.80:
 	* Fix problem with boot-once "sticking" on some BIOSes.
 	* isohybrid: fix problem with images over 2 GB in size.
 	* APM poweroff module (poweroff.com) by Sebastian Herbszt.
-
-Changes in 3.76:
 	* ISOLINUX: fix the handling of large directories.  Bug found
 	  and fixed by Steffen Winterfeldt.
 
