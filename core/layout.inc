@@ -31,15 +31,11 @@ TEXT_START	equ 7C00h
 ; but it doesn't seem to work that way.
 LATEBSS_START	equ 0B800h
 
-%ifdef MAP
-		[map all MAP]
-%endif
-
 ;
 ; The various sections and their relationship
 ;
 		; Use .earlybss for things that MUST be in low memory.
-		section .earlybss	nobits start=BSS_START
+		section .earlybss	nobits
 		section .config		write progbits align=4
 		section .replacestub	exec write progbits align=16
 
