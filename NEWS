@@ -9,6 +9,7 @@ Changes in 3.80:
 	* Don't hang trying to boot a "menu quit" label from the CLI.
 	* Fix problem with boot-once "sticking" on some BIOSes.
 	* isohybrid: fix problem with images over 2 GB in size.
+	* APM poweroff module (poweroff.com) by Sebastian Herbszt.
 
 Changes in 3.76:
 	* ISOLINUX: fix the handling of large directories.  Bug found
