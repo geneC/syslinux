@@ -486,7 +486,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
   regs.cs = (real_mode_base >> 4)+0x20;
   /* regs.ip = 0; */
   /* Linux is OK with sp = 0 = 64K, but perhaps other things aren't... */
-  regs.esp.w[0] = min(cmdline_offset, 0xfff0);
+  regs.esp.w[0] = min(cmdline_offset, (size_t)0xfff0);
 
 #if DEBUG
   dprintf("Final memory map:\n");
