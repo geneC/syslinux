@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
+#include <minmax.h>
 #include <syslinux/align.h>
 #include <syslinux/linux.h>
 #include <syslinux/bootrm.h>
