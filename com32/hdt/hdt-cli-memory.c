@@ -92,6 +92,10 @@ struct cli_callback_descr list_memory_show_modules[] = {
 		.name = "88",
 		.exec = show_memory_88,
 	},
+  	{
+    		.name = CLI_DMI_MEMORY_BANK,
+    		.exec = show_dmi_memory_bank,
+  	},
 	{
 		.name = NULL,
 		.exec = NULL,

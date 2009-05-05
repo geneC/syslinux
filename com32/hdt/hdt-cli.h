@@ -170,6 +170,7 @@ void main_show(char *item, struct s_hardware *hardware);
 #define CLI_DMI_LIST CLI_SHOW_LIST
 void main_show_dmi(int argc, char **argv, struct s_hardware *hardware);
 void show_dmi_memory_modules(int argc, char** argv, struct s_hardware *hardware);
+void show_dmi_memory_bank(int argc, char** argv, struct s_hardware *hardware);
 
 // PCI STUFF
 #define CLI_PCI_DEVICE "device"

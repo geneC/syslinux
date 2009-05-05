@@ -303,7 +303,7 @@ static void show_dmi_cpu(int argc __unused, char** argv __unused,
   }
 }
 
-static void show_dmi_memory_bank(int argc, char** argv,
+void show_dmi_memory_bank(int argc, char** argv,
                                  struct s_hardware *hardware)
 {
   int bank = -1;
@@ -374,7 +374,7 @@ void main_show_dmi(int argc __unused, char **argv __unused,
 void show_dmi_memory_modules(int argc __unused, char** argv __unused,
                              struct s_hardware *hardware)
 {
-  int clear = 1, show_free_banks = 1;
+  int show_free_banks = 1;
 
   /* Needed, if called by the memory mode */
   detect_dmi(hardware);
