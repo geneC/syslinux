@@ -380,6 +380,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	 however, account for the fact that the kernel is decompressed
 	 into a whole other place, either. */
       if (end - start >= 3*prot_mode_size) {
+	whdr->code32_start += start - prot_mode_base;
 	prot_mode_base = start;
 	ok = true;
 	break;
