@@ -239,19 +239,16 @@ pm_shuffle:
 		jmp edi			; Protected mode entry
 
 		; We have a real-mode entry point, so we need to return
-		; to real mode...
+		; to real mode.  Note: EDX already points to the GDT.
 pm_shuffle_real_mode:
-		call .here
-.here:		pop ebx
 		mov eax,edi
-		add ebx,bcopy_gdt-.here
-		mov [ebx+PM_CS16+2],ax
-		mov [ebx+PM_DS16+2],ax
+		mov [edx+PM_CS16+2],ax
+		mov [edx+PM_DS16+2],ax
 		shr eax,16
-		mov [ebx+PM_CS16+4],al
-		mov [ebx+PM_CS16+7],ah
-		mov [ebx+PM_DS16+4],al
-		mov [ebx+PM_DS16+7],ah
+		mov [edx+PM_CS16+4],al
+		mov [edx+PM_CS16+7],ah
+		mov [edx+PM_DS16+4],al
+		mov [edx+PM_DS16+7],ah
 		mov eax,cr0
 		and al,~1
 		popfd			; Clean the flags
