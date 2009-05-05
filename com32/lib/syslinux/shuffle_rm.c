@@ -144,7 +144,7 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
 
   /* Load SS and ESP immediately */
   MOV_TO_SEG(p, R_SS, R_BX);
-  MOV_TO_R32(p, R_SP, rp->seg[R_SP]);
+  MOV_TO_R32(p, R_SP, rp->gpr[R_SP]);
 
   /* Load the other segments */
   MOV_TO_SEG(p, R_ES, R_CX);
