@@ -143,7 +143,16 @@ int main(int argc, char *argv[])
   }
 
   kernel_name = arg;
-  argp++;
+
+  boot_image = malloc(strlen(kernel_name)+12);
+  if (!boot_image)
+    goto bail;
+  strcpy(boot_image, "BOOT_IMAGE=");
+  strcpy(boot_image+11, kernel_name);
+  /* argp now points to the kernel name, and the command line follows.
+     Overwrite the kernel name with the BOOT_IMAGE= argument, and thus
+     we have the final argument. */
+  *argp = boot_image;
 
   if (find_boolean(argp,"quiet"))
     opt_quiet = true;
@@ -158,18 +167,6 @@ int main(int argc, char *argv[])
   }
   if (!opt_quiet)
     printf("ok\n");
-
-  boot_image = malloc(strlen(kernel_name)+12);
-  if (!boot_image)
-    goto bail;
-
-  strcpy(boot_image, "BOOT_IMAGE=");
-  strcpy(boot_image+11, kernel_name);
-
-  /* argp now points to the kernel name, and the command line follows.
-     Overwrite the kernel name with the BOOT_IMAGE= argument, and thus
-     we have the final argument. */
-  *argp = boot_image;
 
   cmdline = make_cmdline(argp);
   if (!cmdline)
