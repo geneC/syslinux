@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -37,6 +38,7 @@
  * Usage: linux.c32 [-dhcpinfo] kernel arguments...
  */
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -61,6 +63,19 @@ static char *find_argument(char **argv, const char *argument)
   }
 
   return ptr;
+}
+
+/* Search for a boolean argument; return its position, or 0 if not present */
+static int find_boolean(char **argv, const char *argument)
+{
+  char **arg;
+  
+  for (arg = argv; *arg; arg++) {
+    if (!strcmp(*arg, argument))
+      return (arg-argv)+1;
+  }
+
+  return 0;
 }
 
 /* Stitch together the command line from a set of argv's */
@@ -101,7 +116,8 @@ int main(int argc, char *argv[])
   char *boot_image;
   void *kernel_data;
   size_t kernel_len;
-  int opt_dhcpinfo = 0;
+  bool opt_dhcpinfo = false;
+  bool opt_quiet = false;
   void *dhcpdata;
   size_t dhcplen;
   char **argp, *arg, *p;
@@ -113,7 +129,7 @@ int main(int argc, char *argv[])
 
   while ((arg = *argp) && arg[0] == '-') {
     if (!strcmp("-dhcpinfo", arg)) {
-      opt_dhcpinfo = 1;
+      opt_dhcpinfo = true;
     } else {
       fprintf(stderr, "%s: unknown option: %s\n", progname, arg);
       return 1;
@@ -127,13 +143,21 @@ int main(int argc, char *argv[])
   }
 
   kernel_name = arg;
+  argp++;
 
-  printf("Loading %s... ", kernel_name);
+  if (find_boolean(argp,"quiet"))
+    opt_quiet = true;
+
+  if (!opt_quiet)
+    printf("Loading %s... ", kernel_name);
   if (loadfile(kernel_name, &kernel_data, &kernel_len)) {
+    if (opt_quiet)
+      printf("Loading %s ", kernel_name);
     printf("failed!\n");
     goto bail;
   }
-  printf("ok\n");
+  if (!opt_quiet)
+    printf("ok\n");
 
   boot_image = malloc(strlen(kernel_name)+12);
   if (!boot_image)
@@ -162,12 +186,16 @@ int main(int argc, char *argv[])
       if (p)
 	*p = '\0';
 
-      printf("Loading %s... ", arg);
+      if (!opt_quiet)
+	printf("Loading %s... ", arg);
       if (initramfs_load_archive(initramfs, arg)) {
+	if (opt_quiet)
+	  printf("Loading %s ", kernel_name);
 	printf("failed!\n");
 	goto bail;
       }
-      printf("ok\n");
+      if (!opt_quiet)
+	printf("ok\n");
 
       if (p)
 	*p++ = ',';
