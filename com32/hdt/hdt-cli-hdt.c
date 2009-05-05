@@ -316,7 +316,10 @@ struct cli_callback_descr list_hdt_show_modules[] = {
 		.name = CLI_VPD,
 		.exec = main_show_vpd,
 	},
-
+	{
+		.name = CLI_MEMORY,
+		.exec = show_dmi_memory_modules,
+	},
 	{
 		.name = "modes",
 		.exec = main_show_modes,
