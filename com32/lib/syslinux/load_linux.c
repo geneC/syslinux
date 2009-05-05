@@ -284,7 +284,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
   if (!memlimit && memlimit-1 > hdr.initrd_addr_max)
     memlimit = hdr.initrd_addr_max+1; /* Zero for no limit */
 
-  if (hdr.version < 0x0205)
+  if (hdr.version < 0x0205 || !(hdr.loadflags & LOAD_HIGH))
     hdr.relocatable_kernel = 0;
 
   if (hdr.version < 0x0206)
