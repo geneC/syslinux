@@ -121,9 +121,21 @@ static int detect_extensions(struct driveinfo* drive_info)
 static int get_drive_parameters_with_extensions(struct driveinfo* drive_info)
 {
 	com32sys_t inreg, outreg;
-	struct device_parameter *dp = __com32.cs_bounce;
+	struct edd_device_parameters *dp = __com32.cs_bounce;
 
 	memset(&inreg, 0, sizeof inreg);
+
+	/*
+	 * The caller shall set this value to the maximum Result Buffer
+	 * length, in bytes. If the length of this buffer is less than 30
+	 * bytes, this function shall not return the pointer to Drive Parameter
+	 * Table (DPT) extension. If the buffer length is 30 or greater on
+	 * entry, it shall be set to 30 on exit. If the buffer length is
+	 * between 26 and 29, it shall be set to 26 on exit.
+	 * If the buffer length is less than 26 on entry an error shall be
+	 * returned.
+	 */
+	dp->len = sizeof(struct edd_device_parameters);
 
 	inreg.esi.w[0] = OFFS(dp);
 	inreg.ds = SEG(dp);
