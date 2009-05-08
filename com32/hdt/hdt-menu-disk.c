@@ -115,9 +115,9 @@ static void compute_partition_information(struct driveinfo *drive_info,
 
         get_label(ptab->ostype, &parttype);
 
-	snprintf(buffer, sizeof buffer, "Size        : %s)",
+	snprintf(buffer, sizeof buffer, "Size        : %s",
 		 remove_spaces(size));
-	snprintf(statbuffer, sizeof statbuffer, "Size : %s)",
+	snprintf(statbuffer, sizeof statbuffer, "Size : %s",
 		 remove_spaces(size));
 	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
 
@@ -225,8 +225,8 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
   dn=disk_number;
 
   int error;
-  parse_partition_table(d, &show_partition_information, &error);
-  if (parse_partition_table(d, &compute_partition_information, &error)) {
+  parse_partition_table(&d[disk_number], &show_partition_information, &error);
+  if (parse_partition_table(&d[disk_number], &compute_partition_information, &error)) {
         if (error) {
   	   char *error_buffer;
            get_error(error, &error_buffer);
