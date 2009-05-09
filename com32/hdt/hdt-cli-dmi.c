@@ -55,6 +55,12 @@ static void show_dmi_modules(int argc __unused, char** argv __unused,
 			break;
 		}
 	}
+	for (int i = 0; i < hardware->dmi.memory_module_count; i++) {
+		if (hardware->dmi.memory_module[i].filled == true) {
+			printf("\tmodule <number>\n");
+			break;
+		}
+	}
 	if (hardware->dmi.processor.filled == true)
 		printf("\t%s\n", CLI_DMI_PROCESSOR);
 	if (hardware->dmi.system.filled == true)
@@ -354,6 +360,47 @@ void show_dmi_memory_bank(int argc, char** argv,
         hardware->dmi.memory[bank].part_number);
 }
 
+void show_dmi_memory_module(int argc, char** argv,
+			    struct s_hardware *hardware)
+{
+	int module = -1;
+
+	/* Sanitize arguments */
+	if (argc > 0)
+		module = strtol(argv[0], (char **)NULL, 10);
+
+	if (errno == ERANGE || module < 0) {
+		printf("This module number is incorrect\n");
+		return;
+	}
+
+	if ((module >= hardware->dmi.memory_module_count) || (module < 0)) {
+		printf("Module number %d doesn't exist\n", module);
+		return;
+	}
+
+	if (hardware->dmi.memory_module[module].filled == false) {
+		printf("Module %d doesn't contain any information\n", module);
+		return;
+	}
+
+	printf("Memory Module %d\n", module);
+	printf(" Socket Designation : %s\n",
+		hardware->dmi.memory_module[module].socket_designation);
+	printf(" Bank Connections   : %s\n",
+		hardware->dmi.memory_module[module].bank_connections);
+	printf(" Current Speed      : %s\n",
+		hardware->dmi.memory_module[module].speed);
+	printf(" Type               : %s\n",
+		hardware->dmi.memory_module[module].type);
+	printf(" Installed Size     : %s\n",
+		hardware->dmi.memory_module[module].installed_size);
+	printf(" Enabled Size       : %s\n",
+		hardware->dmi.memory_module[module].enabled_size);
+	printf(" Error Status       : %s\n",
+		hardware->dmi.memory_module[module].error_status);
+}
+
 void main_show_dmi(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware)
 {
@@ -453,6 +500,10 @@ struct cli_callback_descr list_dmi_show_modules[] = {
   {
     .name = CLI_DMI_MEMORY_BANK,
     .exec = show_dmi_memory_bank,
+  },
+  {
+    .name = "module",
+    .exec = show_dmi_memory_module,
   },
   {
     .name = CLI_DMI_PROCESSOR,
