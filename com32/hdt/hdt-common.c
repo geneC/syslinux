@@ -263,8 +263,11 @@ void detect_disks(struct s_hardware *hardware)
 		hardware->disk_info[i].disk = drive;
 		err = get_drive_parameters(&hardware->disk_info[i]);
 
-		/* Do not print output when drive does not exists */
-		if (err == -1)
+		/*
+		 * Do not print output when drive does not exist or
+		 * doesn't support int13 (cdrom, ...)
+		 */
+		if (err == -1 || !hardware->disk_info[i].cbios)
 			continue;
 
 		if (err) {
