@@ -257,10 +257,6 @@ void detect_disks(struct s_hardware *hardware)
 	if (hardware->disk_detection)
 		return;
 
-	/* FIXME: this is needed to have the int13 working.
-	 * Until we figured why, we need this workaround*/
-	detect_vesa(hardware);
-
 	hardware->disk_detection = true;
 	for (int drive = 0x80; drive < 0xff; drive++) {
 		i++;
