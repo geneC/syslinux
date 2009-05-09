@@ -492,6 +492,20 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi *dmi)
                         strcpy(dmi->processor.asset_tag,dmi_string(h, data[0x21]));
                         strcpy(dmi->processor.part_number,dmi_string(h, data[0x22]));
                         break;
+		case 6: /* 3.3.7 Memory Module Information */
+			if(h->length<0x0C) break;
+			dmi->memory_module_count++;
+			s_memory_module *module = &dmi->memory_module[dmi->memory_module_count-1];
+			dmi->memory_module[dmi->memory_module_count-1].filled=true;
+			strncpy(module->socket_designation, dmi_string(h, data[0x04]),
+				sizeof(module->socket_designation));
+			dmi_memory_module_connections(data[0x05], module->bank_connections);
+			dmi_memory_module_speed(data[0x06], module->speed);
+			dmi_memory_module_types(WORD(data+0x07), " ", module->type);
+			dmi_memory_module_size(data[0x09], module->installed_size);
+			dmi_memory_module_size(data[0x0A], module->enabled_size);
+			dmi_memory_module_error(data[0x0B], "\t\t", module->error_status);
+			break;
                 case 17: /* 3.3.18 Memory Device */
                         if (h->length < 0x15) break;
 			dmi->memory_count++;
