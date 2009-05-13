@@ -47,7 +47,11 @@ pm_call:
 
 		bits 32
 .pm:
+		; EAX points to the top of the RM stack, which is EFLAGS
+		test byte [eax+1],02h		; RM EFLAGS.IF
+		jz .no_sti
 		sti
+.no_sti:
 		call edx
 		mov bx,.rm
 		jmp enter_rm
