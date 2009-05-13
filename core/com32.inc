@@ -87,6 +87,8 @@ com32_start:
 com32_exit:
 		mov bx,.rm
 		jmp enter_rm
+
+		bits 16
 .rm:
 		mov dword [PMESP],StackTop	; Stop use of COM32 stack
 		sti
@@ -95,6 +97,8 @@ com32_exit:
 ;
 ; 16-bit intcall/farcall handling code
 ;
+		bits 16
+
 com32_sys_rm:
 		pop gs
 		pop fs
@@ -202,7 +206,7 @@ com32_syscall:
 		mov cl,11		; 44 bytes
 		rep movsd		; Copy register block
 
-		add dword [word RealModeSSSP],54	; Remove from stack
+		add word [word RealModeSSSP],54	; Remove from stack
 
 		popad
 		popfd
