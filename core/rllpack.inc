@@ -36,7 +36,7 @@
 ;
 rllpack:
 		push word .pmentry
-		call simple_pm_call
+		call pm_call
 		ret
 
 		bits 32
@@ -120,7 +120,7 @@ rllpack:
 ;
 rllunpack:
 		push word .pmentry
-		call simple_pm_call
+		call pm_call
 		ret
 
 		bits 32

@@ -204,6 +204,7 @@ pm_bcopy:
 ;		    the entry point and src the mode (0 = pm, 1 = rm)
 ;
 pm_shuffle:
+		cli			; End interrupt service (for good)
 		mov ebx,edi		; EBX <- descriptor list
 		lea edx,[edi+ecx+15]	; EDX <- where to relocate our code to
 		and edx,~15		; Align 16 to benefit the GDT
@@ -232,15 +233,16 @@ pm_shuffle:
 		call pm_bcopy
 		jmp .loop
 .done:
+		lidt [edx+RM_IDT_ptr-bcopy_gdt]	; RM-like IDT
 		push ecx		; == 0, for cleaning the flags register
 		and esi,esi
-		jz pm_shuffle_real_mode
+		jz pm_shuffle_16
 		popfd			; Clean the flags
 		jmp edi			; Protected mode entry
 
-		; We have a real-mode entry point, so we need to return
-		; to real mode.  Note: EDX already points to the GDT.
-pm_shuffle_real_mode:
+		; We have a 16-bit entry point, so we need to return
+		; to 16-bit mode.  Note: EDX already points to the GDT.
+pm_shuffle_16:
 		mov eax,edi
 		mov [edx+PM_CS16+2],ax
 		mov [edx+PM_DS16+2],ax
@@ -261,7 +263,11 @@ pm_shuffle_real_mode:
 		mov ss,edx
 		jmp PM_CS16:0
 
-		align	16
+		align 4
+RM_IDT_ptr:	dw 0FFFFh		; Length (nonsense, but matches CPU)
+		dd 0			; Offset
+
+		alignz 16
 ; GDT descriptor entry
 %macro desc 1
 bcopy_gdt.%1:

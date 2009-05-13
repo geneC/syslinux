@@ -237,6 +237,7 @@ packet_buf_size	equ $-packet_buf
 		; therefore we relocate it from 7C00h on startup.
 		;
 StackBuf	equ $			; Base of stack if we use our own
+StackTop	equ $
 
 ;
 ; Primary entry point.
@@ -2616,6 +2617,7 @@ writestr_early	equ writestr
 %include "configinit.inc"	; Initialize configuration
 %include "parseconfig.inc"	; High-level config file handling
 %include "parsecmd.inc"		; Low-level config file handling
+%include "pm.inc"		; Protected mode
 %include "bcopy32.inc"		; 32-bit bcopy
 %include "loadhigh.inc"		; Load a file into high memory
 %include "font.inc"		; VGA font stuff

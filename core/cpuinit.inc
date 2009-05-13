@@ -38,6 +38,7 @@ dosram_k	equ (real_mode_seg+0x1000) >> 6	; Minimum DOS memory (K)
 		jmp kaboom
 enough_ram:
 skip_checks:
+		call pm_init
 
 		section .data
 err_noram	db 'It appears your computer has less than '

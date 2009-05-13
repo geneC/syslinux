@@ -33,6 +33,7 @@ PartInfo	equ StackBuf		; Saved partition table entry
 FloppyTable	equ PartInfo+16		; Floppy info table (must follow PartInfo)
 OrigFDCTabPtr	equ StackBuf-8		; The 2nd high dword on the stack
 OrigESDI	equ StackBuf-4		; The high dword on the stack
+StackTop	equ OrigFDCTabPtr	; The start of the canonical stack
 
 ;
 ; Primary entry point.  Tempting as though it may be, we can't put the
@@ -411,7 +412,7 @@ disk_error:
 kaboom:
 		xor si,si
 		mov ss,si
-		mov sp,StackBuf-4	; Reset stack
+		mov sp,OrigFDCTabPtr	; Reset stack
 		mov ds,si		; Reset data segment
 		pop dword [fdctab]	; Restore FDC table
 .patch:					; When we have full code, intercept here

@@ -883,6 +883,7 @@ build_curdir_str:
 %include "configinit.inc"	; Initialize configuration
 %include "parseconfig.inc"	; High-level config file handling
 %include "parsecmd.inc"		; Low-level config file handling
+%include "pm.inc"		; Protected mode
 %include "bcopy32.inc"		; 32-bit bcopy
 %include "loadhigh.inc"		; Load a file into high memory
 %include "font.inc"		; VGA font stuff

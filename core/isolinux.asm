@@ -210,6 +210,7 @@ StackBuf	equ $-44		; 44 bytes needed for
 					; the bootsector chainloading
 					; code!
 OrigESDI	equ StackBuf-4          ; The high dword on the stack
+StackTop	equ OrigESDI
 
 bootsec		equ $
 
@@ -1700,6 +1701,7 @@ getfssec:
 %include "configinit.inc"	; Initialize configuration
 %include "parseconfig.inc"	; High-level config file handling
 %include "parsecmd.inc"		; Low-level config file handling
+%include "pm.inc"		; Protected mode
 %include "bcopy32.inc"		; 32-bit bcopy
 %include "loadhigh.inc"		; Load a file into high memory
 %include "font.inc"		; VGA font stuff

@@ -122,7 +122,7 @@ replace_bootstrap:
 		jmp .stackok
 %endif
 .stdstack:
-		mov di,7C00h-44
+		mov di,StackTop-44
 		push di
 		mov cx,22		; 44 bytes
 		rep stosw
