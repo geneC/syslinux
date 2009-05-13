@@ -163,19 +163,19 @@ enter_rm:
 		mov gs,ax
 
 		lidt [RM_IDT_ptr]	; Real-mode IDT (rm needs no GDT)
+		xor dx,dx
 		mov eax,cr0
 		and al,~1
 		mov cr0,eax
 		jmp 0:.in_rm
 
 .in_rm:					; Back in real mode
-		mov ax,cs		; Set up sane segments
-		mov ds,ax
-		lss sp,[RealModeSSSP]	; Restore stack
+		lss sp,[cs:RealModeSSSP]	; Restore stack
 		movzx esp,sp		; Make sure the high bits are zero
-		mov es,ax
-		mov fs,ax
-		mov gs,ax
+		mov ds,dx		; Set up sane segments
+		mov es,dx
+		mov fs,dx
+		mov gs,dx
 		jmp bx			; Go to whereever we need to go...
 
 		section .data
