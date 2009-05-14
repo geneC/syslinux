@@ -74,11 +74,11 @@ com32_start:
 		; Set up the calling stack frame
 
 		push dword [HighMemSize]	; Memory managed by Syslinux
-		push dword __com32_cfarcall	; Cfarcall entry point
-		push dword __com32_farcall	; Farcall entry point
+		push dword core_cfarcall	; Cfarcall entry point
+		push dword core_farcall		; Farcall entry point
 		push dword (1 << 16)		; 64K bounce buffer
 		push dword (xfer_buf_seg << 4)	; Bounce buffer address
-		push dword __com32_intcall	; Intcall entry point
+		push dword core_intcall		; Intcall entry point
 		push dword command_line		; Command line pointer
 		push dword 7			; Argument count
 		sti				; Interrupts OK now
@@ -130,7 +130,7 @@ com32_cfar_rm:
 .return:
 		mov sp,[cs:Com32SysSP]
 		mov [cs:RealModeEAX],eax
-		mov bx,__com32_cfarcall.resume
+		mov bx,core_cfarcall.resume
 		jmp enter_pm
 
 ;
@@ -148,16 +148,16 @@ com32_cfar_rm:
 ; - Return segment (== real mode cs == 0)
 ; - Return flags
 ;
-		global __com32_farcall
-__com32_farcall:
+		global core_farcall
+core_farcall:
 		pushfd				; Save IF among other things...
 		pushad				; We only need to save some, but...
 
 		mov eax,[esp+10*4]		; CS:IP
 		jmp com32_syscall
 
-		global __com32_intcall
-__com32_intcall:
+		global core_intcall
+core_intcall:
 		pushfd				; Save IF among other things...
 		pushad				; We only need to save some, but...
 
@@ -218,8 +218,8 @@ com32_syscall:
 ; Cfarcall invocation.  We copy the stack frame to the real-mode stack,
 ; followed by the return CS:IP and the CS:IP of the target function.
 ;
-		global __com32_cfarcall
-__com32_cfarcall:
+		global core_cfarcall
+core_cfarcall:
 		pushfd
 		pushad
 
