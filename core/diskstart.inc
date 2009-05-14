@@ -22,7 +22,7 @@
 		alignb 8
 SuperInfo	resq 16			; The first 16 bytes expanded 8 times
 
-		section .text
+		section .init
 ;
 ; Some of the things that have to be saved very early are saved
 ; "close" to the initial stack pointer offset, in order to
@@ -651,6 +651,7 @@ rl_checkpt_off	equ ($-$$)
 ;  End of code and data that have to be in the first sector
 ; ----------------------------------------------------------------------------
 
+		section .text
 all_read:
 ;
 ; Let the user (and programmer!) know we got this far.  This used to be
@@ -679,4 +680,3 @@ expand_super:
 ;
 ; Fall through to the mainline code...
 ;
-		section .text

@@ -200,7 +200,7 @@ _spec_len	equ _spec_end - _spec_start
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
 
-		section .text
+		section .init
 ;;
 ;; Primary entry point.  Because BIOSes are buggy, we only load the first
 ;; CD-ROM sector (2K) of the file, so the number one priority is actually
@@ -693,9 +693,7 @@ writemsg:	push ax
 ;
 
 writechr:
-		jmp near writechr_simple	; 3-byte jump
-
-writechr_simple:
+.simple:
 		pushfd
 		pushad
 		mov ah,0Eh
@@ -1079,6 +1077,7 @@ rl_checkpt	equ $				; Must be <= 800h
 ; ----------------------------------------------------------------------------
 ;  End of code and data that have to be in the first sector
 ; ----------------------------------------------------------------------------
+		section .text
 
 all_read:
 
@@ -1093,7 +1092,12 @@ all_read:
 %include "cpuinit.inc"
 
 		; Patch the writechr routine to point to the full code
-		mov word [writechr+1], writechr_full-(writechr+3)
+		mov di,writechr
+		mov al,0e9h
+		stosb
+		mov ax,writechr_full-3
+		sub ax,bx
+		stosw
 
 ; Tell the user we got this far...
 %ifndef DEBUG_MESSAGES			; Gets messy with debugging on

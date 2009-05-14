@@ -171,7 +171,12 @@ Files		resb MAX_OPEN*open_file_t_size
 ; verbosity and using the full screen system
 ;
 		; E9 = JMP NEAR
-		mov dword [kaboom.patch],0e9h+((kaboom2-(kaboom.patch+3)) << 8)
+		mov di,kaboom.patch
+		mov al,0e9h
+		stosb
+		mov ax,kaboom2-3
+		sub ax,bx
+		stosw
 
 ;
 ; Now we're all set to start with our *real* business.	First load the

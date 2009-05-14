@@ -38,6 +38,7 @@ SECTIONS
 	.bss : {
 		__bss_start = .;
 		*(.bss)
+		*(.bss1)
 		*(.bss2)
 		__bss_end = .;
 	}
@@ -76,6 +77,15 @@ SECTIONS
 	/* Initialized sections */
 
 	. = 0x7c00;
+	.init : {
+		FILL(0x90909090)
+		__init_start = .;
+		*(.init)
+		__init_end = .;
+	}
+	__init_len = __init_end - __init_start;
+	__init_dwords = (__init_len + 3) >> 2;
+
 	.text : {
 		FILL(0x90909090)
 		__text_start = .;
@@ -133,15 +143,7 @@ SECTIONS
 	__uibss_len = __uibss_end - __uibss_start;
 	__uibss_dwords = (__uibss_len + 3) >> 2;
 
-	.bss1 : {
-		__bss1_start = .;
-		*(.bss1)
-		__bss1_end = .;
-	}
-	__bss1_len = __bss1_end - __bss1_start;
-	__bss1_dwords = (__bss1_len + 3) >> 2;
-
-	. = ASSERT(__bss1_end <= 0x10000, "64K overflow");
+	. = ASSERT(__uibss_end <= 0x10000, "64K overflow");
 
 	. = 0x100000;
 	.com32 : {

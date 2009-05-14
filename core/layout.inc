@@ -56,7 +56,8 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 
 		section .bss2		write nobits align=16
 
-		section .text		exec write progbits align=16
+		section .init		exec write progbits align=1
+		section .text		exec write progbits align=1
 		section .bcopyxx	exec write progbits align=16
 		section .data		write progbits align=16
 
