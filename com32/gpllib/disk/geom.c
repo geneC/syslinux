@@ -256,11 +256,17 @@ static int get_drive_parameters_without_extensions(struct driveinfo* drive_info)
  **/
 int get_drive_parameters(struct driveinfo *drive_info)
 {
+	int return_code;
+
 	if (detect_extensions(drive_info))
 		return -1;
 
-	if (drive_info->ebios)
+	return_code = get_drive_parameters_without_extensions(drive_info);
+
+	/* If geometry isn't valid, no need to try to get more info about the drive*/
+	/* Looks like in can confuse some optical drives */
+	if (drive_info->ebios && drive_info->cbios)
 		get_drive_parameters_with_extensions(drive_info);
 
-	return get_drive_parameters_without_extensions(drive_info);
+	return return_code;
 }
