@@ -129,7 +129,7 @@ SECTIONS
 	__pm_code_lma = .;
 
 	. = ALIGN(512);
-	.adv : {
+	.adv (NOLOAD) : {
 		__adv_start = .;
 		*(.adv)
 		__adv_end = .;
@@ -140,7 +140,7 @@ SECTIONS
 	/* Late uninitialized sections */
 
 	. = ALIGN(4);
-	.uibss : {
+	.uibss (NOLOAD) : {
 		__uibss_start = .;
 		*(.uibss)
 		__uibss_end = .;
