@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -63,12 +64,14 @@ struct my_options {
   unsigned int sectors;
   unsigned int heads;
   int raid_mode;
+  int stupid_mode;
   int reset_adv;
   const char *set_once;
 } opt = {
   .sectors = 0,
   .heads = 0,
   .raid_mode = 0,
+  .stupid_mode = 0,
   .reset_adv = 0,
   .set_once = NULL,
 };
@@ -82,6 +85,7 @@ static void __attribute__((noreturn)) usage(int rv)
 	  "  --zip        -z  Force zipdrive geometry (-H 64 -S 32)\n"
 	  "  --sectors=#  -S  Force the number of sectors per track\n"
 	  "  --heads=#    -H  Force number of heads\n"
+	  "  --stupid     -s  Slow, safe and stupid mode\n"
 	  "  --raid       -r  Fall back to the next device on boot failure\n"
 	  "  --once=...   -o  Execute a command once upon boot\n"
 	  "  --clear-once -O  Clear the boot-once command\n"
@@ -109,6 +113,7 @@ static const struct option long_options[] = {
   { "update",     0, NULL, 'U' },
   { "zipdrive",   0, NULL, 'z' },
   { "sectors",    1, NULL, 'S' },
+  { "stupid",     0, NULL, 's' },
   { "heads",      1, NULL, 'H' },
   { "raid-mode",  0, NULL, 'r' },
   { "version",    0, NULL, 'v' },
@@ -125,57 +130,6 @@ static const char short_options[] = "iUuzS:H:rvho:O";
 /* This takes a u64, but the size field says size_t.  Someone screwed big. */
 # define BLKGETSIZE64 _IOR(0x12,114,size_t)
 #endif
-
-#define LDLINUX_MAGIC	0x3eb202fe
-
-enum bs_offsets {
-  bsJump            = 0x00,
-  bsOemName         = 0x03,
-  bsBytesPerSec     = 0x0b,
-  bsSecPerClust     = 0x0d,
-  bsResSectors      = 0x0e,
-  bsFATs            = 0x10,
-  bsRootDirEnts     = 0x11,
-  bsSectors         = 0x13,
-  bsMedia           = 0x15,
-  bsFATsecs         = 0x16,
-  bsSecPerTrack     = 0x18,
-  bsHeads           = 0x1a,
-  bsHiddenSecs      = 0x1c,
-  bsHugeSectors     = 0x20,
-
-  /* FAT12/16 only */
-  bs16DriveNumber   = 0x24,
-  bs16Reserved1     = 0x25,
-  bs16BootSignature = 0x26,
-  bs16VolumeID      = 0x27,
-  bs16VolumeLabel   = 0x2b,
-  bs16FileSysType   = 0x36,
-  bs16Code          = 0x3e,
-
-  /* FAT32 only */
-  bs32FATSz32       = 36,
-  bs32ExtFlags      = 40,
-  bs32FSVer         = 42,
-  bs32RootClus      = 44,
-  bs32FSInfo        = 48,
-  bs32BkBootSec     = 50,
-  bs32Reserved      = 52,
-  bs32DriveNumber   = 64,
-  bs32Reserved1     = 65,
-  bs32BootSignature = 66,
-  bs32VolumeID      = 67,
-  bs32VolumeLabel   = 71,
-  bs32FileSysType   = 82,
-  bs32Code          = 90,
-
-  bsSignature     = 0x1fe
-};
-
-#define bsHead      bsJump
-#define bsHeadLen   (bsOemName-bsHead)
-#define bsCode	    bs32Code	/* The common safe choice */
-#define bsCodeLen   (bsSignature-bs32Code)
 
 #ifndef EXT2_SUPER_OFFSET
 #define EXT2_SUPER_OFFSET 1024
@@ -406,8 +360,10 @@ patch_file_and_bootblock(int fd, int dirfd, int devfd)
   uint32_t *sectp;
   uint64_t totalbytes, totalsectors;
   int nsect;
-  unsigned char *p, *patcharea;
-  int i, dw;
+  uint32_t *wp;
+  struct boot_sector *bs;
+  struct patch_area *patcharea;
+  int i, dw, nptrs;
   uint32_t csum;
 
   if ( fstat(dirfd, &dirst) ) {
@@ -428,26 +384,28 @@ patch_file_and_bootblock(int fd, int dirfd, int devfd)
      early bootstrap share code with the FAT version. */
   dprintf("heads = %u, sect = %u\n", geo.heads, geo.sectors);
 
+  bs = (struct boot_sector *)boot_block;
+
   totalsectors = totalbytes >> SECTOR_SHIFT;
   if ( totalsectors >= 65536 ) {
-    set_16(boot_block+bsSectors, 0);
+    set_16(&bs->bsSectors, 0);
   } else {
-    set_16(boot_block+bsSectors, totalsectors);
+    set_16(&bs->bsSectors, totalsectors);
   }
-  set_32(boot_block+bsHugeSectors, totalsectors);
+  set_32(&bs->bsHugeSectors, totalsectors);
 
-  set_16(boot_block+bsBytesPerSec, SECTOR_SIZE);
-  set_16(boot_block+bsSecPerTrack, geo.sectors);
-  set_16(boot_block+bsHeads, geo.heads);
-  set_32(boot_block+bsHiddenSecs, geo.start);
+  set_16(&bs->bsBytesPerSec, SECTOR_SIZE);
+  set_16(&bs->bsSecPerTrack, geo.sectors);
+  set_16(&bs->bsHeads, geo.heads);
+  set_32(&bs->bsHiddenSecs, geo.start);
 
   /* If we're in RAID mode then patch the appropriate instruction;
      either way write the proper boot signature */
-  i = get_16(boot_block+0x1FE);
+  i = get_16(&bs->bsSignature);
   if (opt.raid_mode)
-    set_16(boot_block+i, 0x18CD);	/* INT 18h */
+    set_16((uint16_t *)(boot_block+i), 0x18CD);	/* INT 18h */
 
-  set_16(boot_block+0x1FE, 0xAA55);
+  set_16(&bs->bsSignature, 0xAA55);
 
   /* Construct the boot file */
 
@@ -461,37 +419,39 @@ patch_file_and_bootblock(int fd, int dirfd, int devfd)
   }
 
   /* First sector need pointer in boot sector */
-  set_32(boot_block+0x1F8, *sectp++);
-  nsect--;
+  set_32(&bs->NextSector, *sectp++);
+
+  /* Stupid mode? */
+  if (opt.stupid_mode)
+    set_16(&bs->MaxTransfer, 1);
 
   /* Search for LDLINUX_MAGIC to find the patch area */
-  for ( p = boot_image ; get_32(p) != LDLINUX_MAGIC ; p += 4 );
-  patcharea = p+8;
+  for (wp = (uint32_t *)boot_image; get_32(wp) != LDLINUX_MAGIC; wp++);
+  patcharea = (struct patch_area *)wp;
 
   /* Set up the totals */
   dw = boot_image_len >> 2;	/* COMPLETE dwords, excluding ADV */
-  set_16(patcharea, dw);
-  set_16(patcharea+2, nsect);	/* Not including the first sector, but
-				   including the ADV */
-  set_32(patcharea+8, dirst.st_ino); /* "Current" directory */
+  set_16(&patcharea->data_sectors, nsect-2); /* -2 for the ADVs */
+  set_16(&patcharea->adv_sectors, 2);
+  set_32(&patcharea->dwords, dw);
+  set_32(&patcharea->currentdir, dirst.st_ino);
 
   /* Set the sector pointers */
-  p = patcharea+12;
+  wp = (uint32_t *)((char *)boot_image+get_16(&patcharea->secptroffset));
+  nptrs = get_16(&patcharea->secptrcnt);
 
-  memset(p, 0, 64*4);
-  while ( nsect-- ) {
-    set_32(p, *sectp++);
-    p += 4;
-  }
+  memset(wp, 0, nptrs*4);
+  while ( nsect-- )
+    set_32(wp++, *sectp++);
 
   /* Now produce a checksum */
-  set_32(patcharea+4, 0);
+  set_32(&patcharea->checksum, 0);
 
   csum = LDLINUX_MAGIC;
-  for ( i = 0, p = boot_image ; i < dw ; i++, p += 4 )
-    csum -= get_32(p);		/* Negative checksum */
+  for (i = 0, wp = (uint32_t *)boot_image; i < dw; i++, wp++)
+    csum -= get_32(wp);		/* Negative checksum */
 
-  set_32(patcharea+4, csum);
+  set_32(&patcharea->checksum, csum);
 }
 
 /*
@@ -980,6 +940,9 @@ main(int argc, char *argv[])
       break;
     case 'r':
       opt.raid_mode = 1;
+      break;
+    case 's':
+      opt.stupid_mode = 1;
       break;
     case 'i':
       update_only = 0;

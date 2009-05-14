@@ -28,7 +28,7 @@ common_init:
 		mov edi,__pm_code_start
 		mov ecx,__pm_code_len
 		call bcopy
-		or esi,-1		; Set to zero
+		or esi,-1			; bzero
 		mov edi,__bss_start
 		mov ecx,__bss_len
 		call bcopy

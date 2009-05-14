@@ -482,18 +482,14 @@ ldlinux_magic	dd LDLINUX_MAGIC
 ; LDLINUX_MAGIC, plus 8 bytes.
 ;
 patch_area:
-LDLDwords	dw 0		; Total dwords starting at ldlinux_sys,
-				; not including ADVs
-LDLSectors	dw 0		; Number of sectors - (bootsec+this sec)
-				; but including any ADVs
+DataSectors	dw 0		; Number of sectors (not including bootsec)
+ADVSectors	dw 0		; Additional sectors for ADVs
+LDLDwords	dd 0		; Total dwords starting at ldlinux_sys,
 CheckSum	dd 0		; Checksum starting at ldlinux_sys
 				; value = LDLINUX_MAGIC - [sum of dwords]
-%if IS_EXTLINUX
-CurrentDir	dd 2		; "Current" directory inode number
-%endif
-
-; Space for up to 64 sectors, the theoretical maximum
-SectorPtrs	times 64 dd 0
+CurrentDir	dd 2		; "Current" directory inode number (EXTLINUX)
+SecPtrOffset	dw SectorPtrs - ldlinux_sys
+SecPtrCnt	dw (SectorPtrsEnd - SectorPtrs) >> 2
 
 ldlinux_ent:
 ;
@@ -534,13 +530,14 @@ BIOSName	resw 1
 ; sector again, though.
 ;
 load_rest:
-		mov si,SectorPtrs
-		mov bx,7C00h+2*SECTOR_SIZE	; Where we start loading
-		mov cx,[LDLSectors]
+		lea esi,[SectorPtrs]
+		mov ebx,7C00h+2*SECTOR_SIZE	; Where we start loading
+		mov cx,[DataSectors]
+		dec cx				; Minus this sector
 
 .get_chunk:
 		jcxz .done
-		xor bp,bp
+		xor ebp,ebp
 		lodsd				; First sector of this chunk
 
 		mov edx,eax
@@ -549,6 +546,8 @@ load_rest:
 		inc bp
 		dec cx
 		jz .chunk_ready
+		cmp ebx,esi			; Pointer we don't have yet?
+		jae .chunk_ready
 		inc edx				; Next linear sector
 		cmp [si],edx			; Does it match
 		jnz .chunk_ready		; If not, this is it
@@ -556,9 +555,17 @@ load_rest:
 		jmp short .make_chunk
 
 .chunk_ready:
+		push ebx
+		push es
+		shr ebx,4			; Convert to a segment
+		mov es,bx
+		xor bx,bx
+		xor edx,edx			; Zero-extend LBA
 		call getlinsecsr
-		shl bp,SECTOR_SHIFT
-		add bx,bp
+		pop es
+		pop ebx
+		shl ebp,SECTOR_SHIFT
+		add ebx,ebp
 		jmp .get_chunk
 
 .done:
@@ -572,10 +579,18 @@ verify_checksum:
 		mov si,ldlinux_sys
 		mov cx,[LDLDwords]
 		mov edx,-LDLINUX_MAGIC
+		push ds
 .checksum:
 		lodsd
 		add edx,eax
+		and di,di
+		jnz .nowrap
+		mov ax,ds
+		add ax,1000h
+		mov ds,ax
+.nowrap:
 		loop .checksum
+		pop ds
 
 		and edx,edx			; Should be zero
 		jz all_read			; We're cool, go for it!
@@ -643,10 +658,17 @@ rl_checkpt	equ $				; Must be <= 8000h
 
 rl_checkpt_off	equ ($-$$)
 %ifndef DEPEND
-%if rl_checkpt_off > 400h
+%if rl_checkpt_off > 3FCh			; Need one pointer in here
 %error "Sector 1 overflow"
 %endif
 %endif
+
+; Sector pointers
+		alignz 4
+		global MaxInitDataSize
+MaxInitDataSize	equ 96 << 10
+SectorPtrs	times MaxInitDataSize >> SECTOR_SHIFT dd 0
+SectorPtrsEnd	equ $
 
 ; ----------------------------------------------------------------------------
 ;  End of code and data that have to be in the first sector

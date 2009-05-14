@@ -18,12 +18,12 @@
 /*
  * Access functions for littleendian numbers, possibly misaligned.
  */
-static inline uint8_t get_8(const unsigned char *p)
+static inline uint8_t get_8(const uint8_t *p)
 {
   return *(const uint8_t *)p;
 }
 
-static inline uint16_t get_16(const unsigned char *p)
+static inline uint16_t get_16(const uint16_t *p)
 {
 #if defined(__i386__) || defined(__x86_64__)
   /* Littleendian and unaligned-capable */
@@ -33,7 +33,7 @@ static inline uint16_t get_16(const unsigned char *p)
 #endif
 }
 
-static inline uint32_t get_32(const unsigned char *p)
+static inline uint32_t get_32(const uint32_t *p)
 {
 #if defined(__i386__) || defined(__x86_64__)
   /* Littleendian and unaligned-capable */
@@ -44,7 +44,7 @@ static inline uint32_t get_32(const unsigned char *p)
 #endif
 }
 
-static inline void set_16(unsigned char *p, uint16_t v)
+static inline void set_16(uint16_t *p, uint16_t v)
 {
 #if defined(__i386__) || defined(__x86_64__)
   /* Littleendian and unaligned-capable */
@@ -55,7 +55,7 @@ static inline void set_16(unsigned char *p, uint16_t v)
 #endif
 }
 
-static inline void set_32(unsigned char *p, uint32_t v)
+static inline void set_32(uint32_t *p, uint32_t v)
 {
 #if defined(__i386__) || defined(__x86_64__)
   /* Littleendian and unaligned-capable */
@@ -70,5 +70,73 @@ static inline void set_32(unsigned char *p, uint32_t v)
 
 #define SECTOR_SHIFT	9	/* 512-byte sectors */
 #define SECTOR_SIZE	(1 << SECTOR_SHIFT)
+
+#define LDLINUX_MAGIC	0x3eb202fe
+
+/* Patch area for disk-based installers */
+struct patch_area {
+  uint32_t magic;		/* LDLINUX_MAGIC */
+  uint32_t instance;		/* Per-version value */
+  uint16_t data_sectors;
+  uint16_t adv_sectors;
+  uint32_t dwords;
+  uint32_t checksum;
+  uint32_t currentdir;
+  uint16_t secptroffset;
+  uint16_t secptrcnt;
+};
+
+  /* FAT bootsector format, also used by other disk-based derivatives */
+struct boot_sector {
+  uint8_t	bsJump[3];
+  char		bsOemName[8];
+  uint16_t	bsBytesPerSec;
+  uint8_t	bsSecPerClust;
+  uint16_t	bsResSectors;
+  uint8_t	bsFATs;
+  uint16_t	bsRootDirEnts;
+  uint16_t	bsSectors;
+  uint8_t	bsMedia;
+  uint16_t	bsFATsecs;
+  uint16_t	bsSecPerTrack;
+  uint16_t	bsHeads;
+  uint32_t	bsHiddenSecs;
+  uint32_t	bsHugeSectors;
+
+  union {
+    struct {
+      uint8_t	DriveNumber;
+      uint8_t	Reserved1;
+      uint8_t	BootSignature;
+      uint32_t	VolumeID;
+      char	VolumeLabel[11];
+      char	FileSysType[8];
+      uint8_t	Code[442];
+    }  __attribute__((packed)) bs16;
+    struct {
+      uint32_t	FATSz32;
+      uint16_t	ExtFlags;
+      uint16_t	FSVer;
+      uint32_t	RootClus;
+      uint16_t	FSInfo;
+      uint16_t	BkBootSec;
+      uint8_t	DriveNumber;
+      uint8_t	Reserved1;
+      uint8_t	BootSignature;
+      uint32_t	VolumeID;
+      char	VolumeLabel[11];
+      char	FileSysType[8];
+      uint8_t	Code[414];
+    } __attribute__((packed)) bs32;
+  } __attribute__((packed));
+
+  uint32_t	NextSector;	/* Pointer to the first unused sector */
+  uint16_t	MaxTransfer;	/* Max sectors per transfer */
+  uint16_t	bsSignature;
+} __attribute__((packed));
+
+#define bsHead      bsJump
+#define bsHeadLen   offsetof(struct boot_sector, bsJump)
+#define bsCode	    bs32.Code	/* The common safe choice */
 
 #endif /* SYSLXINT_H */

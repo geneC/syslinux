@@ -963,7 +963,6 @@ readdir:
 
 		section .bss16
 		alignb 4
-CurrentDir	resd 1			; Current directory
 PrevDir		resd 1			; Last scanned directory
 
 		section .text16

@@ -67,24 +67,26 @@ adv_init:
 		cmp byte [ADVDrive],-1
 		jne adv_read
 
-;%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
-%if IS_EXTLINUX		; Not yet implemented for the other derivatives
+%if IS_SYSLINUX || IS_EXTLINUX
+		cmp word [ADVSectors],2		; Not present?
+		jb adv_verify
+
 		;
 		; Update pointers to default ADVs...
 		;
-		mov bx,[LDLSectors]
+		mov bx,[DataSectors]
 		shl bx,2
 		mov ecx,[bsHidden]
-		mov eax,[bx+SectorPtrs-8]
-		mov edx,[bx+SectorPtrs-4]
+		mov eax,[bx+SectorPtrs]		; First ADV sector
+		mov edx,[bx+SectorPtrs+4]	; Second ADV sector
 		add eax,ecx
 		add edx,ecx
 		mov [ADVSec0],eax
 		mov [ADVSec1],edx
 		mov al,[DriveNumber]
 		mov [ADVDrive],al
+		jmp adv_read
 %endif
-		; ** fall through to adv_verify **
 
 		;
 		; Initialize the ADV data structure in memory
