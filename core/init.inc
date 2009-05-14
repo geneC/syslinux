@@ -20,6 +20,19 @@
 
 		section .text16
 common_init:
+		; Initialize PM invocation framework
+		call pm_init
+
+		; Copy PM code to its target location
+		mov esi,__pm_code_lma
+		mov edi,__pm_code_start
+		mov ecx,__pm_code_len
+		call bcopy
+		or esi,-1		; Set to zero
+		mov edi,__bss_start
+		mov ecx,__bss_len
+		call bcopy
+
 		; Zero bss sections (but not .earlybss, since it may
 		; contain already-live data.)
 		xor eax,eax
@@ -39,13 +52,8 @@ common_init:
 		call reset_config
 
 ;
-; Clear Files structures
+; Initialize Files structures (other than zeroing)
 ;
-		mov di,Files
-		mov cx,(MAX_OPEN*open_file_t_size)/4
-		xor eax,eax
-		rep stosd
-
 %if IS_PXELINUX
 		mov di,Files+tftp_pktbuf
 		mov cx,MAX_OPEN

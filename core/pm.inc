@@ -24,7 +24,7 @@
 ;
 ; pm_call: call PM routine in low memory from RM
 ;
-;	on stack	= PM routine to call (as a 16-bit address)
+;	on stack	= PM routine to call (a 32-bit address)
 ;
 ;	ECX, ESI, EDI passed to the called function;
 ;	EAX = EBP in the called function points to the stack frame
@@ -41,7 +41,6 @@ pm_call:
 		push fs
 		push gs
 		mov bp,sp
-		movzx edx,word [bp+4*2+9*4+2]	; Entrypoint
 		mov ax,cs
 		mov bx,.pm
 		mov ds,ax
@@ -54,7 +53,7 @@ pm_call:
 		jz .no_sti
 		sti
 .no_sti:
-		call edx
+		call [ebp+4*2+9*4+2]		; Entrypoint on RM stack
 		mov bx,.rm
 		jmp enter_rm
 
@@ -66,7 +65,7 @@ pm_call:
 		pop ds
 		popad
 		popfd
-		ret 2		; Drop entrypoint
+		ret 4		; Drop entrypoint
 
 ;
 ; enter_pm: Go to PM with interrupt service configured
@@ -81,11 +80,6 @@ pm_call:
 ;
 		bits 16
 enter_pm:
-		mov ax,ss		; If real mode ss == 0 and the high
-		or ax,[PMESP+2]		; half of PMESP is zero, shared stack
-		jnz .switch_stack
-		mov [PMESP],sp
-.switch_stack:
 		cli
 		xor eax,eax
 		mov ds,ax
@@ -143,12 +137,6 @@ enter_rm:
 		cli
 		cld
 		mov [PMESP],esp		; Save exit %esp
-		mov eax,esp
-		shr eax,16		; Upper half == 0?
-		or ax,[RealModeSSSP+2]	; If PMESP[31:16] == RMSS == 0, then
-		jnz .switchstack	; we're on a shared stack
-		mov [RealModeSSSP],sp
-.switchstack:
 		jmp PM_CS16:.in_pm16	; Return to 16-bit mode first
 
 		bits 16
@@ -179,19 +167,11 @@ enter_rm:
 		section .data16
 		alignz 4
 
-		; If SS == 0, this will make any 32-bit users use
-		; the shared stack, otherwise the reserved stack area
-PMESP		dd StackTop		; Protected-mode ESP
+		extern __stack_end
+PMESP		dd __stack_end		; Protected-mode ESP
 
 PM_IDT_ptr:	dw 8*256-1		; Length
 		dd IDT			; Offset
-
-		section .bss16
-		alignb 8
-IDT:		resq 256
-IRQStubs:	resb 4*256+3*8
-
-RealModeSSSP	resd 1			; Real-mode SS:SP
 
 ;
 ; This is invoked on getting an interrupt in protected mode.  At
@@ -454,3 +434,14 @@ pm_init:
 		loop .gloop
 
 		ret
+
+		; pm_init is called before bss clearing, so put these
+		; in .earlybss!
+		section .earlybss
+		alignb 8
+IDT:		resq 256
+IRQStubs:	resb 4*256+3*8
+
+RealModeSSSP	resd 1			; Real-mode SS:SP
+
+		section .text16

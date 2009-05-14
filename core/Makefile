@@ -24,7 +24,7 @@ include $(topdir)/MCONFIG.embedded
 -include $(topdir)/version.mk
 
 OPTFLAGS = 
-INCLUDES =
+INCLUDES = -I./include -I$(com32)/include
 
 # This is very similar to cp437; technically it's for Norway and Denmark,
 # but it's unlikely the characters that are different will be used in
@@ -38,12 +38,17 @@ BTARGET  = kwdhash.gen \
 	   extlinux.bin extlinux.bss extlinux.sys
 
 # All primary source files for the main syslinux files
-NASMSRC	 = $(wildcard *.asm)
-NASMHDR  = $(wildcard *.inc)
-CSRC	 = $(wildcard *.c)
-CHDR	 = $(wildcard *.h)
-OTHERSRC = keywords
-ALLSRC   = $(NASMSRC) $(NASMHDR) $(CSRC) $(CHDR) $(OTHERSRC)
+NASMSRC	 := $(wildcard *.asm)
+NASMHDR  := $(wildcard *.inc)
+CSRC	 := $(wildcard *.c)
+CHDR	 := $(wildcard *.h)
+OTHERSRC := keywords
+ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(CHDR) $(OTHERSRC)
+
+COBJ	 := $(patsubst %.c,%.o,$(CSRC))
+
+LIB	 = libcore.a
+LIBOBJS	 = $(COBJ)
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
@@ -77,10 +82,15 @@ iso%.bin: iso%.elf checksumiso.pl
 		-DHEXDATE="$(HEXDATE)" \
 		-l $(@:.o=.lsr) -o $@ $<
 
-%.elf: %.o syslinux.ld
-	$(LD) $(LDFLAGS) -T syslinux.ld -M -o $@ $< > $(@:.elf=.map)
+%.elf: %.o $(LIB) syslinux.ld
+	$(LD) $(LDFLAGS) -T syslinux.ld -M -o $@ $< $(LIB) > $(@:.elf=.map)
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
 	$(PERL) lstadjust.pl $(@:.elf=.lsr) $(@:.elf=.sec) $(@:.elf=.lst)
+
+$(LIB): $(LIBOBJS)
+	rm -f $@
+	$(AR) cq $@ $^
+	$(RANLIB) $@
 
 pxelinux.0: pxelinux.bin
 	cp -f $< $@
@@ -112,7 +122,7 @@ install-all: install install-lib
 netinstall: installer
 
 tidy dist:
-	rm -f codepage.cp *.o *.elf stupid.* patch.offset .depend .*.d
+	rm -f codepage.cp *.o *.elf *.a stupid.* patch.offset .depend .*.d
 	rm -f *.lsr *.lst *.map *.sec
 	rm -f $(OBSOLETE)
 

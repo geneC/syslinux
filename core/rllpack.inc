@@ -35,7 +35,7 @@
 ;	Returns updated ESI and EDI.
 ;
 rllpack:
-		push word .pmentry
+		push dword .pmentry
 		call pm_call
 		ret
 
@@ -116,7 +116,7 @@ rllpack:
 ;	ECX contains number of bytes output.
 ;
 rllunpack:
-		push word .pmentry
+		push dword .pmentry
 		call pm_call
 		ret
 

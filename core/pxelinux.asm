@@ -179,6 +179,7 @@ trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 		; ends at 2800h
 
+		section .bss16
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
 
@@ -190,7 +191,6 @@ IPOption	resb 80			; ip= option buffer
 InitStack	resd 1			; Pointer to reset stack (SS:SP)
 PXEStack	resd 1			; Saved stack during PXE call
 
-		section .bss16
 		alignb 4
 RebootTime	resd 1			; Reboot timeout, if set by option
 StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure

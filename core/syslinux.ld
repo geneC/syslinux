@@ -20,7 +20,8 @@ OUTPUT_ARCH(i386)
 EXTERN(_start)
 ENTRY(_start)
 
-STACK_LEN = 4096;
+STACK16_LEN = 4096;
+STACK32_LEN = 8192;
 
 SECTIONS
 {
@@ -62,17 +63,17 @@ SECTIONS
 	__replacestub_len = __replacestub_end - __replacestub_start;
 	__replacestub_dwords = (__replacestub_len + 3) >> 2;
 
-	/* Stack */
+	/* 16-bit stack */
 
-	STACK_BASE = 0x7c00 - STACK_LEN;
-	. = STACK_BASE;
-	.stack : AT(STACK_BASE) {
-		__stack_start = .;
-		. += STACK_LEN;
-		__stack_end = .;
+	STACK16_BASE = 0x7c00 - STACK16_LEN;
+	. = STACK16_BASE;
+	.stack16 : AT(STACK16_BASE) {
+		__stack16_start = .;
+		. += STACK16_LEN;
+		__stack16_end = .;
 	}
-	__stack_len = __stack_end - __stack_start;
-	__stack_dwords = (__stack_len + 3) >> 2;
+	__stack16_len = __stack16_end - __stack16_start;
+	__stack16_dwords = (__stack16_len + 3) >> 2;
 
 	/* Initialized sections */
 
@@ -122,7 +123,10 @@ SECTIONS
 	__replacestub_lma = .;
 	. += SIZEOF(.replacestub);
 
-	/* ADV, must be the last intialized section */
+	/* The 32-bit code loads above the non-progbits sections */
+
+	. = ALIGN(16);
+	__pm_code_lma = .;
 
 	. = ALIGN(512);
 	.adv : {
@@ -144,10 +148,72 @@ SECTIONS
 	__uibss_len = __uibss_end - __uibss_start;
 	__uibss_dwords = (__uibss_len + 3) >> 2;
 
-	. = ASSERT(__uibss_end <= 0x10000, "64K overflow");
+	_end16 = .;
+	__assert_end16 = ASSERT(_end16 <= 0x10000, "64K overflow");
 
-	. = 0x100000;
-	.com32 : {
-		*(.com32)
+	/*
+	 * 32-bit code.  This is a hack for the moment due to the
+	 * real-mode segments also allocated.
+	 */
+
+	. = ALIGN(128);
+
+	__pm_code_start = .;
+
+	__text_vma = .;
+	__text_lma = __pm_code_lma;
+	.text : AT(__text_lma) {
+		__text_start = .;
+		*(.text)
+		__text_end = .;
 	}
+
+	. = ALIGN(16);
+
+	__rodata_vma = .;
+	__rodata_lma = __rodata_vma + __text_lma - __text_vma;
+	.rodata : AT(__rodata_lma) {
+		__rodata_start = .;
+		*(.rodata)
+		__rodata_end = .;
+	}
+
+	. = ALIGN(16);
+
+	__data_vma = .;
+	__data_lma = __data_vma + __text_lma - __text_vma;
+	.data : AT(__data_lma) {
+		__data_start = .;
+		*(.data)
+		__data_end = .;
+	}
+
+	__pm_code_end = .;
+	__pm_code_len = __pm_code_end - __pm_code_start;
+	__pm_code_dwords = (__pm_code_len + 3) >> 2;
+
+	. = ALIGN(128);
+	
+	__bss_vma = .;
+	.bss : AT (__bss_vma) {
+		__bss_start = .;
+		*(.bss)
+		__bss_end = .;
+	}
+	__bss_len = __bss_end - __bss_start;
+	__bss_dwords = (__bss_len + 3) >> 2;
+
+	. = ALIGN(128);
+
+	__stack_vma = .;
+	.stack : AT(__stack_vma) {
+		__stack_start = .;
+		. += STACK32_LEN;
+		__stack_end = .;
+	}
+	__stack_len = __stack_end - __stack_start;
+	__stack_dwords = (__stack_len + 3) >> 2;
+
+	_end = .;
+	__assert_end = ASSERT(_end <= 0x20000, "pm_code_seg overflow");
 }

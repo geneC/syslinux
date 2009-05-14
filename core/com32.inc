@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -90,7 +91,7 @@ com32_exit:
 
 		bits 16
 .rm:
-		mov dword [PMESP],StackTop	; Stop use of COM32 stack
+		mov dword [PMESP],__stack_end	; Stop use of COM32 stack
 		sti
 		jmp enter_command
 
@@ -206,7 +207,8 @@ com32_syscall:
 		mov cl,11		; 44 bytes
 		rep movsd		; Copy register block
 
-		add word [word RealModeSSSP],54	; Remove from stack
+		add dword [word RealModeSSSP],54
+					; Remove from stack
 
 		popad
 		popfd

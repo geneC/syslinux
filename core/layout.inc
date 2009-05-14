@@ -77,6 +77,9 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		SECINFO config
 		SECINFO replacestub
 
+		SECINFO pm_code
+		extern __bss_start, __bss_end, __bss_len, __bss_dwords
+
 		global _start
 
 		section .text16
@@ -87,9 +90,12 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 ; failure!
 ;
 ; 0000h - main code/data segment (and BIOS segment)
-
-xfer_buf_seg	equ 1000h
-aux_seg		equ 2000h
+;
+; This stuff really should come from the linker...
+;
+pm_code_seg	equ 1000h
+xfer_buf_seg	equ 2000h
+aux_seg		equ 3000h
 
 ;
 ; Contents of aux_seg
