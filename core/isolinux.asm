@@ -101,8 +101,8 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 ;		ends at 2800h
 
 		; Some of these are touched before the whole image
-		; is loaded.  DO NOT move this to .uibss.
-		section .bss
+		; is loaded.  DO NOT move this to .bss/.uibss.
+		section .earlybss
 		alignb 4
 ISOFileName	resb 64			; ISO filename canonicalization buffer
 ISOFileNameEnd	equ $
@@ -197,6 +197,7 @@ dsp_dummy:	resb 1				; Scratch, safe to overwrite
 _spec_end	equ $
 _spec_len	equ _spec_end - _spec_start
 
+		section .bss
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
 
@@ -1077,6 +1078,7 @@ rl_checkpt	equ $				; Must be <= 800h
 ; ----------------------------------------------------------------------------
 ;  End of code and data that have to be in the first sector
 ; ----------------------------------------------------------------------------
+
 		section .text
 
 all_read:
@@ -1095,8 +1097,8 @@ all_read:
 		mov di,writechr
 		mov al,0e9h
 		stosb
-		mov ax,writechr_full-3
-		sub ax,bx
+		mov ax,writechr_full-2
+		sub ax,di
 		stosw
 
 ; Tell the user we got this far...

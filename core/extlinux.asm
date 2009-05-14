@@ -108,7 +108,6 @@ ClustSize	resd 1			; Bytes/cluster ("block")
 ClustMask	resd 1			; Sectors/cluster - 1
 PtrsPerBlock1	resd 1			; Pointers/cluster
 PtrsPerBlock2	resd 1			; (Pointers/cluster)^2
-DriveNumber	resb 1			; BIOS drive number
 ClustShift	resb 1			; Shift count for sectors/cluster
 ClustByteShift	resb 1			; Shift count for bytes/cluster
 
@@ -119,6 +118,12 @@ Files		resb MAX_OPEN*open_file_t_size
 ; Common bootstrap code for disk-based derivatives
 ;
 %include "diskstart.inc"
+
+;
+; Common initialization code
+;
+%include "init.inc"
+%include "cpuinit.inc"
 
 ;
 ; Load the real (ext2) superblock; 1024 bytes long at offset 1024
@@ -156,12 +161,6 @@ Files		resb MAX_OPEN*open_file_t_size
 		mov [PtrsPerBlock2],edx
 
 ;
-; Common initialization code
-;
-%include "init.inc"
-%include "cpuinit.inc"
-
-;
 ; Initialize the metadata cache
 ;
 		call initcache
@@ -174,8 +173,8 @@ Files		resb MAX_OPEN*open_file_t_size
 		mov di,kaboom.patch
 		mov al,0e9h
 		stosb
-		mov ax,kaboom2-3
-		sub ax,bx
+		mov ax,kaboom2-2
+		sub ax,di
 		stosw
 
 ;

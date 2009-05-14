@@ -35,6 +35,7 @@ SECTIONS
 	__earlybss_len = __earlybss_end - __earlybss_start;
 	__earlybss_dwords = (__earlybss_len + 3) >> 2;
 
+	. = ALIGN(4);
 	.bss : {
 		__bss_start = .;
 		*(.bss)
@@ -45,6 +46,7 @@ SECTIONS
 	__bss_len = __bss_end - __bss_start;
 	__bss_dwords = (__bss_len + 3) >> 2;
 
+	. = ALIGN(4);
  	.config : AT (__config_lma) {
 		__config_start = .;
 		*(.config)
@@ -135,6 +137,7 @@ SECTIONS
 
 	/* Late uninitialized sections */
 
+	. = ALIGN(4);
 	.uibss : {
 		__uibss_start = .;
 		*(.uibss)

@@ -2714,33 +2714,34 @@ pxe_bootp_query_pkt:
 .buffer:	resw 2			; seg:off of buffer
 .bufferlimit:	resw 1			; Unused
 
-		section .data
 pxe_udp_open_pkt:
-.status:	dw 0			; Status
-.sip:		dd 0			; Source (our) IP
+.status:	resw 1			; Status
+.sip:		resd 1			; Source (our) IP
 
 pxe_udp_close_pkt:
-.status:	dw 0			; Status
+.status:	resw 1			; Status
 
 pxe_udp_write_pkt:
-.status:	dw 0			; Status
-.sip:		dd 0			; Server IP
-.gip:		dd 0			; Gateway IP
-.lport:		dw 0			; Local port
-.rport:		dw 0			; Remote port
-.buffersize:	dw 0			; Size of packet
-.buffer:	dw 0, 0			; seg:off of buffer
+.status:	resw 1			; Status
+.sip:		resd 1			; Server IP
+.gip:		resd 1			; Gateway IP
+.lport:		resw 1			; Local port
+.rport:		resw 1			; Remote port
+.buffersize:	resw 1			; Size of packet
+.buffer:	resw 2			; seg:off of buffer
 
 pxe_udp_read_pkt:
-.status:	dw 0			; Status
-.sip:		dd 0			; Source IP
-.dip:		dd 0			; Destination (our) IP
-.rport:		dw 0			; Remote port
-.lport:		dw 0			; Local port
-.buffersize:	dw 0			; Max packet size
-.buffer:	dw 0, 0			; seg:off of buffer
+.status:	resw 1			; Status
+.sip:		resd 1			; Source IP
+.dip:		resd 1			; Destination (our) IP
+.rport:		resw 1			; Remote port
+.lport:		resw 1			; Local port
+.buffersize:	resw 1			; Max packet size
+.buffer:	resw 2			; seg:off of buffer
 
 %if GPXE
+
+		section .data
 
 gpxe_file_api_check:
 .status:	dw 0			; Status
@@ -2750,28 +2751,32 @@ gpxe_file_api_check:
 .apimask:	dd 0
 .flags:		dd 0
 
+		section .bss
+
 gpxe_file_open:
-.status:	dw 0			; Status
-.filehandle:	dw 0			; FileHandle
-.filename:	dd 0			; seg:off of FileName
-.reserved:	dd 0
+.status:	resw 1			; Status
+.filehandle:	resw 1			; FileHandle
+.filename:	resd 1			; seg:off of FileName
+.reserved:	resd 1
 
 gpxe_get_file_size:
-.status:	dw 0			; Status
-.filehandle:	dw 0			; FileHandle
-.filesize:	dd 0			; FileSize
+.status:	resw 1			; Status
+.filehandle:	resw 1			; FileHandle
+.filesize:	resd 1			; FileSize
 
 gpxe_file_read:
-.status:	dw 0			; Status
-.filehandle:	dw 0			; FileHandle
-.buffersize:	dw 0			; BufferSize
-.buffer:	dd 0			; seg:off of buffer
+.status:	resw 1			; Status
+.filehandle:	resw 1			; FileHandle
+.buffersize:	resw 1			; BufferSize
+.buffer:	resd 1			; seg:off of buffer
 
 %endif ; GPXE
 
 ;
 ; Misc initialized (data) variables
 ;
+		section .data
+
 		alignz 4
 BaseStack	dd StackBuf		; ESP of base stack
 		dw 0			; SS of base stack

@@ -395,3 +395,5 @@ FlowIgnore	resb 1			; Ignore input unless these bits set
 
 TextAttribute   resb 1			; Text attribute for message file
 DisplayMask	resb 1			; Display modes mask
+
+		section .text

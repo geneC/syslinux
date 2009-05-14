@@ -18,9 +18,10 @@
 ;
 
 		; Expanded superblock
-		section .bss
+		section .earlybss
 		alignb 8
 SuperInfo	resq 16			; The first 16 bytes expanded 8 times
+DriveNumber	resb 1
 
 		section .init
 ;
@@ -523,11 +524,11 @@ print_bios:
 		mov [BIOSName],si
 		call writestr_early
 
-		section .bss
+		section .earlybss
 %define	HAVE_BIOSNAME 1
 BIOSName	resw 1
 
-		section .text
+		section .init
 ;
 ; Now we read the rest of LDLINUX.SYS.	Don't bother loading the first
 ; sector again, though.

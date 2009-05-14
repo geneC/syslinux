@@ -127,7 +127,6 @@ TotalSectors	resd 1			; Total number of sectors
 ClustSize	resd 1			; Bytes/cluster
 ClustMask	resd 1			; Sectors/cluster - 1
 CopySuper	resb 1			; Distinguish .bs versus .bss
-DriveNumber	resb 1			; BIOS drive number
 ClustShift	resb 1			; Shift count for sectors/cluster
 ClustByteShift	resb 1			; Shift count for bytes/cluster
 
@@ -138,6 +137,12 @@ Files		resb MAX_OPEN*open_file_t_size
 ; Common bootstrap code for disk-based derivatives
 ;
 %include "diskstart.inc"
+
+;
+; Common initialization code
+;
+%include "init.inc"
+%include "cpuinit.inc"
 
 ;
 ; Compute some information about this filesystem.
@@ -212,11 +217,6 @@ getfattype:
 .setsize:
 		mov byte [nextcluster+1],cl
 
-;
-; Common initialization code
-;
-%include "cpuinit.inc"
-%include "init.inc"
 
 ;
 ; Initialize the metadata cache
@@ -231,8 +231,8 @@ getfattype:
 		mov di,kaboom.patch
 		mov al,0e9h
 		stosb
-		mov ax,kaboom2-3
-		sub ax,bx
+		mov ax,kaboom2-2
+		sub ax,di
 		stosw
 
 ;

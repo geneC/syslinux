@@ -2,6 +2,7 @@
 ; -----------------------------------------------------------------------
 ;
 ;   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
+;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -19,6 +20,16 @@
 
 		section .text
 common_init:
+		; Zero bss sections (but not .earlybss, since it may
+		; contain already-live data.)
+		xor eax,eax
+		mov di,__bss_start
+		mov cx,__bss_dwords
+		rep stosd
+		mov di,__uibss_start
+		mov cx,__uibss_dwords
+		rep stosd
+
 		; Now set up screen parameters
 		call adjust_screen
 
