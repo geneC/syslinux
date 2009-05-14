@@ -45,14 +45,8 @@
 ;	EDI	- first byte after target
 ;
 bcopy:		jecxz .ret
-		push esi
-		push edi
-		push ecx
 		push word pm_bcopy
 		call pm_call
-		pop ecx
-		pop edi
-		pop esi
 		add edi,ecx
 		add esi,ecx
 .ret:		ret

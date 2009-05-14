@@ -23,6 +23,7 @@
 %include "macros.inc"
 %include "config.inc"
 %include "layout.inc"
+%include "pmcall.inc"
 %include "kernel.inc"
 %include "bios.inc"
 %include "tracers.inc"

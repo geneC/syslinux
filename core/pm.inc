@@ -23,23 +23,25 @@
 		section .text
 ;
 ; pm_call: call PM routine in low memory from RM
+;
 ;	on stack	= PM routine to call (as a 16-bit address)
-;	ECX, ESI, EDI preserved in and out of function
-;	All other registers and the flags saved/restored
+;
+;	ECX, ESI, EDI passed to the called function;
+;	EAX = EBP in the called function points to the stack frame
+;	which includes all registers (which can be changed if desired.)
+;
+;	All registers and the flags saved/restored
 ;
 		bits 16
 pm_call:
+		pushfd
+		pushad
 		push ds
 		push es
 		push fs
 		push gs
-		push eax
-		push ebx
-		push edx
-		push ebp
-		pushfd
 		mov bp,sp
-		movzx edx,word [bp+5*4+5*2]	; Entrypoint
+		movzx edx,word [bp+4*2+9*4+2]	; Entrypoint
 		mov ax,cs
 		mov bx,.pm
 		mov ds,ax
@@ -48,7 +50,7 @@ pm_call:
 		bits 32
 .pm:
 		; EAX points to the top of the RM stack, which is EFLAGS
-		test byte [eax+1],02h		; RM EFLAGS.IF
+		test RM_FLAGSH,02h		; RM EFLAGS.IF
 		jz .no_sti
 		sti
 .no_sti:
@@ -58,23 +60,19 @@ pm_call:
 
 		bits 16
 .rm:
-		popfd
-		pop ebp
-		pop edx
-		pop ebx
-		pop eax
 		pop gs
 		pop fs
 		pop es
 		pop ds
+		popad
+		popfd
 		ret 2		; Drop entrypoint
 
 ;
 ; enter_pm: Go to PM with interrupt service configured
-;	BX	= PM entry point (in low memory)
-;	EAX	= on exit, points to the RM stack as a 32-bit value
+;	BX	  = PM entry point (in low memory)
+;	EAX = EBP = on exit, points to the RM stack as a 32-bit value
 ;	ECX, EDX, ESI, EDI preserved across this routine
-;	EBP	clobbered
 ;
 ;	Assumes CS == DS
 ;
@@ -126,7 +124,7 @@ enter_pm:
 		ltr ax			; giving it a valid TR
 
 		mov esp,[PMESP]		; Load protmode %esp
-		xchg eax,ebp		; EAX -> top of real-mode stack
+		mov eax,ebp		; EAX -> top of real-mode stack
 		jmp bx			; Go to where we need to go
 
 ;

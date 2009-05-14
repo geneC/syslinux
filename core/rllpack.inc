@@ -41,16 +41,13 @@ rllpack:
 
 		bits 32
 .pmentry:
-		push ecx
-		push ebx
-		push edx
 .startseq:
 		xor eax,eax		; Zero byte
 		xor ebx,ebx		; Run length zero
 		dec edi
 		mov edx,edi		; Pointer to header byte
 		mov [edi],al		; Create header byte
-		jcxz .done		; If done, this was the terminator
+		jecxz .done		; If done, this was the terminator
 .stdbyte:
 		lodsb
 		dec edi
@@ -64,7 +61,7 @@ rllpack:
 .plainbyte:
 		inc ebx
 		inc byte [edx]
-		jcxz .startseq
+		jecxz .startseq
 		jns .stdbyte
 		jmp .startseq
 .same:
@@ -79,7 +76,7 @@ rllpack:
 		inc ebx
 		add edi,ebx		; Remove the stored run bytes
 .getrun:
-		jcxz .nomatch
+		jecxz .nomatch
 		lodsb
 		cmp al,ah
 		jne .nomatch
@@ -106,9 +103,9 @@ rllpack:
 		dec esi			; Reload subsequent byte
 		jmp .startseq
 .done:
-		pop edx
-		pop ebx
-		pop ecx
+		mov RM_EDI,edi
+		mov RM_ESI,esi
+		
 		ret
 
 		bits 16
@@ -130,7 +127,7 @@ rllunpack:
 .header:
 		dec esi
 		mov cl,[esi]
-		jcxz .done
+		jecxz .done
 		cmp cl,129
 		jae .isrun
 		; Not a run
@@ -156,9 +153,11 @@ rllunpack:
 		mov cl,[esi]
 		jmp .dorun
 .done:
-		pop ecx
-		sub ecx,edi
-		neg ecx
+		pop eax			; Initial EDI
+		mov RM_EDI,edi
+		sub edi,eax
+		mov RM_ECX,edi
+		mov RM_ESI,esi
 		ret
 
 		bits 16
