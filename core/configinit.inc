@@ -16,7 +16,7 @@
 ;; Initialize the configuration section
 ;;
 
-		section .text
+		section .text16
 
 reset_config:
 		call highmemsize
@@ -54,6 +54,6 @@ mkkeymap:	stosb
 
 		ret
 
-		section .data
+		section .data16
 linuxauto_cmd	db 'linux auto',0
 linuxauto_len   equ $-linuxauto_cmd

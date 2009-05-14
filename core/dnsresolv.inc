@@ -24,7 +24,7 @@ DNS_MAX_PACKET	equ 512			; Defined by protocol
 DNS_LOCAL_PORT	equ htons(60053)	; All local DNS queries come from this port #
 DNS_MAX_SERVERS equ 4			; Max no of DNS servers
 
-		section .text
+		section .text16
 
 ;
 ; Turn a string in DS:SI into a DNS "label set" in ES:DI.
@@ -150,14 +150,14 @@ dns_skiplabel:
 .rdata:		equ $
 		endstruc
 
-		section .bss
+		section .bss16
 		alignb 2
 DNSSendBuf	resb DNS_MAX_PACKET
 DNSRecvBuf	resb DNS_MAX_PACKET
 LocalDomain	resb 256		; Max possible length
 DNSServers	resd DNS_MAX_SERVERS
 
-		section .data
+		section .data16
 pxe_udp_write_pkt_dns:
 .status:	dw 0			; Status
 .sip:		dd 0			; Server IP
@@ -185,7 +185,7 @@ LastDNSServer	dw DNSServers
 ;
 ; No segment assumptions permitted.
 ;
-		section .text
+		section .text16
 dns_resolv:
 		push ds
 		push es

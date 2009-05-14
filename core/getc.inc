@@ -321,7 +321,7 @@ parseint:
 .isk:		shl ebx,10		; * 2^10
 		jmp .fini
 
-		section .bss
+		section .bss16
 		alignb 4
 NumBuf		resb 15			; Buffer to load number
 NumBufEnd	resb 1			; Last byte in NumBuf
@@ -329,14 +329,14 @@ NumBufEnd	resb 1			; Last byte in NumBuf
 GetCStack	resb getc_file_size*MAX_GETC
 .end		equ $
 
-		section .data
+		section .data16
 CurrentGetC	dw GetCStack.end	; GetCStack empty
 
 ;
 ; unhexchar:    Convert a hexadecimal digit in AL to the equivalent number;
 ;               return CF=1 if not a hex digit
 ;
-		section .text
+		section .text16
 unhexchar:
                 cmp al,'0'
 		jb .ret			; If failure, CF == 1 already

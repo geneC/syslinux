@@ -17,7 +17,7 @@
 ;; Command line parser code
 ;;
 
-		section .text
+		section .text16
 
 ; -------------------------------------------------------------------------
 ;  getcommand:	Get a keyword from the current "getc" file and match it
@@ -106,7 +106,7 @@ skipline:	cmp al,10		; Search for LF
 		jnc skipline
 .end:		ret
 
-		section .data
+		section .data16
 err_badcfg      db 'Unknown keyword in configuration file: ',0
 err_noparm      db 'Missing parameter in configuration file. Keyword: ',0
 

@@ -39,10 +39,10 @@ LATEBSS_START	equ 0B800h
 		section .config		write progbits align=4
 		section .replacestub	exec write progbits align=16
 
-		; Use .bss for things that doesn't have to be in low memory;
+		; Use .bss16 for things that doesn't have to be in low memory;
 		; .earlybss should be used for things that absolutely have
 		; to be below 0x7c00.
-		section .bss		write nobits align=16
+		section .bss16		write nobits align=16
 
 %if 0 ; IS_PXELINUX
 		; Warning here: RBFG build 22 randomly overwrites
@@ -55,9 +55,9 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 %endif
 
 		section .init		exec write progbits align=1
-		section .text		exec write progbits align=1
+		section .text16		exec write progbits align=1
 		section .bcopyxx	exec write progbits align=16
-		section .data		write progbits align=16
+		section .data16		write progbits align=16
 
 		section .adv		write nobits align=512
 
@@ -72,14 +72,14 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		extern __%1_start, __%1_lma, __%1_end
 		extern __%1_len, __%1_dwords
 %endmacro
-		SECINFO bss
+		SECINFO bss16
 		SECINFO uibss
 		SECINFO config
 		SECINFO replacestub
 
 		global _start
 
-		section .text
+		section .text16
 
 ;
 ; Segment assignments in the bottom 640K

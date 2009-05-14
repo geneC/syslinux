@@ -17,7 +17,7 @@
 ;; Configuration file operations
 ;;
 
-		section .text
+		section .text16
 ;
 ; "default" or "ui" command, with level (1 = default, 2 = ui)
 ;
@@ -435,11 +435,11 @@ commit_vk:
 		call writestr
 		ret
 
-		section .data
+		section .data16
 vk_overflow_msg	db 'Out of memory parsing config file', CR, LF, 0
 SerialNotice	db 1			; Only print this once
 
-		section .bss
+		section .bss16
 		alignb 4
 VKernelEnd	resd 1			; Lowest high memory address used
 

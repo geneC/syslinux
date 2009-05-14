@@ -36,15 +36,13 @@ SECTIONS
 	__earlybss_dwords = (__earlybss_len + 3) >> 2;
 
 	. = ALIGN(4);
-	.bss : {
-		__bss_start = .;
-		*(.bss)
-		*(.bss1)
-		*(.bss2)
-		__bss_end = .;
+	.bss16 : {
+		__bss16_start = .;
+		*(.bss16)
+		__bss16_end = .;
 	}
-	__bss_len = __bss_end - __bss_start;
-	__bss_dwords = (__bss_len + 3) >> 2;
+	__bss16_len = __bss16_end - __bss16_start;
+	__bss16_dwords = (__bss16_len + 3) >> 2;
 
 	. = ALIGN(4);
  	.config : AT (__config_lma) {
@@ -88,14 +86,14 @@ SECTIONS
 	__init_len = __init_end - __init_start;
 	__init_dwords = (__init_len + 3) >> 2;
 
-	.text : {
+	.text16 : {
 		FILL(0x90909090)
-		__text_start = .;
-		*(.text)
-		__text_end = .;
+		__text16_start = .;
+		*(.text16)
+		__text16_end = .;
 	}
-	__text_len = __text_end - __text_start;
-	__text_dwords = (__text_len + 3) >> 2;
+	__text16_len = __text16_end - __text16_start;
+	__text16_dwords = (__text16_len + 3) >> 2;
 
 	. = ALIGN(16);
 	.bcopyxx : {
@@ -108,13 +106,13 @@ SECTIONS
 	__bcopyxx_dwords = (__bcopyxx_len + 3) >> 2;
 
 	. = ALIGN(4);
-	.data : {
-	      __data_start = .;
-	      *(.data)
-	      __data_end = .;
+	.data16 : {
+	      __data16_start = .;
+	      *(.data16)
+	      __data16_end = .;
 	}
-	__data_len = __data_end - __data_start;
-	__data_dwords = (__data_len + 3) >> 2;
+	__data16_len = __data16_end - __data16_start;
+	__data16_dwords = (__data16_len + 3) >> 2;
 
 	. = ALIGN(4);
 	__config_lma = .;

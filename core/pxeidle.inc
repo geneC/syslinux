@@ -17,7 +17,7 @@
 ;; Query for the NIC type, and detect certain special cases.
 ;;
 
-		section .text
+		section .text16
 
 ;;
 ;; Initializes the idle mechanism based on the device type
@@ -54,7 +54,7 @@ pxe_detect_nic_type:
 ;;
 ;; List of devices for which we want to actually issue idle calls.
 ;;
-		section .data
+		section .data16
 		alignz 4
 pxe_idle_pci_list:
 ;
@@ -75,7 +75,7 @@ pxe_idle_pci_list:
 ;
 .len		equ ($-pxe_idle_pci_list) >> 2
 
-		section .bss
+		section .bss16
 pxenv_get_nic_type:
 .status:	resw 1
 .nic_type:	resb 1
@@ -89,4 +89,4 @@ pxenv_get_nic_type:
 .svid:		resw 1
 .sdid:		resw 1
 
-		section .text
+		section .text16

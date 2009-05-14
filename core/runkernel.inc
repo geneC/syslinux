@@ -629,7 +629,7 @@ writestr_qchk:
 		jz writestr
 		ret
 
-		section .data
+		section .data16
 crlfloading_msg	db CR, LF
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
@@ -662,7 +662,7 @@ str_initrd	equ $+1			; Pointer to "initrd=" in memory
 %endif
 		db 0
 
-		section .bss
+		section .bss16
 		alignb 4
 MyHighMemSize	resd 1			; Possibly adjusted highmem size
 RamdiskMax	resd 1			; Highest address for ramdisk

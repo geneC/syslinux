@@ -652,7 +652,7 @@ rl_checkpt_off	equ ($-$$)
 ;  End of code and data that have to be in the first sector
 ; ----------------------------------------------------------------------------
 
-		section .text
+		section .text16
 all_read:
 ;
 ; Let the user (and programmer!) know we got this far.  This used to be

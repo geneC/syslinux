@@ -45,7 +45,7 @@ make_plain_cmdline:
 ; Actual IPAppend strings...
 ;
 %if IS_PXELINUX
-		section .data
+		section .data16
 		alignz 2
 IPAppends	dw IPOption
 		dw BOOTIFStr
@@ -60,7 +60,7 @@ numIPAppends	equ 0
 ;
 ; Assumes DS == CS; pushes output to ES:DI
 ;
-		section .text
+		section .text16
 
 do_ip_append:
 %ifndef DEPEND

@@ -5,7 +5,7 @@
 ;	   target buffer; return with CF=1 if target buffer overflows;
 ;	   the output is still zero-terminated.
 ;
-		section .text
+		section .text16
 
 strecpy:
 		push ax

@@ -29,7 +29,7 @@
 ;
 
 		bits 16
-		section .text
+		section .text16
 
 ;
 ; bcopy:

@@ -57,7 +57,7 @@ adv1:
 .data		resb ADV_LEN
 .tail		resd 1
 .end		equ $
-		section .text
+		section .text16
 
 		;
 		; This is called after config file parsing, so we know
@@ -492,12 +492,12 @@ adv_read_write:
 		stc
 		jmp .cb_done
 
-		section .data
+		section .data16
 		alignz 4
 ADVSec0		dd 0			; Not specified
 ADVSec1		dd 0			; Not specified
 ADVDrive	db -1			; No ADV defined
 ADVCHSInfo	db -1			; We have CHS info for this drive
 
-		section .bss
+		section .bss16
 ADVOp		resb 1

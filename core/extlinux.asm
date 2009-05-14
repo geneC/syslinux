@@ -102,7 +102,7 @@ trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 		; ends at 2800h
 
-		section .bss
+		section .bss16
 SuperBlock	resb 1024		; ext2 superblock
 ClustSize	resd 1			; Bytes/cluster ("block")
 ClustMask	resd 1			; Sectors/cluster - 1
@@ -355,11 +355,11 @@ open_inode:
 		pop di
 		ret
 
-		section .bss
+		section .bss16
 		alignb 4
 ThisInode	resb EXT2_GOOD_OLD_INODE_SIZE	; The most recently opened inode
 
-		section .text
+		section .text16
 ;
 ; close_file:
 ;	     Deallocates a file structure (pointer in SI)
@@ -587,7 +587,7 @@ searchdir:
 		jmp .symlink_finish
 
 
-		section .bss
+		section .bss16
 		alignb	4
 SymlinkBuf	resb	SYMLINK_SECTORS*SECTOR_SIZE+64
 SymlinkTmpBuf	 equ	trackbuf
@@ -596,7 +596,7 @@ ThisDir		resd	1
 EndBlock	resw	1
 SymlinkCtr	resb	1
 
-		section .text
+		section .text16
 ;
 ; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
 ;	       to by ES:DI; ends on encountering any whitespace.
@@ -903,7 +903,7 @@ build_curdir_str:
 ;  Begin data section
 ; -----------------------------------------------------------------------------
 
-		section .data
+		section .data16
 copyright_str   db ' Copyright (C) 1994-'
 		asciidec YEAR
 		db ' H. Peter Anvin et al', CR, LF, 0

@@ -190,7 +190,7 @@ IPOption	resb 80			; ip= option buffer
 InitStack	resd 1			; Pointer to reset stack (SS:SP)
 PXEStack	resd 1			; Saved stack during PXE call
 
-		section .bss
+		section .bss16
 		alignb 4
 RebootTime	resd 1			; Reboot timeout, if set by option
 StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure
@@ -226,12 +226,12 @@ pxe_unload_stack_pkt_len	equ $-pxe_unload_stack_pkt
 		alignb 16
 		; BOOTP/DHCP packet buffer
 
-		section .bss
+		section .bss16
 		alignb 16
 packet_buf	resb 2048		; Transfer packet
 packet_buf_size	equ $-packet_buf
 
-		section .text
+		section .text16
 		;
 		; PXELINUX needs more BSS than the other derivatives;
 		; therefore we relocate it from 7C00h on startup.
@@ -1479,12 +1479,12 @@ is_gpxe:
 		pop es
 		jmp .again
 
-		section .data
+		section .data16
 gpxe_warning_msg:
 		db 'URL syntax, but gPXE extensions not detected, '
 		db 'trying plain TFTP...', CR, LF, 0
 HasGPXE		db -1			; Unknown
-		section .text
+		section .text16
 
 %endif
 
@@ -1648,11 +1648,11 @@ pxenv:
 ; Must be after function def due to NASM bug
 PXEEntry	equ pxenv.jump+1
 
-		section .bss
+		section .bss16
 		alignb 2
 PXEStatus	resb 2
 
-		section .text
+		section .text16
 
 ;
 ; getfssec: Get multiple clusters from a file, given the starting cluster.
@@ -1896,14 +1896,14 @@ fill_buffer:
 ;
 ; This is roughly an exponential backoff...
 ;
-		section .data
+		section .data16
 TimeoutTable:
 		db 2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18
 		db 21, 26, 31, 37, 44, 53, 64, 77, 92, 110, 132
 		db 159, 191, 229, 255, 255, 255, 255
 TimeoutTableEnd	equ $
 
-		section .text
+		section .text16
 ;
 ; ack_packet:
 ;
@@ -2227,10 +2227,10 @@ pxe_get_cached_info:
 		call crlf
 		jmp kaboom
 
-		section .data
+		section .data16
 get_packet_msg	db 'Getting cached packet', 0
 
-		section .text
+		section .text16
 ;
 ; ip_ok
 ;
@@ -2375,15 +2375,15 @@ parse_some_dhcp_options:
 .done:
 		ret
 
-		section .data
+		section .data16
 dhcp_option_list:
-		section .text
+		section .text16
 
 %macro dopt 2
-		section .data
+		section .data16
 		db %1
 		dw dopt_%2
-		section .text
+		section .text16
 dopt_%2:
 %endmacro
 
@@ -2508,14 +2508,14 @@ dhcp_copyoption:
 		stosb		; Null-terminate
 		ret
 
-		section .data
+		section .data16
 dhcp_option_list_end:
-		section .text
+		section .text16
 
-		section .data
+		section .data16
 HaveUUID	db 0
 uuid_dashes	db 4,2,2,2,6,0	; Bytes per UUID dashed section
-		section .text
+		section .text16
 
 ;
 ; genipopt
@@ -2633,7 +2633,7 @@ writestr_early	equ writestr
 ;  Begin data section
 ; -----------------------------------------------------------------------------
 
-		section .data
+		section .data16
 
 copyright_str   db ' Copyright (C) 1994-'
 		asciidec YEAR
@@ -2677,7 +2677,7 @@ bootif_str_len	equ $-bootif_str
 
 ;
 ; Extensions to search for (in *forward* order).
-; (.bs and .bss are disabled for PXELINUX, since they are not supported)
+; (.bs and .bss16 are disabled for PXELINUX, since they are not supported)
 ;
 		alignz 4
 exten_table:	db '.cbt'		; COMBOOT (specific)
@@ -2706,7 +2706,7 @@ old_api_unload:
 ;
 ; PXE query packets partially filled in
 ;
-		section .bss
+		section .bss16
 pxe_bootp_query_pkt:
 .status:	resw 1			; Status
 .packettype:	resw 1			; Boot server packet type
@@ -2741,7 +2741,7 @@ pxe_udp_read_pkt:
 
 %if GPXE
 
-		section .data
+		section .data16
 
 gpxe_file_api_check:
 .status:	dw 0			; Status
@@ -2751,7 +2751,7 @@ gpxe_file_api_check:
 .apimask:	dd 0
 .flags:		dd 0
 
-		section .bss
+		section .bss16
 
 gpxe_file_open:
 .status:	resw 1			; Status
@@ -2775,7 +2775,7 @@ gpxe_file_read:
 ;
 ; Misc initialized (data) variables
 ;
-		section .data
+		section .data16
 
 		alignz 4
 BaseStack	dd StackBuf		; ESP of base stack

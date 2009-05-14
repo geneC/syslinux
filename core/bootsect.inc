@@ -211,4 +211,4 @@ replace_stub:
 		jmp 0:0
 .csip		equ $-4
 
-		section .text
+		section .text16

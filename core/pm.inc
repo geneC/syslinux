@@ -20,7 +20,7 @@
 ;; PM refers to 32-bit flat protected mode; RM to 16-bit real mode.
 ;;
 
-		section .text
+		section .text16
 ;
 ; pm_call: call PM routine in low memory from RM
 ;
@@ -176,7 +176,7 @@ enter_rm:
 		mov gs,dx
 		jmp bx			; Go to whereever we need to go...
 
-		section .data
+		section .data16
 		alignz 4
 
 		; If SS == 0, this will make any 32-bit users use
@@ -186,7 +186,7 @@ PMESP		dd StackTop		; Protected-mode ESP
 PM_IDT_ptr:	dw 8*256-1		; Length
 		dd IDT			; Offset
 
-		section .bss
+		section .bss16
 		alignb 8
 IDT:		resq 256
 IRQStubs:	resb 4*256+3*8
@@ -202,7 +202,7 @@ RealModeSSSP	resd 1			; Real-mode SS:SP
 ; AL contains the register number.
 ;
 		bits 32
-		section .text
+		section .text16
 pm_irq:
 		pushad
 		movzx esi,byte [esp+8*4] ; Interrupt number
@@ -223,7 +223,7 @@ pm_irq:
 		iretd
 
 		bits 16
-		section .text
+		section .text16
 ;
 ; Routines to enable and disable (yuck) A20.  These routines are gathered
 ; from tips from a couple of sources, including the Linux kernel and
@@ -242,16 +242,16 @@ slow_out:	out dx, al		; Fall through
 		out IO_DELAY_PORT,al
 %endmacro
 
-		section .data
+		section .data16
 		alignz 2
 A20Ptr		dw a20_dunno
 
-		section .bss
+		section .bss16
 		alignb 4
 A20Test		resd 1			; Counter for testing A20 status
 A20Tries	resb 1			; Times until giving up on A20
 
-		section .text
+		section .text16
 enable_a20:
 		pushad
 		mov byte [cs:A20Tries],255 ; Times to try to make this work
@@ -350,9 +350,9 @@ a20_fast:
 		mov si, err_a20
 		jmp abort_load
 
-		section .data
+		section .data16
 err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0
-		section .text
+		section .text16
 
 ;
 ; A20 unmasked, proceed...
@@ -415,7 +415,7 @@ empty_8042:
 ;
 ; This initializes the protected-mode interrupt thunk set
 ;
-		section .text
+		section .text16
 pm_init:
 		xor edi,edi
 		mov bx,IDT

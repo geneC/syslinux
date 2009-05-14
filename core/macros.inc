@@ -47,7 +47,7 @@
 
 ;
 ; Macros similar to res[bwd], but which works in the code segment (after
-; section .text) or the data segment (section .data)
+; section .text16) or the data segment (section .data16)
 ;
 %macro	zb	1.nolist
 	times %1 db 0

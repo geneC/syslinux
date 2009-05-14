@@ -116,7 +116,7 @@ trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 		; ends at 2800h
 
-		section .bss
+		section .bss16
 		alignb 4
 FAT		resd 1			; Location of (first) FAT
 RootDirArea	resd 1			; Location of root directory area
@@ -568,7 +568,7 @@ search_dos_dir:
 		pop bx
 		ret
 
-		section .data
+		section .data16
 		alignz 4
 		; Note: we have no use of the first 32 bytes (header),
 		; nor of the folloing 32 bytes (case mapping of control
@@ -580,7 +580,7 @@ cp_unicode	equ	codepage+cp.unicode
 cp_unicode_alt	equ	codepage+cp.unicode_alt
 codepage_end	equ $
 
-		section .text
+		section .text16
 ;
 ; Input:  UCS-2 character in AX
 ; Output: Single byte character in AL, ZF = 1
@@ -602,12 +602,12 @@ ucs2_to_cp:
 		not ax		; Doesn't change the flags!
 		ret
 
-		section .bss
+		section .bss16
 VFATInit	resb 1
 VFATNext	resb 1
 VFATCsum	resb 1
 
-		section .text
+		section .text16
 ;
 ; close_file:
 ;	     Deallocates a file structure (pointer in SI)
@@ -961,12 +961,12 @@ readdir:
 .end:
 		ret
 
-		section .bss
+		section .bss16
 		alignb 4
 CurrentDir	resd 1			; Current directory
 PrevDir		resd 1			; Last scanned directory
 
-		section .text
+		section .text16
 
 ;
 ;
@@ -1115,13 +1115,13 @@ mangle_dos_name:
 		stosb				; Otherwise, write a space
 		loop .period_loop		; Dec CX and *always* jump
 
-		section .bss
+		section .bss16
 		alignb 2
 NameStart	resw 1
 NameLen		resw 1
 MangledBuf	resb 11
 
-		section .text
+		section .text16
 ;
 ; getfssec_edx: Get multiple sectors from a file
 ;
@@ -1398,7 +1398,7 @@ getfatsector:
 ;  Begin data section
 ; -----------------------------------------------------------------------------
 
-		section .data
+		section .data16
 copyright_str   db ' Copyright (C) 1994-'
 		asciidec YEAR
 		db ' H. Peter Anvin et al', CR, LF, 0

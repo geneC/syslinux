@@ -29,7 +29,7 @@
 
 pm_entry	equ 101000h
 
-		section .text
+		section .text16
 is_com32_image:
 		push si			; Save file handle
 		push eax		; Save file length
@@ -257,9 +257,9 @@ __com32_cfarcall:
 
 		bits 16
 
-		section .bss
+		section .bss16
 		alignb 4
 RealModeEAX	resd 1			; Real mode EAX
 Com32SysSP	resw 1			; SP saved during COM32 syscall
 
-		section .text
+		section .text16

@@ -10,7 +10,7 @@
 ;
 ; -----------------------------------------------------------------------
 
-		section .text
+		section .text16
 
 		struc cptr
 .sector:	resd 1				; Sector number
@@ -103,7 +103,7 @@ getcachesector:
 		pop cx
 		ret
 
-		section .bss
+		section .bss16
 
 		; Each CachePtr contains:
 		; - Block pointer

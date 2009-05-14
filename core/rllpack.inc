@@ -27,7 +27,7 @@
 ; High memory pointers point to one byte beyond the end.
 ;
 
-		section .text
+		section .text16
 
 ;
 ; rllpack:

@@ -572,12 +572,12 @@ getchar_timeout:
 ;
 ; Anything else is assumed to be a Linux kernel.
 ;
-		section .bss
+		section .bss16
 		alignb 4
 Kernel_EAX	resd 1
 Kernel_SI	resw 1
 
-		section .text
+		section .text16
 kernel_good_saved:
 		; Alternate entry point for which the return from
 		; searchdir is stored in memory.  This is used for
@@ -683,7 +683,7 @@ is_bss_sector	equ is_bad_image
 is_disk_image	equ is_bad_image
 %endif
 
-		section .data
+		section .data16
 boot_prompt	db 'boot: ', 0
 wipe_char	db BS, ' ', BS, 0
 err_badimage	db 'Invalid image type for this media type!', CR, LF, 0
@@ -703,7 +703,7 @@ kerneltype_table:
 		dw is_com32_image	; VK_COM32
 		dw is_config_file	; VK_CONFIG
 
-		section .bss
+		section .bss16
 		alignb 4
 ThisKbdTo	resd 1			; Temporary holder for KbdTimeout
 ThisTotalTo	resd 1			; Temporary holder for TotalTimeout
@@ -713,7 +713,7 @@ KbdFlags	resb 1			; Check for keyboard escapes
 FuncFlag	resb 1			; Escape sequences received from keyboard
 KernelType	resb 1			; Kernel type, from vkernel, if known
 
-		section .text
+		section .text16
 ;
 ; Linux kernel loading code is common.
 ;

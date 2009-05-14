@@ -318,4 +318,4 @@ bcopyxx_safe	equ bcopyxx_len + bcopyxx_stack + 15
 DummyTSS	equ 0x580
 
 		bits 16
-		section .text
+		section .text16

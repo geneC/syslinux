@@ -23,7 +23,7 @@
 ; loadkeys:	Load a LILO-style keymap; file is open on the top of the
 ;		getc stack.
 ;
-		section .text
+		section .text16
 
 loadkeys:
 		mov cx,256
@@ -363,7 +363,7 @@ debug_tracer:	pushad
 		ret
 %endif	; DEBUG_TRACERS
 
-		section .data
+		section .data16
 %if IS_ISOLINUX == 0			; Defined elsewhere for ISOLINUX
 crlf_msg	db CR, LF
 null_msg	db 0
@@ -376,7 +376,7 @@ DisplayCon	dw 01h			; Console display enabled
 
 ScrollAttribute	db 07h			; Grey on white (normal text color)
 
-		section .bss
+		section .bss16
 		alignb 2
 NextCharJump    resw 1			; Routine to interpret next print char
 CursorDX        equ $
@@ -396,4 +396,4 @@ FlowIgnore	resb 1			; Ignore input unless these bits set
 TextAttribute   resb 1			; Text attribute for message file
 DisplayMask	resb 1			; Display modes mask
 
-		section .text
+		section .text16

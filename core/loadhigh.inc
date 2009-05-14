@@ -17,7 +17,7 @@
 ;; Load a file into high memory
 ;;
 
-		section .text
+		section .text16
 
 ;
 ; load_high:	loads (the remainder of) a file into high memory.
@@ -103,12 +103,12 @@ load_high:
 .overflow:	mov si,err_nohighmem
 		jmp abort_load
 
-		section .data
+		section .data16
 err_nohighmem   db CR, LF
 		db 'Not enough memory to load specified image.', CR, LF, 0
 
-		section .bss
+		section .bss16
 		alignb 2
 PauseBird	resw 1
 
-		section .text
+		section .text16

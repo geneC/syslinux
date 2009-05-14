@@ -18,13 +18,13 @@
 ; Common initialization code (inline)
 ;
 
-		section .text
+		section .text16
 common_init:
 		; Zero bss sections (but not .earlybss, since it may
 		; contain already-live data.)
 		xor eax,eax
-		mov di,__bss_start
-		mov cx,__bss_dwords
+		mov di,__bss16_start
+		mov cx,__bss16_dwords
 		rep stosd
 		mov di,__uibss_start
 		mov cx,__uibss_dwords
@@ -55,4 +55,4 @@ common_init:
 		add ax,PKTBUF_SIZE
 		loop .setbufptr
 %endif
-		section .text			; This is an inline file...
+		section .text16			; This is an inline file...

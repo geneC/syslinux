@@ -40,7 +40,7 @@ enough_ram:
 skip_checks:
 		call pm_init
 
-		section .data
+		section .data16
 err_noram	db 'It appears your computer has less than '
 		asciidec dosram_k
 		db 'K of low ("DOS")'
@@ -50,4 +50,4 @@ err_noram	db 'It appears your computer has less than '
 		db 'this message in error, hold down the Ctrl key while'
 		db CR, LF
 		db 'booting, and I will take your word for it.', CR, LF, 0
-		section .text
+		section .text16

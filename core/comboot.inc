@@ -17,7 +17,7 @@
 ;; Common code for running a COMBOOT image
 ;;
 
-		section .text
+		section .text16
 
 ; Parameter registers definition; this is the definition
 ; of the stack frame used by INT 21h and INT 22h.
@@ -178,11 +178,11 @@ comboot_setup_api:
 		loop .loop2
 		ret
 
-		section .bss
+		section .bss16
 		alignb 4
 DOSSaveVectors	resd 32
 
-		section .data
+		section .data16
 %define comboot_err(x) (DOSErrTramp+4*((x)-20h))
 
 comboot_vectors:
@@ -219,7 +219,7 @@ comboot_vectors:
 		dw comboot_err(3Eh)	; INT 3E = DOS FPU emulation
 		dw comboot_err(3Fh)	; INT 3F = DOS overlay manager
 
-		section .text
+		section .text16
 
 ; INT 21h: generic DOS system call
 comboot_int21:	cli
@@ -705,7 +705,7 @@ comapi_dnsresolv:
 comapi_dnsresolv equ comapi_err
 %endif
 
-		section .text
+		section .text16
 
 ;
 ; INT 22h AX=0011h	Obsolete
@@ -988,7 +988,7 @@ comapi_shufraw:
 		mov ecx,P_ECX
 		jmp shuffle_and_boot_raw
 
-		section .data
+		section .data16
 
 %macro		int21 2
 		db %1
@@ -1067,7 +1067,7 @@ feature_flags_len equ ($-feature_flags)
 err_notdos	db ': attempted DOS system call INT ',0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
 
-		section .bss
+		section .bss16
 		alignb 4
 DOSErrTramp	resd	33		; Error trampolines
 ConfigName	resb	FILENAME_MAX
