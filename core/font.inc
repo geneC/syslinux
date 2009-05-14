@@ -146,7 +146,7 @@ vidrows_ok:	mov [VidRows],al
 VGAFontSize	dw 16			; Defaults to 16 byte font
 UserFont	db 0			; Using a user-specified font
 
-		section .bss1
+		section .bss
 		alignb 4
 GXPixCols	resw 1			; Graphics mode pixel columns
 GXPixRows	resw 1			; Graphics mode pixel rows

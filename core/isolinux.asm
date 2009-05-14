@@ -102,7 +102,7 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 
 		; Some of these are touched before the whole image
 		; is loaded.  DO NOT move this to .uibss.
-		section .bss2
+		section .bss
 		alignb 4
 ISOFileName	resb 64			; ISO filename canonicalization buffer
 ISOFileNameEnd	equ $

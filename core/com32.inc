@@ -257,7 +257,7 @@ __com32_cfarcall:
 
 		bits 16
 
-		section .bss1
+		section .bss
 		alignb 4
 RealModeEAX	resd 1			; Real mode EAX
 Com32SysSP	resw 1			; SP saved during COM32 syscall

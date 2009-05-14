@@ -40,8 +40,8 @@ LATEBSS_START	equ 0B800h
 		section .replacestub	exec write progbits align=16
 
 		; Use .bss for things that doesn't have to be in low memory;
-		; with .bss1 and .bss2 to offload.  .earlybss should be used
-		; for things that absolutely have to be below 0x7c00.
+		; .earlybss should be used for things that absolutely have
+		; to be below 0x7c00.
 		section .bss		write nobits align=16
 
 %if 0 ; IS_PXELINUX
@@ -53,8 +53,6 @@ LATEBSS_START	equ 0B800h
 		section .rbfg		write nobits
 RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 %endif
-
-		section .bss2		write nobits align=16
 
 		section .init		exec write progbits align=1
 		section .text		exec write progbits align=1
@@ -68,9 +66,6 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		; is because while loading the primary image we will clobber
 		; the spillover from the last fractional sector load.
 		section .uibss		write nobits align=16
-
-		; Normal bss...
-		section .bss1		write nobits align=16
 
 		; Symbols from linker script
 %macro SECINFO 1

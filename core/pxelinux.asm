@@ -226,7 +226,7 @@ pxe_unload_stack_pkt_len	equ $-pxe_unload_stack_pkt
 		alignb 16
 		; BOOTP/DHCP packet buffer
 
-		section .bss2
+		section .bss
 		alignb 16
 packet_buf	resb 2048		; Transfer packet
 packet_buf_size	equ $-packet_buf
