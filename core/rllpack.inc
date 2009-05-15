@@ -35,80 +35,10 @@
 ;	Returns updated ESI and EDI.
 ;
 rllpack:
-		push dword .pmentry
+		extern pm_rllpack
+		push dword pm_rllpack
 		call pm_call
 		ret
-
-		bits 32
-.pmentry:
-.startseq:
-		xor eax,eax		; Zero byte
-		xor ebx,ebx		; Run length zero
-		dec edi
-		mov edx,edi		; Pointer to header byte
-		mov [edi],al		; Create header byte
-		jecxz .done		; If done, this was the terminator
-.stdbyte:
-		lodsb
-		dec edi
-		mov [edi],al
-		dec ecx
-		cmp ah,al
-		je .same
-.diff:
-		mov ah,al
-		xor ebx,ebx
-.plainbyte:
-		inc ebx
-		inc byte [edx]
-		jecxz .startseq
-		jns .stdbyte
-		jmp .startseq
-.same:
-		cmp bl,2
-		jb .plainbyte
-		; 3 bytes or more in a row, time to convert sequence
-		sub [edx],bl
-		jnz .normal
-		inc edi			; We killed a whole stretch,
-					; drop start byte
-.normal:
-		inc ebx
-		add edi,ebx		; Remove the stored run bytes
-.getrun:
-		jecxz .nomatch
-		lodsb
-		cmp al,ah
-		jne .nomatch
-		cmp bx,(256-224)*256-1	; Maximum run size
-		jae .nomatch
-		inc ebx
-		dec ecx
-		jmp .getrun
-.nomatch:
-		cmp bx,224-126
-		jae .twobyte
-.onebyte:
-		add bl,126
-		dec edi
-		mov [edi],bl
-		jmp .storebyte
-.twobyte:
-		add bh,224
-		sub edi,2
-		mov [edi],bx
-.storebyte:
-		dec edi
-		mov [edi],ah
-		dec esi			; Reload subsequent byte
-		jmp .startseq
-.done:
-		mov RM_EDI,edi
-		mov RM_ESI,esi
-		
-		ret
-
-		bits 16
 ;
 ; rllunpack:
 ;	Unpack bytes from ESI into EDI
@@ -116,48 +46,7 @@ rllpack:
 ;	ECX contains number of bytes output.
 ;
 rllunpack:
-		push dword .pmentry
+		extern pm_rllunpack
+		push dword pm_rllunpack
 		call pm_call
 		ret
-
-		bits 32
-.pmentry:
-		push edi
-		xor ecx,ecx
-.header:
-		dec esi
-		mov cl,[esi]
-		jecxz .done
-		cmp cl,129
-		jae .isrun
-		; Not a run
-.copy:
-		dec esi
-		mov al,[esi]
-		stosb
-		loop .copy
-		jmp .header
-.isrun:
-		cmp cl,224
-		jae .longrun
-		sub cl,126
-.dorun:
-		dec esi
-		mov al,[esi]
-		rep stosb
-		jmp .header
-.longrun:
-		sub cl,224
-		mov ch,cl
-		dec esi
-		mov cl,[esi]
-		jmp .dorun
-.done:
-		pop eax			; Initial EDI
-		mov RM_EDI,edi
-		sub edi,eax
-		mov RM_ECX,edi
-		mov RM_ESI,esi
-		ret
-
-		bits 16
