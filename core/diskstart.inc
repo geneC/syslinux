@@ -538,6 +538,7 @@ load_rest:
 .get_chunk:
 		jcxz .done
 		xor ebp,ebp
+		mov di,bx			; Low 64K of target address
 		lodsd				; First sector of this chunk
 
 		mov edx,eax
@@ -552,7 +553,8 @@ load_rest:
 		cmp [si],edx			; Does it match
 		jnz .chunk_ready		; If not, this is it
 		add si,4			; If so, add sector to chunk
-		jmp short .make_chunk
+		add di,SECTOR_SIZE		; Check for 64K segment wrap
+		jnz .make_chunk
 
 .chunk_ready:
 		push ebx
