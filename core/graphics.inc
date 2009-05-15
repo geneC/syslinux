@@ -308,7 +308,7 @@ linear_color	db 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0
 		; of this byte.
 UsingVGA	db 0
 
-		section .bss1
+		section .bss2
 		alignb 4
 LSSHeader	equ $
 LSSMagic	resd 1			; Magic number
@@ -326,6 +326,5 @@ VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
 VGAFileBufEnd	equ $
 VGAFileMBuf	resb FILENAME_MAX	; Mangled VGA image name
 
-; We need a buffer of 640+80 bytes.  At this point, command_line should
-; not be in use, so use that buffer.
-VGARowBuffer	equ command_line
+		alignb 4
+VGARowBuffer	resb 640+80		; Decompression buffer
