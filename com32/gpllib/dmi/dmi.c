@@ -33,6 +33,31 @@
 const char *out_of_spec = "<OUT OF SPEC>";
 const char *bad_index = "<BAD INDEX>";
 
+/*
+ * Misc. util stuff
+ */
+static void dmi_system_boot_status(uint8_t code, char* array)
+{
+	static const char *status[]={
+		"No errors detected", /* 0 */
+		"No bootable media",
+		"Operating system failed to load",
+		"Firmware-detected hardware failure",
+		"Operating system-detected hardware failure",
+		"User-requested boot",
+		"System security violation",
+		"Previously-requested image",
+		"System watchdog timer expired" /* 8 */
+	};
+
+	if (code<=8)
+		strncpy(array, status[code], SYSTEM_BOOT_STATUS_SIZE);
+	if (code>=128 && code<=191)
+		strncpy(array, "OEM-specific", SYSTEM_BOOT_STATUS_SIZE);
+	if (code>=192)
+		strncpy(array, "Product-specific", SYSTEM_BOOT_STATUS_SIZE);
+}
+
 void dmi_bios_runtime_size(uint32_t code, s_dmi *dmi)
 {
         if(code&0x000003FF) {
@@ -585,6 +610,10 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi *dmi)
 
 		//	sprintf(dmi->battery.oem_info,"0x%08X",DWORD(h, data+0x16));
                         break;
+	      case 32: /* 3.3.33 System Boot Information */
+			if (h->length < 0x0B) break;
+			dmi_system_boot_status(data[0x0A],
+					       dmi->system.system_boot_status);
 	      case 38: /* 3.3.39 IPMI Device Information */
                         if (h->length < 0x10) break;
 			dmi->ipmi.filled=true;
