@@ -3,18 +3,14 @@
 
 void myputchar(int c)
 {
-#if 1
   static com32sys_t ireg;
+  static uint16_t *vram = 0xb8000;
 
-  ireg.eax.b[1] = 0x0e;
-  ireg.eax.b[0] = c;
-  ireg.ebx.w[0] = 0x0007;
-  core_intcall(0x10, &ireg, NULL);
-#else
-  static uint16_t *vram = (void *)0xb8000;
+  ireg.eax.b[1] = 0x02;
+  ireg.edx.b[0] = c;
+  core_intcall(0x21, &ireg, NULL);
 
-  *vram++ = (uint8_t)c + 0x1f00;
-#endif
+  *vram++ = c + 0x1f00;
 }
 
 void myputs(const char *str)

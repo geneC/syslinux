@@ -43,9 +43,6 @@ common_init:
 		mov cx,__uibss_dwords
 		rep stosd
 
-		; Now set up screen parameters
-		call adjust_screen
-
 ;
 ; Initialize configuration information
 ;
@@ -63,4 +60,13 @@ common_init:
 		add ax,PKTBUF_SIZE
 		loop .setbufptr
 %endif
-		section .text16			; This is an inline file...
+
+;
+; Set up the COMBOOT APIs
+;
+		call comboot_setup_api
+
+;
+; Now set up screen parameters
+;
+		call adjust_screen

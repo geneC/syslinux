@@ -50,5 +50,7 @@ cleanup_hardware:
 .no_vmware:
 %endif
 
+		call comboot_cleanup_api
+
 		popad
 		ret

@@ -148,8 +148,8 @@ comboot_return:	cli			; Don't trust anyone
 		jmp comboot_exit
 
 ;
-; Set up the COMBOOT API interrupt vectors.  This is also used
-; by the COM32 code.
+; Set up the COMBOOT API interrupt vectors.  This is now done at
+; initialization time.
 ;
 comboot_setup_api:
 		mov di,DOSErrTramp	; Error trampolines
@@ -176,6 +176,18 @@ comboot_setup_api:
 		inc bx
 		mov [si-4],eax
 		loop .loop2
+		ret
+
+;
+; Restore the original state of the COMBOOT API vectors
+;
+comboot_cleanup_api:
+		pusha
+		mov si,DOSSaveVectors
+		mov di,4*20h
+		mov cx,20h
+		rep movsd		; Restore DOS-range vectors
+		popa
 		ret
 
 		section .bss16
@@ -296,12 +308,6 @@ comboot_exit_msg:
 		pop bx			; Return address
 		RESET_STACK_AND_SEGS SI	; Contains cld
 		call adjust_screen	; The COMBOOT program might have changed the screen
-		pusha
-		mov si,DOSSaveVectors
-		mov di,4*20h
-		mov cx,20h
-		rep movsd		; Restore DOS-range vectors
-		popa
 		jcxz .nomsg
 		mov si,KernelCName
 		call writestr
