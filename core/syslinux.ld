@@ -152,6 +152,21 @@ SECTIONS
 	__assert_end16 = ASSERT(_end16 <= 0x10000, "64K overflow");
 
 	/*
+	 * The auxilliary data segment is allowed to spill out of the
+	 * low 64K.
+	 */
+
+	. = ALIGN(16);
+	.auxseg (NOLOAD) : {
+		__auxseg_start = .;
+		*(.auxseg)
+		__auxseg_end = .;
+	}
+	__auxseg_len = __auxseg_end - __auxseg_start;
+	__auxseg_dwords = (__auxseg_len + 3) >> 2;
+	aux_seg = __auxseg_start >> 4;
+
+	/*
 	 * 32-bit code.  This is a hack for the moment due to the
 	 * real-mode segments also allocated.
 	 */

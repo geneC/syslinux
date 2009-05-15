@@ -93,19 +93,21 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 ;
 ; This stuff really should come from the linker...
 ;
-pm_code_seg	equ 1000h
+		global	xfer_buf_seg
 xfer_buf_seg	equ 2000h
-aux_seg		equ 3000h
 
 ;
 ; Contents of aux_seg
 ;
+		extern aux_seg		; Actual segment assigned by linker
+
 		struc aux
 .fontbuf	resb 8192
 		alignb 4096		; Align the next segment to 4K
 		endstruc
 
-aux_seg_end	equ aux_seg + (aux_size >> 4)
+		section .auxseg		write nobits align=16
+auxseg		resb aux_size
 
 ;
 ; Bounce buffer for I/O to high mem
@@ -115,10 +117,10 @@ aux_seg_end	equ aux_seg + (aux_size >> 4)
 
 %if IS_ISOLINUX
 ; ISOLINUX doesn't have a block cache yet
-real_mode_seg	equ aux_seg_end
+real_mode_seg	equ 3000h
 %else
-cache_seg	equ aux_seg_end		; 64K area for metadata cache
-real_mode_seg	equ cache_seg + 1000h
+cache_seg	equ 3000h		; 64K area for metadata cache
+real_mode_seg	equ 4000h
 
 pktbuf_seg	equ cache_seg		; PXELINUX packet buffers
 %endif
