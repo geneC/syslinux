@@ -129,8 +129,9 @@ static void show_dmi_bios(int argc __unused, char** argv __unused,
         hardware->dmi.bios.release_date);
   more_printf(" Bios Revision     : %s\n",
         hardware->dmi.bios.bios_revision);
-  more_printf(" Firmware Revision : %s\n",
-        hardware->dmi.bios.firmware_revision);
+	if (strlen(hardware->dmi.bios.firmware_revision))
+		more_printf(" Firmware Revision : %s\n",
+			    hardware->dmi.bios.firmware_revision);
   more_printf(" Address           : 0x%04X0\n",
         hardware->dmi.bios.address);
   more_printf(" Runtime address   : %u %s\n",
