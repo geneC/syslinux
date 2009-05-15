@@ -108,6 +108,9 @@ static void show_dmi_system(int argc __unused, char** argv __unused,
   printf(" Wakeup Type  : %s\n", hardware->dmi.system.wakeup_type);
   printf(" SKU Number   : %s\n", hardware->dmi.system.sku_number);
   printf(" Family       : %s\n", hardware->dmi.system.family);
+
+  printf("System Boot Information\n");
+  printf(" Status       : %s\n", hardware->dmi.system.system_boot_status);
 }
 
 static void show_dmi_bios(int argc __unused, char** argv __unused,
