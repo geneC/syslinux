@@ -46,9 +46,7 @@ no_config_file:
 .no_bootonce:
 
 		; *** TEST HACK ***
-		extern hello
-		push dword hello
-		call pm_call
+		pm_call hello
 
 ;
 ; Check whether or not we are supposed to display the boot prompt.
@@ -167,7 +165,7 @@ display_labels:
 		push cx				; save command line size
 
 		mov edi,VKernelBuf
-		call rllunpack
+		pm_call rllunpack
 		; ESI updated on return
 
 		sub di,cx			; Return to beginning of buf
@@ -356,7 +354,7 @@ vk_check:
 		jbe .not_vk
 
 		mov edi,VKernelBuf
-		call rllunpack
+		pm_call rllunpack
 		; ESI updated on return
 
 		sub di,cx			; Return to beginning of buf

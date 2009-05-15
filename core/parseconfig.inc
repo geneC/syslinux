@@ -426,7 +426,7 @@ commit_vk:
 		mov esi,VKernelBuf
 		mov edi,[VKernelEnd]
 		mov ecx,vk_size
-		call rllpack
+		pm_call rllpack
 		mov [VKernelEnd],edi
 .nolabel:
 		ret
@@ -474,5 +474,3 @@ IPAppend	db 0			; Default IPAPPEND option
 command_line	resb max_cmd_len+2	; Command line buffer
 		alignb 4
 default_cmd	resb max_cmd_len+1	; "default" command line
-
-%include "rllpack.inc"

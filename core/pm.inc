@@ -22,7 +22,7 @@
 
 		section .text16
 ;
-; pm_call: call PM routine in low memory from RM
+; _pm_call: call PM routine in low memory from RM
 ;
 ;	on stack	= PM routine to call (a 32-bit address)
 ;
@@ -32,8 +32,10 @@
 ;
 ;	All registers and the flags saved/restored
 ;
+;	This routine is invoked by the pm_call macro.
+;
 		bits 16
-pm_call:
+_pm_call:
 		pushfd
 		pushad
 		push ds

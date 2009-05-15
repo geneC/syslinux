@@ -24,6 +24,7 @@
 %include "config.inc"
 %include "layout.inc"
 %include "pmcall.inc"
+%include "extern.inc"
 %include "kernel.inc"
 %include "bios.inc"
 %include "tracers.inc"

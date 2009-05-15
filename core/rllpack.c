@@ -31,7 +31,7 @@
 #include <stddef.h>
 #include <string.h>
 
-void pm_rllpack(com32sys_t *regs)
+void rllpack(com32sys_t *regs)
 {
 	uint8_t *i = (uint8_t *)(regs->esi.l);
 	uint8_t *o = (uint8_t *)(regs->edi.l);
@@ -77,7 +77,7 @@ void pm_rllpack(com32sys_t *regs)
 	regs->edi.l = (size_t)o;
 }
 
-void pm_rllunpack(com32sys_t *regs)
+void rllunpack(com32sys_t *regs)
 {
 	uint8_t *i = (uint8_t *)regs->esi.l;
 	uint8_t *o = (uint8_t *)regs->edi.l;

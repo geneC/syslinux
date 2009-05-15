@@ -5,8 +5,8 @@
 ;; as the RM frame pointer.
 ;;
 
-%ifndef PMCALL_H
-%define PMCALL_H
+%ifndef PMCALL_INC
+%define PMCALL_INC
 
 %define RM_GS		word [ebp]
 %define RM_FS		word [ebp+2]
@@ -61,4 +61,10 @@
 %define RM_FLAGSL	byte [ebp+40]
 %define RM_FLAGSH	byte [ebp+41]
 
-%endif ; PMCALL_H
+; Convenience macro to call a PM function
+%macro	pm_call	1
+	push dword %1
+	call _pm_call
+%endmacro
+
+%endif ; PMCALL_INC
