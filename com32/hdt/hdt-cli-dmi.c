@@ -61,6 +61,8 @@ static void show_dmi_modules(int argc __unused, char** argv __unused,
 		printf("\t%s\n", CLI_DMI_SYSTEM);
   	if (hardware->dmi.ipmi.filled == true)
 		printf("\t%s\n", CLI_DMI_IPMI);
+	if (hardware->dmi.cache_count)
+		printf("\t%s\n", CLI_DMI_CACHE);
 }
 
 static void show_dmi_base_board(int argc __unused, char** argv __unused,
@@ -354,6 +356,56 @@ static void show_dmi_memory_bank(int argc, char** argv,
         hardware->dmi.memory[bank].part_number);
 }
 
+static void show_dmi_cache(int argc, char** argv,
+			   struct s_hardware *hardware)
+{
+	if (!hardware->dmi.cache_count) {
+		printf("cache information not found on your system, see "
+		       "`show list' to see which module is available.\n");
+		return;
+	}
+
+	int cache = strtol(argv[0], NULL, 10);
+
+	if (argc != 1 || cache > hardware->dmi.cache_count) {
+		printf("show cache [0-%d]\n", hardware->dmi.cache_count-1);
+		return;
+	}
+
+	reset_more_printf();
+
+	more_printf("Cache Information #%d\n", cache);
+	more_printf("  Socket Designation    : %s\n",
+		    hardware->dmi.cache[cache].socket_designation);
+	more_printf("  Configuration         : %s\n",
+		    hardware->dmi.cache[cache].configuration);
+	more_printf("  Operational Mode      : %s\n",
+		    hardware->dmi.cache[cache].mode);
+	more_printf("  Location              : %s\n",
+		    hardware->dmi.cache[cache].location);
+	more_printf("  Installed Size        : %u KB",
+		    hardware->dmi.cache[cache].installed_size);
+	more_printf("\n");
+	more_printf("  Maximum Size          : %u KB",
+		    hardware->dmi.cache[cache].max_size);
+	more_printf("\n");
+	more_printf("  Supported SRAM Types  : %s",
+		    hardware->dmi.cache[cache].supported_sram_types);
+	more_printf("\n");
+	more_printf("  Installed SRAM Type   : %s",
+		    hardware->dmi.cache[cache].installed_sram_types);
+	more_printf("\n");
+	more_printf("  Speed                 : %u ns",
+		    hardware->dmi.cache[cache].speed);
+	more_printf("\n");
+	more_printf("  Error Correction Type : %s\n",
+		    hardware->dmi.cache[cache].error_correction_type);
+	more_printf("  System Type           : %s\n",
+		    hardware->dmi.cache[cache].system_type);
+	more_printf("  Associativity         : %s\n",
+		    hardware->dmi.cache[cache].associativity);
+}
+
 void main_show_dmi(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware)
 {
@@ -465,6 +517,10 @@ struct cli_callback_descr list_dmi_show_modules[] = {
   {
     .name = CLI_DMI_IPMI,
     .exec = show_dmi_ipmi,
+  },
+  {
+    .name = CLI_DMI_CACHE,
+    .exec = show_dmi_cache,
   },
   {
     .name = CLI_DMI_LIST,
