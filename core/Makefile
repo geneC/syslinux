@@ -48,6 +48,7 @@ ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(CHDR) $(OTHERSRC)
 COBJ	 := $(patsubst %.c,%.o,$(CSRC))
 
 LIB	 = libcore.a
+LIBS	 = $(LIB) $(com32)/lib/libcom32.a $(LIBGCC)
 LIBOBJS	 = $(COBJ)
 
 # The DATE is set on the make command line when building binaries for
@@ -82,8 +83,8 @@ iso%.bin: iso%.elf checksumiso.pl
 		-DHEXDATE="$(HEXDATE)" \
 		-l $(@:.o=.lsr) -o $@ $<
 
-%.elf: %.o $(LIB) syslinux.ld
-	$(LD) $(LDFLAGS) -T syslinux.ld -M -o $@ $< $(LIB) > $(@:.elf=.map)
+%.elf: %.o $(LIBS) syslinux.ld
+	$(LD) $(LDFLAGS) -T syslinux.ld -M -o $@ $< $(LIBS) > $(@:.elf=.map)
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
 	$(PERL) lstadjust.pl $(@:.elf=.lsr) $(@:.elf=.sec) $(@:.elf=.lst)
 
