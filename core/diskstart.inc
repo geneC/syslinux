@@ -577,22 +577,23 @@ load_rest:
 ;
 verify_checksum:
 		mov si,ldlinux_sys
-		mov cx,[LDLDwords]
-		mov edx,-LDLINUX_MAGIC
+		mov ecx,[LDLDwords]
+		mov eax,-LDLINUX_MAGIC
 		push ds
 .checksum:
-		lodsd
-		add edx,eax
-		and di,di
+		add eax,[si]
+		add si,4
 		jnz .nowrap
-		mov ax,ds
-		add ax,1000h
-		mov ds,ax
+		; Handle segment wrap
+		mov dx,ds
+		add dx,1000h
+		mov ds,dx
 .nowrap:
-		loop .checksum
+		dec ecx
+		jnz .checksum
 		pop ds
 
-		and edx,edx			; Should be zero
+		and eax,eax			; Should be zero
 		jz all_read			; We're cool, go for it!
 
 ;
