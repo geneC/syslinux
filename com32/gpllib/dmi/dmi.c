@@ -492,7 +492,39 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi *dmi)
                         strcpy(dmi->processor.asset_tag,dmi_string(h, data[0x21]));
                         strcpy(dmi->processor.part_number,dmi_string(h, data[0x22]));
                         break;
-                case 17: /* 3.3.18 Memory Device */
+		case 7: /* 3.3.8 Cache Information */
+			if(h->length<0x0F) break;
+			dmi->cache_count++;
+			if (dmi->cache_count > MAX_DMI_CACHE_ITEMS) break;
+			strcpy(dmi->cache[dmi->cache_count-1].socket_designation,
+			       dmi_string(h, data[0x04]));
+			sprintf(dmi->cache[dmi->cache_count-1].configuration,
+				"%s, %s, %u",
+				WORD(data+0x05)&0x0080?"Enabled":"Disabled",
+				WORD(data+0x05)&0x0008?"Socketed":"Not Socketed",
+				(WORD(data+0x05)&0x0007)+1);
+			strcpy(dmi->cache[dmi->cache_count-1].mode,
+			       dmi_cache_mode((WORD(data+0x05)>>8)&0x0003));
+			strcpy(dmi->cache[dmi->cache_count-1].location,
+			       dmi_cache_location((WORD(data+0x05)>>5)&0x0003));
+			dmi->cache[dmi->cache_count-1].installed_size =
+			       dmi_cache_size(WORD(data+0x09));
+			dmi->cache[dmi->cache_count-1].max_size =
+			       dmi_cache_size(WORD(data+0x07));
+			dmi_cache_types(WORD(data+0x0B), " ",
+			       dmi->cache[dmi->cache_count-1].supported_sram_types);
+			dmi_cache_types(WORD(data+0x0D), " ",
+			       dmi->cache[dmi->cache_count-1].installed_sram_types);
+			if(h->length<0x13) break;
+			dmi->cache[dmi->cache_count-1].speed = data[0x0F]; /* ns */
+			strcpy(dmi->cache[dmi->cache_count-1].error_correction_type,
+			       dmi_cache_ec_type(data[0x10]));
+			strcpy(dmi->cache[dmi->cache_count-1].system_type,
+			       dmi_cache_type(data[0x11]));
+			strcpy(dmi->cache[dmi->cache_count-1].associativity,
+			       dmi_cache_associativity(data[0x12]));
+			break;
+		case 17: /* 3.3.18 Memory Device */
                         if (h->length < 0x15) break;
 			dmi->memory_count++;
 			s_memory *mem = &dmi->memory[dmi->memory_count-1];
