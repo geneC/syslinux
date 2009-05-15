@@ -125,7 +125,7 @@ static void show_dmi_bios(int argc __unused, char** argv __unused,
   more_printf("BIOS\n");
   more_printf(" Vendor            : %s\n", hardware->dmi.bios.vendor);
   more_printf(" Version           : %s\n", hardware->dmi.bios.version);
-  more_printf(" Release           : %s\n",
+  more_printf(" Release Date      : %s\n",
         hardware->dmi.bios.release_date);
   more_printf(" Bios Revision     : %s\n",
         hardware->dmi.bios.bios_revision);
