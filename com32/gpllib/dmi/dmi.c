@@ -552,6 +552,7 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi *dmi)
 		case 17: /* 3.3.18 Memory Device */
                         if (h->length < 0x15) break;
 			dmi->memory_count++;
+			if (dmi->memory_count > MAX_DMI_MEMORY_ITEMS) break;
 			s_memory *mem = &dmi->memory[dmi->memory_count-1];
 			dmi->memory[dmi->memory_count-1].filled=true;
                         dmi_memory_array_error_handle(WORD(data + 0x06),mem->error);
