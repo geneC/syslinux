@@ -483,7 +483,7 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi *dmi)
                         strcpy(dmi->chassis.thermal_state,dmi_chassis_state(data[0x0B]));
                         strcpy(dmi->chassis.security_status,dmi_chassis_security_status(data[0x0C]));
                         if(h->length<0x11) break;
-                        sprintf(dmi->chassis.oem_information,"0x%08X\n",DWORD(data+0x0D));
+                        sprintf(dmi->chassis.oem_information,"0x%08X",DWORD(data+0x0D));
                         if(h->length<0x15) break;
                         dmi->chassis.height=data[0x11];
                         dmi->chassis.nb_power_cords=data[0x12];
