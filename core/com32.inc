@@ -129,7 +129,7 @@ com32_cfar_rm:
 		retf
 .return:
 		mov sp,[cs:Com32SysSP]
-		mov [cs:RealModeEAX],eax
+		mov esi,eax
 		mov bx,core_cfarcall.resume
 		jmp enter_pm
 
@@ -150,21 +150,22 @@ com32_cfar_rm:
 ;
 		global core_farcall
 core_farcall:
-		pushfd				; Save IF among other things...
-		pushad				; We only need to save some, but...
-
-		mov eax,[esp+10*4]		; CS:IP
+		mov eax,[esp+1*4]		; CS:IP
 		jmp com32_syscall
 
 		global core_intcall
 core_intcall:
-		pushfd				; Save IF among other things...
-		pushad				; We only need to save some, but...
-
-		movzx eax,byte [esp+10*4]	; INT number
+		movzx eax,byte [esp+1*4]	; INT number
 		mov eax,[eax*4]			; Get CS:IP from low memory
 
 com32_syscall:
+		pushfd				; Save IF among other things...
+		push ebx
+		push ebp
+		push esi
+		push edi
+		push dword [Com32SysSP]
+
 		cld
 
 		movzx edi,word [word RealModeSSSP]
@@ -174,7 +175,7 @@ com32_syscall:
 		shl ebx,4
 		add edi,ebx		; Create linear address
 
-		mov esi,[esp+11*4]	; Source regs
+		mov esi,[esp+8*4]	; Source regs
 		xor ecx,ecx
 		mov cl,11		; 44 bytes to copy
 		rep movsd
@@ -197,7 +198,7 @@ com32_syscall:
 .resume:
 		movzx esi,word [word RealModeSSSP]
 		movzx eax,word [word RealModeSSSP+2]
-		mov edi,[esp+12*4]	; Dest regs
+		mov edi,[esp+9*4]	; Dest regs
 		shl eax,4
 		add esi,eax		; Create linear address
 		and edi,edi		; NULL pointer?
@@ -210,7 +211,11 @@ com32_syscall:
 		add dword [word RealModeSSSP],54
 					; Remove from stack
 
-		popad
+		pop dword [Com32SysSP]
+		pop edi
+		pop esi
+		pop ebp
+		pop ebx
 		popfd
 		ret			; Return to 32-bit program
 
@@ -220,11 +225,15 @@ com32_syscall:
 ;
 		global core_cfarcall
 core_cfarcall:
-		pushfd
-		pushad
+		pushfd				; Save IF among other things...
+		push ebx
+		push ebp
+		push esi
+		push edi
+		push dword [Com32SysSP]
 
 		cld
-		mov ecx,[esp+12*4]		; Size of stack frame
+		mov ecx,[esp+9*4]		; Size of stack frame
 
 		movzx edi,word [word RealModeSSSP]
 		movzx ebx,word [word RealModeSSSP+2]
@@ -236,11 +245,11 @@ core_cfarcall:
 		shl ebx,4
 		add edi,ebx		; Create linear address
 
-		mov eax,[esp+10*4]	; CS:IP
+		mov eax,[esp+7*4]	; CS:IP
 		stosd			; Save to stack frame
 		mov eax,com32_cfar_rm.return	; Return seg:off
 		stosd
-		mov esi,[esp+11*4]	; Stack frame
+		mov esi,[esp+8*4]	; Stack frame
 		mov eax,ecx		; Copy the stack frame
 		shr ecx,2
 		rep movsd
@@ -252,8 +261,13 @@ core_cfarcall:
 		jmp enter_rm
 
 .resume:
-		popad
-		mov eax,[word RealModeEAX]
+		mov eax,esi
+		; EDX already set up to be the RM return value
+		pop dword [Com32SysSP]
+		pop ebx
+		pop ebp
+		pop esi
+		pop edi
 		popfd
 		ret
 
@@ -261,7 +275,6 @@ core_cfarcall:
 
 		section .bss16
 		alignb 4
-RealModeEAX	resd 1			; Real mode EAX
-Com32SysSP	resw 1			; SP saved during COM32 syscall
+Com32SysSP	resd 1			; SP saved during COM32 syscall
 
 		section .text16
