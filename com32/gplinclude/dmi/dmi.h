@@ -66,9 +66,11 @@ typedef struct {
 	 s_chassis chassis;
 	 s_processor processor;
 	 s_battery battery;
+	 s_memory_module memory_module[MAX_DMI_MEMORY_ITEMS];
 	 s_memory memory[MAX_DMI_MEMORY_ITEMS];
 	 s_ipmi ipmi;
 	 s_cache cache[MAX_DMI_CACHE_ITEMS];
+	 int memory_module_count;
 	 int memory_count;
 	 int cache_count;
 	 dmi_table dmitable;

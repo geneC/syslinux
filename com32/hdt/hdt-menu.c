@@ -195,8 +195,7 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
   }
 
   if (hdt_menu->memory_menu.items_count > 0) {
-    snprintf(menu_item, sizeof(menu_item), "<M>emory     (%2d)\n",
-       hdt_menu->memory_menu.items_count);
+    snprintf(menu_item, sizeof(menu_item), "<M>emory\n");
     add_item(menu_item, "Memory Menu", OPT_SUBMENU, NULL,
        hdt_menu->memory_menu.menu);
     hdt_menu->main_menu.items_count++;

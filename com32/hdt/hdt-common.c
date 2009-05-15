@@ -257,18 +257,17 @@ void detect_disks(struct s_hardware *hardware)
 	if (hardware->disk_detection)
 		return;
 
-	/* FIXME: this is needed to have the int13 working.
-	 * Until we figured why, we need this workaround*/
-	detect_vesa(hardware);
-
 	hardware->disk_detection = true;
 	for (int drive = 0x80; drive < 0xff; drive++) {
 		i++;
 		hardware->disk_info[i].disk = drive;
 		err = get_drive_parameters(&hardware->disk_info[i]);
 
-		/* Do not print output when drive does not exists */
-		if (err == -1)
+		/*
+		 * Do not print output when drive does not exist or
+		 * doesn't support int13 (cdrom, ...)
+		 */
+		if (err == -1 || !hardware->disk_info[i].cbios)
 			continue;
 
 		if (err) {

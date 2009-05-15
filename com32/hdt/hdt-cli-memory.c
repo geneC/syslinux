@@ -42,6 +42,7 @@ static void show_memory_e820(int argc __unused, char **argv __unused,
 
 	detect_memory_e820(map, E820MAX, &count);
 	printf("BIOS-provided physical RAM e820 map:\n");
+	reset_more_printf();
 	for (int i = 0; i < count; i++) {
 		get_type(map[i].type, type, 14);
 		more_printf("%016llx - %016llx %016llx (%s)\n",
@@ -55,6 +56,7 @@ static void show_memory_e801(int argc __unused, char **argv __unused,
 {
 	int mem_low, mem_high = 0;
 
+	reset_more_printf();
 	if (detect_memory_e801(&mem_low, &mem_high)) {
 		more_printf("e801 bogus!\n");
 	} else {
@@ -68,6 +70,7 @@ static void show_memory_88(int argc __unused, char **argv __unused,
 {
 	int mem_size = 0;
 
+	reset_more_printf();
 	if (detect_memory_88(&mem_size)) {
 		more_printf("8800h bogus!\n");
 	} else {
@@ -89,6 +92,10 @@ struct cli_callback_descr list_memory_show_modules[] = {
 		.name = "88",
 		.exec = show_memory_88,
 	},
+  	{
+    		.name = CLI_DMI_MEMORY_BANK,
+    		.exec = show_dmi_memory_bank,
+  	},
 	{
 		.name = NULL,
 		.exec = NULL,

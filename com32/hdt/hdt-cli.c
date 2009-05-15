@@ -775,15 +775,22 @@ void start_cli_mode(struct s_hardware *hardware)
 
 	printf("Entering CLI mode\n");
 
-	/* Display the cursor */
-	display_cursor(true);
-
 	reset_prompt();
 
 	while (hdt_cli.mode != EXIT_MODE) {
 
-		//fgets(cli_line, sizeof cli_line, stdin);
+		/* Display the cursor */
+		display_cursor(true);
+
+		/* Let's put the cursor blinking until we get an input */
+		set_cursor_blink(true);
+
+		/* We wait endlessly for a keyboard input*/
 		current_key = get_key(stdin, 0);
+
+		/* We have to cancel the blinking mode to prevent
+		 * input text to blink */
+		set_cursor_blink(false);
 
 		/* Reset autocomplete buffer unless TAB is pressed */
 		if (current_key != KEY_TAB)
@@ -977,14 +984,10 @@ void start_cli_mode(struct s_hardware *hardware)
 			/* Print the resulting buffer */
 			printf("%s", hdt_cli.input + hdt_cli.cursor_pos - 1);
 
-			/* Realing to the place we were */
-			move_cursor_left(strlen(hdt_cli.input + hdt_cli.cursor_pos - 1));
-			move_cursor_right(1);
+			/* Realing to a char before the place we were */
+			hdt_cli.cursor_pos--;
+			move_cursor_to_column(strlen(hdt_cli.prompt)+hdt_cli.cursor_pos+1);
 
-			/* Don't decrement the position unless
-			 * if we are at then end of the line*/
-			if (hdt_cli.cursor_pos > (int)strlen(hdt_cli.input))
-				hdt_cli.cursor_pos--;
 			break;
 
 		case KEY_F1:
