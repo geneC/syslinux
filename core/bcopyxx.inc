@@ -103,7 +103,7 @@ pm_bcopy:
 		; Initial alignment
 		mov dx,di
 		shr dx,1
-		jnc .raa1
+		jc .raa1
 		a32 movsb
 		dec ecx
 .raa1:
@@ -114,7 +114,7 @@ pm_bcopy:
 		cmp ecx,2
 		jb .r_tiny
 		shr dx,1
-		jnc .raa2
+		jc .raa2
 		a32 movsw
 		sub ecx,2
 .raa2:
