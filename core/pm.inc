@@ -455,3 +455,5 @@ IRQStubs:	resb 4*256+3*8
 RealModeSSSP	resd 1			; Real-mode SS:SP
 
 		section .text16
+
+%include "callback.inc"			; Real-mode callbacks
