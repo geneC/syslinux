@@ -20,6 +20,7 @@
 ;; PM refers to 32-bit flat protected mode; RM to 16-bit real mode.
 ;;
 
+		bits 16
 		section .text16
 ;
 ; _pm_call: call PM routine in low memory from RM
@@ -34,7 +35,6 @@
 ;
 ;	This routine is invoked by the pm_call macro.
 ;
-		bits 16
 _pm_call:
 		pushfd
 		pushad
@@ -44,11 +44,12 @@ _pm_call:
 		push gs
 		mov bp,sp
 		mov ax,cs
-		mov bx,.pm
+		mov ebx,.pm
 		mov ds,ax
 		jmp enter_pm
 
 		bits 32
+		section .textnr
 .pm:
 		; EAX points to the top of the RM stack, which is EFLAGS
 		test RM_FLAGSH,02h		; RM EFLAGS.IF
@@ -60,6 +61,7 @@ _pm_call:
 		jmp enter_rm
 
 		bits 16
+		section .text16
 .rm:
 		pop gs
 		pop fs
@@ -71,7 +73,7 @@ _pm_call:
 
 ;
 ; enter_pm: Go to PM with interrupt service configured
-;	BX	  = PM entry point (in low memory)
+;	EBX	  = PM entry point
 ;	EAX = EBP = on exit, points to the RM stack as a 32-bit value
 ;	ECX, EDX, ESI, EDI preserved across this routine
 ;
@@ -81,6 +83,7 @@ _pm_call:
 ; can enable interrupts by executing STI.
 ;
 		bits 16
+		section .text16
 enter_pm:
 		cli
 		xor eax,eax
@@ -105,6 +108,7 @@ enter_pm:
 		jmp PM_CS32:.in_pm
 
 		bits 32
+		section .textnr
 .in_pm:
 		xor eax,eax		; Available for future use...
 		mov fs,eax
@@ -121,7 +125,7 @@ enter_pm:
 
 		mov esp,[PMESP]		; Load protmode %esp
 		mov eax,ebp		; EAX -> top of real-mode stack
-		jmp bx			; Go to where we need to go
+		jmp ebx			; Go to where we need to go
 
 ;
 ; enter_rm: Return to RM from PM
@@ -135,6 +139,7 @@ enter_pm:
 ; can enable interrupts by executing STI.
 ;
 		bits 32
+		section .textnr
 enter_rm:
 		cli
 		cld
@@ -142,6 +147,7 @@ enter_rm:
 		jmp PM_CS16:.in_pm16	; Return to 16-bit mode first
 
 		bits 16
+		section .text16
 .in_pm16:
 		mov ax,PM_DS16		; Real-mode-like segment
 		mov es,ax
@@ -184,14 +190,15 @@ PM_IDT_ptr:	dw 8*256-1		; Length
 ; AL contains the register number.
 ;
 		bits 32
-		section .text16
+		section .textnr
 pm_irq:
 		pushad
 		movzx esi,byte [esp+8*4] ; Interrupt number
-		mov bx,.rm
+		mov ebx,.rm
 		jmp enter_rm		; Go to real mode
 
 		bits 16
+		section .text16
 .rm:
 		pushf			; Flags on stack
 		call far [cs:esi*4]	; Call IVT entry
@@ -199,6 +206,7 @@ pm_irq:
 		jmp enter_pm		; Go back to PM
 
 		bits 32
+		section .textnr
 .pm:
 		popad
 		add esp,4		; Drop interrupt number

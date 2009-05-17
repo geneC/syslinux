@@ -96,6 +96,20 @@ SECTIONS
 	__text16_len = __text16_end - __text16_start;
 	__text16_dwords = (__text16_len + 3) >> 2;
 
+	/*
+	 * .textnr is used for 32-bit code that is used on the code
+	 * path to initialize the .text segment
+	 */
+	. = ALIGN(16);
+	.textnr : {
+		FILL(0x90909090)
+		__textnr_start = .;
+		*(.textnr)
+		__textnr_end = .;
+	}
+	__textnr_len = __textnr_end - __textnr_start;
+	__textnr_dwords = (__textnr_len + 3) >> 2;
+
 	. = ALIGN(16);
 	.bcopyxx : {
 		FILL(0x90909090)

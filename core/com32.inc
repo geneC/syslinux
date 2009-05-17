@@ -62,7 +62,7 @@ com32_start:
 		mov eax,[HighMemRsvd]
 		xor ax,ax			; Align to a 64K boundary
 		mov [PMESP],eax
-		mov bx,.pm			; Where to go in PM
+		mov ebx,.pm			; Where to go in PM
 		jmp enter_pm
 
 ;
@@ -70,6 +70,7 @@ com32_start:
 ; progam, in 32-bit mode...
 ;
 		bits 32
+		section .text
 .pm:
 		; Set up the calling stack frame
 
@@ -90,6 +91,7 @@ com32_exit:
 		jmp enter_rm
 
 		bits 16
+		section .text16
 .rm:
 		mov dword [PMESP],__stack_end	; Stop use of COM32 stack
 		sti
@@ -99,6 +101,7 @@ com32_exit:
 ; 16-bit intcall/farcall handling code
 ;
 		bits 16
+		section .text16
 
 com32_sys_rm:
 		pop gs
@@ -119,7 +122,7 @@ com32_sys_rm:
 		push es
 		push fs
 		push gs
-		mov bx,com32_syscall.resume
+		mov ebx,com32_syscall.resume
 		jmp enter_pm
 
 ;
@@ -130,13 +133,14 @@ com32_cfar_rm:
 .return:
 		mov sp,[cs:Com32SysSP]
 		mov esi,eax
-		mov bx,core_cfarcall.resume
+		mov ebx,core_cfarcall.resume
 		jmp enter_pm
 
 ;
 ; 32-bit support code
 ;
 		bits 32
+		section .text
 
 ;
 ; Intcall/farcall invocation.  We manifest a structure on the real-mode stack,
@@ -272,9 +276,10 @@ core_cfarcall:
 		ret
 
 		bits 16
-
 		section .bss16
 		alignb 4
 Com32SysSP	resd 1			; SP saved during COM32 syscall
 
+		bits 16
 		section .text16
+
