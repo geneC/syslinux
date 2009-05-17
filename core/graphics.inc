@@ -326,6 +326,5 @@ VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
 VGAFileBufEnd	equ $
 VGAFileMBuf	resb FILENAME_MAX	; Mangled VGA image name
 
-; We need a buffer of 640+80 bytes.  At this point, command_line should
-; not be in use, so use that buffer.
-VGARowBuffer	equ command_line
+		alignb 4
+VGARowBuffer	resb 640+80		; Decompression buffer

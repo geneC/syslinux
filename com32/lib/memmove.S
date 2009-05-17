@@ -93,7 +93,7 @@ memmove:
 	/* Initial alignment */
 	movl	%edi,%edx
 	shrl	$1,%edx
-	jnc	21f
+	jc	21f
 	movsb
 	decl	%ecx
 21:
@@ -103,7 +103,7 @@ memmove:
 	cmpl	$2,%ecx
 	jb	23f
 	shrl	$1,%edx
-	jnc	22f
+	jc	22f
 	movsw
 	subl	$2,%ecx
 22:
