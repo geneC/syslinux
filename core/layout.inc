@@ -56,6 +56,7 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 
 		section .init		exec write progbits align=1
 		section .text16		exec write progbits align=1
+		section .textnr		exec nowrite progbits align=1
 		section .bcopyxx	exec write progbits align=16
 		section .data16		write progbits align=16
 
