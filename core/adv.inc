@@ -503,3 +503,5 @@ ADVCHSInfo	db -1			; We have CHS info for this drive
 
 		section .bss16
 ADVOp		resb 1
+
+		section .text16

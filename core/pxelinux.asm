@@ -2609,25 +2609,13 @@ check_for_arp:
 ;  Common modules
 ; -----------------------------------------------------------------------------
 
-%include "getc.inc"		; getc et al
-%include "conio.inc"		; Console I/O
+%include "common.inc"		; Universal modules
 %include "writestr.inc"		; String output
 writestr_early	equ writestr
 %include "writehex.inc"		; Hexadecimal output
-%include "configinit.inc"	; Initialize configuration
-%include "parseconfig.inc"	; High-level config file handling
-%include "parsecmd.inc"		; Low-level config file handling
-%include "pm.inc"		; Protected mode
-%include "bcopy32.inc"		; 32-bit bcopy
-%include "loadhigh.inc"		; Load a file into high memory
-%include "font.inc"		; VGA font stuff
-%include "graphics.inc"		; VGA graphics
-%include "highmem.inc"		; High memory sizing
-%include "strcpy.inc"		; strcpy()
 %include "rawcon.inc"		; Console I/O w/o using the console functions
 %include "dnsresolv.inc"	; DNS resolver
 %include "pxeidle.inc"		; Idle mechanism
-%include "adv.inc"		; Auxillary Data Vector
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
