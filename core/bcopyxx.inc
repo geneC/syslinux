@@ -57,36 +57,36 @@ pm_bcopy:
 
 .forward:
 		; Initial alignment
-		mov dx,di
-		shr dx,1
+		mov edx,edi
+		shr edx,1
 		jnc .faa1
-		a32 movsb
+		movsb
 		dec ecx
 .faa1:
 		mov al,cl
 		cmp ecx,2
 		jb .f_tiny
 
-		shr dx,1
+		shr edx,1
 		jnc .faa2
-		a32 movsw
+		movsw
 		sub ecx,2
 .faa2:
 
 		; Bulk transfer
 		mov al,cl		; Save low bits
 		shr ecx,2		; Convert to dwords
-		a32 rep movsd		; Do our business
+		rep movsd		; Do our business
 		; At this point ecx == 0
 
 		test al,2
 		jz .fab2
-		a32 movsw
+		movsw
 .fab2:
 .f_tiny:
 		test al,1
 		jz .fab1
-		a32 movsb
+		movsb
 .fab1:
 .done:
 		pop eax
@@ -101,10 +101,10 @@ pm_bcopy:
 		lea edi,[edi+ecx-1]
 
 		; Initial alignment
-		mov dx,di
-		shr dx,1
+		mov edx,edi
+		shr edx,1
 		jc .raa1
-		a32 movsb
+		movsb
 		dec ecx
 .raa1:
 
@@ -113,9 +113,9 @@ pm_bcopy:
 		mov al,cl
 		cmp ecx,2
 		jb .r_tiny
-		shr dx,1
+		shr edx,1
 		jc .raa2
-		a32 movsw
+		movsw
 		sub ecx,2
 .raa2:
 
@@ -124,7 +124,7 @@ pm_bcopy:
 		sub edi,2
 		mov al,cl		; Save low bits
 		shr ecx,2
-		a32 rep movsd
+		rep movsd
 
 		; Final alignment
 .r_final:
@@ -132,14 +132,14 @@ pm_bcopy:
 		add edi,2
 		test al,2
 		jz .rab2
-		a32 movsw
+		movsw
 .rab2:
 .r_tiny:
 		inc esi
 		inc edi
 		test al,1
 		jz .rab1
-		a32 movsb
+		movsb
 .rab1:
 		cld
 		jmp short .done
@@ -148,35 +148,35 @@ pm_bcopy:
 		xor eax,eax
 
 		; Initial alignment
-		mov dx,di
-		shr dx,1
+		mov edx,edi
+		shr edx,1
 		jnc .zaa1
-		a32 stosb
+		stosb
 		dec ecx
 .zaa1:
 
 		mov bl,cl
 		cmp ecx,2
 		jb .z_tiny
-		shr dx,1
+		shr edx,1
 		jnc .zaa2
-		a32 stosw
+		stosw
 		sub ecx,2
 .zaa2:
 
 		; Bulk
 		mov bl,cl		; Save low bits
 		shr ecx,2
-		a32 rep stosd
+		rep stosd
 
 		test bl,2
 		jz .zab2
-		a32 stosw
+		stosw
 .zab2:
 .z_tiny:
 		test bl,1
 		jz .zab1
-		a32 stosb
+		stosb
 .zab1:
 		jmp short .done
 
