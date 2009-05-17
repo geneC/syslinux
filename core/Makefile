@@ -51,6 +51,8 @@ LIB	 = libcore.a
 LIBS	 = $(LIB) $(com32)/lib/libcom32.a $(LIBGCC)
 LIBOBJS	 = $(COBJ)
 
+NASMOPT += -g -F stabs
+
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
 # guaranteed to be unique to be unique from build to build.
@@ -78,8 +80,9 @@ iso%.bin: iso%.elf checksumiso.pl
 	$(OBJCOPY) -O binary $< $@
 
 %.o: %.asm kwdhash.gen ../version.gen
-	( $(NASM) -M -DDEPEND $(NINCLUDE) -o $@ $< ; echo '' ) > .$@.d; true
-	$(NASM) $(NASMOPT) -f elf -g -F stabs -DDATE_STR="'$(DATE)'" \
+	( $(NASM) -f elf $(NASMOPT) -M -DDEPEND $(NINCLUDE) \
+	  -o $@ $< ; echo '' ) > .$@.d; true
+	$(NASM) -f elf $(NASMOPT) -DDATE_STR="'$(DATE)'" \
 		-DHEXDATE="$(HEXDATE)" \
 		-l $(@:.o=.lsr) -o $@ $<
 
