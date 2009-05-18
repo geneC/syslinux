@@ -118,7 +118,5 @@ check_for_arp:
 		mov bx,PXENV_UDP_READ
 		call pxenv
 		; Ignore result...
-		pop es
-		pop ds
 		popad
 		ret
