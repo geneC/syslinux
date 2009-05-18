@@ -40,16 +40,6 @@ SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 ROOT_DIR_WORD	equ 0x002F
 
 ;
-; This is what we need to do when idle
-;
-%macro	RESET_IDLE 0
-	; Nothing
-%endmacro
-%macro	DO_IDLE 0
-	; Nothing
-%endmacro
-
-;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
 ; Since there is no room in the bottom 64K for all of these, we
@@ -1707,6 +1697,7 @@ getfssec:
 %include "highmem.inc"		; High memory sizing
 %include "strcpy.inc"		; strcpy()
 %include "rawcon.inc"		; Console I/O w/o using the console functions
+%include "idle.inc"		; Idle handling
 %include "adv.inc"		; Auxillary Data Vector
 %include "localboot.inc"	; Disk-based local boot
 

@@ -178,9 +178,8 @@ pc_include:	inc word [IncludeLevel]
 pc_serial:	call getint
 		jc .err
 		push bx				; Serial port #
-		xor ax,ax
-		mov [FlowControl],ax		; Default to no flow control
-		mov [FlowIgnore],al
+		xor eax,eax
+		mov [FlowControl],eax		; Default to no flow control
 		call skipspace
 		jc .nobaud
 		call ungetc
@@ -200,7 +199,7 @@ pc_serial:	call getint
 		shl bh,4
 		mov [FlowIgnore],bh
 		mov bh,bl
-		and bx,0F003h			; Valid bits
+		and bx,0F00Bh			; Valid bits
 		mov [FlowControl],bx
 		pop ebx				; Baud rate
 		jmp short .parse_baud
@@ -247,7 +246,8 @@ pc_serial:	call getint
 		jne .err			; Assume serial port busted
 		dec dx
 		dec dx				; DX -> IER
-		xor al,al			; IRQ disable
+		test byte [FlowOutput],8
+		setnz al			; Bit 0 -> input available IRQ
 		call slow_out
 
 		inc dx				; DX -> FCR/IIR
@@ -262,8 +262,7 @@ pc_serial:	call getint
 
 		inc dx
 		inc dx				; DX -> MCR
-		in al,dx
-		or al,[FlowOutput]		; Assert bits
+		mov al,[FlowOutput]		; Assert bits
 		call slow_out
 
 		; Show some life

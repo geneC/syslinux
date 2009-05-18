@@ -6,6 +6,11 @@ Changes in 3.81:
 	* Shuffler: fix bug in real-mode entry.  This affected a
 	  number of modules, probably in relatively unimportant ways,
 	  but it completely broke linux.c32.
+	* Improved performance.
+	* Attempt to halt the processor while idle.  This can cause
+	  bad reponsiveness when using a serial console especially for
+	  automated input; if that ends up being a problem, use the
+	  new "NOHALT 1" configuration command.
 
 Changes in 3.80:
 	* New shuffler mechanism and API.

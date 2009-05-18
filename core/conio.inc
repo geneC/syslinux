@@ -286,7 +286,7 @@ write_serial_str:
 ;
 pollchar:
 		pushad
-		DO_IDLE
+		call do_idle
 		mov ah,11h		; Poll keyboard
 		int 16h
 		jnz .done		; Keyboard response
@@ -312,7 +312,7 @@ pollchar:
 ;
 getchar:
 .again:
-		DO_IDLE
+		call do_idle
 		mov ah,11h		; Poll keyboard
 		int 16h
 		jnz .kbd		; Keyboard input?
@@ -330,8 +330,10 @@ getchar:
 		cmp al,ah
 		jne .again
 .serial:	xor ah,ah		; Avoid confusion
-		xchg dx,bx		; Data port
+		mov dx,bx		; Data port
 		in al,dx
+		lea dx,[bx+2]		; DX -> IIR
+		in al,dx		; Read IIR to discard any IRQ bits
 		ret
 .kbd:		mov ah,10h		; Get keyboard input
 		int 16h
@@ -344,7 +346,7 @@ getchar:
 		mov bx,KbdMap		; Convert character sets
 		xlatb
 .func_key:
-		RESET_IDLE		; Character received
+		call reset_idle		; Character received
 		ret
 
 %ifdef DEBUG_TRACERS
@@ -392,6 +394,7 @@ FlowControl	equ $
 FlowOutput	resb 1			; Outputs to assert for serial flow
 FlowInput	resb 1			; Input bits for serial flow
 FlowIgnore	resb 1			; Ignore input unless these bits set
+FlowDummy	resb 1			; Unused
 
 TextAttribute   resb 1			; Text attribute for message file
 DisplayMask	resb 1			; Display modes mask

@@ -53,24 +53,6 @@ TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
 SECTOR_SHIFT	equ TFTP_BLOCKSIZE_LG2
 SECTOR_SIZE	equ TFTP_BLOCKSIZE
 
-%define HAVE_IDLE 1			; idle is not a noop
-
-%if HAVE_IDLE
-%macro	RESET_IDLE 0
-	call reset_idle
-%endmacro
-%macro	DO_IDLE 0
-	call check_for_arp
-%endmacro
-%else
-%macro	RESET_IDLE 0
-	; Nothing
-%endmacro
-%macro	DO_IDLE 0
-	; Nothing
-%endmacro
-%endif
-
 ;
 ; TFTP operation codes
 ;
@@ -195,7 +177,6 @@ PXEStack	resd 1			; Saved stack during PXE call
 RebootTime	resd 1			; Reboot timeout, if set by option
 StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure
 APIVer		resw 1			; PXE API version found
-IdleTimer	resw 1			; Time to check for ARP?
 LocalBootType	resw 1			; Local boot return code
 RealBaseMem	resw 1			; Amount of DOS memory after freeing
 OverLoad	resb 1			; Set if DHCP packet uses "overloading"
@@ -619,7 +600,7 @@ udp_init:
 ; Detect NIC type and initialize the idle mechanism
 ;
 		call pxe_detect_nic_type
-		RESET_IDLE
+		call reset_idle
 
 ;
 ; Now we're all set to start with our *real* business.	First load the
@@ -2546,64 +2527,6 @@ genipopt:
 		popad
 		ret
 
-;
-; Call the receive loop while idle.  This is done mostly so we can respond to
-; ARP messages, but perhaps in the future this can be used to do network
-; console.
-;
-; hpa sez: people using automatic control on the serial port get very
-; unhappy if we poll for ARP too often (the PXE stack is pretty slow,
-; typically.)  Therefore, only poll if at least 4 BIOS timer ticks have
-; passed since the last poll, and reset this when a character is
-; received (RESET_IDLE).
-;
-; Note: we only do this if pxe_detect_nic_type has cleared the
-; "idle is noop" bit in feature_flags.
-;
-%if HAVE_IDLE
-
-reset_idle:
-		push ax
-		mov ax,[cs:BIOS_timer]
-		mov [cs:IdleTimer],ax
-		pop ax
-		ret
-
-check_for_arp:
-		test byte [cs:feature_flags],2
-		jnz .ret
-		push ax
-		mov ax,[cs:BIOS_timer]
-		sub ax,[cs:IdleTimer]
-		cmp ax,4
-		pop ax
-		jae .need_poll
-.ret:		ret
-.need_poll:	pushad
-		push ds
-		push es
-		mov ax,cs
-		mov ds,ax
-		mov es,ax
-		mov di,packet_buf
-		mov [pxe_udp_read_pkt.buffer],di
-		mov [pxe_udp_read_pkt.buffer+2],ds
-		mov word [pxe_udp_read_pkt.buffersize],packet_buf_size
-		mov eax,[MyIP]
-		mov [pxe_udp_read_pkt.dip],eax
-		mov word [pxe_udp_read_pkt.lport],htons(9)	; discard port
-		mov di,pxe_udp_read_pkt
-		mov bx,PXENV_UDP_READ
-		call pxenv
-		; Ignore result...
-		pop es
-		pop ds
-		popad
-		RESET_IDLE
-		ret
-
-%endif ; HAVE_IDLE
-
 ; -----------------------------------------------------------------------------
 ;  Common modules
 ; -----------------------------------------------------------------------------
@@ -2624,7 +2547,8 @@ writestr_early	equ writestr
 %include "strcpy.inc"		; strcpy()
 %include "rawcon.inc"		; Console I/O w/o using the console functions
 %include "dnsresolv.inc"	; DNS resolver
-%include "pxeidle.inc"		; Idle mechanism
+%include "idle.inc"		; Idle handling
+%include "pxeidle.inc"		; PXE-specific idle mechanism
 %include "adv.inc"		; Auxillary Data Vector
 
 ; -----------------------------------------------------------------------------

@@ -47,16 +47,6 @@ ROOT_DIR_WORD	equ 0x002F
 CUR_DIR_DWORD	equ 0x00002F2E
 
 ;
-; This is what we need to do when idle
-;
-%macro	RESET_IDLE 0
-	; Nothing
-%endmacro
-%macro	DO_IDLE 0
-	; Nothing
-%endmacro
-
-;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
 ; Since there is no room in the bottom 64K for all of these, we
@@ -891,6 +881,7 @@ build_curdir_str:
 %include "strcpy.inc"           ; strcpy()
 %include "strecpy.inc"          ; strcpy with end pointer check
 %include "cache.inc"		; Metadata disk cache
+%include "idle.inc"		; Idle handling
 %include "adv.inc"		; Auxillary Data Vector
 %include "localboot.inc"	; Disk-based local boot
 

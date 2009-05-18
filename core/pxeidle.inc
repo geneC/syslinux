@@ -1,6 +1,7 @@
 ;; -*- fundamental -*- ---------------------------------------------------
 ;;
 ;;   Copyright 2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -48,7 +49,7 @@ pxe_detect_nic_type:
 		ret
 
 .found_device:
-		and byte [feature_flags],~2
+		mov word [IdleHook],check_for_arp
 		jmp .done
 
 ;;
@@ -90,3 +91,34 @@ pxenv_get_nic_type:
 .sdid:		resw 1
 
 		section .text
+;
+; Call the receive loop while idle.  This is done mostly so we can respond to
+; ARP messages, but perhaps in the future this can be used to do network
+; console.
+;
+; hpa sez: people using automatic control on the serial port get very
+; unhappy if we poll for ARP too often (the PXE stack is pretty slow,
+; typically.)  Therefore, only poll if at least 4 BIOS timer ticks have
+; passed since the last poll, and reset this when a character is
+; received (call reset_idle).
+;
+; Note: we only do this if pxe_detect_nic_type has set the IdleHook
+; to point to this routine.
+;
+check_for_arp:
+		pushad
+		mov di,packet_buf
+		mov [pxe_udp_read_pkt.buffer],di
+		mov [pxe_udp_read_pkt.buffer+2],ds
+		mov word [pxe_udp_read_pkt.buffersize],packet_buf_size
+		mov eax,[MyIP]
+		mov [pxe_udp_read_pkt.dip],eax
+		mov word [pxe_udp_read_pkt.lport],htons(9)	; discard port
+		mov di,pxe_udp_read_pkt
+		mov bx,PXENV_UDP_READ
+		call pxenv
+		; Ignore result...
+		pop es
+		pop ds
+		popad
+		ret
