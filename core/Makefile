@@ -51,7 +51,8 @@ LIB	 = libcore.a
 LIBS	 = $(LIB) $(com32)/lib/libcom32.a $(LIBGCC)
 LIBOBJS	 = $(COBJ)
 
-NASMOPT += -g -F stabs
+NASMDEBUG = -g -F stabs
+NASMOPT  += $(NASMDEBUG)
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
