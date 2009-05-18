@@ -526,7 +526,7 @@ kernel_corrupt: mov si,err_notkernel
 ;
 getchar_timeout:
 		call vgashowcursor
-		RESET_IDLE
+		call reset_idle
 
 .loop:
 		push word [BIOS_timer]
@@ -535,7 +535,7 @@ getchar_timeout:
 		pop ax
 		cmp ax,[BIOS_timer]		; Has the timer advanced?
 		je .loop
-		DO_IDLE
+		call do_idle
 
 		dec dword [ThisKbdTo]
 		jz .timeout

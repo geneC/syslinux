@@ -16,4 +16,5 @@
 %include "graphics.inc"		; VGA graphics
 %include "highmem.inc"		; High memory sizing
 %include "strcpy.inc"           ; strcpy()
+%include "idle.inc"		; Idle handling
 %include "adv.inc"		; Auxillary Data Vector

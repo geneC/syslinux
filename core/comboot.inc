@@ -391,24 +391,11 @@ comboot_getchar:
 ;
 ; INT 28h - DOS idle
 ;
-%ifdef HAVE_IDLE
 comboot_int28:
 		cli
 		cld
-		pushad
-		xor ax,ax
-		push ds
-		push es
-		mov ds,ax
-		mov es,ax
-		DO_IDLE
-		pop es
-		pop ds
-		popad
+		call do_idle
 		iret
-%else
-comboot_int28	equ comboot_iret
-%endif
 
 ;
 ; INT 29h - DOS fast write character
@@ -724,21 +711,10 @@ comapi_dnsresolv equ comapi_err
 ;
 ; INT 22h AX=0013h	Idle call
 ;
-;
-; *** FIX THIS ***
-; The idle call seems to have detrimental effects on some machines when
-; called from a COM32 context (WHY?) --  disable it for now.
-; *** IS THIS STILL TRUE? ***
-;
-%ifdef HAVE_IDLE
 comapi_idle:
-		DO_IDLE
+		call do_idle
 		clc
 		ret
-
-%else
-comapi_idle	equ comapi_err
-%endif
 
 ;
 ; INT 22h AX=0014h	Local boot
@@ -1067,7 +1043,7 @@ zero_string	db 0			; Empty, null-terminated string
 ; in pxe_detect_nic_type
 ;
 feature_flags:
-		db 3			; Have local boot, idle is noop
+		db 1			; Have local boot, idle is not noop
 feature_flags_len equ ($-feature_flags)
 
 err_notdos	db ': attempted DOS system call INT ',0
