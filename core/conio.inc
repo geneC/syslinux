@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -331,9 +332,7 @@ getchar:
 		jne .again
 .serial:	xor ah,ah		; Avoid confusion
 		mov dx,bx		; Data port
-		in al,dx
-		lea dx,[bx+2]		; DX -> IIR
-		in al,dx		; Read IIR to discard any IRQ bits
+		in al,dx		; Read data
 		ret
 .kbd:		mov ah,10h		; Get keyboard input
 		int 16h
