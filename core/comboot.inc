@@ -143,7 +143,7 @@ is_comboot_image:
 ; Note: this gets invoked both via INT 21h and directly via INT 20h.
 ; We don't need to cld explicitly here, because comboot_exit does that
 ; when invoking RESET_STACK_AND_SEGS.
-comboot_return:	cli			; Don't trust anyone
+comboot_return:	cli			; May not have a safe stack
 		push enter_command	; Normal return to command prompt
 		jmp comboot_exit
 
@@ -234,7 +234,7 @@ comboot_vectors:
 		section .text16
 
 ; INT 21h: generic DOS system call
-comboot_int21:	cli
+comboot_int21:	sti
 		push ds
 		push es
 		push fs
@@ -277,8 +277,7 @@ comboot_bad_int21:
 
 ; Attempted to execute invalid DOS system call
 ; The interrupt number is on the stack.
-comboot_bogus:	cli			; Don't trust anyone
-		pop dx			; Interrupt number
+comboot_bogus:	pop dx			; Interrupt number
 		pop edi			; CS:IP
 		mov cx,err_notdos
 		push comboot_bogus_tail
@@ -306,7 +305,7 @@ comboot_exit:
 		xor cx,cx
 comboot_exit_msg:
 		pop bx			; Return address
-		RESET_STACK_AND_SEGS SI	; Contains cld
+		RESET_STACK_AND_SEGS SI	; Contains sti, cld
 		call adjust_screen	; The COMBOOT program might have changed the screen
 		jcxz .nomsg
 		mov si,KernelCName
@@ -392,7 +391,7 @@ comboot_getchar:
 ; INT 28h - DOS idle
 ;
 comboot_int28:
-		cli
+		sti
 		cld
 		call do_idle
 		iret
@@ -401,7 +400,7 @@ comboot_int28:
 ; INT 29h - DOS fast write character
 ;
 comboot_int29:
-		cli
+		sti
 		cld
 		call writechr			; Preserves registers!
 		iret
@@ -411,7 +410,7 @@ comboot_int29:
 ;           System call number in ax
 ;
 comboot_int22:
-		cli
+		sti
 		push ds
 		push es
 		push fs
