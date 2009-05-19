@@ -218,7 +218,7 @@ packet_buf_size	equ $-packet_buf
 		; therefore we relocate it from 7C00h on startup.
 		;
 StackBuf	equ $-44		; Base of stack if we use our own
-StackTop	equ $
+StackTop	equ StackBuf
 
 ;
 ; Primary entry point.
