@@ -217,7 +217,7 @@ packet_buf_size	equ $-packet_buf
 		; PXELINUX needs more BSS than the other derivatives;
 		; therefore we relocate it from 7C00h on startup.
 		;
-StackBuf	equ $			; Base of stack if we use our own
+StackBuf	equ $-44		; Base of stack if we use our own
 StackTop	equ $
 
 ;

@@ -122,7 +122,9 @@ replace_bootstrap:
 		jmp .stackok
 %endif
 .stdstack:
-		mov di,StackTop-44
+		; StackBuf is guaranteed to have 44 bytes free immediately
+		; above it, and it will not interfere with our existing stack.
+		mov di,StackBuf
 		push di
 		mov cx,22		; 44 bytes
 		rep stosw
