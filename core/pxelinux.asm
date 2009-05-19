@@ -48,7 +48,11 @@ TFTP_LARGEBLK	equ (TFTP_MTU-20-8-4)	; MTU - IP hdr - UDP hdr - TFTP hdr
 ; Standard TFTP block size
 TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)
 TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
-%assign USE_PXE_PROVIDED_STACK 1	; Use stack provided by PXE?
+
+;
+; Set to 1 to disable switching to a private stack
+;
+%assign USE_PXE_PROVIDED_STACK 0	; Use stack provided by PXE?
 
 SECTOR_SHIFT	equ TFTP_BLOCKSIZE_LG2
 SECTOR_SIZE	equ TFTP_BLOCKSIZE
@@ -2689,7 +2693,7 @@ gpxe_file_read:
 		section .data16
 
 		alignz 4
-BaseStack	dd StackBuf		; ESP of base stack
+BaseStack	dd StackTop		; ESP of base stack
 		dw 0			; SS of base stack
 NextSocket	dw 49152		; Counter for allocating socket numbers
 KeepPXE		db 0			; Should PXE be kept around?
