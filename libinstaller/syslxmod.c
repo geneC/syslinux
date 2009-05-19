@@ -155,7 +155,6 @@ int syslinux_patch(const uint32_t *sectors, int nsectors,
 
   /* First sector need pointer in boot sector */
   set_32(&sbs->NextSector, *sectors++);
-  nsect--;
 
   /* Search for LDLINUX_MAGIC to find the patch area */
   for (wp = (uint32_t *)syslinux_ldlinux; get_32(wp) != LDLINUX_MAGIC; wp++)
