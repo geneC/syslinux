@@ -114,6 +114,35 @@ int rename(const char *oldname, const char *newname)
   return 0;
 }
 
+extern const char __payload_sseg[];
+static uint16_t ldlinux_seg;
+
+ssize_t write_ldlinux(int fd)
+{
+  uint32_t offset = 0;
+  uint16_t rv;
+  uint8_t err;
+
+  while (offset < syslinux_ldlinux_len) {
+    uint32_t chunk = syslinux_ldlinux_len - offset;
+    if (chunk > 32768)
+      chunk = 32768;
+    asm volatile("pushw %%ds ; "
+		 "movw %6,%%ds ; "
+		 "int $0x21 ; "
+		 "popw %%ds ; "
+		 "setc %0"
+		 : "=bcdm" (err), "=a" (rv)
+		 : "a" (0x4000), "b" (fd), "c" (chunk), "d" (offset & 15),
+		 "SD" ((uint16_t)(ldlinux_seg + (offset >> 4))));
+    if ( err || rv == 0 )
+      die("file write error");
+    offset += rv;
+  }
+
+  return offset;
+}
+
 ssize_t write_file(int fd, const void *buf, size_t count)
 {
   uint16_t rv;
@@ -123,10 +152,9 @@ ssize_t write_file(int fd, const void *buf, size_t count)
   dprintf("write_file(%d,%p,%u)\n", fd, buf, count);
 
   while ( count ) {
-    rv = 0x4000;
     asm volatile("int $0x21 ; setc %0"
-		 : "=abcdm" (err), "+a" (rv)
-		 : "b" (fd), "c" (count), "d" (buf));
+		 : "=bcdm" (err), "=a" (rv)
+		 : "a" (0x4000), "b" (fd), "c" (count), "d" (buf));
     if ( err || rv == 0 )
       die("file write error");
 
@@ -480,7 +508,9 @@ int main(int argc, char *argv[])
   char **argp, *opt;
   int force = 0;		/* -f (force) option */
   struct libfat_filesystem *fs;
-  libfat_sector_t s, *secp, sectors[65]; /* 65 is maximum possible */
+  libfat_sector_t s, *secp;
+  libfat_sector_t *sectors;
+  int ldlinux_sectors;
   int32_t ldlinux_cluster;
   int nsectors;
   const char *device = NULL, *bootsecfile = NULL;
@@ -491,6 +521,9 @@ int main(int argc, char *argv[])
   const char *subdir = NULL;
   int stupid = 0;
   int raid_mode = 0;
+  int patch_sectors;
+
+  ldlinux_seg = (size_t)__payload_sseg + data_segment();
 
   dprintf("argv = %p\n", argv);
   for ( i = 0 ; i <= argc ; i++ )
@@ -572,7 +605,7 @@ int main(int argc, char *argv[])
 
   set_attributes(ldlinux_name, 0);
   fd = creat(ldlinux_name, 0x07); /* SYSTEM HIDDEN READONLY */
-  write_file(fd, syslinux_ldlinux, syslinux_ldlinux_len);
+  write_ldlinux(fd);
   close(fd);
 
   /*
@@ -581,13 +614,15 @@ int main(int argc, char *argv[])
    * this is supposed to be a simple, privileged version
    * of the installer.
    */
+  ldlinux_sectors = (syslinux_ldlinux_len+SECTOR_SIZE-1) >> SECTOR_BITS;
+  sectors = calloc(ldlinux_sectors, sizeof *sectors);
   lock_device(2);
   fs = libfat_open(libfat_xpread, dev_fd);
   ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
   secp = sectors;
   nsectors = 0;
   s = libfat_clustertosector(fs, ldlinux_cluster);
-  while ( s && nsectors < 65 ) {
+  while ( s && nsectors < ldlinux_sectors ) {
     *secp++ = s;
     nsectors++;
     s = libfat_nextsector(fs, s);
@@ -640,13 +675,23 @@ int main(int argc, char *argv[])
   /*
    * Patch ldlinux.sys and the boot sector
    */
-  syslinux_patch(sectors, nsectors, stupid, raid_mode);
+  i = syslinux_patch(sectors, nsectors, stupid, raid_mode);
+  patch_sectors = (i + 511) >> 9;
 
   /*
-   * Write the now-patched first sector of ldlinux.sys
+   * Overwrite the now-patched ldlinux.sys
    */
   lock_device(3);
-  write_device(dev_fd, syslinux_ldlinux, 1, sectors[0]);
+  for (i = 0; i < patch_sectors; i++) {
+    uint16_t si, di, cx;
+    si = 0;
+    di = (size_t)sectbuf;
+    cx = 512 >> 2;
+    asm volatile("movw %3,%%fs ; fs ; rep ; movsl"
+		 : "+S" (si), "+D" (di), "+c" (cx)
+		 : "abd" ((uint16_t)(ldlinux_seg + (i << (9-4)))));
+    write_device(dev_fd, sectbuf, 1, sectors[i]);
+  }
 
   /*
    * Muck with the MBR, if desired, while we hold the lock

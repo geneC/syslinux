@@ -17,7 +17,9 @@
 topdir = ..
 include $(topdir)/MCONFIG.embedded
 
-LDFLAGS	 = -T com16.ld
+CFLAGS	+= -D__MSDOS__
+
+LDFLAGS	 = -T dosexe.ld
 OPTFLAGS = -g
 INCLUDES = -include code16.h -nostdinc -iwithprefix include \
 	   -I. -I.. -I../libfat -I ../libinstaller
@@ -28,7 +30,7 @@ SRCS     = syslinux.c \
 	   ../libinstaller/ldlinux_bin.c \
 	   ../libinstaller/mbr_bin.c \
            $(wildcard ../libfat/*.c)
-OBJS	 = crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
+OBJS	 = header.o crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
 LIBOBJS	 = conio.o memcpy.o memset.o  skipatou.o atou.o malloc.o free.o \
 	   argv.o printf.o __divdi3.o __udivmoddi4.o
 
@@ -48,8 +50,8 @@ spotless: clean
 
 installer:
 
-syslinux.elf: $(OBJS) libcom.a
-	$(LD) $(LDFLAGS) -o $@ $^
+syslinux.elf: $(OBJS) dosexe.ld libcom.a
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) libcom.a
 
 libcom.a: $(LIBOBJS)
 	-rm -f $@

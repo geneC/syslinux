@@ -17,17 +17,21 @@
 #include "advconst.h"
 
 /* The standard boot sector and ldlinux image */
-extern unsigned char syslinux_bootsect[];
-extern unsigned int  syslinux_bootsect_len;
-extern int           syslinux_bootsect_mtime;
+extern       unsigned char syslinux_bootsect[];
+extern const unsigned int  syslinux_bootsect_len;
+extern const int           syslinux_bootsect_mtime;
 
-extern unsigned char syslinux_ldlinux[];
-extern unsigned int  syslinux_ldlinux_len;
-extern int           syslinux_ldlinux_mtime;
+extern       unsigned char syslinux_ldlinux[];
+extern const unsigned int  syslinux_ldlinux_len;
+extern const int           syslinux_ldlinux_mtime;
 
-extern unsigned char syslinux_mbr[];
-extern unsigned int  syslinux_mbr_len;
-extern int           syslinux_mbr_mtime;
+extern       unsigned char syslinux_mbr[];
+extern const unsigned int  syslinux_mbr_len;
+extern const int           syslinux_mbr_mtime;
+
+/* Sector size assumptions... */
+#define SECTOR_BITS	9
+#define SECTOR_SIZE	(1 << SECTOR_BITS)
 
 /* This takes a boot sector and merges in the syslinux fields */
 void syslinux_make_bootsect(void *);

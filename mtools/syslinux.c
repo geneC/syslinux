@@ -134,10 +134,13 @@ int main(int argc, char *argv[])
   int mtc_fd;
   FILE *mtc, *mtp;
   struct libfat_filesystem *fs;
-  libfat_sector_t s, *secp, sectors[65]; /* 65 is maximum possible */
+  libfat_sector_t s, *secp;
+  libfat_sector_t *sectors;
   int32_t ldlinux_cluster;
   int nsectors;
   const char *errmsg;
+  int ldlinux_sectors, patch_sectors;
+  int i;
 
   int force = 0;              /* -f (force) option */
   int stupid = 0;             /* -s (stupid) option */
@@ -247,12 +250,14 @@ int main(int argc, char *argv[])
   /*
    * Now, use libfat to create a block map
    */
+  ldlinux_sectors = (syslinux_ldlinux_len+SECTOR_SIZE-1) >> SECTOR_BITS;
+  sectors = calloc(ldlinux_sectors, sizeof *sectors);
   fs = libfat_open(libfat_xpread, dev_fd);
   ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
   secp = sectors;
   nsectors = 0;
   s = libfat_clustertosector(fs, ldlinux_cluster);
-  while ( s && nsectors < 65 ) {
+  while ( s && nsectors < ldlinux_sectors ) {
     *secp++ = s;
     nsectors++;
     s = libfat_nextsector(fs, s);
@@ -260,11 +265,14 @@ int main(int argc, char *argv[])
   libfat_close(fs);
 
   /* Patch ldlinux.sys and the boot sector */
-  syslinux_patch(sectors, nsectors, stupid, raid_mode);
+  i = syslinux_patch(sectors, nsectors, stupid, raid_mode);
+  patch_sectors = (i + 511) >> 9;
 
-  /* Write the now-patched first sector of ldlinux.sys */
-  xpwrite(dev_fd, syslinux_ldlinux, 512,
-	  filesystem_offset + ((off_t)sectors[0] << 9));
+  /* Write the now-patched first sectors of ldlinux.sys */
+  for (i = 0; i < patch_sectors; i++) {
+    xpwrite(dev_fd, syslinux_ldlinux + i*512, 512,
+	    filesystem_offset + ((off_t)sectors[i] << 9));
+  }
 
   /* Move ldlinux.sys to the desired location */
   if (subdir) {

@@ -36,7 +36,6 @@ void error(char* msg);
 
 #include <winioctl.h>
 
-#define SECTOR_SIZE 512
 #define PART_TABLE  0x1be
 #define PART_SIZE   0x10
 #define PART_COUNT  4
@@ -252,7 +251,9 @@ int main(int argc, char *argv[])
   static char ldlinux_name[] = "?:\\ldlinux.sys" ;
   const char *errmsg;
   struct libfat_filesystem *fs;
-  libfat_sector_t s, *secp, sectors[65]; /* 65 is maximum possible */
+  libfat_sector_t s, *secp;
+  libfat_sector_t *sectors;
+  int ldlinux_sectors;
   uint32_t ldlinux_cluster;
   int nsectors;
   const char *bootsecfile = NULL;
@@ -414,12 +415,14 @@ int main(int argc, char *argv[])
   }
 
   /* Map the file (is there a better way to do this?) */
+  ldlinux_sectors = (syslinux_ldlinux_len+SECTOR_SIZE-1) >> SECTOR_BITS;
+  sectors = calloc(ldlinux_sectors, sizeof *sectors);
   fs = libfat_open(libfat_readfile, (intptr_t)d_handle);
   ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
   secp = sectors;
   nsectors = 0;
   s = libfat_clustertosector(fs, ldlinux_cluster);
-  while ( s && nsectors < 65 ) {
+  while ( s && nsectors < ldlinux_sectors ) {
     *secp++ = s;
     nsectors++;
     s = libfat_nextsector(fs, s);

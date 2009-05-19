@@ -121,6 +121,88 @@ const char *syslinux_check_bootsect(const void *bs)
 }
 
 /*
+ * Special handling for the MS-DOS derivative: syslinux_ldlinux
+ * is a "far" object...
+ */
+#ifdef __MSDOS__
+
+extern const char __payload_sseg[]; /* Symbol from linker */
+
+static inline __attribute__((const)) uint16_t ds(void)
+{
+  uint16_t v;
+  asm("movw %%ds,%0" : "=rm" (v));
+  return v;
+}
+
+static inline void *set_fs(const void *p)
+{
+  uint16_t seg;
+
+  seg = ds() + (size_t)__payload_sseg;
+  seg += (size_t)p >> 4;
+  asm volatile("movw %0,%%fs" : : "rm" (seg));
+  return (void *)((size_t)p & 0xf);
+}
+
+static inline uint8_t get_8_sl(const uint8_t *p)
+{
+  uint8_t v;
+
+  p = set_fs(p);
+  asm volatile("movb %%fs:%1,%0" : "=q" (v) : "m" (*p));
+  return v;
+}
+
+static inline uint16_t get_16_sl(const uint16_t *p)
+{
+  uint16_t v;
+
+  p = set_fs(p);
+  asm volatile("movw %%fs:%1,%0" : "=r" (v) : "m" (*p));
+  return v;
+}
+
+static inline uint32_t get_32_sl(const uint32_t *p)
+{
+  uint32_t v;
+
+  p = set_fs(p);
+  asm volatile("movl %%fs:%1,%0" : "=r" (v) : "m" (*p));
+  return v;
+}
+
+static inline void set_8_sl(uint8_t *p, uint8_t v)
+{
+  p = set_fs(p);
+  asm volatile("movb %1,%%fs:%0" : "=m" (*p) : "qi" (v));
+}
+
+static inline void set_16_sl(uint16_t *p, uint16_t v)
+{
+  p = set_fs(p);
+  asm volatile("movw %1,%%fs:%0" : "=m" (*p) : "ri" (v));
+}
+
+static inline void set_32_sl(uint32_t *p, uint32_t v)
+{
+  p = set_fs(p);
+  asm volatile("movl %1,%%fs:%0" : "=m" (*p) : "ri" (v));
+}
+
+#else
+
+/* Sane system ... */
+#define get_8_sl(x)    get_8(x)
+#define get_16_sl(x)   get_16(x)
+#define get_32_sl(x)   get_32(x)
+#define set_8_sl(x,y)  set_8(x,y)
+#define set_16_sl(x,y) set_16(x,y)
+#define set_32_sl(x,y) set_32(x,y)
+
+#endif
+
+/*
  * This patches the boot sector and the beginning of ldlinux.sys
  * based on an ldlinux.sys sector map passed in.  Typically this is
  * handled by writing ldlinux.sys, mapping it, and then overwrite it
@@ -128,7 +210,8 @@ const char *syslinux_check_bootsect(const void *bs)
  * an OS which does block reallocation, then overwrite it with
  * direct access since the location is known.
  *
- * Return 0 if successful, otherwise -1.
+ * Returns the number of modified bytes in ldlinux.sys if successful,
+ * otherwise -1.
  */
 int syslinux_patch(const uint32_t *sectors, int nsectors,
 		   int stupid, int raid_mode)
@@ -137,7 +220,7 @@ int syslinux_patch(const uint32_t *sectors, int nsectors,
   uint32_t *wp;
   int nsect = (syslinux_ldlinux_len+511) >> 9;
   uint32_t csum;
-  int i, dw, nptrs;
+  int i, dw, nptrs, rv;
 
   if ( nsectors < nsect )
     return -1;
@@ -157,33 +240,38 @@ int syslinux_patch(const uint32_t *sectors, int nsectors,
   set_32(&sbs->NextSector, *sectors++);
 
   /* Search for LDLINUX_MAGIC to find the patch area */
-  for (wp = (uint32_t *)syslinux_ldlinux; get_32(wp) != LDLINUX_MAGIC; wp++)
+  for (wp = (uint32_t *)syslinux_ldlinux; get_32_sl(wp) != LDLINUX_MAGIC; wp++)
     ;
   patcharea = (struct patch_area *)wp;
 
   /* Set up the totals */
   dw = syslinux_ldlinux_len >> 2;	/* COMPLETE dwords, excluding ADV */
-  set_16(&patcharea->data_sectors, nsect); /* Not including ADVs */
-  set_16(&patcharea->adv_sectors, 0);	   /* ADVs not supported yet */
-  set_32(&patcharea->dwords, dw);
-  set_32(&patcharea->currentdir, 0);
+  set_16_sl(&patcharea->data_sectors, nsect); /* Not including ADVs */
+  set_16_sl(&patcharea->adv_sectors, 0);	   /* ADVs not supported yet */
+  set_32_sl(&patcharea->dwords, dw);
+  set_32_sl(&patcharea->currentdir, 0);
 
   /* Set the sector pointers */
-  wp = (uint32_t *)((char *)syslinux_ldlinux+get_16(&patcharea->secptroffset));
-  nptrs = get_16(&patcharea->secptrcnt);
+  wp = (uint32_t *)((char *)syslinux_ldlinux+get_16_sl(&patcharea->secptroffset));
+  nptrs = get_16_sl(&patcharea->secptrcnt);
 
-  memset(wp, 0, nptrs*4);
-  while ( nsect-- )
-    set_32(wp++, *sectors++);
+  while (nsect--) {
+    set_32_sl(wp++, *sectors++);
+    nptrs--;
+  }
+  while (nptrs--)
+    set_32_sl(wp++, 0);
+
+  rv = (char *)wp - (char *)syslinux_ldlinux;
 
   /* Now produce a checksum */
-  set_32(&patcharea->checksum, 0);
+  set_32_sl(&patcharea->checksum, 0);
 
   csum = LDLINUX_MAGIC;
   for (i = 0, wp = (uint32_t *)syslinux_ldlinux; i < dw; i++, wp++)
-    csum -= get_32(wp);		/* Negative checksum */
+    csum -= get_32_sl(wp);		/* Negative checksum */
 
-  set_32(&patcharea->checksum, csum);
+  set_32_sl(&patcharea->checksum, csum);
 
-  return 0;
+  return rv;
 }

@@ -48,10 +48,12 @@
 
 #include <sys/ioctl.h>
 #include <linux/fs.h>		/* FIGETBSZ, FIBMAP */
-#include <linux/msdos_fs.h>	/* FAT_IOCTL_SET_ATTRIBUTES, SECTOR_* */
+#include <linux/msdos_fs.h>	/* FAT_IOCTL_SET_ATTRIBUTES */
 #ifndef FAT_IOCTL_SET_ATTRIBUTES
 # define FAT_IOCTL_SET_ATTRIBUTES _IOW('r', 0x11, uint32_t)
 #endif
+#undef SECTOR_SIZE
+#undef SECTOR_BITS
 
 #include <paths.h>
 #ifndef _PATH_MOUNT
@@ -325,10 +327,13 @@ int main(int argc, char *argv[])
   char mntname[128];
   char *ldlinux_name, **argp, *opt;
   const char *subdir = NULL;
-  uint32_t sectors[65]; /* 65 is maximum possible */
+  uint32_t *sectors;
+  int ldlinux_sectors;
   int nsectors = 0;
   const char *errmsg;
   int mnt_cookie;
+  int patch_sectors;
+  int i;
 
   int force = 0;		/* -f (force) option */
   int stupid = 0;		/* -s (stupid) option */
@@ -514,6 +519,8 @@ int main(int argc, char *argv[])
   /*
    * Create a block map.
    */
+  ldlinux_sectors = (syslinux_ldlinux_len+SECTOR_SIZE-1) >> SECTOR_BITS;
+  sectors = calloc(ldlinux_sectors, sizeof *sectors);
   nsectors = make_block_map(sectors, syslinux_ldlinux_len, dev_fd, fd);
 
   close(fd);
@@ -530,13 +537,16 @@ umount:
   /*
    * Patch ldlinux.sys and the boot sector
    */
-  syslinux_patch(sectors, nsectors, stupid, raid_mode);
+  i = syslinux_patch(sectors, nsectors, stupid, raid_mode);
+  patch_sectors = (i + SECTOR_SIZE - 1) >> SECTOR_BITS;
 
   /*
-   * Write the now-patched first sector of ldlinux.sys
+   * Write the now-patched first sectors of ldlinux.sys
    */
-  xpwrite(dev_fd, syslinux_ldlinux, SECTOR_SIZE,
-	  filesystem_offset+((off_t)sectors[0] << SECTOR_BITS));
+  for (i = 0; i < patch_sectors; i++) {
+    xpwrite(dev_fd, syslinux_ldlinux + i*SECTOR_SIZE, SECTOR_SIZE,
+	    filesystem_offset+((off_t)sectors[i] << SECTOR_BITS));
+  }
 
   /*
    * To finish up, write the boot sector

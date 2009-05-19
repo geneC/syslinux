@@ -4,27 +4,38 @@
 # error "This file assumes -mregparm=3 -DREGPARM=3"
 #endif
 
-	.section ".init","ax"
+	.section ".text","ax"
 	.globl _start
 	.type _start,@function
 _start:
 	# Align the stack and make sure the high half is zero
 	andl $0xfff8,%esp
 
+	# DS, ES points to the PSP at this point
+	pushw %es		# Save PSP pointer
+	movw %cs,%ax
+	movw %ax,%ds
+	movw %ax,%es
+
 	# Clear the .bss
 	cld
 	xorl %eax,%eax
 	movw $__bss_start,%di
-	movw $_end+3,%cx
+	movw $__bss_end+3,%cx
 	subw %di,%cx
 	shrw $2,%cx
 	rep ; stosl
 
+	# Copy the command line into our own segment
+	popw %fs		# FS -> PSP
+	movw $_cmdline,%di
+	movzbw %fs:0x80,%cx
+	movw $0x81,%si
+	fs ; rep ; movsb
+	# Already zero-terminated since we're writing into clean bss
+
 	# Compute argc and argv (assumes REGPARM)
-	xorl %edx,%edx
-	movzbw 0x80,%bx
-	movb %dl,0x81(%bx)	# Zero-terminate string
-	movb $0x81,%dl
+	movl $_cmdline,%edx
 	pushl %eax		# Make space for argv
 	movl %esp,%eax
 	calll __parse_argv
@@ -51,3 +62,9 @@ exit:
 1:	hlt
 	jmp 1b
 	.size exit,.-exit
+
+	.section ".bss","aw"
+	.balign 4
+_cmdline:
+	.space 128
+	.size _cmdline,.-_cmdline
