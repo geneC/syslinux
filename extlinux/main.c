@@ -233,7 +233,7 @@ sectmap(int fd, uint32_t *sectors, int nsectors)
     return -1;
 
   /* Number of sectors per block */
-  blksize >>= SECTOR_BITS;
+  blksize >>= SECTOR_SHIFT;
 
   nblk = 0;
   while ( nsectors ) {
@@ -336,7 +336,7 @@ get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
 
   geo->heads     = opt.heads ?: 64;
   geo->sectors   = opt.sectors ?: 32;
-  geo->cylinders = totalbytes/(geo->heads*geo->sectors << SECTOR_BITS);
+  geo->cylinders = totalbytes/(geo->heads*geo->sectors << SECTOR_SHIFT);
   geo->start     = 0;
 
   if ( !opt.sectors && !opt.heads )
@@ -386,7 +386,7 @@ patch_file_and_bootblock(int fd, int dirfd, int devfd)
 
   bs = (struct boot_sector *)boot_block;
 
-  totalsectors = totalbytes >> SECTOR_BITS;
+  totalsectors = totalbytes >> SECTOR_SHIFT;
   if ( totalsectors >= 65536 ) {
     set_16(&bs->bsSectors, 0);
   } else {
@@ -410,7 +410,7 @@ patch_file_and_bootblock(int fd, int dirfd, int devfd)
   /* Construct the boot file */
 
   dprintf("directory inode = %lu\n", (unsigned long) dirst.st_ino);
-  nsect = (boot_image_len+SECTOR_SIZE-1) >> SECTOR_BITS;
+  nsect = (boot_image_len+SECTOR_SIZE-1) >> SECTOR_SHIFT;
   nsect += 2;			/* Two sectors for the ADV */
   sectp = alloca(sizeof(uint32_t)*nsect);
   if ( sectmap(fd, sectp, nsect) ) {

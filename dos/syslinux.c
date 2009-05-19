@@ -462,7 +462,7 @@ struct mbr_entry {
 
 static void adjust_mbr(int device, int writembr, int set_active)
 {
-  static unsigned char sectbuf[512];
+  static unsigned char sectbuf[SECTOR_SIZE];
   int i;
 
   if ( !writembr && !set_active )
@@ -502,7 +502,7 @@ static void adjust_mbr(int device, int writembr, int set_active)
 
 int main(int argc, char *argv[])
 {
-  static unsigned char sectbuf[512];
+  static unsigned char sectbuf[SECTOR_SIZE];
   int dev_fd, fd;
   static char ldlinux_name[] = "@:\\ldlinux.sys";
   char **argp, *opt;
@@ -614,7 +614,7 @@ int main(int argc, char *argv[])
    * this is supposed to be a simple, privileged version
    * of the installer.
    */
-  ldlinux_sectors = (syslinux_ldlinux_len+SECTOR_SIZE-1) >> SECTOR_BITS;
+  ldlinux_sectors = (syslinux_ldlinux_len+SECTOR_SIZE-1) >> SECTOR_SHIFT;
   sectors = calloc(ldlinux_sectors, sizeof *sectors);
   lock_device(2);
   fs = libfat_open(libfat_xpread, dev_fd);
@@ -676,7 +676,7 @@ int main(int argc, char *argv[])
    * Patch ldlinux.sys and the boot sector
    */
   i = syslinux_patch(sectors, nsectors, stupid, raid_mode);
-  patch_sectors = (i + 511) >> 9;
+  patch_sectors = (i+SECTOR_SIZE-1) >> SECTOR_SHIFT;
 
   /*
    * Overwrite the now-patched ldlinux.sys
@@ -686,10 +686,10 @@ int main(int argc, char *argv[])
     uint16_t si, di, cx;
     si = 0;
     di = (size_t)sectbuf;
-    cx = 512 >> 2;
+    cx = SECTOR_SIZE >> 2;
     asm volatile("movw %3,%%fs ; fs ; rep ; movsl"
 		 : "+S" (si), "+D" (di), "+c" (cx)
-		 : "abd" ((uint16_t)(ldlinux_seg + (i << (9-4)))));
+		 : "abd" ((uint16_t)(ldlinux_seg + (i << (SECTOR_SHIFT-4)))));
     write_device(dev_fd, sectbuf, 1, sectors[i]);
   }
 
@@ -712,7 +712,7 @@ int main(int argc, char *argv[])
   if ( bootsecfile ) {
     unlock_device(0);
     fd = creat(bootsecfile, 0x20); /* ARCHIVE */
-    write_file(fd, sectbuf, 512);
+    write_file(fd, sectbuf, SECTOR_SIZE);
     close(fd);
   } else {
     write_device(dev_fd, sectbuf, 1, 0);

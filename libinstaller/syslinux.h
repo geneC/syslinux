@@ -30,8 +30,8 @@ extern const unsigned int  syslinux_mbr_len;
 extern const int           syslinux_mbr_mtime;
 
 /* Sector size assumptions... */
-#define SECTOR_BITS	9
-#define SECTOR_SIZE	(1 << SECTOR_BITS)
+#define SECTOR_SHIFT	9
+#define SECTOR_SIZE	(1 << SECTOR_SHIFT)
 
 /* This takes a boot sector and merges in the syslinux fields */
 void syslinux_make_bootsect(void *);

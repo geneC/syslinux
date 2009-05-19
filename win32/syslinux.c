@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
   DWORD drives;
   UINT drive_type;
 
-  static unsigned char sectbuf[512];
+  static unsigned char sectbuf[SECTOR_SIZE];
   char **argp, *opt;
   static char drive_name[] = "\\\\.\\?:";
   static char drive_root[] = "?:\\";
@@ -361,11 +361,11 @@ int main(int argc, char *argv[])
   /*
    * Make sure we can read the boot sector
    */
-  if ( !ReadFile(d_handle, sectbuf, 512, &bytes_read, NULL) ) {
+  if ( !ReadFile(d_handle, sectbuf, SECTOR_SIZE, &bytes_read, NULL) ) {
     error("Reading boot sector");
     exit(1);
   }
-  if (bytes_read != 512) {
+  if (bytes_read != SECTOR_SIZE) {
     fprintf(stderr, "Could not read the whole boot sector\n");
     exit(1);
   }
@@ -415,7 +415,7 @@ int main(int argc, char *argv[])
   }
 
   /* Map the file (is there a better way to do this?) */
-  ldlinux_sectors = (syslinux_ldlinux_len+SECTOR_SIZE-1) >> SECTOR_BITS;
+  ldlinux_sectors = (syslinux_ldlinux_len+SECTOR_SIZE-1) >> SECTOR_SHIFT;
   sectors = calloc(ldlinux_sectors, sizeof *sectors);
   fs = libfat_open(libfat_readfile, (intptr_t)d_handle);
   ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
@@ -520,17 +520,17 @@ int main(int argc, char *argv[])
       error("Unable to create bootsector file");
       exit(1);
     }
-    if (!WriteFile(f_handle, sectbuf, 512, &bytes_written, NULL)) {
+    if (!WriteFile(f_handle, sectbuf, SECTOR_SIZE, &bytes_written, NULL)) {
       error("Could not write boot sector file");
       exit(1);
     }
     CloseHandle(f_handle);
   } else {
     SetFilePointer(d_handle, 0, NULL, FILE_BEGIN);
-    WriteFile( d_handle, sectbuf, 512, &bytes_written, NULL ) ;
+    WriteFile( d_handle, sectbuf, SECTOR_SIZE, &bytes_written, NULL ) ;
   }
 
-  if(bytes_written != 512) {
+  if(bytes_written != SECTOR_SIZE) {
     fprintf(stderr, "Could not write the whole boot sector\n");
     exit(1);
   }

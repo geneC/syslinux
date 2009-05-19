@@ -56,10 +56,11 @@ const char *syslinux_check_bootsect(const void *bs)
     goto invalid;
 
   sectorsize = get_16(&sectbuf->bsBytesPerSec);
-  if ( sectorsize == 512 )
+  if ( sectorsize == SECTOR_SIZE )
     ; /* ok */
-  else if ( sectorsize == 1024 || sectorsize == 2048 || sectorsize == 4096 )
-    return "only 512-byte sectors are supported";
+  else if ( sectorsize >= 512 && sectorsize <= 4096 &&
+	    (sectorsize & (sectorsize-1)) == 0 )
+    return "unsupported sectors size";
   else
     goto invalid;
 

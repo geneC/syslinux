@@ -124,7 +124,7 @@ int libfat_xpread(intptr_t pp, void *buf, size_t secsize, libfat_sector_t sector
 
 int main(int argc, char *argv[])
 {
-  static unsigned char sectbuf[512];
+  static unsigned char sectbuf[SECTOR_SIZE];
   int dev_fd;
   struct stat st;
   int status;
@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  xpread(dev_fd, sectbuf, 512, filesystem_offset);
+  xpread(dev_fd, sectbuf, SECTOR_SIZE, filesystem_offset);
 
   /*
    * Check to see that what we got was indeed an MS-DOS boot sector/superblock
@@ -250,7 +250,7 @@ int main(int argc, char *argv[])
   /*
    * Now, use libfat to create a block map
    */
-  ldlinux_sectors = (syslinux_ldlinux_len+SECTOR_SIZE-1) >> SECTOR_BITS;
+  ldlinux_sectors = (syslinux_ldlinux_len+SECTOR_SIZE-1) >> SECTOR_SHIFT;
   sectors = calloc(ldlinux_sectors, sizeof *sectors);
   fs = libfat_open(libfat_xpread, dev_fd);
   ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
@@ -266,12 +266,12 @@ int main(int argc, char *argv[])
 
   /* Patch ldlinux.sys and the boot sector */
   i = syslinux_patch(sectors, nsectors, stupid, raid_mode);
-  patch_sectors = (i + 511) >> 9;
+  patch_sectors = (i+SECTOR_SIZE-1) >> SECTOR_SHIFT;
 
   /* Write the now-patched first sectors of ldlinux.sys */
   for (i = 0; i < patch_sectors; i++) {
-    xpwrite(dev_fd, syslinux_ldlinux + i*512, 512,
-	    filesystem_offset + ((off_t)sectors[i] << 9));
+    xpwrite(dev_fd, syslinux_ldlinux + i*SECTOR_SIZE, SECTOR_SIZE,
+	    filesystem_offset + ((off_t)sectors[i] << SECTOR_SHIFT));
   }
 
   /* Move ldlinux.sys to the desired location */
@@ -343,13 +343,13 @@ int main(int argc, char *argv[])
    */
 
   /* Read the superblock again since it might have changed while mounted */
-  xpread(dev_fd, sectbuf, 512, filesystem_offset);
+  xpread(dev_fd, sectbuf, SECTOR_SIZE, filesystem_offset);
 
   /* Copy the syslinux code into the boot sector */
   syslinux_make_bootsect(sectbuf);
 
   /* Write new boot sector */
-  xpwrite(dev_fd, sectbuf, 512, filesystem_offset);
+  xpwrite(dev_fd, sectbuf, SECTOR_SIZE, filesystem_offset);
 
   close(dev_fd);
   sync();
