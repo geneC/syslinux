@@ -138,5 +138,7 @@ struct boot_sector {
 #define bsHead      bsJump
 #define bsHeadLen   offsetof(struct boot_sector, bsJump)
 #define bsCode	    bs32.Code	/* The common safe choice */
+#define bsCodeLen   (offsetof(struct boot_sector, bsSignature) - \
+		     offsetof(struct boot_sector, bsCode))
 
 #endif /* SYSLXINT_H */
