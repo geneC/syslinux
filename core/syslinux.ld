@@ -192,6 +192,7 @@ SECTIONS
 	__text_vma = .;
 	__text_lma = __pm_code_lma;
 	.text : AT(__text_lma) {
+		FILL(0x90909090)
 		__text_start = .;
 		*(.text)
 		__text_end = .;
