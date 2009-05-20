@@ -35,6 +35,7 @@ NASM	 = nasm
 NASMOPT  = -O9999
 
 PERL	 = perl
+UPX	 = upx
 
 CHMOD	 = chmod
 
