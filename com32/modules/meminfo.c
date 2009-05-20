@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -64,12 +65,16 @@ static void dump_e820(void)
 
     memcpy(&ed, __com32.cs_bounce, sizeof ed);
 
-    if (oreg.ecx.l < 24)
+    if (oreg.ecx.l >= 24) {
+      /* ebx base length end type */
+      printf("%8x %016llx %016llx %016llx %d [%x]",
+	     ireg.ebx.l, ed.base, ed.len, ed.base+ed.len, ed.type, ed.extattr);
+    } else {
+      /* ebx base length end */
+      printf("%8x %016llx %016llx %016llx %d [-]",
+	     ireg.ebx.l, ed.base, ed.len, ed.base+ed.len, ed.type);
       ed.extattr = 1;
-
-    /* ebx base length end type */
-    printf("%8x %016llx %016llx %016llx %d [%x]",
-	   ireg.ebx.l, ed.base, ed.len, ed.base+ed.len, ed.type, ed.extattr);
+    }
 
     type = ed.type - 1;
     if (type < sizeof(e820_types)/sizeof(e820_types[0]))

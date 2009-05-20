@@ -11,6 +11,8 @@ Changes in 3.81:
 	  bad reponsiveness when using a serial console especially for
 	  automated input; if that ends up being a problem, use the
 	  new "NOHALT 1" configuration command.
+	* linux.c32 now suppresses all messages if the "quiet" flag is
+	  specified.
 
 Changes in 3.80:
 	* New shuffler mechanism and API.
