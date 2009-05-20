@@ -90,9 +90,6 @@ pm_decompress:
 		mov ecx,__bss16_dwords
 		rep stosd
 		mov edi,__uibss_start
-		mov ecx,__uibss_dwords
-		rep stosd
-		mov edi,__uibss_start
 		mov ecx,__uibss_auxseg_dwords
 		rep stosd
 
