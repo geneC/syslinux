@@ -60,7 +60,9 @@ libcom.a: $(LIBOBJS)
 
 syslinux.com: syslinux.elf
 	$(OBJCOPY) -O binary $< $@
-	$(UPX) --ultra-brute $@ || true
+	$(UPX) --lzma --ultra-brute $@ || \
+		$(UPX) --ultra-brute $@ || \
+		true
 
 %.com: %.asm
 	( $(NASM) -M -DDEPEND $(NASMOPT) -o $@ -M $< && echo '' ) > .$@.d; true
