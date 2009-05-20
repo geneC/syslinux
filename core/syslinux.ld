@@ -25,6 +25,12 @@ STACK32_LEN = 8192;
 
 SECTIONS
 {
+	/* Prefix structure for the compression program */
+	. = 0;
+	.prefix : {
+		*(.prefix)
+	}
+
 	/* "Early" sections (before the load) */
 	. = 0x0800;
 
@@ -179,6 +185,9 @@ SECTIONS
 	__auxseg_len = __auxseg_end - __auxseg_start;
 	__auxseg_dwords = (__auxseg_len + 3) >> 2;
 	aux_seg = __auxseg_start >> 4;
+	
+	__uibss_auxseg_len = __auxseg_end - __uibss_start;
+	__uibss_auxseg_dwords = (__uibss_auxseg_len + 3) >> 2;
 
 	/*
 	 * 32-bit code.  This is a hack for the moment due to the

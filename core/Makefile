@@ -23,7 +23,7 @@ topdir = ..
 include $(topdir)/MCONFIG.embedded
 -include $(topdir)/version.mk
 
-OPTFLAGS = 
+OPTFLAGS =
 INCLUDES = -I./include -I$(com32)/include
 
 # This is very similar to cp437; technically it's for Norway and Denmark,
@@ -41,18 +41,22 @@ BTARGET  = kwdhash.gen \
 NASMSRC	 := $(wildcard *.asm)
 NASMHDR  := $(wildcard *.inc)
 CSRC	 := $(wildcard *.c)
+SSRC	 := $(wildcard *.S lzo/*.S)
 CHDR	 := $(wildcard *.h)
 OTHERSRC := keywords
-ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(CHDR) $(OTHERSRC)
+ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
 
 COBJ	 := $(patsubst %.c,%.o,$(CSRC))
+SOBJ	 := $(patsubst %.S,%.o,$(SSRC))
 
 LIB	 = libcore.a
 LIBS	 = $(LIB) $(com32)/lib/libcom32.a $(LIBGCC)
-LIBOBJS	 = $(COBJ)
+LIBOBJS	 = $(COBJ) $(SOBJ)
 
 NASMDEBUG = -g -F stabs
 NASMOPT  += $(NASMDEBUG)
+
+PREPCORE = ../lzo/prepcore
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
@@ -71,14 +75,11 @@ kwdhash.gen: keywords genhash.pl
 
 .PRECIOUS: %.elf
 
-# Standard rule for {isolinux,isolinux-debug}.bin
-iso%.bin: iso%.elf checksumiso.pl
-	$(OBJCOPY) -O binary $< $@
-	$(PERL) checksumiso.pl $@
+%.raw: %.elf
+	$(OBJCOPY) -O binary $< $(@:.bin=.raw)
 
-# Standard rule for {ldlinux,pxelinux,extlinux}.bin
-%.bin: %.elf
-	$(OBJCOPY) -O binary $< $@
+%.bin: %.raw $(PREPCORE)
+	$(PREPCORE) $< $@
 
 %.o: %.asm kwdhash.gen ../version.gen
 	( $(NASM) -f elf $(NASMOPT) -M -DDEPEND $(NINCLUDE) \
@@ -129,6 +130,7 @@ netinstall: installer
 tidy dist:
 	rm -f codepage.cp *.o *.elf *.a stupid.* patch.offset .depend .*.d
 	rm -f *.lsr *.lst *.map *.sec
+	rm -f */*.o */*.lst */.*.d
 	rm -f $(OBSOLETE)
 
 clean: tidy
@@ -137,4 +139,4 @@ spotless: clean
 	rm -f $(BTARGET) *.bin *_bin.c
 
 # Include dependencies file
--include .*.d
+-include .*.d */.*.d

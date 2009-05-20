@@ -23,25 +23,10 @@ common_init:
 		; Initialize PM invocation framework
 		call pm_init
 
-		; Copy PM code to its target location
-		mov esi,__pm_code_lma
-		mov edi,__pm_code_start
-		mov ecx,__pm_code_len
-		call bcopy
-		or esi,-1			; bzero
-		mov edi,__bss_start
-		mov ecx,__bss_len
-		call bcopy
-
-		; Zero bss sections (but not .earlybss, since it may
-		; contain already-live data.)
-		xor eax,eax
-		mov di,__bss16_start
-		mov cx,__bss16_dwords
-		rep stosd
-		mov di,__uibss_start
-		mov cx,__uibss_dwords
-		rep stosd
+		; Decompress PM code to its target location
+		pm_call pm_decompress
+		cmp ecx,__pm_code_len
+		jne kaboom
 
 ;
 ; Initialize configuration information
@@ -70,3 +55,52 @@ common_init:
 ; Now set up screen parameters
 ;
 		call adjust_screen
+
+;
+; The code to decompress the PM code.  We copy it temporarily to 1 MB;
+; we will probably eventually actually simply run the PM code out of
+; high memory, at which point the extra copy can be dropped.
+;
+		extern _lzo1x_decompress_asm_fast
+		extern __uibss_auxseg_dwords
+
+		section .textnr
+		bits 32
+pm_decompress:
+		mov esi,__pm_code_lma
+		mov edi,0x100000
+		mov ecx,[lzo_data_size]
+		call pm_bcopy
+
+		push 0				; Space for decompressed size
+		push esp			; Pointer to previous word
+		push __pm_code_start		; Target address
+		push dword [lzo_data_size]	; Compressed size
+		push dword 0x100000
+		call _lzo1x_decompress_asm_fast
+		add esp,16
+
+		; Zero bss sections (but not .earlybss, since it may
+		; contain already-live data.)
+		xor eax,eax
+		mov edi,__bss_start
+		mov ecx,__bss_dwords
+		rep stosd
+		mov edi,__bss16_start
+		mov ecx,__bss16_dwords
+		rep stosd
+		mov edi,__uibss_start
+		mov ecx,__uibss_dwords
+		rep stosd
+		mov edi,__uibss_start
+		mov ecx,__uibss_auxseg_dwords
+		rep stosd
+
+		pop ecx				; Decompressed size
+		ret
+
+		section .data16
+lzo_data_size	dd 0				; filled in by compressor
+
+		section .text16
+		bits 16
