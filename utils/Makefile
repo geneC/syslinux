@@ -23,7 +23,8 @@ LDFLAGS  = -O2 -s
 TARGETS	 = mkdiskimage isohybrid gethostip
 ASIS     = keytab-lilo lss16toppm md5pass ppmtolss16 sha1pass syslinux2ansi
 
-ISOHDPFX = ../mbr/isohdpfx.bin ../mbr/isohdpfx_f.bin ../mbr/isohdpfx_c.bin
+ISOHDPFX = ../mbr/isohdpfx.bin ../mbr/isohdpfx_f.bin ../mbr/isohdpfx_c.bin \
+	   ../mbr/isohdppx.bin ../mbr/isohdppx_f.bin ../mbr/isohdppx_c.bin
 
 all: $(TARGETS)
 

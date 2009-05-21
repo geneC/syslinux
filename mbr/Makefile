@@ -18,11 +18,10 @@
 topdir = ..
 include $(topdir)/MCONFIG.embedded
 
-all:	mbr.bin   altmbr.bin   gptmbr.bin   isohdpfx.bin   \
-	mbr_c.bin altmbr_c.bin gptmbr_c.bin isohdpfx_c.bin \
-	mbr_f.bin altmbr_f.bin gptmbr_f.bin isohdpfx_f.bin
+all:	mbr.bin   altmbr.bin   gptmbr.bin   isohdpfx.bin   isohdppx.bin \
+	mbr_c.bin altmbr_c.bin gptmbr_c.bin isohdpfx_c.bin isohdppx_c.bin \
+	mbr_f.bin altmbr_f.bin gptmbr_f.bin isohdpfx_f.bin isohdppx_f.bin
 
-.PRECIOUS: %.o
 %.o: %.S
 	$(CC) $(MAKEDEPS) $(SFLAGS) -Wa,-a=$*.lst -c -o $@ $<
 
@@ -50,3 +49,5 @@ clean: tidy
 
 spotless: clean
 	rm -f *.bin
+
+-include .*.d

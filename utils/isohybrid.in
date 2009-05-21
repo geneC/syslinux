@@ -43,6 +43,7 @@ use Fcntl;
     'type'   => [0, 255],
     'id'     => [0, 0xffffffff],
     'hd0'    => [0, 2],
+    'partok' => [0, 1],
 );
 
 # Boolean options just set other options
@@ -50,6 +51,8 @@ use Fcntl;
     'nohd0'    => ['hd0', 0],
     'forcehd0' => ['hd0', 1],
     'ctrlhd0'  => ['hd0', 2],
+    'nopartok' => ['partok', 0],
+    'partok'   => ['partok', 1],
 );
 
 sub usage() {
@@ -63,6 +66,7 @@ sub usage() {
     "  -id         Specify MBR ID (default random)\n",
     "  -forcehd0   Always assume we are loaded as disk ID 0\n",
     "  -ctrlhd0    Assume disk ID 0 if the Ctrl key is pressed\n",
+    "  -partok     Allow booting from within a partition\n";
     exit 1;
 }
 
@@ -161,9 +165,10 @@ if ($de_boot != 0x88 || $de_media != 0 ||
 # Now $de_lba should contain the CD sector number for isolinux.bin
 seek(FILE, $de_lba*2048+0x40, SEEK_SET) or die "$0: $file: $!\n";
 read(FILE, $ibsig, 4);
-if ($ibsig ne "\xfb\xc0\x78\x70") {
-    die "$0: $file: bootloader is missing isolinux.bin hybrid signature\n".
-	"Note: isolinux-debug.bin does not support hybrid booting\n";
+if ($ibsig ne "\xf7\xe3\xef\x0d") {
+    die "$0: $file: bootloader is missing current (3.81+) isolinux.bin\n".
+	"        hybrid signature; Note that isolinux-debug.bin does not\n".
+	"        support hybrid booting.\n";
 }
 
 # Get the total size of the image
@@ -202,7 +207,7 @@ if (defined($opt{'id'})) {
 # Print the MBR and partition table
 seek(FILE, 0, SEEK_SET) or die "$0: $file: $!\n";
 
-for ($i = 0; $i <= $opt{'hd0'}; $i++) {
+for ($i = 0; $i <= $opt{'hd0'}+3*$opt{'partok'}; $i++) {
     $mbr = get_hex_data();
 }
 if ( length($mbr) > 432 ) {
