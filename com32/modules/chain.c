@@ -651,9 +651,6 @@ int main(int argc, char *argv[])
     regs.ip = regs.esp.l = 0x7c00;
   }
 
-  drivename = argv[1];
-  partition = argv[2];		/* Possibly null */
-
   hd = 0;
   if ( !strncmp(drivename, "mbr", 3) ) {
     drive = find_disk(strtoul(drivename+4, NULL, 0));
