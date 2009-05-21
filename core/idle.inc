@@ -70,7 +70,7 @@ do_idle:
 
 		section .data
 IdleHook	dw do_idle.ret
-NoHalt		dw 1
+NoHalt		dw 0
 
 hlt_err		db 'ERROR: idle with IF=0', CR, LF, 0 
 
