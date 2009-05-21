@@ -36,17 +36,17 @@ void printranges(void) {
   int i;
 
   for ( i = 0 ; i < nranges ; i++ ) {
-    printf("%016llx %016llx %d %x\n",
+    printf("%016llx %016llx %d\n",
 	   ranges[i].start,
 	   ranges[i+1].start - ranges[i].start,
-	   ranges[i].type, ranges[i].extattr);
+	   ranges[i].type);
   }
 }
 
 int main(void)
 {
   uint64_t start, len;
-  uint32_t type, extattr;
+  uint32_t type;
   char line[BUFSIZ], *p;
 
   e820map_init();
@@ -55,12 +55,11 @@ int main(void)
   while ( fgets(line, BUFSIZ, stdin) ) {
     p = strchr(line, ':');
     p = p ? p+1 : line;
-    extattr = 1;
-    if ( sscanf(p, " %llx %llx %d %x", &start, &len, &type, &extattr) >= 3 ) {
+    if ( sscanf(p, " %llx %llx %d", &start, &len, &type) == 3 ) {
       putchar('\n');
-      printf("%016llx %016llx %d %x <-\n", start, len, type, extattr);
+      printf("%016llx %016llx %d <-\n", start, len, type);
       putchar('\n');
-      insertrange(start, len, type, extattr);
+      insertrange(start, len, type);
       printranges();
     }
   }

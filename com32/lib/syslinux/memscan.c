@@ -45,7 +45,6 @@ struct e820_entry {
   uint64_t start;
   uint64_t len;
   uint32_t type;
-  uint32_t extattr;
 };
 
 int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
@@ -82,8 +81,6 @@ int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
   ireg.es       = SEG(e820buf);
   ireg.edi.w[0] = OFFS(e820buf);
   memset(e820buf, 0, sizeof *e820buf);
-  /* Set this in case the BIOS doesn't, but doesn't change %ecx to match. */
-  e820buf->extattr = 1;
 
   do {
     __intcall(0x15, &ireg, &oreg);
@@ -92,12 +89,6 @@ int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
 	(oreg.eax.l != 0x534d4150) ||
 	(oreg.ecx.l < 20))
       break;
-
-    if (oreg.ecx.l < 24)
-      e820buf->extattr = 1;	/* Enabled, normal */
-
-    if (!(e820buf->extattr & 1))
-      continue;
 
     start = e820buf->start;
     len = e820buf->len;
