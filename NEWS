@@ -13,6 +13,7 @@ Changes in 3.81:
 	  new "NOHALT 1" configuration command.
 	* linux.c32 now suppresses all messages if the "quiet" flag is
 	  specified.
+	* isohybrid: add a variety of options, and a help message.
 
 Changes in 3.80:
 	* New shuffler mechanism and API.
