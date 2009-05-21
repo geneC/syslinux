@@ -19,6 +19,7 @@ reset_idle:
 		mov ax,[cs:BIOS_timer]
 		mov [cs:IdleTimer],ax
 		pop ax
+		sti		; Guard against BIOS/PXE brokenness...
 		ret
 
 do_idle:
@@ -28,6 +29,31 @@ do_idle:
 		mov ax,cs
 		mov ds,ax
 		mov es,ax
+		pushf
+		pop ax
+		test ah,2
+		jnz .ok
+		push si
+		push cx
+		mov si,hlt_err
+		call writestr
+		mov si,sp
+		add si,10
+		mov cx,16
+.errloop:
+		ss lodsw
+		call writehex4
+		dec cx
+		jz .endloop
+		mov al,' '
+		call writechr
+		jmp .errloop
+.endloop:
+		call crlf
+		pop cx
+		pop si
+		sti
+.ok:
 		mov ax,[BIOS_timer]
 		sub ax,[IdleTimer]
 		cmp ax,TICKS_TO_IDLE
@@ -43,8 +69,10 @@ do_idle:
 .ret:		ret
 
 		section .data
-NoHalt		dw 0
 IdleHook	dw do_idle.ret
+NoHalt		dw 1
+
+hlt_err		db 'ERROR: idle with IF=0', CR, LF, 0 
 
 		section .bss
 IdleTimer	resw 1

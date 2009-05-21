@@ -25,6 +25,7 @@
 ;
 highmemsize:
 		push es
+		pushfd
 		pushad
 
 		push cs
@@ -152,6 +153,7 @@ got_highmem:
 %endif
 		mov [HighMemSize],eax
 		popad
+		popfd
 		pop es
 		ret				; Done!
 

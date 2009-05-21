@@ -308,10 +308,11 @@ _start1:
 %if USE_PXE_PROVIDED_STACK == 0
 		lss sp,[InitStack]
 %endif
-		int 1Ah					; May trash regs
+		int 1Ah			; May trash regs
 %if USE_PXE_PROVIDED_STACK == 0
 		lss esp,[BaseStack]
 %endif
+		sti			; Work around Etherboot bug
 
 		jc no_int1a
 		cmp ax,564Eh
