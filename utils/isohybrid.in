@@ -2,6 +2,7 @@
 ## -----------------------------------------------------------------------
 ##
 ##   Copyright 2002-2008 H. Peter Anvin - All Rights Reserved
+##   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -41,17 +42,27 @@ use Fcntl;
     'offset' => [0, 64],
     'type'   => [0, 255],
     'id'     => [0, 0xffffffff],
+    'hd0'    => [0, 2],
+);
+
+# Boolean options just set other options
+%bool_opt = (
+    'nohd0'    => ['hd0', 0],
+    'forcehd0' => ['hd0', 1],
+    'ctrlhd0'  => ['hd0', 2],
 );
 
 sub usage() {
-    print STDERR "Usage: $0 [options] filename\n",
+    print STDERR "Usage: $0 [options] filename.iso\n",
     "Options:\n",
-    "  -h      Number of default geometry heads\n",
-    "  -s      Number of default geometry sectors\n",
-    "  -entry  Specify partition entry number (1-4)\n",
-    "  -offset Specify partition offset (default 0)\n",
-    "  -type   Specify partition type (default 0x17)\n",
-    "  -id     Specify MBR ID (default random)\n";
+    "  -h          Number of default geometry heads\n",
+    "  -s          Number of default geometry sectors\n",
+    "  -entry      Specify partition entry number (1-4)\n",
+    "  -offset     Specify partition offset (default 0)\n",
+    "  -type       Specify partition type (default 0x17)\n",
+    "  -id         Specify MBR ID (default random)\n",
+    "  -forcehd0   Always assume we are loaded as disk ID 0\n",
+    "  -ctrlhd0    Assume disk ID 0 if the Ctrl key is pressed\n",
     exit 1;
 }
 
@@ -77,10 +88,26 @@ sub get_random() {
     return ($$+time()) & 0xffffffff;
 }
 
+sub get_hex_data() {
+    my $mbr = '';
+    my $line, $byte;
+    while ( $line = <DATA> ) {
+	chomp $line;
+	last if ($line eq '*');
+	foreach $byte ( split(/\s+/, $line) ) {
+	    $mbr .= chr(hex($byte));
+	}
+    }
+    return $mbr;
+}
+
 while ($ARGV[0] =~ /^\-(.*)$/) {
     $o = $1;
     shift @ARGV;
-    if (exists($opt{$o})) {
+    if (defined($bool_opt{$o})) {
+	($o, $v) = @{$bool_opt{$o}};
+	$opt{$o} = $v;
+    } elsif (exists($opt{$o})) {
 	$opt{$o} = doh(shift @ARGV);
 	if (defined($valid_range{$o})) {
 	    ($l, $h) = @{$valid_range{$o}};
@@ -175,12 +202,8 @@ if (defined($opt{'id'})) {
 # Print the MBR and partition table
 seek(FILE, 0, SEEK_SET) or die "$0: $file: $!\n";
 
-$mbr = '';
-while ( $line = <DATA> ) {
-    chomp $line;
-    foreach $byte ( split(/\s+/, $line) ) {
-	$mbr .= chr(hex($byte));
-    }
+for ($i = 0; $i <= $opt{'hd0'}; $i++) {
+    $mbr = get_hex_data();
 }
 if ( length($mbr) > 432 ) {
     die "$0: Bad MBR code\n";
