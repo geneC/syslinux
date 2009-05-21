@@ -295,8 +295,6 @@ void unzip_if_needed(uint32_t *where_p, uint32_t *size_p)
       /* Must be memory */
       if ( ranges[i].type != 1 )
 	continue;
-      if (!(ranges[i].extattr & 1))
-	continue;
 
       /* Range start */
       if ( ranges[i].start >= 0xFFFFFFFF )
@@ -752,7 +750,7 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
   }
 
   /* Reserve the ramdisk memory */
-  insertrange(ramdisk_image, ramdisk_size, 2, 1);
+  insertrange(ramdisk_image, ramdisk_size, 2);
   parse_mem();			/* Recompute variables */
 
   /* Figure out where it needs to go */
@@ -896,7 +894,7 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
 
   /* Reserve this range of memory */
   wrz_16(BIOS_BASEMEM, driveraddr >> 10);
-  insertrange(driveraddr, dos_mem-driveraddr, 2, 1);
+  insertrange(driveraddr, dos_mem-driveraddr, 2);
   parse_mem();
 
   pptr->mem1mb     = low_mem  >> 10;

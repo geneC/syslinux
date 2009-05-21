@@ -41,4 +41,5 @@ while ( read(STDIN,$ch,1) ) {
     }
 }
 print "\n" if ( $len );
+print "*\n";
 exit 0;

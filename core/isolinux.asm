@@ -112,6 +112,8 @@ DiskError	resb 1			; Error code for disk I/O
 DriveNumber	resb 1			; CD-ROM BIOS drive number
 ISOFlags	resb 1			; Flags for ISO directory search
 RetryCount      resb 1			; Used for disk access retries
+		alignb 8
+bsHidden	resq 1			; Used in hybrid mode
 bsSecPerTrack	resw 1			; Used in hybrid mode
 bsHeads		resw 1			; Used in hybrid mode
 
@@ -224,26 +226,31 @@ bi_end:
 		; Custom entry point for the hybrid-mode disk.
 		; The following values will have been pushed onto the
 		; entry stack:
-		;	- CBIOS Heads
-		;	- CBIOS Sectors
-		;	- EBIOS flag
-		;	- DX (including drive number)
-		;	- DI
 		;	- ES
+		;	- DI
+		;	- DX (including drive number)
+		;	- partition offset (qword)
+		;	- EBIOS flag
+		;	- CBIOS Sectors
+		;	- CBIOS Heads
 		;       (top of stack)
+		;
 %ifndef DEBUG_MESSAGES
 _hybrid_signature:
-		dd 0x7078c0fb			; An arbitrary number...
-
+		dd 0x0defe3f7
 _start_hybrid:
+		pop word [cs:bsHeads]
+		pop word [cs:bsSecPerTrack]
+
 		pop ax
 		mov si,bios_cbios
 		and ax,ax
 		jz .cbios
 		mov si,bios_ebios
 .cbios:
-		pop word [cs:bsSecPerTrack]
-		pop word [cs:bsHeads]
+
+		pop dword [cs:bsHidden]
+		pop dword [cs:bsHidden+4]
 
 		pop dx
 		pop di
@@ -745,6 +752,8 @@ getlinsec_ebios:
 		xor edx,edx
 		shld edx,eax,2
 		shl eax,2			; Convert to HDD sectors
+		add eax,[bsHidden]
+		adc edx,[bsHidden+4]
 		shl bp,2
 
 .loop:
@@ -814,7 +823,9 @@ getlinsec_ebios:
 ; getlinsec implementation for legacy CBIOS
 ;
 getlinsec_cbios:
+		xor edx,edx
 		shl eax,2			; Convert to HDD sectors
+		add eax,[bsHidden]
 		shl bp,2
 
 .loop:

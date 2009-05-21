@@ -286,8 +286,8 @@ write_serial_str:
 ; pollchar: check if we have an input character pending (ZF = 0)
 ;
 pollchar:
-		pushad
 		call do_idle
+		pushad
 		mov ah,11h		; Poll keyboard
 		int 16h
 		jnz .done		; Keyboard response

@@ -535,7 +535,6 @@ getchar_timeout:
 		pop ax
 		cmp ax,[BIOS_timer]		; Has the timer advanced?
 		je .loop
-		call do_idle
 
 		dec dword [ThisKbdTo]
 		jz .timeout

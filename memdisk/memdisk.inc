@@ -540,26 +540,19 @@ int15_e820:
 		jne .renew
 		mov ebx,E820Table
 .renew:
-		add bx,16		; Advance to next
-		mov eax,[bx-8]		; Type
+		add bx,12		; Advance to next
+		mov eax,[bx-4]		; Type
 		and eax,eax		; Null type?
 		jz .renew		; If so advance to next
 		mov [es:di+16],eax
-		and cl,~3
-		cmp ecx,24
-		jb .no_extattr
-		mov eax,[bx-4]		; Extended attributes
-		mov [es:di+20],eax
-		mov ecx,24		; Bytes loaded
-.no_extattr:
-		mov eax,[bx-16]		; Start addr (low)
-		mov edx,[bx-12]		; Start addr (high)
+		mov eax,[bx-12]		; Start addr (low)
+		mov edx,[bx-8]		; Start addr (high)
 		mov [es:di],eax
 		mov [es:di+4],edx
 		mov eax,[bx]		; End addr (low)
 		mov edx,[bx+4]		; End addr (high)
-		sub eax,[bx-16]		; Derive the length
-		sbb edx,[bx-12]
+		sub eax,[bx-12]		; Derive the length
+		sbb edx,[bx-8]
 		mov [es:di+8],eax	; Length (low)
 		mov [es:di+12],edx	; Length (high)
 		cmp dword [bx+8],-1	; Type of next = end?
@@ -568,6 +561,7 @@ int15_e820:
 .notdone:
 		pop eax			; "SMAP"
 		mov edx,eax		; Some systems expect eax = edx = SMAP
+		mov ecx,20		; Bytes loaded
 		pop ds
 int15_success:
 		mov byte [bp+6], 02h	; Clear CF

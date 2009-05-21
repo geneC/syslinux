@@ -13,6 +13,12 @@ Changes in 3.81:
 	  new "NOHALT 1" configuration command.
 	* linux.c32 now suppresses all messages if the "quiet" flag is
 	  specified.
+	* isohybrid: add a variety of options, and a help message.
+	* ISOLINUX: fix booting in hybrid mode when CBIOS is used.
+	  This unfortunately means that the isohybrid handoff protocol
+	  has changed, so the isohybrid utility must version-match
+	  isolinux.bin.
+	* Drop support for ACPI 3 extended memory flags.
 
 Changes in 3.80:
 	* New shuffler mechanism and API.
