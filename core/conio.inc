@@ -415,7 +415,7 @@ VidRows         resb 1			; Rows on screen-1
 ; Serial console stuff; don't put this in .config becasue we don't want
 ; loading a new config file to undo this setting.
 		section .data16
-		alignb 4
+		alignz 4
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 BaudDivisor	dw 115200/9600		; Baud rate divisor
 FlowControl	equ $

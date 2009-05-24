@@ -221,16 +221,6 @@ pm_irq:
 ; is indicated by Donnie Barnes of RedHat, the problematic system being an
 ; IBM ThinkPad 760EL.
 ;
-; We typically toggle A20 twice for every 64K transferred.
-;
-%define IO_DELAY_PORT	80h		; Invalid port (we hope!)
-
-slow_out:	out dx, al		; Fall through
-
-%macro io_delay 0
-		out IO_DELAY_PORT,al
-		out IO_DELAY_PORT,al
-%endmacro
 
 		section .data16
 		alignz 2
