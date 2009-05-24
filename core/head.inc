@@ -29,5 +29,6 @@
 %include "bios.inc"
 %include "tracers.inc"
 %include "stack.inc"
+%include "io.inc"
 
 %endif ; _HEAD_INC

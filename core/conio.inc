@@ -261,7 +261,7 @@ write_serial:
 
 		xchg dx,bx			; DX -> THR
 		pop ax
-		call slow_out			; Send data
+		slow_out dx,al			; Send data
 .noserial:	popad
 		popfd
 .end:		ret
@@ -294,10 +294,14 @@ pollchar:
 		mov dx,[SerialPort]
 		and dx,dx
 		jz .done		; No serial port -> no input
-		add dx,byte 5		; DX -> LSR
+		mov ax,[SerialTail]	; Already-queued input?
+		cli
+		cmp ax,[SerialHead]
+		jne .done_sti		; If so, return ZF = 0
+		add dx,5		; DX -> LSR
 		in al,dx
 		test al,1		; ZF = 0 if data pending
-		jz .done
+		jz .done_sti
 		inc dx			; DX -> MSR
 		mov ah,[FlowIgnore]	; Required status bits
 		in al,dx
@@ -305,12 +309,15 @@ pollchar:
 		cmp al,ah
 		setne al
 		dec al			; Set ZF = 0 if equal
+.done_sti:	sti
 .done:		popad
 		ret
 
 ;
 ; getchar: Read a character from keyboard or serial port
 ;
+getchar.sti_again:
+		sti
 getchar:
 .again:
 		call do_idle
@@ -320,20 +327,38 @@ getchar:
 		mov bx,[SerialPort]
 		and bx,bx
 		jz .again
+		mov ax,[SerialTail]
+		cli
+		cmp ax,[SerialHead]
+		jne .serial_queued
 		lea dx,[bx+5]		; DX -> LSR
 		in al,dx
 		test al,1
-		jz .again
+		jz .sti_again
 		inc dx			; DX -> MSR
 		mov ah,[FlowIgnore]
 		in al,dx
 		and al,ah
 		cmp al,ah
-		jne .again
+		jne .sti_again
 .serial:	xor ah,ah		; Avoid confusion
 		mov dx,bx		; Data port
 		in al,dx		; Read data
-		ret
+		sti
+		jmp .done
+.serial_queued:
+		sti			; We already know we'll consume data
+		xchg bx,ax
+		push ds
+		mov ax,aux_seg + (aux.serial >> 4)
+		mov ds,ax
+		mov al,[bx]
+		pop ds
+		inc bx
+		and bx,serial_buf_size-1
+		mov [SerialTail],bx
+		jmp .done
+
 .kbd:		mov ah,10h		; Get keyboard input
 		int 16h
 		cmp al,0E0h
@@ -345,8 +370,8 @@ getchar:
 		mov bx,KbdMap		; Convert character sets
 		xlatb
 .func_key:
-		call reset_idle		; Character received
-		ret
+.done:
+		jmp reset_idle		; Character received
 
 %ifdef DEBUG_TRACERS
 ;
@@ -387,15 +412,21 @@ ScreenSize      equ $
 VidCols         resb 1			; Columns on screen-1
 VidRows         resb 1			; Rows on screen-1
 
-; Serial console stuff...
-BaudDivisor	resw 1			; Baud rate divisor
+; Serial console stuff; don't put this in .config becasue we don't want
+; loading a new config file to undo this setting.
+		section .data16
+		alignb 4
+SerialPort	dw 0			; Serial port base (or 0 for no serial port)
+BaudDivisor	dw 115200/9600		; Baud rate divisor
 FlowControl	equ $
-FlowOutput	resb 1			; Outputs to assert for serial flow
-FlowInput	resb 1			; Input bits for serial flow
-FlowIgnore	resb 1			; Ignore input unless these bits set
-FlowDummy	resb 1			; Unused
+FlowOutput	db 0			; Outputs to assert for serial flow
+FlowInput	db 0			; Input bits for serial flow
+FlowIgnore	db 0			; Ignore input unless these bits set
+FlowDummy	db 0			; Unused
 
+		section .bss16
 TextAttribute   resb 1			; Text attribute for message file
 DisplayMask	resb 1			; Display modes mask
 
 		section .text16
+%include "serirq.inc"

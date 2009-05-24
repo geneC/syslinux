@@ -53,4 +53,6 @@ cleanup_hardware:
 		call comboot_cleanup_api
 
 		popad
-		ret
+
+		; If we enabled serial port interrupts, clean them up now
+		jmp sirq_cleanup

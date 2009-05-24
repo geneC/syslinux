@@ -25,17 +25,6 @@
 
 #include "menu.h"
 
-void console_prepare(void)
-{
-  fputs("\033[0m\033[25l", stdout);
-}
-
-void console_cleanup(void)
-{
-  /* For the serial console, be nice and clean up */
-  fputs("\033[0m", stdout);
-}
-
 int draw_background(const char *what)
 {
   if (!what)
