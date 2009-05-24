@@ -25,7 +25,7 @@ common_init:
 
 		; Decompress PM code to its target location
 		pm_call pm_decompress
-		cmp ecx,__pm_code_len
+		cmp eax,__pm_code_len
 		jne kaboom
 
 ;
@@ -79,6 +79,7 @@ pm_decompress:
 		push dword 0x100000
 		call _lzo1x_decompress_asm_fast
 		add esp,16
+		pop RM_EAX			; Decompressed size
 
 		; Zero bss sections (but not .earlybss, since it may
 		; contain already-live data.)
@@ -93,7 +94,6 @@ pm_decompress:
 		mov ecx,__uibss_auxseg_dwords
 		rep stosd
 
-		pop ecx				; Decompressed size
 		ret
 
 		section .data16
