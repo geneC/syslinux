@@ -224,46 +224,48 @@ pc_serial:	call getint
 		;
 		; Begin code to actually set up the serial port
 		;
+		call sirq_cleanup		; Cleanup existing IRQ handler
+
 		lea dx,[di+3]			; DX -> LCR
 		mov al,83h			; Enable DLAB
-		call slow_out
+		slow_out dx,al
 
 		pop ax				; Divisor
 		mov dx,di			; DX -> LS
-		call slow_out
+		slow_out dx,al
 
 		inc dx				; DX -> MS
 		mov al,ah
-		call slow_out
+		slow_out dx,al
 
 		mov al,03h			; Disable DLAB
 		inc dx				; DX -> LCR
 		inc dx
-		call slow_out
+		slow_out dx,al
 
-		in al,dx			; Read back LCR (detect missing hw)
-		cmp al,03h			; If nothing here we'll read 00 or FF
-		jne .err			; Assume serial port busted
-		dec dx
-		dec dx				; DX -> IER
-		test byte [FlowOutput],8
-		setnz al			; Bit 0 -> input available IRQ
-		call slow_out
-
-		inc dx				; DX -> FCR/IIR
+		in al,dx		; Read back LCR (detect missing hw)
+		cmp al,03h		; If nothing here we'll read 00 or FF
+		jne .err		; Assume serial port busted
+		dec dx				; DX -> IIR/FCR
 		mov al,01h
-		call slow_out			; Enable FIFOs if present
+		slow_out dx,al			; Enable FIFOs if present
 		in al,dx
 		cmp al,0C0h			; FIFOs enabled and usable?
 		jae .fifo_ok
 		xor ax,ax			; Disable FIFO if unusable
-		call slow_out
+		slow_out dx,al
 .fifo_ok:
 
 		inc dx
 		inc dx				; DX -> MCR
 		mov al,[FlowOutput]		; Assert bits
-		call slow_out
+		slow_out dx,al
+
+		; Enable interrupts if requested
+		test al,8
+		jz .noirq
+		call sirq_install
+.noirq:
 
 		; Show some life
 		cmp byte [SerialNotice],0
@@ -461,7 +463,6 @@ AllowImplicit   dw 1                    ; Allow implicit kernels
 AllowOptions	dw 1			; User-specified options allowed
 IncludeLevel	dw 1			; Nesting level
 DefaultLevel	dw 0			; The current level of default
-SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 VKernel		db 0			; Have we seen any "label" statements?
 
 %if IS_PXELINUX

@@ -49,6 +49,7 @@ cleanup_hardware:
 		int 10h
 .no_vmware:
 %endif
-
 		popad
-		ret
+
+		; If we enabled serial port interrupts, clean them up now
+		jmp sirq_cleanup

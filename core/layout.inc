@@ -93,11 +93,15 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 xfer_buf_seg	equ 1000h
 aux_seg		equ 2000h
 
+serial_buf_size	equ 4096		; Should be a power of 2
+
 ;
 ; Contents of aux_seg
 ;
 		struc aux
 .fontbuf	resb 8192
+.serial		resb serial_buf_size
+
 		alignb 4096		; Align the next segment to 4K
 		endstruc
 

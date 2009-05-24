@@ -189,14 +189,6 @@ simple_pm_call:
 ;
 ; We typically toggle A20 twice for every 64K transferred.
 ;
-%define IO_DELAY_PORT	80h		; Invalid port (we hope!)
-
-slow_out:	out dx, al		; Fall through
-
-%macro io_delay 0
-		out IO_DELAY_PORT,al
-		out IO_DELAY_PORT,al
-%endmacro
 
 		section .data
 		alignz 2
