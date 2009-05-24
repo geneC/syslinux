@@ -1,3 +1,15 @@
+/* ----------------------------------------------------------------------- *
+ *   
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
+ *   Boston MA 02110-1301, USA; either version 2 of the License, or
+ *   (at your option) any later version; incorporated herein by reference.
+ *
+ * ----------------------------------------------------------------------- */
+
 /* 
    This file is based in part on:
 
@@ -69,9 +81,6 @@ lzo1y_999_compress_internal ( const lzo_bytep in , lzo_uint  in_len,
                                     lzo_uint max_chain,
                                     lzo_uint32 flags );
 
-#define USE_LZO1X 1
-#undef  USE_LZO1Y
-
 #define PARANOID 1
 
 #include <assert.h>
@@ -106,7 +115,7 @@ static inline void set_32(uint32_t *p, uint32_t v)
 {
 #if defined(__i386__) || defined(__x86_64__)
   /* Littleendian and unaligned-capable */
-  *(uint32_t *)p = v;
+  *p = v;
 #else
   uint8_t *pp = (uint8_t *)p;
   pp[0] = (v & 0xff);
@@ -137,11 +146,9 @@ int __lzo_cdecl_main main(int argc, char *argv[])
     lzo_uint out_len = 0;
     lzo_uint outfile_len;
 
-    lzo_bytep wrkmem;
-    lzo_uint wrk_len;
+    lzo_byte wrkmem[LZO1X_999_MEM_COMPRESS];
 
     lzo_uint best_len;
-    int best_compress = -1;
     int best_lazy = -1;
 
     lzo_uint orig_len;
@@ -173,25 +180,6 @@ int __lzo_cdecl_main main(int argc, char *argv[])
     {
         printf("internal error - lzo_init() failed !!!\n");
         printf("(this usually indicates a compiler bug - try recompiling\nwithout optimizations, and enable `-DLZO_DEBUG' for diagnostics)\n");
-        exit(1);
-    }
-
-/*
- * Step 2: allocate the work-memory
- */
-    wrk_len = 1;
-#ifdef USE_LZO1X
-    if (wrk_len < LZO1X_999_MEM_COMPRESS)
-        wrk_len = LZO1X_999_MEM_COMPRESS;
-#endif
-#ifdef USE_LZO1Y
-    if (wrk_len < LZO1Y_999_MEM_COMPRESS)
-        wrk_len = LZO1Y_999_MEM_COMPRESS;
-#endif
-    wrkmem = (lzo_bytep) malloc(wrk_len);
-    if (wrkmem == NULL)
-    {
-        printf("%s: out of memory\n", progname);
         exit(1);
     }
 
@@ -248,7 +236,6 @@ int __lzo_cdecl_main main(int argc, char *argv[])
 /*
  * Step 6a: compress from `in' to `out' with LZO1X-999
  */
-#ifdef USE_LZO1X
     for (lazy = 0; lazy <= max_try_lazy; lazy++)
     {
         out_len = out_bufsize;
@@ -265,35 +252,8 @@ int __lzo_cdecl_main main(int argc, char *argv[])
         {
             best_len = out_len;
             best_lazy = lazy;
-            best_compress = 1;      /* LZO1X-999 */
         }
     }
-#endif /* USE_LZO1X */
-
-/*
- * Step 6b: compress from `in' to `out' with LZO1Y-999
- */
-#ifdef USE_LZO1Y
-    for (lazy = 0; lazy <= max_try_lazy; lazy++)
-    {
-        out_len = out_bufsize;
-        r = lzo1y_999_compress_internal(in,in_len,out,&out_len,wrkmem,
-                                        NULL, 0, 0,
-                                        lazy, big, big, big, big, flags);
-        if (r != LZO_E_OK)
-        {
-            /* this should NEVER happen */
-            printf("internal error - compression failed: %d\n", r);
-            exit(1);
-        }
-        if (out_len < best_len)
-        {
-            best_len = out_len;
-            best_lazy = lazy;
-            best_compress = 2;      /* LZO1Y-999 */
-        }
-    }
-#endif /* USE_LZO1Y */
 
 /*
  * Step 7: check if compressible
@@ -308,16 +268,9 @@ int __lzo_cdecl_main main(int argc, char *argv[])
  * Step 8: compress data again using the best compressor found
  */
     out_len = out_bufsize;
-    if (best_compress == 1)
-        r = lzo1x_999_compress_internal(in,in_len,out,&out_len,wrkmem,
-                                        NULL, 0, 0,
-                                        best_lazy, big, big, big, big, flags);
-    else if (best_compress == 2)
-        r = lzo1y_999_compress_internal(in,in_len,out,&out_len,wrkmem,
-                                        NULL, 0, 0,
-                                        best_lazy, big, big, big, big, flags);
-    else
-        r = -100;
+    r = lzo1x_999_compress_internal(in,in_len,out,&out_len,wrkmem,
+				    NULL, 0, 0,
+				    best_lazy, big, big, big, big, flags);
     assert(r == LZO_E_OK);
     assert(out_len == best_len);
 
@@ -328,19 +281,11 @@ int __lzo_cdecl_main main(int argc, char *argv[])
     /* Optimization does not require any data in the buffer that will
      * hold the uncompressed data. To prove this, we clear the buffer.
      */
-    lzo_memset(in,0,in_len);
+    memset(in,0,in_len);
 #endif
 
     orig_len = in_len;
-    r = -100;
-#ifdef USE_LZO1X
-    if (best_compress == 1)
-        r = lzo1x_optimize(out,out_len,in,&orig_len,NULL);
-#endif
-#ifdef USE_LZO1Y
-    if (best_compress == 2)
-        r = lzo1y_optimize(out,out_len,in,&orig_len,NULL);
-#endif
+    r = lzo1x_optimize(out,out_len,in,&orig_len,NULL);
     if (r != LZO_E_OK || orig_len != in_len)
     {
         /* this should NEVER happen */
@@ -370,7 +315,7 @@ int __lzo_cdecl_main main(int argc, char *argv[])
 	/* ISOLINUX padding and checksumming */
 	uint32_t csum = 0;
 	unsigned int ptr;
-	outfile_len = ((offset+out_len+2047) & ~2047) - offset;
+	outfile_len = ((offset-start+out_len+2047) & ~2047) - (offset-start);
 	for (ptr = 64; ptr < offset; ptr += 4)
 	    csum += get_32((uint32_t *)(infile+ptr));
 	for (ptr = 0; ptr < outfile_len; ptr += 4)
@@ -398,17 +343,9 @@ int __lzo_cdecl_main main(int argc, char *argv[])
  * Step 12: verify decompression
  */
 #ifdef PARANOID
-    lzo_memset(in,0,in_len);    /* paranoia - clear output buffer */
+    memset(in,0,in_len);    /* paranoia - clear output buffer */
     orig_len = in_len;
-    r = -100;
-#ifdef USE_LZO1X
-    if (best_compress == 1)
-        r = lzo1x_decompress_safe(out,out_len,in,&orig_len,NULL);
-#endif
-#ifdef USE_LZO1Y
-    if (best_compress == 2)
-        r = lzo1y_decompress_safe(out,out_len,in,&orig_len,NULL);
-#endif
+    r = lzo1x_decompress_safe(out,out_len,in,&orig_len,NULL);
     if (r != LZO_E_OK || orig_len != in_len)
     {
         /* this should NEVER happen */
@@ -428,12 +365,6 @@ int __lzo_cdecl_main main(int argc, char *argv[])
 
     free(infile);
     free(out);
-    free(wrkmem);
 
     return 0;
 }
-
-/*
-vi:ts=4:et
-*/
-
