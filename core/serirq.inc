@@ -91,6 +91,8 @@ SerialIRQPort	dw 0			; Serial port w IRQ service
 SerialHead	dw 0			; Head of serial port rx buffer
 SerialTail	dw 0			; Tail of serial port rx buffer
 
+		section .text
+
 sirq_install:
 		pushad
 
@@ -124,8 +126,7 @@ sirq_install:
 		mov [SerialIRQPort],bx
 
 		lea dx,[bx+5]		; DX -> LCR
-		in al,dx
-		and al,7Fh		; Clear DLAB (should already be...)
+		mov al,03h		; Clear DLAB (should already be...)
 		slow_out dx,al
 
 		lea dx,[bx+1]		; DX -> IER
@@ -135,7 +136,7 @@ sirq_install:
 		popad
 		ret
 
-sirq_cleanup:
+sirq_cleanup_nowipe:
 		pushad
 		push ds
 		push es
@@ -148,8 +149,7 @@ sirq_cleanup:
 		jz .done
 
 		lea dx,[bx+5]		; DX -> LCR
-		in al,dx
-		and al,7Fh		; Clear DLAB (should already be...)
+		mov al,03h		; Clear DLAB (should already be...)
 		slow_out dx,al
 
 		lea dx,[bx+1]		; DX -> IER
@@ -165,19 +165,26 @@ sirq_cleanup:
 		mov cx,8
 		rep movsd
 
-		; Just in case it might contain a password, erase the
-		; serial port receive buffer...
-		mov [SerialIRQPort],ax
-		mov [SerialHead],eax
-		mov cx,aux_seg + (aux.serial >> 4)
-		mov es,cx
-		mov cx,serial_buf_size >> 2
-		xor di,di
-		rep stosd
-
 .done:
 		pop es
 		pop ds
+		popad
+		ret
+
+sirq_cleanup:
+		call sirq_cleanup_nowipe
+		pushad
+		push es
+		; Just in case it might contain a password, erase the
+		; serial port receive buffer...
+		mov ax,aux_seg + (aux.serial >> 4)
+		mov es,ax
+		xor eax,eax
+		mov [cs:SerialHead],eax
+		mov cx,serial_buf_size >> 2
+		xor di,di
+		rep stosd
+		pop es
 		popad
 		ret
 

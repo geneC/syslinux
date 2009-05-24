@@ -224,7 +224,7 @@ pc_serial:	call getint
 		;
 		; Begin code to actually set up the serial port
 		;
-		call sirq_cleanup		; Cleanup existing IRQ handler
+		call sirq_cleanup_nowipe	; Cleanup existing IRQ handler
 
 		lea dx,[di+3]			; DX -> LCR
 		mov al,83h			; Enable DLAB
