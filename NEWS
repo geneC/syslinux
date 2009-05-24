@@ -19,6 +19,7 @@ Changes in 3.81:
 	  has changed, so the isohybrid utility must version-match
 	  isolinux.bin.
 	* Drop support for ACPI 3 extended memory flags.
+	* Menu system: don't set the autocr flag on the serial console.
 
 Changes in 3.80:
 	* New shuffler mechanism and API.

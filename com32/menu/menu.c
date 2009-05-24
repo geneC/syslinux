@@ -20,16 +20,6 @@
 #include <consoles.h>
 #include "menu.h"
 
-void console_prepare(void)
-{
-  /* Nothing special to do */
-}
-
-void console_cleanup(void)
-{
-  /* Nothing special to do */
-}
-
 int draw_background(const char *arg)
 {
   /* Nothing to do... */
@@ -40,6 +30,5 @@ int draw_background(const char *arg)
 int main(int argc, char *argv[])
 {
   console_ansi_raw();
-
   return menu_main(argc, argv);
 }

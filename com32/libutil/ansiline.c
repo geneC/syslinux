@@ -38,16 +38,9 @@
 #include <unistd.h>
 #include <console.h>
 
-static void __attribute__((destructor)) console_cleanup(void)
-{
-  /* For the serial console, be nice and clean up */
-  fputs("\033[0m\033[20l", stdout);
-}
-
 void console_ansi_std(void)
 {
   openconsole(&dev_stdcon_r, &dev_ansiserial_w);
-  fputs("\033[0m\033[20h", stdout);
 }
 
 #else
@@ -64,7 +57,6 @@ static void __attribute__((constructor)) console_init(void)
 
 static void __attribute__((destructor)) console_cleanup(void)
 {
-  fputs("\033[0m\033[20l", stdout);
   tcsetattr(0, TCSANOW, &original_termios_settings);
 }
 
@@ -83,8 +75,10 @@ void console_ansi_std(void)
   tio.c_iflag &= ~ICRNL;
   tio.c_iflag |= IGNCR;
   tio.c_lflag |= ICANON|ECHO;
+  if (!tio.c_oflag & OPOST)
+    tio.c_oflag = 0;
+  tio.c_oflag |= OPOST|ONLCR;
   tcsetattr(0, TCSANOW, &tio);
-  fputs("\033[0m\033[20h", stdout);
 }
 
 #endif
