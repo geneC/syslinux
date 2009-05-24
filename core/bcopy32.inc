@@ -187,8 +187,6 @@ simple_pm_call:
 ; is indicated by Donnie Barnes of RedHat, the problematic system being an
 ; IBM ThinkPad 760EL.
 ;
-; We typically toggle A20 twice for every 64K transferred.
-;
 
 		section .data
 		alignz 2
