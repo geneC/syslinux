@@ -404,8 +404,8 @@ found_file:
 		sub eax,SECTOR_SIZE-3		; ... minus sector loaded
 		shr eax,2			; bytes->dwords
 		mov [ImageDwords],eax		; boot file dwords
-		add eax,(2047 >> 2)
-		shr eax,9			; dwords->sectors
+		add eax,((SECTOR_SIZE-1) >> 2)
+		shr eax,SECTOR_SHIFT-2		; dwords->sectors
 		mov [ImageSectors],ax		; boot file sectors
 
 		mov eax,[bi_file]		; Address of code to load
@@ -417,34 +417,52 @@ found_file:
 		call crlf
 %endif
 
-		; Just in case some BIOSes have problems with
-		; segment wraparound, use the normalized address
-		mov bx,((7C00h+2048) >> 4)
-		mov es,bx
-		xor bx,bx
+		; Load the rest of the file.  However, just in case there
+		; are still BIOSes with 64K wraparound problems, we have to
+		; take some extra precautions.  Since the normal load
+		; address (7C00h) is *not* 2K-sector-aligned, the safest
+		; way to deal with this is to load into the xfer_buf_seg
+		; and then copy the data in place.
+		mov bx,(7C00h+SECTOR_SIZE) >> 4
 		mov bp,[ImageSectors]
-%ifdef DEBUG_MESSAGES
-		push ax
-		mov si,size_msg
-		call writemsg
-		mov ax,bp
-		call writehex4
-		call crlf
-		pop ax
-%endif
+
+.more:
+		push bx
+		push bp
+		mov dx,xfer_buf_seg
+		mov es,dx
+		mov fs,dx
+		xor bx,bx
+
+		cmp bp,0x10000 >> SECTOR_SHIFT
+		jbe .ok
+		mov bp,0x10000 >> SECTOR_SHIFT
+.ok:
+		push bp
 		call getlinsec
+		pop dx
+		pop bp
+		pop bx
+
+		mov es,bx
+		xor si,si
+		xor di,di
+		mov cx,dx
+		shl cx,SECTOR_SHIFT-2
+		fs rep movsd
+
+		mov cx,dx
+		shl cx,SECTOR_SHIFT-4
+		add bx,cx
+		sub bp,dx
+		jnz .more
 
 		push ds
 		pop es
 
-%ifdef DEBUG_MESSAGES
-		mov si,loaded_msg
-		call writemsg
-%endif
-
 		; Verify the checksum on the loaded image.
 verify_image:
-		mov si,7C00h+2048
+		mov si,7C00h+SECTOR_SIZE
 		mov bx,es
 		mov ecx,[ImageDwords]
 		mov edi,[FirstSecSum]		; First sector checksum
@@ -778,7 +796,7 @@ getlinsec_ebios:
 		push ss
 		pop ds				; DS <- SS
                 mov ah,42h                      ; Extended Read
-		int 13h
+		call int13
 		pop ds
 		popad
 		lea sp,[si+16]			; Remove DAPA
@@ -803,7 +821,7 @@ getlinsec_ebios:
 		pushad				; Try resetting the device
 		xor ax,ax
 		mov dl,[DriveNumber]
-		int 13h
+		call int13
 		popad
 		loop .retry			; CX-- and jump if not zero
 
@@ -879,7 +897,7 @@ getlinsec_cbios:
 		mov bp,retry_count
 .retry:
 		pushad
-		int 13h
+		call int13
 		popad
 		jc .error
 .resume:
@@ -1030,8 +1048,6 @@ startup_msg:	db 'Starting up, DL = ', 0
 spec_ok_msg:	db 'Loaded spec packet OK, drive = ', 0
 secsize_msg:	db 'Sector size ', 0
 offset_msg:	db 'Main image LBA = ', 0
-size_msg:	db 'Sectors to load = ', 0
-loaded_msg:	db 'Loaded boot image, verifying...', CR, LF, 0
 verify_msg:	db 'Image checksum verified.', CR, LF, 0
 allread_msg	db 'Main image read, jumping to main code...', CR, LF, 0
 %endif
