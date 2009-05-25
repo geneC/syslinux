@@ -85,7 +85,7 @@ _start:
 		rep ; movsl
 
 		/* Parse the command line (assumes REGPARM) */
-		leal __com32+4@GOTOFF(%ebx),%edx	# Command line
+		movl __com32+4@GOTOFF(%ebx),%edx	# Command line
 		pushl %edx				# Make space for argv
 		movl %esp,%eax
 		call __parse_argv
