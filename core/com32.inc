@@ -28,7 +28,7 @@
 ; program with an error if run in 16-bit mode.
 ;
 
-pm_entry	equ 101000h
+		extern com32_entry
 
 		section .text16
 is_com32_image:
@@ -48,7 +48,7 @@ is_com32_image:
 
 		call comboot_setup_api	; Set up the COMBOOT-style API
 
-		mov edi,pm_entry	; Load address
+		mov edi,com32_entry	; Load address
 		pop eax			; File length
 		pop si			; File handle
 		xor dx,dx		; No padding
@@ -83,7 +83,7 @@ com32_start:
 		push dword command_line		; Command line pointer
 		push dword 7			; Argument count
 		sti				; Interrupts OK now
-		call pm_entry			; Run the program...
+		call com32_entry		; Run the program...
 		; ... on return, fall through to com32_exit ...
 com32_exit:
 		mov bx,.rm

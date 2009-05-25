@@ -57,9 +57,7 @@ common_init:
 		call adjust_screen
 
 ;
-; The code to decompress the PM code.  We copy it temporarily to 1 MB;
-; we will probably eventually actually simply run the PM code out of
-; high memory, at which point the extra copy can be dropped.
+; The code to decompress the PM code and initialize other segments.
 ;
 		extern _lzo1x_decompress_asm_fast
 		extern __uibss_auxseg_dwords
@@ -67,16 +65,11 @@ common_init:
 		section .textnr
 		bits 32
 pm_decompress:
-		mov esi,__pm_code_lma
-		mov edi,0x100000
-		mov ecx,[lzo_data_size]
-		call pm_bcopy
-
 		push 0				; Space for decompressed size
 		push esp			; Pointer to previous word
 		push __pm_code_start		; Target address
 		push dword [lzo_data_size]	; Compressed size
-		push dword 0x100000
+		push dword __pm_code_lma
 		call _lzo1x_decompress_asm_fast
 		add esp,16
 		pop RM_EAX			; Decompressed size

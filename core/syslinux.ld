@@ -194,7 +194,7 @@ SECTIONS
 	 * real-mode segments also allocated.
 	 */
 
-	. = ALIGN(128);
+	. = 0x100000;
 
 	__pm_code_start = .;
 
@@ -244,6 +244,7 @@ SECTIONS
 
 	. = ALIGN(128);
 
+	/* XXX: This stack should be unified with the COM32 stack */
 	__stack_vma = .;
 	.stack : AT(__stack_vma) {
 		__stack_start = .;
@@ -254,5 +255,8 @@ SECTIONS
 	__stack_dwords = (__stack_len + 3) >> 2;
 
 	_end = .;
-	__assert_end = ASSERT(_end <= 0x20000, "pm_code_seg overflow");
+
+	/* COM32R binaries are loaded after our own PM code */
+	. = ALIGN(4096);
+	com32_entry = .;
 }
