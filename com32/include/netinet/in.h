@@ -21,7 +21,7 @@ static inline uint32_t __htonl(uint32_t v)
       (((v) & 0x00ff0000) >> 8) |
       (((v) & 0xff000000) >> 24);
   } else {
-    asm("xchgb %h0,%b0 ; roll $16,%0 ; xchgb %h0,%b0" : "+abcd" (v));
+    asm("xchgb %h0,%b0 ; roll $16,%0 ; xchgb %h0,%b0" : "+q" (v));
     return v;
   }
 }
