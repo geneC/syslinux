@@ -129,7 +129,7 @@ netinstall: installer
 
 tidy dist:
 	rm -f codepage.cp *.o *.elf *.a stupid.* patch.offset .depend .*.d
-	rm -f *.lsr *.lst *.map *.sec
+	rm -f *.lsr *.lst *.map *.sec *.raw
 	rm -f */*.o */*.lst */.*.d
 	rm -f $(OBSOLETE)
 
