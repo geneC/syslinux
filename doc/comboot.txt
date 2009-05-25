@@ -61,8 +61,8 @@ be possible to create a COM32 execution engine that would run under
 something like Linux DOSEMU, it is recommended that the code does not
 assume CPL 0 unless absolutely necessary.
 
-It is highly recommended that every COM32R program begins with the byte
-sequence B8 FE 4C CD 21 (mov eax,21cd4cfeh) as a magic number.
+A COM32R program must start with the byte sequence B8 FE 4C CD 21 (mov
+eax,21cd4cfeh) as a magic number.
 
 The COM32R format replaces the earlier COM32 format, which was linked
 to a fixed address (0x101000).

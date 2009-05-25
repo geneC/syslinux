@@ -54,6 +54,15 @@ is_com32_image:
 		mov bx,abort_check	; Don't print dots, but allow abort
 		call load_high
 
+		mov esi,com32_entry
+		mov edi,trackbuf
+		mov ecx,5
+		call bcopy
+		cmp dword [trackbuf],0xcd4cfeb8
+		jne not_com32r
+		cmp byte [trackbuf+4],0x21
+		jne not_com32r
+
 com32_start:
 		;
 		; Point the stack to the end of (permitted) high memory
@@ -94,3 +103,13 @@ com32_exit:
 		mov dword [PMESP],__stack_end	; Stop use of COM32 stack
 		sti
 		jmp enter_command
+
+not_com32r:
+		mov si,KernelCName
+		call writestr
+		mov si,not_com32r_msg
+		call writestr
+		jmp enter_command
+
+		section .data16
+not_com32r_msg	db ': not a COM32R image', CR, LF, 0
