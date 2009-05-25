@@ -257,7 +257,7 @@ read_kernel:
                 mov ecx,8000h			; 32K
 		sub ecx,esi			; Number of bytes to copy
 		add esi,(real_mode_seg << 4)	; Pointer to source
-                mov edi,100000h                 ; Copy to address 100000h
+                mov edi,free_high_memory	; Copy to free high memory
 
                 call bcopy			; Transfer to high memory
 
@@ -412,6 +412,7 @@ setup_move:
 		push ds				; We need DS == ES == CS here
 		pop es
 
+		mov edx,100000h
 		test byte [LoadFlags],LOAD_HIGH
 		jnz .loading_high
 
@@ -423,19 +424,18 @@ setup_move:
 		movzx eax,word [CmdLineEnd]
 		stosd
 		inc cx
+		mov edx,10000h			; Revised target address
+		mov bx,9000h			; Revised real mode segment
 
-		mov eax,10000h			; Target address of low kernel
+.loading_high:
+		mov eax,edx			; Target address of kernel
 		stosd
-		mov eax,100000h			; Where currently loaded
+		mov eax,free_high_memory	; Where currently loaded
 		stosd
 		neg eax
 		add eax,[KernelEnd]
 		stosd
 		inc cx
-
-		mov bx,9000h			; Revised real mode segment
-
-.loading_high:
 
 		cmp word [InitRDPtr],0		; Did we have an initrd?
 		je .no_initrd

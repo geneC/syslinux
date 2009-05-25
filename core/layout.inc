@@ -81,6 +81,8 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		SECINFO pm_code
 		extern __bss_start, __bss_end, __bss_len, __bss_dwords
 
+		extern free_high_memory
+
 		global _start
 
 		section .text16
@@ -136,7 +138,6 @@ comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 ; The prefix is a small structure that prefaces the actual code;
 ; it gives the compression program necessary information.
 ;
-		extern __pm_code_lma
 
 		section .prefix		nowrite progbits align=16
 pfx_start	dd _start		; Start of raw chunk

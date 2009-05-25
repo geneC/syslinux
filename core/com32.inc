@@ -27,8 +27,7 @@
 ; "mov ax,0x4cff; int 0x21" in 16-bit mode.  This will abort the
 ; program with an error if run in 16-bit mode.
 ;
-
-		extern com32_entry
+com32_entry	equ	free_high_memory
 
 		section .text16
 is_com32_image:
