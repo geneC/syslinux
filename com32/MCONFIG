@@ -43,7 +43,8 @@ SFLAGS     = $(GCCOPT) -W -Wall -march=i386 \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE)
 
-LDFLAGS    = -m elf_i386 --emit-relocs -T $(com32)/lib/com32.ld
+COM32LD	   = $(com32)/lib/com32.ld
+LDFLAGS    = -m elf_i386 --emit-relocs -T $(COM32LD)
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 
 LNXCFLAGS  = -I$(com32)/libutil/include -W -Wall -O -g -D_GNU_SOURCE
@@ -65,8 +66,8 @@ C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a
 	$(CC) $(MAKEDEPS) $(CFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.elf
-%.elf: %.o $(LIBS) $(C_LIBS)
-	$(LD) $(LDFLAGS) -o $@ $^
+%.elf: %.o $(LIBS) $(C_LIBS) $(COM32LD)
+	$(LD) $(LDFLAGS) -o $@ $(filter-out $(COM32LD),$^)
 
 .PRECIOUS: %.lo
 %.lo: %.S

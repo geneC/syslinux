@@ -195,12 +195,11 @@ scan_partition_table:
 	/* Scan the primary partition table */
 	movw	$ptab, %si
 	movw	$4, %cx
+	/* Is it a primary partition table? */
+	andl	%edx, %edx
+	jnz	7f
 	push	%si
 	push	%cx
-
-	/* Is it a primary partition? */
-	andl	%edx, %edx
-	jnz	6f
 
 5:
 	decb	(partition)
@@ -208,18 +207,18 @@ scan_partition_table:
 	addw	$16, %bx
 	loopw	5b
 
-6:
-	/* No active partitions found, look for extended partitions */
-	popw	%cx		/* %cx <- 4    */
-	popw	%si		/* %si <- ptab */
-7:
-	movl	20(%bp), %edx		/* "Root" */
+	popw	%cx			/* %cx <- 4    */
+	popw	%si			/* %si <- ptab */
 
+	/* No primary partitions found, look for extended/logical partitions */
+7:
 	movb	4(%si), %al
-	cmpb	$0x0f, %al	/* 0x0f = Win9x extended */
+	andb	%al, %al
+	jz	12f			/* Not a valid partition */
+	cmpb	$0x0f, %al		/* 0x0f = Win9x extended */
 	je	8f
-	andb	$~0x80, %al	/* 0x85 = Linux extended */
-	cmpb	$0x05, %al	/* 0x05 = MS-DOS extended */
+	andb	$~0x80, %al		/* 0x85 = Linux extended */
+	cmpb	$0x05, %al		/* 0x05 = MS-DOS extended */
 	jne	9f
 
 	/* It is an extended partition.  Read the extended partition and
@@ -243,9 +242,8 @@ scan_partition_table:
 	/* fall through */
 9:
 	/* Not an extended partition */
-	andb	%al, %al
-	jz	12f			/* Not a valid partition */
 	andl	%edx, %edx		/* Are we inside an extended part? */
+	jz	12f
 	/* If so, this is a logical partition */
 	decb	(partition)
 	je	boot
