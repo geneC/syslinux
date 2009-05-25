@@ -257,6 +257,6 @@ SECTIONS
 	_end = .;
 
 	/* COM32R and kernels are loaded after our own PM code */
-	. = ALIGN(4096);
+	. = ALIGN(65536);
 	free_high_memory = .;
 }
