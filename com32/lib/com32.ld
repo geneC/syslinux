@@ -13,6 +13,7 @@ SECTIONS
   /* Read-only sections, merged into text segment: */
   . = 0;
   PROVIDE (__executable_start = .);
+  PROVIDE (_stext = .);
 
   .init           :
   {
@@ -28,11 +29,12 @@ SECTIONS
   {
     KEEP (*(.fini))
   } =0x90909090
-  PROVIDE (__etext = .);
   PROVIDE (_etext = .);
-  PROVIDE (etext = .);
+
+  __rodata_start = .;
   .rodata         : { *(.rodata .rodata.* .gnu.linkonce.r.*) }
   .rodata1        : { *(.rodata1) }
+  __rodata_end = .;
 
   /* Ensure the __preinit_array_start label is properly aligned.  We
      could instead move the label definition inside the section, but
@@ -105,7 +107,6 @@ SECTIONS
   }
   . = ALIGN(4);
   _end = .;
-  PROVIDE (end = .);
 
   /* Stabs debugging sections.  */
   .stab          0 : { *(.stab) }

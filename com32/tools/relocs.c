@@ -1,3 +1,6 @@
+/*
+ * This file is taken from the Linux kernel and is distributed under GPL v2.
+ */
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -9,6 +12,8 @@
 #include <byteswap.h>
 #define USE_BSD
 #include <endian.h>
+#include <regex.h>
+#include <sys/types.h>
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 static Elf32_Ehdr ehdr;
@@ -24,33 +29,6 @@ struct section {
 };
 static struct section *secs;
 
-/*
- * Following symbols have been audited. There values are constant and do
- * not change if bzImage is loaded at a different physical address than
- * the address for which it has been compiled. Don't warn user about
- * absolute relocations present w.r.t these symbols.
- */
-static const char* safe_abs_relocs[] = {
-		"xen_irq_disable_direct_reloc",
-		"xen_save_fl_direct_reloc",
-};
-
-static int is_safe_abs_reloc(const char* sym_name)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(safe_abs_relocs); i++) {
-		if (!strcmp(sym_name, safe_abs_relocs[i]))
-			/* Match found */
-			return 1;
-	}
-	if (strncmp(sym_name, "VDSO", 4) == 0)
-		return 1;
-	if (strncmp(sym_name, "__crc_", 6) == 0)
-		return 1;
-	return 0;
-}
-
 static void die(char *fmt, ...)
 {
 	va_list ap;
@@ -58,6 +36,53 @@ static void die(char *fmt, ...)
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	exit(1);
+}
+
+/*
+ * Following symbols have been audited.  Don't warn user about
+ * absolute relocations present w.r.t these symbols.
+ */
+
+/* True absolute relocations */
+
+static const char safe_abs_regex[] =
+"^(__.*_len|__.*_dwords)$";
+static regex_t safe_abs_regex_c;
+
+static int is_safe_abs_reloc(const char *sym_name)
+{
+	return !regexec(&safe_abs_regex_c, sym_name, 0, NULL, 0);
+}
+
+/* These are relative even though the linker marks them absolute */
+
+static const char safe_rel_regex[] =
+"^(__.*_start|__.*_end|_end|_[se](text|data))$";
+static regex_t safe_rel_regex_c;
+
+static int is_safe_rel_reloc(const char *sym_name)
+{
+	return !regexec(&safe_rel_regex_c, sym_name, 0, NULL, 0);
+}
+
+static void regex_init(void)
+{
+	char errbuf[128];
+	int err;
+
+	err = regcomp(&safe_abs_regex_c, safe_abs_regex,
+		      REG_EXTENDED|REG_NOSUB);
+	if (err) {
+		regerror(err, &safe_abs_regex_c, errbuf, sizeof errbuf);
+		die("%s", errbuf);
+	}
+
+	err = regcomp(&safe_rel_regex_c, safe_rel_regex,
+		      REG_EXTENDED|REG_NOSUB);
+	if (err) {
+		regerror(err, &safe_rel_regex_c, errbuf, sizeof errbuf);
+		die("%s", errbuf);
+	}
 }
 
 static const char *sym_type(unsigned type)
@@ -404,7 +429,7 @@ static void print_absolute_symbols(void)
 	printf("\n");
 }
 
-static void print_absolute_relocs(void)
+static int print_absolute_relocs(FILE *f)
 {
 	int i, printed = 0;
 
@@ -448,18 +473,17 @@ static void print_absolute_relocs(void)
 			 * Before warning check if this absolute symbol
 			 * relocation is harmless.
 			 */
-			if (is_safe_abs_reloc(name))
+			if (is_safe_abs_reloc(name) ||
+			    is_safe_rel_reloc(name))
 				continue;
 
 			if (!printed) {
-				printf("WARNING: Absolute relocations"
-					" present\n");
-				printf("Offset     Info     Type     Sym.Value "
-					"Sym.Name\n");
+				fprintf(f, "Unknown absolute relocations present\n");
+				fprintf(f, "Offset     Info     Type     Sym.Value Sym.Name\n");
 				printed = 1;
 			}
 
-			printf("%08x %08x %10s %08x  %s\n",
+			fprintf(f, "%08x %08x %10s %08x  %s\n",
 				rel->r_offset,
 				rel->r_info,
 				rel_type(ELF32_R_TYPE(rel->r_info)),
@@ -469,7 +493,9 @@ static void print_absolute_relocs(void)
 	}
 
 	if (printed)
-		printf("\n");
+		fputc('\n', f);
+
+	return printed;
 }
 
 static void walk_relocs(void (*visit)(Elf32_Rel *rel, Elf32_Sym *sym))
@@ -501,9 +527,10 @@ static void walk_relocs(void (*visit)(Elf32_Rel *rel, Elf32_Sym *sym))
 			sym = &sh_symtab[ELF32_R_SYM(rel->r_info)];
 			r_type = ELF32_R_TYPE(rel->r_info);
 			/* Don't visit relocations to absolute symbols */
-			if (sym->st_shndx == SHN_ABS) {
+			if (sym->st_shndx == SHN_ABS &&
+			    !is_safe_rel_reloc(sym_name(sym_strtab, sym)))
 				continue;
-			}
+
 			switch (r_type) {
 			case R_386_PC32:
 			case R_386_GOTPC:
@@ -527,11 +554,14 @@ static void walk_relocs(void (*visit)(Elf32_Rel *rel, Elf32_Sym *sym))
 
 static void count_reloc(Elf32_Rel *rel, Elf32_Sym *sym)
 {
+	(void)rel; (void)sym;
 	reloc_count += 1;
 }
 
 static void collect_reloc(Elf32_Rel *rel, Elf32_Sym *sym)
 {
+	(void)sym;
+
 	/* Remember the address that needs to be adjusted. */
 	relocs[reloc_idx++] = rel->r_offset;
 }
@@ -601,6 +631,7 @@ int main(int argc, char **argv)
 	const char *fname;
 	FILE *fp;
 	int i;
+	int err = 0;
 
 	show_absolute_syms = 0;
 	show_absolute_relocs = 0;
@@ -632,6 +663,10 @@ int main(int argc, char **argv)
 	if (!fname) {
 		usage();
 	}
+
+
+	regex_init();
+
 	fp = fopen(fname, "r");
 	if (!fp) {
 		die("Cannot open %s: %s\n",
@@ -647,9 +682,10 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (show_absolute_relocs) {
-		print_absolute_relocs();
+		print_absolute_relocs(stdout);
 		return 0;
 	}
+	err = print_absolute_relocs(stderr);
 	emit_relocs(as_text);
-	return 0;
+	return err;
 }
