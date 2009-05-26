@@ -67,18 +67,11 @@ bootsec:
 _start:
 
 	cli
-	xorw	%bx, %bx
-	movw	%bx, %ds
-	movw	%bx, %ss
-	movw	$partoffset, %sp
-	pushw	%es			/* -12: es:di -> $PnP header */
-	pushw	%di
-	movw	%bx, %es
+	xorw	%bp, %bp
+	movw	%bp, %ss
+	movw	$stack, %sp
 	sti
 	cld
-
-	ADJUST_DRIVE
-	pushw	%dx			/* -14: dl -> drive number */
 
 	/* Check to see if we have a partition table entry */
 	xorl	%ebx, %ebx
@@ -94,8 +87,8 @@ _start:
 	jne	2f
 	
 	/* We have GPT partition information */
-	movl	(36+16)(%si), %ecx
-	movl	(32+16)(%si), %ebx
+	movl	(32+16)(%si), %ecx
+	movl	(36+16)(%si), %ebx
 	jmp	1f
 
 	/* We have non-GPT partition information */
@@ -104,8 +97,16 @@ _start:
 #endif
 1:
 	/* We have no partition information */
-	movl	%ecx, (partoffset)	/* -4: partoffset_hi */
-	movl	%ebx, (partoffset+4)	/* -0: partoffset_lo */
+	pushl	%ebx			/*  -4: partoffset_hi */
+	pushl	%ecx			/*  -8: partoffset_lo */
+	pushw	%es			/* -10: es:di -> $PnP header */
+	pushw	%di			/* -12: es:di -> $PnP header */
+
+	movw	%bp, %ds
+	movw	%bp, %es
+	
+	ADJUST_DRIVE
+	pushw	%dx			/* -14: dl -> drive number */
 
 	/* Copy down to 0:0x600 */
 	movw	$0x7c00, %si
