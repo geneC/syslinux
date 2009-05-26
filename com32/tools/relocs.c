@@ -155,10 +155,11 @@ static const char *rel_type(unsigned type)
 		REL_TYPE(R_386_GOTPC),
 #undef REL_TYPE
 	};
-	const char *name = "unknown type rel type name";
-	if (type < ARRAY_SIZE(type_name)) {
+	const char *name = NULL;
+	if (type < ARRAY_SIZE(type_name))
 		name = type_name[type];
-	}
+	if (!name)
+		name = "unknown";
 	return name;
 }
 
@@ -532,6 +533,7 @@ static void walk_relocs(void (*visit)(Elf32_Rel *rel, Elf32_Sym *sym))
 				continue;
 
 			switch (r_type) {
+			case R_386_NONE:
 			case R_386_PC32:
 			case R_386_GOTPC:
 			case R_386_GOTOFF:
@@ -545,8 +547,8 @@ static void walk_relocs(void (*visit)(Elf32_Rel *rel, Elf32_Sym *sym))
 				visit(rel, sym);
 				break;
 			default:
-				die("Unsupported relocation type: %d\n",
-				    r_type);
+				die("Unsupported relocation type: %s (%d)\n",
+				    rel_type(r_type), r_type);
 			}
 		}
 	}
