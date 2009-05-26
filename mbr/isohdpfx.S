@@ -39,15 +39,15 @@
 	.code16
 	.text
 
-HYBRID_MAGIC			= 0x0defe3f7
+HYBRID_MAGIC			= 0x7078c0fb
 isolinux_hybrid_signature	= 0x7c00+64
 isolinux_start_hybrid		= 0x7c00+64+4
 
 	.globl	bootsec
 /* Important: the top 6 words on the stack are passed to isolinux.bin */
 stack		= 0x7c00
-driveno		= (stack-6)
-partoffset	= (stack-14)
+partoffset	= (stack-8)
+driveno		= (stack-14)
 ebios_flag	= (stack-16)
 sectors		= (stack-18)
 heads		= (stack-20)
@@ -70,17 +70,19 @@ _start:
 	xorw	%bx, %bx
 	movw	%bx, %ds
 	movw	%bx, %ss
-	movw	$stack, %sp
-	pushw	%es			/* -4: es:di -> $PnP header */
+	movw	$partoffset, %sp
+	pushw	%es			/* -12: es:di -> $PnP header */
 	pushw	%di
 	movw	%bx, %es
 	sti
 	cld
 
 	ADJUST_DRIVE
-	pushw	%dx			/* -6: dl -> drive number */
+	pushw	%dx			/* -14: dl -> drive number */
 
 	/* Check to see if we have a partition table entry */
+	xorl	%ebx, %ebx
+	xorl	%ecx, %ecx
 #ifdef PARTITION_SUPPORT
 	andw	%si, %si		/* %si == 0 -> no partition data */
 	jz	1f
@@ -90,22 +92,21 @@ _start:
 	jne	2f
 	cmpb	$0xee, 4(%si)		/* EFI partition type? */
 	jne	2f
+	
 	/* We have GPT partition information */
-	pushl	(36+16)(%si)		/* -10: partoffset_hi */
-	pushl	(32+16)(%si)		/* -14: partoffset_lo */
-	jmp	3f
-2:
+	movl	(36+16)(%si), %ecx
+	movl	(32+16)(%si), %ebx
+	jmp	1f
+
 	/* We have non-GPT partition information */
-	pushl	$0			/* -10: partoffset_hi */
-	pushl	8(%si)			/* -14: partoffset_lo */
-	jmp	3f
+2:
+	movl	8(%si), %ecx
 #endif
 1:
 	/* We have no partition information */
-	pushl	$0			/* -10: partoffset_hi */
-	pushl	$0			/* -14: partoffset_lo */
-3:
-	
+	movl	%ecx, (partoffset)	/* -4: partoffset_hi */
+	movl	%ebx, (partoffset+4)	/* -0: partoffset_lo */
+
 	/* Copy down to 0:0x600 */
 	movw	$0x7c00, %si
 	movw	$_start, %di

@@ -224,35 +224,32 @@ bi_end:
 		; Custom entry point for the hybrid-mode disk.
 		; The following values will have been pushed onto the
 		; entry stack:
+		;	- partition offset (qword)
 		;	- ES
 		;	- DI
 		;	- DX (including drive number)
-		;	- partition offset (qword)
-		;	- EBIOS flag
-		;	- CBIOS Sectors
 		;	- CBIOS Heads
+		;	- CBIOS Sectors
+		;	- EBIOS flag
 		;       (top of stack)
 		;
 %ifndef DEBUG_MESSAGES
 _hybrid_signature:
-		dd 0x0defe3f7
+	       dd 0x7078c0fb			; An arbitrary number...
+
 _start_hybrid:
-		pop word [cs:bsHeads]
+		pop cx				; EBIOS flag
 		pop word [cs:bsSecPerTrack]
-
-		pop ax
-		mov si,bios_cbios
-		and ax,ax
-		jz .cbios
-		mov si,bios_ebios
-.cbios:
-
-		pop dword [cs:bsHidden]
-		pop dword [cs:bsHidden+4]
-
+		pop word [cs:bsHeads]
 		pop dx
 		pop di
 		pop es
+		pop dword [cs:bsHidden]
+		pop dword [cs:bsHidden+4]
+
+		mov si,bios_cbios
+		jcxz _start_common
+		mov si,bios_ebios
 		jmp _start_common
 %endif
 
