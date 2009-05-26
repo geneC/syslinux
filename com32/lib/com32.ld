@@ -71,13 +71,9 @@ SECTIONS
 
   .got            : {
     PROVIDE (__got_start = .);
+    KEEP (*(.got.plt))
     KEEP (*(.got))
     PROVIDE (__got_end = .);
-  }
-  .got.plt        : {
-    PROVIDE (__got_plt_start = .);
-    KEEP (*(.got.plt))
-    PROVIDE (__got_plt_end = .);
   }
 
   /* Adjust the address for the data segment.  Avoid mixing code and
