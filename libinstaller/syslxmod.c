@@ -127,6 +127,8 @@ const char *syslinux_check_bootsect(const void *bs)
  */
 #ifdef __MSDOS__
 
+#define __noinline __attribute__((noinline))
+
 extern uint16_t ldlinux_seg;	/* Defined in dos/syslinux.c */
 
 static inline __attribute__((const)) uint16_t ds(void)
@@ -145,7 +147,8 @@ static inline void *set_fs(const void *p)
   return (void *)((size_t)p & 0xf);
 }
 
-static inline uint8_t get_8_sl(const uint8_t *p)
+#if 0	/* unused */
+static __noinline uint8_t get_8_sl(const uint8_t *p)
 {
   uint8_t v;
 
@@ -153,8 +156,9 @@ static inline uint8_t get_8_sl(const uint8_t *p)
   asm volatile("movb %%fs:%1,%0" : "=q" (v) : "m" (*p));
   return v;
 }
+#endif
 
-static inline uint16_t get_16_sl(const uint16_t *p)
+static __noinline uint16_t get_16_sl(const uint16_t *p)
 {
   uint16_t v;
 
@@ -163,7 +167,7 @@ static inline uint16_t get_16_sl(const uint16_t *p)
   return v;
 }
 
-static inline uint32_t get_32_sl(const uint32_t *p)
+static __noinline uint32_t get_32_sl(const uint32_t *p)
 {
   uint32_t v;
 
@@ -172,19 +176,21 @@ static inline uint32_t get_32_sl(const uint32_t *p)
   return v;
 }
 
-static inline void set_8_sl(uint8_t *p, uint8_t v)
+#if 0 /* unused */
+static __noinline void set_8_sl(uint8_t *p, uint8_t v)
 {
   p = set_fs(p);
   asm volatile("movb %1,%%fs:%0" : "=m" (*p) : "qi" (v));
 }
+#endif
 
-static inline void set_16_sl(uint16_t *p, uint16_t v)
+static __noinline void set_16_sl(uint16_t *p, uint16_t v)
 {
   p = set_fs(p);
   asm volatile("movw %1,%%fs:%0" : "=m" (*p) : "ri" (v));
 }
 
-static inline void set_32_sl(uint32_t *p, uint32_t v)
+static __noinline void set_32_sl(uint32_t *p, uint32_t v)
 {
   p = set_fs(p);
   asm volatile("movl %1,%%fs:%0" : "=m" (*p) : "ri" (v));
