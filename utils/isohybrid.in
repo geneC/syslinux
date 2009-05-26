@@ -166,9 +166,8 @@ if ($de_boot != 0x88 || $de_media != 0 ||
 seek(FILE, $de_lba*2048+0x40, SEEK_SET) or die "$0: $file: $!\n";
 read(FILE, $ibsig, 4);
 if ($ibsig ne "\xfb\xc0\x78\x70") {
-    die "$0: $file: bootloader is missing current (3.81+) isolinux.bin\n".
-	"        hybrid signature; Note that isolinux-debug.bin does not\n".
-	"        support hybrid booting.\n";
+    die "$0: $file: bootloader does not have a isolinux.bin hybrid signature.".
+        "Note that isolinux-debug.bin does not support hybrid booting.\n";
 }
 
 # Get the total size of the image
