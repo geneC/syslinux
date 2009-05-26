@@ -22,6 +22,8 @@ Changes in 3.81:
 	* Menu system: don't set the autocr flag on the serial
 	  console.
 	* altmbr: fix handling of logical partitions.
+	* altmbr: cap at 439 bytes so the partition select byte isn't
+	  part of the file.
 
 Changes in 3.80:
 	* New shuffler mechanism and API.
