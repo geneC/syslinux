@@ -127,7 +127,7 @@ const char *syslinux_check_bootsect(const void *bs)
  */
 #ifdef __MSDOS__
 
-extern const char __payload_sseg[]; /* Symbol from linker */
+extern uint16_t ldlinux_seg;	/* Defined in dos/syslinux.c */
 
 static inline __attribute__((const)) uint16_t ds(void)
 {
@@ -140,8 +140,7 @@ static inline void *set_fs(const void *p)
 {
   uint16_t seg;
 
-  seg = ds() + (size_t)__payload_sseg;
-  seg += (size_t)p >> 4;
+  seg = ldlinux_seg + ((size_t)p >> 4);
   asm volatile("movw %0,%%fs" : : "rm" (seg));
   return (void *)((size_t)p & 0xf);
 }

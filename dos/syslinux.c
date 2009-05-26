@@ -115,7 +115,7 @@ int rename(const char *oldname, const char *newname)
 }
 
 extern const char __payload_sseg[];
-static uint16_t ldlinux_seg;
+uint16_t ldlinux_seg;
 
 ssize_t write_ldlinux(int fd)
 {
