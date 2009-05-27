@@ -48,6 +48,11 @@ char type[BASE_BOARD_TYPE_SIZE];
 s_base_board_features features;
 /* The filled field have to be set to true when the dmitable implement that item */
 bool filled;
+struct {
+	char type[16];
+	uint8_t status;
+	char description[10];
+} devices_information[10];
 } s_base_board;
 
 #endif

@@ -38,6 +38,48 @@ const char *bad_index = "<BAD INDEX>";
  */
 
 /*
+ * 3.3.11 On Board Devices Information (Type 10)
+ */
+
+static const char *dmi_on_board_devices_type(uint8_t code)
+{
+	/* 3.3.11.1 */
+	static const char *type[]={
+		"Other", /* 0x01 */
+		"Unknown",
+		"Video",
+		"SCSI Controller",
+		"Ethernet",
+		"Token Ring",
+		"Sound",
+		"PATA Controller",
+		"SATA Controller",
+		"SAS Controller" /* 0x0A */
+	};
+
+	if (code>=0x01 && code<=0x0A)
+		return type[code-0x01];
+	return out_of_spec;
+}
+
+static void dmi_on_board_devices(struct dmi_header *h, s_dmi* dmi)
+{
+	uint8_t *p = h->data+4;
+	uint8_t count = (h->length-0x04)/2;
+	unsigned int i;
+
+	for (i=0; i<count && i<sizeof dmi->base_board.devices_information/sizeof *dmi->base_board.devices_information; i++) {
+		strncpy(dmi->base_board.devices_information[i].type,
+			dmi_on_board_devices_type(p[2*i]&0x7F),
+			sizeof dmi->base_board.devices_information[i].type);
+		dmi->base_board.devices_information[i].status = p[2*i]&0x80;
+		strncpy(dmi->base_board.devices_information[i].description,
+			dmi_string(h, p[2*i+1]),
+			sizeof dmi->base_board.devices_information[i].description);
+	}
+}
+
+/*
  * 3.3.24 System Reset (Type 23)
  */
 
@@ -610,6 +652,9 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi *dmi)
 			       dmi_cache_type(data[0x11]));
 			strcpy(dmi->cache[dmi->cache_count-1].associativity,
 			       dmi_cache_associativity(data[0x12]));
+			break;
+		case 10: /* 3.3.11 On Board Devices Information */
+			dmi_on_board_devices(h, dmi);
 			break;
 		case 12: /* 3.3.13 System Configuration Options */
 			if (h->length < 0x05) break;
