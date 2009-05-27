@@ -23,6 +23,7 @@
 #define SYSTEM_FAMILY_SIZE		32
 
 #define SYSTEM_BOOT_STATUS_SIZE		50
+#define SYSTEM_CONFIGURATION_OPTIONS_SIZE	50
 
 typedef struct {
 char manufacturer[SYSTEM_MANUFACTURER_SIZE];
@@ -36,5 +37,6 @@ char family[SYSTEM_FAMILY_SIZE];
 /* The filled field have to be set to true when the dmitable implement that item */
 bool filled;
 char system_boot_status[SYSTEM_BOOT_STATUS_SIZE];
+char configuration_options[SYSTEM_CONFIGURATION_OPTIONS_SIZE];
 } s_system;
 #endif

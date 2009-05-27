@@ -36,6 +36,21 @@ const char *bad_index = "<BAD INDEX>";
 /*
  * Misc. util stuff
  */
+
+/*
+ * 3.3.13 System Configuration Options (Type 12)
+ */
+static void dmi_system_configuration_options(struct dmi_header *h, const char *prefix, s_dmi *dmi)
+{
+	uint8_t *p = h->data+4;
+	uint8_t count = p[0x00];
+	int i;
+
+	for (i=1; i<=count; i++)
+		snprintf(dmi->system.configuration_options, SYSTEM_CONFIGURATION_OPTIONS_SIZE, "%s %s %s\n",
+			 dmi->system.configuration_options, prefix, dmi_string(h, i));
+}
+
 static void dmi_system_boot_status(uint8_t code, char* array)
 {
 	static const char *status[]={
@@ -562,6 +577,10 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi *dmi)
 			       dmi_cache_type(data[0x11]));
 			strcpy(dmi->cache[dmi->cache_count-1].associativity,
 			       dmi_cache_associativity(data[0x12]));
+			break;
+		case 12: /* 3.3.13 System Configuration Options */
+			if (h->length < 0x05) break;
+			dmi_system_configuration_options(h, "\t", dmi);
 			break;
                 case 17: /* 3.3.18 Memory Device */
                         if (h->length < 0x15) break;
