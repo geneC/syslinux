@@ -113,6 +113,21 @@ static void dmi_system_reset_timer(uint16_t code, char* array)
 }
 
 /*
+ * 3.3.12 OEM Strings (Type 11)
+ */
+
+static void dmi_oem_strings(struct dmi_header *h, const char *prefix, s_dmi *dmi)
+{
+	uint8_t *p=h->data+4;
+	uint8_t count=p[0x00];
+	int i;
+
+	for(i=1; i<=count; i++)
+		snprintf(dmi->oem_strings, OEM_STRINGS_SIZE, "%s %s %s\n",
+			 dmi->oem_strings, prefix, dmi_string(h, i));
+}
+
+/*
  * 3.3.13 System Configuration Options (Type 12)
  */
 static void dmi_system_configuration_options(struct dmi_header *h, const char *prefix, s_dmi *dmi)
@@ -655,6 +670,10 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi *dmi)
 			break;
 		case 10: /* 3.3.11 On Board Devices Information */
 			dmi_on_board_devices(h, dmi);
+			break;
+		case 11: /* 3.3.12 OEM Strings */
+			if (h->length<0x05) break;
+			dmi_oem_strings(h, "\t", dmi);
 			break;
 		case 12: /* 3.3.13 System Configuration Options */
 			if (h->length < 0x05) break;

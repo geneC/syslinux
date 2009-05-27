@@ -15,6 +15,7 @@
 #include <inttypes.h>
 #define MAX_DMI_MEMORY_ITEMS 32
 #define MAX_DMI_CACHE_ITEMS 32
+#define OEM_STRINGS_SIZE 100
 
 #define PAGE_SIZE 4096
 
@@ -74,6 +75,7 @@ typedef struct {
 	 int memory_count;
 	 int cache_count;
 	 dmi_table dmitable;
+	 char oem_strings[OEM_STRINGS_SIZE];
 } s_dmi;
 
 void to_dmi_header(struct dmi_header *h, uint8_t *data);
