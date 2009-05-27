@@ -120,6 +120,26 @@ static void show_dmi_system(int argc __unused, char** argv __unused,
     printf("%s\n", hardware->dmi.system.configuration_options);
   }
 
+  if (hardware->dmi.system.system_reset.filled) {
+    printf("System Reset\n");
+    printf("  Status               : %s\n",
+	   (hardware->dmi.system.system_reset.status ? "Enabled" : "Disabled"));
+    printf("  Watchdog Timer       : %s\n",
+	   (hardware->dmi.system.system_reset.watchdog ? "Present" : "Not Present"));
+    if (strlen(hardware->dmi.system.system_reset.boot_option))
+      printf("  Boot Option          : %s\n", hardware->dmi.system.system_reset.boot_option);
+    if (strlen(hardware->dmi.system.system_reset.boot_option_on_limit))
+      printf("  Boot Option On Limit : %s\n", hardware->dmi.system.system_reset.boot_option_on_limit);
+    if (strlen(hardware->dmi.system.system_reset.reset_count))
+      printf("  Reset Count          : %s\n", hardware->dmi.system.system_reset.reset_count);
+    if (strlen(hardware->dmi.system.system_reset.reset_limit))
+      printf("  Reset Limit          : %s\n", hardware->dmi.system.system_reset.reset_limit);
+    if (strlen(hardware->dmi.system.system_reset.timer_interval))
+      printf("  Timer Interval       : %s\n", hardware->dmi.system.system_reset.timer_interval);
+    if (strlen(hardware->dmi.system.system_reset.timeout))
+      printf("  Timeout              : %s\n", hardware->dmi.system.system_reset.timeout);
+  }
+
   printf("System Boot Information\n");
   printf(" Status       : %s\n", hardware->dmi.system.system_boot_status);
 }
