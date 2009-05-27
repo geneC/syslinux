@@ -38,5 +38,16 @@ char family[SYSTEM_FAMILY_SIZE];
 bool filled;
 char system_boot_status[SYSTEM_BOOT_STATUS_SIZE];
 char configuration_options[SYSTEM_CONFIGURATION_OPTIONS_SIZE];
+struct {
+	bool filled;
+	uint8_t status;
+	uint8_t watchdog;
+	char boot_option[17];
+	char boot_option_on_limit[17];
+	char reset_count[8];
+	char reset_limit[8];
+	char timer_interval[8];
+	char timeout[8];
+} system_reset;
 } s_system;
 #endif

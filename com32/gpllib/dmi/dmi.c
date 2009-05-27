@@ -38,6 +38,39 @@ const char *bad_index = "<BAD INDEX>";
  */
 
 /*
+ * 3.3.24 System Reset (Type 23)
+ */
+
+static const char *dmi_system_reset_boot_option(uint8_t code)
+{
+	static const char *option[]={
+		"Operating System", /* 0x1 */
+		"System Utilities",
+		"Do Not Reboot" /* 0x3 */
+	};
+
+	if (code >= 0x1)
+		return option[code-0x1];
+	return out_of_spec;
+}
+
+static void dmi_system_reset_count(uint16_t code, char* array)
+{
+	if (code == 0xFFFF)
+		strncpy(array, "Unknown", sizeof array);
+	else
+		snprintf(array, sizeof array, "%u", code);
+}
+
+static void dmi_system_reset_timer(uint16_t code, char* array)
+{
+	if (code == 0xFFFF)
+		strncpy(array, "Unknown", sizeof array);
+	else
+		snprintf(array, sizeof array, "%u min", code);
+}
+
+/*
  * 3.3.13 System Configuration Options (Type 12)
  */
 static void dmi_system_configuration_options(struct dmi_header *h, const char *prefix, s_dmi *dmi)
@@ -644,6 +677,24 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi *dmi)
 
 		//	sprintf(dmi->battery.oem_info,"0x%08X",DWORD(h, data+0x16));
                         break;
+		case 23: /* 3.3.24 System Reset */
+			if(h->length<0x0D) break;
+			dmi->system.system_reset.filled = true;
+			dmi->system.system_reset.status = data[0x04]&(1<<0);
+			dmi->system.system_reset.watchdog = data[0x04]&(1<<5);
+			if (!(data[0x04]&(1<<5)))
+				break;
+			strncpy(dmi->system.system_reset.boot_option,
+				dmi_system_reset_boot_option((data[0x04]>>1)&0x3),
+				sizeof dmi->system.system_reset.boot_option);
+			strncpy(dmi->system.system_reset.boot_option_on_limit,
+				dmi_system_reset_boot_option((data[0x04]>>3)&0x3),
+				sizeof dmi->system.system_reset.boot_option_on_limit);
+			dmi_system_reset_count(WORD(data+0x05), dmi->system.system_reset.reset_count);
+			dmi_system_reset_count(WORD(data+0x07), dmi->system.system_reset.reset_limit);
+			dmi_system_reset_timer(WORD(data+0x09), dmi->system.system_reset.timer_interval);
+			dmi_system_reset_timer(WORD(data+0x0B), dmi->system.system_reset.timeout);
+			break;
 	      case 32: /* 3.3.33 System Boot Information */
 			if (h->length < 0x0B) break;
 			dmi_system_boot_status(data[0x0A],
