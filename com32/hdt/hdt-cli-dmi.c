@@ -69,6 +69,8 @@ static void show_dmi_modules(int argc __unused, char** argv __unused,
 		printf("\t%s\n", CLI_DMI_IPMI);
 	if (hardware->dmi.cache_count)
 		printf("\t%s\n", CLI_DMI_CACHE);
+	if (strlen(hardware->dmi.oem_strings))
+		more_printf("\t%s\n", CLI_DMI_OEM);
 }
 
 static void show_dmi_base_board(int argc __unused, char** argv __unused,
@@ -566,6 +568,15 @@ usage:
   return;
 }
 
+void show_dmi_oem_strings(int argc __unused, char** argv __unused,
+                          struct s_hardware *hardware)
+{
+	reset_more_printf();
+
+	if (strlen(hardware->dmi.oem_strings))
+		more_printf("OEM Strings\n%s", hardware->dmi.oem_strings);
+}
+
 struct cli_callback_descr list_dmi_show_modules[] = {
   {
     .name = CLI_DMI_BASE_BOARD,
@@ -602,6 +613,10 @@ struct cli_callback_descr list_dmi_show_modules[] = {
   {
     .name = CLI_DMI_SYSTEM,
     .exec = show_dmi_system,
+  },
+  {
+    .name = CLI_DMI_OEM,
+    .exec = show_dmi_oem_strings,
   },
   {
     .name = CLI_DMI_IPMI,

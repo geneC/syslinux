@@ -168,6 +168,7 @@ void main_show(char *item, struct s_hardware *hardware);
 #define CLI_DMI_SYSTEM "system"
 #define CLI_DMI_IPMI "ipmi"
 #define CLI_DMI_CACHE "cache"
+#define CLI_DMI_OEM "oem"
 #define CLI_DMI_LIST CLI_SHOW_LIST
 void main_show_dmi(int argc, char **argv, struct s_hardware *hardware);
 void show_dmi_memory_modules(int argc, char** argv, struct s_hardware *hardware);
