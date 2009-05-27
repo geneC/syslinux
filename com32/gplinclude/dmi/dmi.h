@@ -15,8 +15,7 @@
 #include <inttypes.h>
 #define MAX_DMI_MEMORY_ITEMS 32
 #define MAX_DMI_CACHE_ITEMS 32
-#define OEM_STRINGS_SIZE 100
-
+#define OEM_STRINGS_SIZE 512
 #define PAGE_SIZE 4096
 
 extern const char *out_of_spec;
