@@ -95,6 +95,15 @@ static void show_dmi_base_board(int argc __unused, char** argv __unused,
       more_printf(" %s\n", base_board_features_strings[i]);
     }
   }
+
+  for (unsigned int i=0; i<sizeof hardware->dmi.base_board.devices_information/sizeof *hardware->dmi.base_board.devices_information; i++) {
+    if (strlen(hardware->dmi.base_board.devices_information[i].type)) {
+      more_printf("On Board Device #%u Information\n", i)
+      more_printf("  Type        : %s\n", hardware->dmi.base_board.devices_information[i].type);
+      more_printf("  Status      : %s\n", hardware->dmi.base_board.devices_information[i].status ? "Enabled" : "Disabled");
+      more_printf("  Description : %s\n", hardware->dmi.base_board.devices_information[i].description);
+    }
+  }
 }
 
 static void show_dmi_system(int argc __unused, char** argv __unused,
