@@ -71,6 +71,8 @@ static void show_dmi_modules(int argc __unused, char** argv __unused,
 		printf("\t%s\n", CLI_DMI_CACHE);
 	if (strlen(hardware->dmi.oem_strings))
 		more_printf("\t%s\n", CLI_DMI_OEM);
+	if (hardware->dmi.hardware_security.filled)
+		printf("\t%s\n", CLI_DMI_SECURITY);
 }
 
 static void show_dmi_base_board(int argc __unused, char** argv __unused,
@@ -577,6 +579,25 @@ void show_dmi_oem_strings(int argc __unused, char** argv __unused,
 		more_printf("OEM Strings\n%s", hardware->dmi.oem_strings);
 }
 
+void show_dmi_hardware_security(int argc __unused, char** argv __unused,
+                                struct s_hardware *hardware)
+{
+	reset_more_printf();
+
+	if (!hardware->dmi.hardware_security.filled)
+		return;
+
+	more_printf("Hardware Security\n");
+	more_printf("  Power-On Password Status      : %s\n",
+		    hardware->dmi.hardware_security.power_on_passwd_status);
+	more_printf("  Keyboard Password Status      : %s\n",
+		    hardware->dmi.hardware_security.keyboard_passwd_status);
+	more_printf("  Administrator Password Status : %s\n",
+		    hardware->dmi.hardware_security.administrator_passwd_status);
+	more_printf("  Front Panel Reset Status      : %s\n",
+		    hardware->dmi.hardware_security.front_panel_reset_status);
+}
+
 struct cli_callback_descr list_dmi_show_modules[] = {
   {
     .name = CLI_DMI_BASE_BOARD,
@@ -617,6 +638,10 @@ struct cli_callback_descr list_dmi_show_modules[] = {
   {
     .name = CLI_DMI_OEM,
     .exec = show_dmi_oem_strings,
+  },
+  {
+    .name = CLI_DMI_SECURITY,
+    .exec = show_dmi_hardware_security,
   },
   {
     .name = CLI_DMI_IPMI,
