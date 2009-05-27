@@ -115,6 +115,11 @@ static void show_dmi_system(int argc __unused, char** argv __unused,
   printf(" SKU Number   : %s\n", hardware->dmi.system.sku_number);
   printf(" Family       : %s\n", hardware->dmi.system.family);
 
+  if (strlen(hardware->dmi.system.configuration_options)) {
+    printf("System Configuration Options\n");
+    printf("%s\n", hardware->dmi.system.configuration_options);
+  }
+
   printf("System Boot Information\n");
   printf(" Status       : %s\n", hardware->dmi.system.system_boot_status);
 }
