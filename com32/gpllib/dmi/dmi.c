@@ -113,6 +113,22 @@ static void dmi_system_reset_timer(uint16_t code, char* array)
 }
 
 /*
+ * 3.3.25 Hardware Security (Type 24)
+ */
+
+static const char *dmi_hardware_security_status(uint8_t code)
+{
+	static const char *status[]={
+		"Disabled", /* 0x00 */
+		"Enabled",
+		"Not Implemented",
+		"Unknown" /* 0x03 */
+	};
+
+	return status[code];
+}
+
+/*
  * 3.3.12 OEM Strings (Type 11)
  */
 
@@ -758,6 +774,22 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi *dmi)
 			dmi_system_reset_count(WORD(data+0x07), dmi->system.system_reset.reset_limit);
 			dmi_system_reset_timer(WORD(data+0x09), dmi->system.system_reset.timer_interval);
 			dmi_system_reset_timer(WORD(data+0x0B), dmi->system.system_reset.timeout);
+			break;
+		case 24: /* 3.3.25 Hardware Security */
+			if (h->length<0x05) break;
+			dmi->hardware_security.filled = true;
+			strncpy(dmi->hardware_security.power_on_passwd_status,
+				dmi_hardware_security_status(data[0x04]>>6),
+				sizeof dmi->hardware_security.power_on_passwd_status);
+			strncpy(dmi->hardware_security.keyboard_passwd_status,
+				dmi_hardware_security_status((data[0x04]>>4)&0x3),
+				sizeof dmi->hardware_security.keyboard_passwd_status);
+			strncpy(dmi->hardware_security.administrator_passwd_status,
+				dmi_hardware_security_status((data[0x04]>>2)&0x3),
+				sizeof dmi->hardware_security.administrator_passwd_status);
+			strncpy(dmi->hardware_security.front_panel_reset_status,
+				dmi_hardware_security_status(data[0x04]&0x3),
+				sizeof dmi->hardware_security.front_panel_reset_status);
 			break;
 	      case 32: /* 3.3.33 System Boot Information */
 			if (h->length < 0x0B) break;

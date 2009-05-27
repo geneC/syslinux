@@ -75,6 +75,13 @@ typedef struct {
 	 int cache_count;
 	 dmi_table dmitable;
 	 char oem_strings[OEM_STRINGS_SIZE];
+	struct {
+		char power_on_passwd_status[HARDWARE_SECURITY_SIZE];
+		char keyboard_passwd_status[HARDWARE_SECURITY_SIZE];
+		char administrator_passwd_status[HARDWARE_SECURITY_SIZE];
+		char front_panel_reset_status[HARDWARE_SECURITY_SIZE];
+		bool filled;
+	} hardware_security;
 } s_dmi;
 
 void to_dmi_header(struct dmi_header *h, uint8_t *data);
