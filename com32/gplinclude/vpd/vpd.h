@@ -15,19 +15,19 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
-enum {VPD_TABLE_PRESENT = 100, ENOVPDTABLE};
+enum { VPD_TABLE_PRESENT = 100, ENOVPDTABLE };
 
 typedef struct {
-	 char bios_build_id[10];
-	 char box_serial_number[8];
-	 char motherboard_serial_number[12];
-	 char machine_type_model[8];
-	 char bios_release_date[9];
-	 char default_flash_filename[13];
-	 char bios_version[255];
-	 char base_address[6];
-	 bool filled;
+    char bios_build_id[10];
+    char box_serial_number[8];
+    char motherboard_serial_number[12];
+    char machine_type_model[8];
+    char bios_release_date[9];
+    char default_flash_filename[13];
+    char bios_version[255];
+    char base_address[6];
+    bool filled;
 } s_vpd;
 
-int vpd_decode(s_vpd *vpd);
+int vpd_decode(s_vpd * vpd);
 #endif
