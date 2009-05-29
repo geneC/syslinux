@@ -22,27 +22,26 @@
 
 static inline void memset(void *buf, int ch, unsigned int len)
 {
-  asm volatile("cld; rep; stosb"
-	       : "+D" (buf), "+c" (len) : "a" (ch) : "memory");
+    asm volatile ("cld; rep; stosb":"+D" (buf), "+c"(len):"a"(ch):"memory");
 }
 
 int __start(void)
 {
-  com32sys_t inreg;
-  const char *p;
+    com32sys_t inreg;
+    const char *p;
 
-  memset(&inreg, 0, sizeof inreg);
-  inreg.eax.b[1] = 0x02;	/* Write Character */
+    memset(&inreg, 0, sizeof inreg);
+    inreg.eax.b[1] = 0x02;	/* Write Character */
 
-  for ( p = __com32.cs_cmdline ; *p ; p++ ) {
-    inreg.edx.b[0] = *p;
+    for (p = __com32.cs_cmdline; *p; p++) {
+	inreg.edx.b[0] = *p;
+	__com32.cs_intcall(0x21, &inreg, NULL);
+    }
+
+    inreg.edx.b[0] = '\r';
     __com32.cs_intcall(0x21, &inreg, NULL);
-  }
+    inreg.edx.b[0] = '\n';
+    __com32.cs_intcall(0x21, &inreg, NULL);
 
-  inreg.edx.b[0] = '\r';
-  __com32.cs_intcall(0x21, &inreg, NULL);
-  inreg.edx.b[0] = '\n';
-  __com32.cs_intcall(0x21, &inreg, NULL);
-
-  return 0;
+    return 0;
 }
