@@ -39,15 +39,17 @@
 
 static ssize_t __err_read(struct file_info *fp, void *buf, size_t count)
 {
-  (void)fp; (void)buf; (void)count;
-  errno = -EINVAL;
-  return -1;
+    (void)fp;
+    (void)buf;
+    (void)count;
+    errno = -EINVAL;
+    return -1;
 }
 
 const struct input_dev dev_error_r = {
-  .dev_magic = __DEV_MAGIC,
-  .flags     = __DEV_INPUT | __DEV_ERROR,
-  .fileflags = O_RDONLY,
-  .read      = __err_read,
-  .close     = NULL,
+    .dev_magic = __DEV_MAGIC,
+    .flags = __DEV_INPUT | __DEV_ERROR,
+    .fileflags = O_RDONLY,
+    .read = __err_read,
+    .close = NULL,
 };
