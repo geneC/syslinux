@@ -51,14 +51,14 @@
 
 char issyslinux(void);		/* Check if syslinux is running */
 
-void runsyslinuxcmd(const char *cmd); /* Run specified command */
+void runsyslinuxcmd(const char *cmd);	/* Run specified command */
 
-void gototxtmode(void); /* Change mode to text mode */
+void gototxtmode(void);		/* Change mode to text mode */
 
-void syslinux_idle(void); /* Call syslinux idle loop */
+void syslinux_idle(void);	/* Call syslinux idle loop */
 
 /* Run command line with ipappend, returns if kernel image not found
    If syslinux version too old, then defaults to runsyslinuxcmd */
-void runsyslinuximage(const char*cmd, long ipappend);
+void runsyslinuximage(const char *cmd, long ipappend);
 
 #endif
