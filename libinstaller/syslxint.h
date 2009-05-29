@@ -20,51 +20,51 @@
  */
 static inline uint8_t get_8(const unsigned char *p)
 {
-  return *(const uint8_t *)p;
+    return *(const uint8_t *)p;
 }
 
 static inline uint16_t get_16(const unsigned char *p)
 {
 #if defined(__i386__) || defined(__x86_64__)
-  /* Littleendian and unaligned-capable */
-  return *(const uint16_t *)p;
+    /* Littleendian and unaligned-capable */
+    return *(const uint16_t *)p;
 #else
-  return (uint16_t)p[0] + ((uint16_t)p[1] << 8);
+    return (uint16_t) p[0] + ((uint16_t) p[1] << 8);
 #endif
 }
 
 static inline uint32_t get_32(const unsigned char *p)
 {
 #if defined(__i386__) || defined(__x86_64__)
-  /* Littleendian and unaligned-capable */
-  return *(const uint32_t *)p;
+    /* Littleendian and unaligned-capable */
+    return *(const uint32_t *)p;
 #else
-  return (uint32_t)p[0] + ((uint32_t)p[1] << 8) +
-    ((uint32_t)p[2] << 16) + ((uint32_t)p[3] << 24);
+    return (uint32_t) p[0] + ((uint32_t) p[1] << 8) +
+	((uint32_t) p[2] << 16) + ((uint32_t) p[3] << 24);
 #endif
 }
 
 static inline void set_16(unsigned char *p, uint16_t v)
 {
 #if defined(__i386__) || defined(__x86_64__)
-  /* Littleendian and unaligned-capable */
-  *(uint16_t *)p = v;
+    /* Littleendian and unaligned-capable */
+    *(uint16_t *) p = v;
 #else
-  p[0] = (v & 0xff);
-  p[1] = ((v >> 8) & 0xff);
+    p[0] = (v & 0xff);
+    p[1] = ((v >> 8) & 0xff);
 #endif
 }
 
 static inline void set_32(unsigned char *p, uint32_t v)
 {
 #if defined(__i386__) || defined(__x86_64__)
-  /* Littleendian and unaligned-capable */
-  *(uint32_t *)p = v;
+    /* Littleendian and unaligned-capable */
+    *(uint32_t *) p = v;
 #else
-  p[0] = (v & 0xff);
-  p[1] = ((v >> 8) & 0xff);
-  p[2] = ((v >> 16) & 0xff);
-  p[3] = ((v >> 24) & 0xff);
+    p[0] = (v & 0xff);
+    p[1] = ((v >> 8) & 0xff);
+    p[2] = ((v >> 16) & 0xff);
+    p[3] = ((v >> 24) & 0xff);
 #endif
 }
 
