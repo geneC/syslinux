@@ -30,43 +30,43 @@
 #include <stdio.h>
 const char *dmi_battery_chemistry(uint8_t code)
 {
-        /* 3.3.23.1 */
-        static const char *chemistry[] = {
-                "Other", /* 0x01 */
-                "Unknown",
-                "Lead Acid",
-                "Nickel Cadmium",
-                "Nickel Metal Hydride",
-                "Lithium Ion",
-                "Zinc Air",
-                "Lithium Polymer" /* 0x08 */
-        };
+    /* 3.3.23.1 */
+    static const char *chemistry[] = {
+	"Other",		/* 0x01 */
+	"Unknown",
+	"Lead Acid",
+	"Nickel Cadmium",
+	"Nickel Metal Hydride",
+	"Lithium Ion",
+	"Zinc Air",
+	"Lithium Polymer"	/* 0x08 */
+    };
 
-        if (code >= 0x01 && code <= 0x08)
-                return chemistry[code - 0x01];
-        return out_of_spec;
+    if (code >= 0x01 && code <= 0x08)
+	return chemistry[code - 0x01];
+    return out_of_spec;
 }
 
-void dmi_battery_capacity(uint16_t code, uint8_t multiplier,char *capacity)
+void dmi_battery_capacity(uint16_t code, uint8_t multiplier, char *capacity)
 {
-        if (code == 0)
-                sprintf(capacity,"%s","Unknown");
-        else
-                sprintf(capacity,"%u mWh", code * multiplier);
+    if (code == 0)
+	sprintf(capacity, "%s", "Unknown");
+    else
+	sprintf(capacity, "%u mWh", code * multiplier);
 }
 
 void dmi_battery_voltage(uint16_t code, char *voltage)
 {
-        if (code == 0)
-                sprintf(voltage,"%s","Unknown");
-        else
-                sprintf(voltage,"%u mV", code);
+    if (code == 0)
+	sprintf(voltage, "%s", "Unknown");
+    else
+	sprintf(voltage, "%u mV", code);
 }
 
 void dmi_battery_maximum_error(uint8_t code, char *error)
 {
-        if (code == 0xFF)
-                sprintf(error,"%s","Unknown");
-        else
-                sprintf(error,"%u%%", code);
+    if (code == 0xFF)
+	sprintf(error, "%s", "Unknown");
+    else
+	sprintf(error, "%u%%", code);
 }
