@@ -38,15 +38,16 @@
 
 void mboot_solaris_dhcp_hack(void)
 {
-  void *dhcpdata;
-  size_t dhcplen;
+    void *dhcpdata;
+    size_t dhcplen;
 
-  if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK, &dhcpdata, &dhcplen)) {
-    mbinfo.drives_addr = map_data(dhcpdata, dhcplen, 4, 0);
-    if (mbinfo.drives_addr) {
-      mbinfo.drives_length = dhcplen;
-      mbinfo.boot_device = 0x20ffffff;
-      mbinfo.flags = (mbinfo.flags & ~MB_INFO_DRIVE_INFO) | MB_INFO_BOOTDEV;
+    if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK, &dhcpdata, &dhcplen)) {
+	mbinfo.drives_addr = map_data(dhcpdata, dhcplen, 4, 0);
+	if (mbinfo.drives_addr) {
+	    mbinfo.drives_length = dhcplen;
+	    mbinfo.boot_device = 0x20ffffff;
+	    mbinfo.flags =
+		(mbinfo.flags & ~MB_INFO_DRIVE_INFO) | MB_INFO_BOOTDEV;
+	}
     }
-  }
 }
