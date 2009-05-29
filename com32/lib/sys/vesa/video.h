@@ -44,23 +44,23 @@
 typedef uint16_t attr_t;
 
 struct vesa_char {
-  uint8_t ch;			/* Character */
-  uint8_t _filler;		/* Currently unused */
-  attr_t  attr;			/* Color table index */
+    uint8_t ch;			/* Character */
+    uint8_t _filler;		/* Currently unused */
+    attr_t attr;		/* Color table index */
 };
 
 /* Pixel formats in order of decreasing preference; PXF_NONE should be last */
 /* BGR24 is preferred over BGRA32 since the I/O overhead is smaller. */
 enum vesa_pixel_format {
-  PXF_BGR24,			/* 24-bit BGR */
-  PXF_BGRA32,			/* 32-bit BGRA */
-  PXF_LE_RGB16_565,		/* 16-bit littleendian 5:6:5 RGB */
-  PXF_LE_RGB15_555,		/* 15-bit littleendian 5:5:5 RGB */
-  PXF_NONE
+    PXF_BGR24,			/* 24-bit BGR */
+    PXF_BGRA32,			/* 32-bit BGRA */
+    PXF_LE_RGB16_565,		/* 16-bit littleendian 5:6:5 RGB */
+    PXF_LE_RGB15_555,		/* 15-bit littleendian 5:5:5 RGB */
+    PXF_NONE
 };
 extern enum vesa_pixel_format __vesacon_pixel_format;
 extern unsigned int __vesacon_bytes_per_pixel;
-typedef const void * (*__vesacon_format_pixels_t)(void *, const uint32_t *,
+typedef const void *(*__vesacon_format_pixels_t) (void *, const uint32_t *,
 						  size_t);
 extern __vesacon_format_pixels_t __vesacon_format_pixels;
 extern const __vesacon_format_pixels_t __vesacon_format_pixels_list[PXF_NONE];
@@ -73,7 +73,7 @@ extern uint32_t __vesacon_background[VIDEO_Y_SIZE][VIDEO_X_SIZE];
 extern uint32_t __vesacon_shadowfb[VIDEO_Y_SIZE][VIDEO_X_SIZE];
 
 extern const uint16_t __vesacon_srgb_to_linear[256];
-extern const uint8_t  __vesacon_linear_to_srgb[4080];
+extern const uint8_t __vesacon_linear_to_srgb[4080];
 
 int __vesacon_init_background(void);
 int vesacon_load_background(const char *);
