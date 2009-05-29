@@ -9,8 +9,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef ptrdiff_t	ssize_t;
-typedef int		mode_t;
-typedef size_t		off_t;
+typedef ptrdiff_t ssize_t;
+typedef int mode_t;
+typedef size_t off_t;
 
 #endif
