@@ -14,10 +14,10 @@
 /* This only returns true or false */
 static inline int memcmp(const void *__m1, const void *__m2, unsigned int __n)
 {
-  _Bool rv;
-  asm volatile("cld ; repe ; cmpsb ; setne %0"
-	       : "=abd" (rv), "+D" (__m1), "+S" (__m2), "+c" (__n));
-  return rv;
+    _Bool rv;
+    asm volatile ("cld ; repe ; cmpsb ; setne %0":"=abd" (rv), "+D"(__m1),
+		  "+S"(__m2), "+c"(__n));
+    return rv;
 }
 
 #endif /* _STRING_H */
