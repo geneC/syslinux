@@ -13,6 +13,6 @@ typedef unsigned int size_t;
 #endif
 
 #define _PTRDIFF_T
-typedef signed int   ptrdiff_t;
+typedef signed int ptrdiff_t;
 
 #endif /* _BITSIZE_STDDEF_H */
