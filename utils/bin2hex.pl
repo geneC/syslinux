@@ -26,12 +26,15 @@
 ##
 ## -----------------------------------------------------------------------
 
-eval { use bytes; }; eval { binmode STDIN; };
+eval { use bytes; };
+eval { binmode STDIN; };
 
 $len = 0;
 while ( read(STDIN,$ch,1) ) {
     $cc = ord($ch);
-    $len += printf ("%x", $cc);
+    $s = sprintf("%x", $cc);
+    print $s;
+    $len += length($s);
     if ( $len > 72 ) {
 	print "\n";
 	$len = 0;

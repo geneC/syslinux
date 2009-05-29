@@ -2,6 +2,8 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 3.82:
+
 Changes in 3.81:
 	* Shuffler: fix bug in real-mode entry.  This affected a
 	  number of modules, probably in relatively unimportant ways,
