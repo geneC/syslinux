@@ -23,38 +23,37 @@
 
 static inline void memset(void *buf, int ch, unsigned int len)
 {
-  asm volatile("cld; rep; stosb"
-	       : "+D" (buf), "+c" (len) : "a" (ch) : "memory");
+    asm volatile ("cld; rep; stosb":"+D" (buf), "+c"(len):"a"(ch):"memory");
 }
 
 int putchar(int ch)
 {
-  com32sys_t regs;
+    com32sys_t regs;
 
-  memset(&regs, 0, sizeof regs);
+    memset(&regs, 0, sizeof regs);
 
-  if ( ch == '\n' ) {
-    /* \n -> \r\n */
-    putchar('\r');
-  }
+    if (ch == '\n') {
+	/* \n -> \r\n */
+	putchar('\r');
+    }
 
-  regs.eax.b[1] = 0x02;
-  regs.edx.b[0] = ch;
-  __com32.cs_intcall(0x21, &regs, NULL);
+    regs.eax.b[1] = 0x02;
+    regs.edx.b[0] = ch;
+    __com32.cs_intcall(0x21, &regs, NULL);
 
-  return ch;
+    return ch;
 }
 
 /* Note: doesn't put '\n' like the stdc version does */
 int puts(const char *s)
 {
-  int count = 0;
+    int count = 0;
 
-  while ( *s ) {
-    putchar(*s);
-    count++;
-    s++;
-  }
+    while (*s) {
+	putchar(*s);
+	count++;
+	s++;
+    }
 
-  return count;
+    return count;
 }
