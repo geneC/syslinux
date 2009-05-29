@@ -27,31 +27,31 @@
  */
 
 struct multiboot_header {
-  /* Must be MULTIBOOT_MAGIC - see below.  */
-  uint32_t magic;
+    /* Must be MULTIBOOT_MAGIC - see below.  */
+    uint32_t magic;
 
-  /* Feature flags - see below.  */
-  uint32_t flags;
+    /* Feature flags - see below.  */
+    uint32_t flags;
 
-  /*
-   * Checksum
-   *
-   * The above fields plus this one must equal 0 mod 2^32.
-   */
-  uint32_t checksum;
+    /*
+     * Checksum
+     *
+     * The above fields plus this one must equal 0 mod 2^32.
+     */
+    uint32_t checksum;
 
-  /* These are only valid if MULTIBOOT_AOUT_KLUDGE is set.  */
-  uint32_t header_addr;
-  uint32_t load_addr;
-  uint32_t load_end_addr;
-  uint32_t bss_end_addr;
-  uint32_t entry_addr;
+    /* These are only valid if MULTIBOOT_AOUT_KLUDGE is set.  */
+    uint32_t header_addr;
+    uint32_t load_addr;
+    uint32_t load_end_addr;
+    uint32_t bss_end_addr;
+    uint32_t entry_addr;
 
-  /* These are only valid if MULTIBOOT_VIDEO_MODE is set.  */
-  uint32_t mode_type;
-  uint32_t width;
-  uint32_t height;
-  uint32_t depth;
+    /* These are only valid if MULTIBOOT_VIDEO_MODE is set.  */
+    uint32_t mode_type;
+    uint32_t width;
+    uint32_t height;
+    uint32_t depth;
 };
 
 /*
@@ -85,4 +85,4 @@ struct multiboot_header {
 /* This flag indicates the use of the address fields in the header.  */
 #define MULTIBOOT_AOUT_KLUDGE		0x00010000
 
-#endif	/* MBOOT_MB_HEADER_H */
+#endif /* MBOOT_MB_HEADER_H */

@@ -23,16 +23,16 @@
 #define SYSTEM_FAMILY_SIZE		32
 
 typedef struct {
-char manufacturer[SYSTEM_MANUFACTURER_SIZE];
-char product_name[SYSTEM_PRODUCT_NAME_SIZE];
-char version[SYSTEM_VERSION_SIZE];
-char serial[SYSTEM_SERIAL_SIZE];
-char uuid[SYSTEM_UUID_SIZE];
-char wakeup_type[SYSTEM_WAKEUP_TYPE_SIZE];
-char sku_number[SYSTEM_SKU_NUMBER_SIZE];
-char family[SYSTEM_FAMILY_SIZE];
+    char manufacturer[SYSTEM_MANUFACTURER_SIZE];
+    char product_name[SYSTEM_PRODUCT_NAME_SIZE];
+    char version[SYSTEM_VERSION_SIZE];
+    char serial[SYSTEM_SERIAL_SIZE];
+    char uuid[SYSTEM_UUID_SIZE];
+    char wakeup_type[SYSTEM_WAKEUP_TYPE_SIZE];
+    char sku_number[SYSTEM_SKU_NUMBER_SIZE];
+    char family[SYSTEM_FAMILY_SIZE];
 /* The filled field have to be set to true when the dmitable implement that item */
-bool filled;
+    bool filled;
 } s_system;
 
 #endif

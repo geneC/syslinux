@@ -33,9 +33,9 @@
 
 #include <stdlib.h>
 
-extern __noreturn (*__exit_handler)(int);
+extern __noreturn(*__exit_handler) (int);
 
 __noreturn exit(int rv)
 {
-  __exit_handler(rv);
+    __exit_handler(rv);
 }

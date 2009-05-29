@@ -38,86 +38,85 @@
 
 static bool __constfunc cpu_has_cpuid(void)
 {
-  return cpu_has_eflag(X86_EFLAGS_ID);
+    return cpu_has_eflag(X86_EFLAGS_ID);
 }
 
 static bool __constfunc cpu_has_level(uint32_t level)
 {
-  uint32_t group;
-  uint32_t limit;
+    uint32_t group;
+    uint32_t limit;
 
-  if (!cpu_has_cpuid())
-    return false;
+    if (!cpu_has_cpuid())
+	return false;
 
-  group = level & 0xffff0000;
-  limit = cpuid_eax(group);
+    group = level & 0xffff0000;
+    limit = cpuid_eax(group);
 
-  if ((limit & 0xffff0000) != group)
-    return false;
+    if ((limit & 0xffff0000) != group)
+	return false;
 
-  if (level > limit)
-    return false;
+    if (level > limit)
+	return false;
 
-  return true;
+    return true;
 }
 
 /* This only supports feature groups 0 and 1, corresponding to the
    Intel and AMD EDX bit vectors.  We can add more later if need be. */
 static bool __constfunc cpu_has_feature(int x)
 {
-  uint32_t level = ((x & 1) << 31) | 1;
+    uint32_t level = ((x & 1) << 31) | 1;
 
-  return cpu_has_level(level) && ((cpuid_edx(level) >> (x & 31) & 1));
+    return cpu_has_level(level) && ((cpuid_edx(level) >> (x & 31) & 1));
 }
 
 /* XXX: this really should be librarized */
 static void boot_args(char **args)
 {
-  int len = 0;
-  char **pp;
-  const char *p;
-  char c, *q, *str;
+    int len = 0;
+    char **pp;
+    const char *p;
+    char c, *q, *str;
 
-  for (pp = args; *pp; pp++)
-    len += strlen(*pp);
+    for (pp = args; *pp; pp++)
+	len += strlen(*pp);
 
-  q = str = alloca(len+1);
-  for (pp = args; *pp; pp++) {
-    p = *pp;
-    while ((c = *p++))
-      *q++ = c;
-  }
-  *q = '\0';
+    q = str = alloca(len + 1);
+    for (pp = args; *pp; pp++) {
+	p = *pp;
+	while ((c = *p++))
+	    *q++ = c;
+    }
+    *q = '\0';
 
-  if (!str[0])
-    syslinux_run_default();
-  else
-    syslinux_run_command(str);
+    if (!str[0])
+	syslinux_run_default();
+    else
+	syslinux_run_command(str);
 }
 
 int main(int argc, char *argv[])
 {
-  char **args[3];
-  int i;
-  int n;
+    char **args[3];
+    int i;
+    int n;
 
-  args[0] = &argv[1];
-  n = 1;
-  for (i = 1; i < argc; i++) {
-    if (!strcmp(argv[i], "--")) {
-      argv[i] = NULL;
-      args[n++] = &argv[i+1];
+    args[0] = &argv[1];
+    n = 1;
+    for (i = 1; i < argc; i++) {
+	if (!strcmp(argv[i], "--")) {
+	    argv[i] = NULL;
+	    args[n++] = &argv[i + 1];
+	}
+	if (n >= 3)
+	    break;
     }
-    if (n >= 3)
-      break;
-  }
-  while (n < 3) {
-    args[n] = args[n-1];
-    n++;
-  }
+    while (n < 3) {
+	args[n] = args[n - 1];
+	n++;
+    }
 
-  boot_args(cpu_has_feature(X86_FEATURE_LM)  ? args[0] :
-	    cpu_has_feature(X86_FEATURE_PAE) ? args[1] :
-	    args[2]);
-  return -1;
+    boot_args(cpu_has_feature(X86_FEATURE_LM) ? args[0] :
+	      cpu_has_feature(X86_FEATURE_PAE) ? args[1] : args[2]);
+    return -1;
 }

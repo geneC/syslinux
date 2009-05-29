@@ -42,8 +42,8 @@
 #define BASE64_MIME	('+' + ('/' << 8))
 #define BASE64_SAFE	('-' + ('_' << 8))
 #define BASE64_CRYPT	('.' + ('/' << 8))
-#define BASE64_URL	('*' + ('-' << 8)) /* Haven't seen myself */
-#define BASE64_REGEX	('|' + ('-' << 8)) /* Ditto... */
+#define BASE64_URL	('*' + ('-' << 8))	/* Haven't seen myself */
+#define BASE64_REGEX	('|' + ('-' << 8))	/* Ditto... */
 
 size_t genbase64(char *output, const void *digest, size_t size, int flags);
 size_t unbase64(unsigned char *, size_t, const char *);

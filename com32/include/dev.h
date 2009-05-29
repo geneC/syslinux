@@ -45,11 +45,11 @@ __extern int opendev(const struct input_dev *, const struct output_dev *, int);
 /* Common generic devices */
 
 /* Null device */
-extern const struct input_dev  dev_null_r;
+extern const struct input_dev dev_null_r;
 extern const struct output_dev dev_null_w;
 
 /* Error device */
-extern const struct input_dev  dev_error_r;
+extern const struct input_dev dev_error_r;
 extern const struct output_dev dev_error_w;
 
 #endif /* _DEV_H */

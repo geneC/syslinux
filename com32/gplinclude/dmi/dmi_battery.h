@@ -32,26 +32,26 @@
 #define BATTERY_OEM_INFO_SIZE		255
 
 typedef struct {
-char location[BATTERY_LOCATION_SIZE];
-char manufacturer[BATTERY_MANUFACTURER_SIZE];
-char manufacture_date[BATTERY_MANUFACTURE_DATE_SIZE];
-char serial[BATTERY_SERIAL_SIZE];
-char name[BATTERY_DEVICE_NAME_SIZE];
-char chemistry[BATTERY_CHEMISTRY_SIZE];
-char design_capacity[BATTERY_CAPACITY_SIZE];
-char design_voltage[BATTERY_DESIGN_VOLTAGE_SIZE];
-char sbds[BATTERY_SBDS_SIZE];
-char sbds_serial[BATTERY_SBDS_SERIAL_SIZE];
-char maximum_error[BATTERY_MAXIMUM_ERROR_SIZE];
-char sbds_manufacture_date[BATTERY_SBDS_MANUFACTURE_DATE_SIZE];
-char sbds_chemistry[BATTERY_SBDS_CHEMISTRY_SIZE];
-char oem_info[BATTERY_OEM_INFO_SIZE];
+    char location[BATTERY_LOCATION_SIZE];
+    char manufacturer[BATTERY_MANUFACTURER_SIZE];
+    char manufacture_date[BATTERY_MANUFACTURE_DATE_SIZE];
+    char serial[BATTERY_SERIAL_SIZE];
+    char name[BATTERY_DEVICE_NAME_SIZE];
+    char chemistry[BATTERY_CHEMISTRY_SIZE];
+    char design_capacity[BATTERY_CAPACITY_SIZE];
+    char design_voltage[BATTERY_DESIGN_VOLTAGE_SIZE];
+    char sbds[BATTERY_SBDS_SIZE];
+    char sbds_serial[BATTERY_SBDS_SERIAL_SIZE];
+    char maximum_error[BATTERY_MAXIMUM_ERROR_SIZE];
+    char sbds_manufacture_date[BATTERY_SBDS_MANUFACTURE_DATE_SIZE];
+    char sbds_chemistry[BATTERY_SBDS_CHEMISTRY_SIZE];
+    char oem_info[BATTERY_OEM_INFO_SIZE];
 /* The filled field have to be set to true when the dmitable implement that item */
-bool filled;
+    bool filled;
 } s_battery;
 
 const char *dmi_battery_chemistry(uint8_t code);
-void dmi_battery_capacity(uint16_t code, uint8_t multiplier,char *capacity);
+void dmi_battery_capacity(uint16_t code, uint8_t multiplier, char *capacity);
 void dmi_battery_voltage(uint16_t code, char *voltage);
 void dmi_battery_maximum_error(uint8_t code, char *error);
 #endif

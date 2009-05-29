@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-TYPE NAME (const char *nptr)
+TYPE NAME(const char *nptr)
 {
-  return (TYPE) strntoumax(nptr, (char **)NULL, 10, ~(size_t)0);
+    return (TYPE) strntoumax(nptr, (char **)NULL, 10, ~(size_t) 0);
 }

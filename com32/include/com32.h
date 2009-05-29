@@ -48,27 +48,27 @@
  * __farcall(seg, offs, source_regs, return_regs)
  */
 typedef union {
-  uint32_t l;
-  uint16_t w[2];
-  uint8_t  b[4];
+    uint32_t l;
+    uint16_t w[2];
+    uint8_t b[4];
 } reg32_t;
 
 typedef struct {
-  uint16_t gs;			/* Offset  0 */
-  uint16_t fs;			/* Offset  2 */
-  uint16_t es;			/* Offset  4 */
-  uint16_t ds;			/* Offset  6 */
+    uint16_t gs;		/* Offset  0 */
+    uint16_t fs;		/* Offset  2 */
+    uint16_t es;		/* Offset  4 */
+    uint16_t ds;		/* Offset  6 */
 
-  reg32_t edi;			/* Offset  8 */
-  reg32_t esi;			/* Offset 12 */
-  reg32_t ebp;			/* Offset 16 */
-  reg32_t _unused_esp;		/* Offset 20 */
-  reg32_t ebx;			/* Offset 24 */
-  reg32_t edx;			/* Offset 28 */
-  reg32_t ecx;			/* Offset 32 */
-  reg32_t eax;			/* Offset 36 */
+    reg32_t edi;		/* Offset  8 */
+    reg32_t esi;		/* Offset 12 */
+    reg32_t ebp;		/* Offset 16 */
+    reg32_t _unused_esp;	/* Offset 20 */
+    reg32_t ebx;		/* Offset 24 */
+    reg32_t edx;		/* Offset 28 */
+    reg32_t ecx;		/* Offset 32 */
+    reg32_t eax;		/* Offset 36 */
 
-  reg32_t eflags;		/* Offset 40 */
+    reg32_t eflags;		/* Offset 40 */
 } com32sys_t;
 
 /* EFLAGS definitions */
@@ -91,22 +91,22 @@ typedef struct {
 #define EFLAGS_ID		0x00200000
 
 extern struct com32_sys_args {
-  uint32_t cs_sysargs;
-  char *cs_cmdline;
-  void __cdecl (*cs_intcall)(uint8_t, const com32sys_t *, com32sys_t *);
-  void *cs_bounce;
-  uint32_t cs_bounce_size;
-  void __cdecl (*cs_farcall)(uint32_t, const com32sys_t *, com32sys_t *);
-  int __cdecl (*cs_cfarcall)(uint32_t, const void *, uint32_t);
-  uint32_t cs_memsize;
+    uint32_t cs_sysargs;
+    char *cs_cmdline;
+    void __cdecl(*cs_intcall) (uint8_t, const com32sys_t *, com32sys_t *);
+    void *cs_bounce;
+    uint32_t cs_bounce_size;
+    void __cdecl(*cs_farcall) (uint32_t, const com32sys_t *, com32sys_t *);
+    int __cdecl(*cs_cfarcall) (uint32_t, const void *, uint32_t);
+    uint32_t cs_memsize;
 } __com32;
 
 /*
  * System call wrapper functions
  */
-void __intcall(uint8_t __i, const com32sys_t *__sr, com32sys_t *__dr);
+void __intcall(uint8_t __i, const com32sys_t * __sr, com32sys_t * __dr);
 void __farcall(uint16_t __cs, uint16_t __ip,
-	       const com32sys_t *__sr, com32sys_t *__dr);
+	       const com32sys_t * __sr, com32sys_t * __dr);
 int __cfarcall(uint16_t __cs, uint16_t __ip,
 	       const void *__stack, uint32_t __stack_size);
 extern const com32sys_t __com32_zero_regs;
@@ -123,53 +123,52 @@ extern const com32sys_t __com32_zero_regs;
  */
 static inline uint16_t SEG(const volatile void *__p)
 {
-  return (uint16_t)(((uintptr_t)__p) >> 4);
+    return (uint16_t) (((uintptr_t) __p) >> 4);
 }
 
 static inline uint16_t OFFS(const volatile void *__p)
 {
-  /* The double cast here is to shut up gcc */
-  return (uint16_t)(uintptr_t)__p & 0x000F;
+    /* The double cast here is to shut up gcc */
+    return (uint16_t) (uintptr_t) __p & 0x000F;
 }
 
 static inline uint16_t OFFS_WRT(const volatile void *__p, uint16_t seg)
 {
-  return (uint16_t)((uintptr_t)__p - ((uintptr_t)seg << 4));
+    return (uint16_t) ((uintptr_t) __p - ((uintptr_t) seg << 4));
 }
 
 static inline int OFFS_VALID(const volatile void *__p, uint16_t seg)
 {
-  uintptr_t __segstart = (uintptr_t)seg << 4;
-  uintptr_t __ptr = (uintptr_t)__p;
+    uintptr_t __segstart = (uintptr_t) seg << 4;
+    uintptr_t __ptr = (uintptr_t) __p;
 
-  return (__ptr >= __segstart) && (__ptr <= __segstart+0xffff);
+    return (__ptr >= __segstart) && (__ptr <= __segstart + 0xffff);
 }
 
 static inline void *MK_PTR(uint16_t __seg, uint16_t __offs)
 {
-  return (void *)((__seg << 4) + __offs);
+    return (void *)((__seg << 4) + __offs);
 }
 
 /* Some tools to handle 16:16 far pointers in memory */
 
 struct __far_ptr {
-  uint32_t __ptr;
-} __attribute__((packed));
+    uint32_t __ptr;
+} __attribute__ ((packed));
 
 typedef struct __far_ptr far_ptr_t;
 
-
 static inline void *GET_PTR(far_ptr_t __fptr)
 {
-  return MK_PTR(__fptr.__ptr >> 16, __fptr.__ptr);
+    return MK_PTR(__fptr.__ptr >> 16, __fptr.__ptr);
 }
 
 static inline far_ptr_t FAR_PTR(void *__ptr)
 {
-  far_ptr_t __fptr;
+    far_ptr_t __fptr;
 
-  __fptr.__ptr = (SEG(__ptr) << 16) + OFFS(__ptr);
-  return __fptr;
+    __fptr.__ptr = (SEG(__ptr) << 16) + OFFS(__ptr);
+    return __fptr;
 }
 
 #endif /* _COM32_H */

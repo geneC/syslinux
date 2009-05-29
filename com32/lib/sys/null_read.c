@@ -39,14 +39,16 @@
 
 static ssize_t __null_read(struct file_info *fp, void *buf, size_t count)
 {
-  (void)fp; (void)buf; (void)count;
-  return 0;
+    (void)fp;
+    (void)buf;
+    (void)count;
+    return 0;
 }
 
 const struct input_dev dev_null_r = {
-  .dev_magic = __DEV_MAGIC,
-  .flags     = __DEV_INPUT | __DEV_NULL,
-  .fileflags = O_RDONLY,
-  .read      = __null_read,
-  .close     = NULL,
+    .dev_magic = __DEV_MAGIC,
+    .flags = __DEV_INPUT | __DEV_NULL,
+    .fileflags = O_RDONLY,
+    .read = __null_read,
+    .close = NULL,
 };

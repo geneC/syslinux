@@ -36,11 +36,11 @@
 
 void syslinux_free_movelist(struct syslinux_movelist *list)
 {
-  struct syslinux_movelist *m;
+    struct syslinux_movelist *m;
 
-  while (list) {
-    m = list;
-    list = list->next;
-    free(m);
-  }
+    while (list) {
+	m = list;
+	list = list->next;
+	free(m);
+    }
 }

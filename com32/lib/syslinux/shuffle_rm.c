@@ -76,96 +76,96 @@ enum seg_index { R_ES, R_CS, R_SS, R_DS, R_FS, R_GS };
 
 int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
 			     struct syslinux_memmap *memmap,
-			     uint16_t bootflags,
-			     struct syslinux_rm_regs *regs)
+			     uint16_t bootflags, struct syslinux_rm_regs *regs)
 {
-  const struct syslinux_rm_regs_alt {
-    uint16_t seg[6];
-    uint32_t gpr[8];
-    uint32_t csip;
-    bool sti;
-  } *rp;
-  int i, rv;
-  uint8_t handoff_code[8+5*5+8*6+1+5], *p;
-  uint16_t off;
-  struct syslinux_memmap *tmap;
-  addr_t regstub, stublen;
-  /* Assign GPRs for each sreg, don't use AX and SP */
-  static const uint8_t gpr_for_seg[6] = { R_CX, R_DX, R_BX, R_BP, R_SI, R_DI };
+    const struct syslinux_rm_regs_alt {
+	uint16_t seg[6];
+	uint32_t gpr[8];
+	uint32_t csip;
+	bool sti;
+    } *rp;
+    int i, rv;
+    uint8_t handoff_code[8 + 5 * 5 + 8 * 6 + 1 + 5], *p;
+    uint16_t off;
+    struct syslinux_memmap *tmap;
+    addr_t regstub, stublen;
+    /* Assign GPRs for each sreg, don't use AX and SP */
+    static const uint8_t gpr_for_seg[6] =
+	{ R_CX, R_DX, R_BX, R_BP, R_SI, R_DI };
 
-  tmap = syslinux_target_memmap(fraglist, memmap);
-  if (!tmap)
-    return -1;
+    tmap = syslinux_target_memmap(fraglist, memmap);
+    if (!tmap)
+	return -1;
 
-  /*
-   * Search for a good place to put the real-mode register stub.
-   * We prefer it as low as possible above 0x800.  KVM barfs horribly
-   * if we're not aligned to a paragraph boundary, so set the alignment
-   * appropriately.
-   */
-  regstub = 0x800;
-  stublen = sizeof handoff_code;
-  rv = syslinux_memmap_find(tmap, SMT_FREE, &regstub, &stublen, 16);
-
-  if (rv || (regstub > 0x100000 - sizeof handoff_code)) {
     /*
-     * Uh-oh.  This isn't real-mode accessible memory.
-     * It might be possible to do something insane here like
-     * putting the stub in the IRQ vectors, or in the 0x5xx segment.
-     * This code tries the 0x510-0x7ff range and hopes for the best.
+     * Search for a good place to put the real-mode register stub.
+     * We prefer it as low as possible above 0x800.  KVM barfs horribly
+     * if we're not aligned to a paragraph boundary, so set the alignment
+     * appropriately.
      */
-    regstub = 0x510;		/* Try the 0x5xx segment... */
+    regstub = 0x800;
     stublen = sizeof handoff_code;
     rv = syslinux_memmap_find(tmap, SMT_FREE, &regstub, &stublen, 16);
 
-    if (!rv && (regstub > 0x100000 - sizeof handoff_code))
-      rv = -1;			/* No acceptable memory found */
-  }
+    if (rv || (regstub > 0x100000 - sizeof handoff_code)) {
+	/*
+	 * Uh-oh.  This isn't real-mode accessible memory.
+	 * It might be possible to do something insane here like
+	 * putting the stub in the IRQ vectors, or in the 0x5xx segment.
+	 * This code tries the 0x510-0x7ff range and hopes for the best.
+	 */
+	regstub = 0x510;	/* Try the 0x5xx segment... */
+	stublen = sizeof handoff_code;
+	rv = syslinux_memmap_find(tmap, SMT_FREE, &regstub, &stublen, 16);
 
-  syslinux_free_memmap(tmap);
-  if (rv)
-    return -1;
+	if (!rv && (regstub > 0x100000 - sizeof handoff_code))
+	    rv = -1;		/* No acceptable memory found */
+    }
 
-  /* Build register-setting stub */
-  p = handoff_code;
-  rp = (const struct syslinux_rm_regs_alt *)regs;
+    syslinux_free_memmap(tmap);
+    if (rv)
+	return -1;
 
-  /* Set up GPRs with segment registers - don't use AX */
-  for (i = 0; i < 6; i++) {
-    if (i != R_CS)
-      MOV_TO_R16(p, gpr_for_seg[i], rp->seg[i]);
-  }
+    /* Build register-setting stub */
+    p = handoff_code;
+    rp = (const struct syslinux_rm_regs_alt *)regs;
 
-  /* Actual transition to real mode */
-  ST32(p, 0xeac0220f);			/* MOV CR0,EAX; JMP FAR */
-  off = (p-handoff_code)+4;
-  ST16(p, off);				/* Offset */
-  ST16(p,regstub >> 4);			/* Segment */
+    /* Set up GPRs with segment registers - don't use AX */
+    for (i = 0; i < 6; i++) {
+	if (i != R_CS)
+	    MOV_TO_R16(p, gpr_for_seg[i], rp->seg[i]);
+    }
 
-  /* Load SS and ESP immediately */
-  MOV_TO_SEG(p, R_SS, R_BX);
-  MOV_TO_R32(p, R_SP, rp->gpr[R_SP]);
+    /* Actual transition to real mode */
+    ST32(p, 0xeac0220f);	/* MOV CR0,EAX; JMP FAR */
+    off = (p - handoff_code) + 4;
+    ST16(p, off);		/* Offset */
+    ST16(p, regstub >> 4);	/* Segment */
 
-  /* Load the other segments */
-  MOV_TO_SEG(p, R_ES, R_CX);
-  MOV_TO_SEG(p, R_DS, R_BP);
-  MOV_TO_SEG(p, R_FS, R_SI);
-  MOV_TO_SEG(p, R_GS, R_DI);
+    /* Load SS and ESP immediately */
+    MOV_TO_SEG(p, R_SS, R_BX);
+    MOV_TO_R32(p, R_SP, rp->gpr[R_SP]);
 
-  for (i = 0; i < 8; i++) {
-    if (i != R_SP)
-      MOV_TO_R32(p, i, rp->gpr[i]);
-  }
+    /* Load the other segments */
+    MOV_TO_SEG(p, R_ES, R_CX);
+    MOV_TO_SEG(p, R_DS, R_BP);
+    MOV_TO_SEG(p, R_FS, R_SI);
+    MOV_TO_SEG(p, R_GS, R_DI);
 
-  ST8(p, rp->sti ? 0xfb : 0xfa);	/* STI/CLI */
+    for (i = 0; i < 8; i++) {
+	if (i != R_SP)
+	    MOV_TO_R32(p, i, rp->gpr[i]);
+    }
 
-  ST8(p, 0xea);				/* JMP FAR */
-  ST32(p, rp->csip);
+    ST8(p, rp->sti ? 0xfb : 0xfa);	/* STI/CLI */
 
-  /* Add register-setting stub to shuffle list */
-  if (syslinux_add_movelist(&fraglist, regstub, (addr_t)handoff_code,
-			    sizeof handoff_code))
-    return -1;
+    ST8(p, 0xea);		/* JMP FAR */
+    ST32(p, rp->csip);
 
-  return syslinux_do_shuffle(fraglist, memmap, regstub, 0, bootflags);
+    /* Add register-setting stub to shuffle list */
+    if (syslinux_add_movelist(&fraglist, regstub, (addr_t) handoff_code,
+			      sizeof handoff_code))
+	return -1;
+
+    return syslinux_do_shuffle(fraglist, memmap, regstub, 0, bootflags);
 }

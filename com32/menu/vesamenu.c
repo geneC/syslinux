@@ -27,16 +27,16 @@
 
 int draw_background(const char *what)
 {
-  if (!what)
-    return vesacon_default_background();
-  else if (what[0] == '#')
-    return vesacon_set_background(parse_argb((char **)&what));
-  else
-    return vesacon_load_background(what);
+    if (!what)
+	return vesacon_default_background();
+    else if (what[0] == '#')
+	return vesacon_set_background(parse_argb((char **)&what));
+    else
+	return vesacon_load_background(what);
 }
 
 int main(int argc, char *argv[])
 {
-  openconsole(&dev_rawcon_r, &dev_vesaserial_w);
-  return menu_main(argc, argv);
+    openconsole(&dev_rawcon_r, &dev_vesaserial_w);
+    return menu_main(argc, argv);
 }

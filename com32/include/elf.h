@@ -8,4 +8,4 @@
 #include <sys/elf32.h>
 #include <sys/elf64.h>
 
-#endif				/* _ELF_H */
+#endif /* _ELF_H */

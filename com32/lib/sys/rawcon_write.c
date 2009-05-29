@@ -37,30 +37,31 @@
 #include <minmax.h>
 #include "file.h"
 
-static ssize_t __rawcon_write(struct file_info *fp, const void *buf, size_t count)
+static ssize_t __rawcon_write(struct file_info *fp, const void *buf,
+			      size_t count)
 {
-  com32sys_t ireg;
-  const char *bufp = buf;
-  size_t n = 0;
+    com32sys_t ireg;
+    const char *bufp = buf;
+    size_t n = 0;
 
-  (void)fp;
+    (void)fp;
 
-  memset(&ireg, 0, sizeof ireg);
-  ireg.eax.b[1] = 0x02;
+    memset(&ireg, 0, sizeof ireg);
+    ireg.eax.b[1] = 0x02;
 
-  while ( count-- ) {
-    ireg.edx.b[0] = *bufp++;
-    __intcall(0x21, &ireg, NULL);
-    n++;
-  }
+    while (count--) {
+	ireg.edx.b[0] = *bufp++;
+	__intcall(0x21, &ireg, NULL);
+	n++;
+    }
 
-  return n;
+    return n;
 }
 
 const struct output_dev dev_rawcon_w = {
-  .dev_magic  = __DEV_MAGIC,
-  .flags      = __DEV_TTY | __DEV_OUTPUT,
-  .fileflags  = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
-  .write      = __rawcon_write,
-  .close      = NULL,
+    .dev_magic = __DEV_MAGIC,
+    .flags = __DEV_TTY | __DEV_OUTPUT,
+    .fileflags = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
+    .write = __rawcon_write,
+    .close = NULL,
 };

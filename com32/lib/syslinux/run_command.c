@@ -32,16 +32,16 @@
 
 __noreturn syslinux_run_command(const char *command)
 {
-  static com32sys_t ireg;
+    static com32sys_t ireg;
 
-  strcpy(__com32.cs_bounce, command);
+    strcpy(__com32.cs_bounce, command);
 
-  ireg.eax.w[0] = 0x0003;
-  ireg.es = SEG(__com32.cs_bounce);
-  ireg.ebx.w[0] = OFFS(__com32.cs_bounce);
+    ireg.eax.w[0] = 0x0003;
+    ireg.es = SEG(__com32.cs_bounce);
+    ireg.ebx.w[0] = OFFS(__com32.cs_bounce);
 
-  __intcall(0x22, &ireg, NULL);
+    __intcall(0x22, &ireg, NULL);
 
-  /* Should not return even on failure */
-  for(;;);
+    /* Should not return even on failure */
+    for (;;) ;
 }

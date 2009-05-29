@@ -8,16 +8,16 @@
 
 char *stpcpy(char *dst, const char *src)
 {
-  char *q = dst;
-  const char *p = src;
-  char ch;
+    char *q = dst;
+    const char *p = src;
+    char ch;
 
-  for (;;) {
-    *q = ch = *p++;
-    if ( !ch )
-      break;
-    q++;
-  }
+    for (;;) {
+	*q = ch = *p++;
+	if (!ch)
+	    break;
+	q++;
+    }
 
-  return q;
+    return q;
 }

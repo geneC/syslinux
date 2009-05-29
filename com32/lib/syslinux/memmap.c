@@ -43,23 +43,23 @@
 static int syslinux_memory_map_callback(void *map, addr_t start,
 					addr_t len, bool valid)
 {
-  struct syslinux_memmap **mmap = map;
-  return syslinux_add_memmap(mmap, start, len,
-			     valid ? SMT_FREE : SMT_RESERVED);
+    struct syslinux_memmap **mmap = map;
+    return syslinux_add_memmap(mmap, start, len,
+			       valid ? SMT_FREE : SMT_RESERVED);
 }
 
 struct syslinux_memmap *syslinux_memory_map(void)
 {
-  struct syslinux_memmap *mmap;
+    struct syslinux_memmap *mmap;
 
-  mmap = syslinux_init_memmap();
-  if (!mmap)
-    return NULL;
+    mmap = syslinux_init_memmap();
+    if (!mmap)
+	return NULL;
 
-  if (syslinux_scan_memory(syslinux_memory_map_callback, &mmap)) {
-    syslinux_free_memmap(mmap);
-    return NULL;
-  }
+    if (syslinux_scan_memory(syslinux_memory_map_callback, &mmap)) {
+	syslinux_free_memmap(mmap);
+	return NULL;
+    }
 
-  return mmap;
+    return mmap;
 }

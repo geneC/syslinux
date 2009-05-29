@@ -26,21 +26,21 @@
 #define CHASSIS_OEM_INFORMATION_SIZE	32
 
 typedef struct {
-char manufacturer[CHASSIS_MANUFACTURER_SIZE];
-char type[CHASSIS_TYPE_SIZE];
-char lock[CHASSIS_LOCK_SIZE];
-char version[CHASSIS_VERSION_SIZE];
-char serial[CHASSIS_SERIAL_SIZE];
-char asset_tag[CHASSIS_ASSET_TAG_SIZE];
-char boot_up_state[CHASSIS_BOOT_UP_STATE_SIZE];
-char power_supply_state[CHASSIS_POWER_SUPPLY_STATE_SIZE];
-char thermal_state[CHASSIS_THERMAL_STATE_SIZE];
-char security_status[CHASSIS_SECURITY_STATUS_SIZE];
-char oem_information[CHASSIS_OEM_INFORMATION_SIZE];
-uint16_t  height;
-uint16_t  nb_power_cords;
+    char manufacturer[CHASSIS_MANUFACTURER_SIZE];
+    char type[CHASSIS_TYPE_SIZE];
+    char lock[CHASSIS_LOCK_SIZE];
+    char version[CHASSIS_VERSION_SIZE];
+    char serial[CHASSIS_SERIAL_SIZE];
+    char asset_tag[CHASSIS_ASSET_TAG_SIZE];
+    char boot_up_state[CHASSIS_BOOT_UP_STATE_SIZE];
+    char power_supply_state[CHASSIS_POWER_SUPPLY_STATE_SIZE];
+    char thermal_state[CHASSIS_THERMAL_STATE_SIZE];
+    char security_status[CHASSIS_SECURITY_STATUS_SIZE];
+    char oem_information[CHASSIS_OEM_INFORMATION_SIZE];
+    uint16_t height;
+    uint16_t nb_power_cords;
 /* The filled field have to be set to true when the dmitable implement that item */
-bool filled;
+    bool filled;
 } s_chassis;
 
 const char *dmi_chassis_type(uint8_t code);

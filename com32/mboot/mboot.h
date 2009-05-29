@@ -63,15 +63,15 @@
 
 static inline void error(const char *msg)
 {
-  fputs(msg, stderr);
+    fputs(msg, stderr);
 }
 
 /* mboot.c */
 extern struct multiboot_info mbinfo;
 extern struct syslinux_pm_regs regs;
 extern struct my_options {
-  bool solaris;
-  bool aout;
+    bool solaris;
+    bool aout;
 } opt;
 
 /* map.c */

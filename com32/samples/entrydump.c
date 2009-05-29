@@ -23,38 +23,38 @@
 #include <syslinux/config.h>
 
 struct stack_frame {
-  uint16_t gs, fs, es, ds;
-  uint32_t edi, esi, ebp, esp;
-  uint32_t ebx, edx, ecx, eax;
-  uint32_t eflags;
-  uint16_t ret_ip, ret_cs;
-  uint16_t pxe_ip, pxe_cs;
+    uint16_t gs, fs, es, ds;
+    uint32_t edi, esi, ebp, esp;
+    uint32_t ebx, edx, ecx, eax;
+    uint32_t eflags;
+    uint16_t ret_ip, ret_cs;
+    uint16_t pxe_ip, pxe_cs;
 };
 
 int main(void)
 {
-  const union syslinux_derivative_info *di;
-  const struct stack_frame *sf;
+    const union syslinux_derivative_info *di;
+    const struct stack_frame *sf;
 
-  openconsole(&dev_null_r, &dev_stdcon_w);
+    openconsole(&dev_null_r, &dev_stdcon_w);
 
-  di = syslinux_derivative_info();
+    di = syslinux_derivative_info();
 
-  if (di->c.filesystem != SYSLINUX_FS_PXELINUX) {
-    printf("Not running under PXELINUX (fs = %02x)\n", di->c.filesystem);
-    return 1;
-  }
+    if (di->c.filesystem != SYSLINUX_FS_PXELINUX) {
+	printf("Not running under PXELINUX (fs = %02x)\n", di->c.filesystem);
+	return 1;
+    }
 
-  sf = (const struct stack_frame *)di->pxe.stack;
+    sf = (const struct stack_frame *)di->pxe.stack;
 
-  printf("EAX: %08x  EBX: %08x  ECX: %08x  EDX: %08x\n"
-	 "ESP: %08x  EBP: %08x  ESI: %08x  EDI: %08x\n"
-	 "SS: %04x   DS: %04x   ES: %04x   FS: %04x   GS:  %04x\n"
-	 "EFLAGS: %08x   RET: %04x:%04x   PXE: %04x:%04x\n",
-	 sf->eax, sf->ebx, sf->ecx, sf->edx,
-	 sf->esp+4, sf->ebp, sf->esi, sf->edi,
-	 di->rr.r.fs, sf->ds, sf->es, sf->fs, sf->gs,
-	 sf->eflags, sf->ret_cs, sf->ret_ip, sf->pxe_cs, sf->pxe_ip);
+    printf("EAX: %08x  EBX: %08x  ECX: %08x  EDX: %08x\n"
+	   "ESP: %08x  EBP: %08x  ESI: %08x  EDI: %08x\n"
+	   "SS: %04x   DS: %04x   ES: %04x   FS: %04x   GS:  %04x\n"
+	   "EFLAGS: %08x   RET: %04x:%04x   PXE: %04x:%04x\n",
+	   sf->eax, sf->ebx, sf->ecx, sf->edx,
+	   sf->esp + 4, sf->ebp, sf->esi, sf->edi,
+	   di->rr.r.fs, sf->ds, sf->es, sf->fs, sf->gs,
+	   sf->eflags, sf->ret_cs, sf->ret_ip, sf->pxe_cs, sf->pxe_ip);
 
-  return 0;
+    return 0;
 }

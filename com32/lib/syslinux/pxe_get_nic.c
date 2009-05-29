@@ -40,22 +40,22 @@
 
 /* Returns the status code from PXE (0 on success),
    or -1 on invocation failure */
-int pxe_get_nic_type(t_PXENV_UNDI_GET_NIC_TYPE *gnt)
+int pxe_get_nic_type(t_PXENV_UNDI_GET_NIC_TYPE * gnt)
 {
-  com32sys_t regs;
+    com32sys_t regs;
 
-  memset(&regs, 0, sizeof regs);
-  regs.eax.w[0] = 0x0009;
-  regs.ebx.w[0] = PXENV_UNDI_GET_NIC_TYPE;
-  regs.es       = SEG( __com32.cs_bounce);
-  regs.edi.w[0] = OFFS( __com32.cs_bounce);
+    memset(&regs, 0, sizeof regs);
+    regs.eax.w[0] = 0x0009;
+    regs.ebx.w[0] = PXENV_UNDI_GET_NIC_TYPE;
+    regs.es = SEG(__com32.cs_bounce);
+    regs.edi.w[0] = OFFS(__com32.cs_bounce);
 
-  __intcall(0x22, &regs, &regs);
+    __intcall(0x22, &regs, &regs);
 
-  memcpy(gnt, __com32.cs_bounce, sizeof(t_PXENV_UNDI_GET_NIC_TYPE));
+    memcpy(gnt, __com32.cs_bounce, sizeof(t_PXENV_UNDI_GET_NIC_TYPE));
 
-  if (regs.eflags.l & EFLAGS_CF)
-    return -1;
+    if (regs.eflags.l & EFLAGS_CF)
+	return -1;
 
-  return gnt->Status;
+    return gnt->Status;
 }

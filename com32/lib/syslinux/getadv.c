@@ -36,33 +36,33 @@
 #include <klibc/compiler.h>
 #include <inttypes.h>
 
-const void *syslinux_getadv(int tag, size_t *size)
+const void *syslinux_getadv(int tag, size_t * size)
 {
-  const uint8_t *p;
-  size_t left, len;
+    const uint8_t *p;
+    size_t left, len;
 
-  p = syslinux_adv_ptr();
-  left = syslinux_adv_size();
+    p = syslinux_adv_ptr();
+    left = syslinux_adv_size();
 
-  while (left >= 2) {
-    uint8_t ptag = *p++;
-    size_t  plen = *p++;
-    left -= 2;
+    while (left >= 2) {
+	uint8_t ptag = *p++;
+	size_t plen = *p++;
+	left -= 2;
 
-    if (ptag == ADV_END)
-      return NULL;		/* Not found */
+	if (ptag == ADV_END)
+	    return NULL;	/* Not found */
 
-    if (left < plen)
-      return NULL;		/* Item overrun */
+	if (left < plen)
+	    return NULL;	/* Item overrun */
 
-    if (ptag == tag) {
-      *size = plen;
-      return p;
+	if (ptag == tag) {
+	    *size = plen;
+	    return p;
+	}
+
+	p += plen;
+	left -= plen;
     }
 
-    p    += plen;
-    left -= plen;
-  }
-
-  return NULL;
+    return NULL;
 }

@@ -7,23 +7,23 @@
 
 size_t strlcat(char *dst, const char *src, size_t size)
 {
-  size_t bytes = 0;
-  char *q = dst;
-  const char *p = src;
-  char ch;
+    size_t bytes = 0;
+    char *q = dst;
+    const char *p = src;
+    char ch;
 
-  while ( bytes < size && *q ) {
-    q++;
-    bytes++;
-  }
+    while (bytes < size && *q) {
+	q++;
+	bytes++;
+    }
 
-  while ( (ch = *p++) ) {
-    if ( bytes < size )
-      *q++ = ch;
+    while ((ch = *p++)) {
+	if (bytes < size)
+	    *q++ = ch;
 
-    bytes++;
-  }
+	bytes++;
+    }
 
-  *q = '\0';
-  return bytes;
+    *q = '\0';
+    return bytes;
 }

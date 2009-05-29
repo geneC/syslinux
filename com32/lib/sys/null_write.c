@@ -39,14 +39,16 @@
 
 static ssize_t __null_write(struct file_info *fp, const void *buf, size_t count)
 {
-  (void)fp; (void)buf; (void)count;
-  return count;
+    (void)fp;
+    (void)buf;
+    (void)count;
+    return count;
 }
 
 const struct output_dev dev_null_w = {
-  .dev_magic = __DEV_MAGIC,
-  .flags     = __DEV_OUTPUT | __DEV_NULL,
-  .fileflags = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
-  .write     = __null_write,
-  .close     = NULL,
+    .dev_magic = __DEV_MAGIC,
+    .flags = __DEV_OUTPUT | __DEV_NULL,
+    .fileflags = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
+    .write = __null_write,
+    .close = NULL,
 };

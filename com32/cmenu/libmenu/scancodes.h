@@ -28,7 +28,7 @@
 #define PAGEDN   81
 #define INSERT   82
 #define DELETE   83
-#define SPACEKEY 57 // Scan code for SPACE
+#define SPACEKEY 57		// Scan code for SPACE
 
 #define CTRLLT 0x73
 #define CTRLRT 0x74

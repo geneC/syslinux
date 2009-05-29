@@ -40,7 +40,7 @@
 
 void console_ansi_std(void)
 {
-  openconsole(&dev_stdcon_r, &dev_ansiserial_w);
+    openconsole(&dev_stdcon_r, &dev_ansiserial_w);
 }
 
 #else
@@ -50,35 +50,34 @@ void console_ansi_std(void)
 
 static struct termios original_termios_settings;
 
-static void __attribute__((constructor)) console_init(void)
+static void __attribute__ ((constructor)) console_init(void)
 {
-  tcgetattr(0, &original_termios_settings);
+    tcgetattr(0, &original_termios_settings);
 }
 
-static void __attribute__((destructor)) console_cleanup(void)
+static void __attribute__ ((destructor)) console_cleanup(void)
 {
-  tcsetattr(0, TCSANOW, &original_termios_settings);
+    tcsetattr(0, TCSANOW, &original_termios_settings);
 }
-
 
 void console_ansi_std(void)
 {
-  struct termios tio;
+    struct termios tio;
 
-  /* Disable stdio buffering */
-  setbuf(stdin,  NULL);
-  setbuf(stdout, NULL);
-  setbuf(stderr, NULL);
+    /* Disable stdio buffering */
+    setbuf(stdin, NULL);
+    setbuf(stdout, NULL);
+    setbuf(stderr, NULL);
 
-  /* Set the termios flag so we behave the same as libcom32 */
-  tcgetattr(0, &tio);
-  tio.c_iflag &= ~ICRNL;
-  tio.c_iflag |= IGNCR;
-  tio.c_lflag |= ICANON|ECHO;
-  if (!tio.c_oflag & OPOST)
-    tio.c_oflag = 0;
-  tio.c_oflag |= OPOST|ONLCR;
-  tcsetattr(0, TCSANOW, &tio);
+    /* Set the termios flag so we behave the same as libcom32 */
+    tcgetattr(0, &tio);
+    tio.c_iflag &= ~ICRNL;
+    tio.c_iflag |= IGNCR;
+    tio.c_lflag |= ICANON | ECHO;
+    if (!tio.c_oflag & OPOST)
+	tio.c_oflag = 0;
+    tio.c_oflag |= OPOST | ONLCR;
+    tcsetattr(0, TCSANOW, &tio);
 }
 
 #endif

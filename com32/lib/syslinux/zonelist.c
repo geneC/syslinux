@@ -60,27 +60,27 @@
  */
 struct syslinux_memmap *syslinux_init_memmap(void)
 {
-  struct syslinux_memmap *sp, *ep;
+    struct syslinux_memmap *sp, *ep;
 
-  sp = malloc(sizeof(*sp));
-  if (!sp)
-    return NULL;
+    sp = malloc(sizeof(*sp));
+    if (!sp)
+	return NULL;
 
-  ep = malloc(sizeof(*ep));
-  if (!ep) {
-    free(sp);
-    return NULL;
-  }
+    ep = malloc(sizeof(*ep));
+    if (!ep) {
+	free(sp);
+	return NULL;
+    }
 
-  sp->start = 0;
-  sp->type  = SMT_UNDEFINED;
-  sp->next  = ep;
+    sp->start = 0;
+    sp->type = SMT_UNDEFINED;
+    sp->next = ep;
 
-  ep->start = 0;		/* Wrap around... */
-  ep->type  = SMT_END;		/* End of chain */
-  ep->next  = NULL;
+    ep->start = 0;		/* Wrap around... */
+    ep->type = SMT_END;		/* End of chain */
+    ep->next = NULL;
 
-  return sp;
+    return sp;
 }
 
 /*
@@ -91,85 +91,85 @@ int syslinux_add_memmap(struct syslinux_memmap **list,
 			addr_t start, addr_t len,
 			enum syslinux_memmap_types type)
 {
-  addr_t last;
-  struct syslinux_memmap *mp, **mpp;
-  struct syslinux_memmap *range;
-  enum syslinux_memmap_types oldtype;
+    addr_t last;
+    struct syslinux_memmap *mp, **mpp;
+    struct syslinux_memmap *range;
+    enum syslinux_memmap_types oldtype;
 
 #if DEBUG
-  dprintf("Input memmap:\n");
-  syslinux_dump_memmap(stdout, *list);
+    dprintf("Input memmap:\n");
+    syslinux_dump_memmap(stdout, *list);
 #endif
 
-  /* Remove this to make len == 0 mean all of memory */
-  if (len == 0)
+    /* Remove this to make len == 0 mean all of memory */
+    if (len == 0)
+	return 0;
+
+    /* Last byte -- to avoid rollover */
+    last = start + len - 1;
+
+    mpp = list;
+    oldtype = SMT_END;		/* Impossible value */
+    while (mp = *mpp, start > mp->start && mp->type != SMT_END) {
+	oldtype = mp->type;
+	mpp = &mp->next;
+    }
+
+    if (start < mp->start || mp->type == SMT_END) {
+	if (type != oldtype) {
+	    /* Splice in a new start token */
+	    range = malloc(sizeof(*range));
+	    if (!range)
+		return -1;
+
+	    range->start = start;
+	    range->type = type;
+	    *mpp = range;
+	    range->next = mp;
+	    mpp = &range->next;
+	}
+    } else {
+	/* mp is exactly aligned with the start of our region */
+	if (type != oldtype) {
+	    /* Reclaim this entry as our own boundary marker */
+	    oldtype = mp->type;
+	    mp->type = type;
+	    mpp = &mp->next;
+	}
+    }
+
+    while (mp = *mpp, last > mp->start - 1) {
+	oldtype = mp->type;
+	*mpp = mp->next;
+	free(mp);
+    }
+
+    if (last < mp->start - 1) {
+	if (oldtype != type) {
+	    /* Need a new end token */
+	    range = malloc(sizeof(*range));
+	    if (!range)
+		return -1;
+
+	    range->start = last + 1;
+	    range->type = oldtype;
+	    *mpp = range;
+	    range->next = mp;
+	}
+    } else {
+	if (mp->type == type) {
+	    /* Merge this region with the following one */
+	    *mpp = mp->next;
+	    free(mp);
+	}
+    }
+
+#if DEBUG
+    dprintf("After adding (%#x,%#x,%d):\n", start, len, type);
+    syslinux_dump_memmap(stdout, *list);
+#endif
+
     return 0;
-
-  /* Last byte -- to avoid rollover */
-  last = start+len-1;
-
-  mpp = list;
-  oldtype = SMT_END;		/* Impossible value */
-  while (mp = *mpp, start > mp->start && mp->type != SMT_END) {
-    oldtype = mp->type;
-    mpp = &mp->next;
-  }
-
-  if (start < mp->start || mp->type == SMT_END) {
-    if (type != oldtype) {
-      /* Splice in a new start token */
-      range = malloc(sizeof(*range));
-      if (!range)
-	return -1;
-
-      range->start = start;
-      range->type  = type;
-      *mpp = range;
-      range->next = mp;
-      mpp = &range->next;
-    }
-  } else {
-    /* mp is exactly aligned with the start of our region */
-    if (type != oldtype) {
-      /* Reclaim this entry as our own boundary marker */
-      oldtype = mp->type;
-      mp->type = type;
-      mpp = &mp->next;
-    }
-  }
-
-  while (mp = *mpp, last > mp->start-1) {
-    oldtype = mp->type;
-    *mpp = mp->next;
-    free(mp);
-  }
-
-  if (last < mp->start-1) {
-    if (oldtype != type) {
-      /* Need a new end token */
-      range = malloc(sizeof(*range));
-      if (!range)
-	return -1;
-
-      range->start = last+1;
-      range->type  = oldtype;
-      *mpp = range;
-      range->next = mp;
-    }
-  } else {
-    if (mp->type == type) {
-      /* Merge this region with the following one */
-      *mpp = mp->next;
-      free(mp);
-    }
-  }
-
-#if DEBUG
-  dprintf("After adding (%#x,%#x,%d):\n", start, len, type);
-  syslinux_dump_memmap(stdout, *list);
-#endif
-
-  return 0;
 }
 
 /*
@@ -179,22 +179,22 @@ int syslinux_add_memmap(struct syslinux_memmap **list,
 enum syslinux_memmap_types syslinux_memmap_type(struct syslinux_memmap *list,
 						addr_t start, addr_t len)
 {
-  addr_t last, llast;
+    addr_t last, llast;
 
-  last = start+len-1;
+    last = start + len - 1;
 
-  while (list->type != SMT_END) {
-    llast = list->next->start-1;
-    if (list->start <= start) {
-      if (llast >= last)
-	return list->type;	/* Region has a well-defined type */
-      else if (llast >= start)
-	return SMT_ERROR;	/* Crosses region boundary */
+    while (list->type != SMT_END) {
+	llast = list->next->start - 1;
+	if (list->start <= start) {
+	    if (llast >= last)
+		return list->type;	/* Region has a well-defined type */
+	    else if (llast >= start)
+		return SMT_ERROR;	/* Crosses region boundary */
+	}
+	list = list->next;
     }
-    list = list->next;
-  }
 
-  return SMT_ERROR;		/* Internal error? */
+    return SMT_ERROR;		/* Internal error? */
 }
 
 /*
@@ -202,29 +202,29 @@ enum syslinux_memmap_types syslinux_memmap_type(struct syslinux_memmap *list,
  */
 int syslinux_memmap_largest(struct syslinux_memmap *list,
 			    enum syslinux_memmap_types type,
-			    addr_t *start, addr_t *len)
+			    addr_t * start, addr_t * len)
 {
-  addr_t size, best_size = 0;
-  struct syslinux_memmap *best = NULL;
+    addr_t size, best_size = 0;
+    struct syslinux_memmap *best = NULL;
 
-  while (list->type != SMT_END) {
-    size = list->next->start - list->start;
+    while (list->type != SMT_END) {
+	size = list->next->start - list->start;
 
-    if (list->type == type && size > best_size) {
-      best = list;
-      best_size = size;
+	if (list->type == type && size > best_size) {
+	    best = list;
+	    best_size = size;
+	}
+
+	list = list->next;
     }
 
-    list = list->next;
-  }
+    if (!best)
+	return -1;
 
-  if (!best)
-    return -1;
+    *start = best->start;
+    *len = best_size;
 
-  *start = best->start;
-  *len = best_size;
-
-  return 0;
+    return 0;
 }
 
 /*
@@ -234,30 +234,30 @@ int syslinux_memmap_largest(struct syslinux_memmap *list,
  */
 int syslinux_memmap_find(struct syslinux_memmap *list,
 			 enum syslinux_memmap_types type,
-			 addr_t *start, addr_t *len, addr_t align)
+			 addr_t * start, addr_t * len, addr_t align)
 {
-  addr_t min_start = *start;
-  addr_t min_len = *len;
+    addr_t min_start = *start;
+    addr_t min_len = *len;
 
-  while (list->type != SMT_END) {
-    if (list->type == type) {
-      addr_t xstart, xlen;
-      xstart = min_start > list->start ? min_start : list->start;
-      xstart = ALIGN_UP(xstart, align);
+    while (list->type != SMT_END) {
+	if (list->type == type) {
+	    addr_t xstart, xlen;
+	    xstart = min_start > list->start ? min_start : list->start;
+	    xstart = ALIGN_UP(xstart, align);
 
-      if (xstart < list->next->start) {
-	xlen = list->next->start - xstart;
-	if (xlen >= min_len) {
-	  *start = xstart;
-	  *len = xlen;
-	  return 0;
+	    if (xstart < list->next->start) {
+		xlen = list->next->start - xstart;
+		if (xlen >= min_len) {
+		    *start = xstart;
+		    *len = xlen;
+		    return 0;
+		}
+	    }
 	}
-      }
+	list = list->next;
     }
-    list = list->next;
-  }
 
-  return -1;			/* Not found */
+    return -1;			/* Not found */
 }
 
 /*
@@ -265,13 +265,13 @@ int syslinux_memmap_find(struct syslinux_memmap *list,
  */
 void syslinux_free_memmap(struct syslinux_memmap *list)
 {
-  struct syslinux_memmap *ml;
+    struct syslinux_memmap *ml;
 
-  while (list) {
-    ml = list;
-    list = list->next;
-    free(ml);
-  }
+    while (list) {
+	ml = list;
+	list = list->next;
+	free(ml);
+    }
 }
 
 /*
@@ -279,23 +279,23 @@ void syslinux_free_memmap(struct syslinux_memmap *list)
  */
 struct syslinux_memmap *syslinux_dup_memmap(struct syslinux_memmap *list)
 {
-  struct syslinux_memmap *newlist = NULL, **nlp = &newlist;
-  struct syslinux_memmap *ml;
+    struct syslinux_memmap *newlist = NULL, **nlp = &newlist;
+    struct syslinux_memmap *ml;
 
-  while (list) {
-    ml = malloc(sizeof(*ml));
-    if (!ml) {
-      syslinux_free_memmap(newlist);
-      return NULL;
+    while (list) {
+	ml = malloc(sizeof(*ml));
+	if (!ml) {
+	    syslinux_free_memmap(newlist);
+	    return NULL;
+	}
+	ml->start = list->start;
+	ml->type = list->type;
+	ml->next = NULL;
+	*nlp = ml;
+	nlp = &ml->next;
+
+	list = list->next;
     }
-    ml->start = list->start;
-    ml->type = list->type;
-    ml->next = NULL;
-    *nlp = ml;
-    nlp = &ml->next;
 
-    list = list->next;
-  }
-
-  return newlist;
+    return newlist;
 }

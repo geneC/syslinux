@@ -29,10 +29,10 @@
 
 void syslinux_make_bootsect(void *bs)
 {
-  struct boot_sector *bootsect = bs;
+    struct boot_sector *bootsect = bs;
 
-  memcpy(&bootsect->bsHead, &sbs->bsHead, bsHeadLen);
-  memcpy(&bootsect->bsCode, &sbs->bsCode, bsCodeLen);
+    memcpy(&bootsect->bsHead, &sbs->bsHead, bsHeadLen);
+    memcpy(&bootsect->bsCode, &sbs->bsCode, bsCodeLen);
 }
 
 /*
@@ -41,84 +41,83 @@ void syslinux_make_bootsect(void *bs)
  */
 const char *syslinux_check_bootsect(const void *bs)
 {
-  int veryold;
-  int sectorsize;
-  long long sectors, fatsectors, dsectors;
-  long long clusters;
-  int rootdirents, clustersize;
-  const struct boot_sector *sectbuf = bs;
+    int veryold;
+    int sectorsize;
+    long long sectors, fatsectors, dsectors;
+    long long clusters;
+    int rootdirents, clustersize;
+    const struct boot_sector *sectbuf = bs;
 
-  veryold = 0;
+    veryold = 0;
 
-  /* Must be 0xF0 or 0xF8..0xFF */
-  if ( get_8(&sectbuf->bsMedia) != 0xF0 &&
-       get_8(&sectbuf->bsMedia) < 0xF8 )
-    goto invalid;
+    /* Must be 0xF0 or 0xF8..0xFF */
+    if (get_8(&sectbuf->bsMedia) != 0xF0 && get_8(&sectbuf->bsMedia) < 0xF8)
+	goto invalid;
 
-  sectorsize = get_16(&sectbuf->bsBytesPerSec);
-  if ( sectorsize == SECTOR_SIZE )
-    ; /* ok */
-  else if ( sectorsize >= 512 && sectorsize <= 4096 &&
-	    (sectorsize & (sectorsize-1)) == 0 )
-    return "unsupported sectors size";
-  else
-    goto invalid;
+    sectorsize = get_16(&sectbuf->bsBytesPerSec);
+    if (sectorsize == SECTOR_SIZE) ;	/* ok */
+    else if (sectorsize >= 512 && sectorsize <= 4096 &&
+	     (sectorsize & (sectorsize - 1)) == 0)
+	return "unsupported sectors size";
+    else
+	goto invalid;
 
-  clustersize = get_8(&sectbuf->bsSecPerClust);
-  if ( clustersize == 0 || (clustersize & (clustersize-1)) )
-    goto invalid;		/* Must be nonzero and a power of 2 */
+    clustersize = get_8(&sectbuf->bsSecPerClust);
+    if (clustersize == 0 || (clustersize & (clustersize - 1)))
+	goto invalid;		/* Must be nonzero and a power of 2 */
 
-  sectors = get_16(&sectbuf->bsSectors);
-  sectors = sectors ? sectors : get_32(&sectbuf->bsHugeSectors);
+    sectors = get_16(&sectbuf->bsSectors);
+    sectors = sectors ? sectors : get_32(&sectbuf->bsHugeSectors);
 
-  dsectors = sectors - get_16(&sectbuf->bsResSectors);
+    dsectors = sectors - get_16(&sectbuf->bsResSectors);
 
-  fatsectors = get_16(&sectbuf->bsFATsecs);
-  fatsectors = fatsectors ? fatsectors : get_32(&sectbuf->bs32.FATSz32);
-  fatsectors *= get_8(&sectbuf->bsFATs);
-  dsectors -= fatsectors;
+    fatsectors = get_16(&sectbuf->bsFATsecs);
+    fatsectors = fatsectors ? fatsectors : get_32(&sectbuf->bs32.FATSz32);
+    fatsectors *= get_8(&sectbuf->bsFATs);
+    dsectors -= fatsectors;
 
-  rootdirents = get_16(&sectbuf->bsRootDirEnts);
-  dsectors -= (rootdirents+sectorsize/32-1)/sectorsize;
+    rootdirents = get_16(&sectbuf->bsRootDirEnts);
+    dsectors -= (rootdirents + sectorsize / 32 - 1) / sectorsize;
 
-  if ( dsectors < 0 || fatsectors == 0 )
-    goto invalid;
+    if (dsectors < 0 || fatsectors == 0)
+	goto invalid;
 
-  clusters = dsectors/clustersize;
+    clusters = dsectors / clustersize;
 
-  if ( clusters < 0xFFF5 ) {
-    /* FAT12 or FAT16 */
+    if (clusters < 0xFFF5) {
+	/* FAT12 or FAT16 */
 
-    if ( !get_16(&sectbuf->bsFATsecs) )
-      goto invalid;
+	if (!get_16(&sectbuf->bsFATsecs))
+	    goto invalid;
 
-    if ( get_8(&sectbuf->bs16.BootSignature) == 0x29 ) {
-      if ( !memcmp(&sectbuf->bs16.FileSysType, "FAT12   ", 8) ) {
-	if ( clusters >= 0xFF5 )
-	  return "more than 4084 clusters but claims FAT12";
-      } else if ( !memcmp(&sectbuf->bs16.FileSysType, "FAT16   ", 8) ) {
-	if ( clusters < 0xFF5 )
-	  return "less than 4084 clusters but claims FAT16";
-      } else if ( memcmp(&sectbuf->bs16.FileSysType, "FAT     ", 8) ) {
-	static char fserr[] = "filesystem type \"????????\" not supported";
-	memcpy(fserr+17, &sectbuf->bs16.FileSysType, 8);
-	return fserr;
-      }
+	if (get_8(&sectbuf->bs16.BootSignature) == 0x29) {
+	    if (!memcmp(&sectbuf->bs16.FileSysType, "FAT12   ", 8)) {
+		if (clusters >= 0xFF5)
+		    return "more than 4084 clusters but claims FAT12";
+	    } else if (!memcmp(&sectbuf->bs16.FileSysType, "FAT16   ", 8)) {
+		if (clusters < 0xFF5)
+		    return "less than 4084 clusters but claims FAT16";
+	    } else if (memcmp(&sectbuf->bs16.FileSysType, "FAT     ", 8)) {
+		static char fserr[] =
+		    "filesystem type \"????????\" not supported";
+		memcpy(fserr + 17, &sectbuf->bs16.FileSysType, 8);
+		return fserr;
+	    }
+	}
+    } else if (clusters < 0x0FFFFFF5) {
+	/* FAT32 */
+	/* Moving the FileSysType and BootSignature was a lovely stroke of M$ idiocy */
+	if (get_8(&sectbuf->bs32.BootSignature) != 0x29 ||
+	    memcmp(&sectbuf->bs32.FileSysType, "FAT32   ", 8))
+	    goto invalid;
+    } else {
+	goto invalid;
     }
-  } else if ( clusters < 0x0FFFFFF5 ) {
-    /* FAT32 */
-    /* Moving the FileSysType and BootSignature was a lovely stroke of M$ idiocy */
-    if ( get_8(&sectbuf->bs32.BootSignature) != 0x29 ||
-	 memcmp(&sectbuf->bs32.FileSysType, "FAT32   ", 8) )
-      goto invalid;
-  } else {
-    goto invalid;
-  }
 
-  return NULL;
+    return NULL;
 
- invalid:
-  return "this doesn't look like a valid FAT filesystem";
+invalid:
+    return "this doesn't look like a valid FAT filesystem";
 }
 
 /*
@@ -131,69 +130,70 @@ const char *syslinux_check_bootsect(const void *bs)
 
 extern uint16_t ldlinux_seg;	/* Defined in dos/syslinux.c */
 
-static inline __attribute__((const)) uint16_t ds(void)
+static inline __attribute__ ((const))
+uint16_t ds(void)
 {
-  uint16_t v;
-  asm("movw %%ds,%0" : "=rm" (v));
-  return v;
+    uint16_t v;
+asm("movw %%ds,%0":"=rm"(v));
+    return v;
 }
 
 static inline void *set_fs(const void *p)
 {
-  uint16_t seg;
+    uint16_t seg;
 
-  seg = ldlinux_seg + ((size_t)p >> 4);
-  asm volatile("movw %0,%%fs" : : "rm" (seg));
-  return (void *)((size_t)p & 0xf);
+    seg = ldlinux_seg + ((size_t) p >> 4);
+    asm volatile ("movw %0,%%fs"::"rm" (seg));
+    return (void *)((size_t) p & 0xf);
 }
 
-#if 0	/* unused */
-static __noinline uint8_t get_8_sl(const uint8_t *p)
+#if 0				/* unused */
+static __noinline uint8_t get_8_sl(const uint8_t * p)
 {
-  uint8_t v;
+    uint8_t v;
 
-  p = set_fs(p);
-  asm volatile("movb %%fs:%1,%0" : "=q" (v) : "m" (*p));
-  return v;
-}
-#endif
-
-static __noinline uint16_t get_16_sl(const uint16_t *p)
-{
-  uint16_t v;
-
-  p = set_fs(p);
-  asm volatile("movw %%fs:%1,%0" : "=r" (v) : "m" (*p));
-  return v;
-}
-
-static __noinline uint32_t get_32_sl(const uint32_t *p)
-{
-  uint32_t v;
-
-  p = set_fs(p);
-  asm volatile("movl %%fs:%1,%0" : "=r" (v) : "m" (*p));
-  return v;
-}
-
-#if 0 /* unused */
-static __noinline void set_8_sl(uint8_t *p, uint8_t v)
-{
-  p = set_fs(p);
-  asm volatile("movb %1,%%fs:%0" : "=m" (*p) : "qi" (v));
+    p = set_fs(p);
+    asm volatile ("movb %%fs:%1,%0":"=q" (v):"m"(*p));
+    return v;
 }
 #endif
 
-static __noinline void set_16_sl(uint16_t *p, uint16_t v)
+static __noinline uint16_t get_16_sl(const uint16_t * p)
 {
-  p = set_fs(p);
-  asm volatile("movw %1,%%fs:%0" : "=m" (*p) : "ri" (v));
+    uint16_t v;
+
+    p = set_fs(p);
+    asm volatile ("movw %%fs:%1,%0":"=r" (v):"m"(*p));
+    return v;
 }
 
-static __noinline void set_32_sl(uint32_t *p, uint32_t v)
+static __noinline uint32_t get_32_sl(const uint32_t * p)
 {
-  p = set_fs(p);
-  asm volatile("movl %1,%%fs:%0" : "=m" (*p) : "ri" (v));
+    uint32_t v;
+
+    p = set_fs(p);
+    asm volatile ("movl %%fs:%1,%0":"=r" (v):"m"(*p));
+    return v;
+}
+
+#if 0				/* unused */
+static __noinline void set_8_sl(uint8_t * p, uint8_t v)
+{
+    p = set_fs(p);
+    asm volatile ("movb %1,%%fs:%0":"=m" (*p):"qi"(v));
+}
+#endif
+
+static __noinline void set_16_sl(uint16_t * p, uint16_t v)
+{
+    p = set_fs(p);
+    asm volatile ("movw %1,%%fs:%0":"=m" (*p):"ri"(v));
+}
+
+static __noinline void set_32_sl(uint32_t * p, uint32_t v)
+{
+    p = set_fs(p);
+    asm volatile ("movl %1,%%fs:%0":"=m" (*p):"ri"(v));
 }
 
 #else
@@ -219,65 +219,66 @@ static __noinline void set_32_sl(uint32_t *p, uint32_t v)
  * Returns the number of modified bytes in ldlinux.sys if successful,
  * otherwise -1.
  */
-int syslinux_patch(const uint32_t *sectors, int nsectors,
+int syslinux_patch(const uint32_t * sectors, int nsectors,
 		   int stupid, int raid_mode)
 {
-  struct patch_area *patcharea;
-  uint32_t *wp;
-  int nsect = (syslinux_ldlinux_len+511) >> 9;
-  uint32_t csum;
-  int i, dw, nptrs, rv;
+    struct patch_area *patcharea;
+    uint32_t *wp;
+    int nsect = (syslinux_ldlinux_len + 511) >> 9;
+    uint32_t csum;
+    int i, dw, nptrs, rv;
 
-  if ( nsectors < nsect )
-    return -1;
+    if (nsectors < nsect)
+	return -1;
 
-  /* Patch in options, as appropriate */
-  if (stupid) {
-    /* Access only one sector at a time */
-    set_16(&sbs->MaxTransfer, 1);
-  }
+    /* Patch in options, as appropriate */
+    if (stupid) {
+	/* Access only one sector at a time */
+	set_16(&sbs->MaxTransfer, 1);
+    }
 
-  i = get_16(&sbs->bsSignature);
-  if (raid_mode)
-    set_16((uint16_t *)((char *)sbs+i), 0x18CD); /* INT 18h */
-  set_16(&sbs->bsSignature, 0xAA55);
+    i = get_16(&sbs->bsSignature);
+    if (raid_mode)
+	set_16((uint16_t *) ((char *)sbs + i), 0x18CD);	/* INT 18h */
+    set_16(&sbs->bsSignature, 0xAA55);
 
-  /* First sector need pointer in boot sector */
-  set_32(&sbs->NextSector, *sectors++);
+    /* First sector need pointer in boot sector */
+    set_32(&sbs->NextSector, *sectors++);
 
-  /* Search for LDLINUX_MAGIC to find the patch area */
-  for (wp = (uint32_t *)syslinux_ldlinux; get_32_sl(wp) != LDLINUX_MAGIC; wp++)
-    ;
-  patcharea = (struct patch_area *)wp;
+    /* Search for LDLINUX_MAGIC to find the patch area */
+    for (wp = (uint32_t *) syslinux_ldlinux; get_32_sl(wp) != LDLINUX_MAGIC;
+	 wp++) ;
+    patcharea = (struct patch_area *)wp;
 
-  /* Set up the totals */
-  dw = syslinux_ldlinux_len >> 2;	/* COMPLETE dwords, excluding ADV */
-  set_16_sl(&patcharea->data_sectors, nsect); /* Not including ADVs */
-  set_16_sl(&patcharea->adv_sectors, 0);	   /* ADVs not supported yet */
-  set_32_sl(&patcharea->dwords, dw);
-  set_32_sl(&patcharea->currentdir, 0);
+    /* Set up the totals */
+    dw = syslinux_ldlinux_len >> 2;	/* COMPLETE dwords, excluding ADV */
+    set_16_sl(&patcharea->data_sectors, nsect);	/* Not including ADVs */
+    set_16_sl(&patcharea->adv_sectors, 0);	/* ADVs not supported yet */
+    set_32_sl(&patcharea->dwords, dw);
+    set_32_sl(&patcharea->currentdir, 0);
 
-  /* Set the sector pointers */
-  wp = (uint32_t *)((char *)syslinux_ldlinux+get_16_sl(&patcharea->secptroffset));
-  nptrs = get_16_sl(&patcharea->secptrcnt);
+    /* Set the sector pointers */
+    wp = (uint32_t *) ((char *)syslinux_ldlinux +
+		       get_16_sl(&patcharea->secptroffset));
+    nptrs = get_16_sl(&patcharea->secptrcnt);
 
-  while (nsect--) {
-    set_32_sl(wp++, *sectors++);
-    nptrs--;
-  }
-  while (nptrs--)
-    set_32_sl(wp++, 0);
+    while (nsect--) {
+	set_32_sl(wp++, *sectors++);
+	nptrs--;
+    }
+    while (nptrs--)
+	set_32_sl(wp++, 0);
 
-  rv = (char *)wp - (char *)syslinux_ldlinux;
+    rv = (char *)wp - (char *)syslinux_ldlinux;
 
-  /* Now produce a checksum */
-  set_32_sl(&patcharea->checksum, 0);
+    /* Now produce a checksum */
+    set_32_sl(&patcharea->checksum, 0);
 
-  csum = LDLINUX_MAGIC;
-  for (i = 0, wp = (uint32_t *)syslinux_ldlinux; i < dw; i++, wp++)
-    csum -= get_32_sl(wp);		/* Negative checksum */
+    csum = LDLINUX_MAGIC;
+    for (i = 0, wp = (uint32_t *) syslinux_ldlinux; i < dw; i++, wp++)
+	csum -= get_32_sl(wp);	/* Negative checksum */
 
-  set_32_sl(&patcharea->checksum, csum);
+    set_32_sl(&patcharea->checksum, csum);
 
-  return rv;
+    return rv;
 }

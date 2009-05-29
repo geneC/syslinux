@@ -18,9 +18,9 @@ const char *current_background = NULL;
 
 void set_background(const char *new_background)
 {
-  if (!current_background || !new_background ||
-      strcmp(current_background, new_background)) {
-    draw_background(new_background);
-    current_background = new_background;
-  }
+    if (!current_background || !new_background ||
+	strcmp(current_background, new_background)) {
+	draw_background(new_background);
+	current_background = new_background;
+    }
 }

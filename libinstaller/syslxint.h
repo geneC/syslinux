@@ -18,62 +18,62 @@
 /*
  * Access functions for littleendian numbers, possibly misaligned.
  */
-static inline uint8_t get_8(const uint8_t *p)
+static inline uint8_t get_8(const uint8_t * p)
 {
-  return *p;
+    return *p;
 }
 
-static inline uint16_t get_16(const uint16_t *p)
+static inline uint16_t get_16(const uint16_t * p)
 {
 #if defined(__i386__) || defined(__x86_64__)
-  /* Littleendian and unaligned-capable */
-  return *p;
+    /* Littleendian and unaligned-capable */
+    return *p;
 #else
-  const uint8_t *pp = (const uint8_t *)p;
-  return (uint16_t)pp[0] + ((uint16_t)pp[1] << 8);
+    const uint8_t *pp = (const uint8_t *)p;
+    return (uint16_t) pp[0] + ((uint16_t) pp[1] << 8);
 #endif
 }
 
-static inline uint32_t get_32(const uint32_t *p)
+static inline uint32_t get_32(const uint32_t * p)
 {
 #if defined(__i386__) || defined(__x86_64__)
-  /* Littleendian and unaligned-capable */
-  return *p;
+    /* Littleendian and unaligned-capable */
+    return *p;
 #else
-  const uint8_t *pp = (const uint8_t *)p;
-  return (uint32_t)pp[0] + ((uint32_t)pp[1] << 8) +
-    ((uint32_t)pp[2] << 16) + ((uint32_t)pp[3] << 24);
+    const uint8_t *pp = (const uint8_t *)p;
+    return (uint32_t) pp[0] + ((uint32_t) pp[1] << 8) +
+	((uint32_t) pp[2] << 16) + ((uint32_t) pp[3] << 24);
 #endif
 }
 
-static inline void set_8(uint8_t *p, uint8_t v)
+static inline void set_8(uint8_t * p, uint8_t v)
 {
-  *p = v;
+    *p = v;
 }
 
-static inline void set_16(uint16_t *p, uint16_t v)
+static inline void set_16(uint16_t * p, uint16_t v)
 {
 #if defined(__i386__) || defined(__x86_64__)
-  /* Littleendian and unaligned-capable */
-  *(uint16_t *)p = v;
+    /* Littleendian and unaligned-capable */
+    *(uint16_t *) p = v;
 #else
-  uint8_t *pp = (uint8_t *)p;
-  pp[0] = (v & 0xff);
-  pp[1] = ((v >> 8) & 0xff);
+    uint8_t *pp = (uint8_t *) p;
+    pp[0] = (v & 0xff);
+    pp[1] = ((v >> 8) & 0xff);
 #endif
 }
 
-static inline void set_32(uint32_t *p, uint32_t v)
+static inline void set_32(uint32_t * p, uint32_t v)
 {
 #if defined(__i386__) || defined(__x86_64__)
-  /* Littleendian and unaligned-capable */
-  *(uint32_t *)p = v;
+    /* Littleendian and unaligned-capable */
+    *(uint32_t *) p = v;
 #else
-  uint8_t *pp = (uint8_t *)p;
-  pp[0] = (v & 0xff);
-  pp[1] = ((v >> 8) & 0xff);
-  pp[2] = ((v >> 16) & 0xff);
-  pp[3] = ((v >> 24) & 0xff);
+    uint8_t *pp = (uint8_t *) p;
+    pp[0] = (v & 0xff);
+    pp[1] = ((v >> 8) & 0xff);
+    pp[2] = ((v >> 16) & 0xff);
+    pp[3] = ((v >> 24) & 0xff);
 #endif
 }
 
@@ -81,65 +81,65 @@ static inline void set_32(uint32_t *p, uint32_t v)
 
 /* Patch area for disk-based installers */
 struct patch_area {
-  uint32_t magic;		/* LDLINUX_MAGIC */
-  uint32_t instance;		/* Per-version value */
-  uint16_t data_sectors;
-  uint16_t adv_sectors;
-  uint32_t dwords;
-  uint32_t checksum;
-  uint32_t currentdir;
-  uint16_t secptroffset;
-  uint16_t secptrcnt;
+    uint32_t magic;		/* LDLINUX_MAGIC */
+    uint32_t instance;		/* Per-version value */
+    uint16_t data_sectors;
+    uint16_t adv_sectors;
+    uint32_t dwords;
+    uint32_t checksum;
+    uint32_t currentdir;
+    uint16_t secptroffset;
+    uint16_t secptrcnt;
 };
 
   /* FAT bootsector format, also used by other disk-based derivatives */
 struct boot_sector {
-  uint8_t	bsJump[3];
-  char		bsOemName[8];
-  uint16_t	bsBytesPerSec;
-  uint8_t	bsSecPerClust;
-  uint16_t	bsResSectors;
-  uint8_t	bsFATs;
-  uint16_t	bsRootDirEnts;
-  uint16_t	bsSectors;
-  uint8_t	bsMedia;
-  uint16_t	bsFATsecs;
-  uint16_t	bsSecPerTrack;
-  uint16_t	bsHeads;
-  uint32_t	bsHiddenSecs;
-  uint32_t	bsHugeSectors;
+    uint8_t bsJump[3];
+    char bsOemName[8];
+    uint16_t bsBytesPerSec;
+    uint8_t bsSecPerClust;
+    uint16_t bsResSectors;
+    uint8_t bsFATs;
+    uint16_t bsRootDirEnts;
+    uint16_t bsSectors;
+    uint8_t bsMedia;
+    uint16_t bsFATsecs;
+    uint16_t bsSecPerTrack;
+    uint16_t bsHeads;
+    uint32_t bsHiddenSecs;
+    uint32_t bsHugeSectors;
 
-  union {
-    struct {
-      uint8_t	DriveNumber;
-      uint8_t	Reserved1;
-      uint8_t	BootSignature;
-      uint32_t	VolumeID;
-      char	VolumeLabel[11];
-      char	FileSysType[8];
-      uint8_t	Code[442];
-    }  __attribute__((packed)) bs16;
-    struct {
-      uint32_t	FATSz32;
-      uint16_t	ExtFlags;
-      uint16_t	FSVer;
-      uint32_t	RootClus;
-      uint16_t	FSInfo;
-      uint16_t	BkBootSec;
-      uint8_t	DriveNumber;
-      uint8_t	Reserved1;
-      uint8_t	BootSignature;
-      uint32_t	VolumeID;
-      char	VolumeLabel[11];
-      char	FileSysType[8];
-      uint8_t	Code[414];
-    } __attribute__((packed)) bs32;
-  } __attribute__((packed));
+    union {
+	struct {
+	    uint8_t DriveNumber;
+	    uint8_t Reserved1;
+	    uint8_t BootSignature;
+	    uint32_t VolumeID;
+	    char VolumeLabel[11];
+	    char FileSysType[8];
+	    uint8_t Code[442];
+	} __attribute__ ((packed)) bs16;
+	struct {
+	    uint32_t FATSz32;
+	    uint16_t ExtFlags;
+	    uint16_t FSVer;
+	    uint32_t RootClus;
+	    uint16_t FSInfo;
+	    uint16_t BkBootSec;
+	    uint8_t DriveNumber;
+	    uint8_t Reserved1;
+	    uint8_t BootSignature;
+	    uint32_t VolumeID;
+	    char VolumeLabel[11];
+	    char FileSysType[8];
+	    uint8_t Code[414];
+	} __attribute__ ((packed)) bs32;
+    } __attribute__ ((packed));
 
-  uint32_t	NextSector;	/* Pointer to the first unused sector */
-  uint16_t	MaxTransfer;	/* Max sectors per transfer */
-  uint16_t	bsSignature;
-} __attribute__((packed));
+    uint32_t NextSector;	/* Pointer to the first unused sector */
+    uint16_t MaxTransfer;	/* Max sectors per transfer */
+    uint16_t bsSignature;
+} __attribute__ ((packed));
 
 #define bsHead      bsJump
 #define bsHeadLen   offsetof(struct boot_sector, bsOemName)

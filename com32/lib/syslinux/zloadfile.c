@@ -43,17 +43,17 @@
 
 #define INCREMENTAL_CHUNK 1024*1024
 
-int zloadfile(const char *filename, void **ptr, size_t *len)
+int zloadfile(const char *filename, void **ptr, size_t * len)
 {
-  FILE *f;
-  int rv;
+    FILE *f;
+    int rv;
 
-  f = zfopen(filename, "r");
-  if ( !f )
-    return -1;
+    f = zfopen(filename, "r");
+    if (!f)
+	return -1;
 
-  rv = floadfile(f, ptr, len, NULL, 0);
-  fclose(f);
+    rv = floadfile(f, ptr, len, NULL, 0);
+    fclose(f);
 
-  return rv;
+    return rv;
 }

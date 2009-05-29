@@ -43,11 +43,11 @@
    if data_len < len then the balance of the region is zeroed. */
 
 struct initramfs {
-  struct initramfs *prev, *next;
-  size_t len;
-  size_t align;
-  const void *data;
-  size_t data_len;
+    struct initramfs *prev, *next;
+    size_t len;
+    size_t align;
+    const void *data;
+    size_t data_len;
 };
 #define INITRAMFS_MAX_ALIGN	4096
 
@@ -61,8 +61,7 @@ int initramfs_add_data(struct initramfs *ihead, const void *data,
 		       size_t data_len, size_t len, size_t align);
 int initramfs_mknod(struct initramfs *ihead, const char *filename,
 		    int do_mkdir,
-		    uint16_t mode, size_t len,
-		    uint32_t major, uint32_t minor);
+		    uint16_t mode, size_t len, uint32_t major, uint32_t minor);
 int initramfs_add_file(struct initramfs *ihead, const void *data,
 		       size_t data_len, size_t len,
 		       const char *filename, int do_mkdir, uint32_t mode);

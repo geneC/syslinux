@@ -29,17 +29,17 @@
 #include <syslinux/movebits.h>
 
 int syslinux_add_movelist(struct syslinux_movelist **list,
-		      addr_t dst, addr_t src, addr_t len)
+			  addr_t dst, addr_t src, addr_t len)
 {
-  struct syslinux_movelist *ml = malloc(sizeof(struct syslinux_movelist));
-  if (!ml)
-    return -1;
+    struct syslinux_movelist *ml = malloc(sizeof(struct syslinux_movelist));
+    if (!ml)
+	return -1;
 
-  ml->dst = dst;
-  ml->src = src;
-  ml->len = len;
-  ml->next = *list;
+    ml->dst = dst;
+    ml->src = src;
+    ml->len = len;
+    ml->next = *list;
 
-  *list = ml;
-  return 0;
+    *list = ml;
+    return 0;
 }

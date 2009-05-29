@@ -6,8 +6,8 @@
 
 int puts(const char *s)
 {
-  if ( fputs(s, stdout) < 0 )
-    return -1;
+    if (fputs(s, stdout) < 0)
+	return -1;
 
-  return _fwrite("\n", 1, stdout);
+    return _fwrite("\n", 1, stdout);
 }

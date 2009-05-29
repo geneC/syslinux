@@ -37,11 +37,11 @@
 
 int initramfs_load_archive(struct initramfs *ihead, const char *filename)
 {
-  void *data;
-  size_t len;
+    void *data;
+    size_t len;
 
-  if (loadfile(filename, &data, &len))
-    return -1;
+    if (loadfile(filename, &data, &len))
+	return -1;
 
-  return initramfs_add_data(ihead, data, len, len, 4);
+    return initramfs_add_data(ihead, data, len, len, 4);
 }
