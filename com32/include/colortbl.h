@@ -33,18 +33,18 @@
 
 /* Note: vesacon relies on the encoding of these numbers */
 enum color_table_shadow {
-  SHADOW_NONE	 = 0,
-  SHADOW_ALL	 = 1,
-  SHADOW_NORMAL	 = 2,
-  SHADOW_REVERSE = 3,
+    SHADOW_NONE = 0,
+    SHADOW_ALL = 1,
+    SHADOW_NORMAL = 2,
+    SHADOW_REVERSE = 3,
 };
 
 struct color_table {
-  const char *name;		/* Attribute name (used for customization) */
-  const char *ansi;		/* ANSI attribute */
-  unsigned int argb_fg;		/* ARGB for foreground */
-  unsigned int argb_bg;		/* ARGB for background */
-  enum color_table_shadow shadow; /* Shadow mode */
+    const char *name;		/* Attribute name (used for customization) */
+    const char *ansi;		/* ANSI attribute */
+    unsigned int argb_fg;	/* ARGB for foreground */
+    unsigned int argb_bg;	/* ARGB for background */
+    enum color_table_shadow shadow;	/* Shadow mode */
 };
 
 extern struct color_table *console_color_table;
