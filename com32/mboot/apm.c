@@ -21,7 +21,6 @@
  *
  * ----------------------------------------------------------------------- */
 
-
 /*
  * apm.c
  *
@@ -33,55 +32,55 @@
 
 void mboot_apm(void)
 {
-  static struct apm_info apm;
-  com32sys_t ireg, oreg;
+    static struct apm_info apm;
+    com32sys_t ireg, oreg;
 
-  memset(&ireg, 0, sizeof ireg);
+    memset(&ireg, 0, sizeof ireg);
 
-  ireg.eax.w[0] = 0x5300;
-  __intcall(0x15, &ireg, &oreg);
+    ireg.eax.w[0] = 0x5300;
+    __intcall(0x15, &ireg, &oreg);
 
-  if (oreg.eflags.l & EFLAGS_CF)
-    return;			/* No APM BIOS */
+    if (oreg.eflags.l & EFLAGS_CF)
+	return;			/* No APM BIOS */
 
-  if (oreg.ebx.w[0] != 0x504d)
-    return;			/* No "PM" signature */
+    if (oreg.ebx.w[0] != 0x504d)
+	return;			/* No "PM" signature */
 
-  if (!(oreg.ecx.w[0] & 0x02))
-    return;			/* 32 bits not supported */
+    if (!(oreg.ecx.w[0] & 0x02))
+	return;			/* 32 bits not supported */
 
-  /* Disconnect first, just in case */
-  ireg.eax.b[0] = 0x04;
-  __intcall(0x15, &ireg, &oreg);
-
-  /* 32-bit connect */
-  ireg.eax.b[0] = 0x03;
-  __intcall(0x15, &ireg, &oreg);
-
-  apm.cseg        = oreg.eax.w[0];
-  apm.offset      = oreg.ebx.l;
-  apm.cseg_16     = oreg.ecx.w[0];
-  apm.dseg_16     = oreg.edx.w[0];
-  apm.cseg_len    = oreg.esi.w[0];
-  apm.cseg_16_len = oreg.esi.w[1];
-  apm.dseg_16_len = oreg.edi.w[0];
-
-  /* Redo the installation check as the 32-bit connect;
-     some BIOSes return different flags this way... */
-
-  ireg.eax.b[0] = 0x00;
-  __intcall(0x15, &ireg, &oreg);
-
-  if ((oreg.eflags.l & EFLAGS_CF) || (oreg.ebx.w[0] != 0x504d)) {
-    /* Failure with 32-bit connect, try to disconect and ignore */
+    /* Disconnect first, just in case */
     ireg.eax.b[0] = 0x04;
-    __intcall(0x15, &ireg, NULL);
-    return;
-  }
+    __intcall(0x15, &ireg, &oreg);
 
-  apm.version = oreg.eax.w[0];
+    /* 32-bit connect */
+    ireg.eax.b[0] = 0x03;
+    __intcall(0x15, &ireg, &oreg);
 
-  mbinfo.apm_table = map_data(&apm, sizeof apm, 4, false);
-  if (mbinfo.apm_table)
-    mbinfo.flags |= MB_INFO_APM_TABLE;
+    apm.cseg = oreg.eax.w[0];
+    apm.offset = oreg.ebx.l;
+    apm.cseg_16 = oreg.ecx.w[0];
+    apm.dseg_16 = oreg.edx.w[0];
+    apm.cseg_len = oreg.esi.w[0];
+    apm.cseg_16_len = oreg.esi.w[1];
+    apm.dseg_16_len = oreg.edi.w[0];
+
+    /* Redo the installation check as the 32-bit connect;
+       some BIOSes return different flags this way... */
+
+    ireg.eax.b[0] = 0x00;
+    __intcall(0x15, &ireg, &oreg);
+
+    if ((oreg.eflags.l & EFLAGS_CF) || (oreg.ebx.w[0] != 0x504d)) {
+	/* Failure with 32-bit connect, try to disconect and ignore */
+	ireg.eax.b[0] = 0x04;
+	__intcall(0x15, &ireg, NULL);
+	return;
+    }
+
+    apm.version = oreg.eax.w[0];
+
+    mbinfo.apm_table = map_data(&apm, sizeof apm, 4, false);
+    if (mbinfo.apm_table)
+	mbinfo.flags |= MB_INFO_APM_TABLE;
 }
