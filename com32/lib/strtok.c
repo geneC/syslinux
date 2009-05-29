@@ -6,10 +6,10 @@
 
 char *strtok(char *s, const char *delim)
 {
-  static char *holder;
+    static char *holder;
 
-  if ( s )
-    holder = s;
+    if (s)
+	holder = s;
 
-  return strsep(&holder, delim);
+    return strsep(&holder, delim);
 }
