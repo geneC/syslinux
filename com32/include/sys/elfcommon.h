@@ -184,4 +184,4 @@
 #define ELFOSABI_NONE   0
 #define ELFOSABI_LINUX  3
 
-#endif				/* _SYS_ELFCOMMON_H */
+#endif /* _SYS_ELFCOMMON_H */
