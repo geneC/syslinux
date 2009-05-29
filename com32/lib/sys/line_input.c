@@ -35,54 +35,56 @@
 #include <errno.h>
 #include <syslinux/idle.h>
 
-ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
-		     ssize_t (*get_char)(struct file_info *, void *, size_t))
+ssize_t __line_input(struct file_info * fp, char *buf, size_t bufsize,
+		     ssize_t(*get_char) (struct file_info *, void *, size_t))
 {
-  size_t n = 0;
-  char ch;
-  int rv;
-  ssize_t (* const Write)(struct file_info *, const void *, size_t) =
-    fp->oop->write;
+    size_t n = 0;
+    char ch;
+    int rv;
+    ssize_t(*const Write) (struct file_info *, const void *, size_t) =
+	fp->oop->write;
 
-  for(;;) {
-    rv = get_char(fp, &ch, 1);
+    for (;;) {
+	rv = get_char(fp, &ch, 1);
 
-    if ( rv != 1 ) {
-      syslinux_idle();
-      continue;
+	if (rv != 1) {
+	    syslinux_idle();
+	    continue;
+	}
+
+	switch (ch) {
+	case '\n':		/* Ignore incoming linefeed */
+	    break;
+
+	case '\r':
+	    *buf = '\n';
+	    Write(fp, "\n", 1);
+	    return n + 1;
+
+	case '\b':
+	    if (n > 0) {
+		n--;
+		buf--;
+		Write(fp, "\b \b", 3);
+	    }
+	    break;
+
+	case '\x15':		/* Ctrl-U */
+	    while (n) {
+		n--;
+		buf--;
+		Write(fp, "\b \b", 3);
+	    }
+	    break;
+
+	default:
+	    if (n < bufsize - 1) {
+		*buf = ch;
+		Write(fp, buf, 1);
+		n++;
+		buf++;
+	    }
+	    break;
+	}
     }
-
-    switch ( ch ) {
-    case '\n':			/* Ignore incoming linefeed */
-      break;
-
-    case '\r':
-      *buf = '\n';
-      Write(fp, "\n", 1);
-      return n+1;
-
-    case '\b':
-      if ( n > 0 ) {
-	n--; buf--;
-	Write(fp, "\b \b", 3);
-      }
-      break;
-
-    case '\x15':		/* Ctrl-U */
-      while ( n ) {
-	n--; buf--;
-	Write(fp, "\b \b", 3);
-      }
-      break;
-
-    default:
-      if ( n < bufsize-1 ) {
-	*buf = ch;
-	Write(fp, buf, 1);
-	n++;
-	buf++;
-      }
-      break;
-    }
-  }
 }
