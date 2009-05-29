@@ -24,7 +24,7 @@ extern const char *bad_index;
 #define DWORD(x) (uint32_t)(*(const uint32_t *)(x))
 #define QWORD(x) (*(const uint64_t *)(x))
 
-enum {DMI_TABLE_PRESENT = 100, ENODMITABLE};
+enum { DMI_TABLE_PRESENT = 100, ENODMITABLE };
 
 #include "dmi_bios.h"
 #include "dmi_system.h"
@@ -39,47 +39,44 @@ extern char display_line;
 #define moreprintf(...) do { display_line++; if (display_line == 24) { char tempbuf[10]; display_line=0; printf("Press enter to continue"); fgets(tempbuf, sizeof tempbuf, stdin);}  printf ( __VA_ARGS__); } while (0);
 
 typedef struct {
-uint16_t num;
-uint16_t len;
-uint16_t ver;
-uint32_t base;
-uint16_t major_version;
-uint16_t minor_version;
+    uint16_t num;
+    uint16_t len;
+    uint16_t ver;
+    uint32_t base;
+    uint16_t major_version;
+    uint16_t minor_version;
 } dmi_table;
 
-
-
-struct dmi_header
-{
-        uint8_t type;
-        uint8_t length;
-        uint16_t handle;
-        uint8_t *data;
+struct dmi_header {
+    uint8_t type;
+    uint8_t length;
+    uint16_t handle;
+    uint8_t *data;
 };
 
 typedef struct {
-	 s_bios bios;
-	 s_system system;
-	 s_base_board base_board;
-	 s_chassis chassis;
-	 s_processor processor;
-	 s_battery battery;
-	 s_memory memory[MAX_DMI_MEMORY_ITEMS];
-	 s_ipmi ipmi;
-	 int memory_count;
-	 dmi_table dmitable;
+    s_bios bios;
+    s_system system;
+    s_base_board base_board;
+    s_chassis chassis;
+    s_processor processor;
+    s_battery battery;
+    s_memory memory[MAX_DMI_MEMORY_ITEMS];
+    s_ipmi ipmi;
+    int memory_count;
+    dmi_table dmitable;
 } s_dmi;
 
-void to_dmi_header(struct dmi_header *h, uint8_t *data);
-void dmi_bios_runtime_size(uint32_t code, s_dmi *dmi);
+void to_dmi_header(struct dmi_header *h, uint8_t * data);
+void dmi_bios_runtime_size(uint32_t code, s_dmi * dmi);
 const char *dmi_string(struct dmi_header *dm, uint8_t s);
-int dmi_checksum(uint8_t *buf);
-void parse_dmitable(s_dmi *dmi);
-void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi *dmi);
-int dmi_iterate(s_dmi *dmi);
+int dmi_checksum(uint8_t * buf);
+void parse_dmitable(s_dmi * dmi);
+void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi);
+int dmi_iterate(s_dmi * dmi);
 
 /* dmi_utils.c */
-void display_bios_characteristics(s_dmi *dmi);
-void display_base_board_features(s_dmi *dmi);
-void display_processor_flags(s_dmi *dmi);
+void display_bios_characteristics(s_dmi * dmi);
+void display_base_board_features(s_dmi * dmi);
+void display_processor_flags(s_dmi * dmi);
 #endif
