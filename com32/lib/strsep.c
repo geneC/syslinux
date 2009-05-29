@@ -6,16 +6,16 @@
 
 char *strsep(char **stringp, const char *delim)
 {
-  char *s = *stringp;
-  char *e;
+    char *s = *stringp;
+    char *e;
 
-  if ( !s )
-    return NULL;
+    if (!s)
+	return NULL;
 
-  e = strpbrk(s, delim);
-  if (e)
-    *e++ = '\0';
+    e = strpbrk(s, delim);
+    if (e)
+	*e++ = '\0';
 
-  *stringp = e;
-  return s;
+    *stringp = e;
+    return s;
 }
