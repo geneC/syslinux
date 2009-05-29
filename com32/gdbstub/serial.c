@@ -87,104 +87,107 @@
  * void serial_putc(int ch);
  *	Write character `ch' to port UART_BASE.
  */
-void serial_putc ( int ch ) {
-	int status;
-	for (;;) {
-		status = uart_readb(UART_BASE + UART_LSR);
-		if (status & UART_LSR_THRE) {
-			/* TX buffer emtpy */
-			uart_writeb(ch, UART_BASE + UART_TBR);
-			break;
-		}
+void serial_putc(int ch)
+{
+    int status;
+    for (;;) {
+	status = uart_readb(UART_BASE + UART_LSR);
+	if (status & UART_LSR_THRE) {
+	    /* TX buffer emtpy */
+	    uart_writeb(ch, UART_BASE + UART_TBR);
+	    break;
 	}
+    }
 }
 
 /*
  * int serial_getc(void);
  *	Read a character from port UART_BASE.
  */
-int serial_getc ( void ) {
-	int status;
-	int ch;
-	do {
-		status = uart_readb(UART_BASE + UART_LSR);
-	} while((status & 1) == 0);
-	ch = uart_readb(UART_BASE + UART_RBR);	/* fetch (first) character */
-	ch &= 0x7f;				/* remove any parity bits we get */
-	if (ch == 0x7f) {			/* Make DEL... look like BS */
-		ch = 0x08;
-	}
-	return ch;
+int serial_getc(void)
+{
+    int status;
+    int ch;
+    do {
+	status = uart_readb(UART_BASE + UART_LSR);
+    } while ((status & 1) == 0);
+    ch = uart_readb(UART_BASE + UART_RBR);	/* fetch (first) character */
+    ch &= 0x7f;			/* remove any parity bits we get */
+    if (ch == 0x7f) {		/* Make DEL... look like BS */
+	ch = 0x08;
+    }
+    return ch;
 }
 
 /*
  * int serial_init(void);
  *	Initialize port UART_BASE to speed COMSPEED, line settings 8N1.
  */
-void serial_init ( void ) {
-	int status;
-	int divisor, lcs;
+void serial_init(void)
+{
+    int status;
+    int divisor, lcs;
 
-	divisor = COMBRD;
-	lcs = UART_LCS;
-
+    divisor = COMBRD;
+    lcs = UART_LCS;
 
 #ifdef COMPRESERVE
-	lcs = uart_readb(UART_BASE + UART_LCR) & 0x7f;
-	uart_writeb(0x80 | lcs, UART_BASE + UART_LCR);
-	divisor = (uart_readb(UART_BASE + UART_DLM) << 8) | uart_readb(UART_BASE + UART_DLL);
-	uart_writeb(lcs, UART_BASE + UART_LCR);
+    lcs = uart_readb(UART_BASE + UART_LCR) & 0x7f;
+    uart_writeb(0x80 | lcs, UART_BASE + UART_LCR);
+    divisor =
+	(uart_readb(UART_BASE + UART_DLM) << 8) | uart_readb(UART_BASE +
+							     UART_DLL);
+    uart_writeb(lcs, UART_BASE + UART_LCR);
 #endif
 
-	/* Set Baud Rate Divisor to COMSPEED, and test to see if the
-	 * serial port appears to be present.
+    /* Set Baud Rate Divisor to COMSPEED, and test to see if the
+     * serial port appears to be present.
+     */
+    uart_writeb(0x80 | lcs, UART_BASE + UART_LCR);
+    uart_writeb(0xaa, UART_BASE + UART_DLL);
+    if (uart_readb(UART_BASE + UART_DLL) != 0xaa) {
+	goto out;
+    }
+    uart_writeb(0x55, UART_BASE + UART_DLL);
+    if (uart_readb(UART_BASE + UART_DLL) != 0x55) {
+	goto out;
+    }
+    uart_writeb(divisor & 0xff, UART_BASE + UART_DLL);
+    if (uart_readb(UART_BASE + UART_DLL) != (divisor & 0xff)) {
+	goto out;
+    }
+    uart_writeb(0xaa, UART_BASE + UART_DLM);
+    if (uart_readb(UART_BASE + UART_DLM) != 0xaa) {
+	goto out;
+    }
+    uart_writeb(0x55, UART_BASE + UART_DLM);
+    if (uart_readb(UART_BASE + UART_DLM) != 0x55) {
+	goto out;
+    }
+    uart_writeb((divisor >> 8) & 0xff, UART_BASE + UART_DLM);
+    if (uart_readb(UART_BASE + UART_DLM) != ((divisor >> 8) & 0xff)) {
+	goto out;
+    }
+    uart_writeb(lcs, UART_BASE + UART_LCR);
+
+    /* disable interrupts */
+    uart_writeb(0x0, UART_BASE + UART_IER);
+
+    /* disable fifo's */
+    uart_writeb(0x00, UART_BASE + UART_FCR);
+
+    /* Set clear to send, so flow control works... */
+    uart_writeb((1 << 1), UART_BASE + UART_MCR);
+
+    /* Flush the input buffer. */
+    do {
+	/* rx buffer reg
+	 * throw away (unconditionally the first time)
 	 */
-	uart_writeb(0x80 | lcs, UART_BASE + UART_LCR);
-	uart_writeb(0xaa, UART_BASE + UART_DLL);
-	if (uart_readb(UART_BASE + UART_DLL) != 0xaa) {
-		goto out;
-	}
-	uart_writeb(0x55, UART_BASE + UART_DLL);
-	if (uart_readb(UART_BASE + UART_DLL) != 0x55) {
-		goto out;
-	}
-	uart_writeb(divisor & 0xff, UART_BASE + UART_DLL);
-	if (uart_readb(UART_BASE + UART_DLL) != (divisor & 0xff)) {
-		goto out;
-	}
-	uart_writeb(0xaa, UART_BASE + UART_DLM);
-	if (uart_readb(UART_BASE + UART_DLM) != 0xaa) {
-		goto out;
-	}
-	uart_writeb(0x55, UART_BASE + UART_DLM);
-	if (uart_readb(UART_BASE + UART_DLM) != 0x55) {
-		goto out;
-	}
-	uart_writeb((divisor >> 8) & 0xff, UART_BASE + UART_DLM);
-	if (uart_readb(UART_BASE + UART_DLM) != ((divisor >> 8) & 0xff)) {
-		goto out;
-	}
-	uart_writeb(lcs, UART_BASE + UART_LCR);
-
-	/* disable interrupts */
-	uart_writeb(0x0, UART_BASE + UART_IER);
-
-	/* disable fifo's */
-	uart_writeb(0x00, UART_BASE + UART_FCR);
-
-	/* Set clear to send, so flow control works... */
-	uart_writeb((1<<1), UART_BASE + UART_MCR);
-
-
-	/* Flush the input buffer. */
-	do {
-		/* rx buffer reg
-		 * throw away (unconditionally the first time)
-		 */
-	        (void) uart_readb(UART_BASE + UART_RBR);
-		/* line status reg */
-		status = uart_readb(UART_BASE + UART_LSR);
-	} while(status & UART_LSR_DR);
- out:
-	return;
+	(void)uart_readb(UART_BASE + UART_RBR);
+	/* line status reg */
+	status = uart_readb(UART_BASE + UART_LSR);
+    } while (status & UART_LSR_DR);
+out:
+    return;
 }
