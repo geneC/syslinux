@@ -33,10 +33,10 @@ typedef struct _IO_file FILE;
  * error and 0 is a valid value; for FILE *, NULL (0) is error and
  * non-NULL are valid.
  */
-static __inline__ int fileno(FILE *__f)
+static __inline__ int fileno(FILE * __f)
 {
-  /* This should really be intptr_t, but size_t should be the same size */
-  return (int)(size_t)__f - 1;
+    /* This should really be intptr_t, but size_t should be the same size */
+    return (int)(size_t) __f - 1;
 }
 
 /* This is a macro so it can be used as initializer */
@@ -52,17 +52,19 @@ __extern FILE *fopendev(const struct dev_info *, const char *);
 
 static __inline__ FILE *fdopen(int __fd, const char *__m)
 {
-  (void)__m; return __create_file(__fd);
+    (void)__m;
+    return __create_file(__fd);
 }
-__extern int fclose(FILE *__f);
+
+__extern int fclose(FILE * __f);
 __extern int fputs(const char *, FILE *);
 __extern int puts(const char *);
 __extern int fputc(int, FILE *);
 #define putc(c,f)  fputc((c),(f))
 #define putchar(c) fputc((c),stdout)
 
-__extern int    fgetc(FILE *);
-__extern char * fgets(char *, int, FILE *);
+__extern int fgetc(FILE *);
+__extern char *fgets(char *, int, FILE *);
 #define getc(f) fgetc(f)
 
 __extern size_t _fread(void *, size_t, FILE *);
@@ -99,11 +101,10 @@ __extern int asprintf(char **, const char *, ...);
 __extern int vasprintf(char **, const char *, va_list);
 
 /* No buffering, so no flushing needed */
-static __inline__ int
-fflush(FILE *__f)
+static __inline__ int fflush(FILE * __f)
 {
-  (void)__f;
-  return 0;
+    (void)__f;
+    return 0;
 }
 
 __extern int sscanf(const char *, const char *, ...);
