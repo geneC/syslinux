@@ -19,9 +19,9 @@
 #include <stdint.h>
 
 struct e820range {
-  uint64_t start;
-  uint32_t type;
-} __attribute__((packed));
+    uint64_t start;
+    uint32_t type;
+} __attribute__ ((packed));
 
 extern struct e820range ranges[];
 extern int nranges;
