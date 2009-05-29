@@ -32,7 +32,7 @@
 #include <stdbool.h>
 #include <syslinux/movebits.h>	/* addr_t */
 
-typedef int (*scan_memory_callback_t)(void *, addr_t, addr_t, bool);
+typedef int (*scan_memory_callback_t) (void *, addr_t, addr_t, bool);
 int syslinux_scan_memory(scan_memory_callback_t callback, void *data);
 
 #endif /* _SYSLINUX_MEMSCAN_H */
