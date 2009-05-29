@@ -50,260 +50,263 @@ static addr_t mboot_high_water_mark = 0x100000;
  */
 addr_t map_data(const void *data, size_t len, size_t align, int flags)
 {
-  addr_t start = (flags & MAP_HIGH) ? mboot_high_water_mark : 0x2000;
-  addr_t pad   = (flags & MAP_NOPAD) ? 0 : -len & (align-1);
-  addr_t xlen  = len+pad;
+    addr_t start = (flags & MAP_HIGH) ? mboot_high_water_mark : 0x2000;
+    addr_t pad = (flags & MAP_NOPAD) ? 0 : -len & (align - 1);
+    addr_t xlen = len + pad;
 
-  if (syslinux_memmap_find(amap, SMT_FREE, &start, &xlen, align) ||
-      syslinux_add_memmap(&amap, start, len+pad, SMT_ALLOC) ||
-      syslinux_add_movelist(&ml, start, (addr_t)data, len) ||
-      (pad && syslinux_add_memmap(&mmap, start+len, pad, SMT_ZERO))) {
-    printf("Cannot map %zu bytes\n", len+pad);
-    return 0;
-  }
+    if (syslinux_memmap_find(amap, SMT_FREE, &start, &xlen, align) ||
+	syslinux_add_memmap(&amap, start, len + pad, SMT_ALLOC) ||
+	syslinux_add_movelist(&ml, start, (addr_t) data, len) ||
+	(pad && syslinux_add_memmap(&mmap, start + len, pad, SMT_ZERO))) {
+	printf("Cannot map %zu bytes\n", len + pad);
+	return 0;
+    }
 
-  dprintf("Mapping 0x%08x bytes (%#x pad) at 0x%08x\n", len, pad, start);
+    dprintf("Mapping 0x%08x bytes (%#x pad) at 0x%08x\n", len, pad, start);
 
-  if (start+len+pad > mboot_high_water_mark)
-    mboot_high_water_mark = start+len+pad;
+    if (start + len + pad > mboot_high_water_mark)
+	mboot_high_water_mark = start + len + pad;
 
-  return start;
+    return start;
 }
 
 addr_t map_string(const char *string)
 {
-  if (!string)
-    return 0;
-  else
-    return map_data(string, strlen(string)+1, 1, 0);
+    if (!string)
+	return 0;
+    else
+	return map_data(string, strlen(string) + 1, 1, 0);
 }
 
 int init_map(void)
 {
-  /*
-   * Note: mmap is the memory map (containing free and zeroed regions)
-   * needed by syslinux_shuffle_boot_pm(); amap is a map where we keep
-   * track ourselves which target memory ranges have already been
-   * allocated.
-   */
-  mmap = syslinux_memory_map();
-  amap = syslinux_dup_memmap(mmap);
-  if (!mmap || !amap) {
-    error("Failed to allocate initial memory map!\n");
-    return -1;
-  }
-
+    /*
+     * Note: mmap is the memory map (containing free and zeroed regions)
+     * needed by syslinux_shuffle_boot_pm(); amap is a map where we keep
+     * track ourselves which target memory ranges have already been
+     * allocated.
+     */
+    mmap = syslinux_memory_map();
+    amap = syslinux_dup_memmap(mmap);
+    if (!mmap || !amap) {
+	error("Failed to allocate initial memory map!\n");
+	return -1;
+    }
 #if DEBUG
-  dprintf("Initial memory map:\n");
-  syslinux_dump_memmap(stdout, mmap);
+    dprintf("Initial memory map:\n");
+    syslinux_dump_memmap(stdout, mmap);
 #endif
 
-  return 0;
+    return 0;
 }
 
 int map_image(void *ptr, size_t len)
 {
-  int mbh_len;
-  char *cptr = ptr;
-  Elf32_Ehdr *eh = ptr;
-  Elf32_Phdr *ph;
-  Elf32_Shdr *sh;
-  unsigned int i;
-  uint32_t bad_flags;
+    int mbh_len;
+    char *cptr = ptr;
+    Elf32_Ehdr *eh = ptr;
+    Elf32_Phdr *ph;
+    Elf32_Shdr *sh;
+    unsigned int i;
+    uint32_t bad_flags;
 
-  /*
-   * Search for the multiboot header...
-   */
-  mbh_len = 0;
-  for (i = 0 ; i < MULTIBOOT_SEARCH ; i += 4) {
-    mbh = (struct multiboot_header *)((char *)ptr + i);
-    if (mbh->magic != MULTIBOOT_MAGIC)
-      continue;
-    if (mbh->magic + mbh->flags + mbh->checksum)
-      continue;
-    if (mbh->flags & MULTIBOOT_VIDEO_MODE)
-      mbh_len = 48;
-    else if (mbh->flags & MULTIBOOT_AOUT_KLUDGE)
-      mbh_len = 32;
-    else
-      mbh_len = 12;
-
-    if (i + mbh_len < len)
-      mbh_len = 0;		/* Invalid... */
-    else
-      break;			/* Found something... */
-  }
-
-  if (mbh_len) {
-    bad_flags = mbh->flags & (MULTIBOOT_UNSUPPORTED|MULTIBOOT_VIDEO_MODE);
-    if (bad_flags) {
-      printf("Unsupported Multiboot flags set: %#x\n", bad_flags);
-      return -1;
-    }
-  }
-
-  if ( len < sizeof(Elf32_Ehdr) ||
-       memcmp(eh->e_ident, "\x7f""ELF\1\1\1", 6) ||
-       (eh->e_machine != EM_386 && eh->e_machine != EM_486 &&
-	eh->e_machine != EM_X86_64) ||
-       eh->e_version != EV_CURRENT ||
-       eh->e_ehsize < sizeof(Elf32_Ehdr) || eh->e_ehsize >= len ||
-       eh->e_phentsize < sizeof(Elf32_Phdr) ||
-       !eh->e_phnum ||
-       eh->e_phoff+eh->e_phentsize*eh->e_phnum > len )
-    eh = NULL;			/* No valid ELF header found */
-
-  /*
-   * Note: the Multiboot Specification implies that AOUT_KLUDGE should
-   * have precedence over the ELF header.  However, Grub disagrees, and
-   * Grub is "the reference bootloader" for the Multiboot Specification.
-   * This is insane, since it makes the AOUT_KLUDGE bit functionally
-   * useless, but at least Solaris apparently depends on this behavior.
-   */
-  if (eh && !(opt.aout && mbh_len && (mbh->flags & MULTIBOOT_AOUT_KLUDGE))) {
-    regs.eip = eh->e_entry;	/* Can be overridden further down... */
-
-    ph = (Elf32_Phdr *)(cptr+eh->e_phoff);
-
-    for (i = 0; i < eh->e_phnum; i++) {
-      if (ph->p_type == PT_LOAD || ph->p_type == PT_PHDR) {
-	/* 
-	 * This loads at p_paddr, which matches Grub.  However, if
-	 * e_entry falls within the p_vaddr range of this PHDR, then
-	 * adjust it to match the p_paddr range... this is how Grub
-	 * behaves, so it's by definition correct (it doesn't have to
-	 * make sense...)
-	 */
-	addr_t addr  = ph->p_paddr;
-	addr_t msize = ph->p_memsz;
-	addr_t dsize = min(msize, ph->p_filesz);
-
-	if (eh->e_entry >= ph->p_vaddr && eh->e_entry < ph->p_vaddr + msize)
-	  regs.eip = eh->e_entry + (ph->p_paddr - ph->p_vaddr);
-
-	dprintf("Segment at 0x%08x data 0x%08x len 0x%08x\n",
-		addr, dsize, msize);
-
-	if (syslinux_memmap_type(amap, addr, msize) != SMT_FREE) {
-	  printf("Memory segment at 0x%08x (len 0x%08x) is unavailable\n",
-		 addr, msize);
-	  return -1;		/* Memory region unavailable */
-	}
-
-	/* Mark this region as allocated in the available map */
-	if (syslinux_add_memmap(&amap, addr, msize, SMT_ALLOC)) {
-	  error("Overlapping segments found in ELF header\n");
-	  return -1;
-	}
-
-	if (ph->p_filesz) {
-	  /* Data present region.  Create a move entry for it. */
-	  if (syslinux_add_movelist(&ml, addr, (addr_t)cptr+ph->p_offset,
-				    dsize)) {
-	    error("Failed to map PHDR data\n");
-	    return -1;
-	  }
-	}
-	if (msize > dsize) {
-	  /* Zero-filled region.  Mark as a zero region in the memory map. */
-	  if (syslinux_add_memmap(&mmap, addr+dsize, msize-dsize, SMT_ZERO)) {
-	    error("Failed to map PHDR zero region\n");
-	    return -1;
-	  }
-	}
-	if (addr+msize > mboot_high_water_mark)
-	  mboot_high_water_mark = addr+msize;
-      } else {
-	/* Ignore this program header */
-      }
-
-      ph = (Elf32_Phdr *)((char *)ph + eh->e_phentsize);
-    }
-
-    /* Load the ELF symbol table */
-    if (eh->e_shoff) {
-      addr_t addr, len;
-
-      sh = (Elf32_Shdr *)((char *)eh + eh->e_shoff);
-
-      len = eh->e_shentsize * eh->e_shnum;
-      /*
-       * Align this, but don't pad -- in general this means a bunch of
-       * smaller sections gets packed into a single page.
-       */
-      addr = map_data(sh, len, 4096, MAP_HIGH|MAP_NOPAD);
-      if (!addr) {
-	error("Failed to map symbol table\n");
-	return -1;
-      }
-
-      mbinfo.flags |= MB_INFO_ELF_SHDR;
-      mbinfo.syms.e.addr  = addr;
-      mbinfo.syms.e.num   = eh->e_shnum;
-      mbinfo.syms.e.size  = eh->e_shentsize;
-      mbinfo.syms.e.shndx = eh->e_shstrndx;
-
-      for (i = 0; i < eh->e_shnum; i++) {
-	addr_t align;
-
-	if (!sh[i].sh_size)
-	  continue;		/* Empty section */
-	if (sh[i].sh_flags & SHF_ALLOC)
-	  continue;		/* SHF_ALLOC sections should have PHDRs */
-
-	align = sh[i].sh_addralign ? sh[i].sh_addralign : 0;
-	addr = map_data((char *)ptr + sh[i].sh_offset, sh[i].sh_size,
-			align, MAP_HIGH);
-	if (!addr) {
-	  error("Failed to map symbol section\n");
-	  return -1;
-	}
-	sh[i].sh_addr = addr;
-      }
-    }
-  } else if (mbh_len && (mbh->flags & MULTIBOOT_AOUT_KLUDGE)) {
     /*
-     * a.out kludge thing...
+     * Search for the multiboot header...
      */
-    char *data_ptr;
-    addr_t data_len, bss_len;
+    mbh_len = 0;
+    for (i = 0; i < MULTIBOOT_SEARCH; i += 4) {
+	mbh = (struct multiboot_header *)((char *)ptr + i);
+	if (mbh->magic != MULTIBOOT_MAGIC)
+	    continue;
+	if (mbh->magic + mbh->flags + mbh->checksum)
+	    continue;
+	if (mbh->flags & MULTIBOOT_VIDEO_MODE)
+	    mbh_len = 48;
+	else if (mbh->flags & MULTIBOOT_AOUT_KLUDGE)
+	    mbh_len = 32;
+	else
+	    mbh_len = 12;
 
-    regs.eip = mbh->entry_addr;
-
-    data_ptr = (char *)mbh - (mbh->header_addr - mbh->load_addr);
-    data_len = mbh->load_end_addr - mbh->load_addr;
-    bss_len  = mbh->bss_end_addr - mbh->load_end_addr;
-
-    if (syslinux_memmap_type(amap, mbh->load_addr, data_len+bss_len)
-	!= SMT_FREE) {
-      printf("Memory segment at 0x%08x (len 0x%08x) is unavailable\n",
-	     mbh->load_addr, data_len+bss_len);
-      return -1;		/* Memory region unavailable */
+	if (i + mbh_len < len)
+	    mbh_len = 0;	/* Invalid... */
+	else
+	    break;		/* Found something... */
     }
-    if (syslinux_add_memmap(&amap, mbh->load_addr,
-			    data_len+bss_len, SMT_ALLOC)) {
-      error("Failed to claim a.out address space!\n");
-      return -1;
-    }
-    if (data_len)
-      if (syslinux_add_movelist(&ml, mbh->load_addr, (addr_t)data_ptr,
-				data_len)) {
-	error("Failed to map a.out data\n");
-	return -1;
-      }
-    if (bss_len)
-      if (syslinux_add_memmap(&mmap, mbh->load_end_addr, bss_len, SMT_ZERO)) {
-	error("Failed to map a.out bss\n");
-	return -1;
-      }
-    if (mbh->bss_end_addr > mboot_high_water_mark)
-      mboot_high_water_mark = mbh->bss_end_addr;
-  } else {
-    error("Invalid Multiboot image: neither ELF header nor a.out kludge found\n");
-    return -1;
-  }
 
-  return 0;
+    if (mbh_len) {
+	bad_flags = mbh->flags & (MULTIBOOT_UNSUPPORTED | MULTIBOOT_VIDEO_MODE);
+	if (bad_flags) {
+	    printf("Unsupported Multiboot flags set: %#x\n", bad_flags);
+	    return -1;
+	}
+    }
+
+    if (len < sizeof(Elf32_Ehdr) ||
+	memcmp(eh->e_ident, "\x7f" "ELF\1\1\1", 6) ||
+	(eh->e_machine != EM_386 && eh->e_machine != EM_486 &&
+	 eh->e_machine != EM_X86_64) ||
+	eh->e_version != EV_CURRENT ||
+	eh->e_ehsize < sizeof(Elf32_Ehdr) || eh->e_ehsize >= len ||
+	eh->e_phentsize < sizeof(Elf32_Phdr) ||
+	!eh->e_phnum || eh->e_phoff + eh->e_phentsize * eh->e_phnum > len)
+	eh = NULL;		/* No valid ELF header found */
+
+    /*
+     * Note: the Multiboot Specification implies that AOUT_KLUDGE should
+     * have precedence over the ELF header.  However, Grub disagrees, and
+     * Grub is "the reference bootloader" for the Multiboot Specification.
+     * This is insane, since it makes the AOUT_KLUDGE bit functionally
+     * useless, but at least Solaris apparently depends on this behavior.
+     */
+    if (eh && !(opt.aout && mbh_len && (mbh->flags & MULTIBOOT_AOUT_KLUDGE))) {
+	regs.eip = eh->e_entry;	/* Can be overridden further down... */
+
+	ph = (Elf32_Phdr *) (cptr + eh->e_phoff);
+
+	for (i = 0; i < eh->e_phnum; i++) {
+	    if (ph->p_type == PT_LOAD || ph->p_type == PT_PHDR) {
+		/* 
+		 * This loads at p_paddr, which matches Grub.  However, if
+		 * e_entry falls within the p_vaddr range of this PHDR, then
+		 * adjust it to match the p_paddr range... this is how Grub
+		 * behaves, so it's by definition correct (it doesn't have to
+		 * make sense...)
+		 */
+		addr_t addr = ph->p_paddr;
+		addr_t msize = ph->p_memsz;
+		addr_t dsize = min(msize, ph->p_filesz);
+
+		if (eh->e_entry >= ph->p_vaddr
+		    && eh->e_entry < ph->p_vaddr + msize)
+		    regs.eip = eh->e_entry + (ph->p_paddr - ph->p_vaddr);
+
+		dprintf("Segment at 0x%08x data 0x%08x len 0x%08x\n",
+			addr, dsize, msize);
+
+		if (syslinux_memmap_type(amap, addr, msize) != SMT_FREE) {
+		    printf
+			("Memory segment at 0x%08x (len 0x%08x) is unavailable\n",
+			 addr, msize);
+		    return -1;	/* Memory region unavailable */
+		}
+
+		/* Mark this region as allocated in the available map */
+		if (syslinux_add_memmap(&amap, addr, msize, SMT_ALLOC)) {
+		    error("Overlapping segments found in ELF header\n");
+		    return -1;
+		}
+
+		if (ph->p_filesz) {
+		    /* Data present region.  Create a move entry for it. */
+		    if (syslinux_add_movelist
+			(&ml, addr, (addr_t) cptr + ph->p_offset, dsize)) {
+			error("Failed to map PHDR data\n");
+			return -1;
+		    }
+		}
+		if (msize > dsize) {
+		    /* Zero-filled region.  Mark as a zero region in the memory map. */
+		    if (syslinux_add_memmap
+			(&mmap, addr + dsize, msize - dsize, SMT_ZERO)) {
+			error("Failed to map PHDR zero region\n");
+			return -1;
+		    }
+		}
+		if (addr + msize > mboot_high_water_mark)
+		    mboot_high_water_mark = addr + msize;
+	    } else {
+		/* Ignore this program header */
+	    }
+
+	    ph = (Elf32_Phdr *) ((char *)ph + eh->e_phentsize);
+	}
+
+	/* Load the ELF symbol table */
+	if (eh->e_shoff) {
+	    addr_t addr, len;
+
+	    sh = (Elf32_Shdr *) ((char *)eh + eh->e_shoff);
+
+	    len = eh->e_shentsize * eh->e_shnum;
+	    /*
+	     * Align this, but don't pad -- in general this means a bunch of
+	     * smaller sections gets packed into a single page.
+	     */
+	    addr = map_data(sh, len, 4096, MAP_HIGH | MAP_NOPAD);
+	    if (!addr) {
+		error("Failed to map symbol table\n");
+		return -1;
+	    }
+
+	    mbinfo.flags |= MB_INFO_ELF_SHDR;
+	    mbinfo.syms.e.addr = addr;
+	    mbinfo.syms.e.num = eh->e_shnum;
+	    mbinfo.syms.e.size = eh->e_shentsize;
+	    mbinfo.syms.e.shndx = eh->e_shstrndx;
+
+	    for (i = 0; i < eh->e_shnum; i++) {
+		addr_t align;
+
+		if (!sh[i].sh_size)
+		    continue;	/* Empty section */
+		if (sh[i].sh_flags & SHF_ALLOC)
+		    continue;	/* SHF_ALLOC sections should have PHDRs */
+
+		align = sh[i].sh_addralign ? sh[i].sh_addralign : 0;
+		addr = map_data((char *)ptr + sh[i].sh_offset, sh[i].sh_size,
+				align, MAP_HIGH);
+		if (!addr) {
+		    error("Failed to map symbol section\n");
+		    return -1;
+		}
+		sh[i].sh_addr = addr;
+	    }
+	}
+    } else if (mbh_len && (mbh->flags & MULTIBOOT_AOUT_KLUDGE)) {
+	/*
+	 * a.out kludge thing...
+	 */
+	char *data_ptr;
+	addr_t data_len, bss_len;
+
+	regs.eip = mbh->entry_addr;
+
+	data_ptr = (char *)mbh - (mbh->header_addr - mbh->load_addr);
+	data_len = mbh->load_end_addr - mbh->load_addr;
+	bss_len = mbh->bss_end_addr - mbh->load_end_addr;
+
+	if (syslinux_memmap_type(amap, mbh->load_addr, data_len + bss_len)
+	    != SMT_FREE) {
+	    printf("Memory segment at 0x%08x (len 0x%08x) is unavailable\n",
+		   mbh->load_addr, data_len + bss_len);
+	    return -1;		/* Memory region unavailable */
+	}
+	if (syslinux_add_memmap(&amap, mbh->load_addr,
+				data_len + bss_len, SMT_ALLOC)) {
+	    error("Failed to claim a.out address space!\n");
+	    return -1;
+	}
+	if (data_len)
+	    if (syslinux_add_movelist(&ml, mbh->load_addr, (addr_t) data_ptr,
+				      data_len)) {
+		error("Failed to map a.out data\n");
+		return -1;
+	    }
+	if (bss_len)
+	    if (syslinux_add_memmap
+		(&mmap, mbh->load_end_addr, bss_len, SMT_ZERO)) {
+		error("Failed to map a.out bss\n");
+		return -1;
+	    }
+	if (mbh->bss_end_addr > mboot_high_water_mark)
+	    mboot_high_water_mark = mbh->bss_end_addr;
+    } else {
+	error
+	    ("Invalid Multiboot image: neither ELF header nor a.out kludge found\n");
+	return -1;
+    }
+
+    return 0;
 }
 
 /*
@@ -314,22 +317,22 @@ int map_image(void *ptr, size_t len)
  */
 static void mboot_map_stack(void)
 {
-  addr_t start, len;
+    addr_t start, len;
 
-  if (syslinux_memmap_largest(amap, SMT_FREE, &start, &len) || len < 64)
-    return;			/* Not much we can do, here... */
+    if (syslinux_memmap_largest(amap, SMT_FREE, &start, &len) || len < 64)
+	return;			/* Not much we can do, here... */
 
-  regs.esp = (start+len-32) & ~15;
-  dprintf("Mapping stack at 0x%08x\n", regs.esp);
-  syslinux_add_memmap(&mmap, regs.esp, 32, SMT_ZERO);
+    regs.esp = (start + len - 32) & ~15;
+    dprintf("Mapping stack at 0x%08x\n", regs.esp);
+    syslinux_add_memmap(&mmap, regs.esp, 32, SMT_ZERO);
 }
 
 void mboot_run(int bootflags)
 {
-  mboot_map_stack();
-  
-  dprintf("Running, eip = 0x%08x, ebx = 0x%08x\n", regs.eip, regs.ebx);
+    mboot_map_stack();
 
-  regs.eax = MULTIBOOT_VALID;
-  syslinux_shuffle_boot_pm(ml, mmap, bootflags, &regs);
+    dprintf("Running, eip = 0x%08x, ebx = 0x%08x\n", regs.eip, regs.ebx);
+
+    regs.eax = MULTIBOOT_VALID;
+    syslinux_shuffle_boot_pm(ml, mmap, bootflags, &regs);
 }
