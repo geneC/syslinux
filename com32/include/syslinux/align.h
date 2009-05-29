@@ -32,11 +32,12 @@
 
 static inline uintptr_t __align_down(uintptr_t __p, uintptr_t __a)
 {
-  return __p & ~(__a - 1);
+    return __p & ~(__a - 1);
 }
+
 static inline uintptr_t __align_up(uintptr_t __p, uintptr_t __a)
 {
-  return (__p + __a - 1) & ~(__a - 1);
+    return (__p + __a - 1) & ~(__a - 1);
 }
 
 #define ALIGN_UP(p,a) ((__typeof__(p))__align_up((uintptr_t)(p), (a)))
