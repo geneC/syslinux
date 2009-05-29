@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 struct tms {
-  /* Empty */
+    /* Empty */
 };
 
 #define HZ		18	/* Piddly resolution... */
