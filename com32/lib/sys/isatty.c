@@ -41,13 +41,13 @@
 
 int isatty(int fd)
 {
-  struct file_info *fp = &__file_info[fd];
+    struct file_info *fp = &__file_info[fd];
 
-  if ( fd >= NFILES || !fp->iop ) {
-    errno = EBADF;
-    return -1;
-  }
+    if (fd >= NFILES || !fp->iop) {
+	errno = EBADF;
+	return -1;
+    }
 
-  /* __DEV_TTY == 1 */
-  return (fp->iop->flags & __DEV_TTY);
+    /* __DEV_TTY == 1 */
+    return (fp->iop->flags & __DEV_TTY);
 }
