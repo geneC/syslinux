@@ -108,14 +108,12 @@ GetlinsecPtr	resw 1			; The sector-read pointer
 BIOSName	resw 1			; Display string for BIOS type
 %define HAVE_BIOSNAME 1
 BIOSType	resw 1
+bsSecPerTrack	resw 1			; Used in hybrid mode
+bsHeads		resw 1			; Used in hybrid mode
 DiskError	resb 1			; Error code for disk I/O
 DriveNumber	resb 1			; CD-ROM BIOS drive number
 ISOFlags	resb 1			; Flags for ISO directory search
 RetryCount      resb 1			; Used for disk access retries
-		alignb 8
-bsHidden	resq 1			; Used in hybrid mode
-bsSecPerTrack	resw 1			; Used in hybrid mode
-bsHeads		resw 1			; Used in hybrid mode
 
 _spec_start	equ $
 
@@ -235,6 +233,9 @@ bi_end:
 		;	- EBIOS flag
 		;       (top of stack)
 		;
+		; If we had an old isohybrid, the partition offset will
+		; be missing; we can check for that with sp >= 0x7c00.
+		; Serious hack alert.
 %ifndef DEBUG_MESSAGES
 _hybrid_signature:
 	       dd 0x7078c0fb			; An arbitrary number...
@@ -246,8 +247,11 @@ _start_hybrid:
 		pop dx
 		pop di
 		pop es
+		cmp sp,7C00h
+		jae .nooffset
 		pop dword [cs:bsHidden]
 		pop dword [cs:bsHidden+4]
+.nooffset:
 
 		mov si,bios_cbios
 		jcxz _start_common
@@ -1072,7 +1076,9 @@ bios_cbios_str	db 'CHDD', 0
 bios_ebios_str	db 'EHDD' ,0
 %endif
 
-		alignz 4
+		alignz 8
+bsHidden	dq 0				; Used in hybrid mode
+
 bios_cdrom:	dw getlinsec_cdrom, bios_cdrom_str
 %ifndef DEBUG_MESSAGES
 bios_cbios:	dw getlinsec_cbios, bios_cbios_str
