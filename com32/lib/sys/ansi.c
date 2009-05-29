@@ -77,7 +77,7 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
     switch (st->state) {
     case st_init:
 	switch (ch) {
-	case 1...5:
+	case 1 ... 5:
 	    st->state = st_tbl;
 	    st->parms[0] = ch;
 	    break;
@@ -339,7 +339,7 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
 			    case 27:
 				st->reverse = 0;
 				break;
-			    case 30...37:
+			    case 30 ... 37:
 				st->fg = ansi2pc[a - 30];
 				break;
 			    case 38:
@@ -350,7 +350,7 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
 				st->fg = 7;
 				st->underline = 0;
 				break;
-			    case 40...47:
+			    case 40 ... 47:
 				st->bg = ansi2pc[a - 40];
 				break;
 			    case 49:
