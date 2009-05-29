@@ -4,16 +4,16 @@
 #include "mystuff.h"
 
 struct serial_if {
-  int port;
-  void *pvt;
-  void (*read)(struct serial_if *, void *, size_t);
-  void (*write)(struct serial_if *, const void *, size_t);
+    int port;
+    void *pvt;
+    void (*read) (struct serial_if *, void *, size_t);
+    void (*write) (struct serial_if *, const void *, size_t);
 };
 
 struct file_info {
-  const char *name;
-  size_t size;
-  void *pvt;
+    const char *name;
+    size_t size;
+    void *pvt;
 };
 
 void send_ymodem(struct serial_if *, struct file_info *,
