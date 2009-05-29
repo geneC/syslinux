@@ -31,75 +31,75 @@
 #include <stddef.h>
 #include <string.h>
 
-void rllpack(com32sys_t *regs)
+void rllpack(com32sys_t * regs)
 {
-	uint8_t *i = (uint8_t *)(regs->esi.l);
-	uint8_t *o = (uint8_t *)(regs->edi.l);
-	size_t cnt = regs->ecx.l;
-	size_t run, vrun, tcnt;
-	uint8_t *hdr = NULL;
-	uint8_t c;
+    uint8_t *i = (uint8_t *) (regs->esi.l);
+    uint8_t *o = (uint8_t *) (regs->edi.l);
+    size_t cnt = regs->ecx.l;
+    size_t run, vrun, tcnt;
+    uint8_t *hdr = NULL;
+    uint8_t c;
 
-	vrun = (size_t)-1;
-	while (cnt) {
-		c = *i;
+    vrun = (size_t) - 1;
+    while (cnt) {
+	c = *i;
 
-		run = 1;
-		tcnt = (cnt > 8191) ? 8191 : cnt;
-		while (run < tcnt && i[run] == c)
-			run++;
+	run = 1;
+	tcnt = (cnt > 8191) ? 8191 : cnt;
+	while (run < tcnt && i[run] == c)
+	    run++;
 
-		if (run < 3) {
-			if (vrun >= 128) {
-				hdr = --o;
-				vrun = 0;
-			}
-			*--o = c;
-			*hdr = ++vrun;
-			i++;
-			cnt--;
-		} else {
-			if (run < 224-126) {
-				*--o = run+126;
-			} else {
-				o -= 2;
-				*(uint16_t *)o = run + (224 << 8);
-			}
-			*--o = c;
-			vrun = (size_t)-1;
-			i += run;
-			cnt -= run;
-		}
+	if (run < 3) {
+	    if (vrun >= 128) {
+		hdr = --o;
+		vrun = 0;
+	    }
+	    *--o = c;
+	    *hdr = ++vrun;
+	    i++;
+	    cnt--;
+	} else {
+	    if (run < 224 - 126) {
+		*--o = run + 126;
+	    } else {
+		o -= 2;
+		*(uint16_t *) o = run + (224 << 8);
+	    }
+	    *--o = c;
+	    vrun = (size_t) - 1;
+	    i += run;
+	    cnt -= run;
 	}
-	*--o = 0;
+    }
+    *--o = 0;
 
-	regs->esi.l = (size_t)i;
-	regs->edi.l = (size_t)o;
+    regs->esi.l = (size_t) i;
+    regs->edi.l = (size_t) o;
 }
 
-void rllunpack(com32sys_t *regs)
+void rllunpack(com32sys_t * regs)
 {
-	uint8_t *i = (uint8_t *)regs->esi.l;
-	uint8_t *o = (uint8_t *)regs->edi.l;
-	uint8_t c;
-	size_t n;
+    uint8_t *i = (uint8_t *) regs->esi.l;
+    uint8_t *o = (uint8_t *) regs->edi.l;
+    uint8_t c;
+    size_t n;
 
-	while ((c = *--i)) {
-		if (c <= 128) {
-			while (c--)
-				*o++ = *--i;
-		} else {
-			if (c < 224)
-				n = c - 126;
-			else
-				n = ((c-224) << 8) + *--i;
-			c = *--i;
-			while (n--)
-				*o++ = c;
-		}
+    while ((c = *--i)) {
+	if (c <= 128) {
+	    while (c--)
+		*o++ = *--i;
+	} else {
+	    if (c < 224)
+		n = c - 126;
+	    else
+		n = ((c - 224) << 8) + *--i;
+	    c = *--i;
+	    while (n--)
+		*o++ = c;
 	}
+    }
 
-	regs->esi.l = (size_t)i;
-	regs->ecx.l = (size_t)o - regs->edi.l;
-	regs->edi.l = (size_t)o;
+    regs->esi.l = (size_t) i;
+    regs->ecx.l = (size_t) o - regs->edi.l;
+    regs->edi.l = (size_t) o;
 }
