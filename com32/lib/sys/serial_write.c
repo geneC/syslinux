@@ -40,32 +40,32 @@
 
 ssize_t __serial_write(struct file_info *fp, const void *buf, size_t count)
 {
-  com32sys_t ireg;
-  const char *bufp = buf;
-  size_t n = 0;
+    com32sys_t ireg;
+    const char *bufp = buf;
+    size_t n = 0;
 
-  (void)fp;
+    (void)fp;
 
-  if (!syslinux_serial_console_info()->iobase)
-    return count;		/* Nothing to do */
+    if (!syslinux_serial_console_info()->iobase)
+	return count;		/* Nothing to do */
 
-  memset(&ireg, 0, sizeof ireg);
-  ireg.eax.b[1] = 0x04;
+    memset(&ireg, 0, sizeof ireg);
+    ireg.eax.b[1] = 0x04;
 
-  while ( count-- ) {
-    ireg.edx.b[0] = *bufp++;
-    __intcall(0x21, &ireg, NULL);
-    n++;
-  }
+    while (count--) {
+	ireg.edx.b[0] = *bufp++;
+	__intcall(0x21, &ireg, NULL);
+	n++;
+    }
 
-  return n;
+    return n;
 }
 
 const struct output_dev dev_serial_w = {
-  .dev_magic  = __DEV_MAGIC,
-  .flags      = __DEV_TTY | __DEV_OUTPUT,
-  .fileflags  = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
-  .write      = __serial_write,
-  .close      = NULL,
-  .open       = NULL,
+    .dev_magic = __DEV_MAGIC,
+    .flags = __DEV_TTY | __DEV_OUTPUT,
+    .fileflags = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
+    .write = __serial_write,
+    .close = NULL,
+    .open = NULL,
 };
