@@ -37,12 +37,12 @@
 int initramfs_load_file(struct initramfs *ihead, const char *src_filename,
 			const char *dst_filename, int do_mkdir, uint32_t mode)
 {
-  void *data;
-  size_t len;
+    void *data;
+    size_t len;
 
-  if (loadfile(src_filename, &data, &len))
-    return -1;
+    if (loadfile(src_filename, &data, &len))
+	return -1;
 
-  return initramfs_add_file(ihead, data, len, len, dst_filename,
-			    do_mkdir, mode);
+    return initramfs_add_file(ihead, data, len, len, dst_filename,
+			      do_mkdir, mode);
 }
