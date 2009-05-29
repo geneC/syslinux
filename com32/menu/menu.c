@@ -22,13 +22,13 @@
 
 int draw_background(const char *arg)
 {
-  /* Nothing to do... */
-  (void)arg;
-  return 0;
+    /* Nothing to do... */
+    (void)arg;
+    return 0;
 }
 
 int main(int argc, char *argv[])
 {
-  console_ansi_raw();
-  return menu_main(argc, argv);
+    console_ansi_raw();
+    return menu_main(argc, argv);
 }
