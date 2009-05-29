@@ -35,11 +35,19 @@
 #define ADJUST_H
 
 #ifdef CTRL_80
-.macro ADJUST_DRIVE testb $0x04, BIOS_kbdflags jz 1f movb $0x80, %dl 1:
-.endm
+	.macro ADJUST_DRIVE
+	testb	$0x04, BIOS_kbdflags
+	jz	1f
+	movb	$0x80, %dl
+1:
+	.endm
 #elif defined(FORCE_80)
-.macro ADJUST_DRIVE movb $0x80, %dl.endm
+	.macro ADJUST_DRIVE
+	movb	$0x80, %dl
+	.endm
 #else
-.macro ADJUST_DRIVE.endm
+	.macro ADJUST_DRIVE
+	.endm
 #endif
+
 #endif /* ADJUST_H */
