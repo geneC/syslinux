@@ -34,89 +34,89 @@
 #include "video.h"
 
 static struct win_info {
-  char *win_base;
-  size_t win_pos;
-  size_t win_size;
-  int win_gshift;
-  int win_num;
+    char *win_base;
+    size_t win_pos;
+    size_t win_size;
+    int win_gshift;
+    int win_num;
 } wi;
 
 static inline int __constfunc ilog2(unsigned int x)
 {
-  asm("bsrl %1,%0" : "=r" (x) : "rm" (x));
-  return x;
+asm("bsrl %1,%0": "=r"(x):"rm"(x));
+    return x;
 }
 
 void __vesacon_init_copy_to_screen(void)
 {
-  struct vesa_mode_info * const mi = &__vesa_info.mi;
-  int winn;
+    struct vesa_mode_info *const mi = &__vesa_info.mi;
+    int winn;
 
-  if (mi->mode_attr & 0x0080) {
-    /* Linear frame buffer */
+    if (mi->mode_attr & 0x0080) {
+	/* Linear frame buffer */
 
-    wi.win_base = (char *)mi->lfb_ptr;
-    wi.win_size = 1 << 31;	/* 2 GB, i.e. one huge window */
-    wi.win_pos  = 0;		/* Already positioned (only one position...) */
-    wi.win_num  = -1;		/* Not a window */
-  } else {
-    /* Paged frame buffer */
+	wi.win_base = (char *)mi->lfb_ptr;
+	wi.win_size = 1 << 31;	/* 2 GB, i.e. one huge window */
+	wi.win_pos = 0;		/* Already positioned (only one position...) */
+	wi.win_num = -1;	/* Not a window */
+    } else {
+	/* Paged frame buffer */
 
-    /* We have already tested that *one* of these is usable */
-    if ((mi->win_attr[0] & 0x05) == 0x05 && mi->win_seg[0])
-      winn = 0;
-    else
-      winn = 1;
+	/* We have already tested that *one* of these is usable */
+	if ((mi->win_attr[0] & 0x05) == 0x05 && mi->win_seg[0])
+	    winn = 0;
+	else
+	    winn = 1;
 
-    wi.win_num    = winn;
-    wi.win_base   = (char *)(mi->win_seg[winn] << 4);
-    wi.win_size   = mi->win_size << 10;
-    wi.win_gshift = ilog2(mi->win_grain) + 10;
-    wi.win_pos = -1;		/* Undefined position */
-  }
+	wi.win_num = winn;
+	wi.win_base = (char *)(mi->win_seg[winn] << 4);
+	wi.win_size = mi->win_size << 10;
+	wi.win_gshift = ilog2(mi->win_grain) + 10;
+	wi.win_pos = -1;	/* Undefined position */
+    }
 }
 
 static void set_window_pos(size_t win_pos)
 {
-  static com32sys_t ireg;
+    static com32sys_t ireg;
 
-  wi.win_pos = win_pos;
+    wi.win_pos = win_pos;
 
-  if (wi.win_num < 0)
-    return;			/* This should never happen... */
+    if (wi.win_num < 0)
+	return;			/* This should never happen... */
 
-  ireg.eax.w[0] = 0x4F05;
-  ireg.ebx.b[0] = wi.win_num;
-  ireg.edx.w[0] = win_pos >> wi.win_gshift;
+    ireg.eax.w[0] = 0x4F05;
+    ireg.ebx.b[0] = wi.win_num;
+    ireg.edx.w[0] = win_pos >> wi.win_gshift;
 
-  __intcall(0x10, &ireg, NULL);
+    __intcall(0x10, &ireg, NULL);
 }
 
-void __vesacon_copy_to_screen(size_t dst, const uint32_t *src, size_t npixels)
+void __vesacon_copy_to_screen(size_t dst, const uint32_t * src, size_t npixels)
 {
-  size_t win_pos, win_off;
-  size_t win_size = wi.win_size;
-  size_t omask = win_size - 1;
-  char *win_base = wi.win_base;
-  size_t l;
-  size_t bytes = npixels * __vesacon_bytes_per_pixel;
-  char rowbuf[bytes+4] __aligned(4);
-  const char *s;
+    size_t win_pos, win_off;
+    size_t win_size = wi.win_size;
+    size_t omask = win_size - 1;
+    char *win_base = wi.win_base;
+    size_t l;
+    size_t bytes = npixels * __vesacon_bytes_per_pixel;
+    char rowbuf[bytes + 4] __aligned(4);
+    const char *s;
 
-  s = (const char *)__vesacon_format_pixels(rowbuf, src, npixels);
+    s = (const char *)__vesacon_format_pixels(rowbuf, src, npixels);
 
-  while (bytes) {
-    win_off = dst & omask;
-    win_pos = dst & ~omask;
+    while (bytes) {
+	win_off = dst & omask;
+	win_pos = dst & ~omask;
 
-    if (__unlikely(win_pos != wi.win_pos))
-      set_window_pos(win_pos);
+	if (__unlikely(win_pos != wi.win_pos))
+	    set_window_pos(win_pos);
 
-    l = min(bytes, win_size-win_off);
-    memcpy(win_base+win_off, s, l);
+	l = min(bytes, win_size - win_off);
+	memcpy(win_base + win_off, s, l);
 
-    bytes -= l;
-    s += l;
-    dst += l;
-  }
+	bytes -= l;
+	s += l;
+	dst += l;
+    }
 }
