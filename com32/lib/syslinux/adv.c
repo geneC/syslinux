@@ -40,10 +40,10 @@ size_t __syslinux_adv_size;
 
 void __constructor __syslinux_get_adv(void)
 {
-  static com32sys_t reg;
+    static com32sys_t reg;
 
-  reg.eax.w[0] = 0x001c;
-  __intcall(0x22, &reg, &reg);
-  __syslinux_adv_ptr = MK_PTR(reg.es, reg.ebx.w[0]);
-  __syslinux_adv_size = reg.ecx.w[0];
+    reg.eax.w[0] = 0x001c;
+    __intcall(0x22, &reg, &reg);
+    __syslinux_adv_ptr = MK_PTR(reg.es, reg.ebx.w[0]);
+    __syslinux_adv_size = reg.ecx.w[0];
 }
