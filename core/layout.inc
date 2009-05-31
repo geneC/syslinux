@@ -96,8 +96,9 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 ;
 ; This stuff really should come from the linker...
 ;
-		global	xfer_buf_seg
+		global	xfer_buf_seg, core_xfer_buf
 xfer_buf_seg	equ 2000h
+core_xfer_buf	equ xfer_buf_seg << 4
 
 serial_buf_size	equ 4096		; Should be a power of 2
 
