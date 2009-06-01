@@ -95,6 +95,7 @@ struct prefix {
     uint32_t pfx_compressed;
     uint32_t pfx_cdatalen;
     uint32_t pfx_checksum;
+    uint32_t pfx_maxlma;
 };
 
 static inline uint32_t get_32(const uint32_t * p)
@@ -315,6 +316,13 @@ int __lzo_cdecl_main main(int argc, char *argv[])
 
 	set_32((uint32_t *) (infile + soff), offset - start + outfile_len);
 	set_32((uint32_t *) (infile + soff + 4), csum);
+    }
+
+    if (offset+outfile_len > get_32(&prefix->pfx_maxlma)) {
+	printf("%s: output too big (%lu, max %lu)\n",
+	       (unsigned long)offset+outfile_len,
+	       (unsigned long)get_32(&prefix->pfx_maxlma));
+	exit(1);
     }
 
     f = fopen(out_name, "wb");

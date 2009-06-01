@@ -18,3 +18,7 @@
 %include "strcpy.inc"           ; strcpy()
 %include "idle.inc"		; Idle handling
 %include "adv.inc"		; Auxillary Data Vector
+
+; Note: the prefix section is included late, to avoid problems with some
+; versions of NASM that had issues with forward references to EQU symbols.
+%include "prefix.inc"		; Prefix section for prepcore

@@ -224,6 +224,10 @@ packet_buf_size	equ $-packet_buf
 StackBuf	equ $-44		; Base of stack if we use our own
 StackTop	equ StackBuf
 
+		; PXE loads the whole file, but assume it can't be more
+		; than (384-31)K in size.
+MaxLMA		equ 384*1024
+
 ;
 ; Primary entry point.
 ;

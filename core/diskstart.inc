@@ -668,8 +668,8 @@ rl_checkpt_off	equ ($-$$)
 
 ; Sector pointers
 		alignz 4
-		global MaxInitDataSize
 MaxInitDataSize	equ 96 << 10
+MaxLMA		equ 0x7c00+SECTOR_SIZE+MaxInitDataSize
 SectorPtrs	times MaxInitDataSize >> SECTOR_SHIFT dd 0
 SectorPtrsEnd	equ $
 
