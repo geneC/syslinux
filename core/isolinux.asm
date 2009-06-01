@@ -108,20 +108,23 @@ GetlinsecPtr	resw 1			; The sector-read pointer
 BIOSName	resw 1			; Display string for BIOS type
 %define HAVE_BIOSNAME 1
 BIOSType	resw 1
-bsSecPerTrack	resw 1			; Used in hybrid mode
-bsHeads		resw 1			; Used in hybrid mode
 DiskError	resb 1			; Error code for disk I/O
 DriveNumber	resb 1			; CD-ROM BIOS drive number
 ISOFlags	resb 1			; Flags for ISO directory search
 RetryCount      resb 1			; Used for disk access retries
 
-_spec_start	equ $
+		alignb 8
+bsHidden	resq 1			; Used in hybrid mode
+bsSecPerTrack	resw 1			; Used in hybrid mode
+bsHeads		resw 1			; Used in hybrid mode
+
 
 ;
 ; El Torito spec packet
 ;
 
 		alignb 8
+_spec_start	equ $
 spec_packet:	resb 1				; Size of packet
 sp_media:	resb 1				; Media type
 sp_drive:	resb 1				; Drive number
@@ -245,11 +248,15 @@ _start_hybrid:
 		pop dx
 		pop di
 		pop es
+		xor eax,eax
+		xor edx,edx
 		cmp sp,7C00h
 		jae .nooffset
-		pop dword [cs:bsHidden]
-		pop dword [cs:bsHidden+4]
+		pop eax
+		pop edx
 .nooffset:
+		mov [cs:bsHidden],eax
+		mov [cs:bsHidden+4],edx
 
 		mov si,bios_cbios
 		jcxz _start_common
@@ -1066,9 +1073,7 @@ bios_cbios_str	db 'CHDD', 0
 bios_ebios_str	db 'EHDD' ,0
 %endif
 
-		alignz 8
-bsHidden	dq 0				; Used in hybrid mode
-
+		alignz 4
 bios_cdrom:	dw getlinsec_cdrom, bios_cdrom_str
 %ifndef DEBUG_MESSAGES
 bios_cbios:	dw getlinsec_cbios, bios_cbios_str
