@@ -703,20 +703,26 @@ writechr_simple:
 		ret
 
 ;
-; int13: save all the segment registers and call INT 13h
-;	 Some CD-ROM BIOSes have been found to corrupt segment registers.
+; int13: save all the segment registers and call INT 13h.
+;	 Some CD-ROM BIOSes have been found to corrupt segment registers
+;	 and/or disable interrupts.
 ;
 int13:
-
+		pushf
+		push bp
 		push ds
 		push es
 		push fs
 		push gs
 		int 13h
+		mov bp,sp
+		setc [bp+10]		; Propagate CF to the caller
 		pop gs
 		pop fs
 		pop es
 		pop ds
+		pop bp
+		popf
 		ret
 
 ;
@@ -778,8 +784,8 @@ getlinsec_ebios:
 		push ds
 		push ss
 		pop ds				; DS <- SS
-                mov ah,42h                      ; Extended Read
-		int 13h
+		mov ah,42h			; Extended Read
+		call int13
 		pop ds
 		popad
 		lea sp,[si+16]			; Remove DAPA
@@ -804,7 +810,7 @@ getlinsec_ebios:
 		pushad				; Try resetting the device
 		xor ax,ax
 		mov dl,[DriveNumber]
-		int 13h
+		call int13
 		popad
 		loop .retry			; CX-- and jump if not zero
 
@@ -880,7 +886,7 @@ getlinsec_cbios:
 		mov bp,retry_count
 .retry:
 		pushad
-		int 13h
+		call int13
 		popad
 		jc .error
 .resume:
