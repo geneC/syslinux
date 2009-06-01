@@ -144,6 +144,8 @@ int __lzo_cdecl_main main(int argc, char *argv[])
     lzo_uint out_len = 0;
     lzo_uint outfile_len;
 
+    lzo_bytep test;
+
     lzo_byte wrkmem[LZO1X_999_MEM_COMPRESS];
 
     lzo_uint best_len;
@@ -330,16 +332,16 @@ int __lzo_cdecl_main main(int argc, char *argv[])
  * Step 12: verify decompression
  */
 #ifdef PARANOID
-    memset(in, 0, in_len);	/* paranoia - clear output buffer */
-    orig_len = in_len;
-    r = lzo1x_decompress_safe(out, out_len, in, &orig_len, NULL);
+    test = calloc(in_len,2);
+    orig_len = in_len*2;
+    r = lzo1x_decompress_safe(out, out_len, test, &orig_len, NULL);
+
     if (r != LZO_E_OK || orig_len != in_len) {
 	/* this should NEVER happen */
 	printf("internal error - decompression failed: %d\n", r);
 	exit(1);
     }
-    if (uncompressed_checksum !=
-	lzo_adler32(lzo_adler32(0, NULL, 0), in, in_len)) {
+    if (memcmp(test, in, in_len)) {
 	/* this should NEVER happen */
 	printf("internal error - decompression data error\n");
 	exit(1);
@@ -347,6 +349,8 @@ int __lzo_cdecl_main main(int argc, char *argv[])
     /* Now you could also verify decompression under similar conditions as in
      * your application, e.g. overlapping assembler decompression etc.
      */
+
+    free(test);
 #endif
 
     free(infile);
