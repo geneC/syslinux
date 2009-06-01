@@ -82,13 +82,21 @@ lzo1y_999_compress_internal(const lzo_bytep in, lzo_uint in_len,
 #define PARANOID 1
 
 #include <assert.h>
+#include <ctype.h>
+#include <errno.h>
 #include <inttypes.h>
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 #include <time.h>
+
+#ifdef __GNUC__
+# define noreturn void __attribute__((noreturn))
+#else
+# define noreturn void
+#endif
 
 struct prefix {
     uint32_t pfx_start;
@@ -124,11 +132,37 @@ static inline void set_32(uint32_t * p, uint32_t v)
 #endif
 }
 
+const char *progname = NULL;
+const char *in_name  = NULL;
+const char *out_name = NULL;
+
+static noreturn error(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    fprintf(stderr, "%s: ", progname);
+    if (in_name)
+	fprintf(stderr, "%s: ", in_name);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
+
+    exit(1);
+}
+
+static void *xzalloc(size_t n)
+{
+    void *p = calloc(n, 1);
+    if (!p)
+	error("out of memory");
+    return p;
+}
+
 /*************************************************************************
 //
 **************************************************************************/
 
-int __lzo_cdecl_main main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     int r;
     int lazy;
@@ -157,16 +191,13 @@ int __lzo_cdecl_main main(int argc, char *argv[])
     lzo_uint32 compressed_checksum;
 
     FILE *f;
-    const char *progname = NULL;
-    const char *in_name = NULL;
-    const char *out_name = NULL;
     long l;
 
     struct prefix *prefix;
 
     progname = argv[0];
     if (argc != 3) {
-	printf("usage: %s file output-file\n", progname);
+	printf("Usage: %s file output-file\n", progname);
 	exit(1);
     }
     in_name = argv[1];
@@ -176,26 +207,21 @@ int __lzo_cdecl_main main(int argc, char *argv[])
 /*
  * Step 1: initialize the LZO library
  */
-    if (lzo_init() != LZO_E_OK) {
-	printf("internal error - lzo_init() failed !!!\n");
-	printf
-	    ("(this usually indicates a compiler bug - try recompiling\nwithout optimizations, and enable `-DLZO_DEBUG' for diagnostics)\n");
-	exit(1);
-    }
+    if (lzo_init() != LZO_E_OK)
+	error("internal error - lzo_init() failed!\n");
 
 /*
  * Step 3: open the input file
  */
     f = fopen(in_name, "rb");
-    if (f == NULL) {
-	printf("%s: cannot open file %s\n", progname, in_name);
-	exit(1);
-    }
+    if (!f)
+	error("cannot open file: %s\n", strerror(errno));
+
     fseek(f, 0, SEEK_END);
     l = ftell(f);
     fseek(f, 0, SEEK_SET);
     if (l <= 0) {
-	printf("%s: %s: empty file\n", progname, in_name);
+	error("empty file\n", progname, in_name);
 	fclose(f);
 	exit(1);
     }
@@ -205,13 +231,9 @@ int __lzo_cdecl_main main(int argc, char *argv[])
 /*
  * Step 4: allocate compression buffers and read the file
  */
-    infile = (lzo_bytep) malloc(infile_len);
-    out = (lzo_bytep) malloc(out_bufsize);
-    if (infile == NULL || out == NULL) {
-	printf("%s: out of memory\n", progname);
-	exit(1);
-    }
-    infile_len = (lzo_uint) fread(infile, 1, infile_len, f);
+    infile = xzalloc(infile_len);
+    out = xzalloc(out_bufsize);
+    infile_len = fread(infile, 1, infile_len, f);
     fclose(f);
 
 /*
@@ -238,11 +260,10 @@ int __lzo_cdecl_main main(int argc, char *argv[])
 	r = lzo1x_999_compress_internal(in, in_len, out, &out_len, wrkmem,
 					NULL, 0, 0,
 					lazy, big, big, big, big, flags);
-	if (r != LZO_E_OK) {
+	if (r != LZO_E_OK)
 	    /* this should NEVER happen */
-	    printf("internal error - compression failed: %d\n", r);
-	    exit(1);
-	}
+	    error("internal error - compression failed: %d\n", r);
+
 	if (out_len < best_len) {
 	    best_len = out_len;
 	    best_lazy = lazy;
@@ -253,8 +274,9 @@ int __lzo_cdecl_main main(int argc, char *argv[])
  * Step 7: check if compressible
  */
     if (best_len >= in_len) {
-	printf("This file contains incompressible data.\n");
-	/* return 0;  -- Sucks to be us -hpa ... */
+	fprintf(stderr, "%s: %s: this file contains incompressible data.\n",
+		progname, in_name);
+	/* do it anyway */
     }
 
 /*
@@ -281,8 +303,7 @@ int __lzo_cdecl_main main(int argc, char *argv[])
     r = lzo1x_optimize(out, out_len, in, &orig_len, NULL);
     if (r != LZO_E_OK || orig_len != in_len) {
 	/* this should NEVER happen */
-	printf("internal error - optimization failed: %d\n", r);
-	exit(1);
+	error("internal error - optimization failed: %d\n", r);
     }
 
 /*
@@ -318,42 +339,37 @@ int __lzo_cdecl_main main(int argc, char *argv[])
 	set_32((uint32_t *) (infile + soff + 4), csum);
     }
 
-    if (offset+outfile_len > get_32(&prefix->pfx_maxlma)) {
-	printf("%s: output too big (%lu, max %lu)\n",
-	       (unsigned long)offset+outfile_len,
-	       (unsigned long)get_32(&prefix->pfx_maxlma));
-	exit(1);
-    }
+    if (offset+outfile_len > get_32(&prefix->pfx_maxlma))
+	error("output too big (%lu, max %lu)\n",
+	      (unsigned long)offset+outfile_len,
+	      (unsigned long)get_32(&prefix->pfx_maxlma));
 
     f = fopen(out_name, "wb");
-    if (f == NULL) {
-	printf("%s: cannot open output file %s\n", progname, out_name);
-	exit(1);
-    }
+    if (!f)
+	error("cannot open output file %s: %s\n", out_name, strerror(errno));
+
     if (fwrite(infile + start, 1, offset - start, f) != offset - start ||
-	fwrite(out, 1, outfile_len, f) != outfile_len || fclose(f)) {
-	printf("%s: write error !!\n", progname);
-	exit(1);
-    }
+	fwrite(out, 1, outfile_len, f) != outfile_len || fclose(f))
+	error("write error\n");
 
 /*
  * Step 12: verify decompression
  */
 #ifdef PARANOID
-    test = calloc(in_len,2);
-    orig_len = in_len*2;
+    orig_len = in_len * 2;
+    test = xzalloc(orig_len);
     r = lzo1x_decompress_safe(out, out_len, test, &orig_len, NULL);
 
     if (r != LZO_E_OK || orig_len != in_len) {
 	/* this should NEVER happen */
-	printf("internal error - decompression failed: %d\n", r);
-	exit(1);
+	error("internal error - decompression failed: %d\n", r);
     }
+
     if (memcmp(test, in, in_len)) {
 	/* this should NEVER happen */
-	printf("internal error - decompression data error\n");
-	exit(1);
+	error("internal error - decompression data error\n");
     }
+
     /* Now you could also verify decompression under similar conditions as in
      * your application, e.g. overlapping assembler decompression etc.
      */
