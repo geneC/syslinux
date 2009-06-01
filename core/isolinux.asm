@@ -249,14 +249,14 @@ _start_hybrid:
 		pop di
 		pop es
 		xor eax,eax
-		xor edx,edx
+		xor ebx,ebx
 		cmp sp,7C00h
 		jae .nooffset
 		pop eax
-		pop edx
+		pop ebx
 .nooffset:
 		mov [cs:bsHidden],eax
-		mov [cs:bsHidden+4],edx
+		mov [cs:bsHidden+4],ebx
 
 		mov si,bios_cbios
 		jcxz _start_common
