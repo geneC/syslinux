@@ -217,6 +217,17 @@ SECTIONS
 		__rodata_end = .;
 	}
 
+	. = ALIGN(4);
+
+	__got_vma = .;
+	__got_lma = __got_vma + __text_lma - __text_vma;
+	.got : AT(__got_lma) {
+		__got_start = .;
+		*(.got.plt)
+		*(.got)
+		__got_end = .;
+	}
+
 	. = ALIGN(16);
 
 	__data_vma = .;
