@@ -145,6 +145,7 @@ static noreturn error(const char *fmt, ...)
     if (in_name)
 	fprintf(stderr, "%s: ", in_name);
     vfprintf(stderr, fmt, ap);
+    fputc('\n', stderr);
     va_end(ap);
 
     exit(1);
@@ -197,7 +198,7 @@ int main(int argc, char *argv[])
 
     progname = argv[0];
     if (argc != 3) {
-	printf("Usage: %s file output-file\n", progname);
+	fprintf(stderr, "Usage: %s file output-file\n", progname);
 	exit(1);
     }
     in_name = argv[1];
@@ -208,20 +209,20 @@ int main(int argc, char *argv[])
  * Step 1: initialize the LZO library
  */
     if (lzo_init() != LZO_E_OK)
-	error("internal error - lzo_init() failed!\n");
+	error("internal error - lzo_init() failed!");
 
 /*
  * Step 3: open the input file
  */
     f = fopen(in_name, "rb");
     if (!f)
-	error("cannot open file: %s\n", strerror(errno));
+	error("cannot open file: %s", strerror(errno));
 
     fseek(f, 0, SEEK_END);
     l = ftell(f);
     fseek(f, 0, SEEK_SET);
     if (l <= 0) {
-	error("empty file\n", progname, in_name);
+	error("empty file", progname, in_name);
 	fclose(f);
 	exit(1);
     }
@@ -262,7 +263,7 @@ int main(int argc, char *argv[])
 					lazy, big, big, big, big, flags);
 	if (r != LZO_E_OK)
 	    /* this should NEVER happen */
-	    error("internal error - compression failed: %d\n", r);
+	    error("internal error - compression failed: %d", r);
 
 	if (out_len < best_len) {
 	    best_len = out_len;
@@ -274,7 +275,7 @@ int main(int argc, char *argv[])
  * Step 7: check if compressible
  */
     if (best_len >= in_len) {
-	fprintf(stderr, "%s: %s: this file contains incompressible data.\n",
+	fprintf(stderr, "%s: %s: this file contains incompressible data.",
 		progname, in_name);
 	/* do it anyway */
     }
@@ -303,7 +304,7 @@ int main(int argc, char *argv[])
     r = lzo1x_optimize(out, out_len, in, &orig_len, NULL);
     if (r != LZO_E_OK || orig_len != in_len) {
 	/* this should NEVER happen */
-	error("internal error - optimization failed: %d\n", r);
+	error("internal error - optimization failed: %d", r);
     }
 
 /*
@@ -340,17 +341,17 @@ int main(int argc, char *argv[])
     }
 
     if (offset+outfile_len > get_32(&prefix->pfx_maxlma))
-	error("output too big (%lu, max %lu)\n",
+	error("output too big (%lu, max %lu)",
 	      (unsigned long)offset+outfile_len,
 	      (unsigned long)get_32(&prefix->pfx_maxlma));
 
     f = fopen(out_name, "wb");
     if (!f)
-	error("cannot open output file %s: %s\n", out_name, strerror(errno));
+	error("cannot open output file %s: %s", out_name, strerror(errno));
 
     if (fwrite(infile + start, 1, offset - start, f) != offset - start ||
 	fwrite(out, 1, outfile_len, f) != outfile_len || fclose(f))
-	error("write error\n");
+	error("write error");
 
 /*
  * Step 12: verify decompression
@@ -362,12 +363,12 @@ int main(int argc, char *argv[])
 
     if (r != LZO_E_OK || orig_len != in_len) {
 	/* this should NEVER happen */
-	error("internal error - decompression failed: %d\n", r);
+	error("internal error - decompression failed: %d", r);
     }
 
     if (memcmp(test, in, in_len)) {
 	/* this should NEVER happen */
-	error("internal error - decompression data error\n");
+	error("internal error - decompression data error");
     }
 
     /* Now you could also verify decompression under similar conditions as in
