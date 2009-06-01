@@ -113,3 +113,18 @@ not_com32r:
 
 		section .data16
 not_com32r_msg	db ': not a COM32R image', CR, LF, 0
+
+		; Ersatz com32 invocation structure, to make libcom32
+		; code run the same if linked to the core.  This is in
+		; the .data16 segment so HighMemSize can live here.
+		global __com32
+		alignz 4
+__com32:
+		dd 7				; Argument count
+		dd 0				; No command line
+		dd core_intcall			; Intcall entry point
+		dd core_xfer_buf		; Bounce buffer address
+		dd 1 << 16			; 64K bounce buffer
+		dd core_farcall			; Farcall entry point
+		dd core_cfarcall		; Cfarcall entry point
+HighMemSize	dd 0				; End of memory pointer (bytes)
