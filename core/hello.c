@@ -1,5 +1,5 @@
 #include <stddef.h>
-#include "core.h"
+#include <com32.h>
 
 void myputchar(int c)
 {
@@ -8,7 +8,7 @@ void myputchar(int c)
 
     ireg.eax.b[1] = 0x02;
     ireg.edx.b[0] = c;
-    core_intcall(0x21, &ireg, NULL);
+    __intcall(0x21, &ireg, NULL);
 
     *vram++ = c + 0x1f00;
 }
