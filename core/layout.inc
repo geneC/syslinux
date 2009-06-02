@@ -79,7 +79,9 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		SECINFO replacestub
 
 		SECINFO pm_code
-		extern __bss_start, __bss_end, __bss_len, __bss_dwords
+		SECINFO high_clear
+
+		SECINFO bss
 
 		extern free_high_memory
 
@@ -97,7 +99,7 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 ; This stuff really should come from the linker...
 ;
 		global	xfer_buf_seg, core_xfer_buf
-xfer_buf_seg	equ 2000h
+xfer_buf_seg	equ 3000h
 core_xfer_buf	equ xfer_buf_seg << 4
 
 serial_buf_size	equ 4096		; Should be a power of 2
@@ -125,12 +127,12 @@ auxseg		resb aux_size
 
 %if IS_ISOLINUX
 ; ISOLINUX doesn't have a block cache yet
-real_mode_seg	equ 3000h
+real_mode_seg	equ 4000h
 %else
 		global cache_seg, core_cache_buf
-cache_seg	equ 3000h		; 64K area for metadata cache
-core_cache_buf 	equ cache_seg << 4
-real_mode_seg	equ 4000h
+cache_seg	equ 4000h		; 64K area for metadata cache
+core_cache_buf	equ cache_seg << 4
+real_mode_seg	equ 5000h
 
 pktbuf_seg	equ cache_seg		; PXELINUX packet buffers
 %endif

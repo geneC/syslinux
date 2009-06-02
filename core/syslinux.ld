@@ -20,8 +20,8 @@ OUTPUT_ARCH(i386)
 EXTERN(_start)
 ENTRY(_start)
 
-STACK16_LEN = 4096;
-STACK32_LEN = 8192;
+STACK16_LEN =  4096;
+STACK32_LEN = 32768;
 
 SECTIONS
 {
@@ -148,6 +148,8 @@ SECTIONS
 	. = ALIGN(16);
 	__pm_code_lma = .;
 
+	__high_clear_start = .;
+
 	. = ALIGN(512);
 	.adv (NOLOAD) : {
 		__adv_start = .;
@@ -185,9 +187,26 @@ SECTIONS
 	__auxseg_len = __auxseg_end - __auxseg_start;
 	__auxseg_dwords = (__auxseg_len + 3) >> 2;
 	aux_seg = __auxseg_start >> 4;
-	
-	__uibss_auxseg_len = __auxseg_end - __uibss_start;
-	__uibss_auxseg_dwords = (__uibss_auxseg_len + 3) >> 2;
+
+	/*
+	 * Used to allocate lowmem buffers from 32-bit code
+	 */
+	.lowmem (NOLOAD) : {
+		__lowmem_start = .;
+		*(.lowmem)
+		__lowmem_end = .;
+	}
+	__lowmem_len = __lowmem_end - __lowmem_start;
+	__lowmem_dwords = (__lowmem_len + 3) >> 2;
+
+	__high_clear_end = .;
+
+	__high_clear_len = __high_clear_end - __high_clear_start;
+	__high_clear_dwords = (__high_clear_len + 3) >> 2;
+
+
+	__assert_high = ASSERT(__high_clear_end <= core_xfer_buf,
+	"auxseg/lowmem region collides with xfer_buf_seg");
 
 	/*
 	 * 32-bit code.  This is a hack for the moment due to the
@@ -204,6 +223,7 @@ SECTIONS
 		FILL(0x90909090)
 		__text_start = .;
 		*(.text)
+		*(.text.*)
 		__text_end = .;
 	}
 
@@ -214,6 +234,7 @@ SECTIONS
 	.rodata : AT(__rodata_lma) {
 		__rodata_start = .;
 		*(.rodata)
+		*(.rodata.*)
 		__rodata_end = .;
 	}
 
@@ -235,6 +256,7 @@ SECTIONS
 	.data : AT(__data_lma) {
 		__data_start = .;
 		*(.data)
+		*(.data.*)
 		__data_end = .;
 	}
 
@@ -245,9 +267,12 @@ SECTIONS
 	. = ALIGN(128);
 	
 	__bss_vma = .;
-	.bss : AT (__bss_vma) {
+	__bss_lma = .;		/* Dummy */
+	.bss (NOLOAD) : AT (__bss_lma) {
 		__bss_start = .;
 		*(.bss)
+		*(.bss.*)
+		*(COMMON)
 		__bss_end = .;
 	}
 	__bss_len = __bss_end - __bss_start;
@@ -257,7 +282,8 @@ SECTIONS
 
 	/* XXX: This stack should be unified with the COM32 stack */
 	__stack_vma = .;
-	.stack : AT(__stack_vma) {
+	__stack_lma = .;	/* Dummy */
+	.stack (NOLOAD) : AT(__stack_lma) {
 		__stack_start = .;
 		. += STACK32_LEN;
 		__stack_end = .;
