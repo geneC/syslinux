@@ -1,7 +1,7 @@
 #ifndef _CACHE_H
 #define _CACHE_H
 
-#include "types.h"
+#include <stdint.h>
 #include <com32.h>
 
 
@@ -11,7 +11,7 @@
 
 /* The cache structure */
 struct cache_struct {
-        __u32 block;
+        uint32_t block;
         struct cache_struct *prev;
         struct cache_struct *next;
         void  *data;

@@ -153,7 +153,7 @@ Files		resb MAX_OPEN*open_file_t_size
 ;
 ; Initialize the metadata cache
 ;
-		mov eax, [ClustSize]
+		mov eax, 9            ; for now, the cache is based on sector but not block
 		pm_call cache_init
 
 ;

@@ -211,7 +211,7 @@ getfattype:
 ;
 ; Initialize the metadata cache
 ;
-		mov eax, [ClustSize]
+		mov eax, 9
 		pm_call cache_init
 
 ;

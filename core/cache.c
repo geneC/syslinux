@@ -1,7 +1,8 @@
 #include "core.h"
-
 #include "cache.h"
+
 #include <stdio.h>
+#include <string.h>
 
 
 /*
@@ -16,7 +17,6 @@
 
 
 static struct cache_struct cache_head, cache[MAX_CACHE_ENTRIES];
-static __u8 cache_data[65536];
 static int cache_block_size;
 static int cache_entries;
 
@@ -24,18 +24,18 @@ static int cache_entries;
  * cache_init:
  *
  * Initialize the cache data structres.
- * regs->eax.l stores the block size
+ * regs->eax.l stores the block size(in bits not bytes)
  *
  */
 void cache_init(com32sys_t * regs)
 {
         struct cache_struct *prev, *cur;
-        __u8 *data = cache_data;
-        int block_size = regs->eax.l;
+        char *data = core_cache_buf;
+        int block_size_shift = regs->eax.l;
         int i;
 
-        cache_block_size = block_size;
-        cache_entries = sizeof cache_data / block_size;
+        cache_block_size = 1 << block_size_shift;
+        cache_entries = sizeof(core_cache_buf) >> block_size_shift;
         if (cache_entries > MAX_CACHE_ENTRIES)
                 cache_entries = MAX_CACHE_ENTRIES;
         
@@ -49,20 +49,18 @@ void cache_init(com32sys_t * regs)
                 cur->prev  = prev;
                 prev->next = cur;
                 cur->data  = data;
-                data += block_size;
+                data += cache_block_size;
                 prev = cur++;
         }
 }
 
 
-extern void getlinsec(void);
-
-void getoneblk(char *buf, __u32 block, int block_size)
+void getoneblk(char *buf, uint32_t block, int block_size)
 {
-        int sec_per_block = block_size / 512; /* 512==sector size */
+        int sec_per_block = block_size >> 9; /* 512==sector size */
         com32sys_t regs;
         
-        
+        memset(&regs, 0, sizeof(regs) );
 
         regs.eax.l = block * sec_per_block;
         regs.ebp.l = sec_per_block;
@@ -87,6 +85,11 @@ void getoneblk(char *buf, __u32 block, int block_size)
  * rm and pm, c and asm, we call call it from C file, so no need 
  * com32sys_t *regs any more.
  *
+ * I just found that I was tring to do a stupid thing!
+ * I haven't change the fs code to c, so for now the cache is based
+ * on SECTOR SIZE but not block size. While we can fix it easily by 
+ * make the block size be the sector size.
+ *
  * @return: the data stores at gs:si
  *
  */
@@ -95,11 +98,20 @@ void get_cache_block(com32sys_t * regs)
     /* let's find it from the end, 'cause the endest is the freshest */
     struct cache_struct *cs = cache_head.prev;
     struct cache_struct *head,  *last;
-    __u32 block = regs->eax.l;
+    uint32_t block = regs->eax.l;
     int i;
+
+    static int total_read;
+    static int missed;
+    char buf[10];
     
+#if 0
+    itoa(buf, block);
+    myputs(buf);
+    myputs(" this is what we are looking cache for block\n\r");
+#endif
+
     if ( !block ) {
-        extern void myputs(const char *);
         myputs("ERROR: we got a ZERO block number that's not we want!\n");
         return;
     }
@@ -123,7 +135,23 @@ void get_cache_block(com32sys_t * regs)
         
         cs->block = block;
         getoneblk(cs->data, block, cache_block_size);
+
+        missed ++;
+    } 
+    
+    total_read ++;
+
+#if 0 /* testing how efficiency the cache is */
+    if ( total_read % 5 == 0 ) {
+        itoa(buf, total_read);
+        myputs("total_read ");
+        myputs(buf);
+        myputs("\tmissed ");
+        itoa(buf, missed);
+        myputs(buf);
+        myputs("\n\r");
     }
+#endif
     
     /* remove cs from current position in list */
     cs->prev->next = cs->next;
@@ -140,6 +168,10 @@ void get_cache_block(com32sys_t * regs)
     cs->next = head;
     
  out:
+    /* in fact, that would never be happened */
+    if ( (char *)(cs->data) > (char*)0x100000 )
+        myputs("the buffer addres higher than 1M limit\n\r");
+    
     regs->gs = SEG(cs->data);
     regs->esi.w[0]= OFFS(cs->data);
-}
+}    
