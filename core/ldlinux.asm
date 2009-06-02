@@ -211,7 +211,8 @@ getfattype:
 ;
 ; Initialize the metadata cache
 ;
-		call initcache
+		mov eax, [ClustSize]
+		pm_call cache_init
 
 ;
 ; Now, everything is "up and running"... patch kaboom for more
@@ -392,7 +393,7 @@ search_dos_dir:
 
 .scansector:
 		; EAX <- directory sector to scan
-		call getcachesector
+		pm_call get_cache_block
 		; GS:SI now points to this sector
 
 		mov cx,SECTOR_SIZE/32		; 32 == directory entry size
@@ -745,7 +746,7 @@ readdir:
 		cmp eax,0
 		jz .fail
 .fetch_cache:
-		call getcachesector
+		pm_call get_cache_block
 .move_current:
 		add si,bx	; Resume last position in sector
 		mov ecx,SECTOR_SIZE	; 0 out high part
@@ -1358,7 +1359,7 @@ nextsector:
 ;
 getfatsector:
 		add eax,[FAT]		; FAT starting address
-		jmp getcachesector
+		pm_call get_cache_block
 
 ; -----------------------------------------------------------------------------
 ;  Common modules
@@ -1368,7 +1369,6 @@ getfatsector:
 %include "plaincon.inc"		; writechr
 %include "writestr.inc"		; String output
 %include "writehex.inc"		; Hexadecimal output
-%include "cache.inc"		; Metadata disk cache
 %include "localboot.inc"	; Disk-based local boot
 
 ; -----------------------------------------------------------------------------

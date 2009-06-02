@@ -153,7 +153,8 @@ Files		resb MAX_OPEN*open_file_t_size
 ;
 ; Initialize the metadata cache
 ;
-		call initcache
+		mov eax, [ClustSize]
+		pm_call cache_init
 
 ;
 ; Now, everything is "up and running"... patch kaboom for more
@@ -308,7 +309,7 @@ open_inode:
 		add eax,edx
 		pop edx
 		and dx,SECTOR_SIZE-1
-		call getcachesector		; Get the group descriptor
+		pm_call get_cache_block		; Get the group descriptor
 		add si,dx
 		mov esi,[gs:si+bg_inode_table]	; Get inode table block #
 		pop eax				; Get inode within group
@@ -327,7 +328,7 @@ open_inode:
 		and dx,SECTOR_SIZE-1
 		mov [bx+file_in_off],dx
 
-		call getcachesector
+		pm_call get_cache_block
 		add si,dx
 		mov cx,EXT2_GOOD_OLD_INODE_SIZE >> 2
 		mov di,ThisInode
@@ -693,7 +694,7 @@ linsector:
 		push eax
 		mov eax,[si+file_in_sec]
 		mov bx,si
-		call getcachesector	; Get inode
+		pm_call get_cache_block	; Get inode
 		add si,[bx+file_in_off]	; Get *our* inode
 		pop eax
 		lea ebx,[i_block+4*eax]
@@ -724,7 +725,7 @@ linsector:
 		mov ebp,[gs:si+bx]
 		shl ebp,cl
 		add eax,ebp
-		call getcachesector
+		pm_call get_cache_block
 		pop bx
 		and bx,(SECTOR_SIZE >> 2)-1
 		shl bx,2
@@ -742,7 +743,7 @@ linsector:
 		mov ebp,[gs:si+bx]
 		shl ebp,cl
 		add eax,ebp
-		call getcachesector
+		pm_call get_cache_block
 		pop bx
 		and bx,(SECTOR_SIZE >> 2)-1
 		shl bx,2
@@ -757,7 +758,7 @@ linsector:
 		mov ebp,[gs:si+bx]
 		shl ebp,cl
 		add eax,ebp
-		call getcachesector
+		pm_call get_cache_block
 		pop bx
 		and bx,(SECTOR_SIZE >> 2)-1
 		shl bx,2
@@ -874,7 +875,6 @@ build_curdir_str:
 %include "writestr.inc"		; String output
 %include "writehex.inc"		; Hexadecimal output
 %include "strecpy.inc"          ; strcpy with end pointer check
-%include "cache.inc"		; Metadata disk cache
 %include "localboot.inc"	; Disk-based local boot
 
 ; -----------------------------------------------------------------------------

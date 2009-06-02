@@ -12,4 +12,7 @@
 	; hello.c
 	extern hello
 
+	; cache.c
+	extern cache_init, get_cache_block
+
 %endif ; EXTERN_INC

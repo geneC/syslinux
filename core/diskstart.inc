@@ -252,6 +252,7 @@ getonesec:
 ; that is dead from that point; this saves space.  However, please keep
 ; the order to dst,src to keep things sane.
 ;
+		global getlinsec
 getlinsec:
 		add eax,[bsHidden]		; Add partition offset
 		xor edx,edx			; Zero-extend LBA (eventually allow 64 bits)
