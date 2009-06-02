@@ -60,7 +60,6 @@ common_init:
 ; The code to decompress the PM code and initialize other segments.
 ;
 		extern _lzo1x_decompress_asm_fast
-		extern __uibss_auxseg_dwords
 
 		section .textnr
 		bits 32
@@ -83,8 +82,8 @@ pm_decompress:
 		mov edi,__bss16_start
 		mov ecx,__bss16_dwords
 		rep stosd
-		mov edi,__uibss_start
-		mov ecx,__uibss_auxseg_dwords
+		mov edi,__high_clear_start	; .uibss, .auxseg, .lowmem
+		mov ecx,__high_clear_dwords
 		rep stosd
 
 		ret

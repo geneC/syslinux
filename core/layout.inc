@@ -79,6 +79,8 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		SECINFO replacestub
 
 		SECINFO pm_code
+		SECINFO high_clear
+
 		extern __bss_start, __bss_end, __bss_len, __bss_dwords
 
 		extern free_high_memory

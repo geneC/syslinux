@@ -148,6 +148,8 @@ SECTIONS
 	. = ALIGN(16);
 	__pm_code_lma = .;
 
+	__high_clear_start = .;
+
 	. = ALIGN(512);
 	.adv (NOLOAD) : {
 		__adv_start = .;
@@ -185,9 +187,22 @@ SECTIONS
 	__auxseg_len = __auxseg_end - __auxseg_start;
 	__auxseg_dwords = (__auxseg_len + 3) >> 2;
 	aux_seg = __auxseg_start >> 4;
-	
-	__uibss_auxseg_len = __auxseg_end - __uibss_start;
-	__uibss_auxseg_dwords = (__uibss_auxseg_len + 3) >> 2;
+
+	/*
+	 * Used to allocate lowmem buffers from 32-bit code
+	 */
+	.lowmem (NOLOAD) : {
+		__lowmem_start = .;
+		*(.lowmem)
+		__lowmem_end = .;
+	}
+	__lowmem_len = __lowmem_end - __lowmem_start;
+	__lowmem_dwords = (__lowmem_len + 3) >> 2;
+
+	__high_clear_end = .;
+
+	__high_clear_len = __high_clear_end - __high_clear_start;
+	__high_clear_dwords = (__high_clear_len + 3) >> 2;
 
 	/*
 	 * 32-bit code.  This is a hack for the moment due to the
