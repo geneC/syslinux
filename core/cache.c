@@ -103,12 +103,9 @@ void get_cache_block(com32sys_t * regs)
 
     static int total_read;
     static int missed;
-    char buf[10];
-    
+        
 #if 0
-    itoa(buf, block);
-    myputs(buf);
-    myputs(" this is what we are looking cache for block\n\r");
+    printf("we are looking for cache of %d\n", block);
 #endif
 
     if ( !block ) {
@@ -139,19 +136,7 @@ void get_cache_block(com32sys_t * regs)
         missed ++;
     } 
     
-    total_read ++;
 
-#if 0 /* testing how efficiency the cache is */
-    if ( total_read % 5 == 0 ) {
-        itoa(buf, total_read);
-        myputs("total_read ");
-        myputs(buf);
-        myputs("\tmissed ");
-        itoa(buf, missed);
-        myputs(buf);
-        myputs("\n\r");
-    }
-#endif
     
     /* remove cs from current position in list */
     cs->prev->next = cs->next;
@@ -168,9 +153,17 @@ void get_cache_block(com32sys_t * regs)
     cs->next = head;
     
  out:
+
+        total_read ++;
+
+#if 0 /* testing how efficiency the cache is */
+    if ( total_read % 5 == 0 ) 
+        printf("total_read %d\tmissed %d\n", total_read, missed);
+#endif
+
     /* in fact, that would never be happened */
     if ( (char *)(cs->data) > (char*)0x100000 )
-        myputs("the buffer addres higher than 1M limit\n\r");
+        printf("the buffer addres higher than 1M limit\n\r");
     
     regs->gs = SEG(cs->data);
     regs->esi.w[0]= OFFS(cs->data);

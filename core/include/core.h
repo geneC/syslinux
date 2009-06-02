@@ -12,7 +12,6 @@ extern void getlinsec(void);
 
 /* hello.c */
 extern void myputs(const char*);
-extern void itoa(char *, int);
 
 
 void __cdecl core_intcall(uint8_t, const com32sys_t *, com32sys_t *);

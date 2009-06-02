@@ -1,23 +1,16 @@
 #include <stdio.h>
 #include <unistd.h>
 
-
-
-
-#define BUF_SIZE 1024
-
-char buf[BUF_SIZE];
-
-
-extern void myputs(const char *);
+#include "core.h"
 
 int printf(const char *format, ...)
 {
+    char buf[1024];
     va_list ap;
     int rv;
     
     va_start(ap, format);
-    rv = sprintf(buf, format, ap);
+    rv = vsnprintf(buf, sizeof buf, format, ap);
     va_end(ap);
     
     myputs(buf);
