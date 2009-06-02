@@ -20,8 +20,8 @@ OUTPUT_ARCH(i386)
 EXTERN(_start)
 ENTRY(_start)
 
-STACK16_LEN = 4096;
-STACK32_LEN = 8192;
+STACK16_LEN =  4096;
+STACK32_LEN = 32768;
 
 SECTIONS
 {
@@ -219,6 +219,7 @@ SECTIONS
 		FILL(0x90909090)
 		__text_start = .;
 		*(.text)
+		*(.text.*)
 		__text_end = .;
 	}
 
@@ -229,6 +230,7 @@ SECTIONS
 	.rodata : AT(__rodata_lma) {
 		__rodata_start = .;
 		*(.rodata)
+		*(.rodata.*)
 		__rodata_end = .;
 	}
 
@@ -250,6 +252,7 @@ SECTIONS
 	.data : AT(__data_lma) {
 		__data_start = .;
 		*(.data)
+		*(.data.*)
 		__data_end = .;
 	}
 
@@ -260,9 +263,12 @@ SECTIONS
 	. = ALIGN(128);
 	
 	__bss_vma = .;
-	.bss : AT (__bss_vma) {
+	__bss_lma = .;		/* Dummy */
+	.bss (NOLOAD) : AT (__bss_lma) {
 		__bss_start = .;
 		*(.bss)
+		*(.bss.*)
+		*(COMMON)
 		__bss_end = .;
 	}
 	__bss_len = __bss_end - __bss_start;
@@ -272,7 +278,8 @@ SECTIONS
 
 	/* XXX: This stack should be unified with the COM32 stack */
 	__stack_vma = .;
-	.stack : AT(__stack_vma) {
+	__stack_lma = .;	/* Dummy */
+	.stack (NOLOAD) : AT(__stack_lma) {
 		__stack_start = .;
 		. += STACK32_LEN;
 		__stack_end = .;
