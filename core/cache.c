@@ -1,11 +1,11 @@
 #include "core.h"
 #include "cache.h"
-
+#include "disk.h"
 #include <stdio.h>
 #include <string.h>
 
 
-/*
+/**
  * Each CachePtr contains:
  * - Block pointer
  * - LRU previous pointer
@@ -14,7 +14,6 @@
  * 
  * The cache buffer are pointed to by a cache_head structure.
  */
-
 
 static struct cache_struct cache_head, cache[MAX_CACHE_ENTRIES];
 static int cache_block_size;
@@ -53,31 +52,6 @@ void cache_init(com32sys_t * regs)
         prev = cur++;
     }
 }
-
-
-void read_sectors(char *buf, int sector_num, int sectors)
-{
-    com32sys_t regs;
-        
-    memset(&regs, 0, sizeof(regs) );
-    regs.eax.l = sector_num;
-    regs.ebp.l = sectors;
-    regs.es = SEG(core_xfer_buf);
-    regs.ebx.w[0] = OFFS(core_xfer_buf);
-
-    call16(getlinsec, &regs, NULL);
-
-    memcpy(buf, core_xfer_buf, sectors << 9);
-}
-
-
-void getoneblk(char *buf, uint32_t block, int block_size)
-{
-    int sec_per_block = block_size >> 9; /* 512==sector size */
-        
-    read_sectors(buf, block * sec_per_block, sec_per_block);
-}
-
 
 
 /**
@@ -132,24 +106,19 @@ void get_cache_block(com32sys_t * regs)
             cs = cs->prev;
     }
     
-    if ( i == cache_entries ) {
-        /* missed, so we need to load it */
-        
+    /* missed, so we need to load it */
+    if ( i == cache_entries ) {        
         /* store it at the head of real cache */
-        cs = cache_head.next;
-        
+        cs = cache_head.next;        
         cs->block = block;
         getoneblk(cs->data, block, cache_block_size);
 
         missed ++;
     } 
     
-
-    
     /* remove cs from current position in list */
     cs->prev->next = cs->next;
-    cs->next->prev = cs->prev;
-    
+    cs->next->prev = cs->prev;    
     
     /* add to just before head node */
     last = cache_head.prev;
@@ -158,13 +127,11 @@ void get_cache_block(com32sys_t * regs)
     last->next = cs;
     cs->prev = last;
     head->prev = cs;
-    cs->next = head;
+    cs->next = head;    
     
  out:
-
-        total_read ++;
-
 #if 0 /* testing how efficiency the cache is */
+    total_read ++;
     if ( total_read % 5 == 0 ) 
         printf("total_read %d\tmissed %d\n", total_read, missed);
 #endif
