@@ -55,19 +55,27 @@ void cache_init(com32sys_t * regs)
 }
 
 
+void read_sectors(char *buf, int sector_num, int sectors)
+{
+    com32sys_t regs;
+        
+    memset(&regs, 0, sizeof(regs) );
+    regs.eax.l = sector_num;
+    regs.ebp.l = sectors;
+    regs.es = SEG(core_xfer_buf);
+    regs.ebx.w[0] = OFFS(core_xfer_buf);
+
+    call16(getlinsec, &regs, NULL);
+
+    memcpy(buf, core_xfer_buf, sectors << 9);
+}
+
+
 void getoneblk(char *buf, uint32_t block, int block_size)
 {
         int sec_per_block = block_size >> 9; /* 512==sector size */
-        com32sys_t regs;
         
-        memset(&regs, 0, sizeof(regs) );
-
-        regs.eax.l = block * sec_per_block;
-        regs.ebp.l = sec_per_block;
-        regs.es = SEG(buf);
-        regs.ebx.w[0] = OFFS(buf);
-
-        call16(getlinsec, &regs, NULL);
+        read_sectors(buf, block * sec_per_block, sec_per_block);
 }
 
 
