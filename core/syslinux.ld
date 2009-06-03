@@ -204,6 +204,10 @@ SECTIONS
 	__high_clear_len = __high_clear_end - __high_clear_start;
 	__high_clear_dwords = (__high_clear_len + 3) >> 2;
 
+
+	__assert_high = ASSERT(__high_clear_end <= core_xfer_buf,
+	"auxseg/lowmem region collides with xfer_buf_seg");
+
 	/*
 	 * 32-bit code.  This is a hack for the moment due to the
 	 * real-mode segments also allocated.
