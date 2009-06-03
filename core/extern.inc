@@ -18,4 +18,7 @@
 	; load_config.c
 	extern load_config
 
+	; ext2.c
+	extern init_fs
+
 %endif ; EXTERN_INC

@@ -96,6 +96,7 @@ superblock_len_fat32	equ $-superblock+54
 		zb 54			; Maximum needed size
 superblock_max	equ $-superblock
 
+		global SecPerClust
 SecPerClust	equ bxSecPerClust
 ;
 ; Note we don't check the constraints above now; we did that at install

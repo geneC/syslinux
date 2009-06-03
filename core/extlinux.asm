@@ -93,6 +93,8 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 		; ends at 2800h
 
 		section .bss16
+		global SuperBlock, ClustSize, ClustMask, PtrsPerBlock1
+		global PtrsPerBlock2, ClustShift, ClustByteShift
 SuperBlock	resb 1024		; ext2 superblock
 ClustSize	resd 1			; Bytes/cluster ("block")
 ClustMask	resd 1			; Sectors/cluster - 1
@@ -116,44 +118,13 @@ Files		resb MAX_OPEN*open_file_t_size
 %include "cpuinit.inc"
 
 ;
-; Load the real (ext2) superblock; 1024 bytes long at offset 1024
+; Initialize the ext2 fs meta data
 ;
-		mov bx,SuperBlock
-		mov eax,1024 >> SECTOR_SHIFT
-		mov bp,ax
-		call getlinsec
-
-;
-; Compute some values...
-;
-		xor edx,edx
-		inc edx
-
-		; s_log_block_size = log2(blocksize) - 10
-		mov cl,[SuperBlock+s_log_block_size]
-		add cl,10
-		mov [ClustByteShift],cl
-		mov eax,edx
-		shl eax,cl
-		mov [ClustSize],eax
-
-		sub cl,SECTOR_SHIFT
-		mov [ClustShift],cl
-		shr eax,SECTOR_SHIFT
-		mov [SecPerClust],eax
-		dec eax
-		mov [ClustMask],eax
-
-		add cl,SECTOR_SHIFT-2		; 4 bytes/pointer
-		shl edx,cl
-		mov [PtrsPerBlock1],edx
-		shl edx,cl
-		mov [PtrsPerBlock2],edx
+		pm_call init_fs         ; will return the block size shift in eax(for now, is the sector shift)
 
 ;
 ; Initialize the metadata cache
 ;
-		mov eax, 9            ; for now, the cache is based on sector but not block
 		pm_call cache_init
 
 ;
