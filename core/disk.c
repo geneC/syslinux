@@ -25,7 +25,7 @@ void read_sectors(char *buf, sector_t sector_num, int sectors)
     call16(getlinsec, &regs, NULL);
 
     if (high_addr)
-        memcpy(buf, core_xfer_buf, sectors << SECTOR_SHIFT);
+        memcpy(buf, low_buf, sectors << SECTOR_SHIFT);
 }
 
 
