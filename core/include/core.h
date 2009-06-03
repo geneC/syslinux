@@ -7,8 +7,15 @@
 extern char core_xfer_buf[65536];
 extern char core_cache_buf[65536];
 
+extern char CurrentDirName[];
+extern char ConfigName[];
+
+
 /* diskstart.inc */
 extern void getlinsec(void);
+
+/* getc.inc */
+extern void core_open(void);
 
 /* hello.c */
 extern void myputs(const char*);

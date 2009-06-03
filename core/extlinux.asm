@@ -185,15 +185,7 @@ Files		resb MAX_OPEN*open_file_t_size
 ;
 ; Load configuration file
 ;
-load_config:
-		mov si,config_name	; Save config file name
-		mov di,ConfigName
-		call strcpy
-		mov dword [CurrentDirName],CUR_DIR_DWORD	; Write './',0,0 to the CurrentDirName
-		call build_curdir_str
-
-		mov di,ConfigName
-		call open
+		pm_call load_config
 		jz no_config_file
 
 ;

@@ -60,7 +60,8 @@ getc_file_lg2	equ 4			; Size of getc_file as a power of 2
 ;
 ;		close:	Output:	CF set if nothing open
 ;
-open:
+		global core_open
+core_open:
 		call searchdir
 		jz openfd.ret
 openfd:

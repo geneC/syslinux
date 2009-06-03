@@ -15,4 +15,7 @@
 	; cache.c
 	extern cache_init, get_cache_block
 
+	; load_config.c
+	extern load_config
+
 %endif ; EXTERN_INC

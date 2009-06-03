@@ -252,17 +252,17 @@ getfattype:
 		mov [CurrentDir],eax	; ... the current directory
 		mov di,syslinux_cfg1
 		push di
-		call open
+		call core_open
 		pop di
 		jnz .config_open
 		mov di,syslinux_cfg2
 		push di
-		call open
+		call core_open
 		pop di
 		jnz .config_open
 		mov di,syslinux_cfg3
 		push di
-		call open
+		call core_open
 		pop di
 		jz no_config_file
 .config_open:

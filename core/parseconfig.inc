@@ -161,7 +161,7 @@ pc_opencmd:	push ax				; Function to tailcall
 		call pc_getline
 		mov di,MNameBuf
 		call mangle_name
-		call open
+		call core_open
 		jnz .ok
 		pop ax				; Drop the successor function
 .ok:		ret				; Tailcall if OK, error return

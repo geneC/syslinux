@@ -208,7 +208,7 @@ msg_viewimage:
 		mov si,VGAFileBuf
 		mov di,VGAFileMBuf
 		call mangle_name
-		call open
+		call core_open
 		jz msg_putcharnext		; Not there
 		call vgadisplayfile
 		; Fall through
