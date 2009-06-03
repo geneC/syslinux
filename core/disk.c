@@ -3,7 +3,7 @@
 #include "core.h"
 #include "disk.h"
 
-void read_sectors(char *buf, int sector_num, int sectors)
+void read_sectors(char *buf, sector_t sector_num, int sectors)
 {
     com32sys_t regs;
         
@@ -18,7 +18,7 @@ void read_sectors(char *buf, int sector_num, int sectors)
 }
 
 
-void getoneblk(char *buf, uint32_t block, int block_size)
+void getoneblk(char *buf, block_t block, int block_size)
 {
     int sec_per_block = block_size >> SECTOR_SHIFT;
         

@@ -3,20 +3,17 @@
 
 #include <stdint.h>
 #include <com32.h>
-
+#include "disk.h"
 
 #define MAX_CACHE_ENTRIES  0x064 /* I'm not sure it's the max */
 
-
-
 /* The cache structure */
 struct cache_struct {
-        uint32_t block;
+        block_t block;
         struct cache_struct *prev;
         struct cache_struct *next;
         void  *data;
 };
-
 
 
 /* functions defined in cache.c */

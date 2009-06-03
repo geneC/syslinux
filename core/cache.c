@@ -1,6 +1,5 @@
 #include "core.h"
 #include "cache.h"
-#include "disk.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -80,7 +79,7 @@ void get_cache_block(com32sys_t * regs)
     /* let's find it from the end, 'cause the endest is the freshest */
     struct cache_struct *cs = cache_head.prev;
     struct cache_struct *head,  *last;
-    uint32_t block = regs->eax.l;
+    block_t block = regs->eax.l;
     int i;
 
     static int total_read;

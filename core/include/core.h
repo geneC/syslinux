@@ -20,10 +20,6 @@ extern void core_open(void);
 /* hello.c */
 extern void myputs(const char*);
 
-/* cache.c */
-extern void read_sectors(char *, int, int);
-extern void get_cache_block(com32sys_t *);
-
 
 void __cdecl core_intcall(uint8_t, const com32sys_t *, com32sys_t *);
 void __cdecl core_farcall(uint32_t, const com32sys_t *, com32sys_t *);
