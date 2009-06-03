@@ -28,8 +28,8 @@ void init_fs(com32sys_t *regs)
     ClustSize = 1 << ClustByteShift;
     ClustShift = ClustByteShift - 9;
     
-    //DescPerBlock  = blk_size / ( 1 << ext2_group_desc_lg2size);
-    //InodePerBlock = blk_size / sb->s_inode_size;
+    //DescPerBlock  = ClustSize >> ext2_group_desc_lg2size;
+    //InodePerBlock = ClustSize / sb->s_inode_size;
         
     SecPerClust = ClustSize >> 9;
     ClustMask = SecPerClust - 1;

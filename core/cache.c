@@ -29,29 +29,29 @@ static int cache_entries;
  */
 void cache_init(com32sys_t * regs)
 {
-        struct cache_struct *prev, *cur;
-        char *data = core_cache_buf;
-        int block_size_shift = regs->eax.l;
-        int i;
-
-        cache_block_size = 1 << block_size_shift;
-        cache_entries = sizeof(core_cache_buf) >> block_size_shift;
-        if (cache_entries > MAX_CACHE_ENTRIES)
-                cache_entries = MAX_CACHE_ENTRIES;
-        
-        cache_head.prev = &cache[cache_entries-1];
-        cache_head.prev->next = &cache_head;
-        prev = &cache_head;
-        
-        for (i = 0; i < cache_entries; i++) {
-                cur = &cache[i];
-                cur->block = 0;
-                cur->prev  = prev;
-                prev->next = cur;
-                cur->data  = data;
-                data += cache_block_size;
-                prev = cur++;
-        }
+    struct cache_struct *prev, *cur;
+    char *data = core_cache_buf;
+    int block_size_shift = regs->eax.l;
+    int i;
+    
+    cache_block_size = 1 << block_size_shift;
+    cache_entries = sizeof(core_cache_buf) >> block_size_shift;
+    if (cache_entries > MAX_CACHE_ENTRIES)
+        cache_entries = MAX_CACHE_ENTRIES;
+    
+    cache_head.prev = &cache[cache_entries-1];
+    cache_head.prev->next = &cache_head;
+    prev = &cache_head;
+    
+    for (i = 0; i < cache_entries; i++) {
+        cur = &cache[i];
+        cur->block = 0;
+        cur->prev  = prev;
+        prev->next = cur;
+        cur->data  = data;
+        data += cache_block_size;
+        prev = cur++;
+    }
 }
 
 
@@ -73,9 +73,9 @@ void read_sectors(char *buf, int sector_num, int sectors)
 
 void getoneblk(char *buf, uint32_t block, int block_size)
 {
-        int sec_per_block = block_size >> 9; /* 512==sector size */
+    int sec_per_block = block_size >> 9; /* 512==sector size */
         
-        read_sectors(buf, block * sec_per_block, sec_per_block);
+    read_sectors(buf, block * sec_per_block, sec_per_block);
 }
 
 
