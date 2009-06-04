@@ -700,6 +700,8 @@ do_hidden_menu(void)
     }
   }
 
+  if (cm->ontimeout)
+    return cm->ontimeout;
   return cm->menu_entries[cm->defentry]->cmdline; /* Default entry */
 }
 
