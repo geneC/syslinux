@@ -13,12 +13,12 @@
 	extern hello
 
 	; cache.c
-	extern cache_init, get_cache_block
+	extern cache_init
 
 	; load_config.c
 	extern load_config
 
 	; ext2.c
-	extern init_fs
+	extern init_fs, linsector, open_inode
 
 %endif ; EXTERN_INC

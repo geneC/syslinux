@@ -104,6 +104,7 @@ ClustShift	resb 1			; Shift count for sectors/cluster
 ClustByteShift	resb 1			; Shift count for bytes/cluster
 
 		alignb open_file_t_size
+		global Files
 Files		resb MAX_OPEN*open_file_t_size
 
 ;
@@ -194,123 +195,11 @@ getlinsec_ext:
 		jnz getlinsec_ext
 		ret
 
-;
-; allocate_file: Allocate a file structure
-;
-;		If successful:
-;		  ZF set
-;		  BX = file pointer
-;		In unsuccessful:
-;		  ZF clear
-;
-allocate_file:
-		TRACER 'a'
-		push cx
-		mov bx,Files
-		mov cx,MAX_OPEN
-.check:		cmp dword [bx], byte 0
-		je .found
-		add bx,open_file_t_size		; ZF = 0
-		loop .check
-		; ZF = 0 if we fell out of the loop
-.found:		pop cx
-		ret
-;
-; open_inode:
-;	     Open a file indicated by an inode number in EAX
-;
-;	     NOTE: This file considers finding a zero-length file an
-;	     error.  This is so we don't have to deal with that special
-;	     case elsewhere in the program (most loops have the test
-;	     at the end).
-;
-;	     If successful:
-;		ZF clear
-;		SI	    = file pointer
-;		EAX         = file length in bytes
-;		ThisInode   = the first 128 bytes of the inode
-;	     If unsuccessful
-;		ZF set
-;
-;	     Assumes CS == DS == ES.
-;
-open_inode.allocate_failure:
-		xor eax,eax
-		pop bx
-		pop di
-		ret
 
-open_inode:
-		push di
-		push bx
-		call allocate_file
-		jnz .allocate_failure
-
-		push cx
-		push gs
-		; First, get the appropriate inode group and index
-		dec eax				; There is no inode 0
-		xor edx,edx
-		mov [bx+file_sector],edx
-		div dword [SuperBlock+s_inodes_per_group]
-		; EAX = inode group; EDX = inode within group
-		push edx
-
-		; Now, we need the block group descriptor.
-		; To get that, we first need the relevant descriptor block.
-
-		shl eax, ext2_group_desc_lg2size ; Get byte offset in desc table
-		xor edx,edx
-		div dword [ClustSize]
-		; eax = block #, edx = offset in block
-		add eax,dword [SuperBlock+s_first_data_block]
-		inc eax				; s_first_data_block+1
-		mov cl,[ClustShift]
-		shl eax,cl
-		push edx
-		shr edx,SECTOR_SHIFT
-		add eax,edx
-		pop edx
-		and dx,SECTOR_SIZE-1
-		pm_call get_cache_block		; Get the group descriptor
-		add si,dx
-		mov esi,[gs:si+bg_inode_table]	; Get inode table block #
-		pop eax				; Get inode within group
-		movzx edx, word [SuperBlock+s_inode_size]
-		mul edx
-		; edx:eax = byte offset in inode table
-		div dword [ClustSize]
-		; eax = block # versus inode table, edx = offset in block
-		add eax,esi
-		shl eax,cl			; Turn into sector
-		push dx
-		shr edx,SECTOR_SHIFT
-		add eax,edx
-		mov [bx+file_in_sec],eax
-		pop dx
-		and dx,SECTOR_SIZE-1
-		mov [bx+file_in_off],dx
-
-		pm_call get_cache_block
-		add si,dx
-		mov cx,EXT2_GOOD_OLD_INODE_SIZE >> 2
-		mov di,ThisInode
-		gs rep movsd
-
-		mov ax,[ThisInode+i_mode]
-		mov [bx+file_mode],ax
-		mov eax,[ThisInode+i_size]
-		mov [bx+file_bytesleft],eax
-		mov si,bx
-		and eax,eax			; ZF clear unless zero-length file
-		pop gs
-		pop cx
-		pop bx
-		pop di
-		ret
 
 		section .bss16
 		alignb 4
+		global ThisInode
 ThisInode	resb EXT2_GOOD_OLD_INODE_SIZE	; The most recently opened inode
 
 		section .text16
@@ -365,7 +254,7 @@ searchdir:
 .open:
 		push eax		; Save directory inode
 
-		call open_inode
+		pm_call open_inode
 		jz .missing		; If error, done
 
 		mov cx,[si+file_mode]
@@ -635,113 +524,6 @@ kaboom2:
 .noreg:		jmp short .noreg	; Nynorsk
 
 
-;
-; linsector:	Convert a linear sector index in a file to a linear sector number
-;	EAX	-> linear sector number
-;	DS:SI	-> open_file_t
-;
-;		Returns next sector number in EAX; CF on EOF (not an error!)
-;
-linsector:
-		push gs
-		push ebx
-		push esi
-		push edi
-		push ecx
-		push edx
-		push ebp
-
-		push eax		; Save sector index
-		mov cl,[ClustShift]
-		shr eax,cl		; Convert to block number
-		push eax
-		mov eax,[si+file_in_sec]
-		mov bx,si
-		pm_call get_cache_block	; Get inode
-		add si,[bx+file_in_off]	; Get *our* inode
-		pop eax
-		lea ebx,[i_block+4*eax]
-		cmp eax,EXT2_NDIR_BLOCKS
-		jb .direct
-		mov ebx,i_block+4*EXT2_IND_BLOCK
-		sub eax,EXT2_NDIR_BLOCKS
-		mov ebp,[PtrsPerBlock1]
-		cmp eax,ebp
-		jb .ind1
-		mov ebx,i_block+4*EXT2_DIND_BLOCK
-		sub eax,ebp
-		mov ebp,[PtrsPerBlock2]
-		cmp eax,ebp
-		jb .ind2
-		mov ebx,i_block+4*EXT2_TIND_BLOCK
-		sub eax,ebp
-
-.ind3:
-		; Triple indirect; eax contains the block no
-		; with respect to the start of the tind area;
-		; ebx contains the pointer to the tind block.
-		xor edx,edx
-		div dword [PtrsPerBlock2]
-		; EAX = which dind block, EDX = pointer within dind block
-		push ax
-		shr eax,SECTOR_SHIFT-2
-		mov ebp,[gs:si+bx]
-		shl ebp,cl
-		add eax,ebp
-		pm_call get_cache_block
-		pop bx
-		and bx,(SECTOR_SIZE >> 2)-1
-		shl bx,2
-		mov eax,edx		; The ind2 code wants the remainder...
-
-.ind2:
-		; Double indirect; eax contains the block no
-		; with respect to the start of the dind area;
-		; ebx contains the pointer to the dind block.
-		xor edx,edx
-		div dword [PtrsPerBlock1]
-		; EAX = which ind block, EDX = pointer within ind block
-		push ax
-		shr eax,SECTOR_SHIFT-2
-		mov ebp,[gs:si+bx]
-		shl ebp,cl
-		add eax,ebp
-		pm_call get_cache_block
-		pop bx
-		and bx,(SECTOR_SIZE >> 2)-1
-		shl bx,2
-		mov eax,edx		; The int1 code wants the remainder...
-
-.ind1:
-		; Single indirect; eax contains the block no
-		; with respect to the start of the ind area;
-		; ebx contains the pointer to the ind block.
-		push ax
-		shr eax,SECTOR_SHIFT-2
-		mov ebp,[gs:si+bx]
-		shl ebp,cl
-		add eax,ebp
-		pm_call get_cache_block
-		pop bx
-		and bx,(SECTOR_SIZE >> 2)-1
-		shl bx,2
-
-.direct:
-		mov ebx,[gs:bx+si]	; Get the pointer
-
-		pop eax			; Get the sector index again
-		shl ebx,cl		; Convert block number to sector
-		and eax,[ClustMask]	; Add offset within block
-		add eax,ebx
-
-		pop ebp
-		pop edx
-		pop ecx
-		pop edi
-		pop esi
-		pop ebx
-		pop gs
-		ret
 
 ;
 ; getfssec: Get multiple sectors from a file
@@ -774,7 +556,7 @@ getfssec:
 .getfragment:
 		mov eax,[si+file_sector]	; Current start index
 		mov edi,eax
-		call linsector
+		pm_call linsector
 		push eax			; Fragment start sector
 		mov edx,eax
 		xor ebp,ebp			; Fragment sector count
@@ -794,7 +576,7 @@ getfssec:
 		inc edi				; Sector index
 		inc edx				; Linearly next sector
 		mov eax,edi
-		call linsector
+		pm_call linsector
 		; jc .do_read
 		cmp edx,eax
 		je .getseccnt

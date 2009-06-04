@@ -74,12 +74,11 @@ void cache_init(com32sys_t * regs)
  * @return: the data stores at gs:si
  *
  */
-void get_cache_block(com32sys_t * regs)
+struct cache_struct* get_cache_block(block_t block)
 {
     /* let's find it from the end, 'cause the endest is the freshest */
     struct cache_struct *cs = cache_head.prev;
     struct cache_struct *head,  *last;
-    block_t block = regs->eax.l;
     int i;
 
     static int total_read;
@@ -90,8 +89,8 @@ void get_cache_block(com32sys_t * regs)
 #endif
 
     if ( !block ) {
-        myputs("ERROR: we got a ZERO block number that's not we want!\n");
-        return;
+        printf("ERROR: we got a ZERO block number that's not we want!\n");
+        return NULL;
     }
     
     /* it's aleardy the freshest, so nothing we need do , just return it */
@@ -139,6 +138,5 @@ void get_cache_block(com32sys_t * regs)
     if ( (char *)(cs->data) > (char*)0x100000 )
         printf("the buffer addres higher than 1M limit\n\r");
     
-    regs->gs = SEG(cs->data);
-    regs->esi.w[0]= OFFS(cs->data);
+    return cs;
 }    

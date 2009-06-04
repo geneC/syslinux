@@ -19,6 +19,6 @@ struct cache_struct {
 /* functions defined in cache.c */
 void cache_init(com32sys_t *regs);
 
-void get_cache_block(com32sys_t *regs);
+struct cache_struct* get_cache_block(block_t);
 
 #endif /* cache.h */
