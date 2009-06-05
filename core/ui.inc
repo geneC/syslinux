@@ -448,7 +448,7 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
 		mov bx,exten_table
 .search_loop:	push bx
                 mov di,KernelName		; Search on disk
-                call searchdir
+                pm_call searchdir
 		pop bx
                 jnz kernel_good
 		mov eax,[bx]			; Try a different extension

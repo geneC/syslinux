@@ -62,7 +62,7 @@ getc_file_lg2	equ 4			; Size of getc_file as a power of 2
 ;
 		global core_open
 core_open:
-		call searchdir
+		pm_call searchdir
 		jz openfd.ret
 openfd:
 		push bx

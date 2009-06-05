@@ -519,7 +519,7 @@ comapi_open:
 		mov di,InitRD
 		call mangle_name
 		pop ds
-		call searchdir
+		pm_call searchdir
 		jz comapi_err
 		mov P_EAX,eax
 		mov P_CX,SECTOR_SIZE
@@ -750,7 +750,7 @@ comapi_runkernel:
 		mov di,KernelName
 		call mangle_name
 		pop ds
-		call searchdir
+		pm_call searchdir
 		jz comapi_err
 
 		; The kernel image was found, so we can load it...
@@ -906,7 +906,7 @@ comapi_opendir:
 		mov di,InitRD
 		call mangle_name
 		pop ds
-		call searchdir
+		pm_call searchdir
 		jnz comapi_err	; Didn't find a directory
 		cmp eax,0
 		jz comapi_err	; Found nothing

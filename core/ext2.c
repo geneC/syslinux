@@ -33,8 +33,36 @@ uint32_t PtrsPerBlock3;
 
 int DescPerBlock, InodePerBlock;
 
-struct ext2_super_block *sb;    
+struct ext2_super_block *sb;  
 
+
+extern char  trackbuf[8192];
+
+#define MAX_SYMLINKS     64
+#define SYMLINK_SECTORS  2
+extern char SymlinkBuf[SYMLINK_SECTORS * SECTOR_SIZE + 64];
+
+
+
+/**
+ * strecpy:
+ *
+ * just like the function strcpy(), except it returns non-zero if overflow.
+ *
+ * well, in Syslinux, strcpy() will advance both the dst and src string pointer.
+ * 
+ */
+int strecpy(char *dst, char *src, char *end)
+{
+    while ( *src != '\0' )
+        *dst++ = *src++;
+    *dst = '\0';
+    
+    if ( dst > end )
+        return 1;
+    else 
+        return 0;
+}
 
 
 /**
@@ -57,6 +85,21 @@ struct open_file_t *allocate_file()
     }
     
     return NULL; /* not found */
+}
+
+
+/**
+ * close_file:
+ *
+ * Deallocates a file structure point by FILE
+ *
+ * @param: file, the file structure we want deallocate
+ *
+ */
+void close_file(struct open_file_t *file)
+{
+    if (file)
+        file->file_bytesleft = 0;
 }
 
 
@@ -127,17 +170,14 @@ void read_inode(uint32_t inode_offset,
  *
  * open a file indicated by an inode number in INR
  *
- * @param : regs, regs->eax stores the inode number
- * @return: a open_file_t structure pointer, stores in regs->esi
- *          file length in bytes, stores in regs->eax
+ * @param : inr, the inode number
+ * @return: a open_file_t structure pointer
+ *          file length in bytes
  *          the first 128 bytes of the inode, stores in ThisInode
  *
  */
-void open_inode(com32sys_t *regs)
+struct open_file_t * open_inode(uint32_t inr, uint32_t *file_len)
 {
-    uint32_t inr = regs->eax.l;
-    uint32_t file_len;
-
     struct open_file_t *file;
     struct ext2_group_desc *desc;
         
@@ -147,7 +187,7 @@ void open_inode(com32sys_t *regs)
     
     file = allocate_file();
     if (!file)
-        goto err;
+        return NULL;
     
     file->file_sector = 0;
     
@@ -164,17 +204,12 @@ void open_inode(com32sys_t *regs)
     file->file_in_sec = (block_num<<ClustShift) + (block_off>>SECTOR_SHIFT);
     file->file_in_off = block_off & (SECTOR_SIZE - 1);
     file->file_mode = this_inode->i_mode;
-    file_len = file->file_bytesleft = this_inode->i_size;
+    *file_len = file->file_bytesleft = this_inode->i_size;
     
-    if (file_len == 0)
-        goto err;
-    
-    regs->esi.w[0] = file;
-    regs->eax.l = file_len;
-    return;
+    if (*file_len == 0)
+        return NULL;
 
- err:
-    regs->eax.l = 0;
+    return file;
 }
 
 
@@ -344,6 +379,252 @@ void linsector(com32sys_t *regs)
     regs->eax.l = ((block << ClustShift) + (lin_sector & ClustMask));
 }
 
+
+/*
+ * NOTE! unlike strncmp, ext2_match_entry returns 1 for success, 0 for failure.
+ *
+ * len <= EXT2_NAME_LEN and de != NULL are guaranteed by caller.
+ */
+static inline int ext2_match_entry (const char * const name,
+                                    struct ext2_dir_entry * de)
+{
+    if (!de->d_inode)
+        return 0;
+    return !strncmp(name, de->d_name, de->d_name_len);
+}
+
+
+/*
+ * p is at least 6 bytes before the end of page
+ */
+inline struct ext2_dir_entry *ext2_next_entry(struct ext2_dir_entry *p)
+{
+    return (struct ext2_dir_entry *)((char*)p + p->d_rec_len);
+}
+
+
+void getfssec_ext(char *buf, struct open_file_t *file, 
+                  int sectors, int *have_more)
+{
+    com32sys_t regs, out_regs;
+
+    memset(&regs, 0, sizeof regs);
+    memset(&out_regs, 0, sizeof out_regs);
+
+    /*
+     * for now, the buf and file structure are stored at low 
+     * address, so we can reference it safely by SEG() and 
+     * OFFS() operation.
+     *
+     * !find we can't use SEG stuff here, say the address of buf
+     * is 0x800(found in debug), the addres would be broken like
+     * this: es = 0x80, bx = 0, while that's not the getfssec 
+     * function need, the one that still be asm code now.
+     *
+     * so we just do like:
+     *                   regs.ebx.w[0] = buf;
+     */
+    regs.ebx.w[0] = buf;
+    regs.esi.w[0] = file;
+    regs.ecx.w[0] = sectors;
+
+    call16(getfssec, &regs, &out_regs);
+
+    *have_more = 1;
+    
+    /* the file is closed ? */
+    if( !out_regs.esi.w[0] ) 
+        *have_more = 0;
+}
+    
+
+/**
+ * find_dir_entry:
+ *
+ * find a dir entry, if find return it or return NULL
+ *
+ */
+struct ext2_dir_entry* find_dir_entry(struct open_file_t *file, char *filename)
+{
+    int   have_more;
+    char *EndBlock = trackbuf + (SecPerClust << SECTOR_SHIFT);;
+    struct ext2_dir_entry *de;
+    
+    /* read a clust at a time */
+    getfssec_ext(trackbuf, file, SecPerClust, &have_more);        
+    de = (struct ext2_dir_entry *)trackbuf;        
+    
+    while ( 1 ) {
+        if ( (char *)de >= (char *)EndBlock ) {
+            if (have_more) {
+                getfssec_ext(trackbuf, file,SecPerClust,&have_more);
+                de = (struct ext2_dir_entry *)trackbuf;
+            } else
+                return NULL;
+        }
+        
+        /* Zero inode == void entry */
+        if ( de->d_inode == 0 ) {
+            de = ext2_next_entry(de);       
+            continue;
+        }
+        
+        if ( ext2_match_entry (filename, de) ) {
+            filename += de->d_name_len;
+            if ( (*filename == 0) || (*filename == '/') )
+                return de;     /* got it */
+            
+            /* not match, restore the filename then try next */
+            filename -= de->d_name_len;
+        }
+        
+        de = ext2_next_entry(de);
+    } 
+}
+
+
+char* do_symlink(struct open_file_t *file, uint32_t file_len, char *filename)
+{
+    int  flag, have_more;
+    
+    char *SymlinkTmpBuf = trackbuf;
+    char *lnk_end;
+    char *SymlinkTmpBufEnd = trackbuf + SYMLINK_SECTORS * SECTOR_SIZE+64;  
+    
+    flag = this_inode->i_file_acl ? SecPerClust : 0;
+    
+    if ( this_inode->i_blocks == flag ) {
+        /* fast symlink */
+        close_file(file);          /* we've got all we need */
+        memcpy(SymlinkTmpBuf, this_inode->i_block, file_len);
+        lnk_end = SymlinkTmpBuf + file_len;
+        
+    } else {                           
+        /* slow symlink */
+        getfssec_ext(SymlinkTmpBuf,file,SYMLINK_SECTORS,&have_more);
+        lnk_end = SymlinkTmpBuf + file_len;
+    }
+    
+    /*
+     * well, this happens like:
+     * "/boot/xxx/y/z.abc" where xxx is a symlink to "/other/here"
+     * so, we should get a new path name like:
+     * "/other/here/y/z.abc"
+     */
+    if ( *filename != 0 )
+        *lnk_end++ = '/';
+    
+    if ( strecpy(lnk_end, filename, SymlinkTmpBufEnd) ) 
+        return NULL; /* buffer overflow */
+    
+    /*
+     * now copy it to the "real" buffer; we need to have
+     * two buffers so we avoid overwriting the tail on 
+     * the next copy.
+     */
+    strcpy(SymlinkBuf, SymlinkTmpBuf);
+    
+    /* return the new path */
+    return SymlinkBuf;
+}
+
+
+
+
+/**
+ * searchdir:
+ *
+ * Search the root directory for a pre-mangle filename in FILENAME.
+ *
+ * @param: filename, the filename we want to search.
+ *
+ * @out  : a file pointer
+ * @out  : file lenght in bytes
+ *
+ */
+void searchdir(com32sys_t * regs)
+{
+    extern int CurrentDir;
+    
+    struct open_file_t *file;
+    struct ext2_dir_entry *de;
+    uint8_t  file_mode;
+    uint8_t  SymlinkCtr = MAX_SYMLINKS;        
+    uint32_t inr = CurrentDir;
+    uint32_t ThisDir;
+    uint32_t file_len;
+    char *filename = (char *)MK_PTR(regs->ds, regs->edi.w[0]);
+    
+ begin_path:
+    while ( *filename == '/' ) { /* Absolute filename */
+        inr = EXT2_ROOT_INO;
+        filename ++;
+    }
+ open:
+    if ( (file = open_inode(inr, &file_len) ) == NULL )
+        goto err_noclose;
+        
+    file_mode = file->file_mode >> S_IFSHIFT;
+    
+    /* It's a file */
+    if ( file_mode == T_IFREG ) {
+        if ( *filename == '\0' )
+            goto done;
+        else
+            goto err;
+    } 
+    
+    
+    /* It's a directory */
+    if ( file_mode == T_IFDIR ) {                
+        ThisDir = inr;
+        
+        if ( *filename == 0 )
+            goto err;
+        while ( *filename == '/' )
+            filename ++;
+        
+        de = find_dir_entry(file, filename);
+        if ( !de ) 
+            goto err;
+        
+        inr = de->d_inode;
+        filename += de->d_name_len;
+        close_file(file);
+        goto open;
+    }    
+    
+        
+    /*
+     * It's a symlink.  We have to determine if it's a fast symlink
+     * (data stored in the inode) or not (data stored as a regular
+     * file.)  Either which way, we start from the directory
+     * which we just visited if relative, or from the root directory
+     * if absolute, and append any remaining part of the path.
+     */
+    if ( file_mode == T_IFLNK ) {
+        if ( --SymlinkCtr==0 || file_len>=SYMLINK_SECTORS*SECTOR_SIZE)
+            goto err;    /* too many links or symlink too long */
+        
+        filename = do_symlink(file, file_len, filename);
+        if ( !filename )    
+            goto err_noclose;/* buffer overflow */
+        
+        inr = ThisDir;
+        goto begin_path;     /* we got a new path, so search it again */
+    }
+    
+    /* Otherwise, something bad ... */
+ err:
+    close_file(file);
+ err_noclose:
+    file_len = 0;
+    file = NULL;
+ done:        
+    
+    regs->eax.l = file_len;
+    regs->esi.w[0] = file;
+}
 
 
 /**

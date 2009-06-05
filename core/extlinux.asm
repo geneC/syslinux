@@ -88,6 +88,7 @@ file_mode	resw 1
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
 		section .earlybss
+		global trackbuf
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 		; ends at 2800h
@@ -215,229 +216,12 @@ close_file:
 		xor si,si
 .closed:	ret
 
-;
-; searchdir:
-;	     Search the root directory for a pre-mangled filename in DS:DI.
-;
-;	     NOTE: This file considers finding a zero-length file an
-;	     error.  This is so we don't have to deal with that special
-;	     case elsewhere in the program (most loops have the test
-;	     at the end).
-;
-;	     If successful:
-;		ZF clear
-;		SI	    = file pointer
-;		DX:AX = EAX = file length in bytes
-;	     If unsuccessful
-;		ZF set
-;
-;	     Assumes CS == DS == ES; *** IS THIS CORRECT ***?
-;
-searchdir:
-		push bx
-		push cx
-		push bp
-		mov byte [SymlinkCtr],MAX_SYMLINKS
-
-		mov eax,[CurrentDir]
-.begin_path:
-.leadingslash:
-		cmp byte [di],'/'	; Absolute filename?
-		jne .gotdir
-		mov eax,EXT2_ROOT_INO
-		inc di			; Skip slash
-		jmp .leadingslash
-.gotdir:
-
-		; At this point, EAX contains the directory inode,
-		; and DS:DI contains a pathname tail.
-.open:
-		push eax		; Save directory inode
-
-		pm_call open_inode
-		jz .missing		; If error, done
-
-		mov cx,[si+file_mode]
-		shr cx,S_IFSHIFT	; Get file type
-
-		cmp cx,T_IFDIR
-		je .directory
-
-		add sp,4		; Drop directory inode
-
-		cmp cx,T_IFREG
-		je .file
-		cmp cx,T_IFLNK
-		je .symlink
-
-		; Otherwise, something bad...
-.err:
-		call close_file
-.err_noclose:
-		xor eax,eax
-		xor si,si
-		cwd			; DX <- 0
-
-.done:
-		and eax,eax		; Set/clear ZF
-		pop bp
-		pop cx
-		pop bx
-		ret
-
-.missing:
-		add sp,4		; Drop directory inode
-		jmp .done
-
-		;
-		; It's a file.
-		;
-.file:
-		cmp byte [di],0		; End of path?
-		je .done		; If so, done
-		jmp .err		; Otherwise, error
-
-		;
-		; It's a directory.
-		;
-.directory:
-		pop dword [ThisDir]	; Remember what directory we're searching
-
-		cmp byte [di],0		; More path?
-		je .err			; If not, bad
-
-.skipslash:				; Skip redundant slashes
-		cmp byte [di],'/'
-		jne .readdir
-		inc di
-		jmp .skipslash
-
-.readdir:
-		mov cx,[SecPerClust]
-		push cx
-		shl cx,SECTOR_SHIFT
-		mov bx,trackbuf
-		add cx,bx
-		mov [EndBlock],cx
-		pop cx
-		push bx
-		call getfssec
-		pop bx
-		pushf			; Save EOF flag
-		push si			; Save filesystem pointer
-.getent:
-		cmp bx,[EndBlock]
-		jae .endblock
-
-		push di
-		cmp dword [bx+d_inode],0	; Zero inode = void entry
-		je .nope
-
-		movzx cx,byte [bx+d_name_len]
-		lea si,[bx+d_name]
-		repe cmpsb
-		je .maybe
-.nope:
-		pop di
-		add bx,[bx+d_rec_len]
-		jmp .getent
-
-.endblock:
-		pop si
-		popf
-		jnc .readdir		; There is more
-		jmp .err		; Otherwise badness...
-
-.maybe:
-		mov eax,[bx+d_inode]
-
-		; Does this match the end of the requested filename?
-		cmp byte [di],0
-		je .finish
-		cmp byte [di],'/'
-		jne .nope
-
-		; We found something; now we need to open the file
-.finish:
-		pop bx			; Adjust stack (di)
-		pop si
-		call close_file		; Close directory
-		pop bx			; Adjust stack (flags)
-		jmp .open
-
-		;
-		; It's a symlink.  We have to determine if it's a fast symlink
-		; (data stored in the inode) or not (data stored as a regular
-		; file.)  Either which way, we start from the directory
-		; which we just visited if relative, or from the root directory
-		; if absolute, and append any remaining part of the path.
-		;
-.symlink:
-		dec byte [SymlinkCtr]
-		jz .err			; Too many symlink references
-
-		cmp eax,SYMLINK_SECTORS*SECTOR_SIZE
-		jae .err		; Symlink too long
-
-		; Computation for fast symlink, as defined by ext2/3 spec
-		xor ecx,ecx
-		cmp [ThisInode+i_file_acl],ecx
-		setne cl		; ECX <- i_file_acl ? 1 : 0
-		cmp [ThisInode+i_blocks],ecx
-		jne .slow_symlink
-
-		; It's a fast symlink
-.fast_symlink:
-		call close_file		; We've got all we need
-		mov si,ThisInode+i_block
-
-		push di
-		mov di,SymlinkTmpBuf
-		mov ecx,eax
-		rep movsb
-		pop si
-
-.symlink_finish:
-		cmp byte [si],0
-		je .no_slash
-		mov al,'/'
-		stosb
-.no_slash:
-		mov bp,SymlinkTmpBufEnd
-		call strecpy
-		jc .err_noclose		; Buffer overflow
-
-		; Now copy it to the "real" buffer; we need to have
-		; two buffers so we avoid overwriting the tail on the
-		; next copy
-		mov si,SymlinkTmpBuf
-		mov di,SymlinkBuf
-		push di
-		call strcpy
-		pop di
-		mov eax,[ThisDir]	; Resume searching previous directory
-		jmp .begin_path
-
-.slow_symlink:
-		mov bx,SymlinkTmpBuf
-		mov cx,SYMLINK_SECTORS
-		call getfssec
-		; The EOF closed the file
-
-		mov si,di		; SI = filename tail
-		mov di,SymlinkTmpBuf
-		add di,ax		; AX = file length
-		jmp .symlink_finish
-
-
 		section .bss16
 		alignb	4
+		global SymlinkBuf
 SymlinkBuf	resb	SYMLINK_SECTORS*SECTOR_SIZE+64
-SymlinkTmpBuf	 equ	trackbuf
-SymlinkTmpBufEnd equ	trackbuf+SYMLINK_SECTORS*SECTOR_SIZE+64
 ThisDir		resd	1
-EndBlock	resw	1
-SymlinkCtr	resb	1
+
 
 		section .text16
 ;
@@ -538,6 +322,7 @@ kaboom2:
 ;	On return ECX = number of bytes read
 ;	All arguments are advanced to reflect data read.
 ;
+		global getfssec
 getfssec:
 		push ebp
 		push eax

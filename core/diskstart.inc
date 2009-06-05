@@ -489,6 +489,7 @@ ADVSectors	dw 0		; Additional sectors for ADVs
 LDLDwords	dd 0		; Total dwords starting at ldlinux_sys,
 CheckSum	dd 0		; Checksum starting at ldlinux_sys
 				; value = LDLINUX_MAGIC - [sum of dwords]
+		global CurrentDir
 CurrentDir	dd 2		; "Current" directory inode number (EXTLINUX)
 SecPtrOffset	dw SectorPtrs - ldlinux_sys
 SecPtrCnt	dw (SectorPtrsEnd - SectorPtrs) >> 2
