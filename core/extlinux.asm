@@ -116,7 +116,7 @@ Files		resb MAX_OPEN*open_file_t_size
 		mov bx,SuperBlock
 		mov eax,1024 >> SECTOR_SHIFT
 		mov bp,ax
-		call getlinsec
+		call getlinsecsr
 
 ;
 ; Compute some values...
@@ -208,7 +208,7 @@ getonesec_ext:
 
 getlinsec_ext:
 		cmp eax,[SecPerClust]
-		jae getlinsec			; Nothing fancy
+		jae getlinsecsr			; Nothing fancy
 
 		; If we get here, at least part of what we want is in the
 		; zero block.  Zero one sector at a time and loop.
