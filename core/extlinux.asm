@@ -173,18 +173,6 @@ Files		resb MAX_OPEN*open_file_t_size
 		global ThisInode
 ThisInode	resb EXT2_GOOD_OLD_INODE_SIZE	; The most recently opened inode
 
-		section .text16
-;
-; close_file:
-;	     Deallocates a file structure (pointer in SI)
-;	     Assumes CS == DS.
-;
-close_file:
-		and si,si
-		jz .closed
-		mov dword [si],0		; First dword == file_bytesleft
-		xor si,si
-.closed:	ret
 
 		section .bss16
 		alignb	4

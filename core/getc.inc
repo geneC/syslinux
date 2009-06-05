@@ -87,6 +87,19 @@ openfd:
 		xor ax,ax		; ZF <- 1
 		pop bx
 		ret
+		
+;
+; close_file:
+;	     Deallocates a file structure (pointer in SI)
+;	     Assumes CS == DS.
+;
+close_file:
+		and si,si
+		jz .closed
+		mov dword [si],0		; First dword == file_bytesleft
+		xor si,si
+.closed:	ret
+
 
 getc:
 		push bx
