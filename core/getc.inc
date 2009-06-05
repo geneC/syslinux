@@ -136,7 +136,7 @@ getc:
 		mov [di+gc_bufbytes],si	; In case SI == 0
 		jz .empty
 		mov cx,bytes_per_getc >> SECTOR_SHIFT
-		call getfssec
+		pm_call getfssec
 		mov [di+gc_bufbytes],cx
 		mov [di+gc_file],si
 		jcxz .empty

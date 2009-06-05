@@ -58,7 +58,7 @@ is_linux_kernel:
 		mov cx,8000h >> SECTOR_SHIFT	; Half a moby (32K)
 		xor bx,bx
                 pop si                          ; <A> file pointer
-		call getfssec
+		pm_call getfssec
 		cmp cx,1024
 		jb kernel_corrupt
                 cmp word [es:bs_bootsign],0AA55h

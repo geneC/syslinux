@@ -5,9 +5,10 @@
 #include "disk.h"
 #include "ext2_fs.h"
 
-
 #define MAX_OPEN_LG2     6
 #define MAX_OPEN         (1 << MAX_OPEN_LG2)
+#define MAX_SYMLINKS     64
+#define SYMLINK_SECTORS  2
 
 /* 
  * File structure, This holds the information for each currently open file 
@@ -21,25 +22,17 @@ struct open_file_t {
 };
 
 extern char Files[MAX_OPEN * sizeof(struct open_file_t)];
-
-
 extern char ThisInode[128];
 struct ext2_inode *this_inode = ThisInode;
+struct ext2_super_block *sb;
 
 extern uint16_t ClustByteShift,  ClustShift;
 extern uint32_t SecPerClust, ClustSize, ClustMask;
 extern uint32_t PtrsPerBlock1, PtrsPerBlock2;
 uint32_t PtrsPerBlock3;
-
 int DescPerBlock, InodePerBlock;
 
-struct ext2_super_block *sb;  
-
-
-extern char  trackbuf[8192];
-
-#define MAX_SYMLINKS     64
-#define SYMLINK_SECTORS  2
+extern char trackbuf[8192];
 extern char SymlinkBuf[SYMLINK_SECTORS * SECTOR_SIZE + 64];
 
 
@@ -355,9 +348,8 @@ block_t linsector_direct(block_t block, struct ext2_inode *inode)
  * 
  * @return: physic sector number
  */
-void linsector(com32sys_t *regs)
+sector_t linsector(sector_t lin_sector)
 {
-    sector_t lin_sector = regs->eax.l;
     block_t block = lin_sector >> ClustShift;
     struct ext2_inode *inode;
 
@@ -371,12 +363,11 @@ void linsector(com32sys_t *regs)
     
     if (!block) {
         printf("ERROR: something error happend at linsector..\n");
-        regs->eax.l = 0;
-        return;
+        return 0;
     }
     
     /* finally convert it to sector */
-    regs->eax.l = ((block << ClustShift) + (lin_sector & ClustMask));
+    return ((block << ClustShift) + (lin_sector & ClustMask));
 }
 
 
@@ -402,24 +393,122 @@ inline struct ext2_dir_entry *ext2_next_entry(struct ext2_dir_entry *p)
     return (struct ext2_dir_entry *)((char*)p + p->d_rec_len);
 }
 
+/**
+ * getlinsec_ext:
+ *
+ * same as getlinsec, except load any sector from the zero
+ * block as all zeros; use to load any data derived from
+ * n ext2 block pointer, i.e. anything *except the superblock
+ *
+ */
+void getlinsec_ext(char *buf, sector_t sector, int sector_cnt)
+{
+    int ext_cnt = 0;
+    
+    if ( sector < SecPerClust ) {
+        ext_cnt = SecPerClust - sector;
+        memset(buf, 0, ext_cnt << SECTOR_SHIFT);
+        buf += ext_cnt << SECTOR_SHIFT;
+    }
+    
+    sector += ext_cnt;
+    sector_cnt -= ext_cnt;
+    read_sectors(buf, sector, sector_cnt);
+}
 
+/**
+ * getfssec:
+ *
+ * Get multiple sectors from a file 
+ *
+ * Alought we have made the buffer data based on block size, 
+ * we use sector for implemention; because reading multiple 
+ * sectors (then can be multiple blocks) is what the function 
+ * do. So, let it be based on sectors.
+ *
+ * This function can be called from C function, and either from
+ * ASM function.
+ * 
+ * @param: ES:BX(of regs), the buffer to store data
+ * @param: DS:SI(of regs), the pointer to open_file_t
+ * @param: CX(of regs), number of sectors to read
+ *
+ * @return: ECX(of regs), number of bytes read
+ *
+ */
+void getfssec(com32sys_t *regs)
+{
+    int sector_left, next_sector, sector_idx;
+    int frag_start, con_sec_cnt;
+    int sectors = regs->ecx.w[0];
+    int bytes_read = sectors << SECTOR_SHIFT;
+    char *buf;
+    struct open_file_t *file;
+
+    buf = (char *)MK_PTR(regs->es, regs->ebx.w[0]);
+    file = (struct open_file_t *)MK_PTR(regs->ds, regs->esi.w[0]); 
+    
+    sector_left = (file->file_bytesleft + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
+    if ( sectors > sector_left )
+        sectors = sector_left;
+    
+    while (sectors) {
+        /*
+         * get the frament
+         */
+        sector_idx  = file->file_sector;
+        next_sector = frag_start = linsector(sector_idx);
+        con_sec_cnt = 0;                
+        
+        /* get the consective sectors count */
+        do {            
+            con_sec_cnt ++;
+            sectors --;
+            if ( sectors <= 0 )
+                break;
+            
+            /* if sectors >= the sectors left in the 64K block, break and read */
+            if (sectors >= (((~(uint32_t)buf&0xffff)|((uint32_t)buf&0xffff0000)) + 1) )
+                break;
+            
+            sector_idx ++;
+            next_sector ++;
+        }while( next_sector == linsector(sectors) );                
+        
+#if 0   
+        printf("You are reading stores at sector --0x%x--0x%x\n", 
+               frag_start, frag_start + con_sec_cnt -1);
+#endif        
+        getlinsec_ext(buf, frag_start, con_sec_cnt);
+        buf += con_sec_cnt << 9;
+        file->file_sector += con_sec_cnt;  /* next sector index */
+    }while(sectors);
+    
+    if ( bytes_read >= file->file_bytesleft ) 
+        bytes_read = file->file_bytesleft;
+    file->file_bytesleft -= bytes_read;
+    
+    regs->ecx.l = bytes_read;
+}
+
+
+
+/* This is the gefssec function that should be called from C function */
 void getfssec_ext(char *buf, struct open_file_t *file, 
                   int sectors, int *have_more)
 {
-    com32sys_t regs, out_regs;
+    com32sys_t regs;
 
     memset(&regs, 0, sizeof regs);
-    memset(&out_regs, 0, sizeof out_regs);
-
+    
     /*
-     * for now, the buf and file structure are stored at low 
-     * address, so we can reference it safely by SEG() and 
-     * OFFS() operation.
+     * for now, even though the buf and file structure are stored
+     * at low address, BUT find: 
      *
-     * !find we can't use SEG stuff here, say the address of buf
-     * is 0x800(found in debug), the addres would be broken like
+     * we can't use SEG stuff here, say the address of buf
+     * is 0x800(found in debug), the address would be broken like
      * this: es = 0x80, bx = 0, while that's not the getfssec 
-     * function need, the one that still be asm code now.
+     * function need.
      *
      * so we just do like:
      *                   regs.ebx.w[0] = buf;
@@ -427,13 +516,12 @@ void getfssec_ext(char *buf, struct open_file_t *file,
     regs.ebx.w[0] = buf;
     regs.esi.w[0] = file;
     regs.ecx.w[0] = sectors;
-
-    call16(getfssec, &regs, &out_regs);
+    getfssec(&regs);
 
     *have_more = 1;
     
     /* the file is closed ? */
-    if( !out_regs.esi.w[0] ) 
+    if( !file->file_bytesleft )
         *have_more = 0;
 }
     
@@ -456,11 +544,10 @@ struct ext2_dir_entry* find_dir_entry(struct open_file_t *file, char *filename)
     
     while ( 1 ) {
         if ( (char *)de >= (char *)EndBlock ) {
-            if (have_more) {
-                getfssec_ext(trackbuf, file,SecPerClust,&have_more);
-                de = (struct ext2_dir_entry *)trackbuf;
-            } else
+            if (!have_more) 
                 return NULL;
+            getfssec_ext(trackbuf, file,SecPerClust,&have_more);
+            de = (struct ext2_dir_entry *)trackbuf;
         }
         
         /* Zero inode == void entry */
@@ -491,8 +578,7 @@ char* do_symlink(struct open_file_t *file, uint32_t file_len, char *filename)
     char *lnk_end;
     char *SymlinkTmpBufEnd = trackbuf + SYMLINK_SECTORS * SECTOR_SIZE+64;  
     
-    flag = this_inode->i_file_acl ? SecPerClust : 0;
-    
+    flag = this_inode->i_file_acl ? SecPerClust : 0;    
     if ( this_inode->i_blocks == flag ) {
         /* fast symlink */
         close_file(file);          /* we've got all we need */
@@ -505,12 +591,6 @@ char* do_symlink(struct open_file_t *file, uint32_t file_len, char *filename)
         lnk_end = SymlinkTmpBuf + file_len;
     }
     
-    /*
-     * well, this happens like:
-     * "/boot/xxx/y/z.abc" where xxx is a symlink to "/other/here"
-     * so, we should get a new path name like:
-     * "/other/here/y/z.abc"
-     */
     if ( *filename != 0 )
         *lnk_end++ = '/';
     
@@ -538,8 +618,8 @@ char* do_symlink(struct open_file_t *file, uint32_t file_len, char *filename)
  *
  * @param: filename, the filename we want to search.
  *
- * @out  : a file pointer
- * @out  : file lenght in bytes
+ * @out  : a file pointer, stores in DS:SI ( NOTE, DS == 0)
+ * @out  : file lenght in bytes, stores in eax
  *
  */
 void searchdir(com32sys_t * regs)

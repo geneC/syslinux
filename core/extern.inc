@@ -19,6 +19,6 @@
 	extern load_config
 
 	; ext2.c
-	extern init_fs, linsector, searchdir
+	extern init_fs, searchdir, getfssec
 
 %endif ; EXTERN_INC

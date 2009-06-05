@@ -167,36 +167,6 @@ Files		resb MAX_OPEN*open_file_t_size
 ;
 %include "ui.inc"
 
-;
-; getlinsec_ext: same as getlinsec, except load any sector from the zero
-;		 block as all zeros; use to load any data derived
-;		 from an ext2 block pointer, i.e. anything *except the
-;		 superblock.*
-;
-getonesec_ext:
-		mov bp,1
-
-getlinsec_ext:
-		cmp eax,[SecPerClust]
-		jae getlinsec			; Nothing fancy
-
-		; If we get here, at least part of what we want is in the
-		; zero block.  Zero one sector at a time and loop.
-		push eax
-		push cx
-		xchg di,bx
-		xor eax,eax
-		mov cx,SECTOR_SIZE >> 2
-		rep stosd
-		xchg di,bx
-		pop cx
-		pop eax
-		inc eax
-		dec bp
-		jnz getlinsec_ext
-		ret
-
-
 
 		section .bss16
 		alignb 4
@@ -308,90 +278,6 @@ kaboom2:
 .noreg:		jmp short .noreg	; Nynorsk
 
 
-
-;
-; getfssec: Get multiple sectors from a file
-;
-;	Same as above, except SI is a pointer to a open_file_t
-;
-;	ES:BX	-> Buffer
-;	DS:SI	-> Pointer to open_file_t
-;	CX	-> Sector count (0FFFFh = until end of file)
-;                  Must not exceed the ES segment
-;	Returns CF=1 on EOF (not necessarily error)
-;	On return ECX = number of bytes read
-;	All arguments are advanced to reflect data read.
-;
-		global getfssec
-getfssec:
-		push ebp
-		push eax
-		push edx
-		push edi
-
-		movzx ecx,cx
-		push ecx			; Sectors requested read
-		mov eax,[si+file_bytesleft]
-		add eax,SECTOR_SIZE-1
-		shr eax,SECTOR_SHIFT
-		cmp ecx,eax			; Number of sectors left
-		jbe .lenok
-		mov cx,ax
-.lenok:
-.getfragment:
-		mov eax,[si+file_sector]	; Current start index
-		mov edi,eax
-		pm_call linsector
-		push eax			; Fragment start sector
-		mov edx,eax
-		xor ebp,ebp			; Fragment sector count
-.getseccnt:
-		inc bp
-		dec cx
-		jz .do_read
-		xor eax,eax
-		mov ax,es
-		shl ax,4
-		add ax,bx			; Now DI = how far into 64K block we are
-		not ax				; Bytes left in 64K block
-		inc eax
-		shr eax,SECTOR_SHIFT		; Sectors left in 64K block
-		cmp bp,ax
-		jnb .do_read			; Unless there is at least 1 more sector room...
-		inc edi				; Sector index
-		inc edx				; Linearly next sector
-		mov eax,edi
-		pm_call linsector
-		; jc .do_read
-		cmp edx,eax
-		je .getseccnt
-.do_read:
-		pop eax				; Linear start sector
-		pushad
-		call getlinsec_ext
-		popad
-		push bp
-		shl bp,9
-		add bx,bp			; Adjust buffer pointer
-		pop bp
-		add [si+file_sector],ebp	; Next sector index
-		jcxz .done
-		jnz .getfragment
-		; Fall through
-.done:
-		pop ecx				; Sectors requested read
-		shl ecx,SECTOR_SHIFT
-		sub [si+file_bytesleft],ecx
-		jnbe .noteof			; CF=0 in this case
-		add ecx,[si+file_bytesleft]	; Actual number of bytes read
-		call close_file
-		stc				; We hit EOF
-.noteof:
-		pop edi
-		pop edx
-		pop eax
-		pop ebp
-		ret
 
 build_curdir_str:
 		ret

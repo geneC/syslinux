@@ -14,9 +14,6 @@ extern char ConfigName[];
 /* diskstart.inc */
 extern void getlinsec(void);
 
-/* extlinux.asm */
-extern void getfssec(void);
-
 /* getc.inc */
 extern void core_open(void);
 

@@ -69,7 +69,7 @@ load_high:
 		push edi			; <C> Target buffer
 		mov cx,ax
 		xor bx,bx			; ES:0
-		call getfssec			; Load the data into xfer_buf_seg
+		pm_call getfssec			; Load the data into xfer_buf_seg
 		pop edi				; <C> Target buffer
 		pushf				; <C> EOF status
 		lea ebx,[edi+ecx]		; End of data

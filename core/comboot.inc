@@ -126,7 +126,7 @@ is_comboot_image:
 		mov bx,100h		; Load at <seg>:0100h
 		mov cx,10000h >> SECTOR_SHIFT
 					; Absolute maximum # of sectors
-		call getfssec
+		pm_call getfssec
 		cmp ecx,65536-256-2	; Maximum size
 		ja comboot_too_large
 
@@ -535,7 +535,7 @@ comapi_read:
 		mov bx,P_BX
 		mov si,P_SI
 		mov cx,P_CX
-		call getfssec
+		pm_call getfssec
 		jnc .noteof
 		xor si,si		; SI <- 0 on EOF, CF <- 0
 .noteof:	mov P_SI,si
