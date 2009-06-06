@@ -49,11 +49,11 @@ extern char SymlinkBuf[SYMLINK_SECTORS * SECTOR_SIZE + 64];
  */
 int strecpy(char *dst, char *src, char *end)
 {
-    while ( *src != '\0' )
+    while (*src != '\0')
         *dst++ = *src++;
     *dst = '\0';
     
-    if ( dst > end )
+    if (dst > end)
         return 1;
     else 
         return 0;
@@ -114,8 +114,8 @@ void mangle_name(com32sys_t *regs)
     int i = FILENAME_MAX -1;
     
     while(*src > ' ') {
-        if ( *src == '/' ) {
-            if ( *(src+1) == '/' ) {
+        if (*src == '/') {
+            if (*(src+1) == '/') {
                 src ++;
                 i --;
                 continue;
@@ -125,10 +125,10 @@ void mangle_name(com32sys_t *regs)
         *dst++ = *src++;
     }
 
-    while ( 1 ) {
-        if ( dst >= p )
+    while (1) {
+        if (dst == p)
             break;        
-        if ( *(dst-1) != '/' ) 
+        if (*(dst-1) != '/') 
             break;
         
         dst --;
@@ -136,7 +136,7 @@ void mangle_name(com32sys_t *regs)
     }
 
     i ++;
-    for (; i > 0; i -- )
+    for (; i > 0; i --)
         *dst++ = '\0';
 }
 
@@ -268,11 +268,11 @@ ext4_find_leaf (struct ext4_extent_header *eh, block_t block)
             return eh;
         
         index = EXT4_FIRST_INDEX(eh);        
-        for ( i = 0; i < eh->eh_entries; i++ ) {
-            if ( block < index[i].ei_block )
+        for (i = 0; i < eh->eh_entries; i++) {
+            if (block < index[i].ei_block)
                 break;
         }
-        if ( --i < 0 )
+        if (--i < 0)
             return NULL;
         
         blk = index[i].ei_leaf_hi;
@@ -299,11 +299,11 @@ uint64_t linsector_extent(block_t block, struct ext2_inode *inode)
     }
     
     ext = EXT4_FIRST_EXTENT(leaf);
-    for ( i = 0; i < leaf->eh_entries; i++ ) {
-        if ( block < ext[i].ee_block)
+    for (i = 0; i < leaf->eh_entries; i++) {
+        if (block < ext[i].ee_block)
             break;
     }
-    if ( --i < 0 ) {
+    if (--i < 0) {
         printf("ERROR, not find the right block\n");
         return 0;
     }
@@ -311,7 +311,7 @@ uint64_t linsector_extent(block_t block, struct ext2_inode *inode)
     
     /* got it */
     block -= ext[i].ee_block;
-    if ( block >= ext[i].ee_len)
+    if (block >= ext[i].ee_len)
         return 0;
     
     start = ext[i].ee_start_hi;
@@ -449,7 +449,7 @@ void getlinsec_ext(char *buf, sector_t sector, int sector_cnt)
 {
     int ext_cnt = 0;
     
-    if ( sector < SecPerClust ) {
+    if (sector < SecPerClust) {
         ext_cnt = SecPerClust - sector;
         memset(buf, 0, ext_cnt << SECTOR_SHIFT);
         buf += ext_cnt << SECTOR_SHIFT;
@@ -493,7 +493,7 @@ void getfssec(com32sys_t *regs)
     file = (struct open_file_t *)MK_PTR(regs->ds, regs->esi.w[0]); 
     
     sector_left = (file->file_bytesleft + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
-    if ( sectors > sector_left )
+    if (sectors > sector_left)
         sectors = sector_left;
     
     while (sectors) {
@@ -508,16 +508,16 @@ void getfssec(com32sys_t *regs)
         do {            
             con_sec_cnt ++;
             sectors --;
-            if ( sectors <= 0 )
+            if (sectors <= 0)
                 break;
             
             /* if sectors >= the sectors left in the 64K block, break and read */
-            if (sectors >= (((~(uint32_t)buf&0xffff)|((uint32_t)buf&0xffff0000)) + 1) )
+            if (sectors >= (((~(uint32_t)buf&0xffff)|((uint32_t)buf&0xffff0000)) + 1))
                 break;
             
             sector_idx ++;
             next_sector ++;
-        }while( next_sector == linsector(sectors) );                
+        }while(next_sector == linsector(sectors));                
         
 #if 0   
         printf("You are reading stores at sector --0x%x--0x%x\n", 
@@ -528,7 +528,7 @@ void getfssec(com32sys_t *regs)
         file->file_sector += con_sec_cnt;  /* next sector index */
     }while(sectors);
     
-    if ( bytes_read >= file->file_bytesleft ) 
+    if (bytes_read >= file->file_bytesleft) 
         bytes_read = file->file_bytesleft;
     file->file_bytesleft -= bytes_read;
     
@@ -565,7 +565,7 @@ void getfssec_ext(char *buf, struct open_file_t *file,
     *have_more = 1;
     
     /* the file is closed ? */
-    if( !file->file_bytesleft )
+    if(!file->file_bytesleft)
         *have_more = 0;
 }
     
@@ -586,8 +586,8 @@ struct ext2_dir_entry* find_dir_entry(struct open_file_t *file, char *filename)
     getfssec_ext(trackbuf, file, SecPerClust, &have_more);        
     de = (struct ext2_dir_entry *)trackbuf;        
     
-    while ( 1 ) {
-        if ( (char *)de >= (char *)EndBlock ) {
+    while (1) {
+        if ((char *)de >= (char *)EndBlock) {
             if (!have_more) 
                 return NULL;
             getfssec_ext(trackbuf, file,SecPerClust,&have_more);
@@ -595,14 +595,14 @@ struct ext2_dir_entry* find_dir_entry(struct open_file_t *file, char *filename)
         }
         
         /* Zero inode == void entry */
-        if ( de->d_inode == 0 ) {
+        if (de->d_inode == 0) {
             de = ext2_next_entry(de);       
             continue;
         }
         
-        if ( ext2_match_entry (filename, de) ) {
+        if (ext2_match_entry (filename, de)) {
             filename += de->d_name_len;
-            if ( (*filename == 0) || (*filename == '/') )
+            if ((*filename == 0) || (*filename == '/'))
                 return de;     /* got it */
             
             /* not match, restore the filename then try next */
@@ -623,7 +623,7 @@ char* do_symlink(struct open_file_t *file, uint32_t file_len, char *filename)
     char *SymlinkTmpBufEnd = trackbuf + SYMLINK_SECTORS * SECTOR_SIZE+64;  
     
     flag = this_inode->i_file_acl ? SecPerClust : 0;    
-    if ( this_inode->i_blocks == flag ) {
+    if (this_inode->i_blocks == flag) {
         /* fast symlink */
         close_file(file);          /* we've got all we need */
         memcpy(SymlinkTmpBuf, this_inode->i_block, file_len);
@@ -635,10 +635,10 @@ char* do_symlink(struct open_file_t *file, uint32_t file_len, char *filename)
         lnk_end = SymlinkTmpBuf + file_len;
     }
     
-    if ( *filename != 0 )
+    if (*filename != 0)
         *lnk_end++ = '/';
     
-    if ( strecpy(lnk_end, filename, SymlinkTmpBufEnd) ) 
+    if (strecpy(lnk_end, filename, SymlinkTmpBufEnd)) 
         return NULL; /* buffer overflow */
     
     /*
@@ -662,7 +662,7 @@ char* do_symlink(struct open_file_t *file, uint32_t file_len, char *filename)
  *
  * @param: filename, the filename we want to search.
  *
- * @out  : a file pointer, stores in DS:SI ( NOTE, DS == 0)
+ * @out  : a file pointer, stores in DS:SI (NOTE, DS == 0)
  * @out  : file lenght in bytes, stores in eax
  *
  */
@@ -680,19 +680,19 @@ void searchdir(com32sys_t * regs)
     char *filename = (char *)MK_PTR(regs->ds, regs->edi.w[0]);
     
  begin_path:
-    while ( *filename == '/' ) { /* Absolute filename */
+    while (*filename == '/') { /* Absolute filename */
         inr = EXT2_ROOT_INO;
         filename ++;
     }
  open:
-    if ( (file = open_inode(inr, &file_len) ) == NULL )
+    if ((file = open_inode(inr, &file_len)) == NULL)
         goto err_noclose;
         
     file_mode = file->file_mode >> S_IFSHIFT;
     
     /* It's a file */
-    if ( file_mode == T_IFREG ) {
-        if ( *filename == '\0' )
+    if (file_mode == T_IFREG) {
+        if (*filename == '\0')
             goto done;
         else
             goto err;
@@ -700,16 +700,16 @@ void searchdir(com32sys_t * regs)
     
     
     /* It's a directory */
-    if ( file_mode == T_IFDIR ) {                
+    if (file_mode == T_IFDIR) {                
         ThisDir = inr;
         
-        if ( *filename == 0 )
+        if (*filename == 0)
             goto err;
-        while ( *filename == '/' )
+        while (*filename == '/')
             filename ++;
         
         de = find_dir_entry(file, filename);
-        if ( !de ) 
+        if (!de) 
             goto err;
         
         inr = de->d_inode;
@@ -726,12 +726,12 @@ void searchdir(com32sys_t * regs)
      * which we just visited if relative, or from the root directory
      * if absolute, and append any remaining part of the path.
      */
-    if ( file_mode == T_IFLNK ) {
-        if ( --SymlinkCtr==0 || file_len>=SYMLINK_SECTORS*SECTOR_SIZE)
+    if (file_mode == T_IFLNK) {
+        if (--SymlinkCtr==0 || file_len>=SYMLINK_SECTORS*SECTOR_SIZE)
             goto err;    /* too many links or symlink too long */
         
         filename = do_symlink(file, file_len, filename);
-        if ( !filename )    
+        if (!filename)    
             goto err_noclose;/* buffer overflow */
         
         inr = ThisDir;
@@ -772,9 +772,9 @@ void init_fs(com32sys_t *regs)
     SecPerClust = ClustSize >> SECTOR_SHIFT;
     ClustMask = SecPerClust - 1;
     
-    PtrsPerBlock1 = 1 << ( ClustByteShift - 2 );
-    PtrsPerBlock2 = 1 << ( (ClustByteShift - 2) * 2);
-    PtrsPerBlock3 = 1 << ( (ClustByteShift - 2) * 3);
+    PtrsPerBlock1 = 1 << (ClustByteShift - 2);
+    PtrsPerBlock2 = 1 << ((ClustByteShift - 2) * 2);
+    PtrsPerBlock3 = 1 << ((ClustByteShift - 2) * 3);
     
     regs->eax.l = ClustByteShift;
 }

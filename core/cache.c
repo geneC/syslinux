@@ -88,24 +88,24 @@ struct cache_struct* get_cache_block(block_t block)
     printf("we are looking for cache of %d\n", block);
 #endif
 
-    if ( !block ) {
+    if (!block) {
         printf("ERROR: we got a ZERO block number that's not we want!\n");
         return NULL;
     }
     
     /* it's aleardy the freshest, so nothing we need do , just return it */
-    if ( cs->block == block ) 
+    if (cs->block == block) 
         goto out;
     
-    for ( i = 0; i < cache_entries; i ++ ) {
-        if ( cs->block == block )
+    for (i = 0; i < cache_entries; i ++) {
+        if (cs->block == block)
             break;
         else
             cs = cs->prev;
     }
     
     /* missed, so we need to load it */
-    if ( i == cache_entries ) {        
+    if (i == cache_entries) {        
         /* store it at the head of real cache */
         cs = cache_head.next;        
         cs->block = block;
@@ -130,12 +130,12 @@ struct cache_struct* get_cache_block(block_t block)
  out:
 #if 0 /* testing how efficiency the cache is */
     total_read ++;
-    if ( total_read % 5 == 0 ) 
+    if (total_read % 5 == 0) 
         printf("total_read %d\tmissed %d\n", total_read, missed);
 #endif
 
     /* in fact, that would never be happened */
-    if ( (char *)(cs->data) > (char*)0x100000 )
+    if ((char *)(cs->data) > (char*)0x100000)
         printf("the buffer addres higher than 1M limit\n\r");
     
     return cs;
