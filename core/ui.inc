@@ -318,7 +318,7 @@ load_kernel:					; Load the kernel now
 		mov si,command_line
                 mov di,KernelName
                 push si
-		call mangle_name
+		pm_call mangle_name
                 pop si
 ;
 ; Fast-forward to first option (we start over from the beginning, since

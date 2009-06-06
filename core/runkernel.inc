@@ -538,7 +538,7 @@ parse_load_initrd:
 
 		push di
 		mov di,InitRD		; Target buffer for mangled name
-		call mangle_name
+		pm_call mangle_name
 		pop di
 		call loadinitrd
 

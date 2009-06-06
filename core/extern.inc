@@ -19,6 +19,6 @@
 	extern load_config
 
 	; ext2.c
-	extern init_fs, searchdir, getfssec
+	extern init_fs, searchdir, getfssec, mangle_name
 
 %endif ; EXTERN_INC

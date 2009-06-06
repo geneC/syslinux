@@ -207,7 +207,7 @@ msg_viewimage:
 		mov byte [si],0			; Zero-terminate filename
 		mov si,VGAFileBuf
 		mov di,VGAFileMBuf
-		call mangle_name
+		pm_call mangle_name
 		call core_open
 		jz msg_putcharnext		; Not there
 		call vgadisplayfile

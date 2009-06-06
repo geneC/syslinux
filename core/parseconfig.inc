@@ -104,7 +104,7 @@ pc_kernel:	cmp byte [VKernel],0
 		mov [VKernelBuf+vk_type],al
 		call pc_getline
 		mov di,VKernelBuf+vk_rname
-		call mangle_name
+		pm_call mangle_name
 .err:		ret
 
 ;
@@ -147,7 +147,7 @@ pc_setint16:
 pc_filecmd:	push ax				; Function to tailcall
 		call pc_getline
 		mov di,MNameBuf
-		call mangle_name
+		pm_call mangle_name
 		pm_call searchdir
 		jnz .ok
 		pop ax				; Drop the successor function
@@ -160,7 +160,7 @@ pc_filecmd:	push ax				; Function to tailcall
 pc_opencmd:	push ax				; Function to tailcall
 		call pc_getline
 		mov di,MNameBuf
-		call mangle_name
+		pm_call mangle_name
 		call core_open
 		jnz .ok
 		pop ax				; Drop the successor function
@@ -289,7 +289,7 @@ pc_serial:	call getint
 pc_filename:	push ax
 		call pc_getline
 		pop di
-		call mangle_name		; Mangle file name
+		pm_call mangle_name		; Mangle file name
 		ret
 
 ;
@@ -314,7 +314,7 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		mov byte [VKernel],1		; We've seen a "label" statement
 		mov si,VKernelBuf+vk_vname	; By default, rname == mangled vname
 		mov di,VKernelBuf+vk_rname
-		call mangle_name
+		pm_call mangle_name
 		mov si,AppendBuf		; Default append==global append
 		mov di,VKernelBuf+vk_append
 		mov cx,[AppendLen]

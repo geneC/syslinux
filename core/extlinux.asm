@@ -183,55 +183,6 @@ ThisDir		resd	1
 
 		section .text16
 ;
-; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
-;	       to by ES:DI; ends on encountering any whitespace.
-;	       DI is preserved.
-;
-;	       This verifies that a filename is < FILENAME_MAX characters,
-;	       doesn't contain whitespace, zero-pads the output buffer,
-;	       and removes redundant slashes,
-;	       so "repe cmpsb" can do a compare, and the
-;	       path-searching routine gets a bit of an easier job.
-;
-;	       FIX: we may want to support \-escapes here (and this would
-;	       be the place.)
-;
-mangle_name:
-		push di
-		push bx
-		xor ax,ax
-		mov cx,FILENAME_MAX-1
-		mov bx,di
-
-.mn_loop:
-		lodsb
-		cmp al,' '			; If control or space, end
-		jna .mn_end
-		cmp al,ah			; Repeated slash?
-		je .mn_skip
-		xor ah,ah
-		cmp al,'/'
-		jne .mn_ok
-		mov ah,al
-.mn_ok		stosb
-.mn_skip:	loop .mn_loop
-.mn_end:
-		cmp bx,di			; At the beginning of the buffer?
-		jbe .mn_zero
-		cmp byte [di-1],'/'		; Terminal slash?
-		jne .mn_zero
-.mn_kill:	dec di				; If so, remove it
-		inc cx
-		jmp short .mn_end
-.mn_zero:
-		inc cx				; At least one null byte
-		xor ax,ax			; Zero-fill name
-		rep stosb
-		pop bx
-		pop di
-		ret				; Done
-
-;
 ; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
 ;                filename to the conventional representation.  This is needed
 ;                for the BOOT_IMAGE= parameter for the kernel.

@@ -5,6 +5,8 @@
 #include "disk.h"
 #include "ext2_fs.h"
 
+#define FILENAME_MAX_LG2 8
+#define FILENAME_MAX     (1 << FILENAME_MAX_LG2)
 #define MAX_OPEN_LG2     6
 #define MAX_OPEN         (1 << MAX_OPEN_LG2)
 #define MAX_SYMLINKS     64
@@ -95,6 +97,48 @@ void close_file(struct open_file_t *file)
         file->file_bytesleft = 0;
 }
 
+
+/**
+ * mangle_name:
+ * 
+ * Mangle a filename pointed to by DS:SI(of regs) into a
+ * buffer pointed to by ES:DI(of regs); ends on encountering
+ * any whitespace.
+ *
+ */
+void mangle_name(com32sys_t *regs)
+{
+    char *src = (char *)MK_PTR(regs->ds, regs->esi.w[0]);
+    char *dst = (char *)MK_PTR(regs->es, regs->edi.w[0]);
+    char *p = dst;
+    int i = FILENAME_MAX -1;
+    
+    while(*src > ' ') {
+        if ( *src == '/' ) {
+            if ( *(src+1) == '/' ) {
+                src ++;
+                i --;
+                continue;
+            }
+        }        
+        i --;
+        *dst++ = *src++;
+    }
+
+    while ( 1 ) {
+        if ( dst >= p )
+            break;        
+        if ( *(dst-1) != '/' ) 
+            break;
+        
+        dst --;
+        i ++;
+    }
+
+    i ++;
+    for (; i > 0; i -- )
+        *dst++ = '\0';
+}
 
 /**
  * get_group_desc:

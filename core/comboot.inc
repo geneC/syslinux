@@ -517,7 +517,7 @@ comapi_open:
 		mov ds,P_ES
 		mov si,P_SI
 		mov di,InitRD
-		call mangle_name
+		pm_call mangle_name
 		pop ds
 		pm_call searchdir
 		jz comapi_err
@@ -748,7 +748,7 @@ comapi_runkernel:
 		mov ds,P_DS
 		mov si,P_SI
 		mov di,KernelName
-		call mangle_name
+		pm_call mangle_name
 		pop ds
 		pm_call searchdir
 		jz comapi_err
@@ -904,7 +904,7 @@ comapi_opendir:
 		mov ds,P_ES
 		mov si,P_SI
 		mov di,InitRD
-		call mangle_name
+		pm_call mangle_name
 		pop ds
 		pm_call searchdir
 		jnz comapi_err	; Didn't find a directory
