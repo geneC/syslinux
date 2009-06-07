@@ -614,6 +614,7 @@ call32_call_start:
 
 		; Now everything is set up for interrupts...
 
+		push dword CS_BASE		; Segment base
 		push dword (BOUNCE_SEG << 4)	; Bounce buffer address
 		push dword call32_syscall+CS_BASE ; Syscall entry point
 		sti				; Interrupts OK now

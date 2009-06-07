@@ -24,9 +24,6 @@
 /* We use the com32 interface for calling 16-bit code */
 #include <com32.h>
 
-/* The real-mode segment */
-#define LOW_SEG 0x0800
-
 #define __cdecl __attribute__((cdecl,regparm(0)))
 
 typedef void (*syscall_t) (uint8_t, com32sys_t *, com32sys_t *);

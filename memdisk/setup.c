@@ -153,7 +153,7 @@ struct setup_header {
     uint32_t edx;
 };
 
-struct setup_header *const shdr = (struct setup_header *)(LOW_SEG << 4);
+struct setup_header *shdr;
 
 /* Access to high memory */
 
@@ -701,7 +701,7 @@ static uint32_t pnp_install_check(void)
 __cdecl syscall_t syscall;
 void *sys_bounce;
 
-__cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
+__cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce, void *base)
 {
     unsigned int bin_size;
     char *memdisk_hook;
@@ -722,6 +722,7 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
     /* Set up global variables */
     syscall = cs_syscall;
     sys_bounce = cs_bounce;
+    shdr = base;
 
     /* Show signs of life */
     printf("%s  %s\n", memdisk_version, copyright);
