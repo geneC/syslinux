@@ -204,7 +204,6 @@ err_a20:	db 'ERROR: A20 gate not responding!',13,10,0
 		alignb 4
 SavedSSSP	resd 1			; Place to save SS:SP
 Return		resd 1			; Return value
-A20Test		resw 1			; Space to test A20
 A20Tries	resb 1
 
 		section .data
@@ -383,22 +382,38 @@ a20_done:	popad
 ; This routine tests if A20 is enabled (ZF = 0).  This routine
 ; must not destroy any register contents.
 ;
+
+; This is the INT 1Fh vector, which is standard PCs is used by the
+; BIOS when the screen is in graphics mode.  Even if it is, it points to
+; data, not code, so it should be safe enough to fiddle with.
+A20Test		equ (1Fh*4)
+
 a20_test:
+		push ds
 		push es
 		push cx
-		push ax
-		mov cx,0FFFFh		; HMA = segment 0FFFFh
-		mov es,cx
+		push eax
+		xor ax,ax
+		mov ds,ax		; DS == 0
+		dec ax
+		mov es,ax		; ES == 0FFFFh
 		mov cx,32		; Loop count
-		mov ax,[A20Test]
-.a20_wait:	inc ax
-		mov [A20Test],ax
-		io_delay		; Serialize, and fix delay
-		cmp ax,[es:A20Test+CS_BASE+10h]
+		mov eax,[A20Test]
+		cmp eax,[es:A20Test+10h]
+		jne .a20_done
+		push eax
+.a20_wait:
+		inc eax
+		mov [A20Test],eax
+		io_delay
+		cmp eax,[es:A20Test+10h]
 		loopz .a20_wait
-.a20_done:	pop ax
+		pop dword [A20Test]	; Restore original value
+.a20_done:
+		pop eax
 		pop cx
 		pop es
+		pop ds
 		ret
 
 disable_a20:
