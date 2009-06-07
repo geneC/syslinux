@@ -151,6 +151,8 @@ struct setup_header {
     uint32_t initrd_addr_max;
     uint32_t esdi;
     uint32_t edx;
+    uint32_t sssp;
+    uint32_t csip;
 };
 
 struct setup_header *shdr;
@@ -1086,5 +1088,7 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce, void *base)
 
     /* On return the assembly code will jump to the boot vector */
     shdr->esdi = pnp_install_check();
-    shdr->edx = geometry->driveno;
+    shdr->edx  = geometry->driveno;
+    shdr->sssp = 0x7c00; 
+    shdr->csip = 0x7c00; 
 }

@@ -78,6 +78,8 @@ ramdisk_max	dd 0xffffffff		; Highest allowed ramdisk address
 ;
 b_esdi		dd 0			; ES:DI for boot sector invocation
 b_edx		dd 0			; EDX for boot sector invocation
+b_sssp		dd 0			; SS:SP on boot sector invocation
+b_csip		dd 0			; CS:IP on boot sector invocation
 
 		section .rodata
 memdisk_version:
@@ -153,9 +155,9 @@ copy_cmdline:
 		mov ds,si		; Make all the segments consistent
 		mov fs,si
 		mov gs,si
-		mov ss,si
-		mov esp,0x7C00		; Good place for SP to start out
-		call 0:0x7C00
+		lss sp,[cs:b_sssp]
+		movzx esp,sp
+		call far [cs:b_csip]
 		int 18h			; A far return -> INT 18h
 
 ;
