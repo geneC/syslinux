@@ -349,12 +349,14 @@ int check_zip(void *indata, uint32_t size, uint32_t * zbytes_p,
  */
 extern void _end;
 
+static char heap[65536];
+
 void *unzip(void *indata, uint32_t zbytes, uint32_t dbytes,
 	    uint32_t orig_crc, void *target)
 {
-    /* Set up the heap; it's the 64K after the bounce buffer */
-    free_mem_ptr = (ulg) sys_bounce + 0x10000;
-    free_mem_end_ptr = free_mem_ptr + 0x10000;
+    /* Set up the heap; it is simply a chunk of bss memory */
+    free_mem_ptr     = (size_t)heap;
+    free_mem_end_ptr = (size_t)heap + sizeof heap;
 
     /* Set up input buffer */
     inbuf = indata;
