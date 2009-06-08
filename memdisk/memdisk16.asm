@@ -33,6 +33,9 @@ BOUNCE_SEG	equ (MY_CS+0x1000)
 		section .rodata align=16
 		section .data   align=16
 		section .bss    align=16
+		section .stack	align=16 nobits
+stack		resb 512
+stack_end	equ $
 
 ;; -----------------------------------------------------------------------
 ;;  Kernel image header
@@ -107,7 +110,7 @@ start:
 		rep movsd
 		mov ds,ax
 		mov ss,ax
-		xor esp,esp		; Stack at top of 64K segment
+		mov esp,stack_end
 		jmp MY_CS:.next
 .next:
 
