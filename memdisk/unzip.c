@@ -144,8 +144,7 @@ static int fill_inbuf(void)
 {
     /* This should never happen.  We have already pointed the algorithm
        to all the data we have. */
-    printf("failed\nDecompression error: ran out of input data\n");
-    die();
+    die("failed\nDecompression error: ran out of input data\n");
 }
 
 /* ===========================================================================
@@ -175,8 +174,7 @@ static void flush_window(void)
 
 static void error(char *x)
 {
-    printf("failed\nDecompression error: %s\n", x);
-    die();
+    die("failed\nDecompression error: %s\n", x);
 }
 
 /* GZIP header */

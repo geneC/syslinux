@@ -135,8 +135,7 @@ void get_mem(void)
 	get_dos_mem();
 	if (get_e801()) {
 	    if (get_88()) {
-		puts("MEMDISK: Unable to obtain memory map\n");
-		die();
+		die("MEMDISK: Unable to obtain memory map\n");
 	    }
 	}
     }

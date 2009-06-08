@@ -30,9 +30,6 @@ typedef void (*syscall_t) (uint8_t, com32sys_t *, com32sys_t *);
 extern __cdecl syscall_t syscall;
 extern void *sys_bounce;
 
-/* What to call when we're dead */
-extern void __attribute__ ((noreturn)) die(void);
-
 /* Standard routines */
 void *memcpy(void *, const void *, size_t);
 void *memset(void *, int, size_t);

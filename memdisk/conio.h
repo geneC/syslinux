@@ -25,7 +25,9 @@
 
 int putchar(int);
 int puts(const char *);
+int vprintf(const char *, va_list ap);
 int printf(const char *, ...);
+void __attribute__((noreturn)) die(const char *, ...);
 unsigned int atou(const char *);
 
 #endif

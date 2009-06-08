@@ -109,11 +109,11 @@ static char *number(char *str, long num, int base, int size, int precision,
 		    int type)
 {
     char c, sign, tmp[66];
-    const char *digits = "0123456789abcdefghijklmnopqrstuvwxyz";
+    const char *digits = "0123456789abcdef";
     int i;
 
     if (type & LARGE)
-	digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	digits = "0123456789ABCDEF";
     if (type & LEFT)
 	type &= ~ZEROPAD;
     if (base < 2 || base > 36)
@@ -172,9 +172,6 @@ static char *number(char *str, long num, int base, int size, int precision,
 	*str++ = ' ';
     return str;
 }
-
-/* Forward decl. needed for IP address printing stuff... */
-int sprintf(char *buf, const char *fmt, ...);
 
 int vsprintf(char *buf, const char *fmt, va_list args)
 {
@@ -346,6 +343,7 @@ repeat:
     return str - buf;
 }
 
+#if 0
 int sprintf(char *buf, const char *fmt, ...)
 {
     va_list args;
@@ -356,18 +354,41 @@ int sprintf(char *buf, const char *fmt, ...)
     va_end(args);
     return i;
 }
+#endif
+
+int vprintf(const char *fmt, va_list args)
+{
+    char printf_buf[2048];
+    int printed;
+
+    printed = vsprintf(printf_buf, fmt, args);
+    puts(printf_buf);
+    return printed;
+}
 
 int printf(const char *fmt, ...)
 {
-    char printf_buf[1024];
     va_list args;
     int printed;
 
     va_start(args, fmt);
-    printed = vsprintf(printf_buf, fmt, args);
+    printed = vprintf(fmt, args);
     va_end(args);
-
-    puts(printf_buf);
-
     return printed;
+}
+
+/*
+ * Jump here if all hope is gone...
+ */
+void __attribute__ ((noreturn)) die(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    vprintf(fmt, ap);
+    va_end(ap);
+
+    sti();
+    for (;;)
+	asm volatile("hlt");
 }

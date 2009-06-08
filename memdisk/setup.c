@@ -225,7 +225,7 @@ static inline uint32_t rdz_32(uint32_t addr)
 #define CMD_BOOL       ((char *)-2)	/* Found boolean option */
 #define CMD_HASDATA(X) ((int)(X) >= 0)
 
-const char *getcmditem(const char *what)
+static const char *getcmditem(const char *what)
 {
     const char *p;
     const char *wp = what;
@@ -293,18 +293,23 @@ void unzip_if_needed(uint32_t * where_p, uint32_t * size_p)
 		  &orig_crc, &offset) == 0) {
 
 	if (offset + zbytes > size) {
-	    /* Assertion failure; check_zip is supposed to guarantee this
-	       never happens. */
-	    puts("internal error: check_zip returned nonsense\n");
-	    die();
+	    /*
+	     * Assertion failure; check_zip is supposed to guarantee this
+	     * never happens.
+	     */
+	    die("internal error: check_zip returned nonsense\n");
 	}
 
-	/* Find a good place to put it: search memory ranges in descending order
-	   until we find one that is legal and fits */
+	/*
+	 * Find a good place to put it: search memory ranges in descending
+	 * order until we find one that is legal and fits
+	 */
 	okmem = 0;
 	for (i = nranges - 1; i >= 0; i--) {
-	    /* We can't use > 4G memory (32 bits only.)  Truncate to 2^32-1
-	       so we don't have to deal with funny wraparound issues. */
+	    /*
+	     * We can't use > 4G memory (32 bits only.)  Truncate to 2^32-1
+	     * so we don't have to deal with funny wraparound issues.
+	     */
 
 	    /* Must be memory */
 	    if (ranges[i].type != 1)
@@ -333,16 +338,25 @@ void unzip_if_needed(uint32_t * where_p, uint32_t * size_p)
 	    if (startrange >= endrange)
 		continue;
 
-	    /* Must be large enough... don't rely on gzwhere for this (wraparound) */
+	    /*
+	     * Must be large enough... don't rely on gzwhere for this
+	     * (wraparound)
+	     */
 	    if (endrange - startrange < gzdatasize)
 		continue;
 
-	    /* This is where the gz image should be put if we put it in this range */
+	    /*
+	     * This is where the gz image would be put if we put it in this
+	     * range...
+	     */
 	    gzwhere = (endrange - gzdatasize) & ~(UNZIP_ALIGN - 1);
 
 	    /* Cast to uint64_t just in case we're flush with the top byte */
 	    if ((uint64_t) where + size >= gzwhere && where < endrange) {
-		/* Need to move source data to avoid compressed/uncompressed overlap */
+		/*
+		 * Need to move source data to avoid compressed/uncompressed
+		 * overlap
+		 */
 		uint32_t newwhere;
 
 		if (gzwhere - startrange < size)
@@ -361,12 +375,9 @@ void unzip_if_needed(uint32_t * where_p, uint32_t * size_p)
 	    break;
 	}
 
-	if (!okmem) {
-	    printf
-		("Not enough memory to decompress image (need 0x%08x bytes)\n",
+	if (!okmem)
+	    die("Not enough memory to decompress image (need 0x%08x bytes)\n",
 		 gzdatasize);
-	    die();
-	}
 
 	printf("gzip image: decompressed addr 0x%08x, len 0x%08x: ",
 	       target, gzdatasize);
@@ -453,7 +464,7 @@ struct dosemu_header {
 
 #define FOUR(a,b,c,d) (((a) << 24)|((b) << 16)|((c) << 8)|(d))
 
-const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
+static const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 {
     static struct geometry hd_geometry;
     struct dosemu_header dosemu;
@@ -668,16 +679,6 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 }
 
 /*
- * Jump here if all hope is gone...
- */
-void __attribute__ ((noreturn)) die(void)
-{
-    sti();
-    for (;;)
-	asm volatile("hlt");
-}
-
-/*
  * Find a $PnP installation check structure; return (ES << 16) + DI value
  */
 static uint32_t pnp_install_check(void)
@@ -796,10 +797,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
     /* Show signs of life */
     printf("%s  %s\n", memdisk_version, copyright);
 
-    if (!shdr->ramdisk_image || !shdr->ramdisk_size) {
-	puts("MEMDISK: No ramdisk image specified!\n");
-	die();
-    }
+    if (!shdr->ramdisk_image || !shdr->ramdisk_size)
+	die("MEMDISK: No ramdisk image specified!\n");
 
     ramdisk_image = shdr->ramdisk_image;
     ramdisk_size = shdr->ramdisk_size;
@@ -965,10 +964,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
     printf("Total size needed = %u bytes, allocating %uK\n",
 	   total_size, (total_size + 0x3ff) >> 10);
 
-    if (total_size > dos_mem) {
-	puts("MEMDISK: Insufficient low memory\n");
-	die();
-    }
+    if (total_size > dos_mem)
+	die("MEMDISK: Insufficient low memory\n");
 
     driveraddr = stddosmem - total_size;
     driveraddr &= ~0x3FF;
@@ -1141,10 +1138,9 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     /* Relocate the real-mode code to below the stub */
     rm_base = (driveraddr - rm_args.rm_size) & ~15;
-    if (rm_base < boot_base + boot_len) {
-	puts("MEMDISK: bootstrap too large to load\n");
-	die();
-    }
+    if (rm_base < boot_base + boot_len)
+	die("MEMDISK: bootstrap too large to load\n");
+
     relocate_rm_code(rm_base);
 
     /* Reboot into the new "disk" */
