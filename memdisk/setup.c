@@ -157,6 +157,16 @@ struct setup_header {
 
 struct setup_header *shdr;
 
+/* Structure passed in from the real-mode code */
+struct real_mode_args {
+    uint32_t rm_return;
+    uint32_t rm_syscall;
+    uint32_t rm_bounce;
+    uint32_t rm_base;
+    uint32_t rm_handle_interrupt;
+};
+extern struct real_mode_args rm_args;
+
 /* Access to high memory */
 
 /* Access to objects in the zero page */
@@ -703,7 +713,7 @@ static uint32_t pnp_install_check(void)
 __cdecl syscall_t syscall;
 void *sys_bounce;
 
-__cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce, void *base)
+void setup(void)
 {
     unsigned int bin_size;
     char *memdisk_hook;
@@ -722,9 +732,9 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce, void *base)
     int no_bpt;			/* No valid BPT presented */
 
     /* Set up global variables */
-    syscall = cs_syscall;
-    sys_bounce = cs_bounce;
-    shdr = base;
+    syscall = (__cdecl syscall_t) rm_args.rm_syscall;
+    sys_bounce = (void *)rm_args.rm_bounce;
+    shdr = (void *)rm_args.rm_base;
 
     /* Show signs of life */
     printf("%s  %s\n", memdisk_version, copyright);
