@@ -562,17 +562,14 @@ call32_enter_pm:
 		mov [SavedSP],sp
 		cld
 		call enable_a20
-		lea eax,[ebp+.in_pm]
-		mov [.pm_jmp+2],eax	; Patch the PM jump
-		jmp .sync
-.sync:
 		mov byte [call32_gdt+8+5],89h	; Mark TSS unbusy
 		o32 lgdt [call32_gdt]	; Set up GDT
 		o32 lidt [call32_pmidt]	; Set up IDT
 		mov eax,cr0
 		or al,1
 		mov cr0,eax		; Enter protected mode
-.pm_jmp:	jmp 20h:strict dword 0
+		jmp 20h:strict dword .in_pm+CS_BASE
+.pm_jmp		equ $-6
 
 
 		bits 32
@@ -604,6 +601,8 @@ call32_call_start:
 		;
 		mov esp, (BOUNCE_SEG << 4) + 0x10000
 
+		push dword call32_enter_rm.rm_jmp+CS_BASE
+		push dword call32_enter_pm.pm_jmp+CS_BASE
 		push dword stack_end		; RM size
 		push dword call32_gdt+CS_BASE
 		push dword call32_handle_interrupt+CS_BASE
@@ -627,11 +626,6 @@ call32_enter_rm:
 		call .here
 .here:		pop ebp
 		sub ebp,.here
-		mov ecx,ebp
-		shr ecx,4
-		mov [ebp+.rm_jmp+3],cx	; Set segment
-		jmp .sync
-.sync:
 		o32 sidt [ebp+call32_pmidt]
 		cli
 		cld
@@ -652,14 +646,16 @@ call32_enter_rm:
 		mov eax,cr0
 		and al,~1
 		mov cr0,eax
-.rm_jmp:	jmp MY_CS:.in_rm
+		jmp MY_CS:.in_rm
+.rm_jmp		equ $-2
 
 .in_rm:					; Back in real mode
-		mov ds,cx
-		mov es,cx
-		mov fs,cx
-		mov gs,cx
-		mov ss,cx
+		mov ax,cs
+		mov ds,ax
+		mov es,ax
+		mov fs,ax
+		mov gs,ax
+		mov ss,ax
 		mov sp,[SavedSP]	; Restore stack
 		jmp bx			; Go to whereever we need to go...
 

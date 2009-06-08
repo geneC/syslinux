@@ -30,7 +30,7 @@ int putchar(int ch)
     }
 
     regs.eax.w[0] = 0x0e00 | (ch & 0xff);
-    syscall(0x10, &regs, NULL);
+    intcall(0x10, &regs, NULL);
 
     return ch;
 }

@@ -72,8 +72,16 @@ _start:
 	jmp	*(rm_args)		/* First argument is return */
 
 	.section ".text","ax"
+	.globl	intcall
+	.type	intcall, @function
+intcall:
+	jmp	*(rm_args+1*4)		/* Intcall is argument 1 */
+	.size	intcall, .-intcall
+
+	.type	handle_interrupt, @function
 handle_interrupt:
 	jmp	*(rm_args+4*4)		/* Interrupt pointer is argument 4 */
+	.size	handle_interrupt, .-handle_interrupt
 
 	.section ".rodata","a"
 idt_ptr:

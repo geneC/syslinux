@@ -123,54 +123,6 @@ struct patch_area {
     struct edd_dpt edd_dpt;
 };
 
-/* This is the header in the boot sector/setup area */
-struct setup_header {
-    char cmdline[0x1f1];
-    uint8_t setup_secs;
-    uint16_t syssize;
-    uint16_t swap_dev;
-    uint16_t ram_size;
-    uint16_t vid_mode;
-    uint16_t root_dev;
-    uint16_t boot_flag;
-    uint16_t jump;
-    char header[4];
-    uint16_t version;
-    uint32_t realmode_swtch;
-    uint32_t start_sys;
-    uint8_t type_of_loader;
-    uint8_t loadflags;
-    uint16_t setup_move_size;
-    uint32_t code32_start;
-    uint32_t ramdisk_image;
-    uint32_t ramdisk_size;
-    uint32_t bootsect_kludge;
-    uint16_t head_end_ptr;
-    uint16_t pad1;
-    uint32_t cmd_line_ptr;
-    uint32_t initrd_addr_max;
-    uint32_t esdi;
-    uint32_t edx;
-    uint32_t sssp;
-    uint32_t csip;
-};
-struct setup_header *shdr;
-
-/* Structure passed in from the real-mode code */
-struct real_mode_args {
-    uint32_t rm_return;
-    uint32_t rm_syscall;
-    uint32_t rm_bounce;
-    uint32_t rm_base;
-    uint32_t rm_handle_interrupt;
-    uint32_t rm_gdt;
-    uint32_t rm_size;
-};
-struct real_mode_args rm_args;
-
-__cdecl syscall_t syscall;
-void *sys_bounce;
-
 /* Access to high memory */
 
 /* Access to objects in the zero page */
@@ -706,13 +658,6 @@ static uint32_t pnp_install_check(void)
     return 0;
 }
 
-static void update_global_vars(void)
-{
-    syscall = (__cdecl syscall_t) rm_args.rm_syscall;
-    sys_bounce = (void *)rm_args.rm_bounce;
-    shdr = (void *)rm_args.rm_base;
-}
-
 /*
  * Relocate the real-mode code to a new segment
  */
@@ -738,11 +683,12 @@ static void relocate_rm_code(uint32_t newbase)
     memmove((void *)newbase, (void *)oldbase, rm_args.rm_size);
 
     rm_args.rm_return  		+= delta;
-    rm_args.rm_syscall 		+= delta;
+    rm_args.rm_intcall 		+= delta;
     rm_args.rm_bounce  		+= delta;
     rm_args.rm_base    		+= delta;
     rm_args.rm_gdt              += delta;
-    rm_args.rm_handle_interrupt	+= delta;
+    rm_args.rm_pmjmp		+= delta;
+    rm_args.rm_rmjmp		+= delta;
 
     gdt_base = rm_args.rm_gdt;
 
@@ -753,12 +699,18 @@ static void relocate_rm_code(uint32_t newbase)
     set_seg_base(gdt_base, 0x18, rm_args.rm_base);
 
     asm volatile("lgdtl %0" : : "m" (*(char *)gdt_base));
-    sti();
 
-    update_global_vars();
+    *(uint32_t *)rm_args.rm_pmjmp += delta;
+    *(uint16_t *)rm_args.rm_rmjmp += delta >> 4;
+
+    rm_args.rm_handle_interrupt	+= delta;
+
+    sti();
 }
 
 #define STACK_NEEDED	512	/* Number of bytes of stack */
+
+struct real_mode_args rm_args;
 
 /*
  * Actual setup routine
@@ -790,9 +742,6 @@ void setup(const struct real_mode_args *rm_args_ptr)
     /* We need to copy the rm_args into their proper place */
     memcpy(&rm_args, rm_args_ptr, sizeof rm_args);
     sti();			/* ... then interrupts are safe */
-
-    /* Set up global variables */
-    update_global_vars();
 
     /* Show signs of life */
     printf("%s  %s\n", memdisk_version, copyright);
@@ -1021,7 +970,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	regs.es = 0;
 	regs.eax.b[1] = 0x08;
 	regs.edx.b[0] = geometry->driveno & 0x80;
-	syscall(0x13, &regs, &regs);
+	intcall(0x13, &regs, &regs);
 
 	/* Note: per suggestion from the Interrupt List, consider
 	   INT 13 08 to have failed if the sector count in CL is zero. */
@@ -1151,7 +1100,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     if (getcmditem("pause") != CMD_NOTFOUND) {
 	puts("press any key to boot... ");
 	regs.eax.w[0] = 0;
-	syscall(0x16, &regs, NULL);
+	intcall(0x16, &regs, NULL);
     }
 
     puts("booting...\n");

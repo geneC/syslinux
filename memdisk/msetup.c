@@ -53,7 +53,7 @@ static inline int get_e820(void)
 	regs.edi.w[0] = OFFS(buf);
 	regs.es = SEG(buf);
 
-	syscall(0x15, &regs, &regs);
+	intcall(0x15, &regs, &regs);
 	copied = (regs.eflags.l & 1) ? 0 : regs.ecx.l;
 
 	if (regs.eax.l != 0x534d4150 || copied < 20)
@@ -76,7 +76,7 @@ static inline void get_dos_mem(void)
     com32sys_t regs;
 
     memset(&regs, 0, sizeof regs);
-    syscall(0x12, &regs, &regs);
+    intcall(0x12, &regs, &regs);
     insertrange(0, (uint64_t) ((uint32_t) regs.eax.w[0] << 10), 1);
     printf(" DOS: %d K\n", regs.eax.w[0]);
 }
@@ -89,7 +89,7 @@ static inline int get_e801(void)
     memset(&regs, 0, sizeof regs);
 
     regs.eax.w[0] = 0xe801;
-    syscall(0x15, &regs, &regs);
+    intcall(0x15, &regs, &regs);
 
     if (!(err = regs.eflags.l & 1)) {
 	if (regs.eax.w[0]) {
@@ -115,7 +115,7 @@ static inline int get_88(void)
     memset(&regs, 0, sizeof regs);
 
     regs.eax.b[1] = 0x88;
-    syscall(0x15, &regs, &regs);
+    intcall(0x15, &regs, &regs);
 
     if (!(err = regs.eflags.l & 1)) {
 	if (regs.eax.w[0]) {
