@@ -72,6 +72,16 @@ static inline int memcmp(const void *__a, const void *__b, unsigned int __n)
     return 0;
 }
 
+static inline void sti(void)
+{
+    asm volatile("sti");
+}
+
+static inline void cli(void)
+{
+    asm volatile("cli");
+}
+
 /* Decompression */
 extern int check_zip(void *indata, uint32_t size, uint32_t * zbytes_p,
 		     uint32_t * dbytes_p, uint32_t * orig_crc,

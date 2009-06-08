@@ -16,8 +16,6 @@
  * this module must be linked first
  */
 
-#define ARGS	4			/* Number of real-mode arguments */
-
 	.section ".init", "ax"
 	.globl _start
 _start:
@@ -67,30 +65,21 @@ _start:
 	lidtl	idt_ptr
 	
 	/* Save arguments, switch stacks */
-	movl	%esp, %esi
+	movl	%esp, %eax		/* Pointer to arguments */
 	movl	$__stack_end, %esp
-	movl	$rm_args, %edi
-	movl	$(ARGS+1), %ecx
-	rep; movsl
 	
-	sti			/* Ready for interrupts now */
 	call	setup
-	jmp	*(rm_args)	/* First argument is return */
+	jmp	*(rm_args)		/* First argument is return */
 
 	.section ".text","ax"
 handle_interrupt:
-	jmp	*(rm_args+4*4)	/* Interrupt pointer is argument 4 */
+	jmp	*(rm_args+4*4)		/* Interrupt pointer is argument 4 */
 
 	.section ".rodata","a"
 idt_ptr:
 	.word	8*256-1
 	.long	idt
 	.word	0
-
-	.section ".bss","aw"
-	.globl	rm_args
-rm_args:
-	.space	(ARGS+1)*4
 
 	.section ".bss.large","aw"
 	.balign 2048

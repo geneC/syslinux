@@ -596,10 +596,8 @@ call32_call_start:
 		;
 		mov esp, (BOUNCE_SEG << 4) + 0x10000
 
-		; Arguments for start32.S only
+		push dword stack_end		; RM size
 		push dword call32_handle_interrupt+CS_BASE
-
-		; Arguments for setup()
 		push dword CS_BASE		; Segment base
 		push dword (BOUNCE_SEG << 4)	; Bounce buffer address
 		push dword call32_syscall+CS_BASE ; Syscall entry point

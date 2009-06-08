@@ -154,7 +154,6 @@ struct setup_header {
     uint32_t sssp;
     uint32_t csip;
 };
-
 struct setup_header *shdr;
 
 /* Structure passed in from the real-mode code */
@@ -164,8 +163,9 @@ struct real_mode_args {
     uint32_t rm_bounce;
     uint32_t rm_base;
     uint32_t rm_handle_interrupt;
+    uint32_t rm_size;
 };
-extern struct real_mode_args rm_args;
+struct real_mode_args rm_args;
 
 /* Access to high memory */
 
@@ -713,7 +713,7 @@ static uint32_t pnp_install_check(void)
 __cdecl syscall_t syscall;
 void *sys_bounce;
 
-void setup(void)
+void setup(const struct real_mode_args *rm_args_ptr)
 {
     unsigned int bin_size;
     char *memdisk_hook;
@@ -730,6 +730,10 @@ void setup(void)
     int bios_drives;
     int do_edd = 1;		/* 0 = no, 1 = yes, default is yes */
     int no_bpt;			/* No valid BPT presented */
+
+    /* We need to copy the rm_args into their proper place */
+    memcpy(&rm_args, rm_args_ptr, sizeof rm_args);
+    sti();			/* ... then interrupts are safe */
 
     /* Set up global variables */
     syscall = (__cdecl syscall_t) rm_args.rm_syscall;
