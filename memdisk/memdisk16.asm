@@ -170,7 +170,9 @@ copy_cmdline:
 ; segments, but this stuff is painful enough as it is without having to rely
 ; on everything happening "as it ought to."
 ;
-		section .rodata
+DummyTSS	equ  0x580		; Hopefully safe place in low mmoery
+
+		section .data
 
 	; desc base, limit, flags
 %macro	desc 3
@@ -183,14 +185,15 @@ call32_gdt:	dw call32_gdt_size-1	; Null descriptor - contains GDT
 .adj1:		dd call32_gdt+CS_BASE	; pointer for LGDT instruction
 		dw 0
 
-		; 0008: Code segment, use16, readable, dpl 0, base CS_BASE, 64K
+		; 0008: Dummy TSS to make Intel VT happy
+		; Should never be actually accessed...
+		desc DummyTSS, 103, 0x8089
+
+		; 0010: Code segment, use16, readable, dpl 0, base CS_BASE, 64K
 		desc CS_BASE, 0xffff, 0x009b
 
-		; 0010: Data segment, use16, read/write, dpl 0, base CS_BASE, 64K
+		; 0018: Data segment, use16, read/write, dpl 0, base CS_BASE, 64K
 		desc CS_BASE, 0xffff, 0x0093
-
-		; 0018: Data segment, use16, read/write, dpl 0, base 0, 4G
-		desc 0, 0xfffff, 0x809b
 
 		; 0020: Code segment, use32, read/write, dpl 0, base 0, 4G
 		desc 0, 0xfffff, 0xc09b
@@ -209,7 +212,7 @@ SavedSP		resw 1			; Place to save SP
 A20Tries	resb 1
 
 		section .data
-		alignb 4
+		align 4, db 0
 Target		dd 0			; Target address
 Target_Seg	dw 20h			; Target CS
 
@@ -563,6 +566,7 @@ call32_enter_pm:
 		mov [.pm_jmp+2],eax	; Patch the PM jump
 		jmp .sync
 .sync:
+		mov byte [call32_gdt+8+5],89h	; Mark TSS unbusy
 		o32 lgdt [call32_gdt]	; Set up GDT
 		o32 lidt [call32_pmidt]	; Set up IDT
 		mov eax,cr0
@@ -576,11 +580,15 @@ call32_enter_pm:
 		xor eax,eax		; Available for future use...
 		mov fs,eax
 		mov gs,eax
+		lldt ax
 
 		mov al,28h		; Set up data segments
 		mov es,eax
 		mov ds,eax
 		mov ss,eax
+
+		mov al,08h
+		ltr ax
 
 		mov esp,[ebp+PMESP]	; Load protmode %esp if available
 		jmp ebx			; Go to where we need to go
@@ -597,6 +605,7 @@ call32_call_start:
 		mov esp, (BOUNCE_SEG << 4) + 0x10000
 
 		push dword stack_end		; RM size
+		push dword call32_gdt+CS_BASE
 		push dword call32_handle_interrupt+CS_BASE
 		push dword CS_BASE		; Segment base
 		push dword (BOUNCE_SEG << 4)	; Bounce buffer address
@@ -628,11 +637,11 @@ call32_enter_rm:
 		cld
 		mov [ebp+PMESP],esp	; Save exit %esp
 		xor esp,esp		; Make sure the high bits are zero
-		jmp 08h:.in_pm16	; Return to 16-bit mode first
+		jmp 10h:.in_pm16	; Return to 16-bit mode first
 
 		bits 16
 .in_pm16:
-		mov ax,10h		; Real-mode-like segment
+		mov ax,18h		; Real-mode-like segment
 		mov es,ax
 		mov ds,ax
 		mov ss,ax
@@ -755,8 +764,11 @@ call32_syscall:
 		; encoding smaller
 		mov eax,[ecx+eax*4]	; Get IVT entry
 		stosd			; Save in stack frame
-		mov eax,call32_sys_rm.return + (MY_CS << 16) ; Return seg:offs
-		stosd			; Save in stack frame
+		mov ax,call32_sys_rm.return	; Return offset
+		stosw				; Save in stack frame
+		mov eax,ebp
+		shr eax,4			; Return segment
+		stosw				; Save in stack frame
 		mov eax,[edi-12]	; Return flags
 		and eax,0x200cd7	; Mask (potentially) unsafe flags
 		mov [edi-12],eax	; Primary flags entry

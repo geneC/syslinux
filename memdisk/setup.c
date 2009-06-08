@@ -163,9 +163,13 @@ struct real_mode_args {
     uint32_t rm_bounce;
     uint32_t rm_base;
     uint32_t rm_handle_interrupt;
+    uint32_t rm_gdt;
     uint32_t rm_size;
 };
 struct real_mode_args rm_args;
+
+__cdecl syscall_t syscall;
+void *sys_bounce;
 
 /* Access to high memory */
 
@@ -348,9 +352,7 @@ void unzip_if_needed(uint32_t * where_p, uint32_t * size_p)
 		printf("Moving compressed data from 0x%08x to 0x%08x\n",
 		       where, newwhere);
 
-		/* Our memcpy() is OK, because we always move from a higher
-		   address to a lower one */
-		memcpy((void *)newwhere, (void *)where, size);
+		memmove((void *)newwhere, (void *)where, size);
 		where = newwhere;
 	    }
 
@@ -670,9 +672,9 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
  */
 void __attribute__ ((noreturn)) die(void)
 {
-    asm volatile ("sti");
+    sti();
     for (;;)
-	asm volatile ("hlt");
+	asm volatile("hlt");
 }
 
 /*
@@ -703,6 +705,58 @@ static uint32_t pnp_install_check(void)
     return 0;
 }
 
+static void update_global_vars(void)
+{
+    syscall = (__cdecl syscall_t) rm_args.rm_syscall;
+    sys_bounce = (void *)rm_args.rm_bounce;
+    shdr = (void *)rm_args.rm_base;
+}
+
+/*
+ * Relocate the real-mode code to a new segment
+ */
+struct gdt_ptr {
+    uint16_t limit;
+    uint32_t base;
+} __attribute__((packed));
+
+static void set_seg_base(uint32_t gdt_base, int seg, uint32_t v)
+{
+    *(uint16_t *)(gdt_base + seg + 2) = v;
+    *(uint8_t *)(gdt_base + seg + 4) = v >> 16;
+    *(uint8_t *)(gdt_base + seg + 7) = v >> 24;
+}
+
+static void relocate_rm_code(uint32_t newbase)
+{
+    uint32_t gdt_base;
+    uint32_t oldbase = rm_args.rm_base;
+    uint32_t delta   = newbase - oldbase;
+
+    cli();
+    memmove((void *)newbase, (void *)oldbase, rm_args.rm_size);
+
+    rm_args.rm_return  		+= delta;
+    rm_args.rm_syscall 		+= delta;
+    rm_args.rm_bounce  		+= delta;
+    rm_args.rm_base    		+= delta;
+    rm_args.rm_gdt              += delta;
+    rm_args.rm_handle_interrupt	+= delta;
+
+    gdt_base = rm_args.rm_gdt;
+
+    *(uint32_t *)(gdt_base+2)    = gdt_base;	/* GDT self-pointer */
+
+    /* Segments 0x10 and 0x18 are real-mode-based */
+    set_seg_base(gdt_base, 0x10, rm_args.rm_base);
+    set_seg_base(gdt_base, 0x18, rm_args.rm_base);
+
+    asm volatile("lgdtl %0" : : "m" (*(char *)gdt_base));
+    sti();
+
+    update_global_vars();
+}
+
 #define STACK_NEEDED	512	/* Number of bytes of stack */
 
 /*
@@ -710,9 +764,6 @@ static uint32_t pnp_install_check(void)
  * Returns the drive number (which is then passed in %dl to the
  * called routine.)
  */
-__cdecl syscall_t syscall;
-void *sys_bounce;
-
 void setup(const struct real_mode_args *rm_args_ptr)
 {
     unsigned int bin_size;
@@ -727,18 +778,20 @@ void setup(const struct real_mode_args *rm_args_ptr)
     int total_size, cmdlinelen;
     com32sys_t regs;
     uint32_t ramdisk_image, ramdisk_size;
+    uint32_t boot_base, rm_base;
     int bios_drives;
     int do_edd = 1;		/* 0 = no, 1 = yes, default is yes */
     int no_bpt;			/* No valid BPT presented */
+    uint32_t boot_seg = 0;	/* Meaning 0000:7C00 */
+    uint32_t boot_len = 512;	/* One sector */
+    uint32_t boot_lba = 0;	/* LBA of bootstrap code */
 
     /* We need to copy the rm_args into their proper place */
     memcpy(&rm_args, rm_args_ptr, sizeof rm_args);
     sti();			/* ... then interrupts are safe */
 
     /* Set up global variables */
-    syscall = (__cdecl syscall_t) rm_args.rm_syscall;
-    sys_bounce = (void *)rm_args.rm_bounce;
-    shdr = (void *)rm_args.rm_base;
+    update_global_vars();
 
     /* Show signs of life */
     printf("%s  %s\n", memdisk_version, copyright);
@@ -1056,9 +1109,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	wrz_8(BIOS_EQUIP, equip);
 
 	/* Install DPT pointer if this was the only floppy */
-	if (getcmditem("dpt") != CMD_NOTFOUND || ((nflop == 1 || no_bpt)
-						  && getcmditem("nodpt") ==
-						  CMD_NOTFOUND)) {
+	if (getcmditem("dpt") != CMD_NOTFOUND ||
+	    ((nflop == 1 || no_bpt) && getcmditem("nodpt") == CMD_NOTFOUND)) {
 	    /* Do install a replacement DPT into INT 1Eh */
 	    pptr->dpt_ptr = hptr->patch_offs + offsetof(struct patch_area, dpt);
 	}
@@ -1076,21 +1128,29 @@ void setup(const struct real_mode_args *rm_args_ptr)
     printf("new: int13 = %08x  int15 = %08x  int1e = %08x\n",
 	   rdz_32(BIOS_INT13), rdz_32(BIOS_INT15), rdz_32(BIOS_INT1E));
 
-    /* Reboot into the new "disk"; this is also a test for the interrupt hooks */
-    puts("Loading boot sector... ");
+    /* Figure out entry point */
+    if (!boot_seg) {
+	boot_base  = 0x7c00;
+	shdr->sssp = 0x7c00; 
+	shdr->csip = 0x7c00; 
+    } else {
+	boot_base  = boot_seg << 4;
+	shdr->sssp = boot_seg << 16;
+	shdr->csip = boot_seg << 16;
+    }
 
-    memset(&regs, 0, sizeof regs);
-    // regs.es = 0;
-    regs.eax.w[0] = 0x0201;	/* Read sector */
-    regs.ebx.w[0] = 0x7c00;	/* 0000:7C00 */
-    regs.ecx.w[0] = 1;		/* One sector */
-    regs.edx.w[0] = geometry->driveno;
-    syscall(0x13, &regs, &regs);
-
-    if (regs.eflags.l & 1) {
-	puts("MEMDISK: Failed to load new boot sector\n");
+    /* Relocate the real-mode code to below the stub */
+    rm_base = (driveraddr - rm_args.rm_size) & ~15;
+    if (rm_base < boot_base + boot_len) {
+	puts("MEMDISK: bootstrap too large to load\n");
 	die();
     }
+    relocate_rm_code(rm_base);
+
+    /* Reboot into the new "disk" */
+    puts("Loading boot sector... ");
+
+    memcpy((void *)boot_base, (char *)pptr->diskbuf + boot_lba*512, boot_len);
 
     if (getcmditem("pause") != CMD_NOTFOUND) {
 	puts("press any key to boot... ");
@@ -1103,6 +1163,4 @@ void setup(const struct real_mode_args *rm_args_ptr)
     /* On return the assembly code will jump to the boot vector */
     shdr->esdi = pnp_install_check();
     shdr->edx  = geometry->driveno;
-    shdr->sssp = 0x7c00; 
-    shdr->csip = 0x7c00; 
 }

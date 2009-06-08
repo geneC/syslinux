@@ -34,8 +34,10 @@ extern void *sys_bounce;
 extern void __attribute__ ((noreturn)) die(void);
 
 /* Standard routines */
-#define memcpy(a,b,c) __builtin_memcpy(a,b,c)
-#define memset(a,b,c) __builtin_memset(a,b,c)
+void *memcpy(void *, const void *, size_t);
+void *memset(void *, int, size_t);
+void *memmove(void *, const void *, size_t);
+
 #define strcpy(a,b)   __builtin_strcpy(a,b)
 
 static inline size_t strlen(const char *__a)
