@@ -159,8 +159,7 @@ copy_cmdline:
 		mov gs,si
 		lss sp,[cs:b_sssp]
 		movzx esp,sp
-		call far [cs:b_csip]
-		int 18h			; A far return -> INT 18h
+		jmp far [cs:b_csip]
 
 ;
 ; We enter protected mode, set up a flat 32-bit environment, run rep movsd
