@@ -501,6 +501,7 @@ ldlinux_ent:
 ;
 		jmp 0:.next
 .next:
+		sti		; In case of broken INT 13h BIOSes
 
 ;
 ; Tell the user we got this far
@@ -629,11 +630,16 @@ writestr_early:
 		ret
 
 
-; getlinsecsr: save registers, call getlinsec, restore registers
 ;
-getlinsecsr:	pushad
+; getlinsecsr: save registers, call getlinsec, restore registers
+;	       Save/restore the flags, too, especially IF.
+;
+getlinsecsr:	
+		pushfd
+		pushad
 		call getlinsec
 		popad
+		popfd
 		ret
 
 ;

@@ -1114,7 +1114,17 @@ searchdir:
 		;  SI -> first byte of options; [E]CX -> byte count
 .parse_oack:
 		jcxz .done_pkt			; No options acked
+
 .get_opt_name:
+		; If we find an option which starts with a NUL byte,
+		; (a null option), we're either seeing garbage that some
+		; TFTP servers add to the end of the packet, or we have
+		; no clue how to parse the rest of the packet (what is
+		; an option name and what is a value?)  In either case,
+		; discard the rest.
+		cmp byte [si],0
+		je .done_pkt
+
 		mov di,si
 		mov bx,si
 .opt_name_loop:	lodsb
@@ -1124,10 +1134,10 @@ searchdir:
 		stosb
 		loop .opt_name_loop
 		; We ran out, and no final null
-		jmp .err_reply
+		jmp .done_pkt			; Ignore runt option
 .got_opt_name:	; si -> option value
 		dec cx				; bytes left in pkt
-		jz .err_reply			; Option w/o value
+		jz .done_pkt			; Option w/o value, ignore
 
 		; Parse option pointed to by bx; guaranteed to be
 		; null-terminated.
@@ -1150,7 +1160,8 @@ searchdir:
 
 		pop si
 		pop cx
-		jmp .err_reply			; Non-negotiated option returned
+		; Non-negotiated option returned, no idea what it means...
+		jmp .err_reply
 
 .get_value:	pop si				; si -> option value
 		pop cx				; cx -> bytes left in pkt
@@ -1230,13 +1241,13 @@ searchdir:
 		pop es
 		jmp .done_pkt
 
-.err_reply:	; Option negotiation error.  Send ERROR reply.
+.err_reply:	; TFTP protocol error.  Send ERROR reply.
 		; ServerIP and gateway are already programmed in
 		mov si,[bp-6]
 		mov ax,[si+tftp_remoteport]
 		mov word [pxe_udp_write_pkt.rport],ax
-		mov word [pxe_udp_write_pkt.buffer],tftp_opt_err
-		mov word [pxe_udp_write_pkt.buffersize],tftp_opt_err_len
+		mov word [pxe_udp_write_pkt.buffer],tftp_proto_err
+		mov word [pxe_udp_write_pkt.buffersize],tftp_proto_err_len
 		mov di,pxe_udp_write_pkt
 		mov bx,PXENV_UDP_WRITE
 		call pxenv
@@ -2727,12 +2738,13 @@ tftp_opt_table:
 tftp_opts	equ ($-tftp_opt_table)/6
 
 ;
-; Error packet to return on options negotiation error
+; Error packet to return on TFTP protocol error
+; Most of our errors are OACK parsing errors, so use that error code
 ;
-tftp_opt_err	dw TFTP_ERROR				; ERROR packet
-		dw TFTP_EOPTNEG				; ERROR 8: bad options
-		db 'tsize option required', 0		; Error message
-tftp_opt_err_len equ ($-tftp_opt_err)
+tftp_proto_err	dw TFTP_ERROR				; ERROR packet
+		dw TFTP_EOPTNEG				; ERROR 8: OACK error
+		db 'TFTP protocol error', 0		; Error message
+tftp_proto_err_len equ ($-tftp_proto_err)
 
 		alignz 4
 ack_packet_buf:	dw TFTP_ACK, 0				; TFTP ACK packet

@@ -2,6 +2,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -29,11 +30,12 @@ BOUNCE_SEG	equ (MY_CS+0x1000)
 
 %define DO_WBINVD 0
 
-%define STACK_HEAP_SIZE	(128*1024)
-
 		section .rodata align=16
 		section .data   align=16
 		section .bss    align=16
+		section .stack	align=16 nobits
+stack		resb 512
+stack_end	equ $
 
 ;; -----------------------------------------------------------------------
 ;;  Kernel image header
@@ -78,6 +80,8 @@ ramdisk_max	dd 0xffffffff		; Highest allowed ramdisk address
 ;
 b_esdi		dd 0			; ES:DI for boot sector invocation
 b_edx		dd 0			; EDX for boot sector invocation
+b_sssp		dd 0			; SS:SP on boot sector invocation
+b_csip		dd 0			; CS:IP on boot sector invocation
 
 		section .rodata
 memdisk_version:
@@ -106,7 +110,7 @@ start:
 		rep movsd
 		mov ds,ax
 		mov ss,ax
-		xor esp,esp		; Stack at top of 64K segment
+		mov esp,stack_end
 		jmp MY_CS:.next
 .next:
 
@@ -153,9 +157,9 @@ copy_cmdline:
 		mov ds,si		; Make all the segments consistent
 		mov fs,si
 		mov gs,si
-		mov ss,si
-		mov esp,0x7C00		; Good place for SP to start out
-		call 0:0x7C00
+		lss sp,[cs:b_sssp]
+		movzx esp,sp
+		call far [cs:b_csip]
 		int 18h			; A far return -> INT 18h
 
 ;
@@ -166,7 +170,9 @@ copy_cmdline:
 ; segments, but this stuff is painful enough as it is without having to rely
 ; on everything happening "as it ought to."
 ;
-		section .rodata
+DummyTSS	equ  0x580		; Hopefully safe place in low mmoery
+
+		section .data
 
 	; desc base, limit, flags
 %macro	desc 3
@@ -179,14 +185,15 @@ call32_gdt:	dw call32_gdt_size-1	; Null descriptor - contains GDT
 .adj1:		dd call32_gdt+CS_BASE	; pointer for LGDT instruction
 		dw 0
 
-		; 0008: Code segment, use16, readable, dpl 0, base CS_BASE, 64K
+		; 0008: Dummy TSS to make Intel VT happy
+		; Should never be actually accessed...
+		desc DummyTSS, 103, 0x8089
+
+		; 0010: Code segment, use16, readable, dpl 0, base CS_BASE, 64K
 		desc CS_BASE, 0xffff, 0x009b
 
-		; 0010: Data segment, use16, read/write, dpl 0, base CS_BASE, 64K
+		; 0018: Data segment, use16, read/write, dpl 0, base CS_BASE, 64K
 		desc CS_BASE, 0xffff, 0x0093
-
-		; 0018: Data segment, use16, read/write, dpl 0, base 0, 4G
-		desc 0, 0xfffff, 0x809b
 
 		; 0020: Code segment, use32, read/write, dpl 0, base 0, 4G
 		desc 0, 0xfffff, 0xc09b
@@ -200,13 +207,12 @@ err_a20:	db 'ERROR: A20 gate not responding!',13,10,0
 
 		section .bss
 		alignb 4
-SavedSSSP	resd 1			; Place to save SS:SP
 Return		resd 1			; Return value
-A20Test		resw 1			; Space to test A20
+SavedSP		resw 1			; Place to save SP
 A20Tries	resb 1
 
 		section .data
-		alignb 4
+		align 4, db 0
 Target		dd 0			; Target address
 Target_Seg	dw 20h			; Target CS
 
@@ -381,22 +387,38 @@ a20_done:	popad
 ; This routine tests if A20 is enabled (ZF = 0).  This routine
 ; must not destroy any register contents.
 ;
+
+; This is the INT 1Fh vector, which is standard PCs is used by the
+; BIOS when the screen is in graphics mode.  Even if it is, it points to
+; data, not code, so it should be safe enough to fiddle with.
+A20Test		equ (1Fh*4)
+
 a20_test:
+		push ds
 		push es
 		push cx
-		push ax
-		mov cx,0FFFFh		; HMA = segment 0FFFFh
-		mov es,cx
+		push eax
+		xor ax,ax
+		mov ds,ax		; DS == 0
+		dec ax
+		mov es,ax		; ES == 0FFFFh
 		mov cx,32		; Loop count
-		mov ax,[A20Test]
-.a20_wait:	inc ax
-		mov [A20Test],ax
-		io_delay		; Serialize, and fix delay
-		cmp ax,[es:A20Test+CS_BASE+10h]
+		mov eax,[A20Test]
+		cmp eax,[es:A20Test+10h]
+		jne .a20_done
+		push eax
+.a20_wait:
+		inc eax
+		mov [A20Test],eax
+		io_delay
+		cmp eax,[es:A20Test+10h]
 		loopz .a20_wait
-.a20_done:	pop ax
+		pop dword [A20Test]	; Restore original value
+.a20_done:
+		pop eax
 		pop cx
 		pop es
+		pop ds
 		ret
 
 disable_a20:
@@ -507,53 +529,65 @@ pm_idt		resb 4096		; Protected-mode IDT, followed by interrupt stubs
 pm_entry:	equ 0x100000
 
 		section .rodata
-		align 4, db 0
-call32_pmidt:
-		dw 8*256		; Limit
-		dd pm_idt+CS_BASE	; Address
-
+		align 2, db 0
 call32_rmidt:
 		dw 0ffffh		; Limit
 		dd 0			; Address
+
+		section .data
+		alignb 2
+call32_pmidt:
+		dw 8*256		; Limit
+		dd 0			; Address (entered later)
 
 		section .text
 ;
 ; This is the main entrypoint in this function
 ;
 init32:
-		mov ebx,call32_call_start+CS_BASE	; Where to go in PM
+		mov bx,call32_call_start	; Where to go in PM
 
+;
+; Enter protected mode.  BX contains the entry point relative to the
+; real-mode CS.
+;
 call32_enter_pm:
 		mov ax,cs
 		mov ds,ax
+		movzx ebp,ax
+		shl ebp,4		; EBP <- CS_BASE
+		movzx ebx,bx
+		add ebx,ebp		; entry point += CS_BASE
 		cli
-		mov [SavedSSSP],sp
-		mov [SavedSSSP+2],ss
+		mov [SavedSP],sp
 		cld
-		call a20_test
-		jnz .a20ok
 		call enable_a20
-
-.a20ok:
-		lgdt [call32_gdt]	; Set up GDT
-		lidt [call32_pmidt]	; Set up the IDT
+		mov byte [call32_gdt+8+5],89h	; Mark TSS unbusy
+		o32 lgdt [call32_gdt]	; Set up GDT
+		o32 lidt [call32_pmidt]	; Set up IDT
 		mov eax,cr0
 		or al,1
 		mov cr0,eax		; Enter protected mode
-		jmp 20h:dword .in_pm+CS_BASE
+		jmp 20h:strict dword .in_pm+CS_BASE
+.pm_jmp		equ $-6
+
 
 		bits 32
 .in_pm:
 		xor eax,eax		; Available for future use...
 		mov fs,eax
 		mov gs,eax
+		lldt ax
 
 		mov al,28h		; Set up data segments
 		mov es,eax
 		mov ds,eax
 		mov ss,eax
 
-		mov esp,[PMESP+CS_BASE]	; Load protmode %esp if available
+		mov al,08h
+		ltr ax
+
+		mov esp,[ebp+PMESP]	; Load protmode %esp if available
 		jmp ebx			; Go to where we need to go
 
 ;
@@ -561,66 +595,22 @@ call32_enter_pm:
 ;
 call32_call_start:
 		;
-		; Point the stack into low memory
-		; We have: this segment, bounce buffer, then stack+heap
+		; Set up a temporary stack in the bounce buffer;
+		; start32.S will override this to point us to the real
+		; high-memory stack.
 		;
-		mov esp, CS_BASE + 0x20000 + STACK_HEAP_SIZE
-		and esp, ~0xf
+		mov esp, (BOUNCE_SEG << 4) + 0x10000
 
-		;
-		; Set up the protmode IDT and the interrupt jump buffers
-		;
-		mov edi,pm_idt+CS_BASE
-
-		; Form an interrupt gate descriptor
-		; WARNING: This is broken if pm_idt crosses a 64K boundary;
-		; however, it can't because of the alignment constraints.
-		mov ebx,pm_idt+CS_BASE+8*256
-		mov eax,0x0020ee00
-		xchg ax,bx
-		xor ecx,ecx
-		inc ch				; ecx <- 256
-
-		push ecx
-.make_idt:
-		stosd
-		add eax,8
-		xchg eax,ebx
-		stosd
-		xchg eax,ebx
-		loop .make_idt
-
-		pop ecx
-
-		; Each entry in the interrupt jump buffer contains
-		; the following instructions:
-		;
-		; 00000000 60                pushad
-		; 00000001 B0xx              mov al,<interrupt#>
-		; 00000003 E9xxxxxxxx        jmp call32_handle_interrupt
-
-		mov eax,0xe900b060
-		mov ebx,call32_handle_interrupt+CS_BASE
-		sub ebx,edi
-
-.make_ijb:
-		stosd
-		sub [edi-2],cl			; Interrupt #
-		xchg eax,ebx
-		sub eax,8
-		stosd
-		xchg eax,ebx
-		loop .make_ijb
-
-		; Now everything is set up for interrupts...
-
+		push dword call32_enter_rm.rm_jmp+CS_BASE
+		push dword call32_enter_pm.pm_jmp+CS_BASE
+		push dword stack_end		; RM size
+		push dword call32_gdt+CS_BASE
+		push dword call32_handle_interrupt+CS_BASE
+		push dword CS_BASE		; Segment base
 		push dword (BOUNCE_SEG << 4)	; Bounce buffer address
 		push dword call32_syscall+CS_BASE ; Syscall entry point
-		sti				; Interrupts OK now
-		call pm_entry-CS_BASE		; Run the program...
 
-		; ... on return ...
-		mov [Return+CS_BASE],eax
+		call pm_entry-CS_BASE		; Run the program...
 
 		; ... fall through to call32_exit ...
 
@@ -628,15 +618,24 @@ call32_exit:
 		mov bx,call32_done	; Return to command loop
 
 call32_enter_rm:
+		; Careful here... the PM code may have relocated the
+		; entire RM code, so we need to figure out exactly
+		; where we are executing from.  If the PM code has
+		; relocated us, it *will* have adjusted the GDT to
+		; match, though.
+		call .here
+.here:		pop ebp
+		sub ebp,.here
+		o32 sidt [ebp+call32_pmidt]
 		cli
 		cld
-		mov [PMESP+CS_BASE],esp	; Save exit %esp
+		mov [ebp+PMESP],esp	; Save exit %esp
 		xor esp,esp		; Make sure the high bits are zero
-		jmp 08h:.in_pm16	; Return to 16-bit mode first
+		jmp 10h:.in_pm16	; Return to 16-bit mode first
 
 		bits 16
 .in_pm16:
-		mov ax,10h		; Real-mode-like segment
+		mov ax,18h		; Real-mode-like segment
 		mov es,ax
 		mov ds,ax
 		mov ss,ax
@@ -648,20 +647,21 @@ call32_enter_rm:
 		and al,~1
 		mov cr0,eax
 		jmp MY_CS:.in_rm
+.rm_jmp		equ $-2
 
 .in_rm:					; Back in real mode
-		mov ax,cs		; Set up sane segments
+		mov ax,cs
 		mov ds,ax
 		mov es,ax
 		mov fs,ax
 		mov gs,ax
-		lss sp,[SavedSSSP]	; Restore stack
+		mov ss,ax
+		mov sp,[SavedSP]	; Restore stack
 		jmp bx			; Go to whereever we need to go...
 
 call32_done:
 		call disable_a20
 		sti
-		mov ax,[Return]
 		ret
 
 ;
@@ -679,7 +679,7 @@ call32_int_rm:
 		push dword edx			; Segment:offset of IVT entry
 		retf				; Invoke IVT routine
 .cont:		; ... on resume ...
-		mov ebx,call32_int_resume+CS_BASE
+		mov bx,call32_int_resume
 		jmp call32_enter_pm		; Go back to PM
 
 ;
@@ -700,7 +700,7 @@ call32_sys_rm:
 		push es
 		push fs
 		push gs
-		mov ebx,call32_sys_resume+CS_BASE
+		mov bx,call32_sys_resume
 		jmp call32_enter_pm
 
 ;
@@ -741,13 +741,14 @@ call32_syscall:
 		pushfd			; Save IF among other things...
 		pushad			; We only need to save some, but...
 		cld
+		call .here
+.here:		pop ebp
+		sub ebp,.here
 
-		movzx edi,word [SavedSSSP+CS_BASE]
-		movzx eax,word [SavedSSSP+CS_BASE+2]
+		movzx edi,word [ebp+SavedSP]
 		sub edi,54		; Allocate 54 bytes
-		mov [SavedSSSP+CS_BASE],di
-		shl eax,4
-		add edi,eax		; Create linear address
+		mov [ebp+SavedSP],di
+		add edi,ebp		; Create linear address
 
 		mov esi,[esp+11*4]	; Source regs
 		xor ecx,ecx
@@ -759,8 +760,11 @@ call32_syscall:
 		; encoding smaller
 		mov eax,[ecx+eax*4]	; Get IVT entry
 		stosd			; Save in stack frame
-		mov eax,call32_sys_rm.return + (MY_CS << 16) ; Return seg:offs
-		stosd			; Save in stack frame
+		mov ax,call32_sys_rm.return	; Return offset
+		stosw				; Save in stack frame
+		mov eax,ebp
+		shr eax,4			; Return segment
+		stosw				; Save in stack frame
 		mov eax,[edi-12]	; Return flags
 		and eax,0x200cd7	; Mask (potentially) unsafe flags
 		mov [edi-12],eax	; Primary flags entry
@@ -770,13 +774,12 @@ call32_syscall:
 		jmp call32_enter_rm	; Go to real mode
 
 		; On return, the 44-byte return structure is on the
-		; real-mode stack.
+		; real-mode stack.  call32_enter_pm will leave ebp
+		; pointing to the real-mode base.
 call32_sys_resume:
-		movzx esi,word [SavedSSSP+CS_BASE]
-		movzx eax,word [SavedSSSP+CS_BASE+2]
+		movzx esi,word [ebp+SavedSP]
 		mov edi,[esp+12*4]	; Dest regs
-		shl eax,4
-		add esi,eax		; Create linear address
+		add esi,ebp		; Create linear address
 		and edi,edi		; NULL pointer?
 		jnz .do_copy
 .no_copy:	mov edi,esi		; Do a dummy copy-to-self
@@ -784,7 +787,7 @@ call32_sys_resume:
 		mov cl,11		; 44 bytes
 		rep movsd		; Copy register block
 
-		add dword [SavedSSSP+CS_BASE],44	; Remove from stack
+		add word [ebp+SavedSP],44	; Remove from stack
 
 		popad
 		popfd
