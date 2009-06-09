@@ -1105,16 +1105,16 @@ searchdir:
 		;  SI -> first byte of options; [E]CX -> byte count
 .parse_oack:
 		jcxz .done_pkt			; No options acked
-.get_opt_name:
-		; Some TFTP servers have junk NUL bytes at the end of the packet.
-		; If all that is left is NUL, then consider the packet processed.
-		mov di,si
-		push cx
-		xor ax,ax
-		repz scasb
-		pop cx
-		jz .done_pkt
+		; If we find an option which starts with a NUL byte,
+		; (a null option), we're either seeing garbage that some
+		; TFTP servers add to the end of the packet, or we have
+		; no clue how to parse the rest of the packet (what is
+		; an option name and what is a value?)  In either case,
+		; discard the rest.
+		cmp byte [si],0
+		je .done_pkt
 
+.get_opt_name:
 		mov di,si
 		mov bx,si
 .opt_name_loop:	lodsb
