@@ -2736,9 +2736,10 @@ tftp_opts	equ ($-tftp_opt_table)/6
 
 ;
 ; Error packet to return on TFTP protocol error
+; Most of our errors are OACK parsing errors, so use that error code
 ;
 tftp_proto_err	dw TFTP_ERROR				; ERROR packet
-		dw TFTP_EUNDEF				; ERROR 0: undefined
+		dw TFTP_EOPTNEG				; ERROR 8: OACK error
 		db 'TFTP protocol error', 0		; Error message
 tftp_proto_err_len equ ($-tftp_proto_err)
 
