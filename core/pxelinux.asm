@@ -1105,6 +1105,8 @@ searchdir:
 		;  SI -> first byte of options; [E]CX -> byte count
 .parse_oack:
 		jcxz .done_pkt			; No options acked
+
+.get_opt_name:
 		; If we find an option which starts with a NUL byte,
 		; (a null option), we're either seeing garbage that some
 		; TFTP servers add to the end of the packet, or we have
@@ -1114,7 +1116,6 @@ searchdir:
 		cmp byte [si],0
 		je .done_pkt
 
-.get_opt_name:
 		mov di,si
 		mov bx,si
 .opt_name_loop:	lodsb
