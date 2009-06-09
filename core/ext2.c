@@ -528,8 +528,10 @@ void getfssec(com32sys_t *regs)
         file->file_sector += con_sec_cnt;  /* next sector index */
     }while(sectors);
     
-    if (bytes_read >= file->file_bytesleft) 
+    if (bytes_read >= file->file_bytesleft) {
         bytes_read = file->file_bytesleft;
+        regs->esi.w[0] = NULL;  /* do close the file for asm function*/
+    }
     file->file_bytesleft -= bytes_read;
     
     regs->ecx.l = bytes_read;
@@ -744,6 +746,7 @@ void searchdir(com32sys_t * regs)
  err_noclose:
     file_len = 0;
     file = NULL;
+    regs->eflags.l |= EFLAGS_ZF;
  done:        
     
     regs->eax.l = file_len;
