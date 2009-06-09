@@ -724,7 +724,10 @@ static const char *do_hidden_menu(void)
 	}
     }
 
-    return cm->menu_entries[cm->defentry]->cmdline;	/* Default entry */
+    if (cm->ontimeout)
+	return cm->ontimeout;
+    else
+	return cm->menu_entries[cm->defentry]->cmdline; /* Default entry */
 }
 
 static const char *run_menu(void)
