@@ -8,6 +8,8 @@ Changes in 3.82:
 	  interrupts disabled.
 	* Do not invoke the idle handler during large file loads.
 	* Simple menu: make ONTIMEOUT work with MENU HIDDEN.
+	* PXELINUX: handle TFTP servers which have extra NULs at the
+	  end of an OACK packet.
 
 Changes in 3.81:
 	* Shuffler: fix bug in real-mode entry.  This affected a
