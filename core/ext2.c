@@ -25,7 +25,7 @@ struct open_file_t {
 
 extern char Files[MAX_OPEN * sizeof(struct open_file_t)];
 extern char ThisInode[128];
-struct ext2_inode *this_inode = ThisInode;
+struct ext2_inode *this_inode = (struct ext2_inode *)ThisInode;
 struct ext2_super_block *sb;
 
 extern uint16_t ClustByteShift,  ClustShift;
@@ -530,7 +530,7 @@ void getfssec(com32sys_t *regs)
     
     if (bytes_read >= file->file_bytesleft) {
         bytes_read = file->file_bytesleft;
-        regs->esi.w[0] = NULL;  /* do close the file for asm function*/
+        regs->esi.w[0] = 0;  /* do close the file for asm function*/
     }
     file->file_bytesleft -= bytes_read;
     
@@ -559,8 +559,8 @@ void getfssec_ext(char *buf, struct open_file_t *file,
      * so we just do like:
      *                   regs.ebx.w[0] = buf;
      */
-    regs.ebx.w[0] = buf;
-    regs.esi.w[0] = file;
+    regs.ebx.w[0] = OFFS_WRT(buf, 0);
+    regs.esi.w[0] = OFFS_WRT(file, 0);
     regs.ecx.w[0] = sectors;
     getfssec(&regs);
 
@@ -677,7 +677,7 @@ void searchdir(com32sys_t * regs)
     uint8_t  file_mode;
     uint8_t  SymlinkCtr = MAX_SYMLINKS;        
     uint32_t inr = CurrentDir;
-    uint32_t ThisDir;
+    uint32_t ThisDir = CurrentDir;
     uint32_t file_len;
     char *filename = (char *)MK_PTR(regs->ds, regs->edi.w[0]);
     
@@ -750,7 +750,7 @@ void searchdir(com32sys_t * regs)
  done:        
     
     regs->eax.l = file_len;
-    regs->esi.w[0] = file;
+    regs->esi.w[0] = OFFS_WRT(file, 0);
 }
 
 
