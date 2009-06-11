@@ -57,8 +57,10 @@ void searchdir(com32sys_t *regs)
 {
     char *filename = (char *)MK_PTR(regs->ds, regs->edi.w[0]);
     struct file file;
-    
+
+#if 0    
     printf("filename: %s\n", filename);
+#endif
 
     memset(&file, 0, sizeof file);
     file.fs = this_fs;

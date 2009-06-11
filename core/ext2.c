@@ -714,7 +714,7 @@ void ext2_searchdir(char *filename, struct file *file)
     file->file_len = file_len;
     file->open_file = (void*)open_file;
 
-#if 1
+#if 0
     if (open_file) {
         printf("file bytesleft: %d\n", open_file->file_bytesleft);
         printf("file sector   : %d\n", open_file->file_sector);
