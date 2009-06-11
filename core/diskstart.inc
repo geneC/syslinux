@@ -706,6 +706,30 @@ expand_super:
 		stosd				; Store expanded byte
 		loop .loop
 
+
 ;
-; Fall through to the mainline code...
+; Common initialization code
 ;
+%include "init.inc"
+%include "cpuinit.inc"
+
+
+%if IS_PXELINUX
+	      extern pxe_fs_ops
+	      mov eax,pxe_fs_ops
+%else
+ %if IS_EXTLINUX
+	      extern ext2_fs_ops
+	      mov eax,ext2_fs_ops
+ %elif IS_SYSLINUX
+	      extern vfat_fs_ops
+	      mov eax,vfat_fs_ops
+ %elif IS_ISOLINUX
+	      extern iso_fs_ops
+	      mov eax,iso_fs_ops
+ %endif
+	      mov dl,[DriveNumber]
+	      mov ecx,[bsHidden]
+	      mov ebx,[bsHidden+4]
+%endif
+	       pm_call fs_init

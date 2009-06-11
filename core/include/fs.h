@@ -5,7 +5,8 @@
 #include "core.h"
 #include "disk.h"
 
-#define USE_CACHE(device_num) (device_num > 0x00 && device_num < 0xfe)
+/* I don't know it's right or not */
+#define USE_CACHE(device_num) (device_num >= 0x00 && device_num < 0xfe)
 
 
 struct fs_info {
@@ -27,13 +28,13 @@ struct fs_ops {
     
     int      (*fs_init)(void);
     void     (*searchdir)(char *, struct file *);
-    uint32_t (*getfssec)(char *, void * , int, int *);
+    uint32_t (*getfssec)(struct fs_info *, char *, void * , int, int *);
     void     (*mangle_name)(char *, char *);
     void     (*unmangle_name)(void);
     void     (*load_config)(com32sys_t *);
 };
 
-//enum dev_type {CHS, EDD};
+enum dev_type {CHS, EDD};
 
 /*
  * Struct device should have all the information about a specific disk
@@ -65,10 +66,14 @@ struct device {
 
     /* 
      * I think we still need the cache_data filed here, 'cause hpa said 
-     * different device has diffrent cache buffer 
+     * different device has diffrent cache buffer, and the following filed
+     * are quite for cache parts. 
      */
-    void *cache_data;
-    struct cache_struct *cache_head;
+    char*    cache_data;
+    struct  cache_struct *cache_head;
+    uint16_t cache_block_size;
+    uint16_t cache_entries;
+    uint32_t cache_size;
 };
 
 

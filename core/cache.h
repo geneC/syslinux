@@ -4,8 +4,9 @@
 #include <stdint.h>
 #include <com32.h>
 #include "disk.h"
+#include "fs.h"
 
-#define MAX_CACHE_ENTRIES  0x064 /* I'm not sure it's the max */
+#define MAX_CACHE_ENTRIES  0x10 /* I find even this is enough:) */
 
 /* The cache structure */
 struct cache_struct {
@@ -17,8 +18,8 @@ struct cache_struct {
 
 
 /* functions defined in cache.c */
-void cache_init(com32sys_t *regs);
-
-struct cache_struct* get_cache_block(block_t);
+void cache_init(struct device *, int);
+struct cache_struct* get_cache_block(struct device *, block_t);
+void print_cache(struct device *);
 
 #endif /* cache.h */

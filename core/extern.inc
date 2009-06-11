@@ -12,13 +12,7 @@
 	; hello.c
 	extern hello
 
-	; cache.c
-	extern cache_init
-
-	; load_config.c
-	extern load_config
-
-	; ext2.c
-	extern init_fs, searchdir, getfssec, mangle_name
+	; fs.c
+	extern fs_init, searchdir, getfssec, mangle_name, load_config
 
 %endif ; EXTERN_INC

@@ -14,10 +14,6 @@
  * The cache buffer are pointed to by a cache_head structure.
  */
 
-static struct cache_struct cache_head, cache[MAX_CACHE_ENTRIES];
-static int cache_block_size;
-static int cache_entries;
-
 /**
  * cache_init:
  *
@@ -25,29 +21,30 @@ static int cache_entries;
  * regs->eax.l stores the block size(in bits not bytes)
  *
  */
-void cache_init(com32sys_t * regs)
+void cache_init(struct device *dev, int block_size_shift)
 {
     struct cache_struct *prev, *cur;
-    char *data = core_cache_buf;
-    int block_size_shift = regs->eax.l;
+    char *data = dev->cache_data;
+    static __lowmem struct cache_struct cache_head, cache[MAX_CACHE_ENTRIES];
     int i;
+
+    dev->cache_head = &cache_head;
+    dev->cache_block_size = 1 << block_size_shift;
+    dev->cache_entries = dev->cache_size >> block_size_shift;
+    if (dev->cache_entries > MAX_CACHE_ENTRIES)
+        dev->cache_entries = MAX_CACHE_ENTRIES;
     
-    cache_block_size = 1 << block_size_shift;
-    cache_entries = sizeof(core_cache_buf) >> block_size_shift;
-    if (cache_entries > MAX_CACHE_ENTRIES)
-        cache_entries = MAX_CACHE_ENTRIES;
-    
-    cache_head.prev = &cache[cache_entries-1];
+    cache_head.prev = &cache[dev->cache_entries-1];
     cache_head.prev->next = &cache_head;
     prev = &cache_head;
     
-    for (i = 0; i < cache_entries; i++) {
+    for (i = 0; i < dev->cache_entries; i++) {
         cur = &cache[i];
         cur->block = 0;
         cur->prev  = prev;
         prev->next = cur;
         cur->data  = data;
-        data += cache_block_size;
+        data += dev->cache_block_size;
         prev = cur++;
     }
 }
@@ -74,10 +71,10 @@ void cache_init(com32sys_t * regs)
  * @return: the data stores at gs:si
  *
  */
-struct cache_struct* get_cache_block(block_t block)
+struct cache_struct* get_cache_block(struct device *dev, block_t block)
 {
     /* let's find it from the end, 'cause the endest is the freshest */
-    struct cache_struct *cs = cache_head.prev;
+    struct cache_struct *cs = dev->cache_head->prev;
     struct cache_struct *head,  *last;
     int i;
 
@@ -97,7 +94,7 @@ struct cache_struct* get_cache_block(block_t block)
     if (cs->block == block) 
         goto out;
     
-    for (i = 0; i < cache_entries; i ++) {
+    for (i = 0; i < dev->cache_entries; i ++) {
         if (cs->block == block)
             break;
         else
@@ -105,11 +102,11 @@ struct cache_struct* get_cache_block(block_t block)
     }
     
     /* missed, so we need to load it */
-    if (i == cache_entries) {        
+    if (i == dev->cache_entries) {        
         /* store it at the head of real cache */
-        cs = cache_head.next;        
+        cs = dev->cache_head->next;        
         cs->block = block;
-        getoneblk(cs->data, block, cache_block_size);
+        getoneblk(cs->data, block, dev->cache_block_size);
 
         missed ++;
     } 
@@ -119,8 +116,8 @@ struct cache_struct* get_cache_block(block_t block)
     cs->next->prev = cs->prev;    
     
     /* add to just before head node */
-    last = cache_head.prev;
-    head = &cache_head;
+    last = dev->cache_head->prev;
+    head = dev->cache_head;
     
     last->next = cs;
     cs->prev = last;
@@ -128,15 +125,34 @@ struct cache_struct* get_cache_block(block_t block)
     cs->next = head;    
     
  out:
-#if 0 /* testing how efficiency the cache is */
     total_read ++;
+#if 0 /* testing how efficiency the cache is */
     if (total_read % 5 == 0) 
         printf("total_read %d\tmissed %d\n", total_read, missed);
 #endif
 
     /* in fact, that would never be happened */
     if ((char *)(cs->data) > (char*)0x100000)
-        printf("the buffer addres higher than 1M limit\n\r");
+        printf("the buffer addres higher than 1M limit\n");
     
     return cs;
 }    
+
+
+/**
+ * Just print the sector, and according the LRU algorithm, 
+ * Left most value is the most least secotr, and Right most 
+ * value is the most Recent sector. I see it's a Left Right Used
+ * (LRU) algorithm; Just kidding:)
+ */
+void print_cache(struct device *dev)
+{
+        int i = 0;
+        struct cache_struct *cs = dev->cache_head;
+        for (; i < dev->cache_entries; i++) {
+                cs = cs->next;
+                printf("%d(%p) ", cs->block, cs->data);
+        }
+
+        printf("\n");
+}

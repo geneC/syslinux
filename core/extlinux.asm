@@ -113,21 +113,6 @@ Files		resb MAX_OPEN*open_file_t_size
 ;
 %include "diskstart.inc"
 
-;
-; Common initialization code
-;
-%include "init.inc"
-%include "cpuinit.inc"
-
-;
-; Initialize the ext2 fs meta data
-;
-		pm_call init_fs         ; will return the block size shift in eax(for now, is the sector shift)
-
-;
-; Initialize the metadata cache
-;
-		pm_call cache_init
 
 ;
 ; Now, everything is "up and running"... patch kaboom for more
