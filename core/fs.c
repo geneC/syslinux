@@ -68,7 +68,9 @@ void searchdir(com32sys_t *regs)
     this_fs->fs_ops->searchdir(filename, &file);
     regs->esi.w[0] = OFFS_WRT(file.open_file, 0);
     regs->eax.l = file.file_len;
-    if (!file.file_len)
+    if (file.file_len)
+        regs->eflags.l &= ~EFLAGS_ZF;
+    else
         regs->eflags.l |= EFLAGS_ZF;
 }
 
