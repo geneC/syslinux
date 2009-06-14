@@ -2,6 +2,12 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 3.83:
+	* PXELINUX: clear memory before handing over to a chainloaded
+	  NBP.  This may help avoid a bug in Windows RIS.
+	* PXELINUX: fix localboot after NBP chainloading on certain
+	  BIOSes (including ASUS A8N-E, but possibly others.)
+
 Changes in 3.82:
 	* isohybrid: fix the -partok logic for loading from a partition.
 	* ISOLINUX: deal with systems which return from INT 13h with
