@@ -33,7 +33,8 @@ CODEPAGE = cp865
 
 # The targets to build in this directory...
 BTARGET  = kwdhash.gen \
-	   extlinux.bin extlinux.bss extlinux.sys
+	   extlinux.bin extlinux.bss extlinux.sys \
+	   ldlinux.bss ldlinux.sys ldlinux.bin
 
 # All primary source files for the main syslinux files
 NASMSRC	 := $(wildcard *.asm)

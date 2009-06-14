@@ -55,9 +55,15 @@ void getfssec(com32sys_t *regs)
 
 void searchdir(com32sys_t *regs)
 {
-    char *filename = (char *)MK_PTR(regs->ds, regs->edi.w[0]);
+    char *filename;
     struct file file;
 
+    if (regs->edi.w[0] == 0xCFCF) {
+        /* check fat.c for more information */
+        extern char *this_filename;
+        filename = this_filename;
+    } else 
+        filename = (char *)MK_PTR(regs->ds, regs->edi.w[0]);
 #if 0    
     printf("filename: %s\n", filename);
 #endif
@@ -119,7 +125,8 @@ void device_init(struct device *dev, uint8_t device_num, sector_t offset)
      *
      */    
     if ( USE_CACHE(dev->device_number) ) {
-        /* I can't use __lowmem here, 'cause it will cause the error:
+        /* FIX!! 
+           I can't use __lowmem here, 'cause it will cause the error:
            "auxseg/lowmem region collides with xfer_buf_seg" */
         //static __lowmem char cache_buf[65536];
         dev->cache_data = core_cache_buf;
