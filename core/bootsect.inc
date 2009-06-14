@@ -84,11 +84,20 @@ load_bootsec:
 
 ;
 ; replace_bootstrap for the special case where we have exactly one
-; descriptor.
+; descriptor, based in low memory.  We will generate a second descriptor
+; to clear remaining FBM.
 ;
 
 replace_bootstrap_one:
-		push word 1			; Length of descriptor list
+		mov eax,[trackbuf]		; Base address
+		add eax,[trackbuf+8]		; Length
+		movzx edx,word [BIOS_fbm]
+		shl edx,10			; Free Base Memory
+		sub edx,eax
+		mov [trackbuf+12],eax
+		or dword [trackbuf+16],-1	; Zero memory
+		mov [trackbuf+20],edx
+		push word 2			; Length of descriptor list
 		; Fall through
 
 ;
