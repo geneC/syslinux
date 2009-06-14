@@ -74,13 +74,19 @@ load_bootsec:
 		xor ax,ax
 		rep movsw
 		pop si			; DS:SI points to partition info
+		xor bx,bx
 %elif IS_ISOLINUX
 		mov dl,[DriveNumber]
+		xor bx,bx
 %elif IS_PXELINUX
 		mov byte [KeepPXE],03h	; Chainloading + keep PXE
 		call reset_pxe
+		lfs si,[InitStack]
+		; Put restore DS, EDX and ESI to the true initial values
+		mov bx,[fs:si+6]
+		mov edx,[fs:si+28]
+		mov esi,[fs:si+12]
 %endif
-		xor bx,bx
 
 ;
 ; replace_bootstrap for the special case where we have exactly one
@@ -91,12 +97,12 @@ load_bootsec:
 replace_bootstrap_one:
 		mov eax,[trackbuf]		; Base address
 		add eax,[trackbuf+8]		; Length
-		movzx edx,word [BIOS_fbm]
-		shl edx,10			; Free Base Memory
-		sub edx,eax
+		movzx ecx,word [BIOS_fbm]
+		shl ecx,10			; Free Base Memory
+		sub ecx,eax
 		mov [trackbuf+12],eax
 		or dword [trackbuf+16],-1	; Zero memory
-		mov [trackbuf+20],edx
+		mov [trackbuf+20],ecx
 		push word 2			; Length of descriptor list
 		; Fall through
 
