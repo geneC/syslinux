@@ -30,10 +30,10 @@ struct fat_bpb fat;
 int FATType = 0;
 
 /* generic information about FAT fs */
-uint32_t FAT;            /* Location of (first) FAT */
-uint32_t RootDirArea;    /* Location of root directory area */
-uint32_t RootDir;        /* Location of root directory proper */
-uint32_t DataArea;       /* Location of data area */
+sector_t FAT;            /* Location of (first) FAT */
+sector_t RootDirArea;    /* Location of root directory area */
+sector_t RootDir;        /* Location of root directory proper */
+sector_t DataArea;       /* Location of data area */
 uint32_t TotalSectors;   /* Total number of sectors */
 uint32_t ClustSize;      /* Bytes/cluster */
 uint32_t ClustMask;      /* Sector/cluster - 1 */
@@ -48,6 +48,9 @@ int PrevDir;
 /* used for long name entry */
 char MangleBuf[12];
 char entry_name[14];
+
+/* try with the biggest long name */
+char long_name[0x40 * 13];
 char *NameStart;
 int  NameLen;
 
@@ -153,7 +156,7 @@ void close_dir(struct fat_dir_entry *dir)
  * check for a particular sector in the FAT cache.
  *
  */
-struct cache_struct *getfatsector(struct fs_info *fs, uint32_t sector)
+struct cache_struct *getfatsector(struct fs_info *fs, sector_t sector)
 {
     return get_cache_block(fs->fs_dev, FAT + sector);
 }
@@ -173,7 +176,7 @@ struct cache_struct *getfatsector(struct fs_info *fs, uint32_t sector)
 static uint32_t nextcluster(struct fs_info *fs, uint32_t clust_num)
 {
     uint32_t next_cluster;
-    uint32_t fat_sector;
+    sector_t fat_sector;
     uint32_t offset;
     int lo, hi;
     struct cache_struct *cs;
@@ -241,9 +244,9 @@ static uint32_t nextcluster(struct fs_info *fs, uint32_t clust_num)
  * cluster chain. Returns EOF.
  *
  */
-static uint32_t nextsector(struct fs_info *fs, uint32_t sector)
+static sector_t nextsector(struct fs_info *fs, sector_t sector)
 {
-    uint32_t data_sector;
+    sector_t data_sector;
     uint32_t cluster;
     
     if ( sector < DataArea ) {
@@ -288,8 +291,8 @@ static uint32_t nextsector(struct fs_info *fs, uint32_t sector)
  */
 static void __getfssec(struct fs_info *fs, char *buf, struct open_file_t *file, uint32_t sectors)
 {
-    uint32_t curr_sector = file->file_sector;
-    uint32_t frag_start , next_sector;
+    sector_t curr_sector = file->file_sector;
+    sector_t frag_start , next_sector;
     uint32_t con_sec_cnt;
     
     while (sectors) {
@@ -514,7 +517,8 @@ static uint8_t get_checksum(char *dir_name)
     return sum;
 }
 
-static inline uint32_t first_sector(struct fat_dir_entry *dir)
+/* compute the first sector number of one dir where the data stores */
+static inline sector_t first_sector(struct fat_dir_entry *dir)
 {
     uint32_t first_clust, sector;
     
@@ -524,9 +528,6 @@ static inline uint32_t first_sector(struct fat_dir_entry *dir)
     return sector;
 }
 
-
-/* try with the biggest long name */
-char long_name[0x40 * 13];
 
 /**
  * search_dos_dir:
@@ -675,7 +676,7 @@ static struct open_file_t* search_dos_dir(struct fs_info *fs, char *MangleBuf,
  */
 void vfat_searchdir(char *filename, struct file *file)
 {
-    uint32_t dir_sector;
+    sector_t dir_sector;
     uint32_t file_len = 0;
     uint8_t  attr = 0;
     char  *p;        
