@@ -55,22 +55,7 @@ vk_append:	resb max_cmd_len+1	; Command line
 vk_end:		equ $			; Should be <= vk_size
 		endstruc
 
-;
-; File structure.  This holds the information for each currently open file.
-;
-		struc open_file_t
-file_bytesleft	resd 1			; Number of bytes left (0 = free)
-file_sector	resd 1			; Next linear sector to read
-file_in_sec	resd 1			; Sector where inode lives
-file_in_off	resw 1
-file_mode	resw 1
-		endstruc
 
-%ifndef DEPEND
-%if (open_file_t_size & (open_file_t_size-1))
-%error "open_file_t is not a power of 2"
-%endif
-%endif
 
 ; ---------------------------------------------------------------------------
 ;   BEGIN CODE
@@ -88,7 +73,7 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 		section .bss16
 		alignb 16
 		global Files
-Files		resb MAX_OPEN*open_file_t_size
+Files		resb MAX_OPEN*16  ; 16 == open_file_t_size
 
 ;
 ; Common bootstrap code for disk-based derivatives
