@@ -18,7 +18,6 @@
 
 %define IS_EXTLINUX 1
 %include "head.inc"
-%include "ext2_fs.inc"
 
 ;
 ; Some semi-configurable constants... change on your own risk.
@@ -38,13 +37,6 @@ MAX_OPEN	equ (1 << MAX_OPEN_LG2)
 
 SECTOR_SHIFT	equ 9
 SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
-
-MAX_SYMLINKS	equ 64			; Maximum number of symlinks per lookup
-SYMLINK_SECTORS	equ 2			; Max number of sectors in a symlink
-					; (should be >= FILENAME_MAX)
-
-ROOT_DIR_WORD	equ 0x002F
-CUR_DIR_DWORD	equ 0x00002F2E
 
 ;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
@@ -94,17 +86,7 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 		; ends at 2800h
 
 		section .bss16
-		global SuperBlock, ClustSize, ClustMask, PtrsPerBlock1
-		global PtrsPerBlock2, ClustShift, ClustByteShift
-SuperBlock	resb 1024		; ext2 superblock
-ClustSize	resd 1			; Bytes/cluster ("block")
-ClustMask	resd 1			; Sectors/cluster - 1
-PtrsPerBlock1	resd 1			; Pointers/cluster
-PtrsPerBlock2	resd 1			; (Pointers/cluster)^2
-ClustShift	resb 1			; Shift count for sectors/cluster
-ClustByteShift	resb 1			; Shift count for bytes/cluster
-
-		alignb open_file_t_size
+		alignb 16
 		global Files
 Files		resb MAX_OPEN*open_file_t_size
 
@@ -153,20 +135,6 @@ Files		resb MAX_OPEN*open_file_t_size
 %include "ui.inc"
 
 
-		section .bss16
-		alignb 4
-		global ThisInode
-ThisInode	resb EXT2_GOOD_OLD_INODE_SIZE	; The most recently opened inode
-
-
-		section .bss16
-		alignb	4
-		global SymlinkBuf
-SymlinkBuf	resb	SYMLINK_SECTORS*SECTOR_SIZE+64
-ThisDir		resd	1
-
-
-		section .text16
 ;
 ; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
 ;                filename to the conventional representation.  This is needed

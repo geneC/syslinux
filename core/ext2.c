@@ -25,18 +25,16 @@ struct open_file_t {
 };
 
 extern char Files[MAX_OPEN * sizeof(struct open_file_t)];
-extern char ThisInode[128];
-struct ext2_inode *this_inode = (struct ext2_inode *)ThisInode;
-struct ext2_super_block *sb;
+struct ext2_inode this_inode;
+struct ext2_super_block sb;
 
-extern uint16_t ClustByteShift,  ClustShift;
-extern uint32_t SecPerClust, ClustSize, ClustMask;
-extern uint32_t PtrsPerBlock1, PtrsPerBlock2;
-uint32_t PtrsPerBlock3;
+uint16_t ClustByteShift,  ClustShift;
+uint32_t SecPerClust, ClustSize, ClustMask;
+uint32_t PtrsPerBlock1, PtrsPerBlock2, PtrsPerBlock3;
 int DescPerBlock, InodePerBlock;
 
 extern char trackbuf[8192];
-extern char SymlinkBuf[SYMLINK_SECTORS * SECTOR_SIZE + 64];
+char SymlinkBuf[SYMLINK_SECTORS * SECTOR_SIZE + 64];
 
 
 
@@ -159,7 +157,7 @@ struct ext2_group_desc *get_group_desc(struct fs_info *fs, uint32_t group_num)
     block_num = group_num / DescPerBlock;
     offset = group_num % DescPerBlock;
 
-    block_num += sb->s_first_data_block + 1;
+    block_num += sb.s_first_data_block + 1;
     cs = get_cache_block(fs->fs_dev, block_num);
 
     desc = (struct ext2_group_desc *)cs->data + offset;
@@ -193,11 +191,11 @@ void read_inode(struct fs_info *fs, uint32_t inode_offset,
     cs = get_cache_block(fs->fs_dev, *block);
     
     /* well, in EXT4, the inode structure usually be 256 */
-    inode = (struct ext2_inode *)(cs->data + (*offset * (sb->s_inode_size)));
+    inode = (struct ext2_inode *)(cs->data + (*offset * (sb.s_inode_size)));
     memcpy(dst, inode, EXT2_GOOD_OLD_INODE_SIZE);
     
     /* for file structure */
-    *offset = (inode_offset * sb->s_inode_size) % ClustSize;
+    *offset = (inode_offset * sb.s_inode_size) % ClustSize;
 }
 
 
@@ -228,19 +226,19 @@ struct open_file_t * open_inode(struct fs_info *fs, uint32_t inr, uint32_t *file
     file->file_sector = 0;
     
     inr --;
-    inode_group  = inr / sb->s_inodes_per_group;
+    inode_group  = inr / sb.s_inodes_per_group;
     
     /* get the group desc */
     desc = get_group_desc(fs, inode_group);
     
-    inode_offset = inr % sb->s_inodes_per_group;
-    read_inode(fs, inode_offset, this_inode, desc, &block_num, &block_off);
+    inode_offset = inr % sb.s_inodes_per_group;
+    read_inode(fs, inode_offset, &this_inode, desc, &block_num, &block_off);
     
     /* Finally, we need to convet it to sector for now */
     file->file_in_sec = (block_num<<ClustShift) + (block_off>>SECTOR_SHIFT);
     file->file_in_off = block_off & (SECTOR_SIZE - 1);
-    file->file_mode = this_inode->i_mode;
-    *file_len = file->file_bytesleft = this_inode->i_size;
+    file->file_mode = this_inode.i_mode;
+    *file_len = file->file_bytesleft = this_inode.i_size;
     
     if (*file_len == 0)
         return NULL;
@@ -397,7 +395,7 @@ sector_t linsector(struct fs_info *fs, sector_t lin_sector)
     struct ext2_inode *inode;
 
     /* well, this is what I think the variable this_inode used for */
-    inode = this_inode;
+    inode = &this_inode;
 
     if (inode->i_flags & EXT4_EXTENTS_FLAG)
         block = linsector_extent(fs, block, inode);
@@ -588,11 +586,11 @@ char* do_symlink(struct fs_info *fs, struct open_file_t *file,
     char *lnk_end;
     char *SymlinkTmpBufEnd = trackbuf + SYMLINK_SECTORS * SECTOR_SIZE+64;  
     
-    flag = this_inode->i_file_acl ? SecPerClust : 0;    
-    if (this_inode->i_blocks == flag) {
+    flag = this_inode.i_file_acl ? SecPerClust : 0;    
+    if (this_inode.i_blocks == flag) {
         /* fast symlink */
         close_file(file);          /* we've got all we need */
-        memcpy(SymlinkTmpBuf, this_inode->i_block, file_len);
+        memcpy(SymlinkTmpBuf, this_inode.i_block, file_len);
         lnk_end = SymlinkTmpBuf + file_len;
         
     } else {                           
@@ -733,7 +731,7 @@ void ext2_load_config(com32sys_t *regs)
     strcpy(ConfigName, config_name);
     *(uint32_t *)CurrentDirName = 0x00002f2e;  
 
-    regs->edi.w[0] = ConfigName;
+    regs->edi.w[0] = OFFS_WRT(ConfigName, 0);
     memset(&out_regs, 0, sizeof out_regs);
     call16(core_open, regs, &out_regs);
 
@@ -752,18 +750,15 @@ void ext2_load_config(com32sys_t *regs)
  */
 int ext2_fs_init(void)
 {
-    extern char SuperBlock[1024];
-    
     /* read the super block */
-    read_sectors(SuperBlock, 2, 2);
-    sb = (struct ext2_super_block *) SuperBlock;
+    read_sectors((char *)&sb, 2, 2);
     
-    ClustByteShift = sb->s_log_block_size + 10;
+    ClustByteShift = sb.s_log_block_size + 10;
     ClustSize = 1 << ClustByteShift;
     ClustShift = ClustByteShift - SECTOR_SHIFT;
     
     DescPerBlock  = ClustSize >> ext2_group_desc_lg2size;
-    InodePerBlock = ClustSize / sb->s_inode_size;
+    InodePerBlock = ClustSize / sb.s_inode_size;
         
     SecPerClust = ClustSize >> SECTOR_SHIFT;
     ClustMask = SecPerClust - 1;
