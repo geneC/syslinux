@@ -1,6 +1,8 @@
 #ifndef FS_H
 #define FS_H
 
+#include <stddef.h>
+#include <stdbool.h>
 #include <com32.h>
 #include "core.h"
 #include "disk.h"
@@ -15,7 +17,7 @@ struct fs_info {
     struct device *fs_dev;
 };
 
-struct file{
+struct file {
     void*    open_file; /* points to the fs-specific open_file_t */
     struct   fs_info *fs;
     uint32_t file_len;
@@ -58,11 +60,16 @@ struct device {
 
     /* the sector size, 512B for disk and floppy, 2048B for CD */
     uint16_t sector_size;
+    uint8_t sector_shift;
+
+    /* CHS geometry */
+    uint8_t h, s;
+    uint8_t pad1;
 
     /* the start address of this partition(in sectors) */
     sector_t part_start;
        
-    void (*read_sectors)(char *, sector_t, int );
+    int (*rdwr_sectors)(struct device *, void *, sector_t, size_t, bool);
 
     /* 
      * I think we still need the cache_data filed here, 'cause hpa said 
@@ -75,7 +82,5 @@ struct device {
     uint16_t cache_entries;
     uint32_t cache_size;
 };
-
-
 
 #endif /* FS_H */

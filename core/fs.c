@@ -126,9 +126,6 @@ void device_init(struct device *dev, uint8_t device_num, sector_t offset)
         dev->cache_size = sizeof core_cache_buf;
     } else 
         dev->cache_data = NULL;
-
-    /* I just considered the floppy and disk now */
-    dev->read_sectors = read_sectors;
 }
 
 
