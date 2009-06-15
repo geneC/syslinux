@@ -108,10 +108,6 @@ struct fat_long_name_entry {
         uint16_t name3[2];
 } __attribute__ ((packed));
 
-__lowmem char syslinux_cfg1[] = "/boot/syslinux/syslinux.cfg";
-__lowmem char syslinux_cfg2[] = "/syslinux/syslinux.cfg";
-__lowmem char syslinux_cfg3[] = "/syslinux.cfg";
-__lowmem char config_name[] = "syslinux.cfg";
 
 
 
