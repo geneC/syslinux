@@ -45,10 +45,7 @@ MAX_OPEN	equ (1 << MAX_OPEN_LG2)
 SECTOR_SHIFT	equ 9
 SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 
-DIRENT_SHIFT	equ 5
-DIRENT_SIZE	equ (1 << DIRENT_SHIFT)
 
-ROOT_DIR_WORD	equ 0x002F
 
 ;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
@@ -67,32 +64,7 @@ vk_append:	resb max_cmd_len+1	; Command line
 vk_end:		equ $			; Should be <= vk_size
 		endstruc
 
-;
-; File structure.  This holds the information for each currently open file.
-;
-		struc open_file_t
-file_sector	resd 1			; Sector pointer (0 = structure free)
-file_bytesleft	resd 1			; Number of bytes left
-file_left	resd 1			; Number of sectors left
-		resd 1			; Unused
-		endstruc
 
-;
-; Structure for codepage files
-;
-		struc cp
-.magic		resd 2			; 8-byte magic number
-.reserved	resd 6			; Reserved for future use
-.uppercase	resb 256		; Internal upper-case table
-.unicode	resw 256		; Unicode matching table
-.unicode_alt	resw 256		; Alternate Unicode matching table
-		endstruc
-
-%ifndef DEPEND
-%if (open_file_t_size & (open_file_t_size-1))
-%error "open_file_t is not a power of 2"
-%endif
-%endif
 
 ; ---------------------------------------------------------------------------
 ;   BEGIN CODE
@@ -107,25 +79,9 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 		; ends at 2800h
 
 		section .bss16
-		alignb 4
-FAT		resd 1			; Location of (first) FAT
-RootDirArea	resd 1			; Location of root directory area
-RootDir		resd 1			; Location of root directory proper
-DataArea	resd 1			; Location of data area
-RootDirSize	resd 1			; Root dir size in sectors
-TotalSectors	resd 1			; Total number of sectors
-ClustSize	resd 1			; Bytes/cluster
-ClustMask	resd 1			; Sectors/cluster - 1
-CopySuper	resb 1			; Distinguish .bs versus .bss
-ClustShift	resb 1			; Shift count for sectors/cluster
-ClustByteShift	resb 1			; Shift count for bytes/cluster
-
-;		global syslinux_cfg_buffer
-;syslinux_cfg_buffer resb 28         ; the syslinux config file name buffer, used by vfat_load_config
-
-		alignb open_file_t_size
+		alignb 16
 		global Files
-Files		resb MAX_OPEN*open_file_t_size
+Files		resb MAX_OPEN*16  ; 16 == open_file_t_size
 
 ;
 ; Common bootstrap code for disk-based derivatives
@@ -172,8 +128,7 @@ Files		resb MAX_OPEN*open_file_t_size
 ;
 %include "ui.inc"
 
-		section .text16
-
+		
 ;
 ; close_dir:
 ;	     Deallocates a directory structure (pointer in SI)
@@ -248,11 +203,6 @@ copyright_str   db ' Copyright (C) 1994-'
 		db ' H. Peter Anvin et al', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: please change disks and press '
 		db 'a key to continue.', CR, LF, 0
-syslinux_cfg1	db '/boot'			; /boot/syslinux/syslinux.cfg
-syslinux_cfg2	db '/syslinux'			; /syslinux/syslinux.cfg
-syslinux_cfg3	db '/'				; /syslinux.cfg
-config_name	db 'syslinux.cfg', 0		; syslinux.cfg
-
 ;
 ; Config file keyword table
 ;
