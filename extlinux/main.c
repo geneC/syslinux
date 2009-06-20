@@ -176,8 +176,6 @@ enum bs_offsets {
 #define EXT2_SUPER_OFFSET 1024
 #endif
 
-const char *program;
-
 /*
  * Boot block
  */
