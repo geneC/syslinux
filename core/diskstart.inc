@@ -455,6 +455,7 @@ bailmsg:	db 'Boot error', 0Dh, 0Ah, 0
 		zb 1F8h-($-$$)
 
 FirstSector	dd 0xDEADBEEF			; Location of sector 1
+		global MaxTransfer
 MaxTransfer	dw 0x007F			; Max transfer size
 
 ; This field will be filled in 0xAA55 by the installer, but we abuse it
@@ -713,7 +714,8 @@ expand_super:
 %include "init.inc"
 %include "cpuinit.inc"
 
-
+		
+		pushad
 %if IS_PXELINUX
 	      extern pxe_fs_ops
 	      mov eax,pxe_fs_ops
@@ -729,7 +731,11 @@ expand_super:
 	      mov eax,iso_fs_ops
  %endif
 	      mov dl,[DriveNumber]
+		mov dh,0               ; we are boot from disk not CDROM
 	      mov ecx,[bsHidden]
 	      mov ebx,[bsHidden+4]
+		mov si,[bsHeads]
+		mov di,[bsSecPerTrack]
 %endif
-	       pm_call fs_init
+		pm_call fs_init
+		popad

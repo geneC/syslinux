@@ -442,7 +442,8 @@ inline struct ext2_dir_entry *ext2_next_entry(struct ext2_dir_entry *p)
  * n ext2 block pointer, i.e. anything *except the superblock
  *
  */
-void getlinsec_ext(char *buf, sector_t sector, int sector_cnt)
+void getlinsec_ext(struct fs_info *fs, char *buf, 
+                   sector_t sector, int sector_cnt)
 {
     int ext_cnt = 0;
     
@@ -454,7 +455,7 @@ void getlinsec_ext(char *buf, sector_t sector, int sector_cnt)
     
     sector += ext_cnt;
     sector_cnt -= ext_cnt;
-    read_sectors(buf, sector, sector_cnt);
+    fs->fs_dev->disk->rdwr_sectors(fs->fs_dev->disk, buf, sector, sector_cnt, 0);
 }
 
 /**
@@ -516,7 +517,7 @@ uint32_t ext2_getfssec(struct fs_info *fs, char *buf,
         printf("You are reading stores at sector --0x%x--0x%x\n", 
                frag_start, frag_start + con_sec_cnt -1);
 #endif        
-        getlinsec_ext(buf, frag_start, con_sec_cnt);
+        getlinsec_ext(fs, buf, frag_start, con_sec_cnt);
         buf += con_sec_cnt << 9;
         file->file_sector += con_sec_cnt;  /* next sector index */
     }while(sectors);
@@ -748,10 +749,10 @@ void ext2_load_config(com32sys_t *regs)
 /**
  * init. the fs meta data, return the block size bits.
  */
-int ext2_fs_init(void)
+int ext2_fs_init(struct fs_info *fs)
 {
     /* read the super block */
-    read_sectors((char *)&sb, 2, 2);
+    fs->fs_dev->disk->rdwr_sectors(fs->fs_dev->disk, (void *)&sb, 2, 2, 0);
     
     ClustByteShift = sb.s_log_block_size + 10;
     ClustSize = 1 << ClustByteShift;

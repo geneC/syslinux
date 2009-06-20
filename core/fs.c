@@ -7,7 +7,6 @@
 /* The this fs pointer */
 struct fs_info *this_fs;
 struct fs_info fs;
-struct device dev;
 
 
 void load_config(com32sys_t *regs)
@@ -105,12 +104,12 @@ uint8_t detect_edd(uint8_t device_num)
 /* 
  * initialize the device structure 
  */
-void device_init(struct device *dev, uint8_t device_num, sector_t offset)
+struct device * device_init(uint8_t devno, bool cdrom, sector_t part_start,
+                            uint16_t bsHeads, uint16_t bsSecPerTrack)
 {
-    dev->device_number = device_num;
-    dev->part_start = offset;
+    static struct device dev;
 
-    dev->type = detect_edd(device_num);
+    dev.disk = disk_init(devno, cdrom, part_start, bsHeads, bsSecPerTrack);
         
     /* 
      * check if we use cache or not, for now I just know ISO fs 
@@ -118,21 +117,23 @@ void device_init(struct device *dev, uint8_t device_num, sector_t offset)
      * it correctly.
      *
      */    
-    if ( USE_CACHE(dev->device_number) ) {
+    if ( USE_CACHE(dev.disk->disk_number) ) {
         /* I can't use __lowmem here, 'cause it will cause the error:
            "auxseg/lowmem region collides with xfer_buf_seg" */
         //static __lowmem char cache_buf[65536];
-        dev->cache_data = core_cache_buf;
-        dev->cache_size = sizeof core_cache_buf;
+        dev.cache_data = core_cache_buf;
+        dev.cache_size = sizeof core_cache_buf;
     } else 
-        dev->cache_data = NULL;
+        dev.cache_data = NULL;
+
+    return &dev;
 }
 
 
 /* debug function */
 void dump_dev(struct device *dev)
 {
-    printf("device type:%s\n", dev->type ? "CHS" : "EDD");
+    printf("device type:%s\n", dev->disk->type ? "EDD" : "CHS");
     printf("cache_data: %p\n", dev->cache_data);
     printf("cache_head: %p\n", dev->cache_head);
     printf("cache_block_size: %d\n", dev->cache_block_size);
@@ -153,18 +154,18 @@ void fs_init(com32sys_t *regs)
     int blk_shift;
     struct fs_ops *ops = (struct fs_ops*)regs->eax.l;
     
-    device_init(&dev, regs->edx.b[0], regs->ecx.l);
-    
     /* set up the fs stucture */    
     fs.fs_name = ops->fs_name;
     fs.fs_ops = ops;
-    fs.fs_dev = &dev;
+    fs.fs_dev = device_init(regs->edx.b[0], regs->edx.b[1], regs->ecx.l,
+                            regs->esi.w[0], regs->edi.w[0]);
     this_fs = &fs;
 
     /* invoke the fs-specific init code */
-    blk_shift = fs.fs_ops->fs_init();    
+    blk_shift = fs.fs_ops->fs_init(&fs);    
 
     /* initialize the cache */
-    if (dev.cache_data)
-        cache_init(&dev, blk_shift);
+    if (fs.fs_dev->cache_data)
+        cache_init(fs.fs_dev, blk_shift);
+    dump_dev(fs.fs_dev);
 }
