@@ -86,6 +86,7 @@ dir_clust	resd 1			; Length in clusters
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
 		section .earlybss
+		global trackbuf
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 ;		ends at 2800h
@@ -191,6 +192,7 @@ _spec_end	equ $
 _spec_len	equ _spec_end - _spec_start
 
 		section .bss16
+		global Files
 		alignb open_file_t_size
 Files		resb MAX_OPEN*open_file_t_size
 
@@ -767,6 +769,7 @@ getonesec:
 ;	ES:BX	- Target buffer
 ;	BP	- Sector count
 ;
+		global getlinsec
 getlinsec:	jmp word [cs:GetlinsecPtr]
 
 %ifndef DEBUG_MESSAGES
@@ -1160,90 +1163,25 @@ all_read:
 ; (which will be at 16 only for a single-session disk!); from the PVD
 ; we should be able to find the rest of what we need to know.
 ;
-get_fs_structures:
-		mov eax,[bi_pvd]
-		mov bx,trackbuf
-		call getonesec
-
-		mov eax,[trackbuf+156+2]
-		mov [RootDir+dir_lba],eax
-		mov [CurrentDir+dir_lba],eax
-%ifdef DEBUG_MESSAGES
-		mov si,dbg_rootdir_msg
-		call writemsg
-		call writehex8
-		call crlf
-%endif
-		mov eax,[trackbuf+156+10]
-		mov [RootDir+dir_len],eax
-		mov [CurrentDir+dir_len],eax
-		add eax,SECTOR_SIZE-1
-		shr eax,SECTOR_SHIFT
-		mov [RootDir+dir_clust],eax
-		mov [CurrentDir+dir_clust],eax
-
-		; Look for an isolinux directory, and if found,
-		; make it the current directory instead of the root
-		; directory.
-		; Also copy the name of the directory to CurrentDirName
-		mov word [CurrentDirName],ROOT_DIR_WORD	; Write '/',0 to the CurrentDirName
-		mov di,boot_dir			; Search for /boot/isolinux
-		mov al,02h
-		push di
-		call searchdir_iso
-		pop di
-		jnz .found_dir
-		mov di,isolinux_dir
-		mov al,02h			; Search for /isolinux
-		push di
-		call searchdir_iso
-		pop di
-		jz .no_isolinux_dir
-.found_dir:
-		; Copy current directory name to CurrentDirName
-		push si
-		push di
-		mov si,di
-		mov di,CurrentDirName
-		call strcpy
-		mov byte [di],0	;done in case it's not word aligned
-		dec di
-		mov byte [di],'/'
-		pop di
-		pop si
-
-		mov [CurrentDir+dir_len],eax
-		mov eax,[si+file_left]
-		mov [CurrentDir+dir_clust],eax
-		xor eax,eax			; Free this file pointer entry
-		xchg eax,[si+file_sector]
-		mov [CurrentDir+dir_lba],eax
-%ifdef DEBUG_MESSAGES
-		push si
-		mov si,dbg_isodir_msg
-		call writemsg
-		pop si
-		call writehex8
-		call crlf
-%endif
-.no_isolinux_dir:
+		pushad
+	      extern iso_fs_ops
+	      mov eax,iso_fs_ops
+	      mov dl,[DriveNumber]
+		mov dh,1                  ; it's cdrom
+	      mov ecx,[bsHidden]
+	      mov ebx,[bsHidden+4]
+		pm_call fs_init
+		popad
 
 ;
 ; Locate the configuration file
 ;
-load_config:
 %ifdef DEBUG_MESSAGES
 		mov si,dbg_config_msg
 		call writemsg
 %endif
 
-		mov si,config_name
-		mov di,ConfigName
-		call strcpy
-
-		mov di,ConfigName
-		call open
-		jz no_config_file		; Not found or empty
+		pm_call load_config
 
 %ifdef DEBUG_MESSAGES
 		mov si,dbg_configok_msg
@@ -1289,7 +1227,7 @@ is_disk_image:
 
 		mov bx,trackbuf
 		mov cx,1			; Load 1 sector
-		call getfssec
+		pm_call getfssec
 
 		cmp word [trackbuf+510],0aa55h	; Boot signature
 		jne .bad_image		; Image not bootable
@@ -1386,284 +1324,6 @@ is_disk_image:
 		mov al,bl
 .done_sector:	ret
 
-;
-; close_file:
-;	     Deallocates a file structure (pointer in SI)
-;	     Assumes CS == DS.
-;
-close_file:
-		and si,si
-		jz .closed
-		mov dword [si],0		; First dword == file_left
-		xor si,si
-.closed:	ret
-
-;
-; searchdir:
-;
-;	Open a file
-;
-;	     On entry:
-;		DS:DI	= filename
-;	     If successful:
-;		ZF clear
-;		SI		= file pointer
-;		EAX		= file length in bytes
-;	     If unsuccessful
-;		ZF set
-;
-; Assumes CS == DS == ES, and trashes BX and CX.
-;
-; searchdir_iso is a special entry point for ISOLINUX only.  In addition
-; to the above, searchdir_iso passes a file flag mask in AL.  This is useful
-; for searching for directories.
-;
-alloc_failure:
-		xor ax,ax			; ZF <- 1
-		ret
-
-searchdir:
-		xor al,al
-searchdir_iso:
-		mov [ISOFlags],al
-		TRACER 'S'
-		call allocate_file		; Temporary file structure for directory
-		jnz alloc_failure
-		push es
-		push ds
-		pop es				; ES = DS
-		mov si,CurrentDir
-		cmp byte [di],'/'		; If filename begins with slash
-		jne .not_rooted
-		inc di				; Skip leading slash
-		mov si,RootDir			; Reference root directory instead
-.not_rooted:
-		mov eax,[si+dir_clust]
-		mov [bx+file_left],eax
-		shl eax,SECTOR_SHIFT
-		mov [bx+file_bytesleft],eax
-		mov eax,[si+dir_lba]
-		mov [bx+file_sector],eax
-		mov edx,[si+dir_len]
-
-.look_for_slash:
-		mov ax,di
-.scan:
-		mov cl,[di]
-		inc di
-		and cl,cl
-		jz .isfile
-		cmp cl,'/'
-		jne .scan
-		mov [di-1],byte 0		; Terminate at directory name
-		mov cl,02h			; Search for directory
-		xchg cl,[ISOFlags]
-
-		push di				; Save these...
-		push cx
-
-		; Create recursion stack frame...
-		push word .resume		; Where to "return" to
-		push es
-.isfile:	xchg ax,di
-
-.getsome:
-		; Get a chunk of the directory
-		; This relies on the fact that ISOLINUX doesn't change SI
-		mov si,trackbuf
-		TRACER 'g'
-		pushad
-		xchg bx,si
-		mov cx,[BufSafe]
-		call getfssec
-		popad
-
-.compare:
-		movzx eax,byte [si]		; Length of directory entry
-		cmp al,33
-		jb .next_sector
-		TRACER 'c'
-		mov cl,[si+25]
-		xor cl,[ISOFlags]
-		test cl, byte 8Eh		; Unwanted file attributes!
-		jnz .not_file
-		pusha
-		movzx cx,byte [si+32]		; File identifier length
-		add si,byte 33			; File identifier offset
-		TRACER 'i'
-		call iso_compare_names
-		popa
-		je .success
-.not_file:
-		sub edx,eax			; Decrease bytes left
-		jbe .failure
-		add si,ax			; Advance pointer
-
-.check_overrun:
-		; Did we finish the buffer?
-		cmp si,trackbuf+trackbufsize
-		jb .compare			; No, keep going
-
-		jmp short .getsome		; Get some more directory
-
-.next_sector:
-		; Advance to the beginning of next sector
-		lea ax,[si+SECTOR_SIZE-1]
-		and ax,~(SECTOR_SIZE-1)
-		sub ax,si
-		jmp short .not_file		; We still need to do length checks
-
-.failure:	xor eax,eax			; ZF = 1
-		mov [bx+file_sector],eax
-		pop es
-		ret
-
-.success:
-		mov eax,[si+2]			; Location of extent
-		mov [bx+file_sector],eax
-		mov eax,[si+10]			; Data length
-		mov [bx+file_bytesleft],eax
-		push eax
-		add eax,SECTOR_SIZE-1
-		shr eax,SECTOR_SHIFT
-		mov [bx+file_left],eax
-		pop eax
-		jz .failure			; Empty file?
-		; ZF = 0
-		mov si,bx
-		pop es
-		ret
-
-.resume:	; We get here if we were only doing part of a lookup
-		; This relies on the fact that .success returns bx == si
-		xchg edx,eax			; Directory length in edx
-		pop cx				; Old ISOFlags
-		pop di				; Next filename pointer
-		mov byte [di-1], '/'		; Restore slash
-		mov [ISOFlags],cl		; Restore the flags
-		jz .failure			; Did we fail?  If so fail for real!
-		jmp .look_for_slash		; Otherwise, next level
-
-;
-; allocate_file: Allocate a file structure
-;
-;		If successful:
-;		  ZF set
-;		  BX = file pointer
-;		In unsuccessful:
-;		  ZF clear
-;
-allocate_file:
-		TRACER 'a'
-		push cx
-		mov bx,Files
-		mov cx,MAX_OPEN
-.check:		cmp dword [bx], byte 0
-		je .found
-		add bx,open_file_t_size		; ZF = 0
-		loop .check
-		; ZF = 0 if we fell out of the loop
-.found:		pop cx
-		ret
-
-;
-; iso_compare_names:
-;	Compare the names DS:SI and DS:DI and report if they are
-;	equal from an ISO 9660 perspective.  SI is the name from
-;	the filesystem; CX indicates its length, and ';' terminates.
-;	DI is expected to end with a null.
-;
-;	Note: clobbers AX, CX, SI, DI; assumes DS == ES == base segment
-;
-
-iso_compare_names:
-		; First, terminate and canonicalize input filename
-		push di
-		mov di,ISOFileName
-.canon_loop:	jcxz .canon_end
-		lodsb
-		dec cx
-		cmp al,';'
-		je .canon_end
-		and al,al
-		je .canon_end
-		stosb
-		cmp di,ISOFileNameEnd-1		; Guard against buffer overrun
-		jb .canon_loop
-.canon_end:
-		cmp di,ISOFileName
-		jbe .canon_done
-		cmp byte [di-1],'.'		; Remove terminal dots
-		jne .canon_done
-		dec di
-		jmp short .canon_end
-.canon_done:
-		mov [di],byte 0			; Null-terminate string
-		pop di
-		mov si,ISOFileName
-.compare:
-		lodsb
-		mov ah,[di]
-		inc di
-		and ax,ax
-		jz .success			; End of string for both
-		and al,al			; Is either one end of string?
-		jz .failure			; If so, failure
-		and ah,ah
-		jz .failure
-		or ax,2020h			; Convert to lower case
-		cmp al,ah
-		je .compare
-.failure:	and ax,ax			; ZF = 0 (at least one will be nonzero)
-.success:	ret
-
-;
-; mangle_name: Mangle a filename pointed to by DS:SI into a buffer pointed
-;	       to by ES:DI; ends on encountering any whitespace.
-;	       DI is preserved.
-;
-;	       This verifies that a filename is < FILENAME_MAX characters,
-;	       doesn't contain whitespace, zero-pads the output buffer,
-;	       and removes trailing dots and redundant slashes,
-;	       so "repe cmpsb" can do a compare, and the
-;	       path-searching routine gets a bit of an easier job.
-;
-mangle_name:
-		push di
-		push bx
-		xor ax,ax
-		mov cx,FILENAME_MAX-1
-		mov bx,di
-
-.mn_loop:
-		lodsb
-		cmp al,' '			; If control or space, end
-		jna .mn_end
-		cmp al,ah			; Repeated slash?
-		je .mn_skip
-		xor ah,ah
-		cmp al,'/'
-		jne .mn_ok
-		mov ah,al
-.mn_ok		stosb
-.mn_skip:	loop .mn_loop
-.mn_end:
-		cmp bx,di			; At the beginning of the buffer?
-		jbe .mn_zero
-		cmp byte [es:di-1],'.'		; Terminal dot?
-		je .mn_kill
-		cmp byte [es:di-1],'/'		; Terminal slash?
-		jne .mn_zero
-.mn_kill:	dec di				; If so, remove it
-		inc cx
-		jmp short .mn_end
-.mn_zero:
-		inc cx				; At least one null byte
-		xor ax,ax			; Zero-fill name
-		rep stosb
-		pop bx
-		pop di
-		ret				; Done
 
 ;
 ; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
@@ -1680,56 +1340,6 @@ unmangle_name:	call strcpy
 		dec di				; Point to final null byte
 		ret
 
-;
-; getfssec: Get multiple clusters from a file, given the file pointer.
-;
-;  On entry:
-;	ES:BX	-> Buffer
-;	SI	-> File pointer
-;	CX	-> Cluster count
-;  On exit:
-;	SI	-> File pointer (or 0 on EOF)
-;	CF = 1	-> Hit EOF
-;	ECX	-> Bytes actually read
-;
-getfssec:
-		TRACER 'F'
-		push ds
-		push cs
-		pop ds				; DS <- CS
-
-		movzx ecx,cx
-		cmp ecx,[si+file_left]
-		jna .ok_size
-		mov ecx,[si+file_left]
-.ok_size:
-
-		pushad
-		mov eax,[si+file_sector]
-		mov bp,cx
-		TRACER 'l'
-		call getlinsec
-		popad
-
-		; ECX[31:16] == 0 here...
-		add [si+file_sector],ecx
-		sub [si+file_left],ecx
-		shl ecx,SECTOR_SHIFT		; Convert to bytes
-		cmp ecx,[si+file_bytesleft]
-		jb .not_all
-		mov ecx,[si+file_bytesleft]
-.not_all:	sub [si+file_bytesleft],ecx
-		jnz .ret			; CF = 0 in this case...
-		push eax
-		xor eax,eax
-		mov [si+file_sector],eax	; Unused
-		mov si,ax
-		pop eax
-		stc
-.ret:
-		pop ds
-		TRACER 'f'
-		ret
 
 ; -----------------------------------------------------------------------------
 ;  Common modules

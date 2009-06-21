@@ -11,7 +11,7 @@ extern char CurrentDirName[];
 extern char ConfigName[];
 
 
-/* diskstart.inc */
+/* diskstart.inc isolinux.asm*/
 extern void getlinsec(void);
 
 /* getc.inc */

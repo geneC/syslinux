@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include "fs.h"
 #include "cache.h"
@@ -105,30 +106,24 @@ uint8_t detect_edd(uint8_t device_num)
 /* 
  * initialize the device structure 
  */
-void device_init(struct device *dev, uint8_t device_num, sector_t offset)
+void device_init(struct device *dev, uint8_t device_num, 
+                 bool cdrom, sector_t offset)
 {
     dev->device_number = device_num;
     dev->part_start = offset;
 
     dev->type = detect_edd(device_num);
         
-    /* 
-     * check if we use cache or not, for now I just know ISO fs 
-     * does not use the cache, and I hope the USE_CACHE can detect
-     * it correctly.
-     *
-     */    
-    if ( USE_CACHE(dev->device_number) ) {
+    if (!cdrom) {
         /* I can't use __lowmem here, 'cause it will cause the error:
-           "auxseg/lowmem region collides with xfer_buf_seg" */
-        //static __lowmem char cache_buf[65536];
+           "auxseg/lowmem region collides with xfer_buf_seg"
+ 
+           static __lowmem char cache_buf[65536];
+        */
         dev->cache_data = core_cache_buf;
         dev->cache_size = sizeof core_cache_buf;
     } else 
         dev->cache_data = NULL;
-
-    /* I just considered the floppy and disk now */
-    dev->read_sectors = read_sectors;
 }
 
 
@@ -156,7 +151,7 @@ void fs_init(com32sys_t *regs)
     int blk_shift;
     struct fs_ops *ops = (struct fs_ops*)regs->eax.l;
     
-    device_init(&dev, regs->edx.b[0], regs->ecx.l);
+    device_init(&dev, regs->edx.b[0], regs->edx.b[1], regs->ecx.l);
     
     /* set up the fs stucture */    
     fs.fs_name = ops->fs_name;

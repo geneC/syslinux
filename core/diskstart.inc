@@ -729,6 +729,7 @@ expand_super:
 	      mov eax,iso_fs_ops
  %endif
 	      mov dl,[DriveNumber]
+		mov dh,0               ; it's a disk not cdrom
 	      mov ecx,[bsHidden]
 	      mov ebx,[bsHidden+4]
 %endif

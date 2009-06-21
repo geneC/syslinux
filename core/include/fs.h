@@ -5,10 +5,6 @@
 #include "core.h"
 #include "disk.h"
 
-/* I don't know it's right or not */
-#define USE_CACHE(device_num) (device_num >= 0x00 && device_num < 0xfe)
-
-
 struct fs_info {
     char *fs_name;
     struct fs_ops *fs_ops;
