@@ -500,7 +500,7 @@ void iso_load_config(com32sys_t *regs)
     
     strcpy(ConfigName, config_name);
     
-    regs->edi.w[0] = ConfigName;
+    regs->edi.w[0] = OFFS_WRT(ConfigName, 0);
     memset(&out_regs, 0, sizeof out_regs);
     call16(core_open, regs, &out_regs);
 }
@@ -542,8 +542,10 @@ int iso_fs_init()
     if ( !file.file_len ) {
         iso_dir = isolinux_dir;
         iso_searchdir(isolinux_dir, &file); /* search for /isolinux */
-        if ( !file.file_len )
-            goto no_isolinux_dir;
+        if ( !file.file_len ) {
+            printf("No isolinux directory found!\n");
+            return 0;
+        }            
     }
     
     strcpy(CurrentDirName, iso_dir);
@@ -558,13 +560,10 @@ int iso_fs_init()
     close_file(open_file);
     
 #ifdef DEBUG
-    printf("isolinux directory at LBA = %0x%x\n", CurrentDir.dir_lba);
+    printf("isolinux directory at LBA = 0x%x\n", CurrentDir.dir_lba);
 #endif  
       
- no_isolinux_dir:
-    printf("No isolinux directory found\n");
-
-     /* we do not use cache for now, so we can just return 0 */
+    /* we do not use cache for now, so we can just return 0 */
     return 0;
 }
 

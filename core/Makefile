@@ -33,7 +33,6 @@ CODEPAGE = cp865
 
 # The targets to build in this directory...
 BTARGET  = kwdhash.gen \
-	   extlinux.bin extlinux.bss extlinux.sys \
 	   isolinux.bin isolinux-debug.bin
 
 # All primary source files for the main syslinux files

@@ -120,8 +120,8 @@ void device_init(struct device *dev, uint8_t device_num,
  
            static __lowmem char cache_buf[65536];
         */
-        dev->cache_data = core_cache_buf;
-        dev->cache_size = sizeof core_cache_buf;
+        //dev->cache_data = core_cache_buf;
+        //dev->cache_size = sizeof core_cache_buf;
     } else 
         dev->cache_data = NULL;
 }
@@ -130,6 +130,7 @@ void device_init(struct device *dev, uint8_t device_num,
 /* debug function */
 void dump_dev(struct device *dev)
 {
+    printf("drive number: 0x%x\n", dev->device_number);
     printf("device type:%s\n", dev->type ? "CHS" : "EDD");
     printf("cache_data: %p\n", dev->cache_data);
     printf("cache_head: %p\n", dev->cache_head);
