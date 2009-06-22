@@ -125,16 +125,11 @@ auxseg		resb aux_size
 ; is somewhat excessive.  Sector alignment is obligatory, however.
 ;
 
-%if IS_ISOLINUX
-; ISOLINUX doesn't have a block cache yet
-real_mode_seg	equ 4000h
-%else
 		global cache_seg, core_cache_buf
 cache_seg	equ 4000h		; 64K area for metadata cache
 core_cache_buf	equ cache_seg << 4
 real_mode_seg	equ 5000h
 
 pktbuf_seg	equ cache_seg		; PXELINUX packet buffers
-%endif
 
 comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
