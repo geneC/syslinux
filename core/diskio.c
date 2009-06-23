@@ -73,7 +73,9 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 		break;
 	    if (retry--)
 		continue;
-	    chunk >>= 1;
+
+            /* if we are reading ONE sector and go here, just make it _faile_ */
+            chunk = chunk == 1 ? 0 : ((chunk+1) >> 1);
 	    if (chunk) {
 		MaxTransfer = chunk;
 		retry = RETRY_COUNT;
@@ -158,7 +160,7 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 		break;
 	    if (retry--)
 		continue;
-	    chunk >>= 1;
+	    chunk = chunk == 1 ? 0 : ((chunk+1) >> 1);
 	    if (chunk) {
 		MaxTransfer = chunk;
 		retry = RETRY_COUNT;
