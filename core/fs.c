@@ -55,15 +55,9 @@ void getfssec(com32sys_t *regs)
 
 void searchdir(com32sys_t *regs)
 {
-    char *filename;
+    char *filename = (char *)MK_PTR(regs->ds, regs->edi.w[0]);;
     struct file file;
-
-    if (regs->edi.w[0] == 0xCFCF) {
-        /* check fat.c for more information */
-        extern char *this_filename;
-        filename = this_filename;
-    } else 
-        filename = (char *)MK_PTR(regs->ds, regs->edi.w[0]);
+        
 #if 0    
     printf("filename: %s\n", filename);
 #endif

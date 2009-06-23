@@ -57,27 +57,6 @@ int  NameLen;
 /* do this for readdir, because it called from asm and don't know the fs structure */
 struct fs_info *this_fs = NULL;
 
-/*
- * Well, I find I can't reference the syslinux_cfg[i] config file name even though I 
- * used extern in C side and global in the ASM side. So I thought I can use a gloabl 
- * pointer called this_filename, points to the current filename. And in the searchdir
- * function, we use a flag to determine if we need use the this_filename to go on. 
- * Here is the principle:
- *
- * if (regs->esi.w[0] == 0xCFCF)      ; Called From C File(CFCF)
- *     file_name = this_fs;
- * else
- *     file_name = (char *)MK_PTR(regs->es, regs->esi.w[0])   
- *
- *
- * so if we want call searchdir function from C file, and the filename address 
- * is in the high address(means higher than 1M), we can put regs->edi.w[0] the 0xCFCF
- * flag, then I hope all will go well.
- *
- * (I know it's ugly, sorry)
- */
-char *this_filename = NULL;
-
 
 /**
  * allocate_file:
@@ -888,10 +867,13 @@ void vfat_load_config(com32sys_t *regs)
     *(uint16_t *)CurrentDirName = ROOT_DIR_WORD;
     CurrentDir = RootDir;
 
-    strcpy(ConfigName, config_name);
+    /* 
+     * we use the ConfigName to pass the config path because
+     * it is under the address 0xffff
+     */
+    regs->edi.w[0] = ConfigName;
     for (; i < 3; i++) {
-        regs->edi.w[0] = 0xCFCF;        /* Mark we use the this_filename to pass filename para */
-        this_filename = syslinux_cfg[i];
+        strcpy(ConfigName, syslinux_cfg[i]);
         memset(&oregs, 0, sizeof oregs);
         call16(core_open, regs, &oregs);
 
@@ -904,6 +886,7 @@ void vfat_load_config(com32sys_t *regs)
         return;  /* no config file */
     }
 
+    strcpy(ConfigName, config_name);
     strcpy(CurrentDirName, syslinux_cfg[i]);
     CurrentDirName[strlen(syslinux_cfg[i])-strlen(config_name)] = '\0';
     CurrentDir = PrevDir;
