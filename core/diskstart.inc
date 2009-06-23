@@ -731,7 +731,7 @@ expand_super:
 	      mov eax,iso_fs_ops
  %endif
 	      mov dl,[DriveNumber]
-		mov dh,0               ; we are boot from disk not CDROM
+              mov dh,0               ; we are boot from disk not CDROM
 	      mov ecx,[bsHidden]
 	      mov ebx,[bsHidden+4]
 		mov si,[bsHeads]

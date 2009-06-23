@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include "fs.h"
 #include "cache.h"
@@ -135,6 +136,7 @@ struct device * device_init(uint8_t devno, bool cdrom, sector_t part_start,
 void dump_dev(struct device *dev)
 {
     printf("device type:%s\n", dev->disk->type ? "EDD" : "CHS");
+    printf("drive number: 0x%x\n", dev->disk->disk_number);
     printf("cache_data: %p\n", dev->cache_data);
     printf("cache_head: %p\n", dev->cache_head);
     printf("cache_block_size: %d\n", dev->cache_block_size);

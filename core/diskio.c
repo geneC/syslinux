@@ -118,7 +118,7 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
     int retry;
 
     memset(&ireg, 0, sizeof ireg);
-
+    
     ireg.eax.b[1] = 0x42 + is_write;
     ireg.edx.b[0] = disk->disk_number;
     ireg.ds       = SEG(&pkt);
@@ -167,6 +167,7 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 		continue;
 	    }
 	    /*** XXX: Consider falling back to CHS here?! ***/
+            printf("reading sectors error(EDD)\n");
 	    return done;	/* Failure */
 	}
 

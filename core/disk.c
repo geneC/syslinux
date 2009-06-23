@@ -6,7 +6,7 @@
 void read_sectors(char *buf, sector_t sector_num, int sectors)
 {
     com32sys_t regs;
-    static __lowmem char low_buf[65536]; 
+    //static __lowmem char low_buf[65536]; 
     /* for safe, we use buf + (sectors << SECTOR_SHIFT) here */
     int high_addr = (buf + (sectors << SECTOR_SHIFT)) > (char *)0x100000;
         
@@ -15,17 +15,17 @@ void read_sectors(char *buf, sector_t sector_num, int sectors)
     regs.ebp.l = sectors;
     
     if (high_addr) {
-        regs.es = SEG(low_buf);
-        regs.ebx.w[0] = OFFS(low_buf);
+        regs.es = SEG(core_xfer_buf);
+        regs.ebx.w[0] = OFFS(core_xfer_buf);
     } else {
         regs.es = SEG(buf);
-        regs.ebx.w[0] = OFFS(buf);
+        regs.ebx.w[0] = OFFS(core_xfer_buf);
     }
 
     call16(getlinsec, &regs, NULL);
 
     if (high_addr)
-        memcpy(buf, low_buf, sectors << SECTOR_SHIFT);
+        memcpy(buf, core_xfer_buf, sectors << SECTOR_SHIFT);
 }
 
 
