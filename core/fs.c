@@ -74,33 +74,6 @@ void searchdir(com32sys_t *regs)
         regs->eflags.l |= EFLAGS_ZF;
 }
 
-/*
- * well, I find that in the diskstart.inc, there's no room fow us to
- * get the edd check result, so we implement a new one here.
- */
-uint8_t detect_edd(uint8_t device_num)
-{
-    com32sys_t iregs, oregs;
-    
-    /* Sending int 13h func 41h to query EBIOS information */
-    memset(&iregs, 0, sizeof iregs);
-    memset(&oregs, 0, sizeof oregs);
-    
-    /* Get EBIOS support */
-    iregs.eax.w[0] = 0x4100;
-    iregs.ebx.w[0] = 0x55aa;
-    iregs.edx.b[0] = device_num;
-    iregs.eflags.b[0] = 0x3; /* CF set */
-    
-    __intcall(0x13, &iregs, &oregs);
-    
-    /* Detecting EDD support */
-    if (!(oregs.eflags.l & EFLAGS_CF) &&
-        oregs.ebx.w[0] == 0xaa55 && (oregs.ecx.b[0] & 1))
-        return 1;
-    else
-        return 0;
-}
 
 /* 
  * initialize the device structure 
@@ -112,17 +85,14 @@ struct device * device_init(uint8_t devno, bool cdrom, sector_t part_start,
 
     dev.disk = disk_init(devno, cdrom, part_start, bsHeads, bsSecPerTrack);
         
-    /* 
-     * check if we use cache or not, for now I just know ISO fs 
-     * does not use the cache, and I hope the USE_CACHE can detect
-     * it correctly.
-     *
-     */    
+    /* for now, isolinux doesn't use cache */
     if (!cdrom) {
-        /* FIX!! 
-           I can't use __lowmem here, 'cause it will cause the error:
-           "auxseg/lowmem region collides with xfer_buf_seg" */
-        //static __lowmem char cache_buf[65536];
+        /*
+         * FIX!! I can't use __lowmem here, 'cause it will cause the error:
+         * "auxseg/lowmem region collides with xfer_buf_seg".
+         *
+         * static __lowmem char cache_buf[65536];
+         */
         dev.cache_data = core_cache_buf;
         dev.cache_size = sizeof core_cache_buf;
     } else 
@@ -146,8 +116,8 @@ void dump_dev(struct device *dev)
 
 /*
  * it will do:
- *    initialize the device structure;
  *    set up the vfs fs structure;
+ *    initialize the device structure;
  *    invoke the fs-specific init function;
  *    finally, initialize the cache
  *

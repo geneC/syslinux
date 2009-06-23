@@ -16,7 +16,6 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
     char *ptr = buf;
     char *tptr;
     size_t chunk, freeseg;
-    int sector_size  = disk->sector_size;
     int sector_shift = disk->sector_shift;
     uint32_t xlba = lba;	/* Truncated LBA (CHS is << 2 TB) */
     uint32_t t;
@@ -110,7 +109,6 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
     char *ptr = buf;
     char *tptr;
     size_t chunk, freeseg;
-    int sector_size  = disk->sector_size;
     int sector_shift = disk->sector_shift;
     com32sys_t ireg, oreg;
     size_t done = 0;
