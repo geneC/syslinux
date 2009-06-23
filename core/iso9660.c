@@ -242,8 +242,6 @@ int iso_compare_names(char *de_name, int *len, char *file_name)
  *
  * Get multiple clusters from a file, given the file pointer.
  *
- * we don't use the fs struct for now
- *
  * @param: buf
  * @param: file, the address of the open file structure
  * @param: sectors, how many we want to read at once 
@@ -251,7 +249,7 @@ int iso_compare_names(char *de_name, int *len, char *file_name)
  *
  */
 uint32_t iso_getfssec(struct fs_info *fs, char *buf, 
-                   void *open_file, int sectors, int *have_more)
+                      void *open_file, int sectors, int *have_more)
 {
     uint32_t bytes_read = sectors << ISO_SECTOR_SHIFT;
     struct open_file_t *file = (struct open_file_t *)open_file;
@@ -287,7 +285,8 @@ uint32_t iso_getfssec(struct fs_info *fs, char *buf,
  * res will return the result.
  *
  */
-int do_search_dir(struct dir_t *dir, char *name, uint32_t *file_len, void **res)
+int do_search_dir(struct fs_info *fs, struct dir_t *dir, 
+                  char *name, uint32_t *file_len, void **res)
 {
     struct open_file_t *file;
     struct iso_dir_entry *de;
@@ -307,7 +306,7 @@ int do_search_dir(struct dir_t *dir, char *name, uint32_t *file_len, void **res)
     file->file_left = dir->dir_clust;
     file->file_sector = dir->dir_lba;
     
-    iso_getfssec(NULL, trackbuf, file, BufSafe, &have_more);
+    iso_getfssec(fs, trackbuf, file, BufSafe, &have_more);
     de = (struct iso_dir_entry *)trackbuf;
     
     while ( file_pos < dir->dir_len ) {
@@ -317,7 +316,7 @@ int do_search_dir(struct dir_t *dir, char *name, uint32_t *file_len, void **res)
             if ( !have_more ) 
                 return 0;
             
-            iso_getfssec(NULL, trackbuf, file, BufSafe, &have_more);
+            iso_getfssec(fs, trackbuf, file, BufSafe, &have_more);
             offset = 0;
         }
         
@@ -342,7 +341,7 @@ int do_search_dir(struct dir_t *dir, char *name, uint32_t *file_len, void **res)
             if ( offset ) {
                 if ( !have_more ) 
                     return 0;
-                iso_getfssec(NULL, trackbuf, file, BufSafe, &have_more);
+                iso_getfssec(fs, trackbuf, file, BufSafe, &have_more);
                 memcpy((void*)&tmpde + slop, trackbuf, offset);
             }
             de = &tmpde;
@@ -440,17 +439,16 @@ void iso_searchdir(char *filename, struct file *file)
         dir = &RootDir;
         filename ++;
     }
-#define DEBUG() printf("go there? %d\n", __LINE__)
+
     while ( *filename ) {
-        DEBUG();
-        ret = do_search_dir(dir, filename, &file_len, &res);
+        ret = do_search_dir(file->fs, dir, filename, &file_len, &res);
         if ( ret == 1 )
             dir = (struct dir_t *)res;
         else if ( ret == 2 )
             break;
         else 
             goto err;
-        DEBUG();
+       
         /* find the end */
         while ( *filename && (*filename != '/') )
             filename ++;
@@ -459,7 +457,7 @@ void iso_searchdir(char *filename, struct file *file)
         while ( *filename && (*filename == '/') )
             filename++;   
     }
-    DEBUG();
+ 
     /* well , we need recheck it , becuase it can be a directory */
     if ( ret == 2 ) {
         open_file = (struct open_file_t *)res;
@@ -538,6 +536,7 @@ int iso_fs_init(struct fs_info *fs)
     *(uint16_t *)CurrentDirName = ROOT_DIR_WORD;
     
     iso_dir = boot_dir;
+    file.fs = fs;
     iso_searchdir(boot_dir, &file);         /* search for /boot/isolinux */
     if ( !file.file_len ) {
         iso_dir = isolinux_dir;
