@@ -15,4 +15,7 @@
 	; fs.c
 	extern fs_init, searchdir, getfssec, mangle_name, load_config
 
+        ; fat.c
+        extern alloc_fill_dir, readdir
+
 %endif ; EXTERN_INC

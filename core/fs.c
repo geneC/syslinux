@@ -54,9 +54,9 @@ void getfssec(com32sys_t *regs)
 
 void searchdir(com32sys_t *regs)
 {
-    char *filename = (char *)MK_PTR(regs->ds, regs->edi.w[0]);
+    char *filename = (char *)MK_PTR(regs->ds, regs->edi.w[0]);;
     struct file file;
-
+        
 #if 0    
     printf("filename: %s\n", filename);
 #endif
@@ -117,8 +117,9 @@ struct device * device_init(uint8_t devno, bool cdrom, sector_t part_start,
      * it correctly.
      *
      */    
-    if ( USE_CACHE(dev.disk->disk_number) ) {
-        /* I can't use __lowmem here, 'cause it will cause the error:
+    if (!cdrom) {
+        /* FIX!! 
+           I can't use __lowmem here, 'cause it will cause the error:
            "auxseg/lowmem region collides with xfer_buf_seg" */
         //static __lowmem char cache_buf[65536];
         dev.cache_data = core_cache_buf;

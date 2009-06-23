@@ -911,7 +911,7 @@ comapi_opendir:
 		cmp eax,0
 		jz comapi_err	; Found nothing
 			;ZF is unset
-		call alloc_fill_dir
+		pm_call alloc_fill_dir
 		mov P_EAX,eax
 		mov P_CX,SECTOR_SIZE
 		mov P_SI,si
@@ -929,7 +929,7 @@ comapi_readdir:
 		mov es,P_ES
 		mov di,P_DI
 		mov si,P_SI
-		call readdir
+		pm_call readdir
 		mov P_EAX,eax
 		mov P_DL,dl
 		mov P_EBX,ebx
