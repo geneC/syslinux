@@ -751,6 +751,9 @@ void ext2_load_config(com32sys_t *regs)
  */
 int ext2_fs_init(struct fs_info *fs)
 {
+#if 1
+    printf("super block@: %p\n", &sb);
+#endif
     /* read the super block */
     fs->fs_dev->disk->rdwr_sectors(fs->fs_dev->disk, (void *)&sb, 2, 2, 0);
     

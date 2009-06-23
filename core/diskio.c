@@ -229,6 +229,10 @@ void dump_disk(struct disk *disk)
     printf("offset: %d\n", disk->part_start);
     printf("%s\n", disk->rdwr_sectors == edd_rdwr_sectors ? "EDD_RDWR_SECTORS" :
            "CHS_RDWR_SECTORS");
+    printf("--------------------------------\n");
+    printf("disk->rdwr_sectors@: %p\n", disk->rdwr_sectors);
+    printf("edd_rdwr_sectors  @: %p\n", edd_rdwr_sectors);
+    printf("chs_rdwr_sectors  @: %p\n", chs_rdwr_sectors);
 }
 
 struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
