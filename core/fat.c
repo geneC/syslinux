@@ -297,7 +297,7 @@ static void __getfssec(struct fs_info *fs, char *buf, struct open_file_t *file, 
 #endif  
                         
         /* do read */
-        read_sectors(buf, frag_start, con_sec_cnt);
+        fs->fs_dev->disk->rdwr_sectors(fs->fs_dev->disk, (void *)buf, frag_start, con_sec_cnt, 0);
         buf += con_sec_cnt << 9;/* adjust buffer pointer */
         
         if ( !sectors )
@@ -871,7 +871,7 @@ void vfat_load_config(com32sys_t *regs)
      * we use the ConfigName to pass the config path because
      * it is under the address 0xffff
      */
-    regs->edi.w[0] = ConfigName;
+    regs->edi.w[0] = OFFS_WRT(ConfigName, 0);
     for (; i < 3; i++) {
         strcpy(ConfigName, syslinux_cfg[i]);
         memset(&oregs, 0, sizeof oregs);
@@ -901,14 +901,14 @@ static inline void bsr(uint8_t *res, int num)
 }
 
 /* init. the fs meta data, return the block size in bits */
-int vfat_fs_init()
+int vfat_fs_init(struct fs_info *fs)
 {
     int   sectors_per_fat; 
     uint32_t clust_num;
     int RootDirSize;
     
     /* get the fat bpb information */
-    read_sectors((char *)&fat, 0, 1);
+    fs->fs_dev->disk->rdwr_sectors(fs->fs_dev->disk, (void *)&fat, 0, 1, 0);
     
     TotalSectors = fat.bxSectors ? : fat.bsHugeSectors;
     FAT = fat.bxResSectors;
