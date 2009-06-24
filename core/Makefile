@@ -82,11 +82,9 @@ kwdhash.gen: keywords genhash.pl
 	$(PREPCORE) $< $@
 
 %.o: %.asm kwdhash.gen ../version.gen
-	( $(NASM) -f elf $(NASMOPT) -M -DDEPEND $(NINCLUDE) \
-	  -o $@ $< ; echo '' ) > .$@.d; true
 	$(NASM) -f elf $(NASMOPT) -DDATE_STR="'$(DATE)'" \
 		-DHEXDATE="$(HEXDATE)" \
-		-l $(@:.o=.lsr) -o $@ $<
+		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
 
 %.elf: %.o $(LIBS) syslinux.ld
 	$(LD) $(LDFLAGS) -T syslinux.ld -M -o $@ $< $(LIBS) > $(@:.elf=.map)
