@@ -32,7 +32,7 @@ BOOTDIR	    = /boot
 EXTLINUXDIR = $(BOOTDIR)/extlinux
 
 NASM	 = nasm
-NASMOPT  = -O9999
+NASMOPT  = -Ox
 
 PERL	 = perl
 UPX	 = upx
