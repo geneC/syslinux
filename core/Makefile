@@ -53,7 +53,7 @@ LIB	 = libcore.a
 LIBS	 = $(LIB) $(com32)/lib/libcom32.a $(LIBGCC)
 LIBOBJS	 = $(COBJ) $(SOBJ)
 
-NASMDEBUG = -g -F stabs
+NASMDEBUG = -g -F dwarf
 NASMOPT  += $(NASMDEBUG)
 
 PREPCORE = ../lzo/prepcore
