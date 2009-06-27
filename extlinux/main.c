@@ -130,8 +130,6 @@ static const char short_options[] = "iUuzS:H:rvho:O";
 #define EXT2_SUPER_OFFSET 1024
 #endif
 
-const char *program;
-
 /*
  * Boot block
  */
