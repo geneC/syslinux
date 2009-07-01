@@ -40,7 +40,7 @@ void rllpack(com32sys_t * regs)
     uint8_t *hdr = NULL;
     uint8_t c;
 
-    vrun = (size_t) - 1;
+    vrun = (size_t)-1;
     while (cnt) {
 	c = *i;
 
@@ -66,15 +66,15 @@ void rllpack(com32sys_t * regs)
 		*(uint16_t *) o = run + (224 << 8);
 	    }
 	    *--o = c;
-	    vrun = (size_t) - 1;
+	    vrun = (size_t)-1;
 	    i += run;
 	    cnt -= run;
 	}
     }
     *--o = 0;
 
-    regs->esi.l = (size_t) i;
-    regs->edi.l = (size_t) o;
+    regs->esi.l = (size_t)i;
+    regs->edi.l = (size_t)o;
 }
 
 void rllunpack(com32sys_t * regs)
@@ -99,7 +99,7 @@ void rllunpack(com32sys_t * regs)
 	}
     }
 
-    regs->esi.l = (size_t) i;
-    regs->ecx.l = (size_t) o - regs->edi.l;
-    regs->edi.l = (size_t) o;
+    regs->esi.l = (size_t)i;
+    regs->ecx.l = (size_t)o - regs->edi.l;
+    regs->edi.l = (size_t)o;
 }
