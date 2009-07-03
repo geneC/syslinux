@@ -26,7 +26,7 @@ void *realloc(void *ptr, size_t size)
 	((struct arena_header *)ptr - 1);
 
     /* Actual size of the old block */
-    oldsize = ah->a.size;
+    oldsize = ARENA_SIZE_GET(ah->a.attrs);
 
     /* Add the obligatory arena header, and round up */
     newsize = (size + 2 * sizeof(struct arena_header) - 1) & ARENA_SIZE_MASK;
@@ -38,26 +38,28 @@ void *realloc(void *ptr, size_t size)
     } else {
 	xsize = oldsize;
 
-	nah = ah->a.next;
-	if ((char *)nah == (char *)ah + ah->a.size &&
-	    nah->a.type == ARENA_TYPE_FREE &&
-	    oldsize + nah->a.size >= newsize) {
-	    /* Merge in subsequent free block */
-	    ah->a.next = nah->a.next;
-	    ah->a.next->a.prev = ah;
-	    nah->next_free->prev_free = nah->prev_free;
-	    nah->prev_free->next_free = nah->next_free;
-	    xsize = (ah->a.size += nah->a.size);
-	}
+        nah = ah->a.next;
+        if ((char *)nah == (char *)ah + ARENA_SIZE_GET(ah->a.attrs) &&
+	        ARENA_TYPE_GET(nah->a.attrs) == ARENA_TYPE_FREE &&
+	        oldsize + ARENA_SIZE_GET(nah->a.attrs) >= newsize) {
+            /* Merge in subsequent free block */
+            ah->a.next = nah->a.next;
+            ah->a.next->a.prev = ah;
+            nah->next_free->prev_free = nah->prev_free;
+            nah->prev_free->next_free = nah->next_free;
+            xsize = (ARENA_SIZE_SET(ah->a.attrs, ARENA_SIZE_GET(ah->a.attrs) +
+    		  ARENA_SIZE_GET(nah->a.attrs)));
+        }
 
-	if (xsize >= newsize) {
-	    /* We can reallocate in place */
-	    if (xsize >= newsize + 2 * sizeof(struct arena_header)) {
-		/* Residual free block at end */
-		nah = (struct free_arena_header *)((char *)ah + newsize);
-		nah->a.type = ARENA_TYPE_FREE;
-		nah->a.size = xsize - newsize;
-		ah->a.size = newsize;
+        if (xsize >= newsize) {
+            /* We can reallocate in place */
+            if (xsize >= newsize + 2*sizeof(struct arena_header)) {
+	        /* Residual free block at end */
+	        nah = (struct free_arena_header *)((char *)ah + newsize);
+	        ARENA_TYPE_SET(nah->a.attrs, ARENA_TYPE_FREE);
+	        ARENA_SIZE_SET(nah->a.attrs, xsize - newsize);
+	        nah->a.tag = NULL;
+	        ARENA_SIZE_SET(ah->a.attrs, newsize);
 
 		/* Insert into block list */
 		nah->a.next = ah->a.next;
@@ -81,18 +83,20 @@ void *realloc(void *ptr, size_t size)
 		    __malloc_head.next_free = nah;
 		    nah->next_free->prev_free = nah;
 		}
-	    }
-	    /* otherwise, use up the whole block */
-	    return ptr;
-	} else {
-	    /* Last resort: need to allocate a new block and copy */
-	    oldsize -= sizeof(struct arena_header);
-	    newptr = malloc(size);
-	    if (newptr) {
-		memcpy(newptr, ptr, min(size, oldsize));
-		free(ptr);
-	    }
-	    return newptr;
-	}
+            }
+            /* otherwise, use up the whole block */
+            return ptr;
+        } else {
+            /* Last resort: need to allocate a new block and copy */
+            oldsize -= sizeof(struct arena_header);
+            newptr = malloc(size);
+            if (newptr) {
+	        memcpy(newptr, ptr, min(size,oldsize));
+	        /* Retain tag from the old block */
+	        __mem_set_tag(newptr, __mem_get_tag(ptr));
+	        free(ptr);
+            }
+            return newptr;
+        }
     }
 }

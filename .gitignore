@@ -22,6 +22,7 @@
 *.sec
 *.sys
 *_bin.c
+*.dyn
 *~
 \#*
 .\#*
@@ -39,3 +40,6 @@
 /utils/mkdiskimage
 /version.h
 /version.mk
+/.cproject
+/.project
+/exttest

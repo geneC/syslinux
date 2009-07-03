@@ -14,33 +14,40 @@
 #define MALLOC_CHUNK_SIZE	65536
 #define MALLOC_CHUNK_MASK       (MALLOC_CHUNK_SIZE-1)
 
+
+struct free_arena_header;
+
 /*
  * This structure should be a power of two.  This becomes the
  * alignment unit.
  */
-struct free_arena_header;
-
 struct arena_header {
-    size_t type;
-    size_t size;		/* Also gives the location of the next entry */
+    void *tag;
+    size_t attrs;			/* Bits 0..1: Type, 2..3: Unused, 4..31: MSB of the size  */
     struct free_arena_header *next, *prev;
 };
 
+
+#define ARENA_TYPE_USED 0x0
+#define ARENA_TYPE_FREE 0x1
+#define ARENA_TYPE_HEAD 0x2
 #ifdef DEBUG_MALLOC
-#define ARENA_TYPE_USED 0x64e69c70
-#define ARENA_TYPE_FREE 0x012d610a
-#define ARENA_TYPE_HEAD 0x971676b5
-#define ARENA_TYPE_DEAD 0xeeeeeeee
-#else
-#define ARENA_TYPE_USED 0
-#define ARENA_TYPE_FREE 1
-#define ARENA_TYPE_HEAD 2
+#define ARENA_TYPE_DEAD 0x3
 #endif
 
 #define ARENA_SIZE_MASK (~(uintptr_t)(sizeof(struct arena_header)-1))
+#define ARENA_TYPE_MASK	((size_t)0x3)
 
 #define ARENA_ALIGN_UP(p)	((char *)(((uintptr_t)(p) + ~ARENA_SIZE_MASK) & ARENA_SIZE_MASK))
 #define ARENA_ALIGN_DOWN(p)	((char *)((uintptr_t)(p) & ARENA_SIZE_MASK))
+
+#define ARENA_SIZE_GET(attrs)	((attrs) & ARENA_SIZE_MASK)
+#define ARENA_TYPE_GET(attrs)	((attrs) & ARENA_TYPE_MASK)
+
+#define ARENA_SIZE_SET(attrs, size)	\
+	((attrs) = ((size) & ARENA_SIZE_MASK) | ((attrs) & ~ARENA_SIZE_MASK))
+#define ARENA_TYPE_SET(attrs, type) \
+	((attrs) = ((attrs) & ~ARENA_TYPE_MASK) | ((type) & ARENA_TYPE_MASK))
 
 /*
  * This structure should be no more than twice the size of the
