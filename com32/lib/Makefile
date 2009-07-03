@@ -151,7 +151,9 @@ LIBOTHER_OBJS = \
 	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o		\
 	pci/writeb.o pci/writew.o pci/writel.o pci/writebios.o		\
 	\
-	sys/x86_init_fpu.o math/pow.o math/strtod.o
+	sys/x86_init_fpu.o math/pow.o math/strtod.o			\
+	\
+	syslinux/memscan.o
 	
 MINLIBOBJS = \
 	$(LIBOTHER_OBJS) \

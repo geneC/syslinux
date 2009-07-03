@@ -64,7 +64,7 @@ static int consider_memory_area(void *dummy, addr_t start,
 
 	    if (len >= 2 * sizeof(struct arena_header)) {
 		fp = (struct free_arena_header *)start;
-		fp->a.size = len;
+		ARENA_SIZE_SET(fp->a.attrs, len);
 		__inject_free_block(fp);
 	    }
 	}
