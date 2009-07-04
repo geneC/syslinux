@@ -417,6 +417,7 @@ static int extract_operations(struct elf_module *module) {
 		module->main_func = NULL;
 	}
 
+
 	return 0;
 }
 
@@ -468,8 +469,11 @@ int module_load(struct elf_module *module) {
 	// The file image is no longer needed
 	image_unload(module);
 
-	DBG_PRINT("MODULE %s LOADED SUCCESSFULLY (init@0x%08X, exit@0x%08X)\n",
-			module->name, *(module->init_func), *(module->exit_func));
+	DBG_PRINT("MODULE %s LOADED SUCCESSFULLY (main@0x%08X, init@0x%08X, exit@0x%08X)\n",
+			module->name,
+			(module->main_func == NULL) ? NULL : *(module->main_func),
+			(module->init_func == NULL) ? NULL : *(module->init_func),
+			(module->exit_func == NULL) ? NULL : *(module->exit_func));
 
 	return 0;
 

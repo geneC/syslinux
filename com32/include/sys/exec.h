@@ -9,6 +9,7 @@
 #define EXEC_H_
 
 #include <sys/module.h>
+#include <stdlib.h>
 
 /**
  * EXEC_ROOT_NAME - The name of the ELF module associated with the COM32 module.
@@ -41,7 +42,7 @@
  *  loaded by the lower module layer gets to be executed by the CPU,
  *  thus becoming part of the SYSLINUX environment.
  */
-extern int exec_init();
+extern int exec_init(size_t root_addr);
 
 
 /**

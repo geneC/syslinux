@@ -115,8 +115,29 @@ out:
 	return res;
 }
 
+static int offset_symbols(struct elf_module *module, Elf32_Off offset) {
+	unsigned int i;
+	Elf32_Sym *crt_sym = NULL;
 
-int module_load_shallow(struct elf_module *module) {
+	for (i = 1; i < module->symtable_size; i++) {
+		crt_sym = (Elf32_Sym*)(module->sym_table + i*module->syment_size);
+
+		// Skip the undefined or absolute symbols
+		if (crt_sym->st_shndx == SHN_UNDEF || crt_sym->st_shndx == SHN_ABS)
+			continue;
+		// Also skip the non-local symbols
+		if (ELF32_ST_BIND(crt_sym->st_info) != STB_GLOBAL &&
+				ELF32_ST_BIND(crt_sym->st_info) != STB_WEAK)
+			continue;
+
+		crt_sym->st_value += offset;
+	}
+
+	return 0;
+}
+
+
+int module_load_shallow(struct elf_module *module, Elf32_Off offset) {
 	int res;
 	Elf32_Ehdr elf_hdr;
 
@@ -142,6 +163,8 @@ int module_load_shallow(struct elf_module *module) {
 
 	// Check the symbols for duplicates / missing definitions
 	CHECKED(res, check_symbols(module), error);
+
+	CHECKED(res, offset_symbols(module, offset), error);
 
 	// Add the module at the beginning of the module list
 	list_add(&module->list, &modules_head);

@@ -30,7 +30,7 @@ static char *module_get_fullname(const char *name) {
 	return name_buff;
 }
 
-int exec_init() {
+int exec_init(size_t root_addr) {
 	int res;
 
 	res = modules_init();
@@ -44,7 +44,7 @@ int exec_init() {
 	if (mod_root == NULL)
 		return -1;
 
-	res = module_load_shallow(mod_root);
+	res = module_load_shallow(mod_root, root_addr);
 
 	if (res != 0) {
 		mod_root = NULL;

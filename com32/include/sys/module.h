@@ -229,7 +229,7 @@ extern int module_load(struct elf_module *module);
  * Its current use is to describe the root COM32 module to the rest of the
  * module subsystem.
  */
-extern int module_load_shallow(struct elf_module *module);
+extern int module_load_shallow(struct elf_module *module, Elf32_Off offset);
 
 /**
  * module_unload - unloads the module from the system.
