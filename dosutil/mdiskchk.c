@@ -58,12 +58,12 @@ struct memdiskinfo *query_memdisk(int drive)
 
     __asm {
 	.386;
-	mov eax, 454 d0800h;
-	mov ecx, 444 d0000h;
-	mov edx, 53490000 h;
+	mov eax, 454d0800h;
+	mov ecx, 444d0000h;
+	mov edx, 53490000h;
 	mov dl, _dl;
-	mov ebx, 3f 4 b0000h;
-	int 13 h;
+	mov ebx, 3f4b0000h;
+	int 13h;
 	mov _eax, eax;
 	mov _ecx, ecx;
 	mov _edx, edx;
@@ -99,21 +99,20 @@ const char *bootloadername(uint8_t id)
 	uint8_t id, mask;
 	const char *name;
     } *lp, list[] = {
-	{
-	0x00, 0xf0, "LILO"}, {
-	0x10, 0xf0, "LOADLIN"}, {
-	0x31, 0xff, "SYSLINUX"}, {
-	0x32, 0xff, "PXELINUX"}, {
-	0x33, 0xff, "ISOLINUX"}, {
-	0x34, 0xff, "EXTLINUX"}, {
-	0x30, 0xf0, "SYSLINUX family"}, {
-	0x40, 0xf0, "Etherboot"}, {
-	0x50, 0xf0, "ELILO"}, {
-	0x70, 0xf0, "GrUB"}, {
-	0x80, 0xf0, "U-Boot"}, {
-	0xA0, 0xf0, "Gujin"}, {
-	0xB0, 0xf0, "Qemu"}, {
-	0x00, 0x00, "unknown"}
+	{0x00, 0xf0, "LILO"}, 
+	{0x10, 0xf0, "LOADLIN"},
+	{0x31, 0xff, "SYSLINUX"},
+	{0x32, 0xff, "PXELINUX"},
+	{0x33, 0xff, "ISOLINUX"},
+	{0x34, 0xff, "EXTLINUX"},
+	{0x30, 0xf0, "SYSLINUX family"},
+	{0x40, 0xf0, "Etherboot"},
+	{0x50, 0xf0, "ELILO"},
+	{0x70, 0xf0, "GrUB"},
+	{0x80, 0xf0, "U-Boot"},
+	{0xA0, 0xf0, "Gujin"},
+	{0xB0, 0xf0, "Qemu"},
+	{0x00, 0x00, "unknown"}
     };
 
     for (lp = list;; lp++) {
