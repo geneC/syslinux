@@ -1,18 +1,30 @@
 #
 # OpenWatcom compile and link utility
 #
-WCL           = wcl
-WCLOPT_DOSCOM = -3 -osx -mt -bt=DOS -l=COM
+WCL	= wcl
+WCLOPT	= -6 -osx -mt -bt=DOS -l=COM
 
-UPX           = upx
+UPX     = upx
 
-%.com: %.c
-	$(WCL) $(WCLOPT_DOSCOM) -fe=$@ $<
+TARGETS = mdiskchk.com
+
+%.obj: %.c
+	$(WCL) $(WCLOPT) -c -fo=$@ $<
+
+%.com: %.obj
+	$(WCL) $(WCLOPT) -fe=$@ $<
 	$(UPX) --ultra-brute --lzma $@ || \
 		$(UPX) --ultra-brute $@ || \
 		true
 
-all: mdiskchk.com
+all: $(TARGETS)
 
-clean:
-	rm -f *.o *.obj *.com *.sys
+tidy dist:
+	-rm -f *.obj *.o
+
+clean: tidy
+
+spotless: clean
+	-rm -f *.com *.sys *~
+
+
