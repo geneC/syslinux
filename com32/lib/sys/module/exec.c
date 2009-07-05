@@ -11,6 +11,9 @@
 #include <string.h>
 #include <stdarg.h>
 
+// The symbol declared in the linker script that indicates the loading point
+// of the COM32R module
+extern char _start[];
 
 
 #define DBG_PRINT(fmt, args...)	fprintf(stderr, "[EXEC] " fmt, ##args)
@@ -30,7 +33,7 @@ static char *module_get_fullname(const char *name) {
 	return name_buff;
 }
 
-int exec_init(size_t root_addr) {
+int exec_init() {
 	int res;
 
 	res = modules_init();
@@ -44,7 +47,7 @@ int exec_init(size_t root_addr) {
 	if (mod_root == NULL)
 		return -1;
 
-	res = module_load_shallow(mod_root, root_addr);
+	res = module_load_shallow(mod_root, (Elf32_Addr)_start);
 
 	if (res != 0) {
 		mod_root = NULL;

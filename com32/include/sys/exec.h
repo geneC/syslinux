@@ -42,7 +42,7 @@
  *  loaded by the lower module layer gets to be executed by the CPU,
  *  thus becoming part of the SYSLINUX environment.
  */
-extern int exec_init(size_t root_addr);
+extern int exec_init();
 
 
 /**

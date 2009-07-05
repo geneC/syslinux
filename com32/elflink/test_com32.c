@@ -8,8 +8,6 @@
 
 #define INFO_PRINT(fmt, args...)	printf("[COM32] " fmt, ##args)
 
-#define COM32_OFFSET		0x110000
-
 #define MAX_COMMAND_SIZE 	80					 // Maximum size of the cmd line
 #define COMMAND_DELIM		" \t\n"				 // Whitespace delimiters
 #define MAX_COMMAND_ARGS	(MAX_COMMAND_SIZE/2) // Maximum argument count for
@@ -181,7 +179,7 @@ int main(int argc, char **argv) {
 	// Open a standard r/w console
 	openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
-	res = exec_init(COM32_OFFSET);
+	res = exec_init();
 	if (res != 0) {
 		printf("Failed to initialize the execution environment.\n");
 		return res;
