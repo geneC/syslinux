@@ -17,12 +17,7 @@
  * This is a shallow ELF module, that contains only the symbol table for
  * the code and data sections of the loaded COM32 root module.
  */
-#define EXEC_ROOT_NAME			"_root_.dyn"
-
-/**
- * EXEC_DIRECTORY - The base path for all dynamic linked modules.
- */
-#define EXEC_DIRECTORY		"/dyn/"
+#define EXEC_ROOT_NAME			"_root_.c32"
 
 /**
  * exec_init - Initialize the dynamic execution environment.
@@ -48,7 +43,7 @@ extern int exec_init();
 /**
  * load_library - Loads a dynamic library into the environment.
  * @name: 	the name of the library to load, including the extension
- * 			(e.g. 'sort.dyn')
+ * 			(e.g. 'sort.c32')
  *
  * A dynamic library is an ELF module that may contain initialization and
  * termination routines, but not a main routine. At the same time, any memory
@@ -61,7 +56,7 @@ extern int load_library(const char *name);
 /**
  * unload_library - unloads a library from the environment.
  * @name:	the name of the library to unload, including the extension
- * 			(e.g. 'sort.dyn')
+ * 			(e.g. 'sort.c32')
  *
  * Note that no memory allocated by the library code is cleaned up, as the
  * allocations belong to the innermost calling program in the call stack.
@@ -71,7 +66,7 @@ extern int unload_library(const char *name);
 /**
  * spawnv - Executes a program in the current environment.
  * @name:	the name of the program to spawn, including the extension
- * 			(e.g. 'hello.dyn')
+ * 			(e.g. 'hello.c32')
  * @argv:	a NULL-terminated vector of string arguments, starting with
  * 			the program name.
  *
@@ -94,7 +89,7 @@ extern int spawnv(const char *name, const char **argv);
 /**
  * spawnl - Executes a program in the current environment.
  * @name:	the name of the program to spawn, including the extension
- * 			(e.g. 'hello.dyn')
+ * 			(e.g. 'hello.c32')
  * @arg:	the first argument (argv[0]) to be passed to the main function
  * 			of the program
  * @...:	optional subsequent arguments that are passed o the main function

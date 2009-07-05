@@ -18,7 +18,7 @@
  * The maximum length of the module file name (including path), stored
  * in the struct module descriptor.
  */
-#define MODULE_NAME_SIZE		64
+#define MODULE_NAME_SIZE		256
 
 /*
  * Initialization and finalization function signatures

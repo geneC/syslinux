@@ -183,7 +183,7 @@ AUXDIR   = $(DATADIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-all: libcom32.a libcom32min.a klibc.dyn
+all: libcom32.a libcom32min.a klibc.c32
 
 libcom32.a : $(LIBOBJS)
 	rm -f $@
@@ -196,7 +196,7 @@ libcom32min.a : $(MINLIBOBJS)
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
-klibc.dyn : $(DYNLIBOBJS)
+klibc.c32 : $(DYNLIBOBJS)
 	rm -f $@
 	$(LD) -shared -T elf32.ld -o $@ $(DYNLIBOBJS)
 
@@ -206,7 +206,7 @@ tidy dist:
 		xargs -0r rm -f
 
 clean: tidy
-	rm -f *.a *.dyn
+	rm -f *.a
 
 spotless: clean
 	rm -f *.a

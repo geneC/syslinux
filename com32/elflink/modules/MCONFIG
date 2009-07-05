@@ -35,7 +35,7 @@ LNXCFLAGS  = -I$(com32)/libutil/include -W -Wall -O -g -D_GNU_SOURCE
 LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 
-.SUFFIXES: .lss .c .o .dyn
+.SUFFIXES: .lss .c .o
 
 .PRECIOUS: %.o
 %.o: %.S
@@ -44,10 +44,6 @@ LNXLDFLAGS = -g
 .PRECIOUS: %.o
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
-	
-.PRECIOUS: %.dyn
-%.dyn: %.o $(LIBS)
-	$(LD) $(LDFLAGS) -o $@ $^
 
 .PRECIOUS: %.lo
 %.lo: %.S

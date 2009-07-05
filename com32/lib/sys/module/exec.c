@@ -21,18 +21,6 @@ extern char _start[];
 
 static struct elf_module    *mod_root = NULL;
 
-static char *module_get_fullname(const char *name) {
-	static char name_buff[MODULE_NAME_SIZE];
-
-	if (name == NULL)
-		return NULL;
-
-	strcpy(name_buff, EXEC_DIRECTORY);
-	strcat(name_buff, name);
-
-	return name_buff;
-}
-
 int exec_init() {
 	int res;
 
@@ -42,7 +30,7 @@ int exec_init() {
 		return res;
 
 	// Load the root module
-	mod_root = module_alloc(module_get_fullname(EXEC_ROOT_NAME));
+	mod_root = module_alloc(EXEC_ROOT_NAME);
 
 	if (mod_root == NULL)
 		return -1;
@@ -59,7 +47,7 @@ int exec_init() {
 
 int load_library(const char *name) {
 	int res;
-	struct elf_module *module = module_alloc(module_get_fullname(name));
+	struct elf_module *module = module_alloc(name);
 
 	if (module == NULL)
 		return -1;
@@ -95,7 +83,7 @@ int load_library(const char *name) {
 
 int unload_library(const char *name) {
 	int res;
-	struct elf_module *module = module_find(module_get_fullname(name));
+	struct elf_module *module = module_find(name);
 
 	if (module == NULL)
 		return -1;
@@ -116,7 +104,7 @@ int unload_library(const char *name) {
 int spawnv(const char *name, const char **argv) {
 	int res, ret_val = 0;
 
-	struct elf_module *module = module_alloc(module_get_fullname(name));
+	struct elf_module *module = module_alloc(name);
 
 	if (module == NULL)
 		return -1;

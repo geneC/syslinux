@@ -13,23 +13,23 @@
 topdir = ../../..
 include MCONFIG
 
-MODULES	  = hello.dyn sort.dyn
+MODULES	  = hello.c32 sort.c32
 
 TESTFILES =
 
 all: $(MODULES) $(TESTFILES)
 	
-hello.dyn : hello.o
+hello.c32 : hello.o
 	$(LD) $(LDFLAGS) -o $@ $^
 	
-sort.dyn : sort.o
+sort.c32 : sort.o
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:
 	rm -f *.o *.lo *.a *.lst .*.d 
 
 clean: tidy
-	rm -f *.lss *.lnx *.com *.dyn
+	rm -f *.lss *.lnx *.com
 
 spotless: clean
 	rm -f *~ \#*
