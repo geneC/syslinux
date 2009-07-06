@@ -167,7 +167,8 @@ void *malloc(size_t size)
     return NULL;		/* No kernel to get stuff from */
 }
 
-int posix_memalign(void **memptr, size_t alignment, size_t size) {
+int posix_memalign(void **memptr, size_t alignment, size_t size)
+{
 	struct free_arena_header *fp, *nfp;
 	uintptr_t align_mask, align_addr;
 
@@ -248,7 +249,7 @@ int posix_memalign(void **memptr, size_t alignment, size_t size) {
 	return 0;
 }
 
-void *__mem_get_tag_global() {
+void *__mem_get_tag_global(void) {
 	return __global_tag;
 }
 

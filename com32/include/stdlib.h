@@ -45,7 +45,7 @@ __extern int posix_memalign(void **memptr, size_t alignment,
 __extern void free(void *);
 
 
-__extern void *__mem_get_tag_global();
+__extern void *__mem_get_tag_global(void);
 __extern void __mem_set_tag_global(void *tag);
 
 __extern void *__mem_get_tag(void *memptr);

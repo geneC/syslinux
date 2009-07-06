@@ -37,7 +37,7 @@
  *  loaded by the lower module layer gets to be executed by the CPU,
  *  thus becoming part of the SYSLINUX environment.
  */
-extern int exec_init();
+extern int exec_init(void);
 
 
 /**
@@ -103,7 +103,7 @@ extern int spawnl(const char *name, const char *arg, ...);
 /**
  * exec_term - Releases the resources of the execution environment.
  */
-extern void exec_term();
+extern void exec_term(void);
 
 
 #endif /* EXEC_H_ */

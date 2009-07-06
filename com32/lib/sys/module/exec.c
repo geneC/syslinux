@@ -21,7 +21,8 @@ extern char _start[];
 
 static struct elf_module    *mod_root = NULL;
 
-int exec_init() {
+int exec_init(void)
+{
 	int res;
 
 	res = modules_init();
@@ -45,7 +46,8 @@ int exec_init() {
 	return 0;
 }
 
-int load_library(const char *name) {
+int load_library(const char *name)
+{
 	int res;
 	struct elf_module *module = module_alloc(name);
 
@@ -81,7 +83,8 @@ int load_library(const char *name) {
 	return 0;
 }
 
-int unload_library(const char *name) {
+int unload_library(const char *name)
+{
 	int res;
 	struct elf_module *module = module_find(name);
 
@@ -101,7 +104,8 @@ int unload_library(const char *name) {
 	return res;
 }
 
-int spawnv(const char *name, const char **argv) {
+int spawnv(const char *name, const char **argv)
+{
 	int res, ret_val = 0;
 
 	struct elf_module *module = module_alloc(name);
@@ -148,7 +152,8 @@ int spawnv(const char *name, const char **argv) {
 	return ((unsigned int)ret_val & 0xFF);
 }
 
-int spawnl(const char *name, const char *arg, ...) {
+int spawnl(const char *name, const char *arg, ...)
+{
 	/*
 	 * NOTE: We assume the standard ABI specification for the i386
 	 * architecture. This code may not work if used in other
@@ -160,6 +165,7 @@ int spawnl(const char *name, const char *arg, ...) {
 }
 
 
-void exec_term() {
+void exec_term(void)
+{
 	modules_term();
 }
