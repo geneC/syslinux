@@ -44,23 +44,30 @@ __extern int posix_memalign(void **memptr, size_t alignment,
 
 __extern void free(void *);
 
+__extern void *__malloc_global_tag;
 
-__extern void *__mem_get_tag_global(void);
-__extern void __mem_set_tag_global(void *tag);
-
-__extern void *__mem_get_tag(void *memptr);
-__extern void __mem_set_tag(void *memptr, void *tag);
-
-__extern void __free_tagged(void *tag);
-
-static __inline__ void *__malloc_tagged(size_t size, void *tag) {
-	void *result = malloc(size);
-	__mem_set_tag(result, tag);
-
-	return result;
+static __inline__ void *__mem_get_tag_global(void)
+{
+    return __malloc_global_tag;
 }
 
+static __inline__ void __mem_set_tag_global(void *__tag)
+{
+    __malloc_global_tag = __tag;
+}
 
+__extern void *__mem_get_tag(void *);
+__extern void __mem_set_tag(void *, void *);
+
+__extern void __free_tagged(void *);
+
+static __inline__ void *__malloc_tagged(size_t __size, void *__tag)
+{
+    void *__result = malloc(__size);
+    __mem_set_tag(__result, __tag);
+
+    return __result;
+}
 
 __extern long strtol(const char *, char **, int);
 __extern long long strtoll(const char *, char **, int);
