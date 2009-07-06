@@ -179,9 +179,11 @@ int posix_memalign(void **memptr, size_t alignment, size_t size)
 	if ((alignment & (alignment - 1)) != 0)
 		return EINVAL;
 
+#if 0
 	// POSIX says to refuse alignments smaller than sizeof(void*)
 	if (alignment % sizeof(void*) != 0)
 		return EINVAL;
+#endif
 
 	// The arena allocator can't handle alignments smaller than this
 	if (alignment < sizeof(struct arena_header)) {
