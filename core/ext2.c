@@ -446,6 +446,7 @@ void getlinsec_ext(struct fs_info *fs, char *buf,
                    sector_t sector, int sector_cnt)
 {
     int ext_cnt = 0;
+    struct disk *disk = fs->fs_dev->disk;
     
     if (sector < SecPerClust) {
         ext_cnt = SecPerClust - sector;
@@ -455,7 +456,7 @@ void getlinsec_ext(struct fs_info *fs, char *buf,
     
     sector += ext_cnt;
     sector_cnt -= ext_cnt;
-    fs->fs_dev->disk->rdwr_sectors(fs->fs_dev->disk, buf, sector, sector_cnt, 0);
+    disk->rdwr_sectors(disk, buf, sector, sector_cnt, 0);
 }
 
 /**
@@ -751,11 +752,12 @@ void ext2_load_config(com32sys_t *regs)
  */
 int ext2_fs_init(struct fs_info *fs)
 {
-#if 1
+    struct disk *disk = fs->fs_dev->disk;
+#if 0
     printf("super block@: %p\n", &sb);
 #endif
     /* read the super block */
-    fs->fs_dev->disk->rdwr_sectors(fs->fs_dev->disk, (void *)&sb, 2, 2, 0);
+    disk->rdwr_sectors(disk, (void *)&sb, 2, 2, 0);
     
     ClustByteShift = sb.s_log_block_size + 10;
     ClustSize = 1 << ClustByteShift;

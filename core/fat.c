@@ -273,6 +273,7 @@ static void __getfssec(struct fs_info *fs, char *buf, struct open_file_t *file, 
     sector_t curr_sector = file->file_sector;
     sector_t frag_start , next_sector;
     uint32_t con_sec_cnt;
+    struct disk *disk = fs->fs_dev->disk;
     
     while (sectors) {
         /* get fragment */
@@ -297,7 +298,7 @@ static void __getfssec(struct fs_info *fs, char *buf, struct open_file_t *file, 
 #endif  
                         
         /* do read */
-        fs->fs_dev->disk->rdwr_sectors(fs->fs_dev->disk, (void *)buf, frag_start, con_sec_cnt, 0);
+        disk->rdwr_sectors(disk, (void *)buf, frag_start, con_sec_cnt, 0);
         buf += con_sec_cnt << 9;/* adjust buffer pointer */
         
         if ( !sectors )
@@ -906,9 +907,10 @@ int vfat_fs_init(struct fs_info *fs)
     int   sectors_per_fat; 
     uint32_t clust_num;
     int RootDirSize;
+    struct disk *disk = fs->fs_dev->disk;
     
     /* get the fat bpb information */
-    fs->fs_dev->disk->rdwr_sectors(fs->fs_dev->disk, (void *)&fat, 0, 1, 0);
+    disk->rdwr_sectors(disk, (void *)&fat, 0, 1, 0);
     
     TotalSectors = fat.bxSectors ? : fat.bsHugeSectors;
     FAT = fat.bxResSectors;
@@ -921,8 +923,7 @@ int vfat_fs_init(struct fs_info *fs)
     bsr(&ClustShift, fat.bxSecPerClust);
     ClustByteShift = ClustShift + SECTOR_SHIFT;
     ClustMask = fat.bxSecPerClust - 1;
-    ClustSize = fat.bxSecPerClust << SECTOR_SHIFT;
-    
+    ClustSize = fat.bxSecPerClust << SECTOR_SHIFT;    
         
     clust_num = (TotalSectors - DataArea) >> ClustShift;
     if ( clust_num < 4085 )

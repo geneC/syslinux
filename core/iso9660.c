@@ -253,11 +253,12 @@ uint32_t iso_getfssec(struct fs_info *fs, char *buf,
 {
     uint32_t bytes_read = sectors << ISO_SECTOR_SHIFT;
     struct open_file_t *file = (struct open_file_t *)open_file;
+    struct disk *disk = fs->fs_dev->disk;
     
     if ( sectors > file->file_left )
         sectors = file->file_left;
     
-    fs->fs_dev->disk->rdwr_sectors(fs->fs_dev->disk, (void *)buf, file->file_sector, sectors, 0);
+    disk->rdwr_sectors(disk, (void *)buf, file->file_sector, sectors, 0);
     
     file->file_sector += sectors;
     file->file_left   -= sectors;
@@ -509,13 +510,13 @@ int iso_fs_init(struct fs_info *fs)
     char *iso_dir;
     char *boot_dir  = "/boot/isolinux";
     char *isolinux_dir = "/isolinux";
-   
+    int len;
+    int bi_pvd = 16;   
     struct file file;
     struct open_file_t *open_file;
-    int len;
-    int bi_pvd = 16;
+    struct disk *disk = fs->fs_dev->disk;
     
-    fs->fs_dev->disk->rdwr_sectors(fs->fs_dev->disk, (void*)trackbuf, bi_pvd, 1, 0);
+    disk->rdwr_sectors(disk, (void*)trackbuf, bi_pvd, 1, 0);
     
     CurrentDir.dir_lba = RootDir.dir_lba = *(uint32_t *)(trackbuf + 156 + 2);
     
