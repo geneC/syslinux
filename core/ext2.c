@@ -757,7 +757,7 @@ int ext2_fs_init(struct fs_info *fs)
     printf("super block@: %p\n", &sb);
 #endif
     /* read the super block */
-    disk->rdwr_sectors(disk, (void *)&sb, 2, 2, 0);
+    disk->rdwr_sectors(disk, &sb, 2, 2, 0);
     
     ClustByteShift = sb.s_log_block_size + 10;
     ClustSize = 1 << ClustByteShift;

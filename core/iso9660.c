@@ -258,7 +258,7 @@ uint32_t iso_getfssec(struct fs_info *fs, char *buf,
     if ( sectors > file->file_left )
         sectors = file->file_left;
     
-    disk->rdwr_sectors(disk, (void *)buf, file->file_sector, sectors, 0);
+    disk->rdwr_sectors(disk, buf, file->file_sector, sectors, 0);
     
     file->file_sector += sectors;
     file->file_left   -= sectors;
@@ -516,7 +516,7 @@ int iso_fs_init(struct fs_info *fs)
     struct open_file_t *open_file;
     struct disk *disk = fs->fs_dev->disk;
     
-    disk->rdwr_sectors(disk, (void*)trackbuf, bi_pvd, 1, 0);
+    disk->rdwr_sectors(disk, trackbuf, bi_pvd, 1, 0);
     
     CurrentDir.dir_lba = RootDir.dir_lba = *(uint32_t *)(trackbuf + 156 + 2);
     

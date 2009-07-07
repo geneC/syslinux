@@ -298,7 +298,7 @@ static void __getfssec(struct fs_info *fs, char *buf, struct open_file_t *file, 
 #endif  
                         
         /* do read */
-        disk->rdwr_sectors(disk, (void *)buf, frag_start, con_sec_cnt, 0);
+        disk->rdwr_sectors(disk, buf, frag_start, con_sec_cnt, 0);
         buf += con_sec_cnt << 9;/* adjust buffer pointer */
         
         if ( !sectors )
@@ -910,7 +910,7 @@ int vfat_fs_init(struct fs_info *fs)
     struct disk *disk = fs->fs_dev->disk;
     
     /* get the fat bpb information */
-    disk->rdwr_sectors(disk, (void *)&fat, 0, 1, 0);
+    disk->rdwr_sectors(disk, &fat, 0, 1, 0);
     
     TotalSectors = fat.bxSectors ? : fat.bsHugeSectors;
     FAT = fat.bxResSectors;
