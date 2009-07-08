@@ -21,7 +21,7 @@ EXTERN(_start)
 ENTRY(_start)
 
 STACK16_LEN =  4096;
-STACK32_LEN = 32768;
+STACK32_LEN = 65536;
 
 SECTIONS
 {
@@ -278,7 +278,7 @@ SECTIONS
 	__bss_len = __bss_end - __bss_start;
 	__bss_dwords = (__bss_len + 3) >> 2;
 
-	. = ALIGN(128);
+	. = ALIGN(65536);
 
 	/* XXX: This stack should be unified with the COM32 stack */
 	__stack_vma = .;
