@@ -260,6 +260,16 @@ SECTIONS
 
 	. = ALIGN(4);
 
+	__dynlink_vma = .;
+	__dynlink_lma = __dynlink_vma + __text_lma - __text_vma;
+	.dynlink : AT(__dynlink_lma) {
+		__dynlink_start = .;
+		*(.dynlink)
+		__dynlink_end = .;
+	}
+
+	. = ALIGN(4);
+
 	__got_vma = .;
 	__got_lma = __got_vma + __text_lma - __text_vma;
 	.got : AT(__got_lma) {
