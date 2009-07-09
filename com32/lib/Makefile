@@ -38,6 +38,7 @@ LIBOBJS = \
 	sys/entry.o sys/exit.o sys/argv.o sys/times.o			\
 	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
+	sys/openmem.o							\
 	sys/isatty.o sys/fstat.o					\
 	\
 	sys/zfile.o sys/zfopen.o					\
