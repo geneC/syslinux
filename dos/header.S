@@ -20,6 +20,21 @@ __header_start:
 		.short	0		/* Overlay number */
 		.short	0		/* Unknown/pad? */
 		.short	0		/* Unknown/pad? */
+		.short	0		/* Unknown/pad? */
+		.short	0		/* Unknown/pad? */
+		.short	0		/* Unknown/pad? */
+		.short	0		/* Unknown/pad? */
+		.short	0		/* Unknown/pad? */
+		.short	0		/* Unknown/pad? */
+		.short	0		/* Unknown/pad? */
+		.short	0		/* Unknown/pad? */
+		.short	0		/* Unknown/pad? */
+		.short	0		/* Unknown/pad? */
+		.short	0		/* Unknown/pad? */
+		.short	0		/* Unknown/pad? */
+		.short	0		/* Unknown/pad? */
+		.short	0		/* Unknown/pad? */
+		.long	0		/* Pointer to Windows PE header */
 __reloc:
 		.balign	512
 __header_end:
