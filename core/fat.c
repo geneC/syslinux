@@ -15,10 +15,9 @@
 
 /* file structure. This holds the information for each currently open file */
 struct open_file_t {
-        uint32_t file_sector;    /* sector pointer ( 0 = structure free ) */
+        sector_t file_sector;    /* sector pointer ( 0 = structure free ) */
         uint32_t file_bytesleft; /* number of bytes left */
         uint32_t file_left;      /* number of sectors left */
-        uint32_t pad;            /* padding */
 };
 
 extern char Files[MAX_OPEN * sizeof(struct open_file_t)];

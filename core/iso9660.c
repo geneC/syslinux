@@ -19,10 +19,9 @@
 
 
 struct open_file_t {
-        uint32_t file_sector;
+        sector_t file_sector;
         uint32_t file_bytesleft;
         uint32_t file_left;
-        uint32_t pad;
 };
 extern char Files[];
 

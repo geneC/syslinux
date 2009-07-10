@@ -8,9 +8,8 @@
 #define SECTOR_SHIFT     9
 #define SECTOR_SIZE      (1 << SECTOR_SHIFT)
 
-/* I do want it be simple for now */
-typedef uint32_t sector_t;
-typedef uint32_t block_t;
+typedef uint64_t sector_t;
+typedef uint64_t block_t;
 
 
 /*

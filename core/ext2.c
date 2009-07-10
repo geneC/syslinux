@@ -17,14 +17,14 @@
  * File structure, This holds the information for each currently open file 
  */
 struct open_file_t {
-        uint32_t file_bytesleft;  /* Number of bytes left (0 = free) */
-        uint32_t file_sector;     /* Next linear sector to read */
-        uint32_t file_in_sec;     /* Sector where inode lives */
-        uint16_t file_in_off;
-        uint16_t file_mode;
+    uint32_t file_bytesleft;  /* Number of bytes left (0 = free) */
+    uint32_t file_sector;     /* Next linear sector to read */
+    sector_t file_in_sec;     /* Sector where inode lives */
+    uint16_t file_in_off;
+    uint16_t file_mode;
 };
 
-extern char Files[MAX_OPEN * sizeof(struct open_file_t)];
+extern char Files[];
 struct ext2_inode this_inode;
 struct ext2_super_block sb;
 
@@ -253,7 +253,7 @@ ext4_find_leaf (struct fs_info *fs, struct ext4_extent_header *eh, block_t block
 {
     struct ext4_extent_idx *index;
     struct cache_struct *cs;
-    uint64_t blk;
+    block_t blk;
     int i;
     
     while (1) {        
@@ -282,12 +282,12 @@ ext4_find_leaf (struct fs_info *fs, struct ext4_extent_header *eh, block_t block
 }
 
 /* handle the ext4 extents to get the phsical block number */
-uint64_t linsector_extent(struct fs_info *fs, block_t block, struct ext2_inode *inode)
+block_t linsector_extent(struct fs_info *fs, block_t block, struct ext2_inode *inode)
 {
     struct ext4_extent_header *leaf;
     struct ext4_extent *ext;
     int i;
-    uint64_t start;
+    block_t start;
     
     leaf = ext4_find_leaf(fs, (struct ext4_extent_header*)inode->i_block, block);
     if (! leaf) {
@@ -326,7 +326,7 @@ uint64_t linsector_extent(struct fs_info *fs, block_t block, struct ext2_inode *
  *
  * @return: the physic block number
  */
-block_t linsector_direct(struct fs_info *fs, block_t block, struct ext2_inode *inode)
+block_t linsector_direct(struct fs_info *fs, uint32_t block, struct ext2_inode *inode)
 {
     struct cache_struct *cs;
     
@@ -341,7 +341,7 @@ block_t linsector_direct(struct fs_info *fs, block_t block, struct ext2_inode *i
         block_t ind_block = inode->i_block[EXT2_IND_BLOCK];
         cs = get_cache_block(fs->fs_dev, ind_block);
         
-        return ((block_t *)cs->data)[block];
+        return ((uint32_t *)cs->data)[block];
     }
     
     /* double indirect blocks */
@@ -350,10 +350,10 @@ block_t linsector_direct(struct fs_info *fs, block_t block, struct ext2_inode *i
         block_t dou_block = inode->i_block[EXT2_DIND_BLOCK];
         cs = get_cache_block(fs->fs_dev, dou_block);
         
-        dou_block = ((block_t *)cs->data)[block / PtrsPerBlock1];
+        dou_block = ((uint32_t *)cs->data)[block / PtrsPerBlock1];
         cs = get_cache_block(fs->fs_dev, dou_block);
         
-        return ((block_t*)cs->data)[block % PtrsPerBlock1];
+        return ((uint32_t*)cs->data)[block % PtrsPerBlock1];
     }
     
     /* triple indirect block */
@@ -362,10 +362,10 @@ block_t linsector_direct(struct fs_info *fs, block_t block, struct ext2_inode *i
         block_t tri_block = inode->i_block[EXT2_TIND_BLOCK];
         cs = get_cache_block(fs->fs_dev, tri_block);
         
-        tri_block = ((block_t *)cs->data)[block / PtrsPerBlock2];
+        tri_block = ((uint32_t *)cs->data)[block / PtrsPerBlock2];
         cs = get_cache_block(fs->fs_dev, tri_block);
         
-        tri_block = ((block_t *)cs->data)[block % PtrsPerBlock2];
+        tri_block = ((uint32_t *)cs->data)[block % PtrsPerBlock2];
         cs = get_cache_block(fs->fs_dev, tri_block);
 
         return ((uint32_t*)cs->data)[block % PtrsPerBlock1];
@@ -389,26 +389,27 @@ block_t linsector_direct(struct fs_info *fs, block_t block, struct ext2_inode *i
  * 
  * @return: physic sector number
  */
-sector_t linsector(struct fs_info *fs, sector_t lin_sector)
+sector_t linsector(struct fs_info *fs, uint32_t lin_sector)
 {
-    block_t block = lin_sector >> ClustShift;
+    uint32_t block = lin_sector >> ClustShift;
+    block_t ret;
     struct ext2_inode *inode;
 
     /* well, this is what I think the variable this_inode used for */
     inode = &this_inode;
 
     if (inode->i_flags & EXT4_EXTENTS_FLAG)
-        block = linsector_extent(fs, block, inode);
+        ret = linsector_extent(fs, block, inode);
     else
-        block = (uint32_t)linsector_direct(fs, block, inode);
+        ret = linsector_direct(fs, block, inode);
     
-    if (!block) {
+    if (!ret) {
         printf("ERROR: something error happend at linsector..\n");
         return 0;
     }
     
     /* finally convert it to sector */
-    return ((block << ClustShift) + (lin_sector & ClustMask));
+    return ((ret << ClustShift) + (lin_sector & ClustMask));
 }
 
 
