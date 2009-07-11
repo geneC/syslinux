@@ -3,8 +3,8 @@
 #include <console.h>
 #include <string.h>
 
-#include "module.h"
-#include "exec.h"
+#include <sys/module.h>
+#include <sys/exec.h>
 
 typedef void (*constructor_t)(void);
 constructor_t __ctors_start[], __ctors_end[];
@@ -12,22 +12,28 @@ constructor_t __ctors_start[], __ctors_end[];
 /*
 	call_constr: initializes sme things related
 */
-static void call_constr()
+void call_constr()
 {
 	constructor_t *p;
-	for (p = __ctors_start; p < __ctors_end; p++) (*p)();
+	printf("begin\n");
+	for (p = __ctors_start; p < __ctors_end; p++)
+	{
+		(*p)();
+	}
+	printf("end\n");
 }
 /* note to self: do _*NOT*_ use static key word on this function */
 void load_env32()
 {
-	/*char *screen;
+	char *screen;
     	screen = (char *)0xB8000;
 	*(screen+2) = 'Q';
-    	*(screen+3) = 0x1C;*/
+    	*(screen+3) = 0x1C;
 	openconsole(&dev_stdcon_r, &dev_stdcon_w);
 	printf("Calling initilization constructor procedures...\n");
 	call_constr();
 	printf("Starting 32 bit elf environment...\n");
+	while(1) 1;
 	exec_init();
 	/*char *str=malloc(12*sizeof(char));
 	strcpy(str,"hello :)");

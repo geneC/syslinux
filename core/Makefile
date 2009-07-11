@@ -40,7 +40,7 @@ BTARGET  = kwdhash.gen \
 # All primary source files for the main syslinux files
 NASMSRC	 := $(wildcard *.asm)
 NASMHDR  := $(wildcard *.inc)
-CSRC	 := $(wildcard *.c)
+CSRC	 := $(wildcard *.c */*.c)
 SSRC	 := $(wildcard *.S lzo/*.S)
 CHDR	 := $(wildcard *.h)
 OTHERSRC := keywords
