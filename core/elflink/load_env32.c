@@ -9,6 +9,28 @@
 typedef void (*constructor_t)(void);
 constructor_t __ctors_start[], __ctors_end[];
 
+extern char 		__dynstr_start[];
+extern char 		__dynstr_len[], __dynsym_len[];
+extern char 		__dynsym_start[];
+extern char		__got_start[];
+extern Elf32_Dyn 	__dynamic_start[];
+extern Elf32_Word	__gnu_hash_start[];
+
+/*struct elf_module core_module =
+{
+	.name = "(core)",
+	.shallow = 1,
+	.module_addr = (void *)0,
+	.base_addr = 0,
+	.ghash_table = __gnu_hash_start,
+	.str_table = __dynstr_start,
+	.sym_table = (void *)__dynsym_start,
+	.got = (void *)__got_start,
+	.dyn_table = __dynamic_start,
+	.strtable_size = (size_t)__dynstr_len,
+	.symtable_size = (size_t)__dynsym_len
+};*/
+
 /*
 	call_constr: initializes sme things related
 */
@@ -23,7 +45,7 @@ static void call_constr()
 /* note to self: do _*NOT*_ use static key word on this function */
 void load_env32()
 {
-	char *screen;
+	char *screen=0;
     	screen = (char *)0xB8000;
 	*(screen+2) = 'Q';
     	*(screen+3) = 0x1C;
