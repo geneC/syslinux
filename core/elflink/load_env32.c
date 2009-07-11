@@ -33,11 +33,10 @@ void load_env32()
 	printf("Calling initilization constructor procedures...\n");
 	call_constr();
 	printf("Starting 32 bit elf environment...\n");
-	while(1) 1;
 	exec_init();
-	/*char *str=malloc(12*sizeof(char));
+	char *str=malloc(12*sizeof(char));
 	strcpy(str,"hello :)");
-	printf("%s ",str);*/
+	printf("%s ",str);
 
 	while(1) 1; /* we don't have anything better to do so hang around for a bit */
 }

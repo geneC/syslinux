@@ -21,7 +21,7 @@ EXTERN(_start)
 ENTRY(_start)
 
 STACK16_LEN =  4096;
-STACK32_LEN = 32768;
+STACK32_LEN = 65536;
 
 SECTIONS
 {
@@ -240,12 +240,42 @@ SECTIONS
 
 	. = ALIGN(4);
 
+	__ctors_vma = .;
+	__ctors_lma = __ctors_vma + __text_lma - __text_vma;
+	.ctors : AT(__ctors_lma) {
+		__ctors_start = .;
+		KEEP (*(SORT(.ctors.*)))
+		KEEP (*(.ctors))
+		__ctors_end = .;
+	}
+
+	__dtors_vma = .;
+	__dtors_lma = __dtors_vma + __text_lma - __text_vma;
+	.dtors : AT(__dtors_lma) {
+		__dtors_start = .;
+		KEEP (*(SORT(.dtors.*)))
+		KEEP (*(.dtors))
+		__dtors_end = .;
+	}
+
+	. = ALIGN(4);
+
+	__dynlink_vma = .;
+	__dynlink_lma = __dynlink_vma + __text_lma - __text_vma;
+	.dynlink : AT(__dynlink_lma) {
+		__dynlink_start = .;
+		*(.dynlink)
+		__dynlink_end = .;
+	}
+
+	. = ALIGN(4);
+
 	__got_vma = .;
 	__got_lma = __got_vma + __text_lma - __text_vma;
 	.got : AT(__got_lma) {
 		__got_start = .;
-		*(.got.plt)
-		*(.got)
+		KEEP (*(.got.plt))
+		KEEP (*(.got))
 		__got_end = .;
 	}
 
@@ -278,7 +308,7 @@ SECTIONS
 	__bss_len = __bss_end - __bss_start;
 	__bss_dwords = (__bss_len + 3) >> 2;
 
-	. = ALIGN(128);
+	. = ALIGN(65536);
 
 	/* XXX: This stack should be unified with the COM32 stack */
 	__stack_vma = .;
