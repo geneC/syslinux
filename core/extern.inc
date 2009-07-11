@@ -12,4 +12,7 @@
 	; hello.c
 	extern hello
 
+	; elflink/load_env32.c
+	load_env32
+
 %endif ; EXTERN_INC

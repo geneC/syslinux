@@ -1232,6 +1232,7 @@ get_fs_structures:
 ; Locate the configuration file
 ;
 load_config:
+		pm_call load_env32
 %ifdef DEBUG_MESSAGES
 		mov si,dbg_config_msg
 		call writemsg
