@@ -89,15 +89,9 @@ kwdhash.gen: keywords genhash.pl
 		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
 
 %.elf: %.o $(LIBS) syslinux.ld symbols.S
-	$(LD) $(LDFLAGS) -T syslinux.ld -o $*.elf.tmp $< $(LIBS)
-	$(OBJCOPY) -x --extract-symbol $*.elf.tmp $*.sym
-	$(CC) $(CFLAGS) -DSYMFILE=\"$*.sym\" -c -o $*.sym.o symbols.S
-	$(LD) $(LDFLAGS) -T syslinux.ld -o $*.elf.tmp $< $*.sym.o $(LIBS)
-	$(OBJCOPY) -x --extract-symbol $*.elf.tmp $*.sym
-	$(CC) $(CFLAGS) -DSYMFILE=\"$*.sym\" -c -o $*.sym.o symbols.S
-	$(LD) $(LDFLAGS) -T syslinux.ld -M -o $@ $< $*.sym.o $(LIBS) \
+	$(LD) $(LDFLAGS) -Bsymbolic -pie --hash-style=gnu \
+		-T syslinux.ld -M -o $@ $< $(LIBS) \
 		> $(@:.elf=.map)
-	-rm -f $*.elf.tmp
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
 	$(PERL) lstadjust.pl $(@:.elf=.lsr) $(@:.elf=.sec) $(@:.elf=.lst)
 
