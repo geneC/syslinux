@@ -12,15 +12,13 @@ constructor_t __ctors_start[], __ctors_end[];
 /*
 	call_constr: initializes sme things related
 */
-void call_constr()
+static void call_constr()
 {
 	constructor_t *p;
-	printf("begin\n");
 	for (p = __ctors_start; p < __ctors_end; p++)
 	{
 		(*p)();
 	}
-	printf("end\n");
 }
 /* note to self: do _*NOT*_ use static key word on this function */
 void load_env32()
@@ -34,9 +32,10 @@ void load_env32()
 	call_constr();
 	printf("Starting 32 bit elf environment...\n");
 	exec_init();
-	char *str=malloc(12*sizeof(char));
-	strcpy(str,"hello :)");
+	char *str=malloc(16*sizeof(char));
+	strcpy(str,"malloc works :)");
 	printf("%s ",str);
+	free(str);
 
 	while(1) 1; /* we don't have anything better to do so hang around for a bit */
 }
