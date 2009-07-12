@@ -88,7 +88,7 @@ kwdhash.gen: keywords genhash.pl
 		-DHEXDATE="$(HEXDATE)" \
 		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
 
-%.elf: %.o $(LIBS) syslinux.ld symbols.S
+%.elf: %.o $(LIBS) syslinux.ld
 	$(LD) $(LDFLAGS) -Bsymbolic -pie --hash-style=gnu \
 		-T syslinux.ld -M -o $@ $< $(LIBS) \
 		> $(@:.elf=.map)
