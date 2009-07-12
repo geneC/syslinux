@@ -16,10 +16,13 @@ extern char		__got_start[];
 extern Elf32_Dyn 	__dynamic_start[];
 extern Elf32_Word	__gnu_hash_start[];
 
-/*struct elf_module core_module =
+struct elf_module core_module =
 {
 	.name = "(core)",
 	.shallow = 1,
+	.required=LIST_HEAD_INIT(required),
+	.dependants=LIST_HEAD_INIT(dependants),
+	.list=LIST_HEAD_INIT(list),
 	.module_addr = (void *)0,
 	.base_addr = 0,
 	.ghash_table = __gnu_hash_start,
@@ -29,7 +32,7 @@ extern Elf32_Word	__gnu_hash_start[];
 	.dyn_table = __dynamic_start,
 	.strtable_size = (size_t)__dynstr_len,
 	.symtable_size = (size_t)__dynsym_len
-};*/
+};
 
 /*
 	call_constr: initializes sme things related
