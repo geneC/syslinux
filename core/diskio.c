@@ -246,15 +246,6 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
     bool ebios = cdrom;
     int sector_size = cdrom ? 2048 : 512;
 
-    /*
-     * set the size be 512 when we are in iso_hybrid mode. 
-     * we estimate  it by the devno, As far as I know, the 
-     * cdrom will use 0xe0 and above as the devno, well I'm
-     * not sure it's right or not.
-     */
-    if (devno < 0xe0)
-        sector_size = 512;
-
     memset(&ireg, 0, sizeof ireg);
 
     /* Get EBIOS support */

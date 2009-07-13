@@ -1168,7 +1168,13 @@ all_read:
 	        extern iso_fs_ops
 	        mov eax,iso_fs_ops
 	        mov dl,[DriveNumber]
-		mov dh,1                  ; it's cdrom
+               	cmp word [BIOSType],bios_cdrom
+                jne hybrid
+                mov dh,1                  ; it's cdrom
+                jmp end
+hybrid:
+                mov dh,0                  ; it's in hybrid mode
+end:
 	        mov ecx,[bsHidden]
 	        mov ebx,[bsHidden+4]
                 mov si,[bsHeads]
