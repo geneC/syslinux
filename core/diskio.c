@@ -304,7 +304,8 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
     disk.part_start    = part_start;
     disk.rdwr_sectors  = ebios ? edd_rdwr_sectors : chs_rdwr_sectors;
 
+#if 0
     dump_disk(&disk);
-
+#endif
     return &disk;
 }

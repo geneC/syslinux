@@ -140,5 +140,4 @@ void fs_init(com32sys_t *regs)
     /* initialize the cache */
     if (fs.fs_dev->cache_data)
         cache_init(fs.fs_dev, blk_shift);
-    dump_dev(fs.fs_dev);
 }

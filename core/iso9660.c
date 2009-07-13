@@ -41,22 +41,6 @@ uint16_t BufSafeBytes = TRACKBUF_SIZE;
 char ISOFileName[64];      /* ISO filename canonicalizatin buffer */
 char *ISOFileNameEnd = &ISOFileName[64];
 
-uint32_t FirstSecSum;         /* checksum of bytes 64-2048 */
-uint32_t ImageDwords;         /* isolinux.bin size, dwords */
-uint32_t InitStack;           /* Initial stack pointer (SS:SP) */
-uint16_t DiskSys;             /* Last INT 13h call */
-uint16_t ImageSectors;        /* isolinux.bin size, sectors */
-
-/* These following two are accessed as a single dword ... */
-uint16_t GetlinsecPtr;        /* the sector-read pointer */
-uint16_t BIOSType;
-uint8_t  DiskError;           /* Error code for disk I/O */
-uint8_t  DriveNumber;         /* CD-ROM BIOS drive number */
-uint8_t  ISOFlags;            /* Flags for ISO directory search */
-uint8_t  RetryCount;          /* Used for ISO directory search */
-uint16_t bsSecPerTrack;       /* Used in hybrid mode */
-uint16_t bsHeads;             /* Used in hybrid mode */
-
 /* 
  * use to store the block shift, since we treat the hd-mode as 512 bytes
  * sector size, 2048 bytes block size. we still treat the cdrom as 2048  
