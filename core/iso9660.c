@@ -57,6 +57,12 @@ uint8_t  RetryCount;          /* Used for ISO directory search */
 uint16_t bsSecPerTrack;       /* Used in hybrid mode */
 uint16_t bsHeads;             /* Used in hybrid mode */
 
+/* 
+ * use to store the block shift, since we treat the hd-mode as 512 bytes
+ * sector size, 2048 bytes block size. we still treat the cdrom as 2048  
+ * bytes sector size and also the block size.
+ */
+int block_shift;
 
 /**
  * allocate_file:
@@ -235,6 +241,13 @@ int iso_compare_names(char *de_name, int *len, char *file_name)
     return 1;
 }
 
+static inline int cdrom_read_sectors(struct disk *disk, void *buf, int block, int count)
+{
+    /* changed those to _sector_ */
+    block <<= block_shift;
+    count <<= block_shift;
+    return disk->rdwr_sectors(disk, buf, block, count, 0);
+}
 
 /**
  * iso_getfssec:
@@ -257,7 +270,7 @@ uint32_t iso_getfssec(struct fs_info *fs, char *buf,
     if ( sectors > file->file_left )
         sectors = file->file_left;
     
-    disk->rdwr_sectors(disk, buf, file->file_sector, sectors, 0);
+    cdrom_read_sectors(disk, buf, file->file_sector, sectors);
     
     file->file_sector += sectors;
     file->file_left   -= sectors;
@@ -515,8 +528,8 @@ int iso_fs_init(struct fs_info *fs)
     struct open_file_t *open_file;
     struct disk *disk = fs->fs_dev->disk;
     
-    disk->rdwr_sectors(disk, trackbuf, bi_pvd, 1, 0);
-    
+    block_shift = ISO_SECTOR_SHIFT - disk->sector_shift;
+    cdrom_read_sectors(disk, trackbuf, bi_pvd, 1);
     CurrentDir.dir_lba = RootDir.dir_lba = *(uint32_t *)(trackbuf + 156 + 2);
     
 #ifdef DEBUG

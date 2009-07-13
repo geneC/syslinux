@@ -1165,12 +1165,12 @@ all_read:
 ; we should be able to find the rest of what we need to know.
 ;
 		pushad
-	      extern iso_fs_ops
-	      mov eax,iso_fs_ops
-	      mov dl,[DriveNumber]
+	        extern iso_fs_ops
+	        mov eax,iso_fs_ops
+	        mov dl,[DriveNumber]
 		mov dh,1                  ; it's cdrom
-	      mov ecx,[bsHidden]
-	      mov ebx,[bsHidden+4]
+	        mov ecx,[bsHidden]
+	        mov ebx,[bsHidden+4]
                 mov si,[bsHeads]
 		mov di,[bsSecPerTrack]
 		pm_call fs_init

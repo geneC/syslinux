@@ -17,7 +17,7 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
     char *tptr;
     size_t chunk, freeseg;
     int sector_shift = disk->sector_shift;
-    uint32_t xlba = lba;	/* Truncated LBA (CHS is << 2 TB) */
+    uint32_t xlba = lba + disk->part_start;	/* Truncated LBA (CHS is << 2 TB) */
     uint32_t t;
     uint16_t c, h, s;
     com32sys_t ireg, oreg;
@@ -124,6 +124,7 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
     ireg.ds       = SEG(&pkt);
     ireg.esi.w[0] = OFFS(&pkt);
 
+    lba += disk->part_start;
     while (count) {
 	chunk = count;
 	if (chunk > MaxTransfer)
@@ -151,7 +152,7 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	pkt.blocks = chunk;
 	pkt.buf    = FAR_PTR(tptr);
 	pkt.lba    = lba;
-
+        
 	retry = RETRY_COUNT;
 
 	for (;;) {
@@ -244,6 +245,15 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
     com32sys_t ireg, oreg;
     bool ebios = cdrom;
     int sector_size = cdrom ? 2048 : 512;
+
+    /*
+     * set the size be 512 when we are in iso_hybrid mode. 
+     * we estimate  it by the devno, As far as I know, the 
+     * cdrom will use 0xe0 and above as the devno, well I'm
+     * not sure it's right or not.
+     */
+    if (devno < 0xe0)
+        sector_size = 512;
 
     memset(&ireg, 0, sizeof ireg);
 
