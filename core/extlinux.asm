@@ -185,6 +185,8 @@ Files		resb MAX_OPEN*open_file_t_size
 ; Load configuration file
 ;
 load_config:
+		pm_call load_env32
+		
 		mov si,config_name	; Save config file name
 		mov di,ConfigName
 		call strcpy

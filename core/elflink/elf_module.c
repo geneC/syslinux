@@ -443,20 +443,26 @@ int module_load(struct elf_module *module) {
 	module->shallow = 0;
 
 	CHECKED(res, image_read(&elf_hdr, sizeof(Elf32_Ehdr), module), error);
+	printf("check... 1\n");
 
 	// Checking the header signature and members
 	CHECKED(res, check_header(&elf_hdr), error);
+	printf("check... 2\n");
 
 	// Load the segments in the memory
 	CHECKED(res, load_segments(module, &elf_hdr), error);
+	printf("bleah... 3\n");
 	// Obtain dynamic linking information
 	CHECKED(res, prepare_dynlinking(module), error);
+	printf("check... 4\n");
 
 	// Check the symbols for duplicates / missing definitions
 	CHECKED(res, check_symbols(module), error);
+	printf("check... 5\n");
 
 	// Obtain constructors and destructors
 	CHECKED(res, extract_operations(module), error);
+	printf("check... 6\n");
 
 	// Add the module at the beginning of the module list
 	list_add(&module->list, &modules_head);

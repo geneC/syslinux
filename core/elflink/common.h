@@ -27,6 +27,7 @@
 #define MIN(x,y)	(((x) < (y)) ? (x) : (y))
 #define MAX(x,y)	(((x) > (y)) ? (x) : (y))
 
+//#define ELF_DEBUG
 
 #ifdef ELF_DEBUG
 #define DBG_PRINT(fmt, args...)	fprintf(stderr, "[ELF] " fmt, ##args)
@@ -36,11 +37,10 @@
 
 // User-space debugging routines
 #ifdef ELF_DEBUG
-
+#endif //ELF_DEBUG
 extern void print_elf_ehdr(Elf32_Ehdr *ehdr);
 extern void print_elf_symbols(struct elf_module *module);
 
-#endif //ELF_DEBUG
 
 /*
  * Image files manipulation routines

@@ -152,7 +152,7 @@ struct module_dep {
  * object.
  */
 #define MODULE_ELF_CLASS		ELFCLASS32		// 32-bit modules
-#define MODULE_ELF_CLASS_SIZE	32				// Size of a word value
+#define MODULE_ELF_CLASS_SIZE		32			// Size of a word value
 #define MODULE_ELF_DATA			ELFDATA2LSB		// Word endianess
 #define MODULE_ELF_VERSION		EV_CURRENT		// Object version
 #define MODULE_ELF_TYPE			ET_DYN			// Executable type (shared object - .so)
