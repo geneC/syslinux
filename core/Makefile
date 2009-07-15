@@ -87,7 +87,7 @@ kwdhash.gen: keywords genhash.pl
 		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
 
 %.elf: %.o $(LIBS) syslinux.ld
-	$(LD) $(LDFLAGS) -Bsymbolic -pie --hash-style=gnu \
+	$(LD) $(LDFLAGS) -Bsymbolic -pie -E --hash-style=gnu \
 		-T syslinux.ld -M -o $@ $< $(LIBS) \
 		> $(@:.elf=.map)
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
