@@ -342,8 +342,10 @@ int get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
  * Query the device geometry and put it into the boot sector.
  * Map the file and put the map in the boot sector and file.
  * Stick the "current directory" inode number into the file.
+ *
+ * Returns the number of modified bytes in the boot file.
  */
-void patch_file_and_bootblock(int fd, int dirfd, int devfd)
+int patch_file_and_bootblock(int fd, int dirfd, int devfd)
 {
     struct stat dirst;
     struct hd_geometry geo;
@@ -355,6 +357,7 @@ void patch_file_and_bootblock(int fd, int dirfd, int devfd)
     struct patch_area *patcharea;
     int i, dw, nptrs;
     uint32_t csum;
+    int secptroffset;
 
     if (fstat(dirfd, &dirst)) {
 	perror("fstat dirfd");
@@ -427,7 +430,8 @@ void patch_file_and_bootblock(int fd, int dirfd, int devfd)
     set_32(&patcharea->currentdir, dirst.st_ino);
 
     /* Set the sector pointers */
-    wp = (uint32_t *) ((char *)boot_image + get_16(&patcharea->secptroffset));
+    secptroffset = get_16(&patcharea->secptroffset);
+    wp = (uint32_t *) ((char *)boot_image + secptroffset);
     nptrs = get_16(&patcharea->secptrcnt);
 
     memset(wp, 0, nptrs * 4);
@@ -442,6 +446,8 @@ void patch_file_and_bootblock(int fd, int dirfd, int devfd)
 	csum -= get_32(wp);	/* Negative checksum */
 
     set_32(&patcharea->checksum, csum);
+
+    return secptroffset + nptrs*4;
 }
 
 /*
@@ -629,6 +635,7 @@ int install_file(const char *path, int devfd, struct stat *rst)
     char *file;
     int fd = -1, dirfd = -1, flags;
     struct stat st;
+    int modbytes;
 
     asprintf(&file, "%s%sextlinux.sys",
 	     path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
@@ -677,11 +684,11 @@ int install_file(const char *path, int devfd, struct stat *rst)
     }
 
     /* Map the file, and patch the initial sector accordingly */
-    patch_file_and_bootblock(fd, dirfd, devfd);
+    modbytes = patch_file_and_bootblock(fd, dirfd, devfd);
 
-    /* Write the first sector again - this relies on the file being
+    /* Write the patch area again - this relies on the file being
        overwritten in place! */
-    if (xpwrite(fd, boot_image, SECTOR_SIZE, 0) != SECTOR_SIZE) {
+    if (xpwrite(fd, boot_image, modbytes, 0) != modbytes) {
 	fprintf(stderr, "%s: write failure on %s\n", program, file);
 	goto bail;
     }
