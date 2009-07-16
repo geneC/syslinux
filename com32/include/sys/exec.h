@@ -19,6 +19,8 @@
  */
 #define EXEC_ROOT_NAME			"_root_.c32"
 
+extern int test_proc();
+
 /**
  * exec_init - Initialize the dynamic execution environment.
  *

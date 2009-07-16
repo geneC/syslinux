@@ -40,11 +40,9 @@ BTARGET  = kwdhash.gen \
 # All primary source files for the main syslinux files
 NASMSRC	 := $(wildcard *.asm)
 NASMHDR  := $(wildcard *.inc)
-
 CSRC	 := $(wildcard *.c */*.c)
 SSRC	 := $(filter-out symbols.S,$(wildcard *.S lzo/*.S))
-
-CHDR	 := $(wildcard *.h)
+CHDR	 := $(wildcard *.h */*.h)
 OTHERSRC := keywords
 ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
 
@@ -89,7 +87,7 @@ kwdhash.gen: keywords genhash.pl
 		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
 
 %.elf: %.o $(LIBS) syslinux.ld
-	$(LD) $(LDFLAGS) -Bsymbolic -pie --hash-style=gnu \
+	$(LD) $(LDFLAGS) -Bsymbolic -pie -E --hash-style=gnu \
 		-T syslinux.ld -M -o $@ $< $(LIBS) \
 		> $(@:.elf=.map)
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
@@ -143,3 +141,4 @@ spotless: clean
 
 # Include dependencies file
 -include .*.d */.*.d
+

@@ -22,7 +22,6 @@ LIST_HEAD(modules_head);
 
 // User-space debugging routines
 #ifdef ELF_DEBUG
-#endif //ELF_DEBUG
 void print_elf_ehdr(Elf32_Ehdr *ehdr) {
 	int i;
 
@@ -53,7 +52,7 @@ void print_elf_symbols(struct elf_module *module) {
 
 	}
 }
-
+#endif //ELF_DEBUG
 
 /*
  * Image files manipulation routines
@@ -321,7 +320,7 @@ int check_symbols(struct elf_module *module)
 				DBG_PRINT("Info: Symbol %s is defined more than once\n", crt_name);
 			}
 		}
-		printf("symbol %s laoded from %d\n",crt_name,crt_sym->st_value);
+		//printf("symbol %s laoded from %d\n",crt_name,crt_sym->st_value);
 	}
 
 	return 0;

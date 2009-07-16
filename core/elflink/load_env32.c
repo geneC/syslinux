@@ -3,8 +3,8 @@
 #include <console.h>
 #include <string.h>
 
-#include <sys/module.h>
 #include <sys/exec.h>
+#include <sys/module.h>
 #include "common.h"
 
 typedef void (*constructor_t)(void);
@@ -57,6 +57,7 @@ static void call_constr()
 		(*p)();
 	}
 }
+
 /* note to self: do _*NOT*_ use static key word on this function */
 void load_env32()
 {
@@ -71,15 +72,19 @@ void load_env32()
 	printf("Str table size: %d\n",core_module.strtable_size);
 	printf("Sym table size: %d\n",core_module.symtable_size);
 
-	print_elf_symbols(&core_module);
+	//print_elf_symbols(&core_module);
 	//print_elf_ehdr(&core_module);
 
-	printf("Address of lrand48: 0x%08X\n", (unsigned int)&lrand48);
-	printf("Address of __ctors_start: 0x%08X\n", (unsigned int)*__ctors_start);
-	if(load_library("dyn/sort.dyn")==-1) printf("No luck\n");
+	//printf("Address of lrand48: 0x%08X\n", (unsigned int)&lrand48);
+	//printf("Address of __ctors_start: 0x%08X\n", (unsigned int)*__ctors_start);
+	char buf[10];
+	fgets(buf,10,stdin);
+	test_proc();
+	// load_library("dyn/sort.dyn");
 
 	//printf("\n\nTrying to spawn\n\n"); 
 	//spawnv("dyn/hello.dyn",0);
+	printf("Done\n");
 	
 	while(1) 1; /* we don't have anything better to do so hang around for a bit */
 }

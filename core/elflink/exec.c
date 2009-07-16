@@ -21,6 +21,12 @@ extern char _start[];
 
 static struct elf_module    *mod_root = NULL;
 
+int test_proc()
+{
+	printf("seems to work :-?\n");
+	return 0;
+}
+
 int exec_init(void)
 {
 	int res;

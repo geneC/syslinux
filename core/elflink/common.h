@@ -37,9 +37,9 @@
 
 // User-space debugging routines
 #ifdef ELF_DEBUG
-#endif //ELF_DEBUG
 extern void print_elf_ehdr(Elf32_Ehdr *ehdr);
 extern void print_elf_symbols(struct elf_module *module);
+#endif //ELF_DEBUG
 
 
 /*
