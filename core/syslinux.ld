@@ -286,7 +286,7 @@ SECTIONS
 		*(.dynstr)
 		__dynstr_end = .;
 	}
-	__dynstr_len = __dynsym_end - __dynsym_start;
+	__dynstr_len = __dynstr_end - __dynstr_start;
 
 	. = ALIGN(4);
 

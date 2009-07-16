@@ -477,12 +477,12 @@ Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
 	{
 		if (module->hash_table != NULL)
 		{
-			printf("Attempting SYSV Symbol search\n");
+			//printf("Attempting SYSV Symbol search\n");
 			result = module_find_symbol_sysv(name, module);
 		}
 		else
 		{
-			printf("Attempting Iterative Symbol search\n");
+			//printf("Attempting Iterative Symbol search\n");
 			result = module_find_symbol_iterate(name, module);
 		}
 	}

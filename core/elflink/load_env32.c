@@ -72,19 +72,16 @@ void load_env32()
 	printf("Str table size: %d\n",core_module.strtable_size);
 	printf("Sym table size: %d\n",core_module.symtable_size);
 
-	//print_elf_symbols(&core_module);
-	//print_elf_ehdr(&core_module);
+	lrand48();	//|
+	putchar(' ');	//+---- we have to force these symbols to exist in teh core module
+	
+	printf("\nBegin dynamic module test...\n");
+	printf("\n\nTrying to laod 'dyn/sort.dyn'\n\n"); 
+	load_library("dyn/sort.dyn");
 
-	//printf("Address of lrand48: 0x%08X\n", (unsigned int)&lrand48);
-	//printf("Address of __ctors_start: 0x%08X\n", (unsigned int)*__ctors_start);
-	char buf[10];
-	fgets(buf,10,stdin);
-	test_proc();
-	// load_library("dyn/sort.dyn");
-
-	//printf("\n\nTrying to spawn\n\n"); 
-	//spawnv("dyn/hello.dyn",0);
-	printf("Done\n");
+	printf("\n\nTrying to spawn 'dyn/hello.dyn'\n\n"); 
+	spawnv("dyn/hello.dyn",0);
+	printf("\nTest done\n");
 	
 	while(1) 1; /* we don't have anything better to do so hang around for a bit */
 }
