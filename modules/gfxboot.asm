@@ -417,6 +417,14 @@ gfx_read_file:
 		mov si,pspCmdArg+1
 		int 22h
 		jnc gfx_file_read
+
+		mov ax,2
+		mov bx,pspCmdArg+1
+		int 22h
+
+		mov ax,2
+		mov bx,msg_not_found
+		int 22h
 		stc
 		ret
 
@@ -890,6 +898,7 @@ msg_memory		db 'Could not detect available memory size',0dh,0ah,0
 msg_bootlogo_toobig	db 'bootlogo file too big',0dh,0ah,0
 msg_pxelinux		db 'pxelinux is not supported',0dh,0ah,0
 msg_unknown_file_size	db 'unknown file size',0dh,0ah,0
+msg_not_found		db ' not found',0dh,0ah,0
 msg_space		db ' ',0
 msg_crlf		db 0dh,0ah,0
 
