@@ -699,33 +699,39 @@ parse_config:
 		mov bx, msg_crlf
 		int 22h
 %endif
+		mov bx,keywords
+		mov cx,[keyword_cnt]
+.keywords_loop:
+		push cx
 		push si
 		push di
-		xor ecx,ecx
+		xor cx,cx
 		mov si,configbuf
-		mov di,label_keyword+1
-		mov cl, byte [label_keyword]
+		mov di,[bx]
+		mov cl,byte [di]
+		inc di
 		call memcmp
 		pop di
 		pop si
-		jz .do_label
+		jnz .not_found
+		pop cx
+		call [bx+2] ; call keyword handler
+		jmp .read
 
-		push si
-		push di
-		xor ecx,ecx
-		mov si,configbuf
-		mov di,default_keyword+1
-		mov cl, byte [default_keyword]
-		call memcmp
-		pop di
-		pop si
-		jz .do_default
+.not_found:
+		add bx,4
+		pop cx
+		loop .keywords_loop
 
 .nextline:
 		call skipline
 		jmp .read
 
-.do_label:
+.eof:
+.noparm:
+		ret
+
+do_label:
 		call skipspace
 		jz .eof
 		jc .noparm
@@ -742,10 +748,11 @@ parse_config:
 		pop di
 		pop es
 		inc word [label_cnt]
+.eof:
+.noparm:
+		ret
 
-		jmp .read
-
-.do_default:
+do_default:
 		call skipspace
 		jz .eof
 		jc .noparm
@@ -758,8 +765,6 @@ parse_config:
 		call getline
 		pop di
 		pop es
-
-		jmp .read
 
 .eof:
 .noparm:
@@ -877,9 +882,6 @@ memcmp:
 		ret
 
 		section .data
-label_keyword		db 6,'label',0
-default_keyword		db 7,'default',0
-
 msg_progname		db 'gfxboot: ',0
 msg_config_file		db 'Configuration file',0
 msg_missing		db 'missing',0
@@ -893,6 +895,15 @@ msg_crlf		db 0dh,0ah,0
 
 gfx_slash		db '/', 0
 db0			db 0
+
+keyword_text_label	db 6,'label',0
+keyword_text_default	db 7,'default',0
+keywords		equ $
+			dw keyword_text_label
+			dw do_label
+			dw keyword_text_default
+			dw do_default
+keyword_cnt		dw ($-keywords)/4
 
 ; menu entry descriptor
 menu_entries		equ 0
