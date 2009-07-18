@@ -657,8 +657,7 @@ gfx_input:
 		shl edi,4
 		add edi, command_line ; buffer (0: no buffer)
 		mov ecx, max_cmd_len ; buffer size
-;		xor eax,eax ; timeout value (0: no timeout)
-		mov eax,100 ; timeout value (0: no timeout)
+		mov eax,[menu_timeout] ; timeout value (0: no timeout)
 
 		call far [gfx_bc_input]
 		ret
@@ -786,6 +785,42 @@ do_default:
 .noparm:
 		ret
 
+do_timeout:
+		call skipspace
+		jz .eof
+		jc .noparm
+		call ungetc
+		push es
+		push di
+		push cs
+		pop es
+		mov di,NumBuf
+.getnum:
+		cmp di,NumBufEnd
+		jae .loaded
+		call getc
+		stosb
+		cmp al,'-'
+		jnb .getnum
+		call ungetc
+		dec di
+.loaded:
+		mov byte [di],0
+		pop di
+		pop es
+		push cs
+		pop ds
+		mov si,NumBuf
+		push ebx
+		call parseint
+		jc .err
+		mov [menu_timeout],ebx
+.err:
+		pop ebx
+.eof:
+.noparm:
+		ret
+
 skipline:
 		cmp al,10
 		je .end
@@ -897,6 +932,35 @@ memcmp:
 		pop si
 		ret
 
+parseint:
+		push eax
+		push ecx
+		xor eax,eax
+		xor ebx,ebx
+		xor ecx,ecx
+		mov cl,10
+.loop:
+		lodsb
+		and al,al
+		jz .done
+		cmp al,'0'
+		jb .err
+		cmp al,'9'
+		ja .err
+		sub al,'0'
+		imul ebx,ecx
+		add ebx,eax
+		jmp short .loop
+.done:
+		clc
+.ret:
+		pop ecx
+		pop eax
+		ret
+.err:
+		stc
+		jmp short .ret
+
 		section .data
 msg_progname		db 'gfxboot: ',0
 msg_config_file		db 'Configuration file',0
@@ -913,14 +977,18 @@ msg_crlf		db 0dh,0ah,0
 
 gfx_slash		db '/', 0
 db0			db 0
+menu_timeout		dd 100
 
 keyword_text_label	db 6,'label',0
 keyword_text_default	db 7,'default',0
+keyword_text_timeout	db 7,'timeout',0
 keywords		equ $
 			dw keyword_text_label
 			dw do_label
 			dw keyword_text_default
 			dw do_default
+			dw keyword_text_timeout
+			dw do_timeout
 keyword_cnt		dw ($-keywords)/4
 
 ; menu entry descriptor
@@ -970,6 +1038,9 @@ dentry_buf_len		equ $ - dentry_buf
 
 max_cmd_len		equ 2047
 command_line		resb max_cmd_len+2
+
+NumBuf			resb 15
+NumBufEnd		resb 1
 
 			alignb 4
 derivative_id		resb 1
