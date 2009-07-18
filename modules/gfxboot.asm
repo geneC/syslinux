@@ -968,7 +968,6 @@ msg_missing		db 'missing',0
 msg_usage		db 'Usage: gfxboot.com <bootlogo>',0dh,0ah,0
 msg_memory		db 'Could not detect available memory size',0dh,0ah,0
 msg_bootlogo_toobig	db 'bootlogo file too big',0dh,0ah,0
-msg_pxelinux		db 'pxelinux is not supported',0dh,0ah,0
 msg_unknown_file_size	db 'unknown file size',0dh,0ah,0
 msg_not_found		db ' not found',0dh,0ah,0
 msg_no_labels_defined	db 'No labels defined in config file',0dh,0ah,0
