@@ -144,7 +144,15 @@ got_config_file:
 		push cs
 		pop es
 		call parse_config
+		cmp word [label_cnt],0
+		ja labels_defined
 
+		mov bx,msg_no_labels_defined
+		mov ax,2
+		int 22h
+		ret
+
+labels_defined:
 ; get_gfx_file
 		mov ax,cs
 		add ax,2000h
@@ -899,6 +907,7 @@ msg_bootlogo_toobig	db 'bootlogo file too big',0dh,0ah,0
 msg_pxelinux		db 'pxelinux is not supported',0dh,0ah,0
 msg_unknown_file_size	db 'unknown file size',0dh,0ah,0
 msg_not_found		db ' not found',0dh,0ah,0
+msg_no_labels_defined	db 'No labels defined in config file',0dh,0ah,0
 msg_space		db ' ',0
 msg_crlf		db 0dh,0ah,0
 
