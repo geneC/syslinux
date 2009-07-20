@@ -57,7 +57,7 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 	t = xlba / disk->s;
 	h = t % disk->h;
 	c = t / disk->h;
-
+        
 	ireg.eax.b[0] = chunk;
 	ireg.ecx.b[1] = c;
 	ireg.ecx.b[0] = ((c & 0x300) >> 2) | (s+1);
@@ -66,8 +66,8 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 	ireg.es       = SEG(tptr);
 
 	retry = RETRY_COUNT;
-
-	for (;;) {
+        
+        for (;;) {
 	    __intcall(0x13, &ireg, &oreg);
 	    if (!(oreg.eflags.l & EFLAGS_CF))
 		break;
@@ -76,10 +76,11 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 
             /* if we are reading ONE sector and go here, just make it _faile_ */
             chunk = chunk == 1 ? 0 : ((chunk+1) >> 1);
-	    if (chunk) {
+            if (chunk) {
 		MaxTransfer = chunk;
 		retry = RETRY_COUNT;
-		continue;
+                ireg.eax.b[0] = chunk;
+                continue;
 	    }
 	    return done;	/* Failure */
 	}
@@ -94,6 +95,7 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 	count -= chunk;
 	done  += chunk;
     }
+
     return done;
 }
 
@@ -165,6 +167,7 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	    if (chunk) {
 		MaxTransfer = chunk;
 		retry = RETRY_COUNT;
+                pkt.blocks = chunk;
 		continue;
 	    }
 	    /*** XXX: Consider falling back to CHS here?! ***/

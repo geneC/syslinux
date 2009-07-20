@@ -513,10 +513,10 @@ uint32_t ext2_getfssec(struct fs_info *fs, char *buf,
             
             sector_idx ++;
             next_sector ++;
-        }while(next_sector == linsector(fs, sectors));                
+        }while(next_sector == linsector(fs, sector_idx));                
         
 #if 0   
-        printf("You are reading stores at sector --0x%x--0x%x\n", 
+        printf("You are reading data stored at sector --0x%x--0x%x\n", 
                frag_start, frag_start + con_sec_cnt -1);
 #endif        
         getlinsec_ext(fs, buf, frag_start, con_sec_cnt);

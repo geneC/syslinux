@@ -15,9 +15,9 @@
 
 /* file structure. This holds the information for each currently open file */
 struct open_file_t {
-        sector_t file_sector;    /* sector pointer ( 0 = structure free ) */
-        uint32_t file_bytesleft; /* number of bytes left */
-        uint32_t file_left;      /* number of sectors left */
+    sector_t file_sector;    /* sector pointer ( 0 = structure free ) */
+    uint32_t file_bytesleft; /* number of bytes left */
+    uint32_t file_left;      /* number of sectors left */
 };
 
 extern char Files[MAX_OPEN * sizeof(struct open_file_t)];
@@ -291,10 +291,10 @@ static void __getfssec(struct fs_info *fs, char *buf, struct open_file_t *file, 
                 break;                        
         }while( next_sector == (++curr_sector) );
         
-#if 0   /* Debug message */
-        printf("You are reading stores at sector --0x%x--0x%x\n", 
+#if 0   
+        printf("You are reading data stored at sector --0x%x--0x%x\n", 
                frag_start, frag_start + con_sec_cnt -1);
-#endif  
+#endif 
                         
         /* do read */
         disk->rdwr_sectors(disk, buf, frag_start, con_sec_cnt, 0);
