@@ -6,6 +6,7 @@
 #include <sys/exec.h>
 #include <sys/module.h>
 #include "common.h"
+#include "menu.h"
 
 typedef void (*constructor_t)(void);
 constructor_t __ctors_start[], __ctors_end[];
@@ -72,16 +73,16 @@ void load_env32()
 	printf("Str table size: %d\n",core_module.strtable_size);
 	printf("Sym table size: %d\n",core_module.symtable_size);
 
-	lrand48();	//|
-	putchar(' ');	//+---- we have to force these symbols to exist in teh core module
+	//lrand48();	//|
+	///putchar(' ');	//+---- we have to force these symbols to exist in teh core module
 	
-	printf("\nBegin dynamic module test...\n");
+	/*printf("\nBegin dynamic module test...\n");
 	printf("\n\nTrying to laod 'dyn/sort.dyn'\n\n"); 
 	load_library("dyn/sort.dyn");
 
 	printf("\n\nTrying to spawn 'dyn/hello.dyn'\n\n"); 
 	spawnv("dyn/hello.dyn",0);
-	printf("\nTest done\n");
+	printf("\nTest done\n");*/
 	
 	while(1) 1; /* we don't have anything better to do so hang around for a bit */
 }
