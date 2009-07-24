@@ -666,8 +666,7 @@ int main(int argc, char *argv[])
   } else if (!strcmp(drivename, "boot")) {
     const union syslinux_derivative_info *sdi;
     sdi = syslinux_derivative_info();
-    if (sdi->c.filesystem == SYSLINUX_FS_PXELINUX ||
-	sdi->c.filesystem == SYSLINUX_FS_ISOLINUX)
+    if (sdi->c.filesystem == SYSLINUX_FS_PXELINUX)
       drive = 0x80;		/* Boot drive not available */
     else
       drive = sdi->disk.drive_number;
