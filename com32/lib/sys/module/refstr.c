@@ -19,13 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/module.h>
 #include "refstr.h"
-
-static int refstr_init()
-{
-	return 0; // Nothing to do; return success
-}
 
 /* Allocate space for a refstring of len bytes, plus final null */
 /* The final null is inserted in the string; the rest is uninitialized. */
@@ -36,7 +30,7 @@ char *refstr_alloc(size_t len)
 	return NULL;
     *(unsigned int *)r = 1;
     r += sizeof(unsigned int);
-    r[len] = '\0'; 
+    r[len] = '\0';
     return r;
 }
 
@@ -109,12 +103,3 @@ void refstr_put(const char *r)
 	    free(ref);
     }
 }
-
-static void refstr_exit()
-{
-	// Nothing to do
-}
-
-// Define entry and exit points.
-MODULE_INIT(refstr_init);
-MODULE_EXIT(refstr_exit);

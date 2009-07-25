@@ -38,7 +38,7 @@ static inline int randint(int l, int u) {
  * in the GSoC 2008 program. The code belongs to Jon Bentley, who
  * wrote the third chapter of the book. Since ELF modules were written
  * as part of this program, the author of the module considered
- * the book had to be put at some use. :)
+ * the book had to be put to some use. :)
  */
 static void quick_sort_range(int *nums, int l, int u) {
 	int i, m;

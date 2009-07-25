@@ -45,7 +45,7 @@ typedef void (*module_exit_t)(void);
 /**
  * module_main_t - pointer to an entry routine
  *
- * The entry routine is present only in executable modules, and represent
+ * The entry routine is present only in executable modules, and represents
  * the entry point for the program.
  */
 typedef int (*module_main_t)(int, char**);

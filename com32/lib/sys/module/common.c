@@ -37,23 +37,22 @@ void print_elf_ehdr(Elf32_Ehdr *ehdr) {
 	fprintf(stderr, "PHT Offset:\t0x%08x\n", ehdr->e_phoff);
 	fprintf(stderr, "SHT Offset:\t0x%08x\n", ehdr->e_shoff);
 	fprintf(stderr, "Flags:\t\t%u\n", ehdr->e_flags);
-	fprintf(stderr, "Header size:\t%u (Structure size: %u)\n", ehdr->e_ehsize,
-			sizeof(Elf32_Ehdr));
+	fprintf(stderr, "Header size:\t%u (Structure size: %u)\n", ehdr->e_ehsize,sizeof(Elf32_Ehdr));
 }
 
 void print_elf_symbols(struct elf_module *module) {
 	unsigned int i;
 	Elf32_Sym *crt_sym;
 
-	for (i = 1; i < module->symtable_size; i++) {
+	for (i = 1; i < module->symtable_size; i++)
+	{
 		crt_sym = (Elf32_Sym*)(module->sym_table + i*module->syment_size);
 
-		fprintf(stderr, "%s\n", module->str_table + crt_sym->st_name);
+		fprintf(stderr,"%s %d\n", module->str_table + crt_sym->st_name, crt_sym->st_value);
 
 	}
 }
 #endif //ELF_DEBUG
-
 
 /*
  * Image files manipulation routines
@@ -265,7 +264,8 @@ int clear_dependency(struct elf_module *req, struct elf_module *dep) {
 	return 0;
 }
 
-int check_symbols(struct elf_module *module) {
+int check_symbols(struct elf_module *module)
+{
 	unsigned int i;
 	Elf32_Sym *crt_sym = NULL, *ref_sym = NULL;
 	char *crt_name;
@@ -274,42 +274,53 @@ int check_symbols(struct elf_module *module) {
 	int strong_count;
 	int weak_count;
 
-	for (i = 1; i < module->symtable_size; i++) {
+	for(i = 1; i < module->symtable_size; i++)
+	{
 		crt_sym = (Elf32_Sym*)(module->sym_table + i * module->syment_size);
 		crt_name = module->str_table + crt_sym->st_name;
 
 		strong_count = 0;
 		weak_count = 0;
 
-		for_each_module(crt_module) {
+		for_each_module(crt_module)
+		{
 			ref_sym = module_find_symbol(crt_name, crt_module);
 
 			// If we found a definition for our symbol...
-			if (ref_sym != NULL && ref_sym->st_shndx != SHN_UNDEF) {
-				switch (ELF32_ST_BIND(ref_sym->st_info)) {
-				case STB_GLOBAL:
-					strong_count++;
-					break;
-				case STB_WEAK:
-					weak_count++;
-					break;
+			if (ref_sym != NULL && ref_sym->st_shndx != SHN_UNDEF)
+			{
+				switch (ELF32_ST_BIND(ref_sym->st_info))
+				{
+					case STB_GLOBAL:
+						strong_count++;
+						break;
+					case STB_WEAK:
+						weak_count++;
+						break;
 				}
 			}
 		}
 
-		if (crt_sym->st_shndx == SHN_UNDEF) {
+		if (crt_sym->st_shndx == SHN_UNDEF)
+		{
 			// We have an undefined symbol
-			if (strong_count == 0 && weak_count == 0) {
+			if (strong_count == 0 && weak_count == 0)
+			{
 				DBG_PRINT("Symbol %s is undefined\n", crt_name);
+				printf("Undef symbol FAIL: %s ",crt_name);
 				return -1;
 			}
-		} else {
-			if (strong_count > 0 && ELF32_ST_BIND(ref_sym->st_info) == STB_GLOBAL) {
+		}
+		else
+		{
+			if (strong_count > 0 && ELF32_ST_BIND(ref_sym->st_info) == STB_GLOBAL)
+			{
 				// It's not an error - at relocation, the most recent symbol
 				// will be considered
 				DBG_PRINT("Info: Symbol %s is defined more than once\n", crt_name);
 			}
 		}
+		//printf("symbol %s laoded from %d\n",crt_name,crt_sym->st_value);
 	}
 
 	return 0;
@@ -438,16 +449,17 @@ static Elf32_Sym *module_find_symbol_gnu(const char *name, struct elf_module *mo
 	return NULL;
 }
 
-static Elf32_Sym *module_find_symbol_iterate(const char *name,
-		struct elf_module *module) {
+static Elf32_Sym *module_find_symbol_iterate(const char *name,struct elf_module *module)
+{
 
 	unsigned int i;
 	Elf32_Sym *crt_sym;
 
-	for (i=1; i < module->symtable_size; i++) {
+	for (i=1; i < module->symtable_size; i++)
+	{
 		crt_sym = (Elf32_Sym*)(module->sym_table + i*module->syment_size);
-
-		if (strcmp(name, module->str_table + crt_sym->st_name) == 0) {
+		if (strcmp(name, module->str_table + crt_sym->st_name) == 0)
+		{
 			return crt_sym;
 		}
 	}
@@ -461,11 +473,18 @@ Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
 	if (module->ghash_table != NULL)
 		result = module_find_symbol_gnu(name, module);
 
-	if (result == NULL) {
+	if (result == NULL)
+	{
 		if (module->hash_table != NULL)
+		{
+			//printf("Attempting SYSV Symbol search\n");
 			result = module_find_symbol_sysv(name, module);
+		}
 		else
+		{
+			//printf("Attempting Iterative Symbol search\n");
 			result = module_find_symbol_iterate(name, module);
+		}
 	}
 
 	return result;
