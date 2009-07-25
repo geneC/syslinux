@@ -76,7 +76,7 @@ kwdhash.gen: keywords genhash.pl
 .PRECIOUS: %.elf
 
 %.raw: %.elf
-	$(OBJCOPY) -O binary $< $(@:.bin=.raw)
+	$(OBJCOPY) -O binary -R .rel.dyn $< $(@:.bin=.raw)
 
 %.bin: %.raw $(PREPCORE)
 	$(PREPCORE) $< $@
@@ -129,8 +129,7 @@ netinstall: installer
 
 tidy dist:
 	rm -f codepage.cp *.o *.elf *.a stupid.* patch.offset .depend .*.d
-	rm -f *.elf.tmp *.sym
-	rm -f *.lsr *.lst *.map *.sec *.raw
+	rm -f *.sym *.lsr *.lst *.map *.sec *.raw
 	rm -f */*.o */*.lst */.*.d
 	rm -f $(OBSOLETE)
 
