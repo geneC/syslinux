@@ -49,10 +49,10 @@ ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
 COBJ	 := $(patsubst %.c,%.o,$(CSRC))
 SOBJ	 := $(patsubst %.S,%.o,$(SSRC))
 
-LIB	 = libcore.a
-LIBS     = --whole-archive $(LIB) $(com32)/lib/libcom32.a \
-	--no-whole-archive $(LIBGCC)
-LIBDEP   = $(filter-out -%,$(LIBS))
+LIB	 = libcore.a 
+LIBS    = --whole-archive $(LIB) $(com32)/lib/libcom32.a \
+          --no-whole-archive $(LIBGCC)
+LIBDEP   = $(filter-out -% %start%,$(LIBS))
 LIBOBJS	 = $(COBJ) $(SOBJ)
 
 NASMDEBUG = -g -F dwarf
@@ -78,7 +78,7 @@ kwdhash.gen: keywords genhash.pl
 .PRECIOUS: %.elf
 
 %.raw: %.elf
-	$(OBJCOPY) -O binary $< $(@:.bin=.raw)
+	$(OBJCOPY) -O binary -R .rel.dyn $< $(@:.bin=.raw)
 
 %.bin: %.raw $(PREPCORE)
 	$(PREPCORE) $< $@
@@ -90,8 +90,8 @@ kwdhash.gen: keywords genhash.pl
 
 %.elf: %.o $(LIBDEP) syslinux.ld
 	$(LD) $(LDFLAGS) -Bsymbolic -pie -E --hash-style=gnu \
-        	-T syslinux.ld -M -o $@ $< $(LIBS) \
-        	> $(@:.elf=.map)
+		-T syslinux.ld -M -o $@ $< $(LIBS) \
+		> $(@:.elf=.map)
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
 	$(PERL) lstadjust.pl $(@:.elf=.lsr) $(@:.elf=.sec) $(@:.elf=.lst)
 
@@ -131,8 +131,7 @@ netinstall: installer
 
 tidy dist:
 	rm -f codepage.cp *.o *.elf *.a stupid.* patch.offset .depend .*.d
-	rm -f *.elf.tmp *.sym
-	rm -f *.lsr *.lst *.map *.sec *.raw
+	rm -f *.sym *.lsr *.lst *.map *.sec *.raw
 	rm -f */*.o */*.lst */.*.d
 	rm -f $(OBSOLETE)
 

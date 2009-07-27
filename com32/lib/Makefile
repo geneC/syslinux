@@ -66,11 +66,13 @@ LIBSYSLINUX_OBJS = \
 	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o		\
 	syslinux/setadv.o
 
+DYNENTRY_OBJS = \
+	 sys/entry.o
 
 ## CORE OBJECTS, INCLUDED IN THE ROOT COM32 MODULE
 LIBENTRY_OBJS = \
 	sys/intcall.o sys/farcall.o sys/cfarcall.o sys/zeroregs.o	\
-	sys/entry.o sys/exit.o sys/argv.o sys/times.o			\
+	sys/exit.o sys/argv.o sys/times.o			\
 	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
 	sys/isatty.o sys/fstat.o	\
@@ -169,7 +171,8 @@ DYNLIBOBJS = \
 	$(LIBJPG_OBJS) \
 	$(LIBPCI_OBJS) \
 	$(LIBVESA_OBJS) \
-	$(LIBSYSLINUX_OBJS)
+	$(LIBSYSLINUX_OBJS) \
+	$(DYNENTRY_OBJS)
 	
 	
 LIBOBJS = \

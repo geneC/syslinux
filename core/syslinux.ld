@@ -31,18 +31,10 @@ SECTIONS
 		*(.prefix)
 	}
 
-	/*
-	 * We don't need .rel.dyn so put it here where it gets
-	 * automatically removed anyway...
-	 */
-	.rel.dyn : {
-		*(.rel.dyn)
-	}
-
 	/* "Early" sections (before the load) */
 	. = 0x0800;
 
-	.earlybss : {
+	.earlybss (NOLOAD) : {
 		__earlybss_start = .;
 		*(.earlybss)
 		__earlybss_end = .;
@@ -51,7 +43,7 @@ SECTIONS
 	__earlybss_dwords = (__earlybss_len + 3) >> 2;
 
 	. = ALIGN(4);
-	.bss16 : {
+	.bss16 (NOLOAD) : {
 		__bss16_start = .;
 		*(.bss16)
 		__bss16_end = .;
@@ -367,8 +359,17 @@ SECTIONS
 	. = ALIGN(65536);
 	free_high_memory = .;
 
+	/* 
+	 * We don't need .rel.dyn so put it here where we can simply
+	 * remove it.
+	 */
+	.rel.dyn : {
+		*(.rel.dyn)
+	}
+
 	/* No "interpreter" applicable */
 	/DISCARD/ : {
 		*(.interp)
 	}
 }
+

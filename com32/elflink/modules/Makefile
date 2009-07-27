@@ -24,6 +24,12 @@ hello.c32 : hello.o
 sort.c32 : sort.o
 	$(LD) $(LDFLAGS) -o $@ $^
 
+tidy dist:
+	rm -f *.o *.lo *.a *.lst .*.d 
+
+clean: tidy
+	rm -f *.lss *.lnx *.com
+
 spotless: clean
 	rm -f *~ \#*
 
