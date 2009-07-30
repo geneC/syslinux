@@ -945,6 +945,12 @@ Mover_dst2:	db 0			; High 8 bits of source addy
 Mover_dummy2:	dd 0, 0, 0, 0		; More space for the BIOS
 
 		alignb 4, db 0
+Stack		dd 0			; Saved SS:ESP on invocation
+		dw 0
+SavedAX		dw 0			; AX saved on invocation
+Recursive	dw 0			; Recursion counter
+
+		alignb 4, db 0
 MemDisk_Info	equ $			; Pointed to by installation check
 MDI_Bytes	dw MDI_Len		; Total bytes in MDI structure
 MDI_Version	db VERSION_MINOR, VERSION_MAJOR	; MEMDISK version
@@ -1006,12 +1012,6 @@ EDD_DPT:
 %endif
 
 		; End patch area
-		alignb 4, db 0
-Stack		dd 0			; Saved SS:ESP on invocation
-		dw 0
-SavedAX		dw 0			; AX saved on invocation
-Recursive	dw 0			; Recursion counter
-
 		alignb 4, db 0		; We *MUST* end on a dword boundary
 
 E820Table	equ $			; The installer loads the E820 table here
