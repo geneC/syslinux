@@ -89,11 +89,13 @@ Pointers:	dw Int13Start
 
 IretPtr		equ Int13Start.iret
 Int13Start:
+		cmp word [cs:Recursive],0
+		jne jmp_oldint13
+
 		; Swap stack
 		mov [cs:Stack],esp
+		mov [cs:Stack+4],ss
 		mov [cs:SavedAX],ax
-		mov ax,ss
-		mov [cs:Stack+4],ax
 		mov ax,cs
 		mov ss,ax
 		mov sp,[cs:MyStack]
@@ -106,24 +108,24 @@ Int13Start:
 		js .nomatch		; If SF=0, we have a class match here
 					; 0x00 the sign bit for FD
 					; 0x80 the sign bit for HD
-		jz .our_drive		; If ZF=1, we have an exact match
+		jz our_drive		; If ZF=1, we have an exact match
 		cmp dl,[cs:DriveNo]
 		jb .nomatch		; Drive < Our drive
 		dec dl			; Drive > Our drive, adjust drive #
 .nomatch:
 		mov ax,[cs:SavedAX]
+		inc word [cs:Recursive]
 		pushf
 		call far [cs:OldInt13]
 		pushf
+		dec word [cs:Recursive]
 		push bp
 		mov bp,sp
 		cmp byte [cs:SavedAX+1],08h	; Get drive params function?
-		je .norestoredl
+		je .norestoredl			; DL = number of drives
 		cmp byte [cs:SavedAX+1],15h	; Get disk type function?
-		jne .restoredl
-		test byte [bp+4],80h	; Hard disk?
-		jnz .norestoredl
-.restoredl:				; DL should have number of drives
+		je .norestoredl			; CX:DX = size of device
+.restoredl:
 		mov dl,[bp+4]
 .norestoredl:
 		push ax
@@ -139,7 +141,10 @@ Int13Start:
 		lss esp,[cs:Stack]
 .iret:		iret
 
-.our_drive:
+jmp_oldint13:
+		jmp far [cs:OldInt13]
+
+our_drive:
 		; Set up standard entry frame
 		push ds
 		push es
@@ -149,7 +154,7 @@ Int13Start:
 		pushad
 		mov bp,sp		; Point BP to the entry stack frame
 		TRACER 'F'
-		; Note: AH == P_AH here
+		; Note: AX == P_AX here
 		cmp ah,Int13FuncsCnt-1
 		ja Invalid_jump
 		xor al,al		; AL = 0 is standard entry condition
@@ -208,7 +213,7 @@ Reset:
 		pop ds
 		lss esp,[cs:Stack]	; Restore the stack
 		and dl,80h		; Clear all but the type bit
-		jmp far [cs:OldInt13]
+		jmp jmp_oldint13
 
 
 Invalid:
@@ -224,11 +229,11 @@ GetDriveType:
 		jz .floppy
 		; Hard disks only...
 		inc bx			; Type = 03h
+.floppy:
 		mov dx,[DiskSize]	; Return the disk size in sectors
 		mov P_DX,dx
 		mov cx,[DiskSize+2]
 		mov P_CX,cx
-.floppy:
 		mov P_AH,bl		; 02h floppy, 03h hard disk
 		pop ax			; Drop return address
 		xor ax,ax		; Success...
@@ -792,6 +797,39 @@ debug_tracer:	pushad
 		popfd
 		popad
 		ret
+
+writehex2:	pushad
+		pushfd
+		mov cx,2
+		ror eax,4
+		jmp writehex_common
+writehex4:	pushad
+		pushfd
+		mov cx,4
+		ror eax,12
+		jmp writehex_common
+writehex8:	pushad
+		pushfd
+		mov cx,8
+		ror eax,28
+writehex_common:
+.loop:		push cx
+		push eax
+		and al,0Fh
+		cmp al,10
+		jb .isdec
+		add al,'a'-'0'-10
+.isdec:		add al,'0'
+		mov ah,0Eh
+		mov bx,7
+		int 10h
+		pop eax
+		rol eax,4
+		pop cx
+		loop .loop
+		popfd
+		popad
+		ret
 %endif
 
 		section .data
@@ -968,9 +1006,11 @@ EDD_DPT:
 %endif
 
 		; End patch area
+		alignb 4, db 0
 Stack		dd 0			; Saved SS:ESP on invocation
 		dw 0
 SavedAX		dw 0			; AX saved on invocation
+Recursive	dw 0			; Recursion counter
 
 		alignb 4, db 0		; We *MUST* end on a dword boundary
 
