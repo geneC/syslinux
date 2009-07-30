@@ -9,6 +9,8 @@ Changes in 3.83:
 	  BIOSes (including ASUS A8N-E, but possibly others.)
 	* chain.c32: support chainloaded bootloaders on ISOLINUX.
 	* PXELINUX: allow filenames up to 251 characters.
+	* MEMDISK: fix problems booting from USB on Thinkpads, and
+	  possibly other machines or hardware combinations.
 
 Changes in 3.82:
 	* isohybrid: fix the -partok logic for loading from a partition.
