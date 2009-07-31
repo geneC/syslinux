@@ -895,19 +895,21 @@ void setup(const struct real_mode_args *rm_args_ptr)
     }
 
     /* Set up an EDD drive parameter table */
-    pptr->edd_dpt.sectors = geometry->sectors;
-    /* The EDD spec has this as <= 15482880  sectors (1024x240x63);
-       this seems to make very little sense.  Try for something saner. */
-    if (geometry->c <= 1024 && geometry->h <= 255 && geometry->s <= 63) {
+    if (do_edd) {
+      pptr->edd_dpt.sectors = geometry->sectors;
+      /* The EDD spec has this as <= 15482880  sectors (1024x240x63);
+	 this seems to make very little sense.  Try for something saner. */
+      if (geometry->c <= 1024 && geometry->h <= 255 && geometry->s <= 63) {
 	pptr->edd_dpt.c = geometry->c;
 	pptr->edd_dpt.h = geometry->h;
 	pptr->edd_dpt.s = geometry->s;
 	pptr->edd_dpt.flags |= 0x0002;	/* Geometry valid */
-    }
-    if (!(geometry->driveno & 0x80)) {
+      }
+      if (!(geometry->driveno & 0x80)) {
 	/* Floppy drive.  Mark it as a removable device with
 	   media change notification; media is present. */
 	pptr->edd_dpt.flags |= 0x0014;
+      }
     }
 
     /* The size is given by hptr->total_size plus the size of the E820
