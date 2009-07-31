@@ -80,6 +80,15 @@ struct edd_dpt {
     uint64_t sectors;		/* Total sectors */
     uint16_t bytespersec;	/* Bytes/sector */
     uint16_t dpte_off, dpte_seg;	/* DPTE pointer */
+    uint16_t dpikey;		/* Device Path Info magic */
+    uint8_t  res1;		/* Reserved */
+    uint8_t  res2;		/* Reserved */
+    uint8_t  bustype[4];	/* Host bus type */
+    uint8_t  inttype[8];	/* Interface type */
+    uint64_t intpath;		/* Interface path */
+    uint64_t devpath[2];	/* Device path (double QuadWord!) */
+    uint8_t  res3;		/* Reserved */
+    uint8_t  chksum;		/* DPI checksum */
 };
 
 struct patch_area {
