@@ -81,8 +81,9 @@ struct edd_dpt {
     uint16_t bytespersec;	/* Bytes/sector */
     uint16_t dpte_off, dpte_seg;	/* DPTE pointer */
     uint16_t dpikey;		/* Device Path Info magic */
+    uint8_t  dpilen;		/* Device Path Info length */
     uint8_t  res1;		/* Reserved */
-    uint8_t  res2;		/* Reserved */
+    uint16_t res2;		/* Reserved */
     uint8_t  bustype[4];	/* Host bus type */
     uint8_t  inttype[8];	/* Interface type */
     uint64_t intpath;		/* Interface path */
@@ -717,6 +718,17 @@ static void relocate_rm_code(uint32_t newbase)
     sti();
 }
 
+static uint8_t checksum_buf(const void *buf, int count)
+{
+    const uint8_t *p = buf;
+    uint8_t c;
+
+    while (count--)
+	c += *p++;
+
+    return c;
+}
+
 #define STACK_NEEDED	512	/* Number of bytes of stack */
 
 struct real_mode_args rm_args;
@@ -896,20 +908,23 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     /* Set up an EDD drive parameter table */
     if (do_edd) {
-      pptr->edd_dpt.sectors = geometry->sectors;
-      /* The EDD spec has this as <= 15482880  sectors (1024x240x63);
-	 this seems to make very little sense.  Try for something saner. */
-      if (geometry->c <= 1024 && geometry->h <= 255 && geometry->s <= 63) {
-	pptr->edd_dpt.c = geometry->c;
-	pptr->edd_dpt.h = geometry->h;
-	pptr->edd_dpt.s = geometry->s;
-	pptr->edd_dpt.flags |= 0x0002;	/* Geometry valid */
-      }
-      if (!(geometry->driveno & 0x80)) {
-	/* Floppy drive.  Mark it as a removable device with
-	   media change notification; media is present. */
-	pptr->edd_dpt.flags |= 0x0014;
-      }
+	pptr->edd_dpt.sectors = geometry->sectors;
+	/* The EDD spec has this as <= 15482880  sectors (1024x240x63);
+	   this seems to make very little sense.  Try for something saner. */
+	if (geometry->c <= 1024 && geometry->h <= 255 && geometry->s <= 63) {
+	    pptr->edd_dpt.c = geometry->c;
+	    pptr->edd_dpt.h = geometry->h;
+	    pptr->edd_dpt.s = geometry->s;
+	    pptr->edd_dpt.flags |= 0x0002;	/* Geometry valid */
+	}
+	if (!(geometry->driveno & 0x80)) {
+	    /* Floppy drive.  Mark it as a removable device with
+	       media change notification; media is present. */
+	    pptr->edd_dpt.flags |= 0x0014;
+	}
+	
+	pptr->edd_dpt.devpath[0] = pptr->diskbuf;
+	pptr->edd_dpt.chksum  = -checksum_buf(&pptr->edd_dpt.dpikey, 73-30);
     }
 
     /* The size is given by hptr->total_size plus the size of the E820

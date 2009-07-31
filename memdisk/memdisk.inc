@@ -945,12 +945,6 @@ Mover_dst2:	db 0			; High 8 bits of source addy
 Mover_dummy2:	dd 0, 0, 0, 0		; More space for the BIOS
 
 		alignb 4, db 0
-Stack		dd 0			; Saved SS:ESP on invocation
-		dw 0
-SavedAX		dw 0			; AX saved on invocation
-Recursive	dw 0			; Recursion counter
-
-		alignb 4, db 0
 MemDisk_Info	equ $			; Pointed to by installation check
 MDI_Bytes	dw MDI_Len		; Total bytes in MDI structure
 MDI_Version	db VERSION_MINOR, VERSION_MAJOR	; MEMDISK version
@@ -1008,21 +1002,26 @@ EDD_DPT:
 .totalsize	dd 0, 0			; Filled in by installer
 .bytespersec	dw SECTORSIZE
 .eddtable	dw -1, -1		; Invalid DPTE pointer
-.dpikey		dw 0			; Device Path Info magic (not impl.)
-					; Would be 0beddh if implemented
+.dpikey		dw 0BEDDh		; Device Path Info magic
 .dpilen		db 2ch			; DPI len
 .res1		db 0			; Reserved
-.res2		db 0			; Reserved
-.bustype	equ 'PCI '		; Host bus type (4 bytes, space padded)
-.inttype	equ 'ATA     '		; Interface type (8 bytes, spc. padded)
+.res2		dw 0			; Reserved
+.bustype	equ 'MEM '		; Host bus type (4 bytes, space padded)
+.inttype	equ 'MEMORY  '		; Interface type (8 bytes, spc. padded)
 .intpath	dd 0, 0			; Interface path
 .devpath	dd 0, 0, 0, 0		; Device path
 .res3		db 0			; Reserved
-.chksum		db 0			; DPI checksum (not implemented)
+.chksum		db 0			; DPI checksum
 
 %endif
 
 		; End patch area
+		alignb 4, db 0
+Stack		dd 0			; Saved SS:ESP on invocation
+		dw 0
+SavedAX		dw 0			; AX saved on invocation
+Recursive	dw 0			; Recursion counter
+
 		alignb 4, db 0		; We *MUST* end on a dword boundary
 
 E820Table	equ $			; The installer loads the E820 table here
