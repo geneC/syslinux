@@ -206,8 +206,8 @@ outputvga:
 .loop1:
 		out dx,al	; Select the bit plane to write
 		push di
-		mov cx,640/8
-		rep movsb
+		mov cx,640/32
+		rep movsd
 		pop di
 		add ax,ax
 		cmp al,8
