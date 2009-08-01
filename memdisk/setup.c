@@ -13,6 +13,7 @@
 
 #include <stdint.h>
 #include "bda.h"
+#include "dskprobe.h"
 #include "e820.h"
 #include "conio.h"
 #include "version.h"
@@ -998,6 +999,13 @@ void setup(const struct real_mode_args *rm_args_ptr)
     /* Discontiguous drive space.  There is no really good solution for this. */
     if (pptr->drivecnt <= (geometry->driveno & 0x7f))
 	pptr->drivecnt = (geometry->driveno & 0x7f) + 1;
+
+    /* Probe for contiguous range of BIOS drives starting with driveno */
+    pptr->driveshiftlimit = probe_drive_range(geometry->driveno) + 1;
+    if ((pptr->driveshiftlimit & 0x80) != (geometry->driveno & 0x80))
+	printf("We lost the last drive in our class of drives.\n");
+    printf("Drive probing gives drive shift limit: 0x%02x\n",
+	pptr->driveshiftlimit);
 
     /* Pointer to the command line */
     pptr->cmdline_off = bin_size + (nranges + 1) * sizeof(ranges[0]);

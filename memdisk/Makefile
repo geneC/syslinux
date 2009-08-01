@@ -38,9 +38,9 @@ endif
 # Important: init.o16 must be first!!
 OBJS16   = init.o16 init32.o
 OBJS32   = start32.o setup.o msetup.o e820func.o conio.o memcpy.o memset.o \
-	   memmove.o unzip.o memdisk_chs.o memdisk_edd.o
+	   memmove.o unzip.o memdisk_chs.o memdisk_edd.o dskprobe.o
 
-CSRC     = setup.c msetup.c e820func.c conio.c unzip.c
+CSRC     = setup.c msetup.c e820func.c conio.c unzip.c dskprobe.c
 SSRC     = start32.S memcpy.S memset.S memmove.S
 NASMSRC  = memdisk_chs.asm memdisk_edd.asm memdisk16.asm
 
