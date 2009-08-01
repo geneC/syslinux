@@ -12,6 +12,7 @@
  * ----------------------------------------------------------------------- */
 
 #include <stdint.h>
+#include "bda.h"
 #include "e820.h"
 #include "conio.h"
 #include "version.h"
@@ -132,50 +133,6 @@ struct patch_area {
     dpt_t dpt;
     struct edd_dpt edd_dpt;
 } __attribute__((packed));
-
-/* Access to high memory */
-
-/* Access to objects in the zero page */
-static inline void wrz_8(uint32_t addr, uint8_t data)
-{
-    *((uint8_t *) addr) = data;
-}
-
-static inline void wrz_16(uint32_t addr, uint16_t data)
-{
-    *((uint16_t *) addr) = data;
-}
-
-static inline void wrz_32(uint32_t addr, uint32_t data)
-{
-    *((uint32_t *) addr) = data;
-}
-
-static inline uint8_t rdz_8(uint32_t addr)
-{
-    return *((uint8_t *) addr);
-}
-
-static inline uint16_t rdz_16(uint32_t addr)
-{
-    return *((uint16_t *) addr);
-}
-
-static inline uint32_t rdz_32(uint32_t addr)
-{
-    return *((uint32_t *) addr);
-}
-
-/* Addresses in the zero page */
-#define BIOS_INT13	(0x13*4)	/* INT 13h vector */
-#define BIOS_INT15	(0x15*4)	/* INT 15h vector */
-#define BIOS_INT1E      (0x1E*4)	/* INT 1Eh vector */
-#define BIOS_INT40	(0x40*4)	/* INT 13h vector */
-#define BIOS_INT41      (0x41*4)	/* INT 41h vector */
-#define BIOS_INT46      (0x46*4)	/* INT 46h vector */
-#define BIOS_BASEMEM	0x413	/* Amount of DOS memory */
-#define BIOS_EQUIP	0x410	/* BIOS equipment list */
-#define BIOS_HD_COUNT   0x475	/* Number of hard drives present */
 
 /*
  * Routine to seek for a command-line item and return a pointer
@@ -339,7 +296,7 @@ void unzip_if_needed(uint32_t * where_p, uint32_t * size_p)
 
 	if (!okmem)
 	    die("Not enough memory to decompress image (need 0x%08x bytes)\n",
-		 gzdatasize);
+		gzdatasize);
 
 	printf("gzip image: decompressed addr 0x%08x, len 0x%08x: ",
 	       target, gzdatasize);
@@ -426,7 +383,8 @@ struct dosemu_header {
 
 #define FOUR(a,b,c,d) (((a) << 24)|((b) << 16)|((c) << 8)|(d))
 
-static const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
+static const struct geometry *get_disk_image_geometry(uint32_t where,
+						      uint32_t size)
 {
     static struct geometry hd_geometry;
     struct dosemu_header dosemu;
@@ -674,46 +632,46 @@ static uint32_t pnp_install_check(void)
 struct gdt_ptr {
     uint16_t limit;
     uint32_t base;
-} __attribute__((packed));
+} __attribute__ ((packed));
 
 static void set_seg_base(uint32_t gdt_base, int seg, uint32_t v)
 {
-    *(uint16_t *)(gdt_base + seg + 2) = v;
-    *(uint8_t *)(gdt_base + seg + 4) = v >> 16;
-    *(uint8_t *)(gdt_base + seg + 7) = v >> 24;
+    *(uint16_t *) (gdt_base + seg + 2) = v;
+    *(uint8_t *) (gdt_base + seg + 4) = v >> 16;
+    *(uint8_t *) (gdt_base + seg + 7) = v >> 24;
 }
 
 static void relocate_rm_code(uint32_t newbase)
 {
     uint32_t gdt_base;
     uint32_t oldbase = rm_args.rm_base;
-    uint32_t delta   = newbase - oldbase;
+    uint32_t delta = newbase - oldbase;
 
     cli();
     memmove((void *)newbase, (void *)oldbase, rm_args.rm_size);
 
-    rm_args.rm_return  		+= delta;
-    rm_args.rm_intcall 		+= delta;
-    rm_args.rm_bounce  		+= delta;
-    rm_args.rm_base    		+= delta;
-    rm_args.rm_gdt              += delta;
-    rm_args.rm_pmjmp		+= delta;
-    rm_args.rm_rmjmp		+= delta;
+    rm_args.rm_return += delta;
+    rm_args.rm_intcall += delta;
+    rm_args.rm_bounce += delta;
+    rm_args.rm_base += delta;
+    rm_args.rm_gdt += delta;
+    rm_args.rm_pmjmp += delta;
+    rm_args.rm_rmjmp += delta;
 
     gdt_base = rm_args.rm_gdt;
 
-    *(uint32_t *)(gdt_base+2)    = gdt_base;	/* GDT self-pointer */
+    *(uint32_t *) (gdt_base + 2) = gdt_base;	/* GDT self-pointer */
 
     /* Segments 0x10 and 0x18 are real-mode-based */
     set_seg_base(gdt_base, 0x10, rm_args.rm_base);
     set_seg_base(gdt_base, 0x18, rm_args.rm_base);
 
-    asm volatile("lgdtl %0" : : "m" (*(char *)gdt_base));
+    asm volatile ("lgdtl %0"::"m" (*(char *)gdt_base));
 
-    *(uint32_t *)rm_args.rm_pmjmp += delta;
-    *(uint16_t *)rm_args.rm_rmjmp += delta >> 4;
+    *(uint32_t *) rm_args.rm_pmjmp += delta;
+    *(uint16_t *) rm_args.rm_rmjmp += delta >> 4;
 
-    rm_args.rm_handle_interrupt	+= delta;
+    rm_args.rm_handle_interrupt += delta;
 
     sti();
 }
@@ -922,9 +880,9 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	       media change notification; media is present. */
 	    pptr->edd_dpt.flags |= 0x0014;
 	}
-	
+
 	pptr->edd_dpt.devpath[0] = pptr->diskbuf;
-	pptr->edd_dpt.chksum  = -checksum_buf(&pptr->edd_dpt.dpikey, 73-30);
+	pptr->edd_dpt.chksum = -checksum_buf(&pptr->edd_dpt.dpikey, 73 - 30);
     }
 
     /* The size is given by hptr->total_size plus the size of the E820
@@ -1102,11 +1060,11 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     /* Figure out entry point */
     if (!boot_seg) {
-	boot_base  = 0x7c00;
-	shdr->sssp = 0x7c00; 
-	shdr->csip = 0x7c00; 
+	boot_base = 0x7c00;
+	shdr->sssp = 0x7c00;
+	shdr->csip = 0x7c00;
     } else {
-	boot_base  = boot_seg << 4;
+	boot_base = boot_seg << 4;
 	shdr->sssp = boot_seg << 16;
 	shdr->csip = boot_seg << 16;
     }
@@ -1121,7 +1079,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     /* Reboot into the new "disk" */
     puts("Loading boot sector... ");
 
-    memcpy((void *)boot_base, (char *)pptr->diskbuf + boot_lba*512, boot_len);
+    memcpy((void *)boot_base, (char *)pptr->diskbuf + boot_lba * 512, boot_len);
 
     if (getcmditem("pause") != CMD_NOTFOUND) {
 	puts("press any key to boot... ");
@@ -1133,5 +1091,5 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     /* On return the assembly code will jump to the boot vector */
     shdr->esdi = pnp_install_check();
-    shdr->edx  = geometry->driveno;
+    shdr->edx = geometry->driveno;
 }
