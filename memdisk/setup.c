@@ -24,12 +24,12 @@ const char memdisk_version[] = "MEMDISK " VERSION_STR " " DATE;
 const char copyright[] =
     "Copyright " FIRSTYEAR "-" YEAR_STR " H. Peter Anvin et al";
 
-extern const char _binary_memdisk_chs_bin_start[];
-extern const char _binary_memdisk_chs_bin_end[];
-extern const char _binary_memdisk_chs_bin_size[];
-extern const char _binary_memdisk_edd_bin_start[];
-extern const char _binary_memdisk_edd_bin_end[];
-extern const char _binary_memdisk_edd_bin_size[];
+extern const char _binary_memdisk_chs_512_bin_start[];
+extern const char _binary_memdisk_chs_512_bin_end[];
+extern const char _binary_memdisk_chs_512_bin_size[];
+extern const char _binary_memdisk_edd_512_bin_start[];
+extern const char _binary_memdisk_edd_512_bin_end[];
+extern const char _binary_memdisk_edd_512_bin_size[];
 
 struct memdisk_header {
     uint16_t int13_offs;
@@ -758,11 +758,11 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     /* Choose the appropriate installable memdisk hook */
     if (do_edd) {
-	bin_size = (int)&_binary_memdisk_edd_bin_size;
-	memdisk_hook = (char *)&_binary_memdisk_edd_bin_start;
+	bin_size = (int)&_binary_memdisk_edd_512_bin_size;
+	memdisk_hook = (char *)&_binary_memdisk_edd_512_bin_start;
     } else {
-	bin_size = (int)&_binary_memdisk_chs_bin_size;
-	memdisk_hook = (char *)&_binary_memdisk_chs_bin_start;
+	bin_size = (int)&_binary_memdisk_chs_512_bin_size;
+	memdisk_hook = (char *)&_binary_memdisk_chs_512_bin_start;
     }
 
     /* Reserve the ramdisk memory */
