@@ -147,6 +147,12 @@ Int13Start:
 		jz our_drive		; If ZF=1, we have an exact match
 		cmp dl,[cs:DriveNo]
 		jb .nomatch		; Drive < Our drive
+		cmp dl,[cs:DriveShiftLimit]
+		jae .nomatch		; Drive > The maximum drive
+					; number that we will shift for.
+					; This leaves any higher-up BIOS
+					; drives alone, such as an optical
+					; disc drive 0xA0 or 0xE0
 		dec dl			; Drive > Our drive, adjust drive #
 .nomatch:
 		TRACER '!'
@@ -1013,6 +1019,13 @@ DPT_ptr		dw 0			; If nonzero, pointer to DPT
 MDI_Len		equ $-MemDisk_Info
 
 ; ---- MDI structure ends here ---
+DriveShiftLimit	db 0ffh			; Installer will [soon] probe for
+					; a range of contiguous drives.
+					; Any BIOS drives above this region
+					; shall not be impacted by our
+					; shifting behaviour
+		db 0			; pad to a DWORD
+		dw 0			; pad to a QWORD
 MemInt1588	dw 0			; 1MB-65MB memory amount (1K)
 
 Cylinders	dw 0			; Cylinder count

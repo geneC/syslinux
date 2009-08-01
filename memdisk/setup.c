@@ -107,6 +107,10 @@ struct patch_area {
 
     uint16_t dpt_ptr;
     /* End of the official MemDisk_Info */
+    uint8_t driveshiftlimit;	/* Do not shift drives above this region */
+    uint8_t _pad2;		/* Pad to DWORD */
+    uint16_t _pad3;		/* Pad to QWORD */
+
     uint16_t memint1588;
 
     uint16_t cylinders;
