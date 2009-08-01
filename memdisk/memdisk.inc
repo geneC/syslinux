@@ -79,7 +79,6 @@
 
 		org 0h
 
-%define SECTORSIZE_LG2	9		; log2(sector size)
 %define	SECTORSIZE	(1 << SECTORSIZE_LG2)
 
 		; Parameter registers definition; this is the definition
