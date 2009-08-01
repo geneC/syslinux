@@ -30,6 +30,12 @@ extern const char _binary_memdisk_chs_512_bin_size[];
 extern const char _binary_memdisk_edd_512_bin_start[];
 extern const char _binary_memdisk_edd_512_bin_end[];
 extern const char _binary_memdisk_edd_512_bin_size[];
+extern const char _binary_memdisk_iso_512_bin_start[];
+extern const char _binary_memdisk_iso_512_bin_end[];
+extern const char _binary_memdisk_iso_512_bin_size[];
+extern const char _binary_memdisk_iso_2048_bin_start[];
+extern const char _binary_memdisk_iso_2048_bin_end[];
+extern const char _binary_memdisk_iso_2048_bin_size[];
 
 struct memdisk_header {
     uint16_t int13_offs;
