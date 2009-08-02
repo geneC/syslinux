@@ -27,10 +27,46 @@
 	call debug_tracer
 	db %1
 %endmacro
+%macro WRITEHEX2 0-1 al
+%ifnidni %1,al
+	push ax
+	mov al,%1
+	call writehex2
+	pop ax
+%else
+	call writehex2
+%endif
+%endmacro
+%macro WRITEHEX4 0-1 ax
+%ifnidni %1,ax
+	push ax
+	mov ax,%1
+	call writehex4
+	pop ax
+%else
+	call writehex4
+%endif
+%endmacro
+%macro WRITEHEX8 0-1 eax
+%ifnidni %1,eax
+	push eax
+	mov eax,%1
+	call writehex8
+	pop eax
+%else
+	call writehex8
+%endif
+%endmacro
 
 %else	; DEBUG_TRACERS
 
 %macro	TRACER	1
+%endmacro
+%macro WRITEHEX2 0-1
+%endmacro
+%macro WRITEHEX4 0-1
+%endmacro
+%macro WRITEHEX8 0-1
 %endmacro
 
 %endif	; DEBUG_TRACERS
@@ -90,7 +126,7 @@ Pointers:	dw Int13Start
 IretPtr		equ Int13Start.iret
 Int13Start:
 		cmp word [cs:Recursive],0
-		jne jmp_oldint13
+		jne recursive
 
 		; Swap stack
 		mov [cs:Stack],esp
@@ -113,7 +149,15 @@ Int13Start:
 		jb .nomatch		; Drive < Our drive
 		dec dl			; Drive > Our drive, adjust drive #
 .nomatch:
+%ifdef DEBUG_TRACERS
+		TRACER '!'
+		WRITEHEX2 dl
+		TRACER ','
 		mov ax,[cs:SavedAX]
+		WRITEHEX4
+%else
+		mov ax,[cs:SavedAX]
+%endif
 		inc word [cs:Recursive]
 		pushf
 		call far [cs:OldInt13]
@@ -141,6 +185,8 @@ Int13Start:
 		lss esp,[cs:Stack]
 .iret:		iret
 
+recursive:
+		TRACER '@'
 jmp_oldint13:
 		jmp far [cs:OldInt13]
 
@@ -154,6 +200,7 @@ our_drive:
 		pushad
 		mov bp,sp		; Point BP to the entry stack frame
 		TRACER 'F'
+		WRITEHEX4
 		; Note: AX == P_AX here
 		cmp ah,Int13FuncsCnt-1
 		ja Invalid_jump
@@ -227,13 +274,15 @@ GetDriveType:
 		test byte [DriveNo],80h
 		mov bl,02h		; Type 02h = floppy with changeline
 		jz .floppy
-		; Hard disks only...
+		; Hard disks only!  DO NOT set CX:DX for floppies...
+		; it apparently causes Win98SE DOS to go into an loop
+		; resetting the drive over and over.  Sigh.
 		inc bx			; Type = 03h
-.floppy:
 		mov dx,[DiskSize]	; Return the disk size in sectors
 		mov P_DX,dx
 		mov cx,[DiskSize+2]
 		mov P_CX,cx
+.floppy:
 		mov P_AH,bl		; 02h floppy, 03h hard disk
 		pop ax			; Drop return address
 		xor ax,ax		; Success...

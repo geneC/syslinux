@@ -90,7 +90,7 @@ struct edd_dpt {
     uint64_t devpath[2];	/* Device path (double QuadWord!) */
     uint8_t  res3;		/* Reserved */
     uint8_t  chksum;		/* DPI checksum */
-};
+} __attribute__((packed));
 
 struct patch_area {
     uint32_t diskbuf;
@@ -131,7 +131,7 @@ struct patch_area {
 
     dpt_t dpt;
     struct edd_dpt edd_dpt;
-};
+} __attribute__((packed));
 
 /* Access to high memory */
 
