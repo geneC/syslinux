@@ -353,6 +353,12 @@ int main(int argc, char *argv[])
 	fwrite(out, 1, outfile_len, f) != outfile_len || fclose(f))
 	error("write error");
 
+    printf("%s: in %lu, fixed %lu, out %lu, total %lu (%lu%%)\n",
+	   out_name, in_len, offset-start, outfile_len,
+	   (offset-start)+outfile_len,
+	   (((offset-start)+outfile_len)*100+infile_len-start-1)
+	   /(infile_len-start));
+
 /*
  * Step 12: verify decompression
  */
