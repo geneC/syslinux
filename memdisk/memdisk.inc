@@ -1006,8 +1006,8 @@ EDD_DPT:
 .dpilen		db 2ch			; DPI len
 .res1		db 0			; Reserved
 .res2		dw 0			; Reserved
-.bustype	equ 'MEM '		; Host bus type (4 bytes, space padded)
-.inttype	equ 'MEMORY  '		; Interface type (8 bytes, spc. padded)
+.bustype	dd 'MEM '		; Host bus type (4 bytes, space padded)
+.inttype	dd 'MEMORY  '		; Interface type (8 bytes, spc. padded)
 .intpath	dd 0, 0			; Interface path
 .devpath	dd 0, 0, 0, 0		; Device path
 .res3		db 0			; Reserved
