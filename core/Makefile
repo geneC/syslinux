@@ -50,7 +50,7 @@ COBJ	 := $(patsubst %.c,%.o,$(CSRC))
 SOBJ	 := $(patsubst %.S,%.o,$(SSRC))
 
 LIB	 = libcore.a 
-LIBS    = --whole-archive $(LIB) $(com32)/lib/libcom32.a \
+LIBS    = --whole-archive $(LIB) $(com32)/lib/libcom32min.a \
           --no-whole-archive $(LIBGCC)
 LIBDEP   = $(filter-out -% %start%,$(LIBS))
 LIBOBJS	 = $(COBJ) $(SOBJ)

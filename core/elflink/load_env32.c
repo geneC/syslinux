@@ -84,17 +84,13 @@ void load_env32(com32sys_t * regs)
 	argv=(char**)malloc(n*sizeof(char*));
 	argv[1]=(char*)malloc(100*sizeof(char));//(char *)(regs->edi.w[0]);
 	strcpy(argv[1],"extlinux.conf");
-
 	
-	/*printf("\nBegin dynamic module test...\n");
+	/*printf("\nBegin dynamic module test ...\n");
 	printf("\n\nTrying to laod 'dyn/sort.dyn'\n\n");*/
 	//printf("%d\n",load_library("dyn/sort.dyn"));
-	//printf("Loading refstr.c32\n%d\n",load_library("dyn/refstr.c32"));
-	//printf("Loading colors.c32\n%d\n",load_library("dyn/colors.c32"));
-	//printf("Loading readconfig.c32\n%d\n",load_library("dyn/readconfig.c32"));
 	printf("Loading background.c32\n%d\n",load_library("dyn/background.c32"));
 	printf("Loading printmsg.c32\n%d\n",load_library("dyn/printmsg.c32"));
-	/*printf("Loading drain.c32\n%d\n",load_library("dyn/drain.c32"));
+	printf("Loading drain.c32\n%d\n",load_library("dyn/drain.c32"));
 	printf("Loading sha1hash.c32\n%d\n",load_library("dyn/sha1hash.c32"));
 	printf("Loading unbase64.c32\n%d\n",load_library("dyn/unbase64.c32"));
 	printf("Loading sha512crypt\n%d\n",load_library("dyn/sha512crypt.c32"));
@@ -105,12 +101,12 @@ void load_env32(com32sys_t * regs)
 	printf("Loading execute.c32\n%d\n",load_library("dyn/execute.c32"));
 	printf("Loading get_key.c32\n%d\n",load_library("dyn/get_key.c32"));
 	printf("Loading menumain.c32\n%d\n",load_library("dyn/menumain.c32"));
-	printf("Loading ansiraw.c32\n%d\n",load_library("dyn/ansiraw.c32"));*/
+	printf("Loading ansiraw.c32\n%d\n",load_library("dyn/ansiraw.c32"));
 
 	/*printf("\n\nTrying to spawn 'dyn/hello.dyn'\n\n"); 
 	spawnv("dyn/hello.dyn",0);
 	printf("\nTest done\n");*/
-	printf("%d\n",spawnv("dyn/mytest.c32",argv));
+	printf("%d\n",spawnv("dyn/mytest.c32",0));
 	printf("Done\n");
 	
 	while(1) 1; /* we don't have anything better to do so hang around for a bit */

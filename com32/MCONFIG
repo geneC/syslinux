@@ -89,3 +89,4 @@ C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
 	$(RELOCS) $< >> $@ || ( rm -f $@ ; false )
+

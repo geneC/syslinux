@@ -13,7 +13,9 @@
 topdir = ../../..
 include MCONFIG
 
-MODULES	  = hello.c32 sort.c32
+MODULES	  = hello.c32 sort.c32 mytest.c32 readconfig.c32 refstr.c32 colors.c32 menumain.c32 printmsg.c32 background.c32 passwd.c32 sha1hash.c32 \
+	unbase64.c32 sha512crypt.c32 md5.c32 crypt-md5.c32 sha256crypt.c32 execute.c32 get_key.c32 ansiraw.c32
+
 TESTFILES =
 
 all: $(MODULES) $(TESTFILES)
@@ -22,6 +24,60 @@ hello.c32 : hello.o
 	$(LD) $(LDFLAGS) -o $@ $^
 	
 sort.c32 : sort.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+mytest.c32 : mytest.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+readconfig.c32 : readconfig.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+refstr.c32 : refstr.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+colors.c32 : colors.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+menumain.c32 : menumain.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+printmsg.c32 : printmsg.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+background.c32 : background.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+drain.c32 : drain.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+passwd.c32 : passwd.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+sha1hash.c32 : sha1hash.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+unbase64.c32 : unbase64.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+sha512crypt.c32 : sha512crypt.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+sha256crypt.c32 : sha256crypt.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+md5.c32 : md5.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+crypt-md5.c32 : crypt-md5.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+execute.c32 : execute.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+get_key.c32 : get_key.o
+	$(LD) $(LDFLAGS) -o $@ $^
+
+ansiraw.c32 : ansiraw.o
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:

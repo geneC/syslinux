@@ -17,8 +17,7 @@ MODULES	  = test_memalign.c32 test_com32.c32
 
 TESTFILES =
 
-all:
- $(MODULES) $(TESTFILES)
+all: $(MODULES) $(TESTFILES)
 	
 test_memalign.elf : test_memalign.o  $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
@@ -42,3 +41,4 @@ install: all
 	install -m 644 $(MODULES) $(INSTALLROOT)$(AUXDIR)
 
 -include .*.d
+

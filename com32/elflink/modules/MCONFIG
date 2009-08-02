@@ -56,3 +56,4 @@ LNXLDFLAGS = -g
 .PRECIOUS: %.lnx
 %.lnx: %.lo $(LNXLIBS)
 	$(CC) $(LNXLDFLAGS) -o $@ $^
+
