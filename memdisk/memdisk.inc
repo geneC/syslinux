@@ -149,15 +149,11 @@ Int13Start:
 		jb .nomatch		; Drive < Our drive
 		dec dl			; Drive > Our drive, adjust drive #
 .nomatch:
-%ifdef DEBUG_TRACERS
 		TRACER '!'
 		WRITEHEX2 dl
 		TRACER ','
 		mov ax,[cs:SavedAX]
 		WRITEHEX4
-%else
-		mov ax,[cs:SavedAX]
-%endif
 		inc word [cs:Recursive]
 		pushf
 		call far [cs:OldInt13]
