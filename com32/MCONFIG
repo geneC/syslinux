@@ -49,7 +49,7 @@ SFLAGS     = $(GCCOPT) -W -Wall -march=i386 \
 	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE)
 
 COM32LD	   = $(com32)/lib/com32.ld
-LDFLAGS    = -m elf_i386 --emit-relocs -T $(COM32LD)
+LDFLAGS    = -m elf_i386 --hash-style=gnu --emit-relocs -T $(COM32LD)
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 
 LNXCFLAGS  = -I$(com32)/libutil/include -W -Wall -O -g -D_GNU_SOURCE
