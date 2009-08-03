@@ -50,6 +50,7 @@ int __file_close(struct file_info *fp)
     }
 
     free(fp->i.buf);
+    fp->i.buf = NULL;
 
     return 0;
 }

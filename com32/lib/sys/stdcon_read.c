@@ -51,6 +51,7 @@ static ssize_t __stdcon_open(struct file_info *fp)
 static int __stdcon_close(struct file_info *fp)
 {
     free(fp->i.buf);
+    fp->i.buf = NULL;
 }
 
 static ssize_t __stdcon_read(struct file_info *fp, void *buf, size_t count)
