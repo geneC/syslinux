@@ -11,6 +11,7 @@ Changes in 3.83:
 	* PXELINUX: allow filenames up to 251 characters.
 	* MEMDISK: fix problems booting from USB on Thinkpads, and
 	  possibly other machines or hardware combinations.
+	* isohybrid: fix the -id option.
 
 Changes in 3.82:
 	* isohybrid: fix the -partok logic for loading from a partition.
