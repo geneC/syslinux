@@ -35,9 +35,23 @@
 #include <string.h>
 #include <com32.h>
 #include <minmax.h>
+#include <stdlib.h>
 #include "file.h"
 
+#define BUFFER 4096
+
 extern ssize_t __rawcon_read(struct file_info *fp, void *buf, size_t count);
+
+static ssize_t __stdcon_open(struct file_info *fp)
+{
+    fp->i.datap = fp->i.buf = malloc(BUFFER);
+    return !fp->i.buf ? -1 : 0;
+}
+
+static int __stdcon_close(struct file_info *fp)
+{
+    free(fp->i.buf);
+}
 
 static ssize_t __stdcon_read(struct file_info *fp, void *buf, size_t count)
 {
@@ -55,7 +69,7 @@ static ssize_t __stdcon_read(struct file_info *fp, void *buf, size_t count)
 	    if (ch == '\n')
 		return n;
 	} else {
-	    fp->i.nbytes = __line_input(fp, fp->i.buf, MAXBLOCK, __rawcon_read);
+	    fp->i.nbytes = __line_input(fp, fp->i.buf, BUFFER, __rawcon_read);
 	    fp->i.datap = fp->i.buf;
 
 	    if (fp->i.nbytes == 0)
@@ -71,6 +85,6 @@ const struct input_dev dev_stdcon_r = {
     .flags = __DEV_TTY | __DEV_INPUT,
     .fileflags = O_RDONLY,
     .read = __stdcon_read,
-    .close = NULL,
-    .open = NULL,
+    .open = __stdcon_open,
+    .close = __stdcon_close,
 };

@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <com32.h>
 #include <string.h>
+#include <stdlib.h>
 #include "file.h"
 
 int __file_close(struct file_info *fp)
@@ -47,6 +48,8 @@ int __file_close(struct file_info *fp)
 
 	__com32.cs_intcall(0x22, &regs, NULL);
     }
+
+    free(fp->i.buf);
 
     return 0;
 }
