@@ -194,7 +194,7 @@ if ($c > 1024) {
 
 # Preserve id when run again
 if (defined($opt{'id'})) {
-    $id = $opt{'id'};
+    $id = pack("V", doh($opt{'id'}));
 } else {
     seek(FILE, 440, SEEK_SET) or die "$0: $file: $!\n";
     read(FILE, $id, 4);
