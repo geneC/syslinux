@@ -2,6 +2,7 @@
  *
  *   Copyright 2001-2009 H. Peter Anvin - All Rights Reserved
  *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Portions copyright 2009 Shao Miller [El Torito code]
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -15,6 +16,7 @@
 #include "bda.h"
 #include "dskprobe.h"
 #include "e820.h"
+#include "eltorito.h"
 #include "conio.h"
 #include "version.h"
 #include "memdisk.h"
@@ -143,7 +145,18 @@ struct patch_area {
 
     dpt_t dpt;
     struct edd_dpt edd_dpt;
+    struct edd4_cd_pkt cd_pkt; /* Only really in a memdisk_iso_* hook */
 } __attribute__((packed));
+
+/* An EDD disk packet */
+struct edd_dsk_pkt {
+    uint8_t size;		/* Packet size        */
+    uint8_t res1;		/* Reserved           */
+    uint16_t count;		/* Count to transfer  */
+    uint32_t buf;		/* Buffer pointer     */
+    uint64_t start;		/* LBA to start from  */
+    uint64_t buf64;		/* 64-bit buf pointer */
+} __attribute__ ((packed));
 
 /*
  * Routine to seek for a command-line item and return a pointer
@@ -322,11 +335,12 @@ void unzip_if_needed(uint32_t * where_p, uint32_t * size_p)
  * Figure out the "geometry" of the disk in question
  */
 struct geometry {
-    uint32_t sectors;		/* 512-byte sector count */
+    uint32_t sectors;		/* Sector count */
     uint32_t c, h, s;		/* C/H/S geometry */
     uint32_t offset;		/* Byte offset for disk */
     uint8_t type;		/* Type byte for INT 13h AH=08h */
     uint8_t driveno;		/* Drive no */
+    uint16_t sector_size;	/* Sector size in bytes (512 vs. 2048) */
     const char *hsrc, *ssrc;	/* Origins of H and S geometries */
 };
 
@@ -406,6 +420,8 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 
     printf("command line: %s\n", shdr->cmdline);
 
+    hd_geometry.sector_size = 512;	/* Assume floppy/HDD at first */
+
     offset = 0;
     if (CMD_HASDATA(p = getcmditem("offset")) && (v = atou(p)))
 	offset = v;
@@ -416,6 +432,71 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
     hd_geometry.ssrc = "guess";
     hd_geometry.sectors = sectors;
     hd_geometry.offset = offset;
+
+    if ((p = getcmditem("iso")) != CMD_NOTFOUND) {
+#ifdef DBG_ELTORITO
+	eltorito_dump(where);
+#endif
+	struct edd4_bvd *bvd = (struct edd4_bvd *)(where + 17 * 2048);
+	/* Tiny sanity check */
+	if ((bvd->boot_rec_ind != 0) || (bvd->ver != 1))
+	    printf("El Torito BVD sanity check failed.\n");
+	struct edd4_bootcat *boot_cat =
+	    (struct edd4_bootcat *)(where + bvd->boot_cat * 2048);
+	/* Another tiny sanity check */
+	if ((boot_cat->validation_entry.platform_id != 0) ||
+	    (boot_cat->validation_entry.key55 != 0x55) ||
+	    (boot_cat->validation_entry.keyAA != 0xAA))
+	    printf("El Torito boot catalog sanity check failed.\n");
+	/* If we have an emulation mode, set the offset to the image */
+	if (boot_cat->initial_entry.media_type)
+	    hd_geometry.offset += boot_cat->initial_entry.load_block * 2048;
+	if (boot_cat->initial_entry.media_type < 4) {
+	    /* We're a floppy emulation mode or our params will be
+	     * overwritten by the no emulation mode case
+	     */
+	    hd_geometry.driveno = 0x00;
+	    hd_geometry.c = 80;
+	    hd_geometry.h = 2;
+	}
+	switch (boot_cat->initial_entry.media_type) {
+	case 0:		/* No emulation   */
+	    hd_geometry.driveno = 0xE0;
+	    hd_geometry.type = 10;	/* ATAPI removable media device */
+	    hd_geometry.c = 65535;
+	    hd_geometry.h = 255;
+	    hd_geometry.s = 15;
+	    /* 2048-byte sectors, so adjust the size and count */
+	    hd_geometry.sector_size = 2048;
+	    sectors = (size - hd_geometry.offset) >> 11;
+	    break;
+	case 1:		/* 1.2 MB floppy  */
+	    hd_geometry.s = 15;
+	    hd_geometry.type = 2;
+	    sectors = 2400;
+	    break;
+	case 2:		/* 1.44 MB floppy */
+	    hd_geometry.s = 18;
+	    hd_geometry.type = 4;
+	    sectors = 2880;
+	    break;
+	case 3:		/* 2.88 MB floppy */
+	    hd_geometry.s = 36;
+	    hd_geometry.type = 6;
+	    sectors = 5760;
+	    break;
+	case 4:
+	    hd_geometry.driveno = 0x80;
+	    hd_geometry.type = 0;
+	    sectors = (size - hd_geometry.offset) >> 9;
+	    break;
+	}
+	/* For HDD emulation, we figure out the geometry later. Otherwise: */
+	if (hd_geometry.s) {
+	    hd_geometry.hsrc = hd_geometry.ssrc = "El Torito";
+	}
+	hd_geometry.sectors = sectors;
+    }
 
     /* Do we have a DOSEMU header? */
     memcpy(&dosemu, (char *)where + hd_geometry.offset, sizeof dosemu);
@@ -480,7 +561,7 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 
 	if (!(max_h | max_s)) {
 	    /* No FAT filesystem found to steal geometry from... */
-	    if (sectors < 4096 * 2) {
+	    if ((sectors < 4096 * 2) && (hd_geometry.sector_size == 512)) {
 		int ok = 0;
 		unsigned int xsectors = sectors;
 
@@ -541,7 +622,9 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 		const struct ptab_entry *ptab = (const struct ptab_entry *)
 		    ((char *)where + hd_geometry.offset + (512 - 2 - 4 * 16));
 
-		hd_geometry.driveno = 0x80;	/* Assume hard disk */
+		/* Assume hard disk */
+		if (!hd_geometry.driveno)
+		    hd_geometry.driveno = 0x80;
 
 		if (*(uint16_t *) ((char *)where + 512 - 2) == 0xaa55) {
 		    for (i = 0; i < 4; i++) {
@@ -718,12 +801,15 @@ void setup(const struct real_mode_args *rm_args_ptr)
     uint16_t dosmem_k;
     uint32_t stddosmem;
     const struct geometry *geometry;
+    const struct edd4_bvd *bvd;
+    const struct edd4_bootcat *boot_cat = 0;
     int total_size, cmdlinelen;
     com32sys_t regs;
     uint32_t ramdisk_image, ramdisk_size;
     uint32_t boot_base, rm_base;
     int bios_drives;
     int do_edd = 1;		/* 0 = no, 1 = yes, default is yes */
+    int do_eltorito = 0;	/* default is no */
     int no_bpt;			/* No valid BPT presented */
     uint32_t boot_seg = 0;	/* Meaning 0000:7C00 */
     uint32_t boot_len = 512;	/* One sector */
@@ -762,13 +848,28 @@ void setup(const struct real_mode_args *rm_args_ptr)
     else
 	do_edd = (geometry->driveno & 0x80) ? 1 : 0;
 
+    if (getcmditem("iso") != CMD_NOTFOUND) {
+	do_eltorito = 1;
+	do_edd = 1;		/* Mandatory */
+    }
+
     /* Choose the appropriate installable memdisk hook */
-    if (do_edd) {
-	bin_size = (int)&_binary_memdisk_edd_512_bin_size;
-	memdisk_hook = (char *)&_binary_memdisk_edd_512_bin_start;
+    if (do_eltorito) {
+	if (geometry->sector_size == 2048) {
+	    bin_size = (int)&_binary_memdisk_iso_2048_bin_size;
+	    memdisk_hook = (char *)&_binary_memdisk_iso_2048_bin_start;
+	} else {
+	    bin_size = (int)&_binary_memdisk_iso_512_bin_size;
+	    memdisk_hook = (char *)&_binary_memdisk_iso_512_bin_start;
+	}
     } else {
-	bin_size = (int)&_binary_memdisk_chs_512_bin_size;
-	memdisk_hook = (char *)&_binary_memdisk_chs_512_bin_start;
+	if (do_edd) {
+	    bin_size = (int)&_binary_memdisk_edd_512_bin_size;
+	    memdisk_hook = (char *)&_binary_memdisk_edd_512_bin_start;
+	} else {
+	    bin_size = (int)&_binary_memdisk_chs_512_bin_size;
+	    memdisk_hook = (char *)&_binary_memdisk_chs_512_bin_start;
+	}
     }
 
     /* Reserve the ramdisk memory */
@@ -788,7 +889,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     pptr->driveno = geometry->driveno;
     pptr->drivetype = geometry->type;
-    pptr->cylinders = geometry->c;
+    pptr->cylinders = geometry->c;	/* Possible precision loss */
     pptr->heads = geometry->h;
     pptr->sectors = geometry->s;
     pptr->disksize = geometry->sectors;
@@ -884,7 +985,12 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	    pptr->edd_dpt.c = geometry->c;
 	    pptr->edd_dpt.h = geometry->h;
 	    pptr->edd_dpt.s = geometry->s;
-	    pptr->edd_dpt.flags |= 0x0002;	/* Geometry valid */
+	    /* EDD-4 states that invalid geometry should be returned
+	     * for INT 0x13, AH=0x48 "EDD Get Disk Parameters" call on an
+	     * El Torito ODD.  Check for 2048-byte sector size
+	     */
+	    if (geometry->sector_size != 2048)
+		pptr->edd_dpt.flags |= 0x0002;	/* Geometry valid */
 	}
 	if (!(geometry->driveno & 0x80)) {
 	    /* Floppy drive.  Mark it as a removable device with
@@ -894,6 +1000,21 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
 	pptr->edd_dpt.devpath[0] = pptr->diskbuf;
 	pptr->edd_dpt.chksum = -checksum_buf(&pptr->edd_dpt.dpikey, 73 - 30);
+    }
+
+    if (do_eltorito) {
+	bvd = (struct edd4_bvd *)(ramdisk_image + 17 * 2048);
+	boot_cat =
+	    (struct edd4_bootcat *)(ramdisk_image + bvd->boot_cat * 2048);
+	pptr->cd_pkt.type = boot_cat->initial_entry.media_type;	/* Cheat */
+	pptr->cd_pkt.driveno = geometry->driveno;
+	pptr->cd_pkt.start = boot_cat->initial_entry.load_block;
+	pptr->cd_pkt.load_seg = boot_cat->initial_entry.load_seg;
+	pptr->cd_pkt.sect_count = boot_cat->initial_entry.sect_count;
+	boot_len = pptr->cd_pkt.sect_count * 2048;
+	pptr->cd_pkt.geom1 = (uint8_t)(pptr->cylinders) & 0xFF;
+	pptr->cd_pkt.geom2 = (uint8_t)(pptr->sectors) | (uint8_t)((pptr->cylinders >> 2) & 0xC0);
+	pptr->cd_pkt.geom3 = (uint8_t)(pptr->heads);
     }
 
     /* The size is given by hptr->total_size plus the size of the E820
@@ -1041,7 +1162,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	if (nhd > 128)
 	    nhd = 128;
 
-	wrz_8(BIOS_HD_COUNT, nhd);
+	if (!do_eltorito) wrz_8(BIOS_HD_COUNT, nhd);
     } else {
 	/* Update BIOS floppy disk count */
 	uint8_t equip = rdz_8(BIOS_EQUIP);
@@ -1097,6 +1218,10 @@ void setup(const struct real_mode_args *rm_args_ptr)
     /* Reboot into the new "disk" */
     puts("Loading boot sector... ");
 
+    if (do_eltorito) {
+	/* 4 times as many 512-byte sectors in a 2048-byte sector */
+	boot_lba = pptr->cd_pkt.start * 4;
+    }
     memcpy((void *)boot_base, (char *)pptr->diskbuf + boot_lba * 512, boot_len);
 
     if (getcmditem("pause") != CMD_NOTFOUND) {
