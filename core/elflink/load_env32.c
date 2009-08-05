@@ -82,8 +82,11 @@ void load_env32(com32sys_t * regs)
 	int i,n=5;
 	char **argv;
 	argv=(char**)calloc(n,sizeof(char*));
+	argv[0]=(char*)calloc(100,sizeof(char));//(char *)(regs->edi.w[0]);
 	argv[1]=(char*)calloc(100,sizeof(char));//(char *)(regs->edi.w[0]);
-	strcpy(argv[1],(regs->edi.w[0]));
+	//strcpy(argv[1],(regs->edi.w[0]));
+	strcpy(argv[0],"extlinux.conf");
+	strcpy(argv[1],"extlinux.conf");
 	
 	/*printf("\nBegin dynamic module test ...\n");
 	printf("\n\nTrying to laod 'dyn/sort.dyn'\n\n");*/
@@ -106,7 +109,8 @@ void load_env32(com32sys_t * regs)
 	/*printf("\n\nTrying to spawn 'dyn/hello.dyn'\n\n"); 
 	spawnv("dyn/hello.dyn",0);
 	printf("\nTest done\n");*/
-	printf("%d\n",spawnv("mytest.c32",argv));
+	//printf("%d\n",spawnv("mytest.c32",argv));
+	spawnl("mytest.c32", "mytest", "extlinux.conf", NULL);
 	printf("Done\n");
 	
 	while(1) 1; /* we don't have anything better to do so hang around for a bit */

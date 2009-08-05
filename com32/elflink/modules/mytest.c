@@ -18,15 +18,10 @@
 
 #include "menu.h"
 
-int n=10;
-
 static int mytest_main(int argc, char **argv)
 {
-	openconsole(&dev_stdcon_r, &dev_stdcon_w);
-	//openconsole(&dev_rawcon_r, &dev_vesaserial_w);
+	console_ansi_raw();	
 	menu_main(argc, argv);
-	//printf("Something's fishy...\n");
-
 	return 0;
 }
 

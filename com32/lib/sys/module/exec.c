@@ -164,8 +164,8 @@ int spawnv(const char *name, const char **argv)
 	
 	for (arg = argv, argp = args; *arg; arg++, argp++) {
 		size_t l = strlen(*arg)+1;
-		*args = alloca(l);
-		memcpy(*args, *arg, l);
+		*argp = alloca(l);
+               	memcpy(*argp, *arg, l);
  	}
 
 	*args = NULL;
