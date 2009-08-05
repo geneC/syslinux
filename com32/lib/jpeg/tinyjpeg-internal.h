@@ -48,8 +48,8 @@ struct jdec_private;
 
 #define HUFFMAN_TABLES	   4
 #define COMPONENTS	   3
-#define JPEG_MAX_WIDTH	   2048
-#define JPEG_MAX_HEIGHT	   2048
+#define JPEG_MAX_WIDTH	   4096
+#define JPEG_MAX_HEIGHT	   4096
 
 struct huffman_table
 {
