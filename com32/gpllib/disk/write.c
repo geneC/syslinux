@@ -121,7 +121,7 @@ int write_verify_sectors(struct driveinfo* drive_info,
 	if (!rb)
 		return -1;		/* Readback failure */
 
-	rv = memcmp(data, rb, SECTOR);
+	rv = memcmp(data, rb, SECTOR * size);
 	free(rb);
 	return rv ? -1 : 0;
 }
