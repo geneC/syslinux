@@ -20,5 +20,5 @@
  **/
 void get_error(void* buffer_ptr)
 {
-	sprintf(buffer_ptr, "Disklib: error %d\n", errno_disk);
+	snprintf(buffer_ptr, MAX_DISK_ERRNO, "Disklib: error %d\n", errno_disk);
 }

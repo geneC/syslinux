@@ -12,6 +12,6 @@
 
 #include <disk/geom.h>
 
-int parse_partition_table(struct driveinfo *, void *, int *);
+int parse_partition_table(struct driveinfo *, void *);
 
 #endif /* _MSDOS_H_ */
