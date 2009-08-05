@@ -546,12 +546,6 @@ static int parse_SOF(struct jdec_private *priv, const unsigned char *stream)
     error("Width and Height (%dx%d) seems suspicious\n", width, height);
   if (nr_components != 3)
     error("We only support YUV images\n");
-#if 0
-  if (height%16)
-    error("Height need to be a multiple of 16 (current height is %d)\n", height);
-  if (width%16)
-    error("Width need to be a multiple of 16 (current Width is %d)\n", width);
-#endif
 #endif
   stream += 8;
   for (i=0; i<nr_components; i++) {
@@ -883,18 +877,21 @@ int tinyjpeg_parse_header(struct jdec_private *priv, const unsigned char *buf, u
 int tinyjpeg_decode(struct jdec_private *priv,
 		    const struct tinyjpeg_colorspace *pixfmt)
 {
-  unsigned int x, y, xstride_by_mcu, ystride_by_mcu;
+  int x, y, sx, sy;
+  int xshift_by_mcu, yshift_by_mcu;
+  int xstride_by_mcu, ystride_by_mcu;
   unsigned int bytes_per_blocklines[3], bytes_per_mcu[3];
   decode_MCU_fct decode_MCU;
   const decode_MCU_fct *decode_mcu_table;
   convert_colorspace_fct convert_to_pixfmt;
+  uint8_t *pptr[3];
 
   decode_mcu_table = pixfmt->decode_mcu_table;
 
   /* Fix: check return value */
   pixfmt->initialize(priv, bytes_per_blocklines, bytes_per_mcu);
 
-  xstride_by_mcu = ystride_by_mcu = 8;
+  xshift_by_mcu = yshift_by_mcu = 3;
   if ((priv->component_infos[cY].Hfactor | priv->component_infos[cY].Vfactor) == 1) {
      decode_MCU = decode_mcu_table[0];
      convert_to_pixfmt = pixfmt->convert_colorspace[0];
@@ -902,43 +899,58 @@ int tinyjpeg_decode(struct jdec_private *priv,
   } else if (priv->component_infos[cY].Hfactor == 1) {
      decode_MCU = decode_mcu_table[1];
      convert_to_pixfmt = pixfmt->convert_colorspace[1];
-     ystride_by_mcu = 16;
+     yshift_by_mcu = 4;
      trace("Use decode 1x2 sampling (not supported)\n");
   } else if (priv->component_infos[cY].Vfactor == 2) {
      decode_MCU = decode_mcu_table[3];
      convert_to_pixfmt = pixfmt->convert_colorspace[3];
-     xstride_by_mcu = 16;
-     ystride_by_mcu = 16;
+     xshift_by_mcu = 4;
+     yshift_by_mcu = 4;
      trace("Use decode 2x2 sampling\n");
   } else {
      decode_MCU = decode_mcu_table[2];
      convert_to_pixfmt = pixfmt->convert_colorspace[2];
-     xstride_by_mcu = 16;
+     xshift_by_mcu = 4;
      trace("Use decode 2x1 sampling\n");
   }
 
   resync(priv);
 
   /* Don't forget to that block can be either 8 or 16 lines */
-  bytes_per_blocklines[0] *= ystride_by_mcu;
-  bytes_per_blocklines[1] *= ystride_by_mcu;
-  bytes_per_blocklines[2] *= ystride_by_mcu;
+  bytes_per_blocklines[0] <<= yshift_by_mcu;
+  bytes_per_blocklines[1] <<= yshift_by_mcu;
+  bytes_per_blocklines[2] <<= yshift_by_mcu;
 
-  bytes_per_mcu[0] *= xstride_by_mcu/8;
-  bytes_per_mcu[1] *= xstride_by_mcu/8;
-  bytes_per_mcu[2] *= xstride_by_mcu/8;
+  bytes_per_mcu[0] <<= xshift_by_mcu-3;
+  bytes_per_mcu[1] <<= xshift_by_mcu-3;
+  bytes_per_mcu[2] <<= xshift_by_mcu-3;
 
-  /* Just the decode the image by macroblock (size is 8x8, 8x16, or 16x16) */
-  for (y=0; y < priv->height/ystride_by_mcu; y++)
+  xstride_by_mcu = 1 << xshift_by_mcu;
+  ystride_by_mcu = 1 << yshift_by_mcu;
+
+  pptr[0] = priv->components[0];
+  pptr[1] = priv->components[1];
+  pptr[2] = priv->components[2];
+
+  trace("bpbl = %d, bpmcu = %d\n",
+	bytes_per_blocklines[0], bytes_per_mcu[0]);
+
+  for (y = priv->height; y > 0; y -= ystride_by_mcu)
    {
-     //trace("Decoding row %d\n", y);
-     priv->plane[0] = priv->components[0] + (y * bytes_per_blocklines[0]);
-     priv->plane[1] = priv->components[1] + (y * bytes_per_blocklines[1]);
-     priv->plane[2] = priv->components[2] + (y * bytes_per_blocklines[2]);
-     for (x=0; x < priv->width; x+=xstride_by_mcu)
+     trace("Decoding row %d\n", priv->height-y);
+     priv->plane[0] = pptr[0];  pptr[0] += bytes_per_blocklines[0];
+     priv->plane[1] = pptr[1];  pptr[1] += bytes_per_blocklines[1];
+     priv->plane[2] = pptr[2];  pptr[2] += bytes_per_blocklines[2];
+
+     sy = min(y, ystride_by_mcu);
+
+     for (x = priv->width; x > 0; x -= xstride_by_mcu)
       {
+	sx = min(x, xstride_by_mcu);
+	trace("Block size: %dx%d\n", sx, sy);
+
 	decode_MCU(priv);
-	convert_to_pixfmt(priv);
+	convert_to_pixfmt(priv, sx, sy);
 	priv->plane[0] += bytes_per_mcu[0];
 	priv->plane[1] += bytes_per_mcu[1];
 	priv->plane[2] += bytes_per_mcu[2];

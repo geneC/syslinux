@@ -35,6 +35,8 @@
  * yuv420p.c
  */
 
+/**** XXXX: THIS IS NOT YET CONVERTED TO HANDLE PARTIAL MCUS ****/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,7 +66,7 @@
  *  | 1 |
  *  `---'
  */
-static void YCrCB_to_YUV420P_1x1(struct jdec_private *priv)
+static void YCrCB_to_YUV420P_1x1(struct jdec_private *priv, int sx, int sy)
 {
   const unsigned char *s, *y;
   unsigned char *p;
@@ -106,7 +108,7 @@ static void YCrCB_to_YUV420P_1x1(struct jdec_private *priv)
  *  | 1 | 2 |
  *  `-------'
  */
-static void YCrCB_to_YUV420P_2x1(struct jdec_private *priv)
+static void YCrCB_to_YUV420P_2x1(struct jdec_private *priv, int sx, int sy)
 {
   unsigned char *p;
   const unsigned char *s, *y1;
@@ -149,7 +151,7 @@ static void YCrCB_to_YUV420P_2x1(struct jdec_private *priv)
  *  | 2 |
  *  `---'
  */
-static void YCrCB_to_YUV420P_1x2(struct jdec_private *priv)
+static void YCrCB_to_YUV420P_1x2(struct jdec_private *priv, int sx, int sy)
 {
   const unsigned char *s, *y;
   unsigned char *p;
@@ -191,7 +193,7 @@ static void YCrCB_to_YUV420P_1x2(struct jdec_private *priv)
  *  | 3 | 4 |
  *  `-------'
  */
-static void YCrCB_to_YUV420P_2x2(struct jdec_private *priv)
+static void YCrCB_to_YUV420P_2x2(struct jdec_private *priv, int sx, int sy)
 {
   unsigned char *p;
   const unsigned char *s, *y1;

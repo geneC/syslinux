@@ -80,7 +80,7 @@ struct component
 
 
 typedef void (*decode_MCU_fct) (struct jdec_private *priv);
-typedef void (*convert_colorspace_fct) (struct jdec_private *priv);
+typedef void (*convert_colorspace_fct) (struct jdec_private *priv, int, int);
 
 struct jdec_private
 {
@@ -166,6 +166,16 @@ enum std_markers {
 #define error(fmt, args...) do { return -1; } while(0)
 #define trace(fmt, args...) do { } while (0)
 #endif
+
+#ifndef __likely
+# define __likely(x) (!!(x))
+#endif
+#ifndef __unlikely
+# define __unlikely(x) (!!(x))
+#endif
+
+#define min(x, y) ((x) < (y) ? (x) : (y))
+#define max(x, y) ((x) > (y) ? (x) : (y))
 
 #if 0
 static char *print_bits(unsigned int value, char *bitstr)

@@ -69,7 +69,7 @@ static unsigned char clamp(int i)
  *  | 1 |
  *  `---'
  */
-static void YCrCB_to_RGBA32_1x1(struct jdec_private *priv)
+static void YCrCB_to_RGBA32_1x1(struct jdec_private *priv, int sx, int sy)
 {
   const unsigned char *Y, *Cb, *Cr;
   unsigned char *p;
@@ -85,15 +85,14 @@ static void YCrCB_to_RGBA32_1x1(struct jdec_private *priv)
   Cb = priv->Cb;
   Cr = priv->Cr;
   offset_to_next_row = priv->bytes_per_row[0] - 8*4;
-  for (i=0; i<8; i++) {
-
-    for (j=0;j<8;j++) {
+  for (i = sy; i > 0; i--) {
+    for (j = sx; j > 0; j--) {
 
        int y, cb, cr;
        int add_r, add_g, add_b;
        int r, g , b, a;
 
-       y  = (*Y++) << SCALEBITS;
+       y  = Y[0] << SCALEBITS;
        cb = *Cb++ - 128;
        cr = *Cr++ - 128;
        add_r = FIX(1.40200) * cr + ONE_HALF;
@@ -108,6 +107,8 @@ static void YCrCB_to_RGBA32_1x1(struct jdec_private *priv)
        *p++ = clamp(b);
        a = 255;
        *p++ = a;
+
+       Y++;
     }
 
     p += offset_to_next_row;
@@ -125,7 +126,7 @@ static void YCrCB_to_RGBA32_1x1(struct jdec_private *priv)
  *  | 1 | 2 |
  *  `-------'
  */
-static void YCrCB_to_RGBA32_2x1(struct jdec_private *priv)
+static void YCrCB_to_RGBA32_2x1(struct jdec_private *priv, int sx, int sy)
 {
   const unsigned char *Y, *Cb, *Cr;
   unsigned char *p;
@@ -141,15 +142,14 @@ static void YCrCB_to_RGBA32_2x1(struct jdec_private *priv)
   Cb = priv->Cb;
   Cr = priv->Cr;
   offset_to_next_row = priv->bytes_per_row[0] - 16*4;
-  for (i=0; i<8; i++) {
-
-    for (j=0; j<8; j++) {
+  for (i = sy; i > 0; i--) {
+    for (j = sx; j > 0; j -= 2) {
 
        int y, cb, cr;
        int add_r, add_g, add_b;
        int r, g , b, a;
 
-       y  = (*Y++) << SCALEBITS;
+       y  = Y[0] << SCALEBITS;
        cb = *Cb++ - 128;
        cr = *Cr++ - 128;
        add_r = FIX(1.40200) * cr + ONE_HALF;
@@ -165,15 +165,19 @@ static void YCrCB_to_RGBA32_2x1(struct jdec_private *priv)
        a = 255;
        *p++ = a;
 
-       y  = (*Y++) << SCALEBITS;
-       r = (y + add_r) >> SCALEBITS;
-       *p++ = clamp(r);
-       g = (y + add_g) >> SCALEBITS;
-       *p++ = clamp(g);
-       b = (y + add_b) >> SCALEBITS;
-       *p++ = clamp(b);
-       a = 255;
-       *p++ = a;
+       if (j > 1) {
+	   y  = Y[1] << SCALEBITS;
+	   r = (y + add_r) >> SCALEBITS;
+	   *p++ = clamp(r);
+	   g = (y + add_g) >> SCALEBITS;
+	   *p++ = clamp(g);
+	   b = (y + add_b) >> SCALEBITS;
+	   *p++ = clamp(b);
+	   a = 255;
+	   *p++ = a;
+       }
+
+       Y += 2;
     }
 
     p += offset_to_next_row;
@@ -194,7 +198,7 @@ static void YCrCB_to_RGBA32_2x1(struct jdec_private *priv)
  *  | 2 |
  *  `---'
  */
-static void YCrCB_to_RGBA32_1x2(struct jdec_private *priv)
+static void YCrCB_to_RGBA32_1x2(struct jdec_private *priv, int sx, int sy)
 {
   const unsigned char *Y, *Cb, *Cr;
   unsigned char *p, *p2;
@@ -211,9 +215,8 @@ static void YCrCB_to_RGBA32_1x2(struct jdec_private *priv)
   Cb = priv->Cb;
   Cr = priv->Cr;
   offset_to_next_row = 2*priv->bytes_per_row[0] - 8*4;
-  for (i=0; i<8; i++) {
-
-    for (j=0; j<8; j++) {
+  for (i = sy; i > 0; i -= 2) {
+    for (j = sx; j > 0; j--) {
 
        int y, cb, cr;
        int add_r, add_g, add_b;
@@ -225,7 +228,7 @@ static void YCrCB_to_RGBA32_1x2(struct jdec_private *priv)
        add_g = - FIX(0.34414) * cb - FIX(0.71414) * cr + ONE_HALF;
        add_b = FIX(1.77200) * cb + ONE_HALF;
 
-       y  = (*Y++) << SCALEBITS;
+       y  = Y[0] << SCALEBITS;
        r = (y + add_r) >> SCALEBITS;
        *p++ = clamp(r);
        g = (y + add_g) >> SCALEBITS;
@@ -235,16 +238,19 @@ static void YCrCB_to_RGBA32_1x2(struct jdec_private *priv)
        a = 255;
        *p++ = a;
 
-       y  = (Y[8-1]) << SCALEBITS;
-       r = (y + add_r) >> SCALEBITS;
-       *p2++ = clamp(r);
-       g = (y + add_g) >> SCALEBITS;
-       *p2++ = clamp(g);
-       b = (y + add_b) >> SCALEBITS;
-       *p2++ = clamp(b);
-       a = 255;
-       *p2++ = a;
+       if (i > 1) {
+	   y  = Y[8] << SCALEBITS;
+	   r = (y + add_r) >> SCALEBITS;
+	   *p2++ = clamp(r);
+	   g = (y + add_g) >> SCALEBITS;
+	   *p2++ = clamp(g);
+	   b = (y + add_b) >> SCALEBITS;
+	   *p2++ = clamp(b);
+	   a = 255;
+	   *p2++ = a;
+       }
 
+       Y++;
     }
     Y += 8;
     p += offset_to_next_row;
@@ -265,7 +271,7 @@ static void YCrCB_to_RGBA32_1x2(struct jdec_private *priv)
  *  | 3 | 4 |
  *  `-------'
  */
-static void YCrCB_to_RGBA32_2x2(struct jdec_private *priv)
+static void YCrCB_to_RGBA32_2x2(struct jdec_private *priv, int sx, int sy)
 {
   const unsigned char *Y, *Cb, *Cr;
   unsigned char *p, *p2;
@@ -282,9 +288,8 @@ static void YCrCB_to_RGBA32_2x2(struct jdec_private *priv)
   Cb = priv->Cb;
   Cr = priv->Cr;
   offset_to_next_row = 2*priv->bytes_per_row[0] - 16*4;
-  for (i=0; i<8; i++) {
-
-    for (j=0;j<8;j++) {
+  for (i = sy; i > 0; i -= 2) {
+    for (j = sx; i > 0; j -= 2) {
 
        int y, cb, cr;
        int add_r, add_g, add_b;
@@ -296,7 +301,7 @@ static void YCrCB_to_RGBA32_2x2(struct jdec_private *priv)
        add_g = - FIX(0.34414) * cb - FIX(0.71414) * cr + ONE_HALF;
        add_b = FIX(1.77200) * cb + ONE_HALF;
 
-       y  = (*Y++) << SCALEBITS;
+       y  = Y[0] << SCALEBITS;
        r = (y + add_r) >> SCALEBITS;
        *p++ = clamp(r);
        g = (y + add_g) >> SCALEBITS;
@@ -306,35 +311,43 @@ static void YCrCB_to_RGBA32_2x2(struct jdec_private *priv)
        a = 255;
        *p++ = a;
 
-       y  = (*Y++) << SCALEBITS;
-       r = (y + add_r) >> SCALEBITS;
-       *p++ = clamp(r);
-       g = (y + add_g) >> SCALEBITS;
-       *p++ = clamp(g);
-       b = (y + add_b) >> SCALEBITS;
-       *p++ = clamp(b);
-       a = 255;
-       *p++ = a;
+       if (j > 1) {
+	   y  = Y[1] << SCALEBITS;
+	   r = (y + add_r) >> SCALEBITS;
+	   *p++ = clamp(r);
+	   g = (y + add_g) >> SCALEBITS;
+	   *p++ = clamp(g);
+	   b = (y + add_b) >> SCALEBITS;
+	   *p++ = clamp(b);
+	   a = 255;
+	   *p++ = a;
+       }
 
-       y  = (Y[16-2]) << SCALEBITS;
-       r = (y + add_r) >> SCALEBITS;
-       *p2++ = clamp(r);
-       g = (y + add_g) >> SCALEBITS;
-       *p2++ = clamp(g);
-       b = (y + add_b) >> SCALEBITS;
-       *p2++ = clamp(b);
-       a = 255;
-       *p2++ = a;
+       if (i > 1) {
+	   y  = Y[16+0] << SCALEBITS;
+	   r = (y + add_r) >> SCALEBITS;
+	   *p2++ = clamp(r);
+	   g = (y + add_g) >> SCALEBITS;
+	   *p2++ = clamp(g);
+	   b = (y + add_b) >> SCALEBITS;
+	   *p2++ = clamp(b);
+	   a = 255;
+	   *p2++ = a;
 
-       y  = (Y[16-1]) << SCALEBITS;
-       r = (y + add_r) >> SCALEBITS;
-       *p2++ = clamp(r);
-       g = (y + add_g) >> SCALEBITS;
-       *p2++ = clamp(g);
-       b = (y + add_b) >> SCALEBITS;
-       *p2++ = clamp(b);
-       a = 255;
-       *p2++ = a;
+	   if (j > 1) {
+	       y  = Y[16+1] << SCALEBITS;
+	       r = (y + add_r) >> SCALEBITS;
+	       *p2++ = clamp(r);
+	       g = (y + add_g) >> SCALEBITS;
+	       *p2++ = clamp(g);
+	       b = (y + add_b) >> SCALEBITS;
+	       *p2++ = clamp(b);
+	       a = 255;
+	       *p2++ = a;
+	   }
+       }
+
+       Y += 2;
     }
     Y  += 16;
     p  += offset_to_next_row;
