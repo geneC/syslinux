@@ -43,6 +43,21 @@
 #include "tinyjpeg.h"
 #include "tinyjpeg-internal.h"
 
+/*******************************************************************************
+ *
+ * Colorspace conversion routine
+ *
+ *
+ * Note:
+ * YCbCr is defined per CCIR 601-1, except that Cb and Cr are
+ * normalized to the range 0..MAXJSAMPLE rather than -0.5 .. 0.5.
+ * The conversion equations to be implemented are therefore
+ *      R = Y                + 1.40200 * Cr
+ *      G = Y - 0.34414 * Cb - 0.71414 * Cr
+ *      B = Y + 1.77200 * Cb
+ * 
+ ******************************************************************************/
+
 /**
  *  YCrCb -> YUV420P (1x1)
  *  .---.
@@ -61,7 +76,7 @@ static void YCrCB_to_YUV420P_1x1(struct jdec_private *priv)
    {
      memcpy(p, y, 8);
      p += priv->bytes_per_row[0];
-     y += 8;
+     y+=8;
    }
 
   p = priv->plane[1];
@@ -95,7 +110,7 @@ static void YCrCB_to_YUV420P_2x1(struct jdec_private *priv)
 {
   unsigned char *p;
   const unsigned char *s, *y1;
-  int i,j;
+  unsigned int i;
 
   p = priv->plane[0];
   y1 = priv->Y;
@@ -110,20 +125,18 @@ static void YCrCB_to_YUV420P_2x1(struct jdec_private *priv)
   s = priv->Cb;
   for (i=0; i<8; i+=2)
    {
-     for (j=0; j<8; j+=1, s+=1)
-       *p++ = *s;
-     s += 8; /* Skip one line */
-     p += priv->bytes_per_row[1] - 8;
+     memcpy(p, s, 8);
+     s += 16; /* Skip one line */
+     p += priv->bytes_per_row[1];
    }
 
   p = priv->plane[2];
   s = priv->Cr;
   for (i=0; i<8; i+=2)
    {
-     for (j=0; j<8; j+=1, s+=1)
-       *p++ = *s;
-     s += 8; /* Skip one line */
-     p += priv->bytes_per_row[2] - 8;
+     memcpy(p, s, 8);
+     s += 16; /* Skip one line */
+     p += priv->bytes_per_row[2];
    }
 }
 
@@ -182,7 +195,7 @@ static void YCrCB_to_YUV420P_2x2(struct jdec_private *priv)
 {
   unsigned char *p;
   const unsigned char *s, *y1;
-  int i;
+  unsigned int i;
 
   p = priv->plane[0];
   y1 = priv->Y;
