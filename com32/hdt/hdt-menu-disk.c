@@ -27,6 +27,7 @@
  */
 
 #include <stdlib.h>
+#include <disk/errno_disk.h>
 #include <disk/geom.h>
 #include <disk/read.h>
 #include <disk/partition.h>
@@ -85,8 +86,7 @@ static void compute_partition_information(struct driveinfo *drive_info,
 {
         char size[8];
         char *parttype;
-        int error = 0;
-        char *error_buffer;
+        char error_buffer[MAX_DISK_ERRNO];
         unsigned int start, end;
   	char buffer[SUBMENULEN+1];
   	char statbuffer[STATLEN+1];
@@ -155,16 +155,15 @@ static void compute_partition_information(struct driveinfo *drive_info,
 	free(parttype);
 
         /* Extra info */
-        if (ptab->ostype == 0x82 && swsusp_check(drive_info, ptab, &error)) {
+        if (ptab->ostype == 0x82 && swsusp_check(drive_info, ptab) != -1) {
 		snprintf(buffer, sizeof buffer, "%s","Swsusp sig  : detected");
 		snprintf(statbuffer, sizeof statbuffer, "%s","Swsusp sig  : detected");
 		add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-        } else if (error) {
-                get_error(error, &error_buffer);
+        } else {
+                get_error(&error_buffer);
 		snprintf(buffer, sizeof buffer, "%s",error_buffer);
 		snprintf(statbuffer, sizeof statbuffer, "%s",error_buffer);
 		add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-                free(error_buffer);
         }
 
 }
@@ -224,23 +223,14 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
   add_sep();
   dn=disk_number;
 
-  int error;
-  parse_partition_table(&d[disk_number], &show_partition_information, &error);
-  if (parse_partition_table(&d[disk_number], &compute_partition_information, &error)) {
-        if (error) {
-  	   char *error_buffer;
-           get_error(error, &error_buffer);
-	   snprintf(buffer, sizeof buffer, "I/O error   : %s", error_buffer);
-	   snprintf(statbuffer, sizeof statbuffer, "I/O error   : %s", error_buffer);
-  	   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  	   menu[nb_sub_disk_menu].items_count++;
-           free(error_buffer);
-        } else {
-	   snprintf(buffer, sizeof buffer, "An unknown error occured");
-	   snprintf(statbuffer, sizeof statbuffer, "An unknown error occured");
-  	   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  	   menu[nb_sub_disk_menu].items_count++;
-        }
+  parse_partition_table(&d[disk_number], &show_partition_information);
+  if (parse_partition_table(&d[disk_number], &compute_partition_information) == -1) {
+	char error_buffer[MAX_DISK_ERRNO];
+	get_error(&error_buffer);
+	snprintf(buffer, sizeof buffer, "I/O error   : %s", error_buffer);
+	snprintf(statbuffer, sizeof statbuffer, "I/O error   : %s", error_buffer);
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+	menu[nb_sub_disk_menu].items_count++;
   }
 
   return 0;
