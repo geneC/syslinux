@@ -40,9 +40,6 @@
 # define dprintf(f, ...) ((void)0)
 #endif
 
-/* Declare a variable or data structure as unused. */
-#define __unused __attribute__ (( unused ))
-
 #define MAX_LINE_SIZE 256
 
 #define CLI_SPACE " "

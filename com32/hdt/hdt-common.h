@@ -40,6 +40,9 @@
 #include "../lib/sys/vesa/vesa.h"
 #include <vpd/vpd.h>
 
+/* Declare a variable or data structure as unused. */
+#define __unused __attribute__ (( unused ))
+
 /* This two values are used for switching for the menu to the CLI mode */
 #define HDT_SWITCH_TO_CLI "hdt_switch_to_cli"
 #define HDT_RETURN_TO_CLI 100

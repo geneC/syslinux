@@ -41,27 +41,21 @@
 static int dn;
 
 static void show_partition_information(struct driveinfo *drive_info,
-                                       struct part_entry *ptab,
-                                       struct part_entry *ptab_root,
-                                       int offset_root, int data_partitions_seen,
-                                       int ebr_seen)
+                                       struct part_entry *ptab __unused,
+                                       int partition_offset __unused,
+                                       int nb_partitions_seen)
 {
 	char menu_title[MENULEN + 1];
 	char menu_title_ref[MENULEN + 1];
-	/* Useless code to prevent warnings */
-	ptab=ptab; ptab_root=ptab_root;offset_root=offset_root;
-
-        int i = 1 + ebr_seen * 4 + data_partitions_seen;
 
 	memset(menu_title,0,sizeof menu_title);
 	memset(menu_title_ref,0,sizeof menu_title_ref);
-	snprintf(menu_title_ref, sizeof menu_title_ref, "disk_%x_part_%d", 
-			drive_info[dn].disk, i);
-	snprintf(menu_title, sizeof menu_title, "Partition %d", i);
+	snprintf(menu_title_ref, sizeof menu_title_ref, "disk_%x_part_%d",
+			drive_info[dn].disk, nb_partitions_seen);
+	snprintf(menu_title, sizeof menu_title, "Partition %d", nb_partitions_seen);
 
 	add_item(menu_title, "Partition information (start, end, length, type, ...)",
 			OPT_SUBMENU, menu_title_ref, 0);
-
 }
 /**
  * compute_partition_information - print information about a partition
@@ -79,34 +73,30 @@ static void show_partition_information(struct driveinfo *drive_info,
  *  at the MBR... but still not absolute!
  **/
 static void compute_partition_information(struct driveinfo *drive_info,
-                                       struct part_entry *ptab,
-                                       struct part_entry *ptab_root,
-                                       int offset_root, int data_partitions_seen,
-                                       int ebr_seen)
+                                          struct part_entry *ptab,
+                                          int partition_offset,
+                                          int nb_partitions_seen)
 {
         char size[8];
         char *parttype;
-        char error_buffer[MAX_DISK_ERRNO];
         unsigned int start, end;
   	char buffer[SUBMENULEN+1];
   	char statbuffer[STATLEN+1];
 	char menu_title[MENULEN + 1];
 	char menu_title_ref[MENULEN + 1];
 
-        int i = 1 + ebr_seen * 4 + data_partitions_seen;
-
 	memset(buffer,0,sizeof buffer);
 	memset(statbuffer,0,sizeof statbuffer);
 	memset(menu_title,0,sizeof menu_title);
 	memset(menu_title_ref,0,sizeof menu_title_ref);
-	snprintf(menu_title_ref, sizeof menu_title_ref, "disk_%x_part_%d", drive_info[dn].disk, i);
-	snprintf(menu_title, sizeof menu_title, "Partition %d", i);
+	snprintf(menu_title_ref, sizeof menu_title_ref, "disk_%x_part_%d", drive_info[dn].disk, nb_partitions_seen);
+	snprintf(menu_title, sizeof menu_title, "Partition %d", nb_partitions_seen);
 
    	add_named_menu(menu_title_ref,menu_title,-1);
    	set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
-	start = ptab->start_lba + ptab_root->start_lba + offset_root;
-        end = (ptab->start_lba + ptab_root->start_lba) + ptab->length + offset_root;
+	start = partition_offset;
+	end = start + ptab->length;
 
         if (ptab->length > 0)
                 sectors_to_size(ptab->length, size);
@@ -159,13 +149,7 @@ static void compute_partition_information(struct driveinfo *drive_info,
 		snprintf(buffer, sizeof buffer, "%s","Swsusp sig  : detected");
 		snprintf(statbuffer, sizeof statbuffer, "%s","Swsusp sig  : detected");
 		add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-        } else {
-                get_error(&error_buffer);
-		snprintf(buffer, sizeof buffer, "%s",error_buffer);
-		snprintf(statbuffer, sizeof statbuffer, "%s",error_buffer);
-		add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
         }
-
 }
 
 /* Compute the disk submenu */
