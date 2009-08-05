@@ -15,10 +15,12 @@
 #include <com32.h>
 #include <stdlib.h>
 #include <string.h>
-#include <disk/read.h>
-#include <disk/write.h>
+
 #include <disk/common.h>
+#include <disk/errno_disk.h>
+#include <disk/read.h>
 #include <disk/util.h>
+#include <disk/write.h>
 
 /**
  * write_sectors - write several sectors from disk
@@ -26,10 +28,12 @@
  * @lba:		Position to write
  * @data:		Buffer to write
  * @size:		Size of the buffer (number of sectors)
- * @error:		Return the error code on failure
+ *
+ * Return the number of sectors write on success or -1 on failure.
+ * errno_disk contains the error number.
  **/
 int write_sectors(const struct driveinfo* drive_info, const unsigned int lba,
-		  const void *data, const int size, int *error)
+		  const void *data, const int size)
 {
 	com32sys_t inreg, outreg;
 	struct ebios_dapa *dapa = __com32.cs_bounce;
@@ -38,7 +42,7 @@ int write_sectors(const struct driveinfo* drive_info, const unsigned int lba,
 	memcpy(buf, data, size);
 	memset(&inreg, 0, sizeof inreg);
 
-	if ( drive_info->ebios ) {
+	if (drive_info->ebios) {
 		dapa->len = sizeof(*dapa);
 		dapa->count = size;
 		dapa->off = OFFS(buf);
@@ -52,16 +56,16 @@ int write_sectors(const struct driveinfo* drive_info, const unsigned int lba,
 	} else {
 		unsigned int c, h, s;
 
-		if ( !drive_info->cbios ) {
-		  /* We failed to get the geometry */
+		if (!drive_info->cbios) { // XXX errno
+			/* We failed to get the geometry */
+			if (lba)
+				return -1;	/* Can only write MBR */
 
-		  if ( lba )
-		    return -1;		/* Can only write MBR */
-
-		  s = 1;  h = 0;  c = 0;
+			s = 1;  h = 0;  c = 0;
 		} else
 		    lba_to_chs(drive_info, lba, &s, &h, &c);
 
+		// XXX errno
 		if ( s > 63 || h > 256 || c > 1023 )
 		  return -1;
 
@@ -76,14 +80,10 @@ int write_sectors(const struct driveinfo* drive_info, const unsigned int lba,
 
 	/* Perform the write */
 	if (int13_retry(&inreg, &outreg)) {
-		if (error)
-			*error = outreg.eax.b[1];
+		errno_disk = outreg.eax.b[1];
 		return -1;	/* Give up */
-	} else {
-		if (error)
-			*error = 0;
-		return 0;
-	}
+	} else
+		return size;
 }
 
 /**
@@ -94,9 +94,9 @@ int write_sectors(const struct driveinfo* drive_info, const unsigned int lba,
  **/
 int write_verify_sector(struct driveinfo* drive_info,
 			const unsigned int lba,
-			const void *data, int *error)
+			const void *data)
 {
-	return write_verify_sectors(drive_info, lba, data, SECTOR, error);
+	return write_verify_sectors(drive_info, lba, data, SECTOR);
 }
 
 /**
@@ -108,20 +108,18 @@ int write_verify_sector(struct driveinfo* drive_info,
  **/
 int write_verify_sectors(struct driveinfo* drive_info,
 			 const unsigned int lba,
-			 const void *data, const int size, int* error)
+			 const void *data, const int size)
 {
-	char *rb;
-	int rv;
+	char *rb = malloc(SECTOR * size * sizeof(char));
+	int status;
 
-	rv = write_sectors(drive_info, lba, data, size, error);
-	if (rv)
-		return rv;		/* Write failure */
+	if (write_sectors(drive_info, lba, data, size) == -1)
+		return -1;	/* Write failure */
 
-	rb = read_sectors(drive_info, lba, size, error);
-	if (!rb)
-		return -1;		/* Readback failure */
+	if (read_sectors(drive_info, rb, lba, size) == -1)
+		return -1;	/* Readback failure */
 
-	rv = memcmp(data, rb, SECTOR * size);
+	status = memcmp(data, rb, SECTOR * size);
 	free(rb);
-	return rv ? -1 : 0;
+	return status ? -1 : 0;
 }

@@ -13,6 +13,8 @@
  * ----------------------------------------------------------------------- */
 
 #include <stdlib.h>
+
+#include <disk/common.h>
 #include <disk/geom.h>
 #include <disk/partition.h>
 #include <disk/read.h>
@@ -23,7 +25,7 @@ static inline int is_extended_partition(struct part_entry *ptab)
 		ptab->ostype == 0x0f ||
 		ptab->ostype == 0x85);
 }
-static inline int msdos_magic_present(char *ptab)
+static inline int msdos_magic_present(const char *ptab)
 {
 	return ( *(uint16_t *)(ptab + 0x1fe) == 0xaa55 );
 }
@@ -36,25 +38,28 @@ static inline int msdos_magic_present(char *ptab)
  * @error:		Buffer for I/O errors
  * @nb_part_seen:	Number of partitions found on the disk so far
  **/
-static void process_extended_partition(struct driveinfo *drive_info,
+static int process_extended_partition(struct driveinfo *drive_info,
 				       int partition_offset,
 				       void *callback(struct driveinfo *, struct part_entry *, int, int),
-				       int *error, int nb_part_seen)
+				       int nb_part_seen)
 {
+	int status = 0;
 	/* The ebr is located at the first sector of the extended partition */
-	char* ebr = read_sectors(drive_info, partition_offset, 1, error);
+	char* ebr = malloc(SECTOR * sizeof(char));
 
-	/* If something bad during the read happens, we can't do much: bail out */
-	if (*error)
-		return;
+	if (read_sectors(drive_info, ebr, partition_offset, 1) == -1)
+		return -1;
 
 	/* Check msdos magic signature */
 	if (!msdos_magic_present(ebr))
-		return;
+		return -1;
 
 	struct part_entry *ptab = (struct part_entry *)(ebr + PARTITION_TABLES_OFFSET);
 
 	for (int i = 0; i < 4; i++) {
+		if (status == -1)
+			return -1;
+
 		if (!is_extended_partition(&ptab[i])) {
 			/*
 			 * This EBR partition table entry points to the
@@ -81,11 +86,13 @@ static void process_extended_partition(struct driveinfo *drive_info,
 				 logical_partition_start,
 				 nb_part_seen);
 		} else
-			process_extended_partition(drive_info,
+			status = process_extended_partition(drive_info,
 						   partition_offset + ptab[i].start_lba,
 						   callback,
-						   error, nb_part_seen);
+						   nb_part_seen);
 	}
+
+	return 0;
 }
 
 /**
@@ -93,15 +100,15 @@ static void process_extended_partition(struct driveinfo *drive_info,
  * @drive_info:	driveinfo struct describing the drive
  * @ptab:	Pointer to the partition table
  * @callback:	Callback to execute
- * @error:	Return the error code (I/O), if needed
  **/
-static void process_mbr(struct driveinfo *drive_info, struct part_entry *ptab,
-		        void *callback(struct driveinfo *, struct part_entry *, int, int),
-		        int *error)
+static int process_mbr(struct driveinfo *drive_info, struct part_entry *ptab,
+		       void *callback(struct driveinfo *, struct part_entry *, int, int))
 {
+	int status = 0;
+
 	for (int i = 0; i < 4; i++) {
-		if (*error)
-			return;
+		if (status == -1)
+			return -1;
 
 		if (ptab[i].start_sect > 0) {
 			if (is_extended_partition(&ptab[i])) {
@@ -109,7 +116,7 @@ static void process_mbr(struct driveinfo *drive_info, struct part_entry *ptab,
 					 &ptab[i],
 					 ptab[i].start_lba,
 					 i+1);
-				process_extended_partition(drive_info, ptab[i].start_lba, callback, error, 4);
+				status = process_extended_partition(drive_info, ptab[i].start_lba, callback, 4);
 			} else
 				callback(drive_info,
 					 &ptab[i],
@@ -117,6 +124,8 @@ static void process_mbr(struct driveinfo *drive_info, struct part_entry *ptab,
 					 i+1);
 		}
 	}
+
+	return 0;
 }
 
 /**
@@ -132,10 +141,11 @@ static void process_mbr(struct driveinfo *drive_info, struct part_entry *ptab,
  *		 int offset_root,
  *		 int nb_part_seen)
  **/
-int parse_partition_table(struct driveinfo *d, void *callback, int *error)
+int parse_partition_table(struct driveinfo *d, void *callback)
 {
-	char *mbr = read_mbr(d->disk, error);
-	if (!mbr)
+	char *mbr = malloc(SECTOR * sizeof(char));
+
+	if (read_mbr(d->disk, mbr) == -1)
 		return -1;
 	else {
 		/* Check msdos magic signature */
@@ -143,10 +153,6 @@ int parse_partition_table(struct driveinfo *d, void *callback, int *error)
 			return -1;
 
 		struct part_entry *ptab = (struct part_entry *)(mbr + PARTITION_TABLES_OFFSET);
-		process_mbr(d, ptab, callback, error);
-		if (*error)
-			return -1;
-		else
-			return 0;
+		return process_mbr(d, ptab, callback);
 	}
 }
