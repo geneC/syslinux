@@ -29,67 +29,62 @@ static inline int msdos_magic_present(char *ptab)
 }
 
 /**
- * process_ebr - execute a callback for each partition contained in an ebr
- * @drive_info:	driveinfo struct describing the drive
- * @ptab_root:	part_entry struct describing the root partition (pointing to the ebr)
- * @ebr_seen:	Number of ebr processed
- * @callback:	Callback to execute
+ * process_extended_partition - execute a callback for each partition contained listed in an ebr
+ * @drive_info:		driveinfo struct describing the drive
+ * @partition_offset:	Absolute start (lba) of the partition
+ * @callback:		Callback to execute
+ * @error:		Buffer for I/O errors
+ * @nb_part_seen:	Number of partitions found on the disk so far
  **/
-static void process_ebr(struct driveinfo *drive_info, struct part_entry *ptab_root,
-		        int ebr_seen,
-		        void *callback(struct driveinfo *, struct part_entry *, struct part_entry *, int, int, int),
-		        int *error, int offset_root)
+static void process_extended_partition(struct driveinfo *drive_info,
+				       int partition_offset,
+				       void *callback(struct driveinfo *, struct part_entry *, int, int),
+				       int *error, int nb_part_seen)
 {
 	/* The ebr is located at the first sector of the extended partition */
-	char* ebr = read_sectors(drive_info, ptab_root->start_lba+offset_root, 1, error);
-	if (!ebr)
+	char* ebr = read_sectors(drive_info, partition_offset, 1, error);
+
+	/* If something bad during the read happens, we can't do much: bail out */
+	if (*error)
 		return;
 
 	/* Check msdos magic signature */
-	if(!msdos_magic_present(ebr))
+	if (!msdos_magic_present(ebr))
 		return;
-	ebr_seen += 1;
 
-	struct part_entry *ptab_child = (struct part_entry *)(ebr + PARTITION_TABLES_OFFSET);
+	struct part_entry *ptab = (struct part_entry *)(ebr + PARTITION_TABLES_OFFSET);
 
-	/* First process the data partitions */
 	for (int i = 0; i < 4; i++) {
-		if (*error)
-			return;
+		if (!is_extended_partition(&ptab[i])) {
+			/*
+			 * This EBR partition table entry points to the
+			 * logical partition associated to that EBR
+			 */
+			int logical_partition_start = partition_offset + ptab[i].start_lba;
 
-		if (ptab_child[i].start_sect > 0) {
-			if (is_extended_partition(&ptab_child[i])) {
+			/* Last EBR in the extended partition? */
+			if (!logical_partition_start)
 				continue;
-			}
 
-			/* Check for garbage in the 3rd and 4th entries */
-			if (i > 2) {
-				unsigned int offset = ptab_child->start_lba + ptab_root->start_lba;
-				if ( offset + ptab_child->length <= ptab_root->start_lba ||
-				     offset >= ptab_root->start_lba + ptab_root->length ) {
-					continue;
-				}
-			}
-			callback(drive_info,
-				 &ptab_child[i],
-				 ptab_root,
-				 offset_root,
-				 i,
-				 ebr_seen);
-		}
-	}
+			/*
+			 * Check for garbage:
+			 * 3rd and 4th entries in an EBR should be zero
+			 * Some (malformed) partitioning software still add some
+			 * data partitions there.
+			 */
+			if (ptab[i].start_lba <= 0 || ptab[i].length <= 0)
+				continue;
 
-	/* Now process the extended partitions */
-	for (int i = 0; i < 4; i++) {
-		if (is_extended_partition(&ptab_child[i])) {
+			nb_part_seen++;
 			callback(drive_info,
-				 &ptab_child[i],
-				 ptab_root,
-				 offset_root,
-				 i,
-				 ebr_seen);
-			process_ebr(drive_info, &ptab_child[i], ebr_seen + 1, callback, error, ptab_root->start_lba);
-		}
+				 &ptab[i],
+				 logical_partition_start,
+				 nb_part_seen);
+		} else
+			process_extended_partition(drive_info,
+						   partition_offset + ptab[i].start_lba,
+						   callback,
+						   error, nb_part_seen);
 	}
 }
 
@@ -101,7 +96,7 @@ static void process_ebr(struct driveinfo *drive_info, struct part_entry *ptab_ro
  * @error:	Return the error code (I/O), if needed
  **/
 static void process_mbr(struct driveinfo *drive_info, struct part_entry *ptab,
-		        void *callback(struct driveinfo *, struct part_entry *, struct part_entry *, int, int, int),
+		        void *callback(struct driveinfo *, struct part_entry *, int, int),
 		        int *error)
 {
 	for (int i = 0; i < 4; i++) {
@@ -112,18 +107,14 @@ static void process_mbr(struct driveinfo *drive_info, struct part_entry *ptab,
 			if (is_extended_partition(&ptab[i])) {
 				callback(drive_info,
 					 &ptab[i],
-					 ptab,
-					 0,
-					 i,
-					 0);
-				process_ebr(drive_info, &ptab[i], 0, callback, error, 0);
+					 ptab[i].start_lba,
+					 i+1);
+				process_extended_partition(drive_info, ptab[i].start_lba, callback, error, 4);
 			} else
 				callback(drive_info,
 					 &ptab[i],
-					 ptab,
-					 0,
-					 i,
-					 0);
+					 ptab[i].start_lba,
+					 i+1);
 		}
 	}
 }
@@ -138,10 +129,8 @@ static void process_mbr(struct driveinfo *drive_info, struct part_entry *ptab,
  *
  * void callback(struct driveinfo *drive_info,
  *		 struct part_entry *ptab,
- *		 struct part_entry *ptab_root,
  *		 int offset_root,
- *		 int local_partition_number,
- *		 int ebr_seen)
+ *		 int nb_part_seen)
  **/
 int parse_partition_table(struct driveinfo *d, void *callback, int *error)
 {

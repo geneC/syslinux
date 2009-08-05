@@ -58,9 +58,8 @@
  **/
 static void show_partition_information(struct driveinfo *drive_info,
 				       struct part_entry *ptab,
-				       struct part_entry *ptab_root,
-				       int offset_root, int data_partitions_seen,
-				       int ebr_seen)
+				       int partition_offset,
+				       int nb_partitions_seen)
 {
 	char size[8];
 	char *parttype;
@@ -68,10 +67,10 @@ static void show_partition_information(struct driveinfo *drive_info,
 	char *error_buffer;
 	unsigned int start, end;
 
-	int i = 1 + ebr_seen * 4 + data_partitions_seen;
+	int i = nb_partitions_seen;
 
-	start = ptab->start_lba + ptab_root->start_lba + offset_root;
-	end = (ptab->start_lba + ptab_root->start_lba) + ptab->length + offset_root;
+	start = partition_offset;
+	end = start + ptab->length;
 
 	if (ptab->length > 0)
 		sectors_to_size(ptab->length, size);
