@@ -7,7 +7,7 @@
  *
  * The jmp_buf is assumed to contain the following, in order:
  *	%ebx
- * 	%esp
+ *	%esp
  *	%ebp
  *	%esi
  *	%edi

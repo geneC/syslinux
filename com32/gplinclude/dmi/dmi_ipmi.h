@@ -17,17 +17,17 @@
 #define IPMI_MEMORY_MODEL_SIZE		16
 
 typedef struct {
-char interface_type[IPMI_INTERFACE_TYPE_SIZE];
-uint8_t  major_specification_version;
-uint8_t  minor_specification_version;
-uint8_t I2C_slave_address;
-uint16_t nv_address;
-uint64_t base_address;
+    char interface_type[IPMI_INTERFACE_TYPE_SIZE];
+    uint8_t major_specification_version;
+    uint8_t minor_specification_version;
+    uint8_t I2C_slave_address;
+    uint16_t nv_address;
+    uint64_t base_address;
 
-uint8_t  irq;
-bool filled;
+    uint8_t irq;
+    bool filled;
 } s_ipmi;
 
-void dmi_ipmi_base_address(uint8_t type, const uint8_t *p, s_ipmi *ipmi);
+void dmi_ipmi_base_address(uint8_t type, const uint8_t * p, s_ipmi * ipmi);
 const char *dmi_ipmi_interface_type(uint8_t code);
 #endif

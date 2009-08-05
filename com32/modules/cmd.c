@@ -20,6 +20,6 @@
 
 int main(void)
 {
-  syslinux_run_command(__com32.cs_cmdline);
-  return -1;
+    syslinux_run_command(__com32.cs_cmdline);
+    return -1;
 }

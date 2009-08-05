@@ -13,18 +13,18 @@
 
 char *getcwd(char *buf, size_t size)
 {
-	static com32sys_t reg;
-	char *pwdstr, *ret;
+    static com32sys_t reg;
+    char *pwdstr, *ret;
 
-	reg.eax.w[0] = 0x001f;
-	__intcall(0x22, &reg, &reg);
-	pwdstr =  MK_PTR(reg.es, reg.ebx.w[0]);
-	if ((strlen(pwdstr) < size) && (buf != NULL)) {
-		strcpy(buf, pwdstr);
-		ret = buf;
-	} else {
-		ret = NULL;
-		errno = ERANGE;
-	}
-	return ret;
+    reg.eax.w[0] = 0x001f;
+    __intcall(0x22, &reg, &reg);
+    pwdstr = MK_PTR(reg.es, reg.ebx.w[0]);
+    if ((strlen(pwdstr) < size) && (buf != NULL)) {
+	strcpy(buf, pwdstr);
+	ret = buf;
+    } else {
+	ret = NULL;
+	errno = ERANGE;
+    }
+    return ret;
 }

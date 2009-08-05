@@ -27,10 +27,10 @@ if (!defined($maxsize)) {
 	$maxsize = $padsize = 440;
     } elsif ($file =~ /^gptmbr[^0-9a-z]/) {
 	$maxsize = $padsize = 424;
-    } elsif ($file =~ /^isohdpfx[^0-9a-z]/) {
+    } elsif ($file =~ /^isohdp[fp]x[^0-9a-z]/) {
 	$maxsize = $padsize = 432;
     } elsif ($file =~ /^altmbr[^0-9a-z]/) {
-	$maxsize = 439; $padsize = 440;
+	$maxsize = $padsize = 439;
     } else {
 	die "$0: no default size for filename: $file\n";
     }

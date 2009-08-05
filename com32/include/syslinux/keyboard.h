@@ -37,17 +37,15 @@
 #include <stdint.h>
 
 struct syslinux_keyboard_map {
-  uint16_t version;
-  uint16_t length;
-  void *map;
+    uint16_t version;
+    uint16_t length;
+    void *map;
 };
 
 extern struct syslinux_keyboard_map __syslinux_keyboard_map;
-static inline const struct syslinux_keyboard_map *
-syslinux_keyboard_map(void)
+static inline const struct syslinux_keyboard_map *syslinux_keyboard_map(void)
 {
-  return &__syslinux_keyboard_map;
+    return &__syslinux_keyboard_map;
 }
 
 #endif /* _SYSLINUX_KEYBOARD_H */
-

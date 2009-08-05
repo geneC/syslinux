@@ -2,6 +2,7 @@
 ## -----------------------------------------------------------------------
 ##
 ##   Copyright 2002-2008 H. Peter Anvin - All Rights Reserved
+##   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -53,6 +54,19 @@ sub get_random() {
 
     # This sucks but is better than nothing...
     return ($$+time()) & 0xffffffff;
+}
+
+sub get_hex_data() {
+    my $mbr = '';
+    my $line, $byte;
+    while ( $line = <DATA> ) {
+	chomp $line;
+	last if ($line eq '*');
+	foreach $byte ( split(/\s+/, $line) ) {
+	    $mbr .= chr(hex($byte));
+	}
+    }
+    return $mbr;
 }
 
 $is_linux = is_linux();
@@ -157,13 +171,7 @@ if ( $opt{'d'} ) {
 }
 
 # Print the MBR and partition table
-$mbr = '';
-while ( $line = <DATA> ) {
-    chomp $line;
-    foreach $byte ( split(/\s+/, $line) ) {
-	$mbr .= chr(hex($byte));
-    }
-}
+$mbr = get_hex_data();
 if ( length($mbr) > 440 ) {
     die "$0: Bad MBR code\n";
 }

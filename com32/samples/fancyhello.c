@@ -25,18 +25,18 @@
 
 int main(void)
 {
-  char buffer[1024];
+    char buffer[1024];
 
-  console_ansi_std();
+    console_ansi_std();
 
-  printf("\033[1;33;44m *** \033[37mHello, World!\033[33m *** \033[0m\n");
+    printf("\033[1;33;44m *** \033[37mHello, World!\033[33m *** \033[0m\n");
 
-  for (;;) {
-    printf("\033[1;36m>\033[0m ");
-    fgets(buffer, sizeof buffer, stdin);
-    if ( !strncmp(buffer, "exit", 4) )
-      break;
-    printf("\033[1m:\033[0m %s", buffer);
-  }
-  return 0;
+    for (;;) {
+	printf("\033[1;36m>\033[0m ");
+	fgets(buffer, sizeof buffer, stdin);
+	if (!strncmp(buffer, "exit", 4))
+	    break;
+	printf("\033[1m:\033[0m %s", buffer);
+    }
+    return 0;
 }

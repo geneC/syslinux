@@ -161,7 +161,7 @@ display_labels:
 
 		push cx				; save command line size
 
-		mov di,VKernelBuf
+		mov edi,VKernelBuf
 		call rllunpack
 		; ESI updated on return
 
@@ -350,7 +350,7 @@ vk_check:
 		cmp esi,[VKernelEnd]
 		jbe .not_vk
 
-		mov di,VKernelBuf
+		mov edi,VKernelBuf
 		call rllunpack
 		; ESI updated on return
 
@@ -396,26 +396,18 @@ vk_check:
 %endif
 		xor bx,bx			; Try only one version
 
-		mov al, [VKernelBuf+vk_type]
-		mov [KernelType], al
+		mov al,[VKernelBuf+vk_type]
+		mov [KernelType],al
 
 %if HAS_LOCALBOOT
 		; Is this a "localboot" pseudo-kernel?
-%if IS_PXELINUX
-		cmp byte [VKernelBuf+vk_rname+4], 0
-%else
-		cmp byte [VKernelBuf+vk_rname], 0
+		cmp al,VK_LOCALBOOT		; al == KernelType
+		mov ax,[VKernelBuf+vk_rname]	; Possible localboot type
+		je local_boot
 %endif
-		jne get_kernel		; No, it's real, go get it
-
-		mov ax, [VKernelBuf+vk_rname+1]
-		jmp local_boot
-%else
 		jmp get_kernel
-%endif
 
 .not_vk:
-
 ;
 ; Not a "virtual kernel" - check that's OK and construct the command line
 ;
@@ -442,6 +434,8 @@ vk_check:
 ;
 get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/extension
 		mov di,KernelName+4*IS_PXELINUX
+		cmp byte [di],' '
+		jbe bad_kernel			; Missing kernel name
 		xor al,al
 		mov cx,FILENAME_MAX-5		; Need 4 chars + null
 		repne scasb			; Scan for final null
@@ -529,7 +523,7 @@ kernel_corrupt: mov si,err_notkernel
 ;
 getchar_timeout:
 		call vgashowcursor
-		RESET_IDLE
+		call reset_idle
 
 .loop:
 		push word [BIOS_timer]
@@ -538,7 +532,6 @@ getchar_timeout:
 		pop ax
 		cmp ax,[BIOS_timer]		; Has the timer advanced?
 		je .loop
-		DO_IDLE
 
 		dec dword [ThisKbdTo]
 		jz .timeout
@@ -678,7 +671,7 @@ is_bad_image:
 		call writestr
 		jmp enter_command
 
-%if IS_SYSLINUX || IS_MDSLINUX
+%if IS_SYSLINUX
 		; ok
 %else
 is_bss_sector	equ is_bad_image

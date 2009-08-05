@@ -24,20 +24,25 @@
 ; Identify the module we're compiling; the "correct" should be defined
 ; in the module itself to 1
 ;
-%ifndef IS_SYSLINUX
-%define IS_SYSLINUX 0
+%ifdef IS_SYSLINUX
+ %define MY_NAME 'SYSLINUX'
+%else
+ %define IS_SYSLINUX 0
 %endif
-%ifndef IS_MDSLINUX
-%define IS_MDSLINUX 0
+%ifdef IS_PXELINUX
+ %define MY_NAME 'PXELINUX'
+%else
+ %define IS_PXELINUX 0
 %endif
-%ifndef IS_PXELINUX
-%define IS_PXELINUX 0
+%ifdef IS_ISOLINUX
+ %define MY_NAME 'ISOLINUX'
+%else
+ %define IS_ISOLINUX 0
 %endif
-%ifndef IS_ISOLINUX
-%define IS_ISOLINUX 0
-%endif
-%ifndef IS_EXTLINUX
-%define IS_EXTLINUX 0
+%ifdef IS_EXTLINUX
+ %define MY_NAME 'EXTLINUX'
+%else
+ %define IS_EXTLINUX 0
 %endif
 
 ;
@@ -72,7 +77,7 @@
       %assign %$v %1
       %if %$v == 0
         db '0'
-      %else   
+      %else
         %assign %$dcount 0
         %assign %$n %$v
         %assign %$d 1

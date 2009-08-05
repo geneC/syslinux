@@ -18,37 +18,37 @@
 
 static inline void error(const char *msg)
 {
-  fputs(msg, stderr);
+    fputs(msg, stderr);
 }
 
 int main(int argc, char *argv[])
 {
-  const struct syslinux_keyboard_map * const kmap = syslinux_keyboard_map();
-  size_t map_size;
-  void *kbdmap;
+    const struct syslinux_keyboard_map *const kmap = syslinux_keyboard_map();
+    size_t map_size;
+    void *kbdmap;
 
-  openconsole(&dev_null_r, &dev_stdcon_w);
+    openconsole(&dev_null_r, &dev_stdcon_w);
 
-  if (argc != 2) {
-    error("Usage: kbdmap mapfile\n");
-    return 1;
-  }
+    if (argc != 2) {
+	error("Usage: kbdmap mapfile\n");
+	return 1;
+    }
 
-  if (kmap->version != 1) {
-    error("Syslinux core version mismatch\n");
-    return 1;
-  }
+    if (kmap->version != 1) {
+	error("Syslinux core version mismatch\n");
+	return 1;
+    }
 
-  if (loadfile(argv[1], &kbdmap, &map_size)) {
-    error("Keyboard map file load error\n");
-    return 1;
-  }
+    if (loadfile(argv[1], &kbdmap, &map_size)) {
+	error("Keyboard map file load error\n");
+	return 1;
+    }
 
-  if (map_size != kmap->length) {
-    error("Keyboard map file format error\n");
-    return 1;
-  }
+    if (map_size != kmap->length) {
+	error("Keyboard map file format error\n");
+	return 1;
+    }
 
-  memcpy(kmap->map, kbdmap, map_size);
-  return 0;
+    memcpy(kmap->map, kbdmap, map_size);
+    return 0;
 }

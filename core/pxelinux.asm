@@ -29,7 +29,7 @@
 ; Some semi-configurable constants... change on your own risk.
 ;
 my_id		equ pxelinux_id
-FILENAME_MAX_LG2 equ 7			; log2(Max filename size Including final null)
+FILENAME_MAX_LG2 equ 8			; log2(Max filename size Including final null)
 FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
 NULLFILE	equ 0			; Zero byte == null file name
 NULLOFFSET	equ 4			; Position in which to look
@@ -52,24 +52,6 @@ TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
 
 SECTOR_SHIFT	equ TFTP_BLOCKSIZE_LG2
 SECTOR_SIZE	equ TFTP_BLOCKSIZE
-
-%define HAVE_IDLE 1			; idle is not a noop
-
-%if HAVE_IDLE
-%macro	RESET_IDLE 0
-	call reset_idle
-%endmacro
-%macro	DO_IDLE 0
-	call check_for_arp
-%endmacro
-%else
-%macro	RESET_IDLE 0
-	; Nothing
-%endmacro
-%macro	DO_IDLE 0
-	; Nothing
-%endmacro
-%endif
 
 ;
 ; TFTP operation codes
@@ -195,7 +177,6 @@ PXEStack	resd 1			; Saved stack during PXE call
 RebootTime	resd 1			; Reboot timeout, if set by option
 StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure
 APIVer		resw 1			; PXE API version found
-IdleTimer	resw 1			; Time to check for ARP?
 LocalBootType	resw 1			; Local boot return code
 RealBaseMem	resw 1			; Amount of DOS memory after freeing
 OverLoad	resb 1			; Set if DHCP packet uses "overloading"
@@ -220,7 +201,7 @@ UUIDNull	resb 1			; dhcp_copyoption zero-terminates
 		alignb 4
 pxe_unload_stack_pkt:
 .status:	resw 1			; Status
-.reserved:	resw 10			; Reserved
+.reserved:	resb 10			; Reserved
 pxe_unload_stack_pkt_len	equ $-pxe_unload_stack_pkt
 
 		alignb 16
@@ -327,10 +308,11 @@ _start1:
 %if USE_PXE_PROVIDED_STACK == 0
 		lss sp,[InitStack]
 %endif
-		int 1Ah					; May trash regs
+		int 1Ah			; May trash regs
 %if USE_PXE_PROVIDED_STACK == 0
 		lss esp,[BaseStack]
 %endif
+		sti			; Work around Etherboot bug
 
 		jc no_int1a
 		cmp ax,564Eh
@@ -455,7 +437,7 @@ have_entrypoint:
 
 		cmp ax,dx
 		ja .data_on_top
-		xchg ax,ax
+		xchg ax,dx
 .data_on_top:
 		; Could we safely add 63 here before the shift?
 		shr ax,6			; Convert to kilobytes
@@ -619,7 +601,7 @@ udp_init:
 ; Detect NIC type and initialize the idle mechanism
 ;
 		call pxe_detect_nic_type
-		RESET_IDLE
+		call reset_idle
 
 ;
 ; Now we're all set to start with our *real* business.	First load the
@@ -1123,7 +1105,17 @@ searchdir:
 		;  SI -> first byte of options; [E]CX -> byte count
 .parse_oack:
 		jcxz .done_pkt			; No options acked
+
 .get_opt_name:
+		; If we find an option which starts with a NUL byte,
+		; (a null option), we're either seeing garbage that some
+		; TFTP servers add to the end of the packet, or we have
+		; no clue how to parse the rest of the packet (what is
+		; an option name and what is a value?)  In either case,
+		; discard the rest.
+		cmp byte [si],0
+		je .done_pkt
+
 		mov di,si
 		mov bx,si
 .opt_name_loop:	lodsb
@@ -1133,10 +1125,10 @@ searchdir:
 		stosb
 		loop .opt_name_loop
 		; We ran out, and no final null
-		jmp .err_reply
+		jmp .done_pkt			; Ignore runt option
 .got_opt_name:	; si -> option value
 		dec cx				; bytes left in pkt
-		jz .err_reply			; Option w/o value
+		jz .done_pkt			; Option w/o value, ignore
 
 		; Parse option pointed to by bx; guaranteed to be
 		; null-terminated.
@@ -1159,7 +1151,8 @@ searchdir:
 
 		pop si
 		pop cx
-		jmp .err_reply			; Non-negotiated option returned
+		; Non-negotiated option returned, no idea what it means...
+		jmp .err_reply
 
 .get_value:	pop si				; si -> option value
 		pop cx				; cx -> bytes left in pkt
@@ -1239,13 +1232,13 @@ searchdir:
 		pop es
 		jmp .done_pkt
 
-.err_reply:	; Option negotiation error.  Send ERROR reply.
+.err_reply:	; TFTP protocol error.  Send ERROR reply.
 		; ServerIP and gateway are already programmed in
 		mov si,[bp-6]
 		mov ax,[si+tftp_remoteport]
 		mov word [pxe_udp_write_pkt.rport],ax
-		mov word [pxe_udp_write_pkt.buffer],tftp_opt_err
-		mov word [pxe_udp_write_pkt.buffersize],tftp_opt_err_len
+		mov word [pxe_udp_write_pkt.buffer],tftp_proto_err
+		mov word [pxe_udp_write_pkt.buffersize],tftp_proto_err_len
 		mov di,pxe_udp_write_pkt
 		mov bx,PXENV_UDP_WRITE
 		call pxenv
@@ -2214,8 +2207,6 @@ pxe_get_cached_info:
 		mov bx,PXENV_GET_CACHED_INFO
 		call pxenv
 		jc .err
-		and ax,ax
-		jnz .err
 
 		popad
 		mov cx,[pxe_bootp_query_pkt.buffersize]
@@ -2548,64 +2539,6 @@ genipopt:
 		popad
 		ret
 
-;
-; Call the receive loop while idle.  This is done mostly so we can respond to
-; ARP messages, but perhaps in the future this can be used to do network
-; console.
-;
-; hpa sez: people using automatic control on the serial port get very
-; unhappy if we poll for ARP too often (the PXE stack is pretty slow,
-; typically.)  Therefore, only poll if at least 4 BIOS timer ticks have
-; passed since the last poll, and reset this when a character is
-; received (RESET_IDLE).
-;
-; Note: we only do this if pxe_detect_nic_type has cleared the
-; "idle is noop" bit in feature_flags.
-;
-%if HAVE_IDLE
-
-reset_idle:
-		push ax
-		mov ax,[cs:BIOS_timer]
-		mov [cs:IdleTimer],ax
-		pop ax
-		ret
-
-check_for_arp:
-		test byte [cs:feature_flags],2
-		jnz .ret
-		push ax
-		mov ax,[cs:BIOS_timer]
-		sub ax,[cs:IdleTimer]
-		cmp ax,4
-		pop ax
-		jae .need_poll
-.ret:		ret
-.need_poll:	pushad
-		push ds
-		push es
-		mov ax,cs
-		mov ds,ax
-		mov es,ax
-		mov di,packet_buf
-		mov [pxe_udp_read_pkt.buffer],di
-		mov [pxe_udp_read_pkt.buffer+2],ds
-		mov word [pxe_udp_read_pkt.buffersize],packet_buf_size
-		mov eax,[MyIP]
-		mov [pxe_udp_read_pkt.dip],eax
-		mov word [pxe_udp_read_pkt.lport],htons(9)	; discard port
-		mov di,pxe_udp_read_pkt
-		mov bx,PXENV_UDP_READ
-		call pxenv
-		; Ignore result...
-		pop es
-		pop ds
-		popad
-		RESET_IDLE
-		ret
-
-%endif ; HAVE_IDLE
-
 ; -----------------------------------------------------------------------------
 ;  Common modules
 ; -----------------------------------------------------------------------------
@@ -2626,7 +2559,8 @@ writestr_early	equ writestr
 %include "strcpy.inc"		; strcpy()
 %include "rawcon.inc"		; Console I/O w/o using the console functions
 %include "dnsresolv.inc"	; DNS resolver
-%include "pxeidle.inc"		; Idle mechanism
+%include "idle.inc"		; Idle handling
+%include "pxeidle.inc"		; PXE-specific idle mechanism
 %include "adv.inc"		; Auxillary Data Vector
 
 ; -----------------------------------------------------------------------------
@@ -2802,12 +2736,13 @@ tftp_opt_table:
 tftp_opts	equ ($-tftp_opt_table)/6
 
 ;
-; Error packet to return on options negotiation error
+; Error packet to return on TFTP protocol error
+; Most of our errors are OACK parsing errors, so use that error code
 ;
-tftp_opt_err	dw TFTP_ERROR				; ERROR packet
-		dw TFTP_EOPTNEG				; ERROR 8: bad options
-		db 'tsize option required', 0		; Error message
-tftp_opt_err_len equ ($-tftp_opt_err)
+tftp_proto_err	dw TFTP_ERROR				; ERROR packet
+		dw TFTP_EOPTNEG				; ERROR 8: OACK error
+		db 'TFTP protocol error', 0		; Error message
+tftp_proto_err_len equ ($-tftp_proto_err)
 
 		alignz 4
 ack_packet_buf:	dw TFTP_ACK, 0				; TFTP ACK packet

@@ -339,6 +339,7 @@ SERIAL port [[baudrate] flowcontrol]
 	"flowcontrol" is a combination of the following bits:
 	0x001 - Assert DTR
 	0x002 - Assert RTS
+	0x008 - Enable interrupts
 	0x010 - Wait for CTS assertion
 	0x020 - Wait for DSR assertion
 	0x040 - Wait for RI assertion
@@ -365,6 +366,17 @@ SERIAL port [[baudrate] flowcontrol]
 	NOTE: "port" values from 0 to 3 means the first four serial
 	ports detected by the BIOS.  They may or may not correspond to
 	the legacy port values 0x3F8, 0x2F8, 0x3E8, 0x2E8.
+
+	Enabling interrupts (setting the 0x008 bit) may give better
+	responsiveness without setting the NOHALT option, but could
+	potentially cause problems with buggy BIOSes.
+
+NOHALT flag_val
+	If flag_val is 1, don't halt the processor while idle.
+	Halting the processor while idle significantly reduces the
+	power consumption, but can cause poor responsiveness to the
+	serial console, especially when using scripts to drive the
+	serial console, as opposed to human interaction.
 
 CONSOLE flag_val
 	If flag_val is 0, disable output to the normal video console.

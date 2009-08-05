@@ -7,10 +7,10 @@
 #include <stdio.h>
 #include "sys/file.h"
 
-long ftell(FILE *stream)
+long ftell(FILE * stream)
 {
-  int fd = fileno(stream);
-  struct file_info *fp = &__file_info[fd];
+    int fd = fileno(stream);
+    struct file_info *fp = &__file_info[fd];
 
-  return fp->i.offset;
+    return fp->i.offset;
 }

@@ -98,6 +98,7 @@ extlinux_id	equ 034h		; 3 = SYSLINUX family; 4 = EXTLINUX
 ;
 ; Types of vkernels
 ;
+VK_LOCALBOOT	equ -1			; localboot (no actual kernel loaded)
 VK_KERNEL	equ 0			; Choose by filename
 VK_LINUX	equ 1			; Linux kernel image
 VK_BOOT		equ 2			; Boot sector

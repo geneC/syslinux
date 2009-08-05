@@ -8,13 +8,13 @@
 
 char *strpcpy(char *dst, const char *src)
 {
-  char *q = dst;
-  const char *p = src;
-  char ch;
+    char *q = dst;
+    const char *p = src;
+    char ch;
 
-  do {
-    *q++ = ch = *p++;
-  } while ( ch );
+    do {
+	*q++ = ch = *p++;
+    } while (ch);
 
-  return q-1;
+    return q - 1;
 }

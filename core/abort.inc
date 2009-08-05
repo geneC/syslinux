@@ -34,6 +34,7 @@ dot_pause:
 ; abort_check: let the user abort with <ESC> or <Ctrl-C>
 ;
 abort_check:
+		call reset_idle			; Not idle despite pollchar
 		call pollchar
 		jz .ret1
 		pusha

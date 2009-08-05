@@ -31,8 +31,8 @@ include $(topdir)/MCONFIG
 
 # List of module objects that should be installed for all derivatives
 MODULES = memdisk/memdisk memdump/memdump.com modules/*.com \
-	com32/menu/*.c32 com32/modules/*.c32 com32/hdt/*.c32 \
-	com32/rosh/*.c32
+	com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
+	com32/hdt/*.c32 com32/rosh/*.c32
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
@@ -154,11 +154,6 @@ local-spotless:
 
 spotless: local-clean local-dist local-spotless
 	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
-
-local-depend:
-
-depend: local-depend
-	$(MAKE) -C memdisk depend
 
 # Shortcut to build linux/syslinux using klibc
 klibc:

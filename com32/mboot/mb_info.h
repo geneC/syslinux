@@ -21,19 +21,22 @@
  *  The structure type "mod_list" is used by the "multiboot_info" structure.
  */
 
-struct mod_list
-{
-  /* the memory used goes from bytes 'mod_start' to 'mod_end-1' inclusive */
-  unsigned long mod_start;
-  unsigned long mod_end;
+#ifndef MBOOT_MB_INFO_H
+#define MBOOT_MB_INFO_H
 
-  /* Module command line */
-  unsigned long cmdline;
+#include <inttypes.h>
 
-  /* padding to take it to 16 bytes (must be zero) */
-  unsigned long pad;
+struct mod_list {
+    /* the memory used goes from bytes 'mod_start' to 'mod_end-1' inclusive */
+    uint32_t mod_start;
+    uint32_t mod_end;
+
+    /* Module command line */
+    uint32_t cmdline;
+
+    /* padding to take it to 16 bytes (must be zero) */
+    uint32_t pad;
 };
-
 
 /*
  *  INT-15, AX=E820 style "AddressRangeDescriptor"
@@ -42,59 +45,52 @@ struct mod_list
  *  map has been reached.
  */
 
-struct AddrRangeDesc
-{
-  unsigned long size;
-  unsigned long long BaseAddr;
-  unsigned long long Length;
-  unsigned long Type;
-
-  /* unspecified optional padding... */
-};
+struct AddrRangeDesc {
+    uint32_t size;
+    uint64_t BaseAddr;
+    uint64_t Length;
+    uint32_t Type;
+    /* unspecified optional padding... */
+} __attribute__ ((packed));
 
 /* usable memory "Type", all others are reserved.  */
 #define MB_ARD_MEMORY		1
 
-
 /* Drive Info structure.  */
-struct drive_info
-{
-  /* The size of this structure.  */
-  unsigned long size;
+struct drive_info {
+    /* The size of this structure.  */
+    uint32_t size;
 
-  /* The BIOS drive number.  */
-  unsigned char drive_number;
+    /* The BIOS drive number.  */
+    uint8_t drive_number;
 
-  /* The access mode (see below).  */
-  unsigned char drive_mode;
+    /* The access mode (see below).  */
+    uint8_t drive_mode;
 
-  /* The BIOS geometry.  */
-  unsigned short drive_cylinders;
-  unsigned char drive_heads;
-  unsigned char drive_sectors;
+    /* The BIOS geometry.  */
+    uint16_t drive_cylinders;
+    uint8_t drive_heads;
+    uint8_t drive_sectors;
 
-  /* The array of I/O ports used for the drive.  */
-  unsigned short drive_ports[0];
+    /* The array of I/O ports used for the drive.  */
+    uint16_t drive_ports[0];
 };
 
 /* Drive Mode.  */
 #define MB_DI_CHS_MODE		0
 #define MB_DI_LBA_MODE		1
 
-
 /* APM BIOS info.  */
-struct apm_info
-{
-  unsigned short version;
-  unsigned short cseg;
-  unsigned long offset;
-  unsigned short cseg_16;
-  unsigned short dseg_16;
-  unsigned short cseg_len;
-  unsigned short cseg_16_len;
-  unsigned short dseg_16_len;
+struct apm_info {
+    uint16_t version;
+    uint16_t cseg;
+    uint32_t offset;
+    uint16_t cseg_16;
+    uint16_t dseg_16;
+    uint16_t cseg_len;
+    uint16_t cseg_16_len;
+    uint16_t dseg_16_len;
 };
-
 
 /*
  *  MultiBoot Info description
@@ -103,73 +99,65 @@ struct apm_info
  *  its address in the EAX register.
  */
 
-struct multiboot_info
-{
-  /* MultiBoot info version number */
-  unsigned long flags;
+struct multiboot_info {
+    /* MultiBoot info version number */
+    uint32_t flags;
 
-  /* Available memory from BIOS */
-  unsigned long mem_lower;
-  unsigned long mem_upper;
+    /* Available memory from BIOS */
+    uint32_t mem_lower;
+    uint32_t mem_upper;
 
-  /* "root" partition */
-  unsigned long boot_device;
+    /* "root" partition */
+    uint32_t boot_device;
 
-  /* Kernel command line */
-  unsigned long cmdline;
+    /* Kernel command line */
+    uint32_t cmdline;
 
-  /* Boot-Module list */
-  unsigned long mods_count;
-  unsigned long mods_addr;
+    /* Boot-Module list */
+    uint32_t mods_count;
+    uint32_t mods_addr;
 
-  union
-  {
-    struct
-    {
-      /* (a.out) Kernel symbol table info */
-      unsigned long tabsize;
-      unsigned long strsize;
-      unsigned long addr;
-      unsigned long pad;
-    }
-    a;
+    union {
+	struct {
+	    /* (a.out) Kernel symbol table info */
+	    uint32_t tabsize;
+	    uint32_t strsize;
+	    uint32_t addr;
+	    uint32_t pad;
+	} a;
+	struct {
+	    /* (ELF) Kernel section header table */
+	    uint32_t num;
+	    uint32_t size;
+	    uint32_t addr;
+	    uint32_t shndx;
+	} e;
+    } syms;
 
-    struct
-    {
-      /* (ELF) Kernel section header table */
-      unsigned long num;
-      unsigned long size;
-      unsigned long addr;
-      unsigned long shndx;
-    }
-    e;
-  }
-  syms;
+    /* Memory Mapping buffer */
+    uint32_t mmap_length;
+    uint32_t mmap_addr;
 
-  /* Memory Mapping buffer */
-  unsigned long mmap_length;
-  unsigned long mmap_addr;
+    /* Drive Info buffer */
+    uint32_t drives_length;
+    uint32_t drives_addr;
 
-  /* Drive Info buffer */
-  unsigned long drives_length;
-  unsigned long drives_addr;
+    /* ROM configuration table */
+    uint32_t config_table;
 
-  /* ROM configuration table */
-  unsigned long config_table;
+    /* Boot Loader Name */
+    uint32_t boot_loader_name;
 
-  /* Boot Loader Name */
-  unsigned long boot_loader_name;
+    /* APM table */
+    uint32_t apm_table;
 
-  /* APM table */
-  unsigned long apm_table;
-
-  /* Video */
-  unsigned long vbe_control_info;
-  unsigned long vbe_mode_info;
-  unsigned short vbe_mode;
-  unsigned short vbe_interface_seg;
-  unsigned short vbe_interface_off;
-  unsigned short vbe_interface_len;
+    /* Video */
+    uint32_t vbe_control_info;
+    uint32_t vbe_mode_info;
+    uint16_t vbe_mode;
+    uint16_t vbe_interface_seg;
+    uint16_t vbe_interface_off;
+    uint16_t vbe_interface_len;
 };
 
 /*
@@ -215,3 +203,5 @@ struct multiboot_info
  */
 
 #define MULTIBOOT_VALID			0x2BADB002
+
+#endif /* MBOOT_MB_INFO_H */

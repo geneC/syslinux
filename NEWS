@@ -2,6 +2,60 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 3.83:
+	* PXELINUX: clear memory before handing over to a chainloaded
+	  NBP.  This may help avoid a bug in Windows RIS.
+	* PXELINUX: fix localboot after NBP chainloading on certain
+	  BIOSes (including ASUS A8N-E, but possibly others.)
+	* chain.c32: support chainloaded bootloaders on ISOLINUX.
+	* PXELINUX: allow filenames up to 251 characters.
+	* MEMDISK: fix problems booting from USB on Thinkpads, and
+	  possibly other machines or hardware combinations.
+	* isohybrid: fix the -id option.
+
+Changes in 3.82:
+	* isohybrid: fix the -partok logic for loading from a partition.
+	* ISOLINUX: deal with systems which return from INT 13h with
+	  interrupts disabled.
+	* Do not invoke the idle handler during large file loads.
+	* Simple menu: make ONTIMEOUT work with MENU HIDDEN.
+	* PXELINUX: handle TFTP servers which have extra NULs at the
+	  end of an OACK packet.
+
+Changes in 3.81:
+	* Shuffler: fix bug in real-mode entry.  This affected a
+	  number of modules, probably in relatively unimportant ways,
+	  but it completely broke linux.c32.
+	* Improved performance.
+	* Attempt to halt the processor while idle.  This can cause
+	  bad reponsiveness when using a serial console especially for
+	  automated input; if that ends up being a problem, use the
+	  new "NOHALT 1" configuration command.
+	* linux.c32 now suppresses all messages if the "quiet" flag is
+	  specified.
+	* isohybrid: add a variety of options, and a help message.
+	* ISOLINUX: fix booting in hybrid mode when CBIOS is used.
+	  This unfortunately means that the isohybrid handoff protocol
+	  has changed, so the isohybrid utility must version-match
+	  isolinux.bin.
+	* Drop support for ACPI 3 extended memory flags.
+	* Menu system: don't set the autocr flag on the serial
+	  console.
+	* altmbr: fix handling of logical partitions.
+	* altmbr: cap at 439 bytes so the partition select byte isn't
+	  part of the file.
+
+Changes in 3.80:
+	* New shuffler mechanism and API.
+	* Rewritten mboot.c32 module.
+	* The syslinux_boot_linux() function has been simplified.
+	* Don't hang trying to boot a "menu quit" label from the CLI.
+	* Fix problem with boot-once "sticking" on some BIOSes.
+	* isohybrid: fix problem with images over 2 GB in size.
+	* APM poweroff module (poweroff.com) by Sebastian Herbszt.
+	* ISOLINUX: fix the handling of large directories.  Bug found
+	  and fixed by Steffen Winterfeldt.
+
 Changes in 3.75:
 	* PXELINUX: fix the "keeppxe" option, which was broken in
 	  3.74.

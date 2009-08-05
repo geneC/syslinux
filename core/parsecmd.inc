@@ -117,6 +117,8 @@ VKernelBuf:	resb vk_size		; "Current" vkernel
 AppendBuf       resb max_cmd_len+1	; append=
 Ontimeout	resb max_cmd_len+1	; ontimeout
 Onerror		resb max_cmd_len+1	; onerror
+		; This could be in .uibss but that makes PXELINUX overflow
+		section .bss
 KbdMap		resb 256		; Keyboard map
 FKeyName	resb MAX_FKEYS*FILENAME_MAX	; File names for F-key help
 KernelCNameLen	resw 1			; Length of unmangled kernel name

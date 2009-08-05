@@ -33,9 +33,9 @@ const char *__syslinux_config_file;
 
 void __constructor __syslinux_get_config_file_name(void)
 {
-  static com32sys_t reg;
+    static com32sys_t reg;
 
-  reg.eax.w[0] = 0x000e;
-  __intcall(0x22, &reg, &reg);
-  __syslinux_config_file = MK_PTR(reg.es, reg.ebx.w[0]);
+    reg.eax.w[0] = 0x000e;
+    __intcall(0x22, &reg, &reg);
+    __syslinux_config_file = MK_PTR(reg.es, reg.ebx.w[0]);
 }

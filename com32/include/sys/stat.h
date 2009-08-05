@@ -42,8 +42,8 @@
 
 /* These are the only fields in struct stat we emulate */
 struct stat {
-  mode_t st_mode;
-  off_t  st_size;
+    mode_t st_mode;
+    off_t st_size;
 };
 
 /* Only fstat() supported */

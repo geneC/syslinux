@@ -25,81 +25,81 @@
 /* The final null is inserted in the string; the rest is uninitialized. */
 char *refstr_alloc(size_t len)
 {
-  char *r = malloc(sizeof(unsigned int)+len+1);
-  if (!r)
-    return NULL;
-  *(unsigned int *)r = 1;
-  r += sizeof(unsigned int);
-  r[len] = '\0';
-  return r;
+    char *r = malloc(sizeof(unsigned int) + len + 1);
+    if (!r)
+	return NULL;
+    *(unsigned int *)r = 1;
+    r += sizeof(unsigned int);
+    r[len] = '\0';
+    return r;
 }
 
 const char *refstrndup(const char *str, size_t len)
 {
-  char *r;
+    char *r;
 
-  if (!str)
-    return NULL;
+    if (!str)
+	return NULL;
 
-  len = strnlen(str, len);
-  r = refstr_alloc(len);
-  if (r)
-    memcpy(r, str, len);
-  return r;
+    len = strnlen(str, len);
+    r = refstr_alloc(len);
+    if (r)
+	memcpy(r, str, len);
+    return r;
 }
 
 const char *refstrdup(const char *str)
 {
-  char *r;
-  size_t len;
+    char *r;
+    size_t len;
 
-  if (!str)
-    return NULL;
+    if (!str)
+	return NULL;
 
-  len = strlen(str);
-  r = refstr_alloc(len);
-  if (r)
-    memcpy(r, str, len);
-  return r;
+    len = strlen(str);
+    r = refstr_alloc(len);
+    if (r)
+	memcpy(r, str, len);
+    return r;
 }
 
 int vrsprintf(const char **bufp, const char *fmt, va_list ap)
 {
-  va_list ap1;
-  int len;
-  char *p;
+    va_list ap1;
+    int len;
+    char *p;
 
-  va_copy(ap1, ap);
-  len = vsnprintf(NULL, 0, fmt, ap1);
-  va_end(ap1);
+    va_copy(ap1, ap);
+    len = vsnprintf(NULL, 0, fmt, ap1);
+    va_end(ap1);
 
-  *bufp = p = refstr_alloc(len);
-  if ( !p )
-    return -1;
+    *bufp = p = refstr_alloc(len);
+    if (!p)
+	return -1;
 
-  return vsnprintf(p, len+1, fmt, ap);
+    return vsnprintf(p, len + 1, fmt, ap);
 }
 
 int rsprintf(const char **bufp, const char *fmt, ...)
 {
-  int rv;
-  va_list ap;
+    int rv;
+    va_list ap;
 
-  va_start(ap, fmt);
-  rv = vrsprintf(bufp, fmt, ap);
-  va_end(ap);
+    va_start(ap, fmt);
+    rv = vrsprintf(bufp, fmt, ap);
+    va_end(ap);
 
-  return rv;
+    return rv;
 }
 
 void refstr_put(const char *r)
 {
-  unsigned int *ref;
+    unsigned int *ref;
 
-  if (r) {
-    ref = (unsigned int *)r - 1;
+    if (r) {
+	ref = (unsigned int *)r - 1;
 
-    if (!--*ref)
-      free(ref);
-  }
+	if (!--*ref)
+	    free(ref);
+    }
 }

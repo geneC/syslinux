@@ -41,11 +41,11 @@ MENUS = $(CMENUS) $(IMENUS)
 
 .PRECIOUS: %.o
 %.o: %.S
-	$(CC) $(SFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(SFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.o
 %.o: %.c %.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.elf
 %.elf: %.o libmenu/libmenu.a $(LIBS)
@@ -62,7 +62,7 @@ libmenu/libmenu.a: $(LIBMENU)
 	$(RANLIB) $@
 
 tidy dist:
-	rm -f *.o *.lo *.a *.lst *.elf
+	rm -f *.o *.lo *.a *.lst *.elf .*.d */.*.d
 
 libclean:
 	rm -f libmenu/*.o libmenu/*.a
@@ -79,3 +79,5 @@ spotless: clean libclean menuclean
 menus: $(MENUS)
 
 install:	# Don't install samples
+
+-include .*.d */.*.d

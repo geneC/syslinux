@@ -15,10 +15,9 @@ typedef unsigned long long uint64_t;
 unsigned int skip_atou(const char **s);
 unsigned long strtoul(const char *, char **, int);
 
-static inline int
-isdigit(int ch)
+static inline int isdigit(int ch)
 {
-  return (ch >= '0') && (ch <= '9');
+    return (ch >= '0') && (ch <= '9');
 }
 
 #endif /* MYSTUFF_H */

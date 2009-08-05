@@ -25,29 +25,18 @@
 
 #include "menu.h"
 
-void console_prepare(void)
-{
-  fputs("\033[0m\033[25l", stdout);
-}
-
-void console_cleanup(void)
-{
-  /* For the serial console, be nice and clean up */
-  fputs("\033[0m", stdout);
-}
-
 int draw_background(const char *what)
 {
-  if (!what)
-    return vesacon_default_background();
-  else if (what[0] == '#')
-    return vesacon_set_background(parse_argb((char **)&what));
-  else
-    return vesacon_load_background(what);
+    if (!what)
+	return vesacon_default_background();
+    else if (what[0] == '#')
+	return vesacon_set_background(parse_argb((char **)&what));
+    else
+	return vesacon_load_background(what);
 }
 
 int main(int argc, char *argv[])
 {
-  openconsole(&dev_rawcon_r, &dev_vesaserial_w);
-  return menu_main(argc, argv);
+    openconsole(&dev_rawcon_r, &dev_vesaserial_w);
+    return menu_main(argc, argv);
 }

@@ -21,22 +21,22 @@
 
 int putchar(int ch)
 {
-  if ( ch == '\n' )
-    putchar('\r');
-  asm("movb $0x02,%%ah ; int $0x21" : : "d" (ch));
-  return ch;
+    if (ch == '\n')
+	putchar('\r');
+asm("movb $0x02,%%ah ; int $0x21": :"d"(ch));
+    return ch;
 }
 
 /* Note: doesn't put '\n' like the stdc version does */
 int puts(const char *s)
 {
-  int count = 0;
+    int count = 0;
 
-  while ( *s ) {
-    putchar(*s);
-    count++;
-    s++;
-  }
+    while (*s) {
+	putchar(*s);
+	count++;
+	s++;
+    }
 
-  return count;
+    return count;
 }

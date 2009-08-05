@@ -40,37 +40,37 @@ pspCmdArg:	resb 127
 
 %ifdef DEBUG
 %macro MARK 1.nolist
- 		mov ah,0x02
- 		mov dl,%1&0xff
- 		int 0x21
+		mov ah,0x02
+		mov dl,%1&0xff
+		int 0x21
 %if (%1 >> 8) & 0xff
 		mov dl,(%1 >> 8) & 0xff
- 		int 0x21
+		int 0x21
 %if (%1 >> 16) & 0xff
 		mov dl,(%1 >> 16) & 0xff
- 		int 0x21
+		int 0x21
 %if (%1 >> 24) & 0xff
 		mov dl,(%1 >> 24) & 0xff
- 		int 0x21
+		int 0x21
 %endif
 %endif
 %endif
 		mov dl,' '
- 		int 0x21
+		int 0x21
 %endmacro
 %macro SHOWD 1.nolist
 		mov al,%1
 		call print_dec
 		mov ah,0x02
 		mov dl,' '
- 		int 0x21
+		int 0x21
 %endmacro
 %macro SHOWX 1.nolist
 		mov bx,%1
 		call print_hex
 		mov ah,0x02
 		mov dl,' '
- 		int 0x21
+		int 0x21
 %endmacro
 %else
 %macro MARK 1.nolist
@@ -453,7 +453,7 @@ print_dec:
 
 ; print_dotquad
 ;
-; Take an IP address (in network byte order) in EBX and print it 
+; Take an IP address (in network byte order) in EBX and print it
 ; as a dotted quad.
 ; Destroys EAX, EBX, ECX, EDX
 ;
@@ -556,6 +556,3 @@ close_status:	dw 0
 PXEOpenParms:
 open_status:	dw 0
 open_ciaddr:    dd 0
-
-		section .bss
-ipaddrbuf:	resb 16

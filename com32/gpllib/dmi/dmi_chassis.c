@@ -31,79 +31,79 @@
 
 const char *dmi_chassis_type(uint8_t code)
 {
-        /* 3.3.4.1 */
-        static const char *type[]={
-                "Other", /* 0x01 */
-                "Unknown",
-                "Desktop",
-                "Low Profile Desktop",
-                "Pizza Box",
-                "Mini Tower",
-                "Tower",
-                "Portable",
-                "Laptop",
-                "Notebook",
-                "Hand Held",
-                "Docking Station",
-                "All In One",
-                "Sub Notebook",
-                "Space-saving",
-                "Lunch Box",
-                "Main Server Chassis", /* master.mif says System */
-                "Expansion Chassis",
-                "Sub Chassis",
-                "Bus Expansion Chassis",
-                "Peripheral Chassis",
-                "RAID Chassis",
-                "Rack Mount Chassis",
-                "Sealed-case PC",
-                "Multi-system" /* 0x19 */
-        };
+    /* 3.3.4.1 */
+    static const char *type[] = {
+	"Other",		/* 0x01 */
+	"Unknown",
+	"Desktop",
+	"Low Profile Desktop",
+	"Pizza Box",
+	"Mini Tower",
+	"Tower",
+	"Portable",
+	"Laptop",
+	"Notebook",
+	"Hand Held",
+	"Docking Station",
+	"All In One",
+	"Sub Notebook",
+	"Space-saving",
+	"Lunch Box",
+	"Main Server Chassis",	/* master.mif says System */
+	"Expansion Chassis",
+	"Sub Chassis",
+	"Bus Expansion Chassis",
+	"Peripheral Chassis",
+	"RAID Chassis",
+	"Rack Mount Chassis",
+	"Sealed-case PC",
+	"Multi-system"		/* 0x19 */
+    };
 
-        if(code>=0x01 && code<=0x19)
-                return type[code-0x01];
-        return out_of_spec;
+    if (code >= 0x01 && code <= 0x19)
+	return type[code - 0x01];
+    return out_of_spec;
 }
 
 const char *dmi_chassis_lock(uint8_t code)
 {
-        static const char *lock[]={
-                "Not Present", /* 0x00 */
-                "Present" /* 0x01 */
-        };
+    static const char *lock[] = {
+	"Not Present",		/* 0x00 */
+	"Present"		/* 0x01 */
+    };
 
-        return lock[code];
+    return lock[code];
 }
 
 const char *dmi_chassis_state(uint8_t code)
 {
-        /* 3.3.4.2 */
-        static const char *state[]={
-                "Other", /* 0x01 */
-                "Unknown",
-                "Safe", /* master.mif says OK */
-                "Warning",
-                "Critical",
-                "Non-recoverable" /* 0x06 */
-        };
+    /* 3.3.4.2 */
+    static const char *state[] = {
+	"Other",		/* 0x01 */
+	"Unknown",
+	"Safe",			/* master.mif says OK */
+	"Warning",
+	"Critical",
+	"Non-recoverable"	/* 0x06 */
+    };
 
-        if(code>=0x01 && code<=0x06)
-                return(state[code-0x01]);
-        return out_of_spec;
+    if (code >= 0x01 && code <= 0x06)
+	return (state[code - 0x01]);
+    return out_of_spec;
 }
 
 const char *dmi_chassis_security_status(uint8_t code)
 {
-        /* 3.3.4.3 */
-        static const char *status[]={
-                "Other", /* 0x01 */
-                "Unknown",
-                "None",
-                "External Interface Locked Out",
-                "External Interface Enabled" /* 0x05 */
-        };
+    /* 3.3.4.3 */
+    static const char *status[] = {
+	"Other",		/* 0x01 */
+	"Unknown",
+	"None",
+	"External Interface Locked Out",
+	"External Interface Enabled"	/* 0x05 */
+    };
 
-        if(code>=0x01 && code<=0x05)
-                return(status[code-0x01]);
-        return out_of_spec;
+    if (code >= 0x01 && code <= 0x05)
+	return (status[code - 0x01]);
+    return out_of_spec;
 }

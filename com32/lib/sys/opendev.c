@@ -40,60 +40,60 @@
 int opendev(const struct input_dev *idev,
 	    const struct output_dev *odev, int flags)
 {
-  int fd;
-  struct file_info *fp;
-  int okflags;
-  int e;
+    int fd;
+    struct file_info *fp;
+    int okflags;
+    int e;
 
-  okflags = (idev ? idev->fileflags : 0) | (odev ? odev->fileflags : 0);
+    okflags = (idev ? idev->fileflags : 0) | (odev ? odev->fileflags : 0);
 
-  if ( !(flags & 3) || (flags & ~okflags) ) {
-    errno = EINVAL;
-    return -1;
-  }
-
-  for ( fd = 0, fp = __file_info ; fd < NFILES ; fd++, fp++ )
-    if ( !fp->iop && !fp->oop )
-      break;
-
-  if ( fd >= NFILES ) {
-    errno = EMFILE;
-    return -1;
-  }
-
-  /* The file structure is already zeroed */
-  fp->iop         = &dev_error_r;
-  fp->oop         = &dev_error_w;
-  fp->i.datap     = fp->i.buf;
-
-  if (idev) {
-    if (idev->open && (e = idev->open(fp))) {
-      errno = e;
-      goto puke;
+    if (!(flags & 3) || (flags & ~okflags)) {
+	errno = EINVAL;
+	return -1;
     }
-    fp->iop = idev;
-  }
 
-  while (odev) {
-    if (odev->open && (e = odev->open(fp))) {
-      if (e == EAGAIN) {
-	if (odev->fallback) {
-	  odev = odev->fallback;
-	  continue;
-	} else {
-	  e = EIO;
+    for (fd = 0, fp = __file_info; fd < NFILES; fd++, fp++)
+	if (!fp->iop && !fp->oop)
+	    break;
+
+    if (fd >= NFILES) {
+	errno = EMFILE;
+	return -1;
+    }
+
+    /* The file structure is already zeroed */
+    fp->iop = &dev_error_r;
+    fp->oop = &dev_error_w;
+    fp->i.datap = fp->i.buf;
+
+    if (idev) {
+	if (idev->open && (e = idev->open(fp))) {
+	    errno = e;
+	    goto puke;
 	}
-      }
-      errno = e;
-      goto puke;
+	fp->iop = idev;
     }
-    fp->oop = odev;
-    break;
-  }
 
-  return fd;
+    while (odev) {
+	if (odev->open && (e = odev->open(fp))) {
+	    if (e == EAGAIN) {
+		if (odev->fallback) {
+		    odev = odev->fallback;
+		    continue;
+		} else {
+		    e = EIO;
+		}
+	    }
+	    errno = e;
+	    goto puke;
+	}
+	fp->oop = odev;
+	break;
+    }
 
- puke:
-  close(fd);
-  return -1;
+    return fd;
+
+puke:
+    close(fd);
+    return -1;
 }

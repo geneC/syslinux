@@ -43,7 +43,7 @@ bcopyxx_start	equ $
 ;
 ;	Clobbers ESI, EDI, ECX.
 ;
-	
+
 pm_bcopy:
 		push ebx
 		push edx
@@ -57,36 +57,36 @@ pm_bcopy:
 
 .forward:
 		; Initial alignment
-		mov dx,di
-		shr dx,1
+		mov edx,edi
+		shr edx,1
 		jnc .faa1
-		a32 movsb
+		movsb
 		dec ecx
 .faa1:
 		mov al,cl
 		cmp ecx,2
 		jb .f_tiny
 
-		shr dx,1
+		shr edx,1
 		jnc .faa2
-		a32 movsw
+		movsw
 		sub ecx,2
 .faa2:
 
 		; Bulk transfer
 		mov al,cl		; Save low bits
 		shr ecx,2		; Convert to dwords
-		a32 rep movsd		; Do our business
+		rep movsd		; Do our business
 		; At this point ecx == 0
 
 		test al,2
 		jz .fab2
-		a32 movsw
+		movsw
 .fab2:
 .f_tiny:
 		test al,1
 		jz .fab1
-		a32 movsb
+		movsb
 .fab1:
 .done:
 		pop eax
@@ -101,10 +101,10 @@ pm_bcopy:
 		lea edi,[edi+ecx-1]
 
 		; Initial alignment
-		mov dx,di
-		shr dx,1
-		jnc .raa1
-		a32 movsb
+		mov edx,edi
+		shr edx,1
+		jc .raa1
+		movsb
 		dec ecx
 .raa1:
 
@@ -113,9 +113,9 @@ pm_bcopy:
 		mov al,cl
 		cmp ecx,2
 		jb .r_tiny
-		shr dx,1
-		jnc .raa2
-		a32 movsw
+		shr edx,1
+		jc .raa2
+		movsw
 		sub ecx,2
 .raa2:
 
@@ -124,7 +124,7 @@ pm_bcopy:
 		sub edi,2
 		mov al,cl		; Save low bits
 		shr ecx,2
-		a32 rep movsd
+		rep movsd
 
 		; Final alignment
 .r_final:
@@ -132,14 +132,14 @@ pm_bcopy:
 		add edi,2
 		test al,2
 		jz .rab2
-		a32 movsw
+		movsw
 .rab2:
 .r_tiny:
 		inc esi
 		inc edi
 		test al,1
 		jz .rab1
-		a32 movsb
+		movsb
 .rab1:
 		cld
 		jmp short .done
@@ -148,35 +148,35 @@ pm_bcopy:
 		xor eax,eax
 
 		; Initial alignment
-		mov dx,di
-		shr dx,1
+		mov edx,edi
+		shr edx,1
 		jnc .zaa1
-		a32 stosb
+		stosb
 		dec ecx
 .zaa1:
 
 		mov bl,cl
 		cmp ecx,2
 		jb .z_tiny
-		shr dx,1
+		shr edx,1
 		jnc .zaa2
-		a32 stosw
+		stosw
 		sub ecx,2
 .zaa2:
 
 		; Bulk
 		mov bl,cl		; Save low bits
 		shr ecx,2
-		a32 rep stosd
+		rep stosd
 
 		test bl,2
 		jz .zab2
-		a32 stosw
+		stosw
 .zab2:
 .z_tiny:
 		test bl,1
 		jz .zab1
-		a32 stosb
+		stosb
 .zab1:
 		jmp short .done
 
@@ -205,7 +205,8 @@ pm_bcopy:
 ;
 pm_shuffle:
 		mov ebx,edi		; EBX <- descriptor list
-		lea edx,[edi+ecx]	; EDX <- shuffler end location
+		lea edx,[edi+ecx+15]	; EDX <- where to relocate our code to
+		and edx,~15		; Align 16 to benefit the GDT
 		call pm_bcopy
 		mov edi,edx
 		mov esi,bcopyxx_start
@@ -231,29 +232,33 @@ pm_shuffle:
 		call pm_bcopy
 		jmp .loop
 .done:
+		push ecx		; == 0, for cleaning the flags register
 		and esi,esi
 		jz pm_shuffle_real_mode
+		popfd			; Clean the flags
 		jmp edi			; Protected mode entry
 
 		; We have a real-mode entry point, so we need to return
-		; to real mode... 
+		; to real mode.  Note: EDX already points to the GDT.
 pm_shuffle_real_mode:
-		call .here
-.here:		pop ebx
 		mov eax,edi
-		add ebx,bcopy_gdt.CS16-.here
-		mov [ebx+2],ax
+		mov [edx+PM_CS16+2],ax
+		mov [edx+PM_DS16+2],ax
 		shr eax,16
-		mov [ebx+4],al
-		mov [ebx+7],ah
-		mov eax,PM_DS16_RM
-		mov ds,eax
-		mov es,eax
-		mov fs,eax
-		mov gs,eax
-		mov ss,eax
+		mov [edx+PM_CS16+4],al
+		mov [edx+PM_CS16+7],ah
+		mov [edx+PM_DS16+4],al
+		mov [edx+PM_DS16+7],ah
 		mov eax,cr0
 		and al,~1
+		popfd			; Clean the flags
+		; No flag-changing instructions below...
+		mov dx,PM_DS16
+		mov ds,edx
+		mov es,edx
+		mov fs,edx
+		mov gs,edx
+		mov ss,edx
 		jmp PM_CS16:0
 
 		align	16
@@ -268,7 +273,7 @@ bcopy_gdt:
 		dd bcopy_gdt		; pointer for LGDT instruction
 		dw 0
 
- 		; TSS segment to keep Intel VT happy.  Intel VT is
+		; TSS segment to keep Intel VT happy.  Intel VT is
 		; unhappy about anything that doesn't smell like a
 		; full-blown 32-bit OS.
 	desc TSS
@@ -278,7 +283,7 @@ bcopy_gdt:
 	desc CS16
 		dd 0000ffffh		; 10h Code segment, use16, readable,
 		dd 00009b00h		; present, dpl 0, cover 64K
-	desc DS16_RM
+	desc DS16
 		dd 0000ffffh		; 18h Data segment, use16, read/write,
 		dd 00009300h		; present, dpl 0, cover 64K
 	desc CS32
@@ -287,7 +292,7 @@ bcopy_gdt:
 	desc DS32
 		dd 0000ffffh		; 28h Data segment, use32, read/write,
 		dd 00cf9300h		; present, dpl 0, cover all 4G
-	
+
 bcopy_gdt_size:	equ $-bcopy_gdt
 
 		alignz 4
@@ -296,7 +301,8 @@ bcopyxx_len	equ $-bcopyxx_start
 bcopyxx_dwords	equ bcopyxx_len >> 2
 
 bcopyxx_stack	equ 128			; We want this much stack
-bcopyxx_safe	equ bcopyxx_len + bcopyxx_stack
+		; The +15 is for alignment
+bcopyxx_safe	equ bcopyxx_len + bcopyxx_stack + 15
 
 ;
 ; Space for a dummy task state segment.  It should never be actually

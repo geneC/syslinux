@@ -28,8 +28,18 @@ GCCOPT    := $(call gcc_ok,-m32,) \
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 
 LD        += -m elf_i386
-CFLAGS     = $(GCCOPT) -g -W -Wall $(OPTFLAGS) $(INCLUDES)
+CFLAGS     = $(GCCOPT) -g -W -Wall -Wno-sign-compare $(OPTFLAGS) $(INCLUDES)
 SFLAGS     = $(CFLAGS) -D__ASSEMBLY__
 
 .SUFFIXES: .c .o .S .s .i .elf .com .bin .asm .lst .c32 .lss
 
+%.o: %.c
+	$(CC) $(MAKEDEPS) $(CFLAGS) -c -o $@ $<
+%.i: %.c
+	$(CC) $(MAKEDEPS) $(CFLAGS) -E -o $@ $<
+%.s: %.c
+	$(CC) $(MAKEDEPS) $(CFLAGS) -S -o $@ $<
+%.o: %.S
+	$(CC) $(MAKEDEPS) $(SFLAGS) -Wa,-a=$*.lst -c -o $@ $<
+%.s: %.S
+	$(CC) $(MAKEDEPS) $(SFLAGS) -E -o $@ $<

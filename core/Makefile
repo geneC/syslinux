@@ -72,6 +72,7 @@ iso%.bin: iso%.elf checksumiso.pl
 	$(OBJCOPY) -O binary $< $@
 
 %.o: %.asm kwdhash.gen ../version.gen
+	( $(NASM) -M -DDEPEND $(NINCLUDE) -o $@ $< ; echo '' ) > .$@.d; true
 	$(NASM) $(NASMOPT) -f elf -g -F stabs -DDATE_STR="'$(DATE)'" \
 		-DHEXDATE="$(HEXDATE)" \
 		-l $(@:.o=.lsr) -o $@ $<
@@ -111,28 +112,14 @@ install-all: install install-lib
 netinstall: installer
 
 tidy dist:
-	rm -f codepage.cp *.o *.elf stupid.* patch.offset
+	rm -f codepage.cp *.o *.elf stupid.* patch.offset .depend .*.d
 	rm -f *.lsr *.lst *.map *.sec
 	rm -f $(OBSOLETE)
 
 clean: tidy
 
 spotless: clean
-	rm -f $(BTARGET) *.bin *_bin.c .depend
-
-# Note: the extra echo '' is to deal with old versions of NASM which
-# did not properly terminate the dependency list.
-.depend:
-	rm -f .depend
-	for csrc in $(CSRC) ; do $(CC) $(INCLUDE) -MM $$csrc >> .depend ; done ; true
-	for nsrc in $(NASMSRC) ; do \
-		( $(NASM) -DDEPEND $(NINCLUDE) -o \
-	          `echo $$nsrc | sed -e 's/\.asm/\.o/'` -M $$nsrc ; \
-	          echo '' ) >> .depend ; done ; true
-
-depend:
-	rm -f .depend
-	$(MAKE) .depend
+	rm -f $(BTARGET) *.bin *_bin.c
 
 # Include dependencies file
--include .depend
+-include .*.d

@@ -38,22 +38,20 @@
 #include <syslinux/movebits.h>
 
 struct syslinux_pm_regs {
-  uint32_t eax;			/* Offset  0 */
-  uint32_t ecx;			/* Offset  4 */
-  uint32_t edx;			/* Offset  8 */
-  uint32_t ebx;			/* Offset 12 */
-  uint32_t esp;			/* Offset 16 */
-  uint32_t ebp;			/* Offset 20 */
-  uint32_t esi;			/* Offset 24 */
-  uint32_t edi;			/* Offset 28 */
+    uint32_t eax;		/* Offset  0 */
+    uint32_t ecx;		/* Offset  4 */
+    uint32_t edx;		/* Offset  8 */
+    uint32_t ebx;		/* Offset 12 */
+    uint32_t esp;		/* Offset 16 */
+    uint32_t ebp;		/* Offset 20 */
+    uint32_t esi;		/* Offset 24 */
+    uint32_t edi;		/* Offset 28 */
 
-  uint32_t eip;			/* Offset 32 */
+    uint32_t eip;		/* Offset 32 */
 };
 
 int syslinux_shuffle_boot_pm(struct syslinux_movelist *fraglist,
 			     struct syslinux_memmap *memmap,
-			     uint16_t bootflags,
-			     struct syslinux_pm_regs *regs);
-
+			     uint16_t bootflags, struct syslinux_pm_regs *regs);
 
 #endif /* _SYSLINUX_BOOTPM_H */

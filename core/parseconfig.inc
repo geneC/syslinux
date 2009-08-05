@@ -83,24 +83,15 @@ pc_ipappend:	call getint
 %endif
 
 ;
-; "localboot" command (PXELINUX, ISOLINUX)
+; "localboot" command
 ;
 %if HAS_LOCALBOOT
 
 pc_localboot:	call getint
 		cmp byte [VKernel],0		; ("label" section only)
 		je .err
-		mov di,VKernelBuf+vk_rname
-		xor ax,ax
-		mov cx,FILENAME_MAX
-		rep stosb			; Null kernel name
-%if IS_PXELINUX
-		; PXELINUX uses the first 4 bytes of vk_rname for the
-		; mangled IP address
-		mov [VKernelBuf+vk_rname+5], bx	; Return type
-%else
-		mov [VKernelBuf+vk_rname+1], bx	; Return type
-%endif
+		mov [VKernelBuf+vk_rname],bx
+		mov byte [VKernelBuf+vk_type],VK_LOCALBOOT
 .err:		ret
 
 %endif ; HAS_LOCALBOOT
@@ -187,9 +178,8 @@ pc_include:	inc word [IncludeLevel]
 pc_serial:	call getint
 		jc .err
 		push bx				; Serial port #
-		xor ax,ax
-		mov [FlowControl],ax		; Default to no flow control
-		mov [FlowIgnore],al
+		xor eax,eax
+		mov [FlowControl],eax		; Default to no flow control
 		call skipspace
 		jc .nobaud
 		call ungetc
@@ -209,7 +199,7 @@ pc_serial:	call getint
 		shl bh,4
 		mov [FlowIgnore],bh
 		mov bh,bl
-		and bx,0F003h			; Valid bits
+		and bx,0F00Bh			; Valid bits
 		mov [FlowControl],bx
 		pop ebx				; Baud rate
 		jmp short .parse_baud
@@ -234,46 +224,48 @@ pc_serial:	call getint
 		;
 		; Begin code to actually set up the serial port
 		;
+		call sirq_cleanup_nowipe	; Cleanup existing IRQ handler
+
 		lea dx,[di+3]			; DX -> LCR
 		mov al,83h			; Enable DLAB
-		call slow_out
+		slow_out dx,al
 
 		pop ax				; Divisor
 		mov dx,di			; DX -> LS
-		call slow_out
+		slow_out dx,al
 
 		inc dx				; DX -> MS
 		mov al,ah
-		call slow_out
+		slow_out dx,al
 
 		mov al,03h			; Disable DLAB
 		inc dx				; DX -> LCR
 		inc dx
-		call slow_out
+		slow_out dx,al
 
-		in al,dx			; Read back LCR (detect missing hw)
-		cmp al,03h			; If nothing here we'll read 00 or FF
-		jne .err			; Assume serial port busted
-		dec dx
-		dec dx				; DX -> IER
-		xor al,al			; IRQ disable
-		call slow_out
-
-		inc dx				; DX -> FCR/IIR
+		in al,dx		; Read back LCR (detect missing hw)
+		cmp al,03h		; If nothing here we'll read 00 or FF
+		jne .err		; Assume serial port busted
+		dec dx				; DX -> IIR/FCR
 		mov al,01h
-		call slow_out			; Enable FIFOs if present
+		slow_out dx,al			; Enable FIFOs if present
 		in al,dx
 		cmp al,0C0h			; FIFOs enabled and usable?
 		jae .fifo_ok
 		xor ax,ax			; Disable FIFO if unusable
-		call slow_out
+		slow_out dx,al
 .fifo_ok:
 
 		inc dx
 		inc dx				; DX -> MCR
-		in al,dx
-		or al,[FlowOutput]		; Assert bits
-		call slow_out
+		mov al,[FlowOutput]		; Assert bits
+		slow_out dx,al
+
+		; Enable interrupts if requested
+		test al,8
+		jz .noirq
+		call sirq_install
+.noirq:
 
 		; Show some life
 		cmp byte [SerialNotice],0
@@ -320,15 +312,14 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		loop .loop
 .done:
 		mov byte [VKernel],1		; We've seen a "label" statement
-		mov si,VKernelBuf+vk_vname	; By default, rname == vname
+		mov si,VKernelBuf+vk_vname	; By default, rname == mangled vname
 		mov di,VKernelBuf+vk_rname
-		mov cx,FILENAME_MAX
+		call mangle_name
+		mov si,AppendBuf		; Default append==global append
+		mov di,VKernelBuf+vk_append
+		mov cx,[AppendLen]
+		mov [VKernelBuf+vk_appendlen],cx
 		rep movsb
-                mov si,AppendBuf		; Default append==global append
-                mov di,VKernelBuf+vk_append
-                mov cx,[AppendLen]
-                mov [VKernelBuf+vk_appendlen],cx
-                rep movsb
 %if IS_PXELINUX					; PXELINUX only
 		mov al,[IPAppend]		; Default ipappend==global ipappend
 		mov [VKernelBuf+vk_ipappend],al
@@ -413,7 +404,7 @@ commit_vk:
 		; append statement
 		cmp byte [InitRD+NULLOFFSET],NULLFILE
 		je .noinitrd
-		
+
 		mov si,str_initrd
 		mov cx,7	; "initrd="
 		rep movsb
@@ -433,9 +424,9 @@ commit_vk:
 		rep stosb
 
 		; Pack into high memory
-		mov si,VKernelBuf
+		mov esi,VKernelBuf
 		mov edi,[VKernelEnd]
-		mov cx,vk_size
+		mov ecx,vk_size
 		call rllpack
 		mov [VKernelEnd],edi
 .nolabel:
@@ -472,7 +463,6 @@ AllowImplicit   dw 1                    ; Allow implicit kernels
 AllowOptions	dw 1			; User-specified options allowed
 IncludeLevel	dw 1			; Nesting level
 DefaultLevel	dw 0			; The current level of default
-SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 VKernel		db 0			; Have we seen any "label" statements?
 
 %if IS_PXELINUX

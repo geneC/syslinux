@@ -28,14 +28,14 @@ static inline void error(const char *msg)
 
 static inline uint32_t reloc_ptr(struct reloc_info *ri, void *ptr)
 {
-    return ri->reloc_base + (uint32_t)((char*)ptr - _start);
+    return ri->reloc_base + (uint32_t) ((char *)ptr - _start);
 }
 
 static void hijack_interrupt(int intn, uint32_t handler)
 {
     struct {
-        uint32_t lo;
-        uint32_t hi;
+	uint32_t lo;
+	uint32_t hi;
     } *idt = COM32_IDT;
 
     idt[intn].lo = (idt[intn].lo & 0xffff0000) | (handler & 0x0000ffff);
@@ -47,16 +47,13 @@ static void shift_cmdline(struct com32_sys_args *com32)
     char *p;
 
     /* Skip leading whitespace */
-    for (p = com32->cs_cmdline; *p != '\0' && *p == ' '; p++)
-        ;
+    for (p = com32->cs_cmdline; *p != '\0' && *p == ' '; p++) ;
 
     /* Skip first word */
-    for (; *p != '\0' && *p != ' '; p++)
-        ;
+    for (; *p != '\0' && *p != ' '; p++) ;
 
     /* Skip whitespace after first word */
-    for (; *p != '\0' && *p == ' '; p++)
-        ;
+    for (; *p != '\0' && *p == ' '; p++) ;
 
     com32->cs_cmdline = p;
 }
@@ -76,41 +73,38 @@ static __noreturn reloc_entry(struct reloc_info *ri)
 
     /* Copy stack frame onto module stack */
     module_esp = (ri->reloc_base - stack_frame_size) & ~15;
-    memcpy((void*)module_esp, (void*)ri->old_esp, stack_frame_size);
+    memcpy((void *)module_esp, (void *)ri->old_esp, stack_frame_size);
 
     /* Fix up command line */
-    com32 = (struct com32_sys_args*)(module_esp + 4);
+    com32 = (struct com32_sys_args *)(module_esp + 4);
     shift_cmdline(com32);
 
     /* Set up CPU state to run module and enter GDB */
-    asm volatile (
-            "movl %0, %%esp\n\t"
-            "pushf\n\t"
-            "pushl %%cs\n\t"
-            "pushl %1\n\t"
-            "jmp *%2\n\t"
-            : : "r"(module_esp),
-                "c"(COM32_LOAD_ADDR),
-                "r"(reloc_ptr(ri, int_handler))
-    );
-    for(;;); /* shut the compiler up */
+    asm volatile ("movl %0, %%esp\n\t"
+		  "pushf\n\t"
+		  "pushl %%cs\n\t"
+		  "pushl %1\n\t"
+		  "jmp *%2\n\t"::"r" (module_esp),
+		  "c"(COM32_LOAD_ADDR), "r"(reloc_ptr(ri, int_handler))
+	);
+    for (;;) ;			/* shut the compiler up */
 }
 
 static inline __noreturn reloc(void *ptr, size_t len)
 {
     extern uint32_t __entry_esp;
     size_t total_size = _end - _start;
-    __noreturn (*entry_fn)(struct reloc_info*);
+    __noreturn(*entry_fn) (struct reloc_info *);
     struct reloc_info ri;
     uint32_t esp;
     char *dest;
 
     /* Calculate relocation address, preserve current stack */
-    asm volatile ("movl %%esp, %0\n\t" : "=m"(esp));
-    dest = (char*)((esp - STACK_SIZE - total_size) & ~3);
+    asm volatile ("movl %%esp, %0\n\t":"=m" (esp));
+    dest = (char *)((esp - STACK_SIZE - total_size) & ~3);
 
     /* Calculate entry point in relocated code */
-    entry_fn = (void*)(dest + ((char*)reloc_entry - _start));
+    entry_fn = (void *)(dest + ((char *)reloc_entry - _start));
 
     /* Copy all sections to relocation address */
     printf("Relocating %d bytes from %p to %p\n", total_size, _start, dest);
@@ -120,7 +114,7 @@ static inline __noreturn reloc(void *ptr, size_t len)
     ri.data = ptr;
     ri.len = len;
     ri.old_esp = __entry_esp;
-    ri.reloc_base = (uint32_t)dest;
+    ri.reloc_base = (uint32_t) dest;
     entry_fn(&ri);
 }
 
@@ -132,13 +126,13 @@ int main(int argc, char *argv[])
     openconsole(&dev_null_r, &dev_stdcon_w);
 
     if (argc < 2) {
-        error("Usage: gdbstub.c32 com32_file arguments...\n");
-        return 1;
+	error("Usage: gdbstub.c32 com32_file arguments...\n");
+	return 1;
     }
 
     if (loadfile(argv[1], &data, &data_len)) {
-        error("Unable to load file\n");
-        return 1;
+	error("Unable to load file\n");
+	return 1;
     }
 
     serial_init();

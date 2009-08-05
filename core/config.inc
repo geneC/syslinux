@@ -26,8 +26,6 @@ DEFAULT_BAUD	equ 9600		; Default baud rate for serial port
 BAUD_DIVISOR	equ 115200		; Serial port parameter
 MAX_FKEYS	equ 12			; Number of F-key help files
 
-%assign	DO_WBINVD 0			; Should we use WBINVD or not?
-
 ;
 ; Local boot supported
 ;

@@ -46,11 +46,12 @@ isolinux_start_hybrid		= 0x7c00+64+4
 	.globl	bootsec
 /* Important: the top 6 words on the stack are passed to isolinux.bin */
 stack		= 0x7c00
-driveno		= (stack-6)
-ebios_flag	= (stack-8)
-sectors		= (stack-10)
-heads		= (stack-12)
-secpercyl	= (stack-16)
+partoffset	= (stack-8)
+driveno		= (stack-14)
+heads		= (stack-16)
+sectors		= (stack-18)
+ebios_flag	= (stack-20)
+secpercyl	= (stack-24)
 
 BIOS_kbdflags	= 0x417
 BIOS_page	= 0x462
@@ -66,27 +67,55 @@ bootsec:
 _start:
 
 	cli
-	xorw	%ax, %ax
-	movw	%ax, %ds
-	movw	%ax, %ss
+	xorw	%bp, %bp
+	movw	%bp, %ss
 	movw	$stack, %sp
-	movw	%sp, %si
-	pushw	%es		/* es:di -> $PnP header */
-	pushw	%di
-	movw	%ax, %es
 	sti
 	cld
 
+	/* Check to see if we have a partition table entry */
+	xorl	%ebx, %ebx
+	xorl	%ecx, %ecx
+#ifdef PARTITION_SUPPORT
+	andw	%si, %si		/* %si == 0 -> no partition data */
+	jz	1f
+	testb	$0x7f, (%si)		/* Invalid active flag field? */
+	jnz	1f
+	cmpl	$0x58504721, %eax	/* !GPT signature in EAX? */
+	jne	2f
+	cmpb	$0xee, 4(%si)		/* EFI partition type? */
+	jne	2f
+	
+	/* We have GPT partition information */
+	movl	(32+16)(%si), %ecx
+	movl	(36+16)(%si), %ebx
+	jmp	1f
+
+	/* We have non-GPT partition information */
+2:
+	movl	8(%si), %ecx
+#endif
+1:
+	/* We have no partition information */
+	pushl	%ebx			/*  -4: partoffset_hi */
+	pushl	%ecx			/*  -8: partoffset_lo */
+	pushw	%es			/* -10: es:di -> $PnP header */
+	pushw	%di			/* -12: es:di -> $PnP header */
+
+	movw	%bp, %ds
+	movw	%bp, %es
+	
+	ADJUST_DRIVE
+	pushw	%dx			/* -14: dl -> drive number */
+
 	/* Copy down to 0:0x600 */
+	movw	$0x7c00, %si
 	movw	$_start, %di
 	movw	$(512/2), %cx
 	rep; movsw
 
 	ljmpw	$0, $next
 next:
-
-	ADJUST_DRIVE
-	pushw	%dx		/* dl -> drive number */
 
 	/* Check to see if we have EBIOS */
 	pushw	%dx		/* drive number */
@@ -106,24 +135,27 @@ next:
 	   read_sector_cbios: movb $0x42, %ah ;  jmp read_common */
 	movl	$0xeb42b4+((read_common-read_sector_cbios-4) << 24), \
 		(read_sector_cbios)
-
+	jmp	1f
 1:
 	popw	%dx
-	pushw	%cx		/* Save EBIOS flag */
+	pushw	%cx		/* EBIOS flag */
 
 	/* Get (C)HS geometry */
 	movb	$0x08, %ah
 	int	$0x13
 	andw	$0x3f, %cx	/* Sector count */
-	pushw	%cx		/* Save sectors on the stack */
+	popw	%bx		/* EBIOS flag */
+	pushw	%cx		/* -16: Save sectors on the stack */
 	movzbw	%dh, %ax	/* dh = max head */
 	incw	%ax		/* From 0-based max to count */
-	pushw	%ax		/* Save heads on the stack */
+	pushw	%ax		/* -18: Save heads on the stack */
 	mulw	%cx		/* Heads*sectors -> sectors per cylinder */
 
+	pushw	%bx		/* -20: EBIOS flag */
+	
 	/* Save sectors/cylinder on the stack */
-	pushw	%dx		/* High word */
-	pushw	%ax		/* Low word */
+	pushw	%dx		/* -22: High word */
+	pushw	%ax		/* -24: Low word */
 
 	/*
 	 * Load sectors.  We do this one at a time mostly to avoid
@@ -148,7 +180,7 @@ next:
 	jne	bad_signature
 
 	cli
-	movw	$heads, %sp
+	movw	$ebios_flag, %sp
 
 	/*
 	 * Use a ljmpw here to work around a bug in some unknown version
@@ -169,6 +201,8 @@ bad_signature:
 read_sector:
 	pushal
 	xorl	%edx, %edx
+	addl	(partoffset), %eax
+	adcl	(partoffset+4), %edx
 	pushl	%edx	/* MSW of LBA */
 	pushl	%eax	/* LSW of LBA */
 	pushw	%es	/* Buffer segment */

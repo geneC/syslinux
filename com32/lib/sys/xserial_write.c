@@ -42,77 +42,77 @@
 
 static void emit(char ch)
 {
-  static com32sys_t ireg;	/* Zeroed with the BSS */
+    static com32sys_t ireg;	/* Zeroed with the BSS */
 
-  ireg.eax.b[1] = 0x04;
-  ireg.edx.b[0] = ch;
+    ireg.eax.b[1] = 0x04;
+    ireg.edx.b[0] = ch;
 
-  __intcall(0x21, &ireg, NULL);
+    __intcall(0x21, &ireg, NULL);
 }
 
 ssize_t __xserial_write(struct file_info *fp, const void *buf, size_t count)
 {
-  const char *bufp = buf;
-  size_t n = 0;
-  static enum { st_init, st_tbl, st_tblc } state = st_init;
-  static int ndigits;
-  static int ncolor = 0;
-  int num;
-  const char *p;
+    const char *bufp = buf;
+    size_t n = 0;
+    static enum { st_init, st_tbl, st_tblc } state = st_init;
+    static int ndigits;
+    static int ncolor = 0;
+    int num;
+    const char *p;
 
-  (void)fp;
+    (void)fp;
 
-  if (!syslinux_serial_console_info()->iobase)
-    return count;		/* Nothing to do */
+    if (!syslinux_serial_console_info()->iobase)
+	return count;		/* Nothing to do */
 
-  while ( count-- ) {
-    unsigned char ch = *bufp++;
+    while (count--) {
+	unsigned char ch = *bufp++;
 
-    switch (state) {
-    case st_init:
-      if (ch >= 1 && ch <= 5) {
-	state = st_tbl;
-	ndigits = ch;
-      } else if (ch == '\n') {
-	emit('\r');
-	emit('\n');
-      } else {
-	emit(ch);
-      }
-      break;
+	switch (state) {
+	case st_init:
+	    if (ch >= 1 && ch <= 5) {
+		state = st_tbl;
+		ndigits = ch;
+	    } else if (ch == '\n') {
+		emit('\r');
+		emit('\n');
+	    } else {
+		emit(ch);
+	    }
+	    break;
 
-    case st_tbl:
-      if (ch == '#') {
-	state = st_tblc;
-	ncolor = 0;
-      } else {
-	state = st_init;
-      }
-      break;
+	case st_tbl:
+	    if (ch == '#') {
+		state = st_tblc;
+		ncolor = 0;
+	    } else {
+		state = st_init;
+	    }
+	    break;
 
-    case st_tblc:
-      num = ch-'0';
-      if (num < 10) {
-	ncolor = (ncolor*10)+num;
-	if (--ndigits == 0) {
-	  if (ncolor < console_color_table_size) {
-	    emit('\033');
-	    emit('[');
-	    emit('0');
-	    emit(';');
-	    for (p = console_color_table[ncolor].ansi; *p; p++)
-	      emit(*p);
-	    emit('m');
-	  }
-	  state = st_init;
+	case st_tblc:
+	    num = ch - '0';
+	    if (num < 10) {
+		ncolor = (ncolor * 10) + num;
+		if (--ndigits == 0) {
+		    if (ncolor < console_color_table_size) {
+			emit('\033');
+			emit('[');
+			emit('0');
+			emit(';');
+			for (p = console_color_table[ncolor].ansi; *p; p++)
+			    emit(*p);
+			emit('m');
+		    }
+		    state = st_init;
+		}
+	    } else {
+		state = st_init;
+	    }
+	    break;
 	}
-      } else {
-	state = st_init;
-      }
-      break;
+	n++;
     }
-    n++;
-  }
 
-  return n;
+    return n;
 }

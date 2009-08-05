@@ -8,6 +8,6 @@
 
 int chdir(const char *path)
 {
-	errno = ENOSYS;
-	return -1;
+    errno = ENOSYS;
+    return -1;
 }
