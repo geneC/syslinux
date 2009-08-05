@@ -6,7 +6,7 @@
  */
 
 
-
+#include <string.h>
 #include <sys/module.h>
 
 #include "common.h"
@@ -48,7 +48,7 @@ static int load_shallow_sections(struct elf_module *module, Elf32_Ehdr *elf_hdr)
 	char *sh_strtable;
 
 	// We buffer the data up to the SHT
-	buff_offset = module->_cr_offset;
+	buff_offset = module->u.l._cr_offset;
 
 	buffer = malloc(elf_hdr->e_shoff - buff_offset);
 	// Get to the SHT

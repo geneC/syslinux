@@ -59,21 +59,21 @@ void print_elf_symbols(struct elf_module *module) {
  */
 
 int image_load(struct elf_module *module) {
-	module->_file = fopen(module->name, "rb");
+	module->u.l._file = fopen(module->name, "rb");
 
-	if (module->_file == NULL) {
+	if (module->u.l._file == NULL) {
 		DBG_PRINT("Could not open object file '%s'\n", module->name);
 		goto error;
 	}
 
-	module->_cr_offset = 0;
+	module->u.l._cr_offset = 0;
 
 	return 0;
 
 error:
-	if (module->_file != NULL) {
-		fclose(module->_file);
-		module->_file = NULL;
+	if (module->u.l._file != NULL) {
+		fclose(module->u.l._file);
+		module->u.l._file = NULL;
 	}
 
 	return -1;
@@ -81,22 +81,23 @@ error:
 
 
 int image_unload(struct elf_module *module) {
-	if (module->_file != NULL) {
-		fclose(module->_file);
-		module->_file = NULL;
+	if (module->u.l._file != NULL) {
+		fclose(module->u.l._file);
+		module->u.l._file = NULL;
+
 	}
-	module->_cr_offset = 0;
+	module->u.l._cr_offset = 0;
 
 	return 0;
 }
 
 int image_read(void *buff, size_t size, struct elf_module *module) {
-	size_t result = fread(buff, size, 1, module->_file);
+	size_t result = fread(buff, size, 1, module->u.l._file);
 
 	if (result < 1)
 		return -1;
 
-	module->_cr_offset += size;
+	module->u.l._cr_offset += size;
 	return 0;
 }
 
@@ -108,21 +109,21 @@ int image_skip(size_t size, struct elf_module *module) {
 		return 0;
 
 	skip_buff = malloc(size);
-	result = fread(skip_buff, size, 1, module->_file);
+	result = fread(skip_buff, size, 1, module->u.l._file);
 	free(skip_buff);
 
 	if (result < 1)
 		return -1;
 
-	module->_cr_offset += size;
+	module->u.l._cr_offset += size;
 	return 0;
 }
 
 int image_seek(Elf32_Off offset, struct elf_module *module) {
-	if (offset < module->_cr_offset) // Cannot seek backwards
+	if (offset < module->u.l._cr_offset) // Cannot seek backwards
 		return -1;
 
-	return image_skip(offset - module->_cr_offset, module);
+	return image_skip(offset - module->u.l._cr_offset, module);
 }
 
 

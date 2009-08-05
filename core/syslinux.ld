@@ -43,6 +43,7 @@ SECTIONS
 	__earlybss_dwords = (__earlybss_len + 3) >> 2;
 
 	. = ALIGN(4);
+	__bss16_lma = .;
 	.bss16 (NOLOAD) : {
 		__bss16_start = .;
 		*(.bss16)
@@ -149,6 +150,7 @@ SECTIONS
 	__pm_code_lma = .;
 
 	__high_clear_start = .;
+	__high_clear_lma = .;
 
 	. = ALIGN(512);
 	.adv (NOLOAD) : {
@@ -162,6 +164,7 @@ SECTIONS
 	/* Late uninitialized sections */
 
 	. = ALIGN(4);
+	__uibss_lma = .;
 	.uibss (NOLOAD) : {
 		__uibss_start = .;
 		*(.uibss)

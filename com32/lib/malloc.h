@@ -22,7 +22,7 @@ struct free_arena_header;
  * alignment unit.
  */
 struct arena_header {
-    void *tag;
+    malloc_tag_t tag;
     size_t attrs;			/* Bits 0..1: Type, 2..3: Unused, 4..31: MSB of the size  */
     struct free_arena_header *next, *prev;
 };

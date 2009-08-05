@@ -67,8 +67,7 @@ LIBSYSLINUX_OBJS = \
 	syslinux/setadv.o
 
 DYNENTRY_OBJS = \
-	sys/entry.o atexit.o exit.o onexit.o	\
-	sys/exit.o abort.o 
+	atexit.o onexit.o abort.o
 
 ## CORE OBJECTS, INCLUDED IN THE ROOT COM32 MODULE
 LIBENTRY_OBJS = \
@@ -78,7 +77,9 @@ LIBENTRY_OBJS = \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
 	sys/isatty.o sys/fstat.o	\
 	\
-	syslinux/idle.o
+	syslinux/idle.o \
+	\
+	exit.o
 	
 LIBMODULE_OBJS = \
 	sys/module/common.o sys/module/elf_module.o		\
@@ -162,8 +163,9 @@ MINLIBOBJS = \
 	$(LIBENTRY_OBJS) \
 	$(LIBGCC_OBJS) \
 	$(LIBCONSOLE_OBJS) \
-	$(LIBMODULE_OBJS)
-	
+	$(LIBMODULE_OBJS) \
+#	$(LIBVESA_OBJS)
+
 	
 DYNLIBOBJS = \
 	$(LIBZLIB_OBJS) \

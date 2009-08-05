@@ -31,11 +31,29 @@
  * The regular exit
  */
 
+#include <sys/module.h>
 #include <stdlib.h>
-
-extern __noreturn(*__exit_handler) (int);
+#include <unistd.h>
+#include "atexit.h"
 
 __noreturn exit(int rv)
 {
-    __exit_handler(rv);
+	struct atexit *ap;
+
+    for (ap = __syslinux_current->u.x.atexit_list; ap; ap = ap->next) {
+	ap->fctn(rv, ap->arg);	/* This assumes extra args are harmless */
+    }
+
+    _exit(rv);
+}    
+
+__noreturn _Exit(int rv)
+{
+    _exit(rv);
 }
+
+__noreturn _exit(int rv)
+{
+    longjmp(__syslinux_current->u.x.process_exit, rv+1);
+}
+

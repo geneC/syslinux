@@ -22,7 +22,8 @@ int n=10;
 
 static int mytest_main(int argc, char **argv)
 {
-	///console_ansi_raw();
+	openconsole(&dev_stdcon_r, &dev_stdcon_w);
+	//openconsole(&dev_rawcon_r, &dev_vesaserial_w);
 	menu_main(argc, argv);
 	//printf("Something's fishy...\n");
 

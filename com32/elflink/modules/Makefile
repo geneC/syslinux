@@ -13,7 +13,7 @@
 topdir = ../../..
 include MCONFIG
 
-MODULES	  = hello.c32 sort.c32 mytest.c32 readconfig.c32 refstr.c32 colors.c32 menumain.c32 printmsg.c32 background.c32 passwd.c32 sha1hash.c32 \
+MODULES	  = hello.c32 sort.c32 mytest.c32 menumain.c32 printmsg.c32 background.c32 passwd.c32 sha1hash.c32 \
 	unbase64.c32 sha512crypt.c32 md5.c32 crypt-md5.c32 sha256crypt.c32 execute.c32 get_key.c32 ansiraw.c32
 
 TESTFILES =
@@ -27,15 +27,6 @@ sort.c32 : sort.o
 	$(LD) $(LDFLAGS) -o $@ $^
 
 mytest.c32 : mytest.o
-	$(LD) $(LDFLAGS) -o $@ $^
-
-readconfig.c32 : readconfig.o
-	$(LD) $(LDFLAGS) -o $@ $^
-
-refstr.c32 : refstr.o
-	$(LD) $(LDFLAGS) -o $@ $^
-
-colors.c32 : colors.o
 	$(LD) $(LDFLAGS) -o $@ $^
 
 menumain.c32 : menumain.o

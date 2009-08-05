@@ -11,7 +11,9 @@
 #include <stdio.h>
 #include <elf.h>
 #include <stdint.h>
+#include <setjmp.h>
 #include <linux/list.h>
+
 
 
 /*
@@ -77,6 +79,7 @@ typedef int (*module_main_t)(int, char**);
  *  predecessors and successors. There is also a global linked list containing all
  *  the modules currently loaded.
  */
+struct atexit;
 struct elf_module {
 	char				name[MODULE_NAME_SIZE]; 		// The module name
 
@@ -107,9 +110,20 @@ struct elf_module {
 	Elf32_Word			symtable_size;	// The size of the symbol table
 
 
-	// Transient - Data available while the module is loading
-	FILE				*_file;	// The file object of the open file
-	Elf32_Off			_cr_offset; // The current offset in the open file
+	union {
+		// Transient - Data available while the module is loading
+		struct {
+			FILE		*_file;		// The file object of the open file
+			Elf32_Off	_cr_offset;	// The current offset in the open file
+		} l;
+
+		// Process execution data
+		struct {
+			jmp_buf		process_exit;	// Exit state
+			struct atexit  *atexit_list;	// atexit() chain
+		} x;
+	} u;
+
 };
 
 /**
@@ -311,6 +325,16 @@ extern Elf32_Sym *global_find_symbol(const char *name, struct elf_module **modul
 static inline void *module_get_absolute(Elf32_Addr addr, struct elf_module *module) {
 	return (void*)(module->base_addr + addr);
 }
+
+/**
+ * syslinux_current - get the current module process
+ */
+extern struct elf_module *__syslinux_current;
+static inline const struct elf_module *syslinux_current(void)
+{
+	return __syslinux_current;
+}
+
 
 #endif // DYNAMIC_MODULE
 

@@ -128,11 +128,11 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 
 		if (cr_pht->p_type == PT_LOAD) {
 			// Copy the segment at its destination
-			if (cr_pht->p_offset < module->_cr_offset) {
+			if (cr_pht->p_offset < module->u.l._cr_offset) {
 				// The segment contains data before the current offset
 				// It can be discarded without worry - it would contain only
 				// headers
-				Elf32_Off aux_off = module->_cr_offset - cr_pht->p_offset;
+				Elf32_Off aux_off = module->u.l._cr_offset - cr_pht->p_offset;
 
 				if (image_read(module_get_absolute(cr_pht->p_vaddr, module) + aux_off,
 						cr_pht->p_filesz - aux_off, module) < 0) {
@@ -470,12 +470,10 @@ int module_load(struct elf_module *module) {
 	// Perform the relocations
 	resolve_symbols(module);
 
-
-
 	// The file image is no longer needed
 	image_unload(module);
 
-	DBG_PRINT("MODULE %s LOADED SUCCESSFULLY (main@0x%08X, init@0x%08X, exit@0x%08X)\n",
+	DBG_PRINT("MODULE %s LOADED SUCCESSFULLY (main@%p, init@%p, exit@%p)\n",
 			module->name,
 			(module->main_func == NULL) ? NULL : *(module->main_func),
 			(module->init_func == NULL) ? NULL : *(module->init_func),
@@ -493,6 +491,9 @@ error:
 	}
 
 	image_unload(module);
+
+	// Clear the execution part of the module buffer
+	memset(&module->u, 0, sizeof module->u);
 
 	return res;
 }

@@ -16,10 +16,20 @@
 
 include $(topdir)/MCONFIG
 
-GCCOPT := $(call gcc_ok,-std=gnu99,) \
-	  $(call gcc_ok,-m32,) \
-	  $(call gcc_ok,-fno-stack-protector,) \
-	  -mregparm=3 -DREGPARM=3 -march=i386 -Os
+GCCOPT := $(call gcc_ok,-std=gnu99,)
+GCCOPT += $(call gcc_ok,-m32,)
+GCCOPT += $(call gcc_ok,-fno-stack-protector,)
+GCCOPT += $(call gcc_ok,-fwrapv,)
+GCCOPT += $(call gcc_ok,-freg-struct-return,)
+GCCOPT += -march=i386 -Os -fomit-frame-pointer -mregparm=3 -DREGPARM=3
+GCCOPT += $(call gcc_ok,-fno-exceptions,)
+GCCOPT += $(call gcc_ok,-fno-asynchronous-unwind-tables,)
+GCCOPT += $(call gcc_ok,-fPIE,-fPIC)
+GCCOPT += $(call gcc_ok,-falign-functions=0,-malign-functions=0)
+GCCOPT += $(call gcc_ok,-falign-jumps=0,-malign-jumps=0)
+GCCOPT += $(call gcc_ok,-falign-labels=0,-malign-labels=0)
+GCCOPT += $(call gcc_ok,-falign-loops=0,-malign-loops=0)
+GCCOPT += $(call gcc_ok,-mpreferred-stack-boundary=2,)
 
 com32 = $(topdir)/com32
 
@@ -28,7 +38,7 @@ CFLAGS     = $(GCCOPT) -W -Wall -march=i386 \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include
 SFLAGS     = $(GCCOPT) -D__COM32__ -march=i386
-LDFLAGS    = -m elf_i386 -shared -T $(com32)/lib/elf32.ld
+LDFLAGS    = -m elf_i386 -shared --hash-style=gnu -T $(com32)/lib/elf32.ld
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 
 LNXCFLAGS  = -I$(com32)/libutil/include -W -Wall -O -g -D_GNU_SOURCE

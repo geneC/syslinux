@@ -15,7 +15,7 @@
 /**
  * The global tag used to label all the new allocations
  */
-void *__malloc_global_tag = NULL;
+malloc_tag_t __malloc_global_tag = NULL;
 
 struct free_arena_header __malloc_head =
 {
@@ -196,8 +196,10 @@ int posix_memalign(void **memptr, size_t alignment, size_t size)
 
 	*memptr = NULL;
 
-	for (fp = __malloc_head.next_free; ARENA_TYPE_GET(fp->a.attrs) != ARENA_TYPE_HEAD;
-		fp = fp->next_free) {
+	for (fp = __malloc_head.next_free;
+	     ARENA_TYPE_GET(fp->a.attrs) != ARENA_TYPE_HEAD;
+	     fp = fp->next_free) {
+
 
 		if (ARENA_SIZE_GET(fp->a.attrs) <= size)
 			continue;
@@ -251,12 +253,18 @@ int posix_memalign(void **memptr, size_t alignment, size_t size)
 	return 0;
 }
 
-void *__mem_get_tag(void *memptr) {
-	struct arena_header *ah = (struct arena_header *)memptr - 1;
-	return ah->tag;
+malloc_tag_t __mem_get_tag(void *memptr) {
+	if (memptr) {
+		struct arena_header *ah = (struct arena_header *)memptr - 1;
+		return ah->tag;
+	} else {
+		return NULL;
+	}
 }
 
-void __mem_set_tag(void *memptr, void *tag) {
-	struct arena_header *ah = (struct arena_header *)memptr - 1;
-	ah->tag = tag;
+void __mem_set_tag(void *memptr, malloc_tag_t tag) {
+	if (memptr) {
+		struct arena_header *ah = (struct arena_header *)memptr - 1;
+		ah->tag = tag;
+	}
 }

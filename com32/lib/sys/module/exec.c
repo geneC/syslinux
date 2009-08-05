@@ -8,18 +8,17 @@
 #include <sys/module.h>
 #include <sys/exec.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-
-// The symbol declared in the linker script that indicates the loading point
-// of the COM32R module
-extern char _start[];
-
+#include <setjmp.h>
+#include <setjmp.h>
+#include <alloca.h>
 
 #define DBG_PRINT(fmt, args...)	fprintf(stderr, "[EXEC] " fmt, ##args)
 
-
 static struct elf_module    *mod_root = NULL;
+struct elf_module *__syslinux_current = NULL;
 
 int exec_init(void)
 {
@@ -36,7 +35,7 @@ int exec_init(void)
 	if (mod_root == NULL)
 		return -1;
 
-	res = module_load_shallow(mod_root, (Elf32_Addr)_start);
+	res = module_load_shallow(mod_root, 0);
 
 	if (res != 0) {
 		mod_root = NULL;
@@ -104,11 +103,17 @@ int unload_library(const char *name)
 	return res;
 }
 
+jmp_buf __process_exit_jmp;
+
 int spawnv(const char *name, const char **argv)
 {
 	int res, ret_val = 0;
-
-	struct elf_module *module = module_alloc(name);
+	const char **arg;
+	int argc;
+	char **argp, **args;
+ 	struct elf_module *module = module_alloc(name);
+	struct elf_module *previous;
+	malloc_tag_t prev_mem_tag;
 
 	if (module == NULL)
 		return -1;
@@ -119,8 +124,8 @@ int spawnv(const char *name, const char **argv)
 		module_unload(module);
 		return res;
 	}
-
-	if (module->main_func != NULL) {
+	
+	/*if (module->main_func != NULL) {
 		const char **last_arg = argv;
 		void *old_tag;
 		while (*last_arg != NULL)
@@ -141,7 +146,46 @@ int spawnv(const char *name, const char **argv)
 		// We can't execute without a main function
 		module_unload(module);
 		return -1;
-	}
+	}*/
+	// Set up the process context
+	previous = __syslinux_current;
+	prev_mem_tag = __mem_get_tag_global();
+
+	// Setup the new process context
+	__syslinux_current = module;
+	__mem_set_tag_global((malloc_tag_t)module);
+
+	// Generate a new process copy of argv (on the stack)
+	argc = 0;
+	for (arg = argv; *arg; arg++)
+		argc++;
+
+	args = alloca((argc+1) * sizeof(char *));
+	
+	for (arg = argv, argp = args; *arg; arg++, argp++) {
+		size_t l = strlen(*arg)+1;
+		*args = alloca(l);
+		memcpy(*args, *arg, l);
+ 	}
+
+	*args = NULL;
+
+	// Execute the program
+	ret_val = setjmp(module->u.x.process_exit);
+
+	if (ret_val)
+		ret_val--;		/* Valid range is 0-255 */
+	else if (!module->main_func)
+		ret_val = -1;
+	else
+		exit((*module->main_func)(argc, args)); /* Actually run! */
+	
+	// Clean up the allocation context
+	__free_tagged(module);
+	// Restore the allocation context
+	__mem_set_tag_global(prev_mem_tag);
+	// Restore the process context
+	__syslinux_current = previous;
 
 	res = module_unload(module);
 

@@ -180,7 +180,7 @@ extern int hiddenmenu;
 extern long long totaltimeout;
 
 void parse_configs(char **argv);
-int draw_background(const char *filename);
+extern int draw_background(const char *filename);
 
 static inline int my_isspace(char c)
 {

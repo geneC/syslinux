@@ -6,7 +6,7 @@
 #include <syslinux/adv.h>
 #include <syslinux/config.h>
 #include <setjmp.h>
-#include "../../com32/libutil/include/sha1.h"
+//#include "../../com32/libutil/include/sha1.h"
 #include <netinet/in.h>	
 
 #include <sys/exec.h>
@@ -81,13 +81,13 @@ void load_env32(com32sys_t * regs)
 
 	int i,n=5;
 	char **argv;
-	argv=(char**)malloc(n*sizeof(char*));
-	argv[1]=(char*)malloc(100*sizeof(char));//(char *)(regs->edi.w[0]);
-	strcpy(argv[1],"extlinux.conf");
+	argv=(char**)calloc(n,sizeof(char*));
+	argv[1]=(char*)calloc(100,sizeof(char));//(char *)(regs->edi.w[0]);
+	strcpy(argv[1],(regs->edi.w[0]));
 	
 	/*printf("\nBegin dynamic module test ...\n");
 	printf("\n\nTrying to laod 'dyn/sort.dyn'\n\n");*/
-	//printf("%d\n",load_library("dyn/sort.dyn"));
+	printf("%d\n",load_library("dyn/sort.dyn"));
 	printf("Loading background.c32\n%d\n",load_library("dyn/background.c32"));
 	printf("Loading printmsg.c32\n%d\n",load_library("dyn/printmsg.c32"));
 	printf("Loading drain.c32\n%d\n",load_library("dyn/drain.c32"));
@@ -106,7 +106,7 @@ void load_env32(com32sys_t * regs)
 	/*printf("\n\nTrying to spawn 'dyn/hello.dyn'\n\n"); 
 	spawnv("dyn/hello.dyn",0);
 	printf("\nTest done\n");*/
-	printf("%d\n",spawnv("dyn/mytest.c32",0));
+	printf("%d\n",spawnv("mytest.c32",argv));
 	printf("Done\n");
 	
 	while(1) 1; /* we don't have anything better to do so hang around for a bit */
