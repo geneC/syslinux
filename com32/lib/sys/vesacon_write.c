@@ -61,7 +61,6 @@ static struct ansi_ops op = {
 };
 
 static struct term_info ti = {
-    .cols = TEXT_PIXEL_COLS / FONT_WIDTH,
     .disabled = 0,
     .ts = &ts,
     .op = &op
@@ -84,7 +83,7 @@ int __vesacon_open(struct file_info *fp)
 	    ti.cols = 80;
 	} else {
 	    /* Switch mode */
-	    if (__vesacon_init()) {
+	    if (__vesacon_init(DEFAULT_VESA_X_SIZE, DEFAULT_VESA_Y_SIZE)) {
 		vesacon_counter = -1;
 		return EAGAIN;
 	    }
@@ -92,6 +91,7 @@ int __vesacon_open(struct file_info *fp)
 	    /* Initial state */
 	    __ansi_init(&ti);
 	    ti.rows = __vesacon_text_rows;
+	    ti.cols = __vesacon_text_cols;
 	}
     } else if (vesacon_counter == -1) {
 	return EAGAIN;
