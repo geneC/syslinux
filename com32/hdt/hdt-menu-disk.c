@@ -48,6 +48,9 @@ static void show_partition_information(struct driveinfo *drive_info,
 	char menu_title[MENULEN + 1];
 	char menu_title_ref[MENULEN + 1];
 
+	if (nb_partitions_seen == 1)
+		add_sep();
+
 	memset(menu_title,0,sizeof menu_title);
 	memset(menu_title_ref,0,sizeof menu_title_ref);
 	snprintf(menu_title_ref, sizeof menu_title_ref, "disk_%x_part_%d",
@@ -204,7 +207,6 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-  add_sep();
   dn=disk_number;
 
   parse_partition_table(&d[disk_number], &show_partition_information);

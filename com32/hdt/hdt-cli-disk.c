@@ -78,6 +78,9 @@ static void show_partition_information(struct driveinfo *drive_info,
 	else
 		memset(size, 0, sizeof size);
 
+	if (i == 1)
+		more_printf("   #  B       Start         End    Size Id Type\n");
+
 	get_label(ptab->ostype, &parttype);
 	more_printf("  %2d  %s %11d %11d %s %02X %s",
 		    i, (ptab->active_flag == 0x80) ? "x" : " ",
@@ -143,7 +146,6 @@ void main_show_disk(int argc, char **argv,
 		remove_spaces(d->edd_params.host_bus_type),
 		remove_spaces(d->edd_params.interface_type));
 
-	more_printf("   #  B       Start         End    Size Id Type\n");
 	if (parse_partition_table(d, &show_partition_information) == -1) {
 		get_error(&error_buffer);
 		more_printf("%s\n", error_buffer);
