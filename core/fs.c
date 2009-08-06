@@ -2,11 +2,11 @@
 #include <stdbool.h>
 #include <string.h>
 #include "fs.h"
-//#include "cache.h"
+#include "cache.h"
 
 
 /* The this fs pointer */
-struct fs_info *this_fs;
+struct fs_info *this_fs = NULL;
 struct fs_info fs;
 
 
@@ -91,7 +91,7 @@ void fs_init(com32sys_t *regs)
     /* set up the fs stucture */    
     fs.fs_name = ops->fs_name;
     fs.fs_ops = ops;
-    if (1)//! strcmp(fs.fs_name, "pxe"))
+    if (! strcmp(fs.fs_name, "pxe"))
         fs.fs_dev = NULL;
     else 
         fs.fs_dev = device_init(regs->edx.b[0], regs->edx.b[1], regs->ecx.l, \
@@ -102,6 +102,6 @@ void fs_init(com32sys_t *regs)
     blk_shift = fs.fs_ops->fs_init(&fs);    
 
     /* initialize the cache */
-    //if (fs.fs_dev && fs.fs_dev->cache_data)
-        // cache_init(fs.fs_dev, blk_shift);
+    if (fs.fs_dev && fs.fs_dev->cache_data)
+        cache_init(fs.fs_dev, blk_shift);
 }

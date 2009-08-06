@@ -198,6 +198,7 @@
 #define TFTP_EOPTNEG	 htons(8)		// Option negotiation failure
 
 #define BOOTP_OPTION_MAGIC  htonl(0x63825363)
+#define MAC_MAX 32
 
 
 /*
@@ -300,61 +301,6 @@ struct gpxe_file_read {
     uint16_t buffer[2];
 } __attribute__ ((packed));
 
-/*
- * externs 
- */
-extern uint32_t ServerIP;
-extern uint32_t MyIP;
-extern uint32_t Netmask;
-extern uint32_t Gateway;
-extern uint32_t ServerPort;
-
-#define MAC_MAX 32
-extern char MACStr[];        /* MAC address as a string */
-extern char MAC[];           /* Actual MAC address */
-extern char BOOTIFStr[];     /* Space for "BOOTIF=" */
-extern uint8_t MACLen;       /* MAC address len */
-extern uint8_t MACType;      /* MAC address type */
-
-
-extern uint8_t  DHCPMagic;
-extern uint8_t  OverLoad;
-extern uint32_t RebootTime;
-
-
-/* TFTP ACK packet */
-extern uint16_t ack_packet_buf[];
-
-extern void kaboom(void);
-extern void dns_mangle(void);
-extern char trackbuf[];
-extern char BootFile[];
-extern char PathPrefix[];
-extern char CurrentDirName[];
-extern char LocalDomain[];
-
-extern char packet_buf[];
-
-extern char IPOption[];
-extern char DotQuadBuf[];
-
-
-extern uint32_t DNSServers[];
-extern uint16_t LastDNSServer;
-
-extern char ConfigName[];
-
-extern uint16_t RealBaseMem;
-extern uint16_t APIVer;
-extern far_ptr_t PXEEntry;
-
-extern far_ptr_t InitStack;
-
-extern int HaveUUID;
-extern uint8_t UUIDType;
-extern char UUID[];
-
-extern volatile uint16_t BIOS_timer;
 
 
 /*

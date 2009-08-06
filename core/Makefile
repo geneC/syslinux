@@ -32,10 +32,10 @@ INCLUDES = -I./include -I$(com32)/include
 CODEPAGE = cp865
 
 # The targets to build in this directory...
-BTARGET  = kwdhash.gen pxelinux.0
-	   #extlinux.bin extlinux.bss extlinux.sys \
+BTARGET  = kwdhash.gen \
+	   extlinux.bin extlinux.bss extlinux.sys \
 	   ldlinux.bss ldlinux.sys ldlinux.bin \
-	   pxelinux.0 isolinux.bin isolinux-debug.bin
+	   isolinux.bin isolinux-debug.bin pxelinux.0
 
 # All primary source files for the main syslinux files
 NASMSRC	 := $(wildcard *.asm)

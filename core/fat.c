@@ -54,7 +54,7 @@ char *NameStart;
 int  NameLen;
 
 /* do this for readdir, because it called from asm and don't know the fs structure */
-struct fs_info *this_fs = NULL;
+static struct fs_info *this_fs = NULL;
 
 
 /**

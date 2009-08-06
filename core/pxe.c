@@ -26,12 +26,9 @@ char *get_packet_msg = "Getting cached packet ";
 
 uint16_t NextSocket = 49152;
 
-int has_gpxe;
+static int has_gpxe;
 int HaveUUID = 0;
-uint8_t UUIDType;
 uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
-
-uint16_t StructPtr[2];
 
 static const uint8_t TimeoutTable[] = {
     2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18, 21, 26, 31, 37, 44, 53, 64, 77,
@@ -54,7 +51,7 @@ char *asciidec = "1408";
  * return the socket pointer if success, or null if failure
  *    
  */
-struct open_file_t* allocate_socket()
+static struct open_file_t* allocate_socket()
 {
     extern uint16_t NextSocket;
     uint16_t i = MAX_OPEN;
@@ -93,7 +90,7 @@ struct open_file_t* allocate_socket()
 /*
  * free socket, socket in SI; return SI = 0, ZF = 1 for convenience
  */
-void free_socket(struct open_file_t *file)
+static void free_socket(struct open_file_t *file)
 {
     /* tftp_pktbuf is not cleared */
     memset(file, 0, sizeof(struct open_file_t) - 2);
@@ -107,7 +104,7 @@ void free_socket(struct open_file_t *file)
  * @param: count, number of bytes
  *
  */
-void lchexbytes(char *dst, const void *src, int count)
+static void lchexbytes(char *dst, const void *src, int count)
 {
     uint8_t half;
     uint8_t c;
@@ -127,7 +124,7 @@ void lchexbytes(char *dst, const void *src, int count)
  * just like the lchexbytes, except to upper-case
  *
  */
-void uchexbytes(char *dst, const void *src, int count)
+static void uchexbytes(char *dst, const void *src, int count)
 {
     uint8_t half;
     uint8_t c;
@@ -216,7 +213,7 @@ int gendotquad(char *dst, uint32_t ip)
  * return the the string address after the ip string
  *
  */
-char *parse_dotquad(char *ip_str, uint32_t *res)
+static char *parse_dotquad(char *ip_str, uint32_t *res)
 {
     char *p = ip_str;
     int  i  = 0;
@@ -245,7 +242,7 @@ char *parse_dotquad(char *ip_str, uint32_t *res)
  * the ASM pxenv function wrapper, return 1 if error, or 0
  *
  */    
-int pxe_call(int opcode, void *data)
+static int pxe_call(int opcode, void *data)
 {
     extern void pxenv(void);
     com32sys_t in_regs, out_regs;
@@ -272,7 +269,7 @@ int pxe_call(int opcode, void *data)
  * @param: ack_num, Packet # to ack (network byte order)
  * 
  */
-void ack_packet(struct open_file_t *file, uint16_t ack_num)
+static void ack_packet(struct open_file_t *file, uint16_t ack_num)
 {
     int err;
     static __lowmem struct pxe_udp_write_pkt uw_pkt;
@@ -301,7 +298,7 @@ void ack_packet(struct open_file_t *file, uint16_t ack_num)
  * @return: buffer size
  * 
  */
-int pxe_get_cached_info(int type)
+static int pxe_get_cached_info(int type)
 {
     int err;
     static __lowmem struct pxe_bootp_query_pkt bq_pkt;
@@ -331,7 +328,7 @@ int pxe_get_cached_info(int type)
  * url is a URL (contains ://)
  *
  */
-int is_url(char *url)
+static int is_url(char *url)
 {
     
     while (*url) {
@@ -349,7 +346,7 @@ int is_url(char *url)
  * (contains ://) *and* the gPXE extensions API is available. No 
  * registers modified.
  */
-int is_gpxe(char *url)
+static int is_gpxe(char *url)
 {
     int err;
     static __lowmem struct gpxe_file_api_check ac;
@@ -383,7 +380,7 @@ int is_gpxe(char *url)
  * @param: file -> socket structure
  *
  */
-void get_packet_gpxe(struct open_file_t *file)
+static void get_packet_gpxe(struct open_file_t *file)
 {
     static __lowmem struct gpxe_file_read fr;
     int err;
@@ -427,10 +424,10 @@ void get_packet_gpxe(struct open_file_t *file)
  * the download host, 0 for no host, or -1 for a gPXE URL.
  *
  */
-void pxe_mangle_name(char *dst, char *src)
+static void pxe_mangle_name(char *dst, char *src)
 {
     char *p = src;
-    uint32_t ip;
+    uint32_t ip = 0;
     int i = 0;
    
 #if GPXE
@@ -510,7 +507,7 @@ void pxe_mangle_name(char *dst, char *src)
  ; expects fs -> pktbuf_seg and ds:si -> socket structure
  ;
 */
-void fill_buffer(struct open_file_t *file)
+static void fill_buffer(struct open_file_t *file)
 {
     int err;
     int last_pkt;
@@ -627,7 +624,7 @@ void fill_buffer(struct open_file_t *file)
  * @return: the bytes read
  *
  */
-uint32_t pxe_getfssec(struct fs_info *fs, char *buf, 
+static uint32_t pxe_getfssec(struct fs_info *fs, char *buf, 
                       void *open_file, int blocks, int *have_more)
 {
     struct open_file_t *file = (struct open_file_t *)open_file;
@@ -676,7 +673,7 @@ uint32_t pxe_getfssec(struct fs_info *fs, char *buf,
 /*
  * Fill the packet tail with the tftp informations then retures the lenght
  */
-int fill_tail(char *dst)
+static int fill_tail(char *dst)
 {
     char *p = dst;
     strcpy(p, mode);
@@ -703,9 +700,9 @@ struct tftp_options {
     int   str_len;        /* string lenght */
     int   offset;         /* offset into socket structre */
 };
-struct tftp_options tftp_options[2];
+static struct tftp_options tftp_options[2];
 
-inline void init_options()
+static inline void init_options()
 {
     tftp_options[0].str_ptr = tsize_str;
     tftp_options[0].str_len = tsize_len;
@@ -733,7 +730,7 @@ inline void init_options()
  *		ZF set
  *
  */
-void pxe_searchdir(char *filename, struct file *file)
+static void pxe_searchdir(char *filename, struct file *file)
 {
     char *buf = packet_buf;
     char *p = filename;
@@ -1003,7 +1000,7 @@ void pxe_searchdir(char *filename, struct file *file)
 /*
  * Store standard filename prefix
  */
-void get_prefix(void)
+static void get_prefix(void)
 {
     int len;
     char *p;
@@ -1041,13 +1038,11 @@ void get_prefix(void)
   * try to load a config file, if found, return 1, or return 0
   *
   */   
-int try_load(com32sys_t *regs)
+static int try_load(com32sys_t *regs)
 {
     extern char KernelName[];
     char *config_name = (char *)MK_PTR(regs->ds, regs->edi.w[0]);
 
-    get_prefix();
-    
     printf("Trying to load: %-50s ", config_name);
     pxe_mangle_name(KernelName, config_name);
     
@@ -1067,7 +1062,7 @@ int try_load(com32sys_t *regs)
   * load configuration file
   *
   */
-void pxe_load_config(com32sys_t *regs)
+static void pxe_load_config(com32sys_t *regs)
 {
     extern void no_config(void);
     char *cfgprefix = "pxelinux.cfg/";
@@ -1080,6 +1075,7 @@ void pxe_load_config(com32sys_t *regs)
     int tries = 8;
     char *last;
     
+    get_prefix();
     if (DHCPMagic & 0x02) {
         /* We got a DHCP option, try it first */
         if (try_load(regs))
@@ -1149,7 +1145,7 @@ void pxe_load_config(com32sys_t *regs)
 /*
  * Generate the botif string, and the hardware-based config string 
  */
-void make_bootif_string(void)
+static void make_bootif_string(void)
 {
     char *bootif_str = "BOOTIF=";
     uint8_t *src = &MACType;      /* MACType just followed by MAC */
@@ -1179,7 +1175,7 @@ void make_bootif_string(void)
   ; Assumes CS == DS == ES.
   ;
 */
-void genipopt(void)
+static void genipopt(void)
 {
     char *p = IPOption;
     int ip_len;
@@ -1204,7 +1200,7 @@ void genipopt(void)
     
 
 /* Generate ip= option and print the ip adress */
-void ip_init(void)
+static void ip_init(void)
 {
     int ip = MyIP;
     char *myipaddr_msg = "My IP address seems to be ";
@@ -1224,7 +1220,7 @@ void ip_init(void)
  * return 1 for success, 0 for failure.
  *
  */
-int is_pxe(char *buf)
+static int is_pxe(char *buf)
 {
     int i = buf[4];
     uint8_t sum = 0;
@@ -1245,7 +1241,7 @@ int is_pxe(char *buf)
  * Just like is_pxe, it checks PXENV+ structure
  *
  */
-int is_pxenv(char *buf)
+static int is_pxenv(char *buf)
 {
     int i = buf[8];
     uint8_t sum = 0;
@@ -1282,7 +1278,7 @@ int is_pxenv(char *buf)
 ;
  ********************************************************************/
 
-inline int memory_scan(uint16_t seg, int (*func)(char *))
+static inline int memory_scan(uint16_t seg, int (*func)(char *))
 {
     while (seg < 0xA000) {
         if (func(MK_PTR(seg, 0)))
@@ -1292,7 +1288,7 @@ inline int memory_scan(uint16_t seg, int (*func)(char *))
     return 0;
 }
     
-int memory_scan_for_pxe_struct()
+static int memory_scan_for_pxe_struct()
 {
     extern uint16_t BIOS_fbm;  /* Starting segment */
     uint16_t seg = BIOS_fbm << (10 - 4);
@@ -1300,7 +1296,7 @@ int memory_scan_for_pxe_struct()
     return memory_scan(seg, is_pxe);
 }
     
-int memory_scan_for_pxenv_struct()
+static int memory_scan_for_pxenv_struct()
 {
     uint16_t seg = 0x1000;
     
@@ -1320,7 +1316,7 @@ int memory_scan_for_pxenv_struct()
  * if if the API version is 2.1 or later 
  *
  */
-void pxe_init()
+static void pxe_init()
 {
     char plan = 'A';
     uint16_t seg, off;
@@ -1378,8 +1374,6 @@ void pxe_init()
     call16(kaboom, NULL, NULL);
     
  have_pxenv:
-    StructPtr[0] = off;
-    StructPtr[1] = seg;
     base = MK_PTR(seg, off);
     APIVer = *(uint16_t *)(base + 6);
     printf("Found PXENV+ structure\nPXE API version is %04x\n", APIVer);
@@ -1413,8 +1407,6 @@ void pxe_init()
     goto have_entrypoint;
 
  have_pxe:
-    StructPtr[0] = off;
-    StructPtr[1] = seg;
     base = MK_PTR(seg, off);
     
     data_len = *(uint16_t *)(base + 0x2e);  /* UNDI data len */
@@ -1441,7 +1433,7 @@ void pxe_init()
  * Initialize UDP stack 
  *
  */
-void udp_init(void)
+static void udp_init(void)
 {
     int err;
     static __lowmem struct pxe_udp_open_pkt uo_pkt;
@@ -1458,7 +1450,7 @@ void udp_init(void)
 /*
  * Network-specific initialization
  */   
-void network_init()
+static void network_init()
 {   
     struct bootp_t *bp = (struct bootp_t *)trackbuf;
     int pkt_len;
@@ -1527,7 +1519,7 @@ void network_init()
  * Initialize pxe fs
  *
  */
-int pxe_fs_init(struct fs_info *fs)
+static int pxe_fs_init(struct fs_info *fs)
 {
     fs = NULL;    /* drop the compile warning message */
     

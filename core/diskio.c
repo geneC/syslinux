@@ -8,7 +8,7 @@
 
 #define RETRY_COUNT 6
 
-extern uint16_t MaxTransfer;
+static uint16_t MaxTransfer = 1 << (16 - 9);
 
 static int chs_rdwr_sectors(struct disk *disk, void *buf,
 			    sector_t lba, size_t count, bool is_write)
@@ -212,7 +212,7 @@ static inline bool is_power_of_2(uint32_t x)
     return !(x & (x-1));
 }
 
-int ilog2(uint32_t num)
+static int ilog2(uint32_t num)
 {
     int i = 0;
     
@@ -225,7 +225,14 @@ int ilog2(uint32_t num)
     return i;
 }
 
-void dump_disk(struct disk *disk)
+void getoneblk(struct disk *disk, char *buf, block_t block, int block_size)
+{
+    int sec_per_block = block_size >> SECTOR_SHIFT;
+
+    disk->rdwr_sectors(disk, buf, block * sec_per_block, sec_per_block, 0);
+}
+
+static void dump_disk(struct disk *disk)
 {
     printf("drive number: 0x%x\n", disk->disk_number);
     printf("disk type: %s(%d)\n", disk->type ? "EDD" : "CHS", disk->type);
@@ -333,7 +340,7 @@ struct device * device_init(uint8_t devno, bool cdrom, sector_t part_start,
 
 
 /* debug function */
-void dump_dev(struct device *dev)
+static void dump_dev(struct device *dev)
 {
     printf("device type:%s\n", dev->disk->type ? "EDD" : "CHS");
     printf("drive number: 0x%x\n", dev->disk->disk_number);

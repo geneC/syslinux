@@ -4,21 +4,23 @@
 #include <pxe.h>
 #include <sys/cpu.h>
 
-void subnet_mask(void *data, int opt_len)
+void parse_dhcp_options(void *, int, int);
+
+static void subnet_mask(void *data, int opt_len)
 {
     if (opt_len != 4)
 	return;
     Netmask = *(uint32_t *)data;
 }
 
-void router(void *data, int opt_len)
+static void router(void *data, int opt_len)
 {
     if (opt_len != 4)
 	return;
     Gateway = *(uint32_t *)data;
 }
 
-void dns_servers(void *data, int opt_len)
+static void dns_servers(void *data, int opt_len)
 {
     int num = opt_len >> 2;
     int i;
@@ -35,7 +37,7 @@ void dns_servers(void *data, int opt_len)
     LastDNSServer = OFFS_WRT(&DNSServers[num - 1], 0);
 }
 
-void local_domain(void *data, int opt_len)
+static void local_domain(void *data, int opt_len)
 {
     com32sys_t regs;
     char *p = (char *)data + opt_len;
@@ -49,13 +51,13 @@ void local_domain(void *data, int opt_len)
     *p = end;    /* Resotre ending byte */
 }
 
-void vendor_encaps(void *data, int opt_len)
+static void vendor_encaps(void *data, int opt_len)
 {
     /* Only recongnize PXELINUX options */
     parse_dhcp_options(data, opt_len, 208);
 }
 
-void option_overload(void *data, int opt_len)
+static void option_overload(void *data, int opt_len)
 {
     if (opt_len != 1)
 	return;
@@ -63,7 +65,7 @@ void option_overload(void *data, int opt_len)
 }
 
 
-void server(void *data, int opt_len)
+static void server(void *data, int opt_len)
 {
     uint32_t ip;
 
@@ -78,7 +80,7 @@ void server(void *data, int opt_len)
         ServerIP = ip;
 }
 
-void client_identifier(void *data, int opt_len)
+static void client_identifier(void *data, int opt_len)
 {
     if (opt_len > MAC_MAX || opt_len < 2 ||
         MACLen != (opt_len >> 8) || 
@@ -91,13 +93,13 @@ void client_identifier(void *data, int opt_len)
     MAC[opt_len] = 0;
 }
 
-void bootfile_name(void *data, int opt_len)
+static void bootfile_name(void *data, int opt_len)
 {
     strncpy(BootFile, data, opt_len);
     BootFile[opt_len] = 0;
 }
    
-void uuid_client_identifier(void *data, int opt_len)
+static void uuid_client_identifier(void *data, int opt_len)
 {
     int type = *(uint8_t *)data;
     if (opt_len != 17 ||
@@ -110,21 +112,21 @@ void uuid_client_identifier(void *data, int opt_len)
     UUID[16] = 0;
 }
 
-void pxelinux_configfile(void *data, int opt_len)
+static void pxelinux_configfile(void *data, int opt_len)
 {
     DHCPMagic |= 2;
     strncpy(ConfigName, data, opt_len);
     ConfigName[opt_len] = 0;
 }
 
-void pxelinux_pathprefix(void *data,int opt_len)
+static void pxelinux_pathprefix(void *data,int opt_len)
 {
     DHCPMagic |= 4;
     strncpy(PathPrefix, data, opt_len);
     PathPrefix[opt_len] = 0;
 }
 
-void pxelinux_reboottime(void *data, int opt_len)
+static void pxelinux_reboottime(void *data, int opt_len)
 {
     if ((opt_len && 0xff) != 4)
         return ;
@@ -139,7 +141,7 @@ struct dhcp_options {
     void (*fun) (void *, int);
 };
 
-struct dhcp_options dhcp_opts[] = { 
+static struct dhcp_options dhcp_opts[] = { 
     {1,   subnet_mask},
     {3,   router},
     {6,   dns_servers},

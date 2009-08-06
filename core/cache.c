@@ -106,7 +106,7 @@ struct cache_struct* get_cache_block(struct device *dev, block_t block)
         /* store it at the head of real cache */
         cs = head->next;        
         cs->block = block;
-        getoneblk(cs->data, block, dev->cache_block_size);
+        getoneblk(dev->disk, cs->data, block, dev->cache_block_size);
 
         missed ++;
     } 

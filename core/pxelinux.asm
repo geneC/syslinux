@@ -186,8 +186,9 @@ PXEStack	resd 1			; Saved stack during PXE call
 
 		alignb 4
                 global DHCPMagic, OverLoad, RebootTime, APIVer, RealBaseMem
+                global StructPtr
 RebootTime	resd 1			; Reboot timeout, if set by option
-StrucPtr	resd 1			; Pointer to PXENV+ or !PXE structure
+StrucPtr	resw 2			; Pointer to PXENV+ or !PXE structure
 APIVer		resw 1			; PXE API version found
 LocalBootType	resw 1			; Local boot return code
 RealBaseMem	resw 1			; Amount of DOS memory after freeing
@@ -204,7 +205,7 @@ BOOTIFStr	resb 7			; Space for "BOOTIF="
 MACStr		resb 3*(MAC_MAX+1)	; MAC address as a string
 
 ; The relative position of these fields matter!
-                global UUID
+                global UUID, UUIDType
 UUIDType	resb 1			; Type byte from DHCP option
 UUID		resb 16			; UUID, from the PXE stack
 UUIDNull	resb 1			; dhcp_copyoption zero-terminates
