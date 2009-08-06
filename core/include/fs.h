@@ -44,7 +44,7 @@ struct device {
 
     /* the cache stuff */
     char* cache_data;
-    struct cache_struct* cache_head;
+    void* cache_head;
     uint16_t cache_block_size;
     uint16_t cache_entries;
     uint32_t cache_size;

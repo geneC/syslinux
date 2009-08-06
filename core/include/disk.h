@@ -35,5 +35,6 @@ extern void getoneblk(char *, block_t, int);
 
 /* diskio.c */
 struct disk *disk_init(uint8_t, bool, sector_t, uint16_t, uint16_t);
+struct device *device_init(uint8_t, bool, sector_t, uint16_t, uint16_t);                           
 
 #endif /* DISK_H */

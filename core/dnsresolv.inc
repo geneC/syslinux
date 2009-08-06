@@ -33,6 +33,7 @@ DNS_MAX_SERVERS equ 4			; Max no of DNS servers
 ;
 ; On return, DX contains the number of dots encountered.
 ;
+                global dns_mangle
 dns_mangle:
 		push ax
 		push bx
@@ -151,6 +152,7 @@ dns_skiplabel:
 		endstruc
 
 		section .bss16
+                global LocalDomain, DNSServers
 		alignb 2
 DNSSendBuf	resb DNS_MAX_PACKET
 DNSRecvBuf	resb DNS_MAX_PACKET
@@ -176,6 +178,7 @@ pxe_udp_read_pkt_dns:
 .buffersize:	dw DNS_MAX_PACKET	; Max packet size
 .buffer:	dw DNSRecvBuf, 0	; off, seg of buffer
 
+                global LastDNSServer
 LastDNSServer	dw DNSServers
 
 ; Actual resolver function
@@ -186,6 +189,7 @@ LastDNSServer	dw DNSServers
 ; No segment assumptions permitted.
 ;
 		section .text16
+                global dns_resolv
 dns_resolv:
 		push ds
 		push es

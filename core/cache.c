@@ -73,11 +73,11 @@ void cache_init(struct device *dev, int block_size_shift)
  */
 struct cache_struct* get_cache_block(struct device *dev, block_t block)
 {
+    struct cache_struct *head = (struct cache_struct *)dev->cache_head;
+    struct cache_struct *last = head->prev;
     /* let's find it from the end, 'cause the endest is the freshest */
-    struct cache_struct *cs = dev->cache_head->prev;
-    struct cache_struct *head,  *last;
+    struct cache_struct *cs = head->prev;
     int i;
-
     static int total_read;
     static int missed;
         
@@ -104,7 +104,7 @@ struct cache_struct* get_cache_block(struct device *dev, block_t block)
     /* missed, so we need to load it */
     if (i == dev->cache_entries) {        
         /* store it at the head of real cache */
-        cs = dev->cache_head->next;        
+        cs = head->next;        
         cs->block = block;
         getoneblk(cs->data, block, dev->cache_block_size);
 
@@ -116,9 +116,6 @@ struct cache_struct* get_cache_block(struct device *dev, block_t block)
     cs->next->prev = cs->prev;    
     
     /* add to just before head node */
-    last = dev->cache_head->prev;
-    head = dev->cache_head;
-    
     last->next = cs;
     cs->prev = last;
     head->prev = cs;

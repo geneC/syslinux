@@ -18,4 +18,7 @@
         ; fat.c
         extern alloc_fill_dir, readdir
 
+        ; pxe.c
+        extern gendotquad
+
 %endif ; EXTERN_INC
