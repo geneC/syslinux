@@ -11,7 +11,9 @@
 #define _MSDOS_H_
 
 #include <disk/geom.h>
+#include <disk/partition.h>
 
-int parse_partition_table(struct driveinfo *, void *);
+typedef void (*p_callback)(struct driveinfo *, struct part_entry *, int, int);
+int parse_partition_table(struct driveinfo *, p_callback);
 
 #endif /* _MSDOS_H_ */

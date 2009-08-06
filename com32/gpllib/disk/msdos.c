@@ -16,6 +16,7 @@
 
 #include <disk/common.h>
 #include <disk/geom.h>
+#include <disk/msdos.h>
 #include <disk/partition.h>
 #include <disk/read.h>
 
@@ -40,7 +41,7 @@ static inline int msdos_magic_present(const char *ptab)
  **/
 static int process_extended_partition(struct driveinfo *drive_info,
 				       int partition_offset,
-				       void *callback(struct driveinfo *, struct part_entry *, int, int),
+				       p_callback callback,
 				       int nb_part_seen)
 {
 	int status = 0;
@@ -102,7 +103,7 @@ static int process_extended_partition(struct driveinfo *drive_info,
  * @callback:	Callback to execute
  **/
 static int process_mbr(struct driveinfo *drive_info, struct part_entry *ptab,
-		       void *callback(struct driveinfo *, struct part_entry *, int, int))
+		       p_callback callback)
 {
 	int status = 0;
 
@@ -132,7 +133,6 @@ static int process_mbr(struct driveinfo *drive_info, struct part_entry *ptab,
  * parse_partition_table - execute a callback for each partition entry
  * @d:		driveinfo struct describing the drive
  * @callback:	Callback to execute
- * @error:	Return the error code (I/O), if needed
  *
  * The signature of the callback should be the following:
  *
@@ -141,7 +141,7 @@ static int process_mbr(struct driveinfo *drive_info, struct part_entry *ptab,
  *		 int offset_root,
  *		 int nb_part_seen)
  **/
-int parse_partition_table(struct driveinfo *d, void *callback)
+int parse_partition_table(struct driveinfo *d, p_callback callback)
 {
 	char *mbr = malloc(SECTOR * sizeof(char));
 
