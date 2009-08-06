@@ -133,18 +133,16 @@ void main_show_disk(int argc, char **argv,
 	else
 		memset(disk_size, 0, sizeof disk_size);
 
-	more_printf("DISK 0x%X:\n", d->disk);
-	more_printf("  C/H/S: %d cylinders, %d heads, %d sectors/track\n",
-		d->legacy_max_cylinder + 1, d->legacy_max_head + 1,
-		d->legacy_sectors_per_track);
-	more_printf("  EDD:   Version: %X\n", d->edd_version);
-	more_printf("         Size: %s, %d bytes/sector, %d sectors/track\n",
-		disk_size,
-		(int) d->edd_params.bytes_per_sector,
-		(int) d->edd_params.sectors_per_track);
-	more_printf("         Host bus: %s, Interface type: %s\n\n",
-		remove_spaces(d->edd_params.host_bus_type),
-		remove_spaces(d->edd_params.interface_type));
+	more_printf("DISK 0x%X:\n"
+		    "  C/H/S: %d cylinders, %d heads, %d sectors/track\n"
+		    "  EDD:   Version: %X\n"
+		    "         Size: %s, %d bytes/sector, %d sectors/track\n"
+		    "         Host bus: %s, Interface type: %s\n\n",
+		d->disk,
+		d->legacy_max_cylinder + 1, d->legacy_max_head + 1, d->legacy_sectors_per_track,
+		d->edd_version,
+		disk_size, (int) d->edd_params.bytes_per_sector, (int) d->edd_params.sectors_per_track,
+		remove_spaces(d->edd_params.host_bus_type), remove_spaces(d->edd_params.interface_type));
 
 	if (parse_partition_table(d, &show_partition_information) == -1) {
 		get_error(&error_buffer);
