@@ -14,7 +14,7 @@
 /*
  * extlinux.c
  *
- * Install the extlinux boot block on an ext2/3 filesystem
+ * Install the extlinux boot block on an ext2/3/4 filesystem
  */
 
 #define  _GNU_SOURCE		/* Enable everything */
@@ -618,7 +618,7 @@ int install_bootblock(int fd, const char *device)
     }
 
     if (sb.s_magic != EXT2_SUPER_MAGIC) {
-	fprintf(stderr, "no ext2/ext3 superblock found on %s\n", device);
+	fprintf(stderr, "no ext2/3/4 superblock found on %s\n", device);
 	return 1;
     }
 
@@ -766,7 +766,8 @@ static const char *find_device(const char *mtab_file, dev_t dev)
 
     while ((mnt = getmntent(mtab))) {
 	if ((!strcmp(mnt->mnt_type, "ext2") ||
-	     !strcmp(mnt->mnt_type, "ext3")) &&
+	     !strcmp(mnt->mnt_type, "ext3") ||
+	     !strcmp(mnt->mnt_type, "ext4")) &&
 	    !stat(mnt->mnt_fsname, &dst) && dst.st_rdev == dev) {
 	    devname = strdup(mnt->mnt_fsname);
 	    break;
@@ -796,7 +797,7 @@ int install_loader(const char *path, int update_only)
     }
 
     if (sfs.f_type != EXT2_SUPER_MAGIC) {
-	fprintf(stderr, "%s: not an ext2/ext3 filesystem: %s\n", program, path);
+	fprintf(stderr, "%s: not an ext2/3/4 filesystem: %s\n", program, path);
 	return 1;
     }
 
