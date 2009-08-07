@@ -24,21 +24,63 @@
 /* We use the com32 interface for calling 16-bit code */
 #include <com32.h>
 
-/* The real-mode segment */
-#define LOW_SEG 0x0800
-
 #define __cdecl __attribute__((cdecl,regparm(0)))
 
-typedef void (*syscall_t) (uint8_t, com32sys_t *, com32sys_t *);
-extern __cdecl syscall_t syscall;
-extern void *sys_bounce;
+void __cdecl intcall(uint8_t, com32sys_t *, com32sys_t *);
 
-/* What to call when we're dead */
-extern void __attribute__ ((noreturn)) die(void);
+/* Structure passed in from the real-mode code */
+struct real_mode_args {
+    uint32_t rm_return;
+    uint32_t rm_intcall;
+    uint32_t rm_bounce;
+    uint32_t rm_base;
+    uint32_t rm_handle_interrupt;
+    uint32_t rm_gdt;
+    uint32_t rm_size;
+    uint32_t rm_pmjmp;
+    uint32_t rm_rmjmp;
+};
+extern struct real_mode_args rm_args;
+#define sys_bounce ((void *)rm_args.rm_bounce)
+
+/* This is the header in the boot sector/setup area */
+struct setup_header {
+    char cmdline[0x1f1];
+    uint8_t setup_secs;
+    uint16_t syssize;
+    uint16_t swap_dev;
+    uint16_t ram_size;
+    uint16_t vid_mode;
+    uint16_t root_dev;
+    uint16_t boot_flag;
+    uint16_t jump;
+    char header[4];
+    uint16_t version;
+    uint32_t realmode_swtch;
+    uint32_t start_sys;
+    uint8_t type_of_loader;
+    uint8_t loadflags;
+    uint16_t setup_move_size;
+    uint32_t code32_start;
+    uint32_t ramdisk_image;
+    uint32_t ramdisk_size;
+    uint32_t bootsect_kludge;
+    uint16_t head_end_ptr;
+    uint16_t pad1;
+    uint32_t cmd_line_ptr;
+    uint32_t initrd_addr_max;
+    uint32_t esdi;
+    uint32_t edx;
+    uint32_t sssp;
+    uint32_t csip;
+};
+#define shdr ((struct setup_header *)rm_args.rm_base)
 
 /* Standard routines */
-#define memcpy(a,b,c) __builtin_memcpy(a,b,c)
-#define memset(a,b,c) __builtin_memset(a,b,c)
+void *memcpy(void *, const void *, size_t);
+void *memset(void *, int, size_t);
+void *memmove(void *, const void *, size_t);
+
 #define strcpy(a,b)   __builtin_strcpy(a,b)
 
 static inline size_t strlen(const char *__a)
@@ -73,6 +115,16 @@ static inline int memcmp(const void *__a, const void *__b, unsigned int __n)
     }
 
     return 0;
+}
+
+static inline void sti(void)
+{
+    asm volatile("sti");
+}
+
+static inline void cli(void)
+{
+    asm volatile("cli");
 }
 
 /* Decompression */

@@ -2,10 +2,15 @@
 
 include $(topdir)/MCONFIG
 
-GCCOPT := $(call gcc_ok,-std=gnu99,) \
-	  $(call gcc_ok,-m32,) \
-	  $(call gcc_ok,-fno-stack-protector,) \
-	  $(call gcc_ok,-fPIE,-fPIC)
+GCCOPT := $(call gcc_ok,-std=gnu99,)
+GCCOPT += $(call gcc_ok,-m32,)
+GCCOPT += $(call gcc_ok,-fno-stack-protector,)
+GCCOPT += $(call gcc_ok,-fPIE,-fPIC)
+GCCOPT += $(call gcc_ok,-falign-functions=0,-malign-functions=0)
+GCCOPT += $(call gcc_ok,-falign-jumps=0,-malign-jumps=0)
+GCCOPT += $(call gcc_ok,-falign-labels=0,-malign-labels=0)
+GCCOPT += $(call gcc_ok,-falign-loops=0,-malign-loops=0)
+GCCOPT += $(call gcc_ok,-mpreferred-stack-boundary=2,)
 
 INCLUDE	= -I.
 STRIP	= strip --strip-all -R .comment -R .note
@@ -23,8 +28,7 @@ LIBFLAGS = -DDYNAMIC_CRC_TABLE -DPNG_NO_CONSOLE_IO \
 
 REQFLAGS  = $(GCCOPT) -g -mregparm=3 -DREGPARM=3 -D__COM32__ \
 	    -nostdinc -iwithprefix include -I. -I./sys -I../include
-OPTFLAGS  = -Os -march=i386 -falign-functions=0 -falign-jumps=0 \
-	    -falign-labels=0 -ffast-math -fomit-frame-pointer
+OPTFLAGS  = -Os -march=i386 -ffast-math -fomit-frame-pointer
 WARNFLAGS = -W -Wall -Wpointer-arith -Wwrite-strings -Wstrict-prototypes -Winline
 
 CFLAGS  = $(OPTFLAGS) $(REQFLAGS) $(WARNFLAGS) $(LIBFLAGS)

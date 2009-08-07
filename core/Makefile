@@ -41,7 +41,7 @@ BTARGET  = kwdhash.gen \
 NASMSRC	 := $(wildcard *.asm)
 NASMHDR  := $(wildcard *.inc)
 CSRC	 := $(wildcard *.c)
-SSRC	 := $(wildcard *.S lzo/*.S)
+SSRC	 := $(filter-out symbols.S,$(wildcard *.S lzo/*.S))
 CHDR	 := $(wildcard *.h)
 OTHERSRC := keywords
 ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
@@ -53,7 +53,7 @@ LIB	 = libcore.a
 LIBS	 = $(LIB) $(com32)/lib/libcom32.a $(LIBGCC)
 LIBOBJS	 = $(COBJ) $(SOBJ)
 
-NASMDEBUG = -g -F stabs
+NASMDEBUG = -g -F dwarf
 NASMOPT  += $(NASMDEBUG)
 
 PREPCORE = ../lzo/prepcore
@@ -82,14 +82,20 @@ kwdhash.gen: keywords genhash.pl
 	$(PREPCORE) $< $@
 
 %.o: %.asm kwdhash.gen ../version.gen
-	( $(NASM) -f elf $(NASMOPT) -M -DDEPEND $(NINCLUDE) \
-	  -o $@ $< ; echo '' ) > .$@.d; true
 	$(NASM) -f elf $(NASMOPT) -DDATE_STR="'$(DATE)'" \
 		-DHEXDATE="$(HEXDATE)" \
-		-l $(@:.o=.lsr) -o $@ $<
+		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
 
-%.elf: %.o $(LIBS) syslinux.ld
-	$(LD) $(LDFLAGS) -T syslinux.ld -M -o $@ $< $(LIBS) > $(@:.elf=.map)
+%.elf: %.o $(LIBS) syslinux.ld symbols.S
+	$(LD) $(LDFLAGS) -T syslinux.ld -o $*.elf.tmp $< $(LIBS)
+	$(OBJCOPY) -x --extract-symbol $*.elf.tmp $*.sym
+	$(CC) $(CFLAGS) -DSYMFILE=\"$*.sym\" -c -o $*.sym.o symbols.S
+	$(LD) $(LDFLAGS) -T syslinux.ld -o $*.elf.tmp $< $*.sym.o $(LIBS)
+	$(OBJCOPY) -x --extract-symbol $*.elf.tmp $*.sym
+	$(CC) $(CFLAGS) -DSYMFILE=\"$*.sym\" -c -o $*.sym.o symbols.S
+	$(LD) $(LDFLAGS) -T syslinux.ld -M -o $@ $< $*.sym.o $(LIBS) \
+		> $(@:.elf=.map)
+	-rm -f $*.elf.tmp
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
 	$(PERL) lstadjust.pl $(@:.elf=.lsr) $(@:.elf=.sec) $(@:.elf=.lst)
 
@@ -129,6 +135,7 @@ netinstall: installer
 
 tidy dist:
 	rm -f codepage.cp *.o *.elf *.a stupid.* patch.offset .depend .*.d
+	rm -f *.elf.tmp *.sym
 	rm -f *.lsr *.lst *.map *.sec *.raw
 	rm -f */*.o */*.lst */.*.d
 	rm -f $(OBSOLETE)

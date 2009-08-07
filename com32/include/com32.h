@@ -36,6 +36,8 @@
 #define _COM32_H
 
 #include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <klibc/compiler.h>	/* For __cdecl */
 
 /*
@@ -132,17 +134,20 @@ static inline uint16_t OFFS(const volatile void *__p)
     return (uint16_t) (uintptr_t) __p & 0x000F;
 }
 
-static inline uint16_t OFFS_WRT(const volatile void *__p, uint16_t seg)
+static inline uint16_t OFFS_WRT(const volatile void *__p, uint16_t __seg)
 {
-    return (uint16_t) ((uintptr_t) __p - ((uintptr_t) seg << 4));
+    return (uint16_t) ((uintptr_t) __p - ((uintptr_t) __seg << 4));
 }
 
-static inline int OFFS_VALID(const volatile void *__p, uint16_t seg)
-{
-    uintptr_t __segstart = (uintptr_t) seg << 4;
-    uintptr_t __ptr = (uintptr_t) __p;
+#define OFFS_VALID(p,s) _OFFS_VALID((p), sizeof *(p), (s))
 
-    return (__ptr >= __segstart) && (__ptr <= __segstart + 0xffff);
+static inline bool _OFFS_VALID(const volatile void *__p, size_t __s,
+			       uint16_t __seg)
+{
+    uintptr_t __segstart = (uintptr_t)__seg << 4;
+    uintptr_t __offs  = (uintptr_t)__p - __segstart;
+
+    return __offs <= 0x10000-__s;
 }
 
 static inline void *MK_PTR(uint16_t __seg, uint16_t __offs)

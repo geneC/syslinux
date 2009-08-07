@@ -65,7 +65,6 @@ syslinux.com: syslinux.elf
 		true
 
 %.com: %.asm
-	( $(NASM) -M -DDEPEND $(NASMOPT) -o $@ -M $< && echo '' ) > .$@.d; true
-	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
+	$(NASM) $(NASMOPT) -f bin -o $@ -MP -MD .$@.d -l $*.lst $<
 
 -include .*.d *.tmp

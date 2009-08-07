@@ -123,38 +123,6 @@ struct patch_area {
     struct edd_dpt edd_dpt;
 };
 
-/* This is the header in the boot sector/setup area */
-struct setup_header {
-    char cmdline[0x1f1];
-    uint8_t setup_secs;
-    uint16_t syssize;
-    uint16_t swap_dev;
-    uint16_t ram_size;
-    uint16_t vid_mode;
-    uint16_t root_dev;
-    uint16_t boot_flag;
-    uint16_t jump;
-    char header[4];
-    uint16_t version;
-    uint32_t realmode_swtch;
-    uint32_t start_sys;
-    uint8_t type_of_loader;
-    uint8_t loadflags;
-    uint16_t setup_move_size;
-    uint32_t code32_start;
-    uint32_t ramdisk_image;
-    uint32_t ramdisk_size;
-    uint32_t bootsect_kludge;
-    uint16_t head_end_ptr;
-    uint16_t pad1;
-    uint32_t cmd_line_ptr;
-    uint32_t initrd_addr_max;
-    uint32_t esdi;
-    uint32_t edx;
-};
-
-struct setup_header *const shdr = (struct setup_header *)(LOW_SEG << 4);
-
 /* Access to high memory */
 
 /* Access to objects in the zero page */
@@ -209,7 +177,7 @@ static inline uint32_t rdz_32(uint32_t addr)
 #define CMD_BOOL       ((char *)-2)	/* Found boolean option */
 #define CMD_HASDATA(X) ((int)(X) >= 0)
 
-const char *getcmditem(const char *what)
+static const char *getcmditem(const char *what)
 {
     const char *p;
     const char *wp = what;
@@ -277,18 +245,23 @@ void unzip_if_needed(uint32_t * where_p, uint32_t * size_p)
 		  &orig_crc, &offset) == 0) {
 
 	if (offset + zbytes > size) {
-	    /* Assertion failure; check_zip is supposed to guarantee this
-	       never happens. */
-	    puts("internal error: check_zip returned nonsense\n");
-	    die();
+	    /*
+	     * Assertion failure; check_zip is supposed to guarantee this
+	     * never happens.
+	     */
+	    die("internal error: check_zip returned nonsense\n");
 	}
 
-	/* Find a good place to put it: search memory ranges in descending order
-	   until we find one that is legal and fits */
+	/*
+	 * Find a good place to put it: search memory ranges in descending
+	 * order until we find one that is legal and fits
+	 */
 	okmem = 0;
 	for (i = nranges - 1; i >= 0; i--) {
-	    /* We can't use > 4G memory (32 bits only.)  Truncate to 2^32-1
-	       so we don't have to deal with funny wraparound issues. */
+	    /*
+	     * We can't use > 4G memory (32 bits only.)  Truncate to 2^32-1
+	     * so we don't have to deal with funny wraparound issues.
+	     */
 
 	    /* Must be memory */
 	    if (ranges[i].type != 1)
@@ -317,16 +290,25 @@ void unzip_if_needed(uint32_t * where_p, uint32_t * size_p)
 	    if (startrange >= endrange)
 		continue;
 
-	    /* Must be large enough... don't rely on gzwhere for this (wraparound) */
+	    /*
+	     * Must be large enough... don't rely on gzwhere for this
+	     * (wraparound)
+	     */
 	    if (endrange - startrange < gzdatasize)
 		continue;
 
-	    /* This is where the gz image should be put if we put it in this range */
+	    /*
+	     * This is where the gz image would be put if we put it in this
+	     * range...
+	     */
 	    gzwhere = (endrange - gzdatasize) & ~(UNZIP_ALIGN - 1);
 
 	    /* Cast to uint64_t just in case we're flush with the top byte */
 	    if ((uint64_t) where + size >= gzwhere && where < endrange) {
-		/* Need to move source data to avoid compressed/uncompressed overlap */
+		/*
+		 * Need to move source data to avoid compressed/uncompressed
+		 * overlap
+		 */
 		uint32_t newwhere;
 
 		if (gzwhere - startrange < size)
@@ -336,9 +318,7 @@ void unzip_if_needed(uint32_t * where_p, uint32_t * size_p)
 		printf("Moving compressed data from 0x%08x to 0x%08x\n",
 		       where, newwhere);
 
-		/* Our memcpy() is OK, because we always move from a higher
-		   address to a lower one */
-		memcpy((void *)newwhere, (void *)where, size);
+		memmove((void *)newwhere, (void *)where, size);
 		where = newwhere;
 	    }
 
@@ -347,12 +327,9 @@ void unzip_if_needed(uint32_t * where_p, uint32_t * size_p)
 	    break;
 	}
 
-	if (!okmem) {
-	    printf
-		("Not enough memory to decompress image (need 0x%08x bytes)\n",
+	if (!okmem)
+	    die("Not enough memory to decompress image (need 0x%08x bytes)\n",
 		 gzdatasize);
-	    die();
-	}
 
 	printf("gzip image: decompressed addr 0x%08x, len 0x%08x: ",
 	       target, gzdatasize);
@@ -439,7 +416,7 @@ struct dosemu_header {
 
 #define FOUR(a,b,c,d) (((a) << 24)|((b) << 16)|((c) << 8)|(d))
 
-const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
+static const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 {
     static struct geometry hd_geometry;
     struct dosemu_header dosemu;
@@ -654,16 +631,6 @@ const struct geometry *get_disk_image_geometry(uint32_t where, uint32_t size)
 }
 
 /*
- * Jump here if all hope is gone...
- */
-void __attribute__ ((noreturn)) die(void)
-{
-    asm volatile ("sti");
-    for (;;)
-	asm volatile ("hlt");
-}
-
-/*
  * Find a $PnP installation check structure; return (ES << 16) + DI value
  */
 static uint32_t pnp_install_check(void)
@@ -691,17 +658,66 @@ static uint32_t pnp_install_check(void)
     return 0;
 }
 
+/*
+ * Relocate the real-mode code to a new segment
+ */
+struct gdt_ptr {
+    uint16_t limit;
+    uint32_t base;
+} __attribute__((packed));
+
+static void set_seg_base(uint32_t gdt_base, int seg, uint32_t v)
+{
+    *(uint16_t *)(gdt_base + seg + 2) = v;
+    *(uint8_t *)(gdt_base + seg + 4) = v >> 16;
+    *(uint8_t *)(gdt_base + seg + 7) = v >> 24;
+}
+
+static void relocate_rm_code(uint32_t newbase)
+{
+    uint32_t gdt_base;
+    uint32_t oldbase = rm_args.rm_base;
+    uint32_t delta   = newbase - oldbase;
+
+    cli();
+    memmove((void *)newbase, (void *)oldbase, rm_args.rm_size);
+
+    rm_args.rm_return  		+= delta;
+    rm_args.rm_intcall 		+= delta;
+    rm_args.rm_bounce  		+= delta;
+    rm_args.rm_base    		+= delta;
+    rm_args.rm_gdt              += delta;
+    rm_args.rm_pmjmp		+= delta;
+    rm_args.rm_rmjmp		+= delta;
+
+    gdt_base = rm_args.rm_gdt;
+
+    *(uint32_t *)(gdt_base+2)    = gdt_base;	/* GDT self-pointer */
+
+    /* Segments 0x10 and 0x18 are real-mode-based */
+    set_seg_base(gdt_base, 0x10, rm_args.rm_base);
+    set_seg_base(gdt_base, 0x18, rm_args.rm_base);
+
+    asm volatile("lgdtl %0" : : "m" (*(char *)gdt_base));
+
+    *(uint32_t *)rm_args.rm_pmjmp += delta;
+    *(uint16_t *)rm_args.rm_rmjmp += delta >> 4;
+
+    rm_args.rm_handle_interrupt	+= delta;
+
+    sti();
+}
+
 #define STACK_NEEDED	512	/* Number of bytes of stack */
+
+struct real_mode_args rm_args;
 
 /*
  * Actual setup routine
  * Returns the drive number (which is then passed in %dl to the
  * called routine.)
  */
-__cdecl syscall_t syscall;
-void *sys_bounce;
-
-__cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
+void setup(const struct real_mode_args *rm_args_ptr)
 {
     unsigned int bin_size;
     char *memdisk_hook;
@@ -715,21 +731,23 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
     int total_size, cmdlinelen;
     com32sys_t regs;
     uint32_t ramdisk_image, ramdisk_size;
+    uint32_t boot_base, rm_base;
     int bios_drives;
     int do_edd = 1;		/* 0 = no, 1 = yes, default is yes */
     int no_bpt;			/* No valid BPT presented */
+    uint32_t boot_seg = 0;	/* Meaning 0000:7C00 */
+    uint32_t boot_len = 512;	/* One sector */
+    uint32_t boot_lba = 0;	/* LBA of bootstrap code */
 
-    /* Set up global variables */
-    syscall = cs_syscall;
-    sys_bounce = cs_bounce;
+    /* We need to copy the rm_args into their proper place */
+    memcpy(&rm_args, rm_args_ptr, sizeof rm_args);
+    sti();			/* ... then interrupts are safe */
 
     /* Show signs of life */
     printf("%s  %s\n", memdisk_version, copyright);
 
-    if (!shdr->ramdisk_image || !shdr->ramdisk_size) {
-	puts("MEMDISK: No ramdisk image specified!\n");
-	die();
-    }
+    if (!shdr->ramdisk_image || !shdr->ramdisk_size)
+	die("MEMDISK: No ramdisk image specified!\n");
 
     ramdisk_image = shdr->ramdisk_image;
     ramdisk_size = shdr->ramdisk_size;
@@ -895,10 +913,8 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
     printf("Total size needed = %u bytes, allocating %uK\n",
 	   total_size, (total_size + 0x3ff) >> 10);
 
-    if (total_size > dos_mem) {
-	puts("MEMDISK: Insufficient low memory\n");
-	die();
-    }
+    if (total_size > dos_mem)
+	die("MEMDISK: Insufficient low memory\n");
 
     driveraddr = stddosmem - total_size;
     driveraddr &= ~0x3FF;
@@ -954,7 +970,7 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
 	regs.es = 0;
 	regs.eax.b[1] = 0x08;
 	regs.edx.b[0] = geometry->driveno & 0x80;
-	syscall(0x13, &regs, &regs);
+	intcall(0x13, &regs, &regs);
 
 	/* Note: per suggestion from the Interrupt List, consider
 	   INT 13 08 to have failed if the sector count in CL is zero. */
@@ -1039,9 +1055,8 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
 	wrz_8(BIOS_EQUIP, equip);
 
 	/* Install DPT pointer if this was the only floppy */
-	if (getcmditem("dpt") != CMD_NOTFOUND || ((nflop == 1 || no_bpt)
-						  && getcmditem("nodpt") ==
-						  CMD_NOTFOUND)) {
+	if (getcmditem("dpt") != CMD_NOTFOUND ||
+	    ((nflop == 1 || no_bpt) && getcmditem("nodpt") == CMD_NOTFOUND)) {
 	    /* Do install a replacement DPT into INT 1Eh */
 	    pptr->dpt_ptr = hptr->patch_offs + offsetof(struct patch_area, dpt);
 	}
@@ -1059,31 +1074,38 @@ __cdecl void setup(__cdecl syscall_t cs_syscall, void *cs_bounce)
     printf("new: int13 = %08x  int15 = %08x  int1e = %08x\n",
 	   rdz_32(BIOS_INT13), rdz_32(BIOS_INT15), rdz_32(BIOS_INT1E));
 
-    /* Reboot into the new "disk"; this is also a test for the interrupt hooks */
+    /* Figure out entry point */
+    if (!boot_seg) {
+	boot_base  = 0x7c00;
+	shdr->sssp = 0x7c00; 
+	shdr->csip = 0x7c00; 
+    } else {
+	boot_base  = boot_seg << 4;
+	shdr->sssp = boot_seg << 16;
+	shdr->csip = boot_seg << 16;
+    }
+
+    /* Relocate the real-mode code to below the stub */
+    rm_base = (driveraddr - rm_args.rm_size) & ~15;
+    if (rm_base < boot_base + boot_len)
+	die("MEMDISK: bootstrap too large to load\n");
+
+    relocate_rm_code(rm_base);
+
+    /* Reboot into the new "disk" */
     puts("Loading boot sector... ");
 
-    memset(&regs, 0, sizeof regs);
-    // regs.es = 0;
-    regs.eax.w[0] = 0x0201;	/* Read sector */
-    regs.ebx.w[0] = 0x7c00;	/* 0000:7C00 */
-    regs.ecx.w[0] = 1;		/* One sector */
-    regs.edx.w[0] = geometry->driveno;
-    syscall(0x13, &regs, &regs);
-
-    if (regs.eflags.l & 1) {
-	puts("MEMDISK: Failed to load new boot sector\n");
-	die();
-    }
+    memcpy((void *)boot_base, (char *)pptr->diskbuf + boot_lba*512, boot_len);
 
     if (getcmditem("pause") != CMD_NOTFOUND) {
 	puts("press any key to boot... ");
 	regs.eax.w[0] = 0;
-	syscall(0x16, &regs, NULL);
+	intcall(0x16, &regs, NULL);
     }
 
     puts("booting...\n");
 
     /* On return the assembly code will jump to the boot vector */
     shdr->esdi = pnp_install_check();
-    shdr->edx = geometry->driveno;
+    shdr->edx  = geometry->driveno;
 }
