@@ -18,8 +18,6 @@
 static char *err_nopxe     = "No !PXE or PXENV+ API found; we're dead...\n";
 static char *err_pxefailed = "PXE API call failed, error ";
 static char *err_udpinit   = "Failed to initialize UDP stack\n";
-static char *err_noconfig  = "Unable to locate configuration file\n";
-static char *err_damage    = "TFTP server sent an incomprehesible reply\n";
 
 static char *tftpprefix_msg = "TFTP prefix: ";
 static char *get_packet_msg = "Getting cached packet ";
@@ -1159,7 +1157,8 @@ static void pxe_load_config(com32sys_t *regs)
     if (try_load(regs))
         return;
 
-    /* call16(no_config, NULL, NULL); */
+    printf("Unable to locate configuration file\n");
+    call16(kaboom, NULL, NULL); 
 }
    
   

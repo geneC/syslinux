@@ -35,8 +35,6 @@ static sector_t DataArea;       /* Location of data area */
 static uint32_t TotalSectors;   /* Total number of sectors */
 static uint32_t ClustSize;      /* Bytes/cluster */
 static uint32_t ClustMask;      /* Sector/cluster - 1 */
-static uint8_t  CopySuper;      /* Distinguish .bs versus .bss */
-static uint8_t  DriveNumber;    /* BIOS drive number */
 static uint8_t  ClustShift;     /* Shift count for sectors/cluster */
 static uint8_t  ClustByteShift; /* Shift count for bytes/cluster */
 

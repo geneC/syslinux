@@ -33,7 +33,6 @@ static struct dir_t RootDir;
 static struct dir_t CurrentDir;
 
 static uint16_t BufSafe = TRACKBUF_SIZE >> ISO_SECTOR_SHIFT;
-static uint16_t BufSafeBytes = TRACKBUF_SIZE;
 
 static char ISOFileName[64];      /* ISO filename canonicalizatin buffer */
 static char *ISOFileNameEnd = &ISOFileName[64];
@@ -78,34 +77,6 @@ static void close_file(struct open_file_t *file)
     if (file)
         file->file_sector = 0;
 }
-
-static void getlinsec_cdrom(char *buf, sector_t sector_num, int sectors)
-{
-    com32sys_t regs;
-    //static __lowmem char low_buf[65536]; 
-    /* for safe, we use buf + (sectors << SECTOR_SHIFT) here */
-    int high_addr = (buf + (sectors << ISO_SECTOR_SHIFT)) > (char *)0x100000;
-        
-    memset(&regs, 0, sizeof regs);
-    regs.eax.l = sector_num;
-    regs.ebp.l = sectors;
-    
-    if (high_addr) {
-        regs.es = SEG(core_xfer_buf);
-        regs.ebx.w[0] = OFFS(core_xfer_buf);
-    } else {
-        regs.es = SEG(buf);
-        regs.ebx.w[0] = OFFS(buf);
-    }
-
-    call16(getlinsec, &regs, NULL);
-
-    if (high_addr)
-        memcpy(buf, core_xfer_buf, sectors << ISO_SECTOR_SHIFT);
-}
-
-
-
 
 /**
  * mangle_name:
@@ -437,7 +408,7 @@ static void iso_searchdir(char *filename, struct file *file)
 {
     struct open_file_t *open_file = NULL;
     struct dir_t *dir;
-    uint32_t file_len;
+    uint32_t file_len = 0;
     int ret;
     void *res;
         
