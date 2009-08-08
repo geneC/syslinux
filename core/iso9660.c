@@ -23,7 +23,6 @@ struct open_file_t {
         uint32_t file_bytesleft;
         uint32_t file_left;
 };
-extern char Files[];
 
 struct dir_t {
         uint32_t dir_lba;        /* Directory start (LBA) */
@@ -33,8 +32,6 @@ struct dir_t {
 static struct dir_t RootDir;
 static struct dir_t CurrentDir;
 
-
-extern char trackbuf[TRACKBUF_SIZE];
 static uint16_t BufSafe = TRACKBUF_SIZE >> ISO_SECTOR_SHIFT;
 static uint16_t BufSafeBytes = TRACKBUF_SIZE;
 

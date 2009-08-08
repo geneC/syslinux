@@ -6,7 +6,8 @@
 
 extern char core_xfer_buf[65536];
 extern char core_cache_buf[65536];
-
+extern char trackbuf[];
+extern char Files[];
 extern char CurrentDirName[];
 extern char ConfigName[];
 
@@ -50,11 +51,9 @@ extern uint8_t MACType;      /* MAC address type */
 extern uint8_t  DHCPMagic;
 extern uint8_t  OverLoad;
 extern uint32_t RebootTime;
-
 /* TFTP ACK packet */
 extern uint16_t ack_packet_buf[];
 
-extern char trackbuf[];
 extern char BootFile[];
 extern char PathPrefix[];
 extern char LocalDomain[];

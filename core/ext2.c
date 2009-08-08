@@ -23,8 +23,7 @@ struct open_file_t {
     uint16_t file_in_off;
     uint16_t file_mode;
 };
-extern char Files[];
-extern char trackbuf[];
+
 static char SymlinkBuf[SYMLINK_SECTORS * SECTOR_SIZE + 64];
 
 static struct ext2_inode this_inode;

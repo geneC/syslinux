@@ -20,8 +20,6 @@ struct open_file_t {
     uint32_t file_left;      /* number of sectors left */
 };
 
-extern char Files[MAX_OPEN * sizeof(struct open_file_t)];
-extern char trackbuf[8192];
 extern uint8_t SecPerClust;
 
 
