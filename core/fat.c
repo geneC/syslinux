@@ -26,33 +26,33 @@ extern uint8_t SecPerClust;
 
 
 /* the fat bpb data */
-struct fat_bpb fat;
-int FATType = 0;
+static struct fat_bpb fat;
+static int FATType = 0;
 
 /* generic information about FAT fs */
-sector_t FAT;            /* Location of (first) FAT */
-sector_t RootDirArea;    /* Location of root directory area */
-sector_t RootDir;        /* Location of root directory proper */
-sector_t DataArea;       /* Location of data area */
-uint32_t TotalSectors;   /* Total number of sectors */
-uint32_t ClustSize;      /* Bytes/cluster */
-uint32_t ClustMask;      /* Sector/cluster - 1 */
-uint8_t  CopySuper;      /* Distinguish .bs versus .bss */
-uint8_t  DriveNumber;    /* BIOS drive number */
-uint8_t  ClustShift;     /* Shift count for sectors/cluster */
-uint8_t  ClustByteShift; /* Shift count for bytes/cluster */
+static sector_t FAT;            /* Location of (first) FAT */
+static sector_t RootDirArea;    /* Location of root directory area */
+static sector_t RootDir;        /* Location of root directory proper */
+static sector_t DataArea;       /* Location of data area */
+static uint32_t TotalSectors;   /* Total number of sectors */
+static uint32_t ClustSize;      /* Bytes/cluster */
+static uint32_t ClustMask;      /* Sector/cluster - 1 */
+static uint8_t  CopySuper;      /* Distinguish .bs versus .bss */
+static uint8_t  DriveNumber;    /* BIOS drive number */
+static uint8_t  ClustShift;     /* Shift count for sectors/cluster */
+static uint8_t  ClustByteShift; /* Shift count for bytes/cluster */
 
 static int CurrentDir;
-int PrevDir;
+static int PrevDir;
 
 /* used for long name entry */
-char MangleBuf[12];
-char entry_name[14];
+static char MangleBuf[12];
+static char entry_name[14];
 
 /* try with the biggest long name */
-char long_name[0x40 * 13];
-char *NameStart;
-int  NameLen;
+static char long_name[0x40 * 13];
+static char *NameStart;
+static int  NameLen;
 
 /* do this for readdir, because it called from asm and don't know the fs structure */
 static struct fs_info *this_fs = NULL;
@@ -135,7 +135,7 @@ void close_dir(struct fat_dir_entry *dir)
  * check for a particular sector in the FAT cache.
  *
  */
-struct cache_struct *getfatsector(struct fs_info *fs, sector_t sector)
+static struct cache_struct *getfatsector(struct fs_info *fs, sector_t sector)
 {
     return get_cache_block(fs->fs_dev, FAT + sector);
 }
@@ -327,7 +327,7 @@ static void __getfssec(struct fs_info *fs, char *buf, struct open_file_t *file, 
  * @return: number of bytes read
  *
  */
-uint32_t vfat_getfssec(struct fs_info *fs, char *buf, 
+static uint32_t vfat_getfssec(struct fs_info *fs, char *buf, 
                   void *open_file, int sectors, int *have_more)
 {
     uint32_t bytes_read = sectors << SECTOR_SHIFT;
@@ -356,7 +356,7 @@ uint32_t vfat_getfssec(struct fs_info *fs, char *buf,
  * ends on encountering any whitespace.
  *
  */
-void vfat_mangle_name(char *dst, char *src)
+static void vfat_mangle_name(char *dst, char *src)
 {
     char *p = dst;
     int i = FILENAME_MAX -1;
@@ -654,7 +654,7 @@ static struct open_file_t* search_dos_dir(struct fs_info *fs, char *MangleBuf,
  * @return: return the file structure on successful, or NULL.
  *
  */
-void vfat_searchdir(char *filename, struct file *file)
+static void vfat_searchdir(char *filename, struct file *file)
 {
     sector_t dir_sector;
     uint32_t file_len = 0;
@@ -729,7 +729,7 @@ void vfat_searchdir(char *filename, struct file *file)
  * @param: file
  *
  */
-void readdir(com32sys_t *regs)/*
+static void readdir(com32sys_t *regs)/*
                                 struct fs_info *fs, struct open_file_t* dir_file,
                                 char* filename, uint32_t *file_len, uint8_t *attr)
                               */
@@ -853,7 +853,7 @@ void readdir(com32sys_t *regs)/*
     regs->eax.l = 0;
 }
 
-void vfat_load_config(com32sys_t *regs)
+static void vfat_load_config(com32sys_t *regs)
 {
     char syslinux_cfg1[] = "/boot/syslinux/syslinux.cfg";
     char syslinux_cfg2[] = "/syslinux/syslinux.cfg";
@@ -902,7 +902,7 @@ static inline void bsr(uint8_t *res, int num)
 }
 
 /* init. the fs meta data, return the block size in bits */
-int vfat_fs_init(struct fs_info *fs)
+static int vfat_fs_init(struct fs_info *fs)
 {
     int   sectors_per_fat; 
     uint32_t clust_num;

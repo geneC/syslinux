@@ -15,34 +15,34 @@
 #define GPXE 1
 #define USE_PXE_PROVIDED_STACK 0
 
-char *err_nopxe     = "No !PXE or PXENV+ API found; we're dead...\n";
-char *err_pxefailed = "PXE API call failed, error ";
-char *err_udpinit   = "Failed to initialize UDP stack\n";
-char *err_noconfig  = "Unable to locate configuration file\n";
-char *err_damage    = "TFTP server sent an incomprehesible reply\n";
+static char *err_nopxe     = "No !PXE or PXENV+ API found; we're dead...\n";
+static char *err_pxefailed = "PXE API call failed, error ";
+static char *err_udpinit   = "Failed to initialize UDP stack\n";
+static char *err_noconfig  = "Unable to locate configuration file\n";
+static char *err_damage    = "TFTP server sent an incomprehesible reply\n";
 
-char *tftpprefix_msg = "TFTP prefix: ";
-char *get_packet_msg = "Getting cached packet ";
+static char *tftpprefix_msg = "TFTP prefix: ";
+static char *get_packet_msg = "Getting cached packet ";
 
-uint16_t NextSocket = 49152;
+static uint16_t NextSocket = 49152;
 
 static int has_gpxe;
+static uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
 int HaveUUID = 0;
-uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
 
 static const uint8_t TimeoutTable[] = {
     2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18, 21, 26, 31, 37, 44, 53, 64, 77,
     92, 110, 132, 159, 191, 229, 255, 255, 255, 255, 0
 };
 
-char *mode = "octet";
-char *tsize_str = "tsize";
-int tsize_len = 6; /* We should include the final null here */
+static char *mode = "octet";
+static char *tsize_str = "tsize";
+static int tsize_len = 6; /* We should include the final null here */
 
-char *blksize_str = "blksize";
-int blksize_len = 8;
+static char *blksize_str = "blksize";
+static int blksize_len = 8;
 
-char *asciidec = "1408";
+static char *asciidec = "1408";
 
 
 

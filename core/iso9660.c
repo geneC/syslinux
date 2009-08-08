@@ -30,23 +30,23 @@ struct dir_t {
         uint32_t dir_len;        /* Length in bytes */
         uint32_t dir_clust;      /* Length in clusters */
 };
-struct dir_t RootDir;
-struct dir_t CurrentDir;
+static struct dir_t RootDir;
+static struct dir_t CurrentDir;
 
 
 extern char trackbuf[TRACKBUF_SIZE];
-uint16_t BufSafe = TRACKBUF_SIZE >> ISO_SECTOR_SHIFT;
-uint16_t BufSafeBytes = TRACKBUF_SIZE;
+static uint16_t BufSafe = TRACKBUF_SIZE >> ISO_SECTOR_SHIFT;
+static uint16_t BufSafeBytes = TRACKBUF_SIZE;
 
-char ISOFileName[64];      /* ISO filename canonicalizatin buffer */
-char *ISOFileNameEnd = &ISOFileName[64];
+static char ISOFileName[64];      /* ISO filename canonicalizatin buffer */
+static char *ISOFileNameEnd = &ISOFileName[64];
 
 /* 
  * use to store the block shift, since we treat the hd-mode as 512 bytes
  * sector size, 2048 bytes block size. we still treat the cdrom as 2048  
  * bytes sector size and also the block size.
  */
-int block_shift;
+static int block_shift;
 
 /**
  * allocate_file:
@@ -54,7 +54,7 @@ int block_shift;
  * allocate a file structure
  *
  */
-struct open_file_t *allocate_file()
+static struct open_file_t *allocate_file()
 {
     struct open_file_t *file;
     int i = 0;
@@ -76,13 +76,13 @@ struct open_file_t *allocate_file()
  * Deallocates a file structure 
  *
  */
-void close_file(struct open_file_t *file)
+static void close_file(struct open_file_t *file)
 {
     if (file)
         file->file_sector = 0;
 }
 
-void getlinsec_cdrom(char *buf, sector_t sector_num, int sectors)
+static void getlinsec_cdrom(char *buf, sector_t sector_num, int sectors)
 {
     com32sys_t regs;
     //static __lowmem char low_buf[65536]; 
@@ -124,7 +124,7 @@ void getlinsec_cdrom(char *buf, sector_t sector_num, int sectors)
  * a bit of an easier job.
  *
  */
-void iso_mangle_name(char *dst, char *src)
+static void iso_mangle_name(char *dst, char *src)
 {
     char *p = dst;
     int i = FILENAME_MAX - 1;
@@ -171,7 +171,7 @@ void iso_mangle_name(char *dst, char *src)
  * @return: 1 on match, or 0.
  *
  */
-int iso_compare_names(char *de_name, int *len, char *file_name)
+static int iso_compare_names(char *de_name, int *len, char *file_name)
 {        
     char *p  = ISOFileName;
     char c1, c2;
@@ -244,7 +244,7 @@ static inline int cdrom_read_sectors(struct disk *disk, void *buf, int block, in
  * @param: have_more, to indicate if we have reach the end of the file
  *
  */
-uint32_t iso_getfssec(struct fs_info *fs, char *buf, 
+static uint32_t iso_getfssec(struct fs_info *fs, char *buf, 
                       void *open_file, int sectors, int *have_more)
 {
     uint32_t bytes_read = sectors << ISO_SECTOR_SHIFT;
@@ -282,7 +282,7 @@ uint32_t iso_getfssec(struct fs_info *fs, char *buf,
  * res will return the result.
  *
  */
-int do_search_dir(struct fs_info *fs, struct dir_t *dir, 
+static int do_search_dir(struct fs_info *fs, struct dir_t *dir, 
                   char *name, uint32_t *file_len, void **res)
 {
     struct open_file_t *file;
@@ -423,7 +423,7 @@ int do_search_dir(struct fs_info *fs, struct dir_t *dir,
  * can read a diretory.(Just thought of mine, liu)
  *
  */
-void iso_searchdir(char *filename, struct file *file)
+static void iso_searchdir(char *filename, struct file *file)
 {
     struct open_file_t *open_file = NULL;
     struct dir_t *dir;
@@ -488,7 +488,7 @@ void iso_searchdir(char *filename, struct file *file)
 #endif
 }
 
-void iso_load_config(com32sys_t *regs)
+static void iso_load_config(com32sys_t *regs)
 {
     char *config_name = "isolinux.cfg";
     com32sys_t out_regs;
@@ -501,7 +501,7 @@ void iso_load_config(com32sys_t *regs)
 }
 
 
-int iso_fs_init(struct fs_info *fs)
+static int iso_fs_init(struct fs_info *fs)
 {
     char *iso_dir;
     char *boot_dir  = "/boot/isolinux";
