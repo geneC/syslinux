@@ -8,7 +8,8 @@
 
 #define FILENAME_MAX_LG2 8
 #define FILENAME_MAX     (1 << FILENAME_MAX_LG2)
-#define MAX_OPEN_LG2     6
+/* The size of open_file_t in extlinux is double of in others */
+#define MAX_OPEN_LG2     (6 - 1)  
 #define MAX_OPEN         (1 << MAX_OPEN_LG2)
 #define MAX_SYMLINKS     64
 #define SYMLINK_SECTORS  2
@@ -22,6 +23,7 @@ struct open_file_t {
     sector_t file_in_sec;     /* Sector where inode lives */
     uint16_t file_in_off;
     uint16_t file_mode;
+    uint32_t pad[3];          /* pad to 2^5 == 0x20 bytes */
 };
 
 static char SymlinkBuf[SYMLINK_SECTORS * SECTOR_SIZE + 64];
