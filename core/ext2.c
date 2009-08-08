@@ -28,10 +28,10 @@ extern char Files[];
 struct ext2_inode this_inode;
 struct ext2_super_block sb;
 
-uint16_t ClustByteShift,  ClustShift;
-uint32_t SecPerClust, ClustSize, ClustMask;
-uint32_t PtrsPerBlock1, PtrsPerBlock2, PtrsPerBlock3;
-int DescPerBlock, InodePerBlock;
+static uint16_t ClustByteShift,  ClustShift;
+static uint32_t SecPerClust, ClustSize, ClustMask;
+static uint32_t PtrsPerBlock1, PtrsPerBlock2, PtrsPerBlock3;
+static int DescPerBlock, InodePerBlock;
 
 extern char trackbuf[8192];
 char SymlinkBuf[SYMLINK_SECTORS * SECTOR_SIZE + 64];

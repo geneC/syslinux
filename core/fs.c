@@ -91,7 +91,7 @@ void fs_init(com32sys_t *regs)
     /* set up the fs stucture */    
     fs.fs_name = ops->fs_name;
     fs.fs_ops = ops;
-    if (! strcmp(fs.fs_name, "pxe"))
+    if (!strcmp(fs.fs_name, "pxe"))
         fs.fs_dev = NULL;
     else 
         fs.fs_dev = device_init(regs->edx.b[0], regs->edx.b[1], regs->ecx.l, \

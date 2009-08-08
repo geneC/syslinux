@@ -22,6 +22,7 @@ struct open_file_t {
 
 extern char Files[MAX_OPEN * sizeof(struct open_file_t)];
 extern char trackbuf[8192];
+extern uint8_t SecPerClust;
 
 
 /* the fat bpb data */
@@ -41,7 +42,7 @@ uint8_t  DriveNumber;    /* BIOS drive number */
 uint8_t  ClustShift;     /* Shift count for sectors/cluster */
 uint8_t  ClustByteShift; /* Shift count for bytes/cluster */
 
-int CurrentDir;
+static int CurrentDir;
 int PrevDir;
 
 /* used for long name entry */
