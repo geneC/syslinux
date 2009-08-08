@@ -928,20 +928,20 @@ static void pxe_searchdir(char *filename, struct file *file)
         if (*options == 0)
             goto done;
 
-        dst = src = options;
-        while (buffersize--) {
-            if (*src == 0)
-                break;          /* found a final null */
-            *dst++ = *src++ | 0x20;
-            if (!buffersize)
-                goto done;  /* found no final null */
-        }
-        
-        /* 
-         * Parse option pointed to by options; guaranteed to be null-terminated
-         */
-        p = options;
         do {
+            dst = src = options;
+            while (buffersize--) {
+                if (*src == 0)
+                    break;          /* found a final null */
+                *dst++ = *src++ | 0x20;
+                if (!buffersize)
+                    goto done;  /* found no final null */
+            }
+        
+            /* 
+             * Parse option pointed to by options; guaranteed to be null-terminated
+             */
+            p = options;
             tftp_opt = tftp_options;
             for (i = 0; i < tftp_opts; i++) {
                 if (!strncmp(p, tftp_opt->str_ptr,tftp_opt->str_len))
