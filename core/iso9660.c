@@ -156,6 +156,19 @@ static void iso_mangle_name(char *dst, char *src)
 }
     
 
+/*
+ * Does the opposite of mangle_name; converts a DOS-mangled
+ * filename to the conventional representation.  This is 
+ * needed for the BOOT_IMAGE= parameter for the kernel.
+ *
+ * it returns the lenght of the filename.
+ */
+static int iso_unmangle_name(char *dst, char *src)
+{
+    strcpy(dst, src);
+    return strlen(src);
+}
+
 /**
  * compare the names si and di and report if they are
  * equal from an ISO 9600 perspective. 
@@ -567,6 +580,6 @@ const struct fs_ops iso_fs_ops = {
     .searchdir     = iso_searchdir,
     .getfssec      = iso_getfssec,
     .mangle_name   = iso_mangle_name,
-    .unmangle_name = NULL,
+    .unmangle_name = iso_unmangle_name,
     .load_config   = iso_load_config
 };

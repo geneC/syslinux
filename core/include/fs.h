@@ -28,7 +28,7 @@ struct fs_ops {
     void     (*searchdir)(char *, struct file *);
     uint32_t (*getfssec)(struct fs_info *, char *, void * , int, int *);
     void     (*mangle_name)(char *, char *);
-    void     (*unmangle_name)(void);
+    int      (*unmangle_name)(char *, char *);
     void     (*load_config)(com32sys_t *);
 };
 

@@ -390,6 +390,19 @@ static void vfat_mangle_name(char *dst, char *src)
 }
  
 
+/*
+ * Does the opposite of mangle_name; converts a DOS-mangled
+ * filename to the conventional representation.  This is 
+ * needed for the BOOT_IMAGE= parameter for the kernel.
+ *
+ * it returns the lenght of the filename.
+ */
+static int vfat_unmangle_name(char *dst, char *src)
+{
+    strcpy(dst, src);
+    return strlen(src);
+}
+
 /**
  * mangle_dos_name:
  *
@@ -941,6 +954,6 @@ const struct fs_ops vfat_fs_ops = {
     .searchdir     = vfat_searchdir,
     .getfssec      = vfat_getfssec,
     .mangle_name   = vfat_mangle_name,
-    .unmangle_name = NULL,
+    .unmangle_name = vfat_unmangle_name,
     .load_config   = vfat_load_config
 };

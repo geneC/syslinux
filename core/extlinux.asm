@@ -32,7 +32,8 @@ retry_count	equ 16			; How patient are we with the disk?
 %assign HIGHMEM_SLOP 0			; Avoid this much memory near the top
 LDLINUX_MAGIC	equ 0x3eb202fe		; A random number to identify ourselves with
 
-MAX_OPEN_LG2	equ 6			; log2(Max number of open files)
+; The size of open_file_t in extlinux is double of in others
+MAX_OPEN_LG2	equ (6 - 1)			; log2(Max number of open files)
 MAX_OPEN	equ (1 << MAX_OPEN_LG2)
 
 SECTOR_SHIFT	equ 9
@@ -71,9 +72,9 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 		; ends at 2800h
 
 		section .bss16
-		alignb 16
+		alignb 32
 		global Files
-Files		resb MAX_OPEN*16  ; 16 == open_file_t_size
+Files		resb MAX_OPEN*32  ; 32 == open_file_t_size
 
 ;
 ; Common bootstrap code for disk-based derivatives
@@ -118,22 +119,6 @@ Files		resb MAX_OPEN*16  ; 16 == open_file_t_size
 ; run the user interface.
 ;
 %include "ui.inc"
-
-
-;
-; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
-;                filename to the conventional representation.  This is needed
-;                for the BOOT_IMAGE= parameter for the kernel.
-;
-;                DS:SI -> input mangled file name
-;                ES:DI -> output buffer
-;
-;                On return, DI points to the first byte after the output name,
-;                which is set to a null byte.
-;
-unmangle_name:	call strcpy
-		dec di				; Point to final null byte
-		ret
 
 ;
 ;

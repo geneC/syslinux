@@ -585,7 +585,7 @@ loadinitrd:
 		push edi
                 mov si,InitRD
                 mov di,InitRDCName
-                call unmangle_name              ; Create human-readable name
+                pm_call unmangle_name             ; Create human-readable name
                 sub di,InitRDCName
                 mov [InitRDCNameLen],di
                 mov di,InitRD

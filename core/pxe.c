@@ -497,6 +497,28 @@ static void pxe_mangle_name(char *dst, char *src)
 #endif
 }
 
+
+/*
+ * Does the opposite of mangle_name; converts a DOS-mangled
+ * filename to the conventional representation.  This is 
+ * needed for the BOOT_IMAGE= parameter for the kernel.
+ *
+ * it returns the lenght of the filename.
+ */
+static int pxe_unmangle_name(char *dst, char *src)
+{
+    uint32_t ip = *(uint32_t *)src;
+    int ip_len = 0;
+   
+    if (ip != 0 && ip != -1) {
+        ip_len = gendotquad(dst, *(uint32_t *)src);
+        dst += ip_len;
+    }
+    src += 4;;
+    strcpy(dst, src);
+    
+    return strlen(src) + ip_len;
+}
         
 /*
  *
@@ -1538,6 +1560,6 @@ const struct fs_ops pxe_fs_ops = {
     .searchdir     = pxe_searchdir,
     .getfssec      = pxe_getfssec,
     .mangle_name   = pxe_mangle_name,
-    .unmangle_name = NULL,
+    .unmangle_name = pxe_unmangle_name,
     .load_config   = pxe_load_config
 };

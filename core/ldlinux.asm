@@ -165,23 +165,6 @@ kaboom2:
 
 
 
-;
-; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
-;                filename to the conventional representation.  This is needed
-;                for the BOOT_IMAGE= parameter for the kernel.
-;                NOTE: A 13-byte buffer is mandatory, even if the string is
-;                known to be shorter.
-;
-;                DS:SI -> input mangled file name
-;                ES:DI -> output buffer
-;
-;                On return, DI points to the first byte after the output name,
-;                which is set to a null byte.
-;
-unmangle_name:	call strcpy
-		dec di				; Point to final null byte
-		ret
-
 	
 
 ; -----------------------------------------------------------------------------

@@ -409,7 +409,7 @@ commit_vk:
 		mov cx,7	; "initrd="
 		rep movsb
 		mov si,InitRD
-		call unmangle_name
+		pm_call unmangle_name
 		mov al,' '
 		stosb
 

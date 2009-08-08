@@ -434,36 +434,6 @@ kaboom:
 
 
 ;
-; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
-;                filename to the conventional representation.  This is needed
-;                for the BOOT_IMAGE= parameter for the kernel.
-;
-;                NOTE: The output buffer needs to be able to hold an
-;		 expanded IP address.
-;
-;                DS:SI -> input mangled file name
-;                ES:DI -> output buffer
-;
-;                On return, DI points to the first byte after the output name,
-;                which is set to a null byte.
-;
-unmangle_name:
-		push eax
-		lodsd
-		and eax,eax
-		jz .noip
-		cmp eax,-1
-		jz .noip			; URL
-		pm_call gendotquad
-		mov ax,'::'
-		stosw
-.noip:
-		call strcpy
-		dec di				; Point to final null byte
-		pop eax
-		ret
-
-;
 ; pxenv
 ;
 ; This is the main PXENV+/!PXE entry point, using the PXENV+
