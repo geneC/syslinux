@@ -74,7 +74,7 @@ LIBOBJS = \
 	libpng/pngerror.o libpng/pngpread.o				\
 	\
 	jpeg/tinyjpeg.o jpeg/jidctflt.o	jpeg/decode1.o jpeg/decode3.o   \
-	jpeg/grey.o							\
+	jpeg/grey.o jpeg/yuv420p.o					\
 	jpeg/rgb24.o jpeg/bgr24.o					\
 	jpeg/rgba32.o jpeg/bgra32.o					\
 	\
