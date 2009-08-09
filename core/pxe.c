@@ -933,8 +933,10 @@ static void pxe_searchdir(char *filename, struct file *file)
          * Now we need to parse the OACK packet to get the transfer
          * and packet sizes.
          */
-        if (!buffersize)
+        if (!buffersize) {
+            filesize = -1;
             goto done;       /* No options acked */
+        }
         
         /*
          * If we find an option which starts with a NUL byte,
@@ -964,8 +966,10 @@ static void pxe_searchdir(char *filename, struct file *file)
             p = options;
             tftp_opt = tftp_options;
             for (i = 0; i < tftp_opts; i++) {
-                if (!strncmp(p, tftp_opt->str_ptr,tftp_opt->str_len))
+                if (!strncmp(p, tftp_opt->str_ptr,tftp_opt->str_len)) {
+                    options += tftp_opt->str_len;
                     break;
+                }
                 tftp_opt++;
             }
             if (i == tftp_opts)
@@ -974,11 +978,12 @@ static void pxe_searchdir(char *filename, struct file *file)
             p += tftp_opt->str_len;
             
             /* get the address of the filed that we want to write on */
-            data_ptr = (uint32_t *)((char *)file + tftp_opt->offset);
+            data_ptr = (uint32_t *)((char *)open_file + tftp_opt->offset);
             *data_ptr = 0;
             
             /* do convert a number-string to decimal number, just like atoi */
             while (buffersize--) {
+                options++;
                 if (*p == 0)
                     break;              /* found a final null */
                 if (*p > '9')
