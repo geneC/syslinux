@@ -69,7 +69,7 @@ struct output_dev {
     ssize_t (*write)(struct file_info *, const void *, size_t);
     int (*close)(struct file_info *);
     int (*open)(struct file_info *);
-    const struct output_dev *fallback;	/* Fallback option for certain consoles */
+    const struct output_dev *fallback;	/* Fallback option for some consoles */
 };
 
 /* File structure */
@@ -97,8 +97,20 @@ struct file_info {
 	char *datap;		/* Current data pointer */
 	void *pvt;		/* Private pointer for driver */
 	char *buf;		/* Data buffer */
+	size_t unread_bytes;	/* Valid bytes in unread_buf */
+	char unread_buf[64];	/* unread() data */
     } i;
 };
+
+static inline size_t unread_free(struct file_info *fp)
+{
+    return sizeof fp->i.unread_buf - fp->i.unread_bytes;
+}
+
+static inline char *unread_data(struct file_info *fp)
+{
+    return fp->i.unread_buf + unread_free(fp);
+}
 
 extern struct file_info __file_info[NFILES];
 

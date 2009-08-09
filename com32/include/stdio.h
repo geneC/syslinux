@@ -88,6 +88,8 @@ __extern size_t fwrite(const void *, size_t, size_t, FILE *);
 /* No seek, but we can tell */
 __extern long ftell(FILE *);
 
+__extern int ungetc(int, FILE *);
+
 __extern int printf(const char *, ...);
 __extern int vprintf(const char *, va_list);
 __extern int fprintf(FILE *, const char *, ...);
