@@ -144,7 +144,15 @@ got_config_file:
 		push cs
 		pop es
 		call parse_config
+		cmp word [label_cnt],0
+		ja labels_defined
 
+		mov bx,msg_no_labels_defined
+		mov ax,2
+		int 22h
+		ret
+
+labels_defined:
 ; get_gfx_file
 		mov ax,cs
 		add ax,2000h
@@ -417,6 +425,14 @@ gfx_read_file:
 		mov si,pspCmdArg+1
 		int 22h
 		jnc gfx_file_read
+
+		mov ax,2
+		mov bx,pspCmdArg+1
+		int 22h
+
+		mov ax,2
+		mov bx,msg_not_found
+		int 22h
 		stc
 		ret
 
@@ -641,8 +657,7 @@ gfx_input:
 		shl edi,4
 		add edi, command_line ; buffer (0: no buffer)
 		mov ecx, max_cmd_len ; buffer size
-;		xor eax,eax ; timeout value (0: no timeout)
-		mov eax,100 ; timeout value (0: no timeout)
+		mov eax,[menu_timeout] ; timeout value (0: no timeout)
 
 		call far [gfx_bc_input]
 		ret
@@ -699,33 +714,39 @@ parse_config:
 		mov bx, msg_crlf
 		int 22h
 %endif
+		mov bx,keywords
+		mov cx,[keyword_cnt]
+.keywords_loop:
+		push cx
 		push si
 		push di
-		xor ecx,ecx
+		xor cx,cx
 		mov si,configbuf
-		mov di,label_keyword+1
-		mov cl, byte [label_keyword]
+		mov di,[bx]
+		mov cl,byte [di]
+		inc di
 		call memcmp
 		pop di
 		pop si
-		jz .do_label
+		jnz .not_found
+		pop cx
+		call [bx+2] ; call keyword handler
+		jmp .read
 
-		push si
-		push di
-		xor ecx,ecx
-		mov si,configbuf
-		mov di,default_keyword+1
-		mov cl, byte [default_keyword]
-		call memcmp
-		pop di
-		pop si
-		jz .do_default
+.not_found:
+		add bx,4
+		pop cx
+		loop .keywords_loop
 
 .nextline:
 		call skipline
 		jmp .read
 
-.do_label:
+.eof:
+.noparm:
+		ret
+
+do_label:
 		call skipspace
 		jz .eof
 		jc .noparm
@@ -742,10 +763,11 @@ parse_config:
 		pop di
 		pop es
 		inc word [label_cnt]
+.eof:
+.noparm:
+		ret
 
-		jmp .read
-
-.do_default:
+do_default:
 		call skipspace
 		jz .eof
 		jc .noparm
@@ -759,8 +781,42 @@ parse_config:
 		pop di
 		pop es
 
-		jmp .read
+.eof:
+.noparm:
+		ret
 
+do_timeout:
+		call skipspace
+		jz .eof
+		jc .noparm
+		call ungetc
+		push es
+		push di
+		push cs
+		pop es
+		mov di,NumBuf
+.getnum:
+		cmp di,NumBufEnd
+		jae .loaded
+		call getc
+		stosb
+		cmp al,'-'
+		jnb .getnum
+		call ungetc
+		dec di
+.loaded:
+		mov byte [di],0
+		pop di
+		pop es
+		push cs
+		pop ds
+		mov si,NumBuf
+		push ebx
+		call parseint
+		jc .err
+		mov [menu_timeout],ebx
+.err:
+		pop ebx
 .eof:
 .noparm:
 		ret
@@ -876,23 +932,63 @@ memcmp:
 		pop si
 		ret
 
-		section .data
-label_keyword		db 6,'label',0
-default_keyword		db 7,'default',0
+parseint:
+		push eax
+		push ecx
+		xor eax,eax
+		xor ebx,ebx
+		xor ecx,ecx
+		mov cl,10
+.loop:
+		lodsb
+		and al,al
+		jz .done
+		cmp al,'0'
+		jb .err
+		cmp al,'9'
+		ja .err
+		sub al,'0'
+		imul ebx,ecx
+		add ebx,eax
+		jmp short .loop
+.done:
+		clc
+.ret:
+		pop ecx
+		pop eax
+		ret
+.err:
+		stc
+		jmp short .ret
 
+		section .data
 msg_progname		db 'gfxboot: ',0
 msg_config_file		db 'Configuration file',0
 msg_missing		db 'missing',0
 msg_usage		db 'Usage: gfxboot.com <bootlogo>',0dh,0ah,0
 msg_memory		db 'Could not detect available memory size',0dh,0ah,0
 msg_bootlogo_toobig	db 'bootlogo file too big',0dh,0ah,0
-msg_pxelinux		db 'pxelinux is not supported',0dh,0ah,0
 msg_unknown_file_size	db 'unknown file size',0dh,0ah,0
+msg_not_found		db ' not found',0dh,0ah,0
+msg_no_labels_defined	db 'No labels defined in config file',0dh,0ah,0
 msg_space		db ' ',0
 msg_crlf		db 0dh,0ah,0
 
 gfx_slash		db '/', 0
 db0			db 0
+menu_timeout		dd 100
+
+keyword_text_label	db 6,'label',0
+keyword_text_default	db 7,'default',0
+keyword_text_timeout	db 7,'timeout',0
+keywords		equ $
+			dw keyword_text_label
+			dw do_label
+			dw keyword_text_default
+			dw do_default
+			dw keyword_text_timeout
+			dw do_timeout
+keyword_cnt		dw ($-keywords)/4
 
 ; menu entry descriptor
 menu_entries		equ 0
@@ -941,6 +1037,9 @@ dentry_buf_len		equ $ - dentry_buf
 
 max_cmd_len		equ 2047
 command_line		resb max_cmd_len+2
+
+NumBuf			resb 15
+NumBufEnd		resb 1
 
 			alignb 4
 derivative_id		resb 1
