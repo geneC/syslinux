@@ -949,9 +949,10 @@ static void pxe_searchdir(char *filename, struct file *file)
         options = packet_buf + 2;
         if (*options == 0)
             goto done;
-
+        p = options;
+        
         do {
-            dst = src = options;
+            dst = src = p;
             while (buffersize--) {
                 if (*src == 0)
                     break;          /* found a final null */
@@ -963,13 +964,10 @@ static void pxe_searchdir(char *filename, struct file *file)
             /* 
              * Parse option pointed to by options; guaranteed to be null-terminated
              */
-            p = options;
             tftp_opt = tftp_options;
             for (i = 0; i < tftp_opts; i++) {
-                if (!strncmp(p, tftp_opt->str_ptr,tftp_opt->str_len)) {
-                    options += tftp_opt->str_len;
+                if (!strncmp(p, tftp_opt->str_ptr,tftp_opt->str_len))
                     break;
-                }
                 tftp_opt++;
             }
             if (i == tftp_opts)
@@ -983,14 +981,13 @@ static void pxe_searchdir(char *filename, struct file *file)
             
             /* do convert a number-string to decimal number, just like atoi */
             while (buffersize--) {
-                options++;
                 if (*p == 0)
                     break;              /* found a final null */
                 if (*p > '9')
                     goto err_reply;     /* Not a decimal digit */
                 *data_ptr = *data_ptr * 10 + *p++ - '0';
             }
-            
+            p++;            
         }while (buffersize);
         
     } else {
