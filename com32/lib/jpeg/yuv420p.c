@@ -35,8 +35,6 @@
  * yuv420p.c
  */
 
-/**** XXXX: THIS IS NOT YET CONVERTED TO HANDLE PARTIAL MCUS ****/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,19 +72,21 @@ static void YCrCB_to_YUV420P_1x1(struct jdec_private *priv, int sx, int sy)
 
   p = priv->plane[0];
   y = priv->Y;
-  for (i=0; i<8; i++)
+  for (i = sy; i > 0; i--)
    {
-     memcpy(p, y, 8);
+     memcpy(p, y, sx);
      p += priv->bytes_per_row[0];
-     y+=8;
+     y += 8;
    }
 
   p = priv->plane[1];
   s = priv->Cb;
-  for (i=0; i<8; i+=2)
+  for (i = sy; i > 0; i--)
    {
-     for (j=0; j<8; j+=2, s+=2)
+     for (j = sx; j >= 0; j -= 2) {
        *p++ = *s;
+       s += 2;
+     }
      s += 8; /* Skip one line */
      p += priv->bytes_per_row[1] - 4;
    }
@@ -95,8 +95,10 @@ static void YCrCB_to_YUV420P_1x1(struct jdec_private *priv, int sx, int sy)
   s = priv->Cr;
   for (i=0; i<8; i+=2)
    {
-     for (j=0; j<8; j+=2, s+=2)
+     for (j = sx; j >= 0; j -= 2) {
        *p++ = *s;
+       s += 2;
+     }
      s += 8; /* Skip one line */
      p += priv->bytes_per_row[2] - 4;
    }
@@ -116,27 +118,29 @@ static void YCrCB_to_YUV420P_2x1(struct jdec_private *priv, int sx, int sy)
 
   p = priv->plane[0];
   y1 = priv->Y;
-  for (i=0; i<8; i++)
+  for (i = sy; i > 0; i--)
    {
-     memcpy(p, y1, 16);
+     memcpy(p, y1, sx);
      p += priv->bytes_per_row[0];
      y1 += 16;
    }
 
+  sx = (sx+1) >> 1;
+
   p = priv->plane[1];
   s = priv->Cb;
-  for (i=0; i<8; i+=2)
+  for (i = sy; i > 0; i -= 2)
    {
-     memcpy(p, s, 8);
+     memcpy(p, s, sx);
      s += 16; /* Skip one line */
      p += priv->bytes_per_row[1];
    }
 
   p = priv->plane[2];
   s = priv->Cr;
-  for (i=0; i<8; i+=2)
+  for (i = sy; i > 0; i -= 2)
    {
-     memcpy(p, s, 8);
+     memcpy(p, s, sx);
      s += 16; /* Skip one line */
      p += priv->bytes_per_row[2];
    }
@@ -154,34 +158,40 @@ static void YCrCB_to_YUV420P_2x1(struct jdec_private *priv, int sx, int sy)
 static void YCrCB_to_YUV420P_1x2(struct jdec_private *priv, int sx, int sy)
 {
   const unsigned char *s, *y;
-  unsigned char *p;
+  unsigned char *p, *pr;
   int i,j;
 
   p = priv->plane[0];
   y = priv->Y;
-  for (i=0; i<16; i++)
+  for (i = sy; i > 0; i++)
    {
-     memcpy(p, y, 8);
+     memcpy(p, y, sx);
      p+=priv->bytes_per_row[0];
      y+=8;
    }
 
-  p = priv->plane[1];
+  pr = priv->plane[1];
   s = priv->Cb;
-  for (i=0; i<8; i++)
+  for (i = sy; i > 0; i -= 2)
    {
-     for (j=0; j<8; j+=2, s+=2)
+     p = pr;
+     for (j = sx; j > 0; j -= 2) {
        *p++ = *s;
-     p += priv->bytes_per_row[1] - 4;
+       s += 2;
+     }
+     pr += priv->bytes_per_row[1];
    }
 
-  p = priv->plane[2];
+  pr = priv->plane[2];
   s = priv->Cr;
   for (i=0; i<8; i++)
    {
-     for (j=0; j<8; j+=2, s+=2)
+     p = pr;
+     for (j = sx; j > 0; j -= 2) {
        *p++ = *s;
-     p += priv->bytes_per_row[2] - 4;
+       s += 2;
+     }
+     pr += priv->bytes_per_row[2] - 4;
    }
 }
 
@@ -201,27 +211,29 @@ static void YCrCB_to_YUV420P_2x2(struct jdec_private *priv, int sx, int sy)
 
   p = priv->plane[0];
   y1 = priv->Y;
-  for (i=0; i<16; i++)
+  for (i = sy; i > 0; i--)
    {
-     memcpy(p, y1, 16);
+     memcpy(p, y1, sx);
      p += priv->bytes_per_row[0];
      y1 += 16;
    }
 
+  sx = (sx+1) >> 1;
+
   p = priv->plane[1];
   s = priv->Cb;
-  for (i=0; i<8; i++)
+  for (i = sy; i > 0; i -= 2)
    {
-     memcpy(p, s, 8);
+     memcpy(p, s, sx);
      s += 8;
      p += priv->bytes_per_row[1];
    }
 
   p = priv->plane[2];
   s = priv->Cr;
-  for (i=0; i<8; i++)
+  for (i = sy; i > 0; i -= 2)
    {
-     memcpy(p, s, 8);
+     memcpy(p, s, sx);
      s += 8;
      p += priv->bytes_per_row[2];
    }
@@ -231,25 +243,31 @@ static int initialize_yuv420p(struct jdec_private *priv,
 			      unsigned int *bytes_per_blocklines,
 			      unsigned int *bytes_per_mcu)
 {
-  if (priv->components[0] == NULL)
-    priv->components[0] = (uint8_t *)malloc(priv->width * priv->height);
-  if (priv->components[1] == NULL)
-    priv->components[1] = (uint8_t *)malloc(priv->width * priv->height/4);
-  if (priv->components[2] == NULL)
-    priv->components[2] = (uint8_t *)malloc(priv->width * priv->height/4);
+  int half_height = (priv->height + 1) >> 2;
+  int half_width  = (priv->width  + 1) >> 2;
+
   if (!priv->bytes_per_row[0])
     priv->bytes_per_row[0] = priv->width;
-  if (!priv->bytes_per_row[1])
-    priv->bytes_per_row[1] = priv->width/2;
-  if (!priv->bytes_per_row[2])
-    priv->bytes_per_row[2] = priv->width/2;
+  if (!priv->components[0])
+    priv->components[0] = malloc(priv->height * priv->bytes_per_row[0]);
 
-  bytes_per_blocklines[0] = priv->bytes_per_row[0];
-  bytes_per_blocklines[1] = priv->bytes_per_row[1]/2;
-  bytes_per_blocklines[2] = priv->bytes_per_row[2]/2;
+  if (!priv->bytes_per_row[1])
+    priv->bytes_per_row[1] = half_width;
+  if (!priv->components[1])
+    priv->components[1] = malloc(half_height * priv->bytes_per_row[1]);
+
+  if (!priv->bytes_per_row[2])
+    priv->bytes_per_row[2] = half_width;
+  if (!priv->components[2])
+    priv->components[2] = malloc(half_height * priv->bytes_per_row[2]);
+
   bytes_per_mcu[0] = 8;
   bytes_per_mcu[1] = 4;
   bytes_per_mcu[2] = 4;
+
+  bytes_per_blocklines[0] = priv->width << 3;
+  bytes_per_blocklines[1] = half_width << 2;
+  bytes_per_blocklines[2] = half_width << 2;
 
   /* Return nonzero on failure */
   return !priv->components[0] || !priv->components[1] || !priv->components[2];

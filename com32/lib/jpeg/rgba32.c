@@ -364,12 +364,12 @@ static int initialize_rgba32(struct jdec_private *priv,
 			     unsigned int *bytes_per_blocklines,
 			     unsigned int *bytes_per_mcu)
 {
-  if (priv->components[0] == NULL)
-    priv->components[0] = (uint8_t *)malloc(priv->width * priv->height * 4);
   if (!priv->bytes_per_row[0])
     priv->bytes_per_row[0] = priv->width * 4;
+  if (!priv->components[0])
+    priv->components[0] = malloc(priv->height * priv->bytes_per_row[0]);
 
-  bytes_per_blocklines[0] = priv->bytes_per_row[0];
+  bytes_per_blocklines[0] = priv->bytes_per_row[0] << 3;
   bytes_per_mcu[0] = 4*8;
 
   return !priv->components[0];

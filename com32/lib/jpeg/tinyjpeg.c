@@ -917,9 +917,9 @@ int tinyjpeg_decode(struct jdec_private *priv,
   resync(priv);
 
   /* Don't forget to that block can be either 8 or 16 lines */
-  bytes_per_blocklines[0] <<= yshift_by_mcu;
-  bytes_per_blocklines[1] <<= yshift_by_mcu;
-  bytes_per_blocklines[2] <<= yshift_by_mcu;
+  bytes_per_blocklines[0] <<= yshift_by_mcu-3;
+  bytes_per_blocklines[1] <<= yshift_by_mcu-3;
+  bytes_per_blocklines[2] <<= yshift_by_mcu-3;
 
   bytes_per_mcu[0] <<= xshift_by_mcu-3;
   bytes_per_mcu[1] <<= xshift_by_mcu-3;
