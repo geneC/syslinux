@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2003-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -64,7 +65,6 @@ int opendev(const struct input_dev *idev,
     /* The file structure is already zeroed */
     fp->iop = &dev_error_r;
     fp->oop = &dev_error_w;
-    fp->i.datap = fp->i.buf;
 
     if (idev) {
 	if (idev->open && (e = idev->open(fp))) {

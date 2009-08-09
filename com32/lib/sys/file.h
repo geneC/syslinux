@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2003-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -74,7 +75,7 @@ struct output_dev {
 /* File structure */
 
 #define NFILES 32		/* Number of files to support */
-#define MAXBLOCK 16384		/* Defined by ABI */
+#define MAXBLOCK 65536		/* 16K minimum per ABI */
 
 struct file_info {
     const struct input_dev *iop;	/* Input operations */
@@ -95,7 +96,7 @@ struct file_info {
 	size_t nbytes;		/* Number of bytes available in buffer */
 	char *datap;		/* Current data pointer */
 	void *pvt;		/* Private pointer for driver */
-	char buf[MAXBLOCK];
+	char *buf;		/* Data buffer */
     } i;
 };
 

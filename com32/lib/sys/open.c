@@ -30,6 +30,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include "file.h"
 
 /*
@@ -53,15 +54,19 @@ const struct input_dev __file_dev = {
 int open(const char *pathname, int flags, ...)
 {
     com32sys_t regs;
-    int fd;
-    struct file_info *fp;
+    int fd, e;
+    struct file_info *fp = NULL;
 
     fd = opendev(&__file_dev, NULL, flags);
 
     if (fd < 0)
-	return -1;
+	goto err;
 
     fp = &__file_info[fd];
+
+    fp->i.datap = fp->i.buf = malloc(MAXBLOCK);
+    if (!fp->i.buf)
+	goto err;
 
     strlcpy(__com32.cs_bounce, pathname, __com32.cs_bounce_size);
 
@@ -73,7 +78,7 @@ int open(const char *pathname, int flags, ...)
 
     if ((regs.eflags.l & EFLAGS_CF) || regs.esi.w[0] == 0) {
 	errno = ENOENT;
-	return -1;
+	goto err;
     }
 
     {
@@ -87,4 +92,14 @@ int open(const char *pathname, int flags, ...)
     fp->i.nbytes = 0;
 
     return fd;
+
+err:
+    e = errno;
+    if (fp) {
+	if (fp->i.buf)
+	    free(fp->i.buf);
+	memset(fp, 0, sizeof *fp);	/* Mark file structure unused */
+    }
+    errno = e;
+    return -1;
 }

@@ -7,6 +7,11 @@ Changes in 3.83:
 	  NBP.  This may help avoid a bug in Windows RIS.
 	* PXELINUX: fix localboot after NBP chainloading on certain
 	  BIOSes (including ASUS A8N-E, but possibly others.)
+	* chain.c32: support chainloaded bootloaders on ISOLINUX.
+	* PXELINUX: allow filenames up to 251 characters.
+	* MEMDISK: fix problems booting from USB on Thinkpads, and
+	  possibly other machines or hardware combinations.
+	* isohybrid: fix the -id option.
 
 Changes in 3.82:
 	* isohybrid: fix the -partok logic for loading from a partition.
