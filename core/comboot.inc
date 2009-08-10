@@ -942,15 +942,7 @@ comapi_readdir	equ comapi_err
 ;
 ; INT 22h AX=0022h	Close directory
 ;
-%if IS_SYSLINUX
-comapi_closedir:
-		mov si,P_SI
-		call close_dir
-		clc
-		ret
-%else
-comapi_closedir	equ comapi_err
-%endif
+comapi_closedir	equ comapi_close
 
 ;
 ; INT 22h AX=0023h	Query shuffler size
