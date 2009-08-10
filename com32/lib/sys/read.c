@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -40,6 +41,7 @@
 
 ssize_t read(int fd, void *buf, size_t count)
 {
+    char *datap = buf;
     struct file_info *fp = &__file_info[fd];
     size_t n0, n1;
 
@@ -48,19 +50,20 @@ ssize_t read(int fd, void *buf, size_t count)
 	return -1;
     }
 
-    if (!count)
+    if (__unlikely(!count))
 	return 0;
 
     n0 = min(fp->i.unread_bytes, count);
-    if (n0) {
-	memcpy(buf, unread_data(fp), n0);
+    if (__unlikely(n0)) {
+	memcpy(datap, unread_data(fp), n0);
 	fp->i.unread_bytes -= n0;
 	count -= n0;
+	datap += n0;
 	if (!count)
 	    return n0;
     }
 
-    n1 = fp->iop->read(fp, buf, count);
+    n1 = fp->iop->read(fp, datap, count);
 
     if (n1 == -1 && n0 > 0)
 	return n0;
