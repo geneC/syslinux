@@ -23,9 +23,9 @@ test_memalign.elf : test_memalign.o  $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 test_com32.elf: CFLAGS += -DELF_DEBUG
-test_com32.elf: test_com32.o ../libutil/libutil_com.a ../lib/libcom32min.a $(LIBGCC)
-	$(LD) -n $(LDFLAGS) -o $@ test_com32.o ../libutil/libutil_com.a $(LIBGCC) --whole-archive ../lib/libcom32min.a -Map test_com32.map 
-	$(OBJCOPY) --extract-symbol $@ _root_.c32
+#test_com32.elf: test_com32.o ../libutil/libutil_com.a ../lib/libcom32min.a $(LIBGCC)
+#	$(LD) -n $(LDFLAGS) -o $@ test_com32.o ../libutil/libutil_com.a $(LIBGCC) --whole-archive ../lib/libcom32min.a -Map test_com32.map 
+#	$(OBJCOPY) --extract-symbol $@ _root_.c32
 
 tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d *.map

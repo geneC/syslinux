@@ -1,12 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <console.h>
 #include <string.h>
+#include <console.h>
 #include <com32.h>
 #include <syslinux/adv.h>
 #include <syslinux/config.h>
 #include <setjmp.h>
-//#include "../../com32/libutil/include/sha1.h"
 #include <netinet/in.h>	
 
 #include <sys/exec.h>
@@ -101,7 +100,6 @@ void load_env32(com32sys_t * regs)
 	printf("Loading md5.c32\n%d\n",load_library("dyn/md5.c32"));
 	printf("Loading crypt-md5.c32\n%d\n",load_library("dyn/crypt-md5.c32"));
 	printf("Loading passwd.c32\n%d\n",load_library("dyn/passwd.c32"));
-	printf("Loading execute.c32\n%d\n",load_library("dyn/execute.c32"));
 	printf("Loading get_key.c32\n%d\n",load_library("dyn/get_key.c32"));
 	printf("Loading menumain.c32\n%d\n",load_library("dyn/menumain.c32"));
 	printf("Loading ansiraw.c32\n%d\n",load_library("dyn/ansiraw.c32"));
@@ -110,7 +108,7 @@ void load_env32(com32sys_t * regs)
 	spawnv("dyn/hello.dyn",0);
 	printf("\nTest done\n");*/
 	//printf("%d\n",spawnv("mytest.c32",argv));
-	spawnl("mytest.c32", "mytest", "extlinux.conf", NULL);
+	spawnl("mytest.c32", "mytest",(regs->edi.w[0]), NULL);
 	printf("Done\n");
 	
 	while(1) 1; /* we don't have anything better to do so hang around for a bit */
