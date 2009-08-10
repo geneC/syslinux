@@ -68,15 +68,15 @@ static int strecpy(char *dst, char *src, char *end)
  * @return: if successful return the file pointer, or return NULL
  *
  */
-static struct open_file_t *allocate_file()
+static struct open_file_t *allocate_file(void)
 {
-    struct open_file_t *file = (struct open_file_t *)Files;
-    int i = 0;
+    struct open_file_t *file = Files;
+    int i;
         
-    for (; i < MAX_OPEN; i ++) {
+    for (i = 0; i < MAX_OPEN; i++) {
         if (file->file_bytesleft == 0) /* found it */
             return file;
-        file ++;
+        file++;
     }
     
     return NULL; /* not found */
