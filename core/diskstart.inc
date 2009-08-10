@@ -722,26 +722,12 @@ expand_super:
 
 		
 		pushad
-%if IS_PXELINUX
-	      extern pxe_fs_ops
-	      mov eax,pxe_fs_ops
-%else
- %if IS_EXTLINUX
-	      extern ext2_fs_ops
-	      mov eax,ext2_fs_ops
- %elif IS_SYSLINUX
-	      extern vfat_fs_ops
-	      mov eax,vfat_fs_ops
- %elif IS_ISOLINUX
-	      extern iso_fs_ops
-	      mov eax,iso_fs_ops
- %endif
-	      mov dl,[DriveNumber]
-              mov dh,0               ; we are boot from disk not CDROM
-	      mov ecx,[bsHidden]
-	      mov ebx,[bsHidden+4]
+		mov eax,ROOT_FS_OPS
+		movzx dx,byte [DriveNumber]
+		; DH = 0: we are boot from disk not CDROM
+		mov ecx,[bsHidden]
+		mov ebx,[bsHidden+4]
 		mov si,[bsHeads]
 		mov di,[bsSecPerTrack]
-%endif
 		pm_call fs_init
 		popad

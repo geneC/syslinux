@@ -25,4 +25,7 @@
 my_id		equ extlinux_id
 FILENAME_MAX_LG2 equ 8			; log2(Max filename size Including final null)
 
+		extern ext2_fs_ops
+ROOT_FS_OPS	equ ext2_fs_ops
+
 %include "diskfs.inc"

@@ -31,4 +31,7 @@
 my_id		equ syslinux_id
 FILENAME_MAX_LG2 equ 6			; log2(Max filename size Including final null)
 
+		extern vfat_fs_ops
+ROOT_FS_OPS	equ vfat_fs_ops
+
 %include "diskfs.inc"
