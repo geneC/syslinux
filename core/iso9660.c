@@ -52,16 +52,15 @@ static int block_shift;
  * allocate a file structure
  *
  */
-static struct open_file_t *allocate_file()
+static struct open_file_t *allocate_file(void)
 {
-    struct open_file_t *file;
-    int i = 0;
+    struct open_file_t *file = Files;
+    int i;
     
-    file = (struct open_file_t *)Files;
-    for (; i < MAX_OPEN; i ++ ) {
+    for (i = 0; i < MAX_OPEN; i++) {
         if ( file->file_sector == 0 ) /* found it */
             return file;
-        file ++;
+        file++;
     }
     
     return NULL; /* not found */

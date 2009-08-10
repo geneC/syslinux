@@ -51,16 +51,16 @@ static char *asciidec = "1408";
  * return the socket pointer if success, or null if failure
  *    
  */
-static struct open_file_t* allocate_socket()
+static struct open_file_t *allocate_socket(void)
 {
     extern uint16_t NextSocket;
     uint16_t i = MAX_OPEN;
-    struct open_file_t *socket = (struct open_file_t *)&Files;
+    struct open_file_t *socket = Files;
     
     for (; i > 0; i--) {
         if (*(uint16_t*)socket == 0)
             break;
-        socket ++;
+        socket++;
     }
     
     /* Not found */
@@ -724,7 +724,7 @@ struct tftp_options {
 };
 static struct tftp_options tftp_options[2];
 
-static inline void init_options()
+static inline void init_options(void)
 {
     tftp_options[0].str_ptr = tsize_str;
     tftp_options[0].str_len = tsize_len;
@@ -1313,7 +1313,7 @@ static inline int memory_scan(uint16_t seg, int (*func)(char *))
     return 0;
 }
     
-static int memory_scan_for_pxe_struct()
+static int memory_scan_for_pxe_struct(void)
 {
     extern uint16_t BIOS_fbm;  /* Starting segment */
     uint16_t seg = BIOS_fbm << (10 - 4);
@@ -1321,7 +1321,7 @@ static int memory_scan_for_pxe_struct()
     return memory_scan(seg, is_pxe);
 }
     
-static int memory_scan_for_pxenv_struct()
+static int memory_scan_for_pxenv_struct(void)
 {
     uint16_t seg = 0x1000;
     
@@ -1341,7 +1341,7 @@ static int memory_scan_for_pxenv_struct()
  * if if the API version is 2.1 or later 
  *
  */
-static void pxe_init()
+static void pxe_init(void)
 {
     char plan = 'A';
     uint16_t seg, off;
@@ -1475,7 +1475,7 @@ static void udp_init(void)
 /*
  * Network-specific initialization
  */   
-static void network_init()
+static void network_init(void)
 {   
     struct bootp_t *bp = (struct bootp_t *)trackbuf;
     int pkt_len;
