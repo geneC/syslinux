@@ -237,7 +237,6 @@ struct open_file_t {
     uint8_t  tftp_unused[3];   /* Currently unused */
     uint16_t tftp_pktbuf;      /* Packet buffer offset */
 } __attribute__ ((packed));
-extern char Files[];
 
 struct pxe_udp_write_pkt {
     uint16_t status;

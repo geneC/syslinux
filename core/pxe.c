@@ -15,34 +15,34 @@
 #define GPXE 1
 #define USE_PXE_PROVIDED_STACK 0
 
-char *err_nopxe     = "No !PXE or PXENV+ API found; we're dead...\n";
-char *err_pxefailed = "PXE API call failed, error ";
-char *err_udpinit   = "Failed to initialize UDP stack\n";
-char *err_noconfig  = "Unable to locate configuration file\n";
-char *err_damage    = "TFTP server sent an incomprehesible reply\n";
+static struct open_file_t __bss16 Files[MAX_OPEN];
 
-char *tftpprefix_msg = "TFTP prefix: ";
-char *get_packet_msg = "Getting cached packet ";
+static char *err_nopxe     = "No !PXE or PXENV+ API found; we're dead...\n";
+static char *err_pxefailed = "PXE API call failed, error ";
+static char *err_udpinit   = "Failed to initialize UDP stack\n";
 
-uint16_t NextSocket = 49152;
+static char *tftpprefix_msg = "TFTP prefix: ";
+static char *get_packet_msg = "Getting cached packet ";
+
+static uint16_t NextSocket = 49152;
 
 static int has_gpxe;
+static uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
 int HaveUUID = 0;
-uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
 
 static const uint8_t TimeoutTable[] = {
     2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18, 21, 26, 31, 37, 44, 53, 64, 77,
     92, 110, 132, 159, 191, 229, 255, 255, 255, 255, 0
 };
 
-char *mode = "octet";
-char *tsize_str = "tsize";
-int tsize_len = 6; /* We should include the final null here */
+static char *mode = "octet";
+static char *tsize_str = "tsize";
+static int tsize_len = 6; /* We should include the final null here */
 
-char *blksize_str = "blksize";
-int blksize_len = 8;
+static char *blksize_str = "blksize";
+static int blksize_len = 8;
 
-char *asciidec = "1408";
+static char *asciidec = "1408";
 
 
 
@@ -497,6 +497,28 @@ static void pxe_mangle_name(char *dst, char *src)
 #endif
 }
 
+
+/*
+ * Does the opposite of mangle_name; converts a DOS-mangled
+ * filename to the conventional representation.  This is 
+ * needed for the BOOT_IMAGE= parameter for the kernel.
+ *
+ * it returns the lenght of the filename.
+ */
+static int pxe_unmangle_name(char *dst, char *src)
+{
+    uint32_t ip = *(uint32_t *)src;
+    int ip_len = 0;
+   
+    if (ip != 0 && ip != -1) {
+        ip_len = gendotquad(dst, *(uint32_t *)src);
+        dst += ip_len;
+    }
+    src += 4;;
+    strcpy(dst, src);
+    
+    return strlen(src) + ip_len;
+}
         
 /*
  *
@@ -913,8 +935,10 @@ static void pxe_searchdir(char *filename, struct file *file)
          * Now we need to parse the OACK packet to get the transfer
          * and packet sizes.
          */
-        if (!buffersize)
+        if (!buffersize) {
+            filesize = -1;
             goto done;       /* No options acked */
+        }
         
         /*
          * If we find an option which starts with a NUL byte,
@@ -927,21 +951,21 @@ static void pxe_searchdir(char *filename, struct file *file)
         options = packet_buf + 2;
         if (*options == 0)
             goto done;
-
-        dst = src = options;
-        while (buffersize--) {
-            if (*src == 0)
-                break;          /* found a final null */
-            *dst++ = *src++ | 0x20;
-            if (!buffersize)
-                goto done;  /* found no final null */
-        }
-        
-        /* 
-         * Parse option pointed to by options; guaranteed to be null-terminated
-         */
         p = options;
+        
         do {
+            dst = src = p;
+            while (buffersize--) {
+                if (*src == 0)
+                    break;          /* found a final null */
+                *dst++ = *src++ | 0x20;
+                if (!buffersize)
+                    goto done;  /* found no final null */
+            }
+        
+            /* 
+             * Parse option pointed to by options; guaranteed to be null-terminated
+             */
             tftp_opt = tftp_options;
             for (i = 0; i < tftp_opts; i++) {
                 if (!strncmp(p, tftp_opt->str_ptr,tftp_opt->str_len))
@@ -954,7 +978,7 @@ static void pxe_searchdir(char *filename, struct file *file)
             p += tftp_opt->str_len;
             
             /* get the address of the filed that we want to write on */
-            data_ptr = (uint32_t *)((char *)file + tftp_opt->offset);
+            data_ptr = (uint32_t *)((char *)open_file + tftp_opt->offset);
             *data_ptr = 0;
             
             /* do convert a number-string to decimal number, just like atoi */
@@ -965,7 +989,7 @@ static void pxe_searchdir(char *filename, struct file *file)
                     goto err_reply;     /* Not a decimal digit */
                 *data_ptr = *data_ptr * 10 + *p++ - '0';
             }
-            
+            p++;            
         }while (buffersize);
         
     } else {
@@ -1137,7 +1161,8 @@ static void pxe_load_config(com32sys_t *regs)
     if (try_load(regs))
         return;
 
-    /* call16(no_config, NULL, NULL); */
+    printf("Unable to locate configuration file\n");
+    call16(kaboom, NULL, NULL); 
 }
    
   
@@ -1538,6 +1563,6 @@ const struct fs_ops pxe_fs_ops = {
     .searchdir     = pxe_searchdir,
     .getfssec      = pxe_getfssec,
     .mangle_name   = pxe_mangle_name,
-    .unmangle_name = NULL,
+    .unmangle_name = pxe_unmangle_name,
     .load_config   = pxe_load_config
 };

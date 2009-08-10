@@ -66,11 +66,6 @@ trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 		; ends at 2800h
 
-		section .bss16
-		alignb 16
-		global Files
-Files		resb MAX_OPEN*16  ; 16 == open_file_t_size
-
 ;
 ; Common bootstrap code for disk-based derivatives
 ;
@@ -114,22 +109,6 @@ Files		resb MAX_OPEN*16  ; 16 == open_file_t_size
 ; run the user interface.
 ;
 %include "ui.inc"
-
-
-;
-; unmangle_name: Does the opposite of mangle_name; converts a DOS-mangled
-;                filename to the conventional representation.  This is needed
-;                for the BOOT_IMAGE= parameter for the kernel.
-;
-;                DS:SI -> input mangled file name
-;                ES:DI -> output buffer
-;
-;                On return, DI points to the first byte after the output name,
-;                which is set to a null byte.
-;
-unmangle_name:	call strcpy
-		dec di				; Point to final null byte
-		ret
 
 ;
 ;

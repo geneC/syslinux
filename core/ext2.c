@@ -8,7 +8,8 @@
 
 #define FILENAME_MAX_LG2 8
 #define FILENAME_MAX     (1 << FILENAME_MAX_LG2)
-#define MAX_OPEN_LG2     6
+/* The size of open_file_t in extlinux is double of in others */
+#define MAX_OPEN_LG2     (6 - 1)  
 #define MAX_OPEN         (1 << MAX_OPEN_LG2)
 #define MAX_SYMLINKS     64
 #define SYMLINK_SECTORS  2
@@ -22,20 +23,20 @@ struct open_file_t {
     sector_t file_in_sec;     /* Sector where inode lives */
     uint16_t file_in_off;
     uint16_t file_mode;
+    uint32_t pad[3];          /* pad to 2^5 == 0x20 bytes */
 };
 
-extern char Files[];
-struct ext2_inode this_inode;
-struct ext2_super_block sb;
+static struct open_file_t __bss16 Files[MAX_OPEN];
 
-uint16_t ClustByteShift,  ClustShift;
-uint32_t SecPerClust, ClustSize, ClustMask;
-uint32_t PtrsPerBlock1, PtrsPerBlock2, PtrsPerBlock3;
-int DescPerBlock, InodePerBlock;
+static char SymlinkBuf[SYMLINK_SECTORS * SECTOR_SIZE + 64];
 
-extern char trackbuf[8192];
-char SymlinkBuf[SYMLINK_SECTORS * SECTOR_SIZE + 64];
+static struct ext2_inode this_inode;
+static struct ext2_super_block sb;
 
+static uint16_t ClustByteShift,  ClustShift;
+static uint32_t SecPerClust, ClustSize, ClustMask;
+static uint32_t PtrsPerBlock1, PtrsPerBlock2, PtrsPerBlock3;
+static int DescPerBlock, InodePerBlock;
 
 
 /**
@@ -46,7 +47,7 @@ char SymlinkBuf[SYMLINK_SECTORS * SECTOR_SIZE + 64];
  * well, in Syslinux, strcpy() will advance both the dst and src string pointer.
  * 
  */
-int strecpy(char *dst, char *src, char *end)
+static int strecpy(char *dst, char *src, char *end)
 {
     while (*src != '\0')
         *dst++ = *src++;
@@ -67,7 +68,7 @@ int strecpy(char *dst, char *src, char *end)
  * @return: if successful return the file pointer, or return NULL
  *
  */
-struct open_file_t *allocate_file()
+static struct open_file_t *allocate_file()
 {
     struct open_file_t *file = (struct open_file_t *)Files;
     int i = 0;
@@ -90,7 +91,7 @@ struct open_file_t *allocate_file()
  * @param: file, the file structure we want deallocate
  *
  */
-void close_file(struct open_file_t *file)
+static void close_file(struct open_file_t *file)
 {
     if (file)
         file->file_bytesleft = 0;
@@ -105,7 +106,7 @@ void close_file(struct open_file_t *file)
  * any whitespace.
  *
  */
-void ext2_mangle_name(char *dst, char *src)
+static void ext2_mangle_name(char *dst, char *src)
 {
     char *p = dst;
     int i = FILENAME_MAX -1;
@@ -137,6 +138,20 @@ void ext2_mangle_name(char *dst, char *src)
         *dst++ = '\0';
 }
 
+/*
+ * Does the opposite of mangle_name; converts a DOS-mangled
+ * filename to the conventional representation.  This is 
+ * needed for the BOOT_IMAGE= parameter for the kernel.
+ *
+ * it returns the lenght of the filename.
+ */
+static int ext2_unmangle_name(char *dst, char *src)
+{
+    strcpy(dst, src);
+    return strlen(src);
+}
+
+
 /**
  * get_group_desc:
  *
@@ -147,7 +162,7 @@ void ext2_mangle_name(char *dst, char *src)
  * @return: the pointer of the group's descriptor
  *
  */ 
-struct ext2_group_desc *get_group_desc(struct fs_info *fs, uint32_t group_num)
+static struct ext2_group_desc *get_group_desc(struct fs_info *fs, uint32_t group_num)
 {
     block_t block_num;
     uint32_t offset;
@@ -178,7 +193,7 @@ struct ext2_group_desc *get_group_desc(struct fs_info *fs, uint32_t group_num)
  * @param: offset, same as block
  *
  */
-void read_inode(struct fs_info *fs, uint32_t inode_offset, 
+static void read_inode(struct fs_info *fs, uint32_t inode_offset, 
                 struct ext2_inode *dst, struct ext2_group_desc *desc,
                 block_t *block, uint32_t *offset)
 {
@@ -210,7 +225,7 @@ void read_inode(struct fs_info *fs, uint32_t inode_offset,
  *          the first 128 bytes of the inode, stores in ThisInode
  *
  */
-struct open_file_t * open_inode(struct fs_info *fs, uint32_t inr, uint32_t *file_len)
+static struct open_file_t * open_inode(struct fs_info *fs, uint32_t inr, uint32_t *file_len)
 {
     struct open_file_t *file;
     struct ext2_group_desc *desc;
@@ -248,7 +263,7 @@ struct open_file_t * open_inode(struct fs_info *fs, uint32_t inr, uint32_t *file
 
 
 
-struct ext4_extent_header * 
+static struct ext4_extent_header * 
 ext4_find_leaf (struct fs_info *fs, struct ext4_extent_header *eh, block_t block)
 {
     struct ext4_extent_idx *index;
@@ -282,7 +297,7 @@ ext4_find_leaf (struct fs_info *fs, struct ext4_extent_header *eh, block_t block
 }
 
 /* handle the ext4 extents to get the phsical block number */
-block_t linsector_extent(struct fs_info *fs, block_t block, struct ext2_inode *inode)
+static block_t linsector_extent(struct fs_info *fs, block_t block, struct ext2_inode *inode)
 {
     struct ext4_extent_header *leaf;
     struct ext4_extent *ext;
@@ -326,7 +341,7 @@ block_t linsector_extent(struct fs_info *fs, block_t block, struct ext2_inode *i
  *
  * @return: the physic block number
  */
-block_t linsector_direct(struct fs_info *fs, uint32_t block, struct ext2_inode *inode)
+static block_t linsector_direct(struct fs_info *fs, uint32_t block, struct ext2_inode *inode)
 {
     struct cache_struct *cs;
     
@@ -389,7 +404,7 @@ block_t linsector_direct(struct fs_info *fs, uint32_t block, struct ext2_inode *
  * 
  * @return: physic sector number
  */
-sector_t linsector(struct fs_info *fs, uint32_t lin_sector)
+static sector_t linsector(struct fs_info *fs, uint32_t lin_sector)
 {
     uint32_t block = lin_sector >> ClustShift;
     block_t ret;
@@ -430,7 +445,7 @@ static inline int ext2_match_entry (const char * const name,
 /*
  * p is at least 6 bytes before the end of page
  */
-inline struct ext2_dir_entry *ext2_next_entry(struct ext2_dir_entry *p)
+static inline struct ext2_dir_entry *ext2_next_entry(struct ext2_dir_entry *p)
 {
     return (struct ext2_dir_entry *)((char*)p + p->d_rec_len);
 }
@@ -443,7 +458,7 @@ inline struct ext2_dir_entry *ext2_next_entry(struct ext2_dir_entry *p)
  * n ext2 block pointer, i.e. anything *except the superblock
  *
  */
-void getlinsec_ext(struct fs_info *fs, char *buf, 
+static void getlinsec_ext(struct fs_info *fs, char *buf, 
                    sector_t sector, int sector_cnt)
 {
     int ext_cnt = 0;
@@ -480,7 +495,7 @@ void getlinsec_ext(struct fs_info *fs, char *buf,
  * @return: ECX(of regs), number of bytes read
  *
  */
-uint32_t ext2_getfssec(struct fs_info *fs, char *buf, 
+static uint32_t ext2_getfssec(struct fs_info *fs, char *buf, 
                        void *open_file, int sectors, int *have_more)
 {
     int sector_left, next_sector, sector_idx;
@@ -542,7 +557,7 @@ uint32_t ext2_getfssec(struct fs_info *fs, char *buf,
  * find a dir entry, if find return it or return NULL
  *
  */
-struct ext2_dir_entry* find_dir_entry(struct fs_info *fs, struct open_file_t *file,char *filename)
+static struct ext2_dir_entry* find_dir_entry(struct fs_info *fs, struct open_file_t *file,char *filename)
 {
     int   have_more;
     char *EndBlock = trackbuf + (SecPerClust << SECTOR_SHIFT);;
@@ -580,7 +595,7 @@ struct ext2_dir_entry* find_dir_entry(struct fs_info *fs, struct open_file_t *fi
 }
 
 
-char* do_symlink(struct fs_info *fs, struct open_file_t *file, 
+static char* do_symlink(struct fs_info *fs, struct open_file_t *file, 
                  uint32_t file_len, char *filename)
 {
     int  flag, have_more;
@@ -633,7 +648,7 @@ char* do_symlink(struct fs_info *fs, struct open_file_t *file,
  * @out  : file lenght in bytes, stores in eax
  *
  */
-void ext2_searchdir(char *filename, struct file *file)
+static void ext2_searchdir(char *filename, struct file *file)
 {
     extern int CurrentDir;
     
@@ -726,7 +741,7 @@ void ext2_searchdir(char *filename, struct file *file)
 
 }
 
-void ext2_load_config(com32sys_t *regs)
+static void ext2_load_config(com32sys_t *regs)
 {
     char *config_name = "extlinux.conf";
     com32sys_t out_regs;
@@ -751,7 +766,7 @@ void ext2_load_config(com32sys_t *regs)
 /**
  * init. the fs meta data, return the block size bits.
  */
-int ext2_fs_init(struct fs_info *fs)
+static int ext2_fs_init(struct fs_info *fs)
 {
     struct disk *disk = fs->fs_dev->disk;
 #if 0
@@ -783,6 +798,6 @@ const struct fs_ops ext2_fs_ops = {
     .searchdir     = ext2_searchdir,
     .getfssec      = ext2_getfssec,
     .mangle_name   = ext2_mangle_name,
-    .unmangle_name = NULL,
+    .unmangle_name = ext2_unmangle_name,
     .load_config   = ext2_load_config
 };

@@ -472,7 +472,7 @@ bad_kernel:
 		mov si,KernelName
                 mov di,KernelCName
 		push di
-                call unmangle_name              ; Get human form
+                pm_call unmangle_name              ; Get human form
 		mov si,err_notfound		; Complain about missing kernel
 		call writestr
 		pop si				; KernelCName
@@ -601,7 +601,7 @@ kernel_good:
 
 		mov si,KernelName
 		mov di,KernelCName
-		call unmangle_name
+		pm_call unmangle_name
 		sub di,KernelCName
 		mov [KernelCNameLen],di
 

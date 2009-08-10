@@ -23,12 +23,18 @@ void mangle_name(com32sys_t *regs)
     this_fs->fs_ops->mangle_name(dst, src);
 }
 
-/****
+
 void unmangle_name(com32sys_t *regs)
 {
-    
+    char *src = MK_PTR(regs->ds, regs->esi.w[0]);
+    char *dst = MK_PTR(regs->es, regs->edi.w[0]);
+    int len;
+
+    len = this_fs->fs_ops->unmangle_name(dst, src);
+    /* Update the di register to point to the last null char */
+    regs->edi.w[0] += len;
 }
-****/
+
 
 void getfssec(com32sys_t *regs)
 {
@@ -91,7 +97,7 @@ void fs_init(com32sys_t *regs)
     /* set up the fs stucture */    
     fs.fs_name = ops->fs_name;
     fs.fs_ops = ops;
-    if (! strcmp(fs.fs_name, "pxe"))
+    if (!strcmp(fs.fs_name, "pxe"))
         fs.fs_dev = NULL;
     else 
         fs.fs_dev = device_init(regs->edx.b[0], regs->edx.b[1], regs->ecx.l, \
