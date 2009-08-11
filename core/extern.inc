@@ -18,7 +18,7 @@
 
 %if IS_SYSLINUX
         ; fat.c
-        extern alloc_fill_dir, readdir
+        extern readdir
 %endif
 
 %endif ; EXTERN_INC

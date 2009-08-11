@@ -908,11 +908,10 @@ comapi_opendir:
 		pop ds
 		pm_call searchdir
 		jnz comapi_err	; Didn't find a directory
+                mov eax,[si]     ; the sector number where the dir stores
 		cmp eax,0
 		jz comapi_err	; Found nothing
-			;ZF is unset
-		pm_call alloc_fill_dir
-		mov P_EAX,eax
+                mov P_EAX,eax
 		mov P_CX,SECTOR_SIZE
 		mov P_SI,si
 		clc

@@ -89,22 +89,18 @@ static struct open_file_t *allocate_file(void)
  * structure, or return NULL.
  *
  */
-void alloc_fill_dir(com32sys_t *regs)
+static struct open_file_t *alloc_fill_dir(sector_t sector)
 {
-    sector_t sector = regs->eax.l;
     struct open_file_t *file;
     
     file = allocate_file();
-    if ( !file ) {
-        regs->esi.w[0] = 0;
-        return;
-    }
+    if ( !file )
+        return NULL;        
     
     file->file_sector = sector; /* current sector */
     file->file_bytesleft = 0;   /* current offset */
     file->file_left = sector;   /* beginning sector */
-    
-    regs->esi.w[0] = OFFS_WRT(file, 0);
+    return file;
 }
 
 
@@ -681,31 +677,31 @@ static void vfat_searchdir(char *filename, struct file *file)
         dir_sector = RootDir;
         filename ++;
     }
+    if (*filename == 0) /* root dir is what we need */
+        goto found_dir;
     
     while ( *filename ) {
         p = filename;
+        PrevDir = dir_sector;
         
         /* try to find the end */
         while ( (*p > ' ') && (*p != '/') )
             p ++;
         
-        if (filename == p)
-            //return NULL;
-            goto fail;
-
-        PrevDir = dir_sector;
+        if (filename == p) {
+            /* found a dir */
+            dir_sector = PrevDir;
+            goto found_dir;           
+        }
         
+        //*p = 0; /* null-terminate the current path part */
         mangle_dos_name(MangleBuf, filename);
         open_file = search_dos_dir(file->fs, MangleBuf, dir_sector, &file_len, &attr);
         if (! open_file) 
             goto fail;
-        
-        if ( *p != '/' )   /* we got a file */                        
+
+        if ( *p == 0 )   /* we got a file */                        
             break;
-        
-        if ( (attr & 0x10) == 0 ) /* subdirectory */
-            //return NULL;
-            goto fail;
         
         dir_sector = open_file->file_sector;
         close_file(open_file);
@@ -713,7 +709,11 @@ static void vfat_searchdir(char *filename, struct file *file)
         filename = p + 1; /* search again */                
     }
     
-    if ( (attr & 0x18) || (file_len == 0) ) {
+    if (attr & 0x10) {
+        dir_sector = PrevDir;
+    found_dir:
+        open_file = alloc_fill_dir(dir_sector);
+    } else if ( (attr & 0x18) || (file_len == 0) ) {
     fail:
         file_len = 0;
         open_file = NULL;
