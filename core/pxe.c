@@ -3,14 +3,13 @@
 #include <core.h>
 #include <fs.h>
 #include <pxe.h>
+#include <minmax.h>
 #include <sys/cpu.h>
 
 #define MAX_OPEN_LG2       5
 #define MAX_OPEN           (1 << MAX_OPEN_LG2)
 #define FILENAME_MAX_LG2   7
 #define FILENAME_MAX       (1 << FILENAME_MAX_LG2)
-
-#define MAX(a,b)           (a > b ? a : b)
 
 #define GPXE 1
 #define USE_PXE_PROVIDED_STACK 0
@@ -33,14 +32,16 @@ static const uint8_t TimeoutTable[] = {
     92, 110, 132, 159, 191, 229, 255, 255, 255, 255, 0
 };
 
-static char *mode = "octet";
-static char *tsize_str = "tsize";
-static int tsize_len = 6; /* We should include the final null here */
-
-static char *blksize_str = "blksize";
-static int blksize_len = 8;
-
-static char *asciidec = "1408";
+struct tftp_options {
+    const char *str_ptr;        /* string pointer */
+    size_t      offset;		/* offset into socket structre */
+};
+static const struct tftp_options tftp_options[] =
+{
+    { "tsize",   offsetof(struct open_file_t, tftp_filesize) },
+    { "blksize", offsetof(struct open_file_t, tftp_blksize) },
+};
+static const int tftp_nopts = sizeof tftp_options / sizeof tftp_options[0];
 
 /*
  * Initialize the Files structure
@@ -576,12 +577,10 @@ static void fill_buffer(struct open_file_t *file)
         pkt.lport      = file->tftp_localport;
         err = pxe_call(PXENV_UDP_READ, &pkt);
         if (err) {
-            if (BIOS_timer == old_time) {
-		printf(".");
+            if (BIOS_timer == old_time)
                 continue;
-	    }
-	    printf("+");
             
+	    BIOS_timer = old_time;
             timeout--;		/* decrease one timer tick */
             if (!timeout) {
                 timeout = *timeout_ptr++;
@@ -702,43 +701,12 @@ static uint32_t pxe_getfssec(struct fs_info *fs, char *buf,
  */
 static int fill_tail(char *dst)
 {
-    char *p = dst;
-    strcpy(p, mode);
-    p += strlen(mode) + 1;
+    static const char tail[] = "octet\0""tsize\0""0\0""blksize\0""1408";
     
-    strcpy(p, tsize_str);
-    p += strlen(tsize_str) + 1;
-    
-    strcpy(p, "0");
-    p += 2;
-    
-    strcpy(p, blksize_str);
-    p += strlen(blksize_str) + 1;   
-
-    strcpy(p, asciidec);
-    p += strlen(asciidec) + 1;
-
-    return p - dst;
+    memcpy(dst, tail, sizeof tail);
+    return sizeof tail;
 }
 
-
-struct tftp_options {
-    char *str_ptr;        /* string pointer */
-    int   str_len;        /* string lenght */
-    int   offset;         /* offset into socket structre */
-};
-static struct tftp_options tftp_options[2];
-
-static inline void init_options(void)
-{
-    tftp_options[0].str_ptr = tsize_str;
-    tftp_options[0].str_len = tsize_len;
-    tftp_options[0].offset  = (int)&((struct open_file_t *)0)->tftp_filesize;
-    
-    tftp_options[1].str_ptr = blksize_str;
-    tftp_options[1].str_len = blksize_len;
-    tftp_options[1].offset  = (int)&((struct open_file_t *)0)->tftp_blksize;
-}
 
 /*
  *
@@ -759,19 +727,18 @@ static inline void init_options(void)
  */
 static void pxe_searchdir(char *filename, struct file *file)
 {
+    extern char tftp_proto_err[];
     char *buf = packet_buf;
     char *p = filename;
     char *options;
-    char *src, *dst;
     char *data;
     struct open_file_t *open_file;
     static __lowmem struct pxe_udp_write_pkt uw_pkt;
     static __lowmem struct pxe_udp_read_pkt  ur_pkt;
     static __lowmem struct gpxe_file_open fo;
     static __lowmem struct gpxe_get_file_size gs;
-    struct tftp_options *tftp_opt = tftp_options;
+    const struct tftp_options *tftp_opt;
     int i = 0;
-    int tftp_opts = sizeof tftp_options / sizeof tftp_options[0];
     int err;
     int buffersize;
     const uint8_t  *timeout_ptr;
@@ -781,13 +748,14 @@ static void pxe_searchdir(char *filename, struct file *file)
     uint16_t opcode;
     uint16_t blk_num;
     uint32_t ip;
-    uint32_t filesize = 0;
-    uint32_t *data_ptr;
+    uint32_t opdata, *opdata_ptr;
     
-    init_options();
     open_file = allocate_socket();
-    if (!open_file) 
-        goto done;
+    if (!open_file) {
+	file->file_len = 0;
+	file->open_file = NULL;
+	return;
+    }
     
     timeout_ptr = TimeoutTable;   /* Reset timeout */
 
@@ -825,11 +793,10 @@ static void pxe_searchdir(char *filename, struct file *file)
 #if 0
         err = pxe_call(PXENV_GET_FILE_SIZE, &gs);
         if (!err)
-            filesize = gs.filesize;
+            open_file->tftp_filesize = gs.filesize;
         else
 #endif
-            filesize = -1;
-        open_file->tftp_filesize = -1;
+	    open_file->tftp_filesize = -1;
         goto done;
     }
 #endif /* GPXE */
@@ -844,10 +811,13 @@ static void pxe_searchdir(char *filename, struct file *file)
     uw_pkt.buffersize = buf - packet_buf;
     err = pxe_call(PXENV_UDP_WRITE, &uw_pkt);
     if (err || uw_pkt.status != 0)
-        goto failure;            /* In fact, the 'failure' target will not do a failure thing; 
-                                    it will move on to the next timeout, then tries again until
-                                    _real_ time out */
-    
+        goto failure;            /* 
+				  * In fact, the 'failure' target will not do
+				  * a failure thing; it will move on to the
+				  * next timeout, then tries again until
+				  * _real_ time out
+				  */
+
     /*
      * Danger, Will Robinson! We need to support tiemout
      * and retry lest we just lost a packet ...
@@ -881,7 +851,7 @@ static void pxe_searchdir(char *filename, struct file *file)
     timeout_ptr = TimeoutTable;
     open_file->tftp_remoteport = ur_pkt.rport;
     
-    /* filesize <- -1 == unknow */
+    /* filesize <- -1 == unknown */
     open_file->tftp_filesize = -1;
     /* Default blksize unless blksize option negotiated */
     open_file->tftp_blksize = TFTP_BLOCKSIZE;
@@ -893,11 +863,12 @@ static void pxe_searchdir(char *filename, struct file *file)
      * Get the opcode type, and parse it 
      */
     opcode = *(uint16_t *)packet_buf;
-    if (opcode == TFTP_ERROR) {
-        filesize = 0;
-        open_file = NULL;
-        goto done;                     /* ERROR reply; don't try again */
-    } else if (opcode == TFTP_DATA) {
+    switch (opcode) {
+    case TFTP_ERROR:
+        open_file->tftp_filesize = 0;
+        break;			/* ERROR reply; don't try again */
+
+    case TFTP_DATA:
         /*
          * If the server doesn't support any options, we'll get a
          * DATA reply instead of OACK. Stash the data in the file
@@ -932,94 +903,106 @@ static void pxe_searchdir(char *filename, struct file *file)
 
         open_file->tftp_bytesleft = buffersize;
         open_file->tftp_dataptr = open_file->tftp_pktbuf;
-        memcpy(MK_PTR(PKTBUF_SEG, open_file->tftp_pktbuf), data, buffersize);        
-        goto done;   
-        
-    } else if (opcode == TFTP_OACK) {
+        memcpy(MK_PTR(PKTBUF_SEG, open_file->tftp_pktbuf), data, buffersize);
+	break;
+
+    case TFTP_OACK:
         /* 
          * Now we need to parse the OACK packet to get the transfer
          * and packet sizes.
          */
-        if (!buffersize) {
-            filesize = -1;
-            goto done;       /* No options acked */
-        }
-        
-        /*
-         * If we find an option which starts with a NUL byte,
-         * (a null option), we're either seeing garbage that some
-         * TFTP servers add to the end of the packet, or we have
-         * no clue how to parse the rest of the packet (what is
-         * an option name and what is a value?)  In either case,
-         * discard the rest.
-         */
+
         options = packet_buf + 2;
-        if (*options == 0)
-            goto done;
-        p = options;
+	p = options;
         
-        do {
-            dst = src = p;
-            while (buffersize--) {
-                if (*src == 0)
-                    break;          /* found a final null */
-                *dst++ = *src++ | 0x20;
-                if (!buffersize)
-                    goto done;  /* found no final null */
+	while (buffersize) {
+	    char *opt = p;
+
+	    /*
+	     * If we find an option which starts with a NUL byte,
+	     * (a null option), we're either seeing garbage that some
+	     * TFTP servers add to the end of the packet, or we have
+	     * no clue how to parse the rest of the packet (what is
+	     * an option name and what is a value?)  In either case,
+	     * discard the rest.
+	     */
+	    if (!*opt)
+		goto done;
+
+            while (buffersize) {
+                if (!*p)
+                    break;	/* Found a final null */
+                *p++ |= 0x20;
+		buffersize--;
             }
-        
+	    if (!buffersize)
+		break;		/* Unterminated option */
+
+	    /* Consume the terminal null */
+	    p++;
+	    buffersize--;
+
+	    if (!buffersize)
+		break;		/* No option data */
+
             /* 
-             * Parse option pointed to by options; guaranteed to be null-terminated
+             * Parse option pointed to by options; guaranteed to be
+	     * null-terminated
              */
             tftp_opt = tftp_options;
-            for (i = 0; i < tftp_opts; i++) {
-                if (!strncmp(p, tftp_opt->str_ptr,tftp_opt->str_len))
+            for (i = 0; i < tftp_nopts; i++) {
+                if (!strcmp(opt, tftp_opt->str_ptr))
                     break;
                 tftp_opt++;
             }
-            if (i == tftp_opts)
-                goto err_reply; /* Non-negotitated option returned, no idea what it means ...*/
-            
-            p += tftp_opt->str_len;
+            if (i == tftp_nopts)
+                goto err_reply; /* Non-negotitated option returned,
+				   no idea what it means ...*/
             
             /* get the address of the filed that we want to write on */
-            data_ptr = (uint32_t *)((char *)open_file + tftp_opt->offset);
-            *data_ptr = 0;
+            opdata_ptr = (uint32_t *)((char *)open_file + tftp_opt->offset);
+	    opdata = 0;
             
             /* do convert a number-string to decimal number, just like atoi */
             while (buffersize--) {
-                if (*p == 0)
+		uint8_t d = *p++;
+                if (d == '\0')
                     break;              /* found a final null */
-                if (*p > '9')
+		d -= '0';
+                if (d > 9)
                     goto err_reply;     /* Not a decimal digit */
-                *data_ptr = *data_ptr * 10 + *p++ - '0';
+                opdata = opdata*10 + d;
             }
-            p++;            
-        }while (buffersize);
-        
-    } else {
-        extern char tftp_proto_err[];
-    err_reply:
-    
-        uw_pkt.rport = open_file->tftp_remoteport;
-        uw_pkt.buffer[0] = OFFS_WRT(tftp_proto_err, 0);
-        uw_pkt.buffer[1] = 0;
-        uw_pkt.buffersize = 24;
-        pxe_call(PXENV_UDP_WRITE, &uw_pkt);
-        printf("TFTP server sent an incomprehesible reply\n");
-        call16(kaboom, NULL, NULL);
+	    *opdata_ptr = opdata;
+	}
+	break;
+	
+    default:
+	printf("TFTP unknown opcode %d\n", ntohs(opcode));
+	goto err_reply;
     }
     
-    filesize = open_file->tftp_filesize;
-        
- done:
-    if (!filesize) 
+done:
+    if (!open_file->tftp_filesize) {
         free_socket(open_file);
-    file->file_len  = filesize;
+	file->file_len  = 0;
+	file->open_file = NULL;
+	return;
+    }
     file->open_file = (void *)open_file;
+    file->file_len  = open_file->tftp_filesize;
     return;
 
- failure:
+err_reply:
+    uw_pkt.rport = open_file->tftp_remoteport;
+    uw_pkt.buffer[0] = OFFS_WRT(tftp_proto_err, 0);
+    uw_pkt.buffer[1] = 0;
+    uw_pkt.buffersize = 24;
+    pxe_call(PXENV_UDP_WRITE, &uw_pkt);
+    printf("TFTP server sent an incomprehesible reply\n");
+    call16(kaboom, NULL, NULL);
+        
+failure:
     timeout_ptr++;
     if (*timeout_ptr)
         goto sendreq;  /* Try again */
@@ -1450,7 +1433,7 @@ static void pxe_init(void)
     code_seg = code_seg + ((code_len + 15) >> 4);
     data_seg = data_seg + ((data_len + 15) >> 4);
 
-    RealBaseMem = MAX(code_seg,data_seg) >> 6; /* Convert to kilobytes */
+    RealBaseMem = max(code_seg,data_seg) >> 6; /* Convert to kilobytes */
 }                                  
 
 /*
