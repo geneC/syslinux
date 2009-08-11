@@ -123,7 +123,7 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
 		if (st->vtgraphics && (ch & 0xe0) == 0x60)
 		    ch = decvt_to_cp437[ch - 0x60];
 
-		op->write_char(xy.x, xy.y, ch, st);
+		op->write_char(xy.x, xy.y, BIOS_PAGE, ch, st);
 		xy.x++;
 	    }
 	    break;
@@ -430,6 +430,6 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
     }
 
     /* Update cursor position */
-    op->set_cursor(xy.x, xy.y, st->cursor);
+    op->set_cursor(xy.x, xy.y, BIOS_PAGE, st->cursor);
     st->xy = xy;
 }
