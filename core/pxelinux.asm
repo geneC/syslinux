@@ -290,28 +290,7 @@ _start1:
                 extern pxe_fs_ops
 	        mov eax,pxe_fs_ops
                 pm_call fs_init
-                jmp next
 
-;
-; Plan C, because it must be in real mode, we set it here
-;
-                global plan_c
-plan_c:
-                
-		; Plan C: PXENV+ structure via INT 1Ah AX=5650h
-		mov ax, 5650h
-%if USE_PXE_PROVIDED_STACK == 0
-		lss sp,[InitStack]
-%endif
-		int 1Ah			; May trash regs
-%if USE_PXE_PROVIDED_STACK == 0
-		lss esp,[BaseStack]
-%endif
-		sti			; Work around Etherboot bug
-                ret
-
-
-next:
 ;
 ; Common initialization code
 ;
@@ -482,6 +461,24 @@ PXEEntry	equ pxenv.jump+1
 		alignb 2
 PXEStatus	resb 2
 
+
+		section .text16
+;
+; Invoke INT 1Ah on the PXE stack.  This is used by the "Plan C" method
+; for finding the PXE entry point.
+;
+                global pxe_int1a
+pxe_int1a:
+%if USE_PXE_PROVIDED_STACK == 0
+		mov [cs:PXEStack],sp
+		mov [cs:PXEStack+2],ss
+		lss sp,[cs:InitStack]
+%endif
+		int 1Ah			; May trash registers
+%if USE_PXE_PROVIDED_STACK == 0
+		lss sp,[cs:PXEStack]
+%endif
+		ret
 
 ;
 ; TimeoutTable: list of timeouts (in 18.2 Hz timer ticks)

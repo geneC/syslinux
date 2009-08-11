@@ -336,7 +336,6 @@ static int pxe_get_cached_info(int type)
  */
 static int is_url(char *url)
 {
-    
     while (*url) {
         if(! strncmp(url, "://", 3))
             return 1;
@@ -1251,42 +1250,43 @@ static void ip_init(void)
  * return 1 for success, 0 for failure.
  *
  */
-static int is_pxe(char *buf)
+static int is_pxe(const void *buf)
 {
-    int i = buf[4];
+    const struct pxe_t *pxe = buf;
+    const uint8_t *p = buf;
+    int i = pxe->structlength;
     uint8_t sum = 0;
 
-    if (memcmp(buf, "!PXE", 4) || i < 0x58)
+    if (i < sizeof(struct pxe_t) ||
+	memcmp(pxe->signature, "!PXE", 4))
         return 0;
 
     while (i--)
-        sum += *buf++;
+        sum += *p++;
 
-    if (sum == 0)
-        return 1;
-    else
-        return 0;
+    return sum == 0;
 }
 
 /**
  * Just like is_pxe, it checks PXENV+ structure
  *
  */
-static int is_pxenv(char *buf)
+static int is_pxenv(const void *buf)
 {
-    int i = buf[8];
+    const struct pxenv_t *pxenv = buf;
+    const uint8_t *p = buf;
+    int i = pxenv->length;
     uint8_t sum = 0;
     
-    if (memcmp(buf, "PXENV+", 6) || i < 0x28)
+    /* The pxeptr field isn't present in old versions */
+    if (i < offsetof(struct pxenv_t, pxeptr) ||
+	memcmp(pxenv->signature, "PXENV+", 6))
         return 0;
 
     while (i--)
-        sum += *buf++;
+        sum += *p++;
 
-    if (sum == 0)
-        return 1;
-    else
-        return 0;
+    return sum == 0;
 }
         
 
@@ -1309,29 +1309,29 @@ static int is_pxenv(char *buf)
 ;
  ********************************************************************/
 
-static inline int memory_scan(uint16_t seg, int (*func)(char *))
+static const void *memory_scan(uintptr_t start, int (*func)(const void *))
 {
-    while (seg < 0xA000) {
-        if (func(MK_PTR(seg, 0)))
-            return 1;       /* found it */
-        seg++;
+    const char *ptr;
+
+    /* Scan each 16 bytes of conventional memory before the VGA region */
+    for (ptr = (const char *)start; ptr < (const char *)0xA0000; ptr += 16) {
+        if (func(ptr))
+            return ptr;		/* found it! */
+	ptr += 16;
     }
-    return 0;
+    return NULL;
 }
     
-static int memory_scan_for_pxe_struct(void)
+static const struct pxe_t *memory_scan_for_pxe_struct(void)
 {
     extern uint16_t BIOS_fbm;  /* Starting segment */
-    uint16_t seg = BIOS_fbm << (10 - 4);
 
-    return memory_scan(seg, is_pxe);
+    return memory_scan(BIOS_fbm << 10, is_pxe);
 }
     
-static int memory_scan_for_pxenv_struct(void)
+static const struct pxenv_t *memory_scan_for_pxenv_struct(void)
 {
-    uint16_t seg = 0x1000;
-    
-    return memory_scan(seg, is_pxenv);
+    return memory_scan(0x10000, is_pxenv);
 }
 
 /*
@@ -1349,11 +1349,16 @@ static int memory_scan_for_pxenv_struct(void)
  */
 static void pxe_init(void)
 {
+    extern void pxe_int1a(void);
     char plan = 'A';
     uint16_t seg, off;
     uint16_t code_seg, code_len;
     uint16_t data_seg, data_len;
     char *base = GET_PTR(InitStack);
+    com32sys_t regs;
+    const char *type;
+    const struct pxenv_t *pxenv;
+    const struct pxe_t *pxe;
 
     /* Assume API version 2.1 */
     APIVer = 0x201;
@@ -1361,43 +1366,39 @@ static void pxe_init(void)
     /* Plan A: !PXE structure as SS:[SP + 4] */
     off = *(uint16_t *)(base + 48);
     seg = *(uint16_t *)(base + 50);
-    if (is_pxe(MK_PTR(seg, off))) 
+    pxe = MK_PTR(seg, off);
+    if (is_pxe(pxe)) 
         goto have_pxe;
 
     /* Plan B: PXENV+ structure at [ES:BX] */
     plan++;
     off = *(uint16_t *)(base + 24);  /* Original BX */
     seg = *(uint16_t *)(base + 4);   /* Original ES */
-    if (is_pxenv(MK_PTR(seg, off)))
+    pxenv = MK_PTR(seg, off);
+    if (is_pxenv(pxenv))
         goto have_pxenv;
 
     /* 
      * Plan C: PXENV+ structure via INT 1Ah AX=5650h 
-     * 
-     * for now, we just skip it since it must be run in Real mode 
      */
-    extern void plan_c(void);
     plan++;
-#if 0
-    goto plan_D;               
-    call16(plan_c, regs, regs);
-    if (((regs->eflags.l & EFLAGS_CF) == 0) && (regs->eax.w[0] == 0x564e)) {
-        seg = regs->es;
-        off = regs->ebx.w[0];
-        if (is_pxenv(MK_PTR(seg, off)))
+    memset(&regs, 0, sizeof regs);
+    regs.eax.w[0] = 0x5650;
+    call16(pxe_int1a, &regs, &regs);
+    if (!(regs.eflags.l & EFLAGS_CF) && (regs.eax.w[0] == 0x564e)) {
+	pxenv = MK_PTR(regs.es, regs.ebx.w[0]);
+        if (is_pxenv(pxenv))
             goto have_pxenv;
     }
 
- plan_D:
-#endif
     /* Plan D: !PXE memory scan */
     plan++;
-    if (memory_scan_for_pxe_struct())
+    if ((pxe = memory_scan_for_pxe_struct()))
         goto have_pxe;
     
     /* Plan E: PXENV+ memory scan */
     plan++;
-    if (memory_scan_for_pxenv_struct())
+    if ((pxenv = memory_scan_for_pxenv_struct()))
         goto have_pxenv;
 
     /* Found nothing at all !! */
@@ -1405,59 +1406,51 @@ static void pxe_init(void)
     call16(kaboom, NULL, NULL);
     
  have_pxenv:
-    base = MK_PTR(seg, off);
-    APIVer = *(uint16_t *)(base + 6);
+    APIVer = pxenv->version;
     printf("Found PXENV+ structure\nPXE API version is %04x\n", APIVer);
 
     /* if the API version number is 0x0201 or higher, use the !PXE structure */
     if (APIVer >= 0x201) {
-        if (*(char *)(base + 8) < 0x2c) {          /* Length of PXENV+ structure in bytes */
-            if (memory_scan_for_pxe_struct())
-                goto have_pxe;
-        }
-    
-        off = *(uint16_t *)(base + 0x28);
-        seg = *(uint16_t *)(base + 0x2a);
-        if (is_pxe(MK_PTR(seg, off)))
-            goto have_pxe;    
-        /*
-         * Nope, !PXE structuremissing despite API 2.1+, or at least
-         * the pointer is missing. Do a last-ditch attempt to find it
-         */
-        if (memory_scan_for_pxe_struct())
-            goto have_pxe;
+	if (pxenv->length >= sizeof(struct pxenv_t)) {
+	    pxe = GET_PTR(pxenv->pxeptr);
+	    if (is_pxe(pxe))
+		goto have_pxe;  
+	    /*
+	     * Nope, !PXE structure missing despite API 2.1+, or at least
+	     * the pointer is missing. Do a last-ditch attempt to find it
+	     */
+	    if ((pxe = memory_scan_for_pxe_struct()))
+		goto have_pxe;
+	}
     }
     
     /* Otherwise, no dice, use PXENV+ structure */
-    data_len = *(uint16_t *)(base + 0x22);  /* UNDI data len */
-    data_seg = *(uint16_t *)(base + 0x20);  /* UNDI data seg */
-    code_len = *(uint16_t *)(base + 0x26);  /* UNDI code len */
-    code_seg = *(uint16_t *)(base + 0x24);  /* UNDI code seg */
-    PXEEntry = *(far_ptr_t *)(base + 0x0a);  /* PXENV+ entry point */
-    printf("PXENV+ entry point found (we hope) at ");
+    data_len = pxenv->undidatasize;
+    data_seg = pxenv->undidataseg;
+    code_len = pxenv->undicodesize;
+    code_seg = pxenv->undicodeseg;
+    PXEEntry = pxenv->rmentry;
+    type = "PXENV+";
     goto have_entrypoint;
 
  have_pxe:
-    base = MK_PTR(seg, off);
-    
-    data_len = *(uint16_t *)(base + 0x2e);  /* UNDI data len */
-    data_seg = *(uint16_t *)(base + 0x28);  /* UNDI data seg */
-    code_len = *(uint16_t *)(base + 0x36);  /* UNDI code len */
-    code_seg = *(uint16_t *)(base + 0x30);  /* UNDI code seg */
-    PXEEntry = *(far_ptr_t *)(base + 0x10);  /* !PXE entry point */
-    printf("!PXE entry point found (we hope) at ");
+    data_len = pxe->seg[PXE_Seg_UNDIData].size;
+    data_seg = pxe->seg[PXE_Seg_UNDIData].sel;
+    code_len = pxe->seg[PXE_Seg_UNDICode].size;
+    code_seg = pxe->seg[PXE_Seg_UNDICode].sel;
+    PXEEntry = pxe->entrypointsp;
+    type = "!PXE";
 
  have_entrypoint:
-    printf("%04X:%04X via plan %c\n", PXEEntry.seg, PXEEntry.offs, plan);
+    printf("%s entry point found (we hope) at %04X:%04X via plan %c\n",
+	   type, PXEEntry.seg, PXEEntry.offs, plan);
     printf("UNDI code segment at %04X len %04X\n", code_seg, code_len);
-    code_seg = code_seg + ((code_len + 15) >> 4);
-    
     printf("UNDI data segment at %04X len %04X\n", data_seg, data_len);
+
+    code_seg = code_seg + ((code_len + 15) >> 4);
     data_seg = data_seg + ((data_len + 15) >> 4);
-    
-    
+
     RealBaseMem = MAX(code_seg,data_seg) >> 6; /* Convert to kilobytes */
-    //regs->es = regs->ds;                       /* Restore the es segment */
 }                                  
 
 /*
