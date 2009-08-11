@@ -907,12 +907,11 @@ comapi_opendir:
 		pm_call mangle_name
 		pop ds
 		pm_call searchdir
-		jnz comapi_err	; Didn't find a directory
+		jz comapi_err	; Didn't find a directory
+                mov eax,[si]     ; the sector number where the dir stores
 		cmp eax,0
 		jz comapi_err	; Found nothing
-			;ZF is unset
-		pm_call alloc_fill_dir
-		mov P_EAX,eax
+                mov P_EAX,eax
 		mov P_CX,SECTOR_SIZE
 		mov P_SI,si
 		clc
@@ -929,7 +928,7 @@ comapi_readdir:
 		mov es,P_ES
 		mov di,P_DI
 		mov si,P_SI
-		pm_call readdir
+		pm_call vfat_readdir
 		mov P_EAX,eax
 		mov P_DL,dl
 		mov P_EBX,ebx

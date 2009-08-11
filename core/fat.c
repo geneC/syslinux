@@ -89,22 +89,18 @@ static struct open_file_t *allocate_file(void)
  * structure, or return NULL.
  *
  */
-void alloc_fill_dir(com32sys_t *regs)
+static struct open_file_t *alloc_fill_dir(sector_t sector)
 {
-    sector_t sector = regs->eax.l;
     struct open_file_t *file;
     
     file = allocate_file();
-    if ( !file ) {
-        regs->esi.w[0] = 0;
-        return;
-    }
+    if ( !file )
+        return NULL;        
     
     file->file_sector = sector; /* current sector */
     file->file_bytesleft = 0;   /* current offset */
     file->file_left = sector;   /* beginning sector */
-    
-    regs->esi.w[0] = OFFS_WRT(file, 0);
+    return file;
 }
 
 
@@ -679,41 +675,44 @@ static void vfat_searchdir(char *filename, struct file *file)
     dir_sector = CurrentDir;
     if ( *filename == '/' ) {
         dir_sector = RootDir;
-        filename ++;
+        if (*(filename + 1) == 0) /* root dir is what we need */
+            goto found_dir;
     }
-    
+        
     while ( *filename ) {
+        if (*filename == '/')
+            filename++;               /* skip '/' */
         p = filename;
+        if (*p == 0)
+            break;
+        PrevDir = dir_sector;
         
         /* try to find the end */
         while ( (*p > ' ') && (*p != '/') )
             p ++;
         
-        if (filename == p)
-            //return NULL;
-            goto fail;
-
-        PrevDir = dir_sector;
+        if (filename == p) {
+            /* found a dir */
+            dir_sector = PrevDir;
+            goto found_dir;           
+        }
         
         mangle_dos_name(MangleBuf, filename);
+        /* close it before open a new dir file */
+        close_file(open_file);
         open_file = search_dos_dir(file->fs, MangleBuf, dir_sector, &file_len, &attr);
         if (! open_file) 
             goto fail;
-        
-        if ( *p != '/' )   /* we got a file */                        
-            break;
-        
-        if ( (attr & 0x10) == 0 ) /* subdirectory */
-            //return NULL;
-            goto fail;
-        
+
         dir_sector = open_file->file_sector;
-        close_file(open_file);
-        
-        filename = p + 1; /* search again */                
+        filename = p;
     }
     
-    if ( (attr & 0x18) || (file_len == 0) ) {
+    if (attr & 0x10) {
+        dir_sector = PrevDir;
+    found_dir:
+        open_file = alloc_fill_dir(dir_sector);
+    } else if ( (attr & 0x18) || (file_len == 0) ) {
     fail:
         file_len = 0;
         open_file = NULL;
@@ -740,21 +739,20 @@ static void vfat_searchdir(char *filename, struct file *file)
  * @param: file
  *
  */
-static void readdir(com32sys_t *regs)/*
+void vfat_readdir(com32sys_t *regs)/*
                                 struct fs_info *fs, struct open_file_t* dir_file,
                                 char* filename, uint32_t *file_len, uint8_t *attr)
                               */
 {
-    uint32_t sector, sec_off;       
-    
+    uint32_t sector, sec_off;      
     /* make it to be 1 to check if we have met a long name entry before */
     uint8_t  id = 1;
     uint8_t  init_id, next_id;
     uint8_t  entries_left;  
     int i;
 
-    char *filename = (char *)MK_PTR(regs->es, regs->edi.w[0]);
-    struct open_file_t *dir_file = (struct open_file_t *)MK_PTR(regs->ds, regs->esi.w[0]);
+    char *filename = MK_PTR(regs->es, regs->edi.w[0]);
+    struct open_file_t *dir_file = MK_PTR(regs->ds, regs->esi.w[0]);
     
     struct cache_struct  *cs;
     struct fat_dir_entry *dir;
@@ -763,7 +761,7 @@ static void readdir(com32sys_t *regs)/*
     
     sector  = dir_file->file_sector;
     sec_off = dir_file->file_bytesleft;
-    if ( !sector )
+    if (!sector)
         goto fail;
     
     entries_left = (SECTOR_SIZE - sec_off) >> 5;
@@ -813,7 +811,7 @@ static void readdir(com32sys_t *regs)/*
             }
             
             *filename++ = '.';
-            
+                        
             for ( i = 8; i < 11; i ++) {
                 if ( dir->name[i] == ' ' )
                     break;
@@ -821,8 +819,8 @@ static void readdir(com32sys_t *regs)/*
             }
             
             /* check if we have got an extention */
-            if ( ! *(filename - 1) ) 
-                *(filename -2) = '\0';
+            if (*(filename - 1) == '.') 
+                *(filename - 1) = '\0';
             else
                 *filename = '\0';      
             
@@ -848,7 +846,10 @@ static void readdir(com32sys_t *regs)/*
         sector = nextsector(this_fs, sector);
         if ( !sector )
             goto fail;
-    }
+        dir_file->file_bytesleft = 0;
+    } else 
+        dir_file->file_bytesleft = SECTOR_SIZE - (entries_left << 5);
+    dir_file->file_sector = sector;
 
     file.file_sector = sector;
     file.file_bytesleft = (SECTOR_SIZE - (entries_left << DIRENT_SHIFT) ) & 0xffff;
@@ -862,6 +863,8 @@ static void readdir(com32sys_t *regs)/*
  fail:
     //close_dir(dir);
     regs->eax.l = 0;
+    regs->esi.w[0] = 0;
+    regs->eflags.l |= EFLAGS_CF;
 }
 
 static void vfat_load_config(com32sys_t *regs)

@@ -47,6 +47,8 @@
 #error SYSLINUX (I believe) requires __GNUC__
 #endif /* __GNUC__ */
 
+#define DO_DEBUG 1
+
 #ifdef DO_DEBUG
 #define ROSH_DEBUG(f, ...)	printf (f, ## __VA_ARGS__)
 #ifdef DO_DEBUG2
