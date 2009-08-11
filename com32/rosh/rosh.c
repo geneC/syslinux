@@ -391,10 +391,10 @@ void rosh_dir_arg(const char *ifilstr, const char *pwdstr)
     fd = open(filestr, O_RDONLY);
     if (fd != -1) {
 	status = fstat(fd, &fdstat);
-	if (S_ISDIR(fdstat.st_mode)) {
+        if (S_ISDIR(fdstat.st_mode)) {
 	    ROSH_DEBUG("PATH '%s' is a directory\n", ifilstr);
 	    d = fdopendir(fd);
-	    de = readdir(d);
+            de = readdir(d);
 	    while (de != NULL) {
 #ifdef DO_DEBUG
 		filestr2[0] = 0;
@@ -423,10 +423,10 @@ void rosh_dir_arg(const char *ifilstr, const char *pwdstr)
 	}
     } else {
 #ifdef __COM32__
-	if (filestr[strlen(filestr) - 1] == SEP) {
+        if (filestr[strlen(filestr) - 1] == SEP) {
 	    /* Directory */
 	    filepos = 0;
-	    d = opendir(filestr);
+            d = opendir(filestr);
 	    if (d != NULL) {
 		printf("DIR:'%s'    %08x %8d\n", d->dd_name, d->dd_fd,
 		       d->dd_sect);
