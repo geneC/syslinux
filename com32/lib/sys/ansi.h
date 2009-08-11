@@ -9,6 +9,11 @@
 
 #define ANSI_MAX_PARMS	16
 
+#define BIOS_CURXY ((struct curxy *)0x450)	/* Array for each page */
+#define BIOS_ROWS (*(uint8_t *)0x484)	/* Minus one; if zero use 24 (= 25 lines) */
+#define BIOS_COLS (*(uint16_t *)0x44A)	/* Number of columns on screen */
+#define BIOS_PAGE (*(uint8_t *)0x462)	/* Current page number  */
+
 enum ansi_state {
     st_init,
     st_esc,
@@ -43,10 +48,10 @@ struct term_state {
 struct ansi_ops {
     void (*erase) (const struct term_state * st, int x0, int y0, int x1,
 		   int y1);
-    void (*write_char) (int x, int y, uint8_t ch, const struct term_state * st);
+    void (*write_char) (int x, int y, int page, uint8_t ch, const struct term_state * st);
     void (*showcursor) (const struct term_state * st);
     void (*scroll_up) (const struct term_state * st);
-    void (*set_cursor) (int x, int y, int visible);
+    void (*set_cursor) (int x, int y, int page, int visible);
     void (*beep) (void);
 };
 
