@@ -234,7 +234,9 @@ struct open_file_t {
     uint16_t tftp_lastpkt;     /* Sequence number of last packet (NBO) */
     uint16_t tftp_dataptr;     /* Pointer to available data */
     uint8_t  tftp_goteof;      /* 1 if the EOF packet received */
-    uint8_t  tftp_unused[3];   /* Currently unused */
+    uint8_t  tftp_unused;      /* Currently unused */
+    /* These values are preinitialized and not zeroed on close */
+    uint16_t tftp_nextport;    /* Next port number for this slot (HBO) */
     uint16_t tftp_pktbuf;      /* Packet buffer offset */
 } __attribute__ ((packed));
 

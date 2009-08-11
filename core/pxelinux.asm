@@ -172,10 +172,6 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 InitStack	resd 1
 
 		section .bss16
-                global Files
-		alignb open_file_t_size
-Files		resb MAX_OPEN*open_file_t_size
-
 		alignb FILENAME_MAX
                 global BootFile, PathPrefix, DotQuadBuf, IPOption
 BootFile	resb 256		; Boot file from DHCP packet

@@ -191,11 +191,6 @@ dsp_dummy:	resb 1				; Scratch, safe to overwrite
 _spec_end	equ $
 _spec_len	equ _spec_end - _spec_start
 
-		section .bss16
-		global Files
-		alignb open_file_t_size
-Files		resb MAX_OPEN*open_file_t_size
-
 		section .init
 ;;
 ;; Primary entry point.  Because BIOSes are buggy, we only load the first

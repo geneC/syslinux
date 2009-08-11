@@ -24,8 +24,6 @@ static char *err_udpinit   = "Failed to initialize UDP stack\n";
 static char *tftpprefix_msg = "TFTP prefix: ";
 static char *get_packet_msg = "Getting cached packet ";
 
-static uint16_t NextSocket = 49152;
-
 static int has_gpxe;
 static uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
 int HaveUUID = 0;
@@ -44,7 +42,24 @@ static int blksize_len = 8;
 
 static char *asciidec = "1408";
 
+/*
+ * Initialize the Files structure
+ */
+static void files_init(void)
+{
+    int i;
+    struct open_file_t *socket = Files;
+    uint16_t pktbuf = 0;
+    uint16_t nextport = 49152;
 
+    for (i = 0; i < MAX_OPEN; i++) {
+	socket->tftp_pktbuf = pktbuf;
+	socket->tftp_nextport = nextport;
+	pktbuf += PKTBUF_SIZE;
+	nextport++;
+	socket++;
+    }
+}
 
 /*
  * Allocate a local UDP port structure.
@@ -53,37 +68,28 @@ static char *asciidec = "1408";
  */
 static struct open_file_t *allocate_socket(void)
 {
-    extern uint16_t NextSocket;
-    uint16_t i = MAX_OPEN;
+    int i;
     struct open_file_t *socket = Files;
+    uint16_t nextport;
     
-    for (; i > 0; i--) {
-        if (*(uint16_t*)socket == 0)
-            break;
+    for (i = 0; i < MAX_OPEN; i++) {
+        if (!socket->tftp_localport)
+	    break;
         socket++;
     }
     
-    /* Not found */
-    if (i == 0) 
-        return NULL;
-    
+    if (i == MAX_OPEN)
+	return NULL;
+
     /*
-     * Allocate a socket number. Socket numbers are made guaranteed unique 
-     * by including the socket slot number(inverted, because we use the loop
-     * counter cx; add a counter value to keep the numbers from being likely
-     * to get immediately reused.
-     *
-     * The NextSocket variable also contains the top two bits set. This 
-     * generates a value in the range 49152 to 57343.
-     *
+     * Allocate a socket number. Socket numbers are made guaranteed
+     * unique by including the socket slot number; add a counter value
+     * to keep the numbers from being likely to get immediately
+     * reused.  The mask enforces wraparound to the range 49152-57343.
      */
-    i--;
-    NextSocket = ((NextSocket + 1) & ((1  << (13-MAX_OPEN_LG2))-1)) | 0xc000;
-    i <<= 13-MAX_OPEN_LG2;
-    i += NextSocket;
-    i = ntohs(i)       ;    /* convet to network byte order, little to big */
-    *(uint16_t*)socket = i; /* socket in use */
-    
+    nextport = socket->tftp_nextport;
+    socket->tftp_nextport = (nextport + (1 << MAX_OPEN_LG2)) & 0xdfff;
+    socket->tftp_localport = htons(nextport); /* Socket now in use */
     return socket;
 }
 
@@ -93,7 +99,7 @@ static struct open_file_t *allocate_socket(void)
 static void free_socket(struct open_file_t *file)
 {
     /* tftp_pktbuf is not cleared */
-    memset(file, 0, sizeof(struct open_file_t) - 2);
+    memset(file, 0, offsetof(struct open_file_t, tftp_nextport));
 }
 
 /**
@@ -1546,8 +1552,11 @@ static void network_init(void)
  */
 static int pxe_fs_init(struct fs_info *fs)
 {
-    fs = NULL;    /* drop the compile warning message */
+    (void)fs;    /* drop the compile warning message */
     
+    /* Initialize the Files structure */
+    files_init();
+
     /* do the pxe initialize */
     pxe_init();
 
