@@ -35,17 +35,7 @@ NULLFILE	equ 0			; Zero byte == null file name
 NULLOFFSET	equ 4			; Position in which to look
 REBOOT_TIME	equ 5*60		; If failure, time until full reset
 %assign HIGHMEM_SLOP 128*1024		; Avoid this much memory near the top
-MAX_OPEN_LG2	equ 5			; log2(Max number of open sockets)
-MAX_OPEN	equ (1 << MAX_OPEN_LG2)
-PKTBUF_SIZE	equ (65536/MAX_OPEN)	; Per-socket packet buffer size
 TFTP_PORT	equ htons(69)		; Default TFTP port
-; Desired TFTP block size
-; For Ethernet MTU is normally 1500.  Unfortunately there seems to
-; be a fair number of networks with "substandard" MTUs which break.
-; The code assumes TFTP_LARGEBLK <= 2K.
-TFTP_MTU	equ 1440
-TFTP_LARGEBLK	equ (TFTP_MTU-20-8-4)	; MTU - IP hdr - UDP hdr - TFTP hdr
-; Standard TFTP block size
 TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)
 TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
 
@@ -764,29 +754,7 @@ BaseStack	dd StackTop		; ESP of base stack
 		dw 0			; SS of base stack
 KeepPXE		db 0			; Should PXE be kept around?
 
-;
-; TFTP commands
-;
-tftp_tail	db 'octet', 0				; Octet mode
-tsize_str	db 'tsize' ,0				; Request size
-tsize_len	equ ($-tsize_str)
-		db '0', 0
-blksize_str	db 'blksize', 0				; Request large blocks
-blksize_len	equ ($-blksize_str)
-		asciidec TFTP_LARGEBLK
-		db 0
-tftp_tail_len	equ ($-tftp_tail)
-
 		alignz 2
-;
-; Options negotiation parsing table (string pointer, string len, offset
-; into socket structure)
-;
-tftp_opt_table:
-		dw tsize_str, tsize_len, tftp_filesize
-		dw blksize_str, blksize_len, tftp_blksize
-tftp_opts	equ ($-tftp_opt_table)/6
-
 ;
 ; Error packet to return on TFTP protocol error
 ; Most of our errors are OACK parsing errors, so use that error code

@@ -9,8 +9,6 @@
 
 #define FILENAME_MAX_LG2 8
 #define FILENAME_MAX     (1 << FILENAME_MAX_LG2)
-#define MAX_OPEN_LG2     6
-#define MAX_OPEN         (1 << MAX_OPEN_LG2)
 #define ROOT_DIR_WORD    0x002f
 
 /* file structure. This holds the information for each currently open file */
@@ -20,7 +18,7 @@ struct open_file_t {
     uint32_t file_left;      /* number of sectors left */
 };
 
-static struct open_file_t __bss16 Files[MAX_OPEN];
+static struct open_file_t Files[MAX_OPEN];
 
 extern uint8_t SecPerClust;
 
@@ -105,12 +103,15 @@ static struct open_file_t *alloc_fill_dir(sector_t sector)
 
 
 /* Deallocates a file structure */
-static void close_file(struct open_file_t *file)
+static inline void close_pvt(struct open_file_t *of)
 {
-    if ( file )
-        file->file_sector = 0;
+    of->file_sector = 0;
 }
 
+static void vfat_close_file(struct file *file)
+{
+    close_pvt(file->open_file);
+}
 
 
 /* Deallocates a directory structure */
@@ -321,11 +322,12 @@ static void __getfssec(struct fs_info *fs, char *buf, struct open_file_t *file, 
  * @return: number of bytes read
  *
  */
-static uint32_t vfat_getfssec(struct fs_info *fs, char *buf, 
-                  void *open_file, int sectors, int *have_more)
+static uint32_t vfat_getfssec(struct file *gfile, char *buf, int sectors,
+			      bool *have_more)
 {
     uint32_t bytes_read = sectors << SECTOR_SHIFT;
-    struct open_file_t *file = (struct open_file_t *)open_file;
+    struct open_file_t *file = gfile->open_file;
+    struct fs_info *fs = gfile->fs;
     
     if ( sectors > file->file_left )
         sectors = file->file_left;
@@ -669,8 +671,7 @@ static void vfat_searchdir(char *filename, struct file *file)
     char  *p;        
     struct open_file_t *open_file = NULL;
 
-    if (file->fs != this_fs)
-        this_fs = file->fs;
+    this_fs = file->fs;
     
     dir_sector = CurrentDir;
     if ( *filename == '/' ) {
@@ -699,9 +700,10 @@ static void vfat_searchdir(char *filename, struct file *file)
         
         mangle_dos_name(MangleBuf, filename);
         /* close it before open a new dir file */
-        close_file(open_file);
+	if (open_file)
+	    close_pvt(open_file);
         open_file = search_dos_dir(file->fs, MangleBuf, dir_sector, &file_len, &attr);
-        if (! open_file) 
+        if (!open_file) 
             goto fail;
 
         dir_sector = open_file->file_sector;
@@ -721,8 +723,8 @@ static void vfat_searchdir(char *filename, struct file *file)
         open_file->file_left = ( file_len + SECTOR_SIZE -1 ) >> SECTOR_SHIFT;
     }
 
-    file->file_len = file_len;
-    file->open_file = (void *)open_file;
+    file->file_len  = file_len;
+    file->open_file = open_file;
 }
 
 
@@ -869,13 +871,13 @@ void vfat_readdir(com32sys_t *regs)/*
 
 static void vfat_load_config(com32sys_t *regs)
 {
-    char syslinux_cfg1[] = "/boot/syslinux/syslinux.cfg";
-    char syslinux_cfg2[] = "/syslinux/syslinux.cfg";
-    char syslinux_cfg3[] = "/syslinux.cfg";
-    char config_name[] = "syslinux.cfg";
+    static const char syslinux_cfg1[] = "/boot/syslinux/syslinux.cfg";
+    static const char syslinux_cfg2[] = "/syslinux/syslinux.cfg";
+    static const char syslinux_cfg3[] = "/syslinux.cfg";
+    static const char config_name[] = "syslinux.cfg";
     
-
-    char *syslinux_cfg[]= {syslinux_cfg1, syslinux_cfg2, syslinux_cfg3};
+    const char * const syslinux_cfg[] =
+	{ syslinux_cfg1, syslinux_cfg2, syslinux_cfg3 };
     com32sys_t oregs;
     int i = 0;
     
@@ -907,12 +909,10 @@ static void vfat_load_config(com32sys_t *regs)
     CurrentDir = PrevDir;
 }
  
-static inline void bsr(uint8_t *res, int num)
+static inline __constfunc uint32_t bsr(uint32_t num)
 {
-        int i = 0;
-        while (num >>= 1)
-                i ++;
-        *res = i;
+    asm("bsrl %1,%0" : "=r" (num) : "rm" (num));
+    return num;
 }
 
 /* init. the fs meta data, return the block size in bits */
@@ -934,7 +934,7 @@ static int vfat_fs_init(struct fs_info *fs)
     RootDirSize = (fat.bxRootDirEnts+SECTOR_SIZE/32-1) >> (SECTOR_SHIFT-5);
     DataArea = RootDirArea + RootDirSize;
     
-    bsr(&ClustShift, fat.bxSecPerClust);
+    ClustShift = bsr(fat.bxSecPerClust);
     ClustByteShift = ClustShift + SECTOR_SHIFT;
     ClustMask = fat.bxSecPerClust - 1;
     ClustSize = fat.bxSecPerClust << SECTOR_SHIFT;    
@@ -953,9 +953,11 @@ static int vfat_fs_init(struct fs_info *fs)
         
 const struct fs_ops vfat_fs_ops = {
     .fs_name       = "vfat",
+    .fs_flags      = 0,
     .fs_init       = vfat_fs_init,
     .searchdir     = vfat_searchdir,
     .getfssec      = vfat_getfssec,
+    .close_file    = vfat_close_file,
     .mangle_name   = vfat_mangle_name,
     .unmangle_name = vfat_unmangle_name,
     .load_config   = vfat_load_config

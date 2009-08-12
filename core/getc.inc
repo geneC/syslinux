@@ -83,24 +83,11 @@ openfd:
 .ret:		ret
 
 .stack_full:
-		call close_file
+		pm_call close_file
 		xor ax,ax		; ZF <- 1
 		pop bx
 		ret
 		
-;
-; close_file:
-;	     Deallocates a file structure (pointer in SI)
-;	     Assumes CS == DS.
-;
-close_file:
-		and si,si
-		jz .closed
-		mov dword [si],0		; First dword == file_bytesleft
-		xor si,si
-.closed:	ret
-
-
 getc:
 		push bx
 		push si
@@ -191,7 +178,7 @@ close:
 		push si
 		mov bx,[CurrentGetC]
 		mov si,[bx+gc_file]
-		call close_file
+		pm_call close_file
 		add bx,getc_file_size
 		mov [CurrentGetC],bx
 		pop si

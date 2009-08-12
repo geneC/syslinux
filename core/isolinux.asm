@@ -32,8 +32,6 @@ NULLFILE	equ 0			; Zero byte == null file name
 NULLOFFSET	equ 0			; Position in which to look
 retry_count	equ 6			; How patient are we with the BIOS?
 %assign HIGHMEM_SLOP 128*1024		; Avoid this much memory near the top
-MAX_OPEN_LG2	equ 6			; log2(Max number of open files)
-MAX_OPEN	equ (1 << MAX_OPEN_LG2)
 SECTOR_SHIFT	equ 11			; 2048 bytes/sector (El Torito requirement)
 SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 

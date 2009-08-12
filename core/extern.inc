@@ -14,7 +14,7 @@
 
 	; fs.c
 	extern fs_init, searchdir, getfssec, mangle_name, load_config
-        extern unmangle_name
+        extern unmangle_name, close_file
 
 %if IS_SYSLINUX
         ; fat.c

@@ -10,8 +10,6 @@
 
 #define FILENAME_MAX_LG2 8
 #define FILENAME_MAX     (1 << FILENAME_MAX_LG2)
-#define MAX_OPEN_LG2     6
-#define MAX_OPEN         (1 << MAX_OPEN_LG2)
 #define ISO_SECTOR_SHIFT 11
 #define ISO_SECTOR_SIZE  (1 << ISO_SECTOR_SHIFT)
 #define ROOT_DIR_WORD    0x002f
@@ -24,7 +22,7 @@ struct open_file_t {
         uint32_t file_left;
 };
 
-static struct open_file_t __bss16 Files[MAX_OPEN];
+static struct open_file_t Files[MAX_OPEN];
 
 struct dir_t {
         uint32_t dir_lba;        /* Directory start (LBA) */
@@ -73,10 +71,14 @@ static struct open_file_t *allocate_file(void)
  * Deallocates a file structure 
  *
  */
-static void close_file(struct open_file_t *file)
+static inline void close_pvt(struct open_file_t *file)
 {
-    if (file)
-        file->file_sector = 0;
+    file->file_sector = 0;
+}
+
+static void iso_close_file(struct file *file)
+{
+    close_pvt(file->open_file);
 }
 
 /**
@@ -373,7 +375,7 @@ static int do_search_dir(struct fs_info *fs, struct dir_t *dir,
         *res = dir;
         
         /* we can close it now */
-        close_file(file); 
+        close_pvt(file); 
                 
         /* Mark we got a directory */
         return 1;        
@@ -452,7 +454,7 @@ static void iso_searchdir(char *filename, struct file *file)
         goto found;
     }
  err:
-    close_file(open_file);
+    close_pvt(open_file);
     file_len = 0;
     open_file = NULL;
  
@@ -535,7 +537,7 @@ static int iso_fs_init(struct fs_info *fs)
     CurrentDir.dir_len    = open_file->file_bytesleft;
     CurrentDir.dir_clust  = open_file->file_left;
     CurrentDir.dir_lba    = open_file->file_sector;
-    close_file(open_file);
+    close_pvt(open_file);
     
 #ifdef DEBUG
     printf("isolinux directory at LBA = 0x%x\n", CurrentDir.dir_lba);
@@ -548,9 +550,11 @@ static int iso_fs_init(struct fs_info *fs)
 
 const struct fs_ops iso_fs_ops = {
     .fs_name       = "iso",
+    .fs_flags      = 0,
     .fs_init       = iso_fs_init,
     .searchdir     = iso_searchdir,
     .getfssec      = iso_getfssec,
+    .close_file    = iso_close_file,
     .mangle_name   = iso_mangle_name,
     .unmangle_name = iso_unmangle_name,
     .load_config   = iso_load_config

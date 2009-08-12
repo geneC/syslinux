@@ -6,15 +6,13 @@
 #include <minmax.h>
 #include <sys/cpu.h>
 
-#define MAX_OPEN_LG2       5
-#define MAX_OPEN           (1 << MAX_OPEN_LG2)
 #define FILENAME_MAX_LG2   7
 #define FILENAME_MAX       (1 << FILENAME_MAX_LG2)
 
 #define GPXE 1
 #define USE_PXE_PROVIDED_STACK 0
 
-static struct open_file_t __bss16 Files[MAX_OPEN];
+static struct open_file_t Files[MAX_OPEN];
 
 static char *err_nopxe     = "No !PXE or PXENV+ API found; we're dead...\n";
 static char *err_pxefailed = "PXE API call failed, error ";
@@ -99,8 +97,18 @@ static struct open_file_t *allocate_socket(void)
  */
 static void free_socket(struct open_file_t *file)
 {
-    /* tftp_pktbuf is not cleared */
+    /* tftp_nextport and tftp_pktbuf are not cleared */
     memset(file, 0, offsetof(struct open_file_t, tftp_nextport));
+}
+
+static void pxe_close_file(struct file *file)
+{
+    /*
+     * XXX: we really should see if the connection is open as send
+     * a courtesy ERROR packet so the server knows the connection is
+     * dead.
+     */
+    free_socket(file->open_file);
 }
 
 /**
@@ -650,16 +658,13 @@ static void fill_buffer(struct open_file_t *file)
  * @return: the bytes read
  *
  */
-static uint32_t pxe_getfssec(struct fs_info *fs, char *buf, 
-                      void *open_file, int blocks, int *have_more)
+static uint32_t pxe_getfssec(struct file *gfile, char *buf, 
+			     int blocks, bool *have_more)
 {
-    struct open_file_t *file = (struct open_file_t *)open_file;
+    struct open_file_t *file = gfile->open_file;
     int count = blocks;
     int chunk;
     int bytes_read = 0;
-
-    sti();    
-    fs = NULL;      /* drop the compile warning message */
 
     count <<= TFTP_BLOCKSIZE_LG2;
     while (count) {
@@ -684,10 +689,9 @@ static uint32_t pxe_getfssec(struct fs_info *fs, char *buf,
         *have_more = 1;
     } else if (file->tftp_goteof) {
         /* 
-         * The socket is closed and the buffer dranined
-         * close socket structure and re-init for next user
+         * The socket is closed and the buffer drained; the caller will
+	 * call close_file and therefore free the socket.
          */
-        free_socket(file);
         *have_more = 0;
     }
     
@@ -1544,9 +1548,11 @@ static int pxe_fs_init(struct fs_info *fs)
     
 const struct fs_ops pxe_fs_ops = {
     .fs_name       = "pxe",
+    .fs_flags      = FS_NODEV,
     .fs_init       = pxe_fs_init,
     .searchdir     = pxe_searchdir,
     .getfssec      = pxe_getfssec,
+    .close_file    = pxe_close_file,
     .mangle_name   = pxe_mangle_name,
     .unmangle_name = pxe_unmangle_name,
     .load_config   = pxe_load_config

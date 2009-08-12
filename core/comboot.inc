@@ -63,7 +63,7 @@
 
 ; Looks like a COMBOOT image but too large
 comboot_too_large:
-		call close_file
+		pm_call close_file
 		mov si,err_comlarge
 		call writestr
 		jmp enter_command
@@ -547,7 +547,7 @@ comapi_read:
 ;
 comapi_close:
 		mov si,P_SI
-		call close_file
+		pm_call close_file
 		clc
 		ret
 

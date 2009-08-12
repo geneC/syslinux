@@ -28,9 +28,6 @@ retry_count	equ 16			; How patient are we with the disk?
 %assign HIGHMEM_SLOP 0			; Avoid this much memory near the top
 LDLINUX_MAGIC	equ 0x3eb202fe		; A random number to identify ourselves with
 
-MAX_OPEN_LG2	equ 6			; log2(Max number of open files)
-MAX_OPEN	equ (1 << MAX_OPEN_LG2)
-
 SECTOR_SHIFT	equ 9
 SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 

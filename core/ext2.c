@@ -8,9 +8,6 @@
 
 #define FILENAME_MAX_LG2 8
 #define FILENAME_MAX     (1 << FILENAME_MAX_LG2)
-/* The size of open_file_t in extlinux is double of in others */
-#define MAX_OPEN_LG2     (6 - 1)  
-#define MAX_OPEN         (1 << MAX_OPEN_LG2)
 #define MAX_SYMLINKS     64
 #define SYMLINK_SECTORS  2
 
@@ -26,7 +23,7 @@ struct open_file_t {
     uint32_t pad[3];          /* pad to 2^5 == 0x20 bytes */
 };
 
-static struct open_file_t __bss16 Files[MAX_OPEN];
+static struct open_file_t Files[MAX_OPEN];
 
 static char SymlinkBuf[SYMLINK_SECTORS * SECTOR_SIZE + 64];
 
@@ -84,19 +81,22 @@ static struct open_file_t *allocate_file(void)
 
 
 /**
- * close_file:
+ * ext2_close_file:
  *
  * Deallocates a file structure point by FILE
  *
  * @param: file, the file structure we want deallocate
  *
  */
-static void close_file(struct open_file_t *file)
+static inline void close_pvt(struct open_file_t *of)
 {
-    if (file)
-        file->file_bytesleft = 0;
+    of->file_bytesleft = 0;
 }
 
+static void ext2_close_file(struct file *file)
+{
+    close_pvt(file->open_file);
+}
 
 /**
  * mangle_name:
@@ -495,13 +495,14 @@ static void getlinsec_ext(struct fs_info *fs, char *buf,
  * @return: ECX(of regs), number of bytes read
  *
  */
-static uint32_t ext2_getfssec(struct fs_info *fs, char *buf, 
-                       void *open_file, int sectors, int *have_more)
+static uint32_t ext2_getfssec(struct file *gfile, char *buf,
+			      int sectors, bool *have_more)
 {
     int sector_left, next_sector, sector_idx;
     int frag_start, con_sec_cnt;
     int bytes_read = sectors << SECTOR_SHIFT;
-    struct open_file_t *file = (struct open_file_t *)open_file;
+    struct open_file_t *file = gfile->open_file;
+    struct fs_info *fs = gfile->fs;
     
     sector_left = (file->file_bytesleft + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     if (sectors > sector_left)
@@ -528,7 +529,7 @@ static uint32_t ext2_getfssec(struct fs_info *fs, char *buf,
             
             sector_idx ++;
             next_sector ++;
-        }while(next_sector == linsector(fs, sector_idx));                
+        } while (next_sector == linsector(fs, sector_idx));                
         
 #if 0   
         printf("You are reading data stored at sector --0x%x--0x%x\n", 
@@ -537,13 +538,14 @@ static uint32_t ext2_getfssec(struct fs_info *fs, char *buf,
         getlinsec_ext(fs, buf, frag_start, con_sec_cnt);
         buf += con_sec_cnt << 9;
         file->file_sector += con_sec_cnt;  /* next sector index */
-    }while(sectors);
+    } while(sectors);
     
     if (bytes_read >= file->file_bytesleft) { 
         bytes_read = file->file_bytesleft;
-        *have_more = 0;
-    } else
-        *have_more = 1;    
+	*have_more = 0;
+    } else {
+        *have_more = 1;
+    }    
     file->file_bytesleft -= bytes_read;
 
     return bytes_read;
@@ -557,21 +559,28 @@ static uint32_t ext2_getfssec(struct fs_info *fs, char *buf,
  * find a dir entry, if find return it or return NULL
  *
  */
-static struct ext2_dir_entry* find_dir_entry(struct fs_info *fs, struct open_file_t *file,char *filename)
+static struct ext2_dir_entry* find_dir_entry(struct fs_info *fs,
+					     struct open_file_t *file,
+					     char *filename)
 {
-    int   have_more;
+    bool have_more;
     char *EndBlock = trackbuf + (SecPerClust << SECTOR_SHIFT);;
     struct ext2_dir_entry *de;
+    struct file xfile;
+
+    /* Fake out a VFS file structure */
+    xfile.fs        = fs;
+    xfile.open_file = file;
     
     /* read a clust at a time */
-    ext2_getfssec(fs, trackbuf, file, SecPerClust, &have_more);        
+    ext2_getfssec(&xfile, trackbuf, SecPerClust, &have_more);        
     de = (struct ext2_dir_entry *)trackbuf;        
     
     while (1) {
         if ((char *)de >= (char *)EndBlock) {
             if (!have_more) 
                 return NULL;
-            ext2_getfssec(fs, trackbuf, file,SecPerClust,&have_more);
+            ext2_getfssec(&xfile, trackbuf, SecPerClust, &have_more);
             de = (struct ext2_dir_entry *)trackbuf;
         }
         
@@ -595,25 +604,29 @@ static struct ext2_dir_entry* find_dir_entry(struct fs_info *fs, struct open_fil
 }
 
 
-static char* do_symlink(struct fs_info *fs, struct open_file_t *file, 
-                 uint32_t file_len, char *filename)
+static char *do_symlink(struct fs_info *fs, struct open_file_t *file, 
+			uint32_t file_len, char *filename)
 {
-    int  flag, have_more;
+    int  flag;
+    bool have_more;
     
     char *SymlinkTmpBuf = trackbuf;
     char *lnk_end;
-    char *SymlinkTmpBufEnd = trackbuf + SYMLINK_SECTORS * SECTOR_SIZE+64;  
+    char *SymlinkTmpBufEnd = trackbuf + SYMLINK_SECTORS * SECTOR_SIZE+64;
+    struct file xfile;
+    xfile.fs = fs;
+    xfile.open_file = file;
     
     flag = this_inode.i_file_acl ? SecPerClust : 0;    
     if (this_inode.i_blocks == flag) {
         /* fast symlink */
-        close_file(file);          /* we've got all we need */
+        close_pvt(file);          /* we've got all we need */
         memcpy(SymlinkTmpBuf, this_inode.i_block, file_len);
         lnk_end = SymlinkTmpBuf + file_len;
         
     } else {                           
         /* slow symlink */
-        ext2_getfssec(fs, SymlinkTmpBuf,file,SYMLINK_SECTORS,&have_more);
+        ext2_getfssec(&xfile, SymlinkTmpBuf, SYMLINK_SECTORS, &have_more);
         lnk_end = SymlinkTmpBuf + file_len;
     }
     
@@ -695,7 +708,7 @@ static void ext2_searchdir(char *filename, struct file *file)
         
         inr = de->d_inode;
         filename += de->d_name_len;
-        close_file(open_file);
+        close_pvt(open_file);
         goto open;
     }    
     
@@ -721,7 +734,7 @@ static void ext2_searchdir(char *filename, struct file *file)
     
     /* Otherwise, something bad ... */
  err:
-    close_file(open_file);
+    close_pvt(open_file);
  err_noclose:
     file_len = 0;
     open_file = NULL;
@@ -794,9 +807,11 @@ static int ext2_fs_init(struct fs_info *fs)
 
 const struct fs_ops ext2_fs_ops = {
     .fs_name       = "ext2",
+    .fs_flags      = 0,
     .fs_init       = ext2_fs_init,
     .searchdir     = ext2_searchdir,
     .getfssec      = ext2_getfssec,
+    .close_file    = ext2_close_file,
     .mangle_name   = ext2_mangle_name,
     .unmangle_name = ext2_unmangle_name,
     .load_config   = ext2_load_config
