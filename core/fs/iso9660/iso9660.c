@@ -34,9 +34,9 @@ static uint16_t BufSafe = TRACKBUF_SIZE >> ISO_SECTOR_SHIFT;
 static char ISOFileName[64];      /* ISO filename canonicalizatin buffer */
 static char *ISOFileNameEnd = &ISOFileName[64];
 
-/* 
+/*
  * use to store the block shift, since we treat the hd-mode as 512 bytes
- * sector size, 2048 bytes block size. we still treat the cdrom as 2048  
+ * sector size, 2048 bytes block size. we still treat the cdrom as 2048
  * bytes sector size and also the block size.
  */
 static int block_shift;
@@ -51,21 +51,21 @@ static struct open_file_t *allocate_file(void)
 {
     struct open_file_t *file = Files;
     int i;
-    
+
     for (i = 0; i < MAX_OPEN; i++) {
         if ( file->file_sector == 0 ) /* found it */
             return file;
         file++;
     }
-    
+
     return NULL; /* not found */
 }
-  
+
 
 /**
  * close_file:
- * 
- * Deallocates a file structure 
+ *
+ * Deallocates a file structure
  *
  */
 static inline void close_pvt(struct open_file_t *file)
@@ -85,7 +85,7 @@ static void iso_close_file(struct file *file)
  * to by dst; ends on encountering any whitespace.
  * dst is preserved.
  *
- * This verifies that a filename is < FilENAME_MAX characters, 
+ * This verifies that a filename is < FilENAME_MAX characters,
  * doesn't contain whitespace, zero-pads the output buffer,
  * and removes trailing dots and redumndant slashes, so "repe
  * cmpsb" can do a compare, and the path-searching routine gets
@@ -96,7 +96,7 @@ static void iso_mangle_name(char *dst, const char *src)
 {
     char *p = dst;
     int i = FILENAME_MAX - 1;
-    
+
     while (not_whitespace(*src)) {
         if ( *src == '/' ) {
             if ( *(src+1) == '/' ) {
@@ -105,30 +105,30 @@ static void iso_mangle_name(char *dst, const char *src)
                 continue;
             }
         }
-        
+
         *dst++ = *src ++;
         i--;
     }
-    
+
     while ( 1 ) {
         if ( dst == p )
             break;
-        
-        if ( (*(dst-1) != '.') && (*(dst-1) != '/') ) 
+
+        if ( (*(dst-1) != '.') && (*(dst-1) != '/') )
             break;
-        
+
         dst --;
         i ++;
     }
-    
+
     i ++;
     for (; i > 0; i -- )
         *dst++ = '\0';
 }
-    
+
 /**
  * compare the names si and di and report if they are
- * equal from an ISO 9600 perspective. 
+ * equal from an ISO 9600 perspective.
  *
  * @param: de_name, the name from the file system.
  * @param: len, the length of de_name, and will return the real name of the de_name
@@ -139,56 +139,56 @@ static void iso_mangle_name(char *dst, const char *src)
  *
  */
 static int iso_compare_names(char *de_name, int *len, char *file_name)
-{        
+{
     char *p  = ISOFileName;
     char c1, c2;
-    
+
     int i = 0;
-    
+
     while ( (i < *len) && *de_name && (*de_name != ';') && (p < ISOFileNameEnd - 1) ) {
         *p++ = *de_name++;
         i++;
     }
-    
+
     /* Remove terminal dots */
     while ( *(p-1) == '.' ) {
         if ( *len <= 2 )
             break;
-        
+
         if ( p <= ISOFileName )
             break;
         p --;
         i--;
     }
-    
+
     if ( i <= 0 )
         return 0;
-    
+
     *p = '\0';
-    
+
     /* return the 'real' length of de_name */
     *len = i;
-    
+
     p = ISOFileName;
-    
+
     /* i is the 'real' name length of file_name */
     while ( i ) {
         c1 = *p++;
         c2 = *file_name++;
-        
+
         if ( (c1 == 0) && (c2 == 0) )
             return 1; /* success */
-        
+
         else if ( (c1 == 0) || ( c2 == 0 ) )
             return 0;
-        
+
         c1 |= 0x20;
         c2 |= 0x20;          /* convert to lower case */
         if ( c1 != c2 )
             return 0;
         i --;
     }
-    
+
     return 1;
 }
 
@@ -207,32 +207,32 @@ static inline int cdrom_read_sectors(struct disk *disk, void *buf, int block, in
  *
  * @param: buf
  * @param: file, the address of the open file structure
- * @param: sectors, how many we want to read at once 
+ * @param: sectors, how many we want to read at once
  * @param: have_more, to indicate if we have reach the end of the file
  *
  */
-static uint32_t iso_getfssec(struct fs_info *fs, char *buf, 
-                      void *open_file, int sectors, int *have_more)
+static uint32_t iso_getfssec(struct file *gfile, char *buf,
+			     int sectors, bool *have_more)
 {
     uint32_t bytes_read = sectors << ISO_SECTOR_SHIFT;
-    struct open_file_t *file = (struct open_file_t *)open_file;
-    struct disk *disk = fs->fs_dev->disk;
-    
+    struct open_file_t *file = gfile->open_file;
+    struct disk *disk = gfile->fs->fs_dev->disk;
+
     if ( sectors > file->file_left )
         sectors = file->file_left;
-    
+
     cdrom_read_sectors(disk, buf, file->file_sector, sectors);
-    
+
     file->file_sector += sectors;
     file->file_left   -= sectors;
-    
+
     if ( bytes_read >= file->file_bytesleft ) {
         bytes_read = file->file_bytesleft;
         *have_more = 0;
     } else
         *have_more = 1;
     file->file_bytesleft -= bytes_read;
-    
+
     return bytes_read;
 }
 
@@ -242,126 +242,130 @@ static uint32_t iso_getfssec(struct fs_info *fs, char *buf,
  * do_search_dir:
  *
  * find a file or directory with name within the _dir_ directory.
- * 
+ *
  * the return value will tell us what we find, it's a file or dir?
  * on 1 be dir, 2 be file, 0 be error.
  *
  * res will return the result.
  *
  */
-static int do_search_dir(struct fs_info *fs, struct dir_t *dir, 
-                  char *name, uint32_t *file_len, void **res)
+static int do_search_dir(struct fs_info *fs, struct dir_t *dir,
+			 char *name, uint32_t *file_len, void **res)
 {
     struct open_file_t *file;
     struct iso_dir_entry *de;
     struct iso_dir_entry tmpde;
-    
+    struct file xfile;
+
     uint32_t offset = 0;  /* let's start it with the start */
     uint32_t file_pos = 0;
     char *de_name;
     int de_len;
     int de_name_len;
-    int have_more;
-    
+    bool have_more;
+
     file = allocate_file();
     if ( !file )
         return 0;
-    
+
     file->file_left = dir->dir_clust;
     file->file_sector = dir->dir_lba;
-    
-    iso_getfssec(fs, trackbuf, file, BufSafe, &have_more);
+
+    xfile.fs = fs;
+    xfile.open_file = file;
+
+    iso_getfssec(&xfile, trackbuf, BufSafe, &have_more);
     de = (struct iso_dir_entry *)trackbuf;
-    
+
     while ( file_pos < dir->dir_len ) {
         int found = 0;
-        
+
         if ( (char *)de >= (char *)(trackbuf + TRACKBUF_SIZE) ) {
-            if ( !have_more ) 
+            if ( !have_more )
                 return 0;
-            
-            iso_getfssec(fs, trackbuf, file, BufSafe, &have_more);
+
+            iso_getfssec(&xfile, trackbuf, BufSafe, &have_more);
             offset = 0;
         }
-        
+
         de = (struct iso_dir_entry *) (trackbuf + offset);
-        
+
         de_len = de->length;
-        
+
         if ( de_len == 0) {
             offset = file_pos = (file_pos+ISO_SECTOR_SIZE) & ~(ISO_SECTOR_SIZE-1);
             continue;
         }
-        
-        
+
+
         offset += de_len;
-        
+
         /* Make sure we have a full directory entry */
         if ( offset >= TRACKBUF_SIZE ) {
             int slop = TRACKBUF_SIZE - offset + de_len;
             memcpy(&tmpde, de, slop);
             offset &= TRACKBUF_SIZE - 1;
-            file->file_sector ++;
+            file->file_sector++;
             if ( offset ) {
-                if ( !have_more ) 
+                if ( !have_more )
                     return 0;
-                iso_getfssec(fs, trackbuf, file, BufSafe, &have_more);
+                iso_getfssec(&xfile, trackbuf, BufSafe, &have_more);
                 memcpy((void*)&tmpde + slop, trackbuf, offset);
             }
             de = &tmpde;
         }
-        
+
         if ( de_len < 33 ) {
             printf("Corrutped directory entry in sector %d\n", file->file_sector);
             return 0;
         }
-        
+
         de_name_len = de->name_len;
         de_name = (char *)((void *)de + 0x21);
-        
-        
+
+
         if ( (de_name_len == 1) && (*de_name == 0) ) {
             found = iso_compare_names(".", &de_name_len, name);
-            
+
         } else if ( (de_name_len == 1) && (*de_name == 1) ) {
             de_name_len = 2;
             found = iso_compare_names("..", &de_name_len, name);
-            
-        } else 
+
+        } else
             found = iso_compare_names(de_name, &de_name_len, name);
-        
+
         if (found)
             break;
-        
+
         file_pos += de_len;
     }
-    
-    if ( file_pos >= dir->dir_len ) 
+
+    if ( file_pos >= dir->dir_len )
         return 0; /* not found */
-    
+
 
     if ( *(name+de_name_len) && (*(name+de_name_len) != '/' ) ) {
         printf("Something wrong happened during searching file %s\n", name);
-        
+
         *res = NULL;
         return 0;
     }
-    
+
     if ( de->flags & 0x02 ) {
-        /* it's a directory */        
-        dir = &CurrentDir;        
+        /* it's a directory */
+        dir = &CurrentDir;
         dir->dir_lba = *(uint32_t *)de->extent;
         dir->dir_len = *(uint32_t *)de->size;
         dir->dir_clust = (dir->dir_len + ISO_SECTOR_SIZE - 1) >> ISO_SECTOR_SHIFT;
-        
+
         *file_len = dir->dir_len;
         *res = dir;
-        
+
         /* we can close it now */
-        close_pvt(file); 
-                
+        close_pvt(file);
+
         /* Mark we got a directory */
-        return 1;        
+        return 1;
     } else {
         /* it's a file */
         file->file_sector    = *(uint32_t *)de->extent;
@@ -370,10 +374,10 @@ static int do_search_dir(struct fs_info *fs, struct dir_t *dir,
 
         *file_len = file->file_bytesleft;
         *res = file;
-        
+
         /* Mark we got a file */
         return 2;
-    }    
+    }
 }
 
 
@@ -383,7 +387,7 @@ static int do_search_dir(struct fs_info *fs, struct dir_t *dir,
  * open a file
  *
  * searchdir_iso is a special entry point for ISOLINUX only. In addition
- * to the above, searchdir_iso passes a file flag mask in AL. This is 
+ * to the above, searchdir_iso passes a file flag mask in AL. This is
  * useful for searching for directories.
  *
  * well, it's not like the searchidr function in EXT fs or FAT fs; it also
@@ -397,7 +401,7 @@ static void iso_searchdir(char *filename, struct file *file)
     uint32_t file_len = 0;
     int ret;
     void *res;
-        
+
     dir = &CurrentDir;
     if ( *filename == '/' ) {
         dir = &RootDir;
@@ -410,18 +414,18 @@ static void iso_searchdir(char *filename, struct file *file)
             dir = (struct dir_t *)res;
         else if ( ret == 2 )
             break;
-        else 
+        else
             goto err;
-       
+
         /* find the end */
         while ( *filename && (*filename != '/') )
             filename ++;
-        
+
         /* skip the slash */
         while ( *filename && (*filename == '/') )
-            filename++;   
+            filename++;
     }
- 
+
     /* well , we need recheck it , becuase it can be a directory */
     if ( ret == 2 ) {
         open_file = (struct open_file_t *)res;
@@ -430,7 +434,7 @@ static void iso_searchdir(char *filename, struct file *file)
         open_file = allocate_file();
         if ( !open_file )
             goto err;
-        
+
         open_file->file_sector = dir->dir_lba;
         open_file->file_bytesleft = dir->dir_len;
         open_file->file_left = (dir->dir_len + ISO_SECTOR_SIZE - 1) >> ISO_SECTOR_SHIFT;
@@ -440,7 +444,7 @@ static void iso_searchdir(char *filename, struct file *file)
     close_pvt(open_file);
     file_len = 0;
     open_file = NULL;
- 
+
  found:
     file->file_len = file_len;
     file->open_file = (void*)open_file;
@@ -459,9 +463,9 @@ static void iso_load_config(com32sys_t *regs)
 {
     char *config_name = "isolinux.cfg";
     com32sys_t out_regs;
-    
+
     strcpy(ConfigName, config_name);
-    
+
     regs->edi.w[0] = OFFS_WRT(ConfigName, 0);
     memset(&out_regs, 0, sizeof out_regs);
     call16(core_open, regs, &out_regs);
@@ -474,22 +478,22 @@ static int iso_fs_init(struct fs_info *fs)
     char *boot_dir  = "/boot/isolinux";
     char *isolinux_dir = "/isolinux";
     int len;
-    int bi_pvd = 16;   
+    int bi_pvd = 16;
     struct file file;
     struct open_file_t *open_file;
     struct disk *disk = fs->fs_dev->disk;
-    
+
     block_shift = ISO_SECTOR_SHIFT - disk->sector_shift;
     cdrom_read_sectors(disk, trackbuf, bi_pvd, 1);
     CurrentDir.dir_lba = RootDir.dir_lba = *(uint32_t *)(trackbuf + 156 + 2);
-    
+
 #ifdef DEBUG
     printf("Root directory at LBA = 0x%x\n", RootDir.dir_lba);
 #endif
-    
+
     CurrentDir.dir_len = RootDir.dir_len = *(uint32_t*)(trackbuf + 156 + 10);
     CurrentDir.dir_clust = RootDir.dir_clust = (RootDir.dir_len + ISO_SECTOR_SIZE - 1) >> ISO_SECTOR_SHIFT;
-    
+
     /*
      * Look for an isolinux directory, and if found,
      * make it the current directory instead of the
@@ -498,7 +502,7 @@ static int iso_fs_init(struct fs_info *fs)
      * Also copy the name of the directory to CurrrentDirName
      */
     *(uint16_t *)CurrentDirName = ROOT_DIR_WORD;
-    
+
     iso_dir = boot_dir;
     file.fs = fs;
     iso_searchdir(boot_dir, &file);         /* search for /boot/isolinux */
@@ -508,24 +512,24 @@ static int iso_fs_init(struct fs_info *fs)
         if ( !file.file_len ) {
             printf("No isolinux directory found!\n");
             return 0;
-        }            
+        }
     }
-    
+
     strcpy(CurrentDirName, iso_dir);
     len = strlen(CurrentDirName);
     CurrentDirName[len]    = '/';
     CurrentDirName[len+1]  = '\0';
-    
+
     open_file = (struct open_file_t *)file.open_file;
     CurrentDir.dir_len    = open_file->file_bytesleft;
     CurrentDir.dir_clust  = open_file->file_left;
     CurrentDir.dir_lba    = open_file->file_sector;
     close_pvt(open_file);
-    
+
 #ifdef DEBUG
     printf("isolinux directory at LBA = 0x%x\n", CurrentDir.dir_lba);
-#endif  
-      
+#endif
+
     /* we do not use cache for now, so we can just return 0 */
     return 0;
 }
