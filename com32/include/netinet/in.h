@@ -5,7 +5,7 @@
 
 #include <stdint.h>
 
-#define __htons_macro(v) (((v) << 8) | ((v) >> 8))
+#define __htons_macro(v) (((uint16_t)(v) << 8) | ((uint16_t)(v) >> 8))
 
 static inline uint16_t __htons(uint16_t v)
 {
@@ -15,10 +15,10 @@ static inline uint16_t __htons(uint16_t v)
 #define htons(x) (__builtin_constant_p(x) ? __htons_macro(x) :  __htons(x))
 #define ntohs(x) htons(x)
 
-#define __htonl_macro(v) ((((v) & 0x000000ff) << 24) |		\
-                          (((v) & 0x0000ff00) << 8)  |		\
-                          (((v) & 0x00ff0000) >> 8)  |          \
-                          (((v) & 0xff000000) >> 24))
+#define __htonl_macro(v) ((((uint32_t)(v) & 0x000000ff) << 24) |	\
+			  (((uint32_t)(v) & 0x0000ff00) << 8)  |	\
+			  (((uint32_t)(v) & 0x00ff0000) >> 8)  |	\
+			  (((uint32_t)(v) & 0xff000000) >> 24))
 
 static inline uint32_t __htonl(uint32_t v)
 {
@@ -35,7 +35,7 @@ static inline uint32_t __htonl(uint32_t v)
 
 #define __htonq_macro(v) \
     (((uint64_t)__htonl_macro((uint32_t)(v)) << 32) |	\
-     (__htonl_macro((uint32_t)((v) >> 32))))
+     (__htonl_macro((uint32_t)((uint64_t)(v) >> 32))))
 
 static inline uint64_t __htonq(uint64_t v)
 {
