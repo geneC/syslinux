@@ -543,6 +543,6 @@ const struct fs_ops iso_fs_ops = {
     .getfssec      = iso_getfssec,
     .close_file    = iso_close_file,
     .mangle_name   = iso_mangle_name,
-    .unmangle_name = NULL,
+    .unmangle_name = generic_unmangle_name,
     .load_config   = iso_load_config
 };

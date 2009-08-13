@@ -948,6 +948,6 @@ const struct fs_ops vfat_fs_ops = {
     .getfssec      = vfat_getfssec,
     .close_file    = vfat_close_file,
     .mangle_name   = vfat_mangle_name,
-    .unmangle_name = NULL,
+    .unmangle_name = generic_unmangle_name,
     .load_config   = vfat_load_config
 };

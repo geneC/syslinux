@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include <string.h>
 #include <com32.h>
 #include "core.h"
 #include "disk.h"
@@ -46,7 +47,7 @@ struct fs_ops {
     uint32_t (*getfssec)(struct file *, char *, int, bool *);
     void     (*close_file)(struct file *);
     void     (*mangle_name)(char *, const char *);
-    void     (*unmangle_name)(char *, const char *);
+    char *   (*unmangle_name)(char *, const char *);
     void     (*load_config)(com32sys_t *);
 };
 
@@ -56,6 +57,7 @@ enum dev_type {CHS, EDD};
  * Generic functions that filesystem drivers may choose to use
  */
 void generic_mangle_name(char *, const char *);
+#define generic_unmangle_name stpcpy
 
 /*
  * Struct device contains:

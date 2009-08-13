@@ -513,7 +513,7 @@ static void pxe_mangle_name(char *dst, const char *src)
  * filename to the conventional representation.  This is 
  * needed for the BOOT_IMAGE= parameter for the kernel.
  */
-static void pxe_unmangle_name(char *dst, const char *src)
+static char *pxe_unmangle_name(char *dst, const char *src)
 {
     uint32_t ip = *(uint32_t *)src;
     int ip_len = 0;
@@ -523,9 +523,9 @@ static void pxe_unmangle_name(char *dst, const char *src)
         dst += ip_len;
     }
     src += 4;
-    strcpy(dst, src);
+    return stpcpy(dst, src);
 }
-        
+       
 /*
  *
  ;

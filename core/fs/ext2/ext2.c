@@ -757,6 +757,6 @@ const struct fs_ops ext2_fs_ops = {
     .getfssec      = ext2_getfssec,
     .close_file    = ext2_close_file,
     .mangle_name   = generic_mangle_name,
-    .unmangle_name = NULL,
+    .unmangle_name = generic_unmangle_name,
     .load_config   = ext2_load_config
 };

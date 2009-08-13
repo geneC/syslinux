@@ -73,13 +73,9 @@ void unmangle_name(com32sys_t *regs)
     const char *src = MK_PTR(regs->ds, regs->esi.w[0]);
     char       *dst = MK_PTR(regs->es, regs->edi.w[0]);
 
-    if (this_fs->fs_ops->unmangle_name)
-	this_fs->fs_ops->unmangle_name(dst, src);
-    else
-	strcpy(dst, src);
+    dst = this_fs->fs_ops->unmangle_name(dst, src);
 
     /* Update the di register to point to the last null char */
-    dst = strchr(dst, '\0');
     regs->edi.w[0] = OFFS_WRT(dst, regs->es);
 }
 
