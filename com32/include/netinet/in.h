@@ -4,10 +4,11 @@
 /* COM32 will be running on an i386 platform */
 
 #include <stdint.h>
+#include <klibc/compiler.h>
 
 #define __htons_macro(v) (((uint16_t)(v) << 8) | ((uint16_t)(v) >> 8))
 
-static inline uint16_t __htons(uint16_t v)
+static inline __constfunc uint16_t __htons(uint16_t v)
 {
     return __htons_macro(v);
 }
@@ -20,12 +21,12 @@ static inline uint16_t __htons(uint16_t v)
 			  (((uint32_t)(v) & 0x00ff0000) >> 8)  |	\
 			  (((uint32_t)(v) & 0xff000000) >> 24))
 
-static inline uint32_t __htonl(uint32_t v)
+static inline __constfunc uint32_t __htonl(uint32_t v)
 {
     if (__builtin_constant_p(v)) {
 	return __htonl_macro(v);
     } else {
-	asm("xchgb %h0,%b0 ; roll $16,%0 ; xchgb %h0,%b0":"+q"(v));
+	asm("xchgb %h0,%b0 ; roll $16,%0 ; xchgb %h0,%b0" : "+q"(v));
 	return v;
     }
 }
@@ -37,7 +38,7 @@ static inline uint32_t __htonl(uint32_t v)
     (((uint64_t)__htonl_macro((uint32_t)(v)) << 32) |	\
      (__htonl_macro((uint32_t)((uint64_t)(v) >> 32))))
 
-static inline uint64_t __htonq(uint64_t v)
+static inline __constfunc uint64_t __htonq(uint64_t v)
 {
     return ((uint64_t) __htonl(v) << 32) | __htonl(v >> 32);
 }
