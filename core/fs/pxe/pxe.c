@@ -2,9 +2,9 @@
 #include <string.h>
 #include <core.h>
 #include <fs.h>
-#include <pxe.h>
 #include <minmax.h>
 #include <sys/cpu.h>
+#include "pxe.h"
 
 #define FILENAME_MAX_LG2   7
 #define FILENAME_MAX       (1 << FILENAME_MAX_LG2)

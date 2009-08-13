@@ -40,8 +40,8 @@ BTARGET  = kwdhash.gen \
 # All primary source files for the main syslinux files
 NASMSRC	 := $(wildcard *.asm)
 NASMHDR  := $(wildcard *.inc)
-CSRC	 := $(wildcard *.c)
-SSRC	 := $(wildcard *.S lzo/*.S)
+CSRC	 := $(wildcard *.c */*.c */*/*.c)
+SSRC	 := $(wildcard *.S */*.S */*/*.S)
 CHDR	 := $(wildcard *.h)
 OTHERSRC := keywords
 ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
@@ -130,7 +130,7 @@ tidy dist:
 	rm -f codepage.cp *.o *.elf *.a stupid.* patch.offset .depend .*.d
 	rm -f *.elf.tmp *.sym
 	rm -f *.lsr *.lst *.map *.sec *.raw
-	rm -f */*.o */*.lst */.*.d
+	rm -f */*.o */*/*.o */*.lst */*/*.lst */.*.d */*/.*.d
 	rm -f $(OBSOLETE)
 
 clean: tidy

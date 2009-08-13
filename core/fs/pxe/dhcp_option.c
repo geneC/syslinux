@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <core.h>
-#include <pxe.h>
 #include <sys/cpu.h>
+#include "pxe.h"
 
 void parse_dhcp_options(void *, int, int);
 
