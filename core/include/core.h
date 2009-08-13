@@ -25,6 +25,7 @@ void __cdecl core_intcall(uint8_t, const com32sys_t *, com32sys_t *);
 void __cdecl core_farcall(uint32_t, const com32sys_t *, com32sys_t *);
 int __cdecl core_cfarcall(uint32_t, const void *, uint32_t);
 
+extern const com32sys_t zero_regs;
 void call16(void (*)(void), const com32sys_t *, com32sys_t *);
 
 /*
@@ -34,9 +35,15 @@ void call16(void (*)(void), const com32sys_t *, com32sys_t *);
 #define __bss16  __attribute((nocommon,section(".bss16")))
 
 /*
+ * Death!  The macro trick is to avoid symbol conflict with
+ * the real-mode symbol kaboom.
+ */
+__noreturn _kaboom(void);
+#define kaboom() _kaboom()
+
+/*
  * externs for pxelinux
  */
-extern void kaboom(void);
 extern void dns_mangle(void);
 
 extern uint32_t ServerIP;

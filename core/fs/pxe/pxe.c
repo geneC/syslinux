@@ -324,7 +324,7 @@ static int pxe_get_cached_info(int type)
     err = pxe_call(PXENV_GET_CACHED_INFO, &bq_pkt);
     if (err) {
         printf("%s %04x\n", err_pxefailed, err);
-        call16(kaboom, NULL, NULL);
+	kaboom();
     }
     
     return bq_pkt.buffersize;
@@ -404,9 +404,8 @@ static void get_packet_gpxe(struct open_file_t *file)
         if (!err)  /* successed */
             break;
 
-        if (fr.status == PXENV_STATUS_TFTP_OPEN)
-            continue;
-        call16(kaboom, NULL, NULL);
+        if (fr.status != PXENV_STATUS_TFTP_OPEN)
+	    kaboom();
     }
 
     file->tftp_bytesleft = fr.buffersize;
@@ -603,7 +602,7 @@ static void fill_buffer(struct open_file_t *file)
 
     /* time runs out */
     if (timeout == 0)
-        call16(kaboom, NULL, NULL);
+	kaboom();
     
     last_pkt = file->tftp_lastpkt;
     last_pkt = ntohs(last_pkt);       /* Host byte order */
@@ -996,7 +995,7 @@ err_reply:
     uw_pkt.buffersize = 24;
     pxe_call(PXENV_UDP_WRITE, &uw_pkt);
     printf("TFTP server sent an incomprehesible reply\n");
-    call16(kaboom, NULL, NULL);
+    kaboom();
         
 failure:
     timeout_ptr++;
@@ -1146,7 +1145,7 @@ static void pxe_load_config(com32sys_t *regs)
         return;
 
     printf("Unable to locate configuration file\n");
-    call16(kaboom, NULL, NULL); 
+    kaboom();
 }
    
   
@@ -1382,7 +1381,7 @@ static void pxe_init(void)
 
     /* Found nothing at all !! */
     printf("%s\n", err_nopxe);
-    call16(kaboom, NULL, NULL);
+    kaboom();
     
  have_pxenv:
     APIVer = pxenv->version;
@@ -1445,7 +1444,7 @@ static void udp_init(void)
     if (err || uo_pkt.status) {
         printf("%s", err_udpinit);
         printf("%d\n", uo_pkt.status);
-        call16(kaboom, NULL, NULL);
+	kaboom();
     }
 }
   
