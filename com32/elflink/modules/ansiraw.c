@@ -47,6 +47,7 @@ static int ansiraw_init()
 void console_ansi_raw(void)
 {
     openconsole(&dev_rawcon_r, &dev_ansiserial_w);
+	printf("hmmm 2\n");
 }
 
 static void ansiraw_exit()

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <console.h>
 #include <com32.h>
@@ -12,6 +13,7 @@
 #include <sys/module.h>
 #include "common.h"
 #include "menu.h"
+#include "cli.h"
 
 typedef void (*constructor_t)(void);
 constructor_t __ctors_start[], __ctors_end[];
@@ -67,9 +69,11 @@ static void call_constr()
 /* note to self: do _*NOT*_ use static key word on this function */
 void load_env32(com32sys_t * regs)
 {
-	openconsole(&dev_stdcon_r, &dev_stdcon_w);
-	printf("Calling initilization constructor procedures...\n");
 	call_constr();
+	char *cmdline;
+	//openconsole(&dev_stdcon_r, &dev_stdcon_w);
+	openconsole(&dev_rawcon_r, &dev_ansiserial_w);
+	printf("Calling initilization constructor procedures...\n");
 	printf("Starting 32 bit elf module subsystem...\n");
 	init_module_subsystem(&core_module);
 
@@ -77,6 +81,10 @@ void load_env32(com32sys_t * regs)
 	printf("Sym table address: %d\n",core_module.sym_table);
 	printf("Str table size: %d\n",core_module.strtable_size);
 	printf("Sym table size: %d\n",core_module.symtable_size);
+
+	cmdline=edit_cmdline("hello",1);
+	//printf("%s\n",cmdline);
+	//fgets(cmdline,100,stdin);
 
 	int i,n=5;
 	char **argv;
@@ -87,9 +95,8 @@ void load_env32(com32sys_t * regs)
 	strcpy(argv[0],"extlinux.conf");
 	strcpy(argv[1],"extlinux.conf");
 	
-	/*printf("\nBegin dynamic module test ...\n");
-	printf("\n\nTrying to laod 'dyn/sort.dyn'\n\n");*/
 	printf("%d\n",load_library("dyn/sort.dyn"));
+	printf("Loading ansiraw.c32\n%d\n",load_library("dyn/ansiraw.c32"));
 	printf("Loading background.c32\n%d\n",load_library("dyn/background.c32"));
 	printf("Loading printmsg.c32\n%d\n",load_library("dyn/printmsg.c32"));
 	printf("Loading drain.c32\n%d\n",load_library("dyn/drain.c32"));
@@ -102,14 +109,13 @@ void load_env32(com32sys_t * regs)
 	printf("Loading passwd.c32\n%d\n",load_library("dyn/passwd.c32"));
 	printf("Loading get_key.c32\n%d\n",load_library("dyn/get_key.c32"));
 	printf("Loading menumain.c32\n%d\n",load_library("dyn/menumain.c32"));
-	printf("Loading ansiraw.c32\n%d\n",load_library("dyn/ansiraw.c32"));
 
 	/*printf("\n\nTrying to spawn 'dyn/hello.dyn'\n\n"); 
 	spawnv("dyn/hello.dyn",0);
 	printf("\nTest done\n");*/
 	//printf("%d\n",spawnv("mytest.c32",argv));
 	spawnl("mytest.c32", "mytest",(regs->edi.w[0]), NULL);
-	printf("Done\n");
+	//printf("Done\n");
 	
 	while(1) 1; /* we don't have anything better to do so hang around for a bit */
 }

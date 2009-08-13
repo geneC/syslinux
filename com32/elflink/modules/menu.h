@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <colortbl.h>
 #include <stdbool.h>
+#include <setjmp.h>
 #include "refstr.h"
 
 #ifndef CLK_TCK
@@ -178,9 +179,10 @@ extern struct menu *root_menu, *start_menu, *hide_menu, *menu_list;
 extern int shiftkey;
 extern int hiddenmenu;
 extern long long totaltimeout;
+jmp_buf timeout_jump;
 
 void parse_configs(char **argv);
-int draw_background(const char *filename);
+extern int draw_background(const char *filename);
 
 static inline int my_isspace(char c)
 {
