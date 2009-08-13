@@ -6,8 +6,6 @@
 #include "ext2_fs.h"
 #include "fs.h"
 
-#define FILENAME_MAX_LG2 8
-#define FILENAME_MAX     (1 << FILENAME_MAX_LG2)
 #define MAX_SYMLINKS     64
 #define SYMLINK_SECTORS  2
 
@@ -97,60 +95,6 @@ static void ext2_close_file(struct file *file)
 {
     close_pvt(file->open_file);
 }
-
-/**
- * mangle_name:
- * 
- * Mangle a filename pointed to by DS:SI(of regs) into a
- * buffer pointed to by ES:DI(of regs); ends on encountering
- * any whitespace.
- *
- */
-static void ext2_mangle_name(char *dst, char *src)
-{
-    char *p = dst;
-    int i = FILENAME_MAX -1;
-    
-    while(*src > ' ') {
-        if (*src == '/') {
-            if (*(src+1) == '/') {
-                src ++;
-                i --;
-                continue;
-            }
-        }        
-        i --;
-        *dst++ = *src++;
-    }
-
-    while (1) {
-        if (dst == p)
-            break;        
-        if (*(dst-1) != '/') 
-            break;
-        
-        dst --;
-        i ++;
-    }
-
-    i ++;
-    for (; i > 0; i --)
-        *dst++ = '\0';
-}
-
-/*
- * Does the opposite of mangle_name; converts a DOS-mangled
- * filename to the conventional representation.  This is 
- * needed for the BOOT_IMAGE= parameter for the kernel.
- *
- * it returns the lenght of the filename.
- */
-static int ext2_unmangle_name(char *dst, char *src)
-{
-    strcpy(dst, src);
-    return strlen(src);
-}
-
 
 /**
  * get_group_desc:
@@ -812,7 +756,7 @@ const struct fs_ops ext2_fs_ops = {
     .searchdir     = ext2_searchdir,
     .getfssec      = ext2_getfssec,
     .close_file    = ext2_close_file,
-    .mangle_name   = ext2_mangle_name,
-    .unmangle_name = ext2_unmangle_name,
+    .mangle_name   = generic_mangle_name,
+    .unmangle_name = NULL,
     .load_config   = ext2_load_config
 };

@@ -21,7 +21,6 @@
 ;
 ; Some semi-configurable constants... change on your own risk.
 ;
-FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)	; Max mangled filename size
 NULLFILE	equ 0			; Null character == empty filename
 NULLOFFSET	equ 0			; Position in which to look
 retry_count	equ 16			; How patient are we with the disk?

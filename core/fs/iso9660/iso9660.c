@@ -8,13 +8,10 @@
 
 #define DEBUG 1
 
-#define FILENAME_MAX_LG2 8
-#define FILENAME_MAX     (1 << FILENAME_MAX_LG2)
 #define ISO_SECTOR_SHIFT 11
 #define ISO_SECTOR_SIZE  (1 << ISO_SECTOR_SHIFT)
 #define ROOT_DIR_WORD    0x002f
 #define TRACKBUF_SIZE    8192
-
 
 struct open_file_t {
         sector_t file_sector;
@@ -95,22 +92,22 @@ static void iso_close_file(struct file *file)
  * a bit of an easier job.
  *
  */
-static void iso_mangle_name(char *dst, char *src)
+static void iso_mangle_name(char *dst, const char *src)
 {
     char *p = dst;
     int i = FILENAME_MAX - 1;
     
-    while ( *src > ' ' ) {
+    while (not_whitespace(*src)) {
         if ( *src == '/' ) {
             if ( *(src+1) == '/' ) {
-                i --;
-                src ++;
+                i--;
+                src++;
                 continue;
             }
         }
         
         *dst++ = *src ++;
-        i --;
+        i--;
     }
     
     while ( 1 ) {
@@ -129,20 +126,6 @@ static void iso_mangle_name(char *dst, char *src)
         *dst++ = '\0';
 }
     
-
-/*
- * Does the opposite of mangle_name; converts a DOS-mangled
- * filename to the conventional representation.  This is 
- * needed for the BOOT_IMAGE= parameter for the kernel.
- *
- * it returns the lenght of the filename.
- */
-static int iso_unmangle_name(char *dst, char *src)
-{
-    strcpy(dst, src);
-    return strlen(src);
-}
-
 /**
  * compare the names si and di and report if they are
  * equal from an ISO 9600 perspective. 
@@ -556,6 +539,6 @@ const struct fs_ops iso_fs_ops = {
     .getfssec      = iso_getfssec,
     .close_file    = iso_close_file,
     .mangle_name   = iso_mangle_name,
-    .unmangle_name = iso_unmangle_name,
+    .unmangle_name = NULL,
     .load_config   = iso_load_config
 };

@@ -29,8 +29,6 @@
 ; Some semi-configurable constants... change on your own risk.
 ;
 my_id		equ pxelinux_id
-FILENAME_MAX_LG2 equ 8			; log2(Max filename size Including final null)
-FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
 NULLFILE	equ 0			; Zero byte == null file name
 NULLOFFSET	equ 4			; Position in which to look
 REBOOT_TIME	equ 5*60		; If failure, time until full reset

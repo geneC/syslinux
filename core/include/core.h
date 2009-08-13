@@ -81,5 +81,4 @@ extern char UUID[];
 
 extern volatile uint16_t BIOS_timer;
 
-
 #endif /* CORE_H */

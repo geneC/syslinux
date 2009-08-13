@@ -6,9 +6,6 @@
 #include "fat_fs.h"
 #include "fs.h"
 
-
-#define FILENAME_MAX_LG2 8
-#define FILENAME_MAX     (1 << FILENAME_MAX_LG2)
 #define ROOT_DIR_WORD    0x002f
 
 /* file structure. This holds the information for each currently open file */
@@ -352,55 +349,47 @@ static uint32_t vfat_getfssec(struct file *gfile, char *buf, int sectors,
  * ends on encountering any whitespace.
  *
  */
-static void vfat_mangle_name(char *dst, char *src)
+static void vfat_mangle_name(char *dst, const char *src)
 {
     char *p = dst;
+    char c;
     int i = FILENAME_MAX -1;
     
-    while(*src > ' ') {
-        if ( *src == '\\' )
-            *src = '/';
+    /*
+     * Copy the filename, converting backslash to slash and
+     * collapsing duplicate separators.
+     */
+    while (not_whitespace(c = *src)) {
+        if (c == '\\')
+            c = '/';
         
-        if (*src == '/') {
-            if (*(src+1) == '/') {
-                src ++;
-                i --;
+        if (c == '/') {
+            if (src[1] == '/' || src[1] == '\\') {
+                src++;
+                i--;
                 continue;
             }
         }        
-        i --;
+        i--;
         *dst++ = *src++;
     }
 
+    /* Strip terminal slashes or whitespace */
     while (1) {
         if (dst == p)
             break;        
         if ((*(dst-1) != '/') && (*(dst-1) != '.'))
             break;
         
-        dst --;
-        i ++;
+        dst--;
+        i++;
     }
 
-    i ++;
+    i++;
     for (; i > 0; i --)
         *dst++ = '\0';
 }
  
-
-/*
- * Does the opposite of mangle_name; converts a DOS-mangled
- * filename to the conventional representation.  This is 
- * needed for the BOOT_IMAGE= parameter for the kernel.
- *
- * it returns the lenght of the filename.
- */
-static int vfat_unmangle_name(char *dst, char *src)
-{
-    strcpy(dst, src);
-    return strlen(src);
-}
-
 /**
  * mangle_dos_name:
  *
@@ -959,6 +948,6 @@ const struct fs_ops vfat_fs_ops = {
     .getfssec      = vfat_getfssec,
     .close_file    = vfat_close_file,
     .mangle_name   = vfat_mangle_name,
-    .unmangle_name = vfat_unmangle_name,
+    .unmangle_name = NULL,
     .load_config   = vfat_load_config
 };

@@ -26,8 +26,6 @@
 ; Some semi-configurable constants... change on your own risk.
 ;
 my_id		equ isolinux_id
-FILENAME_MAX_LG2 equ 8			; log2(Max filename size Including final null)
-FILENAME_MAX	equ (1 << FILENAME_MAX_LG2)
 NULLFILE	equ 0			; Zero byte == null file name
 NULLOFFSET	equ 0			; Position in which to look
 retry_count	equ 6			; How patient are we with the BIOS?

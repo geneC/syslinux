@@ -16,6 +16,9 @@
 #define MAX_OPEN_LG2	5
 #define MAX_OPEN	(1 << MAX_OPEN_LG2)
 
+#define FILENAME_MAX_LG2 8
+#define FILENAME_MAX     (1 << FILENAME_MAX_LG2)
+
 struct fs_info {
     const struct fs_ops *fs_ops;
     struct device *fs_dev;
@@ -42,13 +45,18 @@ struct fs_ops {
     void     (*searchdir)(char *, struct file *);
     uint32_t (*getfssec)(struct file *, char *, int, bool *);
     void     (*close_file)(struct file *);
-    void     (*mangle_name)(char *, char *);
-    int      (*unmangle_name)(char *, char *);
+    void     (*mangle_name)(char *, const char *);
+    void     (*unmangle_name)(char *, const char *);
     void     (*load_config)(com32sys_t *);
 };
 
 enum dev_type {CHS, EDD};
-    
+
+/*
+ * Generic functions that filesystem drivers may choose to use
+ */
+void generic_mangle_name(char *, const char *);
+
 /*
  * Struct device contains:
  *     the pointer points to the disk structure,
@@ -64,5 +72,13 @@ struct device {
     uint16_t cache_entries;
     uint32_t cache_size;
 };
+
+/*
+ * Our definition of "not whitespace"
+ */
+static inline bool not_whitespace(char c)
+{
+  return (unsigned char)c > ' ';
+}
 
 #endif /* FS_H */

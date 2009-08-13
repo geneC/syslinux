@@ -6,11 +6,7 @@
 #include <sys/cpu.h>
 #include "pxe.h"
 
-#define FILENAME_MAX_LG2   7
-#define FILENAME_MAX       (1 << FILENAME_MAX_LG2)
-
 #define GPXE 1
-#define USE_PXE_PROVIDED_STACK 0
 
 static struct open_file_t Files[MAX_OPEN];
 
@@ -228,9 +224,9 @@ int gendotquad(char *dst, uint32_t ip)
  * return the the string address after the ip string
  *
  */
-static char *parse_dotquad(char *ip_str, uint32_t *res)
+static const char *parse_dotquad(const char *ip_str, uint32_t *res)
 {
-    char *p = ip_str;
+    const char *p = ip_str;
     int  i  = 0;
     uint8_t part = 0;
     uint32_t ip  = 0;
@@ -343,10 +339,10 @@ static int pxe_get_cached_info(int type)
  * url is a URL (contains ://)
  *
  */
-static int is_url(char *url)
+static int is_url(const char *url)
 {
     while (*url) {
-        if(! strncmp(url, "://", 3))
+        if (!strncmp(url, "://", 3))
             return 1;
           
         url++;
@@ -438,9 +434,9 @@ static void get_packet_gpxe(struct open_file_t *file)
  * the download host, 0 for no host, or -1 for a gPXE URL.
  *
  */
-static void pxe_mangle_name(char *dst, char *src)
+static void pxe_mangle_name(char *dst, const char *src)
 {
-    char *p = src;
+    const char *p = src;
     uint32_t ip = 0;
     int i = 0;
    
@@ -492,15 +488,15 @@ static void pxe_mangle_name(char *dst, char *src)
     i = FILENAME_MAX - 5;
 
     do {
-        if (*p <= ' ')
-            break;
-        *dst++ = *p++;
-    }while (i--);
+	if (!not_whitespace(*p))
+	    break;
+	*dst++ = *p++;
+    } while (i--);
 
-    i ++;
+    i++;
     while (i) {
         *dst++ = 0;
-        i --;
+        i--;
     }    
     
 #if 0
@@ -516,10 +512,8 @@ static void pxe_mangle_name(char *dst, char *src)
  * Does the opposite of mangle_name; converts a DOS-mangled
  * filename to the conventional representation.  This is 
  * needed for the BOOT_IMAGE= parameter for the kernel.
- *
- * it returns the lenght of the filename.
  */
-static int pxe_unmangle_name(char *dst, char *src)
+static void pxe_unmangle_name(char *dst, const char *src)
 {
     uint32_t ip = *(uint32_t *)src;
     int ip_len = 0;
@@ -528,10 +522,8 @@ static int pxe_unmangle_name(char *dst, char *src)
         ip_len = gendotquad(dst, *(uint32_t *)src);
         dst += ip_len;
     }
-    src += 4;;
+    src += 4;
     strcpy(dst, src);
-    
-    return strlen(src) + ip_len;
 }
         
 /*

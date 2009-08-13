@@ -61,8 +61,8 @@ void load_config(com32sys_t *regs)
 
 void mangle_name(com32sys_t *regs)
 {
-    char *src = MK_PTR(regs->ds, regs->esi.w[0]);
-    char *dst = MK_PTR(regs->es, regs->edi.w[0]);
+    const char *src = MK_PTR(regs->ds, regs->esi.w[0]);
+    char       *dst = MK_PTR(regs->es, regs->edi.w[0]);
 
     this_fs->fs_ops->mangle_name(dst, src);
 }
@@ -70,13 +70,17 @@ void mangle_name(com32sys_t *regs)
 
 void unmangle_name(com32sys_t *regs)
 {
-    char *src = MK_PTR(regs->ds, regs->esi.w[0]);
-    char *dst = MK_PTR(regs->es, regs->edi.w[0]);
-    int len;
+    const char *src = MK_PTR(regs->ds, regs->esi.w[0]);
+    char       *dst = MK_PTR(regs->es, regs->edi.w[0]);
 
-    len = this_fs->fs_ops->unmangle_name(dst, src);
+    if (this_fs->fs_ops->unmangle_name)
+	this_fs->fs_ops->unmangle_name(dst, src);
+    else
+	strcpy(dst, src);
+
     /* Update the di register to point to the last null char */
-    regs->edi.w[0] += len;
+    dst = strchr(dst, '\0');
+    regs->edi.w[0] = OFFS_WRT(dst, regs->es);
 }
 
 
