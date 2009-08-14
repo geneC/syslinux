@@ -6,6 +6,7 @@
 #define COM32_LIB_SYS_ANSI_H
 
 #include <inttypes.h>
+#include <stdbool.h>
 
 #define ANSI_MAX_PARMS	16
 
@@ -27,22 +28,23 @@ struct curxy {
 } __attribute__ ((packed));
 
 struct term_state {
-    struct curxy xy;
-    int cindex;			/* SOH color index */
-    int vtgraphics;		/* VT graphics on/off */
-    int intensity;
-    int underline;
-    int blink;
-    int reverse;
-    int fg;
-    int bg;
-    int autocr;
-    struct curxy saved_xy;
-    int cursor;
     enum ansi_state state;
-    int pvt;			/* Private code? */
     int nparms;			/* Number of parameters seen */
     int parms[ANSI_MAX_PARMS];
+    bool pvt;			/* Private code? */
+    struct curxy xy;
+    struct curxy saved_xy;
+    uint8_t cindex;		/* SOH color index */
+    uint8_t fg;
+    uint8_t bg;
+    uint8_t intensity;
+    bool vtgraphics;		/* VT graphics on/off */
+    bool underline;
+    bool blink;
+    bool reverse;
+    bool autocr;
+    bool autowrap;
+    bool cursor;
 };
 
 struct ansi_ops {

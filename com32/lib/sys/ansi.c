@@ -36,21 +36,22 @@
 #include "ansi.h"
 
 static const struct term_state default_state = {
+    .state = st_init,
+    .pvt = false,
+    .nparms = 0,
     .xy = {0, 0},
     .cindex = 0,		/* First color table entry */
-    .vtgraphics = 0,
+    .vtgraphics = false,
     .intensity = 1,
-    .underline = 0,
-    .blink = 0,
-    .reverse = 0,
+    .underline = false,
+    .blink = false,
+    .reverse = false,
     .fg = 7,
     .bg = 0,
-    .autocr = 1,		/* Mimic \n -> \r\n conversion by default */
+    .autocr = true,	  	/* Mimic \n -> \r\n conversion by default */
+    .autowrap = true,		/* Wrap lines by default */
     .saved_xy = {0, 0},
-    .cursor = 1,
-    .state = st_init,
-    .pvt = 0,
-    .nparms = 0,
+    .cursor = true,
 };
 
 /* DEC VT graphics to codepage 437 table (characters 0x60-0x7F only) */
@@ -141,7 +142,8 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
 	    break;
 	case '[':
 	    st->state = st_csi;
-	    st->nparms = st->pvt = 0;
+	    st->nparms = 0;
+	    st->pvt = false;
 	    memset(st->parms, 0, sizeof st->parms);
 	    break;
 	case 'c':
@@ -170,7 +172,7 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
 		    st->nparms = ANSI_MAX_PARMS - 1;
 		break;
 	    } else if (ch == '?') {
-		st->pvt = 1;
+		st->pvt = true;
 	    } else {
 		switch (ch) {
 		case 'A':
@@ -278,22 +280,25 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
 		    break;
 		case 'h':
 		case 'l':
-		    {
-			int set = (ch == 'h');
-			switch (st->parms[0]) {
-			case 20:
-			    st->autocr = set;
-			    break;
-			case 25:
-			    st->cursor = set;
-			    op->showcursor(st);
-			    break;
-			default:
-			    /* Ignore */
-			    break;
-			}
+		{
+		    bool set = (ch == 'h');
+		    switch (st->parms[0]) {
+		    case 7:	/* DECAWM */
+			st->autowrap = set;
+			break;
+		    case 20:	/* LNM */
+			st->autocr = set;
+			break;
+		    case 25:	/* DECTECM */
+			st->cursor = set;
+			op->showcursor(st);
+			break;
+		    default:
+			/* Ignore */
+			break;
 		    }
 		    break;
+		}
 		case 'm':
 		    {
 			static const int ansi2pc[8] =
@@ -421,8 +426,12 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
 
     /* If we fell off the end of the screen, adjust */
     if (xy.x >= cols) {
-	xy.x = 0;
-	xy.y++;
+	if (st->autowrap) {
+	    xy.x = 0;
+	    xy.y++;
+	} else {
+	    xy.x = cols - 1;
+	}
     }
     while (xy.y >= rows) {
 	xy.y--;
