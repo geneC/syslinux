@@ -527,7 +527,7 @@ const char *edit_cmdline(const char *input, int top)
 
 		memmove(cmdline + cursor, cmdline + prevcursor,
 			len - prevcursor + 1);
-		len -= (cursor - prevcursor);
+		len -= (prevcursor - cursor);
 		redraw = 1;
 	    }
 	    break;
