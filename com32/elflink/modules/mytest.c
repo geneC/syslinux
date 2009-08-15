@@ -21,8 +21,7 @@
 static int mytest_main(int argc, char **argv)
 {
 	console_ansi_raw();
-	printf("hmmm\n");
-	edit_cmdline("hello",1);
+	//edit_cmdline("",1);
 	menu_main(argc, argv);
 	return 0;
 }

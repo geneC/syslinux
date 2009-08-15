@@ -71,7 +71,6 @@ void load_env32(com32sys_t * regs)
 {
 	call_constr();
 	char *cmdline;
-	//openconsole(&dev_stdcon_r, &dev_stdcon_w);
 	openconsole(&dev_rawcon_r, &dev_ansiserial_w);
 	printf("Calling initilization constructor procedures...\n");
 	printf("Starting 32 bit elf module subsystem...\n");
@@ -82,8 +81,9 @@ void load_env32(com32sys_t * regs)
 	printf("Str table size: %d\n",core_module.strtable_size);
 	printf("Sym table size: %d\n",core_module.symtable_size);
 
-	cmdline=edit_cmdline("hello",1);
-	//printf("%s\n",cmdline);
+	cmdline=edit_cmdline("",1,NULL,NULL);
+	printf("\n%s\n",cmdline);
+
 	//fgets(cmdline,100,stdin);
 
 	int i,n=5;

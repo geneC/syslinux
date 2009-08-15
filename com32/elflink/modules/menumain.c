@@ -285,7 +285,7 @@ static int ask_passwd(const char *menu_entry)
     return rv;
 }
 
-static void draw_menu(int sel, int top, int edit_line)
+static int draw_menu(int sel, int top, int edit_line)
 {
     int x, y;
     int sbtop = 0, sbbot = 0;
@@ -331,11 +331,7 @@ static void draw_menu(int sel, int top, int edit_line)
     printf("\1#8\033[%d;%dH%s",
 	   TABMSG_ROW, 1 + HSHIFT + ((WIDTH - tabmsg_len) >> 1), tabmsg);
     printf("\1#0\033[%d;1H", END_ROW);
-}
-
-static void clear_screen(void)
-{
-    fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
+    return 0;
 }
 
 static void display_help(const char *text)
@@ -852,7 +848,7 @@ static const char *run_menu(void)
 		}
 
 		if (ok) {
-		    cmdline = edit_cmdline(me->cmdline, top);
+		    cmdline = edit_cmdline(me->cmdline, top,&draw_menu,&show_fkey);
 		    done = !!cmdline;
 		    clear = 1;	/* In case we hit [Esc] and done is null */
 		} else {

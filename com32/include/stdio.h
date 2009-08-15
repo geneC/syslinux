@@ -61,7 +61,7 @@ __extern int fputs(const char *, FILE *);
 __extern int puts(const char *);
 __extern int fputc(int, FILE *);
 #define putc(c,f)  fputc((c),(f))
-//#define putchar(c) fputc((c),stdout)
+#define putchar(c) fputc((c),stdout)
 
 __extern int fgetc(FILE *);
 __extern char *fgets(char *, int, FILE *);
