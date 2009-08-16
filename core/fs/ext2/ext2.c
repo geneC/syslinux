@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <string.h>
-#include "cache.h"
-#include "core.h"
-#include "disk.h"
+#include <cache.h>
+#include <core.h>
+#include <disk.h>
+#include <fs.h>
 #include "ext2_fs.h"
-#include "fs.h"
 
 #define MAX_SYMLINKS     64
 #define SYMLINK_SECTORS  2
+static char SymlinkBuf[SYMLINK_SECTORS * SECTOR_SIZE + 64];
 
 /* 
  * File structure, This holds the information for each currently open file 
@@ -20,10 +21,7 @@ struct open_file_t {
     uint16_t file_mode;
     uint32_t pad[3];          /* pad to 2^5 == 0x20 bytes */
 };
-
 static struct open_file_t Files[MAX_OPEN];
-
-static char SymlinkBuf[SYMLINK_SECTORS * SECTOR_SIZE + 64];
 
 static struct ext2_inode this_inode;
 static struct ext2_super_block sb;
@@ -33,13 +31,8 @@ static uint32_t SecPerClust, ClustSize, ClustMask;
 static uint32_t PtrsPerBlock1, PtrsPerBlock2, PtrsPerBlock3;
 static int DescPerBlock, InodePerBlock;
 
-
-/**
- * strecpy:
- *
+/*
  * just like the function strcpy(), except it returns non-zero if overflow.
- *
- * well, in Syslinux, strcpy() will advance both the dst and src string pointer.
  * 
  */
 static int strecpy(char *dst, char *src, char *end)
@@ -55,12 +48,8 @@ static int strecpy(char *dst, char *src, char *end)
 }
 
 
-/**
- * allocate_file:
- * 
- * Allocate a file structure
- *
- * @return: if successful return the file pointer, or return NULL
+/*
+ * Allocate a file structure,  if successful return the file pointer,  or NULL.
  *
  */
 static struct open_file_t *allocate_file(void)
@@ -97,8 +86,6 @@ static void ext2_close_file(struct file *file)
 }
 
 /**
- * get_group_desc:
- *
  * get the group's descriptor of group_num
  *
  * @param: group_num, the group number;
@@ -106,7 +93,8 @@ static void ext2_close_file(struct file *file)
  * @return: the pointer of the group's descriptor
  *
  */ 
-static struct ext2_group_desc *get_group_desc(struct fs_info *fs, uint32_t group_num)
+static struct ext2_group_desc *
+get_group_desc(struct fs_info *fs, uint32_t group_num)
 {
     block_t block_num;
     uint32_t offset;
@@ -118,7 +106,6 @@ static struct ext2_group_desc *get_group_desc(struct fs_info *fs, uint32_t group
 
     block_num += sb.s_first_data_block + 1;
     cs = get_cache_block(fs->fs_dev, block_num);
-
     desc = (struct ext2_group_desc *)cs->data + offset;
 
     return desc;
@@ -126,8 +113,6 @@ static struct ext2_group_desc *get_group_desc(struct fs_info *fs, uint32_t group
 
 
 /**
- * read_inode:
- *
  * read the right inode structure to _dst_.
  *
  * @param: inode_offset, the inode offset within a group;
@@ -138,8 +123,8 @@ static struct ext2_group_desc *get_group_desc(struct fs_info *fs, uint32_t group
  *
  */
 static void read_inode(struct fs_info *fs, uint32_t inode_offset, 
-                struct ext2_inode *dst, struct ext2_group_desc *desc,
-                block_t *block, uint32_t *offset)
+                       struct ext2_inode *dst, struct ext2_group_desc *desc,
+                       block_t *block, uint32_t *offset)
 {
     struct cache_struct *cs;
     struct ext2_inode *inode;
@@ -159,8 +144,6 @@ static void read_inode(struct fs_info *fs, uint32_t inode_offset,
 
 
 /**
- * open_inode:
- *
  * open a file indicated by an inode number in INR
  *
  * @param : inr, the inode number
@@ -169,7 +152,8 @@ static void read_inode(struct fs_info *fs, uint32_t inode_offset,
  *          the first 128 bytes of the inode, stores in ThisInode
  *
  */
-static struct open_file_t * open_inode(struct fs_info *fs, uint32_t inr, uint32_t *file_len)
+static struct open_file_t * 
+open_inode(struct fs_info *fs, uint32_t inr, uint32_t *file_len)
 {
     struct open_file_t *file;
     struct ext2_group_desc *desc;
@@ -208,7 +192,7 @@ static struct open_file_t * open_inode(struct fs_info *fs, uint32_t inr, uint32_
 
 
 static struct ext4_extent_header * 
-ext4_find_leaf (struct fs_info *fs, struct ext4_extent_header *eh, block_t block)
+ext4_find_leaf(struct fs_info *fs, struct ext4_extent_header *eh, block_t block)
 {
     struct ext4_extent_idx *index;
     struct cache_struct *cs;
@@ -241,7 +225,8 @@ ext4_find_leaf (struct fs_info *fs, struct ext4_extent_header *eh, block_t block
 }
 
 /* handle the ext4 extents to get the phsical block number */
-static block_t linsector_extent(struct fs_info *fs, block_t block, struct ext2_inode *inode)
+static block_t linsector_extent(struct fs_info *fs, block_t block, 
+                                struct ext2_inode *inode)
 {
     struct ext4_extent_header *leaf;
     struct ext4_extent *ext;
@@ -249,7 +234,7 @@ static block_t linsector_extent(struct fs_info *fs, block_t block, struct ext2_i
     block_t start;
     
     leaf = ext4_find_leaf(fs, (struct ext4_extent_header*)inode->i_block, block);
-    if (! leaf) {
+    if (!leaf) {
         printf("ERROR, extent leaf not found\n");
         return 0;
     }
@@ -262,8 +247,7 @@ static block_t linsector_extent(struct fs_info *fs, block_t block, struct ext2_i
     if (--i < 0) {
         printf("ERROR, not find the right block\n");
         return 0;
-    }
-    
+    }    
     
     /* got it */
     block -= ext[i].ee_block;
@@ -503,9 +487,8 @@ static uint32_t ext2_getfssec(struct file *gfile, char *buf,
  * find a dir entry, if find return it or return NULL
  *
  */
-static struct ext2_dir_entry* find_dir_entry(struct fs_info *fs,
-					     struct open_file_t *file,
-					     char *filename)
+static struct ext2_dir_entry* 
+find_dir_entry(struct fs_info *fs, struct open_file_t *file, char *filename)
 {
     bool have_more;
     char *EndBlock = trackbuf + (SecPerClust << SECTOR_SHIFT);;
@@ -595,14 +578,12 @@ static char *do_symlink(struct fs_info *fs, struct open_file_t *file,
 
 
 /**
- * searchdir:
- *
  * Search the root directory for a pre-mangle filename in FILENAME.
  *
  * @param: filename, the filename we want to search.
  *
- * @out  : a file pointer, stores in DS:SI (NOTE, DS == 0)
- * @out  : file lenght in bytes, stores in eax
+ * @out  : a open_file_t structure pointer, stores in file->open_file
+ * @out  : file lenght in bytes, stores in file->file_len
  *
  */
 static void ext2_searchdir(char *filename, struct file *file)
@@ -701,16 +682,12 @@ static void ext2_searchdir(char *filename, struct file *file)
 static void ext2_load_config(com32sys_t *regs)
 {
     char *config_name = "extlinux.conf";
-    com32sys_t out_regs;
     
     strcpy(ConfigName, config_name);
     *(uint32_t *)CurrentDirName = 0x00002f2e;  
 
     regs->edi.w[0] = OFFS_WRT(ConfigName, 0);
-    memset(&out_regs, 0, sizeof out_regs);
-    call16(core_open, regs, &out_regs);
-
-    regs->eax.w[0] = out_regs.eax.w[0];
+    call16(core_open, regs, regs);
 
 #if 0
     printf("the zero flag is %s\n", regs->eax.w[0] ?          \
@@ -720,15 +697,13 @@ static void ext2_load_config(com32sys_t *regs)
 }
 
 
-/**
+/*
  * init. the fs meta data, return the block size bits.
  */
 static int ext2_fs_init(struct fs_info *fs)
 {
     struct disk *disk = fs->fs_dev->disk;
-#if 0
-    printf("super block@: %p\n", &sb);
-#endif
+
     /* read the super block */
     disk->rdwr_sectors(disk, &sb, 2, 2, 0);
     

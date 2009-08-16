@@ -9,14 +9,6 @@
 #define GPXE 1
 
 static struct open_file_t Files[MAX_OPEN];
-
-static char *err_nopxe     = "No !PXE or PXENV+ API found; we're dead...\n";
-static char *err_pxefailed = "PXE API call failed, error ";
-static char *err_udpinit   = "Failed to initialize UDP stack\n";
-
-static char *tftpprefix_msg = "TFTP prefix: ";
-static char *get_packet_msg = "Getting cached packet ";
-
 static int has_gpxe;
 static uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
 int HaveUUID = 0;
@@ -89,7 +81,7 @@ static struct open_file_t *allocate_socket(void)
 }
 
 /*
- * free socket, socket in SI; return SI = 0, ZF = 1 for convenience
+ * free socket in _file_.
  */
 static void free_socket(struct open_file_t *file)
 {
@@ -131,7 +123,7 @@ static void lchexbytes(char *dst, const void *src, int count)
     }
 }
 
-/**
+/*
  * just like the lchexbytes, except to upper-case
  *
  */
@@ -151,50 +143,31 @@ static void uchexbytes(char *dst, const void *src, int count)
     }
 }
 
-
-
-
 /*
- *
- * Tests an IP address in EAX for validity; return with 0 for bad, 1 for good.
+ * Tests an IP address in _ip_ for validity; return with 0 for bad, 1 for good.
  * We used to refuse class E, but class E addresses are likely to become
  * assignable unicast addresses in the near future.
  *
  */
 int ip_ok(uint32_t ip)
 {
-    if (ip == -1)          /* Refuse the all-one address */
-        goto bad;
-    if ((ip & 0xff) == 0)  /* Refuse network zero */
-        goto bad;
-    if ((ip & 0xff) == 0xff) /* Refuse loopback */
-        goto bad;
-    if ((ip & 0xf0) == 0xe0) /* Refuse class D */
-        goto bad;
-    
-    return 1;
+    if (ip == -1 ||            /* Refuse the all-one address */
+        (ip & 0xff) == 0 ||    /* Refuse network zero */
+        (ip & 0xff) == 0xff || /* Refuse loopback */
+        (ip & 0xf0) == 0xe0 )  /* Refuse class D */
+        return 0;
 
- bad:
-    return 0;
+    return 1;
 }
 
 
-/*********************************************************************
-;
-; gendotquad
-;
-; Take an IP address (in network byte order) in EAX and
-; output a dotted quad string to ES:DI.
-; DI points to terminal null at end of string on exit.
-;
- *********************************************************************/
-/**
- * @param: dst, to store the converted ip string 
- * @param: ip, the ip address that needed convert.
- * 
- * @return: the ip string length
+/*
+ * Take an IP address (in network byte order) in _ip_ and
+ * output a dotted quad string to _dst_, returns the length
+ * of the dotted quad ip string.
+ *
  */
-int gendotquad(char *dst, uint32_t ip)
+static int gendotquad(char *dst, uint32_t ip)
 {
     int part;
     int i = 0, j;
@@ -273,7 +246,6 @@ static int pxe_call(int opcode, void *data)
 }
 
 /**
- *
  * Send ACK packet. This is a common operation and so is worth canning.
  *
  * @param: file,    TFTP block pointer
@@ -319,11 +291,10 @@ static int pxe_get_cached_info(int type)
     bq_pkt.packettype = type;
     bq_pkt.buffersize = 8192;
     bq_pkt.buffer[0]  = OFFS_WRT(trackbuf, 0);
-    bq_pkt.buffer[1]  = 0;
-    
+    bq_pkt.buffer[1]  = 0;    
     err = pxe_call(PXENV_GET_CACHED_INFO, &bq_pkt);
     if (err) {
-        printf("%s %04x\n", err_pxefailed, err);
+        printf("PXE API call failed, error  %04x\n", err);
 	kaboom();
     }
     
@@ -360,7 +331,8 @@ static int is_gpxe(char *url)
 {
     int err;
     static __lowmem struct gpxe_file_api_check ac;
-    char *gpxe_warning_msg = "URL syntax, but gPXE extensions not detected, tring plain TFTP...\n";
+    char *gpxe_warning_msg = 
+        "URL syntax, but gPXE extensions not detected, tring plain TFTP...\n";
     
     if (! is_url(url))
         return 0;
@@ -378,11 +350,8 @@ static int is_gpxe(char *url)
         if (!has_gpxe)
             printf("%s\n", gpxe_warning_msg);
     }
-
-    if (has_gpxe == 1) 
-        return 1;
-    else
-        return 0;   
+    
+    return has_gpxe == 1;
 }
 
 /**
@@ -496,14 +465,7 @@ static void pxe_mangle_name(char *dst, const char *src)
     while (i) {
         *dst++ = 0;
         i--;
-    }    
-    
-#if 0
-    printf("the name before mangling: ");
-    dump16(src);
-    printf("the name after mangling:  ");
-    dump16((char *)MK_PTR(regs->ds, regs->edi.w[0]));
-#endif
+    }
 }
 
 
@@ -526,14 +488,9 @@ static char *pxe_unmangle_name(char *dst, const char *src)
 }
        
 /*
- *
- ;
- ; Get a fresh packet if the buffer is drained, and we haven't hit
- ; EOF yet.  The buffer should be filled immediately after draining!
- ;
- ; expects fs -> pktbuf_seg and ds:si -> socket structure
- ;
-*/
+ * Get a fresh packet if the buffer is drained, and we haven't hit
+ * EOF yet.  The buffer should be filled immediately after draining!
+ */
 static void fill_buffer(struct open_file_t *file)
 {
     int err;
@@ -615,14 +572,15 @@ static void fill_buffer(struct open_file_t *file)
          * so the server just resent the previous packet.
          */
 #if 0
-	printf("Wrong packet, wanted %04x, got %04x\n", htons(last_pkt), htons(*(uint16_t *)(data+2)));
+	printf("Wrong packet, wanted %04x, got %04x\n", \
+               htons(last_pkt), htons(*(uint16_t *)(data+2)));
 #endif
         goto ack_again;
     }
     
     /* It's the packet we want.  We're also EOF if the size < blocksize */
     file->tftp_lastpkt = last_pkt;    /* Update last packet number */
-    buffersize = pkt.buffersize - 4; /* Skip TFTP header */
+    buffersize = pkt.buffersize - 4;  /* Skip TFTP header */
     file->tftp_dataptr = file->tftp_pktbuf + 4;
     file->tftp_filepos += buffersize;
     file->tftp_bytesleft = buffersize;
@@ -659,8 +617,8 @@ static uint32_t pxe_getfssec(struct file *gfile, char *buf,
 
     count <<= TFTP_BLOCKSIZE_LG2;
     while (count) {
-        fill_buffer(file);         /* If we have no 'fresh' buffer, get it */              
-        if (! file->tftp_bytesleft)
+        fill_buffer(file);         /* If we have no 'fresh' buffer, get it */
+        if (!file->tftp_bytesleft)
             break;
         
         chunk = count;
@@ -703,21 +661,13 @@ static int fill_tail(char *dst)
 }
 
 
-/*
+/**
+ * Open a TFTP connection to the server
  *
+ * @param:filename, the file we wanna open
  *
- * searchdir:
- *
- *	Open a TFTP connection to the server
- *
- *	     On entry:
- *		DS:DI	= mangled filename
- *	     If successful:
- *		ZF clear
- *		SI	= socket pointer
- *		EAX	= file length in bytes, or -1 if unknown
- *	     If unsuccessful
- *		ZF set
+ * @out: open_file_t structure, stores in file->open_file
+ * @ouT: the lenght of this file, stores in file->file_len
  *
  */
 static void pxe_searchdir(char *filename, struct file *file)
@@ -1037,11 +987,11 @@ static void get_prefix(void)
     *(p + 2) = 0;                /* Zero-terminate after delimiter */
     
  got_prefix:
-    printf("%s%s\n", tftpprefix_msg, PathPrefix);
+    printf("TFTP prefix: %s\n", PathPrefix);
     strcpy(CurrentDirName, PathPrefix);
 }
 
- /**
+ /*
   * try to load a config file, if found, return 1, or return 0
   *
   */   
@@ -1071,7 +1021,6 @@ static int try_load(com32sys_t *regs)
   */
 static void pxe_load_config(com32sys_t *regs)
 {
-    extern void no_config(void);
     char *cfgprefix = "pxelinux.cfg/";
     char *default_str = "default";
     char *config_file;		/* Pointer to the variable suffix */
@@ -1175,14 +1124,10 @@ static void make_bootif_string(void)
 #endif
 }
 /*
-  ;
-  ; genipopt
-  ;
-  ; Generate an ip=<client-ip>:<boot-server-ip>:<gw-ip>:<netmask>
-  ; option into IPOption based on a DHCP packet in trackbuf.
-  ; Assumes CS == DS == ES.
-  ;
-*/
+ * Generate an ip=<client-ip>:<boot-server-ip>:<gw-ip>:<netmask>
+ * option into IPOption based on a DHCP packet in trackbuf.
+ *
+ */
 static void genipopt(void)
 {
     char *p = IPOption;
@@ -1245,7 +1190,7 @@ static int is_pxe(const void *buf)
     return sum == 0;
 }
 
-/**
+/*
  * Just like is_pxe, it checks PXENV+ structure
  *
  */
@@ -1269,24 +1214,15 @@ static int is_pxenv(const void *buf)
         
 
 
-/*********************************************************************
-;
-; memory_scan_for_pxe_struct:
-; memory_scan_for_pxenv_struct:
-;
-;	If none of the standard methods find the !PXE/PXENV+ structure,
-;	look for it by scanning memory.
-;
-;	On exit, if found:
-;		ZF = 1, ES:BX -> !PXE structure
-;	Otherwise:
-;		ZF = 0
-;
-;	Assumes DS == CS
-;	Clobbers AX, BX, CX, DX, SI, ES
-;
- ********************************************************************/
-
+/*
+ * memory_scan_for_pxe_struct:
+ * memory_scan_for_pxenv_struct:
+ *
+ *	If none of the standard methods find the !PXE/PXENV+ structure,
+ *	look for it by scanning memory.
+ *
+ *	return the corresponding pxe structure if found, or NULL;
+ */
 static const void *memory_scan(uintptr_t start, int (*func)(const void *))
 {
     const char *ptr;
@@ -1380,7 +1316,7 @@ static void pxe_init(void)
         goto have_pxenv;
 
     /* Found nothing at all !! */
-    printf("%s\n", err_nopxe);
+    printf("No !PXE or PXENV+ API found; we're dead...\n");
     kaboom();
     
  have_pxenv:
@@ -1442,7 +1378,7 @@ static void udp_init(void)
     uo_pkt.sip = MyIP;
     err = pxe_call(PXENV_UDP_OPEN, &uo_pkt);
     if (err || uo_pkt.status) {
-        printf("%s", err_udpinit);
+        printf("Failed to initialize UDP stack ");
         printf("%d\n", uo_pkt.status);
 	kaboom();
     }
@@ -1462,20 +1398,19 @@ static void network_init(void)
     /*
      * Get the DHCP client identifiers (query info 1)
      */
-    printf("%s", get_packet_msg);
+    printf("Getting cached packet ");
     pkt_len = pxe_get_cached_info(1);
     parse_dhcp(pkt_len);
     /*
-      ; We don't use flags from the request packet, so
-      ; this is a good time to initialize DHCPMagic...
-      ; Initialize it to 1 meaning we will accept options found;
-      ; in earlier versions of PXELINUX bit 0 was used to indicate
-      ; we have found option 208 with the appropriate magic number;
-      ; we no longer require that, but MAY want to re-introduce
-      ; it in the future for vendor encapsulated options.
-    */
+     * We don't use flags from the request packet, so
+     * this is a good time to initialize DHCPMagic...
+     * Initialize it to 1 meaning we will accept options found;
+     * in earlier versions of PXELINUX bit 0 was used to indicate
+     * we have found option 208 with the appropriate magic number;
+     * we no longer require that, but MAY want to re-introduce
+     * it in the future for vendor encapsulated options.
+     */
     *(char *)&DHCPMagic = 1;
-
     
     /*
      * Get the BOOTP/DHCP packet that brought us file (and an IP
@@ -1490,19 +1425,15 @@ static void network_init(void)
      */
     MACLen = bp->hardlen > 16 ? 0 : bp->hardlen;
     MACType = bp->hardware;
-    memcpy(MAC, bp->macaddr, MACLen);
-    
+    memcpy(MAC, bp->macaddr, MACLen);    
 
     /*
      * Get the boot file and other info. This lives in the CACHED_REPLY
      * packet (query info 3)
      */
     pkt_len = pxe_get_cached_info(3);
-    parse_dhcp(pkt_len);
- 
+    parse_dhcp(pkt_len); 
     printf("\n");
-
-
 
     make_bootif_string();
     ip_init();

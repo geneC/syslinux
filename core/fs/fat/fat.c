@@ -1,16 +1,16 @@
 #include <stdio.h>
 #include <string.h>
-#include "cache.h"
-#include "core.h"
-#include "disk.h"
+#include <cache.h>
+#include <core.h>
+#include <disk.h>
+#include <fs.h>
 #include "fat_fs.h"
-#include "fs.h"
 
 #define ROOT_DIR_WORD    0x002f
 
 /* file structure. This holds the information for each currently open file */
 struct open_file_t {
-    sector_t file_sector;    /* sector pointer ( 0 = structure free ) */
+    sector_t file_sector;    /* sector pointer (0 = structure free) */
     uint32_t file_bytesleft; /* number of bytes left */
     uint32_t file_left;      /* number of sectors left */
 };
@@ -18,7 +18,6 @@ struct open_file_t {
 static struct open_file_t Files[MAX_OPEN];
 
 extern uint8_t SecPerClust;
-
 
 /* the fat bpb data */
 static struct fat_bpb fat;
@@ -51,23 +50,17 @@ static int  NameLen;
 static struct fs_info *this_fs = NULL;
 
 
-/**
- * allocate_file:
- * 
- * Allocate a file structure
- *
- * @return: if successful return the file pointer, or return NULL
+/*
+ * Allocate a file structure, if successful return the file pointer, or  NULL.
  *
  */
 static struct open_file_t *allocate_file(void)
 {
-    struct open_file_t *file;
+    struct open_file_t *file = Files;
     int i = 0;
-        
-    file = Files;
     
-    for (; i < MAX_OPEN; i ++ ) {
-        if ( file->file_sector == 0 ) /* found it */
+    for (; i < MAX_OPEN; i ++) {
+        if (file->file_sector == 0) /* found it */
             return file;
         file ++;
     }
@@ -76,9 +69,7 @@ static struct open_file_t *allocate_file(void)
 }
 
 
-/**
- * alloc_fill_dir:
- *
+/*
  * Allocate then fill a file structure for a directory starting in
  * sector SECTOR. if successful, return the pointer of filled file
  * structure, or return NULL.
@@ -89,7 +80,7 @@ static struct open_file_t *alloc_fill_dir(sector_t sector)
     struct open_file_t *file;
     
     file = allocate_file();
-    if ( !file )
+    if (!file)
         return NULL;        
     
     file->file_sector = sector; /* current sector */
@@ -111,19 +102,7 @@ static void vfat_close_file(struct file *file)
 }
 
 
-/* Deallocates a directory structure */
-/***********
-void close_dir(struct fat_dir_entry *dir)
-{
-    if ( dir )
-        *(uint32_t*)dir = 0;
-}
-***********/
-
-
-/**
- * getfatsector:
- *
+/*
  * check for a particular sector in the FAT cache.
  *
  */
@@ -134,14 +113,9 @@ static struct cache_struct *getfatsector(struct fs_info *fs, sector_t sector)
 
 
 /**
- * nextcluster: 
- *
  * Advance a cluster pointer in clust_num to the next cluster
- * pointer at in the FAT tables. CF = 0 on return if end of file.
- *
- * @param: clust_num;
- *
- * @return: the next cluster number
+ * pointer at in the FAT tables. return the next cluster number
+ * if success, or return 0 if end of file.
  *
  */
 static uint32_t nextcluster(struct fs_info *fs, uint32_t clust_num)
@@ -156,8 +130,8 @@ static uint32_t nextcluster(struct fs_info *fs, uint32_t clust_num)
     case FAT12:
         fat_sector = (clust_num + clust_num / 2) >> SECTOR_SHIFT;
         cs = getfatsector(fs, fat_sector);
-        offset = (clust_num * 3 / 2) & ( SECTOR_SIZE -1 );
-        if ( offset == 0x1ff ) {
+        offset = (clust_num * 3 / 2) & (SECTOR_SIZE -1);
+        if (offset == 0x1ff) {
             /* 
              * we got the end of the one fat sector, 
              * but we don't got we have(just one byte, we need two),
@@ -171,29 +145,29 @@ static uint32_t nextcluster(struct fs_info *fs, uint32_t clust_num)
         } else 
             next_cluster = *(uint16_t *)(cs->data + offset);
         
-        if ( clust_num & 0x0001 )
+        if (clust_num & 0x0001)
             next_cluster >>= 4;         /* cluster number is ODD */
         else
             next_cluster &= 0x0fff;     /* cluster number is EVEN */
-        if ( next_cluster > 0x0ff0 )
+        if (next_cluster > 0x0ff0)
             goto fail;
         break;
         
     case FAT16:
         fat_sector = clust_num >> (SECTOR_SHIFT - 1);
-        offset = clust_num & ( (1 << (SECTOR_SHIFT-1)) -1);
+        offset = clust_num & ((1 << (SECTOR_SHIFT-1)) -1);
         cs = getfatsector(fs, fat_sector);
         next_cluster = ((uint16_t *)cs->data)[offset];
-        if ( next_cluster > 0xfff0 )
+        if (next_cluster > 0xfff0)
             goto fail;
         break;
         
     case FAT32:
         fat_sector = clust_num >> (SECTOR_SHIFT - 2);
-        offset = clust_num & ( (1 << (SECTOR_SHIFT-2)) -1);
+        offset = clust_num & ((1 << (SECTOR_SHIFT-2)) -1);
         cs = getfatsector(fs, fat_sector);
         next_cluster = ((uint32_t *)cs->data)[offset] & 0x0fffffff;
-        if ( next_cluster > 0x0ffffff0 )
+        if (next_cluster > 0x0ffffff0)
             goto fail;
         break;
     }
@@ -207,9 +181,7 @@ static uint32_t nextcluster(struct fs_info *fs, uint32_t clust_num)
 
 
 
-/**
- * nextsector:
- * 
+/* 
  * given a sector  on input, return the next sector of the 
  * same filesystem object, which may be the root directory or a 
  * cluster chain. Returns EOF.
@@ -220,25 +192,25 @@ static sector_t nextsector(struct fs_info *fs, sector_t sector)
     sector_t data_sector;
     uint32_t cluster;
     
-    if ( sector < DataArea ) {
+    if (sector < DataArea) {
         sector ++;
         /* if we reached the end of root area */
-        if ( sector == DataArea ) 
+        if (sector == DataArea) 
             sector = 0; /* return 0 */
         return sector;
     }
     
     data_sector = sector - DataArea;
-    if ( (data_sector+1) & ClustMask )      /* in a cluster */
+    if ((data_sector+1) & ClustMask)      /* in a cluster */
         return (++sector);
     
     /* got a new cluster */
     cluster = nextcluster(fs, (data_sector >> ClustShift) + 2);
-    if ( !cluster  ) 
+    if (!cluster ) 
         return 0;
     
     /* return the start of the new cluster */
-    sector = ( (cluster - 2) << ClustShift ) + DataArea;
+    sector = ((cluster - 2) << ClustShift) + DataArea;
     return sector;
 }
 
@@ -260,7 +232,8 @@ static sector_t nextsector(struct fs_info *fs, sector_t sector)
  * @param: sectors
  *
  */
-static void __getfssec(struct fs_info *fs, char *buf, struct open_file_t *file, uint32_t sectors)
+static void __getfssec(struct fs_info *fs, char *buf, 
+                       struct open_file_t *file, uint32_t sectors)
 {
     sector_t curr_sector = file->file_sector;
     sector_t frag_start , next_sector;
@@ -276,13 +249,13 @@ static void __getfssec(struct fs_info *fs, char *buf, struct open_file_t *file, 
             /* get consective sector  count */
             con_sec_cnt ++;
             sectors --;
-            if ( sectors == 0 )
+            if (sectors == 0)
                 break;
             
             next_sector = nextsector(fs, curr_sector);
-            if ( !next_sector )
+            if (!next_sector)
                 break;                        
-        }while( next_sector == (++curr_sector) );
+        }while(next_sector == (++curr_sector));
         
 #if 0   
         printf("You are reading data stored at sector --0x%x--0x%x\n", 
@@ -293,7 +266,7 @@ static void __getfssec(struct fs_info *fs, char *buf, struct open_file_t *file, 
         disk->rdwr_sectors(disk, buf, frag_start, con_sec_cnt, 0);
         buf += con_sec_cnt << 9;/* adjust buffer pointer */
         
-        if ( !sectors )
+        if (!sectors)
             break;
         //curr_sector --;         /* this is the last sector actually read */
         curr_sector = next_sector;
@@ -306,15 +279,12 @@ static void __getfssec(struct fs_info *fs, char *buf, struct open_file_t *file, 
 
 
 /**
- * getfssec:
- *
  * get multiple sectors from a file 
  *
- *
- * @param: buf
- * @param: file
- * @param: sectors
- * @param: have_more
+ * @param: buf, the buffer to store the read data
+ * @param: gfile, the file structure pointer
+ * @param: sectors, number of sectors wanna read
+ * @param: have_more, set one if has more
  *
  * @return: number of bytes read
  *
@@ -326,12 +296,12 @@ static uint32_t vfat_getfssec(struct file *gfile, char *buf, int sectors,
     struct open_file_t *file = gfile->open_file;
     struct fs_info *fs = gfile->fs;
     
-    if ( sectors > file->file_left )
+    if (sectors > file->file_left)
         sectors = file->file_left;
     
     __getfssec(fs, buf, file, sectors);
     
-    if ( bytes_read >= file->file_bytesleft ) {
+    if (bytes_read >= file->file_bytesleft) {
         bytes_read = file->file_bytesleft;
         *have_more = 0;
     } else
@@ -342,9 +312,7 @@ static uint32_t vfat_getfssec(struct file *gfile, char *buf, int sectors,
     return bytes_read;
 }
 
-/**
- * mangle_name:
- * 
+/*
  * Mangle a filename pointed to by src into a buffer pointed to by dst; 
  * ends on encountering any whitespace.
  *
@@ -390,18 +358,12 @@ static void vfat_mangle_name(char *dst, const char *src)
         *dst++ = '\0';
 }
  
-/**
- * mangle_dos_name:
- *
+/*
  * Mangle a dos filename component pointed to by FILENAME
  * into MangleBuf; ends on encountering any whitespace or 
  * slash.
  *
  * WARNING: saves pointers into the buffer for longname matchs!
- *
- * @param: filename
- * @param: MangleBuf
- *
  */
 /**
  * for now, it can't handle this case:
@@ -427,10 +389,10 @@ static void mangle_dos_name(char *MangleBuf, char *filename)
     for (i = 0; i < 11; i++) {
         c = *src ++;
         
-        if ( (c <= ' ') || (c == '/') ) 
+        if ((c <= ' ') || (c == '/')) 
             break;
         
-        if ( c == '.' ) {
+        if (c == '.') {
             dst = &MangleBuf[8];
             i = 7;
             continue;
@@ -438,27 +400,25 @@ static void mangle_dos_name(char *MangleBuf, char *filename)
         
         if (c >= 'a' && c <= 'z')
             c -= 32;
-        if ( (c == 0xe5) && (i == 11) )
+        if ((c == 0xe5) && (i == 11))
             c = 0x05;
         
         *dst++ = c;
     }
     MangleBuf[12] = '\0';
     
-    while( (*src != '/') && (*src > ' ') )
+    while((*src != '/') && (*src > ' '))
         src ++;
     
     NameLen = src - filename;
 }
-
-
 
 static void unicode_to_ascii(char *entry_name, uint16_t *unicode_buf)
 {
     int i = 0;
     
     for (; i < 13; i++) {
-        if ( unicode_buf[i] == 0xffff ) {
+        if (unicode_buf[i] == 0xffff) {
             entry_name[i] = '\0';
             return;
         }
@@ -466,9 +426,7 @@ static void unicode_to_ascii(char *entry_name, uint16_t *unicode_buf)
     }
 }
 
-/**
- * long_entry_name:
- *
+/*
  * get the long entry name
  *
  */
@@ -508,8 +466,6 @@ static inline sector_t first_sector(struct fat_dir_entry *dir)
 
 
 /**
- * search_dos_dir:
- *
  * search a specific directory for a pre-mangled filename in
  * MangleBuf, in the directory starting in sector SECTOR
  *
@@ -524,11 +480,11 @@ static inline sector_t first_sector(struct fat_dir_entry *dir)
  * @out:  file pointer
  * @out:  file length (MAY BE ZERO!)
  * @out:  file attribute
- * @out:  dh, clobbered.
  *
  */
-static struct open_file_t* search_dos_dir(struct fs_info *fs, char *MangleBuf, 
-                                   uint32_t dir_sector, uint32_t *file_len, uint8_t *attr)
+static struct open_file_t* 
+search_dos_dir(struct fs_info *fs, char *MangleBuf, 
+               uint32_t dir_sector, uint32_t *file_len, uint8_t *attr)
 {
     struct open_file_t*  file;
     struct cache_struct* cs;
@@ -542,8 +498,8 @@ static struct open_file_t* search_dos_dir(struct fs_info *fs, char *MangleBuf,
     int checksum;
         
     file = allocate_file();
-    if ( !file )
-                return NULL;
+    if (!file)
+        return NULL;
     
     /*
      * Compute the value of a possible VFAT longname
@@ -561,21 +517,21 @@ static struct open_file_t* search_dos_dir(struct fs_info *fs, char *MangleBuf,
         
         /* scan all the entries in a sector */
         do {
-            if ( dir->name[0] == 0 )
+            if (dir->name[0] == 0)
                 return NULL;    /* Hit directory high water mark */
             
-            if ( dir->attr == 0x0f ) {
+            if (dir->attr == 0x0f) {
                 /* it's a long name entry */
                 long_dir = (struct fat_long_name_entry *)dir;
                 id = long_dir->id;
-                if ( id !=VFATNext )
+                if (id !=VFATNext)
                     goto not_match;
                 
-                if ( id & 0x40 ) {
+                if (id & 0x40) {
                     /*get the initial checksum value*/
                     VFATCsum = long_dir->checksum;
                 } else {
-                    if ( long_dir->checksum != VFATCsum )
+                    if (long_dir->checksum != VFATCsum)
                         goto not_match;
                 }
                 
@@ -590,8 +546,8 @@ static struct open_file_t* search_dos_dir(struct fs_info *fs, char *MangleBuf,
                  * if we got the last entry?
                  * if so, check it, or go on with the next entry
                  */
-                if ( id == 0 ) {
-                    if ( strcmp(long_name, NameStart) )
+                if (id == 0) {
+                    if (strcmp(long_name, NameStart))
                         goto not_match;
                 }
 
@@ -599,22 +555,22 @@ static struct open_file_t* search_dos_dir(struct fs_info *fs, char *MangleBuf,
                 
             } else {
                 /* it's a short entry */
-                if ( dir->attr & 0x08 )     /* ingore volume labels */
+                if (dir->attr & 0x08)     /* ingore volume labels */
                     goto not_match;
                 
                 
                 /* If we have a long name match, then VFATNext must be 0 */
-                if ( !VFATNext )  {  
+                if (!VFATNext)  {  
                     /*
                      * we already have a VFAT long name match, however,
                      * the match is only valid if the checksum matchs.
                      */
                     checksum = get_checksum(dir->name);
-                    if ( checksum == VFATCsum )
+                    if (checksum == VFATCsum)
                         goto found;        /* got a match on long name */
                     
                 } else { 
-                    if ( strncmp(MangleBuf, dir->name, 11) == 0 )
+                    if (strncmp(MangleBuf, dir->name, 11) == 0)
                         goto found;                                       
                 }
             }
@@ -625,11 +581,11 @@ static struct open_file_t* search_dos_dir(struct fs_info *fs, char *MangleBuf,
         next_entry:
             dir ++;
             
-        }while ( --entries );
+        }while (--entries);
         
         dir_sector = nextsector(fs, dir_sector);
         
-    }while ( dir_sector ); /* scan another secotr */
+    }while (dir_sector); /* scan another secotr */
 
  found:
     *file_len = file->file_bytesleft = dir->file_size;
@@ -642,8 +598,6 @@ static struct open_file_t* search_dos_dir(struct fs_info *fs, char *MangleBuf,
 
 
 /**
- * searchdir:
- * 
  * open a file
  *
  * @param: filename, the file we wanna open
@@ -663,13 +617,13 @@ static void vfat_searchdir(char *filename, struct file *file)
     this_fs = file->fs;
     
     dir_sector = CurrentDir;
-    if ( *filename == '/' ) {
+    if (*filename == '/') {
         dir_sector = RootDir;
         if (*(filename + 1) == 0) /* root dir is what we need */
             goto found_dir;
     }
         
-    while ( *filename ) {
+    while (*filename) {
         if (*filename == '/')
             filename++;               /* skip '/' */
         p = filename;
@@ -678,7 +632,7 @@ static void vfat_searchdir(char *filename, struct file *file)
         PrevDir = dir_sector;
         
         /* try to find the end */
-        while ( (*p > ' ') && (*p != '/') )
+        while ((*p > ' ') && (*p != '/'))
             p ++;
         
         if (filename == p) {
@@ -703,13 +657,13 @@ static void vfat_searchdir(char *filename, struct file *file)
         dir_sector = PrevDir;
     found_dir:
         open_file = alloc_fill_dir(dir_sector);
-    } else if ( (attr & 0x18) || (file_len == 0) ) {
+    } else if ((attr & 0x18) || (file_len == 0)) {
     fail:
         file_len = 0;
         open_file = NULL;
     } else {
         open_file->file_bytesleft = file_len;
-        open_file->file_left = ( file_len + SECTOR_SIZE -1 ) >> SECTOR_SHIFT;
+        open_file->file_left = (file_len + SECTOR_SIZE -1) >> SECTOR_SHIFT;
     }
 
     file->file_len  = file_len;
@@ -759,21 +713,21 @@ void vfat_readdir(com32sys_t *regs)/*
     cs = get_cache_block(this_fs->fs_dev, sector);
     dir = (struct fat_dir_entry *)(cs->data + sec_off);/* resume last position in sector */
     
-    while ( 1 ) {
-        if ( dir->name[0] == 0 )
+    while (1) {
+        if (dir->name[0] == 0)
             goto fail;                
         
-        if  ( dir->attr == FAT_ATTR_LONG_NAME ) {
+        if  (dir->attr == FAT_ATTR_LONG_NAME) {
             /* it's a long name */
             long_dir = (struct fat_long_name_entry *)dir;
             
-            if ( long_dir->id & 0x40 )  {
+            if (long_dir->id & 0x40)  {
                 init_id = id = long_dir->id & 0x3f;
                 id--;
             } else {
                 next_id = (long_dir->id & 0x3f) - 1;
                 id--;            
-                if ( id != next_id )
+                if (id != next_id)
                     goto next_entry;
             }
             
@@ -789,22 +743,22 @@ void vfat_readdir(com32sys_t *regs)/*
         } else {
             /* it's a short entry */
             
-            if ( !id ) /* we got a long name match */
+            if (!id) /* we got a long name match */
                 break;
             
-            if ( dir->attr & FAT_ATTR_VOLUME_ID ) 
+            if (dir->attr & FAT_ATTR_VOLUME_ID) 
                 goto next_entry;
             
-            for( i = 0; i < 8; i ++) {
-                if ( dir->name[i] == ' ' )
+            for(i = 0; i < 8; i ++) {
+                if (dir->name[i] == ' ')
                     break;
                 *filename++ = dir->name[i];
             }
             
             *filename++ = '.';
                         
-            for ( i = 8; i < 11; i ++) {
-                if ( dir->name[i] == ' ' )
+            for (i = 8; i < 11; i ++) {
+                if (dir->name[i] == ' ')
                     break;
                 *filename ++ = dir->name[i];
             }
@@ -822,20 +776,20 @@ void vfat_readdir(com32sys_t *regs)/*
         dir ++;
         entries_left --;
         
-        if ( !entries_left ) {
+        if (!entries_left) {
             sector = nextsector(this_fs, sector);
-            if ( !sector )
+            if (!sector)
                 goto fail;
             cs = get_cache_block(this_fs->fs_dev, sector);
             dir = (struct fat_dir_entry *)cs->data;
         }
     }
     
-        /* finally , we get what we want */
+    /* finally , we get what we want */
     entries_left --;
-    if ( !entries_left ) {
+    if (!entries_left) {
         sector = nextsector(this_fs, sector);
-        if ( !sector )
+        if (!sector)
             goto fail;
         dir_file->file_bytesleft = 0;
     } else 
@@ -843,7 +797,7 @@ void vfat_readdir(com32sys_t *regs)/*
     dir_file->file_sector = sector;
 
     file.file_sector = sector;
-    file.file_bytesleft = (SECTOR_SIZE - (entries_left << DIRENT_SHIFT) ) & 0xffff;
+    file.file_bytesleft = (SECTOR_SIZE - (entries_left << DIRENT_SHIFT)) & 0xffff;
     
     regs->eax.l = dir->file_size;
     regs->ebx.l = first_sector(dir);
@@ -887,7 +841,7 @@ static void vfat_load_config(com32sys_t *regs)
         if (! (oregs.eflags.l & EFLAGS_ZF))
             break;
     }
-    if ( i == 3 ) {
+    if (i == 3) {
         printf("no config file found\n");
         return;  /* no config file */
     }
@@ -929,9 +883,9 @@ static int vfat_fs_init(struct fs_info *fs)
     ClustSize = fat.bxSecPerClust << SECTOR_SHIFT;    
         
     clust_num = (TotalSectors - DataArea) >> ClustShift;
-    if ( clust_num < 4085 )
+    if (clust_num < 4085)
         FATType = FAT12;
-    else if ( clust_num < 65525 )
+    else if (clust_num < 65525)
         FATType = FAT16;
     else 
         FATType = FAT32;

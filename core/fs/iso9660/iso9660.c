@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include <string.h>
-//#include "cache.h"
-#include "core.h"
-#include "disk.h"
+#include <core.h>
+#include <disk.h>
+#include <fs.h>
 #include "iso9660_fs.h"
-#include "fs.h"
 
 #define DEBUG 1
 
@@ -18,7 +17,6 @@ struct open_file_t {
         uint32_t file_bytesleft;
         uint32_t file_left;
 };
-
 static struct open_file_t Files[MAX_OPEN];
 
 struct dir_t {
@@ -41,9 +39,7 @@ static char *ISOFileNameEnd = &ISOFileName[64];
  */
 static int block_shift;
 
-/**
- * allocate_file:
- *
+/*
  * allocate a file structure
  *
  */
@@ -78,9 +74,7 @@ static void iso_close_file(struct file *file)
     close_pvt(file->open_file);
 }
 
-/**
- * mangle_name:
- *
+/*
  * Mangle a filename pointed to by src into a buffer pointed
  * to by dst; ends on encountering any whitespace.
  * dst is preserved.
@@ -127,7 +121,7 @@ static void iso_mangle_name(char *dst, const char *src)
 }
 
 /**
- * compare the names si and di and report if they are
+ * compare the names de_name and file_name and report if they are
  * equal from an ISO 9600 perspective.
  *
  * @param: de_name, the name from the file system.
@@ -201,8 +195,6 @@ static inline int cdrom_read_sectors(struct disk *disk, void *buf, int block, in
 }
 
 /**
- * iso_getfssec:
- *
  * Get multiple clusters from a file, given the file pointer.
  *
  * @param: buf
@@ -238,15 +230,11 @@ static uint32_t iso_getfssec(struct file *gfile, char *buf,
 
 
 
-/**
- * do_search_dir:
- *
+/*
  * find a file or directory with name within the _dir_ directory.
  *
  * the return value will tell us what we find, it's a file or dir?
- * on 1 be dir, 2 be file, 0 be error.
- *
- * res will return the result.
+ * on 1 be dir, 2 be file, 0 be error. res will return the result.
  *
  */
 static int do_search_dir(struct fs_info *fs, struct dir_t *dir,
@@ -381,9 +369,7 @@ static int do_search_dir(struct fs_info *fs, struct dir_t *dir,
 }
 
 
-/**
- * iso_searchdir:
- *
+/*
  * open a file
  *
  * searchdir_iso is a special entry point for ISOLINUX only. In addition
@@ -462,13 +448,20 @@ static void iso_searchdir(char *filename, struct file *file)
 static void iso_load_config(com32sys_t *regs)
 {
     char *config_name = "isolinux.cfg";
-    com32sys_t out_regs;
+    
+#if DEBUG
+    printf("About to load config file...\n");
+#endif
 
     strcpy(ConfigName, config_name);
-
     regs->edi.w[0] = OFFS_WRT(ConfigName, 0);
-    memset(&out_regs, 0, sizeof out_regs);
-    call16(core_open, regs, &out_regs);
+    call16(core_open, regs, regs);
+
+#if DEBUG
+    printf("the zero flag is %s\n", regs->eax.w[0] ?
+           "CLEAR, means we found the config file" :
+           "SET, menas we didn't find the config file");
+#endif
 }
 
 

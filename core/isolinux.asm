@@ -68,12 +68,6 @@ file_left	resd 1			; Number of sectors left
 %endif
 %endif
 
-		struc dir_t
-dir_lba		resd 1			; Directory start (LBA)
-dir_len		resd 1			; Length in bytes
-dir_clust	resd 1			; Length in clusters
-		endstruc
-
 ; ---------------------------------------------------------------------------
 ;   BEGIN CODE
 ; ---------------------------------------------------------------------------
@@ -91,10 +85,6 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 		; is loaded.  DO NOT move this to .bss16/.uibss.
 		section .earlybss
 		alignb 4
-ISOFileName	resb 64			; ISO filename canonicalization buffer
-ISOFileNameEnd	equ $
-CurrentDir	resb dir_t_size		; Current directory
-RootDir		resb dir_t_size		; Root directory
 FirstSecSum	resd 1			; Checksum of bytes 64-2048
 ImageDwords	resd 1			; isolinux.bin size, dwords
 InitStack	resd 1			; Initial stack pointer (SS:SP)
@@ -1171,17 +1161,7 @@ all_read:
 ;
 ; Locate the configuration file
 ;
-%ifdef DEBUG_MESSAGES
-		mov si,dbg_config_msg
-		call writemsg
-%endif
-
 		pm_call load_config
-
-%ifdef DEBUG_MESSAGES
-		mov si,dbg_configok_msg
-		call writemsg
-%endif
 
 ;
 ; Now we have the config file open.  Parse the config file and
@@ -1334,20 +1314,7 @@ is_disk_image:
 ; -----------------------------------------------------------------------------
 
 		section .data16
-
-default_str	db 'default', 0
-default_len	equ ($-default_str)
-boot_dir	db '/boot'			; /boot/isolinux
-isolinux_dir	db '/isolinux', 0
-config_name	db 'isolinux.cfg', 0
 err_disk_image	db 'Cannot load disk image (invalid file)?', CR, LF, 0
-
-%ifdef DEBUG_MESSAGES
-dbg_rootdir_msg	db 'Root directory at LBA = ', 0
-dbg_isodir_msg	db 'isolinux directory at LBA = ', 0
-dbg_config_msg	db 'About to load config file...', CR, LF, 0
-dbg_configok_msg	db 'Configuration file opened...', CR, LF, 0
-%endif
 
 ;
 ; Config file keyword table

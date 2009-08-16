@@ -48,24 +48,12 @@ SECTOR_SIZE	equ TFTP_BLOCKSIZE
 ;
 ; TFTP operation codes
 ;
-TFTP_RRQ	equ htons(1)		; Read request
-TFTP_WRQ	equ htons(2)		; Write request
-TFTP_DATA	equ htons(3)		; Data packet
 TFTP_ACK	equ htons(4)		; ACK packet
 TFTP_ERROR	equ htons(5)		; ERROR packet
-TFTP_OACK	equ htons(6)		; OACK packet
 
 ;
 ; TFTP error codes
 ;
-TFTP_EUNDEF	equ htons(0)		; Unspecified error
-TFTP_ENOTFOUND	equ htons(1)		; File not found
-TFTP_EACCESS	equ htons(2)		; Access violation
-TFTP_ENOSPACE	equ htons(3)		; Disk full
-TFTP_EBADOP	equ htons(4)		; Invalid TFTP operation
-TFTP_EBADID	equ htons(5)		; Unknown transfer
-TFTP_EEXISTS	equ htons(6)		; File exists
-TFTP_ENOUSER	equ htons(7)		; No such user
 TFTP_EOPTNEG	equ htons(8)		; Option negotiation failure
 
 ;
@@ -86,60 +74,6 @@ vk_append:	resb max_cmd_len+1	; Command line
 vk_end:		equ $			; Should be <= vk_size
 		endstruc
 
-;
-; BOOTP/DHCP packet pattern
-;
-		struc bootp_t
-bootp:
-.opcode		resb 1			; BOOTP/DHCP "opcode"
-.hardware	resb 1			; ARP hardware type
-.hardlen	resb 1			; Hardware address length
-.gatehops	resb 1			; Used by forwarders
-.ident		resd 1			; Transaction ID
-.seconds	resw 1			; Seconds elapsed
-.flags		resw 1			; Broadcast flags
-.cip		resd 1			; Client IP
-.yip		resd 1			; "Your" IP
-.sip		resd 1			; Next server IP
-.gip		resd 1			; Relay agent IP
-.macaddr	resb 16			; Client MAC address
-.sname		resb 64			; Server name (optional)
-.bootfile	resb 128		; Boot file name
-.option_magic	resd 1			; Vendor option magic cookie
-.options	resb 1260		; Vendor options
-		endstruc
-
-BOOTP_OPTION_MAGIC	equ htonl(0x63825363)	; See RFC 2132
-
-;
-; TFTP connection data structure.  Each one of these corresponds to a local
-; UDP port.  The size of this structure must be a power of 2.
-; HBO = host byte order; NBO = network byte order
-; (*) = written by options negotiation code, must be dword sized
-;
-; For a gPXE connection, we set the local port number to -1 and the
-; remote port number contains the gPXE file handle.
-;
-		struc open_file_t
-tftp_localport	resw 1			; Local port number	(0 = not in use)
-tftp_remoteport	resw 1			; Remote port number
-tftp_remoteip	resd 1			; Remote IP address
-tftp_filepos	resd 1			; Bytes downloaded (including buffer)
-tftp_filesize	resd 1			; Total file size(*)
-tftp_blksize	resd 1			; Block size for this connection(*)
-tftp_bytesleft	resw 1			; Unclaimed data bytes
-tftp_lastpkt	resw 1			; Sequence number of last packet (NBO)
-tftp_dataptr	resw 1			; Pointer to available data
-tftp_goteof	resb 1			; 1 if the EOF packet received
-		resb 3			; Currently unusued
-		; At end since it should not be zeroed on socked close
-tftp_pktbuf	resw 1			; Packet buffer offset
-		endstruc
-%ifndef DEPEND
-%if (open_file_t_size & (open_file_t_size-1))
-%error "open_file_t is not a power of 2"
-%endif
-%endif
 
 ; ---------------------------------------------------------------------------
 ;   BEGIN CODE
@@ -356,11 +290,7 @@ local_boot:
 ; kaboom: write a message and bail out.  Wait for quite a while,
 ;	  or a user keypress, then do a hard reboot.
 ;
-                global no_config, kaboom
-; set the no_config kaboom here
-no_config:
-                mov si, err_noconfig
-                call writestr_early
+                global kaboom
 kaboom:
 		RESET_STACK_AND_SEGS AX
 .patch:		mov si,bailmsg
@@ -481,8 +411,6 @@ TimeoutTable:
 TimeoutTableEnd	equ $
 
 		section .text16
-
-
 ;
 ; unload_pxe:
 ;
@@ -605,36 +533,10 @@ copyright_str   db ' Copyright (C) 1994-'
 		db ' H. Peter Anvin et al', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: press a key to retry, or wait for reset...', CR, LF, 0
 bailmsg		equ err_bootfailed
-err_nopxe	db "No !PXE or PXENV+ API found; we're dead...", CR, LF, 0
-err_pxefailed	db 'PXE API call failed, error ', 0
-err_udpinit	db 'Failed to initialize UDP stack', CR, LF, 0
-err_noconfig	db 'Unable to locate configuration file', CR, LF, 0
-err_damage	db 'TFTP server sent an incomprehesible reply', CR, LF, 0
-found_pxenv	db 'Found PXENV+ structure', CR, LF, 0
-apiver_str	db 'PXE API version is ',0
-pxeentry_msg	db '!PXE entry point found (we hope) at ', 0
-pxenventry_msg	db 'PXENV+ entry point found (we hope) at ', 0
-viaplan_msg	db ' via plan '
-plan		db 'A', CR, LF, 0
-trymempxe_msg	db 'Scanning memory for !PXE structure... ', 0
-trymempxenv_msg	db 'Scanning memory for PXENV+ structure... ', 0
-undi_data_msg	db 'UNDI data segment at ',0
-undi_code_msg	db 'UNDI code segment at ',0
-len_msg		db ' len ', 0
 cant_free_msg	db 'Failed to free base memory, error ', 0
-notfound_msg	db 'not found', CR, LF, 0
-myipaddr_msg	db 'My IP address seems to be ',0
-tftpprefix_msg	db 'TFTP prefix: ', 0
 localboot_msg	db 'Booting from local disk...', CR, LF, 0
-trying_msg	db 'Trying to load: ', 0
-default_str	db 'default', 0
 syslinux_banner	db CR, LF, 'PXELINUX ', VERSION_STR, ' ', DATE_STR, ' ', 0
-cfgprefix	db 'pxelinux.cfg/'		; No final null!
-cfgprefix_len	equ ($-cfgprefix)
 
-; This one we make ourselves
-bootif_str	db 'BOOTIF='
-bootif_str_len	equ $-bootif_str
 ;
 ; Config file keyword table
 ;
@@ -672,74 +574,18 @@ old_api_unload:
 ; PXE query packets partially filled in
 ;
 		section .bss16
-                global pxe_bootp_query_pkt, pxe_udp_write_pkt
-                global pxe_udp_open_pkt, pxe_udp_read_pkt
-pxe_bootp_query_pkt:
-.status:	resw 1			; Status
-.packettype:	resw 1			; Boot server packet type
-.buffersize:	resw 1			; Packet size
-.buffer:	resw 2			; seg:off of buffer
-.bufferlimit:	resw 1			; Unused
-
-pxe_udp_open_pkt:
-.status:	resw 1			; Status
-.sip:		resd 1			; Source (our) IP
-
 pxe_udp_close_pkt:
 .status:	resw 1			; Status
 
-pxe_udp_write_pkt:
-.status:	resw 1			; Status
-.sip:		resd 1			; Server IP
-.gip:		resd 1			; Gateway IP
-.lport:		resw 1			; Local port
-.rport:		resw 1			; Remote port
-.buffersize:	resw 1			; Size of packet
-.buffer:	resw 2			; seg:off of buffer
-
 pxe_udp_read_pkt:
-.status:	resw 1			; Status
-.sip:		resd 1			; Source IP
-.dip:		resd 1			; Destination (our) IP
-.rport:		resw 1			; Remote port
-.lport:		resw 1			; Local port
-.buffersize:	resw 1			; Max packet size
-.buffer:	resw 2			; seg:off of buffer
+.status:        resw 1                  ; Status
+.sip:           resd 1                  ; Source IP
+.dip:           resd 1                  ; Destination (our) IP
+.rport:         resw 1                  ; Remote port
+.lport:         resw 1                  ; Local port
+.buffersize:    resw 1                  ; Max packet size
+.buffer:        resw 2                  ; seg:off of buffer
 
-%if GPXE
-
-		section .data16
-                global gpxe_file_api_check
-gpxe_file_api_check:
-.status:	dw 0			; Status
-.size:		dw 20			; Size in bytes
-.magic:		dd 0x91d447b2		; Magic number
-.provider:	dd 0
-.apimask:	dd 0
-.flags:		dd 0
-
-		section .bss16
-                global gpxe_file_read, gpxe_get_file_size
-                global gpxe_file_open
-
-gpxe_file_open:
-.status:	resw 1			; Status
-.filehandle:	resw 1			; FileHandle
-.filename:	resd 1			; seg:off of FileName
-.reserved:	resd 1
-
-gpxe_get_file_size:
-.status:	resw 1			; Status
-.filehandle:	resw 1			; FileHandle
-.filesize:	resd 1			; FileSize
-
-gpxe_file_read:
-.status:	resw 1			; Status
-.filehandle:	resw 1			; FileHandle
-.buffersize:	resw 1			; BufferSize
-.buffer:	resd 1			; seg:off of buffer
-
-%endif ; GPXE
 
 ;
 ; Misc initialized (data) variables
