@@ -9,6 +9,7 @@
 #include <netinet/in.h>	
 #include <limits.h>
 #include <minmax.h>
+#include <linux/list.h>
 #include "getkey.h"
 
 #include "common.h"
@@ -57,13 +58,15 @@ int mygetkey(clock_t timeout)
 const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw_Menu)(int, int, int),void (*show_fkey)(int))
 {
     static char cmdline[MAX_CMDLINE_LEN];
+    char temp_cmdline[MAX_CMDLINE_LEN];
     int key, len, prev_len, cursor;
     int redraw = 1;		/* We enter with the menu already drawn */
     int x, y;
     bool done = false;
     const char *ret;
-
     int width = 0;
+    struct cli_command *comm_counter;
+    comm_counter=list_entry(cli_history_head.next, typeof(*comm_counter),list);
 
     if (!width) {
 	int height;
@@ -86,8 +89,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw
 	    /* Enable ASCII on G0 and DEC VT on G1; do it in this order
 	       to avoid confusing the Linux console */
 	   /* clear_screen();
-	    draw_menu(-1, top, 1);
-	    prev_len = 0;*/
+	    draw_menu(-1, top, 1);*/
 	    clear_screen();
 	    (*pDraw_Menu)(-1, top, 1);
 	    prev_len = 0;
@@ -271,12 +273,48 @@ const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw
 	    	redraw = 1;
 	    }
 	    break;
-
+	case KEY_DOWN:
+	    {
+		if(!list_empty(&cli_history_head))
+		{
+			comm_counter=list_entry(comm_counter->list.next, typeof(*comm_counter),list);
+			if(&comm_counter->list==&cli_history_head)
+			{
+				strcpy(cmdline,temp_cmdline);
+			}
+			else
+			{
+				strcpy(cmdline,comm_counter->command);
+			}
+			cursor=len=strlen(cmdline);
+			redraw = 1;
+		}
+	    }
+	    break;
+	case KEY_UP:
+	    {
+		if(!list_empty(&cli_history_head))
+		{
+			comm_counter=list_entry(comm_counter->list.prev, typeof(*comm_counter),list);
+			if(&comm_counter->list==&cli_history_head)
+			{
+				strcpy(cmdline,temp_cmdline);
+			}
+			else			
+			{
+				strcpy(cmdline,comm_counter->command);
+			}
+			cursor=len=strlen(cmdline);
+			redraw = 1;
+		}
+	    }
+            break;
 	default:
 	    if (key >= ' ' && key <= 0xFF && len < MAX_CMDLINE_LEN - 1) {
 		if (cursor == len) {
+		    temp_cmdline[len]=key;
 		    cmdline[len++] = key;
-		    cmdline[len] = '\0';
+		    temp_cmdline[len]= cmdline[len] = '\0';
 		    putchar(key);
 		    cursor++;
 		    x++;
@@ -289,6 +327,9 @@ const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw
 		} else {
 		    memmove(cmdline + cursor + 1, cmdline + cursor,
 			    len - cursor + 1);
+		    memmove(temp_cmdline + cursor + 1, temp_cmdline + cursor,
+			    len - cursor + 1);
+		    temp_cmdline[cursor]=key;
 		    cmdline[cursor++] = key;
 		    len++;
 		    redraw = 1;

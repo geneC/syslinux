@@ -7,6 +7,7 @@
 #include <syslinux/adv.h>
 #include <syslinux/config.h>
 #include <setjmp.h>
+#include <linux/list.h>
 #include <netinet/in.h>	
 
 #include <sys/exec.h>
@@ -71,7 +72,22 @@ void load_env32(com32sys_t * regs)
 {
 	call_constr();
 	char *cmdline;
+	struct cli_command c1,c2,c3,*aux;
 	openconsole(&dev_rawcon_r, &dev_ansiserial_w);
+	INIT_LIST_HEAD(&cli_history_head);
+
+	strcpy(c1.command,"command 1");
+	strcpy(c2.command,"command 2");
+	strcpy(c3.command,"command 3");
+	list_add(&(c1.list),&cli_history_head);
+	list_add(&(c2.list),&cli_history_head);
+	list_add(&(c3.list),&cli_history_head);
+	
+	list_for_each_entry(aux, &cli_history_head, list)
+	{
+		printf("%s\n",aux->command);
+	}
+
 	printf("Calling initilization constructor procedures...\n");
 	printf("Starting 32 bit elf module subsystem...\n");
 	init_module_subsystem(&core_module);
