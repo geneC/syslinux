@@ -404,53 +404,52 @@ static void get_packet_gpxe(struct open_file_t *file)
  */
 static void pxe_mangle_name(char *dst, const char *src)
 {
+    extern void dns_resolv(void);
     const char *p = src;
-    uint32_t ip = 0;
+    uint32_t ip = ServerIP;
     int i = 0;
    
 #if GPXE
-    if (is_url(src))
-        goto prefix_done;
+    if (is_url(src)) {
+        ip = -1;
+        goto store;
+    }
 #endif
 
-    ip = ServerIP;
-    if (*p == 0)
-        goto noip;
-    if (! strncmp(p, "::", 2))
-        goto gotprefix;
-    else {
-        while (*p && strncmp(p, "::", 2))
-            p ++;
-        if (! *p)
-            goto noip;
+    if (*p == 0 || !(p = strstr(src, "::"))) {
+        /* seems no ip, so make ip to 0 */
+        p = src;
+        ip = 0;
+    } else if (p == src) {
+        /* skip the first two-colon */
+        p += 2;
+    } else {
         /*
-         * we have a :: prefix of ip sort, it could be either a DNS
+         * we have a :: prefix of some sort, it could be either a DNS
          * name or dot-quad IP address. Try the dot-quad first.
          */
         p = src;
-        if ((p = parse_dotquad(p, &ip)) && !strncmp(p, "::", 2))
-            goto gotprefix;
-        else {
-#if 0
-            extern void dns_resolv(void);
-            call16(dns_resolv, regs, regs);
-            p = (char *)MK_PTR(regs->ds, regs->esi.w[0]);
-            ip = regs->eax.l;
-            if (! strncmp(p, "::", 2))
-                if (ip)
-                   goto gotprefix;
-#endif
+        if ((p = parse_dotquad(p, &ip)) && !strncmp(p, "::", 2)) {
+            p += 2;
+        } else {     
+            com32sys_t regs;
+            
+            memset(&regs, 0, sizeof regs);
+            regs.esi.w[0] = OFFS_WRT(p, 0);
+            call16(dns_resolv, &regs, &regs);
+            p = MK_PTR(regs.ds, regs.esi.w[0]);
+            ip = regs.eax.l;
+            if (!strncmp(p, "::", 2) && ip) {
+                p += 2;
+            } else {
+                /* no ip, too */
+                p = src;
+                ip = 0;
+            }
         }
     }
- noip:
-    p = src;
-    ip = 0;
-    goto prefix_done;
-
- gotprefix:
-    p += 2;      /* skip double colon */
   
- prefix_done:
+ store:
     *(uint32_t *)dst = ip;  
     dst += 4;
     i = FILENAME_MAX - 5;
