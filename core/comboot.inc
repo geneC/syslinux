@@ -908,7 +908,6 @@ comapi_opendir:
 		pop ds
 		pm_call searchdir
 		jz comapi_err	; Didn't find a directory
-                mov eax,[si]     ; the sector number where the dir stores
 		cmp eax,0
 		jz comapi_err	; Found nothing
                 mov P_EAX,eax

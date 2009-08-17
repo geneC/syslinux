@@ -657,6 +657,11 @@ static void vfat_searchdir(char *filename, struct file *file)
         dir_sector = PrevDir;
     found_dir:
         open_file = alloc_fill_dir(dir_sector);
+        /* 
+         * for dir, we use the file->file_len to store the sector number 
+         * where the dir is. 
+         */
+        file_len  = dir_sector;         
     } else if ((attr & 0x18) || (file_len == 0)) {
     fail:
         file_len = 0;
