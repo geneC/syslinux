@@ -527,7 +527,7 @@ static const char *edit_cmdline(const char *input, int top)
 
 		memmove(cmdline + cursor, cmdline + prevcursor,
 			len - prevcursor + 1);
-		len -= (cursor - prevcursor);
+		len -= (prevcursor - cursor);
 		redraw = 1;
 	    }
 	    break;
@@ -1101,12 +1101,13 @@ int menu_main(int argc, char *argv[])
 		m->mparm[i] = max(m->mparm[i] + rows, 0);
     }
 
+    cm = start_menu;
+
     if (!cm->nentries) {
 	fputs("Initial menu has no LABEL entries!\n", stdout);
 	return 1;		/* Error! */
     }
 
-    cm = start_menu;
     for (;;) {
 	cmdline = run_menu();
 
