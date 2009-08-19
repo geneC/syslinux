@@ -729,7 +729,24 @@ static uint8_t checksum_buf(const void *buf, int count)
     return c;
 }
 
-#define STACK_NEEDED	512	/* Number of bytes of stack */
+static int stack_needed(void)
+{
+  const unsigned int min_stack = 128;	/* Minimum stack size */
+  const unsigned int def_stack = 512;	/* Default stack size */
+  unsigned int v = 0;
+  const char *p;
+
+  if (CMD_HASDATA(p = getcmditem("stack")))
+    v = atou(p);
+
+  if (!v)
+    v = def_stack;
+
+  if (v < min_stack)
+    v = min_stack;
+
+  return v;
+}
 
 struct real_mode_args rm_args;
 
@@ -749,7 +766,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
     uint16_t dosmem_k;
     uint32_t stddosmem;
     const struct geometry *geometry;
-    int total_size, cmdlinelen;
+    unsigned int total_size;
+    unsigned int cmdline_len, stack_len, e820_len;
     com32sys_t regs;
     uint32_t ramdisk_image, ramdisk_size;
     uint32_t boot_base, rm_base;
@@ -931,11 +949,15 @@ void setup(const struct real_mode_args *rm_args_ptr)
        map -- 12 bytes per range; we may need as many as 2 additional
        ranges (each insertrange() can worst-case turn 1 area into 3)
        plus the terminating range, over what nranges currently show. */
-    cmdlinelen = strlen(shdr->cmdline) + 1;
     total_size = hptr->total_size;	/* Actual memdisk code */
-    total_size += (nranges + 3) * sizeof(ranges[0]);	/* E820 memory ranges */
-    total_size += cmdlinelen;	/* Command line */
-    total_size += STACK_NEEDED;	/* Stack */
+    e820_len = (nranges + 3) * sizeof(ranges[0]);
+    total_size += e820_len;		/* E820 memory ranges */
+    cmdline_len = strlen(shdr->cmdline) + 1;
+    total_size += cmdline_len;		/* Command line */
+    stack_len = stack_needed();
+    total_size += stack_len;		/* Stack */
+    printf("Code %u, meminfo %u, cmdline %u, stack %u\n",
+	   hptr->total_size, e820_len, cmdline_len, stack_len);
     printf("Total size needed = %u bytes, allocating %uK\n",
 	   total_size, (total_size + 0x3ff) >> 10);
 
@@ -1053,7 +1075,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	/* Actually copy to low memory */
 	dpp = mempcpy(dpp, memdisk_hook, bin_size);
 	dpp = mempcpy(dpp, ranges, (nranges + 1) * sizeof(ranges[0]));
-	dpp = mempcpy(dpp, shdr->cmdline, cmdlinelen + 1);
+	dpp = mempcpy(dpp, shdr->cmdline, cmdline_len);
     }
 
     /* Update various BIOS magic data areas (gotta love this shit) */
