@@ -109,13 +109,6 @@ void setcursorshape(char start, char end)
     __intcall(0x10, &inreg, &outreg);
 }
 
-char getchar(void)
-{
-    REG_AH(inreg) = 0x08;
-    __intcall(0x21, &inreg, &outreg);
-    return REG_AL(outreg);
-}
-
 void setvideomode(char mode)
 {
     REG_AH(inreg) = 0x00;
