@@ -13,6 +13,7 @@
 #include "menu.h"
 #include "com32io.h"
 #include <stdlib.h>
+#include <console.h>
 
 // Local Variables
 static pt_menusystem ms;	// Pointer to the menusystem
@@ -851,6 +852,9 @@ pt_menusystem init_menusystem(const char *title)
 
     // Set up the look of the box
     set_box_type(MENUBOXTYPE);
+
+	openconsole(&dev_stdcon_r, &dev_ansiserial_w);
+
     return ms;
 }
 

@@ -14,10 +14,13 @@
 #define __COM32IO_H__
 
 #include <com32.h>
+#include <stdio.h>
 
 #ifndef NULL
 #define NULL ((void *)0)
 #endif
+
+#define CSI "\e["
 
 /* BIOS Assisted output routines */
 
@@ -37,7 +40,11 @@ void setdisppage(char num);	// Set the display page to specified number
 
 char getdisppage();		// Get current display page
 
-void gotoxy(char row, char col, char page);
+static inline void gotoxy(char row, char col, char page)
+{
+	// XXX page
+	printf(CSI "%d;%dH", row + 1, col + 1);
+}
 
 void getpos(char *row, char *col, char page);
 

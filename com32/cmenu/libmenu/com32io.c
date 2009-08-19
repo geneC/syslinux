@@ -51,14 +51,6 @@ void getpos(char *row, char *col, char page)
     *col = REG_DL(outreg);
 }
 
-void gotoxy(char row, char col, char page)
-{
-    REG_AH(inreg) = 0x02;
-    REG_BH(inreg) = page;
-    REG_DX(inreg) = (row << 8) + col;
-    __intcall(0x10, &inreg, &outreg);
-}
-
 unsigned char sleep(unsigned int msec)
 {
     unsigned long micro = 1000 * msec;
