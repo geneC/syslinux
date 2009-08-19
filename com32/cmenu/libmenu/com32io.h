@@ -95,7 +95,7 @@ void scrollupwindow(char top, char left, char bot, char right, char attr, char n
 
 static inline void scrollup(void)	//Scroll up display screen by one line
 {
-    scrollupwindow(0, 0, getnumrows(), getnumcols(), 0x07, 1);
+	printf(CSI "S");
 }
 
 void setvideomode(char mode);	// Set the video mode.
