@@ -36,41 +36,41 @@
 
 struct initramfs *initramfs_init(void)
 {
-  struct initramfs *ir;
+    struct initramfs *ir;
 
-  ir = calloc(sizeof(*ir), 1);
-  if (!ir)
-    return NULL;
+    ir = calloc(sizeof(*ir), 1);
+    if (!ir)
+	return NULL;
 
-  ir->prev = ir->next = ir;
-  return ir;
+    ir->prev = ir->next = ir;
+    return ir;
 }
 
 int initramfs_add_data(struct initramfs *ihead, const void *data,
 		       size_t data_len, size_t len, size_t align)
 {
-  struct initramfs *in;
+    struct initramfs *in;
 
-  if (!len)
-    return 0;			/* Nothing to add... */
+    if (!len)
+	return 0;		/* Nothing to add... */
 
-  /* Alignment must be a power of 2, and <= INITRAMFS_MAX_ALIGN */
-  if (!align || (align & (align-1)) || align > INITRAMFS_MAX_ALIGN)
-    return -1;
+    /* Alignment must be a power of 2, and <= INITRAMFS_MAX_ALIGN */
+    if (!align || (align & (align - 1)) || align > INITRAMFS_MAX_ALIGN)
+	return -1;
 
-  in = malloc(sizeof(*in));
-  if (!in)
-    return -1;
+    in = malloc(sizeof(*in));
+    if (!in)
+	return -1;
 
-  in->len = len;
-  in->data = data;
-  in->data_len = data_len;
-  in->align = align;
+    in->len = len;
+    in->data = data;
+    in->data_len = data_len;
+    in->align = align;
 
-  in->next = ihead;
-  in->prev = ihead->prev;
-  ihead->prev->next = in;
-  ihead->prev = in;
+    in->next = ihead;
+    in->prev = ihead->prev;
+    ihead->prev->next = in;
+    ihead->prev = in;
 
-  return 0;
+    return 0;
 }

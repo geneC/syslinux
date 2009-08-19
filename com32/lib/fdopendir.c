@@ -8,6 +8,6 @@
 
 DIR *fdopendir(int __fd)
 {
-	errno = ENOSYS;
-	return NULL;
+    errno = ENOSYS;
+    return NULL;
 }

@@ -50,10 +50,10 @@ extlinux: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
 
 %.o: %.c
-	$(CC) -Wp,-MT,$@,-MMD,.$@.d $(CFLAGS) -c -o $@ $<
+	$(CC) $(UMAKEDEPS) $(CFLAGS) -c -o $@ $<
 %.i: %.c
-	$(CC) $(CFLAGS) -E -o $@ $<
+	$(CC) $(UMAKEDEPS) $(CFLAGS) -E -o $@ $<
 %.s: %.c
-	$(CC) $(CFLAGS) -S -o $@ $<
+	$(CC) $(UMAKEDEPS) $(CFLAGS) -S -o $@ $<
 
 -include .*.d *.tmp

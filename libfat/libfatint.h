@@ -23,33 +23,33 @@
 #include "fat.h"
 
 struct libfat_sector {
-  libfat_sector_t n;		/* Sector number */
-  struct libfat_sector *next;	/* Next in list */
-  char data[LIBFAT_SECTOR_SIZE];
+    libfat_sector_t n;		/* Sector number */
+    struct libfat_sector *next;	/* Next in list */
+    char data[LIBFAT_SECTOR_SIZE];
 };
 
 enum fat_type {
-  FAT12,
-  FAT16,
-  FAT28
+    FAT12,
+    FAT16,
+    FAT28
 };
 
 struct libfat_filesystem {
-  int (*read)(intptr_t, void *, size_t, libfat_sector_t);
-  intptr_t readptr;
+    int (*read) (intptr_t, void *, size_t, libfat_sector_t);
+    intptr_t readptr;
 
-  enum fat_type fat_type;
-  unsigned int clustsize;
-  int clustshift;
-  int32_t endcluster;		/* Highest legal cluster number + 1 */
-  int32_t rootcluster;		/* Root directory cluster */
+    enum fat_type fat_type;
+    unsigned int clustsize;
+    int clustshift;
+    int32_t endcluster;		/* Highest legal cluster number + 1 */
+    int32_t rootcluster;	/* Root directory cluster */
 
-  libfat_sector_t fat;		/* Start of FAT */
-  libfat_sector_t rootdir;	/* Start of root directory */
-  libfat_sector_t data;		/* Start of data area */
-  libfat_sector_t end;		/* End of filesystem */
+    libfat_sector_t fat;	/* Start of FAT */
+    libfat_sector_t rootdir;	/* Start of root directory */
+    libfat_sector_t data;	/* Start of data area */
+    libfat_sector_t end;	/* End of filesystem */
 
-  struct libfat_sector *sectors;
+    struct libfat_sector *sectors;
 };
 
 #endif /* LIBFATINT_H */

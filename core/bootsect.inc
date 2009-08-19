@@ -25,7 +25,7 @@
 ; Load a boot sector
 ;
 is_bootsector:
-%if IS_SYSLINUX || IS_MDSLINUX
+%if IS_SYSLINUX
 		; Transfer zero bytes
 		push word 0
 		jmp short load_bootsec
@@ -48,7 +48,7 @@ load_bootsec:
 		mov eax,7C00h		; Entry point
 		mov [trackbuf],eax	; Copy to this address
 
-%if IS_SYSLINUX || IS_MDSLINUX
+%if IS_SYSLINUX
 		xor ecx,ecx
 		pop cx
 
@@ -61,7 +61,7 @@ load_bootsec:
 
 		xor edx,edx
 		xor esi,esi
-%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
+%if IS_SYSLINUX || IS_EXTLINUX
 		; Restore original FDC table
 		mov eax,[OrigFDCTabPtr]
 		mov [fdctab],eax
@@ -74,21 +74,36 @@ load_bootsec:
 		xor ax,ax
 		rep movsw
 		pop si			; DS:SI points to partition info
+		xor bx,bx
 %elif IS_ISOLINUX
 		mov dl,[DriveNumber]
+		xor bx,bx
 %elif IS_PXELINUX
 		mov byte [KeepPXE],03h	; Chainloading + keep PXE
 		call reset_pxe
+		lfs si,[InitStack]
+		; Put restore DS, EDX and ESI to the true initial values
+		mov bx,[fs:si+6]
+		mov edx,[fs:si+28]
+		mov esi,[fs:si+12]
 %endif
-		xor bx,bx
 
 ;
 ; replace_bootstrap for the special case where we have exactly one
-; descriptor.
+; descriptor, based in low memory.  We will generate a second descriptor
+; to clear remaining FBM.
 ;
 
 replace_bootstrap_one:
-		push word 1			; Length of descriptor list
+		mov eax,[trackbuf]		; Base address
+		add eax,[trackbuf+8]		; Length
+		movzx ecx,word [BIOS_fbm]
+		shl ecx,10			; Free Base Memory
+		sub ecx,eax
+		mov [trackbuf+12],eax
+		or dword [trackbuf+16],-1	; Zero memory
+		mov [trackbuf+20],ecx
+		push word 2			; Length of descriptor list
 		; Fall through
 
 ;
@@ -172,7 +187,7 @@ replace_bootstrap:
 		mov si,__replacestub_lma
 		mov cx,__replacestub_dwords
 		rep movsd
-		
+
 		xor ecx,ecx
 		pop cx			; ECX <- length of list
 

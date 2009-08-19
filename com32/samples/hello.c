@@ -22,14 +22,14 @@
 
 int main(int argc, char *argv[])
 {
-  int i;
+    int i;
 
-  openconsole(&dev_stdcon_r, &dev_stdcon_w);
+    openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
-  printf("Hello, World!\n");
+    printf("Hello, World!\n");
 
-  for (i = 1; i < argc; i++)
-    printf("%s%c", argv[i], (i == argc-1) ? '\n' : ' ');
+    for (i = 1; i < argc; i++)
+	printf("%s%c", argv[i], (i == argc - 1) ? '\n' : ' ');
 
-  return 0;
+    return 0;
 }

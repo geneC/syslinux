@@ -18,19 +18,18 @@
 topdir = ..
 include $(topdir)/MCONFIG.embedded
 
-all:	mbr.bin   altmbr.bin   gptmbr.bin   isohdpfx.bin   \
-	mbr_c.bin altmbr_c.bin gptmbr_c.bin isohdpfx_c.bin \
-	mbr_f.bin altmbr_f.bin gptmbr_f.bin isohdpfx_f.bin
+all:	mbr.bin   altmbr.bin   gptmbr.bin   isohdpfx.bin   isohdppx.bin \
+	mbr_c.bin altmbr_c.bin gptmbr_c.bin isohdpfx_c.bin isohdppx_c.bin \
+	mbr_f.bin altmbr_f.bin gptmbr_f.bin isohdpfx_f.bin isohdppx_f.bin
 
-.PRECIOUS: %.o
-%.o: %.S adjust.h
-	$(CC) $(SFLAGS) -Wa,-a=$*.lst -c -o $@ $<
+%.o: %.S
+	$(CC) $(MAKEDEPS) $(SFLAGS) -Wa,-a=$*.lst -c -o $@ $<
 
-%_c.o: %.S adjust.h
-	$(CC) $(SFLAGS) -Wa,-a=$*_c.lst -DCTRL_80 -c -o $@ $<
+%_c.o: %.S
+	$(CC) $(MAKEDEPS) $(SFLAGS) -Wa,-a=$*_c.lst -DCTRL_80 -c -o $@ $<
 
-%_f.o: %.S adjust.h
-	$(CC) $(SFLAGS) -Wa,-a=$*_f.lst -DFORCE_80 -c -o $@ $<
+%_f.o: %.S
+	$(CC) $(MAKEDEPS) $(SFLAGS) -Wa,-a=$*_f.lst -DFORCE_80 -c -o $@ $<
 
 .PRECIOUS: %.elf
 %.elf: %.o mbr.ld
@@ -44,9 +43,11 @@ all:	mbr.bin   altmbr.bin   gptmbr.bin   isohdpfx.bin   \
 mbr_bin.c: mbr.bin
 
 tidy dist:
-	rm -f *.o *.elf *.lst
+	rm -f *.o *.elf *.lst .*.d
 
 clean: tidy
 
 spotless: clean
 	rm -f *.bin
+
+-include .*.d

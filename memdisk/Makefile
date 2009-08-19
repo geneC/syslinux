@@ -15,10 +15,9 @@ topdir = ..
 include $(topdir)/MCONFIG.embedded
 -include $(topdir)/version.mk
 
-CFLAGS   = $(GCCOPT) -g -W -Wall -Wno-sign-compare -DDATE='"$(DATE)"'
-SFLAGS	 = $(GCCOPT) -D__ASSEMBLY__
+INCLUDES = -I$(topdir)/com32/include
+CFLAGS  += -DDATE='"$(DATE)"'
 LDFLAGS  = $(GCCOPT) -g
-INCLUDE  = -I$(topdir)/com32/include
 NASM     = nasm
 NASMOPT  = -O9999
 NFLAGS   = -dDATE='"$(DATE)"'
@@ -39,17 +38,17 @@ endif
 # Important: init.o16 must be first!!
 OBJS16   = init.o16 init32.o
 OBJS32   = start32.o setup.o msetup.o e820func.o conio.o memcpy.o memset.o \
-           unzip.o memdisk_chs.o memdisk_edd.o
+	   memmove.o unzip.o memdisk_chs.o memdisk_edd.o
 
 CSRC     = setup.c msetup.c e820func.c conio.c unzip.c
-SSRC     = start32.S memcpy.S memset.S
+SSRC     = start32.S memcpy.S memset.S memmove.S
 NASMSRC  = memdisk_chs.asm memdisk_edd.asm memdisk16.asm
 
 all: memdisk # e820test
 
 # tidy, clean removes everything except the final binary
 tidy dist:
-	rm -f *.o *.s *.tmp *.o16 *.s16 *.bin *.lst *.elf e820test
+	rm -f *.o *.s *.tmp *.o16 *.s16 *.bin *.lst *.elf e820test .*.d
 
 clean: tidy
 
@@ -58,39 +57,17 @@ spotless: clean
 	rm -f memdisk .depend
 
 memdisk16.o: memdisk16.asm
-	$(NASM) $(NASMOPT) $(NFLAGS) $(NINCLUDE) -f elf -l $*.lst -o $@ $<
 
-%.o: %.s
-	$(CC) $(SFLAGS) -c -o $@ $<
+# Cancel rule
+%.o: %.asm
 
-%.o: %.S
-	$(CC) $(INCLUDE) $(SFLAGS) -c -o $@ $<
+memdisk16.o: memdisk16.asm
+	( $(NASM) -M -DDEPEND $(NFLAGS) $(NINCLUDE) -o $@ $< ; echo '' ) > .$@.d ; true
+	$(NASM) -f elf $(NASMOPT) $(NFLAGS) $(NINCLUDE) -o $@ -l $*.lst $<
 
-%.o16: %.s16
-	$(CC) $(SFLAGS) -x assembler -c -o $@ $<
-
-%.o: %.c
-	$(CC) $(INCLUDE) $(CFLAGS) -c -o $@ $<
-
-%.s16: %.s
-	echo '.code16gcc' | cat - $< > $@
-
-%.s: %.S
-	$(CC) $(INCLUDE) $(SFLAGS) -E -o $@ $<
-
-%.s16: %.S16
-	$(CC) $(INCLUDE) $(SFLAGS) -x assembler-with-cpp -E -o $@ $<
-
-%.s: %.c
-	$(CC) $(INCLUDE) $(CFLAGS) -S -o $@ $<
-
-%.i: %.c
-	$(CC) $(INCLUDE) $(CFLAGS) -E -o $@ $<
-
-# Cancel default rule
-%.o: %.c
-
+.PRECIOUS: %.bin
 %.bin: %.asm
+	( $(NASM) -M -DDEPEND $(NFLAGS) $(NINCLUDE) -o $@ $< ; echo '' ) > .$@.d ; true
 	$(NASM) -f bin $(NASMOPT) $(NFLAGS) $(NINCLUDE) -o $@ -l $*.lst $<
 
 memdisk_%.o: memdisk_%.bin
@@ -111,21 +88,8 @@ memdisk: memdisk16.bin memdisk32.bin postprocess.pl
 e820test: e820test.c e820func.c msetup.c
 	$(CC) -m32 -g -W -Wall -DTEST -o $@ $^
 
-.depend:
-	rm -f .depend
-	for csrc in *.c ; do $(CC) $(INCLUDE) $(CFLAGS) -MM $$csrc >> .depend ; done ; true
-	for ssrc in *.S ; do $(CC) $(INCLUDE) $(SFLAGS) -MM $$ssrc >> .depend ; done ; true
-	for nsrc in $(NASMSRC) ; do \
-		( $(NASM) -DDEPEND $(NINCLUDE) -o \
-		  `echo $$nsrc | sed -e 's/\.asm/\.bin/'` -M $$nsrc ; \
-		  echo '' ) >> .depend ; done ; true
-
-depend:
-	rm -f .depend
-	$(MAKE) .depend
-
 # This file contains the version number, so add a dependency for it
 setup.s: ../version
 
 # Include dependencies file
--include .depend
+-include .*.d

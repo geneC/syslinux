@@ -40,9 +40,6 @@
 # define dprintf(f, ...) ((void)0)
 #endif
 
-/* Declare a variable or data structure as unused. */
-#define __unused __attribute__ (( unused ))
-
 #define MAX_LINE_SIZE 256
 
 #define CLI_SPACE " "
@@ -167,6 +164,9 @@ void main_show(char *item, struct s_hardware *hardware);
 #define CLI_DMI_PROCESSOR "cpu"
 #define CLI_DMI_SYSTEM "system"
 #define CLI_DMI_IPMI "ipmi"
+#define CLI_DMI_CACHE "cache"
+#define CLI_DMI_OEM "oem"
+#define CLI_DMI_SECURITY "security"
 #define CLI_DMI_LIST CLI_SHOW_LIST
 void main_show_dmi(int argc, char **argv, struct s_hardware *hardware);
 void show_dmi_memory_modules(int argc, char** argv, struct s_hardware *hardware);

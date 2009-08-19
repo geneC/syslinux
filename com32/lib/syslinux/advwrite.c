@@ -37,9 +37,9 @@
 
 int syslinux_adv_write(void)
 {
-  static com32sys_t reg;
+    static com32sys_t reg;
 
-  reg.eax.w[0] = 0x001d;
-  __intcall(0x22, &reg, &reg);
-  return (reg.eflags.l & EFLAGS_CF) ? -1 : 0;
+    reg.eax.w[0] = 0x001d;
+    __intcall(0x22, &reg, &reg);
+    return (reg.eflags.l & EFLAGS_CF) ? -1 : 0;
 }

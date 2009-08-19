@@ -35,32 +35,29 @@ static inline struct vesa_char *vesacon_fill(struct vesa_char *ptr,
 					     struct vesa_char fill,
 					     unsigned int count)
 {
-  switch (sizeof(struct vesa_char)) {
-  case 1:
-    asm volatile("rep; stosb"
-		 : "+D" (ptr), "+c" (count)
-		 : "a" (fill)
-		 : "memory");
-    break;
-  case 2:
-    asm volatile("rep; stosw"
-		 : "+D" (ptr), "+c" (count)
-		 : "a" (fill)
-		 : "memory");
-    break;
-  case 4:
-    asm volatile("rep; stosl"
-		 : "+D" (ptr), "+c" (count)
-		 : "a" (fill)
-		 : "memory");
-    break;
-  default:
-    while (count--)
-      *ptr++ = fill;
-    break;
-  }
+    switch (sizeof(struct vesa_char)) {
+    case 1:
+	asm volatile ("rep; stosb":"+D" (ptr), "+c"(count)
+		      :"a"(fill)
+		      :"memory");
+	break;
+    case 2:
+	asm volatile ("rep; stosw":"+D" (ptr), "+c"(count)
+		      :"a"(fill)
+		      :"memory");
+	break;
+    case 4:
+	asm volatile ("rep; stosl":"+D" (ptr), "+c"(count)
+		      :"a"(fill)
+		      :"memory");
+	break;
+    default:
+	while (count--)
+	    *ptr++ = fill;
+	break;
+    }
 
-  return ptr;
+    return ptr;
 }
 
 #endif /* LIB_SYS_VESA_FILL_H */

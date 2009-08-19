@@ -7,5 +7,5 @@
 
 void abort(void)
 {
-  _exit(255);
+    _exit(255);
 }

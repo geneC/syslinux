@@ -143,7 +143,7 @@ is_comboot_image:
 ; Note: this gets invoked both via INT 21h and directly via INT 20h.
 ; We don't need to cld explicitly here, because comboot_exit does that
 ; when invoking RESET_STACK_AND_SEGS.
-comboot_return:	cli			; Don't trust anyone
+comboot_return:	cli			; May not have a safe stack
 		push enter_command	; Normal return to command prompt
 		jmp comboot_exit
 
@@ -222,7 +222,7 @@ comboot_vectors:
 		section .text
 
 ; INT 21h: generic DOS system call
-comboot_int21:	cli
+comboot_int21:	sti
 		push ds
 		push es
 		push fs
@@ -265,8 +265,7 @@ comboot_bad_int21:
 
 ; Attempted to execute invalid DOS system call
 ; The interrupt number is on the stack.
-comboot_bogus:	cli			; Don't trust anyone
-		pop dx			; Interrupt number
+comboot_bogus:	pop dx			; Interrupt number
 		pop edi			; CS:IP
 		mov cx,err_notdos
 		push comboot_bogus_tail
@@ -294,7 +293,7 @@ comboot_exit:
 		xor cx,cx
 comboot_exit_msg:
 		pop bx			; Return address
-		RESET_STACK_AND_SEGS SI	; Contains cld
+		RESET_STACK_AND_SEGS SI	; Contains sti, cld
 		call adjust_screen	; The COMBOOT program might have changed the screen
 		pusha
 		mov si,DOSSaveVectors
@@ -385,30 +384,17 @@ comboot_getchar:
 ;
 ; INT 28h - DOS idle
 ;
-%ifdef HAVE_IDLE
 comboot_int28:
-		cli
+		sti
 		cld
-		pushad
-		xor ax,ax
-		push ds
-		push es
-		mov ds,ax
-		mov es,ax
-		DO_IDLE
-		pop es
-		pop ds
-		popad
+		call do_idle
 		iret
-%else
-comboot_int28	equ comboot_iret
-%endif
 
 ;
 ; INT 29h - DOS fast write character
 ;
 comboot_int29:
-		cli
+		sti
 		cld
 		call writechr			; Preserves registers!
 		iret
@@ -418,7 +404,7 @@ comboot_int29:
 ;           System call number in ax
 ;
 comboot_int22:
-		cli
+		sti
 		push ds
 		push es
 		push fs
@@ -599,7 +585,7 @@ comapi_derinfo:
 		mov P_DL,al
 		mov P_FS,cs
 		mov P_SI,OrigESDI
-%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
+%if IS_SYSLINUX || IS_EXTLINUX
 		mov P_ES,cs
 		mov P_BX,PartInfo
 %elif IS_ISOLINUX
@@ -645,7 +631,7 @@ comapi_cleanup:
 		sub bp,sp		; unload_pxe may move the stack around
 		call unload_pxe
 		add bp,sp		; restore frame pointer...
-%elif IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
+%elif IS_SYSLINUX || IS_EXTLINUX
 		; Restore original FDC table
 		mov eax,[OrigFDCTabPtr]
 		mov [fdctab],eax
@@ -718,21 +704,10 @@ comapi_dnsresolv equ comapi_err
 ;
 ; INT 22h AX=0013h	Idle call
 ;
-;
-; *** FIX THIS ***
-; The idle call seems to have detrimental effects on some machines when
-; called from a COM32 context (WHY?) --  disable it for now.
-; *** IS THIS STILL TRUE? ***
-;
-%ifdef HAVE_IDLE
 comapi_idle:
-		DO_IDLE
+		call do_idle
 		clc
 		ret
-
-%else
-comapi_idle	equ comapi_err
-%endif
 
 ;
 ; INT 22h AX=0014h	Local boot
@@ -850,7 +825,7 @@ comapi_userfont:
 ;
 ; INT 22h AX=0019h  Read disk
 ;
-%if IS_SYSLINUX || IS_MDSLINUX || IS_ISOLINUX || IS_EXTLINUX
+%if IS_SYSLINUX || IS_ISOLINUX || IS_EXTLINUX
 comapi_readdisk:
 		mov esi,P_ESI		; Enforce ESI == EDI == 0, these
 		or esi,P_EDI		; are reserved for future expansion
@@ -1061,7 +1036,7 @@ zero_string	db 0			; Empty, null-terminated string
 ; in pxe_detect_nic_type
 ;
 feature_flags:
-		db 3			; Have local boot, idle is noop
+		db 1			; Have local boot, idle is not noop
 feature_flags_len equ ($-feature_flags)
 
 err_notdos	db ': attempted DOS system call INT ',0

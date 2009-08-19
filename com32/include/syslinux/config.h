@@ -39,137 +39,135 @@
 #include <com32.h>
 
 enum syslinux_filesystem {
-  SYSLINUX_FS_UNKNOWN    = 0x30,
-  SYSLINUX_FS_SYSLINUX   = 0x31,
-  SYSLINUX_FS_PXELINUX   = 0x32,
-  SYSLINUX_FS_ISOLINUX   = 0x33,
-  SYSLINUX_FS_EXTLINUX   = 0x34,
+    SYSLINUX_FS_UNKNOWN = 0x30,
+    SYSLINUX_FS_SYSLINUX = 0x31,
+    SYSLINUX_FS_PXELINUX = 0x32,
+    SYSLINUX_FS_ISOLINUX = 0x33,
+    SYSLINUX_FS_EXTLINUX = 0x34,
 };
 
 struct syslinux_version {
-  uint16_t version;		/* (major << 8)+minor */
-  uint16_t max_api;
-  enum syslinux_filesystem filesystem;
-  const char *version_string;
-  const char *copyright_string;
+    uint16_t version;		/* (major << 8)+minor */
+    uint16_t max_api;
+    enum syslinux_filesystem filesystem;
+    const char *version_string;
+    const char *copyright_string;
 };
 
 extern __nocommon struct syslinux_version __syslinux_version;
-static inline const struct syslinux_version *
-syslinux_version(void)
+static inline const struct syslinux_version *syslinux_version(void)
 {
-  return &__syslinux_version;
+    return &__syslinux_version;
 }
 
 union syslinux_derivative_info {
-  struct {
-    com32sys_t r;
-    const void *esbx;
-    const void *fssi;
-    const void *gsdi;
-  } rr;				/* real raw */
-  struct {
-    uint16_t _pad1[4];
-    uint32_t _pad2[7];
-    uint8_t filesystem;
-    uint8_t ah;
-    uint16_t axh;
-  } c;				/* common */
-  struct {
-    uint16_t gs;
-    uint16_t fs;
-    uint16_t es;
-    uint16_t ds;
-    uint16_t di, dih;
-    uint16_t si, sih;
-    uint16_t bp, bph;
-    uint16_t sp, sph;
-    uint16_t bx, bxh;
-    uint16_t dx, dxh;
-    uint16_t cx, cxh;
-    uint16_t ax, axh;
-    uint32_t eflags;
-    const void *esbx;
-    const void *fssi;
-    const void *gsdi;
-  } r;				/* raw */
-  struct {
-    uint16_t _gs, _fs, _es, _ds;
-    uint32_t _edi, _esi, _ebp, _esp, _ebx;
-    uint8_t drive_number, dh;
-    uint16_t _dxh;
-    uint8_t sector_shift, ch;
-    uint16_t _cxh;
-    uint8_t filesystem, ah;
-    uint16_t _axh;
-    uint32_t _eflags;
-    const void *ptab_ptr;
-    const uint32_t *esdi_ptr;
-  } disk;			/* syslinux/extlinux */
-  struct {
-    uint16_t _gs, _fs, _es, _ds;
-    uint32_t _edi, _esi, _ebp, _esp, _ebx;
-    uint16_t apiver;
-    uint16_t _dxh;
-    uint32_t _ecx;
-    uint8_t filesystem, ah;
-    uint16_t _axh;
-    uint32_t _eflags;
-    const void *pxenvptr;
-    const void *stack;
-  } pxe;			/* pxelinux */
-  struct {
-    uint16_t _gs, _fs, _es, _ds;
-    uint32_t _edi, _esi, _ebp, _esp, _ebx;
-    uint8_t drive_number, dh;
-    uint16_t _dxh;
-    uint8_t sector_shift, cd_mode;
-    uint16_t _cxh;
-    uint8_t filesystem, ah;
-    uint16_t _axh;
-    uint32_t _eflags;
-    const void *spec_packet;
-    const uint32_t *esdi_ptr;
-  } iso;			/* isolinux */
+    struct {
+	com32sys_t r;
+	const void *esbx;
+	const void *fssi;
+	const void *gsdi;
+    } rr;			/* real raw */
+    struct {
+	uint16_t _pad1[4];
+	uint32_t _pad2[7];
+	uint8_t filesystem;
+	uint8_t ah;
+	uint16_t axh;
+    } c;			/* common */
+    struct {
+	uint16_t gs;
+	uint16_t fs;
+	uint16_t es;
+	uint16_t ds;
+	uint16_t di, dih;
+	uint16_t si, sih;
+	uint16_t bp, bph;
+	uint16_t sp, sph;
+	uint16_t bx, bxh;
+	uint16_t dx, dxh;
+	uint16_t cx, cxh;
+	uint16_t ax, axh;
+	uint32_t eflags;
+	const void *esbx;
+	const void *fssi;
+	const void *gsdi;
+    } r;			/* raw */
+    struct {
+	uint16_t _gs, _fs, _es, _ds;
+	uint32_t _edi, _esi, _ebp, _esp, _ebx;
+	uint8_t drive_number, dh;
+	uint16_t _dxh;
+	uint8_t sector_shift, ch;
+	uint16_t _cxh;
+	uint8_t filesystem, ah;
+	uint16_t _axh;
+	uint32_t _eflags;
+	const void *ptab_ptr;
+	const uint32_t *esdi_ptr;
+    } disk;			/* syslinux/extlinux */
+    struct {
+	uint16_t _gs, _fs, _es, _ds;
+	uint32_t _edi, _esi, _ebp, _esp, _ebx;
+	uint16_t apiver;
+	uint16_t _dxh;
+	uint32_t _ecx;
+	uint8_t filesystem, ah;
+	uint16_t _axh;
+	uint32_t _eflags;
+	const void *pxenvptr;
+	const void *stack;
+    } pxe;			/* pxelinux */
+    struct {
+	uint16_t _gs, _fs, _es, _ds;
+	uint32_t _edi, _esi, _ebp, _esp, _ebx;
+	uint8_t drive_number, dh;
+	uint16_t _dxh;
+	uint8_t sector_shift, cd_mode;
+	uint16_t _cxh;
+	uint8_t filesystem, ah;
+	uint16_t _axh;
+	uint32_t _eflags;
+	const void *spec_packet;
+	const uint32_t *esdi_ptr;
+    } iso;			/* isolinux */
 };
 
 extern __nocommon union syslinux_derivative_info __syslinux_derivative_info;
-static inline const union syslinux_derivative_info *
-syslinux_derivative_info(void)
+static inline const union syslinux_derivative_info
+    *syslinux_derivative_info(void)
 {
-  return &__syslinux_derivative_info;
+    return &__syslinux_derivative_info;
 }
 
 struct syslinux_serial_console_info {
-  uint16_t iobase;
-  uint16_t divisor;
-  uint16_t flowctl;
+    uint16_t iobase;
+    uint16_t divisor;
+    uint16_t flowctl;
 };
 
 extern __nocommon struct syslinux_serial_console_info
-  __syslinux_serial_console_info;
-static inline const struct syslinux_serial_console_info *
-syslinux_serial_console_info(void)
+    __syslinux_serial_console_info;
+static inline const struct syslinux_serial_console_info
+    *syslinux_serial_console_info(void)
 {
-  return &__syslinux_serial_console_info;
+    return &__syslinux_serial_console_info;
 }
 
 extern __nocommon const char *__syslinux_config_file;
 static inline const char *syslinux_config_file(void)
 {
-  return __syslinux_config_file;
+    return __syslinux_config_file;
 }
 
 struct syslinux_ipappend_strings {
-  int count;
-  const char * const *ptr;
+    int count;
+    const char *const *ptr;
 };
-extern __nocommon struct syslinux_ipappend_strings
-  __syslinux_ipappend_strings;
-static inline const struct syslinux_ipappend_strings *
-syslinux_ipappend_strings(void)
+extern __nocommon struct syslinux_ipappend_strings __syslinux_ipappend_strings;
+static inline const struct syslinux_ipappend_strings
+    *syslinux_ipappend_strings(void)
 {
-  return &__syslinux_ipappend_strings;
+    return &__syslinux_ipappend_strings;
 }
 
 #endif /* _SYSLINUX_CONFIG_H */

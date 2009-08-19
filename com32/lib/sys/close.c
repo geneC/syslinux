@@ -36,27 +36,27 @@
 
 int close(int fd)
 {
-  struct file_info *fp = &__file_info[fd];
-  int rv = 0;
+    struct file_info *fp = &__file_info[fd];
+    int rv = 0;
 
-  if ( fd >= NFILES || !fp->iop || !fp->oop ) {
-    errno = EBADF;
-    return -1;
-  }
+    if (fd >= NFILES || !fp->iop || !fp->oop) {
+	errno = EBADF;
+	return -1;
+    }
 
-  if ( fp->iop->close ) {
-    rv = fp->iop->close(fp);
-    if ( rv )
-      return rv;
-  }
-  fp->iop = &dev_error_r;
+    if (fp->iop->close) {
+	rv = fp->iop->close(fp);
+	if (rv)
+	    return rv;
+    }
+    fp->iop = &dev_error_r;
 
-  if ( fp->oop->close ) {
-    rv = fp->oop->close(fp);
-    if ( rv )
-      return rv;
-  }
+    if (fp->oop->close) {
+	rv = fp->oop->close(fp);
+	if (rv)
+	    return rv;
+    }
 
-  memset(fp, 0, sizeof *fp);	/* File structure unused */
-  return 0;
+    memset(fp, 0, sizeof *fp);	/* File structure unused */
+    return 0;
 }

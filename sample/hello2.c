@@ -25,36 +25,34 @@
 
 static inline void memset(void *buf, int ch, unsigned int len)
 {
-  asm volatile("cld; rep; stosb"
-	       : "+D" (buf), "+c" (len) : "a" (ch) : "memory");
+    asm volatile ("cld; rep; stosb":"+D" (buf), "+c"(len):"a"(ch):"memory");
 }
 
 static void strcpy(char *dst, const char *src)
 {
-  while ( *src )
-    *dst++ = *src++;
+    while (*src)
+	*dst++ = *src++;
 
-  *dst = '\0';
+    *dst = '\0';
 }
 
 static void writemsg(const char *msg)
 {
-  com32sys_t inreg;
+    com32sys_t inreg;
 
-  memset(&inreg, 0, sizeof inreg);
+    memset(&inreg, 0, sizeof inreg);
 
-  strcpy(__com32.cs_bounce, msg);
-  inreg.eax.w[0] = 0x0002;	/* Write string */
-  inreg.ebx.w[0] = OFFS(__com32.cs_bounce);
-  inreg.es       = SEG(__com32.cs_bounce);
-  __com32.cs_intcall(0x22, &inreg, NULL);
+    strcpy(__com32.cs_bounce, msg);
+    inreg.eax.w[0] = 0x0002;	/* Write string */
+    inreg.ebx.w[0] = OFFS(__com32.cs_bounce);
+    inreg.es = SEG(__com32.cs_bounce);
+    __com32.cs_intcall(0x22, &inreg, NULL);
 };
 
 int __start(void)
 {
-  writemsg("Hello, World!\r\n"
-	   "cmdline = ");
-  writemsg(__com32.cs_cmdline);
-  writemsg("\r\n");
-  return 0;
+    writemsg("Hello, World!\r\n" "cmdline = ");
+    writemsg(__com32.cs_cmdline);
+    writemsg("\r\n");
+    return 0;
 }

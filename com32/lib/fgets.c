@@ -8,24 +8,24 @@
 
 #include <stdio.h>
 
-char *fgets(char *s, int n, FILE *f)
+char *fgets(char *s, int n, FILE * f)
 {
-  int ch;
-  char *p = s;
+    int ch;
+    char *p = s;
 
-  while ( n > 1 ) {
-    ch = getc(f);
-    if ( ch == EOF ) {
-      *p = '\0';
-      return (p == s) ? NULL : s;
+    while (n > 1) {
+	ch = getc(f);
+	if (ch == EOF) {
+	    *p = '\0';
+	    return (p == s) ? NULL : s;
+	}
+	*p++ = ch;
+	if (ch == '\n')
+	    break;
+	n--;
     }
-    *p++ = ch;
-    if ( ch == '\n' )
-      break;
-    n--;
-  }
-  if ( n )
-    *p = '\0';
+    if (n)
+	*p = '\0';
 
-  return s;
+    return s;
 }

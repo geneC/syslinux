@@ -24,40 +24,41 @@
 int32_t libfat_searchdir(struct libfat_filesystem *fs, int32_t dirclust,
 			 const void *name, struct libfat_direntry *direntry)
 {
-  struct fat_dirent *dep;
-  int nent;
-  libfat_sector_t s = libfat_clustertosector(fs, dirclust);
+    struct fat_dirent *dep;
+    int nent;
+    libfat_sector_t s = libfat_clustertosector(fs, dirclust);
 
-  while ( 1 ) {
-    if ( s == 0 )
-      return -2;		/* Not found */
-    else if ( s == (libfat_sector_t)-1 )
-      return -1;		/* Error */
+    while (1) {
+	if (s == 0)
+	    return -2;		/* Not found */
+	else if (s == (libfat_sector_t) - 1)
+	    return -1;		/* Error */
 
-    dep = libfat_get_sector(fs, s);
-    if ( !dep )
-      return -1;		/* Read error */
+	dep = libfat_get_sector(fs, s);
+	if (!dep)
+	    return -1;		/* Read error */
 
-    for ( nent = 0 ; nent < LIBFAT_SECTOR_SIZE ;
-	  nent += sizeof(struct fat_dirent) ) {
-      if ( !memcmp(dep->name, name, 11) ) {
-	if ( direntry ) {
-	  memcpy(direntry->entry, dep, sizeof (*dep));
-	  direntry->sector = s;
-	  direntry->offset = nent;
+	for (nent = 0; nent < LIBFAT_SECTOR_SIZE;
+	     nent += sizeof(struct fat_dirent)) {
+	    if (!memcmp(dep->name, name, 11)) {
+		if (direntry) {
+		    memcpy(direntry->entry, dep, sizeof(*dep));
+		    direntry->sector = s;
+		    direntry->offset = nent;
+		}
+		if (read32(&dep->size) == 0)
+		    return 0;	/* An empty file has no clusters */
+		else
+		    return read16(&dep->clustlo) +
+			(read16(&dep->clusthi) << 16);
+	    }
+
+	    if (dep->name[0] == 0)
+		return -2;	/* Hit high water mark */
+
+	    dep++;
 	}
-	if ( read32(&dep->size) == 0 )
-	  return 0;		/* An empty file has no clusters */
-	else
-	  return read16(&dep->clustlo) + (read16(&dep->clusthi) << 16);
-      }
 
-      if ( dep->name[0] == 0 )
-	return -2;		/* Hit high water mark */
-
-      dep++;
+	s = libfat_nextsector(fs, s);
     }
-
-    s = libfat_nextsector(fs, s);
-  }
 }

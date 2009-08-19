@@ -40,12 +40,12 @@
 
 ssize_t read(int fd, void *buf, size_t count)
 {
-  struct file_info *fp = &__file_info[fd];
+    struct file_info *fp = &__file_info[fd];
 
-  if ( fd >= NFILES || !fp->iop ) {
-    errno = EBADF;
-    return -1;
-  }
+    if (fd >= NFILES || !fp->iop) {
+	errno = EBADF;
+	return -1;
+    }
 
-  return fp->iop->read(fp, buf, count);
+    return fp->iop->read(fp, buf, count);
 }

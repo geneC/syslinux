@@ -31,10 +31,10 @@
 
 void syslinux_final_cleanup(uint16_t flags)
 {
-  static com32sys_t ireg;
+    static com32sys_t ireg;
 
-  ireg.eax.w[0] = 0x000c;
-  ireg.edx.w[0] = flags;
+    ireg.eax.w[0] = 0x000c;
+    ireg.edx.w[0] = flags;
 
-  __intcall(0x22, &ireg, NULL);
+    __intcall(0x22, &ireg, NULL);
 }

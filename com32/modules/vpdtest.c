@@ -39,30 +39,32 @@
 
 int main(void)
 {
-  char buffer[1024];
-  s_vpd vpd;
-  openconsole(&dev_stdcon_r, &dev_stdcon_w);
+    char buffer[1024];
+    s_vpd vpd;
+    openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
-  if (vpd_decode(&vpd) == -ENOVPDTABLE) {
+    if (vpd_decode(&vpd) == -ENOVPDTABLE) {
 	printf("No VPD Structure found\n");
 	return -1;
-  } else {
-       printf("VPD present at address : 0x%s\n",vpd.base_address);
-  }
-  if (strlen(vpd.bios_build_id)>0)
-	  printf("Bios Build ID                 : %s\n",vpd.bios_build_id);
-  if (strlen(vpd.bios_release_date)>0)
-	  printf("Bios Release Date             : %s\n",vpd.bios_release_date);
-  if (strlen(vpd.bios_version)>0)
-	  printf("Bios Version                  : %s\n",vpd.bios_version);
-  if (strlen(vpd.default_flash_filename)>0)
-	  printf("Default Flash Filename        : %s\n",vpd.default_flash_filename);
-  if (strlen(vpd.box_serial_number)>0)
-	  printf("Box Serial Number             : %s\n",vpd.box_serial_number);
-  if (strlen(vpd.motherboard_serial_number)>0)
-	  printf("Motherboard Serial Number     : %s\n",vpd.motherboard_serial_number);
-  if (strlen(vpd.machine_type_model)>0)
-	  printf("Machine Type/Model            : %s\n",vpd.machine_type_model);
+    } else {
+	printf("VPD present at address : 0x%s\n", vpd.base_address);
+    }
+    if (strlen(vpd.bios_build_id) > 0)
+	printf("Bios Build ID                 : %s\n", vpd.bios_build_id);
+    if (strlen(vpd.bios_release_date) > 0)
+	printf("Bios Release Date             : %s\n", vpd.bios_release_date);
+    if (strlen(vpd.bios_version) > 0)
+	printf("Bios Version                  : %s\n", vpd.bios_version);
+    if (strlen(vpd.default_flash_filename) > 0)
+	printf("Default Flash Filename        : %s\n",
+	       vpd.default_flash_filename);
+    if (strlen(vpd.box_serial_number) > 0)
+	printf("Box Serial Number             : %s\n", vpd.box_serial_number);
+    if (strlen(vpd.motherboard_serial_number) > 0)
+	printf("Motherboard Serial Number     : %s\n",
+	       vpd.motherboard_serial_number);
+    if (strlen(vpd.machine_type_model) > 0)
+	printf("Machine Type/Model            : %s\n", vpd.machine_type_model);
 
-  return 0;
+    return 0;
 }

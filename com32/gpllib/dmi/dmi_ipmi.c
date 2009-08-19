@@ -31,29 +31,25 @@
 
 const char *dmi_ipmi_interface_type(uint8_t code)
 {
-        /* 3.3.39.1 and IPMI 2.0, appendix C1, table C1-2 */
-        static const char *type[] = {
-                "Unknown", /* 0x00 */
-                "KCS (Keyboard Control Style)",
-                "SMIC (Server Management Interface Chip)",
-                "BT (Block Transfer)",
-                "SSIF (SMBus System Interface)" /* 0x04 */
-        };
+    /* 3.3.39.1 and IPMI 2.0, appendix C1, table C1-2 */
+    static const char *type[] = {
+	"Unknown",		/* 0x00 */
+	"KCS (Keyboard Control Style)",
+	"SMIC (Server Management Interface Chip)",
+	"BT (Block Transfer)",
+	"SSIF (SMBus System Interface)"	/* 0x04 */
+    };
 
-        if (code <= 0x04)
-                return type[code];
-        return out_of_spec;
+    if (code <= 0x04)
+	return type[code];
+    return out_of_spec;
 }
 
-void dmi_ipmi_base_address(uint8_t type, const uint8_t *p, s_ipmi *ipmi)
+void dmi_ipmi_base_address(uint8_t type, const uint8_t * p, s_ipmi * ipmi)
 {
-        if (type == 0x04) /* SSIF */
-        {
-                ipmi->base_address= (*p) >> 1;
-        }
-        else
-        {
-                ipmi->base_address = QWORD(p);
-        }
+    if (type == 0x04) {		/* SSIF */
+	ipmi->base_address = (*p) >> 1;
+    } else {
+	ipmi->base_address = QWORD(p);
+    }
 }
-

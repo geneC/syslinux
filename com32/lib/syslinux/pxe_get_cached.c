@@ -40,42 +40,42 @@
 
 /* Returns the status code from PXE (0 on success),
    or -1 on invocation failure */
-int pxe_get_cached_info(int level, void **buf, size_t *len)
+int pxe_get_cached_info(int level, void **buf, size_t * len)
 {
-  com32sys_t regs;
-  t_PXENV_GET_CACHED_INFO *gci = __com32.cs_bounce;
-  void *bbuf, *nbuf;
+    com32sys_t regs;
+    t_PXENV_GET_CACHED_INFO *gci = __com32.cs_bounce;
+    void *bbuf, *nbuf;
 
-  memset(&regs, 0, sizeof regs);
-  regs.eax.w[0] = 0x0009;
-  regs.ebx.w[0] = PXENV_GET_CACHED_INFO;
-  regs.es       = SEG(gci);
-  regs.edi.w[0] = OFFS(gci);
+    memset(&regs, 0, sizeof regs);
+    regs.eax.w[0] = 0x0009;
+    regs.ebx.w[0] = PXENV_GET_CACHED_INFO;
+    regs.es = SEG(gci);
+    regs.edi.w[0] = OFFS(gci);
 
-  bbuf = &gci[1];
+    bbuf = &gci[1];
 
-  gci->Status = PXENV_STATUS_FAILURE;
-  gci->PacketType = level;
-  gci->BufferSize = gci->BufferLimit = 65536-sizeof(*gci);
-  gci->Buffer.seg = SEG(bbuf);
-  gci->Buffer.offs = OFFS(bbuf);
+    gci->Status = PXENV_STATUS_FAILURE;
+    gci->PacketType = level;
+    gci->BufferSize = gci->BufferLimit = 65536 - sizeof(*gci);
+    gci->Buffer.seg = SEG(bbuf);
+    gci->Buffer.offs = OFFS(bbuf);
 
-  __intcall(0x22, &regs, &regs);
+    __intcall(0x22, &regs, &regs);
 
-  if (regs.eflags.l & EFLAGS_CF)
-    return -1;
+    if (regs.eflags.l & EFLAGS_CF)
+	return -1;
 
-  if (gci->Status)
-    return gci->Status;
+    if (gci->Status)
+	return gci->Status;
 
-  nbuf = malloc(gci->BufferSize); /* malloc() does not use the bounce buffer */
-  if (!nbuf)
-    return -1;
+    nbuf = malloc(gci->BufferSize);	/* malloc() does not use the bounce buffer */
+    if (!nbuf)
+	return -1;
 
-  memcpy(nbuf, bbuf, gci->BufferSize);
+    memcpy(nbuf, bbuf, gci->BufferSize);
 
-  *buf = nbuf;
-  *len = gci->BufferSize;
+    *buf = nbuf;
+    *len = gci->BufferSize;
 
-  return 0;
+    return 0;
 }

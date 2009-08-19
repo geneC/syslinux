@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -34,7 +35,7 @@ loadkeys:
 		; Make sure we are at EOF now...
 		call getc
 		jnc .done			; We should be at EOF now!
-		
+
 		; It was okay, we can now move it into the KbdMap
 		mov si,trackbuf
 		mov di,KbdMap
@@ -260,7 +261,7 @@ write_serial:
 
 		xchg dx,bx			; DX -> THR
 		pop ax
-		call slow_out			; Send data
+		slow_out dx,al			; Send data
 .noserial:	popad
 		popfd
 .end:		ret
@@ -285,18 +286,22 @@ write_serial_str:
 ; pollchar: check if we have an input character pending (ZF = 0)
 ;
 pollchar:
+		call do_idle
 		pushad
-		DO_IDLE
 		mov ah,11h		; Poll keyboard
 		int 16h
 		jnz .done		; Keyboard response
 		mov dx,[SerialPort]
 		and dx,dx
 		jz .done		; No serial port -> no input
-		add dx,byte 5		; DX -> LSR
+		mov ax,[SerialTail]	; Already-queued input?
+		cli
+		cmp ax,[SerialHead]
+		jne .done_sti		; If so, return ZF = 0
+		add dx,5		; DX -> LSR
 		in al,dx
 		test al,1		; ZF = 0 if data pending
-		jz .done
+		jz .done_sti
 		inc dx			; DX -> MSR
 		mov ah,[FlowIgnore]	; Required status bits
 		in al,dx
@@ -304,35 +309,56 @@ pollchar:
 		cmp al,ah
 		setne al
 		dec al			; Set ZF = 0 if equal
+.done_sti:	sti
 .done:		popad
 		ret
 
 ;
 ; getchar: Read a character from keyboard or serial port
 ;
+getchar.sti_again:
+		sti
 getchar:
 .again:
-		DO_IDLE
+		call do_idle
 		mov ah,11h		; Poll keyboard
 		int 16h
 		jnz .kbd		; Keyboard input?
 		mov bx,[SerialPort]
 		and bx,bx
 		jz .again
+		mov ax,[SerialTail]
+		cli
+		cmp ax,[SerialHead]
+		jne .serial_queued
 		lea dx,[bx+5]		; DX -> LSR
 		in al,dx
 		test al,1
-		jz .again
+		jz .sti_again
 		inc dx			; DX -> MSR
 		mov ah,[FlowIgnore]
 		in al,dx
 		and al,ah
 		cmp al,ah
-		jne .again
+		jne .sti_again
 .serial:	xor ah,ah		; Avoid confusion
-		xchg dx,bx		; Data port
-		in al,dx
-		ret
+		mov dx,bx		; Data port
+		in al,dx		; Read data
+		sti
+		jmp .done
+.serial_queued:
+		sti			; We already know we'll consume data
+		xchg bx,ax
+		push ds
+		mov ax,aux_seg + (aux.serial >> 4)
+		mov ds,ax
+		mov al,[bx]
+		pop ds
+		inc bx
+		and bx,serial_buf_size-1
+		mov [SerialTail],bx
+		jmp .done
+
 .kbd:		mov ah,10h		; Get keyboard input
 		int 16h
 		cmp al,0E0h
@@ -344,8 +370,8 @@ getchar:
 		mov bx,KbdMap		; Convert character sets
 		xlatb
 .func_key:
-		RESET_IDLE		; Character received
-		ret
+.done:
+		jmp reset_idle		; Character received
 
 %ifdef DEBUG_TRACERS
 ;
@@ -386,12 +412,20 @@ ScreenSize      equ $
 VidCols         resb 1			; Columns on screen-1
 VidRows         resb 1			; Rows on screen-1
 
-; Serial console stuff...
-BaudDivisor	resw 1			; Baud rate divisor
+; Serial console stuff; don't put this in .config becasue we don't want
+; loading a new config file to undo this setting.
+		section .data
+		alignz 4
+SerialPort	dw 0			; Serial port base (or 0 for no serial port)
+BaudDivisor	dw 115200/9600		; Baud rate divisor
 FlowControl	equ $
-FlowOutput	resb 1			; Outputs to assert for serial flow
-FlowInput	resb 1			; Input bits for serial flow
-FlowIgnore	resb 1			; Ignore input unless these bits set
+FlowOutput	db 0			; Outputs to assert for serial flow
+FlowInput	db 0			; Input bits for serial flow
+FlowIgnore	db 0			; Ignore input unless these bits set
+FlowDummy	db 0			; Unused
 
+		section .bss
 TextAttribute   resb 1			; Text attribute for message file
 DisplayMask	resb 1			; Display modes mask
+
+%include "serirq.inc"

@@ -3,7 +3,6 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
-
 #ifndef ZCONF_H
 #define ZCONF_H
 
@@ -105,13 +104,13 @@
 #  define STDC
 #endif
 
-#if defined(__OS400__) && !defined(STDC)    /* iSeries (formerly AS/400). */
+#if defined(__OS400__) && !defined(STDC)	/* iSeries (formerly AS/400). */
 #  define STDC
 #endif
 
 #ifndef STDC
-#  ifndef const /* cannot use !defined(STDC) && !defined(const) on Mac */
-#    define const       /* note: need a more gentle solution here */
+#  ifndef const			/* cannot use !defined(STDC) && !defined(const) on Mac */
+#    define const		/* note: need a more gentle solution here */
 #  endif
 #endif
 
@@ -135,7 +134,7 @@
  * gzip.)
  */
 #ifndef MAX_WBITS
-#  define MAX_WBITS   15 /* 32K LZ77 window */
+#  define MAX_WBITS   15	/* 32K LZ77 window */
 #endif
 
 /* The memory requirements for deflate are (in bytes):
@@ -151,9 +150,9 @@
  for small objects.
 */
 
-                        /* Type declarations */
+			/* Type declarations */
 
-#ifndef OF /* function prototypes */
+#ifndef OF			/* function prototypes */
 #  ifdef STDC
 #    define OF(args)  args
 #  else
@@ -200,7 +199,7 @@
 #        define ZEXTERN extern __declspec(dllimport)
 #      endif
 #    endif
-#  endif  /* ZLIB_DLL */
+#  endif /* ZLIB_DLL */
    /* If building or using zlib with the WINAPI/WINAPIV calling convention,
     * define ZLIB_WINAPI.
     * Caution: the standard ZLIB1.DLL is NOT compiled using ZLIB_WINAPI.
@@ -248,44 +247,44 @@
 #endif
 
 #if !defined(__MACTYPES__)
-typedef unsigned char  Byte;  /* 8 bits */
+typedef unsigned char Byte;	/* 8 bits */
 #endif
-typedef unsigned int   uInt;  /* 16 bits or more */
-typedef unsigned long  uLong; /* 32 bits or more */
+typedef unsigned int uInt;	/* 16 bits or more */
+typedef unsigned long uLong;	/* 32 bits or more */
 
 #ifdef SMALL_MEDIUM
    /* Borland C/C++ and some old MSC versions ignore FAR inside typedef */
 #  define Bytef Byte FAR
 #else
-   typedef Byte  FAR Bytef;
+typedef Byte FAR Bytef;
 #endif
-typedef char  FAR charf;
-typedef int   FAR intf;
-typedef uInt  FAR uIntf;
+typedef char FAR charf;
+typedef int FAR intf;
+typedef uInt FAR uIntf;
 typedef uLong FAR uLongf;
 
 #ifdef STDC
-   typedef void const *voidpc;
-   typedef void FAR   *voidpf;
-   typedef void       *voidp;
+typedef void const *voidpc;
+typedef void FAR *voidpf;
+typedef void *voidp;
 #else
-   typedef Byte const *voidpc;
-   typedef Byte FAR   *voidpf;
-   typedef Byte       *voidp;
+typedef Byte const *voidpc;
+typedef Byte FAR *voidpf;
+typedef Byte *voidp;
 #endif
 
-#if 0           /* HAVE_UNISTD_H -- this line is updated by ./configure */
-#  include <sys/types.h> /* for off_t */
-#  include <unistd.h>    /* for SEEK_* and off_t */
+#if 0				/* HAVE_UNISTD_H -- this line is updated by ./configure */
+#  include <sys/types.h>	/* for off_t */
+#  include <unistd.h>		/* for SEEK_* and off_t */
 #  ifdef VMS
-#    include <unixio.h>   /* for off_t */
+#    include <unixio.h>		/* for off_t */
 #  endif
 #  define z_off_t  off_t
 #endif
 #ifndef SEEK_SET
-#  define SEEK_SET        0       /* Seek from beginning of file.  */
-#  define SEEK_CUR        1       /* Seek from current position.  */
-#  define SEEK_END        2       /* Set file pointer to EOF plus "offset" */
+#  define SEEK_SET        0	/* Seek from beginning of file.  */
+#  define SEEK_CUR        1	/* Seek from current position.  */
+#  define SEEK_END        2	/* Set file pointer to EOF plus "offset" */
 #endif
 #ifndef z_off_t
 #  define  z_off_t long

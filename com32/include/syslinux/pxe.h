@@ -52,373 +52,334 @@ typedef uint8_t mac_addr_t[MAC_ADDR_LEN];
 
 /* "Protected mode segment descriptor" according to PXE... */
 typedef struct {
-  uint16_t segaddr;
-  uint32_t physaddr;
-  uint16_t segsize;
+    uint16_t segaddr;
+    uint32_t physaddr;
+    uint16_t segsize;
 } __packed pxe_segdesc_t;
 
 typedef struct {
-  uint16_t offs;
-  uint16_t seg;
+    uint16_t offs;
+    uint16_t seg;
 } segoff16_t;
 
 typedef struct {
-uint8_t opcode;
+    uint8_t opcode;
 #define BOOTP_REQ 1
 #define BOOTP_REP 2
-uint8_t Hardware;
-uint8_t Hardlen;
-uint8_t Gatehops;
-uint32_t ident;
-uint16_t seconds;
-uint16_t Flags;
+    uint8_t Hardware;
+    uint8_t Hardlen;
+    uint8_t Gatehops;
+    uint32_t ident;
+    uint16_t seconds;
+    uint16_t Flags;
 #define BOOTP_BCAST 0x8000
-in_addr_t cip; /* Client IP address*/
-in_addr_t yip; /* You IP address*/
-in_addr_t sip; /* next server IP address*/
-in_addr_t gip; /*relay agent IP address */
-mac_addr_t CAddr;
-uint8_t Sname[64];
-uint8_t bootfile[128];
-union
-  {
-    #define BOOTP_DHCPVEND 1024
-    uint8_t d[BOOTP_DHCPVEND];
-    struct {
-      uint8_t magic[4];
-      #define VM_RFC1048 0x63825363L
-      uint32_t flags;
-      uint8_t pad[56];
-    } v;
-  } vendor;
+    in_addr_t cip;		/* Client IP address */
+    in_addr_t yip;		/* You IP address */
+    in_addr_t sip;		/* next server IP address */
+    in_addr_t gip;		/*relay agent IP address */
+    mac_addr_t CAddr;
+    uint8_t Sname[64];
+    uint8_t bootfile[128];
+    union {
+#define BOOTP_DHCPVEND 1024
+	uint8_t d[BOOTP_DHCPVEND];
+	struct {
+	    uint8_t magic[4];
+#define VM_RFC1048 0x63825363L
+	    uint32_t flags;
+	    uint8_t pad[56];
+	} v;
+    } vendor;
 } __packed pxe_bootp_t;
-
 
 /* Function calling structures and constants */
 
-typedef struct s_PXENV_GET_CACHED_INFO
-{
-  pxenv_status_t Status;
-  uint16_t PacketType;
+typedef struct s_PXENV_GET_CACHED_INFO {
+    pxenv_status_t Status;
+    uint16_t PacketType;
 #define PXENV_PACKET_TYPE_DHCP_DISCOVER 1
 #define PXENV_PACKET_TYPE_DHCP_ACK 2
 #define PXENV_PACKET_TYPE_CACHED_REPLY 3
-  uint16_t BufferSize;
-  segoff16_t Buffer;
-  uint16_t BufferLimit;
+    uint16_t BufferSize;
+    segoff16_t Buffer;
+    uint16_t BufferLimit;
 } __packed t_PXENV_GET_CACHED_INFO;
 
 typedef struct s_PXENV_START_UNDI {
-  pxenv_status_t Status;
-  uint16_t AX;
-  uint16_t BX;
-  uint16_t DX;
-  uint16_t DI;
-  uint16_t ES;
+    pxenv_status_t Status;
+    uint16_t AX;
+    uint16_t BX;
+    uint16_t DX;
+    uint16_t DI;
+    uint16_t ES;
 } __packed t_PXENV_START_UNDI;
 
-typedef struct s_PXENV_STOP_UNDI
-{
-  pxenv_status_t Status;
+typedef struct s_PXENV_STOP_UNDI {
+    pxenv_status_t Status;
 } __packed t_PXENV_STOP_UNDI;
 
-typedef struct s_PXENV_START_BASE
-{
-  pxenv_status_t Status;
+typedef struct s_PXENV_START_BASE {
+    pxenv_status_t Status;
 } __packed t_PXENV_START_BASE;
 
-typedef struct s_PXENV_STOP_BASE
-{
-  pxenv_status_t Status;
+typedef struct s_PXENV_STOP_BASE {
+    pxenv_status_t Status;
 } __packed t_PXENV_STOP_BASE;
 
-typedef struct s_PXENV_TFTP_OPEN
-{
-  pxenv_status_t Status;
-  in_addr_t ServerIPAddress;
-  in_addr_t GatewayIPAddress;
-  uint8_t FileName[128];
-  in_port_t TFTPPort;
-  uint16_t PacketSize;
+typedef struct s_PXENV_TFTP_OPEN {
+    pxenv_status_t Status;
+    in_addr_t ServerIPAddress;
+    in_addr_t GatewayIPAddress;
+    uint8_t FileName[128];
+    in_port_t TFTPPort;
+    uint16_t PacketSize;
 } __packed t_PXENV_TFTP_OPEN;
 
-typedef struct s_PXENV_TFTP_CLOSE
-{
-  pxenv_status_t Status;
+typedef struct s_PXENV_TFTP_CLOSE {
+    pxenv_status_t Status;
 } __packed t_PXENV_TFTP_CLOSE;
 
-typedef struct s_PXENV_TFTP_READ
-{
-  pxenv_status_t Status;
-  uint16_t PacketNumber;
-  uint16_t BufferSize;
-  segoff16_t Buffer;
+typedef struct s_PXENV_TFTP_READ {
+    pxenv_status_t Status;
+    uint16_t PacketNumber;
+    uint16_t BufferSize;
+    segoff16_t Buffer;
 } __packed t_PXENV_TFTP_READ;
 
-typedef struct s_PXENV_TFTP_READ_FILE
-{
-  pxenv_status_t Status;
-  uint8_t FileName[128];
-  uint32_t BufferSize;
-  void * Buffer;
-  in_addr_t ServerIPAddress;
-  in_addr_t GatewayIPAddress;
-  in_addr_t McastIPAddress;
-  in_port_t TFTPClntPort;
-  in_port_t TFTPSrvPort;
-  uint16_t TFTPOpenTimeOut;
-  uint16_t TFTPReopenDelay;
+typedef struct s_PXENV_TFTP_READ_FILE {
+    pxenv_status_t Status;
+    uint8_t FileName[128];
+    uint32_t BufferSize;
+    void *Buffer;
+    in_addr_t ServerIPAddress;
+    in_addr_t GatewayIPAddress;
+    in_addr_t McastIPAddress;
+    in_port_t TFTPClntPort;
+    in_port_t TFTPSrvPort;
+    uint16_t TFTPOpenTimeOut;
+    uint16_t TFTPReopenDelay;
 } __packed t_PXENV_TFTP_READ_FILE;
 
-typedef struct s_PXENV_TFTP_GET_FSIZE
-{
-  pxenv_status_t Status;
-  in_addr_t ServerIPAddress;
-  in_addr_t GatewayIPAddress;
-  uint8_t FileName[128];
-  uint32_t FileSize;
+typedef struct s_PXENV_TFTP_GET_FSIZE {
+    pxenv_status_t Status;
+    in_addr_t ServerIPAddress;
+    in_addr_t GatewayIPAddress;
+    uint8_t FileName[128];
+    uint32_t FileSize;
 } __packed t_PXENV_TFTP_GET_FSIZE;
 
-typedef struct s_PXENV_UDP_OPEN
-{
-  pxenv_status_t status;
-  in_addr_t src_ip;
+typedef struct s_PXENV_UDP_OPEN {
+    pxenv_status_t status;
+    in_addr_t src_ip;
 } __packed t_PXENV_UDP_OPEN;
 
-typedef struct s_PXENV_UDP_CLOSE
-{
-  pxenv_status_t status;
+typedef struct s_PXENV_UDP_CLOSE {
+    pxenv_status_t status;
 } __packed t_PXENV_UDP_CLOSE;
 
-typedef struct s_PXENV_UDP_WRITE
-{
-  pxenv_status_t status;
-  in_addr_t ip;
-  in_addr_t gw;
-  in_port_t src_port;
-  in_port_t dst_port;
-  uint16_t buffer_size;
-  segoff16_t buffer;
+typedef struct s_PXENV_UDP_WRITE {
+    pxenv_status_t status;
+    in_addr_t ip;
+    in_addr_t gw;
+    in_port_t src_port;
+    in_port_t dst_port;
+    uint16_t buffer_size;
+    segoff16_t buffer;
 } __packed t_PXENV_UDP_WRITE;
 
-typedef struct s_PXENV_UDP_READ
-{
-  pxenv_status_t status;
-  in_addr_t src_ip;
-  in_addr_t dest_ip;
-  in_port_t s_port;
-  in_port_t d_port;
-  uint16_t buffer_size;
-  segoff16_t buffer;
+typedef struct s_PXENV_UDP_READ {
+    pxenv_status_t status;
+    in_addr_t src_ip;
+    in_addr_t dest_ip;
+    in_port_t s_port;
+    in_port_t d_port;
+    uint16_t buffer_size;
+    segoff16_t buffer;
 } __packed t_PXENV_UDP_READ;
 
-typedef struct s_PXENV_UNDI_STARTUP
-{
-  pxenv_status_t Status;
+typedef struct s_PXENV_UNDI_STARTUP {
+    pxenv_status_t Status;
 } __packed t_PXENV_UNDI_STARTUP;
 
 typedef struct s_PXENV_UNDI_CLEANUP {
-  pxenv_status_t Status;
+    pxenv_status_t Status;
 } __packed t_PXENV_UNDI_CLEANUP;
 
 typedef struct s_PXENV_UNDI_INITIALIZE {
-  pxenv_status_t Status;
-  void * ProtocolIni;
-  uint8_t reserved[8];
+    pxenv_status_t Status;
+    void *ProtocolIni;
+    uint8_t reserved[8];
 } __packed t_PXENV_UNDI_INITIALIZE;
 
 #define MAXNUM_MCADDR 8
-typedef struct s_PXENV_UNDI_MCAST_ADDRESS
-{
-  uint16_t MCastAddrCount;
-  mac_addr_t McastAddr[MAXNUM_MCADDR];
+typedef struct s_PXENV_UNDI_MCAST_ADDRESS {
+    uint16_t MCastAddrCount;
+    mac_addr_t McastAddr[MAXNUM_MCADDR];
 } __packed t_PXENV_UNDI_MCAST_ADDRESS;
 
-typedef struct s_PXENV_UNDI_RESET
-{
-  pxenv_status_t Status;
-  t_PXENV_UNDI_MCAST_ADDRESS R_Mcast_Buf;
+typedef struct s_PXENV_UNDI_RESET {
+    pxenv_status_t Status;
+    t_PXENV_UNDI_MCAST_ADDRESS R_Mcast_Buf;
 } __packed t_PXENV_UNDI_RESET;
 
-typedef struct s_PXENV_UNDI_SHUTDOWN
-{
-  pxenv_status_t Status;
+typedef struct s_PXENV_UNDI_SHUTDOWN {
+    pxenv_status_t Status;
 } __packed t_PXENV_UNDI_SHUTDOWN;
 
-typedef struct s_PXENV_UNDI_OPEN
-{
-  pxenv_status_t Status;
-  uint16_t OpenFlag;
-  uint16_t PktFilter;
+typedef struct s_PXENV_UNDI_OPEN {
+    pxenv_status_t Status;
+    uint16_t OpenFlag;
+    uint16_t PktFilter;
 #define FLTR_DIRECTED 0x0001
 #define FLTR_BRDCST 0x0002
 #define FLTR_PRMSCS 0x0004
 #define FLTR_SRC_RTG 0x0008
-  t_PXENV_UNDI_MCAST_ADDRESS
-  R_Mcast_Buf;
+     t_PXENV_UNDI_MCAST_ADDRESS R_Mcast_Buf;
 } __packed t_PXENV_UNDI_OPEN;
 
-typedef struct s_PXENV_UNDI_CLOSE
-{
-  pxenv_status_t Status;
+typedef struct s_PXENV_UNDI_CLOSE {
+    pxenv_status_t Status;
 } __packed t_PXENV_UNDI_CLOSE;
 
-typedef struct s_PXENV_UNDI_TRANSMIT
-{
-  pxenv_status_t Status;
-  uint8_t Protocol;
+typedef struct s_PXENV_UNDI_TRANSMIT {
+    pxenv_status_t Status;
+    uint8_t Protocol;
 #define P_UNKNOWN 0
 #define P_IP 1
 #define P_ARP 2
 #define P_RARP 3
-  uint8_t XmitFlag;
+    uint8_t XmitFlag;
 #define XMT_DESTADDR 0x0000
 #define XMT_BROADCAST 0x0001
-  segoff16_t DestAddr;
-  segoff16_t TBD;
-  uint32_t Reserved[2];
+    segoff16_t DestAddr;
+    segoff16_t TBD;
+    uint32_t Reserved[2];
 } __packed t_PXENV_UNDI_TRANSMIT;
 #define MAX_DATA_BLKS 8
-typedef struct s_PXENV_UNDI_TBD
-{
-  uint16_t ImmedLength;
-  segoff16_t Xmit;
-  uint16_t DataBlkCount;
-  struct DataBlk
-  {
-    uint8_t TDPtrType;
-    uint8_t TDRsvdByte;
-    uint16_t TDDataLen;
-    segoff16_t TDDataPtr;
-  } DataBlock[MAX_DATA_BLKS];
+typedef struct s_PXENV_UNDI_TBD {
+    uint16_t ImmedLength;
+    segoff16_t Xmit;
+    uint16_t DataBlkCount;
+    struct DataBlk {
+	uint8_t TDPtrType;
+	uint8_t TDRsvdByte;
+	uint16_t TDDataLen;
+	segoff16_t TDDataPtr;
+    } DataBlock[MAX_DATA_BLKS];
 } __packed t_PXENV_UNDI_TBD;
 
-typedef struct s_PXENV_UNDI_SET_MCAST_ADDRESS
-{
-  pxenv_status_t Status;
-  t_PXENV_UNDI_MCAST_ADDRESS
-  R_Mcast_Buf;
+typedef struct s_PXENV_UNDI_SET_MCAST_ADDRESS {
+    pxenv_status_t Status;
+     t_PXENV_UNDI_MCAST_ADDRESS R_Mcast_Buf;
 } __packed t_PXENV_UNDI_SET_MCAST_ADDR;
 
-typedef struct s_PXENV_UNDI_SET_STATION_ADDRESS
-{
-  pxenv_status_t Status;
-  mac_addr_t StationAddress;
+typedef struct s_PXENV_UNDI_SET_STATION_ADDRESS {
+    pxenv_status_t Status;
+    mac_addr_t StationAddress;
 } __packed t_PXENV_UNDI_SET_STATION_ADDR;
 
-typedef struct s_PXENV_UNDI_SET_PACKET_FILTER
-{
-  pxenv_status_t Status;
-  uint8_t filter;
+typedef struct s_PXENV_UNDI_SET_PACKET_FILTER {
+    pxenv_status_t Status;
+    uint8_t filter;
 } __packed t_PXENV_UNDI_SET_PACKET_FILTER;
 
-typedef struct s_PXENV_UNDI_GET_INFORMATION
-{
-  pxenv_status_t Status;
-  uint16_t BaseIo;
-  uint16_t IntNumber;
-  uint16_t MaxTranUnit;
-  uint16_t HwType;
+typedef struct s_PXENV_UNDI_GET_INFORMATION {
+    pxenv_status_t Status;
+    uint16_t BaseIo;
+    uint16_t IntNumber;
+    uint16_t MaxTranUnit;
+    uint16_t HwType;
 #define ETHER_TYPE 1
 #define EXP_ETHER_TYPE 2
 #define IEEE_TYPE 6
 #define ARCNET_TYPE 7
-  uint16_t HwAddrLen;
-  mac_addr_t CurrentNodeAddress;
-  mac_addr_t PermNodeAddress;
-  uint16_t ROMAddress;
-  uint16_t RxBufCt;
-  uint16_t TxBufCt;
+    uint16_t HwAddrLen;
+    mac_addr_t CurrentNodeAddress;
+    mac_addr_t PermNodeAddress;
+    uint16_t ROMAddress;
+    uint16_t RxBufCt;
+    uint16_t TxBufCt;
 } __packed t_PXENV_UNDI_GET_INFORMATION;
 
-typedef struct s_PXENV_UNDI_GET_STATISTICS
-{
-  pxenv_status_t Status;
-  uint32_t XmtGoodFrames;
-  uint32_t RcvGoodFrames;
-  uint32_t RcvCRCErrors;
-  uint32_t RcvResourceErrors;
+typedef struct s_PXENV_UNDI_GET_STATISTICS {
+    pxenv_status_t Status;
+    uint32_t XmtGoodFrames;
+    uint32_t RcvGoodFrames;
+    uint32_t RcvCRCErrors;
+    uint32_t RcvResourceErrors;
 } __packed t_PXENV_UNDI_GET_STATISTICS;
 
-typedef struct s_PXENV_UNDI_CLEAR_STATISTICS
-{
-  pxenv_status_t Status;
+typedef struct s_PXENV_UNDI_CLEAR_STATISTICS {
+    pxenv_status_t Status;
 } __packed t_PXENV_UNDI_CLEAR_STATISTICS;
 
-typedef struct s_PXENV_UNDI_INITIATE_DIAGS
-{
-  pxenv_status_t Status;
+typedef struct s_PXENV_UNDI_INITIATE_DIAGS {
+    pxenv_status_t Status;
 } __packed t_PXENV_UNDI_INITIATE_DIAGS;
 
-typedef struct s_PXENV_UNDI_FORCE_INTERRUPT
-{
-  pxenv_status_t Status;
+typedef struct s_PXENV_UNDI_FORCE_INTERRUPT {
+    pxenv_status_t Status;
 } __packed t_PXENV_UNDI_FORCE_INTERRUPT;
 
-typedef struct s_PXENV_UNDI_GET_MCAST_ADDRESS
-{
-  pxenv_status_t Status;
-  in_addr_t InetAddr;
-  mac_addr_t MediaAddr;
+typedef struct s_PXENV_UNDI_GET_MCAST_ADDRESS {
+    pxenv_status_t Status;
+    in_addr_t InetAddr;
+    mac_addr_t MediaAddr;
 } __packed t_PXENV_UNDI_GET_MCAST_ADDR;
 
-typedef struct s_PXENV_UNDI_GET_NIC_TYPE
-{
-  pxenv_status_t Status;
-  uint8_t NicType;
+typedef struct s_PXENV_UNDI_GET_NIC_TYPE {
+    pxenv_status_t Status;
+    uint8_t NicType;
 #define PCI_NIC 2
 #define PnP_NIC 3
 #define CardBus_NIC 4
-  union {
-    struct {
-      uint16_t Vendor_ID;
-      uint16_t Dev_ID;
-      uint8_t Base_Class;
-      uint8_t Sub_Class;
-      uint8_t Prog_Intf;
-      uint8_t Rev;
-      uint16_t BusDevFunc;
-      uint16_t SubVendor_ID;
-      uint16_t SubDevice_ID;
-    } pci, cardbus;
-    struct {
-      uint32_t EISA_Dev_ID;
-      uint8_t Base_Class;
-      uint8_t Sub_Class;
-      uint8_t Prog_Intf;
-      uint16_t CardSelNum;
-    } __packed pnp;
-  } __packed info;
+    union {
+	struct {
+	    uint16_t Vendor_ID;
+	    uint16_t Dev_ID;
+	    uint8_t Base_Class;
+	    uint8_t Sub_Class;
+	    uint8_t Prog_Intf;
+	    uint8_t Rev;
+	    uint16_t BusDevFunc;
+	    uint16_t SubVendor_ID;
+	    uint16_t SubDevice_ID;
+	} pci, cardbus;
+	struct {
+	    uint32_t EISA_Dev_ID;
+	    uint8_t Base_Class;
+	    uint8_t Sub_Class;
+	    uint8_t Prog_Intf;
+	    uint16_t CardSelNum;
+	} __packed pnp;
+    } __packed info;
 } __packed t_PXENV_UNDI_GET_NIC_TYPE;
 
-typedef struct s_PXENV_UNDI_GET_IFACE_INFO
-{
-  pxenv_status_t Status;
-  uint8_t IfaceType[16];
-  uint32_t LinkSpeed;
-  uint32_t ServiceFlags;
-  uint32_t Reserved[4];
+typedef struct s_PXENV_UNDI_GET_IFACE_INFO {
+    pxenv_status_t Status;
+    uint8_t IfaceType[16];
+    uint32_t LinkSpeed;
+    uint32_t ServiceFlags;
+    uint32_t Reserved[4];
 } __packed t_PXENV_UNDI_GET_NDIS_INFO;
 
-typedef struct s_PXENV_UNDI_GET_STATE
-{
+typedef struct s_PXENV_UNDI_GET_STATE {
 #define PXE_UNDI_GET_STATE_STARTED 1
 #define PXE_UNDI_GET_STATE_INITIALIZED 2
 #define PXE_UNDI_GET_STATE_OPENED 3
-  pxenv_status_t Status;
-  uint8_t UNDIstate;
+    pxenv_status_t Status;
+    uint8_t UNDIstate;
 } __packed t_PXENV_UNDI_GET_STATE;
 
-typedef struct s_PXENV_UNDI_ISR
-{
-  pxenv_status_t Status;
-  uint16_t FuncFlag;
-  uint16_t BufferLength;
-  uint16_t FrameLength;
-  uint16_t FrameHeaderLength;
-  segoff16_t Frame;
-  uint8_t ProtType;
-  uint8_t PktType;
+typedef struct s_PXENV_UNDI_ISR {
+    pxenv_status_t Status;
+    uint16_t FuncFlag;
+    uint16_t BufferLength;
+    uint16_t FrameLength;
+    uint16_t FrameHeaderLength;
+    segoff16_t Frame;
+    uint8_t ProtType;
+    uint8_t PktType;
 } __packed t_PXENV_UNDI_ISR;
 #define PXENV_UNDI_ISR_IN_START 1
 #define PXENV_UNDI_ISR_IN_PROCESS 2
@@ -559,7 +520,7 @@ typedef struct s_PXENV_UNDI_ISR
 #define PXENV_STATUS_LOADER_BC_START 0xCB
 
 /* SYSLINUX-defined PXE utility functions */
-int pxe_get_cached_info(int level, void **buf, size_t *len);
-int pxe_get_nic_type(t_PXENV_UNDI_GET_NIC_TYPE *gnt);
+int pxe_get_cached_info(int level, void **buf, size_t * len);
+int pxe_get_nic_type(t_PXENV_UNDI_GET_NIC_TYPE * gnt);
 
 #endif /* _SYSLINUX_PXE_H */

@@ -24,36 +24,36 @@ unsigned int atou(const char *);
 
 int __start(void)
 {
-  int whichfd = atou(__com32.cs_cmdline);
-  static com32sys_t inreg, outreg; /* In bss, so zeroed automatically */
-  int retry;
+    int whichfd = atou(__com32.cs_cmdline);
+    static com32sys_t inreg, outreg;	/* In bss, so zeroed automatically */
+    int retry;
 
-  for ( retry = 0 ; retry < 6 ; retry++ ) {
-    printf(">");
-    inreg.eax.w[0] = 0x0201;	/* Read one sector */
-    inreg.ecx.w[0] = 0x0001;	/* Cyl 0 sector 1 */
-    inreg.edx.b[1] = 0;		/* Head 0 */
-    inreg.edx.b[0] = whichfd;	/* Drive number */
-    inreg.es = SEG(__com32.cs_bounce); /* Read into the bounce buffer */
-    inreg.ebx.w[0] = OFFS(__com32.cs_bounce);
-    __com32.cs_intcall(0x13, &inreg, &outreg);
+    for (retry = 0; retry < 6; retry++) {
+	printf(">");
+	inreg.eax.w[0] = 0x0201;	/* Read one sector */
+	inreg.ecx.w[0] = 0x0001;	/* Cyl 0 sector 1 */
+	inreg.edx.b[1] = 0;	/* Head 0 */
+	inreg.edx.b[0] = whichfd;	/* Drive number */
+	inreg.es = SEG(__com32.cs_bounce);	/* Read into the bounce buffer */
+	inreg.ebx.w[0] = OFFS(__com32.cs_bounce);
+	__com32.cs_intcall(0x13, &inreg, &outreg);
 
-    if ( (outreg.eflags.l & 1) == 0 )
-      break;
-  }
+	if ((outreg.eflags.l & 1) == 0)
+	    break;
+    }
 
-  if ( (outreg.eflags.l & 1) == 0 ) {
-    printf("!\n");
-    inreg.eax.w[0] = 0x000d;
-    inreg.edx.w[0] = 0;
-    inreg.edi.l    = (uint32_t) __com32.cs_bounce;
-    inreg.ecx.l    = 512;
-    inreg.ebx.l    = whichfd & 0xff;
-    inreg.esi.l    = 0;		/* No partitions */
-    inreg.ds       = 0;		/* No partitions */
-    __com32.cs_intcall(0x22, &inreg, NULL);
-  }
+    if ((outreg.eflags.l & 1) == 0) {
+	printf("!\n");
+	inreg.eax.w[0] = 0x000d;
+	inreg.edx.w[0] = 0;
+	inreg.edi.l = (uint32_t) __com32.cs_bounce;
+	inreg.ecx.l = 512;
+	inreg.ebx.l = whichfd & 0xff;
+	inreg.esi.l = 0;	/* No partitions */
+	inreg.ds = 0;		/* No partitions */
+	__com32.cs_intcall(0x22, &inreg, NULL);
+    }
 
-  /* If we get here, badness happened */
-  return 255;
+    /* If we get here, badness happened */
+    return 255;
 }

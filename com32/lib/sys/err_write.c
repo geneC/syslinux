@@ -39,15 +39,17 @@
 
 static ssize_t __err_write(struct file_info *fp, const void *buf, size_t count)
 {
-  (void)fp; (void)buf; (void)count;
-  errno = -EINVAL;
-  return -1;
+    (void)fp;
+    (void)buf;
+    (void)count;
+    errno = -EINVAL;
+    return -1;
 }
 
 const struct output_dev dev_error_w = {
-  .dev_magic = __DEV_MAGIC,
-  .flags     = __DEV_OUTPUT | __DEV_ERROR,
-  .fileflags = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
-  .write     = __err_write,
-  .close     = NULL,
+    .dev_magic = __DEV_MAGIC,
+    .flags = __DEV_OUTPUT | __DEV_ERROR,
+    .fileflags = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
+    .write = __err_write,
+    .close = NULL,
 };

@@ -232,7 +232,6 @@ static void show_pci_devices(int argc __unused, char **argv __unused,
 		}
 		i++;
 	}
-
 }
 
 static void show_pci_irq(int argc __unused, char **argv __unused,

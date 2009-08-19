@@ -53,22 +53,22 @@ struct file_info;
 #define __DEV_NULL	0x0010	/* This is the null device */
 
 struct input_dev {
-  uint16_t dev_magic;		/* Magic number */
-  uint16_t flags;		/* Flags */
-  int fileflags;		/* Permitted file flags */
-  ssize_t (*read)(struct file_info *, void *, size_t);
-  int (*close)(struct file_info *);
-  int (*open)(struct file_info *);
+    uint16_t dev_magic;		/* Magic number */
+    uint16_t flags;		/* Flags */
+    int fileflags;		/* Permitted file flags */
+     ssize_t(*read) (struct file_info *, void *, size_t);
+    int (*close) (struct file_info *);
+    int (*open) (struct file_info *);
 };
 
 struct output_dev {
-  uint16_t dev_magic;		/* Magic number */
-  uint16_t flags;		/* Flags */
-  int fileflags;
-  ssize_t (*write)(struct file_info *, const void *, size_t);
-  int (*close)(struct file_info *);
-  int (*open)(struct file_info *);
-  const struct output_dev *fallback; /* Fallback option for certain consoles */
+    uint16_t dev_magic;		/* Magic number */
+    uint16_t flags;		/* Flags */
+    int fileflags;
+     ssize_t(*write) (struct file_info *, const void *, size_t);
+    int (*close) (struct file_info *);
+    int (*open) (struct file_info *);
+    const struct output_dev *fallback;	/* Fallback option for certain consoles */
 };
 
 /* File structure */
@@ -77,32 +77,32 @@ struct output_dev {
 #define MAXBLOCK 16384		/* Defined by ABI */
 
 struct file_info {
-  const struct input_dev *iop;	/* Input operations */
-  const struct output_dev *oop;	/* Output operations */
+    const struct input_dev *iop;	/* Input operations */
+    const struct output_dev *oop;	/* Output operations */
 
-  /* Output file data */
-  struct {
-    int rows, cols;		/* Rows and columns */
-  } o;
+    /* Output file data */
+    struct {
+	int rows, cols;		/* Rows and columns */
+    } o;
 
-  /* Structure used for input blocking */
-  struct {
-    int blocklg2;		/* Blocksize log 2 */
-    size_t offset;		/* Current file offset */
-    size_t length;		/* Total file length */
-    uint16_t filedes;		/* File descriptor */
-    uint16_t _filler;		/* Unused */
-    size_t nbytes;		/* Number of bytes available in buffer */
-    char *datap;		/* Current data pointer */
-    void *pvt;			/* Private pointer for driver */
-    char buf[MAXBLOCK];
-  } i;
+    /* Structure used for input blocking */
+    struct {
+	int blocklg2;		/* Blocksize log 2 */
+	size_t offset;		/* Current file offset */
+	size_t length;		/* Total file length */
+	uint16_t filedes;	/* File descriptor */
+	uint16_t _filler;	/* Unused */
+	size_t nbytes;		/* Number of bytes available in buffer */
+	char *datap;		/* Current data pointer */
+	void *pvt;		/* Private pointer for driver */
+	char buf[MAXBLOCK];
+    } i;
 };
 
 extern struct file_info __file_info[NFILES];
 
 /* Line input discipline */
 ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,
-                     ssize_t (*get_char)(struct file_info *, void *, size_t));
+		     ssize_t(*get_char) (struct file_info *, void *, size_t));
 
 #endif /* _COM32_SYS_FILE_H */

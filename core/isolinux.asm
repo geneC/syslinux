@@ -40,16 +40,6 @@ SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 ROOT_DIR_WORD	equ 0x002F
 
 ;
-; This is what we need to do when idle
-;
-%macro	RESET_IDLE 0
-	; Nothing
-%endmacro
-%macro	DO_IDLE 0
-	; Nothing
-%endmacro
-
-;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
 ; Since there is no room in the bottom 64K for all of these, we
@@ -122,16 +112,19 @@ DiskError	resb 1			; Error code for disk I/O
 DriveNumber	resb 1			; CD-ROM BIOS drive number
 ISOFlags	resb 1			; Flags for ISO directory search
 RetryCount      resb 1			; Used for disk access retries
+
+		alignb 8
+bsHidden	resq 1			; Used in hybrid mode
 bsSecPerTrack	resw 1			; Used in hybrid mode
 bsHeads		resw 1			; Used in hybrid mode
 
-_spec_start	equ $
 
 ;
 ; El Torito spec packet
 ;
 
 		alignb 8
+_spec_start	equ $
 spec_packet:	resb 1				; Size of packet
 sp_media:	resb 1				; Media type
 sp_drive:	resb 1				; Drive number
@@ -232,30 +225,42 @@ bi_end:
 		; Custom entry point for the hybrid-mode disk.
 		; The following values will have been pushed onto the
 		; entry stack:
-		; 	- CBIOS Heads 
+		;	- partition offset (qword)
+		;	- ES
+		;	- DI
+		;	- DX (including drive number)
+		;	- CBIOS Heads
 		;	- CBIOS Sectors
 		;	- EBIOS flag
-		;	- DX (including drive number)
-		;	- DI
-		;	- ES
 		;       (top of stack)
+		;
+		; If we had an old isohybrid, the partition offset will
+		; be missing; we can check for that with sp >= 0x7c00.
+		; Serious hack alert.
 %ifndef DEBUG_MESSAGES
 _hybrid_signature:
-		dd 0x7078c0fb			; An arbitrary number...
+	       dd 0x7078c0fb			; An arbitrary number...
 
 _start_hybrid:
-		pop ax
-		mov si,bios_cbios
-		and ax,ax
-		jz .cbios
-		mov si,bios_ebios
-.cbios:
+		pop cx				; EBIOS flag
 		pop word [cs:bsSecPerTrack]
 		pop word [cs:bsHeads]
-
 		pop dx
 		pop di
 		pop es
+		xor eax,eax
+		xor ebx,ebx
+		cmp sp,7C00h
+		jae .nooffset
+		pop eax
+		pop ebx
+.nooffset:
+		mov [cs:bsHidden],eax
+		mov [cs:bsHidden+4],ebx
+
+		mov si,bios_cbios
+		jcxz _start_common
+		mov si,bios_ebios
 		jmp _start_common
 %endif
 
@@ -705,20 +710,26 @@ writechr_simple:
 		ret
 
 ;
-; int13: save all the segment registers and call INT 13h
-;	 Some CD-ROM BIOSes have been found to corrupt segment registers.
+; int13: save all the segment registers and call INT 13h.
+;	 Some CD-ROM BIOSes have been found to corrupt segment registers
+;	 and/or disable interrupts.
 ;
 int13:
-
+		pushf
+		push bp
 		push ds
 		push es
 		push fs
 		push gs
 		int 13h
+		mov bp,sp
+		setc [bp+10]		; Propagate CF to the caller
 		pop gs
 		pop fs
 		pop es
 		pop ds
+		pop bp
+		popf
 		ret
 
 ;
@@ -754,7 +765,9 @@ getlinsec:	jmp word [cs:GetlinsecPtr]
 getlinsec_ebios:
 		xor edx,edx
 		shld edx,eax,2
- 		shl eax,2			; Convert to HDD sectors
+		shl eax,2			; Convert to HDD sectors
+		add eax,[bsHidden]
+		adc edx,[bsHidden+4]
 		shl bp,2
 
 .loop:
@@ -778,8 +791,8 @@ getlinsec_ebios:
 		push ds
 		push ss
 		pop ds				; DS <- SS
-                mov ah,42h                      ; Extended Read
-		int 13h
+		mov ah,42h			; Extended Read
+		call int13
 		pop ds
 		popad
 		lea sp,[si+16]			; Remove DAPA
@@ -804,7 +817,7 @@ getlinsec_ebios:
 		pushad				; Try resetting the device
 		xor ax,ax
 		mov dl,[DriveNumber]
-		int 13h
+		call int13
 		popad
 		loop .retry			; CX-- and jump if not zero
 
@@ -824,7 +837,9 @@ getlinsec_ebios:
 ; getlinsec implementation for legacy CBIOS
 ;
 getlinsec_cbios:
- 		shl eax,2			; Convert to HDD sectors
+		xor edx,edx
+		shl eax,2			; Convert to HDD sectors
+		add eax,[bsHidden]
 		shl bp,2
 
 .loop:
@@ -878,7 +893,7 @@ getlinsec_cbios:
 		mov bp,retry_count
 .retry:
 		pushad
-		int 13h
+		call int13
 		popad
 		jc .error
 .resume:
@@ -1400,6 +1415,8 @@ searchdir_iso:
 .not_rooted:
 		mov eax,[si+dir_clust]
 		mov [bx+file_left],eax
+		shl eax,SECTOR_SHIFT
+		mov [bx+file_bytesleft],eax
 		mov eax,[si+dir_lba]
 		mov [bx+file_sector],eax
 		mov edx,[si+dir_len]
@@ -1705,6 +1722,7 @@ getfssec:
 %include "highmem.inc"		; High memory sizing
 %include "strcpy.inc"		; strcpy()
 %include "rawcon.inc"		; Console I/O w/o using the console functions
+%include "idle.inc"		; Idle handling
 %include "adv.inc"		; Auxillary Data Vector
 %include "localboot.inc"	; Disk-based local boot
 

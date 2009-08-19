@@ -47,70 +47,70 @@
 
 int syslinux_setadv(int tag, size_t size, const void *data)
 {
-  uint8_t *p, *advtmp;
-  size_t rleft, left;
+    uint8_t *p, *advtmp;
+    size_t rleft, left;
 
-  if ((unsigned)tag-1 > 254) {
-    errno = EINVAL;
-    return -1;			/* Impossible tag value */
-  }
-
-  if (size > 255) {
-    errno = ENOSPC;		/* Max 255 bytes for a data item */
-    return -1;
-  }
-
-  rleft = left = syslinux_adv_size();
-  p = advtmp = alloca(left);
-  memcpy(p, syslinux_adv_ptr(), left); /* Make working copy */
-
-  while (rleft >= 2) {
-    uint8_t ptag = p[0];
-    size_t  plen = p[1]+2;
-
-    if (ptag == ADV_END)
-      break;
-
-    if (ptag == tag) {
-      /* Found our tag.  Delete it. */
-
-      if (plen >= rleft) {
-	/* Entire remainder is our tag */
-	break;
-      }
-      memmove(p, p+plen, rleft-plen);
-      rleft -= plen;		/* Fewer bytes to read, but not to write */
-    } else {
-      /* Not our tag */
-      if (plen > rleft)
-	break;			/* Corrupt tag (overrun) - overwrite it */
-
-      left -= plen;
-      rleft -= plen;
-      p += plen;
-    }
-  }
-
-  /* Now (p, left) reflects the position to write in and how much space
-     we have for our data. */
-
-  if (size) {
-    if (left < size+2) {
-      errno = ENOSPC;		/* Not enough space for data */
-      return -1;
+    if ((unsigned)tag - 1 > 254) {
+	errno = EINVAL;
+	return -1;		/* Impossible tag value */
     }
 
-    *p++ = tag;
-    *p++ = size;
-    memcpy(p, data, size);
-    p += size;
-    left -= size+2;
-  }
+    if (size > 255) {
+	errno = ENOSPC;		/* Max 255 bytes for a data item */
+	return -1;
+    }
 
-  memset(p, 0, left);
+    rleft = left = syslinux_adv_size();
+    p = advtmp = alloca(left);
+    memcpy(p, syslinux_adv_ptr(), left);	/* Make working copy */
 
-  /* If we got here, everything went OK, commit the write to low memory */
-  memcpy(syslinux_adv_ptr(), advtmp, syslinux_adv_size());
+    while (rleft >= 2) {
+	uint8_t ptag = p[0];
+	size_t plen = p[1] + 2;
 
-  return 0;
+	if (ptag == ADV_END)
+	    break;
+
+	if (ptag == tag) {
+	    /* Found our tag.  Delete it. */
+
+	    if (plen >= rleft) {
+		/* Entire remainder is our tag */
+		break;
+	    }
+	    memmove(p, p + plen, rleft - plen);
+	    rleft -= plen;	/* Fewer bytes to read, but not to write */
+	} else {
+	    /* Not our tag */
+	    if (plen > rleft)
+		break;		/* Corrupt tag (overrun) - overwrite it */
+
+	    left -= plen;
+	    rleft -= plen;
+	    p += plen;
+	}
+    }
+
+    /* Now (p, left) reflects the position to write in and how much space
+       we have for our data. */
+
+    if (size) {
+	if (left < size + 2) {
+	    errno = ENOSPC;	/* Not enough space for data */
+	    return -1;
+	}
+
+	*p++ = tag;
+	*p++ = size;
+	memcpy(p, data, size);
+	p += size;
+	left -= size + 2;
+    }
+
+    memset(p, 0, left);
+
+    /* If we got here, everything went OK, commit the write to low memory */
+    memcpy(syslinux_adv_ptr(), advtmp, syslinux_adv_size());
+
+    return 0;
 }

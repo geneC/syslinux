@@ -1,3 +1,5 @@
+#include <inttypes.h>
+
 /**
  *      ata_id_string - Convert IDENTIFY DEVICE page into string
  *      @id: IDENTIFY DEVICE results we will examine

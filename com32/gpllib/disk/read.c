@@ -16,61 +16,72 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <disk/errno_disk.h>
 #include <disk/geom.h>
 #include <disk/read.h>
 #include <disk/util.h>
 #include <disk/common.h>
 
+/*
+ * TODO: implement file descriptors to cache metadata (geometry, ...)
+ */
+
 /**
  * read_mbr - return a pointer to a malloced buffer containing the mbr
  * @drive:	Drive number
- * @error:	Return the error code on failure
+ * @buf:	Pre-allocated buffer for output
+ *
+ * Return the number of sectors read on success or -1 on failure.
+ * errno_disk contains the error number.
  **/
-void *read_mbr(int drive, int *error)
+int read_mbr(int drive, void *buf)
 {
 	struct driveinfo drive_info;
 	drive_info.disk = drive;
 
 	/* MBR: lba = 0, 1 sector */
-	return read_sectors(&drive_info, 0, 1, error);
+	return read_sectors(&drive_info, buf, 0, 1);
 }
 
 /**
  * dev_read - read from a drive
  * @drive:	Drive number
+ * @buf:	Pre-allocated buffer for output
  * @lba:	Position to start reading from
  * @sectors:	Number of sectors to read
- * @error:	Return the error code on failure
  *
  * High-level routine to read from a hard drive.
+ * Return the number of sectors read on success or -1 on failure.
+ * errno_disk contains the error number.
  **/
-void *dev_read(int drive, unsigned int lba, int sectors, int *error)
+int dev_read(int drive, void * buf, unsigned int lba, int sectors)
 {
 	struct driveinfo drive_info;
 	drive_info.disk = drive;
 
-	return read_sectors(&drive_info, lba, sectors, error);
+	return read_sectors(&drive_info, buf, lba, sectors);
 }
 
 /**
  * read_sectors - read several sectors from disk
  * @drive_info:		driveinfo struct describing the disk
+ * @data:		Pre-allocated buffer for output
  * @lba:		Position to read
  * @sectors:		Number of sectors to read
- * @error:		Return the error code on failure
  *
- * Return a pointer to a malloc'ed buffer containing the data.
+ * Return the number of sectors read on success or -1 on failure.
+ * errno_disk contains the error number.
  **/
-void *read_sectors(struct driveinfo* drive_info, const unsigned int lba,
-		   const int sectors, int *error)
+int read_sectors(struct driveinfo* drive_info, void *data,
+		 const unsigned int lba, const int sectors)
 {
 	com32sys_t inreg, outreg;
 	struct ebios_dapa *dapa = __com32.cs_bounce;
 	void *buf = (char *)__com32.cs_bounce + sectors * SECTOR;
-	void *data;
+	char *bufp = data;
 
 	if (get_drive_parameters(drive_info) == -1)
-		return NULL;
+		return -1;
 
 	memset(&inreg, 0, sizeof inreg);
 
@@ -88,17 +99,18 @@ void *read_sectors(struct driveinfo* drive_info, const unsigned int lba,
 	} else {
 		unsigned int c, h, s;
 
-		if (!drive_info->cbios) {
+		if (!drive_info->cbios) { // XXX errno
 			/* We failed to get the geometry */
 			if (lba)
-				return NULL;	/* Can only read MBR */
+				return -1;	/* Can only read MBR */
 
 			s = 1;  h = 0;  c = 0;
 		} else
 			lba_to_chs(drive_info, lba, &s, &h, &c);
 
+		// XXX errno
 		if ( s > 63 || h > 256 || c > 1023 )
-			return NULL;
+			return -1;
 
 		inreg.eax.w[0] = 0x0201;	/* Read one sector */
 		inreg.ecx.b[1] = c & 0xff;
@@ -111,17 +123,11 @@ void *read_sectors(struct driveinfo* drive_info, const unsigned int lba,
 
 	/* Perform the read */
 	if (int13_retry(&inreg, &outreg)) {
-		if (error)
-			*error = outreg.eax.b[1];
-		return NULL;	/* Give up */
-	} else {
-		if (error)
-			*error = 0;
+		errno_disk = outreg.eax.b[1];
+		return -1;	/* Give up */
 	}
 
-	data = malloc(sectors * SECTOR);
-	if (data)
-		memcpy(data, buf, sectors * SECTOR);
+	memcpy(bufp, buf, sectors * SECTOR);
 
-	return data;
+	return sectors;
 }

@@ -12,8 +12,7 @@
 
 #include <disk/geom.h>
 
-void *read_mbr(int, int*);
-void *dev_read(int, unsigned int, int, int*);
-void *read_sectors(struct driveinfo*, const unsigned int,
-		   const int, int *);
+int read_mbr(int, void*);
+int dev_read(int, void*, unsigned int, int);
+int read_sectors(struct driveinfo*, void*, const unsigned int, const int);
 #endif /* _READ_H */

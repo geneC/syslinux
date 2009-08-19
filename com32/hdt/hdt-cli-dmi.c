@@ -55,12 +55,24 @@ static void show_dmi_modules(int argc __unused, char** argv __unused,
 			break;
 		}
 	}
+	for (int i = 0; i < hardware->dmi.memory_module_count; i++) {
+		if (hardware->dmi.memory_module[i].filled == true) {
+			printf("\tmodule <number>\n");
+			break;
+		}
+	}
 	if (hardware->dmi.processor.filled == true)
 		printf("\t%s\n", CLI_DMI_PROCESSOR);
 	if (hardware->dmi.system.filled == true)
 		printf("\t%s\n", CLI_DMI_SYSTEM);
   	if (hardware->dmi.ipmi.filled == true)
 		printf("\t%s\n", CLI_DMI_IPMI);
+	if (hardware->dmi.cache_count)
+		printf("\t%s\n", CLI_DMI_CACHE);
+	if (strlen(hardware->dmi.oem_strings))
+		more_printf("\t%s\n", CLI_DMI_OEM);
+	if (hardware->dmi.hardware_security.filled)
+		printf("\t%s\n", CLI_DMI_SECURITY);
 }
 
 static void show_dmi_base_board(int argc __unused, char** argv __unused,
@@ -87,6 +99,15 @@ static void show_dmi_base_board(int argc __unused, char** argv __unused,
       more_printf(" %s\n", base_board_features_strings[i]);
     }
   }
+
+  for (unsigned int i=0; i<sizeof hardware->dmi.base_board.devices_information/sizeof *hardware->dmi.base_board.devices_information; i++) {
+    if (strlen(hardware->dmi.base_board.devices_information[i].type)) {
+      more_printf("On Board Device #%u Information\n", i)
+      more_printf("  Type        : %s\n", hardware->dmi.base_board.devices_information[i].type);
+      more_printf("  Status      : %s\n", hardware->dmi.base_board.devices_information[i].status ? "Enabled" : "Disabled");
+      more_printf("  Description : %s\n", hardware->dmi.base_board.devices_information[i].description);
+    }
+  }
 }
 
 static void show_dmi_system(int argc __unused, char** argv __unused,
@@ -106,6 +127,34 @@ static void show_dmi_system(int argc __unused, char** argv __unused,
   printf(" Wakeup Type  : %s\n", hardware->dmi.system.wakeup_type);
   printf(" SKU Number   : %s\n", hardware->dmi.system.sku_number);
   printf(" Family       : %s\n", hardware->dmi.system.family);
+
+  if (strlen(hardware->dmi.system.configuration_options)) {
+    printf("System Configuration Options\n");
+    printf("%s\n", hardware->dmi.system.configuration_options);
+  }
+
+  if (hardware->dmi.system.system_reset.filled) {
+    printf("System Reset\n");
+    printf("  Status               : %s\n",
+	   (hardware->dmi.system.system_reset.status ? "Enabled" : "Disabled"));
+    printf("  Watchdog Timer       : %s\n",
+	   (hardware->dmi.system.system_reset.watchdog ? "Present" : "Not Present"));
+    if (strlen(hardware->dmi.system.system_reset.boot_option))
+      printf("  Boot Option          : %s\n", hardware->dmi.system.system_reset.boot_option);
+    if (strlen(hardware->dmi.system.system_reset.boot_option_on_limit))
+      printf("  Boot Option On Limit : %s\n", hardware->dmi.system.system_reset.boot_option_on_limit);
+    if (strlen(hardware->dmi.system.system_reset.reset_count))
+      printf("  Reset Count          : %s\n", hardware->dmi.system.system_reset.reset_count);
+    if (strlen(hardware->dmi.system.system_reset.reset_limit))
+      printf("  Reset Limit          : %s\n", hardware->dmi.system.system_reset.reset_limit);
+    if (strlen(hardware->dmi.system.system_reset.timer_interval))
+      printf("  Timer Interval       : %s\n", hardware->dmi.system.system_reset.timer_interval);
+    if (strlen(hardware->dmi.system.system_reset.timeout))
+      printf("  Timeout              : %s\n", hardware->dmi.system.system_reset.timeout);
+  }
+
+  printf("System Boot Information\n");
+  printf(" Status       : %s\n", hardware->dmi.system.system_boot_status);
 }
 
 static void show_dmi_bios(int argc __unused, char** argv __unused,
@@ -120,12 +169,13 @@ static void show_dmi_bios(int argc __unused, char** argv __unused,
   more_printf("BIOS\n");
   more_printf(" Vendor            : %s\n", hardware->dmi.bios.vendor);
   more_printf(" Version           : %s\n", hardware->dmi.bios.version);
-  more_printf(" Release           : %s\n",
+  more_printf(" Release Date      : %s\n",
         hardware->dmi.bios.release_date);
   more_printf(" Bios Revision     : %s\n",
         hardware->dmi.bios.bios_revision);
-  more_printf(" Firmware Revision : %s\n",
-        hardware->dmi.bios.firmware_revision);
+	if (strlen(hardware->dmi.bios.firmware_revision))
+		more_printf(" Firmware Revision : %s\n",
+			    hardware->dmi.bios.firmware_revision);
   more_printf(" Address           : 0x%04X0\n",
         hardware->dmi.bios.address);
   more_printf(" Runtime address   : %u %s\n",
@@ -354,6 +404,97 @@ void show_dmi_memory_bank(int argc, char** argv,
         hardware->dmi.memory[bank].part_number);
 }
 
+static void show_dmi_cache(int argc, char** argv,
+			   struct s_hardware *hardware)
+{
+	if (!hardware->dmi.cache_count) {
+		printf("cache information not found on your system, see "
+		       "`show list' to see which module is available.\n");
+		return;
+	}
+
+	int cache = strtol(argv[0], NULL, 10);
+
+	if (argc != 1 || cache > hardware->dmi.cache_count) {
+		printf("show cache [0-%d]\n", hardware->dmi.cache_count-1);
+		return;
+	}
+
+	reset_more_printf();
+
+	more_printf("Cache Information #%d\n", cache);
+	more_printf("  Socket Designation    : %s\n",
+		    hardware->dmi.cache[cache].socket_designation);
+	more_printf("  Configuration         : %s\n",
+		    hardware->dmi.cache[cache].configuration);
+	more_printf("  Operational Mode      : %s\n",
+		    hardware->dmi.cache[cache].mode);
+	more_printf("  Location              : %s\n",
+		    hardware->dmi.cache[cache].location);
+	more_printf("  Installed Size        : %u KB",
+		    hardware->dmi.cache[cache].installed_size);
+	more_printf("\n");
+	more_printf("  Maximum Size          : %u KB",
+		    hardware->dmi.cache[cache].max_size);
+	more_printf("\n");
+	more_printf("  Supported SRAM Types  : %s",
+		    hardware->dmi.cache[cache].supported_sram_types);
+	more_printf("\n");
+	more_printf("  Installed SRAM Type   : %s",
+		    hardware->dmi.cache[cache].installed_sram_types);
+	more_printf("\n");
+	more_printf("  Speed                 : %u ns",
+		    hardware->dmi.cache[cache].speed);
+	more_printf("\n");
+	more_printf("  Error Correction Type : %s\n",
+		    hardware->dmi.cache[cache].error_correction_type);
+	more_printf("  System Type           : %s\n",
+		    hardware->dmi.cache[cache].system_type);
+	more_printf("  Associativity         : %s\n",
+		    hardware->dmi.cache[cache].associativity);
+}
+
+void show_dmi_memory_module(int argc, char** argv,
+			    struct s_hardware *hardware)
+{
+	int module = -1;
+
+	/* Sanitize arguments */
+	if (argc > 0)
+		module = strtol(argv[0], (char **)NULL, 10);
+
+	if (errno == ERANGE || module < 0) {
+		printf("This module number is incorrect\n");
+		return;
+	}
+
+	if ((module >= hardware->dmi.memory_module_count) || (module < 0)) {
+		printf("Module number %d doesn't exist\n", module);
+		return;
+	}
+
+	if (hardware->dmi.memory_module[module].filled == false) {
+		printf("Module %d doesn't contain any information\n", module);
+		return;
+	}
+
+	printf("Memory Module %d\n", module);
+	printf(" Socket Designation : %s\n",
+		hardware->dmi.memory_module[module].socket_designation);
+	printf(" Bank Connections   : %s\n",
+		hardware->dmi.memory_module[module].bank_connections);
+	printf(" Current Speed      : %s\n",
+		hardware->dmi.memory_module[module].speed);
+	printf(" Type               : %s\n",
+		hardware->dmi.memory_module[module].type);
+	printf(" Installed Size     : %s\n",
+		hardware->dmi.memory_module[module].installed_size);
+	printf(" Enabled Size       : %s\n",
+		hardware->dmi.memory_module[module].enabled_size);
+	printf(" Error Status       : %s\n",
+		hardware->dmi.memory_module[module].error_status);
+}
+
 void main_show_dmi(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware)
 {
@@ -429,6 +570,34 @@ usage:
   return;
 }
 
+void show_dmi_oem_strings(int argc __unused, char** argv __unused,
+                          struct s_hardware *hardware)
+{
+	reset_more_printf();
+
+	if (strlen(hardware->dmi.oem_strings))
+		more_printf("OEM Strings\n%s", hardware->dmi.oem_strings);
+}
+
+void show_dmi_hardware_security(int argc __unused, char** argv __unused,
+                                struct s_hardware *hardware)
+{
+	reset_more_printf();
+
+	if (!hardware->dmi.hardware_security.filled)
+		return;
+
+	more_printf("Hardware Security\n");
+	more_printf("  Power-On Password Status      : %s\n",
+		    hardware->dmi.hardware_security.power_on_passwd_status);
+	more_printf("  Keyboard Password Status      : %s\n",
+		    hardware->dmi.hardware_security.keyboard_passwd_status);
+	more_printf("  Administrator Password Status : %s\n",
+		    hardware->dmi.hardware_security.administrator_passwd_status);
+	more_printf("  Front Panel Reset Status      : %s\n",
+		    hardware->dmi.hardware_security.front_panel_reset_status);
+}
+
 struct cli_callback_descr list_dmi_show_modules[] = {
   {
     .name = CLI_DMI_BASE_BOARD,
@@ -455,6 +624,10 @@ struct cli_callback_descr list_dmi_show_modules[] = {
     .exec = show_dmi_memory_bank,
   },
   {
+    .name = "module",
+    .exec = show_dmi_memory_module,
+  },
+  {
     .name = CLI_DMI_PROCESSOR,
     .exec = show_dmi_cpu,
   },
@@ -463,8 +636,20 @@ struct cli_callback_descr list_dmi_show_modules[] = {
     .exec = show_dmi_system,
   },
   {
+    .name = CLI_DMI_OEM,
+    .exec = show_dmi_oem_strings,
+  },
+  {
+    .name = CLI_DMI_SECURITY,
+    .exec = show_dmi_hardware_security,
+  },
+  {
     .name = CLI_DMI_IPMI,
     .exec = show_dmi_ipmi,
+  },
+  {
+    .name = CLI_DMI_CACHE,
+    .exec = show_dmi_cache,
   },
   {
     .name = CLI_DMI_LIST,

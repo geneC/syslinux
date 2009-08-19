@@ -22,17 +22,32 @@
 #define SYSTEM_SKU_NUMBER_SIZE		32
 #define SYSTEM_FAMILY_SIZE		32
 
+#define SYSTEM_BOOT_STATUS_SIZE		50
+#define SYSTEM_CONFIGURATION_OPTIONS_SIZE	50
+
 typedef struct {
-char manufacturer[SYSTEM_MANUFACTURER_SIZE];
-char product_name[SYSTEM_PRODUCT_NAME_SIZE];
-char version[SYSTEM_VERSION_SIZE];
-char serial[SYSTEM_SERIAL_SIZE];
-char uuid[SYSTEM_UUID_SIZE];
-char wakeup_type[SYSTEM_WAKEUP_TYPE_SIZE];
-char sku_number[SYSTEM_SKU_NUMBER_SIZE];
-char family[SYSTEM_FAMILY_SIZE];
+    char manufacturer[SYSTEM_MANUFACTURER_SIZE];
+    char product_name[SYSTEM_PRODUCT_NAME_SIZE];
+    char version[SYSTEM_VERSION_SIZE];
+    char serial[SYSTEM_SERIAL_SIZE];
+    char uuid[SYSTEM_UUID_SIZE];
+    char wakeup_type[SYSTEM_WAKEUP_TYPE_SIZE];
+    char sku_number[SYSTEM_SKU_NUMBER_SIZE];
+    char family[SYSTEM_FAMILY_SIZE];
 /* The filled field have to be set to true when the dmitable implement that item */
 bool filled;
+char system_boot_status[SYSTEM_BOOT_STATUS_SIZE];
+char configuration_options[SYSTEM_CONFIGURATION_OPTIONS_SIZE];
+struct {
+	bool filled;
+	uint8_t status;
+	uint8_t watchdog;
+	char boot_option[17];
+	char boot_option_on_limit[17];
+	char reset_count[8];
+	char reset_limit[8];
+	char timer_interval[8];
+	char timeout[8];
+} system_reset;
 } s_system;
-
 #endif

@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#include <disk/errno_disk.h>
 #include <disk/geom.h>
 #include <disk/read.h>
 #include <disk/error.h>
@@ -58,25 +59,27 @@
  **/
 static void show_partition_information(struct driveinfo *drive_info,
 				       struct part_entry *ptab,
-				       struct part_entry *ptab_root,
-				       int offset_root, int data_partitions_seen,
-				       int ebr_seen)
+				       int partition_offset,
+				       int nb_partitions_seen)
 {
 	char size[8];
 	char *parttype;
 	int error = 0;
-	char *error_buffer;
+	char error_buffer[MAX_DISK_ERRNO];
 	unsigned int start, end;
 
-	int i = 1 + ebr_seen * 4 + data_partitions_seen;
+	int i = nb_partitions_seen;
 
-	start = ptab->start_lba + ptab_root->start_lba + offset_root;
-	end = (ptab->start_lba + ptab_root->start_lba) + ptab->length + offset_root;
+	start = partition_offset;
+	end = start + ptab->length;
 
 	if (ptab->length > 0)
 		sectors_to_size(ptab->length, size);
 	else
 		memset(size, 0, sizeof size);
+
+	if (i == 1)
+		more_printf("   #  B       Start         End    Size Id Type\n");
 
 	get_label(ptab->ostype, &parttype);
 	more_printf("  %2d  %s %11d %11d %s %02X %s",
@@ -87,10 +90,10 @@ static void show_partition_information(struct driveinfo *drive_info,
 		    ptab->ostype, parttype);
 
 	/* Extra info */
-	if (ptab->ostype == 0x82 && swsusp_check(drive_info, ptab, &error)) {
+	if (ptab->ostype == 0x82 && swsusp_check(drive_info, ptab)) {
 		more_printf("%s", " (Swsusp sig. detected)");
 	} else if (error) {
-		get_error(error, &error_buffer);
+		get_error(&error_buffer);
 		more_printf("%s\n", error_buffer);
 		free(error_buffer);
 	}
@@ -118,8 +121,7 @@ void main_show_disk(int argc, char **argv,
 
 	int i = drive - 0x80;
 	struct driveinfo *d = &hardware->disk_info[i];
-	int error;
-	char *error_buffer;
+	char error_buffer[MAX_DISK_ERRNO];
 	char disk_size[8];
 
 	detect_disks(hardware);
@@ -131,30 +133,21 @@ void main_show_disk(int argc, char **argv,
 	else
 		memset(disk_size, 0, sizeof disk_size);
 
-	more_printf("DISK 0x%X:\n", d->disk);
-	more_printf("  C/H/S: %d cylinders, %d heads, %d sectors/track\n",
-		d->legacy_max_cylinder + 1, d->legacy_max_head + 1,
-		d->legacy_sectors_per_track);
-	more_printf("  EDD:   Version: %X\n", d->edd_version);
-	more_printf("         Size: %s, %d bytes/sector, %d sectors/track\n",
-		disk_size,
-		(int) d->edd_params.bytes_per_sector,
-		(int) d->edd_params.sectors_per_track);
-	more_printf("         Host bus: %s, Interface type: %s\n\n",
-		remove_spaces(d->edd_params.host_bus_type),
-		remove_spaces(d->edd_params.interface_type));
+	more_printf("DISK 0x%X:\n"
+		    "  C/H/S: %d cylinders, %d heads, %d sectors/track\n"
+		    "  EDD:   Version: %X\n"
+		    "         Size: %s, %d bytes/sector, %d sectors/track\n"
+		    "         Host bus: %s, Interface type: %s\n\n",
+		d->disk,
+		d->legacy_max_cylinder + 1, d->legacy_max_head + 1, d->legacy_sectors_per_track,
+		d->edd_version,
+		disk_size, (int) d->edd_params.bytes_per_sector, (int) d->edd_params.sectors_per_track,
+		remove_spaces(d->edd_params.host_bus_type), remove_spaces(d->edd_params.interface_type));
 
-	more_printf("   #  B       Start         End    Size Id Type\n");
-	error = 0;
-	if (parse_partition_table(d, &show_partition_information, &error)) {
-		if (error) {
-			more_printf("I/O error: ");
-			get_error(error, &error_buffer);
-			more_printf("%s\n", error_buffer);
-			free(error_buffer);
-		} else
-			more_printf("An unknown error occured.\n");
-		return;
+	if (parse_partition_table(d, &show_partition_information) == -1) {
+		get_error(&error_buffer);
+		more_printf("%s\n", error_buffer);
+		free(error_buffer);
 	}
 }
 

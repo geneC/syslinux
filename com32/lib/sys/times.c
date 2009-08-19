@@ -35,10 +35,10 @@
 #include <inttypes.h>
 #include <com32.h>
 
-clock_t times(struct tms *buf)
+clock_t times(struct tms * buf)
 {
-  (void)buf;			/* Ignored */
+    (void)buf;			/* Ignored */
 
-  /* Should we get this via INT 1Ah? */
-  return *(uint16_t *)0x46c;
+    /* Should we get this via INT 1Ah? */
+    return *(uint16_t *) 0x46c;
 }

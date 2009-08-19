@@ -31,15 +31,11 @@ TEXT_START	equ 7C00h
 ; but it doesn't seem to work that way.
 LATEBSS_START	equ 0B800h
 
-%ifdef MAP
-		[map all MAP]
-%endif
-
 ;
 ; The various sections and their relationship
 ;
 		; Use .earlybss for things that MUST be in low memory.
-		section .earlybss	nobits start=BSS_START
+		section .earlybss	nobits
 		section .config		write progbits align=4
 		section .replacestub	exec write progbits align=16
 
@@ -97,11 +93,15 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 xfer_buf_seg	equ 1000h
 aux_seg		equ 2000h
 
+serial_buf_size	equ 4096		; Should be a power of 2
+
 ;
 ; Contents of aux_seg
 ;
 		struc aux
 .fontbuf	resb 8192
+.serial		resb serial_buf_size
+
 		alignb 4096		; Align the next segment to 4K
 		endstruc
 

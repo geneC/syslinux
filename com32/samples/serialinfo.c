@@ -23,18 +23,17 @@
 
 int main(void)
 {
-  const struct syslinux_serial_console_info *si;
+    const struct syslinux_serial_console_info *si;
 
-  openconsole(&dev_null_r, &dev_stdcon_w);
+    openconsole(&dev_null_r, &dev_stdcon_w);
 
-  si = syslinux_serial_console_info();
+    si = syslinux_serial_console_info();
 
-  printf("Serial port base:    %#06x\n", si->iobase);
-  printf("Serial port divisor:  %5d", si->divisor);
-  if (si->divisor)
-    printf(" (%d baud)", 115200/si->divisor);
-  printf("\n"
-	 "Flow control bits:    %#05x\n", si->flowctl);
+    printf("Serial port base:    %#06x\n", si->iobase);
+    printf("Serial port divisor:  %5d", si->divisor);
+    if (si->divisor)
+	printf(" (%d baud)", 115200 / si->divisor);
+    printf("\n" "Flow control bits:    %#05x\n", si->flowctl);
 
-  return 0;
+    return 0;
 }

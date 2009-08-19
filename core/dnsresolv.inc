@@ -360,7 +360,7 @@ dns_resolv:
 		add si,ax
 		loop .parseanswer
 
-.badness: 
+.badness:
 		; We got back no data from this server.
 		; Unfortunately, for a recursive, non-authoritative
 		; query there is no such thing as an NXDOMAIN reply,

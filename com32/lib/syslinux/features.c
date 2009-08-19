@@ -40,12 +40,12 @@ struct __syslinux_feature_flags __syslinux_feature_flags;
 
 void __constructor __syslinux_detect_features(void)
 {
-  static com32sys_t reg;
+    static com32sys_t reg;
 
-  memset(&reg, 0, sizeof reg);
-  reg.eax.w[0] = 0x0015;
-  __intcall(0x22, &reg, &reg);
+    memset(&reg, 0, sizeof reg);
+    reg.eax.w[0] = 0x0015;
+    __intcall(0x22, &reg, &reg);
 
-  __syslinux_feature_flags.len = reg.ecx.w[0];
-  __syslinux_feature_flags.ptr = MK_PTR(reg.es, reg.ebx.w[0]);
+    __syslinux_feature_flags.len = reg.ecx.w[0];
+    __syslinux_feature_flags.ptr = MK_PTR(reg.es, reg.ebx.w[0]);
 }

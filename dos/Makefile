@@ -59,17 +59,8 @@ libcom.a: $(LIBOBJS)
 syslinux.com: syslinux.elf
 	$(OBJCOPY) -O binary $< $@
 
-%.o: %.c
-	$(CC) -Wp,-MT,$@,-MD,.$@.d $(CFLAGS) -c -o $@ $<
-%.i: %.c
-	$(CC) $(CFLAGS) -E -o $@ $<
-%.s: %.c
-	$(CC) $(CFLAGS) -S -o $@ $<
-%.o: %.S
-	$(CC) -Wp,-MT,$@,-MD,.$@.d $(CFLAGS) -D__ASSEMBLY__ -c -o $@ $<
-%.s: %.S
-	$(CC) $(CFLAGS) -E -o $@ $<
 %.com: %.asm
+	( $(NASM) -M -DDEPEND $(NASMOPT) -o $@ -M $< && echo '' ) > .$@.d; true
 	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 
 -include .*.d *.tmp

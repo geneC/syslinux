@@ -36,8 +36,13 @@ CFLAGS     = $(GCCOPT) -W -Wall -march=i386 \
 	     -fomit-frame-pointer -D__COM32__ \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE)
-SFLAGS     = $(GCCOPT) -D__COM32__ -march=i386
-LDFLAGS    = -m elf_i386 -T $(com32)/lib/com32.ld
+SFLAGS     = $(GCCOPT) -W -Wall -march=i386 \
+	     -fomit-frame-pointer -D__COM32__ \
+	     -nostdinc -iwithprefix include \
+	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE)
+
+COM32LD	   = $(com32)/lib/com32.ld
+LDFLAGS    = -m elf_i386 -T $(COM32LD)
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 
 LNXCFLAGS  = -I$(com32)/libutil/include -W -Wall -O -g -D_GNU_SOURCE
@@ -52,23 +57,23 @@ C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a
 
 .PRECIOUS: %.o
 %.o: %.S
-	$(CC) $(SFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(SFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.o
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.elf
-%.elf: %.o $(LIBS) $(C_LIBS)
-	$(LD) $(LDFLAGS) -o $@ $^
+%.elf: %.o $(LIBS) $(C_LIBS) $(COM32LD)
+	$(LD) $(LDFLAGS) -o $@ $(filter-out $(COM32LD),$^)
 
 .PRECIOUS: %.lo
 %.lo: %.S
-	$(CC) $(LNXSFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(LNXSFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.lo
 %.lo: %.c
-	$(CC) $(LNXCFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(LNXCFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.lnx
 %.lnx: %.lo $(LNXLIBS) $(C_LNXLIBS)

@@ -22,16 +22,15 @@
 #include <com32.h>
 #include <stdio.h>
 
-
 int main(int argc, char *argv[])
 {
-   if (argc < 2) {
-      csprint("Usage: display.c32 <textfile>\n",0x07);
-      exit(1);
-   }
+    if (argc < 2) {
+	csprint("Usage: display.c32 <textfile>\n", 0x07);
+	exit(1);
+    }
 
-   init_help(NULL); // No base dir, so all filenames must be absolute
-   runhelp(argv[1]);
-   close_help();
-   return 0;
+    init_help(NULL);		// No base dir, so all filenames must be absolute
+    runhelp(argv[1]);
+    close_help();
+    return 0;
 }
