@@ -62,7 +62,7 @@ static void show_partition_information(struct driveinfo *drive_info,
 				       int partition_offset,
 				       int nb_partitions_seen)
 {
-	char size[8];
+	char size[9];
 	char *parttype;
 	int error = 0;
 	char error_buffer[MAX_DISK_ERRNO];
@@ -122,7 +122,7 @@ void main_show_disk(int argc, char **argv,
 	int i = drive - 0x80;
 	struct driveinfo *d = &hardware->disk_info[i];
 	char error_buffer[MAX_DISK_ERRNO];
-	char disk_size[8];
+	char disk_size[9];
 
 	detect_disks(hardware);
 	if (!hardware->disk_info[i].cbios)
@@ -177,7 +177,7 @@ void disks_summary(int argc __unused, char** argv __unused,
 		if (!hardware->disk_info[i].cbios)
 			continue; /* Invalid geometry */
 		struct driveinfo *d = &hardware->disk_info[i];
-		char disk_size[8];
+		char disk_size[9];
 
 		if ((int) d->edd_params.sectors > 0)
 			sectors_to_size((int) d->edd_params.sectors, disk_size);

@@ -80,7 +80,7 @@ static void compute_partition_information(struct driveinfo *drive_info,
                                           int partition_offset,
                                           int nb_partitions_seen)
 {
-        char size[8];
+        char size[9];
         char *parttype;
         unsigned int start, end;
   	char buffer[SUBMENULEN+1];
@@ -169,7 +169,7 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
 
   int previous_size, size;
   char previous_unit[3], unit[3]; // GB
-  char size_iec[8]; // GiB
+  char size_iec[9]; // GiB
   sectors_to_size_dec(previous_unit, &previous_size, unit, &size, d[disk_number].edd_params.sectors);
   sectors_to_size(d[disk_number].edd_params.sectors, size_iec);
 
