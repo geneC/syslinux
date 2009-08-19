@@ -29,7 +29,6 @@
 #define TFTP_BLOCKSIZE_LG2 9
 #define TFTP_BLOCKSIZE     (1 << TFTP_BLOCKSIZE_LG2)
 #define PKTBUF_SEG 0x4000
-#define DNS_MAX_SERVERS    4
 
 #define is_digit(c) (((c) >= '0') && ((c) <= '9'))
 
@@ -58,6 +57,14 @@
 
 #define BOOTP_OPTION_MAGIC  htonl(0x63825363)
 #define MAC_MAX 32
+
+/* Defines for DNS */
+#define DNS_PORT	htons(53)		/* Default DNS port */
+#define DNS_MAX_PACKET	512			/* Defined by protocol */
+/* All local DNS queries come from this port */
+#define DNS_LOCAL_PORT	htons(60053) 
+#define DNS_MAX_SERVERS 4			/* Max no of DNS servers */
+
 
 /*
  * structures 
@@ -210,10 +217,20 @@ struct gpxe_file_read {
 } __attribute__ ((packed));
 
 /*
- * functions
+ * functions 
  */
+
+/* pxe.c */
 int ip_ok(uint32_t);
+int pxe_call(int, void *);
+
+/* dhcp_options.c */
 void parse_dhcp(int);
 void parse_dhcp_options(void *, int, int);
+
+/* dnsresolv.c */
+int dns_mangle(char **, char **);
+uint32_t dns_resolve(char **);
+
 
 #endif /* pxe.h */

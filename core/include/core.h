@@ -44,8 +44,6 @@ __noreturn _kaboom(void);
 /*
  * externs for pxelinux
  */
-extern void dns_mangle(void);
-
 extern uint32_t ServerIP;
 extern uint32_t MyIP;
 extern uint32_t Netmask;
@@ -73,8 +71,9 @@ extern char packet_buf[];
 extern char IPOption[];
 extern char DotQuadBuf[];
 
-extern uint32_t DNSServers[];
-extern uint16_t LastDNSServer;
+extern uint32_t dns_server[];
+extern char DNSSendBuf[];
+extern char DNSRecvBuf[];
 
 extern uint16_t RealBaseMem;
 extern uint16_t APIVer;
@@ -87,5 +86,6 @@ extern uint8_t UUIDType;
 extern char UUID[];
 
 extern volatile uint16_t BIOS_timer;
+extern const uint8_t TimeoutTable[];
 
 #endif /* CORE_H */

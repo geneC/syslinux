@@ -13,7 +13,7 @@ static int has_gpxe;
 static uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
 int HaveUUID = 0;
 
-static const uint8_t TimeoutTable[] = {
+const uint8_t TimeoutTable[] = {
     2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18, 21, 26, 31, 37, 44, 53, 64, 77,
     92, 110, 132, 159, 191, 229, 255, 255, 255, 255, 0
 };
@@ -226,7 +226,7 @@ static const char *parse_dotquad(const char *ip_str, uint32_t *res)
  * the ASM pxenv function wrapper, return 1 if error, or 0
  *
  */    
-static int pxe_call(int opcode, void *data)
+int pxe_call(int opcode, void *data)
 {
     extern void pxenv(void);
     com32sys_t in_regs, out_regs;
@@ -404,7 +404,6 @@ static void get_packet_gpxe(struct open_file_t *file)
  */
 static void pxe_mangle_name(char *dst, const char *src)
 {
-    extern void dns_resolv(void);
     const char *p = src;
     uint32_t ip = ServerIP;
     int i = 0;
@@ -431,15 +430,9 @@ static void pxe_mangle_name(char *dst, const char *src)
         p = src;
         if ((p = parse_dotquad(p, &ip)) && !strncmp(p, "::", 2)) {
             p += 2;
-        } else {     
-            com32sys_t regs;
-            
-            memset(&regs, 0, sizeof regs);
-            regs.esi.w[0] = OFFS_WRT(p, 0);
-            call16(dns_resolv, &regs, &regs);
-            p = MK_PTR(regs.ds, regs.esi.w[0]);
-            ip = regs.eax.l;
-            if (!strncmp(p, "::", 2) && ip) {
+        } else {
+            ip = dns_resolv(&p);
+            if (ip && !strncmp(p, "::", 2)) {
                 p += 2;
             } else {
                 /* no ip, too */

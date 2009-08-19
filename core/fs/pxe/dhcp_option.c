@@ -29,25 +29,19 @@ static void dns_servers(void *data, int opt_len)
         num = DNS_MAX_SERVERS;
 
     for (i = 0; i < num; i++) {
-        DNSServers[i] = *(uint32_t *)data;
+        dns_server[i] = *(uint32_t *)data;
         data += 4;
     }
-    
-    /* NOT SURE FOR NOW */
-    LastDNSServer = OFFS_WRT(&DNSServers[num - 1], 0);
 }
 
 static void local_domain(void *data, int opt_len)
 {
-    com32sys_t regs;
     char *p = (char *)data + opt_len;
+    char *ld = LocalDomain;
     char end = *p;
-
-    memset(&regs, 0, sizeof regs);
+    
     *p = '\0';   /* Zero-terminate option */
-    regs.esi.w[0] = OFFS_WRT(data, 0);
-    regs.edi.w[0] = OFFS_WRT(LocalDomain, 0);
-    call16(dns_mangle, &regs, NULL);
+    dns_mangle(&ld, (char **)&data);
     *p = end;    /* Resotre ending byte */
 }
 
