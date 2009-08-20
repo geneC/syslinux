@@ -34,39 +34,42 @@ static inline int msdos_magic_present(const char *ptab)
 /**
  * process_extended_partition - execute a callback for each partition contained listed in an ebr
  * @drive_info:		driveinfo struct describing the drive
- * @partition_offset:	Absolute start (lba) of the partition
+ * @partition_offset:	Absolute start (lba) of the extended partition
+ * @ebr_offset:		Relative start (lba) of the current ebr processed within
+ *			the extended partition
  * @callback:		Callback to execute
  * @error:		Buffer for I/O errors
  * @nb_part_seen:	Number of partitions found on the disk so far
  **/
 static int process_extended_partition(struct driveinfo *drive_info,
-				       int partition_offset,
-				       p_callback callback,
-				       int nb_part_seen)
+				      const int partition_offset,
+				      const int ebr_offset,
+				      p_callback callback,
+				      int nb_part_seen)
 {
 	int status = 0;
 	/* The ebr is located at the first sector of the extended partition */
 	char* ebr = malloc(SECTOR * sizeof(char));
 
-	if (read_sectors(drive_info, ebr, partition_offset, 1) == -1)
-		return -1;
+	if (read_sectors(drive_info, ebr, partition_offset + ebr_offset, 1) == -1)
+		goto abort;
 
 	/* Check msdos magic signature */
 	if (!msdos_magic_present(ebr))
-		return -1;
+		goto abort;
 
 	struct part_entry *ptab = (struct part_entry *)(ebr + PARTITION_TABLES_OFFSET);
 
 	for (int i = 0; i < 4; i++) {
 		if (status == -1)
-			return -1;
+			goto abort;
 
 		if (!is_extended_partition(&ptab[i])) {
 			/*
 			 * This EBR partition table entry points to the
 			 * logical partition associated to that EBR
 			 */
-			int logical_partition_start = partition_offset + ptab[i].start_lba;
+			int logical_partition_start = ebr_offset + ptab[i].start_lba;
 
 			/* Last EBR in the extended partition? */
 			if (!logical_partition_start)
@@ -84,16 +87,22 @@ static int process_extended_partition(struct driveinfo *drive_info,
 			nb_part_seen++;
 			callback(drive_info,
 				 &ptab[i],
-				 logical_partition_start,
+				 partition_offset + logical_partition_start,
 				 nb_part_seen);
 		} else
 			status = process_extended_partition(drive_info,
-						   partition_offset + ptab[i].start_lba,
+						   partition_offset,
+						   ptab[i].start_lba,
 						   callback,
 						   nb_part_seen);
 	}
 
+	free(ebr);
 	return 0;
+
+abort:
+	free(ebr);
+	return -1;
 }
 
 /**
@@ -117,7 +126,7 @@ static int process_mbr(struct driveinfo *drive_info, struct part_entry *ptab,
 					 &ptab[i],
 					 ptab[i].start_lba,
 					 i+1);
-				status = process_extended_partition(drive_info, ptab[i].start_lba, callback, 4);
+				status = process_extended_partition(drive_info, ptab[i].start_lba, 0, callback, 4);
 			} else
 				callback(drive_info,
 					 &ptab[i],
