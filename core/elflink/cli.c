@@ -10,6 +10,8 @@
 #include <limits.h>
 #include <minmax.h>
 #include <linux/list.h>
+#include <sys/exec.h>
+#include <sys/module.h>
 #include "getkey.h"
 
 #include "common.h"
@@ -58,7 +60,7 @@ int mygetkey(clock_t timeout)
 const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw_Menu)(int, int, int),void (*show_fkey)(int))
 {
     static char cmdline[MAX_CMDLINE_LEN];
-    char temp_cmdline[MAX_CMDLINE_LEN];
+    char temp_cmdline[MAX_CMDLINE_LEN]={};
     int key, len, prev_len, cursor;
     int redraw = 1;		/* We enter with the menu already drawn */
     int x, y;
@@ -66,7 +68,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw
     const char *ret;
     int width = 0;
     struct cli_command *comm_counter;
-    comm_counter=list_entry(cli_history_head.next, typeof(*comm_counter),list);
+    comm_counter=list_entry(cli_history_head.next->prev, typeof(*comm_counter),list);
 
     if (!width) {
 	int height;
@@ -74,7 +76,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw
 	    width = 80;
     }
 
-    printf("width = %d\n", width);
+    //printf("width = %d\n", width);
 
     strncpy(cmdline, input, MAX_CMDLINE_LEN);
     cmdline[MAX_CMDLINE_LEN - 1] = '\0';
@@ -273,7 +275,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw
 	    	redraw = 1;
 	    }
 	    break;
-	case KEY_DOWN:
+	case KEY_UP:
 	    {
 		if(!list_empty(&cli_history_head))
 		{
@@ -291,7 +293,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw
 		}
 	    }
 	    break;
-	case KEY_UP:
+	case KEY_DOWN:
 	    {
 		if(!list_empty(&cli_history_head))
 		{
@@ -341,5 +343,73 @@ const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw
 
     printf("\033[?7h");
     return ret;
+}
+
+void process_command(const char *cmd)
+{
+	char **cmd_line = malloc((MAX_COMMAND_ARGS+1)*sizeof(char*));
+	char *temp_cmd=(char*)malloc(sizeof(char)*(strlen(cmd)+1));
+	int argc = 0, len_mn;
+	char *crt_arg,*module_name;
+
+	strcpy(temp_cmd,cmd);
+	module_name = strtok(cmd, COMMAND_DELIM);
+	len_mn=strlen(module_name);
+	
+	if(!strcmp(module_name+len_mn-4,".c32"))
+	{
+		if(module_find(module_name) != NULL) goto cleanup;
+		do
+		{
+			crt_arg = strtok(NULL, COMMAND_DELIM);
+			if (crt_arg != NULL && strlen(crt_arg) > 0)
+			{
+				cmd_line[argc] = crt_arg;
+				argc++;
+			}
+			else
+			{
+				break;
+			}
+		}while (argc < MAX_COMMAND_ARGS);
+		cmd_line[argc] = NULL;
+		/*int i;
+		for(i=0;i<argc;i++)
+		{
+			printf("%s\n",cmd_line[i]);
+		}*/
+		spawn_load(module_name,cmd_line);
+	}
+	else if(!strcmp(module_name+len_mn-2,".0"))
+	{
+		//printf("%s\n",temp_cmd);
+		execute(cmd,KT_PXE);
+	}
+	else if(!strcmp(module_name+len_mn-3,".bs"))
+	{
+		//printf("%s\n",temp_cmd);
+	}
+	else if(!strcmp(module_name+len_mn-4,".img"))
+	{
+		//printf("%s\n",temp_cmd);
+		execute(cmd,KT_FDIMAGE);
+	}
+	else if(!strcmp(module_name+len_mn-4,".bin"))
+	{
+		printf("%s\n",temp_cmd);
+	}
+	else if(!strcmp(module_name+len_mn-4,".bss"))
+	{
+		//printf("%s\n",temp_cmd);
+		execute(cmd,KT_BSS);
+	}
+	else if(!strcmp(module_name+len_mn-4,".com") || !strcmp(module_name+len_mn-4,".cbt"))
+	{
+		//printf("%s\n",temp_cmd);
+		execute(cmd,KT_COMBOOT);
+	}
+cleanup:
+	free(cmd_line);
+	free(temp_cmd);
 }
 

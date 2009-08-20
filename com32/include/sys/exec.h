@@ -20,6 +20,19 @@
 #define EXEC_ROOT_NAME			"_root_.c32"
 
 /**
+ * spawn_load - Load a library module or executes an executable one
+ * @name	the name of the library/executable to use, including the extension
+ * 			(e.g. 'sort.c32')
+ * @argv:	a NULL-terminated vector of string arguments, starting with
+ * 			the program name.
+ *
+ * This procedure in essence loads takes the name of a module and checks to see what
+ * kind of module it is ( executable or library ), after which is performs the
+ * appropriate action, either spawning or simply loading the module into memory.
+ */
+extern int spawn_load(const char *name,const char **argv);
+
+/**
  * exec_init - Initialize the dynamic execution environment.
  *
  * Among others, it initializes the module subsystem and loads the root

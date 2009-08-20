@@ -6,7 +6,7 @@
 struct cli_command
 {
 	struct list_head	list;
-	char 			command[MAX_CMDLINE_LEN];
+	char 			*command;
 };
 
 struct list_head cli_history_head;

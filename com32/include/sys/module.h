@@ -23,6 +23,13 @@
 #define MODULE_NAME_SIZE		256
 
 /*
+ * Some common information about what kind of modules we're dealing with
+ */
+#define UNKNOWN_MODULE			-1
+#define EXEC_MODULE			0		
+#define LIB_MODULE			1
+
+/*
  * Initialization and finalization function signatures
  */
 

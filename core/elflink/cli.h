@@ -2,11 +2,13 @@
 #define CLI_H
 
 #define MAX_CMD_HISTORY 64
+#define COMMAND_DELIM		" \t\n"		// Whitespace delimiters
+#define MAX_COMMAND_ARGS	40
 
 struct cli_command
 {
 	struct list_head	list;
-	char 			command[MAX_CMDLINE_LEN];
+	char 			*command;
 };
 
 struct list_head cli_history_head;
@@ -14,5 +16,6 @@ struct list_head cli_history_head;
 extern void clear_screen(void);
 extern int mygetkey(clock_t timeout);
 extern const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw_Menu)(int, int, int),void (*show_fkey)(int));
+extern void process_command(const char *cmd);
 
 #endif
