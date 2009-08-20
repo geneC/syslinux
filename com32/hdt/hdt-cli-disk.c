@@ -71,7 +71,7 @@ static void show_partition_information(struct driveinfo *drive_info,
 	int i = nb_partitions_seen;
 
 	start = partition_offset;
-	end = start + ptab->length;
+	end = start + ptab->length - 1;
 
 	if (ptab->length > 0)
 		sectors_to_size(ptab->length, size);

@@ -99,7 +99,7 @@ static void compute_partition_information(struct driveinfo *drive_info,
    	set_menu_pos(SUBMENU_Y,SUBMENU_X);
 
 	start = partition_offset;
-	end = start + ptab->length;
+	end = start + ptab->length - 1;
 
         if (ptab->length > 0)
                 sectors_to_size(ptab->length, size);
