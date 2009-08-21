@@ -101,6 +101,7 @@ void load_env32(com32sys_t * regs)
 	{
 		printf("%s\n",aux->command);
 	}*/
+	//module_load_dependencies("mytest.c32",MODULES_DEP);
 	
 	while(1)
 	{
@@ -127,9 +128,11 @@ void load_env32(com32sys_t * regs)
 	
 	printf("%d\n",load_library("dyn/sort.dyn"));
 	printf("Loading ansiraw.c32\n%d\n",load_library("dyn/ansiraw.c32"));
-	printf("Loading background.c32\n%d\n",load_library("dyn/background.c32"));
-	printf("Loading printmsg.c32\n%d\n",load_library("dyn/printmsg.c32"));
-	printf("Loading drain.c32\n%d\n",load_library("dyn/drain.c32"));
+	//printf("Loading background.c32\n%d\n",load_library("dyn/background.c32"));
+	spawn_load("dyn/background.c32",0);
+	//printf("Loading printmsg.c32\n%d\n",load_library("dyn/printmsg.c32"));
+	spawn_load("dyn/printmsg.c32",0);
+	/*printf("Loading drain.c32\n%d\n",load_library("dyn/drain.c32"));
 	printf("Loading sha1hash.c32\n%d\n",load_library("dyn/sha1hash.c32"));
 	printf("Loading unbase64.c32\n%d\n",load_library("dyn/unbase64.c32"));
 	printf("Loading sha512crypt\n%d\n",load_library("dyn/sha512crypt.c32"));
@@ -139,7 +142,7 @@ void load_env32(com32sys_t * regs)
 	printf("Loading passwd.c32\n%d\n",load_library("dyn/passwd.c32"));
 	printf("Loading get_key.c32\n%d\n",load_library("dyn/get_key.c32"));
 	//printf("Loading menumain.c32\n%d\n",load_library("dyn/menumain.c32"));
-	spawn_load("dyn/menumain.c32",0);
+	spawn_load("dyn/menumain.c32",0);*/
 
 	/*printf("\n\nTrying to spawn 'dyn/hello.dyn'\n\n"); 
 	spawnv("dyn/hello.dyn",0);

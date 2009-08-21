@@ -349,7 +349,7 @@ void process_command(const char *cmd)
 {
 	char **cmd_line = malloc((MAX_COMMAND_ARGS+1)*sizeof(char*));
 	char *temp_cmd=(char*)malloc(sizeof(char)*(strlen(cmd)+1));
-	int argc = 0, len_mn;
+	int argc = 1, len_mn;
 	char *crt_arg,*module_name;
 
 	strcpy(temp_cmd,cmd);
@@ -361,6 +361,7 @@ void process_command(const char *cmd)
 		if(module_find(module_name) != NULL) goto cleanup;
 		do
 		{
+			cmd_line[0]=module_name;
 			crt_arg = strtok(NULL, COMMAND_DELIM);
 			if (crt_arg != NULL && strlen(crt_arg) > 0)
 			{
@@ -373,10 +374,11 @@ void process_command(const char *cmd)
 			}
 		}while (argc < MAX_COMMAND_ARGS);
 		cmd_line[argc] = NULL;
+		module_load_dependencies(module_name,MODULES_DEP);
 		/*int i;
 		for(i=0;i<argc;i++)
 		{
-			printf("%s\n",cmd_line[i]);
+			printf("\n%s\n",cmd_line[i]);
 		}*/
 		spawn_load(module_name,cmd_line);
 	}

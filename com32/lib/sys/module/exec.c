@@ -314,6 +314,47 @@ int spawn_load(const char *name,const char **argv)
 	return -1;
 }
 
+int module_load_dependencies(const char*name,const char*dep_file)
+{
+	FILE *d_file=fopen(dep_file,"r");
+	char line[2048],aux[2048],temp_name[MODULE_NAME_SIZE],slbz[24];
+	int i=0,j=0,res=0;
+	if(d_file==NULL)
+	{
+		DBG_PRINT("Could not open object file '%s'\n",dep_file);
+		return -1;
+	}
+	do
+	{
+		if(fgets(line,2048,d_file)==NULL) break;
+		sscanf(line,"%s %[^\t\n]s",temp_name,aux);
+	}while(strncmp(name,temp_name,strlen(name)));
+	fclose(d_file);
+	//printf("%s %s\n",temp_name,aux);
+	while(aux[i])
+	{
+		if(aux[i]==' ')
+		{
+			temp_name[j]=NULL;
+			if(strlen(temp_name))
+			{
+				if(spawn_load(temp_name,NULL)<0)
+				{
+					//printf("\n\n%s\n\n",temp_name);
+					res=-1;
+				}
+			}
+			j=0;
+		}
+		else temp_name[j++]=aux[i];
+		i++;
+	}
+	temp_name[j]=NULL;
+	if(strlen(temp_name))
+		if(spawn_load(temp_name,NULL)<0) res=-1;
+	return res;
+}
+
 void exec_term(void)
 {
 	modules_term();
