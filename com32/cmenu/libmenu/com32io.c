@@ -29,27 +29,46 @@ static unsigned int bit_reverse(unsigned int code, int len)
 
 void cprint_vga2ansi(char chr, char attr)
 {
-	/* The VGA attribute looks like: X B B B I F F F */
-	unsigned int ansi_attr;
+	static const char ansi_char[8] = "04261537";
+	static uint8_t last_attr = 0x07;
+	char buf[16], *p;
 
-	/* Bit reverse Background/Foreground */
-	ansi_attr = bit_reverse(attr, 7);
+	if (attr != last_attr) {
+		p = buf;
+		*p++ = '\033';
+		*p++ = '[';
 
-	/* Blinking attribute? */
-	if (! (ansi_attr & 0x80))
-		printf(CSI "%d;3%d;4%dm%c", ansi_attr & 0x8,
-					    ansi_attr & 0x70,
-					    ansi_attr & 0x7, chr);
-	else {
-		if (ansi_attr & 0x8)
-			printf(CSI "%d;4;3%d;4%dm%c", ansi_attr & 0x8,
-						      ansi_attr & 0x70,
-						      ansi_attr & 0x7, chr);
-		else
-			printf(CSI "%d;3%d;4%dm%c", ansi_attr & 0x8,
-						    ansi_attr & 0x70,
-						    ansi_attr & 0x7, chr);
+		if (last_attr & ~attr & 0x88) {
+			*p++ = '0';
+			*p++ = ';';
+		}
+		if (attr & 0x08) {
+			*p++ = '1';
+			*p++ = ';';
+		}
+		if (attr & 0x80) {
+			*p++ = '4';
+			*p++ = ';';
+		}
+		if ((attr ^ last_attr) & 0x07) {
+			*p++ = '3';
+			*p++ = ansi_char[attr & 7];
+			*p++ = ';';
+		}
+		if ((attr ^ last_attr) & 0x70) {
+			*p++ = '4';
+			*p++ = ansi_char[(attr >> 4) & 7];
+			*p++ = ';';
+		}
+		p[-1] = 'm';	/* We'll have generated at least one semicolon */
+		p[0] = '\0';
+
+		last_attr = attr;
+
+		fputs(buf, stdout);
 	}
+
+	putchar(chr);
 }
 
 /* Print character and attribute at cursor */
