@@ -17,16 +17,6 @@
 
 com32sys_t inreg, outreg;	// Global register sets for use
 
-static unsigned int bit_reverse(unsigned int code, int len)
-{
-	register unsigned res = 0;
-	do {
-		res |= code & 1;
-		code >>= 1, res <<= 1;
-	} while (--len > 0);
-	return res >> 1;
-}
-
 void cprint_vga2ansi(char chr, char attr)
 {
 	static const char ansi_char[8] = "04261537";
