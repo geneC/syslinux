@@ -17,15 +17,60 @@
 
 com32sys_t inreg, outreg;	// Global register sets for use
 
+static unsigned int bit_reverse(unsigned int code, int len)
+{
+	register unsigned res = 0;
+	do {
+		res |= code & 1;
+		code >>= 1, res <<= 1;
+	} while (--len > 0);
+	return res >> 1;
+}
+
+void cprint_vga2ansi(char chr, char attr)
+{
+	/* The VGA attribute looks like: X B B B I F F F */
+	unsigned int ansi_attr;
+
+	/* Bit reverse Background/Foreground */
+	ansi_attr = bit_reverse(attr, 7);
+
+	/* Blinking attribute? */
+	if (! (ansi_attr & 0x80))
+		printf(CSI "%d;3%d;4%dm%c", ansi_attr & 0x8,
+					    ansi_attr & 0x70,
+					    ansi_attr & 0x7, chr);
+	else {
+		if (ansi_attr & 0x8)
+			printf(CSI "%d;4;3%d;4%dm%c", ansi_attr & 0x8,
+						      ansi_attr & 0x70,
+						      ansi_attr & 0x7, chr);
+		else
+			printf(CSI "%d;3%d;4%dm%c", ansi_attr & 0x8,
+						    ansi_attr & 0x70,
+						    ansi_attr & 0x7, chr);
+	}
+}
+
 /* Print character and attribute at cursor */
+// Note: attr is a vga attribute
 void cprint(char chr, char attr, unsigned int times, char disppage)
 {
-    REG_AH(inreg) = 0x09;
-    REG_AL(inreg) = chr;
-    REG_BH(inreg) = disppage;
-    REG_BL(inreg) = attr;
-    REG_CX(inreg) = times;
-    __intcall(0x10, &inreg, &outreg);
+	// XXX disppage
+
+	/*
+	 * Mimic INT 10h, AH=09h: the cursor is not moved even
+	 * if more than one character is written, unless the same
+	 * character is repeated
+	 */
+	if (times == 1) {
+		cprint_vga2ansi(chr, attr);
+		printf(CSI "D");
+	} else {
+		while (times--)
+			cprint_vga2ansi(chr, attr);
+		//printf(CSI "%dm%c", ansi_attr, chr);
+	}
 }
 
 void setdisppage(char num)	// Set the display page to specified number
