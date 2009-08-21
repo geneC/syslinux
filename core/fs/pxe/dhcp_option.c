@@ -32,6 +32,17 @@ static void dns_servers(void *data, int opt_len)
         dns_server[i] = *(uint32_t *)data;
         data += 4;
     }
+
+#if 0
+    /*
+     * if you find you got no corret DNS server, you can add
+     * it here manually. BUT be carefull the DNS_MAX_SERVERS
+     */
+    if (i < DNS_MAX_SERVERS ) {
+        dns_server[i++] = your_master_dns_server;
+        dns_server[i++] = your_second_dns_server;
+    }
+#endif
 }
 
 static void local_domain(void *data, int opt_len)

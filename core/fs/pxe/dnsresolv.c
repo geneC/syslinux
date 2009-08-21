@@ -41,6 +41,7 @@ struct dnsrr {
 
 uint32_t dns_server[DNS_MAX_SERVERS] = {0, };
 
+
 /*
  * Turn a string in _src_ into a DNS "label set" in _dst_; returns the 
  * number of dots encountered. On return, both src and dst are updated.
@@ -49,9 +50,12 @@ int dns_mangle(char **dst, char **src)
 {
     char *p = *src;
     char *q = *dst;
-    int dots = 0;
-    int flag = 0;
+    char *count_ptr;
     char c;
+    int dots = 0;    
+
+    count_ptr = q;
+    *q++ = 0;
 
     while (1) {
         c = *p++;
@@ -59,17 +63,17 @@ int dns_mangle(char **dst, char **src)
             break;
         if (c == '.') {
             dots++;
-            flag = *q;
+            count_ptr = q;
             *q++ = 0;
             continue;
         }
         
-        flag++;
+        *count_ptr += 1;
         *q++ = c;
     }
 
-    if (flag)
-        *dst++ = 0;
+    if (*count_ptr)
+        *q++ = 0;
 
     /* update the strings */
     *src = --p;
@@ -107,17 +111,17 @@ static int dns_compare(char *s1, char *s2)
 /*
  * Skip past a DNS label set in DS:SI
  */
-static char *dns_skiplabel(char *dns)
+static char *dns_skiplabel(char *label)
 {
     uint8_t c;
     
     while (1) {
-        c = *dns++;
+        c = *label++;
         if (c >= 0xc0)
-            return ++dns; /* pointer is two bytes */
+            return ++label; /* pointer is two bytes */
         if (c == 0)
-            return dns;
-        dns += c;
+            return label;
+        label += c;
     }
 }
 
@@ -174,7 +178,8 @@ uint32_t dns_resolv(char **name)
     /* Now send it to name server */
     timeout_ptr = TimeoutTable;
     timeout = *timeout_ptr++;
-    while ((srv = *srv_ptr++)) {
+    while (srv_ptr < dns_server + DNS_MAX_SERVERS) {
+        srv = *srv_ptr++;
         uw_pkt.status     = 0;
         uw_pkt.sip        = srv;
         uw_pkt.gip        = ((srv ^ MyIP) & Netmask) ? Gateway : 0;
@@ -188,7 +193,7 @@ uint32_t dns_resolv(char **name)
             continue;
         
         oldtime = BIOS_timer;
-        while (oldtime + timeout <= BIOS_timer) {
+        while (oldtime + timeout >= BIOS_timer) {
             ur_pkt.status     = 0;
             ur_pkt.sip        = srv;
             ur_pkt.dip        = MyIP;
@@ -227,7 +232,8 @@ uint32_t dns_resolv(char **name)
         /* Parse the replies */
         while (reps--) {
             same = dns_compare(p, (char *)(DNSSendBuf + sizeof(struct dnshdr)));
-            rr = (struct dnsrr *)dns_skiplabel(p);
+            p = dns_skiplabel(p);
+            rr = (struct dnsrr *)p;
             rd_len = htons(rr->rdlength);
             if (same && rd_len == 4   &&
                 htons(rr->type) == 1  && /* TYPE  == A */
