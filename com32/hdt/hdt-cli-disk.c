@@ -95,7 +95,6 @@ static void show_partition_information(struct driveinfo *drive_info,
 	} else if (error) {
 		get_error(&error_buffer);
 		more_printf("%s\n", error_buffer);
-		free(error_buffer);
 	}
 
 	more_printf("\n");
@@ -147,7 +146,6 @@ void main_show_disk(int argc, char **argv,
 	if (parse_partition_table(d, &show_partition_information) == -1) {
 		get_error(&error_buffer);
 		more_printf("%s\n", error_buffer);
-		free(error_buffer);
 	}
 }
 
