@@ -137,8 +137,13 @@ void main_show_disk(int argc, char **argv,
 		remove_spaces(d->edd_params.host_bus_type), remove_spaces(d->edd_params.interface_type));
 
 	if (parse_partition_table(d, &show_partition_information)) {
-		fprintf(stderr, "Error parsing disk 0x%X\n", d->disk);
-		get_error("parse_partition_table");
+		if (errno_disk) {
+			fprintf(stderr, "I/O error parsing disk 0x%X\n", d->disk);
+			get_error("parse_partition_table");
+		} else {
+			fprintf(stderr, "Disk 0x%X: unrecognized partition layout\n", d->disk);
+		}
+		fprintf(stderr, "\n");
 	}
 }
 
