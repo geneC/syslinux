@@ -252,7 +252,6 @@ void detect_disks(struct s_hardware *hardware)
 {
 	int i = -1;
 	int err;
-	char *error_msg;
 
 	if (hardware->disk_detection)
 		return;
@@ -270,12 +269,6 @@ void detect_disks(struct s_hardware *hardware)
 		if (err == -1 || !hardware->disk_info[i].cbios)
 			continue;
 
-		if (err) {
-			get_error(err, &error_msg);
-			more_printf("Error 0x%Xh while reading disk 0x%X:\n\t%s\n",
-				err, drive, error_msg);
-			free(error_msg);
-		}
 		hardware->disks_count++;
 	}
 }

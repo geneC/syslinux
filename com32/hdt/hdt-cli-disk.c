@@ -64,8 +64,6 @@ static void show_partition_information(struct driveinfo *drive_info,
 {
 	char size[9];
 	char *parttype;
-	int error = 0;
-	char error_buffer[MAX_DISK_ERRNO];
 	unsigned int start, end;
 
 	int i = nb_partitions_seen;
@@ -90,12 +88,8 @@ static void show_partition_information(struct driveinfo *drive_info,
 		    ptab->ostype, parttype);
 
 	/* Extra info */
-	if (ptab->ostype == 0x82 && swsusp_check(drive_info, ptab)) {
+	if (ptab->ostype == 0x82 && swsusp_check(drive_info, ptab))
 		more_printf("%s", " (Swsusp sig. detected)");
-	} else if (error) {
-		get_error(&error_buffer);
-		more_printf("%s\n", error_buffer);
-	}
 
 	more_printf("\n");
 
@@ -120,7 +114,6 @@ void main_show_disk(int argc, char **argv,
 
 	int i = drive - 0x80;
 	struct driveinfo *d = &hardware->disk_info[i];
-	char error_buffer[MAX_DISK_ERRNO];
 	char disk_size[9];
 
 	detect_disks(hardware);
@@ -143,9 +136,9 @@ void main_show_disk(int argc, char **argv,
 		disk_size, (int) d->edd_params.bytes_per_sector, (int) d->edd_params.sectors_per_track,
 		remove_spaces(d->edd_params.host_bus_type), remove_spaces(d->edd_params.interface_type));
 
-	if (parse_partition_table(d, &show_partition_information) == -1) {
-		get_error(&error_buffer);
-		more_printf("%s\n", error_buffer);
+	if (parse_partition_table(d, &show_partition_information)) {
+		fprintf(stderr, "Error parsing disk 0x%X\n", d->disk);
+		get_error("parse_partition_table");
 	}
 }
 

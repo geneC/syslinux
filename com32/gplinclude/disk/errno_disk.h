@@ -10,9 +10,6 @@
 #ifndef _ERRNO_DISK_H
 #define _ERRNO_DISK_H
 
-/* Max length of the error string */
-#define MAX_DISK_ERRNO 9
-
 extern int errno_disk;
 
 /* Prefix with ED to avoid confusion with errno */
