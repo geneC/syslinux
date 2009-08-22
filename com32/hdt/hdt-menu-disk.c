@@ -210,12 +210,8 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
   dn=disk_number;
 
   parse_partition_table(&d[disk_number], &show_partition_information);
-  if (parse_partition_table(&d[disk_number], &compute_partition_information) == -1) {
-	char error_buffer[MAX_DISK_ERRNO];
-	get_error(&error_buffer);
-	snprintf(buffer, sizeof buffer, "I/O error   : %s", error_buffer);
-	snprintf(statbuffer, sizeof statbuffer, "I/O error   : %s", error_buffer);
-	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  if (!parse_partition_table(&d[disk_number], &compute_partition_information)) {
+	get_error("parse_partition_table");
 	menu[nb_sub_disk_menu].items_count++;
   }
 

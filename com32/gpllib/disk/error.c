@@ -8,8 +8,7 @@
  * ----------------------------------------------------------------------- */
 
 #include <stdio.h>
-#include <stdlib.h>
-
+#include <string.h>
 #include <disk/errno_disk.h>
 
 /**
@@ -18,7 +17,7 @@
  *
  * Fill @buffer_ptr with the last errno_disk
  **/
-void get_error(void* buffer_ptr)
+void get_error(const char* s)
 {
-	snprintf(buffer_ptr, MAX_DISK_ERRNO, "Disklib: error %d\n", errno_disk);
+	fprintf(stderr, "%s: error %d\n", s, errno_disk);
 }
