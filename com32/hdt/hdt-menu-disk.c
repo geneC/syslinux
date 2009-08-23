@@ -28,6 +28,7 @@
 
 #include <stdlib.h>
 #include <disk/errno_disk.h>
+#include <disk/bootloaders.h>
 #include <disk/geom.h>
 #include <disk/read.h>
 #include <disk/partition.h>
@@ -157,10 +158,12 @@ static void compute_partition_information(struct driveinfo *drive_info,
 
 /* Compute the disk submenu */
 static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
-			       struct driveinfo *d, int disk_number)
+			       const struct s_hardware *hardware, int disk_number)
 {
   char buffer[MENULEN + 1];
   char statbuffer[STATLEN + 1];
+	char bootloader_name[50];
+	struct driveinfo *d = (struct driveinfo*) hardware->disk_info;
 
   snprintf(buffer, sizeof buffer, " Disk <0x%X> (EDD %X)", d[disk_number].disk,
 		  d[disk_number].edd_version);
@@ -207,6 +210,16 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
+	get_bootloader_string(hardware->bootloader_ids[disk_number],
+			      &bootloader_name, 50);
+
+	snprintf(buffer, sizeof buffer, "Bootloader          : %s (id 0x%X)",
+		 bootloader_name, hardware->bootloader_ids[disk_number]);
+	snprintf(statbuffer, sizeof statbuffer, "Bootloader: %s (id 0x%X)",
+		 bootloader_name, hardware->bootloader_ids[disk_number]);
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+	menu[nb_sub_disk_menu].items_count++;
+
   dn=disk_number;
 
   parse_partition_table(&d[disk_number], &show_partition_information);
@@ -219,7 +232,7 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
 }
 
 /* Compute the Disks menu */
-void compute_disks(struct s_hdt_menu *menu, struct driveinfo *disk_info, struct s_hardware *hardware)
+void compute_disks(struct s_hdt_menu *menu, struct s_hardware *hardware)
 {
   char buffer[MENULEN + 1];
   int nb_sub_disk_menu = 0;
@@ -232,8 +245,8 @@ void compute_disks(struct s_hdt_menu *menu, struct driveinfo *disk_info, struct 
     if (!hardware->disk_info[i].cbios)
       continue; /* Invalid geometry */
     compute_disk_module
-        ((struct s_my_menu*) &(menu->disk_sub_menu), nb_sub_disk_menu, disk_info,
-         i);
+        ((struct s_my_menu*) &(menu->disk_sub_menu), nb_sub_disk_menu,
+	 hardware, i);
     nb_sub_disk_menu++;
   }
 
