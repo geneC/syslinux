@@ -131,10 +131,10 @@ void main_show_disk(int argc, char **argv,
 		memset(disk_size, 0, sizeof disk_size);
 
 	more_printf("DISK 0x%X:\n"
-		    "  C/H/S: %d cylinders, %d heads, %d sectors/track\n"
-		    "  EDD:   Version: %X\n"
-		    "         Size: %s, %d bytes/sector, %d sectors/track\n"
-		    "         Host bus: %s, Interface type: %s\n"
+		    "       C/H/S: %d cylinders, %d heads, %d sectors/track\n"
+		    "         EDD: Version: %X\n"
+		    "              Size: %s, %d bytes/sector, %d sectors/track\n"
+		    "              Host bus: %s, Interface type: %s\n"
 		    "  Bootloader: %s (id 0x%X)\n\n",
 		d->disk,
 		d->legacy_max_cylinder + 1, d->legacy_max_head + 1, d->legacy_sectors_per_track,
