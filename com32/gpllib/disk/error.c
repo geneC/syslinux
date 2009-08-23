@@ -13,7 +13,7 @@
 
 /**
  * get_error - decode a disk error status
- * @buffer_ptr:	Preallocated buffer
+ * @s:	Preallocated buffer
  *
  * Fill @buffer_ptr with the last errno_disk
  **/
