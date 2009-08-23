@@ -9,6 +9,9 @@
 
 #ifndef __BOOTLOADERS_H_
 #define __BOOTLOADERS_H_
-void get_bootloader_string(const int, void *, const int);
-int get_bootloader_id(const struct driveinfo *);
+
+#include <stdint.h>
+
+void get_bootloader_string(const uint16_t, void *, const int);
+uint16_t get_bootloader_id(const struct driveinfo *);
 #endif /* _BOOTLOADERS_H_ */

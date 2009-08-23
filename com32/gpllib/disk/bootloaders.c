@@ -19,7 +19,7 @@
  * @buffer:		pre-allocated buffer
  * @buffer_size:	@buffer size
  **/
-void get_bootloader_string(const int label, char* buffer, const int buffer_size)
+void get_bootloader_string(const uint16_t label, char* buffer, const int buffer_size)
 {
 	switch (label) {
 	case 0x0000:
@@ -52,7 +52,7 @@ void get_bootloader_string(const int label, char* buffer, const int buffer_size)
  * get_bootloader_id - return the first two bytes of the MBR
  * @d:		driveinfo struct describing the drive
  **/
-int get_bootloader_id(const struct driveinfo *d)
+uint16_t get_bootloader_id(const struct driveinfo *d)
 {
 	char mbr[SECTOR * sizeof(char)];
 
