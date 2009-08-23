@@ -213,7 +213,7 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
 	get_bootloader_string(hardware->bootloader_ids[disk_number],
 			      &bootloader_name, 50);
 
-	snprintf(buffer, sizeof buffer, "Bootloader          : %s (id 0x%X)",
+	snprintf(buffer, sizeof buffer, "Bootloader           : %s (id 0x%X)",
 		 bootloader_name, hardware->bootloader_ids[disk_number]);
 	snprintf(statbuffer, sizeof statbuffer, "Bootloader: %s (id 0x%X)",
 		 bootloader_name, hardware->bootloader_ids[disk_number]);
