@@ -99,7 +99,6 @@ static void show_partition_information(struct driveinfo *drive_info,
 void main_show_disk(int argc, char **argv,
 		    struct s_hardware *hardware)
 {
-	reset_more_printf();
 	if (!argc) {
 		more_printf("Which disk?\n");
 		return;
@@ -145,6 +144,8 @@ void main_show_disk(int argc, char **argv,
 		}
 		fprintf(stderr, "\n");
 	}
+
+	more_printf("\n");
 }
 
 void main_show_disks(int argc __unused, char **argv __unused,
@@ -167,6 +168,7 @@ void disks_summary(int argc __unused, char** argv __unused,
 	int i = -1;
 
 	detect_disks(hardware);
+	reset_more_printf();
 
 	for (int drive = 0x80; drive < 0xff; drive++) {
 		i++;
