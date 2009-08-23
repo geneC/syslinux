@@ -213,10 +213,12 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
 	get_bootloader_string(hardware->bootloader_ids[disk_number],
 			      &bootloader_name, 50);
 
-	snprintf(buffer, sizeof buffer, "Bootloader           : %s (id 0x%X)",
-		 bootloader_name, hardware->bootloader_ids[disk_number]);
+	snprintf(buffer, sizeof buffer, "Bootloader           : %s (0x%X)",
+		 remove_spaces(bootloader_name),
+		 hardware->bootloader_ids[disk_number]);
 	snprintf(statbuffer, sizeof statbuffer, "Bootloader: %s (id 0x%X)",
-		 bootloader_name, hardware->bootloader_ids[disk_number]);
+		 remove_spaces(bootloader_name),
+		 hardware->bootloader_ids[disk_number]);
 	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
 	menu[nb_sub_disk_menu].items_count++;
 
