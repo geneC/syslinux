@@ -11,6 +11,7 @@
 #define __BOOTLOADERS_H_
 
 #include <stdint.h>
+#include <disk/geom.h>
 
 void get_bootloader_string(const uint16_t, void *, const int);
 uint16_t get_bootloader_id(const struct driveinfo *);
