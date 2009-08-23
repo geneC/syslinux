@@ -100,6 +100,7 @@ static void show_partition_information(struct driveinfo *drive_info,
 void main_show_disk(int argc, char **argv,
 		    struct s_hardware *hardware)
 {
+	reset_more_printf();
 	if (!argc) {
 		more_printf("Which disk?\n");
 		return;
@@ -141,6 +142,7 @@ void main_show_disk(int argc, char **argv,
 		disk_size, (int) d->edd_params.bytes_per_sector, (int) d->edd_params.sectors_per_track,
 		remove_spaces(d->edd_params.host_bus_type), remove_spaces(d->edd_params.interface_type),
 		bootloader_name, hardware->bootloader_ids[i]);
+	display_line_nb += 6;
 
 	if (parse_partition_table(d, &show_partition_information)) {
 		if (errno_disk) {
@@ -161,11 +163,19 @@ void main_show_disks(int argc __unused, char **argv __unused,
 	reset_more_printf();
 	detect_disks(hardware);
 
+	int first_one = 0;
 	for (int drive = 0x80; drive < 0xff; drive++) {
-		char buf[5] = "";
-		sprintf(buf, "0x%x", drive);
-		char *argv[1] = { buf };
-		main_show_disk(1, argv, hardware);
+		if (hardware->disk_info[drive - 0x80].cbios) {
+			if (!first_one) {
+				first_one = 1;
+			} else {
+				pause_printf();
+			}
+			char buf[5] = "";
+			sprintf(buf, "0x%x", drive);
+			char *argv[1] = { buf };
+			main_show_disk(1, argv, hardware);
+		}
 	}
 }
 

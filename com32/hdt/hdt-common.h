@@ -50,9 +50,15 @@
 
 extern int display_line_nb;
 
+#define pause_printf() do {\
+	printf("--More--");\
+	get_key(stdin, 0);\
+	printf("\n");\
+} while (0);
+
 #define more_printf(...) do {\
  if (display_line_nb == 20) {\
-   printf("\nPress any key to continue");\
+   printf("Press any key to continue\n");\
    display_line_nb=0;\
    get_key(stdin, 0);\
  }\
