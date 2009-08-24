@@ -44,11 +44,10 @@ uint32_t dns_server[DNS_MAX_SERVERS] = {0, };
 
 /*
  * Turn a string in _src_ into a DNS "label set" in _dst_; returns the 
- * number of dots encountered. On return, both src and dst are updated.
+ * number of dots encountered. On return, *dst is updated.
  */
-int dns_mangle(char **dst, char **src)
+int dns_mangle(char **dst, const char *p)
 {
-    char *p = *src;
     char *q = *dst;
     char *count_ptr;
     char c;
@@ -76,7 +75,6 @@ int dns_mangle(char **dst, char **src)
         *q++ = 0;
 
     /* update the strings */
-    *src = --p;
     *dst = q;
     return dots;
 }
@@ -87,7 +85,7 @@ int dns_mangle(char **dst, char **src)
  * is allowed pointers relative to a packet in DNSRecvBuf.
  *
  */
-static int dns_compare(char *s1, char *s2)
+static bool dns_compare(const char *s1, const char *s2)
 {
 #if 0
     while (1) {
@@ -96,15 +94,15 @@ static int dns_compare(char *s1, char *s2)
         s1 = DNSRecvBuf + (((*s1++ & 0x3f) << 8) | (*s1++));
     }
     if (*s1 == 0)
-        return 1;
+        return true;
     else if (*s1++ != *s2++)
-        return 0; /* not same */
+        return false; /* not same */
     else
         return !strcmp(s1, s2);
 #else
     (void)s1;
     (void)s2;
-    return 1;
+    return true;
 #endif
 }
 
@@ -132,7 +130,7 @@ static char *dns_skiplabel(char *label)
  * If _ip_ = 0 on exit, the lookup failed. _name_ will be updated
  *
  */
-uint32_t dns_resolv(char **name)
+uint32_t dns_resolv(const char *name)
 {
     char *p;
     int err;
@@ -193,7 +191,7 @@ uint32_t dns_resolv(char **name)
             continue;
         
         oldtime = BIOS_timer;
-        while (oldtime + timeout >= BIOS_timer) {
+	while (1) {
             ur_pkt.status     = 0;
             ur_pkt.sip        = srv;
             ur_pkt.dip        = MyIP;
@@ -209,14 +207,15 @@ uint32_t dns_resolv(char **name)
             /* Got a packet, deal with it... */
             if (hd2->id == hd1->id)
                 break;
-        }
-        if (BIOS_timer > oldtime + timeout) {
-            /* time out */        
-            timeout = *timeout_ptr++;
-            if (!timeout)
-                return 0;     /* All time ticks run out */
-            else 
-                continue;     /* try next */
+
+	    if ((uint16_t)(BIOS_timer-oldtime) >= timeout) {
+		/* time out */
+		timeout = *timeout_ptr++;
+		if (!timeout)
+		    return 0;     /* All time ticks run out */
+		else 
+		    goto again;
+	    }
         }
         if ((hd2->flags ^ 0x80) & htons(0xf80f))
             goto badness;        
@@ -265,6 +264,9 @@ uint32_t dns_resolv(char **name)
             continue;
 
         break; /* failed */
+
+    again:
+	continue;
     }
 
     return 0;
@@ -276,7 +278,7 @@ uint32_t dns_resolv(char **name)
  */
 void pxe_dns_resolv(com32sys_t *regs)
 {
-    char *name = MK_PTR(regs->ds, regs->esi.w[0]);
-    
-    regs->eax.l = dns_resolv(&name);
+    const char *name = MK_PTR(regs->ds, regs->esi.w[0]);
+
+    regs->eax.l = dns_resolv(name);
 }

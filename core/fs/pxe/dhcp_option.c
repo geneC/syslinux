@@ -52,8 +52,8 @@ static void local_domain(void *data, int opt_len)
     char end = *p;
     
     *p = '\0';   /* Zero-terminate option */
-    dns_mangle(&ld, (char **)&data);
-    *p = end;    /* Resotre ending byte */
+    dns_mangle(&ld, data);
+    *p = end;    /* Restore ending byte */
 }
 
 static void vendor_encaps(void *data, int opt_len)
