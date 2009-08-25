@@ -18,6 +18,8 @@ __extern int close(int);
 __extern ssize_t read(int, void *, size_t);
 __extern ssize_t write(int, const void *, size_t);
 
+__extern ssize_t unread(int, const void *, size_t);
+
 __extern int isatty(int);
 
 __extern int getscreensize(int, int *, int *);

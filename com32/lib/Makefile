@@ -72,12 +72,13 @@ DYNENTRY_OBJS = \
 ## CORE OBJECTS, INCLUDED IN THE ROOT COM32 MODULE
 LIBENTRY_OBJS = \
 	sys/intcall.o sys/farcall.o sys/cfarcall.o sys/zeroregs.o	\
-	sys/argv.o sys/times.o			\
+	sys/argv.o sys/times.o						\
 	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
-	sys/isatty.o sys/fstat.o	\
+	sys/openmem.o sys/unread.o					\
+	sys/isatty.o sys/fstat.o					\
 	\
-	syslinux/idle.o \
+	syslinux/idle.o 						\
 	\
 	exit.o
 	
@@ -114,7 +115,7 @@ LIBCONSOLE_OBJS = \
 LIBOTHER_OBJS = \
 	atoi.o atol.o atoll.o calloc.o creat.o		\
 	ctypes.o errno.o fgetc.o fgets.o fopen.o fprintf.o fputc.o	\
-	fclose.o putchar.o setjmp.o					\
+	fclose.o putchar.o ungetc.o setjmp.o				\
 	fputs.o fread2.o fread.o free.o fwrite2.o fwrite.o getopt.o	\
 	lrand48.o malloc.o stack.o memccpy.o memchr.o memcmp.o		\
 	memcpy.o mempcpy.o memmem.o memmove.o memset.o memswap.o	\

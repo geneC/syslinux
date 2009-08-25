@@ -12,5 +12,5 @@ long ftell(FILE * stream)
     int fd = fileno(stream);
     struct file_info *fp = &__file_info[fd];
 
-    return fp->i.offset;
+    return fp->i.offset - fp->i.unread_bytes;
 }

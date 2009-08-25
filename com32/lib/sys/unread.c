@@ -27,9 +27,9 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * read.c
+ * unread.c
  *
- * Reading from a file descriptor
+ * "Unreading" from a file descriptor
  */
 
 #include <errno.h>
@@ -39,34 +39,18 @@
 #include <klibc/compiler.h>
 #include "file.h"
 
-ssize_t read(int fd, void *buf, size_t count)
+ssize_t unread(int fd, const void *buf, size_t count)
 {
-    char *datap = buf;
     struct file_info *fp = &__file_info[fd];
-    size_t n0, n1;
 
     if (fd >= NFILES || !fp->iop) {
 	errno = EBADF;
 	return -1;
     }
 
-    if (__unlikely(!count))
-	return 0;
+    count = min(count, unread_free(fp));
+    fp->i.unread_bytes += count;
+    memcpy(unread_data(fp), buf, count);
 
-    n0 = min(fp->i.unread_bytes, count);
-    if (__unlikely(n0)) {
-	memcpy(datap, unread_data(fp), n0);
-	fp->i.unread_bytes -= n0;
-	count -= n0;
-	datap += n0;
-	if (!count)
-	    return n0;
-    }
-
-    n1 = fp->iop->read(fp, datap, count);
-
-    if (n1 == -1 && n0 > 0)
-	return n0;
-    else
-	return n0 + n1;
+    return count;
 }
