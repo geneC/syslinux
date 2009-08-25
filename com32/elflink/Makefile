@@ -13,18 +13,18 @@
 topdir = ../..
 include ../MCONFIG
 
-MODULES	  = test_memalign.c32 test_com32.c32
+MODULES	  = test_memalign.c32 # test_com32.c32
 
 TESTFILES =
 
 all: $(MODULES) $(TESTFILES)
-	
+
 test_memalign.elf : test_memalign.o  $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 test_com32.elf: CFLAGS += -DELF_DEBUG
 test_com32.elf: test_com32.o ../libutil/libutil_com.a ../lib/libcom32min.a $(LIBGCC)
-	$(LD) -n $(LDFLAGS) -o $@ test_com32.o ../libutil/libutil_com.a $(LIBGCC) --whole-archive ../lib/libcom32min.a -Map test_com32.map 
+	$(LD) -n $(LDFLAGS) -o $@ test_com32.o ../libutil/libutil_com.a $(LIBGCC) --whole-archive ../lib/libcom32min.a -Map test_com32.map
 
 tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d *.map
@@ -40,4 +40,3 @@ install: all
 	install -m 644 $(MODULES) $(INSTALLROOT)$(AUXDIR)
 
 -include .*.d
-

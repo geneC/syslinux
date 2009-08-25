@@ -440,7 +440,7 @@ static void show_fkey(int key)
     }
 }
 
-static const char *edit_cmdline(const char *input, int top)
+const char *edit_cmdline(const char *input, int top)
 {
     static char cmdline[MAX_CMDLINE_LEN];
     int key, len, prev_len, cursor;
@@ -527,7 +527,7 @@ static const char *edit_cmdline(const char *input, int top)
 
 		memmove(cmdline + cursor, cmdline + prevcursor,
 			len - prevcursor + 1);
-		len -= (cursor - prevcursor);
+		len -= (prevcursor - cursor);
 		redraw = 1;
 	    }
 	    break;

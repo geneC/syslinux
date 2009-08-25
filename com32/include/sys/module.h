@@ -23,6 +23,13 @@
 #define MODULE_NAME_SIZE		256
 
 /*
+ * Some common information about what kind of modules we're dealing with
+ */
+#define UNKNOWN_MODULE			-1
+#define EXEC_MODULE			0		
+#define LIB_MODULE			1
+
+/*
  * Initialization and finalization function signatures
  */
 
@@ -257,6 +264,19 @@ extern int module_load_shallow(struct elf_module *module, Elf32_Addr base_addr);
  * symbols from it.
  */
 extern int module_unload(struct elf_module *module);
+
+/**
+ * module_unload - unloads the module from the system.
+ * @module: the module descriptor structure.
+ *
+ * This function returns the type of module we're dealing with
+ * either a library module ( LIB_MODULE ), executable module ( EXEC_MODULE ),
+ * or an error ( UNKNOWN_MODULE ). The way it checks teh type is by checking to see
+ * if the module has its main_func set ( in which case it's an executable ). In case
+ * it doesn't it then checks to see if init_func is set ( in which case it's a
+ * library module. If this isn't the case either we don't know what it is so bail out
+ */
+extern int get_module_type(struct elf_module *module);
 
 /**
  * module_unloadable - checks whether the given module can be unloaded.

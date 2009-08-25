@@ -20,6 +20,31 @@
 #define EXEC_ROOT_NAME			"_root_.c32"
 
 /**
+ * MODULES_DEP - The name of the standard module dependency file
+ *
+ * This is the file which contains information about the module dependency
+ * graph ( what other modules it depends on ). The file format is identical
+ * to the standard linux modules.dep file... for more information check out the
+ * man page ).
+ */
+#define MODULES_DEP "modules.dep"
+
+/**
+ * spawn_load - Load a library module or executes an executable one
+ * @name	the name of the library/executable to use, including the extension
+ * 			(e.g. 'sort.c32')
+ * @argv:	a NULL-terminated vector of string arguments, starting with
+ * 			the program name.
+ *
+ * This procedure in essence loads takes the name of a module and checks to see what
+ * kind of module it is ( executable or library ), after which is performs the
+ * appropriate action, either spawning or simply loading the module into memory.
+ */
+extern int spawn_load(const char *name,const char **argv);
+
+extern int module_load_dependencies(const char*name,const char*dep_file);
+
+/**
  * exec_init - Initialize the dynamic execution environment.
  *
  * Among others, it initializes the module subsystem and loads the root

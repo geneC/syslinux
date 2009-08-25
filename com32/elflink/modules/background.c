@@ -13,7 +13,13 @@
 #include <consoles.h>
 #include <string.h>
 #include <syslinux/vesacon.h>
+#include <sys/module.h>
 #include "menu.h"
+
+static int background_init()
+{
+	return 0; // Nothing to do; return success
+}
 
 const char *current_background = NULL;
 
@@ -35,3 +41,13 @@ void set_background(const char *new_background)
 	current_background = new_background;
     }
 }
+
+static void background_exit()
+{
+	// Nothing to do
+}
+
+// Define entry and exit points.
+MODULE_INIT(background_init);
+MODULE_EXIT(background_exit);
+
