@@ -431,8 +431,8 @@ static void pxe_mangle_name(char *dst, const char *src)
         if ((p = parse_dotquad(p, &ip)) && !strncmp(p, "::", 2)) {
             p += 2;
         } else {
-            ip = dns_resolv(&p);
-            if (ip && !strncmp(p, "::", 2)) {
+            ip = dns_resolv(p);
+            if (ip && (p = strchr(p, ':')) && p[1] == ':') {
                 p += 2;
             } else {
                 /* no ip, too */
