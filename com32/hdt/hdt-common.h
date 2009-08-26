@@ -120,7 +120,7 @@ struct s_hardware {
   s_vpd vpd;                      /* VPD information */
   struct pci_domain *pci_domain;  /* PCI Devices */
   struct driveinfo disk_info[256]; /* Disk Information */
-  uint16_t bootloader_ids[256];	  /* Bootloader ids in the MBRs */
+  uint32_t bootloader_ids[256];	  /* Bootloader ids in the MBRs */
   int disks_count;		  /* Number of detected disks */
   struct s_pxe pxe;
   struct s_vesa vesa;

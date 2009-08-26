@@ -12,16 +12,20 @@
 #include <disk/read.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 /**
  * get_bootloader_string - return a string describing the boot code
- * @label:		first two bytes of the MBR
+ * @label:		first four bytes of the MBR
  * @buffer:		pre-allocated buffer
  * @buffer_size:	@buffer size
  **/
-void get_bootloader_string(const uint16_t label, char* buffer, const int buffer_size)
+void get_bootloader_string(const uint32_t label, char* buffer, const int buffer_size)
 {
-	switch (label) {
+	/* 2 bytes are usually enough to identify the MBR */
+	uint16_t s_label = label >> 16;
+
+	switch (s_label) {
 	case 0x0000:
 	case 0xfa33:
 	case 0xfab8:
@@ -37,7 +41,15 @@ void get_bootloader_string(const uint16_t label, char* buffer, const int buffer_
 	case 0xeb48: strncpy(buffer, "Grub", buffer_size - 1); break;
 	case 0xeb4c: strncpy(buffer, "Grub2", buffer_size - 1); break;
 	case 0xeb5e: strncpy(buffer, "Grub4Dos", buffer_size - 1); break;
-	case 0xfa31: strncpy(buffer, "Syslinux or Master Boot LoaDeR", buffer_size - 1); break;
+	case 0xfa31:
+		/* We need more than 2 bytes */
+		if ((label >> 8) & 0xff == 0xc9)
+			strncpy(buffer, "Master Boot LoaDeR", buffer_size - 1);
+		else if ((label >> 8) & 0xff == 0xc0)
+			strncpy(buffer, "Syslinux", buffer_size - 1);
+		else
+			strncpy(buffer, "Unknown bootloader", buffer_size - 1); break;
+		break;
 	case 0xfaeb: strncpy(buffer, "Lilo", buffer_size - 1); break;
 	case 0xfc31: strncpy(buffer, "Testdisk", buffer_size - 1); break;
 	case 0xfc33: strncpy(buffer, "Gag", buffer_size - 1); break;
@@ -49,20 +61,22 @@ void get_bootloader_string(const uint16_t label, char* buffer, const int buffer_
 }
 
 /**
- * get_bootloader_id - return the first two bytes of the MBR
+ * get_bootloader_id - return the first four bytes of the MBR
  * @d:		driveinfo struct describing the drive
  **/
-uint16_t get_bootloader_id(const struct driveinfo *d)
+uint32_t get_bootloader_id(const struct driveinfo *d)
 {
 	char mbr[SECTOR * sizeof(char)];
 
 	if (read_mbr(d->disk, &mbr) == -1)
 		return -1;
 	else {
-		uint16_t bootloader_id;
+		uint32_t bootloader_id;
 		/* Reverse the opcodes */
-		bootloader_id = *(uint8_t *) (mbr + 1);
-		bootloader_id += (*(uint8_t *) mbr << 8);
+		bootloader_id = (*(uint8_t *) (mbr + 3));
+		bootloader_id += (*(uint8_t *) (mbr + 2) << 8);
+		bootloader_id += (*(uint8_t *) (mbr + 1) << 16);
+		bootloader_id += (*(uint8_t *) mbr) << 24;
 		return bootloader_id;
 	}
 }
