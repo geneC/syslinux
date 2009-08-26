@@ -15,17 +15,18 @@
 #endif
 
 struct dirent {
-    long d_ino;			/* Inode/File number */
-    off_t d_size;		/* Size of file */
-    mode_t d_mode;		/* Type of file */
+    uint32_t d_ino;
+    uint32_t d_off;
+    uint16_t d_reclen;
+    uint16_t d_type;
     char d_name[NAME_MAX + 1];
 };
 
 typedef struct {
-    short dd_stat;		/* status return from last lookup */
-    uint16_t dd_fd;
-    size_t dd_sect;
-    char dd_name[NAME_MAX + 1];	/* directory */
+    uint16_t dd_stat;
+    uint16_t dd_sect;
+    uint64_t dd_offset;
+    char dd_name[NAME_MAX + 1];
 } DIR;
 
 __extern DIR *opendir(const char *);

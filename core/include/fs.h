@@ -7,6 +7,7 @@
 #include <com32.h>
 #include "core.h"
 #include "disk.h"
+#include "dir.h"
 
 /*
  * Maximum number of open files.  This is *currently* constrained by the
@@ -49,6 +50,9 @@ struct fs_ops {
     void     (*mangle_name)(char *, const char *);
     char *   (*unmangle_name)(char *, const char *);
     void     (*load_config)(com32sys_t *);
+
+	/* the _dir_ stuff */
+	void     (*readdir)(struct fs_info *, DIR *);
 };
 
 enum dev_type {CHS, EDD};
@@ -82,5 +86,13 @@ static inline bool not_whitespace(char c)
 {
   return (unsigned char)c > ' ';
 }
+
+/* 
+ * functions
+ */
+void mangle_name(com32sys_t *);
+void searchdir(com32sys_t *);
+
+
 
 #endif /* FS_H */

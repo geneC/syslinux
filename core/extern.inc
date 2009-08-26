@@ -16,9 +16,7 @@
 	extern fs_init, searchdir, getfssec, mangle_name, load_config
         extern unmangle_name, close_file
 
-%if IS_SYSLINUX
-        ; fat.c
-        extern vfat_readdir
-%endif
+        ; dir.c
+        extern opendir, readdir, readdir
 
 %endif ; EXTERN_INC

@@ -13,17 +13,19 @@
 
 int closedir(DIR * dir)
 {
-    int rv;
-    com32sys_t regs;
-    if (dir == NULL) {
+    int rv = -1;
+	
+    if (dir) {
+	/*
+	  com32sys_t regs;
+	  memset(&regs, 0, sizeof regs);
+	  regs.eax.w[0] = 0x0022;
+	  regs.esi.l = OFFS_WRT(dir, 0);
+	  __com32.cs_intcall(0x22, &regs, &regs);
+	*/
+	free(dir);
 	rv = 0;
-    } else {
-	memset(&regs, 0, sizeof regs);	/* ?Needed? */
-	regs.eax.w[0] = 0x0022;
-	regs.esi.w[0] = dir->dd_fd;
-	__com32.cs_intcall(0x22, &regs, &regs);
-	free(dir);		/* garbage collection? */
-	rv = 0;
-    }
-    return rv;
+	}
+	
+	return rv;
 }

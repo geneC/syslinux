@@ -901,13 +901,10 @@ comapi_getcwd:
 ;
 %if IS_SYSLINUX
 comapi_opendir:
-		push ds
-		mov ds,P_ES
+		mov es,P_ES
 		mov si,P_SI
 		mov di,InitRD
-		pm_call mangle_name
-		pop ds
-		pm_call searchdir
+		pm_call opendir
 		jz comapi_err	; Didn't find a directory
 		cmp eax,0
 		jz comapi_err	; Found nothing
@@ -925,14 +922,9 @@ comapi_opendir	equ comapi_err
 ;
 %if IS_SYSLINUX
 comapi_readdir:
-		mov es,P_ES
-		mov di,P_DI
-		mov si,P_SI
-		pm_call vfat_readdir
-		mov P_EAX,eax
-		mov P_DL,dl
-		mov P_EBX,ebx
-		mov P_SI,si
+		mov esi,P_ESI       ; The address of DIR structure
+		pm_call readdir
+		mov P_EAX,eax       ; The address of newly read dirent structure
 		ret
 %else
 comapi_readdir	equ comapi_err

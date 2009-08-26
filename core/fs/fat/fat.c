@@ -4,6 +4,7 @@
 #include <core.h>
 #include <disk.h>
 #include <fs.h>
+#include <dir.h>
 #include "fat_fs.h"
 
 #define ROOT_DIR_WORD    0x002f
@@ -345,7 +346,9 @@ static void vfat_mangle_name(char *dst, const char *src)
     /* Strip terminal slashes or whitespace */
     while (1) {
         if (dst == p)
-            break;        
+            break;
+		if (*(dst-1) == '/' && dst-1 == p) /* it's the '/' case */
+			break;
         if ((*(dst-1) != '/') && (*(dst-1) != '.'))
             break;
         
@@ -654,8 +657,7 @@ static void vfat_searchdir(char *filename, struct file *file)
     }
     
     if (attr & 0x10) {
-        dir_sector = PrevDir;
-    found_dir:
+	found_dir:
         open_file = alloc_fill_dir(dir_sector);
         /* 
          * for dir, we use the file->file_len to store the sector number 
@@ -678,69 +680,64 @@ static void vfat_searchdir(char *filename, struct file *file)
 
 
 
-/**
- * readdir:
- *
+/*
  * read one file from a directory
- *
- * returns the file's name in the filename string buffer
- *
- * @param: filename
- * @param: file
- *
+ * return 1 if error, or 0 if success
  */
-void vfat_readdir(com32sys_t *regs)/*
-                                struct fs_info *fs, struct open_file_t* dir_file,
-                                char* filename, uint32_t *file_len, uint8_t *attr)
-                              */
+void vfat_readdir(struct fs_info *fs, DIR *dir) 
 {
     uint32_t sector, sec_off;      
     /* make it to be 1 to check if we have met a long name entry before */
     uint8_t  id = 1;
     uint8_t  init_id, next_id;
+    uint8_t  checksum = 0;
     uint8_t  entries_left;  
     int i;
-
-    char *filename = MK_PTR(regs->es, regs->edi.w[0]);
-    struct open_file_t *dir_file = MK_PTR(regs->ds, regs->esi.w[0]);
-    
+	int not_full = 1;
+    struct dirent de;
+    char *de_name = de.d_name;        
     struct cache_struct  *cs;
-    struct fat_dir_entry *dir;
-    struct fat_long_name_entry *long_dir;
-    struct open_file_t file;
-    
-    sector  = dir_file->file_sector;
-    sec_off = dir_file->file_bytesleft;
+    struct fat_dir_entry *fat_dir;
+    struct fat_long_name_entry *long_dir;    
+
+    sector  = dir->dd_sect;
+    sec_off = dir->dd_offset;
     if (!sector)
-        goto fail;
-    
+        return 1;    
     entries_left = (SECTOR_SIZE - sec_off) >> 5;
     cs = get_cache_block(this_fs->fs_dev, sector);
-    dir = (struct fat_dir_entry *)(cs->data + sec_off);/* resume last position in sector */
+    fat_dir = (struct fat_dir_entry *)(cs->data + sec_off);/* resume last position in sector */
     
-    while (1) {
-        if (dir->name[0] == 0)
-            goto fail;                
-        
-        if  (dir->attr == FAT_ATTR_LONG_NAME) {
+    while (not_full) {
+		if (!entries_left) {
+            sector = nextsector(fs, sector);
+            if (!sector)
+                goto end;
+            cs = get_cache_block(fs->fs_dev, sector);
+            fat_dir = (struct fat_dir_entry *)cs->data;
+        }
+		
+        if (fat_dir->name[0] == 0)
+			goto end;
+        if  (fat_dir->attr == FAT_ATTR_LONG_NAME) {
             /* it's a long name */
-            long_dir = (struct fat_long_name_entry *)dir;
+            long_dir = (struct fat_long_name_entry *)fat_dir;
             
             if (long_dir->id & 0x40)  {
+				checksum = long_dir->checksum;
                 init_id = id = long_dir->id & 0x3f;
                 id--;
             } else {
                 next_id = (long_dir->id & 0x3f) - 1;
                 id--;            
-                if (id != next_id)
+                if (id != next_id || long_dir->checksum != checksum)
                     goto next_entry;
             }
             
             long_entry_name(long_dir);
-            memcpy(filename + id * 13, entry_name, 13);
+            memcpy(de_name + id * 13, entry_name, 13);           
             
-            
-            /* 
+			/* 
              * we need go on with the next entry 
              * and we will fall through to next entry
              */
@@ -748,73 +745,65 @@ void vfat_readdir(com32sys_t *regs)/*
         } else {
             /* it's a short entry */
             
-            if (!id) /* we got a long name match */
-                break;
+            if (!id) {
+				/* Got a long name match */
+				//if (get_checksum(fat_dir->name) != checksum)
+				//goto next_entry;
+				
+				/* reset _id_ and _checksum_ */
+				id = 1;
+				checksum = 0;
+				goto fill;
+			}
             
-            if (dir->attr & FAT_ATTR_VOLUME_ID) 
-                goto next_entry;
+            if (fat_dir->attr & FAT_ATTR_VOLUME_ID ||
+				get_checksum(fat_dir->name) != checksum ) 
+				goto next_entry;
             
             for(i = 0; i < 8; i ++) {
-                if (dir->name[i] == ' ')
+                if (fat_dir->name[i] == ' ')
                     break;
-                *filename++ = dir->name[i];
-            }
-            
-            *filename++ = '.';
-                        
+                *de_name++ = fat_dir->name[i];
+            }            
+            *de_name++ = '.';                        
             for (i = 8; i < 11; i ++) {
-                if (dir->name[i] == ' ')
+                if (fat_dir->name[i] == ' ')
                     break;
-                *filename ++ = dir->name[i];
-            }
-            
+                *de_name ++ = fat_dir->name[i];
+            }            
             /* check if we have got an extention */
-            if (*(filename - 1) == '.') 
-                *(filename - 1) = '\0';
+            if (*(de_name - 1) == '.') 
+                *(de_name - 1) = '\0';
             else
-                *filename = '\0';      
-            
-            break;
+                *de_name = '\0';      
+	    
+		fill:
+			de.d_type = fat_dir->attr;
+			de.d_reclen = DIR_REC_LEN(de.d_name);
+			not_full = fill_dir(&de);
+			de_name = de.d_name;    /* reset the de_name pointer */
         }
         
     next_entry:
-        dir ++;
-        entries_left --;
-        
-        if (!entries_left) {
-            sector = nextsector(this_fs, sector);
-            if (!sector)
-                goto fail;
-            cs = get_cache_block(this_fs->fs_dev, sector);
-            dir = (struct fat_dir_entry *)cs->data;
-        }
+		entries_left --;
+        fat_dir ++;
     }
     
-    /* finally , we get what we want */
-    entries_left --;
-    if (!entries_left) {
-        sector = nextsector(this_fs, sector);
+    /* dir buffer filled, now it's time to update the DIR structure */
+	if (!entries_left) {
+        sector = nextsector(fs, sector);
         if (!sector)
-            goto fail;
-        dir_file->file_bytesleft = 0;
-    } else 
-        dir_file->file_bytesleft = SECTOR_SIZE - (entries_left << 5);
-    dir_file->file_sector = sector;
+            return 1;
+        dir->dd_offset = 0;
+    } else {
+        dir->dd_offset = SECTOR_SIZE - (entries_left << 5);
+	}
+    dir->dd_sect = sector;	
+	return;
 
-    file.file_sector = sector;
-    file.file_bytesleft = (SECTOR_SIZE - (entries_left << DIRENT_SHIFT)) & 0xffff;
-    
-    regs->eax.l = dir->file_size;
-    regs->ebx.l = first_sector(dir);
-    regs->edx.b[0] = dir->attr;
-    
-    return;
-    
- fail:
-    //close_dir(dir);
-    regs->eax.l = 0;
-    regs->esi.w[0] = 0;
-    regs->eflags.l |= EFLAGS_CF;
+ end:
+	/* Reach the end of this directory */
+	dir->dd_stat = -1;
 }
 
 static void vfat_load_config(com32sys_t *regs)
@@ -908,5 +897,6 @@ const struct fs_ops vfat_fs_ops = {
     .close_file    = vfat_close_file,
     .mangle_name   = vfat_mangle_name,
     .unmangle_name = generic_unmangle_name,
-    .load_config   = vfat_load_config
+    .load_config   = vfat_load_config,
+	.readdir       = vfat_readdir
 };

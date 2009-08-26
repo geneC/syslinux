@@ -22,6 +22,7 @@ static struct file *alloc_file(void)
     for (i = 0; i < MAX_OPEN; i++) {
 	if (!file->open_file)
 	    return file;
+	file++;
     }
 
     return NULL;
