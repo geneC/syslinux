@@ -13,6 +13,6 @@
 #include <stdint.h>
 #include <disk/geom.h>
 
-void get_bootloader_string(const uint32_t, void *, const int);
-uint32_t get_bootloader_id(const struct driveinfo *);
+void get_mbr_string(const uint32_t, void *, const int);
+uint32_t get_mbr_id(const struct driveinfo *);
 #endif /* _BOOTLOADERS_H_ */

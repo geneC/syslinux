@@ -28,7 +28,7 @@
 
 #include <stdlib.h>
 #include <disk/errno_disk.h>
-#include <disk/bootloaders.h>
+#include <disk/mbrs.h>
 #include <disk/geom.h>
 #include <disk/read.h>
 #include <disk/partition.h>
@@ -162,7 +162,7 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
 {
   char buffer[MENULEN + 1];
   char statbuffer[STATLEN + 1];
-	char bootloader_name[50];
+	char mbr_name[50];
 	struct driveinfo *d = (struct driveinfo*) hardware->disk_info;
 
   snprintf(buffer, sizeof buffer, " Disk <0x%X> (EDD %X)", d[disk_number].disk,
@@ -210,15 +210,14 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu[nb_sub_disk_menu].items_count++;
 
-	get_bootloader_string(hardware->bootloader_ids[disk_number],
-			      &bootloader_name, 50);
+	get_mbr_string(hardware->mbr_ids[disk_number], &mbr_name, 50);
 
-	snprintf(buffer, sizeof buffer, "Bootloader           : %s (0x%X)",
-		 remove_spaces(bootloader_name),
-		 hardware->bootloader_ids[disk_number]);
-	snprintf(statbuffer, sizeof statbuffer, "Bootloader: %s (id 0x%X)",
-		 remove_spaces(bootloader_name),
-		 hardware->bootloader_ids[disk_number]);
+	snprintf(buffer, sizeof buffer, "MBR                  : %s (0x%X)",
+		 remove_spaces(mbr_name),
+		 hardware->mbr_ids[disk_number]);
+	snprintf(statbuffer, sizeof statbuffer, "MBR: %s (id 0x%X)",
+		 remove_spaces(mbr_name),
+		 hardware->mbr_ids[disk_number]);
 	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
 	menu[nb_sub_disk_menu].items_count++;
 

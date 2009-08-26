@@ -35,7 +35,7 @@
 #include "hdt-common.h"
 #include "lib-ansi.h"
 #include <disk/util.h>
-#include <disk/bootloaders.h>
+#include <disk/mbrs.h>
 
 /* ISOlinux requires a 8.3 format */
 void convert_isolinux_filename(char *filename, struct s_hardware *hardware) {
@@ -270,8 +270,8 @@ void detect_disks(struct s_hardware *hardware)
 		if (err == -1 || !hardware->disk_info[i].cbios)
 			continue;
 
-		/* Detect bootloader */
-		hardware->bootloader_ids[i] = get_bootloader_id(&hardware->disk_info[i]);
+		/* Detect MBR */
+		hardware->mbr_ids[i] = get_mbr_id(&hardware->disk_info[i]);
 
 		hardware->disks_count++;
 	}

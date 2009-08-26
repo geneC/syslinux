@@ -31,7 +31,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include <disk/bootloaders.h>
+#include <disk/mbrs.h>
 #include <disk/errno_disk.h>
 #include <disk/geom.h>
 #include <disk/read.h>
@@ -116,14 +116,13 @@ void main_show_disk(int argc, char **argv,
 	int i = drive - 0x80;
 	struct driveinfo *d = &hardware->disk_info[i];
 	char disk_size[9];
-	char bootloader_name[50];
+	char mbr_name[50];
 
 	detect_disks(hardware);
 	if (!hardware->disk_info[i].cbios)
 		return; /* Invalid geometry */
 
-	get_bootloader_string(hardware->bootloader_ids[i], &bootloader_name,
-			      50);
+	get_mbr_string(hardware->mbr_ids[i], &mbr_name, 50);
 
 	if ((int) d->edd_params.sectors > 0)
 		sectors_to_size((int) d->edd_params.sectors, disk_size);
@@ -131,17 +130,17 @@ void main_show_disk(int argc, char **argv,
 		memset(disk_size, 0, sizeof disk_size);
 
 	more_printf("DISK 0x%X:\n"
-		    "       C/H/S: %d cylinders, %d heads, %d sectors/track\n"
-		    "         EDD: Version: %X\n"
-		    "              Size: %s, %d bytes/sector, %d sectors/track\n"
-		    "              Host bus: %s, Interface type: %s\n"
-		    "  Bootloader: %s (id 0x%X)\n\n",
+		    "  C/H/S: %d cylinders, %d heads, %d sectors/track\n"
+		    "    EDD: Version: %X\n"
+		    "         Size: %s, %d bytes/sector, %d sectors/track\n"
+		    "         Host bus: %s, Interface type: %s\n"
+		    "    MBR: %s (id 0x%X)\n\n",
 		d->disk,
 		d->legacy_max_cylinder + 1, d->legacy_max_head + 1, d->legacy_sectors_per_track,
 		d->edd_version,
 		disk_size, (int) d->edd_params.bytes_per_sector, (int) d->edd_params.sectors_per_track,
 		remove_spaces(d->edd_params.host_bus_type), remove_spaces(d->edd_params.interface_type),
-		bootloader_name, hardware->bootloader_ids[i]);
+		mbr_name, hardware->mbr_ids[i]);
 	display_line_nb += 6;
 
 	if (parse_partition_table(d, &show_partition_information)) {

@@ -15,12 +15,12 @@
 #include <stdio.h>
 
 /**
- * get_bootloader_string - return a string describing the boot code
+ * get_mbr_string - return a string describing the boot code
  * @label:		first four bytes of the MBR
  * @buffer:		pre-allocated buffer
  * @buffer_size:	@buffer size
  **/
-void get_bootloader_string(const uint32_t label, char* buffer, const int buffer_size)
+void get_mbr_string(const uint32_t label, char* buffer, const int buffer_size)
 {
 	/* 2 bytes are usually enough to identify the MBR */
 	uint16_t s_label = label >> 16;
@@ -48,35 +48,35 @@ void get_bootloader_string(const uint32_t label, char* buffer, const int buffer_
 		else if ((label >> 8) & 0xff == 0xc0)
 			strncpy(buffer, "Syslinux", buffer_size - 1);
 		else
-			strncpy(buffer, "Unknown bootloader", buffer_size - 1); break;
+			strncpy(buffer, "Unknown mbr", buffer_size - 1); break;
 		break;
 	case 0xfaeb: strncpy(buffer, "Lilo", buffer_size - 1); break;
 	case 0xfc31: strncpy(buffer, "Testdisk", buffer_size - 1); break;
 	case 0xfc33: strncpy(buffer, "Gag", buffer_size - 1); break;
 	case 0xfceb: strncpy(buffer, "BootIT NG", buffer_size - 1); break;
-	default: strncpy(buffer, "Unknown bootloader", buffer_size - 1); break;
+	default: strncpy(buffer, "Unknown mbr", buffer_size - 1); break;
 	}
 
 	buffer[buffer_size - 1] = '\0';
 }
 
 /**
- * get_bootloader_id - return the first four bytes of the MBR
+ * get_mbr_id - return the first four bytes of the MBR
  * @d:		driveinfo struct describing the drive
  **/
-uint32_t get_bootloader_id(const struct driveinfo *d)
+uint32_t get_mbr_id(const struct driveinfo *d)
 {
 	char mbr[SECTOR * sizeof(char)];
 
 	if (read_mbr(d->disk, &mbr) == -1)
 		return -1;
 	else {
-		uint32_t bootloader_id;
+		uint32_t mbr_id;
 		/* Reverse the opcodes */
-		bootloader_id = (*(uint8_t *) (mbr + 3));
-		bootloader_id += (*(uint8_t *) (mbr + 2) << 8);
-		bootloader_id += (*(uint8_t *) (mbr + 1) << 16);
-		bootloader_id += (*(uint8_t *) mbr) << 24;
-		return bootloader_id;
+		mbr_id = (*(uint8_t *) (mbr + 3));
+		mbr_id += (*(uint8_t *) (mbr + 2) << 8);
+		mbr_id += (*(uint8_t *) (mbr + 1) << 16);
+		mbr_id += (*(uint8_t *) mbr) << 24;
+		return mbr_id;
 	}
 }
