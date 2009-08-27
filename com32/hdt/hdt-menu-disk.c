@@ -28,6 +28,7 @@
 
 #include <stdlib.h>
 #include <disk/errno_disk.h>
+#include <disk/bootloaders.h>
 #include <disk/mbrs.h>
 #include <disk/geom.h>
 #include <disk/read.h>
@@ -82,6 +83,7 @@ static void compute_partition_information(struct driveinfo *drive_info,
                                           int nb_partitions_seen)
 {
         char size[9];
+	char bootloader_name[9];
         char *parttype;
         unsigned int start, end;
   	char buffer[SUBMENULEN+1];
@@ -120,6 +122,14 @@ static void compute_partition_information(struct driveinfo *drive_info,
 	snprintf(statbuffer, sizeof statbuffer, "Type: %s",
 		 parttype);
 	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+
+	if (get_bootloader_string(drive_info, ptab, bootloader_name, 9) == 0) {
+		snprintf(buffer, sizeof buffer, "Bootloader  : %s",
+			 bootloader_name);
+		snprintf(statbuffer, sizeof statbuffer, "Bootloader: %s",
+			 bootloader_name);
+		add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+	}
 
 	snprintf(buffer, sizeof buffer, "Bootable    : %s",
 		 (ptab->active_flag == 0x80) ? "Yes" : "No");
