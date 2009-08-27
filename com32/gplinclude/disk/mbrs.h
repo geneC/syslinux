@@ -7,12 +7,12 @@
  *
  * ----------------------------------------------------------------------- */
 
-#ifndef __BOOTLOADERS_H_
-#define __BOOTLOADERS_H_
+#ifndef __MBRS_H_
+#define __MBRS_H_
 
 #include <stdint.h>
 #include <disk/geom.h>
 
 void get_mbr_string(const uint32_t, void *, const int);
 uint32_t get_mbr_id(const struct driveinfo *);
-#endif /* _BOOTLOADERS_H_ */
+#endif /* __MBRS_H_ */
