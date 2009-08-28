@@ -230,7 +230,7 @@ void parse_dhcp_options(void *, int, int);
 
 /* dnsresolv.c */
 int dns_mangle(char **, const char *);
-uint32_t dns_resolv(char *);
+uint32_t dns_resolv(const char *);
 
 
 #endif /* pxe.h */

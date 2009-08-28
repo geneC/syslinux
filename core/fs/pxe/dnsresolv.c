@@ -217,6 +217,8 @@ uint32_t dns_resolv(const char *name)
     timeout = *timeout_ptr++;
     while (srv_ptr < dns_server + DNS_MAX_SERVERS) {
         srv = *srv_ptr++;
+	if (!srv) 
+	    continue;  /* just move on before runing the time out */
         uw_pkt.status     = 0;
         uw_pkt.sip        = srv;
         uw_pkt.gip        = ((srv ^ MyIP) & Netmask) ? Gateway : 0;
