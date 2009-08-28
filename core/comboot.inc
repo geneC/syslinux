@@ -900,6 +900,7 @@ comapi_getcwd:
 ; INT 22h AX=0020h	Open directory
 ;
 %if IS_SYSLINUX
+		global comapi_opendir
 comapi_opendir:
 		mov es,P_ES
 		mov si,P_SI
@@ -909,8 +910,6 @@ comapi_opendir:
 		cmp eax,0
 		jz comapi_err	; Found nothing
                 mov P_EAX,eax
-		mov P_CX,SECTOR_SIZE
-		mov P_SI,si
 		clc
 		ret
 %else
@@ -933,7 +932,10 @@ comapi_readdir	equ comapi_err
 ;
 ; INT 22h AX=0022h	Close directory
 ;
-comapi_closedir	equ comapi_close
+comapi_closedir:
+		mov esi,P_ESI    ; The address of DIR structure
+		pm_call closedir
+		ret
 
 ;
 ; INT 22h AX=0023h	Query shuffler size

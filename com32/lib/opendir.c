@@ -27,12 +27,9 @@ DIR *opendir(const char *pathname)
     if (!(regs.eflags.l & EFLAGS_CF)) {
         /* Initialization: malloc() then zero */
         newdir = calloc(1, sizeof(DIR));
-        strcpy(newdir->dd_name, pathname);
-        newdir->dd_sect = regs.eax.l;
-        newdir->dd_offset = 0;
-        newdir->dd_stat = 0;
+		newdir->dd_dir = (struct file *)regs.eax.l;
     }
-
+	
     /* We're done */
     return newdir;
 }

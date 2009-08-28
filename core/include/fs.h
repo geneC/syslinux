@@ -52,7 +52,8 @@ struct fs_ops {
     void     (*load_config)(com32sys_t *);
 
 	/* the _dir_ stuff */
-	void     (*readdir)(struct fs_info *, DIR *);
+	void     (*opendir)(com32sys_t *);
+	struct dirent * (*readdir)(struct file *);
 };
 
 enum dev_type {CHS, EDD};
@@ -92,7 +93,8 @@ static inline bool not_whitespace(char c)
  */
 void mangle_name(com32sys_t *);
 void searchdir(com32sys_t *);
-
-
+void _close_file(struct file *);
+inline uint16_t file_to_handle(struct file *);
+inline struct file *handle_to_file(uint16_t);
 
 #endif /* FS_H */

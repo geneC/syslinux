@@ -22,11 +22,10 @@ struct dirent {
     char d_name[NAME_MAX + 1];
 };
 
+struct file;
+
 typedef struct {
-    uint16_t dd_stat;
-    uint16_t dd_sect;
-    uint64_t dd_offset;
-    char dd_name[NAME_MAX + 1];
+	struct file *dd_dir;
 } DIR;
 
 __extern DIR *opendir(const char *);

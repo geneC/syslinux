@@ -9,7 +9,18 @@ struct fs_info *this_fs = NULL;
 struct fs_info fs;
 
 /* Actual file structures (we don't have malloc yet...) */
-static struct file Files[MAX_OPEN];
+struct file files[MAX_OPEN];
+/*
+ * Convert between a 16-bit file handle and a file structure
+ */
+inline uint16_t file_to_handle(struct file *file)
+{
+    return file ? (file - files)+1 : 0;
+}
+inline struct file *handle_to_file(uint16_t handle)
+{
+    return handle ? &files[handle-1] : NULL;
+}
 
 /*
  * Get an empty file structure
@@ -17,7 +28,7 @@ static struct file Files[MAX_OPEN];
 static struct file *alloc_file(void)
 {
     int i;
-    struct file *file = Files;
+    struct file *file = files;
 
     for (i = 0; i < MAX_OPEN; i++) {
 	if (!file->open_file)
@@ -36,23 +47,11 @@ static inline void free_file(struct file *file)
     memset(file, 0, sizeof *file);
 }
 
-static void _close_file(struct file *file)
+void _close_file(struct file *file)
 {
     if (file->open_file)
 	file->fs->fs_ops->close_file(file);
     free_file(file);
-}
-
-/*
- * Convert between a 16-bit file handle and a file structure
- */
-static inline uint16_t file_to_handle(struct file *file)
-{
-    return file ? (file - Files)+1 : 0;
-}
-static inline struct file *handle_to_file(uint16_t handle)
-{
-    return handle ? &Files[handle-1] : NULL;
 }
 
 void load_config(com32sys_t *regs)

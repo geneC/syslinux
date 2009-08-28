@@ -17,6 +17,6 @@
         extern unmangle_name, close_file
 
         ; dir.c
-        extern opendir, readdir, readdir
+        extern opendir, readdir, closedir
 
 %endif ; EXTERN_INC
