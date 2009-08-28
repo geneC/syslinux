@@ -186,8 +186,8 @@ uint32_t dns_resolv(const char *name)
     struct dnshdr *hd2 = (struct dnshdr *)DNSRecvBuf; 
     struct dnsquery *query;
     struct dnsrr *rr;
-    static __lowmem struct pxe_udp_write_pkt uw_pkt;
-    static __lowmem struct pxe_udp_read_pkt ur_pkt;
+    static __lowmem struct s_PXENV_UDP_WRITE udp_write;
+    static __lowmem struct s_PXENV_UDP_READ udp_read;
 
     /* First, fill the DNS header struct */
     hd1->id++;                      /* New query ID */
@@ -219,30 +219,30 @@ uint32_t dns_resolv(const char *name)
         srv = *srv_ptr++;
 	if (!srv) 
 	    continue;  /* just move on before runing the time out */
-        uw_pkt.status     = 0;
-        uw_pkt.sip        = srv;
-        uw_pkt.gip        = ((srv ^ MyIP) & Netmask) ? Gateway : 0;
-        uw_pkt.lport      = DNS_LOCAL_PORT;
-        uw_pkt.rport      = DNS_PORT;
-        uw_pkt.buffersize = p - DNSSendBuf;
-        uw_pkt.buffer[0]  = OFFS_WRT(DNSSendBuf, 0);
-        uw_pkt.buffer[1]  = 0;
-        err = pxe_call(PXENV_UDP_WRITE, &uw_pkt);
-        if (err || uw_pkt.status != 0)
+        udp_write.status      = 0;
+        udp_write.ip          = srv;
+        udp_write.gw          = ((srv ^ MyIP) & Netmask) ? Gateway : 0;
+        udp_write.src_port    = DNS_LOCAL_PORT;
+        udp_write.dst_port    = DNS_PORT;
+        udp_write.buffer_size = p - DNSSendBuf;
+        udp_write.buffer.offs = OFFS_WRT(DNSSendBuf, 0);
+        udp_write.buffer.seg  = 0;
+        err = pxe_call(PXENV_UDP_WRITE, &udp_write);
+        if (err || udp_write.status != 0)
             continue;
         
         oldtime = BIOS_timer;
 	while (1) {
-            ur_pkt.status     = 0;
-            ur_pkt.sip        = srv;
-            ur_pkt.dip        = MyIP;
-            ur_pkt.rport      = DNS_PORT;
-            ur_pkt.lport      = DNS_LOCAL_PORT;
-            ur_pkt.buffersize = DNS_MAX_PACKET;
-            ur_pkt.buffer[0]  = OFFS_WRT(DNSRecvBuf, 0);
-            ur_pkt.buffer[1]  = 0;
-            err = pxe_call(PXENV_UDP_READ, &ur_pkt);
-            if (err || ur_pkt.status)
+            udp_read.status      = 0;
+            udp_read.src_ip      = srv;
+            udp_read.dest_ip     = MyIP;
+            udp_read.s_port      = DNS_PORT;
+            udp_read.d_port      = DNS_LOCAL_PORT;
+            udp_read.buffer_size = DNS_MAX_PACKET;
+            udp_read.buffer.offs = OFFS_WRT(DNSRecvBuf, 0);
+            udp_read.buffer.seg  = 0;
+            err = pxe_call(PXENV_UDP_READ, &udp_read);
+            if (err || udp_read.status)
                 continue;
             
             /* Got a packet, deal with it... */

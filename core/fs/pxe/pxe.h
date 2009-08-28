@@ -154,68 +154,6 @@ struct open_file_t {
     uint16_t tftp_pktbuf;      /* Packet buffer offset */
 } __attribute__ ((packed));
 
-struct pxe_udp_write_pkt {
-    uint16_t status;
-    uint32_t sip;
-    uint32_t gip;
-    uint16_t lport;
-    uint16_t rport;
-    uint16_t buffersize;
-    uint16_t buffer[2];
-} __attribute__ ((packed));
-
-struct pxe_udp_read_pkt {
-    uint16_t status;
-    uint32_t sip;
-    uint32_t dip;
-    uint16_t rport;
-    uint16_t lport;
-    uint16_t buffersize;
-    uint16_t buffer[2];
-} __attribute__ ((packed));
-
-struct pxe_bootp_query_pkt {
-    uint16_t status;
-    uint16_t packettype;
-    uint16_t buffersize;
-    uint16_t buffer[2];
-    uint16_t bufferlimit;
-} __attribute__ ((packed));
-
-struct pxe_udp_open_pkt {
-    uint16_t status;
-    uint32_t sip;
-} __attribute__ ((packed));
-
-struct gpxe_file_api_check {
-    uint16_t status;
-    uint16_t size;
-    uint32_t magic;
-    uint32_t provider;
-    uint32_t apimask;
-    uint32_t flags;
-} __attribute__ ((packed));
-
-struct gpxe_file_open {
-    uint16_t status;
-    uint16_t filehandle;
-    uint16_t filename[2];
-    uint32_t reserved;
-} __attribute__ ((packed));
-
-struct gpxe_get_file_size {
-    uint16_t status;
-    uint16_t filehandle;
-    uint32_t filesize;
-} __attribute__ ((packed));
-
-struct gpxe_file_read {
-    uint16_t status;
-    uint16_t filehandle;
-    uint16_t buffersize;
-    uint16_t buffer[2];
-} __attribute__ ((packed));
-
 /*
  * functions 
  */

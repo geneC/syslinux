@@ -379,6 +379,36 @@ typedef struct s_PXENV_UNDI_ISR {
     uint8_t ProtType;
     uint8_t PktType;
 } __packed t_PXENV_UNDI_ISR;
+
+typedef struct s_PXENV_FILE_API_CHECK {
+    pxenv_status_t Status;
+    uint16_t Size;
+    uint32_t Magic;
+    uint32_t Provider;
+    uint32_t APIMask;
+    uint32_t Flags;
+} __packed t_PXENV_FILE_API_CHECK;
+
+typedef struct s_PXENV_FILE_READ {
+    pxenv_status_t Status;
+    uint16_t FileHandle;
+    uint16_t BufferSize;
+    segoff16_t Buffer;
+} __packed t_PXENV_FILE_READ;
+
+typedef struct s_PXENV_FILE_OPEN {
+    pxenv_status_t Status;
+    uint16_t FileHandle;
+    segoff16_t FileName;
+    uint32_t Reserved;
+} __packed t_PXENV_FILE_OPEN;
+
+typedef struct s_PXENV_GET_FILE_SIZE {
+    pxenv_status_t Status;
+    uint16_t FileHandle;
+    uint32_t FileSize;
+} __packed t_PXENV_GET_FILE_SIZE;
+    
 #define PXENV_UNDI_ISR_IN_START 1
 #define PXENV_UNDI_ISR_IN_PROCESS 2
 #define PXENV_UNDI_ISR_IN_GET_NEXT 3
