@@ -20,7 +20,6 @@ int main(int argc, char *argv[])
 	}
 	
 	dir = opendir(argv[1]);
-	printf("back from in main ...? \n");
 	if (dir == NULL) {
 		printf("Unable to read dir: %s\n", argv[1]);
 		return 0;

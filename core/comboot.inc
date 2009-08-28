@@ -900,7 +900,6 @@ comapi_getcwd:
 ; INT 22h AX=0020h	Open directory
 ;
 %if IS_SYSLINUX
-		global comapi_opendir
 comapi_opendir:
 		mov es,P_ES
 		mov si,P_SI

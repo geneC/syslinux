@@ -7,7 +7,6 @@
 #include <com32.h>
 #include "core.h"
 #include "disk.h"
-#include "dir.h"
 
 /*
  * Maximum number of open files.  This is *currently* constrained by the
@@ -27,6 +26,7 @@ struct fs_info {
 };
 
 struct open_file_t;		/* Filesystem private structure */
+struct dirent;          /* Directory entry structure */
 
 struct file {
     struct open_file_t *open_file; /* Filesystem private data */

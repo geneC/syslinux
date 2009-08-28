@@ -10,17 +10,6 @@ struct fs_info fs;
 
 /* Actual file structures (we don't have malloc yet...) */
 struct file files[MAX_OPEN];
-/*
- * Convert between a 16-bit file handle and a file structure
- */
-inline uint16_t file_to_handle(struct file *file)
-{
-    return file ? (file - files)+1 : 0;
-}
-inline struct file *handle_to_file(uint16_t handle)
-{
-    return handle ? &files[handle-1] : NULL;
-}
 
 /*
  * Get an empty file structure
@@ -52,6 +41,18 @@ void _close_file(struct file *file)
     if (file->open_file)
 	file->fs->fs_ops->close_file(file);
     free_file(file);
+}
+
+/*
+ * Convert between a 16-bit file handle and a file structure
+ */
+inline uint16_t file_to_handle(struct file *file)
+{
+    return file ? (file - files)+1 : 0;
+}
+inline struct file *handle_to_file(uint16_t handle)
+{
+    return handle ? &files[handle-1] : NULL;
 }
 
 void load_config(com32sys_t *regs)

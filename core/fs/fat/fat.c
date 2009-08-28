@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <string.h>
+#include <sys/dirent.h>
 #include <cache.h>
 #include <core.h>
 #include <disk.h>
 #include <fs.h>
-#include <dir.h>
 #include "fat_fs.h"
 
 #define ROOT_DIR_WORD    0x002f
