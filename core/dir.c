@@ -11,8 +11,8 @@ extern struct fs_info *this_fs;
  */
 void opendir(com32sys_t *regs)
 {	
-	this_fs->fs_ops->opendir(regs);
-	regs->eax.l = (uint32_t)handle_to_file(regs->esi.w[0]);	
+    this_fs->fs_ops->opendir(regs);
+    regs->eax.l = (uint32_t)handle_to_file(regs->esi.w[0]);	
 }
 
 /*
@@ -23,14 +23,14 @@ void opendir(com32sys_t *regs)
  */
 void readdir(com32sys_t *regs)
 {
-	DIR *dir = (DIR *)regs->esi.l;	
+    DIR *dir = (DIR *)regs->esi.l;	
     struct dirent *de = NULL;
-	
-	if (dir->dd_dir)
-		de = this_fs->fs_ops->readdir(dir->dd_dir);
-	else
-		de = NULL;
-
+    
+    if (dir->dd_dir)
+	de = this_fs->fs_ops->readdir(dir->dd_dir);
+    else
+	de = NULL;
+    
     /* Return the newly read de in _eax_ register */
     regs->eax.l = (uint32_t)de;
 }
@@ -38,7 +38,7 @@ void readdir(com32sys_t *regs)
 void closedir(com32sys_t *regs)
 {
     DIR *dir = (DIR *)regs->esi.l;
-	_close_file(dir->dd_dir);
+    _close_file(dir->dd_dir);
 }
 
 

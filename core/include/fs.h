@@ -51,9 +51,9 @@ struct fs_ops {
     char *   (*unmangle_name)(char *, const char *);
     void     (*load_config)(com32sys_t *);
 
-	/* the _dir_ stuff */
-	void     (*opendir)(com32sys_t *);
-	struct dirent * (*readdir)(struct file *);
+    /* the _dir_ stuff */
+    void     (*opendir)(com32sys_t *);
+    struct dirent * (*readdir)(struct file *);
 };
 
 enum dev_type {CHS, EDD};

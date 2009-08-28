@@ -22,7 +22,7 @@ struct dirent {
 struct file;
 
 typedef struct {
-	struct file *dd_dir;
+    struct file *dd_dir;
 } DIR;
 
 #define DIR_REC_LEN(name) (12 + strlen(name) + 1 + 3) & ~3

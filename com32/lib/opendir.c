@@ -27,7 +27,7 @@ DIR *opendir(const char *pathname)
     if (!(regs.eflags.l & EFLAGS_CF)) {
         /* Initialization: malloc() then zero */
         newdir = calloc(1, sizeof(DIR));
-		newdir->dd_dir = (struct file *)regs.eax.l;
+	newdir->dd_dir = (struct file *)regs.eax.l;
     }
 	
     /* We're done */

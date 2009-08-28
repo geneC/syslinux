@@ -47,10 +47,6 @@ static char long_name[0x40 * 13];
 static char *NameStart;
 static int  NameLen;
 
-/* do this for readdir, because it called from asm and don't know the fs structure */
-static struct fs_info *this_fs = NULL;
-
-
 /*
  * Allocate a file structure, if successful return the file pointer, or  NULL.
  *
@@ -616,8 +612,6 @@ static void vfat_searchdir(char *filename, struct file *file)
     uint8_t  attr = 0;
     char  *p;        
     struct open_file_t *open_file = NULL;
-
-    this_fs = file->fs;
     
     dir_sector = CurrentDir;
     if (*filename == '/') {
@@ -678,10 +672,10 @@ static void vfat_searchdir(char *filename, struct file *file)
  */
 void vfat_opendir(com32sys_t *regs)
 {
-	char *src = MK_PTR(regs->es, regs->esi.w[0]);
-	char *dst = MK_PTR(regs->ds, regs->edi.w[0]);
-	strcpy(dst, src);
-	searchdir(regs);	
+    char *src = MK_PTR(regs->es, regs->esi.w[0]);
+    char *dst = MK_PTR(regs->ds, regs->edi.w[0]);
+    strcpy(dst, src);
+    searchdir(regs);	
 }
 
 /*
@@ -696,24 +690,24 @@ struct dirent* vfat_readdir(struct file *dir)
     uint8_t  checksum = 0;
     uint8_t  entries_left;  
     int i;
-	static struct dirent de;
+    static struct dirent de;
     char *de_name = de.d_name;        
     struct cache_struct  *cs;
     struct fat_dir_entry *fat_dir;
     struct fat_long_name_entry *long_dir;
-	struct open_file_t *file = dir->open_file;
-	struct fs_info *fs = dir->fs;
-	
+    struct open_file_t *file = dir->open_file;
+    struct fs_info *fs = dir->fs;
+    
     sector  = file->file_sector;
     sec_off = file->file_bytesleft;
     if (!sector)
         return NULL;
     entries_left = (SECTOR_SIZE - sec_off) >> 5;
-    cs = get_cache_block(this_fs->fs_dev, sector);
+    cs = get_cache_block(fs->fs_dev, sector);
     fat_dir = (struct fat_dir_entry *)(cs->data + sec_off);/* resume last position in sector */
     
     while (1) {
-		if (!entries_left) {
+	if (!entries_left) {
             sector = nextsector(fs, sector);
             if (!sector)
                 return NULL;
@@ -722,13 +716,13 @@ struct dirent* vfat_readdir(struct file *dir)
         }
 		
         if (fat_dir->name[0] == 0)
-			return NULL;
+	    return NULL;
         if  (fat_dir->attr == FAT_ATTR_LONG_NAME) {
             /* it's a long name */
             long_dir = (struct fat_long_name_entry *)fat_dir;
             
             if (long_dir->id & 0x40)  {
-				checksum = long_dir->checksum;
+		checksum = long_dir->checksum;
                 init_id = id = long_dir->id & 0x3f;
                 id--;
             } else {
@@ -741,7 +735,7 @@ struct dirent* vfat_readdir(struct file *dir)
             long_entry_name(long_dir);
             memcpy(de_name + id * 13, entry_name, 13);           
             
-			/* 
+	    /* 
              * we need go on with the next entry 
              * and we will fall through to next entry
              */
@@ -750,16 +744,16 @@ struct dirent* vfat_readdir(struct file *dir)
             /* it's a short entry */
             
             if (!id) {
-				/* Got a long name match */
-				if (get_checksum(fat_dir->name) != checksum)
-					goto next_entry;
-				
-				break;
-			}
+		/* Got a long name match */
+		if (get_checksum(fat_dir->name) != checksum)
+		    goto next_entry;
+		
+		break;
+	    }
             
             if (fat_dir->attr & FAT_ATTR_VOLUME_ID ||
-				get_checksum(fat_dir->name) != checksum ) 
-				goto next_entry;
+		get_checksum(fat_dir->name) != checksum ) 
+		goto next_entry;
             
             for(i = 0; i < 8; i ++) {
                 if (fat_dir->name[i] == ' ')
@@ -778,29 +772,29 @@ struct dirent* vfat_readdir(struct file *dir)
             else
                 *de_name = '\0';      
 	    
-			break;
+	    break;
         }
         
     next_entry:
-		entries_left --;
+	entries_left --;
         fat_dir ++;
     }
- 
-	/* found what we want, fill the de structure */
-	de.d_reclen = DIR_REC_LEN(de.d_name);
-	de.d_type = fat_dir->attr;
-
-	/* update the DIR structure */
+    
+    /* found what we want, fill the de structure */
+    de.d_reclen = DIR_REC_LEN(de.d_name);
+    de.d_type = fat_dir->attr;
+    
+    /* update the DIR structure */
     entries_left--;
-	if (!entries_left) {
-		sector = nextsector(fs, sector);
-		file->file_bytesleft = 0;
+    if (!entries_left) {
+	sector = nextsector(fs, sector);
+	file->file_bytesleft = 0;
     } else {
         file->file_bytesleft = SECTOR_SIZE - (entries_left << 5);
-	}
+    }
     file->file_sector = sector;	
-	
-	return &de;
+    
+    return &de;
 }
 
 static void vfat_load_config(com32sys_t *regs)
@@ -895,6 +889,6 @@ const struct fs_ops vfat_fs_ops = {
     .mangle_name   = vfat_mangle_name,
     .unmangle_name = generic_unmangle_name,
     .load_config   = vfat_load_config,
-	.opendir       = vfat_opendir,
-	.readdir       = vfat_readdir
+    .opendir       = vfat_opendir,
+    .readdir       = vfat_readdir
 };

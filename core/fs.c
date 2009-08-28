@@ -64,7 +64,7 @@ void mangle_name(com32sys_t *regs)
 {
     const char *src = MK_PTR(regs->ds, regs->esi.w[0]);
     char       *dst = MK_PTR(regs->es, regs->edi.w[0]);
-
+    
     this_fs->fs_ops->mangle_name(dst, src);
 }
 
@@ -73,7 +73,7 @@ void unmangle_name(com32sys_t *regs)
 {
     const char *src = MK_PTR(regs->ds, regs->esi.w[0]);
     char       *dst = MK_PTR(regs->es, regs->edi.w[0]);
-
+    
     dst = this_fs->fs_ops->unmangle_name(dst, src);
 
     /* Update the di register to point to the last null char */
@@ -94,7 +94,7 @@ void getfssec(com32sys_t *regs)
 
     handle = regs->esi.w[0];
     file = handle_to_file(handle);
-
+    
     buf = MK_PTR(regs->es, regs->ebx.w[0]);
     bytes_read = file->fs->fs_ops->getfssec(file, buf, sectors, &have_more);
     
@@ -121,11 +121,11 @@ void searchdir(com32sys_t *regs)
 #endif
 
     file = alloc_file();
-
+    
     if (file) {
 	file->fs = this_fs;
 	file->fs->fs_ops->searchdir(filename, file);
-
+	
 	if (file->open_file) {
 	    regs->esi.w[0]  = file_to_handle(file);
 	    regs->eax.l     = file->file_len;
@@ -133,7 +133,7 @@ void searchdir(com32sys_t *regs)
 	    return;
 	}
     }
-
+    
     /* failure... */
     regs->esi.w[0]  = 0;
     regs->eax.l     = 0;
@@ -144,7 +144,7 @@ void close_file(com32sys_t *regs)
 {
     uint16_t handle = regs->esi.w[0];
     struct file *file;
-
+    
     if (handle) {
 	file = handle_to_file(handle);
 	_close_file(file);
@@ -163,7 +163,7 @@ void fs_init(com32sys_t *regs)
 {
     int blk_shift;
     const struct fs_ops *ops = (const struct fs_ops *)regs->eax.l;
-
+    
     /* set up the fs stucture */    
     fs.fs_ops = ops;
 
@@ -175,7 +175,7 @@ void fs_init(com32sys_t *regs)
 				regs->esi.w[0], regs->edi.w[0]);
 
     this_fs = &fs;
-
+    
     /* invoke the fs-specific init code */
     blk_shift = fs.fs_ops->fs_init(&fs);    
 

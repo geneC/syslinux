@@ -428,7 +428,7 @@ void rosh_dir_arg(const char *ifilstr, const char *pwdstr)
 	    filepos = 0;
             d = opendir(filestr);
 	    if (d != NULL) {
-			//printf("DIR:'%s'    %08x %8d\n", d->dd_name, (int)d->dd_sect, d->dd_offset);
+		//printf("DIR:'%s'    %08x %8d\n", d->dd_name, (int)d->dd_sect, d->dd_offset);
 		de = readdir(d);
 		while (de != NULL) {
 		    filepos++;

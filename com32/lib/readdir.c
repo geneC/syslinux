@@ -15,12 +15,12 @@ struct dirent *readdir(DIR * dir)
 {
     struct dirent *newde;
     com32sys_t regs;
-	    
-	memset(&regs, 0, sizeof(regs));		
-	regs.eax.w[0] = 0x0021;
-	regs.esi.l = (uint32_t)dir;
-	__com32.cs_intcall(0x22, &regs, &regs);
-	newde = (struct dirent *)(regs.eax.l);
-	
+    
+    memset(&regs, 0, sizeof(regs));		
+    regs.eax.w[0] = 0x0021;
+    regs.esi.l = (uint32_t)dir;
+    __com32.cs_intcall(0x22, &regs, &regs);
+    newde = (struct dirent *)(regs.eax.l);
+    
     return newde;
 }
