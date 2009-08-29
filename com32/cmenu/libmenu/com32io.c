@@ -105,14 +105,6 @@ unsigned char sleep(unsigned int msec)
     return REG_AH(outreg);
 }
 
-void beep()
-{
-    REG_AH(inreg) = 0x0E;
-    REG_AL(inreg) = 0x07;
-    REG_BH(inreg) = 0;
-    __intcall(0x10, &inreg, &outreg);
-}
-
 void scrollupwindow(char top, char left, char bot, char right, char attr,
 		    char numlines)
 {

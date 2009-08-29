@@ -22,6 +22,12 @@
 
 #define CSI "\e["
 
+/* Beep: "" are required, not '' */
+static inline beep()
+{
+	return fputs("\007", stdout);
+}
+
 /* BIOS Assisted output routines */
 
 void cswprint(const char *str, char attr, char left);
@@ -106,8 +112,6 @@ static inline char getvideomode(void)	// Get the current video mode
 }
 
 unsigned char sleep(unsigned int msec);	// Sleep for specified time
-
-void beep();			// A Bell
 
 unsigned char checkkbdbuf();	// Check to see if there is kbd buffer is non-empty?
 
