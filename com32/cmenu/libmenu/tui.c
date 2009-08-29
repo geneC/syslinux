@@ -14,6 +14,7 @@
 #include <string.h>
 #include <com32.h>
 #include <stdlib.h>
+#include "com32io.h"
 
 com32sys_t inreg, outreg;	// Global register sets for use
 
@@ -256,13 +257,6 @@ void clearwindow(char top, char left, char bot, char right, char page,
 	gotoxy(x, left, page);
 	cprint(fillchar, fillattr, right - left + 1, page);
     }
-}
-
-void cls(void)
-{
-    unsigned char dp = getdisppage();
-    gotoxy(0, 0, dp);
-    cprint(' ', GETSTRATTR, (1 + getnumrows()) * getnumcols(), dp);
 }
 
 //////////////////////////////Box Stuff
