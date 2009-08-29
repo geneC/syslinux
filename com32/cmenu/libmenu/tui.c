@@ -343,29 +343,26 @@ void drawbox(char top, char left, char bot, char right,
 {
     unsigned char *box_chars;	// pointer to array of box chars
     unsigned char x;
-
+	fputs(SO, stdout);
     box_chars = getboxchars(bt);
     // Top border
     gotoxy(top, left, page);
-    cprint(box_chars[BOX_TOPLEFT], attr, 1, page);
-    gotoxy(top, left + 1, page);
-    cprint(box_chars[BOX_TOP], attr, right - left, page);
-    gotoxy(top, right, page);
-    cprint(box_chars[BOX_TOPRIGHT], attr, 1, page);
+    cprint(TOP_LEFT_CORNER_BORDER, attr, 1, page);
+    cprint(TOP_BORDER, attr, right - left - 1, page);
+    cprint(TOP_RIGHT_CORNER_BORDER, attr, 1, page);
     // Bottom border
     gotoxy(bot, left, page);
-    cprint(box_chars[BOX_BOTLEFT], attr, 1, page);
-    gotoxy(bot, left + 1, page);
-    cprint(box_chars[BOX_BOT], attr, right - left, page);
-    gotoxy(bot, right, page);
-    cprint(box_chars[BOX_BOTRIGHT], attr, 1, page);
+    cprint(BOTTOM_LEFT_CORNER_BORDER, attr, 1, page);
+    cprint(BOTTOM_BORDER, attr, right - left - 1, page);
+    cprint(BOTTOM_RIGHT_CORNER_BORDER, attr, 1, page);
     // Left & right borders
     for (x = top + 1; x < bot; x++) {
 	gotoxy(x, left, page);
-	cprint(box_chars[BOX_LEFT], attr, 1, page);
+	cprint(LEFT_BORDER, attr, 1, page);
 	gotoxy(x, right, page);
-	cprint(box_chars[BOX_RIGHT], attr, 1, page);
+	cprint(RIGHT_BORDER, attr, 1, page);
     }
+	fputs(SI, stdout);
 }
 
 void drawhorizline(char top, char left, char right, char page, char attr,

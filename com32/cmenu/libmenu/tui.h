@@ -22,6 +22,19 @@
 #define NULL ((void *)0)
 #endif
 
+/* "", not ''! */
+#define SO "\016"
+#define SI "\017"
+
+#define TOP_LEFT_CORNER_BORDER '\154'
+#define TOP_BORDER '\161'
+#define TOP_RIGHT_CORNER_BORDER '\153'
+#define BOTTOM_LEFT_CORNER_BORDER '\155'
+#define BOTTOM_BORDER '\161'
+#define BOTTOM_RIGHT_CORNER_BORDER '\152'
+#define LEFT_BORDER '\170'
+#define RIGHT_BORDER '\170'
+
 #define BELL 0x07
 // CHRELATTR = ^N, CHABSATTR = ^O
 #define CHABSATTR 15
@@ -30,7 +43,19 @@
 void clearwindow(char top, char left, char bot, char right,
 		 char page, char fillchar, char fillattr);
 
-void cls(void);			/* Clears the entire current screen page */
+/*
+ * Clears the entire screen
+ *
+ * Note: when initializing xterm, one has to specify that
+ * G1 points to the alternate character set (this is not true
+ * by default). Without the initial printf "\033)0", line drawing
+ * characters won't be displayed.
+ */
+static inline void cls(void)
+{
+	return fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
+}
+
 
 // Generic user input,
 // password = 0 iff chars echoed on screen
