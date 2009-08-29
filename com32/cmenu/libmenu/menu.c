@@ -87,45 +87,24 @@ char getch(char *scan)
 /* attr[0] is non-hilite attr, attr[1] is highlight attr */
 void printmenuitem(const char *str, uchar * attr)
 {
-    uchar page = getdisppage();
-    uchar row, col;
-    int hlite = NOHLITE;	// Initially no highlighting
+	uchar page = getdisppage();
+	int hlite = NOHLITE;	// Initially no highlighting
 
-    getpos(&row, &col, page);
-    while (*str) {
-	switch (*str) {
-	case '\b':
-	    --col;
-	    break;
-	case '\n':
-	    ++row;
-	    break;
-	case '\r':
-	    col = 0;
-	    break;
-	case BELL:		// No Bell Char
-	    break;
-	case ENABLEHLITE:	// Switch on highlighting
-	    hlite = HLITE;
-	    break;
-	case DISABLEHLITE:	// Turn off highlighting
-	    hlite = NOHLITE;
-	    break;
-	default:
-	    putch(*str, attr[hlite], page);
-	    ++col;
+	while (*str) {
+		switch (*str) {
+			case BELL:		// No Bell Char
+				break;
+			case ENABLEHLITE:	// Switch on highlighting
+				hlite = HLITE;
+				break;
+			case DISABLEHLITE:	// Turn off highlighting
+				hlite = NOHLITE;
+				break;
+			default:
+				putch(*str, attr[hlite], page);
+		}
+		str++;
 	}
-	if (col > getnumcols()) {
-	    ++row;
-	    col = 0;
-	}
-	if (row > getnumrows()) {
-	    scrollup();
-	    row = getnumrows();
-	}
-	gotoxy(row, col, page);
-	str++;
-    }
 }
 
 int find_shortcut(pt_menu menu, uchar shortcut, int index)
