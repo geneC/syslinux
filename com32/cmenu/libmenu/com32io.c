@@ -17,7 +17,7 @@
 
 com32sys_t inreg, outreg;	// Global register sets for use
 
-void cprint_vga2ansi(char chr, char attr)
+static void cprint_vga2ansi(char chr, char attr)
 {
 	static const char ansi_char[8] = "04261537";
 	static uint8_t last_attr = 0x07;
@@ -67,19 +67,8 @@ void cprint(char chr, char attr, unsigned int times, char disppage)
 {
 	// XXX disppage
 
-	/*
-	 * Mimic INT 10h, AH=09h: the cursor is not moved even
-	 * if more than one character is written, unless the same
-	 * character is repeated
-	 */
-	if (times == 1) {
+	while (times--)
 		cprint_vga2ansi(chr, attr);
-		printf(CSI "D");
-	} else {
-		while (times--)
-			cprint_vga2ansi(chr, attr);
-		//printf(CSI "%dm%c", ansi_attr, chr);
-	}
 }
 
 void setdisppage(char num)	// Set the display page to specified number
