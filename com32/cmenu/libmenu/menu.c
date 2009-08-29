@@ -83,8 +83,11 @@ char getch(char *scan)
     return 0;
 }
 
-/* Print a menu item */
-/* attr[0] is non-hilite attr, attr[1] is highlight attr */
+/*
+ * Print a menu item
+ *
+ * attr[0] is non-hilite attr, attr[1] is highlight attr
+ */
 void printmenuitem(const char *str, uchar * attr)
 {
 	uchar page = getdisppage();
@@ -185,7 +188,7 @@ void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first)
 	    attr = (x == curr ? ms->revinactattr : ms->inactattr);
 	    break;
 	case OPT_SUBMENU:
-	    lchar[0] = SUBMENUCHAR;
+	    lchar[0] = '>';
 	    lchar[1] = 0;
 	    break;
 	case OPT_RADIOMENU:
@@ -221,7 +224,7 @@ void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first)
 	gotoxy(top + row, left, ms->menupage);
 	printmenuitem(str, attr);	// Print main part
 	gotoxy(top + row, left + menuwidth - 1, ms->menupage);	// Last char if any
-	csprint(lchar, attr[NOHLITE]);	// Print last part
+	fputs(lchar, stdout);	// Print last part
     }
     // Check if we need to MOREABOVE and MOREBELOW to be added
     // reuse x

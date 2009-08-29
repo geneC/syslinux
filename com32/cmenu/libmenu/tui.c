@@ -311,7 +311,7 @@ void drawbox(char top, char left, char bot, char right,
 	     char page, char attr, boxtype bt)
 {
     unsigned char x;
-	fputs(SO, stdout);
+	putchar(SO);
     // Top border
     gotoxy(top, left, page);
     cprint(TOP_LEFT_CORNER_BORDER, attr, 1, page);
@@ -329,7 +329,7 @@ void drawbox(char top, char left, char bot, char right,
 	gotoxy(x, right, page);
 	cprint(RIGHT_BORDER, attr, 1, page);
     }
-	fputs(SI, stdout);
+	putchar(SI);
 }
 
 void drawhorizline(char top, char left, char right, char page, char attr,

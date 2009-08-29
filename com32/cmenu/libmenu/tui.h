@@ -22,9 +22,8 @@
 #define NULL ((void *)0)
 #endif
 
-/* "", not ''! */
-#define SO "\016"
-#define SI "\017"
+#define SO '\016'
+#define SI '\017'
 
 #define TOP_LEFT_CORNER_BORDER '\154'
 #define TOP_BORDER '\161'
