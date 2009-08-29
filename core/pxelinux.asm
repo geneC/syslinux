@@ -45,17 +45,6 @@ SECTOR_SHIFT	equ TFTP_BLOCKSIZE_LG2
 SECTOR_SIZE	equ TFTP_BLOCKSIZE
 
 ;
-; TFTP operation codes
-;
-TFTP_ACK	equ htons(4)		; ACK packet
-TFTP_ERROR	equ htons(5)		; ERROR packet
-
-;
-; TFTP error codes
-;
-TFTP_EOPTNEG	equ htons(8)		; Option negotiation failure
-
-;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style
 ; option labels.  The options we permit here are `kernel' and `append
 ; Since there is no room in the bottom 64K for all of these, we
@@ -94,39 +83,21 @@ InitStack	resd 1
 
 		section .bss16
 		alignb FILENAME_MAX
-                global BootFile, PathPrefix, DotQuadBuf, IPOption
-BootFile	resb 256		; Boot file from DHCP packet
-PathPrefix	resb 256		; Path prefix derived from boot file
-DotQuadBuf	resb 16			; Buffer for dotted-quad IP address
+                global IPOption
 IPOption	resb 80			; ip= option buffer
 PXEStack	resd 1			; Saved stack during PXE call
 
 		alignb 4
-                global DHCPMagic, OverLoad, RebootTime, APIVer, RealBaseMem
-                global StructPtr
+                global DHCPMagic, RebootTime, APIVer
 RebootTime	resd 1			; Reboot timeout, if set by option
 StrucPtr	resw 2			; Pointer to PXENV+ or !PXE structure
 APIVer		resw 1			; PXE API version found
 LocalBootType	resw 1			; Local boot return code
-RealBaseMem	resw 1			; Amount of DOS memory after freeing
-OverLoad	resb 1			; Set if DHCP packet uses "overloading"
 DHCPMagic	resb 1			; PXELINUX magic flags
 
 ; The relative position of these fields matter!
-                global MACStr, MACLen, MACType, MAC, BOOTIFStr
-MAC_MAX		equ  32			; Handle hardware addresses this long
-MACLen		resb 1			; MAC address len
-MACType		resb 1			; MAC address type
-MAC		resb MAC_MAX+1		; Actual MAC address
+                global BOOTIFStr
 BOOTIFStr	resb 7			; Space for "BOOTIF="
-MACStr		resb 3*(MAC_MAX+1)	; MAC address as a string
-
-; The relative position of these fields matter!
-                global UUID, UUIDType
-UUIDType	resb 1			; Type byte from DHCP option
-UUID		resb 16			; UUID, from the PXE stack
-UUIDNull	resb 1			; dhcp_copyoption zero-terminates
-
 
 		section .bss16
                 global packet_buf
@@ -410,7 +381,6 @@ copyright_str   db ' Copyright (C) 1994-'
 		db ' H. Peter Anvin et al', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: press a key to retry, or wait for reset...', CR, LF, 0
 bailmsg		equ err_bootfailed
-cant_free_msg	db 'Failed to free base memory, error ', 0
 localboot_msg	db 'Booting from local disk...', CR, LF, 0
 syslinux_banner	db CR, LF, 'PXELINUX ', VERSION_STR, ' ', DATE_STR, ' ', 0
 

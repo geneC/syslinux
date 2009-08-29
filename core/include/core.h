@@ -41,51 +41,5 @@ void call16(void (*)(void), const com32sys_t *, com32sys_t *);
 __noreturn _kaboom(void);
 #define kaboom() _kaboom()
 
-/*
- * externs for pxelinux
- */
-extern uint32_t ServerIP;
-extern uint32_t MyIP;
-extern uint32_t Netmask;
-extern uint32_t Gateway;
-extern uint16_t ServerPort;
-
-extern char MACStr[];        /* MAC address as a string */
-extern char MAC[];           /* Actual MAC address */
-extern char BOOTIFStr[];     /* Space for "BOOTIF=" */
-extern uint8_t MACLen;       /* MAC address len */
-extern uint8_t MACType;      /* MAC address type */
-
-extern uint8_t  DHCPMagic;
-extern uint8_t  OverLoad;
-extern uint32_t RebootTime;
-
-extern char BootFile[];
-extern char PathPrefix[];
-extern char LocalDomain[];
-
-extern char packet_buf[];
-
-extern char IPOption[];
-extern char DotQuadBuf[];
-
-extern uint32_t dns_server[];
-extern char DNSSendBuf[];
-extern char DNSRecvBuf[];
-
-extern uint16_t RealBaseMem;
-extern uint16_t APIVer;
-extern far_ptr_t PXEEntry;
-extern uint8_t KeepPXE;
-
-extern far_ptr_t InitStack;
-
-extern int HaveUUID;
-extern uint8_t UUIDType;
-extern char UUID[];
-
-extern volatile uint16_t BIOS_timer;
-extern uint16_t BIOS_fbm;
-extern const uint8_t TimeoutTable[];
 
 #endif /* CORE_H */

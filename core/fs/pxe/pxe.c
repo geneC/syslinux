@@ -8,15 +8,25 @@
 
 #define GPXE 1
 
-uint32_t ServerIP = 0;             /* IP address of boot server */
-uint32_t Netmask = 0;              /* Netmask of this subnet */
-uint32_t Gateway = 0;              /* Default router */
-uint16_t ServerPort = TFTP_PORT;   /* TFTP server port */
+uint32_t server_ip = 0;            /* IP address of boot server */
+uint32_t net_mask = 0;             /* net_mask of this subnet */
+uint32_t gate_way = 0;             /* Default router */
+uint16_t server_port = TFTP_PORT;  /* TFTP server port */
+uint16_t real_base_mem;            /* Amount of DOS memory after freeing */
+
+char MAC_str[3 * (MAC_MAX + 1)];   /* MAC address as a string */
+char MAC[MAC_MAX + 1];             /* Actual MAC address */
+uint8_t MAC_len;                   /* MAC address len */
+uint8_t MAC_type;                  /* MAC address type */
+
+char boot_file[256];
+char path_prefix[256];
+char dot_quad_buf[16];
 
 static struct open_file_t Files[MAX_OPEN];
 static int has_gpxe;
 static uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
-int HaveUUID = 0;
+int have_uuid = 0;
 
 const uint8_t TimeoutTable[] = {
     2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18, 21, 26, 31, 37, 44, 53, 64, 77,
@@ -279,7 +289,7 @@ static void ack_packet(struct open_file_t *file, uint16_t ack_num)
     udp_write.src_port    = file->tftp_localport;
     udp_write.dst_port    = file->tftp_remoteport;
     udp_write.ip          = file->tftp_remoteip;
-    udp_write.gw          = ((udp_write.ip ^ MyIP) & Netmask) ? Gateway : 0;
+    udp_write.gw          = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
     udp_write.buffer.offs = OFFS(ack_packet_buf);
     udp_write.buffer.seg  = SEG(ack_packet_buf);
     udp_write.buffer_size = 4;
@@ -422,7 +432,7 @@ static void get_packet_gpxe(struct open_file_t *file)
 static void pxe_mangle_name(char *dst, const char *src)
 {
     const char *p = src;
-    uint32_t ip = ServerIP;
+    uint32_t ip = server_ip;
     int i = 0;
    
 #if GPXE
@@ -723,9 +733,9 @@ static void pxe_searchdir(char *filename, struct file *file)
     p += 4;
     if (ip == 0) {
         /* Have prefix */
-        strcpy(buf, PathPrefix);
-        buf += strlen(PathPrefix);
-        ip = ServerIP;            /* Get the default server */
+        strcpy(buf, path_prefix);
+        buf += strlen(path_prefix);
+        ip = server_ip;            /* Get the default server */
     }
 
     strcpy(buf, p);                /* Copy the filename */
@@ -758,9 +768,9 @@ static void pxe_searchdir(char *filename, struct file *file)
     open_file->tftp_remoteip = ip;
     tid = open_file->tftp_localport;   /* TID(local port No) */
     udp_write.ip        = ip;
-    udp_write.gw        = ((udp_write.ip ^ MyIP) & Netmask) ? Gateway : 0;
+    udp_write.gw        = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
     udp_write.src_port  = tid;
-    udp_write.dst_port  = ServerPort;
+    udp_write.dst_port  = server_port;
     buf += fill_tail(buf);
     udp_write.buffer_size = buf - packet_buf;
     err = pxe_call(PXENV_UDP_WRITE, &udp_write);
@@ -983,9 +993,9 @@ static void get_prefix(void)
     if (DHCPMagic & 0x04)         /* Did we get a path prefix option */
         goto got_prefix;
     
-    strcpy(PathPrefix, BootFile);
-    len = strlen(PathPrefix);
-    p = &PathPrefix[len - 1]; 
+    strcpy(path_prefix, boot_file);
+    len = strlen(path_prefix);
+    p = &path_prefix[len - 1]; 
 
     while (len--) {
         c = *p--;
@@ -1004,8 +1014,8 @@ static void get_prefix(void)
     *(p + 2) = 0;                /* Zero-terminate after delimiter */
     
  got_prefix:
-    printf("TFTP prefix: %s\n", PathPrefix);
-    strcpy(CurrentDirName, PathPrefix);
+    printf("TFTP prefix: %s\n", path_prefix);
+    strcpy(CurrentDirName, path_prefix);
 }
 
  /*
@@ -1062,12 +1072,12 @@ static void pxe_load_config(com32sys_t *regs)
      */
     
     /* Try loading by UUID */
-    if (HaveUUID) {
+    if (have_uuid) {
         uuid_ptr  = uuid_dashes;
 	p = config_file;
         while (*uuid_ptr) {
             int len = *uuid_ptr;
-            char *src = UUID;
+            char *src = uuid;
             
             lchexbytes(p, src, len);
             p += len * 2;
@@ -1083,7 +1093,7 @@ static void pxe_load_config(com32sys_t *regs)
     }
 
     /* Try loading by MAC address */
-    strcpy(config_file, MACStr);
+    strcpy(config_file, MAC_str);
     regs->edi.w[0] = OFFS_WRT(ConfigName, 0);
     if (try_load(regs))
         return;
@@ -1121,13 +1131,14 @@ static void pxe_load_config(com32sys_t *regs)
  */
 static void make_bootif_string(void)
 {
-    char *bootif_str = "BOOTIF=";
-    uint8_t *src = &MACType;      /* MACType just followed by MAC */
-    char *dst;
-    int i = MACLen + 1;         /* MACType included */
+    char mac[18];
+    char *src = mac;
+    char *dst = MAC_str;
+    int i = MAC_len + 1;
     
-    strcpy(BOOTIFStr, bootif_str);
-    dst = strchr(BOOTIFStr, '\0');
+    *(uint8_t *)src++ = MAC_type;
+    memcpy(src, MAC, MAC_len);
+    src = mac;
     for (; i > 0; i--) {
         lchexbytes(dst, src, 1);
         dst += 2;
@@ -1135,6 +1146,8 @@ static void make_bootif_string(void)
         *dst++ = '-';
     }
     *(dst - 1) = 0;   /* Drop the last '-' and null-terminate string */
+    strcat(BOOTIFStr, "BOOTIF=");
+    strcat(BOOTIFStr, MAC_str);
 
 #if 0
     printf("%s\n", BOOTIFStr);
@@ -1157,31 +1170,28 @@ static void genipopt(void)
     p += ip_len;
     *p++ = ':';
 
-    ip_len = gendotquad(p, ServerIP);
+    ip_len = gendotquad(p, server_ip);
     p += ip_len;
     *p++ = ':';
 
-    ip_len = gendotquad(p, Gateway);
+    ip_len = gendotquad(p, gate_way);
     p += ip_len;
     *p++ = ':';
     
-    ip_len = gendotquad(p, Netmask);
+    ip_len = gendotquad(p, net_mask);
 }
     
 
 /* Generate ip= option and print the ip adress */
 static void ip_init(void)
 {
-    int ip = MyIP;
-    char *myipaddr_msg = "My IP address seems to be ";
-    
+    uint32_t ip = MyIP;
+       
     genipopt();
-
-    gendotquad(DotQuadBuf, ip);
+    gendotquad(dot_quad_buf, ip);
     
     ip = ntohl(ip);
-    printf("%s %08X %s\n", myipaddr_msg, ip, DotQuadBuf);
-    
+    printf("My IP address seems to be %08X %s\n", ip, dot_quad_buf);
     printf("%s\n", IPOption);
 }
 
@@ -1381,7 +1391,7 @@ static void pxe_init(void)
     code_seg = code_seg + ((code_len + 15) >> 4);
     data_seg = data_seg + ((data_len + 15) >> 4);
 
-    RealBaseMem = max(code_seg,data_seg) >> 6; /* Convert to kilobytes */
+    real_base_mem = max(code_seg,data_seg) >> 6; /* Convert to kilobytes */
 }                                  
 
 /*
@@ -1440,9 +1450,9 @@ static void network_init(void)
      * turns out to be problematic it might be better getting it from
      * the query info 1 packet
      */
-    MACLen = bp->hardlen > 16 ? 0 : bp->hardlen;
-    MACType = bp->hardware;
-    memcpy(MAC, bp->macaddr, MACLen);    
+    MAC_len = bp->hardlen > 16 ? 0 : bp->hardlen;
+    MAC_type = bp->hardware;
+    memcpy(MAC, bp->macaddr, MAC_len);    
 
     /*
      * Get the boot file and other info. This lives in the CACHED_REPLY
@@ -1522,15 +1532,15 @@ void unload_pxe(void)
     }
     
     flag = 0xff00;
-    if (RealBaseMem <= BIOS_fbm)  /* Santiy check */
+    if (real_base_mem <= BIOS_fbm)  /* Santiy check */
 	goto cant_free;
     flag ++;
     
     /* Check that PXE actually unhooked the INT 0x1A chain */
     int_addr = (int)MK_PTR(*(uint16_t *)(4*0x1a+2), *(uint16_t *)(4*0x1a));
     int_addr >>= 10;
-    if (int_addr >= RealBaseMem || int_addr < BIOS_fbm) {
-	BIOS_fbm = RealBaseMem;
+    if (int_addr >= real_base_mem || int_addr < BIOS_fbm) {
+	BIOS_fbm = real_base_mem;
 	return;
     }
     

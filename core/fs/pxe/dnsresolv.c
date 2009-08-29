@@ -221,7 +221,7 @@ uint32_t dns_resolv(const char *name)
 	    continue;  /* just move on before runing the time out */
         udp_write.status      = 0;
         udp_write.ip          = srv;
-        udp_write.gw          = ((srv ^ MyIP) & Netmask) ? Gateway : 0;
+        udp_write.gw          = ((srv ^ MyIP) & net_mask) ? gate_way : 0;
         udp_write.src_port    = DNS_LOCAL_PORT;
         udp_write.dst_port    = DNS_PORT;
         udp_write.buffer_size = p - DNSSendBuf;

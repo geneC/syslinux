@@ -157,6 +157,53 @@ struct open_file_t {
 } __attribute__ ((packed));
 
 /*
+ * Variable externs
+ */
+extern uint32_t server_ip;
+extern uint32_t MyIP;
+extern uint32_t net_mask;
+extern uint32_t gate_way;
+extern uint16_t server_port;
+
+extern char MAC_str[];
+extern char MAC[];
+extern char BOOTIFStr[];
+extern uint8_t MAC_len;
+extern uint8_t MAC_type;
+
+extern uint8_t  DHCPMagic;
+extern uint32_t RebootTime;
+
+extern char boot_file[];
+extern char path_prefix[];
+extern char LocalDomain[];
+
+extern char packet_buf[];
+
+extern char IPOption[];
+extern char dot_quad_buf[];
+
+extern uint32_t dns_server[];
+extern char DNSSendBuf[];
+extern char DNSRecvBuf[];
+
+extern uint16_t real_base_mem;
+extern uint16_t APIVer;
+extern far_ptr_t PXEEntry;
+extern uint8_t KeepPXE;
+
+extern far_ptr_t InitStack;
+
+extern int have_uuid;
+extern uint8_t uuid_type;
+extern char uuid[];
+
+extern volatile uint16_t BIOS_timer;
+extern uint16_t BIOS_fbm;
+extern const uint8_t TimeoutTable[];
+
+
+/*
  * functions 
  */
 

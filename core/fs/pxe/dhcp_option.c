@@ -4,20 +4,23 @@
 #include <sys/cpu.h>
 #include "pxe.h"
 
+int over_load;
+uint8_t uuid_type;
+char uuid[17];
 void parse_dhcp_options(void *, int, int);
 
 static void subnet_mask(void *data, int opt_len)
 {
     if (opt_len != 4)
 	return;
-    Netmask = *(uint32_t *)data;
+    net_mask = *(uint32_t *)data;
 }
 
 static void router(void *data, int opt_len)
 {
     if (opt_len != 4)
 	return;
-    Gateway = *(uint32_t *)data;
+    gate_way = *(uint32_t *)data;
 }
 
 static void dns_servers(void *data, int opt_len)
@@ -66,7 +69,7 @@ static void option_overload(void *data, int opt_len)
 {
     if (opt_len != 1)
 	return;
-    OverLoad = *(uint8_t *)data;
+    over_load = *(uint8_t *)data;
 }
 
 
@@ -77,44 +80,44 @@ static void server(void *data, int opt_len)
     if (opt_len != 4)
 	return;
     
-    if (ServerIP)
+    if (server_ip)
         return;
     
     ip = *(uint32_t *)data;
     if (ip_ok(ip))
-        ServerIP = ip;
+        server_ip = ip;
 }
 
 static void client_identifier(void *data, int opt_len)
 {
     if (opt_len > MAC_MAX || opt_len < 2 ||
-        MACLen != (opt_len >> 8) || 
-        *(uint8_t *)data != MACType)
+        MAC_len != (opt_len >> 8) || 
+        *(uint8_t *)data != MAC_type)
         return;
 
     opt_len --;
-    MACLen = opt_len & 0xff;
+    MAC_len = opt_len & 0xff;
     memcpy(MAC, data+1, opt_len);
     MAC[opt_len] = 0;
 }
 
 static void bootfile_name(void *data, int opt_len)
 {
-    strncpy(BootFile, data, opt_len);
-    BootFile[opt_len] = 0;
+    strncpy(boot_file, data, opt_len);
+    boot_file[opt_len] = 0;
 }
    
 static void uuid_client_identifier(void *data, int opt_len)
 {
     int type = *(uint8_t *)data;
     if (opt_len != 17 ||
-        (type | HaveUUID))
+        (type | have_uuid))
         return;
 
-    HaveUUID = 1;
-    UUIDType = type;
-    memcpy(UUID, data+1, 16);
-    UUID[16] = 0;
+    have_uuid = 1;
+    uuid_type = type;
+    memcpy(uuid, data+1, 16);
+    uuid[16] = 0;
 }
 
 static void pxelinux_configfile(void *data, int opt_len)
@@ -127,8 +130,8 @@ static void pxelinux_configfile(void *data, int opt_len)
 static void pxelinux_pathprefix(void *data,int opt_len)
 {
     DHCPMagic |= 4;
-    strncpy(PathPrefix, data, opt_len);
-    PathPrefix[opt_len] = 0;
+    strncpy(path_prefix, data, opt_len);
+    path_prefix[opt_len] = 0;
 }
 
 static void pxelinux_reboottime(void *data, int opt_len)
@@ -229,13 +232,13 @@ void parse_dhcp_options(void *option, int size, int filter)
  ; information is present:
  ;
  ; MyIP		- client IP address
- ; ServerIP	- boot server IP address
- ; Netmask	- network mask
- ; Gateway	- default gateway router IP
- ; BootFile	- boot file name
+ ; server_ip	- boot server IP address
+ ; net_mask	- network mask
+ ; gate_way	- default gateway router IP
+ ; boot_file	- boot file name
  ; DNSServers	- DNS server IPs
  ; LocalDomain	- Local domain name
- ; MACLen, MAC	- Client identifier, if MACLen == 0
+ ; MAC_len, MAC	- Client identifier, if MAC_len == 0
  ;
  ; This assumes the DHCP packet is in "trackbuf".
  ;
@@ -245,22 +248,22 @@ void parse_dhcp(int pkt_len)
     struct bootp_t *dhcp = (struct bootp_t *)trackbuf;
     int opt_len;
 
-    OverLoad = 0;
+    over_load = 0;
     if (ip_ok(dhcp->yip))
         MyIP = dhcp->yip;
     
     if (ip_ok(dhcp->sip))
-        ServerIP = dhcp->sip;
+        server_ip = dhcp->sip;
     
     opt_len = (char *)dhcp + pkt_len - (char *)&dhcp->options;
     if (opt_len && (dhcp->option_magic == BOOTP_OPTION_MAGIC)) 
         parse_dhcp_options(&dhcp->options, opt_len, 0);
 
-    if (OverLoad & 1) 
+    if (over_load & 1) 
         parse_dhcp_options(&dhcp->bootfile, 128, 0);
     else if (dhcp->bootfile[0]) 
-            strcpy(BootFile, dhcp->bootfile);
+            strcpy(boot_file, dhcp->bootfile);
     
-    if (OverLoad & 2) 
+    if (over_load & 2) 
         parse_dhcp_options(dhcp->sname, 64, 0);
 }  
