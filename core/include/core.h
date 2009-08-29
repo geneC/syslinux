@@ -48,7 +48,7 @@ extern uint32_t ServerIP;
 extern uint32_t MyIP;
 extern uint32_t Netmask;
 extern uint32_t Gateway;
-extern uint32_t ServerPort;
+extern uint16_t ServerPort;
 
 extern char MACStr[];        /* MAC address as a string */
 extern char MAC[];           /* Actual MAC address */
@@ -59,8 +59,6 @@ extern uint8_t MACType;      /* MAC address type */
 extern uint8_t  DHCPMagic;
 extern uint8_t  OverLoad;
 extern uint32_t RebootTime;
-/* TFTP ACK packet */
-extern uint16_t ack_packet_buf[];
 
 extern char BootFile[];
 extern char PathPrefix[];

@@ -33,7 +33,6 @@ NULLFILE	equ 0			; Zero byte == null file name
 NULLOFFSET	equ 4			; Position in which to look
 REBOOT_TIME	equ 5*60		; If failure, time until full reset
 %assign HIGHMEM_SLOP 128*1024		; Avoid this much memory near the top
-TFTP_PORT	equ htons(69)		; Default TFTP port
 TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)
 TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
 
@@ -399,19 +398,6 @@ pxe_int1a:
 		ret
 
 ;
-; TimeoutTable: list of timeouts (in 18.2 Hz timer ticks)
-;
-; This is roughly an exponential backoff...
-;
-		section .data16
-TimeoutTable:
-		db 2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18
-		db 21, 26, 31, 37, 44, 53, 64, 77, 92, 110, 132
-		db 159, 191, 229, 255, 255, 255, 255
-TimeoutTableEnd	equ $
-
-		section .text16
-;
 ; unload_pxe:
 ;
 ; This function unloads the PXE and UNDI stacks and unclaims
@@ -598,30 +584,10 @@ BaseStack	dd StackTop		; ESP of base stack
 		dw 0			; SS of base stack
 KeepPXE		db 0			; Should PXE be kept around?
 
-		alignz 2
-;
-; Error packet to return on TFTP protocol error
-; Most of our errors are OACK parsing errors, so use that error code
-;
-                global tftp_proto_err, tftp_proto_err_len
-tftp_proto_err	dw TFTP_ERROR				; ERROR packet
-		dw TFTP_EOPTNEG				; ERROR 8: OACK error
-		db 'TFTP protocol error', 0		; Error message
-tftp_proto_err_len equ ($-tftp_proto_err)
-
-		alignz 4
-                global ack_packet_buf
-ack_packet_buf:	dw TFTP_ACK, 0				; TFTP ACK packet
-
 ;
 ; IP information (initialized to "unknown" values)
-                global MyIP, ServerIP, Netmask, Gateway, ServerPort
-MyIP		dd 0			; My IP address
-ServerIP	dd 0			; IP address of boot server
-Netmask		dd 0			; Netmask of this subnet
-Gateway		dd 0			; Default router
-ServerPort	dw TFTP_PORT		; TFTP server port
-
+                global MyIP
+MyIP		dd 0			; My IP address 
 ;
 ; Variables that are uninitialized in SYSLINUX but initialized here
 ;

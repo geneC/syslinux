@@ -8,6 +8,11 @@
 
 #define GPXE 1
 
+uint32_t ServerIP = 0;             /* IP address of boot server */
+uint32_t Netmask = 0;              /* Netmask of this subnet */
+uint32_t Gateway = 0;              /* Default router */
+uint16_t ServerPort = TFTP_PORT;   /* TFTP server port */
+
 static struct open_file_t Files[MAX_OPEN];
 static int has_gpxe;
 static uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
@@ -255,16 +260,18 @@ int pxe_call(int opcode, void *data)
 static void ack_packet(struct open_file_t *file, uint16_t ack_num)
 {
     int err;
+    static __lowmem uint16_t ack_packet_buf[2];
     static __lowmem struct s_PXENV_UDP_WRITE udp_write;    
  
     /* Packet number to ack */
+    ack_packet_buf[0]     = TFTP_ACK;
     ack_packet_buf[1]     = ack_num;
     udp_write.src_port    = file->tftp_localport;
     udp_write.dst_port    = file->tftp_remoteport;
     udp_write.ip          = file->tftp_remoteip;
     udp_write.gw          = ((udp_write.ip ^ MyIP) & Netmask) ? Gateway : 0;
-    udp_write.buffer.offs = OFFS_WRT(ack_packet_buf, 0);
-    udp_write.buffer.seg  = 0;
+    udp_write.buffer.offs = OFFS(ack_packet_buf);
+    udp_write.buffer.seg  = SEG(ack_packet_buf);
     udp_write.buffer_size = 4;
 
     err = pxe_call(PXENV_UDP_WRITE, &udp_write);
@@ -664,7 +671,7 @@ static int fill_tail(char *dst)
  */
 static void pxe_searchdir(char *filename, struct file *file)
 {
-    extern char tftp_proto_err[];
+    static __lowmem char tftp_proto_err[32];
     char *buf = packet_buf;
     char *p = filename;
     char *options;
@@ -931,9 +938,17 @@ done:
     return;
 
 err_reply:
+    /* Build the TFTP error packet */
+    p = tftp_proto_err;
+    *(uint16_t *)p = TFTP_ERROR; 
+    p += 2;
+    *(uint16_t *)p = TFTP_EOPTNEG; 
+    p += 2;
+    strcat(p, "TFTP_protocol error");    
+
     udp_write.dst_port    = open_file->tftp_remoteport;
-    udp_write.buffer.offs = OFFS_WRT(tftp_proto_err, 0);
-    udp_write.buffer.seg  = 0;
+    udp_write.buffer.offs = OFFS(tftp_proto_err);
+    udp_write.buffer.seg  = SEG(tftp_proto_err);
     udp_write.buffer_size = 24;
     pxe_call(PXENV_UDP_WRITE, &udp_write);
     printf("TFTP server sent an incomprehesible reply\n");

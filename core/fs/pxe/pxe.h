@@ -24,11 +24,11 @@
 /*
  * Some basic defines...
  */
-#define PKTBUF_SIZE        (65536 / MAX_OPEN)
-
+#define TFTP_PORT        htons(69)              /* Default TFTP port */
 #define TFTP_BLOCKSIZE_LG2 9
 #define TFTP_BLOCKSIZE     (1 << TFTP_BLOCKSIZE_LG2)
 #define PKTBUF_SEG 0x4000
+#define PKTBUF_SIZE        (65536 / MAX_OPEN)
 
 #define is_digit(c) (((c) >= '0') && ((c) <= '9'))
 
@@ -54,6 +54,7 @@
 #define TFTP_EEXISTS	 htons(6)		// File exists
 #define TFTP_ENOUSER	 htons(7)		// No such user
 #define TFTP_EOPTNEG	 htons(8)		// Option negotiation failure
+
 
 #define BOOTP_OPTION_MAGIC  htonl(0x63825363)
 #define MAC_MAX 32
