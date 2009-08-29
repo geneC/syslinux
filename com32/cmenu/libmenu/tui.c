@@ -216,24 +216,9 @@ void cswprint(const char *str, char attr, char left)
 {
     char page = getdisppage();
     char newattr = 0, cha, chb;
-    char row, col;
-    char nr, nc;
 
-    nr = getnumrows();
-    nc = getnumcols();
-    getpos(&row, &col, page);
     while (*str) {
 	switch (*str) {
-	case '\b':
-	    --col;
-	    break;
-	case '\n':
-	    ++row;
-	    col = left;
-	    break;
-	case '\r':
-	    //col=left;
-	    break;
 	case BELL:		// Bell Char
 	    beep();
 	    break;
@@ -257,18 +242,8 @@ void cswprint(const char *str, char attr, char left)
 	    }
 	    break;
 	default:
-	    putch(*str, attr, page);
-	    ++col;
+		cprint(*str, attr, 1, page);
 	}
-	if (col >= nc) {
-	    ++row;
-	    col = left;
-	}
-	if (row > nr) {
-	    scrollup();
-	    row = nr;
-	}
-	gotoxy(row, col, page);
 	str++;
     }
 }
