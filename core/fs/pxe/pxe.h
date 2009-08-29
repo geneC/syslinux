@@ -26,11 +26,12 @@
  */
 #define TFTP_PORT        htons(69)              /* Default TFTP port */
 #define TFTP_BLOCKSIZE_LG2 9
-#define TFTP_BLOCKSIZE     (1 << TFTP_BLOCKSIZE_LG2)
-#define PKTBUF_SEG 0x4000
-#define PKTBUF_SIZE        (65536 / MAX_OPEN)
+#define TFTP_BLOCKSIZE  (1 << TFTP_BLOCKSIZE_LG2)
+#define PKTBUF_SEG      0x4000
+#define PKTBUF_SIZE     (65536 / MAX_OPEN)
 
-#define is_digit(c) (((c) >= '0') && ((c) <= '9'))
+#define is_digit(c)     (((c) >= '0') && ((c) <= '9'))
+#define major_ver(v)    (((v) >> 8) && 0xff)
 
 /*
  * TFTP operation codes

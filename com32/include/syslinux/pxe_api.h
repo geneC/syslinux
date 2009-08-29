@@ -408,6 +408,11 @@ typedef struct s_PXENV_GET_FILE_SIZE {
     uint16_t FileHandle;
     uint32_t FileSize;
 } __packed t_PXENV_GET_FILE_SIZE;
+
+typedef struct s_PXENV_UNLOAD_STACK {
+    pxenv_status_t Status;
+    uint8_t reserved[10];
+} __packed t_PXENV_UNLOAD_STACK;
     
 #define PXENV_UNDI_ISR_IN_START 1
 #define PXENV_UNDI_ISR_IN_PROCESS 2

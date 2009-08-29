@@ -76,6 +76,7 @@ extern char DNSRecvBuf[];
 extern uint16_t RealBaseMem;
 extern uint16_t APIVer;
 extern far_ptr_t PXEEntry;
+extern uint8_t KeepPXE;
 
 extern far_ptr_t InitStack;
 
@@ -84,6 +85,7 @@ extern uint8_t UUIDType;
 extern char UUID[];
 
 extern volatile uint16_t BIOS_timer;
+extern uint16_t BIOS_fbm;
 extern const uint8_t TimeoutTable[];
 
 #endif /* CORE_H */

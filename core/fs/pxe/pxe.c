@@ -23,6 +23,16 @@ const uint8_t TimeoutTable[] = {
     92, 110, 132, 159, 191, 229, 255, 255, 255, 255, 0
 };
 
+/* PXE unload sequences */
+const uint8_t new_api_unload[] = {
+    PXENV_UDP_CLOSE, PXENV_UNDI_SHUTDOWN, 
+    PXENV_UNLOAD_STACK, PXENV_STOP_UNDI, 0
+};
+const uint8_t old_api_unload[] = {
+    PXENV_UDP_CLOSE, PXENV_UNDI_SHUTDOWN,
+    PXENV_UNLOAD_STACK, PXENV_UNDI_CLEANUP, 0
+};
+
 struct tftp_options {
     const char *str_ptr;        /* string pointer */
     size_t      offset;		/* offset into socket structre */
@@ -1471,9 +1481,66 @@ static int pxe_fs_init(struct fs_info *fs)
 
     /* Network-specific initialization */
     network_init();
-
+    
     return 0;
 }
+
+inline void reset_pxe(void)
+{
+    static __lowmem struct s_PXENV_UDP_CLOSE udp_close;
+    pxe_call(PXENV_UDP_CLOSE, &udp_close);
+}
+
+/*
+ * This function unloads the PXE and UNDI stacks and 
+ * unclaims the memory.
+ */
+void unload_pxe(void)
+{
+    uint8_t api;
+    const uint8_t *api_ptr;
+    uint16_t flag = 0;
+    int err;
+    int int_addr;
+    static __lowmem struct s_PXENV_UNLOAD_STACK unload_stack;
+   
+    if (KeepPXE) {
+	/*
+	 * We want to keep PXE around, but still we should reset
+	 * it to the standard bootup configuration.
+	 */
+	reset_pxe();
+	return;
+    }
+
+    api_ptr = major_ver(APIVer) >= 2 ? new_api_unload : old_api_unload;
+    while((api = *api_ptr++)) {
+	memset(&unload_stack, 0, sizeof unload_stack);
+	err = pxe_call(api, &unload_stack);
+	if (err || unload_stack.Status != PXENV_STATUS_SUCCESS)
+	    goto cant_free;
+    }
+    
+    flag = 0xff00;
+    if (RealBaseMem <= BIOS_fbm)  /* Santiy check */
+	goto cant_free;
+    flag ++;
+    
+    /* Check that PXE actually unhooked the INT 0x1A chain */
+    int_addr = (int)MK_PTR(*(uint16_t *)(4*0x1a+2), *(uint16_t *)(4*0x1a));
+    int_addr >>= 10;
+    if (int_addr >= RealBaseMem || int_addr < BIOS_fbm) {
+	BIOS_fbm = RealBaseMem;
+	return;
+    }
+    
+cant_free:
+    printf("Failed to free base memory error %04x-%08x\n", 
+	   flag, *(uint32_t *)(4 * 0x1a));
+    return;
+}
+    
+
     
 const struct fs_ops pxe_fs_ops = {
     .fs_name       = "pxe",

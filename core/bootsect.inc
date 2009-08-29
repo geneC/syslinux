@@ -80,7 +80,7 @@ load_bootsec:
 		xor bx,bx
 %elif IS_PXELINUX
 		mov byte [KeepPXE],03h	; Chainloading + keep PXE
-		call reset_pxe
+		pm_call reset_pxe
 		lfs si,[InitStack]
 		; Put restore DS, EDX and ESI to the true initial values
 		mov bx,[fs:si+6]

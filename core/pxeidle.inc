@@ -18,8 +18,18 @@
 ;; Query for the NIC type, and detect certain special cases.
 ;;
 
-		section .text16
+                section .bss16	
+ pxe_udp_read_pkt:
+.status:        resw 1                  ; Status
+.sip:           resd 1                  ; Source IP
+.dip:           resd 1                  ; Destination (our) IP
+.rport:         resw 1                  ; Remote port
+.lport:         resw 1                  ; Local port
+.buffersize:    resw 1                  ; Max packet size
+.buffer:        resw 2                  ; seg:off of buffer
 
+
+		section .text16
 ;;
 ;; Initializes the idle mechanism based on the device type
 ;;

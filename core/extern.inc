@@ -19,4 +19,7 @@
         ; dir.c
         extern opendir, readdir, closedir
 
+	; pxe.c
+	extern unload_pxe, reset_pxe
+
 %endif ; EXTERN_INC

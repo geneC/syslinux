@@ -127,17 +127,6 @@ UUIDType	resb 1			; Type byte from DHCP option
 UUID		resb 16			; UUID, from the PXE stack
 UUIDNull	resb 1			; dhcp_copyoption zero-terminates
 
-;
-; PXE packets which don't need static initialization
-;
-		alignb 4
-pxe_unload_stack_pkt:
-.status:	resw 1			; Status
-.reserved:	resb 10			; Reserved
-pxe_unload_stack_pkt_len	equ $-pxe_unload_stack_pkt
-
-		alignb 16
-		; BOOTP/DHCP packet buffer
 
 		section .bss16
                 global packet_buf
@@ -250,7 +239,7 @@ _start1:
 ; Unload PXE stack
 %define HAVE_UNLOAD_PREP
 %macro	UNLOAD_PREP 0
-		call unload_pxe
+		pm_call unload_pxe
 %endmacro
 
 ;
@@ -397,104 +386,6 @@ pxe_int1a:
 %endif
 		ret
 
-;
-; unload_pxe:
-;
-; This function unloads the PXE and UNDI stacks and unclaims
-; the memory.
-;
-unload_pxe:
-		cmp byte [KeepPXE],0		; Should we keep PXE around?
-		jne reset_pxe
-
-		push ds
-		push es
-
-		mov ax,cs
-		mov ds,ax
-		mov es,ax
-
-		mov si,new_api_unload
-		cmp byte [APIVer+1],2		; Major API version >= 2?
-		jae .new_api
-		mov si,old_api_unload
-.new_api:
-
-.call_loop:	xor ax,ax
-		lodsb
-		and ax,ax
-		jz .call_done
-		xchg bx,ax
-		mov di,pxe_unload_stack_pkt
-		push di
-		xor ax,ax
-		mov cx,pxe_unload_stack_pkt_len >> 1
-		rep stosw
-		pop di
-		call pxenv
-		jc .cant_free
-		mov ax,word [pxe_unload_stack_pkt.status]
-		cmp ax,PXENV_STATUS_SUCCESS
-		jne .cant_free
-		jmp .call_loop
-
-.call_done:
-		mov bx,0FF00h
-
-		mov dx,[RealBaseMem]
-		cmp dx,[BIOS_fbm]		; Sanity check
-		jna .cant_free
-		inc bx
-
-		; Check that PXE actually unhooked the INT 1Ah chain
-		movzx eax,word [4*0x1a]
-		movzx ecx,word [4*0x1a+2]
-		shl ecx,4
-		add eax,ecx
-		shr eax,10
-		cmp ax,dx			; Not in range
-		jae .ok
-		cmp ax,[BIOS_fbm]
-		jae .cant_free
-		; inc bx
-
-.ok:
-		mov [BIOS_fbm],dx
-.pop_ret:
-		pop es
-		pop ds
-		ret
-
-.cant_free:
-		mov si,cant_free_msg
-		call writestr_early
-		push ax
-		xchg bx,ax
-		call writehex4
-		mov al,'-'
-		call writechr
-		pop ax
-		call writehex4
-		mov al,'-'
-		call writechr
-		mov eax,[4*0x1a]
-		call writehex8
-		call crlf
-		jmp .pop_ret
-
-		; We want to keep PXE around, but still we should reset
-		; it to the standard bootup configuration
-reset_pxe:
-		push es
-		push cs
-		pop es
-		mov bx,PXENV_UDP_CLOSE
-		mov di,pxe_udp_close_pkt
-		call pxenv
-		pop es
-		ret
-
-
 
 ; -----------------------------------------------------------------------------
 ;  Common modules
@@ -541,45 +432,12 @@ exten_table_end:
 		dd 0, 0			; Need 8 null bytes here
 
 ;
-; PXE unload sequences
-;
-new_api_unload:
-		db PXENV_UDP_CLOSE
-		db PXENV_UNDI_SHUTDOWN
-		db PXENV_UNLOAD_STACK
-		db PXENV_STOP_UNDI
-		db 0
-old_api_unload:
-		db PXENV_UDP_CLOSE
-		db PXENV_UNDI_SHUTDOWN
-		db PXENV_UNLOAD_STACK
-		db PXENV_UNDI_CLEANUP
-		db 0
-
-;
-; PXE query packets partially filled in
-;
-		section .bss16
-pxe_udp_close_pkt:
-.status:	resw 1			; Status
-
-pxe_udp_read_pkt:
-.status:        resw 1                  ; Status
-.sip:           resd 1                  ; Source IP
-.dip:           resd 1                  ; Destination (our) IP
-.rport:         resw 1                  ; Remote port
-.lport:         resw 1                  ; Local port
-.buffersize:    resw 1                  ; Max packet size
-.buffer:        resw 2                  ; seg:off of buffer
-
-
-;
 ; Misc initialized (data) variables
 ;
 		section .data16
 
 		alignz 4
-                global BaseStack
+                global BaseStack, KeepPXE
 BaseStack	dd StackTop		; ESP of base stack
 		dw 0			; SS of base stack
 KeepPXE		db 0			; Should PXE be kept around?

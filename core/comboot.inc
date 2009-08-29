@@ -635,7 +635,7 @@ comapi_cleanup:
 		test dl,3
 		setnz [KeepPXE]
 		sub bp,sp		; unload_pxe may move the stack around
-		call unload_pxe
+		pm_call unload_pxe
 		add bp,sp		; restore frame pointer...
 %elif IS_SYSLINUX || IS_EXTLINUX
 		; Restore original FDC table
