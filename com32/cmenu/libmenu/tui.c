@@ -310,10 +310,8 @@ unsigned char *getboxchars(boxtype bt)
 void drawbox(char top, char left, char bot, char right,
 	     char page, char attr, boxtype bt)
 {
-    unsigned char *box_chars;	// pointer to array of box chars
     unsigned char x;
 	fputs(SO, stdout);
-    box_chars = getboxchars(bt);
     // Top border
     gotoxy(top, left, page);
     cprint(TOP_LEFT_CORNER_BORDER, attr, 1, page);
