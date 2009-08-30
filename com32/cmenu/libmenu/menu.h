@@ -99,7 +99,7 @@
 #define DEBUGLINE     23	// debugging info goes here
 
 // Other Chars
-#define SUBMENUCHAR   175	// This is >> symbol
+#define SUBMENUCHAR   '\172'	// This is >> symbol
 #define RADIOMENUCHAR '>'	// > symbol for radio menu?
 #define EXITMENUCHAR  174	// This is << symbol
 #define CHECKED       251	// Check mark
