@@ -212,43 +212,6 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
     free(str);
 }
 
-/* Print a C string (NUL-terminated) */
-void cswprint(const char *str, char attr, char left)
-{
-    char page = getdisppage();
-    char newattr = 0, cha, chb;
-
-    while (*str) {
-	switch (*str) {
-	case BELL:		// Bell Char
-	    beep();
-	    break;
-	case CHRELATTR:	// change attribute (relatively)
-	case CHABSATTR:	// change attribute (absolute)
-	    cha = *(str + 1);
-	    chb = *(str + 2);
-	    if ((((cha >= '0') && (cha <= '9')) || ((cha >= 'A') && (cha <= 'F'))) && (((chb >= '0') && (chb <= '9')) || ((chb >= 'A') && (chb <= 'F'))))	// Next two chars are legal
-	    {
-		if ((cha >= 'A') && (cha <= 'F'))
-		    cha = cha - 'A' + 10;
-		else
-		    cha = cha - '0';
-		if ((chb >= 'A') && (chb <= 'F'))
-		    chb = chb - 'A' + 10;
-		else
-		    chb = chb - '0';
-		newattr = (cha << 4) + chb;
-		attr = (*str == CHABSATTR ? newattr : attr ^ newattr);
-		str += 2;	// Will be incremented again later
-	    }
-	    break;
-	default:
-		cprint(*str, attr, 1, page);
-	}
-	str++;
-    }
-}
-
 void clearwindow(char top, char left, char bot, char right, char page,
 		 char fillchar, char fillattr)
 {
@@ -345,11 +308,13 @@ void drawhorizline(char top, char left, char right, char page, char attr,
 	end = right;
     }
     gotoxy(top, start, page);
-    cprint(box_chars[BOX_HORIZ], attr, end - start + 1, page);
+	putchar(SO);
+    cprint(MIDDLE_BORDER, attr, end - start + 1, page);
     if (dumb == 0) {
 	gotoxy(top, left, page);
-	cprint(box_chars[BOX_LTRT], attr, 1, page);
+	cprint(MIDDLE_BORDER, attr, 1, page);
 	gotoxy(top, right, page);
-	cprint(box_chars[BOX_RTLT], attr, 1, page);
+	cprint(MIDDLE_BORDER, attr, 1, page);
     }
+	putchar(SI);
 }

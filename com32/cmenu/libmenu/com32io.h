@@ -30,15 +30,17 @@ static inline beep()
 
 /* BIOS Assisted output routines */
 
-void cswprint(const char *str, char attr, char left);
 // Print a C str (NUL-terminated) respecting the left edge of window
 // i.e. \n in str will move cursor to column left
 // Print a C str (NUL-terminated)
 
-static inline void csprint(const char *str, char attr)
+void csprint(const char *str, char attr);
+
+static inline void cswprint(const char *str, char attr, char left)
 {
-    cswprint(str, attr, 0);
+	csprint(str, attr);
 }
+
 
 void cprint(char chr, char attr, unsigned int times, char disppage);	// Print a char
 

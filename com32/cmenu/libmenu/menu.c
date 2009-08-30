@@ -148,10 +148,10 @@ void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first)
 {
     int x, row;			// x = index, row = position from top
     int numitems, menuwidth;
-    char fchar[5], lchar[5];	// The first and last char in for each entry
+    char fchar[6], lchar[6];	// The first and last char in for each entry
     const char *str;		// and inbetween the item or a seperator is printed
+	char sep[MENULEN];	// Separator (OPT_SEP)
     uchar *attr;		// attribute attr
-    char sep[MENULEN];		// and inbetween the item or a seperator is printed
     pt_menuitem ci;
 
     numitems = calc_visible(menu, first);
@@ -163,8 +163,6 @@ void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first)
 		ms->menupage, ms->fillchar, ms->shadowattr);
     drawbox(top - 1, left - 3, top + numitems, left + menuwidth,
 	    ms->menupage, ms->normalattr[NOHLITE], ms->menubt);
-    memset(sep, ms->box_horiz, menuwidth);	// String containing the seperator string
-    sep[menuwidth - 1] = 0;
     // Menu title
     x = (menuwidth - strlen(menu->title) - 1) >> 1;
     gotoxy(top - 1, left + x, ms->menupage);
@@ -200,18 +198,22 @@ void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first)
 	    lchar[1] = 0;
 	    break;
 	case OPT_SEP:
-	    fchar[0] = '\b';
-	    fchar[1] = ms->box_ltrt;
-	    fchar[2] = ms->box_horiz;
-	    fchar[3] = ms->box_horiz;
-	    fchar[4] = 0;
-	    lchar[0] = ms->box_horiz;
-	    lchar[1] = ms->box_rtlt;
-	    lchar[2] = 0;
-	    str = sep;
-	    break;
+		fchar[0] = '\b';
+		fchar[1] = SO;
+		fchar[2] = LEFT_MIDDLE_BORDER;
+		fchar[3] = MIDDLE_BORDER;
+		fchar[4] = MIDDLE_BORDER;
+		fchar[5] = 0;
+		memset(sep, MIDDLE_BORDER, menuwidth);
+		sep[menuwidth - 1] = 0;
+		str = sep;
+		lchar[0] = MIDDLE_BORDER;
+		lchar[1] = RIGHT_MIDDLE_BORDER;
+		lchar[2] = SI;
+		lchar[3] = 0;
+		break;
 	case OPT_EXITMENU:
-	    fchar[0] = EXITMENUCHAR;
+	    fchar[0] = '<';
 	    fchar[1] = 0;
 	    break;
 	default:		// Just to keep the compiler happy
@@ -224,7 +226,7 @@ void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first)
 	gotoxy(top + row, left, ms->menupage);
 	printmenuitem(str, attr);	// Print main part
 	gotoxy(top + row, left + menuwidth - 1, ms->menupage);	// Last char if any
-	fputs(lchar, stdout);	// Print last part
+	csprint(lchar, attr[NOHLITE]);	// Print first part
     }
     // Check if we need to MOREABOVE and MOREBELOW to be added
     // reuse x

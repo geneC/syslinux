@@ -13,6 +13,7 @@
 #include <string.h>
 #include <com32.h>
 #include "com32io.h"
+#include "tui.h"
 #include "syslnx.h"
 
 com32sys_t inreg, outreg;	// Global register sets for use
@@ -69,6 +70,14 @@ void cprint(char chr, char attr, unsigned int times, char disppage)
 
 	while (times--)
 		cprint_vga2ansi(chr, attr);
+}
+
+void csprint(const char *str, char attr)
+{
+	while (*str) {
+		cprint(*str, attr, 1, 0);
+		str++;
+	}
 }
 
 void setdisppage(char num)	// Set the display page to specified number
