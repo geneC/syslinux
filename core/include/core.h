@@ -9,7 +9,7 @@ extern char core_cache_buf[65536];
 extern char trackbuf[];
 extern char CurrentDirName[];
 extern char ConfigName[];
-
+extern char KernelName[];
 
 /* diskstart.inc isolinux.asm*/
 extern void getlinsec(void);

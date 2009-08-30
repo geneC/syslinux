@@ -445,23 +445,18 @@ static void iso_searchdir(char *filename, struct file *file)
 #endif
 }
 
-static void iso_load_config(com32sys_t *regs)
+/* Load the config file, return 1 if failed, or 0 */
+static int iso_load_config(void)
 {
     char *config_name = "isolinux.cfg";
+    com32sys_t regs;
     
-#if DEBUG
-    printf("About to load config file...\n");
-#endif
-
+    memset(&regs, 0, sizeof regs);
     strcpy(ConfigName, config_name);
-    regs->edi.w[0] = OFFS_WRT(ConfigName, 0);
-    call16(core_open, regs, regs);
+    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
+    call16(core_open, &regs, &regs);
 
-#if DEBUG
-    printf("the zero flag is %s\n", regs->eax.w[0] ?
-           "CLEAR, means we found the config file" :
-           "SET, menas we didn't find the config file");
-#endif
+    return regs.eflags.l & EFLAGS_ZF;
 }
 
 

@@ -797,16 +797,16 @@ struct dirent* vfat_readdir(struct file *dir)
     return &de;
 }
 
-static void vfat_load_config(com32sys_t *regs)
+/* Load the config file, return 1 if failed, or 0 */
+static int vfat_load_config(void)
 {
     static const char syslinux_cfg1[] = "/boot/syslinux/syslinux.cfg";
     static const char syslinux_cfg2[] = "/syslinux/syslinux.cfg";
     static const char syslinux_cfg3[] = "/syslinux.cfg";
-    static const char config_name[] = "syslinux.cfg";
-    
+    static const char config_name[] = "syslinux.cfg";    
     const char * const syslinux_cfg[] =
 	{ syslinux_cfg1, syslinux_cfg2, syslinux_cfg3 };
-    com32sys_t oregs;
+    com32sys_t regs;
     int i = 0;
     
     *(uint16_t *)CurrentDirName = ROOT_DIR_WORD;
@@ -816,25 +816,26 @@ static void vfat_load_config(com32sys_t *regs)
      * we use the ConfigName to pass the config path because
      * it is under the address 0xffff
      */
-    regs->edi.w[0] = OFFS_WRT(ConfigName, 0);
+    memset(&regs, 0, sizeof regs);
+    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
     for (; i < 3; i++) {
         strcpy(ConfigName, syslinux_cfg[i]);
-        memset(&oregs, 0, sizeof oregs);
-        call16(core_open, regs, &oregs);
+        call16(core_open, &regs, &regs);
 
         /* if zf flag set, then failed; try another */
-        if (! (oregs.eflags.l & EFLAGS_ZF))
+        if (! (regs.eflags.l & EFLAGS_ZF))
             break;
     }
     if (i == 3) {
         printf("no config file found\n");
-        return;  /* no config file */
+        return 1;  /* no config file */
     }
 
     strcpy(ConfigName, config_name);
     strcpy(CurrentDirName, syslinux_cfg[i]);
     CurrentDirName[strlen(syslinux_cfg[i])-strlen(config_name)] = '\0';
     CurrentDir = PrevDir;
+    return 0;
 }
  
 static inline __constfunc uint32_t bsr(uint32_t num)

@@ -254,20 +254,19 @@ static const char *parse_dotquad(const char *ip_str, uint32_t *res)
 int pxe_call(int opcode, void *data)
 {
     extern void pxenv(void);
-    com32sys_t in_regs, out_regs;
+    com32sys_t regs;
     
 #if 0
     printf("pxe_call op %04x data %p\n", opcode, data);
 #endif
 
-    memset(&in_regs, 0, sizeof in_regs);
+    memset(&regs, 0, sizeof regs);    
+    regs.ebx.w[0] = opcode;
+    regs.es       = SEG(data);
+    regs.edi.w[0] = OFFS(data);
+    call16(pxenv, &regs, &regs);
     
-    in_regs.ebx.w[0] = opcode;
-    in_regs.es       = SEG(data);
-    in_regs.edi.w[0] = OFFS(data);
-    call16(pxenv, &in_regs, &out_regs);
-    
-    return out_regs.eflags.l & EFLAGS_CF;  /* CF SET if fail */
+    return regs.eflags.l & EFLAGS_CF;  /* CF SET if fail */
 }
 
 /**
@@ -1022,17 +1021,17 @@ static void get_prefix(void)
   * try to load a config file, if found, return 1, or return 0
   *
   */   
-static int try_load(com32sys_t *regs)
+static int try_load(char *config_name)
 {
-    extern char KernelName[];
-    char *config_name = (char *)MK_PTR(regs->ds, regs->edi.w[0]);
-
+    com32sys_t regs;
+    
     printf("Trying to load: %-50s ", config_name);
     pxe_mangle_name(KernelName, config_name);
     
-    regs->edi.w[0] = OFFS_WRT(KernelName, 0);
-    call16(core_open, regs, regs);
-    if (regs->eflags.l & EFLAGS_ZF) {
+    memset(&regs, 0, sizeof regs);
+    regs.edi.w[0] = OFFS_WRT(KernelName, 0);
+    call16(core_open, &regs, &regs);
+    if (regs.eflags.l & EFLAGS_ZF) {
         printf("   [FAILED]\n");
         return 0;
     } else {
@@ -1042,35 +1041,31 @@ static int try_load(com32sys_t *regs)
 }
 
 
- /*
-  * load configuration file
-  *
-  */
-static void pxe_load_config(com32sys_t *regs)
+/* Load the config file, return 1 if failed, or 0 */
+static int pxe_load_config(void)
 {
-    char *cfgprefix = "pxelinux.cfg/";
-    char *default_str = "default";
-    char *config_file;		/* Pointer to the variable suffix */
-    char *p;
-   
-    uint8_t *uuid_ptr;
-
-    int tries = 8;
+    const char *cfgprefix = "pxelinux.cfg/";
+    const char *default_str = "default";
+    char *config_file;
     char *last;
+    char *p;   
+    uint8_t *uuid_ptr;
+    int tries = 8;
     
     get_prefix();
     if (DHCPMagic & 0x02) {
         /* We got a DHCP option, try it first */
-        if (try_load(regs))
-            return;
+	/* XXX: I have no idea where the config_file came from */
+	//if (try_load(NULL))
+	//return 0;
     }
     
-    memcpy(ConfigName, cfgprefix, strlen(cfgprefix));
-    config_file = ConfigName + strlen(cfgprefix);
     /*
      * Have to guess config file name ...
-     */
-    
+     */  
+    memcpy(ConfigName, cfgprefix, strlen(cfgprefix));
+    config_file = ConfigName + strlen(cfgprefix);
+      
     /* Try loading by UUID */
     if (have_uuid) {
         uuid_ptr  = uuid_dashes;
@@ -1087,44 +1082,34 @@ static void pxe_load_config(com32sys_t *regs)
         }
         /* Remove last dash and zero-terminate */
 	*--p = '\0';
-        regs->edi.w[0] = OFFS_WRT(ConfigName, 0);
-        if (try_load(regs))
-            return;
+	if (try_load(ConfigName))
+            return 0;
     }
 
     /* Try loading by MAC address */
     strcpy(config_file, MAC_str);
-    regs->edi.w[0] = OFFS_WRT(ConfigName, 0);
-    if (try_load(regs))
-        return;
-    
-#if 0
-    printf("MY IP: %p(%X)\n", MyIP, *(uint32_t *)MyIP);
- #endif
+    if (try_load(ConfigName))
+        return 0;
     
     /* Nope, try hexadecimal IP prefixes... */
     uchexbytes(config_file, (uint8_t *)&MyIP, 4);     /* Convet to hex string */
     last = &config_file[8];
     while (tries) {
         *last = '\0';        /* Zero-terminate string */
-        regs->edi.w[0] = OFFS_WRT(ConfigName, 0);
-        if (try_load(regs))
-            return;
+	if (try_load(ConfigName))
+            return 0;
         last--;           /* Drop one character */
         tries--;
     };
     
     /* Final attempt: "default" string */
     strcpy(config_file, default_str);
-    regs->edi.w[0] = OFFS_WRT(ConfigName, 0);
-    if (try_load(regs))
-        return;
+    if (try_load(ConfigName))
+        return 0;
 
     printf("Unable to locate configuration file\n");
     kaboom();
 }
-   
-  
 
 /*
  * Generate the botif string, and the hardware-based config string 
@@ -1319,9 +1304,7 @@ static void pxe_init(void)
     if (is_pxenv(pxenv))
         goto have_pxenv;
 
-    /* 
-     * Plan C: PXENV+ structure via INT 1Ah AX=5650h 
-     */
+    /* Plan C: PXENV+ structure via INT 1Ah AX=5650h  */
     plan++;
     memset(&regs, 0, sizeof regs);
     regs.eax.w[0] = 0x5650;

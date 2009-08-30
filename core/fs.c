@@ -55,9 +55,14 @@ inline struct file *handle_to_file(uint16_t handle)
     return handle ? &files[handle-1] : NULL;
 }
 
-void load_config(com32sys_t *regs)
+void load_config(void)
 {
-    this_fs->fs_ops->load_config(regs);
+    int err;
+    err = this_fs->fs_ops->load_config();
+
+#if 0
+    printf("Loading config file %s\n", err ? "failed" : "successed");
+#endif
 }
 
 void mangle_name(com32sys_t *regs)

@@ -679,21 +679,20 @@ static void ext2_searchdir(char *filename, struct file *file)
 
 }
 
-static void ext2_load_config(com32sys_t *regs)
+/* Load the config file, return 1 if failed, or 0 */
+static int ext2_load_config(void)
 {
     char *config_name = "extlinux.conf";
+    com32sys_t regs;
     
     strcpy(ConfigName, config_name);
     *(uint32_t *)CurrentDirName = 0x00002f2e;  
+    
+    memset(&regs, 0, sizeof regs);
+    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
+    call16(core_open, &regs, &regs);
 
-    regs->edi.w[0] = OFFS_WRT(ConfigName, 0);
-    call16(core_open, regs, regs);
-
-#if 0
-    printf("the zero flag is %s\n", regs->eax.w[0] ?          \
-           "CLEAR, means we found the config file" :
-           "SET, menas we didn't find the config file");
-#endif
+    return regs.eflags.l & EFLAGS_ZF;
 }
 
 

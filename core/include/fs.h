@@ -49,7 +49,7 @@ struct fs_ops {
     void     (*close_file)(struct file *);
     void     (*mangle_name)(char *, const char *);
     char *   (*unmangle_name)(char *, const char *);
-    void     (*load_config)(com32sys_t *);
+    int      (*load_config)();
 
     /* the _dir_ stuff */
     void     (*opendir)(com32sys_t *);
