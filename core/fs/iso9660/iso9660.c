@@ -456,7 +456,7 @@ static int iso_load_config(void)
     regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
     call16(core_open, &regs, &regs);
 
-    return regs.eflags.l & EFLAGS_ZF;
+    return !!(regs.eflags.l & EFLAGS_ZF);
 }
 
 
