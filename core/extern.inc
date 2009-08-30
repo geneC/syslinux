@@ -18,8 +18,9 @@
 
         ; dir.c
         extern opendir, readdir, closedir
-
+%if IS_PXELINUX
 	; pxe.c
 	extern unload_pxe, reset_pxe
+%endif
 
 %endif ; EXTERN_INC
