@@ -1055,9 +1055,8 @@ static int pxe_load_config(void)
     get_prefix();
     if (DHCPMagic & 0x02) {
         /* We got a DHCP option, try it first */
-	/* XXX: I have no idea where the config_file came from */
-	//if (try_load(NULL))
-	//return 0;
+	if (try_load(boot_file))
+	    return 0;
     }
     
     /*
