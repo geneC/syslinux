@@ -29,7 +29,7 @@ com32sys_t inreg, outreg;	// Global register sets for use
 static void cprint_vga2ansi(const char chr, const char attr)
 {
 	static const char ansi_char[8] = "04261537";
-	static uint8_t last_attr = 0x07;
+	static uint8_t last_attr = 0x300;
 	char buf[16], *p;
 
 	if (attr != last_attr) {
@@ -37,13 +37,12 @@ static void cprint_vga2ansi(const char chr, const char attr)
 		*p++ = '\033';
 		*p++ = '[';
 
-		/* Beware! Do not use '1': this will reset all attributes off,
-		 * including the background color - as a result, the background
-		 * would be black after the highlight area <X> */
 		if (last_attr & ~attr & 0x88) {
-			*p++ = '2';
-			*p++ = '2';
+			*p++ = '0';
 			*p++ = ';';
+			/* Reset last_attr to unknown to handle
+			 * background/foreground attributes correctly */
+			last_attr = 0x300;
 		}
 		if (attr & 0x08) {
 			*p++ = '1';
