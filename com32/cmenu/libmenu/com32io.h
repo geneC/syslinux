@@ -95,12 +95,12 @@ static inline unsigned char readbiosb(unsigned int ofs)
 
 static inline char getnumrows()
 {
-    return readbiosb(0x484)+1; // Actually numrows - 1
+	return 25;
 }
 
 static inline char getnumcols(void)
 {
-    return readbiosb(0x44a);	// Actually numcols
+	return 80;
 }
 
 static inline char getshiftflags(void)
