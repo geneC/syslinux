@@ -39,6 +39,7 @@
 #include "hdt-ata.h"
 #include "../lib/sys/vesa/vesa.h"
 #include <vpd/vpd.h>
+#include <ansi.h>
 
 /* Declare a variable or data structure as unused. */
 #define __unused __attribute__ (( unused ))

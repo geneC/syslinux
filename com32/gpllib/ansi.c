@@ -34,6 +34,8 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include "ansi.h"
+
 void display_cursor(bool status)
 {
 	if (status == true) {

@@ -32,7 +32,6 @@
 #include <getkey.h>
 #include "hdt-cli.h"
 #include "hdt-common.h"
-#include "lib-ansi.h"
 
 struct cli_mode_descr *list_modes[] = {
 	&hdt_mode,

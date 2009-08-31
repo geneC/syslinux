@@ -29,11 +29,11 @@
 #ifndef DEFINE_LIB_ANSI_H
 #define DEFINE_LIB_ANSI_H
 void display_cursor(bool status);
-void clear_end_of_line();
+void clear_end_of_line(void);
 void move_cursor_left(int count);
 void move_cursor_right(int count);
-void clear_line();
-void clear_beginning_of_line();
+void clear_line(void);
+void clear_beginning_of_line(void);
 void move_cursor_to_column(int count);
 void move_cursor_to_next_line();
 void disable_utf8();
@@ -41,4 +41,9 @@ void set_g1_special_char();
 void set_us_g0_charset();
 void clear_entire_screen();
 void set_cursor_blink(bool status);
+void move_cursor_to_next_line(void);
+void disable_utf8(void);
+void set_g1_special_char(void);
+void set_us_g0_charset(void);
+void clear_entire_screen(void);
 #endif
