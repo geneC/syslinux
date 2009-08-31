@@ -84,7 +84,7 @@ TIMEOUTCODE ontimeout()
 }
 
 /* Keyboard handler for the menu system */
-void keys_handler(t_menusystem * ms, t_menuitem * mi, unsigned int scancode)
+void keys_handler(t_menuitem * mi, unsigned int scancode)
 {
   char nc;
 
@@ -99,11 +99,11 @@ void keys_handler(t_menusystem * ms, t_menuitem * mi, unsigned int scancode)
 //(isallowed(username,"editcmd") || isallowed(username,"root"))) {
     nc = getnumcols();
     /* User typed TAB and has permissions to edit command line */
-    gotoxy(EDITPROMPT, 1, ms->menupage);
+    gotoxy(EDITPROMPT, 1);
     csprint("Command line:", 0x07);
     editstring(mi->data, ACTIONLEN);
-    gotoxy(EDITPROMPT, 1, ms->menupage);
-    cprint(' ', 0x07, nc - 1, ms->menupage);
+    gotoxy(EDITPROMPT, 1);
+    cprint(' ', 0x07, nc - 1);
   }
 }
 

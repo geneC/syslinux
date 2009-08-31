@@ -62,36 +62,47 @@ static void cprint_vga2ansi(char chr, char attr)
 	putchar(chr);
 }
 
-/* Print character and attribute at cursor */
-// Note: attr is a vga attribute
-void cprint(char chr, char attr, unsigned int times, char disppage)
+/**
+ * cprint - given a VGA attribute, print a single character at cursor
+ * @chr:	character to print
+ * @attr:	VGA attribute
+ * @times:	number of times to print @chr
+ *
+ * Note: @attr is a VGA attribute.
+ **/
+void cprint(const char chr, const char attr, unsigned int times)
 {
-	// XXX disppage
-
 	while (times--)
 		cprint_vga2ansi(chr, attr);
 }
 
-void csprint(const char *str, char attr)
+/**
+ * csprint - given a VGA attribute, print a NULL-terminated string
+ * @str:	string to print
+ * @attr:	VGA attribute
+ **/
+void csprint(const char *str, const char attr)
 {
 	while (*str) {
-		cprint(*str, attr, 1, 0);
+		cprint(*str, attr, 1);
 		str++;
 	}
 }
 
-void setdisppage(char num)	// Set the display page to specified number
+/**
+ * clearwindow - fill a given a region on the screen
+ * @top, @left, @bot, @right:	coordinates to fill
+ * @fillchar:			character to use to fill the region
+ * @fillattr:			character attribute (VGA)
+ **/
+void clearwindow(const char top, const char left, const char bot,
+		 const char right, const char fillchar, const char fillattr)
 {
-    REG_AH(inreg) = 0x05;
-    REG_AL(inreg) = num;
-    __intcall(0x10, &inreg, &outreg);
-}
-
-char getdisppage()		// Get current display page
-{
-    REG_AH(inreg) = 0x0f;
-    __intcall(0x10, &inreg, &outreg);
-    return REG_BH(outreg);
+	char x;
+	for (x = top; x < bot + 1; x++) {
+		gotoxy(x, left);
+		cprint(fillchar, fillattr, right - left + 1);
+	}
 }
 
 void getpos(char *row, char *col, char page)
@@ -137,7 +148,7 @@ char inputc(char *scancode)
 
 void getcursorshape(char *start, char *end)
 {
-    char page = getdisppage();
+    char page = 0; // XXX TODO
     REG_AH(inreg) = 0x03;
     REG_BH(inreg) = page;
     __intcall(0x10, &inreg, &outreg);

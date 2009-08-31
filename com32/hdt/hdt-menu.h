@@ -82,7 +82,7 @@ struct s_hdt_menu {
 };
 
 TIMEOUTCODE ontimeout();
-void keys_handler(t_menusystem * ms, t_menuitem * mi, unsigned int scancode);
+void keys_handler(t_menuitem * mi, unsigned int scancode);
 
 // PCI Stuff
 int compute_PCI(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);

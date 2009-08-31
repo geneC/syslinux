@@ -69,8 +69,8 @@ void printtext(char *buf, int from)
     p = findline(f, nlines);
     if (p && (*p == '\n'))
 	*p = '\0';		// change to NUL
-    gotoxy(HELP_BODY_ROW, HELP_LEFT_MARGIN, HELPPAGE);
-    cswprint(f, 0x07, HELP_LEFT_MARGIN);
+    gotoxy(HELP_BODY_ROW, HELP_LEFT_MARGIN);
+    csprint(f, 0x07);
     if (p)
 	*p = '\n';		// set it back
 }
@@ -93,12 +93,12 @@ void showhelp(const char *filename)
     nr = getnumrows();
     ph = nr - HELP_BOTTOM_MARGIN - HELP_BODY_ROW - 1;
     cls();
-    drawbox(0, 0, nr, nc - 1, HELPPAGE, 0x07, HELPBOX);
+    drawbox(0, 0, nr, nc - 1, 0x07);
 
-    drawhorizline(2, 0, nc - 1, HELPPAGE, 0x07, HELPBOX, 0);	// dumb==0
+    drawhorizline(2, 0, nc - 1, 0x07, 0);	// dumb==0
     if (filename == NULL) {	// print file contents
-	gotoxy(HELP_BODY_ROW, HELP_LEFT_MARGIN, HELPPAGE);
-	cswprint("Filename not given", 0x07, HELP_LEFT_MARGIN);
+	gotoxy(HELP_BODY_ROW, HELP_LEFT_MARGIN);
+	csprint("Filename not given", 0x07);
 	while (1) {
 	    inputc(&scan);
 	    if (scan == ESCAPE)
@@ -112,8 +112,8 @@ void showhelp(const char *filename)
     if (rv < 0) {		// Error reading file or no such file
 	sprintf(line, "Error reading file or file not found\n file=%s",
 		filename);
-	gotoxy(HELP_BODY_ROW, HELP_LEFT_MARGIN, HELPPAGE);
-	cswprint(line, 0x07, HELP_LEFT_MARGIN);
+	gotoxy(HELP_BODY_ROW, HELP_LEFT_MARGIN);
+	csprint(line, 0x07);
 	while (1) {
 	    inputc(&scan);
 	    if (scan == ESCAPE)
@@ -128,7 +128,7 @@ void showhelp(const char *filename)
     *text++ = '\0';		// end the title string and increment text
 
     // Now we have a file just print it.
-    gotoxy(1, (nc - strlen(title)) / 2, HELPPAGE);
+    gotoxy(1, (nc - strlen(title)) / 2);
     csprint(title, 0x07);
     numlines = countlines(text);
     curr_line = 0;
@@ -136,16 +136,16 @@ void showhelp(const char *filename)
 
     while (scan != ESCAPE) {
 	printtext(text, curr_line);
-	gotoxy(HELP_BODY_ROW - 1, nc - HELP_RIGHT_MARGIN, HELPPAGE);
+	gotoxy(HELP_BODY_ROW - 1, nc - HELP_RIGHT_MARGIN);
 	if (curr_line > 0)
-	    putch(HELP_MORE_ABOVE, 0x07, HELPPAGE);
+	    putch(HELP_MORE_ABOVE, 0x07);
 	else
-	    putch(' ', 0x07, HELPPAGE);
-	gotoxy(nr - HELP_BOTTOM_MARGIN + 1, nc - HELP_RIGHT_MARGIN, HELPPAGE);
+	    putch(' ', 0x07);
+	gotoxy(nr - HELP_BOTTOM_MARGIN + 1, nc - HELP_RIGHT_MARGIN);
 	if (curr_line < numlines - ph)
-	    putch(HELP_MORE_BELOW, 0x07, HELPPAGE);
+	    putch(HELP_MORE_BELOW, 0x07);
 	else
-	    putch(' ', 0x07, HELPPAGE);
+	    putch(' ', 0x07);
 
 	inputc(&scan);		// wait for user keypress
 
@@ -182,12 +182,9 @@ void showhelp(const char *filename)
 
 void runhelp(const char *filename)
 {
-    char dp;
     char fullname[HELPDIRLEN + 16];
 
-    dp = getdisppage();
-    if (dp != HELPPAGE)
-	setdisppage(HELPPAGE);
+	cls();
     cursoroff();
     if (helpbasedir[0] != 0) {
 	strcpy(fullname, helpbasedir);
@@ -196,8 +193,6 @@ void runhelp(const char *filename)
 	showhelp(fullname);
     } else
 	showhelp(filename);	// Assume filename is absolute
-    if (dp != HELPPAGE)
-	setdisppage(dp);
 }
 
 void runhelpsystem(unsigned int helpid)

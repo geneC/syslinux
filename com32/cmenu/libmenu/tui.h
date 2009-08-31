@@ -41,23 +41,7 @@
 // CHRELATTR = ^N, CHABSATTR = ^O
 #define CHABSATTR 15
 #define CHRELATTR 14
-
-void clearwindow(char top, char left, char bot, char right,
-		 char page, char fillchar, char fillattr);
-
-/*
- * Clears the entire screen
- *
- * Note: when initializing xterm, one has to specify that
- * G1 points to the alternate character set (this is not true
- * by default). Without the initial printf "\033)0", line drawing
- * characters won't be displayed.
- */
-static inline void cls(void)
-{
-	return fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
-}
-
+#define GETSTRATTR 0x07
 
 // Generic user input,
 // password = 0 iff chars echoed on screen
@@ -101,14 +85,14 @@ typedef enum { BOX_SINSIN, BOX_DBLDBL, BOX_SINDBL, BOX_DBLSIN } boxtype;
 
 unsigned char *getboxchars(boxtype bt);
 
-void drawbox(char top, char left, char bot, char right,
-	     char page, char attr, boxtype bt);
+void drawbox(const char, const char, const char, const char,
+	     const char);
 
 // Draw a horizontal line
 // dumb == 1, means just draw the line
 // dumb == 0 means check the first and last positions and depending on what is
 //    currently on the screen make it a LTRT and/or RTLT appropriately.
-void drawhorizline(char top, char left, char right, char page, char attr,
-		   boxtype bt, char dumb);
+void drawhorizline(const char, const char, const char, const char,
+		   const char dumb);
 
 #endif

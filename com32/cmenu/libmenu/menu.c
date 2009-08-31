@@ -90,7 +90,6 @@ char getch(char *scan)
  */
 void printmenuitem(const char *str, uchar * attr)
 {
-	uchar page = getdisppage();
 	int hlite = NOHLITE;	// Initially no highlighting
 
 	while (*str) {
@@ -104,7 +103,7 @@ void printmenuitem(const char *str, uchar * attr)
 				hlite = NOHLITE;
 				break;
 			default:
-				putch(*str, attr[hlite], page);
+				putch(*str, attr[hlite]);
 		}
 		str++;
 	}
@@ -160,12 +159,12 @@ void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first)
 
     menuwidth = menu->menuwidth + 3;
     clearwindow(top, left - 2, top + numitems + 1, left + menuwidth + 1,
-		ms->menupage, ms->fillchar, ms->shadowattr);
+		ms->fillchar, ms->shadowattr);
     drawbox(top - 1, left - 3, top + numitems, left + menuwidth,
-	    ms->menupage, ms->normalattr[NOHLITE], ms->menubt);
+	    ms->normalattr[NOHLITE]);
     // Menu title
     x = (menuwidth - strlen(menu->title) - 1) >> 1;
-    gotoxy(top - 1, left + x, ms->menupage);
+    gotoxy(top - 1, left + x);
     printmenuitem(menu->title, ms->normalattr);
     row = -1;			// 1 less than inital value of x
     for (x = first; x < menu->numitems; x++) {
@@ -219,14 +218,14 @@ void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first)
 	default:		// Just to keep the compiler happy
 	    break;
 	}
-	gotoxy(top + row, left - 2, ms->menupage);
-	cprint(ms->spacechar, attr[NOHLITE], menuwidth + 2, ms->menupage);	// Wipe area with spaces
-	gotoxy(top + row, left - 2, ms->menupage);
+	gotoxy(top + row, left - 2);
+	cprint(ms->spacechar, attr[NOHLITE], menuwidth + 2);	// Wipe area with spaces
+	gotoxy(top + row, left - 2);
 	csprint(fchar, attr[NOHLITE]);	// Print first part
-	gotoxy(top + row, left, ms->menupage);
+	gotoxy(top + row, left);
 	printmenuitem(str, attr);	// Print main part
-	gotoxy(top + row, left + menuwidth - 1, ms->menupage);	// Last char if any
-	csprint(lchar, attr[NOHLITE]);	// Print first part
+	gotoxy(top + row, left + menuwidth - 1);	// Last char if any
+	csprint(lchar, attr[NOHLITE]);	// Print last part
     }
     // Check if we need to MOREABOVE and MOREBELOW to be added
     // reuse x
@@ -235,21 +234,21 @@ void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first)
     if (!isvisible(menu, first, x))	// There is more above
     {
 	row = 1;
-	gotoxy(top, left + menuwidth, ms->menupage);
-	cprint(MOREABOVE, ms->normalattr[NOHLITE], 1, ms->menupage);
+	gotoxy(top, left + menuwidth);
+	cprint(MOREABOVE, ms->normalattr[NOHLITE], 1);
     }
     x = prev_visible_sep(menu, menu->numitems);	// last item
     if (!isvisible(menu, first, x))	// There is more above
     {
 	row = 1;
-	gotoxy(top + numitems - 1, left + menuwidth, ms->menupage);
-	cprint(MOREBELOW, ms->normalattr[NOHLITE], 1, ms->menupage);
+	gotoxy(top + numitems - 1, left + menuwidth);
+	cprint(MOREBELOW, ms->normalattr[NOHLITE], 1);
     }
     // Add a scroll box
     x = ((numitems - 1) * curr) / (menu->numitems);
     if ((x > 0) && (row == 1)) {
-	gotoxy(top + x, left + menuwidth, ms->menupage);
-	cprint(SCROLLBOX, ms->normalattr[NOHLITE], 1, ms->menupage);
+	gotoxy(top + x, left + menuwidth);
+	cprint(SCROLLBOX, ms->normalattr[NOHLITE], 1);
     }
     if (ms->handler)
 	ms->handler(ms, menu->items[curr]);
@@ -273,14 +272,14 @@ void printradiomenu(pt_menu menu, int curr, uchar top, uchar left, int first)
 
     menuwidth = menu->menuwidth + 3;
     clearwindow(top, left - 2, top + numitems + 1, left + menuwidth + 1,
-		ms->menupage, ms->fillchar, ms->shadowattr);
+		ms->fillchar, ms->shadowattr);
     drawbox(top - 1, left - 3, top + numitems, left + menuwidth,
-	    ms->menupage, ms->normalattr[NOHLITE], ms->menubt);
+	    ms->normalattr[NOHLITE]);
     memset(sep, ms->box_horiz, menuwidth);	// String containing the seperator string
     sep[menuwidth - 1] = 0;
     // Menu title
     x = (menuwidth - strlen(menu->title) - 1) >> 1;
-    gotoxy(top - 1, left + x, ms->menupage);
+    gotoxy(top - 1, left + x);
     printmenuitem(menu->title, ms->normalattr);
     row = -1;			// 1 less than inital value of x
     for (x = first; x < menu->numitems; x++) {
@@ -316,13 +315,13 @@ void printradiomenu(pt_menu menu, int curr, uchar top, uchar left, int first)
 	default:		// To keep the compiler happy
 	    break;
 	}
-	gotoxy(top + row, left - 2, ms->menupage);
-	cprint(ms->spacechar, attr[NOHLITE], menuwidth + 2, ms->menupage);	// Wipe area with spaces
-	gotoxy(top + row, left - 2, ms->menupage);
+	gotoxy(top + row, left - 2);
+	cprint(ms->spacechar, attr[NOHLITE], menuwidth + 2);	// Wipe area with spaces
+	gotoxy(top + row, left - 2);
 	csprint(fchar, attr[NOHLITE]);	// Print first part
-	gotoxy(top + row, left, ms->menupage);
+	gotoxy(top + row, left);
 	printmenuitem(str, attr);	// Print main part
-	gotoxy(top + row, left + menuwidth - 1, ms->menupage);	// Last char if any
+	gotoxy(top + row, left + menuwidth - 1);	// Last char if any
 	csprint(lchar, attr[NOHLITE]);	// Print last part
     }
     // Check if we need to MOREABOVE and MOREBELOW to be added
@@ -332,21 +331,21 @@ void printradiomenu(pt_menu menu, int curr, uchar top, uchar left, int first)
     if (!isvisible(menu, first, x))	// There is more above
     {
 	row = 1;
-	gotoxy(top, left + menuwidth, ms->menupage);
-	cprint(MOREABOVE, ms->normalattr[NOHLITE], 1, ms->menupage);
+	gotoxy(top, left + menuwidth);
+	cprint(MOREABOVE, ms->normalattr[NOHLITE], 1);
     }
     x = prev_visible_sep(menu, menu->numitems);	// last item
     if (!isvisible(menu, first, x))	// There is more above
     {
 	row = 1;
-	gotoxy(top + numitems - 1, left + menuwidth, ms->menupage);
-	cprint(MOREBELOW, ms->normalattr[NOHLITE], 1, ms->menupage);
+	gotoxy(top + numitems - 1, left + menuwidth);
+	cprint(MOREBELOW, ms->normalattr[NOHLITE], 1);
     }
     // Add a scroll box
     x = ((numitems - 1) * curr) / (menu->numitems);
     if ((x > 0) && (row == 1)) {
-	gotoxy(top + x, left + menuwidth, ms->menupage);
-	cprint(SCROLLBOX, ms->normalattr[NOHLITE], 1, ms->menupage);
+	gotoxy(top + x, left + menuwidth);
+	cprint(SCROLLBOX, ms->normalattr[NOHLITE], 1);
     }
     if (ms->handler)
 	ms->handler(ms, menu->items[curr]);
@@ -356,8 +355,8 @@ void cleanupmenu(pt_menu menu, uchar top, uchar left, int numitems)
 {
     if (numitems > menu->menuheight)
 	numitems = menu->menuheight;
-    clearwindow(top, left - 2, top + numitems + 1, left + menu->menuwidth + 4, ms->menupage, ms->fillchar, ms->fillattr);	// Clear the shadow
-    clearwindow(top - 1, left - 3, top + numitems, left + menu->menuwidth + 3, ms->menupage, ms->fillchar, ms->fillattr);	// main window
+    clearwindow(top, left - 2, top + numitems + 1, left + menu->menuwidth + 4, ms->fillchar, ms->fillattr);	// Clear the shadow
+    clearwindow(top - 1, left - 3, top + numitems, left + menu->menuwidth + 3, ms->fillchar, ms->fillattr);	// main window
 }
 
 /* Handle a radio menu */
@@ -371,15 +370,15 @@ pt_menuitem getradiooption(pt_menu menu, uchar top, uchar left, uchar startopt)
 
     numitems = calc_visible(menu, 0);
     // Setup status line
-    gotoxy(ms->minrow + ms->statline, ms->mincol, ms->menupage);
-    cprint(ms->spacechar, ms->statusattr[NOHLITE], ms->numcols, ms->menupage);
+    gotoxy(ms->minrow + ms->statline, ms->mincol);
+    cprint(ms->spacechar, ms->statusattr[NOHLITE], ms->numcols);
 
     // Initialise current menu item
     curr = next_visible(menu, startopt);
 
-    gotoxy(ms->minrow + ms->statline, ms->mincol, ms->menupage);
-    cprint(ms->spacechar, ms->statusattr[NOHLITE], ms->numcols, 1);
-    gotoxy(ms->minrow + ms->statline, ms->mincol, ms->menupage);
+    gotoxy(ms->minrow + ms->statline, ms->mincol);
+    cprint(ms->spacechar, ms->statusattr[NOHLITE], ms->numcols);
+    gotoxy(ms->minrow + ms->statline, ms->mincol);
     printmenuitem(menu->items[curr]->status, ms->statusattr);
     first = calc_first_early(menu, curr);
     while (1)			// Forever
@@ -448,9 +447,8 @@ pt_menuitem getradiooption(pt_menu menu, uchar top, uchar left, uchar startopt)
 	    break;
 	}
 	// Update status line
-	gotoxy(ms->minrow + ms->statline, ms->mincol, ms->menupage);
-	cprint(ms->spacechar, ms->statusattr[NOHLITE], ms->numcols,
-	       ms->menupage);
+	gotoxy(ms->minrow + ms->statline, ms->mincol);
+	cprint(ms->spacechar, ms->statusattr[NOHLITE], ms->numcols);
 	printmenuitem(menu->items[curr]->status, ms->statusattr);
     }
     return NULL;		// Should never come here
@@ -468,15 +466,15 @@ pt_menuitem getmenuoption(pt_menu menu, uchar top, uchar left, uchar startopt)
 
     numitems = calc_visible(menu, 0);
     // Setup status line
-    gotoxy(ms->minrow + ms->statline, ms->mincol, ms->menupage);
-    cprint(ms->spacechar, ms->statusattr[NOHLITE], ms->numcols, ms->menupage);
+    gotoxy(ms->minrow + ms->statline, ms->mincol);
+    cprint(ms->spacechar, ms->statusattr[NOHLITE], ms->numcols);
 
     // Initialise current menu item
     curr = next_visible(menu, startopt);
 
-    gotoxy(ms->minrow + ms->statline, ms->mincol, ms->menupage);
-    cprint(ms->spacechar, ms->statusattr[NOHLITE], ms->numcols, 1);
-    gotoxy(ms->minrow + ms->statline, ms->mincol, ms->menupage);
+    gotoxy(ms->minrow + ms->statline, ms->mincol);
+    cprint(ms->spacechar, ms->statusattr[NOHLITE], ms->numcols);
+    gotoxy(ms->minrow + ms->statline, ms->mincol);
     printmenuitem(menu->items[curr]->status, ms->statusattr);
     first = calc_first_early(menu, curr);
     while (1)			// Forever
@@ -584,9 +582,11 @@ pt_menuitem getmenuoption(pt_menu menu, uchar top, uchar left, uchar startopt)
 	    break;
 	}
 	// Update status line
-	gotoxy(ms->minrow + ms->statline, ms->mincol, ms->menupage);
-	cprint(ms->spacechar, ms->statusattr[NOHLITE], ms->numcols,
-	       ms->menupage);
+	/* Erase the previous status */
+	gotoxy(ms->minrow + ms->statline, ms->mincol);
+	cprint(ms->spacechar, ms->statusattr[NOHLITE], ms->numcols);
+	/* Print the new status */
+	gotoxy(ms->minrow + ms->statline, ms->mincol);
 	printmenuitem(menu->items[curr]->status, ms->statusattr);
     }
     return NULL;		// Should never come here
@@ -640,7 +640,7 @@ startover:
     // itemdata.submenunum = itemdata.radiomenunum (since enum data type)
     if (opt->itemdata.submenunum >= ms->nummenus)	// This is Bad....
     {
-	gotoxy(12, 12, ms->menupage);	// Middle of screen
+	gotoxy(12, 12);	// Middle of screen
 	csprint("ERROR: Invalid submenu requested.", 0x07);
 	cleanupmenu(cmenu, top, left, calc_visible(cmenu, 0));
 	return NULL;		// Pretend user hit esc
@@ -725,20 +725,18 @@ void fix_submenus()
 pt_menuitem showmenus(uchar startmenu)
 {
     pt_menuitem rv;
-    uchar oldpage, tpos;
+    uchar tpos;
 
     fix_submenus();		// Fix submenu numbers incase nick names were used
 
     // Setup screen for menusystem
-    oldpage = getdisppage();
-    setdisppage(ms->menupage);
     cls();
     clearwindow(ms->minrow, ms->mincol, ms->maxrow, ms->maxcol,
-		ms->menupage, ms->fillchar, ms->fillattr);
+		ms->fillchar, ms->fillattr);
     tpos = (ms->numcols - strlen(ms->title) - 1) >> 1;	// center it on line
-    gotoxy(ms->minrow, ms->mincol, ms->menupage);
-    cprint(ms->tfillchar, ms->titleattr, ms->numcols, ms->menupage);
-    gotoxy(ms->minrow, ms->mincol + tpos, ms->menupage);
+    gotoxy(ms->minrow, ms->mincol);
+    cprint(ms->tfillchar, ms->titleattr, ms->numcols);
+    gotoxy(ms->minrow, ms->mincol + tpos);
     csprint(ms->title, ms->titleattr);
 
     cursoroff();		// Doesn't seem to work?
@@ -749,10 +747,7 @@ pt_menuitem showmenus(uchar startmenu)
 
     // Hide the garbage we left on the screen
     cursoron();
-    if (oldpage == ms->menupage)
 	cls();
-    else
-	setdisppage(oldpage);
 
     // Return user choice
     return rv;
@@ -1332,9 +1327,7 @@ void append_line_helper(int menunum, char *line)
     pt_menuitem mi, ri;
     char *app;
     int ctr;
-    char dp;
 
-    dp = getdisppage();
     menu = ms->menus[menunum];
     for (ctr = 0; ctr < (int)menu->numitems; ctr++) {
 	mi = menu->items[ctr];

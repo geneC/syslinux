@@ -192,7 +192,7 @@ TIMEOUTCODE ontotaltimeout()
    return timeout(totaltimeoutcmd);
 }
 
-void keys_handler(t_menusystem *ms, t_menuitem *mi,unsigned int scancode)
+void keys_handler(t_menuitem *mi,unsigned int scancode)
 {
    char nc;
 
@@ -207,15 +207,15 @@ void keys_handler(t_menusystem *ms, t_menuitem *mi,unsigned int scancode)
        (isallowed(username,"editcmd") || isallowed(username,"root"))) {
      nc = getnumcols();
      // User typed TAB and has permissions to edit command line
-     gotoxy(EDIT_ROW,1,ms->menupage);
+     gotoxy(EDIT_ROW,1);
      csprint("Command line:",0x07);
      editstring(mi->data,ACTIONLEN);
-     gotoxy(EDIT_ROW,1,ms->menupage);
-     cprint(' ',0x07,nc-1,ms->menupage);
+     gotoxy(EDIT_ROW,1);
+     cprint(' ',0x07,nc-1);
    }
 }
 
-t_handler_return login_handler(t_menusystem *ms, t_menuitem *mi)
+t_handler_return login_handler(t_menuitem *mi)
 {
   (void)mi; // Unused
   char pwd[40];
@@ -228,15 +228,15 @@ t_handler_return login_handler(t_menusystem *ms, t_menuitem *mi)
 
   if (mi->item == loginstr) { /* User wants to login */
     nc = getnumcols();
-    gotoxy(PWD_ROW,1,ms->menupage);
+    gotoxy(PWD_ROW,1);
     csprint("Enter Username: ",0x07);
     getstring(login, sizeof username);
-    gotoxy(PWD_ROW,1,ms->menupage);
-    cprint(' ',0x07,nc,ms->menupage);
+    gotoxy(PWD_ROW,1);
+    cprint(' ',0x07,nc);
     csprint("Enter Password: ",0x07);
     getpwd(pwd, sizeof pwd);
-    gotoxy(PWD_ROW,1,ms->menupage);
-    cprint(' ',0x07,nc,ms->menupage);
+    gotoxy(PWD_ROW,1);
+    cprint(' ',0x07,nc);
 
     if (authenticate_user(login,pwd))
     {

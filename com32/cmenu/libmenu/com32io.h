@@ -34,34 +34,44 @@ static inline beep()
 // i.e. \n in str will move cursor to column left
 // Print a C str (NUL-terminated)
 
-void csprint(const char *str, char attr);
+void csprint(const char *, const char);
 
-static inline void cswprint(const char *str, char attr, char left)
+//static inline void cswprint(const char *str, const char attr)
+//{
+//	csprint(str, attr);
+//}
+
+void cprint(const char, const char, unsigned int);
+
+static inline void putch(const char x, char attr)
 {
-	csprint(str, attr);
+	cprint(x, attr, 1);
 }
 
+void clearwindow(const char, const char, const char, const char,
+		 const char, const char);
 
-void cprint(char chr, char attr, unsigned int times, char disppage);	// Print a char
-
-void setdisppage(char num);	// Set the display page to specified number
-
-char getdisppage();		// Get current display page
-
-static inline void gotoxy(char row, char col, char page)
+/*
+ * cls - clear and initialize the entire screen
+ *
+ * Note: when initializing xterm, one has to specify that
+ * G1 points to the alternate character set (this is not true
+ * by default). Without the initial printf "\033)0", line drawing
+ * characters won't be displayed.
+ */
+static inline void cls(void)
 {
-	// XXX page
+	fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
+}
+
+static inline void gotoxy(const char row, const char col)
+{
 	printf(CSI "%d;%dH", row + 1, col + 1);
 }
 
 void getpos(char *row, char *col, char page);
 
 char inputc(char *scancode);	// Return ASCII char by val, and scancode by reference
-
-static inline void putch(char x, char attr, char page)
-{
-    cprint(x, attr, 1, page);
-}
 
 void setcursorshape(char start, char end);	// Set cursor shape
 void getcursorshape(char *start, char *end);	// Get shape for current page
