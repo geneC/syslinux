@@ -37,8 +37,12 @@ static void cprint_vga2ansi(const char chr, const char attr)
 		*p++ = '\033';
 		*p++ = '[';
 
+		/* Beware! Do not use '1': this will reset all attributes off,
+		 * including the background color - as a result, the background
+		 * would be black after the highlight area <X> */
 		if (last_attr & ~attr & 0x88) {
-			*p++ = '0';
+			*p++ = '2';
+			*p++ = '2';
 			*p++ = ';';
 		}
 		if (attr & 0x08) {
