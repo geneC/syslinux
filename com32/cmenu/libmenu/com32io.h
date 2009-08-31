@@ -22,10 +22,9 @@
 
 #define CSI "\e["
 
-/* Beep: "" are required, not '' */
-static inline beep()
+static inline void beep(void)
 {
-	return fputs("\007", stdout);
+	fputs("\007", stdout);
 }
 
 /* BIOS Assisted output routines */

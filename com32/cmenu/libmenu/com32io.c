@@ -18,7 +18,15 @@
 
 com32sys_t inreg, outreg;	// Global register sets for use
 
-static void cprint_vga2ansi(char chr, char attr)
+/**
+ * cprint_vga2ansi - given a VGA attribute, print a character
+ * @chr:	character to print
+ * @attr:	vga attribute
+ *
+ * Convert the VGA attribute @attr to an ANSI escape sequence and
+ * print it.
+ **/
+static void cprint_vga2ansi(const char chr, const char attr)
 {
 	static const char ansi_char[8] = "04261537";
 	static uint8_t last_attr = 0x07;
