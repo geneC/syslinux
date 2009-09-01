@@ -40,4 +40,5 @@ void disable_utf8();
 void set_g1_special_char();
 void set_us_g0_charset();
 void clear_entire_screen();
+void set_cursor_blink(bool status);
 #endif

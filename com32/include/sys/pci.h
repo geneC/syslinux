@@ -17,8 +17,9 @@
 typedef uint32_t pciaddr_t;
 
 enum {
-    ENOPCIIDS = 100,
-    ENOMODULESPCIMAP
+	ENOPCIIDS = 100,
+	ENOMODULESPCIMAP,
+	ENOMODULESALIAS
 };
 
 /* a structure for extended pci information */
@@ -145,9 +146,8 @@ void free_pci_domain(struct pci_domain *domain);
 struct match *find_pci_device(const struct pci_domain *pci_domain,
 			      struct match *list);
 int get_name_from_pci_ids(struct pci_domain *pci_domain, char *pciids_path);
-int get_module_name_from_pcimap(struct pci_domain *pci_domain,
-				char *modules_pcimap_path);
-int get_class_name_from_pci_ids(struct pci_domain *pci_domain,
-				char *pciids_path);
+int get_module_name_from_pcimap(struct pci_domain *pci_domain, char *modules_pcimap_path);
+int get_module_name_from_alias(struct pci_domain *pci_domain, char *modules_alias_path);
+int get_class_name_from_pci_ids(struct pci_domain *pci_domain, char *pciids_path);
 void gather_additional_pci_config(struct pci_domain *domain);
 #endif /* _SYS_PCI_H */

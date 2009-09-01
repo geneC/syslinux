@@ -40,9 +40,6 @@
 # define dprintf(f, ...) ((void)0)
 #endif
 
-/* Declare a variable or data structure as unused. */
-#define __unused __attribute__ (( unused ))
-
 #define MAX_LINE_SIZE 256
 
 #define CLI_SPACE " "
@@ -64,10 +61,12 @@
 #define CLI_COMMANDS "commands"
 #define CLI_DMI  "dmi"
 #define CLI_CPU  "cpu"
+#define CLI_DISK  "disk"
 #define CLI_SHOW_LIST "list"
 #define CLI_IRQ "irq"
 #define CLI_MODES "modes"
 #define CLI_VPD  "vpd"
+#define CLI_MEMORY  "memory"
 
 typedef enum {
 	INVALID_MODE,
@@ -80,7 +79,9 @@ typedef enum {
 	KERNEL_MODE,
 	SYSLINUX_MODE,
 	VESA_MODE,
+	DISK_MODE,
 	VPD_MODE,
+	MEMORY_MODE,
 } cli_mode_t;
 
 #define PROMPT_SIZE 32
@@ -138,7 +139,9 @@ struct cli_mode_descr kernel_mode;
 struct cli_mode_descr cpu_mode;
 struct cli_mode_descr pci_mode;
 struct cli_mode_descr vesa_mode;
+struct cli_mode_descr disk_mode;
 struct cli_mode_descr vpd_mode;
+struct cli_mode_descr memory_mode;
 
 /* cli helpers */
 void find_cli_mode_descr(cli_mode_t mode, struct cli_mode_descr **mode_found);
@@ -161,9 +164,13 @@ void main_show(char *item, struct s_hardware *hardware);
 #define CLI_DMI_PROCESSOR "cpu"
 #define CLI_DMI_SYSTEM "system"
 #define CLI_DMI_IPMI "ipmi"
+#define CLI_DMI_CACHE "cache"
+#define CLI_DMI_OEM "oem"
+#define CLI_DMI_SECURITY "security"
 #define CLI_DMI_LIST CLI_SHOW_LIST
 void main_show_dmi(int argc, char **argv, struct s_hardware *hardware);
 void show_dmi_memory_modules(int argc, char** argv, struct s_hardware *hardware);
+void show_dmi_memory_bank(int argc, char** argv, struct s_hardware *hardware);
 
 // PCI STUFF
 #define CLI_PCI_DEVICE "device"
@@ -172,6 +179,9 @@ void cli_detect_pci(struct s_hardware *hardware);
 
 // CPU STUFF
 void main_show_cpu(int argc, char **argv, struct s_hardware *hardware);
+
+// DISK STUFF
+void disks_summary(int argc, char **argv, struct s_hardware *hardware);
 
 // PXE STUFF
 void main_show_pxe(int argc, char **argv, struct s_hardware *hardware);
@@ -184,4 +194,7 @@ void main_show_syslinux(int argc, char **argv, struct s_hardware *hardware);
 
 // VESA STUFF
 void main_show_vesa(int argc, char **argv, struct s_hardware *hardware);
+
+// VPD STUFF
+void main_show_vpd(int argc __unused, char **argv __unused, struct s_hardware *hardware);
 #endif

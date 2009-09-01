@@ -50,8 +50,9 @@ void main_show_kernel(int argc __unused, char **argv __unused,
 
 // more_printf(" PCI device no: %d \n", p->pci_device_pos);
 
-	if (hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) {
-		more_printf(" modules.pcimap is missing\n");
+	if ((hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP)
+	   && (hardware->modules_alias_return_code == -ENOMODULESALIAS)) {
+		more_printf(" modules.pcimap and modules.alias files are missing\n");
 		return;
 	}
 

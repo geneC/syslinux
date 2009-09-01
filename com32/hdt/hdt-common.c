@@ -34,6 +34,7 @@
 #include "../lib/sys/vesa/vesa.h"
 #include "hdt-common.h"
 #include "lib-ansi.h"
+#include <disk/util.h>
 
 /* ISOlinux requires a 8.3 format */
 void convert_isolinux_filename(char *filename, struct s_hardware *hardware) {
@@ -55,14 +56,18 @@ void detect_parameters(const int argc, const char *argv[],
                        struct s_hardware *hardware)
 {
   for (int i = 1; i < argc; i++) {
-    if (!strncmp(argv[i], "modules=", 8)) {
-      strncpy(hardware->modules_pcimap_path, argv[i] + 8,
+    if (!strncmp(argv[i], "modules_pcimap=", 15)) {
+      strncpy(hardware->modules_pcimap_path, argv[i] + 15,
         sizeof(hardware->modules_pcimap_path));
       convert_isolinux_filename(hardware->modules_pcimap_path,hardware);
     } else if (!strncmp(argv[i], "pciids=", 7)) {
       strncpy(hardware->pciids_path, argv[i] + 7,
         sizeof(hardware->pciids_path));
       convert_isolinux_filename(hardware->pciids_path,hardware);
+    } else if (!strncmp(argv[i], "modules_alias=", 14)) {
+      strncpy(hardware->modules_alias_path, argv[i] + 14,
+        sizeof(hardware->modules_alias_path));
+      convert_isolinux_filename(hardware->modules_alias_path,hardware);
     } else if (!strncmp(argv[i], "memtest=", 8)) {
       strncpy(hardware->memtest_label, argv[i] + 8,
         sizeof(hardware->memtest_label));
@@ -99,6 +104,7 @@ void init_hardware(struct s_hardware *hardware)
 {
   hardware->pci_ids_return_code = 0;
   hardware->modules_pcimap_return_code = 0;
+  hardware->modules_alias_return_code = 0;
   hardware->cpu_detection = false;
   hardware->pci_detection = false;
   hardware->disk_detection = false;
@@ -124,9 +130,12 @@ void init_hardware(struct s_hardware *hardware)
   memset(hardware->pciids_path, 0, sizeof hardware->pciids_path);
   memset(hardware->modules_pcimap_path, 0,
          sizeof hardware->modules_pcimap_path);
+  memset(hardware->modules_alias_path, 0,
+         sizeof hardware->modules_alias_path);
   memset(hardware->memtest_label, 0, sizeof hardware->memtest_label);
   strcat(hardware->pciids_path, "pci.ids");
   strcat(hardware->modules_pcimap_path, "modules.pcimap");
+  strcat(hardware->modules_alias_path, "modules.alias");
   strcat(hardware->memtest_label, "memtest");
 }
 
@@ -241,18 +250,27 @@ int detect_vesa(struct s_hardware *hardware) {
 /* Try to detect disks from port 0x80 to 0xff */
 void detect_disks(struct s_hardware *hardware)
 {
-  hardware->disk_detection = true;
-  for (int drive = 0x80; drive < 0xff; drive++) {
-    if (get_disk_params(drive, hardware->disk_info) != 0)
-      continue;
-    struct diskinfo *d = &hardware->disk_info[drive];
-    hardware->disks_count++;
-    printf
-        ("  DISK 0x%X: %s : %s %s: sectors=%d, s/t=%d head=%d : EDD=%s\n",
-         drive, d->aid.model, d->host_bus_type, d->interface_type,
-         d->sectors, d->sectors_per_track, d->heads,
-         d->edd_version);
-  }
+	int i = -1;
+	int err;
+
+	if (hardware->disk_detection)
+		return;
+
+	hardware->disk_detection = true;
+	for (int drive = 0x80; drive < 0xff; drive++) {
+		i++;
+		hardware->disk_info[i].disk = drive;
+		err = get_drive_parameters(&hardware->disk_info[i]);
+
+		/*
+		 * Do not print output when drive does not exist or
+		 * doesn't support int13 (cdrom, ...)
+		 */
+		if (err == -1 || !hardware->disk_info[i].cbios)
+			continue;
+
+		hardware->disks_count++;
+	}
 }
 
 int detect_pxe(struct s_hardware *hardware)
@@ -437,10 +455,16 @@ void detect_pci(struct s_hardware *hardware)
           hardware->pciids_path);
 
   printf("PCI: Resolving module names\n");
-  /* Detecting which kernel module should match each device */
+  /* Detecting which kernel module should match each device using modules.pcimap*/
   hardware->modules_pcimap_return_code =
       get_module_name_from_pcimap(hardware->pci_domain,
            hardware->modules_pcimap_path);
+
+  /* Detecting which kernel module should match each device using modules.alias*/
+  hardware->modules_alias_return_code =
+      get_module_name_from_alias(hardware->pci_domain,
+           hardware->modules_alias_path);
+
 
   /* We try to detect the pxe stuff to populate the PXE: field of pci devices */
   detect_pxe(hardware);

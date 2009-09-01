@@ -30,6 +30,7 @@
 #define DEFINE_HDT_ATA_H
 #include <com32io.h>
 
+#include <disk/geom.h>
 #include "hdt.h"
 
 struct ata_identify_device {
@@ -50,56 +51,11 @@ struct ata_identify_device {
   unsigned short words088_255[168];
 } ATTR_PACKED;
 
-struct diskinfo {
-  int disk;
-  int ebios;                      /* EBIOS supported on this disk */
-  int cbios;                      /* CHS geometry is valid */
-  int heads;
-  int sectors_per_track;
-  int sectors;
-  int cylinders;
-  char edd_version[4];
+struct ata_driveinfo {
   struct ata_identify_device aid; /* IDENTIFY xxx DEVICE data */
   char host_bus_type[5];
   char interface_type[9];
   char interface_port;
-} ATTR_PACKED;
-
-/*
- * Get a disk block and return a malloc'd buffer.
- * Uses the disk number and information from disk_info.
- */
-struct ebios_dapa {
-  uint16_t len;
-  uint16_t count;
-  uint16_t off;
-  uint16_t seg;
-  uint64_t lba;
-};
-
-// BYTE=8
-// WORD=16
-// DWORD=32
-// QWORD=64
-struct device_parameter {
-  uint16_t len;
-  uint16_t info;
-  uint32_t cylinders;
-  uint32_t heads;
-  uint32_t sectors_per_track;
-  uint64_t sectors;
-  uint16_t bytes_per_sector;
-  uint32_t dpte_pointer;
-  uint16_t device_path_information;
-  uint8_t device_path_lenght;
-  uint8_t device_path_reserved;
-  uint16_t device_path_reserved_2;
-  uint8_t host_bus_type[4];
-  uint8_t interface_type[8];
-  uint64_t interace_path;
-  uint64_t device_path[2];
-  uint8_t reserved;
-  uint8_t cheksum;
 } ATTR_PACKED;
 
 /* Useless stuff until I manage how to send ata packets */
@@ -114,9 +70,7 @@ void ata_id_c_string(const uint16_t * id, unsigned char *s, unsigned int ofs,
                      unsigned int len);
 void ata_id_string(const uint16_t * id, unsigned char *s, unsigned int ofs,
                    unsigned int len);
-int int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
 void printregs(const com32sys_t * r);
 #endif
 
-int get_disk_params(int disk, struct diskinfo *disk_info);
 #endif

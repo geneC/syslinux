@@ -50,6 +50,8 @@ static void show_pci_device(int argc, char **argv,
 	int pcidev = -1;
 	bool nopciids = false;
 	bool nomodulespcimap = false;
+	bool nomodulesalias = false;
+	bool nomodulesfiles = false;
 	char kernel_modules[LINUX_KERNEL_MODULE_SIZE *
 			    MAX_KERNEL_MODULES_PER_PCI_DEVICE];
 	int bus = 0, slot = 0, func = 0;
@@ -75,7 +77,10 @@ static void show_pci_device(int argc, char **argv,
 	if (hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) {
 		nomodulespcimap = true;
 	}
-
+	if (hardware->modules_alias_return_code == -ENOMODULESALIAS) {
+		nomodulesalias = true;
+	}
+	nomodulesfiles=nomodulespcimap && nomodulesalias;
 	for_each_pci_func(temp_pci_device, hardware->pci_domain) {
 		i++;
 		if (i == pcidev) {
@@ -115,7 +120,7 @@ static void show_pci_device(int argc, char **argv,
 			    pci_device->dev_info->class_name);
 	}
 
-	if (nomodulespcimap == false) {
+	if (nomodulesfiles == false) {
 		printf("Kernel module : %s\n", kernel_modules);
 	}
 
@@ -152,6 +157,8 @@ static void show_pci_devices(int argc __unused, char **argv __unused,
 			    MAX_KERNEL_MODULES_PER_PCI_DEVICE];
 	bool nopciids = false;
 	bool nomodulespcimap = false;
+	bool nomodulesalias = false;
+	bool nomodulesfile = false;
 	char first_line[81];
 	char second_line[81];
 
@@ -164,6 +171,11 @@ static void show_pci_devices(int argc __unused, char **argv __unused,
 	if (hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) {
 		nomodulespcimap = true;
 	}
+	if (hardware->modules_pcimap_return_code == -ENOMODULESALIAS) {
+		nomodulesalias = true;
+	}
+
+	nomodulesfile = nomodulespcimap && nomodulesalias;
 
 	/* For every detected pci device, compute its submenu */
 	for_each_pci_func(pci_device, hardware->pci_domain) {
@@ -186,7 +198,7 @@ static void show_pci_devices(int argc __unused, char **argv __unused,
 				 "%02d: %s %s \n", i,
 				 pci_device->dev_info->vendor_name,
 				 pci_device->dev_info->product_name);
-			if (nomodulespcimap == false)
+			if (nomodulesfile == false)
 				snprintf(second_line, sizeof(second_line),
 					 "    # %-25s # Kmod: %s\n",
 					 pci_device->dev_info->class_name,
@@ -204,7 +216,7 @@ static void show_pci_devices(int argc __unused, char **argv __unused,
 			more_printf(second_line);
 			more_printf("\n");
 		} else if (nopciids == true) {
-			if (nomodulespcimap == true) {
+			if (nomodulesfile == true) {
 				more_printf("%02d: %04x:%04x [%04x:%04x] \n",
 					    i, pci_device->vendor,
 					    pci_device->product,
@@ -298,10 +310,11 @@ void cli_detect_pci(struct s_hardware *hardware)
 			printf("Please put one in same dir as hdt\n");
 			error = true;
 		}
-		if (hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) {
+		if ((hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) &&
+			(hardware->modules_alias_return_code == -ENOMODULESALIAS)) {
 			printf
-			    ("The modules.pcimap file is missing, device names can't be computed.\n");
-			printf("Please put one in same dir as hdt\n");
+			    ("The modules.pcimap or modules.alias files are missing, device names can't be computed.\n");
+			printf("Please put one of them in same dir as hdt\n");
 			error = true;
 		}
 		if (error == true) {

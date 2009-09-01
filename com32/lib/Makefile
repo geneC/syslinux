@@ -64,7 +64,7 @@ LIBOBJS = \
 	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o		\
 	pci/writeb.o pci/writew.o pci/writel.o pci/writebios.o		\
 	\
-	zlib/adler32.o zlib/compress.o zlib/crc32.o zlib/gzio.o		\
+	zlib/adler32.o zlib/compress.o zlib/crc32.o 			\
 	zlib/uncompr.o zlib/deflate.o zlib/trees.o zlib/zutil.o		\
 	zlib/inflate.o zlib/infback.o zlib/inftrees.o zlib/inffast.o	\
 	\
