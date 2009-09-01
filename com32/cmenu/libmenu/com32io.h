@@ -15,58 +15,13 @@
 
 #include <com32.h>
 #include <stdio.h>
+#include <libansi.h>
 
 #ifndef NULL
 #define NULL ((void *)0)
 #endif
 
-#define CSI "\e["
-
-static inline void beep(void)
-{
-	fputs("\007", stdout);
-}
-
 /* BIOS Assisted output routines */
-
-// Print a C str (NUL-terminated) respecting the left edge of window
-// i.e. \n in str will move cursor to column left
-// Print a C str (NUL-terminated)
-
-void csprint(const char *, const char);
-
-//static inline void cswprint(const char *str, const char attr)
-//{
-//	csprint(str, attr);
-//}
-
-void cprint(const char, const char, unsigned int);
-
-static inline void putch(const char x, char attr)
-{
-	cprint(x, attr, 1);
-}
-
-void clearwindow(const char, const char, const char, const char,
-		 const char, const char);
-
-/*
- * cls - clear and initialize the entire screen
- *
- * Note: when initializing xterm, one has to specify that
- * G1 points to the alternate character set (this is not true
- * by default). Without the initial printf "\033)0", line drawing
- * characters won't be displayed.
- */
-static inline void cls(void)
-{
-	fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
-}
-
-static inline void gotoxy(const char row, const char col)
-{
-	printf(CSI "%d;%dH", row + 1, col + 1);
-}
 
 void getpos(char *row, char *col, char page);
 
@@ -77,16 +32,6 @@ void getcursorshape(char *start, char *end);	// Get shape for current page
 
 // Get char displayed at current position in specified page
 unsigned char getcharat(char page);
-
-static inline void cursoroff(void)
-{				/* Turns off cursor */
-    setcursorshape(32, 33);
-}
-
-static inline void cursoron(void)
-{				/* Turns on cursor */
-    setcursorshape(6, 7);
-}
 
 static inline unsigned char readbiosb(unsigned int ofs)
 {
@@ -109,11 +54,6 @@ static inline char getshiftflags(void)
 }
 
 void scrollupwindow(char top, char left, char bot, char right, char attr, char numlines);	//Scroll up given window
-
-static inline void scrollup(void)	//Scroll up display screen by one line
-{
-	printf(CSI "S");
-}
 
 void setvideomode(char mode);	// Set the video mode.
 
