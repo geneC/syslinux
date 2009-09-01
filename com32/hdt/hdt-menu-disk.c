@@ -27,13 +27,6 @@
  */
 
 #include <stdlib.h>
-#include <disk/errno_disk.h>
-#include <disk/geom.h>
-#include <disk/read.h>
-#include <disk/partition.h>
-#include <disk/error.h>
-#include <disk/msdos.h>
-#include <disk/swsusp.h>
 
 #include "hdt-menu.h"
 #include "hdt-util.h"

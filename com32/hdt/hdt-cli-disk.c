@@ -31,13 +31,6 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include <disk/errno_disk.h>
-#include <disk/geom.h>
-#include <disk/read.h>
-#include <disk/error.h>
-#include <disk/swsusp.h>
-#include <disk/msdos.h>
-
 #include "hdt-cli.h"
 #include "hdt-common.h"
 #include "hdt-util.h"

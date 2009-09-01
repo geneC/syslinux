@@ -32,7 +32,13 @@
 #include <syslinux/pxe.h>
 #include "sys/pci.h"
 
+#include <disk/errno_disk.h>
+#include <disk/error.h>
 #include <disk/geom.h>
+#include <disk/msdos.h>
+#include <disk/partition.h>
+#include <disk/swsusp.h>
+#include <disk/read.h>
 
 #include "cpuid.h"
 #include "dmi/dmi.h"
