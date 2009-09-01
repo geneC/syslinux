@@ -54,8 +54,8 @@ struct cli_mode_descr *list_modes[] = {
  * array of variables. There is no easy way around it besides declaring the arrays of
  * strings first.
  */
-char *exit_aliases[] = {"q", "quit"};
-char *help_aliases[] = {"h", "?"};
+const char *exit_aliases[] = {"q", "quit"};
+const char *help_aliases[] = {"h", "?"};
 
 /* List of aliases */
 struct cli_alias hdt_aliases[] = {
