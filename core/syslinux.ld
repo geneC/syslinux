@@ -326,4 +326,9 @@ SECTIONS
 	/* COM32R and kernels are loaded after our own PM code */
 	. = ALIGN(65536);
 	free_high_memory = .;
+
+	/* Stuff we don't need... */
+	/DISCARD/ : {
+		*(.eh_frame)
+	}
 }
