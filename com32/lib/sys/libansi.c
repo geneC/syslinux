@@ -35,7 +35,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "ansi.h"
+#include "libansi.h"
 
 void display_cursor(bool status)
 {
