@@ -219,5 +219,8 @@ void parse_dhcp_options(void *, int, int);
 int dns_mangle(char **, const char *);
 uint32_t dns_resolv(const char *);
 
+/* idle.c */
+void pxe_idle_init(void);
+void pxe_idle_cleanup(void);
 
 #endif /* pxe.h */

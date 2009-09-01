@@ -17,9 +17,11 @@ extern void getlinsec(void);
 /* getc.inc */
 extern void core_open(void);
 
+/* idle.inc */
+extern void (*idle_hook_func)(void);
+
 /* hello.c */
 extern void myputs(const char*);
-
 
 void __cdecl core_intcall(uint8_t, const com32sys_t *, com32sys_t *);
 void __cdecl core_farcall(uint32_t, const com32sys_t *, com32sys_t *);

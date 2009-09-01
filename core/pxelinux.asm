@@ -178,9 +178,8 @@ _start1:
 %include "cpuinit.inc"
 
 ;
-; Detect NIC type and initialize the idle mechanism
+; Initialize the idle mechanism
 ;
-		call pxe_detect_nic_type
 		call reset_idle
 
 ;
@@ -368,7 +367,6 @@ writestr_early	equ writestr
 %include "writehex.inc"		; Hexadecimal output
 %include "rawcon.inc"		; Console I/O w/o using the console functions
 %include "dnsresolv.inc"	; DNS resolver
-%include "pxeidle.inc"		; PXE-specific idle mechanism
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section

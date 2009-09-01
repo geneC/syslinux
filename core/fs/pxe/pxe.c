@@ -1473,7 +1473,10 @@ static int pxe_fs_init(struct fs_info *fs)
 
     /* Network-specific initialization */
     network_init();
-    
+
+    /* Initialize network-card-specific idle handling */
+    pxe_idle_init();
+
     return 0;
 }
 
@@ -1495,6 +1498,8 @@ void unload_pxe(void)
     int err;
     int int_addr;
     static __lowmem struct s_PXENV_UNLOAD_STACK unload_stack;
+
+    pxe_idle_cleanup();
    
     if (KeepPXE) {
 	/*
