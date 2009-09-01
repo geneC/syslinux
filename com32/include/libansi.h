@@ -49,6 +49,8 @@ void disable_utf8(void);
 void set_g1_special_char(void);
 void set_us_g0_charset(void);
 void clear_entire_screen(void);
+void clearwindow(const char top, const char left, const char bot,
+		 const char right, const char fillchar, const char fillattr);
 
 static inline void beep(void)
 {
