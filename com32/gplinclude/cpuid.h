@@ -159,7 +159,6 @@ struct cpuinfo_x86 {
     unsigned char x86_clflush_size;
 
 } __attribute__ ((__packed__));
-#endif
 
 struct cpu_model_info {
     int vendor;
@@ -208,3 +207,4 @@ struct intel_mp_floating {
 
 extern void get_cpu_vendor(struct cpuinfo_x86 *c);
 extern void detect_cpu(s_cpu * cpu);
+#endif
