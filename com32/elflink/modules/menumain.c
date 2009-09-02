@@ -34,9 +34,9 @@
 #include "menu.h"
 #include "cli.h"
 
-static int menumain_init()
+static int menumain_init(void)
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
 
 /* The symbol "cm" always refers to the current menu across this file... */
@@ -426,8 +426,6 @@ static void show_fkey(int key)
     }
 }
 
-
-
 static inline int shift_is_held(void)
 {
     uint8_t shift_bits = *(uint8_t *) 0x417;
@@ -548,7 +546,7 @@ static const char *do_hidden_menu(void)
     if (cm->ontimeout)
 	return cm->ontimeout;
     else
-	return cm->menu_entries[cm->defentry]->cmdline; /* Default entry */
+	return cm->menu_entries[cm->defentry]->cmdline;	/* Default entry */
 }
 
 static const char *run_menu(void)
@@ -848,7 +846,8 @@ static const char *run_menu(void)
 		}
 
 		if (ok) {
-		    cmdline = edit_cmdline(me->cmdline, top,&draw_menu,&show_fkey);
+		    cmdline =
+			edit_cmdline(me->cmdline, top, &draw_menu, &show_fkey);
 		    done = !!cmdline;
 		    clear = 1;	/* In case we hit [Esc] and done is null */
 		} else {
@@ -943,9 +942,9 @@ int menu_main(int argc, char *argv[])
     }
 }
 
-static void menumain_exit()
+static void menumain_exit(void)
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.

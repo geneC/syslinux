@@ -15,5 +15,4 @@
  */
 extern void quick_sort(int *nums, int count);
 
-
 #endif /* SORT_H_ */

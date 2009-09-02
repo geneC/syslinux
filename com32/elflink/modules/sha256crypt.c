@@ -16,9 +16,9 @@
 
 #include "xcrypt.h"
 
-static int sha256crypt_init()
+static int sha256crypt_init(void)
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
 
 #define MIN(x,y) min(x,y)
@@ -549,12 +549,11 @@ char *sha256_crypt(const char *key, const char *salt)
     return sha256_crypt_r(key, salt, buffer, buflen);
 }
 
-static void sha256crypt_exit()
+static void sha256crypt_exit(void)
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.
 MODULE_INIT(sha256crypt_init);
 MODULE_EXIT(sha256crypt_exit);
-

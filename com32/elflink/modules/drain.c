@@ -5,9 +5,9 @@
 #include <sys/cpu.h>
 #include <sys/module.h>
 
-static int drain_init()
+static int drain_init(void)
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
 
 void drain_keyboard(void)
@@ -30,12 +30,11 @@ void drain_keyboard(void)
     sti();
 }
 
-static void drain_exit()
+static void drain_exit(void)
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.
 MODULE_INIT(drain_init);
 MODULE_EXIT(drain_exit);
-

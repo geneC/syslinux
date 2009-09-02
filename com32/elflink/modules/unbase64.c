@@ -35,9 +35,9 @@
 #include <base64.h>
 #include <sys/module.h>
 
-static int unbase64_init()
+static int unbase64_init(void)
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
 
 static const unsigned char _base64chars[] =
@@ -81,12 +81,11 @@ size_t unbase64(unsigned char *buffer, size_t bufsiz, const char *txt)
     return nbytes;
 }
 
-static void unbase64_exit()
+static void unbase64_exit(void)
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.
 MODULE_INIT(unbase64_init);
 MODULE_EXIT(unbase64_exit);
-

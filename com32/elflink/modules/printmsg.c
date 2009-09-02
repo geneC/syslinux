@@ -29,9 +29,9 @@
 
 #include "menu.h"
 
-static int printmsg_init()
+static int printmsg_init(void)
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
 
 int draw_message_file(const char *filename)
@@ -105,9 +105,9 @@ int draw_message_file(const char *filename)
     return 0;
 }
 
-static void printmsg_exit()
+static void printmsg_exit(void)
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.

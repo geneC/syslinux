@@ -39,9 +39,9 @@
 #include <console.h>
 #include <sys/module.h>
 
-static int ansiraw_init()
+static int ansiraw_init(void)
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
 
 void console_ansi_raw(void)
@@ -49,9 +49,9 @@ void console_ansi_raw(void)
     openconsole(&dev_rawcon_r, &dev_ansiserial_w);
 }
 
-static void ansiraw_exit()
+static void ansiraw_exit(void)
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.
@@ -64,9 +64,9 @@ MODULE_EXIT(ansiraw_exit);
 #include <termios.h>
 #include <sys/module.h>
 
-static int ansiraw_init()
+static int ansiraw_init(void)
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
 
 static struct termios original_termios_settings;
@@ -103,9 +103,9 @@ void console_ansi_raw(void)
     tcsetattr(0, TCSAFLUSH, &tio);
 }
 
-static void ansiraw_exit()
+static void ansiraw_exit(void)
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.

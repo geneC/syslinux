@@ -29,11 +29,10 @@
 #include <string.h>
 #include <sys/module.h>
 
-static int crypt_md5_init()
+static int crypt_md5_init(void)
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
-
 
 /*
  * UNIX password
@@ -164,13 +163,11 @@ char *crypt_md5(const char *pw, const char *salt)
     return passwd;
 }
 
-static void crypt_md5_exit()
+static void crypt_md5_exit(void)
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.
 MODULE_INIT(crypt_md5_init);
 MODULE_EXIT(crypt_md5_exit);
-
-

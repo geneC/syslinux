@@ -84,9 +84,9 @@ A million repetitions of "a"
 
 #include "sha1.h"
 
-static int sha1hash_init()
+static int sha1hash_init(void)
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
 
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
@@ -337,9 +337,9 @@ char *mybase64(uint8_t digest[20])
     return output;
 }
 
-static void sha1hash_exit()
+static void sha1hash_exit(void)
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.

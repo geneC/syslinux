@@ -20,10 +20,10 @@
 
 static int mytest_main(int argc, char **argv)
 {
-	console_ansi_raw();
-	//edit_cmdline("",1);
-	menu_main(argc, argv);
-	return 0;
+    console_ansi_raw();
+    //edit_cmdline("",1);
+    menu_main(argc, argv);
+    return 0;
 }
 
 MODULE_MAIN(mytest_main);

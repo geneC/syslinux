@@ -11,41 +11,39 @@
 
 #include "sort.h"
 
-
 #define NUM_COUNT		10
 #define MAX_NUM			100
 
+static int hello_main(int argc, char **argv)
+{
+    int *nums = NULL;
+    int i;
 
-static int hello_main(int argc, char **argv) {
-	int *nums = NULL;
-	int i;
+    printf("Hello, world, from 0x%08X!\n", (unsigned int)&hello_main);
 
-	printf("Hello, world, from 0x%08X!\n", (unsigned int)&hello_main);
+    nums = malloc(NUM_COUNT * sizeof(int));
 
-	nums = malloc(NUM_COUNT*sizeof(int));
+    for (i = 0; i < NUM_COUNT; i++) {
+	nums[i] = rand() % MAX_NUM;
+    }
 
-	for (i = 0; i < NUM_COUNT; i++) {
-		nums[i] = rand() % MAX_NUM;
-	}
+    printf("Numbers before sort: ");
+    for (i = 0; i < NUM_COUNT; i++) {
+	printf("%d ", nums[i]);
+    }
+    printf("\n");
 
-	printf("Numbers before sort: ");
-	for (i = 0; i < NUM_COUNT; i++) {
-		printf("%d ", nums[i]);
-	}
-	printf("\n");
+    quick_sort(nums, NUM_COUNT);
 
-	quick_sort(nums, NUM_COUNT);
+    printf("Numbers after sort: ");
+    for (i = 0; i < NUM_COUNT; i++) {
+	printf("%d ", nums[i]);
+    }
+    printf("\n");
 
-	printf("Numbers after sort: ");
-	for (i = 0; i < NUM_COUNT; i++) {
-		printf("%d ", nums[i]);
-	}
-	printf("\n");
+    free(nums);
 
-	free(nums);
-
-	return 0;
+    return 0;
 }
-
 
 MODULE_MAIN(hello_main);

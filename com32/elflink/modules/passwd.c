@@ -18,9 +18,9 @@
 
 #include "menu.h"
 
-static int passwd_init()
+static int passwd_init(void)
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
 
 static int passwd_compare_sha1(const char *passwd, const char *entry)
@@ -101,12 +101,11 @@ int passwd_compare(const char *passwd, const char *entry)
     }
 }
 
-static void passwd_exit()
+static void passwd_exit(void)
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.
 MODULE_INIT(passwd_init);
 MODULE_EXIT(passwd_exit);
-

@@ -31,11 +31,10 @@
 #include <md5.h>
 #include <sys/module.h>
 
-static int md5_init()
+static int md5_init(void)
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
-
 
 static void MD5Transform(uint32_t[4], const unsigned char[64]);
 
@@ -279,12 +278,11 @@ const unsigned char block[64];
     memset((void *)x, 0, sizeof(x));
 }
 
-static void md5_exit()
+static void md5_exit(void)
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.
 MODULE_INIT(md5_init);
 MODULE_EXIT(md5_exit);
-

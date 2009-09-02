@@ -43,9 +43,9 @@
 #include <libutil.h>
 #include <sys/module.h>
 
-static int getkey_init()
+static int getkey_init(void)
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
 
 struct keycode {
@@ -177,12 +177,11 @@ int get_key(FILE * f, clock_t timeout)
     return buffer[0];
 }
 
-static void getkey_exit()
+static void getkey_exit(void)
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.
 MODULE_INIT(getkey_init);
 MODULE_EXIT(getkey_exit);
-

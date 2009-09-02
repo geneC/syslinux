@@ -18,7 +18,7 @@
 
 static int sha512crypt_init()
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
 
 #define MIN(x,y) min(x,y)
@@ -598,10 +598,9 @@ char *sha512_crypt(const char *key, const char *salt)
 
 static void sha512crypt_exit()
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.
 MODULE_INIT(sha512crypt_init);
 MODULE_EXIT(sha512crypt_exit);
-

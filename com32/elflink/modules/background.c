@@ -16,21 +16,23 @@
 #include <sys/module.h>
 #include "menu.h"
 
-static int background_init()
+static int background_init(void)
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
 
 const char *current_background = NULL;
 
 int draw_background(const char *what)
 {
-    /*if (!what)
+#if 0
+    if (!what)
 	return vesacon_default_background();
     else if (what[0] == '#')
 	return vesacon_set_background(parse_argb((char **)&what));
     else
-	return vesacon_load_background(what);*/
+	return vesacon_load_background(what);
+#endif
 }
 
 void set_background(const char *new_background)
@@ -42,12 +44,11 @@ void set_background(const char *new_background)
     }
 }
 
-static void background_exit()
+static void background_exit(void)
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.
 MODULE_INIT(background_init);
 MODULE_EXIT(background_exit);
-

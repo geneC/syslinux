@@ -16,9 +16,9 @@
 #include <sys/module.h>
 #include "menu.h"
 
-static int execute_init()
+static int execute_init(void)
 {
-	return 0; // Nothing to do; return success
+    return 0;			// Nothing to do; return success
 }
 
 void execute(const char *cmdline, enum kernel_type type)
@@ -74,12 +74,11 @@ void execute(const char *cmdline, enum kernel_type type)
     /* If this returns, something went bad; return to menu */
 }
 
-static void execute_exit()
+static void execute_exit(void)
 {
-	// Nothing to do
+    // Nothing to do
 }
 
 // Define entry and exit points.
 MODULE_INIT(execute_init);
 MODULE_EXIT(execute_exit);
-

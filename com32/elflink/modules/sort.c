@@ -11,20 +11,22 @@
 /**
  * sort_init - Module entry point.
  */
-static int sort_init() {
-	return 0; // Nothing to do; return success
+static int sort_init(void)
+{
+    return 0;			// Nothing to do; return success
 }
 
-
-static inline void swap(int *x, int *y) {
-	int tmp;
-	tmp = *x;
-	*x = *y;
-	*y = tmp;
+static inline void swap(int *x, int *y)
+{
+    int tmp;
+    tmp = *x;
+    *x = *y;
+    *y = tmp;
 }
 
-static inline int randint(int l, int u) {
-	return l + (rand() % (u-l+1));
+static inline int randint(int l, int u)
+{
+    return l + (rand() % (u - l + 1));
 }
 
 /**
@@ -40,34 +42,37 @@ static inline int randint(int l, int u) {
  * as part of this program, the author of the module considered
  * the book had to be put to some use. :)
  */
-static void quick_sort_range(int *nums, int l, int u) {
-	int i, m;
-	if (l >= u) return;
+static void quick_sort_range(int *nums, int l, int u)
+{
+    int i, m;
+    if (l >= u)
+	return;
 
-	swap(&nums[l], &nums[randint(l, u)]);
+    swap(&nums[l], &nums[randint(l, u)]);
 
-	m = l;
-	for (i = l+1; i <= u; i++) {
-		if (nums[i] < nums[l])
-			swap(&nums[++m], &nums[i]);
-	}
+    m = l;
+    for (i = l + 1; i <= u; i++) {
+	if (nums[i] < nums[l])
+	    swap(&nums[++m], &nums[i]);
+    }
 
-	swap(&nums[l], &nums[m]);
+    swap(&nums[l], &nums[m]);
 
-	quick_sort_range(nums, l, m-1);
-	quick_sort_range(nums, m+1, u);
+    quick_sort_range(nums, l, m - 1);
+    quick_sort_range(nums, m + 1, u);
 }
 
-
-void quick_sort(int *nums, int count) {
-	quick_sort_range(nums, 0, count-1);
+void quick_sort(int *nums, int count)
+{
+    quick_sort_range(nums, 0, count - 1);
 }
 
 /**
  * sort_exit - Module exit point.
  */
-static void sort_exit() {
-	// Nothing to do
+static void sort_exit(void)
+{
+    // Nothing to do
 }
 
 // Define entry and exit points.
