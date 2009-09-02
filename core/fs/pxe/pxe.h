@@ -20,6 +20,7 @@
 #define PXE_H
 
 #include <syslinux/pxe_api.h>
+#include "fs.h"			/* For MAX_OPEN, should go away */
 
 /*
  * Some basic defines...
@@ -184,8 +185,6 @@ extern char IPOption[];
 extern char dot_quad_buf[];
 
 extern uint32_t dns_server[];
-extern char DNSSendBuf[];
-extern char DNSRecvBuf[];
 
 extern uint16_t real_base_mem;
 extern uint16_t APIVer;

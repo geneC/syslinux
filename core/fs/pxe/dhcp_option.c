@@ -4,9 +4,12 @@
 #include <sys/cpu.h>
 #include "pxe.h"
 
+char LocalDomain[256];
+
 int over_load;
 uint8_t uuid_type;
 char uuid[17];
+
 void parse_dhcp_options(void *, int, int);
 
 static void subnet_mask(void *data, int opt_len)

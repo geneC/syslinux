@@ -171,6 +171,8 @@ static char *dns_skiplabel(char *label)
  */
 uint32_t dns_resolv(const char *name)
 {
+    static char __lowmem DNSSendBuf[PKTBUF_SIZE];
+    static char __lowmem DNSRecvBuf[PKTBUF_SIZE];
     char *p;
     int err;
     int dots;
@@ -225,8 +227,8 @@ uint32_t dns_resolv(const char *name)
         udp_write.src_port    = DNS_LOCAL_PORT;
         udp_write.dst_port    = DNS_PORT;
         udp_write.buffer_size = p - DNSSendBuf;
-        udp_write.buffer.offs = OFFS_WRT(DNSSendBuf, 0);
-        udp_write.buffer.seg  = 0;
+        udp_write.buffer.offs = OFFS(DNSSendBuf);
+        udp_write.buffer.seg  = SEG(DNSSendBuf);
         err = pxe_call(PXENV_UDP_WRITE, &udp_write);
         if (err || udp_write.status != 0)
             continue;
@@ -239,8 +241,8 @@ uint32_t dns_resolv(const char *name)
             udp_read.s_port      = DNS_PORT;
             udp_read.d_port      = DNS_LOCAL_PORT;
             udp_read.buffer_size = DNS_MAX_PACKET;
-            udp_read.buffer.offs = OFFS_WRT(DNSRecvBuf, 0);
-            udp_read.buffer.seg  = 0;
+            udp_read.buffer.offs = OFFS(DNSRecvBuf);
+            udp_read.buffer.seg  = SEG(DNSRecvBuf);
             err = pxe_call(PXENV_UDP_READ, &udp_read);
             if (err || udp_read.status)
                 continue;

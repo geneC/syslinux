@@ -366,7 +366,6 @@ pxe_int1a:
 writestr_early	equ writestr
 %include "writehex.inc"		; Hexadecimal output
 %include "rawcon.inc"		; Console I/O w/o using the console functions
-%include "dnsresolv.inc"	; DNS resolver
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
