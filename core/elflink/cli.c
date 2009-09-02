@@ -6,7 +6,7 @@
 #include <syslinux/adv.h>
 #include <syslinux/config.h>
 #include <setjmp.h>
-#include <netinet/in.h>	
+#include <netinet/in.h>
 #include <limits.h>
 #include <minmax.h>
 #include <linux/list.h>
@@ -57,10 +57,12 @@ int mygetkey(clock_t timeout)
     }
 }
 
-const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw_Menu)(int, int, int),void (*show_fkey)(int))
+const char *edit_cmdline(const char *input, int top /*, int width */ ,
+			 int (*pDraw_Menu) (int, int, int),
+			 void (*show_fkey) (int))
 {
     static char cmdline[MAX_CMDLINE_LEN];
-    char temp_cmdline[MAX_CMDLINE_LEN]={};
+    char temp_cmdline[MAX_CMDLINE_LEN] = { };
     int key, len, prev_len, cursor;
     int redraw = 1;		/* We enter with the menu already drawn */
     int x, y;
@@ -68,14 +70,14 @@ const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw
     const char *ret;
     int width = 0;
     struct cli_command *comm_counter;
-    comm_counter=list_entry(cli_history_head.next->prev, typeof(*comm_counter),list);
+    comm_counter =
+	list_entry(cli_history_head.next->prev, typeof(*comm_counter), list);
 
     if (!width) {
 	int height;
 	if (getscreensize(1, &height, &width))
 	    width = 80;
     }
-
     //printf("width = %d\n", width);
 
     strncpy(cmdline, input, MAX_CMDLINE_LEN);
@@ -86,16 +88,16 @@ const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw
     x = y = 0;
 
     while (!done) {
-	if (redraw > 1 && pDraw_Menu!=NULL) {
+	if (redraw > 1 && pDraw_Menu != NULL) {
 	    /* Clear and redraw whole screen */
 	    /* Enable ASCII on G0 and DEC VT on G1; do it in this order
 	       to avoid confusing the Linux console */
-	   /* clear_screen();
-	    draw_menu(-1, top, 1);*/
+	    /* clear_screen();
+	       draw_menu(-1, top, 1); */
 	    clear_screen();
-	    (*pDraw_Menu)(-1, top, 1);
+	    (*pDraw_Menu) (-1, top, 1);
 	    prev_len = 0;
-	   // printf("\033[0m\033[2J\033[H");
+	    // printf("\033[0m\033[2J\033[H");
 	}
 
 	if (redraw > 0) {
@@ -124,15 +126,15 @@ const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw
 	    }
 	    printf("\033[K\r");
 
-	    dy = y - (cursor+2) / width;
-	    x = (cursor+2) % width;
+	    dy = y - (cursor + 2) / width;
+	    x = (cursor + 2) % width;
 
 	    if (dy) {
 		printf("\033[%dA", dy);
 		y -= dy;
 	    }
 	    if (x)
-	      printf("\033[%dC", x);
+		printf("\033[%dC", x);
 	    printf("\033[?25h");
 	    prev_len = len;
 	    redraw = 0;
@@ -269,54 +271,49 @@ const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw
 	case KEY_F10:
 	case KEY_F11:
 	case KEY_F12:
-	    if(show_fkey!=NULL)
-	    {	
-	        (*show_fkey)(key);
-	    	redraw = 1;
+	    if (show_fkey != NULL) {
+		(*show_fkey) (key);
+		redraw = 1;
 	    }
 	    break;
 	case KEY_UP:
 	    {
-		if(!list_empty(&cli_history_head))
-		{
-			comm_counter=list_entry(comm_counter->list.next, typeof(*comm_counter),list);
-			if(&comm_counter->list==&cli_history_head)
-			{
-				strcpy(cmdline,temp_cmdline);
-			}
-			else
-			{
-				strcpy(cmdline,comm_counter->command);
-			}
-			cursor=len=strlen(cmdline);
-			redraw = 1;
+		if (!list_empty(&cli_history_head)) {
+		    comm_counter =
+			list_entry(comm_counter->list.next,
+				   typeof(*comm_counter), list);
+		    if (&comm_counter->list == &cli_history_head) {
+			strcpy(cmdline, temp_cmdline);
+		    } else {
+			strcpy(cmdline, comm_counter->command);
+		    }
+		    cursor = len = strlen(cmdline);
+		    redraw = 1;
 		}
 	    }
 	    break;
 	case KEY_DOWN:
 	    {
-		if(!list_empty(&cli_history_head))
-		{
-			comm_counter=list_entry(comm_counter->list.prev, typeof(*comm_counter),list);
-			if(&comm_counter->list==&cli_history_head)
-			{
-				strcpy(cmdline,temp_cmdline);
-			}
-			else			
-			{
-				strcpy(cmdline,comm_counter->command);
-			}
-			cursor=len=strlen(cmdline);
-			redraw = 1;
+		if (!list_empty(&cli_history_head)) {
+		    comm_counter =
+			list_entry(comm_counter->list.prev,
+				   typeof(*comm_counter), list);
+		    if (&comm_counter->list == &cli_history_head) {
+			strcpy(cmdline, temp_cmdline);
+		    } else {
+			strcpy(cmdline, comm_counter->command);
+		    }
+		    cursor = len = strlen(cmdline);
+		    redraw = 1;
 		}
 	    }
-            break;
+	    break;
 	default:
 	    if (key >= ' ' && key <= 0xFF && len < MAX_CMDLINE_LEN - 1) {
 		if (cursor == len) {
-		    temp_cmdline[len]=key;
+		    temp_cmdline[len] = key;
 		    cmdline[len++] = key;
-		    temp_cmdline[len]= cmdline[len] = '\0';
+		    temp_cmdline[len] = cmdline[len] = '\0';
 		    putchar(key);
 		    cursor++;
 		    x++;
@@ -331,7 +328,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw
 			    len - cursor + 1);
 		    memmove(temp_cmdline + cursor + 1, temp_cmdline + cursor,
 			    len - cursor + 1);
-		    temp_cmdline[cursor]=key;
+		    temp_cmdline[cursor] = key;
 		    cmdline[cursor++] = key;
 		    len++;
 		    redraw = 1;
@@ -347,71 +344,55 @@ const char *edit_cmdline(const char *input, int top /*, int width */,int (*pDraw
 
 void process_command(const char *cmd)
 {
-	char **cmd_line = malloc((MAX_COMMAND_ARGS+1)*sizeof(char*));
-	char *temp_cmd=(char*)malloc(sizeof(char)*(strlen(cmd)+1));
-	int argc = 1, len_mn;
-	char *crt_arg,*module_name;
+    char **cmd_line = malloc((MAX_COMMAND_ARGS + 1) * sizeof(char *));
+    char *temp_cmd = (char *)malloc(sizeof(char) * (strlen(cmd) + 1));
+    int argc = 1, len_mn;
+    char *crt_arg, *module_name;
 
-	strcpy(temp_cmd,cmd);
-	module_name = strtok(cmd, COMMAND_DELIM);
-	len_mn=strlen(module_name);
-	
-	if(!strcmp(module_name+len_mn-4,".c32"))
-	{
-		if(module_find(module_name) != NULL) goto cleanup;
-		do
-		{
-			cmd_line[0]=module_name;
-			crt_arg = strtok(NULL, COMMAND_DELIM);
-			if (crt_arg != NULL && strlen(crt_arg) > 0)
-			{
-				cmd_line[argc] = crt_arg;
-				argc++;
-			}
-			else
-			{
-				break;
-			}
-		}while (argc < MAX_COMMAND_ARGS);
-		cmd_line[argc] = NULL;
-		module_load_dependencies(module_name,MODULES_DEP);
-		/*int i;
-		for(i=0;i<argc;i++)
-		{
-			printf("\n%s\n",cmd_line[i]);
-		}*/
-		spawn_load(module_name,cmd_line);
-	}
-	else if(!strcmp(module_name+len_mn-2,".0"))
-	{
-		//printf("%s\n",temp_cmd);
-		execute(cmd,KT_PXE);
-	}
-	else if(!strcmp(module_name+len_mn-3,".bs"))
-	{
-		//printf("%s\n",temp_cmd);
-	}
-	else if(!strcmp(module_name+len_mn-4,".img"))
-	{
-		//printf("%s\n",temp_cmd);
-		execute(cmd,KT_FDIMAGE);
-	}
-	else if(!strcmp(module_name+len_mn-4,".bin"))
-	{
-		printf("%s\n",temp_cmd);
-	}
-	else if(!strcmp(module_name+len_mn-4,".bss"))
-	{
-		//printf("%s\n",temp_cmd);
-		execute(cmd,KT_BSS);
-	}
-	else if(!strcmp(module_name+len_mn-4,".com") || !strcmp(module_name+len_mn-4,".cbt"))
-	{
-		//printf("%s\n",temp_cmd);
-		execute(cmd,KT_COMBOOT);
-	}
+    strcpy(temp_cmd, cmd);
+    module_name = strtok(cmd, COMMAND_DELIM);
+    len_mn = strlen(module_name);
+
+    if (!strcmp(module_name + len_mn - 4, ".c32")) {
+	if (module_find(module_name) != NULL)
+	    goto cleanup;
+	do {
+	    cmd_line[0] = module_name;
+	    crt_arg = strtok(NULL, COMMAND_DELIM);
+	    if (crt_arg != NULL && strlen(crt_arg) > 0) {
+		cmd_line[argc] = crt_arg;
+		argc++;
+	    } else {
+		break;
+	    }
+	} while (argc < MAX_COMMAND_ARGS);
+	cmd_line[argc] = NULL;
+	module_load_dependencies(module_name, MODULES_DEP);
+	/*int i;
+	   for(i=0;i<argc;i++)
+	   {
+	   printf("\n%s\n",cmd_line[i]);
+	   } */
+	spawn_load(module_name, cmd_line);
+    } else if (!strcmp(module_name + len_mn - 2, ".0")) {
+	//printf("%s\n",temp_cmd);
+	execute(cmd, KT_PXE);
+    } else if (!strcmp(module_name + len_mn - 3, ".bs")) {
+	//printf("%s\n",temp_cmd);
+    } else if (!strcmp(module_name + len_mn - 4, ".img")) {
+	//printf("%s\n",temp_cmd);
+	execute(cmd, KT_FDIMAGE);
+    } else if (!strcmp(module_name + len_mn - 4, ".bin")) {
+	printf("%s\n", temp_cmd);
+    } else if (!strcmp(module_name + len_mn - 4, ".bss")) {
+	//printf("%s\n",temp_cmd);
+	execute(cmd, KT_BSS);
+    } else if (!strcmp(module_name + len_mn - 4, ".com")
+	       || !strcmp(module_name + len_mn - 4, ".cbt")) {
+	//printf("%s\n",temp_cmd);
+	execute(cmd, KT_COMBOOT);
+    }
 cleanup:
-	free(cmd_line);
-	free(temp_cmd);
+    free(cmd_line);
+    free(temp_cmd);
 }
-

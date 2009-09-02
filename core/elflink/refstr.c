@@ -31,7 +31,7 @@ char *refstr_alloc(size_t len)
 	return NULL;
     *(unsigned int *)r = 1;
     r += sizeof(unsigned int);
-    r[len] = '\0'; 
+    r[len] = '\0';
     return r;
 }
 
@@ -104,4 +104,3 @@ void refstr_put(const char *r)
 	    free(ref);
     }
 }
-

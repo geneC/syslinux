@@ -170,5 +170,3 @@ int get_key(FILE * f, clock_t timeout)
     /* We really should remember this and return subsequent characters later */
     return buffer[0];
 }
-
-

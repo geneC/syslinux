@@ -15,7 +15,6 @@
 
 #include "elfutils.h"
 
-
 // Performs an operation and jumps to a given label if an error occurs
 #define CHECKED(res, expr, error)		\
 	do { 								\
@@ -37,10 +36,9 @@
 
 // User-space debugging routines
 #ifdef ELF_DEBUG
-extern void print_elf_ehdr(Elf32_Ehdr *ehdr);
+extern void print_elf_ehdr(Elf32_Ehdr * ehdr);
 extern void print_elf_symbols(struct elf_module *module);
 #endif //ELF_DEBUG
-
 
 /*
  * Image files manipulation routines
@@ -54,12 +52,11 @@ extern int image_seek(Elf32_Off offset, struct elf_module *module);
 
 extern struct module_dep *module_dep_alloc(struct elf_module *module);
 
-extern int check_header_common(Elf32_Ehdr *elf_hdr);
+extern int check_header_common(Elf32_Ehdr * elf_hdr);
 
 extern int enforce_dependency(struct elf_module *req, struct elf_module *dep);
 extern int clear_dependency(struct elf_module *req, struct elf_module *dep);
 
 extern int check_symbols(struct elf_module *module);
-
 
 #endif /* COMMON_H_ */

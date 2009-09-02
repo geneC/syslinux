@@ -12,6 +12,7 @@
 #include <elf.h>
 #include <stdint.h>
 #include <setjmp.h>
+#include <stdbool.h>
 #include <linux/list.h>
 
 
@@ -90,7 +91,7 @@ struct atexit;
 struct elf_module {
 	char				name[MODULE_NAME_SIZE]; 		// The module name
 
-	int					shallow;	// Whether the module contains any code
+	bool			shallow;	// Whether the module contains any code
 
 	struct list_head	required;		// Head of the required modules list
 	struct list_head	dependants;		// Head of module dependants list
