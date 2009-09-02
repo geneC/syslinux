@@ -289,8 +289,7 @@ static void ack_packet(struct open_file_t *file, uint16_t ack_num)
     udp_write.dst_port    = file->tftp_remoteport;
     udp_write.ip          = file->tftp_remoteip;
     udp_write.gw          = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
-    udp_write.buffer.offs = OFFS(ack_packet_buf);
-    udp_write.buffer.seg  = SEG(ack_packet_buf);
+    udp_write.buffer      = FAR_PTR(ack_packet_buf);
     udp_write.buffer_size = 4;
 
     err = pxe_call(PXENV_UDP_WRITE, &udp_write);
@@ -316,8 +315,7 @@ static int pxe_get_cached_info(int type)
     get_cached_info.Status      = 0;
     get_cached_info.PacketType  = type;
     get_cached_info.BufferSize  = 8192;
-    get_cached_info.Buffer.offs = OFFS_WRT(trackbuf, 0);
-    get_cached_info.Buffer.seg  = 0;    
+    get_cached_info.Buffer      = FAR_PTR(trackbuf);
     err = pxe_call(PXENV_GET_CACHED_INFO, &get_cached_info);
     if (err) {
         printf("PXE API call failed, error  %04x\n", err);
@@ -966,8 +964,7 @@ err_reply:
     strcat(p, "TFTP_protocol error");    
 
     udp_write.dst_port    = open_file->tftp_remoteport;
-    udp_write.buffer.offs = OFFS(tftp_proto_err);
-    udp_write.buffer.seg  = SEG(tftp_proto_err);
+    udp_write.buffer      = FAR_PTR(tftp_proto_err);
     udp_write.buffer_size = 24;
     pxe_call(PXENV_UDP_WRITE, &udp_write);
     printf("TFTP server sent an incomprehesible reply\n");

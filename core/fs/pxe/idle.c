@@ -31,8 +31,7 @@ static void pxe_idle_poll(void)
     read_buf.s_port  = 0;	 /* Any source port */
     read_buf.d_port  = htons(9); /* Discard port (not used...) */
     read_buf.buffer_size = sizeof junk_pkt;
-    read_buf.buffer.offs = OFFS(junk_pkt);
-    read_buf.buffer.seg  = SEG(junk_pkt);
+    read_buf.buffer  = FAR_PTR(junk_pkt);
 
     pxe_call(PXENV_UDP_READ, &read_buf);
 }
