@@ -389,12 +389,12 @@ void rosh_dir_arg(const char *ifilstr, const char *pwdstr)
 	ROSH_DEBUG("--'%s'\n", filestr);
     }
     fd = open(filestr, O_RDONLY);
-    if (fd != -1) {
+    if (fd == -1) {
 	status = fstat(fd, &fdstat);
-	if (S_ISDIR(fdstat.st_mode)) {
+        if (S_ISDIR(fdstat.st_mode)) {
 	    ROSH_DEBUG("PATH '%s' is a directory\n", ifilstr);
 	    d = fdopendir(fd);
-	    de = readdir(d);
+            de = readdir(d);
 	    while (de != NULL) {
 #ifdef DO_DEBUG
 		filestr2[0] = 0;
@@ -423,19 +423,18 @@ void rosh_dir_arg(const char *ifilstr, const char *pwdstr)
 	}
     } else {
 #ifdef __COM32__
-	if (filestr[strlen(filestr) - 1] == SEP) {
+        if (filestr[strlen(filestr) - 1] == SEP) {
 	    /* Directory */
 	    filepos = 0;
-	    d = opendir(filestr);
+            d = opendir(filestr);
 	    if (d != NULL) {
-		printf("DIR:'%s'    %8d %8d\n", d->dd_name, d->dd_fd,
-		       d->dd_sect);
+		//printf("DIR:'%s'    %08x %8d\n", d->dd_name, (int)d->dd_sect, d->dd_offset);
 		de = readdir(d);
 		while (de != NULL) {
 		    filepos++;
 #ifdef DO_DEBUG
 // if (strlen(de->d_name) > 25) de->d_name[25] = 0;
-		    switch (de->d_mode) {
+		    switch (de->d_type) {
 		    case 16:
 			ty = 'D';
 			break;
@@ -445,8 +444,6 @@ void rosh_dir_arg(const char *ifilstr, const char *pwdstr)
 		    default:
 			ty = '*';
 		    }
-		    printf("@%8d:%8d:%4d ", (int)de->d_ino, (int)de->d_size,
-			   de->d_mode);
 #endif /* DO_DEBUG */
 //                                      printf("%s\n", de->d_name);
 		    printf("'%s'\n", de->d_name);
@@ -458,7 +455,6 @@ void rosh_dir_arg(const char *ifilstr, const char *pwdstr)
 		    de = readdir(d);
 // if(filepos>15){      de = NULL;      printf("Force Break\n");}
 		}
-		printf("Dir.dd_fd: '%8d'\n", d->dd_fd);
 		closedir(d);
 	    } else {
 		rosh_error(0, "dir:NULL", filestr);

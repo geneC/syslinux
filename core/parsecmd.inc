@@ -111,6 +111,7 @@ err_badcfg      db 'Unknown keyword in configuration file: ',0
 err_noparm      db 'Missing parameter in configuration file. Keyword: ',0
 
 		section .uibss
+                global KernelName
 		alignb 4
 vk_size		equ (vk_end + 3) & ~3
 VKernelBuf:	resb vk_size		; "Current" vkernel

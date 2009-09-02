@@ -96,6 +96,7 @@ superblock_len_fat32	equ $-superblock+54
 		zb 54			; Maximum needed size
 superblock_max	equ $-superblock
 
+		global SecPerClust
 SecPerClust	equ bxSecPerClust
 ;
 ; Note we don't check the constraints above now; we did that at install
@@ -252,6 +253,7 @@ getonesec:
 ; that is dead from that point; this saves space.  However, please keep
 ; the order to dst,src to keep things sane.
 ;
+		global getlinsec
 getlinsec:
 		add eax,[bsHidden]		; Add partition offset
 		xor edx,edx			; Zero-extend LBA (eventually allow 64 bits)
@@ -453,6 +455,7 @@ bailmsg:	db 'Boot error', 0Dh, 0Ah, 0
 		zb 1F8h-($-$$)
 
 FirstSector	dd 0xDEADBEEF			; Location of sector 1
+		global MaxTransfer
 MaxTransfer	dw 0x007F			; Max transfer size
 
 ; This field will be filled in 0xAA55 by the installer, but we abuse it
@@ -487,6 +490,7 @@ ADVSectors	dw 0		; Additional sectors for ADVs
 LDLDwords	dd 0		; Total dwords starting at ldlinux_sys,
 CheckSum	dd 0		; Checksum starting at ldlinux_sys
 				; value = LDLINUX_MAGIC - [sum of dwords]
+		global CurrentDir
 CurrentDir	dd 2		; "Current" directory inode number (EXTLINUX)
 SecPtrOffset	dw SectorPtrs - ldlinux_sys
 SecPtrCnt	dw (SectorPtrsEnd - SectorPtrs) >> 2
@@ -709,6 +713,21 @@ expand_super:
 		stosd				; Store expanded byte
 		loop .loop
 
+
 ;
-; Fall through to the mainline code...
+; Common initialization code
 ;
+%include "init.inc"
+%include "cpuinit.inc"
+
+		
+		pushad
+		mov eax,ROOT_FS_OPS
+		movzx dx,byte [DriveNumber]
+		; DH = 0: we are boot from disk not CDROM
+		mov ecx,[bsHidden]
+		mov ebx,[bsHidden+4]
+		mov si,[bsHeads]
+		mov di,[bsSecPerTrack]
+		pm_call fs_init
+		popad

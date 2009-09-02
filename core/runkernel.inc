@@ -58,7 +58,7 @@ is_linux_kernel:
 		mov cx,8000h >> SECTOR_SHIFT	; Half a moby (32K)
 		xor bx,bx
                 pop si                          ; <A> file pointer
-		call getfssec
+		pm_call getfssec
 		cmp cx,1024
 		jb kernel_corrupt
                 cmp word [es:bs_bootsign],0AA55h
@@ -538,7 +538,7 @@ parse_load_initrd:
 
 		push di
 		mov di,InitRD		; Target buffer for mangled name
-		call mangle_name
+		pm_call mangle_name
 		pop di
 		call loadinitrd
 
@@ -585,11 +585,11 @@ loadinitrd:
 		push edi
                 mov si,InitRD
                 mov di,InitRDCName
-                call unmangle_name              ; Create human-readable name
+                pm_call unmangle_name             ; Create human-readable name
                 sub di,InitRDCName
                 mov [InitRDCNameLen],di
                 mov di,InitRD
-                call searchdir                  ; Look for it in directory
+                pm_call searchdir                  ; Look for it in directory
 		pop edi
 		jz .notthere
 

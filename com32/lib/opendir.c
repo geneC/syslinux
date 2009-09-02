@@ -13,11 +13,9 @@
 
 DIR *opendir(const char *pathname)
 {
-    DIR *newdir;
+    DIR *newdir = NULL;
     com32sys_t regs;
-
-    newdir = NULL;
-
+	
     strlcpy(__com32.cs_bounce, pathname, __com32.cs_bounce_size);
 
     regs.eax.w[0] = 0x0020;
@@ -25,16 +23,13 @@ DIR *opendir(const char *pathname)
     regs.es = SEG(__com32.cs_bounce);
 
     __com32.cs_intcall(0x22, &regs, &regs);
-
+	
     if (!(regs.eflags.l & EFLAGS_CF)) {
-	/* Initialization: malloc() then zero */
-	newdir = calloc(1, sizeof(DIR));
-	strcpy(newdir->dd_name, pathname);
-	newdir->dd_fd = regs.esi.w[0];
-	newdir->dd_sect = regs.eax.l;
-	newdir->dd_stat = 0;
+        /* Initialization: malloc() then zero */
+        newdir = calloc(1, sizeof(DIR));
+	newdir->dd_dir = (struct file *)regs.eax.l;
     }
-
+	
     /* We're done */
     return newdir;
 }

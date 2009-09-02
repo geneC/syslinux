@@ -19,6 +19,8 @@
 #include <stddef.h>
 #include "core.h"
 
+const com32sys_t zero_regs;	/* Common all-zero register set */
+
 void call16(void (*func)(void), const com32sys_t *ireg, com32sys_t *oreg)
 {
     core_farcall((size_t)func, ireg, oreg);

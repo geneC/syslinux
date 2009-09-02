@@ -1101,12 +1101,13 @@ int menu_main(int argc, char *argv[])
 		m->mparm[i] = max(m->mparm[i] + rows, 0);
     }
 
+    cm = start_menu;
+
     if (!cm->nentries) {
 	fputs("Initial menu has no LABEL entries!\n", stdout);
 	return 1;		/* Error! */
     }
 
-    cm = start_menu;
     for (;;) {
 	cmdline = run_menu();
 

@@ -237,7 +237,7 @@ show_help:	; AX = func key # (0 = F1, 9 = F10, 11 = F12)
 		xchg di,ax
 		cmp byte [di+NULLOFFSET],NULLFILE
 		je short fk_nofile		; Undefined F-key
-		call open
+		call core_open
 		jz short fk_nofile		; File not found
 		call crlf
 		call get_msg_file
@@ -318,7 +318,7 @@ load_kernel:					; Load the kernel now
 		mov si,command_line
                 mov di,KernelName
                 push si
-		call mangle_name
+		pm_call mangle_name
                 pop si
 ;
 ; Fast-forward to first option (we start over from the beginning, since
@@ -448,7 +448,7 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
 		mov bx,exten_table
 .search_loop:	push bx
                 mov di,KernelName		; Search on disk
-                call searchdir
+                pm_call searchdir
 		pop bx
                 jnz kernel_good
 		mov eax,[bx]			; Try a different extension
@@ -472,7 +472,7 @@ bad_kernel:
 		mov si,KernelName
                 mov di,KernelCName
 		push di
-                call unmangle_name              ; Get human form
+                pm_call unmangle_name              ; Get human form
 		mov si,err_notfound		; Complain about missing kernel
 		call writestr
 		pop si				; KernelCName
@@ -601,7 +601,7 @@ kernel_good:
 
 		mov si,KernelName
 		mov di,KernelCName
-		call unmangle_name
+		pm_call unmangle_name
 		sub di,KernelCName
 		mov [KernelCNameLen],di
 

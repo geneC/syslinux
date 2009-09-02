@@ -33,24 +33,28 @@ CODEPAGE = cp865
 
 # The targets to build in this directory...
 BTARGET  = kwdhash.gen \
+	   extlinux.bin extlinux.bss extlinux.sys \
 	   ldlinux.bss ldlinux.sys ldlinux.bin \
-	   pxelinux.0 isolinux.bin isolinux-debug.bin \
-	   extlinux.bin extlinux.bss extlinux.sys
+	   isolinux.bin isolinux-debug.bin pxelinux.0
 
 # All primary source files for the main syslinux files
 NASMSRC	 := $(wildcard *.asm)
 NASMHDR  := $(wildcard *.inc)
-CSRC	 := $(wildcard *.c */*.c)
-SSRC	 := $(wildcard *.S lzo/*.S)
-CHDR	 := $(wildcard *.h */*.h)
+CSRC	 := $(wildcard *.c */*.c */*/*.c)
+SSRC	 := $(wildcard *.S */*.S */*/*.S)
+CHDR	 := $(wildcard *.h */*.h */*/*.h)
 OTHERSRC := keywords
 ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
 
 COBJ	 := $(patsubst %.c,%.o,$(CSRC))
 SOBJ	 := $(patsubst %.S,%.o,$(SSRC))
 
+#
+# Note: libcore.a should *NOT* be --whole-archive, since it contains all
+# the filesystems...
+#
 LIB	 = libcore.a 
-LIBS     = --whole-archive $(LIB) $(com32)/lib/libcom32min.a
+LIBS     = $(LIB) --whole-archive $(com32)/lib/libcom32min.a
 #          --no-whole-archive $(LIBGCC)
 LIBDEP   = $(filter-out -% %start%,$(LIBS))
 LIBOBJS	 = $(COBJ) $(SOBJ)
@@ -131,8 +135,9 @@ netinstall: installer
 
 tidy dist:
 	rm -f codepage.cp *.o *.elf *.a stupid.* patch.offset .depend .*.d
-	rm -f *.sym *.lsr *.lst *.map *.sec *.raw
-	rm -f */*.o */*.lst */.*.d
+	rm -f *.elf.tmp *.sym
+	rm -f *.lsr *.lst *.map *.sec *.raw
+	rm -f */*.o */*/*.o */*.lst */*/*.lst */.*.d */*/.*.d
 	rm -f $(OBSOLETE)
 
 clean: tidy

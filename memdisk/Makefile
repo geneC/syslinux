@@ -49,6 +49,7 @@ all: memdisk # e820test
 # tidy, clean removes everything except the final binary
 tidy dist:
 	rm -f *.o *.s *.tmp *.o16 *.s16 *.bin *.lst *.elf e820test .*.d
+	rm -f *.map
 
 clean: tidy
 

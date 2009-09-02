@@ -1,5 +1,8 @@
 #include <stddef.h>
 #include <com32.h>
+#include <stdio.h>
+#include <string.h>
+
 
 void myputchar(int c)
 {
@@ -21,7 +24,7 @@ void myputs(const char *str)
 
 void hello(void)
 {
-    static char hello_str[] = "Hello, World!  (hello.c)\n";
+    static char hello_str[] = "Hello, World!";
 
-    myputs(hello_str);
+    printf("%s from (%s)\n", hello_str, __FILE__);  /* testing */
 }

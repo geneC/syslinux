@@ -34,19 +34,6 @@ common_init:
 		call reset_config
 
 ;
-; Initialize Files structures (other than zeroing)
-;
-%if IS_PXELINUX
-		mov di,Files+tftp_pktbuf
-		mov cx,MAX_OPEN
-.setbufptr:
-		mov [di],ax
-		add di,open_file_t_size
-		add ax,PKTBUF_SIZE
-		loop .setbufptr
-%endif
-
-;
 ; Set up the COMBOOT APIs
 ;
 		call comboot_setup_api

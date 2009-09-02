@@ -364,15 +364,17 @@ SECTIONS
 
 	/* 
 	 * We don't need .rel.dyn so put it here where we can simply
-	 * remove it.
+	 * remove it.  Putting it in /DISCARD/ doesn't work because it
+	 * is linker-generated.
 	 */
 	.rel.dyn : {
 		*(.rel.dyn)
 	}
 
-	/* No "interpreter" applicable */
+	/* Stuff we don't need... */
 	/DISCARD/ : {
 		*(.interp)
+		*(.eh_frame)
 	}
 }
 

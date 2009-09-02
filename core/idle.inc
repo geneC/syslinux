@@ -23,7 +23,7 @@ reset_idle:
 		ret
 
 do_idle:
-		push ax
+		push eax
 		push ds
 		push es
 		mov ax,cs
@@ -58,18 +58,24 @@ do_idle:
 		sub ax,[IdleTimer]
 		cmp ax,TICKS_TO_IDLE
 		jb .done
-		call [IdleHook]
+		
+		mov eax,[idle_hook_func]
+		and eax,eax
+		jz .no_idle_hook
+		pm_call eax
+.no_idle_hook:
 		cmp word [NoHalt],0
 		jne .done
 		hlt
 .done:
 		pop es
 		pop ds
-		pop ax
+		pop eax
 .ret:		ret
 
 		section .data16
-IdleHook	dw do_idle.ret
+		global idle_hook_func
+idle_hook_func	dd 0
 NoHalt		dw 0
 
 hlt_err		db 'ERROR: idle with IF=0', CR, LF, 0 

@@ -18,6 +18,7 @@
 
 %ifndef _BIOS_INC
 %define _BIOS_INC
+                global BIOS_fbm, BIOS_timer
 
 		absolute 4*1Eh		; In the interrupt table
 fdctab		equ $

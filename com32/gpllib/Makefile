@@ -8,9 +8,8 @@ include ../lib/MCONFIG
 
 REQFLAGS += -I../gplinclude
 
-LIBOBJS  = dmi/dmi_battery.o dmi/dmi_chassis.o dmi/dmi_memory.o            \
-           dmi/dmi_processor.o dmi/dmi.o dmi/dmi_bios.o dmi/dmi_base_board.o \
-	   dmi/dmi_ipmi.o cpuid.o vpd/vpd.o
+GPLDIRS := . disk dmi vpd
+LIBOBJS := $(foreach dir,$(GPLDIRS),$(patsubst %.c,%.o,$(wildcard $(dir)/*.c)))
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib

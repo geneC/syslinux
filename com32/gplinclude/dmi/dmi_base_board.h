@@ -30,24 +30,29 @@ extern const char *base_board_features_strings[];
 /* this struct have BASE_BOARD_NB_ELEMENTS */
 /* each bool is associated to the relevant message above */
 typedef struct {
-    bool hosting;
-    bool board_needs_daughter;
-    bool removable;
-    bool replaceable;
-    bool hot_swappable;
+	bool hosting;
+	bool board_needs_daughter;
+	bool removable;
+	bool replaceable;
+	bool hot_swappable;
 } __attribute__ ((__packed__)) s_base_board_features;
 
 typedef struct {
-    char manufacturer[BASE_BOARD_MANUFACTURER_SIZE];
-    char product_name[BASE_BOARD_PRODUCT_NAME_SIZE];
-    char version[BASE_BOARD_VERSION_SIZE];
-    char serial[BASE_BOARD_SERIAL_SIZE];
-    char asset_tag[BASE_BOARD_ASSET_TAG_SIZE];
-    char location[BASE_BOARD_LOCATION_SIZE];
-    char type[BASE_BOARD_TYPE_SIZE];
-    s_base_board_features features;
+	char manufacturer[BASE_BOARD_MANUFACTURER_SIZE];
+	char product_name[BASE_BOARD_PRODUCT_NAME_SIZE];
+	char version[BASE_BOARD_VERSION_SIZE];
+	char serial[BASE_BOARD_SERIAL_SIZE];
+	char asset_tag[BASE_BOARD_ASSET_TAG_SIZE];
+	char location[BASE_BOARD_LOCATION_SIZE];
+	char type[BASE_BOARD_TYPE_SIZE];
+	s_base_board_features features;
 /* The filled field have to be set to true when the dmitable implement that item */
-    bool filled;
+	bool filled;
+	struct {
+		char type[16];
+		uint8_t status;
+		char description[10];
+	} devices_information[10];
 } s_base_board;
 
 #endif

@@ -63,7 +63,7 @@
 
 ; Looks like a COMBOOT image but too large
 comboot_too_large:
-		call close_file
+		pm_call close_file
 		mov si,err_comlarge
 		call writestr
 		jmp enter_command
@@ -126,7 +126,7 @@ is_comboot_image:
 		mov bx,100h		; Load at <seg>:0100h
 		mov cx,10000h >> SECTOR_SHIFT
 					; Absolute maximum # of sectors
-		call getfssec
+		pm_call getfssec
 		cmp ecx,65536-256-2	; Maximum size
 		ja comboot_too_large
 
@@ -517,9 +517,9 @@ comapi_open:
 		mov ds,P_ES
 		mov si,P_SI
 		mov di,InitRD
-		call mangle_name
+		pm_call mangle_name
 		pop ds
-		call searchdir
+		pm_call searchdir
 		jz comapi_err
 		mov P_EAX,eax
 		mov P_CX,SECTOR_SIZE
@@ -535,7 +535,7 @@ comapi_read:
 		mov bx,P_BX
 		mov si,P_SI
 		mov cx,P_CX
-		call getfssec
+		pm_call getfssec
 		jnc .noteof
 		xor si,si		; SI <- 0 on EOF, CF <- 0
 .noteof:	mov P_SI,si
@@ -547,7 +547,7 @@ comapi_read:
 ;
 comapi_close:
 		mov si,P_SI
-		call close_file
+		pm_call close_file
 		clc
 		ret
 
@@ -635,7 +635,7 @@ comapi_cleanup:
 		test dl,3
 		setnz [KeepPXE]
 		sub bp,sp		; unload_pxe may move the stack around
-		call unload_pxe
+		pm_call unload_pxe
 		add bp,sp		; restore frame pointer...
 %elif IS_SYSLINUX || IS_EXTLINUX
 		; Restore original FDC table
@@ -686,10 +686,11 @@ comapi_ipappend:
 ; INT 22h AX=0010h	Resolve hostname
 ;
 %if IS_PXELINUX
+                extern pxe_dns_resolv
 comapi_dnsresolv:
 		mov ds,P_ES
 		mov si,P_BX
-		call dns_resolv
+		pm_call pxe_dns_resolv
 		mov P_EAX,eax
 		clc
 		ret
@@ -748,9 +749,9 @@ comapi_runkernel:
 		mov ds,P_DS
 		mov si,P_SI
 		mov di,KernelName
-		call mangle_name
+		pm_call mangle_name
 		pop ds
-		call searchdir
+		pm_call searchdir
 		jz comapi_err
 
 		; The kernel image was found, so we can load it...
@@ -900,21 +901,14 @@ comapi_getcwd:
 ;
 %if IS_SYSLINUX
 comapi_opendir:
-		push ds
-		mov ds,P_ES
+		mov es,P_ES
 		mov si,P_SI
 		mov di,InitRD
-		call mangle_name
-		pop ds
-		call searchdir
-		jnz comapi_err	; Didn't find a directory
+		pm_call vfs_opendir
+		jz comapi_err	; Didn't find a directory
 		cmp eax,0
 		jz comapi_err	; Found nothing
-			;ZF is unset
-		call alloc_fill_dir
-		mov P_EAX,eax
-		mov P_CX,SECTOR_SIZE
-		mov P_SI,si
+                mov P_EAX,eax
 		clc
 		ret
 %else
@@ -926,14 +920,9 @@ comapi_opendir	equ comapi_err
 ;
 %if IS_SYSLINUX
 comapi_readdir:
-		mov es,P_ES
-		mov di,P_DI
-		mov si,P_SI
-		call readdir
-		mov P_EAX,eax
-		mov P_DL,dl
-		mov P_EBX,ebx
-		mov P_SI,si
+		mov esi,P_ESI       ; The address of DIR structure
+		pm_call vfs_readdir
+		mov P_EAX,eax       ; The address of newly read dirent structure
 		ret
 %else
 comapi_readdir	equ comapi_err
@@ -942,15 +931,10 @@ comapi_readdir	equ comapi_err
 ;
 ; INT 22h AX=0022h	Close directory
 ;
-%if IS_SYSLINUX
 comapi_closedir:
-		mov si,P_SI
-		call close_dir
-		clc
+		mov esi,P_ESI    ; The address of DIR structure
+		pm_call vfs_closedir
 		ret
-%else
-comapi_closedir	equ comapi_err
-%endif
 
 ;
 ; INT 22h AX=0023h	Query shuffler size
@@ -1051,5 +1035,7 @@ err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
 		section .bss16
 		alignb 4
 DOSErrTramp	resd	33		; Error trampolines
+
+		global ConfigName, CurrentDirName
 ConfigName	resb	FILENAME_MAX
 CurrentDirName	resb	FILENAME_MAX

@@ -14,6 +14,9 @@
 #define DMI_H
 #include <inttypes.h>
 #define MAX_DMI_MEMORY_ITEMS 32
+#define MAX_DMI_CACHE_ITEMS 32
+#define OEM_STRINGS_SIZE 512
+#define HARDWARE_SECURITY_SIZE 16
 
 #define PAGE_SIZE 4096
 
@@ -34,6 +37,7 @@ enum { DMI_TABLE_PRESENT = 100, ENODMITABLE };
 #include "dmi_memory.h"
 #include "dmi_battery.h"
 #include "dmi_ipmi.h"
+#include "dmi_cache.h"
 
 extern char display_line;
 #define moreprintf(...) do { display_line++; if (display_line == 24) { char tempbuf[10]; display_line=0; printf("Press enter to continue"); fgets(tempbuf, sizeof tempbuf, stdin);}  printf ( __VA_ARGS__); } while (0);
@@ -55,16 +59,28 @@ struct dmi_header {
 };
 
 typedef struct {
-    s_bios bios;
-    s_system system;
-    s_base_board base_board;
-    s_chassis chassis;
-    s_processor processor;
-    s_battery battery;
-    s_memory memory[MAX_DMI_MEMORY_ITEMS];
-    s_ipmi ipmi;
-    int memory_count;
-    dmi_table dmitable;
+	 s_bios bios;
+	 s_system system;
+	 s_base_board base_board;
+	 s_chassis chassis;
+	 s_processor processor;
+	 s_battery battery;
+	 s_memory_module memory_module[MAX_DMI_MEMORY_ITEMS];
+	 s_memory memory[MAX_DMI_MEMORY_ITEMS];
+	 s_ipmi ipmi;
+	 s_cache cache[MAX_DMI_CACHE_ITEMS];
+	 int memory_module_count;
+	 int memory_count;
+	 int cache_count;
+	 dmi_table dmitable;
+	 char oem_strings[OEM_STRINGS_SIZE];
+	struct {
+		char power_on_passwd_status[HARDWARE_SECURITY_SIZE];
+		char keyboard_passwd_status[HARDWARE_SECURITY_SIZE];
+		char administrator_passwd_status[HARDWARE_SECURITY_SIZE];
+		char front_panel_reset_status[HARDWARE_SECURITY_SIZE];
+		bool filled;
+	} hardware_security;
 } s_dmi;
 
 void to_dmi_header(struct dmi_header *h, uint8_t * data);

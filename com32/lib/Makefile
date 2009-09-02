@@ -15,36 +15,36 @@ LIBPNG_OBJS = \
 	libpng/pngrio.o libpng/pngwio.o libpng/pngwrite.o		\
 	libpng/pngrtran.o libpng/pngwtran.o libpng/pngmem.o		\
 	libpng/pngerror.o libpng/pngpread.o
-	
+
 # ZIP library object files
 LIBZLIB_OBJS = \
-	zlib/adler32.o zlib/compress.o zlib/crc32.o zlib/gzio.o		\
+	zlib/adler32.o zlib/compress.o zlib/crc32.o			\
 	zlib/uncompr.o zlib/deflate.o zlib/trees.o zlib/zutil.o		\
 	zlib/inflate.o zlib/infback.o zlib/inftrees.o zlib/inffast.o\
 	\
 	sys/zfile.o sys/zfopen.o \
 	\
 	syslinux/zloadfile.o
-	
+
 # JPG library object files
 LIBJPG_OBJS = \
 	jpeg/tinyjpeg.o jpeg/jidctflt.o	jpeg/decode1.o jpeg/decode3.o   \
 	jpeg/rgb24.o jpeg/bgr24.o jpeg/yuv420p.o jpeg/grey.o		\
 	jpeg/rgba32.o jpeg/bgra32.o
-	
+
 LIBVESA_OBJS = \
 	sys/vesacon_write.o sys/vesaserial_write.o			\
 	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
 	sys/vesa/alphatbl.o sys/vesa/screencpy.o sys/vesa/fmtpixel.o
-	
+
 LIBPCI_OBJS = \
 	pci/cfgtype.o pci/scan.o					\
 	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o		\
 	pci/writeb.o pci/writew.o pci/writel.o pci/writebios.o
-	
+
 LIBSYSLINUX_OBJS = \
 	syslinux/reboot.o syslinux/keyboard.o				\
-	syslinux/features.o syslinux/config.o 	\
+	syslinux/features.o syslinux/config.o	\
 	syslinux/ipappend.o syslinux/dsinfo.o syslinux/version.o	\
 	\
 	syslinux/addlist.o syslinux/freelist.o syslinux/memmap.o	\
@@ -78,23 +78,23 @@ LIBENTRY_OBJS = \
 	sys/openmem.o sys/unread.o					\
 	sys/isatty.o sys/fstat.o					\
 	\
-	syslinux/idle.o 						\
+	syslinux/idle.o							\
 	\
 	exit.o
-	
+
 LIBMODULE_OBJS = \
 	sys/module/common.o sys/module/elf_module.o		\
 	sys/module/shallow_module.o	sys/module/elfutils.o	\
 	sys/module/exec.o
-	
 
-	
+
+
 LIBGCC_OBJS = \
 	libgcc/__ashldi3.o libgcc/__udivdi3.o			\
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
 	libgcc/__divdi3.o libgcc/__moddi3.o
-	
+
 LIBCONSOLE_OBJS = \
 	\
 	sys/openconsole.o sys/line_input.o				\
@@ -122,9 +122,9 @@ LIBOTHER_OBJS = \
 	perror.o printf.o puts.o qsort.o realloc.o seed48.o snprintf.o	\
 	sprintf.o srand48.o sscanf.o strcasecmp.o strcat.o	\
 	strchr.o strcmp.o strcpy.o strdup.o strerror.o strlen.o		\
-	strnlen.o strpcpy.o						\
+	strnlen.o							\
 	strncasecmp.o strncat.o strncmp.o strncpy.o strndup.o		\
-	stpcpy.o stpncpy.o 						\
+	stpcpy.o stpncpy.o						\
 	strntoimax.o strntoumax.o strrchr.o strsep.o strspn.o strstr.o	\
 	strtoimax.o strtok.o strtol.o strtoll.o strtoul.o strtoull.o	\
 	strtoumax.o vfprintf.o vprintf.o vsnprintf.o vsprintf.o		\
@@ -158,7 +158,7 @@ LIBOTHER_OBJS = \
 	sys/x86_init_fpu.o math/pow.o math/strtod.o			\
 	\
 	syslinux/memscan.o
-	
+
 MINLIBOBJS = \
 	$(LIBOTHER_OBJS) \
 	$(LIBENTRY_OBJS) \
@@ -167,7 +167,7 @@ MINLIBOBJS = \
 	$(LIBMODULE_OBJS) \
 #	$(LIBVESA_OBJS)
 
-	
+
 DYNLIBOBJS = \
 	$(LIBZLIB_OBJS) \
 	$(LIBPNG_OBJS) \
@@ -176,8 +176,8 @@ DYNLIBOBJS = \
 	$(LIBVESA_OBJS) \
 	$(LIBSYSLINUX_OBJS) \
 	$(DYNENTRY_OBJS)
-	
-	
+
+
 LIBOBJS = \
 	$(MINLIBOBJS) \
 	$(DYNLIBOBJS)
@@ -195,7 +195,7 @@ libcom32.a : $(LIBOBJS)
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
-	
+
 $(LIBMODULE_OBJS) : CFLAGS += -DELF_DEBUG
 libcom32min.a : $(MINLIBOBJS)
 	rm -f $@
