@@ -529,11 +529,11 @@ getchar_timeout:
 		call reset_idle
 
 .loop:
-		push word [BIOS_timer]
+		push word [__jiffies]
 		call pollchar
 		jnz .got_char
 		pop ax
-		cmp ax,[BIOS_timer]		; Has the timer advanced?
+		cmp ax,[__jiffies]		; Has the timer advanced?
 		je .loop
 
 		dec dword [ThisKbdTo]

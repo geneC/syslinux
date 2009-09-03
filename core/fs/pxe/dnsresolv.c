@@ -181,7 +181,7 @@ uint32_t dns_resolv(const char *name)
     int ques, reps;    /* number of questions and replies */
     uint8_t timeout;
     const uint8_t *timeout_ptr = TimeoutTable;
-    uint16_t oldtime;
+    uint32_t oldtime;
     uint32_t srv;
     uint32_t *srv_ptr = dns_server;
     struct dnshdr *hd1 = (struct dnshdr *)DNSSendBuf;
@@ -232,7 +232,7 @@ uint32_t dns_resolv(const char *name)
         if (err || udp_write.status != 0)
             continue;
         
-        oldtime = BIOS_timer;
+        oldtime = jiffies();
 	while (1) {
             udp_read.status      = 0;
             udp_read.src_ip      = srv;
@@ -249,7 +249,7 @@ uint32_t dns_resolv(const char *name)
             if (hd2->id == hd1->id)
                 break;
 
-	    if ((uint16_t)(BIOS_timer-oldtime) >= timeout) {
+	    if (jiffies()-oldtime >= timeout) {
 		/* time out */
 		timeout = *timeout_ptr++;
 		if (!timeout)

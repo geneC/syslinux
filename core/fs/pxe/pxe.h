@@ -197,7 +197,6 @@ extern int have_uuid;
 extern uint8_t uuid_type;
 extern char uuid[];
 
-extern volatile uint16_t BIOS_timer;
 extern uint16_t BIOS_fbm;
 extern const uint8_t TimeoutTable[];
 

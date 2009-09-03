@@ -718,8 +718,6 @@ expand_super:
 ; Common initialization code
 ;
 %include "init.inc"
-%include "cpuinit.inc"
-
 		
 		pushad
 		mov eax,ROOT_FS_OPS

@@ -43,5 +43,13 @@ void call16(void (*)(void), const com32sys_t *, com32sys_t *);
 __noreturn _kaboom(void);
 #define kaboom() _kaboom()
 
+/*
+ * Basic timer function...
+ */
+extern const volatile uint32_t __jiffies;
+static inline uint32_t jiffies(void)
+{
+    return __jiffies;
+}
 
 #endif /* CORE_H */

@@ -1109,7 +1109,6 @@ all_read:
 ; Common initialization code
 ;
 %include "init.inc"
-%include "cpuinit.inc"
 
 		; Patch the writechr routine to point to the full code
 		mov di,writechr

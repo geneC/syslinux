@@ -173,11 +173,6 @@ _start1:
                 pm_call fs_init
 
 ;
-; Common initialization code
-;
-%include "cpuinit.inc"
-
-;
 ; Initialize the idle mechanism
 ;
 		call reset_idle
@@ -247,6 +242,8 @@ local_boot:
 ;
 ; kaboom: write a message and bail out.  Wait for quite a while,
 ;	  or a user keypress, then do a hard reboot.
+;
+;         Note: use BIOS_timer here; we may not have jiffies set up.
 ;
                 global kaboom
 kaboom:

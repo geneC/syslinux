@@ -54,6 +54,9 @@ static const struct tftp_options tftp_options[] =
 };
 static const int tftp_nopts = sizeof tftp_options / sizeof tftp_options[0];
 
+static void tftp_error(struct open_file_t *file, uint16_t errnum,
+		       const char *errstr);
+
 /*
  * Initialize the Files structure
  */
@@ -116,12 +119,12 @@ static void free_socket(struct open_file_t *file)
 
 static void pxe_close_file(struct file *file)
 {
-    /*
-     * XXX: we really should see if the connection is open as send
-     * a courtesy ERROR packet so the server knows the connection is
-     * dead.
-     */
-    free_socket(file->open_file);
+    struct open_file_t *open_file = file->open_file;
+
+    if (open_file->tftp_localport && !open_file->tftp_goteof)
+	tftp_error(open_file, 0, "No error, file close");
+
+    free_socket(open_file);
 }
 
 /**
@@ -268,6 +271,41 @@ int pxe_call(int opcode, void *data)
     
     return regs.eflags.l & EFLAGS_CF;  /* CF SET if fail */
 }
+
+/**
+ * Send an ERROR packet.  This is used to terminate a connection.
+ *
+ * @file:	TFTP file pointer
+ * @errnum:	Error number (network byte order)
+ * @errstr:	Error string (included in packet)
+ */
+static void tftp_error(struct open_file_t *file, uint16_t errnum,
+		       const char *errstr)
+{
+    static __lowmem struct {
+	uint16_t err_op;
+	uint16_t err_num;
+	char err_msg[64];
+    } __packed err_buf;
+    static __lowmem struct s_PXENV_UDP_WRITE udp_write;
+    int len = min(strlen(errstr), sizeof(err_buf.err_msg)-1);
+
+    err_buf.err_op  = TFTP_ERROR;
+    err_buf.err_num = errnum;
+    memcpy(err_buf.err_msg, errstr, len);
+    err_buf.err_msg[len] = '\0';
+    
+    udp_write.src_port    = file->tftp_localport;
+    udp_write.dst_port    = file->tftp_remoteport;
+    udp_write.ip          = file->tftp_remoteip;
+    udp_write.gw          = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
+    udp_write.buffer      = FAR_PTR(&err_buf);
+    udp_write.buffer_size = 4 + len + 1;
+
+    /* If something goes wrong, there is nothing we can do, anyway... */
+    pxe_call(PXENV_UDP_WRITE, &udp_write);
+}    
+
 
 /**
  * Send ACK packet. This is a common operation and so is worth canning.
@@ -514,7 +552,7 @@ static void fill_buffer(struct open_file_t *file)
     const uint8_t *timeout_ptr = TimeoutTable;
     uint8_t timeout;
     uint16_t buffersize;
-    uint16_t old_time;
+    uint32_t oldtime;
     void *data = NULL;
     static __lowmem struct s_PXENV_UDP_READ udp_read;
         
@@ -538,7 +576,7 @@ static void fill_buffer(struct open_file_t *file)
     
     timeout_ptr = TimeoutTable;    
     timeout = *timeout_ptr++;
-    old_time = BIOS_timer;
+    oldtime = jiffies();
     while (timeout) {
         udp_read.buffer.offs = file->tftp_pktbuf;
         udp_read.buffer.seg  = PKTBUF_SEG;
@@ -549,13 +587,11 @@ static void fill_buffer(struct open_file_t *file)
         udp_read.d_port      = file->tftp_localport;
         err = pxe_call(PXENV_UDP_READ, &udp_read);
         if (err) {
-            if (BIOS_timer == old_time)
-                continue;
-            
-	    BIOS_timer = old_time;
-            timeout--;		/* decrease one timer tick */
-            if (!timeout) {
-                timeout = *timeout_ptr++;
+	    uint32_t now = jiffies();
+
+	    if (now-oldtime >= timeout) {
+		oldtime = now;
+		timeout = *timeout_ptr++;
 		if (!timeout)
 		    break;
 	    }
@@ -688,7 +724,6 @@ static int fill_tail(char *dst)
  */
 static void pxe_searchdir(char *filename, struct file *file)
 {
-    static __lowmem char tftp_proto_err[32];
     char *buf = packet_buf;
     char *p = filename;
     char *options;
@@ -704,7 +739,7 @@ static void pxe_searchdir(char *filename, struct file *file)
     int buffersize;
     const uint8_t  *timeout_ptr;
     uint8_t  timeout;
-    uint16_t oldtime;
+    uint32_t oldtime;
     uint16_t tid;
     uint16_t opcode;
     uint16_t blk_num;
@@ -786,8 +821,8 @@ static void pxe_searchdir(char *filename, struct file *file)
     
     /* Packet transmitted OK, now we need to receive */
     timeout = *timeout_ptr++;
-    oldtime = BIOS_timer;
-    while (timeout) {
+    oldtime = jiffies();
+    for (;;) {
         buf = packet_buf;
         udp_read.buffer.offs = OFFS_WRT(buf, 0);
         udp_read.buffer.seg = 0;
@@ -796,11 +831,10 @@ static void pxe_searchdir(char *filename, struct file *file)
         udp_read.d_port = tid;
         err = pxe_call(PXENV_UDP_READ, &udp_read);
         if (err) {
-            if (oldtime == BIOS_timer)
-                continue;
-            timeout --;  /* Decrease one timer tick */
-            if (!timeout) 
-                goto failure;
+	    uint32_t now = jiffies();
+	    if (now-oldtime >= timeout)
+		goto failure;
+	    continue;
         }
 
         /* Make sure the packet actually came from the server */
@@ -956,17 +990,7 @@ done:
 
 err_reply:
     /* Build the TFTP error packet */
-    p = tftp_proto_err;
-    *(uint16_t *)p = TFTP_ERROR; 
-    p += 2;
-    *(uint16_t *)p = TFTP_EOPTNEG; 
-    p += 2;
-    strcat(p, "TFTP_protocol error");    
-
-    udp_write.dst_port    = open_file->tftp_remoteport;
-    udp_write.buffer      = FAR_PTR(tftp_proto_err);
-    udp_write.buffer_size = 24;
-    pxe_call(PXENV_UDP_WRITE, &udp_write);
+    tftp_error(open_file, TFTP_EOPTNEG, "TFTP protocol error");
     printf("TFTP server sent an incomprehesible reply\n");
     kaboom();
         
