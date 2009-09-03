@@ -29,6 +29,11 @@ common_init:
 		jne kaboom
 
 ;
+; Initialize timer
+;
+		call timer_init
+
+;
 ; Initialize configuration information
 ;
 		call reset_config

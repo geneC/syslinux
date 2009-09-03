@@ -52,6 +52,8 @@ cleanup_hardware:
 
 		call comboot_cleanup_api
 
+		call timer_cleanup
+
 		popad
 
 		; If we enabled serial port interrupts, clean them up now
