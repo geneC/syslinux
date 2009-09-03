@@ -6,16 +6,20 @@
 #define _SYS_TIMES_H
 
 #include <stdint.h>
+#include <core/jiffies.h>
 
 struct tms {
     /* Empty */
 };
 
-#define HZ		18	/* Piddly resolution... */
 #define CLK_TCK		HZ
 
-typedef uint16_t clock_t;
+typedef uint32_t clock_t;
 
-clock_t times(struct tms *);
+static inline clock_t times(struct tms *__dummy)
+{
+    (void)__dummy;
+    return jiffies();
+}
 
 #endif /* _SYS_TIMES_H */

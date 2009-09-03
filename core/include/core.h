@@ -3,6 +3,7 @@
 
 #include <klibc/compiler.h>
 #include <com32.h>
+#include <core/jiffies.h>
 
 extern char core_xfer_buf[65536];
 extern char core_cache_buf[65536];
@@ -42,14 +43,5 @@ void call16(void (*)(void), const com32sys_t *, com32sys_t *);
  */
 __noreturn _kaboom(void);
 #define kaboom() _kaboom()
-
-/*
- * Basic timer function...
- */
-extern const volatile uint32_t __jiffies;
-static inline uint32_t jiffies(void)
-{
-    return __jiffies;
-}
 
 #endif /* CORE_H */
