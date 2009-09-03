@@ -15,10 +15,10 @@
 TICKS_TO_IDLE	equ 4
 
 reset_idle:
-		push ax
-		mov ax,[cs:BIOS_timer]
-		mov [cs:IdleTimer],ax
-		pop ax
+		push eax
+		mov eax,[cs:__jiffies]
+		mov [cs:IdleTimer],eax
+		pop eax
 		sti		; Guard against BIOS/PXE brokenness...
 		ret
 
@@ -54,9 +54,9 @@ do_idle:
 		pop si
 		sti
 .ok:
-		mov ax,[BIOS_timer]
-		sub ax,[IdleTimer]
-		cmp ax,TICKS_TO_IDLE
+		mov eax,[__jiffies]
+		sub eax,[IdleTimer]
+		cmp eax,TICKS_TO_IDLE
 		jb .done
 		
 		mov eax,[idle_hook_func]
@@ -74,6 +74,7 @@ do_idle:
 .ret:		ret
 
 		section .data16
+		alignz 4
 		global idle_hook_func
 idle_hook_func	dd 0
 NoHalt		dw 0
@@ -81,4 +82,5 @@ NoHalt		dw 0
 hlt_err		db 'ERROR: idle with IF=0', CR, LF, 0 
 
 		section .bss16
-IdleTimer	resw 1
+		alignb 4
+IdleTimer	resd 1

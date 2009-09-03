@@ -514,7 +514,7 @@ static void fill_buffer(struct open_file_t *file)
     const uint8_t *timeout_ptr = TimeoutTable;
     uint8_t timeout;
     uint16_t buffersize;
-    uint16_t old_time;
+    uint32_t oldtime;
     void *data = NULL;
     static __lowmem struct s_PXENV_UDP_READ udp_read;
         
@@ -538,7 +538,7 @@ static void fill_buffer(struct open_file_t *file)
     
     timeout_ptr = TimeoutTable;    
     timeout = *timeout_ptr++;
-    old_time = BIOS_timer;
+    oldtime = jiffies();
     while (timeout) {
         udp_read.buffer.offs = file->tftp_pktbuf;
         udp_read.buffer.seg  = PKTBUF_SEG;
@@ -549,13 +549,11 @@ static void fill_buffer(struct open_file_t *file)
         udp_read.d_port      = file->tftp_localport;
         err = pxe_call(PXENV_UDP_READ, &udp_read);
         if (err) {
-            if (BIOS_timer == old_time)
-                continue;
-            
-	    BIOS_timer = old_time;
-            timeout--;		/* decrease one timer tick */
-            if (!timeout) {
-                timeout = *timeout_ptr++;
+	    uint32_t now = jiffies();
+
+	    if (now-oldtime >= timeout) {
+		oldtime = now;
+		timeout = *timeout_ptr++;
 		if (!timeout)
 		    break;
 	    }
@@ -704,7 +702,7 @@ static void pxe_searchdir(char *filename, struct file *file)
     int buffersize;
     const uint8_t  *timeout_ptr;
     uint8_t  timeout;
-    uint16_t oldtime;
+    uint32_t oldtime;
     uint16_t tid;
     uint16_t opcode;
     uint16_t blk_num;
@@ -786,7 +784,7 @@ static void pxe_searchdir(char *filename, struct file *file)
     
     /* Packet transmitted OK, now we need to receive */
     timeout = *timeout_ptr++;
-    oldtime = BIOS_timer;
+    oldtime = jiffies();
     for (;;) {
         buf = packet_buf;
         udp_read.buffer.offs = OFFS_WRT(buf, 0);
@@ -796,13 +794,9 @@ static void pxe_searchdir(char *filename, struct file *file)
         udp_read.d_port = tid;
         err = pxe_call(PXENV_UDP_READ, &udp_read);
         if (err) {
-	    uint16_t now = BIOS_timer;
-            if (oldtime != now) {
-		oldtime = now;
-		timeout--;	/* Decrease one timer tick */
-		if (!timeout)
-		    goto failure;
-	    }
+	    uint32_t now = jiffies();
+	    if (now-oldtime >= timeout)
+		goto failure;
 	    continue;
         }
 

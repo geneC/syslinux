@@ -243,6 +243,8 @@ local_boot:
 ; kaboom: write a message and bail out.  Wait for quite a while,
 ;	  or a user keypress, then do a hard reboot.
 ;
+;         Note: use BIOS_timer here; we may not have jiffies set up.
+;
                 global kaboom
 kaboom:
 		RESET_STACK_AND_SEGS AX
