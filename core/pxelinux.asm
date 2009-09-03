@@ -173,11 +173,6 @@ _start1:
                 pm_call fs_init
 
 ;
-; Common initialization code
-;
-%include "cpuinit.inc"
-
-;
 ; Initialize the idle mechanism
 ;
 		call reset_idle
