@@ -61,7 +61,9 @@ SECTIONS
 	__config_len = __config_end - __config_start;
 	__config_dwords = (__config_len + 3) >> 2;
 
-	. = ALIGN(16);
+	/* Generated and/or copied code */
+
+	. = ALIGN(128);		/* Minimum separation from mutable data */
  	.replacestub : AT (__replacestub_lma) {
 		__replacestub_start = .;
 		*(.replacestub)
@@ -69,6 +71,16 @@ SECTIONS
 	}
 	__replacestub_len = __replacestub_end - __replacestub_start;
 	__replacestub_dwords = (__replacestub_len + 3) >> 2;
+
+	. = ALIGN(16);
+	__gentextnr_lma = .;
+	.gentextnr : AT(__gentextnr_lma) {
+		__gentextnr_start = .;
+		*(.gentextnr)
+		__gentextnr_end = .;
+	}
+	__gentextnr_len = __gentextnr_end - __gentextnr_start;
+	__gentextnr_dwords = (__gentextnr_len + 3) >> 2;
 
 	/* 16-bit stack */
 
