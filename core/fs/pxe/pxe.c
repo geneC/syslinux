@@ -54,6 +54,9 @@ static const struct tftp_options tftp_options[] =
 };
 static const int tftp_nopts = sizeof tftp_options / sizeof tftp_options[0];
 
+static void tftp_error(struct open_file_t *file, uint16_t errnum,
+		       const char *errstr);
+
 /*
  * Initialize the Files structure
  */
@@ -116,12 +119,12 @@ static void free_socket(struct open_file_t *file)
 
 static void pxe_close_file(struct file *file)
 {
-    /*
-     * XXX: we really should see if the connection is open as send
-     * a courtesy ERROR packet so the server knows the connection is
-     * dead.
-     */
-    free_socket(file->open_file);
+    struct open_file_t *open_file = file->open_file;
+
+    if (open_file->tftp_localport && !open_file->tftp_goteof)
+	tftp_error(open_file, 0, "No error, file close");
+
+    free_socket(open_file);
 }
 
 /**
@@ -268,6 +271,41 @@ int pxe_call(int opcode, void *data)
     
     return regs.eflags.l & EFLAGS_CF;  /* CF SET if fail */
 }
+
+/**
+ * Send an ERROR packet.  This is used to terminate a connection.
+ *
+ * @file:	TFTP file pointer
+ * @errnum:	Error number (network byte order)
+ * @errstr:	Error string (included in packet)
+ */
+static void tftp_error(struct open_file_t *file, uint16_t errnum,
+		       const char *errstr)
+{
+    static __lowmem struct {
+	uint16_t err_op;
+	uint16_t err_num;
+	char err_msg[64];
+    } __packed err_buf;
+    static __lowmem struct s_PXENV_UDP_WRITE udp_write;
+    int len = min(strlen(errstr), sizeof(err_buf.err_msg)-1);
+
+    err_buf.err_op  = TFTP_ERROR;
+    err_buf.err_num = errnum;
+    memcpy(err_buf.err_msg, errstr, len);
+    err_buf.err_msg[len] = '\0';
+    
+    udp_write.src_port    = file->tftp_localport;
+    udp_write.dst_port    = file->tftp_remoteport;
+    udp_write.ip          = file->tftp_remoteip;
+    udp_write.gw          = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
+    udp_write.buffer      = FAR_PTR(&err_buf);
+    udp_write.buffer_size = 4 + len + 1;
+
+    /* If something goes wrong, there is nothing we can do, anyway... */
+    pxe_call(PXENV_UDP_WRITE, &udp_write);
+}    
+
 
 /**
  * Send ACK packet. This is a common operation and so is worth canning.
@@ -686,7 +724,6 @@ static int fill_tail(char *dst)
  */
 static void pxe_searchdir(char *filename, struct file *file)
 {
-    static __lowmem char tftp_proto_err[32];
     char *buf = packet_buf;
     char *p = filename;
     char *options;
@@ -953,17 +990,7 @@ done:
 
 err_reply:
     /* Build the TFTP error packet */
-    p = tftp_proto_err;
-    *(uint16_t *)p = TFTP_ERROR; 
-    p += 2;
-    *(uint16_t *)p = TFTP_EOPTNEG; 
-    p += 2;
-    strcat(p, "TFTP_protocol error");    
-
-    udp_write.dst_port    = open_file->tftp_remoteport;
-    udp_write.buffer      = FAR_PTR(tftp_proto_err);
-    udp_write.buffer_size = 24;
-    pxe_call(PXENV_UDP_WRITE, &udp_write);
+    tftp_error(open_file, TFTP_EOPTNEG, "TFTP protocol error");
     printf("TFTP server sent an incomprehesible reply\n");
     kaboom();
         
