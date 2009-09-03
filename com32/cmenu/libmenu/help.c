@@ -71,7 +71,7 @@ static void printtext(char *buf, int from)
     if (p && (*p == '\n'))
 	*p = '\0';		// change to NUL
     gotoxy(HELP_BODY_ROW, HELP_LEFT_MARGIN);
-    csprint(f, 0x07);
+    printf(f);
     if (p)
 	*p = '\n';		// set it back
 }
@@ -117,7 +117,7 @@ void showhelp(const char *filename)
 
     // Now we have a file just print it.
     gotoxy(1, (nc - strlen(title)) / 2);
-    csprint(title, 0x07);
+    printf(title);
     numlines = countlines(text);
     curr_line = 0;
     scan = ESCAPE + 1;		// anything except ESCAPE
@@ -170,7 +170,7 @@ out:
 
 puke:
     gotoxy(HELP_BODY_ROW, HELP_LEFT_MARGIN);
-    csprint(line, 0x07);
+    printf(line);
     while (1) {
         inputc(&scan);
         if (scan == ESCAPE)
