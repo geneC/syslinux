@@ -126,7 +126,7 @@ void main_show_disk(int argc, char **argv,
 		d->legacy_max_cylinder + 1, d->legacy_max_head + 1, d->legacy_sectors_per_track,
 		d->edd_version,
 		disk_size, (int) d->edd_params.bytes_per_sector, (int) d->edd_params.sectors_per_track,
-		remove_spaces(d->edd_params.host_bus_type), remove_spaces(d->edd_params.interface_type));
+		remove_spaces((char *) d->edd_params.host_bus_type), remove_spaces((char*) d->edd_params.interface_type));
 
 	if (parse_partition_table(d, &show_partition_information)) {
 		if (errno_disk) {
@@ -182,8 +182,8 @@ void disks_summary(int argc __unused, char** argv __unused,
 		more_printf("  EDD:   Version: %X, size: %s\n", d->edd_version,
 			disk_size);
 		more_printf("         Host bus: %s, Interface type: %s\n\n",
-			remove_spaces(d->edd_params.host_bus_type),
-			remove_spaces(d->edd_params.interface_type));
+			remove_spaces((char*) d->edd_params.host_bus_type),
+			remove_spaces((char*) d->edd_params.interface_type));
 	}
 }
 
