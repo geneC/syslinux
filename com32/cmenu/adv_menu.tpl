@@ -40,6 +40,7 @@ modify this template to suit your needs
 #include "com32io.h"
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #define MAX_CMD_LINE_LENGTH 514
 
@@ -194,7 +195,13 @@ TIMEOUTCODE ontotaltimeout()
 
 void keys_handler(t_menuitem *mi,unsigned int scancode)
 {
-   char nc;
+   int nc, nr;
+
+   if (getscreensize(1, &nr, &nc)) {
+       /* Unknown screen size? */
+       nc = 80;
+       nr = 24;
+   }
 
    if ( ((scancode >> 8) == F1) && (mi->helpid != 0xFFFF) ) { // If scancode of F1 and non-trivial helpid
       runhelpsystem(mi->helpid);
@@ -203,9 +210,8 @@ void keys_handler(t_menuitem *mi,unsigned int scancode)
    // If user hit TAB, and item is an "executable" item
    // and user has privileges to edit it, edit it in place.
    if (((scancode & 0xFF) == 0x09) && (mi->action == OPT_RUN) &&
-       (EDIT_ROW < getnumrows()) && (EDIT_ROW > 0) &&
+       (EDIT_ROW < nr) && (EDIT_ROW > 0) &&
        (isallowed(username,"editcmd") || isallowed(username,"root"))) {
-     nc = getnumcols();
      // User typed TAB and has permissions to edit command line
      gotoxy(EDIT_ROW,1);
      csprint("Command line:",0x07);
@@ -220,14 +226,19 @@ t_handler_return login_handler(t_menuitem *mi)
   (void)mi; // Unused
   char pwd[40];
   char login[40];
-  char nc;
+  int nc, nr;
   t_handler_return rv;
 
   rv = ACTION_INVALID;
   if (PWD_ROW < 0) return rv; // No need to authenticate
 
   if (mi->item == loginstr) { /* User wants to login */
-    nc = getnumcols();
+    if (getscreensize(1, &nr, &nc)) {
+        /* Unknown screen size? */
+        nc = 80;
+        nr = 24;
+    }
+
     gotoxy(PWD_ROW,1);
     csprint("Enter Username: ",0x07);
     getstring(login, sizeof username);

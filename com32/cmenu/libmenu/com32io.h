@@ -93,16 +93,6 @@ static inline unsigned char readbiosb(unsigned int ofs)
     return *((unsigned char *)MK_PTR(0, ofs));
 }
 
-static inline char getnumrows()
-{
-	return 25;
-}
-
-static inline char getnumcols(void)
-{
-	return 80;
-}
-
 static inline char getshiftflags(void)
 {
     return readbiosb(0x417);

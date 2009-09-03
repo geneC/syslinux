@@ -21,6 +21,7 @@
 #include "des.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 
 /* Global variables */
 char infoline[160];
@@ -67,7 +68,7 @@ TIMEOUTCODE ontimeout()
 
 void keys_handler(t_menuitem * mi, unsigned int scancode)
 {
-    char nc;
+    int nc, nr;
 
     if ((scancode >> 8) == F1) {	// If scancode of F1
 	runhelpsystem(mi->helpid);
@@ -76,7 +77,11 @@ void keys_handler(t_menuitem * mi, unsigned int scancode)
     // and user has privileges to edit it, edit it in place.
     if (((scancode & 0xFF) == 0x09) && (mi->action == OPT_RUN) &&
 	(isallowed(username, "editcmd") || isallowed(username, "root"))) {
-	nc = getnumcols();
+    if (getscreensize(1, &nr, &nc)) {
+        /* Unknown screen size? */
+        nc = 80;
+        nr = 24;
+    }
 	// User typed TAB and has permissions to edit command line
 	gotoxy(EDITPROMPT, 1);
 	csprint("Command line:", 0x07);
@@ -91,11 +96,15 @@ t_handler_return login_handler(t_menuitem * mi)
     (void)mi;			// Unused
     char pwd[40];
     char login[40];
-    char nc;
+    int nc, nr;
     t_handler_return rv;
 
     if (mi->item == loginstr) {	/* User wants to login */
-	nc = getnumcols();
+    if (getscreensize(1, &nr, &nc)) {
+        /* Unknown screen size? */
+        nc = 80;
+        nr = 24;
+    }
 	gotoxy(PWDPROMPT, 1);
 	csprint("Enter Username: ", 0x07);
 	getstring(login, sizeof username);
@@ -133,10 +142,14 @@ t_handler_return login_handler(t_menuitem * mi)
 
 void msys_handler(t_menusystem * ms, t_menuitem * mi)
 {
-    char nc;
+    int nc, nr;
     void *v;
-    nc = getnumcols();		// Get number of columns
 
+    if (getscreensize(1, &nr, &nc)) {
+        /* Unknown screen size? */
+        nc = 80;
+        nr = 24;
+    }
     gotoxy(PWDLINE, PWDCOLUMN);
     csprint("User: ", PWDATTR);
     cprint(ms->fillchar, ms->fillattr, sizeof username);
