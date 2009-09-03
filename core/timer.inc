@@ -41,5 +41,6 @@ timer_irq:
 BIOS_timer_next	equ $-4
 
 		section .bss16
+		alignb 4
 		global __jiffies
 __jiffies	resd 1			; The actual timer variable
