@@ -126,14 +126,14 @@ void showhelp(const char *filename)
 	printtext(text, curr_line);
 	gotoxy(HELP_BODY_ROW - 1, nc - HELP_RIGHT_MARGIN);
 	if (curr_line > 0)
-	    putch(HELP_MORE_ABOVE, 0x07);
+	    putchar(HELP_MORE_ABOVE);
 	else
-	    putch(' ', 0x07);
+	    putchar(' ');
 	gotoxy(nr - HELP_BOTTOM_MARGIN + 1, nc - HELP_RIGHT_MARGIN);
 	if (curr_line < numlines - ph)
-	    putch(HELP_MORE_BELOW, 0x07);
+	    putchar(HELP_MORE_BELOW);
 	else
-	    putch(' ', 0x07);
+	    putchar(' ');
 
 	inputc(&scan);		// wait for user keypress
 
