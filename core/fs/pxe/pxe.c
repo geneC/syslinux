@@ -787,7 +787,7 @@ static void pxe_searchdir(char *filename, struct file *file)
     /* Packet transmitted OK, now we need to receive */
     timeout = *timeout_ptr++;
     oldtime = BIOS_timer;
-    while (timeout) {
+    for (;;) {
         buf = packet_buf;
         udp_read.buffer.offs = OFFS_WRT(buf, 0);
         udp_read.buffer.seg = 0;
@@ -796,11 +796,14 @@ static void pxe_searchdir(char *filename, struct file *file)
         udp_read.d_port = tid;
         err = pxe_call(PXENV_UDP_READ, &udp_read);
         if (err) {
-            if (oldtime == BIOS_timer)
-                continue;
-            timeout --;  /* Decrease one timer tick */
-            if (!timeout) 
-                goto failure;
+	    uint16_t now = BIOS_timer;
+            if (oldtime != now) {
+		oldtime = now;
+		timeout--;	/* Decrease one timer tick */
+		if (!timeout)
+		    goto failure;
+	    }
+	    continue;
         }
 
         /* Make sure the packet actually came from the server */
