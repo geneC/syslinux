@@ -168,10 +168,10 @@ struct cpu_model_info {
 
 /* attempt to consolidate cpu attributes */
 struct cpu_dev {
-    char *c_vendor;
+    const char *c_vendor;
 
     /* some have two possibilities for cpuid string */
-    char *c_ident[2];
+    const char *c_ident[2];
 
     struct cpu_model_info c_models[4];
 
