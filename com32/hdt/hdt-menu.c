@@ -27,6 +27,7 @@
  */
 
 #include "hdt-menu.h"
+#include <unistd.h>
 
 int start_menu_mode(struct s_hardware *hardware, char *version_string)
 {
@@ -84,9 +85,9 @@ TIMEOUTCODE ontimeout()
 }
 
 /* Keyboard handler for the menu system */
-void keys_handler(t_menusystem * ms, t_menuitem * mi, unsigned int scancode)
+void keys_handler(t_menuitem * mi, unsigned int scancode)
 {
-  char nc;
+  int nr, nc;
 
   if ((scancode >> 8) == F1) {  // If scancode of F1
     runhelpsystem(mi->helpid);
@@ -97,13 +98,17 @@ void keys_handler(t_menusystem * ms, t_menuitem * mi, unsigned int scancode)
    */
   if (((scancode & 0xFF) == 0x09) && (mi->action == OPT_RUN)) {
 //(isallowed(username,"editcmd") || isallowed(username,"root"))) {
-    nc = getnumcols();
+    if (getscreensize(1, &nr, &nc)) {
+        /* Unknown screen size? */
+        nc = 80;
+        nr = 24;
+    }
     /* User typed TAB and has permissions to edit command line */
-    gotoxy(EDITPROMPT, 1, ms->menupage);
+    gotoxy(EDITPROMPT, 1);
     csprint("Command line:", 0x07);
     editstring(mi->data, ACTIONLEN);
-    gotoxy(EDITPROMPT, 1, ms->menupage);
-    cprint(' ', 0x07, nc - 1, ms->menupage);
+    gotoxy(EDITPROMPT, 1);
+    cprint(' ', 0x07, nc - 1);
   }
 }
 
@@ -195,8 +200,7 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
   }
 
   if (hdt_menu->memory_menu.items_count > 0) {
-    snprintf(menu_item, sizeof(menu_item), "<M>emory     (%2d)\n",
-       hdt_menu->memory_menu.items_count);
+    snprintf(menu_item, sizeof(menu_item), "<M>emory\n");
     add_item(menu_item, "Memory Menu", OPT_SUBMENU, NULL,
        hdt_menu->memory_menu.menu);
     hdt_menu->main_menu.items_count++;
@@ -244,7 +248,7 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
   }
 
  if (hardware->is_vpd_valid == true) {
-   add_item("VPD","VPD Information Menu", OPT_SUBMENU, NULL,
+   add_item("<V>PD","VPD Information Menu", OPT_SUBMENU, NULL,
       hdt_menu->vpd_menu.menu);
    hdt_menu->main_menu.items_count++;
   }
@@ -263,7 +267,8 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
 
   add_item("", "", OPT_SEP, "", 0);
 #ifdef WITH_PCI
-  if (hardware->modules_pcimap_return_code != -ENOMODULESPCIMAP) {
+  if ((hardware->modules_pcimap_return_code != -ENOMODULESPCIMAP) ||
+      (hardware->modules_alias_return_code != -ENOMODULESALIAS))  {
     add_item("<K>ernel Modules", "Kernel Modules Menu", OPT_SUBMENU,
        NULL, hdt_menu->kernel_menu.menu);
     hdt_menu->main_menu.items_count++;

@@ -14,12 +14,12 @@
 #include <string.h>
 #include <com32.h>
 #include <stdlib.h>
+#include "com32io.h"
 
 com32sys_t inreg, outreg;	// Global register sets for use
 
 char bkspstr[] = " \b$";
 char eolstr[] = "\n$";
-#define GETSTRATTR 0x07
 
 // Reads a line of input from stdin. Replace CR with NUL byte
 // password <> 0 implies not echoed on screen
@@ -33,14 +33,12 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
     char *p, *q;		// p = current char of string, q = tmp
     char *last;			// The current last char of string
     char *str;			// pointer to string which is going to be allocated
-    char page;
     char row, col;
     char start, end;		// Cursor shape
     char fudge;			// How many chars should be removed from output
     char insmode;		// Are we in insert or overwrite
 
-    page = getdisppage();
-    getpos(&row, &col, page);	// Get current position
+    getpos(&row, &col, 0);	// Get current position
     getcursorshape(&start, &end);
     insmode = 1;
 
@@ -67,7 +65,7 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
     // col is the corresponding column on the screen
     if (password == 0)		// Not a password, print initial value
     {
-	gotoxy(row, col, page);
+	gotoxy(row, col);
 	csprint(str, GETSTRATTR);
     }
     while (1) {			// Do forever
@@ -194,11 +192,11 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
 	}
 	// Now the string has been modified, print it
 	if (password == 0) {
-	    gotoxy(row, col, page);
+	    gotoxy(row, col);
 	    csprint(str, GETSTRATTR);
 	    if (fudge > 0)
-		cprint(' ', GETSTRATTR, fudge, page);
-	    gotoxy(row, col + (p - str), page);
+		cprint(' ', GETSTRATTR, fudge);
+	    gotoxy(row, col + (p - str));
 	}
     }
     *p = '\0';
@@ -209,85 +207,6 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
     if (scan != ESCAPE)
 	strcpy(stra, str);
     free(str);
-}
-
-/* Print a C string (NUL-terminated) */
-void cswprint(const char *str, char attr, char left)
-{
-    char page = getdisppage();
-    char newattr = 0, cha, chb;
-    char row, col;
-    char nr, nc;
-
-    nr = getnumrows();
-    nc = getnumcols();
-    getpos(&row, &col, page);
-    while (*str) {
-	switch (*str) {
-	case '\b':
-	    --col;
-	    break;
-	case '\n':
-	    ++row;
-	    col = left;
-	    break;
-	case '\r':
-	    //col=left;
-	    break;
-	case BELL:		// Bell Char
-	    beep();
-	    break;
-	case CHRELATTR:	// change attribute (relatively)
-	case CHABSATTR:	// change attribute (absolute)
-	    cha = *(str + 1);
-	    chb = *(str + 2);
-	    if ((((cha >= '0') && (cha <= '9')) || ((cha >= 'A') && (cha <= 'F'))) && (((chb >= '0') && (chb <= '9')) || ((chb >= 'A') && (chb <= 'F'))))	// Next two chars are legal
-	    {
-		if ((cha >= 'A') && (cha <= 'F'))
-		    cha = cha - 'A' + 10;
-		else
-		    cha = cha - '0';
-		if ((chb >= 'A') && (chb <= 'F'))
-		    chb = chb - 'A' + 10;
-		else
-		    chb = chb - '0';
-		newattr = (cha << 4) + chb;
-		attr = (*str == CHABSATTR ? newattr : attr ^ newattr);
-		str += 2;	// Will be incremented again later
-	    }
-	    break;
-	default:
-	    putch(*str, attr, page);
-	    ++col;
-	}
-	if (col >= nc) {
-	    ++row;
-	    col = left;
-	}
-	if (row > nr) {
-	    scrollup();
-	    row = nr;
-	}
-	gotoxy(row, col, page);
-	str++;
-    }
-}
-
-void clearwindow(char top, char left, char bot, char right, char page,
-		 char fillchar, char fillattr)
-{
-    char x;
-    for (x = top; x < bot + 1; x++) {
-	gotoxy(x, left, page);
-	cprint(fillchar, fillattr, right - left + 1, page);
-    }
-}
-
-void cls(void)
-{
-    unsigned char dp = getdisppage();
-    gotoxy(0, 0, dp);
-    cprint(' ', GETSTRATTR, (1 + getnumrows()) * getnumcols(), dp);
 }
 
 //////////////////////////////Box Stuff
@@ -338,41 +257,35 @@ unsigned char *getboxchars(boxtype bt)
 }
 
 // Draw box and lines
-void drawbox(char top, char left, char bot, char right,
-	     char page, char attr, boxtype bt)
+void drawbox(const char top, const char left, const char bot,
+	     const char right, const char attr)
 {
-    unsigned char *box_chars;	// pointer to array of box chars
     unsigned char x;
-
-    box_chars = getboxchars(bt);
+	putchar(SO);
     // Top border
-    gotoxy(top, left, page);
-    cprint(box_chars[BOX_TOPLEFT], attr, 1, page);
-    gotoxy(top, left + 1, page);
-    cprint(box_chars[BOX_TOP], attr, right - left, page);
-    gotoxy(top, right, page);
-    cprint(box_chars[BOX_TOPRIGHT], attr, 1, page);
+    gotoxy(top, left);
+    putch(TOP_LEFT_CORNER_BORDER, attr);
+    cprint(TOP_BORDER, attr, right - left - 1);
+    putch(TOP_RIGHT_CORNER_BORDER, attr);
     // Bottom border
-    gotoxy(bot, left, page);
-    cprint(box_chars[BOX_BOTLEFT], attr, 1, page);
-    gotoxy(bot, left + 1, page);
-    cprint(box_chars[BOX_BOT], attr, right - left, page);
-    gotoxy(bot, right, page);
-    cprint(box_chars[BOX_BOTRIGHT], attr, 1, page);
+    gotoxy(bot, left);
+    putch(BOTTOM_LEFT_CORNER_BORDER, attr);
+    cprint(BOTTOM_BORDER, attr, right - left - 1);
+    putch(BOTTOM_RIGHT_CORNER_BORDER, attr);
     // Left & right borders
     for (x = top + 1; x < bot; x++) {
-	gotoxy(x, left, page);
-	cprint(box_chars[BOX_LEFT], attr, 1, page);
-	gotoxy(x, right, page);
-	cprint(box_chars[BOX_RIGHT], attr, 1, page);
+	gotoxy(x, left);
+	putch(LEFT_BORDER, attr);
+	gotoxy(x, right);
+	putch(RIGHT_BORDER, attr);
     }
+	putchar(SI);
 }
 
-void drawhorizline(char top, char left, char right, char page, char attr,
-		   boxtype bt, char dumb)
+void drawhorizline(const char top, const char left, const char right,
+		   const char attr, char dumb)
 {
     unsigned char start, end;
-    unsigned char *box_chars = getboxchars(bt);
     if (dumb == 0) {
 	start = left + 1;
 	end = right - 1;
@@ -380,12 +293,14 @@ void drawhorizline(char top, char left, char right, char page, char attr,
 	start = left;
 	end = right;
     }
-    gotoxy(top, start, page);
-    cprint(box_chars[BOX_HORIZ], attr, end - start + 1, page);
+    gotoxy(top, start);
+	putchar(SO);
+    cprint(MIDDLE_BORDER, attr, end - start + 1);
     if (dumb == 0) {
-	gotoxy(top, left, page);
-	cprint(box_chars[BOX_LTRT], attr, 1, page);
-	gotoxy(top, right, page);
-	cprint(box_chars[BOX_RTLT], attr, 1, page);
+	gotoxy(top, left);
+	putch(MIDDLE_BORDER, attr);
+	gotoxy(top, right);
+	putch(MIDDLE_BORDER, attr);
     }
+	putchar(SI);
 }

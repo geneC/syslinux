@@ -61,6 +61,13 @@ void move_cursor_right(int count) {
 	fputs(buffer, stdout);
 }
 
+void set_cursor_blink(bool status) {
+	if (status == true)
+		fputs("\033[05m",stdout);
+	else
+		fputs("\033[0m",stdout);
+}
+
 void clear_line() {
 	fputs("\033[2K", stdout);
 }

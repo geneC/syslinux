@@ -32,11 +32,16 @@
 #include <syslinux/pxe.h>
 #include "sys/pci.h"
 
+#include <disk/geom.h>
+
 #include "cpuid.h"
 #include "dmi/dmi.h"
 #include "hdt-ata.h"
 #include "../lib/sys/vesa/vesa.h"
 #include <vpd/vpd.h>
+
+/* Declare a variable or data structure as unused. */
+#define __unused __attribute__ (( unused ))
 
 /* This two values are used for switching for the menu to the CLI mode */
 #define HDT_SWITCH_TO_CLI "hdt_switch_to_cli"
@@ -54,6 +59,17 @@ extern int display_line_nb;
  printf ( __VA_ARGS__);\
  display_line_nb++; \
 } while (0);
+
+/* Display CPU registers for debugging purposes */
+static inline void printregs(const com32sys_t * r)
+{
+  printf("eflags = %08x  ds = %04x  es = %04x  fs = %04x  gs = %04x\n"
+         "eax = %08x  ebx = %08x  ecx = %08x  edx = %08x\n"
+         "ebp = %08x  esi = %08x  edi = %08x  esp = %08x\n",
+         r->eflags.l, r->ds, r->es, r->fs, r->gs,
+         r->eax.l, r->ebx.l, r->ecx.l, r->edx.l,
+         r->ebp.l, r->esi.l, r->edi.l, r->_unused_esp.l);
+}
 
 struct s_pxe {
   uint16_t vendor_id;
@@ -97,13 +113,14 @@ struct s_hardware {
   s_cpu cpu;                      /* CPU information */
   s_vpd vpd;                      /* VPD information */
   struct pci_domain *pci_domain;  /* PCI Devices */
-  struct diskinfo disk_info[256]; /* Disk Information */
+  struct driveinfo disk_info[256]; /* Disk Information */
   int disks_count;		  /* Number of detected disks */
   struct s_pxe pxe;
   struct s_vesa vesa;
 
   int pci_ids_return_code;
   int modules_pcimap_return_code;
+  int modules_alias_return_code;
   int nb_pci_devices;
   bool is_dmi_valid;
   bool is_pxe_valid;
@@ -121,6 +138,7 @@ struct s_hardware {
   char syslinux_fs[22];
   const struct syslinux_version *sv;
   char modules_pcimap_path[255];
+  char modules_alias_path[255];
   char pciids_path[255];
   char memtest_label[255];
 };

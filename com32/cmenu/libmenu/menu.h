@@ -24,6 +24,7 @@
 #include "syslnx.h"
 #include "scancodes.h"
 #include <string.h>
+#include <unistd.h>
 
 // TIMEOUT PARAMETERS
 /* If no key is pressed within TIMEOUTNUMSTEPS * TIMEOUTSTEPSIZE milliseconds
@@ -99,7 +100,7 @@
 #define DEBUGLINE     23	// debugging info goes here
 
 // Other Chars
-#define SUBMENUCHAR   175	// This is >> symbol
+#define SUBMENUCHAR   '\172'	// This is >> symbol
 #define RADIOMENUCHAR '>'	// > symbol for radio menu?
 #define EXITMENUCHAR  174	// This is << symbol
 #define CHECKED       251	// Check mark
@@ -214,8 +215,8 @@ typedef struct s_menusystem {
     uchar shadowattr;
     uchar statline;
     uchar menupage;
-    uchar maxrow, minrow, numrows;	// Number of rows in the window
-    uchar maxcol, mincol, numcols;	// Number of columns in the window
+    int maxrow, minrow, numrows;	// Number of rows in the window
+    int maxcol, mincol, numcols;	// Number of columns in the window
 
     // Menu box look
     boxtype menubt;		// What type of boxes should be drawn

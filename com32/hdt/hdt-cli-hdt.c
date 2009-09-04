@@ -54,9 +54,10 @@ static void main_show_modes(int argc __unused, char** argv __unused,
 
 	printf("Available modes:\n");
 	while (list_modes[i]) {
-		printf("\t%s\n", list_modes[i]->name);
+		printf("%s ", list_modes[i]->name);
 		i++;
 	}
+	printf("\n");
 }
 
 /**
@@ -132,25 +133,27 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 	/* List secondly the show modules of the mode */
 	if (current_mode->show_modules &&
 	    current_mode->show_modules->modules) {
-		printf("show commands:\n");
+		printf("\nshow commands:\n");
 		j = 0;
 		while (current_mode->show_modules->modules[j].name) {
-			printf("\t%s\n",
+			printf("%s ",
 			       current_mode->show_modules->modules[j].name);
 			j++;
 		}
+		printf("\n");
 	}
 
 	/* List thirdly the set modules of the mode */
 	if (current_mode->set_modules &&
 	    current_mode->set_modules->modules) {
-		printf("set commands:\n");
+		printf("\nset commands:\n");
 		j = 0;
 		while (current_mode->set_modules->modules[j].name) {
-			printf("\t%s\n",
+			printf("%s ",
 			       current_mode->set_modules->modules[j].name);
 			j++;
 		}
+		printf("\n");
 	}
 
 	/* List finally the default modules of the hdt mode */
@@ -177,6 +180,7 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 		printf("\n");
 	}
 
+	printf("\n");
 	main_show_modes(argc, argv, hardware);
 }
 
@@ -217,8 +221,8 @@ void main_show_summary(int argc __unused, char **argv __unused,
 		more_printf(" Release      : %s\n",
 			    hardware->dmi.bios.release_date);
 
-		int argc = 2;
-		char *argv[2] = { "0", "0" };
+		int argc = 1;
+		char *argv[1] = { "0" };
 		show_dmi_memory_modules(argc, argv, hardware);
 	}
 	main_show_pci(argc, argv, hardware);
@@ -285,6 +289,10 @@ struct cli_callback_descr list_hdt_show_modules[] = {
 		.exec = main_show_cpu,
 	},
 	{
+		.name = CLI_DISK,
+		.exec = disks_summary,
+	},
+	{
 		.name = CLI_PXE,
 		.exec = main_show_pxe,
 	},
@@ -303,6 +311,14 @@ struct cli_callback_descr list_hdt_show_modules[] = {
 	{
 		.name = CLI_HDT,
 		.exec = main_show_hdt,
+	},
+	{
+		.name = CLI_VPD,
+		.exec = main_show_vpd,
+	},
+	{
+		.name = CLI_MEMORY,
+		.exec = show_dmi_memory_modules,
 	},
 	{
 		.name = "modes",

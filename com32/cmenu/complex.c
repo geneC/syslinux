@@ -21,6 +21,7 @@
 #include "des.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 
 /* Global variables */
 char infoline[160];
@@ -65,9 +66,9 @@ TIMEOUTCODE ontimeout()
 #define PWDATTR 0x74
 #define EDITPROMPT 21
 
-void keys_handler(t_menusystem * ms, t_menuitem * mi, unsigned int scancode)
+void keys_handler(t_menuitem * mi, unsigned int scancode)
 {
-    char nc;
+    int nc, nr;
 
     if ((scancode >> 8) == F1) {	// If scancode of F1
 	runhelpsystem(mi->helpid);
@@ -76,35 +77,43 @@ void keys_handler(t_menusystem * ms, t_menuitem * mi, unsigned int scancode)
     // and user has privileges to edit it, edit it in place.
     if (((scancode & 0xFF) == 0x09) && (mi->action == OPT_RUN) &&
 	(isallowed(username, "editcmd") || isallowed(username, "root"))) {
-	nc = getnumcols();
+    if (getscreensize(1, &nr, &nc)) {
+        /* Unknown screen size? */
+        nc = 80;
+        nr = 24;
+    }
 	// User typed TAB and has permissions to edit command line
-	gotoxy(EDITPROMPT, 1, ms->menupage);
+	gotoxy(EDITPROMPT, 1);
 	csprint("Command line:", 0x07);
 	editstring(mi->data, ACTIONLEN);
-	gotoxy(EDITPROMPT, 1, ms->menupage);
-	cprint(' ', 0x07, nc - 1, ms->menupage);
+	gotoxy(EDITPROMPT, 1);
+	cprint(' ', 0x07, nc - 1);
     }
 }
 
-t_handler_return login_handler(t_menusystem * ms, t_menuitem * mi)
+t_handler_return login_handler(t_menuitem * mi)
 {
     (void)mi;			// Unused
     char pwd[40];
     char login[40];
-    char nc;
+    int nc, nr;
     t_handler_return rv;
 
     if (mi->item == loginstr) {	/* User wants to login */
-	nc = getnumcols();
-	gotoxy(PWDPROMPT, 1, ms->menupage);
+    if (getscreensize(1, &nr, &nc)) {
+        /* Unknown screen size? */
+        nc = 80;
+        nr = 24;
+    }
+	gotoxy(PWDPROMPT, 1);
 	csprint("Enter Username: ", 0x07);
 	getstring(login, sizeof username);
-	gotoxy(PWDPROMPT, 1, ms->menupage);
-	cprint(' ', 0x07, nc, ms->menupage);
+	gotoxy(PWDPROMPT, 1);
+	cprint(' ', 0x07, nc);
 	csprint("Enter Password: ", 0x07);
 	getpwd(pwd, sizeof pwd);
-	gotoxy(PWDPROMPT, 1, ms->menupage);
-	cprint(' ', 0x07, nc, ms->menupage);
+	gotoxy(PWDPROMPT, 1);
+	cprint(' ', 0x07, nc);
 
 	if (authenticate_user(login, pwd)) {
 	    strcpy(username, login);
@@ -133,22 +142,26 @@ t_handler_return login_handler(t_menusystem * ms, t_menuitem * mi)
 
 void msys_handler(t_menusystem * ms, t_menuitem * mi)
 {
-    char nc;
+    int nc, nr;
     void *v;
-    nc = getnumcols();		// Get number of columns
 
-    gotoxy(PWDLINE, PWDCOLUMN, ms->menupage);
+    if (getscreensize(1, &nr, &nc)) {
+        /* Unknown screen size? */
+        nc = 80;
+        nr = 24;
+    }
+    gotoxy(PWDLINE, PWDCOLUMN);
     csprint("User: ", PWDATTR);
-    cprint(ms->fillchar, ms->fillattr, sizeof username, ms->menupage);
-    gotoxy(PWDLINE, PWDCOLUMN + 6, ms->menupage);
+    cprint(ms->fillchar, ms->fillattr, sizeof username);
+    gotoxy(PWDLINE, PWDCOLUMN + 6);
     csprint(username, PWDATTR);
 
     if (mi->parindex != PREPMENU)	// If we are not in the PREP MENU
     {
-	gotoxy(INFLINE, 0, ms->menupage);
-	cprint(' ', 0x07, nc, ms->menupage);
-	gotoxy(INFLINE + 1, 0, ms->menupage);
-	cprint(' ', 0x07, nc, ms->menupage);
+	gotoxy(INFLINE, 0);
+	cprint(' ', 0x07, nc);
+	gotoxy(INFLINE + 1, 0);
+	cprint(' ', 0x07, nc);
 	return;
     }
     strcpy(infoline, " ");
@@ -167,13 +180,13 @@ void msys_handler(t_menusystem * ms, t_menuitem * mi)
     if (flags.linrep)
 	strcat(infoline, "repair=lin ");
 
-    gotoxy(INFLINE, 0, ms->menupage);
-    cprint(' ', 0x07, nc, ms->menupage);
-    gotoxy(INFLINE + 1, 0, ms->menupage);
-    cprint(' ', 0x07, nc, ms->menupage);
-    gotoxy(INFLINE, 0, ms->menupage);
+    gotoxy(INFLINE, 0);
+    cprint(' ', 0x07, nc);
+    gotoxy(INFLINE + 1, 0);
+    cprint(' ', 0x07, nc);
+    gotoxy(INFLINE, 0);
     csprint("Kernel Arguments:", 0x07);
-    gotoxy(INFLINE, 17, ms->menupage);
+    gotoxy(INFLINE, 17);
     csprint(infoline, 0x07);
 }
 

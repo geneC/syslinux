@@ -122,6 +122,12 @@ f) The following option can be used to pause to view the messages:
 
    pause	Wait for a keypress right before booting
 
+g) The following option can be used to set the real-mode stack size.
+   The default is 512 bytes, but if there is a failure it might be
+   interesting to set it to something larger:
+
+   stack=size   Set the stack to "size" bytes
+
 
 Some interesting things to note:
 
