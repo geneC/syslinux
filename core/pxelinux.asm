@@ -176,6 +176,7 @@ _start1:
 ; if we want to reset", so that chainloading other NBPs will work.
 ;
 efi_csm_workaround:
+		push es
 		les bp,[InitStack]	; GS:SP -> original stack
 		les bx,[es:bp+44]	; Return address
 		cmp word [es:bx],18CDh	; Already pointing to INT 18h?
@@ -229,6 +230,7 @@ efi_csm_workaround:
 		rep movsb
 
 .skip:	
+		pop es			; Restore CS == DS == ES
 
 		section .data16
 		alignz 4
