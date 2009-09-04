@@ -87,15 +87,16 @@ void pxe_idle_init(void)
 
     found = false;
     while (h >= l) {
-	uint32_t e = pxe_need_idle_drain[(l+h) >> 1];
+	int x = (l+h) >> 1;
+	uint32_t id = pxe_need_idle_drain[x];
 
-	if (e == dev_id) {
+	if (id == dev_id) {
 	    found = true;
 	    break;
-	} else if (e < dev_id) {
-	    l = e+1;
+	} else if (id < dev_id) {
+	    l = x+1;
 	} else {
-	    h = e-1;
+	    h = x-1;
 	}
     }
 
