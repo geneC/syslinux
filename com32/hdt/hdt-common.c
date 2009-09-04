@@ -33,7 +33,6 @@
 #include "syslinux/config.h"
 #include "../lib/sys/vesa/vesa.h"
 #include "hdt-common.h"
-#include "lib-ansi.h"
 #include <disk/util.h>
 
 /* ISOlinux requires a 8.3 format */
