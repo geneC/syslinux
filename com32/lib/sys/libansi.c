@@ -161,6 +161,11 @@ static void cprint_vga2ansi(const char chr, const char attr)
 	putchar(chr);
 }
 
+void reset_colors()
+{
+    cprint_vga2ansi(CSI "1D", 0x07);
+}
+
 /**
  * cprint - given a VGA attribute, print a single character at cursor
  * @chr:	character to print

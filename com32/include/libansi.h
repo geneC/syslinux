@@ -57,6 +57,8 @@ static inline void beep(void)
 	fputs("\007", stdout);
 }
 
+void reset_colors(void);
+
 /* Print a string */
 void csprint(const char *, const char);
 
