@@ -38,9 +38,6 @@
 #define RIGHT_MIDDLE_BORDER '\165'
 
 #define BELL 0x07
-// CHRELATTR = ^N, CHABSATTR = ^O
-#define CHABSATTR 15
-#define CHRELATTR 14
 #define GETSTRATTR 0x07
 
 // Generic user input,
