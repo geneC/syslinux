@@ -163,7 +163,7 @@ static void cprint_vga2ansi(const char chr, const char attr)
 
 void reset_colors()
 {
-    cprint_vga2ansi(CSI "1D", 0x07);
+    csprint(CSI "1D", 0x07);
 }
 
 /**
