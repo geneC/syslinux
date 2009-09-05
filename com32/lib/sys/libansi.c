@@ -121,6 +121,7 @@ static void cprint_vga2ansi(const char chr, const char attr)
 	char buf[16], *p;
 
 	if (attr != last_attr) {
+        bool reset = false;
 		p = buf;
 		*p++ = '\033';
 		*p++ = '[';
@@ -131,6 +132,7 @@ static void cprint_vga2ansi(const char chr, const char attr)
 			/* Reset last_attr to unknown to handle
 			 * background/foreground attributes correctly */
 			last_attr = 0x300;
+            reset = true;
 		}
 		if (attr & 0x08) {
 			*p++ = '1';
@@ -140,12 +142,12 @@ static void cprint_vga2ansi(const char chr, const char attr)
 			*p++ = '4';
 			*p++ = ';';
 		}
-		if ((attr ^ last_attr) & 0x07) {
+		if (reset || (attr ^ last_attr) & 0x07) {
 			*p++ = '3';
 			*p++ = ansi_char[attr & 7];
 			*p++ = ';';
 		}
-		if ((attr ^ last_attr) & 0x70) {
+		if (reset || (attr ^ last_attr) & 0x70) {
 			*p++ = '4';
 			*p++ = ansi_char[(attr >> 4) & 7];
 			*p++ = ';';
