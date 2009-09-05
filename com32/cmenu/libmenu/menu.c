@@ -734,6 +734,10 @@ pt_menuitem showmenus(uchar startmenu)
     cls();
     clearwindow(ms->minrow, ms->mincol, ms->maxrow, ms->maxcol,
         ms->fillchar, ms->fillattr);
+
+    /* Turn autowrap off, to avoid scrolling the menu */
+    printf(CSI "?7l");
+
     tpos = (ms->numcols - strlen(ms->title) - 1) >> 1;  // center it on line
     gotoxy(ms->minrow, ms->mincol);
     cprint(ms->tfillchar, ms->titleattr, ms->numcols);
