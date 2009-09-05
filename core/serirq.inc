@@ -190,6 +190,9 @@ sirq_cleanup_nowipe:
 		mov cx,8
 		rep movsd
 
+		xor ax,ax
+		mov [SerialIRQPort],ax		; No active interrupt system
+
 .done:
 		pop es
 		pop ds
