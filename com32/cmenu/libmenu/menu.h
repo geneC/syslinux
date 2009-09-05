@@ -217,7 +217,6 @@ typedef struct s_menusystem {
     int maxcol, mincol, numcols;	// Number of columns in the window
 
     // Menu box look
-    boxtype menubt;		// What type of boxes should be drawn
     char box_horiz, box_ltrt, box_rtlt;	// Some chars of the box, for redrawing portions of the box
 
 } t_menusystem;
@@ -242,7 +241,6 @@ void set_title_info(uchar tfillchar, uchar titleattr);
 
 void set_misc_info(uchar fillchar, uchar fillattr, uchar spacechar,
 		   uchar shadowattr);
-void set_box_type(boxtype bt);
 
 void set_window_size(uchar top, uchar left, uchar bot, uchar right);	// Set the window which menusystem should use
 

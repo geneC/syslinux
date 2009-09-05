@@ -64,27 +64,6 @@ static inline void getpwd(char *str, unsigned int size)
     getuserinput(str, size, 1, 0);
 }
 
-// Box drawing Chars offsets into array
-#define BOX_TOPLEFT  0x0
-#define BOX_BOTLEFT  0x1
-#define BOX_TOPRIGHT 0x2
-#define BOX_BOTRIGHT 0x3
-#define BOX_TOP      0x4	// TOP = BOT = HORIZ
-#define BOX_BOT      0x4
-#define BOX_HORIZ    0x4
-#define BOX_LEFT     0x5
-#define BOX_RIGHT    0x5
-#define BOX_VERT     0x5	// LEFT=RIGHT=VERT
-#define BOX_LTRT     0x6
-#define BOX_RTLT     0x7
-#define BOX_TOPBOT   0x8
-#define BOX_BOTTOP   0x9
-#define BOX_MIDDLE   0xA
-
-typedef enum { BOX_SINSIN, BOX_DBLDBL, BOX_SINDBL, BOX_DBLSIN } boxtype;
-
-unsigned char *getboxchars(boxtype bt);
-
 void drawbox(const char, const char, const char, const char,
 	     const char);
 

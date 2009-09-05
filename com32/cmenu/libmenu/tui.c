@@ -211,51 +211,6 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
 
 //////////////////////////////Box Stuff
 
-// This order of numbers must match
-// the values of BOX_TOPLEFT,... in the header file
-
-unsigned char SINSIN_CHARS[] = { 218, 192, 191, 217,	//Corners
-    196, 179,			// Horiz and Vertical
-    195, 180, 194, 193, 197
-};				// Connectors & Middle
-
-unsigned char DBLDBL_CHARS[] = { 201, 200, 187, 188,	// Corners
-    205, 186,			// Horiz and Vertical
-    199, 182, 203, 202, 206
-};				// Connectors & Middle
-
-unsigned char SINDBL_CHARS[] = { 214, 211, 183, 189,	// Corners
-    196, 186,			// Horiz & Vert
-    199, 182, 210, 208, 215
-};				// Connectors & Middle
-
-unsigned char DBLSIN_CHARS[] = { 213, 212, 184, 190,	// Corners
-    205, 179,			// Horiz & Vert
-    198, 181, 209, 207, 216
-};				// Connectors & Middle
-
-unsigned char *getboxchars(boxtype bt)
-{
-    switch (bt) {
-    case BOX_SINSIN:
-	return SINSIN_CHARS;
-	break;
-    case BOX_DBLDBL:
-	return DBLDBL_CHARS;
-	break;
-    case BOX_SINDBL:
-	return SINDBL_CHARS;
-	break;
-    case BOX_DBLSIN:
-	return DBLSIN_CHARS;
-	break;
-    default:
-	return SINSIN_CHARS;
-	break;
-    }
-    return SINSIN_CHARS;
-}
-
 // Draw box and lines
 void drawbox(const char top, const char left, const char bot,
 	     const char right, const char attr)

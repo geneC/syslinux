@@ -673,9 +673,6 @@ pt_menusystem init_menusystem(const char *title)
     if (ms->maxmenuheight > MAXMENUHEIGHT)
     ms->maxmenuheight = MAXMENUHEIGHT;
 
-    // Set up the look of the box
-    set_box_type(MENUBOXTYPE);
-
     openconsole(&dev_stdcon_r, &dev_ansiserial_w);
 
     return ms;
@@ -738,16 +735,6 @@ void set_misc_info(uchar fillchar, uchar fillattr, uchar spacechar,
     ms->spacechar = spacechar;
     if (shadowattr != 0xFF)
     ms->shadowattr = shadowattr;
-}
-
-void set_box_type(boxtype bt)
-{
-    uchar *bxc;
-    ms->menubt = bt;
-    bxc = getboxchars(bt);
-    ms->box_horiz = bxc[BOX_HORIZ]; // The char used to draw top line
-    ms->box_ltrt = bxc[BOX_LTRT];
-    ms->box_rtlt = bxc[BOX_RTLT];
 }
 
 void set_menu_options(uchar maxmenuheight)
