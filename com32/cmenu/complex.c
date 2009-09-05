@@ -87,7 +87,7 @@ void keys_handler(t_menuitem * mi, unsigned int scancode)
 	csprint("Command line:", 0x07);
 	editstring(mi->data, ACTIONLEN);
 	gotoxy(EDITPROMPT, 1);
-	cprint(' ', 0x07, nc - 1);
+    clear_line();
     }
 }
 
@@ -109,11 +109,11 @@ t_handler_return login_handler(t_menuitem * mi)
 	csprint("Enter Username: ", 0x07);
 	getstring(login, sizeof username);
 	gotoxy(PWDPROMPT, 1);
-	cprint(' ', 0x07, nc);
+    clear_line();
 	csprint("Enter Password: ", 0x07);
 	getpwd(pwd, sizeof pwd);
 	gotoxy(PWDPROMPT, 1);
-	cprint(' ', 0x07, nc);
+    clear_line();
 
 	if (authenticate_user(login, pwd)) {
 	    strcpy(username, login);
@@ -159,9 +159,10 @@ void msys_handler(t_menusystem * ms, t_menuitem * mi)
     if (mi->parindex != PREPMENU)	// If we are not in the PREP MENU
     {
 	gotoxy(INFLINE, 0);
-	cprint(' ', 0x07, nc);
+    reset_colors();
+    clear_line();
 	gotoxy(INFLINE + 1, 0);
-	cprint(' ', 0x07, nc);
+    clear_line();
 	return;
     }
     strcpy(infoline, " ");
@@ -181,9 +182,10 @@ void msys_handler(t_menusystem * ms, t_menuitem * mi)
 	strcat(infoline, "repair=lin ");
 
     gotoxy(INFLINE, 0);
-    cprint(' ', 0x07, nc);
+    reset_colors();
+    clear_line();
     gotoxy(INFLINE + 1, 0);
-    cprint(' ', 0x07, nc);
+    clear_line();
     gotoxy(INFLINE, 0);
     csprint("Kernel Arguments:", 0x07);
     gotoxy(INFLINE, 17);
