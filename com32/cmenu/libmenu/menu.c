@@ -566,13 +566,13 @@ pt_menuitem showmenus(uchar startmenu)
 
     fix_submenus();     // Fix submenu numbers incase nick names were used
 
+    /* Turn autowrap off, to avoid scrolling the menu */
+    printf(CSI "?7l");
+
     // Setup screen for menusystem
     cls();
     clearwindow(ms->minrow, ms->mincol, ms->maxrow, ms->maxcol,
         ms->fillchar, ms->fillattr);
-
-    /* Turn autowrap off, to avoid scrolling the menu */
-    printf(CSI "?7l");
 
     tpos = (ms->numcols - strlen(ms->title) - 1) >> 1;  // center it on line
     gotoxy(ms->minrow, ms->mincol);

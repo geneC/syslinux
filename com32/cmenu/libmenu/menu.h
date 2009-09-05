@@ -60,8 +60,8 @@
 #define STATUSATTR    0x74
 #define STATUSHLITE   0x7B	// Status highlight
 
-#define FILLCHAR      177
-#define FILLATTR      0x01
+#define FILLCHAR      ' '
+#define FILLATTR      NORMALATTR
 #define SHADOWATTR    0x00
 #define SPACECHAR     ' '
 
