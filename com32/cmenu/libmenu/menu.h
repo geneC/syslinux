@@ -100,11 +100,9 @@
 #define DEBUGLINE     23	// debugging info goes here
 
 // Other Chars
-#define SUBMENUCHAR   '\172'	// This is >> symbol
 #define RADIOMENUCHAR '>'	// > symbol for radio menu?
-#define EXITMENUCHAR  174	// This is << symbol
-#define CHECKED       251	// Check mark
-#define UNCHECKED     250	// Light bullet
+#define CHECKED       '\140'	// Check mark
+#define UNCHECKED     '\146'	// Light bullet
 #define RADIOSEL      '.'	// Current Radio Selection
 #define RADIOUNSEL    ' '	// Radio option not selected
 
