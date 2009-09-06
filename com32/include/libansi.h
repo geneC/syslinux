@@ -94,8 +94,14 @@ static inline void cursoron(void)
   display_cursor(true);
 }
 
+static inline void scrollup(int times)
+{
+    if (times > 0)
+        printf(CSI "%dS", times);
+}
+
 /* Scroll up display screen by one line */
-static inline void scrollup(void)
+static inline void scrollup_once(void)
 {
 	printf(CSI "S");
 }
