@@ -65,7 +65,4 @@ static inline char getvideomode(void)	// Get the current video mode
 
 unsigned char sleep(unsigned int msec);	// Sleep for specified time
 
-//unsigned char checkkbdbuf();	// Check to see if there is kbd buffer is non-empty?
-
-
 #endif

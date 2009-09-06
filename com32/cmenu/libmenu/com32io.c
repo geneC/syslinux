@@ -38,17 +38,6 @@ unsigned char sleep(unsigned int msec)
     return REG_AH(outreg);
 }
 
-void scrollupwindow(char top, char left, char bot, char right, char attr,
-		    char numlines)
-{
-    REG_AH(inreg) = 0x06;
-    REG_AL(inreg) = numlines;
-    REG_BH(inreg) = attr;	// Attribute to write blanks lines
-    REG_DX(inreg) = (bot << 8) + right;	// BOT RIGHT corner of window
-    REG_CX(inreg) = (top << 8) + left;	// TOP LEFT of window
-    __intcall(0x10, &inreg, &outreg);
-}
-
 char inputc(char *scancode)
 {
     syslinux_idle();		/* So syslinux can perform periodic activity */
