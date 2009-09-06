@@ -85,18 +85,18 @@ TIMEOUTCODE ontimeout()
 }
 
 /* Keyboard handler for the menu system */
-void keys_handler(t_menuitem * mi, unsigned int scancode)
+void keys_handler(t_menusystem * ms __attribute__ (( unused )), t_menuitem * mi, int scancode)
 {
   int nr, nc;
 
-  if ((scancode >> 8) == F1) {  // If scancode of F1
+  if (scancode == KEY_F1) {  // If scancode of F1
     runhelpsystem(mi->helpid);
   }
   /*
    * If user hit TAB, and item is an "executable" item
    * and user has privileges to edit it, edit it in place.
    */
-  if (((scancode & 0xFF) == 0x09) && (mi->action == OPT_RUN)) {
+  if ((scancode == KEY_TAB) && (mi->action == OPT_RUN)) {
 //(isallowed(username,"editcmd") || isallowed(username,"root"))) {
     if (getscreensize(1, &nr, &nc)) {
         /* Unknown screen size? */
