@@ -53,27 +53,38 @@ static int countlines(char *buffer)
 // Print numlines of text starting from buf
 static void printtext(char *buf, int from)
 {
-    char *p, *f;
-    int right, bot, nlines;
+    char *f, *t;
+    int right, nlines, i;
 
     // clear window to print
     right = nc - HELP_RIGHT_MARGIN;
-    bot = nr - HELP_BOTTOM_MARGIN;
-    nlines = bot - HELP_BODY_ROW + 1;
-    scrollupwindow(HELP_BODY_ROW, HELP_LEFT_MARGIN, bot, right, 0x07, nlines);
+    nlines = nr - HELP_BODY_ROW - HELP_BOTTOM_MARGIN - 1;
 
     f = findline(buf, from);
     if (!f)
 	return;			// nothing to print
     if (*f == '\n')
 	f++;			// start of from+1st line
-    p = findline(f, nlines);
-    if (p && (*p == '\n'))
-	*p = '\0';		// change to NUL
-    gotoxy(HELP_BODY_ROW, HELP_LEFT_MARGIN);
-    printf(f);
-    if (p)
-	*p = '\n';		// set it back
+    t = f;
+    while (i < nlines) {
+        gotoxy(HELP_BODY_ROW + i, HELP_LEFT_MARGIN);
+        clear_end_of_line();
+        putchar(SO);
+        gotoxy(HELP_BODY_ROW + i, nc - 1);
+        putch(LEFT_BORDER, 0x07);
+        putchar(SI);
+
+        gotoxy(HELP_BODY_ROW + i, HELP_LEFT_MARGIN);
+        while (*t != '\n') {
+            if (*t == '\0')
+                return;
+            putchar(*t);
+            t++;
+        }
+        putchar('\n');
+        t++;
+        i++;
+    }
 }
 
 void showhelp(const char *filename)
@@ -95,11 +106,12 @@ void showhelp(const char *filename)
         nc = 80;
         nr = 24;
     }
-    ph = nr - HELP_BOTTOM_MARGIN - HELP_BODY_ROW - 1;
+    ph = nr - HELP_BODY_ROW;
     cls();
-    drawbox(0, 0, nr, nc - 1, 0x07);
 
-    drawhorizline(2, 0, nc - 1, 0x07, 0);	// dumb==0
+    /* Turn autowrap off, to avoid scrolling the menu */
+    printf(CSI "?7l");
+
     if (filename == NULL) {	// print file contents
         strcpy(line, "Filename not given");
         goto puke;
@@ -116,20 +128,25 @@ void showhelp(const char *filename)
     *text++ = '\0';		// end the title string and increment text
 
     // Now we have a file just print it.
-    gotoxy(1, (nc - strlen(title)) / 2);
-    printf(title);
     numlines = countlines(text);
     curr_line = 0;
     scan = KEY_ESC + 1;		// anything except ESCAPE
 
+    /* top, left, bottom, right, attr */
+    drawbox(0, 0, nr - 1, nc - 1, 0x07);
     while (scan != KEY_ESC) {
+    /* Title */
+    gotoxy(1, (nc - strlen(title)) / 2);
+    fputs(title, stdout);
+    drawhorizline(2, HELP_LEFT_MARGIN - 1, nc - HELP_RIGHT_MARGIN, 0x07, 0);	// dumb==0
+    /* Text */
 	printtext(text, curr_line);
-	gotoxy(HELP_BODY_ROW - 1, nc - HELP_RIGHT_MARGIN);
+    gotoxy(HELP_BODY_ROW - 1, nc - HELP_RIGHT_MARGIN);
 	if (curr_line > 0)
 	    putchar(HELP_MORE_ABOVE);
 	else
 	    putchar(' ');
-	gotoxy(nr - HELP_BOTTOM_MARGIN + 1, nc - HELP_RIGHT_MARGIN);
+	gotoxy(nr - HELP_BOTTOM_MARGIN - 1, nc - HELP_RIGHT_MARGIN);
 	if (curr_line < numlines - ph)
 	    putchar(HELP_MORE_BELOW);
 	else

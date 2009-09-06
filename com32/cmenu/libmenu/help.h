@@ -23,14 +23,14 @@
 #define HELP_BODY_ROW (HELP_TITLE_HEIGHT+3)
 #define HELP_LEFT_MARGIN 2
 #define HELP_RIGHT_MARGIN 2	// Assume all lines dont cross this
-#define HELP_BOTTOM_MARGIN 2	// Number of lines not use from bottom of screen
+#define HELP_BOTTOM_MARGIN 1	// Number of lines not use from bottom of screen
 
 #define HELPBOX BOX_SINSIN
 #define HELPDIRLEN  64
 #define HELPPAGE 2
 
-#define HELP_MORE_ABOVE 24	// to print when more is available above
-#define HELP_MORE_BELOW 25	// same as above but for below
+#define HELP_MORE_ABOVE '^'	// to print when more is available above
+#define HELP_MORE_BELOW 'v'	// same as above but for below
 
 // Display one screen of help information
 void showhelp(const char *filename);
