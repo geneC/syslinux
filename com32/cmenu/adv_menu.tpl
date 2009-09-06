@@ -193,7 +193,7 @@ TIMEOUTCODE ontotaltimeout()
    return timeout(totaltimeoutcmd);
 }
 
-void keys_handler(t_menuitem *mi,unsigned int scancode)
+void keys_handler(t_menusystem * ms __attribute__ (( unused )), t_menuitem * mi, int scancode)
 {
    int nc, nr;
 

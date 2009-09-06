@@ -67,7 +67,7 @@ TIMEOUTCODE ontimeout()
 #define PWDATTR 0x74
 #define EDITPROMPT 21
 
-void keys_handler(t_menuitem * mi, unsigned int scancode)
+void keys_handler(t_menusystem * ms __attribute__ (( unused )), t_menuitem * mi, int scancode)
 {
     int nc, nr;
 
@@ -268,7 +268,7 @@ int main()
     reg_handler(HDLR_SCREEN, &msys_handler);
     reg_handler(HDLR_KEYS, &keys_handler);
     // Register the ontimeout handler, with a time out of 10 seconds
-    reg_ontimeout(ontimeout, 1000, 0);
+    reg_ontimeout(ontimeout, 10, 0);
 
     NETMENU = add_menu(" Init Network ", -1);
     none = add_item("<N>one", "Dont start network", OPT_RADIOITEM, "no ", 0);
