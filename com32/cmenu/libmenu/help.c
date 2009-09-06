@@ -87,7 +87,7 @@ void showhelp(const char *filename)
 
     char line[512];
     size_t size;
-    char scan;
+    int scan;
     int rv, numlines, curr_line;
 
     if (getscreensize(1, &nr, &nc)) {
@@ -120,9 +120,9 @@ void showhelp(const char *filename)
     printf(title);
     numlines = countlines(text);
     curr_line = 0;
-    scan = ESCAPE + 1;		// anything except ESCAPE
+    scan = KEY_ESC + 1;		// anything except ESCAPE
 
-    while (scan != ESCAPE) {
+    while (scan != KEY_ESC) {
 	printtext(text, curr_line);
 	gotoxy(HELP_BODY_ROW - 1, nc - HELP_RIGHT_MARGIN);
 	if (curr_line > 0)
@@ -135,25 +135,25 @@ void showhelp(const char *filename)
 	else
 	    putchar(' ');
 
-	inputc(&scan);		// wait for user keypress
+    scan = get_key(stdout, 0); // wait for user keypress
 
 	switch (scan) {
-	case HOMEKEY:
+	case KEY_HOME:
 	    curr_line = 0;
 	    break;
-	case ENDKEY:
+	case KEY_END:
 	    curr_line = numlines;
 	    break;
-	case UPARROW:
+	case KEY_UP:
 	    curr_line--;
 	    break;
-	case DNARROW:
+	case KEY_DOWN:
 	    curr_line++;
 	    break;
-	case PAGEUP:
+	case KEY_PGUP:
 	    curr_line -= ph;
 	    break;
-	case PAGEDN:
+	case KEY_PGDN:
 	    curr_line += ph;
 	    break;
 	default:
@@ -170,10 +170,10 @@ out:
 
 puke:
     gotoxy(HELP_BODY_ROW, HELP_LEFT_MARGIN);
-    printf(line);
+    fputs(line, stdout);
     while (1) {
-        inputc(&scan);
-        if (scan == ESCAPE)
+        scan = get_key(stdin, 0);
+        if (scan == KEY_ESC)
             break;
     }
     goto out;

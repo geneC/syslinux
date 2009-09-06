@@ -203,13 +203,13 @@ void keys_handler(t_menuitem *mi,unsigned int scancode)
        nr = 24;
    }
 
-   if ( ((scancode >> 8) == F1) && (mi->helpid != 0xFFFF) ) { // If scancode of F1 and non-trivial helpid
+   if ( (scancode == KEY_F1) && (mi->helpid != 0xFFFF) ) { // If scancode of F1 and non-trivial helpid
       runhelpsystem(mi->helpid);
    }
 
    // If user hit TAB, and item is an "executable" item
    // and user has privileges to edit it, edit it in place.
-   if (((scancode & 0xFF) == 0x09) && (mi->action == OPT_RUN) &&
+   if ((scancode == KEY_TAB) && (mi->action == OPT_RUN) &&
        (EDIT_ROW < nr) && (EDIT_ROW > 0) &&
        (isallowed(username,"editcmd") || isallowed(username,"root"))) {
      // User typed TAB and has permissions to edit command line

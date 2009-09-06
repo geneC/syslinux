@@ -40,47 +40,45 @@ int isvisible(pt_menu menu, int first, int curr);
 // This is same as inputc except it honors the ontimeout handler
 // and calls it when needed. For the callee, there is no difference
 // as this will not return unless a key has been pressed.
-char getch(char *scan)
+static int getch()
 {
-    unsigned long i;
-    TIMEOUTCODE c;
     t_timeout_handler th;
+    int key;
+    unsigned long i;
 
     // Wait until keypress if no handler specified
     if ((ms->ontimeout == NULL) && (ms->ontotaltimeout == NULL))
-    return inputc(scan);
+        return get_key(stdin, 0);
 
     th = ms->ontimeout;
-    while (1)           // Forever do
-    {
-    for (i = 0; i < ms->tm_numsteps; i++) {
-        if (checkkbdbuf())
-        return inputc(scan);
-        sleep(ms->tm_stepsize);
-        if ((ms->tm_total_timeout == 0) || (ms->ontotaltimeout == NULL))
-        continue;   // Dont bother with calculations if no handler
-        ms->tm_sofar_timeout += ms->tm_stepsize;
-        if (ms->tm_sofar_timeout >= ms->tm_total_timeout) {
-        th = ms->ontotaltimeout;
-        ms->tm_sofar_timeout = 0;
-        break;      // Get out of the for loop
+    for (;;) {
+        for (i = 0; i < ms->tm_numsteps; i++) {
+            key = get_key(stdin, ms->tm_stepsize);
+            if (key != KEY_NONE)
+                return key;
+
+            if ((ms->tm_total_timeout == 0) || (ms->ontotaltimeout == NULL))
+                continue;   // Dont bother with calculations if no handler
+            ms->tm_sofar_timeout += ms->tm_stepsize;
+            if (ms->tm_sofar_timeout >= ms->tm_total_timeout) {
+                th = ms->ontotaltimeout;
+                ms->tm_sofar_timeout = 0;
+                break;      // Get out of the for loop
+            }
+        }
+        if (!th)
+            continue;       // no handler
+        key = th();
+        switch (key) {
+        case CODE_ENTER:    // Pretend user hit enter
+            return KEY_ENTER;
+        case CODE_ESCAPE:   // Pretend user hit escape
+            return KEY_ESC;
+        default:
+            break;
         }
     }
-    if (!th)
-        continue;       // no handler dont call
-    c = th();
-    switch (c) {
-    case CODE_ENTER:    // Pretend user hit enter
-        *scan = ENTERA;
-        return '\015';  // \015 octal = 13
-    case CODE_ESCAPE:   // Pretend user hit escape
-        *scan = ESCAPE;
-        return '\033';  // \033 octal = 27
-    default:
-        break;
-    }
-    }
-    return 0;
+    return KEY_NONE;
 }
 
 /*
@@ -295,7 +293,7 @@ static pt_menuitem getmenuoption(pt_menu menu, uchar top, uchar left, uchar star
      // Return item chosen or NULL if ESC was hit.
 {
     int curr, i, first, tmp;
-    uchar asc, scan;
+    int asc = 0;
     uchar numitems;
     pt_menuitem ci;     // Current item
     t_handler_return hr;    // Return value of handler
@@ -317,43 +315,42 @@ static pt_menuitem getmenuoption(pt_menu menu, uchar top, uchar left, uchar star
     {
     printmenu(menu, curr, top, left, first, radio);
     ci = menu->items[curr];
-    asc = getch(&scan);
-    switch (scan) {
-    case HOMEKEY:
+    asc = getch();
+    switch (asc) {
+    case KEY_HOME:
         curr = next_visible(menu, 0);
         first = calc_first_early(menu, curr);
         break;
-    case ENDKEY:
+    case KEY_END:
         curr = prev_visible(menu, numitems - 1);
         first = calc_first_late(menu, curr);
         break;
-    case PAGEDN:
+    case KEY_PGDN:
         for (i = 0; i < 5; i++)
         curr = next_visible(menu, curr + 1);
         first = calc_first_late(menu, curr);
         break;
-    case PAGEUP:
+    case KEY_PGUP:
         for (i = 0; i < 5; i++)
         curr = prev_visible(menu, curr - 1);
         first = calc_first_early(menu, curr);
         break;
-    case UPARROW:
+    case KEY_UP:
         curr = prev_visible(menu, curr - 1);
         if (curr < first)
         first = calc_first_early(menu, curr);
         break;
-    case DNARROW:
+    case KEY_DOWN:
         curr = next_visible(menu, curr + 1);
         if (!isvisible(menu, first, curr))
         first = calc_first_late(menu, curr);
         break;
-    case LTARROW:
-    case ESCAPE:
+    case KEY_LEFT:
+    case KEY_ESC:
         return NULL;
         break;
-    case RTARROW:
-    case ENTERA:
-    case ENTERB:
+    case KEY_RIGHT:
+    case KEY_ENTER:
         if (ci->action == OPT_INACTIVE)
         break;
         if (ci->action == OPT_CHECKBOX)
@@ -382,7 +379,7 @@ static pt_menuitem getmenuoption(pt_menu menu, uchar top, uchar left, uchar star
         } else
         return ci;
         break;
-    case SPACEKEY:
+    case SPACECHAR:
         if (ci->action != OPT_CHECKBOX)
         break;
         ci->itemdata.checked = !ci->itemdata.checked;
@@ -413,7 +410,7 @@ static pt_menuitem getmenuoption(pt_menu menu, uchar top, uchar left, uchar star
         curr = tmp;
         } else {
         if (ms->keys_handler)   // Call extra keys handler
-            ms->keys_handler(ms, menu->items[curr], (scan << 8) | asc);
+            ms->keys_handler(ms, menu->items[curr], asc);
         }
         break;
     }
@@ -673,7 +670,7 @@ pt_menusystem init_menusystem(const char *title)
     if (ms->maxmenuheight > MAXMENUHEIGHT)
     ms->maxmenuheight = MAXMENUHEIGHT;
 
-    openconsole(&dev_stdcon_r, &dev_ansiserial_w);
+    console_ansi_raw();
 
     return ms;
 }

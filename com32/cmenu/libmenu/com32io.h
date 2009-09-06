@@ -21,6 +21,17 @@
 #define NULL ((void *)0)
 #endif
 
+/* Bits representing ShiftFlags, See Int16/Function 2 or Mem[0x417] to get this info */
+
+#define INSERT_ON     (1<<7)
+#define CAPSLOCK_ON   (1<<6)
+#define NUMLOCK_ON    (1<<5)
+#define SCRLLOCK_ON   (1<<4)
+#define ALT_PRESSED   (1<<3)
+#define CTRL_PRESSED  (1<<2)
+// actually 1<<1 is Left Shift, 1<<0 is right shift
+#define SHIFT_PRESSED (1<<1 | 1 <<0)
+
 /* BIOS Assisted output routines */
 
 void getpos(char *row, char *col, char page);
@@ -54,12 +65,7 @@ static inline char getvideomode(void)	// Get the current video mode
 
 unsigned char sleep(unsigned int msec);	// Sleep for specified time
 
-unsigned char checkkbdbuf();	// Check to see if there is kbd buffer is non-empty?
+//unsigned char checkkbdbuf();	// Check to see if there is kbd buffer is non-empty?
 
-static inline void clearkbdbuf()	// Clear the kbd buffer (how many chars removed?)
-{
-    while (checkkbdbuf())
-	inputc(NULL);
-}
 
 #endif

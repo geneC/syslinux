@@ -84,13 +84,6 @@ void setvideomode(char mode)
     __intcall(0x10, &inreg, &outreg);
 }
 
-unsigned char checkkbdbuf()
-{
-    REG_AH(inreg) = 0x11;
-    __intcall(0x16, &inreg, &outreg);
-    return !(outreg.eflags.l & EFLAGS_ZF);
-}
-
 // Get char displayed at current position
 unsigned char getcharat(char page)
 {

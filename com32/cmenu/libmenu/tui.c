@@ -29,7 +29,7 @@ char eolstr[] = "\n$";
 void getuserinput(char *stra, unsigned int size, unsigned int password,
 		  unsigned int showoldvalue)
 {
-    unsigned char c, scan;
+    unsigned int c;
     char *p, *q;		// p = current char of string, q = tmp
     char *last;			// The current last char of string
     char *str;			// pointer to string which is going to be allocated
@@ -69,10 +69,10 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
 	csprint(str, GETSTRATTR);
     }
     while (1) {			// Do forever
-	c = inputc(&scan);
-	if (c == '\r')
+	c = get_key(stdin, 0);
+	if (c == KEY_ENTER)
 	    break;		// User hit Enter getout of loop
-	if (scan == ESCAPE)	// User hit escape getout and nullify string
+	if (c == KEY_ESC)	// User hit escape getout and nullify string
 	{
 	    *str = 0;
 	    break;
@@ -81,18 +81,18 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
 	// if scan code is regognized do something
 	// else if char code is recognized do something
 	// else ignore
-	switch (scan) {
-	case HOMEKEY:
+	switch (c) {
+	case KEY_HOME:
 	    p = str;
 	    break;
-	case ENDKEY:
+	case KEY_END:
 	    p = last;
 	    break;
-	case LTARROW:
+	case KEY_LEFT:
 	    if (p > str)
 		p--;
 	    break;
-	case CTRLLT:
+	case KEY_CTRL(KEY_LEFT):
 	    if (p == str)
 		break;
 	    if (*p == ' ')
@@ -108,11 +108,11 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
 	    while ((p > str) && ((*p == ' ') || (*(p - 1) != ' ')))
 		p--;
 	    break;
-	case RTARROW:
+	case KEY_RIGHT:
 	    if (p < last)
 		p++;
 	    break;
-	case CTRLRT:
+	case KEY_CTRL(KEY_RIGHT):
 	    if (*p == 0)
 		break;		// At end of string
 	    if (*p != ' ')
@@ -123,7 +123,8 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
 	    if (*p == ' ')
 		p++;
 	    break;
-	case DELETE:
+	case KEY_DEL:
+	case KEY_DELETE:
 	    q = p;
 	    while (*(q + 1)) {
 		*q = *(q + 1);
@@ -133,17 +134,14 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
 		last--;
 	    fudge = 1;
 	    break;
-	case INSERT:
+	case KEY_INSERT:
 	    insmode = 1 - insmode;	// Switch mode
 	    if (insmode == 0)
 		setcursorshape(1, 7);	// Block cursor
 	    else
 		setcursorshape(6, 7);	// Normal cursor
 	    break;
-
-	default:		// Unrecognized scan code, look at the ascii value
-	    switch (c) {
-	    case '\b':		// Move over by one
+	case KEY_BACKSPACE:		// Move over by one
 		q = p;
 		while (q <= last) {
 		    *(q - 1) = *q;
@@ -155,7 +153,7 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
 		    p--;
 		fudge = 1;
 		break;
-	    case '\x15':	/* Ctrl-U: kill input */
+	case KEY_CTRL('U'):	/* Ctrl-U: kill input */
 		fudge = last - str;
 		while (p > str)
 		    *p-- = 0;
@@ -163,7 +161,7 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
 		*p = 0;
 		last = str;
 		break;
-	    default:		// Handle insert and overwrite mode
+	default:		// Handle insert and overwrite mode
 		if ((c >= ' ') && (c < 128) &&
 		    ((unsigned int)(p - str) < size - 1)) {
 		    if (insmode == 0) {	// Overwrite mode
@@ -187,7 +185,6 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
 		    }
 		} else
 		    beep();
-	    }
 	    break;
 	}
 	// Now the string has been modified, print it
@@ -198,13 +195,13 @@ void getuserinput(char *stra, unsigned int size, unsigned int password,
 		cprint(' ', GETSTRATTR, fudge);
 	    gotoxy(row, col + (p - str));
 	}
-    }
+    } /* while */
     *p = '\0';
     if (password == 0)
 	csprint("\r\n", GETSTRATTR);
     setcursorshape(start, end);	// Block cursor
     // If user hit ESCAPE so return without any changes
-    if (scan != ESCAPE)
+    if (c != KEY_ESC)
 	strcpy(stra, str);
     free(str);
 }

@@ -22,7 +22,6 @@
 #include "com32io.h"
 #include "tui.h"
 #include "syslnx.h"
-#include "scancodes.h"
 #include <string.h>
 #include <unistd.h>
 

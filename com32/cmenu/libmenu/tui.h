@@ -14,9 +14,10 @@
 #define __TUI_H__
 
 #include <com32.h>
+#include <getkey.h>
+#include <consoles.h>
 #include "syslnx.h"
 #include "com32io.h"
-#include "scancodes.h"
 
 #ifndef NULL
 #define NULL ((void *)0)

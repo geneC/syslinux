@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <getkey.h>
 
 /* Global variables */
 char infoline[160];
@@ -70,12 +71,12 @@ void keys_handler(t_menuitem * mi, unsigned int scancode)
 {
     int nc, nr;
 
-    if ((scancode >> 8) == F1) {	// If scancode of F1
+    if ((scancode) == KEY_F1) {	// If scancode of F1
 	runhelpsystem(mi->helpid);
     }
     // If user hit TAB, and item is an "executable" item
     // and user has privileges to edit it, edit it in place.
-    if (((scancode & 0xFF) == 0x09) && (mi->action == OPT_RUN) &&
+    if ((scancode == KEY_TAB) && (mi->action == OPT_RUN) &&
 	(isallowed(username, "editcmd") || isallowed(username, "root"))) {
     if (getscreensize(1, &nr, &nc)) {
         /* Unknown screen size? */
@@ -238,25 +239,6 @@ t_handler_return checkbox_handler(t_menusystem * ms, t_menuitem * mi)
     return ACTION_VALID;
 }
 
-/*
-  Clears keyboard buffer and then
-  wait for stepsize*numsteps milliseconds for user to press any key
-  checks for keypress every stepsize milliseconds.
-  Returns: 1 if user pressed a key (not read from the buffer),
-           0 if time elapsed
-*/
-int checkkeypress(int stepsize, int numsteps)
-{
-    int i;
-    clearkbdbuf();
-    for (i = 0; i < numsteps; i++) {
-	if (checkkbdbuf())
-	    return 1;
-	sleep(stepsize);
-    }
-    return 0;
-}
-
 int main()
 {
     t_menuitem *curr;
@@ -416,12 +398,11 @@ int main()
 	     0);
     set_item_options(-1, 30);
     csprint("Press any key within 5 seconds to show menu...", 0x07);
-    if (!checkkeypress(100, 50))	// Granularity of 100 milliseconds
+    if (get_key(stdin, 50) == KEY_NONE)	// Granularity of 100 milliseconds
     {
 	csprint("Sorry! Time's up.\r\n", 0x07);
 	return 1;
-    } else
-	clearkbdbuf();		// Just in case user pressed something important
+    }
     curr = showmenus(MAIN);
     if (curr) {
 	if (curr->action == OPT_RUN) {
