@@ -89,9 +89,11 @@ void keys_handler(t_menusystem * ms __attribute__ (( unused )), t_menuitem * mi,
 {
   int nr, nc;
 
-  if (scancode == KEY_F1) {  // If scancode of F1
+  /* 0xFFFF is an invalid helpid */
+  if (scancode == KEY_F1 && mi->helpid != 0xFFFF) {
     runhelpsystem(mi->helpid);
   }
+
   /*
    * If user hit TAB, and item is an "executable" item
    * and user has privileges to edit it, edit it in place.
