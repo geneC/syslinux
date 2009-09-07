@@ -215,7 +215,7 @@ void runhelpsystem(unsigned int helpid)
 {
     char filename[15];
 
-    sprintf(filename, "hlp%5d.txt", helpid);
+    sprintf(filename, "hlp%05d.txt", helpid);
     runhelp(filename);
 }
 
