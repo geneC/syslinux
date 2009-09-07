@@ -487,6 +487,12 @@ static pt_menuitem getmenuoption(pt_menu menu, uchar top, uchar left, uchar star
 
             /* The handler may have changed the UI, reset it on exit */
             reset_ui();
+            // Cleanup menu using old number of items
+            cleanupmenu(menu, top, left, numitems);
+            // Recalculate the number of items
+            numitems = calc_visible(menu, 0);
+            // Reprint the menu
+            printmenu(menu, curr, top, left, first, radio);
         }
         break;
     }
