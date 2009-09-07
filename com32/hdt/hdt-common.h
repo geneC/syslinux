@@ -32,9 +32,11 @@
 #include <syslinux/pxe.h>
 #include "sys/pci.h"
 
+#include <disk/bootloaders.h>
 #include <disk/errno_disk.h>
 #include <disk/error.h>
 #include <disk/geom.h>
+#include <disk/mbrs.h>
 #include <disk/msdos.h>
 #include <disk/partition.h>
 #include <disk/swsusp.h>
@@ -55,6 +57,12 @@
 #define MAX_VESA_MODES 255
 
 extern int display_line_nb;
+
+#define pause_printf() do {\
+	printf("--More--");\
+	get_key(stdin, 0);\
+	printf("\n");\
+} while (0);
 
 #define more_printf(...) do {\
  if (display_line_nb == 20) {\
@@ -120,6 +128,7 @@ struct s_hardware {
   s_vpd vpd;                      /* VPD information */
   struct pci_domain *pci_domain;  /* PCI Devices */
   struct driveinfo disk_info[256]; /* Disk Information */
+  uint32_t mbr_ids[256];	  /* MBR ids */
   int disks_count;		  /* Number of detected disks */
   struct s_pxe pxe;
   struct s_vesa vesa;
