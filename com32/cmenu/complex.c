@@ -211,6 +211,8 @@ t_handler_return checkbox_handler(t_menusystem * ms, t_menuitem * mi)
 {
     (void)ms;			/* Unused */
 
+    t_handler_return rv;
+
     if (mi->action != OPT_CHECKBOX)
 	return ACTION_INVALID;
 
@@ -236,7 +238,10 @@ t_handler_return checkbox_handler(t_menusystem * ms, t_menuitem * mi)
     }
     if (strcmp(mi->data, "mountcd") == 0)
 	flags.mountcd = (mi->itemdata.checked ? 1 : 0);
-    return ACTION_VALID;
+
+    rv.valid = 0;
+    rv.refresh = 1;
+    return rv;
 }
 
 int main()
