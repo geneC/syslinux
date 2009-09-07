@@ -72,9 +72,8 @@
 #define NOHLITE       0		// The offset into attrib array for non-hilite
 #define HLITE         1		// The offset for Hlite attrib
 
-#define MOREABOVE    24		// char to print when more menu items available above
-#define MOREBELOW    25		// more items available below
-#define SCROLLBOX    176	// Filled char to display
+#define MOREABOVE    '^'		// char to print when more menu items available above
+#define MOREBELOW    'v'		// more items available below
 
 // Attributes of the menu system
 #define MAXMENUS      150	// Maximum number of menu's allowed

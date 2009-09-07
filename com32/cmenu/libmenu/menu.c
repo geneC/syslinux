@@ -327,7 +327,7 @@ static void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first
     x = ((numitems - 1) * curr) / (menu->numitems);
     if ((x > 0) && (row == 1)) {
     gotoxy(top + x, left + menuwidth);
-    cprint(SCROLLBOX, ms->normalattr[NOHLITE], 1);
+    csprint("\016\141\017", ms->normalattr[NOHLITE]);
     }
     if (ms->handler)
     ms->handler(ms, menu->items[curr]);
