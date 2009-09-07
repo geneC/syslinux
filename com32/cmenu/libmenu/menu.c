@@ -81,32 +81,6 @@ static int getch()
     return KEY_NONE;
 }
 
-/*
- * Print a menu item
- *
- * attr[0] is non-hilite attr, attr[1] is highlight attr
- */
-void printmenuitem(const char *str, uchar * attr)
-{
-    int hlite = NOHLITE;    // Initially no highlighting
-
-    while (*str) {
-        switch (*str) {
-            case BELL:      // No Bell Char
-                break;
-            case ENABLEHLITE:   // Switch on highlighting
-                hlite = HLITE;
-                break;
-            case DISABLEHLITE:  // Turn off highlighting
-                hlite = NOHLITE;
-                break;
-            default:
-                putch(*str, attr[hlite]);
-        }
-        str++;
-    }
-}
-
 int find_shortcut(pt_menu menu, uchar shortcut, int index)
 // Find the next index with specified shortcut key
 {
@@ -157,42 +131,61 @@ static void reset_ui(void)
     cursoroff();
 }
 
-// print the menu starting from FIRST
-// will print a maximum of menu->menuheight items
-static void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first, bool radio)
+/*
+ * Print a menu item
+ *
+ * attr[0] is non-hilite attr, attr[1] is highlight attr
+ */
+void printmenuitem(const char *str, uchar * attr)
 {
-    int x, row;         // x = index, row = position from top
-    int numitems, menuwidth;
-    char fchar[6], lchar[6];    // The first and last char in for each entry
-    const char *str;        // and inbetween the item or a seperator is printed
-    char sep[MENULEN];  // Separator (OPT_SEP)
-    uchar *attr;        // attribute attr
+    int hlite = NOHLITE;    // Initially no highlighting
+
+    while (*str) {
+        switch (*str) {
+            case BELL:      // No Bell Char
+                break;
+            case ENABLEHLITE:   // Switch on highlighting
+                hlite = HLITE;
+                break;
+            case DISABLEHLITE:  // Turn off highlighting
+                hlite = NOHLITE;
+                break;
+            default:
+                putch(*str, attr[hlite]);
+        }
+        str++;
+    }
+}
+
+
+/**
+ * print_line - Print a whole line in a menu
+ * @menu:   current menu to handle
+ * @curr:   index of the current entry highlighted
+ * @top:    top coordinate of the @menu
+ * @left:   left coordinate of the @menu
+ * @x:      index in the menu of curr
+ * @row:    row currently displayed
+ * @radio:  radio item?
+ **/
+static void print_line(pt_menu menu, int curr, uchar top, uchar left,
+                       int x, int row, bool radio)
+{
     pt_menuitem ci;
+    char fchar[6], lchar[6];    // The first and last char in for each entry
+    const char *str;            // Item string (cf printmenuitem)
+    char sep[MENULEN];          // Separator (OPT_SEP)
+    uchar *attr;                // Attribute
+    int menuwidth = menu->menuwidth + 3;
 
-    numitems = calc_visible(menu, first);
-    if (numitems > menu->menuheight)
-    numitems = menu->menuheight;
+    if (row >= menu->menuheight)
+        return;
 
-    menuwidth = menu->menuwidth + 3;
-    clearwindow(top, left - 2, top + numitems + 1, left + menuwidth + 1,
-        ms->fillchar, ms->shadowattr);
-    drawbox(top - 1, left - 3, top + numitems, left + menuwidth,
-        ms->normalattr[NOHLITE]);
-    memset(sep, ms->box_horiz, menuwidth);  // String containing the seperator string
+    ci = menu->items[x];
+
+    memset(sep, ms->box_horiz, menuwidth);
     sep[menuwidth - 1] = 0;
 
-    // Menu title
-    x = (menuwidth - strlen(menu->title) - 1) >> 1;
-    gotoxy(top - 1, left + x);
-    printmenuitem(menu->title, ms->normalattr);
-    row = -1;           // 1 less than inital value of x
-    for (x = first; x < menu->numitems; x++) {
-    ci = menu->items[x];
-    if (ci->action == OPT_INVISIBLE)
-        continue;
-    row++;
-    if (row >= numitems)
-        break;      // Already have enough number of items
     // Setup the defaults now
     if (radio) {
         fchar[0] = '\b';
@@ -261,14 +254,57 @@ static void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first
     default:        // Just to keep the compiler happy
         break;
     }
+
+    // Wipe area with spaces
     gotoxy(top + row, left - 2);
-    cprint(ms->spacechar, attr[NOHLITE], menuwidth + 2);    // Wipe area with spaces
+    cprint(ms->spacechar, attr[NOHLITE], menuwidth + 2);
+
+    // Print first part
     gotoxy(top + row, left - 2);
-    csprint(fchar, attr[NOHLITE]);  // Print first part
+    csprint(fchar, attr[NOHLITE]);
+
+    // Print main part
     gotoxy(top + row, left);
-    printmenuitem(str, attr);   // Print main part
-    gotoxy(top + row, left + menuwidth - 1);    // Last char if any
-    csprint(lchar, attr[NOHLITE]);  // Print last part
+    printmenuitem(str, attr);
+
+    // Print last part
+    gotoxy(top + row, left + menuwidth - 1);
+    csprint(lchar, attr[NOHLITE]);
+}
+
+// print the menu starting from FIRST
+// will print a maximum of menu->menuheight items
+static void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first, bool radio)
+{
+    int x, row;         // x = index, row = position from top
+    int numitems, menuwidth;
+    pt_menuitem ci;
+
+    numitems = calc_visible(menu, first);
+    if (numitems > menu->menuheight)
+    numitems = menu->menuheight;
+
+    menuwidth = menu->menuwidth + 3;
+    clearwindow(top, left - 2, top + numitems + 1, left + menuwidth + 1,
+        ms->fillchar, ms->shadowattr);
+    drawbox(top - 1, left - 3, top + numitems, left + menuwidth,
+        ms->normalattr[NOHLITE]);
+
+    // Menu title
+    x = (menuwidth - strlen(menu->title) - 1) >> 1;
+    gotoxy(top - 1, left + x);
+    printmenuitem(menu->title, ms->normalattr);
+
+    // All lines in the menu
+    row = -1;           // 1 less than inital value of x
+    for (x = first; x < menu->numitems; x++) {
+        ci = menu->items[x];
+        if (ci->action == OPT_INVISIBLE)
+            continue;
+        row++;
+        if (row >= numitems)
+            break;      // Already have enough number of items
+        print_line(menu, curr, top, left, x, row, radio);
     }
     // Check if we need to MOREABOVE and MOREBELOW to be added
     // reuse x
@@ -310,8 +346,9 @@ void cleanupmenu(pt_menu menu, uchar top, uchar left, int numitems)
 static pt_menuitem getmenuoption(pt_menu menu, uchar top, uchar left, uchar startopt, bool radio)
      // Return item chosen or NULL if ESC was hit.
 {
-    int curr, i, first, tmp;
+    int prev, prev_first, curr, i, first, tmp;
     int asc = 0;
+    bool redraw = true; // Need to draw the menu the first time
     uchar numitems;
     pt_menuitem ci;     // Current item
     t_handler_return hr;    // Return value of handler
@@ -323,18 +360,36 @@ static pt_menuitem getmenuoption(pt_menu menu, uchar top, uchar left, uchar star
 
     // Initialise current menu item
     curr = next_visible(menu, startopt);
+    prev = curr;
 
     gotoxy(ms->minrow + ms->statline, ms->mincol);
     cprint(ms->spacechar, ms->statusattr[NOHLITE], ms->numcols);
     gotoxy(ms->minrow + ms->statline, ms->mincol);
     printmenuitem(menu->items[curr]->status, ms->statusattr);
     first = calc_first_early(menu, curr);
+    prev_first = first;
     while (1)           // Forever
     {
-    printmenu(menu, curr, top, left, first, radio);
+    /* Redraw everything if:
+     *  + we need to scroll (take care of scroll bars, ...)
+     *  + menuoption
+     */
+    if (prev_first != first || redraw) {
+        printmenu(menu, curr, top, left, first, radio);
+    } else {
+        /* Redraw only the highlighted entry */
+        print_line(menu, curr, top, left, prev, prev - first, radio);
+        print_line(menu, curr, top, left, curr, curr - first, radio);
+    }
+    redraw = false;
+    prev = curr;
+    prev_first = first;
     ci = menu->items[curr];
     asc = getch();
     switch (asc) {
+        case KEY_CTRL('L'):
+        redraw = true;
+        break;
     case KEY_HOME:
         curr = next_visible(menu, 0);
         first = calc_first_early(menu, curr);
