@@ -76,8 +76,9 @@ void compute_syslinuxmenu(struct s_my_menu *menu, struct s_hardware *hardware)
 
   snprintf(buffer, sizeof buffer, "%s",
      hardware->sv->copyright_string + 1);
+  /* Remove the trailing LF in the copyright string to avoid scrolling */
   snprintf(statbuffer, sizeof statbuffer, "%s",
-     hardware->sv->copyright_string + 1);
+     remove_trailing_lf(hardware->sv->copyright_string + 1));
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu->items_count++;
 

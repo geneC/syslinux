@@ -33,7 +33,6 @@
 #include "syslinux/config.h"
 #include "../lib/sys/vesa/vesa.h"
 #include "hdt-common.h"
-#include "lib-ansi.h"
 #include <disk/util.h>
 #include <disk/mbrs.h>
 
@@ -534,6 +533,20 @@ char *remove_spaces(char *p)
   while (*p && *p <= ' ') {
     p++;
   }
+
+  return p;
+}
+
+/* remove trailing LF */
+char *remove_trailing_lf(char *p)
+{
+  char *save=p;
+  p+=strlen(p)-1;
+  while (*p && *p == 10) {
+   *p='\0';
+   p--;
+  }
+  p=save;
 
   return p;
 }

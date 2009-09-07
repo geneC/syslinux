@@ -167,7 +167,7 @@ int compute_PCI(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
        pci_device->dev_info->vendor_name,
        pci_device->dev_info->product_name);
     snprintf(infobar[i], STATLEN,
-       "%02x:%02x.%01x # %s # ID:%04x:%04x[%04x:%04x] # Kmod:%s\n",
+       "%02x:%02x.%01x # %s # ID:%04x:%04x[%04x:%04x] # Kmod:%s",
        __pci_bus, __pci_slot, __pci_func,
        pci_device->dev_info->class_name, pci_device->vendor,
        pci_device->product, pci_device->sub_vendor,

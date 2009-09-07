@@ -29,6 +29,7 @@
 #ifndef DEFINE_HDT_MENU_H
 #define DEFINE_HDT_MENU_H
 #include <stdio.h>
+#include <getkey.h>
 
 #include "menu.h"
 #include "help.h"
@@ -82,7 +83,7 @@ struct s_hdt_menu {
 };
 
 TIMEOUTCODE ontimeout();
-void keys_handler(t_menusystem * ms, t_menuitem * mi, unsigned int scancode);
+void keys_handler(t_menusystem * ms __attribute__ (( unused )), t_menuitem * mi, int scancode);
 
 // PCI Stuff
 int compute_PCI(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);

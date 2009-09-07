@@ -21,6 +21,8 @@
 #include "des.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <getkey.h>
 
 /* Global variables */
 char infoline[160];
@@ -65,46 +67,54 @@ TIMEOUTCODE ontimeout()
 #define PWDATTR 0x74
 #define EDITPROMPT 21
 
-void keys_handler(t_menusystem * ms, t_menuitem * mi, unsigned int scancode)
+void keys_handler(t_menusystem * ms __attribute__ (( unused )), t_menuitem * mi, int scancode)
 {
-    char nc;
+    int nc, nr;
 
-    if ((scancode >> 8) == F1) {	// If scancode of F1
+    if ((scancode) == KEY_F1 && mi->helpid != 0xFFFF) {	// If scancode of F1
 	runhelpsystem(mi->helpid);
     }
     // If user hit TAB, and item is an "executable" item
     // and user has privileges to edit it, edit it in place.
-    if (((scancode & 0xFF) == 0x09) && (mi->action == OPT_RUN) &&
+    if ((scancode == KEY_TAB) && (mi->action == OPT_RUN) &&
 	(isallowed(username, "editcmd") || isallowed(username, "root"))) {
-	nc = getnumcols();
+    if (getscreensize(1, &nr, &nc)) {
+        /* Unknown screen size? */
+        nc = 80;
+        nr = 24;
+    }
 	// User typed TAB and has permissions to edit command line
-	gotoxy(EDITPROMPT, 1, ms->menupage);
+	gotoxy(EDITPROMPT, 1);
 	csprint("Command line:", 0x07);
 	editstring(mi->data, ACTIONLEN);
-	gotoxy(EDITPROMPT, 1, ms->menupage);
-	cprint(' ', 0x07, nc - 1, ms->menupage);
+	gotoxy(EDITPROMPT, 1);
+    clear_line();
     }
 }
 
-t_handler_return login_handler(t_menusystem * ms, t_menuitem * mi)
+t_handler_return login_handler(t_menuitem * mi)
 {
     (void)mi;			// Unused
     char pwd[40];
     char login[40];
-    char nc;
+    int nc, nr;
     t_handler_return rv;
 
     if (mi->item == loginstr) {	/* User wants to login */
-	nc = getnumcols();
-	gotoxy(PWDPROMPT, 1, ms->menupage);
+    if (getscreensize(1, &nr, &nc)) {
+        /* Unknown screen size? */
+        nc = 80;
+        nr = 24;
+    }
+	gotoxy(PWDPROMPT, 1);
 	csprint("Enter Username: ", 0x07);
 	getstring(login, sizeof username);
-	gotoxy(PWDPROMPT, 1, ms->menupage);
-	cprint(' ', 0x07, nc, ms->menupage);
+	gotoxy(PWDPROMPT, 1);
+    clear_line();
 	csprint("Enter Password: ", 0x07);
 	getpwd(pwd, sizeof pwd);
-	gotoxy(PWDPROMPT, 1, ms->menupage);
-	cprint(' ', 0x07, nc, ms->menupage);
+	gotoxy(PWDPROMPT, 1);
+    clear_line();
 
 	if (authenticate_user(login, pwd)) {
 	    strcpy(username, login);
@@ -133,22 +143,27 @@ t_handler_return login_handler(t_menusystem * ms, t_menuitem * mi)
 
 void msys_handler(t_menusystem * ms, t_menuitem * mi)
 {
-    char nc;
+    int nc, nr;
     void *v;
-    nc = getnumcols();		// Get number of columns
 
-    gotoxy(PWDLINE, PWDCOLUMN, ms->menupage);
+    if (getscreensize(1, &nr, &nc)) {
+        /* Unknown screen size? */
+        nc = 80;
+        nr = 24;
+    }
+    gotoxy(PWDLINE, PWDCOLUMN);
     csprint("User: ", PWDATTR);
-    cprint(ms->fillchar, ms->fillattr, sizeof username, ms->menupage);
-    gotoxy(PWDLINE, PWDCOLUMN + 6, ms->menupage);
+    cprint(ms->fillchar, ms->fillattr, sizeof username);
+    gotoxy(PWDLINE, PWDCOLUMN + 6);
     csprint(username, PWDATTR);
 
     if (mi->parindex != PREPMENU)	// If we are not in the PREP MENU
     {
-	gotoxy(INFLINE, 0, ms->menupage);
-	cprint(' ', 0x07, nc, ms->menupage);
-	gotoxy(INFLINE + 1, 0, ms->menupage);
-	cprint(' ', 0x07, nc, ms->menupage);
+	gotoxy(INFLINE, 0);
+    reset_colors();
+    clear_line();
+	gotoxy(INFLINE + 1, 0);
+    clear_line();
 	return;
     }
     strcpy(infoline, " ");
@@ -167,13 +182,14 @@ void msys_handler(t_menusystem * ms, t_menuitem * mi)
     if (flags.linrep)
 	strcat(infoline, "repair=lin ");
 
-    gotoxy(INFLINE, 0, ms->menupage);
-    cprint(' ', 0x07, nc, ms->menupage);
-    gotoxy(INFLINE + 1, 0, ms->menupage);
-    cprint(' ', 0x07, nc, ms->menupage);
-    gotoxy(INFLINE, 0, ms->menupage);
+    gotoxy(INFLINE, 0);
+    reset_colors();
+    clear_line();
+    gotoxy(INFLINE + 1, 0);
+    clear_line();
+    gotoxy(INFLINE, 0);
     csprint("Kernel Arguments:", 0x07);
-    gotoxy(INFLINE, 17, ms->menupage);
+    gotoxy(INFLINE, 17);
     csprint(infoline, 0x07);
 }
 
@@ -194,6 +210,8 @@ t_handler_return network_handler(t_menusystem * ms, t_menuitem * mi)
 t_handler_return checkbox_handler(t_menusystem * ms, t_menuitem * mi)
 {
     (void)ms;			/* Unused */
+
+    t_handler_return rv;
 
     if (mi->action != OPT_CHECKBOX)
 	return ACTION_INVALID;
@@ -220,26 +238,10 @@ t_handler_return checkbox_handler(t_menusystem * ms, t_menuitem * mi)
     }
     if (strcmp(mi->data, "mountcd") == 0)
 	flags.mountcd = (mi->itemdata.checked ? 1 : 0);
-    return ACTION_VALID;
-}
 
-/*
-  Clears keyboard buffer and then
-  wait for stepsize*numsteps milliseconds for user to press any key
-  checks for keypress every stepsize milliseconds.
-  Returns: 1 if user pressed a key (not read from the buffer),
-           0 if time elapsed
-*/
-int checkkeypress(int stepsize, int numsteps)
-{
-    int i;
-    clearkbdbuf();
-    for (i = 0; i < numsteps; i++) {
-	if (checkkbdbuf())
-	    return 1;
-	sleep(stepsize);
-    }
-    return 0;
+    rv.valid = 0;
+    rv.refresh = 1;
+    return rv;
 }
 
 int main()
@@ -271,7 +273,7 @@ int main()
     reg_handler(HDLR_SCREEN, &msys_handler);
     reg_handler(HDLR_KEYS, &keys_handler);
     // Register the ontimeout handler, with a time out of 10 seconds
-    reg_ontimeout(ontimeout, 1000, 0);
+    reg_ontimeout(ontimeout, 10, 0);
 
     NETMENU = add_menu(" Init Network ", -1);
     none = add_item("<N>one", "Dont start network", OPT_RADIOITEM, "no ", 0);
@@ -401,12 +403,11 @@ int main()
 	     0);
     set_item_options(-1, 30);
     csprint("Press any key within 5 seconds to show menu...", 0x07);
-    if (!checkkeypress(100, 50))	// Granularity of 100 milliseconds
+    if (get_key(stdin, 50) == KEY_NONE)	// Granularity of 100 milliseconds
     {
 	csprint("Sorry! Time's up.\r\n", 0x07);
 	return 1;
-    } else
-	clearkbdbuf();		// Just in case user pressed something important
+    }
     curr = showmenus(MAIN);
     if (curr) {
 	if (curr->action == OPT_RUN) {

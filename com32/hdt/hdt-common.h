@@ -47,6 +47,7 @@
 #include "hdt-ata.h"
 #include "../lib/sys/vesa/vesa.h"
 #include <vpd/vpd.h>
+#include <libansi.h>
 
 /* Declare a variable or data structure as unused. */
 #define __unused __attribute__ (( unused ))
@@ -161,6 +162,7 @@ struct s_hardware {
 void reset_more_printf();
 const char *find_argument(const char **argv, const char *argument);
 char *remove_spaces(char *p);
+char *remove_trailing_lf(char *p);
 char *skip_spaces(char *p);
 char *del_multi_spaces(char *p);
 int detect_dmi(struct s_hardware *hardware);

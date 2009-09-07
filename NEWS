@@ -12,6 +12,12 @@ Changes in 3.83:
 	* MEMDISK: fix problems booting from USB on Thinkpads, and
 	  possibly other machines or hardware combinations.
 	* isohybrid: fix the -id option.
+	* HDT: updated to version 0.3.4.
+	* MEMDISK: the stack size is now configurable, with the stack=
+	  option.
+	* Simple menu: fix Ctrl-W (word erase) in command-line edit.
+	* Simple menu: fix crash on some platforms.
+	* Gfxboot: fixes to the configuration file parsing.
 
 Changes in 3.82:
 	* isohybrid: fix the -partok logic for loading from a partition.
