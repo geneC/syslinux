@@ -71,7 +71,7 @@ void keys_handler(t_menusystem * ms __attribute__ (( unused )), t_menuitem * mi,
 {
     int nc, nr;
 
-    if ((scancode) == KEY_F1) {	// If scancode of F1
+    if ((scancode) == KEY_F1 && mi->helpid != 0xFFFF) {	// If scancode of F1
 	runhelpsystem(mi->helpid);
     }
     // If user hit TAB, and item is an "executable" item
