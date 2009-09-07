@@ -139,6 +139,24 @@ int find_shortcut(pt_menu menu, uchar shortcut, int index)
     return index;       // Sorry not found
 }
 
+/* Redraw background and title */
+static void reset_ui(void)
+{
+    uchar tpos;
+
+    cls();
+    clearwindow(ms->minrow, ms->mincol, ms->maxrow, ms->maxcol,
+                ms->fillchar, ms->fillattr);
+
+    tpos = (ms->numcols - strlen(ms->title) - 1) >> 1;  // center it on line
+    gotoxy(ms->minrow, ms->mincol);
+    cprint(ms->tfillchar, ms->titleattr, ms->numcols);
+    gotoxy(ms->minrow, ms->mincol + tpos);
+    csprint(ms->title, ms->titleattr);
+
+    cursoroff();
+}
+
 // print the menu starting from FIRST
 // will print a maximum of menu->menuheight items
 static void printmenu(pt_menu menu, int curr, uchar top, uchar left, uchar first, bool radio)
@@ -411,6 +429,9 @@ static pt_menuitem getmenuoption(pt_menu menu, uchar top, uchar left, uchar star
         } else {
         if (ms->keys_handler)   // Call extra keys handler
             ms->keys_handler(ms, menu->items[curr], asc);
+
+            /* The handler may have changed the UI, reset it on exit */
+            reset_ui();
         }
         break;
     }
@@ -559,7 +580,6 @@ void fix_submenus()
 pt_menuitem showmenus(uchar startmenu)
 {
     pt_menuitem rv;
-    uchar tpos;
 
     fix_submenus();     // Fix submenu numbers incase nick names were used
 
@@ -567,17 +587,7 @@ pt_menuitem showmenus(uchar startmenu)
     printf(CSI "?7l");
 
     // Setup screen for menusystem
-    cls();
-    clearwindow(ms->minrow, ms->mincol, ms->maxrow, ms->maxcol,
-        ms->fillchar, ms->fillattr);
-
-    tpos = (ms->numcols - strlen(ms->title) - 1) >> 1;  // center it on line
-    gotoxy(ms->minrow, ms->mincol);
-    cprint(ms->tfillchar, ms->titleattr, ms->numcols);
-    gotoxy(ms->minrow, ms->mincol + tpos);
-    csprint(ms->title, ms->titleattr);
-
-    cursoroff();        // Doesn't seem to work?
+    reset_ui();
 
     // Go, main menu cannot be a radio menu
     rv = runmenusystem(ms->minrow + MENUROW, ms->mincol + MENUCOL,
