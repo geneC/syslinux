@@ -533,6 +533,20 @@ char *remove_spaces(char *p)
   return p;
 }
 
+/* remove trailing LF */
+char *remove_trailing_lf(char *p)
+{
+  char *save=p;
+  p+=strlen(p)-1;
+  while (*p && *p == 10) {
+   *p='\0';
+   p--;
+  }
+  p=save;
+
+  return p;
+}
+
 /* delete multiple spaces, one is enough */
 char *del_multi_spaces(char *p) {
  /* Saving the original pointer*/

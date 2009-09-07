@@ -189,7 +189,7 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
            kernel_modules,
            pci_device->dev_info->class_name);
         snprintf(statbuffer, sizeof statbuffer,
-           "%04x:%04x %s : %s\n",
+           "%04x:%04x %s : %s",
            pci_device->vendor,
            pci_device->product,
            pci_device->dev_info->vendor_name,
