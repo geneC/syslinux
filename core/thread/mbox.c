@@ -20,8 +20,10 @@ void mbox_init(struct mailbox *mbox, size_t size)
     mbox->tail = &mbox->data[0];
 };
 
-static void mbox_post_common(struct mailbox *mbox, void *msg)
+int mbox_post(struct mailbox *mbox, void *msg, mstime_t timeout)
 {
+    if (sem_down(&mbox->prod_sem, timeout) == (mstime_t)-1)
+	return ENOMEM;
     sem_down(&mbox->head_sem, 0);
 
     *mbox->head = msg;
@@ -31,19 +33,6 @@ static void mbox_post_common(struct mailbox *mbox, void *msg)
 
     sem_up(&mbox->head_sem);
     sem_up(&mbox->cons_sem);
-}
-
-void mbox_post(struct mailbox *mbox, void *msg)
-{
-    sem_down(&mbox->prod_sem, 0);
-    mbox_post_common(mbox, msg);
-}
-
-int mbox_trypost(struct mailbox *mbox, void *msg)
-{
-    if (sem_down(&mbox->prod_sem, -1) == (mstime_t)-1)
-	return ENOMEM;
-    mbox_post_common(mbox, msg);
     return 0;
 }
 

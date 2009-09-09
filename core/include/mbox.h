@@ -21,4 +21,8 @@ struct mailbox {
     void *data[];		/* Data array */
 };
 
+void mbox_init(struct mailbox *mbox, size_t size);
+int mbox_post(struct mailbox *mbox, void *msg, mstime_t timeout);
+mstime_t mbox_fetch(struct mailbox *mbox, void **msg, mstime_t timeout);
+
 #endif /* _MBOX_H */
