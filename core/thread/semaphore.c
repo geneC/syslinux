@@ -9,40 +9,46 @@ void sem_init(struct semaphore *sem, int count)
 
 mstime_t __sem_down_slow(struct semaphore *sem, mstime_t timeout)
 {
-    struct thread *curr;
-    struct thread_block block;
     irq_state_t irq;
-    mstime_t now;
+    mstime_t rv;
 
     irq = irq_save();
 
-    /* Check if something already freed the semaphore on us */
     if (sem->count >= 0) {
-	sti();
-	return 0;
+	/* Something already freed the semaphore on us */
+	rv = 0;
+    } else if (timeout == -1) {
+	/* Immediate timeout */
+	sem->count++;
+	rv = -1;
+    } else {
+	/* Put the thread to sleep... */
+
+	struct thread_block block;
+	struct thread *curr = current();
+	mstime_t now = ms_timer();
+
+	block.thread     = curr;
+	block.semaphore  = sem;
+	block.block_time = now;
+	block.timeout    = timeout ? now+timeout : 0;
+	block.timed_out  = false;
+
+	curr->blocked    = &block;
+
+	/* Add to the end of the wakeup list */
+	block.list.prev       = sem->list.prev;
+	block.list.next       = &sem->list;
+	sem->list.prev        = &block.list;
+	block.list.prev->next = &block.list;
+
+	__schedule();
+
+	rv = block.timed_out ? -1 : ms_timer() - block.block_time;
     }
 
-    curr = current();
-    now = ms_timer();
-
-    block.thread     = curr;
-    block.semaphore  = sem;
-    block.block_time = now;
-    block.timeout    = timeout ? now+timeout : 0;
-    block.timed_out  = false;
-
-    curr->blocked    = &block;
-
-    /* Add to the end of the wakeup list */
-    block.list.prev       = sem->list.prev;
-    block.list.next       = &sem->list;
-    sem->list.prev        = &block.list;
-    block.list.prev->next = &block.list;
-
-    __schedule();
-
     irq_restore(irq);
-    return block.timed_out ? -1 : ms_timer() - block.block_time;
+    return rv;
 }
 
 void __sem_up_slow(struct semaphore *sem)
@@ -60,7 +66,8 @@ void __sem_up_slow(struct semaphore *sem)
      */
     l = sem->list.next;
     if (l != &sem->list) {
-	struct thread_block *block = container_of(l, struct thread_block, list);
+	struct thread_block *block;
+	block = container_of(l, struct thread_block, list);
 
 	sem->list.next = block->list.next;
 	block->list.next->prev = &sem->list;
