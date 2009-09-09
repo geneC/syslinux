@@ -73,8 +73,8 @@ static inline void irq_restore(irq_state_t __st)
     asm volatile("pushl %0 ; popfl" : : "rm" (__st));
 }
 
-void start_thread(struct thread *t, void *stack, size_t stack_size, int prio,
-		  void (*start_func)(void *), void *func_arg);
+struct thread *start_thread(size_t stack_size, int prio,
+			    void (*start_func)(void *), void *func_arg);
 void __exit_thread(void);
 void kill_thread(struct thread *);
 

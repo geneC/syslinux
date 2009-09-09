@@ -1,13 +1,23 @@
 #include <string.h>
+#include <stdlib.h>
 #include "thread.h"
 
 extern void (*__start_thread)(void);
 
-void start_thread(struct thread *t, void *stack, size_t stack_size, int prio,
-		  void (*start_func)(void *), void *func_arg)
+struct thread *start_thread(size_t stack_size, int prio,
+			    void (*start_func)(void *), void *func_arg)
 {
     irq_state_t irq;
-    struct thread *curr;
+    struct thread *curr, *t;
+    char *stack;
+    const size_t thread_mask = __alignof__(struct thread)-1;
+
+    stack_size = (stack_size + thread_mask) & ~thread_mask;
+    stack = malloc(stack_size + sizeof(struct thread));
+    if (!stack)
+	return NULL;
+
+    t = (struct thread *)(stack + stack_size);
 
     memset(t, 0, sizeof *t);
 
@@ -30,4 +40,5 @@ void start_thread(struct thread *t, void *stack, size_t stack_size, int prio,
     __schedule();
 
     irq_restore(irq);
+    return t;
 }
