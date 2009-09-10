@@ -39,9 +39,7 @@ extern "C" {
 #endif
 
 /* For compatibility with BSD code */
-struct in_addr {
-  u32_t s_addr;
-};
+#include <netinet/in.h>
 
 #define INADDR_NONE         ((u32_t)0xffffffffUL)  /* 255.255.255.255 */
 #define INADDR_LOOPBACK     ((u32_t)0x7f000001UL)  /* 127.0.0.1 */
