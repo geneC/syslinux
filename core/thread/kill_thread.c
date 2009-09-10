@@ -1,6 +1,9 @@
 #include "thread.h"
 #include <limits.h>
 
+extern void __exit_thread(void);
+typedef void (*func_ptr)(void);
+
 void kill_thread(struct thread *thread)
 {
     irq_state_t irq;
@@ -15,7 +18,7 @@ void kill_thread(struct thread *thread)
      * Muck with the stack so that the next time the thread is run then
      * we end up going to __exit_thread.
      */
-    *(size_t *)thread->state.esp = (size_t)__exit_thread;
+    *(func_ptr *)thread->esp = __exit_thread;
     thread->prio = INT_MIN;
 
     block = thread->blocked;

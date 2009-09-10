@@ -2,7 +2,16 @@
 #include <stdlib.h>
 #include "thread.h"
 
-extern void (*__start_thread)(void);
+extern void __start_thread(void);
+
+/*
+ * Stack frame used by __switch_to, see thread_asm.S
+ */
+struct thread_stack {
+    int errno;
+    uint32_t edi, esi, ebp, ebx;
+    void (*eip)(void);
+};
 
 struct thread *start_thread(size_t stack_size, int prio,
 			    void (*start_func)(void *), void *func_arg)
@@ -10,23 +19,28 @@ struct thread *start_thread(size_t stack_size, int prio,
     irq_state_t irq;
     struct thread *curr, *t;
     char *stack;
-    const size_t thread_mask = __alignof__(struct thread)-1;
+    const size_t thread_mask = 31; /* Alignment mask */
+    struct thread_stack *sp;
 
     stack_size = (stack_size + thread_mask) & ~thread_mask;
     stack = malloc(stack_size + sizeof(struct thread));
     if (!stack)
 	return NULL;
 
-    t = (struct thread *)(stack + stack_size);
+    t = (struct thread *)stack;
+    stack = (char *)(t + 1);	/* After the thread structure */
 
     memset(t, 0, sizeof *t);
 
-    t->state.esp = (((size_t)stack + stack_size) & ~3) - 4;
-    *(size_t *)t->state.esp = (size_t)&__start_thread;
+    /* sp allocated from the end of the stack */
+    sp = (struct thread_stack *)(stack + stack_size) - 1;
+    t->esp = sp;
 
-    t->state.esi = (size_t)start_func;
-    t->state.edi = (size_t)func_arg;
-    t->state.ebx = irq_state();	/* Inherit the IRQ state from the spawner */
+    sp->errno = 0;
+    sp->esi = (size_t)start_func;
+    sp->edi = (size_t)func_arg;
+    sp->ebx = irq_state();	/* Inherit the IRQ state from the spawner */
+    sp->eip = __start_thread;
     t->prio = prio;
 
     irq = irq_save();

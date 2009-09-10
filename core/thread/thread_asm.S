@@ -2,18 +2,20 @@
 	.type	__switch_to, @function
 __switch_to:
 	movl	__current, %edx
-	movl	%ebx,   (%edx)
-	movl	%esp,  4(%edx)
-	movl	%ebp,  8(%edx)
-	movl	%esi, 12(%edx)
-	movl	%edi, 16(%edx)
+	pushl	%ebx
+	pushl	%ebp
+	pushl	%esi
+	pushl	%edi
+	pushl	errno			/* Hack! */
+	movl	%esp, (%edx)
 
-	movl	  (%eax), %ebx
-	movl	 4(%eax), %esp
-	movl	 8(%eax), %ebp
-	movl	12(%eax), %esi
-	movl	16(%eax), %edi
 	movl	%eax, __current
+	movl	(%eax), %esp
+	popl	errno
+	popl	%edi
+	popl	%esi
+	popl	%ebp
+	popl	%ebx
 	ret
 	.size	__switch_to, .-__switch_to
 

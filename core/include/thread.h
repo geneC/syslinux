@@ -7,10 +7,6 @@
 
 struct semaphore;
 
-struct thread_state {
-    uint32_t ebx, esp, ebp, esi, edi;
-};
-
 struct thread_list {
     struct thread_list *next, *prev;
 };
@@ -25,7 +21,7 @@ struct thread_block {
 };
 
 struct thread {
-    struct thread_state state;
+    void *esp;			/* Must be first; stack pointer */
     struct thread_list  list;
     struct thread_block *blocked;
     int prio;
