@@ -33,6 +33,8 @@ void __thread_process_timeouts(void)
 
 		t->blocked = NULL;
 		block->timed_out = true;
+
+		__schedule();	/* Normally sets just __need_schedule */
 	    }
 	}
     }

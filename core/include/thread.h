@@ -28,6 +28,9 @@ struct thread {
     int prio;
 };
 
+extern int __schedule_lock;
+extern bool __need_schedule;
+void __thread_process_timeouts(void);
 void __schedule(void);
 void __switch_to(struct thread *);
 void thread_yield(void);

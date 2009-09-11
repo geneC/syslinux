@@ -1,6 +1,9 @@
 #include <sys/cpu.h>
 #include "thread.h"
 
+int __schedule_lock;
+bool __need_schedule;
+
 /*
  * __schedule() should only be called with interrupts locked out!
  */
@@ -8,6 +11,13 @@ void __schedule(void)
 {
     struct thread *curr = current();
     struct thread *st, *nt, *best;
+
+    if (__schedule_lock) {
+	__need_schedule = true;
+	return;
+    }
+
+    __need_schedule = false;
 
     best = NULL;
 
