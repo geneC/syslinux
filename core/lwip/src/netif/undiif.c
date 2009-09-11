@@ -138,8 +138,6 @@ low_level_output(struct netif *netif, struct pbuf *p)
   pbuf_header(p, -ETH_PAD_SIZE); /* drop the padding word */
 #endif
 
-  memset(&pxe, 0, sizeof pxe);
-
   r = pkt_buf;
   for (q = p; q != NULL; q = q->next) {
     /* Send the data from the pbuf to the interface, one pbuf at a
@@ -149,15 +147,19 @@ low_level_output(struct netif *netif, struct pbuf *p)
     r += q->len;
   }
 
-  pxe.xmit.Protocol = 0;	/* XXX: P_UNKNOWN: MAC layer */
-  pxe.xmit.XmitFlag = !memcmp(pkt_buf, eth_broadcast, sizeof eth_broadcast);
-  pxe.xmit.DestAddr = FAR_PTR(pkt_buf);
-  pxe.xmit.TBD = FAR_PTR(&pxe.tbd);
-  pxe.tbd.ImmedLength = r - pkt_buf;
-  pxe.tbd.Xmit = FAR_PTR(pkt_buf);
-  pxe.tbd.DataBlkCount = 0;
+  do {
+      memset(&pxe, 0, sizeof pxe);
 
-  pxe_call(PXENV_UNDI_TRANSMIT, &pxe.xmit);
+      pxe.xmit.Protocol = 0;	/* XXX: P_UNKNOWN: MAC layer */
+      pxe.xmit.XmitFlag = !memcmp(pkt_buf, eth_broadcast, sizeof eth_broadcast);
+      pxe.xmit.DestAddr = FAR_PTR(pkt_buf);
+      pxe.xmit.TBD = FAR_PTR(&pxe.tbd);
+      pxe.tbd.ImmedLength = r - pkt_buf;
+      pxe.tbd.Xmit = FAR_PTR(pkt_buf);
+      pxe.tbd.DataBlkCount = 0;
+
+      pxe_call(PXENV_UNDI_TRANSMIT, &pxe.xmit);
+  } while (pxe.xmit.Status == PXENV_STATUS_OUT_OF_RESOURCES);
 
 #if ETH_PAD_SIZE
   pbuf_header(p, ETH_PAD_SIZE); /* reclaim the padding word */
