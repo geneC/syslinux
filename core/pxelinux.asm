@@ -423,7 +423,6 @@ PXEEntry	equ pxenv.jump+1
 		alignb 2
 PXEStatus	resb 2
 
-
 		section .text16
 ;
 ; Invoke INT 1Ah on the PXE stack.  This is used by the "Plan C" method
@@ -502,6 +501,12 @@ pxe_file_exit_hook:
 %endif
 
 		section .text16
+
+; -----------------------------------------------------------------------------
+;  PXE modules
+; -----------------------------------------------------------------------------
+
+%include "pxeisr.inc"
 
 ; -----------------------------------------------------------------------------
 ;  Common modules
