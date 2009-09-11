@@ -229,6 +229,7 @@ low_level_input(t_PXENV_UNDI_ISR *isr)
 	   * Only received a partial frame, must get the next one...
 	   */
 	  get_packet_fragment(isr);
+	  r = GET_PTR(isr->Frame);
 	} else {
 	  memcpy(s, r, qb);
 	  s += qb;
