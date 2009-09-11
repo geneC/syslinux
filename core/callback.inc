@@ -49,6 +49,7 @@ core_intcall:
 
 core_syscall:
 		pushfd				; Save IF among other things...
+		inc dword [CallbackCtr]
 		push ebx
 		push ebp
 		push esi
@@ -130,6 +131,10 @@ core_syscall:
 					; Remove from stack
 
 		pop dword [CallbackSP]
+		dec dword [CallbackCtr]
+		jnz .skip
+		call [core_pm_hook]
+.skip:
 		pop edi
 		pop esi
 		pop ebp
@@ -145,6 +150,7 @@ core_syscall:
 		global core_cfarcall
 core_cfarcall:
 		pushfd				; Save IF among other things...
+		inc dword [CallbackCtr]
 		push ebx
 		push ebp
 		push esi
@@ -199,6 +205,10 @@ core_cfarcall:
 		mov eax,esi
 		; EDX already set up to be the RM return value
 		pop dword [CallbackSP]
+		dec dword [CallbackCtr]
+		jnz .skip
+		call [core_pm_hook]
+.skip:
 		pop ebx
 		pop ebp
 		pop esi
@@ -206,10 +216,11 @@ core_cfarcall:
 		popfd
 		ret
 
-		bits 16
 		section .bss16
 		alignb 4
+		global core_pm_hook
 CallbackSP	resd 1			; SP saved during callback
+CallbackCtr	resd 1
 
 		bits 16
 		section .text16

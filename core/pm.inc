@@ -194,6 +194,7 @@ PM_IDT_ptr:	dw 8*256-1		; Length
 pm_irq:
 		pushad
 		movzx esi,byte [esp+8*4] ; Interrupt number
+		inc dword [CallbackCtr]
 		mov ebx,.rm
 		jmp enter_rm		; Go to real mode
 
@@ -208,9 +209,26 @@ pm_irq:
 		bits 32
 		section .textnr
 .pm:
+		dec dword [CallbackCtr]
+		jnz .skip
+		call [core_pm_hook]
+.skip:
 		popad
 		add esp,4		; Drop interrupt number
 		iretd
+
+;
+; Initially, the core_pm_hook does nothing; it is available for the
+; threaded derivatives to run the scheduler, or examine the result from
+; interrupt routines.
+;
+core_pm_null_hook:
+		ret
+
+		section .data16
+		alignz 4
+		global core_pm_hook
+core_pm_hook:	dd core_pm_null_hook
 
 		bits 16
 		section .text16
