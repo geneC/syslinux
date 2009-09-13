@@ -64,9 +64,8 @@ pxe_isr:
 		pop ds
 		popa
 		jmp 0:0
-pxe_irq_chain	equ $-4
-
 		global pxe_irq_chain
+pxe_irq_chain	equ $-4
 
 		section .bss16
 		alignb 4
