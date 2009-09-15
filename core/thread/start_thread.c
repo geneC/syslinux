@@ -13,7 +13,7 @@ struct thread_stack {
     void (*eip)(void);
 };
 
-struct thread *start_thread(size_t stack_size, int prio,
+struct thread *start_thread(const char *name, size_t stack_size, int prio,
 			    void (*start_func)(void *), void *func_arg)
 {
     irq_state_t irq;
@@ -42,6 +42,7 @@ struct thread *start_thread(size_t stack_size, int prio,
     sp->ebx = irq_state();	/* Inherit the IRQ state from the spawner */
     sp->eip = __start_thread;
     t->prio = prio;
+    t->name = name;
 
     irq = irq_save();
     curr = current();

@@ -22,6 +22,7 @@ struct thread_block {
 
 struct thread {
     void *esp;			/* Must be first; stack pointer */
+    const char *name;		/* Name (for debugging) */
     struct thread_list  list;
     struct thread_block *blocked;
     void *pvt; 			/* For the benefit of lwIP */
@@ -82,7 +83,7 @@ static inline void irq_restore(irq_state_t __st)
     asm volatile("pushl %0 ; popfl" : : "rm" (__st));
 }
 
-struct thread *start_thread(size_t stack_size, int prio,
+struct thread *start_thread(const char *name, size_t stack_size, int prio,
 			    void (*start_func)(void *), void *func_arg);
 void __exit_thread(void);
 void kill_thread(struct thread *);
