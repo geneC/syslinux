@@ -46,6 +46,15 @@ struct semaphore {
     struct thread_list list;
 };
 
+#define DECLARE_INIT_SEMAPHORE(sem, cnt)	\
+    struct semaphore sem = {			\
+	.count = (cnt),				\
+	.list =	{				\
+            .next = &sem.list,			\
+            .prev = &sem.list                   \
+        }					\
+    }
+
 mstime_t sem_down(struct semaphore *, mstime_t);
 void sem_up(struct semaphore *);
 void sem_init(struct semaphore *, int);
