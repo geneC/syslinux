@@ -374,17 +374,9 @@ SECTIONS
 	. = ALIGN(65536);
 	free_high_memory = .;
 
-	/* 
-	 * We don't need .rel.dyn so put it here where we can simply
-	 * remove it.  Putting it in /DISCARD/ doesn't work because it
-	 * is linker-generated.
-	 */
-	.rel.dyn : {
-		*(.rel.dyn)
-	}
-
 	/* Stuff we don't need... */
 	/DISCARD/ : {
+		*(.rel.*)		/* Input sections to .rel.dyn */
 		*(.interp)
 		*(.eh_frame)
 	}
