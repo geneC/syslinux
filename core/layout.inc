@@ -39,6 +39,7 @@ LATEBSS_START	equ 0B800h
 		section .config		write progbits align=4
 		section .replacestub	exec write progbits align=16
 		section .gentextnr	exec write nobits align=16
+		section .stack16	write nobits align=16
 
 		; Use .bss16 for things that doesn't have to be in low memory;
 		; .earlybss should be used for things that absolutely have
