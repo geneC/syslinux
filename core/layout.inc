@@ -97,6 +97,9 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		; the spillover from the last fractional sector load.
 		section .uibss		write nobits align=16
 
+		; Put this here to get the appropriate flags on .stack
+		section .stack		write nobits align=16
+
 		; Symbols from linker script
 %macro SECINFO 1
 		extern __%1_start, __%1_lma, __%1_end
