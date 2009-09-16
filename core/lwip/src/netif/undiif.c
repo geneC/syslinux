@@ -55,9 +55,14 @@
 #include <lwip/snmp.h>
 #include "netif/etharp.h"
 #include "netif/ppp_oe.h"
+#include "lwip/netifapi.h"
+#include "lwip/tcpip.h"
 
-#include <syslinux/pxe_api.h>
+#include <inttypes.h>
 #include <string.h>
+#include <syslinux/pxe_api.h>
+#include <core.h>
+#include <dprintf.h>
 
 int pxe_call(int, void *);
 #define PKTBUF_SIZE	2048
@@ -66,7 +71,7 @@ int pxe_call(int, void *);
 #define IFNAME0 'u'
 #define IFNAME1 'n'
 
-static struct netif *undi_netif;
+static struct netif undi_netif;
 
 /**
  * In this function, the hardware should be initialized.
@@ -292,7 +297,7 @@ void undiif_input(t_PXENV_UNDI_ISR *isr)
   case ETHTYPE_PPPOE:
 #endif /* PPPOE_SUPPORT */
     /* full packet send to tcpip_thread to process */
-    if (undi_netif->input(p, undi_netif)!=ERR_OK)
+    if (undi_netif.input(p, &undi_netif)!=ERR_OK)
      { LWIP_DEBUGF(NETIF_DEBUG, ("undiif_input: IP input error\n"));
        pbuf_free(p);
        p = NULL;
@@ -318,17 +323,44 @@ void undiif_input(t_PXENV_UNDI_ISR *isr)
  *         ERR_MEM if private data couldn't be allocated
  *         any other err_t on error
  */
-err_t
+extern uint8_t pxe_irq_vector;
+extern void pxe_isr(void);
+
+/* XXX: move this somewhere sensible */
+static void install_irq_vector(uint8_t irq, void (*isr)(void))
+{
+  unsigned int vec;
+
+  if (irq < 8)
+    vec = irq + 0x08;
+  else if (irq < 16)
+    vec = (irq - 8) + 0x70;
+  else
+    return;			/* ERROR */
+  
+  *(uint32_t *)(vec << 2) = (uint32_t)isr;
+}
+
+static err_t
 undiif_init(struct netif *netif)
 {
+  static __lowmem t_PXENV_UNDI_GET_INFORMATION undi_info;
+
   LWIP_ASSERT("netif != NULL", (netif != NULL));
-
-  undi_netif = netif;
-
 #if LWIP_NETIF_HOSTNAME
   /* Initialize interface hostname */
   netif->hostname = "undi";
 #endif /* LWIP_NETIF_HOSTNAME */
+
+  pxe_call(PXENV_UNDI_GET_INFORMATION, &undi_info);
+
+  dprintf("UNDI: baseio %04x int %d MTU %d type %d\n",
+	  undi_info.BaseIo, undi_info.IntNumber, undi_info.MaxTranUnit,
+	  undi_info.HwType);
+
+  /* Install the interrupt vector */
+  pxe_irq_vector = undi_info.IntNumber;
+  install_irq_vector(pxe_irq_vector, pxe_isr);
 
   /*
    * Initialize the snmp variables and counters inside the struct netif.
@@ -351,4 +383,17 @@ undiif_init(struct netif *netif)
   low_level_init(netif);
 
   return ERR_OK;
+}
+
+err_t undi_tcpip_start(struct ip_addr *ipaddr,
+		       struct ip_addr *netmask,
+		       struct ip_addr *gw)
+{
+  // Start the TCP/IP thread & init stuff
+  tcpip_init(NULL, NULL);
+
+  // This should be done *after* the threading system and receive thread
+  // have both been started.
+  return netifapi_netif_add(&undi_netif, ipaddr, netmask, gw, NULL,
+			    undiif_init, ethernet_input);
 }

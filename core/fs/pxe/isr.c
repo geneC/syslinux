@@ -28,7 +28,8 @@ static void pm_return(void)
 
     if (pxe_irq_pending) {
 	pxe_irq_pending = 0;
-	sem_up(&pxe_receive_thread_sem);
+	if (pxe_receive_thread_sem.count <= 0)
+	  sem_up(&pxe_receive_thread_sem);
     }
 
     __schedule_lock--;

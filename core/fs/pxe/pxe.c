@@ -6,6 +6,9 @@
 #include <minmax.h>
 #include <sys/cpu.h>
 #include "pxe.h"
+#if 1
+#include "lwip/api.h"
+#endif
 
 static uint16_t real_base_mem;	   /* Amount of DOS memory after freeing */
 
@@ -1057,7 +1060,16 @@ static void network_init(void)
     if ((DHCPMagic & 1) == 0)
         DHCPMagic = 0;
 
+#if 1
+    extern err_t undi_tcpip_start(struct ip_addr *ipaddr,
+				  struct ip_addr *netmask,
+				  struct ip_addr *gw);
+    undi_tcpip_start((struct ip_addr *)&IPInfo.myip,
+	    	     (struct ip_addr *)&IPInfo.netmask,
+		     (struct ip_addr *)&IPInfo.gateway);
+#else
     udp_init();
+#endif
 }
 
 /*
