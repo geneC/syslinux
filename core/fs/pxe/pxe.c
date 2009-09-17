@@ -1007,8 +1007,12 @@ static void lwip_test(void)
     struct netconn *conn;
     char header_buf[512];
     int header_len;
-    static const char host_str[] = "www.zytor.com";
+    static const char host_str[] = "www3.kernel.org";
     struct netbuf *buf;
+    mstime_t t0, t1;
+    size_t bytes, x_bytes;
+    bool found_eoh;
+    int found_nl;
 
     /* Test the lwIP stack by trying to open a HTTP connection... */
     printf("Starting lwIP test...\n");
@@ -1027,13 +1031,18 @@ static void lwip_test(void)
     printf("netconn_connect error %d\n", err);
 
     header_len = snprintf(header_buf, sizeof header_buf,
-			  "GET /lwip_test HTTP/1.0\r\n"
+			  "GET /pub/linux/kernel/v2.6/linux-2.6.31.tar.gz HTTP/1.0\r\n"
 			  "Host: %s\r\n"
 			  "\r\n",
 			  host_str);
 
     err = netconn_write(conn, header_buf, header_len, NETCONN_NOCOPY);
     printf("netconn_write error %d\n", err);
+    bytes = x_bytes = 0;
+    found_nl = 0;
+    found_eoh = false;
+
+    t0 = ms_timer();
     for (;;) {
 	void *data;
 	char *p;
@@ -1043,16 +1052,37 @@ static void lwip_test(void)
 	if (!buf)
 	    break;
 
-	netbuf_data(buf, &data, &len);
-
-	p = data;
-	while (len--)
-	    putchar (*p++);
+	do {
+	    netbuf_data(buf, &data, &len);
+	    p = data;
+	    while (__unlikely(!found_eoh && len)) {
+		printf("%c", *p);
+		switch (*p) {
+		case '\r':
+		    break;
+		case '\n':
+		    if (++found_nl == 2)
+			found_eoh = true;
+		    break;
+		default:
+		    found_nl = 0;
+		    break;
+		}
+		p++;
+		len--;
+	    }
+	    bytes += len;
+	    if ((bytes^x_bytes) >> 20) {
+		printf("%dM\r", bytes >> 20);
+		x_bytes = bytes;
+	    }
+	} while (netbuf_next(buf) >= 0);
 
 	netbuf_delete(buf);
     }
-	
-    printf("\n[End transmission]\n");
+    t1 = ms_timer();
+
+    printf("Done: %zu bytes in %u ms\n", bytes, (t1-t0));
 
     netconn_disconnect(conn);
 
