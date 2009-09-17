@@ -80,13 +80,37 @@ static struct netif undi_netif;
  * @param netif the already initialized lwip network interface structure
  *        for this undiif
  */
+extern uint8_t pxe_irq_vector;
+extern void pxe_isr(void);
+
+/* XXX: move this somewhere sensible */
+static void install_irq_vector(uint8_t irq, void (*isr)(void))
+{
+  unsigned int vec;
+
+  if (irq < 8)
+    vec = irq + 0x08;
+  else if (irq < 16)
+    vec = (irq - 8) + 0x70;
+  else
+    return;			/* ERROR */
+  
+  *(uint32_t *)(vec << 2) = (uint32_t)isr;
+}
+
 static void
 low_level_init(struct netif *netif)
 {
   static __lowmem t_PXENV_UNDI_GET_INFORMATION undi_info;
+  static __lowmem t_PXENV_UNDI_OPEN undi_open;
+  int i;
   /* struct undiif *undiif = netif->state; */
 
   pxe_call(PXENV_UNDI_GET_INFORMATION, &undi_info);
+
+  dprintf("UNDI: baseio %04x int %d MTU %d type %d\n",
+	 undi_info.BaseIo, undi_info.IntNumber, undi_info.MaxTranUnit,
+	 undi_info.HwType);
 
   /* set MAC hardware address length */
   netif->hwaddr_len = undi_info.HwAddrLen;
@@ -97,11 +121,22 @@ low_level_init(struct netif *netif)
   /* maximum transfer unit */
   netif->mtu = undi_info.MaxTranUnit;
 
+  dprintf("UNDI: hw address");
+  for (i = 0; i < netif->hwaddr_len; i++)
+      dprintf("%c%02x", i ? ':' : ' ', (uint8_t)netif->hwaddr[i]);
+  dprintf("\n");
+
   /* device capabilities */
   /* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
   netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_LINK_UP;
 
-  /* Do whatever else is needed to initialize interface. */
+  /* Install the interrupt vector */
+  pxe_irq_vector = undi_info.IntNumber;
+  install_irq_vector(pxe_irq_vector, pxe_isr);
+
+  /* Open the UNDI stack - you'd think the BC would have done this... */
+  undi_open.PktFilter = 0x0003;	/* FLTR_DIRECTED | FLTR_BRDCST */
+  pxe_call(PXENV_UNDI_OPEN, &undi_open);
 }
 
 /**
@@ -152,16 +187,17 @@ low_level_output(struct netif *netif, struct pbuf *p)
     r += q->len;
   }
 
+  //printf("undiif_output, len = %d ", r - pkt_buf);
+
   do {
       memset(&pxe, 0, sizeof pxe);
 
       pxe.xmit.Protocol = 0;	/* XXX: P_UNKNOWN: MAC layer */
       pxe.xmit.XmitFlag = !memcmp(pkt_buf, eth_broadcast, sizeof eth_broadcast);
-      pxe.xmit.DestAddr = FAR_PTR(pkt_buf);
+      pxe.xmit.DestAddr = FAR_PTR(&pxe.tbd); /* This is what gPXE does?? */
       pxe.xmit.TBD = FAR_PTR(&pxe.tbd);
       pxe.tbd.ImmedLength = r - pkt_buf;
       pxe.tbd.Xmit = FAR_PTR(pkt_buf);
-      pxe.tbd.DataBlkCount = 0;
 
       pxe_call(PXENV_UNDI_TRANSMIT, &pxe.xmit);
   } while (pxe.xmit.Status == PXENV_STATUS_OUT_OF_RESOURCES);
@@ -201,6 +237,8 @@ low_level_input(t_PXENV_UNDI_ISR *isr)
   /* Obtain the size of the packet and put it into the "len"
      variable. */
   len = isr->FrameLength;
+
+  //printf("undiif_input, len = %d\n", len);
 
 #if ETH_PAD_SIZE
   len += ETH_PAD_SIZE; /* allow room for Ethernet padding */
@@ -323,44 +361,14 @@ void undiif_input(t_PXENV_UNDI_ISR *isr)
  *         ERR_MEM if private data couldn't be allocated
  *         any other err_t on error
  */
-extern uint8_t pxe_irq_vector;
-extern void pxe_isr(void);
-
-/* XXX: move this somewhere sensible */
-static void install_irq_vector(uint8_t irq, void (*isr)(void))
-{
-  unsigned int vec;
-
-  if (irq < 8)
-    vec = irq + 0x08;
-  else if (irq < 16)
-    vec = (irq - 8) + 0x70;
-  else
-    return;			/* ERROR */
-  
-  *(uint32_t *)(vec << 2) = (uint32_t)isr;
-}
-
 static err_t
 undiif_init(struct netif *netif)
 {
-  static __lowmem t_PXENV_UNDI_GET_INFORMATION undi_info;
-
   LWIP_ASSERT("netif != NULL", (netif != NULL));
 #if LWIP_NETIF_HOSTNAME
   /* Initialize interface hostname */
   netif->hostname = "undi";
 #endif /* LWIP_NETIF_HOSTNAME */
-
-  pxe_call(PXENV_UNDI_GET_INFORMATION, &undi_info);
-
-  dprintf("UNDI: baseio %04x int %d MTU %d type %d\n",
-	  undi_info.BaseIo, undi_info.IntNumber, undi_info.MaxTranUnit,
-	  undi_info.HwType);
-
-  /* Install the interrupt vector */
-  pxe_irq_vector = undi_info.IntNumber;
-  install_irq_vector(pxe_irq_vector, pxe_isr);
 
   /*
    * Initialize the snmp variables and counters inside the struct netif.
@@ -389,11 +397,33 @@ err_t undi_tcpip_start(struct ip_addr *ipaddr,
 		       struct ip_addr *netmask,
 		       struct ip_addr *gw)
 {
+  err_t err;
+
   // Start the TCP/IP thread & init stuff
   tcpip_init(NULL, NULL);
 
   // This should be done *after* the threading system and receive thread
   // have both been started.
-  return netifapi_netif_add(&undi_netif, ipaddr, netmask, gw, NULL,
-			    undiif_init, ethernet_input);
+  dprintf("undi_netif: ip %d.%d.%d.%d netmask %d.%d.%d.%d gw %d.%d.%d.%d\n",
+	 ((uint8_t *)ipaddr)[0],
+	 ((uint8_t *)ipaddr)[1],
+	 ((uint8_t *)ipaddr)[2],
+	 ((uint8_t *)ipaddr)[3],
+	 ((uint8_t *)netmask)[0],
+	 ((uint8_t *)netmask)[1],
+	 ((uint8_t *)netmask)[2],
+	 ((uint8_t *)netmask)[3],
+	 ((uint8_t *)gw)[0],
+	 ((uint8_t *)gw)[1],
+	 ((uint8_t *)gw)[2],
+	 ((uint8_t *)gw)[3]);
+  err = netifapi_netif_add(&undi_netif, ipaddr, netmask, gw, NULL,
+			   undiif_init, ethernet_input);
+  if (err)
+    return err;
+
+  netif_set_up(&undi_netif);
+  netif_set_default(&undi_netif); /* Make this interface the default route */
+
+  return ERR_OK;
 }
