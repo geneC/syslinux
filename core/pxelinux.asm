@@ -224,6 +224,21 @@ StackBuf	equ $			; Base of stack if we use our own
 ;
 bootsec		equ $
 _start:
+		jmp 0:_start1		; Canonicalize the address and skip
+					; the patch header
+
+;
+; Patch area for adding hardwired DHCP options
+;
+		align 4
+
+hcdhcp_magic	dd 0x2983c8ac		; Magic number
+		dd 5*4			; Size of this structure
+hcdhcp_offset	dd 0			; Offset (entered by patcher)
+hcdhcp_len	dd 0			; Length (entered by patcher)
+hcdhcp_flags	dd 0			; Reserved for the future
+
+_start1:
 		pushfd			; Paranoia... in case of return to PXE
 		pushad			; ... save as much state as possible
 		push ds
@@ -236,8 +251,6 @@ _start:
 		mov ds,ax
 		mov es,ax
 
-		jmp 0:_start1		; Canonicalize address
-_start1:
 		; That is all pushed onto the PXE stack.  Save the pointer
 		; to it and switch to an internal stack.
 		mov [InitStack],sp
@@ -252,6 +265,31 @@ _start1:
 
 		lss esp,[BaseStack]
 		sti			; Stack set up and ready
+;
+; Move the hardwired DHCP options (if present) to a safe place...
+;
+hcdhcp_copy:
+		mov cx,[hcdhcp_len]
+		mov ax,trackbufsize
+		jcxz .none
+		cmp cx,ax
+		jbe .oksize
+		mov cx,ax
+		mov [hcdhcp_len],ax
+.oksize:
+		mov eax,[hcdhcp_offset]
+		add eax,_start
+		mov si,ax
+		and si,000Fh
+		shr eax,4
+		push ds
+		mov ds,ax
+		mov di,trackbuf
+		add cx,3
+		shr cx,2
+		rep movsd
+		pop ds
+.none:
 
 ;
 ; Initialize screen (if we're using one)
@@ -525,6 +563,24 @@ have_entrypoint:
 		xor ax,ax
 		mov [LocalDomain],al		; No LocalDomain received
 
+
+; This is a good time to initialize DHCPMagic...
+; Initialize it to 1 meaning we will accept options found;
+; in earlier versions of PXELINUX bit 0 was used to indicate
+; we have found option 208 with the appropriate magic number;
+; we no longer require that, but MAY want to re-introduce
+; it in the future for vendor encapsulated options.
+		mov byte [DHCPMagic],1
+
+;
+; Process any hardwired options the user may have specified.  This is
+; different than the actual packets in that there is no header, just
+; an option field.
+;
+		mov cx,[hcdhcp_len]
+		mov si,trackbuf
+		call parse_dhcp_options
+
 ;
 ; The DHCP client identifiers are best gotten from the DHCPREQUEST
 ; packet (query info 1).
@@ -536,15 +592,6 @@ query_bootp_1:
 		mov dl,1
 		call pxe_get_cached_info
 		call parse_dhcp
-
-		; We don't use flags from the request packet, so
-		; this is a good time to initialize DHCPMagic...
-		; Initialize it to 1 meaning we will accept options found;
-		; in earlier versions of PXELINUX bit 0 was used to indicate
-		; we have found option 208 with the appropriate magic number;
-		; we no longer require that, but MAY want to re-introduce
-		; it in the future for vendor encapsulated options.
-		mov byte [DHCPMagic],1
 
 ;
 ; Now attempt to get the BOOTP/DHCP packet that brought us life (and an IP
