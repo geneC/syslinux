@@ -3,6 +3,7 @@
 sem_down:
 	decl	(%eax)
 	js	__sem_down_slow
+	xorl	%eax, %eax
 	ret
 	.size	sem_down, .-sem_down
 
