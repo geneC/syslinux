@@ -292,8 +292,13 @@ dns_init()
 void
 dns_setserver(u8_t numdns, struct ip_addr *dnsserver)
 {
+  /*
+   * hpa: the lwip code has the dnsserver->addr != 0 test, but that would
+   * seem to indicate that there is no way to cancel a previously given
+   * DNS server...
+   */
   if ((numdns < DNS_MAX_SERVERS) && (dns_pcb != NULL) &&
-      (dnsserver != NULL) && (dnsserver->addr !=0 )) {
+      (dnsserver != NULL) /* && (dnsserver->addr !=0) */) {
     dns_servers[numdns] = (*dnsserver);
   }
 }
