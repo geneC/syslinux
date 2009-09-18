@@ -1011,8 +1011,10 @@ static void lwip_test(void)
     struct netbuf *buf;
     mstime_t t0, t1;
     size_t bytes, x_bytes;
+    size_t ms, kbits_per_sec;
     bool found_eoh;
     int found_nl;
+    int i;
 
     /* Test the lwIP stack by trying to open a HTTP connection... */
     printf("Starting lwIP test...\n");
@@ -1024,67 +1026,74 @@ static void lwip_test(void)
 	   ((uint8_t *)&ip)[3],
 	   err);
 
-    conn = netconn_new(NETCONN_TCP);
-    printf("netconn_new returned %p\n", conn);
-
-    err = netconn_connect(conn, &ip, 80);
-    printf("netconn_connect error %d\n", err);
-
-    header_len = snprintf(header_buf, sizeof header_buf,
-			  "GET /pub/linux/kernel/v2.6/linux-2.6.31.tar.gz HTTP/1.0\r\n"
-			  "Host: %s\r\n"
-			  "\r\n",
-			  host_str);
-
-    err = netconn_write(conn, header_buf, header_len, NETCONN_NOCOPY);
-    printf("netconn_write error %d\n", err);
-    bytes = x_bytes = 0;
-    found_nl = 0;
-    found_eoh = false;
-
-    t0 = ms_timer();
-    for (;;) {
-	void *data;
-	char *p;
-	u16_t len;
-
-	buf = netconn_recv(conn);
-	if (!buf)
-	    break;
-
-	do {
-	    netbuf_data(buf, &data, &len);
-	    p = data;
-	    while (__unlikely(!found_eoh && len)) {
-		printf("%c", *p);
-		switch (*p) {
-		case '\r':
+    for (i = 1; i < 20; i++) {
+	conn = netconn_new(NETCONN_TCP);
+	err = netconn_connect(conn, &ip, 80);
+	if (err) {
+	    printf("netconn_connect error %d\n", err);
+	    continue;
+	}
+	
+	header_len = snprintf(header_buf, sizeof header_buf,
+				  "GET /pub/linux/kernel/v2.6/linux-2.6.31.tar.gz HTTP/1.0\r\n"
+				  "Host: %s\r\n"
+				  "\r\n",
+				  host_str);
+	
+	err = netconn_write(conn, header_buf, header_len, NETCONN_NOCOPY);
+	if (err)
+	    printf("netconn_write error %d\n", err);
+	bytes = x_bytes = 0;
+	found_nl = 0;
+	found_eoh = false;
+	
+	t0 = ms_timer();
+	for (;;) {
+		void *data;
+		char *p;
+		u16_t len;
+	
+		buf = netconn_recv(conn);
+		if (!buf)
 		    break;
-		case '\n':
-		    if (++found_nl == 2)
-			found_eoh = true;
-		    break;
-		default:
-		    found_nl = 0;
-		    break;
-		}
-		p++;
-		len--;
-	    }
-	    bytes += len;
-	    if ((bytes^x_bytes) >> 20) {
-		printf("%dM\r", bytes >> 20);
-		x_bytes = bytes;
-	    }
-	} while (netbuf_next(buf) >= 0);
+	
+		do {
+		    netbuf_data(buf, &data, &len);
+		    p = data;
+		    while (__unlikely(!found_eoh && len)) {
+			switch (*p) {
+			case '\r':
+			    break;
+			case '\n':
+			    if (++found_nl == 2)
+				found_eoh = true;
+			    break;
+			default:
+			    found_nl = 0;
+			    break;
+			}
+			p++;
+			len--;
+		    }
+		    bytes += len;
+		    if ((bytes^x_bytes) >> 20) {
+			printf("%dM\r", bytes >> 20);
+			x_bytes = bytes;
+		    }
+		} while (netbuf_next(buf) >= 0);
+	
+		netbuf_delete(buf);
+	}
+	t1 = ms_timer();
+	ms = t1 - t0;
 
-	netbuf_delete(buf);
+	kbits_per_sec = (bytes << 3) / ms;	
+
+	printf("Done: %zu bytes in %u ms (%u.%03u Mbps)\n",
+	       bytes, ms, kbits_per_sec/1000, kbits_per_sec%1000);
+	
+	netconn_disconnect(conn);
     }
-    t1 = ms_timer();
-
-    printf("Done: %zu bytes in %u ms\n", bytes, (t1-t0));
-
-    netconn_disconnect(conn);
 
     for(;;)
 	asm volatile("hlt");
