@@ -91,6 +91,12 @@ static void pxe_receive_thread(void *dummy)
 void pxe_init_isr(void)
 {
     start_idle_thread();
-    start_thread("pxe receive", 16384, 0, pxe_receive_thread, NULL);
+    /*
+     * Run the pxe receive thread at elevated priority, since the UNDI
+     * stack is likely to have very limited memory available; therefore to
+     * avoid packet loss we need to move it into memory that we ourselves
+     * manage, as soon as possible.
+     */
+    start_thread("pxe receive", 16384, -20, pxe_receive_thread, NULL);
     core_pm_hook = pm_return;
 }
