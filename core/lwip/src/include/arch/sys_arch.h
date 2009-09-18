@@ -11,6 +11,7 @@ typedef struct mailbox   *sys_mbox_t;
 typedef struct thread    *sys_thread_t;
 
 #define sys_sem_signal(x) sem_up(x)
+#define sys_now ms_timer
 
 #define SYS_MBOX_NULL	NULL
 #define SYS_SEM_NULL	NULL
