@@ -1000,6 +1000,24 @@ static void udp_init(void)
 }
 #endif
 
+static void undi_clear_stats(void)
+{
+    static __lowmem t_PXENV_UNDI_CLEAR_STATISTICS clear;
+
+    pxe_call(PXENV_UNDI_CLEAR_STATISTICS, &clear);
+}
+
+static void undi_stats(void)
+{
+    static __lowmem t_PXENV_UNDI_GET_STATISTICS stats;
+
+    pxe_call(PXENV_UNDI_GET_STATISTICS, &stats);
+
+    printf("UNDI: Xmit %u Rcv %u CRC %u Resource %u\n",
+	   stats.XmtGoodFrames, stats.RcvGoodFrames,
+	   stats.RcvCRCErrors, stats.RcvResourceErrors);
+}
+
 static void lwip_test(void)
 {
     err_t err;
@@ -1008,6 +1026,7 @@ static void lwip_test(void)
     char header_buf[512];
     int header_len;
     static const char host_str[] = "www3.kernel.org";
+    static const char path_str[] = "/pub/linux/kernel/v2.6/linux-2.6.31.tar.gz";
     struct netbuf *buf;
     mstime_t t0, t1;
     size_t bytes, x_bytes;
@@ -1026,7 +1045,9 @@ static void lwip_test(void)
 	   ((uint8_t *)&ip)[3],
 	   err);
 
-    for (i = 1; i < 20; i++) {
+    for (i = 1; i < 10; i++) {
+	undi_clear_stats();
+
 	conn = netconn_new(NETCONN_TCP);
 	err = netconn_connect(conn, &ip, 80);
 	if (err) {
@@ -1035,10 +1056,10 @@ static void lwip_test(void)
 	}
 	
 	header_len = snprintf(header_buf, sizeof header_buf,
-				  "GET /pub/linux/kernel/v2.6/linux-2.6.31.tar.gz HTTP/1.0\r\n"
+				  "GET %s HTTP/1.0\r\n"
 				  "Host: %s\r\n"
 				  "\r\n",
-				  host_str);
+				  path_str, host_str);
 	
 	err = netconn_write(conn, header_buf, header_len, NETCONN_NOCOPY);
 	if (err)
@@ -1091,6 +1112,7 @@ static void lwip_test(void)
 
 	printf("Done: %zu bytes in %u ms (%u.%03u Mbps)\n",
 	       bytes, ms, kbits_per_sec/1000, kbits_per_sec%1000);
+	undi_stats();
 	
 	netconn_disconnect(conn);
     }
