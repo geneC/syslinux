@@ -45,8 +45,8 @@
 #define LWIP_DNS		1
 #define DNS_TABLE_SIZE		16
 #define DNS_MAX_SERVERS		4
-#define TCP_WND			0xff00
 #define TCP_MSS			1460
+#define TCP_WND			0xf800
 #define TCP_SND_BUF		4096
 
 #endif /* __LWIPOPTS_H__ */
