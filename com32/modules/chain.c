@@ -446,7 +446,7 @@ static void do_boot(void *boot_sector, size_t boot_size,
     mmap = syslinux_memory_map();
 
     if (!mmap) {
-	error("Cannot read system memory map");
+	error("Cannot read system memory map\n");
 	return;
     }
 
@@ -547,11 +547,11 @@ static void do_boot(void *boot_sector, size_t boot_size,
     return;
 
 too_big:
-    error("Loader file too large");
+    error("Loader file too large\n");
     return;
 
 enomem:
-    error("Out of memory");
+    error("Out of memory\n");
     return;
 }
 
@@ -614,7 +614,7 @@ int main(int argc, char *argv[])
 	} else if (!strncmp(argv[i], "seg=", 4)) {
 	    uint32_t segval = strtoul(argv[i] + 4, NULL, 0);
 	    if (segval < 0x50 || segval > 0x9f000) {
-		error("Invalid segment");
+		error("Invalid segment\n");
 		goto bail;
 	    }
 	    opt.seg = segval;
