@@ -231,6 +231,10 @@ void compute_processor(struct s_my_menu *menu, struct s_hardware *hardware)
     strcat(buffer1, "3dnowext ");
   if (hardware->cpu.flags.now)
     strcat(buffer1, "3dnow! ");
+  if (hardware->cpu.flags.vmx)
+    strcat(buffer1, "vmx ");
+  if (hardware->cpu.flags.svm)
+    strcat(buffer1, "svm ");
   snprintf(buffer, sizeof buffer, "Flags     : %s", buffer1);
   snprintf(statbuffer, sizeof statbuffer, "Flags: %s", buffer1);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
