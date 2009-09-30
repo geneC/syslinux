@@ -16,10 +16,10 @@ use bytes;
     211 => 'reboottime'
     );
 
-@fmt_oneip   = (\&parse_oneip, \&show_ip);
-@fmt_multiip = (\&parse_multiip, \&show_ip);
-@fmt_string  = (\&parse_string, \&show_string);
-@fmt_uint32  = (\&parse_uint32, \&show_uint32);
+@fmt_oneip   = ("ip-address", \&parse_oneip, \&show_ip);
+@fmt_multiip = ("ip-address-list", \&parse_multiip, \&show_ip);
+@fmt_string  = ("string", \&parse_string, \&show_string);
+@fmt_uint32  = ("uint32", \&parse_uint32, \&show_uint32);
 
 %option_format = (
       6 => \@fmt_multiip,
@@ -161,7 +161,7 @@ sub parse_option($$)
     my $v;
 
     if (defined($option_format{$opt})) {
-	$v = $option_format{$opt}[0]($arg);
+	$v = $option_format{$opt}[1]($arg);
 	return $v if (defined($v));
     }
 
@@ -174,7 +174,7 @@ sub show_option($$)
     my $v;
 
     if (defined($option_format{$opt})) {
-	$v = $option_format{$opt}[1]($arg);
+	$v = $option_format{$opt}[2]($arg);
 	return $v if (defined($v));
     }
 
@@ -327,7 +327,24 @@ sub list_options($$)
 
 sub usage()
 {
-    print STDERR "FIX USAGE MESSAGE\n";
+    my $i;
+
+    print STDERR "Usage: $0 options pxelinux.0\n";
+    print STDERR "Options:\n";
+    print STDERR "--before option value   -b   Add an option before DHCP data\n";
+    print STDERR "--after  option value   -a   Add an option after DHCP data\n";
+    print STDERR "--delete option         -d   Delete an option\n";
+    print STDERR "--list                  -l   List set options\n";
+    print STDERR "--dry-run               -n   Don't modify the target file\n";
+    print STDERR "--help                  -h   Display this help text\n";
+    print STDERR "\n";
+    print STDERR "The following DHCP options are currently recognized:\n";
+    printf STDERR "%-23s %-3s  %s\n", 'Name', 'Num', 'Value Format';
+
+    foreach $i (sort { $a <=> $b } keys(%option_names)) {
+	printf STDERR "%-23s %3d  %s\n",
+		$option_names{$i}, $i, $option_format{$i}[0];
+    }
 }
 
 %option_rnames = ();
