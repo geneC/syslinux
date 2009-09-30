@@ -295,6 +295,8 @@ void set_cpu_flags(struct cpuinfo_x86 *c, s_cpu * cpu)
     cpu->flags.nowext = cpu_has(c, X86_FEATURE_3DNOWEXT);
     cpu->flags.now = cpu_has(c, X86_FEATURE_3DNOW);
     cpu->flags.smp = find_smp_config();
+    cpu->flags.vmx = cpu_has(c, X86_FEATURE_VMX);
+    cpu->flags.svm = cpu_has(c, X86_FEATURE_SVM);
 }
 
 void set_generic_info(struct cpuinfo_x86 *c, s_cpu * cpu)
