@@ -21,7 +21,8 @@ CFLAGS   = -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 LDFLAGS  = -O2 -s
 
 TARGETS	 = mkdiskimage isohybrid gethostip
-ASIS     = keytab-lilo lss16toppm md5pass ppmtolss16 sha1pass syslinux2ansi
+ASIS     = keytab-lilo lss16toppm md5pass ppmtolss16 sha1pass syslinux2ansi \
+	   pxelinux-options
 
 ISOHDPFX = ../mbr/isohdpfx.bin ../mbr/isohdpfx_f.bin ../mbr/isohdpfx_c.bin \
 	   ../mbr/isohdppx.bin ../mbr/isohdppx_f.bin ../mbr/isohdppx_c.bin
