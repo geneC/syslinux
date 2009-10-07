@@ -45,6 +45,7 @@ hdt.img: hdt.c32 floppy/hdt.cfg floppy/mtools.conf $(topdir)/mtools/syslinux
 	-[ ! -f $(PCI_IDS_FILE) ] && cp /usr/share/pci.ids $(PCI_IDS_FILE)
 	-[ -f $(MODULES_ALIAS_FILE) ] && MTOOLSRC=$(PWD)/floppy/mtools.conf $(MCOPY) $(MODULES_ALIAS_FILE) a:
 	-[ -f $(MODULES_PCIMAP_FILE) ] && MTOOLSRC=$(PWD)/floppy/mtools.conf $(MCOPY) $(MODULES_PCIMAP_FILE) a:
+	MTOOLSRC=$(PWD)/floppy/mtools.conf $(MCOPY) hdt.c32 a:
 	@ [ -f $(PCI_IDS_FILE) ] && MTOOLSRC=$(PWD)/floppy/mtools.conf $(MCOPY) $(PCI_IDS_FILE) a: || printf "\nThe floppy/pci.ids file is missing and can be downloaded from http://pciids.sourceforge.net and put in\nthe ./com32/hdt/floppy directory of the extracted Syslinux source.\n\n"
 	MTOOLSRC=$(PWD)/floppy/mtools.conf $(MCOPY) floppy/hdt.cfg a:syslinux.cfg
 
