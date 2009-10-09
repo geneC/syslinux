@@ -36,7 +36,9 @@
 #include "syslinux/boot.h"
 #include "syslinux/loadfile.h"
 #include "syslinux/linux.h"
+#include "../../../menu/libmenu/com32io.h"
 
+int __parse_argv(char ***argv, const char *str);
 
 /*
  * Most code taken from:
@@ -139,12 +141,14 @@ static int sl_run_command(lua_State *L)
   return 0;
 }
 
+/* do default boot */
 static int sl_run_default(lua_State *L)
 {
   syslinux_run_default();
   return 0;
 }
 
+/* do local boot */
 static int sl_local_boot(lua_State *L)
 {
   uint16_t flags = luaL_checkint(L, 1);
@@ -159,67 +163,101 @@ static int sl_final_cleanup(lua_State *L)
   return 0;
 }
 
+/* boot linux kernel and initrd */
 static int sl_boot_linux(lua_State *L)
 {
   const char *kernel = luaL_checkstring(L, 1);
-  const char *initrd = luaL_checkstring(L, 2);
-  const char *cmdline = luaL_optstring(L, 3, "");
-  void *kernel_data;
-  size_t kernel_len;
+  const char *cmdline = luaL_optstring(L, 2, "");
+  char *initrd;
+  void *kernel_data, *file_data;
+  size_t kernel_len, file_len;
   struct initramfs *initramfs;
   char *newcmdline;
-  uint32_t mem_limit = luaL_optint(L, 4, 0);
-  uint16_t video_mode = luaL_optint(L, 5, 0);
-  int ret;
+  uint32_t mem_limit = luaL_optint(L, 3, 0);
+  uint16_t video_mode = luaL_optint(L, 4, 0);
+  int ret, i;
+  char **argv, **argp, *arg, *p;
 
-  newcmdline = malloc(strlen(kernel)+12+1+7+1+strlen(initrd)+1+strlen(cmdline));
+  ret = __parse_argv(&argv, cmdline);
+
+  newcmdline = malloc(strlen(kernel)+12);
   if (!newcmdline)
     printf("Mem alloc failed: cmdline\n");
 
   strcpy(newcmdline, "BOOT_IMAGE=");
   strcpy(newcmdline+strlen(newcmdline), kernel);
-  strcpy(newcmdline+strlen(newcmdline), " initrd=");
-  strcpy(newcmdline+strlen(newcmdline), initrd);
-  strcpy(newcmdline+strlen(newcmdline), " ");
-  strcpy(newcmdline+strlen(newcmdline), cmdline);
+  argv[0] = newcmdline;
+  argp = argv;
 
+  /* DEBUG */
+  for (i=0; i<ret; i++)
+    printf("%d: %s\n", i, argv[i]);
+
+  newcmdline = make_cmdline(argp);
+  if (!newcmdline)
+    printf("Creating command line failed!\n");
+
+  /* DEBUG */
   printf("Command line: %s\n", newcmdline);
 
-//  /* Look for specific command-line arguments we care about */
-//  if ((arg = find_argument(argp, "mem=")))
-//    mem_limit = saturate32(suffix_number(arg));
-//
-//  if ((arg = find_argument(argp, "vga="))) {
-//    switch (arg[0] | 0x20) {
-//    case 'a':			/* "ask" */
-//      video_mode = 0xfffd;
-//      break;
-//    case 'e':			/* "ext" */
-//      video_mode = 0xfffe;
-//      break;
-//    case 'n':			/* "normal" */
-//      video_mode = 0xffff;
-//      break;
-//    default:
-//      video_mode = strtoul(arg, NULL, 0);
-//      break;
-//    }
-//  }
-// 
+  sleep(1000);
+  
+  /* Look for specific command-line arguments we care about */
+  if ((arg = find_argument(argp, "mem=")))
+    mem_limit = saturate32(suffix_number(arg));
+
+  if ((arg = find_argument(argp, "vga="))) {
+    switch (arg[0] | 0x20) {
+    case 'a':			/* "ask" */
+      video_mode = 0xfffd;
+      break;
+    case 'e':			/* "ext" */
+      video_mode = 0xfffe;
+      break;
+    case 'n':			/* "normal" */
+      video_mode = 0xffff;
+      break;
+    default:
+      video_mode = strtoul(arg, NULL, 0);
+      break;
+    }
+  }
+ 
 
   printf("Loading kernel %s...\n", kernel);
-  if (loadfile(kernel, &kernel_data, &kernel_len)) {
-    printf("Loading kernel failed!\n");
-  }
+  if (loadfile(kernel, &kernel_data, &kernel_len))
+    printf("failed!\n");
+  else printf("ok\n");
 
   initramfs = initramfs_init();
   if (!initramfs)
     printf("Initializing initrd failed!\n");
 
-  printf("Loading initrd %s...\n", initrd);
-  if (initramfs_load_archive(initramfs, initrd)) {
-    printf("Loading initrd failed!\n");
+  if ((arg = find_argument(argp, "initrd="))) {
+    do {
+      p = strchr(arg, ',');
+      if (p)
+        *p = '\0';
+
+      initrd = arg;
+      printf("Loading initrd %s... ", initrd);
+      if (initramfs_load_archive(initramfs, initrd)) {
+        printf("failed!\n");
+      }
+      printf("ok\n");
+
+      if (p)
+        *p++ = ',';
+    } while ((arg = p));
   }
+
+  if (!loadfile("/testfile1", &file_data, &file_len)) {
+    if (initramfs_add_file(initramfs, file_data, file_len, file_len,
+                           "/testfile1", 0, 0755))
+       printf("Adding extra file failed\n");
+  } else printf("Loading extra file failed\n");
+
+  sleep(10000);
 
   ret = syslinux_boot_linux(kernel_data, kernel_len, initramfs, newcmdline,
                       video_mode, mem_limit);
@@ -227,6 +265,16 @@ static int sl_boot_linux(lua_State *L)
 
   return 0;
 }
+
+
+/* sleep for msec milliseconds */
+static int sl_sleep(lua_State *L)
+{
+  unsigned int msec = luaL_checkint(L, 1);
+  sleep(msec);
+  return 0;
+}
+
 
 static int sl_run_kernel_image(lua_State *L)
 {
@@ -246,6 +294,7 @@ static const luaL_reg syslinuxlib[] = {
   {"final_cleanup", sl_final_cleanup},
   {"boot_linux", sl_boot_linux},
   {"run_kernel_image", sl_run_kernel_image},
+  {"sleep", sl_sleep},
   {NULL, NULL}
 };
 

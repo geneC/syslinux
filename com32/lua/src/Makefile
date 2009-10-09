@@ -55,6 +55,10 @@ LIBLUA_OBJS += liolib.o
 LIBLUA_OBJS += dmi.o ../../modules/dmi.o
 LIBLUA_OBJS += pci.o
 LIBLUA_OBJS += vesa.o
+# add function __parse_argv
+LIBLUA_OBJS += ../../../com32/lib/sys/argv.o
+# add function sleep()
+LIBLUA_OBJS += ../../../menu/libmenu/com32io.o
 
 CFLAGS += -DLUA_ANSI
 
