@@ -4,9 +4,11 @@
 #include "lua.h"
 #include "lauxlib.h"
 #include "lualib.h"
+#include "../../include/console.h"
 #include "../../lib/sys/vesa/vesa.h"
 #include "../../lib/sys/vesa/video.h"
 
+int vesacon_load_background(const char *filename);
 
 static int __constfunc is_power_of_2(unsigned int x)
 {
@@ -113,8 +115,27 @@ static int vesa_getmodes(lua_State *L)
 }
 
 
+static int vesa_setmode(lua_State *L)
+{
+  openconsole(&dev_rawcon_r, &dev_vesaserial_w);
+
+  return 0;
+}
+
+
+static int vesa_load_background(lua_State *L)
+{
+  const char *filename = luaL_checkstring(L, 1);
+
+  vesacon_load_background(filename);
+
+  return 0;
+}
+
 static const luaL_reg vesalib[] = {
   {"getmodes", vesa_getmodes},
+  {"setmode", vesa_setmode},
+  {"load_background", vesa_load_background},
   {NULL, NULL}
 };
 

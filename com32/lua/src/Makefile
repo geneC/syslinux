@@ -54,7 +54,7 @@ LIBLUA_OBJS += lauxlib.o lbaselib.o ldblib.o  ltablib.o \
 LIBLUA_OBJS += liolib.o
 LIBLUA_OBJS += dmi.o ../../modules/dmi.o
 LIBLUA_OBJS += pci.o
-LIBLUA_OBJS += vesa.o
+LIBLUA_OBJS += vesa.o ../../lib/sys/vesa/initvesa.o
 # add function __parse_argv
 LIBLUA_OBJS += ../../../com32/lib/sys/argv.o
 # add function sleep()

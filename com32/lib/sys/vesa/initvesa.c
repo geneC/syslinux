@@ -88,7 +88,7 @@ static int vesacon_paged_mode_ok(const struct vesa_mode_info *mi)
   return 0;			/* Nope... */
 }
 
-static int vesacon_set_mode(void)
+int vesacon_set_mode(void)
 {
   com32sys_t rm;
   uint8_t *rom_font;
