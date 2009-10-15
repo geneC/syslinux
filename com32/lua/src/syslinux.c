@@ -258,7 +258,9 @@ static int sl_boot_linux(lua_State *L)
        printf("Adding extra file failed\n");
   } else printf("Loading extra file failed\n");
 
+  /* DEBUG
   sleep(10000);
+  */
 
   ret = syslinux_boot_linux(kernel_data, kernel_len, initramfs, newcmdline,
                       video_mode, mem_limit);
