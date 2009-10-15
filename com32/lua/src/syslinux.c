@@ -189,18 +189,19 @@ static int sl_boot_linux(lua_State *L)
   argv[0] = newcmdline;
   argp = argv;
 
-  /* DEBUG */
+  /* DEBUG
   for (i=0; i<ret; i++)
     printf("%d: %s\n", i, argv[i]);
+  */
 
   newcmdline = make_cmdline(argp);
   if (!newcmdline)
     printf("Creating command line failed!\n");
 
-  /* DEBUG */
+  /* DEBUG
   printf("Command line: %s\n", newcmdline);
-
   sleep(1000);
+  */
   
   /* Look for specific command-line arguments we care about */
   if ((arg = find_argument(argp, "mem=")))
