@@ -40,6 +40,14 @@
 
 int __parse_argv(char ***argv, const char *str);
 
+#define SYSLINUX_FILE "syslinux_file"
+
+typedef struct syslinux_file {
+  char *data;
+  char *name;
+  size_t size;
+} syslinux_file;
+
 /*
  * Most code taken from:
  *	com32/modules/linux.c
@@ -290,6 +298,108 @@ static int sl_run_kernel_image(lua_State *L)
   return 0;
 }
 
+static int sl_loadfile(lua_State *L)
+{
+  const char *filename = luaL_checkstring(L, 1);
+  syslinux_file *file;
+
+  void *file_data;
+  size_t file_len;
+
+  if (loadfile(filename, &file_data, &file_len)) {
+    lua_pushstring(L, "Could not load file");
+    lua_error(L);
+  }
+
+  file = malloc(sizeof(syslinux_file));
+  file->name = filename;
+  file->size = file_len;
+  file->data = file_data;
+
+  lua_pushlightuserdata(L, file);
+  luaL_getmetatable(L, SYSLINUX_FILE);
+  lua_setmetatable(L, -2);
+
+  return 1;
+}
+
+
+static int sl_filesize(lua_State *L)
+{
+  const syslinux_file *file = luaL_checkudata(L, 1, SYSLINUX_FILE);
+
+  lua_pushinteger(L, file->size);
+
+  return 1;
+}
+
+
+static int sl_filename(lua_State *L)
+{
+  const syslinux_file *file = luaL_checkudata(L, 1, SYSLINUX_FILE);
+
+  lua_pushstring(L, file->name);
+
+  return 1;
+}
+
+
+static int sl_initramfs_init(lua_State *L)
+{
+  struct initramfs *initramfs;
+
+  initramfs = initramfs_init();
+  if (!initramfs)
+    printf("Initializing initrd failed!\n");
+
+  lua_pushlightuserdata(L, initramfs);
+  luaL_getmetatable(L, SYSLINUX_FILE);
+  lua_setmetatable(L, -2);
+
+  return 1;
+}
+
+
+static int sl_initramfs_load_archive(lua_State *L)
+{
+  const struct initramfs *initramfs = luaL_checkudata(L, 1, SYSLINUX_FILE);
+  const char *filename = luaL_checkstring(L, 2);
+
+  if (initramfs_load_archive(initramfs, filename)) {
+    printf("failed!\n");
+  }
+
+  return 0;
+}
+
+static int sl_initramfs_add_file(lua_State *L)
+{
+  const struct initramfs *initramfs = luaL_checkudata(L, 1, SYSLINUX_FILE);
+  const char *filename = luaL_checkstring(L, 2);
+  void *file_data;
+  size_t file_len = 0;
+
+  if (initramfs_add_file(initramfs, file_data, file_len, file_len,
+                           "/testfile1", 0, 0755))
+
+  return 0;
+}
+
+static int sl_boot_it(lua_State *L)
+{
+  const syslinux_file *kernel = luaL_checkudata(L, 1, SYSLINUX_FILE);
+  const struct initramfs *initramfs = luaL_checkudata(L, 2, SYSLINUX_FILE);
+  const char *cmdline = luaL_optstring(L, 3, "");
+  uint32_t mem_limit = luaL_optint(L, 4, 0);
+  uint16_t video_mode = luaL_optint(L, 5, 0);
+  int ret;
+
+  ret = syslinux_boot_linux(kernel->data, kernel->size, initramfs, cmdline,
+                      video_mode, mem_limit);
+
+  return 0;
+}
+
 static const luaL_reg syslinuxlib[] = {
   {"run_command", sl_run_command},
   {"run_default", sl_run_default},
@@ -298,12 +408,22 @@ static const luaL_reg syslinuxlib[] = {
   {"boot_linux", sl_boot_linux},
   {"run_kernel_image", sl_run_kernel_image},
   {"sleep", sl_sleep},
+  {"loadfile", sl_loadfile},
+  {"filesize", sl_filesize},
+  {"filename", sl_filename},
+  {"initramfs_init", sl_initramfs_init},
+  {"initramfs_load_archive", sl_initramfs_load_archive},
+  {"initramfs_add_file", sl_initramfs_add_file},
+  {"boot_it", sl_boot_it},
   {NULL, NULL}
 };
 
 /* This defines a function that opens up your library. */
 
 LUALIB_API int luaopen_syslinux (lua_State *L) {
+
+  luaL_newmetatable(L, SYSLINUX_FILE);
+
   luaL_openlib(L, LUA_SYSLINUXLIBNAME, syslinuxlib, 0);
   return 1;
 }
