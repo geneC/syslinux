@@ -233,10 +233,14 @@ _start:
 		align 4
 
 hcdhcp_magic	dd 0x2983c8ac		; Magic number
-		dd 5*4			; Size of this structure
-hcdhcp_offset	dd 0			; Offset (entered by patcher)
-hcdhcp_len	dd 0			; Length (entered by patcher)
+hcdhcp_len	dd 7*4			; Size of this structure
 hcdhcp_flags	dd 0			; Reserved for the future
+		; Parameters to be parsed before the ones from PXE
+bdhcp_offset	dd 0			; Offset (entered by patcher)
+bdhcp_len	dd 0			; Length (entered by patcher)
+		; Parameters to be parsed *after* the ones from PXE
+adhcp_offset	dd 0			; Offset (entered by patcher)
+adhcp_len	dd 0			; Length (entered by patcher)
 
 _start1:
 		pushfd			; Paranoia... in case of return to PXE
@@ -268,16 +272,16 @@ _start1:
 ;
 ; Move the hardwired DHCP options (if present) to a safe place...
 ;
-hcdhcp_copy:
-		mov cx,[hcdhcp_len]
-		mov ax,trackbufsize
+bdhcp_copy:
+		mov cx,[bdhcp_len]
+		mov ax,trackbufsize/2
 		jcxz .none
 		cmp cx,ax
 		jbe .oksize
 		mov cx,ax
-		mov [hcdhcp_len],ax
+		mov [bdhcp_len],ax
 .oksize:
-		mov eax,[hcdhcp_offset]
+		mov eax,[bdhcp_offset]
 		add eax,_start
 		mov si,ax
 		and si,000Fh
@@ -285,6 +289,29 @@ hcdhcp_copy:
 		push ds
 		mov ds,ax
 		mov di,trackbuf
+		add cx,3
+		shr cx,2
+		rep movsd
+		pop ds
+.none:
+
+adhcp_copy:
+		mov cx,[adhcp_len]
+		mov ax,trackbufsize/2
+		jcxz .none
+		cmp cx,ax
+		jbe .oksize
+		mov cx,ax
+		mov [adhcp_len],ax
+.oksize:
+		mov eax,[adhcp_offset]
+		add eax,_start
+		mov si,ax
+		and si,000Fh
+		shr eax,4
+		push ds
+		mov ds,ax
+		mov di,trackbuf+trackbufsize/2
 		add cx,3
 		shr cx,2
 		rep movsd
@@ -577,7 +604,7 @@ have_entrypoint:
 ; different than the actual packets in that there is no header, just
 ; an option field.
 ;
-		mov cx,[hcdhcp_len]
+		mov cx,[bdhcp_len]
 		mov si,trackbuf
 		call parse_dhcp_options
 
@@ -634,6 +661,15 @@ query_bootp_3:
 		call pxe_get_cached_info
 		call parse_dhcp			; Parse DHCP packet
 		call crlf
+
+;
+; Process any hardwired options the user may have specified.  This is
+; different than the actual packets in that there is no header, just
+; an option field.  This handles the "after" options
+;
+		mov cx,[adhcp_len]
+		mov si,trackbuf+trackbufsize/2
+		call parse_dhcp_options
 
 ;
 ; Generate the bootif string, and the hardware-based config string.
@@ -2299,6 +2335,7 @@ xchexbytes:
 ; pxe_get_cached_info
 ;
 ; Get a DHCP packet from the PXE stack into the trackbuf.
+; Leaves the upper half of the trackbuf untouched.
 ;
 ; Input:
 ;	DL = packet type
@@ -2319,7 +2356,7 @@ pxe_get_cached_info:
 		stosw		; Status
 		movzx ax,dl
 		stosw		; Packet type
-		mov ax,trackbufsize
+		mov ax,trackbufsize/2
 		stosw		; Buffer size
 		mov ax,trackbuf
 		stosw		; Buffer offset

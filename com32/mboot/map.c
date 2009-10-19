@@ -127,7 +127,7 @@ int map_image(void *ptr, size_t len)
 	else
 	    mbh_len = 12;
 
-	if (i + mbh_len < len)
+	if (i + mbh_len > len)
 	    mbh_len = 0;	/* Invalid... */
 	else
 	    break;		/* Found something... */
