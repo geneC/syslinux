@@ -31,6 +31,7 @@ KERNEL_VERSION          ?= $(shell uname -r)
 MODULES_ALIAS_FILE      ?= /lib/modules/$(KERNEL_VERSION)/modules.alias
 MODULES_PCIMAP_FILE     ?= /lib/modules/$(KERNEL_VERSION)/modules.pcimap
 PCI_IDS_FILE            ?= $(PWD)/floppy/pci.ids
+ISO_DIR                 ?= iso/isolinux
 
 all: $(MODULES) $(TESTFILES)
 
@@ -49,6 +50,22 @@ hdt.img: hdt.c32 floppy/hdt.cfg floppy/mtools.conf $(topdir)/mtools/syslinux
 	@ [ -f $(PCI_IDS_FILE) ] && MTOOLSRC=$(PWD)/floppy/mtools.conf $(MCOPY) $(PCI_IDS_FILE) a: || printf "\nThe floppy/pci.ids file is missing and can be downloaded from http://pciids.sourceforge.net and put in\nthe ./com32/hdt/floppy directory of the extracted Syslinux source.\n\n"
 	MTOOLSRC=$(PWD)/floppy/mtools.conf $(MCOPY) floppy/hdt.cfg a:syslinux.cfg
 
+hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin floppy/hdt.cfg
+	rm -rf $(ISO_DIR)
+	rm -rf hdt.iso
+	mkdir -p $(ISO_DIR)
+	cp $(topdir)/core/isolinux.bin $(ISO_DIR)
+	cp floppy/hdt.cfg $(ISO_DIR)/isolinux.cfg
+	cp hdt.c32 $(ISO_DIR)
+	-[ ! -f $(PCI_IDS_FILE) ] && cp /usr/share/hwdata/pci.ids $(ISO_DIR)
+	-[ ! -f $(PCI_IDS_FILE) ] && cp /usr/share/pci.ids $(ISO_DIR)
+	-[ -f $(MODULES_ALIAS_FILE) ] && cp $(MODULES_ALIAS_FILE) $(ISO_DIR)
+	-[ -f $(MODULES_PCIMAP_FILE) ] && cp $(MODULES_PCIMAP_FILE) $(ISO_DIR)
+	-[ ! -f $(ISO_DIR)/pci.ids ] && printf "\nThe floppy/pci.ids file is missing and can be downloaded from http://pciids.sourceforge.net and put in\nthe ./com32/hdt/floppy directory of the extracted Syslinux source.\n\n"
+	mkisofs -o hdt.iso -b isolinux/isolinux.bin -c isolinux/boot.cat \
+		-no-emul-boot -boot-load-size 4 -boot-info-table \
+		iso/
+
 tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d *.tmp
 
@@ -56,7 +73,7 @@ clean: tidy
 	rm -f *.lnx
 
 spotless: clean
-	rm -f *.lss *.c32 *.com hdt.img
+	rm -f *.lss *.c32 *.com hdt.img hdt.iso
 	rm -f *~ \#*
 
 install:
