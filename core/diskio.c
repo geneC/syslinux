@@ -2,9 +2,9 @@
 #include <string.h>
 #include <stdbool.h>
 #include <klibc/compiler.h>
-#include "core.h"
-#include "fs.h"
-#include "disk.h"
+#include <core.h>
+#include <fs.h>
+#include <disk.h>
 
 #define RETRY_COUNT 6
 
@@ -17,7 +17,7 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
     char *tptr;
     size_t chunk, freeseg;
     int sector_shift = disk->sector_shift;
-    uint32_t xlba = lba + disk->part_start;	/* Truncated LBA (CHS is << 2 TB) */
+    uint32_t xlba = lba + disk->part_start; /* Truncated LBA (CHS is << 2 TB) */
     uint32_t t;
     uint16_t c, h, s;
     com32sys_t ireg, oreg;
@@ -232,20 +232,6 @@ void getoneblk(struct disk *disk, char *buf, block_t block, int block_size)
     disk->rdwr_sectors(disk, buf, block * sec_per_block, sec_per_block, 0);
 }
 
-static void dump_disk(struct disk *disk)
-{
-    printf("drive number: 0x%x\n", disk->disk_number);
-    printf("disk type: %s(%d)\n", disk->type ? "EDD" : "CHS", disk->type);
-    printf("sector size: %d(%d)\n", disk->sector_size, disk->sector_shift);
-    printf("h: %d\ts: %d\n", disk->h, disk->s);
-    printf("offset: %d\n", disk->part_start);
-    printf("%s\n", disk->rdwr_sectors == edd_rdwr_sectors ? "EDD_RDWR_SECTORS" :
-           "CHS_RDWR_SECTORS");
-    printf("--------------------------------\n");
-    printf("disk->rdwr_sectors@: %p\n", disk->rdwr_sectors);
-    printf("edd_rdwr_sectors  @: %p\n", edd_rdwr_sectors);
-    printf("chs_rdwr_sectors  @: %p\n", chs_rdwr_sectors);
-}
 
 struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
                        uint16_t bsHeads, uint16_t bsSecPerTrack)
@@ -305,9 +291,6 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
     disk.part_start    = part_start;
     disk.rdwr_sectors  = ebios ? edd_rdwr_sectors : chs_rdwr_sectors;
 
-#if 0
-    dump_disk(&disk);
-#endif
     return &disk;
 }
 
@@ -336,17 +319,4 @@ struct device * device_init(uint8_t devno, bool cdrom, sector_t part_start,
         dev.cache_data = NULL;
 
     return &dev;
-}
-
-
-/* debug function */
-static void dump_dev(struct device *dev)
-{
-    printf("device type:%s\n", dev->disk->type ? "EDD" : "CHS");
-    printf("drive number: 0x%x\n", dev->disk->disk_number);
-    printf("cache_data: %p\n", dev->cache_data);
-    printf("cache_head: %p\n", dev->cache_head);
-    printf("cache_block_size: %d\n", dev->cache_block_size);
-    printf("cache_entries: %d\n", dev->cache_entries);
-    printf("cache_size: %d\n", dev->cache_size);
 }

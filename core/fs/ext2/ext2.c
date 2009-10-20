@@ -403,24 +403,13 @@ static void getlinsec_ext(struct fs_info *fs, char *buf,
     disk->rdwr_sectors(disk, buf, sector, sector_cnt, 0);
 }
 
-/**
- * getfssec:
- *
+/*
  * Get multiple sectors from a file 
  *
  * Alought we have made the buffer data based on block size, 
  * we use sector for implemention; because reading multiple 
  * sectors (then can be multiple blocks) is what the function 
  * do. So, let it be based on sectors.
- *
- * This function can be called from C function, and either from
- * ASM function.
- * 
- * @param: ES:BX(of regs), the buffer to store data
- * @param: DS:SI(of regs), the pointer to open_file_t
- * @param: CX(of regs), number of sectors to read
- *
- * @return: ECX(of regs), number of bytes read
  *
  */
 static uint32_t ext2_getfssec(struct file *gfile, char *buf,
@@ -481,10 +470,8 @@ static uint32_t ext2_getfssec(struct file *gfile, char *buf,
 
    
 
-/**
- * find_dir_entry:
- *
- * find a dir entry, if find return it or return NULL
+/*
+ * find a dir entry, return it if found, or return NULL.
  *
  */
 static struct ext2_dir_entry* 

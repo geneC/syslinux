@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
-#include "fs.h"
-#include "cache.h"
+#include <fs.h>
+#include <cache.h>
 
 /* The currently mounted filesystem */
 struct fs_info *this_fs = NULL;
@@ -161,7 +161,7 @@ void close_file(com32sys_t *regs)
  *    set up the vfs fs structure;
  *    initialize the device structure;
  *    invoke the fs-specific init function;
- *    finally, initialize the cache
+ *    finally, initialize the cache if we need one
  *
  */
 void fs_init(com32sys_t *regs)

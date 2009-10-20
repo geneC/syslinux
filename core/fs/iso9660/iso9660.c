@@ -58,9 +58,7 @@ static struct open_file_t *allocate_file(void)
 }
 
 
-/**
- * close_file:
- *
+/*
  * Deallocates a file structure
  *
  */
@@ -372,9 +370,7 @@ static int do_search_dir(struct fs_info *fs, struct dir_t *dir,
 /*
  * open a file
  *
- * searchdir_iso is a special entry point for ISOLINUX only. In addition
- * to the above, searchdir_iso passes a file flag mask in AL. This is
- * useful for searching for directories.
+ * searchdir_iso is a special entry point for ISOLINUX only.
  *
  * well, it's not like the searchidr function in EXT fs or FAT fs; it also
  * can read a diretory.(Just thought of mine, liu)
