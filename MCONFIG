@@ -54,6 +54,7 @@ GZIPPROG = gzip
 PNGTOPNM = pngtopnm
 MCOPY    = mcopy
 MFORMAT  = mformat
+MKISOFS  = mkisofs
 
 com32    = $(topdir)/com32
 
