@@ -6,7 +6,8 @@
 
 /* The currently mounted filesystem */
 struct fs_info *this_fs = NULL;
-struct fs_info fs;
+static struct fs_info fs;
+struct inode *this_inode = NULL;
 
 /* Actual file structures (we don't have malloc yet...) */
 struct file files[MAX_OPEN];
@@ -20,7 +21,7 @@ static struct file *alloc_file(void)
     struct file *file = files;
 
     for (i = 0; i < MAX_OPEN; i++) {
-	if (!file->open_file)
+	if (!file->fs)
 	    return file;
 	file++;
     }
@@ -38,7 +39,7 @@ static inline void free_file(struct file *file)
 
 void _close_file(struct file *file)
 {
-    if (file->open_file)
+    if (file->fs)
 	file->fs->fs_ops->close_file(file);
     free_file(file);
 }
@@ -118,28 +119,83 @@ void getfssec(com32sys_t *regs)
 
 void searchdir(com32sys_t *regs)
 {
-    char *filename = (char *)MK_PTR(regs->ds, regs->edi.w[0]);;
+    char *name = MK_PTR(regs->ds, regs->edi.w[0]);
+    struct inode *inode;
+    struct inode *parent;
     struct file *file;
-        
+    char part[256];
+    char *p;
+    int symlink_count = 6;
+    
 #if 0
-    printf("filename: %s\n", filename);
+    printf("filename: %s\n", name);
 #endif
 
-    file = alloc_file();
-    
-    if (file) {
-	file->fs = this_fs;
-	file->fs->fs_ops->searchdir(filename, file);
+    if (!(file = alloc_file()))
+	goto err;
+    file->fs = this_fs;
+
+    /* for now, we just applied the universal path_lookup to EXTLINUX */
+    if (strcmp(this_fs->fs_ops->fs_name, "ext2") != 0) {
+	file->fs->fs_ops->searchdir(name, file);
 	
-	if (file->open_file) {
+	if (file->u1.open_file) {
 	    regs->esi.w[0]  = file_to_handle(file);
-	    regs->eax.l     = file->file_len;
+	    regs->eax.l     = file->u2.file_len;
 	    regs->eflags.l &= ~EFLAGS_ZF;
 	    return;
 	}
+
+	goto err;
+    }
+
+
+
+    if (*name == '/') {
+	inode = this_fs->fs_ops->iget_root();
+	while(*name == '/')
+	    name++;
+    } else {
+	inode = this_inode;
+    }
+    parent = inode;
+    
+    while (*name) {
+	p = part;
+	while(*name && *name != '/')
+	    *p++ = *name++;
+	*p = '\0';
+	inode = this_fs->fs_ops->iget(part, parent);
+	if (!inode)
+	    goto err;
+	if (inode->mode == I_SYMLINK) {
+	    if (!this_fs->fs_ops->follow_symlink || 
+		--symlink_count == 0               ||      /* limit check */
+		inode->size >= (uint32_t)inode->blksize)
+		goto err;
+	    name = this_fs->fs_ops->follow_symlink(inode, name);
+	    free_inode(inode);
+	    continue;
+	}
+	
+	if (parent != this_inode)
+	    free_inode(parent);
+	parent = inode;
+	if (! *name)
+	    break;
+	while(*name == '/')
+	    name++;
     }
     
-    /* failure... */
+    file->u1.inode  = inode;
+    file->u2.offset = 0;
+    
+    regs->esi.w[0]  = file_to_handle(file);
+    regs->eax.l     = inode->size;
+    regs->eflags.l &= ~EFLAGS_ZF;
+    return;
+    
+err:
     regs->esi.w[0]  = 0;
     regs->eax.l     = 0;
     regs->eflags.l |= EFLAGS_ZF;
@@ -158,10 +214,12 @@ void close_file(com32sys_t *regs)
 
 /*
  * it will do:
+ *    initialize the memory management function;
  *    set up the vfs fs structure;
  *    initialize the device structure;
  *    invoke the fs-specific init function;
- *    finally, initialize the cache if we need one
+ *    initialize the cache if we need one;
+ *    finally, get the current inode for relative path looking.
  *
  */
 void fs_init(com32sys_t *regs)
@@ -169,8 +227,12 @@ void fs_init(com32sys_t *regs)
     int blk_shift;
     const struct fs_ops *ops = (const struct fs_ops *)regs->eax.l;
     
+    if (strcmp(ops->fs_name, "ext2") == 0)
+	mem_init();
+
     /* set up the fs stucture */    
     fs.fs_ops = ops;
+    this_fs = &fs;
 
     /* this is a total hack... */
     if (ops->fs_flags & FS_NODEV)
@@ -179,12 +241,17 @@ void fs_init(com32sys_t *regs)
         fs.fs_dev = device_init(regs->edx.b[0], regs->edx.b[1], regs->ecx.l,
 				regs->esi.w[0], regs->edi.w[0]);
 
-    this_fs = &fs;
-    
     /* invoke the fs-specific init code */
-    blk_shift = fs.fs_ops->fs_init(&fs);    
+    blk_shift = fs.fs_ops->fs_init(&fs);
+    if (blk_shift < 0) {
+	printf("%s fs init error\n", fs.fs_ops->fs_name);
+	for(;;) ; /* halt */
+    }
 
     /* initialize the cache */
     if (fs.fs_dev && fs.fs_dev->cache_data)
         cache_init(fs.fs_dev, blk_shift);
+
+    if (fs.fs_ops->iget_current)
+	this_inode = fs.fs_ops->iget_current();
 }

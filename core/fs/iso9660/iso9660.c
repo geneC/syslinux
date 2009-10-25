@@ -69,7 +69,7 @@ static inline void close_pvt(struct open_file_t *file)
 
 static void iso_close_file(struct file *file)
 {
-    close_pvt(file->open_file);
+    close_pvt(file->u1.open_file);
 }
 
 /*
@@ -205,7 +205,7 @@ static uint32_t iso_getfssec(struct file *gfile, char *buf,
 			     int sectors, bool *have_more)
 {
     uint32_t bytes_read = sectors << ISO_SECTOR_SHIFT;
-    struct open_file_t *file = gfile->open_file;
+    struct open_file_t *file = gfile->u1.open_file;
     struct disk *disk = gfile->fs->fs_dev->disk;
 
     if ( sectors > file->file_left )
@@ -258,7 +258,7 @@ static int do_search_dir(struct fs_info *fs, struct dir_t *dir,
     file->file_sector = dir->dir_lba;
 
     xfile.fs = fs;
-    xfile.open_file = file;
+    xfile.u1.open_file = file;
 
     iso_getfssec(&xfile, trackbuf, BufSafe, &have_more);
     de = (struct iso_dir_entry *)trackbuf;
@@ -428,8 +428,8 @@ static void iso_searchdir(char *filename, struct file *file)
     open_file = NULL;
 
  found:
-    file->file_len = file_len;
-    file->open_file = (void*)open_file;
+    file->u2.file_len  = file_len;
+    file->u1.open_file = (void*)open_file;
 
 #if 0
     if (open_file) {
@@ -490,10 +490,10 @@ static int iso_fs_init(struct fs_info *fs)
     iso_dir = boot_dir;
     file.fs = fs;
     iso_searchdir(boot_dir, &file);         /* search for /boot/isolinux */
-    if ( !file.file_len ) {
+    if ( !file.u2.file_len ) {
         iso_dir = isolinux_dir;
         iso_searchdir(isolinux_dir, &file); /* search for /isolinux */
-        if ( !file.file_len ) {
+        if ( !file.u2.file_len ) {
             printf("No isolinux directory found!\n");
             return 0;
         }
@@ -504,7 +504,7 @@ static int iso_fs_init(struct fs_info *fs)
     CurrentDirName[len]    = '/';
     CurrentDirName[len+1]  = '\0';
 
-    open_file = (struct open_file_t *)file.open_file;
+    open_file = (struct open_file_t *)file.u1.open_file;
     CurrentDir.dir_len    = open_file->file_bytesleft;
     CurrentDir.dir_clust  = open_file->file_left;
     CurrentDir.dir_lba    = open_file->file_sector;
@@ -528,5 +528,6 @@ const struct fs_ops iso_fs_ops = {
     .close_file    = iso_close_file,
     .mangle_name   = iso_mangle_name,
     .unmangle_name = generic_unmangle_name,
-    .load_config   = iso_load_config
+    .load_config   = iso_load_config,
+    .iget_current  = NULL
 };

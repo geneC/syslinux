@@ -105,8 +105,37 @@ struct ext2_super_block {
     uint32_t s_algorithm_usage_bitmap;  /* For compression */
     uint8_t  s_prealloc_blocks;	        /* Nr of blocks to try to preallocate*/
     uint8_t  s_prealloc_dir_blocks;
-    uint16_t s_padding1;
-    uint32_t s_reserved[204];   	/* Padding to the end of the block */
+    uint16_t s_reserved_gdt_blocks;	/* Per group desc for online growth */
+    /*
+     * Journaling support valid if EXT4_FEATURE_COMPAT_HAS_JOURNAL set.
+     */
+    uint8_t  s_journal_uuid[16];	/* uuid of journal superblock */
+    uint32_t s_journal_inum;	/* inode number of journal file */
+    uint32_t s_journal_dev;		/* device number of journal file */
+    uint32_t s_last_orphan;		/* start of list of inodes to delete */
+    uint32_t s_hash_seed[4];	/* HTREE hash seed */
+    uint8_t  s_def_hash_version;	/* Default hash version to use */
+    uint8_t  s_reserved_char_pad;
+    uint16_t s_desc_size;		/* size of group descriptor */
+    uint32_t s_default_mount_opts;
+    uint32_t s_first_meta_bg;	/* First metablock block group */
+    uint32_t s_mkfs_time;		/* When the filesystem was created */
+    uint32_t s_jnl_blocks[17];	/* Backup of the journal inode */
+    /* 64bit support valid if EXT4_FEATURE_COMPAT_64BIT */
+    uint32_t s_blocks_count_hi;	/* Blocks count */
+    uint32_t s_r_blocks_count_hi;	/* Reserved blocks count */
+    uint32_t s_free_blocks_count_hi;/* Free blocks count */
+    uint16_t s_min_extra_isize;	/* All inodes have at least # bytes */
+    uint16_t s_want_extra_isize; 	/* New inodes should reserve # bytes */
+    uint32_t s_flags;		/* Miscellaneous flags */
+    uint16_t s_raid_stride;		/* RAID stride */
+    uint16_t s_mmp_interval;        /* # seconds to wait in MMP checking */
+    uint64_t s_mmp_block;           /* Block for multi-mount protection */
+    uint32_t s_raid_stripe_width;   /* blocks on all data disks (N*stride)*/
+    uint8_t  s_log_groups_per_flex; /* FLEX_BG group size */
+    uint8_t  s_reserved_char_pad2;
+    uint16_t s_reserved_pad;
+    uint32_t s_reserved[162];        /* Padding to the end of the block */
 };
 
 /*******************************************************************************
@@ -237,16 +266,45 @@ struct ext4_extent_header {
 #define EXT4_FIRST_INDEX(header)  ( (struct ext4_extent_idx *) (header + 1) )
 
 
+/*
+ * The ext2 super block information in memory 
+ */
+struct ext2_sb_info {
+        uint32_t s_inodes_per_block;/* Number of inodes per block */
+        uint32_t s_blocks_per_group;/* Number of blocks in a group */
+	uint32_t s_inodes_per_group;/* Number of inodes in a group */
+	uint32_t s_itb_per_group;   /* Number of inode table blocks per group */
+	uint32_t s_gdb_count;	    /* Number of group descriptor blocks */
+	uint32_t s_desc_per_block;  /* Number of group descriptors per block */
+	uint32_t s_groups_count;    /* Number of groups in the fs */
+	int s_addr_per_block_bits;
+	int s_desc_per_block_bits;
+	int s_inode_size;
+        int s_first_ino;
+        struct ext2_super_block * s_es;	
+        /* 
+         * Here did not like Linux Kernel did; the group descriptor cache
+         * here is based on ext2_group_desc structure, instead of buffer
+         * head structure in Linux Kernel, where cache one block data.
+         */
+	struct ext2_group_desc ** s_group_desc;
+};
+
+static inline struct ext2_sb_info *EXT2_SB(struct fs_info *fs)
+{
+    return fs->fs_info;
+}
+
+#define EXT2_BLOCKS_PER_GROUP(fs)      (EXT2_SB(fs)->s_blocks_per_group)
+#define EXT2_INODES_PER_GROUP(fs)      (EXT2_SB(fs)->s_inodes_per_group)
+#define EXT2_INODES_PER_BLOCK(fs)      (EXT2_SB(fs)->s_inodes_per_block)
+#define EXT2_DESC_PER_BLOCK(fs)        (EXT2_SB(fs)->s_desc_per_block)
 
 
-
-
-
-/* function declartion */
-/*******************************************************************************
-extern struct open_file_t * ext2_read(char *);
-extern int ext2_read(struct open_file_t *, char *, int);
-*******************************************************************************/
+/* 
+ * functions 
+ */
+block_t bmap(struct fs_info *, struct inode *, int);
 
 
 #endif /* ext2_fs.h */

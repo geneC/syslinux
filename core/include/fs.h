@@ -23,17 +23,14 @@
 struct fs_info {
     const struct fs_ops *fs_ops;
     struct device *fs_dev;
+    void *fs_info;              /* The fs-specific information */
+    int blk_bits;               /* block_size = 1 << (blk_bits + SECTOR_SHIFT */
 };
 
-struct open_file_t;		/* Filesystem private structure */
-struct dirent;          /* Directory entry structure */
+extern struct fs_info *this_fs;
 
-struct file {
-    struct open_file_t *open_file; /* Filesystem private data */
-    struct fs_info *fs;
-    uint32_t file_len;
-};
-
+struct dirent;                  /* Directory entry structure */
+struct file;
 enum fs_flags {
     FS_NODEV = 1,
 };
@@ -51,10 +48,53 @@ struct fs_ops {
     char *   (*unmangle_name)(char *, const char *);
     int      (*load_config)();
 
+    struct inode * (*iget_root)(void);
+    struct inode * (*iget_current)(void);
+    struct inode * (*iget)(char *, struct inode *);
+    char * (*follow_symlink)(struct inode *, const char *);
+
     /* the _dir_ stuff */
     void     (*opendir)(com32sys_t *);
     struct dirent * (*readdir)(struct file *);
 };
+
+enum inode_mode {I_FILE, I_DIR, I_SYMLINK};
+
+/* 
+ * The inode structure, including the detail file information 
+ */
+struct inode {
+    int          mode;   /* FILE , DIR or SYMLINK */
+    uint32_t     size;
+    uint32_t     ino;    /* Inode number */
+    uint32_t     atime;  /* Access time */
+    uint32_t     mtime;  /* Modify time */
+    uint32_t     ctime;  /* Create time */
+    uint32_t     dtime;  /* Delete time */
+    int          blocks; /* How many blocks the file take */
+    uint32_t *   data;   /* The block address array where the file stored */
+    uint32_t     flags;
+    int          blkbits;
+    int          blksize;
+    uint32_t     file_acl;
+};
+
+extern struct inode *this_inode;
+
+struct open_file_t;
+
+struct file {
+    struct fs_info *fs;
+    union {
+	struct inode *inode;        /* the file-specific information */
+	struct open_file_t *open_file;
+    } u1;
+    union {
+	uint32_t offset;                /* for next read */
+	uint32_t file_len;
+    } u2;
+};
+
 
 enum dev_type {CHS, EDD};
 
@@ -86,6 +126,20 @@ struct device {
 static inline bool not_whitespace(char c)
 {
   return (unsigned char)c > ' ';
+}
+
+static inline void free_inode(struct inode * inode)
+{
+    if (inode) {
+	if (inode->data)
+	    free(inode->data);
+	free(inode);
+    }
+}
+
+static inline void malloc_error(char *obj)
+{
+        printf("Out of memory: can't allocate memory for %s\n", obj);
 }
 
 /* 
