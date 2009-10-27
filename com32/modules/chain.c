@@ -650,7 +650,18 @@ int main(int argc, char *argv[])
 	    }
 	} else {
 	    error
-		("Usage: chain.c32 (hd#|fd#|mbr:#|boot)[,partition] [options]\n");
+		("Usage:   chain.c32 hd<disk#> [<partition>] [options]\n"
+		 "         chain.c32 fd<disk#> [options]\n"
+		 "         chain.c32 mbr:<id> [<partition>] [options]\n"
+		 "         chain.c32 boot [<partition>] [options]\n"
+		 "Options: file=<loader>      load file, instead of boot sector\n"
+		 "         ntldr=<loader>     load Windows bootloaders: NTLDR, SETUPLDR, BOOTMGR\n"
+		 "         freedos=<loader>   load FreeDOS kernel.sys\n"
+		 "         msdos=<loader>     load MS-DOS io.sys\n"
+		 "         pcdos=<loader>     load PC-DOS ibmbio.com\n"
+		 "         seg=<segment>      jump to <seg>:0000 instead of 0000:7C00\n"
+		 "         swap               swap drive numbers, if bootdisk is not fd0/hd0\n"
+		 "         hide               hide primary partitions, except selected partition\n");
 	    goto bail;
 	}
     }
