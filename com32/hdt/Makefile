@@ -59,10 +59,11 @@ hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg
 	cp $(topdir)/core/isolinux.bin $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp $(FLOPPY_DIR)/hdt.cfg $(ISO_DIR)/$(ISOLINUX_DIR)/isolinux.cfg
 	cp hdt.c32 $(ISO_DIR)/$(ISOLINUX_DIR)
-	-[ ! -f $(PCI_IDS_FILE) ] && cp /usr/share/hwdata/pci.ids $(ISO_DIR)/$(ISOLINUX_DIR)
-	-[ ! -f $(PCI_IDS_FILE) ] && cp /usr/share/pci.ids $(ISO_DIR)/$(ISOLINUX_DIR)
+	-[ ! -f $(PCI_IDS_FILE) ] && cp /usr/share/hwdata/pci.ids $(PCI_IDS_FILE)
+	-[ ! -f $(PCI_IDS_FILE) ] && cp /usr/share/pci.ids $(PCI_IDS_FILE)
 	-[ -f $(MODULES_ALIAS_FILE) ] && cp $(MODULES_ALIAS_FILE) $(ISO_DIR)/$(ISOLINUX_DIR)
 	-[ -f $(MODULES_PCIMAP_FILE) ] && cp $(MODULES_PCIMAP_FILE) $(ISO_DIR)/$(ISOLINUX_DIR)
+	-[ ! -f $(ISO_DIR)/$(ISOLINUX_DIR)/pci.ids ] && cp $(PCI_IDS_FILE) $(ISO_DIR)/$(ISOLINUX_DIR)
 	-[ ! -f $(ISO_DIR)/$(ISOLINUX_DIR)/pci.ids ] && printf "\nThe $(FLOPPY_DIR)/pci.ids file is missing and can be downloaded from http://pciids.sourceforge.net and put in\nthe ./com32/hdt/$(FLOPPY_DIR) directory of the extracted Syslinux source.\n\n"
 	$(MKISOFS) -o hdt.iso -b $(ISOLINUX_DIR)/isolinux.bin -c $(ISOLINUX_DIR)/boot.cat \
 		-no-emul-boot -boot-load-size 4 -boot-info-table \
