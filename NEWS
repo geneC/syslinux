@@ -18,6 +18,13 @@ Changes in 3.83:
 	* Simple menu: fix Ctrl-W (word erase) in command-line edit.
 	* Simple menu: fix crash on some platforms.
 	* Gfxboot: fixes to the configuration file parsing.
+	* PXELINUX: add a tool to override specific DHCP options via
+	  values hardcoded in the pxelinux.0 file.  These hardcoded
+	  values can be either "before DHCP" (defaults if DHCP do not
+	  provide values), or "after DHCP" (overrides DHCP).  The tool
+	  pxelinux-options can be used to set these options.  This
+	  feature does not apply to gpxelinux.0; when used with gPXE
+	  this is better handled by modifying the embedded script.
 
 Changes in 3.82:
 	* isohybrid: fix the -partok logic for loading from a partition.

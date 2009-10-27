@@ -191,8 +191,8 @@ static void goto_menu(int argc __unused, char** argv __unused,
 		      struct s_hardware *hardware)
 {
 	char version_string[256];
-	snprintf(version_string, sizeof version_string, "%s %s by %s",
-		 PRODUCT_NAME, VERSION, AUTHOR);
+	snprintf(version_string, sizeof version_string, "%s %s",
+		 PRODUCT_NAME, VERSION);
 	start_menu_mode(hardware, version_string);
 	return;
 }

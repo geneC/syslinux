@@ -65,6 +65,8 @@ typedef struct {
     bool nowext;		/* AMD 3DNow! extensions */
     bool now;			/* 3DNow! */
     bool smp;			/* A smp configuration has been found */
+    bool vmx;			/* Hardware virtualization */
+    bool svm;			/* Secure virtual machine */
 } s_cpu_flags;
 
 typedef struct {

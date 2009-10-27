@@ -446,7 +446,7 @@ static void do_boot(void *boot_sector, size_t boot_size,
     mmap = syslinux_memory_map();
 
     if (!mmap) {
-	error("Cannot read system memory map");
+	error("Cannot read system memory map\n");
 	return;
     }
 
@@ -547,11 +547,11 @@ static void do_boot(void *boot_sector, size_t boot_size,
     return;
 
 too_big:
-    error("Loader file too large");
+    error("Loader file too large\n");
     return;
 
 enomem:
-    error("Out of memory");
+    error("Out of memory\n");
     return;
 }
 
@@ -614,7 +614,7 @@ int main(int argc, char *argv[])
 	} else if (!strncmp(argv[i], "seg=", 4)) {
 	    uint32_t segval = strtoul(argv[i] + 4, NULL, 0);
 	    if (segval < 0x50 || segval > 0x9f000) {
-		error("Invalid segment");
+		error("Invalid segment\n");
 		goto bail;
 	    }
 	    opt.seg = segval;
@@ -650,7 +650,18 @@ int main(int argc, char *argv[])
 	    }
 	} else {
 	    error
-		("Usage: chain.c32 (hd#|fd#|mbr:#|boot)[,partition] [options]\n");
+		("Usage:   chain.c32 hd<disk#> [<partition>] [options]\n"
+		 "         chain.c32 fd<disk#> [options]\n"
+		 "         chain.c32 mbr:<id> [<partition>] [options]\n"
+		 "         chain.c32 boot [<partition>] [options]\n"
+		 "Options: file=<loader>      load file, instead of boot sector\n"
+		 "         ntldr=<loader>     load Windows bootloaders: NTLDR, SETUPLDR, BOOTMGR\n"
+		 "         freedos=<loader>   load FreeDOS kernel.sys\n"
+		 "         msdos=<loader>     load MS-DOS io.sys\n"
+		 "         pcdos=<loader>     load PC-DOS ibmbio.com\n"
+		 "         seg=<segment>      jump to <seg>:0000 instead of 0000:7C00\n"
+		 "         swap               swap drive numbers, if bootdisk is not fd0/hd0\n"
+		 "         hide               hide primary partitions, except selected partition\n");
 	    goto bail;
 	}
     }

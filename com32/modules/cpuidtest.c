@@ -121,6 +121,10 @@ int main(void)
 	    printf("3dnowext ");
 	if (cpu.flags.now)
 	    printf("3dnow! ");
+	if (cpu.flags.vmx)
+	    printf("vmx ");
+	if (cpu.flags.svm)
+	    printf("svm ");
 	printf("\n");
 	printf("SMP         = ");
 	if (cpu.flags.smp)
