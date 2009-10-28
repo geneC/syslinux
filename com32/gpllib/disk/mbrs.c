@@ -43,9 +43,9 @@ void get_mbr_string(const uint32_t label, char* buffer, const int buffer_size)
 	case 0xeb5e: strncpy(buffer, "Grub4Dos", buffer_size - 1); break;
 	case 0xfa31:
 		/* We need more than 2 bytes */
-		if ((label >> 8) & 0xff == 0xc9)
+		if (((label >> 8) & 0xff) == 0xc9)
 			strncpy(buffer, "Master Boot LoaDeR", buffer_size - 1);
-		else if ((label >> 8) & 0xff == 0xc0)
+		else if (((label >> 8) & 0xff) == 0xc0)
 			strncpy(buffer, "Syslinux", buffer_size - 1);
 		else
 			strncpy(buffer, "Unknown mbr", buffer_size - 1); break;
