@@ -52,6 +52,10 @@ hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtool
 	@ [ -f $(PCI_IDS_FILE) ] && MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(PCI_IDS_FILE) a: || printf "\nThe $(FLOPPY_DIR)/pci.ids file is missing and can be downloaded from http://pciids.sourceforge.net and put in\nthe ./com32/hdt/$(FLOPPY_DIR) directory of the extracted Syslinux source.\n\n"
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(FLOPPY_DIR)/hdt.cfg a:syslinux.cfg
 
+hdt.img.gz: hdt.img
+	rm -rf hdt.img.gz
+	$(GZIPPROG) -c hdt.img >hdt.img.gz
+
 hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg
 	rm -rf $(ISO_DIR)
 	rm -f hdt.iso
