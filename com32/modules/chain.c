@@ -39,6 +39,12 @@
  * seg=<segment>:
  *	loads at and jumps to <seg>:0000 instead of 0000:7C00.
  *
+ * isolinux=<loader>:
+ *	chainload another version/build of the ISOLINUX bootloader and patch
+ *	the loader with appropriate parameters in memory.
+ *	This avoids the need for the -eltorito-alt-boot parameter of mkisofs,
+ *	when you want more than one ISOLINUX per CD/DVD.
+ *
  * ntldr=<loader>:
  *	equivalent to -seg 0x2000 -file <loader>, used with WinNT's loaders
  *
@@ -77,6 +83,7 @@ static struct options {
     const char *loadfile;
     uint16_t keeppxe;
     uint16_t seg;
+    bool isolinux;
     bool swap;
     bool hide;
 } opt;
@@ -589,6 +596,49 @@ static int hide_unhide(char *mbr, int part)
     return 0;			/* ok */
 }
 
+
+
+static uint32_t get_file_lba(const char *filename)
+{
+    com32sys_t inregs; 
+    uint32_t lba;
+
+    /* Start with clean registers */
+    memset(&inregs, 0, sizeof(com32sys_t));
+
+    /* Put the filename in the bounce buffer */
+    strlcpy(__com32.cs_bounce, filename, __com32.cs_bounce_size);
+
+    /* Call comapi_open() which returns a structure pointer in SI
+     * to a structure whose first member happens to be the LBA.
+     */
+    inregs.eax.w[0] = 0x0006;
+    inregs.esi.w[0] = OFFS(__com32.cs_bounce);
+    inregs.es = SEG(__com32.cs_bounce);
+    __com32.cs_intcall(0x22, &inregs, &inregs);
+
+    if ((inregs.eflags.l & EFLAGS_CF) || inregs.esi.w[0] == 0) {
+	return 0; /* Filename not found */
+    }
+
+    /* Since the first member is the LBA, we simply cast */
+    lba = *((uint32_t*)MK_PTR(inregs.ds, inregs.esi.w[0]));
+
+    /* Clean the registers for the next call*/
+    memset(&inregs, 0, sizeof(com32sys_t));
+
+    /* Put the filename in the bounce buffer */
+    strlcpy(__com32.cs_bounce, filename, __com32.cs_bounce_size);
+
+    /* Call comapi_close() to free the structure */
+    inregs.eax.w[0] = 0x0008;
+    inregs.esi.w[0] = OFFS(__com32.cs_bounce);
+    inregs.es = SEG(__com32.cs_bounce);
+    __com32.cs_intcall(0x22, &inregs, &inregs);
+
+    return lba;
+}
+
 int main(int argc, char *argv[])
 {
     char *mbr, *p;
@@ -598,7 +648,11 @@ int main(int argc, char *argv[])
     char *drivename, *partition;
     int hd, drive, whichpart;
     int i;
+    uint32_t file_lba = 0;
+    unsigned char *isolinux_bin;
+    uint32_t *checksum, *chkhead, *chktail;
     size_t boot_size = SECTOR;
+
 
     openconsole(&dev_null_r, &dev_stdcon_w);
 
@@ -618,6 +672,9 @@ int main(int argc, char *argv[])
 		goto bail;
 	    }
 	    opt.seg = segval;
+	} else if (!strncmp(argv[i], "isolinux=", 9)) {
+	    opt.loadfile = argv[i] + 9;
+	    opt.isolinux = true;
 	} else if (!strncmp(argv[i], "ntldr=", 6)) {
 	    opt.seg = 0x2000;	/* NTLDR wants this address */
 	    opt.loadfile = argv[i] + 6;
@@ -655,6 +712,7 @@ int main(int argc, char *argv[])
 		 "         chain.c32 mbr:<id> [<partition>] [options]\n"
 		 "         chain.c32 boot [<partition>] [options]\n"
 		 "Options: file=<loader>      load file, instead of boot sector\n"
+		 "         isolinux=<loader>  load another version of ISOLINUX\n"
 		 "         ntldr=<loader>     load Windows bootloaders: NTLDR, SETUPLDR, BOOTMGR\n"
 		 "         freedos=<loader>   load FreeDOS kernel.sys\n"
 		 "         msdos=<loader>     load MS-DOS io.sys\n"
@@ -759,6 +817,65 @@ int main(int argc, char *argv[])
 	    error("Failed to load the boot file\n");
 	    goto bail;
 	}
+
+	/* Create boot info table: needed when you want to chainload
+	   another version of ISOLINUX (or another bootlaoder that needs
+	   the -boot-info-table switch of mkisofs)
+	   (will only work when run from ISOLINUX) */
+	if (opt.isolinux) {
+	    const union syslinux_derivative_info *sdi;
+	    sdi = syslinux_derivative_info();
+
+	    if (sdi->c.filesystem == SYSLINUX_FS_ISOLINUX) {
+		/* Boot info table info (integers in little endian format)
+
+		   Offset Name         Size      Meaning
+		     8     bi_pvd       4 bytes   LBA of primary volume descriptor
+		    12     bi_file      4 bytes   LBA of boot file
+		    16     bi_length    4 bytes   Boot file length in bytes
+		    20     bi_csum      4 bytes   32-bit checksum
+		    24     bi_reserved  40 bytes  Reserved
+
+		   The 32-bit checksum is the sum of all the 32-bit words in the
+		   boot file starting at byte offset 64. All linear block
+		   addresses (LBAs) are given in CD sectors (normally 2048 bytes).
+
+		   LBA of primary volume descriptor should already be set to 16. 
+		*/
+
+		isolinux_bin = (unsigned char*)boot_sector;
+
+		/* Get LBA address of bootfile */
+		file_lba = get_file_lba(opt.loadfile);
+
+		if (file_lba == 0) {
+		    error("Failed to find LBA offset of the boot file\n");
+		    goto bail;
+		}
+		/* Set it */
+		*((uint32_t*)&isolinux_bin[12]) = file_lba;
+
+		/* Set boot file length */		
+		*((uint32_t*)&isolinux_bin[16]) = boot_size;
+
+		/* Calculate checksum */
+		checksum = (uint32_t*)&isolinux_bin[20];
+		chkhead = (uint32_t*)&isolinux_bin[64];
+		chktail = (uint32_t*)&isolinux_bin[boot_size-1];
+		/* Fresh checksum and clear possibly fractional uint32_t at the end */
+		*checksum = *((uint32_t*)&isolinux_bin[boot_size]) = 0;
+
+		while (chkhead <= chktail)
+		{
+			*checksum += *chkhead++;
+		}
+	    }
+	    else {
+		error("The isolinux= option is only valid when run from ISOLINUX\n");
+		goto bail;
+	    }
+	} 
+	    
     } else if (partinfo) {
 	/* Actually read the boot sector */
 	/* Pick the first buffer that isn't already in use */
@@ -787,3 +904,4 @@ int main(int argc, char *argv[])
 bail:
     return 255;
 }
+
