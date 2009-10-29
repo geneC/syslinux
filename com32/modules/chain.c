@@ -553,11 +553,11 @@ static void do_boot(void *boot_sector, size_t boot_size,
     error("Chainboot failed!\n");
     return;
 
-too_big:
+  too_big:
     error("Loader file too large\n");
     return;
 
-enomem:
+  enomem:
     error("Out of memory\n");
     return;
 }
@@ -596,11 +596,9 @@ static int hide_unhide(char *mbr, int part)
     return 0;			/* ok */
 }
 
-
-
 static uint32_t get_file_lba(const char *filename)
 {
-    com32sys_t inregs; 
+    com32sys_t inregs;
     uint32_t lba;
 
     /* Start with clean registers */
@@ -618,13 +616,13 @@ static uint32_t get_file_lba(const char *filename)
     __com32.cs_intcall(0x22, &inregs, &inregs);
 
     if ((inregs.eflags.l & EFLAGS_CF) || inregs.esi.w[0] == 0) {
-	return 0; /* Filename not found */
+	return 0;		/* Filename not found */
     }
 
     /* Since the first member is the LBA, we simply cast */
-    lba = *((uint32_t*)MK_PTR(inregs.ds, inregs.esi.w[0]));
+    lba = *((uint32_t *) MK_PTR(inregs.ds, inregs.esi.w[0]));
 
-    /* Clean the registers for the next call*/
+    /* Clean the registers for the next call */
     memset(&inregs, 0, sizeof(com32sys_t));
 
     /* Put the filename in the bounce buffer */
@@ -652,7 +650,6 @@ int main(int argc, char *argv[])
     unsigned char *isolinux_bin;
     uint32_t *checksum, *chkhead, *chktail;
     size_t boot_size = SECTOR;
-
 
     openconsole(&dev_null_r, &dev_stdcon_w);
 
@@ -830,20 +827,20 @@ int main(int argc, char *argv[])
 		/* Boot info table info (integers in little endian format)
 
 		   Offset Name         Size      Meaning
-		     8     bi_pvd       4 bytes   LBA of primary volume descriptor
-		    12     bi_file      4 bytes   LBA of boot file
-		    16     bi_length    4 bytes   Boot file length in bytes
-		    20     bi_csum      4 bytes   32-bit checksum
-		    24     bi_reserved  40 bytes  Reserved
+		   8     bi_pvd       4 bytes   LBA of primary volume descriptor
+		   12     bi_file      4 bytes   LBA of boot file
+		   16     bi_length    4 bytes   Boot file length in bytes
+		   20     bi_csum      4 bytes   32-bit checksum
+		   24     bi_reserved  40 bytes  Reserved
 
 		   The 32-bit checksum is the sum of all the 32-bit words in the
 		   boot file starting at byte offset 64. All linear block
 		   addresses (LBAs) are given in CD sectors (normally 2048 bytes).
 
 		   LBA of primary volume descriptor should already be set to 16. 
-		*/
+		 */
 
-		isolinux_bin = (unsigned char*)boot_sector;
+		isolinux_bin = (unsigned char *)boot_sector;
 
 		/* Get LBA address of bootfile */
 		file_lba = get_file_lba(opt.loadfile);
@@ -853,29 +850,28 @@ int main(int argc, char *argv[])
 		    goto bail;
 		}
 		/* Set it */
-		*((uint32_t*)&isolinux_bin[12]) = file_lba;
+		*((uint32_t *) & isolinux_bin[12]) = file_lba;
 
-		/* Set boot file length */		
-		*((uint32_t*)&isolinux_bin[16]) = boot_size;
+		/* Set boot file length */
+		*((uint32_t *) & isolinux_bin[16]) = boot_size;
 
 		/* Calculate checksum */
-		checksum = (uint32_t*)&isolinux_bin[20];
-		chkhead = (uint32_t*)&isolinux_bin[64];
-		chktail = (uint32_t*)&isolinux_bin[boot_size-1];
+		checksum = (uint32_t *) & isolinux_bin[20];
+		chkhead = (uint32_t *) & isolinux_bin[64];
+		chktail = (uint32_t *) & isolinux_bin[boot_size - 1];
 		/* Fresh checksum and clear possibly fractional uint32_t at the end */
-		*checksum = *((uint32_t*)&isolinux_bin[boot_size]) = 0;
+		*checksum = *((uint32_t *) & isolinux_bin[boot_size]) = 0;
 
-		while (chkhead <= chktail)
-		{
-			*checksum += *chkhead++;
+		while (chkhead <= chktail) {
+		    *checksum += *chkhead++;
 		}
-	    }
-	    else {
-		error("The isolinux= option is only valid when run from ISOLINUX\n");
+	    } else {
+		error
+		    ("The isolinux= option is only valid when run from ISOLINUX\n");
 		goto bail;
 	    }
-	} 
-	    
+	}
+
     } else if (partinfo) {
 	/* Actually read the boot sector */
 	/* Pick the first buffer that isn't already in use */
@@ -901,7 +897,6 @@ int main(int argc, char *argv[])
 
     do_boot(boot_sector, boot_size, &regs);
 
-bail:
+  bail:
     return 255;
 }
-
