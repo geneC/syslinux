@@ -406,7 +406,6 @@ static void dmi_processor_id(uint8_t type, uint8_t * p, const char *version,
 	for (i = 0; i <= 31; i++)
 	    if (cpu_flags_strings[i] != NULL && edx & (1 << i))
 		((bool *) (&dmi->processor.cpu_flags))[i] = true;
-	//printf("%s\t%s\n", prefix, flags[i]);
     }
 }
 
@@ -445,19 +444,65 @@ const char *dmi_string(struct dmi_header *dm, uint8_t s)
     return bp;
 }
 
-int dmi_checksum(uint8_t * buf)
+int dmi_checksum(uint8_t * buf, int len)
 {
     uint8_t sum = 0;
     int a;
 
-    for (a = 0; a < 15; a++)
+    for (a = 0; a < len; a++)
 	sum += buf[a];
     return (sum == 0);
 }
 
+static int smbios_decode(s_dmi *dmi, uint8_t *buf)
+{
+
+        dmi->dmitable.ver = (buf[0x06] << 8) + buf[0x07];
+        /* Some BIOS report weird SMBIOS version, fix that up */
+        switch (dmi->dmitable.ver) {
+		case 0x021F:
+                        dmi->dmitable.ver = 0x0203;
+                        break;
+                case 0x0233:
+                        dmi->dmitable.ver = 0x0206;
+                        break;
+        }
+	dmi->dmitable.major_version=dmi->dmitable.ver >> 8;
+	dmi->dmitable.minor_version=dmi->dmitable.ver & 0xFF;
+
+        return DMI_TABLE_PRESENT;
+}
+
+
+static int legacy_decode(s_dmi *dmi, uint8_t *buf)
+{
+    dmi->dmitable.num = buf[13] << 8 | buf[12];
+    dmi->dmitable.len = buf[7] << 8 | buf[6];
+    dmi->dmitable.base =
+	buf[11] << 24 | buf[10] << 16 | buf[9] << 8 | buf[8];
+
+    if (dmi->dmitable.ver>0) return DMI_TABLE_PRESENT;
+
+    dmi->dmitable.ver = (buf[0x06] << 8) + buf[0x07];
+
+    /*
+     * DMI version 0.0 means that the real version is taken from
+     * the SMBIOS version, which we don't know at this point.
+     */
+    if (buf[14] != 0) {
+	dmi->dmitable.major_version = buf[14] >> 4;
+	dmi->dmitable.minor_version = buf[14] & 0x0F;
+    } else {
+	dmi->dmitable.major_version = 0;
+	dmi->dmitable.minor_version = 0;
+    }
+    return DMI_TABLE_PRESENT;
+}
+
+
 int dmi_iterate(s_dmi * dmi)
 {
-    uint8_t buf[16];
+    uint8_t buf[DMI_BUFFER_SIZE];
     char *p, *q;
 
     /* Cleaning structures */
@@ -483,29 +528,11 @@ int dmi_iterate(s_dmi * dmi)
     p = (char *)0xF0000;	/* The start address to look at the dmi table */
     for (q = p; q < p + 0x10000; q += 16) {
 	memcpy(buf, q, 15);
-	if (memcmp(buf, "_DMI_", 5) == 0 && dmi_checksum(buf)) {
-	    dmi->dmitable.num = buf[13] << 8 | buf[12];
-	    dmi->dmitable.len = buf[7] << 8 | buf[6];
-	    dmi->dmitable.base =
-		buf[11] << 24 | buf[10] << 16 | buf[9] << 8 | buf[8];
-	    dmi->dmitable.ver = (buf[0x06] << 8) + buf[0x07];
-
-	    /*
-	     * DMI version 0.0 means that the real version is taken from
-	     * the SMBIOS version, which we don't know at this point.
-	     */
-	    if (buf[14] != 0) {
-		dmi->dmitable.major_version = buf[14] >> 4;
-		dmi->dmitable.minor_version = buf[14] & 0x0F;
-	    } else {
-		dmi->dmitable.major_version = 0;
-		dmi->dmitable.minor_version = 0;
-
-	    }
-/*              printf("DMI present (version %d.%d)\n", dmitable.major_version,dmitable.minor_version);
-              printf("%d structures occupying %d bytes.\n",dmitable.num, dmitable.len);
-              printf("DMI table at 0x%08X.\n",dmitable.base);*/
-	    return DMI_TABLE_PRESENT;
+	if (memcmp(buf, "_SM_", 4) == 0) {
+		smbios_decode(dmi,buf);
+	}
+	if (memcmp(buf, "_DMI_", 5) == 0 && dmi_checksum(buf,sizeof(buf))) {
+		return legacy_decode(dmi,buf);
 	}
     }
     dmi->dmitable.base = 0;
@@ -524,7 +551,6 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
      */
     switch (h->type) {
     case 0:			/* 3.3.1 BIOS Information */
-//                        printf("BIOS Information\n");
 	if (h->length < 0x12)
 	    break;
 	dmi->bios.filled = true;
@@ -552,7 +578,6 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 		    data[0x16], data[0x17]);
 	break;
     case 1:			/* 3.3.2 System Information */
-//                        printf("System Information\n");
 	if (h->length < 0x08)
 	    break;
 	dmi->system.filled = true;
@@ -571,7 +596,6 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	break;
 
     case 2:			/* 3.3.3 Base Board Information */
-//                        printf("Base Board Information\n");
 	if (h->length < 0x08)
 	    break;
 	dmi->base_board.filled = true;
@@ -589,7 +613,6 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	    break;
 	break;
     case 3:			/* 3.3.4 Chassis Information */
-//                        printf("Chassis Information\n");
                         if(h->length<0x09) break;
 			dmi->chassis.filled=true;
 			strcpy(dmi->chassis.manufacturer,dmi_string(h,data[0x04]));
@@ -611,7 +634,6 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
                         break;
 
 			case 4: /* 3.3.5 Processor Information */
-//                        printf("Processor Information\n");
                         if(h->length<0x1A) break;
 			dmi->processor.filled=true;
 			strcpy(dmi->processor.socket_designation,dmi_string(h, data[0x04]));
@@ -843,7 +865,6 @@ void parse_dmitable(s_dmi * dmi)
 		   (unsigned int)h.length);
 	    break;
 	}
-//        printf("Handle 0x%04X, DMI type %d, %d bytes\n", h.handle, h.type, h.length);
 
 	/* loo for the next handle */
 	next = data + h.length;

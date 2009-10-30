@@ -505,7 +505,7 @@ void main_show_dmi(int argc __unused, char **argv __unused,
     printf("No valid DMI table found, exiting.\n");
     return;
   }
-  printf("DMI Table version %d.%d found\n",
+  printf("DMI Table version %u.%u found\n",
          hardware->dmi.dmitable.major_version,
          hardware->dmi.dmitable.minor_version);
 
