@@ -309,7 +309,7 @@ void detect_hardware(struct s_hardware *hardware)
     printf
         ("DMI: Many hardware components will not be detected ! \n");
   } else {
-    printf("DMI: Table found ! (version %d.%d)\n",
+    printf("DMI: Table found ! (version %u.%u)\n",
            hardware->dmi.dmitable.major_version,
            hardware->dmi.dmitable.minor_version);
   }
