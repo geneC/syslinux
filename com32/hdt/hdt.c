@@ -48,8 +48,8 @@ int main(const int argc, const char *argv[])
   const char *arg;
   struct s_hardware hardware;
 
-  snprintf(version_string, sizeof version_string, "%s %s",
-           PRODUCT_NAME,VERSION);
+  snprintf(version_string, sizeof version_string, "%s %s (%s)",
+           PRODUCT_NAME,VERSION, CODENAME);
 
   /* Opening the Syslinux console */
   console_ansi_raw();

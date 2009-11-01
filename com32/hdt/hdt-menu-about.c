@@ -44,8 +44,8 @@ void compute_aboutmenu(struct s_my_menu *menu)
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu->items_count++;
 
-  snprintf(buffer, sizeof buffer, "Version        : %s", VERSION);
-  snprintf(statbuffer, sizeof statbuffer, "Version : %s", VERSION);
+  snprintf(buffer, sizeof buffer, "Version        : %s (%s)", VERSION, CODENAME);
+  snprintf(statbuffer, sizeof statbuffer, "Version : %s (%s)", VERSION,CODENAME);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu->items_count++;
 
