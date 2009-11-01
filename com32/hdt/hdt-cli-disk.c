@@ -62,6 +62,8 @@ static void show_partition_information(struct driveinfo *drive_info,
 
 	int i = nb_partitions_seen;
 
+    reset_more_printf();
+
 	start = partition_offset;
 	end = start + ptab->length - 1;
 
@@ -114,6 +116,8 @@ void main_show_disk(int argc, char **argv,
 	char mbr_name[50];
 
 	detect_disks(hardware);
+    reset_more_printf();
+
 	if (!hardware->disk_info[i].cbios)
 		return; /* Invalid geometry */
 
@@ -157,14 +161,14 @@ void main_show_disks(int argc __unused, char **argv __unused,
 	reset_more_printf();
 	detect_disks(hardware);
 
-	int first_one = 0;
+    int first_one = 0;
 	for (int drive = 0x80; drive < 0xff; drive++) {
 		if (hardware->disk_info[drive - 0x80].cbios) {
-			if (!first_one) {
-				first_one = 1;
-			} else {
-				pause_printf();
-			}
+            if (!first_one) {
+                    first_one = 1;
+            } else {
+                    pause_printf();
+            }
 			char buf[5] = "";
 			sprintf(buf, "0x%x", drive);
 			char *argv[1] = { buf };
