@@ -68,7 +68,7 @@ static void show_pci_device(int argc, char **argv,
 		return;
 	}
 	if ((pcidev > hardware->nb_pci_devices) || (pcidev <= 0)) {
-		printf("PCI device %d doesn't exists\n", pcidev);
+		printf("PCI device %d doesn't exist\n", pcidev);
 		return;
 	}
 	if (hardware->pci_ids_return_code == -ENOPCIIDS) {
