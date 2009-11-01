@@ -650,7 +650,7 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
                                 strcpy(dmi->processor.status,dmi_processor_status(data[0x18]&0x07));
                         else
                                 sprintf(dmi->processor.status,"Unpopulated");
-                        sprintf(dmi->processor.upgrade,dmi_processor_upgrade(data[0x19]));
+                        strcpy(dmi->processor.upgrade,dmi_processor_upgrade(data[0x19]));
                         if(h->length<0x20) break;
                         dmi_processor_cache(WORD(data+0x1A), "L1", ver,dmi->processor.cache1);
                         dmi_processor_cache(WORD(data+0x1C), "L2", ver,dmi->processor.cache2);
