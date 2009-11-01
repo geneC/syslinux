@@ -63,8 +63,10 @@ int main(const int argc, const char *argv[])
   /* Detecting parameters */
   detect_parameters(argc, argv, &hardware);
 
-
+  /* Clear the screen and reset position of the cursor */
   clear_screen();
+  printf("\033[1;1H");
+
   printf("%s\n", version_string);
 
   if ((arg = find_argument(argv + 1, "nomenu")))
