@@ -39,34 +39,29 @@ void compute_aboutmenu(struct s_my_menu *menu)
 
   set_menu_pos(SUBMENU_Y, SUBMENU_X);
 
-  snprintf(buffer, sizeof buffer, "Product        : %s", PRODUCT_NAME);
+  snprintf(buffer, sizeof buffer, "Product     : %s", PRODUCT_NAME);
   snprintf(statbuffer, sizeof statbuffer, "Product : %s", PRODUCT_NAME);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu->items_count++;
 
-  snprintf(buffer, sizeof buffer, "Version        : %s", VERSION);
+  snprintf(buffer, sizeof buffer, "Version     : %s", VERSION);
   snprintf(statbuffer, sizeof statbuffer, "Version : %s", VERSION);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu->items_count++;
 
-  snprintf(buffer, sizeof buffer, "Project Leader : %s", AUTHOR);
-  snprintf(statbuffer, sizeof statbuffer, "Project Leader  : %s", AUTHOR);
+  snprintf(buffer, sizeof buffer, "Author      : %s", AUTHOR);
+  snprintf(statbuffer, sizeof statbuffer, "Author  : %s", AUTHOR);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu->items_count++;
 
-  snprintf(buffer, sizeof buffer, "Contact        : %s", CONTACT);
+  snprintf(buffer, sizeof buffer, "Contact     : %s", CONTACT);
   snprintf(statbuffer, sizeof statbuffer, "Contact : %s", CONTACT);
-  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  menu->items_count++;
-
-  snprintf(buffer, sizeof buffer, "Core Developer : %s", CORE_DEVELOPER);
-  snprintf(statbuffer, sizeof statbuffer, "Core Developer  : %s", CORE_DEVELOPER);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu->items_count++;
 
   char *contributors[NB_CONTRIBUTORS] = CONTRIBUTORS;
   for (int c=0; c<NB_CONTRIBUTORS; c++) {
-   snprintf(buffer, sizeof buffer, "Contributor    : %s", contributors[c]);
+   snprintf(buffer, sizeof buffer, "Contributor : %s", contributors[c]);
    snprintf(statbuffer, sizeof statbuffer, "Contributor : %s", contributors[c]);
    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
    menu->items_count++;
