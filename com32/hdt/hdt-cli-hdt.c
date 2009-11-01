@@ -52,12 +52,13 @@ static void main_show_modes(int argc __unused, char** argv __unused,
 {
 	int i = 0;
 
-	printf("Available modes:\n");
+    reset_more_printf();
+	more_printf("Available modes:\n");
 	while (list_modes[i]) {
-		printf("%s ", list_modes[i]->name);
+		more_printf("%s ", list_modes[i]->name);
 		i++;
 	}
-	printf("\n");
+	more_printf("\n");
 }
 
 /**
@@ -70,8 +71,9 @@ static void cli_set_mode(int argc, char **argv,
 {
 	cli_mode_t new_mode;
 
+    reset_more_printf();
 	if (argc <= 0) {
-		printf("Which mode?\n");
+		more_printf("Which mode?\n");
 		return;
 	}
 
@@ -117,43 +119,44 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 
 	find_cli_mode_descr(hdt_cli.mode, &current_mode);
 
-	printf("Available commands are:\n");
+    reset_more_printf();
+	more_printf("Available commands are:\n");
 
 	/* List first default modules of the mode */
 	if (current_mode->default_modules &&
 	    current_mode->default_modules->modules) {
 		while (current_mode->default_modules->modules[j].name) {
-			printf("%s ",
+			more_printf("%s ",
 			       current_mode->default_modules->modules[j].name);
 			j++;
 		}
-		printf("\n");
+		more_printf("\n");
 	}
 
 	/* List secondly the show modules of the mode */
 	if (current_mode->show_modules &&
 	    current_mode->show_modules->modules) {
-		printf("\nshow commands:\n");
+		more_printf("\nshow commands:\n");
 		j = 0;
 		while (current_mode->show_modules->modules[j].name) {
-			printf("%s ",
+			more_printf("%s ",
 			       current_mode->show_modules->modules[j].name);
 			j++;
 		}
-		printf("\n");
+		more_printf("\n");
 	}
 
 	/* List thirdly the set modules of the mode */
 	if (current_mode->set_modules &&
 	    current_mode->set_modules->modules) {
-		printf("\nset commands:\n");
+		more_printf("\nset commands:\n");
 		j = 0;
 		while (current_mode->set_modules->modules[j].name) {
-			printf("%s ",
+			more_printf("%s ",
 			       current_mode->set_modules->modules[j].name);
 			j++;
 		}
-		printf("\n");
+		more_printf("\n");
 	}
 
 	/* List finally the default modules of the hdt mode */
@@ -173,14 +176,14 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 					     current_mode->default_modules,
 					     &associated_module);
 			if (associated_module == NULL)
-				printf("%s ",
+				more_printf("%s ",
 				       hdt_mode.default_modules->modules[j].name);
 			j++;
 		}
-		printf("\n");
+		more_printf("\n");
 	}
 
-	printf("\n");
+	more_printf("\n");
 	main_show_modes(argc, argv, hardware);
 }
 
@@ -206,6 +209,7 @@ void main_show_summary(int argc __unused, char **argv __unused,
 	detect_pci(hardware);	/* pxe is detected in the pci */
 	detect_dmi(hardware);
 	cpu_detect(hardware);
+    reset_more_printf();
 	clear_screen();
 	main_show_cpu(argc, argv, hardware);
 	if (hardware->is_dmi_valid) {
@@ -236,14 +240,15 @@ void main_show_summary(int argc __unused, char **argv __unused,
 void main_show_hdt(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware __unused)
 {
-	printf("HDT\n");
-	printf(" Product     : %s\n", PRODUCT_NAME);
-	printf(" Version     : %s\n", VERSION);
-	printf(" Author      : %s\n", AUTHOR);
-	printf(" Contact     : %s\n", CONTACT);
+    reset_more_printf();
+	more_printf("HDT\n");
+	more_printf(" Product     : %s\n", PRODUCT_NAME);
+	more_printf(" Version     : %s\n", VERSION);
+	more_printf(" Author      : %s\n", AUTHOR);
+	more_printf(" Contact     : %s\n", CONTACT);
 	char *contributors[NB_CONTRIBUTORS] = CONTRIBUTORS;
 	for (int c = 0; c < NB_CONTRIBUTORS; c++) {
-		printf(" Contributor : %s\n", contributors[c]);
+		more_printf(" Contributor : %s\n", contributors[c]);
 	}
 }
 

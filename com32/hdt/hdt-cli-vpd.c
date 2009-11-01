@@ -39,11 +39,11 @@ void main_show_vpd(int argc __unused, char **argv __unused,
 	detect_vpd(hardware);
 
 	if (!hardware->is_vpd_valid) {
-		printf("No VPD structure detected.\n");
+		more_printf("No VPD structure detected.\n");
 		return;
 	}
 
-	printf("VPD present at address : 0x%s\n", hardware->vpd.base_address);
+	more_printf("VPD present at address : 0x%s\n", hardware->vpd.base_address);
 	if (strlen(hardware->vpd.bios_build_id) > 0)
 		more_printf("Bios Build ID                 : %s\n", hardware->vpd.bios_build_id);
 	if (strlen(hardware->vpd.bios_release_date) > 0)
