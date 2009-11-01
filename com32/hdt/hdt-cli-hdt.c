@@ -53,12 +53,12 @@ static void main_show_modes(int argc __unused, char** argv __unused,
 	int i = 0;
 
     reset_more_printf();
-	more_printf("Available modes:\n");
+	printf("Available modes:\n");
 	while (list_modes[i]) {
-		more_printf("%s ", list_modes[i]->name);
+		printf("%s ", list_modes[i]->name);
 		i++;
 	}
-	more_printf("\n");
+	printf("\n");
 }
 
 /**
@@ -119,44 +119,43 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 
 	find_cli_mode_descr(hdt_cli.mode, &current_mode);
 
-    reset_more_printf();
-	more_printf("Available commands are:\n");
+	printf("Available commands are:\n");
 
 	/* List first default modules of the mode */
 	if (current_mode->default_modules &&
 	    current_mode->default_modules->modules) {
 		while (current_mode->default_modules->modules[j].name) {
-			more_printf("%s ",
+			printf("%s ",
 			       current_mode->default_modules->modules[j].name);
 			j++;
 		}
-		more_printf("\n");
+		printf("\n");
 	}
 
 	/* List secondly the show modules of the mode */
 	if (current_mode->show_modules &&
 	    current_mode->show_modules->modules) {
-		more_printf("\nshow commands:\n");
+		printf("\nshow commands:\n");
 		j = 0;
 		while (current_mode->show_modules->modules[j].name) {
-			more_printf("%s ",
+			printf("%s ",
 			       current_mode->show_modules->modules[j].name);
 			j++;
 		}
-		more_printf("\n");
+		printf("\n");
 	}
 
 	/* List thirdly the set modules of the mode */
 	if (current_mode->set_modules &&
 	    current_mode->set_modules->modules) {
-		more_printf("\nset commands:\n");
+		printf("\nset commands:\n");
 		j = 0;
 		while (current_mode->set_modules->modules[j].name) {
-			more_printf("%s ",
+			printf("%s ",
 			       current_mode->set_modules->modules[j].name);
 			j++;
 		}
-		more_printf("\n");
+		printf("\n");
 	}
 
 	/* List finally the default modules of the hdt mode */
@@ -176,14 +175,14 @@ static void show_cli_help(int argc __unused, char** argv __unused,
 					     current_mode->default_modules,
 					     &associated_module);
 			if (associated_module == NULL)
-				more_printf("%s ",
+				printf("%s ",
 				       hdt_mode.default_modules->modules[j].name);
 			j++;
 		}
-		more_printf("\n");
+		printf("\n");
 	}
 
-	more_printf("\n");
+	printf("\n");
 	main_show_modes(argc, argv, hardware);
 }
 
