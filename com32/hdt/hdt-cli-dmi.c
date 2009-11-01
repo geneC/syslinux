@@ -368,7 +368,7 @@ void show_dmi_memory_bank(int argc, char** argv,
   }
 
   if ((bank >= hardware->dmi.memory_count) || (bank < 0)) {
-    printf("Bank %d number doesn't exists\n", bank);
+    printf("Bank %d number doesn't exist\n", bank);
     return;
   }
   if (hardware->dmi.memory[bank].filled == false) {
