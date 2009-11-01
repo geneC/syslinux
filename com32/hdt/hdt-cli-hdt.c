@@ -237,13 +237,14 @@ void main_show_hdt(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware __unused)
 {
 	printf("HDT\n");
-	printf(" Product     : %s\n", PRODUCT_NAME);
-	printf(" Version     : %s\n", VERSION);
-	printf(" Author      : %s\n", AUTHOR);
-	printf(" Contact     : %s\n", CONTACT);
+	printf(" Product        : %s\n", PRODUCT_NAME);
+	printf(" Version        : %s\n", VERSION);
+	printf(" Project Leader : %s\n", AUTHOR);
+	printf(" Contact        : %s\n", CONTACT);
+	printf(" Core Developer : %s\n", CORE_DEVELOPER);
 	char *contributors[NB_CONTRIBUTORS] = CONTRIBUTORS;
 	for (int c = 0; c < NB_CONTRIBUTORS; c++) {
-		printf(" Contributor : %s\n", contributors[c]);
+		printf(" Contributor    : %s\n", contributors[c]);
 	}
 }
 
