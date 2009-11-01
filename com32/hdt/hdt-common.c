@@ -72,6 +72,10 @@ void detect_parameters(const int argc, const char *argv[],
       strncpy(hardware->memtest_label, argv[i] + 8,
         sizeof(hardware->memtest_label));
       convert_isolinux_filename(hardware->memtest_label,hardware);
+    } else if (!strncmp(argv[i], "reboot=", 7)) {
+      strncpy(hardware->reboot_label, argv[i] + 7,
+        sizeof(hardware->reboot_label));
+      convert_isolinux_filename(hardware->reboot_label,hardware);
     }
   }
 }
@@ -133,10 +137,12 @@ void init_hardware(struct s_hardware *hardware)
   memset(hardware->modules_alias_path, 0,
          sizeof hardware->modules_alias_path);
   memset(hardware->memtest_label, 0, sizeof hardware->memtest_label);
+  memset(hardware->reboot_label, 0, sizeof hardware->reboot_label);
   strcat(hardware->pciids_path, "pci.ids");
   strcat(hardware->modules_pcimap_path, "modules.pcimap");
   strcat(hardware->modules_alias_path, "modules.alias");
   strcat(hardware->memtest_label, "memtest");
+  strcat(hardware->reboot_label, "reboot.c32");
 }
 
 /*
