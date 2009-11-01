@@ -121,6 +121,9 @@ void setup_menu(char *version)
   init_menusystem(version);
   set_window_size(0, 0, 25, 80);
 
+  /* Do not use inactive attributes - they make little sense for HDT */
+  set_normal_attr(-1, -1, 0x17, 0x1F);
+
   /* Register the menusystem handler */
   // reg_handler(HDLR_SCREEN,&msys_handler);
   reg_handler(HDLR_KEYS, &keys_handler);
