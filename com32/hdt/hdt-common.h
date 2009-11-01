@@ -65,6 +65,10 @@ extern int display_line_nb;
        printf("\033[2K\033[1G\033[1F\n");\
 } while (0);
 
+/* The brokeness of that macro is that
+ * it assumes that __VA_ARGS__ contains
+ * one \n (and only one)
+ */
 #define more_printf(...) do {\
  if (display_line_nb == 20) {\
    printf("\n--More--");\
@@ -73,7 +77,7 @@ extern int display_line_nb;
    printf("\033[2K\033[1G\033[1F");\
  }\
  printf(__VA_ARGS__);\
- display_line_nb++; \
+ display_line_nb++;\
 } while (0);
 
 /* Display CPU registers for debugging purposes */
