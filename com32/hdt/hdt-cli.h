@@ -48,6 +48,7 @@
 #define CLI_CLEAR "clear"
 #define CLI_EXIT "exit"
 #define CLI_HELP "help"
+#define CLI_REBOOT "reboot"
 #define CLI_SHOW "show"
 #define CLI_SET "set"
 #define CLI_MODE "mode"
