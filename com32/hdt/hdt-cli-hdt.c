@@ -252,6 +252,19 @@ void main_show_hdt(int argc __unused, char **argv __unused,
 	}
 }
 
+/**
+ * do_reboot - reboot the system
+ **/
+static void do_reboot(int argc __unused, char** argv __unused,
+			  struct s_hardware *hardware)
+{
+    /* Use specific syslinux call if needed */
+    if (issyslinux())
+        return runsyslinuxcmd(hardware->reboot_label);
+    else
+        return csprint(hardware->reboot_label, 0x07);
+}
+
 /* Default hdt mode */
 struct cli_callback_descr list_hdt_default_modules[] = {
 	{
@@ -269,6 +282,10 @@ struct cli_callback_descr list_hdt_default_modules[] = {
 	{
 		.name = CLI_MENU,
 		.exec = goto_menu,
+	},
+	{
+		.name = CLI_REBOOT,
+		.exec = do_reboot,
 	},
 	{
 		.name = NULL,

@@ -162,6 +162,7 @@ struct s_hardware {
   char modules_alias_path[255];
   char pciids_path[255];
   char memtest_label[255];
+  char reboot_label[255];
 };
 
 void reset_more_printf();
