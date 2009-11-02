@@ -60,19 +60,24 @@
 extern int display_line_nb;
 
 #define pause_printf() do {\
-	printf("--More--");\
-	get_key(stdin, 0);\
-	printf("\n");\
+       printf("--More--");\
+       get_key(stdin, 0);\
+       printf("\033[2K\033[1G\033[1F\n");\
 } while (0);
 
+/* The brokeness of that macro is that
+ * it assumes that __VA_ARGS__ contains
+ * one \n (and only one)
+ */
 #define more_printf(...) do {\
  if (display_line_nb == 20) {\
-   printf("\nPress any key to continue");\
+   printf("\n--More--");\
    display_line_nb=0;\
    get_key(stdin, 0);\
+   printf("\033[2K\033[1G\033[1F");\
  }\
- printf ( __VA_ARGS__);\
- display_line_nb++; \
+ printf(__VA_ARGS__);\
+ display_line_nb++;\
 } while (0);
 
 /* Display CPU registers for debugging purposes */
@@ -157,6 +162,7 @@ struct s_hardware {
   char modules_alias_path[255];
   char pciids_path[255];
   char memtest_label[255];
+  char reboot_label[255];
 };
 
 void reset_more_printf();

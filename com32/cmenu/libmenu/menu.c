@@ -657,6 +657,7 @@ pt_menuitem showmenus(uchar startmenu)
     // Hide the garbage we left on the screen
     cursoron();
     cls();
+    gotoxy(ms->minrow, ms->mincol);
 
     // Return user choice
     return rv;

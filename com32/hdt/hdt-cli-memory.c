@@ -41,8 +41,8 @@ static void show_memory_e820(int argc __unused, char **argv __unused,
 	char type[14];
 
 	detect_memory_e820(map, E820MAX, &count);
-	printf("BIOS-provided physical RAM e820 map:\n");
 	reset_more_printf();
+	more_printf("BIOS-provided physical RAM e820 map:\n");
 	for (int i = 0; i < count; i++) {
 		get_type(map[i].type, type, 14);
 		more_printf("%016llx - %016llx %016llx (%s)\n",

@@ -444,7 +444,7 @@ const char *dmi_string(struct dmi_header *dm, uint8_t s)
     return bp;
 }
 
-int dmi_checksum(uint8_t * buf, int len)
+int checksum(uint8_t * buf, int len)
 {
     uint8_t sum = 0;
     int a;
@@ -481,6 +481,7 @@ static int legacy_decode(s_dmi *dmi, uint8_t *buf)
     dmi->dmitable.base =
 	buf[11] << 24 | buf[10] << 16 | buf[9] << 8 | buf[8];
 
+    /* Version already found? */
     if (dmi->dmitable.ver>0) return DMI_TABLE_PRESENT;
 
     dmi->dmitable.ver = (buf[0x06] << 8) + buf[0x07];
@@ -490,11 +491,11 @@ static int legacy_decode(s_dmi *dmi, uint8_t *buf)
      * the SMBIOS version, which we don't know at this point.
      */
     if (buf[14] != 0) {
-	dmi->dmitable.major_version = buf[14] >> 4;
-	dmi->dmitable.minor_version = buf[14] & 0x0F;
+        dmi->dmitable.major_version = buf[14] >> 4;
+        dmi->dmitable.minor_version = buf[14] & 0x0F;
     } else {
-	dmi->dmitable.major_version = 0;
-	dmi->dmitable.minor_version = 0;
+        dmi->dmitable.major_version = 0;
+        dmi->dmitable.minor_version = 0;
     }
     return DMI_TABLE_PRESENT;
 }
@@ -502,8 +503,8 @@ static int legacy_decode(s_dmi *dmi, uint8_t *buf)
 
 int dmi_iterate(s_dmi * dmi)
 {
-    uint8_t buf[DMI_BUFFER_SIZE];
-    char *p, *q;
+    uint8_t *p, *q;
+    int found = 0;
 
     /* Cleaning structures */
     memset(&dmi->base_board, 0, sizeof(s_base_board));
@@ -525,16 +526,32 @@ int dmi_iterate(s_dmi * dmi)
     dmi->processor.filled = false;
     dmi->system.filled = false;
 
-    p = (char *)0xF0000;	/* The start address to look at the dmi table */
+    p = (uint8_t *)0xF0000;	/* The start address to look at the dmi table */
+    /* The anchor-string is 16-bytes aligned */
     for (q = p; q < p + 0x10000; q += 16) {
-	memcpy(buf, q, 15);
-	if (memcmp(buf, "_SM_", 4) == 0) {
-		smbios_decode(dmi,buf);
-	}
-	if (memcmp(buf, "_DMI_", 5) == 0 && dmi_checksum(buf,sizeof(buf))) {
-		return legacy_decode(dmi,buf);
-	}
+        /* To validate the presence of SMBIOS:
+         * + the overall checksum must be correct
+         * + the intermediate anchor-string must be _DMI_
+         * + the intermediate checksum must be correct
+         */
+        if (memcmp(q, "_SM_", 4) == 0 &&
+            checksum(q, q[0x05]) &&
+            memcmp(q + 0x10, "_DMI_", 5)==0 &&
+            checksum(q + 0x10, 0x0F)) {
+            /* Do not return, legacy_decode will need to be called
+             * on the intermediate structure to get the table length
+             * and address
+             */
+            smbios_decode(dmi, q);
+        } else if (memcmp(q, "_DMI_", 5) == 0 && checksum(q, 0x0F)) {
+            found = 1;
+            legacy_decode(dmi, q);
+        }
     }
+
+    if (found)
+        return DMI_TABLE_PRESENT;
+
     dmi->dmitable.base = 0;
     dmi->dmitable.num = 0;
     dmi->dmitable.ver = 0;
@@ -650,7 +667,7 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
                                 strcpy(dmi->processor.status,dmi_processor_status(data[0x18]&0x07));
                         else
                                 sprintf(dmi->processor.status,"Unpopulated");
-                        sprintf(dmi->processor.upgrade,dmi_processor_upgrade(data[0x19]));
+                        strcpy(dmi->processor.upgrade,dmi_processor_upgrade(data[0x19]));
                         if(h->length<0x20) break;
                         dmi_processor_cache(WORD(data+0x1A), "L1", ver,dmi->processor.cache1);
                         dmi_processor_cache(WORD(data+0x1C), "L2", ver,dmi->processor.cache2);

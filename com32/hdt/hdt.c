@@ -48,8 +48,8 @@ int main(const int argc, const char *argv[])
   const char *arg;
   struct s_hardware hardware;
 
-  snprintf(version_string, sizeof version_string, "%s %s",
-           PRODUCT_NAME,VERSION);
+  snprintf(version_string, sizeof version_string, "%s %s (%s)",
+           PRODUCT_NAME,VERSION, CODENAME);
 
   /* Opening the Syslinux console */
   console_ansi_raw();
@@ -63,8 +63,10 @@ int main(const int argc, const char *argv[])
   /* Detecting parameters */
   detect_parameters(argc, argv, &hardware);
 
-
+  /* Clear the screen and reset position of the cursor */
   clear_screen();
+  printf("\033[1;1H");
+
   printf("%s\n", version_string);
 
   if ((arg = find_argument(argv + 1, "nomenu")))

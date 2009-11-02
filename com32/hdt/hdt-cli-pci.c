@@ -37,7 +37,7 @@ void main_show_pci(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware)
 {
 	cli_detect_pci(hardware);
-
+    reset_more_printf();
 	more_printf("PCI\n");
 	more_printf(" NB Devices   : %d\n", hardware->nb_pci_devices);
 }
@@ -56,19 +56,20 @@ static void show_pci_device(int argc, char **argv,
 			    MAX_KERNEL_MODULES_PER_PCI_DEVICE];
 	int bus = 0, slot = 0, func = 0;
 
+    reset_more_printf();
 	/* Sanitize arguments */
 	if (argc <= 0) {
-		printf("show device <number>\n");
+		more_printf("show device <number>\n");
 		return;
 	} else
 		pcidev = strtol(argv[0], (char **)NULL, 10);
 
 	if (errno == ERANGE) {
-		printf("This PCI device number is incorrect\n");
+		more_printf("This PCI device number is incorrect\n");
 		return;
 	}
 	if ((pcidev > hardware->nb_pci_devices) || (pcidev <= 0)) {
-		printf("PCI device %d doesn't exists\n", pcidev);
+		more_printf("PCI device %d doesn't exist\n", pcidev);
 		return;
 	}
 	if (hardware->pci_ids_return_code == -ENOPCIIDS) {
@@ -92,7 +93,7 @@ static void show_pci_device(int argc, char **argv,
 	}
 
 	if (pci_device == NULL) {
-		printf("We were enabled to find PCI device %d\n", pcidev);
+		more_printf("We were enabled to find PCI device %d\n", pcidev);
 		return;
 	}
 
@@ -109,41 +110,41 @@ static void show_pci_device(int argc, char **argv,
 	if (pci_device->dev_info->linux_kernel_module_count == 0)
 		strlcpy(kernel_modules, "unknown", 7);
 
-	printf("PCI Device %d\n", pcidev);
+	more_printf("PCI Device %d\n", pcidev);
 
 	if (nopciids == false) {
-		printf("Vendor Name   : %s\n",
+		more_printf("Vendor Name   : %s\n",
 			    pci_device->dev_info->vendor_name);
-		printf("Product Name  : %s\n",
+		more_printf("Product Name  : %s\n",
 			    pci_device->dev_info->product_name);
-		printf("Class Name    : %s\n",
+		more_printf("Class Name    : %s\n",
 			    pci_device->dev_info->class_name);
 	}
 
 	if (nomodulesfiles == false) {
-		printf("Kernel module : %s\n", kernel_modules);
+		more_printf("Kernel module : %s\n", kernel_modules);
 	}
 
-	printf("Vendor ID     : %04x\n", pci_device->vendor);
-	printf("Product ID    : %04x\n", pci_device->product);
-	printf("SubVendor ID  : %04x\n", pci_device->sub_vendor);
-	printf("SubProduct ID : %04x\n", pci_device->sub_product);
-	printf("Class ID      : %02x.%02x.%02x\n", pci_device->class[2],
+	more_printf("Vendor ID     : %04x\n", pci_device->vendor);
+	more_printf("Product ID    : %04x\n", pci_device->product);
+	more_printf("SubVendor ID  : %04x\n", pci_device->sub_vendor);
+	more_printf("SubProduct ID : %04x\n", pci_device->sub_product);
+	more_printf("Class ID      : %02x.%02x.%02x\n", pci_device->class[2],
 		    pci_device->class[1], pci_device->class[0]);
-	printf("Revision      : %02x\n", pci_device->revision);
+	more_printf("Revision      : %02x\n", pci_device->revision);
 	if ((pci_device->dev_info->irq > 0)
 	    && (pci_device->dev_info->irq < 255))
 		more_printf("IRQ           : %0d\n", pci_device->dev_info->irq);
-	printf("Latency       : %0d\n", pci_device->dev_info->latency);
-	printf("PCI Bus       : %02d\n", bus);
-	printf("PCI Slot      : %02d\n", slot);
-	printf("PCI Func      : %02d\n", func);
+	more_printf("Latency       : %0d\n", pci_device->dev_info->latency);
+	more_printf("PCI Bus       : %02d\n", bus);
+	more_printf("PCI Slot      : %02d\n", slot);
+	more_printf("PCI Func      : %02d\n", func);
 
 	if (hardware->is_pxe_valid == true) {
 		if ((hardware->pxe.pci_device != NULL)
 		    && (hardware->pxe.pci_device == pci_device)) {
-			printf("Mac Address   : %s\n", hardware->pxe.mac_addr);
-			printf("PXE           : Current boot device\n");
+			more_printf("Mac Address   : %s\n", hardware->pxe.mac_addr);
+			more_printf("PXE           : Current boot device\n");
 		}
 	}
 }
@@ -305,21 +306,21 @@ void cli_detect_pci(struct s_hardware *hardware)
 	if (hardware->pci_detection == false) {
 		detect_pci(hardware);
 		if (hardware->pci_ids_return_code == -ENOPCIIDS) {
-			printf
+			more_printf
 			    ("The pci.ids file is missing, device names can't be computed.\n");
-			printf("Please put one in same dir as hdt\n");
+			more_printf("Please put one in same dir as hdt\n");
 			error = true;
 		}
 		if ((hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) &&
 			(hardware->modules_alias_return_code == -ENOMODULESALIAS)) {
-			printf
+			more_printf
 			    ("The modules.pcimap or modules.alias files are missing, device names can't be computed.\n");
-			printf("Please put one of them in same dir as hdt\n");
+			more_printf("Please put one of them in same dir as hdt\n");
 			error = true;
 		}
 		if (error == true) {
 			char tempbuf[10];
-			printf("Press enter to continue\n");
+			more_printf("Press enter to continue\n");
 			fgets(tempbuf, sizeof(tempbuf), stdin);
 		}
 	}
