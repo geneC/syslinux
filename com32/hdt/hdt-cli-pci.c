@@ -37,7 +37,7 @@ void main_show_pci(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware)
 {
 	cli_detect_pci(hardware);
-    reset_more_printf();
+    	reset_more_printf();
 	more_printf("PCI\n");
 	more_printf(" NB Devices   : %d\n", hardware->nb_pci_devices);
 }

@@ -57,6 +57,15 @@
 #define HDT_RETURN_TO_CLI 100
 #define MAX_VESA_MODES 255
 
+/* The maximum number of commands we can process */
+#define MAX_NB_AUTO_COMMANDS 255
+/* The maximum size of a command */
+#define AUTO_COMMAND_SIZE 255
+/* The char that separate two commands */
+#define AUTO_SEPARATOR ";"
+/* The char that surround the list of commands */
+#define AUTO_DELIMITER "'"
+
 extern int display_line_nb;
 
 #define pause_printf() do {\
@@ -163,6 +172,7 @@ struct s_hardware {
   char pciids_path[255];
   char memtest_label[255];
   char reboot_label[255];
+  char auto_label[AUTO_COMMAND_SIZE];
 };
 
 void reset_more_printf();

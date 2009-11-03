@@ -749,6 +749,27 @@ static void reset_prompt()
 	}
 }
 
+void start_auto_mode(struct s_hardware *hardware)
+{
+        char *mypch;
+        char *temp;
+	int nb_commands=0;
+	char *commands[MAX_NB_AUTO_COMMANDS];
+
+        temp=strdup(hardware->auto_label);
+        printf("Entering Auto mode\n");
+        mypch = strtok (temp,AUTO_SEPARATOR);
+        while (mypch != NULL) {
+	       nb_commands++;
+	       commands[nb_commands]=malloc(AUTO_COMMAND_SIZE);
+	       sprintf(commands[nb_commands],"%s",mypch);
+               mypch = strtok (NULL, AUTO_SEPARATOR);
+        }
+	for (int i=1;i<=nb_commands;i++)
+        	exec_command(commands[i], hardware);
+}
+
+
 /* Code that manages the cli mode */
 void start_cli_mode(struct s_hardware *hardware)
 {
@@ -769,6 +790,13 @@ void start_cli_mode(struct s_hardware *hardware)
 	if (current_mode == NULL) {
 		/* Shouldn't get here... */
 		printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
+		return;
+	}
+
+	/* Start the auto mode if the command line is set*/
+	if (strlen(hardware->auto_label) > 0) {
+		start_auto_mode(hardware);
+		/* No need to return to cli */
 		return;
 	}
 
