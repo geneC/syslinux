@@ -71,18 +71,7 @@ static inline void putch(const char x, char attr)
 	cprint(x, attr, 1);
 }
 
-/*
- * cls - clear and initialize the entire screen
- *
- * Note: when initializing xterm, one has to specify that
- * G1 points to the alternate character set (this is not true
- * by default). Without the initial printf "\033)0", line drawing
- * characters won't be displayed.
- */
-static inline void cls(void)
-{
-	fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
-}
+void cls(void);
 
 static inline void cursoroff(void)
 {

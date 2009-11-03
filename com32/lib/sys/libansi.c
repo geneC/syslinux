@@ -113,12 +113,19 @@ void clear_entire_screen() {
  *
  * Convert the VGA attribute @attr to an ANSI escape sequence and
  * print it.
+ * For performance, SGR parameters are cached. To reset them,
+ * call cprint_vga2ansi('0', '0').
  **/
 static void cprint_vga2ansi(const char chr, const char attr)
 {
 	static const char ansi_char[8] = "04261537";
 	static uint16_t last_attr = 0x300;
 	char buf[16], *p;
+
+    if (chr == '0' && attr == '0') {
+        last_attr = 0x300;
+        return;
+    }
 
 	if (attr != last_attr) {
         bool reset = false;
@@ -161,6 +168,22 @@ static void cprint_vga2ansi(const char chr, const char attr)
 	}
 
 	putchar(chr);
+}
+
+/*
+ * cls - clear and initialize the entire screen
+ *
+ * Note: when initializing xterm, one has to specify that
+ * G1 points to the alternate character set (this is not true
+ * by default). Without the initial printf "\033)0", line drawing
+ * characters won't be displayed.
+ */
+void cls(void)
+{
+	fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
+
+    /* Reset SGR parameters cache */
+    cprint_vga2ansi('0', '0');
 }
 
 void reset_colors()
