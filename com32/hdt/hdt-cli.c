@@ -752,21 +752,30 @@ static void reset_prompt()
 void start_auto_mode(struct s_hardware *hardware)
 {
         char *mypch;
-        char *temp;
 	int nb_commands=0;
 	char *commands[MAX_NB_AUTO_COMMANDS];
 
-        temp=strdup(hardware->auto_label);
-        printf("Entering Auto mode\n");
+	printf("Entering Auto mode\n");
+
+	/* Protecting the auto_label from the strtok modifications */
+        char *temp=strdup(hardware->auto_label);
+
+	/* Searching & saving all commands */
         mypch = strtok (temp,AUTO_SEPARATOR);
         while (mypch != NULL) {
 	       nb_commands++;
-	       commands[nb_commands]=malloc(AUTO_COMMAND_SIZE);
-	       sprintf(commands[nb_commands],"%s",mypch);
+	       if ((commands[nb_commands]=malloc(AUTO_COMMAND_SIZE)) != NULL)
+		       sprintf(commands[nb_commands],"%s",mypch);
                mypch = strtok (NULL, AUTO_SEPARATOR);
         }
-	for (int i=1;i<=nb_commands;i++)
-        	exec_command(commands[i], hardware);
+
+	/* Executing found commands */
+	for (int i=1;i<=nb_commands;i++) {
+		if (commands[i]) {
+			exec_command(remove_spaces(commands[i]), hardware);
+			free(commands[i]);
+		}
+	}
 }
 
 
@@ -796,8 +805,6 @@ void start_cli_mode(struct s_hardware *hardware)
 	/* Start the auto mode if the command line is set*/
 	if (strlen(hardware->auto_label) > 0) {
 		start_auto_mode(hardware);
-		/* No need to return to cli */
-		return;
 	}
 
 	printf("Entering CLI mode\n");
