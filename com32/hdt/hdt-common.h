@@ -67,6 +67,7 @@
 #define AUTO_DELIMITER "'"
 
 extern int display_line_nb;
+extern bool disable_more_printf;
 
 #define pause_printf() do {\
        printf("--More--");\
@@ -79,14 +80,16 @@ extern int display_line_nb;
  * one \n (and only one)
  */
 #define more_printf(...) do {\
- if (display_line_nb == 20) {\
-   printf("\n--More--");\
+ if (!disable_more_printf) {\
+  if (display_line_nb == 20) {\
    display_line_nb=0;\
+   printf("\n--More--");\
    get_key(stdin, 0);\
    printf("\033[2K\033[1G\033[1F");\
+  }\
+  display_line_nb++;\
  }\
  printf(__VA_ARGS__);\
- display_line_nb++;\
 } while (0);
 
 /* Display CPU registers for debugging purposes */

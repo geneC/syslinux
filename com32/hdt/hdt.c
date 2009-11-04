@@ -40,6 +40,7 @@
 #include "hdt-common.h"
 
 int display_line_nb = 0;
+bool disable_more_printf = false;
 
 int main(const int argc, const char *argv[])
 {
