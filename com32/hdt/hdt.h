@@ -33,9 +33,9 @@
 #define AUTHOR "Erwan Velu"
 #define CORE_DEVELOPER "Pierre-Alexandre Meyer"
 #define CONTACT "hdt@zytor.com"
-#define VERSION "0.3.5-pre2"
+#define VERSION "0.3.5-pre3"
 #define CODENAME "mojito"
-#define NB_CONTRIBUTORS 2 
+#define NB_CONTRIBUTORS 2
 #define CONTRIBUTORS {"Sebastien Gonzalve", "Gert Hulselmans"}
 
 #define ATTR_PACKED __attribute__((packed))
