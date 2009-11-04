@@ -193,8 +193,8 @@ static void goto_menu(int argc __unused, char** argv __unused,
 		      struct s_hardware *hardware)
 {
 	char version_string[256];
-	snprintf(version_string, sizeof version_string, "%s %s",
-		 PRODUCT_NAME, VERSION);
+	snprintf(version_string, sizeof version_string, "%s %s (%s)",
+		 PRODUCT_NAME, VERSION, CODENAME);
 	start_menu_mode(hardware, version_string);
 	return;
 }
@@ -241,13 +241,14 @@ void main_show_hdt(int argc __unused, char **argv __unused,
 {
     reset_more_printf();
 	more_printf("HDT\n");
-	more_printf(" Product     : %s\n", PRODUCT_NAME);
-	more_printf(" Version     : %s\n", VERSION);
-	more_printf(" Author      : %s\n", AUTHOR);
-	more_printf(" Contact     : %s\n", CONTACT);
+	more_printf(" Product        : %s\n", PRODUCT_NAME);
+	more_printf(" Version        : %s (%s)\n", VERSION, CODENAME);
+	more_printf(" Project Leader : %s\n", AUTHOR);
+	more_printf(" Contact        : %s\n", CONTACT);
+	more_printf(" Core Developer : %s\n", CORE_DEVELOPER);
 	char *contributors[NB_CONTRIBUTORS] = CONTRIBUTORS;
 	for (int c = 0; c < NB_CONTRIBUTORS; c++) {
-		more_printf(" Contributor : %s\n", contributors[c]);
+		more_printf(" Contributor    : %s\n", contributors[c]);
 	}
 }
 
