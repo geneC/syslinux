@@ -76,6 +76,33 @@ void detect_parameters(const int argc, const char *argv[],
       strncpy(hardware->reboot_label, argv[i] + 7,
         sizeof(hardware->reboot_label));
       convert_isolinux_filename(hardware->reboot_label,hardware);
+    } else if (!strncmp(argv[i], "auto=", 5)) {
+	    	/* The auto= parameter is separated in several argv[]
+		 * as it can contains spaces.
+		 * We use the AUTO_DELIMITER char to define the limits
+		 * of this parameter.
+		 * i.e auto='show dmi; show pci'
+		 */
+
+	    	/* Extracting the first parameter */
+	        strcpy(hardware->auto_label, argv[i] + 6);
+		strcat(hardware->auto_label," ");
+		char *pos;
+		i++;
+
+		/* While we can't find the other AUTO_DELIMITER, let's process the argv[] */
+		while(((pos=strstr(argv[i],AUTO_DELIMITER)) == NULL) && (i<argc)) {
+			strcat(hardware->auto_label,argv[i]);
+			strcat(hardware->auto_label," ");
+			i++;
+		}
+
+		/* If we didn't reach the end of the line, let's grab the last item */
+		if (i<argc)  {
+			strcat(hardware->auto_label,argv[i]);
+			hardware->auto_label[strlen(hardware->auto_label)-1]=0;
+			i++;
+		}
     }
   }
 }
@@ -138,6 +165,7 @@ void init_hardware(struct s_hardware *hardware)
          sizeof hardware->modules_alias_path);
   memset(hardware->memtest_label, 0, sizeof hardware->memtest_label);
   memset(hardware->reboot_label, 0, sizeof hardware->reboot_label);
+  memset(hardware->auto_label, 0, sizeof hardware->auto_label);
   strcat(hardware->pciids_path, "pci.ids");
   strcat(hardware->modules_pcimap_path, "modules.pcimap");
   strcat(hardware->modules_alias_path, "modules.alias");

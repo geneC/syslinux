@@ -153,6 +153,7 @@ cli_mode_t mode_s_to_mode_t(char *name);
 
 void set_mode(cli_mode_t mode, struct s_hardware *hardware);
 void start_cli_mode(struct s_hardware *hardware);
+void start_auto_mode(struct s_hardware *hardware);
 void main_show(char *item, struct s_hardware *hardware);
 
 // DMI STUFF

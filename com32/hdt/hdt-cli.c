@@ -749,6 +749,44 @@ static void reset_prompt()
 	}
 }
 
+void start_auto_mode(struct s_hardware *hardware)
+{
+        char *mypch;
+	int nb_commands=0;
+	char *commands[MAX_NB_AUTO_COMMANDS];
+
+	more_printf("Entering Auto mode\n");
+
+	/* Protecting the auto_label from the strtok modifications */
+        char *temp=strdup(hardware->auto_label);
+
+	/* Searching & saving all commands */
+        mypch = strtok (temp,AUTO_SEPARATOR);
+        while (mypch != NULL) {
+		if (strlen(remove_spaces(mypch))>0) {
+	        	nb_commands++;
+	       		if ((commands[nb_commands]=malloc(AUTO_COMMAND_SIZE)) != NULL) {
+		       		sprintf(commands[nb_commands],"%s",remove_spaces(mypch));
+	       		} else
+		       		nb_commands--;
+		}
+               mypch = strtok (NULL, AUTO_SEPARATOR);
+        }
+
+	/* Executing found commands */
+	for (int i=1;i<=nb_commands;i++) {
+		if (commands[i]) {
+			more_printf("\n");
+			more_printf("> Auto mode: Executing %d/%d : '%s'\n",i,nb_commands, commands[i]);
+			exec_command(commands[i], hardware);
+			free(commands[i]);
+		}
+	}
+
+	more_printf("Exiting Auto mode\n");
+}
+
+
 /* Code that manages the cli mode */
 void start_cli_mode(struct s_hardware *hardware)
 {
@@ -770,6 +808,11 @@ void start_cli_mode(struct s_hardware *hardware)
 		/* Shouldn't get here... */
 		printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
 		return;
+	}
+
+	/* Start the auto mode if the command line is set*/
+	if (strlen(hardware->auto_label) > 0) {
+		start_auto_mode(hardware);
 	}
 
 	printf("Entering CLI mode\n");

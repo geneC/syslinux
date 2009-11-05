@@ -57,7 +57,17 @@
 #define HDT_RETURN_TO_CLI 100
 #define MAX_VESA_MODES 255
 
+/* The maximum number of commands we can process */
+#define MAX_NB_AUTO_COMMANDS 255
+/* The maximum size of a command */
+#define AUTO_COMMAND_SIZE 255
+/* The char that separate two commands */
+#define AUTO_SEPARATOR ";"
+/* The char that surround the list of commands */
+#define AUTO_DELIMITER "'"
+
 extern int display_line_nb;
+extern bool disable_more_printf;
 
 #define pause_printf() do {\
        printf("--More--");\
@@ -70,14 +80,16 @@ extern int display_line_nb;
  * one \n (and only one)
  */
 #define more_printf(...) do {\
- if (display_line_nb == 20) {\
-   printf("\n--More--");\
+ if (!disable_more_printf) {\
+  if (display_line_nb == 20) {\
    display_line_nb=0;\
+   printf("\n--More--");\
    get_key(stdin, 0);\
    printf("\033[2K\033[1G\033[1F");\
+  }\
+  display_line_nb++;\
  }\
  printf(__VA_ARGS__);\
- display_line_nb++;\
 } while (0);
 
 /* Display CPU registers for debugging purposes */
@@ -163,6 +175,7 @@ struct s_hardware {
   char pciids_path[255];
   char memtest_label[255];
   char reboot_label[255];
+  char auto_label[AUTO_COMMAND_SIZE];
 };
 
 void reset_more_printf();
