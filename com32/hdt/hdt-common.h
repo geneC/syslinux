@@ -80,7 +80,7 @@ extern bool disable_more_printf;
  * one \n (and only one)
  */
 #define more_printf(...) do {\
- if (!disable_more_printf) {\
+ if (__likely(!disable_more_printf)) {\
   if (display_line_nb == 20) {\
    display_line_nb=0;\
    printf("\n--More--");\
