@@ -755,8 +755,8 @@ void start_auto_mode(struct s_hardware *hardware)
 	int nb_commands=0;
 	char *commands[MAX_NB_AUTO_COMMANDS];
 
-    if (!quiet)
-        more_printf("\nEntering Auto mode\n");
+	if (!quiet)
+        	more_printf("\nEntering Auto mode\n");
 
 	/* Protecting the auto_label from the strtok modifications */
         char *temp=strdup(hardware->auto_label);
@@ -764,7 +764,7 @@ void start_auto_mode(struct s_hardware *hardware)
 	/* Searching & saving all commands */
         mypch = strtok (temp,AUTO_SEPARATOR);
         while (mypch != NULL) {
-		if ((strlen(remove_spaces(mypch))>0) && (remove_spaces(mypch)[0] !='\'')) {
+		if ((strlen(remove_spaces(mypch))>0) && (remove_spaces(mypch)[0] != AUTO_SEPARATOR)) {
 	        	nb_commands++;
 	       		if ((commands[nb_commands]=malloc(AUTO_COMMAND_SIZE)) != NULL) {
 		       		sprintf(commands[nb_commands],"%s",remove_spaces(mypch));
@@ -777,9 +777,8 @@ void start_auto_mode(struct s_hardware *hardware)
 	/* Executing found commands */
 	for (int i=1;i<=nb_commands;i++) {
 		if (commands[i]) {
-            more_printf("\n");
-            if (!quiet)
-                more_printf("> Auto mode: Executing %d/%d : '%s'\n", i, nb_commands, commands[i]);
+            		if (!quiet) 
+				more_printf("%s%s\n",hdt_cli.prompt,commands[i]);
 			exec_command(commands[i], hardware);
 			free(commands[i]);
 		}
