@@ -55,12 +55,12 @@ void convert_isolinux_filename(char *filename, struct s_hardware *hardware) {
 void detect_parameters(const int argc, const char *argv[],
                        struct s_hardware *hardware)
 {
-  /* Debug mode - make the output more verbose */
-  debug = false;
+  /* Quiet mode - make the output more quiet */
+  quiet = false;
 
   for (int i = 1; i < argc; i++) {
-    if (!strncmp(argv[i], "debug", 5)) {
-        debug = true;
+    if (!strncmp(argv[i], "quiet", 5)) {
+        quiet = true;
     } else if (!strncmp(argv[i], "modules_pcimap=", 15)) {
       strncpy(hardware->modules_pcimap_path, argv[i] + 15,
         sizeof(hardware->modules_pcimap_path));
@@ -483,7 +483,7 @@ void detect_pci(struct s_hardware *hardware)
     hardware->nb_pci_devices++;
   }
 
-  if (debug) {
+  if (!quiet) {
       more_printf("PCI: %d devices detected\n", hardware->nb_pci_devices);
       more_printf("PCI: Resolving names\n");
   }
@@ -491,14 +491,14 @@ void detect_pci(struct s_hardware *hardware)
   hardware->pci_ids_return_code =
       get_name_from_pci_ids(hardware->pci_domain, hardware->pciids_path);
 
-  if (debug)
+  if (!quiet)
       more_printf("PCI: Resolving class names\n");
   /* Assigning class name for each device */
   hardware->pci_ids_return_code =
       get_class_name_from_pci_ids(hardware->pci_domain,
           hardware->pciids_path);
 
-  if (debug)
+  if (!quiet)
       more_printf("PCI: Resolving module names\n");
   /* Detecting which kernel module should match each device using modules.pcimap*/
   hardware->modules_pcimap_return_code =
