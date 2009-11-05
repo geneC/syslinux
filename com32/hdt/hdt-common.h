@@ -66,6 +66,8 @@
 /* The char that surround the list of commands */
 #define AUTO_DELIMITER "'"
 
+bool debug;
+
 extern int display_line_nb;
 extern bool disable_more_printf;
 
