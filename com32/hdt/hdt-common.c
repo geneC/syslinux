@@ -101,7 +101,6 @@ void detect_parameters(const int argc, const char *argv[],
 		if (i<argc)  {
 			strcat(hardware->auto_label,argv[i]);
 			hardware->auto_label[strlen(hardware->auto_label)-1]=0;
-			i++;
 		}
     }
   }
