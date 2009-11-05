@@ -51,7 +51,8 @@ int start_menu_mode(struct s_hardware *hardware, char *version_string)
   t_menuitem *curr;
   char cmd[160];
 
-  printf("Starting Menu (%d menus)\n", hdt_menu.total_menu_count);
+  if (debug)
+      more_printf("Starting Menu (%d menus)\n", hdt_menu.total_menu_count);
   curr = showmenus(hdt_menu.main_menu.menu);
   /* When we exit the menu, do we have something to do? */
   if (curr) {
@@ -301,30 +302,37 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
 
 void detect_hardware(struct s_hardware *hardware)
 {
-  printf("CPU: Detecting\n");
+  if (debug)
+      more_printf("CPU: Detecting\n");
   cpu_detect(hardware);
 
-  printf("DISKS: Detecting\n");
+  if (debug)
+      more_printf("DISKS: Detecting\n");
   detect_disks(hardware);
 
-  printf("DMI: Detecting Table\n");
+  if (debug)
+      more_printf("DMI: Detecting Table\n");
   if (detect_dmi(hardware) == -ENODMITABLE) {
     printf("DMI: ERROR ! Table not found ! \n");
     printf
         ("DMI: Many hardware components will not be detected ! \n");
   } else {
-    printf("DMI: Table found ! (version %u.%u)\n",
-           hardware->dmi.dmitable.major_version,
-           hardware->dmi.dmitable.minor_version);
+      if (debug)
+          more_printf("DMI: Table found ! (version %u.%u)\n",
+                 hardware->dmi.dmitable.major_version,
+                 hardware->dmi.dmitable.minor_version);
   }
 
-  printf("VPD: Detecting\n");
+  if (debug)
+      more_printf("VPD: Detecting\n");
   detect_vpd(hardware);
 
 #ifdef WITH_PCI
   detect_pci(hardware);
-  printf("PCI: %d Devices Found\n", hardware->nb_pci_devices);
+  if (debug)
+      more_printf("PCI: %d Devices Found\n", hardware->nb_pci_devices);
 #endif
-  printf("VESA: Detecting\n");
+  if (debug)
+      more_printf("VESA: Detecting\n");
   detect_vesa(hardware);
 }

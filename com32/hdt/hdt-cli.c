@@ -755,7 +755,8 @@ void start_auto_mode(struct s_hardware *hardware)
 	int nb_commands=0;
 	char *commands[MAX_NB_AUTO_COMMANDS];
 
-	more_printf("Entering Auto mode\n");
+    if (debug)
+        more_printf("\nEntering Auto mode\n");
 
 	/* Protecting the auto_label from the strtok modifications */
         char *temp=strdup(hardware->auto_label);
@@ -776,14 +777,18 @@ void start_auto_mode(struct s_hardware *hardware)
 	/* Executing found commands */
 	for (int i=1;i<=nb_commands;i++) {
 		if (commands[i]) {
-			more_printf("\n");
-			more_printf("> Auto mode: Executing %d/%d : '%s'\n",i,nb_commands, commands[i]);
+            more_printf("\n");
+            if (debug)
+                more_printf("> Auto mode: Executing %d/%d : '%s'\n", i, nb_commands, commands[i]);
 			exec_command(commands[i], hardware);
 			free(commands[i]);
 		}
 	}
 
-	more_printf("Exiting Auto mode\n");
+    if (debug)
+        more_printf("\nExiting Auto mode\n");
+
+    more_printf("\n");
 }
 
 
