@@ -31,9 +31,7 @@ local_boot:
 		mov gs,dx
 		mov si,localboot_msg
 		call writestr
-		push ax
 		call cleanup_hardware
-		pop ax
 		cmp ax,-1
 		je .int18
 

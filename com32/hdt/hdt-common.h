@@ -32,13 +32,22 @@
 #include <syslinux/pxe.h>
 #include "sys/pci.h"
 
+#include <disk/bootloaders.h>
+#include <disk/errno_disk.h>
+#include <disk/error.h>
 #include <disk/geom.h>
+#include <disk/mbrs.h>
+#include <disk/msdos.h>
+#include <disk/partition.h>
+#include <disk/swsusp.h>
+#include <disk/read.h>
 
 #include "cpuid.h"
 #include "dmi/dmi.h"
 #include "hdt-ata.h"
 #include "../lib/sys/vesa/vesa.h"
 #include <vpd/vpd.h>
+#include <libansi.h>
 
 /* Declare a variable or data structure as unused. */
 #define __unused __attribute__ (( unused ))
@@ -48,16 +57,42 @@
 #define HDT_RETURN_TO_CLI 100
 #define MAX_VESA_MODES 255
 
-extern int display_line_nb;
+/* The maximum number of commands we can process */
+#define MAX_NB_AUTO_COMMANDS 255
+/* The maximum size of a command */
+#define AUTO_COMMAND_SIZE 255
+/* The char that separate two commands */
+#define AUTO_SEPARATOR ";"
+/* The char that surround the list of commands */
+#define AUTO_DELIMITER "'"
 
+/* Defines if the cli is quiet*/
+bool quiet;
+
+extern int display_line_nb;
+extern bool disable_more_printf;
+
+#define pause_printf() do {\
+       printf("--More--");\
+       get_key(stdin, 0);\
+       printf("\033[2K\033[1G\033[1F\n");\
+} while (0);
+
+/* The brokeness of that macro is that
+ * it assumes that __VA_ARGS__ contains
+ * one \n (and only one)
+ */
 #define more_printf(...) do {\
- if (display_line_nb == 23) {\
-   printf("Press any key to continue\n");\
+ if (__likely(!disable_more_printf)) {\
+  if (display_line_nb == 20) {\
    display_line_nb=0;\
+   printf("\n--More--");\
    get_key(stdin, 0);\
+   printf("\033[2K\033[1G\033[1F");\
+  }\
+  display_line_nb++;\
  }\
- printf ( __VA_ARGS__);\
- display_line_nb++; \
+ printf(__VA_ARGS__);\
 } while (0);
 
 /* Display CPU registers for debugging purposes */
@@ -114,6 +149,7 @@ struct s_hardware {
   s_vpd vpd;                      /* VPD information */
   struct pci_domain *pci_domain;  /* PCI Devices */
   struct driveinfo disk_info[256]; /* Disk Information */
+  uint32_t mbr_ids[256];	  /* MBR ids */
   int disks_count;		  /* Number of detected disks */
   struct s_pxe pxe;
   struct s_vesa vesa;
@@ -141,11 +177,14 @@ struct s_hardware {
   char modules_alias_path[255];
   char pciids_path[255];
   char memtest_label[255];
+  char reboot_label[255];
+  char auto_label[AUTO_COMMAND_SIZE];
 };
 
 void reset_more_printf();
 const char *find_argument(const char **argv, const char *argument);
 char *remove_spaces(char *p);
+char *remove_trailing_lf(char *p);
 char *skip_spaces(char *p);
 char *del_multi_spaces(char *p);
 int detect_dmi(struct s_hardware *hardware);

@@ -14,23 +14,32 @@
 #define __TUI_H__
 
 #include <com32.h>
+#include <getkey.h>
+#include <consoles.h>
 #include "syslnx.h"
 #include "com32io.h"
-#include "scancodes.h"
 
 #ifndef NULL
 #define NULL ((void *)0)
 #endif
 
+#define SO '\016'
+#define SI '\017'
+
+#define TOP_LEFT_CORNER_BORDER '\154'
+#define TOP_BORDER '\161'
+#define TOP_RIGHT_CORNER_BORDER '\153'
+#define BOTTOM_LEFT_CORNER_BORDER '\155'
+#define BOTTOM_BORDER '\161'
+#define BOTTOM_RIGHT_CORNER_BORDER '\152'
+#define LEFT_BORDER '\170'
+#define RIGHT_BORDER '\170'
+#define LEFT_MIDDLE_BORDER '\164'
+#define MIDDLE_BORDER '\161'
+#define RIGHT_MIDDLE_BORDER '\165'
+
 #define BELL 0x07
-// CHRELATTR = ^N, CHABSATTR = ^O
-#define CHABSATTR 15
-#define CHRELATTR 14
-
-void clearwindow(char top, char left, char bot, char right,
-		 char page, char fillchar, char fillattr);
-
-void cls(void);			/* Clears the entire current screen page */
+#define GETSTRATTR 0x07
 
 // Generic user input,
 // password = 0 iff chars echoed on screen
@@ -53,35 +62,14 @@ static inline void getpwd(char *str, unsigned int size)
     getuserinput(str, size, 1, 0);
 }
 
-// Box drawing Chars offsets into array
-#define BOX_TOPLEFT  0x0
-#define BOX_BOTLEFT  0x1
-#define BOX_TOPRIGHT 0x2
-#define BOX_BOTRIGHT 0x3
-#define BOX_TOP      0x4	// TOP = BOT = HORIZ
-#define BOX_BOT      0x4
-#define BOX_HORIZ    0x4
-#define BOX_LEFT     0x5
-#define BOX_RIGHT    0x5
-#define BOX_VERT     0x5	// LEFT=RIGHT=VERT
-#define BOX_LTRT     0x6
-#define BOX_RTLT     0x7
-#define BOX_TOPBOT   0x8
-#define BOX_BOTTOP   0x9
-#define BOX_MIDDLE   0xA
-
-typedef enum { BOX_SINSIN, BOX_DBLDBL, BOX_SINDBL, BOX_DBLSIN } boxtype;
-
-unsigned char *getboxchars(boxtype bt);
-
-void drawbox(char top, char left, char bot, char right,
-	     char page, char attr, boxtype bt);
+void drawbox(const char, const char, const char, const char,
+	     const char);
 
 // Draw a horizontal line
 // dumb == 1, means just draw the line
 // dumb == 0 means check the first and last positions and depending on what is
 //    currently on the screen make it a LTRT and/or RTLT appropriately.
-void drawhorizline(char top, char left, char right, char page, char attr,
-		   boxtype bt, char dumb);
+void drawhorizline(const char, const char, const char, const char,
+		   const char dumb);
 
 #endif

@@ -174,6 +174,10 @@ static void show_cpu(int argc __unused, char **argv __unused,
 		strcat(buffer1, "3dnowext ");
 	if (hardware->cpu.flags.now)
 		strcat(buffer1, "3dnow! ");
+	if (hardware->cpu.flags.svm)
+		strcat(buffer1, "svm ");
+	if (hardware->cpu.flags.vmx)
+		strcat(buffer1, "vmx ");
 	if (buffer1[0]) {
 		snprintf(buffer, sizeof buffer, "Flags     : %s\n", buffer1);
 		more_printf(buffer);

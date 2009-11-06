@@ -33,8 +33,8 @@
 #include "syslinux/config.h"
 #include "../lib/sys/vesa/vesa.h"
 #include "hdt-common.h"
-#include "lib-ansi.h"
 #include <disk/util.h>
+#include <disk/mbrs.h>
 
 /* ISOlinux requires a 8.3 format */
 void convert_isolinux_filename(char *filename, struct s_hardware *hardware) {
@@ -55,8 +55,13 @@ void convert_isolinux_filename(char *filename, struct s_hardware *hardware) {
 void detect_parameters(const int argc, const char *argv[],
                        struct s_hardware *hardware)
 {
+  /* Quiet mode - make the output more quiet */
+  quiet = false;
+
   for (int i = 1; i < argc; i++) {
-    if (!strncmp(argv[i], "modules_pcimap=", 15)) {
+    if (!strncmp(argv[i], "quiet", 5)) {
+        quiet = true;
+    } else if (!strncmp(argv[i], "modules_pcimap=", 15)) {
       strncpy(hardware->modules_pcimap_path, argv[i] + 15,
         sizeof(hardware->modules_pcimap_path));
       convert_isolinux_filename(hardware->modules_pcimap_path,hardware);
@@ -72,6 +77,36 @@ void detect_parameters(const int argc, const char *argv[],
       strncpy(hardware->memtest_label, argv[i] + 8,
         sizeof(hardware->memtest_label));
       convert_isolinux_filename(hardware->memtest_label,hardware);
+    } else if (!strncmp(argv[i], "reboot=", 7)) {
+      strncpy(hardware->reboot_label, argv[i] + 7,
+        sizeof(hardware->reboot_label));
+      convert_isolinux_filename(hardware->reboot_label,hardware);
+    } else if (!strncmp(argv[i], "auto=", 5)) {
+	    	/* The auto= parameter is separated in several argv[]
+		 * as it can contains spaces.
+		 * We use the AUTO_DELIMITER char to define the limits
+		 * of this parameter.
+		 * i.e auto='show dmi; show pci'
+		 */
+
+	    	/* Extracting the first parameter */
+	        strcpy(hardware->auto_label, argv[i] + 6);
+		strcat(hardware->auto_label," ");
+		char *pos;
+		i++;
+
+		/* While we can't find the other AUTO_DELIMITER, let's process the argv[] */
+		while(((pos=strstr(argv[i],AUTO_DELIMITER)) == NULL) && (i<argc)) {
+			strcat(hardware->auto_label,argv[i]);
+			strcat(hardware->auto_label," ");
+			i++;
+		}
+
+		/* If we didn't reach the end of the line, let's grab the last item */
+		if (i<argc)  {
+			strcat(hardware->auto_label,argv[i]);
+			hardware->auto_label[strlen(hardware->auto_label)-1]=0;
+		}
     }
   }
 }
@@ -133,10 +168,13 @@ void init_hardware(struct s_hardware *hardware)
   memset(hardware->modules_alias_path, 0,
          sizeof hardware->modules_alias_path);
   memset(hardware->memtest_label, 0, sizeof hardware->memtest_label);
+  memset(hardware->reboot_label, 0, sizeof hardware->reboot_label);
+  memset(hardware->auto_label, 0, sizeof hardware->auto_label);
   strcat(hardware->pciids_path, "pci.ids");
   strcat(hardware->modules_pcimap_path, "modules.pcimap");
   strcat(hardware->modules_alias_path, "modules.alias");
   strcat(hardware->memtest_label, "memtest");
+  strcat(hardware->reboot_label, "reboot.c32");
 }
 
 /*
@@ -268,6 +306,9 @@ void detect_disks(struct s_hardware *hardware)
 		 */
 		if (err == -1 || !hardware->disk_info[i].cbios)
 			continue;
+
+		/* Detect MBR */
+		hardware->mbr_ids[i] = get_mbr_id(&hardware->disk_info[i]);
 
 		hardware->disks_count++;
 	}
@@ -442,19 +483,23 @@ void detect_pci(struct s_hardware *hardware)
     hardware->nb_pci_devices++;
   }
 
-  printf("PCI: %d devices detected\n", hardware->nb_pci_devices);
-  printf("PCI: Resolving names\n");
+  if (!quiet) {
+      more_printf("PCI: %d devices detected\n", hardware->nb_pci_devices);
+      more_printf("PCI: Resolving names\n");
+  }
   /* Assigning product & vendor name for each device */
   hardware->pci_ids_return_code =
       get_name_from_pci_ids(hardware->pci_domain, hardware->pciids_path);
 
-  printf("PCI: Resolving class names\n");
+  if (!quiet)
+      more_printf("PCI: Resolving class names\n");
   /* Assigning class name for each device */
   hardware->pci_ids_return_code =
       get_class_name_from_pci_ids(hardware->pci_domain,
           hardware->pciids_path);
 
-  printf("PCI: Resolving module names\n");
+  if (!quiet)
+      more_printf("PCI: Resolving module names\n");
   /* Detecting which kernel module should match each device using modules.pcimap*/
   hardware->modules_pcimap_return_code =
       get_module_name_from_pcimap(hardware->pci_domain,
@@ -530,6 +575,20 @@ char *remove_spaces(char *p)
   while (*p && *p <= ' ') {
     p++;
   }
+
+  return p;
+}
+
+/* remove trailing LF */
+char *remove_trailing_lf(char *p)
+{
+  char *save=p;
+  p+=strlen(p)-1;
+  while (*p && *p == 10) {
+   *p='\0';
+   p--;
+  }
+  p=save;
 
   return p;
 }

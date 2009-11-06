@@ -13,6 +13,7 @@
 #ifndef DMI_H
 #define DMI_H
 #include <inttypes.h>
+#define DMI_BUFFER_SIZE 16 
 #define MAX_DMI_MEMORY_ITEMS 32
 #define MAX_DMI_CACHE_ITEMS 32
 #define OEM_STRINGS_SIZE 512
@@ -86,7 +87,7 @@ typedef struct {
 void to_dmi_header(struct dmi_header *h, uint8_t * data);
 void dmi_bios_runtime_size(uint32_t code, s_dmi * dmi);
 const char *dmi_string(struct dmi_header *dm, uint8_t s);
-int dmi_checksum(uint8_t * buf);
+int dmi_checksum(uint8_t * buf, int len);
 void parse_dmitable(s_dmi * dmi);
 void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi);
 int dmi_iterate(s_dmi * dmi);

@@ -29,6 +29,7 @@
 #ifndef DEFINE_HDT_MENU_H
 #define DEFINE_HDT_MENU_H
 #include <stdio.h>
+#include <getkey.h>
 
 #include "menu.h"
 #include "help.h"
@@ -82,7 +83,7 @@ struct s_hdt_menu {
 };
 
 TIMEOUTCODE ontimeout();
-void keys_handler(t_menusystem * ms, t_menuitem * mi, unsigned int scancode);
+void keys_handler(t_menusystem * ms __attribute__ (( unused )), t_menuitem * mi, int scancode);
 
 // PCI Stuff
 int compute_PCI(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);
@@ -91,7 +92,7 @@ int compute_PCI(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);
 void compute_kernel(struct s_my_menu *menu, struct s_hardware *hardware);
 
 // Disk Stuff
-void compute_disks(struct s_hdt_menu *menu, struct driveinfo *disk_info, struct s_hardware *hardware);
+void compute_disks(struct s_hdt_menu *menu, struct s_hardware *hardware);
 
 // DMI Stuff
 void compute_motherboard(struct s_my_menu *menu, s_dmi * dmi);

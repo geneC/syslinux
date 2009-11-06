@@ -48,6 +48,7 @@
 #define CLI_CLEAR "clear"
 #define CLI_EXIT "exit"
 #define CLI_HELP "help"
+#define CLI_REBOOT "reboot"
 #define CLI_SHOW "show"
 #define CLI_SET "set"
 #define CLI_MODE "mode"
@@ -152,6 +153,7 @@ cli_mode_t mode_s_to_mode_t(char *name);
 
 void set_mode(cli_mode_t mode, struct s_hardware *hardware);
 void start_cli_mode(struct s_hardware *hardware);
+void start_auto_mode(struct s_hardware *hardware);
 void main_show(char *item, struct s_hardware *hardware);
 
 // DMI STUFF

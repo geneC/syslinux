@@ -91,6 +91,9 @@ SerialIRQPort	resw 1			; Serial port w IRQ service
 SerialHead	resw 1			; Head of serial port rx buffer
 SerialTail	resw 1			; Tail of serial port rx buffer
 
+		section .bss16
+IRQMask		resw 1			; PIC IRQ mask status
+
 		section .text16
 
 sirq_install:
@@ -133,6 +136,22 @@ sirq_install:
 		mov al,1		; Enable receive interrupt
 		slow_out dx,al
 
+		;
+		; Enable all ther interupt lines at the PIC.  Some BIOSes
+		; only enable the timer interrupts and other interrupts
+		; actively in use by the BIOS.
+		;
+		in al,0xA1		; Secondary PIC mask register
+		mov ah,al
+		in al,0x21		; Primary PIC mask register
+		mov [IRQMask],ax
+
+		io_delay
+
+		xor ax,ax		; Remove all interrupt masks
+		out 0x21,al
+		out 0xA1,al
+
 		popad
 		ret
 
@@ -156,6 +175,12 @@ sirq_cleanup_nowipe:
 		xor ax,ax
 		slow_out dx,al		; Clear IER
 
+		; Restore PIC masks
+		mov ax,[IRQMask]
+		out 0x21,al
+		mov al,ah
+		out 0xA1,al
+
 		; Restore the original interrupt vectors
 		mov si,oldirq0
 		mov di,4*08h
@@ -164,6 +189,9 @@ sirq_cleanup_nowipe:
 		mov di,4*70h
 		mov cx,8
 		rep movsd
+
+		xor ax,ax
+		mov [SerialIRQPort],ax		; No active interrupt system
 
 .done:
 		pop es

@@ -32,7 +32,6 @@
 #include <getkey.h>
 #include "hdt-cli.h"
 #include "hdt-common.h"
-#include "lib-ansi.h"
 
 struct cli_mode_descr *list_modes[] = {
 	&hdt_mode,
@@ -54,8 +53,8 @@ struct cli_mode_descr *list_modes[] = {
  * array of variables. There is no easy way around it besides declaring the arrays of
  * strings first.
  */
-char *exit_aliases[] = {"q", "quit"};
-char *help_aliases[] = {"h", "?"};
+const char *exit_aliases[] = {"q", "quit"};
+const char *help_aliases[] = {"h", "?"};
 
 /* List of aliases */
 struct cli_alias hdt_aliases[] = {
@@ -750,6 +749,48 @@ static void reset_prompt()
 	}
 }
 
+void start_auto_mode(struct s_hardware *hardware)
+{
+        char *mypch;
+	int nb_commands=0;
+	char *commands[MAX_NB_AUTO_COMMANDS];
+
+	if (!quiet)
+        	more_printf("\nEntering Auto mode\n");
+
+	/* Protecting the auto_label from the strtok modifications */
+        char *temp=strdup(hardware->auto_label);
+
+	/* Searching & saving all commands */
+        mypch = strtok (temp,AUTO_SEPARATOR);
+        while (mypch != NULL) {
+		if ((strlen(remove_spaces(mypch))>0) && (remove_spaces(mypch)[0] != AUTO_SEPARATOR)) {
+	        	nb_commands++;
+	       		if ((commands[nb_commands]=malloc(AUTO_COMMAND_SIZE)) != NULL) {
+		       		sprintf(commands[nb_commands],"%s",remove_spaces(mypch));
+	       		} else
+		       		nb_commands--;
+		}
+               mypch = strtok (NULL, AUTO_SEPARATOR);
+        }
+
+	/* Executing found commands */
+	for (int i=1;i<=nb_commands;i++) {
+		if (commands[i]) {
+            		if (!quiet) 
+				more_printf("%s%s\n",hdt_cli.prompt,commands[i]);
+			exec_command(commands[i], hardware);
+			free(commands[i]);
+		}
+	}
+
+    if (!quiet)
+        more_printf("\nExiting Auto mode\n");
+
+    more_printf("\n");
+}
+
+
 /* Code that manages the cli mode */
 void start_cli_mode(struct s_hardware *hardware)
 {
@@ -771,6 +812,11 @@ void start_cli_mode(struct s_hardware *hardware)
 		/* Shouldn't get here... */
 		printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
 		return;
+	}
+
+	/* Start the auto mode if the command line is set*/
+	if (strlen(hardware->auto_label) > 0) {
+		start_auto_mode(hardware);
 	}
 
 	printf("Entering CLI mode\n");

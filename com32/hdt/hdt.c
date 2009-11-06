@@ -37,10 +37,10 @@
 #include <consoles.h>
 #include "hdt.h"
 #include "hdt-menu.h"
-#include "hdt-cli.h"
 #include "hdt-common.h"
 
 int display_line_nb = 0;
+bool disable_more_printf = false;
 
 int main(const int argc, const char *argv[])
 {
@@ -48,8 +48,8 @@ int main(const int argc, const char *argv[])
   const char *arg;
   struct s_hardware hardware;
 
-  snprintf(version_string, sizeof version_string, "%s %s by %s",
-           PRODUCT_NAME,VERSION,AUTHOR);
+  snprintf(version_string, sizeof version_string, "%s %s (%s)",
+           PRODUCT_NAME,VERSION, CODENAME);
 
   /* Opening the Syslinux console */
   console_ansi_raw();
@@ -63,20 +63,19 @@ int main(const int argc, const char *argv[])
   /* Detecting parameters */
   detect_parameters(argc, argv, &hardware);
 
-
+  /* Clear the screen and reset position of the cursor */
   clear_screen();
+  printf("\033[1;1H");
+
   printf("%s\n", version_string);
-
-  if ((arg = find_argument(argv + 1, "nomenu")))
-    start_cli_mode(&hardware);
+  if ((arg = find_argument(argv + 1, "nomenu")) || (find_argument(argv+1,"auto")))
+  	start_cli_mode(&hardware);
   else {
-    int return_code = start_menu_mode(&hardware, version_string);
-
-    if (return_code == HDT_RETURN_TO_CLI)
-      start_cli_mode(&hardware);
-    else
-      return return_code;
+  	int return_code = start_menu_mode(&hardware, version_string);
+    	if (return_code == HDT_RETURN_TO_CLI)
+      		start_cli_mode(&hardware);
+    	else
+  		return return_code;
   }
-
   return 0;
 }

@@ -36,33 +36,34 @@
 void main_show_vesa(int argc __unused, char **argv __unused,
 		    struct s_hardware *hardware)
 {
+    reset_more_printf();
 	detect_vesa(hardware);
 	if (hardware->is_vesa_valid == false) {
-		printf("No VESA BIOS detected\n");
+		more_printf("No VESA BIOS detected\n");
 		return;
 	}
-	printf("VESA\n");
-	printf(" Vesa version : %d.%d\n", hardware->vesa.major_version,
+	more_printf("VESA\n");
+	more_printf(" Vesa version : %d.%d\n", hardware->vesa.major_version,
 		    hardware->vesa.minor_version);
-	printf(" Vendor       : %s\n", hardware->vesa.vendor);
-	printf(" Product      : %s\n", hardware->vesa.product);
-	printf(" Product rev. : %s\n", hardware->vesa.product_revision);
-	printf(" Software rev.: %d\n", hardware->vesa.software_rev);
-	printf(" Memory (KB)  : %d\n", hardware->vesa.total_memory * 64);
-	printf(" Modes        : %d\n", hardware->vesa.vmi_count);
+	more_printf(" Vendor       : %s\n", hardware->vesa.vendor);
+	more_printf(" Product      : %s\n", hardware->vesa.product);
+	more_printf(" Product rev. : %s\n", hardware->vesa.product_revision);
+	more_printf(" Software rev.: %d\n", hardware->vesa.software_rev);
+	more_printf(" Memory (KB)  : %d\n", hardware->vesa.total_memory * 64);
+	more_printf(" Modes        : %d\n", hardware->vesa.vmi_count);
 }
 
 static void show_vesa_modes(int argc __unused, char **argv __unused,
 			    struct s_hardware *hardware)
 {
 	detect_vesa(hardware);
+	reset_more_printf();
 	if (hardware->is_vesa_valid == false) {
-		printf("No VESA BIOS detected\n");
+		more_printf("No VESA BIOS detected\n");
 		return;
 	}
-	reset_more_printf();
-	printf(" ResH. x ResV x Bits : vga= : Vesa Mode\n");
-	printf("----------------------------------------\n");
+	more_printf(" ResH. x ResV x Bits : vga= : Vesa Mode\n");
+	more_printf("----------------------------------------\n");
 
 	for (int i = 0; i < hardware->vesa.vmi_count; i++) {
 		struct vesa_mode_info *mi = &hardware->vesa.vmi[i].mi;
@@ -71,7 +72,7 @@ static void show_vesa_modes(int argc __unused, char **argv __unused,
 		 * We don't need to display that ones.
 		 */
 		if ((mi->h_res == 0) || (mi->v_res == 0)) continue;
-		printf("%5u %5u    %3u     %3d     0x%04x\n",
+		more_printf("%5u %5u    %3u     %3d     0x%04x\n",
 			    mi->h_res, mi->v_res, mi->bpp,
 			    hardware->vesa.vmi[i].mode + 0x200,
 			    hardware->vesa.vmi[i].mode);

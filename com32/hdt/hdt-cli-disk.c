@@ -31,13 +31,6 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include <disk/errno_disk.h>
-#include <disk/geom.h>
-#include <disk/read.h>
-#include <disk/error.h>
-#include <disk/swsusp.h>
-#include <disk/msdos.h>
-
 #include "hdt-cli.h"
 #include "hdt-common.h"
 #include "hdt-util.h"
@@ -63,10 +56,13 @@ static void show_partition_information(struct driveinfo *drive_info,
 				       int nb_partitions_seen)
 {
 	char size[9];
+	char bootloader_name[9];
 	char *parttype;
 	unsigned int start, end;
 
 	int i = nb_partitions_seen;
+
+    reset_more_printf();
 
 	start = partition_offset;
 	end = start + ptab->length - 1;
@@ -77,10 +73,10 @@ static void show_partition_information(struct driveinfo *drive_info,
 		memset(size, 0, sizeof size);
 
 	if (i == 1)
-		more_printf("   #  B       Start         End    Size Id Type\n");
+		more_printf(" #  B       Start         End    Size Id Type\n");
 
 	get_label(ptab->ostype, &parttype);
-	more_printf("  %2d  %s %11d %11d %s %02X %s",
+	more_printf("%2d  %s %11d %11d %s %02X %s",
 		    i, (ptab->active_flag == 0x80) ? "x" : " ",
 		    start,
 		    end,
@@ -91,6 +87,9 @@ static void show_partition_information(struct driveinfo *drive_info,
 	if (ptab->ostype == 0x82 && swsusp_check(drive_info, ptab))
 		more_printf("%s", " (Swsusp sig. detected)");
 
+	if (get_bootloader_string(drive_info, ptab, bootloader_name, 9) == 0)
+		more_printf("%-46s %s %s", " ", "Bootloader:", bootloader_name);
+
 	more_printf("\n");
 
 	free(parttype);
@@ -99,7 +98,6 @@ static void show_partition_information(struct driveinfo *drive_info,
 void main_show_disk(int argc, char **argv,
 		    struct s_hardware *hardware)
 {
-	reset_more_printf();
 	if (!argc) {
 		more_printf("Which disk?\n");
 		return;
@@ -115,10 +113,15 @@ void main_show_disk(int argc, char **argv,
 	int i = drive - 0x80;
 	struct driveinfo *d = &hardware->disk_info[i];
 	char disk_size[9];
+	char mbr_name[50];
 
 	detect_disks(hardware);
+    reset_more_printf();
+
 	if (!hardware->disk_info[i].cbios)
 		return; /* Invalid geometry */
+
+	get_mbr_string(hardware->mbr_ids[i], &mbr_name, 50);
 
 	if ((int) d->edd_params.sectors > 0)
 		sectors_to_size((int) d->edd_params.sectors, disk_size);
@@ -127,14 +130,17 @@ void main_show_disk(int argc, char **argv,
 
 	more_printf("DISK 0x%X:\n"
 		    "  C/H/S: %d cylinders, %d heads, %d sectors/track\n"
-		    "  EDD:   Version: %X\n"
+		    "    EDD: Version: %X\n"
 		    "         Size: %s, %d bytes/sector, %d sectors/track\n"
-		    "         Host bus: %s, Interface type: %s\n\n",
+		    "         Host bus: %s, Interface type: %s\n"
+		    "    MBR: %s (id 0x%X)\n\n",
 		d->disk,
 		d->legacy_max_cylinder + 1, d->legacy_max_head + 1, d->legacy_sectors_per_track,
 		d->edd_version,
 		disk_size, (int) d->edd_params.bytes_per_sector, (int) d->edd_params.sectors_per_track,
-		remove_spaces(d->edd_params.host_bus_type), remove_spaces(d->edd_params.interface_type));
+		remove_spaces((char *) d->edd_params.host_bus_type), remove_spaces((char*) d->edd_params.interface_type),
+		mbr_name, hardware->mbr_ids[i]);
+	display_line_nb += 6;
 
 	if (parse_partition_table(d, &show_partition_information)) {
 		if (errno_disk) {
@@ -145,6 +151,8 @@ void main_show_disk(int argc, char **argv,
 		}
 		fprintf(stderr, "\n");
 	}
+
+	more_printf("\n");
 }
 
 void main_show_disks(int argc __unused, char **argv __unused,
@@ -153,11 +161,19 @@ void main_show_disks(int argc __unused, char **argv __unused,
 	reset_more_printf();
 	detect_disks(hardware);
 
+    int first_one = 0;
 	for (int drive = 0x80; drive < 0xff; drive++) {
-		char buf[5] = "";
-		sprintf(buf, "0x%x", drive);
-		char *argv[1] = { buf };
-		main_show_disk(1, argv, hardware);
+		if (hardware->disk_info[drive - 0x80].cbios) {
+            if (!first_one) {
+                    first_one = 1;
+            } else {
+                    pause_printf();
+            }
+			char buf[5] = "";
+			sprintf(buf, "0x%x", drive);
+			char *argv[1] = { buf };
+			main_show_disk(1, argv, hardware);
+		}
 	}
 }
 
@@ -167,6 +183,7 @@ void disks_summary(int argc __unused, char** argv __unused,
 	int i = -1;
 
 	detect_disks(hardware);
+	reset_more_printf();
 
 	for (int drive = 0x80; drive < 0xff; drive++) {
 		i++;
@@ -187,8 +204,8 @@ void disks_summary(int argc __unused, char** argv __unused,
 		more_printf("  EDD:   Version: %X, size: %s\n", d->edd_version,
 			disk_size);
 		more_printf("         Host bus: %s, Interface type: %s\n\n",
-			remove_spaces(d->edd_params.host_bus_type),
-			remove_spaces(d->edd_params.interface_type));
+			remove_spaces((char*) d->edd_params.host_bus_type),
+			remove_spaces((char*) d->edd_params.interface_type));
 	}
 }
 

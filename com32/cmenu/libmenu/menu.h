@@ -22,8 +22,8 @@
 #include "com32io.h"
 #include "tui.h"
 #include "syslnx.h"
-#include "scancodes.h"
 #include <string.h>
+#include <unistd.h>
 
 // TIMEOUT PARAMETERS
 /* If no key is pressed within TIMEOUTNUMSTEPS * TIMEOUTSTEPSIZE milliseconds
@@ -59,8 +59,8 @@
 #define STATUSATTR    0x74
 #define STATUSHLITE   0x7B	// Status highlight
 
-#define FILLCHAR      177
-#define FILLATTR      0x01
+#define FILLCHAR      ' '
+#define FILLATTR      NORMALATTR
 #define SHADOWATTR    0x00
 #define SPACECHAR     ' '
 
@@ -72,9 +72,8 @@
 #define NOHLITE       0		// The offset into attrib array for non-hilite
 #define HLITE         1		// The offset for Hlite attrib
 
-#define MOREABOVE    24		// char to print when more menu items available above
-#define MOREBELOW    25		// more items available below
-#define SCROLLBOX    176	// Filled char to display
+#define MOREABOVE    '^'		// char to print when more menu items available above
+#define MOREBELOW    'v'		// more items available below
 
 // Attributes of the menu system
 #define MAXMENUS      150	// Maximum number of menu's allowed
@@ -99,11 +98,9 @@
 #define DEBUGLINE     23	// debugging info goes here
 
 // Other Chars
-#define SUBMENUCHAR   175	// This is >> symbol
 #define RADIOMENUCHAR '>'	// > symbol for radio menu?
-#define EXITMENUCHAR  174	// This is << symbol
-#define CHECKED       251	// Check mark
-#define UNCHECKED     250	// Light bullet
+#define CHECKED       '\140'	// Check mark
+#define UNCHECKED     '\146'	// Light bullet
 #define RADIOSEL      '.'	// Current Radio Selection
 #define RADIOUNSEL    ' '	// Radio option not selected
 
@@ -214,11 +211,10 @@ typedef struct s_menusystem {
     uchar shadowattr;
     uchar statline;
     uchar menupage;
-    uchar maxrow, minrow, numrows;	// Number of rows in the window
-    uchar maxcol, mincol, numcols;	// Number of columns in the window
+    int maxrow, minrow, numrows;	// Number of rows in the window
+    int maxcol, mincol, numcols;	// Number of columns in the window
 
     // Menu box look
-    boxtype menubt;		// What type of boxes should be drawn
     char box_horiz, box_ltrt, box_rtlt;	// Some chars of the box, for redrawing portions of the box
 
 } t_menusystem;
@@ -243,7 +239,6 @@ void set_title_info(uchar tfillchar, uchar titleattr);
 
 void set_misc_info(uchar fillchar, uchar fillattr, uchar spacechar,
 		   uchar shadowattr);
-void set_box_type(boxtype bt);
 
 void set_window_size(uchar top, uchar left, uchar bot, uchar right);	// Set the window which menusystem should use
 

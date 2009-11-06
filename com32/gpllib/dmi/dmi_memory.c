@@ -242,9 +242,9 @@ void dmi_memory_module_size(uint8_t code, char* size)
 	}
 
 	if(code&0x80)
-		printf(size, "%s", "(Double-bank Connection)");
+		sprintf(size, "%s", "(Double-bank Connection)");
 	else
-		printf(size, "%s", "(Single-bank Connection)");
+		sprintf(size, "%s", "(Single-bank Connection)");
 }
 
 void dmi_memory_module_error(uint8_t code, const char *prefix, char *error)
@@ -253,10 +253,10 @@ void dmi_memory_module_error(uint8_t code, const char *prefix, char *error)
 		sprintf(error, "%s", "See Event Log\n");
 	else
 	{	if((code&0x03)==0)
-			printf(error, "%s", "OK\n");
+			sprintf(error, "%s", "OK\n");
 		if(code&(1<<0))
-			printf(error, "%sUncorrectable Errors\n", prefix);
+			sprintf(error, "%sUncorrectable Errors\n", prefix);
 		if(code&(1<<1))
-			printf(error, "%sCorrectable Errors\n", prefix);
+			sprintf(error, "%sCorrectable Errors\n", prefix);
 	}
 }

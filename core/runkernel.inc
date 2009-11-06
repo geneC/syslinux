@@ -461,8 +461,6 @@ run_linux_kernel:
 ; Set up segment registers and the Linux real-mode stack
 ; Note: ds == the real mode segment
 ;
-		call cleanup_hardware
-
 		cli
 		mov ax,ds
 		mov ss,ax

@@ -17,10 +17,10 @@
 
 #include <stdint.h>
 
-#define SECTOR 512		/* bytes/sector */
+/* For PAGE_SIZE */
+#include <cpuid.h>
 
-#undef PAGE_SIZE
-#define PAGE_SIZE (1<<12)
+#define SECTOR 512		/* bytes/sector */
 
 struct ebios_dapa {
 	uint16_t len;

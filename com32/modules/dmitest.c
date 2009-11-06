@@ -179,7 +179,7 @@ int main(void)
 	printf("No DMI Structure found\n");
 	return -1;
     } else {
-	printf("DMI %d.%d present.\n", dmi.dmitable.major_version,
+	printf("DMI %u.%u present.\n", dmi.dmitable.major_version,
 	       dmi.dmitable.minor_version);
 	printf("%d structures occupying %d bytes.\n", dmi.dmitable.num,
 	       dmi.dmitable.len);

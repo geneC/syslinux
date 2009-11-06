@@ -2,20 +2,17 @@
  *
  *   Copyright 2009 Pierre-Alexandre Meyer
  *
- *   Some parts borrowed from chain.c32:
- *
- *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
- *
  *   This file is part of Syslinux, and is made available under
  *   the terms of the GNU General Public License version 2.
  *
  * ----------------------------------------------------------------------- */
 
-#ifndef _UTIL_H_
-#define _UTIL_H_
+#ifndef __BOOTLOADERS_H_
+#define __BOOTLOADERS_H_
 
-#include <com32.h>
+#include <stdint.h>
+#include <disk/geom.h>
+#include <disk/partition.h>
 
-int int13_retry(const com32sys_t *inreg, com32sys_t *outreg);
-#endif /* _UTIL_H_ */
+int get_bootloader_string(const struct driveinfo *, const struct part_entry *, char*, const int);
+#endif /* __BOOTLOADERS_H_ */

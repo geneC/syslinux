@@ -122,6 +122,25 @@ MaxLMA		equ 384*1024
 ;
 bootsec		equ $
 _start:
+		jmp 0:_start1		; Canonicalize the address and skip
+					; the patch header
+
+;
+; Patch area for adding hardwired DHCP options
+;
+		align 4
+
+hcdhcp_magic	dd 0x2983c8ac		; Magic number
+hcdhcp_len	dd 7*4			; Size of this structure
+hcdhcp_flags	dd 0			; Reserved for the future
+		; Parameters to be parsed before the ones from PXE
+bdhcp_offset	dd 0			; Offset (entered by patcher)
+bdhcp_len	dd 0			; Length (entered by patcher)
+		; Parameters to be parsed *after* the ones from PXE
+adhcp_offset	dd 0			; Offset (entered by patcher)
+adhcp_len	dd 0			; Length (entered by patcher)
+
+_start1:
 		pushfd			; Paranoia... in case of return to PXE
 		pushad			; ... save as much state as possible
 		push ds
@@ -134,8 +153,6 @@ _start:
 		mov ds,ax
 		mov es,ax
 
-		jmp 0:_start1		; Canonicalize address
-_start1:
 		; That is all pushed onto the PXE stack.  Save the pointer
 		; to it and switch to an internal stack.
 		mov [InitStack],sp
@@ -150,6 +167,54 @@ _start1:
 
 		lss esp,[BaseStack]
 		sti			; Stack set up and ready
+;
+; Move the hardwired DHCP options (if present) to a safe place...
+;
+bdhcp_copy:
+		mov cx,[bdhcp_len]
+		mov ax,trackbufsize/2
+		jcxz .none
+		cmp cx,ax
+		jbe .oksize
+		mov cx,ax
+		mov [bdhcp_len],ax
+.oksize:
+		mov eax,[bdhcp_offset]
+		add eax,_start
+		mov si,ax
+		and si,000Fh
+		shr eax,4
+		push ds
+		mov ds,ax
+		mov di,trackbuf
+		add cx,3
+		shr cx,2
+		rep movsd
+		pop ds
+.none:
+
+adhcp_copy:
+		mov cx,[adhcp_len]
+		mov ax,trackbufsize/2
+		jcxz .none
+		cmp cx,ax
+		jbe .oksize
+		mov cx,ax
+		mov [adhcp_len],ax
+.oksize:
+		mov eax,[adhcp_offset]
+		add eax,_start
+		mov si,ax
+		and si,000Fh
+		shr eax,4
+		push ds
+		mov ds,ax
+		mov di,trackbuf+trackbufsize/2
+		add cx,3
+		shr cx,2
+		rep movsd
+		pop ds
+.none:
 
 ;
 ; Initialize screen (if we're using one)

@@ -27,6 +27,7 @@
  */
 
 #include "hdt-menu.h"
+#include <unistd.h>
 
 int start_menu_mode(struct s_hardware *hardware, char *version_string)
 {
@@ -50,7 +51,8 @@ int start_menu_mode(struct s_hardware *hardware, char *version_string)
   t_menuitem *curr;
   char cmd[160];
 
-  printf("Starting Menu (%d menus)\n", hdt_menu.total_menu_count);
+  if (!quiet)
+      more_printf("Starting Menu (%d menus)\n", hdt_menu.total_menu_count);
   curr = showmenus(hdt_menu.main_menu.menu);
   /* When we exit the menu, do we have something to do? */
   if (curr) {
@@ -84,26 +86,32 @@ TIMEOUTCODE ontimeout()
 }
 
 /* Keyboard handler for the menu system */
-void keys_handler(t_menusystem * ms, t_menuitem * mi, unsigned int scancode)
+void keys_handler(t_menusystem * ms __attribute__ (( unused )), t_menuitem * mi, int scancode)
 {
-  char nc;
+  int nr, nc;
 
-  if ((scancode >> 8) == F1) {  // If scancode of F1
+  /* 0xFFFF is an invalid helpid */
+  if (scancode == KEY_F1 && mi->helpid != 0xFFFF) {
     runhelpsystem(mi->helpid);
   }
+
   /*
    * If user hit TAB, and item is an "executable" item
    * and user has privileges to edit it, edit it in place.
    */
-  if (((scancode & 0xFF) == 0x09) && (mi->action == OPT_RUN)) {
+  if ((scancode == KEY_TAB) && (mi->action == OPT_RUN)) {
 //(isallowed(username,"editcmd") || isallowed(username,"root"))) {
-    nc = getnumcols();
+    if (getscreensize(1, &nr, &nc)) {
+        /* Unknown screen size? */
+        nc = 80;
+        nr = 24;
+    }
     /* User typed TAB and has permissions to edit command line */
-    gotoxy(EDITPROMPT, 1, ms->menupage);
+    gotoxy(EDITPROMPT, 1);
     csprint("Command line:", 0x07);
     editstring(mi->data, ACTIONLEN);
-    gotoxy(EDITPROMPT, 1, ms->menupage);
-    cprint(' ', 0x07, nc - 1, ms->menupage);
+    gotoxy(EDITPROMPT, 1);
+    cprint(' ', 0x07, nc - 1);
   }
 }
 
@@ -113,6 +121,9 @@ void setup_menu(char *version)
   /* Creating the menu */
   init_menusystem(version);
   set_window_size(0, 0, 25, 80);
+
+  /* Do not use inactive attributes - they make little sense for HDT */
+  set_normal_attr(-1, -1, 0x17, 0x1F);
 
   /* Register the menusystem handler */
   // reg_handler(HDLR_SCREEN,&msys_handler);
@@ -154,7 +165,7 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
 
   compute_processor(&(hdt_menu->cpu_menu), hardware);
   compute_vpd(&(hdt_menu->vpd_menu), hardware);
-  compute_disks(hdt_menu, hardware->disk_info, hardware);
+  compute_disks(hdt_menu, hardware);
 
 #ifdef WITH_PCI
   compute_PCI(hdt_menu, hardware);
@@ -282,6 +293,7 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
      HDT_SWITCH_TO_CLI, 0);
   add_item("<A>bout", "About Menu", OPT_SUBMENU, NULL,
      hdt_menu->about_menu.menu);
+  add_item("<R>eboot", "Reboot", OPT_RUN, hardware->reboot_label, 0);
   add_item("E<x>it","Exit", OPT_EXITMENU,NULL,0);
   hdt_menu->main_menu.items_count++;
 
@@ -290,30 +302,37 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
 
 void detect_hardware(struct s_hardware *hardware)
 {
-  printf("CPU: Detecting\n");
+  if (!quiet)
+      more_printf("CPU: Detecting\n");
   cpu_detect(hardware);
 
-  printf("DISKS: Detecting\n");
+  if (!quiet)
+      more_printf("DISKS: Detecting\n");
   detect_disks(hardware);
 
-  printf("DMI: Detecting Table\n");
+  if (!quiet)
+      more_printf("DMI: Detecting Table\n");
   if (detect_dmi(hardware) == -ENODMITABLE) {
     printf("DMI: ERROR ! Table not found ! \n");
     printf
         ("DMI: Many hardware components will not be detected ! \n");
   } else {
-    printf("DMI: Table found ! (version %d.%d)\n",
-           hardware->dmi.dmitable.major_version,
-           hardware->dmi.dmitable.minor_version);
+      if (!quiet)
+          more_printf("DMI: Table found ! (version %u.%u)\n",
+                 hardware->dmi.dmitable.major_version,
+                 hardware->dmi.dmitable.minor_version);
   }
 
-  printf("VPD: Detecting\n");
+  if (!quiet)
+      more_printf("VPD: Detecting\n");
   detect_vpd(hardware);
 
 #ifdef WITH_PCI
   detect_pci(hardware);
-  printf("PCI: %d Devices Found\n", hardware->nb_pci_devices);
+  if (!quiet)
+      more_printf("PCI: %d Devices Found\n", hardware->nb_pci_devices);
 #endif
-  printf("VESA: Detecting\n");
+  if (!quiet)
+      more_printf("VESA: Detecting\n");
   detect_vesa(hardware);
 }

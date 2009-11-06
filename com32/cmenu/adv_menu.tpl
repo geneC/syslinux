@@ -40,6 +40,7 @@ modify this template to suit your needs
 #include "com32io.h"
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #define MAX_CMD_LINE_LENGTH 514
 
@@ -192,51 +193,61 @@ TIMEOUTCODE ontotaltimeout()
    return timeout(totaltimeoutcmd);
 }
 
-void keys_handler(t_menusystem *ms, t_menuitem *mi,unsigned int scancode)
+void keys_handler(t_menusystem * ms __attribute__ (( unused )), t_menuitem * mi, int scancode)
 {
-   char nc;
+   int nc, nr;
 
-   if ( ((scancode >> 8) == F1) && (mi->helpid != 0xFFFF) ) { // If scancode of F1 and non-trivial helpid
+   if (getscreensize(1, &nr, &nc)) {
+       /* Unknown screen size? */
+       nc = 80;
+       nr = 24;
+   }
+
+   if ( (scancode == KEY_F1) && (mi->helpid != 0xFFFF) ) { // If scancode of F1 and non-trivial helpid
       runhelpsystem(mi->helpid);
    }
 
    // If user hit TAB, and item is an "executable" item
    // and user has privileges to edit it, edit it in place.
-   if (((scancode & 0xFF) == 0x09) && (mi->action == OPT_RUN) &&
-       (EDIT_ROW < getnumrows()) && (EDIT_ROW > 0) &&
+   if ((scancode == KEY_TAB) && (mi->action == OPT_RUN) &&
+       (EDIT_ROW < nr) && (EDIT_ROW > 0) &&
        (isallowed(username,"editcmd") || isallowed(username,"root"))) {
-     nc = getnumcols();
      // User typed TAB and has permissions to edit command line
-     gotoxy(EDIT_ROW,1,ms->menupage);
+     gotoxy(EDIT_ROW,1);
      csprint("Command line:",0x07);
      editstring(mi->data,ACTIONLEN);
-     gotoxy(EDIT_ROW,1,ms->menupage);
-     cprint(' ',0x07,nc-1,ms->menupage);
+     gotoxy(EDIT_ROW,1);
+     cprint(' ',0x07,nc-1);
    }
 }
 
-t_handler_return login_handler(t_menusystem *ms, t_menuitem *mi)
+t_handler_return login_handler(t_menuitem *mi)
 {
   (void)mi; // Unused
   char pwd[40];
   char login[40];
-  char nc;
+  int nc, nr;
   t_handler_return rv;
 
   rv = ACTION_INVALID;
   if (PWD_ROW < 0) return rv; // No need to authenticate
 
   if (mi->item == loginstr) { /* User wants to login */
-    nc = getnumcols();
-    gotoxy(PWD_ROW,1,ms->menupage);
+    if (getscreensize(1, &nr, &nc)) {
+        /* Unknown screen size? */
+        nc = 80;
+        nr = 24;
+    }
+
+    gotoxy(PWD_ROW,1);
     csprint("Enter Username: ",0x07);
     getstring(login, sizeof username);
-    gotoxy(PWD_ROW,1,ms->menupage);
-    cprint(' ',0x07,nc,ms->menupage);
+    gotoxy(PWD_ROW,1);
+    cprint(' ',0x07,nc);
     csprint("Enter Password: ",0x07);
     getpwd(pwd, sizeof pwd);
-    gotoxy(PWD_ROW,1,ms->menupage);
-    cprint(' ',0x07,nc,ms->menupage);
+    gotoxy(PWD_ROW,1);
+    cprint(' ',0x07,nc);
 
     if (authenticate_user(login,pwd))
     {

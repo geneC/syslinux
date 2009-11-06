@@ -31,10 +31,12 @@
 
 #define PRODUCT_NAME "Hardware Detection Tool"
 #define AUTHOR "Erwan Velu"
+#define CORE_DEVELOPER "Pierre-Alexandre Meyer"
 #define CONTACT "hdt@zytor.com"
-#define VERSION "0.3.4"
+#define VERSION "0.3.5-pre3"
+#define CODENAME "mojito"
 #define NB_CONTRIBUTORS 2
-#define CONTRIBUTORS {"Pierre-Alexandre Meyer", "Sebastien Gonzalve"}
+#define CONTRIBUTORS {"Sebastien Gonzalve", "Gert Hulselmans"}
 
 #define ATTR_PACKED __attribute__((packed))
 

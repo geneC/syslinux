@@ -52,6 +52,7 @@ static void main_show_modes(int argc __unused, char** argv __unused,
 {
 	int i = 0;
 
+    reset_more_printf();
 	printf("Available modes:\n");
 	while (list_modes[i]) {
 		printf("%s ", list_modes[i]->name);
@@ -70,8 +71,9 @@ static void cli_set_mode(int argc, char **argv,
 {
 	cli_mode_t new_mode;
 
+    reset_more_printf();
 	if (argc <= 0) {
-		printf("Which mode?\n");
+		more_printf("Which mode?\n");
 		return;
 	}
 
@@ -191,8 +193,8 @@ static void goto_menu(int argc __unused, char** argv __unused,
 		      struct s_hardware *hardware)
 {
 	char version_string[256];
-	snprintf(version_string, sizeof version_string, "%s %s by %s",
-		 PRODUCT_NAME, VERSION, AUTHOR);
+	snprintf(version_string, sizeof version_string, "%s %s (%s)",
+		 PRODUCT_NAME, VERSION, CODENAME);
 	start_menu_mode(hardware, version_string);
 	return;
 }
@@ -206,6 +208,7 @@ void main_show_summary(int argc __unused, char **argv __unused,
 	detect_pci(hardware);	/* pxe is detected in the pci */
 	detect_dmi(hardware);
 	cpu_detect(hardware);
+    reset_more_printf();
 	clear_screen();
 	main_show_cpu(argc, argv, hardware);
 	if (hardware->is_dmi_valid) {
@@ -236,15 +239,30 @@ void main_show_summary(int argc __unused, char **argv __unused,
 void main_show_hdt(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware __unused)
 {
-	printf("HDT\n");
-	printf(" Product     : %s\n", PRODUCT_NAME);
-	printf(" Version     : %s\n", VERSION);
-	printf(" Author      : %s\n", AUTHOR);
-	printf(" Contact     : %s\n", CONTACT);
+    reset_more_printf();
+	more_printf("HDT\n");
+	more_printf(" Product        : %s\n", PRODUCT_NAME);
+	more_printf(" Version        : %s (%s)\n", VERSION, CODENAME);
+	more_printf(" Project Leader : %s\n", AUTHOR);
+	more_printf(" Contact        : %s\n", CONTACT);
+	more_printf(" Core Developer : %s\n", CORE_DEVELOPER);
 	char *contributors[NB_CONTRIBUTORS] = CONTRIBUTORS;
 	for (int c = 0; c < NB_CONTRIBUTORS; c++) {
-		printf(" Contributor : %s\n", contributors[c]);
+		more_printf(" Contributor    : %s\n", contributors[c]);
 	}
+}
+
+/**
+ * do_reboot - reboot the system
+ **/
+static void do_reboot(int argc __unused, char** argv __unused,
+			  struct s_hardware *hardware)
+{
+    /* Use specific syslinux call if needed */
+    if (issyslinux())
+        return runsyslinuxcmd(hardware->reboot_label);
+    else
+        return csprint(hardware->reboot_label, 0x07);
 }
 
 /* Default hdt mode */
@@ -264,6 +282,10 @@ struct cli_callback_descr list_hdt_default_modules[] = {
 	{
 		.name = CLI_MENU,
 		.exec = goto_menu,
+	},
+	{
+		.name = CLI_REBOOT,
+		.exec = do_reboot,
 	},
 	{
 		.name = NULL,

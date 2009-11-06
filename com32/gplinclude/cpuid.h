@@ -65,6 +65,8 @@ typedef struct {
     bool nowext;		/* AMD 3DNow! extensions */
     bool now;			/* 3DNow! */
     bool smp;			/* A smp configuration has been found */
+    bool vmx;			/* Hardware virtualization */
+    bool svm;			/* Secure virtual machine */
 } s_cpu_flags;
 
 typedef struct {
@@ -159,7 +161,6 @@ struct cpuinfo_x86 {
     unsigned char x86_clflush_size;
 
 } __attribute__ ((__packed__));
-#endif
 
 struct cpu_model_info {
     int vendor;
@@ -169,10 +170,10 @@ struct cpu_model_info {
 
 /* attempt to consolidate cpu attributes */
 struct cpu_dev {
-    char *c_vendor;
+    const char *c_vendor;
 
     /* some have two possibilities for cpuid string */
-    char *c_ident[2];
+    const char *c_ident[2];
 
     struct cpu_model_info c_models[4];
 
@@ -208,3 +209,4 @@ struct intel_mp_floating {
 
 extern void get_cpu_vendor(struct cpuinfo_x86 *c);
 extern void detect_cpu(s_cpu * cpu);
+#endif

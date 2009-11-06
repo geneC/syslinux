@@ -72,6 +72,7 @@
 #define X86_FEATURE_XMM3	(4*32+ 0)	/* Streaming SIMD Extensions-3 */
 #define X86_FEATURE_MWAIT	(4*32+ 3)	/* Monitor/Mwait support */
 #define X86_FEATURE_DSCPL	(4*32+ 4)	/* CPL Qualified Debug Store */
+#define X86_FEATURE_VMX		(4*32+ 5) 	/* Hardware virtualization */
 #define X86_FEATURE_EST		(4*32+ 7)	/* Enhanced SpeedStep */
 #define X86_FEATURE_TM2		(4*32+ 8)	/* Thermal Monitor 2 */
 #define X86_FEATURE_CID		(4*32+10)	/* Context ID */
@@ -87,6 +88,7 @@
 /* More extended AMD flags: CPUID level 0x80000001, ecx, word 6 */
 #define X86_FEATURE_LAHF_LM	(6*32+ 0)	/* LAHF/SAHF in long mode */
 #define X86_FEATURE_CMP_LEGACY	(6*32+ 1)	/* If yes HyperThreading not valid */
+#define X86_FEATURE_SVM		(6*32+ 2) 	/* Secure virtual machine */
 
 #endif /* __ASM_I386_CPUFEATURE_H */
 
