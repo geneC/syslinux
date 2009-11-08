@@ -764,7 +764,8 @@ void start_auto_mode(struct s_hardware *hardware)
 	/* Searching & saving all commands */
         mypch = strtok (temp,AUTO_SEPARATOR);
         while (mypch != NULL) {
-		if ((strlen(remove_spaces(mypch))>0) && (remove_spaces(mypch)[0] != AUTO_SEPARATOR)) {
+		if ((strlen(remove_spaces(mypch))>0) &&
+				(remove_spaces(mypch)[0] != AUTO_SEPARATOR[0])) {
 	        	nb_commands++;
 	       		if ((commands[nb_commands]=malloc(AUTO_COMMAND_SIZE)) != NULL) {
 		       		sprintf(commands[nb_commands],"%s",remove_spaces(mypch));
