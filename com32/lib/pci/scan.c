@@ -112,7 +112,6 @@ int get_module_name_from_pcimap(struct pci_domain *domain,
   strcpy(product_id,"0000");
   strcpy(sub_product_id,"0000");
   strcpy(sub_vendor_id,"0000");
-  dev->dev_info->linux_kernel_module_count=0;
 
   /* for each line we found in the modules.pcimap */
   while ( fgets(line, sizeof line, f) ) {
@@ -632,8 +631,6 @@ int get_module_name_from_alias(struct pci_domain *domain, char *modules_alias_pa
   f=fopen(modules_alias_path, "r");
   if (!f)
     return -ENOMODULESALIAS;
-
-  dev->dev_info->linux_kernel_module_count=0;
 
   /* for each line we found in the modules.pcimap */
   while ( fgets(line, sizeof line, f) ) {
