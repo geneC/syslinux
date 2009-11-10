@@ -39,6 +39,7 @@
 #include <sys/pci.h>
 #include <com32.h>
 #include <stdbool.h>
+#include <syslinux/zio.h>
 
 #ifdef DEBUG
 # define dprintf printf
@@ -104,7 +105,7 @@ int get_module_name_from_pcimap(struct pci_domain *domain,
   }
 
   /* Opening the modules.pcimap (of a linux kernel) from the boot device */
-  f=fopen(modules_pcimap_path, "r");
+  f=zfopen(modules_pcimap_path, "r");
   if (!f)
     return -ENOMODULESPCIMAP;
 
@@ -154,7 +155,7 @@ int get_module_name_from_pcimap(struct pci_domain *domain,
 	  (int_sub_vendor_id & dev->sub_vendor)
 	  == dev->sub_vendor) {
 	      bool found=false;
-	      
+
 	      /* Scan all known kernel modules for this pci device */
 	      for (int i=0; i<dev->dev_info->linux_kernel_module_count; i++) {
 
@@ -202,7 +203,7 @@ int get_class_name_from_pci_ids(struct pci_domain *domain, char *pciids_path)
     }
 
     /* Opening the pci.ids from the boot device */
-    f = fopen(pciids_path, "r");
+    f = zfopen(pciids_path, "r");
     if (!f)
 	return -ENOPCIIDS;
 
@@ -302,7 +303,7 @@ int get_name_from_pci_ids(struct pci_domain *domain, char *pciids_path)
     }
 
     /* Opening the pci.ids from the boot device */
-    f = fopen(pciids_path, "r");
+    f = zfopen(pciids_path, "r");
     if (!f)
 	return -ENOPCIIDS;
 
@@ -628,7 +629,7 @@ int get_module_name_from_alias(struct pci_domain *domain, char *modules_alias_pa
   }
 
   /* Opening the modules.pcimap (of a linux kernel) from the boot device */
-  f=fopen(modules_alias_path, "r");
+  f=zfopen(modules_alias_path, "r");
   if (!f)
     return -ENOMODULESALIAS;
 
