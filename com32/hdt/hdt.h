@@ -33,7 +33,7 @@
 #define AUTHOR "Erwan Velu"
 #define CORE_DEVELOPER "Pierre-Alexandre Meyer"
 #define CONTACT "hdt@zytor.com"
-#define VERSION "0.3.6-pre1"
+#define VERSION "0.3.6-alpha"
 #define CODENAME "bluelabel"
 #define NB_CONTRIBUTORS 2
 #define CONTRIBUTORS {"Sebastien Gonzalve", "Gert Hulselmans"}
