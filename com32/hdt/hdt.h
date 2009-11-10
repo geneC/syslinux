@@ -33,8 +33,8 @@
 #define AUTHOR "Erwan Velu"
 #define CORE_DEVELOPER "Pierre-Alexandre Meyer"
 #define CONTACT "hdt@zytor.com"
-#define VERSION "0.3.5"
-#define CODENAME "mojito"
+#define VERSION "0.3.6-pre1"
+#define CODENAME "bluelabel"
 #define NB_CONTRIBUTORS 2
 #define CONTRIBUTORS {"Sebastien Gonzalve", "Gert Hulselmans"}
 
