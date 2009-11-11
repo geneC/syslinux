@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -20,6 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include "mystuff.h"
 
 #include "syslinux.h"
@@ -69,8 +71,9 @@ int creat(const char *filename, int mode)
     dprintf("creat(\"%s\", 0x%x)\n", filename, mode);
 
     rv = 0x3C00;
-    asm volatile ("int $0x21 ; setc %0":"=bcdm" (err), "+a"(rv)
-		  :"c"(mode), "d"(filename));
+    asm volatile ("int $0x21 ; setc %0"
+		  : "=bcdm" (err), "+a" (rv)
+		  : "c" (mode), "d" (filename));
     if (err) {
 	dprintf("rv = %d\n", rv);
 	die("cannot open ldlinux.sys");
@@ -138,7 +141,7 @@ uint16_t data_segment(void)
 {
     uint16_t ds;
 
-asm("movw %%ds,%0":"=rm"(ds));
+    asm("movw %%ds,%0" : "=rm"(ds));
     return ds;
 }
 
@@ -151,6 +154,7 @@ struct diskio {
 void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 {
     uint8_t err;
+    uint16_t errnum;
     struct diskio dio;
 
     dprintf("write_device(%d,%p,%u,%u)\n", drive, buf, nsecs, sector);
@@ -160,16 +164,30 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.bufoffs = (uintptr_t) buf;
     dio.bufseg = data_segment();
 
-    asm volatile ("int $0x26 ; setc %0 ; popfw":"=abcdm" (err)
-		  :"a"(drive - 1), "b"(&dio), "c"(-1), "d"(buf), "m"(dio));
+    if (dos_version >= 0x0710) {
+	asm volatile("int $0x21 ; setc %0"
+		     : "=bcdm" (err), "=a" (errnum)
+		     : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
+		       "S" (1), "m" (dio)
+		     : "memory");
+    } else {
+	asm volatile("int $0x26 ; setc %0 ; popfw"
+		     : "=bcdm" (err), "=a" (errnum)
+		     : "a" (drive-1), "b" (&dio), "c" (-1), "d" (buf),
+		       "m" (dio)
+		     : "esi", "memory");
+    }
 
-    if (err)
+    if (err) {
+	dprintf("rv = %04x\n", errnum);
 	die("sector write error");
+    }
 }
 
 void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 {
     uint8_t err;
+    uint16_t errnum;
     struct diskio dio;
 
     dprintf("read_device(%d,%p,%u,%u)\n", drive, buf, nsecs, sector);
@@ -179,11 +197,23 @@ void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.bufoffs = (uintptr_t) buf;
     dio.bufseg = data_segment();
 
-    asm volatile ("int $0x25 ; setc %0 ; popfw":"=abcdm" (err)
-		  :"a"(drive - 1), "b"(&dio), "c"(-1), "d"(buf), "m"(dio));
+    if (dos_version >= 0x0710) {
+	asm volatile("int $0x21 ; setc %0"
+		     : "=bcdm" (err), "=a" (errnum)
+		     : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
+		     "S" (0), "m" (dio));
+    } else {
+	asm volatile("int $0x25 ; setc %0 ; popfw"
+		     : "=bcdm" (err), "=a" (errnum)
+		     : "a" (drive-1), "b" (&dio), "c" (-1), "d" (buf),
+		       "m" (dio)
+		     : "esi");
+    }
 
-    if (err)
+    if (err) {
+	dprintf("rv = %04x\n", errnum);
 	die("sector read error");
+    }
 }
 
 /* Both traditional DOS and FAT32 DOS return this structure, but
@@ -218,15 +248,17 @@ uint32_t get_partition_offset(int drive)
     dp.specfunc = 1;		/* Get current information */
 
     rv = 0x440d;
-    asm volatile ("int $0x21 ; setc %0":"=abcdm" (err), "+a"(rv), "=m"(dp)
-		  :"b"(drive), "c"(0x0860), "d"(&dp));
+    asm volatile ("int $0x21 ; setc %0"
+		  :"=abcdm" (err), "+a"(rv), "=m"(dp)
+		  :"b" (drive), "c" (0x0860), "d" (&dp));
 
     if (!err)
 	return dp.hiddensecs;
 
     rv = 0x440d;
-    asm volatile ("int $0x21 ; setc %0":"=abcdm" (err), "+a"(rv), "=m"(dp)
-		  :"b"(drive), "c"(0x4860), "d"(&dp));
+    asm volatile ("int $0x21 ; setc %0"
+		  : "=abcdm" (err), "+a" (rv), "=m" (dp)
+		  : "b" (drive), "c" (0x4860), "d" (&dp));
 
     if (!err)
 	return dp.hiddensecs;
@@ -259,22 +291,26 @@ void write_mbr(int drive, const void *buf)
     uint16_t rv;
     uint8_t err;
 
-    dprintf("write_mbr(%d,%p)\n", drive, buf);
+    dprintf("write_mbr(%d,%p)", drive, buf);
 
     mbr.bufferoffset = (uintptr_t) buf;
     mbr.bufferseg = data_segment();
 
     rv = 0x440d;
-    asm volatile ("int $0x21 ; setc %0":"=abcdm" (err), "+a"(rv)
+    asm volatile ("int $0x21 ; setc %0" : "=bcdm" (err), "+a"(rv)
 		  :"c"(0x0841), "d"(&mbr), "b"(drive), "m"(mbr));
 
-    if (!err)
+    dprintf(" rv(0841) = %04x", rv);
+    if (!err) {
+	dprintf("\n");
 	return;
+    }
 
     rv = 0x440d;
-    asm volatile ("int $0x21 ; setc %0":"=abcdm" (err), "+a"(rv)
+    asm volatile ("int $0x21 ; setc %0" : "=bcdm" (err), "+a"(rv)
 		  :"c"(0x4841), "d"(&mbr), "b"(drive), "m"(mbr));
 
+    dprintf(" rv(4841) = %04x\n", rv);
     if (err)
 	die("mbr write error");
 }
@@ -293,15 +329,29 @@ void read_mbr(int drive, const void *buf)
     asm volatile ("int $0x21 ; setc %0":"=abcdm" (err), "+a"(rv)
 		  :"c"(0x0861), "d"(&mbr), "b"(drive), "m"(mbr));
 
-    if (!err)
+    dprintf(" rv(0861) = %04x", rv);
+    if (!err) {
+	dprintf("\n");
 	return;
+    }
 
     rv = 0x440d;
     asm volatile ("int $0x21 ; setc %0":"=abcdm" (err), "+a"(rv)
 		  :"c"(0x4861), "d"(&mbr), "b"(drive), "m"(mbr));
 
+    dprintf(" rv(4841) = %04x\n", rv);
     if (err)
 	die("mbr read error");
+
+    dprintf("Bytes: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+	    ((const uint8_t *)buf)[0],
+	    ((const uint8_t *)buf)[1],
+	    ((const uint8_t *)buf)[2],
+	    ((const uint8_t *)buf)[3],
+	    ((const uint8_t *)buf)[4],
+	    ((const uint8_t *)buf)[5],
+	    ((const uint8_t *)buf)[6],
+	    ((const uint8_t *)buf)[7]);
 }
 
 /* This call can legitimately fail, and we don't care, so ignore error return */
@@ -359,10 +409,11 @@ void lock_device(int level)
 
     while ((lock_level >> 8) < level) {
 	uint16_t new_level = lock_level + 0x0100;
-	dprintf("Trying lock %04x...\n", new_level);
-	rv = 0x444d;
-	asm volatile ("int $0x21 ; setc %0":"=abcdm" (err), "+a"(rv)
-		      :"b"(new_level), "c"(lock_call), "d"(0x0001));
+	dprintf("Trying lock %04x... ", new_level);
+	rv = 0x440d;
+	asm volatile ("int $0x21 ; setc %0" : "=bcdm" (err), "+a"(rv)
+		      : "b" (new_level), "c" (lock_call), "d" (0x0001));
+	dprintf("%s %04x\n", err ? "err" : "ok", rv);
 	if (err) {
 	    /* rv == 0x0001 means this call is not supported, if so we
 	       assume locking isn't needed (e.g. Win9x in DOS-only mode) */
@@ -396,8 +447,10 @@ void unlock_device(int level)
     while ((lock_level >> 8) > level) {
 	uint16_t new_level = lock_level - 0x0100;
 	rv = 0x440d;
-	asm volatile ("int $0x21 ; setc %0":"=abcdm" (err), "+a"(rv)
-		      :"b"(new_level), "c"(unlock_call));
+	dprintf("Trying unlock %04x... ", new_level);
+	asm volatile ("int $0x21 ; setc %0" : "=bcdm" (err), "+a"(rv)
+		      : "b" (new_level), "c" (unlock_call));
+	dprintf("%s %04x\n", err ? "err" : "ok", rv);
 	lock_level = new_level;
     }
 }
@@ -438,6 +491,8 @@ static void adjust_mbr(int device, int writembr, int set_active)
 	struct mbr_entry *me = (struct mbr_entry *)(sectbuf + 446);
 	int found = 0;
 
+	dprintf("Searching for partition offset: %08x\n", offset);
+
 	for (i = 0; i < 4; i++) {
 	    if (me->startlba == offset) {
 		me->active = 0x80;
@@ -449,7 +504,7 @@ static void adjust_mbr(int device, int writembr, int set_active)
 	}
 
 	if (found < 1) {
-	    die("partition not found");
+	    die("partition not found (-a is not implemented for logical partitions)");
 	} else if (found > 1) {
 	    die("multiple aliased partitions found");
 	}
@@ -556,10 +611,11 @@ int main(int argc, char *argv[])
 
     ldlinux_name[0] = dev_fd | 0x40;
 
-    set_attributes(ldlinux_name, 0);
-    fd = creat(ldlinux_name, 0x07);	/* SYSTEM HIDDEN READONLY */
+    set_attributes(ldlinux_name, 0x00);
+    fd = creat(ldlinux_name, 0);
     write_file(fd, syslinux_ldlinux, syslinux_ldlinux_len);
     close(fd);
+    set_attributes(ldlinux_name, 0x07);	/* SYSTEM HIDDEN READONLY */
 
     /*
      * Now, use libfat to create a block map.  This probably
@@ -631,7 +687,7 @@ int main(int argc, char *argv[])
     /*
      * Write the now-patched first sector of ldlinux.sys
      */
-    lock_device(3);
+    /* lock_device(3); -- doesn't seem to be needed */
     write_device(dev_fd, syslinux_ldlinux, 1, sectors[0]);
 
     /*

@@ -17,6 +17,7 @@
 topdir = ..
 include $(topdir)/MCONFIG.embedded
 
+# CFLAGS  += -DDEBUG
 LDFLAGS	 = -T com16.ld
 OPTFLAGS = -g
 INCLUDES = -include code16.h -nostdinc -iwithprefix include \
