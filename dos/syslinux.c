@@ -171,7 +171,7 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.bufoffs = (uintptr_t) buf;
     dio.bufseg = data_segment();
 
-    if (dos_version >= 0x0710) {
+    if (dos_version >= 0x070a) {
 	asm volatile("int $0x21 ; setc %0"
 		     : "=bcdm" (err), "=a" (errnum)
 		     : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
@@ -204,7 +204,7 @@ void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.bufoffs = (uintptr_t) buf;
     dio.bufseg = data_segment();
 
-    if (dos_version >= 0x0710) {
+    if (dos_version >= 0x070a) {
 	asm volatile("int $0x21 ; setc %0"
 		     : "=bcdm" (err), "=a" (errnum)
 		     : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
@@ -411,7 +411,7 @@ static int do_lock(uint8_t level)
     uint8_t err;
 #if 0
     /* DOS 7.10 = Win95 OSR2 = first version with FAT32 */
-    uint16_t lock_call = (dos_version >= 0x0710) ? 0x484A : 0x084A;
+    uint16_t lock_call = (dos_version >= 0x070a) ? 0x484A : 0x084A;
 #else
     uint16_t lock_call = 0x084A; /* MSDN says this is OK for all filesystems */
 #endif
@@ -486,7 +486,7 @@ void unlock_device(int level)
 
 #if 0
     /* DOS 7.10 = Win95 OSR2 = first version with FAT32 */
-    unlock_call = (dos_version >= 0x0710) ? 0x486A : 0x086A;
+    unlock_call = (dos_version >= 0x070a) ? 0x486A : 0x086A;
 #else
     unlock_call = 0x086A;	/* MSDN says this is OK for all filesystems */
 #endif
