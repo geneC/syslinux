@@ -32,8 +32,15 @@ uint16_t dos_version;
 
 #ifdef DEBUG
 # define dprintf printf
+void pause(void)
+{
+    uint16_t ax;
+    
+    asm volatile("int $0x16" : "=a" (ax) : "a" (0));
+}
 #else
 # define dprintf(...) ((void)0)
+# define pause() ((void)0)
 #endif
 
 void __attribute__ ((noreturn)) usage(void)
@@ -320,7 +327,7 @@ void read_mbr(int drive, const void *buf)
     uint16_t rv;
     uint8_t err;
 
-    dprintf("read_mbr(%d,%p)\n", drive, buf);
+    dprintf("read_mbr(%d,%p)", drive, buf);
 
     mbr.bufferoffset = (uintptr_t) buf;
     mbr.bufferseg = data_segment();
@@ -377,55 +384,95 @@ int libfat_xpread(intptr_t pp, void *buf, size_t secsize,
 
 static inline void get_dos_version(void)
 {
-    uint16_t ver = 0x3001;
-asm("int $0x21 ; xchgb %%ah,%%al": "+a"(ver): :"ebx", "ecx");
+    uint16_t ver;
+
+    asm("int $0x21 ; xchgb %%ah,%%al"
+	: "=a" (ver) 
+	: "a" (0x3001)
+	: "ebx", "ecx");
     dos_version = ver;
+
     dprintf("DOS version %d.%d\n", (dos_version >> 8), dos_version & 0xff);
 }
 
 /* The locking interface relies on static variables.  A massive hack :( */
-static uint16_t lock_level;
+static uint8_t lock_level, lock_drive;
 
 static inline void set_lock_device(uint8_t device)
 {
-    lock_level = device;
+    lock_level  = 0;
+    lock_drive = device;
+}
+
+static int do_lock(uint8_t level)
+{
+    uint16_t level_arg = lock_drive + (level << 8);
+    uint16_t rv;
+    uint8_t err;
+#if 0
+    /* DOS 7.10 = Win95 OSR2 = first version with FAT32 */
+    uint16_t lock_call = (dos_version >= 0x0710) ? 0x484A : 0x084A;
+#else
+    uint16_t lock_call = 0x084A; /* MSDN says this is OK for all filesystems */
+#endif
+
+    dprintf("Trying lock %04x... ", level_arg);
+    asm volatile ("int $0x21 ; setc %0"
+		  : "=bcdm" (err), "=a" (rv)
+		  : "a" (0x440d), "b" (level_arg),
+		    "c" (lock_call), "d" (0x0001));
+    dprintf("%s %04x\n", err ? "err" : "ok", rv);
+
+    return err ? rv : 0;
 }
 
 void lock_device(int level)
 {
-    uint16_t rv;
-    uint8_t err;
-    uint16_t lock_call;
+    static int hard_lock = 0;
+    int err;
 
     if (dos_version < 0x0700)
 	return;			/* Win9x/NT only */
 
-#if 0
-    /* DOS 7.10 = Win95 OSR2 = first version with FAT32 */
-    lock_call = (dos_version >= 0x0710) ? 0x484A : 0x084A;
-#else
-    lock_call = 0x084A;		/* MSDN says this is OK for all filesystems */
-#endif
+    if (!hard_lock) {
+	/* Assume hierarchial "soft" locking supported */
 
-    while ((lock_level >> 8) < level) {
-	uint16_t new_level = lock_level + 0x0100;
-	dprintf("Trying lock %04x... ", new_level);
-	rv = 0x440d;
-	asm volatile ("int $0x21 ; setc %0" : "=bcdm" (err), "+a"(rv)
-		      : "b" (new_level), "c" (lock_call), "d" (0x0001));
-	dprintf("%s %04x\n", err ? "err" : "ok", rv);
+	while ((lock_level >> 8) < level) {
+	    int new_level = lock_level + 1;
+	    err = do_lock(new_level);
+	    if (err) {
+		if (err == 0x0001) {
+		    /* Try hard locking next */
+		    hard_lock = 1;
+		}
+		goto soft_fail;
+	    }
+
+	    lock_level = new_level;
+	}
+	return;
+    }
+
+soft_fail:
+    if (hard_lock) {
+	/* Hard locking, only level 4 supported */
+	/* This is needed for Win9x in DOS mode */
+	
+	err = do_lock(4);
 	if (err) {
-	    /* rv == 0x0001 means this call is not supported, if so we
-	       assume locking isn't needed (e.g. Win9x in DOS-only mode) */
-	    if (rv == 0x0001)
+	    if (err == 0x0001) {
+		/* Assume locking is not needed */
 		return;
-	    else
-		die("could not lock device");
+	    }
+	    goto hard_fail;
 	}
 
-	lock_level = new_level;
+	lock_level = 4;
+	return;
     }
-    return;
+
+hard_fail:
+    die("could not lock device");
 }
 
 void unlock_device(int level)
@@ -444,12 +491,17 @@ void unlock_device(int level)
     unlock_call = 0x086A;	/* MSDN says this is OK for all filesystems */
 #endif
 
-    while ((lock_level >> 8) > level) {
-	uint16_t new_level = lock_level - 0x0100;
+    if (lock_level == 4 && level > 0)
+	return;			/* Only drop the hard lock at the end */
+
+    while (lock_level > level) {
+	uint8_t new_level = (lock_level == 4) ? 0 : lock_level - 1;
+	uint16_t level_arg = (new_level << 8) + lock_drive;
 	rv = 0x440d;
 	dprintf("Trying unlock %04x... ", new_level);
-	asm volatile ("int $0x21 ; setc %0" : "=bcdm" (err), "+a"(rv)
-		      : "b" (new_level), "c" (unlock_call));
+	asm volatile ("int $0x21 ; setc %0"
+		      : "=bcdm" (err), "+a" (rv)
+		      : "b" (level_arg), "c" (unlock_call));
 	dprintf("%s %04x\n", err ? "err" : "ok", rv);
 	lock_level = new_level;
     }
