@@ -437,7 +437,7 @@ void lock_device(int level)
     if (!hard_lock) {
 	/* Assume hierarchial "soft" locking supported */
 
-	while ((lock_level >> 8) < level) {
+	while (lock_level < level) {
 	    int new_level = lock_level + 1;
 	    err = do_lock(new_level);
 	    if (err) {
