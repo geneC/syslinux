@@ -112,7 +112,6 @@ int get_module_name_from_pcimap(struct pci_domain *domain,
   strcpy(product_id,"0000");
   strcpy(sub_product_id,"0000");
   strcpy(sub_vendor_id,"0000");
-  dev->dev_info->linux_kernel_module_count=0;
 
   /* for each line we found in the modules.pcimap */
   while ( fgets(line, sizeof line, f) ) {
@@ -154,8 +153,22 @@ int get_module_name_from_pcimap(struct pci_domain *domain,
 	  == dev->sub_product &&
 	  (int_sub_vendor_id & dev->sub_vendor)
 	  == dev->sub_vendor) {
-	strcpy(dev->dev_info->linux_kernel_module[dev->dev_info->linux_kernel_module_count], module_name);
-	dev->dev_info->linux_kernel_module_count++;
+	      bool found=false;
+	      
+	      /* Scan all known kernel modules for this pci device */
+	      for (int i=0; i<dev->dev_info->linux_kernel_module_count; i++) {
+
+       	      /* Try to detect if we already knew the same kernel module*/
+	       if (strstr(dev->dev_info->linux_kernel_module[i], module_name)) {
+		      found=true;
+		      break;
+	       }
+	      }
+	      /* If we don't have this kernel module, let's add it */
+	      if (!found) {
+		strcpy(dev->dev_info->linux_kernel_module[dev->dev_info->linux_kernel_module_count], module_name);
+		dev->dev_info->linux_kernel_module_count++;
+	      }
       }
     }
   }
@@ -619,8 +632,6 @@ int get_module_name_from_alias(struct pci_domain *domain, char *modules_alias_pa
   if (!f)
     return -ENOMODULESALIAS;
 
-  dev->dev_info->linux_kernel_module_count=0;
-
   /* for each line we found in the modules.pcimap */
   while ( fgets(line, sizeof line, f) ) {
     /* skipping unecessary lines */
@@ -702,8 +713,22 @@ int get_module_name_from_alias(struct pci_domain *domain, char *modules_alias_pa
 	  == dev->sub_product &&
 	  (int_sub_vendor_id & dev->sub_vendor)
 	  == dev->sub_vendor) {
-	strcpy(dev->dev_info->linux_kernel_module[dev->dev_info->linux_kernel_module_count], module_name);
-	dev->dev_info->linux_kernel_module_count++;
+	      bool found=false;
+	      
+	      /* Scan all known kernel modules for this pci device */
+	      for (int i=0; i<dev->dev_info->linux_kernel_module_count; i++) {
+
+       	      /* Try to detect if we already knew the same kernel module*/
+	       if (strstr(dev->dev_info->linux_kernel_module[i], module_name)) {
+		      found=true;
+		      break;
+	       }
+	      }
+	      /* If we don't have this kernel module, let's add it */
+	      if (!found) {
+		strcpy(dev->dev_info->linux_kernel_module[dev->dev_info->linux_kernel_module_count], module_name);
+		dev->dev_info->linux_kernel_module_count++;
+	      }
       }
     }
   }

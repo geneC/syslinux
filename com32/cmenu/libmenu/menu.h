@@ -76,8 +76,8 @@
 #define MOREBELOW    'v'		// more items available below
 
 // Attributes of the menu system
-#define MAXMENUS      150	// Maximum number of menu's allowed
-#define MAXMENUSIZE   60	// Default value for max num of entries in each menu
+#define MAXMENUS      250	// Maximum number of menu's allowed
+#define MAXMENUSIZE   100	// Default value for max num of entries in each menu
 #define MAXMENUHEIGHT 20	// Maximum number of entries displayed
 #define MENUBOXTYPE   BOX_SINSIN	// Default box type Look at tui.h for other values
 
