@@ -171,13 +171,15 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.bufoffs = (uintptr_t) buf;
     dio.bufseg = data_segment();
 
-    if (dos_version >= 0x070a) {
-	asm volatile("int $0x21 ; setc %0"
-		     : "=bcdm" (err), "=a" (errnum)
-		     : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
-		       "S" (1), "m" (dio)
-		     : "memory");
-    } else {
+    /* Try FAT32-aware system call first */
+    asm volatile("int $0x21 ; setc %0"
+		 : "=bcdm" (err), "=a" (errnum)
+		 : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
+		   "S" (1), "m" (dio)
+		 : "memory");
+
+    if (err && errnum == 0x0001) {
+	/* Try legacy system call */
 	asm volatile("int $0x26 ; setc %0 ; popfw"
 		     : "=bcdm" (err), "=a" (errnum)
 		     : "a" (drive-1), "b" (&dio), "c" (-1), "d" (buf),
@@ -204,12 +206,14 @@ void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.bufoffs = (uintptr_t) buf;
     dio.bufseg = data_segment();
 
-    if (dos_version >= 0x070a) {
-	asm volatile("int $0x21 ; setc %0"
-		     : "=bcdm" (err), "=a" (errnum)
-		     : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
-		     "S" (0), "m" (dio));
-    } else {
+    /* Try FAT32-aware system call first */
+    asm volatile("int $0x21 ; setc %0"
+		 : "=bcdm" (err), "=a" (errnum)
+		 : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
+		   "S" (0), "m" (dio));
+
+    if (err && errnum == 0x0001) {
+	/* Try legacy system call */
 	asm volatile("int $0x25 ; setc %0 ; popfw"
 		     : "=bcdm" (err), "=a" (errnum)
 		     : "a" (drive-1), "b" (&dio), "c" (-1), "d" (buf),
