@@ -50,7 +50,7 @@ spotless: clean
 installer:
 
 syslinux.elf: $(OBJS) libcom.a com16.ld
-	$(LD) $(LDFLAGS) -o $@ $^
+	$(LD) $(LDFLAGS) -o $@ $(filter-out %.ld,$^)
 
 libcom.a: $(LIBOBJS)
 	-rm -f $@
