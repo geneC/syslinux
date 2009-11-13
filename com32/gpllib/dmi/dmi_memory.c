@@ -209,9 +209,9 @@ void dmi_memory_module_connections(uint8_t code, char* connection)
 	else
 	{
 		if((code&0xF0)!=0xF0)
-			sprintf(connection, "%u", code>>4);
+			sprintf(connection, "%u ", code>>4);
 		if((code&0x0F)!=0x0F)
-			sprintf(connection, "%u", code&0x0F);
+			sprintf(connection, "%s%u", connection, code&0x0F);
 	}
 }
 
