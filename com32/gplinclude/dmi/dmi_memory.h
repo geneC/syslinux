@@ -53,9 +53,9 @@ typedef struct {
 char socket_designation[8];
 char bank_connections[8];
 char speed[8];
-char type[16];
-char installed_size[8];
-char enabled_size[8];
+char type[48];
+char installed_size[48];
+char enabled_size[48];
 char error_status[8];
 bool filled;
 } s_memory_module;
