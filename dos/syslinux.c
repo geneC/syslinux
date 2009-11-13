@@ -152,15 +152,8 @@ uint16_t data_segment(void)
     return ds;
 }
 
-struct diskio {
-    uint32_t startsector;
-    uint16_t sectors;
-    uint16_t bufoffs, bufseg;
-} __attribute__ ((packed));
-
 void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 {
-    uint8_t err;
     uint16_t errnum;
     struct diskio dio;
 
@@ -172,22 +165,18 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.bufseg = data_segment();
 
     /* Try FAT32-aware system call first */
-    asm volatile("int $0x21 ; setc %0"
-		 : "=bcdm" (err), "=a" (errnum)
+    asm volatile("int $0x21 ; jc 1f ; xorw %0,%0\n"
+		 "1:"
+		 : "=a" (errnum)
 		 : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
 		   "S" (1), "m" (dio)
 		 : "memory");
 
-    if (err && errnum == 0x0001) {
-	/* Try legacy system call */
-	asm volatile("int $0x26 ; setc %0 ; popfw"
-		     : "=bcdm" (err), "=a" (errnum)
-		     : "a" (drive-1), "b" (&dio), "c" (-1), "d" (buf),
-		       "m" (dio)
-		     : "esi", "memory");
-    }
+    /* If not supported, try the legacy system call (int2526.S) */
+    if (errnum == 0x0001)
+	errnum = int26_write_sector(drive, &dio);
 
-    if (err) {
+    if (errnum) {
 	dprintf("rv = %04x\n", errnum);
 	die("sector write error");
     }
@@ -195,7 +184,6 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 
 void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 {
-    uint8_t err;
     uint16_t errnum;
     struct diskio dio;
 
@@ -207,21 +195,17 @@ void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.bufseg = data_segment();
 
     /* Try FAT32-aware system call first */
-    asm volatile("int $0x21 ; setc %0"
-		 : "=bcdm" (err), "=a" (errnum)
+    asm volatile("int $0x21 ; jc 1f ; xorw %0,%0\n"
+		 "1:"
+		 : "=a" (errnum)
 		 : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
 		   "S" (0), "m" (dio));
 
-    if (err && errnum == 0x0001) {
-	/* Try legacy system call */
-	asm volatile("int $0x25 ; setc %0 ; popfw"
-		     : "=bcdm" (err), "=a" (errnum)
-		     : "a" (drive-1), "b" (&dio), "c" (-1), "d" (buf),
-		       "m" (dio)
-		     : "esi");
-    }
+    /* If not supported, try the legacy system call (int2526.S) */
+    if (errnum == 0x0001)
+	errnum = int25_read_sector(drive, &dio);
 
-    if (err) {
+    if (errnum) {
 	dprintf("rv = %04x\n", errnum);
 	die("sector read error");
     }
