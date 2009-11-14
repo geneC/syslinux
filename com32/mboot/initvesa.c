@@ -129,7 +129,6 @@ void set_graphics_mode(const struct multiboot_header *mbh,
 
 	/* Must either be a packed-pixel mode or a direct color mode
 	   (depending on VESA version ); must be a supported pixel format */
-	pxf = 0;		/* Not usable */
 
 	if (mi->bpp == 32 &&
 	    (mi->memory_layout == 4 ||
@@ -151,17 +150,25 @@ void set_graphics_mode(const struct multiboot_header *mbh,
 		  (mi->memory_layout == 6 && mi->rpos == 10 && mi->gpos == 5 &&
 		   mi->bpos == 0)))
 	    pxf = 15;
+	else
+	    continue;
 
 	better = false;
-
 	err = abs(mi->h_res - wantx) + abs(mi->v_res - wanty);
+
+#define IS_GOOD(mi, bestx, besty) \
+	((mi)->h_res >= (bestx) && (mi)->v_res >= (besty))
 
 	if (!bestpxf)
 	    better = true;
-	else if ((vesa_info.mi.h_res < wantx || vesa_info.mi.v_res < wantx) &&
-		 mi->h_res >= wantx && mi->v_res >= wanty)
+	else if (!IS_GOOD(&vesa_info.mi, wantx, wanty) &&
+		 IS_GOOD(mi, wantx, wanty))
 	    /* This matches criteria, which the previous one didn't */
 	    better = true;
+	else if (IS_GOOD(&vesa_info.mi, wantx, wanty) &&
+		 !IS_GOOD(mi, wantx, wanty))
+	    /* This doesn't match criteria, and the previous one did */
+	    better = false;
 	else if (err < besterr)
 	    better = true;
 	else if (err == besterr && (pxf == (int)mbh->depth || pxf > bestpxf))
