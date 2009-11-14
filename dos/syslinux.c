@@ -152,15 +152,8 @@ uint16_t data_segment(void)
     return ds;
 }
 
-struct diskio {
-    uint32_t startsector;
-    uint16_t sectors;
-    uint16_t bufoffs, bufseg;
-} __attribute__ ((packed));
-
 void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 {
-    uint8_t err;
     uint16_t errnum;
     struct diskio dio;
 
@@ -171,21 +164,19 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.bufoffs = (uintptr_t) buf;
     dio.bufseg = data_segment();
 
-    if (dos_version >= 0x0710) {
-	asm volatile("int $0x21 ; setc %0"
-		     : "=bcdm" (err), "=a" (errnum)
-		     : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
-		       "S" (1), "m" (dio)
-		     : "memory");
-    } else {
-	asm volatile("int $0x26 ; setc %0 ; popfw"
-		     : "=bcdm" (err), "=a" (errnum)
-		     : "a" (drive-1), "b" (&dio), "c" (-1), "d" (buf),
-		       "m" (dio)
-		     : "esi", "memory");
-    }
+    /* Try FAT32-aware system call first */
+    asm volatile("int $0x21 ; jc 1f ; xorw %0,%0\n"
+		 "1:"
+		 : "=a" (errnum)
+		 : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
+		   "S" (1), "m" (dio)
+		 : "memory");
 
-    if (err) {
+    /* If not supported, try the legacy system call (int2526.S) */
+    if (errnum == 0x0001)
+	errnum = int26_write_sector(drive, &dio);
+
+    if (errnum) {
 	dprintf("rv = %04x\n", errnum);
 	die("sector write error");
     }
@@ -193,7 +184,6 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 
 void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 {
-    uint8_t err;
     uint16_t errnum;
     struct diskio dio;
 
@@ -204,20 +194,18 @@ void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.bufoffs = (uintptr_t) buf;
     dio.bufseg = data_segment();
 
-    if (dos_version >= 0x0710) {
-	asm volatile("int $0x21 ; setc %0"
-		     : "=bcdm" (err), "=a" (errnum)
-		     : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
-		     "S" (0), "m" (dio));
-    } else {
-	asm volatile("int $0x25 ; setc %0 ; popfw"
-		     : "=bcdm" (err), "=a" (errnum)
-		     : "a" (drive-1), "b" (&dio), "c" (-1), "d" (buf),
-		       "m" (dio)
-		     : "esi");
-    }
+    /* Try FAT32-aware system call first */
+    asm volatile("int $0x21 ; jc 1f ; xorw %0,%0\n"
+		 "1:"
+		 : "=a" (errnum)
+		 : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
+		   "S" (0), "m" (dio));
 
-    if (err) {
+    /* If not supported, try the legacy system call (int2526.S) */
+    if (errnum == 0x0001)
+	errnum = int25_read_sector(drive, &dio);
+
+    if (errnum) {
 	dprintf("rv = %04x\n", errnum);
 	die("sector read error");
     }
@@ -411,7 +399,7 @@ static int do_lock(uint8_t level)
     uint8_t err;
 #if 0
     /* DOS 7.10 = Win95 OSR2 = first version with FAT32 */
-    uint16_t lock_call = (dos_version >= 0x0710) ? 0x484A : 0x084A;
+    uint16_t lock_call = (dos_version >= 0x070a) ? 0x484A : 0x084A;
 #else
     uint16_t lock_call = 0x084A; /* MSDN says this is OK for all filesystems */
 #endif
@@ -486,7 +474,7 @@ void unlock_device(int level)
 
 #if 0
     /* DOS 7.10 = Win95 OSR2 = first version with FAT32 */
-    unlock_call = (dos_version >= 0x0710) ? 0x486A : 0x086A;
+    unlock_call = (dos_version >= 0x070a) ? 0x486A : 0x086A;
 #else
     unlock_call = 0x086A;	/* MSDN says this is OK for all filesystems */
 #endif
