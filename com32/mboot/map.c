@@ -36,7 +36,6 @@
 
 static struct syslinux_movelist *ml = NULL;
 static struct syslinux_memmap *mmap = NULL, *amap = NULL;
-static struct multiboot_header *mbh;
 static addr_t mboot_high_water_mark = 0x100000;
 
 /*
@@ -100,8 +99,9 @@ int init_map(void)
     return 0;
 }
 
-int map_image(void *ptr, size_t len)
+struct multiboot_header *map_image(void *ptr, size_t len)
 {
+    struct multiboot_header *mbh;
     int mbh_len;
     char *cptr = ptr;
     Elf32_Ehdr *eh = ptr;
@@ -134,10 +134,10 @@ int map_image(void *ptr, size_t len)
     }
 
     if (mbh_len) {
-	bad_flags = mbh->flags & (MULTIBOOT_UNSUPPORTED | MULTIBOOT_VIDEO_MODE);
+	bad_flags = mbh->flags & MULTIBOOT_UNSUPPORTED;
 	if (bad_flags) {
 	    printf("Unsupported Multiboot flags set: %#x\n", bad_flags);
-	    return -1;
+	    return NULL;
 	}
     }
 
@@ -187,13 +187,13 @@ int map_image(void *ptr, size_t len)
 		    printf
 			("Memory segment at 0x%08x (len 0x%08x) is unavailable\n",
 			 addr, msize);
-		    return -1;	/* Memory region unavailable */
+		    return NULL;	/* Memory region unavailable */
 		}
 
 		/* Mark this region as allocated in the available map */
 		if (syslinux_add_memmap(&amap, addr, msize, SMT_ALLOC)) {
 		    error("Overlapping segments found in ELF header\n");
-		    return -1;
+		    return NULL;
 		}
 
 		if (ph->p_filesz) {
@@ -201,7 +201,7 @@ int map_image(void *ptr, size_t len)
 		    if (syslinux_add_movelist
 			(&ml, addr, (addr_t) cptr + ph->p_offset, dsize)) {
 			error("Failed to map PHDR data\n");
-			return -1;
+			return NULL;
 		    }
 		}
 		if (msize > dsize) {
@@ -209,7 +209,7 @@ int map_image(void *ptr, size_t len)
 		    if (syslinux_add_memmap
 			(&mmap, addr + dsize, msize - dsize, SMT_ZERO)) {
 			error("Failed to map PHDR zero region\n");
-			return -1;
+			return NULL;
 		    }
 		}
 		if (addr + msize > mboot_high_water_mark)
@@ -235,7 +235,7 @@ int map_image(void *ptr, size_t len)
 	    addr = map_data(sh, len, 4096, MAP_HIGH | MAP_NOPAD);
 	    if (!addr) {
 		error("Failed to map symbol table\n");
-		return -1;
+		return NULL;
 	    }
 
 	    mbinfo.flags |= MB_INFO_ELF_SHDR;
@@ -257,7 +257,7 @@ int map_image(void *ptr, size_t len)
 				align, MAP_HIGH);
 		if (!addr) {
 		    error("Failed to map symbol section\n");
-		    return -1;
+		    return NULL;
 		}
 		sh[i].sh_addr = addr;
 	    }
@@ -279,34 +279,34 @@ int map_image(void *ptr, size_t len)
 	    != SMT_FREE) {
 	    printf("Memory segment at 0x%08x (len 0x%08x) is unavailable\n",
 		   mbh->load_addr, data_len + bss_len);
-	    return -1;		/* Memory region unavailable */
+	    return NULL;		/* Memory region unavailable */
 	}
 	if (syslinux_add_memmap(&amap, mbh->load_addr,
 				data_len + bss_len, SMT_ALLOC)) {
 	    error("Failed to claim a.out address space!\n");
-	    return -1;
+	    return NULL;
 	}
 	if (data_len)
 	    if (syslinux_add_movelist(&ml, mbh->load_addr, (addr_t) data_ptr,
 				      data_len)) {
 		error("Failed to map a.out data\n");
-		return -1;
+		return NULL;
 	    }
 	if (bss_len)
 	    if (syslinux_add_memmap
 		(&mmap, mbh->load_end_addr, bss_len, SMT_ZERO)) {
 		error("Failed to map a.out bss\n");
-		return -1;
+		return NULL;
 	    }
 	if (mbh->bss_end_addr > mboot_high_water_mark)
 	    mboot_high_water_mark = mbh->bss_end_addr;
     } else {
 	error
 	    ("Invalid Multiboot image: neither ELF header nor a.out kludge found\n");
-	return -1;
+	return NULL;
     }
 
-    return 0;
+    return mbh;
 }
 
 /*

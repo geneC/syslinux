@@ -79,7 +79,7 @@ extern struct my_options {
 #define MAP_NOPAD	2
 addr_t map_data(const void *data, size_t len, size_t align, int flags);
 addr_t map_string(const char *string);
-int map_image(void *ptr, size_t len);
+struct multiboot_header *map_image(void *ptr, size_t len);
 void mboot_run(int bootflags);
 int init_map(void);
 
@@ -91,5 +91,9 @@ void mboot_apm(void);
 
 /* solaris.c */
 void mboot_solaris_dhcp_hack(void);
+
+/* initvesa.c */
+void set_graphics_mode(const struct multiboot_header *mbh,
+		       struct multiboot_info *mbi);
 
 #endif /* MBOOT_H */
