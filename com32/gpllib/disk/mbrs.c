@@ -62,7 +62,7 @@ void get_mbr_string(const uint32_t label, char* buffer, const int buffer_size)
 		break;
 	case 0xfaeb: strncpy(buffer, "Lilo", buffer_size - 1); break;
 	case 0xfc31: strncpy(buffer, "Testdisk", buffer_size - 1); break;
-	case 0xfc33: strncpy(buffer, "Gag", buffer_size - 1); break;
+	case 0xfc33: strncpy(buffer, "GAG", buffer_size - 1); break;
 	case 0xfceb: strncpy(buffer, "BootIT NG", buffer_size - 1); break;
 	default: strncpy(buffer, "Unknown mbr", buffer_size - 1); break;
 	}
