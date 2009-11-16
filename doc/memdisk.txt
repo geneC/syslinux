@@ -75,6 +75,7 @@ b) If the disk image is less than 4,194,304 bytes (4096K, 4 MB) it is
    s=#		Specify number of sectors (max 63)
    floppy[=#]	The image is a floppy image[**]
    harddisk[=#]	The image is a hard disk image[**]
+   iso		The image is an El Torito ISO9660 image (drive 0xE0)
 
    # represents a decimal number.
 
