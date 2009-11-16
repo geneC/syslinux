@@ -36,6 +36,7 @@ void get_mbr_string(const uint32_t label, char* buffer, const int buffer_size)
 	case 0x33c0: strncpy(buffer, "Windows", buffer_size - 1); break;
 	case 0x33ff: strncpy(buffer, "HP/Gateway", buffer_size - 1); break;
 	case 0xb800: strncpy(buffer, "Plop", buffer_size - 1); break;
+    case 0xea05: strncpy(buffer, "XOSL", buffer_size - 1); break;
 	case 0xea1e: strncpy(buffer, "Truecrypt Boot Loader", buffer_size - 1); break;
 	case 0xeb04: strncpy(buffer, "Solaris", buffer_size - 1); break;
 	case 0xeb48: strncpy(buffer, "Grub", buffer_size - 1); break;
