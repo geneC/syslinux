@@ -40,8 +40,8 @@ void get_mbr_string(const uint32_t label, char* buffer, const int buffer_size)
 	case 0xea1e: strncpy(buffer, "Truecrypt Boot Loader", buffer_size - 1); break;
 	case 0xeb04: strncpy(buffer, "Solaris", buffer_size - 1); break;
 	case 0xeb48: strncpy(buffer, "Grub", buffer_size - 1); break;
-	case 0xeb63:
-	case 0xeb4c: strncpy(buffer, "Grub2", buffer_size - 1); break;
+    case 0xeb4c: strncpy(buffer, "Grub2 (v1.96)", buffer_size - 1);
+    case 0xeb63: strncpy(buffer, "Grub2 (v1.97)", buffer_size - 1);
     	case 0xeb5e:
    	     	/* We need more than 2 bytes */
         	if (((label >> 8) & 0xff) == 0x00)
