@@ -150,12 +150,8 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
     if (hardware->dmi.system.filled == true)
       compute_system(&(hdt_menu->system_menu),
                &(hardware->dmi));
-    for (int i = 0; i < hardware->dmi.memory_count; i++) {
-      if (hardware->dmi.memory[i].filled == true) {
+    if ((hardware->dmi.memory_count >0) || (hardware->dmi.memory_module_count>0))
         compute_memory(hdt_menu, &(hardware->dmi),hardware);
-        break;
-      }
-    }
     if (hardware->dmi.bios.filled == true)
       compute_bios(&(hdt_menu->bios_menu), &(hardware->dmi));
     if (hardware->dmi.battery.filled == true)

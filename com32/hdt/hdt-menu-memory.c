@@ -111,6 +111,7 @@ static void compute_e88(struct s_my_menu *menu)
   }
   menu->items_count++;
 }
+
 /* Compute the Memory submenu */
 static void compute_memory_module(struct s_my_menu *menu, s_dmi * dmi,
                                   int slot_number)
@@ -230,27 +231,102 @@ static void compute_memory_module(struct s_my_menu *menu, s_dmi * dmi,
 
 }
 
+/* Compute the Memory submenu when type 6 is used*/
+static void compute_memory_module_type6(struct s_my_menu *menu, s_dmi * dmi,
+                                  int slot_number)
+{
+  int i = slot_number;
+  char buffer[MENULEN + 1];
+  char statbuffer[STATLEN + 1];
+
+  sprintf(buffer, " Bank <%d> ", i);
+  menu->items_count = 0;
+  menu->menu = add_menu(buffer, -1);
+
+  snprintf(buffer, sizeof buffer, "Socket Designation : %s",
+     dmi->memory_module[i].socket_designation);
+  snprintf(statbuffer, sizeof statbuffer, "Socket Designation : %s",
+     dmi->memory_module[i].socket_designation);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Bank Connections   : %s",
+     dmi->memory_module[i].bank_connections);
+  snprintf(statbuffer, sizeof statbuffer, "Bank Connections: %s",
+     dmi->memory_module[i].bank_connections);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Type               : %s",
+     dmi->memory_module[i].type);
+  snprintf(statbuffer, sizeof statbuffer, "Type : %s",
+     dmi->memory_module[i].type);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Current Speed      : %s",
+     dmi->memory_module[i].speed);
+  snprintf(statbuffer, sizeof statbuffer, "Current Speed : %s",
+     dmi->memory_module[i].speed);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Installed Size     : %s",
+     dmi->memory_module[i].installed_size);
+  snprintf(statbuffer, sizeof statbuffer, "Installed Size : %s",
+     dmi->memory_module[i].installed_size);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Enabled Size       : %s",
+     dmi->memory_module[i].enabled_size);
+  snprintf(statbuffer, sizeof statbuffer, "Enabled Size : %s",
+     dmi->memory_module[i].enabled_size);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+  snprintf(buffer, sizeof buffer, "Error Status       : %s",
+     dmi->memory_module[i].error_status);
+  snprintf(statbuffer, sizeof statbuffer, "Error Status : %s",
+     dmi->memory_module[i].error_status);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  menu->items_count++;
+
+}
+
 /* Compute the Memory menu */
 void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi, struct s_hardware *hardware)
 {
   char buffer[MENULEN + 1];
   int i=0;
-  for (i = 0; i < dmi->memory_count; i++) {
-    compute_memory_module(&(menu->memory_sub_menu[i]), dmi, i);
+  int memory_count=0;
+
+  /* If memory type 17 is available */
+  if (dmi->memory_count >0) {
+	memory_count=dmi->memory_count;
+	for (i = 0; i < dmi->memory_count; i++) {
+		  compute_memory_module(&(menu->memory_sub_menu[i]), dmi, i);
+    	}
+  } else if (dmi->memory_module_count >0) {
+	memory_count=dmi->memory_module_count;
+	/* Memory Type 17 isn't available, let's fallback on type 6 */
+	for (i = 0; i < dmi->memory_module_count; i++) {
+		  compute_memory_module_type6(&(menu->memory_sub_menu[i]), dmi, i);
+    	}
   }
 
   compute_e820(&(menu->memory_sub_menu[++i]));
   compute_e801(&(menu->memory_sub_menu[++i]));
   compute_e88(&(menu->memory_sub_menu[++i]));
 
-  menu->memory_menu.menu = add_menu(" Memory Banks ", -1);
+  menu->memory_menu.menu = add_menu(" Memory ", -1);
   menu->memory_menu.items_count = 0;
 
-  for (i = 0; i < dmi->memory_count; i++) {
-    snprintf(buffer, sizeof buffer, " Bank <%d> ", i);
-    add_item(buffer, "Memory Bank", OPT_SUBMENU, NULL,
-       menu->memory_sub_menu[i].menu);
-    menu->memory_menu.items_count++;
+  for (i = 0; i < memory_count; i++) {
+	snprintf(buffer, sizeof buffer, " Bank <%d> ", i);
+	add_item(buffer, "Memory Bank", OPT_SUBMENU, NULL,
+	menu->memory_sub_menu[i].menu);
+	menu->memory_menu.items_count++;
   }
 
   add_item("", "", OPT_SEP, "", 0);
