@@ -545,8 +545,10 @@ void show_dmi_memory_modules(int argc __unused, char** argv __unused,
   }
 
   reset_more_printf();
-  more_printf("Memory Banks\n");
-  for (int i = 0; i < hardware->dmi.memory_count; i++) {
+  /* If type 17 is available */
+  if (hardware->dmi.memory_count>0) {
+   more_printf("Memory Banks\n");
+   for (int i = 0; i < hardware->dmi.memory_count; i++) {
     if (hardware->dmi.memory[i].filled == true) {
       /* When discovering the first item, let's clear the screen */
       strncat(available_dmi_commands, CLI_DMI_MEMORY_BANK,
@@ -569,7 +571,19 @@ void show_dmi_memory_modules(int argc __unused, char** argv __unused,
                hardware->dmi.memory[i].speed);
       }
     }
-  }
+   }
+  } else if (hardware->dmi.memory_module_count>0) {
+   /* Let's use type 6 as a fallback of type 17*/
+   more_printf("Memory Modules\n");
+   for (int i = 0; i < hardware->dmi.memory_module_count; i++) {
+    if (hardware->dmi.memory_module[i].filled == true) {
+        more_printf(" module %02d    : %s %s@%s\n", i,
+               hardware->dmi.memory_module[i].enabled_size,
+               hardware->dmi.memory_module[i].type,
+               hardware->dmi.memory_module[i].speed);
+      }
+    }
+   }
 
   return;
   //printf("Type 'show bank<bank_number>' for more details.\n");
