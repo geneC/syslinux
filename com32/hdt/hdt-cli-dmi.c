@@ -523,6 +523,7 @@ void main_show_dmi(int argc __unused, char **argv __unused,
 void show_dmi_memory_modules(int argc __unused, char** argv __unused,
                              struct s_hardware *hardware)
 {
+  /* Do we have so display unpopulated banks ?*/
   int show_free_banks = 1;
 
   /* Needed, if called by the memory mode */
@@ -530,14 +531,13 @@ void show_dmi_memory_modules(int argc __unused, char** argv __unused,
 
   /* Sanitize arguments */
   if (argc > 0) {
+      /* When we display a summary, there is no need to show the unpopulated banks
+       * The first argv is set to define this behavior
+       */
       show_free_banks = strtol(argv[0], NULL, 10);
       if (errno == ERANGE || show_free_banks < 0 || show_free_banks > 1)
         goto usage;
   }
-
-  char bank_number[10];
-  char available_dmi_commands[1024];
-  memset(available_dmi_commands, 0, sizeof(available_dmi_commands));
 
   if (hardware->dmi.memory_count <= 0) {
     more_printf("No memory module found\n");
@@ -547,16 +547,12 @@ void show_dmi_memory_modules(int argc __unused, char** argv __unused,
   reset_more_printf();
   /* If type 17 is available */
   if (hardware->dmi.memory_count>0) {
+   char bank_number[255];
    more_printf("Memory Banks\n");
    for (int i = 0; i < hardware->dmi.memory_count; i++) {
     if (hardware->dmi.memory[i].filled == true) {
-      /* When discovering the first item, let's clear the screen */
-      strncat(available_dmi_commands, CLI_DMI_MEMORY_BANK,
-        sizeof(CLI_DMI_MEMORY_BANK) - 1);
       memset(bank_number, 0, sizeof(bank_number));
       snprintf(bank_number, sizeof(bank_number), "%d ", i);
-      strncat(available_dmi_commands, bank_number,
-        sizeof(bank_number));
       if (show_free_banks == false) {
         if (strncmp
             (hardware->dmi.memory[i].size, "Free", 4))
