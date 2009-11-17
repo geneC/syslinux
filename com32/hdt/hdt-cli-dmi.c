@@ -529,6 +529,11 @@ void show_dmi_memory_modules(int argc __unused, char** argv __unused,
   /* Needed, if called by the memory mode */
   detect_dmi(hardware);
 
+  if ((hardware->dmi.memory_count <= 0) && (hardware->dmi.memory_module_count <= 0)) {
+    more_printf("No memory module found\n");
+    return;
+  }
+
   /* Sanitize arguments */
   if (argc > 0) {
       /* When we display a summary, there is no need to show the unpopulated banks
@@ -537,11 +542,6 @@ void show_dmi_memory_modules(int argc __unused, char** argv __unused,
       show_free_banks = strtol(argv[0], NULL, 10);
       if (errno == ERANGE || show_free_banks < 0 || show_free_banks > 1)
         goto usage;
-  }
-
-  if (hardware->dmi.memory_count <= 0) {
-    more_printf("No memory module found\n");
-    return;
   }
 
   reset_more_printf();
