@@ -221,7 +221,7 @@ $mbr .= "\0\0";				# Offset 446: actual partition table
 
 # Print partition table
 $offset  = $opt{'offset'};
-$psize   = $c*$h*$s;
+$psize   = $c*$h*$s - $offset;
 $bhead   = int($offset/$s) % $h;
 $bsect   = ($offset % $s) + 1;
 $bcyl    = int($offset/($h*$s));
@@ -236,7 +236,7 @@ $pentry  = $opt{'entry'};	# Partition slot
 for ( $i = 1 ; $i <= 4 ; $i++ ) {
     if ( $i == $pentry ) {
 	$mbr .= pack("CCCCCCCCVV", 0x80, $bhead, $bsect, $bcyl, $fstype,
-		     $ehead, $esect, $ecyl, 0, $psize);
+		     $ehead, $esect, $ecyl, $offset, $psize);
     } else {
 	$mbr .= "\0" x 16;
     }
