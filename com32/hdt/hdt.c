@@ -36,6 +36,7 @@
 #include <console.h>
 #include <consoles.h>
 #include "hdt.h"
+#include "hdt-cli.h"
 #include "hdt-menu.h"
 #include "hdt-common.h"
 
