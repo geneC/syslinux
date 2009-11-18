@@ -97,10 +97,10 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
     menu->items_count++;
 
     add_item("", "", OPT_SEP, "", 0);
-
-    for (int i = 0; i < hardware->dmi.memory_count; i++) {
+    /*if type 17 is available */
+    if (hardware->dmi.memory_count>0) {
+     for (int i = 0; i < hardware->dmi.memory_count; i++) {
       if (hardware->dmi.memory[i].filled == true) {
-        /* When discovering the first item, let's clear the screen */
         memset(bank_number, 0, sizeof(bank_number));
         snprintf(bank_number, sizeof(bank_number),
            "%d ", i);
@@ -123,6 +123,31 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
           menu->items_count++;
         }
       }
+     }
+    } else  if (hardware->dmi.memory_module_count>0) {
+      /* Let's use type 6 as a fallback of type 17*/
+     for (int i = 0; i < hardware->dmi.memory_module_count; i++) {
+      if (hardware->dmi.memory_module[i].filled == true) {
+        memset(bank_number, 0, sizeof(bank_number));
+        snprintf(bank_number, sizeof(bank_number),
+           "%d ", i);
+        snprintf(buffer, sizeof buffer, 
+	     "Mem bank %02d   : %s %s@%s",
+             i,
+             hardware->dmi.memory_module[i].enabled_size,
+             hardware->dmi.memory_module[i].type,
+             hardware->dmi.memory_module[i].speed);
+        snprintf(statbuffer, sizeof statbuffer,
+	     "Memory bank %02d   : %s %s@%s",
+             i,
+             hardware->dmi.memory_module[i].enabled_size,
+             hardware->dmi.memory_module[i].type,
+             hardware->dmi.memory_module[i].speed);
+          add_item(buffer, statbuffer,
+             OPT_INACTIVE, NULL, 0);
+          menu->items_count++;
+      }
+     }
     }
 
     add_item("", "", OPT_SEP, "", 0);
