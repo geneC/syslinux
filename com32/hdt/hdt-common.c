@@ -520,6 +520,10 @@ void cpu_detect(struct s_hardware *hardware)
   if (hardware->cpu_detection == true)
     return;
   detect_cpu(&hardware->cpu);
+  /* Old processors doesn't manage the identify commands 
+   * Let's use the dmi value in that case */
+  if (strlen(remove_spaces(hardware->cpu.model))==0)
+	  strncpy(hardware->cpu.model,hardware->dmi.processor.version,sizeof(hardware->cpu.model));
   hardware->cpu_detection = true;
 }
 

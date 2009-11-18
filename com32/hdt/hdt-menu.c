@@ -299,14 +299,6 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
 void detect_hardware(struct s_hardware *hardware)
 {
   if (!quiet)
-      more_printf("CPU: Detecting\n");
-  cpu_detect(hardware);
-
-  if (!quiet)
-      more_printf("DISKS: Detecting\n");
-  detect_disks(hardware);
-
-  if (!quiet)
       more_printf("DMI: Detecting Table\n");
   if (detect_dmi(hardware) == -ENODMITABLE) {
     printf("DMI: ERROR ! Table not found ! \n");
@@ -318,6 +310,14 @@ void detect_hardware(struct s_hardware *hardware)
                  hardware->dmi.dmitable.major_version,
                  hardware->dmi.dmitable.minor_version);
   }
+
+  if (!quiet)
+      more_printf("CPU: Detecting\n");
+  cpu_detect(hardware);
+
+  if (!quiet)
+      more_printf("DISKS: Detecting\n");
+  detect_disks(hardware);
 
   if (!quiet)
       more_printf("VPD: Detecting\n");
