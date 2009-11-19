@@ -9,6 +9,10 @@
 #include <inttypes.h>
 #include <sys/io.h>
 
+#undef DEBUG
+#define DEBUG 1
+#include <dprintf.h>
+
 #define BUFFER_SIZE	32768
 
 struct file_info;
