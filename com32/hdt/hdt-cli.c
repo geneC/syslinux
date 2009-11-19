@@ -659,7 +659,7 @@ static void exec_command(char *line,
 	expand_aliases(line, &command, &module, &argc, argv);
 
 	if (module == NULL) {
-		dprintf("CLI DEBUG: single command detected\n", CLI_SHOW);
+		dprintf("CLI DEBUG: single command detected\n");
 		/*
 		 * A single word was specified: look at the list of default
 		 * commands in the current mode to see if there is a match.
