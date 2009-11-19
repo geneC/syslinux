@@ -96,9 +96,10 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 
-    add_item("", "", OPT_SEP, "", 0);
     /*if type 17 is available */
     if (hardware->dmi.memory_count>0) {
+     add_item("", "", OPT_SEP, "", 0);
+
      for (int i = 0; i < hardware->dmi.memory_count; i++) {
       if (hardware->dmi.memory[i].filled == true) {
         memset(bank_number, 0, sizeof(bank_number));
@@ -125,6 +126,8 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
       }
      }
     } else  if (hardware->dmi.memory_module_count>0) {
+     add_item("", "", OPT_SEP, "", 0);
+
       /* Let's use type 6 as a fallback of type 17*/
      for (int i = 0; i < hardware->dmi.memory_module_count; i++) {
       if (hardware->dmi.memory_module[i].filled == true) {
@@ -149,9 +152,9 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
       }
      }
     }
-
-    add_item("", "", OPT_SEP, "", 0);
   }
+
+  add_item("", "", OPT_SEP, "", 0);
 
   snprintf(buffer, sizeof buffer, "Nb PCI Devices: %d",
      hardware->nb_pci_devices);
@@ -160,9 +163,9 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu->items_count++;
 
-  add_item("", "", OPT_SEP, "", 0);
-
   if (hardware->is_pxe_valid == true) {
+    add_item("", "", OPT_SEP, "", 0);
+
     struct s_pxe *p = &hardware->pxe;
 
     snprintf(buffer, sizeof buffer, "PXE MAC Address: %s",
@@ -180,11 +183,11 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
        p->ip_addr[1], p->ip_addr[2], p->ip_addr[3]);
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
-
-    add_item("", "", OPT_SEP, "", 0);
   }
 
   if (hardware->modules_pcimap_return_code != -ENOMODULESPCIMAP) {
+    add_item("", "", OPT_SEP, "", 0);
+
     bool kmod = false;
     struct pci_device *pci_device;
     char kernel_modules[LINUX_KERNEL_MODULE_SIZE *
@@ -226,8 +229,6 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
         kmod = true;
       }
     }
-    if (kmod == true)
-      add_item("", "", OPT_SEP, "", 0);
   }
 
   printf("MENU: Summary menu done (%d items)\n", menu->items_count);
