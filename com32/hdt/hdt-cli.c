@@ -497,17 +497,19 @@ static void autocomplete_command(char *command)
 	 * (single token commands for the current_mode)
 	 */
 	j = 0;
-	while (current_mode->default_modules &&
-           current_mode->default_modules->modules[j].name) {
-		if (strncmp(current_mode->default_modules->modules[j].name,
-			    command,
-			    strlen(command)) == 0) {
-			printf("%s\n",
-				current_mode->default_modules->modules[j].name);
-			autocomplete_add_token_to_list(current_mode->default_modules->modules[j].name);
+    if (current_mode->default_modules &&
+        current_mode->default_modules->modules) {
+		while (current_mode->default_modules->modules[j].name) {
+			if (strncmp(current_mode->default_modules->modules[j].name,
+				    command,
+				    strlen(command)) == 0) {
+				printf("%s\n",
+					current_mode->default_modules->modules[j].name);
+				autocomplete_add_token_to_list(current_mode->default_modules->modules[j].name);
+			}
+			j++;
 		}
-		j++;
-	}
+    }
 
 	/*
 	 * Finally, if the current_mode is not hdt, list the available
@@ -515,6 +517,10 @@ static void autocomplete_command(char *command)
 	 */
 	if (current_mode->mode == HDT_MODE)
 		return;
+
+    if (!hdt_mode.default_modules ||
+        !hdt_mode.default_modules->modules)
+        return;
 
 	j = 0;
 	while (hdt_mode.default_modules &&
@@ -557,8 +563,11 @@ static void autocomplete_module(char *command, char* module)
 	char autocomplete_full_line[MAX_LINE_SIZE];
 
 	if (strncmp(CLI_SHOW, command, strlen(command)) == 0) {
-		while (current_mode->show_modules &&
-               current_mode->show_modules->modules[j].name) {
+		if (!current_mode->show_modules ||
+            !current_mode->show_modules->modules)
+            return;
+
+        while (current_mode->show_modules->modules[j].name) {
 			if (strncmp(current_mode->show_modules->modules[j].name,
 				    module,
 				    strlen(module)) == 0) {
@@ -572,8 +581,11 @@ static void autocomplete_module(char *command, char* module)
 		}
 	} else if (strncmp(CLI_SET, command, strlen(command)) == 0) {
 		j = 0;
-		while (current_mode->set_modules &&
-               current_mode->set_modules->modules[j].name) {
+		if (!current_mode->set_modules ||
+            !current_mode->set_modules->modules)
+            return;
+
+		while (current_mode->set_modules->modules[j].name) {
 			if (strncmp(current_mode->set_modules->modules[j].name,
 				    module,
 				    strlen(module)) == 0) {

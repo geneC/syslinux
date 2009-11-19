@@ -224,7 +224,6 @@ struct cli_callback_descr list_disk_show_modules[] = {
 	},
 };
 
-
 struct cli_module_descr disk_show_modules = {
 	.modules = list_disk_show_modules,
 	.default_callback = disks_summary,
