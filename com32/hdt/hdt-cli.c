@@ -337,6 +337,7 @@ out:
  *
  * The format of the command line is:
  *	<main command> [<module on which to operate> [<args>]]
+ *	command is always malloc'ed (even for an empty line)
  **/
 static void parse_command_line(char *line, char **command, char **module,
 			       int *argc, char **argv)
@@ -496,7 +497,8 @@ static void autocomplete_command(char *command)
 	 * (single token commands for the current_mode)
 	 */
 	j = 0;
-	while (current_mode->default_modules->modules[j].name) {
+	while (current_mode->default_modules &&
+           current_mode->default_modules->modules[j].name) {
 		if (strncmp(current_mode->default_modules->modules[j].name,
 			    command,
 			    strlen(command)) == 0) {
@@ -515,7 +517,8 @@ static void autocomplete_command(char *command)
 		return;
 
 	j = 0;
-	while (hdt_mode.default_modules->modules[j].name) {
+	while (hdt_mode.default_modules &&
+           hdt_mode.default_modules->modules[j].name) {
 		/*
 		 * Any default command that is present in hdt mode but
 		 * not in the current mode is available. A default
@@ -554,7 +557,8 @@ static void autocomplete_module(char *command, char* module)
 	char autocomplete_full_line[MAX_LINE_SIZE];
 
 	if (strncmp(CLI_SHOW, command, strlen(command)) == 0) {
-		while (current_mode->show_modules->modules[j].name) {
+		while (current_mode->show_modules &&
+               current_mode->show_modules->modules[j].name) {
 			if (strncmp(current_mode->show_modules->modules[j].name,
 				    module,
 				    strlen(module)) == 0) {
@@ -568,7 +572,8 @@ static void autocomplete_module(char *command, char* module)
 		}
 	} else if (strncmp(CLI_SET, command, strlen(command)) == 0) {
 		j = 0;
-		while (current_mode->set_modules->modules[j].name) {
+		while (current_mode->set_modules &&
+               current_mode->set_modules->modules[j].name) {
 			if (strncmp(current_mode->set_modules->modules[j].name,
 				    module,
 				    strlen(module)) == 0) {
@@ -603,25 +608,23 @@ static void autocomplete(char *line)
 	/* No argument, (the start of) a module has been specified */
 	if (module != NULL) {
 		autocomplete_module(command, module);
+        free(module);
 		goto out;
 	}
 
 	/* No argument, no module, (the start of) a command has been specified */
 	if (command != NULL) {
 		autocomplete_command(command);
+        free(command);
 		goto out;
 	}
 
-	/* Nothing specified, list available commands */
-	//autocomplete_commands();
-
 out:
 	/* Let's not forget to clean ourselves */
-	free(command);
-	free(module);
 	for (i = 0; i < argc; i++)
 		free(argv[i]);
-	free(argv);
+    if (argc > 0)
+        free(argv);
 	return;
 }
 
