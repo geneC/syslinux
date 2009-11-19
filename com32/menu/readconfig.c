@@ -959,7 +959,11 @@ static int parse_one_config(const char *filename)
     if (!strcmp(filename, "~"))
 	filename = syslinux_config_file();
 
+    dprintf("Opening config file: %s ", filename);
+
     f = fopen(filename, "r");
+    dprintf("%s\n", f ? "ok" : "failed");
+    
     if (!f)
 	return -1;
 

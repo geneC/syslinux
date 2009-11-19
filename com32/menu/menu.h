@@ -28,6 +28,9 @@
 #include <stdbool.h>
 #include "refstr.h"
 
+/* #define DEBUG 1 */
+#include <dprintf.h>
+
 #ifndef CLK_TCK
 # define CLK_TCK sysconf(_SC_CLK_TCK)
 #endif
