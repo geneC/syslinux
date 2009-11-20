@@ -8,6 +8,7 @@
 ;
 ;   Copyright 2001-2009 H. Peter Anvin - All Rights Reserved
 ;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;   Portions copyright 2009 Shao Miller [El Torito code]
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -79,7 +80,6 @@
 
 		org 0h
 
-%define SECTORSIZE_LG2	9		; log2(sector size)
 %define	SECTORSIZE	(1 << SECTORSIZE_LG2)
 
 		; Parameter registers definition; this is the definition
@@ -136,6 +136,10 @@ Int13Start:
 		mov ss,ax
 		mov sp,[cs:MyStack]
 
+%if ELTORITO
+		cmp word [cs:SavedAX],4a00h	; El Torito function?
+		jae our_drive			; We grab it
+%endif
 		; See if DL points to our class of device (FD, HD)
 		push dx
 		push dx
@@ -147,6 +151,12 @@ Int13Start:
 		jz our_drive		; If ZF=1, we have an exact match
 		cmp dl,[cs:DriveNo]
 		jb .nomatch		; Drive < Our drive
+		cmp dl,[cs:DriveShiftLimit]
+		jae .nomatch		; Drive > The maximum drive
+					; number that we will shift for.
+					; This leaves any higher-up BIOS
+					; drives alone, such as an optical
+					; disc drive 0xA0 or 0xE0
 		dec dl			; Drive > Our drive, adjust drive #
 .nomatch:
 		TRACER '!'
@@ -164,7 +174,9 @@ Int13Start:
 		cmp byte [cs:SavedAX+1],08h	; Get drive params function?
 		je .norestoredl			; DL = number of drives
 		cmp byte [cs:SavedAX+1],15h	; Get disk type function?
-		je .norestoredl			; CX:DX = size of device
+		jne .restoredl
+		test byte [bp+4],80h		; Hard disk?
+		jnz .norestoredl		; CX:DX = size of device
 .restoredl:
 		mov dl,[bp+4]
 .norestoredl:
@@ -200,6 +212,14 @@ our_drive:
 		; Note: AX == P_AX here
 		cmp ah,Int13FuncsCnt-1
 		ja Invalid_jump
+%if ELTORITO
+		mov al,[CD_PKT.type]	; Check if we are in
+		cmp al,0		; El Torito no emulation mode
+		ja .emulation		; No.  We support the function
+		cmp ah,3fh		; Yes.  We must not support functions
+		jbe Invalid_jump	; 0 through 3Fh.  Check and decide
+.emulation:
+%endif
 		xor al,al		; AL = 0 is standard entry condition
 		mov di,ax
 		shr di,7		; Convert AH to an offset in DI
@@ -388,8 +408,9 @@ EDDPresence:
 		jne Invalid
 		mov P_BX,0AA55h		; EDD signature
 		mov P_AX,03000h		; EDD 3.0
-		mov P_CX,0003h		; Bit 0 - Fixed disk access subset
+		mov P_CX,0007h		; Bit 0 - Fixed disk access subset
 					; Bit 1 - Locking and ejecting subset
+					; Bit 2 - EDD subset
 		pop ax			; Drop return address
 		xor ax,ax		; Success
 		jmp DoneWeird		; Success, but AH != 0, sigh...
@@ -570,9 +591,30 @@ edd_setup_regs:
 EDDEject:
 		mov ax,0B200h		; Volume Not Removable
 		ret
-
+%if ELTORITO
+ElToritoTerminate:
+		TRACER 'T'
+		mov ax,[cs:SavedAX]
+		cmp al,1		; We only support query, not terminate
+		jne ElToritoErr		; Fail
+		mov es,P_DS		; Caller's DS:SI pointed to packet
+		mov di,P_SI		; We'll use ES:DI
+		mov si,CD_PKT.size	; First byte is packet size
+		xor cx,0		; Empty our count
+		;mov cl,[ds:si]		; We'll copy that many bytes
+		mov cl,13h
+		rep movsb		; Copy until CX is zero
+		mov ax,0		; Success
+		ret
+ElToritoEmulate:
+ElToritoBoot:
+ElToritoCatalog:
+ElToritoErr:
+		TRACER '!'
+		mov ax,100h		; Invalid parameter
+		ret
+%endif ; ELTORITO
 %endif ; EDD
-
 
 ;
 ; INT 15h intercept routines
@@ -955,7 +997,14 @@ Int13Funcs	dw Reset		; 00h - RESET
 		dw EDDSeek		; 47h - EDD SEEK
 		dw EDDGetParms		; 48h - EDD GET PARAMETERS
 		dw EDDDetectChange	; 49h - EDD MEDIA CHANGE STATUS
-%endif
+%if ELTORITO				; EDD El Torito Functions
+					; ELTORITO _must_ also have EDD
+		dw ElToritoEmulate	; 4Ah - Initiate Disk Emulation
+		dw ElToritoTerminate	; 4Bh - Terminate Disk Emulation
+		dw ElToritoBoot		; 4Ch - Initiate Disk Emu. and Reboot
+		dw ElToritoCatalog	; 4Dh - Return Boot Catalog
+%endif ; ELTORITO
+%endif ; EDD
 
 Int13FuncsEnd	equ $
 Int13FuncsCnt	equ (Int13FuncsEnd-Int13Funcs) >> 1
@@ -1013,6 +1062,13 @@ DPT_ptr		dw 0			; If nonzero, pointer to DPT
 MDI_Len		equ $-MemDisk_Info
 
 ; ---- MDI structure ends here ---
+DriveShiftLimit	db 0ffh			; Installer will [soon] probe for
+					; a range of contiguous drives.
+					; Any BIOS drives above this region
+					; shall not be impacted by our
+					; shifting behaviour
+		db 0			; pad to a DWORD
+		dw 0			; pad to a QWORD
 MemInt1588	dw 0			; 1MB-65MB memory amount (1K)
 
 Cylinders	dw 0			; Cylinder count
@@ -1058,7 +1114,24 @@ EDD_DPT:
 .res3		db 0			; Reserved
 .chksum		db 0			; DPI checksum
 
-%endif
+%if ELTORITO
+; El Torito CD Specification Packet - mostly filled in by installer
+CD_PKT:
+.size		db 13h	; Packet size (19 bytes)
+.type		db 0	; Boot media type (flags)
+.driveno	db 0E0h	; INT 13h drive number
+.controller	db 0	; Controller index
+.start		dd 0	; Starting LBA of image
+.devno		dw 0	; Device number
+.user_buf	dw 0	; User buffer segment
+.load_seg	dw 0	; Load segment
+.sect_count	dw 0	; Emulated sectors to load
+.geom1		db 0	; Cylinders bits 0 thru 7
+.geom2		db 0	; Sects/track 0 thru 5, cyls 8, 9
+.geom3		db 0	; Heads
+%endif ; ELTORITO
+
+%endif ; EDD
 
 		; End patch area
 		alignb 4, db 0

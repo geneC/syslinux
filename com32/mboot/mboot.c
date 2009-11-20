@@ -152,6 +152,7 @@ int main(int argc, char *argv[])
 {
     int nmodules;
     struct module_data *modules;
+    struct multiboot_header *mbh;
     bool keeppxe = false;
 
     openconsole(&dev_null_r, &dev_stdcon_w);
@@ -193,7 +194,8 @@ int main(int argc, char *argv[])
      * Map the primary image.  This should be done before mapping anything
      * else, since it will have fixed address requirements.
      */
-    if (map_image(modules[0].data, modules[0].len))
+    mbh = map_image(modules[0].data, modules[0].len);
+    if (!mbh)
 	return 1;
 
     /* Map the mbinfo structure */
@@ -222,6 +224,9 @@ int main(int argc, char *argv[])
     mboot_apm();
     if (opt.solaris)
 	mboot_solaris_dhcp_hack();
+
+    /* Set the graphics mode if requested */
+    set_graphics_mode(mbh, &mbinfo);
 
     /* Run it */
     mboot_run(keeppxe ? 3 : 0);

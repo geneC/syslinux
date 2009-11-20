@@ -17,6 +17,7 @@
 topdir = ..
 include $(topdir)/MCONFIG.embedded
 
+# CFLAGS  += -DDEBUG
 LDFLAGS	 = -T com16.ld
 OPTFLAGS = -g
 INCLUDES = -include code16.h -nostdinc -iwithprefix include \
@@ -29,7 +30,8 @@ SRCS     = syslinux.c \
 	   ../libinstaller/mbr_bin.c \
            $(wildcard ../libfat/*.c)
 OBJS	 = crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
-LIBOBJS	 = conio.o memcpy.o memset.o  skipatou.o atou.o malloc.o free.o \
+LIBOBJS	 = int2526.o conio.o memcpy.o memset.o  skipatou.o atou.o \
+	   malloc.o free.o \
 	   argv.o printf.o __divdi3.o __udivmoddi4.o
 
 VPATH = .:../libfat:../libinstaller
@@ -48,8 +50,8 @@ spotless: clean
 
 installer:
 
-syslinux.elf: $(OBJS) libcom.a
-	$(LD) $(LDFLAGS) -o $@ $^
+syslinux.elf: $(OBJS) libcom.a com16.ld
+	$(LD) $(LDFLAGS) -o $@ $(filter-out %.ld,$^)
 
 libcom.a: $(LIBOBJS)
 	-rm -f $@
