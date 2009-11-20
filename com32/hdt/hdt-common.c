@@ -37,12 +37,12 @@
 #include <disk/mbrs.h>
 
 /* ISOlinux requires a 8.3 format */
-void convert_isolinux_filename(char *filename, struct s_hardware *hardware) {
+void *convert_isolinux_filename(char *filename, struct s_hardware *hardware) {
   /* Exit if we are not running ISOLINUX */
   if (hardware->sv->filesystem != SYSLINUX_FS_ISOLINUX) return;
   /* Searching the dot */
   char *dot=strchr(filename,'.');
-  /* Exiting if not dot exists in that string */
+  /* Exiting if no dot exists in that string */
   if (dot==NULL) return;
   /* Exiting if the extension is 3 char or less */
   if (strlen(dot)<=4) return;
@@ -639,4 +639,20 @@ char *del_multi_spaces(char *p) {
 /* Reset the more_printf counter */
 void reset_more_printf() {
   display_line_nb=0;
+}
+
+int draw_background(const char *what)
+{
+    if (!what)
+        return vesacon_default_background();
+    else
+        return vesacon_load_background(what);
+}
+
+void init_console() {
+  if (vesamode) {
+	openconsole(&dev_rawcon_r, &dev_vesaserial_w);
+	draw_background(CLI_BACKGROUND);
+  }
+  else console_ansi_raw();
 }

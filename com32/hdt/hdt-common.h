@@ -30,6 +30,9 @@
 #define DEFINE_HDT_COMMON_H
 #include <stdio.h>
 #include <syslinux/pxe.h>
+#include <console.h>
+#include <consoles.h>
+#include <syslinux/vesacon.h>
 #include "sys/pci.h"
 
 #include <disk/bootloaders.h>
@@ -65,6 +68,9 @@
 #define AUTO_SEPARATOR ";"
 /* The char that surround the list of commands */
 #define AUTO_DELIMITER "'"
+
+/* Graphic to load in background when using the vesa mode */
+#define CLI_BACKGROUND "backgnd.png"
 
 /* Defines if the cli is quiet*/
 bool quiet;
@@ -206,4 +212,5 @@ void detect_syslinux(struct s_hardware *hardware);
 void detect_parameters(const int argc, const char *argv[],
                        struct s_hardware *hardware);
 int detect_vesa(struct s_hardware *hardware);
+void init_console();
 #endif

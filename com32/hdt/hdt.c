@@ -33,9 +33,6 @@
  */
 
 #include <stdio.h>
-#include <console.h>
-#include <consoles.h>
-#include <syslinux/vesacon.h>
 #include "hdt.h"
 #include "hdt-cli.h"
 #include "hdt-menu.h"
@@ -56,23 +53,22 @@ int main(const int argc, const char *argv[])
   snprintf(version_string, sizeof version_string, "%s %s (%s)",
            PRODUCT_NAME,VERSION, CODENAME);
 
-  /* Detecting parameters */
-  detect_parameters(argc, argv, &hardware);
-
-  /* Opening the Syslinux console */
-  if (vesamode) openconsole(&dev_rawcon_r, &dev_vesaserial_w);
-  else console_ansi_raw();
-
   /* Cleaning structures */
   init_hardware(&hardware);
 
   /* Detecting Syslinux version */
   detect_syslinux(&hardware);
-  
+
+  /* Detecting parameters */
+  detect_parameters(argc, argv, &hardware);
+
+  /* Opening the Syslinux console */
+  init_console();
+
   /* Clear the screen and reset position of the cursor */
   clear_screen();
   printf("\033[1;1H");
-  
+
   printf("%s\n", version_string);
 
   if ((arg = find_argument(argv + 1, "nomenu")) || (find_argument(argv+1,"auto")))
