@@ -50,11 +50,11 @@ hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtool
 	$(topdir)/mtools/syslinux hdt.img
 	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/hwdata/pci.ids $(PCI_IDS_FILE) && $(GZIPPROG) $(PCI_IDS_FILE)
 	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/pci.ids $(PCI_IDS_FILE) && $(GZIPPROG) $(PCI_IDS_FILE)
-	-[ -f $(MODULES_ALIAS_FILE) ] &&  cat $(MODULES_ALIAS_FILE) | $(GZIPPROG) - -f | MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) - a:$(GZ_MODULES_ALIAS_FILE)
-	-[ -f $(MODULES_PCIMAP_FILE) ] && cat $(MODULES_PCIMAP_FILE) | $(GZIPPROG) - -f | MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) - a:$(GZ_MODULES_PCIMAP_FILE)
+	-[ -f $(MODULES_ALIAS_FILE) ] &&  cat $(MODULES_ALIAS_FILE) | $(GZIPPROG) - -f | MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) - a:modules.alias
+	-[ -f $(MODULES_PCIMAP_FILE) ] && cat $(MODULES_PCIMAP_FILE) | $(GZIPPROG) - -f | MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) - a:modules.pcimap
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) hdt.c32 a:
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(REBOOT_COM32) a:
-	@ [ -f $(GZ_PCI_IDS_FILE) ] && MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(GZ_PCI_IDS_FILE) a: || printf "\nThe $(GZ_PCI_IDS_FILE) file is missing and can be downloaded from http://pciids.sourceforge.net and gzipped in\nthe ./com32/hdt/$(FLOPPY_DIR) directory of the extracted Syslinux source.\n\n"
+	@ [ -f $(GZ_PCI_IDS_FILE) ] && MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(GZ_PCI_IDS_FILE) a:pci.ids || printf "\nThe $(GZ_PCI_IDS_FILE) file is missing and can be downloaded from http://pciids.sourceforge.net and gzipped in\nthe ./com32/hdt/$(FLOPPY_DIR) directory of the extracted Syslinux source.\n\n"
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(FLOPPY_DIR)/hdt.cfg a:syslinux.cfg
 
 hdt.img.gz: hdt.img
