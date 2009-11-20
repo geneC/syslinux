@@ -139,9 +139,9 @@ void searchdir(com32sys_t *regs)
     if (strcmp(this_fs->fs_ops->fs_name, "ext2") != 0) {
 	file->fs->fs_ops->searchdir(name, file);
 	
-	if (file->u1.open_file) {
+	if (file->open_file) {
 	    regs->esi.w[0]  = file_to_handle(file);
-	    regs->eax.l     = file->u2.file_len;
+	    regs->eax.l     = file->file_len;
 	    regs->eflags.l &= ~EFLAGS_ZF;
 	    return;
 	}
@@ -187,8 +187,8 @@ void searchdir(com32sys_t *regs)
 	    name++;
     }
     
-    file->u1.inode  = inode;
-    file->u2.offset = 0;
+    file->inode  = inode;
+    file->offset = 0;
     
     regs->esi.w[0]  = file_to_handle(file);
     regs->eax.l     = inode->size;

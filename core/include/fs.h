@@ -86,13 +86,18 @@ struct open_file_t;
 struct file {
     struct fs_info *fs;
     union {
-	struct inode *inode;        /* the file-specific information */
-	struct open_file_t *open_file;
-    } u1;
-    union {
-	uint32_t offset;                /* for next read */
-	uint32_t file_len;
-    } u2;
+	/* For the new universal-path_lookup */
+	struct {
+	    struct inode *inode;        /* The file-specific information */
+	    uint32_t offset;            /* for next read */
+	};
+
+	/* For the old searhdir method */
+	struct {
+	    struct open_file_t *open_file;/* The fs-specific open file struct */
+	    uint32_t file_len;
+	};
+    };
 };
 
 

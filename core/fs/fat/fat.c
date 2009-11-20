@@ -95,7 +95,7 @@ static inline void close_pvt(struct open_file_t *of)
 
 static void vfat_close_file(struct file *file)
 {
-    close_pvt(file->u1.open_file);
+    close_pvt(file->open_file);
 }
 
 
@@ -290,7 +290,7 @@ static uint32_t vfat_getfssec(struct file *gfile, char *buf, int sectors,
 			      bool *have_more)
 {
     uint32_t bytes_read = sectors << SECTOR_SHIFT;
-    struct open_file_t *file = gfile->u1.open_file;
+    struct open_file_t *file = gfile->open_file;
     struct fs_info *fs = gfile->fs;
     
     if (sectors > file->file_left)
@@ -662,8 +662,8 @@ static void vfat_searchdir(char *filename, struct file *file)
         open_file->file_left = (file_len + SECTOR_SIZE -1) >> SECTOR_SHIFT;
     }
 
-    file->u2.file_len  = file_len;
-    file->u1.open_file = open_file;
+    file->file_len  = file_len;
+    file->open_file = open_file;
 }
 
 /*
@@ -695,7 +695,7 @@ struct dirent* vfat_readdir(struct file *dir)
     struct cache_struct  *cs;
     struct fat_dir_entry *fat_dir;
     struct fat_long_name_entry *long_dir;
-    struct open_file_t *file = dir->u1.open_file;
+    struct open_file_t *file = dir->open_file;
     struct fs_info *fs = dir->fs;
     
     sector  = file->file_sector;

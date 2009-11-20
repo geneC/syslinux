@@ -119,7 +119,7 @@ static void free_socket(struct open_file_t *file)
 
 static void pxe_close_file(struct file *file)
 {
-    struct open_file_t *open_file = file->u1.open_file;
+    struct open_file_t *open_file = file->open_file;
 
     if (open_file->tftp_localport && !open_file->tftp_goteof)
 	tftp_error(open_file, 0, "No error, file close");
@@ -662,7 +662,7 @@ static void fill_buffer(struct open_file_t *file)
 static uint32_t pxe_getfssec(struct file *gfile, char *buf, 
 			     int blocks, bool *have_more)
 {
-    struct open_file_t *file = gfile->u1.open_file;
+    struct open_file_t *file = gfile->open_file;
     int count = blocks;
     int chunk;
     int bytes_read = 0;
@@ -748,8 +748,8 @@ static void pxe_searchdir(char *filename, struct file *file)
     
     open_file = allocate_socket();
     if (!open_file) {
-	file->u2.file_len = 0;
-	file->u1.open_file = NULL;
+	file->file_len = 0;
+	file->open_file = NULL;
 	return;
     }
     
@@ -980,12 +980,12 @@ static void pxe_searchdir(char *filename, struct file *file)
 done:
     if (!open_file->tftp_filesize) {
         free_socket(open_file);
-	file->u2.file_len  = 0;
-	file->u1.open_file = NULL;
+	file->file_len  = 0;
+	file->open_file = NULL;
 	return;
     }
-    file->u1.open_file = (void *)open_file;
-    file->u2.file_len  = open_file->tftp_filesize;
+    file->open_file = (void *)open_file;
+    file->file_len  = open_file->tftp_filesize;
     return;
 
 err_reply:

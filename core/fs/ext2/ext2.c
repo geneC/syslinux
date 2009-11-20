@@ -24,9 +24,9 @@ static int strecpy(char *dst, const char *src, char *end)
 
 static void ext2_close_file(struct file *file)
 {
-    if (file->u1.inode) {
-	file->u2.offset = 0;
-	free_inode(file->u1.inode);
+    if (file->inode) {
+	file->offset = 0;
+	free_inode(file->inode);
     }
 }
 
@@ -114,15 +114,15 @@ static uint32_t ext2_getfssec(struct file *file, char *buf,
     int sector_left, next_sector, sector_idx;
     int frag_start, con_sec_cnt;
     int bytes_read = sectors << SECTOR_SHIFT;
-    struct inode *inode = file->u1.inode;
+    struct inode *inode = file->inode;
     struct fs_info *fs = file->fs;
-    uint32_t bytesleft = inode->size - file->u2.offset;
+    uint32_t bytesleft = inode->size - file->offset;
     
     sector_left = (bytesleft + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     if (sectors > sector_left)
         sectors = sector_left;
     
-    sector_idx = file->u2.offset >> SECTOR_SHIFT;
+    sector_idx = file->offset >> SECTOR_SHIFT;
     while (sectors) {
         /*
          * get the frament
@@ -159,7 +159,7 @@ static uint32_t ext2_getfssec(struct file *file, char *buf,
     } else {
         *have_more = 1;
     }    
-    file->u2.offset += bytes_read;
+    file->offset += bytes_read;
     
     return bytes_read;
 }
