@@ -443,7 +443,7 @@ static int ext2_fs_init(struct fs_info *fs)
 
 const struct fs_ops ext2_fs_ops = {
     .fs_name       = "ext2",
-    .fs_flags      = 0,
+    .fs_flags      = FS_USEMEM,
     .fs_init       = ext2_fs_init,
     .searchdir     = NULL,
     .getfssec      = ext2_getfssec,

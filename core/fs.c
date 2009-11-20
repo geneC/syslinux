@@ -135,8 +135,8 @@ void searchdir(com32sys_t *regs)
 	goto err;
     file->fs = this_fs;
 
-    /* for now, we just applied the universal path_lookup to EXTLINUX */
-    if (strcmp(this_fs->fs_ops->fs_name, "ext2") != 0) {
+    /* if we have ->searchdir method, call it */
+    if (file->fs->fs_ops->searchdir) {
 	file->fs->fs_ops->searchdir(name, file);
 	
 	if (file->open_file) {
@@ -150,7 +150,7 @@ void searchdir(com32sys_t *regs)
     }
 
 
-
+    /* else, try the generic-path-lookup method */
     if (*name == '/') {
 	inode = this_fs->fs_ops->iget_root();
 	while(*name == '/')
@@ -227,7 +227,7 @@ void fs_init(com32sys_t *regs)
     int blk_shift;
     const struct fs_ops *ops = (const struct fs_ops *)regs->eax.l;
     
-    if (strcmp(ops->fs_name, "ext2") == 0)
+    if (ops->fs_flags & FS_USEMEM)
 	mem_init();
 
     /* set up the fs stucture */    

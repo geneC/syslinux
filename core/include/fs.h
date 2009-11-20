@@ -32,7 +32,8 @@ extern struct fs_info *this_fs;
 struct dirent;                  /* Directory entry structure */
 struct file;
 enum fs_flags {
-    FS_NODEV = 1,
+    FS_NODEV  = 1 << 0,
+    FS_USEMEM = 1 << 1,         /* If we need a malloc routine, set it */
 };
 
 struct fs_ops {
