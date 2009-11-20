@@ -338,6 +338,7 @@ struct geometry {
     uint32_t sectors;		/* Sector count */
     uint32_t c, h, s;		/* C/H/S geometry */
     uint32_t offset;		/* Byte offset for disk */
+    uint32_t boot_lba;		/* LBA of bootstrap code */
     uint8_t type;		/* Type byte for INT 13h AH=08h */
     uint8_t driveno;		/* Drive no */
     uint16_t sector_size;	/* Sector size in bytes (512 vs. 2048) */
@@ -451,6 +452,9 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 	/* If we have an emulation mode, set the offset to the image */
 	if (boot_cat->initial_entry.media_type)
 	    hd_geometry.offset += boot_cat->initial_entry.load_block * 2048;
+	else
+	    /* We're a no-emulation mode, so we will boot to an offset */
+	    hd_geometry.boot_lba = boot_cat->initial_entry.load_block * 4;
 	if (boot_cat->initial_entry.media_type < 4) {
 	    /* We're a floppy emulation mode or our params will be
 	     * overwritten by the no emulation mode case
@@ -831,7 +835,6 @@ void setup(const struct real_mode_args *rm_args_ptr)
     int no_bpt;			/* No valid BPT presented */
     uint32_t boot_seg = 0;	/* Meaning 0000:7C00 */
     uint32_t boot_len = 512;	/* One sector */
-    uint32_t boot_lba = 0;	/* LBA of bootstrap code */
 
     /* We need to copy the rm_args into their proper place */
     memcpy(&rm_args, rm_args_ptr, sizeof rm_args);
@@ -1027,11 +1030,12 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	pptr->cd_pkt.type = boot_cat->initial_entry.media_type;	/* Cheat */
 	pptr->cd_pkt.driveno = geometry->driveno;
 	pptr->cd_pkt.start = boot_cat->initial_entry.load_block;
-	pptr->cd_pkt.load_seg = boot_cat->initial_entry.load_seg;
+	boot_seg = pptr->cd_pkt.load_seg = boot_cat->initial_entry.load_seg;
 	pptr->cd_pkt.sect_count = boot_cat->initial_entry.sect_count;
 	boot_len = pptr->cd_pkt.sect_count * 2048;
 	pptr->cd_pkt.geom1 = (uint8_t)(pptr->cylinders) & 0xFF;
-	pptr->cd_pkt.geom2 = (uint8_t)(pptr->sectors) | (uint8_t)((pptr->cylinders >> 2) & 0xC0);
+	pptr->cd_pkt.geom2 =
+	    (uint8_t)(pptr->sectors) | (uint8_t)((pptr->cylinders >> 2) & 0xC0);
 	pptr->cd_pkt.geom3 = (uint8_t)(pptr->heads);
     }
 
@@ -1240,11 +1244,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
     /* Reboot into the new "disk" */
     puts("Loading boot sector... ");
 
-    if (do_eltorito) {
-	/* 4 times as many 512-byte sectors in a 2048-byte sector */
-	boot_lba = pptr->cd_pkt.start * 4;
-    }
-    memcpy((void *)boot_base, (char *)pptr->diskbuf + boot_lba * 512, boot_len);
+    memcpy((void *)boot_base, (char *)pptr->diskbuf + geometry->boot_lba * 512,
+	   boot_len);
 
     if (getcmditem("pause") != CMD_NOTFOUND) {
 	puts("press any key to boot... ");
