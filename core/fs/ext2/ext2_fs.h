@@ -270,24 +270,19 @@ struct ext4_extent_header {
  * The ext2 super block information in memory 
  */
 struct ext2_sb_info {
-        uint32_t s_inodes_per_block;/* Number of inodes per block */
-        uint32_t s_blocks_per_group;/* Number of blocks in a group */
-	uint32_t s_inodes_per_group;/* Number of inodes in a group */
-	uint32_t s_itb_per_group;   /* Number of inode table blocks per group */
-	uint32_t s_gdb_count;	    /* Number of group descriptor blocks */
-	uint32_t s_desc_per_block;  /* Number of group descriptors per block */
-	uint32_t s_groups_count;    /* Number of groups in the fs */
-	int s_addr_per_block_bits;
-	int s_desc_per_block_bits;
-	int s_inode_size;
-        int s_first_ino;
-        struct ext2_super_block * s_es;	
-        /* 
-         * Here did not like Linux Kernel did; the group descriptor cache
-         * here is based on ext2_group_desc structure, instead of buffer
-         * head structure in Linux Kernel, where cache one block data.
-         */
-	struct ext2_group_desc ** s_group_desc;
+    uint32_t s_inodes_per_block;/* Number of inodes per block */
+    uint32_t s_inodes_per_group;/* Number of inodes in a group */
+    uint32_t s_blocks_per_group;/* Number of blocks in a group */
+    uint32_t s_desc_per_block;  /* Number of group descriptors per block */
+    uint32_t s_groups_count;    /* Number of groups in the fs */
+    int      s_inode_size;
+    
+    /* 
+     * Here did not like Linux Kernel did; the group descriptor cache
+     * here is based on ext2_group_desc structure, instead of buffer
+     * head structure in Linux Kernel, where cache one block data.
+     */
+    struct ext2_group_desc ** s_group_desc;
 };
 
 static inline struct ext2_sb_info *EXT2_SB(struct fs_info *fs)

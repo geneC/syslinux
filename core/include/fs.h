@@ -23,8 +23,8 @@
 struct fs_info {
     const struct fs_ops *fs_ops;
     struct device *fs_dev;
-    void *fs_info;              /* The fs-specific information */
-    int blk_bits;               /* block_size = 1 << (blk_bits + SECTOR_SHIFT */
+    void *fs_info;             /* The fs-specific information */
+    int blk_bits;              /* block_size = 1 << (blk_bits + SECTOR_SHIFT) */
 };
 
 extern struct fs_info *this_fs;

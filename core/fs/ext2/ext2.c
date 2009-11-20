@@ -378,7 +378,7 @@ static int ext2_fs_init(struct fs_info *fs)
 {
     struct disk *disk = fs->fs_dev->disk;
     struct ext2_sb_info *sbi;
-    struct ext2_super_block *esb;
+    struct ext2_super_block sb;
     int block_size;
     int block_shift;
     int db_count;
@@ -386,15 +386,8 @@ static int ext2_fs_init(struct fs_info *fs)
     int desc_block;
     char *desc_buffer;
     
-    esb = malloc(sizeof(struct ext2_super_block));
-    if (!esb) {
-	malloc_error("ext2_super_block structure");
-	return -1;
-    }
-    
     /* read the super block */
-    disk->rdwr_sectors(disk, esb, 2, 2, 0);
-
+    disk->rdwr_sectors(disk, &sb, 2, 2, 0);
         
     sbi = malloc(sizeof(*sbi));
     if (!sbi) {
@@ -402,35 +395,31 @@ static int ext2_fs_init(struct fs_info *fs)
 	return -1;
     }
     fs->fs_info = sbi;
-    sbi->s_es = esb;
     
-    if (esb->s_magic != EXT2_SUPER_MAGIC) {
-	printf("ext2 mount error: can't found ext2 file system!\n");
+    if (sb.s_magic != EXT2_SUPER_MAGIC) {
+	printf("ext2 mount error: it's not a EXT2/3/4 file system!\n");
 	return 0;
     }
 
-    block_shift  = esb->s_log_block_size + 10;
+    block_shift  = sb.s_log_block_size + 10;
     block_size = 1 << block_shift;
     fs->blk_bits = block_shift - SECTOR_SHIFT;
-    
-    sbi->s_inodes_per_group = esb->s_inodes_per_group;
-    sbi->s_blocks_per_group = esb->s_blocks_per_group;
-    sbi->s_inodes_per_block = block_size / esb->s_inode_size;
-    sbi->s_itb_per_group    = sbi->s_inodes_per_group / 
-	sbi->s_inodes_per_block;
-    if (esb->s_desc_size < sizeof(struct ext2_group_desc))
-	esb->s_desc_size = sizeof(struct ext2_group_desc);
-    sbi->s_desc_per_block   = block_size / esb->s_desc_size;
-    sbi->s_groups_count     = (esb->s_blocks_count - esb->s_first_data_block 
+        
+    sbi->s_inodes_per_group = sb.s_inodes_per_group;
+    sbi->s_blocks_per_group = sb.s_blocks_per_group;
+    sbi->s_inodes_per_block = block_size / sb.s_inode_size;
+    if (sb.s_desc_size < sizeof(struct ext2_group_desc))
+	sb.s_desc_size = sizeof(struct ext2_group_desc);
+    sbi->s_desc_per_block   = block_size / sb.s_desc_size;
+    sbi->s_groups_count     = (sb.s_blocks_count - sb.s_first_data_block 
 			       + EXT2_BLOCKS_PER_GROUP(fs) - 1) 
 	                      / EXT2_BLOCKS_PER_GROUP(fs);
     db_count = (sbi->s_groups_count + EXT2_DESC_PER_BLOCK(fs) - 1) /
 	        EXT2_DESC_PER_BLOCK(fs);
-    sbi->s_gdb_count = db_count;
-    sbi->s_inode_size = esb->s_inode_size;
+    sbi->s_inode_size = sb.s_inode_size;
     
     /* read the descpritors */
-    desc_block = esb->s_first_data_block + 1;
+    desc_block = sb.s_first_data_block + 1;
     desc_buffer = malloc(db_count * block_size);
     if (!desc_buffer) {
 	malloc_error("desc_buffer");
@@ -446,7 +435,7 @@ static int ext2_fs_init(struct fs_info *fs)
     }
     for (i = 0; i < (int)sbi->s_groups_count; i++) {
 	sbi->s_group_desc[i] = (struct ext2_group_desc *)desc_buffer;
-	desc_buffer += esb->s_desc_size;
+	desc_buffer += sb.s_desc_size;
     }
     
     return block_shift;
