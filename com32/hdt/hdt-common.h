@@ -69,6 +69,13 @@
 /* Defines if the cli is quiet*/
 bool quiet;
 
+/* Defines if we must use the vesa mode */
+bool vesamode;
+
+/* Defines the number of lines in the console
+ * Default is 20 for a std console */
+extern int max_console_lines;
+
 extern int display_line_nb;
 extern bool disable_more_printf;
 
@@ -84,7 +91,7 @@ extern bool disable_more_printf;
  */
 #define more_printf(...) do {\
  if (__likely(!disable_more_printf)) {\
-  if (display_line_nb == 20) {\
+  if (display_line_nb == max_console_lines) {\
    display_line_nb=0;\
    printf("\n--More--");\
    get_key(stdin, 0);\

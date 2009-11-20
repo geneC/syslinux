@@ -58,6 +58,9 @@ void detect_parameters(const int argc, const char *argv[],
   /* Quiet mode - make the output more quiet */
   quiet = false;
 
+  /* Vesa mode isn't set until we explictly call it*/
+  vesamode = false;
+
   for (int i = 1; i < argc; i++) {
     if (!strncmp(argv[i], "quiet", 5)) {
         quiet = true;
@@ -81,6 +84,9 @@ void detect_parameters(const int argc, const char *argv[],
       strncpy(hardware->reboot_label, argv[i] + 7,
         sizeof(hardware->reboot_label));
       convert_isolinux_filename(hardware->reboot_label,hardware);
+    } else if (!strncmp(argv[i], "vesa", 4)) {
+        vesamode=true;
+	max_console_lines=24;
     } else if (!strncmp(argv[i], "auto=", 5)) {
 	    	/* The auto= parameter is separated in several argv[]
 		 * as it can contains spaces.
