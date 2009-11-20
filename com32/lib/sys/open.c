@@ -72,13 +72,14 @@ int open(const char *pathname, int flags, ...)
     __com32.cs_intcall(0x22, &regs, &regs);
 
     if ((regs.eflags.l & EFLAGS_CF) || regs.esi.w[0] == 0) {
+	close(fd);
 	errno = ENOENT;
 	return -1;
     }
 
     {
 	uint16_t blklg2;
-asm("bsrw %1,%0": "=r"(blklg2):"rm"(regs.ecx.w[0]));
+	asm("bsrw %1,%0" :  "=r" (blklg2) : "rm" (regs.ecx.w[0]));
 	fp->i.blocklg2 = blklg2;
     }
     fp->i.length = regs.eax.l;
