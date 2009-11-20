@@ -9,13 +9,11 @@
 #define DEBUG 1
 #include <dprintf.h>
 
-int dprintf(const char *format, ...)
+void dprintf(const char *format, ...)
 {
     va_list ap;
-    int rv;
 
     va_start(ap, format);
-    rv = vdprintf(format, ap);
+    vdprintf(format, ap);
     va_end(ap);
-    return rv;
 }

@@ -9,8 +9,8 @@
 
 #include <stdio.h>
 
-int dprintf(const char *, ...);
-int vdprintf(const char *, va_list);
+void dprintf(const char *, ...);
+void vdprintf(const char *, va_list);
 
 #else
 

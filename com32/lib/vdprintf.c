@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <sys/io.h>
+#include <sys/cpu.h>
 
 #undef DEBUG
 #define DEBUG 1
@@ -15,12 +16,9 @@
 
 #define BUFFER_SIZE	32768
 
-struct file_info;
-extern ssize_t __serial_write(struct file_info *, const void *, size_t);
-
 static const uint16_t debug_base = 0x03f8; /* I/O base address */
 
-int vdprintf(const char *format, va_list ap)
+void vdprintf(const char *format, va_list ap)
 {
     int rv;
     char buffer[BUFFER_SIZE];
@@ -29,7 +27,7 @@ int vdprintf(const char *format, va_list ap)
     rv = vsnprintf(buffer, BUFFER_SIZE, format, ap);
 
     if (rv < 0)
-	return rv;
+	return;
 
     if (rv > BUFFER_SIZE - 1)
 	rv = BUFFER_SIZE - 1;
@@ -39,9 +37,10 @@ int vdprintf(const char *format, va_list ap)
      * if one is enabled or not (this means we don't have to enable the real
      * serial console and therefore get conflicting output.)
      */
+    p = buffer;
     while (rv--) {
 	while ((inb(debug_base+5) & 0x20) == 0)
-	    ;
+	    cpu_relax();
 	outb(*p++, debug_base);
     }
 }
