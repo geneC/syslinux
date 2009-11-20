@@ -1032,7 +1032,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	pptr->cd_pkt.start = boot_cat->initial_entry.load_block;
 	boot_seg = pptr->cd_pkt.load_seg = boot_cat->initial_entry.load_seg;
 	pptr->cd_pkt.sect_count = boot_cat->initial_entry.sect_count;
-	boot_len = pptr->cd_pkt.sect_count * 2048;
+	boot_len = pptr->cd_pkt.sect_count * 512;
 	pptr->cd_pkt.geom1 = (uint8_t)(pptr->cylinders) & 0xFF;
 	pptr->cd_pkt.geom2 =
 	    (uint8_t)(pptr->sectors) | (uint8_t)((pptr->cylinders >> 2) & 0xC0);
