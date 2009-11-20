@@ -35,8 +35,8 @@
 #define CONTACT "hdt@zytor.com"
 #define VERSION "0.3.6-pre1"
 #define CODENAME "bluelabel"
-#define NB_CONTRIBUTORS 2
-#define CONTRIBUTORS {"Sebastien Gonzalve", "Gert Hulselmans"}
+#define NB_CONTRIBUTORS 3
+#define CONTRIBUTORS {"Sebastien Gonzalve (Patches)", "Gert Hulselmans (Tests)", "Alexander Andino (Design)"}
 
 #define ATTR_PACKED __attribute__((packed))
 
