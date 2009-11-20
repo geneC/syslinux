@@ -174,7 +174,9 @@ Int13Start:
 		cmp byte [cs:SavedAX+1],08h	; Get drive params function?
 		je .norestoredl			; DL = number of drives
 		cmp byte [cs:SavedAX+1],15h	; Get disk type function?
-		je .norestoredl			; CX:DX = size of device
+		jne .restoredl
+		test byte [bp+4],80h		; Hard disk?
+		jnz .norestoredl		; CX:DX = size of device
 .restoredl:
 		mov dl,[bp+4]
 .norestoredl:
