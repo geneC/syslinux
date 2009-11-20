@@ -37,7 +37,7 @@
 #include <disk/mbrs.h>
 
 /* ISOlinux requires a 8.3 format */
-void *convert_isolinux_filename(char *filename, struct s_hardware *hardware) {
+void convert_isolinux_filename(char *filename, struct s_hardware *hardware) {
   /* Exit if we are not running ISOLINUX */
   if (hardware->sv->filesystem != SYSLINUX_FS_ISOLINUX) return;
   /* Searching the dot */
