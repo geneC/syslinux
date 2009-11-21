@@ -87,6 +87,10 @@ void detect_parameters(const int argc, const char *argv[],
     } else if (!strncmp(argv[i], "vesa", 4)) {
         vesamode=true;
 	max_console_lines=24;
+	/* If the user defines a background image */
+	if (!strncmp(argv[i], "vesa=", 5)) {
+	 strncpy(hardware->vesa_background,argv[i]+5,sizeof(hardware->vesa_background));
+	}
     } else if (!strncmp(argv[i], "auto=", 5)) {
 	    	/* The auto= parameter is separated in several argv[]
 		 * as it can contains spaces.
@@ -176,11 +180,13 @@ void init_hardware(struct s_hardware *hardware)
   memset(hardware->memtest_label, 0, sizeof hardware->memtest_label);
   memset(hardware->reboot_label, 0, sizeof hardware->reboot_label);
   memset(hardware->auto_label, 0, sizeof hardware->auto_label);
+  memset(hardware->vesa_background, 0, sizeof hardware->vesa_background);
   strcat(hardware->pciids_path, "pci.ids");
   strcat(hardware->modules_pcimap_path, "modules.pcimap");
   strcat(hardware->modules_alias_path, "modules.alias");
   strcat(hardware->memtest_label, "memtest");
   strcat(hardware->reboot_label, "reboot.c32");
+  strncpy(hardware->vesa_background,CLI_DEFAULT_BACKGROUND,sizeof(hardware->vesa_background));
 }
 
 /*
@@ -649,10 +655,10 @@ int draw_background(const char *what)
         return vesacon_load_background(what);
 }
 
-void init_console() {
+void init_console(struct s_hardware *hardware) {
   if (vesamode) {
 	openconsole(&dev_rawcon_r, &dev_vesaserial_w);
-	draw_background(CLI_BACKGROUND);
+	draw_background(hardware->vesa_background);
   }
   else console_ansi_raw();
 }

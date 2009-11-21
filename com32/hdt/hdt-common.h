@@ -70,7 +70,7 @@
 #define AUTO_DELIMITER "'"
 
 /* Graphic to load in background when using the vesa mode */
-#define CLI_BACKGROUND "backgnd.png"
+#define CLI_DEFAULT_BACKGROUND "backgnd.png"
 
 /* Defines if the cli is quiet*/
 bool quiet;
@@ -192,6 +192,7 @@ struct s_hardware {
   char memtest_label[255];
   char reboot_label[255];
   char auto_label[AUTO_COMMAND_SIZE];
+  char vesa_background[255];
 };
 
 void reset_more_printf();
@@ -212,5 +213,5 @@ void detect_syslinux(struct s_hardware *hardware);
 void detect_parameters(const int argc, const char *argv[],
                        struct s_hardware *hardware);
 int detect_vesa(struct s_hardware *hardware);
-void init_console();
+void init_console(struct s_hardware *hardware);
 #endif

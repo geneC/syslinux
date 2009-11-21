@@ -63,7 +63,7 @@ int main(const int argc, const char *argv[])
   detect_parameters(argc, argv, &hardware);
 
   /* Opening the Syslinux console */
-  init_console();
+  init_console(&hardware);
 
   /* Clear the screen and reset position of the cursor */
   clear_screen();
