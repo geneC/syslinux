@@ -40,17 +40,17 @@ void get_mbr_string(const uint32_t label, char* buffer, const int buffer_size)
 	case 0xea1e: strncpy(buffer, "Truecrypt Boot Loader", buffer_size - 1); break;
 	case 0xeb04: strncpy(buffer, "Solaris", buffer_size - 1); break;
 	case 0xeb48: strncpy(buffer, "Grub", buffer_size - 1); break;
-    case 0xeb4c: strncpy(buffer, "Grub2 (v1.96)", buffer_size - 1);
-    case 0xeb63: strncpy(buffer, "Grub2 (v1.97)", buffer_size - 1);
-    	case 0xeb5e:
-   	     	/* We need more than 2 bytes */
-        	if (((label >> 8) & 0xff) == 0x00)
-            		strncpy(buffer, "fbinst", buffer_size - 1);
-        	else if (((label >> 8) & 0xff) == 0x80)
-            		strncpy(buffer, "Grub4Dos", buffer_size - 1);
-        	else
-            		strncpy(buffer, "Unknown mbr", buffer_size - 1); break;
-        	break;
+    case 0xeb4c: strncpy(buffer, "Grub2 (v1.96)", buffer_size - 1); break;
+    case 0xeb63: strncpy(buffer, "Grub2 (v1.97)", buffer_size - 1); break;
+    case 0xeb5e:
+        /* We need more than 2 bytes */
+        if (((label >> 8) & 0xff) == 0x00)
+            strncpy(buffer, "fbinst", buffer_size - 1);
+        else if (((label >> 8) & 0xff) == 0x80)
+            strncpy(buffer, "Grub4Dos", buffer_size - 1);
+        else
+            strncpy(buffer, "Unknown mbr", buffer_size - 1);
+        break;
 	case 0xfa31:
 		/* We need more than 2 bytes */
 		if (((label >> 8) & 0xff) == 0xc9)
@@ -58,7 +58,7 @@ void get_mbr_string(const uint32_t label, char* buffer, const int buffer_size)
 		else if (((label >> 8) & 0xff) == 0xc0)
 			strncpy(buffer, "Syslinux", buffer_size - 1);
 		else
-			strncpy(buffer, "Unknown mbr", buffer_size - 1); break;
+			strncpy(buffer, "Unknown mbr", buffer_size - 1);
 		break;
 	case 0xfaeb: strncpy(buffer, "Lilo", buffer_size - 1); break;
 	case 0xfc31: strncpy(buffer, "Testdisk", buffer_size - 1); break;
