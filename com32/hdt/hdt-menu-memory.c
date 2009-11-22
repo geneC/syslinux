@@ -322,7 +322,12 @@ void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi, struct s_hardware *har
   menu->memory_menu.menu = add_menu(" Memory ", -1);
   menu->memory_menu.items_count = 0;
 
-  for (i = 0; i < memory_count; i++) {
+  if (memory_count==0) {
+	snprintf(buffer, sizeof buffer, " No memory bank detected ");
+	add_item(buffer, "Memory Bank", OPT_INACTIVE, NULL,
+	menu->memory_sub_menu[0].menu);
+	menu->memory_menu.items_count++;
+  } else for (i = 0; i < memory_count; i++) {
 	snprintf(buffer, sizeof buffer, " Bank <%d> ", i);
 	add_item(buffer, "Memory Bank", OPT_SUBMENU, NULL,
 	menu->memory_sub_menu[i].menu);
