@@ -530,7 +530,7 @@ void show_dmi_memory_modules(int argc __unused, char** argv __unused,
   detect_dmi(hardware);
 
   if ((hardware->dmi.memory_count <= 0) && (hardware->dmi.memory_module_count <= 0)) {
-    more_printf("No memory module found\n");
+    more_printf("No memory bank found\n");
     return;
   }
 
