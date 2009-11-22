@@ -150,8 +150,7 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
     if (hardware->dmi.system.filled == true)
       compute_system(&(hdt_menu->system_menu),
                &(hardware->dmi));
-    if ((hardware->dmi.memory_count >0) || (hardware->dmi.memory_module_count>0))
-        compute_memory(hdt_menu, &(hardware->dmi),hardware);
+    compute_memory(hdt_menu, &(hardware->dmi),hardware);
     if (hardware->dmi.bios.filled == true)
       compute_bios(&(hdt_menu->bios_menu), &(hardware->dmi));
     if (hardware->dmi.battery.filled == true)
@@ -201,14 +200,13 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
     hdt_menu->total_menu_count += hdt_menu->disk_menu.items_count;
   }
 
-  if (hdt_menu->memory_menu.items_count > 0) {
     snprintf(menu_item, sizeof(menu_item), "<M>emory\n");
     add_item(menu_item, "Memory Menu", OPT_SUBMENU, NULL,
        hdt_menu->memory_menu.menu);
     hdt_menu->main_menu.items_count++;
     hdt_menu->total_menu_count += hdt_menu->memory_menu.items_count;
-  }
-  add_item("<P>rocessor", "Main Processor Menu", OPT_SUBMENU, NULL,
+
+    add_item("<P>rocessor", "Main Processor Menu", OPT_SUBMENU, NULL,
      hdt_menu->cpu_menu.menu);
   hdt_menu->main_menu.items_count++;
 
