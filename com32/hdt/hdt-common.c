@@ -166,6 +166,7 @@ void init_hardware(struct s_hardware *hardware)
 
   /* Cleaning structures */
   memset(hardware->disk_info, 0, sizeof(hardware->disk_info));
+  memset(hardware->mbr_ids, 0, sizeof(hardware->mbr_ids));
   memset(&hardware->dmi, 0, sizeof(s_dmi));
   memset(&hardware->cpu, 0, sizeof(s_cpu));
   memset(&hardware->pxe, 0, sizeof(struct s_pxe));
