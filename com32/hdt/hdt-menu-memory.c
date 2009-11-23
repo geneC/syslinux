@@ -346,7 +346,7 @@ void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi, struct s_hardware *har
   menu->memory_menu.items_count = 0;
 
   snprintf(buffer, sizeof(buffer), " %lu MB detected ",
-	hardware->detected_memory_size>>10);
+	(hardware->detected_memory_size+(1<<9))>>10);
   add_item(buffer, "Detected Memory", OPT_INACTIVE, NULL,menu->memory_sub_menu[0].menu);
   menu->memory_menu.items_count++;
 

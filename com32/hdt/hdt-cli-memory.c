@@ -42,7 +42,7 @@ static void show_memory_e820(int argc __unused, char **argv __unused,
 	detect_memory_e820(map, E820MAX, &count);
 	memsize=memsize_e820(map,count);
 	reset_more_printf();
-	more_printf("Detected RAM                       : %lu MiB (%lu KiB)\n",memsize>>10,memsize);
+	more_printf("Detected RAM                       : %lu MiB (%lu KiB)\n",(memsize+(1<<9))>>10,memsize);
 	more_printf("BIOS-provided physical RAM e820 map:\n");
 	for (int i = 0; i < count; i++) {
 		get_type(map[i].type, type, 14);

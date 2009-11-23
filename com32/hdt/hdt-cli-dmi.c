@@ -530,7 +530,7 @@ void show_dmi_memory_modules(int argc __unused, char** argv __unused,
   detect_dmi(hardware);
   
   more_printf("Memory Size   : %lu MB (%lu KB)\n", 
-		  hardware->detected_memory_size>>10,
+		  (hardware->detected_memory_size + (1<<9)) >>10,
 		  hardware->detected_memory_size);
 
   if ((hardware->dmi.memory_count <= 0) && (hardware->dmi.memory_module_count <= 0)) {

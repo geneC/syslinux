@@ -99,10 +99,10 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
   add_item("", "", OPT_SEP, "", 0);
 
   snprintf(buffer, sizeof buffer,   "Memory Size   : %lu MiB (%lu KiB)",
-       hardware->detected_memory_size>>10,
+       (hardware->detected_memory_size + (1<<9))>>10,
        hardware->detected_memory_size);
   snprintf(statbuffer, sizeof statbuffer, "Detected Memory Size: %lu MiB (%lu KiB)",
-       hardware->detected_memory_size>>10, hardware->detected_memory_size);
+       (hardware->detected_memory_size+(1<<9))>>10, hardware->detected_memory_size);
   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   menu->items_count++;
 
