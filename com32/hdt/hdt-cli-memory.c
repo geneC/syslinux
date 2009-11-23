@@ -31,22 +31,36 @@
 #include "hdt-cli.h"
 #include "hdt-common.h"
 
-#define E820MAX	128
-
 static void show_memory_e820(int argc __unused, char **argv __unused,
 			     struct s_hardware *hardware __unused)
 {
 	struct e820entry map[E820MAX];
+	unsigned long memsize=0;
 	int count = 0;
 	char type[14];
 
 	detect_memory_e820(map, E820MAX, &count);
+	memsize=memsize_e820(map,count);
 	reset_more_printf();
+	more_printf("Detected RAM                       : %lu MiB (%lu KiB)\n",memsize>>10,memsize);
 	more_printf("BIOS-provided physical RAM e820 map:\n");
 	for (int i = 0; i < count; i++) {
 		get_type(map[i].type, type, 14);
 		more_printf("%016llx - %016llx %016llx (%s)\n",
 			    map[i].addr, map[i].size, map[i].addr+map[i].size,
+			    remove_spaces(type));
+	}
+        struct e820entry nm[E820MAX];
+
+        /* Clean up, adjust and copy the BIOS-supplied E820-map. */
+        int nr = sanitize_e820_map(map, nm, count);
+
+	more_printf("\n");
+	more_printf("Sanitized e820 map:\n");
+	for (int i = 0; i < nr; i++) {
+		get_type(nm[i].type, type, 14);
+		more_printf("%016llx - %016llx %016llx (%s)\n",
+			    nm[i].addr, nm[i].size, nm[i].addr+nm[i].size,
 			    remove_spaces(type));
 	}
 }
@@ -60,7 +74,8 @@ static void show_memory_e801(int argc __unused, char **argv __unused,
 	if (detect_memory_e801(&mem_low, &mem_high)) {
 		more_printf("e801 bogus!\n");
 	} else {
-		more_printf("e801: %d Kb (%d MiB) - %d Kb (%d MiB)\n",
+		more_printf("Detected RAM : %d MiB(%d KiB)\n",(mem_low>>10) + (mem_high>>4),mem_low+(mem_high << 6));
+		more_printf("e801 details : %d Kb (%d MiB) - %d Kb (%d MiB)\n",
 		mem_low, mem_low >> 10, mem_high << 6, mem_high >> 4);
 	}
 }

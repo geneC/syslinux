@@ -26,8 +26,9 @@
  * -----------------------------------------------------------------------
  */
 
-#include "hdt-menu.h"
 #include <unistd.h>
+#include <memory.h>
+#include "hdt-menu.h"
 
 int start_menu_mode(struct s_hardware *hardware, char *version_string)
 {
@@ -296,6 +297,10 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
 
 void detect_hardware(struct s_hardware *hardware)
 {
+  if (!quiet)
+      more_printf("MEMORY: Detecting\n");
+  hardware->detected_memory_size = detect_memsize();
+
   if (!quiet)
       more_printf("DMI: Detecting Table\n");
   if (detect_dmi(hardware) == -ENODMITABLE) {

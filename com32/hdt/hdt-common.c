@@ -163,6 +163,7 @@ void init_hardware(struct s_hardware *hardware)
   hardware->is_pxe_valid = false;
   hardware->is_vpd_valid = false;
   hardware->pci_domain = NULL;
+  hardware->detected_memory_size = 0;
 
   /* Cleaning structures */
   memset(hardware->disk_info, 0, sizeof(hardware->disk_info));

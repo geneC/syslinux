@@ -45,6 +45,14 @@ static void compute_e820(struct s_my_menu *menu)
   char type[14];
 
   detect_memory_e820(map, E820MAX, &count);
+  unsigned long memory_size = memsize_e820(map, count);
+  snprintf(buffer, sizeof buffer,"Detected Memory  - %lu MiB (%lu KiB)",
+		  memory_size>>10, memory_size);
+  snprintf(statbuffer, sizeof statbuffer,"Detected Memory : %lu MiB (%lu KiB)",
+		  memory_size>>10, memory_size);
+  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+  add_item("", "", OPT_SEP, "", 0);
+
   for (int j = 0; j < count; j++) {
 	get_type(map[j].type, type, 14);
         snprintf(buffer, sizeof buffer,
@@ -70,6 +78,7 @@ static void compute_e801(struct s_my_menu *menu)
   menu->items_count = 0;
   menu->menu = add_menu(buffer, -1);
 
+
   int mem_low, mem_high = 0;
   if (detect_memory_e801(&mem_low, &mem_high)) {
         snprintf(buffer, sizeof buffer, "%s", "e801 output is bogus");
@@ -77,11 +86,25 @@ static void compute_e801(struct s_my_menu *menu)
   	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   	menu->items_count++;
   } else {
-        snprintf(buffer, sizeof buffer, "%d Kb (%d MiB) - %d Kb (%d MiB)",
-                mem_low, mem_low >> 10, mem_high << 6, mem_high >> 4);
-        snprintf(statbuffer, sizeof statbuffer, "%d Kb (%d MiB) - %d Kb (%d MiB)",
-                mem_low, mem_low >> 10, mem_high << 6, mem_high >> 4);
+	snprintf(buffer, sizeof buffer, "Detected Memory  : %d MiB (%d KiB)",
+		(mem_high >> 4)+(mem_low >> 10),mem_low+(mem_high << 6));
+	snprintf(statbuffer, sizeof statbuffer,"Detected Memory : %d MiB (%d KiB)",
+		(mem_high >> 4)+(mem_low >> 10),mem_low+(mem_high << 6));
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+
+  	add_item("", "", OPT_SEP, "", 0);
+        snprintf(buffer, sizeof buffer, "Low Memory       : %d KiB (%d MiB)",
+                mem_low, mem_low >> 10);
+        snprintf(statbuffer, sizeof statbuffer, "Low Memory : %d KiB (%d MiB)",
+                mem_low, mem_low >> 10);
   	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+
+	snprintf(buffer, sizeof buffer, "High Memory      : %d KiB (%d MiB)",
+                mem_high << 6, mem_high >> 4);
+        snprintf(statbuffer, sizeof statbuffer, "High Memory : %d KiB (%d MiB)",
+                mem_high << 6, mem_high >> 4);
+  	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+
   }
   menu->items_count++;
 }
@@ -103,10 +126,10 @@ static void compute_e88(struct s_my_menu *menu)
   	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   	menu->items_count++;
   } else {
-        snprintf(buffer, sizeof buffer, "%d Kb (%d MiB)",
-			mem_size, mem_size >> 10);
-        snprintf(statbuffer, sizeof statbuffer, "%d Kb (%d MiB)",
-			mem_size, mem_size >> 10);
+        snprintf(buffer, sizeof buffer, "Detected Memory : %d MiB (%d KiB)",
+			mem_size >> 10, mem_size);
+        snprintf(statbuffer, sizeof statbuffer, "Detected Memory : %d MiB (%d KiB)",
+			mem_size >> 10, mem_size);
   	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   }
   menu->items_count++;
@@ -322,10 +345,17 @@ void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi, struct s_hardware *har
   menu->memory_menu.menu = add_menu(" Memory ", -1);
   menu->memory_menu.items_count = 0;
 
+  snprintf(buffer, sizeof(buffer), " %lu MB detected ",
+	hardware->detected_memory_size>>10);
+  add_item(buffer, "Detected Memory", OPT_INACTIVE, NULL,menu->memory_sub_menu[0].menu);
+  menu->memory_menu.items_count++;
+
+  add_item("", "", OPT_SEP, "", 0);
+
   if (memory_count==0) {
 	snprintf(buffer, sizeof buffer, " No memory bank detected ");
 	add_item(buffer, "Memory Bank", OPT_INACTIVE, NULL,
-	menu->memory_sub_menu[0].menu);
+	menu->memory_sub_menu[1].menu);
 	menu->memory_menu.items_count++;
   } else for (i = 0; i < memory_count; i++) {
 	snprintf(buffer, sizeof buffer, " Bank <%d> ", i);

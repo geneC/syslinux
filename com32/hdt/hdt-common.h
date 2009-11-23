@@ -166,6 +166,7 @@ struct s_hardware {
   int disks_count;		  /* Number of detected disks */
   struct s_pxe pxe;
   struct s_vesa vesa;
+  unsigned long detected_memory_size; /* The detected memory size (in KB) */
 
   int pci_ids_return_code;
   int modules_pcimap_return_code;
