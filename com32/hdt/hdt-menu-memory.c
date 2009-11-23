@@ -109,20 +109,20 @@ static void compute_e801(struct s_my_menu *menu)
   menu->items_count++;
 }
 
-/* Compute the e88 submenu */
-static void compute_e88(struct s_my_menu *menu)
+/* Compute the 88 submenu */
+static void compute_88(struct s_my_menu *menu)
 {
   char buffer[MENULEN + 1];
   char statbuffer[STATLEN + 1];
 
-  sprintf(buffer, " e88 information ");
+  sprintf(buffer, " 88 information ");
   menu->items_count = 0;
   menu->menu = add_menu(buffer, -1);
 
   int mem_size = 0;
   if (detect_memory_88(&mem_size)) {
-        snprintf(buffer, sizeof buffer, "%s", "e88 output is bogus");
-        snprintf(statbuffer, sizeof statbuffer, "%s", "e88 output is bogus");
+        snprintf(buffer, sizeof buffer, "%s", "88 output is bogus");
+        snprintf(statbuffer, sizeof statbuffer, "%s", "88 output is bogus");
   	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
   	menu->items_count++;
   } else {
@@ -340,7 +340,7 @@ void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi, struct s_hardware *har
 
   compute_e820(&(menu->memory_sub_menu[++i]));
   compute_e801(&(menu->memory_sub_menu[++i]));
-  compute_e88(&(menu->memory_sub_menu[++i]));
+  compute_88(&(menu->memory_sub_menu[++i]));
 
   menu->memory_menu.menu = add_menu(" Memory ", -1);
   menu->memory_menu.items_count = 0;
@@ -376,8 +376,8 @@ void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi, struct s_hardware *har
        menu->memory_sub_menu[++i].menu);
   menu->memory_menu.items_count++;
 
-  snprintf(buffer, sizeof buffer, " e88 ");
-  add_item(buffer, "e88 information", OPT_SUBMENU, NULL,
+  snprintf(buffer, sizeof buffer, " 88 ");
+  add_item(buffer, "88 information", OPT_SUBMENU, NULL,
        menu->memory_sub_menu[++i].menu);
   menu->memory_menu.items_count++;
 

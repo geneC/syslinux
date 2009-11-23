@@ -80,7 +80,7 @@ static void show_memory_e801(int argc __unused, char **argv __unused,
 	}
 }
 
-static void show_memory_e88(int argc __unused, char **argv __unused,
+static void show_memory_88(int argc __unused, char **argv __unused,
 			   struct s_hardware *hardware __unused)
 {
 	int mem_size = 0;
@@ -104,8 +104,8 @@ struct cli_callback_descr list_memory_show_modules[] = {
 		.exec = show_memory_e801,
 	},
 	{
-		.name = "e88",
-		.exec = show_memory_e88,
+		.name = "88",
+		.exec = show_memory_88,
 	},
   	{
     		.name = CLI_DMI_MEMORY_BANK,
