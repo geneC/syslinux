@@ -55,184 +55,183 @@ static void show_partition_information(struct driveinfo *drive_info,
 				       int partition_offset,
 				       int nb_partitions_seen)
 {
-	char size[9];
-	char bootloader_name[9];
-	char *parttype;
-	unsigned int start, end;
+    char size[9];
+    char bootloader_name[9];
+    char *parttype;
+    unsigned int start, end;
 
-	int i = nb_partitions_seen;
+    int i = nb_partitions_seen;
 
     reset_more_printf();
 
-	start = partition_offset;
-	end = start + ptab->length - 1;
+    start = partition_offset;
+    end = start + ptab->length - 1;
 
-	if (ptab->length > 0)
-		sectors_to_size(ptab->length, size);
-	else
-		memset(size, 0, sizeof size);
+    if (ptab->length > 0)
+	sectors_to_size(ptab->length, size);
+    else
+	memset(size, 0, sizeof size);
 
-	if (i == 1)
-		more_printf(" #  B       Start         End    Size Id Type\n");
+    if (i == 1)
+	more_printf(" #  B       Start         End    Size Id Type\n");
 
-	get_label(ptab->ostype, &parttype);
-	more_printf("%2d  %s %11d %11d %s %02X %s",
-		    i, (ptab->active_flag == 0x80) ? "x" : " ",
-		    start,
-		    end,
-		    size,
-		    ptab->ostype, parttype);
+    get_label(ptab->ostype, &parttype);
+    more_printf("%2d  %s %11d %11d %s %02X %s",
+		i, (ptab->active_flag == 0x80) ? "x" : " ",
+		start, end, size, ptab->ostype, parttype);
 
-	/* Extra info */
-	if (ptab->ostype == 0x82 && swsusp_check(drive_info, ptab))
-		more_printf("%s", " (Swsusp sig. detected)");
+    /* Extra info */
+    if (ptab->ostype == 0x82 && swsusp_check(drive_info, ptab))
+	more_printf("%s", " (Swsusp sig. detected)");
 
-	if (get_bootloader_string(drive_info, ptab, bootloader_name, 9) == 0)
-		more_printf("%-46s %s %s", " ", "Bootloader:", bootloader_name);
+    if (get_bootloader_string(drive_info, ptab, bootloader_name, 9) == 0)
+	more_printf("%-46s %s %s", " ", "Bootloader:", bootloader_name);
 
-	more_printf("\n");
+    more_printf("\n");
 
-	free(parttype);
+    free(parttype);
 }
 
-void main_show_disk(int argc, char **argv,
-		    struct s_hardware *hardware)
+void main_show_disk(int argc, char **argv, struct s_hardware *hardware)
 {
-	if (!argc) {
-		more_printf("Which disk?\n");
-		return;
-	}
+    if (!argc) {
+	more_printf("Which disk?\n");
+	return;
+    }
 
-	int drive = strtol(argv[0], (char**) NULL, 16);
+    int drive = strtol(argv[0], (char **)NULL, 16);
 
-	if (drive < 0x80 || drive >= 0xff) {
-		more_printf("Invalid disk: %d.\n", drive);
-		return;
-	}
+    if (drive < 0x80 || drive >= 0xff) {
+	more_printf("Invalid disk: %d.\n", drive);
+	return;
+    }
 
-	int i = drive - 0x80;
-	struct driveinfo *d = &hardware->disk_info[i];
-	char disk_size[9];
-	char mbr_name[50];
+    int i = drive - 0x80;
+    struct driveinfo *d = &hardware->disk_info[i];
+    char disk_size[9];
+    char mbr_name[50];
 
-	detect_disks(hardware);
+    detect_disks(hardware);
     reset_more_printf();
 
-	if (!hardware->disk_info[i].cbios)
-		return; /* Invalid geometry */
+    if (!hardware->disk_info[i].cbios)
+	return;			/* Invalid geometry */
 
-	get_mbr_string(hardware->mbr_ids[i], &mbr_name, 50);
+    get_mbr_string(hardware->mbr_ids[i], &mbr_name, 50);
 
-	if ((int) d->edd_params.sectors > 0)
-		sectors_to_size((int) d->edd_params.sectors, disk_size);
-	else
-		memset(disk_size, 0, sizeof disk_size);
+    if ((int)d->edd_params.sectors > 0)
+	sectors_to_size((int)d->edd_params.sectors, disk_size);
+    else
+	memset(disk_size, 0, sizeof disk_size);
 
-	more_printf("DISK 0x%X:\n"
-		    "  C/H/S: %d cylinders, %d heads, %d sectors/track\n"
-		    "    EDD: Version: %X\n"
-		    "         Size: %s, %d bytes/sector, %d sectors/track\n"
-		    "         Host bus: %s, Interface type: %s\n"
-		    "    MBR: %s (id 0x%X)\n\n",
+    more_printf("DISK 0x%X:\n"
+		"  C/H/S: %d cylinders, %d heads, %d sectors/track\n"
+		"    EDD: Version: %X\n"
+		"         Size: %s, %d bytes/sector, %d sectors/track\n"
+		"         Host bus: %s, Interface type: %s\n"
+		"    MBR: %s (id 0x%X)\n\n",
 		d->disk,
-		d->legacy_max_cylinder + 1, d->legacy_max_head + 1, d->legacy_sectors_per_track,
-		d->edd_version,
-		disk_size, (int) d->edd_params.bytes_per_sector, (int) d->edd_params.sectors_per_track,
-		remove_spaces((char *) d->edd_params.host_bus_type), remove_spaces((char*) d->edd_params.interface_type),
-		mbr_name, hardware->mbr_ids[i]);
-	display_line_nb += 6;
+		d->legacy_max_cylinder + 1, d->legacy_max_head + 1,
+		d->legacy_sectors_per_track, d->edd_version, disk_size,
+		(int)d->edd_params.bytes_per_sector,
+		(int)d->edd_params.sectors_per_track,
+		remove_spaces((char *)d->edd_params.host_bus_type),
+		remove_spaces((char *)d->edd_params.interface_type), mbr_name,
+		hardware->mbr_ids[i]);
+    display_line_nb += 6;
 
-	if (parse_partition_table(d, &show_partition_information)) {
-		if (errno_disk) {
-			fprintf(stderr, "I/O error parsing disk 0x%X\n", d->disk);
-			get_error("parse_partition_table");
-		} else {
-			fprintf(stderr, "Disk 0x%X: unrecognized partition layout\n", d->disk);
-		}
-		fprintf(stderr, "\n");
+    if (parse_partition_table(d, &show_partition_information)) {
+	if (errno_disk) {
+	    fprintf(stderr, "I/O error parsing disk 0x%X\n", d->disk);
+	    get_error("parse_partition_table");
+	} else {
+	    fprintf(stderr, "Disk 0x%X: unrecognized partition layout\n",
+		    d->disk);
 	}
+	fprintf(stderr, "\n");
+    }
 
-	more_printf("\n");
+    more_printf("\n");
 }
 
 void main_show_disks(int argc __unused, char **argv __unused,
 		     struct s_hardware *hardware)
 {
-	reset_more_printf();
-	detect_disks(hardware);
+    reset_more_printf();
+    detect_disks(hardware);
 
     int first_one = 0;
-	for (int drive = 0x80; drive < 0xff; drive++) {
-		if (hardware->disk_info[drive - 0x80].cbios) {
-            if (!first_one) {
-                    first_one = 1;
-            } else {
-                    pause_printf();
-            }
-			char buf[5] = "";
-			sprintf(buf, "0x%x", drive);
-			char *argv[1] = { buf };
-			main_show_disk(1, argv, hardware);
-		}
+    for (int drive = 0x80; drive < 0xff; drive++) {
+	if (hardware->disk_info[drive - 0x80].cbios) {
+	    if (!first_one) {
+		first_one = 1;
+	    } else {
+		pause_printf();
+	    }
+	    char buf[5] = "";
+	    sprintf(buf, "0x%x", drive);
+	    char *argv[1] = { buf };
+	    main_show_disk(1, argv, hardware);
 	}
+    }
 }
 
-void disks_summary(int argc __unused, char** argv __unused,
+void disks_summary(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware)
 {
-	int i = -1;
+    int i = -1;
 
-	detect_disks(hardware);
-	reset_more_printf();
+    detect_disks(hardware);
+    reset_more_printf();
 
-	for (int drive = 0x80; drive < 0xff; drive++) {
-		i++;
-		if (!hardware->disk_info[i].cbios)
-			continue; /* Invalid geometry */
-		struct driveinfo *d = &hardware->disk_info[i];
-		char disk_size[9];
+    for (int drive = 0x80; drive < 0xff; drive++) {
+	i++;
+	if (!hardware->disk_info[i].cbios)
+	    continue;		/* Invalid geometry */
+	struct driveinfo *d = &hardware->disk_info[i];
+	char disk_size[9];
 
-		if ((int) d->edd_params.sectors > 0)
-			sectors_to_size((int) d->edd_params.sectors, disk_size);
-		else
-			memset(disk_size, 0, sizeof disk_size);
+	if ((int)d->edd_params.sectors > 0)
+	    sectors_to_size((int)d->edd_params.sectors, disk_size);
+	else
+	    memset(disk_size, 0, sizeof disk_size);
 
-		more_printf("DISK 0x%X:\n", d->disk);
-		more_printf("  C/H/S: %d cylinders, %d heads, %d sectors/track\n",
-			d->legacy_max_cylinder + 1, d->legacy_max_head + 1,
-			d->legacy_sectors_per_track);
-		more_printf("  EDD:   Version: %X, size: %s\n", d->edd_version,
-			disk_size);
-		more_printf("         Host bus: %s, Interface type: %s\n\n",
-			remove_spaces((char*) d->edd_params.host_bus_type),
-			remove_spaces((char*) d->edd_params.interface_type));
-	}
+	more_printf("DISK 0x%X:\n", d->disk);
+	more_printf("  C/H/S: %d cylinders, %d heads, %d sectors/track\n",
+		    d->legacy_max_cylinder + 1, d->legacy_max_head + 1,
+		    d->legacy_sectors_per_track);
+	more_printf("  EDD:   Version: %X, size: %s\n", d->edd_version,
+		    disk_size);
+	more_printf("         Host bus: %s, Interface type: %s\n\n",
+		    remove_spaces((char *)d->edd_params.host_bus_type),
+		    remove_spaces((char *)d->edd_params.interface_type));
+    }
 }
 
 struct cli_callback_descr list_disk_show_modules[] = {
-	{
-		.name = "disks",
-		.exec = main_show_disks,
-	},
-	{
-		.name = "disk",
-		.exec = main_show_disk,
-	},
-	{
-		.name = NULL,
-		.exec = NULL,
-	},
+    {
+     .name = "disks",
+     .exec = main_show_disks,
+     },
+    {
+     .name = "disk",
+     .exec = main_show_disk,
+     },
+    {
+     .name = NULL,
+     .exec = NULL,
+     },
 };
 
 struct cli_module_descr disk_show_modules = {
-	.modules = list_disk_show_modules,
-	.default_callback = disks_summary,
+    .modules = list_disk_show_modules,
+    .default_callback = disks_summary,
 };
 
 struct cli_mode_descr disk_mode = {
-	.mode = DISK_MODE,
-	.name = CLI_DISK,
-	.default_modules = NULL,
-	.show_modules = &disk_show_modules,
-	.set_modules = NULL,
+    .mode = DISK_MODE,
+    .name = CLI_DISK,
+    .default_modules = NULL,
+    .show_modules = &disk_show_modules,
+    .set_modules = NULL,
 };

@@ -33,82 +33,82 @@
  **/
 void compute_vpd(struct s_my_menu *menu, struct s_hardware *hardware)
 {
-	char buffer[SUBMENULEN + 1];
-	char statbuffer[STATLEN + 1];	/* Status bar */
+    char buffer[SUBMENULEN + 1];
+    char statbuffer[STATLEN + 1];	/* Status bar */
 
-	menu->menu = add_menu(" VPD ", -1);
-	menu->items_count = 0;
-	set_menu_pos(SUBMENU_Y, SUBMENU_X);
+    menu->menu = add_menu(" VPD ", -1);
+    menu->items_count = 0;
+    set_menu_pos(SUBMENU_Y, SUBMENU_X);
 
-	snprintf(buffer, sizeof buffer, "Address                  : %s",
-		 hardware->vpd.base_address);
-	snprintf(statbuffer, sizeof statbuffer, "Address: %s",
-		 hardware->cpu.vendor);
+    snprintf(buffer, sizeof buffer, "Address                  : %s",
+	     hardware->vpd.base_address);
+    snprintf(statbuffer, sizeof statbuffer, "Address: %s",
+	     hardware->cpu.vendor);
+    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+    menu->items_count++;
+
+    if (strlen(hardware->vpd.bios_build_id) > 0) {
+	snprintf(buffer, sizeof buffer, "Bios Build ID            : %s",
+		 hardware->vpd.bios_build_id);
+	snprintf(statbuffer, sizeof statbuffer, "Bios Build ID: %s",
+		 hardware->vpd.bios_build_id);
 	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
 	menu->items_count++;
+    }
 
-	if (strlen(hardware->vpd.bios_build_id) > 0) {
-	   snprintf(buffer, sizeof buffer, "Bios Build ID            : %s",
-		 hardware->vpd.bios_build_id);
-	   snprintf(statbuffer, sizeof statbuffer, "Bios Build ID: %s",
-		 hardware->vpd.bios_build_id);
-	   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-	   menu->items_count++;
-	}
-
-	if (strlen(hardware->vpd.bios_release_date) > 0) {
-	   snprintf(buffer, sizeof buffer, "Bios Release Date        : %s",
+    if (strlen(hardware->vpd.bios_release_date) > 0) {
+	snprintf(buffer, sizeof buffer, "Bios Release Date        : %s",
 		 hardware->vpd.bios_release_date);
-	   snprintf(statbuffer, sizeof statbuffer, "Bios Release Date: %s",
+	snprintf(statbuffer, sizeof statbuffer, "Bios Release Date: %s",
 		 hardware->vpd.bios_release_date);
-	   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-	   menu->items_count++;
-	}
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+	menu->items_count++;
+    }
 
-	if (strlen(hardware->vpd.bios_version) > 0) {
-	   snprintf(buffer, sizeof buffer, "Bios Version             : %s",
+    if (strlen(hardware->vpd.bios_version) > 0) {
+	snprintf(buffer, sizeof buffer, "Bios Version             : %s",
 		 hardware->vpd.bios_version);
-	   snprintf(statbuffer, sizeof statbuffer, "Bios Version: %s",
+	snprintf(statbuffer, sizeof statbuffer, "Bios Version: %s",
 		 hardware->vpd.bios_version);
-	   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-	   menu->items_count++;
-	}
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+	menu->items_count++;
+    }
 
-	if (strlen(hardware->vpd.default_flash_filename) > 0) {
-	   snprintf(buffer, sizeof buffer, "Default Flash Filename   : %s",
+    if (strlen(hardware->vpd.default_flash_filename) > 0) {
+	snprintf(buffer, sizeof buffer, "Default Flash Filename   : %s",
 		 hardware->vpd.default_flash_filename);
-	   snprintf(statbuffer, sizeof statbuffer, "Default Flash Filename: %s",
+	snprintf(statbuffer, sizeof statbuffer, "Default Flash Filename: %s",
 		 hardware->vpd.default_flash_filename);
-	   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-	   menu->items_count++;
-	}
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+	menu->items_count++;
+    }
 
-	if (strlen(hardware->vpd.box_serial_number) > 0) {
-	   snprintf(buffer, sizeof buffer, "Box Serial Number        : %s",
+    if (strlen(hardware->vpd.box_serial_number) > 0) {
+	snprintf(buffer, sizeof buffer, "Box Serial Number        : %s",
 		 hardware->vpd.box_serial_number);
-	   snprintf(statbuffer, sizeof statbuffer, "Box Serial Number: %s",
+	snprintf(statbuffer, sizeof statbuffer, "Box Serial Number: %s",
 		 hardware->vpd.box_serial_number);
-	   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-	   menu->items_count++;
-	}
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+	menu->items_count++;
+    }
 
-	if (strlen(hardware->vpd.motherboard_serial_number) > 0) {
-	   snprintf(buffer, sizeof buffer, "Motherboard Serial Number: %s",
+    if (strlen(hardware->vpd.motherboard_serial_number) > 0) {
+	snprintf(buffer, sizeof buffer, "Motherboard Serial Number: %s",
 		 hardware->vpd.motherboard_serial_number);
-	   snprintf(statbuffer, sizeof statbuffer, "Motherboard Serial Number: %s",
+	snprintf(statbuffer, sizeof statbuffer, "Motherboard Serial Number: %s",
 		 hardware->vpd.motherboard_serial_number);
-	   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-	   menu->items_count++;
-	}
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+	menu->items_count++;
+    }
 
-	if (strlen(hardware->vpd.machine_type_model) > 0) {
-	   snprintf(buffer, sizeof buffer, "Machine Type/Model       : %s",
+    if (strlen(hardware->vpd.machine_type_model) > 0) {
+	snprintf(buffer, sizeof buffer, "Machine Type/Model       : %s",
 		 hardware->vpd.machine_type_model);
-	   snprintf(statbuffer, sizeof statbuffer, "Machine Type/Model: %s",
+	snprintf(statbuffer, sizeof statbuffer, "Machine Type/Model: %s",
 		 hardware->vpd.machine_type_model);
-	   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-	   menu->items_count++;
-	}
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+	menu->items_count++;
+    }
 
-	printf("MENU: VPD menu done (%d items)\n", menu->items_count);
+    printf("MENU: VPD menu done (%d items)\n", menu->items_count);
 }

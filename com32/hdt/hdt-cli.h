@@ -70,64 +70,65 @@
 #define CLI_MEMORY  "memory"
 
 typedef enum {
-	INVALID_MODE,
-	EXIT_MODE,
-	HDT_MODE,
-	PCI_MODE,
-	DMI_MODE,
-	CPU_MODE,
-	PXE_MODE,
-	KERNEL_MODE,
-	SYSLINUX_MODE,
-	VESA_MODE,
-	DISK_MODE,
-	VPD_MODE,
-	MEMORY_MODE,
+    INVALID_MODE,
+    EXIT_MODE,
+    HDT_MODE,
+    PCI_MODE,
+    DMI_MODE,
+    CPU_MODE,
+    PXE_MODE,
+    KERNEL_MODE,
+    SYSLINUX_MODE,
+    VESA_MODE,
+    DISK_MODE,
+    VPD_MODE,
+    MEMORY_MODE,
 } cli_mode_t;
 
 #define PROMPT_SIZE 32
 #define MAX_HISTORY_SIZE 32
 struct s_cli {
-	cli_mode_t mode;
-	char prompt[PROMPT_SIZE];
-	char input[MAX_LINE_SIZE];
-	uint8_t cursor_pos;
-	char history[MAX_HISTORY_SIZE][MAX_LINE_SIZE];
-	int history_pos;
-	int max_history_pos;
+    cli_mode_t mode;
+    char prompt[PROMPT_SIZE];
+    char input[MAX_LINE_SIZE];
+    uint8_t cursor_pos;
+    char history[MAX_HISTORY_SIZE][MAX_LINE_SIZE];
+    int history_pos;
+    int max_history_pos;
 };
 struct s_cli hdt_cli;
 
 /* Describe a cli mode */
 struct cli_mode_descr {
-	const unsigned int mode;
-	const char* name;
-	/* Handle 1-token commands */
-	struct cli_module_descr* default_modules;
-	/* Handle show <module> <args> */
-	struct cli_module_descr* show_modules;
-	/* Handle set <module> <args> */
-	struct cli_module_descr* set_modules;
+    const unsigned int mode;
+    const char *name;
+    /* Handle 1-token commands */
+    struct cli_module_descr *default_modules;
+    /* Handle show <module> <args> */
+    struct cli_module_descr *show_modules;
+    /* Handle set <module> <args> */
+    struct cli_module_descr *set_modules;
 };
 
 /* Describe a subset of commands in a module (default, show, set, ...) */
 struct cli_module_descr {
-	struct cli_callback_descr* modules;
-	void ( * default_callback ) ( int argc, char** argv, struct s_hardware *hardware );
+    struct cli_callback_descr *modules;
+    void (*default_callback) (int argc, char **argv,
+			      struct s_hardware * hardware);
 };
 
 /* Describe a callback (belongs to a mode and a module) */
 struct cli_callback_descr {
-	const char *name;
-	void ( * exec ) ( int argc, char** argv, struct s_hardware *hardware );
+    const char *name;
+    void (*exec) (int argc, char **argv, struct s_hardware * hardware);
 };
 
 /* Manage aliases */
 #define MAX_ALIASES 2
 struct cli_alias {
-	const char *command;	/* Original command */
-	const int nb_aliases;	/* Size of aliases array */
-	const char **aliases;	/* List of aliases */
+    const char *command;	/* Original command */
+    const int nb_aliases;	/* Size of aliases array */
+    const char **aliases;	/* List of aliases */
 };
 
 /* List of implemented modes */
@@ -171,8 +172,9 @@ void main_show(char *item, struct s_hardware *hardware);
 #define CLI_DMI_SECURITY "security"
 #define CLI_DMI_LIST CLI_SHOW_LIST
 void main_show_dmi(int argc, char **argv, struct s_hardware *hardware);
-void show_dmi_memory_modules(int argc, char** argv, struct s_hardware *hardware);
-void show_dmi_memory_bank(int argc, char** argv, struct s_hardware *hardware);
+void show_dmi_memory_modules(int argc, char **argv,
+			     struct s_hardware *hardware);
+void show_dmi_memory_bank(int argc, char **argv, struct s_hardware *hardware);
 
 // PCI STUFF
 #define CLI_PCI_DEVICE "device"
@@ -198,5 +200,6 @@ void main_show_syslinux(int argc, char **argv, struct s_hardware *hardware);
 void main_show_vesa(int argc, char **argv, struct s_hardware *hardware);
 
 // VPD STUFF
-void main_show_vpd(int argc __unused, char **argv __unused, struct s_hardware *hardware);
+void main_show_vpd(int argc __unused, char **argv __unused,
+		   struct s_hardware *hardware);
 #endif

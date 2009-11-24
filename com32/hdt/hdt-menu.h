@@ -51,39 +51,40 @@
 #define MAX_DISK_SUB_MENU 32
 
 struct s_my_menu {
-  unsigned char menu;
-  int items_count;
+    unsigned char menu;
+    int items_count;
 };
 
 struct s_hdt_menu {
-  struct s_my_menu main_menu;
-  struct s_my_menu cpu_menu;
-  struct s_my_menu mobo_menu;
-  struct s_my_menu chassis_menu;
-  struct s_my_menu bios_menu;
-  struct s_my_menu ipmi_menu;
-  struct s_my_menu system_menu;
-  struct s_my_menu pci_menu;
-  struct s_my_menu pci_sub_menu[MAX_PCI_SUB_MENU];
-  struct s_my_menu kernel_menu;
-  struct s_my_menu memory_menu;
-  struct s_my_menu memory_sub_menu[MAX_MEMORY_SUB_MENU];
-  struct s_my_menu disk_menu;
-  struct s_my_menu disk_sub_menu[MAX_DISK_SUB_MENU];
-  struct s_my_menu battery_menu;
-  struct s_my_menu syslinux_menu;
-  struct s_my_menu about_menu;
-  struct s_my_menu summary_menu;
-  struct s_my_menu pxe_menu;
-  struct s_my_menu vesa_menu;
-  struct s_my_menu vesa_card_menu;
-  struct s_my_menu vesa_modes_menu;
-  struct s_my_menu vpd_menu;
-  int total_menu_count; // Sum of all menus we have
+    struct s_my_menu main_menu;
+    struct s_my_menu cpu_menu;
+    struct s_my_menu mobo_menu;
+    struct s_my_menu chassis_menu;
+    struct s_my_menu bios_menu;
+    struct s_my_menu ipmi_menu;
+    struct s_my_menu system_menu;
+    struct s_my_menu pci_menu;
+    struct s_my_menu pci_sub_menu[MAX_PCI_SUB_MENU];
+    struct s_my_menu kernel_menu;
+    struct s_my_menu memory_menu;
+    struct s_my_menu memory_sub_menu[MAX_MEMORY_SUB_MENU];
+    struct s_my_menu disk_menu;
+    struct s_my_menu disk_sub_menu[MAX_DISK_SUB_MENU];
+    struct s_my_menu battery_menu;
+    struct s_my_menu syslinux_menu;
+    struct s_my_menu about_menu;
+    struct s_my_menu summary_menu;
+    struct s_my_menu pxe_menu;
+    struct s_my_menu vesa_menu;
+    struct s_my_menu vesa_card_menu;
+    struct s_my_menu vesa_modes_menu;
+    struct s_my_menu vpd_menu;
+    int total_menu_count;	// Sum of all menus we have
 };
 
 TIMEOUTCODE ontimeout();
-void keys_handler(t_menusystem * ms __attribute__ (( unused )), t_menuitem * mi, int scancode);
+void keys_handler(t_menusystem * ms
+		  __attribute__ ((unused)), t_menuitem * mi, int scancode);
 
 // PCI Stuff
 int compute_PCI(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);
@@ -100,7 +101,8 @@ void compute_battery(struct s_my_menu *menu, s_dmi * dmi);
 void compute_system(struct s_my_menu *menu, s_dmi * dmi);
 void compute_chassis(struct s_my_menu *menu, s_dmi * dmi);
 void compute_bios(struct s_my_menu *menu, s_dmi * dmi);
-void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi, struct s_hardware *hardware);
+void compute_memory(struct s_hdt_menu *menu, s_dmi * dmi,
+		    struct s_hardware *hardware);
 void compute_ipmi(struct s_my_menu *menu, s_dmi * dmi);
 
 // VPD Stuff
@@ -127,7 +129,7 @@ int compute_VESA(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);
 int start_menu_mode(struct s_hardware *hardware, char *version_string);
 void setup_menu(char *version);
 void compute_main_menu(struct s_hdt_menu *hdt_menu,
-                       struct s_hardware *hardware);
+		       struct s_hardware *hardware);
 void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);
 void detect_hardware(struct s_hardware *hardware);
 #endif

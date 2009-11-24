@@ -37,26 +37,26 @@
 #include "hdt-common.h"
 
 void main_show_syslinux(int argc __unused, char **argv __unused,
-		        struct s_hardware *hardware)
+			struct s_hardware *hardware)
 {
-  reset_more_printf();
-  more_printf("SYSLINUX\n");
-  more_printf(" Bootloader : %s\n", hardware->syslinux_fs);
-  more_printf(" Version    : %s\n", hardware->sv->version_string + 2);
-  more_printf(" Version    : %u\n", hardware->sv->version);
-  more_printf(" Max API    : %u\n", hardware->sv->max_api);
-  more_printf(" Copyright  : %s\n", hardware->sv->copyright_string + 1);
+    reset_more_printf();
+    more_printf("SYSLINUX\n");
+    more_printf(" Bootloader : %s\n", hardware->syslinux_fs);
+    more_printf(" Version    : %s\n", hardware->sv->version_string + 2);
+    more_printf(" Version    : %u\n", hardware->sv->version);
+    more_printf(" Max API    : %u\n", hardware->sv->max_api);
+    more_printf(" Copyright  : %s\n", hardware->sv->copyright_string + 1);
 }
 
 struct cli_module_descr syslinux_show_modules = {
-	.modules = NULL,
-	.default_callback = main_show_syslinux,
+    .modules = NULL,
+    .default_callback = main_show_syslinux,
 };
 
 struct cli_mode_descr syslinux_mode = {
-	.mode = SYSLINUX_MODE,
-	.name = CLI_SYSLINUX,
-	.default_modules = NULL,
-	.show_modules = &syslinux_show_modules,
-	.set_modules = NULL,
+    .mode = SYSLINUX_MODE,
+    .name = CLI_SYSLINUX,
+    .default_modules = NULL,
+    .show_modules = &syslinux_show_modules,
+    .set_modules = NULL,
 };

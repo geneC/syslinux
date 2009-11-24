@@ -42,43 +42,44 @@ int display_line_nb = 0;
 bool disable_more_printf = false;
 /* Defines the number of lines in the console
  * Default is 20 for a std console */
-int max_console_lines=20;
+int max_console_lines = 20;
 
 int main(const int argc, const char *argv[])
 {
-  char version_string[256];
-  const char *arg;
-  struct s_hardware hardware;
+    char version_string[256];
+    const char *arg;
+    struct s_hardware hardware;
 
-  snprintf(version_string, sizeof version_string, "%s %s (%s)",
-           PRODUCT_NAME,VERSION, CODENAME);
+    snprintf(version_string, sizeof version_string, "%s %s (%s)",
+	     PRODUCT_NAME, VERSION, CODENAME);
 
-  /* Cleaning structures */
-  init_hardware(&hardware);
+    /* Cleaning structures */
+    init_hardware(&hardware);
 
-  /* Detecting Syslinux version */
-  detect_syslinux(&hardware);
+    /* Detecting Syslinux version */
+    detect_syslinux(&hardware);
 
-  /* Detecting parameters */
-  detect_parameters(argc, argv, &hardware);
+    /* Detecting parameters */
+    detect_parameters(argc, argv, &hardware);
 
-  /* Opening the Syslinux console */
-  init_console(&hardware);
+    /* Opening the Syslinux console */
+    init_console(&hardware);
 
-  /* Clear the screen and reset position of the cursor */
-  clear_screen();
-  printf("\033[1;1H");
+    /* Clear the screen and reset position of the cursor */
+    clear_screen();
+    printf("\033[1;1H");
 
-  printf("%s\n", version_string);
+    printf("%s\n", version_string);
 
-  if ((arg = find_argument(argv + 1, "nomenu")) || (find_argument(argv+1,"auto")))
-  	start_cli_mode(&hardware);
-  else {
-  	int return_code = start_menu_mode(&hardware, version_string);
-    	if (return_code == HDT_RETURN_TO_CLI)
-      		start_cli_mode(&hardware);
-    	else
-  		return return_code;
-  }
-  return 0;
+    if ((arg = find_argument(argv + 1, "nomenu"))
+	|| (find_argument(argv + 1, "auto")))
+	start_cli_mode(&hardware);
+    else {
+	int return_code = start_menu_mode(&hardware, version_string);
+	if (return_code == HDT_RETURN_TO_CLI)
+	    start_cli_mode(&hardware);
+	else
+	    return return_code;
+    }
+    return 0;
 }

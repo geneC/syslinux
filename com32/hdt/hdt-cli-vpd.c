@@ -35,40 +35,47 @@
 void main_show_vpd(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware)
 {
-	reset_more_printf();
-	detect_vpd(hardware);
+    reset_more_printf();
+    detect_vpd(hardware);
 
-	if (!hardware->is_vpd_valid) {
-		more_printf("No VPD structure detected.\n");
-		return;
-	}
+    if (!hardware->is_vpd_valid) {
+	more_printf("No VPD structure detected.\n");
+	return;
+    }
 
-	more_printf("VPD present at address : 0x%s\n", hardware->vpd.base_address);
-	if (strlen(hardware->vpd.bios_build_id) > 0)
-		more_printf("Bios Build ID                 : %s\n", hardware->vpd.bios_build_id);
-	if (strlen(hardware->vpd.bios_release_date) > 0)
-		more_printf("Bios Release Date             : %s\n", hardware->vpd.bios_release_date);
-	if (strlen(hardware->vpd.bios_version) > 0)
-		more_printf("Bios Version                  : %s\n", hardware->vpd.bios_version);
-	if (strlen(hardware->vpd.default_flash_filename) > 0)
-		more_printf("Default Flash Filename        : %s\n", hardware->vpd.default_flash_filename);
-	if (strlen(hardware->vpd.box_serial_number) > 0)
-		more_printf("Box Serial Number             : %s\n", hardware->vpd.box_serial_number);
-	if (strlen(hardware->vpd.motherboard_serial_number) > 0)
-		more_printf("Motherboard Serial Number     : %s\n", hardware->vpd.motherboard_serial_number);
-	if (strlen(hardware->vpd.machine_type_model) > 0)
-		more_printf("Machine Type/Model            : %s\n", hardware->vpd.machine_type_model);
+    more_printf("VPD present at address : 0x%s\n", hardware->vpd.base_address);
+    if (strlen(hardware->vpd.bios_build_id) > 0)
+	more_printf("Bios Build ID                 : %s\n",
+		    hardware->vpd.bios_build_id);
+    if (strlen(hardware->vpd.bios_release_date) > 0)
+	more_printf("Bios Release Date             : %s\n",
+		    hardware->vpd.bios_release_date);
+    if (strlen(hardware->vpd.bios_version) > 0)
+	more_printf("Bios Version                  : %s\n",
+		    hardware->vpd.bios_version);
+    if (strlen(hardware->vpd.default_flash_filename) > 0)
+	more_printf("Default Flash Filename        : %s\n",
+		    hardware->vpd.default_flash_filename);
+    if (strlen(hardware->vpd.box_serial_number) > 0)
+	more_printf("Box Serial Number             : %s\n",
+		    hardware->vpd.box_serial_number);
+    if (strlen(hardware->vpd.motherboard_serial_number) > 0)
+	more_printf("Motherboard Serial Number     : %s\n",
+		    hardware->vpd.motherboard_serial_number);
+    if (strlen(hardware->vpd.machine_type_model) > 0)
+	more_printf("Machine Type/Model            : %s\n",
+		    hardware->vpd.machine_type_model);
 }
 
 struct cli_module_descr vpd_show_modules = {
-	.modules = NULL,
-	.default_callback = main_show_vpd,
+    .modules = NULL,
+    .default_callback = main_show_vpd,
 };
 
 struct cli_mode_descr vpd_mode = {
-	.mode = VPD_MODE,
-	.name = CLI_VPD,
-	.default_modules = NULL,
-	.show_modules = &vpd_show_modules,
-	.set_modules = NULL,
+    .mode = VPD_MODE,
+    .name = CLI_VPD,
+    .default_modules = NULL,
+    .show_modules = &vpd_show_modules,
+    .set_modules = NULL,
 };
