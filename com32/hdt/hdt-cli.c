@@ -652,105 +652,111 @@ static void exec_command(char *line,
 	char **argv = NULL;
 	struct cli_callback_descr* current_module = NULL;
 
-	/* This will allocate memory that will need to be freed */
+	/* This will allocate memory for command and module */
 	parse_command_line(line, &command, &module, &argc, argv);
 
-	/* Expand shortcuts, if needed */
+	/*
+     * Expand shortcuts, if needed
+     * This will allocate memory for argc/argv
+     */
 	expand_aliases(line, &command, &module, &argc, argv);
 
-	if (module == NULL) {
-		dprintf("CLI DEBUG: single command detected\n");
-		/*
-		 * A single word was specified: look at the list of default
-		 * commands in the current mode to see if there is a match.
-		 * If not, it may be a generic function (exit, help, ...). These
-		 * are stored in the list of default commands of the hdt mode.
-		 */
-		find_cli_callback_descr(command, current_mode->default_modules,
-				        &current_module);
-		if (current_module != NULL)
-			return current_module->exec(argc, argv, hardware);
-		else if (!strncmp(command, CLI_SHOW, sizeof(CLI_SHOW) - 1) &&
-			 current_mode->show_modules != NULL &&
-			 current_mode->show_modules->default_callback != NULL)
-			return current_mode->show_modules
-					   ->default_callback(argc,
-							      argv,
-							      hardware);
-		else if (!strncmp(command, CLI_SET, sizeof(CLI_SET) - 1) &&
-			 current_mode->set_modules != NULL &&
-			 current_mode->set_modules->default_callback != NULL)
-			return current_mode->set_modules
-					   ->default_callback(argc,
-							      argv,
-							      hardware);
-		else {
-			find_cli_callback_descr(command, hdt_mode.default_modules,
-					        &current_module);
-			if (current_module != NULL)
-				return current_module->exec(argc, argv, hardware);
-		}
+    if (module == NULL) {
+        dprintf("CLI DEBUG: single command detected\n");
+        /*
+         * A single word was specified: look at the list of default
+         * commands in the current mode to see if there is a match.
+         * If not, it may be a generic function (exit, help, ...). These
+         * are stored in the list of default commands of the hdt mode.
+         */
+        find_cli_callback_descr(command, current_mode->default_modules,
+                                &current_module);
+        if (current_module != NULL)
+            current_module->exec(argc, argv, hardware);
+        else if (!strncmp(command, CLI_SHOW, sizeof(CLI_SHOW) - 1) &&
+                 current_mode->show_modules != NULL &&
+                 current_mode->show_modules->default_callback != NULL)
+            current_mode->show_modules
+                        ->default_callback(argc,
+                                           argv,
+                                           hardware);
+        else if (!strncmp(command, CLI_SET, sizeof(CLI_SET) - 1) &&
+                 current_mode->set_modules != NULL &&
+                 current_mode->set_modules->default_callback != NULL)
+            current_mode->set_modules
+                        ->default_callback(argc,
+                                           argv,
+                                           hardware);
+        else {
+            find_cli_callback_descr(command, hdt_mode.default_modules,
+                                    &current_module);
+            if (current_module != NULL)
+                current_module->exec(argc, argv, hardware);
+            else
+                printf("unknown command: '%s'\n", command);
+        }
+    } else {
+        /*
+         * A module has been specified! We now need to find the type of command.
+         *
+         * The syntax of the cli is the following:
+         *    <type of command> <module on which to operate> <args>
+         * e.g.
+         *    dmi> show system
+         *    dmi> show bank 1
+         *    dmi> show memory 0 1
+         *    pci> show device 12
+         *    hdt> set mode dmi
+         */
+        if (!strncmp(command, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
+            dprintf("CLI DEBUG: %s command detected\n", CLI_SHOW);
+            /* Look first for a 'show' callback in the current mode */
+            find_cli_callback_descr(module, current_mode->show_modules,
+                                    &current_module);
+            /* Execute the callback, if found */
+            if (current_module != NULL)
+                current_module->exec(argc, argv, hardware);
+            else {
+                /* Look now for a 'show' callback in the hdt mode */
+                find_cli_callback_descr(module, hdt_mode.show_modules,
+                                        &current_module);
+                /* Execute the callback, if found */
+                if (current_module != NULL)
+                    current_module->exec(argc, argv, hardware);
+                else
+                    printf("unknown module: '%s'\n", module);
+            }
+        } else if (!strncmp(command, CLI_SET, sizeof(CLI_SET) - 1)) {
+            dprintf("CLI DEBUG: %s command detected\n", CLI_SET);
+            /* Look now for a 'set' callback in the hdt mode */
+            find_cli_callback_descr(module, current_mode->set_modules,
+                                    &current_module);
+            /* Execute the callback, if found */
+            if (current_module != NULL)
+                current_module->exec(argc, argv, hardware);
+            else {
+                /* Look now for a 'set' callback in the hdt mode */
+                find_cli_callback_descr(module, hdt_mode.set_modules,
+                                        &current_module);
+                /* Execute the callback, if found */
+                if (current_module != NULL)
+                    current_module->exec(argc, argv, hardware);
+                else
+                    printf("unknown module: '%s'\n", module);
+            }
+        }
+    }
 
-		printf("unknown command: '%s'\n", command);
-		return;
-	}
-
-	/*
-	 * A module has been specified! We now need to find the type of command.
-	 *
-	 * The syntax of the cli is the following:
-	 *    <type of command> <module on which to operate> <args>
-	 * e.g.
-	 *    dmi> show system
-	 *    dmi> show bank 1
-	 *    dmi> show memory 0 1
-	 *    pci> show device 12
-	 *    hdt> set mode dmi
-	 */
-	if (!strncmp(command, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
-		dprintf("CLI DEBUG: %s command detected\n", CLI_SHOW);
-		find_cli_callback_descr(module, current_mode->show_modules,
-					&current_module);
-		/* Execute the callback */
-		if (current_module != NULL)
-			return current_module->exec(argc, argv, hardware);
-		else {
-			find_cli_callback_descr(module, hdt_mode.show_modules,
-					        &current_module);
-			if (current_module != NULL)
-				return current_module->exec(argc, argv, hardware);
-		}
-
-		printf("unknown module: '%s'\n", module);
-		return;
-
-	} else if (!strncmp(command, CLI_SET, sizeof(CLI_SET) - 1)) {
-		dprintf("CLI DEBUG: %s command detected\n", CLI_SET);
-		find_cli_callback_descr(module, current_mode->set_modules,
-					&current_module);
-		/* Execute the callback */
-		if (current_module != NULL)
-			return current_module->exec(argc, argv, hardware);
-		else {
-			find_cli_callback_descr(module, hdt_mode.set_modules,
-					        &current_module);
-			if (current_module != NULL)
-				return current_module->exec(argc, argv, hardware);
-		}
-
-		printf("unknown module: '%s'\n", module);
-		return;
-
-	}
-
-	printf("I don't understand: '%s'. Try 'help'.\n", line);
-
-	/* Let's not forget to clean ourselves */
-	free(command);
-	free(module);
-	for (i = 0; i < argc; i++)
-		free(argv[i]);
-	free(argv);
+out:
+    /* Let's not forget to clean ourselves */
+    if (command != NULL)
+        free(command);
+    if (module != NULL)
+        free(module);
+    for (i = 0; i < argc; i++)
+        free(argv[i]);
+    if (argc > 0)
+        free(argv);
 }
 
 static void reset_prompt()
