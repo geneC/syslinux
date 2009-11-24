@@ -17,5 +17,5 @@
 
 #include <com32.h>
 
-int int13_retry(const com32sys_t *inreg, com32sys_t *outreg);
+int int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
 #endif /* _UTIL_H_ */

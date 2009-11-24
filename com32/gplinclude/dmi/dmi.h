@@ -13,7 +13,7 @@
 #ifndef DMI_H
 #define DMI_H
 #include <inttypes.h>
-#define DMI_BUFFER_SIZE 16 
+#define DMI_BUFFER_SIZE 16
 #define MAX_DMI_MEMORY_ITEMS 32
 #define MAX_DMI_CACHE_ITEMS 32
 #define OEM_STRINGS_SIZE 512
@@ -60,28 +60,28 @@ struct dmi_header {
 };
 
 typedef struct {
-	 s_bios bios;
-	 s_system system;
-	 s_base_board base_board;
-	 s_chassis chassis;
-	 s_processor processor;
-	 s_battery battery;
-	 s_memory_module memory_module[MAX_DMI_MEMORY_ITEMS];
-	 s_memory memory[MAX_DMI_MEMORY_ITEMS];
-	 s_ipmi ipmi;
-	 s_cache cache[MAX_DMI_CACHE_ITEMS];
-	 int memory_module_count;
-	 int memory_count;
-	 int cache_count;
-	 dmi_table dmitable;
-	 char oem_strings[OEM_STRINGS_SIZE];
-	struct {
-		char power_on_passwd_status[HARDWARE_SECURITY_SIZE];
-		char keyboard_passwd_status[HARDWARE_SECURITY_SIZE];
-		char administrator_passwd_status[HARDWARE_SECURITY_SIZE];
-		char front_panel_reset_status[HARDWARE_SECURITY_SIZE];
-		bool filled;
-	} hardware_security;
+    s_bios bios;
+    s_system system;
+    s_base_board base_board;
+    s_chassis chassis;
+    s_processor processor;
+    s_battery battery;
+    s_memory_module memory_module[MAX_DMI_MEMORY_ITEMS];
+    s_memory memory[MAX_DMI_MEMORY_ITEMS];
+    s_ipmi ipmi;
+    s_cache cache[MAX_DMI_CACHE_ITEMS];
+    int memory_module_count;
+    int memory_count;
+    int cache_count;
+    dmi_table dmitable;
+    char oem_strings[OEM_STRINGS_SIZE];
+    struct {
+	char power_on_passwd_status[HARDWARE_SECURITY_SIZE];
+	char keyboard_passwd_status[HARDWARE_SECURITY_SIZE];
+	char administrator_passwd_status[HARDWARE_SECURITY_SIZE];
+	char front_panel_reset_status[HARDWARE_SECURITY_SIZE];
+	bool filled;
+    } hardware_security;
 } s_dmi;
 
 void to_dmi_header(struct dmi_header *h, uint8_t * data);

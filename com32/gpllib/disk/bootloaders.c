@@ -23,24 +23,24 @@
  * @buffer_size:	@buffer size
  **/
 int get_bootloader_string(const struct driveinfo *d, const struct part_entry *p,
-			  char* buffer, const int buffer_size)
+			  char *buffer, const int buffer_size)
 {
-	char boot_sector[SECTOR * sizeof(char)];
+    char boot_sector[SECTOR * sizeof(char)];
 
-	if (read_sectors(d, &boot_sector, p->start_lba, 1) == -1)
-		return -1;
-	else {
-		if (!strncmp(boot_sector + 3, "SYSLINUX", 8))
-			strncpy(buffer, "SYSLINUX", buffer_size - 1);
-		else if (!strncmp(boot_sector + 3, "EXTLINUX", 8))
-			strncpy(buffer, "EXTLINUX", buffer_size - 1);
-		else if (!strncmp(boot_sector + 3, "MSWIN4.1", 8))
-			strncpy(buffer, "MSWIN4.1", buffer_size - 1);
-		else
-			return -1;
-		/* Add more... */
+    if (read_sectors(d, &boot_sector, p->start_lba, 1) == -1)
+	return -1;
+    else {
+	if (!strncmp(boot_sector + 3, "SYSLINUX", 8))
+	    strncpy(buffer, "SYSLINUX", buffer_size - 1);
+	else if (!strncmp(boot_sector + 3, "EXTLINUX", 8))
+	    strncpy(buffer, "EXTLINUX", buffer_size - 1);
+	else if (!strncmp(boot_sector + 3, "MSWIN4.1", 8))
+	    strncpy(buffer, "MSWIN4.1", buffer_size - 1);
+	else
+	    return -1;
+	/* Add more... */
 
-		buffer[buffer_size - 1] = '\0';
-		return 0;
-	}
+	buffer[buffer_size - 1] = '\0';
+	return 0;
+    }
 }

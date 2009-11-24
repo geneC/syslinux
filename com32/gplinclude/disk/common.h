@@ -23,11 +23,11 @@
 #define SECTOR 512		/* bytes/sector */
 
 struct ebios_dapa {
-	uint16_t len;
-	uint16_t count;
-	uint16_t off;
-	uint16_t seg;
-	uint64_t lba;
+    uint16_t len;
+    uint16_t count;
+    uint16_t off;
+    uint16_t seg;
+    uint64_t lba;
 };
 
 #endif /* _COMMON_H_ */

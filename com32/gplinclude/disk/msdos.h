@@ -13,7 +13,7 @@
 #include <disk/geom.h>
 #include <disk/partition.h>
 
-typedef void (*p_callback)(struct driveinfo *, struct part_entry *, int, int);
+typedef void (*p_callback) (struct driveinfo *, struct part_entry *, int, int);
 int parse_partition_table(struct driveinfo *, p_callback);
 
 #endif /* _MSDOS_H_ */

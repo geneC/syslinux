@@ -36,11 +36,11 @@
  **/
 int read_mbr(int drive, void *buf)
 {
-	struct driveinfo drive_info;
-	drive_info.disk = drive;
+    struct driveinfo drive_info;
+    drive_info.disk = drive;
 
-	/* MBR: lba = 0, 1 sector */
-	return read_sectors(&drive_info, buf, 0, 1);
+    /* MBR: lba = 0, 1 sector */
+    return read_sectors(&drive_info, buf, 0, 1);
 }
 
 /**
@@ -54,12 +54,12 @@ int read_mbr(int drive, void *buf)
  * Return the number of sectors read on success or -1 on failure.
  * errno_disk contains the error number.
  **/
-int dev_read(int drive, void * buf, unsigned int lba, int sectors)
+int dev_read(int drive, void *buf, unsigned int lba, int sectors)
 {
-	struct driveinfo drive_info;
-	drive_info.disk = drive;
+    struct driveinfo drive_info;
+    drive_info.disk = drive;
 
-	return read_sectors(&drive_info, buf, lba, sectors);
+    return read_sectors(&drive_info, buf, lba, sectors);
 }
 
 /**
@@ -72,62 +72,64 @@ int dev_read(int drive, void * buf, unsigned int lba, int sectors)
  * Return the number of sectors read on success or -1 on failure.
  * errno_disk contains the error number.
  **/
-int read_sectors(struct driveinfo* drive_info, void *data,
+int read_sectors(struct driveinfo *drive_info, void *data,
 		 const unsigned int lba, const int sectors)
 {
-	com32sys_t inreg, outreg;
-	struct ebios_dapa *dapa = __com32.cs_bounce;
-	void *buf = (char *)__com32.cs_bounce + sectors * SECTOR;
-	char *bufp = data;
+    com32sys_t inreg, outreg;
+    struct ebios_dapa *dapa = __com32.cs_bounce;
+    void *buf = (char *)__com32.cs_bounce + sectors * SECTOR;
+    char *bufp = data;
 
-	if (get_drive_parameters(drive_info) == -1)
-		return -1;
+    if (get_drive_parameters(drive_info) == -1)
+	return -1;
 
-	memset(&inreg, 0, sizeof inreg);
+    memset(&inreg, 0, sizeof inreg);
 
-	if (drive_info->ebios) {
-		dapa->len      = sizeof(*dapa);
-		dapa->count    = sectors;
-		dapa->off      = OFFS(buf);
-		dapa->seg      = SEG(buf);
-		dapa->lba      = lba;
+    if (drive_info->ebios) {
+	dapa->len = sizeof(*dapa);
+	dapa->count = sectors;
+	dapa->off = OFFS(buf);
+	dapa->seg = SEG(buf);
+	dapa->lba = lba;
 
-		inreg.esi.w[0] = OFFS(dapa);
-		inreg.ds       = SEG(dapa);
-		inreg.edx.b[0] = drive_info->disk;
-		inreg.eax.b[1] = 0x42;	/* Extended read */
-	} else {
-		unsigned int c, h, s;
+	inreg.esi.w[0] = OFFS(dapa);
+	inreg.ds = SEG(dapa);
+	inreg.edx.b[0] = drive_info->disk;
+	inreg.eax.b[1] = 0x42;	/* Extended read */
+    } else {
+	unsigned int c, h, s;
 
-		if (!drive_info->cbios) { // XXX errno
-			/* We failed to get the geometry */
-			if (lba)
-				return -1;	/* Can only read MBR */
+	if (!drive_info->cbios) {	// XXX errno
+	    /* We failed to get the geometry */
+	    if (lba)
+		return -1;	/* Can only read MBR */
 
-			s = 1;  h = 0;  c = 0;
-		} else
-			lba_to_chs(drive_info, lba, &s, &h, &c);
+	    s = 1;
+	    h = 0;
+	    c = 0;
+	} else
+	    lba_to_chs(drive_info, lba, &s, &h, &c);
 
-		// XXX errno
-		if ( s > 63 || h > 256 || c > 1023 )
-			return -1;
+	// XXX errno
+	if (s > 63 || h > 256 || c > 1023)
+	    return -1;
 
-		inreg.eax.w[0] = 0x0201;	/* Read one sector */
-		inreg.ecx.b[1] = c & 0xff;
-		inreg.ecx.b[0] = s + (c >> 6);
-		inreg.edx.b[1] = h;
-		inreg.edx.b[0] = drive_info->disk;
-		inreg.ebx.w[0] = OFFS(buf);
-		inreg.es       = SEG(buf);
-	}
+	inreg.eax.w[0] = 0x0201;	/* Read one sector */
+	inreg.ecx.b[1] = c & 0xff;
+	inreg.ecx.b[0] = s + (c >> 6);
+	inreg.edx.b[1] = h;
+	inreg.edx.b[0] = drive_info->disk;
+	inreg.ebx.w[0] = OFFS(buf);
+	inreg.es = SEG(buf);
+    }
 
-	/* Perform the read */
-	if (int13_retry(&inreg, &outreg)) {
-		errno_disk = outreg.eax.b[1];
-		return -1;	/* Give up */
-	}
+    /* Perform the read */
+    if (int13_retry(&inreg, &outreg)) {
+	errno_disk = outreg.eax.b[1];
+	return -1;		/* Give up */
+    }
 
-	memcpy(bufp, buf, sectors * SECTOR);
+    memcpy(bufp, buf, sectors * SECTOR);
 
-	return sectors;
+    return sectors;
 }

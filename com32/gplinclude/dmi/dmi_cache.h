@@ -23,24 +23,24 @@
 #include "stdbool.h"
 
 typedef struct {
-	char socket_designation[32];
-	char configuration[32];
-	char mode[32];
-	char location[8];
-	uint16_t installed_size;
-	uint16_t max_size;
-	char supported_sram_types[32];
-	char installed_sram_types[32];
-	uint16_t speed;
-	char error_correction_type[32];
-	char system_type[16];
-	char associativity[32];
-}  __attribute__((__packed__)) s_cache;
+    char socket_designation[32];
+    char configuration[32];
+    char mode[32];
+    char location[8];
+    uint16_t installed_size;
+    uint16_t max_size;
+    char supported_sram_types[32];
+    char installed_sram_types[32];
+    uint16_t speed;
+    char error_correction_type[32];
+    char system_type[16];
+    char associativity[32];
+} __attribute__ ((__packed__)) s_cache;
 
 const char *dmi_cache_mode(uint8_t code);
 const char *dmi_cache_location(uint8_t code);
 uint16_t dmi_cache_size(uint16_t code);
-void dmi_cache_types(uint16_t code, const char *sep, char* array);
+void dmi_cache_types(uint16_t code, const char *sep, char *array);
 const char *dmi_cache_ec_type(uint8_t code);
 const char *dmi_cache_type(uint8_t code);
 const char *dmi_cache_associativity(uint8_t code);
