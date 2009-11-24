@@ -43,6 +43,9 @@ void get_type(int, char*, int);
 void detect_memory_e820(struct e820entry *desc, int size_map, int *size_found);
 int detect_memory_e801(int*, int*);
 int detect_memory_88(int*);
+
+/* The following stuff could be merge once the addr_t will be set to 64bits.
+ * syslinux_scan_memory can be used for that purpose */
 unsigned long memsize_e820(struct e820entry *e820, int e820_nr);
 int sanitize_e820_map(struct e820entry *orig_map, struct e820entry *new_bios, short old_nr);
 unsigned long detect_memsize(void);

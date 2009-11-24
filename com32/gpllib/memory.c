@@ -222,7 +222,9 @@ int detect_memory_88(int* mem_size)
  * the syslinux environement.
  * Some e820 responses include overlapping entries.  The following 
  * replaces the original e820 map with a new one, removing overlaps.
- *
+ * 
+ * The following stuff could be merge once the addr_t will be set to 64bits.
+ * syslinux_scan_memory can be used for that purpose 
  */
 int sanitize_e820_map(struct e820entry *orig_map, struct e820entry *new_bios,
 	short old_nr)
@@ -375,6 +377,8 @@ int sanitize_e820_map(struct e820entry *orig_map, struct e820entry *new_bios,
 	return(new_bios_entry);
 }
 
+/* The following stuff could be merge once the addr_t will be set to 64bits.
+ * syslinux_scan_memory can be used for that purpose */
 unsigned long detect_memsize(void) {
 	unsigned long memory_size=0;
 
@@ -399,6 +403,8 @@ unsigned long detect_memsize(void) {
 	return 0;
 }
 
+/* The following stuff could be merge once the addr_t will be set to 64bits.
+ * syslinux_scan_memory can be used for that purpose */
 unsigned long memsize_e820(struct e820entry *e820, int e820_nr) {
 	int i, n, nr;
 	unsigned long memory_size=0;
