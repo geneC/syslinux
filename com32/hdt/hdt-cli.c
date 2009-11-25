@@ -487,8 +487,9 @@ static void autocomplete_command(char *command)
 	    if (strncmp(current_mode->default_modules->modules[j].name,
 			command, strlen(command)) == 0) {
 		printf("%s\n", current_mode->default_modules->modules[j].name);
-		autocomplete_add_token_to_list(current_mode->default_modules->
-					       modules[j].name);
+		autocomplete_add_token_to_list(current_mode->
+					       default_modules->modules[j].
+					       name);
 	    }
 	    j++;
 	}
@@ -522,8 +523,8 @@ static void autocomplete_command(char *command)
 		    hdt_mode.default_modules->modules[j].name,
 		    strlen(command)) == 0) {
 	    printf("%s\n", hdt_mode.default_modules->modules[j].name);
-	    autocomplete_add_token_to_list(hdt_mode.default_modules->modules[j].
-					   name);
+	    autocomplete_add_token_to_list(hdt_mode.default_modules->
+					   modules[j].name);
 	}
 	j++;
     }
@@ -733,7 +734,6 @@ static void reset_prompt()
     if (hdt_cli.mode != EXIT_MODE) {
 	printf("%s", hdt_cli.prompt);
 	/* Reset the line */
-	memset(hdt_cli.input, '\0', MAX_LINE_SIZE);
 	hdt_cli.cursor_pos = 0;
     }
 }
@@ -780,6 +780,20 @@ void start_auto_mode(struct s_hardware *hardware)
     more_printf("\n");
 }
 
+void print_history()
+{
+    printf("History\n");
+    for (int i = 1; i < MAX_HISTORY_SIZE - 1; i++) {
+	if (i == hdt_cli.history_pos) {
+	    printf("*%d:'%s'\n", i, hdt_cli.history[i]);
+	    continue;
+	}
+	if (strlen(hdt_cli.history[i]) == 0)
+	    continue;
+	printf(" %d:'%s'\n", i, hdt_cli.history[i]);
+    }
+}
+
 /* Code that manages the cli mode */
 void start_cli_mode(struct s_hardware *hardware)
 {
@@ -789,7 +803,6 @@ void start_cli_mode(struct s_hardware *hardware)
     char temp_command[MAX_LINE_SIZE];
 
     hdt_cli.cursor_pos = 0;
-    memset(hdt_cli.input, '\0', MAX_LINE_SIZE);
     memset(hdt_cli.history, '\0', sizeof(hdt_cli.history));
     hdt_cli.history_pos = 1;
     hdt_cli.max_history_pos = 1;
@@ -836,8 +849,8 @@ void start_cli_mode(struct s_hardware *hardware)
 	case KEY_CTRL('k'):
 	    /* Clear the end of the line */
 	    clear_end_of_line();
-	    memset(&hdt_cli.input[hdt_cli.cursor_pos], 0,
-		   strlen(hdt_cli.input) - hdt_cli.cursor_pos);
+	    memset(&INPUT[hdt_cli.cursor_pos], 0,
+		   strlen(INPUT) - hdt_cli.cursor_pos);
 	    break;
 
 	case KEY_CTRL('c'):
@@ -853,7 +866,7 @@ void start_cli_mode(struct s_hardware *hardware)
 	    break;
 
 	case KEY_RIGHT:
-	    if (hdt_cli.cursor_pos < (int)strlen(hdt_cli.input)) {
+	    if (hdt_cli.cursor_pos < (int)strlen(INPUT)) {
 		move_cursor_right(1);
 		hdt_cli.cursor_pos++;
 	    }
@@ -863,10 +876,10 @@ void start_cli_mode(struct s_hardware *hardware)
 	case KEY_END:
 	    /* Calling with a 0 value will make the cursor move */
 	    /* So, let's move the cursor only if needed */
-	    if ((strlen(hdt_cli.input) - hdt_cli.cursor_pos) > 0) {
+	    if ((strlen(INPUT) - hdt_cli.cursor_pos) > 0) {
 		/* Return to the begining of line */
-		move_cursor_right(strlen(hdt_cli.input) - hdt_cli.cursor_pos);
-		hdt_cli.cursor_pos = strlen(hdt_cli.input);
+		move_cursor_right(strlen(INPUT) - hdt_cli.cursor_pos);
+		hdt_cli.cursor_pos = strlen(INPUT);
 	    }
 	    break;
 
@@ -889,6 +902,7 @@ void start_cli_mode(struct s_hardware *hardware)
 	    } else {
 		future_history_pos--;
 	    }
+
 	    /* Does the next position is valid */
 	    if (strlen(hdt_cli.history[future_history_pos]) == 0)
 		break;
@@ -903,10 +917,8 @@ void start_cli_mode(struct s_hardware *hardware)
 	    move_cursor_to_column(0);
 
 	    reset_prompt();
-	    printf("%s", hdt_cli.history[hdt_cli.history_pos]);
-	    strncpy(hdt_cli.input, hdt_cli.history[hdt_cli.history_pos],
-		    sizeof(hdt_cli.input));
-	    hdt_cli.cursor_pos = strlen(hdt_cli.input);
+	    printf("%s", INPUT);
+	    hdt_cli.cursor_pos = strlen(INPUT);
 	    break;
 
 	case KEY_DOWN:
@@ -919,6 +931,7 @@ void start_cli_mode(struct s_hardware *hardware)
 	    } else {
 		future_history_pos++;
 	    }
+
 	    /* Does the next position is valid */
 	    if (strlen(hdt_cli.history[future_history_pos]) == 0)
 		display_history = false;
@@ -939,10 +952,8 @@ void start_cli_mode(struct s_hardware *hardware)
 	    move_cursor_to_column(0);
 
 	    reset_prompt();
-	    printf("%s", hdt_cli.history[hdt_cli.history_pos]);
-	    strncpy(hdt_cli.input, hdt_cli.history[hdt_cli.history_pos],
-		    sizeof(hdt_cli.input));
-	    hdt_cli.cursor_pos = strlen(hdt_cli.input);
+	    printf("%s", INPUT);
+	    hdt_cli.cursor_pos = strlen(INPUT);
 	    break;
 
 	case KEY_TAB:
@@ -952,10 +963,10 @@ void start_cli_mode(struct s_hardware *hardware)
 		move_cursor_to_column(0);
 		reset_prompt();
 		printf("%s", autocomplete_last_seen->autocomplete_token);
-		strncpy(hdt_cli.input,
+		strncpy(INPUT,
 			autocomplete_last_seen->autocomplete_token,
-			sizeof(hdt_cli.input));
-		hdt_cli.cursor_pos = strlen(hdt_cli.input);
+			sizeof(INPUT));
+		hdt_cli.cursor_pos = strlen(INPUT);
 
 		/* Cycle through the list */
 		autocomplete_last_seen = autocomplete_last_seen->next;
@@ -963,54 +974,50 @@ void start_cli_mode(struct s_hardware *hardware)
 		    autocomplete_last_seen = autocomplete_head;
 	    } else {
 		printf("\n");
-		autocomplete(skip_spaces(hdt_cli.input));
+		autocomplete(skip_spaces(INPUT));
 		autocomplete_last_seen = autocomplete_head;
 
-		printf("%s%s", hdt_cli.prompt, hdt_cli.input);
+		printf("%s%s", hdt_cli.prompt, INPUT);
 	    }
 	    break;
 
 	case KEY_ENTER:
 	    printf("\n");
-	    if (strlen(remove_spaces(hdt_cli.input)) < 1) {
+	    if (strlen(remove_spaces(INPUT)) < 1) {
 		reset_prompt();
 		break;
 	    }
+	    exec_command(remove_spaces(INPUT), hardware);
 	    if (hdt_cli.history_pos == MAX_HISTORY_SIZE - 1)
 		hdt_cli.history_pos = 1;
-	    strncpy(hdt_cli.history[hdt_cli.history_pos],
-		    remove_spaces(hdt_cli.input),
-		    sizeof(hdt_cli.history[hdt_cli.history_pos]));
 	    hdt_cli.history_pos++;
 	    if (hdt_cli.history_pos > hdt_cli.max_history_pos)
 		hdt_cli.max_history_pos = hdt_cli.history_pos;
-	    exec_command(remove_spaces(hdt_cli.input), hardware);
 	    reset_prompt();
 	    break;
 
 	case KEY_CTRL('d'):
 	case KEY_DELETE:
 	    /* No need to delete when input is empty */
-	    if (strlen(hdt_cli.input) == 0)
+	    if (strlen(INPUT) == 0)
 		break;
 	    /* Don't delete when cursor is at the end of the line */
-	    if (hdt_cli.cursor_pos >= strlen(hdt_cli.input))
+	    if (hdt_cli.cursor_pos >= strlen(INPUT))
 		break;
 
-	    for (int c = hdt_cli.cursor_pos;
-		 c < (int)strlen(hdt_cli.input) - 1; c++)
-		hdt_cli.input[c] = hdt_cli.input[c + 1];
-	    hdt_cli.input[strlen(hdt_cli.input) - 1] = '\0';
+	    for (int c = hdt_cli.cursor_pos; c < (int)strlen(INPUT) - 1; c++)
+		INPUT[c] = INPUT[c + 1];
+	    INPUT[strlen(INPUT) - 1] = '\0';
 
 	    /* Clear the end of the line */
 	    clear_end_of_line();
 
 	    /* Print the resulting buffer */
-	    printf("%s", hdt_cli.input + hdt_cli.cursor_pos);
+	    printf("%s", INPUT + hdt_cli.cursor_pos);
 
 	    /* Replace the cursor at the proper place */
-	    if (strlen(hdt_cli.input + hdt_cli.cursor_pos) > 0)
-		move_cursor_left(strlen(hdt_cli.input + hdt_cli.cursor_pos));
+	    if (strlen(INPUT + hdt_cli.cursor_pos) > 0)
+		move_cursor_left(strlen(INPUT + hdt_cli.cursor_pos));
 	    break;
 
 	case KEY_DEL:
@@ -1020,9 +1027,9 @@ void start_cli_mode(struct s_hardware *hardware)
 		break;
 
 	    for (int c = hdt_cli.cursor_pos - 1;
-		 c < (int)strlen(hdt_cli.input) - 1; c++)
-		hdt_cli.input[c] = hdt_cli.input[c + 1];
-	    hdt_cli.input[strlen(hdt_cli.input) - 1] = '\0';
+		 c < (int)strlen(INPUT) - 1; c++)
+		INPUT[c] = INPUT[c + 1];
+	    INPUT[strlen(INPUT) - 1] = '\0';
 
 	    /* Get one char back */
 	    move_cursor_left(1);
@@ -1031,7 +1038,7 @@ void start_cli_mode(struct s_hardware *hardware)
 	    clear_end_of_line();
 
 	    /* Print the resulting buffer */
-	    printf("%s", hdt_cli.input + hdt_cli.cursor_pos - 1);
+	    printf("%s", INPUT + hdt_cli.cursor_pos - 1);
 
 	    /* Realing to a char before the place we were */
 	    hdt_cli.cursor_pos--;
@@ -1053,31 +1060,30 @@ void start_cli_mode(struct s_hardware *hardware)
 	    if (hdt_cli.cursor_pos > MAX_LINE_SIZE - 2)
 		break;
 	    /* If we aren't at the end of the input line, let's insert */
-	    if (hdt_cli.cursor_pos < (int)strlen(hdt_cli.input)) {
+	    if (hdt_cli.cursor_pos < (int)strlen(INPUT)) {
 		char key[2];
-		int trailing_chars = strlen(hdt_cli.input) - hdt_cli.cursor_pos;
+		int trailing_chars = strlen(INPUT) - hdt_cli.cursor_pos;
 		memset(temp_command, 0, sizeof(temp_command));
-		strncpy(temp_command, hdt_cli.input, hdt_cli.cursor_pos);
+		strncpy(temp_command, INPUT, hdt_cli.cursor_pos);
 		sprintf(key, "%c", current_key);
 		strncat(temp_command, key, 1);
 		strncat(temp_command,
-			hdt_cli.input + hdt_cli.cursor_pos, trailing_chars);
-		memset(hdt_cli.input, 0, sizeof(hdt_cli.input));
-		snprintf(hdt_cli.input, sizeof(hdt_cli.input), "%s",
-			 temp_command);
+			INPUT + hdt_cli.cursor_pos, trailing_chars);
+		memset(INPUT, 0, sizeof(INPUT));
+		snprintf(INPUT, sizeof(INPUT), "%s", temp_command);
 
 		/* Clear the end of the line */
 		clear_end_of_line();
 
 		/* Print the resulting buffer */
-		printf("%s", hdt_cli.input + hdt_cli.cursor_pos);
+		printf("%s", INPUT + hdt_cli.cursor_pos);
 
 		/* Return where we must put the new char */
 		move_cursor_left(trailing_chars);
 
 	    } else {
 		putchar(current_key);
-		hdt_cli.input[hdt_cli.cursor_pos] = current_key;
+		INPUT[hdt_cli.cursor_pos] = current_key;
 	    }
 	    hdt_cli.cursor_pos++;
 	    break;
