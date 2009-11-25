@@ -275,6 +275,10 @@ struct cli_callback_descr list_hdt_default_modules[] = {
      .exec = do_reboot,
      },
     {
+     .name = CLI_HISTORY,
+     .exec = print_history,
+     },
+    {
      .name = NULL,
      .exec = NULL},
 };

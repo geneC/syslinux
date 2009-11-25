@@ -782,7 +782,6 @@ void start_auto_mode(struct s_hardware *hardware)
 
 void print_history()
 {
-    printf("History\n");
     for (int i = 1; i < MAX_HISTORY_SIZE - 1; i++) {
 	if (i == hdt_cli.history_pos) {
 	    printf("*%d:'%s'\n", i, hdt_cli.history[i]);
