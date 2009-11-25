@@ -487,9 +487,8 @@ static void autocomplete_command(char *command)
 	    if (strncmp(current_mode->default_modules->modules[j].name,
 			command, strlen(command)) == 0) {
 		printf("%s\n", current_mode->default_modules->modules[j].name);
-		autocomplete_add_token_to_list(current_mode->
-					       default_modules->modules[j].
-					       name);
+		autocomplete_add_token_to_list(current_mode->default_modules->
+					       modules[j].name);
 	    }
 	    j++;
 	}
@@ -523,8 +522,8 @@ static void autocomplete_command(char *command)
 		    hdt_mode.default_modules->modules[j].name,
 		    strlen(command)) == 0) {
 	    printf("%s\n", hdt_mode.default_modules->modules[j].name);
-	    autocomplete_add_token_to_list(hdt_mode.default_modules->
-					   modules[j].name);
+	    autocomplete_add_token_to_list(hdt_mode.default_modules->modules[j].
+					   name);
 	}
 	j++;
     }
@@ -797,7 +796,8 @@ void print_history()
 void start_cli_mode(struct s_hardware *hardware)
 {
     int current_key = 0;
-    int future_history_pos = 1;	/* Temp variable */
+    int future_history_pos = 1;	/* position of the next position in the history */
+    int current_future_history_pos = 1;	/* Temp variable */
     bool display_history = true;	/* Temp Variable */
     char temp_command[MAX_LINE_SIZE];
 
@@ -894,8 +894,11 @@ void start_cli_mode(struct s_hardware *hardware)
 	    break;
 
 	case KEY_UP:
+
+	    /* Saving future position */
+	    current_future_history_pos = future_history_pos;
+
 	    /* We have to compute the next position */
-	    future_history_pos = hdt_cli.history_pos;
 	    if (future_history_pos == 1) {
 		future_history_pos = MAX_HISTORY_SIZE - 1;
 	    } else {
@@ -903,11 +906,15 @@ void start_cli_mode(struct s_hardware *hardware)
 	    }
 
 	    /* Does the next position is valid */
-	    if (strlen(hdt_cli.history[future_history_pos]) == 0)
+	    if (strlen(hdt_cli.history[future_history_pos]) == 0) {
+		/* Position is invalid, restoring position */
+		future_history_pos = current_future_history_pos;
 		break;
+	    }
 
 	    /* Let's make that future position the one we use */
-	    hdt_cli.history_pos = future_history_pos;
+	    memset(INPUT, '\0', sizeof(INPUT));
+	    strncpy(INPUT, hdt_cli.history[future_history_pos], sizeof(INPUT));
 
 	    /* Clear the line */
 	    clear_line();
@@ -923,8 +930,9 @@ void start_cli_mode(struct s_hardware *hardware)
 	case KEY_DOWN:
 	    display_history = true;
 
-	    /* We have to compute the next position */
-	    future_history_pos = hdt_cli.history_pos;
+	    /* Saving future position */
+	    current_future_history_pos = future_history_pos;
+
 	    if (future_history_pos == MAX_HISTORY_SIZE - 1) {
 		future_history_pos = 1;
 	    } else {
@@ -938,11 +946,16 @@ void start_cli_mode(struct s_hardware *hardware)
 	    /* An exception is made to reach the last empty line */
 	    if (future_history_pos == hdt_cli.max_history_pos)
 		display_history = true;
-	    if (display_history == false)
+
+	    if (display_history == false) {
+		/* Position is invalid, restoring position */
+		future_history_pos = current_future_history_pos;
 		break;
+	    }
 
 	    /* Let's make that future position the one we use */
-	    hdt_cli.history_pos = future_history_pos;
+	    memset(INPUT, '\0', sizeof(INPUT));
+	    strncpy(INPUT, hdt_cli.history[future_history_pos], sizeof(INPUT));
 
 	    /* Clear the line */
 	    clear_line();
@@ -990,6 +1003,7 @@ void start_cli_mode(struct s_hardware *hardware)
 	    if (hdt_cli.history_pos == MAX_HISTORY_SIZE - 1)
 		hdt_cli.history_pos = 1;
 	    hdt_cli.history_pos++;
+	    future_history_pos = hdt_cli.history_pos;
 	    if (hdt_cli.history_pos > hdt_cli.max_history_pos)
 		hdt_cli.max_history_pos = hdt_cli.history_pos;
 	    reset_prompt();
