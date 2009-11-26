@@ -32,7 +32,7 @@ include $(topdir)/MCONFIG
 # List of module objects that should be installed for all derivatives
 MODULES = memdisk/memdisk memdump/memdump.com modules/*.com \
 	com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
-	com32/hdt/*.c32 com32/rosh/*.c32
+	com32/hdt/*.c32 com32/rosh/*.c32 com32/gfxboot/*.c32
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
