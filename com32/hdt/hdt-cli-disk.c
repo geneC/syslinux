@@ -114,8 +114,10 @@ void main_show_disk(int argc, char **argv, struct s_hardware *hardware)
     detect_disks(hardware);
     reset_more_printf();
 
-    if (!hardware->disk_info[i].cbios)
+    if (!hardware->disk_info[i].cbios) {
+	more_printf("No disk found\n");
 	return;			/* Invalid geometry */
+    }
 
     get_mbr_string(hardware->mbr_ids[i], &mbr_name, 50);
 
@@ -157,12 +159,14 @@ void main_show_disk(int argc, char **argv, struct s_hardware *hardware)
 void main_show_disks(int argc __unused, char **argv __unused,
 		     struct s_hardware *hardware)
 {
+    bool found = false;
     reset_more_printf();
     detect_disks(hardware);
 
     int first_one = 0;
     for (int drive = 0x80; drive < 0xff; drive++) {
 	if (hardware->disk_info[drive - 0x80].cbios) {
+	    found = true;
 	    if (!first_one) {
 		first_one = 1;
 	    } else {
@@ -174,12 +178,16 @@ void main_show_disks(int argc __unused, char **argv __unused,
 	    main_show_disk(1, argv, hardware);
 	}
     }
+
+    if (found == false)
+	more_printf("No disk found\n");
 }
 
 void disks_summary(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware)
 {
     int i = -1;
+    bool found = false;
 
     detect_disks(hardware);
     reset_more_printf();
@@ -188,6 +196,8 @@ void disks_summary(int argc __unused, char **argv __unused,
 	i++;
 	if (!hardware->disk_info[i].cbios)
 	    continue;		/* Invalid geometry */
+
+	found = true;
 	struct driveinfo *d = &hardware->disk_info[i];
 	char disk_size[9];
 
@@ -206,6 +216,9 @@ void disks_summary(int argc __unused, char **argv __unused,
 		    remove_spaces((char *)d->edd_params.host_bus_type),
 		    remove_spaces((char *)d->edd_params.interface_type));
     }
+
+    if (found == false)
+	more_printf("No disk found\n");
 }
 
 struct cli_callback_descr list_disk_show_modules[] = {
