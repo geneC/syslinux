@@ -80,6 +80,22 @@ static void show_vesa_modes(int argc __unused, char **argv __unused,
     }
 }
 
+static void enable_vesa(int argc __unused, char **argv __unused,
+			struct s_hardware *hardware)
+{
+    vesamode = true;
+    max_console_lines = MAX_VESA_CLI_LINES;
+    init_console(hardware);
+}
+
+static void disable_vesa(int argc __unused, char **argv __unused,
+			 struct s_hardware *hardware)
+{
+    vesamode = false;
+    max_console_lines = MAX_CLI_LINES;
+    init_console(hardware);
+}
+
 struct cli_callback_descr list_vesa_show_modules[] = {
     {
      .name = CLI_MODES,
@@ -91,15 +107,36 @@ struct cli_callback_descr list_vesa_show_modules[] = {
      },
 };
 
+struct cli_callback_descr list_vesa_commands[] = {
+    {
+     .name = CLI_ENABLE,
+     .exec = enable_vesa,
+     },
+    {
+     .name = CLI_DISABLE,
+     .exec = disable_vesa,
+     },
+
+    {
+     .name = NULL,
+     .exec = NULL,
+     },
+};
+
 struct cli_module_descr vesa_show_modules = {
     .modules = list_vesa_show_modules,
     .default_callback = main_show_vesa,
 };
 
+struct cli_module_descr vesa_commands = {
+    .modules = list_vesa_commands,
+    .default_callback = enable_vesa,
+};
+
 struct cli_mode_descr vesa_mode = {
     .mode = VESA_MODE,
     .name = CLI_VESA,
-    .default_modules = NULL,
+    .default_modules = &vesa_commands,
     .show_modules = &vesa_show_modules,
     .set_modules = NULL,
 };

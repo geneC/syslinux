@@ -68,6 +68,8 @@
 #define CLI_MODES "modes"
 #define CLI_VPD  "vpd"
 #define CLI_MEMORY  "memory"
+#define CLI_ENABLE "enable"
+#define CLI_DISABLE "disable"
 
 typedef enum {
     INVALID_MODE,
