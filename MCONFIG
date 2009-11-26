@@ -55,6 +55,7 @@ PNGTOPNM = pngtopnm
 MCOPY    = mcopy
 MFORMAT  = mformat
 MKISOFS  = mkisofs
+SED	 = sed
 
 com32    = $(topdir)/com32
 

@@ -26,6 +26,7 @@ MODULES	  = hdt.c32
 TESTFILES =
 
 OBJS	  = $(patsubst %.c,%.o,$(wildcard *.c))
+VERSION   = $(shell $(SED) -n 's/\#define VERSION \"\(.*\)\"/\1/p' hdt.h)
 
 KERNEL_VERSION          ?= $(shell uname -r)
 MODULES_ALIAS_FILE      ?= /lib/modules/$(KERNEL_VERSION)/modules.alias
@@ -48,6 +49,7 @@ hdt.elf : $(OBJS) $(LIBS) $(C_LIBS)
 
 hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtools/syslinux $(REBOOT_COM32) $(MENU_COM32)
 	rm -f hdt.img
+	$(SED) -e 's/%VERSION%/$(VERSION)/g' $(FLOPPY_DIR)/hdt.cfg > $(FLOPPY_DIR)/syslinux.cfg
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MFORMAT) -v HDT -f 1440 -C a:
 	$(topdir)/mtools/syslinux hdt.img
 	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/hwdata/pci.ids $(PCI_IDS_FILE) && $(GZIPPROG) $(PCI_IDS_FILE)
@@ -58,7 +60,7 @@ hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtool
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(MENU_COM32) a:
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(REBOOT_COM32) a:
 	@ [ -f $(GZ_PCI_IDS_FILE) ] && MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(GZ_PCI_IDS_FILE) a:pci.ids || printf "\nThe $(GZ_PCI_IDS_FILE) file is missing and can be downloaded from http://pciids.sourceforge.net and gzipped in\nthe ./com32/hdt/$(FLOPPY_DIR) directory of the extracted Syslinux source.\n\n"
-	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(FLOPPY_DIR)/hdt.cfg a:syslinux.cfg
+	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(FLOPPY_DIR)/syslinux.cfg a:
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(ART_DIR)/backgnd.png a:
 
 hdt.img.gz: hdt.img
@@ -70,7 +72,7 @@ hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg
 	rm -f hdt.iso
 	mkdir -p $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp $(topdir)/core/isolinux.bin $(ISO_DIR)/$(ISOLINUX_DIR)
-	cp $(FLOPPY_DIR)/hdt.cfg $(ISO_DIR)/$(ISOLINUX_DIR)/isolinux.cfg
+	$(SED) -e 's/%VERSION%/$(VERSION)/g' $(FLOPPY_DIR)/hdt.cfg > $(ISO_DIR)/$(ISOLINUX_DIR)/isolinux.cfg
 	cp hdt.c32 $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp $(REBOOT_COM32) $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp $(MENU_COM32) $(ISO_DIR)/$(ISOLINUX_DIR)
