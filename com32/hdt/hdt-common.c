@@ -90,12 +90,15 @@ void detect_parameters(const int argc, const char *argv[],
 	    convert_isolinux_filename(hardware->reboot_label, hardware);
 	} else if (!strncmp(argv[i], "vesa", 4)) {
 	    vesamode = true;
-	    max_console_lines = 24;
+	    max_console_lines = CLI_VESA_MAX_LINES;
 	    /* If the user defines a background image */
 	    if (!strncmp(argv[i], "vesa=", 5)) {
 		strncpy(hardware->vesa_background, argv[i] + 5,
 			sizeof(hardware->vesa_background));
 	    }
+	} else if (!strncmp(argv[i], "novesa", 6)) {
+	    vesamode = false;
+	    max_console_lines = CLI_MAX_LINES;
 	} else if (!strncmp(argv[i], "auto=", 5)) {
 	    /* The auto= parameter is separated in several argv[]
 	     * as it can contains spaces.

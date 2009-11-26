@@ -72,6 +72,10 @@
 /* Graphic to load in background when using the vesa mode */
 #define CLI_DEFAULT_BACKGROUND "backgnd.png"
 
+/* The maximum number of lines */
+#define MAX_CLI_LINES 20
+#define MAX_VESA_CLI_LINES 24
+
 /* Defines if the cli is quiet*/
 bool quiet;
 

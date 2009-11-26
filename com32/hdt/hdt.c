@@ -40,9 +40,10 @@
 
 int display_line_nb = 0;
 bool disable_more_printf = false;
+
 /* Defines the number of lines in the console
  * Default is 20 for a std console */
-int max_console_lines = 20;
+int max_console_lines = MAX_CLI_LINES;
 
 int main(const int argc, const char *argv[])
 {
