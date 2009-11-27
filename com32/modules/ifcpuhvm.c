@@ -21,7 +21,7 @@
  * Usage:
  *
  *    label boot_kernel
- *        kernel ifvhm.c32
+ *        com32 ifcpuhvm.c32
  *        append boot_kernel_xen -- boot_kernel_regular
  *    label boot_kernel_xen
  *    	  kernel mboot.c32
