@@ -136,7 +136,7 @@ int get_model_name(struct cpuinfo_x86 *c)
 void generic_identify(struct cpuinfo_x86 *c)
 {
     uint32_t tfms, xlvl;
-    unsigned int ebx;
+    uint32_t eax, ebx, ecx, edx;
 
     /* Get vendor name */
     cpuid(0x00000000,
@@ -146,6 +146,7 @@ void generic_identify(struct cpuinfo_x86 *c)
 	  (uint32_t *) & c->x86_vendor_id[4]);
 
     get_cpu_vendor(c);
+
     /* Intel-defined flags: level 0x00000001 */
     if (c->cpuid_level >= 0x00000001) {
 	uint32_t capability, excap;
@@ -176,6 +177,25 @@ void generic_identify(struct cpuinfo_x86 *c)
 	if (xlvl >= 0x80000004)
 	    get_model_name(c);	/* Default name */
     }
+
+    /* Detecting the number of cores */
+    switch (c->x86_vendor) {
+    case X86_VENDOR_AMD:
+	if (xlvl >= 0x80000008) {
+	    c->x86_num_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
+	    if (c->x86_num_cores & (c->x86_num_cores - 1))
+		c->x86_num_cores = 1;
+	}
+	break;
+    case X86_VENDOR_INTEL:
+	cpuid(0x4, &eax, &ebx, &ecx, &edx);
+	c->x86_num_cores = ((eax & 0xfc000000) >> 26) + 1;
+	break;
+    default:
+	c->x86_num_cores = 1;
+	break;
+    }
+
 }
 
 /*
@@ -359,6 +379,7 @@ void set_generic_info(struct cpuinfo_x86 *c, s_cpu * cpu)
     strncpy(cpu->vendor, cpu_devs[c->x86_vendor]->c_vendor,
 	    sizeof(cpu->vendor));
     strncpy(cpu->model, c->x86_model_id, sizeof(cpu->model));
+    cpu->num_cores = c->x86_num_cores;
 }
 
 void detect_cpu(s_cpu * cpu)
@@ -369,7 +390,7 @@ void detect_cpu(s_cpu * cpu)
     c.x86_vendor = X86_VENDOR_UNKNOWN;
     c.cpuid_level = -1;		/* CPUID not detected */
     c.x86_model = c.x86_mask = 0;	/* So far unknown... */
-    c.x86_max_cores = 1;
+    c.x86_num_cores = 1;
     memset(&c.x86_capability, 0, sizeof(c.x86_capability));
     memset(&c.x86_vendor_id, 0, sizeof(c.x86_vendor_id));
     memset(&c.x86_model_id, 0, sizeof(c.x86_model_id));

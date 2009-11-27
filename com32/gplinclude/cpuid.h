@@ -127,6 +127,7 @@ typedef struct {
     char model[CPU_MODEL_SIZE];
     uint8_t model_id;
     uint8_t stepping;
+    uint8_t num_cores;
     s_cpu_flags flags;
 } s_cpu;
 
@@ -206,7 +207,7 @@ struct cpuinfo_x86 {
 #ifdef CONFIG_SMP
     cpumask_t llc_shared_map;	/* cpus sharing the last level cache */
 #endif
-    unsigned char x86_max_cores;	/* cpuid returned max cores value */
+    unsigned char x86_num_cores;	/* cpuid returned the number of cores */
     unsigned char booted_cores;	/* number of cores as seen by OS */
     unsigned char apicid;
     unsigned char x86_clflush_size;
