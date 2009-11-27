@@ -133,6 +133,50 @@ int get_model_name(struct cpuinfo_x86 *c)
     return 1;
 }
 
+void detect_cache(uint32_t xlvl, struct cpuinfo_x86 *c)
+{
+    uint32_t eax, ebx, ecx, edx, l2size;
+    /* Detecting L1 cache */
+    if (xlvl >= 0x80000005) {
+	cpuid(0x80000005, &eax, &ebx, &ecx, &edx);
+	c->x86_l1_data_cache_size = ecx >> 24;
+	c->x86_l1_instruction_cache_size = edx >> 24;
+    }
+
+    /* Detecting L2 cache */
+    c->x86_l2_cache_size = 0;
+
+    if (xlvl < 0x80000006)	/* Some chips just has a large L1. */
+	return;
+
+    cpuid(0x80000006, &eax, &ebx, &ecx, &edx);
+    l2size = ecx >> 16;
+
+    /* Vendor based fixes */
+    switch (c->x86_vendor) {
+    case X86_VENDOR_INTEL:
+	/*
+	 * Intel PIII Tualatin. This comes in two flavours.
+	 * One has 256kb of cache, the other 512. We have no way
+	 * to determine which, so we use a boottime override
+	 * for the 512kb model, and assume 256 otherwise.
+	 */
+	if ((c->x86 == 6) && (c->x86_model == 11) && (l2size == 0))
+	    l2size = 256;
+	break;
+    case X86_VENDOR_AMD:
+	/* AMD errata T13 (order #21922) */
+	if ((c->x86 == 6)) {
+	    if (c->x86_model == 3 && c->x86_mask == 0)	/* Duron Rev A0 */
+		l2size = 64;
+	    if (c->x86_model == 4 && (c->x86_mask == 0 || c->x86_mask == 1))	/* Tbird rev A1/A2 */
+		l2size = 256;
+	}
+	break;
+    }
+    c->x86_l2_cache_size = l2size;
+}
+
 void generic_identify(struct cpuinfo_x86 *c)
 {
     uint32_t tfms, xlvl;
@@ -196,6 +240,7 @@ void generic_identify(struct cpuinfo_x86 *c)
 	break;
     }
 
+    detect_cache(xlvl, c);
 }
 
 /*
@@ -380,13 +425,18 @@ void set_generic_info(struct cpuinfo_x86 *c, s_cpu * cpu)
 	    sizeof(cpu->vendor));
     strncpy(cpu->model, c->x86_model_id, sizeof(cpu->model));
     cpu->num_cores = c->x86_num_cores;
+    cpu->l1_data_cache_size = c->x86_l1_data_cache_size;
+    cpu->l1_instruction_cache_size = c->x86_l1_instruction_cache_size;
+    cpu->l2_cache_size = c->x86_l2_cache_size;
 }
 
 void detect_cpu(s_cpu * cpu)
 {
     struct cpuinfo_x86 c;
     c.x86_clflush_size = 32;
-    c.x86_cache_size = -1;
+    c.x86_l1_data_cache_size = 0;
+    c.x86_l1_instruction_cache_size = 0;
+    c.x86_l2_cache_size = 0;
     c.x86_vendor = X86_VENDOR_UNKNOWN;
     c.cpuid_level = -1;		/* CPUID not detected */
     c.x86_model = c.x86_mask = 0;	/* So far unknown... */

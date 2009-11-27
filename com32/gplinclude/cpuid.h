@@ -128,6 +128,9 @@ typedef struct {
     uint8_t model_id;
     uint8_t stepping;
     uint8_t num_cores;
+    uint16_t l1_data_cache_size;
+    uint16_t l1_instruction_cache_size;
+    uint16_t l2_cache_size;
     s_cpu_flags flags;
 } s_cpu;
 
@@ -196,7 +199,9 @@ struct cpuinfo_x86 {
     uint32_t x86_capability[NCAPINTS];
     char x86_vendor_id[16];
     char x86_model_id[64];
-    int x86_cache_size;		/* in KB, if available */
+    uint16_t x86_l1_data_cache_size;	/* in KB, if available */
+    uint16_t x86_l1_instruction_cache_size;	/* in KB, if available */
+    uint16_t x86_l2_cache_size;	/* in KB, if available */
     int x86_cache_alignment;	/* in bytes */
     char fdiv_bug;
     char f00f_bug;
