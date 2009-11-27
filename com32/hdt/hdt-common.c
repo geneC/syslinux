@@ -35,6 +35,7 @@
 #include "hdt-common.h"
 #include <disk/util.h>
 #include <disk/mbrs.h>
+#include <memory.h>
 
 /* ISOlinux requires a 8.3 format */
 void convert_isolinux_filename(char *filename, struct s_hardware *hardware)
@@ -167,6 +168,7 @@ void init_hardware(struct s_hardware *hardware)
     hardware->pxe_detection = false;
     hardware->vesa_detection = false;
     hardware->vpd_detection = false;
+    hardware->memory_detection = false;
     hardware->nb_pci_devices = 0;
     hardware->is_dmi_valid = false;
     hardware->is_pxe_valid = false;
@@ -461,6 +463,13 @@ int detect_pxe(struct s_hardware *hardware)
 	}
     }
     return 0;
+}
+
+void detect_memory(struct s_hardware *hardware) {
+     if (hardware->memory_detection == false) {
+	     hardware->memory_detection = true;
+     hardware->detected_memory_size = detect_memsize();
+     }
 }
 
 void detect_pci(struct s_hardware *hardware)

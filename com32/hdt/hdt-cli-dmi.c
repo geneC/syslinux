@@ -516,6 +516,9 @@ void show_dmi_memory_modules(int argc __unused, char **argv __unused,
     /* Needed, if called by the memory mode */
     detect_dmi(hardware);
 
+    /* Detecting installed memory */
+    detect_memory(hardware);
+
     more_printf("Memory Size   : %lu MB (%lu KB)\n",
 		(hardware->detected_memory_size + (1 << 9)) >> 10,
 		hardware->detected_memory_size);

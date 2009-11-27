@@ -188,6 +188,7 @@ struct s_hardware {
     bool pxe_detection;		/* Does the pxe stuff has already been detected? */
     bool vesa_detection;	/* Does the vesa sutff have been already detected? */
     bool vpd_detection;		/* Does the vpd stuff has already been detected? */
+    bool memory_detection;	/* Does the memory size got detected ?*/
 
     char syslinux_fs[22];
     const struct syslinux_version *sv;
@@ -218,5 +219,6 @@ void detect_syslinux(struct s_hardware *hardware);
 void detect_parameters(const int argc, const char *argv[],
 		       struct s_hardware *hardware);
 int detect_vesa(struct s_hardware *hardware);
+void detect_memory(struct s_hardware *hardware);
 void init_console(struct s_hardware *hardware);
 #endif

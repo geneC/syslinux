@@ -295,7 +295,7 @@ void detect_hardware(struct s_hardware *hardware)
 {
     if (!quiet)
 	more_printf("MEMORY: Detecting\n");
-    hardware->detected_memory_size = detect_memsize();
+    detect_memory(hardware);
 
     if (!quiet)
 	more_printf("DMI: Detecting Table\n");
