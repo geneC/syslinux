@@ -43,6 +43,7 @@ void main_show_cpu(int argc __unused, char **argv __unused,
     more_printf("CPU\n");
     more_printf(" Manufacturer : %s \n", hardware->cpu.vendor);
     more_printf(" Product      : %s \n", del_multi_spaces(hardware->cpu.model));
+    more_printf(" Number Cores : %d \n", hardware->cpu.num_cores);
 
     memset(features,0,sizeof(features));
     snprintf(features, sizeof(features)," Features     : %d Mhz : ",hardware->dmi.processor.current_speed);
@@ -79,6 +80,7 @@ static void show_cpu(int argc __unused, char **argv __unused,
     more_printf("CPU\n");
     more_printf("Vendor    : %s\n", hardware->cpu.vendor);
     more_printf("Model     : %s\n", hardware->cpu.model);
+    more_printf("Num. Cores: %d\n", hardware->cpu.num_cores);
     more_printf("Vendor ID : %d\n", hardware->cpu.vendor_id);
     more_printf("Family ID : %d\n", hardware->cpu.family);
     more_printf("Model  ID : %d\n", hardware->cpu.model_id);
