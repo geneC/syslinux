@@ -28,6 +28,7 @@ TESTFILES =
 OBJS	  = $(patsubst %.c,%.o,$(wildcard *.c))
 VERSION   = $(shell $(SED) -n 's/\#define VERSION \"\(.*\)\"/\1/p' hdt.h)
 CODENAME  = $(shell $(SED) -n 's/\#define CODENAME \"\(.*\)\"/\1/p' hdt.h)
+VERSION_C32 = $(shell echo $(VERSION) | $(SED) -e 's/-/_/g')
 
 KERNEL_VERSION          ?= $(shell uname -r)
 MODULES_ALIAS_FILE      ?= /lib/modules/$(KERNEL_VERSION)/modules.alias
@@ -49,10 +50,10 @@ hdt.elf : $(OBJS) $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtools/syslinux $(REBOOT_COM32) $(MENU_COM32)
-	rm -f hdt.img
+	rm -f hdt*.img
 	$(SED) -e 's/%VERSION%/$(VERSION)/g' $(FLOPPY_DIR)/hdt.cfg |\
 	$(SED) -e 's/%CODENAME%/$(CODENAME)/g' > $(FLOPPY_DIR)/syslinux.cfg
-	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MFORMAT) -v HDT -f 1440 -C a:
+	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MFORMAT) -v HDT_$(VERSION) -f 1440 -C a:
 	$(topdir)/mtools/syslinux hdt.img
 	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/hwdata/pci.ids $(PCI_IDS_FILE) && $(GZIPPROG) $(PCI_IDS_FILE)
 	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/pci.ids $(PCI_IDS_FILE) && $(GZIPPROG) $(PCI_IDS_FILE)
@@ -64,10 +65,11 @@ hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtool
 	@ [ -f $(GZ_PCI_IDS_FILE) ] && MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(GZ_PCI_IDS_FILE) a:pci.ids || printf "\nThe $(GZ_PCI_IDS_FILE) file is missing and can be downloaded from http://pciids.sourceforge.net and gzipped in\nthe ./com32/hdt/$(FLOPPY_DIR) directory of the extracted Syslinux source.\n\n"
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(FLOPPY_DIR)/syslinux.cfg a:
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(ART_DIR)/backgnd.png a:
+	mv hdt.img hdt-$(VERSION).img
 
 hdt.img.gz: hdt.img
-	rm -rf hdt.img.gz
-	$(GZIPPROG) -c hdt.img >hdt.img.gz
+	rm -rf hdt*.img.gz
+	$(GZIPPROG) -c hdt-$(VERSION).img >hdt-$(VERSION).img.gz
 
 hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg
 	rm -rf $(ISO_DIR)
@@ -93,6 +95,10 @@ hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg
 	$(MKISOFS) -o hdt.iso -b $(ISOLINUX_DIR)/isolinux.bin -c $(ISOLINUX_DIR)/boot.cat \
 		-no-emul-boot -boot-load-size 4 -boot-info-table \
 		$(ISO_DIR)
+	mv hdt.iso hdt-$(VERSION).iso
+
+release: spotless hdt.c32 hdt.img hdt.img.gz hdt.iso
+	mv hdt.c32 hdt_$(VERSION_C32).c32
 
 tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d *.tmp
@@ -101,7 +107,7 @@ clean: tidy
 	rm -f *.lnx
 
 spotless: clean
-	rm -f *.lss *.c32 *.com hdt.img hdt.iso
+	rm -f *.lss *.c32 *.com hdt*.img hdt*.iso hdt*.img.gz
 	rm -rf $(ISO_DIR)
 	rm -f *~ \#*
 
