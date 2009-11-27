@@ -70,8 +70,8 @@ void compute_processor(struct s_my_menu *menu, struct s_hardware *hardware)
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 
-    snprintf(buffer, sizeof buffer, "Cores     : %d", hardware->cpu.num_cores);
-    snprintf(statbuffer, sizeof statbuffer, "Number of cores: %d",
+    snprintf(buffer, sizeof buffer, "CPU Cores : %d", hardware->cpu.num_cores);
+    snprintf(statbuffer, sizeof statbuffer, "Number of CPU cores: %d",
 	     hardware->cpu.num_cores);
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
