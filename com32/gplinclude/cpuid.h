@@ -49,6 +49,7 @@ typedef struct {
     bool clflsh;		/* Supports the CLFLUSH instruction */
     bool dts;			/* Debug Trace Store */
     bool acpi;			/* ACPI via MSR */
+    bool pbe;			/* Pending Break Enable */
     bool mmx;			/* Multimedia Extensions */
     bool fxsr;			/* FXSAVE and FXRSTOR instructions (fast save and restore */
     /* of FPU context), and CR4.OSFXSR available */
@@ -61,12 +62,62 @@ typedef struct {
     bool mp;			/* MP Capable. */
     bool nx;			/* Execute Disable */
     bool mmxext;		/* AMD MMX extensions */
+    bool fxsr_opt;		/* FXSAVE/FXRSTOR optimizations */
+    bool gbpages;		/* "pdpe1gb" GB pages */
+    bool rdtscp;		/* RDTSCP */
     bool lm;			/* Long Mode (x86-64) */
     bool nowext;		/* AMD 3DNow! extensions */
     bool now;			/* 3DNow! */
     bool smp;			/* A smp configuration has been found */
+    bool pni;			/* Streaming SIMD Extensions-3 */
+    bool pclmulqd;		/* PCLMULQDQ instruction */
+    bool dtes64;		/* 64-bit Debug Store */
     bool vmx;			/* Hardware virtualization */
+    bool smx;			/* Safer Mode */
+    bool est;			/* Enhanced SpeedStep */
+    bool tm2;			/* Thermal Monitor 2  */
+    bool sse3;			/* Supplemental SSE-3 */
+    bool cid;			/* Context ID */
+    bool fma;			/* Fused multiply-add  */
+    bool cx16;			/* CMPXCHG16B */
+    bool xtpr;			/* Send Task Priority Messages */
+    bool pdcm;			/* Performance Capabilities  */
+    bool dca;			/* Direct Cache Access */
+    bool xmm4_1;		/* "sse4_1" SSE-4.1 */
+    bool xmm4_2;		/* "sse4_2" SSE-4.2 */
+    bool x2apic;		/* x2APIC */
+    bool movbe;			/* MOVBE instruction */
+    bool popcnt;		/* POPCNT instruction */
+    bool aes;			/* AES Instruction */
+    bool xsave;			/* XSAVE/XRSTOR/XSETBV/XGETBV */
+    bool osxsave;		/* XSAVE enabled in the OS */
+    bool avx;			/* Advanced Vector Extensions */
+    bool hypervisor;		/* Running on a hypervisor */
+    bool ace2;			/* Advanced Cryptography Engine v2 */
+    bool ace2_en;		/* ACE v2 enabled */
+    bool phe;			/* PadLock Hash Engine */
+    bool phe_en;		/* PadLock Hash Engine Enabled */
+    bool pmm;			/* PadLock Montgomery Multiplier */
+    bool pmm_en;		/* PadLock Montgomery Multiplier enabled */
     bool svm;			/* Secure virtual machine */
+    bool extapic;		/* Extended APIC space */
+    bool cr8_legacy;		/* CR8 in 32-bit mode */
+    bool abm;			/* Advanced bit manipulation */
+    bool sse4a;			/* SSE4-A */
+    bool misalignsse;		/* Misaligned SSE mode */
+    bool nowprefetch;		/* 3DNow prefetch instructions */
+    bool osvw;			/* OS Visible Workaround */
+    bool ibs;			/*  Instruction Based Sampling */
+    bool sse5;			/* SSE5 */
+    bool skinit;		/* SKINIT/STGI instructions */
+    bool wdt;			/* Watchdog Timer */
+    bool ida;			/* Intel Dynamic Acceleration */
+    bool arat;			/* Always Running APIC Timer */
+    bool tpr_shadow;		/* Intel TPR Shadow */
+    bool vnmi;			/* Intel Virtual NMI */
+    bool flexpriority;		/* Intel FlexPriority */
+    bool ept;			/* Intel Extended Page Table */
+    bool vpid;			/* Intel Virtual Processor ID */
 } s_cpu_flags;
 
 typedef struct {
