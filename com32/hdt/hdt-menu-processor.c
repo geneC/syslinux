@@ -76,6 +76,23 @@ void compute_processor(struct s_my_menu *menu, struct s_hardware *hardware)
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 
+    snprintf(buffer, sizeof buffer, "L1 Cache  : %dK + %dK (I+D)",
+	     hardware->cpu.l1_instruction_cache_size,
+	     hardware->cpu.l1_data_cache_size);
+    snprintf(statbuffer, sizeof statbuffer,
+	     "L1 Cache Size: %dK + %dK (Instruction + Data)",
+	     hardware->cpu.l1_instruction_cache_size,
+	     hardware->cpu.l1_data_cache_size);
+    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+    menu->items_count++;
+
+    snprintf(buffer, sizeof buffer, "L2 Cache  : %dK",
+	     hardware->cpu.l2_cache_size);
+    snprintf(statbuffer, sizeof statbuffer, "L2 Cache Size: %dK",
+	     hardware->cpu.l2_cache_size);
+    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+    menu->items_count++;
+
     snprintf(buffer, sizeof buffer, "Vendor ID : %d", hardware->cpu.vendor_id);
     snprintf(statbuffer, sizeof statbuffer, "Vendor ID: %d",
 	     hardware->cpu.vendor_id);

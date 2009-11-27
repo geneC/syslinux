@@ -51,6 +51,23 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 
+    char features[SUBMENULEN + 1];
+    memset(features, 0, sizeof(features));
+    sprintf(features, "%d cores, %dK L2 Cache", hardware->cpu.num_cores,
+	    hardware->cpu.l2_cache_size);
+    if (hardware->cpu.flags.lm)
+	strcat(features, ", 64bit");
+    else
+	strcat(features, ", 32bit");
+    if (hardware->cpu.flags.smp)
+	strcat(features, ", SMP ");
+    if (hardware->cpu.flags.vmx || hardware->cpu.flags.svm)
+	strcat(features, ", HwVIRT ");
+    snprintf(buffer, sizeof buffer, "%s", features);
+    snprintf(statbuffer, sizeof statbuffer, "Features : %s", features);
+    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+    menu->items_count++;
+
     add_item("", "", OPT_SEP, "", 0);
     if (hardware->is_dmi_valid == true) {
 

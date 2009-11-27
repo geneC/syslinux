@@ -44,17 +44,21 @@ void main_show_cpu(int argc __unused, char **argv __unused,
     more_printf(" Manufacturer : %s \n", hardware->cpu.vendor);
     more_printf(" Product      : %s \n", del_multi_spaces(hardware->cpu.model));
     more_printf(" Number Cores : %d \n", hardware->cpu.num_cores);
+    more_printf(" L2 Cache     : %dK\n", hardware->cpu.l2_cache_size);
 
-    memset(features,0,sizeof(features));
-    snprintf(features, sizeof(features)," Features     : %d Mhz : ",hardware->dmi.processor.current_speed);
-    if (hardware->cpu.flags.lm) 
-	    strcat(features,"x86_64 64bit ");
+    memset(features, 0, sizeof(features));
+    snprintf(features, sizeof(features), " Features     : %d Mhz : ",
+	     hardware->dmi.processor.current_speed);
+    if (hardware->cpu.flags.lm)
+	strcat(features, "x86_64 64bit ");
     else
-	    strcat(features,"x86 32bit ");
-    if (hardware->cpu.flags.smp) strcat(features,"SMP ");
-    if (hardware->cpu.flags.vmx || hardware->cpu.flags.svm) strcat(features,"HwVIRT ");
+	strcat(features, "x86 32bit ");
+    if (hardware->cpu.flags.smp)
+	strcat(features, "SMP ");
+    if (hardware->cpu.flags.vmx || hardware->cpu.flags.svm)
+	strcat(features, "HwVIRT ");
 
-    more_printf("%s\n",features);
+    more_printf("%s\n", features);
 }
 
 static void show_flag(char *buffer, bool flag, char *flag_name, bool flush)
@@ -81,6 +85,10 @@ static void show_cpu(int argc __unused, char **argv __unused,
     more_printf("Vendor    : %s\n", hardware->cpu.vendor);
     more_printf("Model     : %s\n", hardware->cpu.model);
     more_printf("Num. Cores: %d\n", hardware->cpu.num_cores);
+    more_printf("L1 Cache  : %dK + %dK (I + D) \n",
+		hardware->cpu.l1_instruction_cache_size,
+		hardware->cpu.l1_data_cache_size);
+    more_printf("L2 Cache  : %dK\n", hardware->cpu.l2_cache_size);
     more_printf("Vendor ID : %d\n", hardware->cpu.vendor_id);
     more_printf("Family ID : %d\n", hardware->cpu.family);
     more_printf("Model  ID : %d\n", hardware->cpu.model_id);
