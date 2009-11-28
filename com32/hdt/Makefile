@@ -30,6 +30,9 @@ VERSION   = $(shell $(SED) -n 's/\#define VERSION \"\(.*\)\"/\1/p' hdt.h)
 CODENAME  = $(shell $(SED) -n 's/\#define CODENAME \"\(.*\)\"/\1/p' hdt.h)
 VERSION_C32 = $(shell echo $(VERSION) | $(SED) -e 's/-/_/g')
 
+MEMTEST_URL = http://memtest.org/download/4.00/memtest86+-4.00.bin
+MEMTEST     = memtest
+
 KERNEL_VERSION          ?= $(shell uname -r)
 MODULES_ALIAS_FILE      ?= /lib/modules/$(KERNEL_VERSION)/modules.alias
 GZ_MODULES_ALIAS_FILE   ?= modules.alias.gz
@@ -49,7 +52,10 @@ all: $(MODULES) $(TESTFILES)
 hdt.elf : $(OBJS) $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtools/syslinux $(REBOOT_COM32) $(MENU_COM32)
+memtest:
+	-[ ! -f $(FLOPPY_DIR)/$(MEMTEST) ] && $(WGET) $(MEMTEST_URL) -O $(FLOPPY_DIR)/$(MEMTEST)
+
+hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtools/syslinux $(REBOOT_COM32) $(MENU_COM32) memtest
 	rm -f hdt*.img
 	$(SED) -e 's/%VERSION%/$(VERSION)/g' $(FLOPPY_DIR)/hdt.cfg |\
 	$(SED) -e 's/%CODENAME%/$(CODENAME)/g' > $(FLOPPY_DIR)/syslinux.cfg
@@ -64,6 +70,7 @@ hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtool
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(REBOOT_COM32) a:
 	@ [ -f $(GZ_PCI_IDS_FILE) ] && MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(GZ_PCI_IDS_FILE) a:pci.ids || printf "\nThe $(GZ_PCI_IDS_FILE) file is missing and can be downloaded from http://pciids.sourceforge.net and gzipped in\nthe ./com32/hdt/$(FLOPPY_DIR) directory of the extracted Syslinux source.\n\n"
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(FLOPPY_DIR)/syslinux.cfg a:
+	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(FLOPPY_DIR)/$(MEMTEST) a:
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(ART_DIR)/backgnd.png a:
 	mv hdt.img hdt-$(VERSION).img
 
@@ -71,7 +78,7 @@ hdt.img.gz: hdt.img
 	rm -rf hdt*.img.gz
 	$(GZIPPROG) -c hdt-$(VERSION).img >hdt-$(VERSION).img.gz
 
-hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg
+hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg memtest
 	rm -rf $(ISO_DIR)
 	rm -f hdt.iso
 	mkdir -p $(ISO_DIR)/$(ISOLINUX_DIR)
@@ -80,6 +87,7 @@ hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg
 		$(SED) -e 's/%CODENAME%/$(CODENAME)/g' > $(ISO_DIR)/$(ISOLINUX_DIR)/isolinux.cfg
 	cp hdt.c32 $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp $(REBOOT_COM32) $(ISO_DIR)/$(ISOLINUX_DIR)
+	cp $(FLOPPY_DIR)/$(MEMTEST) $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp $(MENU_COM32) $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp -av $(ART_DIR)/backgnd.png $(ISO_DIR)/$(ISOLINUX_DIR)
 	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/hwdata/pci.ids $(PCI_IDS_FILE) && $(GZIP) $(PCI_IDS_FILE)
@@ -109,6 +117,8 @@ clean: tidy
 spotless: clean
 	rm -f *.lss *.c32 *.com hdt*.img hdt*.iso hdt*.img.gz
 	rm -rf $(ISO_DIR)
+	rm -rf $(FLOPPY_DIR)/memtest
+	rm -rf $(FLOPPY_DIR)/pci.ids*
 	rm -f *~ \#*
 
 install:
