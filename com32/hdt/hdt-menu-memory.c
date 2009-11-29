@@ -238,7 +238,7 @@ static void compute_memory_module(struct s_my_menu *menu, s_dmi * dmi,
 
     snprintf(buffer, sizeof buffer, "Part Number  : %s",
 	     dmi->memory[i].part_number);
-    snprintf(buffer, sizeof statbuffer, "Part Number: %s",
+    snprintf(statbuffer, sizeof statbuffer, "Part Number: %s",
 	     dmi->memory[i].part_number);
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
