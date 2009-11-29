@@ -57,6 +57,8 @@ LIBOBJS = \
 	\
 	sys/libansi.o							\
 	\
+	sys/gpxe.o							\
+	\
 	sys/ansicon_write.o sys/ansiserial_write.o			\
 	\
 	sys/vesacon_write.o sys/vesaserial_write.o			\
