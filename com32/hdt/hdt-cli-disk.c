@@ -214,7 +214,7 @@ void disks_summary(int argc __unused, char **argv __unused,
 		    disk_size);
 
 	/* Do not print Host Bus & Interface if EDD isn't 3.0 or more */
-	if (d->edd_version >= 30)
+	if (d->edd_version >= 0x30)
 	    more_printf("         Host bus: %s, Interface type: %s\n\n",
 			remove_spaces((char *)d->edd_params.host_bus_type),
 			remove_spaces((char *)d->edd_params.interface_type));

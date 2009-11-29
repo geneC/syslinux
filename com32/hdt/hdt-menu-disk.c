@@ -182,7 +182,7 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
     menu[nb_sub_disk_menu].items_count++;
 
     /* Do not print Host Bus & Interface if EDD isn't 3.0 or more */
-    if (d[disk_number].edd_version >= 30) {
+    if (d[disk_number].edd_version >= 0x30) {
 	snprintf(buffer, sizeof buffer, "Host Bus/Interface: %s / %s",
 		 remove_spaces((char *)d[disk_number].edd_params.host_bus_type),
 		 d[disk_number].edd_params.interface_type);
