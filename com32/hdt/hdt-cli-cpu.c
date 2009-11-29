@@ -64,7 +64,7 @@ void main_show_cpu(int argc __unused, char **argv __unused,
 static void show_flag(char *buffer, bool flag, char *flag_name, bool flush)
 {
     char output_buffer[81];
-    if ((((strlen(buffer) + strlen(flag_name)) > 68) && flag) || flush) {
+    if ((((strlen(buffer) + strlen(flag_name)) > 66) && flag) || flush) {
 	snprintf(output_buffer, sizeof output_buffer, "Flags     : %s\n",
 		 buffer);
 	more_printf(output_buffer);
