@@ -173,20 +173,25 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
     sectors_to_size_dec2(d[disk_number].edd_params.sectors, size_dec);
 
     snprintf(buffer, sizeof buffer, "Size              : %s/%s (%d %s)",
-	     remove_spaces(size_iec), remove_spaces(size_dec), previous_size, previous_unit);
+	     remove_spaces(size_iec), remove_spaces(size_dec), previous_size,
+	     previous_unit);
     snprintf(statbuffer, sizeof statbuffer, "Size: %s/%s (%d %s)",
-	     remove_spaces(size_iec), remove_spaces(size_dec), previous_size, previous_unit);
+	     remove_spaces(size_iec), remove_spaces(size_dec), previous_size,
+	     previous_unit);
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu[nb_sub_disk_menu].items_count++;
 
-    snprintf(buffer, sizeof buffer, "Host Bus/Interface: %s / %s",
-	     remove_spaces((char *)d[disk_number].edd_params.host_bus_type),
-	     d[disk_number].edd_params.interface_type);
-    snprintf(statbuffer, sizeof statbuffer, "Host Bus / Interface: %s / %s",
-	     remove_spaces((char *)d[disk_number].edd_params.host_bus_type),
-	     d[disk_number].edd_params.interface_type);
-    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-    menu[nb_sub_disk_menu].items_count++;
+    /* Do not print Host Bus & Interface if EDD isn't 3.0 or more */
+    if (d[disk_number].edd_version >= 30) {
+	snprintf(buffer, sizeof buffer, "Host Bus/Interface: %s / %s",
+		 remove_spaces((char *)d[disk_number].edd_params.host_bus_type),
+		 d[disk_number].edd_params.interface_type);
+	snprintf(statbuffer, sizeof statbuffer, "Host Bus / Interface: %s / %s",
+		 remove_spaces((char *)d[disk_number].edd_params.host_bus_type),
+		 d[disk_number].edd_params.interface_type);
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+	menu[nb_sub_disk_menu].items_count++;
+    }
 
     snprintf(buffer, sizeof buffer, "C / H / S         : %d / %d / %d",
 	     d[disk_number].legacy_max_cylinder + 1,
