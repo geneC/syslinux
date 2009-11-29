@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <syslinux/pxe.h>
 #include <syslinux/config.h>
+#include <sys/gpxe.h>
 
 #include "hdt-cli.h"
 #include "hdt-common.h"
@@ -76,6 +77,11 @@ void main_show_pxe(int argc __unused, char **argv __unused,
     }
     more_printf(" Addresses    : %d.%d.%d.%d @ %s\n", p->ip_addr[0],
 		p->ip_addr[1], p->ip_addr[2], p->ip_addr[3], p->mac_addr);
+
+    if (is_gpxe())
+	more_printf(" gPXE Detected: Yes\n")
+    else
+	more_printf(" gPXE Detected: No\n");
 }
 
 struct cli_module_descr pxe_show_modules = {

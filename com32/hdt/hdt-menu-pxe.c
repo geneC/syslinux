@@ -27,12 +27,14 @@
  */
 
 #include "hdt-menu.h"
+#include <sys/gpxe.h>
 
 /* Main Kernel menu */
 void compute_PXE(struct s_my_menu *menu, struct s_hardware *hardware)
 {
     char buffer[SUBMENULEN + 1];
     char infobar[STATLEN + 1];
+    char gpxe[4];
 
     if (hardware->is_pxe_valid == false)
 	return;
@@ -108,6 +110,14 @@ void compute_PXE(struct s_my_menu *menu, struct s_hardware *hardware)
 	     p->ip_addr[0], p->ip_addr[1], p->ip_addr[2], p->ip_addr[3]);
     snprintf(infobar, sizeof infobar, "IP Address   : %d.%d.%d.%d",
 	     p->ip_addr[0], p->ip_addr[1], p->ip_addr[2], p->ip_addr[3]);
+    add_item(buffer, infobar, OPT_INACTIVE, NULL, 0);
+    menu->items_count++;
+
+    if (is_gpxe()) strcat(gpxe,"Yes");
+    else strcat (gpxe,"No");
+
+    snprintf(buffer, sizeof buffer, "gPXE Detected: %s", gpxe);
+    snprintf(infobar, sizeof infobar, "gPXE Detected: %s", gpxe);
     add_item(buffer, infobar, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 
