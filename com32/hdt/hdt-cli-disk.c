@@ -55,7 +55,7 @@ static void show_partition_information(struct driveinfo *drive_info,
 				       int partition_offset,
 				       int nb_partitions_seen)
 {
-    char size[9];
+    char size[11];
     char bootloader_name[9];
     char *parttype;
     unsigned int start, end;
@@ -108,7 +108,7 @@ void main_show_disk(int argc, char **argv, struct s_hardware *hardware)
 
     int i = drive - 0x80;
     struct driveinfo *d = &hardware->disk_info[i];
-    char disk_size[9];
+    char disk_size[11];
     char mbr_name[50];
 
     detect_disks(hardware);
@@ -199,7 +199,7 @@ void disks_summary(int argc __unused, char **argv __unused,
 
 	found = true;
 	struct driveinfo *d = &hardware->disk_info[i];
-	char disk_size[9];
+	char disk_size[11];
 
 	if ((int)d->edd_params.sectors > 0)
 	    sectors_to_size((int)d->edd_params.sectors, disk_size);

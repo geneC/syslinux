@@ -75,7 +75,7 @@ static void compute_partition_information(struct driveinfo *drive_info,
 					  int partition_offset,
 					  int nb_partitions_seen)
 {
-    char size[9];
+    char size[11];
     char bootloader_name[9];
     char *parttype;
     unsigned int start, end;
@@ -165,19 +165,21 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
 
     int previous_size, size;
     char previous_unit[3], unit[3];	// GB
-    char size_iec[9];		// GiB
+    char size_iec[11];		// GiB
+    char size_dec[11];		// GB
     sectors_to_size_dec(previous_unit, &previous_size, unit, &size,
 			d[disk_number].edd_params.sectors);
     sectors_to_size(d[disk_number].edd_params.sectors, size_iec);
+    sectors_to_size_dec2(d[disk_number].edd_params.sectors, size_dec);
 
-    snprintf(buffer, sizeof buffer, "Size                 : %s/%d %s (%d %s)",
-	     remove_spaces(size_iec), size, unit, previous_size, previous_unit);
-    snprintf(statbuffer, sizeof statbuffer, "Size: %s/%d %s (%d %s)",
-	     remove_spaces(size_iec), size, unit, previous_size, previous_unit);
+    snprintf(buffer, sizeof buffer, "Size              : %s/%s (%d %s)",
+	     remove_spaces(size_iec), remove_spaces(size_dec), previous_size, previous_unit);
+    snprintf(statbuffer, sizeof statbuffer, "Size: %s/%s (%d %s)",
+	     remove_spaces(size_iec), remove_spaces(size_dec), previous_size, previous_unit);
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu[nb_sub_disk_menu].items_count++;
 
-    snprintf(buffer, sizeof buffer, "Host Bus / Interface : %s / %s",
+    snprintf(buffer, sizeof buffer, "Host Bus/Interface: %s / %s",
 	     remove_spaces((char *)d[disk_number].edd_params.host_bus_type),
 	     d[disk_number].edd_params.interface_type);
     snprintf(statbuffer, sizeof statbuffer, "Host Bus / Interface: %s / %s",
@@ -186,7 +188,7 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu[nb_sub_disk_menu].items_count++;
 
-    snprintf(buffer, sizeof buffer, "C / H / S            : %d / %d / %d",
+    snprintf(buffer, sizeof buffer, "C / H / S         : %d / %d / %d",
 	     d[disk_number].legacy_max_cylinder + 1,
 	     d[disk_number].legacy_max_head + 1,
 	     (int)d[disk_number].edd_params.sectors);
@@ -198,7 +200,7 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu[nb_sub_disk_menu].items_count++;
 
-    snprintf(buffer, sizeof buffer, "Sectors/Track        : %d",
+    snprintf(buffer, sizeof buffer, "Sectors/Track     : %d",
 	     d[disk_number].legacy_sectors_per_track);
     snprintf(statbuffer, sizeof statbuffer, "Sectors per Track: %d",
 	     d[disk_number].legacy_sectors_per_track);
@@ -207,7 +209,7 @@ static int compute_disk_module(struct s_my_menu *menu, int nb_sub_disk_menu,
 
     get_mbr_string(hardware->mbr_ids[disk_number], &mbr_name, 50);
 
-    snprintf(buffer, sizeof buffer, "MBR                  : %s (0x%X)",
+    snprintf(buffer, sizeof buffer, "MBR               : %s (0x%X)",
 	     remove_spaces(mbr_name), hardware->mbr_ids[disk_number]);
     snprintf(statbuffer, sizeof statbuffer, "MBR: %s (id 0x%X)",
 	     remove_spaces(mbr_name), hardware->mbr_ids[disk_number]);
