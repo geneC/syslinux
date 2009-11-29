@@ -73,10 +73,12 @@ hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtool
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(FLOPPY_DIR)/$(MEMTEST) a:
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(ART_DIR)/backgnd.png a:
 	mv hdt.img hdt-$(VERSION).img
+	ln -sf hdt-$(VERSION).img hdt.img
 
 hdt.img.gz: hdt.img
 	rm -rf hdt*.img.gz
 	$(GZIPPROG) -c hdt-$(VERSION).img >hdt-$(VERSION).img.gz
+	ln -sf hdt-$(VERSION).img.gz hdt.img.gz
 
 hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg memtest
 	rm -rf $(ISO_DIR)
@@ -104,6 +106,7 @@ hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg memtest
 		-no-emul-boot -boot-load-size 4 -boot-info-table \
 		$(ISO_DIR)
 	mv hdt.iso hdt-$(VERSION).iso
+	ln -sf hdt-$(VERSION).iso hdt.iso
 
 release: spotless hdt.c32 hdt.img hdt.img.gz hdt.iso
 	mv hdt.c32 hdt_$(VERSION_C32).c32
