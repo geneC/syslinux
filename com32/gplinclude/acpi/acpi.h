@@ -22,15 +22,16 @@ enum { ACPI_FOUND, ENO_ACPI, MADT_FOUND, ENO_MADT};
 #define QWORD(x) (*(const uint64_t *)(x))
 
 typedef struct {
-    uint8_t signature[4];
-    uint32_t len;
-    uint8_t  revision;
-    uint8_t  checksum;
-    uint8_t  oem_id[6];
-    uint8_t  oem_table_id[8];
-    uint8_t  oem_revision[4];
-    uint8_t  creator_id[4];
-    uint8_t  creator_revision[4];
+    int8_t signature[4+1];
+    int32_t length;
+    int8_t  revision;
+    int8_t  checksum;
+    int8_t  oem_id[6+1];
+    int8_t  oem_table_id[8+1];
+    int32_t oem_revision;
+    int8_t  creator_id[4+1];
+    int32_t creator_revision;
+    uint32_t local_apic_address;
 } s_madt;
 
 typedef struct {

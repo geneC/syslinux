@@ -35,9 +35,14 @@ void init_acpi(s_acpi *acpi)
 {
    acpi->acpi_valid=false;
    acpi->madt_valid=false;
+   memset(acpi->madt.oem_id,0,sizeof(acpi->madt.oem_id));
+   memset(acpi->madt.oem_table_id,0,sizeof(acpi->madt.oem_table_id));
+   memset(acpi->madt.oem_revision,0,sizeof(acpi->madt.oem_revision));
+   memset(acpi->madt.creator_id,0,sizeof(acpi->madt.creator_id));
+   memset(acpi->madt.creator_revision,0,sizeof(acpi->madt.creator_revision));
 }
 
-int search_acpi(s_acpi *acpi) 
+int search_acpi(s_acpi *acpi)
 {
     init_acpi(acpi);
     struct e820entry map[E820MAX];
@@ -60,11 +65,11 @@ int search_acpi(s_acpi *acpi)
    return -ENO_ACPI;
 }
 
+#define cp_struct(dest,quantity) memcpy(dest,q,quantity); q+=quantity
+#define cp_str_struct(dest,quantity) memcpy(dest,q,quantity); dest[quantity]=0;q+=quantity
 int search_madt(s_acpi *acpi)
 {
     uint8_t *p, *q;
-    int found = 0;
-
     if (!acpi->acpi_valid) return -ENO_ACPI;
 
     p = (uint64_t *) acpi->base_address;	/* The start address to look at the dmi table */
@@ -80,25 +85,35 @@ int search_madt(s_acpi *acpi)
 	     * on the intermediate structure to get the table length
 	     * and address
 	     */
-	memcpy(&acpi->madt,q,sizeof(acpi->madt));
-	acpi->madt_valid=true;
+	     s_madt *m = &acpi->madt;
+	     cp_str_struct(m->signature,4);
+	     cp_struct(&m->length,4);
+	     cp_struct(&m->revision,1);
+	     cp_struct(&m->checksum,1);
+	     cp_str_struct(m->oem_id,6);
+	     cp_str_struct(m->oem_table_id,8);
+	     cp_struct(&m->oem_revision,4);
+	     cp_str_struct(m->creator_id,4);
+	     cp_struct(&m->creator_revision,4);
+	     cp_struct(&m->local_apic_address,4);
+	     acpi->madt_valid=true;
 	return MADT_FOUND;
 	}
     }
    return -ENO_MADT;
 }
 
-void print_madt(s_acpi *acpi) 
+void print_madt(s_acpi *acpi)
 {
    if (!acpi->madt_valid) return;
    printf("MADT\n");
    printf(" signature      : %s\n",acpi->madt.signature);
-   printf(" length         : %d\n",acpi->madt.len);
+   printf(" length         : %d\n",acpi->madt.length);
    printf(" revision       : %d\n",acpi->madt.revision);
    printf(" checksum       : %d\n",acpi->madt.checksum);
    printf(" oem id         : %s\n",acpi->madt.oem_id);
    printf(" oem table id   : %s\n",acpi->madt.oem_table_id);
-   printf(" oem revision   : %s\n",acpi->madt.oem_revision);
+   printf(" oem revision   : %d\n",acpi->madt.oem_revision);
    printf(" oem creator id : %s\n",acpi->madt.creator_id);
-   printf(" oem creator rev: %s\n",acpi->madt.creator_revision);
+   printf(" oem creator rev: %d\n",acpi->madt.creator_revision);
 }
