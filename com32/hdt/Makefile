@@ -92,8 +92,8 @@ hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg memtest
 	cp $(FLOPPY_DIR)/$(MEMTEST) $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp $(MENU_COM32) $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp -av $(ART_DIR)/backgnd.png $(ISO_DIR)/$(ISOLINUX_DIR)
-	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/hwdata/pci.ids $(PCI_IDS_FILE) && $(GZIP) $(PCI_IDS_FILE)
-	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/pci.ids $(PCI_IDS_FILE) && $(GZIP) $(PCI_IDS_FILE)
+	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/hwdata/pci.ids $(PCI_IDS_FILE) && $(GZIPPROG) $(PCI_IDS_FILE)
+	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/pci.ids $(PCI_IDS_FILE) && $(GZIPPROG) $(PCI_IDS_FILE)
 	-[ -f $(MODULES_ALIAS_FILE) ] && cp $(MODULES_ALIAS_FILE) $(ISO_DIR)/$(ISOLINUX_DIR)\
 	       	&& $(GZIPPROG) $(ISO_DIR)/$(ISOLINUX_DIR)/modules.alias\
 		&& mv $(ISO_DIR)/$(ISOLINUX_DIR)/modules.alias.gz $(ISO_DIR)/$(ISOLINUX_DIR)/modules.alias
