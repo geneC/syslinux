@@ -93,12 +93,6 @@ void compute_processor(struct s_my_menu *menu, struct s_hardware *hardware)
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 
-    snprintf(buffer, sizeof buffer, "Vendor ID : %d", hardware->cpu.vendor_id);
-    snprintf(statbuffer, sizeof statbuffer, "Vendor ID: %d",
-	     hardware->cpu.vendor_id);
-    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-    menu->items_count++;
-
     snprintf(buffer, sizeof buffer, "Family ID : %d", hardware->cpu.family);
     snprintf(statbuffer, sizeof statbuffer, "Family ID: %d",
 	     hardware->cpu.family);

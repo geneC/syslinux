@@ -89,7 +89,6 @@ static void show_cpu(int argc __unused, char **argv __unused,
 		hardware->cpu.l1_instruction_cache_size,
 		hardware->cpu.l1_data_cache_size);
     more_printf("L2 Cache  : %dK\n", hardware->cpu.l2_cache_size);
-    more_printf("Vendor ID : %d\n", hardware->cpu.vendor_id);
     more_printf("Family ID : %d\n", hardware->cpu.family);
     more_printf("Model  ID : %d\n", hardware->cpu.model_id);
     more_printf("Stepping  : %d\n", hardware->cpu.stepping);
