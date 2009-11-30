@@ -30,6 +30,7 @@
 #include <string.h>
 #include <syslinux/config.h>
 #include <getkey.h>
+#include <acpi/acpi.h>
 #include "hdt-cli.h"
 #include "hdt-common.h"
 
@@ -824,6 +825,12 @@ void start_cli_mode(struct s_hardware *hardware)
     printf("Entering CLI mode\n");
 
     reset_prompt();
+
+    s_acpi acpi;
+    search_acpi(&acpi);
+    if (search_madt(&acpi) == MADT_FOUND) {
+	    print_madt(&acpi);
+    };
 
     while (hdt_cli.mode != EXIT_MODE) {
 
