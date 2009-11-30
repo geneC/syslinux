@@ -64,9 +64,9 @@ void compute_processor(struct s_my_menu *menu, struct s_hardware *hardware)
     menu->items_count++;
 
     snprintf(buffer, sizeof buffer, "Model     : %s",
-	     del_multi_spaces(hardware->cpu.model));
+	     hardware->cpu.model);
     snprintf(statbuffer, sizeof statbuffer, "Model: %s",
-	     del_multi_spaces(hardware->cpu.model));
+	     hardware->cpu.model);
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 

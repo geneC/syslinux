@@ -535,6 +535,11 @@ void cpu_detect(struct s_hardware *hardware)
     if (strlen(remove_spaces(hardware->cpu.model)) == 0)
 	strncpy(hardware->cpu.model, hardware->dmi.processor.version,
 		sizeof(hardware->cpu.model));
+
+    /* Some CPUs like to put many spaces in the model name
+     * That makes some weird display in console/menu
+     * Let's remove that mulitple spaces */
+    strncpy(hardware->cpu.model,del_multi_spaces(hardware->cpu.model),sizeof(hardware->cpu.model));
     hardware->cpu_detection = true;
 }
 
