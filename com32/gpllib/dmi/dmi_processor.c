@@ -368,7 +368,7 @@ const char *dmi_processor_upgrade(uint8_t code)
 	"Socket 754",
 	"Socket 940",
 	"Socket 939"		/* 0x12 */
-	    "Socket mPGA604",
+	"Socket mPGA604",
 	"Socket LGA771",
 	"Socket LGA775",
 	"Socket S1",
@@ -376,7 +376,7 @@ const char *dmi_processor_upgrade(uint8_t code)
 	"Socket F (1207)"
     };
 
-    if (code >= 0x01 && code <= 0x11)
+    if (code >= 0x01 && code <= 0x18)
 	return upgrade[code - 0x01];
     return out_of_spec;
 }
