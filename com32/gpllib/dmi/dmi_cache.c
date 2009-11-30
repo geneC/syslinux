@@ -40,7 +40,7 @@ const char *dmi_cache_location(uint8_t code)
     static const char *location[4] = {
 	"Internal",		/* 0x00 */
 	"External",
-	NULL,			/* 0x02 */
+	"<OUT OF SPEC",		/* 0x02 */
 	"Unknown"		/* 0x03 */
     };
 
