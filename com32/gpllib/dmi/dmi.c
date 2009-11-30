@@ -298,19 +298,19 @@ static void dmi_base_board_features(uint8_t code, s_dmi * dmi)
 static void dmi_processor_voltage(uint8_t code, s_dmi * dmi)
 {
     /* 3.3.5.4 */
-    static const float voltage[] = {
-	5.0,
-	3.3,
-	2.9
+    static const uint16_t voltage[] = {
+	5000,
+	3300,
+	2900
     };
     int i;
 
     if (code & 0x80)
-	dmi->processor.voltage = ((float)(code & 0x7f) / 10);
+	dmi->processor.voltage_mv = (code & 0x7f) * 100;
     else {
 	for (i = 0; i <= 2; i++)
 	    if (code & (1 << i))
-		dmi->processor.voltage = voltage[i];
+		dmi->processor.voltage_mv = voltage[i];
     }
 }
 
