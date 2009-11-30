@@ -199,6 +199,7 @@ void main_show_summary(int argc __unused, char **argv __unused,
     detect_pci(hardware);	/* pxe is detected in the pci */
     detect_dmi(hardware);
     cpu_detect(hardware);
+    detect_memory(hardware);
     reset_more_printf();
     clear_screen();
     main_show_cpu(argc, argv, hardware);
@@ -210,10 +211,9 @@ void main_show_summary(int argc __unused, char **argv __unused,
 	more_printf("Bios\n");
 	more_printf(" Version      : %s\n", hardware->dmi.bios.version);
 	more_printf(" Release      : %s\n", hardware->dmi.bios.release_date);
-
-	int argc = 1;
-	char *argv[1] = { "0" };
-	show_dmi_memory_modules(argc, argv, hardware);
+	more_printf("Memory Size   : %lu MB (%lu KB)\n",
+		    (hardware->detected_memory_size + (1 << 9)) >> 10,
+		    hardware->detected_memory_size);
     }
     main_show_pci(argc, argv, hardware);
 
