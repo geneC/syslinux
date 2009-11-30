@@ -74,6 +74,15 @@ static int hex_to_int(char *hexa)
     return strtoul(hexa, NULL, 16);
 }
 
+/* Replace char 'old' by char 'new' in source */
+void chr_replace(char *source, char old, char new) 
+{
+    while (*source) { 
+	source++;
+	if (source[0] == old) source[0]=new;
+    }
+}
+
 /* Try to match any pci device to the appropriate kernel module */
 /* it uses the modules.pcimap from the boot device */
 int get_module_name_from_pcimap(struct pci_domain *domain,
@@ -130,7 +139,11 @@ int get_module_name_from_pcimap(struct pci_domain *domain,
        /* multiple spaces generates some empty fields */
        if (strlen(result)>1) {
 	 switch (field) {
-	 case 0:strcpy(module_name,result); break;
+	 /* About case 0, the kernel module name is featuring '_' or '-' 
+	  * in the module name whereas modules.alias is only using '_'.
+	  * To avoid kernel modules duplication, let's rename all '-' in '_' 
+	  * to match what modules.alias provides */
+	 case 0:chr_replace(result,'-','_');strcpy(module_name,result); break;
 	 case 1:strcpy(vendor_id,result); break;
 	 case 2:strcpy(product_id,result); break;
 	 case 3:strcpy(sub_vendor_id,result); break;
