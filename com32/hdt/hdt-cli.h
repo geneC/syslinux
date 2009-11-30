@@ -94,7 +94,7 @@ struct s_cli {
     cli_mode_t mode;
     char prompt[PROMPT_SIZE];
     uint8_t cursor_pos;
-    char history[MAX_HISTORY_SIZE][MAX_LINE_SIZE];
+    char history[MAX_HISTORY_SIZE+1][MAX_LINE_SIZE];
     int history_pos;
     int max_history_pos;
 };

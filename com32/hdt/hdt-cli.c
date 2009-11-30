@@ -782,7 +782,7 @@ void start_auto_mode(struct s_hardware *hardware)
 void print_history()
 {
     reset_more_printf();
-    for (int i = 1; i < MAX_HISTORY_SIZE - 1; i++) {
+    for (int i = 1; i <= MAX_HISTORY_SIZE; i++) {
 	if (i == hdt_cli.history_pos) {
 	    more_printf("*%d:'%s'\n", i, hdt_cli.history[i]);
 	    continue;
@@ -803,7 +803,7 @@ void start_cli_mode(struct s_hardware *hardware)
     char temp_command[MAX_LINE_SIZE];
 
     hdt_cli.cursor_pos = 0;
-    memset(hdt_cli.history, '\0', sizeof(hdt_cli.history));
+    memset(hdt_cli.history, 0, sizeof(hdt_cli.history));
     hdt_cli.history_pos = 1;
     hdt_cli.max_history_pos = 1;
 
@@ -901,7 +901,7 @@ void start_cli_mode(struct s_hardware *hardware)
 
 	    /* We have to compute the next position */
 	    if (future_history_pos == 1) {
-		future_history_pos = MAX_HISTORY_SIZE - 1;
+		future_history_pos = MAX_HISTORY_SIZE;
 	    } else {
 		future_history_pos--;
 	    }
@@ -914,7 +914,7 @@ void start_cli_mode(struct s_hardware *hardware)
 	    }
 
 	    /* Let's make that future position the one we use */
-	    memset(INPUT, '\0', sizeof(INPUT));
+	    memset(INPUT, 0, sizeof(INPUT));
 	    strncpy(INPUT, hdt_cli.history[future_history_pos], sizeof(INPUT));
 
 	    /* Clear the line */
@@ -934,7 +934,7 @@ void start_cli_mode(struct s_hardware *hardware)
 	    /* Saving future position */
 	    current_future_history_pos = future_history_pos;
 
-	    if (future_history_pos == MAX_HISTORY_SIZE - 1) {
+	    if (future_history_pos == MAX_HISTORY_SIZE) {
 		future_history_pos = 1;
 	    } else {
 		future_history_pos++;
@@ -955,7 +955,7 @@ void start_cli_mode(struct s_hardware *hardware)
 	    }
 
 	    /* Let's make that future position the one we use */
-	    memset(INPUT, '\0', sizeof(INPUT));
+	    memset(INPUT, 0, sizeof(INPUT));
 	    strncpy(INPUT, hdt_cli.history[future_history_pos], sizeof(INPUT));
 
 	    /* Clear the line */
@@ -1001,9 +1001,21 @@ void start_cli_mode(struct s_hardware *hardware)
 		break;
 	    }
 	    exec_command(remove_spaces(INPUT), hardware);
-	    if (hdt_cli.history_pos == MAX_HISTORY_SIZE - 1)
-		hdt_cli.history_pos = 1;
 	    hdt_cli.history_pos++;
+
+	    /* Did we reach the end of the history ?*/
+	    if (hdt_cli.history_pos > MAX_HISTORY_SIZE) {
+		/* Let's return at the beginning */    
+		hdt_cli.history_pos = 1;
+	    }
+
+	    /* Does the next position is already used ?
+	     * If yes, we are cycling in history */
+	    if (strlen(INPUT) > 0) {
+		/* Let's clean that entry */
+		memset(&INPUT,0,sizeof(INPUT));
+	    }
+
 	    future_history_pos = hdt_cli.history_pos;
 	    if (hdt_cli.history_pos > hdt_cli.max_history_pos)
 		hdt_cli.max_history_pos = hdt_cli.history_pos;
