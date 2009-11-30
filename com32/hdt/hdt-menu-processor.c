@@ -63,10 +63,8 @@ void compute_processor(struct s_my_menu *menu, struct s_hardware *hardware)
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 
-    snprintf(buffer, sizeof buffer, "Model     : %s",
-	     hardware->cpu.model);
-    snprintf(statbuffer, sizeof statbuffer, "Model: %s",
-	     hardware->cpu.model);
+    snprintf(buffer, sizeof buffer, "Model     : %s", hardware->cpu.model);
+    snprintf(statbuffer, sizeof statbuffer, "Model: %s", hardware->cpu.model);
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 
@@ -139,6 +137,17 @@ void compute_processor(struct s_my_menu *menu, struct s_hardware *hardware)
 		 hardware->dmi.processor.upgrade);
 	snprintf(statbuffer, sizeof statbuffer, "Upgrade: %s",
 		 hardware->dmi.processor.upgrade);
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+	menu->items_count++;
+
+	snprintf(buffer, sizeof buffer, "Voltage   : %d.%02d",
+		 hardware->dmi.processor.voltage_mv / 1000,
+		 hardware->dmi.processor.voltage_mv -
+		 ((hardware->dmi.processor.voltage_mv / 1000) * 1000));
+	snprintf(statbuffer, sizeof statbuffer, "Voltage (V) : %d.%02d",
+		 hardware->dmi.processor.voltage_mv / 1000,
+		 hardware->dmi.processor.voltage_mv -
+		 ((hardware->dmi.processor.voltage_mv / 1000) * 1000));
 	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
 	menu->items_count++;
     }

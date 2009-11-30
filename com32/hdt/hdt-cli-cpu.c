@@ -92,10 +92,18 @@ static void show_cpu(int argc __unused, char **argv __unused,
     more_printf("Family ID : %d\n", hardware->cpu.family);
     more_printf("Model  ID : %d\n", hardware->cpu.model_id);
     more_printf("Stepping  : %d\n", hardware->cpu.stepping);
-    more_printf("FSB       : %d MHz\n", hardware->dmi.processor.external_clock);
-    more_printf("Cur. Speed: %d MHz\n", hardware->dmi.processor.current_speed);
-    more_printf("Max Speed : %d MHz\n", hardware->dmi.processor.max_speed);
-    more_printf("Upgrade   : %s\n", hardware->dmi.processor.upgrade);
+    if (hardware->is_dmi_valid) {
+	more_printf("FSB       : %d MHz\n",
+		    hardware->dmi.processor.external_clock);
+	more_printf("Cur. Speed: %d MHz\n",
+		    hardware->dmi.processor.current_speed);
+	more_printf("Max Speed : %d MHz\n", hardware->dmi.processor.max_speed);
+	more_printf("Upgrade   : %s\n", hardware->dmi.processor.upgrade);
+	more_printf("Voltage   : %d.%02d\n",
+		    hardware->dmi.processor.voltage_mv / 1000,
+		    hardware->dmi.processor.voltage_mv -
+		    ((hardware->dmi.processor.voltage_mv / 1000) * 1000));
+    }
     if (hardware->cpu.flags.smp) {
 	more_printf("SMP       : yes\n");
     } else {
