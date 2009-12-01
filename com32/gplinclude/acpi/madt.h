@@ -37,6 +37,7 @@ typedef struct {
 } s_processor_local_apic;
 
 typedef struct {
+    uint32_t address;
     uint8_t signature[4 + 1];
     uint32_t length;
     uint8_t revision;

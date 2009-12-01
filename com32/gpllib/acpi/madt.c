@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <memory.h>
+#include <dprintf.h>
 #include "acpi/acpi.h"
 
 static void print_local_apic_structure(s_processor_local_apic * sla,
@@ -46,11 +47,10 @@ static uint8_t *add_apic_structure(s_acpi * acpi, uint8_t * q)
     uint8_t length = *q;
     q++;
     s_processor_local_apic *sla;
+    s_madt *madt = &acpi->madt;
     switch (type) {
     case PROCESSOR_LOCAL_APIC:
-	sla =
-	    &acpi->madt.processor_local_apic[acpi->madt.
-					     processor_local_apic_count];
+	sla=&madt->processor_local_apic[madt->processor_local_apic_count];
 	sla->length = length;
 	sla->acpi_id = *q;
 	q++;
@@ -58,11 +58,13 @@ static uint8_t *add_apic_structure(s_acpi * acpi, uint8_t * q)
 	q++;
 	memcpy(&sla->flags, q, 4);
 	q += 4;
-	print_local_apic_structure(sla, acpi->madt.processor_local_apic_count);
-	acpi->madt.processor_local_apic_count++;
+#ifdef DEBUG 
+	print_local_apic_structure(sla, madt->processor_local_apic_count);
+#endif
+	madt->processor_local_apic_count++;
 	break;
     default:
-	printf("APIC structure type %u, size=%u \n", type, length);
+	dprintf("APIC structure type %u, size=%u \n", type, length);
 	q += length - 2;
 	break;
     }
@@ -74,15 +76,16 @@ static uint8_t *add_apic_structure(s_acpi * acpi, uint8_t * q)
 int search_madt(s_acpi * acpi)
 {
     uint8_t *p, *q;
+    s_madt *m = &acpi->madt;
     if (!acpi->acpi_valid)
 	return -ENO_ACPI;
 
-    p = (uint8_t *) acpi->base_address;	/* The start address to look at the APIC table */
+    p = (uint64_t *) acpi->base_address;	/* The start address to look at the APIC table */
     for (q = p; q < p + acpi->size; q += 1) {
+	m->address=(uint32_t) q;
 	uint8_t *save = q;
 	/* Searching for MADT with APIC signature */
 	if (memcmp(q, "APIC", 4) == 0) {
-	    s_madt *m = &acpi->madt;
 	    cp_str_struct(m->signature, 4);
 	    cp_struct(&m->length, 4);
 	    cp_struct(&m->revision, 1);
@@ -110,7 +113,7 @@ void print_madt(s_acpi * acpi)
 {
     if (!acpi->madt_valid)
 	return;
-    printf("MADT Table\n");
+    printf("MADT Table @ 0x%08x\n",acpi->madt.address);
     printf(" signature      : %s\n", acpi->madt.signature);
     printf(" length         : %d\n", acpi->madt.length);
     printf(" revision       : %u\n", acpi->madt.revision);
