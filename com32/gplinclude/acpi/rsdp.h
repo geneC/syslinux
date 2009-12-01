@@ -10,27 +10,26 @@
  *
  * ----------------------------------------------------------------------- */
 
-#ifndef ACPI_H
-#define ACPI_H
+#ifndef RSDP_H
+#define RSDP_H
 #include <inttypes.h>
 #include <stdbool.h>
-#include <acpi/rsdp.h>
-#include <acpi/madt.h>
 
-enum { ACPI_FOUND, ENO_ACPI, MADT_FOUND, ENO_MADT };
-
-/* This macro are used to extract ACPI structures 
- * please be careful about the q (interator) naming */
-#define cp_struct(dest) memcpy(dest,q,sizeof(*dest)); q+=sizeof(*dest)
-#define cp_str_struct(dest) memcpy(dest,q,sizeof(dest)-1); dest[sizeof(dest)-1]=0;q+=sizeof(dest)-1
+#define RSDP_MIN_ADDRESS 0x0E0000
+#define RSDP_MAX_ADDRESS 0x0FFFFF
+enum { RSDP_TABLE_FOUND };
 
 typedef struct {
-    s_rsdp rsdp;
-    s_madt madt;
-} s_acpi;
+    uint64_t address;
+    uint8_t signature[8 + 1];
+    uint8_t checksum;
+    uint8_t oem_id[6 + 1];
+    uint8_t revision;
+    uint32_t rsdt_address;
+    uint32_t length;
+    uint32_t xsdt_address;
+    uint8_t extended_checksum;
+    bool valid;
+} s_rsdp;
 
-int parse_acpi(s_acpi * acpi);
-int search_madt(s_acpi * acpi);
-int search_rsdp(s_acpi * acpi);
-void print_madt(s_acpi * acpi);
 #endif

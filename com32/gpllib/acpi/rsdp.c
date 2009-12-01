@@ -29,19 +29,50 @@
 #include <stdio.h>
 #include <string.h>
 #include <memory.h>
+#include <dprintf.h>
 #include "acpi/acpi.h"
 
-void init_acpi(s_acpi * acpi)
+int search_rsdp(s_acpi * acpi)
 {
-    memset(acpi, 0, sizeof(s_acpi));
+    /* Let's seach for RSDT table */
+    uint8_t *p, *q;
+
+    /* Let's start for the base address */
+    p = (uint64_t *) RSDP_MIN_ADDRESS;
+    for (q = p; q < RSDP_MAX_ADDRESS; q += 16) {
+	/* Searching for MADT with APIC signature */
+	if (memcmp(q, "RSD PTR", 7) == 0) {
+	    s_rsdp *r = &acpi->rsdp;
+	    r->valid = true;
+	    r->address = (uint64_t) q;
+	    cp_str_struct(r->signature);
+	    cp_struct(&r->checksum);
+	    cp_str_struct(r->oem_id);
+	    cp_struct(&r->revision);
+	    cp_struct(&r->rsdt_address);
+	    cp_struct(&r->length);
+	    cp_struct(&r->xsdt_address);
+	    cp_struct(&r->extended_checksum);
+	    q += 3;		/* reserved field */
+	    return RSDP_TABLE_FOUND;
+	}
+    }
+    return -RSDP_TABLE_FOUND;
 }
 
-int parse_acpi(s_acpi * acpi)
+void print_rsdp(s_acpi * acpi)
 {
-    int ret_val;
-    init_acpi(acpi);
+    s_rsdp *r = &acpi->rsdp;
 
-    /* Let's seach for RSDT table */
-    if ((ret_val = search_rsdp(acpi)) != RSDP_TABLE_FOUND)
-	return ret_val;
+    if (!r->valid)
+	return;
+    printf("RSDP Table @ 0x%016llx\n", r->address);
+    printf(" signature         : %s\n", r->signature);
+    printf(" checksum          : %u\n", r->checksum);
+    printf(" oem id            : %s\n", r->oem_id);
+    printf(" revision          : %u\n", r->revision);
+    printf(" RDST address      : 0x%08x\n", r->rsdt_address);
+    printf(" length            : %u\n", r->length);
+    printf(" XSDT address      : 0x%08x\n", r->xsdt_address);
+    printf(" extended checksum : %u\n", r->extended_checksum);
 }

@@ -827,10 +827,7 @@ void start_cli_mode(struct s_hardware *hardware)
     reset_prompt();
 
     s_acpi acpi;
-    search_acpi(&acpi);
-    if (search_madt(&acpi) == MADT_FOUND) {
-	    print_madt(&acpi);
-    };
+    parse_acpi(&acpi);
 
     while (hdt_cli.mode != EXIT_MODE) {
 

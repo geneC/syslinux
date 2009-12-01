@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2006 Erwan Velu - All Rights Reserved
+ *   Copyright 2009 Erwan Velu - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -51,6 +51,7 @@ typedef struct {
     uint32_t flags;
     s_processor_local_apic processor_local_apic[MAX_SLP];
     uint8_t processor_local_apic_count;
+    bool valid;
 } s_madt;
 
 #endif

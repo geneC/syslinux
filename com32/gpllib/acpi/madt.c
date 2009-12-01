@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2006 Erwan Velu - All Rights Reserved
+ *   Copyright 2009 Erwan Velu - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -71,47 +71,41 @@ static uint8_t *add_apic_structure(s_acpi * acpi, uint8_t * q)
     return q;
 }
 
-#define cp_struct(dest,quantity) memcpy(dest,q,quantity); q+=quantity
-#define cp_str_struct(dest,quantity) memcpy(dest,q,quantity); dest[quantity]=0;q+=quantity
 int search_madt(s_acpi * acpi)
 {
     uint8_t *p, *q;
     s_madt *m = &acpi->madt;
-    if (!acpi->acpi_valid)
-	return -ENO_ACPI;
-
-    p = (uint64_t *) acpi->base_address;	/* The start address to look at the APIC table */
-    for (q = p; q < p + acpi->size; q += 1) {
+    
+    //p = (uint64_t *) acpi->base_address;	/* The start address to look at the APIC table */
+/*    for (q = p; q < p + acpi->size; q += 1) {
 	m->address=(uint32_t) q;
 	uint8_t *save = q;
-	/* Searching for MADT with APIC signature */
 	if (memcmp(q, "APIC", 4) == 0) {
-	    cp_str_struct(m->signature, 4);
-	    cp_struct(&m->length, 4);
-	    cp_struct(&m->revision, 1);
-	    cp_struct(&m->checksum, 1);
-	    cp_str_struct(m->oem_id, 6);
-	    cp_str_struct(m->oem_table_id, 8);
-	    cp_struct(&m->oem_revision, 4);
-	    cp_str_struct(m->creator_id, 4);
-	    cp_struct(&m->creator_revision, 4);
-	    cp_struct(&m->local_apic_address, 4);
-	    cp_struct(&m->flags, 4);
+	    cp_str_struct(m->signature);
+	    cp_struct(&m->length);
+	    cp_struct(&m->revision);
+	    cp_struct(&m->checksum);
+	    cp_str_struct(m->oem_id);
+	    cp_str_struct(m->oem_table_id);
+	    cp_struct(&m->oem_revision);
+	    cp_str_struct(m->creator_id);
+	    cp_struct(&m->creator_revision);
+	    cp_struct(&m->local_apic_address);
+	    cp_struct(&m->flags);
 
-	    /* Let's parse APIC Structures */
 	    while (q < (save + m->length)) {
 		q = add_apic_structure(acpi, q);
 	    }
-	    acpi->madt_valid = true;
+	    m->valid = true;
 	    return MADT_FOUND;
 	}
-    }
+    }*/
     return -ENO_MADT;
 }
 
 void print_madt(s_acpi * acpi)
 {
-    if (!acpi->madt_valid)
+    if (!acpi->madt.valid)
 	return;
     printf("MADT Table @ 0x%08x\n",acpi->madt.address);
     printf(" signature      : %s\n", acpi->madt.signature);
