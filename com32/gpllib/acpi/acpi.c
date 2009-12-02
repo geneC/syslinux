@@ -44,4 +44,6 @@ int parse_acpi(s_acpi * acpi)
     /* Let's seach for RSDT table */
     if ((ret_val = search_rsdp(acpi)) != RSDP_TABLE_FOUND)
 	return ret_val;
+
+    return ACPI_FOUND;
 }
