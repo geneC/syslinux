@@ -18,6 +18,7 @@
 #include <acpi/rsdp.h>
 #include <acpi/rsdt.h>
 #include <acpi/madt.h>
+#include <acpi/xsdt.h>
 
 enum { ACPI_FOUND, ENO_ACPI, MADT_FOUND, ENO_MADT };
 
@@ -29,6 +30,7 @@ enum { ACPI_FOUND, ENO_ACPI, MADT_FOUND, ENO_MADT };
 typedef struct {
     s_rsdp rsdp;
     s_rsdt rsdt;
+    s_xsdt xsdt;
     s_madt madt;
 } s_acpi;
 
@@ -36,6 +38,7 @@ int parse_acpi(s_acpi * acpi);
 int search_madt(s_acpi * acpi);
 int search_rsdp(s_acpi * acpi);
 int parse_rsdt(s_acpi * acpi);
+int parse_xsdt(s_acpi * acpi);
 void print_madt(s_acpi * acpi);
-uint8_t *get_acpi_description_header(uint8_t *q, s_acpi_description_header * adh);
+void get_acpi_description_header(uint8_t *q, s_acpi_description_header * adh);
 #endif

@@ -45,14 +45,16 @@ int parse_acpi(s_acpi * acpi)
     if ((ret_val = search_rsdp(acpi)) != RSDP_TABLE_FOUND)
 	return ret_val;
 
-    /* Let's seach for RSDT table */
-    if ((ret_val = parse_rsdt(acpi)) != RSDT_TABLE_FOUND)
+    /* Let's seach for RSDT table 
+     * That's not a big deal not having it, XSDT is far more relevant */
+    parse_rsdt(acpi);
+    if ((ret_val = parse_xsdt(acpi)) != XSDT_TABLE_FOUND)
 	return ret_val;
 
     return ACPI_FOUND;
 }
 
-uint8_t *get_acpi_description_header(uint8_t *q, s_acpi_description_header * adh)
+void get_acpi_description_header(uint8_t * q, s_acpi_description_header * adh)
 {
     cp_str_struct(adh->signature);
     cp_struct(&adh->length);
@@ -63,5 +65,4 @@ uint8_t *get_acpi_description_header(uint8_t *q, s_acpi_description_header * adh
     cp_struct(&adh->oem_revision);
     cp_str_struct(adh->creator_id);
     cp_struct(&adh->creator_revision);
-    return q;
 }

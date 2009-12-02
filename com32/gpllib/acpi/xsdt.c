@@ -32,28 +32,31 @@
 #include <dprintf.h>
 #include "acpi/acpi.h"
 
-int parse_rsdt(s_acpi * acpi)
+int parse_xsdt(s_acpi * acpi)
 {
-    /* Let's seach for RSDT table */
+    /* Let's seach for XSDT table */
     uint8_t *q;
 
     /* Let's start for the base address */
-    q = (uint32_t *) acpi->rsdt.address;
+    q = (uint64_t *) acpi->xsdt.address;
 
     /* Searching for MADT with APIC signature */
-    if (memcmp(q, "RSDT", 4) == 0) {
-	s_rsdt *r = &acpi->rsdt;
-	r->valid = true;
-	get_acpi_description_header(q, &r->header);
+    if (memcmp(q, "XSDT", 4) == 0) {
+	s_xsdt *x = &acpi->xsdt;
+	x->valid = true;
+	get_acpi_description_header(q, &x->header);
 
-	uint32_t *p = NULL;
-	for (p = (uint32_t *) (r->address + ACPI_HEADER_SIZE);
-	     p < (uint32_t *) (r->address + r->header.length); p++) {
-	    r->entry[r->entry_count] = (uint32_t) * p;
-	    r->entry_count++;
+	uint64_t *p = NULL;
+	for (p = (uint64_t *) (x->address + ACPI_HEADER_SIZE);
+	     p < (uint64_t *) (x->address + x->header.length); p++) {
+	    s_acpi_description_header adh;
+	    memset(&adh, 0, sizeof(adh));
+	    get_acpi_description_header((uint8_t *) * p, &adh);
+	    x->entry[x->entry_count] = (uint64_t) * p;
+	    x->entry_count++;
 	}
-	return RSDT_TABLE_FOUND;
+	return XSDT_TABLE_FOUND;
     }
 
-    return -RSDT_TABLE_FOUND;
+    return -XSDT_TABLE_FOUND;
 }

@@ -54,7 +54,8 @@ int search_rsdp(s_acpi * acpi)
 	    cp_struct(&r->xsdt_address);
 	    cp_struct(&r->extended_checksum);
 	    q += 3;		/* reserved field */
-	    acpi->rsdt.address=r->rsdt_address;
+	    acpi->rsdt.address = r->rsdt_address;
+	    acpi->xsdt.address = r->xsdt_address;
 	    return RSDP_TABLE_FOUND;
 	}
     }
