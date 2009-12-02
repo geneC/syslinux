@@ -10,41 +10,19 @@
  *
  * ----------------------------------------------------------------------- */
 
-#ifndef MADT_H
-#define MADT_H
+#ifndef RSDT_H
+#define RSDT_H
 #include <inttypes.h>
 #include <stdbool.h>
-#include <acpi/acpi.h>
 
-enum {
-    PROCESSOR_LOCAL_APIC = 0,
-    IO_APIC = 1,
-    INTERRUPT_SOURCE_OVERRIDE = 2,
-    NMI = 3,
-    LOCAL_APIC_NMI_STRUCTURE = 4,
-    LOCAL_APIC_ADDRESS_OVERRIDE_STRUCTURE = 5,
-    IO_SAPIC = 6,
-    LOCAL_SAPIC = 7,
-    PLATEFORM_INTERRUPT_SOURCES = 8
-};
-
-#define MAX_SLP 255
-
-typedef struct {
-    uint8_t length;
-    uint8_t acpi_id;
-    uint8_t apic_id;
-    uint32_t flags;
-} s_processor_local_apic;
+enum { RSDT_TABLE_FOUND };
 
 typedef struct {
     uint32_t address;
     s_acpi_description_header header;
-    uint32_t local_apic_address;
-    uint32_t flags;
-    s_processor_local_apic processor_local_apic[MAX_SLP];
-    uint8_t processor_local_apic_count;
+    uint32_t entry[255];
+    uint8_t entry_count;
     bool valid;
-} s_madt;
+} s_rsdt;
 
 #endif

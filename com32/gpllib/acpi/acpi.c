@@ -41,9 +41,27 @@ int parse_acpi(s_acpi * acpi)
     int ret_val;
     init_acpi(acpi);
 
-    /* Let's seach for RSDT table */
+    /* Let's seach for RSDP table */
     if ((ret_val = search_rsdp(acpi)) != RSDP_TABLE_FOUND)
 	return ret_val;
 
+    /* Let's seach for RSDT table */
+    if ((ret_val = parse_rsdt(acpi)) != RSDT_TABLE_FOUND)
+	return ret_val;
+
     return ACPI_FOUND;
+}
+
+uint8_t *get_acpi_description_header(uint8_t *q, s_acpi_description_header * adh)
+{
+    cp_str_struct(adh->signature);
+    cp_struct(&adh->length);
+    cp_struct(&adh->revision);
+    cp_struct(&adh->checksum);
+    cp_str_struct(adh->oem_id);
+    cp_str_struct(adh->oem_table_id);
+    cp_struct(&adh->oem_revision);
+    cp_str_struct(adh->creator_id);
+    cp_struct(&adh->creator_revision);
+    return q;
 }

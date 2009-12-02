@@ -14,7 +14,9 @@
 #define ACPI_H
 #include <inttypes.h>
 #include <stdbool.h>
+#include <acpi/structs.h>
 #include <acpi/rsdp.h>
+#include <acpi/rsdt.h>
 #include <acpi/madt.h>
 
 enum { ACPI_FOUND, ENO_ACPI, MADT_FOUND, ENO_MADT };
@@ -26,11 +28,14 @@ enum { ACPI_FOUND, ENO_ACPI, MADT_FOUND, ENO_MADT };
 
 typedef struct {
     s_rsdp rsdp;
+    s_rsdt rsdt;
     s_madt madt;
 } s_acpi;
 
 int parse_acpi(s_acpi * acpi);
 int search_madt(s_acpi * acpi);
 int search_rsdp(s_acpi * acpi);
+int parse_rsdt(s_acpi * acpi);
 void print_madt(s_acpi * acpi);
+uint8_t *get_acpi_description_header(uint8_t *q, s_acpi_description_header * adh);
 #endif

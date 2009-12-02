@@ -108,14 +108,14 @@ void print_madt(s_acpi * acpi)
     if (!acpi->madt.valid)
 	return;
     printf("MADT Table @ 0x%08x\n",acpi->madt.address);
-    printf(" signature      : %s\n", acpi->madt.signature);
-    printf(" length         : %d\n", acpi->madt.length);
-    printf(" revision       : %u\n", acpi->madt.revision);
-    printf(" checksum       : %u\n", acpi->madt.checksum);
-    printf(" oem id         : %s\n", acpi->madt.oem_id);
-    printf(" oem table id   : %s\n", acpi->madt.oem_table_id);
-    printf(" oem revision   : %u\n", acpi->madt.oem_revision);
-    printf(" oem creator id : %s\n", acpi->madt.creator_id);
-    printf(" oem creator rev: %u\n", acpi->madt.creator_revision);
+    printf(" signature      : %s\n", acpi->madt.header.signature);
+    printf(" length         : %d\n", acpi->madt.header.length);
+    printf(" revision       : %u\n", acpi->madt.header.revision);
+    printf(" checksum       : %u\n", acpi->madt.header.checksum);
+    printf(" oem id         : %s\n", acpi->madt.header.oem_id);
+    printf(" oem table id   : %s\n", acpi->madt.header.oem_table_id);
+    printf(" oem revision   : %u\n", acpi->madt.header.oem_revision);
+    printf(" oem creator id : %s\n", acpi->madt.header.creator_id);
+    printf(" oem creator rev: %u\n", acpi->madt.header.creator_revision);
     printf(" APIC address   : 0x%08x\n", acpi->madt.local_apic_address);
 }
