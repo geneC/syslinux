@@ -32,43 +32,15 @@
 #include <dprintf.h>
 #include "acpi/acpi.h"
 
-int parse_xsdt(s_acpi * acpi)
+void parse_fadt(s_fadt * f)
 {
     /* Let's seach for XSDT table */
     uint8_t *q;
 
+    /* Fixing table name */
+    strcpy(f->header.signature,"FADT");
     /* Let's start for the base address */
-    q = (uint64_t *) acpi->xsdt.address;
-
-    /* Searching for MADT with APIC signature */
-    if (memcmp(q, "XSDT", 4) == 0) {
-	s_xsdt *x = &acpi->xsdt;
-	x->valid = true;
-	get_acpi_description_header(q, &x->header);
-
-	/* We now have a set of pointers to some tables */
-	uint64_t *p = NULL;
-	for (p = (uint64_t *) (x->address + ACPI_HEADER_SIZE);
-	     p < (uint64_t *) (x->address + x->header.length); p++) {
-	    s_acpi_description_header adh;
-	    memset(&adh, 0, sizeof(adh));
-	    x->entry[x->entry_count] = (uint64_t) * p;
-
-	    /* Let's grab the pointed table header */
-	    get_acpi_description_header((uint8_t *) * p, &adh);
-
-	    /* Trying to determine the pointed table */
-	    if (memcmp(adh.signature, "FACP", 4) == 0) {
-		    s_fadt *f = &acpi->fadt;
-		    f->valid=true;
-		    f->address=*p;
-		    memcpy(&f->header,&adh,sizeof(adh));
-		    parse_fadt(f);
-	    }
-	    x->entry_count++;
-	}
-	return XSDT_TABLE_FOUND;
-    }
-
-    return -XSDT_TABLE_FOUND;
+    q = (uint64_t *) (f->address+ACPI_HEADER_SIZE);
+    cp_struct(&f->firmware_ctrl);
+    cp_struct(&f->dsdt_address);
 }

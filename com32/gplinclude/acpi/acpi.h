@@ -19,6 +19,7 @@
 #include <acpi/rsdt.h>
 #include <acpi/madt.h>
 #include <acpi/xsdt.h>
+#include <acpi/fadt.h>
 
 enum { ACPI_FOUND, ENO_ACPI, MADT_FOUND, ENO_MADT };
 
@@ -31,6 +32,7 @@ typedef struct {
     s_rsdp rsdp;
     s_rsdt rsdt;
     s_xsdt xsdt;
+    s_fadt fadt;
     s_madt madt;
 } s_acpi;
 
