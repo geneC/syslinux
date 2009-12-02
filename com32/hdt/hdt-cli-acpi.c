@@ -33,9 +33,11 @@
 #include <stdlib.h>
 #include <errno.h>
 
-static void show_header(char *table, uint32_t address, s_acpi_description_header *h)
-{ 
-    more_printf("%-5s (v%03x %-6s %-7s 0x%08x %-4s    0x%08x) @ 0x%08x\n",table,h->revision, h->oem_id, h->oem_table_id, h->oem_revision, h->creator_id, h->creator_revision, address)
+static void show_header(uint32_t address, s_acpi_description_header * h)
+{
+    more_printf("%-5s (v%03x %-6s %-7s 0x%08x %-4s    0x%08x) @ 0x%08x\n",
+		h->signature, h->revision, h->oem_id, h->oem_table_id,
+		h->oem_revision, h->creator_id, h->creator_revision, address)
 }
 
 void main_show_acpi(int argc __unused, char **argv __unused,
@@ -47,18 +49,24 @@ void main_show_acpi(int argc __unused, char **argv __unused,
 	more_printf("No ACPI Tables detected\n");
 	return;
     }
-
 //ACPI: XSDT (v001 DELL   PE_SC3   0x00000001 DELL 0x00000001) @ 0x00000000000f222c
-    more_printf("Table (rev  oem   table_id  oem_rev   creator creator_rev) @ address \n");
-    more_printf("---------------------------------------------------------------------\n");
+    more_printf
+	("Table (rev  oem   table_id  oem_rev   creator creator_rev) @ address \n");
+    more_printf
+	("---------------------------------------------------------------------\n");
     if (hardware->acpi.rsdp.valid) {
 	s_rsdp *r = &hardware->acpi.rsdp;
-	more_printf("RSDP  (v%03x %6s                                       ) @ 0x%016llx\n",r->revision, r->oem_id,r->address);
+	more_printf
+	    ("RSDP  (v%03x %6s                                       ) @ 0x%016llx\n",
+	     r->revision, r->oem_id, r->address);
     }
     if (hardware->acpi.rsdt.valid)
-	show_header("RSDT", hardware->acpi.rsdt.address, &hardware->acpi.rsdt.header);
+	show_header(hardware->acpi.rsdt.address, &hardware->acpi.rsdt.header);
 
-//	more_printf("XSDT (v%3x %6s %7s %08x %4s %08x) @ %08x",
+    if (hardware->acpi.xsdt.valid)
+	show_header(hardware->acpi.xsdt.address, &hardware->acpi.xsdt.header);
+
+//      more_printf("XSDT (v%3x %6s %7s %08x %4s %08x) @ %08x",
 }
 
 static void show_acpi_modes(int argc __unused, char **argv __unused,
