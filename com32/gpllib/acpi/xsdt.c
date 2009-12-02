@@ -60,26 +60,53 @@ int parse_xsdt(s_acpi * acpi)
 	    /* Trying to determine the pointed table */
 	    if (memcmp(adh.signature, "FACP", 4) == 0) {
 		    s_fadt *f = &acpi->fadt;
+		    /* This structure is valid, let's fill it */
 		    f->valid=true;
 		    f->address=*p;
 		    memcpy(&f->header,&adh,sizeof(adh));
 		    parse_fadt(f);
 	    } else if (memcmp(adh.signature, "APIC", 4) == 0) {
 		    s_madt *m = &acpi->madt;
+		    /* This structure is valid, let's fill it */
 		    m->valid=true;
 		    m->address=*p;
 		    memcpy(&m->header,&adh,sizeof(adh));
 		    parse_madt(acpi);
 	    } else if (memcmp(adh.signature, "DSDT", 4) == 0) {
 		    s_dsdt *d = &acpi->dsdt;
-		    uint32_t definition_block_size=adh.length-ACPI_HEADER_SIZE;
+
+		    /* This structure is valid, let's fill it */
 		    d->valid=true;
 		    d->address=*p;
 		    memcpy(&d->header,&adh,sizeof(adh));
+
+		    /* Searching how much definition blocks we must copy */
+		    uint32_t definition_block_size=adh.length-ACPI_HEADER_SIZE;
 		    if ((d->definition_block=malloc(definition_block_size)) != NULL) {
 			    memcpy(d->definition_block,(uint64_t *)(d->address+ACPI_HEADER_SIZE),definition_block_size);
 		    }
+		    /* PSDT have to be considered as SSDT. Intel ACPI Spec @ 5.2.11.3 */
+	    } else if ((memcmp(adh.signature, "SSDT", 4) == 0) || (memcmp(adh.signature, "PSDT", 4))) {
+		    if ((acpi->ssdt_count >= MAX_SSDT-1)) break;
+
+		    /* We can have many SSDT, so let's allocate a new one */
+		    if ((acpi->ssdt[acpi->ssdt_count]=malloc(sizeof(s_ssdt))) == NULL) break;	
+		    s_ssdt *s = acpi->ssdt[acpi->ssdt_count];
+
+		    /* This structure is valid, let's fill it */
+		    s->valid=true;
+		    s->address=*p;
+		    memcpy(&s->header,&adh,sizeof(adh));
+		    
+		    /* Searching how much definition blocks we must copy */
+		    uint32_t definition_block_size=adh.length-ACPI_HEADER_SIZE;
+		    if ((s->definition_block=malloc(definition_block_size)) != NULL) {
+			    memcpy(s->definition_block,(uint64_t *)(s->address+ACPI_HEADER_SIZE),definition_block_size);
+		    }
+		    /* Increment the number of ssdt we have */
+		    acpi->ssdt_count++;
 	    }
+
 	    x->entry_count++;
 	}
 	return XSDT_TABLE_FOUND;

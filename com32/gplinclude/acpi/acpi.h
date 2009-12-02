@@ -21,8 +21,11 @@
 #include <acpi/fadt.h>
 #include <acpi/madt.h>
 #include <acpi/dsdt.h>
+#include <acpi/ssdt.h>
 
 enum { ACPI_FOUND, ENO_ACPI, MADT_FOUND, ENO_MADT };
+
+#define MAX_SSDT 128
 
 /* This macro are used to extract ACPI structures 
  * please be careful about the q (interator) naming */
@@ -36,6 +39,8 @@ typedef struct {
     s_fadt fadt;
     s_madt madt;
     s_dsdt dsdt;
+    s_ssdt *ssdt[MAX_SSDT];
+    uint8_t ssdt_count;
 } s_acpi;
 
 int parse_acpi(s_acpi * acpi);

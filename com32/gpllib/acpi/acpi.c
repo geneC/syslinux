@@ -47,7 +47,7 @@ int parse_acpi(s_acpi * acpi)
 
     /* Let's seach for RSDT table 
      * That's not a big deal not having it, XSDT is far more relevant */
-    parse_rsdt(acpi);
+    parse_rsdt(&acpi->rsdt);
     if ((ret_val = parse_xsdt(acpi)) != XSDT_TABLE_FOUND)
 	return ret_val;
 
