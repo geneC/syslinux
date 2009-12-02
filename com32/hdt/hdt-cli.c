@@ -46,6 +46,7 @@ struct cli_mode_descr *list_modes[] = {
     &disk_mode,
     &vpd_mode,
     &memory_mode,
+    &acpi_mode,
     NULL,
 };
 
@@ -190,6 +191,10 @@ void set_mode(cli_mode_t mode, struct s_hardware *hardware)
     case MEMORY_MODE:
 	hdt_cli.mode = mode;
 	snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_MEMORY);
+	break;
+    case ACPI_MODE:
+	hdt_cli.mode = mode;
+	snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_ACPI);
 	break;
     default:
 	/* Invalid mode */
@@ -825,9 +830,6 @@ void start_cli_mode(struct s_hardware *hardware)
     printf("Entering CLI mode\n");
 
     reset_prompt();
-
-    s_acpi acpi;
-    parse_acpi(&acpi);
 
     while (hdt_cli.mode != EXIT_MODE) {
 

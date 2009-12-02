@@ -68,6 +68,7 @@
 #define CLI_MODES "modes"
 #define CLI_VPD  "vpd"
 #define CLI_MEMORY  "memory"
+#define CLI_ACPI "acpi"
 #define CLI_ENABLE "enable"
 #define CLI_DISABLE "disable"
 
@@ -85,6 +86,7 @@ typedef enum {
     DISK_MODE,
     VPD_MODE,
     MEMORY_MODE,
+    ACPI_MODE,
 } cli_mode_t;
 
 #define PROMPT_SIZE 32
@@ -146,6 +148,7 @@ struct cli_mode_descr vesa_mode;
 struct cli_mode_descr disk_mode;
 struct cli_mode_descr vpd_mode;
 struct cli_mode_descr memory_mode;
+struct cli_mode_descr acpi_mode;
 
 /* cli helpers */
 void find_cli_mode_descr(cli_mode_t mode, struct cli_mode_descr **mode_found);
