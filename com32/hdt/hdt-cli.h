@@ -86,7 +86,7 @@ typedef enum {
     DISK_MODE,
     VPD_MODE,
     MEMORY_MODE,
-    ACPI_MODE,
+    ACPI_MODE
 } cli_mode_t;
 
 #define PROMPT_SIZE 32
@@ -210,4 +210,9 @@ void main_show_vesa(int argc, char **argv, struct s_hardware *hardware);
 // VPD STUFF
 void main_show_vpd(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware);
+
+// ACPI STUFF
+void main_show_acpi(int argc __unused, char **argv __unused,
+		                    struct s_hardware *hardware);
+
 #endif
