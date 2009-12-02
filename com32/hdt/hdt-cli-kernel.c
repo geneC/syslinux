@@ -37,13 +37,11 @@
 void main_show_kernel(int argc __unused, char **argv __unused,
 		      struct s_hardware *hardware)
 {
-    char buffer[1024];
+    char buffer[1024] = {0};
     struct pci_device *pci_device;
     bool found = false;
     char kernel_modules[LINUX_KERNEL_MODULE_SIZE *
 			MAX_KERNEL_MODULES_PER_PCI_DEVICE];
-
-    memset(buffer, 0, sizeof(buffer));
 
     detect_pci(hardware);
     reset_more_printf();
@@ -97,11 +95,10 @@ static void show_kernel_modules(int argc __unused, char **argv __unused,
 			MAX_KERNEL_MODULES_PER_PCI_DEVICE];
     bool nopciids = false;
     bool nomodulespcimap = false;
-    char modules[MAX_PCI_CLASSES][256];
-    char category_name[MAX_PCI_CLASSES][256];
+    char modules[MAX_PCI_CLASSES][256] = {{0}};
+    char category_name[MAX_PCI_CLASSES][256] = {{0}};
 
     detect_pci(hardware);
-    memset(&modules, 0, sizeof(modules));
 
     if (hardware->pci_ids_return_code == -ENOPCIIDS) {
 	nopciids = true;
