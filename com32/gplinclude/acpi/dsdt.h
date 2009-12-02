@@ -10,41 +10,16 @@
  *
  * ----------------------------------------------------------------------- */
 
-#ifndef MADT_H
-#define MADT_H
+#ifndef DSDT_H
+#define DSDT_H
 #include <inttypes.h>
 #include <stdbool.h>
-
-enum {
-    PROCESSOR_LOCAL_APIC = 0,
-    IO_APIC = 1,
-    INTERRUPT_SOURCE_OVERRIDE = 2,
-    NMI = 3,
-    LOCAL_APIC_NMI_STRUCTURE = 4,
-    LOCAL_APIC_ADDRESS_OVERRIDE_STRUCTURE = 5,
-    IO_SAPIC = 6,
-    LOCAL_SAPIC = 7,
-    PLATEFORM_INTERRUPT_SOURCES = 8
-};
-
-#define MAX_SLP 255
-
-typedef struct {
-    uint8_t length;
-    uint8_t acpi_id;
-    uint8_t apic_id;
-    uint32_t flags;
-} s_processor_local_apic;
 
 typedef struct {
     uint64_t address;
     s_acpi_description_header header;
-    uint32_t local_apic_address;
-    uint32_t flags;
-    s_processor_local_apic processor_local_apic[MAX_SLP];
-    uint8_t processor_local_apic_count;
+    uint8_t *definition_block;
     bool valid;
-} s_madt;
+} s_dsdt;
 
-void print_madt(s_madt *madt);
 #endif

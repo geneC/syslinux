@@ -70,7 +70,15 @@ int parse_xsdt(s_acpi * acpi)
 		    m->address=*p;
 		    memcpy(&m->header,&adh,sizeof(adh));
 		    parse_madt(acpi);
-	    } else {
+	    } else if (memcmp(adh.signature, "DSDT", 4) == 0) {
+		    s_dsdt *d = &acpi->dsdt;
+		    uint32_t definition_block_size=adh.length-ACPI_HEADER_SIZE;
+		    d->valid=true;
+		    d->address=*p;
+		    memcpy(&d->header,&adh,sizeof(adh));
+		    if ((d->definition_block=malloc(definition_block_size)) != NULL) {
+			    memcpy(d->definition_block,(uint64_t *)(d->address+ACPI_HEADER_SIZE),definition_block_size);
+		    }
 	    }
 	    x->entry_count++;
 	}
