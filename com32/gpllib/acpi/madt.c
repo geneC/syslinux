@@ -71,51 +71,35 @@ static uint8_t *add_apic_structure(s_acpi * acpi, uint8_t * q)
     return q;
 }
 
-int search_madt(s_acpi * acpi)
+int parse_madt(s_acpi *acpi)
 {
-    uint8_t *p, *q;
+    /* Let's seach for FADT table */
+    uint8_t *q;
     s_madt *m = &acpi->madt;
-    
-    //p = (uint64_t *) acpi->base_address;	/* The start address to look at the APIC table */
-/*    for (q = p; q < p + acpi->size; q += 1) {
-	m->address=(uint32_t) q;
-	uint8_t *save = q;
-	if (memcmp(q, "APIC", 4) == 0) {
-	    cp_str_struct(m->signature);
-	    cp_struct(&m->length);
-	    cp_struct(&m->revision);
-	    cp_struct(&m->checksum);
-	    cp_str_struct(m->oem_id);
-	    cp_str_struct(m->oem_table_id);
-	    cp_struct(&m->oem_revision);
-	    cp_str_struct(m->creator_id);
-	    cp_struct(&m->creator_revision);
-	    cp_struct(&m->local_apic_address);
-	    cp_struct(&m->flags);
 
-	    while (q < (save + m->length)) {
-		q = add_apic_structure(acpi, q);
-	    }
-	    m->valid = true;
-	    return MADT_FOUND;
-	}
-    }*/
-    return -ENO_MADT;
+    /* Fixing table name */
+    strcpy(m->header.signature,"MADT");
+
+    /* Copying remaining structs */
+    q = (uint64_t *) (m->address+ACPI_HEADER_SIZE);
+    while (q < (m->address + m->header.length)) {
+	q=add_apic_structure(acpi, q);
+    }
 }
 
-void print_madt(s_acpi * acpi)
+void print_madt(s_madt * madt)
 {
-    if (!acpi->madt.valid)
+    if (!madt->valid)
 	return;
-    printf("MADT Table @ 0x%08x\n",acpi->madt.address);
-    printf(" signature      : %s\n", acpi->madt.header.signature);
-    printf(" length         : %d\n", acpi->madt.header.length);
-    printf(" revision       : %u\n", acpi->madt.header.revision);
-    printf(" checksum       : %u\n", acpi->madt.header.checksum);
-    printf(" oem id         : %s\n", acpi->madt.header.oem_id);
-    printf(" oem table id   : %s\n", acpi->madt.header.oem_table_id);
-    printf(" oem revision   : %u\n", acpi->madt.header.oem_revision);
-    printf(" oem creator id : %s\n", acpi->madt.header.creator_id);
-    printf(" oem creator rev: %u\n", acpi->madt.header.creator_revision);
-    printf(" APIC address   : 0x%08x\n", acpi->madt.local_apic_address);
+    printf("MADT Table @ 0x%08x\n",madt->address);
+    printf(" signature      : %s\n", madt->header.signature);
+    printf(" length         : %d\n", madt->header.length);
+    printf(" revision       : %u\n", madt->header.revision);
+    printf(" checksum       : %u\n", madt->header.checksum);
+    printf(" oem id         : %s\n", madt->header.oem_id);
+    printf(" oem table id   : %s\n", madt->header.oem_table_id);
+    printf(" oem revision   : %u\n", madt->header.oem_revision);
+    printf(" oem creator id : %s\n", madt->header.creator_id);
+    printf(" oem creator rev: %u\n", madt->header.creator_revision);
+    printf(" APIC address   : 0x%08x\n", madt->local_apic_address);
 }

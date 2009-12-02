@@ -37,10 +37,8 @@ typedef struct {
 } s_acpi;
 
 int parse_acpi(s_acpi * acpi);
-int search_madt(s_acpi * acpi);
-int search_rsdp(s_acpi * acpi);
-int parse_rsdt(s_acpi * acpi);
 int parse_xsdt(s_acpi * acpi);
-void print_madt(s_acpi * acpi);
+int parse_madt(s_acpi * acpi);
+int search_rsdp(s_acpi *acpi);
 void get_acpi_description_header(uint8_t *q, s_acpi_description_header * adh);
 #endif

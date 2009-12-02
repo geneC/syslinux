@@ -25,4 +25,5 @@ typedef struct {
     bool valid;
 } s_rsdt;
 
+int parse_rsdt(s_rsdt * rsdt);
 #endif

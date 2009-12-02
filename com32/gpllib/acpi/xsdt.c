@@ -64,6 +64,13 @@ int parse_xsdt(s_acpi * acpi)
 		    f->address=*p;
 		    memcpy(&f->header,&adh,sizeof(adh));
 		    parse_fadt(f);
+	    } else if (memcmp(adh.signature, "APIC", 4) == 0) {
+		    s_madt *m = &acpi->madt;
+		    m->valid=true;
+		    m->address=*p;
+		    memcpy(&m->header,&adh,sizeof(adh));
+		    parse_madt(acpi);
+	    } else {
 	    }
 	    x->entry_count++;
 	}

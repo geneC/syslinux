@@ -47,4 +47,5 @@ typedef struct {
     bool valid;
 } s_madt;
 
+void print_madt(s_madt *madt);
 #endif

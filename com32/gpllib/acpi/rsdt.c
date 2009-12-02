@@ -32,17 +32,16 @@
 #include <dprintf.h>
 #include "acpi/acpi.h"
 
-int parse_rsdt(s_acpi * acpi)
+int parse_rsdt(s_rsdt *r)
 {
     /* Let's seach for RSDT table */
     uint8_t *q;
 
     /* Let's start for the base address */
-    q = (uint32_t *) acpi->rsdt.address;
+    q = (uint32_t *) r->address;
 
     /* Searching for MADT with APIC signature */
     if (memcmp(q, "RSDT", 4) == 0) {
-	s_rsdt *r = &acpi->rsdt;
 	r->valid = true;
 	get_acpi_description_header(q, &r->header);
 

@@ -34,12 +34,13 @@
 
 void parse_fadt(s_fadt * f)
 {
-    /* Let's seach for XSDT table */
+    /* Let's seach for FADT table */
     uint8_t *q;
 
     /* Fixing table name */
     strcpy(f->header.signature,"FADT");
-    /* Let's start for the base address */
+    
+    /* Copying remaining structs */
     q = (uint64_t *) (f->address+ACPI_HEADER_SIZE);
     cp_struct(&f->firmware_ctrl);
     cp_struct(&f->dsdt_address);
