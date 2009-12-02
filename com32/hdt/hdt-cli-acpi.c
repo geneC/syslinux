@@ -78,6 +78,9 @@ void main_show_acpi(int argc __unused, char **argv __unused,
     if (hardware->acpi.madt.valid)
 	show_header(hardware->acpi.madt.address, &hardware->acpi.madt.header);
 
+    if (hardware->acpi.dsdt.valid)
+	show_header(hardware->acpi.dsdt.address, &hardware->acpi.dsdt.header);
+
 //      more_printf("XSDT (v%3x %6s %7s %08x %4s %08x) @ %08x",
 }
 
