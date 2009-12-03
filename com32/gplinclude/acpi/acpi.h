@@ -24,13 +24,13 @@
 #include <acpi/ssdt.h>
 #include <acpi/sbst.h>
 #include <acpi/ecdt.h>
+#include <acpi/facs.h>
 
 enum { ACPI_FOUND, ENO_ACPI, MADT_FOUND, ENO_MADT };
 
 #define MAX_SSDT 128
 
 /* Some other description HEADERS : ACPI doc: 5.2.6*/
-#define FACS "FACS"
 #define OEMX "OEMx"
 #define SRAR "SRAT"
 #define BERT "BERT"
@@ -69,6 +69,7 @@ typedef struct {
     uint8_t ssdt_count;
     s_sbst sbst;
     s_ecdt ecdt;
+    s_facs facs;
 } s_acpi;
 
 int parse_acpi(s_acpi * acpi);

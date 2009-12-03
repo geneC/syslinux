@@ -10,19 +10,32 @@
  *
  * ----------------------------------------------------------------------- */
 
-#ifndef DSDT_H
-#define DSDT_H
+#ifndef FACS_H
+#define FACS_H
 #include <inttypes.h>
 #include <stdbool.h>
 
-#define DSDT "DSDT"
+#define FACS "FACS"
+
+/* Features Flags for "flags" */
+#define S4BIOS_F 1
+
+/* Features flags for global_lock */
+#define PENDING 1
+#define OWNED 1<<1
 
 typedef struct {
     uint64_t address;
-    s_acpi_description_header header;
-    uint8_t *definition_block;
+    uint8_t signature[4+1];
+    uint8_t length;
+    uint32_t hardware_signature;
+    uint32_t firmware_waking_vector;
+    uint32_t global_lock;
+    uint32_t flags;
+    uint64_t x_firmware_waking_vector;
+    uint8_t version;
     bool valid;
-} s_dsdt;
+} s_facs;
 
-void parse_dsdt(s_dsdt *dsdt);
+void parse_facs(s_facs *facs);
 #endif

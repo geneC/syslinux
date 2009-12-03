@@ -41,7 +41,7 @@ int parse_xsdt(s_acpi * acpi)
     q = (uint64_t *) acpi->xsdt.address;
 
     /* Searching for MADT with APIC signature */
-    if (memcmp(q, XSDT, sizeof(XSDT)-1) == 0) {
+    if (memcmp(q, XSDT, sizeof(XSDT) - 1) == 0) {
 	s_xsdt *x = &acpi->xsdt;
 	x->valid = true;
 	get_acpi_description_header(q, &x->header);
@@ -58,67 +58,109 @@ int parse_xsdt(s_acpi * acpi)
 	    get_acpi_description_header((uint8_t *) * p, &adh);
 
 	    /* Trying to determine the pointed table */
-	    /* Looking for MADT*/
-	    if (memcmp(adh.signature, FACP, sizeof(FACP)-1) == 0) {
-		    s_fadt *f = &acpi->fadt;
-		    /* This structure is valid, let's fill it */
-		    f->valid=true;
-		    f->address=*p;
-		    memcpy(&f->header,&adh,sizeof(adh));
-		    parse_fadt(f);
-		    /* Looking for MADT */
-	    } else if (memcmp(adh.signature, APIC, sizeof(APIC)-1) == 0) {
-		    s_madt *m = &acpi->madt;
-		    /* This structure is valid, let's fill it */
-		    m->valid=true;
-		    m->address=*p;
-		    memcpy(&m->header,&adh,sizeof(adh));
-		    parse_madt(acpi);
-	    } else if (memcmp(adh.signature, DSDT, sizeof(DSDT)-1) == 0) {
-		    s_dsdt *d = &acpi->dsdt;
-		    /* This structure is valid, let's fill it */
-		    d->valid=true;
-		    d->address=*p;
-		    memcpy(&d->header,&adh,sizeof(adh));
-		    /* Searching how much definition blocks we must copy */
-		    uint32_t definition_block_size=adh.length-ACPI_HEADER_SIZE;
-		    if ((d->definition_block=malloc(definition_block_size)) != NULL) {
-			    memcpy(d->definition_block,(uint64_t *)(d->address+ACPI_HEADER_SIZE),definition_block_size);
-		    }
-		    /* PSDT have to be considered as SSDT. Intel ACPI Spec @ 5.2.11.3 */
-	    } else if ((memcmp(adh.signature, SSDT, sizeof(SSDT)-1) == 0) || (memcmp(adh.signature, PSDT, sizeof(PSDT)-1))) {
-		    if ((acpi->ssdt_count >= MAX_SSDT-1)) break;
+	    /* Looking for FADT */
+	    if (memcmp(adh.signature, FACP, sizeof(FACP) - 1) == 0) {
+		s_fadt *f = &acpi->fadt;
+		s_facs *fa = &acpi->facs;
+		s_dsdt *d = &acpi->dsdt;
+		/* This structure is valid, let's fill it */
+		f->valid = true;
+		f->address = *p;
+		memcpy(&f->header, &adh, sizeof(adh));
+		parse_fadt(f);
 
-		    /* We can have many SSDT, so let's allocate a new one */
-		    if ((acpi->ssdt[acpi->ssdt_count]=malloc(sizeof(s_ssdt))) == NULL) break;	
-		    s_ssdt *s = acpi->ssdt[acpi->ssdt_count];
-
-		    /* This structure is valid, let's fill it */
-		    s->valid=true;
-		    s->address=*p;
-		    memcpy(&s->header,&adh,sizeof(adh));
-		    
-		    /* Searching how much definition blocks we must copy */
-		    uint32_t definition_block_size=adh.length-ACPI_HEADER_SIZE;
-		    if ((s->definition_block=malloc(definition_block_size)) != NULL) {
-			    memcpy(s->definition_block,(uint64_t *)(s->address+ACPI_HEADER_SIZE),definition_block_size);
+		/* FACS wasn't already detected
+		 * FADT points to it, let's try to detect it */
+		if (fa->valid == false) {
+		    fa->address = f->x_firmware_ctrl;
+		    parse_facs(fa);
+		    if (fa->valid == false) {
+			/* Let's try again */
+			fa->address = f->firmware_ctrl;
+			parse_facs(fa);
 		    }
-		    /* Increment the number of ssdt we have */
-		    acpi->ssdt_count++;
-	    } else if (memcmp(adh.signature, SBST, sizeof(SBST)-1) == 0) {
-		    s_sbst *s = &acpi->sbst;
-		    /* This structure is valid, let's fill it */
-		    s->valid=true;
-		    s->address=*p;
-		    memcpy(&s->header,&adh,sizeof(adh));
-		    parse_sbst(s);
-	    } else if (memcmp(adh.signature, ECDT, sizeof(ECDT)-1) == 0) {
-		    s_ecdt *e = &acpi->ecdt;
-		    /* This structure is valid, let's fill it */
-		    e->valid=true;
-		    e->address=*p;
-		    memcpy(&e->header,&adh,sizeof(adh));
-		    parse_ecdt(e);
+		}
+
+		/* DSDT wasn't already detected
+		 * FADT points to it, let's try to detect it */
+		if (d->valid == false) {
+		    s_acpi_description_header new_adh;
+		    get_acpi_description_header((uint8_t *) f->x_dsdt,
+						&new_adh);
+		    if (memcmp(new_adh.signature, DSDT, sizeof(DSDT) - 1) == 0) {
+			d->valid = true;
+			d->address = f->x_dsdt;
+			memcpy(&d->header, &new_adh, sizeof(new_adh));
+			parse_dsdt(d);
+		    } else {
+			/* Let's try again */
+			get_acpi_description_header((uint8_t *) f->dsdt_address,
+						    &new_adh);
+			if (memcmp(new_adh.signature, DSDT, sizeof(DSDT) - 1) ==
+			    0) {
+			    d->valid = true;
+			    d->address = f->dsdt_address;
+			    memcpy(&d->header, &new_adh, sizeof(new_adh));
+			    parse_dsdt(d);
+			}
+		    }
+		}
+	    } /* Looking for MADT */
+	    else if (memcmp(adh.signature, APIC, sizeof(APIC) - 1) == 0) {
+		s_madt *m = &acpi->madt;
+		/* This structure is valid, let's fill it */
+		m->valid = true;
+		m->address = *p;
+		memcpy(&m->header, &adh, sizeof(adh));
+		parse_madt(acpi);
+	    } else if (memcmp(adh.signature, DSDT, sizeof(DSDT) - 1) == 0) {
+		s_dsdt *d = &acpi->dsdt;
+		/* This structure is valid, let's fill it */
+		d->valid = true;
+		d->address = *p;
+		memcpy(&d->header, &adh, sizeof(adh));
+		parse_dsdt(d);
+		/* PSDT have to be considered as SSDT. Intel ACPI Spec @ 5.2.11.3 */
+	    } else if ((memcmp(adh.signature, SSDT, sizeof(SSDT) - 1) == 0)
+		       || (memcmp(adh.signature, PSDT, sizeof(PSDT) - 1))) {
+		if ((acpi->ssdt_count >= MAX_SSDT - 1))
+		    break;
+
+		/* We can have many SSDT, so let's allocate a new one */
+		if ((acpi->ssdt[acpi->ssdt_count] =
+		     malloc(sizeof(s_ssdt))) == NULL)
+		    break;
+		s_ssdt *s = acpi->ssdt[acpi->ssdt_count];
+
+		/* This structure is valid, let's fill it */
+		s->valid = true;
+		s->address = *p;
+		memcpy(&s->header, &adh, sizeof(adh));
+
+		/* Searching how much definition blocks we must copy */
+		uint32_t definition_block_size = adh.length - ACPI_HEADER_SIZE;
+		if ((s->definition_block =
+		     malloc(definition_block_size)) != NULL) {
+		    memcpy(s->definition_block,
+			   (uint64_t *) (s->address + ACPI_HEADER_SIZE),
+			   definition_block_size);
+		}
+		/* Increment the number of ssdt we have */
+		acpi->ssdt_count++;
+	    } else if (memcmp(adh.signature, SBST, sizeof(SBST) - 1) == 0) {
+		s_sbst *s = &acpi->sbst;
+		/* This structure is valid, let's fill it */
+		s->valid = true;
+		s->address = *p;
+		memcpy(&s->header, &adh, sizeof(adh));
+		parse_sbst(s);
+	    } else if (memcmp(adh.signature, ECDT, sizeof(ECDT) - 1) == 0) {
+		s_ecdt *e = &acpi->ecdt;
+		/* This structure is valid, let's fill it */
+		e->valid = true;
+		e->address = *p;
+		memcpy(&e->header, &adh, sizeof(adh));
+		parse_ecdt(e);
 	    }
 	    x->entry_count++;
 	}
