@@ -40,9 +40,9 @@ static void show_header_32(uint32_t address, s_acpi_description_header * h)
 		h->oem_revision, h->creator_id, h->creator_revision, address)
 }
 
-static void show_header(uint32_t address, s_acpi_description_header * h)
+static void show_header(uint64_t address, s_acpi_description_header * h)
 {
-    more_printf("%-4s v%03x %-6s %-7s 0x%08x %-4s    0x%08x @ 0x%016lx\n",
+    more_printf("%-4s v%03x %-6s %-7s 0x%08x %-4s    0x%08x @ 0x%016llx\n",
 		h->signature, h->revision, h->oem_id, h->oem_table_id,
 		h->oem_revision, h->creator_id, h->creator_revision, address)
 }
@@ -84,6 +84,9 @@ void main_show_acpi(int argc __unused, char **argv __unused,
     	if ((hardware->acpi.ssdt[i] != NULL) && (hardware->acpi.ssdt[i]->valid))
 		show_header(hardware->acpi.ssdt[i]->address, &hardware->acpi.ssdt[i]->header);
     }
+
+    if (hardware->acpi.sbst.valid)
+	show_header(hardware->acpi.sbst.address, &hardware->acpi.sbst.header);
 
 }
 
