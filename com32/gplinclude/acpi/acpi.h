@@ -22,6 +22,7 @@
 #include <acpi/madt.h>
 #include <acpi/dsdt.h>
 #include <acpi/ssdt.h>
+#include <acpi/sbst.h>
 
 enum { ACPI_FOUND, ENO_ACPI, MADT_FOUND, ENO_MADT };
 
@@ -65,6 +66,7 @@ typedef struct {
     s_madt madt;
     s_dsdt dsdt;
     s_ssdt *ssdt[MAX_SSDT];
+    s_sbst sbst;
     uint8_t ssdt_count;
 } s_acpi;
 

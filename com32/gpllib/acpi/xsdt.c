@@ -105,6 +105,13 @@ int parse_xsdt(s_acpi * acpi)
 		    }
 		    /* Increment the number of ssdt we have */
 		    acpi->ssdt_count++;
+	    } else if (memcmp(adh.signature, SBST, sizeof(SBST)-1) == 0) {
+		    s_sbst *s = &acpi->sbst;
+		    /* This structure is valid, let's fill it */
+		    s->valid=true;
+		    s->address=*p;
+		    memcpy(&s->header,&adh,sizeof(adh));
+		    parse_sbst(s);
 	    }
 
 	    x->entry_count++;
