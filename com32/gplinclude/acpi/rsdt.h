@@ -17,6 +17,8 @@
 
 enum { RSDT_TABLE_FOUND };
 
+#define RSDT "RSDT"
+
 typedef struct {
     uint32_t address;
     s_acpi_description_header header;

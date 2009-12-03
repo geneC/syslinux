@@ -38,7 +38,7 @@ void parse_fadt(s_fadt * f)
     uint8_t *q;
 
     /* Fixing table name */
-    strcpy(f->header.signature,"FADT");
+    memcpy(f->header.signature,FADT,sizeof(FADT));
     
     /* Copying remaining structs */
     q = (uint64_t *) (f->address+ACPI_HEADER_SIZE);

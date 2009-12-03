@@ -41,7 +41,7 @@ int parse_rsdt(s_rsdt *r)
     q = (uint32_t *) r->address;
 
     /* Searching for MADT with APIC signature */
-    if (memcmp(q, "RSDT", 4) == 0) {
+    if (memcmp(q, RSDT, sizeof(RSDT)-1) == 0) {
 	r->valid = true;
 	get_acpi_description_header(q, &r->header);
 

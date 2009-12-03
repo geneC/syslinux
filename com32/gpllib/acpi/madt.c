@@ -71,14 +71,14 @@ static uint8_t *add_apic_structure(s_acpi * acpi, uint8_t * q)
     return q;
 }
 
-int parse_madt(s_acpi *acpi)
+void parse_madt(s_acpi *acpi)
 {
     /* Let's seach for FADT table */
     uint8_t *q;
     s_madt *m = &acpi->madt;
 
     /* Fixing table name */
-    strcpy(m->header.signature,"MADT");
+    memcpy(m->header.signature,MADT,sizeof(MADT));
 
     /* Copying remaining structs */
     q = (uint64_t *) (m->address+ACPI_HEADER_SIZE);
@@ -91,7 +91,7 @@ void print_madt(s_madt * madt)
 {
     if (!madt->valid)
 	return;
-    printf("MADT Table @ 0x%08x\n",madt->address);
+    printf("MADT Table @ 0x%016llx\n",madt->address);
     printf(" signature      : %s\n", madt->header.signature);
     printf(" length         : %d\n", madt->header.length);
     printf(" revision       : %u\n", madt->header.revision);

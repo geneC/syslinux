@@ -17,6 +17,8 @@
 
 enum { XSDT_TABLE_FOUND };
 
+#define XSDT "XSDT"
+
 typedef struct {
     uint32_t address;
     s_acpi_description_header header;

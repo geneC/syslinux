@@ -17,6 +17,9 @@
 
 enum { FADT_TABLE_FOUND };
 
+#define FACP "FACP"
+#define FADT "FADT"
+
 typedef struct {
     uint64_t address;
     s_acpi_description_header header;

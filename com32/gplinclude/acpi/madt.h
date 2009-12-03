@@ -15,6 +15,9 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+#define MADT "MADT"
+#define APIC "APIC"
+
 enum {
     PROCESSOR_LOCAL_APIC = 0,
     IO_APIC = 1,

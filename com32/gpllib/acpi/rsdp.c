@@ -40,8 +40,8 @@ int search_rsdp(s_acpi * acpi)
     /* Let's start for the base address */
     p = (uint64_t *) RSDP_MIN_ADDRESS;
     for (q = p; q < RSDP_MAX_ADDRESS; q += 16) {
-	/* Searching for MADT with APIC signature */
-	if (memcmp(q, "RSD PTR", 7) == 0) {
+	/* Searching for RSDP with "RSD PTR" signature */
+	if (memcmp(q, RSDP, sizeof(RSDP)-1) == 0) {
 	    s_rsdp *r = &acpi->rsdp;
 	    r->valid = true;
 	    r->address = (uint64_t) q;

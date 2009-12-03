@@ -15,6 +15,8 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+#define DSDT "DSDT"
+
 typedef struct {
     uint64_t address;
     s_acpi_description_header header;

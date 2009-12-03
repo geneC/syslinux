@@ -15,6 +15,9 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+#define SSDT "SSDT"
+#define PSDT "PSDT"
+
 typedef struct {
     uint64_t address;
     s_acpi_description_header header;

@@ -17,6 +17,9 @@
 
 #define RSDP_MIN_ADDRESS 0x0E0000
 #define RSDP_MAX_ADDRESS 0x0FFFFF
+
+#define RSDP "RSD PTR"
+
 enum { RSDP_TABLE_FOUND };
 
 typedef struct {
