@@ -10,44 +10,29 @@
  *
  * ----------------------------------------------------------------------- */
 
-#ifndef MADT_H
-#define MADT_H
+#ifndef ECDT_H
+#define ECDT_H
 #include <inttypes.h>
 #include <stdbool.h>
 
-#define MADT "MADT"
-#define APIC "APIC"
+#define ECDT "ECDT"
 
-enum {
-    PROCESSOR_LOCAL_APIC = 0,
-    IO_APIC = 1,
-    INTERRUPT_SOURCE_OVERRIDE = 2,
-    NMI = 3,
-    LOCAL_APIC_NMI_STRUCTURE = 4,
-    LOCAL_APIC_ADDRESS_OVERRIDE_STRUCTURE = 5,
-    IO_SAPIC = 6,
-    LOCAL_SAPIC = 7,
-    PLATEFORM_INTERRUPT_SOURCES = 8
-};
-
-#define MAX_SLP 255
-
-typedef struct {
-    uint8_t length;
-    uint8_t acpi_id;
-    uint8_t apic_id;
-    uint32_t flags;
-} __attribute__ ((packed)) s_processor_local_apic;
+/* Offset of the EC_ID in the structure */
+#define EC_ID_OFFSET 65
 
 typedef struct {
     uint64_t address;
     s_acpi_description_header header;
-    uint32_t local_apic_address;
-    uint32_t flags;
-    s_processor_local_apic processor_local_apic[MAX_SLP];
-    uint8_t processor_local_apic_count;
     bool valid;
-} s_madt;
+    uint32_t warning_energy_level;
+    uint32_t low_energy_level;
+    uint32_t critical_energy_level;
+    s_gas ec_control;
+    s_gas ec_data;
+    uint32_t uid;
+    uint8_t gpe_bit;
+    char *ec_id;
+} s_ecdt;
 
-void print_madt(s_madt *madt);
+void parse_ecdt(s_ecdt * ecdt);
 #endif

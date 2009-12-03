@@ -20,6 +20,18 @@
  * */
 #define ACPI_HEADER_SIZE 36
 
+enum { GAS_SYSTEM_MEMORY=0, GAS_SYSTEM_IO=1 };
+
+/* Generic Address Structure (GAS) Format */
+typedef struct {
+    /* address_space_id could be {GAS_SYSTEM_MEMORY | GAS_SYSTEM_IO} */
+    uint8_t address_space_id;
+    uint8_t register_bit_width;
+    uint8_t register_bit_offset;
+    uint8_t reserved;
+    uint64_t address;
+} __attribute__ ((packed)) s_gas;
+
 typedef struct {
     uint8_t signature[4 + 1];
     uint32_t length;

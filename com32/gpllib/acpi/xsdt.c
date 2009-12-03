@@ -112,8 +112,14 @@ int parse_xsdt(s_acpi * acpi)
 		    s->address=*p;
 		    memcpy(&s->header,&adh,sizeof(adh));
 		    parse_sbst(s);
+	    } else if (memcmp(adh.signature, ECDT, sizeof(ECDT)-1) == 0) {
+		    s_ecdt *e = &acpi->ecdt;
+		    /* This structure is valid, let's fill it */
+		    e->valid=true;
+		    e->address=*p;
+		    memcpy(&e->header,&adh,sizeof(adh));
+		    parse_ecdt(e);
 	    }
-
 	    x->entry_count++;
 	}
 	return XSDT_TABLE_FOUND;
