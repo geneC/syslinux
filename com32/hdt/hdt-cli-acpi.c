@@ -91,6 +91,12 @@ void main_show_acpi(int argc __unused, char **argv __unused,
     if (hardware->acpi.ecdt.valid)
 	show_header(hardware->acpi.ecdt.address, &hardware->acpi.ecdt.header);
 
+    if (hardware->acpi.facs.valid) {
+	s_facs *fa = &hardware->acpi.facs;
+	more_printf
+	    ("FACS                                                     @ 0x%016llx\n",
+	     fa->address);
+    }
 }
 
 struct cli_module_descr acpi_show_modules = {
