@@ -88,6 +88,9 @@ void main_show_acpi(int argc __unused, char **argv __unused,
     if (hardware->acpi.sbst.valid)
 	show_header(hardware->acpi.sbst.address, &hardware->acpi.sbst.header);
 
+    if (hardware->acpi.ecdt.valid)
+	show_header(hardware->acpi.ecdt.address, &hardware->acpi.ecdt.header);
+
 }
 
 struct cli_module_descr acpi_show_modules = {
