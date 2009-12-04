@@ -37,6 +37,7 @@
 #define CODENAME "bluelabel"
 #define NB_CONTRIBUTORS 3
 #define CONTRIBUTORS {"Sebastien Gonzalve (Patches)", "Gert Hulselmans (Tests)", "Alexander Andino (Design)"}
+#define WEBSITE_URL "http://hdt-project.org"
 
 #define ATTR_PACKED __attribute__((packed))
 

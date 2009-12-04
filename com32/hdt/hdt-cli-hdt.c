@@ -230,8 +230,9 @@ void main_show_hdt(int argc __unused, char **argv __unused,
     more_printf("HDT\n");
     more_printf(" Product        : %s\n", PRODUCT_NAME);
     more_printf(" Version        : %s (%s)\n", VERSION, CODENAME);
+    more_printf(" Website        : %s\n", WEBSITE_URL);
+    more_printf(" Mailing List   : %s\n", CONTACT);
     more_printf(" Project Leader : %s\n", AUTHOR);
-    more_printf(" Contact        : %s\n", CONTACT);
     more_printf(" Core Developer : %s\n", CORE_DEVELOPER);
     char *contributors[NB_CONTRIBUTORS] = CONTRIBUTORS;
     for (int c = 0; c < NB_CONTRIBUTORS; c++) {
