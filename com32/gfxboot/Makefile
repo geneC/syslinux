@@ -22,8 +22,8 @@ gfxboot.elf : gfxboot.o realmode_callback.o $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 realmode_callback.o: realmode_callback.asm
-	nasm -f bin -O99 -o $*.tmp -l $*.lst $<
-	objcopy -B i386 -I binary -O elf32-i386 \
+	$(NASM) -f bin -O99 -o $*.tmp -l $*.lst $<
+	$(OBJCOPY) -B i386 -I binary -O elf32-i386 \
 	  --redefine-sym _binary_$*_tmp_start=$*_start \
 	  --redefine-sym _binary_$*_tmp_end=$*_end \
 	  --strip-symbol _binary_$*_tmp_size \
