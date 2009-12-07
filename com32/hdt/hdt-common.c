@@ -61,7 +61,7 @@ void detect_parameters(const int argc, const char *argv[],
 		       struct s_hardware *hardware)
 {
     /* Quiet mode - make the output more quiet */
-    quiet = false;
+    quiet = true;
 
     /* Vesa mode isn't set until we explictly call it */
     vesamode = false;
@@ -69,6 +69,8 @@ void detect_parameters(const int argc, const char *argv[],
     for (int i = 1; i < argc; i++) {
 	if (!strncmp(argv[i], "quiet", 5)) {
 	    quiet = true;
+	} else	if (!strncmp(argv[i], "verbose", 7)) {
+	    quiet = false;
 	} else if (!strncmp(argv[i], "modules_pcimap=", 15)) {
 	    strncpy(hardware->modules_pcimap_path, argv[i] + 15,
 		    sizeof(hardware->modules_pcimap_path));
