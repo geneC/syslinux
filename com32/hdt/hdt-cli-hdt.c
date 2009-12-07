@@ -129,6 +129,28 @@ static void show_cli_help(int argc __unused, char **argv __unused,
 	printf("\n");
     }
 
+    /* List finally the default modules of the hdt mode */
+    if (current_mode->mode != hdt_mode.mode &&
+	hdt_mode.default_modules && hdt_mode.default_modules->modules) {
+	j = 0;
+	while (hdt_mode.default_modules->modules[j].name) {
+	    /*
+	     * Any default command that is present in hdt mode but
+	     * not in the current mode is available. A default
+	     * command can be redefined in the current mode though.
+	     * This next call test this use case: if it is
+	     * overwritten, do not print it again.
+	     */
+	    find_cli_callback_descr(hdt_mode.default_modules->modules[j].name,
+				    current_mode->default_modules,
+				    &associated_module);
+	    if (associated_module == NULL)
+		printf("%s ", hdt_mode.default_modules->modules[j].name);
+	    j++;
+	}
+	printf("\n");
+    }
+
     /* List secondly the show modules of the mode */
     if (current_mode->show_modules && current_mode->show_modules->modules) {
 	printf("\nshow commands:\n");
@@ -151,27 +173,6 @@ static void show_cli_help(int argc __unused, char **argv __unused,
 	printf("\n");
     }
 
-    /* List finally the default modules of the hdt mode */
-    if (current_mode->mode != hdt_mode.mode &&
-	hdt_mode.default_modules && hdt_mode.default_modules->modules) {
-	j = 0;
-	while (hdt_mode.default_modules->modules[j].name) {
-	    /*
-	     * Any default command that is present in hdt mode but
-	     * not in the current mode is available. A default
-	     * command can be redefined in the current mode though.
-	     * This next call test this use case: if it is
-	     * overwritten, do not print it again.
-	     */
-	    find_cli_callback_descr(hdt_mode.default_modules->modules[j].name,
-				    current_mode->default_modules,
-				    &associated_module);
-	    if (associated_module == NULL)
-		printf("%s ", hdt_mode.default_modules->modules[j].name);
-	    j++;
-	}
-	printf("\n");
-    }
 
     printf("\n");
     main_show_modes(argc, argv, hardware);
