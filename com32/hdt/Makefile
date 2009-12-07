@@ -46,6 +46,7 @@ GZ_PCI_IDS_FILE         ?= $(PCI_IDS_FILE).gz
 REBOOT_COM32            ?= $(com32)/modules/reboot.c32
 MENU_COM32              ?= $(com32)/menu/menu.c32
 ART_DIR                 ?= art/
+QEMU			?= qemu-kvm
 
 all: $(MODULES) $(TESTFILES)
 
@@ -110,6 +111,9 @@ hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg memtest
 
 release: spotless hdt.c32 hdt.img hdt.img.gz hdt.iso
 	mv hdt.c32 hdt_$(VERSION_C32).c32
+
+test: hdt.img
+	$(QEMU) -fda hdt.img
 
 tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d *.tmp
