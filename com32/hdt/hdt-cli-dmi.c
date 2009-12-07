@@ -338,7 +338,10 @@ static void show_dmi_cpu(int argc __unused, char **argv __unused,
 		hardware->dmi.processor.signature.stepping);
     more_printf(" Cpu Minor Stepping : %u\n",
 		hardware->dmi.processor.signature.minor_stepping);
-// more_printf(" Voltage            : %f\n",hardware->dmi.processor.voltage);
+    more_printf("Voltage             : %d.%02d\n",
+                hardware->dmi.processor.voltage_mv / 1000,
+                hardware->dmi.processor.voltage_mv -
+                ((hardware->dmi.processor.voltage_mv / 1000) * 1000));
     more_printf(" Status             : %s\n", hardware->dmi.processor.status);
     more_printf(" Upgrade            : %s\n", hardware->dmi.processor.upgrade);
     more_printf(" Cache L1 Handle    : %s\n", hardware->dmi.processor.cache1);
