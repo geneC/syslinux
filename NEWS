@@ -5,7 +5,16 @@ to all derivatives.
 Changes in 3.84:
 	* SYSLINUX: make the DOS installer work for MS-DOS 7.x/8.x
 	  (Win9x/ME) again.
-	* HDT: updated to version 0.3.5.
+	* HDT: updated to version 0.3.6 (numerous changes.)
+	* mboot.c32: now supports video mode setting if requested by
+	  the image.
+	* MEMDISK: Fix floppy images of PC-DOS.
+	* MEMDISK: Add support for emulation of CD-ROM images; patch
+	  by Shao Miller.
+	* MEMDISK: Comply with the Win9x "safe hook" standard,
+	  allowing a protected-mode driver.
+	* 32-bit version of the gfxboot loader (gfxboot.c32), so far
+	  experimental.  This will replace gfxboot.com in the future.
 
 Changes in 3.83:
 	* PXELINUX: clear memory before handing over to a chainloaded
