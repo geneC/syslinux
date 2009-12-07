@@ -493,8 +493,6 @@ void main_show_dmi(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware)
 {
 
-    detect_dmi(hardware);
-
     if (hardware->is_dmi_valid == false) {
 	more_printf("No valid DMI table found, exiting.\n");
 	return;
@@ -512,12 +510,6 @@ void show_dmi_memory_modules(int argc __unused, char **argv __unused,
 {
     /* Do we have so display unpopulated banks ? */
     int show_free_banks = 1;
-
-    /* Needed, if called by the memory mode */
-    detect_dmi(hardware);
-
-    /* Detecting installed memory */
-    detect_memory(hardware);
 
     more_printf("Memory Size   : %lu MB (%lu KB)\n",
 		(hardware->detected_memory_size + (1 << 9)) >> 10,

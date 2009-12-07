@@ -131,5 +131,4 @@ void setup_menu(char *version);
 void compute_main_menu(struct s_hdt_menu *hdt_menu,
 		       struct s_hardware *hardware);
 void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);
-void detect_hardware(struct s_hardware *hardware);
 #endif

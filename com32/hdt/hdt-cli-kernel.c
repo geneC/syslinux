@@ -43,7 +43,6 @@ void main_show_kernel(int argc __unused, char **argv __unused,
     char kernel_modules[LINUX_KERNEL_MODULE_SIZE *
 			MAX_KERNEL_MODULES_PER_PCI_DEVICE];
 
-    detect_pci(hardware);
     reset_more_printf();
     more_printf("Kernel modules\n");
 
@@ -97,8 +96,6 @@ static void show_kernel_modules(int argc __unused, char **argv __unused,
     bool nomodulespcimap = false;
     char modules[MAX_PCI_CLASSES][256] = {{0}};
     char category_name[MAX_PCI_CLASSES][256] = {{0}};
-
-    detect_pci(hardware);
 
     if (hardware->pci_ids_return_code == -ENOPCIIDS) {
 	nopciids = true;

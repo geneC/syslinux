@@ -37,7 +37,6 @@ void main_show_vesa(int argc __unused, char **argv __unused,
 		    struct s_hardware *hardware)
 {
     reset_more_printf();
-    detect_vesa(hardware);
     if (hardware->is_vesa_valid == false) {
 	more_printf("No VESA BIOS detected\n");
 	return;
@@ -56,7 +55,6 @@ void main_show_vesa(int argc __unused, char **argv __unused,
 static void show_vesa_modes(int argc __unused, char **argv __unused,
 			    struct s_hardware *hardware)
 {
-    detect_vesa(hardware);
     reset_more_printf();
     if (hardware->is_vesa_valid == false) {
 	more_printf("No VESA BIOS detected\n");

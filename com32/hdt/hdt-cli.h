@@ -187,7 +187,6 @@ void show_dmi_memory_bank(int argc, char **argv, struct s_hardware *hardware);
 // PCI STUFF
 #define CLI_PCI_DEVICE "device"
 void main_show_pci(int argc, char **argv, struct s_hardware *hardware);
-void cli_detect_pci(struct s_hardware *hardware);
 
 // CPU STUFF
 void main_show_cpu(int argc, char **argv, struct s_hardware *hardware);

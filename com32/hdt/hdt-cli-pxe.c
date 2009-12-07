@@ -48,7 +48,6 @@ void main_show_pxe(int argc __unused, char **argv __unused,
 	return;
     }
 
-    detect_pxe(hardware);
     more_printf("PXE\n");
     if (hardware->is_pxe_valid == false) {
 	more_printf(" No valid PXE ROM found\n");

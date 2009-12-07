@@ -139,7 +139,6 @@ void set_mode(cli_mode_t mode, struct s_hardware *hardware)
 	snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_PXE);
 	break;
     case KERNEL_MODE:
-	detect_pci(hardware);
 	hdt_cli.mode = mode;
 	snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_KERNEL);
 	break;
@@ -154,19 +153,12 @@ void set_mode(cli_mode_t mode, struct s_hardware *hardware)
     case PCI_MODE:
 	hdt_cli.mode = mode;
 	snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_PCI);
-	if (!hardware->pci_detection)
-	    cli_detect_pci(hardware);
 	break;
     case CPU_MODE:
 	hdt_cli.mode = mode;
 	snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_CPU);
-	if (!hardware->dmi_detection)
-	    detect_dmi(hardware);
-	if (!hardware->cpu_detection)
-	    cpu_detect(hardware);
 	break;
     case DMI_MODE:
-	detect_dmi(hardware);
 	if (!hardware->is_dmi_valid) {
 	    printf("No valid DMI table found, exiting.\n");
 	    break;
@@ -175,12 +167,10 @@ void set_mode(cli_mode_t mode, struct s_hardware *hardware)
 	snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_DMI);
 	break;
     case DISK_MODE:
-	detect_disks(hardware);
 	hdt_cli.mode = mode;
 	snprintf(hdt_cli.prompt, sizeof(hdt_cli.prompt), "%s> ", CLI_DISK);
 	break;
     case VPD_MODE:
-	detect_vpd(hardware);
 	if (!hardware->is_vpd_valid) {
 	    printf("No valid VPD table found, exiting.\n");
 	    break;

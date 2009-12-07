@@ -65,7 +65,7 @@ void main_show_acpi(int argc __unused, char **argv __unused,
 		    struct s_hardware *hardware)
 {
     reset_more_printf();
-    detect_acpi(hardware);
+
     if (hardware->is_acpi_valid == false) {
 	more_printf("No ACPI Tables detected\n");
 	return;
@@ -209,8 +209,6 @@ static void show_interrupt_source_override(s_madt * madt)
 static void show_acpi_madt(int argc __unused, char **argv __unused,
 			   struct s_hardware *hardware)
 {
-    detect_acpi(hardware);
-
     if (hardware->is_acpi_valid == false) {
 	more_printf("No ACPI Tables detected\n");
 	return;

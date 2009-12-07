@@ -226,4 +226,5 @@ void detect_parameters(const int argc, const char *argv[],
 int detect_vesa(struct s_hardware *hardware);
 void detect_memory(struct s_hardware *hardware);
 void init_console(struct s_hardware *hardware);
+void detect_hardware(struct s_hardware *hardware);
 #endif

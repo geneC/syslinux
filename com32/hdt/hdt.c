@@ -66,6 +66,9 @@ int main(const int argc, const char *argv[])
     /* Opening the Syslinux console */
     init_console(&hardware);
 
+    /* Detect hardware */
+    detect_hardware(&hardware);
+
     /* Clear the screen and reset position of the cursor */
     clear_screen();
     printf("\033[1;1H");

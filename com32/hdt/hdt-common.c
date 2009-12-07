@@ -440,8 +440,6 @@ int detect_pxe(struct s_hardware *hardware)
 		return -1;
 		break;
 	    }
-	    /* Let's try to find the associated pci device */
-	    detect_pci(hardware);
 
 	    /* The firt pass try to find the exact pci device */
 	    hardware->pxe.pci_device = NULL;
@@ -543,8 +541,6 @@ void detect_pci(struct s_hardware *hardware)
 	get_module_name_from_alias(hardware->pci_domain,
 				   hardware->modules_alias_path);
 
-    /* We try to detect the pxe stuff to populate the PXE: field of pci devices */
-    detect_pxe(hardware);
 }
 
 void cpu_detect(struct s_hardware *hardware)
@@ -692,3 +688,51 @@ void init_console(struct s_hardware *hardware)
     } else
 	console_ansi_raw();
 }
+
+void detect_hardware(struct s_hardware *hardware)
+{
+    if (!quiet)
+        more_printf("ACPI: Detecting\n");
+    detect_acpi(hardware);
+
+    if (!quiet)
+        more_printf("MEMORY: Detecting\n");
+    detect_memory(hardware);
+
+    if (!quiet)
+        more_printf("DMI: Detecting Table\n");
+    if (detect_dmi(hardware) == -ENODMITABLE) {
+        printf("DMI: ERROR ! Table not found ! \n");
+        printf("DMI: Many hardware components will not be detected ! \n");
+    } else {
+        if (!quiet)
+            more_printf("DMI: Table found ! (version %u.%u)\n",
+                        hardware->dmi.dmitable.major_version,
+                        hardware->dmi.dmitable.minor_version);
+    }
+
+    if (!quiet)
+        more_printf("CPU: Detecting\n");
+    cpu_detect(hardware);
+
+    if (!quiet)
+        more_printf("DISKS: Detecting\n");
+    detect_disks(hardware);
+
+    if (!quiet)
+        more_printf("VPD: Detecting\n");
+    detect_vpd(hardware);
+
+    detect_pci(hardware);
+    if (!quiet)
+        more_printf("PCI: %d Devices Found\n", hardware->nb_pci_devices);
+ 
+   if (!quiet)
+        more_printf("PXE: Detecting\n");
+    detect_pxe(hardware);
+
+    if (!quiet)
+        more_printf("VESA: Detecting\n");
+    detect_vesa(hardware);
+}
+

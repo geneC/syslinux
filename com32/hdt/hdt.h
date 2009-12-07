@@ -41,7 +41,6 @@
 
 #define ATTR_PACKED __attribute__((packed))
 
-#define WITH_PCI 1
 #define WITH_MENU_DISPLAY 1
 
 #endif

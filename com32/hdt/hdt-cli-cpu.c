@@ -38,8 +38,6 @@ void main_show_cpu(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware)
 {
     char features[81];
-    cpu_detect(hardware);
-    detect_dmi(hardware);
     more_printf("CPU\n");
     more_printf(" Manufacturer : %s \n", hardware->cpu.vendor);
     more_printf(" Product      : %s \n", hardware->cpu.model);

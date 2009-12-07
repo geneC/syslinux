@@ -196,10 +196,6 @@ static void goto_menu(int argc __unused, char **argv __unused,
 void main_show_summary(int argc __unused, char **argv __unused,
 		       struct s_hardware *hardware)
 {
-    detect_pci(hardware);	/* pxe is detected in the pci */
-    detect_dmi(hardware);
-    cpu_detect(hardware);
-    detect_memory(hardware);
     reset_more_printf();
     clear_screen();
     main_show_cpu(argc, argv, hardware);
