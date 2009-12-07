@@ -227,6 +227,7 @@ void main_show_hdt(int argc __unused, char **argv __unused,
     more_printf(" Product        : %s\n", PRODUCT_NAME);
     more_printf(" Version        : %s (%s)\n", VERSION, CODENAME);
     more_printf(" Website        : %s\n", WEBSITE_URL);
+    more_printf(" IRC Channel    : %s\n", IRC_CHANNEL);
     more_printf(" Mailing List   : %s\n", CONTACT);
     more_printf(" Project Leader : %s\n", AUTHOR);
     more_printf(" Core Developer : %s\n", CORE_DEVELOPER);
