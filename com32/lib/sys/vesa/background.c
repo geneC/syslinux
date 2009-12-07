@@ -163,8 +163,7 @@ static int jpeg_sig_cmp(uint8_t * bytes, int len)
 {
     (void)len;
 
-    /* FF D8 = start of image, FF E0 = JFIF header */
-    return memcmp(bytes, "\xff\xd8\xff\xe0", 4) ? -1 : 0;
+    return (bytes[0] == 0xff && bytes[1] == 0xd8) ? 0 : -1;
 }
 
 static int read_jpeg_file(FILE * fp, uint8_t * header, int len)
