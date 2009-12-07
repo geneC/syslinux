@@ -44,7 +44,6 @@ static void show_header_32(uint32_t address, s_acpi_description_header * h)
 }
 
 /* Print ACPI's table header in a defined formating */
-static void show_header_32(uint32_t address, s_acpi_description_header * h)
 static void show_header(uint64_t address, s_acpi_description_header * h)
 {
     more_printf("%-4s v%03x %-6s %-7s 0x%08x %-4s    0x%08x @ 0x%016llx\n",
