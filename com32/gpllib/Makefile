@@ -8,7 +8,7 @@ include ../lib/MCONFIG
 
 REQFLAGS += -I../gplinclude
 
-GPLDIRS := . disk dmi vpd
+GPLDIRS := . disk dmi vpd acpi
 LIBOBJS := $(foreach dir,$(GPLDIRS),$(patsubst %.c,%.o,$(wildcard $(dir)/*.c)))
 
 BINDIR   = /usr/bin

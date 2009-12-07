@@ -169,10 +169,12 @@ void init_hardware(struct s_hardware *hardware)
     hardware->vesa_detection = false;
     hardware->vpd_detection = false;
     hardware->memory_detection = false;
+    hardware->acpi_detection = false;
     hardware->nb_pci_devices = 0;
     hardware->is_dmi_valid = false;
     hardware->is_pxe_valid = false;
     hardware->is_vpd_valid = false;
+    hardware->is_acpi_valid = false;
     hardware->pci_domain = NULL;
     hardware->detected_memory_size = 0;
 
@@ -184,6 +186,7 @@ void init_hardware(struct s_hardware *hardware)
     memset(&hardware->pxe, 0, sizeof(struct s_pxe));
     memset(&hardware->vesa, 0, sizeof(struct s_vesa));
     memset(&hardware->vpd, 0, sizeof(s_vpd));
+    memset(&hardware->acpi, 0, sizeof(s_vpd));
     memset(hardware->syslinux_fs, 0, sizeof hardware->syslinux_fs);
     memset(hardware->pciids_path, 0, sizeof hardware->pciids_path);
     memset(hardware->modules_pcimap_path, 0,
@@ -220,6 +223,25 @@ int detect_dmi(struct s_hardware *hardware)
     parse_dmitable(&hardware->dmi);
     hardware->is_dmi_valid = true;
     return 0;
+}
+
+/*
+ * Detecting ACPI
+ * if yes, let's parse it
+ */
+int detect_acpi(struct s_hardware *hardware)
+{
+    int retval;
+    if (hardware->acpi_detection == true)
+	return -1;
+    hardware->acpi_detection = true;
+    if ((retval=parse_acpi(&hardware->acpi)) != ACPI_FOUND) {
+	hardware->is_acpi_valid = false;
+	return retval;
+    }
+
+    hardware->is_acpi_valid = true;
+    return retval;
 }
 
 /**

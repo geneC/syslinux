@@ -334,6 +334,10 @@ struct cli_callback_descr list_hdt_show_modules[] = {
      .exec = show_dmi_memory_modules,
      },
     {
+     .name = CLI_ACPI,
+     .exec = main_show_acpi,
+     },
+    {
      .name = "modes",
      .exec = main_show_modes,
      },
