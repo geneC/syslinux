@@ -28,7 +28,7 @@ TESTFILES =
 OBJS	  = $(patsubst %.c,%.o,$(wildcard *.c))
 VERSION   = $(shell $(SED) -n 's/\#define VERSION \"\(.*\)\"/\1/p' hdt.h)
 CODENAME  = $(shell $(SED) -n 's/\#define CODENAME \"\(.*\)\"/\1/p' hdt.h)
-VERSION_C32 = $(shell echo $(VERSION) | $(SED) -e 's/-/_/g')
+VERSION_C32 = $(shell echo $(VERSION) | $(SED) -e 's/-/_/g' | $(SED) -e 's/\./_/g')
 
 MEMTEST_URL = http://memtest.org/download/4.00/memtest86+-4.00.bin
 MEMTEST     = memtest.bin

@@ -51,16 +51,23 @@ void compute_aboutmenu(struct s_my_menu *menu)
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 
+    snprintf(buffer, sizeof buffer, "Website        : %s", WEBSITE_URL);
+    snprintf(statbuffer, sizeof statbuffer, "Website : %s",WEBSITE_URL); 
+    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+    menu->items_count++;
+
+    snprintf(buffer, sizeof buffer, "Mailing List   : %s", CONTACT);
+    snprintf(statbuffer, sizeof statbuffer, "Mailing List: %s", CONTACT);
+    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+    menu->items_count++;
+
+    add_item("", "", OPT_SEP, "", 0);
+
     snprintf(buffer, sizeof buffer, "Project Leader : %s", AUTHOR);
     snprintf(statbuffer, sizeof statbuffer, "Project Leader  : %s", AUTHOR);
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
-
-    snprintf(buffer, sizeof buffer, "Contact        : %s", CONTACT);
-    snprintf(statbuffer, sizeof statbuffer, "Contact : %s", CONTACT);
-    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-    menu->items_count++;
-
+    
     snprintf(buffer, sizeof buffer, "Core Developer : %s", CORE_DEVELOPER);
     snprintf(statbuffer, sizeof statbuffer, "Core Developer  : %s",
 	     CORE_DEVELOPER);
