@@ -54,9 +54,20 @@ void compute_processor(struct s_my_menu *menu, struct s_hardware *hardware)
     char buffer1[SUBMENULEN + 1];
     char statbuffer[STATLEN + 1];
 
-    menu->menu = add_menu(" Main Processor ", -1);
-    menu->items_count = 0;
-    set_menu_pos(SUBMENU_Y, SUBMENU_X);
+    if (hardware->acpi.madt.processor_local_apic_count > 0) {
+	snprintf(buffer, sizeof buffer,
+		 " Main Processors (%d logical / %d phys. ) ",
+		 hardware->acpi.madt.processor_local_apic_count,
+		 hardware->acpi.madt.processor_local_apic_count /
+		 hardware->cpu.num_cores);
+	menu->menu = add_menu(buffer, -1);
+	menu->items_count = 0;
+	set_menu_pos(SUBMENU_Y, SUBMENU_X);
+    } else {
+	menu->menu = add_menu(" Main Processor ", -1);
+	menu->items_count = 0;
+	set_menu_pos(SUBMENU_Y, SUBMENU_X);
+    }
 
     snprintf(buffer, sizeof buffer, "Vendor    : %s", hardware->cpu.vendor);
     snprintf(statbuffer, sizeof statbuffer, "Vendor: %s", hardware->cpu.vendor);

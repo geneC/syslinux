@@ -38,7 +38,13 @@ void main_show_cpu(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware)
 {
     char features[81];
-    more_printf("CPU\n");
+    if (hardware->acpi.madt.processor_local_apic_count > 0) {
+	more_printf("CPU (%d logical / %d phys)\n",
+		    hardware->acpi.madt.processor_local_apic_count,
+		    hardware->acpi.madt.processor_local_apic_count /
+		    hardware->cpu.num_cores);
+    } else
+	more_printf("CPU\n");
     more_printf(" Manufacturer : %s \n", hardware->cpu.vendor);
     more_printf(" Product      : %s \n", hardware->cpu.model);
     more_printf(" CPU Cores    : %d \n", hardware->cpu.num_cores);
@@ -79,7 +85,13 @@ static void show_cpu(int argc __unused, char **argv __unused,
 {
     char buffer[81];
     reset_more_printf();
-    more_printf("CPU\n");
+    if (hardware->acpi.madt.processor_local_apic_count > 0) {
+	more_printf("CPU (%d logical / %d phys)\n",
+		    hardware->acpi.madt.processor_local_apic_count,
+		    hardware->acpi.madt.processor_local_apic_count /
+		    hardware->cpu.num_cores);
+    } else
+	more_printf("CPU\n");
     more_printf("Vendor    : %s\n", hardware->cpu.vendor);
     more_printf("Model     : %s\n", hardware->cpu.model);
     more_printf("CPU Cores : %d\n", hardware->cpu.num_cores);
@@ -102,11 +114,13 @@ static void show_cpu(int argc __unused, char **argv __unused,
 		    hardware->dmi.processor.voltage_mv -
 		    ((hardware->dmi.processor.voltage_mv / 1000) * 1000));
     }
+
     if (hardware->cpu.flags.smp) {
 	more_printf("SMP       : yes\n");
     } else {
 	more_printf("SMP       : no\n");
     }
+
     if (hardware->cpu.flags.lm) {
 	more_printf("x86_64    : yes\n");
     } else {

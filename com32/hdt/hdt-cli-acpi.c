@@ -129,8 +129,8 @@ static void show_local_apic(s_madt * madt)
 	if ((sla->flags & PROCESSOR_LOCAL_APIC_ENABLE) ==
 	    PROCESSOR_LOCAL_APIC_ENABLE)
 	    strcpy(buffer, "enable");
-	more_printf("CPU #%d, LAPIC (acpi_id[0x%02x]) %s\n", sla->apic_id,
-		    sla->acpi_id, buffer);
+	more_printf("CPU #%u, LAPIC (acpi_id[0x%02x] apic_id[0x%02x]) %s\n",
+		    sla->apic_id, sla->acpi_id, sla->apic_id, buffer);
     }
 }
 
@@ -141,12 +141,13 @@ static char *flags_to_string(char *buffer, uint16_t flags)
     if ((flags & POLARITY_ACTIVE_HIGH) == POLARITY_ACTIVE_HIGH)
 	strcpy(buffer, "high");
     else if ((flags & POLARITY_ACTIVE_LOW) == POLARITY_ACTIVE_LOW)
-        strcpy(buffer, "low");
+	strcpy(buffer, "low");
     if ((flags & TRIGGER_EDGE) == TRIGGER_EDGE)
-        strncat(buffer, " edge", 5);
+	strncat(buffer, " edge", 5);
     else if ((flags & TRIGGER_LEVEL) == TRIGGER_LEVEL)
-        strncat(buffer, " level", 6);
-    else strncat(buffer, " default", 8);
+	strncat(buffer, " level", 6);
+    else
+	strncat(buffer, " default", 8);
 
     return buffer;
 }
@@ -161,7 +162,9 @@ static void show_local_apic_nmi(s_madt * madt)
 	s_local_apic_nmi *slan = &madt->local_apic_nmi[i];
 	char buffer[20];
 	more_printf("LAPIC_NMI (acpi_id[0x%02x] %s lint(0x%02x))\n",
-		    slan->acpi_processor_id, flags_to_string(buffer,slan->flags), slan->local_apic_lint);
+		    slan->acpi_processor_id, flags_to_string(buffer,
+							     slan->flags),
+		    slan->local_apic_lint);
     }
 }
 
@@ -175,15 +178,23 @@ static void show_io_apic(s_madt * madt)
 	s_io_apic *sio = &madt->io_apic[i];
 	char buffer[15];
 	memset(buffer, 0, sizeof(buffer));
-	switch(sio->global_system_interrupt_base) {
-		case 0:  strcpy(buffer, "GSI 0-23"); break;
-		case 24:  strcpy(buffer, "GSI 24-39"); break;
-		case 40:  strcpy(buffer, "GSI 40-55"); break;
-		default:  strcpy(buffer, "GSI Unknown"); break;
+	switch (sio->global_system_interrupt_base) {
+	case 0:
+	    strcpy(buffer, "GSI 0-23");
+	    break;
+	case 24:
+	    strcpy(buffer, "GSI 24-39");
+	    break;
+	case 40:
+	    strcpy(buffer, "GSI 40-55");
+	    break;
+	default:
+	    strcpy(buffer, "GSI Unknown");
+	    break;
 	}
 
 	more_printf("IO_APIC[%d] : apic_id[0x%02x] adress[0x%08x] %s\n",
-		    i,sio->io_apic_id, sio->io_apic_address,buffer);
+		    i, sio->io_apic_id, sio->io_apic_address, buffer);
     }
 }
 
@@ -197,15 +208,20 @@ static void show_interrupt_source_override(s_madt * madt)
 	s_interrupt_source_override *siso = &madt->interrupt_source_override[i];
 	char buffer[20];
 	char bus_type[10];
-	memset(bus_type,0,sizeof(bus_type));
-	if (siso->bus==0) strcpy(bus_type,"ISA"); 
-	else strcpy(bus_type,"unknown");
+	memset(bus_type, 0, sizeof(bus_type));
+	if (siso->bus == 0)
+	    strcpy(bus_type, "ISA");
+	else
+	    strcpy(bus_type, "unknown");
 
 	more_printf("INT_SRC_OVR (bus %s (%d) bus_irq %d global_irq %d %s)\n",
-		    bus_type,siso->bus, siso->source, siso->global_system_interrupt ,
-		    flags_to_string(buffer,siso->flags));
+		    bus_type, siso->bus, siso->source,
+		    siso->global_system_interrupt, flags_to_string(buffer,
+								   siso->
+								   flags));
     }
 }
+
 static void show_acpi_madt(int argc __unused, char **argv __unused,
 			   struct s_hardware *hardware)
 {
