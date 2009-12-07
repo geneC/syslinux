@@ -34,6 +34,8 @@
 #include <errno.h>
 #include <acpi/acpi.h>
 
+/* Print ACPI's table header in a defined formating
+ * this particular version is made for displaying 32bit addresses*/
 static void show_header_32(uint32_t address, s_acpi_description_header * h)
 {
     more_printf("%-4s v%03x %-6s %-7s 0x%08x %-4s    0x%08x @ 0x%016x\n",
@@ -41,6 +43,8 @@ static void show_header_32(uint32_t address, s_acpi_description_header * h)
 		h->oem_revision, h->creator_id, h->creator_revision, address)
 }
 
+/* Print ACPI's table header in a defined formating */
+static void show_header_32(uint32_t address, s_acpi_description_header * h)
 static void show_header(uint64_t address, s_acpi_description_header * h)
 {
     more_printf("%-4s v%03x %-6s %-7s 0x%08x %-4s    0x%08x @ 0x%016llx\n",
@@ -48,12 +52,14 @@ static void show_header(uint64_t address, s_acpi_description_header * h)
 		h->oem_revision, h->creator_id, h->creator_revision, address)
 }
 
+/* That's an helper to visualize columns*/
 void show_table_separator()
 {
     more_printf
 	("----|----|------|--------|----------|-------|-----------|--------------------\n");
 }
 
+/* Display the main header before displaying the ACPI tables */
 void show_table_name()
 {
     more_printf
@@ -61,6 +67,7 @@ void show_table_name()
     show_table_separator();
 }
 
+/* called by "show acpi" */
 void main_show_acpi(int argc __unused, char **argv __unused,
 		    struct s_hardware *hardware)
 {
@@ -70,13 +77,18 @@ void main_show_acpi(int argc __unused, char **argv __unused,
 	more_printf("No ACPI Tables detected\n");
 	return;
     }
+
     show_table_name();
+
+    /* RSDP tables aren't using the same headers as the other
+     * So let's use a dedicated rendering */
     if (hardware->acpi.rsdp.valid) {
 	s_rsdp *r = &hardware->acpi.rsdp;
 	more_printf
 	    ("RSDP v%03x %-6s                                        @ 0x%016llx\n",
 	     r->revision, r->oem_id, r->address);
     }
+
     if (hardware->acpi.rsdt.valid)
 	show_header_32(hardware->acpi.rsdt.address,
 		       &hardware->acpi.rsdt.header);
@@ -94,6 +106,7 @@ void main_show_acpi(int argc __unused, char **argv __unused,
     if (hardware->acpi.dsdt.valid)
 	show_header(hardware->acpi.dsdt.address, &hardware->acpi.dsdt.header);
 
+    /* SSDT includes many optional tables, let's display them */
     for (int i = 0; i < hardware->acpi.ssdt_count; i++) {
 	if ((hardware->acpi.ssdt[i] != NULL) && (hardware->acpi.ssdt[i]->valid))
 	    show_header(hardware->acpi.ssdt[i]->address,
@@ -106,6 +119,7 @@ void main_show_acpi(int argc __unused, char **argv __unused,
     if (hardware->acpi.ecdt.valid)
 	show_header(hardware->acpi.ecdt.address, &hardware->acpi.ecdt.header);
 
+    /* FACS isn't having the same headers, let's use a dedicated rendering */
     if (hardware->acpi.facs.valid) {
 	s_facs *fa = &hardware->acpi.facs;
 	more_printf
@@ -114,18 +128,21 @@ void main_show_acpi(int argc __unused, char **argv __unused,
     }
 }
 
+/* Let's display the Processor Local APIC configuration */
 static void show_local_apic(s_madt * madt)
 {
-    printf("Local APIC at 0x%08x\n", madt->local_apic_address);
     if (madt->processor_local_apic_count == 0) {
 	more_printf("No Processor Local APIC found\n");
 	return;
     }
+
+    /* For all detected logical CPU */
     for (int i = 0; i < madt->processor_local_apic_count; i++) {
 	s_processor_local_apic *sla = &madt->processor_local_apic[i];
 	char buffer[8];
 	memset(buffer, 0, sizeof(buffer));
 	strcpy(buffer, "disable");
+	/* Let's check if the flags reports the cpu as enabled */
 	if ((sla->flags & PROCESSOR_LOCAL_APIC_ENABLE) ==
 	    PROCESSOR_LOCAL_APIC_ENABLE)
 	    strcpy(buffer, "enable");
@@ -134,6 +151,7 @@ static void show_local_apic(s_madt * madt)
     }
 }
 
+/* M1PS flags have to be interpreted as strings */
 static char *flags_to_string(char *buffer, uint16_t flags)
 {
     memset(buffer, 0, sizeof(buffer));
@@ -152,12 +170,14 @@ static char *flags_to_string(char *buffer, uint16_t flags)
     return buffer;
 }
 
+/* Display the local apic NMI configuration */
 static void show_local_apic_nmi(s_madt * madt)
 {
     if (madt->local_apic_nmi_count == 0) {
 	more_printf("No Local APIC NMI found\n");
 	return;
     }
+
     for (int i = 0; i < madt->local_apic_nmi_count; i++) {
 	s_local_apic_nmi *slan = &madt->local_apic_nmi[i];
 	char buffer[20];
@@ -168,16 +188,21 @@ static void show_local_apic_nmi(s_madt * madt)
     }
 }
 
+/* Display the IO APIC configuration */
 static void show_io_apic(s_madt * madt)
 {
     if (madt->io_apic_count == 0) {
 	more_printf("No IO APIC found\n");
 	return;
     }
+
+    /* For all IO APICS */
     for (int i = 0; i < madt->io_apic_count; i++) {
 	s_io_apic *sio = &madt->io_apic[i];
 	char buffer[15];
 	memset(buffer, 0, sizeof(buffer));
+	/* GSI base reports the GSI configuration
+	 * Let's interpret it as string */
 	switch (sio->global_system_interrupt_base) {
 	case 0:
 	    strcpy(buffer, "GSI 0-23");
@@ -198,17 +223,21 @@ static void show_io_apic(s_madt * madt)
     }
 }
 
+/* Display the interrupt source override configuration */
 static void show_interrupt_source_override(s_madt * madt)
 {
     if (madt->interrupt_source_override_count == 0) {
 	more_printf("No interrupt source override found\n");
 	return;
     }
+
+    /* Let's process each interrupt source override */
     for (int i = 0; i < madt->interrupt_source_override_count; i++) {
 	s_interrupt_source_override *siso = &madt->interrupt_source_override[i];
 	char buffer[20];
 	char bus_type[10];
 	memset(bus_type, 0, sizeof(bus_type));
+	/* Spec report bus type 0 as ISA */
 	if (siso->bus == 0)
 	    strcpy(bus_type, "ISA");
 	else
@@ -222,6 +251,8 @@ static void show_interrupt_source_override(s_madt * madt)
     }
 }
 
+/* Display the madt configuration
+ * This is called by acpi> show madt */
 static void show_acpi_madt(int argc __unused, char **argv __unused,
 			   struct s_hardware *hardware)
 {
@@ -236,8 +267,10 @@ static void show_acpi_madt(int argc __unused, char **argv __unused,
 	more_printf("No MADT table found\n");
 	return;
     }
+
     show_table_name();
     show_header(madt->address, &madt->header);
+    more_printf("Local APIC at 0x%08x\n", madt->local_apic_address);
     show_table_separator();
     show_local_apic(madt);
     show_local_apic_nmi(madt);
