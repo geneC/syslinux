@@ -13,6 +13,9 @@ Changes in 3.84:
 	  by Shao Miller.
 	* MEMDISK: Comply with the Win9x "safe hook" standard,
 	  allowing a protected-mode driver.
+	* MEMDISK: New "mBFT" ACPI table, by analogy with the iSCSI
+	  iBFT table.  This allows detection from a protected-mode
+	  operating system without EDD support.
 	* 32-bit version of the gfxboot loader (gfxboot.c32), so far
 	  experimental.  This will replace gfxboot.com in the future.
 
