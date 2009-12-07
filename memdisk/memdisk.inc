@@ -125,8 +125,7 @@ Pointers:	dw Int13Start
 
 IretPtr		equ Int13Start.iret
 Int13Start:
-		jmp Int13Start.SafeHookEnd
-		db 0			; Pad to three bytes
+		jmp strict near .SafeHookEnd ; 3-byte jump
 		db '$INT13SF'		; Signature for "safe hook"
 		db 'MEMDISK '		; Vendor ID
 		dd 0			; SEG:OFF of previous INT 13h hook
