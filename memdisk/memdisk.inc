@@ -8,7 +8,7 @@
 ;
 ;   Copyright 2001-2009 H. Peter Anvin - All Rights Reserved
 ;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
-;   Portions copyright 2009 Shao Miller [El Torito code]
+;   Portions copyright 2009 Shao Miller [El Torito code, mBFT, safe hook]
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -125,6 +125,26 @@ Pointers:	dw Int13Start
 
 IretPtr		equ Int13Start.iret
 Int13Start:
+		jmp Int13Start.SafeHookEnd
+		db 0			; Pad to three bytes
+		db '$INT13SF'		; Signature for "safe hook"
+		db 'MEMDISK '		; Vendor ID
+		dd 0			; SEG:OFF of previous INT 13h hook
+					; Must be filled in by installer
+		dd 0			; "Safe hook" flags
+; ---- "Safe hook" structure ends here ---
+
+; This next field should be guaranteed at this position after the
+; "safe hook" structure.  This allows for a MEMDISK OS driver to
+; immediately find out the particular parameters using the mBFT
+; and MDI structures.  This binary will have the offset to the mBFT
+; in this field to begin with, so the installer knows where the mBFT
+; is.  This is akin to the "Pointers" section above.  The installer
+; will refill this field with the physical address of the mBFT for
+; future consumers, such as OS drivers.
+		dd mBFT			; Offset from hook to the mBFT
+
+.SafeHookEnd:
 		cmp word [cs:Recursive],0
 		jne recursive
 
@@ -1038,7 +1058,25 @@ Mover_dst1:	db 0, 0, 0		; Low 24 bits of target addy
 Mover_dst2:	db 0			; High 8 bits of source addy
 Mover_dummy2:	dd 0, 0, 0, 0		; More space for the BIOS
 
-		alignb 4, db 0
+		alignb 16, db 0
+mBFT:
+; Fields common to all ACPI tables
+		dd '    '		; ACPI signature ("mBFT")
+					; This is filled-in by the installer
+					; to avoid an accidentally valid mBFT
+		dd mBFT_Len		; ACPI table length
+		db 1			; ACPI revision
+		db 0			; ACPI table checksum
+		db 'MEMDSK'		; ACPI OEM ID
+		db 'Syslinux'		; ACPI OEM table ID
+		dd 0			; ACPI OEM revision
+		dd 0			; ACPI ASL compiler vendor ID
+		dd 0			; ACPI ASL compiler revision
+; The next field is mBFT-specific and filled-in by the installer
+		dd 0			; "Safe hook" physical address
+
+; Note that the above ends on a DWORD boundary.
+; The MDI has always started at such a boundary.
 MemDisk_Info	equ $			; Pointed to by installation check
 MDI_Bytes	dw MDI_Len		; Total bytes in MDI structure
 MDI_Version	db VERSION_MINOR, VERSION_MAJOR	; MEMDISK version
@@ -1060,9 +1098,10 @@ DPT_ptr		dw 0			; If nonzero, pointer to DPT
 					; Original DPT pointer follows
 
 MDI_Len		equ $-MemDisk_Info
+mBFT_Len	equ $-mBFT		; mBFT includes the MDI
 
 ; ---- MDI structure ends here ---
-DriveShiftLimit	db 0ffh			; Installer will [soon] probe for
+DriveShiftLimit	db 0ffh			; Installer will probe for
 					; a range of contiguous drives.
 					; Any BIOS drives above this region
 					; shall not be impacted by our

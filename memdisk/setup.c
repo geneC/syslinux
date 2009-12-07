@@ -2,7 +2,7 @@
  *
  *   Copyright 2001-2009 H. Peter Anvin - All Rights Reserved
  *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
- *   Portions copyright 2009 Shao Miller [El Torito code]
+ *   Portions copyright 2009 Shao Miller [El Torito code, mBFT, safe hook]
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -13,6 +13,7 @@
  * ----------------------------------------------------------------------- */
 
 #include <stdint.h>
+#include "acpi.h"
 #include "bda.h"
 #include "dskprobe.h"
 #include "e820.h"
@@ -46,6 +47,18 @@ struct memdisk_header {
     uint16_t total_size;
     uint16_t iret_offs;
 };
+
+struct safe_hook {
+    uint8_t jump[3];		/* Max. three bytes for jump */
+    uint8_t signature[8];	/* "$INT13SF" */
+    uint8_t vendor[8];		/* "MEMDISK " */
+    uint32_t old_hook;		/* SEG:OFF for previous INT 13h hook */
+    uint32_t flags;		/* "Safe hook" flags */
+    /* The next field is a MEMDISK extension to the "safe hook" structure */
+    uint32_t mBFT;		/* Offset from hook to the mBFT; refilled
+				 * by setup() with the physical address
+				 */
+} __attribute__((packed));
 
 /* The Disk Parameter Table may be required */
 typedef union {
@@ -100,6 +113,11 @@ struct edd_dpt {
     uint64_t devpath[2];	/* Device path (double QuadWord!) */
     uint8_t  res3;		/* Reserved */
     uint8_t  chksum;		/* DPI checksum */
+} __attribute__((packed));
+
+struct mBFT {
+    struct acpi_description_header acpi;
+    uint32_t safe_hook;		/* "Safe hook" physical address */
 } __attribute__((packed));
 
 struct patch_area {
@@ -816,6 +834,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     unsigned int bin_size;
     char *memdisk_hook;
     struct memdisk_header *hptr;
+    struct safe_hook *safe_hook;
     struct patch_area *pptr;
     uint16_t driverseg;
     uint32_t driverptr, driveraddr;
@@ -899,6 +918,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     /* Figure out where it needs to go */
     hptr = (struct memdisk_header *)memdisk_hook;
+    safe_hook = (struct safe_hook *)(memdisk_hook + hptr->int13_offs);
     pptr = (struct patch_area *)(memdisk_hook + hptr->patch_offs);
 
     dosmem_k = rdz_16(BIOS_BASEMEM);
@@ -1146,6 +1166,9 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	}
     }
 
+    /* Note the previous INT 13h hook in the "safe hook" structure */
+    safe_hook->old_hook = pptr->oldint13;
+
     /* Add ourselves to the drive count */
     pptr->drivecnt++;
 
@@ -1170,6 +1193,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
 	/* Adjust these pointers to point to the installed image */
 	/* Careful about the order here... the image isn't copied yet! */
+	safe_hook = (struct safe_hook *)(dpp + hptr->int13_offs);
 	pptr = (struct patch_area *)(dpp + hptr->patch_offs);
 	hptr = (struct memdisk_header *)dpp;
 
@@ -1177,6 +1201,21 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	dpp = mempcpy(dpp, memdisk_hook, bin_size);
 	dpp = mempcpy(dpp, ranges, (nranges + 1) * sizeof(ranges[0]));
 	dpp = mempcpy(dpp, shdr->cmdline, cmdline_len);
+    }
+
+    /* Re-fill the "safe hook" mBFT field with the physical address */
+    safe_hook->mBFT += (uint32_t)hptr;
+
+    /* Complete the mBFT */
+    {
+	struct mBFT *mBFT = (struct mBFT *)safe_hook->mBFT;
+
+	mBFT->acpi.signature[0] = 'm';	/* "mBFT" */
+	mBFT->acpi.signature[1] = 'B';
+	mBFT->acpi.signature[2] = 'F';
+	mBFT->acpi.signature[3] = 'T';
+	mBFT->safe_hook = (uint32_t)safe_hook;
+	mBFT->acpi.checksum = -checksum_buf(mBFT, mBFT->acpi.length);
     }
 
     /* Update various BIOS magic data areas (gotta love this shit) */
