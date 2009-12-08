@@ -424,7 +424,7 @@ unsigned magic_ok(unsigned char *buf, unsigned *code_size)
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// Search cpio archive for gfx file.
+// Search (cpio archive) for gfx file.
 //
 unsigned find_file(unsigned char *buf, unsigned len, unsigned *gfx_file_start, unsigned *file_len, unsigned *code_size)
 {
@@ -432,6 +432,8 @@ unsigned find_file(unsigned char *buf, unsigned len, unsigned *gfx_file_start, u
 
   *gfx_file_start = 0;
   *code_size = 0;
+
+  if((code_start = magic_ok(buf, code_size))) return code_start;
 
   for(i = 0; i < len;) {
     if((len - i) >= 0x1a && (buf[i] + (buf[i + 1] << 8)) == 0x71c7) {
