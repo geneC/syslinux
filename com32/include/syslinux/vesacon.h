@@ -28,9 +28,12 @@
 #ifndef _SYSLINUX_VESACON_H
 #define _SYSLINUX_VESACON_H
 
+#include <stdbool.h>
+
 int vesacon_default_background(void);
 void vesacon_set_resolution(int, int);
 int vesacon_load_background(const char *);
 int vesacon_set_background(unsigned int);
+void vesacon_cursor_enable(bool);
 
 #endif /* _SYSLINUX_VESACON_H */

@@ -48,6 +48,7 @@
 static void vesacon_erase(const struct term_state *, int, int, int, int);
 static void vesacon_write_char(int, int, uint8_t, const struct term_state *);
 static void vesacon_showcursor(const struct term_state *);
+static void vesacon_setcursor(int x, int y, bool visible);
 static void vesacon_scroll_up(const struct term_state *);
 
 static struct term_state ts;
@@ -55,7 +56,7 @@ static struct ansi_ops op = {
     .erase = vesacon_erase,
     .write_char = vesacon_write_char,
     .showcursor = vesacon_showcursor,
-    .set_cursor = __vesacon_set_cursor,	/* in drawtxt.c */
+    .set_cursor = vesacon_setcursor,
     .scroll_up = vesacon_scroll_up,
     .beep = __ansicon_beep,
 };
@@ -141,9 +142,18 @@ static void vesacon_write_char(int x, int y, uint8_t ch,
 }
 
 /* Show or hide the cursor */
+static bool cursor_enabled = true;
+void vesacon_cursor_enable(bool enabled)
+{
+    cursor_enabled = enabled;
+}
 static void vesacon_showcursor(const struct term_state *st)
 {
-    __vesacon_set_cursor(st->xy.x, st->xy.y, st->cursor);
+    vesacon_setcursor(st->xy.x, st->xy.y, st->cursor);
+}
+static void vesacon_setcursor(int x, int y, bool visible)
+{
+    __vesacon_set_cursor(x, y, visible && cursor_enabled);
 }
 
 static void vesacon_scroll_up(const struct term_state *st)

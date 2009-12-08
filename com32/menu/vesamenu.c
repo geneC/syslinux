@@ -41,6 +41,11 @@ void set_resolution(int x, int y)
     vesacon_set_resolution(x, y);
 }
 
+void local_cursor_enable(bool enabled)
+{
+    vesacon_cursor_enable(enabled);
+}
+
 void start_console(void)
 {
     openconsole(&dev_rawcon_r, &dev_vesaserial_w);

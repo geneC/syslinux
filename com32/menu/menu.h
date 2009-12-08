@@ -186,6 +186,7 @@ void parse_configs(char **argv);
 int draw_background(const char *filename);
 void set_resolution(int x, int y);
 void start_console(void);
+void local_cursor_enable(bool);
 
 static inline int my_isspace(char c)
 {

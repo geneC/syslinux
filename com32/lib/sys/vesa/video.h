@@ -28,6 +28,7 @@
 #ifndef LIB_SYS_VESA_VIDEO_H
 #define LIB_SYS_VESA_VIDEO_H
 
+#include <stdbool.h>
 #include <colortbl.h>
 #include "vesa.h"
 
@@ -87,7 +88,7 @@ void __vesacon_scroll_up(int, attr_t);
 void __vesacon_write_char(int, int, uint8_t, attr_t);
 void __vesacon_redraw_text(void);
 void __vesacon_doit(void);
-void __vesacon_set_cursor(int, int, int);
+void __vesacon_set_cursor(int, int, bool);
 void __vesacon_copy_to_screen(size_t, const uint32_t *, size_t);
 void __vesacon_init_copy_to_screen(void);
 

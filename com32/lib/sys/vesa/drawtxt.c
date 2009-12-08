@@ -279,7 +279,7 @@ void __vesacon_write_char(int x, int y, uint8_t ch, attr_t attr)
     vesacon_touch(y, x, 1, 1);
 }
 
-void __vesacon_set_cursor(int x, int y, int visible)
+void __vesacon_set_cursor(int x, int y, bool visible)
 {
     struct vesa_char *ptr = &__vesacon_text_display
 	[(y + 1) * (__vesacon_text_cols + 2) + (x + 1)];
