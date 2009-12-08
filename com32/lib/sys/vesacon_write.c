@@ -70,6 +70,20 @@ static struct term_info ti = {
    reinitialization. */
 static int vesacon_counter = 0;
 
+static struct {
+    int x, y;
+} vesacon_resolution = {
+    .x = DEFAULT_VESA_X_SIZE,
+    .y = DEFAULT_VESA_Y_SIZE,
+};
+
+/* Set desired resolution - requires a full close/open cycle */
+void vesacon_set_resolution(int x, int y)
+{
+    vesacon_resolution.x = x;
+    vesacon_resolution.y = y;
+}
+
 /* Common setup */
 int __vesacon_open(struct file_info *fp)
 {
@@ -83,7 +97,7 @@ int __vesacon_open(struct file_info *fp)
 	    ti.cols = 80;
 	} else {
 	    /* Switch mode */
-	    if (__vesacon_init(DEFAULT_VESA_X_SIZE, DEFAULT_VESA_Y_SIZE)) {
+	    if (__vesacon_init(vesacon_resolution.x, vesacon_resolution.y)) {
 		vesacon_counter = -1;
 		return EAGAIN;
 	    }
