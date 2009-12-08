@@ -6,13 +6,28 @@ WCLOPT	= -6 -osx -mt -bt=DOS -l=COM
 
 UPX     = upx
 
-TARGETS = mdiskchk.com
+NASM    = nasm
+NASMOPT = -O9999
+
+TARGETS = mdiskchk.com eltorito.sys
 
 %.obj: %.c
 	$(WCL) $(WCLOPT) -c -fo=$@ $<
 
 %.com: %.obj
 	$(WCL) $(WCLOPT) -fe=$@ $<
+	$(UPX) --ultra-brute --lzma $@ || \
+		$(UPX) --ultra-brute $@ || \
+		true
+
+%.sys: %.asm
+	$(NASM) -f bin -o $@ -l $*.lst $<
+	$(UPX) --ultra-brute --lzma $@ || \
+		$(UPX) --ultra-brute $@ || \
+		true
+
+%.com: %.asm
+	$(NASM) -f bin -o $@ -l $*.lst $<
 	$(UPX) --ultra-brute --lzma $@ || \
 		$(UPX) --ultra-brute $@ || \
 		true
