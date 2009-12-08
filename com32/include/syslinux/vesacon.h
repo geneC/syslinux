@@ -29,6 +29,7 @@
 #define _SYSLINUX_VESACON_H
 
 int vesacon_default_background(void);
+void vesacon_set_resolution(int, int);
 int vesacon_load_background(const char *);
 int vesacon_set_background(unsigned int);
 

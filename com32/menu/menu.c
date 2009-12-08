@@ -27,8 +27,13 @@ int draw_background(const char *arg)
     return 0;
 }
 
-int main(int argc, char *argv[])
+void set_resolution(int x, int y)
+{
+    (void)x;
+    (void)y;
+}
+
+void start_console(void)
 {
     console_ansi_raw();
-    return menu_main(argc, argv);
 }

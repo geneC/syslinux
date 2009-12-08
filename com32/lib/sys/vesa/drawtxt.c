@@ -27,6 +27,7 @@
 
 #include <inttypes.h>
 #include <colortbl.h>
+#include <string.h>
 #include "vesa.h"
 #include "video.h"
 #include "fill.h"
@@ -81,25 +82,20 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
     struct vesa_char *rowptr, *rowsptr, *cptr, *csptr;
     unsigned int bytes_per_pixel = __vesacon_bytes_per_pixel;
     unsigned long pixel_offset;
-    uint32_t row_buffer[VIDEO_X_SIZE], *rowbufptr;
+    uint32_t row_buffer[__vesa_info.mi.h_res], *rowbufptr;
     size_t fbrowptr;
     uint8_t sha;
 
-    bgrowptr =
-	&__vesacon_background[row * height + VIDEO_BORDER][col * width +
-							   VIDEO_BORDER];
-
-    pixel_offset = ((row * height + VIDEO_BORDER) * VIDEO_X_SIZE) +
+    pixel_offset = ((row * height + VIDEO_BORDER) * __vesa_info.mi.h_res) +
 	(col * width + VIDEO_BORDER);
 
+    bgrowptr = &__vesacon_background[pixel_offset];
     fbrowptr = (row * height + VIDEO_BORDER) * __vesa_info.mi.logical_scan +
 	(col * width + VIDEO_BORDER) * bytes_per_pixel;
 
     /* Note that we keep a 1-character guard area around the real text area... */
-    rowptr =
-	&__vesacon_text_display[(row + 1) * (TEXT_PIXEL_COLS / FONT_WIDTH + 2) +
-				(col + 1)];
-    rowsptr = rowptr - ((TEXT_PIXEL_COLS / FONT_WIDTH + 2) + 1);
+    rowptr = &__vesacon_text_display[(row+1)*(__vesacon_text_cols+2)+(col+1)];
+    rowsptr = rowptr - ((__vesacon_text_cols+2)+1);
     pixrow = 0;
     pixsrow = height - 1;
 
@@ -159,7 +155,8 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 	    }
 
 	    /* If this pixel is raised, use the offsetted value */
-	    bgval = (chxbits & 0x80) ? bgptr[VIDEO_X_SIZE + 1] : *bgptr;
+	    bgval = (chxbits & 0x80)
+		? bgptr[__vesa_info.mi.h_res + 1] : *bgptr;
 	    bgptr++;
 
 	    /* If this pixel is set, use the fg color, else the bg color */
@@ -180,15 +177,15 @@ static void vesacon_update_characters(int row, int col, int nrows, int ncols)
 	/* Copy to frame buffer */
 	__vesacon_copy_to_screen(fbrowptr, row_buffer, rowbufptr - row_buffer);
 
-	bgrowptr += VIDEO_X_SIZE;
+	bgrowptr += __vesa_info.mi.h_res;
 	fbrowptr += __vesa_info.mi.logical_scan;
 
 	if (++pixrow == height) {
-	    rowptr += TEXT_PIXEL_COLS / FONT_WIDTH + 2;
+	    rowptr += __vesacon_text_cols + 2;
 	    pixrow = 0;
 	}
 	if (++pixsrow == height) {
-	    rowsptr += TEXT_PIXEL_COLS / FONT_WIDTH + 2;
+	    rowsptr += __vesacon_text_cols + 2;
 	    pixsrow = 0;
 	}
     }
@@ -232,7 +229,7 @@ void __vesacon_erase(int x0, int y0, int x1, int y1, attr_t attr)
 {
     int y;
     struct vesa_char *ptr = &__vesacon_text_display
-	[(y0 + 1) * (TEXT_PIXEL_COLS / FONT_WIDTH + 2) + (x0 + 1)];
+	[(y0 + 1) * (__vesacon_text_cols + 2) + (x0 + 1)];
     struct vesa_char fill = {
 	.ch = ' ',
 	.attr = attr,
@@ -241,7 +238,7 @@ void __vesacon_erase(int x0, int y0, int x1, int y1, attr_t attr)
 
     for (y = y0; y <= y1; y++) {
 	vesacon_fill(ptr, fill, ncols);
-	ptr += TEXT_PIXEL_COLS / FONT_WIDTH + 2;
+	ptr += __vesacon_text_cols + 2;
     }
 
     vesacon_touch(y0, x0, y1 - y0 + 1, ncols);
@@ -251,11 +248,11 @@ void __vesacon_erase(int x0, int y0, int x1, int y1, attr_t attr)
 void __vesacon_scroll_up(int nrows, attr_t attr)
 {
     struct vesa_char *fromptr = &__vesacon_text_display
-	[(nrows + 1) * (TEXT_PIXEL_COLS / FONT_WIDTH + 2)];
+	[(nrows + 1) * (__vesacon_text_cols + 2)];
     struct vesa_char *toptr = &__vesacon_text_display
-	[(TEXT_PIXEL_COLS / FONT_WIDTH + 2)];
+	[(__vesacon_text_cols + 2)];
     int dword_count =
-	(__vesacon_text_rows - nrows) * (TEXT_PIXEL_COLS / FONT_WIDTH + 2);
+	(__vesacon_text_rows - nrows) * (__vesacon_text_cols + 2);
     struct vesa_char fill = {
 	.ch = ' ',
 	.attr = attr,
@@ -263,18 +260,18 @@ void __vesacon_scroll_up(int nrows, attr_t attr)
 
     toptr = copy_dword(toptr, fromptr, dword_count);
 
-    dword_count = nrows * (TEXT_PIXEL_COLS / FONT_WIDTH + 2);
+    dword_count = nrows * (__vesacon_text_cols + 2);
 
     vesacon_fill(toptr, fill, dword_count);
 
-    vesacon_touch(0, 0, __vesacon_text_rows, TEXT_PIXEL_COLS / FONT_WIDTH);
+    vesacon_touch(0, 0, __vesacon_text_rows, __vesacon_text_cols);
 }
 
 /* Draw one character text at a specific area of the screen */
 void __vesacon_write_char(int x, int y, uint8_t ch, attr_t attr)
 {
     struct vesa_char *ptr = &__vesacon_text_display
-	[(y + 1) * (TEXT_PIXEL_COLS / FONT_WIDTH + 2) + (x + 1)];
+	[(y + 1) * (__vesacon_text_cols + 2) + (x + 1)];
 
     ptr->ch = ch;
     ptr->attr = attr;
@@ -285,7 +282,7 @@ void __vesacon_write_char(int x, int y, uint8_t ch, attr_t attr)
 void __vesacon_set_cursor(int x, int y, int visible)
 {
     struct vesa_char *ptr = &__vesacon_text_display
-	[(y + 1) * (TEXT_PIXEL_COLS / FONT_WIDTH + 2) + (x + 1)];
+	[(y + 1) * (__vesacon_text_cols + 2) + (x + 1)];
 
     if (cursor_pointer)
 	vesacon_touch(cursor_y, cursor_x, 1, 1);
@@ -309,13 +306,12 @@ void __vesacon_init_cursor(int font_height)
     if (r0 < 0)
 	r0 = 0;
 
-    /* cursor_pattern is assumed to be all zero */
+    memset(cursor_pattern, 0, font_height);
     cursor_pattern[r0] = 0xff;
     cursor_pattern[r0 + 1] = 0xff;
 }
 
 void __vesacon_redraw_text(void)
 {
-    vesacon_update_characters(0, 0, __vesacon_text_rows,
-			      TEXT_PIXEL_COLS / FONT_WIDTH);
+    vesacon_update_characters(0, 0, __vesacon_text_rows, __vesacon_text_cols);
 }

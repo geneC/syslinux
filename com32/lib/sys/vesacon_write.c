@@ -61,7 +61,6 @@ static struct ansi_ops op = {
 };
 
 static struct term_info ti = {
-    .cols = TEXT_PIXEL_COLS / FONT_WIDTH,
     .disabled = 0,
     .ts = &ts,
     .op = &op
@@ -70,6 +69,20 @@ static struct term_info ti = {
 /* Reference counter to the screen, to keep track of if we need
    reinitialization. */
 static int vesacon_counter = 0;
+
+static struct {
+    int x, y;
+} vesacon_resolution = {
+    .x = DEFAULT_VESA_X_SIZE,
+    .y = DEFAULT_VESA_Y_SIZE,
+};
+
+/* Set desired resolution - requires a full close/open cycle */
+void vesacon_set_resolution(int x, int y)
+{
+    vesacon_resolution.x = x;
+    vesacon_resolution.y = y;
+}
 
 /* Common setup */
 int __vesacon_open(struct file_info *fp)
@@ -84,7 +97,7 @@ int __vesacon_open(struct file_info *fp)
 	    ti.cols = 80;
 	} else {
 	    /* Switch mode */
-	    if (__vesacon_init()) {
+	    if (__vesacon_init(vesacon_resolution.x, vesacon_resolution.y)) {
 		vesacon_counter = -1;
 		return EAGAIN;
 	    }
@@ -92,6 +105,7 @@ int __vesacon_open(struct file_info *fp)
 	    /* Initial state */
 	    __ansi_init(&ti);
 	    ti.rows = __vesacon_text_rows;
+	    ti.cols = __vesacon_text_cols;
 	}
     } else if (vesacon_counter == -1) {
 	return EAGAIN;
