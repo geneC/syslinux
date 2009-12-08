@@ -732,7 +732,12 @@ void boot_entry(menu_t *menu_ptr, char *arg)
 
   file = menu_ptr->kernel;
   if(!file) file = menu_ptr->linux;
-  if(!file) return;
+  if(!file) {
+    gfx_done();
+    asprintf(&cmd_buf, "%s %s", menu_ptr->label, arg);
+    syslinux_run_command(cmd_buf);
+    return;
+  }
 
   // first, load kernel
 
