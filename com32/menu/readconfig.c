@@ -818,6 +818,11 @@ static void parse_config_file(FILE * f)
 		}
 	    } else if (looking_at(p, "start")) {
 		start_menu = m;
+	    } else if ((ep = looking_at(p, "resolution"))) {
+		int x, y;
+		x = strtoul(ep, &ep, 0);
+		y = strtoul(skipspace(ep), NULL, 0);
+		set_resolution(x, y);
 	    } else {
 		/* Unknown, check for layout parameters */
 		enum parameter_number mp;
