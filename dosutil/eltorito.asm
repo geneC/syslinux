@@ -62,14 +62,14 @@ RPolyL		equ	08320h
 
 Cdrom:
 
-NextDriver	dd	-1			;\
+NextDriver	dd	-1			;-+
 Attributes	dw	0C800h			; |
 Pointers	dw	Strategy		; |
 		dw	Commands		; |   MSCDEX requires this
 DeviceName	db	'ELTORITO'		; |  data in these locations
 		dw	0			; |
 DriveLetter	db	0			; |
-NumUnitsSupp	db	1			;/
+NumUnitsSupp	db	1			;-+
 
 DriverName	db	'El-Torito CD-ROM Device Driver',0
 ReqHdrLoc	dw	0,0			; 35h
