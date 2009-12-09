@@ -30,9 +30,8 @@
 ;
 ;-----------------------------------------------------------------------------
 
-; To assemble and link, use these commands in TASM 5.0:
-;   tasm file
-;   tlink /t file,file.sys
+; To assemble and link, use these commands with NASM 2.x:
+;   nasm -Ox -f bin -o eltorito.sys eltorito.asm
 
 ; To enable Trace markers uncomment the line below
 ; DEBUG_TRACERS=1
