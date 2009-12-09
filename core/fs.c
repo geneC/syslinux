@@ -127,7 +127,7 @@ void searchdir(com32sys_t *regs)
     char *p;
     int symlink_count = 6;
     
-#if 0
+#if 1
     printf("filename: %s\n", name);
 #endif
 

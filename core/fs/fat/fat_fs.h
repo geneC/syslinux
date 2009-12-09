@@ -76,9 +76,26 @@ struct fat_bpb {
 
         } __attribute__ ((packed)) u;
 
+        uint8_t pad[422];  /* padding to 512 Bytes (one sector) */
+
 } __attribute__ ((packed));
 
+/*
+ * The fat file system info in memory 
+ */
+struct fat_sb_info {
+	sector_t fat;             /* The FAT region */
+	sector_t root;            /* The root dir region */
+	int      root_size;       /* The root dir size in sectores */
+	sector_t data;            /* The data region */
+	
+	int      clust_shift;      /* based on sectors */
+	int      clust_byte_shift; /* based on bytes   */
+	int      clust_mask;
+	int      clust_size;
 
+	int      fat_type;
+} __attribute__ ((packed));
 
 struct fat_dir_entry {
         char     name[11];
@@ -108,7 +125,21 @@ struct fat_long_name_entry {
         uint16_t name3[2];
 } __attribute__ ((packed));
 
+static inline struct fat_sb_info *FAT_SB(struct fs_info *fs)
+{
+        return fs->fs_info;
+}
 
+/* 
+ * Count the root dir size in sectors
+ */
+static inline int root_dir_size(struct fat_bpb *fat)
+{
+        int sector_size = 1 << SECTOR_SHIFT;
+	
+	return (fat->bxRootDirEnts + sector_size / sizeof(struct fat_dir_entry)
+		- 1) >> (SECTOR_SHIFT - 5);
+}
 
 
 #endif /* fat_fs.h */
