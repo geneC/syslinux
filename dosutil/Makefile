@@ -21,13 +21,13 @@ TARGETS = mdiskchk.com eltorito.sys
 		true
 
 %.sys: %.asm
-	$(NASM) -f bin -o $@ -l $*.lst $<
+	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 	$(UPX) --ultra-brute --lzma $@ || \
 		$(UPX) --ultra-brute $@ || \
 		true
 
 %.com: %.asm
-	$(NASM) -f bin -o $@ -l $*.lst $<
+	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 	$(UPX) --ultra-brute --lzma $@ || \
 		$(UPX) --ultra-brute $@ || \
 		true
@@ -35,7 +35,7 @@ TARGETS = mdiskchk.com eltorito.sys
 all: $(TARGETS)
 
 tidy dist:
-	-rm -f *.obj *.o
+	-rm -f *.obj *.lst *.o
 
 clean: tidy
 
