@@ -43,6 +43,7 @@ BOBJECTS = $(BTARGET) \
 	mbr/mbr_f.bin mbr/altmbr_f.bin mbr/gptmbr_f.bin \
 	core/pxelinux.0 core/isolinux.bin core/isolinux-debug.bin \
 	gpxe/gpxelinux.0 dos/syslinux.com win32/syslinux.exe \
+	dosutil/*.com dosutil/*.sys \
 	$(MODULES)
 
 # BSUBDIRs build the on-target binary components.
@@ -52,7 +53,7 @@ BOBJECTS = $(BTARGET) \
 # files that depend only on the B phase, but may have to be regenerated
 # for "make installer".
 BSUBDIRS = codepage core memdisk modules com32 mbr memdump gpxe sample \
-	   libinstaller dos win32
+	   libinstaller dos win32 dosutil
 ITARGET  =
 IOBJECTS = $(ITARGET) dos/copybs.com \
 	utils/gethostip utils/isohybrid utils/mkdiskimage \
@@ -71,7 +72,7 @@ INSTALL_AUX   =	core/pxelinux.0 gpxe/gpxelinux.0 core/isolinux.bin \
 INSTALL_AUX_OPT = win32/syslinux.exe
 
 # These directories manage their own installables
-INSTALLSUBDIRS = com32 utils
+INSTALLSUBDIRS = com32 utils dosutil
 
 # Things to install in /boot/extlinux
 EXTBOOTINSTALL = $(MODULES)
