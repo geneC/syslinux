@@ -48,4 +48,5 @@ spotless: clean
 installer: all
 
 install: installer
-	install -m 644 $(TARGETS) $(INSTALLROOT)$(AUXDIR)
+	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)/dosutil
+	install -m 644 $(TARGETS) $(INSTALLROOT)$(AUXDIR)/dosutil
