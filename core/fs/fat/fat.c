@@ -411,6 +411,7 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
     int slots;
     int entries;
     int checksum;
+    int long_match = 0;
     
     slots = (strlen(dname) + 12) / 13 ;
     slots |= 0x40;
@@ -438,6 +439,9 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
 		    /* get the initial checksum value */
 		    vfat_csum = long_de->checksum;
 		    id &= 0x3f;
+
+		    /* ZERO the long_name buffer */
+		    memset(long_name, 0, sizeof long_name);
 		} else {
 		    if (long_de->checksum != vfat_csum)
 			goto not_match;
@@ -448,8 +452,7 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
 		/* got the long entry name */
 		long_entry_name(long_de);
 		memcpy(long_name + id * 13, entry_name, 13);
-		long_name[strlen(dname)] = '\0';
-		
+				
 		/* 
 		 * If we got the last entry, check it.
 		 * Or, go on with the next entry.
@@ -457,6 +460,7 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
 		if (id == 0) {
 		    if (strcmp(long_name, dname))
 			goto not_match;
+		    long_match = 1;
 		}
 		
 		de++;
@@ -468,12 +472,14 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
 		if (de->attr & 0x08) /* ignore volume labels */
 		    goto not_match;
 		
-		/* If we have a long name match, then vfat_next must be 0 */
-		if (vfat_next == 0) {
+		if (long_match == 1) {
 		    /* 
 		     * We already have a VFAT long name match. However, the 
 		     * match is only valid if the checksum matches.
+		     *
+		     * Well, let's trun the long_match flag off first.
 		     */
+		     long_match = 0;
 		    checksum = get_checksum(de->name);
 		    if (checksum == vfat_csum)
 			goto found;  /* Got it */
