@@ -32,8 +32,14 @@ extern struct fs_info *this_fs;
 struct dirent;                  /* Directory entry structure */
 struct file;
 enum fs_flags {
-    FS_NODEV  = 1 << 0,
-    FS_USEMEM = 1 << 1,         /* If we need a malloc routine, set it */
+    FS_NODEV   = 1 << 0,
+    FS_USEMEM  = 1 << 1,         /* If we need a malloc routine, set it */
+
+ /* 
+  * Update the this_inode pointer at each part of path searching. This 
+  * flag is just used for FAT and ISO fs for now.
+  */
+    FS_THISIND = 1 << 2,        
 };
 
 struct fs_ops {

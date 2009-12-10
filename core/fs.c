@@ -127,12 +127,12 @@ void searchdir(com32sys_t *regs)
     char *p;
     int symlink_count = 6;
     
-#if 1
+#if 0
     printf("filename: %s\n", name);
 #endif
 
     if (!(file = alloc_file()))
-	goto err;
+	goto err_no_close;
     file->fs = this_fs;
 
     /* if we have ->searchdir method, call it */
@@ -177,6 +177,15 @@ void searchdir(com32sys_t *regs)
 	    free_inode(inode);
 	    continue;
 	}
+
+	/* 
+	 * For the relative path searching used in FAT and ISO fs.
+	 */
+	if ((this_fs->fs_ops->fs_flags & FS_THISIND) && (this_inode != parent)){
+		if (this_inode)
+		    free_inode(this_inode);
+		this_inode = parent;
+	}
 	
 	if (parent != this_inode)
 	    free_inode(parent);
@@ -196,6 +205,8 @@ void searchdir(com32sys_t *regs)
     return;
     
 err:
+    _close_file(file);
+err_no_close:    
     regs->esi.w[0]  = 0;
     regs->eax.l     = 0;
     regs->eflags.l |= EFLAGS_ZF;
@@ -254,4 +265,6 @@ void fs_init(com32sys_t *regs)
 
     if (fs.fs_ops->iget_current)
 	this_inode = fs.fs_ops->iget_current();
+
+    print_cache(fs.fs_dev);
 }

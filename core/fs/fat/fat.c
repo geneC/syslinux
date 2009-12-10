@@ -524,21 +524,6 @@ static struct inode *vfat_iget(char *dname, struct inode *parent)
     return vfat_find_entry(dname, parent);
 }
 
-static char current_dir_name[32];
-static struct inode *vfat_iget_current(void)
-{
-    com32sys_t regs;
-    /* 
-     * Use ConfigName again.
-     */
-    memset(&regs, 0, sizeof regs);
-    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
-    strcpy((void *)regs.edi.w[0], current_dir_name);
-    call16(core_open, &regs, &regs);
-    
-    return handle_to_file(regs.esi.w[0])->inode;
-}
-
 /*
  * The open dir function, just call the searchdir function  directly. 
  * I don't think we need call the mangle_name function first 
@@ -581,22 +566,6 @@ static int vfat_load_config(void)
     if (i == 3) {
         printf("no config file found\n");
         return 1;  /* no config file */
-    }
-    
-     /* Build the Current inode */
-    strcpy(current_dir_name, syslinux_cfg[i]);
-    current_dir_name[strlen(syslinux_cfg[i]) - strlen(config_name)] = '\0';
-    this_inode = vfat_iget_current();
-
-    memset(&regs, 0, sizeof regs);
-    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
-    for (; i < 3; i++) {
-        strcpy(ConfigName, syslinux_cfg[i]);
-        call16(core_open, &regs, &regs);
-
-        /* if zf flag set, then failed; try another */
-        if (! (regs.eflags.l & EFLAGS_ZF))
-            break;
     }
     
     strcpy(ConfigName, config_name);
@@ -655,7 +624,7 @@ static int vfat_fs_init(struct fs_info *fs)
         
 const struct fs_ops vfat_fs_ops = {
     .fs_name       = "vfat",
-    .fs_flags      = FS_USEMEM,
+    .fs_flags      = FS_USEMEM | FS_THISIND,
     .fs_init       = vfat_fs_init,
     .searchdir     = NULL,
     .getfssec      = vfat_getfssec,
@@ -666,6 +635,6 @@ const struct fs_ops vfat_fs_ops = {
     .opendir       = vfat_opendir,
     .readdir       = NULL,
     .iget_root     = vfat_iget_root,
-    .iget_current  = vfat_iget_current,
+    .iget_current  = NULL,
     .iget          = vfat_iget,
 };

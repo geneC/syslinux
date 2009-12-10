@@ -127,7 +127,7 @@ void print_cache(struct device *dev)
         struct cache_struct *cs = dev->cache_head;
         for (; i < dev->cache_entries; i++) {
                 cs = cs->next;
-                printf("%d(%p) ", cs->block, cs->data);
+                printf("%d(%p)\n", cs->block, cs->data);
         }
 
         printf("\n");
