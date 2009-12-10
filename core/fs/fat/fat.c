@@ -448,6 +448,7 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
 		/* got the long entry name */
 		long_entry_name(long_de);
 		memcpy(long_name + id * 13, entry_name, 13);
+		long_name[strlen(dname)] = '\0';
 		
 		/* 
 		 * If we got the last entry, check it.
