@@ -265,6 +265,4 @@ void fs_init(com32sys_t *regs)
 
     if (fs.fs_ops->iget_current)
 	this_inode = fs.fs_ops->iget_current();
-
-    print_cache(fs.fs_dev);
 }
