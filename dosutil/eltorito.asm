@@ -757,6 +757,7 @@ print_char_exit:
 ;The 96h data is used for testing the number of bytes returned by an Extended
 ;  CD-ROM sector read
 
+		align	16, db 0
 Buffer		times	2049	db	96h
 
 ;=============================================================================
