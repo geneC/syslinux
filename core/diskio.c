@@ -227,7 +227,7 @@ static int ilog2(uint32_t num)
 
 void getoneblk(struct disk *disk, char *buf, block_t block, int block_size)
 {
-    int sec_per_block = block_size >> SECTOR_SHIFT;
+    int sec_per_block = block_size / disk->sector_size;
 
     disk->rdwr_sectors(disk, buf, block * sec_per_block, sec_per_block, 0);
 }
@@ -305,18 +305,8 @@ struct device * device_init(uint8_t devno, bool cdrom, sector_t part_start,
 
     dev.disk = disk_init(devno, cdrom, part_start, bsHeads, bsSecPerTrack);
         
-    /* for now, isolinux doesn't use cache */
-    if (!cdrom) {
-        /*
-         * FIX!! I can't use __lowmem here, 'cause it will cause the error:
-         * "auxseg/lowmem region collides with xfer_buf_seg".
-         *
-         * static __lowmem char cache_buf[65536];
-         */
-        dev.cache_data = core_cache_buf;
-        dev.cache_size = sizeof core_cache_buf;
-    } else 
-        dev.cache_data = NULL;
-
+    dev.cache_data = core_cache_buf;
+    dev.cache_size = sizeof core_cache_buf;
+    
     return &dev;
 }

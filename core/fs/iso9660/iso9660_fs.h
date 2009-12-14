@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+/* The root dir entry offset in the primary volume descriptor */
+#define ROOT_DIR_OFFSET   156
+
 struct iso_dir_entry {
         uint8_t length;                         /* 00 */
         uint8_t ext_attr_length;                /* 01 */    
@@ -14,8 +17,11 @@ struct iso_dir_entry {
         uint8_t interleave;                     /* 1b */
         uint8_t volume_sequence_number[4];      /* 1c */
         uint8_t name_len;                       /* 20 */
-        //uint8_t name[];                         /* 21 */
+        char    name[0];                        /* 21 */
 };
 
+struct iso_sb_info {
+	struct iso_dir_entry root;
+};
 
 #endif /* iso9660_fs.h */
