@@ -171,7 +171,7 @@ void searchdir(com32sys_t *regs)
 	if (inode->mode == I_SYMLINK) {
 	    if (!this_fs->fs_ops->follow_symlink || 
 		--symlink_count == 0               ||      /* limit check */
-		inode->size >= (uint32_t)inode->blksize)
+		inode->size >= BLOCK_SIZE(this_fs))
 		goto err;
 	    name = this_fs->fs_ops->follow_symlink(inode, name);
 	    free_inode(inode);

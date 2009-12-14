@@ -23,8 +23,6 @@ static struct inode * new_fat_inode(void)
     if (!inode->data) 
 	malloc_error("inode->data");
     
-    inode->blksize = 1 << SECTOR_SHIFT;
-    
     return inode;
 }
 
@@ -225,12 +223,12 @@ static void __getfssec(struct fs_info *fs, char *buf,
 static uint32_t vfat_getfssec(struct file *file, char *buf, int sectors,
 			      bool *have_more)
 {
-    uint32_t bytes_left = file->inode->size - file->offset;
-    uint32_t bytes_read = sectors << SECTOR_SHIFT;
-    int sector_left;
     struct fs_info *fs = file->fs;
-    
-    sector_left = (bytes_left + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
+    uint32_t bytes_left = file->inode->size - file->offset;
+    uint32_t bytes_read = sectors << fs->sector_shift;
+    int sector_left;
+        
+    sector_left = (bytes_left + SECTOR_SIZE(fs) - 1) >> fs->sector_shift;
     if (sectors > sector_left)
         sectors = sector_left;
     
@@ -420,7 +418,7 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
     while (1) {
 	cs = get_cache_block(this_fs->fs_dev, dir_sector);
 	de = (struct fat_dir_entry *)cs->data;
-	entries = 1 << (SECTOR_SHIFT - 5);
+	entries = 1 << (this_fs->sector_shift - 5);
 	
 	while(entries--) {
 	    if (de->name[0] == 0)
@@ -519,7 +517,7 @@ static struct inode *vfat_iget_root(void)
     struct inode *inode = new_fat_inode();
     int root_size = FAT_SB(this_fs)->root_size;
     
-    inode->size = root_size << SECTOR_SHIFT;
+    inode->size = root_size << this_fs->sector_shift;
     *inode->data = FAT_SB(this_fs)->root;
     inode->mode = I_DIR;
     
@@ -550,10 +548,10 @@ static int vfat_load_config(void)
     static const char syslinux_cfg1[] = "/boot/syslinux/syslinux.cfg";
     static const char syslinux_cfg2[] = "/syslinux/syslinux.cfg";
     static const char syslinux_cfg3[] = "/syslinux.cfg";
-    static const char config_name[] = "syslinux.cfg";    
     const char * const syslinux_cfg[] =
 	{ syslinux_cfg1, syslinux_cfg2, syslinux_cfg3 };
     com32sys_t regs;
+    char *p;
     int i = 0;
 
     /* 
@@ -575,7 +573,11 @@ static int vfat_load_config(void)
         return 1;  /* no config file */
     }
     
-    strcpy(ConfigName, config_name);
+    strcpy(ConfigName, "syslinux.cfg");
+    strcpy(CurrentDirName, syslinux_cfg[i]);
+    p = strrchr(CurrentDirName, '/');
+    *p = '\0';
+    
     return 0;
 }
  
@@ -595,6 +597,7 @@ static int vfat_fs_init(struct fs_info *fs)
     uint32_t clust_num;
     sector_t total_sectors;
     
+    fs->sector_shift = fs->block_shift = disk->sector_shift;
     disk->rdwr_sectors(disk, &fat, 0, 1, 0);
     
     sbi = malloc(sizeof(*sbi));
@@ -612,9 +615,9 @@ static int vfat_fs_init(struct fs_info *fs)
     sbi->data      = sbi->root + sbi->root_size;
     
     sbi->clust_shift      = bsr(fat.bxSecPerClust);
-    sbi->clust_byte_shift = sbi->clust_shift + SECTOR_SHIFT;
+    sbi->clust_byte_shift = sbi->clust_shift + fs->sector_shift;
     sbi->clust_mask       = fat.bxSecPerClust - 1;
-    sbi->clust_size       = fat.bxSecPerClust << SECTOR_SHIFT;
+    sbi->clust_size       = fat.bxSecPerClust << fs->sector_shift;
     
     clust_num = (total_sectors - sbi->data) >> sbi->clust_shift;
     if (clust_num < 4085)
@@ -624,9 +627,8 @@ static int vfat_fs_init(struct fs_info *fs)
     else
 	sbi->fat_type = FAT32;
     
-    fs->blk_bits = 0;    
     /* for SYSLINUX, the cache is based on sector size */
-    return SECTOR_SHIFT;
+    return fs->sector_shift;
 }
         
 const struct fs_ops vfat_fs_ops = {

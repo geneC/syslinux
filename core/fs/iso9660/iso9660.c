@@ -22,8 +22,6 @@ static struct inode *new_iso_inode(void)
 		free(inode);
 		return NULL;
 	}
-
-	inode->blksize = BLOCK_SIZE(this_fs);
 	
 	return inode;
 }
@@ -214,11 +212,11 @@ static struct iso_dir_entry *iso_find_entry(char *dname, struct inode *inode)
 	offset += de_len;
 	
 	/* Make sure we have a full directory entry */
-	if (offset >= inode->blksize) {
-	    int slop = de_len + inode->blksize - offset;
+	if (offset >= BLOCK_SIZE(this_fs)) {
+	    int slop = de_len + BLOCK_SIZE(this_fs) - offset;
 	    
 	    memcpy(&tmpde, de, slop);
-	    offset &= inode->blksize - 1;
+	    offset &= BLOCK_SIZE(this_fs) - 1;
 	    if (offset) {
 		if (++i > inode->blocks)
 		    return NULL;
@@ -303,7 +301,7 @@ static struct inode *iso_iget(char *dname, struct inode *parent)
 /* Load the config file, return 1 if failed, or 0 */
 static int iso_load_config(void)
 {
-    const char *config_name[] = {
+    const char *config_file[] = {
 	"/boot/isolinux/isolinux.cfg", 
 	"/isolinux/isolinux.cfg"
     };
@@ -313,7 +311,7 @@ static int iso_load_config(void)
     
     for (; i < 2; i++) {
 	    memset(&regs, 0, sizeof regs);
-	    strcpy(ConfigName, config_name[i]);
+	    strcpy(ConfigName, config_file[i]);
 	    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
 	    call16(core_open, &regs, &regs);
 	    if (!(regs.eflags.l & EFLAGS_ZF))
@@ -325,7 +323,7 @@ static int iso_load_config(void)
     }
     
     strcpy(ConfigName, "isolinux.cfg");
-    strcpy(CurrentDirName, config_name[i]);
+    strcpy(CurrentDirName, config_file[i]);
     p = strrchr(CurrentDirName, '/');
     *p = '\0';
     

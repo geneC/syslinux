@@ -21,12 +21,12 @@
 #define FILENAME_MAX     (1 << FILENAME_MAX_LG2)
 
 #define BLOCK_SIZE(fs)   (1 << fs->block_shift)
+#define SECTOR_SIZE(fs)  (1 << fs->sector_shift)
 
 struct fs_info {
     const struct fs_ops *fs_ops;
     struct device *fs_dev;
     void *fs_info;             /* The fs-specific information */
-    int blk_bits;              /* block_size = 1 << (blk_bits + SECTOR_SHIFT) */
     int sector_shift;
     int block_shift;
 };
@@ -85,8 +85,6 @@ struct inode {
     int          blocks; /* How many blocks the file take */
     uint32_t *   data;   /* The block address array where the file stored */
     uint32_t     flags;
-    int          blkbits;
-    int          blksize;
     uint32_t     file_acl;
 };
 
