@@ -8,22 +8,22 @@
 
 static struct inode *new_iso_inode(void)
 {
-	struct inode *inode = malloc(sizeof(*inode));
-	
-	if (!inode) {
-		malloc_error("inode structure in new_iso_inode");
-		return NULL;
-	}
-	memset(inode, 0, sizeof(*inode));
-
-	inode->data = malloc(sizeof(uint32_t));
-	if (!inode) {
-		malloc_error("inode->data in new_iso_inode");
-		free(inode);
-		return NULL;
-	}
-	
-	return inode;
+    struct inode *inode = malloc(sizeof(*inode));
+    
+    if (!inode) {
+	malloc_error("inode structure in new_iso_inode");
+	return NULL;
+    }
+    memset(inode, 0, sizeof(*inode));
+    
+    inode->data = malloc(sizeof(uint32_t));
+    if (!inode) {
+	malloc_error("inode->data in new_iso_inode");
+	free(inode);
+	return NULL;
+    }
+    
+    return inode;
 }
 
 
@@ -37,7 +37,7 @@ static void iso_close_file(struct file *file)
 
 static inline struct iso_sb_info * ISO_SB(struct fs_info *fs)
 {
-	return fs->fs_info;
+    return fs->fs_info;
 }
 
 /*
