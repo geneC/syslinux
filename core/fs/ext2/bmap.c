@@ -181,10 +181,5 @@ block_t bmap(struct fs_info *fs, struct inode * inode, int block)
     else
 	ret = bmap_traditional(fs, inode, block);
     
-    if (!ret) {
-        printf("ERROR: something error happend at linsector..\n");
-        return 0;
-    }
-
     return ret;
 }

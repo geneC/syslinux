@@ -529,27 +529,143 @@ static struct inode *vfat_iget(char *dname, struct inode *parent)
     return vfat_find_entry(dname, parent);
 }
 
-/*
- * The open dir function, just call the searchdir function  directly. 
- * I don't think we need call the mangle_name function first 
- */
-void vfat_opendir(com32sys_t *regs)
+static struct dirent * vfat_readdir(struct file *file)
 {
-    char *src = MK_PTR(regs->es, regs->esi.w[0]);
-    char *dst = MK_PTR(regs->ds, regs->edi.w[0]);
-    strcpy(dst, src);
-    searchdir(regs);	
+    struct fs_info *fs = file->fs;
+    struct dirent *dirent;
+    struct fat_dir_entry *de;
+    struct fat_long_name_entry *long_de;
+    struct cache_struct *cs;
+    
+    sector_t sector = get_the_right_sector(file);
+    
+    uint8_t vfat_init, vfat_next, vfat_csum;
+    uint8_t id;
+    int entries_left;
+    int checksum;
+    int long_entry = 0;
+    int sec_off = file->offset & ((1 << fs->sector_shift) - 1);
+    
+    cs = get_cache_block(fs->fs_dev, sector);
+    de = (struct fat_dir_entry *)(cs->data + sec_off);
+    entries_left = ((1 << fs->sector_shift) - sec_off) >> 5;
+    
+    while (1) {
+	while(entries_left--) {
+	    if (de->name[0] == 0)
+		return NULL;
+	    if ((uint8_t)de->name[0] == 0xe5)
+		goto invalid;
+	    
+	    if (de->attr == 0x0f) {
+		/*
+		 * It's a long name entry.
+		 */
+		long_de = (struct fat_long_name_entry *)de;
+		id = long_de->id;
+		
+		if (id & 0x40) {
+		    /* init vfat_csum and vfat_init */
+		    vfat_csum = long_de->checksum;
+		    id &= 0x3f;
+		    vfat_init = id;
+		    
+		    /* ZERO the long_name buffer */
+		    memset(long_name, 0, sizeof long_name);
+		} else {
+		    if (long_de->checksum != vfat_csum ||
+			id != vfat_next)
+			goto invalid;
+		}
+		
+		vfat_next = --id;
+		
+		/* got the long entry name */
+		long_entry_name(long_de);
+		memcpy(long_name + id * 13, entry_name, 13);
+		
+		if (id == 0) 
+		    long_entry = 1;
+		
+		de++;
+		file->offset += sizeof(struct fat_dir_entry);
+		continue;     /* Try the next entry */
+	    } else {
+		/*
+		 * It's a short entry 
+		 */
+		if (de->attr & 0x08) /* ignore volume labels */
+		    goto invalid;
+		
+		if (long_entry == 1) {
+		    /* Got a long entry */
+		    checksum = get_checksum(de->name);
+		    if (checksum == vfat_csum)
+			goto got;
+		} else {
+		    /* Use the long_name buffer to store a short one. */
+		    int i;
+		    char *p = long_name;
+		    
+		    for (i = 0; i < 8; i++) {
+			if (de->name[i] == ' ')
+			    break;
+			*p++ = de->name[i];
+		    }
+		    *p++ = '.';
+		    if (de->name[8] == ' ') {
+			*--p = '\0';
+		    } else {
+			for (i = 8; i < 11; i++) {
+			    if (de->name[i] == ' ')
+				break;
+			    *p++ = de->name[i];
+			}
+			*p = '\0';
+		    }
+		    
+		    goto got;
+		}
+	    }
+	    
+	invalid:
+	    de++;
+	    file->offset += sizeof(struct fat_dir_entry);
+	}
+	
+	/* Try with the next sector */
+	sector = get_next_sector(fs, sector);
+	if (!sector)
+	    return NULL;
+	cs = get_cache_block(fs->fs_dev, sector);
+	de = (struct fat_dir_entry *)cs->data;
+	entries_left = 1 << (fs->sector_shift - 5);
+    }
+    
+got:
+    if (!(dirent = malloc(sizeof(*dirent)))) {
+	malloc_error("dirent structure in vfat_readdir");
+	return NULL;
+    }
+    dirent->d_ino = 0;           /* Inode number is invalid to FAT fs */
+    dirent->d_off = file->offset;
+    dirent->d_reclen = 0;
+    dirent->d_type = get_inode_mode(de->attr);
+    strcpy(dirent->d_name, long_name);
+    
+    file->offset += sizeof(*de);  /* Update for next reading */
+    
+    return dirent;
 }
-
 
 /* Load the config file, return 1 if failed, or 0 */
 static int vfat_load_config(void)
 {
-    static const char syslinux_cfg1[] = "/boot/syslinux/syslinux.cfg";
-    static const char syslinux_cfg2[] = "/syslinux/syslinux.cfg";
-    static const char syslinux_cfg3[] = "/syslinux.cfg";
-    const char * const syslinux_cfg[] =
-	{ syslinux_cfg1, syslinux_cfg2, syslinux_cfg3 };
+    const char * const syslinux_cfg[] = {
+	"/boot/syslinux/syslinux.cfg",
+	"/syslinux/syslinux.cfg",
+	"/syslinux.cfg"
+    };
     com32sys_t regs;
     char *p;
     int i = 0;
@@ -576,7 +692,7 @@ static int vfat_load_config(void)
     strcpy(ConfigName, "syslinux.cfg");
     strcpy(CurrentDirName, syslinux_cfg[i]);
     p = strrchr(CurrentDirName, '/');
-    *p = '\0';
+    *(p + 1) = '\0';        /* In case we met '/syslinux.cfg' */
     
     return 0;
 }
@@ -641,8 +757,7 @@ const struct fs_ops vfat_fs_ops = {
     .mangle_name   = vfat_mangle_name,
     .unmangle_name = generic_unmangle_name,
     .load_config   = vfat_load_config,
-    .opendir       = vfat_opendir,
-    .readdir       = NULL,
+    .readdir       = vfat_readdir,
     .iget_root     = vfat_iget_root,
     .iget_current  = NULL,
     .iget          = vfat_iget,

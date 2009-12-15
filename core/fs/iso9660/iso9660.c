@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <sys/dirent.h>
 #include <core.h>
 #include <cache.h>
 #include <disk.h>
@@ -298,6 +299,97 @@ static struct inode *iso_iget(char *dname, struct inode *parent)
     return iso_get_inode(de);
 }
 
+/* Convert to lower case string */
+static void tolower_str(char *str)
+{
+	while (*str) {
+		if (*str >= 'A' && *str <= 'Z')
+			*str = *str + 0x20;
+		str++;
+	}
+}
+
+static struct dirent *iso_readdir(struct file *file)
+{
+    struct fs_info *fs = file->fs;
+    struct inode *inode = file->inode;
+    struct iso_dir_entry *de, tmpde;
+    struct dirent *dirent;
+    struct cache_struct *cs = NULL;
+    block_t block =  *file->inode->data + (file->offset >> fs->block_shift);
+    int offset = file->offset & (BLOCK_SIZE(fs) - 1);
+    int i = 0;
+    int de_len, de_name_len;
+    char *de_name;
+    
+    while (1) {
+	if (!cs) {
+	    if (++i > inode->blocks)
+		return NULL;
+	    cs = get_cache_block(fs->fs_dev, block++);
+	}
+	de = (struct iso_dir_entry *)(cs->data + offset);
+	
+	de_len = de->length;
+	if (de_len == 0) {    /* move on to the next block */
+	    cs = NULL;
+	    file->offset = (file->offset + BLOCK_SIZE(fs) - 1)
+		>> fs->block_shift;
+	    continue;
+	}
+	offset += de_len;
+	
+	/* Make sure we have a full directory entry */
+	if (offset >= BLOCK_SIZE(fs)) {
+	    int slop = de_len + BLOCK_SIZE(fs) - offset;
+	    
+	    memcpy(&tmpde, de, slop);
+	    offset &= BLOCK_SIZE(fs) - 1;
+	    if (offset) {
+		if (++i > inode->blocks)
+		    return NULL;
+		cs = get_cache_block(fs->fs_dev, block++);
+		memcpy((void *)&tmpde + slop, cs->data, offset);
+	    }
+	    de = &tmpde;
+	}
+	
+	if (de_len < 33) {
+	    printf("Corrupted directory entry in sector %u\n", 
+		   (uint32_t)(block - 1));
+	    return NULL;
+	}
+	
+	de_name_len = de->name_len;
+	de_name = de->name;
+	/* Handling the special case ".' and '..' here */
+	if((de_name_len == 1) && (*de_name == 0)) {
+	    de_name = ".";
+	} else if ((de_name_len == 1) && (*de_name == 1)) {
+	    de_name ="..";
+	    de_name_len = 2;
+	}
+	
+	break;
+    }
+    
+    if (!(dirent = malloc(sizeof(*dirent)))) {
+	malloc_error("dirent structure in iso_readdir");
+	return NULL;
+    }
+    
+    dirent->d_ino = 0;           /* Inode number is invalid to ISO fs */
+    dirent->d_off = file->offset;
+    dirent->d_reclen = de_len;
+    dirent->d_type = get_inode_mode(de->flags);
+    iso_convert_name(dirent->d_name, de_name, de_name_len);
+    tolower_str(dirent->d_name);
+    
+    file->offset += de_len;  /* Update for next reading */
+    
+    return dirent;
+}
+
 /* Load the config file, return 1 if failed, or 0 */
 static int iso_load_config(void)
 {
@@ -364,5 +456,6 @@ const struct fs_ops iso_fs_ops = {
     .load_config   = iso_load_config,
     .iget_root     = iso_iget_root,
     .iget_current  = NULL,
-    .iget          = iso_iget,    
+    .iget          = iso_iget,
+    .readdir       = iso_readdir
 };

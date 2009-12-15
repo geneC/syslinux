@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <sys/dirent.h>
 #include <cache.h>
 #include <core.h>
 #include <disk.h>
@@ -352,6 +353,39 @@ static char * ext2_follow_symlink(struct inode *inode, const char *name_left)
     return p;
 }
 
+/*
+ * Read one directory entry at a time 
+ */
+static struct dirent * ext2_readdir(struct file *file)
+{
+    struct fs_info *fs = file->fs;
+    struct inode *inode = file->inode;
+    struct dirent *dirent;
+    struct ext2_dir_entry *de;
+    struct cache_struct *cs;
+    int index = file->offset >> fs->block_shift;
+    block_t block;
+    
+    if (!(block = bmap(fs, inode, index)))
+	return NULL;        
+    cs = get_cache_block(fs->fs_dev, block);
+    de = (struct ext2_dir_entry *)(cs->data + (file->offset & (BLOCK_SIZE(fs) - 1)));
+    
+    if (!(dirent = malloc(sizeof(*dirent)))) {
+	malloc_error("dirent structure in ext2_readdir");
+	return NULL;
+    }
+    dirent->d_ino = de->d_inode;
+    dirent->d_off = file->offset;
+    dirent->d_reclen = de->d_rec_len;
+    dirent->d_type = de->d_file_type;
+    memcpy(dirent->d_name, de->d_name, de->d_name_len);
+    dirent->d_name[de->d_name_len] = '\0';
+    
+    file->offset += de->d_rec_len;  /* Update for next reading */
+    
+    return dirent;
+}
 
 /* Load the config file, return 1 if failed, or 0 */
 static int ext2_load_config(void)
@@ -452,5 +486,6 @@ const struct fs_ops ext2_fs_ops = {
     .iget_root     = ext2_iget_root,
     .iget_current  = ext2_iget_current,
     .iget          = ext2_iget,
-    .follow_symlink = ext2_follow_symlink
+    .follow_symlink = ext2_follow_symlink,
+    .readdir       = ext2_readdir
 };
