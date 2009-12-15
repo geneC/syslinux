@@ -86,8 +86,7 @@ static unsigned int bmap_traditional(struct fs_info *fs,
 				     struct inode *inode, 
 				     uint32_t block)
 {
-    int block_size = 1 << (SECTOR_SHIFT + fs->blk_bits);
-    int addr_per_block = block_size >> 2;
+    int addr_per_block = BLOCK_SIZE(fs) >> 2;
     uint32_t direct_blocks = EXT2_NDIR_BLOCKS,
 	indirect_blocks = addr_per_block,
 	double_blocks = addr_per_block * addr_per_block,
