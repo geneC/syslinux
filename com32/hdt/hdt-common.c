@@ -66,6 +66,12 @@ void detect_parameters(const int argc, const char *argv[],
     /* Vesa mode isn't set until we explictly call it */
     vesamode = false;
 
+    /* Automode isn't the default*/
+    automode = false;
+
+    /* Menu mode is the default*/
+    menumode = true;
+
     for (int i = 1; i < argc; i++) {
 	if (!strncmp(argv[i], "quiet", 5)) {
 	    quiet = true;
@@ -102,6 +108,8 @@ void detect_parameters(const int argc, const char *argv[],
 	} else if (!strncmp(argv[i], "novesa", 6)) {
 	    vesamode = false;
 	    max_console_lines = MAX_VESA_CLI_LINES;
+	} else if (!strncmp(argv[i], "nomenu", 6)) {
+	    menumode = false;
 	} else if (!strncmp(argv[i], "auto=", 5)) {
 	    /* The auto= parameter is separated in several argv[]
 	     * as it can contains spaces.
@@ -110,6 +118,7 @@ void detect_parameters(const int argc, const char *argv[],
 	     * i.e auto='show dmi; show pci'
 	     */
 
+	    automode=true;
 	    /* Extracting the first parameter */
 	    strcpy(hardware->auto_label, argv[i] + 6);
 	    strcat(hardware->auto_label, " ");

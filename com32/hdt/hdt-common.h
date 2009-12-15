@@ -83,6 +83,12 @@ bool quiet;
 /* Defines if we must use the vesa mode */
 bool vesamode;
 
+/* Defines if we must use the menu mode */
+bool menumode;
+
+/* Defines if we are running the auto mode */
+bool automode;
+
 /* Defines the number of lines in the console
  * Default is 20 for a std console */
 extern int max_console_lines;
