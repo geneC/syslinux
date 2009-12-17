@@ -6,7 +6,7 @@
 
 /* The currently mounted filesystem */
 struct fs_info *this_fs = NULL;
-struct fs_info fs;
+static struct fs_info fs;
 
 /* Actual file structures (we don't have malloc yet...) */
 struct file files[MAX_OPEN];
@@ -166,24 +166,34 @@ void close_file(com32sys_t *regs)
  */
 void fs_init(com32sys_t *regs)
 {
-    int blk_shift;
-    const struct fs_ops *ops = (const struct fs_ops *)regs->eax.l;
+    int blk_shift = -1;
+    /* ops is a ptr list for several fs_ops */
+    const struct fs_ops **ops = (const struct fs_ops **)regs->eax.l;
     
-    /* set up the fs stucture */    
-    fs.fs_ops = ops;
+    while ((blk_shift < 0) && *ops) {
+	/* set up the fs stucture */
+	fs.fs_ops = *ops;
+	/* this is a total hack... */
+	if (fs.fs_ops->fs_flags & FS_NODEV)
+		fs.fs_dev = NULL;
+	else {
+		static struct device *dev;
 
-    /* this is a total hack... */
-    if (ops->fs_flags & FS_NODEV)
-        fs.fs_dev = NULL;	/* Non-device filesystem */
-    else 
-        fs.fs_dev = device_init(regs->edx.b[0], regs->edx.b[1], regs->ecx.l,
-				regs->esi.w[0], regs->edi.w[0]);
-
+		if (!dev)
+			dev = device_init(regs->edx.b[0], regs->edx.b[1],
+				regs->ecx.l, regs->esi.w[0], regs->edi.w[0]);
+		fs.fs_dev = dev;
+	}
+	/* invoke the fs-specific init code */
+	blk_shift = fs.fs_ops->fs_init(&fs);
+	ops++;
+    }
+    if (blk_shift < 0) {
+	printf("No valid file system found!\n");
+	while (1)
+		;
+    }
     this_fs = &fs;
-    
-    /* invoke the fs-specific init code */
-    blk_shift = fs.fs_ops->fs_init(&fs);    
-
     /* initialize the cache */
     if (fs.fs_dev && fs.fs_dev->cache_data)
         cache_init(fs.fs_dev, blk_shift);

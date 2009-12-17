@@ -25,6 +25,11 @@
 my_id		equ extlinux_id
 
 		extern ext2_fs_ops
-ROOT_FS_OPS	equ ext2_fs_ops
+		extern btrfs_fs_ops
+
+		section .rodata
+ROOT_FS_OPS	dd ext2_fs_ops
+		dd btrfs_fs_ops
+		dd 0
 
 %include "diskfs.inc"

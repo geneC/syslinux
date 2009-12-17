@@ -706,6 +706,9 @@ static int ext2_fs_init(struct fs_info *fs)
     /* read the super block */
     disk->rdwr_sectors(disk, &sb, 2, 2, 0);
     
+    /* check if it is ext2, since we also support btrfs now */
+    if (sb.s_magic != EXT2_SUPER_MAGIC)
+	return -1;
     ClustByteShift = sb.s_log_block_size + 10;
     ClustSize = 1 << ClustByteShift;
     ClustShift = ClustByteShift - SECTOR_SHIFT;

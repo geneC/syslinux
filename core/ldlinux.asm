@@ -31,6 +31,8 @@
 my_id		equ syslinux_id
 
 		extern vfat_fs_ops
-ROOT_FS_OPS	equ vfat_fs_ops
+		section .rodata
+ROOT_FS_OPS	dd vfat_fs_ops
+		dd 0
 
 %include "diskfs.inc"

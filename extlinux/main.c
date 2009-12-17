@@ -14,7 +14,7 @@
 /*
  * extlinux.c
  *
- * Install the extlinux boot block on an ext2/3/4 filesystem
+ * Install the extlinux boot block on an ext2/3/4 and btrfs filesystem
  */
 
 #define  _GNU_SOURCE		/* Enable everything */
@@ -29,6 +29,7 @@ typedef uint64_t u64;
 #ifndef __KLIBC__
 #include <mntent.h>
 #endif
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
@@ -46,6 +47,7 @@ typedef uint64_t u64;
 #undef statfs
 
 #include "ext2_fs.h"
+#include "btrfs.h"
 #include "../version.h"
 #include "syslxint.h"
 
@@ -56,6 +58,10 @@ typedef uint64_t u64;
 #endif
 
 /* Global option handling */
+/* Global fs_type for handling ext2/3/4 vs btrfs */
+#define EXT2 1
+#define BTRFS 2
+int fs_type;
 
 const char *program;
 
@@ -130,6 +136,9 @@ static const char short_options[] = "iUuzS:H:rvho:O";
 #define EXT2_SUPER_OFFSET 1024
 #endif
 
+/* the btrfs partition first 64K blank area is used to store boot sector and
+   boot image, the boot sector is from 0~512, the boot image starts at 2K */
+#define BTRFS_EXTLINUX_OFFSET (2*1024)
 /*
  * Boot block
  */
@@ -359,10 +368,11 @@ int patch_file_and_bootblock(int fd, int dirfd, int devfd)
     uint32_t csum;
     int secptroffset;
 
-    if (fstat(dirfd, &dirst)) {
-	perror("fstat dirfd");
-	exit(255);		/* This should never happen */
-    }
+    if (fs_type == EXT2)
+	if (fstat(dirfd, &dirst)) {
+		perror("fstat dirfd");
+		exit(255);		/* This should never happen */
+	}
 
     totalbytes = get_size(devfd);
     get_geometry(devfd, totalbytes, &geo);
@@ -406,14 +416,20 @@ int patch_file_and_bootblock(int fd, int dirfd, int devfd)
     nsect = (boot_image_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     nsect += 2;			/* Two sectors for the ADV */
     sectp = alloca(sizeof(uint32_t) * nsect);
-    if (sectmap(fd, sectp, nsect)) {
-	perror("bmap");
-	exit(1);
+    if (fs_type == EXT2) {
+	if (sectmap(fd, sectp, nsect)) {
+		perror("bmap");
+		exit(1);
+	}
+    } else if (fs_type == BTRFS) {
+	int i;
+
+	for (i = 0; i < nsect; i++)
+		*(sectp + i) = BTRFS_EXTLINUX_OFFSET/SECTOR_SIZE + i;
     }
 
     /* First sector need pointer in boot sector */
     set_32(&bs->NextSector, *sectp++);
-
     /* Stupid mode? */
     if (opt.stupid_mode)
 	set_16(&bs->MaxTransfer, 1);
@@ -455,13 +471,21 @@ int patch_file_and_bootblock(int fd, int dirfd, int devfd)
  * Returns -1 on fatal errors, 0 if ADV is okay, and 1 if no valid
  * ADV was found.
  */
-int read_adv(const char *path)
+int read_adv(const char *path, int devfd)
 {
     char *file;
     int fd = -1;
     struct stat st;
     int err = 0;
 
+    if (fs_type == BTRFS) { /* btrfs "extlinux.sys" is in 64k blank area */
+	if (xpread(devfd, syslinux_adv, 2 * ADV_SIZE,
+		BTRFS_EXTLINUX_OFFSET + boot_image_len) != 2 * ADV_SIZE) {
+		perror("writing adv");
+		return 1;
+	}
+	return 0;
+    }
     asprintf(&file, "%s%sextlinux.sys",
 	     path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
 
@@ -505,7 +529,7 @@ int read_adv(const char *path)
 /*
  * Update the ADV in an existing installation.
  */
-int write_adv(const char *path)
+int write_adv(const char *path, int devfd)
 {
     unsigned char advtmp[2 * ADV_SIZE];
     char *file;
@@ -514,6 +538,14 @@ int write_adv(const char *path)
     int err = 0;
     int flags, nflags;
 
+    if (fs_type == BTRFS) { /* btrfs "extlinux.sys" is in 64k blank area */
+	if (xpwrite(devfd, syslinux_adv, 2 * ADV_SIZE,
+		BTRFS_EXTLINUX_OFFSET + boot_image_len) != 2 * ADV_SIZE) {
+		perror("writing adv");
+		return 1;
+	}
+	return 0;
+    }
     asprintf(&file, "%s%sextlinux.sys",
 	     path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
 
@@ -611,17 +643,30 @@ int modify_adv(void)
 int install_bootblock(int fd, const char *device)
 {
     struct ext2_super_block sb;
+    struct btrfs_super_block sb2;
+    bool ok = false;
 
-    if (xpread(fd, &sb, sizeof sb, EXT2_SUPER_OFFSET) != sizeof sb) {
-	perror("reading superblock");
+    if (fs_type == EXT2) {
+	if (xpread(fd, &sb, sizeof sb, EXT2_SUPER_OFFSET) != sizeof sb) {
+		perror("reading superblock");
+		return 1;
+	}
+	if (sb.s_magic == EXT2_SUPER_MAGIC)
+		ok = true;
+    } else if (fs_type == BTRFS) {
+	if (xpread(fd, &sb2, sizeof sb2, BTRFS_SUPER_INFO_OFFSET)
+			!= sizeof sb2) {
+		perror("reading superblock");
+		return 1;
+	}
+	if (sb2.magic == *(u64 *)BTRFS_MAGIC)
+		ok = true;
+    }
+    if (!ok) {
+	fprintf(stderr, "no ext2/3/4 or btrfs superblock found on %s\n",
+			device);
 	return 1;
     }
-
-    if (sb.s_magic != EXT2_SUPER_MAGIC) {
-	fprintf(stderr, "no ext2/3/4 superblock found on %s\n", device);
-	return 1;
-    }
-
     if (xpwrite(fd, boot_block, boot_block_len, 0) != boot_block_len) {
 	perror("writing bootblock");
 	return 1;
@@ -630,7 +675,7 @@ int install_bootblock(int fd, const char *device)
     return 0;
 }
 
-int install_file(const char *path, int devfd, struct stat *rst)
+int ext2_install_file(const char *path, int devfd, struct stat *rst)
 {
     char *file;
     int fd = -1, dirfd = -1, flags;
@@ -721,6 +766,40 @@ bail:
     return 1;
 }
 
+/* btrfs has to install the extlinux.sys in the first 64K blank area, which
+   is not managered by btrfs tree, so actually this is not installed as files.
+   since the cow feature of btrfs will move the extlinux.sys every where */
+int btrfs_install_file(const char *path, int devfd, struct stat *rst)
+{
+    patch_file_and_bootblock(-1, -1, devfd);
+    if (xpwrite(devfd, boot_image, boot_image_len, BTRFS_EXTLINUX_OFFSET)
+		!= boot_image_len) {
+	perror("writing bootblock");
+	return 1;
+    }
+    printf("write boot_image to 0x%x\n", BTRFS_EXTLINUX_OFFSET);
+    if (xpwrite(devfd, syslinux_adv, 2 * ADV_SIZE,
+		BTRFS_EXTLINUX_OFFSET + boot_image_len) != 2 * ADV_SIZE) {
+	perror("writing adv");
+	return 1;
+    }
+    printf("write adv to 0x%x\n", BTRFS_EXTLINUX_OFFSET + boot_image_len);
+    if (stat(path, rst)) {
+	perror(path);
+	return 1;
+    }
+    return 0;
+}
+
+int install_file(const char *path, int devfd, struct stat *rst)
+{
+	if (fs_type == EXT2)
+		return ext2_install_file(path, devfd, rst);
+	else if (fs_type == BTRFS)
+		return btrfs_install_file(path, devfd, rst);
+	return 1;
+}
+
 /* EXTLINUX installs the string 'EXTLINUX' at offset 3 in the boot
    sector; this is consistent with FAT filesystems. */
 int already_installed(int devfd)
@@ -745,10 +824,13 @@ static void device_cleanup(void)
 static int validate_device(const char *path, int devfd)
 {
     struct stat pst, dst;
+    struct statfs sfs;
 
-    if (stat(path, &pst) || fstat(devfd, &dst))
+    if (stat(path, &pst) || fstat(devfd, &dst) || statfs(path, &sfs))
 	return -1;
-
+    /* btrfs st_dev is not matched with mnt st_rdev, it is a known issue */
+    if (fs_type == BTRFS && sfs.f_type == BTRFS_SUPER_MAGIC)
+	return 0;
     return (pst.st_dev == dst.st_rdev) ? 0 : -1;
 }
 
@@ -759,18 +841,35 @@ static const char *find_device(const char *mtab_file, dev_t dev)
     struct stat dst;
     FILE *mtab;
     const char *devname = NULL;
+    bool done;
 
     mtab = setmntent(mtab_file, "r");
     if (!mtab)
 	return NULL;
 
+    done = false;
     while ((mnt = getmntent(mtab))) {
-	if ((!strcmp(mnt->mnt_type, "ext2") ||
-	     !strcmp(mnt->mnt_type, "ext3") ||
-	     !strcmp(mnt->mnt_type, "ext4")) &&
-	    !stat(mnt->mnt_fsname, &dst) && dst.st_rdev == dev) {
-	    devname = strdup(mnt->mnt_fsname);
-	    break;
+	/* btrfs st_dev is not matched with mnt st_rdev, it is a known issue */
+	switch (fs_type) {
+	case BTRFS:
+		if (!strcmp(mnt->mnt_type, "btrfs") &&
+		    !stat(mnt->mnt_dir, &dst) &&
+		    dst.st_dev == dev)
+		    done = true;
+		break;
+	case EXT2:
+		if ((!strcmp(mnt->mnt_type, "ext2") ||
+		     !strcmp(mnt->mnt_type, "ext3") ||
+		     !strcmp(mnt->mnt_type, "ext4")) &&
+		    !stat(mnt->mnt_fsname, &dst) &&
+		    dst.st_rdev == dev) {
+		    done = true;
+		    break;
+		}
+	}
+	if (done) {
+		devname = strdup(mnt->mnt_fsname);
+		break;
 	}
     }
     endmntent(mtab);
@@ -779,30 +878,20 @@ static const char *find_device(const char *mtab_file, dev_t dev)
 }
 #endif
 
-int install_loader(const char *path, int update_only)
+static const char *get_devname(const char *path)
 {
-    struct stat st, fst;
-    int devfd, rv;
     const char *devname = NULL;
+    struct stat st;
     struct statfs sfs;
 
     if (stat(path, &st) || !S_ISDIR(st.st_mode)) {
 	fprintf(stderr, "%s: Not a directory: %s\n", program, path);
-	return 1;
+	return devname;
     }
-
     if (statfs(path, &sfs)) {
 	fprintf(stderr, "%s: statfs %s: %s\n", program, path, strerror(errno));
-	return 1;
+	return devname;
     }
-
-    if (sfs.f_type != EXT2_SUPER_MAGIC) {
-	fprintf(stderr, "%s: not an ext2/3/4 filesystem: %s\n", program, path);
-	return 1;
-    }
-
-    devfd = -1;
-
 #ifdef __KLIBC__
 
     /* klibc doesn't have getmntent and friends; instead, just create
@@ -812,7 +901,7 @@ int install_loader(const char *path, int update_only)
 
     if (mknod(devname_buf, S_IFBLK | 0600, st.st_dev)) {
 	fprintf(stderr, "%s: cannot create device %s\n", program, devname);
-	return 1;
+	return devname;
     }
 
     atexit(device_cleanup);	/* unlink the device node on exit */
@@ -827,46 +916,99 @@ int install_loader(const char *path, int update_only)
     }
     if (!devname) {
 	fprintf(stderr, "%s: cannot find device for path %s\n", program, path);
-	return 1;
+	return devname;
     }
 
     fprintf(stderr, "%s is device %s\n", path, devname);
 #endif
+    return devname;
+}
+
+static int open_device(const char *path, struct stat *st, const char **_devname)
+{
+    int devfd;
+    const char *devname = NULL;
+    struct statfs sfs;
+
+    if (st)
+	if (stat(path, st) || !S_ISDIR(st->st_mode)) {
+		fprintf(stderr, "%s: Not a directory: %s\n", program, path);
+		return -1;
+	}
+
+    if (statfs(path, &sfs)) {
+	fprintf(stderr, "%s: statfs %s: %s\n", program, path, strerror(errno));
+	return -1;
+    }
+    if (sfs.f_type == EXT2_SUPER_MAGIC)
+	fs_type = EXT2;
+    else if (sfs.f_type == BTRFS_SUPER_MAGIC)
+	fs_type = BTRFS;
+
+    if (!fs_type) {
+	fprintf(stderr, "%s: not an ext2/3/4 or btrfs filesystem: %s\n",
+		program, path);
+	return -1;
+    }
+
+    devfd = -1;
+    devname = get_devname(path);
+    if (_devname)
+	*_devname = devname;
 
     if ((devfd = open(devname, O_RDWR | O_SYNC)) < 0) {
 	fprintf(stderr, "%s: cannot open device %s\n", program, devname);
-	return 1;
+	return -1;
     }
 
     /* Verify that the device we opened is the device intended */
     if (validate_device(path, devfd)) {
 	fprintf(stderr, "%s: path %s doesn't match device %s\n",
 		program, path, devname);
-	return 1;
+	close(devfd);
+	return -1;
     }
+    return devfd;
+}
+
+int install_loader(const char *path, int update_only)
+{
+    struct stat st, fst;
+    int devfd, rv;
+    const char *devname;
+
+    devfd = open_device(path, &st, &devname);
+    if (devfd < 0)
+	return 1;
 
     if (update_only && !already_installed(devfd)) {
 	fprintf(stderr, "%s: no previous extlinux boot sector found\n",
 		program);
+	close(devfd);
 	return 1;
     }
 
     /* Read a pre-existing ADV, if already installed */
     if (opt.reset_adv)
 	syslinux_reset_adv(syslinux_adv);
-    else if (read_adv(path) < 0)
+    else if (read_adv(path, devfd) < 0) {
+	close(devfd);
 	return 1;
-
-    if (modify_adv() < 0)
+    }
+    if (modify_adv() < 0) {
+	close(devfd);
 	return 1;
+    }
 
     /* Install extlinux.sys */
-    if (install_file(path, devfd, &fst))
+    if (install_file(path, devfd, &fst)) {
+	close(devfd);
 	return 1;
-
+    }
     if (fst.st_dev != st.st_dev) {
 	fprintf(stderr, "%s: file system changed under us - aborting!\n",
 		program);
+	close(devfd);
 	return 1;
     }
 
@@ -883,17 +1025,27 @@ int install_loader(const char *path, int update_only)
  */
 int modify_existing_adv(const char *path)
 {
+    int devfd;
+
+    devfd = open_device(path, NULL, NULL);
+    if (devfd < 0)
+	return 1;
+
     if (opt.reset_adv)
 	syslinux_reset_adv(syslinux_adv);
-    else if (read_adv(path) < 0)
+    else if (read_adv(path, devfd) < 0) {
+	close(devfd);
 	return 1;
-
-    if (modify_adv() < 0)
+    }
+    if (modify_adv() < 0) {
+	close(devfd);
 	return 1;
-
-    if (write_adv(path) < 0)
+    }
+    if (write_adv(path, devfd) < 0) {
+	close(devfd);
 	return 1;
-
+    }
+    close(devfd);
     return 0;
 }
 
