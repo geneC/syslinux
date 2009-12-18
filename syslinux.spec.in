@@ -93,7 +93,7 @@ rm -rf %{buildroot}
 %{_datadir}/syslinux/*.bin
 %{_datadir}/syslinux/*.0
 %{_datadir}/syslinux/memdisk
-%{_datadir}/syslinux/dosutil
+%{_datadir}/syslinux/dosutil/*
 
 %files devel
 %{_datadir}/syslinux/com32
