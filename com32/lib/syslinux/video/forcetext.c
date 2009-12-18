@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,18 +27,16 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * syslinux/video.h
- *
- * SYSLINUX video API functions.
+ * syslinux/video/forcetext.c
  */
 
-#ifndef _SYSLINUX_VIDEO_H
-#define _SYSLINUX_VIDEO_H
+#include <syslinux/video.h>
+#include <com32.h>
 
-#include <stdint.h>
+void syslinux_force_text_mode(void)
+{
+    static com32sys_t ireg;
 
-void syslinux_force_text_mode(void);
-int syslinux_report_video_mode(uint16_t flags, uint16_t xsize, uint16_t ysize);
-int syslinux_font_query(uint8_t **font);
-
-#endif /* _SYSLINUX_API_H */
+    ireg.eax.w[0] = 0x0005;
+    __intcall(0x22, &ireg, NULL);
+}

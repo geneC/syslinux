@@ -110,7 +110,10 @@ LIBOBJS = \
 	syslinux/pxe_get_cached.o syslinux/pxe_get_nic.o		\
 	\
 	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o		\
-	syslinux/setadv.o
+	syslinux/setadv.o						\
+	\
+	syslinux/video/fontquery.o syslinux/video/forcetext.o		\
+	syslinux/video/reportmode.o
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib
