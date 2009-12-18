@@ -22,6 +22,8 @@ Changes in 3.84:
 	  resolution other than 640x480.
 	* chain.c32: add support for loading isolinux.bin.
 	* chain.c32: make sure to always return to text mode.
+	* eltorito.sys: DOS driver for generic CD-ROMs; by Gary Tong
+	  and Bart Lagerweij.
 
 Changes in 3.83:
 	* PXELINUX: clear memory before handing over to a chainloaded
