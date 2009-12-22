@@ -16,22 +16,22 @@
  *      caller.
  */
 void ata_id_string(const uint16_t * id, unsigned char *s,
-       unsigned int ofs, unsigned int len)
+		   unsigned int ofs, unsigned int len)
 {
-  unsigned int c;
+    unsigned int c;
 
-  while (len > 0) {
-    c = id[ofs] >> 8;
-    *s = c;
-    s++;
+    while (len > 0) {
+	c = id[ofs] >> 8;
+	*s = c;
+	s++;
 
-    c = id[ofs] & 0xff;
-    *s = c;
-    s++;
+	c = id[ofs] & 0xff;
+	*s = c;
+	s++;
 
-    ofs++;
-    len -= 2;
-  }
+	ofs++;
+	len -= 2;
+    }
 }
 
 /**
@@ -49,14 +49,14 @@ void ata_id_string(const uint16_t * id, unsigned char *s,
  *      caller.
  */
 void ata_id_c_string(const uint16_t * id, unsigned char *s,
-         unsigned int ofs, unsigned int len)
+		     unsigned int ofs, unsigned int len)
 {
-  unsigned char *p;
+    unsigned char *p;
 
-  ata_id_string(id, s, ofs, len - 1);
+    ata_id_string(id, s, ofs, len - 1);
 
-  p = s + strnlen(s, len - 1);
-  while (p > s && p[-1] == ' ')
-    p--;
-  *p = '\0';
+    p = s + strnlen(s, len - 1);
+    while (p > s && p[-1] == ' ')
+	p--;
+    *p = '\0';
 }

@@ -22,25 +22,25 @@
 /**
  * lba_to_chs - split given lba into cylinders/heads/sectors
  **/
-void lba_to_chs(const struct driveinfo* drive_info, const int lba,
-		unsigned int* cylinder, unsigned int* head,
-		unsigned int* sector)
+void lba_to_chs(const struct driveinfo *drive_info, const int lba,
+		unsigned int *cylinder, unsigned int *head,
+		unsigned int *sector)
 {
-	unsigned int track;
+    unsigned int track;
 
-	/* Use EDD, if valid */
-	if (drive_info->edd_params.sectors_per_track > 0 &&
-	    drive_info->edd_params.heads > 0) {
-		*cylinder = (lba % drive_info->edd_params.sectors_per_track) + 1;
-		track = lba / drive_info->edd_params.sectors_per_track;
-		*head = track % drive_info->edd_params.heads;
-		*sector = track / drive_info->edd_params.heads;
-	} else if (drive_info->cbios) {
-		*cylinder = (lba % drive_info->legacy_sectors_per_track) + 1;
-		track = lba / drive_info->legacy_sectors_per_track;
-		*head = track % (drive_info->legacy_max_head + 1);
-		*sector = track / (drive_info->legacy_max_head + 1);
-	}
+    /* Use EDD, if valid */
+    if (drive_info->edd_params.sectors_per_track > 0 &&
+	drive_info->edd_params.heads > 0) {
+	*cylinder = (lba % drive_info->edd_params.sectors_per_track) + 1;
+	track = lba / drive_info->edd_params.sectors_per_track;
+	*head = track % drive_info->edd_params.heads;
+	*sector = track / drive_info->edd_params.heads;
+    } else if (drive_info->cbios) {
+	*cylinder = (lba % drive_info->legacy_sectors_per_track) + 1;
+	track = lba / drive_info->legacy_sectors_per_track;
+	*head = track % (drive_info->legacy_max_head + 1);
+	*sector = track / (drive_info->legacy_max_head + 1);
+    }
 }
 
 /**
@@ -76,28 +76,27 @@ void lba_to_chs(const struct driveinfo* drive_info, const int lba,
  *       extended drive parameter table is valid (see #00273,#00278)
  *     3-15    reserved (0)
  **/
-static int detect_extensions(struct driveinfo* drive_info)
+static int detect_extensions(struct driveinfo *drive_info)
 {
-	com32sys_t getebios, ebios;
+    com32sys_t getebios, ebios;
 
-	memset(&getebios, 0, sizeof getebios);
-	memset(&ebios, 0, sizeof ebios);
+    memset(&getebios, 0, sizeof getebios);
+    memset(&ebios, 0, sizeof ebios);
 
-	getebios.eflags.b[0] = 0x3;	/* CF set */
-	getebios.ebx.w[0] = 0x55aa;
-	getebios.edx.b[0] = drive_info->disk;
-	getebios.eax.b[1] = 0x41;
+    getebios.eflags.b[0] = 0x3;	/* CF set */
+    getebios.ebx.w[0] = 0x55aa;
+    getebios.edx.b[0] = drive_info->disk;
+    getebios.eax.b[1] = 0x41;
 
-	__intcall(0x13, &getebios, &ebios);
+    __intcall(0x13, &getebios, &ebios);
 
-	if ( !(ebios.eflags.l & EFLAGS_CF) &&
-	     ebios.ebx.w[0] == 0xaa55 ) {
-		drive_info->ebios = 1;
-		drive_info->edd_version = ebios.eax.b[1];
-		drive_info->edd_functionality_subset = ebios.ecx.w[0];
-		return 0;
-	} else
-		return -1; /* Drive does not exist? */
+    if (!(ebios.eflags.l & EFLAGS_CF) && ebios.ebx.w[0] == 0xaa55) {
+	drive_info->ebios = 1;
+	drive_info->edd_version = ebios.eax.b[1];
+	drive_info->edd_functionality_subset = ebios.ecx.w[0];
+	return 0;
+    } else
+	return -1;		/* Drive does not exist? */
 }
 
 /**
@@ -118,39 +117,39 @@ static int detect_extensions(struct driveinfo* drive_info)
  *     numbers, stopping as soon as the number of valid drives encountered
  *     equals the value in 0040h:0075h
  **/
-static int get_drive_parameters_with_extensions(struct driveinfo* drive_info)
+static int get_drive_parameters_with_extensions(struct driveinfo *drive_info)
 {
-	com32sys_t inreg, outreg;
-	struct edd_device_parameters *dp = __com32.cs_bounce;
+    com32sys_t inreg, outreg;
+    struct edd_device_parameters *dp = __com32.cs_bounce;
 
-	memset(&inreg, 0, sizeof inreg);
+    memset(&inreg, 0, sizeof inreg);
 
-	/*
-	 * The caller shall set this value to the maximum Result Buffer
-	 * length, in bytes. If the length of this buffer is less than 30
-	 * bytes, this function shall not return the pointer to Drive Parameter
-	 * Table (DPT) extension. If the buffer length is 30 or greater on
-	 * entry, it shall be set to 30 on exit. If the buffer length is
-	 * between 26 and 29, it shall be set to 26 on exit.
-	 * If the buffer length is less than 26 on entry an error shall be
-	 * returned.
-	 */
-	dp->len = sizeof(struct edd_device_parameters);
+    /*
+     * The caller shall set this value to the maximum Result Buffer
+     * length, in bytes. If the length of this buffer is less than 30
+     * bytes, this function shall not return the pointer to Drive Parameter
+     * Table (DPT) extension. If the buffer length is 30 or greater on
+     * entry, it shall be set to 30 on exit. If the buffer length is
+     * between 26 and 29, it shall be set to 26 on exit.
+     * If the buffer length is less than 26 on entry an error shall be
+     * returned.
+     */
+    dp->len = sizeof(struct edd_device_parameters);
 
-	inreg.esi.w[0] = OFFS(dp);
-	inreg.ds = SEG(dp);
-	inreg.edx.b[0] = drive_info->disk;
-	inreg.eax.b[1] = 0x48;
+    inreg.esi.w[0] = OFFS(dp);
+    inreg.ds = SEG(dp);
+    inreg.edx.b[0] = drive_info->disk;
+    inreg.eax.b[1] = 0x48;
 
-	__intcall(0x13, &inreg, &outreg);
+    __intcall(0x13, &inreg, &outreg);
 
-	/* CF set on error */
-	if ( outreg.eflags.l & EFLAGS_CF )
-		return outreg.eax.b[1];
+    /* CF set on error */
+    if (outreg.eflags.l & EFLAGS_CF)
+	return outreg.eax.b[1];
 
-	memcpy(&drive_info->edd_params, dp, sizeof drive_info->edd_params);
+    memcpy(&drive_info->edd_params, dp, sizeof drive_info->edd_params);
 
-	return 0;
+    return 0;
 }
 
 /**
@@ -201,53 +200,53 @@ static int get_drive_parameters_with_extensions(struct driveinfo* drive_info)
  * SeeAlso: AH=06h"Adaptec",AH=13h"SyQuest",AH=48h,AH=15h,INT 1E
  * SeeAlso: INT 41"HARD DISK 0"
  **/
-static int get_drive_parameters_without_extensions(struct driveinfo* drive_info)
+static int get_drive_parameters_without_extensions(struct driveinfo *drive_info)
 {
-	com32sys_t getparm, parm;
+    com32sys_t getparm, parm;
 
-	memset(&getparm, 0, sizeof getparm);
-	memset(&parm, 0, sizeof parm);
+    memset(&getparm, 0, sizeof getparm);
+    memset(&parm, 0, sizeof parm);
 
-	/* Ralf Brown recommends setting ES:DI to 0:0 */
-	getparm.esi.w[0] = 0;
-	getparm.ds = 0;
-	getparm.edx.b[0] = drive_info->disk;
-	getparm.eax.b[1] = 0x08;
+    /* Ralf Brown recommends setting ES:DI to 0:0 */
+    getparm.esi.w[0] = 0;
+    getparm.ds = 0;
+    getparm.edx.b[0] = drive_info->disk;
+    getparm.eax.b[1] = 0x08;
 
-	__intcall(0x13, &getparm, &parm);
+    __intcall(0x13, &getparm, &parm);
 
-	/* CF set on error */
-	if ( parm.eflags.l & EFLAGS_CF )
-		return parm.eax.b[1];
+    /* CF set on error */
+    if (parm.eflags.l & EFLAGS_CF)
+	return parm.eax.b[1];
 
-	/* DL contains the maximum drive number (it starts at 0) */
-	drive_info->legacy_max_drive = parm.edx.b[0];
+    /* DL contains the maximum drive number (it starts at 0) */
+    drive_info->legacy_max_drive = parm.edx.b[0];
 
-	// XXX broken
-	/* Drive specified greater than the bumber of attached drives */
-	//if (drive_info->disk > drive_info->drives)
-	//	return -1;
+    // XXX broken
+    /* Drive specified greater than the bumber of attached drives */
+    //if (drive_info->disk > drive_info->drives)
+    //      return -1;
 
-	drive_info->legacy_type = parm.ebx.b[0];
+    drive_info->legacy_type = parm.ebx.b[0];
 
-	/* DH contains the maximum head number (it starts at 0) */
-	drive_info->legacy_max_head = parm.edx.b[1];
+    /* DH contains the maximum head number (it starts at 0) */
+    drive_info->legacy_max_head = parm.edx.b[1];
 
-	/* Maximum sector number (bits 5-0) per track */
-	drive_info->legacy_sectors_per_track = parm.ecx.b[0] & 0x3f;
+    /* Maximum sector number (bits 5-0) per track */
+    drive_info->legacy_sectors_per_track = parm.ecx.b[0] & 0x3f;
 
-	/*
-	 * Maximum cylinder number:
-	 *     CH = low eight bits of maximum cylinder number
-	 *     CL = high two bits of maximum cylinder number (bits 7-6)
-	 */
-	drive_info->legacy_max_cylinder = parm.ecx.b[1] +
-			       ((parm.ecx.b[0] & 0xc0) << 2);
+    /*
+     * Maximum cylinder number:
+     *     CH = low eight bits of maximum cylinder number
+     *     CL = high two bits of maximum cylinder number (bits 7-6)
+     */
+    drive_info->legacy_max_cylinder = parm.ecx.b[1] +
+	((parm.ecx.b[0] & 0xc0) << 2);
 
-	if ( drive_info->legacy_sectors_per_track > 0 )
-		drive_info->cbios = 1;	/* Valid geometry */
+    if (drive_info->legacy_sectors_per_track > 0)
+	drive_info->cbios = 1;	/* Valid geometry */
 
-	return 0;
+    return 0;
 }
 
 /**
@@ -256,17 +255,17 @@ static int get_drive_parameters_without_extensions(struct driveinfo* drive_info)
  **/
 int get_drive_parameters(struct driveinfo *drive_info)
 {
-	int return_code;
+    int return_code;
 
-	if (detect_extensions(drive_info))
-		return -1;
+    if (detect_extensions(drive_info))
+	return -1;
 
-	return_code = get_drive_parameters_without_extensions(drive_info);
+    return_code = get_drive_parameters_without_extensions(drive_info);
 
-	/* If geometry isn't valid, no need to try to get more info about the drive*/
-	/* Looks like in can confuse some optical drives */
-	if (drive_info->ebios && drive_info->cbios)
-		get_drive_parameters_with_extensions(drive_info);
+    /* If geometry isn't valid, no need to try to get more info about the drive */
+    /* Looks like in can confuse some optical drives */
+    if (drive_info->ebios && drive_info->cbios)
+	get_drive_parameters_with_extensions(drive_info);
 
-	return return_code;
+    return return_code;
 }

@@ -39,6 +39,7 @@
 #include <sys/pci.h>
 #include <com32.h>
 #include <stdbool.h>
+#include <syslinux/zio.h>
 
 #ifdef DEBUG
 # define dprintf printf
@@ -73,6 +74,15 @@ static int hex_to_int(char *hexa)
     return strtoul(hexa, NULL, 16);
 }
 
+/* Replace char 'old' by char 'new' in source */
+void chr_replace(char *source, char old, char new) 
+{
+    while (*source) { 
+	source++;
+	if (source[0] == old) source[0]=new;
+    }
+}
+
 /* Try to match any pci device to the appropriate kernel module */
 /* it uses the modules.pcimap from the boot device */
 int get_module_name_from_pcimap(struct pci_domain *domain,
@@ -104,7 +114,7 @@ int get_module_name_from_pcimap(struct pci_domain *domain,
   }
 
   /* Opening the modules.pcimap (of a linux kernel) from the boot device */
-  f=fopen(modules_pcimap_path, "r");
+  f=zfopen(modules_pcimap_path, "r");
   if (!f)
     return -ENOMODULESPCIMAP;
 
@@ -112,7 +122,6 @@ int get_module_name_from_pcimap(struct pci_domain *domain,
   strcpy(product_id,"0000");
   strcpy(sub_product_id,"0000");
   strcpy(sub_vendor_id,"0000");
-  dev->dev_info->linux_kernel_module_count=0;
 
   /* for each line we found in the modules.pcimap */
   while ( fgets(line, sizeof line, f) ) {
@@ -130,7 +139,11 @@ int get_module_name_from_pcimap(struct pci_domain *domain,
        /* multiple spaces generates some empty fields */
        if (strlen(result)>1) {
 	 switch (field) {
-	 case 0:strcpy(module_name,result); break;
+	 /* About case 0, the kernel module name is featuring '_' or '-' 
+	  * in the module name whereas modules.alias is only using '_'.
+	  * To avoid kernel modules duplication, let's rename all '-' in '_' 
+	  * to match what modules.alias provides */
+	 case 0:chr_replace(result,'-','_');strcpy(module_name,result); break;
 	 case 1:strcpy(vendor_id,result); break;
 	 case 2:strcpy(product_id,result); break;
 	 case 3:strcpy(sub_vendor_id,result); break;
@@ -154,8 +167,22 @@ int get_module_name_from_pcimap(struct pci_domain *domain,
 	  == dev->sub_product &&
 	  (int_sub_vendor_id & dev->sub_vendor)
 	  == dev->sub_vendor) {
-	strcpy(dev->dev_info->linux_kernel_module[dev->dev_info->linux_kernel_module_count], module_name);
-	dev->dev_info->linux_kernel_module_count++;
+	      bool found=false;
+
+	      /* Scan all known kernel modules for this pci device */
+	      for (int i=0; i<dev->dev_info->linux_kernel_module_count; i++) {
+
+       	      /* Try to detect if we already knew the same kernel module*/
+	       if (strstr(dev->dev_info->linux_kernel_module[i], module_name)) {
+		      found=true;
+		      break;
+	       }
+	      }
+	      /* If we don't have this kernel module, let's add it */
+	      if (!found) {
+		strcpy(dev->dev_info->linux_kernel_module[dev->dev_info->linux_kernel_module_count], module_name);
+		dev->dev_info->linux_kernel_module_count++;
+	      }
       }
     }
   }
@@ -189,7 +216,7 @@ int get_class_name_from_pci_ids(struct pci_domain *domain, char *pciids_path)
     }
 
     /* Opening the pci.ids from the boot device */
-    f = fopen(pciids_path, "r");
+    f = zfopen(pciids_path, "r");
     if (!f)
 	return -ENOPCIIDS;
 
@@ -289,7 +316,7 @@ int get_name_from_pci_ids(struct pci_domain *domain, char *pciids_path)
     }
 
     /* Opening the pci.ids from the boot device */
-    f = fopen(pciids_path, "r");
+    f = zfopen(pciids_path, "r");
     if (!f)
 	return -ENOPCIIDS;
 
@@ -615,11 +642,9 @@ int get_module_name_from_alias(struct pci_domain *domain, char *modules_alias_pa
   }
 
   /* Opening the modules.pcimap (of a linux kernel) from the boot device */
-  f=fopen(modules_alias_path, "r");
+  f=zfopen(modules_alias_path, "r");
   if (!f)
     return -ENOMODULESALIAS;
-
-  dev->dev_info->linux_kernel_module_count=0;
 
   /* for each line we found in the modules.pcimap */
   while ( fgets(line, sizeof line, f) ) {
@@ -702,8 +727,22 @@ int get_module_name_from_alias(struct pci_domain *domain, char *modules_alias_pa
 	  == dev->sub_product &&
 	  (int_sub_vendor_id & dev->sub_vendor)
 	  == dev->sub_vendor) {
-	strcpy(dev->dev_info->linux_kernel_module[dev->dev_info->linux_kernel_module_count], module_name);
-	dev->dev_info->linux_kernel_module_count++;
+	      bool found=false;
+	      
+	      /* Scan all known kernel modules for this pci device */
+	      for (int i=0; i<dev->dev_info->linux_kernel_module_count; i++) {
+
+       	      /* Try to detect if we already knew the same kernel module*/
+	       if (strstr(dev->dev_info->linux_kernel_module[i], module_name)) {
+		      found=true;
+		      break;
+	       }
+	      }
+	      /* If we don't have this kernel module, let's add it */
+	      if (!found) {
+		strcpy(dev->dev_info->linux_kernel_module[dev->dev_info->linux_kernel_module_count], module_name);
+		dev->dev_info->linux_kernel_module_count++;
+	      }
       }
     }
   }

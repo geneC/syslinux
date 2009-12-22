@@ -27,6 +27,8 @@ LIBOBJS = \
 	asprintf.o vasprintf.o strlcpy.o strlcat.o			\
 	vsscanf.o zalloc.o						\
 	\
+	dprintf.o vdprintf.o						\
+	\
 	opendir.o readdir.o closedir.o getcwd.o chdir.o fdopendir.o	\
 	\
 	libgcc/__ashldi3.o libgcc/__udivdi3.o			\
@@ -56,6 +58,8 @@ LIBOBJS = \
 	\
 	sys/libansi.o							\
 	\
+	sys/gpxe.o							\
+	\
 	sys/ansicon_write.o sys/ansiserial_write.o			\
 	\
 	sys/vesacon_write.o sys/vesaserial_write.o			\
@@ -77,7 +81,8 @@ LIBOBJS = \
 	libpng/pngerror.o libpng/pngpread.o				\
 	\
 	jpeg/tinyjpeg.o jpeg/jidctflt.o	jpeg/decode1.o jpeg/decode3.o   \
-	jpeg/rgb24.o jpeg/bgr24.o jpeg/yuv420p.o jpeg/grey.o		\
+	jpeg/grey.o jpeg/yuv420p.o					\
+	jpeg/rgb24.o jpeg/bgr24.o					\
 	jpeg/rgba32.o jpeg/bgra32.o					\
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o			\

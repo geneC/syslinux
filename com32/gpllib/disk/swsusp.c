@@ -12,16 +12,16 @@
  **/
 int swsusp_check(struct driveinfo *drive_info, struct part_entry *ptab)
 {
-	struct swsusp_header header_p;
-	int offset;
-	int found;
+    struct swsusp_header header_p;
+    int offset;
+    int found;
 
-	/* Read first page of the swap device */
-	offset = ptab->start_lba;
-	if (read_sectors(drive_info, &header_p, offset, PAGE_SIZE/SECTOR) == -1) {
-		return -1;
-	} else {
-		found = !memcmp(SWSUSP_SIG, header_p.sig, 10);
-		return found;
-	}
+    /* Read first page of the swap device */
+    offset = ptab->start_lba;
+    if (read_sectors(drive_info, &header_p, offset, PAGE_SIZE / SECTOR) == -1) {
+	return -1;
+    } else {
+	found = !memcmp(SWSUSP_SIG, header_p.sig, 10);
+	return found;
+    }
 }

@@ -31,46 +31,57 @@
 /* Computing About menu*/
 void compute_aboutmenu(struct s_my_menu *menu)
 {
-  char buffer[SUBMENULEN + 1];
-  char statbuffer[STATLEN + 1];
+    char buffer[SUBMENULEN + 1];
+    char statbuffer[STATLEN + 1];
 
-  menu->menu = add_menu(" About ", -1);
-  menu->items_count = 0;
+    menu->menu = add_menu(" About ", -1);
+    menu->items_count = 0;
 
-  set_menu_pos(SUBMENU_Y, SUBMENU_X);
+    set_menu_pos(SUBMENU_Y, SUBMENU_X);
 
-  snprintf(buffer, sizeof buffer, "Product        : %s", PRODUCT_NAME);
-  snprintf(statbuffer, sizeof statbuffer, "Product : %s", PRODUCT_NAME);
-  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  menu->items_count++;
+    snprintf(buffer, sizeof buffer, "Product        : %s", PRODUCT_NAME);
+    snprintf(statbuffer, sizeof statbuffer, "Product : %s", PRODUCT_NAME);
+    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+    menu->items_count++;
 
-  snprintf(buffer, sizeof buffer, "Version        : %s (%s)", VERSION, CODENAME);
-  snprintf(statbuffer, sizeof statbuffer, "Version : %s (%s)", VERSION,CODENAME);
-  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  menu->items_count++;
+    snprintf(buffer, sizeof buffer, "Version        : %s (%s)", VERSION,
+	     CODENAME);
+    snprintf(statbuffer, sizeof statbuffer, "Version : %s (%s)", VERSION,
+	     CODENAME);
+    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+    menu->items_count++;
 
-  snprintf(buffer, sizeof buffer, "Project Leader : %s", AUTHOR);
-  snprintf(statbuffer, sizeof statbuffer, "Project Leader  : %s", AUTHOR);
-  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  menu->items_count++;
+    snprintf(buffer, sizeof buffer, "Website        : %s", WEBSITE_URL);
+    snprintf(statbuffer, sizeof statbuffer, "Website : %s",WEBSITE_URL); 
+    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+    menu->items_count++;
 
-  snprintf(buffer, sizeof buffer, "Contact        : %s", CONTACT);
-  snprintf(statbuffer, sizeof statbuffer, "Contact : %s", CONTACT);
-  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  menu->items_count++;
+    snprintf(buffer, sizeof buffer, "Mailing List   : %s", CONTACT);
+    snprintf(statbuffer, sizeof statbuffer, "Mailing List: %s", CONTACT);
+    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+    menu->items_count++;
 
-  snprintf(buffer, sizeof buffer, "Core Developer : %s", CORE_DEVELOPER);
-  snprintf(statbuffer, sizeof statbuffer, "Core Developer  : %s", CORE_DEVELOPER);
-  add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-  menu->items_count++;
+    add_item("", "", OPT_SEP, "", 0);
 
-  char *contributors[NB_CONTRIBUTORS] = CONTRIBUTORS;
-  for (int c=0; c<NB_CONTRIBUTORS; c++) {
-   snprintf(buffer, sizeof buffer, "Contributor    : %s", contributors[c]);
-   snprintf(statbuffer, sizeof statbuffer, "Contributor : %s", contributors[c]);
-   add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
-   menu->items_count++;
-  }
+    snprintf(buffer, sizeof buffer, "Project Leader : %s", AUTHOR);
+    snprintf(statbuffer, sizeof statbuffer, "Project Leader  : %s", AUTHOR);
+    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+    menu->items_count++;
+    
+    snprintf(buffer, sizeof buffer, "Core Developer : %s", CORE_DEVELOPER);
+    snprintf(statbuffer, sizeof statbuffer, "Core Developer  : %s",
+	     CORE_DEVELOPER);
+    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+    menu->items_count++;
 
-  printf("MENU: About menu done (%d items)\n", menu->items_count);
+    char *contributors[NB_CONTRIBUTORS] = CONTRIBUTORS;
+    for (int c = 0; c < NB_CONTRIBUTORS; c++) {
+	snprintf(buffer, sizeof buffer, "Contributor    : %s", contributors[c]);
+	snprintf(statbuffer, sizeof statbuffer, "Contributor : %s",
+		 contributors[c]);
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+	menu->items_count++;
+    }
+
+    printf("MENU: About menu done (%d items)\n", menu->items_count);
 }

@@ -556,7 +556,8 @@ AX=000Fh [3.00] Get IPAPPEND strings [PXELINUX]
 
 
 AX=0010h [3.00] Resolve hostname [PXELINUX]
-	Input:  ES:BX	pointer to null-terminated hostname
+	Input:  AX	0010h
+		ES:BX	pointer to null-terminated hostname
 	Output:	EAX	IP address of hostname (zero if not found)
 
 	Queries the DNS server(s) for a specific hostname.  If the
@@ -845,7 +846,7 @@ AX=001Eh [3.74] Keyboard remapping table
 
 
 AX=001Fh [3.74]	Get current working directory
-	Input:	AX	0001Eh
+	Input:	AX	0001Fh
 	Output:	ES:BX	null-terminated directory name string
 
 	Returns the current working directory.  For SYSLINUX, ISOLINUX,
@@ -854,7 +855,7 @@ AX=001Fh [3.74]	Get current working directory
 
 
 AX=0020h [3.74] Open directory
-	Input:	AX	001Fh
+	Input:	AX	0020h
 		ES:SI	/-null-terminated directory name
 	Output:	SI	directory handle
 		EAX	clobbered
@@ -865,7 +866,7 @@ AX=0020h [3.74] Open directory
 
 
 AX=0021h [3.74] Read directory
-	Input:	AX	0020h
+	Input:	AX	0021h
 		SI	directory handle
 		ES:DI	buffer for file name
 	Output:	DL	Type of file
@@ -881,7 +882,7 @@ AX=0021h [3.74] Read directory
 
 
 AX=0022h [3.74] Close directory
-	Input:	AX	001Fh
+	Input:	AX	0022h
 		SI	directory handle
 	Output	SI	0
 

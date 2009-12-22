@@ -127,8 +127,7 @@ int main(int argc, char *argv[])
     return_code = get_name_from_pci_ids(pci_domain, "pci.ids");
     if (return_code == -ENOPCIIDS) {
 	printf("PCI: ERROR !\n");
-	printf
-	    ("PCI: Unable to open pci.ids in the same directory as pcitest.c32.\n");
+	printf("PCI: Unable to open pci.ids file in current directory.\n");
 	printf("PCI: PCI Device names can't be computed.\n");
     }
 
@@ -137,8 +136,7 @@ int main(int argc, char *argv[])
     return_code = get_class_name_from_pci_ids(pci_domain, "pci.ids");
     if (return_code == -ENOPCIIDS) {
 	printf("PCI: ERROR !\n");
-	printf
-	    ("PCI: Unable to open pci.ids in the same directory as pcitest.c32.\n");
+	printf("PCI: Unable to open pci.ids file in current directory.\n");
 	printf("PCI: PCI class names can't be computed.\n");
     }
 
@@ -147,8 +145,7 @@ int main(int argc, char *argv[])
     return_code = get_module_name_from_pcimap(pci_domain, "modules.pcimap");
     if (return_code == -ENOMODULESPCIMAP) {
 	printf("PCI: ERROR !\n");
-	printf
-	    ("PCI: Unable to open modules.pcimap in the same directory as pcitest.c32.\n");
+	printf("PCI: Unable to open modules.pcimap file in current directory.\n");
 	printf("PCI: Kernel Module names can't be computed.\n");
     }
 

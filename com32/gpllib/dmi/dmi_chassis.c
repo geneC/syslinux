@@ -57,10 +57,14 @@ const char *dmi_chassis_type(uint8_t code)
 	"RAID Chassis",
 	"Rack Mount Chassis",
 	"Sealed-case PC",
-	"Multi-system"		/* 0x19 */
+	"Multi-system",		/* 0x19 */
+	"CompactPCI",
+	"AdvancedTCA",
+	"Blade",
+	"Blade Enclosing" /* 0x1D */
     };
 
-    if (code >= 0x01 && code <= 0x19)
+    if (code >= 0x01 && code <= 0x1D)
 	return type[code - 0x01];
     return out_of_spec;
 }

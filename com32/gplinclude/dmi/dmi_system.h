@@ -35,10 +35,10 @@ typedef struct {
     char sku_number[SYSTEM_SKU_NUMBER_SIZE];
     char family[SYSTEM_FAMILY_SIZE];
 /* The filled field have to be set to true when the dmitable implement that item */
-bool filled;
-char system_boot_status[SYSTEM_BOOT_STATUS_SIZE];
-char configuration_options[SYSTEM_CONFIGURATION_OPTIONS_SIZE];
-struct {
+    bool filled;
+    char system_boot_status[SYSTEM_BOOT_STATUS_SIZE];
+    char configuration_options[SYSTEM_CONFIGURATION_OPTIONS_SIZE];
+    struct {
 	bool filled;
 	uint8_t status;
 	uint8_t watchdog;
@@ -48,6 +48,6 @@ struct {
 	char reset_limit[8];
 	char timer_interval[8];
 	char timeout[8];
-} system_reset;
+    } system_reset;
 } s_system;
 #endif

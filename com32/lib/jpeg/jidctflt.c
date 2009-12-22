@@ -80,7 +80,7 @@
 
 #define DEQUANTIZE(coef,quantval)  (((FAST_FLOAT) (coef)) * (quantval))
 
-#if defined(__GNUC__) && defined(__i686__) || defined(__x86_64__)
+#if 1 && defined(__GNUC__) && (defined(__i686__) || defined(__x86_64__))
 
 static inline unsigned char descale_and_clamp(int x, int shift)
 {
@@ -92,7 +92,7 @@ static inline unsigned char descale_and_clamp(int x, int shift)
       "\tcmpl %4,%1\n"
       "\tcmovg %4,%1\n"
       : "=r"(x)
-      : "0"(x), "i"(shift), "i"(1UL<<(shift-1)), "r" (0xff), "r" (0)
+      : "0"(x), "Ir"(shift), "ir"(1UL<<(shift-1)), "r" (0xff), "r" (0)
       );
   return x;
 }
@@ -120,7 +120,7 @@ static inline unsigned char descale_and_clamp(int x, int shift)
  */
 
 void
-jpeg_idct_float (struct component *compptr, uint8_t *output_buf, int stride)
+tinyjpeg_idct_float (struct component *compptr, uint8_t *output_buf, int stride)
 {
   FAST_FLOAT tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
   FAST_FLOAT tmp10, tmp11, tmp12, tmp13;
@@ -269,14 +269,14 @@ jpeg_idct_float (struct component *compptr, uint8_t *output_buf, int stride)
 
     /* Final output stage: scale down by a factor of 8 and range-limit */
 
-    outptr[0] = descale_and_clamp(tmp0 + tmp7, 3);
-    outptr[7] = descale_and_clamp(tmp0 - tmp7, 3);
-    outptr[1] = descale_and_clamp(tmp1 + tmp6, 3);
-    outptr[6] = descale_and_clamp(tmp1 - tmp6, 3);
-    outptr[2] = descale_and_clamp(tmp2 + tmp5, 3);
-    outptr[5] = descale_and_clamp(tmp2 - tmp5, 3);
-    outptr[4] = descale_and_clamp(tmp3 + tmp4, 3);
-    outptr[3] = descale_and_clamp(tmp3 - tmp4, 3);
+    outptr[0] = descale_and_clamp((int)(tmp0 + tmp7), 3);
+    outptr[7] = descale_and_clamp((int)(tmp0 - tmp7), 3);
+    outptr[1] = descale_and_clamp((int)(tmp1 + tmp6), 3);
+    outptr[6] = descale_and_clamp((int)(tmp1 - tmp6), 3);
+    outptr[2] = descale_and_clamp((int)(tmp2 + tmp5), 3);
+    outptr[5] = descale_and_clamp((int)(tmp2 - tmp5), 3);
+    outptr[4] = descale_and_clamp((int)(tmp3 + tmp4), 3);
+    outptr[3] = descale_and_clamp((int)(tmp3 - tmp4), 3);
 
 
     wsptr += DCTSIZE;		/* advance pointer to next row */

@@ -818,6 +818,11 @@ static void parse_config_file(FILE * f)
 		}
 	    } else if (looking_at(p, "start")) {
 		start_menu = m;
+	    } else if ((ep = looking_at(p, "resolution"))) {
+		int x, y;
+		x = strtoul(ep, &ep, 0);
+		y = strtoul(skipspace(ep), NULL, 0);
+		set_resolution(x, y);
 	    } else {
 		/* Unknown, check for layout parameters */
 		enum parameter_number mp;
@@ -959,7 +964,11 @@ static int parse_one_config(const char *filename)
     if (!strcmp(filename, "~"))
 	filename = syslinux_config_file();
 
+    dprintf("Opening config file: %s ", filename);
+
     f = fopen(filename, "r");
+    dprintf("%s\n", f ? "ok" : "failed");
+    
     if (!f)
 	return -1;
 

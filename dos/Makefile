@@ -18,6 +18,7 @@ topdir = ..
 include $(topdir)/MCONFIG.embedded
 
 CFLAGS	+= -D__MSDOS__
+# CFLAGS  += -DDEBUG
 
 LDFLAGS	 = -T dosexe.ld
 OPTFLAGS = -g
@@ -31,7 +32,8 @@ SRCS     = syslinux.c \
 	   ../libinstaller/mbr_bin.c \
            $(wildcard ../libfat/*.c)
 OBJS	 = header.o crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
-LIBOBJS	 = conio.o memcpy.o memset.o  skipatou.o atou.o malloc.o free.o \
+LIBOBJS	 = int2526.o conio.o memcpy.o memset.o  skipatou.o atou.o \
+	   malloc.o free.o \
 	   argv.o printf.o __divdi3.o __udivmoddi4.o
 
 VPATH = .:../libfat:../libinstaller

@@ -50,14 +50,14 @@ typedef struct {
 } s_memory;
 
 typedef struct {
-char socket_designation[8];
-char bank_connections[8];
-char speed[8];
-char type[16];
-char installed_size[8];
-char enabled_size[8];
-char error_status[8];
-bool filled;
+    char socket_designation[8];
+    char bank_connections[8];
+    char speed[8];
+    char type[48];
+    char installed_size[48];
+    char enabled_size[48];
+    char error_status[8];
+    bool filled;
 } s_memory_module;
 
 void dmi_memory_array_error_handle(uint16_t code, char *array);
@@ -69,9 +69,9 @@ const char *dmi_memory_device_type(uint8_t code);
 void dmi_memory_device_type_detail(uint16_t code, char *type_detail);
 void dmi_memory_device_speed(uint16_t code, char *speed);
 
-void dmi_memory_module_connections(uint8_t, char*);
-void dmi_memory_module_speed(uint8_t, char*);
-void dmi_memory_module_types(uint16_t, const char*, char*);
-void dmi_memory_module_size(uint8_t, char*);
-void dmi_memory_module_error(uint8_t, const char*, char*);
+void dmi_memory_module_connections(uint8_t, char *);
+void dmi_memory_module_speed(uint8_t, char *);
+void dmi_memory_module_types(uint16_t, const char *, char *);
+void dmi_memory_module_size(uint8_t, char *);
+void dmi_memory_module_error(uint8_t, const char *, char *);
 #endif

@@ -133,10 +133,54 @@ int get_model_name(struct cpuinfo_x86 *c)
     return 1;
 }
 
+void detect_cache(uint32_t xlvl, struct cpuinfo_x86 *c)
+{
+    uint32_t eax, ebx, ecx, edx, l2size;
+    /* Detecting L1 cache */
+    if (xlvl >= 0x80000005) {
+	cpuid(0x80000005, &eax, &ebx, &ecx, &edx);
+	c->x86_l1_data_cache_size = ecx >> 24;
+	c->x86_l1_instruction_cache_size = edx >> 24;
+    }
+
+    /* Detecting L2 cache */
+    c->x86_l2_cache_size = 0;
+
+    if (xlvl < 0x80000006)	/* Some chips just has a large L1. */
+	return;
+
+    cpuid(0x80000006, &eax, &ebx, &ecx, &edx);
+    l2size = ecx >> 16;
+
+    /* Vendor based fixes */
+    switch (c->x86_vendor) {
+    case X86_VENDOR_INTEL:
+	/*
+	 * Intel PIII Tualatin. This comes in two flavours.
+	 * One has 256kb of cache, the other 512. We have no way
+	 * to determine which, so we use a boottime override
+	 * for the 512kb model, and assume 256 otherwise.
+	 */
+	if ((c->x86 == 6) && (c->x86_model == 11) && (l2size == 0))
+	    l2size = 256;
+	break;
+    case X86_VENDOR_AMD:
+	/* AMD errata T13 (order #21922) */
+	if ((c->x86 == 6)) {
+	    if (c->x86_model == 3 && c->x86_mask == 0)	/* Duron Rev A0 */
+		l2size = 64;
+	    if (c->x86_model == 4 && (c->x86_mask == 0 || c->x86_mask == 1))	/* Tbird rev A1/A2 */
+		l2size = 256;
+	}
+	break;
+    }
+    c->x86_l2_cache_size = l2size;
+}
+
 void generic_identify(struct cpuinfo_x86 *c)
 {
     uint32_t tfms, xlvl;
-    unsigned int ebx;
+    uint32_t eax, ebx, ecx, edx;
 
     /* Get vendor name */
     cpuid(0x00000000,
@@ -146,6 +190,7 @@ void generic_identify(struct cpuinfo_x86 *c)
 	  (uint32_t *) & c->x86_vendor_id[4]);
 
     get_cpu_vendor(c);
+
     /* Intel-defined flags: level 0x00000001 */
     if (c->cpuid_level >= 0x00000001) {
 	uint32_t capability, excap;
@@ -176,6 +221,26 @@ void generic_identify(struct cpuinfo_x86 *c)
 	if (xlvl >= 0x80000004)
 	    get_model_name(c);	/* Default name */
     }
+
+    /* Detecting the number of cores */
+    switch (c->x86_vendor) {
+    case X86_VENDOR_AMD:
+	if (xlvl >= 0x80000008) {
+	    c->x86_num_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
+	    if (c->x86_num_cores & (c->x86_num_cores - 1))
+		c->x86_num_cores = 1;
+	}
+	break;
+    case X86_VENDOR_INTEL:
+	cpuid(0x4, &eax, &ebx, &ecx, &edx);
+	c->x86_num_cores = ((eax & 0xfc000000) >> 26) + 1;
+	break;
+    default:
+	c->x86_num_cores = 1;
+	break;
+    }
+
+    detect_cache(xlvl, c);
 }
 
 /*
@@ -280,6 +345,7 @@ void set_cpu_flags(struct cpuinfo_x86 *c, s_cpu * cpu)
     cpu->flags.clflsh = cpu_has(c, X86_FEATURE_CLFLSH);
     cpu->flags.dts = cpu_has(c, X86_FEATURE_DTES);
     cpu->flags.acpi = cpu_has(c, X86_FEATURE_ACPI);
+    cpu->flags.pbe = cpu_has(c, X86_FEATURE_PBE);
     cpu->flags.mmx = cpu_has(c, X86_FEATURE_MMX);
     cpu->flags.fxsr = cpu_has(c, X86_FEATURE_FXSR);
     cpu->flags.sse = cpu_has(c, X86_FEATURE_XMM);
@@ -291,11 +357,61 @@ void set_cpu_flags(struct cpuinfo_x86 *c, s_cpu * cpu)
     cpu->flags.mp = cpu_has(c, X86_FEATURE_MP);
     cpu->flags.nx = cpu_has(c, X86_FEATURE_NX);
     cpu->flags.mmxext = cpu_has(c, X86_FEATURE_MMXEXT);
+    cpu->flags.fxsr_opt = cpu_has(c, X86_FEATURE_FXSR_OPT);
+    cpu->flags.gbpages = cpu_has(c, X86_FEATURE_GBPAGES);
+    cpu->flags.rdtscp = cpu_has(c, X86_FEATURE_RDTSCP);
     cpu->flags.lm = cpu_has(c, X86_FEATURE_LM);
     cpu->flags.nowext = cpu_has(c, X86_FEATURE_3DNOWEXT);
     cpu->flags.now = cpu_has(c, X86_FEATURE_3DNOW);
     cpu->flags.smp = find_smp_config();
+    cpu->flags.pni = cpu_has(c, X86_FEATURE_XMM3);
+    cpu->flags.pclmulqd = cpu_has(c, X86_FEATURE_PCLMULQDQ);
+    cpu->flags.dtes64 = cpu_has(c, X86_FEATURE_DTES64);
     cpu->flags.vmx = cpu_has(c, X86_FEATURE_VMX);
+    cpu->flags.smx = cpu_has(c, X86_FEATURE_SMX);
+    cpu->flags.est = cpu_has(c, X86_FEATURE_EST);
+    cpu->flags.tm2 = cpu_has(c, X86_FEATURE_TM2);
+    cpu->flags.sse3 = cpu_has(c, X86_FEATURE_SSE3);
+    cpu->flags.cid = cpu_has(c, X86_FEATURE_CID);
+    cpu->flags.fma = cpu_has(c, X86_FEATURE_FMA);
+    cpu->flags.cx16 = cpu_has(c, X86_FEATURE_CX16);
+    cpu->flags.xtpr = cpu_has(c, X86_FEATURE_XTPR);
+    cpu->flags.pdcm = cpu_has(c, X86_FEATURE_PDCM);
+    cpu->flags.dca = cpu_has(c, X86_FEATURE_DCA);
+    cpu->flags.xmm4_1 = cpu_has(c, X86_FEATURE_XMM4_1);
+    cpu->flags.xmm4_2 = cpu_has(c, X86_FEATURE_XMM4_2);
+    cpu->flags.x2apic = cpu_has(c, X86_FEATURE_X2APIC);
+    cpu->flags.movbe = cpu_has(c, X86_FEATURE_MOVBE);
+    cpu->flags.popcnt = cpu_has(c, X86_FEATURE_POPCNT);
+    cpu->flags.aes = cpu_has(c, X86_FEATURE_AES);
+    cpu->flags.xsave = cpu_has(c, X86_FEATURE_XSAVE);
+    cpu->flags.osxsave = cpu_has(c, X86_FEATURE_OSXSAVE);
+    cpu->flags.avx = cpu_has(c, X86_FEATURE_AVX);
+    cpu->flags.hypervisor = cpu_has(c, X86_FEATURE_HYPERVISOR);
+    cpu->flags.ace2 = cpu_has(c, X86_FEATURE_ACE2);
+    cpu->flags.ace2_en = cpu_has(c, X86_FEATURE_ACE2_EN);
+    cpu->flags.phe = cpu_has(c, X86_FEATURE_PHE);
+    cpu->flags.phe_en = cpu_has(c, X86_FEATURE_PHE_EN);
+    cpu->flags.pmm = cpu_has(c, X86_FEATURE_PMM);
+    cpu->flags.pmm_en = cpu_has(c, X86_FEATURE_PMM_EN);
+    cpu->flags.extapic = cpu_has(c, X86_FEATURE_EXTAPIC);
+    cpu->flags.cr8_legacy = cpu_has(c, X86_FEATURE_CR8_LEGACY);
+    cpu->flags.abm = cpu_has(c, X86_FEATURE_ABM);
+    cpu->flags.sse4a = cpu_has(c, X86_FEATURE_SSE4A);
+    cpu->flags.misalignsse = cpu_has(c, X86_FEATURE_MISALIGNSSE);
+    cpu->flags.nowprefetch = cpu_has(c, X86_FEATURE_3DNOWPREFETCH);
+    cpu->flags.osvw = cpu_has(c, X86_FEATURE_OSVW);
+    cpu->flags.ibs = cpu_has(c, X86_FEATURE_IBS);
+    cpu->flags.sse5 = cpu_has(c, X86_FEATURE_SSE5);
+    cpu->flags.skinit = cpu_has(c, X86_FEATURE_SKINIT);
+    cpu->flags.wdt = cpu_has(c, X86_FEATURE_WDT);
+    cpu->flags.ida = cpu_has(c, X86_FEATURE_IDA);
+    cpu->flags.arat = cpu_has(c, X86_FEATURE_ARAT);
+    cpu->flags.tpr_shadow = cpu_has(c, X86_FEATURE_TPR_SHADOW);
+    cpu->flags.vnmi = cpu_has(c, X86_FEATURE_VNMI);
+    cpu->flags.flexpriority = cpu_has(c, X86_FEATURE_FLEXPRIORITY);
+    cpu->flags.ept = cpu_has(c, X86_FEATURE_EPT);
+    cpu->flags.vpid = cpu_has(c, X86_FEATURE_VPID);
     cpu->flags.svm = cpu_has(c, X86_FEATURE_SVM);
 }
 
@@ -308,17 +424,23 @@ void set_generic_info(struct cpuinfo_x86 *c, s_cpu * cpu)
     strncpy(cpu->vendor, cpu_devs[c->x86_vendor]->c_vendor,
 	    sizeof(cpu->vendor));
     strncpy(cpu->model, c->x86_model_id, sizeof(cpu->model));
+    cpu->num_cores = c->x86_num_cores;
+    cpu->l1_data_cache_size = c->x86_l1_data_cache_size;
+    cpu->l1_instruction_cache_size = c->x86_l1_instruction_cache_size;
+    cpu->l2_cache_size = c->x86_l2_cache_size;
 }
 
 void detect_cpu(s_cpu * cpu)
 {
     struct cpuinfo_x86 c;
     c.x86_clflush_size = 32;
-    c.x86_cache_size = -1;
+    c.x86_l1_data_cache_size = 0;
+    c.x86_l1_instruction_cache_size = 0;
+    c.x86_l2_cache_size = 0;
     c.x86_vendor = X86_VENDOR_UNKNOWN;
     c.cpuid_level = -1;		/* CPUID not detected */
     c.x86_model = c.x86_mask = 0;	/* So far unknown... */
-    c.x86_max_cores = 1;
+    c.x86_num_cores = 1;
     memset(&c.x86_capability, 0, sizeof(c.x86_capability));
     memset(&c.x86_vendor_id, 0, sizeof(c.x86_vendor_id));
     memset(&c.x86_model_id, 0, sizeof(c.x86_model_id));

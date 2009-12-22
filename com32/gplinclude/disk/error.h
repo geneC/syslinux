@@ -9,5 +9,5 @@
 
 #ifndef _ERROR_H_
 #define _ERROR_H_
-void get_error(const char*);
+void get_error(const char *);
 #endif /* _ERROR_H_ */

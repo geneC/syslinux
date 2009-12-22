@@ -17,7 +17,7 @@
  *
  * Fill @buffer_ptr with the last errno_disk
  **/
-void get_error(const char* s)
+void get_error(const char *s)
 {
-	fprintf(stderr, "%s: error %d\n", s, errno_disk);
+    fprintf(stderr, "%s: error %d\n", s, errno_disk);
 }

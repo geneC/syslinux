@@ -30,6 +30,9 @@
 #define DEFINE_HDT_COMMON_H
 #include <stdio.h>
 #include <syslinux/pxe.h>
+#include <console.h>
+#include <consoles.h>
+#include <syslinux/vesacon.h>
 #include "sys/pci.h"
 
 #include <disk/bootloaders.h>
@@ -66,8 +69,22 @@
 /* The char that surround the list of commands */
 #define AUTO_DELIMITER "'"
 
+/* Graphic to load in background when using the vesa mode */
+#define CLI_DEFAULT_BACKGROUND "backgnd.png"
+
+/* The maximum number of lines */
+#define MAX_CLI_LINES 20
+#define MAX_VESA_CLI_LINES 24
+
 /* Defines if the cli is quiet*/
 bool quiet;
+
+/* Defines if we must use the vesa mode */
+bool vesamode;
+
+/* Defines the number of lines in the console
+ * Default is 20 for a std console */
+extern int max_console_lines;
 
 extern int display_line_nb;
 extern bool disable_more_printf;
@@ -84,7 +101,7 @@ extern bool disable_more_printf;
  */
 #define more_printf(...) do {\
  if (__likely(!disable_more_printf)) {\
-  if (display_line_nb == 20) {\
+  if (display_line_nb == max_console_lines) {\
    display_line_nb=0;\
    printf("\n--More--");\
    get_key(stdin, 0);\
@@ -98,87 +115,90 @@ extern bool disable_more_printf;
 /* Display CPU registers for debugging purposes */
 static inline void printregs(const com32sys_t * r)
 {
-  printf("eflags = %08x  ds = %04x  es = %04x  fs = %04x  gs = %04x\n"
-         "eax = %08x  ebx = %08x  ecx = %08x  edx = %08x\n"
-         "ebp = %08x  esi = %08x  edi = %08x  esp = %08x\n",
-         r->eflags.l, r->ds, r->es, r->fs, r->gs,
-         r->eax.l, r->ebx.l, r->ecx.l, r->edx.l,
-         r->ebp.l, r->esi.l, r->edi.l, r->_unused_esp.l);
+    printf("eflags = %08x  ds = %04x  es = %04x  fs = %04x  gs = %04x\n"
+	   "eax = %08x  ebx = %08x  ecx = %08x  edx = %08x\n"
+	   "ebp = %08x  esi = %08x  edi = %08x  esp = %08x\n",
+	   r->eflags.l, r->ds, r->es, r->fs, r->gs,
+	   r->eax.l, r->ebx.l, r->ecx.l, r->edx.l,
+	   r->ebp.l, r->esi.l, r->edi.l, r->_unused_esp.l);
 }
 
 struct s_pxe {
-  uint16_t vendor_id;
-  uint16_t product_id;
-  uint16_t subvendor_id;
-  uint16_t subproduct_id;
-  uint8_t rev;
-  uint8_t pci_bus;
-  uint8_t pci_dev;
-  uint8_t pci_func;
-  uint8_t base_class;
-  uint8_t sub_class;
-  uint8_t prog_intf;
-  uint8_t nictype;
-  char mac_addr[18];              /* The current mac address */
-  uint8_t ip_addr[4];
-  pxe_bootp_t dhcpdata;           /* The dhcp answer */
-  struct pci_device *pci_device;  /* The matching pci device */
-  uint8_t pci_device_pos;         /* It position in our pci sorted list */
+    uint16_t vendor_id;
+    uint16_t product_id;
+    uint16_t subvendor_id;
+    uint16_t subproduct_id;
+    uint8_t rev;
+    uint8_t pci_bus;
+    uint8_t pci_dev;
+    uint8_t pci_func;
+    uint8_t base_class;
+    uint8_t sub_class;
+    uint8_t prog_intf;
+    uint8_t nictype;
+    char mac_addr[18];		/* The current mac address */
+    uint8_t ip_addr[4];
+    pxe_bootp_t dhcpdata;	/* The dhcp answer */
+    struct pci_device *pci_device;	/* The matching pci device */
+    uint8_t pci_device_pos;	/* It position in our pci sorted list */
 };
 
 struct s_vesa_mode_info {
- struct vesa_mode_info mi;
- uint16_t mode;
+    struct vesa_mode_info mi;
+    uint16_t mode;
 };
 
 struct s_vesa {
- uint8_t major_version;
- uint8_t minor_version;
- struct s_vesa_mode_info vmi[MAX_VESA_MODES];
- uint8_t vmi_count;
- uint16_t total_memory;
- char vendor[256];
- char product[256];
- char product_revision[256];
- uint16_t software_rev;
+    uint8_t major_version;
+    uint8_t minor_version;
+    struct s_vesa_mode_info vmi[MAX_VESA_MODES];
+    uint8_t vmi_count;
+    uint16_t total_memory;
+    char vendor[256];
+    char product[256];
+    char product_revision[256];
+    uint16_t software_rev;
 };
 
 struct s_hardware {
-  s_dmi dmi;                      /* DMI table */
-  s_cpu cpu;                      /* CPU information */
-  s_vpd vpd;                      /* VPD information */
-  struct pci_domain *pci_domain;  /* PCI Devices */
-  struct driveinfo disk_info[256]; /* Disk Information */
-  uint32_t mbr_ids[256];	  /* MBR ids */
-  int disks_count;		  /* Number of detected disks */
-  struct s_pxe pxe;
-  struct s_vesa vesa;
+    s_dmi dmi;			/* DMI table */
+    s_cpu cpu;			/* CPU information */
+    s_vpd vpd;			/* VPD information */
+    struct pci_domain *pci_domain;	/* PCI Devices */
+    struct driveinfo disk_info[256];	/* Disk Information */
+    uint32_t mbr_ids[256];	/* MBR ids */
+    int disks_count;		/* Number of detected disks */
+    struct s_pxe pxe;
+    struct s_vesa vesa;
+    unsigned long detected_memory_size;	/* The detected memory size (in KB) */
 
-  int pci_ids_return_code;
-  int modules_pcimap_return_code;
-  int modules_alias_return_code;
-  int nb_pci_devices;
-  bool is_dmi_valid;
-  bool is_pxe_valid;
-  bool is_vesa_valid;
-  bool is_vpd_valid;
+    int pci_ids_return_code;
+    int modules_pcimap_return_code;
+    int modules_alias_return_code;
+    int nb_pci_devices;
+    bool is_dmi_valid;
+    bool is_pxe_valid;
+    bool is_vesa_valid;
+    bool is_vpd_valid;
 
-  bool dmi_detection; /* Does the dmi stuff has already been detected? */
-  bool pci_detection; /* Does the pci stuff has already been detected? */
-  bool cpu_detection; /* Does the cpu stuff has already been detected? */
-  bool disk_detection;/* Does the disk stuff has already been detected? */
-  bool pxe_detection; /* Does the pxe stuff has already been detected? */
-  bool vesa_detection;/* Does the vesa sutff have been already detected? */
-  bool vpd_detection; /* Does the vpd stuff has already been detected? */
+    bool dmi_detection;		/* Does the dmi stuff has already been detected? */
+    bool pci_detection;		/* Does the pci stuff has already been detected? */
+    bool cpu_detection;		/* Does the cpu stuff has already been detected? */
+    bool disk_detection;	/* Does the disk stuff has already been detected? */
+    bool pxe_detection;		/* Does the pxe stuff has already been detected? */
+    bool vesa_detection;	/* Does the vesa sutff have been already detected? */
+    bool vpd_detection;		/* Does the vpd stuff has already been detected? */
+    bool memory_detection;	/* Does the memory size got detected ?*/
 
-  char syslinux_fs[22];
-  const struct syslinux_version *sv;
-  char modules_pcimap_path[255];
-  char modules_alias_path[255];
-  char pciids_path[255];
-  char memtest_label[255];
-  char reboot_label[255];
-  char auto_label[AUTO_COMMAND_SIZE];
+    char syslinux_fs[22];
+    const struct syslinux_version *sv;
+    char modules_pcimap_path[255];
+    char modules_alias_path[255];
+    char pciids_path[255];
+    char memtest_label[255];
+    char reboot_label[255];
+    char auto_label[AUTO_COMMAND_SIZE];
+    char vesa_background[255];
 };
 
 void reset_more_printf();
@@ -197,6 +217,8 @@ void init_hardware(struct s_hardware *hardware);
 void clear_screen(void);
 void detect_syslinux(struct s_hardware *hardware);
 void detect_parameters(const int argc, const char *argv[],
-                       struct s_hardware *hardware);
+		       struct s_hardware *hardware);
 int detect_vesa(struct s_hardware *hardware);
+void detect_memory(struct s_hardware *hardware);
+void init_console(struct s_hardware *hardware);
 #endif

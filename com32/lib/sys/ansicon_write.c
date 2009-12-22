@@ -44,10 +44,10 @@
 #include "ansi.h"
 
 static void ansicon_erase(const struct term_state *, int, int, int, int);
-static void ansicon_write_char(int, int, int, uint8_t, const struct term_state *);
+static void ansicon_write_char(int, int, uint8_t, const struct term_state *);
 static void ansicon_showcursor(const struct term_state *);
 static void ansicon_scroll_up(const struct term_state *);
-static void ansicon_set_cursor(int, int, int, int);
+static void ansicon_set_cursor(int, int, bool);
 
 static struct term_state ts;
 struct ansi_ops __ansicon_ops = {
@@ -64,6 +64,11 @@ static struct term_info ti = {
     .ts = &ts,
     .op = &__ansicon_ops
 };
+
+#define BIOS_CURXY ((struct curxy *)0x450)	/* Array for each page */
+#define BIOS_ROWS (*(uint8_t *)0x484)	/* Minus one; if zero use 24 (= 25 lines) */
+#define BIOS_COLS (*(uint16_t *)0x44A)
+#define BIOS_PAGE (*(uint8_t *)0x462)
 
 /* Reference counter to the screen, to keep track of if we need
    reinitialization. */
@@ -171,8 +176,9 @@ static void ansicon_showcursor(const struct term_state *st)
     __intcall(0x10, &ireg, NULL);
 }
 
-static void ansicon_set_cursor(int x, int y, int page, int visible)
+static void ansicon_set_cursor(int x, int y, bool visible)
 {
+    const int page = BIOS_PAGE;
     struct curxy xy = BIOS_CURXY[page];
     static com32sys_t ireg;
 
@@ -187,16 +193,16 @@ static void ansicon_set_cursor(int x, int y, int page, int visible)
     }
 }
 
-static void ansicon_write_char(int x, int y, int page, uint8_t ch,
+static void ansicon_write_char(int x, int y, uint8_t ch,
 			       const struct term_state *st)
 {
     static com32sys_t ireg;
 
-    ansicon_set_cursor(x, y, 0, page);
+    ansicon_set_cursor(x, y, false);
 
     ireg.eax.b[1] = 0x09;
     ireg.eax.b[0] = ch;
-    ireg.ebx.b[1] = page;
+    ireg.ebx.b[1] = BIOS_PAGE;
     ireg.ebx.b[0] = ansicon_attribute(st);
     ireg.ecx.w[0] = 1;
     __intcall(0x10, &ireg, NULL);

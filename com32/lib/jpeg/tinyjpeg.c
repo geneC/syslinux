@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <errno.h>
 
 #include "tinyjpeg.h"
 #include "tinyjpeg-internal.h"
@@ -162,7 +163,10 @@ static const unsigned char val_ac_chrominance[] =
 #define fill_nbits(reservoir,nbits_in_reservoir,stream,nbits_wanted) do { \
    while (nbits_in_reservoir<nbits_wanted) \
     { \
-      const unsigned char c = *stream++; \
+      unsigned char c; \
+      if (stream >= priv->stream_end) \
+        longjmp(priv->jump_state, -EIO); \
+      c = *stream++; \
       reservoir <<= 8; \
       if (c == 0xff && *stream == 0x00) \
         stream++; \
@@ -177,7 +181,7 @@ static const unsigned char val_ac_chrominance[] =
    result = ((reservoir)>>(nbits_in_reservoir-(nbits_wanted))); \
    nbits_in_reservoir -= (nbits_wanted);  \
    reservoir &= ((1U<<nbits_in_reservoir)-1); \
-   if (result < (1UL<<((nbits_wanted)-1))) \
+   if ((unsigned int)result < (1UL<<((nbits_wanted)-1))) \
        result += (0xFFFFFFFFUL<<(nbits_wanted))+1; \
 }  while(0);
 
@@ -186,8 +190,15 @@ static const unsigned char val_ac_chrominance[] =
    result = ((reservoir)>>(nbits_in_reservoir-(nbits_wanted))); \
 }  while(0);
 
+/* To speed up the decoding, we assume that the reservoir have enough bit 
+ * slow version:
+ * #define skip_nbits(reservoir,nbits_in_reservoir,stream,nbits_wanted) do { \
+ *   fill_nbits(reservoir,nbits_in_reservoir,stream,(nbits_wanted)); \
+ *   nbits_in_reservoir -= (nbits_wanted); \
+ *   reservoir &= ((1U<<nbits_in_reservoir)-1); \
+ * }  while(0);
+ */
 #define skip_nbits(reservoir,nbits_in_reservoir,stream,nbits_wanted) do { \
-   fill_nbits(reservoir,nbits_in_reservoir,stream,(nbits_wanted)); \
    nbits_in_reservoir -= (nbits_wanted); \
    reservoir &= ((1U<<nbits_in_reservoir)-1); \
 }  while(0);
@@ -195,6 +206,7 @@ static const unsigned char val_ac_chrominance[] =
 
 #define be16_to_cpu(x) (((x)[0]<<8)|(x)[1])
 
+static void resync(struct jdec_private *priv);
 
 /**
  * Get the next (valid) huffman code in the stream.
@@ -215,9 +227,9 @@ static int get_next_huffman_code(struct jdec_private *priv, struct huffman_table
 
   look_nbits(priv->reservoir, priv->nbits_in_reservoir, priv->stream, HUFFMAN_HASH_NBITS, hcode);
   value = huffman_table->lookup[hcode];
-  if (value>=0)
+  if (__likely(value >= 0))
   {
-     int code_size = huffman_table->code_size[value];
+     unsigned int code_size = huffman_table->code_size[value];
      skip_nbits(priv->reservoir, priv->nbits_in_reservoir, priv->stream, code_size);
      return value;
   }
@@ -253,17 +265,19 @@ static int get_next_huffman_code(struct jdec_private *priv, struct huffman_table
 void tinyjpeg_process_Huffman_data_unit(struct jdec_private *priv, int component)
 {
   unsigned char j;
-  int huff_code;
+  unsigned int huff_code;
   unsigned char size_val, count_0;
 
   struct component *c = &priv->component_infos[component];
   short int DCT[64];
+
 
   /* Initialize the DCT coef table */
   memset(DCT, 0, sizeof(DCT));
 
   /* DC coefficient decoding */
   huff_code = get_next_huffman_code(priv, c->DC_table);
+  //trace("+ %x\n", huff_code);
   if (huff_code) {
      get_nbits(priv->reservoir, priv->nbits_in_reservoir, priv->stream, huff_code, DCT[0]);
      DCT[0] += c->previous_DC;
@@ -277,6 +291,7 @@ void tinyjpeg_process_Huffman_data_unit(struct jdec_private *priv, int component
   while (j<64)
    {
      huff_code = get_next_huffman_code(priv, c->AC_table);
+     //trace("- %x\n", huff_code);
 
      size_val = huff_code & 0xF;
      count_0 = huff_code >> 4;
@@ -291,6 +306,11 @@ void tinyjpeg_process_Huffman_data_unit(struct jdec_private *priv, int component
      else
       {
 	j += count_0;	/* skip count_0 zeroes */
+	if (__unlikely(j >= 64))
+	 {
+	   snprintf(error_string, sizeof(error_string), "Bad huffman data (buffer overflow)");
+	   break;
+	 }
 	get_nbits(priv->reservoir, priv->nbits_in_reservoir, priv->stream, size_val, DCT[j]);
 	j++;
       }
@@ -298,7 +318,6 @@ void tinyjpeg_process_Huffman_data_unit(struct jdec_private *priv, int component
 
   for (j = 0; j < 64; j++)
     c->DCT[j] = DCT[zigzag[j]];
-
 }
 
 /*
@@ -311,8 +330,8 @@ void tinyjpeg_process_Huffman_data_unit(struct jdec_private *priv, int component
 static void build_huffman_table(const unsigned char *bits, const unsigned char *vals, struct huffman_table *table)
 {
   unsigned int i, j, code, code_size, val, nbits;
-  unsigned char huffsize[257], *hz;
-  unsigned int huffcode[257], *hc;
+  unsigned char huffsize[HUFFMAN_BITS_SIZE+1], *hz;
+  unsigned int huffcode[HUFFMAN_BITS_SIZE+1], *hc;
   int next_free_entry;
 
   /*
@@ -340,10 +359,11 @@ static void build_huffman_table(const unsigned char *bits, const unsigned char *
   nbits = *hz;
   while (*hz)
    {
-     while (*hz == nbits) {
+     while (*hz == nbits)
+      {
 	*hc++ = code++;
 	hz++;
-     }
+      }
      code <<= 1;
      nbits++;
    }
@@ -358,7 +378,7 @@ static void build_huffman_table(const unsigned char *bits, const unsigned char *
      code = huffcode[i];
      code_size = huffsize[i];
 
-     trace("val=%2.2x code=%8.8x codesize=%2.2d\n", i, code, code_size);
+     trace("val=%2.2x code=%8.8x codesize=%2.2d\n", val, code, code_size);
 
      table->code_size[val] = code_size;
      if (code_size <= HUFFMAN_HASH_NBITS)
@@ -386,7 +406,6 @@ static void build_huffman_table(const unsigned char *bits, const unsigned char *
       }
 
    }
-
 }
 
 static void build_default_huffman_tables(struct jdec_private *priv)
@@ -483,14 +502,15 @@ static void build_quantization_table(float *qtable, const unsigned char *ref_tab
 
 static int parse_DQT(struct jdec_private *priv, const unsigned char *stream)
 {
-  int length, qi;
+  int qi;
   float *table;
+  const unsigned char *dqt_block_end;
 
   trace("> DQT marker\n");
-  length = be16_to_cpu(stream) - 2;
+  dqt_block_end = stream + be16_to_cpu(stream);
   stream += 2;	/* Skip length */
 
-  while (length>0)
+  while (stream < dqt_block_end)
    {
      qi = *stream++;
 #if SANITY_CHECK
@@ -502,8 +522,8 @@ static int parse_DQT(struct jdec_private *priv, const unsigned char *stream)
      table = priv->Q_tables[qi];
      build_quantization_table(table, stream);
      stream += 64;
-     length -= 65;
    }
+  trace("< DQT marker\n");
   return 0;
 }
 
@@ -513,6 +533,7 @@ static int parse_SOF(struct jdec_private *priv, const unsigned char *stream)
   int Q_table;
   struct component *c;
 
+  trace("> SOF marker\n");
   print_SOF(stream);
 
   height = be16_to_cpu(stream+3);
@@ -521,30 +542,33 @@ static int parse_SOF(struct jdec_private *priv, const unsigned char *stream)
 #if SANITY_CHECK
   if (stream[2] != 8)
     error("Precision other than 8 is not supported\n");
-  if (width>2048 || height>2048)
+  if (width>JPEG_MAX_WIDTH || height>JPEG_MAX_HEIGHT)
     error("Width and Height (%dx%d) seems suspicious\n", width, height);
   if (nr_components != 3)
     error("We only support YUV images\n");
-  if (height%16)
-    error("Height need to be a multiple of 16 (current height is %d)\n", height);
-  if (width%16)
-    error("Width need to be a multiple of 16 (current Width is %d)\n", width);
 #endif
   stream += 8;
   for (i=0; i<nr_components; i++) {
      cid = *stream++;
      sampling_factor = *stream++;
      Q_table = *stream++;
-     c = &priv->component_infos[cid];
+     c = &priv->component_infos[i];
+#if SANITY_CHECK
+     c->cid = cid;
+     if (Q_table >= COMPONENTS)
+       error("Bad Quantization table index (got %d, max allowed %d)\n", Q_table, COMPONENTS-1);
+#endif
      c->Vfactor = sampling_factor&0xf;
      c->Hfactor = sampling_factor>>4;
      c->Q_table = priv->Q_tables[Q_table];
      trace("Component:%d  factor:%dx%d  Quantization table:%d\n",
-	 cid, c->Hfactor, c->Hfactor, Q_table );
+           cid, c->Hfactor, c->Hfactor, Q_table );
 
   }
   priv->width = width;
   priv->height = height;
+
+  trace("< SOF marker\n");
 
   return 0;
 }
@@ -570,12 +594,16 @@ static int parse_SOS(struct jdec_private *priv, const unsigned char *stream)
 	error("We do not support more than 2 AC Huffman table\n");
      if ((table>>4)>=4)
 	error("We do not support more than 2 DC Huffman table\n");
+     if (cid != priv->component_infos[i].cid)
+        error("SOS cid order (%d:%d) isn't compatible with the SOF marker (%d:%d)\n",
+	      i, cid, i, priv->component_infos[i].cid);
      trace("ComponentId:%d  tableAC:%d tableDC:%d\n", cid, table&0xf, table>>4);
 #endif
-     priv->component_infos[cid].AC_table = &priv->HTAC[table&0xf];
-     priv->component_infos[cid].DC_table = &priv->HTDC[table>>4];
+     priv->component_infos[i].AC_table = &priv->HTAC[table&0xf];
+     priv->component_infos[i].DC_table = &priv->HTDC[table>>4];
   }
   priv->stream = stream+3;
+  trace("< SOS marker\n");
   return 0;
 }
 
@@ -601,12 +629,11 @@ static int parse_DHT(struct jdec_private *priv, const unsigned char *stream)
 	count += huff_bits[i];
      }
 #if SANITY_CHECK
-     if (count > 1024)
-       error("No more than 1024 bytes is allowed to describe a huffman table");
+     if (count >= HUFFMAN_BITS_SIZE)
+       error("No more than %d bytes is allowed to describe a huffman table", HUFFMAN_BITS_SIZE);
      if ( (index &0xf) >= HUFFMAN_TABLES)
-       error("No mode than %d Huffman tables is supported\n", HUFFMAN_TABLES);
-     trace("Huffman table %s n%d\n", (index&0xf0)?"AC":"DC", index&0xf);
-     trace("Length of the table: %d\n", count);
+       error("No more than %d Huffman tables is supported (got %d)\n", HUFFMAN_TABLES, index&0xf);
+     trace("Huffman table %s[%d] length=%d\n", (index&0xf0)?"AC":"DC", index&0xf, count);
 #endif
 
      if (index & 0xf0 )
@@ -617,10 +644,37 @@ static int parse_DHT(struct jdec_private *priv, const unsigned char *stream)
      length -= 1;
      length -= 16;
      length -= count;
+     stream += count;
   }
   trace("< DHT marker\n");
   return 0;
 }
+
+static int parse_DRI(struct jdec_private *priv, const unsigned char *stream)
+{
+  unsigned int length;
+
+  trace("> DRI marker\n");
+
+  length = be16_to_cpu(stream);
+
+#if SANITY_CHECK
+  if (length != 4)
+    error("Length of DRI marker need to be 4\n");
+#endif
+
+  priv->restart_interval = be16_to_cpu(stream+2);
+
+#if DEBUG
+  trace("Restart interval = %d\n", priv->restart_interval);
+#endif
+
+  trace("< DRI marker\n");
+
+  return 0;
+}
+
+
 
 static void resync(struct jdec_private *priv)
 {
@@ -632,9 +686,46 @@ static void resync(struct jdec_private *priv)
 
   priv->reservoir = 0;
   priv->nbits_in_reservoir = 0;
-
+  if (priv->restart_interval > 0)
+    priv->restarts_to_go = priv->restart_interval;
+  else
+    priv->restarts_to_go = -1;
 }
 
+static int find_next_rst_marker(struct jdec_private *priv)
+{
+  int rst_marker_found = 0;
+  int marker;
+  const unsigned char *stream = priv->stream;
+
+  /* Parse marker */
+  while (!rst_marker_found)
+   {
+     while (*stream++ != 0xff)
+      {
+	if (stream >= priv->stream_end)
+	  error("EOF while search for a RST marker.");
+      }
+     /* Skip any padding ff byte (this is normal) */
+     while (*stream == 0xff)
+       stream++;
+
+     marker = *stream++;
+     if ((RST+priv->last_rst_marker_seen) == marker)
+       rst_marker_found = 1;
+     else if (marker >= RST && marker <= RST7)
+       error("Wrong Reset marker found, abording");
+     else if (marker == EOI)
+       return 0;
+   }
+  trace("RST Marker %d found at offset %d\n", priv->last_rst_marker_seen, stream - priv->stream_begin);
+
+  priv->stream = stream;
+  priv->last_rst_marker_seen++;
+  priv->last_rst_marker_seen &= 7;
+
+  return 0;
+}
 
 static int parse_JFIF(struct jdec_private *priv, const unsigned char *stream)
 {
@@ -675,6 +766,10 @@ static int parse_JFIF(struct jdec_private *priv, const unsigned char *stream)
 	 if (parse_DHT(priv, stream) < 0)
 	   return -1;
 	 dht_marker_found = 1;
+	 break;
+       case DRI:
+	 if (parse_DRI(priv, stream) < 0)
+	   return -1;
 	 break;
        default:
 	 trace("> Unknown marker %2.2x\n", marker);
@@ -767,6 +862,7 @@ int tinyjpeg_parse_header(struct jdec_private *priv, const unsigned char *buf, u
 
   priv->stream_begin = buf+2;
   priv->stream_length = size-2;
+  priv->stream_end = priv->stream_begin + priv->stream_length;
 
   ret = parse_JFIF(priv, priv->stream_begin);
 
@@ -781,18 +877,21 @@ int tinyjpeg_parse_header(struct jdec_private *priv, const unsigned char *buf, u
 int tinyjpeg_decode(struct jdec_private *priv,
 		    const struct tinyjpeg_colorspace *pixfmt)
 {
-  unsigned int x, y, xstride_by_mcu, ystride_by_mcu;
+  int x, y, sx, sy;
+  int xshift_by_mcu, yshift_by_mcu;
+  int xstride_by_mcu, ystride_by_mcu;
   unsigned int bytes_per_blocklines[3], bytes_per_mcu[3];
   decode_MCU_fct decode_MCU;
   const decode_MCU_fct *decode_mcu_table;
   convert_colorspace_fct convert_to_pixfmt;
+  uint8_t *pptr[3];
 
   decode_mcu_table = pixfmt->decode_mcu_table;
 
   /* Fix: check return value */
   pixfmt->initialize(priv, bytes_per_blocklines, bytes_per_mcu);
 
-  xstride_by_mcu = ystride_by_mcu = 8;
+  xshift_by_mcu = yshift_by_mcu = 3;
   if ((priv->component_infos[cY].Hfactor | priv->component_infos[cY].Vfactor) == 1) {
      decode_MCU = decode_mcu_table[0];
      convert_to_pixfmt = pixfmt->convert_colorspace[0];
@@ -800,55 +899,85 @@ int tinyjpeg_decode(struct jdec_private *priv,
   } else if (priv->component_infos[cY].Hfactor == 1) {
      decode_MCU = decode_mcu_table[1];
      convert_to_pixfmt = pixfmt->convert_colorspace[1];
-     ystride_by_mcu = 16;
+     yshift_by_mcu = 4;
      trace("Use decode 1x2 sampling (not supported)\n");
   } else if (priv->component_infos[cY].Vfactor == 2) {
      decode_MCU = decode_mcu_table[3];
      convert_to_pixfmt = pixfmt->convert_colorspace[3];
-     xstride_by_mcu = 16;
-     ystride_by_mcu = 16;
+     xshift_by_mcu = 4;
+     yshift_by_mcu = 4;
      trace("Use decode 2x2 sampling\n");
   } else {
      decode_MCU = decode_mcu_table[2];
      convert_to_pixfmt = pixfmt->convert_colorspace[2];
-     xstride_by_mcu = 16;
+     xshift_by_mcu = 4;
      trace("Use decode 2x1 sampling\n");
   }
 
   resync(priv);
 
   /* Don't forget to that block can be either 8 or 16 lines */
-  bytes_per_blocklines[0] *= ystride_by_mcu;
-  bytes_per_blocklines[1] *= ystride_by_mcu;
-  bytes_per_blocklines[2] *= ystride_by_mcu;
+  bytes_per_blocklines[0] <<= yshift_by_mcu-3;
+  bytes_per_blocklines[1] <<= yshift_by_mcu-3;
+  bytes_per_blocklines[2] <<= yshift_by_mcu-3;
 
-  bytes_per_mcu[0] *= xstride_by_mcu/8;
-  bytes_per_mcu[1] *= xstride_by_mcu/8;
-  bytes_per_mcu[2] *= xstride_by_mcu/8;
+  bytes_per_mcu[0] <<= xshift_by_mcu-3;
+  bytes_per_mcu[1] <<= xshift_by_mcu-3;
+  bytes_per_mcu[2] <<= xshift_by_mcu-3;
 
-  /* Just the decode the image by macroblock (size is 8x8, 8x16, or 16x16) */
-  for (y=0; y < priv->height/ystride_by_mcu; y++)
+  xstride_by_mcu = 1 << xshift_by_mcu;
+  ystride_by_mcu = 1 << yshift_by_mcu;
+
+  pptr[0] = priv->components[0];
+  pptr[1] = priv->components[1];
+  pptr[2] = priv->components[2];
+
+  trace("bpbl = %d, bpmcu = %d\n",
+	bytes_per_blocklines[0], bytes_per_mcu[0]);
+
+  for (y = priv->height; y > 0; y -= ystride_by_mcu)
    {
-     //trace("Decoding row %d\n", y);
-     priv->plane[0] = priv->components[0] + (y * bytes_per_blocklines[0]);
-     priv->plane[1] = priv->components[1] + (y * bytes_per_blocklines[1]);
-     priv->plane[2] = priv->components[2] + (y * bytes_per_blocklines[2]);
-     for (x=0; x < priv->width; x+=xstride_by_mcu)
+     trace("Decoding row %d\n", priv->height-y);
+     priv->plane[0] = pptr[0];  pptr[0] += bytes_per_blocklines[0];
+     priv->plane[1] = pptr[1];  pptr[1] += bytes_per_blocklines[1];
+     priv->plane[2] = pptr[2];  pptr[2] += bytes_per_blocklines[2];
+
+     sy = min(y, ystride_by_mcu);
+
+     for (x = priv->width; x > 0; x -= xstride_by_mcu)
       {
+	sx = min(x, xstride_by_mcu);
+	trace("Block size: %dx%d\n", sx, sy);
+
 	decode_MCU(priv);
-	convert_to_pixfmt(priv);
+	convert_to_pixfmt(priv, sx, sy);
 	priv->plane[0] += bytes_per_mcu[0];
 	priv->plane[1] += bytes_per_mcu[1];
 	priv->plane[2] += bytes_per_mcu[2];
-
+	if (priv->restarts_to_go>0)
+	 {
+	   priv->restarts_to_go--;
+	   if (priv->restarts_to_go == 0)
+	    {
+	      priv->stream -= (priv->nbits_in_reservoir/8);
+	      resync(priv);
+	      if (find_next_rst_marker(priv) < 0)
+		return -1;
+	    }
+	 }
       }
    }
+
+  trace("Input file size: %d\n", priv->stream_length+2);
+  trace("Input bytes actually read: %d\n", priv->stream - priv->stream_begin + 2);
 
   return 0;
 }
 
 const char *tinyjpeg_get_errorstring(struct jdec_private *priv)
 {
+  /* FIXME: the error string must be store in the context */
+  priv = priv;
   return error_string;
 }
 
@@ -860,7 +989,7 @@ void tinyjpeg_get_size(struct jdec_private *priv, unsigned int *width, unsigned 
 
 int tinyjpeg_get_components(struct jdec_private *priv, unsigned char **components, unsigned int ncomponents)
 {
-  int i;
+  unsigned int i;
   if (ncomponents > COMPONENTS)
     ncomponents = COMPONENTS;
   for (i=0; i<ncomponents; i++)
@@ -870,7 +999,7 @@ int tinyjpeg_get_components(struct jdec_private *priv, unsigned char **component
 
 int tinyjpeg_set_components(struct jdec_private *priv, unsigned char * const *components, unsigned int ncomponents)
 {
-  int i;
+  unsigned int i;
   if (ncomponents > COMPONENTS)
     ncomponents = COMPONENTS;
   for (i=0; i<ncomponents; i++)
@@ -882,7 +1011,7 @@ int tinyjpeg_get_bytes_per_row(struct jdec_private *priv,
 			       unsigned int *bytes,
 			       unsigned int ncomponents)
 {
-  int i;
+  unsigned int i;
   if (ncomponents > COMPONENTS)
     ncomponents = COMPONENTS;
   for (i=0; i<ncomponents; i++)
@@ -894,7 +1023,7 @@ int tinyjpeg_set_bytes_per_row(struct jdec_private *priv,
 			       const unsigned int *bytes,
 			       unsigned int ncomponents)
 {
-  int i;
+  unsigned int i;
   if (ncomponents > COMPONENTS)
     ncomponents = COMPONENTS;
   for (i=0; i<ncomponents; i++)

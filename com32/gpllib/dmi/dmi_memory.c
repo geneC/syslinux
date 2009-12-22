@@ -175,88 +175,85 @@ void dmi_memory_device_speed(uint16_t code, char *speed)
 
 void dmi_memory_module_types(uint16_t code, const char *sep, char *type)
 {
-	/* 3.3.7.1 */
-	static const char *types[]={
-		"Other", /* 0 */
-		"Unknown",
-		"Standard",
-		"FPM",
-		"EDO",
-		"Parity",
-		"ECC",
-		"SIMM",
-		"DIMM",
-		"Burst EDO",
-		"SDRAM" /* 10 */
-	};
+    /* 3.3.7.1 */
+    static const char *types[] = {
+	"Other",		/* 0 */
+	"Unknown",
+	"Standard",
+	"FPM",
+	"EDO",
+	"Parity",
+	"ECC",
+	"SIMM",
+	"DIMM",
+	"Burst EDO",
+	"SDRAM"			/* 10 */
+    };
 
-	if((code&0x07FF)==0)
-		sprintf(type, "%s", "None");
-	else
-	{
-		int i;
+    if ((code & 0x07FF) == 0)
+	sprintf(type, "%s", "None");
+    else {
+	int i;
 
-		for(i=0; i<=10; i++)
-			if(code&(1<<i))
-				sprintf(type, "%s%s", sep, types[i]);
-	}
+	for (i = 0; i <= 10; i++)
+	    if (code & (1 << i))
+		sprintf(type, "%s%s%s", type, sep, types[i]);
+    }
 }
 
-void dmi_memory_module_connections(uint8_t code, char* connection)
+void dmi_memory_module_connections(uint8_t code, char *connection)
 {
-	if(code==0xFF)
-		sprintf(connection, "%s", "None");
-	else
-	{
-		if((code&0xF0)!=0xF0)
-			sprintf(connection, "%u", code>>4);
-		if((code&0x0F)!=0x0F)
-			sprintf(connection, "%u", code&0x0F);
-	}
+    if (code == 0xFF)
+	sprintf(connection, "%s", "None");
+    else {
+	if ((code & 0xF0) != 0xF0)
+	    sprintf(connection, "%u ", code >> 4);
+	if ((code & 0x0F) != 0x0F)
+	    sprintf(connection, "%s%u", connection, code & 0x0F);
+    }
 }
 
-void dmi_memory_module_speed(uint8_t code, char* speed)
+void dmi_memory_module_speed(uint8_t code, char *speed)
 {
-	if(code==0)
-		sprintf(speed, "%s", "Unknown");
-	else
-		sprintf(speed, "%u ns", code);
+    if (code == 0)
+	sprintf(speed, "%s", "Unknown");
+    else
+	sprintf(speed, "%u ns", code);
 }
 
-void dmi_memory_module_size(uint8_t code, char* size)
+void dmi_memory_module_size(uint8_t code, char *size)
 {
-	/* 3.3.7.2 */
-	switch(code&0x7F)
-	{
-		case 0x7D:
-			sprintf(size, "%s", "Not Determinable");
-			break;
-		case 0x7E:
-			sprintf(size, "%s", "Disabled");
-			break;
-		case 0x7F:
-			sprintf(size, "%s", "Not Installed");
-			return;
-		default:
-			sprintf(size, "%u MB", 1<<(code&0x7F));
-	}
+    /* 3.3.7.2 */
+    switch (code & 0x7F) {
+    case 0x7D:
+	sprintf(size, "%s", "Not Determinable");
+	break;
+    case 0x7E:
+	sprintf(size, "%s", "Disabled");
+	break;
+    case 0x7F:
+	sprintf(size, "%s", "Not Installed");
+	return;
+    default:
+	sprintf(size, "%u MB", 1 << (code & 0x7F));
+    }
 
-	if(code&0x80)
-		sprintf(size, "%s", "(Double-bank Connection)");
-	else
-		sprintf(size, "%s", "(Single-bank Connection)");
+    if (code & 0x80)
+	sprintf(size, "%s %s", size, "(Double-bank Connection)");
+    else
+	sprintf(size, "%s %s", size, "(Single-bank Connection)");
 }
 
 void dmi_memory_module_error(uint8_t code, const char *prefix, char *error)
 {
-	if(code&(1<<2))
-		sprintf(error, "%s", "See Event Log\n");
-	else
-	{	if((code&0x03)==0)
-			sprintf(error, "%s", "OK\n");
-		if(code&(1<<0))
-			sprintf(error, "%sUncorrectable Errors\n", prefix);
-		if(code&(1<<1))
-			sprintf(error, "%sCorrectable Errors\n", prefix);
-	}
+    if (code & (1 << 2))
+	sprintf(error, "%s", "See Event Log\n");
+    else {
+	if ((code & 0x03) == 0)
+	    sprintf(error, "%s", "OK\n");
+	if (code & (1 << 0))
+	    sprintf(error, "%sUncorrectable Errors\n", prefix);
+	if (code & (1 << 1))
+	    sprintf(error, "%sCorrectable Errors\n", prefix);
+    }
 }

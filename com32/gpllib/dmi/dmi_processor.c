@@ -305,7 +305,54 @@ const char *dmi_processor_family(uint8_t code, char *manufacturer)
 	NULL,			/* 0xFC */
 	NULL,
 	NULL,
-	NULL			/* 0xFF */
+	NULL,			/* 0xFF */
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	"SH-3",
+	"SH-4",
+	NULL,                   /*0x106*/
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,			/*0x110*/
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,			
+	"ARM",
+	"StrongARM",
+	NULL,			/*0x19A*/
+	NULL,			
+	NULL,			
+	NULL,			
+	NULL,			
+	NULL,			
+	NULL,			/*0x120*/
+	NULL,			
+	NULL,			
+	NULL,			
+	NULL,			
+	NULL,			
+	NULL,			
+	NULL,			
+	NULL,			
+	NULL,			
+	NULL,			/*0x12A*/
+	NULL,			
+	"6x86",
+	"MediaGX",
+	"MII"			/*0x12E*/
 	    /* master.mif has values beyond that, but they can't be used for DMI */
     };
     /* Special case for ambiguous value 0xBE */
@@ -320,7 +367,7 @@ const char *dmi_processor_family(uint8_t code, char *manufacturer)
 	return "Core 2 or K7";
     }
 
-    if (family[code] != NULL) {
+    if ((code<=0x12E) && (family[code] != NULL)) {
 	return family[code];
     }
     return out_of_spec;
@@ -368,7 +415,7 @@ const char *dmi_processor_upgrade(uint8_t code)
 	"Socket 754",
 	"Socket 940",
 	"Socket 939"		/* 0x12 */
-	    "Socket mPGA604",
+	"Socket mPGA604",
 	"Socket LGA771",
 	"Socket LGA775",
 	"Socket S1",
@@ -376,7 +423,7 @@ const char *dmi_processor_upgrade(uint8_t code)
 	"Socket F (1207)"
     };
 
-    if (code >= 0x01 && code <= 0x11)
+    if (code >= 0x01 && code <= 0x18)
 	return upgrade[code - 0x01];
     return out_of_spec;
 }

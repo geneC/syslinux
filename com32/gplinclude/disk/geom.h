@@ -29,7 +29,7 @@
  *       returned by a v2.x implementation; similarly for the Device Path info
  **/
 struct edd_device_parameters {
-	uint16_t len;				/* size of returned data */
+    uint16_t len;		/* size of returned data */
 	/**
 	 * Bitfields for IBM/MS INT 13 Extensions information flags:
 	 * Bit(s)    Description    (Table 00274)
@@ -42,28 +42,28 @@ struct edd_device_parameters {
 	 * 6    CHS information set to maximum supported values, not current media
 	 * 15-7    reserved (0)
 	 **/
-	uint16_t info;				/* information flags */
-	uint32_t cylinders;			/* number of physical cylinders on drive */
-	uint32_t heads;				/* number of physical heads on drive */
-	uint32_t sectors_per_track;		/* number of physical sectors per track */
-	uint64_t sectors;			/* total number of sectors on drive */
-	uint16_t bytes_per_sector;		/* bytes per sector */
-	/* --- v2.0+ --- */
-	uint32_t dpte_pointer;			/* EDD configuration parameters, FFFFh:FFFFh if not available */
-	/* --- v3.0 --- */
-	uint16_t device_path_information;	/* signature BEDDh to indicate presence of Device Path info */
-	uint8_t device_path_length;		/* length of Device Path information, including signature and this byte (24h for v3.0) */
-	uint8_t device_path_reserved;		/* reserved (0) */
-	uint16_t device_path_reserved_2;	/* reserved (0) */
-	uint8_t host_bus_type[4];		/* ASCIZ name of host bus ("ISA" or "PCI") */
-	uint8_t interface_type[8];		/* ASCIZ name of interface type
-						 *         "ATA"
-						 *         "ATAPI"
-						 *         "SCSI"
-						 *         "USB"
-						 *         "1394" IEEE 1394 (FireWire)
-						 *         "FIBRE" Fibre Channel
-						 */
+    uint16_t info;		/* information flags */
+    uint32_t cylinders;		/* number of physical cylinders on drive */
+    uint32_t heads;		/* number of physical heads on drive */
+    uint32_t sectors_per_track;	/* number of physical sectors per track */
+    uint64_t sectors;		/* total number of sectors on drive */
+    uint16_t bytes_per_sector;	/* bytes per sector */
+    /* --- v2.0+ --- */
+    uint32_t dpte_pointer;	/* EDD configuration parameters, FFFFh:FFFFh if not available */
+    /* --- v3.0 --- */
+    uint16_t device_path_information;	/* signature BEDDh to indicate presence of Device Path info */
+    uint8_t device_path_length;	/* length of Device Path information, including signature and this byte (24h for v3.0) */
+    uint8_t device_path_reserved;	/* reserved (0) */
+    uint16_t device_path_reserved_2;	/* reserved (0) */
+    uint8_t host_bus_type[4];	/* ASCIZ name of host bus ("ISA" or "PCI") */
+    uint8_t interface_type[8];	/* ASCIZ name of interface type
+				 *         "ATA"
+				 *         "ATAPI"
+				 *         "SCSI"
+				 *         "USB"
+				 *         "1394" IEEE 1394 (FireWire)
+				 *         "FIBRE" Fibre Channel
+				 */
 	/**
 	 * Format of EDD v3.0 Interface Path:
 	 * Offset    Size    Description    (Table 00275)
@@ -76,33 +76,33 @@ struct edd_device_parameters {
 	 * 02h    BYTE    PCI function number
 	 * 03h 5 BYTEs    reserved (0)
 	 **/
-	union {
-		struct {
-			uint16_t base_address;
-			uint16_t reserved1;
-			uint32_t reserved2;
-		} __attribute__ ((packed)) isa;
-		struct {
-			uint8_t bus;
-			uint8_t slot;
-			uint8_t function;
-			uint8_t channel;
-			uint32_t reserved;
-		} __attribute__ ((packed)) pci;
-		/* pcix is same as pci */
-		struct {
-			uint64_t reserved;
-		} __attribute__ ((packed)) ibnd;
-		struct {
-			uint64_t reserved;
-		} __attribute__ ((packed)) xprs;
-		struct {
-			uint64_t reserved;
-		} __attribute__ ((packed)) htpt;
-		struct {
-			uint64_t reserved;
-		} __attribute__ ((packed)) unknown;
-	} interface_path;
+    union {
+	struct {
+	    uint16_t base_address;
+	    uint16_t reserved1;
+	    uint32_t reserved2;
+	} __attribute__ ((packed)) isa;
+	struct {
+	    uint8_t bus;
+	    uint8_t slot;
+	    uint8_t function;
+	    uint8_t channel;
+	    uint32_t reserved;
+	} __attribute__ ((packed)) pci;
+	/* pcix is same as pci */
+	struct {
+	    uint64_t reserved;
+	} __attribute__ ((packed)) ibnd;
+	struct {
+	    uint64_t reserved;
+	} __attribute__ ((packed)) xprs;
+	struct {
+	    uint64_t reserved;
+	} __attribute__ ((packed)) htpt;
+	struct {
+	    uint64_t reserved;
+	} __attribute__ ((packed)) unknown;
+    } interface_path;
 	/**
 	 * Format of EDD v3.0 Device Path:
 	 * Offset    Size    Description    (Table 00276)
@@ -124,83 +124,83 @@ struct edd_device_parameters {
 	 * ---FibreChannel---
 	 * 00h    QWORD    Word Wide Number (WWN)
 	 **/
-	union {
-		struct {
-			uint8_t device;
-			uint8_t reserved1;
-			uint16_t reserved2;
-			uint32_t reserved3;
-			uint64_t reserved4;
-		} __attribute__ ((packed)) ata;
-		struct {
-			uint8_t device;
-			uint8_t lun;
-			uint8_t reserved1;
-			uint8_t reserved2;
-			uint32_t reserved3;
-			uint64_t reserved4;
-		} __attribute__ ((packed)) atapi;
-		struct {
-			uint16_t id;
-			uint64_t lun;
-			uint16_t reserved1;
-			uint32_t reserved2;
-		} __attribute__ ((packed)) scsi;
-		struct {
-			uint64_t serial_number;
-			uint64_t reserved;
-		} __attribute__ ((packed)) usb;
-		struct {
-			uint64_t eui;
-			uint64_t reserved;
-		} __attribute__ ((packed)) i1394;
-		struct {
-			uint64_t wwid;
-			uint64_t lun;
-		} __attribute__ ((packed)) fibre;
-		struct {
-			uint64_t identity_tag;
-			uint64_t reserved;
-		} __attribute__ ((packed)) i2o;
-		struct {
-			uint32_t array_number;
-			uint32_t reserved1;
-			uint64_t reserved2;
-		} __attribute__ ((packed)) raid;
-		struct {
-			uint8_t device;
-			uint8_t reserved1;
-			uint16_t reserved2;
-			uint32_t reserved3;
-			uint64_t reserved4;
-		} __attribute__ ((packed)) sata;
-		struct {
-			uint64_t reserved1;
-			uint64_t reserved2;
-		} __attribute__ ((packed)) unknown;
-	} device_path;
-	uint8_t reserved;			/* reserved (0) */
-	uint8_t checksum;			/* checksum of bytes 1Eh-40h (two's complement of sum, which makes
-					 * the 8-bit sum of bytes 1Eh-41h equal 00h) */
+    union {
+	struct {
+	    uint8_t device;
+	    uint8_t reserved1;
+	    uint16_t reserved2;
+	    uint32_t reserved3;
+	    uint64_t reserved4;
+	} __attribute__ ((packed)) ata;
+	struct {
+	    uint8_t device;
+	    uint8_t lun;
+	    uint8_t reserved1;
+	    uint8_t reserved2;
+	    uint32_t reserved3;
+	    uint64_t reserved4;
+	} __attribute__ ((packed)) atapi;
+	struct {
+	    uint16_t id;
+	    uint64_t lun;
+	    uint16_t reserved1;
+	    uint32_t reserved2;
+	} __attribute__ ((packed)) scsi;
+	struct {
+	    uint64_t serial_number;
+	    uint64_t reserved;
+	} __attribute__ ((packed)) usb;
+	struct {
+	    uint64_t eui;
+	    uint64_t reserved;
+	} __attribute__ ((packed)) i1394;
+	struct {
+	    uint64_t wwid;
+	    uint64_t lun;
+	} __attribute__ ((packed)) fibre;
+	struct {
+	    uint64_t identity_tag;
+	    uint64_t reserved;
+	} __attribute__ ((packed)) i2o;
+	struct {
+	    uint32_t array_number;
+	    uint32_t reserved1;
+	    uint64_t reserved2;
+	} __attribute__ ((packed)) raid;
+	struct {
+	    uint8_t device;
+	    uint8_t reserved1;
+	    uint16_t reserved2;
+	    uint32_t reserved3;
+	    uint64_t reserved4;
+	} __attribute__ ((packed)) sata;
+	struct {
+	    uint64_t reserved1;
+	    uint64_t reserved2;
+	} __attribute__ ((packed)) unknown;
+    } device_path;
+    uint8_t reserved;		/* reserved (0) */
+    uint8_t checksum;		/* checksum of bytes 1Eh-40h (two's complement of sum, which makes
+				 * the 8-bit sum of bytes 1Eh-41h equal 00h) */
 } __attribute__ ((packed));
 
 /*
  * Disk parameters
  */
 struct driveinfo {
-	int disk;				/* Disk port (0x80 - 0xff) */
-	/* Legacy C/H/S */
-	int cbios;				/* CHS geometry is valid */
-	int legacy_max_head;
-	int legacy_max_cylinder;
-	int legacy_sectors_per_track;
-	int legacy_max_drive;
-	int legacy_type;			/* Drive type (AT/PS2 floppies only) */
-	/* EDD support */
-	int ebios;				/* EBIOS supported on this disk */
-	int edd_version;			/* EBIOS major version */
-	int edd_functionality_subset;
-	struct edd_device_parameters edd_params;/* EDD parameters */
+    int disk;			/* Disk port (0x80 - 0xff) */
+    /* Legacy C/H/S */
+    int cbios;			/* CHS geometry is valid */
+    int legacy_max_head;
+    int legacy_max_cylinder;
+    int legacy_sectors_per_track;
+    int legacy_max_drive;
+    int legacy_type;		/* Drive type (AT/PS2 floppies only) */
+    /* EDD support */
+    int ebios;			/* EBIOS supported on this disk */
+    int edd_version;		/* EBIOS major version */
+    int edd_functionality_subset;
+    struct edd_device_parameters edd_params;	/* EDD parameters */
 };
 
 /**
@@ -290,36 +290,37 @@ struct driveinfo {
  *     10h    ATAPI Removable Media Device
  */
 enum diskette_drive_types {
-	DISKETTE_360K = 1,
-	DISKETTE_1_2M = 2,
-	DISKETTE_720K = 3,
-	DISKETTE_1_44M = 4,
-	DISKETTE_2_88M = 6,
-	DISKETTE_ATAPI = 10,
+    DISKETTE_360K = 1,
+    DISKETTE_1_2M = 2,
+    DISKETTE_720K = 3,
+    DISKETTE_1_44M = 4,
+    DISKETTE_2_88M = 6,
+    DISKETTE_ATAPI = 10,
 };
 
 /**
  * chs_to_lba - compute lba value from cylinder, head and sector number
  **/
-static inline int chs_to_lba(const struct driveinfo* drive_info,
-			     const unsigned int cylinder, const unsigned int head,
-			     const unsigned int sector)
+static inline int chs_to_lba(const struct driveinfo *drive_info,
+			     const unsigned int cylinder,
+			     const unsigned int head, const unsigned int sector)
 {
-	/* Use EDD, if valid */
-	if (drive_info->edd_params.sectors_per_track > 0 &&
-	    drive_info->edd_params.heads > 0)
-		return (sector - 1) + (head * drive_info->edd_params.sectors_per_track) +
-		       (cylinder * (drive_info->edd_params.heads) *
-		                    drive_info->edd_params.sectors_per_track);
-	else if (drive_info->cbios)
-		return (sector - 1) + (head * drive_info->legacy_sectors_per_track) +
-		       (cylinder * (drive_info->legacy_max_head + 1) *
-		                    drive_info->legacy_sectors_per_track);
+    /* Use EDD, if valid */
+    if (drive_info->edd_params.sectors_per_track > 0 &&
+	drive_info->edd_params.heads > 0)
+	return (sector - 1) +
+	    (head * drive_info->edd_params.sectors_per_track) +
+	    (cylinder * (drive_info->edd_params.heads) *
+	     drive_info->edd_params.sectors_per_track);
+    else if (drive_info->cbios)
+	return (sector - 1) + (head * drive_info->legacy_sectors_per_track) +
+	    (cylinder * (drive_info->legacy_max_head + 1) *
+	     drive_info->legacy_sectors_per_track);
 }
 
-void lba_to_chs(const struct driveinfo* drive_info, const int lba,
-		unsigned int* cylinder, unsigned int* head,
-		unsigned int* sector);
+void lba_to_chs(const struct driveinfo *drive_info, const int lba,
+		unsigned int *cylinder, unsigned int *head,
+		unsigned int *sector);
 int get_drive_parameters(struct driveinfo *drive_info);
 
 #endif /* _GEOM_H */

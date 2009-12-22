@@ -84,7 +84,7 @@ typedef struct {
     char family[PROCESSOR_FAMILY_SIZE];
     char manufacturer[PROCESSOR_MANUFACTURER_SIZE];
     char version[PROCESSOR_VERSION_SIZE];
-    float voltage;
+    uint16_t voltage_mv;
     uint16_t external_clock;
     uint16_t max_speed;
     uint16_t current_speed;

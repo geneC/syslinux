@@ -29,43 +29,65 @@
 #include <stdio.h>
 #include <string.h>
 
+/* Computing div(x,y) */
+#define sub(val) (((val%1024)*100)>>10)
+#define sub_dec(val) (((val%1000)*100)/1000)
+
 void sectors_to_size(int sectors, char *buffer)
 {
-	int b = (sectors / 2);
-	int mib = b >> 10;
-	int gib = mib >> 10;
-	int tib = gib >> 10;
+    int b = (sectors / 2);
+    int mib = b >> 10;
+    int gib = mib >> 10;
+    int tib = gib >> 10;
 
-	if (tib > 0)
-		sprintf(buffer, "%3d TiB", tib);
-	else if (gib > 0)
-		sprintf(buffer, "%3d GiB", gib);
-	else if (mib > 0)
-		sprintf(buffer, "%3d MiB", mib);
-	else
-		sprintf(buffer, "%d b", b);
+    if (tib > 0)
+	sprintf(buffer, "%3d.%02d TiB", tib,sub(gib));
+    else if (gib > 0)
+	sprintf(buffer, "%3d.%02d GiB", gib,sub(mib));
+    else if (mib > 0)
+	sprintf(buffer, "%3d.%02d MiB", mib,sub(b));
+    else
+	sprintf(buffer, "%d B", b);
 }
 
-void sectors_to_size_dec(char *previous_unit, int *previous_size, char *unit, int *size, int sectors)
+void sectors_to_size_dec(char *previous_unit, int *previous_size, char *unit,
+			 int *size, int sectors)
 {
-	*size = sectors / 2; // Converting to bytes
-	strlcpy(unit, "KB", 2);
-	strlcpy(previous_unit, unit, 2);
-	*previous_size = *size;
+    *size = sectors / 2;	// Converting to bytes
+    strlcpy(unit, "KB", 2);
+    strlcpy(previous_unit, unit, 2);
+    *previous_size = *size;
+    if (*size > 1000) {
+	*size = *size / 1000;
+	strlcpy(unit, "MB", 2);
 	if (*size > 1000) {
+	    *previous_size = *size;
+	    *size = *size / 1000;
+	    strlcpy(previous_unit, unit, 2);
+	    strlcpy(unit, "GB", 2);
+	    if (*size > 1000) {
+		*previous_size = *size;
 		*size = *size / 1000;
-		strlcpy(unit, "MB", 2);
-		if (*size > 1000) {
-			*previous_size = *size;
-			*size = *size / 1000;
-			strlcpy(previous_unit, unit, 2);
-			strlcpy(unit, "GB", 2);
-			if (*size > 1000) {
-				*previous_size = *size;
-				*size = *size / 1000;
-				strlcpy(previous_unit, unit, 2);
-				strlcpy(unit, "TB", 2);
-			}
-		}
+		strlcpy(previous_unit, unit, 2);
+		strlcpy(unit, "TB", 2);
+	    }
 	}
+    }
+}
+
+void sectors_to_size_dec2(int sectors, char *buffer)
+{
+    int b = (sectors / 2);
+    int mib = b / 1000;
+    int gib = mib / 1000;
+    int tib = gib / 1000;
+
+    if (tib > 0)
+	sprintf(buffer, "%3d.%02d TB", tib,sub_dec(gib));
+    else if (gib > 0)
+	sprintf(buffer, "%3d.%02d GB", gib,sub_dec(mib));
+    else if (mib > 0)
+	sprintf(buffer, "%3d.%02d MB", mib,sub_dec(b));
+    else
+	sprintf(buffer, "%d B", b);
 }

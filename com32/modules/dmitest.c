@@ -157,7 +157,7 @@ void display_cpu(s_dmi * dmi)
     moreprintf("\tCpu Stepping %u\n", dmi->processor.signature.stepping);
     moreprintf("\tCpu Minor Stepping %u\n",
 	       dmi->processor.signature.minor_stepping);
-    moreprintf("\tVoltage      %f\n", dmi->processor.voltage);
+    moreprintf("\tVoltage      %d mV\n", dmi->processor.voltage_mv);
     moreprintf("\tStatus       %s\n", dmi->processor.status);
     moreprintf("\tUpgrade      %s\n", dmi->processor.upgrade);
     moreprintf("\tCache L1 Handle %s\n", dmi->processor.cache1);

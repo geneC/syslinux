@@ -1072,7 +1072,7 @@ static const char *run_menu(void)
     return cmdline;
 }
 
-int menu_main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     const char *cmdline;
     struct menu *m;
@@ -1081,13 +1081,19 @@ int menu_main(int argc, char *argv[])
 
     (void)argc;
 
+    parse_configs(argv + 1);
+
+    /*
+     * We don't start the console until we have parsed the configuration
+     * file, since the configuration file might impact the console
+     * configuration, e.g. MENU RESOLUTION.
+     */
+    start_console();
     if (getscreensize(1, &rows, &cols)) {
 	/* Unknown screen size? */
 	rows = 24;
 	cols = 80;
     }
-
-    parse_configs(argv + 1);
 
     /* Some postprocessing for all menus */
     for (m = menu_list; m; m = m->next) {
@@ -1109,8 +1115,10 @@ int menu_main(int argc, char *argv[])
     }
 
     for (;;) {
+	local_cursor_enable(true);
 	cmdline = run_menu();
 
+	local_cursor_enable(false);
 	printf("\033[?25h\033[%d;1H\033[0m", END_ROW);
 
 	if (cmdline) {

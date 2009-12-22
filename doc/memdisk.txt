@@ -9,6 +9,9 @@ disk and a (very small - 2K typical) chunk of low (DOS) memory for the
 driver itself, then hooking the INT 13h (disk driver) and INT 15h
 (memory query) BIOS interrupts.
 
+MEMDISK allows for an OS to detect the MEMDISK instance.  (See the
+"Additional technical information" section below.)
+
 To use it, type on the Syslinux command line:
 
 memdisk initrd=diskimg.img
@@ -75,6 +78,7 @@ b) If the disk image is less than 4,194,304 bytes (4096K, 4 MB) it is
    s=#		Specify number of sectors (max 63)
    floppy[=#]	The image is a floppy image[**]
    harddisk[=#]	The image is a hard disk image[**]
+   iso		The image is an El Torito ISO9660 image (drive 0xE0)
 
    # represents a decimal number.
 
@@ -240,3 +244,40 @@ method for this.
 	mov byte [es:bx], 0EAh	; FAR JMP
 	mov [es:bx+1], eax
 	sti
+
+MEMDISK supports the Win9x "safe hook" structure for OS detection.
+(See "Safe Master Boot Record INT 13h Hook Routines," available at
+http://www.osronline.com/ddkx/w98ddk/storage_5l6g.htm as of
+December 7th, 2009.)  An OS driver can take a look at the INTerrupt table
+and try to walk along the chain of those hooks that implement the "safe hook"
+structure.  For each hook discovered, a vendor can be identified and the OS
+driver can take appropriate action.  The OS driver can mark the "flags" field
+of the "safe hook" to indicate that the driver has reviewed it already.  This
+prevents accidental re-detection, for example.
+
+MEMDISK adds one additional extension field to the "safe hook" structure, a
+pointer to a special MEMDISK structure called the "mBFT."  The mBFT is the
+"MEMDISK Boot Firmware Table" (akin to the iSCSI iBFT and the AoE aBFT).  An
+OS driver looking at MEMDISK's "safe hook" should know that this field will
+be present based on the fact that MEMDISK is the vendor identifier.
+
+The mBFT is little more than an ACPI table to prefix MEMDISK's traditional
+MEMDISK info structure (the "MDI").  The ACPI table's details are:
+
+  OEM ID. . . .: MEMDSK
+  OEM Table ID : Syslinux
+
+There is a 1-byte checksum field which covers the length of the mBFT all
+the way through to the end of the MEMDISK info structure.
+
+There is also a physical pointer to the "safe hook" structure associated
+with the MEMDISK instance.  An OS driver might use the following logic:
+
+  1. Walk INT 13h "safe hook" chain as far as possible, marking hooks as
+     having been reviewed.  For MEMDISK hooks, the driver then follows the
+     pointer to the mBFT and gathers the RAM disk details from the included
+     MDI.
+  2. The OS driver scans low memory for valid mBFTs.  MEMDISK instances that
+     have been "disconnected" from the INT 13h "safe hook" chain can be thus
+     discovered.  Looking at their associated "safe hook" structure will
+     reveal if they were indeed reviewed by the previous stage.

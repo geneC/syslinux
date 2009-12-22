@@ -20,7 +20,7 @@
  * Usage:
  *
  *    label boot_kernel
- *        kernel ifcpu64.c
+ *        com32 ifcpu64.c32
  *        append boot_kernel_64 [-- boot_kernel_32pae] -- boot_kernel_32
  *    label boot_kernel_32
  *        kernel vmlinuz_32
