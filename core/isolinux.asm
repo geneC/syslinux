@@ -1145,8 +1145,7 @@ all_read:
 ; we should be able to find the rest of what we need to know.
 ;
 		pushad
-	        extern iso_fs_ops
-	        mov eax,iso_fs_ops
+	        mov eax,ROOT_FS_OPS
 	        mov dl,[DriveNumber]
                	cmp word [BIOSType],bios_cdrom
                 sete dh                        ; 1 for cdrom, 0 for hybrid mode
@@ -1156,6 +1155,15 @@ all_read:
 		mov di,[bsSecPerTrack]
 		pm_call fs_init
 		popad
+
+		section .rodata
+		alignz 4
+ROOT_FS_OPS:
+		extern iso_fs_ops
+		dd iso_fs_ops
+		dd 0
+
+		section .text16
 
 ;
 ; Locate the configuration file
