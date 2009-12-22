@@ -309,10 +309,18 @@ efi_csm_hack_size equ $-efi_csm_hack
 ;
 ; do fs initialize
 ;
-                extern pxe_fs_ops
-	        mov eax,pxe_fs_ops
+	        mov eax,ROOT_FS_OPS
                 pm_call fs_init
 
+		section .data
+		alignz 4
+ROOT_FS_OPS:
+                extern pxe_fs_ops
+		dd pxe_fs_ops
+		dd 0
+
+
+		section .text16
 ;
 ; Initialize the idle mechanism
 ;

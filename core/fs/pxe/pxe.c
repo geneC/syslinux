@@ -1293,7 +1293,7 @@ static const struct pxenv_t *memory_scan_for_pxenv_struct(void)
  * if if the API version is 2.1 or later 
  *
  */
-static void pxe_init(void)
+static int pxe_init(void)
 {
     extern void pxe_int1a(void);
     char plan = 'A';
@@ -1395,6 +1395,8 @@ static void pxe_init(void)
     data_seg = data_seg + ((data_len + 15) >> 4);
 
     real_base_mem = max(code_seg,data_seg) >> 6; /* Convert to kilobytes */
+
+    return 0;
 }                                  
 
 /*

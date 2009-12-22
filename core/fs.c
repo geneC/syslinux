@@ -166,22 +166,27 @@ void close_file(com32sys_t *regs)
  */
 void fs_init(com32sys_t *regs)
 {
+    sector_t part_offset = regs->ecx.l | ((sector_t)regs->ebx.l << 32);
     int blk_shift = -1;
+    struct device *dev = NULL;
     /* ops is a ptr list for several fs_ops */
     const struct fs_ops **ops = (const struct fs_ops **)regs->eax.l;
     
     while ((blk_shift < 0) && *ops) {
 	/* set up the fs stucture */
 	fs.fs_ops = *ops;
-	/* this is a total hack... */
-	if (fs.fs_ops->fs_flags & FS_NODEV)
-		fs.fs_dev = NULL;
-	else {
-		static struct device *dev;
 
+	/*
+	 * This boldly assumes that we don't mix FS_NODEV filesystems
+	 * with FS_DEV filesystems...
+	 */
+	if (fs.fs_ops->fs_flags & FS_NODEV) {
+		fs.fs_dev = NULL;
+	} else {
 		if (!dev)
 			dev = device_init(regs->edx.b[0], regs->edx.b[1],
-				regs->ecx.l, regs->esi.w[0], regs->edi.w[0]);
+					  part_offset,
+					  regs->esi.w[0], regs->edi.w[0]);
 		fs.fs_dev = dev;
 	}
 	/* invoke the fs-specific init code */
