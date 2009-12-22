@@ -43,7 +43,7 @@ static struct win_info {
 
 static inline int __constfunc ilog2(unsigned int x)
 {
-asm("bsrl %1,%0": "=r"(x):"rm"(x));
+    asm("bsrl %1,%0" : "=r"(x) : "rm"(x));
     return x;
 }
 

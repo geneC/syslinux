@@ -33,7 +33,7 @@
 #include <syslinux/video.h>
 #include <com32.h>
 
-int syslinux_report_video_mode(uint16_t flags, uint16_t xsize, uint16_t ysize)
+void syslinux_report_video_mode(uint16_t flags, uint16_t xsize, uint16_t ysize)
 {
     static com32sys_t ireg;
 
