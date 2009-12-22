@@ -217,18 +217,25 @@ err:
 int vesacon_default_background(void)
 {
     int x, y, dx, dy, dy2;
-    uint8_t *bgptr = (uint8_t *) & __vesacon_background;
+    int z;
+    unsigned int shft;
+    uint8_t *bgptr = (uint8_t *)__vesacon_background;
     uint8_t k;
 
     if (__vesacon_pixel_format == PXF_NONE)
 	return 0;		/* Not in graphics mode */
 
-    for (y = 0, dy = -__vesa_info.mi.v_res / 2;
+    z = max(__vesa_info.mi.v_res, __vesa_info.mi.h_res) >> 1;
+    z = ((z*z) >> 11) - 1;
+    asm("bsrl %1,%0" : "=r" (shft) : "rm" (z));
+    shft++;
+
+    for (y = 0, dy = -(__vesa_info.mi.v_res >> 1);
 	 y < __vesa_info.mi.v_res; y++, dy++) {
 	dy2 = dy * dy;
-	for (x = 0, dx = -__vesa_info.mi.h_res / 2;
+	for (x = 0, dx = -(__vesa_info.mi.h_res >> 1);
 	     x < __vesa_info.mi.h_res; x++, dx++) {
-	    k = __vesacon_linear_to_srgb[500 + ((dx * dx + dy2) >> 6)];
+	    k = __vesacon_linear_to_srgb[500 + ((dx*dx + dy2) >> shft)];
 	    bgptr[0] = k;	/* Blue */
 	    bgptr[1] = k;	/* Green */
 	    bgptr[2] = k;	/* Red */
