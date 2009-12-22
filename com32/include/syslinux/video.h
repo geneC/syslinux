@@ -37,7 +37,7 @@
 #include <stdint.h>
 
 void syslinux_force_text_mode(void);
-int syslinux_report_video_mode(uint16_t flags, uint16_t xsize, uint16_t ysize);
+void syslinux_report_video_mode(uint16_t flags, uint16_t xsize, uint16_t ysize);
 int syslinux_font_query(uint8_t **font);
 
 #endif /* _SYSLINUX_API_H */
