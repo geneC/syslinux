@@ -24,11 +24,12 @@
 ;
 my_id		equ extlinux_id
 
-		extern ext2_fs_ops
-		extern btrfs_fs_ops
-
 		section .rodata
-ROOT_FS_OPS	dd ext2_fs_ops
+		alignz 4
+ROOT_FS_OPS:
+		extern ext2_fs_ops
+		dd ext2_fs_ops
+		extern btrfs_fs_ops
 		dd btrfs_fs_ops
 		dd 0
 

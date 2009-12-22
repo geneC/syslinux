@@ -312,7 +312,7 @@ efi_csm_hack_size equ $-efi_csm_hack
 	        mov eax,ROOT_FS_OPS
                 pm_call fs_init
 
-		section .data
+		section .rodata
 		alignz 4
 ROOT_FS_OPS:
                 extern pxe_fs_ops
