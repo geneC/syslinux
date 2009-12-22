@@ -548,6 +548,9 @@ static void do_boot(void *boot_sector, size_t boot_size,
     /* Tell the shuffler not to muck with this area... */
     syslinux_add_memmap(&mmap, endimage, 0xa0000 - endimage, SMT_RESERVED);
 
+    /* Force text mode */
+    syslinux_force_text_mode();
+
     fputs("Booting...\n", stdout);
     syslinux_shuffle_boot_rm(mlist, mmap, opt.keeppxe, regs);
     error("Chainboot failed!\n");

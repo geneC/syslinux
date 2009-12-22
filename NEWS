@@ -20,6 +20,10 @@ Changes in 3.84:
 	  experimental.  This will replace gfxboot.com in the future.
 	* vesamenu.c32: new MENU RESOLUTION directive to set a screen
 	  resolution other than 640x480.
+	* chain.c32: add support for loading isolinux.bin.
+	* chain.c32: make sure to always return to text mode.
+	* eltorito.sys: DOS driver for generic CD-ROMs; by Gary Tong
+	  and Bart Lagerweij.
 
 Changes in 3.83:
 	* PXELINUX: clear memory before handing over to a chainloaded

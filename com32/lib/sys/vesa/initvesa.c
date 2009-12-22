@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/fpu.h>
+#include <syslinux/video.h>
 #include "vesa.h"
 #include "video.h"
 #include "fill.h"
@@ -240,12 +241,10 @@ static int vesacon_set_mode(int x, int y)
     __vesacon_format_pixels = __vesacon_format_pixels_list[bestpxf];
 
     /* Download the SYSLINUX- or BIOS-provided font */
-    rm.eax.w[0] = 0x0018;	/* Query custom font */
-    __intcall(0x22, &rm, &rm);
-    if (!(rm.eflags.l & EFLAGS_CF) && rm.eax.b[0]) {
-	__vesacon_font_height = rm.eax.b[0];
-	rom_font = MK_PTR(rm.es, rm.ebx.w[0]);
-    } else {
+    __vesacon_font_height = syslinux_font_query(&rom_font);
+    if (!__vesacon_font_height) {
+	/* Get BIOS 8x16 font */
+
 	rm.eax.w[0] = 0x1130;	/* Get Font Information */
 	rm.ebx.w[0] = 0x0600;	/* Get 8x16 ROM font */
 	__intcall(0x10, &rm, &rm);
@@ -270,17 +269,13 @@ static int vesacon_set_mode(int x, int y)
     __vesacon_init_copy_to_screen();
 
     /* Tell syslinux we changed video mode */
-    rm.eax.w[0] = 0x0017;	/* Report video mode change */
     /* In theory this should be:
 
-       rm.ebx.w[0] = (mi->mode_attr & 4) ? 0x0007 : 0x000f;
+       flags = (mi->mode_attr & 4) ? 0x0007 : 0x000f;
 
        However, that would assume all systems that claim to handle text
        output in VESA modes actually do that... */
-    rm.ebx.w[0] = 0x000f;
-    rm.ecx.w[0] = mi->h_res;
-    rm.edx.w[0] = mi->v_res;
-    __intcall(0x22, &rm, NULL);
+    syslinux_report_video_mode(0x000f, mi->h_res, mi->v_res);
 
     __vesacon_pixel_format = bestpxf;
 

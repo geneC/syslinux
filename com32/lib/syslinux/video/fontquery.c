@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,18 +27,28 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * syslinux/video.h
- *
- * SYSLINUX video API functions.
+ * syslinux/video/forcetext.c
  */
 
-#ifndef _SYSLINUX_VIDEO_H
-#define _SYSLINUX_VIDEO_H
+#include <syslinux/video.h>
+#include <com32.h>
 
-#include <stdint.h>
+/*
+ * Returns height of font or zero if no custom font loaded
+ */
+int syslinux_font_query(uint8_t **font)
+{
+    static com32sys_t ireg;
+    com32sys_t oreg;
+    int height;
 
-void syslinux_force_text_mode(void);
-int syslinux_report_video_mode(uint16_t flags, uint16_t xsize, uint16_t ysize);
-int syslinux_font_query(uint8_t **font);
+    ireg.eax.w[0] = 0x0018;
+    __intcall(0x22, &ireg, &oreg);
 
-#endif /* _SYSLINUX_API_H */
+    height = !(oreg.eflags.l & EFLAGS_CF) ? oreg.eax.b[0] : 0;
+    if (height)
+	*font = MK_PTR(oreg.es, oreg.ebx.w[0]);
+
+    return height;
+}
+

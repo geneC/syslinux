@@ -1,6 +1,9 @@
 #
 # OpenWatcom compile and link utility
 #
+topdir = ..
+include $(topdir)/MCONFIG
+
 WCL	= wcl
 WCLOPT	= -6 -osx -mt -bt=DOS -l=COM
 
@@ -42,4 +45,8 @@ clean: tidy
 spotless: clean
 	-rm -f *.com *.sys *~
 
+installer: all
 
+install: installer
+	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)/dosutil
+	install -m 644 $(TARGETS) $(INSTALLROOT)$(AUXDIR)/dosutil
