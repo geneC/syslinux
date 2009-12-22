@@ -166,7 +166,11 @@ void close_file(com32sys_t *regs)
  */
 void fs_init(com32sys_t *regs)
 {
-    sector_t part_offset = regs->ecx.l | ((sector_t)regs->ebx.l << 32);
+    uint8_t disk_devno = regs->edx.b[0];
+    uint8_t disk_cdrom = regs->edx.b[1];
+    sector_t disk_offset = regs->ecx.l | ((sector_t)regs->ebx.l << 32);
+    uint16_t disk_heads = regs->esi.w[0];
+    uint16_t disk_sectors = regs->edi.w[0];
     int blk_shift = -1;
     struct device *dev = NULL;
     /* ops is a ptr list for several fs_ops */
@@ -181,13 +185,12 @@ void fs_init(com32sys_t *regs)
 	 * with FS_DEV filesystems...
 	 */
 	if (fs.fs_ops->fs_flags & FS_NODEV) {
-		fs.fs_dev = NULL;
+	    fs.fs_dev = NULL;
 	} else {
-		if (!dev)
-			dev = device_init(regs->edx.b[0], regs->edx.b[1],
-					  part_offset,
-					  regs->esi.w[0], regs->edi.w[0]);
-		fs.fs_dev = dev;
+	    if (!dev)
+		dev = device_init(disk_devno, disk_cdrom, disk_offset,
+				  disk_heads, disk_sectors);
+	    fs.fs_dev = dev;
 	}
 	/* invoke the fs-specific init code */
 	blk_shift = fs.fs_ops->fs_init(&fs);
