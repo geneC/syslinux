@@ -455,6 +455,7 @@ static void do_boot(void *boot_sector, size_t boot_size,
     uint8_t swapdrive = driveno & 0x80;
     int i;
     addr_t loadbase = opt.seg ? (opt.seg << 4) : 0x7c00;
+    static const char cmldr_signature[8] = "cmdcons";
 
     mmap = syslinux_memory_map();
 
@@ -470,9 +471,20 @@ static void do_boot(void *boot_sector, size_t boot_size,
 
     endimage = loadbase + boot_size;
 
-    if (syslinux_add_movelist
-	(&mlist, loadbase, (addr_t) boot_sector, boot_size))
+    if (syslinux_add_movelist(&mlist, loadbase,
+			      (addr_t) boot_sector, boot_size))
 	goto enomem;
+
+    /*
+     * To boot the Recovery Console of Windows NT/2K/XP we need to write
+     * the string "cmdcons\0" to memory location 0000:7C03.
+     * Memory location 0000:7C00 contains the bootsector of the partition.
+     */
+    if (opt.cmldr) {
+	if (syslinux_add_movelist(&mlist, 0x7c03, (addr_t)cmldr_signature,
+				  sizeof cmldr_signature))
+	    goto enomem;
+    }
 
     if (opt.swap && driveno != swapdrive) {
 	static const uint8_t swapstub_master[] = {
@@ -885,13 +897,6 @@ int main(int argc, char *argv[])
 		goto bail;
 	    }
 	}
-
-    /* To boot the Recovery Console of Windows NT/2K/XP we need to write
-       the string "cmdcons\0" to memory location 0000:7C03.
-       Memory location 0000:7C00 contains the bootsector of the partition.
-     */
-    if (opt.cmldr)
-        strcpy((char *) 0x7c03, "cmdcons");
 
     } else if (partinfo) {
 	/* Actually read the boot sector */
