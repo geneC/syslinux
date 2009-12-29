@@ -592,7 +592,7 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 		while (!ok) {
 		    /* Assume it's a floppy drive, guess a geometry */
 		    unsigned int type, track;
-		    int c, h, s;
+		    int c, h, s = 0;
 
 		    if (xsectors < 320 * 2) {
 			c = 40;
@@ -795,7 +795,7 @@ static void relocate_rm_code(uint32_t newbase)
 static uint8_t checksum_buf(const void *buf, int count)
 {
     const uint8_t *p = buf;
-    uint8_t c;
+    uint8_t c = 0;
 
     while (count--)
 	c += *p++;
