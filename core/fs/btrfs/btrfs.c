@@ -197,7 +197,7 @@ static inline u64 btrfs_sb_offset(int mirror)
 }
 
 /* find the most recent super block */
-static void btrfs_read_super_block()
+static void btrfs_read_super_block(void)
 {
 	int i;
 	int ret;
@@ -344,7 +344,7 @@ static int next_slot(struct btrfs_disk_key *key, struct btrfs_path *path)
 /*
  * read chunk_array in super block
  */
-static void btrfs_read_sys_chunk_array()
+static void btrfs_read_sys_chunk_array(void)
 {
 	struct btrfs_chunk_map_item item;
 	struct btrfs_disk_key *key;
@@ -368,7 +368,7 @@ static void btrfs_read_sys_chunk_array()
 }
 
 /* read chunk items from chunk_tree and insert them to chunk map */
-static void btrfs_read_chunk_tree()
+static void btrfs_read_chunk_tree(void)
 {
 	struct btrfs_disk_key search_key;
 	struct btrfs_chunk *chunk;
