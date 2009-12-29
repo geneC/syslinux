@@ -48,6 +48,10 @@
  * ntldr=<loader>:
  *	equivalent to -seg 0x2000 -file <loader>, used with WinNT's loaders
  *
+ * cmldr=<loader>:
+ *    used with Recovery Console of Windows NT/2K/XP.
+ *      same as ntldr=<loader> & "cmdcons\0" written to memory address 0000:7C03
+ *
  * freedos=<loader>:
  *	equivalent to -seg 0x60 -file <loader>, used with FreeDOS kernel.sys.
  *
@@ -76,6 +80,7 @@
 #include <syslinux/loadfile.h>
 #include <syslinux/bootrm.h>
 #include <syslinux/config.h>
+#include <syslinux/video.h>
 
 #define SECTOR 512		/* bytes/sector */
 
@@ -84,6 +89,7 @@ static struct options {
     uint16_t keeppxe;
     uint16_t seg;
     bool isolinux;
+    bool cmldr;
     bool swap;
     bool hide;
 } opt;
@@ -449,6 +455,7 @@ static void do_boot(void *boot_sector, size_t boot_size,
     uint8_t swapdrive = driveno & 0x80;
     int i;
     addr_t loadbase = opt.seg ? (opt.seg << 4) : 0x7c00;
+    static const char cmldr_signature[8] = "cmdcons";
 
     mmap = syslinux_memory_map();
 
@@ -464,9 +471,20 @@ static void do_boot(void *boot_sector, size_t boot_size,
 
     endimage = loadbase + boot_size;
 
-    if (syslinux_add_movelist
-	(&mlist, loadbase, (addr_t) boot_sector, boot_size))
+    if (syslinux_add_movelist(&mlist, loadbase,
+			      (addr_t) boot_sector, boot_size))
 	goto enomem;
+
+    /*
+     * To boot the Recovery Console of Windows NT/2K/XP we need to write
+     * the string "cmdcons\0" to memory location 0000:7C03.
+     * Memory location 0000:7C00 contains the bootsector of the partition.
+     */
+    if (opt.cmldr) {
+	if (syslinux_add_movelist(&mlist, 0x7c03, (addr_t)cmldr_signature,
+				  sizeof cmldr_signature))
+	    goto enomem;
+    }
 
     if (opt.swap && driveno != swapdrive) {
 	static const uint8_t swapstub_master[] = {
@@ -678,6 +696,10 @@ int main(int argc, char *argv[])
 	} else if (!strncmp(argv[i], "ntldr=", 6)) {
 	    opt.seg = 0x2000;	/* NTLDR wants this address */
 	    opt.loadfile = argv[i] + 6;
+	} else if (!strncmp(argv[i], "cmldr=", 6)) {
+	    opt.seg = 0x2000;    /* CMLDR wants this address */
+	    opt.loadfile = argv[i] + 6;
+	    opt.cmldr = true;
 	} else if (!strncmp(argv[i], "freedos=", 8)) {
 	    opt.seg = 0x60;	/* FREEDOS wants this address */
 	    opt.loadfile = argv[i] + 8;
@@ -714,6 +736,7 @@ int main(int argc, char *argv[])
 		 "Options: file=<loader>      load file, instead of boot sector\n"
 		 "         isolinux=<loader>  load another version of ISOLINUX\n"
 		 "         ntldr=<loader>     load Windows bootloaders: NTLDR, SETUPLDR, BOOTMGR\n"
+		 "         cmldr=<loader>     load Recovery Console of Windows NT/2K/XP\n"
 		 "         freedos=<loader>   load FreeDOS kernel.sys\n"
 		 "         msdos=<loader>     load MS-DOS io.sys\n"
 		 "         pcdos=<loader>     load PC-DOS ibmbio.com\n"

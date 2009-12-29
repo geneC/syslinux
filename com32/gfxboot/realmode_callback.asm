@@ -111,7 +111,7 @@ cb_fread_90:
 ;  edx		filename
 ;
 cb_getcwd:
-		mov ax,15h
+		mov ax,1fh
 		int 22h
 		mov edx,es
 		shl edx,4

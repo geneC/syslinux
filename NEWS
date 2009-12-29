@@ -2,6 +2,9 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 3.85:
+	* vesamenu.c32: unbreak the default "grey hole" background.
+
 Changes in 3.84:
 	* SYSLINUX: make the DOS installer work for MS-DOS 7.x/8.x
 	  (Win9x/ME) again.

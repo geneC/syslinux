@@ -938,7 +938,7 @@ writehex_common:
 		ret
 %endif
 
-		section .data
+		section .data align=16
 		alignb 2
 Int13Funcs	dw Reset		; 00h - RESET
 		dw GetStatus		; 01h - GET STATUS
