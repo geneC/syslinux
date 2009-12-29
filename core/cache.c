@@ -1,24 +1,18 @@
-#include "core.h"
-#include "cache.h"
-#include <stdio.h>
-#include <string.h>
-
-
-/**
- * Each CachePtr contains:
- * - Block pointer
- * - LRU previous pointer
- * - LRU next pointer
- * - Block data buffer address
- * 
- * The cache buffer are pointed to by a cache_head structure.
+/*
+ * core/cache.c: A simple LRU-based cache implementation.
+ *
  */
 
-/**
- * cache_init:
- *
- * Initialize the cache data structres.
- * regs->eax.l stores the block size(in bits not bytes)
+#include <stdio.h>
+#include <string.h>
+#include "core.h"
+#include "cache.h"
+
+
+/*
+ * Initialize the cache data structres. the _block_size_shift_ specify
+ * the block size, which is 512 byte for FAT fs of the current 
+ * implementation since the block(cluster) size in FAT is a bit big.
  *
  */
 void cache_init(struct device *dev, int block_size_shift)
@@ -50,25 +44,10 @@ void cache_init(struct device *dev, int block_size_shift)
 }
 
 
-/**
- * get_cache_block:
- *
+/*
  * Check for a particular BLOCK in the block cache, 
  * and if it is already there, just do nothing and return;
- * otherwise load it and updata the relative cache
- * structre with data pointer.
- *
- * it's a test version for my start of merging extlinux into core.
- * and after I have figured out how to handle the relations between
- * rm and pm, c and asm, we call call it from C file, so no need 
- * com32sys_t *regs any more.
- *
- * I just found that I was tring to do a stupid thing!
- * I haven't change the fs code to c, so for now the cache is based
- * on SECTOR SIZE but not block size. While we can fix it easily by 
- * make the block size be the sector size.
- *
- * @return: the data stores at gs:si
+ * otherwise load it from disk and updata the LRU link.
  *
  */
 struct cache_struct* get_cache_block(struct device *dev, block_t block)
@@ -136,7 +115,7 @@ struct cache_struct* get_cache_block(struct device *dev, block_t block)
 }    
 
 
-/**
+/*
  * Just print the sector, and according the LRU algorithm, 
  * Left most value is the most least secotr, and Right most 
  * value is the most Recent sector. I see it's a Left Right Used
@@ -148,7 +127,7 @@ void print_cache(struct device *dev)
         struct cache_struct *cs = dev->cache_head;
         for (; i < dev->cache_entries; i++) {
                 cs = cs->next;
-                printf("%d(%p) ", cs->block, cs->data);
+                printf("%d(%p)\n", cs->block, cs->data);
         }
 
         printf("\n");

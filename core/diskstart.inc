@@ -411,6 +411,7 @@ getlinsec_cbios:
 ;
 ; kaboom: write a message and bail out.
 ;
+		global kaboom
 disk_error:
 kaboom:
 		xor si,si

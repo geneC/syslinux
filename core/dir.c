@@ -10,8 +10,11 @@ extern struct fs_info *this_fs;
  * open dir, return the file structure pointer in _eax_, or NULL if failed 
  */
 void opendir(com32sys_t *regs)
-{	
-    this_fs->fs_ops->opendir(regs);
+{
+    char *src = MK_PTR(regs->es, regs->esi.w[0]);
+    char *dst = MK_PTR(regs->ds, regs->edi.w[0]);
+    strcpy(dst, src);
+    searchdir(regs);
     regs->eax.l = (uint32_t)handle_to_file(regs->esi.w[0]);	
 }
 

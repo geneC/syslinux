@@ -1,77 +1,44 @@
 #include <stdio.h>
 #include <string.h>
+#include <sys/dirent.h>
 #include <core.h>
+#include <cache.h>
 #include <disk.h>
 #include <fs.h>
 #include "iso9660_fs.h"
 
-#define DEBUG 1
-
-#define ISO_SECTOR_SHIFT 11
-#define ISO_SECTOR_SIZE  (1 << ISO_SECTOR_SHIFT)
-#define ROOT_DIR_WORD    0x002f
-#define TRACKBUF_SIZE    8192
-
-struct open_file_t {
-        sector_t file_sector;
-        uint32_t file_bytesleft;
-        uint32_t file_left;
-};
-static struct open_file_t Files[MAX_OPEN];
-
-struct dir_t {
-        uint32_t dir_lba;        /* Directory start (LBA) */
-        uint32_t dir_len;        /* Length in bytes */
-        uint32_t dir_clust;      /* Length in clusters */
-};
-static struct dir_t RootDir;
-static struct dir_t CurrentDir;
-
-static uint16_t BufSafe = TRACKBUF_SIZE >> ISO_SECTOR_SHIFT;
-
-static char ISOFileName[64];      /* ISO filename canonicalizatin buffer */
-static char *ISOFileNameEnd = &ISOFileName[64];
-
-/*
- * use to store the block shift, since we treat the hd-mode as 512 bytes
- * sector size, 2048 bytes block size. we still treat the cdrom as 2048
- * bytes sector size and also the block size.
- */
-static int block_shift;
-
-/*
- * allocate a file structure
- *
- */
-static struct open_file_t *allocate_file(void)
+static struct inode *new_iso_inode(void)
 {
-    struct open_file_t *file = Files;
-    int i;
-
-    for (i = 0; i < MAX_OPEN; i++) {
-        if ( file->file_sector == 0 ) /* found it */
-            return file;
-        file++;
+    struct inode *inode = malloc(sizeof(*inode));
+    
+    if (!inode) {
+	malloc_error("inode structure in new_iso_inode");
+	return NULL;
     }
-
-    return NULL; /* not found */
+    memset(inode, 0, sizeof(*inode));
+    
+    inode->data = malloc(sizeof(uint32_t));
+    if (!inode) {
+	malloc_error("inode->data in new_iso_inode");
+	free(inode);
+	return NULL;
+    }
+    
+    return inode;
 }
 
-
-/**
- * close_file:
- *
- * Deallocates a file structure
- *
- */
-static inline void close_pvt(struct open_file_t *file)
-{
-    file->file_sector = 0;
-}
 
 static void iso_close_file(struct file *file)
 {
-    close_pvt(file->open_file);
+    if (file->inode) {
+	file->offset = 0;
+	free_inode(file->inode);
+    }
+}
+
+static inline struct iso_sb_info * ISO_SB(struct fs_info *fs)
+{
+    return fs->fs_info;
 }
 
 /*
@@ -120,417 +87,375 @@ static void iso_mangle_name(char *dst, const char *src)
         *dst++ = '\0';
 }
 
-/**
- * compare the names de_name and file_name and report if they are
- * equal from an ISO 9600 perspective.
- *
- * @param: de_name, the name from the file system.
- * @param: len, the length of de_name, and will return the real name of the de_name
- *              ';' and other terminates excluded.
- * @param: file_name, the name we want to check, is expected to end with a null
- *
- * @return: 1 on match, or 0.
- *
- */
-static int iso_compare_names(char *de_name, int *len, char *file_name)
+static int iso_convert_name(char *dst, char *src, int len)
 {
-    char *p  = ISOFileName;
-    char c1, c2;
-
     int i = 0;
-
-    while ( (i < *len) && *de_name && (*de_name != ';') && (p < ISOFileNameEnd - 1) ) {
-        *p++ = *de_name++;
-        i++;
+    char c;
+    
+    for (; i < len; i++) {
+	c = src[i];
+	if (!c)
+	    break;
+	
+	/* remove ';1' in the end */
+	if (c == ';' && i == len - 2 && src[i + 1] == '1')
+	    break;
+	/* convert others ';' to '.' */
+	if (c == ';')
+	    c = '.';
+	*dst++ = c;
     }
-
-    /* Remove terminal dots */
-    while ( *(p-1) == '.' ) {
-        if ( *len <= 2 )
-            break;
-
-        if ( p <= ISOFileName )
-            break;
-        p --;
-        i--;
+    
+    /* Then remove the terminal dots */
+    while (*(dst - 1) == '.') {
+	if (i <= 2)
+	    break;
+	dst--;
+	i--;
     }
+    *dst = 0;
+    
+    return i;
+}
 
-    if ( i <= 0 )
-        return 0;
-
-    *p = '\0';
-
-    /* return the 'real' length of de_name */
-    *len = i;
-
-    p = ISOFileName;
-
-    /* i is the 'real' name length of file_name */
-    while ( i ) {
-        c1 = *p++;
-        c2 = *file_name++;
-
-        if ( (c1 == 0) && (c2 == 0) )
-            return 1; /* success */
-
-        else if ( (c1 == 0) || ( c2 == 0 ) )
-            return 0;
-
-        c1 |= 0x20;
-        c2 |= 0x20;          /* convert to lower case */
-        if ( c1 != c2 )
-            return 0;
-        i --;
+/* 
+ * Unlike strcmp, it does return 1 on match, or reutrn 0 if not match.
+ */
+static int iso_compare_name(char *de_name, int len, char *file_name)
+{
+    char iso_file_name[256];
+    char *p = iso_file_name;
+    char c1, c2;
+    int i;
+    
+    i = iso_convert_name(iso_file_name, de_name, len);
+    
+    if (i != (int)strlen(file_name))
+	return 0;
+    
+    while (i--) {
+	c1 = *p++;
+	c2 = *file_name++;
+	
+	/* convert to lower case */
+	c1 |= 0x20;
+	c2 |= 0x20;
+	if (c1 != c2)
+	    return 0;
     }
-
+    
     return 1;
 }
 
-static inline int cdrom_read_sectors(struct disk *disk, void *buf, int block, int count)
+static inline int cdrom_read_blocks(struct disk *disk, void *buf, 
+				    int block, int blocks)
 {
-    /* changed those to _sector_ */
-    block <<= block_shift;
-    count <<= block_shift;
-    return disk->rdwr_sectors(disk, buf, block, count, 0);
+    return disk->rdwr_sectors(disk, buf, block, blocks, 0);
 }
 
-/**
+/*
  * Get multiple clusters from a file, given the file pointer.
- *
- * @param: buf
- * @param: file, the address of the open file structure
- * @param: sectors, how many we want to read at once
- * @param: have_more, to indicate if we have reach the end of the file
- *
  */
-static uint32_t iso_getfssec(struct file *gfile, char *buf,
-			     int sectors, bool *have_more)
+static uint32_t iso_getfssec(struct file *file, char *buf,
+			     int blocks, bool *have_more)
 {
-    uint32_t bytes_read = sectors << ISO_SECTOR_SHIFT;
-    struct open_file_t *file = gfile->open_file;
-    struct disk *disk = gfile->fs->fs_dev->disk;
+    struct fs_info *fs = file->fs;
+    struct disk *disk = fs->fs_dev->disk;
+    uint32_t bytes_read = blocks << fs->block_shift;
+    uint32_t bytes_left = file->inode->size - file->offset;
+    uint32_t blocks_left = (bytes_left + BLOCK_SIZE(file->fs) - 1) 
+	>> file->fs->block_shift;
+    block_t block = *file->inode->data + (file->offset >> fs->block_shift);    
+    
+    if (blocks > blocks_left)
+        blocks = blocks_left;
+    cdrom_read_blocks(disk, buf, block, blocks);
 
-    if ( sectors > file->file_left )
-        sectors = file->file_left;
-
-    cdrom_read_sectors(disk, buf, file->file_sector, sectors);
-
-    file->file_sector += sectors;
-    file->file_left   -= sectors;
-
-    if ( bytes_read >= file->file_bytesleft ) {
-        bytes_read = file->file_bytesleft;
+    if (bytes_read >= bytes_left) {
+        bytes_read = bytes_left;
         *have_more = 0;
-    } else
+    } else {
         *have_more = 1;
-    file->file_bytesleft -= bytes_read;
-
+    }
+    
+    file->offset += bytes_read;
     return bytes_read;
 }
 
-
-
 /*
- * find a file or directory with name within the _dir_ directory.
- *
- * the return value will tell us what we find, it's a file or dir?
- * on 1 be dir, 2 be file, 0 be error. res will return the result.
- *
+ * Find a entry in the specified dir with name _dname_.
  */
-static int do_search_dir(struct fs_info *fs, struct dir_t *dir,
-			 char *name, uint32_t *file_len, void **res)
+static struct iso_dir_entry *iso_find_entry(char *dname, struct inode *inode)
 {
-    struct open_file_t *file;
+    block_t dir_block = *inode->data;
+    int i = 0, offset = 0;
+    char *de_name;
+    int de_name_len, de_len;
     struct iso_dir_entry *de;
     struct iso_dir_entry tmpde;
-    struct file xfile;
-
-    uint32_t offset = 0;  /* let's start it with the start */
-    uint32_t file_pos = 0;
-    char *de_name;
-    int de_len;
-    int de_name_len;
-    bool have_more;
-
-    file = allocate_file();
-    if ( !file )
-        return 0;
-
-    file->file_left = dir->dir_clust;
-    file->file_sector = dir->dir_lba;
-
-    xfile.fs = fs;
-    xfile.open_file = file;
-
-    iso_getfssec(&xfile, trackbuf, BufSafe, &have_more);
-    de = (struct iso_dir_entry *)trackbuf;
-
-    while ( file_pos < dir->dir_len ) {
-        int found = 0;
-
-        if ( (char *)de >= (char *)(trackbuf + TRACKBUF_SIZE) ) {
-            if ( !have_more )
-                return 0;
-
-            iso_getfssec(&xfile, trackbuf, BufSafe, &have_more);
-            offset = 0;
-        }
-
-        de = (struct iso_dir_entry *) (trackbuf + offset);
-
-        de_len = de->length;
-
-        if ( de_len == 0) {
-            offset = file_pos = (file_pos+ISO_SECTOR_SIZE) & ~(ISO_SECTOR_SIZE-1);
-            continue;
-        }
-
-
-        offset += de_len;
-
-        /* Make sure we have a full directory entry */
-        if ( offset >= TRACKBUF_SIZE ) {
-            int slop = TRACKBUF_SIZE - offset + de_len;
-            memcpy(&tmpde, de, slop);
-            offset &= TRACKBUF_SIZE - 1;
-            file->file_sector++;
-            if ( offset ) {
-                if ( !have_more )
-                    return 0;
-                iso_getfssec(&xfile, trackbuf, BufSafe, &have_more);
-                memcpy((void*)&tmpde + slop, trackbuf, offset);
-            }
-            de = &tmpde;
-        }
-
-        if ( de_len < 33 ) {
-            printf("Corrutped directory entry in sector %d\n", file->file_sector);
-            return 0;
-        }
-
-        de_name_len = de->name_len;
-        de_name = (char *)((void *)de + 0x21);
-
-
-        if ( (de_name_len == 1) && (*de_name == 0) ) {
-            found = iso_compare_names(".", &de_name_len, name);
-
-        } else if ( (de_name_len == 1) && (*de_name == 1) ) {
-            de_name_len = 2;
-            found = iso_compare_names("..", &de_name_len, name);
-
-        } else
-            found = iso_compare_names(de_name, &de_name_len, name);
-
-        if (found)
-            break;
-
-        file_pos += de_len;
-    }
-
-    if ( file_pos >= dir->dir_len )
-        return 0; /* not found */
-
-
-    if ( *(name+de_name_len) && (*(name+de_name_len) != '/' ) ) {
-        printf("Something wrong happened during searching file %s\n", name);
-
-        *res = NULL;
-        return 0;
-    }
-
-    if ( de->flags & 0x02 ) {
-        /* it's a directory */
-        dir = &CurrentDir;
-        dir->dir_lba = *(uint32_t *)de->extent;
-        dir->dir_len = *(uint32_t *)de->size;
-        dir->dir_clust = (dir->dir_len + ISO_SECTOR_SIZE - 1) >> ISO_SECTOR_SHIFT;
-
-        *file_len = dir->dir_len;
-        *res = dir;
-
-        /* we can close it now */
-        close_pvt(file);
-
-        /* Mark we got a directory */
-        return 1;
-    } else {
-        /* it's a file */
-        file->file_sector    = *(uint32_t *)de->extent;
-        file->file_bytesleft = *(uint32_t *)de->size;
-        file->file_left = (file->file_bytesleft + ISO_SECTOR_SIZE - 1) >> ISO_SECTOR_SHIFT;
-
-        *file_len = file->file_bytesleft;
-        *res = file;
-
-        /* Mark we got a file */
-        return 2;
+    struct cache_struct *cs = NULL;
+    
+    while (1) {
+	if (!cs) {
+	    if (++i > inode->blocks)
+		return NULL;
+	    cs = get_cache_block(this_fs->fs_dev, dir_block++);
+	    de = (struct iso_dir_entry *)cs->data;
+	    offset = 0;
+	}
+	de = (struct iso_dir_entry *)(cs->data + offset);
+	
+	de_len = de->length;
+	if (de_len == 0) {    /* move on to the next block */
+	    cs = NULL;
+	    continue;
+	}
+	offset += de_len;
+	
+	/* Make sure we have a full directory entry */
+	if (offset >= BLOCK_SIZE(this_fs)) {
+	    int slop = de_len + BLOCK_SIZE(this_fs) - offset;
+	    
+	    memcpy(&tmpde, de, slop);
+	    offset &= BLOCK_SIZE(this_fs) - 1;
+	    if (offset) {
+		if (++i > inode->blocks)
+		    return NULL;
+		cs = get_cache_block(this_fs->fs_dev, dir_block++);
+		memcpy((void *)&tmpde + slop, cs->data, offset);
+	    }
+	    de = &tmpde;
+	}
+	
+	if (de_len < 33) {
+	    printf("Corrupted directory entry in sector %u\n", 
+		   (uint32_t)(dir_block - 1));
+	    return NULL;
+	}
+	
+	de_name_len = de->name_len;
+	de_name = de->name;
+	/* Handling the special case ".' and '..' here */
+	if((de_name_len == 1) && (*de_name == 0)) {
+	    de_name = ".";
+	} else if ((de_name_len == 1) && (*de_name == 1)) {
+	    de_name ="..";
+	    de_name_len = 2;
+	}
+	if (iso_compare_name(de_name, de_name_len, dname))
+	    return de;
     }
 }
 
-
-/*
- * open a file
- *
- * searchdir_iso is a special entry point for ISOLINUX only. In addition
- * to the above, searchdir_iso passes a file flag mask in AL. This is
- * useful for searching for directories.
- *
- * well, it's not like the searchidr function in EXT fs or FAT fs; it also
- * can read a diretory.(Just thought of mine, liu)
- *
- */
-static void iso_searchdir(char *filename, struct file *file)
+static inline int get_inode_mode(uint8_t flags)
 {
-    struct open_file_t *open_file = NULL;
-    struct dir_t *dir;
-    uint32_t file_len = 0;
-    int ret;
-    void *res;
+    if (flags & 0x02)
+	return I_DIR;
+    else
+	return I_FILE;
+}
 
-    dir = &CurrentDir;
-    if ( *filename == '/' ) {
-        dir = &RootDir;
-        filename ++;
+static struct inode *iso_get_inode(struct iso_dir_entry *de)
+{
+    struct inode *inode = new_iso_inode();
+    
+    if (!inode)
+	return NULL;
+    inode->mode   = get_inode_mode(de->flags);
+    inode->size   = *(uint32_t *)de->size;
+    *inode->data  = *(uint32_t *)de->extent;
+    inode->blocks = (inode->size + BLOCK_SIZE(this_fs) - 1) 
+	>> this_fs->block_shift;
+    
+    return inode;
+}
+
+
+static struct inode *iso_iget_root(void)
+{
+    struct inode *inode = new_iso_inode();
+    struct iso_dir_entry *root = &ISO_SB(this_fs)->root;
+    
+    if (!inode) 
+	return NULL;
+    
+    inode->mode   = I_DIR;
+    inode->size   = *(uint32_t *)root->size;
+    *inode->data  = *(uint32_t *)root->extent;
+    inode->blocks = (inode->size + BLOCK_SIZE(this_fs) - 1)
+	>> this_fs->block_shift;
+    
+    return inode;
+}	
+
+static struct inode *iso_iget(char *dname, struct inode *parent)
+{
+    struct iso_dir_entry *de;
+    
+    de = iso_find_entry(dname, parent);
+    if (!de)
+	return NULL;
+    
+    return iso_get_inode(de);
+}
+
+/* Convert to lower case string */
+static void tolower_str(char *str)
+{
+	while (*str) {
+		if (*str >= 'A' && *str <= 'Z')
+			*str = *str + 0x20;
+		str++;
+	}
+}
+
+static struct dirent *iso_readdir(struct file *file)
+{
+    struct fs_info *fs = file->fs;
+    struct inode *inode = file->inode;
+    struct iso_dir_entry *de, tmpde;
+    struct dirent *dirent;
+    struct cache_struct *cs = NULL;
+    block_t block =  *file->inode->data + (file->offset >> fs->block_shift);
+    int offset = file->offset & (BLOCK_SIZE(fs) - 1);
+    int i = 0;
+    int de_len, de_name_len;
+    char *de_name;
+    
+    while (1) {
+	if (!cs) {
+	    if (++i > inode->blocks)
+		return NULL;
+	    cs = get_cache_block(fs->fs_dev, block++);
+	}
+	de = (struct iso_dir_entry *)(cs->data + offset);
+	
+	de_len = de->length;
+	if (de_len == 0) {    /* move on to the next block */
+	    cs = NULL;
+	    file->offset = (file->offset + BLOCK_SIZE(fs) - 1)
+		>> fs->block_shift;
+	    continue;
+	}
+	offset += de_len;
+	
+	/* Make sure we have a full directory entry */
+	if (offset >= BLOCK_SIZE(fs)) {
+	    int slop = de_len + BLOCK_SIZE(fs) - offset;
+	    
+	    memcpy(&tmpde, de, slop);
+	    offset &= BLOCK_SIZE(fs) - 1;
+	    if (offset) {
+		if (++i > inode->blocks)
+		    return NULL;
+		cs = get_cache_block(fs->fs_dev, block++);
+		memcpy((void *)&tmpde + slop, cs->data, offset);
+	    }
+	    de = &tmpde;
+	}
+	
+	if (de_len < 33) {
+	    printf("Corrupted directory entry in sector %u\n", 
+		   (uint32_t)(block - 1));
+	    return NULL;
+	}
+	
+	de_name_len = de->name_len;
+	de_name = de->name;
+	/* Handling the special case ".' and '..' here */
+	if((de_name_len == 1) && (*de_name == 0)) {
+	    de_name = ".";
+	} else if ((de_name_len == 1) && (*de_name == 1)) {
+	    de_name ="..";
+	    de_name_len = 2;
+	}
+	
+	break;
     }
-
-    while ( *filename ) {
-        ret = do_search_dir(file->fs, dir, filename, &file_len, &res);
-        if ( ret == 1 )
-            dir = (struct dir_t *)res;
-        else if ( ret == 2 )
-            break;
-        else
-            goto err;
-
-        /* find the end */
-        while ( *filename && (*filename != '/') )
-            filename ++;
-
-        /* skip the slash */
-        while ( *filename && (*filename == '/') )
-            filename++;
+    
+    if (!(dirent = malloc(sizeof(*dirent)))) {
+	malloc_error("dirent structure in iso_readdir");
+	return NULL;
     }
-
-    /* well , we need recheck it , becuase it can be a directory */
-    if ( ret == 2 ) {
-        open_file = (struct open_file_t *)res;
-        goto found;
-    } else {
-        open_file = allocate_file();
-        if ( !open_file )
-            goto err;
-
-        open_file->file_sector = dir->dir_lba;
-        open_file->file_bytesleft = dir->dir_len;
-        open_file->file_left = (dir->dir_len + ISO_SECTOR_SIZE - 1) >> ISO_SECTOR_SHIFT;
-        goto found;
-    }
- err:
-    close_pvt(open_file);
-    file_len = 0;
-    open_file = NULL;
-
- found:
-    file->file_len = file_len;
-    file->open_file = (void*)open_file;
-
-#if 0
-    if (open_file) {
-        printf("file bytesleft: %d\n", open_file->file_bytesleft);
-        printf("file sector   : %d\n", open_file->file_sector);
-        printf("file in sector: %d\n", open_file->file_in_sec);
-        printf("file offsector: %d\n", open_file->file_in_off);
-    }
-#endif
+    
+    dirent->d_ino = 0;           /* Inode number is invalid to ISO fs */
+    dirent->d_off = file->offset;
+    dirent->d_reclen = de_len;
+    dirent->d_type = get_inode_mode(de->flags);
+    iso_convert_name(dirent->d_name, de_name, de_name_len);
+    tolower_str(dirent->d_name);
+    
+    file->offset += de_len;  /* Update for next reading */
+    
+    return dirent;
 }
 
 /* Load the config file, return 1 if failed, or 0 */
 static int iso_load_config(void)
 {
-    char *config_name = "isolinux.cfg";
+    const char *config_file[] = {
+	"/boot/isolinux/isolinux.cfg", 
+	"/isolinux/isolinux.cfg"
+    };
     com32sys_t regs;
+    int i = 0;
+    char *p;
     
-    memset(&regs, 0, sizeof regs);
-    strcpy(ConfigName, config_name);
-    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
-    call16(core_open, &regs, &regs);
-
-    return !!(regs.eflags.l & EFLAGS_ZF);
+    for (; i < 2; i++) {
+	    memset(&regs, 0, sizeof regs);
+	    strcpy(ConfigName, config_file[i]);
+	    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
+	    call16(core_open, &regs, &regs);
+	    if (!(regs.eflags.l & EFLAGS_ZF))
+		break;
+    }
+    if (i == 2) {
+	printf("No config file found\n");
+	return 1;
+    }
+    
+    strcpy(ConfigName, "isolinux.cfg");
+    strcpy(CurrentDirName, config_file[i]);
+    p = strrchr(CurrentDirName, '/');
+    *p = '\0';
+    
+    return 0;
 }
 
 
 static int iso_fs_init(struct fs_info *fs)
 {
-    char *iso_dir;
-    char *boot_dir  = "/boot/isolinux";
-    char *isolinux_dir = "/isolinux";
-    int len;
-    int bi_pvd = 16;
-    struct file file;
-    struct open_file_t *open_file;
-    struct disk *disk = fs->fs_dev->disk;
-
-    block_shift = ISO_SECTOR_SHIFT - disk->sector_shift;
-    cdrom_read_sectors(disk, trackbuf, bi_pvd, 1);
-    CurrentDir.dir_lba = RootDir.dir_lba = *(uint32_t *)(trackbuf + 156 + 2);
-
-#ifdef DEBUG
-    printf("Root directory at LBA = 0x%x\n", RootDir.dir_lba);
-#endif
-
-    CurrentDir.dir_len = RootDir.dir_len = *(uint32_t*)(trackbuf + 156 + 10);
-    CurrentDir.dir_clust = RootDir.dir_clust = (RootDir.dir_len + ISO_SECTOR_SIZE - 1) >> ISO_SECTOR_SHIFT;
-
-    /*
-     * Look for an isolinux directory, and if found,
-     * make it the current directory instead of the
-     * root directory.
-     *
-     * Also copy the name of the directory to CurrrentDirName
-     */
-    *(uint16_t *)CurrentDirName = ROOT_DIR_WORD;
-
-    iso_dir = boot_dir;
-    file.fs = fs;
-    iso_searchdir(boot_dir, &file);         /* search for /boot/isolinux */
-    if ( !file.file_len ) {
-        iso_dir = isolinux_dir;
-        iso_searchdir(isolinux_dir, &file); /* search for /isolinux */
-        if ( !file.file_len ) {
-            printf("No isolinux directory found!\n");
-            return 0;
-        }
+    struct iso_sb_info *sbi;
+    
+    this_fs = fs;    
+        
+    sbi = malloc(sizeof(*sbi));
+    if (!sbi) {
+	malloc_error("iso_sb_info structure");
+	return 1;
     }
-
-    strcpy(CurrentDirName, iso_dir);
-    len = strlen(CurrentDirName);
-    CurrentDirName[len]    = '/';
-    CurrentDirName[len+1]  = '\0';
-
-    open_file = (struct open_file_t *)file.open_file;
-    CurrentDir.dir_len    = open_file->file_bytesleft;
-    CurrentDir.dir_clust  = open_file->file_left;
-    CurrentDir.dir_lba    = open_file->file_sector;
-    close_pvt(open_file);
-
-#ifdef DEBUG
-    printf("isolinux directory at LBA = 0x%x\n", CurrentDir.dir_lba);
-#endif
-
-    /* we do not use cache for now, so we can just return 0 */
-    return 0;
+    fs->fs_info = sbi;
+    
+    cdrom_read_blocks(fs->fs_dev->disk, trackbuf, 16, 1);
+    memcpy(&sbi->root, trackbuf + ROOT_DIR_OFFSET, sizeof(sbi->root));
+    
+    fs->block_shift = 11;
+    return fs->block_shift;
 }
 
 
 const struct fs_ops iso_fs_ops = {
     .fs_name       = "iso",
-    .fs_flags      = 0,
+    .fs_flags      = FS_USEMEM | FS_THISIND,
     .fs_init       = iso_fs_init,
-    .searchdir     = iso_searchdir,
+    .searchdir     = NULL, 
     .getfssec      = iso_getfssec,
     .close_file    = iso_close_file,
     .mangle_name   = iso_mangle_name,
     .unmangle_name = generic_unmangle_name,
-    .load_config   = iso_load_config
+    .load_config   = iso_load_config,
+    .iget_root     = iso_iget_root,
+    .iget_current  = NULL,
+    .iget          = iso_iget,
+    .readdir       = iso_readdir
 };

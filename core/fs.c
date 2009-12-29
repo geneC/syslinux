@@ -1,12 +1,13 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
-#include "fs.h"
-#include "cache.h"
+#include <fs.h>
+#include <cache.h>
 
 /* The currently mounted filesystem */
 struct fs_info *this_fs = NULL;
 static struct fs_info fs;
+struct inode *this_inode = NULL;
 
 /* Actual file structures (we don't have malloc yet...) */
 struct file files[MAX_OPEN];
@@ -20,7 +21,7 @@ static struct file *alloc_file(void)
     struct file *file = files;
 
     for (i = 0; i < MAX_OPEN; i++) {
-	if (!file->open_file)
+	if (!file->fs)
 	    return file;
 	file++;
     }
@@ -38,7 +39,7 @@ static inline void free_file(struct file *file)
 
 void _close_file(struct file *file)
 {
-    if (file->open_file)
+    if (file->fs)
 	file->fs->fs_ops->close_file(file);
     free_file(file);
 }
@@ -118,18 +119,25 @@ void getfssec(com32sys_t *regs)
 
 void searchdir(com32sys_t *regs)
 {
-    char *filename = (char *)MK_PTR(regs->ds, regs->edi.w[0]);;
+    char *name = MK_PTR(regs->ds, regs->edi.w[0]);
+    struct inode *inode;
+    struct inode *parent;
     struct file *file;
-        
+    char part[256];
+    char *p;
+    int symlink_count = 6;
+    
 #if 0
-    printf("filename: %s\n", filename);
+    printf("filename: %s\n", name);
 #endif
 
-    file = alloc_file();
-    
-    if (file) {
-	file->fs = this_fs;
-	file->fs->fs_ops->searchdir(filename, file);
+    if (!(file = alloc_file()))
+	goto err_no_close;
+    file->fs = this_fs;
+
+    /* if we have ->searchdir method, call it */
+    if (file->fs->fs_ops->searchdir) {
+	file->fs->fs_ops->searchdir(name, file);
 	
 	if (file->open_file) {
 	    regs->esi.w[0]  = file_to_handle(file);
@@ -137,9 +145,68 @@ void searchdir(com32sys_t *regs)
 	    regs->eflags.l &= ~EFLAGS_ZF;
 	    return;
 	}
+
+	goto err;
+    }
+
+
+    /* else, try the generic-path-lookup method */
+    if (*name == '/') {
+	inode = this_fs->fs_ops->iget_root();
+	while(*name == '/')
+	    name++;
+    } else {
+	inode = this_inode;
+    }
+    parent = inode;
+    
+    while (*name) {
+	p = part;
+	while(*name && *name != '/')
+	    *p++ = *name++;
+	*p = '\0';
+	inode = this_fs->fs_ops->iget(part, parent);
+	if (!inode)
+	    goto err;
+	if (inode->mode == I_SYMLINK) {
+	    if (!this_fs->fs_ops->follow_symlink || 
+		--symlink_count == 0               ||      /* limit check */
+		inode->size >= BLOCK_SIZE(this_fs))
+		goto err;
+	    name = this_fs->fs_ops->follow_symlink(inode, name);
+	    free_inode(inode);
+	    continue;
+	}
+
+	/* 
+	 * For the relative path searching used in FAT and ISO fs.
+	 */
+	if ((this_fs->fs_ops->fs_flags & FS_THISIND) && (this_inode != parent)){
+		if (this_inode)
+		    free_inode(this_inode);
+		this_inode = parent;
+	}
+	
+	if (parent != this_inode)
+	    free_inode(parent);
+	parent = inode;
+	if (! *name)
+	    break;
+	while(*name == '/')
+	    name++;
     }
     
-    /* failure... */
+    file->inode  = inode;
+    file->offset = 0;
+    
+    regs->esi.w[0]  = file_to_handle(file);
+    regs->eax.l     = inode->size;
+    regs->eflags.l &= ~EFLAGS_ZF;
+    return;
+    
+err:
+    _close_file(file);
+err_no_close:    
     regs->esi.w[0]  = 0;
     regs->eax.l     = 0;
     regs->eflags.l |= EFLAGS_ZF;
@@ -158,10 +225,12 @@ void close_file(com32sys_t *regs)
 
 /*
  * it will do:
+ *    initialize the memory management function;
  *    set up the vfs fs structure;
  *    initialize the device structure;
  *    invoke the fs-specific init function;
- *    finally, initialize the cache
+ *    initialize the cache if we need one;
+ *    finally, get the current inode for relative path looking.
  *
  */
 void fs_init(com32sys_t *regs)
@@ -176,6 +245,9 @@ void fs_init(com32sys_t *regs)
     /* ops is a ptr list for several fs_ops */
     const struct fs_ops **ops = (const struct fs_ops **)regs->eax.l;
     
+    /* Initialize malloc() */
+    mem_init();
+
     while ((blk_shift < 0) && *ops) {
 	/* set up the fs stucture */
 	fs.fs_ops = *ops;
@@ -202,7 +274,11 @@ void fs_init(com32sys_t *regs)
 		;
     }
     this_fs = &fs;
+
     /* initialize the cache */
     if (fs.fs_dev && fs.fs_dev->cache_data)
         cache_init(fs.fs_dev, blk_shift);
+
+    if (fs.fs_ops->iget_current)
+	this_inode = fs.fs_ops->iget_current();
 }

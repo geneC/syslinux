@@ -224,28 +224,26 @@ void parse_dhcp_options(void *option, int size, int filter)
 }
  
 /*
+ * parse_dhcp
  *
- ;
- ; parse_dhcp
- ;
- ; Parse a DHCP packet.  This includes dealing with "overloaded"
- ; option fields (see RFC 2132, section 9.3)
- ;
- ; This should fill in the following global variables, if the
- ; information is present:
- ;
- ; MyIP		- client IP address
- ; server_ip	- boot server IP address
- ; net_mask	- network mask
- ; gate_way	- default gateway router IP
- ; boot_file	- boot file name
- ; DNSServers	- DNS server IPs
- ; LocalDomain	- Local domain name
- ; MAC_len, MAC	- Client identifier, if MAC_len == 0
- ;
- ; This assumes the DHCP packet is in "trackbuf".
- ;
-*/
+ * Parse a DHCP packet.  This includes dealing with "overloaded"
+ * option fields (see RFC 2132, section 9.3)
+ *
+ * This should fill in the following global variables, if the
+ * information is present:
+ *
+ * MyIP		- client IP address
+ * server_ip	- boot server IP address
+ * net_mask	- network mask
+ * gate_way	- default gateway router IP
+ * boot_file	- boot file name
+ * DNSServers	- DNS server IPs
+ * LocalDomain	- Local domain name
+ * MAC_len, MAC	- Client identifier, if MAC_len == 0
+ *
+ * This assumes the DHCP packet is in "trackbuf".
+ *
+ */
 void parse_dhcp(int pkt_len)
 {
     struct bootp_t *dhcp = (struct bootp_t *)trackbuf;

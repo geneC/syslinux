@@ -899,7 +899,10 @@ comapi_getcwd:
 ;
 ; INT 22h AX=0020h	Open directory
 ;
-%if IS_SYSLINUX
+%if IS_PXELINUX
+comapi_opendir	equ comapi_err
+
+%else
 comapi_opendir:
 		mov es,P_ES
 		mov si,P_SI
@@ -911,21 +914,20 @@ comapi_opendir:
                 mov P_EAX,eax
 		clc
 		ret
-%else
-comapi_opendir	equ comapi_err
 %endif
 
 ;
 ; INT 22h AX=0021h	Read directory
 ;
-%if IS_SYSLINUX
+%if IS_PXELINUX
+comapi_readdir	equ comapi_err
+
+%else
 comapi_readdir:
 		mov esi,P_ESI       ; The address of DIR structure
 		pm_call readdir
 		mov P_EAX,eax       ; The address of newly read dirent structure
 		ret
-%else
-comapi_readdir	equ comapi_err
 %endif
 
 ;

@@ -6,7 +6,6 @@
 #include <stdbool.h>
 
 #define SECTOR_SHIFT     9
-#define SECTOR_SIZE      (1 << SECTOR_SHIFT)
 
 typedef uint64_t sector_t;
 typedef uint64_t block_t;
