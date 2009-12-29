@@ -49,7 +49,7 @@
  *	equivalent to -seg 0x2000 -file <loader>, used with WinNT's loaders
  *
  * cmldr=<loader>:
- *    used with Recovery Console of Windows NT/2K/XP.
+ *      used with Recovery Console of Windows NT/2K/XP.
  *      same as ntldr=<loader> & "cmdcons\0" written to memory address 0000:7C03
  *
  * freedos=<loader>:
@@ -735,7 +735,7 @@ int main(int argc, char *argv[])
 		 "         chain.c32 boot [<partition>] [options]\n"
 		 "Options: file=<loader>      load file, instead of boot sector\n"
 		 "         isolinux=<loader>  load another version of ISOLINUX\n"
-		 "         ntldr=<loader>     load Windows bootloaders: NTLDR, SETUPLDR, BOOTMGR\n"
+         "         ntldr=<loader>     load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n"
 		 "         cmldr=<loader>     load Recovery Console of Windows NT/2K/XP\n"
 		 "         freedos=<loader>   load FreeDOS kernel.sys\n"
 		 "         msdos=<loader>     load MS-DOS io.sys\n"
