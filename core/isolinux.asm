@@ -1016,6 +1016,7 @@ xint13:		mov byte [RetryCount],retry_count
 ; kaboom: write a message and bail out.  Wait for a user keypress,
 ;	  then do a hard reboot.
 ;
+		global kaboom
 disk_error:
 kaboom:
 		RESET_STACK_AND_SEGS AX
