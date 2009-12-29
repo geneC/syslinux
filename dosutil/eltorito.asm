@@ -71,10 +71,11 @@ DriveLetter	db	0			; |
 NumUnitsSupp	db	1			;-+
 
 DriverName	db	'El-Torito CD-ROM Device Driver',0
-ReqHdrLoc	dw	0,0			; 35h
-DriveNumber	db	0			; 39h
-XferAddr	dw	0,0			; 3ah
-Checksum	dw	-1,-1
+		align 4, db 0
+ReqHdrLoc	dd	0
+XferAddr	dd	0
+Checksum	dd	-1
+DriveNumber	db	0
 ReadBytes	db	0			;0 --> 2048 bytes/sector
 						;1 --> 1024 bytes/sector
 						;2 -->  512 bytes/sector
