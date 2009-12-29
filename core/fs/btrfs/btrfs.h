@@ -197,7 +197,7 @@ struct btrfs_chunk_map_item {
 };
 
 struct btrfs_chunk_map {
-	struct btrfs_chunk_map_item map[BTRFS_MAX_CHUNK_ENTRIES];
+	struct btrfs_chunk_map_item *map;
 	u32 map_length;
 	u32 cur_length;
 };

@@ -86,6 +86,14 @@ static void insert_map(struct btrfs_chunk_map_item *item)
 	int slot;
 	int i;
 
+	if (chunk_map.map == NULL) { /* first item */
+		chunk_map.map_length = BTRFS_MAX_CHUNK_ENTRIES;
+		chunk_map.map = (struct btrfs_chunk_map_item *)
+			malloc(chunk_map.map_length * sizeof(*chunk_map.map));
+		chunk_map.map[0] = *item;
+		chunk_map.cur_length = 1;
+		return;
+	}
 	ret = bin_search(chunk_map.map, sizeof(*item), item,
 			(cmp_func)btrfs_comp_chunk_map, 0,
 			chunk_map.cur_length, &slot);
