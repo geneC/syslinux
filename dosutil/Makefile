@@ -12,7 +12,9 @@ UPX     = upx
 NASM    = nasm
 NASMOPT = -O9999
 
-TARGETS = mdiskchk.com eltorito.sys
+WCTARGETS = mdiskchk.com
+NSTARGETS = eltorito.sys
+TARGETS   = $(WCTARGETS) $(NSTARGETS)
 
 %.obj: %.c
 	$(WCL) $(WCLOPT) -c -fo=$@ $<
@@ -43,7 +45,7 @@ tidy dist:
 clean: tidy
 
 spotless: clean
-	-rm -f *.com *.sys *~
+	-rm -f $(NSTARGETS) *~
 
 installer: all
 
