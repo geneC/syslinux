@@ -37,11 +37,6 @@ reset_config:
 %endif
 %endif
 
-		mov si,linuxauto_cmd		; Default command: "linux auto"
-		mov di,default_cmd
-                mov cx,linuxauto_len
-		rep movsb
-
 		mov di,KbdMap			; Default keymap 1:1
 		xor al,al
 		inc ch				; CX <- 256
@@ -53,7 +48,3 @@ mkkeymap:	stosb
 		mov [VKernelEnd],eax
 
 		ret
-
-		section .data
-linuxauto_cmd	db 'linux auto',0
-linuxauto_len   equ $-linuxauto_cmd

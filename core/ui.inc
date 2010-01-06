@@ -292,11 +292,26 @@ show_network_info:
 ; Jump here to run the default command line
 ;
 auto_boot:
+		cmp word [DefaultLevel],0	; No UI or DEFAULT?
+		jne .have_default
+		mov si,no_default_msg
+		call writestr
+		cmp word [NoEscape],0		; NOESCAPE but no DEFAULT?
+		jne kaboom			; If so, we're stuck!
+		jmp enter_command
+
+.have_default:
 		mov si,default_cmd
 		mov di,command_line
 		mov cx,(max_cmd_len+4) >> 2
 		rep movsd
 		jmp short load_kernel
+
+		section .data
+no_default_msg	db 'No DEFAULT or UI configuration directive found!'
+		db CR, LF, 0
+
+		section .text
 
 ;
 ; Jump here when the command line is completed

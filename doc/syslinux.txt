@@ -2,7 +2,7 @@
 
 		   A suite of bootloaders for Linux
 
-	 Copyright 1994-2009 H. Peter Anvin and contributors
+	 Copyright 1994-2010 H. Peter Anvin and contributors
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -90,10 +90,6 @@ For the DOS and Windows installers, the -m and -a options can be used
 on hard drives to write a Master Boot Record (MBR), and to mark the
 specific partition active.
 
-On boot time, by default, the kernel will be loaded from the image named
-LINUX on the boot floppy.  This default can be changed, see the section
-on the Syslinux config file.
-
 If the Shift or Alt keys are held down during boot, or the Caps or Scroll
 locks are set, Syslinux will display a LILO-style "boot:" prompt.  The
 user can then type a kernel file name followed by any kernel parameters.
@@ -140,14 +136,9 @@ DEFAULT kernel options...
         it will act just as if the entries after DEFAULT had been typed
         in at the "boot:" prompt.
 
-        If no configuration file is present, or no DEFAULT entry is
-        present in the config file, the default is "linux auto".
-
-	NOTE: Earlier versions of Syslinux used to automatically
-	append the string "auto" to whatever the user specified using
-	the DEFAULT command.  As of version 1.54, this is no longer
-	true, as it caused problems when using a shell as a substitute
-	for "init."  You may want to include this option manually.
+	If no configuration file is present, or no DEFAULT entry is
+        present in the config file, an error message is displayed and
+	the boot: prompt is shown.
 
 UI module options...
 	Selects a specific user interface module (typically menu.c32
