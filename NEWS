@@ -4,6 +4,12 @@ to all derivatives.
 
 Changes in 3.85:
 	* vesamenu.c32: unbreak the default "grey hole" background.
+	* We no longer have a built-in default of "linux auto".
+	  Instead, if no DEFAULT or UI statement is found, or the
+	  configuration file is missing entirely, we drop to the boot:
+	  prompt with an error message (if NOESCAPE is set, we stop
+	  with a "boot failed" message; this is also the case for
+	  PXELINUX if the configuration file is not found.)
 
 Changes in 3.84:
 	* SYSLINUX: make the DOS installer work for MS-DOS 7.x/8.x

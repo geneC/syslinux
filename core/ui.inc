@@ -1,7 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -295,11 +295,26 @@ show_network_info:
 ; Jump here to run the default command line
 ;
 auto_boot:
+		cmp word [DefaultLevel],0	; No UI or DEFAULT?
+		jne .have_default
+		mov si,no_default_msg
+		call writestr
+		cmp word [NoEscape],0		; NOESCAPE but no DEFAULT?
+		jne kaboom			; If so, we're stuck!
+		jmp enter_command
+
+.have_default:
 		mov si,default_cmd
 		mov di,command_line
 		mov cx,(max_cmd_len+4) >> 2
 		rep movsd
 		jmp short load_kernel
+
+		section .data16
+no_default_msg	db 'No DEFAULT or UI configuration directive found!'
+		db CR, LF, 0
+
+		section .text16
 
 ;
 ; Jump here when the command line is completed
