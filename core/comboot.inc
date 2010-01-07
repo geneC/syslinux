@@ -1038,6 +1038,9 @@ err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
 		alignb 4
 DOSErrTramp	resd	33		; Error trampolines
 
-		global ConfigName, CurrentDirName
+		global ConfigName
 ConfigName	resb	FILENAME_MAX
+%ifndef HAVE_CURRENTDIRNAME
+		global CurrentDirName
 CurrentDirName	resb	FILENAME_MAX
+%endif

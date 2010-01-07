@@ -354,9 +354,9 @@ int get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
  *
  * Returns the number of modified bytes in the boot file.
  */
-int patch_file_and_bootblock(int fd, int dirfd, int devfd)
+int patch_file_and_bootblock(int fd, const char *dir, int devfd)
 {
-    struct stat dirst;
+    struct stat dirst, xdst;
     struct hd_geometry geo;
     uint32_t *sectp;
     uint64_t totalbytes, totalsectors;
@@ -366,13 +366,38 @@ int patch_file_and_bootblock(int fd, int dirfd, int devfd)
     struct patch_area *patcharea;
     int i, dw, nptrs;
     uint32_t csum;
-    int secptroffset;
+    int secptroffset, diroffset, dirlen;
+    char *dirpath, *subpath;
 
-    if (fs_type == EXT2)
-	if (fstat(dirfd, &dirst)) {
-		perror("fstat dirfd");
-		exit(255);		/* This should never happen */
+    dirpath = realpath(dir, NULL);
+    if (!dirpath || stat(dir, &dirst)) {
+	perror("accessing install directory");
+	exit(255);		/* This should never happen */
+    }
+
+    if (lstat(dirpath, &xdst) ||
+	dirst.st_ino != xdst.st_ino ||
+	dirst.st_dev != xdst.st_dev) {
+	perror("realpath returned nonsense");
+	exit(255);
+    }
+
+    subpath = strchr(dirpath, '\0');
+    while (--subpath > dirpath) {
+	if (*subpath == '/') {
+	    *subpath = '\0';
+	    if (lstat(dirpath, &xdst) || dirst.st_dev != xdst.st_dev) {
+		subpath = strchr(subpath+1, '/');
+		if (!subpath)
+		    subpath = "/"; /* It's the root of the filesystem */
+		break;
+	    }
+	    *subpath = '/';
 	}
+    }
+
+    /* Now subpath should contain the path relative to the fs base */
+    dprintf("subpath = %s\n", subpath);
 
     totalbytes = get_size(devfd);
     get_geometry(devfd, totalbytes, &geo);
@@ -443,7 +468,6 @@ int patch_file_and_bootblock(int fd, int dirfd, int devfd)
     set_16(&patcharea->data_sectors, nsect - 2);	/* -2 for the ADVs */
     set_16(&patcharea->adv_sectors, 2);
     set_32(&patcharea->dwords, dw);
-    set_32(&patcharea->currentdir, dirst.st_ino);
 
     /* Set the sector pointers */
     secptroffset = get_16(&patcharea->secptroffset);
@@ -453,6 +477,16 @@ int patch_file_and_bootblock(int fd, int dirfd, int devfd)
     memset(wp, 0, nptrs * 4);
     while (nsect--)
 	set_32(wp++, *sectp++);
+
+    /* Poke in the base directory path */
+    diroffset = get_16(&patcharea->diroffset);
+    dirlen = get_16(&patcharea->dirlen);
+    if (dirlen <= strlen(subpath)) {
+	fprintf(stderr, "Subdirectory path too long... aborting install!\n");
+	exit(1);
+    }
+    strncpy((char *)boot_image + diroffset, subpath, dirlen);
+    free(dirpath);
 
     /* Now produce a checksum */
     set_32(&patcharea->checksum, 0);
@@ -729,7 +763,7 @@ int ext2_install_file(const char *path, int devfd, struct stat *rst)
     }
 
     /* Map the file, and patch the initial sector accordingly */
-    modbytes = patch_file_and_bootblock(fd, dirfd, devfd);
+    modbytes = patch_file_and_bootblock(fd, path, devfd);
 
     /* Write the patch area again - this relies on the file being
        overwritten in place! */
@@ -771,7 +805,7 @@ bail:
    since the cow feature of btrfs will move the extlinux.sys every where */
 int btrfs_install_file(const char *path, int devfd, struct stat *rst)
 {
-    patch_file_and_bootblock(-1, -1, devfd);
+    patch_file_and_bootblock(-1, path, devfd);
     if (xpwrite(devfd, boot_image, boot_image_len, BTRFS_EXTLINUX_OFFSET)
 		!= boot_image_len) {
 	perror("writing bootblock");

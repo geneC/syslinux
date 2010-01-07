@@ -255,7 +255,6 @@ int syslinux_patch(const uint32_t * sectors, int nsectors,
     set_16_sl(&patcharea->data_sectors, nsect);	/* Not including ADVs */
     set_16_sl(&patcharea->adv_sectors, 0);	/* ADVs not supported yet */
     set_32_sl(&patcharea->dwords, dw);
-    set_32_sl(&patcharea->currentdir, 0);
 
     /* Set the sector pointers */
     wp = (uint32_t *) ((char *)syslinux_ldlinux +

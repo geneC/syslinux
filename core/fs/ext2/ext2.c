@@ -294,14 +294,14 @@ static struct inode *ext2_iget_by_inr(uint32_t inr)
         return inode;
 }
 
-static struct inode *ext2_iget_root()
+static struct inode *ext2_iget_root(void)
 {
         return ext2_iget_by_inr(EXT2_ROOT_INO);
 }
 
-static struct inode *ext2_iget_current()
+static struct inode *ext2_iget_current(void)
 {
-    extern int CurrentDir;
+    static int CurrentDir = 2;
     
     return ext2_iget_by_inr(CurrentDir);
 }

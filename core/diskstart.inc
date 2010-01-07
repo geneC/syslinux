@@ -1,7 +1,7 @@
 ; -----------------------------------------------------------------------
 ;
 ;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -471,6 +471,7 @@ bootsignature	dw kaboom.again-bootsec
 ;  Start of LDLINUX.SYS
 ; ===========================================================================
 
+LDLINUX_SYS equ	0x7e00
 ldlinux_sys:
 
 syslinux_banner	db 0Dh, 0Ah
@@ -491,11 +492,21 @@ ADVSectors	dw 0		; Additional sectors for ADVs
 LDLDwords	dd 0		; Total dwords starting at ldlinux_sys,
 CheckSum	dd 0		; Checksum starting at ldlinux_sys
 				; value = LDLINUX_MAGIC - [sum of dwords]
-		global CurrentDir
-CurrentDir	dd 2		; "Current" directory inode number (EXTLINUX)
-SecPtrOffset	dw SectorPtrs - ldlinux_sys
+CurrentDirPtr	dw CurrentDirName-LDLINUX_SYS	; Current directory name string
+CurrentDirLen	dw FILENAME_MAX
+SecPtrOffset	dw SectorPtrs - LDLINUX_SYS
 SecPtrCnt	dw (SectorPtrsEnd - SectorPtrs) >> 2
 
+;
+; Installer pokes the base directory here, needs to be in .text16 so the pointer
+; address can be calculated by the assembler.
+;
+%define HAVE_CURRENTDIRNAME
+		section .data16
+		global CurrentDirName
+CurrentDirName	times FILENAME_MAX db 0
+
+		section .text16
 ldlinux_ent:
 ;
 ; Note that some BIOSes are buggy and run the boot sector at 07C0:0000
