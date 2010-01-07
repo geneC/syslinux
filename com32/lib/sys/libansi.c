@@ -46,18 +46,21 @@ void display_cursor(bool status)
 	}
 }
 
-void clear_end_of_line() {
+void clear_end_of_line(void)
+{
 	fputs(CSI "0K", stdout);
 }
 
-void move_cursor_left(int count) {
+void move_cursor_left(int count)
+{
 	char buffer[10];
 	memset(buffer,0,sizeof(buffer));
 	sprintf(buffer,CSI "%dD",count);
 	fputs(buffer, stdout);
 }
 
-void move_cursor_right(int count) {
+void move_cursor_right(int count)
+{
 	char buffer[10];
 	memset(buffer,0,sizeof(buffer));
 	sprintf(buffer, CSI "%dC", count);
@@ -71,38 +74,45 @@ void set_cursor_blink(bool status) {
 		fputs("\033[0m",stdout);
 }
 
-void clear_line() {
+void clear_line(void)
+{
 	fputs(CSI "2K", stdout);
 }
 
-void clear_beginning_of_line() {
+void clear_beginning_of_line(void)
+{
 	fputs(CSI "1K", stdout);
 }
 
-void move_cursor_to_column(int count) {
+void move_cursor_to_column(int count)
+{
 	char buffer[10];
         memset(buffer,0,sizeof(buffer));
 	sprintf(buffer, CSI "%dG", count);
 	fputs(buffer, stdout);
 }
 
-void move_cursor_to_next_line() {
+void move_cursor_to_next_line(void)
+{
 	fputs("\033e", stdout);
 }
 
-void disable_utf8() {
+void disable_utf8(void)
+{
 	fputs("\033%@", stdout);
 }
 
-void set_g1_special_char(){
+void set_g1_special_char(void){
 	fputs("\033)0", stdout);
 }
 
-void set_us_g0_charset() {
+void set_us_g0_charset(void)
+{
 	fputs("\033(B\1#0", stdout);
 }
 
-void clear_entire_screen() {
+void clear_entire_screen(void)
+{
 	fputs(CSI "2J", stdout);
 }
 
@@ -186,7 +196,7 @@ void cls(void)
     cprint_vga2ansi('0', '0');
 }
 
-void reset_colors()
+void reset_colors(void)
 {
     csprint(CSI "1D", 0x07);
 }

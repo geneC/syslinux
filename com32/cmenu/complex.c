@@ -244,7 +244,7 @@ t_handler_return checkbox_handler(t_menusystem * ms, t_menuitem * mi)
     return rv;
 }
 
-int main()
+int main(void)
 {
     t_menuitem *curr;
     char cmd[160];
