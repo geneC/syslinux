@@ -100,7 +100,7 @@ local void make_crc_table()
 
     /* make exclusive-or pattern from polynomial (0xedb88320UL) */
     poly = 0UL;
-    for (n = 0; n < sizeof(p)/sizeof(unsigned char); n++)
+    for (n = 0; n < (int)(sizeof(p)/sizeof(unsigned char)); n++)
         poly |= 1UL << (31 - p[n]);
 
     /* generate a crc for every 8-bit value */
