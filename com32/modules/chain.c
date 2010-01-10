@@ -781,24 +781,20 @@ int main(int argc, char *argv[])
     regs.ebx.b[0] = regs.edx.b[0] = drive;
 
     whichpart = 0;		/* Default */
-
-    /* grldr of Grub4dos wants the partition number in DH:
-	 0xff: whole drive (default)
-	 0-3:  primary partitions
-	 4-*:  logical partitions
-     */
-    regs.edx.b[1] = 0xff;
-
-    if (partition) {
+    if (partition)
 	whichpart = strtoul(partition, NULL, 0);
-
-	/* grldr of Grub4dos wants the partiton number in DH. */
-	regs.edx.b[1] = whichpart -1;
-    }
 
     if (!(drive & 0x80) && whichpart) {
 	error("Warning: Partitions of floppy devices may not work\n");
     }
+
+    /* 
+     * grldr of Grub4dos wants the partition number in DH:
+     * -1:   whole drive (default)
+     * 0-3:  primary partitions
+     * 4-*:  logical partitions
+     */
+    regs.edx.b[1] = whichpart-1;
 
     /* Get the disk geometry and disk access setup */
     if (get_disk_params(drive)) {
