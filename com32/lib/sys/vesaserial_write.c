@@ -38,7 +38,7 @@
 #include <console.h>
 #include "file.h"
 
-extern int __vesacon_open(void);
+extern int __vesacon_open(struct file_info *);
 extern int __vesacon_close(struct file_info *);
 extern ssize_t __vesacon_write(struct file_info *, const void *, size_t);
 extern ssize_t __xserial_write(struct file_info *, const void *, size_t);
