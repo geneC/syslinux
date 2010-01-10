@@ -3,7 +3,7 @@ include $(topdir)/MCONFIG
 
 OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libfat -I../libinstaller
-CFLAGS	 = -W -Wall -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
+CFLAGS	 = $(GCCWARN) -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = -s
 
 SRCS     = syslinux.c \

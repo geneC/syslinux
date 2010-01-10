@@ -91,7 +91,7 @@ memdisk: memdisk16.bin memdisk32.bin postprocess.pl
 	$(PERL) postprocess.pl $@ memdisk16.bin memdisk32.bin
 
 e820test: e820test.c e820func.c msetup.c
-	$(CC) -m32 -g -W -Wall -DTEST -o $@ $^
+	$(CC) -m32 -g $(GCCWARN) -DTEST -o $@ $^
 
 # This file contains the version number, so add a dependency for it
 setup.s: ../version

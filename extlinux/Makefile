@@ -19,7 +19,7 @@ include $(topdir)/MCONFIG
 
 OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libinstaller
-CFLAGS	 = -W -Wall -Wno-sign-compare -D_FILE_OFFSET_BITS=64 \
+CFLAGS	 = $(GCCWARN) -Wno-sign-compare -D_FILE_OFFSET_BITS=64 \
 	   $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = # -s
 
