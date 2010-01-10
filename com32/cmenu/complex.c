@@ -54,7 +54,7 @@ char username[12];		// Name of user currently using the system
 
 /* End globals */
 
-TIMEOUTCODE ontimeout()
+TIMEOUTCODE ontimeout(void)
 {
     beep();
     return CODE_WAIT;

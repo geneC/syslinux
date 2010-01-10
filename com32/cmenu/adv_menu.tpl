@@ -183,12 +183,12 @@ TIMEOUTCODE timeout(const char *cmd)
   }
 }
 
-TIMEOUTCODE ontimeout()
+TIMEOUTCODE ontimeout(void)
 {
    return timeout(timeoutcmd);
 }
 
-TIMEOUTCODE ontotaltimeout()
+TIMEOUTCODE ontotaltimeout(void)
 {
    return timeout(totaltimeoutcmd);
 }
