@@ -21,7 +21,7 @@ int64_t __moddi3(int64_t num, int64_t den)
 	minus ^= 1;
     }
 
-    (void)__udivmoddi4(num, den, &v);
+    (void)__udivmoddi4(num, den, (uint64_t *)&v);
     if (minus)
 	v = -v;
 
