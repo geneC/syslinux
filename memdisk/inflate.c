@@ -998,7 +998,7 @@ static void makecrc(void)
 /*
  * Do the uncompression!
  */
-int gunzip()
+int gunzip(void)
 {
     int res;
 
