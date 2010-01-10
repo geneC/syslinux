@@ -782,8 +782,19 @@ int main(int argc, char *argv[])
 
     whichpart = 0;		/* Default */
 
-    if (partition)
+    /* grldr of Grub4dos wants the partition number in DH:
+	 0xff: whole drive (default)
+	 0-3:  primary partitions
+	 4-*:  logical partitions
+     */
+    regs.edx.b[1] = 0xff;
+
+    if (partition) {
 	whichpart = strtoul(partition, NULL, 0);
+
+	/* grldr of Grub4dos wants the partiton number in DH. */
+	regs.edx.b[1] = whichpart -1;
+    }
 
     if (!(drive & 0x80) && whichpart) {
 	error("Warning: Partitions of floppy devices may not work\n");
