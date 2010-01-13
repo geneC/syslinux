@@ -471,7 +471,7 @@ bootsignature	dw kaboom.again-bootsec
 ;  Start of LDLINUX.SYS
 ; ===========================================================================
 
-LDLINUX_SYS equ	0x7e00
+LDLINUX_SYS	equ ($-$$)+TEXT_START
 ldlinux_sys:
 
 syslinux_banner	db 0Dh, 0Ah
@@ -486,6 +486,9 @@ ldlinux_magic	dd LDLINUX_MAGIC
 ; This area is patched by the installer.  It is found by looking for
 ; LDLINUX_MAGIC, plus 8 bytes.
 ;
+SUBVOL_MAX	equ 256
+CURRENTDIR_MAX	equ FILENAME_MAX
+
 patch_area:
 DataSectors	dw 0		; Number of sectors (not including bootsec)
 ADVSectors	dw 0		; Additional sectors for ADVs
@@ -493,11 +496,22 @@ LDLDwords	dd 0		; Total dwords starting at ldlinux_sys,
 CheckSum	dd 0		; Checksum starting at ldlinux_sys
 				; value = LDLINUX_MAGIC - [sum of dwords]
 CurrentDirPtr	dw CurrentDirName-LDLINUX_SYS	; Current directory name string
-CurrentDirLen	dw FILENAME_MAX
-SubvolPtr	dw SubvolName - LDLINUX_SYS
-SubvolLen	dw 64		; Should be enough
-SecPtrOffset	dw SectorPtrs - LDLINUX_SYS
+CurrentDirLen	dw CURRENTDIR_MAX
+SubvolPtr	dw SubvolName-LDLINUX_SYS
+SubvolLen	dw SUBVOL_MAX
+SecPtrOffset	dw SectorPtrs-LDLINUX_SYS
 SecPtrCnt	dw (SectorPtrsEnd - SectorPtrs) >> 2
+
+;
+; Installer pokes the base directory here.  This is in .data16 so it
+; isn't actually located in the first sector.
+;
+%define HAVE_CURRENTDIRNAME
+		section .data16
+		global CurrentDirName, SubvolName
+CurrentDirName	times CURRENTDIR_MAX db 0
+SubvolName	times SUBVOL_MAX db 0
+		section .init
 
 ldlinux_ent:
 ;
@@ -540,7 +554,7 @@ BIOSName	resw 1
 ;
 load_rest:
 		lea esi,[SectorPtrs]
-		mov ebx,7C00h+2*SECTOR_SIZE	; Where we start loading
+		mov ebx,TEXT_START+2*SECTOR_SIZE ; Where we start loading
 		mov cx,[DataSectors]
 		dec cx				; Minus this sector
 
@@ -683,7 +697,7 @@ rl_checkpt_off	equ ($-$$)
 ; Sector pointers
 		alignz 4
 MaxInitDataSize	equ 96 << 10
-MaxLMA		equ 0x7c00+SECTOR_SIZE+MaxInitDataSize
+MaxLMA		equ TEXT_START+SECTOR_SIZE+MaxInitDataSize
 SectorPtrs	times MaxInitDataSize >> SECTOR_SHIFT dd 0
 SectorPtrsEnd	equ $
 
@@ -691,15 +705,6 @@ SectorPtrsEnd	equ $
 ;  End of code and data that have to be in the first sector
 ; ----------------------------------------------------------------------------
 
-;
-; Installer pokes the base directory here, needs to be in .text16 so the pointer
-; address can be calculated by the assembler.
-;
-%define HAVE_CURRENTDIRNAME
-		section .data16
-		global CurrentDirName, SubvolName
-CurrentDirName	times FILENAME_MAX db 0
-SubvolName	times 64 db 0
 		section .text16
 all_read:
 ;

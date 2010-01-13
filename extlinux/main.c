@@ -140,7 +140,8 @@ static const char short_options[] = "iUuzS:H:rvho:O";
    boot image, the boot sector is from 0~512, the boot image starts at 2K */
 #define BTRFS_EXTLINUX_OFFSET (2*1024)
 #define BTRFS_SUBVOL_OPT "subvol="
-static char subvol[64];
+#define BTRFS_SUBVOL_MAX 256	/* By btrfs specification */
+static char subvol[BTRFS_SUBVOL_MAX];
 /*
  * Boot block
  */
