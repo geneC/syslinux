@@ -35,6 +35,7 @@ typedef u64 __le64;
 
 #define BTRFS_DEV_ITEM_KEY	216
 #define BTRFS_CHUNK_ITEM_KEY	228
+#define BTRFS_ROOT_REF_KEY	156
 #define BTRFS_ROOT_ITEM_KEY	132
 #define BTRFS_EXTENT_DATA_KEY	108
 #define BTRFS_DIR_ITEM_KEY	84
@@ -270,6 +271,12 @@ struct btrfs_file_extent_item {
 	__le64 disk_num_bytes;
 	__le64 offset;
 	__le64 num_bytes;
+} __attribute__ ((__packed__));
+
+struct btrfs_root_ref {
+	__le64 dirid;
+	__le64 sequence;
+	__le16 name_len;
 } __attribute__ ((__packed__));
 
 #endif

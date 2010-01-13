@@ -89,6 +89,8 @@ struct patch_area {
     uint32_t checksum;
     uint16_t diroffset;
     uint16_t dirlen;
+    uint16_t subvoloffset;
+    uint16_t subvollen;
     uint16_t secptroffset;
     uint16_t secptrcnt;
 };

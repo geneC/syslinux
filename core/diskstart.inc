@@ -494,19 +494,11 @@ CheckSum	dd 0		; Checksum starting at ldlinux_sys
 				; value = LDLINUX_MAGIC - [sum of dwords]
 CurrentDirPtr	dw CurrentDirName-LDLINUX_SYS	; Current directory name string
 CurrentDirLen	dw FILENAME_MAX
+SubvolPtr	dw SubvolName - LDLINUX_SYS
+SubvolLen	dw 64		; Should be enough
 SecPtrOffset	dw SectorPtrs - LDLINUX_SYS
 SecPtrCnt	dw (SectorPtrsEnd - SectorPtrs) >> 2
 
-;
-; Installer pokes the base directory here, needs to be in .text16 so the pointer
-; address can be calculated by the assembler.
-;
-%define HAVE_CURRENTDIRNAME
-		section .data16
-		global CurrentDirName
-CurrentDirName	times FILENAME_MAX db 0
-
-		section .text16
 ldlinux_ent:
 ;
 ; Note that some BIOSes are buggy and run the boot sector at 07C0:0000
@@ -699,6 +691,15 @@ SectorPtrsEnd	equ $
 ;  End of code and data that have to be in the first sector
 ; ----------------------------------------------------------------------------
 
+;
+; Installer pokes the base directory here, needs to be in .text16 so the pointer
+; address can be calculated by the assembler.
+;
+%define HAVE_CURRENTDIRNAME
+		section .data16
+		global CurrentDirName, SubvolName
+CurrentDirName	times FILENAME_MAX db 0
+SubvolName	times 64 db 0
 		section .text16
 all_read:
 ;

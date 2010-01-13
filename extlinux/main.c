@@ -139,6 +139,8 @@ static const char short_options[] = "iUuzS:H:rvho:O";
 /* the btrfs partition first 64K blank area is used to store boot sector and
    boot image, the boot sector is from 0~512, the boot image starts at 2K */
 #define BTRFS_EXTLINUX_OFFSET (2*1024)
+#define BTRFS_SUBVOL_OPT "subvol="
+static char subvol[64];
 /*
  * Boot block
  */
@@ -366,7 +368,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     struct patch_area *patcharea;
     int i, dw, nptrs;
     uint32_t csum;
-    int secptroffset, diroffset, dirlen;
+    int secptroffset, diroffset, dirlen, subvoloffset, subvollen;
     char *dirpath, *subpath;
 
     dirpath = realpath(dir, NULL);
@@ -487,6 +489,16 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     }
     strncpy((char *)boot_image + diroffset, subpath, dirlen);
     free(dirpath);
+    /* write subvol info if we have */
+    if (*subvol) {
+	subvoloffset = get_16(&patcharea->subvoloffset);
+	subvollen = get_16(&patcharea->subvollen);
+	if (subvollen <= strlen(subvol)) {
+	fprintf(stderr, "Subvol name too long... aborting install!\n");
+	exit(1);
+	}
+	strncpy((char *)boot_image + subvoloffset, subvol, subvollen);
+    }
 
     /* Now produce a checksum */
     set_32(&patcharea->checksum, 0);
@@ -888,8 +900,22 @@ static const char *find_device(const char *mtab_file, dev_t dev)
 	case BTRFS:
 		if (!strcmp(mnt->mnt_type, "btrfs") &&
 		    !stat(mnt->mnt_dir, &dst) &&
-		    dst.st_dev == dev)
-		    done = true;
+		    dst.st_dev == dev) {
+		    char *opt = strstr(mnt->mnt_opts, BTRFS_SUBVOL_OPT);
+
+		    if (opt) {
+			if (!subvol[0]) {
+			    char *tmp;
+
+			    strcpy(subvol, opt + sizeof(BTRFS_SUBVOL_OPT) - 1);
+			    tmp = strchr(subvol, 32);
+			    if (tmp)
+				*tmp = '\0';
+			}
+			break; /* should break and let upper layer try again */
+		    } else
+			done = true;
+		}
 		break;
 	case EXT2:
 		if ((!strcmp(mnt->mnt_type, "ext2") ||
@@ -943,10 +969,24 @@ static const char *get_devname(const char *path)
 
 #else
 
-    devname = find_device("/proc/mounts", st.st_dev);
+    /* check /etc/mtab first, since btrfs subvol info is only in here */
+    devname = find_device("/etc/mtab", st.st_dev);
+    if (subvol[0] && !devname) { /* we just find it is a btrfs subvol */
+	char parent[256];
+	char *tmp;
+
+	strcpy(parent, path);
+	tmp = strrchr(parent, '/');
+	if (tmp) {
+	    *tmp = '\0';
+	    fprintf(stderr, "%s is subvol, try its parent dir %s\n", path, parent);
+	    devname = get_devname(parent);
+	} else
+	    devname = NULL;
+    }
     if (!devname) {
-	/* Didn't find it in /proc/mounts, try /etc/mtab */
-	devname = find_device("/etc/mtab", st.st_dev);
+	/* Didn't find it in /etc/mtab, try /proc/mounts */
+	devname = find_device("/proc/mounts", st.st_dev);
     }
     if (!devname) {
 	fprintf(stderr, "%s: cannot find device for path %s\n", program, path);

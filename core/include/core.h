@@ -8,6 +8,7 @@ extern char core_xfer_buf[65536];
 extern char core_cache_buf[65536];
 extern char trackbuf[];
 extern char CurrentDirName[];
+extern char SubvolName[];
 extern char ConfigName[];
 extern char KernelName[];
 

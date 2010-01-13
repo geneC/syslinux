@@ -266,6 +266,21 @@ static int btrfs_comp_keys(struct btrfs_disk_key *k1, struct btrfs_disk_key *k2)
 	return 0;
 }
 
+/* compare keys but ignore offset, is useful to enumerate all same kind keys */
+static int btrfs_comp_keys_type(struct btrfs_disk_key *k1,
+					struct btrfs_disk_key *k2)
+{
+	if (k1->objectid > k2->objectid)
+		return 1;
+	if (k1->objectid < k2->objectid)
+		return -1;
+	if (k1->type > k2->type)
+		return 1;
+	if (k1->type < k2->type)
+		return -1;
+	return 0;
+}
+
 /* seach tree directly on disk ... */
 static int search_tree(u64 loffset, struct btrfs_disk_key *key,
 				struct btrfs_path *path)
@@ -394,8 +409,8 @@ static void btrfs_read_chunk_tree(void)
 		search_tree(sb.chunk_root, &search_key, &path);
 		do {
 			do {
-				if (path.item.key.objectid !=
-					BTRFS_FIRST_CHUNK_TREE_OBJECTID)
+				if (btrfs_comp_keys_type(&search_key,
+							&path.item.key))
 					break;
 				chunk = (struct btrfs_chunk *)(path.data);
 				/* insert to mapping table, ignore stripes */
@@ -405,8 +420,7 @@ static void btrfs_read_chunk_tree(void)
 				item.physical = chunk->stripe.offset;
 				insert_map(&item);
 			} while (!next_slot(&search_key, &path));
-			if (path.item.key.objectid !=
-				BTRFS_FIRST_CHUNK_TREE_OBJECTID)
+			if (btrfs_comp_keys_type(&search_key, &path.item.key))
 				break;
 		} while (!next_leaf(&search_key, &path));
 	}
@@ -417,13 +431,16 @@ static inline u64 btrfs_name_hash(const char *name, int len)
 	return btrfs_crc32c((u32)~1, name, len);
 }
 
-/* search a file with full path in fs_tree, do not support ../ ./ style path */
-static int btrfs_search_fs_tree(const char *fullpath, u64 *offset,
+/* search a file with full path or relative path */
+static int btrfs_search_fs_tree(const char *fpath, u64 *offset,
 						u64 *size, u8 *type)
 {
 	char name[256];
 	char *tmp = name;
-	u64 objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
+	/* this can be used as cwd during the file searching */
+	static u64 objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
+	static u8 level; /* dir level */
+	static u64 objs[16]; /* history for ../ operation */
 	int ret;
 	struct btrfs_disk_key search_key;
 	struct btrfs_path path;
@@ -431,16 +448,26 @@ static int btrfs_search_fs_tree(const char *fullpath, u64 *offset,
 	struct btrfs_inode_item inode_item;
 	struct btrfs_file_extent_item extent_item;
 
+	if (*fpath == '/' || *fpath == '\0') { /* full or null path */
+		objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
+		level = 0;
+		objs[level] = objectid;
+	}
 	*tmp = '\0';
 	while (1) {
-		char c = *(fullpath++);
+		char c = *(fpath++);
 
 		*(tmp++) = c;
 		if (!c)
 			break;
 		if (c == '/') {
 			*(tmp-1) = '\0';
-			if (strlen(name)) {/* a "real" dir */
+			if (!strcmp(name, "..")) {
+				if (level)
+					level--;
+				objectid = objs[level];
+			} else if (strlen(name) && strcmp(name, ".")) {
+				/* a "real" dir */
 				search_key.objectid = objectid;
 				search_key.type = BTRFS_DIR_ITEM_KEY;
 				search_key.offset =
@@ -456,6 +483,12 @@ static int btrfs_search_fs_tree(const char *fullpath, u64 *offset,
 					return -1;
 				}
 				objectid = dir_item.location.objectid;
+				level++;
+				if (level >= 16) {
+					printf("too many dir levels(>16)\n");
+					return -1;
+				}
+				objs[level] = objectid;
 			}
 			tmp = name;
 			*tmp = '\0';
@@ -531,6 +564,16 @@ static void btrfs_close_file(struct file *file)
     close_pvt(file->open_file);
 }
 
+/* set the cwd to the global Path in patcharea */
+static void btrfs_set_cwd(void)
+{
+	u64 tmp;
+	char path[FILENAME_MAX];
+
+	sprintf(path, "%s/", CurrentDirName);
+	btrfs_search_fs_tree(path, &tmp, &tmp, (u8 *)&tmp);
+}
+
 static void btrfs_searchdir(char *filename, struct file *file)
 {
 	struct open_file_t *open_file;
@@ -563,6 +606,8 @@ static void btrfs_searchdir(char *filename, struct file *file)
 		}
 		break;
 	} while (1);
+	/* restore the cwd, since the above search may change dir */
+	btrfs_set_cwd();
 }
 
 /* Load the config file, return 1 if failed, or 0 */
@@ -572,7 +617,6 @@ static int btrfs_load_config(void)
     com32sys_t regs;
 
     strcpy(ConfigName, config_name);
-    *(uint16_t *)CurrentDirName = ROOT_DIR_WORD;
 
     memset(&regs, 0, sizeof regs);
     regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
@@ -615,9 +659,42 @@ static void btrfs_get_fs_tree(void)
 	struct btrfs_disk_key search_key;
 	struct btrfs_path path;
 	struct btrfs_root_item *tree;
+	bool subvol_ok = false;
 
+	/* check if subvol is filled by installer */
+	if (*SubvolName) {
+		search_key.objectid = BTRFS_FS_TREE_OBJECTID;
+		search_key.type = BTRFS_ROOT_REF_KEY;
+		search_key.offset = 0;
+		clear_path(&path);
+		if (search_tree(sb.root, &search_key, &path))
+			next_slot(&search_key, &path);
+		do {
+			do {
+				struct btrfs_root_ref *ref;
+
+				if (btrfs_comp_keys_type(&search_key,
+							&path.item.key))
+					break;
+				ref = (struct btrfs_root_ref *)path.data;
+				if (!strcmp((char*)(ref + 1), SubvolName)) {
+					subvol_ok = true;
+					break;
+				}
+			} while (!next_slot(&search_key, &path));
+			if (subvol_ok)
+				break;
+			if (btrfs_comp_keys_type(&search_key, &path.item.key))
+				break;
+		} while (!next_leaf(&search_key, &path));
+		if (!subvol_ok) /* should be impossible */
+			printf("no subvol found!\n");
+	}
 	/* find fs_tree from tree_root */
-	search_key.objectid = BTRFS_FS_TREE_OBJECTID;
+	if (subvol_ok)
+		search_key.objectid = path.item.key.offset;
+	else /* "default" volume */
+		search_key.objectid = BTRFS_FS_TREE_OBJECTID;
 	search_key.type = BTRFS_ROOT_ITEM_KEY;
 	search_key.offset = -1;
 	clear_path(&path);
@@ -638,6 +715,7 @@ static int btrfs_fs_init(struct fs_info *_fs)
 	btrfs_read_sys_chunk_array();
 	btrfs_read_chunk_tree();
 	btrfs_get_fs_tree();
+	btrfs_set_cwd();
 	cache_ready = 1;
 	return BTRFS_BLOCK_SHIFT;/* to determine cache size */
 }
