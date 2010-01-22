@@ -742,7 +742,9 @@ expand_super:
 		movzx dx,byte [DriveNumber]
 		; DH = 0: we are boot from disk not CDROM
 		mov ecx,[bsHidden]
-		mov ebx,[bsHidden+4]
+		; Reserved for upper 32 bits of partition offset...
+		; mov ebx,[bsHidden+4]
+		xor ebx,ebx
 		mov si,[bsHeads]
 		mov di,[bsSecPerTrack]
 		pm_call fs_init

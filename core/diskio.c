@@ -254,14 +254,20 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
 
     if (cdrom || (!(oreg.eflags.l & EFLAGS_CF) &&
 		  oreg.ebx.w[0] == 0xaa55 && (oreg.ecx.b[0] & 1))) {
+	ebios = true;
+
 	/* Query EBIOS parameters */
+	edd_params.len = sizeof edd_params;
+
 	ireg.eax.b[1] = 0x48;
 	ireg.ds = SEG(&edd_params);
 	ireg.esi.w[0] = OFFS(&edd_params);
 	__intcall(0x13, &ireg, &oreg);
 
 	if (!(oreg.eflags.l & EFLAGS_CF) && oreg.eax.b[1] == 0) {
-	    ebios = true;
+	    if (edd_params.len < sizeof edd_params)
+		memset((char *)&edd_params + edd_params.len, 0,
+		       sizeof edd_params - edd_params.len);
 	    if (edd_params.sector_size >= 512 &&
 		is_power_of_2(edd_params.sector_size))
 		sector_size = edd_params.sector_size;
