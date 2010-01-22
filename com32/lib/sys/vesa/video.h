@@ -92,4 +92,6 @@ void __vesacon_set_cursor(int, int, bool);
 void __vesacon_copy_to_screen(size_t, const uint32_t *, size_t);
 void __vesacon_init_copy_to_screen(void);
 
+int __vesacon_i915resolution(int x, int y);
+
 #endif /* LIB_SYS_VESA_VIDEO_H */
