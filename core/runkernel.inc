@@ -454,7 +454,10 @@ setup_move:
 
 		; BX points to the final real mode segment, and will be loaded
 		; into DS.
-		jmp replace_bootstrap
+
+		test byte [QuietBoot],01h	; Don't clear the mode if quiet
+		jz replace_bootstrap
+		jmp replace_bootstrap_noclearmode
 
 run_linux_kernel:
 ;
