@@ -490,27 +490,30 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     }
     strncpy((char *)boot_image + diroffset, subpath, dirlen);
     free(dirpath);
+  
     /* write subvol info if we have */
-    if (*subvol) {
-	subvoloffset = get_16(&patcharea->subvoloffset);
-	subvollen = get_16(&patcharea->subvollen);
-	if (subvollen <= strlen(subvol)) {
+    subvoloffset = get_16(&patcharea->subvoloffset);
+    subvollen = get_16(&patcharea->subvollen);
+    if (subvollen <= strlen(subvol)) {
 	fprintf(stderr, "Subvol name too long... aborting install!\n");
 	exit(1);
-	}
-	strncpy((char *)boot_image + subvoloffset, subvol, subvollen);
     }
+    strncpy((char *)boot_image + subvoloffset, subvol, subvollen);
 
     /* Now produce a checksum */
     set_32(&patcharea->checksum, 0);
-
+    
     csum = LDLINUX_MAGIC;
     for (i = 0, wp = (uint32_t *) boot_image; i < dw; i++, wp++)
 	csum -= get_32(wp);	/* Negative checksum */
 
     set_32(&patcharea->checksum, csum);
 
-    return secptroffset + nptrs*4;
+    /*
+     * Assume all bytes modified.  This can be optimized at the expense
+     * of keeping track of what the highest modified address ever was.
+     */
+    return dw << 2;
 }
 
 /*
