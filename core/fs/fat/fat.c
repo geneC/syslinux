@@ -58,7 +58,7 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
 	fat_sector = offset >> SECTOR_SHIFT;
 	offset &= (1 << SECTOR_SHIFT) - 1;
 	cs = get_fat_sector(fs, fat_sector);
-	if (offset == SECTOR_SIZE-1) {
+	if (offset == (1 << SECTOR_SHIFT)-1) {
 	    /* 
 	     * we got the end of the one fat sector, 
 	     * but we have just one byte and we need two,
@@ -77,8 +77,6 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
 	    next_cluster >>= 4;         /* cluster number is ODD */
 	else
 	    next_cluster &= 0x0fff;     /* cluster number is EVEN */
-	if (next_cluster > 0x0ff6)
-	    goto fail;
 	break;
 	
     case FAT16:
@@ -86,8 +84,6 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
 	offset = clust_num & ((1 << (SECTOR_SHIFT-1)) -1);
 	cs = get_fat_sector(fs, fat_sector);
 	next_cluster = ((uint16_t *)cs->data)[offset];
-	if (next_cluster > 0xfff6)
-	    goto fail;
 	break;
 	
     case FAT32:
@@ -95,24 +91,20 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
 	offset = clust_num & ((1 << (SECTOR_SHIFT-2)) -1);
 	cs = get_fat_sector(fs, fat_sector);
 	next_cluster = ((uint32_t *)cs->data)[offset] & 0x0fffffff;
-	if (next_cluster > 0x0ffffff6)
-	    goto fail;
 	break;
     }
     
     return next_cluster;
-    
-fail:  
-    /* got an unexcepted cluster number, so return ZERO */
-    return 0;
 }
 
 
 static sector_t get_next_sector(struct fs_info* fs, uint32_t sector)
 {
-    sector_t data_area = FAT_SB(fs)->data;
+    struct fat_sb_info *sbi = FAT_SB(fs);
+    sector_t data_area = sbi->data;
     sector_t data_sector;
     uint32_t cluster;
+    int clust_shift = sbi->clust_shift;
     
     if (sector < data_area) {
 	sector++;
@@ -123,16 +115,18 @@ static sector_t get_next_sector(struct fs_info* fs, uint32_t sector)
     }
     
     data_sector = sector - data_area;
-    if ((data_sector + 1) & FAT_SB(fs)->clust_mask)  /* in a cluster */
-	return ++sector;
+    if ((data_sector + 1) & sbi->clust_mask)  /* in a cluster */
+	return sector++;
     
     /* get a new cluster */
-    cluster = get_next_cluster(fs, (data_sector >> FAT_SB(fs)->clust_shift) + 2);
-    if (cluster < 2) 
+    cluster = data_sector >> clust_shift;
+    cluster = get_next_cluster(fs, cluster + 2) - 2;
+
+    if (cluster >= sbi->clusters)
 	return 0;
     
     /* return the start of the new cluster */
-    sector = ((cluster - 2) << FAT_SB(fs)->clust_shift) + data_area;
+    sector = (cluster << sbi->clust_shift) + data_area;
     return sector;
 }
 
@@ -711,7 +705,7 @@ static int vfat_fs_init(struct fs_info *fs)
     struct fat_sb_info *sbi;
     struct disk *disk = fs->fs_dev->disk;
     int sectors_per_fat;
-    uint32_t clust_num;
+    uint32_t clusters;
     sector_t total_sectors;
     
     fs->sector_shift = fs->block_shift = disk->sector_shift;
@@ -736,13 +730,17 @@ static int vfat_fs_init(struct fs_info *fs)
     sbi->clust_mask       = fat.bxSecPerClust - 1;
     sbi->clust_size       = fat.bxSecPerClust << fs->sector_shift;
     
-    clust_num = (total_sectors - sbi->data) >> sbi->clust_shift;
-    if (clust_num < 4085)
+    clusters = (total_sectors - sbi->data) >> sbi->clust_shift;
+    if (clusters <= 0xff4) {
 	sbi->fat_type = FAT12;
-    else if (clust_num < 65525)
+    } else if (clusters <= 0xfff4) {
 	sbi->fat_type = FAT16;
-    else
+    } else {
 	sbi->fat_type = FAT32;
+	if (clusters > 0x0ffffff4)
+	    clusters = 0x0ffffff4; /* Maximum possible */
+    }
+    sbi->clusters = clusters;
     
     /* for SYSLINUX, the cache is based on sector size */
     return fs->sector_shift;

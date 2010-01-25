@@ -86,8 +86,10 @@ struct fat_bpb {
 struct fat_sb_info {
 	sector_t fat;             /* The FAT region */
 	sector_t root;            /* The root dir region */
-	int      root_size;       /* The root dir size in sectores */
 	sector_t data;            /* The data region */
+
+	uint32_t clusters;	  /* Total number of clusters */
+	int      root_size;       /* The root dir size in sectores */
 	
 	int      clust_shift;      /* based on sectors */
 	int      clust_byte_shift; /* based on bytes   */
