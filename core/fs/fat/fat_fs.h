@@ -135,13 +135,10 @@ static inline struct fat_sb_info *FAT_SB(struct fs_info *fs)
 /* 
  * Count the root dir size in sectors
  */
-static inline int root_dir_size(struct fat_bpb *fat)
+static inline int root_dir_size(struct fs_info *fs, struct fat_bpb *fat)
 {
-        int sector_size = 1 << SECTOR_SHIFT;
-	
-	return (fat->bxRootDirEnts + sector_size / sizeof(struct fat_dir_entry)
-		- 1) >> (SECTOR_SHIFT - 5);
+    return (fat->bxRootDirEnts + SECTOR_SIZE(fs)/32 - 1)
+	>> (SECTOR_SHIFT(fs) - 5);
 }
-
 
 #endif /* fat_fs.h */

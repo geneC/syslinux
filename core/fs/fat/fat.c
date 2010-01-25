@@ -51,14 +51,15 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
     uint32_t offset;
     int lo, hi;
     struct cache_struct *cs;
+    uint32_t sector_mask = SECTOR_SIZE(fs) - 1;
     
     switch(FAT_SB(fs)->fat_type) {
     case FAT12:
 	offset = clust_num + (clust_num >> 1);
-	fat_sector = offset >> SECTOR_SHIFT;
-	offset &= (1 << SECTOR_SHIFT) - 1;
+	fat_sector = offset >> SECTOR_SHIFT(fs);
+	offset &= sector_mask;
 	cs = get_fat_sector(fs, fat_sector);
-	if (offset == (1 << SECTOR_SHIFT)-1) {
+	if (offset == sector_mask) {
 	    /* 
 	     * we got the end of the one fat sector, 
 	     * but we have just one byte and we need two,
@@ -80,15 +81,15 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
 	break;
 	
     case FAT16:
-	fat_sector = clust_num >> (SECTOR_SHIFT - 1);
-	offset = clust_num & ((1 << (SECTOR_SHIFT-1)) -1);
+	fat_sector = clust_num >> (SECTOR_SHIFT(fs) - 1);
+	offset = clust_num & sector_mask;
 	cs = get_fat_sector(fs, fat_sector);
 	next_cluster = ((uint16_t *)cs->data)[offset];
 	break;
 	
     case FAT32:
-	fat_sector = clust_num >> (SECTOR_SHIFT - 2);
-	offset = clust_num & ((1 << (SECTOR_SHIFT-2)) -1);
+	fat_sector = clust_num >> (SECTOR_SHIFT(fs) - 2);
+	offset = clust_num & sector_mask;
 	cs = get_fat_sector(fs, fat_sector);
 	next_cluster = ((uint32_t *)cs->data)[offset] & 0x0fffffff;
 	break;
@@ -141,7 +142,7 @@ static sector_t get_next_sector(struct fs_info* fs, uint32_t sector)
 static sector_t get_the_right_sector(struct file *file)
 {
     int i = 0;
-    int sector_pos  = file->offset >> SECTOR_SHIFT;
+    int sector_pos  = file->offset >> SECTOR_SHIFT(file->fs);
     sector_t sector = *file->inode->data;
     
     for (; i < sector_pos; i++) 
@@ -192,7 +193,7 @@ static void __getfssec(struct fs_info *fs, char *buf,
                         
         /* do read */
         disk->rdwr_sectors(disk, buf, frag_start, con_sec_cnt, 0);
-        buf += con_sec_cnt << SECTOR_SHIFT;/* adjust buffer pointer */
+        buf += con_sec_cnt << SECTOR_SHIFT(fs);/* adjust buffer pointer */
         
         if (!sectors)
             break;
@@ -544,6 +545,8 @@ static struct dirent * vfat_readdir(struct file *file)
     cs = get_cache_block(fs->fs_dev, sector);
     de = (struct fat_dir_entry *)(cs->data + sec_off);
     entries_left = ((1 << fs->sector_shift) - sec_off) >> 5;
+
+    vfat_next = vfat_csum = 0xff;
     
     while (1) {
 	while(entries_left--) {
@@ -709,6 +712,9 @@ static int vfat_fs_init(struct fs_info *fs)
     sector_t total_sectors;
     
     fs->sector_shift = fs->block_shift = disk->sector_shift;
+    fs->sector_size  = 1 << fs->sector_shift;
+    fs->block_size   = 1 << fs->block_shift;
+
     disk->rdwr_sectors(disk, &fat, 0, 1, 0);
     
     sbi = malloc(sizeof(*sbi));
@@ -722,7 +728,7 @@ static int vfat_fs_init(struct fs_info *fs)
     
     sbi->fat       = fat.bxResSectors;	
     sbi->root      = sbi->fat + sectors_per_fat * fat.bxFATs;
-    sbi->root_size = root_dir_size(&fat);
+    sbi->root_size = root_dir_size(fs, &fat);
     sbi->data      = sbi->root + sbi->root_size;
     
     sbi->clust_shift      = bsr(fat.bxSecPerClust);

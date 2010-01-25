@@ -439,6 +439,8 @@ static int ext2_fs_init(struct fs_info *fs)
 
     fs->sector_shift = disk->sector_shift;
     fs->block_shift  = sb.s_log_block_size + 10;
+    fs->sector_size  = 1 << fs->sector_shift;
+    fs->block_size   = 1 << fs->block_shift;
     
     sbi->s_inodes_per_group = sb.s_inodes_per_group;
     sbi->s_blocks_per_group = sb.s_blocks_per_group;

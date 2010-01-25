@@ -438,8 +438,12 @@ static int iso_fs_init(struct fs_info *fs)
     
     cdrom_read_blocks(fs->fs_dev->disk, trackbuf, 16, 1);
     memcpy(&sbi->root, trackbuf + ROOT_DIR_OFFSET, sizeof(sbi->root));
-    
-    fs->block_shift = 11;
+
+    fs->sector_shift = fs->fs_dev->disk->sector_shift;
+    fs->block_shift  = 11;
+    fs->sector_size  = 1 << fs->sector_shift;
+    fs->block_size   = 1 << fs->block_shift;
+
     return fs->block_shift;
 }
 

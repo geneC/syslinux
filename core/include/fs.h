@@ -21,15 +21,17 @@
 #define FILENAME_MAX_LG2 8
 #define FILENAME_MAX     (1 << FILENAME_MAX_LG2)
 
-#define BLOCK_SIZE(fs)   (1 << fs->block_shift)
-#define SECTOR_SIZE(fs)  (1 << fs->sector_shift)
+#define BLOCK_SIZE(fs)   ((fs)->block_size)
+#define BLOCK_SHIFT(fs)	 ((fs)->block_shift)
+#define SECTOR_SIZE(fs)  ((fs)->sector_size)
+#define SECTOR_SHIFT(fs) ((fs)->sector_shift)
 
 struct fs_info {
     const struct fs_ops *fs_ops;
     struct device *fs_dev;
     void *fs_info;             /* The fs-specific information */
-    int sector_shift;
-    int block_shift;
+    int sector_shift, sector_size;
+    int block_shift, block_size;
 };
 
 extern struct fs_info *this_fs;
