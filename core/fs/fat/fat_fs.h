@@ -74,7 +74,7 @@ struct fat_bpb {
                         uint8_t  fstype[8];
                 } __attribute__ ((packed)) fat32;
 
-        } __attribute__ ((packed)) u;
+        } __attribute__ ((packed));
 
         uint8_t pad[422];  /* padding to 512 Bytes (one sector) */
 

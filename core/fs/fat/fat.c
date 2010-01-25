@@ -723,7 +723,7 @@ static int vfat_fs_init(struct fs_info *fs)
     fs->fs_info = sbi;
     this_fs = fs;
     
-    sectors_per_fat = fat.bxFATsecs ? : fat.u.fat32.bxFATsecs_32;
+    sectors_per_fat = fat.bxFATsecs ? : fat.fat32.bxFATsecs_32;
     total_sectors   = fat.bxSectors ? : fat.bsHugeSectors;
     
     sbi->fat       = fat.bxResSectors;	
