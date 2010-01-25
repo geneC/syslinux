@@ -54,13 +54,14 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
     
     switch(FAT_SB(fs)->fat_type) {
     case FAT12:
-	fat_sector = (clust_num + clust_num / 2) >> SECTOR_SHIFT;
+	offset = clust_num + (clust_num >> 1);
+	fat_sector = offset >> SECTOR_SHIFT;
+	offset &= (1 << SECTOR_SHIFT) - 1;
 	cs = get_fat_sector(fs, fat_sector);
-	offset = (clust_num * 3 / 2) & ((1 << SECTOR_SHIFT) - 1);
-	if (offset == 0x1ff) {
+	if (offset == SECTOR_SIZE-1) {
 	    /* 
 	     * we got the end of the one fat sector, 
-	     * but we don't got we have(just one byte, we need two),
+	     * but we have just one byte and we need two,
 	     * so store the low part, then read the next fat
 	     * sector, read the high part, then combine it.
 	     */
@@ -76,7 +77,7 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
 	    next_cluster >>= 4;         /* cluster number is ODD */
 	else
 	    next_cluster &= 0x0fff;     /* cluster number is EVEN */
-	if (next_cluster > 0x0ff0)
+	if (next_cluster > 0x0ff6)
 	    goto fail;
 	break;
 	
@@ -85,7 +86,7 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
 	offset = clust_num & ((1 << (SECTOR_SHIFT-1)) -1);
 	cs = get_fat_sector(fs, fat_sector);
 	next_cluster = ((uint16_t *)cs->data)[offset];
-	if (next_cluster > 0xfff0)
+	if (next_cluster > 0xfff6)
 	    goto fail;
 	break;
 	
@@ -94,7 +95,7 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
 	offset = clust_num & ((1 << (SECTOR_SHIFT-2)) -1);
 	cs = get_fat_sector(fs, fat_sector);
 	next_cluster = ((uint32_t *)cs->data)[offset] & 0x0fffffff;
-	if (next_cluster > 0x0ffffff0)
+	if (next_cluster > 0x0ffffff6)
 	    goto fail;
 	break;
     }
