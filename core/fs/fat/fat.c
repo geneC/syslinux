@@ -743,8 +743,14 @@ static int vfat_fs_init(struct fs_info *fs)
 	sbi->fat_type = FAT16;
     } else {
 	sbi->fat_type = FAT32;
+
 	if (clusters > 0x0ffffff4)
 	    clusters = 0x0ffffff4; /* Maximum possible */
+
+	if (fat.fat32.extended_flags & 0x80) {
+	    /* Non-mirrored FATs, we need to read the active one */
+	    sbi->fat += (fat.fat32.extended_flags & 0x0f) * sectors_per_fat;
+	}
     }
     sbi->clusters = clusters;
     
