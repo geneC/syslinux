@@ -1242,7 +1242,8 @@ nextcluster_fat12:
 		shr cx,4
 .even:		and cx,0FFFh
 		movzx edi,cx
-		cmp di,0FF0h
+		lea ax,[di-2]
+		cmp ax,0FF5h
 		pop si
 		pop cx
 		pop bx
@@ -1264,7 +1265,8 @@ nextcluster_fat16:
 		add bx,bx
 		and bx,1FEh
 		movzx edi,word [gs:si+bx]
-		cmp di,0FFF0h
+		lea ax,[di-2]
+		cmp ax,0FFF5h
 		pop bx
 		pop si
 		pop eax
@@ -1285,7 +1287,8 @@ nextcluster_fat28:
 		and bx,1FCh
 		mov edi,dword [gs:si+bx]
 		and edi,0FFFFFFFh	; 28 bits only
-		cmp edi,0FFFFFF0h
+		lea eax,[edi-2]
+		cmp eax,0FFFFFF5h
 		pop bx
 		pop si
 		pop eax
