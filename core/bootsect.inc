@@ -120,6 +120,12 @@ replace_bootstrap:
 		; Prepare for shutting down
 		;
 		call vgaclearmode
+
+;
+; We jump here when loading a kernel image, so that we don't reset
+; the screen mode in "quiet" mode
+;
+replace_bootstrap_noclearmode:
 		call cleanup_hardware
 
 		;

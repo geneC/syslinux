@@ -138,15 +138,18 @@ parse_cmdline:
 		jmp .next_opt
 
 opt_vga:
-		mov eax,[es:di-1]
+		mov ax,[es:di-1]
 		mov bx,-1
-		cmp eax,'=nor'			; vga=normal
+		cmp ax,'=nor'			; vga=normal
 		je .vc0
 		dec bx				; bx <- -2
-		cmp eax,'=ext'			; vga=ext
+		cmp ax,'=ext'			; vga=ext
 		je .vc0
 		dec bx				; bx <- -3
-		cmp eax,'=ask'			; vga=ask
+		cmp ax,'=ask'			; vga=ask
+		je .vc0
+		mov bx,0x0f04			; bx <- 0x0f04 (current mode)
+		cmp ax,'=cur'			; vga=current
 		je .vc0
 		call parseint_esdi		; vga=<number>
 		jc .skip			; Not an integer
@@ -454,7 +457,10 @@ setup_move:
 
 		; BX points to the final real mode segment, and will be loaded
 		; into DS.
-		jmp replace_bootstrap
+
+		test byte [QuietBoot],01h	; Don't clear the mode if quiet
+		jz replace_bootstrap
+		jmp replace_bootstrap_noclearmode
 
 run_linux_kernel:
 ;
