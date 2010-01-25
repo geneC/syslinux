@@ -34,10 +34,14 @@ static void ext2_close_file(struct file *file)
 /*
  * get the group's descriptor of group_num
  */
-struct ext2_group_desc * ext2_get_group_desc(uint32_t group_num)
+struct ext2_group_desc * ext2_get_group_desc(struct fs_info *fs,
+					     uint32_t group_num)
 {
-    struct ext2_sb_info *sbi = EXT2_SB(this_fs);
-    
+    struct ext2_sb_info *sbi = EXT2_SB(fs);
+    uint32_t desc_block, desc_index;
+    struct ext2_group_desc *desc_data_block;
+    struct cache_struct *cs;
+
     if (group_num >= sbi->s_groups_count) {
 	printf ("ext2_get_group_desc"
 		"block_group >= groups_count - "
@@ -46,8 +50,16 @@ struct ext2_group_desc * ext2_get_group_desc(uint32_t group_num)
 	
 	return NULL;
     }        
-    
-    return sbi->s_group_desc[group_num];
+ 
+    desc_block = group_num / sbi->s_desc_per_block;
+    desc_index = group_num % sbi->s_desc_per_block;
+   
+    desc_block += sbi->s_first_data_block + 1;
+
+    cs = get_cache_block(fs->fs_dev, desc_block);
+    desc_data_block = cs->data;
+
+    return &desc_data_block[desc_index];
 }
 
 
@@ -64,10 +76,9 @@ struct ext2_group_desc * ext2_get_group_desc(uint32_t group_num)
  * 
  * @return: physic sector number
  */
-static sector_t linsector(struct fs_info *fs, 
-			  struct inode *inode, 
-			  uint32_t lin_sector)
+static sector_t linsector(struct inode *inode, uint32_t lin_sector)
 {
+    struct fs_info *fs = inode->fs;
     int blk_bits = fs->block_shift - fs->sector_shift;
     block_t block = bmap(fs, inode, lin_sector >> blk_bits);
     
@@ -129,7 +140,7 @@ static uint32_t ext2_getfssec(struct file *file, char *buf,
         /*
          * get the frament
          */
-	next_sector = frag_start = linsector(fs, inode, sector_idx);
+	next_sector = frag_start = linsector(inode, sector_idx);
         con_sec_cnt = 0;                
         
         /* get the consective sectors count */
@@ -143,9 +154,9 @@ static uint32_t ext2_getfssec(struct file *file, char *buf,
             if (sectors >= (((~(uint32_t)buf&0xffff)|((uint32_t)buf&0xffff0000)) + 1))
                 break;
             
-            sector_idx ++;
-            next_sector ++;
-        } while (next_sector == linsector(fs, inode, sector_idx));                
+            sector_idx++;
+            next_sector++;
+        } while (next_sector == linsector(inode, sector_idx));                
         
 #if 0  
         printf("You are reading data stored at sector --0x%x--0x%x\n", 
@@ -225,7 +236,7 @@ ext2_find_entry(struct fs_info *fs, struct inode *inode, char *dname)
     return NULL;
 }
 
-static struct ext2_inode * get_inode(int inr)
+static struct ext2_inode * get_inode(struct fs_info *fs, int inr)
 {
     struct ext2_group_desc *desc;
     struct cache_struct *cs;
@@ -233,19 +244,19 @@ static struct ext2_inode * get_inode(int inr)
     uint32_t block_num, block_off;
     
     inr--;
-    inode_group  = inr / EXT2_INODES_PER_GROUP(this_fs);
-    inode_offset = inr % EXT2_INODES_PER_GROUP(this_fs);
-    desc = ext2_get_group_desc (inode_group);
+    inode_group  = inr / EXT2_INODES_PER_GROUP(fs);
+    inode_offset = inr % EXT2_INODES_PER_GROUP(fs);
+    desc = ext2_get_group_desc(fs, inode_group);
     if (!desc)
 	return NULL;
     
     block_num = desc->bg_inode_table + 
-	inode_offset / EXT2_INODES_PER_BLOCK(this_fs);
-    block_off = inode_offset % EXT2_INODES_PER_BLOCK(this_fs);
+	inode_offset / EXT2_INODES_PER_BLOCK(fs);
+    block_off = inode_offset % EXT2_INODES_PER_BLOCK(fs);
     
-    cs = get_cache_block(this_fs->fs_dev, block_num);
-    
-    return cs->data + block_off * EXT2_SB(this_fs)->s_inode_size;
+    cs = get_cache_block(fs->fs_dev, block_num);
+
+    return cs->data + block_off * EXT2_SB(fs)->s_inode_size;
 }
 
 static inline int get_inode_mode(int mode)
@@ -261,7 +272,7 @@ static inline int get_inode_mode(int mode)
 }
 
 static void fill_inode(struct inode *inode, struct ext2_inode *e_inode)
-{     
+{
     inode->mode    = get_inode_mode(e_inode->i_mode);
     inode->size    = e_inode->i_size;
     inode->atime   = e_inode->i_atime;
@@ -271,78 +282,73 @@ static void fill_inode(struct inode *inode, struct ext2_inode *e_inode)
     inode->blocks  = e_inode->i_blocks;
     inode->flags   = e_inode->i_flags;
     inode->file_acl = e_inode->i_file_acl;
-    
-    inode->data = malloc(EXT2_N_BLOCKS * sizeof(uint32_t *));
-    if (!inode->data) {
-	malloc_error("inode data filed");
-	return ;
-    }
-    memcpy(inode->data, e_inode->i_block, EXT2_N_BLOCKS * sizeof(uint32_t *));
+    memcpy(inode->pvt, e_inode->i_block, EXT2_N_BLOCKS * sizeof(uint32_t *));
 }
 
-static struct inode *ext2_iget_by_inr(uint32_t inr)
+static struct inode *ext2_iget_by_inr(struct fs_info *fs, uint32_t inr)
 {
         struct ext2_inode *e_inode;
         struct inode *inode;
 
-        e_inode = get_inode(inr);
-        if (!(inode = malloc(sizeof(*inode))))
+        e_inode = get_inode(fs, inr);
+        if (!(inode = alloc_inode(fs, inr, EXT2_N_BLOCKS*sizeof(uint32_t *))))
 	    return NULL;
         fill_inode(inode, e_inode);
-        inode->ino = inr;
 	
         return inode;
 }
 
-static struct inode *ext2_iget_root()
+static struct inode *ext2_iget_root(struct fs_info *fs)
 {
-        return ext2_iget_by_inr(EXT2_ROOT_INO);
+    return ext2_iget_by_inr(fs, EXT2_ROOT_INO);
 }
 
-static struct inode *ext2_iget_current()
+static struct inode *ext2_iget_current(struct fs_info *fs)
 {
     extern int CurrentDir;
     
-    return ext2_iget_by_inr(CurrentDir);
+    return ext2_iget_by_inr(fs, CurrentDir);
 }
 
 static struct inode *ext2_iget(char *dname, struct inode *parent)
 {
         struct ext2_dir_entry *de;
+	struct fs_info *fs = parent->fs;
         
-        de = ext2_find_entry(this_fs, parent, dname);
+        de = ext2_find_entry(fs, parent, dname);
         if (!de)
                 return NULL;
         
-        return ext2_iget_by_inr(de->d_inode);
+        return ext2_iget_by_inr(fs, de->d_inode);
 }
 
 
 static char * ext2_follow_symlink(struct inode *inode, const char *name_left)
 {
-    int sec_per_block = 1 << (this_fs->block_shift - this_fs->sector_shift);
+    struct fs_info *fs = inode->fs;
+    int sec_per_block = 1 << (fs->block_shift - fs->sector_shift);
     int fast_symlink;
     char *symlink_buf;
     char *p;
     struct cache_struct *cs;
     
-    symlink_buf = malloc(BLOCK_SIZE(this_fs));
+    symlink_buf = malloc(BLOCK_SIZE(fs));
     if (!symlink_buf) {
 	malloc_error("symlink buffer");
 	return NULL;
     }
     fast_symlink = (inode->file_acl ? sec_per_block : 0) == inode->blocks;
     if (fast_symlink) {
-	memcpy(symlink_buf, inode->data, inode->size);
+	memcpy(symlink_buf, inode->pvt, inode->size);
     } else {
-	cs = get_cache_block(this_fs->fs_dev, *(uint32_t *)inode->data);
+	cs = get_cache_block(fs->fs_dev, *(uint32_t *)inode->pvt);
 	memcpy(symlink_buf, cs->data, inode->size);
     }
     p = symlink_buf + inode->size;
     
     if (*name_left)
 	*p++ = '/';
-    if (strecpy(p, name_left, symlink_buf + BLOCK_SIZE(this_fs))) {
+    if (strecpy(p, name_left, symlink_buf + BLOCK_SIZE(fs))) {
 	free(symlink_buf);
 	return NULL;
     }
@@ -412,11 +418,6 @@ static int ext2_fs_init(struct fs_info *fs)
     struct disk *disk = fs->fs_dev->disk;
     struct ext2_sb_info *sbi;
     struct ext2_super_block sb;
-    int blk_bits;
-    int db_count;
-    int i;
-    int desc_block;
-    char *desc_buffer;
     
     /* read the super block */
     disk->rdwr_sectors(disk, &sb, 2, 2, 0);
@@ -451,31 +452,9 @@ static int ext2_fs_init(struct fs_info *fs)
     sbi->s_groups_count     = (sb.s_blocks_count - sb.s_first_data_block 
 			       + EXT2_BLOCKS_PER_GROUP(fs) - 1) 
 	                      / EXT2_BLOCKS_PER_GROUP(fs);
-    db_count = (sbi->s_groups_count + EXT2_DESC_PER_BLOCK(fs) - 1) /
-	        EXT2_DESC_PER_BLOCK(fs);
+    sbi->s_first_data_block = sb.s_first_data_block;
     sbi->s_inode_size = sb.s_inode_size;
-    
-    /* read the descpritors */
-    desc_block = sb.s_first_data_block + 1;
-    desc_buffer = malloc(db_count * BLOCK_SIZE(fs));
-    if (!desc_buffer) {
-	malloc_error("desc_buffer");
-	return -1;
-    }    
-    blk_bits = fs->block_shift - fs->sector_shift;
-    disk->rdwr_sectors(disk, desc_buffer, desc_block << blk_bits, 
-		       db_count << blk_bits, 0);
-    sbi->s_group_desc = malloc(sizeof(struct ext2_group_desc *) 
-			       * sbi->s_groups_count);
-    if (!sbi->s_group_desc) {
-	malloc_error("sbi->s_group_desc");
-	return -1;
-    }
-    for (i = 0; i < (int)sbi->s_groups_count; i++) {
-	sbi->s_group_desc[i] = (struct ext2_group_desc *)desc_buffer;
-	desc_buffer += sb.s_desc_size;
-    }
-    
+
     return fs->block_shift;
 }
 

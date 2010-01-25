@@ -275,14 +275,8 @@ struct ext2_sb_info {
     uint32_t s_blocks_per_group;/* Number of blocks in a group */
     uint32_t s_desc_per_block;  /* Number of group descriptors per block */
     uint32_t s_groups_count;    /* Number of groups in the fs */
+    uint32_t s_first_data_block;	/* First Data Block */
     int      s_inode_size;
-    
-    /* 
-     * Here did not like Linux Kernel did; the group descriptor cache
-     * here is based on ext2_group_desc structure, instead of buffer
-     * head structure in Linux Kernel, where cache one block data.
-     */
-    struct ext2_group_desc ** s_group_desc;
 };
 
 static inline struct ext2_sb_info *EXT2_SB(struct fs_info *fs)

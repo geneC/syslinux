@@ -1,10 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/dirent.h>
-#include <fs.h>
-#include <core.h>
-
-extern struct fs_info *this_fs;
+#include "fs.h"
+#include "core.h"
 
 /* 
  * open dir, return the file structure pointer in _eax_, or NULL if failed 

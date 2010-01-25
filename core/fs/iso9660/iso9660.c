@@ -7,24 +7,9 @@
 #include <fs.h>
 #include "iso9660_fs.h"
 
-static struct inode *new_iso_inode(void)
+static struct inode *new_iso_inode(struct fs_info *fs)
 {
-    struct inode *inode = malloc(sizeof(*inode));
-    
-    if (!inode) {
-	malloc_error("inode structure in new_iso_inode");
-	return NULL;
-    }
-    memset(inode, 0, sizeof(*inode));
-    
-    inode->data = malloc(sizeof(uint32_t));
-    if (!inode) {
-	malloc_error("inode->data in new_iso_inode");
-	free(inode);
-	return NULL;
-    }
-    
-    return inode;
+    return alloc_inode(fs, 0, sizeof(uint32_t));
 }
 
 
@@ -165,8 +150,9 @@ static uint32_t iso_getfssec(struct file *file, char *buf,
     uint32_t bytes_left = file->inode->size - file->offset;
     uint32_t blocks_left = (bytes_left + BLOCK_SIZE(file->fs) - 1) 
 	>> file->fs->block_shift;
-    block_t block = *file->inode->data + (file->offset >> fs->block_shift);    
-    
+    block_t block = *(uint32_t *)file->inode->pvt
+	+ (file->offset >> fs->block_shift);    
+
     if (blocks > blocks_left)
         blocks = blocks_left;
     cdrom_read_blocks(disk, buf, block, blocks);
@@ -187,7 +173,8 @@ static uint32_t iso_getfssec(struct file *file, char *buf,
  */
 static struct iso_dir_entry *iso_find_entry(char *dname, struct inode *inode)
 {
-    block_t dir_block = *inode->data;
+    struct fs_info *fs = inode->fs;
+    block_t dir_block = *(uint32_t *)inode->pvt;
     int i = 0, offset = 0;
     char *de_name;
     int de_name_len, de_len;
@@ -199,7 +186,7 @@ static struct iso_dir_entry *iso_find_entry(char *dname, struct inode *inode)
 	if (!cs) {
 	    if (++i > inode->blocks)
 		return NULL;
-	    cs = get_cache_block(this_fs->fs_dev, dir_block++);
+	    cs = get_cache_block(fs->fs_dev, dir_block++);
 	    de = (struct iso_dir_entry *)cs->data;
 	    offset = 0;
 	}
@@ -213,15 +200,15 @@ static struct iso_dir_entry *iso_find_entry(char *dname, struct inode *inode)
 	offset += de_len;
 	
 	/* Make sure we have a full directory entry */
-	if (offset >= BLOCK_SIZE(this_fs)) {
-	    int slop = de_len + BLOCK_SIZE(this_fs) - offset;
+	if (offset >= BLOCK_SIZE(fs)) {
+	    int slop = de_len + BLOCK_SIZE(fs) - offset;
 	    
 	    memcpy(&tmpde, de, slop);
-	    offset &= BLOCK_SIZE(this_fs) - 1;
+	    offset &= BLOCK_SIZE(fs) - 1;
 	    if (offset) {
 		if (++i > inode->blocks)
 		    return NULL;
-		cs = get_cache_block(this_fs->fs_dev, dir_block++);
+		cs = get_cache_block(fs->fs_dev, dir_block++);
 		memcpy((void *)&tmpde + slop, cs->data, offset);
 	    }
 	    de = &tmpde;
@@ -255,35 +242,36 @@ static inline int get_inode_mode(uint8_t flags)
 	return I_FILE;
 }
 
-static struct inode *iso_get_inode(struct iso_dir_entry *de)
+static struct inode *iso_get_inode(struct fs_info *fs,
+				   struct iso_dir_entry *de)
 {
-    struct inode *inode = new_iso_inode();
-    
+    struct inode *inode = new_iso_inode(fs);
     if (!inode)
 	return NULL;
+
     inode->mode   = get_inode_mode(de->flags);
     inode->size   = *(uint32_t *)de->size;
-    *inode->data  = *(uint32_t *)de->extent;
-    inode->blocks = (inode->size + BLOCK_SIZE(this_fs) - 1) 
-	>> this_fs->block_shift;
+    *(uint32_t *)inode->pvt = *(uint32_t *)de->extent;
+    inode->blocks = (inode->size + BLOCK_SIZE(fs) - 1) 
+	>> fs->block_shift;
     
     return inode;
 }
 
 
-static struct inode *iso_iget_root(void)
+static struct inode *iso_iget_root(struct fs_info *fs)
 {
-    struct inode *inode = new_iso_inode();
-    struct iso_dir_entry *root = &ISO_SB(this_fs)->root;
+    struct inode *inode = new_iso_inode(fs);
+    struct iso_dir_entry *root = &ISO_SB(fs)->root;
     
     if (!inode) 
 	return NULL;
     
     inode->mode   = I_DIR;
     inode->size   = *(uint32_t *)root->size;
-    *inode->data  = *(uint32_t *)root->extent;
-    inode->blocks = (inode->size + BLOCK_SIZE(this_fs) - 1)
-	>> this_fs->block_shift;
+    *(uint32_t *)inode->pvt = *(uint32_t *)root->extent;
+    inode->blocks = (inode->size + BLOCK_SIZE(fs) - 1)
+	>> fs->block_shift;
     
     return inode;
 }	
@@ -296,7 +284,7 @@ static struct inode *iso_iget(char *dname, struct inode *parent)
     if (!de)
 	return NULL;
     
-    return iso_get_inode(de);
+    return iso_get_inode(parent->fs, de);
 }
 
 /* Convert to lower case string */
@@ -316,7 +304,8 @@ static struct dirent *iso_readdir(struct file *file)
     struct iso_dir_entry *de, tmpde;
     struct dirent *dirent;
     struct cache_struct *cs = NULL;
-    block_t block =  *file->inode->data + (file->offset >> fs->block_shift);
+    block_t block =  *(uint32_t *)file->inode->pvt
+	+ (file->offset >> fs->block_shift);
     int offset = file->offset & (BLOCK_SIZE(fs) - 1);
     int i = 0;
     int de_len, de_name_len;
@@ -427,8 +416,6 @@ static int iso_fs_init(struct fs_info *fs)
 {
     struct iso_sb_info *sbi;
     
-    this_fs = fs;    
-        
     sbi = malloc(sizeof(*sbi));
     if (!sbi) {
 	malloc_error("iso_sb_info structure");

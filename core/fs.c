@@ -13,6 +13,19 @@ struct inode *this_inode = NULL;
 struct file files[MAX_OPEN];
 
 /*
+ * Get a new inode structure
+ */
+struct inode *alloc_inode(struct fs_info *fs, uint32_t ino, size_t data)
+{
+    struct inode *inode = zalloc(sizeof(struct inode) + data);
+    if (inode) {
+	inode->fs = fs;
+	inode->ino = ino;
+    }
+    return inode;
+}
+
+/*
  * Get an empty file structure
  */
 static struct file *alloc_file(void)
@@ -152,7 +165,7 @@ void searchdir(com32sys_t *regs)
 
     /* else, try the generic-path-lookup method */
     if (*name == '/') {
-	inode = this_fs->fs_ops->iget_root();
+	inode = this_fs->fs_ops->iget_root(this_fs);
 	while(*name == '/')
 	    name++;
     } else {
@@ -280,5 +293,5 @@ void fs_init(com32sys_t *regs)
         cache_init(fs.fs_dev, blk_shift);
 
     if (fs.fs_ops->iget_current)
-	this_inode = fs.fs_ops->iget_current();
+	this_inode = fs.fs_ops->iget_current(&fs);
 }

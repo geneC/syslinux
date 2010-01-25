@@ -104,7 +104,7 @@ static inline struct mem_struct *  try_merge_back(struct mem_struct *mm)
  * of size _size_. Returns NULL if failed, or the address newly allocated.
  * 
  */
-void *malloc(int size)
+void *malloc(size_t size)
 {
     struct mem_struct *next = next_start;
     struct mem_struct *good = next, *prev;
@@ -162,6 +162,14 @@ void *malloc(int size)
 	next_start = (struct mem_struct *)memory;        
 out:
     return (void *)((uint32_t)good + sizeof(struct mem_struct));
+}
+
+void *zalloc(size_t size)
+{
+    void *p = malloc(size);
+    if (p)
+	memset(p, 0, size);
+    return p;
 }
 
 void free(void *ptr)

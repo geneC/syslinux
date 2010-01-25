@@ -7,22 +7,11 @@
 #include <fs.h>
 #include "fat_fs.h"
 
-
-static struct inode * new_fat_inode(void)
+static struct inode * new_fat_inode(struct fs_info *fs)
 {
-    struct inode *inode = malloc(sizeof(*inode));
-    if (!inode) 
+    struct inode *inode = alloc_inode(fs, 0, sizeof(sector_t));
+    if (!inode)
 	malloc_error("inode structure");		
-    memset(inode, 0, sizeof(*inode));
-    
-    /* 
-     * We just need allocate one uint32_t data to store the 
-     * first cluster number.
-     */
-    inode->data = malloc(sizeof(uint32_t));
-    if (!inode->data) 
-	malloc_error("inode->data");
-    
     return inode;
 }
 
@@ -143,7 +132,7 @@ static sector_t get_the_right_sector(struct file *file)
 {
     int i = 0;
     int sector_pos  = file->offset >> SECTOR_SHIFT(file->fs);
-    sector_t sector = *file->inode->data;
+    sector_t sector = *(sector_t *)file->inode->pvt;
     
     for (; i < sector_pos; i++) 
 	sector = get_next_sector(file->fs, sector);
@@ -369,9 +358,10 @@ static uint8_t get_checksum(char *dir_name)
 
 
 /* compute the first sector number of one dir where the data stores */
-static inline sector_t first_sector(struct fat_dir_entry *dir)
+static inline sector_t first_sector(struct fs_info *fs,
+				    struct fat_dir_entry *dir)
 {
-    struct fat_sb_info *sbi = FAT_SB(this_fs);
+    struct fat_sb_info *sbi = FAT_SB(fs);
     uint32_t first_clust;
     sector_t sector;
     
@@ -392,13 +382,14 @@ static inline int get_inode_mode(uint8_t attr)
  
 static struct inode *vfat_find_entry(char *dname, struct inode *dir)
 {
-    struct inode *inode = new_fat_inode();
+    struct fs_info *fs = dir->fs;
+    struct inode *inode = new_fat_inode(fs);
     struct fat_dir_entry *de;
     struct fat_long_name_entry *long_de;
     struct cache_struct *cs;
     
     char mangled_name[12] = {0, };
-    sector_t dir_sector = *dir->data;
+    sector_t dir_sector = *(sector_t *)dir->pvt;
     
     uint8_t vfat_init, vfat_next, vfat_csum = 0;
     uint8_t id;
@@ -412,9 +403,9 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
     vfat_init = vfat_next = slots;
     
     while (1) {
-	cs = get_cache_block(this_fs->fs_dev, dir_sector);
+	cs = get_cache_block(fs->fs_dev, dir_sector);
 	de = (struct fat_dir_entry *)cs->data;
-	entries = 1 << (this_fs->sector_shift - 5);
+	entries = 1 << (fs->sector_shift - 5);
 	
 	while(entries--) {
 	    if (de->name[0] == 0)
@@ -495,26 +486,26 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
 	}
 	
 	/* Try with the next sector */
-	dir_sector = get_next_sector(this_fs, dir_sector);
+	dir_sector = get_next_sector(fs, dir_sector);
 	if (!dir_sector)
 	    return NULL;
     }
     
 found:
     inode->size = de->file_size;
-    *inode->data = first_sector(de);
+    *(sector_t *)inode->pvt = first_sector(fs, de);
     inode->mode = get_inode_mode(de->attr);
     
     return inode;
 }
 
-static struct inode *vfat_iget_root(void)
+static struct inode *vfat_iget_root(struct fs_info *fs)
 {
-    struct inode *inode = new_fat_inode();
-    int root_size = FAT_SB(this_fs)->root_size;
+    struct inode *inode = new_fat_inode(fs);
+    int root_size = FAT_SB(fs)->root_size;
     
-    inode->size = root_size << this_fs->sector_shift;
-    *inode->data = FAT_SB(this_fs)->root;
+    inode->size = root_size << fs->sector_shift;
+    *(sector_t *)inode->pvt = FAT_SB(fs)->root;
     inode->mode = I_DIR;
     
     return inode;
@@ -721,7 +712,6 @@ static int vfat_fs_init(struct fs_info *fs)
     if (!sbi)
 	malloc_error("fat_sb_info structure");
     fs->fs_info = sbi;
-    this_fs = fs;
     
     sectors_per_fat = fat.bxFATsecs ? : fat.fat32.bxFATsecs_32;
     total_sectors   = fat.bxSectors ? : fat.bsHugeSectors;
