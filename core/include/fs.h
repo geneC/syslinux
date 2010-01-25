@@ -58,7 +58,7 @@ struct fs_ops {
     void     (*close_file)(struct file *);
     void     (*mangle_name)(char *, const char *);
     char *   (*unmangle_name)(char *, const char *);
-    int      (*load_config)();
+    int      (*load_config)(void);
 
     struct inode * (*iget_root)(void);
     struct inode * (*iget_current)(void);
