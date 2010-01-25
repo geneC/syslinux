@@ -128,7 +128,7 @@ static sector_t get_next_sector(struct fs_info* fs, uint32_t sector)
     
     /* get a new cluster */
     cluster = get_next_cluster(fs, (data_sector >> FAT_SB(fs)->clust_shift) + 2);
-    if (!cluster ) 
+    if (cluster < 2) 
 	return 0;
     
     /* return the start of the new cluster */
