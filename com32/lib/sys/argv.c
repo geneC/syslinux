@@ -75,7 +75,7 @@ int __parse_argv(char ***argv, const char *str)
     }
 
     /* Now create argv */
-    arg = ALIGN_UP_FOR(q, char *);
+    arg = (char **)ALIGN_UP_FOR(q, char *);
     *argv = arg;
     *arg++ = argv0;		/* argv[0] */
 

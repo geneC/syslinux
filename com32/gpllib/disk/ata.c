@@ -55,7 +55,7 @@ void ata_id_c_string(const uint16_t * id, unsigned char *s,
 
     ata_id_string(id, s, ofs, len - 1);
 
-    p = s + strnlen(s, len - 1);
+    p = s + strnlen((const char *)s, len - 1);
     while (p > s && p[-1] == ' ')
 	p--;
     *p = '\0';

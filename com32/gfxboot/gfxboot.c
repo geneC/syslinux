@@ -573,7 +573,7 @@ int gfx_init(char *file)
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-int gfx_menu_init()
+int gfx_menu_init(void)
 {
   com32sys_t r;
 
@@ -585,7 +585,7 @@ int gfx_menu_init()
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void gfx_done()
+void gfx_done(void)
 {
   com32sys_t r;
 
@@ -599,7 +599,7 @@ void gfx_done()
 // return:
 //   boot menu index (-1: go to text mode prompt)
 //
-int gfx_input()
+int gfx_input(void)
 {
   com32sys_t r;
 
@@ -688,7 +688,7 @@ void *load_one(char *file, ssize_t *file_size)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Locate menu entry and boot.
 //
-void boot()
+void boot(void)
 {
   char *label, *arg, *s;
   menu_t *menu_ptr;

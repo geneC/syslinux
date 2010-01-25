@@ -35,7 +35,7 @@ GCCOPT    += $(call gcc_ok,-mpreferred-stack-boundary=2,)
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 
 LD        += -m elf_i386
-CFLAGS     = $(GCCOPT) -g -W -Wall -Wno-sign-compare $(OPTFLAGS) $(INCLUDES)
+CFLAGS     = $(GCCOPT) -g $(GCCWARN) -Wno-sign-compare $(OPTFLAGS) $(INCLUDES)
 SFLAGS     = $(CFLAGS) -D__ASSEMBLY__
 
 .SUFFIXES: .c .o .S .s .i .elf .com .bin .asm .lst .c32 .lss

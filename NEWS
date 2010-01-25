@@ -10,6 +10,8 @@ Changes in 3.85:
 	  prompt with an error message (if NOESCAPE is set, we stop
 	  with a "boot failed" message; this is also the case for
 	  PXELINUX if the configuration file is not found.)
+	* chain.c32: support chainloading Grub4DOS; patch by Gert
+	  Hulselmans.
 
 Changes in 3.84:
 	* SYSLINUX: make the DOS installer work for MS-DOS 7.x/8.x

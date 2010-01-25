@@ -37,7 +37,7 @@
 #define APP_YEAR	"2008"
 #define APP_VER		"beta-b032"
 
-void rosh_version()
+void rosh_version(void)
 {
     printf("%s v %s; (c) %s %s.\n", APP_LONGNAME, APP_VER, APP_YEAR,
 	   APP_AUTHOR);
@@ -224,7 +224,7 @@ void rosh_print_tc(struct termios *tio)
  * Switches console over to raw input mode.  Allows get_key to get just
  * 1 key sequence (without delay or display)
  */
-void rosh_console_raw()
+void rosh_console_raw(void)
 {
 //      struct termios itio, ntio;
 //      tcgetattr(0, &itio);
@@ -241,7 +241,7 @@ void rosh_console_raw()
 /*
  * Switches back to standard getline mode.
  */
-void rosh_console_std()
+void rosh_console_std(void)
 {
 //      struct termios itio, ntio;
     console_ansi_std();
@@ -252,7 +252,7 @@ void rosh_console_std()
  * Attempts to get a single key from the console
  *	returns	key pressed
  */
-int rosh_getkey()
+int rosh_getkey(void)
 {
     int inc;
 
