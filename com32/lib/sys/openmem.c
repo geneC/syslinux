@@ -42,7 +42,6 @@ const struct input_dev __file_dev;
 
 int openmem(const void *base, size_t len, int flags)
 {
-    com32sys_t regs;
     int fd;
     struct file_info *fp;
 
@@ -50,6 +49,8 @@ int openmem(const void *base, size_t len, int flags)
 
     if (fd < 0)
 	return -1;
+
+    fp = &__file_info[fd];
 
     fp->i.length  = fp->i.nbytes = len;
     fp->i.datap   = (void *)base;
