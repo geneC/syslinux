@@ -140,16 +140,16 @@ parse_cmdline:
 opt_vga:
 		mov ax,[es:di-1]
 		mov bx,-1
-		cmp ax,'=nor'			; vga=normal
+		cmp ax,'=n'			; vga=normal
 		je .vc0
 		dec bx				; bx <- -2
-		cmp ax,'=ext'			; vga=ext
+		cmp ax,'=e'			; vga=ext
 		je .vc0
 		dec bx				; bx <- -3
-		cmp ax,'=ask'			; vga=ask
+		cmp ax,'=a'			; vga=ask
 		je .vc0
 		mov bx,0x0f04			; bx <- 0x0f04 (current mode)
-		cmp ax,'=cur'			; vga=current
+		cmp ax,'=c'			; vga=current
 		je .vc0
 		call parseint_esdi		; vga=<number>
 		jc .skip			; Not an integer
