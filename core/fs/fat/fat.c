@@ -97,17 +97,17 @@ static sector_t get_next_sector(struct fs_info* fs, uint32_t sector)
     int clust_shift = sbi->clust_shift;
     
     if (sector < data_area) {
+	/* Root directory sector... */
 	sector++;
-	/* if we reached the end of root area */
 	if (sector == data_area)
-	    sector = 0; /* return 0 */
+	    sector = 0; /* Ran out of root directory, return EOF */
 	return sector;
     }
     
     data_sector = sector - data_area;
-    if ((data_sector + 1) & sbi->clust_mask)  /* in a cluster */
-	return sector++;
-    
+    if ((data_sector + 1) & sbi->clust_mask)  /* Still in the same cluster */
+	return sector+1;		      /* Next sector inside cluster */
+
     /* get a new cluster */
     cluster = data_sector >> clust_shift;
     cluster = get_next_cluster(fs, cluster + 2) - 2;
