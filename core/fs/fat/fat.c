@@ -115,11 +115,8 @@ static sector_t get_next_sector(struct fs_info* fs, uint32_t sector)
     cluster = data_sector >> clust_shift;
     cluster = get_next_cluster(fs, cluster + 2) - 2;
 
-    if (cluster >= sbi->clusters) {
-	printf("Logical cluster = 0x%x, total clusters = 0x%x\n",
-	       cluster + 2, sbi->clusters);
+    if (cluster >= sbi->clusters)
 	return 0;
-    }
     
     /* return the start of the new cluster */
     sector = (cluster << clust_shift) + data_area;
