@@ -85,6 +85,8 @@ HEADER_ID       equ 'HdrS'		; HdrS (in littleendian hex)
 ; Flags for the su_loadflags field
 ;
 LOAD_HIGH	equ 01h			; Large kernel, load high
+QUIET_FLAG	equ 20h			; Quiet the kernel
+KEEP_SEGMENTS	equ 40h			; Don't reload segments
 CAN_USE_HEAP    equ 80h                 ; Boot loader reports heap size
 
 ;
