@@ -70,17 +70,20 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
 	break;
 	
     case FAT16:
-	fat_sector = clust_num >> (SECTOR_SHIFT(fs) - 1);
-	offset = clust_num & sector_mask;
+	offset = clust_num << 1;
+	fat_sector = offset >> SECTOR_SHIFT(fs);
+	offset &= sector_mask;
 	cs = get_fat_sector(fs, fat_sector);
-	next_cluster = ((uint16_t *)cs->data)[offset];
+	next_cluster = *(uint16_t *)(cs->data + offset);
 	break;
 	
     case FAT32:
-	fat_sector = clust_num >> (SECTOR_SHIFT(fs) - 2);
-	offset = clust_num & sector_mask;
+	offset = clust_num << 2;
+	fat_sector = offset >> SECTOR_SHIFT(fs);
+	offset &= sector_mask;
 	cs = get_fat_sector(fs, fat_sector);
-	next_cluster = ((uint32_t *)cs->data)[offset] & 0x0fffffff;
+	next_cluster = *(uint32_t *)(cs->data + offset);
+	next_cluster &= 0x0fffffff;
 	break;
     }
     
@@ -99,24 +102,27 @@ static sector_t get_next_sector(struct fs_info* fs, uint32_t sector)
     if (sector < data_area) {
 	/* Root directory sector... */
 	sector++;
-	if (sector == data_area)
+	if (sector >= data_area)
 	    sector = 0; /* Ran out of root directory, return EOF */
 	return sector;
     }
     
     data_sector = sector - data_area;
     if ((data_sector + 1) & sbi->clust_mask)  /* Still in the same cluster */
-	return sector+1;		      /* Next sector inside cluster */
+	return sector + 1;		      /* Next sector inside cluster */
 
     /* get a new cluster */
     cluster = data_sector >> clust_shift;
     cluster = get_next_cluster(fs, cluster + 2) - 2;
 
-    if (cluster >= sbi->clusters)
+    if (cluster >= sbi->clusters) {
+	printf("Logical cluster = 0x%x, total clusters = 0x%x\n",
+	       cluster + 2, sbi->clusters);
 	return 0;
+    }
     
     /* return the start of the new cluster */
-    sector = (cluster << sbi->clust_shift) + data_area;
+    sector = (cluster << clust_shift) + data_area;
     return sector;
 }
 
