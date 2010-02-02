@@ -391,7 +391,7 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
     struct fat_long_name_entry *long_de;
     struct cache_struct *cs;
     
-    char mangled_name[12] = {0, };
+    char mangled_name[12];
     sector_t dir_sector = *(sector_t *)dir->pvt;
     
     uint8_t vfat_init, vfat_next, vfat_csum = 0;
@@ -405,6 +405,9 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
     slots |= 0x40;
     vfat_init = vfat_next = slots;
     
+    /* Produce the shortname version, if appropriate. */
+    mangle_dos_name(mangled_name, dname);
+
     while (1) {
 	cs = get_cache_block(fs->fs_dev, dir_sector);
 	de = (struct fat_dir_entry *)cs->data;
@@ -472,11 +475,6 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
 		    if (checksum == vfat_csum)
 			goto found;  /* Got it */
 		} else {
-		    if (mangled_name[0] == 0) {
-			/* We haven't mangled it, mangle it first. */
-			mangle_dos_name(mangled_name, dname);
-		    }
-		    
 		    if (!strncmp(mangled_name, de->name, 11))
 			goto found;
 		}
@@ -507,7 +505,11 @@ static struct inode *vfat_iget_root(struct fs_info *fs)
     struct inode *inode = new_fat_inode(fs);
     int root_size = FAT_SB(fs)->root_size;
     
-    inode->size = root_size << fs->sector_shift;
+    /* 
+     * For FAT32, the only way to get the root directory size is to
+     * follow the entire FAT chain to the end... which seems pointless.
+     */
+    inode->size = root_size ? root_size << fs->sector_shift : ~0;
     *(sector_t *)inode->pvt = FAT_SB(fs)->root;
     inode->mode = I_DIR;
     
@@ -744,6 +746,10 @@ static int vfat_fs_init(struct fs_info *fs)
 	    /* Non-mirrored FATs, we need to read the active one */
 	    sbi->fat += (fat.fat32.extended_flags & 0x0f) * sectors_per_fat;
 	}
+
+	/* FAT32: root directory is a cluster chain */
+	sbi->root = sbi->data
+	    + ((fat.fat32.root_cluster-2) << sbi->clust_shift);
     }
     sbi->clusters = clusters;
     
