@@ -1,6 +1,8 @@
 #ifndef _GPXE_SANBOOT_H
 #define _GPXE_SANBOOT_H
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/tables.h>
 
 struct sanboot_protocol {
@@ -8,7 +10,11 @@ struct sanboot_protocol {
 	int ( * boot ) ( const char *root_path );
 };
 
-#define __sanboot_protocol \
-	__table ( struct sanboot_protocol, sanboot_protocols, 01 )
+#define SANBOOT_PROTOCOLS \
+	__table ( struct sanboot_protocol, "sanboot_protocols" )
+
+#define __sanboot_protocol __table_entry ( SANBOOT_PROTOCOLS, 01 )
+
+extern int keep_san ( void );
 
 #endif /* _GPXE_SANBOOT_H */

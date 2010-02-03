@@ -28,6 +28,8 @@
  * Copyright (c) a lot of people too. Please respect their work.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <errno.h>
 #include <assert.h>
 #include <stdio.h>
@@ -592,12 +594,12 @@ static void b44_load_mac_and_phy_addr(struct b44_private *bp)
 
 	/* Load MAC address, note byteswapping */
 	b44_read_eeprom(bp, &eeprom[0]);
-	bp->netdev->ll_addr[0] = eeprom[79];
-	bp->netdev->ll_addr[1] = eeprom[78];
-	bp->netdev->ll_addr[2] = eeprom[81];
-	bp->netdev->ll_addr[3] = eeprom[80];
-	bp->netdev->ll_addr[4] = eeprom[83];
-	bp->netdev->ll_addr[5] = eeprom[82];
+	bp->netdev->hw_addr[0] = eeprom[79];
+	bp->netdev->hw_addr[1] = eeprom[78];
+	bp->netdev->hw_addr[2] = eeprom[81];
+	bp->netdev->hw_addr[3] = eeprom[80];
+	bp->netdev->hw_addr[4] = eeprom[83];
+	bp->netdev->hw_addr[5] = eeprom[82];
 
 	/* Load PHY address */
 	bp->phy_addr = eeprom[90] & 0x1f;
@@ -935,9 +937,9 @@ static struct net_device_operations b44_operations = {
 
 
 static struct pci_device_id b44_nics[] = {
-	PCI_ROM(0x14e4, 0x4401, "BCM4401", "BCM4401"),
-	PCI_ROM(0x14e4, 0x170c, "BCM4401-B0", "BCM4401-B0"),
-	PCI_ROM(0x14e4, 0x4402, "BCM4401-B1", "BCM4401-B1"),
+	PCI_ROM(0x14e4, 0x4401, "BCM4401", "BCM4401", 0),
+	PCI_ROM(0x14e4, 0x170c, "BCM4401-B0", "BCM4401-B0", 0),
+	PCI_ROM(0x14e4, 0x4402, "BCM4401-B1", "BCM4401-B1", 0),
 };
 
 

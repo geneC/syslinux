@@ -33,6 +33,8 @@
 *
 ***************************************************************************/
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #ifndef ISAPNP_H
 #define ISAPNP_H
 
@@ -223,8 +225,11 @@ struct isapnp_driver {
 	void ( * remove ) ( struct isapnp_device *isapnp );
 };
 
+/** ISAPnP driver table */
+#define ISAPNP_DRIVERS __table ( struct isapnp_driver, "isapnp_drivers" )
+
 /** Declare an ISAPnP driver */
-#define __isapnp_driver __table ( struct isapnp_driver, isapnp_drivers, 01 )
+#define __isapnp_driver __table_entry ( ISAPNP_DRIVERS, 01 )
 
 extern uint16_t isapnp_read_port;
 

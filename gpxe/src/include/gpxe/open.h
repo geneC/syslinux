@@ -7,6 +7,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdarg.h>
 #include <gpxe/tables.h>
 #include <gpxe/socket.h>
@@ -58,8 +60,11 @@ struct uri_opener {
 	int ( * open ) ( struct xfer_interface *xfer, struct uri *uri );
 };
 
+/** URI opener table */
+#define URI_OPENERS __table ( struct uri_opener, "uri_openers" )
+
 /** Register a URI opener */
-#define __uri_opener __table ( struct uri_opener, uri_openers, 01 )
+#define __uri_opener __table_entry ( URI_OPENERS, 01 )
 
 /** A socket opener */
 struct socket_opener {
@@ -78,8 +83,11 @@ struct socket_opener {
 			 struct sockaddr *local );
 };
 
+/** Socket opener table */
+#define SOCKET_OPENERS __table ( struct socket_opener, "socket_openers" )
+
 /** Register a socket opener */
-#define __socket_opener __table ( struct socket_opener, socket_openers, 01 )
+#define __socket_opener __table_entry ( SOCKET_OPENERS, 01 )
 
 extern int xfer_open_uri ( struct xfer_interface *xfer, struct uri *uri );
 extern int xfer_open_uri_string ( struct xfer_interface *xfer,
@@ -91,5 +99,7 @@ extern int xfer_open_socket ( struct xfer_interface *xfer, int semantics,
 			      struct sockaddr *peer, struct sockaddr *local );
 extern int xfer_vopen ( struct xfer_interface *xfer, int type, va_list args );
 extern int xfer_open ( struct xfer_interface *xfer, int type, ... );
+extern int xfer_vreopen ( struct xfer_interface *xfer, int type,
+			  va_list args );
 
 #endif /* _GPXE_OPEN_H */

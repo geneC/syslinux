@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
@@ -60,22 +62,6 @@
 	( ( SMBIOS_TAG_MAGIC << 24 ) |				\
 	  ( (_type) << 16 ) |					\
 	  ( offsetof ( _structure, _field ) << 8 ) )
-
-/**
- * Store value of SMBIOS setting
- *
- * @v settings		Settings block
- * @v setting		Setting to store
- * @v data		Setting data, or NULL to clear setting
- * @v len		Length of setting data
- * @ret rc		Return status code
- */
-static int smbios_store ( struct settings *settings __unused,
-			  struct setting *setting __unused,
-			  const void *data __unused, size_t len __unused ) {
-	/* Cannot write data into SMBIOS */
-	return -ENOTSUP;
-}
 
 /**
  * Fetch value of SMBIOS setting
@@ -133,7 +119,6 @@ static int smbios_fetch ( struct settings *settings __unused,
 
 /** SMBIOS settings operations */
 static struct settings_operations smbios_settings_operations = {
-	.store = smbios_store,
 	.fetch = smbios_fetch,
 };
 
@@ -196,6 +181,14 @@ struct setting smbios_named_settings[] __setting = {
 		.tag = SMBIOS_STRING_TAG ( SMBIOS_TYPE_SYSTEM_INFORMATION,
 					   struct smbios_system_information,
 					   serial ),
+		.type = &setting_type_string,
+	},
+	{
+		.name = "asset",
+		.description = "Asset tag",
+		.tag = SMBIOS_STRING_TAG ( SMBIOS_TYPE_ENCLOSURE_INFORMATION,
+					   struct smbios_enclosure_information,
+					   asset_tag ),
 		.type = &setting_type_string,
 	},
 };

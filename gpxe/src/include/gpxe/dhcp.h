@@ -7,6 +7,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <gpxe/in.h>
 #include <gpxe/list.h>
@@ -14,6 +16,7 @@
 #include <gpxe/tables.h>
 #include <gpxe/uuid.h>
 #include <gpxe/netdevice.h>
+#include <gpxe/uaccess.h>
 
 struct job_interface;
 struct dhcp_options;
@@ -330,6 +333,16 @@ struct dhcp_netdev_desc {
 	uint16_t device;
 } __attribute__ (( packed ));
 
+/** Use cached network settings
+ *
+ * Cached network settings may be available from a prior DHCP request
+ * (if running as a PXE NBP), non-volatile storage on the NIC, or
+ * settings set via the command line or an embedded image. If this
+ * flag is not set, it will be assumed that those sources are
+ * insufficient and that DHCP should still be run when autobooting.
+ */
+#define DHCP_EB_USE_CACHED DHCP_ENCAP_OPT ( DHCP_EB_ENCAP, 0xb2 )
+
 /** BIOS drive number
  *
  * This is the drive number for a drive emulated via INT 13.  0x80 is
@@ -599,6 +612,8 @@ struct dhcphdr {
 /** Setting block name used for BootServerDHCP responses */
 #define PXEBS_SETTINGS_NAME "pxebs"
 
+extern void * dhcp_chaddr ( struct net_device *netdev, uint8_t *hlen,
+			    uint16_t *flags );
 extern int dhcp_create_packet ( struct dhcp_packet *dhcppkt,
 				struct net_device *netdev, uint8_t msgtype,
 				const void *options, size_t options_len,
@@ -610,5 +625,13 @@ extern int dhcp_create_request ( struct dhcp_packet *dhcppkt,
 extern int start_dhcp ( struct job_interface *job, struct net_device *netdev );
 extern int start_pxebs ( struct job_interface *job, struct net_device *netdev,
 			 unsigned int pxe_type );
+
+/* In environments that can provide cached DHCP packets, this function
+ * should look for such a packet and call store_cached_dhcpack() with
+ * it if it exists.
+ */
+__weak_decl ( void, get_cached_dhcpack, ( void ), (), );
+
+extern void store_cached_dhcpack ( userptr_t data, size_t len );
 
 #endif /* _GPXE_DHCP_H */

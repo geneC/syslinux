@@ -22,7 +22,7 @@ ECHO		:= echo
 PRINTF		:= printf
 PERL		:= /usr/bin/perl
 CC		:= $(CROSS_COMPILE)gcc
-CPP		:= $(CROSS_COMPILE)gcc -E -Wp,-Wall
+CPP		:= $(CC) -E
 AS		:= $(CROSS_COMPILE)as
 LD		:= $(CROSS_COMPILE)ld
 SIZE		:= $(CROSS_COMPILE)size
@@ -35,12 +35,17 @@ PARSEROM	:= $(PERL) ./util/parserom.pl
 MAKEROM		:= $(PERL) ./util/makerom.pl
 SYMCHECK	:= $(PERL) ./util/symcheck.pl
 SORTOBJDUMP	:= $(PERL) ./util/sortobjdump.pl
+PADIMG		:= $(PERL) ./util/padimg.pl
+LICENCE		:= $(PERL) ./util/licence.pl
 NRV2B		:= ./util/nrv2b
 ZBIN		:= ./util/zbin
 ELF2EFI32	:= ./util/elf2efi32
 ELF2EFI64	:= ./util/elf2efi64
 EFIROM		:= ./util/efirom
+ICCFIX		:= ./util/iccfix
 DOXYGEN		:= doxygen
+BINUTILS_DIR	:= /usr
+BFD_DIR		:= $(BINUTILS_DIR)
 
 ###############################################################################
 #
@@ -49,13 +54,14 @@ DOXYGEN		:= doxygen
 SRCDIRS		:=
 SRCDIRS		+= libgcc
 SRCDIRS		+= core
-SRCDIRS		+= proto
-SRCDIRS		+= net net/tcp net/udp
+SRCDIRS		+= net net/tcp net/udp net/infiniband net/80211
 SRCDIRS		+= image
 SRCDIRS		+= drivers/bus
 SRCDIRS		+= drivers/net
 SRCDIRS		+= drivers/net/e1000
 SRCDIRS		+= drivers/net/phantom
+SRCDIRS		+= drivers/net/rtl818x
+SRCDIRS		+= drivers/net/ath5k
 SRCDIRS		+= drivers/block
 SRCDIRS		+= drivers/nvs
 SRCDIRS		+= drivers/bitbash
@@ -66,12 +72,18 @@ SRCDIRS		+= crypto crypto/axtls crypto/matrixssl
 SRCDIRS		+= hci hci/commands hci/tui
 SRCDIRS		+= hci/mucurses hci/mucurses/widgets
 SRCDIRS		+= usr
+SRCDIRS		+= config
 
 # NON_AUTO_SRCS lists files that are excluded from the normal
 # automatic build system.
 #
 NON_AUTO_SRCS	:=
 NON_AUTO_SRCS	+= drivers/net/prism2.c
+
+# INCDIRS lists the include path
+#
+INCDIRS		:=
+INCDIRS		+= include .
 
 ###############################################################################
 #
@@ -115,9 +127,9 @@ install :
 #
 # Version number calculations
 #
-VERSION_MAJOR	= 0
-VERSION_MINOR	= 9
-VERSION_PATCH	= 7
+VERSION_MAJOR	= 1
+VERSION_MINOR	= 0
+VERSION_PATCH	= 0
 EXTRAVERSION	=
 MM_VERSION	= $(VERSION_MAJOR).$(VERSION_MINOR)
 VERSION		= $(MM_VERSION).$(VERSION_PATCH)$(EXTRAVERSION)

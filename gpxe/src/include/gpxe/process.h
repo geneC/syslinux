@@ -7,6 +7,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/list.h>
 #include <gpxe/refcnt.h>
 #include <gpxe/tables.h>
@@ -45,6 +47,7 @@ static inline __attribute__ (( always_inline )) void
 process_init_stopped ( struct process *process,
 		       void ( * step ) ( struct process *process ),
 		       struct refcnt *refcnt ) {
+	INIT_LIST_HEAD ( &process->list );
 	process->step = step;
 	process->refcnt = refcnt;
 }
@@ -63,13 +66,15 @@ process_init ( struct process *process,
 	process_add ( process );
 }
 
+/** Permanent process table */
+#define PERMANENT_PROCESSES __table ( struct process, "processes" )
+
 /**
  * Declare a permanent process
  *
  * Permanent processes will be automatically added to the process list
  * at initialisation time.
  */
-#define __permanent_process \
-	__table ( struct process, processes, 01 )
+#define __permanent_process __table_entry ( PERMANENT_PROCESSES, 01 )
 
 #endif /* _GPXE_PROCESS_H */

@@ -23,6 +23,8 @@
  * Copyright (c) a lot of people too. Please respect their work.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +41,7 @@
 #include <gpxe/netdevice.h>
 #include <gpxe/pci.h>
 #include <gpxe/timer.h>
+#include <mii.h>
 
 #include "r8169.h"
 
@@ -2206,9 +2209,9 @@ rtl8169_probe ( struct pci_device *pdev, const struct pci_device_id *ent )
 
 	/* Get MAC address */
 	for ( i = 0; i < MAC_ADDR_LEN; i++ )
-		netdev->ll_addr[i] = RTL_R8 ( MAC0 + i );
+		netdev->hw_addr[i] = RTL_R8 ( MAC0 + i );
 
-	DBG ( "%s\n", eth_ntoa ( netdev->ll_addr ) );
+	DBG ( "%s\n", eth_ntoa ( netdev->hw_addr ) );
 
 	rtl8169_init_phy ( netdev, tp );
 
@@ -2254,16 +2257,16 @@ rtl8169_remove ( struct pci_device *pdev )
 }
 
 static struct pci_device_id rtl8169_nics[] = {
-	PCI_ROM(0x10ec, 0x8129, "rtl8169-0x8129", "rtl8169-0x8129"),
-	PCI_ROM(0x10ec, 0x8136, "rtl8169-0x8136", "rtl8169-0x8136"),
-	PCI_ROM(0x10ec, 0x8167, "rtl8169-0x8167", "rtl8169-0x8167"),
-	PCI_ROM(0x10ec, 0x8168, "rtl8169-0x8168", "rtl8169-0x8168"),
-	PCI_ROM(0x10ec, 0x8169, "rtl8169-0x8169", "rtl8169-0x8169"),
-	PCI_ROM(0x1186, 0x4300, "rtl8169-0x4300", "rtl8169-0x4300"),
-	PCI_ROM(0x1259, 0xc107, "rtl8169-0xc107", "rtl8169-0xc107"),
-	PCI_ROM(0x16ec, 0x0116, "rtl8169-0x0116", "rtl8169-0x0116"),
-	PCI_ROM(0x1737, 0x1032, "rtl8169-0x1032", "rtl8169-0x1032"),
-	PCI_ROM(0x0001, 0x8168, "rtl8169-0x8168", "rtl8169-0x8168"),
+	PCI_ROM(0x10ec, 0x8129, "rtl8169-0x8129", "rtl8169-0x8129", 0),
+	PCI_ROM(0x10ec, 0x8136, "rtl8169-0x8136", "rtl8169-0x8136", 0),
+	PCI_ROM(0x10ec, 0x8167, "rtl8169-0x8167", "rtl8169-0x8167", 0),
+	PCI_ROM(0x10ec, 0x8168, "rtl8169-0x8168", "rtl8169-0x8168", 0),
+	PCI_ROM(0x10ec, 0x8169, "rtl8169-0x8169", "rtl8169-0x8169", 0),
+	PCI_ROM(0x1186, 0x4300, "rtl8169-0x4300", "rtl8169-0x4300", 0),
+	PCI_ROM(0x1259, 0xc107, "rtl8169-0xc107", "rtl8169-0xc107", 0),
+	PCI_ROM(0x16ec, 0x0116, "rtl8169-0x0116", "rtl8169-0x0116", 0),
+	PCI_ROM(0x1737, 0x1032, "rtl8169-0x1032", "rtl8169-0x1032", 0),
+	PCI_ROM(0x0001, 0x8168, "rtl8169-0x8168", "rtl8169-0x8168", 0),
 };
 
 struct pci_driver rtl8169_driver __pci_driver = {

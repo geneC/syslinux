@@ -10,6 +10,8 @@
  * support.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/spi.h>
 #include <limits.h>
 
@@ -43,6 +45,7 @@ extern int threewire_read ( struct nvs_device *nvs, unsigned int address,
 			    void *data, size_t len );
 extern int threewire_write ( struct nvs_device *nvs, unsigned int address,
 			     const void *data, size_t len );
+extern int threewire_detect_address_len ( struct spi_device *device );
 
 /**
  * @defgroup tdevs Three-wire device types
@@ -80,6 +83,19 @@ init_at93c46 ( struct spi_device *device, unsigned int organisation ) {
 static inline __attribute__ (( always_inline )) void
 init_at93c56 ( struct spi_device *device, unsigned int organisation ) {
 	device->nvs.size = ( 2048 / organisation );
+	device->address_len = ( ( organisation == 8 ) ? 9 : 8 );
+	init_at93cx6 ( device, organisation );
+}
+
+/**
+ * Initialise Atmel AT93C66 serial EEPROM
+ *
+ * @v device		SPI device
+ * @v organisation	Word organisation (8 or 16)
+ */
+static inline __attribute__ (( always_inline )) void
+init_at93c66 ( struct spi_device *device, unsigned int organisation ) {
+	device->nvs.size = ( 4096 / organisation );
 	device->address_len = ( ( organisation == 8 ) ? 9 : 8 );
 	init_at93cx6 ( device, organisation );
 }

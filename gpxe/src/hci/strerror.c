@@ -18,24 +18,19 @@
  *
  */
 
-static struct errortab errortab_start[0]
-	__table_start ( struct errortab, errortab );
-static struct errortab errortab_end[0]
-	__table_end ( struct errortab, errortab );
+FILE_LICENCE ( GPL2_OR_LATER );
 
 /**
  * Find error description
  *
  * @v errno		Error number
- * @v mask		Mask of bits that we care about
  * @ret errortab	Error description, or NULL
  */
-static struct errortab * find_error ( int errno, int mask ) {
+static struct errortab * find_error ( int errno ) {
 	struct errortab *errortab;
 
-	for ( errortab = errortab_start ; errortab < errortab_end ;
-	      errortab++ ) {
-		if ( ( ( errortab->errno ^ errno ) & mask ) == 0 )
+	for_each_table_entry ( errortab, ERRORTAB ) {
+		if ( errortab->errno == errno )
 			return errortab;
 	}
 
@@ -54,13 +49,13 @@ static struct errortab * find_closest_error ( int errno ) {
 	struct errortab *errortab;
 
 	/* First, look for an exact match */
-	if ( ( errortab = find_error ( errno, 0x7fffffff ) ) != NULL )
+	if ( ( errortab = find_error ( errno ) ) != NULL )
 		return errortab;
 
 	/* Second, try masking off the gPXE-specific bit and seeing if
 	 * we have an entry for the generic POSIX error message.
 	 */
-	if ( ( errortab = find_error ( errno, 0x4f0000ff ) ) != NULL )
+	if ( ( errortab = find_error ( errno & 0x7f0000ff ) ) != NULL )
 		return errortab;
 
 	return NULL;
@@ -119,7 +114,9 @@ struct errortab common_errors[] __errortab = {
 	{ ENOEXEC, "Not an executable image" },
 	{ ENOMEM, "Out of memory" },
 	{ ENOSPC, "No space left on device" },
+	{ ENOTCONN, "Not connected" },
 	{ ENOTSUP, "Not supported" },
 	{ EPERM, "Operation not permitted" },
+	{ ERANGE, "Out of range" },
 	{ ETIMEDOUT, "Connection timed out" },
 };

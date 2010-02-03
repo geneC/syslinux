@@ -11,21 +11,24 @@ LDFLAGS		+= -N --no-check-sections
 # Media types.
 #
 MEDIA		+= rom
+MEDIA		+= hrom
+MEDIA		+= xrom
 MEDIA		+= pxe
 MEDIA		+= kpxe
 MEDIA		+= kkpxe
-MEDIA		+= elf
-MEDIA		+= elfd
-MEDIA		+= lmelf
-MEDIA		+= lmelfd
 MEDIA		+= lkrn
-MEDIA		+= bImage
 MEDIA		+= dsk
 MEDIA		+= nbi
 MEDIA		+= hd
 MEDIA		+= raw
-MEDIA		+= com
-MEDIA		+= exe
+
+# Padding rules
+#
+PAD_rom		= $(PADIMG) --blksize=512 --byte=0xff $@
+PAD_hrom	= $(PAD_rom)
+PAD_xrom	= $(PAD_rom)
+PAD_dsk		= $(PADIMG) --blksize=512 $@
+PAD_hd		= $(PADIMG) --blksize=32768 $@
 
 # rule to make a non-emulation ISO boot image
 NON_AUTO_MEDIA	+= iso
@@ -38,6 +41,12 @@ NON_AUTO_MEDIA	+= liso
 %liso:	%lkrn util/genliso
 	$(QM)$(ECHO) "  [GENLISO] $@"
 	$(Q)bash util/genliso $@ $<
+
+# rule to make a syslinux floppy image (mountable, bootable)
+NON_AUTO_MEDIA	+= sdsk
+%sdsk:	%lkrn util/gensdsk
+	$(QM)$(ECHO) "  [GENSDSK] $@"
+	$(Q)bash util/gensdsk $@ $<
 
 # Special target for building Master Boot Record binary
 $(BIN)/mbr.bin : $(BIN)/mbr.o
@@ -53,3 +62,9 @@ NON_AUTO_MEDIA	+= usb
 %usb: $(BIN)/usbdisk.bin %hd
 	$(QM)$(ECHO) "  [FINISH] $@"
 	$(Q)cat $^ > $@
+
+# Padded floppy image (e.g. for iLO)
+NON_AUTO_MEDIA += pdsk
+%pdsk : %dsk
+	$(Q)cp $< $@
+	$(Q)$(PADIMG) --blksize=1474560 $@

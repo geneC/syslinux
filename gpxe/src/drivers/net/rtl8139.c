@@ -12,6 +12,8 @@
 
 */
 
+FILE_LICENCE ( GPL_ANY );
+
 /*********************************************************************/
 /* Revision History                                                  */
 /*********************************************************************/
@@ -277,10 +279,10 @@ static void rtl_init_eeprom ( struct net_device *netdev ) {
 	/* Detect EEPROM type and initialise three-wire device */
 	ee9356 = ( inw ( rtl->ioaddr + RxConfig ) & Eeprom9356 );
 	if ( ee9356 ) {
-		DBG ( "EEPROM is an AT93C56\n" );
+		DBGC ( rtl, "rtl8139 %p EEPROM is an AT93C56\n", rtl );
 		init_at93c56 ( &rtl->eeprom, 16 );
 	} else {
-		DBG ( "EEPROM is an AT93C46\n" );
+		DBGC ( rtl, "rtl8139 %p EEPROM is an AT93C46\n", rtl );
 		init_at93c46 ( &rtl->eeprom, 16 );
 	}
 	rtl->eeprom.bus = &rtl->spibit.bus;
@@ -288,7 +290,8 @@ static void rtl_init_eeprom ( struct net_device *netdev ) {
 	/* Initialise space for non-volatile options, if available */
 	vpd = ( inw ( rtl->ioaddr + Config1 ) & VPDEnable );
 	if ( vpd ) {
-		DBG ( "EEPROM in use for VPD; cannot use for options\n" );
+		DBGC ( rtl, "rtl8139 %p EEPROM in use for VPD; cannot use "
+		       "for options\n", rtl );
 	} else {
 		nvo_init ( &rtl->nvo, &rtl->eeprom.nvs, rtl_nvo_fragments,
 			   &netdev->refcnt );
@@ -331,7 +334,8 @@ static int rtl_open ( struct net_device *netdev ) {
 	if ( ! rtl->rx.ring )
 		return -ENOMEM;
 	outl ( virt_to_bus ( rtl->rx.ring ), rtl->ioaddr + RxBuf );
-	DBG ( "RX ring at %lx\n", virt_to_bus ( rtl->rx.ring ) );
+	DBGC ( rtl, "rtl8139 %p RX ring at %lx\n",
+	       rtl, virt_to_bus ( rtl->rx.ring ) );
 
 	/* Enable TX and RX */
 	outb ( ( CmdRxEnb | CmdTxEnb ), rtl->ioaddr + ChipCmd );
@@ -375,7 +379,7 @@ static int rtl_transmit ( struct net_device *netdev,
 
 	/* Check for space in TX ring */
 	if ( rtl->tx.iobuf[rtl->tx.next] != NULL ) {
-		DBG ( "TX overflow\n" );
+		DBGC ( rtl, "rtl8139 %p TX overflow\n", rtl );
 		return -ENOBUFS;
 	}
 
@@ -383,8 +387,8 @@ static int rtl_transmit ( struct net_device *netdev,
 	iob_pad ( iobuf, ETH_ZLEN );
 
 	/* Add to TX ring */
-	DBG ( "TX id %d at %lx+%zx\n", rtl->tx.next,
-	      virt_to_bus ( iobuf->data ), iob_len ( iobuf ) );
+	DBGC2 ( rtl, "rtl8139 %p TX id %d at %lx+%zx\n", rtl, rtl->tx.next,
+		virt_to_bus ( iobuf->data ), iob_len ( iobuf ) );
 	rtl->tx.iobuf[rtl->tx.next] = iobuf;
 	outl ( virt_to_bus ( iobuf->data ),
 	       rtl->ioaddr + TxAddr0 + 4 * rtl->tx.next );
@@ -420,7 +424,8 @@ static void rtl_poll ( struct net_device *netdev ) {
 	tsad = inw ( rtl->ioaddr + TxSummary );
 	for ( i = 0 ; i < TX_RING_SIZE ; i++ ) {
 		if ( ( rtl->tx.iobuf[i] != NULL ) && ( tsad & ( 1 << i ) ) ) {
-			DBG ( "TX id %d complete\n", i );
+			DBGC2 ( rtl, "rtl8139 %p TX id %d complete\n",
+				rtl, i );
 			netdev_tx_complete ( netdev, rtl->tx.iobuf[i] );
 			rtl->tx.iobuf[i] = NULL;
 		}
@@ -433,8 +438,8 @@ static void rtl_poll ( struct net_device *netdev ) {
 		rx_len = * ( ( uint16_t * )
 			     ( rtl->rx.ring + rtl->rx.offset + 2 ) );
 		if ( rx_status & RxOK ) {
-			DBG ( "RX packet at offset %x+%x\n", rtl->rx.offset,
-			      rx_len );
+			DBGC2 ( rtl, "rtl8139 %p RX packet at offset "
+				"%x+%x\n", rtl, rtl->rx.offset, rx_len );
 
 			rx_iob = alloc_iob ( rx_len );
 			if ( ! rx_iob ) {
@@ -456,8 +461,8 @@ static void rtl_poll ( struct net_device *netdev ) {
 
 			netdev_rx ( netdev, rx_iob );
 		} else {
-			DBG ( "RX bad packet (status %#04x len %d)\n",
-			      rx_status, rx_len );
+			DBGC ( rtl, "rtl8139 %p RX bad packet (status %#04x "
+			       "len %d)\n", rtl, rx_status, rx_len );
 			netdev_rx_err ( netdev, NULL, -EINVAL );
 		}
 		rtl->rx.offset = ( ( ( rtl->rx.offset + 4 + rx_len + 3 ) & ~3 )
@@ -474,7 +479,9 @@ static void rtl_poll ( struct net_device *netdev ) {
  */
 static void rtl_irq ( struct net_device *netdev, int enable ) {
 	struct rtl8139_nic *rtl = netdev->priv;
-	
+
+	DBGC ( rtl, "rtl8139 %p interrupts %s\n",
+	       rtl, ( enable ? "enabled" : "disabled" ) );
 	outw ( ( enable ? ( ROK | RER | TOK | TER ) : 0 ),
 	       rtl->ioaddr + IntrMask );
 }
@@ -518,7 +525,7 @@ static int rtl_probe ( struct pci_device *pci,
 	/* Reset the NIC, set up EEPROM access and read MAC address */
 	rtl_reset ( netdev );
 	rtl_init_eeprom ( netdev );
-	nvs_read ( &rtl->eeprom.nvs, EE_MAC, netdev->ll_addr, ETH_ALEN );
+	nvs_read ( &rtl->eeprom.nvs, EE_MAC, netdev->hw_addr, ETH_ALEN );
 
 	/* Mark as link up; we don't yet handle link state */
 	netdev_link_up ( netdev );
@@ -563,20 +570,20 @@ static void rtl_remove ( struct pci_device *pci ) {
 }
 
 static struct pci_device_id rtl8139_nics[] = {
-PCI_ROM(0x10ec, 0x8129, "rtl8129",       "Realtek 8129"),
-PCI_ROM(0x10ec, 0x8139, "rtl8139",       "Realtek 8139"),
-PCI_ROM(0x10ec, 0x8138, "rtl8139b",      "Realtek 8139B"),
-PCI_ROM(0x1186, 0x1300, "dfe538",        "DFE530TX+/DFE538TX"),
-PCI_ROM(0x1113, 0x1211, "smc1211-1",     "SMC EZ10/100"),
-PCI_ROM(0x1112, 0x1211, "smc1211",       "SMC EZ10/100"),
-PCI_ROM(0x1500, 0x1360, "delta8139",     "Delta Electronics 8139"),
-PCI_ROM(0x4033, 0x1360, "addtron8139",   "Addtron Technology 8139"),
-PCI_ROM(0x1186, 0x1340, "dfe690txd",     "D-Link DFE690TXD"),
-PCI_ROM(0x13d1, 0xab06, "fe2000vx",      "AboCom FE2000VX"),
-PCI_ROM(0x1259, 0xa117, "allied8139",    "Allied Telesyn 8139"),
-PCI_ROM(0x14ea, 0xab06, "fnw3603tx",     "Planex FNW-3603-TX"),
-PCI_ROM(0x14ea, 0xab07, "fnw3800tx",     "Planex FNW-3800-TX"),
-PCI_ROM(0xffff, 0x8139, "clone-rtl8139", "Cloned 8139"),
+PCI_ROM(0x10ec, 0x8129, "rtl8129",       "Realtek 8129", 0),
+PCI_ROM(0x10ec, 0x8139, "rtl8139",       "Realtek 8139", 0),
+PCI_ROM(0x10ec, 0x8138, "rtl8139b",      "Realtek 8139B", 0),
+PCI_ROM(0x1186, 0x1300, "dfe538",        "DFE530TX+/DFE538TX", 0),
+PCI_ROM(0x1113, 0x1211, "smc1211-1",     "SMC EZ10/100", 0),
+PCI_ROM(0x1112, 0x1211, "smc1211",       "SMC EZ10/100", 0),
+PCI_ROM(0x1500, 0x1360, "delta8139",     "Delta Electronics 8139", 0),
+PCI_ROM(0x4033, 0x1360, "addtron8139",   "Addtron Technology 8139", 0),
+PCI_ROM(0x1186, 0x1340, "dfe690txd",     "D-Link DFE690TXD", 0),
+PCI_ROM(0x13d1, 0xab06, "fe2000vx",      "AboCom FE2000VX", 0),
+PCI_ROM(0x1259, 0xa117, "allied8139",    "Allied Telesyn 8139", 0),
+PCI_ROM(0x14ea, 0xab06, "fnw3603tx",     "Planex FNW-3603-TX", 0),
+PCI_ROM(0x14ea, 0xab07, "fnw3800tx",     "Planex FNW-3800-TX", 0),
+PCI_ROM(0xffff, 0x8139, "clone-rtl8139", "Cloned 8139", 0),
 };
 
 struct pci_driver rtl8139_driver __pci_driver = {
