@@ -40,3 +40,18 @@ index 8afefe3..b92e08e 100644
  	printf ( "\nPress Ctrl-B for the gPXE command line..." );
  
  	/* Wait for key */
+diff --git a/gpxe/src/include/gpxe/tcp.h b/gpxe/src/include/gpxe/tcp.h
+index 7ae7eab..9dc39fc 100644
+--- a/gpxe/src/include/gpxe/tcp.h
++++ b/gpxe/src/include/gpxe/tcp.h
+@@ -286,8 +286,8 @@ struct tcp_options {
+  * actually use 65536, we use a window size of (65536-4) to ensure
+  * that payloads remain dword-aligned.
+  */
+-//#define TCP_MAX_WINDOW_SIZE	( 65536 - 4 )
+-#define TCP_MAX_WINDOW_SIZE	4096
++#define TCP_MAX_WINDOW_SIZE	( 65536 - 4 )
++//#define TCP_MAX_WINDOW_SIZE	4096
+ 
+ /**
+  * Path MTU
