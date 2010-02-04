@@ -1,6 +1,8 @@
 #ifndef _GPXE_COMMAND_H
 #define _GPXE_COMMAND_H
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/tables.h>
 
 /** A command-line command */
@@ -17,6 +19,8 @@ struct command {
 	int ( * exec ) ( int argc, char **argv );
 };
 
-#define __command __table ( struct command, commands, 01 )
+#define COMMANDS __table ( struct command, "commands" )
+
+#define __command __table_entry ( COMMANDS, 01 )
 
 #endif /* _GPXE_COMMAND_H */

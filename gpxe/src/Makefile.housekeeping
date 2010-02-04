@@ -54,11 +54,35 @@ echo :
 
 ###############################################################################
 #
+# Generate a usable "seq" substitute
+#
+define seq
+	$(shell awk 'BEGIN { for ( i = $(1) ; i <= $(2) ; i++ ) print i }')
+endef
+
+###############################################################################
+#
 # Determine host OS
 #
 HOST_OS		:= $(shell uname -s)
 hostos :
 	@$(ECHO) $(HOST_OS)
+
+###############################################################################
+#
+# Determine compiler
+
+CCDEFS		:= $(shell $(CC) -E -x c -c /dev/null -dM | cut -d" " -f2)
+ccdefs:
+	@$(ECHO) $(CCDEFS)
+
+ifeq ($(filter __ICC,$(CCDEFS)),__ICC)
+CCTYPE		:= icc
+else
+CCTYPE		:= gcc
+endif
+cctype:
+	@$(ECHO) $(CCTYPE)
 
 ###############################################################################
 #
@@ -103,10 +127,30 @@ oldgas :
 # default, even when -ffreestanding is specified.  We therefore need
 # to disable -fstack-protector if the compiler supports it.
 #
+ifeq ($(CCTYPE),gcc)
 SP_TEST = $(CC) -fno-stack-protector -x c -c /dev/null \
 		-o /dev/null >/dev/null 2>&1
 SP_FLAGS := $(shell $(SP_TEST) && $(ECHO) '-fno-stack-protector')
 CFLAGS	+= $(SP_FLAGS)
+endif
+
+# gcc 4.4 generates .eh_frame sections by default, which distort the
+# output of "size".  Inhibit this.
+#
+ifeq ($(CCTYPE),gcc)
+CFI_TEST = $(CC) -fno-dwarf2-cfi-asm -x c -c /dev/null \
+		 -o /dev/null >/dev/null 2>&1
+CFI_FLAGS := $(shell $(CFI_TEST) && $(ECHO) '-fno-dwarf2-cfi-asm')
+CFLAGS	+= $(CFI_FLAGS)
+endif
+
+# Some versions of gas choke on division operators, treating them as
+# comment markers.  Specifying --divide will work around this problem,
+# but isn't available on older gas versions.
+#
+DIVIDE_TEST = $(AS) --divide /dev/null -o /dev/null 2>/dev/null
+DIVIDE_FLAGS := $(shell $(DIVIDE_TEST) && $(ECHO) '--divide')
+ASFLAGS	+= $(DIVIDE_FLAGS)
 
 ###############################################################################
 #
@@ -248,6 +292,11 @@ MAKEDEPS	+= arch/$(ARCH)/Makefile
 include arch/$(ARCH)/Makefile
 endif
 
+# Include architecture-specific include path
+ifdef ARCH
+INCDIRS		+= arch/$(ARCH)/include
+endif
+
 ###############################################################################
 #
 # Source file handling
@@ -276,12 +325,45 @@ autosrcs :
 
 ifdef BIN
 
+# INCDIRS lists the include path
+incdirs :
+	@$(ECHO) $(INCDIRS)
+
 # Common flags
 #
-CFLAGS		+= -I include -I arch/$(ARCH)/include -I .
-CFLAGS		+= -Os -ffreestanding
-CFLAGS		+= -Wall -W -Wformat-nonliteral
+CFLAGS		+= $(foreach INC,$(INCDIRS),-I$(INC))
+CFLAGS		+= -Os
 CFLAGS		+= -g
+ifeq ($(CCTYPE),gcc)
+CFLAGS		+= -ffreestanding
+CFLAGS		+= -Wall -W -Wformat-nonliteral
+endif
+ifeq ($(CCTYPE),icc)
+CFLAGS		+= -fno-builtin
+CFLAGS		+= -no-ip
+CFLAGS		+= -no-gcc
+CFLAGS		+= -diag-disable 111 # Unreachable code
+CFLAGS		+= -diag-disable 128 # Unreachable loop
+CFLAGS		+= -diag-disable 170 # Array boundary checks
+CFLAGS		+= -diag-disable 177 # Unused functions
+CFLAGS		+= -diag-disable 181 # printf() format checks
+CFLAGS		+= -diag-disable 188 # enum strictness
+CFLAGS		+= -diag-disable 193 # Undefined preprocessor identifiers
+CFLAGS		+= -diag-disable 280 # switch ( constant )
+CFLAGS		+= -diag-disable 310 # K&R parameter lists
+CFLAGS		+= -diag-disable 424 # Extra semicolon
+CFLAGS		+= -diag-disable 589 # Declarations mid-code
+CFLAGS		+= -diag-disable 593 # Unused variables
+CFLAGS		+= -diag-disable 810 # Casting ints to smaller ints
+CFLAGS		+= -diag-disable 981 # Sequence point violations
+CFLAGS		+= -diag-disable 1292 # Ignored attributes
+CFLAGS		+= -diag-disable 1338 # void pointer arithmetic
+CFLAGS		+= -diag-disable 1361 # Variable-length arrays
+CFLAGS		+= -diag-disable 1418 # Missing prototypes
+CFLAGS		+= -diag-disable 1419 # Missing prototypes
+CFLAGS		+= -diag-disable 1599 # Hidden variables
+CFLAGS		+= -Wall -Wmissing-declarations
+endif
 CFLAGS		+= $(EXTRA_CFLAGS)
 ASFLAGS		+= $(EXTRA_ASFLAGS)
 LDFLAGS		+= $(EXTRA_LDFLAGS)
@@ -314,11 +396,21 @@ OBJ_CFLAGS	= $(CFLAGS_$(OBJECT)) -DOBJECT=$(subst -,_,$(OBJECT))
 $(BIN)/%.flags :
 	@$(ECHO) $(OBJ_CFLAGS)
 
+# ICC requires postprocessing objects to fix up table alignments
+#
+ifeq ($(CCTYPE),icc)
+POST_O		= && $(ICCFIX) $@
+POST_O_DEPS	:= $(ICCFIX)
+else
+POST_O		:=
+POST_O_DEPS	:=
+endif
+
 # Rules for specific object types.
 #
 COMPILE_c	= $(CC) $(CFLAGS) $(CFLAGS_c) $(OBJ_CFLAGS)
-RULE_c		= $(Q)$(COMPILE_c) -c $< -o $@
-RULE_c_to_dbg%.o = $(Q)$(COMPILE_c) -Ddebug_$(OBJECT)=$* -c $< -o $@
+RULE_c		= $(Q)$(COMPILE_c) -c $< -o $@ $(POST_O)
+RULE_c_to_dbg%.o = $(Q)$(COMPILE_c) -Ddebug_$(subst -,_,$(OBJECT))=$* -c $< -o $@ $(POST_O)
 RULE_c_to_c	= $(Q)$(COMPILE_c) -E -c $< > $@
 RULE_c_to_s	= $(Q)$(COMPILE_c) -S -g0 -c $< -o $@
 
@@ -346,39 +438,25 @@ define src_template
 	@$(MKDIR) -p $(dir $(2))
 	@$(RM) $(2)
 	@$(TOUCH) $(2)
-	$(foreach OBJ,$(if $(OBJS_$(4)),$(OBJS_$(4)),$(4)), \
-		$(call obj_template,$(1),$(2),$(3),$(OBJ)))
-	@$(PARSEROM) $(1) >> $(2)
-
-endef
-
-# obj_template : generate Makefile rules for a given resultant object
-# of a particular source file.  (We can have multiple objects per
-# source file via the OBJS_xxx list.)
-#
-# $(1) is the full path to the source file (e.g. "drivers/net/rtl8139.c")
-# $(2) is the full path to the .d file (e.g. "bin/deps/drivers/net/rtl8139.d")
-# $(3) is the source type (e.g. "c")
-# $(4) is the object name (e.g. "rtl8139")
-#
-define obj_template
-
 	@$(CPP) $(CFLAGS) $(CFLAGS_$(3)) $(CFLAGS_$(4)) -DOBJECT=$(4) \
-		-Wno-error -MM $(1) -MT "$(4)_DEPS" -MG -MP | \
-		sed 's/_DEPS\s*:/_DEPS =/' >> $(2)
-	@$(ECHO_E) '\n$$(BIN)/$(4).o : $(1) $$(MAKEDEPS) $$($(4)_DEPS)' \
+		-Wno-error -MM $(1) -MG -MP | \
+		sed 's/\.o\s*:/_DEPS =/' >> $(2)
+	@$(ECHO_E) '\n$$(BIN)/$(4).o :' \
+		 '$(1) $$(MAKEDEPS) $$(POST_O_DEPS) $$($(4)_DEPS)' \
 		 '\n\t$$(QM)$(ECHO) "  [BUILD] $$@"' \
 		 '\n\t$$(RULE_$(3))\n' \
 		 '\nBOBJS += $$(BIN)/$(4).o\n' \
 		 $(foreach TGT,$(DEBUG_TARGETS), \
 		    $(if $(RULE_$(3)_to_$(TGT)), \
-		    '\n$$(BIN)/$(4).$(TGT) : $(1) $$(MAKEDEPS) $$($(4)_DEPS)' \
+		    '\n$$(BIN)/$(4).$(TGT) :' \
+		    '$(1) $$(MAKEDEPS) $$(POST_O_DEPS) $$($(4)_DEPS)' \
 		    '\n\t$$(QM)$(ECHO) "  [BUILD] $$@"' \
 		    '\n\t$$(RULE_$(3)_to_$(TGT))\n' \
 		    '\n$(TGT)_OBJS += $$(BIN)/$(4).$(TGT)\n' ) ) \
 		 '\n$(2) : $$($(4)_DEPS)\n' \
 		 '\nTAGS : $$($(4)_DEPS)\n' \
 		>> $(2)
+	@$(PARSEROM) $(1) >> $(2)
 
 endef
 
@@ -415,7 +493,7 @@ roms :
 #
 EMBEDDED_LIST	:= $(BIN)/.embedded.list
 ifeq ($(wildcard $(EMBEDDED_LIST)),)
-EMBEDDED_LIST_IMAGE :=
+EMBEDDED_LIST_IMAGE := <invalid>
 else
 EMBEDDED_LIST_IMAGE := $(shell cat $(EMBEDDED_LIST))
 endif
@@ -428,7 +506,7 @@ $(EMBEDDED_LIST) :
 VERYCLEANUP	+= $(EMBEDDED_LIST)
 
 EMBEDDED_FILES	:= $(subst $(COMMA), ,$(EMBEDDED_IMAGE))
-EMBED_ALL	:= $(foreach i,$(shell seq 1 $(words $(EMBEDDED_FILES))),\
+EMBED_ALL	:= $(foreach i,$(call seq,1,$(words $(EMBEDDED_FILES))),\
 		     EMBED ( $(i), \"$(word $(i), $(EMBEDDED_FILES))\",\
 			     \"$(notdir $(word $(i),$(EMBEDDED_FILES)))\" ))
 
@@ -550,7 +628,7 @@ $(BIN)/%.info :
 #
 BLIB_LIST	:= $(BIN)/.blib.list
 ifeq ($(wildcard $(BLIB_LIST)),)
-BLIB_LIST_OBJS	:=
+BLIB_LIST_OBJS	:= <invalid>
 else
 BLIB_LIST_OBJS	:= $(shell cat $(BLIB_LIST))
 endif
@@ -588,6 +666,55 @@ $(BIN)/%.tmp : $(BLIB) $(MAKEDEPS) $(LDSCRIPT)
 #
 $(BIN)/%.map : $(BIN)/%.tmp
 	@less $(BIN)/$*.tmp.map
+
+# Get objects list for the specified target
+#
+define objs_list
+	$(sort $(foreach OBJ_SYMBOL,\
+		 $(filter obj_%,$(shell $(NM) $(1) | cut -d" " -f3)),\
+		 $(patsubst obj_%,%,$(OBJ_SYMBOL))))
+endef
+$(BIN)/%.objs : $(BIN)/%.tmp
+	$(Q)$(ECHO) $(call objs_list,$<)
+$(BIN)/%.sizes : $(BIN)/%.tmp
+	$(Q)$(SIZE) -t $(foreach OBJ,$(call objs_list,$<),$(wildcard $(BIN)/$(subst _,?,$(OBJ)).o)) | \
+		sort -g
+
+# Get dependency list for the specified target
+#
+define deps_list
+	$(sort $(foreach OBJ,$(call objs_list,$(1)),$($(OBJ)_DEPS)))
+endef
+$(BIN)/%.deps : $(BIN)/%.tmp
+	$(Q)$(ECHO) $(call deps_list,$<)
+
+# Get unneeded source files for the specified target
+#
+define nodeps_list
+	$(sort $(filter-out $(call deps_list,$(1)),\
+		 $(foreach BOBJ,$(BOBJS),\
+		   $($(basename $(notdir $(BOBJ)))_DEPS))))
+endef
+$(BIN)/%.nodeps : $(BIN)/%.tmp
+	$(Q)$(ECHO) $(call nodeps_list,$<)
+
+# Get licensing verdict for the specified target
+#
+define unlicensed_deps_list
+	$(shell grep -L FILE_LICENCE $(call deps_list,$(1)))
+endef
+define licence_list
+	$(patsubst __licence_%,%,\
+	  $(filter __licence_%,$(shell $(NM) $(1) | cut -d" " -f3)))
+endef
+$(BIN)/%.licence : $(BIN)/%.tmp
+	$(QM)$(ECHO) "  [LICENCE] $@"
+	$(Q)$(if $(strip $(call unlicensed_deps_list,$<)),\
+		echo -n "Unable to determine licence because the following " ;\
+		echo "files are missing a licence declaration:" ;\
+		echo $(call unlicensed_deps_list,$<);\
+		exit 1,\
+		$(LICENCE) $(call licence_list,$<))
 
 # Extract compression information from intermediate object file
 #
@@ -649,6 +776,7 @@ define media_template
 	@$(ECHO_E) '$$(BIN)/%.$(1) : $$(BIN)/%.$(1).zbin' \
 		  '\n\t$$(QM)$(ECHO) "  [FINISH] $$@"' \
 		  '\n\t$$(Q)$$(CP) $$< $$@' \
+		  '\n\t$$(Q)$$(PAD_$(1))' \
 		  '\n\t$$(Q)$$(FINALISE_$(1))' \
 		> $(2)
 
@@ -702,6 +830,9 @@ endif # defined(BIN)
 #
 FINALISE_rom	= $(MAKEROM) $(MAKEROM_FLAGS) $(TGT_MAKEROM_FLAGS) \
 		  -i$(IDENT) -s 0 $@
+FINALISE_hrom	= $(FINALISE_rom)
+FINALISE_xrom	= $(MAKEROM) $(MAKEROM_FLAGS) $(TGT_MAKEROM_FLAGS) \
+		  -i$(IDENT) -n -s 0 $@
 
 # Some ROMs require specific flags to be passed to makerom.pl
 #
@@ -726,22 +857,33 @@ CLEANUP += $(ZBIN)
 #
 # The EFI image converter
 #
+ELF2EFI_CFLAGS	:= -I$(BINUTILS_DIR)/include -I$(BFD_DIR)/include \
+		   -idirafter include -L$(BINUTILS_DIR)/lib -L$(BFD_DIR)/lib \
+		   -lbfd -liberty -lz
+
 $(ELF2EFI32) : util/elf2efi.c $(MAKEDEPS)
 	$(QM)$(ECHO) "  [HOSTCC] $@"
-	$(Q)$(HOST_CC) -DMDE_CPU_IA32 -idirafter include -O2 \
-		-o $@ $< -lbfd -liberty
+	$(Q)$(HOST_CC) $(ELF2EFI_CFLAGS) -DMDE_CPU_IA32 -O2 -o $@ $<
 CLEANUP += $(ELF2EFI32)
 
 $(ELF2EFI64) : util/elf2efi.c $(MAKEDEPS)
 	$(QM)$(ECHO) "  [HOSTCC] $@"
-	$(Q)$(HOST_CC) -DMDE_CPU_X64 -idirafter include -O2 \
-		-o $@ $< -lbfd -liberty
+	$(Q)$(HOST_CC) $(ELF2EFI_CFLAGS) -DMDE_CPU_X64 -O2 -o $@ $<
 CLEANUP += $(ELF2EFI64)
 
 $(EFIROM) : util/efirom.c $(MAKEDEPS)
 	$(QM)$(ECHO) "  [HOSTCC] $@"
 	$(Q)$(HOST_CC) -idirafter include -O2 -o $@ $<
 CLEANUP += $(EFIROM)
+
+###############################################################################
+#
+# The ICC fixup utility
+#
+$(ICCFIX) : util/iccfix.c $(MAKEDEPS)
+	$(QM)$(ECHO) "  [HOSTCC] $@"
+	$(Q)$(HOST_CC) -idirafter include -O2 -o $@ $<
+CLEANUP += $(ICCFIX)
 
 ###############################################################################
 #
@@ -823,19 +965,23 @@ endif # defined(BIN)
 ifdef BIN
 
 $(BIN)/doxygen.cfg : doxygen.cfg $(MAKEDEPS)
-	$(PERL) -pe 's{\@SRCDIRS\@}{$(SRCDIRS)}; ' \
+	$(Q)$(PERL) -pe 's{\@SRCDIRS\@}{$(SRCDIRS)}; ' \
+		-e  's{\@INCDIRS\@}{$(filter-out .,$(INCDIRS))}; ' \
 		-e  's{\@BIN\@}{$(BIN)}; ' \
 		-e  's{\@ARCH\@}{$(ARCH)}; ' \
 		$< > $@
 
 $(BIN)/doc : $(BIN)/doxygen.cfg
-	$(DOXYGEN) $<
+	$(Q)$(DOXYGEN) $<
 
 .PHONY : $(BIN)/doc
 
-VERYCLEANUP	+= $(BIN)/doc
-
 doc : $(BIN)/doc
+
+doc-clean :
+	$(Q)$(RM) -r $(BIN)/doc
+
+VERYCLEANUP	+= $(BIN)/doc
 
 docview :
 	@[ -f $(BIN)/doc/html/index.html ] || $(MAKE) $(BIN)/doc

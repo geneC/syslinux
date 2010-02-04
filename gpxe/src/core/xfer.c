@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -43,11 +45,14 @@ static struct xfer_metadata dummy_metadata;
  */
 void xfer_close ( struct xfer_interface *xfer, int rc ) {
 	struct xfer_interface *dest = xfer_get_dest ( xfer );
+	struct xfer_interface_operations *op = xfer->op;
 
 	DBGC ( xfer, "XFER %p->%p close\n", xfer, dest );
 
 	xfer_unplug ( xfer );
+	xfer_nullify ( xfer );
 	dest->op->close ( dest, rc );
+	xfer->op = op;
 	xfer_put ( dest );
 }
 

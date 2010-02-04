@@ -7,6 +7,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <gpxe/tables.h>
 #include <gdbmach.h>
@@ -45,7 +47,9 @@ struct gdb_transport {
 	void ( * send ) ( const char *buf, size_t len );
 };
 
-#define __gdb_transport __table ( struct gdb_transport, gdb_transports, 01 )
+#define GDB_TRANSPORTS __table ( struct gdb_transport, "gdb_transports" )
+
+#define __gdb_transport __table_entry ( GDB_TRANSPORTS, 01 )
 
 /**
  * Look up GDB transport by name

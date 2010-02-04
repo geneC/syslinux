@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/list.h>
 #include <gpxe/init.h>
 #include <gpxe/process.h>
@@ -31,21 +33,22 @@
 /** Process run queue */
 static LIST_HEAD ( run_queue );
 
-/** Registered permanent processes */
-static struct process processes[0]
-	__table_start ( struct process, processes );
-static struct process processes_end[0]
-	__table_end ( struct process, processes );
-
 /**
  * Add process to process list
  *
  * @v process		Process
+ *
+ * It is safe to call process_add() multiple times; further calls will
+ * have no effect.
  */
 void process_add ( struct process *process ) {
-	DBGC ( process, "PROCESS %p starting\n", process );
-	ref_get ( process->refcnt );
-	list_add_tail ( &process->list, &run_queue );
+	if ( list_empty ( &process->list ) ) {
+		DBGC ( process, "PROCESS %p starting\n", process );
+		ref_get ( process->refcnt );
+		list_add_tail ( &process->list, &run_queue );
+	} else {
+		DBGC ( process, "PROCESS %p already started\n", process );
+	}
 }
 
 /**
@@ -93,9 +96,8 @@ void step ( void ) {
 static void init_processes ( void ) {
 	struct process *process;
 
-	for ( process = processes ; process < processes_end ; process++ ) {
+	for_each_table_entry ( process, PERMANENT_PROCESSES )
 		process_add ( process );
-	}
 }
 
 /** Process initialiser */

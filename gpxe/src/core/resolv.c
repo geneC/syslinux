@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -150,12 +152,6 @@ struct resolver numeric_resolver __resolver ( RESOLV_NUMERIC ) = {
  ***************************************************************************
  */
 
-/** Registered name resolvers */
-static struct resolver resolvers[0]
-	__table_start ( struct resolver, resolvers );
-static struct resolver resolvers_end[0]
-	__table_end ( struct resolver, resolvers );
-
 /** A name resolution multiplexer */
 struct resolv_mux {
 	/** Reference counter */
@@ -223,7 +219,7 @@ static void resolv_mux_done ( struct resolv_interface *resolv,
 
 	/* Attempt next child resolver, if possible */
 	mux->resolver++;
-	if ( mux->resolver >= resolvers_end ) {
+	if ( mux->resolver >= table_end ( RESOLVERS ) ) {
 		DBGC ( mux, "RESOLV %p failed to resolve name\n", mux );
 		goto finished;
 	}
@@ -262,7 +258,7 @@ int resolv ( struct resolv_interface *resolv, const char *name,
 		return -ENOMEM;
 	resolv_init ( &mux->parent, &null_resolv_ops, &mux->refcnt );
 	resolv_init ( &mux->child, &resolv_mux_child_ops, &mux->refcnt );
-	mux->resolver = resolvers;
+	mux->resolver = table_start ( RESOLVERS );
 	memcpy ( &mux->sa, sa, sizeof ( mux->sa ) );
 	memcpy ( mux->name, name, name_len );
 
@@ -308,9 +304,36 @@ struct named_socket {
 	int have_local;
 };
 
+/**
+ * Finish using named socket
+ *
+ * @v named		Named socket
+ * @v rc		Reason for finish
+ */
+static void named_done ( struct named_socket *named, int rc ) {
+
+	/* Close all interfaces */
+	resolv_nullify ( &named->resolv );
+	xfer_nullify ( &named->xfer );
+	xfer_close ( &named->xfer, rc );
+}
+
+/**
+ * Handle close() event
+ *
+ * @v xfer		Data transfer interface
+ * @v rc		Reason for close
+ */
+static void named_xfer_close ( struct xfer_interface *xfer, int rc ) {
+	struct named_socket *named =
+		container_of ( xfer, struct named_socket, xfer );
+
+	named_done ( named, rc );
+}
+
 /** Named socket opener data transfer interface operations */
 static struct xfer_interface_operations named_xfer_ops = {
-	.close		= ignore_xfer_close,
+	.close		= named_xfer_close,
 	.vredirect	= ignore_xfer_vredirect,
 	.window		= no_xfer_window,
 	.alloc_iob	= default_xfer_alloc_iob,
@@ -330,10 +353,6 @@ static void named_resolv_done ( struct resolv_interface *resolv,
 	struct named_socket *named =
 		container_of ( resolv, struct named_socket, resolv );
 
-	/* Unplug resolver and nullify data transfer interface */
-	resolv_unplug ( &named->resolv );
-	xfer_nullify ( &named->xfer );
-
 	/* Redirect if name resolution was successful */
 	if ( rc == 0 ) {
 		rc = xfer_redirect ( &named->xfer, LOCATION_SOCKET,
@@ -342,12 +361,8 @@ static void named_resolv_done ( struct resolv_interface *resolv,
 				       &named->local : NULL ) );
 	}
 
-	/* Close data transfer interface if redirection failed */
-	if ( rc != 0 )
-		xfer_close ( &named->xfer, rc );
-
-	/* Unplug data transfer interface */
-	xfer_unplug ( &named->xfer );
+	/* Terminate resolution */
+	named_done ( named, rc );
 }
 
 /** Named socket opener name resolution interface operations */

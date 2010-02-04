@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stddef.h>
 #include <gpxe/timer.h>
 #include <gpxe/list.h>
@@ -185,5 +187,6 @@ static void retry_step ( struct process *process __unused ) {
 
 /** Retry timer process */
 struct process retry_process __permanent_process = {
+	.list = LIST_HEAD_INIT ( retry_process.list ),
 	.step = retry_step,
 };

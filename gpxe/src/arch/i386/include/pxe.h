@@ -1,6 +1,8 @@
 #ifndef PXE_H
 #define PXE_H
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include "pxe_types.h"
 #include "pxe_api.h"
 #include <gpxe/device.h>
@@ -65,6 +67,7 @@ union u_PXENV_ANY {
 	struct s_PXENV_GET_FILE_SIZE		get_file_size;
 	struct s_PXENV_FILE_EXEC		file_exec;
 	struct s_PXENV_FILE_API_CHECK		file_api_check;
+	struct s_PXENV_FILE_EXIT_HOOK		file_exit_hook;
 };
 
 typedef union u_PXENV_ANY PXENV_ANY_t;

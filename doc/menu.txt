@@ -48,6 +48,14 @@ MENU HIDDEN
 	All that is displayed is a timeout message.
 
 
+MENU CLEAR
+
+	Clear the screen when exiting the menu, instead of leaving the
+	menu displayed.  For vesamenu, this means the graphical
+	background is still displayed without the menu itself for as
+	long as the screen remains in graphics mode.
+
+
 MENU SHIFTKEY
 
 	Exit the menu system immediately unless either the Shift or Alt

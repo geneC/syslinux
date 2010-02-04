@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -117,20 +119,20 @@ static EFI_GUID efi_pci_io_protocol_guid
 static void efi_snp_set_mode ( struct efi_snp_device *snpdev ) {
 	struct net_device *netdev = snpdev->netdev;
 	EFI_SIMPLE_NETWORK_MODE *mode = &snpdev->mode;
-	unsigned int ll_addr_len = netdev->ll_protocol->ll_addr_len;
+	struct ll_protocol *ll_protocol = netdev->ll_protocol;
+	unsigned int ll_addr_len = ll_protocol->ll_addr_len;
 
 	mode->HwAddressSize = ll_addr_len;
-	mode->MediaHeaderSize = netdev->ll_protocol->ll_header_len;
+	mode->MediaHeaderSize = ll_protocol->ll_header_len;
 	mode->MaxPacketSize = netdev->max_pkt_len;
 	mode->ReceiveFilterMask = ( EFI_SIMPLE_NETWORK_RECEIVE_UNICAST |
 				    EFI_SIMPLE_NETWORK_RECEIVE_MULTICAST |
 				    EFI_SIMPLE_NETWORK_RECEIVE_BROADCAST );
 	assert ( ll_addr_len <= sizeof ( mode->CurrentAddress ) );
 	memcpy ( &mode->CurrentAddress, netdev->ll_addr, ll_addr_len );
-	memcpy ( &mode->BroadcastAddress, netdev->ll_protocol->ll_broadcast,
-		 ll_addr_len );
-	memcpy ( &mode->PermanentAddress, netdev->ll_addr, ll_addr_len );
-	mode->IfType = ntohs ( netdev->ll_protocol->ll_proto );
+	memcpy ( &mode->BroadcastAddress, netdev->ll_broadcast, ll_addr_len );
+	ll_protocol->init_addr ( netdev->hw_addr, &mode->PermanentAddress );
+	mode->IfType = ntohs ( ll_protocol->ll_proto );
 	mode->MacAddressChangeable = TRUE;
 	mode->MediaPresentSupported = TRUE;
 	mode->MediaPresent = ( netdev_link_ok ( netdev ) ? TRUE : FALSE );
@@ -592,7 +594,8 @@ efi_snp_transmit ( EFI_SIMPLE_NETWORK_PROTOCOL *snp,
 	/* Create link-layer header, if specified */
 	if ( ll_header_len ) {
 		iob_pull ( iobuf, ll_header_len );
-		if ( ( rc = ll_protocol->push ( iobuf, ll_dest, ll_src,
+		if ( ( rc = ll_protocol->push ( snpdev->netdev,
+						iobuf, ll_dest, ll_src,
 						htons ( *net_proto ) )) != 0 ){
 			DBGC ( snpdev, "SNPDEV %p TX could not construct "
 			       "header: %s\n", snpdev, strerror ( rc ) );
@@ -670,8 +673,8 @@ efi_snp_receive ( EFI_SIMPLE_NETWORK_PROTOCOL *snp,
 	*len = iob_len ( iobuf );
 
 	/* Attempt to decode link-layer header */
-	if ( ( rc = ll_protocol->pull ( iobuf, &iob_ll_dest, &iob_ll_src,
-					&iob_net_proto ) ) != 0 ) {
+	if ( ( rc = ll_protocol->pull ( snpdev->netdev, iobuf, &iob_ll_dest,
+					&iob_ll_src, &iob_net_proto ) ) != 0 ){
 		DBGC ( snpdev, "SNPDEV %p could not parse header: %s\n",
 		       snpdev, strerror ( rc ) );
 		efirc = RC_TO_EFIRC ( rc );

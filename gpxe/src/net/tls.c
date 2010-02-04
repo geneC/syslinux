@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /**
  * @file
  *
@@ -1625,7 +1627,7 @@ static int tls_cipherstream_deliver_raw ( struct xfer_interface *xfer,
 /** TLS ciphertext stream operations */
 static struct xfer_interface_operations tls_cipherstream_operations = {
 	.close		= tls_cipherstream_close,
-	.vredirect	= xfer_vopen,
+	.vredirect	= xfer_vreopen,
 	.window		= filter_window,
 	.alloc_iob	= default_xfer_alloc_iob,
 	.deliver_iob	= xfer_deliver_as_raw,

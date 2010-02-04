@@ -1,6 +1,8 @@
 #ifndef EISA_H
 #define EISA_H
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <gpxe/isa_ids.h>
 #include <gpxe/device.h>
@@ -79,8 +81,11 @@ struct eisa_driver {
 	void ( * remove ) ( struct eisa_device *eisa );
 };
 
+/** EISA driver table */
+#define EISA_DRIVERS __table ( struct eisa_driver, "eisa_drivers" )
+
 /** Declare an EISA driver */
-#define __eisa_driver __table ( struct eisa_driver, eisa_drivers, 01 )
+#define __eisa_driver __table_entry ( EISA_DRIVERS, 01 )
 
 extern void eisa_device_enabled ( struct eisa_device *eisa, int enabled );
 

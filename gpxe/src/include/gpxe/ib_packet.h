@@ -7,6 +7,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 struct ib_device;
 struct ib_queue_pair;
 struct ib_address_vector;
@@ -14,7 +16,11 @@ struct io_buffer;
 
 /** Half of an Infiniband Global Identifier */
 struct ib_gid_half {
-	uint8_t bytes[8];
+	union {
+		uint8_t bytes[8];
+		uint16_t words[4];
+		uint32_t dwords[2];
+	} u;
 };
 
 /** An Infiniband Global Identifier */
@@ -103,12 +109,6 @@ struct ib_base_transport_header {
 enum ib_bth_opcode {
 	BTH_OPCODE_UD_SEND = 0x64,
 };
-
-/** Default Infiniband partition key */
-#define IB_PKEY_NONE 0xffff
-
-/** Subnet management queue pair number */
-#define IB_QPN_SMP 0
 
 /** An Infiniband Datagram Extended Transport Header */
 struct ib_datagram_extended_transport_header {

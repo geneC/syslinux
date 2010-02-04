@@ -17,13 +17,12 @@ esac
 isolinux_bin=${ISOLINUX_BIN:-util/isolinux.bin}
 if [ ! -r $isolinux_bin ]
 then
-	echo $0: $isolinux_bin not found, please install, or set ISOLINUX_BIN in arch/i386/config correctly
+	echo $0: $isolinux_bin not found, please install, or set ISOLINUX_BIN in arch/i386/Makefile correctly
 	exit 1
 fi
 out=$1
 shift
-dir=bin/iso.dir
-mkdir -p $dir
+dir=`mktemp -d bin/iso.dir.XXXXXX`
 cfg=$dir/isolinux.cfg
 cp -p $isolinux_bin $dir
 cat > $cfg <<EOF

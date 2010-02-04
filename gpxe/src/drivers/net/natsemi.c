@@ -46,6 +46,8 @@
 
 */
 
+FILE_LICENCE ( GPL_ANY );
+
 /* Revision History */
 
 /*
@@ -202,7 +204,7 @@ static int natsemi_probe (struct pci_device *pci,
 	last = prev_bytes[1] >> 7;
 	for ( i = 0 ; i < ETH_ALEN ; i++ ) {
 		last1 = ll_addr_encoded[i] >> 7;
-	 	netdev->ll_addr[i] = ll_addr_encoded[i] << 1 | last;
+		netdev->hw_addr[i] = ll_addr_encoded[i] << 1 | last;
 		last = last1;
 	}
 
@@ -268,7 +270,7 @@ static void natsemi_reset (struct net_device *netdev)
         wcsr = inl (np->ioaddr + WOLCmd) & WCSR_RESET_SAVE;
 
         /* RFCR */
-        rfcr = readl (np->ioaddr + RxFilterAddr) & RFCR_RESET_SAVE;
+        rfcr = inl (np->ioaddr + RxFilterAddr) & RFCR_RESET_SAVE;
 
         /* PMATCH */
         for (i = 0; i < 3; i++) {
@@ -596,7 +598,7 @@ static void natsemi_irq (struct net_device *netdev, int enable)
 }
 
 static struct pci_device_id natsemi_nics[] = {
-	PCI_ROM(0x100b, 0x0020, "dp83815", "DP83815"),
+	PCI_ROM(0x100b, 0x0020, "dp83815", "DP83815", 0),
 };
 
 struct pci_driver natsemi_driver __pci_driver = {

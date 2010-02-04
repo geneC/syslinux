@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -616,8 +616,9 @@ static inline int shift_is_held(void)
 
 static void print_timeout_message(int tol, int row, const char *msg)
 {
+    static int last_msg_len = 0;
     char buf[256];
-    int nc = 0, nnc;
+    int nc = 0, nnc, padc;
     const char *tp = msg;
     char tc;
     char *tq = buf;
@@ -686,9 +687,17 @@ static void print_timeout_message(int tol, int row, const char *msg)
     }
     *tq = '\0';
 
-    /* Let's hope 4 spaces on each side is enough... */
-    printf("\033[%d;%dH\2#14    %s    ", row,
-	   HSHIFT + 1 + ((WIDTH - nc - 8) >> 1), buf);
+    if (nc >= last_msg_len) {
+	padc = 0;
+    } else {
+	padc = (last_msg_len - nc + 1) >> 1;
+    }
+
+    printf("\033[%d;%dH\2#14%*s%s%*s", row,
+	   HSHIFT + 1 + ((WIDTH - nc) >> 1) - padc,
+	   padc, "", buf, padc, "");
+
+    last_msg_len = nc;
 }
 
 /* Set the background screen, etc. */
@@ -723,6 +732,9 @@ static const char *do_hidden_menu(void)
 	    timeout_left -= this_timeout;
 	}
     }
+
+    /* Clear the message from the screen */
+    print_timeout_message(0, HIDDEN_ROW, "");
 
     if (cm->ontimeout)
 	return cm->ontimeout;
@@ -1117,6 +1129,9 @@ int main(int argc, char *argv[])
     for (;;) {
 	local_cursor_enable(true);
 	cmdline = run_menu();
+
+	if (clearmenu)
+	    clear_screen();
 
 	local_cursor_enable(false);
 	printf("\033[?25h\033[%d;1H\033[0m", END_ROW);

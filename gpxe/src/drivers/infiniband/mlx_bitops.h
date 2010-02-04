@@ -19,6 +19,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /**
  * @file
  *
@@ -104,6 +106,10 @@ typedef unsigned char pseudo_bit_t;
 	( MLX_ASSEMBLE_1 ( _structure_st, _index, _field, _value ) |	     \
 	  MLX_ASSEMBLE_5 ( _structure_st, _index, __VA_ARGS__ ) )
 
+#define MLX_ASSEMBLE_7( _structure_st, _index, _field, _value, ... )	     \
+	( MLX_ASSEMBLE_1 ( _structure_st, _index, _field, _value ) |	     \
+	  MLX_ASSEMBLE_6 ( _structure_st, _index, __VA_ARGS__ ) )
+
 /*
  * Build native-endian (positive) dword bitmasks from named fields
  *
@@ -132,6 +138,10 @@ typedef unsigned char pseudo_bit_t;
 #define MLX_MASK_6( _structure_st, _index, _field, ... )		     \
 	( MLX_MASK_1 ( _structure_st, _index, _field ) |		     \
 	  MLX_MASK_5 ( _structure_st, _index, __VA_ARGS__ ) )
+
+#define MLX_MASK_7( _structure_st, _index, _field, ... )		     \
+	( MLX_MASK_1 ( _structure_st, _index, _field ) |		     \
+	  MLX_MASK_6 ( _structure_st, _index, __VA_ARGS__ ) )
 
 /*
  * Populate big-endian dwords from named fields and values
@@ -167,6 +177,10 @@ typedef unsigned char pseudo_bit_t;
 
 #define MLX_FILL_6( _ptr, _index, ... )					     \
 	MLX_FILL ( _ptr, _index, MLX_ASSEMBLE_6 ( MLX_PSEUDO_STRUCT ( _ptr ),\
+						  _index, __VA_ARGS__ ) )
+
+#define MLX_FILL_7( _ptr, _index, ... )					     \
+	MLX_FILL ( _ptr, _index, MLX_ASSEMBLE_7 ( MLX_PSEUDO_STRUCT ( _ptr ),\
 						  _index, __VA_ARGS__ ) )
 
 /*
