@@ -13,3 +13,30 @@ index 0a9e625..de51f9f 100644
  #undef	DOWNLOAD_PROTO_TFTM	/* Multicast Trivial File Transfer Protocol */
  #undef	DOWNLOAD_PROTO_SLAM	/* Scalable Local Area Multicast */
  
+diff --git a/gpxe/src/config/general.h b/gpxe/src/config/general.h
+index de51f9f..2f5a938 100644
+--- a/gpxe/src/config/general.h
++++ b/gpxe/src/config/general.h
+@@ -31,7 +31,7 @@ FILE_LICENCE ( GPL2_OR_LATER );
+  * Timer configuration
+  *
+  */
+-#define BANNER_TIMEOUT	20	/* Tenths of a second for which the shell
++#define BANNER_TIMEOUT	0	/* Tenths of a second for which the shell
+ 				   banner should appear */
+ 
+ /*
+diff --git a/gpxe/src/hci/shell_banner.c b/gpxe/src/hci/shell_banner.c
+index 8afefe3..b92e08e 100644
+--- a/gpxe/src/hci/shell_banner.c
++++ b/gpxe/src/hci/shell_banner.c
+@@ -41,6 +41,9 @@ int shell_banner ( void ) {
+ 	int wait_count;
+ 	int key;
+ 
++	if ( BANNER_TIMEOUT <= 0 )
++		return enter_shell;
++
+ 	printf ( "\nPress Ctrl-B for the gPXE command line..." );
+ 
+ 	/* Wait for key */

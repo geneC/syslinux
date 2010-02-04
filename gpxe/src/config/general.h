@@ -31,7 +31,7 @@ FILE_LICENCE ( GPL2_OR_LATER );
  * Timer configuration
  *
  */
-#define BANNER_TIMEOUT	20	/* Tenths of a second for which the shell
+#define BANNER_TIMEOUT	0	/* Tenths of a second for which the shell
 				   banner should appear */
 
 /*
