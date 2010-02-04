@@ -55,3 +55,19 @@ index 7ae7eab..9dc39fc 100644
  
  /**
   * Path MTU
+diff --git a/gpxe/src/core/malloc.c b/gpxe/src/core/malloc.c
+index 8b0bc24..0153748 100644
+--- a/gpxe/src/core/malloc.c
++++ b/gpxe/src/core/malloc.c
+@@ -78,9 +78,9 @@ size_t freemem;
+ /**
+  * Heap size
+  *
+- * Currently fixed at 128kB.
++ * Currently fixed at 512kB.
+  */
+-#define HEAP_SIZE ( 128 * 1024 )
++#define HEAP_SIZE ( 512 * 1024 )
+
+ /** The heap itself */
+ static char heap[HEAP_SIZE] __attribute__ (( aligned ( __alignof__(void *) )));
