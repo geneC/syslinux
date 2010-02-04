@@ -8,7 +8,7 @@
 ;  MS-DOS floppies.
 ;
 ;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ TFTP_LARGEBLK	equ (TFTP_MTU-20-8-4)	; MTU - IP hdr - UDP hdr - TFTP hdr
 ; Standard TFTP block size
 TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)
 TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
-%assign USE_PXE_PROVIDED_STACK 1	; Use stack provided by PXE?
+%assign USE_PXE_PROVIDED_STACK 0	; Use stack provided by PXE?
 
 SECTOR_SHIFT	equ TFTP_BLOCKSIZE_LG2
 SECTOR_SIZE	equ TFTP_BLOCKSIZE
@@ -217,7 +217,7 @@ packet_buf_size	equ $-packet_buf
 		; PXELINUX needs more BSS than the other derivatives;
 		; therefore we relocate it from 7C00h on startup.
 		;
-StackBuf	equ $			; Base of stack if we use our own
+StackBuf	equ $-44		; Base of stack if we use our own
 
 ;
 ; Primary entry point.
@@ -332,80 +332,7 @@ adhcp_copy:
 		mov si,copyright_str
 		call writestr_early
 
-;
-; Look to see if we are on an EFI CSM system.  Some EFI
-; CSM systems put the BEV stack in low memory, which means
-; a return to the PXE stack will crash the system.  However,
-; INT 18h works reliably, so in that case hack the stack and
-; point the "return address" to an INT 18h instruction.
-;
-; Hack the stack instead of the much simpler "just invoke INT 18h
-; if we want to reset", so that chainloading other NBPs will work.
-;
-efi_csm_workaround:
-		les bp,[InitStack]	; GS:SP -> original stack
-		les bx,[es:bp+44]	; Return address
-		cmp word [es:bx],18CDh	; Already pointing to INT 18h?
-		je .skip
 
-		; Search memory from E0000 to FFFFF for a $EFI structure
-		mov bx,0E000h
-.scan_mem:
-		mov es,bx
-		cmp dword [es:0],'IFE$'	; $EFI is byte-reversed...
-		jne .not_here
-		;
-		; Verify the table.  We don't check the checksum because
-		; it seems some CSMs leave it at zero.
-		;
-		movzx cx,byte [es:5]	; Table length
-		cmp cx,83		; 83 bytes is the current length...
-		jae .found_it
-
-.not_here:
-		inc bx
-		jnz .scan_mem
-		jmp .skip		; No $EFI structure found
-
-		;
-		; Found a $EFI structure.  Move down the original stack
-		; and put an INT 18h instruction there instead.
-		;
-.found_it:
-%if USE_PXE_PROVIDED_STACK
-		mov cx,efi_csm_hack_size
-		mov si,sp
-		sub sp,cx
-		mov di,sp
-		mov ax,ss
-		mov es,ax
-		sub [InitStack],cx
-		sub [BaseStack],cx
-%else
-		les si,[InitStack]
-		lea di,[si-efi_csm_hack_size]
-		mov [InitStack],di
-%endif
-		lea cx,[bp+52]		; End of the stack we care about
-		sub cx,si
-		es rep movsb
-		mov [es:di-8],di	; Clobber the return address
-		mov [es:di-6],es
-		mov si,efi_csm_hack
-		mov cx,efi_csm_hack_size
-		rep movsb
-
-.skip:	
-
-		section .data
-		alignz 4
-efi_csm_hack:
-		int 18h
-		jmp 0F000h:0FFF0h
-		hlt
-efi_csm_hack_size equ $-efi_csm_hack
-
-		section .text
 
 ;
 ; Assume API version 2.1, in case we find the !PXE structure without
@@ -749,6 +676,33 @@ udp_init:
 		call writestr_early
 		jmp kaboom
 .success:
+
+;
+; Check to see if we're using gPXE
+;
+%if GPXE
+		; If we get here, the gPXE status is unknown.
+		mov di,gpxe_file_api_check
+		mov bx,PXENV_FILE_API_CHECK	; BH = 0
+		call pxenv
+		jc .nogood
+		cmp dword [di+4],0xe9c17b20
+		jne .nogood
+		mov eax,[di+12]
+		mov [GPXEFuncs],eax
+		not ax			; Set bits of *missing* functions...
+		and ax,01001011b	; The functions we care about
+		setz bh
+.nogood:
+		mov [HasGPXE],bh
+
+		section .data
+		alignb 4
+GPXEFuncs	dd 0
+HasGPXE		db 0
+
+		section .text
+%endif
 
 ;
 ; Common initialization code
@@ -1599,42 +1553,31 @@ is_gpxe:
 		jc .ret			; Not a URL, don't bother
 .again:
 		cmp byte [HasGPXE],1
-		ja .unknown
+		jnb .ret
 		; CF=1 if not available (0),
 		; CF=0 if known available (1).
+
+		inc word [GPXEWarningCtr]
+		jnz .skip
+
+		push si
+		mov si,gpxe_warning_msg
+		call writestr
+		pop si
+.skip:
+		stc
+
 .ret:		ret
 
-.unknown:
-		; If we get here, the gPXE status is unknown.
-		push es
-		pushad
-		push ds
-		pop es
-		mov di,gpxe_file_api_check
-		mov bx,PXENV_FILE_API_CHECK	; BH = 0
-		call pxenv
-		jc .nogood
-		cmp dword [di+4],0xe9c17b20
-		jne .nogood
-		mov ax,[di+12]		; Don't care about the upper half...
-		not ax			; Set bits of *missing* functions...
-		and ax,01001011b	; The functions we care about
-		setz bh
-		jz .done
-.nogood:
-		mov si,gpxe_warning_msg
-		call writestr_early
-.done:
-		mov [HasGPXE],bh
-		popad
-		pop es
-		jmp .again
 
 		section .data
+		alignz 2
+GPXEWarningCtr:
+		dw -1			; Print msg when it goes to 0
 gpxe_warning_msg:
 		db 'URL syntax, but gPXE extensions not detected, '
 		db 'trying plain TFTP...', CR, LF, 0
-HasGPXE		db -1			; Unknown
+
 		section .text
 
 %endif
@@ -2152,16 +2095,20 @@ get_packet_gpxe:
 ; This function unloads the PXE and UNDI stacks and unclaims
 ; the memory.
 ;
-unload_pxe:
-		cmp byte [KeepPXE],0		; Should we keep PXE around?
-		jne reset_pxe
+reset_pxe:
+		or byte [KeepPXE],1
+		; Fall through
 
+unload_pxe:
 		push ds
 		push es
 
 		mov ax,cs
 		mov ds,ax
 		mov es,ax
+
+		cmp byte [KeepPXE],0		; Should we keep PXE around?
+		jne do_reset_pxe
 
 		mov si,new_api_unload
 		cmp byte [APIVer+1],2		; Major API version >= 2?
@@ -2233,15 +2180,167 @@ unload_pxe:
 
 		; We want to keep PXE around, but still we should reset
 		; it to the standard bootup configuration
-reset_pxe:
-		push es
-		push cs
-		pop es
+do_reset_pxe:
+		TRACER 'A'
+
 		mov bx,PXENV_UDP_CLOSE
 		mov di,pxe_udp_close_pkt
 		call pxenv
+
+		TRACER 'B'
+
+%if GPXE
+		test byte [GPXEFuncs],80h	; gPXE special unload?
+		jz .plain
+
+		TRACER 'C'
+
+		mov bx,PXENV_FILE_EXIT_HOOK
+		mov di,pxe_file_exit_hook
+		call pxenv
+		jc .plain
+
+		TRACER 'D'
+
+		; Now we actually need to exit back to gPXE, which will
+		; give control back to us on the *new* "original stack"...
+		pushfd
+		pushad
+		push ds
+		push fs
+		push gs
+		mov [PXEStack],sp
+		mov [PXEStack+2],ss
+		lss sp,[InitStack]
+		pop gs
+		pop fs
 		pop es
+		pop ds
+		popad
+		popfd
+		xor ax,ax
+		retf
+.resume:
+		cli
+
+		TRACER 'E'
+
+		; gPXE will have a stack frame looking much like our
+		; InitStack, except it has a magic cookie at the top,
+		; and the segment registers are in reverse order.
+		pop eax
+		pop ax
+		pop bx
+		pop cx
+		pop dx
+		push ax
+		push bx
+		push cx
+		push dx
+		mov [cs:InitStack],sp
+		mov [cs:InitStack+2],ss
+		lss sp,[cs:PXEStack]
+		pop gs
+		pop fs
+		pop ds
+		popad
+		popfd
+%endif ; GPXE
+
+.plain:
+		TRACER 'F'
+
+;
+; Look to see if we are on an EFI CSM system.  Some EFI
+; CSM systems put the BEV stack in low memory, which means
+; a return to the PXE stack will crash the system.  However,
+; INT 18h works reliably, so in that case hack the stack and
+; point the "return address" to an INT 18h instruction.
+;
+; Hack the stack instead of the much simpler "just invoke INT 18h
+; if we want to reset", so that chainloading other NBPs will work.
+;
+efi_csm_workaround:
+		les bp,[InitStack]	; ES:BP -> original stack
+		les bx,[es:bp+44]	; ES:BX -> Return address
+		cmp word [es:bx],18CDh	; Already pointing to INT 18h?
+		je .skip
+
+		; Search memory from E0000 to FFFFF for a $EFI structure
+		mov bx,0E000h
+.scan_mem:
+		mov es,bx
+		cmp dword [es:0],'IFE$'	; $EFI is byte-reversed...
+		jne .not_here
+		;
+		; Verify the table.  We don't check the checksum because
+		; it seems some CSMs leave it at zero.
+		;
+		movzx cx,byte [es:5]	; Table length
+		cmp cx,83		; 83 bytes is the current length...
+		jae .found_it
+
+.not_here:
+		inc bx
+		jnz .scan_mem
+		jmp .skip		; No $EFI structure found
+
+		;
+		; Found a $EFI structure.  Move down the original stack
+		; and put an INT 18h instruction there instead.
+		;
+.found_it:
+%if USE_PXE_PROVIDED_STACK
+		mov cx,efi_csm_hack_size
+		mov si,sp
+		sub sp,cx
+		mov di,sp
+		mov ax,ss
+		mov es,ax
+		sub [InitStack],cx
+		sub [BaseStack],cx
+%else
+		les si,[InitStack]
+		lea di,[si-efi_csm_hack_size]
+		mov [InitStack],di
+%endif
+		lea cx,[bp+52]		; End of the stack we care about
+		sub cx,si
+		es rep movsb
+		mov [es:di-8],di	; Clobber the return address
+		mov [es:di-6],es
+		mov si,efi_csm_hack
+		mov cx,efi_csm_hack_size
+		rep movsb
+
+.skip:	
+		TRACER 'G'
+
+.done:
+		pop es
+		pop ds
 		ret
+
+
+		section .data
+		alignz 4
+efi_csm_hack:
+		int 18h
+		jmp 0F000h:0FFF0h
+		hlt
+efi_csm_hack_size equ $-efi_csm_hack
+
+
+
+%if GPXE
+		alignz 4
+pxe_file_exit_hook:
+.status:	dw 0
+.offset:	dw do_reset_pxe.resume
+.seg:		dw 0
+%endif
+
+		section .text
 
 ;
 ; gendotquad

@@ -71,6 +71,7 @@
 %define PXENV_GET_FILE_SIZE				 0x00e4
 %define PXENV_FILE_EXEC					 0x00e5
 %define PXENV_FILE_API_CHECK				 0x00e6
+%define PXENV_FILE_EXIT_HOOK				 0x00e7
 
 ; Exit codes
 %define PXENV_EXIT_SUCCESS				 0x0000
