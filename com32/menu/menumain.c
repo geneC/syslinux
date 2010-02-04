@@ -1130,6 +1130,9 @@ int main(int argc, char *argv[])
 	local_cursor_enable(true);
 	cmdline = run_menu();
 
+	if (clearmenu)
+	    clear_screen();
+
 	local_cursor_enable(false);
 	printf("\033[?25h\033[%d;1H\033[0m", END_ROW);
 
