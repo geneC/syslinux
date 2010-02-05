@@ -141,4 +141,15 @@ static inline int root_dir_size(struct fs_info *fs, struct fat_bpb *fat)
 	>> (SECTOR_SHIFT(fs) - 5);
 }
 
+/*
+ * FAT private inode information
+ */
+struct fat_pvt_inode {
+    sector_t start;		/* Starting sector */
+    sector_t offset;		/* Current sector offset */
+    sector_t here;		/* Sector corresponding to offset */
+};
+
+#define PVT(i) ((struct fat_pvt_inode *)((i)->pvt))
+
 #endif /* fat_fs.h */

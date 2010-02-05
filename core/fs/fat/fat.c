@@ -5,13 +5,16 @@
 #include <core.h>
 #include <disk.h>
 #include <fs.h>
+#include <klibc/compiler.h>
+#include "codepage.h"
 #include "fat_fs.h"
 
 static struct inode * new_fat_inode(struct fs_info *fs)
 {
-    struct inode *inode = alloc_inode(fs, 0, sizeof(sector_t));
+    struct inode *inode = alloc_inode(fs, 0, sizeof(struct fat_pvt_inode));
     if (!inode)
 	malloc_error("inode structure");		
+
     return inode;
 }
 
@@ -133,13 +136,41 @@ static sector_t get_next_sector(struct fs_info* fs, uint32_t sector)
  */
 static sector_t get_the_right_sector(struct file *file)
 {
-    int i = 0;
-    int sector_pos  = file->offset >> SECTOR_SHIFT(file->fs);
-    sector_t sector = *(sector_t *)file->inode->pvt;
-    
-    for (; i < sector_pos; i++) 
+    struct inode *inode = file->inode;
+    uint32_t sector_pos  = file->offset >> SECTOR_SHIFT(file->fs);
+    uint32_t where;
+    sector_t sector;
+
+    if (sector_pos < PVT(inode)->offset) {
+	/* Reverse seek */
+	where = 0;
+	sector = PVT(inode)->start;
+    } else {
+	where = PVT(inode)->offset;
+	sector = PVT(inode)->here;
+    }
+
+    while (where < sector_pos) {
 	sector = get_next_sector(file->fs, sector);
+	where++;
+    }
+
+    PVT(inode)->offset = sector_pos;
+    PVT(inode)->here   = sector;
     
+    return sector;
+}
+
+/*
+ * Get the next sector in sequence
+ */
+static sector_t next_sector(struct file *file)
+{
+    struct inode *inode = file->inode;
+    sector_t sector = get_next_sector(file->fs, PVT(inode)->here);
+    PVT(inode)->offset++;
+    PVT(inode)->here = sector;
+
     return sector;
 }
 
@@ -168,31 +199,21 @@ static void __getfssec(struct fs_info *fs, char *buf,
         
         do {
             /* get consective sector  count */
-            con_sec_cnt ++;
-            sectors --;
-            if (sectors == 0)
-                break;
-            
+            con_sec_cnt++;
+            sectors--;
             next_sector = get_next_sector(fs, curr_sector);
-            if (!next_sector)
-                break;                        
-        }while(next_sector == (++curr_sector));
+	    curr_sector++;
+        } while (sectors && next_sector == curr_sector);
         
-#if 0   
-        printf("You are reading data stored at sector --0x%x--0x%x\n", 
-               frag_start, frag_start + con_sec_cnt -1);
-#endif 
+	PVT(file->inode)->offset += con_sec_cnt;
+	PVT(file->inode)->here    = next_sector;
                         
         /* do read */
         disk->rdwr_sectors(disk, buf, frag_start, con_sec_cnt, 0);
         buf += con_sec_cnt << SECTOR_SHIFT(fs);/* adjust buffer pointer */
         
-        if (!sectors)
-            break;
-        
         curr_sector = next_sector;
     }
-    
 }
 
 
@@ -286,68 +307,116 @@ static void vfat_mangle_name(char *dst, const char *src)
  */
 static void mangle_dos_name(char *mangle_buf, char *src)
 {       
-    char *dst = mangle_buf;
-    int i = 0;
+    int i;
     unsigned char c;        
     
-    for (; i < 11; i ++)
-	mangle_buf[i] = ' ';
-    
-    for (i = 0; i < 11; i++) {
-	c = *src ++;
+    i = 0;
+    while (i < 11) {
+	c = *src++;
 	
 	if ((c <= ' ') || (c == '/')) 
 	    break;
 	
 	if (c == '.') {
-	    dst = &mangle_buf[8];
-	    i = 7;
+	    while (i < 8)
+		mangle_buf[i++] = ' ';
+	    i = 8;
 	    continue;
 	}
+
+	c = codepage.upper[c];
+	if (i == 0 && c == 0xe5)
+	    c = 0x05;		/* Special hack for the first byte only! */
 	
-	if (c >= 'a' && c <= 'z')
-	    c -= 32;
-	if ((c == 0xe5) && (i == 11))
-	    c = 0x05;
-	
-	*dst++ = c;
+	mangle_buf[i++] = c;
     }
-    mangle_buf[11] = '\0';
-}
+    while (i < 11)
+	mangle_buf[i++] = ' ';
 
-
-/* try with the biggest long name */
-static char long_name[0x40 * 13];
-static char entry_name[14];
-
-static void unicode_to_ascii(char *entry_name, uint16_t *unicode_buf)
-{
-    int i = 0;
-    
-    for (; i < 13; i++) {
-	if (unicode_buf[i] == 0xffff) {
-	    entry_name[i] = '\0';
-	    return;
-	}
-	entry_name[i] = (char)unicode_buf[i];
-    }
+    mangle_buf[i] = '\0';
 }
 
 /*
- * get the long entry name
+ * Match a string name against a longname.  "len" is the number of
+ * codepoints in the input; including padding.
  *
+ * Returns true on match.
  */
-static void long_entry_name(struct fat_long_name_entry *dir)
+static bool vfat_match_longname(const char *str, const uint16_t *match,
+				int len)
 {
-    uint16_t unicode_buf[13];
-    
-    memcpy(unicode_buf,      dir->name1, 5 * 2);
-    memcpy(unicode_buf + 5,  dir->name2, 6 * 2);
-    memcpy(unicode_buf + 11, dir->name3, 2 * 2);
-    
-    unicode_to_ascii(entry_name, unicode_buf);    
+    unsigned char c;
+    uint16_t cp;
+
+    while (len) {
+	cp = *match++;
+	c = *str++;
+	if (cp != codepage.uni[0][c] && cp != codepage.uni[1][c])
+	    return false;
+	if (!c)
+	    break;
+    }
+
+    if (c)
+	return false;
+
+    /* Any padding entries must be FFFF */
+    while (len)
+	if (*match++ != 0xffff)
+	    return false;
+
+    return true;
 }
 
+/*
+ * Convert an UTF-16 longname to the system codepage; return
+ * the length on success or -1 on failure.
+ */
+static int vfat_cvt_longname(char *entry_name, const uint16_t *long_name)
+{
+    struct unicache {
+	uint16_t utf16;
+	uint8_t cp;
+    };
+    static struct unicache unicache[256];
+    struct unicache *uc;
+    uint16_t cp;
+    unsigned int c;
+    char *p = entry_name;
+
+    do {
+	cp = *long_name++;
+	uc = &unicache[cp % 256];
+
+	if (__likely(uc->utf16 == cp)) {
+	    *p++ = uc->cp;
+	} else {
+	    for (c = 0; c < 512; c++) {
+		/* This is a bit hacky... */
+		if (codepage.uni[0][c] == cp) {
+		    uc->utf16 = cp;
+		    *p++ = uc->cp = (uint8_t)c;
+		    goto found;
+		}
+	    }
+	    return -1;		/* Impossible character */
+	found:
+	    ;
+	}
+    } while (cp);
+
+    return (p-entry_name)-1;
+}
+
+static void copy_long_chunk(uint16_t *buf, const struct fat_dir_entry *de)
+{
+    const struct fat_long_name_entry *le =
+	(const struct fat_long_name_entry *)de;
+
+    memcpy(buf,      le->name1, 5 * 2);
+    memcpy(buf + 5,  le->name2, 6 * 2);
+    memcpy(buf + 11, le->name3, 2 * 2);
+}
 
 static uint8_t get_checksum(char *dir_name)
 {
@@ -362,15 +431,15 @@ static uint8_t get_checksum(char *dir_name)
 
 /* compute the first sector number of one dir where the data stores */
 static inline sector_t first_sector(struct fs_info *fs,
-				    struct fat_dir_entry *dir)
+				    const struct fat_dir_entry *dir)
 {
-    struct fat_sb_info *sbi = FAT_SB(fs);
-    uint32_t first_clust;
+    const struct fat_sb_info *sbi = FAT_SB(fs);
+    sector_t first_clust;
     sector_t sector;
     
     first_clust = (dir->first_cluster_high << 16) + dir->first_cluster_low;
     sector = ((first_clust - 2) << sbi->clust_shift) + sbi->data;
-    
+
     return sector;
 }
 
@@ -386,14 +455,16 @@ static inline int get_inode_mode(uint8_t attr)
 static struct inode *vfat_find_entry(char *dname, struct inode *dir)
 {
     struct fs_info *fs = dir->fs;
-    struct inode *inode = new_fat_inode(fs);
+    struct inode *inode;
     struct fat_dir_entry *de;
     struct fat_long_name_entry *long_de;
     struct cache_struct *cs;
     
     char mangled_name[12];
-    sector_t dir_sector = *(sector_t *)dir->pvt;
-    
+    uint16_t long_name[260];	/* == 20*13 */
+    int long_len;
+
+    sector_t dir_sector = PVT(dir)->start;
     uint8_t vfat_init, vfat_next, vfat_csum = 0;
     uint8_t id;
     int slots;
@@ -401,19 +472,23 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
     int checksum;
     int long_match = 0;
     
-    slots = (strlen(dname) + 12) / 13 ;
+    slots = (strlen(dname) + 12) / 13;
+    if (slots > 20)
+	return NULL;		/* Name too long */
+
     slots |= 0x40;
     vfat_init = vfat_next = slots;
+    long_len = slots*13;
     
-    /* Produce the shortname version, if appropriate. */
+    /* Produce the shortname version, in case we need it. */
     mangle_dos_name(mangled_name, dname);
 
-    while (1) {
+    while (dir_sector) {
 	cs = get_cache_block(fs->fs_dev, dir_sector);
 	de = (struct fat_dir_entry *)cs->data;
 	entries = 1 << (fs->sector_shift - 5);
 	
-	while(entries--) {
+	while (entries--) {
 	    if (de->name[0] == 0)
 		return NULL;
 	    
@@ -430,6 +505,7 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
 		    /* get the initial checksum value */
 		    vfat_csum = long_de->checksum;
 		    id &= 0x3f;
+		    long_len = id * 13;
 
 		    /* ZERO the long_name buffer */
 		    memset(long_name, 0, sizeof long_name);
@@ -441,19 +517,17 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
 		vfat_next = --id;
 		
 		/* got the long entry name */
-		long_entry_name(long_de);
-		memcpy(long_name + id * 13, entry_name, 13);
+		copy_long_chunk(long_name + id*13, de);
 				
 		/* 
 		 * If we got the last entry, check it.
 		 * Or, go on with the next entry.
 		 */
 		if (id == 0) {
-		    if (strcmp(long_name, dname))
+		    if (!vfat_match_longname(dname, long_name, long_len))
 			goto not_match;
 		    long_match = 1;
 		}
-		
 		de++;
 		continue;     /* Try the next entry */
 	    } else {
@@ -463,38 +537,36 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
 		if (de->attr & 0x08) /* ignore volume labels */
 		    goto not_match;
 		
-		if (long_match == 1) {
+		if (long_match) {
 		    /* 
 		     * We already have a VFAT long name match. However, the 
 		     * match is only valid if the checksum matches.
-		     *
-		     * Well, let's trun the long_match flag off first.
 		     */
-		     long_match = 0;
 		    checksum = get_checksum(de->name);
 		    if (checksum == vfat_csum)
 			goto found;  /* Got it */
 		} else {
-		    if (!strncmp(mangled_name, de->name, 11))
+		    if (!memcmp(mangled_name, de->name, 11))
 			goto found;
 		}
 	    }
 	    
 	not_match:
 	    vfat_next = vfat_init;
+	    long_match = 0;
 	    
 	    de++;
 	}
 	
 	/* Try with the next sector */
 	dir_sector = get_next_sector(fs, dir_sector);
-	if (!dir_sector)
-	    return NULL;
     }
+    return NULL;		/* Nothing found... */
     
 found:
+    inode = new_fat_inode(fs);
     inode->size = de->file_size;
-    *(sector_t *)inode->pvt = first_sector(fs, de);
+    PVT(inode)->start = PVT(inode)->here = first_sector(fs, de);
     inode->mode = get_inode_mode(de->attr);
     
     return inode;
@@ -510,7 +582,7 @@ static struct inode *vfat_iget_root(struct fs_info *fs)
      * follow the entire FAT chain to the end... which seems pointless.
      */
     inode->size = root_size ? root_size << fs->sector_shift : ~0;
-    *(sector_t *)inode->pvt = FAT_SB(fs)->root;
+    PVT(inode)->start = PVT(inode)->here = FAT_SB(fs)->root;
     inode->mode = I_DIR;
     
     return inode;
@@ -531,6 +603,9 @@ static struct dirent * vfat_readdir(struct file *file)
     
     sector_t sector = get_the_right_sector(file);
     
+    uint16_t long_name[261];	/* == 20*13 + 1 (to guarantee null) */
+    char filename[261];
+
     uint8_t vfat_init, vfat_next, vfat_csum;
     uint8_t id;
     int entries_left;
@@ -562,6 +637,9 @@ static struct dirent * vfat_readdir(struct file *file)
 		    /* init vfat_csum and vfat_init */
 		    vfat_csum = long_de->checksum;
 		    id &= 0x3f;
+		    if (id >= 20)
+			goto invalid; /* Too long! */
+
 		    vfat_init = id;
 		    
 		    /* ZERO the long_name buffer */
@@ -575,11 +653,14 @@ static struct dirent * vfat_readdir(struct file *file)
 		vfat_next = --id;
 		
 		/* got the long entry name */
-		long_entry_name(long_de);
-		memcpy(long_name + id * 13, entry_name, 13);
-		
-		if (id == 0) 
-		    long_entry = 1;
+		copy_long_chunk(long_name + id*13, de);
+
+		if (id == 0) {
+		    int longlen =
+			vfat_cvt_longname(filename, long_name);
+		    if (longlen > 0 && longlen < sizeof(dirent->d_name))
+			long_entry = 1;
+		}
 		
 		de++;
 		file->offset += sizeof(struct fat_dir_entry);
@@ -597,9 +678,9 @@ static struct dirent * vfat_readdir(struct file *file)
 		    if (checksum == vfat_csum)
 			goto got;
 		} else {
-		    /* Use the long_name buffer to store a short one. */
+		    /* Use the shortname */
 		    int i;
-		    char *p = long_name;
+		    char *p = filename;
 		    
 		    for (i = 0; i < 8; i++) {
 			if (de->name[i] == ' ')
@@ -628,7 +709,7 @@ static struct dirent * vfat_readdir(struct file *file)
 	}
 	
 	/* Try with the next sector */
-	sector = get_next_sector(fs, sector);
+	sector = next_sector(file);
 	if (!sector)
 	    return NULL;
 	cs = get_cache_block(fs->fs_dev, sector);
@@ -641,12 +722,12 @@ got:
 	malloc_error("dirent structure in vfat_readdir");
 	return NULL;
     }
-    dirent->d_ino = 0;           /* Inode number is invalid to FAT fs */
+    dirent->d_ino = de->first_cluster_low | (de->first_cluster_high << 16);
     dirent->d_off = file->offset;
     dirent->d_reclen = 0;
     dirent->d_type = get_inode_mode(de->attr);
-    strcpy(dirent->d_name, long_name);
-    
+    strcpy(dirent->d_name, filename);
+
     file->offset += sizeof(*de);  /* Update for next reading */
     
     return dirent;
