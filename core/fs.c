@@ -175,37 +175,40 @@ void searchdir(com32sys_t *regs)
     
     while (*name) {
 	p = part;
-	while(*name && *name != '/')
+	while (*name && *name != '/')
 	    *p++ = *name++;
 	*p = '\0';
-	inode = this_fs->fs_ops->iget(part, parent);
-	if (!inode)
-	    goto err;
-	if (inode->mode == I_SYMLINK) {
-	    if (!this_fs->fs_ops->follow_symlink || 
-		--symlink_count == 0               ||      /* limit check */
-		inode->size >= BLOCK_SIZE(this_fs))
+	if (strcmp(part, ".")) {
+	    inode = this_fs->fs_ops->iget(part, parent);
+	    if (!inode)
 		goto err;
-	    name = this_fs->fs_ops->follow_symlink(inode, name);
-	    free_inode(inode);
-	    continue;
-	}
+	    if (inode->mode == I_SYMLINK) {
+		if (!this_fs->fs_ops->follow_symlink || 
+		    --symlink_count == 0             ||      /* limit check */
+		    inode->size >= BLOCK_SIZE(this_fs))
+		    goto err;
+		name = this_fs->fs_ops->follow_symlink(inode, name);
+		free_inode(inode);
+		continue;
+	    }
 
-	/* 
-	 * For the relative path searching used in FAT and ISO fs.
-	 */
-	if ((this_fs->fs_ops->fs_flags & FS_THISIND) && (this_inode != parent)){
+	    /* 
+	     * For the relative path searching used in FAT and ISO fs.
+	     */
+	    if ((this_fs->fs_ops->fs_flags & FS_THISIND) &&
+		(this_inode != parent)){
 		if (this_inode)
 		    free_inode(this_inode);
 		this_inode = parent;
+	    }
+	    
+	    if (parent != this_inode)
+		free_inode(parent);
+	    parent = inode;
 	}
-	
-	if (parent != this_inode)
-	    free_inode(parent);
-	parent = inode;
-	if (! *name)
+	if (!*name)
 	    break;
-	while(*name == '/')
+	while (*name == '/')
 	    name++;
     }
     
