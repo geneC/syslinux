@@ -102,7 +102,7 @@ struct fat_sb_info {
 struct fat_dir_entry {
         char     name[11];
         uint8_t  attr;
-        uint8_t  nt_reserved;
+        uint8_t  lcase;
         uint8_t  c_time_tenth;
         uint16_t c_time;
         uint16_t c_date;
@@ -114,7 +114,8 @@ struct fat_dir_entry {
         uint32_t file_size;
 } __attribute__ ((packed));
 
-
+#define LCASE_BASE 8       /* basename is lower case */
+#define LCASE_EXT  16      /* extension is lower case */
 
 struct fat_long_name_entry {
         uint8_t  id;

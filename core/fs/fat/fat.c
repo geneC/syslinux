@@ -680,24 +680,29 @@ static struct dirent * vfat_readdir(struct file *file)
 		} else {
 		    /* Use the shortname */
 		    int i;
+		    uint8_t c;
 		    char *p = filename;
 		    
 		    for (i = 0; i < 8; i++) {
-			if (de->name[i] == ' ')
+			c = de->name[i];
+			if (c == ' ')
 			    break;
-			*p++ = de->name[i];
+			if (de->lcase & LCASE_BASE)
+			    c = codepage.lower[c];
+			*p++ = c;
 		    }
-		    *p++ = '.';
-		    if (de->name[8] == ' ') {
-			*--p = '\0';
-		    } else {
+		    if (de->name[8] != ' ') {
+			*p++ = '.';
 			for (i = 8; i < 11; i++) {
-			    if (de->name[i] == ' ')
+			    c = de->name[i];
+			    if (c == ' ')
 				break;
-			    *p++ = de->name[i];
+			    if (de->lcase & LCASE_EXT)
+				c = codepage.lower[c];
+			    *p++ = c;
 			}
-			*p = '\0';
 		    }
+		    *p = '\0';
 		    
 		    goto got;
 		}
