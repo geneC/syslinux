@@ -152,6 +152,7 @@ SECTIONS {
 	*(.eh_frame.*)
 	*(.rel)
 	*(.rel.*)
+	*(.discard)
     }
 
     /*
@@ -193,17 +194,9 @@ SECTIONS {
      * Values calculated to save code from doing it
      *
      */
+    _prefix_filesz_sect = ( ( _prefix_filesz + 511 ) / 512 );
     _prefix_memsz_pgh	= ( ( _prefix_memsz + 15 ) / 16 );
     _prefix_memsz_sect	= ( ( _prefix_memsz + 511 ) / 512 );
     _text16_memsz_pgh	= ( ( _text16_memsz + 15 ) / 16 );
     _data16_memsz_pgh	= ( ( _data16_memsz + 15 ) / 16 );
-
-    /*
-     * File size in paragraphs and sectors.  Note that wherever the
-     * _filesz variables are used, there must be a corresponding
-     * .zinfo.fixup section.
-     *
-     */
-    _filesz_pgh		= ( ( _filesz + 15 ) / 16 );
-    _filesz_sect	= ( ( _filesz + 511 ) / 512 );
 }

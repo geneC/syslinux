@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -614,7 +616,7 @@ static void slam_socket_close ( struct xfer_interface *socket, int rc ) {
 /** SLAM unicast socket data transfer operations */
 static struct xfer_interface_operations slam_socket_operations = {
 	.close		= slam_socket_close,
-	.vredirect	= xfer_vopen,
+	.vredirect	= xfer_vreopen,
 	.window		= unlimited_xfer_window,
 	.alloc_iob	= default_xfer_alloc_iob,
 	.deliver_iob	= slam_socket_deliver,
@@ -640,7 +642,7 @@ static void slam_mc_socket_close ( struct xfer_interface *mc_socket, int rc ){
 /** SLAM multicast socket data transfer operations */
 static struct xfer_interface_operations slam_mc_socket_operations = {
 	.close		= slam_mc_socket_close,
-	.vredirect	= xfer_vopen,
+	.vredirect	= xfer_vreopen,
 	.window		= unlimited_xfer_window,
 	.alloc_iob	= default_xfer_alloc_iob,
 	.deliver_iob	= slam_mc_socket_deliver,

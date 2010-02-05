@@ -55,6 +55,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -71,11 +73,6 @@
  * non-static.
  */
 uint16_t isapnp_read_port;
-
-static struct isapnp_driver isapnp_drivers[0]
-	__table_start ( struct isapnp_driver, isapnp_drivers );
-static struct isapnp_driver isapnp_drivers_end[0]
-	__table_end ( struct isapnp_driver, isapnp_drivers );
 
 static void isapnpbus_remove ( struct root_device *rootdev );
 
@@ -594,7 +591,7 @@ static int isapnp_probe ( struct isapnp_device *isapnp ) {
 	      isa_id_string ( isapnp->vendor_id, isapnp->prod_id ),
 	      isapnp->ioaddr, isapnp->irqno );
 
-	for ( driver = isapnp_drivers; driver < isapnp_drivers_end; driver++ ){
+	for_each_table_entry ( driver, ISAPNP_DRIVERS ) {
 		for ( i = 0 ; i < driver->id_count ; i++ ) {
 			id = &driver->ids[i];
 			if ( id->vendor_id != isapnp->vendor_id )

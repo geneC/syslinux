@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -131,6 +133,8 @@ enum {
 	TFTP_FL_RRQ_MULTICAST = 0x0004,
 	/** Perform MTFTP recovery on timeout */
 	TFTP_FL_MTFTP_RECOVERY = 0x0008,
+	/** Only get filesize and then abort the transfer */
+	TFTP_FL_SIZEONLY = 0x0010,
 };
 
 /** Maximum number of MTFTP open requests before falling back to TFTP */
@@ -409,6 +413,42 @@ static int tftp_send_ack ( struct tftp_request *tftp ) {
 }
 
 /**
+ * Transmit ERROR (Abort)
+ *
+ * @v tftp		TFTP connection
+ * @v errcode		TFTP error code
+ * @v errmsg		Error message string
+ * @ret rc		Return status code
+ */
+static int tftp_send_error ( struct tftp_request *tftp, int errcode,
+			     const char *errmsg ) {
+	struct tftp_error *err;
+	struct io_buffer *iobuf;
+	struct xfer_metadata meta = {
+		.dest = ( struct sockaddr * ) &tftp->peer,
+	};
+	size_t msglen;
+
+	DBGC2 ( tftp, "TFTP %p sending ERROR %d: %s\n", tftp, errcode,
+		errmsg );
+
+	/* Allocate buffer */
+	msglen = sizeof ( *err ) + strlen ( errmsg ) + 1 /* NUL */;
+	iobuf = xfer_alloc_iob ( &tftp->socket, msglen );
+	if ( ! iobuf )
+		return -ENOMEM;
+
+	/* Build ERROR */
+	err = iob_put ( iobuf, msglen );
+	err->opcode = htons ( TFTP_ERROR );
+	err->errcode = htons ( errcode );
+	strcpy ( err->errmsg, errmsg );
+
+	/* ERR always goes to the peer recorded from the RRQ response */
+	return xfer_deliver_iob_meta ( &tftp->socket, iobuf, &meta );
+}
+
+/**
  * Transmit next relevant packet
  *
  * @v tftp		TFTP connection
@@ -416,9 +456,16 @@ static int tftp_send_ack ( struct tftp_request *tftp ) {
  */
 static int tftp_send_packet ( struct tftp_request *tftp ) {
 
-	/* Update retransmission timer */
+	/* Update retransmission timer.  While name resolution takes place the
+	 * window is zero.  Avoid unnecessary delay after name resolution
+	 * completes by retrying immediately.
+	 */
 	stop_timer ( &tftp->timer );
-	start_timer ( &tftp->timer );
+	if ( xfer_window ( &tftp->socket ) ) {
+		start_timer ( &tftp->timer );
+	} else {
+		start_timer_nodelay ( &tftp->timer );
+	}
 
 	/* Send RRQ or ACK as appropriate */
 	if ( ! tftp->peer.st_family ) {
@@ -670,6 +717,7 @@ static int tftp_rx_oack ( struct tftp_request *tftp, void *buf, size_t len ) {
 	char *end = buf + len;
 	char *name;
 	char *value;
+	char *next;
 	int rc = 0;
 
 	/* Sanity check */
@@ -679,32 +727,55 @@ static int tftp_rx_oack ( struct tftp_request *tftp, void *buf, size_t len ) {
 		rc = -EINVAL;
 		goto done;
 	}
-	if ( end[-1] != '\0' ) {
-		DBGC ( tftp, "TFTP %p received OACK missing final NUL\n",
-		       tftp );
-		rc = -EINVAL;
-		goto done;
-	}
 
 	/* Process each option in turn */
-	name = oack->data;
-	while ( name < end ) {
-		value = ( name + strlen ( name ) + 1 );
+	for ( name = oack->data ; name < end ; name = next ) {
+
+		/* Parse option name and value
+		 *
+		 * We treat parsing errors as non-fatal, because there
+		 * exists at least one TFTP server (IBM Tivoli PXE
+		 * Server 5.1.0.3) that has been observed to send
+		 * malformed OACKs containing trailing garbage bytes.
+		 */
+		value = ( name + strnlen ( name, ( end - name ) ) + 1 );
+		if ( value > end ) {
+			DBGC ( tftp, "TFTP %p received OACK with malformed "
+			       "option name:\n", tftp );
+			DBGC_HD ( tftp, oack, len );
+			break;
+		}
 		if ( value == end ) {
 			DBGC ( tftp, "TFTP %p received OACK missing value "
 			       "for option \"%s\"\n", tftp, name );
-			rc = -EINVAL;
-			goto done;
+			DBGC_HD ( tftp, oack, len );
+			break;
 		}
+		next = ( value + strnlen ( value, ( end - value ) ) + 1 );
+		if ( next > end ) {
+			DBGC ( tftp, "TFTP %p received OACK with malformed "
+			       "value for option \"%s\":\n", tftp, name );
+			DBGC_HD ( tftp, oack, len );
+			break;
+		}
+
+		/* Process option */
 		if ( ( rc = tftp_process_option ( tftp, name, value ) ) != 0 )
 			goto done;
-		name = ( value + strlen ( value ) + 1 );
 	}
 
 	/* Process tsize information, if available */
 	if ( tftp->tsize ) {
 		if ( ( rc = tftp_presize ( tftp, tftp->tsize ) ) != 0 )
 			goto done;
+	}
+
+	/* Abort request if only trying to determine file size */
+	if ( tftp->flags & TFTP_FL_SIZEONLY ) {
+		rc = 0;
+		tftp_send_error ( tftp, 0, "TFTP Aborted" );
+		tftp_done ( tftp, rc );
+		return rc;
 	}
 
 	/* Request next data block */
@@ -729,10 +800,17 @@ static int tftp_rx_data ( struct tftp_request *tftp,
 			  struct io_buffer *iobuf ) {
 	struct tftp_data *data = iobuf->data;
 	struct xfer_metadata meta;
-	int block;
+	unsigned int block;
 	off_t offset;
 	size_t data_len;
 	int rc;
+
+	if ( tftp->flags & TFTP_FL_SIZEONLY ) {
+		/* If we get here then server doesn't support SIZE option */
+		rc = -ENOTSUP;
+		tftp_send_error ( tftp, 0, "TFTP Aborted" );
+		goto done;
+	}
 
 	/* Sanity check */
 	if ( iob_len ( iobuf ) < sizeof ( *data ) ) {
@@ -741,14 +819,17 @@ static int tftp_rx_data ( struct tftp_request *tftp,
 		rc = -EINVAL;
 		goto done;
 	}
-	if ( data->block == 0 ) {
+
+	/* Calculate block number */
+	block = ( ( bitmap_first_gap ( &tftp->bitmap ) + 1 ) & ~0xffff );
+	if ( data->block == 0 && block == 0 ) {
 		DBGC ( tftp, "TFTP %p received data block 0\n", tftp );
 		rc = -EINVAL;
 		goto done;
 	}
+	block += ( ntohs ( data->block ) - 1 );
 
 	/* Extract data */
-	block = ( ntohs ( data->block ) - 1 );
 	offset = ( block * tftp->blksize );
 	iob_pull ( iobuf, sizeof ( *data ) );
 	data_len = iob_len ( iobuf );
@@ -934,7 +1015,7 @@ static int tftp_socket_deliver_iob ( struct xfer_interface *socket,
 /** TFTP socket operations */
 static struct xfer_interface_operations tftp_socket_operations = {
 	.close		= ignore_xfer_close,
-	.vredirect	= xfer_vopen,
+	.vredirect	= xfer_vreopen,
 	.window		= unlimited_xfer_window,
 	.alloc_iob	= default_xfer_alloc_iob,
 	.deliver_iob	= tftp_socket_deliver_iob,
@@ -961,7 +1042,7 @@ static int tftp_mc_socket_deliver_iob ( struct xfer_interface *mc_socket,
 /** TFTP multicast socket operations */
 static struct xfer_interface_operations tftp_mc_socket_operations = {
 	.close		= ignore_xfer_close,
-	.vredirect	= xfer_vopen,
+	.vredirect	= xfer_vreopen,
 	.window		= unlimited_xfer_window,
 	.alloc_iob	= default_xfer_alloc_iob,
 	.deliver_iob	= tftp_mc_socket_deliver_iob,
@@ -1090,6 +1171,26 @@ static int tftp_open ( struct xfer_interface *xfer, struct uri *uri ) {
 struct uri_opener tftp_uri_opener __uri_opener = {
 	.scheme	= "tftp",
 	.open	= tftp_open,
+};
+
+/**
+ * Initiate TFTP-size request
+ *
+ * @v xfer		Data transfer interface
+ * @v uri		Uniform Resource Identifier
+ * @ret rc		Return status code
+ */
+static int tftpsize_open ( struct xfer_interface *xfer, struct uri *uri ) {
+	return tftp_core_open ( xfer, uri, TFTP_PORT, NULL,
+				( TFTP_FL_RRQ_SIZES |
+				  TFTP_FL_SIZEONLY ) );
+
+}
+
+/** TFTP URI opener */
+struct uri_opener tftpsize_uri_opener __uri_opener = {
+	.scheme	= "tftpsize",
+	.open	= tftpsize_open,
 };
 
 /**

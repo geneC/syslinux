@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -87,35 +89,59 @@ static void ifstat_errors ( struct net_device_stats *stats,
 void ifstat ( struct net_device *netdev ) {
 	printf ( "%s: %s on %s (%s)\n"
 		 "  [Link:%s, TX:%d TXE:%d RX:%d RXE:%d]\n",
-		 netdev->name, netdev_hwaddr ( netdev ), netdev->dev->name,
+		 netdev->name, netdev_addr ( netdev ), netdev->dev->name,
 		 ( ( netdev->state & NETDEV_OPEN ) ? "open" : "closed" ),
 		 ( netdev_link_ok ( netdev ) ? "up" : "down" ),
 		 netdev->tx_stats.good, netdev->tx_stats.bad,
 		 netdev->rx_stats.good, netdev->rx_stats.bad );
+	if ( ! netdev_link_ok ( netdev ) ) {
+		printf ( "  [Link status: %s]\n",
+			 strerror ( netdev->link_rc ) );
+	}
 	ifstat_errors ( &netdev->tx_stats, "TXE" );
 	ifstat_errors ( &netdev->rx_stats, "RXE" );
 }
 
 /**
- * Wait for link-up
+ * Wait for link-up, with status indication
  *
  * @v netdev		Network device
  * @v max_wait_ms	Maximum time to wait, in ms
  */
 int iflinkwait ( struct net_device *netdev, unsigned int max_wait_ms ) {
 	int key;
+	int rc;
+
+	if ( netdev_link_ok ( netdev ) )
+		return 0;
+
+	printf ( "Waiting for link-up on %s...", netdev->name );
 
 	while ( 1 ) {
-		if ( netdev_link_ok ( netdev ) )
-			return 0;
-		if ( max_wait_ms-- == 0 )
-			return -ETIMEDOUT;
+		if ( netdev_link_ok ( netdev ) ) {
+			rc = 0;
+			break;
+		}
+		if ( max_wait_ms-- == 0 ) {
+			rc = netdev->link_rc;
+			break;
+		}
 		step();
 		if ( iskey() ) {
 			key = getchar();
-			if ( key == CTRL_C )
-				return -ECANCELED;
+			if ( key == CTRL_C ) {
+				rc = -ECANCELED;
+				break;
+			}
 		}
 		mdelay ( 1 );
 	}
+
+	if ( rc == 0 ) {
+		printf ( " ok\n" );
+	} else {
+		printf ( " failed: %s\n", strerror ( rc ) );
+	}
+
+	return rc;
 }

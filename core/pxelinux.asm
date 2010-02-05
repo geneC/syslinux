@@ -231,82 +231,6 @@ adhcp_copy:
 		call writestr_early
 
 ;
-; Look to see if we are on an EFI CSM system.  Some EFI
-; CSM systems put the BEV stack in low memory, which means
-; a return to the PXE stack will crash the system.  However,
-; INT 18h works reliably, so in that case hack the stack and
-; point the "return address" to an INT 18h instruction.
-;
-; Hack the stack instead of the much simpler "just invoke INT 18h
-; if we want to reset", so that chainloading other NBPs will work.
-;
-efi_csm_workaround:
-		push es
-		les bp,[InitStack]	; GS:SP -> original stack
-		les bx,[es:bp+44]	; Return address
-		cmp word [es:bx],18CDh	; Already pointing to INT 18h?
-		je .skip
-
-		; Search memory from E0000 to FFFFF for a $EFI structure
-		mov bx,0E000h
-.scan_mem:
-		mov es,bx
-		cmp dword [es:0],'IFE$'	; $EFI is byte-reversed...
-		jne .not_here
-		;
-		; Verify the table.  We don't check the checksum because
-		; it seems some CSMs leave it at zero.
-		;
-		movzx cx,byte [es:5]	; Table length
-		cmp cx,83		; 83 bytes is the current length...
-		jae .found_it
-
-.not_here:
-		inc bx
-		jnz .scan_mem
-		jmp .skip		; No $EFI structure found
-
-		;
-		; Found a $EFI structure.  Move down the original stack
-		; and put an INT 18h instruction there instead.
-		;
-.found_it:
-%if USE_PXE_PROVIDED_STACK
-		mov cx,efi_csm_hack_size
-		mov si,sp
-		sub sp,cx
-		mov di,sp
-		mov ax,ss
-		mov es,ax
-		sub [InitStack],cx
-		sub [BaseStack],cx
-%else
-		les si,[InitStack]
-		lea di,[si-efi_csm_hack_size]
-		mov [InitStack],di
-%endif
-		lea cx,[bp+52]		; End of the stack we care about
-		sub cx,si
-		es rep movsb
-		mov [es:di-8],di	; Clobber the return address
-		mov [es:di-6],es
-		mov si,efi_csm_hack
-		mov cx,efi_csm_hack_size
-		rep movsb
-
-.skip:	
-		pop es			; Restore CS == DS == ES
-
-		section .data16
-		alignz 4
-efi_csm_hack:
-		int 18h
-		jmp 0F000h:0FFF0h
-		hlt
-efi_csm_hack_size equ $-efi_csm_hack
-
-		section .text16
-;
 ; do fs initialize
 ;
 	        mov eax,ROOT_FS_OPS
@@ -503,6 +427,64 @@ pxe_int1a:
 %endif
 		ret
 
+;
+; Special unload for gPXE: this switches the InitStack from
+; gPXE to the ROM PXE stack.
+;
+%if GPXE
+		global gpxe_unload
+gpxe_unload:
+		mov bx,PXENV_FILE_EXIT_HOOK
+		mov di,pxe_file_exit_hook
+		call pxenv
+		jc .plain
+
+		; Now we actually need to exit back to gPXE, which will
+		; give control back to us on the *new* "original stack"...
+		pushfd
+		mov [PXEStack],sp
+		mov [PXEStack+2],ss
+		lss sp,[InitStack]
+		pop gs
+		pop fs
+		pop es
+		pop ds
+		popad
+		popfd
+		xor ax,ax
+		retf
+.resume:
+		cli
+
+		; gPXE will have a stack frame looking much like our
+		; InitStack, except it has a magic cookie at the top,
+		; and the segment registers are in reverse order.
+		pop eax
+		pop ax
+		pop bx
+		pop cx
+		pop dx
+		push ax
+		push bx
+		push cx
+		push dx
+		mov [cs:InitStack],sp
+		mov [cs:InitStack+2],ss
+		lss sp,[cs:PXEStack]
+		popfd
+
+.plain:
+		ret
+
+		section .data16
+		alignz 4
+pxe_file_exit_hook:
+.status:	dw 0
+.offset:	dw gpxe_unload.resume
+.seg:		dw 0
+%endif
+
+		section .text16
 
 ; -----------------------------------------------------------------------------
 ;  Common modules

@@ -16,6 +16,8 @@
  * UDP protocol
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /**
  * A UDP connection
  *
@@ -238,7 +240,7 @@ static int udp_tx ( struct udp_connection *udp, struct io_buffer *iobuf,
  * @ret udp		UDP connection, or NULL
  */
 static struct udp_connection * udp_demux ( struct sockaddr_tcpip *local ) {
-	static const struct sockaddr_tcpip empty_sockaddr;
+	static const struct sockaddr_tcpip empty_sockaddr = { .pad = { 0, } };
 	struct udp_connection *udp;
 
 	list_for_each_entry ( udp, &udp_conns, list ) {

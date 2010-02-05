@@ -24,7 +24,8 @@ char path_prefix[256];
 char dot_quad_buf[16];
 
 static struct open_file_t Files[MAX_OPEN];
-static int has_gpxe;
+static bool has_gpxe;
+static uint32_t gpxe_funcs;
 static uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
 int have_uuid = 0;
 
@@ -389,31 +390,21 @@ static int is_url(const char *url)
  * (contains ://) *and* the gPXE extensions API is available. No 
  * registers modified.
  */
-static int is_gpxe(char *url)
+static bool is_gpxe(char *url)
 {
-    int err;
-    static __lowmem struct s_PXENV_FILE_API_CHECK api_check;
-    char *gpxe_warning_msg = 
+    static bool already;
+    const char gpxe_warning_msg[] = 
         "URL syntax, but gPXE extensions not detected, tring plain TFTP...\n";
     
-    if (! is_url(url))
-        return 0;
+    if (!is_url(url))
+        return false;
     
-    api_check.Size  = sizeof api_check;
-    api_check.Magic = 0x91d447b2;
-    /* If has_gpxe is greater than one, means the gpxe status is unknow */
-    while (has_gpxe > 1)  {
-        err = pxe_call(PXENV_FILE_API_CHECK, &api_check);
-        if (err || api_check.Magic != 0xe9c17b20) 
-            printf("%s\n", gpxe_warning_msg);
-        else             
-            has_gpxe = (~api_check.Provider & 0xffff) & 0x4b ? 0 : 1;
-        
-        if (!has_gpxe)
-            printf("%s\n", gpxe_warning_msg);
+    if (!has_gpxe && !already) {
+	printf("%s\n", gpxe_warning_msg);
+	already = true;
     }
     
-    return has_gpxe == 1;
+    return has_gpxe;
 }
 
 /**
@@ -1366,6 +1357,7 @@ static int pxe_init(void)
 	    if ((pxe = memory_scan_for_pxe_struct()))
 		goto have_pxe;
 	}
+	APIVer = 0x200;		/* PXENV+ only, assume version 2.00 */
     }
     
     /* Otherwise, no dice, use PXENV+ structure */
@@ -1394,10 +1386,30 @@ static int pxe_init(void)
     code_seg = code_seg + ((code_len + 15) >> 4);
     data_seg = data_seg + ((data_len + 15) >> 4);
 
-    real_base_mem = max(code_seg,data_seg) >> 6; /* Convert to kilobytes */
+    real_base_mem = max(code_seg, data_seg) >> 6; /* Convert to kilobytes */
 
     return 0;
 }                                  
+
+/*
+ * See if we have gPXE
+ */
+static void gpxe_init(void)
+{
+    int err;
+    static __lowmem struct s_PXENV_FILE_API_CHECK api_check;
+
+    if (APIVer >= 0x201) {
+	api_check.Size = sizeof api_check;
+	api_check.Magic = 0x91d447b2;
+	err = pxe_call(PXENV_FILE_API_CHECK, &api_check);
+	if (!err && api_check.Magic == 0xe9c17b20)
+	    gpxe_funcs = api_check.APIMask;
+    }
+
+    /* Necessary functions for us to use the gPXE file API */
+    has_gpxe = (~gpxe_funcs & 0x4b) == 0;
+}
 
 /*
  * Initialize UDP stack 
@@ -1491,8 +1503,11 @@ static int pxe_fs_init(struct fs_info *fs)
     /* Initialize the Files structure */
     files_init();
 
-    /* do the pxe initialize */
+    /* Find the PXE stack */
     pxe_init();
+
+    /* See if we also have a gPXE stack */
+    gpxe_init();
 
     /* Network-specific initialization */
     network_init();
@@ -1503,10 +1518,90 @@ static int pxe_fs_init(struct fs_info *fs)
     return 0;
 }
 
-inline void reset_pxe(void)
+/*
+ * Look to see if we are on an EFI CSM system.  Some EFI
+ * CSM systems put the BEV stack in low memory, which means
+ * a return to the PXE stack will crash the system.  However,
+ * INT 18h works reliably, so in that case hack the stack and
+ * point the "return address" to an INT 18h instruction.
+ *
+ * Hack the stack instead of the much simpler "just invoke INT 18h
+ * if we want to reset", so that chainloading other NBPs will work.
+ *
+ * This manipulates the real-mode InitStack directly.  It relies on this
+ * *not* being a currently active stack, i.e. the former
+ * USE_PXE_PROVIDED_STACK no longer works.
+ */
+extern far_ptr_t InitStack;
+
+struct efi_struct {
+    uint32_t magic;
+    uint8_t  len;
+};
+#define EFI_MAGIC 0x24454649	/* $EFI, but bigendian... */
+
+static inline int is_efi(const struct efi_struct *efi)
+{
+    /*
+     * We don't verify the checksum, because it seems some CSMs leave
+     * it at zero, sigh...
+     */
+    return (efi->magic == EFI_MAGIC) && (efi->len >= 83);
+}
+
+static void install_efi_csm_hack(void)
+{
+    static const uint8_t efi_csm_hack[] =
+    {
+	0xcd, 0x18,			/* int $0x18 */
+	0xea, 0xf0, 0xff, 0x00, 0xf0,	/* ljmpw $0xf000,$0xffff */
+	0xf4				/* hlt */
+    };
+    far_ptr_t retptr;
+    uint16_t *retcode;
+
+    retptr = *(far_ptr_t *)GET_PTR(InitStack);
+    retptr.offs += 44;
+    retcode = GET_PTR(retptr);
+
+    /* Don't do this if the return already points to int $0x18 */
+    if (*retcode != 0x18cd) {
+	uint32_t efi_ptr;
+	bool efi = false;
+
+	for (efi_ptr = 0xe0000 ; efi_ptr < 0x100000 ; efi_ptr += 16) {
+	    if (is_efi((const struct efi_struct *)efi_ptr)) {
+		efi = true;
+		break;
+	    }
+	}
+
+	if (efi) {
+	    uint8_t *src = GET_PTR(InitStack);
+	    uint8_t *dst = src - sizeof efi_csm_hack;
+	    memmove(dst, src, 52);
+	    memcpy(dst+52, efi_csm_hack, sizeof efi_csm_hack);
+	    InitStack.offs -= 52;
+
+	    /* Clobber the return address */
+	    *(far_ptr_t *)(dst+44) = FAR_PTR(dst+52);
+	}
+    }
+}
+
+void reset_pxe(void)
 {
     static __lowmem struct s_PXENV_UDP_CLOSE udp_close;
+    extern void gpxe_unload(void);
+
     pxe_call(PXENV_UDP_CLOSE, &udp_close);
+
+    if (gpxe_funcs & 0x80) {
+	/* gPXE special unload implemented */
+	call16(gpxe_unload, &zero_regs, NULL);
+    }
+
+    install_efi_csm_hack();
 }
 
 /*

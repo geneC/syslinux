@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <string.h>
 #include <byteswap.h>
@@ -35,12 +37,6 @@
  * protocol-independent; it is not limited to Ethernet or to IPv4.
  *
  */
-
-/** Registered ARP protocols */
-static struct arp_net_protocol arp_net_protocols[0]
-	__table_start ( struct arp_net_protocol, arp_net_protocols );
-static struct arp_net_protocol arp_net_protocols_end[0]
-	__table_end ( struct arp_net_protocol, arp_net_protocols );
 
 /** An ARP cache entry */
 struct arp_entry {
@@ -160,7 +156,7 @@ int arp_resolve ( struct net_device *netdev, struct net_protocol *net_protocol,
 
 	/* Transmit ARP request */
 	if ( ( rc = net_tx ( iobuf, netdev, &arp_protocol, 
-			     ll_protocol->ll_broadcast ) ) != 0 )
+			     netdev->ll_broadcast ) ) != 0 )
 		return rc;
 
 	return -ENOENT;
@@ -176,8 +172,7 @@ int arp_resolve ( struct net_device *netdev, struct net_protocol *net_protocol,
 static struct arp_net_protocol * arp_find_protocol ( uint16_t net_proto ) {
 	struct arp_net_protocol *arp_net_protocol;
 
-	for ( arp_net_protocol = arp_net_protocols ;
-	      arp_net_protocol < arp_net_protocols_end ; arp_net_protocol++ ) {
+	for_each_table_entry ( arp_net_protocol, ARP_NET_PROTOCOLS ) {
 		if ( arp_net_protocol->net_protocol->net_proto == net_proto ) {
 			return arp_net_protocol;
 		}

@@ -39,6 +39,8 @@
 *    Indent Options: indent -kr -i8
 ***************************************************************************/
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include "etherboot.h"
 #include "nic.h"
 #include <gpxe/pci.h>
@@ -216,16 +218,10 @@ struct {
 	__attribute__ ((aligned(16)));
 	struct pcnet32_rx_head rx_ring[RX_RING_SIZE]
 	__attribute__ ((aligned(16)));
-	unsigned char txb[PKT_BUF_SZ * TX_RING_SIZE];
-	unsigned char rxb[RX_RING_SIZE * PKT_BUF_SZ];
+	unsigned char txb[TX_RING_SIZE][PKT_BUF_SZ];
+	unsigned char rxb[RX_RING_SIZE][PKT_BUF_SZ];
 } pcnet32_bufs __shared;
 
-/* May need to be moved to mii.h */
-struct mii_if_info {
-	int phy_id;
-	int advertising;
-	unsigned int full_duplex:1;	/* is full duplex? */
-};
 
 /*
  * The first three fields of pcnet32_private are read by the ethernet device 
@@ -588,7 +584,7 @@ static void pcnet32_transmit(struct nic *nic __unused, const char *d,	/* Destina
 
 	status = 0x8300;
 	/* point to the current txb incase multiple tx_rings are used */
-	ptxb = pcnet32_bufs.txb + (lp->cur_tx * PKT_BUF_SZ);
+	ptxb = pcnet32_bufs.txb[lp->cur_tx];
 
 	/* copy the packet to ring buffer */
 	memcpy(ptxb, d, ETH_ALEN);	/* dst */
@@ -1006,9 +1002,9 @@ static struct nic_operations pcnet32_operations = {
 };
 
 static struct pci_device_id pcnet32_nics[] = {
-	PCI_ROM(0x1022, 0x2000, "pcnet32", "AMD PCnet/PCI"),
-	PCI_ROM(0x1022, 0x2625, "pcnetfastiii", "AMD PCNet FAST III"),
-	PCI_ROM(0x1022, 0x2001, "amdhomepna", "AMD PCnet/HomePNA"),
+	PCI_ROM(0x1022, 0x2000, "pcnet32", "AMD PCnet/PCI", 0),
+	PCI_ROM(0x1022, 0x2625, "pcnetfastiii", "AMD PCNet FAST III", 0),
+	PCI_ROM(0x1022, 0x2001, "amdhomepna", "AMD PCnet/HomePNA", 0),
 };
 
 PCI_DRIVER ( pcnet32_driver, pcnet32_nics, PCI_NO_CLASS );

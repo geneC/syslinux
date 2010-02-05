@@ -7,6 +7,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <bits/errfile.h>
 
 /**
@@ -108,11 +110,20 @@
 #define ERRFILE_phantom		     ( ERRFILE_DRIVER | 0x004b0000 )
 #define ERRFILE_ne2k_isa	     ( ERRFILE_DRIVER | 0x004c0000 )
 #define ERRFILE_b44		     ( ERRFILE_DRIVER | 0x004d0000 )
+#define ERRFILE_rtl818x		     ( ERRFILE_DRIVER | 0x004e0000 )
+#define ERRFILE_sky2                 ( ERRFILE_DRIVER | 0x004f0000 )
+#define ERRFILE_ath5k		     ( ERRFILE_DRIVER | 0x00500000 )
+#define ERRFILE_atl1e		     ( ERRFILE_DRIVER | 0x00510000 )
+#define ERRFILE_sis190		     ( ERRFILE_DRIVER | 0x00520000 )
+#define ERRFILE_myri10ge	     ( ERRFILE_DRIVER | 0x00530000 )
+#define ERRFILE_skge		     ( ERRFILE_DRIVER | 0x00540000 )
 
 #define ERRFILE_scsi		     ( ERRFILE_DRIVER | 0x00700000 )
 #define ERRFILE_arbel		     ( ERRFILE_DRIVER | 0x00710000 )
 #define ERRFILE_hermon		     ( ERRFILE_DRIVER | 0x00720000 )
 #define ERRFILE_linda		     ( ERRFILE_DRIVER | 0x00730000 )
+#define ERRFILE_ata		     ( ERRFILE_DRIVER | 0x00740000 )
+#define ERRFILE_srp		     ( ERRFILE_DRIVER | 0x00750000 )
 
 #define ERRFILE_aoe			( ERRFILE_NET | 0x00000000 )
 #define ERRFILE_arp			( ERRFILE_NET | 0x00010000 )
@@ -140,6 +151,22 @@
 #define ERRFILE_ib_sma			( ERRFILE_NET | 0x00170000 )
 #define ERRFILE_ib_packet		( ERRFILE_NET | 0x00180000 )
 #define ERRFILE_icmp			( ERRFILE_NET | 0x00190000 )
+#define ERRFILE_ib_qset			( ERRFILE_NET | 0x001a0000 )
+#define ERRFILE_ib_gma			( ERRFILE_NET | 0x001b0000 )
+#define ERRFILE_ib_pathrec		( ERRFILE_NET | 0x001c0000 )
+#define ERRFILE_ib_mcast		( ERRFILE_NET | 0x001d0000 )
+#define ERRFILE_ib_cm			( ERRFILE_NET | 0x001e0000 )
+#define ERRFILE_net80211		( ERRFILE_NET | 0x001f0000 )
+#define ERRFILE_ib_mi			( ERRFILE_NET | 0x00200000 )
+#define ERRFILE_ib_cmrc			( ERRFILE_NET | 0x00210000 )
+#define ERRFILE_ib_srp			( ERRFILE_NET | 0x00220000 )
+#define ERRFILE_sec80211		( ERRFILE_NET | 0x00230000 )
+#define ERRFILE_wep			( ERRFILE_NET | 0x00240000 )
+#define ERRFILE_eapol			( ERRFILE_NET | 0x00250000 )
+#define ERRFILE_wpa			( ERRFILE_NET | 0x00260000 )
+#define ERRFILE_wpa_psk			( ERRFILE_NET | 0x00270000 )
+#define ERRFILE_wpa_tkip		( ERRFILE_NET | 0x00280000 )
+#define ERRFILE_wpa_ccmp		( ERRFILE_NET | 0x00290000 )
 
 #define ERRFILE_image		      ( ERRFILE_IMAGE | 0x00000000 )
 #define ERRFILE_elf		      ( ERRFILE_IMAGE | 0x00010000 )
@@ -172,6 +199,8 @@
 #define ERRFILE_pxemenu		      ( ERRFILE_OTHER | 0x00150000 )
 #define ERRFILE_x509		      ( ERRFILE_OTHER | 0x00160000 )
 #define ERRFILE_login_ui	      ( ERRFILE_OTHER | 0x00170000 )
+#define ERRFILE_ib_srpboot	      ( ERRFILE_OTHER | 0x00180000 )
+#define ERRFILE_iwmgmt		      ( ERRFILE_OTHER | 0x00190000 )
 
 /** @} */
 

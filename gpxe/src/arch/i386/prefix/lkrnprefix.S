@@ -34,6 +34,8 @@
 
 */
 
+FILE_LICENCE ( GPL_ANY )
+
 #define	SETUPSECS 4		/* Minimal nr of setup-sectors */
 #define PREFIXSIZE ((SETUPSECS+1)*512)
 #define PREFIXPGH (PREFIXSIZE / 16 )
@@ -92,10 +94,10 @@ setup_sects:
 root_flags: 
 	.word	0
 syssize: 
-	.long	_filesz_pgh - PREFIXPGH
+	.long	-PREFIXPGH
 
 	.section ".zinfo.fixup", "a", @progbits	/* Compressor fixups */
-	.ascii	"SUBL"
+	.ascii	"ADDL"
 	.long	syssize
 	.long	16
 	.long	0

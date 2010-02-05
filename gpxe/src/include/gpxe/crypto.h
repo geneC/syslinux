@@ -7,6 +7,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -127,7 +129,7 @@ static inline void cipher_encrypt ( struct cipher_algorithm *cipher,
 	cipher->encrypt ( ctx, src, dst, len );
 }
 #define cipher_encrypt( cipher, ctx, src, dst, len ) do {		\
-	assert ( ( len & ( (cipher)->blocksize - 1 ) ) == 0 );		\
+	assert ( ( (len) & ( (cipher)->blocksize - 1 ) ) == 0 );	\
 	cipher_encrypt ( (cipher), (ctx), (src), (dst), (len) );	\
 	} while ( 0 )
 
@@ -137,7 +139,7 @@ static inline void cipher_decrypt ( struct cipher_algorithm *cipher,
 	cipher->decrypt ( ctx, src, dst, len );
 }
 #define cipher_decrypt( cipher, ctx, src, dst, len ) do {		\
-	assert ( ( len & ( (cipher)->blocksize - 1 ) ) == 0 );		\
+	assert ( ( (len) & ( (cipher)->blocksize - 1 ) ) == 0 );	\
 	cipher_decrypt ( (cipher), (ctx), (src), (dst), (len) );	\
 	} while ( 0 )
 
@@ -148,5 +150,7 @@ static inline int is_stream_cipher ( struct cipher_algorithm *cipher ) {
 extern struct digest_algorithm digest_null;
 extern struct cipher_algorithm cipher_null;
 extern struct pubkey_algorithm pubkey_null;
+
+void get_random_bytes ( void *buf, size_t len );
 
 #endif /* _GPXE_CRYPTO_H */

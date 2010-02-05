@@ -11,6 +11,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /**
  * @defgroup featurecat Feature categories
  * @{
@@ -42,6 +44,7 @@
 #define DHCP_EB_FEATURE_BZIMAGE		0x18 /**< bzImage format */
 #define DHCP_EB_FEATURE_MULTIBOOT	0x19 /**< Multiboot format */
 #define DHCP_EB_FEATURE_SLAM		0x1a /**< SLAM protocol */
+#define DHCP_EB_FEATURE_SRP		0x1b /**< SRP protocol */
 #define DHCP_EB_FEATURE_NBI		0x20 /**< NBI format */
 #define DHCP_EB_FEATURE_PXE		0x21 /**< PXE format */
 #define DHCP_EB_FEATURE_ELF		0x22 /**< ELF format */
@@ -50,8 +53,11 @@
 
 /** @} */
 
+/** DHCP feature table */
+#define DHCP_FEATURES __table ( uint8_t, "dhcp_features" )
+
 /** Declare a feature code for DHCP */
-#define __dhcp_feature __table ( uint8_t, dhcp_features, 01 )
+#define __dhcp_feature __table_entry ( DHCP_FEATURES, 01 )
 
 /** Construct a DHCP feature table entry */
 #define DHCP_FEATURE( feature_opt, ... )				    \
@@ -69,9 +75,11 @@ struct feature {
 	char *name;
 };
 
+/** Named feature table */
+#define FEATURES __table ( struct feature, "features" )
+
 /** Declare a named feature */
-#define __feature_name( category )					    \
-	__table ( struct feature, features, category )
+#define __feature_name( category ) __table_entry ( FEATURES, category )
 
 /** Construct a named feature */
 #define FEATURE_NAME( category, text )					    \

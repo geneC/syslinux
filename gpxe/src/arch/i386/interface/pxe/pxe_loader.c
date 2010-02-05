@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/init.h>
 #include "pxe.h"
 #include "pxe_call.h"
@@ -36,9 +38,6 @@ PXENV_EXIT_t undi_loader ( struct s_UNDI_LOADER *undi_loader ) {
 
 	DBG ( "[PXENV_UNDI_LOADER to CS %04x DS %04x]",
 	      undi_loader->UNDI_CS, undi_loader->UNDI_DS );
-
-	/* Set up PXE data structures */
-	pxe_init_structures();
 
 	/* Fill in UNDI loader structure */
 	undi_loader->PXEptr.segment = rm_cs;

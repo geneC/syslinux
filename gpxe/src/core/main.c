@@ -9,10 +9,10 @@ Literature dealing with the network protocols:
 	DHCP - RFC2131, RFC2132 (options)
 	TFTP - RFC1350, RFC2347 (options), RFC2348 (blocksize), RFC2349 (tsize)
 	RPC - RFC1831, RFC1832 (XDR), RFC1833 (rpcbind/portmapper)
-	NFS - RFC1094, RFC1813 (v3, useful for clarifications, not implemented)
-	IGMP - RFC1112
 
 **************************************************************************/
+
+FILE_LICENCE ( GPL2_OR_LATER );
 
 #include <stdio.h>
 #include <gpxe/init.h>
@@ -26,9 +26,6 @@ Literature dealing with the network protocols:
 #define NORMAL	"\033[0m"
 #define BOLD	"\033[1m"
 #define CYAN	"\033[36m"
-
-static struct feature features[0] __table_start ( struct feature, features );
-static struct feature features_end[0] __table_end ( struct feature, features );
 
 /**
  * Main entry point
@@ -61,7 +58,7 @@ __asmcall int main ( void ) {
 		 NORMAL " -- Open Source Boot Firmware -- "
 		 CYAN "http://etherboot.org" NORMAL "\n"
 		 "Features:" );
-	for ( feature = features ; feature < features_end ; feature++ )
+	for_each_table_entry ( feature, FEATURES )
 		printf ( " %s", feature->name );
 	printf ( "\n" );
 
