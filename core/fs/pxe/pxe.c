@@ -1277,7 +1277,7 @@ static int pxe_init(void)
     uint16_t seg, off;
     uint16_t code_seg, code_len;
     uint16_t data_seg, data_len;
-    char *base = GET_PTR(InitStack);
+    const char *base = GET_PTR(InitStack);
     com32sys_t regs;
     const char *type;
     const struct pxenv_t *pxenv;
@@ -1287,16 +1287,16 @@ static int pxe_init(void)
     APIVer = 0x201;
 
     /* Plan A: !PXE structure as SS:[SP + 4] */
-    off = *(uint16_t *)(base + 48);
-    seg = *(uint16_t *)(base + 50);
+    off = *(const uint16_t *)(base + 48);
+    seg = *(const uint16_t *)(base + 50);
     pxe = MK_PTR(seg, off);
     if (is_pxe(pxe))
         goto have_pxe;
 
     /* Plan B: PXENV+ structure at [ES:BX] */
     plan++;
-    off = *(uint16_t *)(base + 24);  /* Original BX */
-    seg = *(uint16_t *)(base + 4);   /* Original ES */
+    off = *(const uint16_t *)(base + 24);  /* Original BX */
+    seg = *(const uint16_t *)(base + 4);   /* Original ES */
     pxenv = MK_PTR(seg, off);
     if (is_pxenv(pxenv))
         goto have_pxenv;
@@ -1522,11 +1522,12 @@ extern far_ptr_t InitStack;
 
 struct efi_struct {
     uint32_t magic;
+    uint8_t  csum;
     uint8_t  len;
-};
-#define EFI_MAGIC 0x24454649	/* $EFI, but bigendian... */
+} __attribute__((packed));
+#define EFI_MAGIC (('$' << 24)+('E' << 16)+('F' << 8)+'I')
 
-static inline int is_efi(const struct efi_struct *efi)
+static inline bool is_efi(const struct efi_struct *efi)
 {
     /*
      * We don't verify the checksum, because it seems some CSMs leave
@@ -1540,15 +1541,12 @@ static void install_efi_csm_hack(void)
     static const uint8_t efi_csm_hack[] =
     {
 	0xcd, 0x18,			/* int $0x18 */
-	0xea, 0xf0, 0xff, 0x00, 0xf0,	/* ljmpw $0xf000,$0xffff */
+	0xea, 0xf0, 0xff, 0x00, 0xf0,	/* ljmpw $0xf000,$0xfff0 */
 	0xf4				/* hlt */
     };
-    far_ptr_t retptr;
     uint16_t *retcode;
 
-    retptr = *(far_ptr_t *)GET_PTR(InitStack);
-    retptr.offs += 44;
-    retcode = GET_PTR(retptr);
+    retcode = GET_PTR(*(far_ptr_t *)((char *)GET_PTR(InitStack) + 44));
 
     /* Don't do this if the return already points to int $0x18 */
     if (*retcode != 0x18cd) {
@@ -1565,12 +1563,14 @@ static void install_efi_csm_hack(void)
 	if (efi) {
 	    uint8_t *src = GET_PTR(InitStack);
 	    uint8_t *dst = src - sizeof efi_csm_hack;
+
 	    memmove(dst, src, 52);
 	    memcpy(dst+52, efi_csm_hack, sizeof efi_csm_hack);
-	    InitStack.offs -= 52;
+	    InitStack.offs -= sizeof efi_csm_hack;
 
 	    /* Clobber the return address */
-	    *(far_ptr_t *)(dst+44) = FAR_PTR(dst+52);
+	    *(uint16_t *)(dst+44) = OFFS_WRT(dst+52, InitStack.seg);
+	    *(uint16_t *)(dst+46) = InitStack.seg;
 	}
     }
 }
@@ -1579,6 +1579,10 @@ void reset_pxe(void)
 {
     static __lowmem struct s_PXENV_UDP_CLOSE udp_close;
     extern void gpxe_unload(void);
+
+    pxe_idle_cleanup();
+
+    printf("reset_pxe\n");
 
     pxe_call(PXENV_UDP_CLOSE, &udp_close);
 
@@ -1603,8 +1607,6 @@ void unload_pxe(void)
     int int_addr;
     static __lowmem struct s_PXENV_UNLOAD_STACK unload_stack;
 
-    pxe_idle_cleanup();
-
     if (KeepPXE) {
 	/*
 	 * We want to keep PXE around, but still we should reset
@@ -1613,6 +1615,8 @@ void unload_pxe(void)
 	reset_pxe();
 	return;
     }
+
+    pxe_idle_cleanup();
 
     api_ptr = major_ver(APIVer) >= 2 ? new_api_unload : old_api_unload;
     while((api = *api_ptr++)) {

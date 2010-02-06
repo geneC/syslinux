@@ -300,6 +300,7 @@ local_boot:
 		mov si,localboot_msg
 		call writestr_early
 		; Restore the environment we were called with
+		pm_call reset_pxe
 		call cleanup_hardware
 		lss sp,[InitStack]
 		pop gs
@@ -442,6 +443,8 @@ gpxe_unload:
 		; Now we actually need to exit back to gPXE, which will
 		; give control back to us on the *new* "original stack"...
 		pushfd
+		push ds
+		push es
 		mov [PXEStack],sp
 		mov [PXEStack+2],ss
 		lss sp,[InitStack]
@@ -471,6 +474,8 @@ gpxe_unload:
 		mov [cs:InitStack],sp
 		mov [cs:InitStack+2],ss
 		lss sp,[cs:PXEStack]
+		pop es
+		pop ds
 		popfd
 
 .plain:
