@@ -44,7 +44,4 @@ void dump_memory(struct backend *be)
 
     if (lowmem)
 	dump_memory_range(be, lowmem, zero_addr, lowmem_len);
-    
-    /* Look for a DMI header */
 }
-

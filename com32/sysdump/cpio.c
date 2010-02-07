@@ -14,7 +14,7 @@
 
 static uint32_t now;
 
-static int cpio_pad(struct backend *be)
+int cpio_pad(struct backend *be)
 {
     static char pad[4];		/* Up to 4 zero bytes */
     if (be->dbytes & 3)
@@ -23,13 +23,15 @@ static int cpio_pad(struct backend *be)
 	return 0;
 }
 
-static int cpio_hdr(struct backend *be, uint32_t mode, size_t datalen,
-		    const char *filename)
+int cpio_hdr(struct backend *be, uint32_t mode, size_t datalen,
+	     const char *filename)
 {
     static uint32_t inode = 2;
     char hdr[6+13*8+1];
     int nlen = strlen(filename)+1;
     int rv = 0;
+
+    cpio_pad(be);
 
     sprintf(hdr, "%06o%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x",
 	    070701,		/* c_magic */
@@ -60,7 +62,7 @@ int cpio_init(struct backend *be, const char *argv[], size_t len)
 
 int cpio_mkdir(struct backend *be, const char *filename)
 {
-    return cpio_hdr(be, 0040755, 0, filename);
+    return cpio_hdr(be, MODE_DIR, 0, filename);
 }
 
 int cpio_writefile(struct backend *be, const char *filename,
@@ -68,7 +70,7 @@ int cpio_writefile(struct backend *be, const char *filename,
 {
     int rv;
 
-    rv = cpio_hdr(be, 0100644, len, filename);
+    rv = cpio_hdr(be, MODE_FILE, len, filename);
     rv |= write_data(be, data, len, false);
     rv |= cpio_pad(be);
 

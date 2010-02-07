@@ -47,11 +47,15 @@ int init_data(struct backend *be, const char *argv[], size_t len);
 int write_data(struct backend *be, const void *buf, size_t len, bool flush);
 
 /* cpio.c */
+int cpio_hdr(struct backend *be, uint32_t mode, size_t datalen,
+	     const char *filename);
 int cpio_init(struct backend *be, const char *argv[], size_t len);
 int cpio_mkdir(struct backend *be, const char *filename);
 int cpio_writefile(struct backend *be, const char *filename,
 		   const void *data, size_t len);
 int cpio_close(struct backend *be);
+#define MODE_FILE	0100644
+#define MODE_DIR	0040755
 
 /* backends.c */
 struct backend *get_backend(const char *name);
