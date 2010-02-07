@@ -520,5 +520,6 @@ typedef struct s_PXENV_UNDI_ISR {
 /* SYSLINUX-defined PXE utility functions */
 int pxe_get_cached_info(int level, void **buf, size_t * len);
 int pxe_get_nic_type(t_PXENV_UNDI_GET_NIC_TYPE * gnt);
+uint32_t pxe_dns(const char *hostname);
 
 #endif /* _SYSLINUX_PXE_H */
