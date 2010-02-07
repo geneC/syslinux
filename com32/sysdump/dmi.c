@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/cpu.h>
 #include "sysdump.h"
 #include "backend.h"
 
