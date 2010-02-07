@@ -63,6 +63,8 @@ int cpio_writefile(struct backend *be, const char *filename,
     rv = cpio_hdr(be, 0100644, len, filename, false);
     rv |= write_data(be, data, len, false);
     rv |= write_data(be, pad, -len & 3, false);
+
+    return rv;
 }
 
 int cpio_close(struct backend *be)
