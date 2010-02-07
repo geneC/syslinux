@@ -110,7 +110,7 @@ union syslinux_derivative_info {
 	uint32_t _edi, _esi, _ebp, _esp, _ebx;
 	uint16_t apiver;
 	uint16_t _dxh;
-	uint32_t _ecx;
+	uint32_t myip;
 	uint8_t filesystem, ah;
 	uint16_t _axh;
 	uint32_t _eflags;

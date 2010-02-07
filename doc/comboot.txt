@@ -401,6 +401,7 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 	Input:	AX	000Ah
 	Output:	AL	32h (PXELINUX)
 		DX	PXE API version detected (DH=major, DL=minor)
+		ECX	Local IP number (network byte order) [3.85]
 		ES:BX	pointer to PXENV+ or !PXE structure
 		FS:SI	pointer to original stack with invocation record
 
