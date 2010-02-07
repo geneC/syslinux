@@ -8,9 +8,10 @@
 #
 
 ver="$1"
-tim="$1"
+tim="$2"
+top=`dirname "$0"`
 
-if test -n "$GIT_DIR" -o -d ../.git -o -f ../.git; then
+if test -n "$GIT_DIR" -o -d "$top"/.git -o -f "$top"/.git; then
     id="$(git describe)"
     if test -n "$id"; then
 	if test x"$(echo "$id" | cut -d- -f1)" = xsyslinux; then
