@@ -108,6 +108,7 @@ LIBOBJS = \
 	syslinux/initramfs_archive.o					\
 	\
 	syslinux/pxe_get_cached.o syslinux/pxe_get_nic.o		\
+	syslinux/pxe_dns.o						\
 	\
 	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o		\
 	syslinux/setadv.o						\
