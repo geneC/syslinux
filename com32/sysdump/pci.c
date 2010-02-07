@@ -66,5 +66,5 @@ void dump_pci(struct backend *be)
 	}
     }
 
-    printf("Scanning PCI bus... done   \n");
+    printf("Scanning PCI bus... done.  \n");
 }

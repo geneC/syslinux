@@ -12,6 +12,8 @@ void dump_vesa_tables(struct backend *be)
     uint16_t mode, *mode_ptr;
     char modefile[64];
 
+    printf("Scanning VESA BIOS... ");
+
     /* Allocate space in the bounce buffer for these structures */
     gip = &((struct vesa_info *)__com32.cs_bounce)->gi;
     mip = &((struct vesa_info *)__com32.cs_bounce)->mi;
@@ -53,4 +55,6 @@ void dump_vesa_tables(struct backend *be)
 	sprintf(modefile, "vesa/mode%04x.bin", mode);
 	cpio_writefile(be, modefile, &mi, sizeof mi);
     }
+
+    printf("done.\n");
 }

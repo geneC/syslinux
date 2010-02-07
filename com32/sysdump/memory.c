@@ -40,8 +40,12 @@ static void dump_memory_range(struct backend *be, const void *where,
 
 void dump_memory(struct backend *be)
 {
+    printf("Dumping memory... ");
+
     cpio_mkdir(be, "memory");
 
     if (lowmem)
 	dump_memory_range(be, lowmem, zero_addr, lowmem_len);
+
+    printf("done.\n");
 }
