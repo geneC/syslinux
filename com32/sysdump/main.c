@@ -35,6 +35,7 @@ static void dump_all(struct backend *be, const char *argv[], size_t len)
 
     cpio_init(be, argv, len);
 
+    dump_memory_map(be);
     dump_memory(be);
     dump_dmi(be);
     dump_pci(be);

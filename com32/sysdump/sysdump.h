@@ -3,6 +3,7 @@
 
 struct backend;
 
+void dump_memory_map(struct backend *);
 void dump_memory(struct backend *);
 void dump_dmi(struct backend *);
 void dump_pci(struct backend *);
