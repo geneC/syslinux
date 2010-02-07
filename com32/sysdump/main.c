@@ -65,7 +65,6 @@ __noreturn usage(void)
 int main(int argc, char *argv[])
 {
     struct backend **bep, *be;
-    size_t len = 0;
 
     openconsole(&dev_null_r, &dev_stdcon_w);
 
