@@ -26,6 +26,15 @@ TESTFILES =
 
 OBJS = $(patsubst %.c,%.o,$(wildcard *.c))
 
+# The DATE is set on the make command line when building binaries for
+# official release.  Otherwise, substitute a hex string that is pretty much
+# guaranteed to be unique to be unique from build to build.
+ifndef DATE
+DATE    := $(shell sh ../gen-id.sh $(VERSION) $(HEXDATE))
+endif
+
+CFLAGS    += -DDATE='"$(DATE)"'
+
 all: $(MODULES) $(TESTFILES)
 
 sysdump.elf : $(OBJS) $(LIBS) $(C_LIBS)

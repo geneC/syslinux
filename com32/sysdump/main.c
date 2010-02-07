@@ -19,10 +19,11 @@
 #include <dprintf.h>
 #include <console.h>
 #include <sys/cpu.h>
+#include "../../version.h"
 #include "backend.h"
 #include "sysdump.h"
 
-const char *program = "sysdump";
+const char program[] = "sysdump";
 
 __noreturn die(const char *msg)
 {
@@ -32,7 +33,11 @@ __noreturn die(const char *msg)
 
 static void dump_all(struct backend *be, const char *argv[], size_t len)
 {
+    static const char version[] = "SYSDUMP " VERSION_STR " " DATE "\n";
+
     cpio_init(be, argv, len);
+
+    cpio_writefile(be, "sysdump", version, sizeof version);
 
     dump_memory_map(be);
     dump_memory(be);
