@@ -12,7 +12,7 @@ struct backend {
 
     int (*open)(struct backend *, const char *argv[]);
     int (*write)(struct backend *, const char *buf, size_t len);
-    
+
     z_stream zstream;
     char *outbuf;
 
@@ -32,7 +32,7 @@ int init_data(struct backend *be, const char *argv[]);
 int write_data(struct backend *be, const void *buf, size_t len, bool flush);
 
 /* cpio.c */
-#define cpio_init init_data
+int cpio_init(struct backend *be, const char *argv[]);
 int cpio_mkdir(struct backend *be, const char *filename);
 int cpio_writefile(struct backend *be, const char *filename,
 		   const void *data, size_t len);

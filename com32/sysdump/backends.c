@@ -24,4 +24,3 @@ struct backend *get_backend(const char *name)
 
     return NULL;
 }
-

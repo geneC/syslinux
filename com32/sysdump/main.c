@@ -20,6 +20,7 @@
 #include <console.h>
 #include <sys/cpu.h>
 #include "backend.h"
+#include "sysdump.h"
 
 const char *program = "sysdump";
 
@@ -149,14 +150,16 @@ int main(int argc, char *argv[])
     if (!be)
 	die("unknown backend");
 
-    if (cpio_init(be, argv+2))
+    if (cpio_init(be, (const char **)argv+2))
 	die("backend initialization error");
 
     if (lowmem) {
 	cpio_writefile(be, "lowmem.bin", lowmem, lowmem_len);
 	free(lowmem);
     }
-    
+
+    dump_vesa_tables(be);
+
     cpio_close(be);
 
     return 0;

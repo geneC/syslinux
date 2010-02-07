@@ -10,8 +10,10 @@
 #include <stdbool.h>
 #include <zlib.h>
 #include "backend.h"
+#include "ctime.h"
 
 static char pad[4];		/* Up to 4 zero bytes */
+static uint32_t now;
 
 static int cpio_hdr(struct backend *be, uint32_t mode, size_t datalen,
 		    const char *filename, bool flush)
@@ -28,7 +30,7 @@ static int cpio_hdr(struct backend *be, uint32_t mode, size_t datalen,
 	    0,			/* c_uid */
 	    0,			/* c_gid */
 	    1,			/* c_nlink */
-	    0,			/* c_mtime */
+	    now,		/* c_mtime */
 	    datalen,		/* c_filesize */
 	    0,			/* c_maj */
 	    0,			/* c_min */
@@ -38,8 +40,14 @@ static int cpio_hdr(struct backend *be, uint32_t mode, size_t datalen,
 	    0);			/* c_chksum */
     rv |= write_data(be, hdr, 6+13*8, false);
     rv |= write_data(be, filename, nlen, false);
-    rv |= write_data(be, pad, -nlen & 3, flush);
+    rv |= write_data(be, pad, (-nlen+6+13*8) & 3, flush);
     return rv;
+}
+
+int cpio_init(struct backend *be, const char *argv[])
+{
+    now = posix_time();
+    return init_data(be, argv);
 }
 
 int cpio_mkdir(struct backend *be, const char *filename)
@@ -52,7 +60,7 @@ int cpio_writefile(struct backend *be, const char *filename,
 {
     int rv;
 
-    rv = cpio_hdr(be, 0100755, len, filename, false);
+    rv = cpio_hdr(be, 0100644, len, filename, false);
     rv |= write_data(be, data, len, false);
     rv |= write_data(be, pad, -len & 3, false);
 }
@@ -61,4 +69,3 @@ int cpio_close(struct backend *be)
 {
     return cpio_hdr(be, 0, 0, "TRAILER!!!", true);
 }
-

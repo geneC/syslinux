@@ -47,7 +47,7 @@ static int send_ack_packet(struct backend *be, const void *pkt, size_t len)
 	ireg.ebx.w[0] = PXENV_UDP_WRITE;
 	ireg.es = SEG(uw);
 	ireg.edi.w[0] = OFFS(uw);
-	
+
 	__intcall(0x22, &ireg, &oreg);
 
 	start = times(NULL);
@@ -60,7 +60,7 @@ static int send_ack_packet(struct backend *be, const void *pkt, size_t len)
 	    ur->d_port = be->tftp.my_port;
 	    ur->buffer_size = __com32.cs_bounce_size - sizeof *ur;
 	    ur->buffer = FAR_PTR(ur+1);
-	    
+
 	    ireg.ebx.w[0] = PXENV_UDP_READ;
 	    ireg.es = SEG(ur);
 	    ireg.edi.w[0] = OFFS(ur);

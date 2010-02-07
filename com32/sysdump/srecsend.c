@@ -18,7 +18,7 @@ static void make_srec(struct serial_if *sif, char type, size_t addr,
 
     p = buf;
     p += sprintf(p, "S%c%02X%0*zX", type, len+alen+1, alen, addr);
-    
+
     csum = (len+alen+1) + addr + (addr >> 8) + (addr >> 16) + (addr >> 24);
     while (len) {
 	p += sprintf(p, "%02X", *dp);
@@ -55,7 +55,7 @@ void send_srec(struct serial_if *sif, struct file_info *fileinfo,
 	len -= bytes;
 
 	printf("Sending block %d...\r", blk);
-	
+
 	np = blk_buf;
 	while (bytes) {
 	    chunk = bytes > 32 ? 32 : bytes;

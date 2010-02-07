@@ -36,7 +36,7 @@ int write_data(struct backend *be, const void *buf, size_t len, bool flush)
 {
     int rv = Z_OK;
 
-    be->zstream.next_in = buf;
+    be->zstream.next_in = (void *)buf;
     be->zstream.avail_in = len;
 
     while (be->zstream.avail_in || (flush && rv == Z_OK)) {
