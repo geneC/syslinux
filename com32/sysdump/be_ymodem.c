@@ -17,6 +17,11 @@ enum {
     CAN = 0x18,
 };
 
+struct ymodem_state {
+    struct serial_if serial;
+    uint16_t seq;
+};
+
 /*
  * Append a CRC16 to a block
  */
@@ -65,101 +70,102 @@ static void add_crc16(uint8_t * blk, int len)
     *blk = crc;
 }
 
-static void send_ack(struct backend *be, const uint8_t *blk, size_t bytes);
+static void send_ack(struct ymodem_state *ym, const uint8_t *blk,
+		     size_t bytes);
 
-static void send_ack_blk(struct backend *be, uint8_t *blk)
+static void send_ack_blk(struct ymodem_state *ym, uint8_t *blk)
 {
-    printf("Sending block %u...\r", be->ymodem.seq);
+    printf("Sending block %u...\r", ym->seq);
 
     blk[0] = STX;
-    blk[1] = be->ymodem.seq++;
+    blk[1] = ym->seq++;
     blk[2] = ~blk[1];
     add_crc16(blk+3, 1024);
 
-    send_ack(be, blk, 1024+5);
+    send_ack(ym, blk, 1024+5);
 }
 
-static void send_ack(struct backend *be, const uint8_t *blk, size_t bytes)
+static void send_ack(struct ymodem_state *ym, const uint8_t *blk, size_t bytes)
 {
     uint8_t ack_buf;
 
-    serial_write(&be->ymodem.serial, blk, bytes);
+    serial_write(&ym->serial, blk, bytes);
 
     do {
 	do {
-	    serial_read(&be->ymodem.serial, &ack_buf, 1);
+	    serial_read(&ym->serial, &ack_buf, 1);
 	} while (ack_buf != ACK && ack_buf != NAK);
     } while (ack_buf == NAK);
 }
 
-static int be_ymodem_open(struct backend *be, const char *argv[], size_t len)
-{
-    uint8_t ack_buf, blk_buf[1024 + 5];
-
-    be->ymodem.seq = 0;
-
-    /* Initialize serial port */
-    if (serial_init(&be->ymodem.serial, argv+1))
-	return -1;
-    
-    /* Wait for initial handshake */
-    printf("Waiting for handshake...\n");
-    do {
-	serial_read(&be->ymodem.serial, &ack_buf, 1);
-    } while (ack_buf != 'C');
-
-    snprintf((char *)blk_buf+3, 1024, "%s%c%zu", argv[0], 0, len);
-    send_ack_blk(be, blk_buf);
-
-    return 0;
-}
-
-static int be_ymodem_write(struct backend *be, const char *buf, size_t len)
+static int be_ymodem_write(struct backend *be)
 {
     static const uint8_t eot_buf = EOT;
     uint8_t ack_buf;
     uint8_t blk_buf[1024 + 5];
-    
-    memcpy(blk_buf+3, buf, len);
-    if (len < 1024)
-	memset(blk_buf+3+1024-len, 0x1a, 1024-len);
+    struct ymodem_state ym;
+    const char *buf;
+    size_t len, chunk;
 
-    send_ack_blk(be, blk_buf);
+    ym.seq = 0;
 
-    if (len < 1024) {
-	printf("\nSending EOT...\n");
-	send_ack(be, &eot_buf, 1);
+    /* Initialize serial port */
+    if (serial_init(&ym.serial, &be->argv[1]))
+	return -1;
 
-	printf("Waiting for handshake...\n");
-	do {
-	    serial_read(&be->ymodem.serial, &ack_buf, 1);
-	} while (ack_buf != 'C');
-	be->ymodem.seq = 0;
-	
-	printf("Sending batch termination block...\n");
-	memset(blk_buf+3, 0, 128);
-	blk_buf[0] = SOH;
-	blk_buf[1] = 0;
-	blk_buf[2] = 0xff;
-	add_crc16(blk_buf + 3, 128);
-	serial_write(&be->ymodem.serial, blk_buf, 128 + 5);
-	/*
-	 * rb doesn't seem to ack the EOT for an end batch transfer,
-	 * contrary to spec.
-	 */
-	printf("Done.\n");
-	serial_cleanup(&be->ymodem.serial);
+    /* Wait for initial handshake */
+    printf("Waiting for handshake...\n");
+    do {
+	serial_read(&ym.serial, &ack_buf, 1);
+    } while (ack_buf != 'C');
+
+    /* Send filename block */
+    snprintf((char *)blk_buf+3, 1024, "%s%c%zu", be->argv[0], 0, be->zbytes);
+    send_ack_blk(&ym, blk_buf);
+
+    buf = be->outbuf;
+    len = be->zbytes;
+
+    while (len) {
+	chunk = len < 1024 ? len : 1024;
+
+	memcpy(blk_buf+3, buf, chunk);
+	if (chunk < 1024)
+	    memset(blk_buf+3+1024-chunk, 0x1a, 1024-chunk);
+
+	send_ack_blk(&ym, blk_buf);
+	len -= chunk;
     }
 
+    printf("\nSending EOT...\n");
+    send_ack(&ym, &eot_buf, 1);
+
+    printf("Waiting for handshake...\n");
+    do {
+	serial_read(&ym.serial, &ack_buf, 1);
+    } while (ack_buf != 'C');
+    ym.seq = 0;
+
+    printf("Sending batch termination block...\n");
+    memset(blk_buf+3, 0, 128);
+    blk_buf[0] = SOH;
+    blk_buf[1] = 0;
+    blk_buf[2] = 0xff;
+    add_crc16(blk_buf + 3, 128);
+    serial_write(&ym.serial, blk_buf, 128 + 5);
+    /*
+     * rb doesn't seem to ack the EOT for an end batch transfer,
+     * contrary to spec.
+     */
+    printf("Done.\n");
+    serial_cleanup(&ym.serial);
+
     return 0;
-}	
+}
 
 struct backend be_ymodem = {
     .name       = "ymodem",
     .helpmsg    = "filename port [speed]",
     .minargs    = 2,
-    .blocksize  = 1024,
-	.flags  = BE_NEEDLEN,
-    .open       = be_ymodem_open,
     .write      = be_ymodem_write,
 };

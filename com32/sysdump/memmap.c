@@ -33,7 +33,7 @@ static void dump_e820(struct backend *be)
     ireg.ecx.l = sizeof curr->data;
     ireg.es = SEG(curr->data);
     ireg.edi.w[0] = OFFS(curr->data);
-    
+
     do {
 	__intcall(0x15, &ireg, &oreg);
 	if ((oreg.eflags.l & EFLAGS_CF) ||

@@ -78,8 +78,8 @@ static void dump_smbios(struct backend *be, size_t dptr)
     smx.dmi.tbladdr = sizeof smx;
     smx.dmi.csum -= checksum(&smx.dmi, 0x0f);
 
-    write_data(be, &smx, sizeof smx, false);
-    write_data(be, (const void *)smb->dmi.tbladdr, smb->dmi.tbllen, false);
+    write_data(be, &smx, sizeof smx);
+    write_data(be, (const void *)smb->dmi.tbladdr, smb->dmi.tbllen);
 }
 
 static void dump_old_dmi(struct backend *be, size_t dptr)
@@ -104,8 +104,8 @@ static void dump_old_dmi(struct backend *be, size_t dptr)
     fake.dmi.tbladdr = sizeof fake;
     fake.dmi.csum -= checksum(&fake.dmi, 0x0f);
 
-    write_data(be, &fake, sizeof fake, false);
-    write_data(be, (const void *)dmi->tbladdr, dmi->tbllen, false);
+    write_data(be, &fake, sizeof fake);
+    write_data(be, (const void *)dmi->tbladdr, dmi->tbllen);
 }
 
 void dump_dmi(struct backend *be)

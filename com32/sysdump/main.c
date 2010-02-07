@@ -31,11 +31,11 @@ __noreturn die(const char *msg)
     exit(1);
 }
 
-static void dump_all(struct backend *be, const char *argv[], size_t len)
+static void dump_all(struct backend *be, const char *argv[])
 {
     static const char version[] = "SYSDUMP " VERSION_STR " " DATE "\n";
 
-    cpio_init(be, argv, len);
+    cpio_init(be, argv);
 
     cpio_writefile(be, "sysdump", version, sizeof version);
 
@@ -47,13 +47,15 @@ static void dump_all(struct backend *be, const char *argv[], size_t len)
     dump_vesa_tables(be);
 
     cpio_close(be);
+    printf("Uploading data... ");
+    flush_data(be);
+    printf("done.\n");
 }
 
 static struct backend *backends[] =
 {
     &be_tftp,
     &be_ymodem,
-    &be_null,
     NULL
 };
 
@@ -88,11 +90,8 @@ int main(int argc, char *argv[])
     /* Do this as early as possible */
     snapshot_lowmem();
 
-    if (be->flags & BE_NEEDLEN) {
-	dump_all(&be_null, NULL, 0);
-	dump_all(be, (const char **)argv + 2, be_null.zbytes);
-    } else {
-	dump_all(be, (const char **)argv + 2, 0);
-    }
+    /* Do the actual data dump */
+    dump_all(be, (const char **)argv + 2);
+
     return 0;
 }

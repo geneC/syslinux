@@ -18,9 +18,16 @@ enum tftp_opcode {
     TFTP_ERROR	= 5,
 };
 
-static uint16_t local_port = 0x4000;
+struct tftp_state {
+    uint32_t my_ip;
+    uint32_t srv_ip;
+    uint16_t my_port;
+    uint16_t srv_port;
+    uint16_t seq;
+};
 
-static int send_ack_packet(struct backend *be, const void *pkt, size_t len)
+static int send_ack_packet(struct tftp_state *tftp,
+			   const void *pkt, size_t len)
 {
     com32sys_t ireg, oreg;
     t_PXENV_UDP_WRITE *uw = __com32.cs_bounce;
@@ -38,9 +45,9 @@ static int send_ack_packet(struct backend *be, const void *pkt, size_t len)
     for (timeout = timeouts ; *timeout ; timeout++) {
 	memset(uw, 0, sizeof uw);
 	memcpy(uw+1, pkt, len);
-	uw->ip = be->tftp.srv_ip;
-	uw->src_port = be->tftp.my_port;
-	uw->dst_port = be->tftp.srv_port ? be->tftp.srv_port : htons(69);
+	uw->ip = tftp->srv_ip;
+	uw->src_port = tftp->my_port;
+	uw->dst_port = tftp->srv_port ? tftp->srv_port : htons(69);
 	uw->buffer_size = len;
 	uw->buffer = FAR_PTR(uw+1);
 
@@ -54,10 +61,10 @@ static int send_ack_packet(struct backend *be, const void *pkt, size_t len)
 
 	do {
 	    memset(ur, 0, sizeof ur);
-	    ur->src_ip = be->tftp.srv_ip;
-	    ur->dest_ip = be->tftp.my_ip;
-	    ur->s_port = be->tftp.srv_port;
-	    ur->d_port = be->tftp.my_port;
+	    ur->src_ip = tftp->srv_ip;
+	    ur->dest_ip = tftp->my_ip;
+	    ur->s_port = tftp->srv_port;
+	    ur->d_port = tftp->my_port;
 	    ur->buffer_size = __com32.cs_bounce_size - sizeof *ur;
 	    ur->buffer = FAR_PTR(ur+1);
 
@@ -68,13 +75,13 @@ static int send_ack_packet(struct backend *be, const void *pkt, size_t len)
 
 	    if (!(oreg.eflags.l & EFLAGS_CF) &&
 		ur->status == PXENV_STATUS_SUCCESS &&
-		be->tftp.srv_ip == ur->src_ip &&
-		(be->tftp.srv_port == 0 ||
-		 be->tftp.srv_port == ur->s_port)) {
+		tftp->srv_ip == ur->src_ip &&
+		(tftp->srv_port == 0 ||
+		 tftp->srv_port == ur->s_port)) {
 		uint16_t *xb = (uint16_t *)(ur+1);
 		if (ntohs(xb[0]) == TFTP_ACK &&
-		    ntohs(xb[1]) == be->tftp.seq) {
-		    be->tftp.srv_port = ur->s_port;
+		    ntohs(xb[1]) == tftp->seq) {
+		    tftp->srv_port = ur->s_port;
 		    return 0;		/* All good! */
 		} else if (ntohs(xb[1]) == TFTP_ERROR) {
 		    return -1;		/* All bad! */
@@ -86,47 +93,50 @@ static int send_ack_packet(struct backend *be, const void *pkt, size_t len)
     return -1;			/* No success... */
 }
 
-static int be_tftp_open(struct backend *be, const char *argv[], size_t len)
+static int be_tftp_write(struct backend *be)
 {
+    static uint16_t local_port = 0x4000;
+    struct tftp_state tftp;
     char buffer[512+4+6];
     int nlen;
     const union syslinux_derivative_info *sdi =
 	syslinux_derivative_info();
+    const char *data = be->outbuf;
+    size_t len = be->zbytes;
+    size_t chunk;
 
-    (void)len;
-
-    be->tftp.my_ip    = sdi->pxe.myip;
-    be->tftp.my_port  = htons(local_port++);
-    be->tftp.srv_ip   = pxe_dns(argv[1]);
-    be->tftp.srv_port = 0;
-    be->tftp.seq      = 0;
+    tftp.my_ip    = sdi->pxe.myip;
+    tftp.my_port  = htons(local_port++);
+    tftp.srv_ip   = pxe_dns(be->argv[1]);
+    tftp.srv_port = 0;
+    tftp.seq      = 0;
 
     buffer[0] = 0;
     buffer[1] = TFTP_WRQ;
-    nlen = strlcpy(buffer+2, argv[0], 512);
+    nlen = strlcpy(buffer+2, be->argv[0], 512);
     memcpy(buffer+3+nlen, "octet", 6);
 
-    return send_ack_packet(be, buffer, 2+nlen+1+6);
-}
+    if (send_ack_packet(&tftp, buffer, 2+nlen+1+6))
+	return -1;
 
-static int be_tftp_write(struct backend *be, const char *buf, size_t len)
-{
-    char buffer[512+4];
+    do {
+	chunk = len >= 512 ? 512 : len;
 
-    buffer[0] = 0;
-    buffer[1] = TFTP_DATA;
-    *((uint16_t *)(buffer+2)) = htons(++be->tftp.seq);
-    memcpy(buffer+4, buf, len);
+	buffer[1] = TFTP_DATA;
+	*((uint16_t *)(buffer+2)) = htons(++tftp.seq);
+	memcpy(buffer+4, data, chunk);
+	data += chunk;
 
-    return send_ack_packet(be, buffer, len+4);
+	if (send_ack_packet(&tftp, buffer, chunk+4))
+	    return -1;
+    } while (chunk == 512);
+
+    return 0;
 }
 
 struct backend be_tftp = {
     .name       = "tftp",
     .helpmsg    = "filename tftp_server",
     .minargs    = 2,
-    .blocksize	= 512,
-    .flags      = 0,
-    .open       = be_tftp_open,
     .write      = be_tftp_write,
 };

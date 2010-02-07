@@ -122,5 +122,3 @@ void serial_cleanup(struct serial_if *sif)
     if ((sif->old.iir & 0xc0) != 0xc0)
 	outb(0x00, port + FCR);	/* Disable FIFOs */
 }
-
-	

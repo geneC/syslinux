@@ -18,7 +18,7 @@ int cpio_pad(struct backend *be)
 {
     static char pad[4];		/* Up to 4 zero bytes */
     if (be->dbytes & 3)
-	return write_data(be, pad, -be->dbytes & 3, false);
+	return write_data(be, pad, -be->dbytes & 3);
     else
 	return 0;
 }
@@ -48,16 +48,16 @@ int cpio_hdr(struct backend *be, uint32_t mode, size_t datalen,
 	    0,			/* c_rmin */
 	    nlen,		/* c_namesize */
 	    0);			/* c_chksum */
-    rv |= write_data(be, hdr, 6+13*8, false);
-    rv |= write_data(be, filename, nlen, false);
+    rv |= write_data(be, hdr, 6+13*8);
+    rv |= write_data(be, filename, nlen);
     rv |= cpio_pad(be);
     return rv;
 }
 
-int cpio_init(struct backend *be, const char *argv[], size_t len)
+int cpio_init(struct backend *be, const char *argv[])
 {
     now = posix_time();
-    return init_data(be, argv, len);
+    return init_data(be, argv);
 }
 
 int cpio_mkdir(struct backend *be, const char *filename)
@@ -71,7 +71,7 @@ int cpio_writefile(struct backend *be, const char *filename,
     int rv;
 
     rv = cpio_hdr(be, MODE_FILE, len, filename);
-    rv |= write_data(be, data, len, false);
+    rv |= write_data(be, data, len);
     rv |= cpio_pad(be);
 
     return rv;
@@ -79,8 +79,5 @@ int cpio_writefile(struct backend *be, const char *filename,
 
 int cpio_close(struct backend *be)
 {
-    int rv;
-    rv = cpio_hdr(be, 0, 0, "TRAILER!!!");
-    rv |= write_data(be, NULL, 0, true);
-    return rv;
+    return cpio_hdr(be, 0, 0, "TRAILER!!!");
 }

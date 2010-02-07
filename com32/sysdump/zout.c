@@ -10,19 +10,21 @@
 #include <zlib.h>
 #include "backend.h"
 
-int init_data(struct backend *be, const char *argv[], size_t len)
-{
-    be->outbuf = malloc(be->blocksize);
-    if (!be->outbuf)
-	return -1;
+#define ALLOC_CHUNK	65536
 
-    if (be->open(be, argv, len))
+int init_data(struct backend *be, const char *argv[])
+{
+    be->argv = argv;
+
+    be->alloc  = ALLOC_CHUNK;
+    be->outbuf = malloc(ALLOC_CHUNK);
+    if (!be->outbuf)
 	return -1;
 
     memset(&be->zstream, 0, sizeof be->zstream);
 
     be->zstream.next_out  = (void *)be->outbuf;
-    be->zstream.avail_out = be->blocksize;
+    be->zstream.avail_out = ALLOC_CHUNK;
 
     be->dbytes = be->zbytes = 0;
 
@@ -34,7 +36,27 @@ int init_data(struct backend *be, const char *argv[], size_t len)
     return 0;
 }
 
-int write_data(struct backend *be, const void *buf, size_t len, bool flush)
+static int do_deflate(struct backend *be, int flush)
+{
+    int rv;
+
+    rv = deflate(&be->zstream, flush);
+    be->zbytes = be->alloc - be->zstream.avail_out;
+    if (be->zstream.avail_out == 0) {
+	char *buf;
+	buf = realloc(be->outbuf, be->alloc + ALLOC_CHUNK);
+	if (!buf)
+	    return Z_MEM_ERROR;
+	be->outbuf = buf;
+	be->zstream.next_out = (void *)(buf + be->zbytes);
+	be->zstream.avail_out = be->alloc - be->zbytes;
+    }
+
+    return rv;
+}
+
+
+int write_data(struct backend *be, const void *buf, size_t len)
 {
     int rv = Z_OK;
 
@@ -42,27 +64,31 @@ int write_data(struct backend *be, const void *buf, size_t len, bool flush)
     be->zstream.avail_in = len;
 
     be->dbytes += len;
-    
-    while (be->zstream.avail_in || (flush && rv == Z_OK)) {
-	rv = deflate(&be->zstream, flush ? Z_FINISH : Z_NO_FLUSH);
-	if (be->zstream.avail_out == 0) {
-	    if (be->write(be, be->outbuf, be->blocksize))
-		return -1;
-	    be->zbytes += be->blocksize;
-	    be->zstream.next_out  = (void *)be->outbuf;
-	    be->zstream.avail_out = be->blocksize;
-	}
-	if (rv == Z_STREAM_ERROR)
+
+    while (be->zstream.avail_in) {
+	rv = do_deflate(be, Z_NO_FLUSH);
+	if (rv < 0)
+	    return -1;
+    }
+    return 0;
+}
+
+/* Output the data and shut down the stream */
+int flush_data(struct backend *be)
+{
+    int rv = Z_OK;
+
+    while (rv == Z_OK) {
+	rv = do_deflate(be, Z_FINISH);
+	if (rv < 0)
 	    return -1;
     }
 
-    if (flush) {
-	/* Output the last (fractional) packet... may be zero */
-	if (be->write(be, be->outbuf, be->blocksize - be->zstream.avail_out))
-	    return -1;
-	be->zbytes += be->blocksize - be->zstream.avail_out;
-	free(be->outbuf);
-    }
+    if (be->write(be))
+	return -1;
 
+    free(be->outbuf);
+    be->outbuf = NULL;
+    be->dbytes = be->zbytes = be->alloc = 0;
     return 0;
 }
