@@ -86,12 +86,14 @@ static int send_ack_packet(struct backend *be, const void *pkt, size_t len)
     return -1;			/* No success... */
 }
 
-static int be_tftp_open(struct backend *be, const char *argv[])
+static int be_tftp_open(struct backend *be, const char *argv[], size_t len)
 {
     char buffer[512+4+6];
     int nlen;
     const union syslinux_derivative_info *sdi =
 	syslinux_derivative_info();
+
+    (void)len;
 
     be->tftp.my_ip    = sdi->pxe.myip;
     be->tftp.my_port  = htons(local_port++);
