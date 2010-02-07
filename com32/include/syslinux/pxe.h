@@ -37,6 +37,7 @@
 #include <stdint.h>
 #include <netinet/in.h>
 #include <klibc/compiler.h>
+#include <com32.h>
 
 /* PXE spec structures and definitions.  These mostly follow the PXE
    spec, except when the PXE spec is unnecessarily stupid.  Of course,
@@ -57,10 +58,7 @@ typedef struct {
     uint16_t segsize;
 } __packed pxe_segdesc_t;
 
-typedef struct {
-    uint16_t offs;
-    uint16_t seg;
-} segoff16_t;
+typedef far_ptr_t segoff16_t;
 
 typedef struct {
     uint8_t opcode;
