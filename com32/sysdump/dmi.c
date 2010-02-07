@@ -64,8 +64,11 @@ static void dump_smbios(struct backend *be, size_t dptr)
 {
     const struct smbios_header *smb = (void *)dptr;
     struct smbios_header smx = *smb;
+    char filename[32];
 
-    cpio_hdr(be, MODE_FILE, smb->dmi.tbllen + 32, "dmidata");
+    snprintf(filename, sizeof filename, "dmi/%05x.%08x",
+	     dptr, smb->dmi.tbladdr);
+    cpio_hdr(be, MODE_FILE, smb->dmi.tbllen + 32, filename);
 
     /*
      * Adjust the address of the smbios table to be 32, to
@@ -86,8 +89,11 @@ static void dump_old_dmi(struct backend *be, size_t dptr)
 	struct dmi_header dmi;
 	char pad[16];
     } fake;
+    char filename[32];
 
-    cpio_hdr(be, MODE_FILE, dmi->tbllen + 32, "dmidata");
+    snprintf(filename, sizeof filename, "dmi/%05x.%08x",
+	     dptr, dmi->tbladdr);
+    cpio_hdr(be, MODE_FILE, dmi->tbllen + 32, filename);
 
     /*
      * Adjust the address of the smbios table to be 32, to
@@ -106,14 +112,15 @@ void dump_dmi(struct backend *be)
 {
     size_t dptr;
 
+    cpio_mkdir(be, "dmi");
+
     /* Search for _SM_ or _DMI_ structure */
     for (dptr = 0xf0000 ; dptr < 0x100000 ; dptr += 16) {
 	if (is_smbios(dptr)) {
 	    dump_smbios(be, dptr);
-	    break;
+	    dptr += 16;		/* Skip the subsequent DMI header */
 	} else if (is_old_dmi(dptr)) {
 	    dump_old_dmi(be, dptr);
-	    break;
 	}
     }
 }
