@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -16,17 +17,19 @@
 #include <stdbool.h>
 #include <inttypes.h>
 #include <dprintf.h>
-#include "ymsend.h"
-#include "srecsend.h"
+#include <console.h>
+#include <sys/cpu.h>
+#include "backend.h"
 
-const char *program = "memdump";
+const char *program = "sysdump";
 
-void __attribute__ ((noreturn)) die(const char *msg)
+__noreturn die(const char *msg)
 {
     printf("%s: %s\n", program, msg);
     exit(1);
 }
 
+#if 0
 static void get_bytes(void *buf, size_t len, struct file_info *finfo,
 		      size_t pos)
 {
@@ -104,6 +107,57 @@ int main(int argc, char *argv[])
 	puts("Sending closing signature...");
 	end_ymodem(&sif);
     }
+
+    return 0;
+}
+#endif
+
+static char *lowmem;
+static size_t lowmem_len;
+
+static void snapshot_lowmem(void)
+{
+    extern void _start(void);
+
+    lowmem_len = (size_t)_start;
+    lowmem = malloc(lowmem_len);
+    if (lowmem) {
+	printf("Snapshotting lowmem... ");
+	cli();
+	memcpy(lowmem, (void *)0, lowmem_len);
+	sti();
+	printf("ok\n");
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    struct backend *be;
+
+    openconsole(&dev_null_r, &dev_stdcon_w);
+
+    if (argc < 4) {
+	printf("Usage:\n"
+	       "    sysdump tftp filename server_hostname\n");
+	exit(1);
+    }
+
+    /* Do this as early as possible */
+    snapshot_lowmem();
+
+    be = get_backend(argv[1]);
+    if (!be)
+	die("unknown backend");
+
+    if (cpio_init(be, argv+2))
+	die("backend initialization error");
+
+    if (lowmem) {
+	cpio_writefile(be, "lowmem.bin", lowmem, lowmem_len);
+	free(lowmem);
+    }
+    
+    cpio_close(be);
 
     return 0;
 }
