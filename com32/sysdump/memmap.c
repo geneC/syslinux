@@ -49,6 +49,7 @@ static void dump_e820(struct backend *be)
 	memcpy(buf[nentry].data, curr->data, sizeof curr->data);
 	buf[nentry].ebx = ireg.ebx.l;
 	buf[nentry].len = oreg.ecx.l;
+	nentry++;
 
 	ireg.ebx.l = oreg.ebx.l;
     } while (ireg.ebx.l);
