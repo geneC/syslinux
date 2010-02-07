@@ -69,12 +69,11 @@ static void dump_smbios(struct backend *be, size_t dptr)
 
     /*
      * Adjust the address of the smbios table to be 32, to
-     * make dmidecode happy.  According to dmidecode, the checksum on
-     * the smbios structure doesn't need to be adjusted, for whatever
-     * reason...
+     * make dmidecode happy.  The checksum on the smbios table is unchanged,
+     * since it includes the checksum on the dmi table.
      */
     smx.dmi.tbladdr = sizeof smx;
-    smx.dmi.csum -= checksum(&smb->dmi, 0x0f);
+    smx.dmi.csum -= checksum(&smx.dmi, 0x0f);
 
     write_data(be, &smx, sizeof smx, false);
     write_data(be, (const void *)smb->dmi.tbladdr, smb->dmi.tbllen, false);
@@ -92,9 +91,7 @@ static void dump_old_dmi(struct backend *be, size_t dptr)
 
     /*
      * Adjust the address of the smbios table to be 32, to
-     * make dmidecode happy.  According to dmidecode, the checksum on
-     * the smbios structure doesn't need to be adjusted, for whatever
-     * reason...
+     * make dmidecode happy.
      */
     fake.dmi = *dmi;
     memset(&fake.pad, 0, sizeof fake.pad);
