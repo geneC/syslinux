@@ -12,11 +12,19 @@
 #include "backend.h"
 #include "ctime.h"
 
-static char pad[4];		/* Up to 4 zero bytes */
 static uint32_t now;
 
+static int cpio_pad(struct backend *be)
+{
+    static char pad[4];		/* Up to 4 zero bytes */
+    if (be->dbytes & 3)
+	return write_data(be, pad, -be->dbytes & 3, false);
+    else
+	return 0;
+}
+
 static int cpio_hdr(struct backend *be, uint32_t mode, size_t datalen,
-		    const char *filename, bool flush)
+		    const char *filename)
 {
     static uint32_t inode = 2;
     char hdr[6+13*8+1];
@@ -40,19 +48,19 @@ static int cpio_hdr(struct backend *be, uint32_t mode, size_t datalen,
 	    0);			/* c_chksum */
     rv |= write_data(be, hdr, 6+13*8, false);
     rv |= write_data(be, filename, nlen, false);
-    rv |= write_data(be, pad, (-nlen+6+13*8) & 3, flush);
+    rv |= cpio_pad(be);
     return rv;
 }
 
-int cpio_init(struct backend *be, const char *argv[])
+int cpio_init(struct backend *be, const char *argv[], size_t len)
 {
     now = posix_time();
-    return init_data(be, argv);
+    return init_data(be, argv, len);
 }
 
 int cpio_mkdir(struct backend *be, const char *filename)
 {
-    return cpio_hdr(be, 0040755, 0, filename, false);
+    return cpio_hdr(be, 0040755, 0, filename);
 }
 
 int cpio_writefile(struct backend *be, const char *filename,
@@ -60,14 +68,17 @@ int cpio_writefile(struct backend *be, const char *filename,
 {
     int rv;
 
-    rv = cpio_hdr(be, 0100644, len, filename, false);
+    rv = cpio_hdr(be, 0100644, len, filename);
     rv |= write_data(be, data, len, false);
-    rv |= write_data(be, pad, -len & 3, false);
+    rv |= cpio_pad(be);
 
     return rv;
 }
 
 int cpio_close(struct backend *be)
 {
-    return cpio_hdr(be, 0, 0, "TRAILER!!!", true);
+    int rv;
+    rv = cpio_hdr(be, 0, 0, "TRAILER!!!");
+    rv |= write_data(be, NULL, 0, true);
+    return rv;
 }

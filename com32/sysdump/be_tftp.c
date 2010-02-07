@@ -121,7 +121,10 @@ static int be_tftp_write(struct backend *be, const char *buf, size_t len)
 
 struct backend be_tftp = {
     .name       = "tftp",
+    .helpmsg    = "filename tftp_server",
+    .minargs    = 2,
     .blocksize	= 512,
+    .flags      = 0,
     .open       = be_tftp_open,
     .write      = be_tftp_write,
 };

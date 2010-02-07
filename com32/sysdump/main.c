@@ -113,54 +113,62 @@ int main(int argc, char *argv[])
 }
 #endif
 
-static char *lowmem;
-static size_t lowmem_len;
-
-static void snapshot_lowmem(void)
+static void dump_all(struct backend *be, const char *argv[], size_t len)
 {
-    extern void _start(void);
 
-    lowmem_len = (size_t)_start;
-    lowmem = malloc(lowmem_len);
-    if (lowmem) {
-	printf("Snapshotting lowmem... ");
-	cli();
-	memcpy(lowmem, (void *)0, lowmem_len);
-	sti();
-	printf("ok\n");
-    }
+    cpio_init(be, argv, len);
+
+    dump_memory(be);
+    dump_vesa_tables(be);
+
+    cpio_close(be);
+}
+
+static struct backend *backends[] =
+{
+    &be_tftp,
+    &be_ymodem,
+    &be_null,
+    NULL
+};
+
+__noreturn usage(void)
+{
+    struct backend **bep, *be;
+
+    printf("Usage:\n");
+    for (bep = backends ; (be = *bep) ; bep++)
+	printf("    %s %s %s\n", program, be->name, be->helpmsg);
+
+    exit(1);
 }
 
 int main(int argc, char *argv[])
 {
-    struct backend *be;
+    struct backend **bep, *be;
+    size_t len = 0;
 
     openconsole(&dev_null_r, &dev_stdcon_w);
 
-    if (argc < 4) {
-	printf("Usage:\n"
-	       "    sysdump tftp filename server_hostname\n");
-	exit(1);
+    if (argc < 2)
+	usage();
+
+    for (bep = backends ; (be = *bep) ; bep++) {
+	if (!strcmp(be->name, argv[1]))
+	    break;
     }
+
+    if (!be || argc < be->minargs + 2)
+	usage();
 
     /* Do this as early as possible */
     snapshot_lowmem();
 
-    be = get_backend(argv[1]);
-    if (!be)
-	die("unknown backend");
-
-    if (cpio_init(be, (const char **)argv+2))
-	die("backend initialization error");
-
-    if (lowmem) {
-	cpio_writefile(be, "lowmem.bin", lowmem, lowmem_len);
-	free(lowmem);
+    if (be->flags & BE_NEEDLEN) {
+	dump_all(&be_null, NULL, 0);
+	dump_all(be, (const char **)argv + 2, be_null.zbytes);
+    } else {
+	dump_all(be, (const char **)argv + 2, 0);
     }
-
-    dump_vesa_tables(be);
-
-    cpio_close(be);
-
     return 0;
 }

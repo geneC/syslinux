@@ -10,19 +10,21 @@
 #include <zlib.h>
 #include "backend.h"
 
-int init_data(struct backend *be, const char *argv[])
+int init_data(struct backend *be, const char *argv[], size_t len)
 {
     be->outbuf = malloc(be->blocksize);
     if (!be->outbuf)
 	return -1;
 
-    if (be->open(be, argv))
+    if (be->open(be, argv, len))
 	return -1;
 
     memset(&be->zstream, 0, sizeof be->zstream);
 
     be->zstream.next_out  = (void *)be->outbuf;
     be->zstream.avail_out = be->blocksize;
+
+    be->dbytes = be->zbytes = 0;
 
     /* Initialize a gzip data stream */
     if (deflateInit2(&be->zstream, 9, Z_DEFLATED,
@@ -39,11 +41,14 @@ int write_data(struct backend *be, const void *buf, size_t len, bool flush)
     be->zstream.next_in = (void *)buf;
     be->zstream.avail_in = len;
 
+    be->dbytes += len;
+    
     while (be->zstream.avail_in || (flush && rv == Z_OK)) {
 	rv = deflate(&be->zstream, flush ? Z_FINISH : Z_NO_FLUSH);
 	if (be->zstream.avail_out == 0) {
 	    if (be->write(be, be->outbuf, be->blocksize))
 		return -1;
+	    be->zbytes += be->blocksize;
 	    be->zstream.next_out  = (void *)be->outbuf;
 	    be->zstream.avail_out = be->blocksize;
 	}
@@ -55,6 +60,7 @@ int write_data(struct backend *be, const void *buf, size_t len, bool flush)
 	/* Output the last (fractional) packet... may be zero */
 	if (be->write(be, be->outbuf, be->blocksize - be->zstream.avail_out))
 	    return -1;
+	be->zbytes += be->blocksize - be->zstream.avail_out;
 	free(be->outbuf);
     }
 
