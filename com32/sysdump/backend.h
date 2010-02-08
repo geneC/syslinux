@@ -19,6 +19,8 @@ struct backend {
     size_t zbytes;
     const char **argv;
 
+    uint32_t now;
+
     int (*write)(struct backend *);
 
     z_stream zstream;
@@ -32,9 +34,9 @@ int write_data(struct backend *be, const void *buf, size_t len);
 int flush_data(struct backend *be);
 
 /* cpio.c */
+#define cpio_init init_data
 int cpio_hdr(struct backend *be, uint32_t mode, size_t datalen,
 	     const char *filename);
-int cpio_init(struct backend *be, const char *argv[]);
 int cpio_mkdir(struct backend *be, const char *filename);
 int cpio_writefile(struct backend *be, const char *filename,
 		   const void *data, size_t len);

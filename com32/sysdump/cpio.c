@@ -12,8 +12,6 @@
 #include "backend.h"
 #include "ctime.h"
 
-static uint32_t now;
-
 int cpio_pad(struct backend *be)
 {
     static char pad[4];		/* Up to 4 zero bytes */
@@ -40,7 +38,7 @@ int cpio_hdr(struct backend *be, uint32_t mode, size_t datalen,
 	    0,			/* c_uid */
 	    0,			/* c_gid */
 	    1,			/* c_nlink */
-	    now,		/* c_mtime */
+	    be->now,		/* c_mtime */
 	    datalen,		/* c_filesize */
 	    0,			/* c_maj */
 	    0,			/* c_min */
@@ -52,12 +50,6 @@ int cpio_hdr(struct backend *be, uint32_t mode, size_t datalen,
     rv |= write_data(be, filename, nlen);
     rv |= cpio_pad(be);
     return rv;
-}
-
-int cpio_init(struct backend *be, const char *argv[])
-{
-    now = posix_time();
-    return init_data(be, argv);
 }
 
 int cpio_mkdir(struct backend *be, const char *filename)

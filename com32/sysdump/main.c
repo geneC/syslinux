@@ -24,6 +24,7 @@
 #include "sysdump.h"
 
 const char program[] = "sysdump";
+const char version[] = "SYSDUMP " VERSION_STR " " DATE "\n";
 
 __noreturn die(const char *msg)
 {
@@ -33,8 +34,6 @@ __noreturn die(const char *msg)
 
 static void dump_all(struct backend *be, const char *argv[])
 {
-    static const char version[] = "SYSDUMP " VERSION_STR " " DATE "\n";
-
     cpio_init(be, argv);
 
     cpio_writefile(be, "sysdump", version, sizeof version);
@@ -47,9 +46,7 @@ static void dump_all(struct backend *be, const char *argv[])
     dump_vesa_tables(be);
 
     cpio_close(be);
-    printf("Uploading data... ");
     flush_data(be);
-    printf("done.\n");
 }
 
 static struct backend *backends[] =
@@ -75,6 +72,7 @@ int main(int argc, char *argv[])
     struct backend **bep, *be;
 
     openconsole(&dev_null_r, &dev_stdcon_w);
+    fputs(version, stdout);
 
     if (argc < 2)
 	usage();
@@ -89,6 +87,8 @@ int main(int argc, char *argv[])
 
     /* Do this as early as possible */
     snapshot_lowmem();
+
+    printf("Backend: %s\n", be->name);
 
     /* Do the actual data dump */
     dump_all(be, (const char **)argv + 2);

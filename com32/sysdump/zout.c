@@ -9,23 +9,19 @@
 #include <stdbool.h>
 #include <zlib.h>
 #include "backend.h"
+#include "ctime.h"
 
 #define ALLOC_CHUNK	65536
 
 int init_data(struct backend *be, const char *argv[])
 {
+    be->now = posix_time();
     be->argv = argv;
-
-    be->alloc  = ALLOC_CHUNK;
-    be->outbuf = malloc(ALLOC_CHUNK);
-    if (!be->outbuf)
-	return -1;
 
     memset(&be->zstream, 0, sizeof be->zstream);
 
-    be->zstream.next_out  = (void *)be->outbuf;
-    be->zstream.avail_out = ALLOC_CHUNK;
-
+    be->zstream.next_out  = be->outbuf = NULL;
+    be->zstream.avail_out = be->alloc  = 0;
     be->dbytes = be->zbytes = 0;
 
     /* Initialize a gzip data stream */
@@ -39,20 +35,22 @@ int init_data(struct backend *be, const char *argv[])
 static int do_deflate(struct backend *be, int flush)
 {
     int rv;
+    char *buf;
 
-    rv = deflate(&be->zstream, flush);
-    be->zbytes = be->alloc - be->zstream.avail_out;
-    if (be->zstream.avail_out == 0) {
-	char *buf;
+    while (1) {
+	rv = deflate(&be->zstream, flush);
+	be->zbytes = be->alloc - be->zstream.avail_out;
+	if (be->zstream.avail_out)
+	    return rv;		   /* Not an issue of output space... */
+
 	buf = realloc(be->outbuf, be->alloc + ALLOC_CHUNK);
 	if (!buf)
 	    return Z_MEM_ERROR;
 	be->outbuf = buf;
+	be->alloc += ALLOC_CHUNK;
 	be->zstream.next_out = (void *)(buf + be->zbytes);
 	be->zstream.avail_out = be->alloc - be->zbytes;
     }
-
-    return rv;
 }
 
 
@@ -67,8 +65,10 @@ int write_data(struct backend *be, const void *buf, size_t len)
 
     while (be->zstream.avail_in) {
 	rv = do_deflate(be, Z_NO_FLUSH);
-	if (rv < 0)
+	if (rv < 0) {
+	    printf("do_deflate returned %d\n", rv);
 	    return -1;
+	}
     }
     return 0;
 }
@@ -78,11 +78,13 @@ int flush_data(struct backend *be)
 {
     int rv = Z_OK;
 
-    while (rv == Z_OK) {
+    while (rv != Z_STREAM_END) {
 	rv = do_deflate(be, Z_FINISH);
 	if (rv < 0)
 	    return -1;
     }
+
+    printf("Uploading data, %u bytes... ", be->zbytes);
 
     if (be->write(be))
 	return -1;
@@ -90,5 +92,7 @@ int flush_data(struct backend *be)
     free(be->outbuf);
     be->outbuf = NULL;
     be->dbytes = be->zbytes = be->alloc = 0;
+
+    printf("done.\n");
     return 0;
 }

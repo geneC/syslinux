@@ -19,7 +19,7 @@ enum {
 
 struct ymodem_state {
     struct serial_if serial;
-    uint16_t seq;
+    unsigned int seq, blocks;
 };
 
 /*
@@ -75,7 +75,7 @@ static void send_ack(struct ymodem_state *ym, const uint8_t *blk,
 
 static void send_ack_blk(struct ymodem_state *ym, uint8_t *blk)
 {
-    printf("Sending block %u...\r", ym->seq);
+    printf("Sending block %u/%u...\r", ym->seq, ym->blocks);
 
     blk[0] = STX;
     blk[1] = ym->seq++;
@@ -106,12 +106,23 @@ static int be_ymodem_write(struct backend *be)
     struct ymodem_state ym;
     const char *buf;
     size_t len, chunk;
+    const char ymodem_banner[] = "Now begin Ymodem download...\r\n";
+
+    buf = be->outbuf;
+    len = be->zbytes;
+
+    putchar('\n');
 
     ym.seq = 0;
+    ym.blocks = (len+1023)/1024;
 
     /* Initialize serial port */
     if (serial_init(&ym.serial, &be->argv[1]))
 	return -1;
+
+    /* Write banner */
+    printf("Writing banner...\n");
+    serial_write(&ym.serial, ymodem_banner, sizeof ymodem_banner-1);
 
     /* Wait for initial handshake */
     printf("Waiting for handshake...\n");
@@ -120,20 +131,20 @@ static int be_ymodem_write(struct backend *be)
     } while (ack_buf != 'C');
 
     /* Send filename block */
-    snprintf((char *)blk_buf+3, 1024, "%s%c%zu", be->argv[0], 0, be->zbytes);
+    memset(blk_buf, 0, sizeof blk_buf);
+    snprintf((char *)blk_buf+3, 1024, "%s%c%zu 0%o 0644",
+	     be->argv[0], 0, be->zbytes, be->now);
     send_ack_blk(&ym, blk_buf);
-
-    buf = be->outbuf;
-    len = be->zbytes;
 
     while (len) {
 	chunk = len < 1024 ? len : 1024;
 
 	memcpy(blk_buf+3, buf, chunk);
 	if (chunk < 1024)
-	    memset(blk_buf+3+1024-chunk, 0x1a, 1024-chunk);
+	    memset(blk_buf+3+chunk, 0x1a, 1024-chunk);
 
 	send_ack_blk(&ym, blk_buf);
+	buf += chunk;
 	len -= chunk;
     }
 
@@ -147,17 +158,10 @@ static int be_ymodem_write(struct backend *be)
     ym.seq = 0;
 
     printf("Sending batch termination block...\n");
-    memset(blk_buf+3, 0, 128);
-    blk_buf[0] = SOH;
-    blk_buf[1] = 0;
-    blk_buf[2] = 0xff;
-    add_crc16(blk_buf + 3, 128);
-    serial_write(&ym.serial, blk_buf, 128 + 5);
-    /*
-     * rb doesn't seem to ack the EOT for an end batch transfer,
-     * contrary to spec.
-     */
-    printf("Done.\n");
+    memset(blk_buf+3, 0, 1024);
+    send_ack_blk(&ym, blk_buf);
+
+    printf("Cleaning up...             \n");
     serial_cleanup(&ym.serial);
 
     return 0;

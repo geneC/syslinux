@@ -126,6 +126,7 @@ static int be_tftp_write(struct backend *be)
 	*((uint16_t *)(buffer+2)) = htons(++tftp.seq);
 	memcpy(buffer+4, data, chunk);
 	data += chunk;
+	len -= chunk;
 
 	if (send_ack_packet(&tftp, buffer, chunk+4))
 	    return -1;
