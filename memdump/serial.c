@@ -1,5 +1,8 @@
+#include <stdbool.h>
+#include <stdio.h>
+
 #include "mystuff.h"
-#include "ymsend.h"
+#include "file.h"
 #include "io.h"
 
 enum {

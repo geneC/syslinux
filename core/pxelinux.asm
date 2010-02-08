@@ -901,6 +901,7 @@ local_boot:
 		mov si,localboot_msg
 		call writestr_early
 		; Restore the environment we were called with
+		call reset_pxe
 		call cleanup_hardware
 		lss sp,[InitStack]
 		pop gs

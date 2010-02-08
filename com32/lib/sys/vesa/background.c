@@ -75,26 +75,54 @@ static void draw_background(void)
     __vesacon_redraw_text();
 }
 
+/*
+ * Tile an image in the UL corner across the entire screen
+ */
+static void tile_image(int width, int height)
+{
+    int xsize = __vesa_info.mi.h_res;
+    int ysize = __vesa_info.mi.v_res;
+    int x, y, yr;
+    int xl, yl;
+    uint32_t *sp, *dp, *drp, *dtp;
+
+    drp = __vesacon_background;
+    for (y = 0 ; y < ysize ; y += height) {
+	yl = min(height, ysize-y);
+	dtp = drp;
+	for (x = 0 ; x < xsize ; x += width) {
+	    xl = min(width, xsize-x);
+	    if (x || y) {
+		sp = __vesacon_background;
+		dp = dtp;
+		for (yr = 0 ; yr < yl ; yr++) {
+		    memcpy(dp, sp, xl*sizeof(uint32_t));
+		    dp += xsize;
+		    sp += xsize;
+		}
+	    }
+	    dtp += xl;
+	}
+	drp += xsize*height;
+    }
+}
+
 static int read_png_file(FILE * fp)
 {
     png_structp png_ptr = NULL;
     png_infop info_ptr = NULL;
-    png_infop end_ptr = NULL;
 #if 0
     png_color_16p image_background;
     static const png_color_16 my_background = { 0, 0, 0, 0, 0 };
 #endif
     png_bytep row_pointers[__vesa_info.mi.v_res], rp;
-    int passes;
     int i;
     int rv = -1;
 
     png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-
     info_ptr = png_create_info_struct(png_ptr);
-    end_ptr = png_create_info_struct(png_ptr);
 
-    if (!png_ptr || !info_ptr || !end_ptr || setjmp(png_jmpbuf(png_ptr)))
+    if (!png_ptr || !info_ptr || setjmp(png_jmpbuf(png_ptr)))
 	goto err;
 
     png_init_io(png_ptr, fp);
@@ -146,16 +174,15 @@ static int read_png_file(FILE * fp)
 	rp += __vesa_info.mi.h_res << 2;
     }
 
-    passes = png_set_interlace_handling(png_ptr);
+    png_read_image(png_ptr, row_pointers);
 
-    for (i = 0; i < passes; i++)
-	png_read_rows(png_ptr, row_pointers, NULL, info_ptr->height);
+    tile_image(info_ptr->width, info_ptr->height);
 
     rv = 0;
 
 err:
     if (png_ptr)
-	png_destroy_read_struct(&png_ptr, (png_infopp) NULL, (png_infopp) NULL);
+	png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp) NULL);
     return rv;
 }
 
@@ -198,6 +225,7 @@ static int read_jpeg_file(FILE * fp, uint8_t * header, int len)
     tinyjpeg_set_bytes_per_row(jdec, bytes_per_row, 1);
 
     tinyjpeg_decode(jdec, TINYJPEG_FMT_BGRA32);
+    tile_image(width, height);
 
     rv = 0;
 

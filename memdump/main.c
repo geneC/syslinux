@@ -13,8 +13,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include "mystuff.h"
 #include "ymsend.h"
+#include "srecsend.h"
 #include "io.h"
 
 const char *program = "memdump";
@@ -89,10 +91,17 @@ int main(int argc, char *argv[])
 	.write = serial_write,
     };
     struct file_info finfo;
-    const char serial_banner[] = "Now begin Ymodem download...\r\n";
+    const char ymodem_banner[] = "Now begin Ymodem download...\r\n";
+    bool srec = false;
+
+    if (argv[1][0] == '-') {
+	srec = argv[1][1] == 's';
+	argc--;
+	argv++;
+    }
 
     if (argc < 4)
-	die("usage: memdump port prefix start,len...");
+	die("usage: memdump [-s] port prefix start,len...");
 
     finfo.pvt = (void *)0x400;
     get_bytes(bios_ports, 8, &finfo, 0);	/* Get BIOS serial ports */
@@ -110,8 +119,10 @@ int main(int argc, char *argv[])
 
     prefix = argv[2];
 
-    puts("Printing prefix...\n");
-    sif.write(&sif, serial_banner, sizeof serial_banner - 1);
+    if (!srec) {
+	puts("Printing prefix...\n");
+	sif.write(&sif, ymodem_banner, sizeof ymodem_banner - 1);
+    }
 
     for (i = 3; i < argc; i++) {
 	uint32_t start, len;
@@ -131,11 +142,16 @@ int main(int argc, char *argv[])
 	puts(filename);
 	puts("...\n");
 
-	send_ymodem(&sif, &finfo, get_bytes);
+	if (srec)
+	    send_srec(&sif, &finfo, get_bytes);
+	else
+	    send_ymodem(&sif, &finfo, get_bytes);
     }
 
-    puts("Sending closing signature...\n");
-    end_ymodem(&sif);
+    if (!srec) {
+	puts("Sending closing signature...\n");
+	end_ymodem(&sif);
+    }
 
     return 0;
 }

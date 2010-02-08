@@ -132,15 +132,22 @@ g) The following option can be used to set the real-mode stack size.
 
    stack=size   Set the stack to "size" bytes
 
+h) Some systems without a floppy drive have been known to have
+   problems with floppy images.  To avoid that those problems, first
+   of all make sure you don't have a floppy drive configured on the
+   BIOS screen.  If there is no option to configure that, or that
+   doesn't work, you can use the option:
+
+   nopass	Hide all real drives of the same type (floppy or hard disk)
+
 
 Some interesting things to note:
 
 If you're using MEMDISK to boot DOS from a CD-ROM (using ISOLINUX),
 you might find the generic El Torito CD-ROM driver by Gary Tong and
-Bart Lagerweij useful:
-
-	http://www.nu2.nu/eltorito/
-
+Bart Lagerweij useful.  It is now included with the Syslinux
+distribution, in the dosutil directory.  See the file
+dosutil/eltorito.txt for more information.
 
 Similarly, if you're booting DOS over the network using PXELINUX, you
 can use the "keeppxe" option and use the generic PXE (UNDI) NDIS

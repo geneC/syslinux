@@ -1,0 +1,19 @@
+This is a very simple COMBOOT program which can be used to dump memory
+regions over a serial port.  To use it, type on the SYSLINUX command
+line:
+
+memdump <port> <prefix> <start>,<len> <start>,<len>...
+
+For example:
+
+memdump 0 funnysystem- 0,0x600 0x9fc00,0x400 0xf0000,0x10000
+
+... dumps three memory ranges (the standard BIOS memory ranges, often
+useful) onto serial port 0.  The <port> can either be in the range 0-3
+for the standard BIOS serial port, or the I/O address of the UART.
+
+The data is transferred using the YMODEM protocol; the Unix
+implementation of this protocol is called "rb" and is part of the
+"lrzsz" (or "rzsz") package.  If one uses a terminal program like
+Minicom, there is often a way to invoke it from inside the terminal
+program; in Minicom, this is done with the Ctrl-A R control sequence.
