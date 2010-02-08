@@ -169,7 +169,7 @@ static int be_ymodem_write(struct backend *be)
 
 struct backend be_ymodem = {
     .name       = "ymodem",
-    .helpmsg    = "filename port [speed]",
-    .minargs    = 2,
+    .helpmsg    = "filename [port [speed]]",
+    .minargs    = 1,
     .write      = be_ymodem_write,
 };

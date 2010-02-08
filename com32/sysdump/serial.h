@@ -5,6 +5,7 @@
 
 struct serial_if {
     uint16_t port;
+    bool console;
     struct {
 	uint8_t dll, dlm, ier, iir, lcr, mcr;
     } old;

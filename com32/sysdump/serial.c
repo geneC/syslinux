@@ -1,8 +1,10 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <console.h>
 #include <sys/io.h>
 #include <sys/cpu.h>
+#include <syslinux/config.h>
 
 #include "serial.h"
 
@@ -24,25 +26,51 @@ enum {
 
 int serial_init(struct serial_if *sif, const char *argv[])
 {
+    const struct syslinux_serial_console_info *sci
+	= syslinux_serial_console_info();
     uint16_t port;
-    unsigned int speed, divisor;
+    unsigned int divisor;
     uint8_t dll, dlm, lcr;
 
-    port = strtoul(argv[0], NULL, 0);
-    if (port <= 3) {
-	uint16_t addr = ((uint16_t *)0x400)[port];
-	printf("Serial port %u is at 0x%04x\n", port, addr);
-	port = addr;
+    if (!argv[0]) {
+	if (sci->iobase) {
+	    port = sci->iobase;
+	} else {
+	    printf("No port number specified and not using serial console!\n");
+	    return -1;
+	}
+    } else {
+	port = strtoul(argv[0], NULL, 0);
+	if (port <= 3) {
+	    uint16_t addr = ((uint16_t *)0x400)[port];
+	    if (!addr) {
+		printf("No serial port address found!\n");
+	    return -1;
+	    }
+	    printf("Serial port %u is at 0x%04x\n", port, addr);
+	    port = addr;
+	}
     }
 
     sif->port = port;
+    sif->console = false;
 
-    if (argv[1])
-	speed = strtoul(argv[1], NULL, 0);
-    else
-	speed = 115200;
+    divisor = 1;		/* Default speed = 115200 bps */
 
-    divisor = 115200/speed;
+    /* Check to see if this is the same as the serial console */
+    if (port == sci->iobase) {
+	/* Overlaying the console... */
+	sif->console = true;
+
+	/* Default to already configured speed */
+	divisor = sci->divisor;
+
+	/* Shut down I/O to the console for the time being */
+	openconsole(&dev_null_r, &dev_null_w);
+    }
+
+    if (argv[0] && argv[1])
+	divisor = 115200/strtoul(argv[1], NULL, 0);
 
     cli();			/* Just in case... */
 
@@ -74,6 +102,7 @@ int serial_init(struct serial_if *sif, const char *argv[])
     if (dll != (uint8_t)divisor ||
 	dlm != (uint8_t)(divisor >> 8) ||
 	lcr != 0x83) {
+	serial_cleanup(sif);
 	printf("No serial port detected!\n");
 	return -1;		/* This doesn't look like a serial port */
     }
@@ -133,4 +162,8 @@ void serial_cleanup(struct serial_if *sif)
     outb(sif->old.ier, port + IER);
     if (sif->old.iir < 0xc0)
 	outb(0x00, port + FCR);	/* Disable FIFOs */
+
+    /* Re-enable console messages, if we shut them down */
+    if (sif->console)
+	openconsole(&dev_null_r, &dev_stdcon_w);
 }
