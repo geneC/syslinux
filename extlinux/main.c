@@ -386,7 +386,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     }
 
     subpath = strchr(dirpath, '\0');
-    while (--subpath > dirpath) {
+    while (--subpath >= dirpath) {
 	if (*subpath == '/') {
 	    *subpath = '\0';
 	    if (lstat(dirpath, &xdst) || dirst.st_dev != xdst.st_dev) {
