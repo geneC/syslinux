@@ -108,7 +108,7 @@ int serial_init(struct serial_if *sif, const char *argv[])
     }
 
     /* Enable 16550A FIFOs if available */
-    outb(0x41, port + FCR);	/* Enable FIFO */
+    outb(0x01, port + FCR);	/* Enable FIFO */
     (void)inb(port + IER);	/* Synchronize */
     if (inb(port + IIR) < 0xc0)
 	outb(0x00, port + FCR);	/* Disable FIFOs if non-functional */
