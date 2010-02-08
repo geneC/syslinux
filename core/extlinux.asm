@@ -27,6 +27,8 @@ my_id		equ extlinux_id
 		section .rodata
 		alignz 4
 ROOT_FS_OPS:
+		extern vfat_fs_ops
+		dd vfat_fs_ops
 		extern ext2_fs_ops
 		dd ext2_fs_ops
 		extern btrfs_fs_ops

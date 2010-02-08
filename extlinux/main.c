@@ -14,7 +14,7 @@
 /*
  * extlinux.c
  *
- * Install the extlinux boot block on an ext2/3/4 and btrfs filesystem
+ * Install the extlinux boot block on an fat, ext2/3/4 and btrfs filesystem
  */
 
 #define  _GNU_SOURCE		/* Enable everything */
@@ -30,6 +30,7 @@ typedef uint64_t u64;
 #include <mntent.h>
 #endif
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
@@ -48,6 +49,7 @@ typedef uint64_t u64;
 
 #include "ext2_fs.h"
 #include "btrfs.h"
+#include "fat.h"
 #include "../version.h"
 #include "syslxint.h"
 
@@ -58,9 +60,10 @@ typedef uint64_t u64;
 #endif
 
 /* Global option handling */
-/* Global fs_type for handling ext2/3/4 vs btrfs */
+/* Global fs_type for handling fat, ext2/3/4 and btrfs */
 #define EXT2 1
 #define BTRFS 2
+#define VFAT 3
 int fs_type;
 
 const char *program;
@@ -444,7 +447,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     nsect = (boot_image_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     nsect += 2;			/* Two sectors for the ADV */
     sectp = alloca(sizeof(uint32_t) * nsect);
-    if (fs_type == EXT2) {
+    if (fs_type == EXT2 || fs_type == VFAT) {
 	if (sectmap(fd, sectp, nsect)) {
 		perror("bmap");
 		exit(1);
@@ -490,7 +493,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     }
     strncpy((char *)boot_image + diroffset, subpath, dirlen);
     free(dirpath);
-  
+
     /* write subvol info if we have */
     subvoloffset = get_16(&patcharea->subvoloffset);
     subvollen = get_16(&patcharea->subvollen);
@@ -502,7 +505,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
 
     /* Now produce a checksum */
     set_32(&patcharea->checksum, 0);
-    
+
     csum = LDLINUX_MAGIC;
     for (i = 0, wp = (uint32_t *) boot_image; i < dw; i++, wp++)
 	csum -= get_32(wp);	/* Negative checksum */
@@ -694,6 +697,7 @@ int install_bootblock(int fd, const char *device)
 {
     struct ext2_super_block sb;
     struct btrfs_super_block sb2;
+    struct boot_sector sb3;
     bool ok = false;
 
     if (fs_type == EXT2) {
@@ -711,13 +715,29 @@ int install_bootblock(int fd, const char *device)
 	}
 	if (sb2.magic == *(u64 *)BTRFS_MAGIC)
 		ok = true;
+    } else if (fs_type == VFAT) {
+	if (xpread(fd, &sb3, sizeof sb3, 0) != sizeof sb3) {
+		perror("reading fat superblock");
+		return 1;
+	}
+	if (sb3.bsResSectors && sb3.bsFATs &&
+	    (strstr(sb3.bs16.FileSysType, "FAT") ||
+	     strstr(sb3.bs32.FileSysType, "FAT")))
+		ok = true;
     }
     if (!ok) {
-	fprintf(stderr, "no ext2/3/4 or btrfs superblock found on %s\n",
+	fprintf(stderr, "no fat, ext2/3/4 or btrfs superblock found on %s\n",
 			device);
 	return 1;
     }
-    if (xpwrite(fd, boot_block, boot_block_len, 0) != boot_block_len) {
+    if (fs_type == VFAT) {
+	struct boot_sector *bs = (struct boot_sector *)extlinux_bootsect;
+        if (xpwrite(fd, &bs->bsHead, bsHeadLen, 0) != bsHeadLen ||
+	    xpwrite(fd, &bs->bsCode, bsCodeLen,
+		offsetof(struct boot_sector, bsCode)) != bsCodeLen)
+		perror("writing fat bootblock");
+		return 1;
+    } else if (xpwrite(fd, boot_block, boot_block_len, 0) != boot_block_len) {
 	perror("writing bootblock");
 	return 1;
     }
@@ -725,7 +745,7 @@ int install_bootblock(int fd, const char *device)
     return 0;
 }
 
-int ext2_install_file(const char *path, int devfd, struct stat *rst)
+int ext2_fat_install_file(const char *path, int devfd, struct stat *rst)
 {
     char *file;
     int fd = -1, dirfd = -1, flags;
@@ -751,7 +771,7 @@ int ext2_install_file(const char *path, int devfd, struct stat *rst)
 	    perror(file);
 	    goto bail;
 	}
-    } else {
+    } else if (fs_type == EXT2) {
 	/* If file exist, remove the immutable flag and set u+w mode */
 	if (!ioctl(fd, EXT2_IOC_GETFLAGS, &flags)) {
 	    flags &= ~EXT2_IMMUTABLE_FL;
@@ -843,8 +863,8 @@ int btrfs_install_file(const char *path, int devfd, struct stat *rst)
 
 int install_file(const char *path, int devfd, struct stat *rst)
 {
-	if (fs_type == EXT2)
-		return ext2_install_file(path, devfd, rst);
+	if (fs_type == EXT2 || fs_type == VFAT)
+		return ext2_fat_install_file(path, devfd, rst);
 	else if (fs_type == BTRFS)
 		return btrfs_install_file(path, devfd, rst);
 	return 1;
@@ -925,6 +945,13 @@ static const char *find_device(const char *mtab_file, dev_t dev)
 		if ((!strcmp(mnt->mnt_type, "ext2") ||
 		     !strcmp(mnt->mnt_type, "ext3") ||
 		     !strcmp(mnt->mnt_type, "ext4")) &&
+		    !stat(mnt->mnt_fsname, &dst) &&
+		    dst.st_rdev == dev) {
+		    done = true;
+		    break;
+		}
+	case VFAT:
+		if ((!strcmp(mnt->mnt_type, "vfat")) &&
 		    !stat(mnt->mnt_fsname, &dst) &&
 		    dst.st_rdev == dev) {
 		    done = true;
@@ -1022,9 +1049,11 @@ static int open_device(const char *path, struct stat *st, const char **_devname)
 	fs_type = EXT2;
     else if (sfs.f_type == BTRFS_SUPER_MAGIC)
 	fs_type = BTRFS;
+    else if (sfs.f_type == MSDOS_SUPER_MAGIC)
+	fs_type = VFAT;
 
     if (!fs_type) {
-	fprintf(stderr, "%s: not an ext2/3/4 or btrfs filesystem: %s\n",
+	fprintf(stderr, "%s: not a fat, ext2/3/4 or btrfs filesystem: %s\n",
 		program, path);
 	return -1;
     }
