@@ -1119,12 +1119,18 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	ranges[--nranges].type = -1;
     }
 
-    if (getcmditem("nopass") != CMD_NOTFOUND) {
-	/* nopass specified - we're the only drive by definition */
+    if (getcmditem("nopassany") != CMD_NOTFOUND) {
+	printf("nopassany specified - we're the only drive of any kind\n");
+	bios_drives = 0;
+	pptr->drivecnt = 0;
+	no_bpt = 1;
+	pptr->oldint13 = driverptr + hptr->iret_offs;
+	wrz_8(BIOS_EQUIP, rdz_8(BIOS_EQUIP) & ~0xc1);
+	wrz_8(BIOS_HD_COUNT, 0);
+    } else if (getcmditem("nopass") != CMD_NOTFOUND) {
 	printf("nopass specified - we're the only drive\n");
 	bios_drives = 0;
 	pptr->drivecnt = 0;
-	pptr->oldint13 = driverptr + hptr->iret_offs;
 	no_bpt = 1;
     } else {
 	/* Query drive parameters of this type */
@@ -1227,7 +1233,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	if (nhd > 128)
 	    nhd = 128;
 
-	if (!do_eltorito) wrz_8(BIOS_HD_COUNT, nhd);
+	if (!do_eltorito)
+	    wrz_8(BIOS_HD_COUNT, nhd);
     } else {
 	/* Update BIOS floppy disk count */
 	uint8_t equip = rdz_8(BIOS_EQUIP);
