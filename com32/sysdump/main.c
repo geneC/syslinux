@@ -36,7 +36,7 @@ static void dump_all(struct backend *be, const char *argv[])
 {
     cpio_init(be, argv);
 
-    cpio_writefile(be, "sysdump", version, sizeof version);
+    cpio_writefile(be, "sysdump", version, sizeof version-1);
 
     dump_memory_map(be);
     dump_memory(be);
