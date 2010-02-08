@@ -20,7 +20,8 @@ int init_data(struct backend *be, const char *argv[])
 
     memset(&be->zstream, 0, sizeof be->zstream);
 
-    be->zstream.next_out  = be->outbuf = NULL;
+    be->zstream.next_out  = NULL;
+    be->outbuf = NULL;
     be->zstream.avail_out = be->alloc  = 0;
     be->dbytes = be->zbytes = 0;
 
