@@ -89,9 +89,9 @@ static void send_ack(struct ymodem_state *ym, const uint8_t *blk, size_t bytes)
 {
     uint8_t ack_buf;
 
-    serial_write(&ym->serial, blk, bytes);
-
     do {
+	serial_write(&ym->serial, blk, bytes);
+
 	do {
 	    serial_read(&ym->serial, &ack_buf, 1);
 	} while (ack_buf != ACK && ack_buf != NAK);
