@@ -17,6 +17,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1154,7 +1156,7 @@ static int phantom_open ( struct net_device *netdev ) {
 	 * firmware doesn't currently support this.
 	 */
 	if ( ( rc = phantom_add_macaddr ( phantom,
-				   netdev->ll_protocol->ll_broadcast ) ) != 0 )
+					  netdev->ll_broadcast ) ) != 0 )
 		goto err_add_macaddr_broadcast;
 	if ( ( rc = phantom_add_macaddr ( phantom,
 					  netdev->ll_addr ) ) != 0 )
@@ -1164,8 +1166,7 @@ static int phantom_open ( struct net_device *netdev ) {
 
 	phantom_del_macaddr ( phantom, netdev->ll_addr );
  err_add_macaddr_unicast:
-	phantom_del_macaddr ( phantom,
-			      netdev->ll_protocol->ll_broadcast );
+	phantom_del_macaddr ( phantom, netdev->ll_broadcast );
  err_add_macaddr_broadcast:
 	phantom_destroy_tx_ctx ( phantom );
  err_create_tx_ctx:
@@ -1189,8 +1190,7 @@ static void phantom_close ( struct net_device *netdev ) {
 
 	/* Shut down the port */
 	phantom_del_macaddr ( phantom, netdev->ll_addr );
-	phantom_del_macaddr ( phantom,
-			      netdev->ll_protocol->ll_broadcast );
+	phantom_del_macaddr ( phantom, netdev->ll_broadcast );
 	phantom_destroy_tx_ctx ( phantom );
 	phantom_destroy_rx_ctx ( phantom );
 	free_dma ( phantom->desc, sizeof ( *(phantom->desc) ) );
@@ -1897,10 +1897,10 @@ static int phantom_init_cmdpeg ( struct phantom_nic *phantom ) {
  * Read Phantom MAC address
  *
  * @v phanton_port	Phantom NIC
- * @v ll_addr		Buffer to fill with MAC address
+ * @v hw_addr		Buffer to fill with MAC address
  */
 static void phantom_get_macaddr ( struct phantom_nic *phantom,
-				  uint8_t *ll_addr ) {
+				  uint8_t *hw_addr ) {
 	union {
 		uint8_t mac_addr[2][ETH_ALEN];
 		uint32_t dwords[3];
@@ -1917,11 +1917,11 @@ static void phantom_get_macaddr ( struct phantom_nic *phantom,
 
 	/* Copy out the relevant MAC address */
 	for ( i = 0 ; i < ETH_ALEN ; i++ ) {
-		ll_addr[ ETH_ALEN - i - 1 ] =
+		hw_addr[ ETH_ALEN - i - 1 ] =
 			u.mac_addr[ phantom->port & 1 ][i];
 	}
 	DBGC ( phantom, "Phantom %p MAC address is %s\n",
-	       phantom, eth_ntoa ( ll_addr ) );
+	       phantom, eth_ntoa ( hw_addr ) );
 }
 
 /**
@@ -2045,7 +2045,7 @@ static int phantom_probe ( struct pci_device *pci,
 		goto err_init_rcvpeg;
 
 	/* Read MAC addresses */
-	phantom_get_macaddr ( phantom, netdev->ll_addr );
+	phantom_get_macaddr ( phantom, netdev->hw_addr );
 
 	/* Skip if boot disabled on NIC */
 	if ( ( rc = phantom_check_boot_enable ( phantom ) ) != 0 )
@@ -2100,7 +2100,7 @@ static void phantom_remove ( struct pci_device *pci ) {
 
 /** Phantom PCI IDs */
 static struct pci_device_id phantom_nics[] = {
-	PCI_ROM ( 0x4040, 0x0100, "nx", "NX" ),
+	PCI_ROM ( 0x4040, 0x0100, "nx", "NX", 0 ),
 };
 
 /** Phantom PCI driver */

@@ -148,7 +148,7 @@ void init_passwords(const char *filename)
     fclose(f);
 }
 
-void close_passwords()
+void close_passwords(void)
 {
     int i;
 

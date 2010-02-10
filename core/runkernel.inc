@@ -1,7 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -138,15 +138,18 @@ parse_cmdline:
 		jmp .next_opt
 
 opt_vga:
-		mov eax,[es:di-1]
+		mov ax,[es:di-1]
 		mov bx,-1
-		cmp eax,'=nor'			; vga=normal
+		cmp ax,'=n'			; vga=normal
 		je .vc0
 		dec bx				; bx <- -2
-		cmp eax,'=ext'			; vga=ext
+		cmp ax,'=e'			; vga=ext
 		je .vc0
 		dec bx				; bx <- -3
-		cmp eax,'=ask'			; vga=ask
+		cmp ax,'=a'			; vga=ask
+		je .vc0
+		mov bx,0x0f04			; bx <- 0x0f04 (current mode)
+		cmp ax,'=c'			; vga=current
 		je .vc0
 		call parseint_esdi		; vga=<number>
 		jc .skip			; Not an integer
@@ -165,7 +168,7 @@ opt_mem:
 		ret
 
 opt_quiet:
-		mov byte [QuietBoot],1
+		mov byte [QuietBoot],QUIET_FLAG
 		ret
 
 %if IS_PXELINUX
@@ -225,6 +228,8 @@ new_kernel:
 ; we were provided.
 ;
                 mov al,[es:su_loadflags]
+		or al,[QuietBoot]		; Set QUIET_FLAG if needed
+		mov [es:su_loadflags],al
 		mov [LoadFlags],al
 
 any_kernel:
@@ -454,7 +459,10 @@ setup_move:
 
 		; BX points to the final real mode segment, and will be loaded
 		; into DS.
-		jmp replace_bootstrap
+
+		test byte [QuietBoot],QUIET_FLAG
+		jz replace_bootstrap
+		jmp replace_bootstrap_noclearmode
 
 run_linux_kernel:
 ;
@@ -625,7 +633,7 @@ loadinitrd:
 ;		assumes CS == DS
 ;
 writestr_qchk:
-		test byte [QuietBoot],01h
+		test byte [QuietBoot],QUIET_FLAG
 		jz writestr
 		ret
 

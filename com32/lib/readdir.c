@@ -10,6 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
 struct dirent *readdir(DIR * dir)
 {
@@ -21,6 +22,6 @@ struct dirent *readdir(DIR * dir)
     regs.esi.l = (uint32_t)dir;
     __com32.cs_intcall(0x22, &regs, &regs);
     newde = (struct dirent *)(regs.eax.l);
-    
+
     return newde;
 }

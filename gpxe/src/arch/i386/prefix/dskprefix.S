@@ -16,6 +16,8 @@
  * getting whole tracks at a time whenever possible.
  */
 
+FILE_LICENCE ( GPL2_ONLY )
+
 .equ	BOOTSEG, 0x07C0			/* original address of boot-sector */
 
 .equ	SYSSEG, 0x1000			/* system loaded at SYSSEG<<4 */
@@ -144,9 +146,9 @@ got_sectors:
 	/* Jump to loaded copy */
 	ljmp	$SYSSEG, $start_runtime
 
-endseg:	.word SYSSEG + _filesz_pgh
+endseg:	.word SYSSEG
 	.section ".zinfo.fixup", "a", @progbits	/* Compressor fixups */
-	.ascii	"SUBW"
+	.ascii	"ADDW"
 	.long	endseg
 	.long	16
 	.long	0

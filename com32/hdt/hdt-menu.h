@@ -82,7 +82,7 @@ struct s_hdt_menu {
     int total_menu_count;	// Sum of all menus we have
 };
 
-TIMEOUTCODE ontimeout();
+TIMEOUTCODE ontimeout(void);
 void keys_handler(t_menusystem * ms
 		  __attribute__ ((unused)), t_menuitem * mi, int scancode);
 

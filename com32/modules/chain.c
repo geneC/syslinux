@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -394,10 +394,13 @@ static struct part_entry *find_logical_partition(int whichpart, char *table,
 	    /* Adjust the offset to account for the extended partition itself */
 	    ptab[i].start_lba += self->start_lba;
 
-	    /* Sanity check entry: must not extend outside the extended partition.
-	       This is necessary since some OSes put crap in some entries. */
-	    if (ptab[i].start_lba + ptab[i].length <= self->start_lba ||
-		ptab[i].start_lba >= self->start_lba + self->length)
+	    /*
+	     * Sanity check entry: must not extend outside the
+	     * extended partition.  This is necessary since some OSes
+	     * put crap in some entries.  Note that root is non-NULL here.
+	     */
+	    if (ptab[i].start_lba + ptab[i].length <= root->start_lba ||
+		ptab[i].start_lba >= root->start_lba + root->length)
 		continue;
 
 	    /* OK, it's a data partition.  Is it the one we're looking for? */
@@ -781,13 +784,20 @@ int main(int argc, char *argv[])
     regs.ebx.b[0] = regs.edx.b[0] = drive;
 
     whichpart = 0;		/* Default */
-
     if (partition)
 	whichpart = strtoul(partition, NULL, 0);
 
     if (!(drive & 0x80) && whichpart) {
 	error("Warning: Partitions of floppy devices may not work\n");
     }
+
+    /* 
+     * grldr of Grub4dos wants the partition number in DH:
+     * -1:   whole drive (default)
+     * 0-3:  primary partitions
+     * 4-*:  logical partitions
+     */
+    regs.edx.b[1] = whichpart-1;
 
     /* Get the disk geometry and disk access setup */
     if (get_disk_params(drive)) {

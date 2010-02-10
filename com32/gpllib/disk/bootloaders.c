@@ -22,7 +22,7 @@
  * @buffer:		pre-allocated buffer
  * @buffer_size:	@buffer size
  **/
-int get_bootloader_string(const struct driveinfo *d, const struct part_entry *p,
+int get_bootloader_string(struct driveinfo *d, const struct part_entry *p,
 			  char *buffer, const int buffer_size)
 {
     char boot_sector[SECTOR * sizeof(char)];

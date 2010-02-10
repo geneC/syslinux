@@ -7,7 +7,8 @@
 
 int strcasecmp(const char *s1, const char *s2)
 {
-    const unsigned char *c1 = s1, *c2 = s2;
+    const unsigned char *c1 = (const unsigned char *)s1;
+    const unsigned char *c2 = (const unsigned char *)s2;
     unsigned char ch;
     int d = 0;
 

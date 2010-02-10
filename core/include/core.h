@@ -25,7 +25,8 @@ extern void (*idle_hook_func)(void);
 extern void myputs(const char*);
 
 /* malloc.c */
-extern void *malloc(int);
+extern void *malloc(size_t);
+extern void *zalloc(size_t);
 extern void free(void *);
 extern void mem_init(void);
 

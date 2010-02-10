@@ -9,6 +9,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/tcpip.h>
 
 /**
@@ -227,6 +229,16 @@ struct tcp_options {
 			TCP_STATE_SENT ( TCP_FIN ) ) )			    \
 	  == TCP_STATE_ACKED ( TCP_SYN ) )
 
+/** Have ever been fully established
+ *
+ * We have been fully established if we have both received a SYN and
+ * had our own SYN acked.
+ */
+#define TCP_HAS_BEEN_ESTABLISHED(state)					    \
+	( ( (state) & ( TCP_STATE_ACKED ( TCP_SYN ) |			    \
+			TCP_STATE_RCVD ( TCP_SYN ) ) )			    \
+	  == ( TCP_STATE_ACKED ( TCP_SYN ) | TCP_STATE_RCVD ( TCP_SYN ) ) )
+
 /** Have closed gracefully
  *
  * We have closed gracefully if we have both received a FIN and had
@@ -274,8 +286,8 @@ struct tcp_options {
  * actually use 65536, we use a window size of (65536-4) to ensure
  * that payloads remain dword-aligned.
  */
-//#define TCP_MAX_WINDOW_SIZE	( 65536 - 4 )
-#define TCP_MAX_WINDOW_SIZE	4096
+#define TCP_MAX_WINDOW_SIZE	( 65536 - 4 )
+//#define TCP_MAX_WINDOW_SIZE	4096
 
 /**
  * Path MTU

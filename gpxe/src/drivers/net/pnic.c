@@ -12,6 +12,8 @@ Bochs Pseudo NIC driver for Etherboot
  * See pnic_api.h for an explanation of the Bochs Pseudo NIC.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdio.h>
 #include <gpxe/io.h>
@@ -248,7 +250,7 @@ static int pnic_probe ( struct pci_device *pci,
 
 	/* Get MAC address */
 	status = pnic_command ( pnic, PNIC_CMD_READ_MAC, NULL, 0,
-				netdev->ll_addr, ETH_ALEN, NULL );
+				netdev->hw_addr, ETH_ALEN, NULL );
 
 	/* Mark as link up; PNIC has no concept of link state */
 	netdev_link_up ( netdev );
@@ -268,7 +270,7 @@ static int pnic_probe ( struct pci_device *pci,
 
 static struct pci_device_id pnic_nics[] = {
 /* genrules.pl doesn't let us use macros for PCI IDs...*/
-PCI_ROM ( 0xfefe, 0xefef, "pnic", "Bochs Pseudo NIC Adaptor" ),
+PCI_ROM ( 0xfefe, 0xefef, "pnic", "Bochs Pseudo NIC Adaptor", 0 ),
 };
 
 struct pci_driver pnic_driver __pci_driver = {

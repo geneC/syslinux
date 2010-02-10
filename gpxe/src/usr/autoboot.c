@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -37,17 +39,8 @@
  *
  */
 
-/** Time to wait for link-up */
-#define LINK_WAIT_MS 15000
-
 /** Shutdown flags for exit */
 int shutdown_exit_flags = 0;
-
-/* SAN boot protocols */
-static struct sanboot_protocol sanboot_protocols[0] \
-	__table_start ( struct sanboot_protocol, sanboot_protocols );
-static struct sanboot_protocol sanboot_protocols_end[0] \
-	__table_end ( struct sanboot_protocol, sanboot_protocols );
 
 /**
  * Identify the boot network device
@@ -68,16 +61,16 @@ int boot_next_server_and_filename ( struct in_addr next_server,
 				    const char *filename ) {
 	struct uri *uri;
 	struct image *image;
-	char buf[ 23 /* tftp://xxx.xxx.xxx.xxx/ */ + strlen(filename) + 1 ];
+	char buf[ 23 /* tftp://xxx.xxx.xxx.xxx/ */ +
+		  ( 3 * strlen(filename) ) /* completely URI-encoded */
+		  + 1 /* NUL */ ];
 	int filename_is_absolute;
 	int rc;
 
 	/* Construct URI */
 	uri = parse_uri ( filename );
-	if ( ! uri ) {
-		printf ( "Out of memory\n" );
+	if ( ! uri )
 		return -ENOMEM;
-	}
 	filename_is_absolute = uri_is_absolute ( uri );
 	uri_put ( uri );
 	if ( ! filename_is_absolute ) {
@@ -87,27 +80,22 @@ int boot_next_server_and_filename ( struct in_addr next_server,
 		 * between filenames with and without initial slashes,
 		 * which is significant for TFTP.
 		 */
-		snprintf ( buf, sizeof ( buf ), "tftp://%s/%s",
-			   inet_ntoa ( next_server ), filename );
+		snprintf ( buf, sizeof ( buf ), "tftp://%s/",
+			   inet_ntoa ( next_server ) );
+		uri_encode ( filename, buf + strlen ( buf ),
+			     sizeof ( buf ) - strlen ( buf ), URI_PATH );
 		filename = buf;
 	}
 
 	image = alloc_image();
-	if ( ! image ) {
-		printf ( "Out of memory\n" );
+	if ( ! image )
 		return -ENOMEM;
-	}
 	if ( ( rc = imgfetch ( image, filename,
 			       register_and_autoload_image ) ) != 0 ) {
-		printf ( "Could not load %s: %s\n",
-			 filename, strerror ( rc ) );
 		goto done;
 	}
-	if ( ( rc = imgexec ( image ) ) != 0 ) {
-		printf ( "Could not boot %s: %s\n",
-			 filename, strerror ( rc ) );
+	if ( ( rc = imgexec ( image ) ) != 0 )
 		goto done;
-	}
 
  done:
 	image_put ( image );
@@ -124,8 +112,7 @@ int boot_root_path ( const char *root_path ) {
 	struct sanboot_protocol *sanboot;
 
 	/* Quick hack */
-	for ( sanboot = sanboot_protocols ;
-	      sanboot < sanboot_protocols_end ; sanboot++ ) {
+	for_each_table_entry ( sanboot, SANBOOT_PROTOCOLS ) {
 		if ( strncmp ( root_path, sanboot->prefix,
 			       strlen ( sanboot->prefix ) ) == 0 ) {
 			return sanboot->boot ( root_path );
@@ -158,14 +145,6 @@ static int netboot ( struct net_device *netdev ) {
 		return rc;
 	ifstat ( netdev );
 
-	/* Wait for link-up */
-	printf ( "Waiting for link-up on %s...", netdev->name );
-	if ( ( rc = iflinkwait ( netdev, LINK_WAIT_MS ) ) != 0 ) {
-		printf ( " no link detected\n" );
-		return rc;
-	}
-	printf ( " ok\n" );
-
 	/* Configure device via DHCP */
 	if ( ( rc = dhcp ( netdev ) ) != 0 )
 		return rc;
@@ -176,7 +155,7 @@ static int netboot ( struct net_device *netdev ) {
 			       buf, sizeof ( buf ) );
 	pxe_discovery_control =
 		fetch_uintz_setting ( NULL, &pxe_discovery_control_setting );
-	if ( ( strcmp ( buf, "PXEClient" ) == 0 ) &&
+	if ( ( strcmp ( buf, "PXEClient" ) == 0 ) && pxe_menu_boot != NULL &&
 	     setting_exists ( NULL, &pxe_boot_menu_setting ) &&
 	     ( ! ( ( pxe_discovery_control & PXEBS_SKIP ) &&
 		   setting_exists ( NULL, &filename_setting ) ) ) ) {
@@ -189,14 +168,25 @@ static int netboot ( struct net_device *netdev ) {
 	fetch_string_setting ( NULL, &filename_setting, buf, sizeof ( buf ) );
 	if ( buf[0] ) {
 		printf ( "Booting from filename \"%s\"\n", buf );
-		return boot_next_server_and_filename ( next_server, buf );
+		if ( ( rc = boot_next_server_and_filename ( next_server,
+							    buf ) ) != 0 ) {
+			printf ( "Could not boot from filename \"%s\": %s\n",
+				 buf, strerror ( rc ) );
+			return rc;
+		}
+		return 0;
 	}
 	
 	/* No filename; try the root path */
 	fetch_string_setting ( NULL, &root_path_setting, buf, sizeof ( buf ) );
 	if ( buf[0] ) {
 		printf ( "Booting from root path \"%s\"\n", buf );
-		return boot_root_path ( buf );
+		if ( ( rc = boot_root_path ( buf ) ) != 0 ) {
+			printf ( "Could not boot from root path \"%s\": %s\n",
+				 buf, strerror ( rc ) );
+			return rc;
+		}
+		return 0;
 	}
 
 	printf ( "No filename or root path specified\n" );

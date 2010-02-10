@@ -52,19 +52,20 @@ const char *syslinux_check_bootsect(const void *bs)
 
     /* Must be 0xF0 or 0xF8..0xFF */
     if (get_8(&sectbuf->bsMedia) != 0xF0 && get_8(&sectbuf->bsMedia) < 0xF8)
-	goto invalid;
+	return "invalid media signature (not a FAT filesystem?)";
 
     sectorsize = get_16(&sectbuf->bsBytesPerSec);
-    if (sectorsize == SECTOR_SIZE) ;	/* ok */
+    if (sectorsize == SECTOR_SIZE)
+	;			/* ok */
     else if (sectorsize >= 512 && sectorsize <= 4096 &&
 	     (sectorsize & (sectorsize - 1)) == 0)
 	return "unsupported sectors size";
     else
-	goto invalid;
+	return "impossible sector size";
 
     clustersize = get_8(&sectbuf->bsSecPerClust);
     if (clustersize == 0 || (clustersize & (clustersize - 1)))
-	goto invalid;		/* Must be nonzero and a power of 2 */
+	return "impossible cluster size";
 
     sectors = get_16(&sectbuf->bsSectors);
     sectors = sectors ? sectors : get_32(&sectbuf->bsHugeSectors);
@@ -79,8 +80,11 @@ const char *syslinux_check_bootsect(const void *bs)
     rootdirents = get_16(&sectbuf->bsRootDirEnts);
     dsectors -= (rootdirents + sectorsize / 32 - 1) / sectorsize;
 
-    if (dsectors < 0 || fatsectors == 0)
-	goto invalid;
+    if (dsectors < 0)
+	return "negative number of data sectors";
+
+    if (fatsectors == 0)
+	return "zero FAT sectors";
 
     clusters = dsectors / clustersize;
 
@@ -88,7 +92,7 @@ const char *syslinux_check_bootsect(const void *bs)
 	/* FAT12 or FAT16 */
 
 	if (!get_16(&sectbuf->bsFATsecs))
-	    goto invalid;
+	    return "zero FAT sectors (FAT12/16)";
 
 	if (get_8(&sectbuf->bs16.BootSignature) == 0x29) {
 	    if (!memcmp(&sectbuf->bs16.FileSysType, "FAT12   ", 8)) {
@@ -97,6 +101,8 @@ const char *syslinux_check_bootsect(const void *bs)
 	    } else if (!memcmp(&sectbuf->bs16.FileSysType, "FAT16   ", 8)) {
 		if (clusters < 0xFF5)
 		    return "less than 4084 clusters but claims FAT16";
+	    } else if (!memcmp(&sectbuf->bs16.FileSysType, "FAT32   ", 8)) {
+		    return "less than 65525 clusters but claims FAT32";
 	    } else if (memcmp(&sectbuf->bs16.FileSysType, "FAT     ", 8)) {
 		static char fserr[] =
 		    "filesystem type \"????????\" not supported";
@@ -105,19 +111,20 @@ const char *syslinux_check_bootsect(const void *bs)
 	    }
 	}
     } else if (clusters < 0x0FFFFFF5) {
-	/* FAT32 */
-	/* Moving the FileSysType and BootSignature was a lovely stroke of M$ idiocy */
+	/*
+	 * FAT32...
+	 *
+	 * Moving the FileSysType and BootSignature was a lovely stroke
+	 * of M$ idiocy...
+	 */
 	if (get_8(&sectbuf->bs32.BootSignature) != 0x29 ||
 	    memcmp(&sectbuf->bs32.FileSysType, "FAT32   ", 8))
-	    goto invalid;
+	    return "missing FAT32 signature";
     } else {
-	goto invalid;
+	return "impossibly large number of clusters";
     }
 
     return NULL;
-
-invalid:
-    return "this doesn't look like a valid FAT filesystem";
 }
 
 /*

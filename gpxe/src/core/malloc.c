@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -76,9 +78,9 @@ size_t freemem;
 /**
  * Heap size
  *
- * Currently fixed at 128kB.
+ * Currently fixed at 512kB.
  */
-#define HEAP_SIZE ( 128 * 1024 )
+#define HEAP_SIZE ( 512 * 1024 )
 
 /** The heap itself */
 static char heap[HEAP_SIZE] __attribute__ (( aligned ( __alignof__(void *) )));

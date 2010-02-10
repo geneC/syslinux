@@ -5,11 +5,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define SECTOR_SHIFT     9
-
 typedef uint64_t sector_t;
 typedef uint64_t block_t;
-
 
 /*
  * struct disk: contains the information about a specific disk and also

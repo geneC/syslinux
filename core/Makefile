@@ -112,11 +112,10 @@ extlinux.bss: extlinux.bin
 extlinux.sys: extlinux.bin
 	dd if=$< of=$@ bs=512 skip=1
 
-# NASM prior to 2.03 wouldn't auto-generate this dependency...
-ldlinux.o: codepage.cp
-
 codepage.cp: ../codepage/$(CODEPAGE).cp
 	cp -f $< $@
+
+codepage.o: codepage.S codepage.cp
 
 install: installer
 

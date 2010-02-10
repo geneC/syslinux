@@ -14,6 +14,6 @@
 #include <disk/geom.h>
 #include <disk/partition.h>
 
-int get_bootloader_string(const struct driveinfo *, const struct part_entry *,
+int get_bootloader_string(struct driveinfo *, const struct part_entry *,
 			  char *, const int);
 #endif /* __BOOTLOADERS_H_ */

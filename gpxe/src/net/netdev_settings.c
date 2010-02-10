@@ -16,10 +16,14 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <string.h>
 #include <errno.h>
+#include <byteswap.h>
 #include <gpxe/dhcp.h>
 #include <gpxe/settings.h>
+#include <gpxe/device.h>
 #include <gpxe/netdevice.h>
 
 /** @file
@@ -32,6 +36,11 @@
 struct setting mac_setting __setting = {
 	.name = "mac",
 	.description = "MAC address",
+	.type = &setting_type_hex,
+};
+struct setting busid_setting __setting = {
+	.name = "busid",
+	.description = "Bus ID",
 	.type = &setting_type_hex,
 };
 
@@ -54,9 +63,9 @@ static int netdev_store ( struct settings *settings, struct setting *setting,
 			return -EINVAL;
 		memcpy ( netdev->ll_addr, data, len );
 		return 0;
-	} else {
-		return simple_settings_store ( settings, setting, data, len );
 	}
+
+	return generic_settings_store ( settings, setting, data, len );
 }
 
 /**
@@ -72,19 +81,40 @@ static int netdev_fetch ( struct settings *settings, struct setting *setting,
 			  void *data, size_t len ) {
 	struct net_device *netdev = container_of ( settings, struct net_device,
 						   settings.settings );
+	struct device_description *desc = &netdev->dev->desc;
+	struct dhcp_netdev_desc dhcp_desc;
 
 	if ( setting_cmp ( setting, &mac_setting ) == 0 ) {
 		if ( len > netdev->ll_protocol->ll_addr_len )
 			len = netdev->ll_protocol->ll_addr_len;
 		memcpy ( data, netdev->ll_addr, len );
 		return netdev->ll_protocol->ll_addr_len;
-	} else {
-		return simple_settings_fetch ( settings, setting, data, len );
 	}
+	if ( setting_cmp ( setting, &busid_setting ) == 0 ) {
+		dhcp_desc.type = desc->bus_type;
+		dhcp_desc.vendor = htons ( desc->vendor );
+		dhcp_desc.device = htons ( desc->device );
+		if ( len > sizeof ( dhcp_desc ) )
+			len = sizeof ( dhcp_desc );
+		memcpy ( data, &dhcp_desc, len );
+		return sizeof ( dhcp_desc );
+	}
+
+	return generic_settings_fetch ( settings, setting, data, len );
+}
+
+/**
+ * Clear network device settings
+ *
+ * @v settings		Settings block
+ */
+static void netdev_clear ( struct settings *settings ) {
+	generic_settings_clear ( settings );
 }
 
 /** Network device configuration settings operations */
 struct settings_operations netdev_settings_operations = {
 	.store = netdev_store,
 	.fetch = netdev_fetch,
+	.clear = netdev_clear,
 };

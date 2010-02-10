@@ -225,7 +225,7 @@ pt_menuitem showmenus(uchar startmenu);
 
 pt_menusystem init_menusystem(const char *title);
 
-void close_menusystem();	// Deallocate memory used
+void close_menusystem(void);	// Deallocate memory used
 
 void set_normal_attr(uchar normal, uchar selected, uchar inactivenormal,
 		     uchar inactiveselected);
@@ -253,10 +253,10 @@ void reg_ontimeout(t_timeout_handler, unsigned int numsteps,
 		   unsigned int stepsize);
 // Set timeout handler, set 0 for default values.
 // So stepsize=0 means numsteps is measured in centiseconds.
-void unreg_ontimeout();
+void unreg_ontimeout(void);
 
 void reg_ontotaltimeout(t_timeout_handler, unsigned long numcentiseconds);
-void unreg_ontotaltimeout();
+void unreg_ontotaltimeout(void);
 
 // Find the number of the menu given the name
 // Returns -1 if not found
@@ -284,7 +284,7 @@ static inline void set_shortcut(uchar shortcut)
 }
 
 // Add a separator to the "current" menu
-pt_menuitem add_sep();
+pt_menuitem add_sep(void);
 
 // Generate string based on state of checkboxes and radioitem in given menu
 // and append string to existing contents of "line"

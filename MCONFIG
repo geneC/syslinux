@@ -62,6 +62,11 @@ WGET	 = wget
 
 com32    = $(topdir)/com32
 
+# Common warnings we want for all gcc-generated code
+GCCWARN := -W -Wall -Wstrict-prototypes
+# Extremely useful variant for debugging...
+#GCCWARN += -Wno-clobbered -Werror
+
 # Common stanza to make gcc generate .*.d dependency files
 MAKEDEPS = -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d
 

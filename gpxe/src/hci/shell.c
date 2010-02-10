@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -28,11 +30,6 @@
  * Minimal command shell
  *
  */
-
-static struct command commands[0]
-	__table_start ( struct command, commands );
-static struct command commands_end[0]
-	__table_end ( struct command, commands );
 
 /** The shell prompt string */
 static const char shell_prompt[] = "gPXE> ";
@@ -65,7 +62,7 @@ static int help_exec ( int argc __unused, char **argv __unused ) {
 	unsigned int hpos = 0;
 
 	printf ( "\nAvailable commands:\n\n" );
-	for ( command = commands ; command < commands_end ; command++ ) {
+	for_each_table_entry ( command, COMMANDS ) {
 		hpos += printf ( "  %s", command->name );
 		if ( hpos > ( 16 * 4 ) ) {
 			printf ( "\n" );

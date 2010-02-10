@@ -21,6 +21,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <errno.h>
 #include <realmode.h>
 #include <biosint.h>
@@ -37,6 +39,8 @@
 #include <gpxe/init.h>
 #include <gpxe/image.h>
 #include <usr/imgmgmt.h>
+#include "config/console.h"
+#include "config/serial.h"
 
 /** The "SYSLINUX" version string */
 static char __data16_array ( syslinux_version, [] ) = "gPXE " VERSION;
@@ -324,7 +328,7 @@ static __asmcall void int22 ( struct i386_all_regs *ix86 ) {
 	case 0x0001: /* Get Version */
 
 		/* Number of INT 22h API functions available */
-		ix86->regs.ax = 0x001B;
+		ix86->regs.ax = 0x001D;
 
 		/* SYSLINUX version number */
 		ix86->regs.ch = 0; /* major */
@@ -441,8 +445,10 @@ static __asmcall void int22 ( struct i386_all_regs *ix86 ) {
 		break;
 
 	case 0x0009: /* Call PXE Stack */
-		pxe_api_call ( ix86 );
-		ix86->flags &= ~CF;
+		if ( pxe_api_call_weak ( ix86 ) != 0 )
+			ix86->flags |= CF;
+		else
+			ix86->flags &= ~CF;
 		break;
 
 	case 0x000A: /* Get Derivative-Specific Information */
@@ -454,8 +460,14 @@ static __asmcall void int22 ( struct i386_all_regs *ix86 ) {
 		break;
 
 	case 0x000B: /* Get Serial Console Configuration */
-		/* FIXME: stub */
+#if defined(CONSOLE_SERIAL) && !defined(COMPRESERVE)
+		ix86->regs.dx = COMCONSOLE;
+		ix86->regs.cx = 115200 / COMSPEED;
+		ix86->regs.bx = 0;
+#else
 		ix86->regs.dx = 0;
+#endif
+
 		ix86->flags &= ~CF;
 		break;
 
@@ -627,6 +639,17 @@ static __asmcall void int22 ( struct i386_all_regs *ix86 ) {
 			)
 			: : );
 
+		break;
+
+	case 0x001C: /* Get pointer to auxilliary data vector */
+		/* FIXME: stub */
+		ix86->regs.cx = 0; /* Size of the ADV */
+		ix86->flags &= ~CF;
+		break;
+
+	case 0x001D: /* Write auxilliary data vector */
+		/* FIXME: stub */
+		ix86->flags &= ~CF;
 		break;
 
 	default:

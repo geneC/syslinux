@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
@@ -66,6 +68,7 @@ static void aoe_done ( struct aoe_session *aoe, int rc ) {
 	/* Record overall command status */
 	if ( aoe->command ) {
 		aoe->command->cb.cmd_stat = aoe->status;
+		aoe->command->rc = rc;
 		aoe->command = NULL;
 	}
 
@@ -354,7 +357,6 @@ static int aoe_command ( struct ata_device *ata,
 			 struct ata_command *command ) {
 	struct aoe_session *aoe =
 		container_of ( ata->backend, struct aoe_session, refcnt );
-	int rc;
 
 	aoe->command = command;
 	aoe->status = 0;
@@ -363,14 +365,8 @@ static int aoe_command ( struct ata_device *ata,
 
 	aoe_send_command ( aoe );
 
-	aoe->rc = -EINPROGRESS;
-	while ( aoe->rc == -EINPROGRESS )
-		step();
-	rc = aoe->rc;
-
-	return rc;
+	return 0;
 }
-
 
 /**
  * Issue AoE config query for AoE target discovery
@@ -444,8 +440,7 @@ int aoe_attach ( struct ata_device *ata, struct net_device *netdev,
 		return -ENOMEM;
 	aoe->refcnt.free = aoe_free;
 	aoe->netdev = netdev_get ( netdev );
-	memcpy ( aoe->target, ethernet_protocol.ll_broadcast,
-		 sizeof ( aoe->target ) );
+	memcpy ( aoe->target, netdev->ll_broadcast, sizeof ( aoe->target ) );
 	aoe->tag = AOE_TAG_MAGIC;
 	aoe->timer.expired = aoe_timer_expired;
 

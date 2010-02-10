@@ -21,15 +21,17 @@
 #define FILENAME_MAX_LG2 8
 #define FILENAME_MAX     (1 << FILENAME_MAX_LG2)
 
-#define BLOCK_SIZE(fs)   (1 << fs->block_shift)
-#define SECTOR_SIZE(fs)  (1 << fs->sector_shift)
+#define BLOCK_SIZE(fs)   ((fs)->block_size)
+#define BLOCK_SHIFT(fs)	 ((fs)->block_shift)
+#define SECTOR_SIZE(fs)  ((fs)->sector_size)
+#define SECTOR_SHIFT(fs) ((fs)->sector_shift)
 
 struct fs_info {
     const struct fs_ops *fs_ops;
     struct device *fs_dev;
     void *fs_info;             /* The fs-specific information */
-    int sector_shift;
-    int block_shift;
+    int sector_shift, sector_size;
+    int block_shift, block_size;
 };
 
 extern struct fs_info *this_fs;
@@ -58,10 +60,10 @@ struct fs_ops {
     void     (*close_file)(struct file *);
     void     (*mangle_name)(char *, const char *);
     char *   (*unmangle_name)(char *, const char *);
-    int      (*load_config)();
+    int      (*load_config)(void);
 
-    struct inode * (*iget_root)(void);
-    struct inode * (*iget_current)(void);
+    struct inode * (*iget_root)(struct fs_info *);
+    struct inode * (*iget_current)(struct fs_info *);
     struct inode * (*iget)(char *, struct inode *);
     char * (*follow_symlink)(struct inode *, const char *);
 
@@ -75,6 +77,7 @@ enum inode_mode {I_FILE, I_DIR, I_SYMLINK};
  * The inode structure, including the detail file information 
  */
 struct inode {
+    struct fs_info *fs;	 /* The filesystem this inode is associated with */
     int          mode;   /* FILE , DIR or SYMLINK */
     uint32_t     size;
     uint32_t     ino;    /* Inode number */
@@ -83,9 +86,9 @@ struct inode {
     uint32_t     ctime;  /* Create time */
     uint32_t     dtime;  /* Delete time */
     int          blocks; /* How many blocks the file take */
-    uint32_t *   data;   /* The block address array where the file stored */
     uint32_t     flags;
     uint32_t     file_acl;
+    char         pvt[0]; /* Private filesystem data */
 };
 
 extern struct inode *this_inode;
@@ -142,13 +145,13 @@ static inline bool not_whitespace(char c)
   return (unsigned char)c > ' ';
 }
 
+/*
+ * Inode allocator/deallocator
+ */
+struct inode *alloc_inode(struct fs_info *fs, uint32_t ino, size_t data);
 static inline void free_inode(struct inode * inode)
 {
-    if (inode) {
-	if (inode->data)
-	    free(inode->data);
-	free(inode);
-    }
+    free(inode);
 }
 
 static inline void malloc_error(char *obj)

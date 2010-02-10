@@ -129,6 +129,7 @@ struct boot_sector {
 	    uint32_t RootClus;
 	    uint16_t FSInfo;
 	    uint16_t BkBootSec;
+	    uint8_t Reserved0[12];
 	    uint8_t DriveNumber;
 	    uint8_t Reserved1;
 	    uint8_t BootSignature;

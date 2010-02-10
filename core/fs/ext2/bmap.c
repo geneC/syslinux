@@ -51,7 +51,7 @@ static uint64_t bmap_extent(struct fs_info *fs,
     int i;
     block_t start;
     
-    leaf = ext4_find_leaf(fs, (struct ext4_extent_header *)inode->data, block);
+    leaf = ext4_find_leaf(fs, (struct ext4_extent_header *)inode->pvt, block);
     if (!leaf) {
 	printf("ERROR, extent leaf not found\n");
 	return 0;
@@ -95,12 +95,12 @@ static unsigned int bmap_traditional(struct fs_info *fs,
     
     /* direct blocks */
     if (block < direct_blocks)
-	return inode->data[block];
+	return ((uint32_t *)inode->pvt)[block];
     
     /* indirect blocks */
     block -= direct_blocks;
     if (block < indirect_blocks) {
-	block_t ind_block = inode->data[EXT2_IND_BLOCK];
+	block_t ind_block = ((uint32_t *)inode->pvt)[EXT2_IND_BLOCK];
         
 	if (!ind_block)
 	    return 0;
@@ -113,7 +113,7 @@ static unsigned int bmap_traditional(struct fs_info *fs,
     /* double indirect blocks */
     block -= indirect_blocks;
     if (block < double_blocks) {
-	block_t dou_block = inode->data[EXT2_DIND_BLOCK];
+	block_t dou_block = ((uint32_t *)inode->pvt)[EXT2_DIND_BLOCK];
         
 	if (!dou_block)
 	    return 0;                
@@ -131,7 +131,7 @@ static unsigned int bmap_traditional(struct fs_info *fs,
     /* triple indirect block */
     block -= double_blocks;
     if (block < triple_blocks) {
-	block_t tri_block = inode->data[EXT2_TIND_BLOCK];
+	block_t tri_block = ((uint32_t *)inode->pvt)[EXT2_TIND_BLOCK];
         
 	if (!tri_block)
 	    return 0;

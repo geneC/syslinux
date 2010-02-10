@@ -74,7 +74,7 @@ struct fat_bpb {
                         uint8_t  fstype[8];
                 } __attribute__ ((packed)) fat32;
 
-        } __attribute__ ((packed)) u;
+        } __attribute__ ((packed));
 
         uint8_t pad[422];  /* padding to 512 Bytes (one sector) */
 
@@ -86,8 +86,10 @@ struct fat_bpb {
 struct fat_sb_info {
 	sector_t fat;             /* The FAT region */
 	sector_t root;            /* The root dir region */
-	int      root_size;       /* The root dir size in sectores */
 	sector_t data;            /* The data region */
+
+	uint32_t clusters;	  /* Total number of clusters */
+	int      root_size;       /* The root dir size in sectores */
 	
 	int      clust_shift;      /* based on sectors */
 	int      clust_byte_shift; /* based on bytes   */
@@ -100,7 +102,7 @@ struct fat_sb_info {
 struct fat_dir_entry {
         char     name[11];
         uint8_t  attr;
-        uint8_t  nt_reserved;
+        uint8_t  lcase;
         uint8_t  c_time_tenth;
         uint16_t c_time;
         uint16_t c_date;
@@ -112,7 +114,8 @@ struct fat_dir_entry {
         uint32_t file_size;
 } __attribute__ ((packed));
 
-
+#define LCASE_BASE 8       /* basename is lower case */
+#define LCASE_EXT  16      /* extension is lower case */
 
 struct fat_long_name_entry {
         uint8_t  id;
@@ -133,13 +136,21 @@ static inline struct fat_sb_info *FAT_SB(struct fs_info *fs)
 /* 
  * Count the root dir size in sectors
  */
-static inline int root_dir_size(struct fat_bpb *fat)
+static inline int root_dir_size(struct fs_info *fs, struct fat_bpb *fat)
 {
-        int sector_size = 1 << SECTOR_SHIFT;
-	
-	return (fat->bxRootDirEnts + sector_size / sizeof(struct fat_dir_entry)
-		- 1) >> (SECTOR_SHIFT - 5);
+    return (fat->bxRootDirEnts + SECTOR_SIZE(fs)/32 - 1)
+	>> (SECTOR_SHIFT(fs) - 5);
 }
 
+/*
+ * FAT private inode information
+ */
+struct fat_pvt_inode {
+    sector_t start;		/* Starting sector */
+    sector_t offset;		/* Current sector offset */
+    sector_t here;		/* Sector corresponding to offset */
+};
+
+#define PVT(i) ((struct fat_pvt_inode *)((i)->pvt))
 
 #endif /* fat_fs.h */

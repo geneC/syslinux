@@ -13,6 +13,19 @@ struct inode *this_inode = NULL;
 struct file files[MAX_OPEN];
 
 /*
+ * Get a new inode structure
+ */
+struct inode *alloc_inode(struct fs_info *fs, uint32_t ino, size_t data)
+{
+    struct inode *inode = zalloc(sizeof(struct inode) + data);
+    if (inode) {
+	inode->fs = fs;
+	inode->ino = ino;
+    }
+    return inode;
+}
+
+/*
  * Get an empty file structure
  */
 static struct file *alloc_file(void)
@@ -152,7 +165,7 @@ void searchdir(com32sys_t *regs)
 
     /* else, try the generic-path-lookup method */
     if (*name == '/') {
-	inode = this_fs->fs_ops->iget_root();
+	inode = this_fs->fs_ops->iget_root(this_fs);
 	while(*name == '/')
 	    name++;
     } else {
@@ -162,37 +175,40 @@ void searchdir(com32sys_t *regs)
     
     while (*name) {
 	p = part;
-	while(*name && *name != '/')
+	while (*name && *name != '/')
 	    *p++ = *name++;
 	*p = '\0';
-	inode = this_fs->fs_ops->iget(part, parent);
-	if (!inode)
-	    goto err;
-	if (inode->mode == I_SYMLINK) {
-	    if (!this_fs->fs_ops->follow_symlink || 
-		--symlink_count == 0               ||      /* limit check */
-		inode->size >= BLOCK_SIZE(this_fs))
+	if (strcmp(part, ".")) {
+	    inode = this_fs->fs_ops->iget(part, parent);
+	    if (!inode)
 		goto err;
-	    name = this_fs->fs_ops->follow_symlink(inode, name);
-	    free_inode(inode);
-	    continue;
-	}
+	    if (inode->mode == I_SYMLINK) {
+		if (!this_fs->fs_ops->follow_symlink || 
+		    --symlink_count == 0             ||      /* limit check */
+		    inode->size >= BLOCK_SIZE(this_fs))
+		    goto err;
+		name = this_fs->fs_ops->follow_symlink(inode, name);
+		free_inode(inode);
+		continue;
+	    }
 
-	/* 
-	 * For the relative path searching used in FAT and ISO fs.
-	 */
-	if ((this_fs->fs_ops->fs_flags & FS_THISIND) && (this_inode != parent)){
+	    /* 
+	     * For the relative path searching used in FAT and ISO fs.
+	     */
+	    if ((this_fs->fs_ops->fs_flags & FS_THISIND) &&
+		(this_inode != parent)){
 		if (this_inode)
 		    free_inode(this_inode);
 		this_inode = parent;
+	    }
+	    
+	    if (parent != this_inode)
+		free_inode(parent);
+	    parent = inode;
 	}
-	
-	if (parent != this_inode)
-	    free_inode(parent);
-	parent = inode;
-	if (! *name)
+	if (!*name)
 	    break;
-	while(*name == '/')
+	while (*name == '/')
 	    name++;
     }
     
@@ -280,5 +296,5 @@ void fs_init(com32sys_t *regs)
         cache_init(fs.fs_dev, blk_shift);
 
     if (fs.fs_ops->iget_current)
-	this_inode = fs.fs_ops->iget_current();
+	this_inode = fs.fs_ops->iget_current(&fs);
 }

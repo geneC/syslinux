@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <string.h>
 #include <errno.h>
 #include <gpxe/job.h>
@@ -39,6 +41,14 @@ void job_kill ( struct job_interface *job ) {
 
 	job_unplug ( job );
 	dest->op->kill ( dest );
+	job_put ( dest );
+}
+
+void job_progress ( struct job_interface *job,
+		    struct job_progress *progress ) {
+	struct job_interface *dest = job_get_dest ( job );
+
+	dest->op->progress ( dest, progress );
 	job_put ( dest );
 }
 

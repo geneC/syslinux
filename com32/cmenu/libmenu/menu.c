@@ -40,7 +40,7 @@ int isvisible(pt_menu menu, int first, int curr);
 // This is same as inputc except it honors the ontimeout handler
 // and calls it when needed. For the callee, there is no difference
 // as this will not return unless a key has been pressed.
-static int getch()
+static int getch(void)
 {
     t_timeout_handler th;
     int key;
@@ -615,7 +615,7 @@ uchar find_menu_num(const char *name)
 // Run through all items and if they are submenus
 // with a non-trivial "action" and trivial submenunum
 // replace submenunum with the menu with name "action"
-void fix_submenus()
+void fix_submenus(void)
 {
     int i, j;
     pt_menu m;
@@ -874,7 +874,7 @@ void reg_ontimeout(t_timeout_handler handler, unsigned int numsteps,
     ms->tm_stepsize = stepsize;
 }
 
-void unreg_ontimeout()
+void unreg_ontimeout(void)
 {
     ms->ontimeout = NULL;
 }
@@ -889,7 +889,7 @@ void reg_ontotaltimeout(t_timeout_handler handler,
     }
 }
 
-void unreg_ontotaltimeout()
+void unreg_ontotaltimeout(void)
 {
     ms->ontotaltimeout = NULL;
 }
@@ -1084,7 +1084,7 @@ void set_menu_pos(uchar row, uchar col) // Set the position of this menu.
     m->col = col;
 }
 
-pt_menuitem add_sep()       // Add a separator to current menu
+pt_menuitem add_sep(void)       // Add a separator to current menu
 {
     pt_menuitem mi;
     pt_menu m;
