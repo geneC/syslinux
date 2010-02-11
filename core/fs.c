@@ -5,12 +5,17 @@
 #include <cache.h>
 
 /* The currently mounted filesystem */
-struct fs_info *this_fs = NULL;
+struct fs_info *this_fs = NULL;		/* Root filesystem */
 static struct fs_info fs;
-struct inode *this_inode = NULL;
+static struct inode *this_inode = NULL;	/* Current working directory */
 
 /* Actual file structures (we don't have malloc yet...) */
 struct file files[MAX_OPEN];
+
+/*
+ * Set to FS_THISIND during the execution of load_config.
+ */
+enum fs_flags is_load_config = 0;
 
 /*
  * Get a new inode structure
@@ -72,7 +77,10 @@ inline struct file *handle_to_file(uint16_t handle)
 void load_config(void)
 {
     int err;
+
+    is_load_config = FS_THISIND;
     err = this_fs->fs_ops->load_config();
+    is_load_config = 0;
 
 #if 0
     printf("Loading config file %s\n", err ? "failed" : "successed");
@@ -195,7 +203,7 @@ void searchdir(com32sys_t *regs)
 	    /* 
 	     * For the relative path searching used in FAT and ISO fs.
 	     */
-	    if ((this_fs->fs_ops->fs_flags & FS_THISIND) &&
+	    if ((this_fs->fs_ops->fs_flags & is_load_config) &&
 		(this_inode != parent)){
 		if (this_inode)
 		    free_inode(this_inode);
@@ -297,4 +305,6 @@ void fs_init(com32sys_t *regs)
 
     if (fs.fs_ops->iget_current)
 	this_inode = fs.fs_ops->iget_current(&fs);
+    else
+	this_inode = fs.fs_ops->iget_root(&fs); /* Will be set later */
 }

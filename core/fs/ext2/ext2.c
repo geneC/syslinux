@@ -303,13 +303,6 @@ static struct inode *ext2_iget_root(struct fs_info *fs)
     return ext2_iget_by_inr(fs, EXT2_ROOT_INO);
 }
 
-static struct inode *ext2_iget_current(struct fs_info *fs)
-{
-    static int CurrentDir = 2;
-    
-    return ext2_iget_by_inr(fs, CurrentDir);
-}
-
 static struct inode *ext2_iget(char *dname, struct inode *parent)
 {
         struct ext2_dir_entry *de;
@@ -323,7 +316,7 @@ static struct inode *ext2_iget(char *dname, struct inode *parent)
 }
 
 
-static char * ext2_follow_symlink(struct inode *inode, const char *name_left)
+static char *ext2_follow_symlink(struct inode *inode, const char *name_left)
 {
     struct fs_info *fs = inode->fs;
     int sec_per_block = 1 << (fs->block_shift - fs->sector_shift);
@@ -399,10 +392,8 @@ static int ext2_load_config(void)
     char *config_name = "extlinux.conf";
     com32sys_t regs;
     
-    strcpy(ConfigName, config_name);
-    *(uint32_t *)CurrentDirName = 0x00002f2e;  
-    
     memset(&regs, 0, sizeof regs);
+    snprintf(ConfigName, FILENAME_MAX, "%s/extlinux.conf", CurrentDirName);
     regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
     call16(core_open, &regs, &regs);
 
@@ -460,7 +451,7 @@ static int ext2_fs_init(struct fs_info *fs)
 
 const struct fs_ops ext2_fs_ops = {
     .fs_name       = "ext2",
-    .fs_flags      = FS_USEMEM,
+    .fs_flags      = FS_THISIND | FS_USEMEM,
     .fs_init       = ext2_fs_init,
     .searchdir     = NULL,
     .getfssec      = ext2_getfssec,
@@ -469,7 +460,7 @@ const struct fs_ops ext2_fs_ops = {
     .unmangle_name = generic_unmangle_name,
     .load_config   = ext2_load_config,
     .iget_root     = ext2_iget_root,
-    .iget_current  = ext2_iget_current,
+    .iget_current  = NULL,
     .iget          = ext2_iget,
     .follow_symlink = ext2_follow_symlink,
     .readdir       = ext2_readdir

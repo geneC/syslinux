@@ -759,7 +759,6 @@ static int vfat_load_config(void)
     if (*CurrentDirName) { /* installed by extlinux not syslinux */
 	sprintf(ConfigName, "%s/extlinux.conf", CurrentDirName);
 	call16(core_open, &regs, &regs);
-	strcpy(ConfigName, "extlinux.conf");
 	return regs.eflags.l & EFLAGS_ZF;
     }
     /* installed by syslinux */
