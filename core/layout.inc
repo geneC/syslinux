@@ -26,6 +26,16 @@ BSS_START	equ 0800h
 ; Text starts at the load address of 07C00h.
 TEXT_START	equ 7C00h
 
+; Stack layout
+		global STACK_LEN, STACK_TOP, STACK_BASE
+STACK_LEN	equ 4096
+%if IS_PXELINUX
+STACK_TOP	equ 7000h
+%else
+STACK_TOP	equ 7c00h
+%endif
+STACK_BASE	equ STACK_TOP - STACK_LEN
+
 ; The secondary BSS section, above the text; we really wish we could
 ; just make it follow .bcopy32 or hang off the end,
 ; but it doesn't seem to work that way.

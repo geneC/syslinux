@@ -212,12 +212,15 @@ pxe_unload_stack_pkt_len	equ $-pxe_unload_stack_pkt
 packet_buf	resb 2048		; Transfer packet
 packet_buf_size	equ $-packet_buf
 
+;
+; Location of the stack.  There are apparently some AMI BIOSes in the
+; field which put their BEV stack somewhere below 7C00h (and therefore
+; don't handle localboot properly), so avoid that immediate memory
+; region.
+;
+StackBuf	equ STACK_TOP-44	; Base of stack if we use our own
+
 		section .text
-		;
-		; PXELINUX needs more BSS than the other derivatives;
-		; therefore we relocate it from 7C00h on startup.
-		;
-StackBuf	equ $-44		; Base of stack if we use our own
 
 ;
 ; Primary entry point.
@@ -254,6 +257,12 @@ _start1:
 		xor ax,ax
 		mov ds,ax
 		mov es,ax
+
+		; Clobber the stack segment, to test for specific pathologies
+		mov di,STACK_BASE
+		mov cx,STACK_LEN >> 1
+		mov ax,0xf4f4
+		rep stosw
 
 		; That is all pushed onto the PXE stack.  Save the pointer
 		; to it and switch to an internal stack.
