@@ -255,11 +255,20 @@ _start1:
 		mov ds,ax
 		mov es,ax
 
+%if 0 ; debugging code only... not intended for production use
 		; Clobber the stack segment, to test for specific pathologies
 		mov di,STACK_BASE
 		mov cx,STACK_LEN >> 1
 		mov ax,0xf4f4
 		rep stosw
+
+		; Clobber the tail of the 64K segment, too
+		extern __bss1_end
+		mov di,__bss1_end
+		sub cx,di		; CX = 0 previously
+		shr cx,1
+		rep stosw
+%endif
 
 		; That is all pushed onto the PXE stack.  Save the pointer
 		; to it and switch to an internal stack.
@@ -2258,11 +2267,11 @@ do_reset_pxe:
 		TRACER 'F'
 
 ;
-; Look to see if we are on an EFI CSM system.  Some EFI
-; CSM systems put the BEV stack in low memory, which means
-; a return to the PXE stack will crash the system.  However,
-; INT 18h works reliably, so in that case hack the stack and
-; point the "return address" to an INT 18h instruction.
+; Look to see if we are on an EFI CSM system.  Some EFI CSM systems
+; (AMI CSM) put the BEV stack in low memory (just below 64K), which
+; means a return to the PXE stack will crash the system.  However, INT
+; 18h works reliably, so in that case hack the stack and point the
+; "return address" to an INT 18h instruction.
 ;
 ; Hack the stack instead of the much simpler "just invoke INT 18h
 ; if we want to reset", so that chainloading other NBPs will work.
