@@ -199,7 +199,7 @@ Files		resb MAX_OPEN*open_file_t_size
 ;; CD-ROM sector (2K) of the file, so the number one priority is actually
 ;; loading the rest.
 ;;
-StackBuf	equ $-44		; 44 bytes needed for
+StackBuf	equ STACK_TOP-44	; 44 bytes needed for
 					; the bootsector chainloading
 					; code!
 OrigESDI	equ StackBuf-4          ; The high dword on the stack

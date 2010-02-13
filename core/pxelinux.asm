@@ -213,10 +213,7 @@ packet_buf	resb 2048		; Transfer packet
 packet_buf_size	equ $-packet_buf
 
 ;
-; Location of the stack.  There are apparently some AMI BIOSes in the
-; field which put their BEV stack somewhere below 7C00h (and therefore
-; don't handle localboot properly), so avoid that immediate memory
-; region.
+; Location of the stack.
 ;
 StackBuf	equ STACK_TOP-44	; Base of stack if we use our own
 
