@@ -984,7 +984,7 @@ int main(int argc, char *argv[])
 	 */
 	if (partinfo && opt.sethidden) {
 	    *((uint32_t *)(char *)data[ndata].data + 28) =
-		part_info->start_lba;
+		partinfo->start_lba;
 	}
 
 	ndata++;
