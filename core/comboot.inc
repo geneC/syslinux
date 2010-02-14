@@ -583,6 +583,8 @@ comapi_derinfo:
 		mov P_SI,ax
 		mov ax,[InitStack+2]
 		mov P_FS,ax
+		mov eax,[MyIP]
+		mov P_ECX,eax
 %else
 		; Physical medium...
 

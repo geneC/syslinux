@@ -20,7 +20,6 @@ OUTPUT_ARCH(i386)
 EXTERN(_start)
 ENTRY(_start)
 
-STACK16_LEN =  4096;
 STACK32_LEN = 65536;
 
 SECTIONS
@@ -81,13 +80,10 @@ SECTIONS
 	__gentextnr_len = __gentextnr_end - __gentextnr_start;
 	__gentextnr_dwords = (__gentextnr_len + 3) >> 2;
 
-	/* 16-bit stack */
-
-	STACK16_BASE = 0x7c00 - STACK16_LEN;
-	. = STACK16_BASE;
-	.stack16 : AT(STACK16_BASE) {
+	. = STACK_BASE;
+	.stack16 : AT(STACK_BASE) {
 		__stack16_start = .;
-		. += STACK16_LEN;
+		. += STACK_LEN;
 		__stack16_end = .;
 	}
 	__stack16_len = __stack16_end - __stack16_start;

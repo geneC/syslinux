@@ -29,12 +29,12 @@ DriveNumber	resb 1
 ; "close" to the initial stack pointer offset, in order to
 ; reduce the code size...
 ;
-StackBuf	equ $-44-32		; Start the stack here (grow down - 4K)
+StackBuf	equ STACK_TOP-44-32	; Start the stack here (grow down - 4K)
 PartInfo	equ StackBuf		; Saved partition table entry
 FloppyTable	equ PartInfo+16		; Floppy info table (must follow PartInfo)
 OrigFDCTabPtr	equ StackBuf-8		; The 2nd high dword on the stack
 OrigESDI	equ StackBuf-4		; The high dword on the stack
-StackTop	equ OrigFDCTabPtr	; The start of the canonical stack
+StackHome	equ OrigFDCTabPtr	; The start of the canonical stack
 
 ;
 ; Primary entry point.  Tempting as though it may be, we can't put the

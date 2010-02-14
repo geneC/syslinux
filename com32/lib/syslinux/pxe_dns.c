@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2010 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -26,19 +26,45 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * syslinux/pxe.h
+ * pxe_dns.c
  *
- * PXE definitions and function prototypes for SYSLINUX
+ * Resolve a hostname via DNS
  */
 
-#ifndef _SYSLINUX_PXE_H
-#define _SYSLINUX_PXE_H
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <com32.h>
 
-#include <syslinux/pxe_api.h>
+#include <syslinux/pxe.h>
 
-/* SYSLINUX-defined PXE utility functions */
-int pxe_get_cached_info(int level, void **buf, size_t *len);
-int pxe_get_nic_type(t_PXENV_UNDI_GET_NIC_TYPE * gnt);
-uint32_t pxe_dns(const char *hostname);
+/* Returns the status code from PXE (0 on success),
+   or -1 on invocation failure */
+uint32_t pxe_dns(const char *hostname)
+{
+    com32sys_t regs;
+    union {
+	unsigned char b[4];
+	uint32_t ip;
+    } q;
 
-#endif /* _SYSLINUX_PXE_H */
+    /* Is this a dot-quad? */
+    if (sscanf(hostname, "%hhu.%hhu.%hhu.%hhu",
+	       &q.b[0], &q.b[1], &q.b[2], &q.b[3]) == 4)
+	return q.ip;
+
+    memset(&regs, 0, sizeof regs);
+    regs.eax.w[0] = 0x0010;
+    regs.es = SEG(__com32.cs_bounce);
+    regs.ebx.w[0] = OFFS(__com32.cs_bounce);
+
+    strcpy((char *)__com32.cs_bounce, hostname);
+
+    __intcall(0x22, &regs, &regs);
+
+    if (regs.eflags.l & EFLAGS_CF)
+	return 0;
+
+    return regs.eax.l;
+}

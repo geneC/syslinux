@@ -30,14 +30,17 @@
 		xor %1,%1
 		mov ds,%1
 		mov es,%1
-%if IS_PXELINUX
 		lss esp,[BaseStack]
-%else
-		mov ss,%1
-		mov esp,StackTop
-%endif
 		sti
 		cld
 %endmacro
+
+		section .data16
+		alignz 4
+		global BaseStack
+BaseStack	dd StackHome		; ESP of the "home" stack pointer
+		dw 0			; SS of the "home" stack pointer
+
+		section .text16
 
 %endif ; _STACK_INC
