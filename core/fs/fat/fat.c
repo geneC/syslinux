@@ -741,45 +741,33 @@ got:
 /* Load the config file, return 1 if failed, or 0 */
 static int vfat_load_config(void)
 {
-    const char * const syslinux_cfg[] = {
-	"/boot/syslinux/syslinux.cfg",
-	"/syslinux/syslinux.cfg",
-	"/syslinux.cfg"
+    const char *search_directories[] = {
+	"/boot/syslinux", 
+	"/syslinux",
+	"/",
+	NULL
     };
     com32sys_t regs;
-    char *p;
-    int i = 0;
+    int i;
 
-    /*
-     * we use the ConfigName to pass the config path because
-     * it is under the address 0xffff
-     */
-    memset(&regs, 0, sizeof regs);
-    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
-    if (*CurrentDirName) { /* installed by extlinux not syslinux */
-	sprintf(ConfigName, "%s/extlinux.conf", CurrentDirName);
-	call16(core_open, &regs, &regs);
-	return regs.eflags.l & EFLAGS_ZF;
+    /* If installed by extlinux, try the extlinux filename */
+    if (*CurrentDirName && !generic_load_config())
+	return 0;
+
+    for (i = 0; search_directories[i]; i++) {
+	    memset(&regs, 0, sizeof regs);
+	    snprintf(ConfigName, FILENAME_MAX, "%s/syslinux.cfg",
+		     search_directories[i]);
+	    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
+	    call16(core_open, &regs, &regs);
+	    if (!(regs.eflags.l & EFLAGS_ZF))
+		break;
     }
-    /* installed by syslinux */
-    for (; i < 3; i++) {
-        strcpy(ConfigName, syslinux_cfg[i]);
-        call16(core_open, &regs, &regs);
+    if (!search_directories[i])
+	return -1;
 
-        /* if zf flag set, then failed; try another */
-        if (! (regs.eflags.l & EFLAGS_ZF))
-            break;
-    }
-    if (i == 3) {
-        printf("no config file found\n");
-        return 1;  /* no config file */
-    }
-
-    strcpy(ConfigName, "syslinux.cfg");
-    strcpy(CurrentDirName, syslinux_cfg[i]);
-    p = strrchr(CurrentDirName, '/');
-    *(p + 1) = '\0';        /* In case we met '/syslinux.cfg' */
-
+    /* Set the current working directory */
+    chdir(search_directories[i]);
     return 0;
 }
 
@@ -864,6 +852,5 @@ const struct fs_ops vfat_fs_ops = {
     .load_config   = vfat_load_config,
     .readdir       = vfat_readdir,
     .iget_root     = vfat_iget_root,
-    .iget_current  = NULL,
     .iget          = vfat_iget,
 };

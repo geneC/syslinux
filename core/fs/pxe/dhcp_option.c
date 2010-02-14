@@ -130,7 +130,7 @@ static void pxelinux_configfile(void *data, int opt_len)
     ConfigName[opt_len] = 0;
 }
 
-static void pxelinux_pathprefix(void *data,int opt_len)
+static void pxelinux_pathprefix(void *data, int opt_len)
 {
     DHCPMagic |= 4;
     strncpy(path_prefix, data, opt_len);

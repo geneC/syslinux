@@ -1,21 +1,15 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
-#include <fs.h>
-#include <cache.h>
+#include "fs.h"
+#include "cache.h"
 
 /* The currently mounted filesystem */
 struct fs_info *this_fs = NULL;		/* Root filesystem */
-static struct fs_info fs;
 static struct inode *this_inode = NULL;	/* Current working directory */
 
 /* Actual file structures (we don't have malloc yet...) */
 struct file files[MAX_OPEN];
-
-/*
- * Set to FS_THISIND during the execution of load_config.
- */
-enum fs_flags is_load_config = 0;
 
 /*
  * Get a new inode structure
@@ -65,26 +59,15 @@ void _close_file(struct file *file)
 /*
  * Convert between a 16-bit file handle and a file structure
  */
-inline uint16_t file_to_handle(struct file *file)
-{
-    return file ? (file - files)+1 : 0;
-}
-inline struct file *handle_to_file(uint16_t handle)
-{
-    return handle ? &files[handle-1] : NULL;
-}
 
 void load_config(void)
 {
     int err;
 
-    is_load_config = FS_THISIND;
     err = this_fs->fs_ops->load_config();
-    is_load_config = 0;
 
-#if 0
-    printf("Loading config file %s\n", err ? "failed" : "successed");
-#endif
+    if (err)
+	printf("ERROR: No configuration file found\n");
 }
 
 void mangle_name(com32sys_t *regs)
@@ -106,7 +89,6 @@ void unmangle_name(com32sys_t *regs)
     /* Update the di register to point to the last null char */
     regs->edi.w[0] = OFFS_WRT(dst, regs->es);
 }
-
 
 void getfssec(com32sys_t *regs)
 {
@@ -137,16 +119,32 @@ void getfssec(com32sys_t *regs)
     regs->ecx.l = bytes_read;
 }
 
-
-void searchdir(com32sys_t *regs)
+void pm_searchdir(com32sys_t *regs)
 {
     char *name = MK_PTR(regs->ds, regs->edi.w[0]);
+    int rv;
+
+    rv = searchdir(name);
+    if (rv < 0) {
+	regs->esi.w[0]  = 0;
+	regs->eax.l     = 0;
+	regs->eflags.l |= EFLAGS_ZF;
+    } else {
+	regs->esi.w[0]  = rv;
+	regs->eax.l     = handle_to_file(rv)->file_len;
+	regs->eflags.l &= ~EFLAGS_ZF;
+    }
+}
+
+int searchdir(const char *name)
+{
     struct inode *inode;
     struct inode *parent;
     struct file *file;
     char part[256];
     char *p;
     int symlink_count = 6;
+    bool got_parent;
     
 #if 0
     printf("filename: %s\n", name);
@@ -160,26 +158,22 @@ void searchdir(com32sys_t *regs)
     if (file->fs->fs_ops->searchdir) {
 	file->fs->fs_ops->searchdir(name, file);
 	
-	if (file->open_file) {
-	    regs->esi.w[0]  = file_to_handle(file);
-	    regs->eax.l     = file->file_len;
-	    regs->eflags.l &= ~EFLAGS_ZF;
-	    return;
-	}
-
-	goto err;
+	if (file->open_file)
+	    return file_to_handle(file);
+	else
+	    goto err;
     }
-
 
     /* else, try the generic-path-lookup method */
     if (*name == '/') {
 	inode = this_fs->fs_ops->iget_root(this_fs);
-	while(*name == '/')
+	while (*name == '/')
 	    name++;
     } else {
-	inode = this_inode;
+	inode = this_fs->cwd;
     }
     parent = inode;
+    got_parent = false;
     
     while (*name) {
 	p = part;
@@ -199,20 +193,10 @@ void searchdir(com32sys_t *regs)
 		free_inode(inode);
 		continue;
 	    }
-
-	    /* 
-	     * For the relative path searching used in FAT and ISO fs.
-	     */
-	    if ((this_fs->fs_ops->fs_flags & is_load_config) &&
-		(this_inode != parent)){
-		if (this_inode)
-		    free_inode(this_inode);
-		this_inode = parent;
-	    }
-	    
-	    if (parent != this_inode)
+	    if (got_parent)
 		free_inode(parent);
 	    parent = inode;
+	    got_parent = true;
 	}
 	if (!*name)
 	    break;
@@ -220,20 +204,19 @@ void searchdir(com32sys_t *regs)
 	    name++;
     }
     
+    if (got_parent)
+	free_inode(parent);
+
     file->inode  = inode;
     file->offset = 0;
+    file->file_len  = inode->size;
     
-    regs->esi.w[0]  = file_to_handle(file);
-    regs->eax.l     = inode->size;
-    regs->eflags.l &= ~EFLAGS_ZF;
-    return;
+    return file_to_handle(file);
     
 err:
     _close_file(file);
-err_no_close:    
-    regs->esi.w[0]  = 0;
-    regs->eax.l     = 0;
-    regs->eflags.l |= EFLAGS_ZF;
+err_no_close:
+    return -1;
 }
 
 void close_file(com32sys_t *regs)
@@ -259,6 +242,7 @@ void close_file(com32sys_t *regs)
  */
 void fs_init(com32sys_t *regs)
 {
+    static struct fs_info fs;	/* The actual filesystem buffer */
     uint8_t disk_devno = regs->edx.b[0];
     uint8_t disk_cdrom = regs->edx.b[1];
     sector_t disk_offset = regs->ecx.l | ((sector_t)regs->ebx.l << 32);
@@ -271,6 +255,9 @@ void fs_init(com32sys_t *regs)
     
     /* Initialize malloc() */
     mem_init();
+    
+    /* Default name for the root directory */
+    fs.cwd_name[0] = '/';
 
     while ((blk_shift < 0) && *ops) {
 	/* set up the fs stucture */
@@ -303,8 +290,7 @@ void fs_init(com32sys_t *regs)
     if (fs.fs_dev && fs.fs_dev->cache_data)
         cache_init(fs.fs_dev, blk_shift);
 
-    if (fs.fs_ops->iget_current)
-	this_inode = fs.fs_ops->iget_current(&fs);
-    else
-	this_inode = fs.fs_ops->iget_root(&fs); /* Will be set later */
+    /* start out in the root directory */
+    if (fs.fs_ops->iget_root)
+	fs.cwd = fs.fs_ops->iget_root(&fs);
 }

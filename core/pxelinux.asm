@@ -30,7 +30,7 @@
 ;
 my_id		equ pxelinux_id
 NULLFILE	equ 0			; Zero byte == null file name
-NULLOFFSET	equ 4			; Position in which to look
+NULLOFFSET	equ 0			; Position in which to look
 REBOOT_TIME	equ 5*60		; If failure, time until full reset
 %assign HIGHMEM_SLOP 128*1024		; Avoid this much memory near the top
 TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)

@@ -519,7 +519,7 @@ comapi_open:
 		mov di,InitRD
 		pm_call mangle_name
 		pop ds
-		pm_call searchdir
+		pm_call pm_searchdir
 		jz comapi_err
 		mov P_EAX,eax
 		mov P_CX,SECTOR_SIZE
@@ -751,7 +751,7 @@ comapi_runkernel:
 		mov di,KernelName
 		pm_call mangle_name
 		pop ds
-		pm_call searchdir
+		pm_call pm_searchdir
 		jz comapi_err
 
 		; The kernel image was found, so we can load it...

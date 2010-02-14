@@ -597,7 +597,7 @@ loadinitrd:
                 sub di,InitRDCName
                 mov [InitRDCNameLen],di
                 mov di,InitRD
-                pm_call searchdir                  ; Look for it in directory
+                pm_call pm_searchdir                  ; Look for it in directory
 		pop edi
 		jz .notthere
 

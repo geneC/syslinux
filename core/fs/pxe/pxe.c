@@ -19,8 +19,8 @@ char MAC[MAC_MAX + 1];             /* Actual MAC address */
 uint8_t MAC_len;                   /* MAC address len */
 uint8_t MAC_type;                  /* MAC address type */
 
-char boot_file[256];
-char path_prefix[256];
+char boot_file[256];		   /* From DHCP */
+char path_prefix[256];		   /* From DHCP */
 char dot_quad_buf[16];
 
 static struct open_file_t Files[MAX_OPEN];
@@ -229,11 +229,11 @@ static int gendotquad(char *dst, uint32_t ip)
 static const char *parse_dotquad(const char *ip_str, uint32_t *res)
 {
     const char *p = ip_str;
-    int  i  = 0;
     uint8_t part = 0;
-    uint32_t ip  = 0;
+    uint32_t ip = 0;
+    int i;
 
-    for (; i < 4; i++) {
+    for (i = 0; i < 4; i++) {
         while (is_digit(*p)) {
             part = part * 10 + *p - '0';
             p++;
@@ -245,7 +245,7 @@ static const char *parse_dotquad(const char *ip_str, uint32_t *res)
         part = 0;
         p++;
     }
-    p --;
+    p--;
 
     *res = ip;
     return p;
@@ -365,41 +365,49 @@ static int pxe_get_cached_info(int type)
 }
 
 
+/*
+ * Return the type of pathname passed.
+ */
+enum pxe_path_type {
+    PXE_RELATIVE,		/* No :: or URL */
+    PXE_HOMESERVER,		/* Starting with :: */
+    PXE_TFTP,			/* host:: */
+    PXE_URL,			/* Absolute URL syntax */
+};
+
+static enum pxe_path_type pxe_path_type(const char *str)
+{
+    const char *p;
+    
+    p = str;
+    while (1) {
+	switch (*p) {
+	case ':':
+	    if (p[1] == ':') {
+		if (p == str)
+		    return PXE_HOMESERVER;
+		else
+		    return PXE_TFTP;
+	    } else if (p > str && p[1] == '/' && p[2] == '/')
+		return PXE_URL;
+
+	    /* else fall through */
+	case '/': case '!': case '@': case '#': case '%':
+	case '^': case '&': case '*': case '(': case ')':
+	case '[': case ']': case '{': case '}': case '\\':
+	case '|': case '=': case '`': case '~': case '\'':
+	case '\"': case ';': case '>': case '<': case '?':
+	case '\0':
+	    /* Any of these characters terminate the colon search */
+	    return PXE_RELATIVE;
+	default:
+	    break;
+	}
+	p++;
+    }
+}
 
 #if GPXE
-
-/*
- * Return true if and only if the buffer pointed to by
- * url is a URL -- it must contain :// and it must be the
- * first colon.
- */
-static inline bool is_url(const char *url)
-{
-    const char *p = strchr(url, ':');
-
-    return p && p[1] == '/' && p[2] == '/';
-}
-
-
-/*
- * Return CF=0 if and only if the buffer pointed to by DS:SI is a URL
- * (contains ://) *and* the gPXE extensions API is available. No
- * registers modified.
- */
-static bool is_gpxe(const char *url)
-{
-    static bool already;
-
-    if (!is_url(url))
-        return false;
-
-    if (!has_gpxe && !already) {
-	fputs("URL syntax, but gPXE extensions not detected, tring plain TFTP...\n", stdout);
-	already = true;
-    }
-
-    return has_gpxe;
-}
 
 /**
  * Get a fresh packet from a gPXE socket
@@ -446,85 +454,15 @@ static void get_packet_gpxe(struct open_file_t *file)
  * mangle a filename pointed to by _src_ into a buffer pointed
  * to by _dst_; ends on encountering any whitespace.
  *
- * The first four bytes of the manged name is the IP address of
- * the download host, 0 for no host, or -1 for a gPXE URL.
- *
  */
 static void pxe_mangle_name(char *dst, const char *src)
 {
-    const char *p = src;
-    uint32_t ip = server_ip;
-    int i = 0;
+    size_t len = FILENAME_MAX-1;
 
-#if GPXE
-    if (is_url(src)) {
-        ip = -1;
-        goto store;
-    }
-#endif
+    while (len-- && not_whitespace(*src))
+	*dst++ = *src++;
 
-    if (*p == 0 || !(p = strstr(src, "::"))) {
-        /* seems no ip, so make ip to 0 */
-        p = src;
-        ip = 0;
-    } else if (p == src) {
-        /* skip the first two-colon */
-        p += 2;
-    } else {
-        /*
-         * we have a :: prefix of some sort, it could be either a DNS
-         * name or dot-quad IP address. Try the dot-quad first.
-         */
-        p = src;
-        if ((p = parse_dotquad(p, &ip)) && !strncmp(p, "::", 2)) {
-            p += 2;
-        } else {
-            ip = dns_resolv(p);
-            if (ip && (p = strchr(p, ':')) && p[1] == ':') {
-                p += 2;
-            } else {
-                /* no ip, too */
-                p = src;
-                ip = 0;
-            }
-        }
-    }
-
- store:
-    *(uint32_t *)dst = ip;
-    dst += 4;
-    i = FILENAME_MAX - 5;
-
-    do {
-	if (!not_whitespace(*p))
-	    break;
-	*dst++ = *p++;
-    } while (i--);
-
-    i++;
-    while (i) {
-        *dst++ = 0;
-        i--;
-    }
-}
-
-
-/*
- * Does the opposite of mangle_name; converts a DOS-mangled
- * filename to the conventional representation.  This is
- * needed for the BOOT_IMAGE= parameter for the kernel.
- */
-static char *pxe_unmangle_name(char *dst, const char *src)
-{
-    uint32_t ip = *(uint32_t *)src;
-    int ip_len = 0;
-
-    if (ip != 0 && ip != -1) {
-        ip_len = gendotquad(dst, *(uint32_t *)src);
-        dst += ip_len;
-    }
-    src += 4;
-    return stpcpy(dst, src);
+    *dst = '\0';
 }
 
 /*
@@ -551,7 +489,6 @@ static void fill_buffer(struct open_file_t *file)
         return;
     }
 #endif
-
 
     /*
      * Start by ACKing the previous packet; this should cause
@@ -683,21 +620,7 @@ static uint32_t pxe_getfssec(struct file *gfile, char *buf,
     }
 
     return bytes_read;
- }
-
-
-
-/*
- * Fill the packet tail with the tftp informations then retures the lenght
- */
-static int fill_tail(char *dst)
-{
-    static const char tail[] = "octet\0""tsize\0""0\0""blksize\0""1408";
-
-    memcpy(dst, tail, sizeof tail);
-    return sizeof tail;
 }
-
 
 /**
  * Open a TFTP connection to the server
@@ -708,16 +631,20 @@ static int fill_tail(char *dst)
  * @ouT: the lenght of this file, stores in file->file_len
  *
  */
-static void pxe_searchdir(char *filename, struct file *file)
+static void pxe_searchdir(const char *filename, struct file *file)
 {
-    char *buf = packet_buf;
-    char *p = filename;
+    struct fs_info *fs = file->fs;
+    char *buf;
+    const char *np;
+    char *p;
     char *options;
     char *data;
     struct open_file_t *open_file;
     static __lowmem struct s_PXENV_UDP_WRITE udp_write;
     static __lowmem struct s_PXENV_UDP_READ  udp_read;
     static __lowmem struct s_PXENV_FILE_OPEN file_open;
+    static const char rrq_tail[] = "octet\0""tsize\0""0\0""blksize\0""1408";
+    static __lowmem char rrq_packet_buf[2+2*FILENAME_MAX+sizeof rrq_tail];
     const struct tftp_options *tftp_opt;
     int i = 0;
     int err;
@@ -728,68 +655,102 @@ static void pxe_searchdir(char *filename, struct file *file)
     uint16_t tid;
     uint16_t opcode;
     uint16_t blk_num;
-    uint32_t ip;
+    uint32_t ip = 0;
     uint32_t opdata, *opdata_ptr;
+    enum pxe_path_type path_type;
+    char fullpath[2*FILENAME_MAX];
+
+    file->file_len = 0;
+    file->open_file = NULL;
+	
+    buf = rrq_packet_buf;
+    *(uint16_t *)buf = TFTP_RRQ;  /* TFTP opcode */
+    buf += 2;
+
+    path_type = pxe_path_type(filename);
+    if (path_type == PXE_RELATIVE) {
+	snprintf(fullpath, sizeof fullpath, "%s%s", fs->cwd_name, filename);
+	path_type = pxe_path_type(filename = fullpath);
+    }
+
+    switch (path_type) {
+    case PXE_RELATIVE:		/* Really shouldn't happen... */
+    case PXE_URL:
+	buf = stpcpy(buf, filename);
+	ip = server_ip;		/* Default server */
+	break;
+
+    case PXE_HOMESERVER:
+	buf = stpcpy(buf, filename+2);
+	ip = server_ip;
+	break;
+
+    case PXE_TFTP:
+	np = strchr(filename, ':');
+	buf = stpcpy(buf, np+2);
+	if (parse_dotquad(filename, &ip) != np)
+	    ip = dns_resolv(filename);
+	break;
+    }
+
+    if (!ip)
+	return;			/* No server */
+
+    buf++;			/* Point *past* the final NULL */
+    memcpy(buf, rrq_tail, sizeof rrq_tail);
+    buf += sizeof rrq_tail;
 
     open_file = allocate_socket();
-    if (!open_file) {
-	file->file_len = 0;
-	file->open_file = NULL;
-	return;
-    }
+    if (!open_file)
+	return;			/* Allocation failure */
 
     timeout_ptr = TimeoutTable;   /* Reset timeout */
 
  sendreq:
-    udp_write.buffer.offs = OFFS_WRT(buf, 0);
-    udp_write.buffer.seg  = 0;
-    *(uint16_t *)buf = TFTP_RRQ;  /* TFTP opcode */
-    buf += 2;
-
-    ip = *(uint32_t *)p;      /* ip <- server override (if any) */
-    p += 4;
-    if (ip == 0) {
-        /* Have prefix */
-        strcpy(buf, path_prefix);
-        buf += strlen(path_prefix);
-        ip = server_ip;            /* Get the default server */
-    }
-
-    strcpy(buf, p);                /* Copy the filename */
-    buf += strlen(p) + 1;          /* advance the pointer, null char included */
-
 #if GPXE
-    if (is_gpxe(packet_buf + 2)) {
-        file_open.Status        = PXENV_STATUS_BAD_FUNC;
-        file_open.FileName.offs = OFFS(packet_buf + 2);
-        file_open.FileName.seg  = SEG(packet_buf + 2);
-        err = pxe_call(PXENV_FILE_OPEN, &file_open);
-        if (err)
-            goto done;
-
-        open_file->tftp_localport = -1;
-        open_file->tftp_remoteport = file_open.FileHandle;
-	open_file->tftp_filesize = -1;
-        goto done;
+    if (path_type == PXE_URL) {
+	if (has_gpxe) {
+	    file_open.Status        = PXENV_STATUS_BAD_FUNC;
+	    file_open.FileName.offs = OFFS(rrq_packet_buf + 2);
+	    file_open.FileName.seg  = SEG(rrq_packet_buf + 2);
+	    err = pxe_call(PXENV_FILE_OPEN, &file_open);
+	    if (err)
+		goto done;
+	    
+	    open_file->tftp_localport = -1;
+	    open_file->tftp_remoteport = file_open.FileHandle;
+	    open_file->tftp_filesize = -1;
+	    goto done;
+	} else {
+	    static bool already = false;
+	    if (!already) {
+		fputs("URL syntax, but gPXE extensions not detected, "
+		      "tryng plain TFTP...\n", stdout);
+		already = true;
+	    }
+	}
     }
 #endif /* GPXE */
 
     open_file->tftp_remoteip = ip;
     tid = open_file->tftp_localport;   /* TID(local port No) */
+    udp_write.buffer.offs = OFFS(rrq_packet_buf);
+    udp_write.buffer.seg  = SEG(rrq_packet_buf);
     udp_write.ip        = ip;
     udp_write.gw        = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
     udp_write.src_port  = tid;
     udp_write.dst_port  = server_port;
-    buf += fill_tail(buf);
-    udp_write.buffer_size = buf - packet_buf;
+    udp_write.buffer_size = buf - rrq_packet_buf;
     err = pxe_call(PXENV_UDP_WRITE, &udp_write);
-    if (err || udp_write.status != 0)
-        goto failure;            /*
-				  * In fact, the 'failure' target will not do
-				  * a failure thing; it will move on to the
-				  * next timeout, then tries again until
-				  * _real_ time out
-				  */
+    if (err || udp_write.status != 0) {
+	/*
+	 * In fact, the 'failure' target will not do
+	 * a failure thing; it will move on to the
+	 * next timeout, then tries again until
+	 * _real_ time out
+	 */
+        goto failure;
+    }
 
     /*
      * Danger, Will Robinson! We need to support tiemout
@@ -888,7 +849,7 @@ static void pxe_searchdir(char *filename, struct file *file)
 	p = options;
 
 	while (buffersize) {
-	    char *opt = p;
+	    const char *opt = p;
 
 	    /*
 	     * If we find an option which starts with a NUL byte,
@@ -957,8 +918,6 @@ static void pxe_searchdir(char *filename, struct file *file)
 done:
     if (!open_file->tftp_filesize) {
         free_socket(open_file);
-	file->file_len  = 0;
-	file->open_file = NULL;
 	return;
     }
     file->open_file = (void *)open_file;
@@ -987,32 +946,61 @@ static void get_prefix(void)
     char *p;
     char c;
 
-    if (DHCPMagic & 0x04)         /* Did we get a path prefix option */
-        goto got_prefix;
+    if (!(DHCPMagic & 0x04)) {
+	/* No path prefix option, derive from boot file */
 
-    strcpy(path_prefix, boot_file);
-    len = strlen(path_prefix);
-    p = &path_prefix[len - 1];
+	strlcpy(path_prefix, boot_file, sizeof path_prefix);
+	len = strlen(path_prefix);
+	p = &path_prefix[len - 1];
+	
+	while (len--) {
+	    c = *p--;
+	    c |= 0x20;
+	    
+	    c = (c >= '0' && c <= '9') ||
+		(c >= 'a' && c <= 'z') ||
+		(c == '.' || c == '-');
+	    if (!c)
+		break;
+	};
+	
+	if (len < 0)
+	    p --;
+	
+	*(p + 2) = 0;                /* Zero-terminate after delimiter */
+    }
 
-    while (len--) {
-        c = *p--;
-        c |= 0x20;
-
-        c = (c >= '0' && c <= '9') ||
-            (c >= 'a' && c <= 'z') ||
-            (c == '.' || c == '-');
-        if (!c)
-            break;
-    };
-
-    if (len < 0)
-        p --;
-
-    *(p + 2) = 0;                /* Zero-terminate after delimiter */
-
- got_prefix:
     printf("TFTP prefix: %s\n", path_prefix);
-    strcpy(CurrentDirName, path_prefix);
+    chdir(path_prefix);
+}
+
+/*
+ * realpath for PXE
+ */
+static size_t pxe_realpath(struct fs_info *fs, char *dst, const char *src,
+			   size_t bufsize)
+{
+    enum pxe_path_type path_type = pxe_path_type(src);
+
+    return snprintf(dst, bufsize, "%s%s",
+		    path_type == PXE_RELATIVE ? fs->cwd_name : "", src);
+}
+
+/*
+ * chdir for PXE
+ */
+static int pxe_chdir(struct fs_info *fs, const char *src)
+{
+    /* The cwd for PXE is just a text prefix */
+    enum pxe_path_type path_type = pxe_path_type(src);
+
+    if (path_type == PXE_RELATIVE)
+	strlcat(fs->cwd_name, src, sizeof fs->cwd_name);
+    else
+	strlcpy(fs->cwd_name, src, sizeof fs->cwd_name);
+
+    printf("cwd = \"%s\"\n", fs->cwd_name);
+    return 0;
 }
 
  /*
@@ -1501,6 +1489,9 @@ static int pxe_fs_init(struct fs_info *fs)
     /* Initialize network-card-specific idle handling */
     pxe_idle_init();
 
+    /* Our name for the root */
+    strcpy(fs->cwd_name, "::");
+
     return 0;
 }
 
@@ -1645,17 +1636,16 @@ cant_free:
     return;
 }
 
-
-
 const struct fs_ops pxe_fs_ops = {
     .fs_name       = "pxe",
     .fs_flags      = FS_NODEV,
     .fs_init       = pxe_fs_init,
     .searchdir     = pxe_searchdir,
+    .chdir         = pxe_chdir,
+    .realpath      = pxe_realpath,
     .getfssec      = pxe_getfssec,
     .close_file    = pxe_close_file,
     .mangle_name   = pxe_mangle_name,
-    .unmangle_name = pxe_unmangle_name,
+    .unmangle_name = stpcpy,
     .load_config   = pxe_load_config,
-    .iget_current  = NULL
 };

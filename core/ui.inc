@@ -451,7 +451,7 @@ vk_check:
 ; Find the kernel on disk
 ;
 get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/extension
-		mov di,KernelName+4*IS_PXELINUX
+		mov di,KernelName
 		cmp byte [di],' '
 		jbe bad_kernel			; Missing kernel name
 		xor al,al
@@ -463,7 +463,7 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
 		mov bx,exten_table
 .search_loop:	push bx
                 mov di,KernelName		; Search on disk
-                pm_call searchdir
+                pm_call pm_searchdir
 		pop bx
                 jnz kernel_good
 		mov eax,[bx]			; Try a different extension
@@ -628,7 +628,7 @@ kernel_good:
 
 		push di
 		push ax
-		mov di,KernelName+4*IS_PXELINUX
+		mov di,KernelName
 		xor al,al
 		mov cx,FILENAME_MAX
 		repne scasb
@@ -674,11 +674,11 @@ is_unknown_filetype:
 		jmp is_linux_kernel
 
 is_config_file:
-		pusha
+		push si
 		mov si,KernelCName		; Save the config file name, for posterity
 		mov di,ConfigName
-		call strcpy
-		popa
+		pm_call pm_realpath
+		pop si
 		call openfd
 		call reset_config
 		jmp load_config_file

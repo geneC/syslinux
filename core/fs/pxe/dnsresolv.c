@@ -168,6 +168,7 @@ static char *dns_skiplabel(char *label)
  * and returns the ip addr in _ip_ if it exists and can be found.
  * If _ip_ = 0 on exit, the lookup failed. _name_ will be updated
  *
+ * XXX: probably need some caching here.
  */
 uint32_t dns_resolv(const char *name)
 {

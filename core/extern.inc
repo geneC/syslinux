@@ -13,10 +13,13 @@
 	extern hello
 
 	; fs.c
-	extern fs_init, searchdir, getfssec, mangle_name, load_config
+	extern fs_init, pm_searchdir, getfssec, mangle_name, load_config
         extern unmangle_name, close_file
 
-        ; dir.c
+	; chdir.c
+	extern pm_realpath
+
+        ; readdir.c
         extern opendir, readdir, closedir
 %if IS_PXELINUX
 	; pxe.c

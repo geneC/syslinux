@@ -386,21 +386,6 @@ static struct dirent * ext2_readdir(struct file *file)
     return dirent;
 }
 
-/* Load the config file, return 1 if failed, or 0 */
-static int ext2_load_config(void)
-{
-    char *config_name = "extlinux.conf";
-    com32sys_t regs;
-    
-    memset(&regs, 0, sizeof regs);
-    snprintf(ConfigName, FILENAME_MAX, "%s/extlinux.conf", CurrentDirName);
-    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
-    call16(core_open, &regs, &regs);
-
-    return !!(regs.eflags.l & EFLAGS_ZF);
-}
-
-
 /*
  * init. the fs meta data, return the block size bits.
  */
@@ -458,9 +443,8 @@ const struct fs_ops ext2_fs_ops = {
     .close_file    = ext2_close_file,
     .mangle_name   = generic_mangle_name,
     .unmangle_name = generic_unmangle_name,
-    .load_config   = ext2_load_config,
+    .load_config   = generic_load_config,
     .iget_root     = ext2_iget_root,
-    .iget_current  = NULL,
     .iget          = ext2_iget,
     .follow_symlink = ext2_follow_symlink,
     .readdir       = ext2_readdir

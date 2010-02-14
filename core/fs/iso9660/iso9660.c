@@ -382,32 +382,29 @@ static struct dirent *iso_readdir(struct file *file)
 /* Load the config file, return 1 if failed, or 0 */
 static int iso_load_config(void)
 {
-    const char *config_file[] = {
-	"/boot/isolinux/isolinux.cfg", 
-	"/isolinux/isolinux.cfg"
+    const char *search_directories[] = {
+	"/boot/isolinux", 
+	"/isolinux",
+	"/",
+	NULL
     };
     com32sys_t regs;
-    int i = 0;
-    char *p;
+    int i;
     
-    for (; i < 2; i++) {
+    for (i = 0; search_directories[i]; i++) {
 	    memset(&regs, 0, sizeof regs);
-	    strcpy(ConfigName, config_file[i]);
+	    snprintf(ConfigName, FILENAME_MAX, "%s/isolinux.cfg",
+		     search_directories[i]);
 	    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
 	    call16(core_open, &regs, &regs);
 	    if (!(regs.eflags.l & EFLAGS_ZF))
 		break;
     }
-    if (i == 2) {
-	printf("No config file found\n");
-	return 1;
-    }
+    if (!search_directories[i])
+	return -1;
     
-    strcpy(ConfigName, "isolinux.cfg");
-    strcpy(CurrentDirName, config_file[i]);
-    p = strrchr(CurrentDirName, '/');
-    *p = '\0';
-    
+    /* Set the current working directory */
+    chdir(search_directories[i]);
     return 0;
 }
 
@@ -446,7 +443,6 @@ const struct fs_ops iso_fs_ops = {
     .unmangle_name = generic_unmangle_name,
     .load_config   = iso_load_config,
     .iget_root     = iso_iget_root,
-    .iget_current  = NULL,
     .iget          = iso_iget,
     .readdir       = iso_readdir
 };

@@ -148,7 +148,7 @@ pc_filecmd:	push ax				; Function to tailcall
 		call pc_getline
 		mov di,MNameBuf
 		pm_call mangle_name
-		pm_call searchdir
+		pm_call pm_searchdir
 		jnz .ok
 		pop ax				; Drop the successor function
 .ok:		ret				; Tailcall if OK, error return
