@@ -36,11 +36,6 @@ REBOOT_TIME	equ 5*60		; If failure, time until full reset
 TFTP_BLOCKSIZE_LG2 equ 9		; log2(bytes/block)
 TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
 
-;
-; Set to 1 to disable switching to a private stack
-;
-%assign USE_PXE_PROVIDED_STACK 0	; Use stack provided by PXE?
-
 SECTOR_SHIFT	equ TFTP_BLOCKSIZE_LG2
 SECTOR_SIZE	equ TFTP_BLOCKSIZE
 
@@ -168,13 +163,6 @@ _start1:
 		; to it and switch to an internal stack.
 		mov [InitStack],sp
 		mov [InitStack+2],ss
-
-%if USE_PXE_PROVIDED_STACK
-		; Apparently some platforms go bonkers if we
-		; set up our own stack...
-		mov [BaseStack],sp
-		mov [BaseStack+4],ss
-%endif
 
 		lss esp,[BaseStack]
 		sti			; Stack set up and ready
@@ -382,11 +370,11 @@ kaboom:
 pxenv:
 		pushfd
 		pushad
-%if USE_PXE_PROVIDED_STACK == 0
+
 		mov [cs:PXEStack],sp
 		mov [cs:PXEStack+2],ss
 		lss sp,[cs:InitStack]
-%endif
+
 		; Pre-clear the Status field
 		mov word [es:di],cs
 
@@ -399,9 +387,9 @@ pxenv:
 .jump:		call 0:0
 		add sp,6
 		mov [cs:PXEStatus],ax
-%if USE_PXE_PROVIDED_STACK == 0
+
 		lss sp,[cs:PXEStack]
-%endif
+
 		mov bp,sp
 		and ax,ax
 		setnz [bp+32]			; If AX != 0 set CF on return
@@ -428,15 +416,13 @@ PXEStatus	resb 2
 ;
                 global pxe_int1a
 pxe_int1a:
-%if USE_PXE_PROVIDED_STACK == 0
 		mov [cs:PXEStack],sp
 		mov [cs:PXEStack+2],ss
 		lss sp,[cs:InitStack]
-%endif
+
 		int 1Ah			; May trash registers
-%if USE_PXE_PROVIDED_STACK == 0
+
 		lss sp,[cs:PXEStack]
-%endif
 		ret
 
 ;
