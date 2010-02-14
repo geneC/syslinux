@@ -3,6 +3,8 @@ or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
 Changes in 3.85:
+	* gPXELINUX: updated to gPXE 1.0.0.  gPXELINUX can now do NBP
+	  chainloading, and does not require a second DHCP.
 	* vesamenu.c32: unbreak the default "grey hole" background.
 	* We no longer have a built-in default of "linux auto".
 	  Instead, if no DEFAULT or UI statement is found, or the
@@ -12,7 +14,20 @@ Changes in 3.85:
 	  PXELINUX if the configuration file is not found.)
 	* chain.c32: support chainloading Grub4DOS; patch by Gert
 	  Hulselmans.
-
+	* New tool: sysdump.c32, can be used to produce system
+	  information for debugging via tftp or ymodem (serial port).
+	* "vga=current" on the Linux command line is now supported.
+	* chain.c32: support for Windows Recovery Console, via the
+	  "cmldr=" option.
+	* chain.c32: should now support loading NTLDR from different
+	  type media than loaded from.
+	* chain.c32: support chainloading to a FAT/NTFS partition with
+	  invalid "hidden sectors" via the "sethidden" option.
+	* memdisk: fix the mBFT ACPI table.
+	* vesamenu.c32: if the image is smaller than the screen, tile
+	  it across the whole screen.
+	* mkdiskimage: -s option for producing a sparse image.
+	  
 Changes in 3.84:
 	* SYSLINUX: make the DOS installer work for MS-DOS 7.x/8.x
 	  (Win9x/ME) again.
