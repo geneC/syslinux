@@ -36,13 +36,13 @@ SuperSize	equ $+1
 		push word superblock_len_fat16
 %endif
 load_bootsec:
-		mov edi,100000h
+		mov edi,free_high_memory
 		mov [trackbuf+4],edi	; Copy from this address
 		xor dx,dx		; No padding
 		mov bx,abort_check	; Don't print dots, but allow abort
 		call load_high
 
-		sub edi,100000h
+		sub edi,free_high_memory
 		mov [trackbuf+8],edi	; Save length
 
 		mov eax,7C00h		; Entry point
@@ -54,7 +54,7 @@ load_bootsec:
 
 		; For a BSS boot sector we have to patch.
 		mov esi,superblock
-		mov edi,100000h+(superblock-bootsec)
+		mov edi,free_high_memory+(superblock-bootsec)
 		call bcopy
 %endif
 		push eax		; Save entry point
