@@ -58,6 +58,13 @@ uint32_t posix_time(void)
 	mo += 12;
     }
 
+    /*
+     * Just in case: if the month is nonsense, don't read off the end
+     * of the table...
+     */
+    if (mo-3 > 11)
+	return 0;
+
     t = y*365 + y/4 - y/100 + y/400 + yday[mo-3] + d - 719469;
     t *= 24;
     t += h;
