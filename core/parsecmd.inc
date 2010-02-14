@@ -122,17 +122,11 @@ Onerror		resb max_cmd_len+1	; onerror
 		section .bss16
 KbdMap		resb 256		; Keyboard map
 FKeyName	resb MAX_FKEYS*FILENAME_MAX	; File names for F-key help
-KernelCNameLen	resw 1			; Length of unmangled kernel name
 InitRDCNameLen	resw 1			; Length of unmangled initrd name
-%if IS_SYSLINUX
-KernelName      resb FILENAME_MAX+1	; Mangled name for kernel
-KernelCName     resb FILENAME_MAX+2	; Unmangled kernel name
-InitRDCName     resb FILENAME_MAX+2	; Unmangled initrd name
-%else
+		global KernelName, KernelCName
 KernelName      resb FILENAME_MAX	; Mangled name for kernel
 KernelCName     resb FILENAME_MAX	; Unmangled kernel name
 InitRDCName     resb FILENAME_MAX	; Unmangled initrd name
-%endif
 MNameBuf        resb FILENAME_MAX
 InitRD          resb FILENAME_MAX
 

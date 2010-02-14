@@ -78,10 +78,8 @@ construct_cmdline:
                 mov cx,boot_image_len
                 rep movsb
                 mov si,KernelCName		; Unmangled kernel name
-                mov cx,[KernelCNameLen]
-                rep movsb
-                mov al,' '                      ; Space
-                stosb
+		call strcpy
+		mov byte [es:di-1],' '		; Follow by space
 
 		call do_ip_append		; Handle IPAppend
 
@@ -546,7 +544,7 @@ parse_load_initrd:
 
 		push di
 		mov di,InitRD		; Target buffer for mangled name
-		pm_call mangle_name
+		pm_call pm_mangle_name
 		pop di
 		call loadinitrd
 
@@ -593,7 +591,7 @@ loadinitrd:
 		push edi
                 mov si,InitRD
                 mov di,InitRDCName
-                pm_call unmangle_name             ; Create human-readable name
+                pm_call pm_unmangle_name             ; Create human-readable name
                 sub di,InitRDCName
                 mov [InitRDCNameLen],di
                 mov di,InitRD

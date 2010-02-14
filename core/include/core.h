@@ -11,6 +11,9 @@ extern char CurrentDirName[];
 extern char SubvolName[];
 extern char ConfigName[];
 extern char KernelName[];
+extern char cmd_line[];
+extern char ConfigFile[];
+extern char KernelCName[];
 
 /* diskstart.inc isolinux.asm*/
 extern void getlinsec(void);

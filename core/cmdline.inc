@@ -37,6 +37,7 @@ make_plain_cmdline:
 
 		dec di
 		mov [CmdLinePtr],di
+		mov byte [es:di],0		; Null-terminate
 
 		pop es
 		ret

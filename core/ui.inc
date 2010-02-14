@@ -333,11 +333,11 @@ load_kernel:					; Load the kernel now
 		mov si,command_line
                 mov di,KernelName
                 push si
-		pm_call mangle_name
+		pm_call pm_mangle_name
                 pop si
 ;
 ; Fast-forward to first option (we start over from the beginning, since
-; mangle_name doesn't necessarily return a consistent ending state.)
+; pm_mangle_name doesn't necessarily return a consistent ending state.)
 ;
 clin_non_wsp:   lodsb
                 cmp al,' '
@@ -400,6 +400,7 @@ vk_check:
 		mov si,VKernelBuf+vk_append
 		mov cx,[VKernelBuf+vk_appendlen]
 		rep movsb
+		mov byte [es:di],cl		; Null-terminate
 		mov [CmdLinePtr],di		; Where to add rest of cmd
 		pop es
 		mov di,KernelName
@@ -440,6 +441,7 @@ vk_check:
                 mov di,cmd_line_here
                 mov cx,[AppendLen]
                 rep movsb
+		mov byte [es:di],cl		; Null-terminate
                 mov [CmdLinePtr],di
                 pop di
                 pop si
@@ -487,7 +489,7 @@ bad_kernel:
 		mov si,KernelName
                 mov di,KernelCName
 		push di
-                pm_call unmangle_name              ; Get human form
+                pm_call pm_unmangle_name              ; Get human form
 		mov si,err_notfound		; Complain about missing kernel
 		call writestr
 		pop si				; KernelCName
@@ -616,9 +618,7 @@ kernel_good:
 
 		mov si,KernelName
 		mov di,KernelCName
-		pm_call unmangle_name
-		sub di,KernelCName
-		mov [KernelCNameLen],di
+		pm_call pm_unmangle_name
 
 		; Default memory limit, can be overridden by image loaders
 		mov eax,[HighMemRsvd]
@@ -675,9 +675,8 @@ is_unknown_filetype:
 
 is_config_file:
 		push si
-		mov si,KernelCName		; Save the config file name, for posterity
-		mov di,ConfigName
-		pm_call pm_realpath
+		call make_plain_cmdline
+		pm_call pm_is_config_file
 		pop si
 		call openfd
 		call reset_config

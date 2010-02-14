@@ -166,8 +166,11 @@ static inline struct file *handle_to_file(uint16_t handle)
 }
 
 /* fs.c */
-void mangle_name(com32sys_t *);
+void pm_mangle_name(com32sys_t *);
+void pm_unmangle_name(com32sys_t *);
 void pm_searchdir(com32sys_t *);
+void mangle_name(char *, const char *);
+char *unmangle_name(char *, const char *);
 int searchdir(const char *name);
 void _close_file(struct file *);
 

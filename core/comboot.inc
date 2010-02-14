@@ -517,7 +517,7 @@ comapi_open:
 		mov ds,P_ES
 		mov si,P_SI
 		mov di,InitRD
-		pm_call mangle_name
+		pm_call pm_mangle_name
 		pop ds
 		pm_call pm_searchdir
 		jz comapi_err
@@ -749,7 +749,7 @@ comapi_runkernel:
 		mov ds,P_DS
 		mov si,P_SI
 		mov di,KernelName
-		pm_call mangle_name
+		pm_call pm_mangle_name
 		pop ds
 		pm_call pm_searchdir
 		jz comapi_err
