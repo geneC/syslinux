@@ -39,8 +39,7 @@ static bool has_eflag(uint32_t flag)
 	return !!((f0^f1) & flag);
 }
 
-static inline void get_cpuid(uint32_t eax, uint32_t ecx,
-			     struct cpuid_data *data)
+static void get_cpuid(uint32_t eax, uint32_t ecx, struct cpuid_data *data)
 {
     asm("pushl %%ebx ; cpuid ; movl %%ebx,%1 ; popl %%ebx"
 	: "=a" (data->eax), "=r" (data->ebx),
