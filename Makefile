@@ -56,7 +56,7 @@ BOBJECTS = $(BTARGET) \
 BSUBDIRS = codepage core memdisk modules com32 mbr memdump gpxe sample \
 	   libinstaller dos win32 dosutil
 ITARGET  =
-IOBJECTS = $(ITARGET) dos/copybs.com \
+IOBJECTS = $(ITARGET) \
 	utils/gethostip utils/isohybrid utils/mkdiskimage \
 	mtools/syslinux linux/syslinux extlinux/extlinux
 ISUBDIRS = libinstaller mtools linux extlinux utils
@@ -68,7 +68,7 @@ INSTALL_SBIN  = extlinux/extlinux
 # Things to install in /usr/lib/syslinux
 INSTALL_AUX   =	core/pxelinux.0 gpxe/gpxelinux.0 core/isolinux.bin \
 		core/isolinux-debug.bin \
-		dos/syslinux.com dos/copybs.com win32/syslinux.exe \
+		dos/syslinux.com win32/syslinux.exe \
 		mbr/*.bin $(MODULES)
 INSTALL_AUX_OPT = win32/syslinux.exe
 
