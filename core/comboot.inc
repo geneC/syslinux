@@ -747,6 +747,18 @@ comapi_runkernel:
 		cmp al,VK_TYPES-1
 		ja .error
 		mov [KernelType],al
+
+		; It's not just possible, but quite likely, that ES:BX
+		; points into real_mode_seg or xfer_buf_seg, so we
+		; need to exercise some special care here... use
+		; vk_append for temporary storage.
+		push ds
+		mov ds,P_ES
+		mov si,P_BX
+		mov di,vk_append
+		call strcpy
+		pop ds
+
 		push ds
 		mov ds,P_DS
 		mov si,P_SI
@@ -760,17 +772,6 @@ comapi_runkernel:
 		mov [Kernel_SI],si
 		mov [Kernel_EAX],eax
 
-		; It's not just possible, but quite likely, that ES:BX
-		; points into real_mode_seg or xfer_buf_seg, so we
-		; need to exercise some special care here... use
-		; trackbuf as an intermediary
-		push ds
-		mov ds,P_ES
-		mov si,P_BX
-		mov di,trackbuf
-		call strcpy
-		pop ds
-
 %if IS_PXELINUX
 		mov al,P_CL
 		mov [IPAppend],al
@@ -783,10 +784,10 @@ comapi_runkernel:
 		push es
 		mov dx,real_mode_seg
 		mov es,dx
-		mov si,trackbuf
+		mov si,vk_append
 		mov di,cmd_line_here
 		call strcpy
-		mov byte [es:di-1],' '		; Simulate APPEND
+		mov word [es:di-1],' '	; Simulate APPEND: space plus null
 		pop es
 		mov [CmdLinePtr],di
 		mov word [CmdOptPtr],zero_string
