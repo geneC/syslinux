@@ -125,12 +125,26 @@ SECTIONS
 	__textnr_dwords = (__textnr_len + 3) >> 2;
 
 	. = ALIGN(16);
-	.bcopyxx : {
+	__bcopyxx_start = .;
+
+	.bcopyxx.text : {
 		FILL(0x90909090)
-		__bcopyxx_start = .;
-		*(.bcopyxx)
-		__bcopyxx_end = .;
+		__bcopyxx_text_start = .;
+		*(.bcopyxx.text)
+		__bcopyxx_text_end = .;
 	}
+	__bcopyxx_text_len = __bcopyxx_text_end - __bcopyxx_text_start;
+	__bcopyxx_text_dwords = (__bcopyxx_text_len + 3) >> 2;
+
+	.bcopyxx.data : {
+		__bcopyxx_data_start = .;
+		*(.bcopyxx.text)
+		__bcopyxx_data_end = .;
+	}
+	__bcopyxx_data_len = __bcopyxx_data_end - __bcopyxx_data_start;
+	__bcopyxx_data_dwords = (__bcopyxx_data_len + 3) >> 2;
+
+	__bcopyxx_end = .;
 	__bcopyxx_len = __bcopyxx_end - __bcopyxx_start;
 	__bcopyxx_dwords = (__bcopyxx_len + 3) >> 2;
 

@@ -76,8 +76,9 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		section .init		exec write progbits align=1
 		section .text16		exec write progbits align=1
 		section .textnr		exec nowrite progbits align=1
-		section .bcopyxx	exec write progbits align=16
-		section .data16		write progbits align=16
+		section .bcopyxx.text	exec nowrite progbits align=16
+		section .bcopyxx.data	noexec write progbits align=16
+		section .data16		noexec write progbits align=16
 
 		section .adv		write nobits align=512
 
@@ -96,6 +97,7 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		SECINFO uibss
 		SECINFO config
 		SECINFO replacestub
+		SECINFO bcopyxx
 
 		SECINFO pm_code
 		SECINFO high_clear

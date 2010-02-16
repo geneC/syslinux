@@ -29,9 +29,8 @@
 ;
 
 		bits 32
-		section .bcopyxx
+		section .bcopyxx.text
 		align 16
-bcopyxx_start	equ $
 ;
 ; pm_bcopy:
 ;
@@ -212,17 +211,18 @@ pm_shuffle:
 		lea edx,[edi+ecx+15]	; EDX <- where to relocate our code to
 		and edx,~15		; Align 16 to benefit the GDT
 		call pm_bcopy
-		mov edi,edx
-		mov esi,bcopyxx_start
-		mov ecx,bcopyxx_dwords
-		lea eax,[edx+.safe-bcopyxx_start]	; Resume point
+		mov esi,__bcopyxx_start	; Absolute source address
+		mov edi,edx		; Absolute target address
+		sub edx,esi		; EDX <- address delta
+		mov ecx,__bcopyxx_dwords
+		lea eax,[edx+.safe]	; Resume point
 		; Relocate this code
 		rep movsd
 		jmp eax			; Jump to safe location
 .safe:
 		; Give ourselves a safe stack
-		lea esp,[edx+bcopyxx_stack+bcopyxx_end-bcopyxx_start]
-		add edx,bcopy_gdt-bcopyxx_start
+		lea esp,[edx+bcopyxx_stack+__bcopyxx_end]
+		add edx,bcopy_gdt	; EDX <- new GDT
 		mov [edx+2],edx		; GDT self-pointer
 		lgdt [edx]		; Switch to local GDT
 
@@ -266,9 +266,7 @@ pm_shuffle_16:
 		mov ss,edx
 		jmp PM_CS16:0
 
-		align 4
-RM_IDT_ptr:	dw 0FFFFh		; Length (nonsense, but matches CPU)
-		dd 0			; Offset
+		section	.bcopyxx.data
 
 		alignz 16
 ; GDT descriptor entry
@@ -303,22 +301,18 @@ bcopy_gdt:
 		dd 00cf9300h		; present, dpl 0, cover all 4G
 
 bcopy_gdt_size:	equ $-bcopy_gdt
-
-		alignz 4
-bcopyxx_end	equ $			; *Must* be dword-aligned!
-bcopyxx_len	equ $-bcopyxx_start
-bcopyxx_dwords	equ bcopyxx_len >> 2
-
-bcopyxx_stack	equ 128			; We want this much stack
-		; The +15 is for alignment
-bcopyxx_safe	equ bcopyxx_len + bcopyxx_stack + 15
-
 ;
 ; Space for a dummy task state segment.  It should never be actually
 ; accessed, but just in case it is, point to a chunk of memory that
 ; has a chance to not be used for anything real...
 ;
 DummyTSS	equ 0x580
+
+		align 4
+RM_IDT_ptr:	dw 0FFFFh		; Length (nonsense, but matches CPU)
+		dd 0			; Offset
+
+bcopyxx_stack	equ 128			; We want this much stack
 
 		bits 16
 		section .text16

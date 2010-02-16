@@ -944,7 +944,8 @@ comapi_closedir:
 ; INT 22h AX=0023h	Query shuffler size
 ;
 comapi_shufsize:
-		mov P_CX,bcopyxx_safe
+		; +15 is padding to guarantee alignment
+		mov P_CX,__bcopyxx_len + 15
 		ret
 
 ;
