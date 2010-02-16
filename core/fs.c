@@ -11,6 +11,10 @@ struct fs_info *this_fs = NULL;		/* Root filesystem */
 /* Actual file structures (we don't have malloc yet...) */
 struct file files[MAX_OPEN];
 
+/* Symlink hard limits */
+#define MAX_SYMLINK_CNT	20
+#define MAX_SYMLINK_BUF 4096
+
 /*
  * Get a new inode structure
  */
@@ -92,7 +96,7 @@ void pm_unmangle_name(com32sys_t *regs)
 {
     const char *src = MK_PTR(regs->ds, regs->esi.w[0]);
     char       *dst = MK_PTR(regs->es, regs->edi.w[0]);
-    
+
     dst = unmangle_name(dst, src);
 
     /* Update the di register to point to the last null char */
@@ -112,15 +116,15 @@ void getfssec(com32sys_t *regs)
     char *buf;
     struct file *file;
     uint16_t handle;
-    
+
     sectors = regs->ecx.w[0];
 
     handle = regs->esi.w[0];
     file = handle_to_file(handle);
-    
+
     buf = MK_PTR(regs->es, regs->ebx.w[0]);
     bytes_read = file->fs->fs_ops->getfssec(file, buf, sectors, &have_more);
-    
+
     /*
      * If we reach EOF, the filesystem driver will have already closed
      * the underlying file... this really should be cleaner.
@@ -129,7 +133,7 @@ void getfssec(com32sys_t *regs)
 	_close_file(file);
         regs->esi.w[0] = 0;
     }
-    
+
     regs->ecx.l = bytes_read;
 }
 
@@ -152,15 +156,13 @@ void pm_searchdir(com32sys_t *regs)
 
 int searchdir(const char *name)
 {
-    struct inode *inode;
-    struct inode *parent;
+    struct inode *inode = NULL;
+    struct inode *parent = NULL;
     struct file *file;
-    char part[256], pathbuf[4096], linkbuf[4096];
-    char *p;
-    int symlink_count = 20;
+    char *pathbuf = NULL;
+    char *part, *p, echar;
+    int symlink_count = MAX_SYMLINK_CNT;
 
-    dprintf("Filename: %s\n", name);
-    
     if (!(file = alloc_file()))
 	goto err_no_close;
     file->fs = this_fs;
@@ -168,7 +170,7 @@ int searchdir(const char *name)
     /* if we have ->searchdir method, call it */
     if (file->fs->fs_ops->searchdir) {
 	file->fs->fs_ops->searchdir(name, file);
-	
+
 	if (file->open_file)
 	    return file_to_handle(file);
 	else
@@ -179,66 +181,90 @@ int searchdir(const char *name)
     /* else, try the generic-path-lookup method */
 
     parent = get_inode(this_fs->cwd);
+    p = pathbuf = strdup(name);
+    if (!pathbuf)
+	goto err;
 
     do {
     got_link:
-	if (*name == '/') {
+	if (*p == '/') {
 	    put_inode(parent);
 	    parent = get_inode(this_fs->root);
-	    while (*name == '/')
-		name++;
 	}
 
-	inode = NULL;
+	do {
+	    while (*p == '/')
+		p++;
 
-	while (*name) {
-	    p = part;
-	    while (*name && *name != '/')
-		*p++ = *name++;
-	    *p = '\0';
+	    if (!*p)
+		break;
+
+	    part = p;
+	    while ((echar = *p) && echar != '/')
+		p++;
+	    *p++ = '\0';
+
 	    if (part[0] != '.' || part[1] != '\0') {
 		inode = this_fs->fs_ops->iget(part, parent);
 		if (!inode)
 		    goto err;
 		if (inode->mode == I_SYMLINK) {
+		    char *linkbuf, *q;
+		    int name_len = echar ? strlen(p) : 0;
+		    int total_len = inode->size + name_len + (echar ? 2 : 1);
 		    int link_len;
-		    int name_len = strlen(name) + 1;
 
-		    if (!this_fs->fs_ops->readlink || 
+		    if (!this_fs->fs_ops->readlink ||
 			--symlink_count == 0       ||      /* limit check */
-			inode->size + name_len >= sizeof linkbuf)
+			total_len > MAX_SYMLINK_BUF)
 			goto err;
 
-		    /*
-		     * Note: we can't generally put this in pathbuf directly,
-		     * because the old "name" may very well be in
-		     * pathbuf already.
-		     */
+		    linkbuf = malloc(total_len);
+		    if (!linkbuf)
+			goto err;
+
 		    link_len = this_fs->fs_ops->readlink(inode, linkbuf);
-		    if (link_len <= 0)
+		    if (link_len <= 0) {
+			free(linkbuf);
 			goto err;
-		    
-		    p = linkbuf + link_len;
-		    if (p[-1] != '/')
-			*p++ = '/';
-		    
-		    strlcpy(p, name, sizeof linkbuf - (p-linkbuf));
+		    }
 
-		    name = strcpy(pathbuf, linkbuf);
+		    q = linkbuf + link_len;
+
+		    if (echar) {
+			if (link_len > 0 && q[-1] != '/')
+			    *q++ = '/';
+
+			memcpy(q, p, name_len+1);
+		    } else {
+			*q = '\0';
+		    }
+
+		    free(pathbuf);
+		    p = pathbuf = linkbuf;
 		    put_inode(inode);
+		    inode = NULL;
 		    goto got_link;
 		}
+
 		put_inode(parent);
+		parent = NULL;
+
+		if (!echar)
+		    break;
+
+		if (inode->mode != I_DIR)
+		    goto err;
+
 		parent = inode;
+		inode = NULL;
 	    }
-	    if (!*name)
-		break;
-	    while (*name == '/')
-		name++;
-	}
+	} while (echar);
     } while (0);
 
+    free(pathbuf);
     put_inode(parent);
+    parent = NULL;
 
     if (!inode)
 	goto err;
@@ -248,8 +274,14 @@ int searchdir(const char *name)
     file->file_len  = inode->size;
 
     return file_to_handle(file);
-    
+
 err:
+    if (inode)
+	put_inode(inode);
+    if (parent)
+	put_inode(parent);
+    if (pathbuf)
+	free(pathbuf);
     _close_file(file);
 err_no_close:
     return -1;
@@ -259,7 +291,7 @@ void close_file(com32sys_t *regs)
 {
     uint16_t handle = regs->esi.w[0];
     struct file *file;
-    
+
     if (handle) {
 	file = handle_to_file(handle);
 	_close_file(file);
@@ -288,10 +320,10 @@ void fs_init(com32sys_t *regs)
     struct device *dev = NULL;
     /* ops is a ptr list for several fs_ops */
     const struct fs_ops **ops = (const struct fs_ops **)regs->eax.l;
-    
+
     /* Initialize malloc() */
     mem_init();
-    
+
     /* Default name for the root directory */
     fs.cwd_name[0] = '/';
 
