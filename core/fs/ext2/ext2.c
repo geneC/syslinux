@@ -120,13 +120,9 @@ static uint32_t ext2_getfssec(struct file *file, char *buf,
 
         /* get the consective sectors count */
         do {
-            con_sec_cnt ++;
-            sectors --;
+            con_sec_cnt++;
+            sectors--;
             if (sectors <= 0)
-                break;
-
-            /* if sectors >= the sectors left in the 64K block, break and read */
-            if (sectors >= (((~(uint32_t)buf&0xffff)|((uint32_t)buf&0xffff0000)) + 1))
                 break;
 
             sector_idx++;
