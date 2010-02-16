@@ -824,8 +824,10 @@ static int vfat_fs_init(struct fs_info *fs)
     }
     sbi->clusters = clusters;
 
-    /* for SYSLINUX, the cache is based on sector size */
-    return fs->sector_shift;
+    /* Initialize the cache */
+    cache_init(fs->fs_dev, fs->block_shift);
+
+    return fs->block_shift;
 }
 
 const struct fs_ops vfat_fs_ops = {

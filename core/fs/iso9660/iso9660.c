@@ -423,6 +423,9 @@ static int iso_fs_init(struct fs_info *fs)
     fs->sector_size  = 1 << fs->sector_shift;
     fs->block_size   = 1 << fs->block_shift;
 
+    /* Initialize the cache */
+    cache_init(fs->fs_dev, fs->block_shift);
+
     return fs->block_shift;
 }
 

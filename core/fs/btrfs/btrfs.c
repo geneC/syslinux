@@ -691,7 +691,14 @@ static void btrfs_get_fs_tree(void)
 /* init. the fs meta data, return the block size shift bits. */
 static int btrfs_fs_init(struct fs_info *_fs)
 {
+	struct disk *disk = fs->fs_dev->disk;
+    
 	btrfs_init_crc32c();
+
+	fs->sector_shift = disk->sector_shift;
+	fs->sector_size  = 1 << fs->sector_shift;
+	fs->block_shift  = BTRFS_BLOCK_SHIFT;
+	fs->block_size   = 1 << fs->block_shift;
 
 	fs = _fs;
 	btrfs_read_super_block();
@@ -702,7 +709,11 @@ static int btrfs_fs_init(struct fs_info *_fs)
 	btrfs_get_fs_tree();
 	btrfs_set_cwd();
 	cache_ready = 1;
-	return BTRFS_BLOCK_SHIFT;/* to determine cache size */
+
+	/* Initialize the block cache */
+	cache_init(fs->fs_dev, fs->block_size);
+
+	return fs->block_size;
 }
 
 const struct fs_ops btrfs_fs_ops = {

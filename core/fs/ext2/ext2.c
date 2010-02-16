@@ -358,6 +358,7 @@ static int ext2_fs_init(struct fs_info *fs)
     struct disk *disk = fs->fs_dev->disk;
     struct ext2_sb_info *sbi;
     struct ext2_super_block sb;
+    struct cache *cs;
 
     /* read the super block */
     disk->rdwr_sectors(disk, &sb, 2, 2, 0);
@@ -394,6 +395,12 @@ static int ext2_fs_init(struct fs_info *fs)
 	                      / EXT2_BLOCKS_PER_GROUP(fs);
     sbi->s_first_data_block = sb.s_first_data_block;
     sbi->s_inode_size = sb.s_inode_size;
+
+    /* Initialize the cache, and force block zero to all zero */
+    cache_init(fs->fs_dev, fs->block_shift);
+    cs = _get_cache_block(fs->fs_dev, 0);
+    memset(cs->data, 0, fs->block_size);
+    cache_lock_block(cs);
 
     return fs->block_shift;
 }
