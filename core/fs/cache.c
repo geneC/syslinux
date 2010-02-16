@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <dprintf.h>
 #include "core.h"
 #include "cache.h"
 
@@ -19,37 +20,36 @@ void cache_init(struct device *dev, int block_size_shift)
 {
     struct cache *prev, *cur;
     char *data = dev->cache_data;
-    struct cache *cache_head, *cache;
+    struct cache *head, *cache;
     int i;
 
     dev->cache_block_size = 1 << block_size_shift;
-    dev->cache_entries = dev->cache_size >> block_size_shift;
 
     if (dev->cache_size < dev->cache_block_size + 2*sizeof(struct cache)) {
 	dev->cache_head = NULL;
 	return;			/* Cache unusably small */
     }
 
-    while ((dev->cache_entries << block_size_shift) +
-	   ((dev->cache_entries+1) * sizeof(struct cache))
-	   > dev->cache_size)
-	dev->cache_entries--;
+    /* We need one struct cache for the headnode plus one for each block */
+    dev->cache_entries =
+	(dev->cache_size - sizeof(struct cache))/
+	(dev->cache_block_size + sizeof(struct cache));
 
-    cache_head = (struct cache *)
+    dev->cache_head = head = (struct cache *)
 	(data + (dev->cache_entries << block_size_shift));
-    cache = cache_head + 1;
+    cache = dev->cache_head + 1; /* First cache descriptor */
 
-    cache_head->prev  = &cache[dev->cache_entries-1];
-    cache_head->next->prev = cache_head;
-    cache_head->block = (block_t)-1;
-    cache_head->data  = NULL;
+    head->prev  = &cache[dev->cache_entries-1];
+    head->next->prev = dev->cache_head;
+    head->block = -1;
+    head->data  = NULL;
 
-    prev = cache_head;
+    prev = head;
     
     for (i = 0; i < dev->cache_entries; i++) {
         cur = &cache[i];
         cur->data  = data;
-        cur->block = (block_t)-1;
+        cur->block = -1;
         cur->prev  = prev;
         prev->next = cur;
         data += dev->cache_block_size;
