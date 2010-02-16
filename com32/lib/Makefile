@@ -64,6 +64,7 @@ LIBOBJS = \
 	sys/vesacon_write.o sys/vesaserial_write.o			\
 	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
 	sys/vesa/alphatbl.o sys/vesa/screencpy.o sys/vesa/fmtpixel.o	\
+	sys/vesa/i915resolution.o					\
 	\
 	pci/cfgtype.o pci/scan.o					\
 	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o		\
