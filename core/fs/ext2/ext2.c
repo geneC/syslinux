@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/dirent.h>
+#include <minmax.h>
 #include <cache.h>
 #include <core.h>
 #include <disk.h>
@@ -21,14 +22,6 @@ static int strecpy(char *dst, const char *src, char *end)
         return 1;
     else 
         return 0;
-}
-
-static void ext2_close_file(struct file *file)
-{
-    if (file->inode) {
-	file->offset = 0;
-	free_inode(file->inode);
-    }
 }
 
 /*
@@ -80,7 +73,7 @@ static sector_t linsector(struct inode *inode, uint32_t lin_sector)
 {
     struct fs_info *fs = inode->fs;
     int blk_bits = fs->block_shift - fs->sector_shift;
-    block_t block = bmap(fs, inode, lin_sector >> blk_bits);
+    block_t block = ext2_bmap(fs, inode, lin_sector >> blk_bits);
     
     return (block << blk_bits) + (lin_sector & ((1 << blk_bits) - 1));
 }
@@ -180,14 +173,14 @@ static uint32_t ext2_getfssec(struct file *file, char *buf,
 /*
  * Unlike strncmp, ext2_match_entry returns 1 for success, 0 for failure.
  */
-static inline int ext2_match_entry (const char * const name,
+static inline bool ext2_match_entry (const char *name, size_t len,
                                     struct ext2_dir_entry * de)
 {
     if (!de->d_inode)
-        return 0;
-    if (strlen(name) != de->d_name_len)
-	return 0;
-    return !strncmp(name, de->d_name, de->d_name_len);
+        return false;
+    if (len != de->d_name_len)
+	return false;
+    return !memcmp(name, de->d_name, len);
 }
 
 
@@ -203,40 +196,40 @@ static inline struct ext2_dir_entry *ext2_next_entry(struct ext2_dir_entry *p)
  * find a dir entry, return it if found, or return NULL.
  */
 static struct ext2_dir_entry * 
-ext2_find_entry(struct fs_info *fs, struct inode *inode, char *dname)
+ext2_find_entry(struct fs_info *fs, struct inode *inode, const char *dname)
 {
-    int index = 0;
-    block_t  block;
-    uint32_t i = 0;
+    block_t index = 0;
+    block_t block;
+    uint32_t i = 0, offset, maxoffset;
     struct ext2_dir_entry *de;
     struct cache_struct *cs;
-    
-    if (!(block = bmap(fs, inode, index++)))
-	return NULL;
-    cs = get_cache_block(fs->fs_dev, block);
-    de = (struct ext2_dir_entry *)cs->data;
-    
-    while(i < (int)inode->size) {
-	if (ext2_match_entry(dname, de))
-	    return de;
-	i += de->d_rec_len;
-	if (i >= (int)inode->size)
-	    break;
-	if ((char *)de >= (char *)cs->data + BLOCK_SIZE(fs)) {
-	    if (!(block = bmap(fs, inode, index++)))
+    size_t dname_len = strlen(dname);
+
+    while (i < inode->size) {
+	if (!(block = ext2_bmap(fs, inode, index++)))
+	    return NULL;
+	cs = get_cache_block(fs->fs_dev, block);
+	offset = 0;
+	maxoffset =  min(BLOCK_SIZE(fs), i-inode->size);
+
+	/* The smallest possible size is 9 bytes */
+	while (offset < maxoffset-8) {
+	    de = (struct ext2_dir_entry *)((char *)cs->data + offset);
+	    if (de->d_rec_len > maxoffset - offset)
 		break;
-	    cs = get_cache_block(fs->fs_dev, block);
-	    de = (struct ext2_dir_entry *)cs->data;
-	    continue;
+
+	    if (ext2_match_entry(dname, dname_len, de))
+		return de;
+
+	    offset += de->d_rec_len;
 	}
-	
-	de = ext2_next_entry(de);
+	i += BLOCK_SIZE(fs);
     }
-    
+
     return NULL;
 }
 
-static struct ext2_inode * get_inode(struct fs_info *fs, int inr)
+static struct ext2_inode *ext2_get_inode(struct fs_info *fs, int inr)
 {
     struct ext2_group_desc *desc;
     struct cache_struct *cs;
@@ -287,15 +280,15 @@ static void fill_inode(struct inode *inode, struct ext2_inode *e_inode)
 
 static struct inode *ext2_iget_by_inr(struct fs_info *fs, uint32_t inr)
 {
-        struct ext2_inode *e_inode;
-        struct inode *inode;
-
-        e_inode = get_inode(fs, inr);
-        if (!(inode = alloc_inode(fs, inr, EXT2_N_BLOCKS*sizeof(uint32_t *))))
-	    return NULL;
-        fill_inode(inode, e_inode);
-	
-        return inode;
+    struct ext2_inode *e_inode;
+    struct inode *inode;
+    
+    e_inode = ext2_get_inode(fs, inr);
+    if (!(inode = alloc_inode(fs, inr, EXT2_N_BLOCKS*sizeof(uint32_t *))))
+	return NULL;
+    fill_inode(inode, e_inode);
+    
+    return inode;
 }
 
 static struct inode *ext2_iget_root(struct fs_info *fs)
@@ -307,7 +300,7 @@ static struct inode *ext2_iget(char *dname, struct inode *parent)
 {
         struct ext2_dir_entry *de;
 	struct fs_info *fs = parent->fs;
-        
+
         de = ext2_find_entry(fs, parent, dname);
         if (!de)
                 return NULL;
@@ -362,10 +355,10 @@ static struct dirent * ext2_readdir(struct file *file)
     struct dirent *dirent;
     struct ext2_dir_entry *de;
     struct cache_struct *cs;
-    int index = file->offset >> fs->block_shift;
+    block_t index = file->offset >> fs->block_shift;
     block_t block;
     
-    if (!(block = bmap(fs, inode, index)))
+    if (!(block = ext2_bmap(fs, inode, index)))
 	return NULL;        
     cs = get_cache_block(fs->fs_dev, block);
     de = (struct ext2_dir_entry *)(cs->data + (file->offset & (BLOCK_SIZE(fs) - 1)));
@@ -440,7 +433,7 @@ const struct fs_ops ext2_fs_ops = {
     .fs_init       = ext2_fs_init,
     .searchdir     = NULL,
     .getfssec      = ext2_getfssec,
-    .close_file    = ext2_close_file,
+    .close_file    = generic_close_file,
     .mangle_name   = generic_mangle_name,
     .unmangle_name = generic_unmangle_name,
     .load_config   = generic_load_config,

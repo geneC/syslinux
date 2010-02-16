@@ -1,12 +1,14 @@
+#define DEBUG
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <dprintf.h>
 #include "fs.h"
 #include "cache.h"
 
 /* The currently mounted filesystem */
 struct fs_info *this_fs = NULL;		/* Root filesystem */
-static struct inode *this_inode = NULL;	/* Current working directory */
 
 /* Actual file structures (we don't have malloc yet...) */
 struct file files[MAX_OPEN];
@@ -20,6 +22,7 @@ struct inode *alloc_inode(struct fs_info *fs, uint32_t ino, size_t data)
     if (inode) {
 	inode->fs = fs;
 	inode->ino = ino;
+	inode->refcnt = 1;
     }
     return inode;
 }
@@ -157,12 +160,9 @@ int searchdir(const char *name)
     char part[256];
     char *p;
     int symlink_count = 6;
-    bool got_parent;
-    
-#if 0
-    printf("filename: %s\n", name);
-#endif
 
+    dprintf("Filename: %s\n", name);
+    
     if (!(file = alloc_file()))
 	goto err_no_close;
     file->fs = this_fs;
@@ -179,15 +179,14 @@ int searchdir(const char *name)
 
     /* else, try the generic-path-lookup method */
     if (*name == '/') {
-	inode = this_fs->fs_ops->iget_root(this_fs);
+	parent = get_inode(this_fs->root);
 	while (*name == '/')
 	    name++;
     } else {
-	inode = this_fs->cwd;
+	parent = get_inode(this_fs->cwd);
     }
-    parent = inode;
-    got_parent = false;
-    
+    inode = NULL;
+
     while (*name) {
 	p = part;
 	while (*name && *name != '/')
@@ -203,22 +202,21 @@ int searchdir(const char *name)
 		    inode->size >= BLOCK_SIZE(this_fs))
 		    goto err;
 		name = this_fs->fs_ops->follow_symlink(inode, name);
-		free_inode(inode);
+		put_inode(inode);
 		continue;
 	    }
-	    if (got_parent)
-		free_inode(parent);
+	    put_inode(parent);
 	    parent = inode;
-	    got_parent = true;
 	}
 	if (!*name)
 	    break;
 	while (*name == '/')
 	    name++;
     }
-    
-    if (got_parent)
-	free_inode(parent);
+    put_inode(parent);
+
+    if (!inode)
+	goto err;
 
     file->inode  = inode;
     file->offset = 0;
@@ -304,6 +302,8 @@ void fs_init(com32sys_t *regs)
         cache_init(fs.fs_dev, blk_shift);
 
     /* start out in the root directory */
-    if (fs.fs_ops->iget_root)
-	fs.cwd = fs.fs_ops->iget_root(&fs);
+    if (fs.fs_ops->iget_root) {
+	fs.root = fs.fs_ops->iget_root(&fs);
+	fs.cwd = get_inode(fs.root);
+    }
 }

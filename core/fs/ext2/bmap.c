@@ -13,7 +13,8 @@
 
 
 static struct ext4_extent_header * 
-ext4_find_leaf(struct fs_info *fs, struct ext4_extent_header *eh, block_t block)
+ext4_find_leaf(struct fs_info *fs, struct ext4_extent_header *eh,
+	       block_t block)
 {
     struct ext4_extent_idx *index;
     struct cache_struct *cs;
@@ -42,9 +43,8 @@ ext4_find_leaf(struct fs_info *fs, struct ext4_extent_header *eh, block_t block)
 }
 
 /* handle the ext4 extents to get the phsical block number */
-static uint64_t bmap_extent(struct fs_info *fs, 
-			    struct inode *inode, 
-			    uint32_t block)
+static block_t bmap_extent(struct fs_info *fs, struct inode *inode, 
+			   block_t block)
 {
     struct ext4_extent_header *leaf;
     struct ext4_extent *ext;
@@ -82,12 +82,11 @@ static uint64_t bmap_extent(struct fs_info *fs,
  * handle the traditional block map, like indirect, double indirect 
  * and triple indirect 
  */
-static unsigned int bmap_traditional(struct fs_info *fs, 
-				     struct inode *inode, 
-				     uint32_t block)
+static block_t bmap_traditional(struct fs_info *fs, struct inode *inode, 
+				block_t block)
 {
     int addr_per_block = BLOCK_SIZE(fs) >> 2;
-    uint32_t direct_blocks = EXT2_NDIR_BLOCKS,
+    block_t direct_blocks = EXT2_NDIR_BLOCKS,
 	indirect_blocks = addr_per_block,
 	double_blocks = addr_per_block * addr_per_block,
 	triple_blocks = double_blocks * addr_per_block;
@@ -169,12 +168,9 @@ static unsigned int bmap_traditional(struct fs_info *fs,
  * @retrun: the physic block number.
  *
  */
-block_t bmap(struct fs_info *fs, struct inode * inode, int block)
+block_t ext2_bmap(struct fs_info *fs, struct inode * inode, block_t block)
 {
     block_t ret;
-    
-    if (block < 0)
-	return 0;
     
     if (inode->flags & EXT4_EXTENTS_FLAG)
 	ret = bmap_extent(fs, inode, block);

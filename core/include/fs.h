@@ -34,7 +34,7 @@ struct fs_info {
     void *fs_info;             /* The fs-specific information */
     int sector_shift, sector_size;
     int block_shift, block_size;
-    struct inode *cwd;	       		/* Current directory */
+    struct inode *root, *cwd;	   	/* Root and current directories */
     char cwd_name[CURRENTDIR_MAX];	/* Current directory by name */
 };
 
@@ -78,6 +78,7 @@ enum inode_mode {I_FILE, I_DIR, I_SYMLINK};
  */
 struct inode {
     struct fs_info *fs;	 /* The filesystem this inode is associated with */
+    int		 refcnt;
     int          mode;   /* FILE , DIR or SYMLINK */
     uint32_t     size;
     uint32_t     ino;    /* Inode number */
@@ -146,6 +147,17 @@ static inline void free_inode(struct inode * inode)
     free(inode);
 }
 
+static inline struct inode *get_inode(struct inode *inode)
+{
+    inode->refcnt++;
+    return inode;
+}
+static inline void put_inode(struct inode *inode)
+{
+    if (! --inode->refcnt)
+	free(inode);
+}
+
 static inline void malloc_error(char *obj)
 {
         printf("Out of memory: can't allocate memory for %s\n", obj);
@@ -189,5 +201,8 @@ void generic_mangle_name(char *, const char *);
 
 /* loadconfig.c */
 int generic_load_config(void);
+
+/* close.c */
+void generic_close_file(struct file *file);
 
 #endif /* FS_H */

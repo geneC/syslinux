@@ -12,15 +12,6 @@ static struct inode *new_iso_inode(struct fs_info *fs)
     return alloc_inode(fs, 0, sizeof(uint32_t));
 }
 
-
-static void iso_close_file(struct file *file)
-{
-    if (file->inode) {
-	file->offset = 0;
-	free_inode(file->inode);
-    }
-}
-
 static inline struct iso_sb_info * ISO_SB(struct fs_info *fs)
 {
     return fs->fs_info;
@@ -438,7 +429,7 @@ const struct fs_ops iso_fs_ops = {
     .fs_init       = iso_fs_init,
     .searchdir     = NULL, 
     .getfssec      = iso_getfssec,
-    .close_file    = iso_close_file,
+    .close_file    = generic_close_file,
     .mangle_name   = iso_mangle_name,
     .unmangle_name = generic_unmangle_name,
     .load_config   = iso_load_config,

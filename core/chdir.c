@@ -48,8 +48,8 @@ int chdir(const char *src)
 	return -1;
     }
 
-    this_fs->cwd = file->inode;
-    file->inode = NULL;		/* "Steal" the inode */
+    put_inode(this_fs->cwd);
+    this_fs->cwd = get_inode(file->inode);
     _close_file(file);
 
     /* Save the current working directory */

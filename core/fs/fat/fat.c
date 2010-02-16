@@ -19,15 +19,6 @@ static struct inode * new_fat_inode(struct fs_info *fs)
 }
 
 
-static void vfat_close_file(struct file *file)
-{
-    if (file->inode) {
-	file->offset = 0;
-	free_inode(file->inode);
-    }
-}
-
-
 /*
  * Check for a particular sector in the FAT cache
  */
@@ -846,7 +837,7 @@ const struct fs_ops vfat_fs_ops = {
     .fs_init       = vfat_fs_init,
     .searchdir     = NULL,
     .getfssec      = vfat_getfssec,
-    .close_file    = vfat_close_file,
+    .close_file    = generic_close_file,
     .mangle_name   = vfat_mangle_name,
     .unmangle_name = generic_unmangle_name,
     .load_config   = vfat_load_config,

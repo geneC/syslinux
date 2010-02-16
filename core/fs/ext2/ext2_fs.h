@@ -293,7 +293,6 @@ static inline struct ext2_sb_info *EXT2_SB(struct fs_info *fs)
 /* 
  * functions 
  */
-block_t bmap(struct fs_info *, struct inode *, int);
-
+block_t ext2_bmap(struct fs_info *, struct inode *, block_t);
 
 #endif /* ext2_fs.h */
