@@ -287,26 +287,54 @@ static struct inode *ext2_iget(char *dname, struct inode *parent)
     return ext2_iget_by_inr(fs, de->d_inode);
 }
 
+/*
+ * Read the entire contents of an inode into a memory buffer
+ */
+static int cache_get_file(struct inode *inode, void *buf, size_t bytes)
+{
+    struct fs_info *fs = inode->fs;
+    struct device *dev = fs->fs_dev;
+    size_t block_size = BLOCK_SIZE(fs);
+    block_t block;
+    uint32_t index = 0;		/* Logical block number */
+    size_t chunk;
+    const char *data;
+    char *p = buf;
+
+    if (inode->size > bytes)
+	bytes = inode->size;
+
+    while (bytes) {
+	chunk = min(bytes, block_size);
+	block = ext2_bmap(inode, index++);
+	data = get_cache(dev, block);
+	memcpy(p, data, chunk);
+
+	bytes -= chunk;
+	p += chunk;
+    }
+
+    return 0;
+}
+	
 int ext2_readlink(struct inode *inode, char *buf)
 {
     struct fs_info *fs = inode->fs;
     int sec_per_block = 1 << (fs->block_shift - fs->sector_shift);
     bool fast_symlink;
     const char *data;
-    size_t bytes = inode->size;
 
     if (inode->size > BLOCK_SIZE(fs))
 	return -1;		/* Error! */
 
     fast_symlink = (inode->file_acl ? sec_per_block : 0) == inode->blocks;
     if (fast_symlink) {
-	memcpy(buf, inode->pvt, bytes);
+	memcpy(buf, inode->pvt, inode->size);
     } else {
-	data = get_cache(fs->fs_dev, *(uint32_t *)inode->pvt);
-	memcpy(buf, data, bytes);
+	cache_get_file(inode, buf, inode->size);
     }
 
-    return bytes;
+    return inode->size;
 }
 
 /*
