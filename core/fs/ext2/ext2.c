@@ -184,8 +184,7 @@ ext2_find_entry(struct fs_info *fs, struct inode *inode, const char *dname)
     size_t dname_len = strlen(dname);
 
     while (i < inode->size) {
-	if (!(block = ext2_bmap(inode, index++)))
-	    return NULL;
+	block = ext2_bmap(inode, index++);
 	data = get_cache(fs->fs_dev, block);
 	offset = 0;
 	maxoffset =  min(BLOCK_SIZE(fs), i-inode->size);
@@ -323,8 +322,10 @@ static struct dirent * ext2_readdir(struct file *file)
     block_t index = file->offset >> fs->block_shift;
     block_t block;
 
-    if (!(block = ext2_bmap(inode, index)))
-	return NULL;
+    if (file->offset >= inode->size)
+	return NULL;		/* End of file */
+
+    block = ext2_bmap(inode, index);
 
     data = get_cache(fs->fs_dev, block);
     de = (const struct ext2_dir_entry *)
