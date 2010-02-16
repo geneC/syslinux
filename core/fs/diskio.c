@@ -308,11 +308,12 @@ struct device * device_init(uint8_t devno, bool cdrom, sector_t part_start,
                             uint16_t bsHeads, uint16_t bsSecPerTrack)
 {
     static struct device dev;
+    static char diskcache[128*1024] __aligned(4096);
 
     dev.disk = disk_init(devno, cdrom, part_start, bsHeads, bsSecPerTrack);
         
-    dev.cache_data = core_cache_buf;
-    dev.cache_size = sizeof core_cache_buf;
+    dev.cache_data = diskcache;
+    dev.cache_size = sizeof diskcache;
     
     return &dev;
 }

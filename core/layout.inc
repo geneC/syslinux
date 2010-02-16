@@ -120,7 +120,7 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 ; This stuff really should come from the linker...
 ;
 		global	xfer_buf_seg, core_xfer_buf
-xfer_buf_seg	equ 3000h
+xfer_buf_seg	equ 2000h
 core_xfer_buf	equ xfer_buf_seg << 4
 
 serial_buf_size	equ 4096		; Should be a power of 2
@@ -141,16 +141,8 @@ serial_buf_size	equ 4096		; Should be a power of 2
 auxseg		resb aux_size
 
 ;
-; Bounce buffer for I/O to high mem
-; Note: we keep all the segments page-aligned, even if that probably
-; is somewhat excessive.  Sector alignment is obligatory, however.
+; Segment for the real mode code (needed as long as we have a in-kernel
+; loader and/or COM16 support.
 ;
-
-		global cache_seg, core_cache_buf
-cache_seg	equ 4000h		; 64K area for metadata cache
-core_cache_buf	equ cache_seg << 4
-real_mode_seg	equ 5000h
-
-pktbuf_seg	equ cache_seg		; PXELINUX packet buffers
-
+real_mode_seg	equ xfer_buf_seg + 1000h
 comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
