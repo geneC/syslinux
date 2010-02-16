@@ -81,7 +81,7 @@ static block_t bmap_extent(struct inode *inode, block_t block)
  * be relative to the beginning of the particular block hierarchy.
  */
 static block_t bmap_indirect(struct fs_info *fs, uint32_t start,
-			     block_t block, int levels)
+			     uint32_t block, int levels)
 {
     int addr_shift = BLOCK_SHIFT(fs) - 2;
     uint32_t addr_mask = (1 << addr_shift)-1;
@@ -91,10 +91,10 @@ static block_t bmap_indirect(struct fs_info *fs, uint32_t start,
     while (levels--) {
 	blk = get_cache(fs->fs_dev, start);
 	index = (block >> (levels * addr_shift)) & addr_mask;
-	blk = blk[index];
+	block = blk[index];
     }
 
-    return blk;
+    return block;
 }
 
 /*
@@ -104,15 +104,12 @@ static block_t bmap_indirect(struct fs_info *fs, uint32_t start,
 static block_t bmap_traditional(struct inode *inode, block_t block)
 {
     struct fs_info *fs = inode->fs;
-    int addr_per_block = BLOCK_SIZE(fs) >> 2;
-    uint32_t direct_blocks = EXT2_NDIR_BLOCKS,
-	indirect_blocks = addr_per_block,
-	double_blocks = addr_per_block * addr_per_block,
-	triple_blocks = double_blocks * addr_per_block;
-    int addr_shift = BLOCK_SHIFT(fs) - 2;
-    int indirect_shift = addr_shift,
-	double_shift = 2*addr_shift,
-	triple_shift = 3*addr_shift;
+    const uint32_t addr_per_block = BLOCK_SIZE(fs) >> 2;
+    const int shft_per_block      = BLOCK_SHIFT(fs) - 2;
+    const uint32_t direct_blocks   = EXT2_NDIR_BLOCKS;
+    const uint32_t indirect_blocks = addr_per_block;
+    const uint32_t double_blocks   = addr_per_block << shft_per_block;
+    const uint32_t triple_blocks   = double_blocks  << shft_per_block;
 
     /* direct blocks */
     if (block < direct_blocks)
