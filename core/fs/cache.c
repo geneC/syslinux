@@ -58,6 +58,17 @@ void cache_init(struct device *dev, int block_size_shift)
 }
 
 /*
+ * Lock a block permanently in the cache
+ */
+void cache_lock_block(struct cache *cs)
+{
+    cs->prev->next = cs->next;
+    cs->next->prev = cs->prev;
+
+    cs->next = cs->prev = NULL;
+}
+
+/*
  * Check for a particular BLOCK in the block cache, 
  * and if it is already there, just do nothing and return;
  * otherwise pick a victim block and update the LRU link.
@@ -79,15 +90,19 @@ struct cache *_get_cache_block(struct device *dev, block_t block)
     /* Not found, pick a victim */
     cs = head->next;
 
-    /* Add to just before head node */
 found:
-    cs->prev->next = cs->next;
-    cs->next->prev = cs->prev;
+    /* Move to the end of the LRU chain, unless the block is already locked */
+    if (cs->next) {
+	cs->prev->next = cs->next;
+	cs->next->prev = cs->prev;
+	
+	cs->prev = head->prev;
+	head->prev->next = cs;
+	cs->next = head;
+	head->prev = cs;
+    }
 
-    cs->prev = head->prev;
-    head->prev->next = cs;
-    cs->next = head;
-    head->prev = cs;
+    return cs;
 }    
 
 /*
