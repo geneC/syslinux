@@ -12,12 +12,11 @@
 #include <cache.h>
 #include "ext2_fs.h"
 
-static struct ext4_extent_header *
-ext4_find_leaf(struct fs_info *fs, struct ext4_extent_header *eh,
+static const struct ext4_extent_header *
+ext4_find_leaf(struct fs_info *fs, const struct ext4_extent_header *eh,
 	       block_t block)
 {
     struct ext4_extent_idx *index;
-    struct cache_struct *cs;
     block_t blk;
     int i;
 
@@ -37,8 +36,7 @@ ext4_find_leaf(struct fs_info *fs, struct ext4_extent_header *eh,
 
 	blk = index[i].ei_leaf_hi;
 	blk = (blk << 32) + index[i].ei_leaf_lo;
-	cs = get_cache_block(fs->fs_dev, blk);
-	eh = (struct ext4_extent_header *)cs->data;
+	eh = get_cache(fs->fs_dev, blk);
     }
 }
 
@@ -46,12 +44,13 @@ ext4_find_leaf(struct fs_info *fs, struct ext4_extent_header *eh,
 static block_t bmap_extent(struct inode *inode, block_t block)
 {
     struct fs_info *fs = inode->fs;
-    struct ext4_extent_header *leaf;
-    struct ext4_extent *ext;
+    const struct ext4_extent_header *leaf;
+    const struct ext4_extent *ext;
     int i;
     block_t start;
 
-    leaf = ext4_find_leaf(fs, (struct ext4_extent_header *)inode->pvt, block);
+    leaf = ext4_find_leaf(fs, (const struct ext4_extent_header *)inode->pvt,
+			  block);
     if (!leaf) {
 	printf("ERROR, extent leaf not found\n");
 	return 0;
@@ -77,9 +76,29 @@ static block_t bmap_extent(struct inode *inode, block_t block)
     return start + block;
 }
 
+/*
+ * The actual indirect block map handling - the block passed in should
+ * be relative to the beginning of the particular block hierarchy.
+ */
+static block_t bmap_indirect(struct fs_info *fs, uint32_t start,
+			     block_t block, int levels)
+{
+    int addr_shift = BLOCK_SHIFT(fs) - 2;
+    uint32_t addr_mask = (1 << addr_shift)-1;
+    uint32_t index;
+    const uint32_t *blk;
+
+    while (levels--) {
+	blk = get_cache(fs->fs_dev, start);
+	index = (block >> (levels * addr_shift)) & addr_mask;
+	blk = blk[index];
+    }
+
+    return blk;
+}
 
 /*
- * handle the traditional block map, like indirect, double indirect
+ * Handle the traditional block map, like indirect, double indirect
  * and triple indirect
  */
 static block_t bmap_traditional(struct inode *inode, block_t block)
@@ -90,7 +109,10 @@ static block_t bmap_traditional(struct inode *inode, block_t block)
 	indirect_blocks = addr_per_block,
 	double_blocks = addr_per_block * addr_per_block,
 	triple_blocks = double_blocks * addr_per_block;
-    struct cache_struct *cs;
+    int addr_shift = BLOCK_SHIFT(fs) - 2;
+    int indirect_shift = addr_shift,
+	double_shift = 2*addr_shift,
+	triple_shift = 3*addr_shift;
 
     /* direct blocks */
     if (block < direct_blocks)
@@ -98,57 +120,21 @@ static block_t bmap_traditional(struct inode *inode, block_t block)
 
     /* indirect blocks */
     block -= direct_blocks;
-    if (block < indirect_blocks) {
-	block_t ind_block = ((uint32_t *)inode->pvt)[EXT2_IND_BLOCK];
-
-	if (!ind_block)
-	    return 0;
-	cs = get_cache_block(fs->fs_dev, ind_block);
-
-	return ((uint32_t *)cs->data)[block];
-    }
-
+    if (block < indirect_blocks)
+	return bmap_indirect(fs, ((uint32_t *)inode->pvt)[EXT2_IND_BLOCK],
+			     block, 1);
 
     /* double indirect blocks */
     block -= indirect_blocks;
-    if (block < double_blocks) {
-	block_t dou_block = ((uint32_t *)inode->pvt)[EXT2_DIND_BLOCK];
-
-	if (!dou_block)
-	    return 0;
-	cs = get_cache_block(fs->fs_dev, dou_block);
-
-	dou_block = ((uint32_t *)cs->data)[block / indirect_blocks];
-	if (!dou_block)
-	    return 0;
-	cs = get_cache_block(fs->fs_dev, dou_block);
-
-	return ((uint32_t *)cs->data)[block % addr_per_block];
-    }
-
+    if (block < double_blocks)
+	return bmap_indirect(fs, ((uint32_t *)inode->pvt)[EXT2_DIND_BLOCK],
+			     block, 2);
 
     /* triple indirect block */
     block -= double_blocks;
-    if (block < triple_blocks) {
-	block_t tri_block = ((uint32_t *)inode->pvt)[EXT2_TIND_BLOCK];
-
-	if (!tri_block)
-	    return 0;
-	cs = get_cache_block(fs->fs_dev, tri_block);
-
-	tri_block = ((uint32_t *)cs->data)[block / double_blocks];
-	if (!tri_block)
-	    return 0;
-	cs = get_cache_block(fs->fs_dev, tri_block);
-
-	tri_block = (block / addr_per_block) % addr_per_block;
-	tri_block = ((uint32_t *)cs->data)[tri_block];
-	if (!tri_block)
-	    return 0;
-	cs = get_cache_block(fs->fs_dev, tri_block);
-
-	return ((uint32_t *)cs->data)[block % addr_per_block];
-    }
+    if (block < triple_blocks)
+	return bmap_indirect(fs, ((uint32_t *)inode->pvt)[EXT2_TIND_BLOCK],
+			     block, 3);
 
     /* This can't happen... */
     return 0;

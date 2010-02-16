@@ -119,12 +119,14 @@ enum dev_type {CHS, EDD};
  *     the pointer points to the disk structure,
  *     the cache stuff.
  */
+struct cache;
+
 struct device {
     struct disk *disk;
 
     /* the cache stuff */
-    char* cache_data;
-    void* cache_head;
+    char *cache_data;
+    struct cache *cache_head;
     uint16_t cache_block_size;
     uint16_t cache_entries;
     uint32_t cache_size;

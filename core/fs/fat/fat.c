@@ -22,9 +22,9 @@ static struct inode * new_fat_inode(struct fs_info *fs)
 /*
  * Check for a particular sector in the FAT cache
  */
-static struct cache_struct * get_fat_sector(struct fs_info *fs, sector_t sector)
+static const void *get_fat_sector(struct fs_info *fs, sector_t sector)
 {
-    return get_cache_block(fs->fs_dev, FAT_SB(fs)->fat + sector);
+    return get_cache(fs->fs_dev, FAT_SB(fs)->fat + sector);
 }
 
 static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
@@ -33,15 +33,15 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
     sector_t fat_sector;
     uint32_t offset;
     int lo, hi;
-    struct cache_struct *cs;
     uint32_t sector_mask = SECTOR_SIZE(fs) - 1;
+    const uint8_t *data;
 
     switch(FAT_SB(fs)->fat_type) {
     case FAT12:
 	offset = clust_num + (clust_num >> 1);
 	fat_sector = offset >> SECTOR_SHIFT(fs);
 	offset &= sector_mask;
-	cs = get_fat_sector(fs, fat_sector);
+	data = get_fat_sector(fs, fat_sector);
 	if (offset == sector_mask) {
 	    /*
 	     * we got the end of the one fat sector,
@@ -49,12 +49,12 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
 	     * so store the low part, then read the next fat
 	     * sector, read the high part, then combine it.
 	     */
-	    lo = *(uint8_t *)(cs->data + offset);
-	    cs = get_fat_sector(fs, fat_sector + 1);
-	    hi = *(uint8_t *)cs->data;
+	    lo = data[offset];
+	    data = get_fat_sector(fs, fat_sector + 1);
+	    hi = data[0];
 	    next_cluster = (hi << 8) + lo;
 	} else {
-	    next_cluster = *(uint16_t *)(cs->data + offset);
+	    next_cluster = *(const uint16_t *)(data + offset);
 	}
 
 	if (clust_num & 0x0001)
@@ -67,16 +67,16 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
 	offset = clust_num << 1;
 	fat_sector = offset >> SECTOR_SHIFT(fs);
 	offset &= sector_mask;
-	cs = get_fat_sector(fs, fat_sector);
-	next_cluster = *(uint16_t *)(cs->data + offset);
+	data = get_fat_sector(fs, fat_sector);
+	next_cluster = *(const uint16_t *)(data + offset);
 	break;
 
     case FAT32:
 	offset = clust_num << 2;
 	fat_sector = offset >> SECTOR_SHIFT(fs);
 	offset &= sector_mask;
-	cs = get_fat_sector(fs, fat_sector);
-	next_cluster = *(uint32_t *)(cs->data + offset);
+	data = get_fat_sector(fs, fat_sector);
+	next_cluster = *(const uint32_t *)(data + offset);
 	next_cluster &= 0x0fffffff;
 	break;
     }
@@ -409,13 +409,13 @@ static void copy_long_chunk(uint16_t *buf, const struct fat_dir_entry *de)
     memcpy(buf + 11, le->name3, 2 * 2);
 }
 
-static uint8_t get_checksum(char *dir_name)
+static uint8_t get_checksum(const char *dir_name)
 {
     int  i;
     uint8_t sum = 0;
 
     for (i = 11; i; i--)
-	sum = ((sum & 1) << 7) + (sum >> 1) + *dir_name++;
+	sum = ((sum & 1) << 7) + (sum >> 1) + (uint8_t)*dir_name++;
     return sum;
 }
 
@@ -447,9 +447,8 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
 {
     struct fs_info *fs = dir->fs;
     struct inode *inode;
-    struct fat_dir_entry *de;
+    const struct fat_dir_entry *de;
     struct fat_long_name_entry *long_de;
-    struct cache_struct *cs;
 
     char mangled_name[12];
     uint16_t long_name[260];	/* == 20*13 */
@@ -475,8 +474,7 @@ static struct inode *vfat_find_entry(char *dname, struct inode *dir)
     mangle_dos_name(mangled_name, dname);
 
     while (dir_sector) {
-	cs = get_cache_block(fs->fs_dev, dir_sector);
-	de = (struct fat_dir_entry *)cs->data;
+	de = get_cache(fs->fs_dev, dir_sector);
 	entries = 1 << (fs->sector_shift - 5);
 
 	while (entries--) {
@@ -588,9 +586,9 @@ static struct dirent * vfat_readdir(struct file *file)
 {
     struct fs_info *fs = file->fs;
     struct dirent *dirent;
-    struct fat_dir_entry *de;
-    struct fat_long_name_entry *long_de;
-    struct cache_struct *cs;
+    const struct fat_dir_entry *de;
+    const char *data;
+    const struct fat_long_name_entry *long_de;
 
     sector_t sector = get_the_right_sector(file);
 
@@ -604,8 +602,8 @@ static struct dirent * vfat_readdir(struct file *file)
     int long_entry = 0;
     int sec_off = file->offset & ((1 << fs->sector_shift) - 1);
 
-    cs = get_cache_block(fs->fs_dev, sector);
-    de = (struct fat_dir_entry *)(cs->data + sec_off);
+    data = get_cache(fs->fs_dev, sector);
+    de = (const struct fat_dir_entry *)(data + sec_off);
     entries_left = ((1 << fs->sector_shift) - sec_off) >> 5;
 
     vfat_next = vfat_csum = 0xff;
@@ -708,8 +706,7 @@ static struct dirent * vfat_readdir(struct file *file)
 	sector = next_sector(file);
 	if (!sector)
 	    return NULL;
-	cs = get_cache_block(fs->fs_dev, sector);
-	de = (struct fat_dir_entry *)cs->data;
+	de = get_cache(fs->fs_dev, sector);
 	entries_left = 1 << (fs->sector_shift - 5);
     }
 

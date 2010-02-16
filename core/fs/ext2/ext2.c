@@ -12,13 +12,12 @@
 /*
  * get the group's descriptor of group_num
  */
-struct ext2_group_desc * ext2_get_group_desc(struct fs_info *fs,
-					     uint32_t group_num)
+const struct ext2_group_desc *ext2_get_group_desc(struct fs_info *fs,
+						  uint32_t group_num)
 {
     struct ext2_sb_info *sbi = EXT2_SB(fs);
     uint32_t desc_block, desc_index;
-    struct ext2_group_desc *desc_data_block;
-    struct cache_struct *cs;
+    const struct ext2_group_desc *desc_data_block;
 
     if (group_num >= sbi->s_groups_count) {
 	printf ("ext2_get_group_desc"
@@ -34,9 +33,7 @@ struct ext2_group_desc * ext2_get_group_desc(struct fs_info *fs,
 
     desc_block += sbi->s_first_data_block + 1;
 
-    cs = get_cache_block(fs->fs_dev, desc_block);
-    desc_data_block = cs->data;
-
+    desc_data_block = get_cache(fs->fs_dev, desc_block);
     return &desc_data_block[desc_index];
 }
 
@@ -159,7 +156,7 @@ static uint32_t ext2_getfssec(struct file *file, char *buf,
  * Unlike strncmp, ext2_match_entry returns 1 for success, 0 for failure.
  */
 static inline bool ext2_match_entry(const char *name, size_t len,
-                                    struct ext2_dir_entry * de)
+                                    const struct ext2_dir_entry * de)
 {
     if (!de->d_inode)
         return false;
@@ -180,26 +177,26 @@ static inline struct ext2_dir_entry *ext2_next_entry(struct ext2_dir_entry *p)
 /*
  * find a dir entry, return it if found, or return NULL.
  */
-static struct ext2_dir_entry *
+static const struct ext2_dir_entry *
 ext2_find_entry(struct fs_info *fs, struct inode *inode, const char *dname)
 {
     block_t index = 0;
     block_t block;
     uint32_t i = 0, offset, maxoffset;
-    struct ext2_dir_entry *de;
-    struct cache_struct *cs;
+    const struct ext2_dir_entry *de;
+    const char *data;
     size_t dname_len = strlen(dname);
 
     while (i < inode->size) {
 	if (!(block = ext2_bmap(inode, index++)))
 	    return NULL;
-	cs = get_cache_block(fs->fs_dev, block);
+	data = get_cache(fs->fs_dev, block);
 	offset = 0;
 	maxoffset =  min(BLOCK_SIZE(fs), i-inode->size);
 
 	/* The smallest possible size is 9 bytes */
 	while (offset < maxoffset-8) {
-	    de = (struct ext2_dir_entry *)((char *)cs->data + offset);
+	    de = (const struct ext2_dir_entry *)(data + offset);
 	    if (de->d_rec_len > maxoffset - offset)
 		break;
 
@@ -214,10 +211,11 @@ ext2_find_entry(struct fs_info *fs, struct inode *inode, const char *dname)
     return NULL;
 }
 
-static struct ext2_inode *ext2_get_inode(struct fs_info *fs, int inr)
+static const struct ext2_inode *
+ext2_get_inode(struct fs_info *fs, int inr)
 {
-    struct ext2_group_desc *desc;
-    struct cache_struct *cs;
+    const struct ext2_group_desc *desc;
+    const char *data;
     uint32_t inode_group, inode_offset;
     uint32_t block_num, block_off;
 
@@ -232,9 +230,10 @@ static struct ext2_inode *ext2_get_inode(struct fs_info *fs, int inr)
 	inode_offset / EXT2_INODES_PER_BLOCK(fs);
     block_off = inode_offset % EXT2_INODES_PER_BLOCK(fs);
 
-    cs = get_cache_block(fs->fs_dev, block_num);
+    data = get_cache(fs->fs_dev, block_num);
 
-    return cs->data + block_off * EXT2_SB(fs)->s_inode_size;
+    return (const struct ext2_inode *)
+	(data + block_off * EXT2_SB(fs)->s_inode_size);
 }
 
 static inline int get_inode_mode(int mode)
@@ -249,7 +248,7 @@ static inline int get_inode_mode(int mode)
     return mode;
 }
 
-static void fill_inode(struct inode *inode, struct ext2_inode *e_inode)
+static void fill_inode(struct inode *inode, const struct ext2_inode *e_inode)
 {
     inode->mode    = get_inode_mode(e_inode->i_mode);
     inode->size    = e_inode->i_size;
@@ -265,7 +264,7 @@ static void fill_inode(struct inode *inode, struct ext2_inode *e_inode)
 
 static struct inode *ext2_iget_by_inr(struct fs_info *fs, uint32_t inr)
 {
-    struct ext2_inode *e_inode;
+    const struct ext2_inode *e_inode;
     struct inode *inode;
 
     e_inode = ext2_get_inode(fs, inr);
@@ -283,23 +282,22 @@ static struct inode *ext2_iget_root(struct fs_info *fs)
 
 static struct inode *ext2_iget(char *dname, struct inode *parent)
 {
-        struct ext2_dir_entry *de;
-	struct fs_info *fs = parent->fs;
+    const struct ext2_dir_entry *de;
+    struct fs_info *fs = parent->fs;
 
-        de = ext2_find_entry(fs, parent, dname);
-        if (!de)
-                return NULL;
-
-        return ext2_iget_by_inr(fs, de->d_inode);
+    de = ext2_find_entry(fs, parent, dname);
+    if (!de)
+	return NULL;
+    
+    return ext2_iget_by_inr(fs, de->d_inode);
 }
-
 
 int ext2_readlink(struct inode *inode, char *buf)
 {
     struct fs_info *fs = inode->fs;
     int sec_per_block = 1 << (fs->block_shift - fs->sector_shift);
     bool fast_symlink;
-    struct cache_struct *cs;
+    const char *data;
     size_t bytes = inode->size;
 
     if (inode->size > BLOCK_SIZE(fs))
@@ -309,8 +307,8 @@ int ext2_readlink(struct inode *inode, char *buf)
     if (fast_symlink) {
 	memcpy(buf, inode->pvt, bytes);
     } else {
-	cs = get_cache_block(fs->fs_dev, *(uint32_t *)inode->pvt);
-	memcpy(buf, cs->data, bytes);
+	data = get_cache(fs->fs_dev, *(uint32_t *)inode->pvt);
+	memcpy(buf, data, bytes);
     }
 
     return bytes;
@@ -324,15 +322,17 @@ static struct dirent * ext2_readdir(struct file *file)
     struct fs_info *fs = file->fs;
     struct inode *inode = file->inode;
     struct dirent *dirent;
-    struct ext2_dir_entry *de;
-    struct cache_struct *cs;
+    const struct ext2_dir_entry *de;
+    const char *data;
     block_t index = file->offset >> fs->block_shift;
     block_t block;
 
     if (!(block = ext2_bmap(inode, index)))
 	return NULL;
-    cs = get_cache_block(fs->fs_dev, block);
-    de = (struct ext2_dir_entry *)(cs->data + (file->offset & (BLOCK_SIZE(fs) - 1)));
+
+    data = get_cache(fs->fs_dev, block);
+    de = (const struct ext2_dir_entry *)
+	(data + (file->offset & (BLOCK_SIZE(fs) - 1)));
 
     if (!(dirent = malloc(sizeof(*dirent)))) {
 	malloc_error("dirent structure in ext2_readdir");

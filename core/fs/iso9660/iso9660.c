@@ -63,7 +63,7 @@ static void iso_mangle_name(char *dst, const char *src)
         *dst++ = '\0';
 }
 
-static int iso_convert_name(char *dst, char *src, int len)
+static int iso_convert_name(char *dst, const char *src, int len)
 {
     int i = 0;
     char c;
@@ -97,7 +97,8 @@ static int iso_convert_name(char *dst, char *src, int len)
 /* 
  * Unlike strcmp, it does return 1 on match, or reutrn 0 if not match.
  */
-static int iso_compare_name(char *de_name, int len, char *file_name)
+static int iso_compare_name(const char *de_name, int len,
+			    const char *file_name)
 {
     char iso_file_name[256];
     char *p = iso_file_name;
@@ -162,26 +163,28 @@ static uint32_t iso_getfssec(struct file *file, char *buf,
 /*
  * Find a entry in the specified dir with name _dname_.
  */
-static struct iso_dir_entry *iso_find_entry(char *dname, struct inode *inode)
+static const struct iso_dir_entry *
+iso_find_entry(char *dname, struct inode *inode)
 {
     struct fs_info *fs = inode->fs;
     block_t dir_block = *(uint32_t *)inode->pvt;
     int i = 0, offset = 0;
-    char *de_name;
+    const char *de_name;
     int de_name_len, de_len;
-    struct iso_dir_entry *de;
+    const struct iso_dir_entry *de;
     struct iso_dir_entry tmpde;
+    const char *data = NULL;
     struct cache_struct *cs = NULL;
     
     while (1) {
-	if (!cs) {
+	if (!data) {
 	    if (++i > inode->blocks)
 		return NULL;
-	    cs = get_cache_block(fs->fs_dev, dir_block++);
-	    de = (struct iso_dir_entry *)cs->data;
+	    data = get_cache(fs->fs_dev, dir_block++);
+	    de = (const struct iso_dir_entry *)data;
 	    offset = 0;
 	}
-	de = (struct iso_dir_entry *)(cs->data + offset);
+	de = (const struct iso_dir_entry *)(data + offset);
 	
 	de_len = de->length;
 	if (de_len == 0) {    /* move on to the next block */
@@ -199,8 +202,8 @@ static struct iso_dir_entry *iso_find_entry(char *dname, struct inode *inode)
 	    if (offset) {
 		if (++i > inode->blocks)
 		    return NULL;
-		cs = get_cache_block(fs->fs_dev, dir_block++);
-		memcpy((void *)&tmpde + slop, cs->data, offset);
+		data = get_cache(fs->fs_dev, dir_block++);
+		memcpy((void *)&tmpde + slop, data, offset);
 	    }
 	    de = &tmpde;
 	}
@@ -234,7 +237,7 @@ static inline int get_inode_mode(uint8_t flags)
 }
 
 static struct inode *iso_get_inode(struct fs_info *fs,
-				   struct iso_dir_entry *de)
+				   const struct iso_dir_entry *de)
 {
     struct inode *inode = new_iso_inode(fs);
     if (!inode)
@@ -269,7 +272,7 @@ static struct inode *iso_iget_root(struct fs_info *fs)
 
 static struct inode *iso_iget(char *dname, struct inode *parent)
 {
-    struct iso_dir_entry *de;
+    const struct iso_dir_entry *de;
     
     de = iso_find_entry(dname, parent);
     if (!de)
@@ -292,9 +295,10 @@ static struct dirent *iso_readdir(struct file *file)
 {
     struct fs_info *fs = file->fs;
     struct inode *inode = file->inode;
-    struct iso_dir_entry *de, tmpde;
+    const struct iso_dir_entry *de;
+    struct iso_dir_entry tmpde;
     struct dirent *dirent;
-    struct cache_struct *cs = NULL;
+    const char *data = NULL;
     block_t block =  *(uint32_t *)file->inode->pvt
 	+ (file->offset >> fs->block_shift);
     int offset = file->offset & (BLOCK_SIZE(fs) - 1);
@@ -303,16 +307,16 @@ static struct dirent *iso_readdir(struct file *file)
     char *de_name;
     
     while (1) {
-	if (!cs) {
+	if (!data) {
 	    if (++i > inode->blocks)
 		return NULL;
-	    cs = get_cache_block(fs->fs_dev, block++);
+	    data = get_cache(fs->fs_dev, block++);
 	}
-	de = (struct iso_dir_entry *)(cs->data + offset);
+	de = (const struct iso_dir_entry *)(data + offset);
 	
 	de_len = de->length;
 	if (de_len == 0) {    /* move on to the next block */
-	    cs = NULL;
+	    data = NULL;
 	    file->offset = (file->offset + BLOCK_SIZE(fs) - 1)
 		>> fs->block_shift;
 	    continue;
@@ -328,8 +332,8 @@ static struct dirent *iso_readdir(struct file *file)
 	    if (offset) {
 		if (++i > inode->blocks)
 		    return NULL;
-		cs = get_cache_block(fs->fs_dev, block++);
-		memcpy((void *)&tmpde + slop, cs->data, offset);
+		data = get_cache(fs->fs_dev, block++);
+		memcpy((char *)&tmpde + slop, data, offset);
 	    }
 	    de = &tmpde;
 	}

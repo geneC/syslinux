@@ -165,8 +165,8 @@ static int raw_read(char *buf, u64 offset, u64 count)
 /* cache read from disk, offset and count are bytes */
 static int cache_read(char *buf, u64 offset, u64 count)
 {
+	const char *cd;
 	size_t block_size = fs->fs_dev->cache_block_size;
-	struct cache_struct *cs;
 	size_t off, cnt, total;
 	block_t block;
 
@@ -174,13 +174,13 @@ static int cache_read(char *buf, u64 offset, u64 count)
 	while (count > 0) {
 		block = offset / block_size;
 		off = offset % block_size;
-		cs = get_cache_block(fs->fs_dev, block);
-		if (cs == NULL)/* no data */
+		cd = get_cache(fs->fs_dev, block);
+		if (!cd)
 			break;
 		cnt = block_size - off;
 		if (cnt > count)
 			cnt = count;
-		memcpy(buf, cs->data + off, cnt);
+		memcpy(buf, cd + off, cnt);
 		count -= cnt;
 		buf += cnt;
 		offset += cnt;
