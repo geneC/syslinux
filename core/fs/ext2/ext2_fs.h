@@ -41,11 +41,11 @@
  */
 #define S_IFDIR		0040000	        // Directory
 #define S_IFCHR		0020000	        // Character device
-#define S_IFBLK		0060000  	// Block device
+#define S_IFBLK		0060000		// Block device
 #define S_IFREG		0100000	        // Regular file
 #define S_IFIFO		0010000	        // FIFO
-#define S_IFLNK		0120000 	// Symbolic link
-#define S_IFSOCK	0140000       	// Socket
+#define S_IFLNK		0120000		// Symbolic link
+#define S_IFSOCK	0140000		// Socket
 
 #define S_IFSHIFT	12
 
@@ -64,7 +64,7 @@
 
 /*
  * super block structure:
- * include/linux/ext2_fs.h 
+ * include/linux/ext2_fs.h
  */
 struct ext2_super_block {
     uint32_t s_inodes_count;	        /* Inodes count */
@@ -92,16 +92,16 @@ struct ext2_super_block {
     uint32_t s_rev_level;		/* Revision level */
     uint16_t s_def_resuid;		/* Default uid for reserved blocks */
     uint16_t s_def_resgid;		/* Default gid for reserved blocks */
-    
-    uint32_t s_first_ino; 		/* First non-reserved inode */
-    uint16_t s_inode_size; 		/* size of inode structure */
-    uint16_t s_block_group_nr; 	        /* block group # of this superblock */
-    uint32_t s_feature_compat; 	        /* compatible feature set */
-    uint32_t s_feature_incompat; 	/* incompatible feature set */
-    uint32_t s_feature_ro_compat; 	/* readonly-compatible feature set */
+
+    uint32_t s_first_ino;		/* First non-reserved inode */
+    uint16_t s_inode_size;		/* size of inode structure */
+    uint16_t s_block_group_nr;	        /* block group # of this superblock */
+    uint32_t s_feature_compat;	        /* compatible feature set */
+    uint32_t s_feature_incompat;	/* incompatible feature set */
+    uint32_t s_feature_ro_compat;	/* readonly-compatible feature set */
     uint8_t  s_uuid[16];		/* 128-bit uuid for volume */
-    char  s_volume_name[16]; 	        /* volume name */
-    char  s_last_mounted[64]; 	        /* directory where last mounted */
+    char  s_volume_name[16];	        /* volume name */
+    char  s_last_mounted[64];	        /* directory where last mounted */
     uint32_t s_algorithm_usage_bitmap;  /* For compression */
     uint8_t  s_prealloc_blocks;	        /* Nr of blocks to try to preallocate*/
     uint8_t  s_prealloc_dir_blocks;
@@ -126,7 +126,7 @@ struct ext2_super_block {
     uint32_t s_r_blocks_count_hi;	/* Reserved blocks count */
     uint32_t s_free_blocks_count_hi;/* Free blocks count */
     uint16_t s_min_extra_isize;	/* All inodes have at least # bytes */
-    uint16_t s_want_extra_isize; 	/* New inodes should reserve # bytes */
+    uint16_t s_want_extra_isize;	/* New inodes should reserve # bytes */
     uint32_t s_flags;		/* Miscellaneous flags */
     uint16_t s_raid_stride;		/* RAID stride */
     uint16_t s_mmp_interval;        /* # seconds to wait in MMP checking */
@@ -146,7 +146,7 @@ struct ext2_super_block {
 #endif
 *******************************************************************************/
 
-/*  
+/*
  *  ext2 group desc structure:
  */
 struct ext2_group_desc {
@@ -216,7 +216,7 @@ struct ext2_dir_entry {
 
 /*******************************************************************************
 #define EXT2_DIR_PAD	 4
-#define EXT2_DIR_ROUND 	(EXT2_DIR_PAD - 1)
+#define EXT2_DIR_ROUND	(EXT2_DIR_PAD - 1)
 #define EXT2_DIR_REC_LEN(name_len)	(((name_len) + 8 + EXT2_DIR_ROUND) & \
 					 ~EXT2_DIR_ROUND)
 *******************************************************************************/
@@ -267,7 +267,7 @@ struct ext4_extent_header {
 
 
 /*
- * The ext2 super block information in memory 
+ * The ext2 super block information in memory
  */
 struct ext2_sb_info {
     uint32_t s_inodes_per_block;/* Number of inodes per block */
@@ -290,9 +290,9 @@ static inline struct ext2_sb_info *EXT2_SB(struct fs_info *fs)
 #define EXT2_DESC_PER_BLOCK(fs)        (EXT2_SB(fs)->s_desc_per_block)
 
 
-/* 
- * functions 
+/*
+ * functions
  */
-block_t ext2_bmap(struct fs_info *, struct inode *, block_t);
+block_t ext2_bmap(struct inode *, block_t);
 
 #endif /* ext2_fs.h */

@@ -6,13 +6,13 @@
  */
 
 #include <stdio.h>
+#include <dprintf.h>
 #include <fs.h>
 #include <disk.h>
 #include <cache.h>
 #include "ext2_fs.h"
 
-
-static struct ext4_extent_header * 
+static struct ext4_extent_header *
 ext4_find_leaf(struct fs_info *fs, struct ext4_extent_header *eh,
 	       block_t block)
 {
@@ -20,44 +20,44 @@ ext4_find_leaf(struct fs_info *fs, struct ext4_extent_header *eh,
     struct cache_struct *cs;
     block_t blk;
     int i;
-    
-    while (1) {                              
+
+    while (1) {
 	if (eh->eh_magic != EXT4_EXT_MAGIC)
 	    return NULL;
-	if (eh->eh_depth == 0) 
+	if (eh->eh_depth == 0)
 	    return eh;
-	
-	index = EXT4_FIRST_INDEX(eh);  
+
+	index = EXT4_FIRST_INDEX(eh);
 	for (i = 0; i < (int)eh->eh_entries; i++) {
 	    if (block < index[i].ei_block)
 		break;
 	}
 	if (--i < 0)
 	    return NULL;
-	
+
 	blk = index[i].ei_leaf_hi;
-	blk = (blk << 32) + index[i].ei_leaf_lo;                
+	blk = (blk << 32) + index[i].ei_leaf_lo;
 	cs = get_cache_block(fs->fs_dev, blk);
 	eh = (struct ext4_extent_header *)cs->data;
     }
 }
 
 /* handle the ext4 extents to get the phsical block number */
-static block_t bmap_extent(struct fs_info *fs, struct inode *inode, 
-			   block_t block)
+static block_t bmap_extent(struct inode *inode, block_t block)
 {
+    struct fs_info *fs = inode->fs;
     struct ext4_extent_header *leaf;
     struct ext4_extent *ext;
     int i;
     block_t start;
-    
+
     leaf = ext4_find_leaf(fs, (struct ext4_extent_header *)inode->pvt, block);
     if (!leaf) {
 	printf("ERROR, extent leaf not found\n");
 	return 0;
     }
 
-    ext = EXT4_FIRST_EXTENT(leaf);        
+    ext = EXT4_FIRST_EXTENT(leaf);
     for (i = 0; i < leaf->eh_entries; i++) {
 	if (block < ext[i].ee_block)
 	    break;
@@ -66,93 +66,91 @@ static block_t bmap_extent(struct fs_info *fs, struct inode *inode,
 	printf("ERROR, not find the right block\n");
 	return 0;
     }
-    
+
     /* got it */
     block -= ext[i].ee_block;
     if (block >= ext[i].ee_len)
 	return 0;
     start = ext[i].ee_start_hi;
     start = (start << 32) + ext[i].ee_start_lo;
-    
+
     return start + block;
 }
 
 
-/* 
- * handle the traditional block map, like indirect, double indirect 
- * and triple indirect 
+/*
+ * handle the traditional block map, like indirect, double indirect
+ * and triple indirect
  */
-static block_t bmap_traditional(struct fs_info *fs, struct inode *inode, 
-				block_t block)
+static block_t bmap_traditional(struct inode *inode, block_t block)
 {
+    struct fs_info *fs = inode->fs;
     int addr_per_block = BLOCK_SIZE(fs) >> 2;
-    block_t direct_blocks = EXT2_NDIR_BLOCKS,
+    uint32_t direct_blocks = EXT2_NDIR_BLOCKS,
 	indirect_blocks = addr_per_block,
 	double_blocks = addr_per_block * addr_per_block,
 	triple_blocks = double_blocks * addr_per_block;
     struct cache_struct *cs;
-    
+
     /* direct blocks */
     if (block < direct_blocks)
 	return ((uint32_t *)inode->pvt)[block];
-    
+
     /* indirect blocks */
     block -= direct_blocks;
     if (block < indirect_blocks) {
 	block_t ind_block = ((uint32_t *)inode->pvt)[EXT2_IND_BLOCK];
-        
+
 	if (!ind_block)
 	    return 0;
 	cs = get_cache_block(fs->fs_dev, ind_block);
-        
+
 	return ((uint32_t *)cs->data)[block];
     }
-    
-    
+
+
     /* double indirect blocks */
     block -= indirect_blocks;
     if (block < double_blocks) {
 	block_t dou_block = ((uint32_t *)inode->pvt)[EXT2_DIND_BLOCK];
-        
+
 	if (!dou_block)
-	    return 0;                
+	    return 0;
 	cs = get_cache_block(fs->fs_dev, dou_block);
-	
+
 	dou_block = ((uint32_t *)cs->data)[block / indirect_blocks];
 	if (!dou_block)
 	    return 0;
 	cs = get_cache_block(fs->fs_dev, dou_block);
-	
+
 	return ((uint32_t *)cs->data)[block % addr_per_block];
     }
-    
+
 
     /* triple indirect block */
     block -= double_blocks;
     if (block < triple_blocks) {
 	block_t tri_block = ((uint32_t *)inode->pvt)[EXT2_TIND_BLOCK];
-        
+
 	if (!tri_block)
 	    return 0;
 	cs = get_cache_block(fs->fs_dev, tri_block);
-	
+
 	tri_block = ((uint32_t *)cs->data)[block / double_blocks];
 	if (!tri_block)
 	    return 0;
 	cs = get_cache_block(fs->fs_dev, tri_block);
-	
+
 	tri_block = (block / addr_per_block) % addr_per_block;
 	tri_block = ((uint32_t *)cs->data)[tri_block];
 	if (!tri_block)
 	    return 0;
 	cs = get_cache_block(fs->fs_dev, tri_block);
-        
+
 	return ((uint32_t *)cs->data)[block % addr_per_block];
     }
-    
-    
-    /* File too big, can not handle */
-    printf("ERROR, file too big\n");
+
+    /* This can't happen... */
     return 0;
 }
 
@@ -168,14 +166,14 @@ static block_t bmap_traditional(struct fs_info *fs, struct inode *inode,
  * @retrun: the physic block number.
  *
  */
-block_t ext2_bmap(struct fs_info *fs, struct inode * inode, block_t block)
+block_t ext2_bmap(struct inode *inode, block_t block)
 {
     block_t ret;
-    
+
     if (inode->flags & EXT4_EXTENTS_FLAG)
-	ret = bmap_extent(fs, inode, block);
+	ret = bmap_extent(inode, block);
     else
-	ret = bmap_traditional(fs, inode, block);
-    
+	ret = bmap_traditional(inode, block);
+
     return ret;
 }
