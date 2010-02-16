@@ -91,10 +91,10 @@ static block_t bmap_indirect(struct fs_info *fs, uint32_t start,
     while (levels--) {
 	blk = get_cache(fs->fs_dev, start);
 	index = (block >> (levels * addr_shift)) & addr_mask;
-	block = blk[index];
+	start = blk[index];
     }
 
-    return block;
+    return start;
 }
 
 /*
