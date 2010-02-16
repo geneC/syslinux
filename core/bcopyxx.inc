@@ -1,7 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -95,10 +95,13 @@ pm_bcopy:
 		ret
 
 .reverse:
-		std			; Reverse copy
+		lea eax,[esi+ecx-1]	; Point to final byte
+		cmp edi,eax
+		ja .forward		; No overlap, do forward copy
 
-		lea esi,[esi+ecx-1]	; Point to final byte
+		std			; Reverse copy
 		lea edi,[edi+ecx-1]
+		mov esi,eax
 
 		; Initial alignment
 		mov edx,edi

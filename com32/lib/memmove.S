@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2010 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -36,7 +37,7 @@
 	.type	memmove,@function
 	.text
 memmove:
-	jecxz	3f
+	jecxz	4f
 
 	pushl	%esi
 	pushl	%edi
@@ -46,11 +47,12 @@ memmove:
 	movl	%edx,%esi
 
 	cmpl	%edi,%esi
-	jb	1f
+	jb	2f
 
 	/* source >= dest, forwards move */
 
 	/* Initial alignment */
+1:
 	movl	%edi,%edx
 	shrl	$1,%edx
 	jnc	11f
@@ -81,14 +83,24 @@ memmove:
 	jz	15f
 	movsb
 15:
-	jmp	2f
+	/* Common exit stub */
+3:
+	popl	%eax		/* Return value */
+	popl	%edi
+	popl	%esi
+4:
+	ret
 
 
-1:
-	/* source < dest, backwards move */
+2:
+	/* source < dest, backwards move if overlap */
+	leal	-1(%ecx,%esi),%eax
+	cmpl	%eax,%edi
+	ja	1b			/* No overlap, after all... */
+
 	std
-	leal	-1(%ecx,%esi),%esi
 	leal	-1(%ecx,%edi),%edi
+	movl	%eax,%esi
 
 	/* Initial alignment */
 	movl	%edi,%edx
@@ -129,11 +141,6 @@ memmove:
 	movsb
 25:
 	cld
-2:
-	popl	%eax		/* Return value */
-	popl	%edi
-	popl	%esi
-3:
-	ret
+	jmp	3b
 
 	.size	memmove, .-memmove
