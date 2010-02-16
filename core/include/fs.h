@@ -65,7 +65,7 @@ struct fs_ops {
 
     struct inode * (*iget_root)(struct fs_info *);
     struct inode * (*iget)(char *, struct inode *);
-    char * (*follow_symlink)(struct inode *, const char *);
+    int	     (*readlink)(struct inode *, char *);
 
     /* the _dir_ stuff */
     struct dirent * (*readdir)(struct file *);

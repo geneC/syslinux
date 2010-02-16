@@ -9,22 +9,6 @@
 #include "ext2_fs.h"
 
 /*
- * just like the function strcpy(), except it returns non-zero if overflow.
- * 
- */
-static int strecpy(char *dst, const char *src, char *end)
-{
-    while (*src != '\0')
-        *dst++ = *src++;
-    *dst = '\0';
-    
-    if (dst > end)
-        return 1;
-    else 
-        return 0;
-}
-
-/*
  * get the group's descriptor of group_num
  */
 struct ext2_group_desc * ext2_get_group_desc(struct fs_info *fs,
@@ -309,40 +293,26 @@ static struct inode *ext2_iget(char *dname, struct inode *parent)
 }
 
 
-static char *ext2_follow_symlink(struct inode *inode, const char *name_left)
+int ext2_readlink(struct inode *inode, char *buf)
 {
     struct fs_info *fs = inode->fs;
     int sec_per_block = 1 << (fs->block_shift - fs->sector_shift);
-    int fast_symlink;
-    char *symlink_buf;
-    char *p;
+    bool fast_symlink;
     struct cache_struct *cs;
+    size_t bytes = inode->size;
     
-    symlink_buf = malloc(BLOCK_SIZE(fs));
-    if (!symlink_buf) {
-	malloc_error("symlink buffer");
-	return NULL;
-    }
+    if (inode->size > BLOCK_SIZE(fs))
+	return -1;		/* Error! */
+
     fast_symlink = (inode->file_acl ? sec_per_block : 0) == inode->blocks;
     if (fast_symlink) {
-	memcpy(symlink_buf, inode->pvt, inode->size);
+	memcpy(buf, inode->pvt, bytes);
     } else {
 	cs = get_cache_block(fs->fs_dev, *(uint32_t *)inode->pvt);
-	memcpy(symlink_buf, cs->data, inode->size);
+	memcpy(buf, cs->data, bytes);
     }
-    p = symlink_buf + inode->size;
-    
-    if (*name_left)
-	*p++ = '/';
-    if (strecpy(p, name_left, symlink_buf + BLOCK_SIZE(fs))) {
-	free(symlink_buf);
-	return NULL;
-    }
-    if(!(p = strdup(symlink_buf)))
-	return symlink_buf;
-    
-    free(symlink_buf);        
-    return p;
+
+    return bytes;
 }
 
 /*
@@ -439,6 +409,6 @@ const struct fs_ops ext2_fs_ops = {
     .load_config   = generic_load_config,
     .iget_root     = ext2_iget_root,
     .iget          = ext2_iget,
-    .follow_symlink = ext2_follow_symlink,
+    .readlink      = ext2_readlink,
     .readdir       = ext2_readdir
 };

@@ -1,5 +1,3 @@
-#define DEBUG
-
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
@@ -157,9 +155,9 @@ int searchdir(const char *name)
     struct inode *inode;
     struct inode *parent;
     struct file *file;
-    char part[256];
+    char part[256], pathbuf[4096], linkbuf[4096];
     char *p;
-    int symlink_count = 6;
+    int symlink_count = 20;
 
     dprintf("Filename: %s\n", name);
     
@@ -177,42 +175,69 @@ int searchdir(const char *name)
 	    goto err;
     }
 
-    /* else, try the generic-path-lookup method */
-    if (*name == '/') {
-	parent = get_inode(this_fs->root);
-	while (*name == '/')
-	    name++;
-    } else {
-	parent = get_inode(this_fs->cwd);
-    }
-    inode = NULL;
 
-    while (*name) {
-	p = part;
-	while (*name && *name != '/')
-	    *p++ = *name++;
-	*p = '\0';
-	if (strcmp(part, ".")) {
-	    inode = this_fs->fs_ops->iget(part, parent);
-	    if (!inode)
-		goto err;
-	    if (inode->mode == I_SYMLINK) {
-		if (!this_fs->fs_ops->follow_symlink || 
-		    --symlink_count == 0             ||      /* limit check */
-		    inode->size >= BLOCK_SIZE(this_fs))
-		    goto err;
-		name = this_fs->fs_ops->follow_symlink(inode, name);
-		put_inode(inode);
-		continue;
-	    }
+    /* else, try the generic-path-lookup method */
+
+    parent = get_inode(this_fs->cwd);
+
+    do {
+    got_link:
+	if (*name == '/') {
 	    put_inode(parent);
-	    parent = inode;
+	    parent = get_inode(this_fs->root);
+	    while (*name == '/')
+		name++;
 	}
-	if (!*name)
-	    break;
-	while (*name == '/')
-	    name++;
-    }
+
+	inode = NULL;
+
+	while (*name) {
+	    p = part;
+	    while (*name && *name != '/')
+		*p++ = *name++;
+	    *p = '\0';
+	    if (part[0] != '.' || part[1] != '\0') {
+		inode = this_fs->fs_ops->iget(part, parent);
+		if (!inode)
+		    goto err;
+		if (inode->mode == I_SYMLINK) {
+		    int link_len;
+		    int name_len = strlen(name) + 1;
+
+		    if (!this_fs->fs_ops->readlink || 
+			--symlink_count == 0       ||      /* limit check */
+			inode->size + name_len >= sizeof linkbuf)
+			goto err;
+
+		    /*
+		     * Note: we can't generally put this in pathbuf directly,
+		     * because the old "name" may very well be in
+		     * pathbuf already.
+		     */
+		    link_len = this_fs->fs_ops->readlink(inode, linkbuf);
+		    if (link_len <= 0)
+			goto err;
+		    
+		    p = linkbuf + link_len;
+		    if (p[-1] != '/')
+			*p++ = '/';
+		    
+		    strlcpy(p, name, sizeof linkbuf - (p-linkbuf));
+
+		    name = strcpy(pathbuf, linkbuf);
+		    put_inode(inode);
+		    goto got_link;
+		}
+		put_inode(parent);
+		parent = inode;
+	    }
+	    if (!*name)
+		break;
+	    while (*name == '/')
+		name++;
+	}
+    } while (0);
+
     put_inode(parent);
 
     if (!inode)
@@ -221,7 +246,7 @@ int searchdir(const char *name)
     file->inode  = inode;
     file->offset = 0;
     file->file_len  = inode->size;
-    
+
     return file_to_handle(file);
     
 err:
