@@ -610,21 +610,6 @@ static void btrfs_searchdir(char *filename, struct file *file)
 	btrfs_set_cwd();
 }
 
-/* Load the config file, return 1 if failed, or 0 */
-static int btrfs_load_config(void)
-{
-    char *config_name = "extlinux.conf";/* use same config name as ext2 too? */
-    com32sys_t regs;
-
-    strcpy(ConfigName, config_name);
-
-    memset(&regs, 0, sizeof regs);
-    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
-    call16(core_open, &regs, &regs);
-
-    return !!(regs.eflags.l & EFLAGS_ZF);
-}
-
 static uint32_t btrfs_getfssec(struct file *gfile, char *buf, int sectors,
 					bool *have_more)
 {
@@ -729,5 +714,5 @@ const struct fs_ops btrfs_fs_ops = {
     .close_file    = btrfs_close_file,
     .mangle_name   = generic_mangle_name,
     .unmangle_name = generic_unmangle_name,
-    .load_config   = btrfs_load_config
+    .load_config   = generic_load_config
 };
