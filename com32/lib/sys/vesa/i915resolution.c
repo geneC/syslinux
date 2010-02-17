@@ -52,6 +52,7 @@
 #include <string.h>
 #include <sys/io.h>
 #include <sys/cpu.h>
+#include <sys/pci.h>
 #include <unistd.h>
 #include <assert.h>
 #include <stdbool.h>
@@ -206,8 +207,7 @@ static inline void status(const char *fmt, ...) { (void)fmt; }
 #endif
 
 static unsigned int get_chipset_id(void) {
-    outl(0x80000000, 0xcf8);
-    return inl(0xcfc);
+    return pci_readl(0x80000000);
 }
 
 static chipset_type get_chipset(unsigned int id) {
@@ -465,11 +465,8 @@ static void unlock_vbios(vbios_map * map)
         break;
     case CT_830:
     case CT_855GM:
-        outl(0x8000005a, 0xcf8);
-        map->b1 = inb(0xcfe);
-        
-        outl(0x8000005a, 0xcf8);
-        outb(0x33, 0xcfe);
+        map->b1 = pci_readb(0x8000005a);
+        pci_writeb(0x33, 0x8000005a);
         break;
     case CT_845G:
     case CT_865G:
@@ -481,13 +478,10 @@ static void unlock_vbios(vbios_map * map)
     case CT_946GZ:
     case CT_G965:
     case CT_Q965:
-        outl(0x80000090, 0xcf8);
-        map->b1 = inb(0xcfd);
-        map->b2 = inb(0xcfe);
-        
-        outl(0x80000090, 0xcf8);
-        outb(0x33, 0xcfd);
-        outb(0x33, 0xcfe);
+	map->b1 = pci_readb(0x80000091);
+	map->b2 = pci_readb(0x80000092);
+	pci_writeb(0x33, 0x80000091);
+	pci_writeb(0x33, 0x80000092);
         break;
     }
 
@@ -510,8 +504,7 @@ static void relock_vbios(vbios_map * map)
         break;
     case CT_830:
     case CT_855GM:
-        outl(0x8000005a, 0xcf8);
-        outb(map->b1, 0xcfe);
+	pci_writeb(map->b1, 0x8000005a);
         break;
     case CT_845G:
     case CT_865G:
@@ -523,9 +516,8 @@ static void relock_vbios(vbios_map * map)
     case CT_946GZ:
     case CT_G965:
     case CT_Q965:
-        outl(0x80000090, 0xcf8);
-        outb(map->b1, 0xcfd);
-        outb(map->b2, 0xcfe);
+	pci_writeb(map->b1, 0x80000091);
+	pci_writeb(map->b2, 0x80000092);
         break;
     }
 
