@@ -27,6 +27,10 @@ Changes in 3.85:
 	* vesamenu.c32: if the image is smaller than the screen, tile
 	  it across the whole screen.
 	* mkdiskimage: -s option for producing a sparse image.
+	* vesamenu.c32: support arbitrary resolution setting (beyond
+	  BIOS support) on some Intel-based video chipsets.  This code
+	  is a modified version of the "915resolution" tool by
+	  Steve Tomljenovic; your mileage might vary.
 	  
 Changes in 3.84:
 	* SYSLINUX: make the DOS installer work for MS-DOS 7.x/8.x

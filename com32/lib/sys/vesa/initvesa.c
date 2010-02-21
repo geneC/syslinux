@@ -318,8 +318,13 @@ int __vesacon_init(int x, int y)
 	return 10;
 
     rv = vesacon_set_mode(x, y);
-    if (rv)
-	return rv;
+    if (rv) {
+	/* Try to see if we can just patch the BIOS... */
+	if (__vesacon_i915resolution(x, y))
+	    return rv;
+	if (vesacon_set_mode(x, y))
+	    return rv;
+    }
 
     init_text_display();
 

@@ -13,7 +13,7 @@ NASM    = nasm
 NASMOPT = -O9999
 
 WCTARGETS = mdiskchk.com
-NSTARGETS = eltorito.sys
+NSTARGETS = eltorito.sys copybs.com
 TARGETS   = $(WCTARGETS) $(NSTARGETS)
 
 %.obj: %.c
@@ -24,23 +24,29 @@ TARGETS   = $(WCTARGETS) $(NSTARGETS)
 	$(UPX) --ultra-brute --lzma $@ || \
 		$(UPX) --ultra-brute $@ || \
 		true
+	rm -f $*.0*
+	chmod a-x $@
 
 %.sys: %.asm
 	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 	$(UPX) --ultra-brute --lzma $@ || \
 		$(UPX) --ultra-brute $@ || \
 		true
+	rm -f $*.0*
+	chmod a-x $@
 
 %.com: %.asm
 	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
 	$(UPX) --ultra-brute --lzma $@ || \
 		$(UPX) --ultra-brute $@ || \
 		true
+	rm -f $*.0*
+	chmod a-x $@
 
 all: $(TARGETS)
 
 tidy dist:
-	-rm -f *.obj *.lst *.o
+	-rm -f *.obj *.lst *.o *.0*
 
 clean: tidy
 

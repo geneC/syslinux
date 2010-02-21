@@ -65,10 +65,11 @@ LIBOBJS = \
 	sys/vesacon_write.o sys/vesaserial_write.o			\
 	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
 	sys/vesa/alphatbl.o sys/vesa/screencpy.o sys/vesa/fmtpixel.o	\
+	sys/vesa/i915resolution.o					\
 	\
-	pci/cfgtype.o pci/scan.o					\
-	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o		\
-	pci/writeb.o pci/writew.o pci/writel.o pci/writebios.o		\
+	pci/cfgtype.o pci/scan.o pci/bios.o				\
+	pci/readb.o pci/readw.o pci/readl.o				\
+	pci/writeb.o pci/writew.o pci/writel.o				\
 	\
 	zlib/adler32.o zlib/compress.o zlib/crc32.o 			\
 	zlib/uncompr.o zlib/deflate.o zlib/trees.o zlib/zutil.o		\

@@ -38,7 +38,7 @@ LIBOBJS	 = int2526.o conio.o memcpy.o memset.o  skipatou.o atou.o \
 
 VPATH = .:../libfat:../libinstaller
 
-TARGETS = syslinux.com copybs.com
+TARGETS = syslinux.com
 
 all: $(TARGETS)
 
