@@ -1,6 +1,7 @@
 #include "pci/pci.h"
 
-void BWL(pci_write) (TYPE v, pciaddr_t a) {
+void BWL(pci_write)(TYPE v, pciaddr_t a)
+{
     for (;;) {
 	switch (__pci_cfg_type) {
 	case PCI_CFG_AUTO:
@@ -39,7 +40,7 @@ void BWL(pci_write) (TYPE v, pciaddr_t a) {
 	    return;
 
 	case PCI_CFG_BIOS:
-	    __pci_write_bios(BIOSCALL, v, a);
+	    __pci_read_write_bios(BIOSCALL, v, a);
 	    return;
 
 	default:

@@ -1,7 +1,7 @@
 #include "pci/pci.h"
-#include <string.h>
 
-TYPE BWL(pci_read) (pciaddr_t a) {
+TYPE BWL(pci_read) (pciaddr_t a)
+{
     TYPE r;
 
     for (;;) {
@@ -42,7 +42,7 @@ TYPE BWL(pci_read) (pciaddr_t a) {
 	    return r;
 
 	case PCI_CFG_BIOS:
-	    return (TYPE) __pci_read_bios(BIOSCALL, a);
+	    return (TYPE) __pci_read_write_bios(BIOSCALL, 0, a);
 
 	default:
 	    return (TYPE) ~ 0;
