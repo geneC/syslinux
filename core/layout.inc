@@ -115,13 +115,6 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 ; Keep the low-memory footprint as small as possible... overrun is a hard
 ; failure!
 ;
-; 0000h - main code/data segment (and BIOS segment)
-;
-; This stuff really should come from the linker...
-;
-		global	xfer_buf_seg, core_xfer_buf
-xfer_buf_seg	equ 2000h
-core_xfer_buf	equ xfer_buf_seg << 4
 
 serial_buf_size	equ 4096		; Should be a power of 2
 
@@ -141,8 +134,24 @@ serial_buf_size	equ 4096		; Should be a power of 2
 auxseg		resb aux_size
 
 ;
+; Transfer buffer segment: guaranteed to be aligned 64K, used for disk I/O
+; One symbol for the segment number, one for the absolute address
+;
+		extern	xfer_buf_seg
+		section .xfer_buf	write nobits align=65536
+		global	core_xfer_buf
+core_xfer_buf	resb 65536
+
+;
 ; Segment for the real mode code (needed as long as we have a in-kernel
 ; loader and/or COM16 support.
+; One symbol for the segment number, one for the absolute address
 ;
-real_mode_seg	equ xfer_buf_seg + 1000h
+		extern	real_mode_seg
+		section .real_mode	write nobits align=65536
+		global	core_real_mode
+core_real_mode	resb 65536
+
 comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
+
+		section .text16

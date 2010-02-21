@@ -87,7 +87,7 @@ load_high:
 		ja .overflow
 
 		push esi			; <D> File handle/cluster pointer
-		mov esi,(xfer_buf_seg << 4)	; Source address
+		mov esi,core_xfer_buf		; Source address
 		call bcopy			; Copy to high memory
 		pop esi				; <D> File handle/cluster pointer
 		popf				; <C> EOF status

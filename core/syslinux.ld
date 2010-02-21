@@ -226,9 +226,20 @@ SECTIONS
 	__high_clear_len = __high_clear_end - __high_clear_start;
 	__high_clear_dwords = (__high_clear_len + 3) >> 2;
 
+	/*
+	 * Special 16-bit segments
+	 */
+	. = ALIGN(65536);
+	.xfer_buf (NOLOAD) : {
+		*(.xfer_buf)
+	}
+	xfer_buf_seg = core_xfer_buf >> 4;
 
-	__assert_high = ASSERT(__high_clear_end <= core_xfer_buf,
-	"auxseg/lowmem region collides with xfer_buf_seg");
+	. = ALIGN(65536);
+	.real_mode (NOLOAD) : {
+		*(.real_mode)
+	}
+	real_mode_seg = core_real_mode >> 4;
 
 	/*
 	 * 32-bit code.  This is a hack for the moment due to the

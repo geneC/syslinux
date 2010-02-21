@@ -15,7 +15,7 @@
 ;; conio.inc
 ;;
 ;; Console I/O code, except:
-;;   writechr, writestr_early		- module-dependent
+;;   writechr, writestr_early	- module-dependent
 ;;   writestr, crlf		- writestr.inc
 ;;   writehex*			- writehex.inc
 ;;

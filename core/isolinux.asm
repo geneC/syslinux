@@ -414,7 +414,7 @@ found_file:
 		; address (7C00h) is *not* 2K-sector-aligned, the safest
 		; way to deal with this is to load into the xfer_buf_seg
 		; and then copy the data in place.
-MaxLMA		equ xfer_buf_seg << 4
+MaxLMA		equ core_xfer_buf
 
 		mov bx,(7C00h+SECTOR_SIZE) >> 4
 		mov bp,[ImageSectors]

@@ -64,11 +64,19 @@ check_escapes:
 ; NOTE: Linux doesn't use all of real_mode_seg, but we use the same
 ; segment for COMBOOT images, which can use all 64K
 ;
-dosram_k	equ (real_mode_seg+0x1000) >> 6	; Minimum DOS memory (K)
 		int 12h
-		cmp ax,dosram_k
+		mov dx,real_mode_seg + 0x1000
+		shr dx,6		
+		cmp ax,dx
 		jae enough_ram
+		mov ax,dx
 		mov si,err_noram
+		mov cl,10
+		div cl
+		add [si+err_noram.size-err_noram+2],ah
+		cbw
+		div cl
+		add [si+err_noram.size-err_noram],ax
 		call writestr_early
 		jmp kaboom
 enough_ram:
@@ -76,7 +84,7 @@ skip_checks:
 
 		section .data16
 err_noram	db 'It appears your computer has less than '
-		asciidec dosram_k
+.size		db '000'
 		db 'K of low ("DOS")'
 		db CR, LF
 		db 'RAM.  Syslinux needs at least this amount to boot.  If you get'
@@ -84,8 +92,8 @@ err_noram	db 'It appears your computer has less than '
 		db 'this message in error, hold down the Ctrl key while'
 		db CR, LF
 		db 'booting, and I will take your word for it.', CR, LF, 0
-		section .text16
 
+		section .text16
 ;
 ; The code to decompress the PM code and initialize other segments.
 ;

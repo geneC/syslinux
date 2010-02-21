@@ -63,7 +63,7 @@ cmd_line_here	equ $			; F800 Should be out of the way
 		endstruc
 
 		global cmd_line
-cmd_line	equ (real_mode_seg << 4) + cmd_line_here
+cmd_line	equ core_real_mode + cmd_line_here
 
 ;
 ; Old kernel command line signature

@@ -259,7 +259,7 @@ read_kernel:
                 shl si,9			; Convert to bytes
                 mov ecx,8000h			; 32K
 		sub ecx,esi			; Number of bytes to copy
-		add esi,(real_mode_seg << 4)	; Pointer to source
+		add esi,core_real_mode		; Pointer to source
                 mov edi,free_high_memory	; Copy to free high memory
 
                 call bcopy			; Transfer to high memory
@@ -359,7 +359,7 @@ setup_command_line:
 		; New cmdline protocol
 		; Store 32-bit (flat) pointer to command line
 		; This is the "high" location, since we have bzImage
-		mov dword [fs:su_cmd_line_ptr],(real_mode_seg << 4)+cmd_line_here
+		mov dword [fs:su_cmd_line_ptr],cmd_line
 		mov word [HeapEnd],linux_stack
 		mov word [fs:su_heapend],linux_stack-512
 		jmp .setup_done
@@ -422,7 +422,7 @@ setup_move:
 ; Loading low: move real_mode stuff to 90000h, then move the kernel down
 		mov eax,90000h
 		stosd
-		mov eax,real_mode_seg << 4
+		mov eax,core_real_mode
 		stosd
 		movzx eax,word [CmdLineEnd]
 		stosd
