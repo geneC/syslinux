@@ -86,7 +86,7 @@ com32_start:
 		push dword core_cfarcall	; Cfarcall entry point
 		push dword core_farcall		; Farcall entry point
 		push dword (1 << 16)		; 64K bounce buffer
-		push dword core_xfer_buf	; Bounce buffer address
+		push dword core_real_mode	; Bounce buffer address
 		push dword core_intcall		; Intcall entry point
 		push dword command_line		; Command line pointer
 		push dword 7			; Argument count
