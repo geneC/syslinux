@@ -117,6 +117,9 @@ not_com32r_msg	db ': not a COM32R image', CR, LF, 0
 		; Ersatz com32 invocation structure, to make libcom32
 		; code run the same if linked to the core.  This is in
 		; the .data16 segment so HighMemSize can live here.
+		;
+		; Danger, Will Robinson: it's not clear the use of
+		; core_xfer_buf is safe here.
 		global __com32
 		alignz 4
 __com32:
