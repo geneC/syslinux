@@ -17,6 +17,7 @@
 #include <core.h>
 #include <disk.h>
 #include <fs.h>
+#include <sys/stat.h>
 #include "btrfs.h"
 
 /* compare function used for bin_search */
@@ -53,13 +54,6 @@ static int bin_search(void *ptr, int item_size, void *cmp_item, cmp_func func,
 	return 1;
 }
 
-struct open_file_t {
-	u64 devid; /* always 1 if allocated, reserved for multi disks */
-	u64 bytenr; /* start offset in devid */
-	u64 pos; /* current offset in file */
-};
-
-static struct open_file_t Files[MAX_OPEN];
 static int cache_ready;
 static struct fs_info *fs;
 static struct btrfs_chunk_map chunk_map;
@@ -431,195 +425,105 @@ static inline u64 btrfs_name_hash(const char *name, int len)
 	return btrfs_crc32c((u32)~1, name, len);
 }
 
-/* search a file with full path or relative path */
-static int btrfs_search_fs_tree(const char *fpath, u64 *offset,
-						u64 *size, u8 *type)
+static inline int get_inode_mode(int mode)
 {
-	char name[256];
-	char *tmp = name;
-	/* this can be used as cwd during the file searching */
-	static u64 objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
-	static u8 level; /* dir level */
-	static u64 objs[16]; /* history for ../ operation */
+	if (S_ISLNK(mode))
+		return I_SYMLINK;
+	if (S_ISDIR(mode))
+		return  I_DIR;
+	return I_FILE;
+}
+
+static struct inode *btrfs_iget_by_inr(struct fs_info *fs, u64 inr)
+{
+	struct inode *inode;
+	struct btrfs_inode_item inode_item;
+	struct btrfs_disk_key search_key;
+	struct btrfs_path path;
 	int ret;
+
+	/* FIXME: some BTRFS inode member are u64, while our logical inode
+           is u32, we may need change them to u64 later */
+	search_key.objectid = inr;
+	search_key.type = BTRFS_INODE_ITEM_KEY;
+	search_key.offset = 0;
+	clear_path(&path);
+	ret = search_tree(fs_tree, &search_key, &path);
+	if (ret)
+		return NULL;
+	inode_item = *(struct btrfs_inode_item *)path.data;
+	if (!(inode = alloc_inode(fs, inr, sizeof(u64))))
+		return NULL;
+	inode->ino = inr;
+	inode->size = inode_item.size;
+	inode->mode = get_inode_mode(inode_item.mode);
+
+	if (inode->mode == I_FILE) {
+		struct btrfs_file_extent_item extent_item;
+		u64 offset;
+
+		/* get file_extent_item */
+		search_key.type = BTRFS_EXTENT_DATA_KEY;
+		search_key.offset = 0;
+		clear_path(&path);
+		ret = search_tree(fs_tree, &search_key, &path);
+		if (ret)
+			return NULL; /* impossible */
+		extent_item = *(struct btrfs_file_extent_item *)path.data;
+		if (extent_item.type == BTRFS_FILE_EXTENT_INLINE)/* inline file */
+			offset = path.offsets[0] + sizeof(struct btrfs_header)
+				+ path.item.offset
+				+ offsetof(struct btrfs_file_extent_item, disk_bytenr);
+		else
+			offset = extent_item.disk_bytenr;
+		*(u64 *)inode->pvt = offset;
+	}
+	return inode;
+}
+
+static struct inode *btrfs_iget_root(struct fs_info *fs)
+{
+	/* BTRFS_FIRST_CHUNK_TREE_OBJECTID(256) actually is first OBJECTID for FS_TREE */
+	return btrfs_iget_by_inr(fs, BTRFS_FIRST_CHUNK_TREE_OBJECTID);
+}
+
+static struct inode *btrfs_iget(char *name, struct inode *parent)
+{
+	struct fs_info *fs = parent->fs;
 	struct btrfs_disk_key search_key;
 	struct btrfs_path path;
 	struct btrfs_dir_item dir_item;
-	struct btrfs_inode_item inode_item;
-	struct btrfs_file_extent_item extent_item;
+	int ret;
 
-	if (*fpath == '/' || *fpath == '\0') { /* full or null path */
-		objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
-		level = 0;
-		objs[level] = objectid;
-	}
-	*tmp = '\0';
-	while (1) {
-		char c = *(fpath++);
-
-		*(tmp++) = c;
-		if (!c)
-			break;
-		if (c == '/') {
-			*(tmp-1) = '\0';
-			if (!strcmp(name, "..")) {
-				if (level)
-					level--;
-				objectid = objs[level];
-			} else if (strlen(name) && strcmp(name, ".")) {
-				/* a "real" dir */
-				search_key.objectid = objectid;
-				search_key.type = BTRFS_DIR_ITEM_KEY;
-				search_key.offset =
-					btrfs_name_hash(name, strlen(name));
-				clear_path(&path);
-				ret = search_tree(fs_tree, &search_key, &path);
-				if (ret)
-					return ret; /* not found */
-				dir_item = *(struct btrfs_dir_item *)path.data;
-				/* found the name but it is not a dir ? */
-				if (dir_item.type != BTRFS_FT_DIR) {
-					printf("%s is not a dir\n", name);
-					return -1;
-				}
-				objectid = dir_item.location.objectid;
-				level++;
-				if (level >= 16) {
-					printf("too many dir levels(>16)\n");
-					return -1;
-				}
-				objs[level] = objectid;
-			}
-			tmp = name;
-			*tmp = '\0';
-		}
-	}
-	/* get file dir_item */
-	if (!strlen(name))/* no file part */
-		return -1;
-	search_key.objectid = objectid;
+	search_key.objectid = parent->ino;
 	search_key.type = BTRFS_DIR_ITEM_KEY;
 	search_key.offset = btrfs_name_hash(name, strlen(name));
 	clear_path(&path);
 	ret = search_tree(fs_tree, &search_key, &path);
 	if (ret)
-		return ret; /* not found */
+		return NULL;
 	dir_item = *(struct btrfs_dir_item *)path.data;
-	*type = dir_item.type;
-	/* found the name but it is not a file ? */
-	if (*type != BTRFS_FT_REG_FILE && *type != BTRFS_FT_SYMLINK) {
-		printf("%s is not a file\n", name);
-		return -1;
-	}
 
-	/* get inode */
-	search_key = dir_item.location;
-	clear_path(&path);
-	ret = search_tree(fs_tree, &search_key, &path);
-	if (ret)
-		return ret; /* not found */
-	inode_item = *(struct btrfs_inode_item *)path.data;
-
-	/* get file_extent_item */
-	search_key.objectid = dir_item.location.objectid;
-	search_key.type = BTRFS_EXTENT_DATA_KEY;
-	search_key.offset = 0;
-	clear_path(&path);
-	ret = search_tree(fs_tree, &search_key, &path);
-	if (ret)
-		return ret; /* not found */
-	extent_item = *(struct btrfs_file_extent_item *)path.data;
-	*size = inode_item.size;
-	if (extent_item.type == BTRFS_FILE_EXTENT_INLINE)/* inline file */
-		*offset = path.offsets[0] + sizeof(struct btrfs_header)
-			+ path.item.offset
-			+ offsetof(struct btrfs_file_extent_item, disk_bytenr);
-	else
-		*offset = extent_item.disk_bytenr;
-
-	return 0;
+	return btrfs_iget_by_inr(fs, dir_item.location.objectid);
 }
 
-static struct open_file_t *alloc_file(void)
+static int btrfs_readlink(struct inode *inode, char *buf)
 {
-    struct open_file_t *file = Files;
-    int i;
-
-    for (i = 0; i < MAX_OPEN; i++) {
-	if (file->devid == 0) /* found it */
-		return file;
-	file++;
-    }
-
-    return NULL; /* not found */
+	btrfs_read(buf, logical_physical(*(u64 *)inode->pvt), inode->size);
+	buf[inode->size] = '\0';
+	return inode->size;
 }
 
-static inline void close_pvt(struct open_file_t *of)
-{
-    of->devid = 0;
-}
-
-static void btrfs_close_file(struct file *file)
-{
-    close_pvt(file->open_file);
-}
-
-/* set the cwd to the global Path in patcharea */
-static void btrfs_set_cwd(void)
-{
-	u64 tmp;
-	char path[FILENAME_MAX];
-
-	sprintf(path, "%s/", CurrentDirName);
-	btrfs_search_fs_tree(path, &tmp, &tmp, (u8 *)&tmp);
-}
-
-static void btrfs_searchdir(char *filename, struct file *file)
-{
-	struct open_file_t *open_file;
-	u64 offset, size;
-	char name[FILENAME_MAX];
-	char *fname = filename;
-	u8 type;
-	int ret;
-
-	file->open_file = NULL;
-	file->file_len = 0;
-	do {
-		ret = btrfs_search_fs_tree(fname, &offset, &size, &type);
-		if (ret)
-			break;
-		if (type == BTRFS_FT_SYMLINK) {
-			btrfs_read(name, logical_physical(offset), size);
-			name[size] = '\0';
-			fname = name;
-			continue;
-		}
-		open_file = alloc_file();
-		file->open_file = (void *)open_file;
-		if (open_file) {
-			/* we may support multi devices later on */
-			open_file->devid = 1;
-			open_file->bytenr = offset;
-			open_file->pos = 0;
-			file->file_len = size;
-		}
-		break;
-	} while (1);
-	/* restore the cwd, since the above search may change dir */
-	btrfs_set_cwd();
-}
-
-static uint32_t btrfs_getfssec(struct file *gfile, char *buf, int sectors,
+static uint32_t btrfs_getfssec(struct file *file, char *buf, int sectors,
 					bool *have_more)
 {
+	struct inode *inode = file->inode;
 	struct disk *disk = fs->fs_dev->disk;
-	struct open_file_t *file = gfile->open_file;
 	u32 sec_shift = fs->fs_dev->disk->sector_shift;
-	u32 phy = logical_physical(file->bytenr + file->pos);
+	u32 phy = logical_physical(*(u64 *)inode->pvt + file->offset);
 	u32 sec = phy >> sec_shift;
 	u32 off = phy - (sec << sec_shift);
-	u32 remain = gfile->file_len - file->pos;
+	u32 remain = file->file_len - file->offset;
 	u32 remain_sec = (remain + (1 << sec_shift) - 1) >> sec_shift;
 	u32 size;
 
@@ -630,7 +534,7 @@ static uint32_t btrfs_getfssec(struct file *gfile, char *buf, int sectors,
 	size = sectors << sec_shift;
 	if (size > remain)
 		size = remain;
-	file->pos += size;
+	file->offset += size;
 	*have_more = remain - size;
 
 	if (off)/* inline file is not started with sector boundary */
@@ -707,22 +611,23 @@ static int btrfs_fs_init(struct fs_info *_fs)
 	btrfs_read_sys_chunk_array();
 	btrfs_read_chunk_tree();
 	btrfs_get_fs_tree();
-	btrfs_set_cwd();
 	cache_ready = 1;
 
 	/* Initialize the block cache */
-	cache_init(fs->fs_dev, fs->block_size);
+	cache_init(fs->fs_dev, fs->block_shift);
 
-	return fs->block_size;
+	return fs->block_shift;
 }
 
 const struct fs_ops btrfs_fs_ops = {
     .fs_name       = "btrfs",
     .fs_flags      = 0,
     .fs_init       = btrfs_fs_init,
-    .searchdir     = btrfs_searchdir,
+    .iget_root     = btrfs_iget_root,
+    .iget          = btrfs_iget,
+    .readlink      = btrfs_readlink,
     .getfssec      = btrfs_getfssec,
-    .close_file    = btrfs_close_file,
+    .close_file    = generic_close_file,
     .mangle_name   = generic_mangle_name,
     .unmangle_name = generic_unmangle_name,
     .load_config   = generic_load_config
