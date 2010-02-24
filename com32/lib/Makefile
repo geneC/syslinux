@@ -27,6 +27,8 @@ LIBOBJS = \
 	asprintf.o vasprintf.o strlcpy.o strlcat.o			\
 	vsscanf.o zalloc.o						\
 	\
+	lmalloc.o lstrdup.o						\
+	\
 	dprintf.o vdprintf.o						\
 	\
 	opendir.o readdir.o closedir.o getcwd.o chdir.o fdopendir.o	\

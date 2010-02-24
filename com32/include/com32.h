@@ -117,6 +117,13 @@ int __cfarcall(uint16_t __cs, uint16_t __ip,
 extern const com32sys_t __com32_zero_regs;
 
 /*
+ * Lowmem allocation functions
+ */
+void *lmalloc(size_t);
+void lfree(void *);
+char *lstrdup(const char *);
+
+/*
  * These functions convert between linear pointers in the range
  * 0..0xFFFFF and real-mode style SEG:OFFS pointers.  Note that a
  * 32-bit linear pointer is not compatible with a SEG:OFFS pointer
