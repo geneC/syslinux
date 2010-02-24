@@ -78,8 +78,6 @@ InitStack	resd 1
 
 		section .bss16
 		alignb FILENAME_MAX
-                global IPOption
-IPOption	resb 80			; ip= option buffer
 PXEStack	resd 1			; Saved stack during PXE call
 
 		alignb 4
@@ -89,10 +87,6 @@ StrucPtr	resw 2			; Pointer to PXENV+ or !PXE structure
 APIVer		resw 1			; PXE API version found
 LocalBootType	resw 1			; Local boot return code
 DHCPMagic	resb 1			; PXELINUX magic flags
-
-; The relative position of these fields matter!
-                global BOOTIFStr
-BOOTIFStr	resb 7			; Space for "BOOTIF="
 
 		section .text16
 StackBuf	equ STACK_TOP-44	; Base of stack if we use our own

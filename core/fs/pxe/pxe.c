@@ -14,10 +14,12 @@ uint32_t gate_way = 0;             /* Default router */
 uint16_t server_port = TFTP_PORT;  /* TFTP server port */
 uint16_t real_base_mem;            /* Amount of DOS memory after freeing */
 
-char MAC_str[3 * (MAC_MAX + 1)];   /* MAC address as a string */
-char MAC[MAC_MAX + 1];             /* Actual MAC address */
+uint8_t MAC[MAC_MAX];		   /* Actual MAC address */
 uint8_t MAC_len;                   /* MAC address len */
 uint8_t MAC_type;                  /* MAC address type */
+
+char __bss16 BOOTIFStr[7+3*(MAC_MAX+1)];
+#define MAC_str (BOOTIFStr+7)
 
 char boot_file[256];		   /* From DHCP */
 char path_prefix[256];		   /* From DHCP */
@@ -1099,54 +1101,39 @@ static int pxe_load_config(void)
  */
 static void make_bootif_string(void)
 {
-    char mac[18];
-    char *src = mac;
-    char *dst = MAC_str;
-    int i = MAC_len + 1;
+    const uint8_t *src;
+    char *dst = BOOTIFStr;
+    int i;
 
-    *(uint8_t *)src++ = MAC_type;
-    memcpy(src, MAC, MAC_len);
-    src = mac;
-    for (; i > 0; i--) {
-        lchexbytes(dst, src, 1);
-        dst += 2;
-        src += 1;
-        *dst++ = '-';
-    }
-    *(dst - 1) = 0;   /* Drop the last '-' and null-terminate string */
-    strcat(BOOTIFStr, "BOOTIF=");
-    strcat(BOOTIFStr, MAC_str);
-
-#if 0
-    printf("%s\n", BOOTIFStr);
-#endif
+    dst += sprintf(dst, "BOOTIF=%02x", MAC_type);
+    src = MAC;
+    for (i = MAC_len; i; i--)
+	dst += sprintf(dst, "-%02x", *src++);
 }
+
 /*
  * Generate an ip=<client-ip>:<boot-server-ip>:<gw-ip>:<netmask>
  * option into IPOption based on a DHCP packet in trackbuf.
  *
  */
+char __bss16 IPOption[3+4*16];
+
 static void genipopt(void)
 {
     char *p = IPOption;
-    int ip_len;
 
-    strcpy(p, "ip=");
-    p += 3;
+    p = stpcpy(p, "ip=");
 
-    ip_len = gendotquad(p, MyIP);
-    p += ip_len;
+    p += gendotquad(p, MyIP);
     *p++ = ':';
 
-    ip_len = gendotquad(p, server_ip);
-    p += ip_len;
+    p += gendotquad(p, server_ip);
     *p++ = ':';
 
-    ip_len = gendotquad(p, gate_way);
-    p += ip_len;
+    p += gendotquad(p, gate_way);
     *p++ = ':';
 
-    ip_len = gendotquad(p, net_mask);
+    gendotquad(p, net_mask);
 }
 
 

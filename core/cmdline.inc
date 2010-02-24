@@ -46,6 +46,8 @@ make_plain_cmdline:
 ; Actual IPAppend strings...
 ;
 %if IS_PXELINUX
+		extern IPOption, BOOTIFStr
+
 		section .data16
 		alignz 2
 IPAppends	dw IPOption

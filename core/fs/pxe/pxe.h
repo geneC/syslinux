@@ -166,8 +166,7 @@ extern uint32_t net_mask;
 extern uint32_t gate_way;
 extern uint16_t server_port;
 
-extern char MAC_str[];
-extern char MAC[];
+extern uint8_t MAC[];
 extern char BOOTIFStr[];
 extern uint8_t MAC_len;
 extern uint8_t MAC_type;
