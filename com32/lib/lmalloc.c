@@ -26,12 +26,17 @@
  * ----------------------------------------------------------------------- */
 
 #include <com32.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <syslinux/pmapi.h>
 
 void *lmalloc(size_t size)
 {
-    return __com32.cs_pm->lmalloc(size);
+    void *p;
+    p = __com32.cs_pm->lmalloc(size);
+    if (!p)
+	errno = ENOMEM;
+    return p;
 }
 
 void lfree(void *ptr)
