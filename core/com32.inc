@@ -126,10 +126,9 @@ __com32:
 		dd 8				; Argument count
 		dd 0				; No command line
 		dd core_intcall			; Intcall entry point
-		dd core_xfer_buf		; Bounce buffer address
-		dd 1 << 16			; 64K bounce buffer
+		dd 0				; Bounce buffer address
+		dd 0				; 64K bounce buffer
 		dd core_farcall			; Farcall entry point
 		dd core_cfarcall		; Cfarcall entry point
 HighMemSize	dd 0				; End of memory pointer (bytes)
 		dd pm_api_vector		; Protected mode functions
-

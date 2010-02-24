@@ -20,6 +20,8 @@ void mem_init(void)
     for (i = 0 ; i < NHEAP ; i++) {
 	fp->a.next = fp->a.prev = fp->next_free = fp->prev_free = fp;
 	fp->a.attrs = ARENA_TYPE_HEAD | (i << ARENA_HEAP_POS);
+	fp->a.tag = MALLOC_HEAD;
+	fp++;
     }
 
     /* Initialize the main heap */

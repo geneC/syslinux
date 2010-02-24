@@ -15,6 +15,7 @@
 typedef size_t malloc_tag_t;
 enum malloc_owner {
     MALLOC_FREE,
+    MALLOC_HEAD,
     MALLOC_CORE,
     MALLOC_MODULE,
 };

@@ -243,6 +243,7 @@ SECTIONS
 	__high_clear_dwords = (__high_clear_len + 3) >> 2;
 
 	/* Start of the lowmem heap */
+	. = ALIGN(16);
 	__lowmem_heap = .;
 
 	/*
