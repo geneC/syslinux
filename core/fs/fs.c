@@ -137,6 +137,27 @@ void getfssec(com32sys_t *regs)
     regs->ecx.l = bytes_read;
 }
 
+size_t pmapi_read_file(uint16_t *handle, void *buf, size_t sectors)
+{
+    bool have_more;
+    size_t bytes_read;
+    struct file *file;
+
+    file = handle_to_file(*handle);
+    bytes_read = file->fs->fs_ops->getfssec(file, buf, sectors, &have_more);
+
+    /*
+     * If we reach EOF, the filesystem driver will have already closed
+     * the underlying file... this really should be cleaner.
+     */
+    if (!have_more) {
+	_close_file(file);
+	*handle = 0;
+    }
+
+    return bytes_read;
+}
+
 void pm_searchdir(com32sys_t *regs)
 {
     char *name = MK_PTR(regs->ds, regs->edi.w[0]);

@@ -1,7 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -16,6 +16,8 @@
 ;;
 ;; Common code for running a COM32 image
 ;;
+
+		extern pm_api_vector
 
 ;
 ; Load a COM32 image.  A COM32 image is the 32-bit analogue to a DOS
@@ -82,6 +84,7 @@ com32_start:
 .pm:
 		; Set up the calling stack frame
 
+		push dword pm_api_vector
 		push dword [HighMemSize]	; Memory managed by Syslinux
 		push dword core_cfarcall	; Cfarcall entry point
 		push dword core_farcall		; Farcall entry point
@@ -89,7 +92,7 @@ com32_start:
 		push dword core_real_mode	; Bounce buffer address
 		push dword core_intcall		; Intcall entry point
 		push dword command_line		; Command line pointer
-		push dword 7			; Argument count
+		push dword 8			; Argument count
 		sti				; Interrupts OK now
 		call com32_entry		; Run the program...
 		; ... on return, fall through to com32_exit ...
@@ -123,7 +126,7 @@ not_com32r_msg	db ': not a COM32R image', CR, LF, 0
 		global __com32
 		alignz 4
 __com32:
-		dd 7				; Argument count
+		dd 8				; Argument count
 		dd 0				; No command line
 		dd core_intcall			; Intcall entry point
 		dd core_xfer_buf		; Bounce buffer address
@@ -131,3 +134,4 @@ __com32:
 		dd core_farcall			; Farcall entry point
 		dd core_cfarcall		; Cfarcall entry point
 HighMemSize	dd 0				; End of memory pointer (bytes)
+		dd pm_api_vector		; Protected mode functions

@@ -187,6 +187,7 @@ void mangle_name(char *, const char *);
 char *unmangle_name(char *, const char *);
 int searchdir(const char *name);
 void _close_file(struct file *);
+size_t pmapi_read_file(uint16_t *handle, void *buf, size_t sectors);
 
 /* chdir.c */
 void pm_realpath(com32sys_t *regs);

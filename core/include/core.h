@@ -3,6 +3,7 @@
 
 #include <klibc/compiler.h>
 #include <com32.h>
+#include <syslinux/pmapi.h>
 
 extern char core_xfer_buf[65536];
 extern char core_cache_buf[65536];
