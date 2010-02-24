@@ -55,6 +55,7 @@ int open(const char *pathname, int flags, ...)
     com32sys_t regs;
     int fd;
     struct file_info *fp;
+    char *lm_pathname;
 
     fd = opendev(&__file_dev, NULL, flags);
 
@@ -63,13 +64,17 @@ int open(const char *pathname, int flags, ...)
 
     fp = &__file_info[fd];
 
-    strlcpy(__com32.cs_bounce, pathname, __com32.cs_bounce_size);
+    lm_pathname = lstrdup(pathname);
+    if (!lm_pathname)
+	return -1;
 
     regs.eax.w[0] = 0x0006;
-    regs.esi.w[0] = OFFS(__com32.cs_bounce);
-    regs.es = SEG(__com32.cs_bounce);
+    regs.esi.w[0] = OFFS(lm_pathname);
+    regs.es = SEG(lm_pathname);
 
     __com32.cs_intcall(0x22, &regs, &regs);
+
+    lfree(lm_pathname);
 
     if ((regs.eflags.l & EFLAGS_CF) || regs.esi.w[0] == 0) {
 	close(fd);

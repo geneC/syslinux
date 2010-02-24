@@ -51,7 +51,7 @@ int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
 {
     static com32sys_t ireg;
     com32sys_t oreg;
-    struct e820_entry *e820buf = __com32.cs_bounce;
+    struct e820_entry *e820buf;
     uint64_t start, len, maxlen;
     int memfound = 0;
     int rv;
@@ -74,13 +74,16 @@ int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
 	return rv;
 
     /* First try INT 15h AX=E820h */
+    e820buf = lzalloc(sizeof *e820buf);
+    if (!e820buf)
+	return -1;
+
     ireg.eax.l = 0xe820;
     ireg.edx.l = 0x534d4150;
     ireg.ebx.l = 0;
     ireg.ecx.l = sizeof(*e820buf);
     ireg.es = SEG(e820buf);
     ireg.edi.w[0] = OFFS(e820buf);
-    memset(e820buf, 0, sizeof *e820buf);
 
     do {
 	__intcall(0x15, &ireg, &oreg);
@@ -119,6 +122,8 @@ int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
 
 	ireg.ebx.l = oreg.ebx.l;
     } while (oreg.ebx.l);
+
+    lfree(e820buf);
 
     if (memfound)
 	return 0;
