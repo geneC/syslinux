@@ -94,12 +94,6 @@ DHCPMagic	resb 1			; PXELINUX magic flags
                 global BOOTIFStr
 BOOTIFStr	resb 7			; Space for "BOOTIF="
 
-		section .bss16
-                global packet_buf
-		alignb 16
-packet_buf	resb 2048		; Transfer packet
-packet_buf_size	equ $-packet_buf
-
 		section .text16
 StackBuf	equ STACK_TOP-44	; Base of stack if we use our own
 StackHome	equ StackBuf

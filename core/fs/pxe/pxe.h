@@ -1,6 +1,7 @@
 /* -----------------------------------------------------------------------
  *
  *   Copyright 1999-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -28,8 +29,7 @@
 #define TFTP_PORT        htons(69)              /* Default TFTP port */
 #define TFTP_BLOCKSIZE_LG2 9
 #define TFTP_BLOCKSIZE  (1 << TFTP_BLOCKSIZE_LG2)
-#define PKTBUF_SEG      0x4000
-#define PKTBUF_SIZE     (65536 / MAX_OPEN)
+#define PKTBUF_SIZE     2048			/*  */
 
 #define is_digit(c)     (((c) >= '0') && ((c) <= '9'))
 #define major_ver(v)    (((v) >> 8) && 0xff)
@@ -149,12 +149,12 @@ struct open_file_t {
     uint32_t tftp_blksize;     /* Block size for this connection(*) */
     uint16_t tftp_bytesleft;   /* Unclaimed data bytes */
     uint16_t tftp_lastpkt;     /* Sequence number of last packet (NBO) */
-    uint16_t tftp_dataptr;     /* Pointer to available data */
+    char    *tftp_dataptr;     /* Pointer to available data */
     uint8_t  tftp_goteof;      /* 1 if the EOF packet received */
-    uint8_t  tftp_unused;      /* Currently unused */
+    uint8_t  tftp_unused[3];   /* Currently unused */
     /* These values are preinitialized and not zeroed on close */
     uint16_t tftp_nextport;    /* Next port number for this slot (HBO) */
-    uint16_t tftp_pktbuf;      /* Packet buffer offset */
+    char     tftp_pktbuf[PKTBUF_SIZE];
 } __attribute__ ((packed));
 
 /*
@@ -178,8 +178,6 @@ extern uint32_t RebootTime;
 extern char boot_file[];
 extern char path_prefix[];
 extern char LocalDomain[];
-
-extern char packet_buf[];
 
 extern char IPOption[];
 extern char dot_quad_buf[];

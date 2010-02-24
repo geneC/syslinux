@@ -29,6 +29,9 @@ static uint32_t gpxe_funcs;
 static uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
 int have_uuid = 0;
 
+/* Common receive buffer */
+static __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
+
 const uint8_t TimeoutTable[] = {
     2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18, 21, 26, 31, 37, 44, 53, 64, 77,
     92, 110, 132, 159, 191, 229, 255, 255, 255, 255, 0
@@ -65,13 +68,10 @@ static void files_init(void)
 {
     int i;
     struct open_file_t *socket = Files;
-    uint16_t pktbuf = 0;
     uint16_t nextport = 49152;
 
     for (i = 0; i < MAX_OPEN; i++) {
-	socket->tftp_pktbuf = pktbuf;
 	socket->tftp_nextport = nextport;
-	pktbuf += PKTBUF_SIZE;
 	nextport++;
 	socket++;
     }
@@ -421,8 +421,7 @@ static void get_packet_gpxe(struct open_file_t *file)
 
     while (1) {
         file_read.FileHandle  = file->tftp_remoteport;
-        file_read.Buffer.offs = file->tftp_pktbuf;
-        file_read.Buffer.seg  = PKTBUF_SEG;
+        file_read.Buffer      = FAR_PTR(packet_buf);
         file_read.BufferSize  = PKTBUF_SIZE;
         err = pxe_call(PXENV_FILE_READ, &file_read);
         if (!err)  /* successed */
@@ -431,6 +430,8 @@ static void get_packet_gpxe(struct open_file_t *file)
         if (file_read.Status != PXENV_STATUS_TFTP_OPEN)
 	    kaboom();
     }
+
+    memcpy(file->tftp_pktbuf, packet_buf, file_read.BufferSize);
 
     file->tftp_dataptr   = file->tftp_pktbuf;
     file->tftp_bytesleft = file_read.BufferSize;
@@ -501,8 +502,7 @@ static void fill_buffer(struct open_file_t *file)
     timeout = *timeout_ptr++;
     oldtime = jiffies();
     while (timeout) {
-        udp_read.buffer.offs = file->tftp_pktbuf;
-        udp_read.buffer.seg  = PKTBUF_SEG;
+        udp_read.buffer      = FAR_PTR(packet_buf);
         udp_read.buffer_size = PKTBUF_SIZE;
         udp_read.src_ip      = file->tftp_remoteip;
         udp_read.dest_ip     = MyIP;
@@ -524,7 +524,7 @@ static void fill_buffer(struct open_file_t *file)
         if (udp_read.buffer_size < 4)  /* Bad size for a DATA packet */
             continue;
 
-        data = MK_PTR(PKTBUF_SEG, file->tftp_pktbuf);
+        data = packet_buf;
         if (*(uint16_t *)data != TFTP_DATA)    /* Not a data packet */
             continue;
 
@@ -556,7 +556,8 @@ static void fill_buffer(struct open_file_t *file)
     /* It's the packet we want.  We're also EOF if the size < blocksize */
     file->tftp_lastpkt = last_pkt;    /* Update last packet number */
     buffersize = udp_read.buffer_size - 4;  /* Skip TFTP header */
-    file->tftp_dataptr = file->tftp_pktbuf + 4;
+    memcpy(file->tftp_pktbuf, packet_buf + 4, buffersize);
+    file->tftp_dataptr = file->tftp_pktbuf;
     file->tftp_filepos += buffersize;
     file->tftp_bytesleft = buffersize;
     if (buffersize < file->tftp_blksize) {
@@ -600,7 +601,7 @@ static uint32_t pxe_getfssec(struct file *gfile, char *buf,
         if (chunk > file->tftp_bytesleft)
             chunk = file->tftp_bytesleft;
         file->tftp_bytesleft -= chunk;
-        memcpy(buf, MK_PTR(PKTBUF_SEG, file->tftp_dataptr), chunk);
+        memcpy(buf, file->tftp_dataptr, chunk);
 	file->tftp_dataptr += chunk;
         buf += chunk;
         bytes_read += chunk;
@@ -711,8 +712,7 @@ static void pxe_searchdir(const char *filename, struct file *file)
     if (path_type == PXE_URL) {
 	if (has_gpxe) {
 	    file_open.Status        = PXENV_STATUS_BAD_FUNC;
-	    file_open.FileName.offs = OFFS(rrq_packet_buf + 2);
-	    file_open.FileName.seg  = SEG(rrq_packet_buf + 2);
+	    file_open.FileName      = FAR_PTR(rrq_packet_buf + 2);
 	    err = pxe_call(PXENV_FILE_OPEN, &file_open);
 	    if (err)
 		goto done;
@@ -734,8 +734,7 @@ static void pxe_searchdir(const char *filename, struct file *file)
 
     open_file->tftp_remoteip = ip;
     tid = open_file->tftp_localport;   /* TID(local port No) */
-    udp_write.buffer.offs = OFFS(rrq_packet_buf);
-    udp_write.buffer.seg  = SEG(rrq_packet_buf);
+    udp_write.buffer    = FAR_PTR(rrq_packet_buf);
     udp_write.ip        = ip;
     udp_write.gw        = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
     udp_write.src_port  = tid;
@@ -761,12 +760,11 @@ static void pxe_searchdir(const char *filename, struct file *file)
     timeout = *timeout_ptr++;
     oldtime = jiffies();
     for (;;) {
-        buf = packet_buf;
-        udp_read.buffer.offs = OFFS_WRT(buf, 0);
-        udp_read.buffer.seg = 0;
-        udp_read.buffer_size = 2048;
-        udp_read.dest_ip = MyIP;
-        udp_read.d_port = tid;
+        buf                  = packet_buf;
+        udp_read.buffer      = FAR_PTR(buf);
+        udp_read.buffer_size = PKTBUF_SIZE;
+        udp_read.dest_ip     = MyIP;
+        udp_read.d_port      = tid;
         err = pxe_call(PXENV_UDP_READ, &udp_read);
         if (err) {
 	    uint32_t now = jiffies();
@@ -836,7 +834,7 @@ static void pxe_searchdir(const char *filename, struct file *file)
 
         open_file->tftp_bytesleft = buffersize;
         open_file->tftp_dataptr = open_file->tftp_pktbuf;
-        memcpy(MK_PTR(PKTBUF_SEG, open_file->tftp_pktbuf), data, buffersize);
+        memcpy(open_file->tftp_pktbuf, data, buffersize);
 	break;
 
     case TFTP_OACK:
@@ -1473,6 +1471,10 @@ static void network_init(void)
 static int pxe_fs_init(struct fs_info *fs)
 {
     (void)fs;    /* drop the compile warning message */
+
+    /* This block size is actually arbitrary... */
+    fs->sector_shift = fs->block_shift = TFTP_BLOCKSIZE_LG2;
+    fs->sector_size  = fs->block_size  = 1 << TFTP_BLOCKSIZE_LG2;
 
     /* This block size is actually arbitrary... */
     fs->sector_shift = fs->block_shift = TFTP_BLOCKSIZE_LG2;
