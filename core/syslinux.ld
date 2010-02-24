@@ -196,8 +196,24 @@ SECTIONS
 	__assert_end16 = ASSERT(_end16 <= 0x10000, "64K overflow");
 
 	/*
-	 * The auxilliary data segment is allowed to spill out of the
-	 * low 64K.
+	 * Special 16-bit segments
+	 */
+
+	. = ALIGN(65536);
+	.real_mode (NOLOAD) : {
+		*(.real_mode)
+	}
+	real_mode_seg = core_real_mode >> 4;
+
+	. = ALIGN(65536);
+	.xfer_buf (NOLOAD) : {
+		*(.xfer_buf)
+	}
+	xfer_buf_seg = core_xfer_buf >> 4;
+
+	/*
+	 * The auxilliary data segment is used by the 16-bit code
+	 * for items that don't need to live in the bottom 64K.
 	 */
 
 	. = ALIGN(16);
@@ -225,21 +241,6 @@ SECTIONS
 
 	__high_clear_len = __high_clear_end - __high_clear_start;
 	__high_clear_dwords = (__high_clear_len + 3) >> 2;
-
-	/*
-	 * Special 16-bit segments
-	 */
-	. = ALIGN(65536);
-	.real_mode (NOLOAD) : {
-		*(.real_mode)
-	}
-	real_mode_seg = core_real_mode >> 4;
-
-	. = ALIGN(65536);
-	.xfer_buf (NOLOAD) : {
-		*(.xfer_buf)
-	}
-	xfer_buf_seg = core_xfer_buf >> 4;
 
 	/* Start of the lowmem heap */
 	__lowmem_heap = .;
