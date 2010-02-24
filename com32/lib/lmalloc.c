@@ -39,6 +39,17 @@ void *lmalloc(size_t size)
     return p;
 }
 
+void *lzalloc(size_t size)
+{
+    void *p;
+    p = __com32.cs_pm->lmalloc(size);
+    if (!p)
+	errno = ENOMEM;
+    else
+	memset(p, 0, size);
+    return p;
+}
+
 void lfree(void *ptr)
 {
     __com32.cs_pm->lfree(ptr);
