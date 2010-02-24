@@ -97,16 +97,11 @@ com32_start:
 		call com32_entry		; Run the program...
 		; ... on return, fall through to com32_exit ...
 com32_exit:
-		mov bx,.rm
+		mov bx,comboot_return
 		jmp enter_rm
 
 		bits 16
 		section .text16
-.rm:
-		mov dword [PMESP],__stack_end	; Stop use of COM32 stack
-		sti
-		jmp enter_command
-
 not_com32r:
 		mov si,KernelCName
 		call writestr
@@ -123,8 +118,10 @@ not_com32r_msg	db ': not a COM32R image', CR, LF, 0
 		;
 		; Danger, Will Robinson: it's not clear the use of
 		; core_xfer_buf is safe here.
-		global __com32
+		global __entry_esp, __com32
 		alignz 4
+__entry_esp:
+		dd 0				; Dummy to avoid _exit issues
 __com32:
 		dd 8				; Argument count
 		dd 0				; No command line
@@ -135,3 +132,4 @@ __com32:
 		dd core_cfarcall		; Cfarcall entry point
 HighMemSize	dd 0				; End of memory pointer (bytes)
 		dd pm_api_vector		; Protected mode functions
+

@@ -65,8 +65,8 @@ check_escapes:
 ; segment for COMBOOT images, which can use all 64K
 ;
 		int 12h
-		mov dx,real_mode_seg + 0x1000
-		shr dx,6		
+		mov edx,__lowmem_heap + min_lowmem_heap + 1023
+		shr edx,10
 		cmp ax,dx
 		jae enough_ram
 		mov ax,dx

@@ -151,7 +151,12 @@ core_xfer_buf	resb 65536
 		section .real_mode	write nobits align=65536
 		global	core_real_mode
 core_real_mode	resb 65536
-
 comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
+
+;
+; At the very end, the lowmem heap
+;
+		extern __lowmem_heap
+min_lowmem_heap	equ 65536
 
 		section .text16

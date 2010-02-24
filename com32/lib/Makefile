@@ -31,7 +31,7 @@ LIBOBJS = \
 	\
 	opendir.o readdir.o closedir.o getcwd.o chdir.o fdopendir.o	\
 	\
-	libgcc/__ashldi3.o libgcc/__udivdi3.o			\
+	libgcc/__ashldi3.o libgcc/__udivdi3.o				\
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
 	libgcc/__divdi3.o libgcc/__moddi3.o				\
@@ -118,6 +118,25 @@ LIBOBJS = \
 	syslinux/video/fontquery.o syslinux/video/forcetext.o		\
 	syslinux/video/reportmode.o
 
+# These are the objects which are also imported into the core
+LIBCOREOBJS = 	\
+	memcpy.o mempcpy.o memset.o memcmp.o memmove.o			\
+	strlen.o stpcpy.o strcpy.o strcmp.o strlcpy.o strlcat.o		\
+	strchr.o strncmp.o strncpy.o					\
+	\
+	snprintf.o sprintf.o vsnprintf.o				\
+	\
+	dprintf.o vdprintf.o						\
+	\
+	zalloc.o strdup.o						\
+	\
+	sys/intcall.o sys/farcall.o sys/cfarcall.o sys/zeroregs.o	\
+	\
+	libgcc/__ashldi3.o libgcc/__udivdi3.o				\
+	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
+	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
+	libgcc/__divdi3.o libgcc/__moddi3.o
+
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib
 DATADIR  = /usr/share
@@ -125,9 +144,14 @@ AUXDIR   = $(DATADIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-all: libcom32.a
+all: libcom32.a libcomcore.a
 
 libcom32.a : $(LIBOBJS)
+	rm -f $@
+	$(AR) cq $@ $^
+	$(RANLIB) $@
+
+libcomcore.a : $(LIBCOREOBJS)
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@

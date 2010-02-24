@@ -726,8 +726,8 @@ static void pxe_searchdir(const char *filename, struct file *file)
 	} else {
 	    static bool already = false;
 	    if (!already) {
-		fputs("URL syntax, but gPXE extensions not detected, "
-		      "tryng plain TFTP...\n", stdout);
+		printf("URL syntax, but gPXE extensions not detected, "
+		       "tryng plain TFTP...\n");
 		already = true;
 	    }
 	}

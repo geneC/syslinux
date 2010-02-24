@@ -139,14 +139,6 @@ is_comboot_image:
 
 		jmp comboot_seg:100h	; Run it
 
-; Proper return vector
-; Note: this gets invoked both via INT 21h and directly via INT 20h.
-; We don't need to cld explicitly here, because comboot_exit does that
-; when invoking RESET_STACK_AND_SEGS.
-comboot_return:	cli			; May not have a safe stack
-		push enter_command	; Normal return to command prompt
-		jmp comboot_exit
-
 ;
 ; Set up the COMBOOT API interrupt vectors.  This is now done at
 ; initialization time.
@@ -179,7 +171,8 @@ comboot_setup_api:
 		ret
 
 ;
-; Restore the original state of the COMBOOT API vectors
+; Restore the original state of the COMBOOT API vectors, and free
+; any low memory allocated by the comboot module.
 ;
 comboot_cleanup_api:
 		pusha
@@ -296,16 +289,27 @@ comboot_bogus_tail:
 		call crlf
 		jmp enter_command
 
+; Proper return vector
+; Note: this gets invoked both via INT 21h and directly via INT 20h.
+; We don't need to cld explicitly here, because comboot_exit does that
+; when invoking RESET_STACK_AND_SEGS.
+comboot_return:
+		cli			; May not have a safe stack
+		push enter_command	; Normal return to command prompt
+		; jmp comboot_exit
+
 ;
 ; Generic COMBOOT return to command line code
 ;  stack -> where to go next
 ;     CX -> message (for _msg version)
 ;
+		extern comboot_cleanup_lowmem
 comboot_exit:
 		xor cx,cx
 comboot_exit_msg:
 		pop bx			; Return address
-		RESET_STACK_AND_SEGS SI	; Contains sti, cld
+		RESET_STACK_AND_SEGS si	; Contains sti, cld
+		pm_call comboot_cleanup_lowmem
 		call adjust_screen	; The COMBOOT program might have changed the screen
 		jcxz .nomsg
 		mov si,KernelCName

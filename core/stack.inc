@@ -1,7 +1,7 @@
 ; -----------------------------------------------------------------------
 ;
 ;   Copyright 2005-2008 H. Peter Anvin - All Rights Reserved
-;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 		mov ds,%1
 		mov es,%1
 		lss esp,[BaseStack]
+		mov dword [PMESP],__stack_end	; Reset PM stack
 		sti
 		cld
 %endmacro

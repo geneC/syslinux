@@ -19,5 +19,8 @@
 
 const struct com32_pmapi pm_api_vector =
 {
+    .lmalloc	= pmapi_lmalloc, /* Allocate low memory */
+    .lfree	= free,		 /* Free low memory */
+
     .read_file	= pmapi_read_file,
 };

@@ -230,16 +230,19 @@ SECTIONS
 	 * Special 16-bit segments
 	 */
 	. = ALIGN(65536);
+	.real_mode (NOLOAD) : {
+		*(.real_mode)
+	}
+	real_mode_seg = core_real_mode >> 4;
+
+	. = ALIGN(65536);
 	.xfer_buf (NOLOAD) : {
 		*(.xfer_buf)
 	}
 	xfer_buf_seg = core_xfer_buf >> 4;
 
-	. = ALIGN(65536);
-	.real_mode (NOLOAD) : {
-		*(.real_mode)
-	}
-	real_mode_seg = core_real_mode >> 4;
+	/* Start of the lowmem heap */
+	__lowmem_heap = .;
 
 	/*
 	 * 32-bit code.  This is a hack for the moment due to the

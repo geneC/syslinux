@@ -38,7 +38,14 @@
 #include <stddef.h>
 #include <inttypes.h>
 
+/*
+ * Note: add new members to this structure only at the end.
+ * The position of elements in this structure is an ABI.
+ */
 struct com32_pmapi {
+    void *(*lmalloc)(size_t);
+    void (*lfree)(void *);
+
     size_t (*read_file)(uint16_t *, void *, size_t);
 };
 
