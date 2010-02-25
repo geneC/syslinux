@@ -411,66 +411,73 @@ found_file:
 		; Load the rest of the file.  However, just in case there
 		; are still BIOSes with 64K wraparound problems, we have to
 		; take some extra precautions.  Since the normal load
-		; address (7C00h) is *not* 2K-sector-aligned, the safest
-		; way to deal with this is to load into the xfer_buf_seg
-		; and then copy the data in place.
-MaxLMA		equ core_xfer_buf
+		; address (7C00h) is *not* 2K-sector-aligned, we round
+		; the target address upward to a sector boundary,
+		; and then move the entire thing down as a unit.
+MaxLMA		equ 384*1024		; Reasonable limit (384K)
 
-		mov bx,(7C00h+SECTOR_SIZE) >> 4
+		mov bx,((7C00h+2*SECTOR_SIZE-1) & ~(SECTOR_SIZE-1)) >> 4
 		mov bp,[ImageSectors]
+		push bx			; Load segment address
 
 .more:
-		push bx
-		push bp
-		mov dx,xfer_buf_seg
-		mov es,dx
-		mov fs,dx
-		xor bx,bx
-
-		cmp bp,0x10000 >> SECTOR_SHIFT
+		push bx			; Segment address
+		push bp			; Sector count
+		mov es,bx
+		mov cx,0xfff
+		and bx,cx
+		inc cx
+		sub cx,bx
+		shr cx,SECTOR_SHIFT - 4
+		jnz .notaligned
+		mov cx,0x10000 >> SECTOR_SHIFT	; Full 64K segment possible
+.notaligned:
+		cmp bp,cx
 		jbe .ok
-		mov bp,0x10000 >> SECTOR_SHIFT
+		mov bp,cx
 .ok:
+		xor bx,bx
 		push bp
 		call getlinsec
-		pop dx
+		pop cx
+		mov dx,cx
 		pop bp
 		pop bx
 
-		mov es,bx
-		xor si,si
-		xor di,di
-		mov cx,dx
-		shl cx,SECTOR_SHIFT-2
-		fs rep movsd
-
-		mov cx,dx
-		shl cx,SECTOR_SHIFT-4
+		shl cx,SECTOR_SHIFT - 4
 		add bx,cx
 		sub bp,dx
 		jnz .more
 
-		push ds
-		pop es
-
-		; Verify the checksum on the loaded image.
-verify_image:
-		mov si,7C00h+SECTOR_SIZE
-		mov bx,es
+		; Move the image into place, and also verify the
+		; checksum
+		pop ax				; Load segment address
+		mov bx,(7C00h + SECTOR_SIZE) >> 4
 		mov ecx,[ImageDwords]
 		mov edi,[FirstSecSum]		; First sector checksum
-.loop		es lodsd
-		add edi,eax
-		dec ecx
-		jz .done
-		and si,si
-		jnz .loop
-		; SI wrapped around, advance ES
-		add bx,1000h
+		xor si,si
+
+move_verify_image:
+.setseg:
+		mov ds,ax
 		mov es,bx
-		jmp short .loop
-.done:		mov ax,ds
+.loop:
+		mov edx,[si]
+		add edi,edx
+		dec ecx
+		mov [es:si],edx
+		jz .done
+		add si,4
+		jnz .loop
+		add ax,1000h
+		add bx,1000h
+		jmp .setseg
+.done:
+		mov ax,cs
+		mov ds,ax
 		mov es,ax
+
+		; Verify the checksum on the loaded image.
 		cmp [bi_csum],edi
 		je integrity_ok
 
