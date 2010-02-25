@@ -9,11 +9,18 @@
  */
 void opendir(com32sys_t *regs)
 {
-    char *src = MK_PTR(regs->es, regs->esi.w[0]);
-    char *dst = MK_PTR(regs->ds, regs->edi.w[0]);
-    strcpy(dst, src);
-    pm_searchdir(regs);
-    regs->eax.l = (uint32_t)handle_to_file(regs->esi.w[0]);	
+    const char *src = MK_PTR(regs->es, regs->esi.w[0]);
+    struct file *file;
+    int rv;
+
+    rv = searchdir(src);
+    if (rv < 0) {
+	regs->eax.l = 0;
+	regs->eflags.l |= EFLAGS_ZF;
+    } else {
+	regs->eax.l = (uint32_t)handle_to_file(rv);
+	regs->eflags.l &= ~EFLAGS_ZF;
+    }
 }
 
 /*
