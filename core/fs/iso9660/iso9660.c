@@ -92,9 +92,8 @@ static size_t iso_convert_name(char *dst, const char *src, int len)
 	}
     }
 
-    while ((c = *src++)) {
-	/* Remove filename version suffix */
-	if (c == ';')
+    while (len-- && (c = *src++)) {
+	if (c == ';')	/* Remove any filename version suffix */
 	    break;
 	*p++ = iso_tolower(c);
     }
@@ -235,36 +234,29 @@ static struct inode *iso_get_inode(struct fs_info *fs,
     if (!inode)
 	return NULL;
 
+    dprintf("Getting inode for: %.*s\n", de->name_len, de->name);
+
     inode->mode   = get_inode_mode(de->flags);
     inode->size   = de->size_le;
     PVT(inode)->lba = de->extent_le;
-    inode->blocks = (inode->size + BLOCK_SIZE(fs) - 1) 
-	>> fs->block_shift;
-    
+    inode->blocks = (inode->size + BLOCK_SIZE(fs) - 1) >> BLOCK_SHIFT(fs);
+
     return inode;
 }
 
-
 static struct inode *iso_iget_root(struct fs_info *fs)
 {
-    struct inode *inode = new_iso_inode(fs);
-    struct iso_dir_entry *root = &ISO_SB(fs)->root;
-    
-    if (!inode) 
-	return NULL;
-    
-    inode->mode   = I_DIR;
-    inode->size   = root->size_le;
-    PVT(inode)->lba = root->extent_le;
-    inode->blocks = (inode->size + BLOCK_SIZE(fs) - 1) >> BLOCK_SHIFT(fs);
-    
-    return inode;
-}	
+    const struct iso_dir_entry *root = &ISO_SB(fs)->root;
+
+    return iso_get_inode(fs, root);
+}
 
 static struct inode *iso_iget(const char *dname, struct inode *parent)
 {
     const struct iso_dir_entry *de;
     
+    dprintf("iso_iget %p %s\n", parent, dname);
+
     de = iso_find_entry(dname, parent);
     if (!de)
 	return NULL;
@@ -279,31 +271,26 @@ static struct dirent *iso_readdir(struct file *file)
     const struct iso_dir_entry *de;
     struct dirent *dirent;
     const char *data = NULL;
-    int offset = file->offset & (BLOCK_SIZE(fs) - 1);
-    int i = file->offset >> BLOCK_SHIFT(fs);
-    block_t block =  *(uint32_t *)file->inode->pvt + i;
-    int de_len, de_name_len;
+    size_t de_len, de_name_len;
     const char *de_name;
     
     while (1) {
+	size_t offset = file->offset & (BLOCK_SIZE(fs) - 1);
+
 	if (!data) {
-	    if (++i > inode->blocks)
+	    uint32_t i = file->offset >> BLOCK_SHIFT(fs);
+	    if (i >= inode->blocks)
 		return NULL;
-	    data = get_cache(fs->fs_dev, block++);
+	    data = get_cache(fs->fs_dev, PVT(inode)->lba + i);
 	}
 	de = (const struct iso_dir_entry *)(data + offset);
 	
-	de_len = de->length;
-	offset += de_len;
-	if (de_len < 33 || offset > BLOCK_SIZE(fs)) {
+	if (de->length < 33 || offset + de->length > BLOCK_SIZE(fs)) {
+	    file->offset = (file->offset + BLOCK_SIZE(fs))
+		& ~(BLOCK_SIZE(fs) - 1); /* Start of the next block */
 	    data = NULL;
-	    file->offset = (file->offset + BLOCK_SIZE(fs) - 1)
-		& ~(BLOCK_SIZE(fs) - 1);
 	    continue;
 	}
-	
-	de_name_len = de->name_len;
-	de_name = de->name;
 	break;
     }
     
@@ -315,9 +302,10 @@ static struct dirent *iso_readdir(struct file *file)
     dirent->d_ino = 0;           /* Inode number is invalid to ISO fs */
     dirent->d_off = file->offset;
     dirent->d_type = get_inode_mode(de->flags);
-    dirent->d_reclen = iso_convert_name(dirent->d_name, de_name, de_name_len);
-    
-    file->offset += de_len;  /* Update for next reading */
+    dirent->d_reclen = iso_convert_name(dirent->d_name,
+					de->name, de->name_len);
+
+    file->offset += de->length;  /* Update for next reading */
     
     return dirent;
 }
