@@ -214,6 +214,8 @@ int searchdir(const char *name)
 	}
 
 	do {
+	    inode = get_inode(parent);
+
 	    while (*p == '/')
 		p++;
 
