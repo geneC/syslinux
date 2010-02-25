@@ -411,12 +411,12 @@ found_file:
 		; Load the rest of the file.  However, just in case there
 		; are still BIOSes with 64K wraparound problems, we have to
 		; take some extra precautions.  Since the normal load
-		; address (7C00h) is *not* 2K-sector-aligned, we round
+		; address (TEXT_START) is *not* 2K-sector-aligned, we round
 		; the target address upward to a sector boundary,
 		; and then move the entire thing down as a unit.
 MaxLMA		equ 384*1024		; Reasonable limit (384K)
 
-		mov bx,((7C00h+2*SECTOR_SIZE-1) & ~(SECTOR_SIZE-1)) >> 4
+		mov bx,((TEXT_START+2*SECTOR_SIZE-1) & ~(SECTOR_SIZE-1)) >> 4
 		mov bp,[ImageSectors]
 		push bx			; Load segment address
 
@@ -452,7 +452,7 @@ MaxLMA		equ 384*1024		; Reasonable limit (384K)
 		; Move the image into place, and also verify the
 		; checksum
 		pop ax				; Load segment address
-		mov bx,(7C00h + SECTOR_SIZE) >> 4
+		mov bx,(TEXT_START + SECTOR_SIZE) >> 4
 		mov ecx,[ImageDwords]
 		mov edi,[FirstSecSum]		; First sector checksum
 		xor si,si
