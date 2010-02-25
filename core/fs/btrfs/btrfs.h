@@ -280,4 +280,13 @@ struct btrfs_root_ref {
 	__le16 name_len;
 } __attribute__ ((__packed__));
 
+/*
+ * btrfs private inode information
+ */
+struct btrfs_pvt_inode {
+    uint64_t offset;
+};
+
+#define PVT(i) ((struct btrfs_pvt_inode *)((i)->pvt))
+
 #endif

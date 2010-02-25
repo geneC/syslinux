@@ -289,6 +289,17 @@ static inline struct ext2_sb_info *EXT2_SB(struct fs_info *fs)
 #define EXT2_INODES_PER_BLOCK(fs)      (EXT2_SB(fs)->s_inodes_per_block)
 #define EXT2_DESC_PER_BLOCK(fs)        (EXT2_SB(fs)->s_desc_per_block)
 
+/*
+ * ext2 private inode information
+ */
+struct ext2_pvt_inode {
+    union {
+	uint32_t i_block[EXT2_N_BLOCKS];
+	struct ext4_extent_header i_extent_hdr;
+    };
+};
+
+#define PVT(i) ((struct ext2_pvt_inode *)((i)->pvt))
 
 /*
  * functions

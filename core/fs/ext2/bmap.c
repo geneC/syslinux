@@ -49,8 +49,7 @@ static block_t bmap_extent(struct inode *inode, block_t block)
     int i;
     block_t start;
 
-    leaf = ext4_find_leaf(fs, (const struct ext4_extent_header *)inode->pvt,
-			  block);
+    leaf = ext4_find_leaf(fs, &PVT(inode)->i_extent_hdr, block);
     if (!leaf) {
 	printf("ERROR, extent leaf not found\n");
 	return 0;
@@ -113,24 +112,24 @@ static block_t bmap_traditional(struct inode *inode, block_t block)
 
     /* direct blocks */
     if (block < direct_blocks)
-	return ((uint32_t *)inode->pvt)[block];
+	return PVT(inode)->i_block[block];
 
     /* indirect blocks */
     block -= direct_blocks;
     if (block < indirect_blocks)
-	return bmap_indirect(fs, ((uint32_t *)inode->pvt)[EXT2_IND_BLOCK],
+	return bmap_indirect(fs, PVT(inode)->i_block[EXT2_IND_BLOCK],
 			     block, 1);
 
     /* double indirect blocks */
     block -= indirect_blocks;
     if (block < double_blocks)
-	return bmap_indirect(fs, ((uint32_t *)inode->pvt)[EXT2_DIND_BLOCK],
+	return bmap_indirect(fs, PVT(inode)->i_block[EXT2_DIND_BLOCK],
 			     block, 2);
 
     /* triple indirect block */
     block -= double_blocks;
     if (block < triple_blocks)
-	return bmap_indirect(fs, ((uint32_t *)inode->pvt)[EXT2_TIND_BLOCK],
+	return bmap_indirect(fs, PVT(inode)->i_block[EXT2_TIND_BLOCK],
 			     block, 3);
 
     /* This can't happen... */
@@ -145,8 +144,8 @@ static block_t bmap_traditional(struct inode *inode, block_t block)
  *
  * @fs:    the fs_info structure.
  * @inode: the inode structure.
- * @block: the logical blcok needed to be maped.
- * @retrun: the physic block number.
+ * @block: the logical block to be mapped.
+ * @retrun: the physical block number.
  *
  */
 block_t ext2_bmap(struct inode *inode, block_t block)

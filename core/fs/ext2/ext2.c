@@ -254,7 +254,8 @@ static void fill_inode(struct inode *inode, const struct ext2_inode *e_inode)
     inode->blocks  = e_inode->i_blocks;
     inode->flags   = e_inode->i_flags;
     inode->file_acl = e_inode->i_file_acl;
-    memcpy(inode->pvt, e_inode->i_block, EXT2_N_BLOCKS * sizeof(uint32_t *));
+    memcpy(PVT(inode)->i_block, e_inode->i_block,
+	   EXT2_N_BLOCKS * sizeof(uint32_t *));
 }
 
 static struct inode *ext2_iget_by_inr(struct fs_info *fs, uint32_t inr)
@@ -263,7 +264,7 @@ static struct inode *ext2_iget_by_inr(struct fs_info *fs, uint32_t inr)
     struct inode *inode;
 
     e_inode = ext2_get_inode(fs, inr);
-    if (!(inode = alloc_inode(fs, inr, EXT2_N_BLOCKS*sizeof(uint32_t *))))
+    if (!(inode = alloc_inode(fs, inr, sizeof(struct ext2_pvt_inode))))
 	return NULL;
     fill_inode(inode, e_inode);
 
@@ -327,11 +328,10 @@ int ext2_readlink(struct inode *inode, char *buf)
 	return -1;		/* Error! */
 
     fast_symlink = (inode->file_acl ? sec_per_block : 0) == inode->blocks;
-    if (fast_symlink) {
-	memcpy(buf, inode->pvt, inode->size);
-    } else {
+    if (fast_symlink)
+	memcpy(buf, PVT(inode)->i_block, inode->size);
+    else
 	cache_get_file(inode, buf, inode->size);
-    }
 
     return inode->size;
 }

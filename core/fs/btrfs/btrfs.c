@@ -452,7 +452,7 @@ static struct inode *btrfs_iget_by_inr(struct fs_info *fs, u64 inr)
 	if (ret)
 		return NULL;
 	inode_item = *(struct btrfs_inode_item *)path.data;
-	if (!(inode = alloc_inode(fs, inr, sizeof(u64))))
+	if (!(inode = alloc_inode(fs, inr, sizeof(struct btrfs_pvt_inode))))
 		return NULL;
 	inode->ino = inr;
 	inode->size = inode_item.size;
@@ -476,7 +476,7 @@ static struct inode *btrfs_iget_by_inr(struct fs_info *fs, u64 inr)
 				+ offsetof(struct btrfs_file_extent_item, disk_bytenr);
 		else
 			offset = extent_item.disk_bytenr;
-		*(u64 *)inode->pvt = offset;
+		PVT(inode)->offset = offset;
 	}
 	return inode;
 }
@@ -509,7 +509,7 @@ static struct inode *btrfs_iget(const char *name, struct inode *parent)
 
 static int btrfs_readlink(struct inode *inode, char *buf)
 {
-	btrfs_read(buf, logical_physical(*(u64 *)inode->pvt), inode->size);
+	btrfs_read(buf, logical_physical(PVT(inode)->offset), inode->size);
 	buf[inode->size] = '\0';
 	return inode->size;
 }
@@ -520,7 +520,7 @@ static uint32_t btrfs_getfssec(struct file *file, char *buf, int sectors,
 	struct inode *inode = file->inode;
 	struct disk *disk = fs->fs_dev->disk;
 	u32 sec_shift = fs->fs_dev->disk->sector_shift;
-	u32 phy = logical_physical(*(u64 *)inode->pvt + file->offset);
+	u32 phy = logical_physical(PVT(inode)->offset + file->offset);
 	u32 sec = phy >> sec_shift;
 	u32 off = phy - (sec << sec_shift);
 	u32 remain = file->file_len - file->offset;

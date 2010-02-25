@@ -19,10 +19,10 @@ static inline char iso_tolower(char c)
 
 static struct inode *new_iso_inode(struct fs_info *fs)
 {
-    return alloc_inode(fs, 0, sizeof(uint32_t));
+    return alloc_inode(fs, 0, sizeof(struct iso9660_pvt_inode));
 }
 
-static inline struct iso_sb_info * ISO_SB(struct fs_info *fs)
+static inline struct iso_sb_info *ISO_SB(struct fs_info *fs)
 {
     return fs->fs_info;
 }
@@ -153,8 +153,7 @@ static uint32_t iso_getfssec(struct file *file, char *buf,
     uint32_t bytes_left = file->inode->size - file->offset;
     uint32_t blocks_left = (bytes_left + BLOCK_SIZE(file->fs) - 1) 
 	>> file->fs->block_shift;
-    block_t block = *(uint32_t *)file->inode->pvt
-	+ (file->offset >> fs->block_shift);    
+    block_t block = PVT(file->inode)->lba + (file->offset >> fs->block_shift);
 
     if (blocks > blocks_left)
         blocks = blocks_left;
@@ -178,7 +177,7 @@ static const struct iso_dir_entry *
 iso_find_entry(const char *dname, struct inode *inode)
 {
     struct fs_info *fs = inode->fs;
-    block_t dir_block = *(uint32_t *)inode->pvt;
+    block_t dir_block = PVT(inode)->lba;
     int i = 0, offset = 0;
     const char *de_name;
     int de_name_len, de_len;
@@ -237,8 +236,8 @@ static struct inode *iso_get_inode(struct fs_info *fs,
 	return NULL;
 
     inode->mode   = get_inode_mode(de->flags);
-    inode->size   = *(uint32_t *)de->size;
-    *(uint32_t *)inode->pvt = *(uint32_t *)de->extent;
+    inode->size   = de->size_le;
+    PVT(inode)->lba = de->extent_le;
     inode->blocks = (inode->size + BLOCK_SIZE(fs) - 1) 
 	>> fs->block_shift;
     
@@ -255,10 +254,9 @@ static struct inode *iso_iget_root(struct fs_info *fs)
 	return NULL;
     
     inode->mode   = I_DIR;
-    inode->size   = *(uint32_t *)root->size;
-    *(uint32_t *)inode->pvt = *(uint32_t *)root->extent;
-    inode->blocks = (inode->size + BLOCK_SIZE(fs) - 1)
-	>> fs->block_shift;
+    inode->size   = root->size_le;
+    PVT(inode)->lba = root->extent_le;
+    inode->blocks = (inode->size + BLOCK_SIZE(fs) - 1) >> BLOCK_SHIFT(fs);
     
     return inode;
 }	
