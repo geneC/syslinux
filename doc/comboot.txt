@@ -979,3 +979,17 @@ AX=0024h [3.80] Cleanup, shuffle and boot, raw version
 	with read/write data segments, matching the respective code
 	segment.  For mode 0, B=0 and the limits will be 64K, for mode
 	1, B=1 and the limits will be 4 GB.
+
+
+	++++ 32-BIT ONLY API CALLS ++++
+
+void *pm_cs->lmalloc(size_t)
+
+	Allocate a buffer in low memory (below 1 MB).
+
+
+void pm_cs->lfree(void *)
+
+	Free a buffer allocated with pm_cs->lmalloc().
+
+
