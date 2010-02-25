@@ -913,7 +913,6 @@ comapi_opendir	equ comapi_err
 comapi_opendir:
 		mov es,P_ES
 		mov si,P_SI
-		mov di,InitRD
 		pm_call opendir
 		jz comapi_err	; Didn't find a directory
 		cmp eax,0
