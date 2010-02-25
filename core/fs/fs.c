@@ -232,7 +232,7 @@ int searchdir(const char *name)
 		if (inode->mode == I_SYMLINK) {
 		    char *linkbuf, *q;
 		    int name_len = echar ? strlen(p) : 0;
-		    int total_len = inode->size + name_len + (echar ? 2 : 1);
+		    int total_len = inode->size + name_len + 2;
 		    int link_len;
 
 		    if (!this_fs->fs_ops->readlink ||
@@ -284,6 +284,7 @@ int searchdir(const char *name)
     } while (0);
 
     free(pathbuf);
+    pathbuf = NULL;
     put_inode(parent);
     parent = NULL;
 

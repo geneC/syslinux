@@ -487,7 +487,7 @@ static struct inode *btrfs_iget_root(struct fs_info *fs)
 	return btrfs_iget_by_inr(fs, BTRFS_FIRST_CHUNK_TREE_OBJECTID);
 }
 
-static struct inode *btrfs_iget(char *name, struct inode *parent)
+static struct inode *btrfs_iget(const char *name, struct inode *parent)
 {
 	struct fs_info *fs = parent->fs;
 	struct btrfs_disk_key search_key;

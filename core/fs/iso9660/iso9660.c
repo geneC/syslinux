@@ -1,3 +1,4 @@
+#include <dprintf.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/dirent.h>
@@ -6,6 +7,15 @@
 #include <disk.h>
 #include <fs.h>
 #include "iso9660_fs.h"
+
+/* Convert to lower case string */
+static inline char iso_tolower(char c)
+{
+    if (c >= 'A' && c <= 'Z')
+	c += 0x20;
+
+    return c;
+}
 
 static struct inode *new_iso_inode(struct fs_info *fs)
 {
@@ -63,65 +73,66 @@ static void iso_mangle_name(char *dst, const char *src)
         *dst++ = '\0';
 }
 
-static int iso_convert_name(char *dst, const char *src, int len)
+static size_t iso_convert_name(char *dst, const char *src, int len)
 {
-    int i = 0;
+    char *p = dst;
     char c;
     
-    for (; i < len; i++) {
-	c = src[i];
-	if (!c)
+    if (len == 1) {
+	switch (*src) {
+	case 1:
+	    *p++ = '.';
+	    /* fall through */
+	case 0:
+	    *p++ = '.';
+	    goto done;
+	default:
+	    /* nothing special */
 	    break;
-	
-	/* remove ';1' in the end */
-	if (c == ';' && i == len - 2 && src[i + 1] == '1')
-	    break;
-	/* convert others ';' to '.' */
+	}
+    }
+
+    while ((c = *src++)) {
+	/* Remove filename version suffix */
 	if (c == ';')
-	    c = '.';
-	*dst++ = c;
-    }
-    
-    /* Then remove the terminal dots */
-    while (*(dst - 1) == '.') {
-	if (i <= 2)
 	    break;
-	dst--;
-	i--;
+	*p++ = iso_tolower(c);
     }
-    *dst = 0;
     
-    return i;
+    /* Then remove any terminal dots */
+    while (p > dst+1 && p[-1] == '.')
+	p--;
+
+done:
+    *p = '\0';
+    return p - dst;
 }
 
 /* 
  * Unlike strcmp, it does return 1 on match, or reutrn 0 if not match.
  */
-static int iso_compare_name(const char *de_name, int len,
-			    const char *file_name)
+static bool iso_compare_name(const char *de_name, size_t len,
+			     const char *file_name)
 {
     char iso_file_name[256];
     char *p = iso_file_name;
     char c1, c2;
-    int i;
+    size_t i;
     
     i = iso_convert_name(iso_file_name, de_name, len);
-    
-    if (i != (int)strlen(file_name))
-	return 0;
-    
-    while (i--) {
+    dprintf("Compare: \"%s\" to \"%s\" (len %zu)\n",
+	    file_name, iso_file_name, i);
+
+    do {
 	c1 = *p++;
-	c2 = *file_name++;
-	
-	/* convert to lower case */
-	c1 |= 0x20;
-	c2 |= 0x20;
+	c2 = iso_tolower(*file_name++);
+
+	/* compare equal except for case? */
 	if (c1 != c2)
-	    return 0;
-    }
-    
-    return 1;
+	    return false;
+    } while (c1);
+
+    return true;
 }
 
 static inline int cdrom_read_blocks(struct disk *disk, void *buf, 
@@ -164,7 +175,7 @@ static uint32_t iso_getfssec(struct file *file, char *buf,
  * Find a entry in the specified dir with name _dname_.
  */
 static const struct iso_dir_entry *
-iso_find_entry(char *dname, struct inode *inode)
+iso_find_entry(const char *dname, struct inode *inode)
 {
     struct fs_info *fs = inode->fs;
     block_t dir_block = *(uint32_t *)inode->pvt;
@@ -172,59 +183,41 @@ iso_find_entry(char *dname, struct inode *inode)
     const char *de_name;
     int de_name_len, de_len;
     const struct iso_dir_entry *de;
-    struct iso_dir_entry tmpde;
     const char *data = NULL;
-    struct cache_struct *cs = NULL;
+
+    dprintf("iso_find_entry: \"%s\"\n", dname);
     
     while (1) {
 	if (!data) {
+	    dprintf("Getting block %d from block %llu\n", i, dir_block);
 	    if (++i > inode->blocks)
-		return NULL;
+		return NULL;	/* End of directory */
 	    data = get_cache(fs->fs_dev, dir_block++);
-	    de = (const struct iso_dir_entry *)data;
 	    offset = 0;
 	}
+
 	de = (const struct iso_dir_entry *)(data + offset);
-	
 	de_len = de->length;
-	if (de_len == 0) {    /* move on to the next block */
-	    cs = NULL;
-	    continue;
-	}
 	offset += de_len;
 	
 	/* Make sure we have a full directory entry */
-	if (offset >= BLOCK_SIZE(fs)) {
-	    int slop = de_len + BLOCK_SIZE(fs) - offset;
-	    
-	    memcpy(&tmpde, de, slop);
-	    offset &= BLOCK_SIZE(fs) - 1;
-	    if (offset) {
-		if (++i > inode->blocks)
-		    return NULL;
-		data = get_cache(fs->fs_dev, dir_block++);
-		memcpy((void *)&tmpde + slop, data, offset);
-	    }
-	    de = &tmpde;
-	}
-	
-	if (de_len < 33) {
-	    printf("Corrupted directory entry in sector %u\n", 
-		   (uint32_t)(dir_block - 1));
-	    return NULL;
+	if (de_len < 33 || offset > BLOCK_SIZE(fs)) {
+	    /*
+	     * Zero = end of sector, or corrupt directory entry
+	     *
+	     * ECMA-119:1987 6.8.1.1: "Each Directory Record shall end
+	     * in the Logical Sector in which it begins.
+	     */
+	    data = NULL;
+	    continue;
 	}
 	
 	de_name_len = de->name_len;
 	de_name = de->name;
-	/* Handling the special case ".' and '..' here */
-	if((de_name_len == 1) && (*de_name == 0)) {
-	    de_name = ".";
-	} else if ((de_name_len == 1) && (*de_name == 1)) {
-	    de_name ="..";
-	    de_name_len = 2;
-	}
-	if (iso_compare_name(de_name, de_name_len, dname))
+	if (iso_compare_name(de_name, de_name_len, dname)) {
+	    dprintf("Found.\n");
 	    return de;
+	}
     }
 }
 
@@ -270,7 +263,7 @@ static struct inode *iso_iget_root(struct fs_info *fs)
     return inode;
 }	
 
-static struct inode *iso_iget(char *dname, struct inode *parent)
+static struct inode *iso_iget(const char *dname, struct inode *parent)
 {
     const struct iso_dir_entry *de;
     
@@ -281,30 +274,18 @@ static struct inode *iso_iget(char *dname, struct inode *parent)
     return iso_get_inode(parent->fs, de);
 }
 
-/* Convert to lower case string */
-static void tolower_str(char *str)
-{
-	while (*str) {
-		if (*str >= 'A' && *str <= 'Z')
-			*str = *str + 0x20;
-		str++;
-	}
-}
-
 static struct dirent *iso_readdir(struct file *file)
 {
     struct fs_info *fs = file->fs;
     struct inode *inode = file->inode;
     const struct iso_dir_entry *de;
-    struct iso_dir_entry tmpde;
     struct dirent *dirent;
     const char *data = NULL;
-    block_t block =  *(uint32_t *)file->inode->pvt
-	+ (file->offset >> fs->block_shift);
     int offset = file->offset & (BLOCK_SIZE(fs) - 1);
-    int i = 0;
+    int i = file->offset >> BLOCK_SHIFT(fs);
+    block_t block =  *(uint32_t *)file->inode->pvt + i;
     int de_len, de_name_len;
-    char *de_name;
+    const char *de_name;
     
     while (1) {
 	if (!data) {
@@ -315,45 +296,16 @@ static struct dirent *iso_readdir(struct file *file)
 	de = (const struct iso_dir_entry *)(data + offset);
 	
 	de_len = de->length;
-	if (de_len == 0) {    /* move on to the next block */
+	offset += de_len;
+	if (de_len < 33 || offset > BLOCK_SIZE(fs)) {
 	    data = NULL;
 	    file->offset = (file->offset + BLOCK_SIZE(fs) - 1)
-		>> fs->block_shift;
+		& ~(BLOCK_SIZE(fs) - 1);
 	    continue;
-	}
-	offset += de_len;
-	
-	/* Make sure we have a full directory entry */
-	if (offset >= BLOCK_SIZE(fs)) {
-	    int slop = de_len + BLOCK_SIZE(fs) - offset;
-	    
-	    memcpy(&tmpde, de, slop);
-	    offset &= BLOCK_SIZE(fs) - 1;
-	    if (offset) {
-		if (++i > inode->blocks)
-		    return NULL;
-		data = get_cache(fs->fs_dev, block++);
-		memcpy((char *)&tmpde + slop, data, offset);
-	    }
-	    de = &tmpde;
-	}
-	
-	if (de_len < 33) {
-	    printf("Corrupted directory entry in sector %u\n", 
-		   (uint32_t)(block - 1));
-	    return NULL;
 	}
 	
 	de_name_len = de->name_len;
 	de_name = de->name;
-	/* Handling the special case ".' and '..' here */
-	if((de_name_len == 1) && (*de_name == 0)) {
-	    de_name = ".";
-	} else if ((de_name_len == 1) && (*de_name == 1)) {
-	    de_name ="..";
-	    de_name_len = 2;
-	}
-	
 	break;
     }
     
@@ -364,10 +316,8 @@ static struct dirent *iso_readdir(struct file *file)
     
     dirent->d_ino = 0;           /* Inode number is invalid to ISO fs */
     dirent->d_off = file->offset;
-    dirent->d_reclen = de_len;
     dirent->d_type = get_inode_mode(de->flags);
-    iso_convert_name(dirent->d_name, de_name, de_name_len);
-    tolower_str(dirent->d_name);
+    dirent->d_reclen = iso_convert_name(dirent->d_name, de_name, de_name_len);
     
     file->offset += de_len;  /* Update for next reading */
     

@@ -58,6 +58,8 @@ NASMOPT  += $(NASMDEBUG)
 
 PREPCORE = ../lzo/prepcore
 
+# CFLAGS	+= -DDEBUG=1
+
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
 # guaranteed to be unique to be unique from build to build.
@@ -131,7 +133,7 @@ tidy dist:
 	rm -f *.elf.tmp *.sym
 	rm -f *.lsr *.lst *.map *.sec *.raw
 	rm -f */*.o */*/*.o */*.lst */*/*.lst */.*.d */*/.*.d
-	rm -f $(OBSOLETE)
+	rm -f $(OBSOLETE) $(LIB)
 
 clean: tidy
 

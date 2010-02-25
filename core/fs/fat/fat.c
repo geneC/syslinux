@@ -296,7 +296,7 @@ static void vfat_mangle_name(char *dst, const char *src)
 /*
  * Mangle a normal style string to DOS style string.
  */
-static void mangle_dos_name(char *mangle_buf, char *src)
+static void mangle_dos_name(char *mangle_buf, const char *src)
 {
     int i;
     unsigned char c;
@@ -443,7 +443,7 @@ static inline int get_inode_mode(uint8_t attr)
 }
 
 
-static struct inode *vfat_find_entry(char *dname, struct inode *dir)
+static struct inode *vfat_find_entry(const char *dname, struct inode *dir)
 {
     struct fs_info *fs = dir->fs;
     struct inode *inode;
@@ -577,7 +577,7 @@ static struct inode *vfat_iget_root(struct fs_info *fs)
     return inode;
 }
 
-static struct inode *vfat_iget(char *dname, struct inode *parent)
+static struct inode *vfat_iget(const char *dname, struct inode *parent)
 {
     return vfat_find_entry(dname, parent);
 }

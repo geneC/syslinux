@@ -64,7 +64,7 @@ struct fs_ops {
     int      (*load_config)(void);
 
     struct inode * (*iget_root)(struct fs_info *);
-    struct inode * (*iget)(char *, struct inode *);
+    struct inode * (*iget)(const char *, struct inode *);
     int	     (*readlink)(struct inode *, char *);
 
     /* the _dir_ stuff */

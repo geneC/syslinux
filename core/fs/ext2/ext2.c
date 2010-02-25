@@ -275,7 +275,7 @@ static struct inode *ext2_iget_root(struct fs_info *fs)
     return ext2_iget_by_inr(fs, EXT2_ROOT_INO);
 }
 
-static struct inode *ext2_iget(char *dname, struct inode *parent)
+static struct inode *ext2_iget(const char *dname, struct inode *parent)
 {
     const struct ext2_dir_entry *de;
     struct fs_info *fs = parent->fs;
@@ -322,7 +322,6 @@ int ext2_readlink(struct inode *inode, char *buf)
     struct fs_info *fs = inode->fs;
     int sec_per_block = 1 << (fs->block_shift - fs->sector_shift);
     bool fast_symlink;
-    const char *data;
 
     if (inode->size > BLOCK_SIZE(fs))
 	return -1;		/* Error! */
@@ -340,7 +339,7 @@ int ext2_readlink(struct inode *inode, char *buf)
 /*
  * Read one directory entry at a time
  */
-static struct dirent * ext2_readdir(struct file *file)
+static struct dirent *ext2_readdir(struct file *file)
 {
     struct fs_info *fs = file->fs;
     struct inode *inode = file->inode;
