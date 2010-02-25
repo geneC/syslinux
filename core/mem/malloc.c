@@ -63,7 +63,8 @@ static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
     struct free_arena_header *head = &__malloc_head[heap];
     void *p = NULL;
 
-    dprintf("_malloc(%zu, %u, %u) = ", size, heap, tag);
+    dprintf("_malloc(%zu, %u, %u) @ %p = ",
+	    size, heap, tag, __builtin_return_address(0));
 
     if (size) {
 	/* Add the obligatory arena header, and round up */

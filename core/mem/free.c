@@ -15,8 +15,6 @@ __free_block(struct free_arena_header *ah)
     struct free_arena_header *head =
 	&__malloc_head[ARENA_HEAP_GET(ah->a.attrs)];
 
-    dprintf("free(%p)\n", (struct arena_header *)ah + 1);
-
     pah = ah->a.prev;
     nah = ah->a.next;
     if ( ARENA_TYPE_GET(pah->a.attrs) == ARENA_TYPE_FREE &&
@@ -69,6 +67,8 @@ __free_block(struct free_arena_header *ah)
 void free(void *ptr)
 {
     struct free_arena_header *ah;
+
+    dprintf("free(%p) @ %p\n", ptr, __builtin_return_address(0));
 
     if ( !ptr )
         return;
