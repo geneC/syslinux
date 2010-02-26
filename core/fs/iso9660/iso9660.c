@@ -271,8 +271,6 @@ static struct dirent *iso_readdir(struct file *file)
     const struct iso_dir_entry *de;
     struct dirent *dirent;
     const char *data = NULL;
-    size_t de_len, de_name_len;
-    const char *de_name;
     
     while (1) {
 	size_t offset = file->offset & (BLOCK_SIZE(fs) - 1);
