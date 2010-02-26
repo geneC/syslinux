@@ -141,35 +141,6 @@ static inline int cdrom_read_blocks(struct disk *disk, void *buf,
 }
 
 /*
- * Get multiple clusters from a file, given the file pointer.
- */
-static uint32_t iso_getfssec(struct file *file, char *buf,
-			     int blocks, bool *have_more)
-{
-    struct fs_info *fs = file->fs;
-    struct disk *disk = fs->fs_dev->disk;
-    uint32_t bytes_read = blocks << fs->block_shift;
-    uint32_t bytes_left = file->inode->size - file->offset;
-    uint32_t blocks_left = (bytes_left + BLOCK_SIZE(file->fs) - 1) 
-	>> file->fs->block_shift;
-    block_t block = PVT(file->inode)->lba + (file->offset >> fs->block_shift);
-
-    if (blocks > blocks_left)
-        blocks = blocks_left;
-    cdrom_read_blocks(disk, buf, block, blocks);
-
-    if (bytes_read >= bytes_left) {
-        bytes_read = bytes_left;
-        *have_more = 0;
-    } else {
-        *have_more = 1;
-    }
-    
-    file->offset += bytes_read;
-    return bytes_read;
-}
-
-/*
  * Find a entry in the specified dir with name _dname_.
  */
 static const struct iso_dir_entry *
@@ -231,6 +202,8 @@ static struct inode *iso_get_inode(struct fs_info *fs,
 				   const struct iso_dir_entry *de)
 {
     struct inode *inode = new_iso_inode(fs);
+    int blktosec = BLOCK_SHIFT(fs) - SECTOR_SHIFT(fs);
+
     if (!inode)
 	return NULL;
 
@@ -240,6 +213,10 @@ static struct inode *iso_get_inode(struct fs_info *fs,
     inode->size   = de->size_le;
     PVT(inode)->lba = de->extent_le;
     inode->blocks = (inode->size + BLOCK_SIZE(fs) - 1) >> BLOCK_SHIFT(fs);
+
+    /* We have a single extent for all data */
+    inode->prev_extent.pstart = de->extent_le << blktosec;
+    inode->prev_extent.len = inode->blocks << blktosec;
 
     return inode;
 }
@@ -369,7 +346,7 @@ const struct fs_ops iso_fs_ops = {
     .fs_flags      = FS_USEMEM | FS_THISIND,
     .fs_init       = iso_fs_init,
     .searchdir     = NULL, 
-    .getfssec      = iso_getfssec,
+    .getfssec      = generic_getfssec,
     .close_file    = generic_close_file,
     .mangle_name   = iso_mangle_name,
     .unmangle_name = generic_unmangle_name,
