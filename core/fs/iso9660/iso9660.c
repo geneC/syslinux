@@ -134,12 +134,6 @@ static bool iso_compare_name(const char *de_name, size_t len,
     return true;
 }
 
-static inline int cdrom_read_blocks(struct disk *disk, void *buf, 
-				    int block, int blocks)
-{
-    return disk->rdwr_sectors(disk, buf, block, blocks, 0);
-}
-
 /*
  * Find a entry in the specified dir with name _dname_.
  */
@@ -314,25 +308,38 @@ static int iso_load_config(void)
     return 0;
 }
 
-
 static int iso_fs_init(struct fs_info *fs)
 {
     struct iso_sb_info *sbi;
-    
+    char pvd[2048];		/* Primary Volume Descriptor */
+    uint32_t pvd_lba;
+    struct disk *disk = fs->fs_dev->disk;
+    int blktosec;
+
     sbi = malloc(sizeof(*sbi));
     if (!sbi) {
 	malloc_error("iso_sb_info structure");
 	return 1;
     }
     fs->fs_info = sbi;
-    
-    cdrom_read_blocks(fs->fs_dev->disk, trackbuf, 16, 1);
-    memcpy(&sbi->root, trackbuf + ROOT_DIR_OFFSET, sizeof(sbi->root));
 
+    /* 
+     * XXX: handling iso9660 in hybrid mode on top of a 4K-logical disk
+     * will really, really hurt...
+     */
     fs->sector_shift = fs->fs_dev->disk->sector_shift;
-    fs->block_shift  = 11;
+    fs->block_shift  = 11;	/* A CD-ROM block is always 2K */
     fs->sector_size  = 1 << fs->sector_shift;
     fs->block_size   = 1 << fs->block_shift;
+    blktosec = fs->block_shift - fs->sector_shift;
+
+    pvd_lba = iso_boot_info.pvd;
+    if (!pvd_lba)
+	pvd_lba = 16;		/* Default if not otherwise defined */
+
+    disk->rdwr_sectors(disk, pvd, (sector_t)pvd_lba << blktosec,
+		       1 << blktosec, false);
+    memcpy(&sbi->root, pvd + ROOT_DIR_OFFSET, sizeof(sbi->root));
 
     /* Initialize the cache */
     cache_init(fs->fs_dev, fs->block_shift);

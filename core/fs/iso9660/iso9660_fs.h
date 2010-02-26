@@ -4,6 +4,17 @@
 #include <klibc/compiler.h>
 #include <stdint.h>
 
+/* Boot info table */
+struct iso_boot_info {
+    uint32_t pvd;		/* LBA of primary volume descriptor */
+    uint32_t file;		/* LBA of boot file */
+    uint32_t length;		/* Length of boot file */
+    uint32_t csum;		/* Checksum of boot file */
+    uint32_t reserved[10];	/* Currently unused */
+};
+
+extern struct iso_boot_info iso_boot_info; /* In isolinux.asm */
+
 /* The root dir entry offset in the primary volume descriptor */
 #define ROOT_DIR_OFFSET   156
 

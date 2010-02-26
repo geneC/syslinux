@@ -200,6 +200,8 @@ _start:		; Far jump makes sure we canonicalize the address
 		; -boot-info-table option.  If not, the values in this
 		; table are default values that we can use to get us what
 		; we need, at least under a certain set of assumptions.
+		global iso_boot_info
+iso_boot_info:
 bi_pvd:		dd 16				; LBA of primary volume descriptor
 bi_file:	dd 0				; LBA of boot file
 bi_length:	dd 0xdeadbeef			; Length of boot file
