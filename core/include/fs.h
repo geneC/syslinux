@@ -69,9 +69,27 @@ struct fs_ops {
 
     /* the _dir_ stuff */
     struct dirent * (*readdir)(struct file *);
+
+    void     (*populate_next_extent)(struct inode *);
 };
 
 enum inode_mode {I_FILE, I_DIR, I_SYMLINK};
+
+/*
+ * Extent structure: contains the mapping of some chunk of a file
+ * that is contiguous on disk.
+ */
+struct extent {
+    sector_t	pstart;		/* Physical start sector */
+    uint32_t	lstart;		/* Logical start sector */
+    uint32_t	len;		/* Number of contiguous sectors */
+};
+
+/* Special sector numbers used for struct extent.pstart */
+#define EXTENT_ZERO	((sector_t)-1) /* All-zero extent */
+#define EXTENT_VOID	((sector_t)-2) /* Invalid information */
+
+#define EXTENT_SPECIAL(x)	((x) >= EXTENT_VOID)
 
 /* 
  * The inode structure, including the detail file information 
@@ -81,14 +99,15 @@ struct inode {
     int		 refcnt;
     int          mode;   /* FILE , DIR or SYMLINK */
     uint32_t     size;
+    uint32_t	 blocks; /* How many blocks the file take */
     uint32_t     ino;    /* Inode number */
     uint32_t     atime;  /* Access time */
     uint32_t     mtime;  /* Modify time */
     uint32_t     ctime;  /* Create time */
     uint32_t     dtime;  /* Delete time */
-    int          blocks; /* How many blocks the file take */
     uint32_t     flags;
     uint32_t     file_acl;
+    struct extent this_extent, prev_extent, next_extent;
     char         pvt[0]; /* Private filesystem data */
 };
 
@@ -104,7 +123,7 @@ struct file {
 	    uint32_t offset;            /* for next read */
 	};
 
-	/* For the old searhdir method */
+	/* For the old searchdir method */
 	struct {
 	    struct open_file_t *open_file;/* The fs-specific open file struct */
 	};
@@ -207,5 +226,9 @@ int generic_load_config(void);
 
 /* close.c */
 void generic_close_file(struct file *file);
+
+/* getfssec.c */
+uint32_t generic_getfssec(struct file *file, char *buf,
+			  int sectors, bool *have_more);
 
 #endif /* FS_H */
