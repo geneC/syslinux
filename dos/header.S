@@ -18,6 +18,12 @@ __header_start:
 		.short	_exe_text_seg	/* CS */
 		.short	__reloc
 		.short	0		/* Overlay number */
+/*
+ * Don't put these fields in unless we actually have an NE or PE image;
+ * some tools might get confused and assume __reloc = 64 automatically
+ * means an NE/PE image or a Windows image of some sort.
+ */
+#if 0
 		.short	0		/* Unknown/pad? */
 		.short	0		/* Unknown/pad? */
 		.short	0		/* Unknown/pad? */
@@ -35,6 +41,8 @@ __header_start:
 		.short	0		/* Unknown/pad? */
 		.short	0		/* Unknown/pad? */
 		.long	0		/* Pointer to Windows PE header */
+#endif
+		.balign 4
 __reloc:
 		.balign	512
 __header_end:
