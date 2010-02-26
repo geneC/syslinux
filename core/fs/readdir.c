@@ -10,7 +10,6 @@
 void opendir(com32sys_t *regs)
 {
     const char *src = MK_PTR(regs->es, regs->esi.w[0]);
-    struct file *file;
     int rv;
 
     rv = searchdir(src);
