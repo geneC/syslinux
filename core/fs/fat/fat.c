@@ -29,7 +29,7 @@ static const void *get_fat_sector(struct fs_info *fs, sector_t sector)
 
 static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
 {
-    uint32_t next_cluster;
+    uint32_t next_cluster = 0;
     sector_t fat_sector;
     uint32_t offset;
     int lo, hi;
@@ -84,6 +84,70 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
     return next_cluster;
 }
 
+static void fat_next_extent(struct inode *inode)
+{
+    struct fs_info *fs = inode->fs;
+    struct fat_sb_info *sbi = FAT_SB(fs);
+    uint32_t mcluster = inode->next_extent.lstart >> sbi->clust_shift;
+    uint32_t lcluster;
+    uint32_t pcluster;
+    uint32_t tcluster;
+    uint32_t cluster_size = UINT32_C(1) << sbi->clust_shift;
+    sector_t data_area = sbi->data;
+
+    tcluster = (inode->size + cluster_size - 1) >> sbi->clust_shift;
+    if (mcluster >= tcluster)
+	goto err;		/* Requested cluster beyond end of file */
+
+    if (inode->prev_extent.len) {
+	if (inode->prev_extent.pstart < data_area)
+	    goto err;		/* Root directory has only one extent */
+	lcluster = (inode->prev_extent.lstart + inode->prev_extent.len)
+	    >> sbi->clust_shift;
+	pcluster = ((inode->prev_extent.pstart + inode->prev_extent.len
+		     - data_area) >> sbi->clust_shift) + 2;
+
+	if (lcluster > mcluster) {
+	    lcluster = 0;
+	    pcluster = PVT(inode)->start_cluster;
+	}
+    } else {
+	lcluster = 0;
+	pcluster = PVT(inode)->start_cluster;
+    }
+
+    for (;;) {
+	if (pcluster-2 >= sbi->clusters) {
+	    inode->size = lcluster << sbi->clust_shift;
+	    goto err;
+	}
+
+	if (lcluster >= mcluster)
+	    break;
+
+	lcluster++;
+	pcluster = get_next_cluster(fs, pcluster);
+    }
+
+    inode->next_extent.pstart =
+	((sector_t)(pcluster-2) << sbi->clust_shift) + data_area;
+    inode->next_extent.len = cluster_size;
+    lcluster++;
+
+    while (lcluster < tcluster) {
+	uint32_t xcluster;
+	xcluster = get_next_cluster(fs, pcluster);
+	if (xcluster != pcluster+1)
+	    break;		/* Not contiguous */
+	pcluster = xcluster;
+	inode->next_extent.len += cluster_size;
+	lcluster++;
+    }
+
+    /* In the case of error, the caller has already set next_extent.len = 0 */
+err:
+    return;
+}
 
 static sector_t get_next_sector(struct fs_info* fs, uint32_t sector)
 {
@@ -163,86 +227,6 @@ static sector_t next_sector(struct file *file)
     PVT(inode)->here = sector;
 
     return sector;
-}
-
-/**
- * __getfssec:
- *
- * get multiple sectors from a file
- *
- * This routine makes sure the subransfers do not cross a 64K boundary
- * and will correct the situation if it does, UNLESS *sectos* cross
- * 64K boundaries.
- *
- */
-static void __getfssec(struct fs_info *fs, char *buf,
-                       struct file *file, uint32_t sectors)
-{
-    sector_t curr_sector = get_the_right_sector(file);
-    sector_t frag_start , next_sector;
-    uint32_t con_sec_cnt;
-    struct disk *disk = fs->fs_dev->disk;
-
-    while (sectors) {
-        /* get fragment */
-        con_sec_cnt = 0;
-        frag_start = curr_sector;
-
-        do {
-            /* get consective sector  count */
-            con_sec_cnt++;
-            sectors--;
-            next_sector = get_next_sector(fs, curr_sector);
-	    curr_sector++;
-        } while (sectors && next_sector == curr_sector);
-
-	PVT(file->inode)->offset += con_sec_cnt;
-	PVT(file->inode)->here    = next_sector;
-
-        /* do read */
-        disk->rdwr_sectors(disk, buf, frag_start, con_sec_cnt, 0);
-        buf += con_sec_cnt << SECTOR_SHIFT(fs);/* adjust buffer pointer */
-
-        curr_sector = next_sector;
-    }
-}
-
-
-
-/**
- * get multiple sectors from a file
- *
- * @param: buf, the buffer to store the read data
- * @param: file, the file structure pointer
- * @param: sectors, number of sectors wanna read
- * @param: have_more, set one if has more
- *
- * @return: number of bytes read
- *
- */
-static uint32_t vfat_getfssec(struct file *file, char *buf, int sectors,
-			      bool *have_more)
-{
-    struct fs_info *fs = file->fs;
-    uint32_t bytes_left = file->inode->size - file->offset;
-    uint32_t bytes_read = sectors << fs->sector_shift;
-    int sector_left;
-
-    sector_left = (bytes_left + SECTOR_SIZE(fs) - 1) >> fs->sector_shift;
-    if (sectors > sector_left)
-        sectors = sector_left;
-
-    __getfssec(fs, buf, file, sectors);
-
-    if (bytes_read >= bytes_left) {
-        bytes_read = bytes_left;
-        *have_more = 0;
-    } else {
-        *have_more = 1;
-    }
-    file->offset += bytes_read;
-
-    return bytes_read;
 }
 
 /*
@@ -555,6 +539,8 @@ static struct inode *vfat_find_entry(const char *dname, struct inode *dir)
 found:
     inode = new_fat_inode(fs);
     inode->size = de->file_size;
+    PVT(inode)->start_cluster = 
+	(de->first_cluster_high << 16) + de->first_cluster_low;
     PVT(inode)->start = PVT(inode)->here = first_sector(fs, de);
     inode->mode = get_inode_mode(de->attr);
 
@@ -570,6 +556,7 @@ static struct inode *vfat_iget_root(struct fs_info *fs)
      * For FAT32, the only way to get the root directory size is to
      * follow the entire FAT chain to the end... which seems pointless.
      */
+    PVT(inode)->start_cluster = FAT_SB(fs)->root_cluster;
     inode->size = root_size ? root_size << fs->sector_shift : ~0;
     PVT(inode)->start = PVT(inode)->here = FAT_SB(fs)->root;
     inode->mode = I_DIR;
@@ -835,7 +822,7 @@ const struct fs_ops vfat_fs_ops = {
     .fs_flags      = FS_USEMEM | FS_THISIND,
     .fs_init       = vfat_fs_init,
     .searchdir     = NULL,
-    .getfssec      = vfat_getfssec,
+    .getfssec      = generic_getfssec,
     .close_file    = generic_close_file,
     .mangle_name   = vfat_mangle_name,
     .unmangle_name = generic_unmangle_name,
@@ -843,4 +830,5 @@ const struct fs_ops vfat_fs_ops = {
     .readdir       = vfat_readdir,
     .iget_root     = vfat_iget_root,
     .iget          = vfat_iget,
+    .next_extent   = fat_next_extent,
 };

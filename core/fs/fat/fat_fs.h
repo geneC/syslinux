@@ -89,11 +89,12 @@ struct fat_sb_info {
 	sector_t data;            /* The data region */
 
 	uint32_t clusters;	  /* Total number of clusters */
-	int      root_size;       /* The root dir size in sectores */
+	uint32_t root_cluster;	  /* Cluster number for (FAT32) root dir */
+	int      root_size;       /* The root dir size in sectors */
 	
 	int      clust_shift;      /* based on sectors */
 	int      clust_byte_shift; /* based on bytes   */
-	int      clust_mask;
+	int      clust_mask;	   /* sectors per cluster mask */
 	int      clust_size;
 
 	int      fat_type;
@@ -146,6 +147,7 @@ static inline int root_dir_size(struct fs_info *fs, struct fat_bpb *fat)
  * FAT private inode information
  */
 struct fat_pvt_inode {
+    uint32_t start_cluster;	/* Starting cluster address */
     sector_t start;		/* Starting sector */
     sector_t offset;		/* Current sector offset */
     sector_t here;		/* Sector corresponding to offset */

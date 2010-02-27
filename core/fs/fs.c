@@ -198,7 +198,6 @@ int searchdir(const char *name)
 	    goto err;
     }
 
-
     /* else, try the generic-path-lookup method */
 
     parent = get_inode(this_fs->cwd);
@@ -296,6 +295,9 @@ int searchdir(const char *name)
     file->inode  = inode;
     file->offset = 0;
     file->file_len  = inode->size;
+
+    dprintf("File %s -> %p (inode %p) len %u\n", name, file,
+	    inode, inode->size);
 
     return file_to_handle(file);
 

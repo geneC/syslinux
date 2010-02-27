@@ -29,9 +29,9 @@
  * getfssec.c
  *
  * Generic getfssec implementation for disk-based filesystems, which
- * support the populate_next_extent method.
+ * support the next_extent() method.
  *
- * The expected semantics of populate_next_extent are as follows:
+ * The expected semantics of next_extent are as follows:
  *
  * inode->next_extent.lstart will contain the initial sector number to
  * be mapped.  The routine is expected to populate inode->next_extent.pstart
@@ -41,14 +41,15 @@
  *
  * If the filesystem can map the entire file as a single extent
  * (e.g. iso9660), then the filesystem can simply insert the extent
- * information into inode->prev_extent at searchdir/iget time, and leave
- * populate_next_extent as NULL.
+ * information into inode->next_extent at searchdir/iget time, and leave
+ * next_extent() as NULL.
  *
  * Note: the filesystem driver is not required to do extent coalescing,
  * if that is difficult to do; this routine will perform extent lookahead
  * and coalescing.
  */
 
+#include <dprintf.h>
 #include <minmax.h>
 #include "fs.h"
 
@@ -63,6 +64,28 @@ static inline sector_t next_psector(sector_t psector, uint32_t skip)
 static inline sector_t next_pstart(const struct extent *e)
 {
     return next_psector(e->pstart, e->len);
+}
+
+
+static void get_next_extent(struct inode *inode)
+{
+    /* The logical start address that we care about... */
+
+    inode->next_extent.lstart =
+	inode->this_extent.lstart + inode->this_extent.len;
+    dprintf("next_extent.lstart = %u\n", inode->next_extent.lstart);
+
+    /* Whatever we had before... */
+    inode->prev_extent = inode->next_extent;
+
+    /* Dummy information to make failure returns easier */
+    inode->next_extent.len = 0;
+    
+    inode->fs->fs_ops->next_extent(inode);
+
+    dprintf("Extent: inode %p @ %u start %llu len %u\n",
+	    inode, inode->next_extent.lstart,
+	    inode->next_extent.pstart, inode->next_extent.len);
 }
 
 uint32_t generic_getfssec(struct file *file, char *buf,
@@ -80,19 +103,23 @@ uint32_t generic_getfssec(struct file *file, char *buf,
     if (sectors > sectors_left)
 	sectors = sectors_left;
 
+    if (!sectors)
+	return 0;
+
     lsector = file->offset >> SECTOR_SHIFT(fs);
+    dprintf("Offset: %u  lsector: %u\n", file->offset, lsector);
 
     if (lsector < inode->this_extent.lstart ||
 	lsector >= inode->this_extent.lstart + inode->this_extent.len) {
-	/* inode->this_extent unusable, maybe prev_extent is... */
-	inode->this_extent = inode->prev_extent;
+	/* inode->this_extent unusable, maybe next_extent is... */
+	inode->this_extent = inode->next_extent;
     }
 
     if (lsector < inode->this_extent.lstart ||
 	lsector >= inode->this_extent.lstart + inode->this_extent.len) {
 	/* Still nothing useful... */
 	inode->this_extent.lstart = lsector;
-	inode->this_extent.len    = 0;
+	inode->this_extent.len = 0;
     } else {
 	/* We have some usable information */
 	uint32_t delta = lsector - inode->this_extent.lstart;
@@ -102,22 +129,30 @@ uint32_t generic_getfssec(struct file *file, char *buf,
 	    = next_psector(inode->this_extent.pstart, delta);
     }
 
+    dprintf("this_extent: lstart %u pstart %llu len %u\n",
+	    inode->this_extent.lstart,
+	    inode->this_extent.pstart,
+	    inode->this_extent.len);
+
+    if (inode->this_extent.len < sectors &&
+	(!inode->next_extent.len ||
+	 inode->next_extent.lstart !=
+	 inode->this_extent.lstart + inode->this_extent.len)) {
+	get_next_extent(inode);
+    }
+
     while (sectors) {
 	uint32_t chunk;
 	size_t len;
 
-	if (!inode->this_extent.len && inode->next_extent.len &&
-	    inode->this_extent.lstart == inode->next_extent.lstart)
+	if (!inode->this_extent.len) {
 	    inode->this_extent = inode->next_extent;
+	    if (!inode->next_extent.len)
+		break;		/* Can't read anything more */
+	}
 
 	while (sectors > inode->this_extent.len) {
-	    /* Whatever we had before... */
-	    inode->prev_extent = inode->next_extent;
-
-	    /* Dummy information to make failure returns easier */
-	    inode->next_extent.len = 0;
-
-	    fs->fs_ops->populate_next_extent(inode);
+	    get_next_extent(inode);
 
 	    if (inode->next_extent.len &&
 		inode->next_extent.pstart == next_pstart(&inode->this_extent)) {
@@ -129,8 +164,17 @@ uint32_t generic_getfssec(struct file *file, char *buf,
 	    }
 	}
 
+	dprintf("this_extent: lstart %u pstart %llu len %u\n",
+		inode->this_extent.lstart,
+		inode->this_extent.pstart,
+		inode->this_extent.len);
+
 	chunk = min(sectors, inode->this_extent.len);
 	len = chunk << SECTOR_SHIFT(fs);
+
+	dprintf("   I/O: inode %p @ %u start %llu len %u\n",
+		inode, inode->this_extent.lstart,
+		inode->this_extent.pstart, chunk);
 
 	if (inode->this_extent.pstart == EXTENT_ZERO) {
 	    memset(buf, 0, len);

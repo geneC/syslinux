@@ -70,7 +70,7 @@ struct fs_ops {
     /* the _dir_ stuff */
     struct dirent * (*readdir)(struct file *);
 
-    void     (*populate_next_extent)(struct inode *);
+    void     (*next_extent)(struct inode *);
 };
 
 enum inode_mode {I_FILE, I_DIR, I_SYMLINK};
