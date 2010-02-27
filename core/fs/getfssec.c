@@ -134,27 +134,20 @@ uint32_t generic_getfssec(struct file *file, char *buf,
 	    inode->this_extent.pstart,
 	    inode->this_extent.len);
 
-    if (inode->this_extent.len < sectors &&
-	(!inode->next_extent.len ||
-	 inode->next_extent.lstart !=
-	 inode->this_extent.lstart + inode->this_extent.len)) {
-	get_next_extent(inode);
-    }
-
     while (sectors) {
 	uint32_t chunk;
 	size_t len;
 
-	if (!inode->this_extent.len) {
-	    inode->this_extent = inode->next_extent;
-	    if (!inode->next_extent.len)
-		break;		/* Can't read anything more */
-	}
-
 	while (sectors > inode->this_extent.len) {
-	    get_next_extent(inode);
+	    if (!inode->next_extent.len ||
+		inode->next_extent.lstart !=
+		inode->this_extent.lstart + inode->this_extent.len)
+		get_next_extent(inode);
 
-	    if (inode->next_extent.len &&
+	    if (!inode->this_extent.len) {
+		/* Doesn't matter if it's contiguous... */
+		inode->this_extent = inode->next_extent;
+	    } else if (inode->next_extent.len &&
 		inode->next_extent.pstart == next_pstart(&inode->this_extent)) {
 		/* Coalesce extents and loop */
 		inode->this_extent.len += inode->next_extent.len;
