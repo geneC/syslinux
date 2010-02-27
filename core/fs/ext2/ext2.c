@@ -12,8 +12,8 @@
 /*
  * get the group's descriptor of group_num
  */
-const struct ext2_group_desc *ext2_get_group_desc(struct fs_info *fs,
-						  uint32_t group_num)
+static const struct ext2_group_desc *
+ext2_get_group_desc(struct fs_info *fs, uint32_t group_num)
 {
     struct ext2_sb_info *sbi = EXT2_SB(fs);
     uint32_t desc_block, desc_index;
@@ -35,117 +35,6 @@ const struct ext2_group_desc *ext2_get_group_desc(struct fs_info *fs,
 
     desc_data_block = get_cache(fs->fs_dev, desc_block);
     return &desc_data_block[desc_index];
-}
-
-
-
-/**
- * linsector:
- *
- * Convert a linear sector index in a file to linear sector number
- *
- * well, alought this function converts a linear sector number to
- * physic sector number, it uses block cache in the implemention.
- *
- * @param: lin_sector, the lineral sector index
- *
- * @return: physic sector number
- */
-static sector_t linsector(struct inode *inode, uint32_t lin_sector)
-{
-    struct fs_info *fs = inode->fs;
-    int blk_bits = fs->block_shift - fs->sector_shift;
-    block_t block = ext2_bmap(inode, lin_sector >> blk_bits);
-
-    return (block << blk_bits) + (lin_sector & ((1 << blk_bits) - 1));
-}
-
-
-/**
- * getlinsec_ext:
- *
- * same as getlinsec, except load any sector from the zero
- * block as all zeros; use to load any data derived from
- * n ext2 block pointer, i.e. anything *except the superblock
- *
- */
-static void getlinsec_ext(struct fs_info *fs, char *buf,
-			  sector_t sector, int sector_cnt)
-{
-    int ext_cnt = 0;
-    int sec_per_block = 1 << (fs->block_shift - fs->sector_shift);
-    struct disk *disk = fs->fs_dev->disk;
-
-    if (sector < sec_per_block) {
-        ext_cnt = sec_per_block - sector;
-        memset(buf, 0, ext_cnt << fs->sector_shift);
-        buf += ext_cnt << fs->sector_shift;
-    }
-
-    sector += ext_cnt;
-    sector_cnt -= ext_cnt;
-    disk->rdwr_sectors(disk, buf, sector, sector_cnt, 0);
-}
-
-/*
- * Get multiple sectors from a file
- *
- * Alought we have made the buffer data based on block size,
- * we use sector for implemention; because reading multiple
- * sectors (then can be multiple blocks) is what the function
- * do. So, let it be based on sectors.
- *
- */
-static uint32_t ext2_getfssec(struct file *file, char *buf,
-			      int sectors, bool *have_more)
-{
-    struct inode *inode = file->inode;
-    struct fs_info *fs = file->fs;
-    int sector_left, next_sector, sector_idx;
-    int frag_start, con_sec_cnt;
-    int bytes_read = sectors << fs->sector_shift;
-    uint32_t bytesleft = inode->size - file->offset;
-
-    sector_left = (bytesleft + SECTOR_SIZE(fs) - 1) >> fs->sector_shift;
-    if (sectors > sector_left)
-        sectors = sector_left;
-
-    sector_idx = file->offset >> fs->sector_shift;
-    while (sectors) {
-        /*
-         * get the frament
-         */
-	next_sector = frag_start = linsector(inode, sector_idx);
-        con_sec_cnt = 0;
-
-        /* get the consective sectors count */
-        do {
-            con_sec_cnt++;
-            sectors--;
-            if (sectors <= 0)
-                break;
-
-            sector_idx++;
-            next_sector++;
-        } while (next_sector == linsector(inode, sector_idx));
-
-#if 0
-        printf("You are reading data stored at sector --0x%x--0x%x\n",
-               frag_start, frag_start + con_sec_cnt -1);
-#endif
-        getlinsec_ext(fs, buf, frag_start, con_sec_cnt);
-        buf += con_sec_cnt << fs->sector_shift;
-    } while(sectors);
-
-    if (bytes_read >= bytesleft) {
-        bytes_read = bytesleft;
-	*have_more = 0;
-    } else {
-        *have_more = 1;
-    }
-    file->offset += bytes_read;
-
-    return bytes_read;
 }
 
 /*
@@ -171,21 +60,29 @@ static inline struct ext2_dir_entry *ext2_next_entry(struct ext2_dir_entry *p)
 }
 
 /*
+ * Map a logical sector and load it into the cache
+ */
+static const void *
+ext2_get_cache(struct inode *inode, block_t lblock)
+{
+    block_t pblock = ext2_bmap(inode, lblock, NULL);
+    return get_cache(inode->fs->fs_dev, pblock);
+}
+
+/*
  * find a dir entry, return it if found, or return NULL.
  */
 static const struct ext2_dir_entry *
 ext2_find_entry(struct fs_info *fs, struct inode *inode, const char *dname)
 {
     block_t index = 0;
-    block_t block;
     uint32_t i = 0, offset, maxoffset;
     const struct ext2_dir_entry *de;
     const char *data;
     size_t dname_len = strlen(dname);
 
     while (i < inode->size) {
-	block = ext2_bmap(inode, index++);
-	data = get_cache(fs->fs_dev, block);
+	data = ext2_get_cache(inode, index++);
 	offset = 0;
 	maxoffset =  min(BLOCK_SIZE(fs), i-inode->size);
 
@@ -294,9 +191,7 @@ static struct inode *ext2_iget(const char *dname, struct inode *parent)
 static int cache_get_file(struct inode *inode, void *buf, size_t bytes)
 {
     struct fs_info *fs = inode->fs;
-    struct device *dev = fs->fs_dev;
     size_t block_size = BLOCK_SIZE(fs);
-    block_t block;
     uint32_t index = 0;		/* Logical block number */
     size_t chunk;
     const char *data;
@@ -307,8 +202,7 @@ static int cache_get_file(struct inode *inode, void *buf, size_t bytes)
 
     while (bytes) {
 	chunk = min(bytes, block_size);
-	block = ext2_bmap(inode, index++);
-	data = get_cache(dev, block);
+	data = ext2_get_cache(inode, index++);
 	memcpy(p, data, chunk);
 
 	bytes -= chunk;
@@ -318,7 +212,7 @@ static int cache_get_file(struct inode *inode, void *buf, size_t bytes)
     return 0;
 }
 	
-int ext2_readlink(struct inode *inode, char *buf)
+static int ext2_readlink(struct inode *inode, char *buf)
 {
     struct fs_info *fs = inode->fs;
     int sec_per_block = 1 << (fs->block_shift - fs->sector_shift);
@@ -347,14 +241,11 @@ static struct dirent *ext2_readdir(struct file *file)
     const struct ext2_dir_entry *de;
     const char *data;
     block_t index = file->offset >> fs->block_shift;
-    block_t block;
 
     if (file->offset >= inode->size)
 	return NULL;		/* End of file */
 
-    block = ext2_bmap(inode, index);
-
-    data = get_cache(fs->fs_dev, block);
+    data = ext2_get_cache(inode, index);
     de = (const struct ext2_dir_entry *)
 	(data + (file->offset & (BLOCK_SIZE(fs) - 1)));
 
@@ -434,7 +325,7 @@ const struct fs_ops ext2_fs_ops = {
     .fs_flags      = FS_THISIND | FS_USEMEM,
     .fs_init       = ext2_fs_init,
     .searchdir     = NULL,
-    .getfssec      = ext2_getfssec,
+    .getfssec      = generic_getfssec,
     .close_file    = generic_close_file,
     .mangle_name   = generic_mangle_name,
     .unmangle_name = generic_unmangle_name,
@@ -442,5 +333,6 @@ const struct fs_ops ext2_fs_ops = {
     .iget_root     = ext2_iget_root,
     .iget          = ext2_iget,
     .readlink      = ext2_readlink,
-    .readdir       = ext2_readdir
+    .readdir       = ext2_readdir,
+    .next_extent   = ext2_next_extent,
 };
