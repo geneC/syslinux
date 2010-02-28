@@ -73,3 +73,6 @@ MAKEDEPS = -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d
 # Dependencies that exclude system headers; use whenever we use
 # header files from the platform.
 UMAKEDEPS = -Wp,-MT,$@,-MMD,$(dir $@).$(notdir $@).d
+
+# Local additions, like -DDEBUG can go here
+-include $(topdir)/MCONFIG.local
