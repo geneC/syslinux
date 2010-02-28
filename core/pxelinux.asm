@@ -277,8 +277,6 @@ ROOT_FS_OPS:
 ; Boot to the local disk by returning the appropriate PXE magic.
 ; AX contains the appropriate return code.
 ;
-%if HAS_LOCALBOOT
-
 local_boot:
 		push cs
 		pop ds
@@ -296,10 +294,15 @@ local_boot:
 		pop ds
 		popad
 		mov ax,[cs:LocalBootType]
+		cmp ax,-1			; localboot -1 == INT 18h
+		je .int18
 		popfd
 		retf				; Return to PXE
-
-%endif
+.int18:
+		popfd
+		int 18h
+		jmp 0F000h:0FFF0h
+		hlt
 
 ;
 ; kaboom: write a message and bail out.  Wait for quite a while,
