@@ -359,5 +359,6 @@ const struct fs_ops iso_fs_ops = {
     .load_config   = iso_load_config,
     .iget_root     = iso_iget_root,
     .iget          = iso_iget,
-    .readdir       = iso_readdir
+    .readdir       = iso_readdir,
+    .next_extent   = no_next_extent,
 };

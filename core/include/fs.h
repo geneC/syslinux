@@ -227,4 +227,7 @@ void generic_close_file(struct file *file);
 uint32_t generic_getfssec(struct file *file, char *buf,
 			  int sectors, bool *have_more);
 
+/* nonextextent.c */
+int no_next_extent(struct inode *, uint32_t);
+
 #endif /* FS_H */
