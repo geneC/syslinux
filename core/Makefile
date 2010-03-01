@@ -141,4 +141,4 @@ spotless: clean
 	rm -f $(BTARGET) *.bin *_bin.c
 
 # Include dependencies file
--include .*.d */.*.d
+-include .*.d */.*.d */*/.*.d
