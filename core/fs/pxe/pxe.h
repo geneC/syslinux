@@ -34,6 +34,18 @@
 #define is_digit(c)     (((c) >= '0') && ((c) <= '9'))
 #define major_ver(v)    (((v) >> 8) && 0xff)
 
+static inline bool is_hex(char c)
+{
+    return (c >= '0' && c <= '9') ||
+	(c >= 'A' && c <= 'F') ||
+	(c >= 'a' && c <= 'f');
+}
+
+static inline int hexval(char c)
+{
+    return (c >= 'A') ? (c & ~0x20) - 'A' + 10 : (c - '0');
+}
+
 /*
  * TFTP operation codes
  */

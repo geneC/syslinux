@@ -12,7 +12,6 @@
 uint32_t server_ip = 0;            /* IP address of boot server */
 uint32_t net_mask = 0;             /* net_mask of this subnet */
 uint32_t gate_way = 0;             /* Default router */
-uint16_t server_port = TFTP_PORT;  /* TFTP server port */
 uint16_t real_base_mem;            /* Amount of DOS memory after freeing */
 
 uint8_t MAC[MAC_MAX];		   /* Actual MAC address */
@@ -365,6 +364,7 @@ enum pxe_path_type {
     PXE_RELATIVE,		/* No :: or URL */
     PXE_HOMESERVER,		/* Starting with :: */
     PXE_TFTP,			/* host:: */
+    PXE_URL_TFTP,		/* tftp:// */
     PXE_URL,			/* Absolute URL syntax */
 };
 
@@ -372,7 +372,11 @@ static enum pxe_path_type pxe_path_type(const char *str)
 {
     const char *p;
     
+    if (strncasecmp(str, "tftp://", 7))
+	return PXE_URL_TFTP;
+
     p = str;
+
     while (1) {
 	switch (*p) {
 	case ':':
@@ -654,6 +658,7 @@ static void pxe_searchdir(const char *filename, struct file *file)
     uint32_t opdata, *opdata_ptr;
     enum pxe_path_type path_type;
     char fullpath[2*FILENAME_MAX];
+    uint16_t server_port = TFTP_PORT;  /* TFTP server port */
 
     file->file_len = 0;
     file->open_file = NULL;
@@ -685,6 +690,38 @@ static void pxe_searchdir(const char *filename, struct file *file)
 	buf = stpcpy(buf, np+2);
 	if (parse_dotquad(filename, &ip) != np)
 	    ip = dns_resolv(filename);
+	break;
+
+    case PXE_URL_TFTP:
+	np = filename + 7;
+	while (*np && *np != '/' && *np != ':')
+	    np++;
+	if (np > filename + 7) {
+	    if (parse_dotquad(filename, &ip) != np)
+		ip = dns_resolv(filename);
+	}
+	if (*np == ':') {
+	    np++;
+	    server_port = 0;
+	    while (*np >= '0' && *np <= '9')
+		server_port = server_port * 10 + *np++ - '0';
+	    server_port = server_port ? htons(server_port) : TFTP_PORT;
+	}
+	if (*np == '/')
+	    np++;		/* Do *NOT* eat more than one slash here... */
+	/*
+	 * The ; is because of a quirk in the TFTP URI spec (RFC
+	 * 3617); it is to be followed by TFTP modes, which we just ignore.
+	 */
+	while (*np && *np != ';') {
+	    if (*np == '%') {
+		if (is_hex(np[1]) && is_hex(np[2]))
+		    *buf++ = (hexval(np[1]) << 4) + hexval(np[2]);
+		np += 3;
+	    } else {
+		*buf++ = *np++;
+	    }
+	}
 	break;
     }
 
