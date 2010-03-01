@@ -77,7 +77,7 @@ construct_cmdline:
                 mov si,boot_image		; BOOT_IMAGE=
                 mov cx,boot_image_len
                 rep movsb
-                mov si,KernelCName		; Unmangled kernel name
+                mov si,KernelName		; Unmangled kernel name
 		call strcpy
 		mov byte [es:di-1],' '		; Follow by space
 
@@ -233,7 +233,7 @@ new_kernel:
 any_kernel:
 		mov si,loading_msg
                 call writestr_qchk
-                mov si,KernelCName		; Print kernel name part of
+                mov si,KernelName		; Print kernel name part of
                 call writestr_qchk		; "Loading" message
 
 ;
@@ -589,11 +589,6 @@ loadinitrd:
 		mov ds,ax
 		mov es,ax
 		push edi
-                mov si,InitRD
-                mov di,InitRDCName
-                pm_call pm_unmangle_name             ; Create human-readable name
-                sub di,InitRDCName
-                mov [InitRDCNameLen],di
                 mov di,InitRD
                 pm_call pm_searchdir                  ; Look for it in directory
 		pop edi
@@ -602,7 +597,7 @@ loadinitrd:
 		push si
 		mov si,crlfloading_msg		; Write "Loading "
 		call writestr_qchk
-                mov si,InitRDCName		; Write ramdisk name
+                mov si,InitRD			; Write ramdisk name
                 call writestr_qchk
                 mov si,dotdot_msg		; Write dots
                 call writestr_qchk
@@ -621,7 +616,7 @@ loadinitrd:
 .notthere:
                 mov si,err_noinitrd
                 call writestr
-                mov si,InitRDCName
+                mov si,InitRD
                 call writestr
                 mov si,crlf_msg
                 jmp abort_load

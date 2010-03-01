@@ -88,17 +88,6 @@ void mangle_name(char *dst, const char *src)
     this_fs->fs_ops->mangle_name(dst, src);
 }
 
-void pm_unmangle_name(com32sys_t *regs)
-{
-    const char *src = MK_PTR(regs->ds, regs->esi.w[0]);
-    char       *dst = MK_PTR(regs->es, regs->edi.w[0]);
-
-    dst = stpcpy(dst, src);
-
-    /* Update the di register to point to the last null char */
-    regs->edi.w[0] = OFFS_WRT(dst, regs->es);
-}
-
 void getfssec(com32sys_t *regs)
 {
     int sectors;

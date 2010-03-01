@@ -409,9 +409,8 @@ commit_vk:
 		mov cx,7	; "initrd="
 		rep movsb
 		mov si,InitRD
-		pm_call pm_unmangle_name
-		mov al,' '
-		stosb
+		call strcpy
+		mov byte [es:di-1],' '
 
 		; For better compression, clean up the append field
 .noinitrd:

@@ -14,7 +14,7 @@
 
 	; fs.c
 	extern fs_init, pm_searchdir, getfssec, pm_mangle_name, load_config
-        extern pm_unmangle_name, close_file
+        extern close_file
 
 	; chdir.c
 	extern pm_realpath

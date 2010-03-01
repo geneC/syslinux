@@ -486,13 +486,9 @@ bad_kernel:
 		and cx,cx
 		jnz on_error
 .really:
-		mov si,KernelName
-                mov di,KernelCName
-		push di
-                pm_call pm_unmangle_name              ; Get human form
 		mov si,err_notfound		; Complain about missing kernel
 		call writestr
-		pop si				; KernelCName
+		mov si,KernelName
                 call writestr
                 mov si,crlf_msg
                 jmp abort_load                  ; Ask user for clue
@@ -615,10 +611,6 @@ kernel_good:
 %if IS_PXELINUX
 		mov [KeepPXE],al
 %endif
-
-		mov si,KernelName
-		mov di,KernelCName
-		pm_call pm_unmangle_name
 
 		; Default memory limit, can be overridden by image loaders
 		mov eax,[HighMemRsvd]

@@ -27,7 +27,7 @@ void pm_is_config_file(com32sys_t *regs)
     (void)regs;
 
     /* Save configuration file as an absolute path for posterity */
-    realpath(ConfigName, KernelCName, FILENAME_MAX);
+    realpath(ConfigName, KernelName, FILENAME_MAX);
 
     /* If we got anything on the command line, do a chdir */
     p = cmd_line;

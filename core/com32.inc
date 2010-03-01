@@ -103,7 +103,7 @@ com32_exit:
 		bits 16
 		section .text16
 not_com32r:
-		mov si,KernelCName
+		mov si,KernelName
 		call writestr
 		mov si,not_com32r_msg
 		call writestr

@@ -111,7 +111,6 @@ err_badcfg      db 'Unknown keyword in configuration file: ',0
 err_noparm      db 'Missing parameter in configuration file. Keyword: ',0
 
 		section .uibss
-                global KernelName
 		alignb 4
 vk_size		equ (vk_end + 3) & ~3
 VKernelBuf:	resb vk_size		; "Current" vkernel
@@ -122,11 +121,8 @@ Onerror		resb max_cmd_len+1	; onerror
 		section .bss16
 KbdMap		resb 256		; Keyboard map
 FKeyName	resb MAX_FKEYS*FILENAME_MAX	; File names for F-key help
-InitRDCNameLen	resw 1			; Length of unmangled initrd name
-		global KernelName, KernelCName
+                global KernelName
 KernelName      resb FILENAME_MAX	; Mangled name for kernel
-KernelCName     resb FILENAME_MAX	; Unmangled kernel name
-InitRDCName     resb FILENAME_MAX	; Unmangled initrd name
 MNameBuf        resb FILENAME_MAX
 InitRD          resb FILENAME_MAX
 

@@ -312,7 +312,7 @@ comboot_exit_msg:
 		pm_call comboot_cleanup_lowmem
 		call adjust_screen	; The COMBOOT program might have changed the screen
 		jcxz .nomsg
-		mov si,KernelCName
+		mov si,KernelName
 		call writestr
 		mov si,cx
 		call writestr
