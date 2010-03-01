@@ -15,6 +15,8 @@
 #include "memdisk.h"
 #include "conio.h"
 
+#undef DEBUG			/* Means something different for this file */
+
 /*
  * gzip declarations
  */
