@@ -981,7 +981,7 @@ static int pxe_chdir(struct fs_info *fs, const char *src)
     else
 	strlcpy(fs->cwd_name, src, sizeof fs->cwd_name);
 
-    printf("cwd = \"%s\"\n", fs->cwd_name);
+    dprintf("cwd = \"%s\"\n", fs->cwd_name);
     return 0;
 }
 
