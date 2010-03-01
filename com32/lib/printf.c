@@ -5,8 +5,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#define BUFFER_SIZE	16384
-
 int printf(const char *format, ...)
 {
     va_list ap;
