@@ -165,6 +165,18 @@ static void uchexbytes(char *dst, const void *src, int count)
 }
 
 /*
+ * Parse a single hexadecimal byte, which must be complete (two
+ * digits).  This is used in URL parsing.
+ */
+static int hexbyte(const char *p)
+{
+    if (!is_hex(p[0]) || !is_hex(p[1]))
+	return -1;
+    else
+	return (hexval(p[0]) << 4) + hexval(p[1]);
+}
+
+/*
  * Tests an IP address in _ip_ for validity; return with 0 for bad, 1 for good.
  * We used to refuse class E, but class E addresses are likely to become
  * assignable unicast addresses in the near future.
@@ -372,9 +384,6 @@ static enum pxe_path_type pxe_path_type(const char *str)
 {
     const char *p;
     
-    if (strncasecmp(str, "tftp://", 7))
-	return PXE_URL_TFTP;
-
     p = str;
 
     while (1) {
@@ -385,8 +394,12 @@ static enum pxe_path_type pxe_path_type(const char *str)
 		    return PXE_HOMESERVER;
 		else
 		    return PXE_TFTP;
-	    } else if (p > str && p[1] == '/' && p[2] == '/')
-		return PXE_URL;
+	    } else if (p > str && p[1] == '/' && p[2] == '/') {
+		if (strncasecmp(str, "tftp://", 7))
+		    return PXE_URL_TFTP;
+		else
+		    return PXE_URL;
+	    }
 
 	    /* else fall through */
 	case '/': case '!': case '@': case '#': case '%':
@@ -714,9 +727,9 @@ static void pxe_searchdir(const char *filename, struct file *file)
 	 * 3617); it is to be followed by TFTP modes, which we just ignore.
 	 */
 	while (*np && *np != ';') {
-	    if (*np == '%') {
-		if (is_hex(np[1]) && is_hex(np[2]))
-		    *buf++ = (hexval(np[1]) << 4) + hexval(np[2]);
+	    int v;
+	    if (*np == '%' && (v = hexbyte(np+1)) > 0) {
+		*buf++ = v;
 		np += 3;
 	    } else {
 		*buf++ = *np++;
