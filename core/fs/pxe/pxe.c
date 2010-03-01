@@ -40,16 +40,6 @@ const uint8_t TimeoutTable[] = {
     92, 110, 132, 159, 191, 229, 255, 255, 255, 255, 0
 };
 
-/* PXE unload sequences */
-const uint8_t new_api_unload[] = {
-    PXENV_UDP_CLOSE, PXENV_UNDI_SHUTDOWN,
-    PXENV_UNLOAD_STACK, PXENV_STOP_UNDI, 0
-};
-const uint8_t old_api_unload[] = {
-    PXENV_UDP_CLOSE, PXENV_UNDI_SHUTDOWN,
-    PXENV_UNLOAD_STACK, PXENV_UNDI_CLEANUP, 0
-};
-
 struct tftp_options {
     const char *str_ptr;        /* string pointer */
     size_t      offset;		/* offset into socket structre */
@@ -1564,8 +1554,6 @@ int reset_pxe(void)
 
     pxe_idle_cleanup();
 
-    printf("reset_pxe\n");
-
     pxe_call(PXENV_UDP_CLOSE, &udp_close);
 
     if (gpxe_funcs & 0x80) {
@@ -1586,6 +1574,14 @@ int reset_pxe(void)
  */
 void unload_pxe(void)
 {
+    /* PXE unload sequences */
+    static const uint8_t new_api_unload[] = {
+	PXENV_UNDI_SHUTDOWN, PXENV_UNLOAD_STACK, PXENV_STOP_UNDI, 0
+    };
+    static const uint8_t old_api_unload[] = {
+	PXENV_UNDI_SHUTDOWN, PXENV_UNLOAD_STACK, PXENV_UNDI_CLEANUP, 0
+    };
+
     uint8_t api;
     const uint8_t *api_ptr;
     uint16_t flag = 0;
@@ -1593,7 +1589,11 @@ void unload_pxe(void)
     size_t int_addr;
     static __lowmem struct s_PXENV_UNLOAD_STACK unload_stack;
 
+    dprintf("FBM before unload = %d\n", BIOS_fbm);
+
     err = reset_pxe();
+
+    dprintf("FBM after reset_pxe = %d, err = %d\n", BIOS_fbm, err);
 
     /* If we want to keep PXE around, we still need to reset it */
     if (KeepPXE || err)
@@ -1603,13 +1603,17 @@ void unload_pxe(void)
     while((api = *api_ptr++)) {
 	memset(&unload_stack, 0, sizeof unload_stack);
 	err = pxe_call(api, &unload_stack);
-	if (err || unload_stack.Status != PXENV_STATUS_SUCCESS)
+	if (err || unload_stack.Status != PXENV_STATUS_SUCCESS) {
+	    dprintf("PXE unload API call %04x failed\n", api);
 	    goto cant_free;
+	}
     }
 
     flag = 0xff00;
-    if (real_base_mem <= BIOS_fbm)  /* Santiy check */
+    if (real_base_mem <= BIOS_fbm) {  /* Santiy check */ 
+	dprintf("FBM %d < real_base_mem %d\n", BIOS_fbm, real_base_mem);
 	goto cant_free;
+    }
     flag++;
 
     /* Check that PXE actually unhooked the INT 0x1A chain */
@@ -1617,10 +1621,15 @@ void unload_pxe(void)
     int_addr >>= 10;
     if (int_addr >= real_base_mem || int_addr < BIOS_fbm) {
 	BIOS_fbm = real_base_mem;
+	dprintf("FBM after unload_pxe = %d\n", BIOS_fbm);
 	return;
     }
 
+    dprintf("Can't free FBM, real_base_mem = %d, FBM = %d, INT 1A = %08x (%d)\n",
+	    real_base_mem, BIOS_fbm, *(uint32_t *)(4 * 0x1a), int_addr);
+
 cant_free:
+	    
     printf("Failed to free base memory error %04x-%08x\n",
 	   flag, *(uint32_t *)(4 * 0x1a));
     return;
