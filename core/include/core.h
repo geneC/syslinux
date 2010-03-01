@@ -59,7 +59,7 @@ __noreturn _kaboom(void);
 /*
  * Basic timer function...
  */
-extern const volatile uint32_t __jiffies;
+extern volatile uint32_t __jiffies;
 static inline uint32_t jiffies(void)
 {
     return __jiffies;
