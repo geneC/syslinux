@@ -356,7 +356,6 @@ const struct fs_ops iso_fs_ops = {
     .getfssec      = generic_getfssec,
     .close_file    = generic_close_file,
     .mangle_name   = iso_mangle_name,
-    .unmangle_name = generic_unmangle_name,
     .load_config   = iso_load_config,
     .iget_root     = iso_iget_root,
     .iget          = iso_iget,

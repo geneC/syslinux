@@ -629,6 +629,5 @@ const struct fs_ops btrfs_fs_ops = {
     .getfssec      = btrfs_getfssec,
     .close_file    = generic_close_file,
     .mangle_name   = generic_mangle_name,
-    .unmangle_name = generic_unmangle_name,
     .load_config   = generic_load_config
 };

@@ -58,7 +58,6 @@ struct fs_ops {
     uint32_t (*getfssec)(struct file *, char *, int, bool *);
     void     (*close_file)(struct file *);
     void     (*mangle_name)(char *, const char *);
-    char *   (*unmangle_name)(char *, const char *);
     size_t   (*realpath)(struct fs_info *, char *, const char *, size_t);
     int      (*chdir)(struct fs_info *, const char *);
     int      (*load_config)(void);
@@ -219,7 +218,6 @@ int chdir(const char *src);
 
 /* mangle.c */
 void generic_mangle_name(char *, const char *);
-#define generic_unmangle_name stpcpy
 
 /* loadconfig.c */
 int generic_load_config(void);

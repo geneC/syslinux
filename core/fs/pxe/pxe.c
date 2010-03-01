@@ -1645,6 +1645,5 @@ const struct fs_ops pxe_fs_ops = {
     .getfssec      = pxe_getfssec,
     .close_file    = pxe_close_file,
     .mangle_name   = pxe_mangle_name,
-    .unmangle_name = stpcpy,
     .load_config   = pxe_load_config,
 };

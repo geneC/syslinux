@@ -328,7 +328,6 @@ const struct fs_ops ext2_fs_ops = {
     .getfssec      = generic_getfssec,
     .close_file    = generic_close_file,
     .mangle_name   = generic_mangle_name,
-    .unmangle_name = generic_unmangle_name,
     .load_config   = generic_load_config,
     .iget_root     = ext2_iget_root,
     .iget          = ext2_iget,
