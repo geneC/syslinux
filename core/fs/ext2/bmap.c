@@ -207,7 +207,7 @@ block_t ext2_bmap(struct inode *inode, block_t block, size_t *nblocks)
 /*
  * Next extent for getfssec
  */
-void ext2_next_extent(struct inode *inode)
+int ext2_next_extent(struct inode *inode, uint32_t lstart)
 {
     struct fs_info *fs = inode->fs;
     int blktosec =  BLOCK_SHIFT(fs) - SECTOR_SHIFT(fs);
@@ -215,13 +215,14 @@ void ext2_next_extent(struct inode *inode)
     block_t block;
     size_t nblocks = 0;
 
-    block = ext2_bmap(inode, inode->next_extent.lstart >> blktosec, &nblocks);
+    block = ext2_bmap(inode, lstart >> blktosec, &nblocks);
 
     if (!block)
 	inode->next_extent.pstart = EXTENT_ZERO;
     else
-	inode->next_extent.pstart = ((sector_t)block << blktosec) |
-	    (inode->next_extent.lstart & blkmask);
+	inode->next_extent.pstart =
+	    ((sector_t)block << blktosec) | (lstart & blkmask);
 
-    inode->next_extent.len = nblocks << blktosec;
+    inode->next_extent.len = (nblocks << blktosec) - (lstart & blkmask);
+    return 0;
 }

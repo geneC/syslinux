@@ -305,6 +305,6 @@ struct ext2_pvt_inode {
  * functions
  */
 block_t ext2_bmap(struct inode *, block_t, size_t *);
-void ext2_next_extent(struct inode *);
+int ext2_next_extent(struct inode *, uint32_t);
 
 #endif /* ext2_fs.h */

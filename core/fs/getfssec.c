@@ -33,11 +33,15 @@
  *
  * The expected semantics of next_extent are as follows:
  *
- * inode->next_extent.lstart will contain the initial sector number to
- * be mapped.  The routine is expected to populate inode->next_extent.pstart
- * and inode->next_extent.len.  If inode->prev_extent.pstart != EXTENT_VOID
- * then the routine is allowed to assume inode->prev_extent contains valid
- * data.
+ * The second argument will contain the initial sector number to be
+ * mapped.  The routine is expected to populate
+ * inode->next_extent.pstart and inode->next_extent.len (the caller
+ * will store the initial sector number into inode->next_extent.lstart
+ * on return.)
+ *
+ * If inode->next_extent.len != 0 on entry then the routine is allowed
+ * to assume inode->next_extent contains valid data from the previous
+ * usage, which can be used for optimization purposes.
  *
  * If the filesystem can map the entire file as a single extent
  * (e.g. iso9660), then the filesystem can simply insert the extent
@@ -70,18 +74,11 @@ static inline sector_t next_pstart(const struct extent *e)
 static void get_next_extent(struct inode *inode)
 {
     /* The logical start address that we care about... */
+    uint32_t lstart = inode->this_extent.lstart + inode->this_extent.len;
 
-    inode->next_extent.lstart =
-	inode->this_extent.lstart + inode->this_extent.len;
-    dprintf("next_extent.lstart = %u\n", inode->next_extent.lstart);
-
-    /* Whatever we had before... */
-    inode->prev_extent = inode->next_extent;
-
-    /* Dummy information to make failure returns easier */
-    inode->next_extent.len = 0;
-    
-    inode->fs->fs_ops->next_extent(inode);
+    if (inode->fs->fs_ops->next_extent(inode, lstart))
+	inode->next_extent.len = 0; /* ERROR */
+    inode->next_extent.lstart = lstart;
 
     dprintf("Extent: inode %p @ %u start %llu len %u\n",
 	    inode, inode->next_extent.lstart,

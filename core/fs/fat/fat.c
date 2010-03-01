@@ -84,11 +84,11 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
     return next_cluster;
 }
 
-static void fat_next_extent(struct inode *inode)
+static int fat_next_extent(struct inode *inode, uint32_t lstart)
 {
     struct fs_info *fs = inode->fs;
     struct fat_sb_info *sbi = FAT_SB(fs);
-    uint32_t mcluster = inode->next_extent.lstart >> sbi->clust_shift;
+    uint32_t mcluster = lstart >> sbi->clust_shift;
     uint32_t lcluster;
     uint32_t pcluster;
     uint32_t tcluster;
@@ -99,12 +99,12 @@ static void fat_next_extent(struct inode *inode)
     if (mcluster >= tcluster)
 	goto err;		/* Requested cluster beyond end of file */
 
-    if (inode->prev_extent.len) {
-	if (inode->prev_extent.pstart < data_area)
+    if (inode->next_extent.len) {
+	if (inode->next_extent.pstart < data_area)
 	    goto err;		/* Root directory has only one extent */
-	lcluster = (inode->prev_extent.lstart + inode->prev_extent.len)
+	lcluster = (inode->next_extent.lstart + inode->next_extent.len)
 	    >> sbi->clust_shift;
-	pcluster = ((inode->prev_extent.pstart + inode->prev_extent.len
+	pcluster = ((inode->next_extent.pstart + inode->next_extent.len
 		     - data_area) >> sbi->clust_shift) + 2;
 
 	if (lcluster > mcluster) {
@@ -143,10 +143,10 @@ static void fat_next_extent(struct inode *inode)
 	inode->next_extent.len += cluster_size;
 	lcluster++;
     }
+    return 0;
 
-    /* In the case of error, the caller has already set next_extent.len = 0 */
 err:
-    return;
+    return -1;
 }
 
 static sector_t get_next_sector(struct fs_info* fs, uint32_t sector)

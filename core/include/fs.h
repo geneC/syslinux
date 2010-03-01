@@ -69,7 +69,7 @@ struct fs_ops {
     /* the _dir_ stuff */
     struct dirent * (*readdir)(struct file *);
 
-    void     (*next_extent)(struct inode *);
+    int      (*next_extent)(struct inode *, uint32_t);
 };
 
 enum inode_mode {I_FILE, I_DIR, I_SYMLINK};
@@ -106,7 +106,7 @@ struct inode {
     uint32_t     dtime;  /* Delete time */
     uint32_t     flags;
     uint32_t     file_acl;
-    struct extent this_extent, prev_extent, next_extent;
+    struct extent this_extent, next_extent;
     char         pvt[0]; /* Private filesystem data */
 };
 
