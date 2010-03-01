@@ -1,3 +1,4 @@
+#include <dprintf.h>
 #include <stdio.h>
 #include <string.h>
 #include <core.h>
@@ -497,12 +498,13 @@ static void fill_buffer(struct open_file_t *file)
      * Start by ACKing the previous packet; this should cause
      * the next packet to be sent.
      */
- ack_again:
-    ack_packet(file, file->tftp_lastpkt);
-
     timeout_ptr = TimeoutTable;
     timeout = *timeout_ptr++;
     oldtime = jiffies();
+
+ ack_again:
+    ack_packet(file, file->tftp_lastpkt);
+
     while (timeout) {
         udp_read.buffer      = FAR_PTR(packet_buf);
         udp_read.buffer_size = PKTBUF_SIZE;
@@ -653,7 +655,7 @@ static void pxe_searchdir(const char *filename, struct file *file)
     int err;
     int buffersize;
     const uint8_t  *timeout_ptr;
-    uint8_t  timeout;
+    uint32_t timeout;
     uint32_t oldtime;
     uint16_t tid;
     uint16_t opcode;
@@ -708,8 +710,10 @@ static void pxe_searchdir(const char *filename, struct file *file)
 	return;			/* Allocation failure */
 
     timeout_ptr = TimeoutTable;   /* Reset timeout */
-
- sendreq:
+    timeout = *timeout_ptr;
+    oldtime = jiffies();
+    
+sendreq:
 #if GPXE
     if (path_type == PXE_URL) {
 	if (has_gpxe) {
@@ -727,7 +731,7 @@ static void pxe_searchdir(const char *filename, struct file *file)
 	    static bool already = false;
 	    if (!already) {
 		printf("URL syntax, but gPXE extensions not detected, "
-		       "tryng plain TFTP...\n");
+		       "trying plain TFTP...\n");
 		already = true;
 	    }
 	}
@@ -743,24 +747,10 @@ static void pxe_searchdir(const char *filename, struct file *file)
     udp_write.dst_port  = server_port;
     udp_write.buffer_size = buf - rrq_packet_buf;
     err = pxe_call(PXENV_UDP_WRITE, &udp_write);
-    if (err || udp_write.status != 0) {
-	/*
-	 * In fact, the 'failure' target will not do
-	 * a failure thing; it will move on to the
-	 * next timeout, then tries again until
-	 * _real_ time out
-	 */
-        goto failure;
-    }
 
-    /*
-     * Danger, Will Robinson! We need to support tiemout
-     * and retry lest we just lost a packet ...
-     */
+    /* If the WRITE call fails, we let the timeout take care of it... */
 
-    /* Packet transmitted OK, now we need to receive */
-    timeout = *timeout_ptr++;
-    oldtime = jiffies();
+wait_pkt:
     for (;;) {
         buf                  = packet_buf;
         udp_read.buffer      = FAR_PTR(buf);
@@ -780,8 +770,6 @@ static void pxe_searchdir(const char *filename, struct file *file)
             break;
     }
 
-    /* Got packet; reset timeout */
-    timeout_ptr = TimeoutTable;
     open_file->tftp_remoteport = udp_read.s_port;
 
     /* filesize <- -1 == unknown */
@@ -931,6 +919,10 @@ err_reply:
     kaboom();
 
 failure:
+    if (jiffies() - oldtime < timeout)
+	goto wait_pkt;
+
+    /* Otherwise, we need to try again */
     timeout_ptr++;
     if (*timeout_ptr)
         goto sendreq;  /* Try again */
@@ -1011,17 +1003,17 @@ static int try_load(char *config_name)
 {
     com32sys_t regs;
 
-    printf("Trying to load: %-50s ", config_name);
+    printf("Trying to load: %-50s  ", config_name);
     pxe_mangle_name(KernelName, config_name);
 
     memset(&regs, 0, sizeof regs);
     regs.edi.w[0] = OFFS_WRT(KernelName, 0);
     call16(core_open, &regs, &regs);
     if (regs.eflags.l & EFLAGS_ZF) {
-        printf("   [FAILED]\n");
+        printf("\r");
         return 0;
     } else {
-        printf("   [  OK  ]\n");
+        printf("ok\n");
         return 1;
     }
 }
@@ -1092,7 +1084,7 @@ static int pxe_load_config(void)
     if (try_load(ConfigName))
         return 0;
 
-    printf("Unable to locate configuration file\n");
+    printf("%-68s\n", "Unable to locate configuration file");
     kaboom();
 }
 
@@ -1243,7 +1235,7 @@ static const struct pxenv_t *memory_scan_for_pxenv_struct(void)
  * if if the API version is 2.1 or later
  *
  */
-static int pxe_init(void)
+static int pxe_init(bool quiet)
 {
     extern void pxe_int1a(void);
     char plan = 'A';
@@ -1296,12 +1288,14 @@ static int pxe_init(void)
         goto have_pxenv;
 
     /* Found nothing at all !! */
-    printf("No !PXE or PXENV+ API found; we're dead...\n");
-    kaboom();
+    if (!quiet)
+	printf("No !PXE or PXENV+ API found; we're dead...\n");
+    return -1;
 
  have_pxenv:
     APIVer = pxenv->version;
-    printf("Found PXENV+ structure\nPXE API version is %04x\n", APIVer);
+    if (!quiet)
+	printf("Found PXENV+ structure\nPXE API version is %04x\n", APIVer);
 
     /* if the API version number is 0x0201 or higher, use the !PXE structure */
     if (APIVer >= 0x201) {
@@ -1337,10 +1331,12 @@ static int pxe_init(void)
     type = "!PXE";
 
  have_entrypoint:
-    printf("%s entry point found (we hope) at %04X:%04X via plan %c\n",
-	   type, PXEEntry.seg, PXEEntry.offs, plan);
-    printf("UNDI code segment at %04X len %04X\n", code_seg, code_len);
-    printf("UNDI data segment at %04X len %04X\n", data_seg, data_len);
+    if (!quiet) {
+	printf("%s entry point found (we hope) at %04X:%04X via plan %c\n",
+	       type, PXEEntry.seg, PXEEntry.offs, plan);
+	printf("UNDI code segment at %04X len %04X\n", code_seg, code_len);
+	printf("UNDI data segment at %04X len %04X\n", data_seg, data_len);
+    }
 
     code_seg = code_seg + ((code_len + 15) >> 4);
     data_seg = data_seg + ((data_len + 15) >> 4);
@@ -1471,7 +1467,8 @@ static int pxe_fs_init(struct fs_info *fs)
     files_init();
 
     /* Find the PXE stack */
-    pxe_init();
+    if (pxe_init(false))
+	kaboom();
 
     /* See if we also have a gPXE stack */
     gpxe_init();
@@ -1559,10 +1556,11 @@ static void install_efi_csm_hack(void)
     }
 }
 
-void reset_pxe(void)
+int reset_pxe(void)
 {
     static __lowmem struct s_PXENV_UDP_CLOSE udp_close;
     extern void gpxe_unload(void);
+    int err = 0;
 
     pxe_idle_cleanup();
 
@@ -1573,9 +1571,13 @@ void reset_pxe(void)
     if (gpxe_funcs & 0x80) {
 	/* gPXE special unload implemented */
 	call16(gpxe_unload, &zero_regs, NULL);
+
+	/* Locate the actual vendor stack... */
+	err = pxe_init(true);
     }
 
     install_efi_csm_hack();
+    return err;
 }
 
 /*
@@ -1588,19 +1590,14 @@ void unload_pxe(void)
     const uint8_t *api_ptr;
     uint16_t flag = 0;
     int err;
-    int int_addr;
+    size_t int_addr;
     static __lowmem struct s_PXENV_UNLOAD_STACK unload_stack;
 
-    if (KeepPXE) {
-	/*
-	 * We want to keep PXE around, but still we should reset
-	 * it to the standard bootup configuration.
-	 */
-	reset_pxe();
-	return;
-    }
+    err = reset_pxe();
 
-    pxe_idle_cleanup();
+    /* If we want to keep PXE around, we still need to reset it */
+    if (KeepPXE || err)
+	return;
 
     api_ptr = major_ver(APIVer) >= 2 ? new_api_unload : old_api_unload;
     while((api = *api_ptr++)) {
@@ -1613,10 +1610,10 @@ void unload_pxe(void)
     flag = 0xff00;
     if (real_base_mem <= BIOS_fbm)  /* Santiy check */
 	goto cant_free;
-    flag ++;
+    flag++;
 
     /* Check that PXE actually unhooked the INT 0x1A chain */
-    int_addr = (int)MK_PTR(*(uint16_t *)(4*0x1a+2), *(uint16_t *)(4*0x1a));
+    int_addr = (size_t)GET_PTR(*(far_ptr_t *)(4 * 0x1a));
     int_addr >>= 10;
     if (int_addr >= real_base_mem || int_addr < BIOS_fbm) {
 	BIOS_fbm = real_base_mem;
