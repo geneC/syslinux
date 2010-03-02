@@ -458,7 +458,7 @@ static struct inode *btrfs_iget_by_inr(struct fs_info *fs, u64 inr)
 	inode->size = inode_item.size;
 	inode->mode = get_inode_mode(inode_item.mode);
 
-	if (inode->mode == I_FILE) {
+	if (inode->mode == I_FILE || inode->mode == I_SYMLINK) {
 		struct btrfs_file_extent_item extent_item;
 		u64 offset;
 
@@ -514,33 +514,65 @@ static int btrfs_readlink(struct inode *inode, char *buf)
 	return inode->size;
 }
 
+static int btrfs_next_extent(struct inode *inode, uint32_t lstart)
+{
+	struct btrfs_disk_key search_key;
+	struct btrfs_file_extent_item extent_item;
+	struct btrfs_path path;
+	int ret;
+	u64 offset;
+	u32 sec_shift = SECTOR_SHIFT(fs);
+	u32 sec_size = SECTOR_SIZE(fs);
+
+	search_key.objectid = inode->ino;
+	search_key.type = BTRFS_EXTENT_DATA_KEY;
+	search_key.offset = lstart << sec_shift;
+	clear_path(&path);
+	ret = search_tree(fs_tree, &search_key, &path);
+	if (ret) { /* impossible */
+		printf("btrfs: search extent data error!\n");
+		return 0;
+	}
+	extent_item = *(struct btrfs_file_extent_item *)path.data;
+
+	if (extent_item.type == BTRFS_FILE_EXTENT_INLINE) {/* inline file */
+		/* we fake a extent here, and PVT of inode will tell us */
+		offset = path.offsets[0] + sizeof(struct btrfs_header)
+			+ path.item.offset
+			+ offsetof(struct btrfs_file_extent_item, disk_bytenr);
+		inode->next_extent.len =
+			(inode->size + sec_size -1) >> sec_shift;
+	} else {
+		offset = extent_item.disk_bytenr + extent_item.offset;
+		inode->next_extent.len =
+			(extent_item.num_bytes + sec_size - 1) >> sec_shift;
+	}
+	inode->next_extent.pstart =
+		logical_physical(offset) >> sec_shift;
+	PVT(inode)->offset = offset;
+	return 0;
+}
+
 static uint32_t btrfs_getfssec(struct file *file, char *buf, int sectors,
 					bool *have_more)
 {
-	struct inode *inode = file->inode;
-	struct disk *disk = fs->fs_dev->disk;
-	u32 sec_shift = fs->fs_dev->disk->sector_shift;
-	u32 phy = logical_physical(PVT(inode)->offset + file->offset);
-	u32 sec = phy >> sec_shift;
-	u32 off = phy - (sec << sec_shift);
-	u32 remain = file->file_len - file->offset;
-	u32 remain_sec = (remain + (1 << sec_shift) - 1) >> sec_shift;
-	u32 size;
+	u32 ret;
+	u32 off = PVT(file->inode)->offset % SECTOR_SIZE(fs);
+	bool handle_inline = false;
 
-	if (sectors > remain_sec)
-		sectors = remain_sec;
-	/* btrfs extent is continus */
-	disk->rdwr_sectors(disk, buf, sec, sectors, 0);
-	size = sectors << sec_shift;
-	if (size > remain)
-		size = remain;
-	file->offset += size;
-	*have_more = remain - size;
-
-	if (off)/* inline file is not started with sector boundary */
-		memcpy(buf, buf + off, size);
-
-	return size;
+	if (off && !file->offset) {/* inline file first read patch */
+		file->inode->size += off;
+		handle_inline = true;
+	}
+	ret = generic_getfssec(file, buf, sectors, have_more);
+	if (!ret)
+		return ret;
+	off = PVT(file->inode)->offset % SECTOR_SIZE(fs);
+	if (handle_inline) {/* inline file patch */
+		ret -= off;
+		memcpy(buf, buf + off, ret);
+	}
+	return ret;
 }
 
 static void btrfs_get_fs_tree(void)
@@ -595,7 +627,10 @@ static void btrfs_get_fs_tree(void)
 /* init. the fs meta data, return the block size shift bits. */
 static int btrfs_fs_init(struct fs_info *_fs)
 {
-	struct disk *disk = fs->fs_dev->disk;
+	struct disk *disk;
+
+	fs = _fs;
+	disk = fs->fs_dev->disk;
     
 	btrfs_init_crc32c();
 
@@ -604,7 +639,6 @@ static int btrfs_fs_init(struct fs_info *_fs)
 	fs->block_shift  = BTRFS_BLOCK_SHIFT;
 	fs->block_size   = 1 << fs->block_shift;
 
-	fs = _fs;
 	btrfs_read_super_block();
 	if (strncmp((char *)(&sb.magic), BTRFS_MAGIC, sizeof(sb.magic)))
 		return -1;
@@ -629,5 +663,6 @@ const struct fs_ops btrfs_fs_ops = {
     .getfssec      = btrfs_getfssec,
     .close_file    = generic_close_file,
     .mangle_name   = generic_mangle_name,
+    .next_extent   = btrfs_next_extent,
     .load_config   = generic_load_config
 };
