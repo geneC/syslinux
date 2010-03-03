@@ -625,12 +625,9 @@ static void btrfs_get_fs_tree(void)
 }
 
 /* init. the fs meta data, return the block size shift bits. */
-static int btrfs_fs_init(struct fs_info *_fs)
+static int btrfs_fs_init(struct fs_info *fs)
 {
-	struct disk *disk;
-
-	fs = _fs;
-	disk = fs->fs_dev->disk;
+	struct disk *disk = fs->fs_dev->disk;
     
 	btrfs_init_crc32c();
 
