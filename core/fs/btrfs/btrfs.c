@@ -55,7 +55,6 @@ static int bin_search(void *ptr, int item_size, void *cmp_item, cmp_func func,
 }
 
 static int cache_ready;
-static struct fs_info *fs;
 static struct btrfs_chunk_map chunk_map;
 static struct btrfs_super_block sb;
 /* used for small chunk read for btrfs_read */
@@ -129,7 +128,7 @@ static u64 logical_physical(u64 logical)
 }
 
 /* raw read from disk, offset and count are bytes */
-static int raw_read(char *buf, u64 offset, u64 count)
+static int raw_read(struct fs_info *fs, char *buf, u64 offset, u64 count)
 {
 	struct disk *disk = fs->fs_dev->disk;
 	size_t max = RAW_BUF_SIZE >> disk->sector_shift;
@@ -157,7 +156,7 @@ static int raw_read(char *buf, u64 offset, u64 count)
 }
 
 /* cache read from disk, offset and count are bytes */
-static int cache_read(char *buf, u64 offset, u64 count)
+static int cache_read(struct fs_info *fs, char *buf, u64 offset, u64 count)
 {
 	const char *cd;
 	size_t block_size = fs->fs_dev->cache_block_size;
@@ -182,11 +181,11 @@ static int cache_read(char *buf, u64 offset, u64 count)
 	return total - count;
 }
 
-static int btrfs_read(char *buf, u64 offset, u64 count)
+static int btrfs_read(struct fs_info *fs, char *buf, u64 offset, u64 count)
 {
 	if (cache_ready)
-		return cache_read(buf, offset, count);
-	return raw_read(buf, offset, count);
+		return cache_read(fs, buf, offset, count);
+	return raw_read(fs, buf, offset, count);
 }
 
 /* btrfs has several super block mirrors, need to calculate their location */
@@ -199,7 +198,7 @@ static inline u64 btrfs_sb_offset(int mirror)
 }
 
 /* find the most recent super block */
-static void btrfs_read_super_block(void)
+static void btrfs_read_super_block(struct fs_info *fs)
 {
 	int i;
 	int ret;
@@ -211,7 +210,7 @@ static void btrfs_read_super_block(void)
 	/* find most recent super block */
 	for (i = 0; i < BTRFS_SUPER_MIRROR_MAX; i++) {
 		offset = btrfs_sb_offset(i);
-		ret = btrfs_read((char *)&buf, offset, sizeof(buf));
+		ret = btrfs_read(fs, (char *)&buf, offset, sizeof(buf));
 		if (ret < sizeof(buf))
 			break;
 
@@ -276,8 +275,8 @@ static int btrfs_comp_keys_type(struct btrfs_disk_key *k1,
 }
 
 /* seach tree directly on disk ... */
-static int search_tree(u64 loffset, struct btrfs_disk_key *key,
-				struct btrfs_path *path)
+static int search_tree(struct fs_info *fs, u64 loffset,
+		struct btrfs_disk_key *key, struct btrfs_path *path)
 {
 	u8 buf[BTRFS_MAX_LEAF_SIZE];
 	struct btrfs_header *header = (struct btrfs_header *)buf;
@@ -287,9 +286,9 @@ static int search_tree(u64 loffset, struct btrfs_disk_key *key,
 	u64 offset;
 
 	offset = logical_physical(loffset);
-	btrfs_read((char *)header, offset, sizeof(*header));
+	btrfs_read(fs, (char *)header, offset, sizeof(*header));
 	if (header->level) {/*node*/
-		btrfs_read((char *)&node->ptrs[0], offset + sizeof(*header),
+		btrfs_read(fs, (char *)&node->ptrs[0], offset + sizeof(*header),
 			sb.nodesize - sizeof(*header));
 		path->itemsnr[header->level] = header->nritems;
 		path->offsets[header->level] = loffset;
@@ -299,9 +298,9 @@ static int search_tree(u64 loffset, struct btrfs_disk_key *key,
 		if (ret && slot > path->slots[header->level])
 			slot--;
 		path->slots[header->level] = slot;
-		ret = search_tree(node->ptrs[slot].blockptr, key, path);
+		ret = search_tree(fs, node->ptrs[slot].blockptr, key, path);
 	} else {/*leaf*/
-		btrfs_read((char *)&leaf->items, offset + sizeof(*header),
+		btrfs_read(fs, (char *)&leaf->items, offset + sizeof(*header),
 			sb.leafsize - sizeof(*header));
 		path->itemsnr[header->level] = header->nritems;
 		path->offsets[0] = loffset;
@@ -312,7 +311,7 @@ static int search_tree(u64 loffset, struct btrfs_disk_key *key,
 			slot--;
 		path->slots[0] = slot;
 		path->item = leaf->items[slot];
-		btrfs_read((char *)&path->data,
+		btrfs_read(fs, (char *)&path->data,
 			offset + sizeof(*header) + leaf->items[slot].offset,
 			leaf->items[slot].size);
 	}
@@ -320,7 +319,7 @@ static int search_tree(u64 loffset, struct btrfs_disk_key *key,
 }
 
 /* return 0 if leaf found */
-static int next_leaf(struct btrfs_disk_key *key, struct btrfs_path *path)
+static int next_leaf(struct fs_info *fs, struct btrfs_disk_key *key, struct btrfs_path *path)
 {
 	int slot;
 	int level = 1;
@@ -335,7 +334,7 @@ static int next_leaf(struct btrfs_disk_key *key, struct btrfs_path *path)
 		}
 		path->slots[level] = slot;
 		path->slots[level-1] = 0; /* reset low level slots info */
-		search_tree(path->offsets[level], key, path);
+		search_tree(fs, path->offsets[level], key, path);
 		break;
 	}
 	if (level == BTRFS_MAX_LEVEL)
@@ -344,7 +343,7 @@ static int next_leaf(struct btrfs_disk_key *key, struct btrfs_path *path)
 }
 
 /* return 0 if slot found */
-static int next_slot(struct btrfs_disk_key *key, struct btrfs_path *path)
+static int next_slot(struct fs_info *fs, struct btrfs_disk_key *key, struct btrfs_path *path)
 {
 	int slot;
 
@@ -354,7 +353,7 @@ static int next_slot(struct btrfs_disk_key *key, struct btrfs_path *path)
 	if (slot >= path->itemsnr[0])
 		return 1;
 	path->slots[0] = slot;
-	search_tree(path->offsets[0], key, path);
+	search_tree(fs, path->offsets[0], key, path);
 	return 0;
 }
 
@@ -385,7 +384,7 @@ static void btrfs_read_sys_chunk_array(void)
 }
 
 /* read chunk items from chunk_tree and insert them to chunk map */
-static void btrfs_read_chunk_tree(void)
+static void btrfs_read_chunk_tree(struct fs_info *fs)
 {
 	struct btrfs_disk_key search_key;
 	struct btrfs_chunk *chunk;
@@ -400,7 +399,7 @@ static void btrfs_read_chunk_tree(void)
 		search_key.type = BTRFS_CHUNK_ITEM_KEY;
 		search_key.offset = 0;
 		clear_path(&path);
-		search_tree(sb.chunk_root, &search_key, &path);
+		search_tree(fs, sb.chunk_root, &search_key, &path);
 		do {
 			do {
 				if (btrfs_comp_keys_type(&search_key,
@@ -413,10 +412,10 @@ static void btrfs_read_chunk_tree(void)
 				item.devid = chunk->stripe.devid;
 				item.physical = chunk->stripe.offset;
 				insert_map(&item);
-			} while (!next_slot(&search_key, &path));
+			} while (!next_slot(fs, &search_key, &path));
 			if (btrfs_comp_keys_type(&search_key, &path.item.key))
 				break;
-		} while (!next_leaf(&search_key, &path));
+		} while (!next_leaf(fs, &search_key, &path));
 	}
 }
 
@@ -448,7 +447,7 @@ static struct inode *btrfs_iget_by_inr(struct fs_info *fs, u64 inr)
 	search_key.type = BTRFS_INODE_ITEM_KEY;
 	search_key.offset = 0;
 	clear_path(&path);
-	ret = search_tree(fs_tree, &search_key, &path);
+	ret = search_tree(fs, fs_tree, &search_key, &path);
 	if (ret)
 		return NULL;
 	inode_item = *(struct btrfs_inode_item *)path.data;
@@ -466,7 +465,7 @@ static struct inode *btrfs_iget_by_inr(struct fs_info *fs, u64 inr)
 		search_key.type = BTRFS_EXTENT_DATA_KEY;
 		search_key.offset = 0;
 		clear_path(&path);
-		ret = search_tree(fs_tree, &search_key, &path);
+		ret = search_tree(fs, fs_tree, &search_key, &path);
 		if (ret)
 			return NULL; /* impossible */
 		extent_item = *(struct btrfs_file_extent_item *)path.data;
@@ -499,7 +498,7 @@ static struct inode *btrfs_iget(const char *name, struct inode *parent)
 	search_key.type = BTRFS_DIR_ITEM_KEY;
 	search_key.offset = btrfs_name_hash(name, strlen(name));
 	clear_path(&path);
-	ret = search_tree(fs_tree, &search_key, &path);
+	ret = search_tree(fs, fs_tree, &search_key, &path);
 	if (ret)
 		return NULL;
 	dir_item = *(struct btrfs_dir_item *)path.data;
@@ -509,7 +508,7 @@ static struct inode *btrfs_iget(const char *name, struct inode *parent)
 
 static int btrfs_readlink(struct inode *inode, char *buf)
 {
-	btrfs_read(buf, logical_physical(PVT(inode)->offset), inode->size);
+	btrfs_read(inode->fs, buf, logical_physical(PVT(inode)->offset), inode->size);
 	buf[inode->size] = '\0';
 	return inode->size;
 }
@@ -521,6 +520,7 @@ static int btrfs_next_extent(struct inode *inode, uint32_t lstart)
 	struct btrfs_path path;
 	int ret;
 	u64 offset;
+	struct fs_info *fs = inode->fs;
 	u32 sec_shift = SECTOR_SHIFT(fs);
 	u32 sec_size = SECTOR_SIZE(fs);
 
@@ -528,7 +528,7 @@ static int btrfs_next_extent(struct inode *inode, uint32_t lstart)
 	search_key.type = BTRFS_EXTENT_DATA_KEY;
 	search_key.offset = lstart << sec_shift;
 	clear_path(&path);
-	ret = search_tree(fs_tree, &search_key, &path);
+	ret = search_tree(fs, fs_tree, &search_key, &path);
 	if (ret) { /* impossible */
 		printf("btrfs: search extent data error!\n");
 		return 0;
@@ -557,6 +557,7 @@ static uint32_t btrfs_getfssec(struct file *file, char *buf, int sectors,
 					bool *have_more)
 {
 	u32 ret;
+	struct fs_info *fs = file->fs;
 	u32 off = PVT(file->inode)->offset % SECTOR_SIZE(fs);
 	bool handle_inline = false;
 
@@ -575,7 +576,7 @@ static uint32_t btrfs_getfssec(struct file *file, char *buf, int sectors,
 	return ret;
 }
 
-static void btrfs_get_fs_tree(void)
+static void btrfs_get_fs_tree(struct fs_info *fs)
 {
 	struct btrfs_disk_key search_key;
 	struct btrfs_path path;
@@ -588,8 +589,8 @@ static void btrfs_get_fs_tree(void)
 		search_key.type = BTRFS_ROOT_REF_KEY;
 		search_key.offset = 0;
 		clear_path(&path);
-		if (search_tree(sb.root, &search_key, &path))
-			next_slot(&search_key, &path);
+		if (search_tree(fs, sb.root, &search_key, &path))
+			next_slot(fs, &search_key, &path);
 		do {
 			do {
 				struct btrfs_root_ref *ref;
@@ -602,12 +603,12 @@ static void btrfs_get_fs_tree(void)
 					subvol_ok = true;
 					break;
 				}
-			} while (!next_slot(&search_key, &path));
+			} while (!next_slot(fs, &search_key, &path));
 			if (subvol_ok)
 				break;
 			if (btrfs_comp_keys_type(&search_key, &path.item.key))
 				break;
-		} while (!next_leaf(&search_key, &path));
+		} while (!next_leaf(fs, &search_key, &path));
 		if (!subvol_ok) /* should be impossible */
 			printf("no subvol found!\n");
 	}
@@ -619,7 +620,7 @@ static void btrfs_get_fs_tree(void)
 	search_key.type = BTRFS_ROOT_ITEM_KEY;
 	search_key.offset = -1;
 	clear_path(&path);
-	search_tree(sb.root, &search_key, &path);
+	search_tree(fs, sb.root, &search_key, &path);
 	tree = (struct btrfs_root_item *)path.data;
 	fs_tree = tree->bytenr;
 }
@@ -636,12 +637,12 @@ static int btrfs_fs_init(struct fs_info *fs)
 	fs->block_shift  = BTRFS_BLOCK_SHIFT;
 	fs->block_size   = 1 << fs->block_shift;
 
-	btrfs_read_super_block();
+	btrfs_read_super_block(fs);
 	if (strncmp((char *)(&sb.magic), BTRFS_MAGIC, sizeof(sb.magic)))
 		return -1;
 	btrfs_read_sys_chunk_array();
-	btrfs_read_chunk_tree();
-	btrfs_get_fs_tree();
+	btrfs_read_chunk_tree(fs);
+	btrfs_get_fs_tree(fs);
 	cache_ready = 1;
 
 	/* Initialize the block cache */
