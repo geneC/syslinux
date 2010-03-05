@@ -2,6 +2,10 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 3.86:
+	* chain.c32: fix chainloading the MBR of a hard disk (broken
+	  in 3.85).
+
 Changes in 3.85:
 	* gPXELINUX: updated to gPXE 1.0.0.  gPXELINUX can now do NBP
 	  chainloading, and does not require a second DHCP.
