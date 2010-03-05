@@ -28,6 +28,7 @@
 #include <com32.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include <syslinux/pmapi.h>
 
 void *lmalloc(size_t size)
