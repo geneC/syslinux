@@ -734,12 +734,15 @@ int install_bootblock(int fd, const char *device)
 	struct boot_sector *bs = (struct boot_sector *)extlinux_bootsect;
         if (xpwrite(fd, &bs->bsHead, bsHeadLen, 0) != bsHeadLen ||
 	    xpwrite(fd, &bs->bsCode, bsCodeLen,
-		offsetof(struct boot_sector, bsCode)) != bsCodeLen)
-		perror("writing fat bootblock");
-		return 1;
-    } else if (xpwrite(fd, boot_block, boot_block_len, 0) != boot_block_len) {
-	perror("writing bootblock");
-	return 1;
+		    offsetof(struct boot_sector, bsCode)) != bsCodeLen) {
+	    perror("writing fat bootblock");
+	    return 1;
+	}
+    } else {
+	if (xpwrite(fd, boot_block, boot_block_len, 0) != boot_block_len) {
+	    perror("writing bootblock");
+	    return 1;
+	}
     }
 
     return 0;
