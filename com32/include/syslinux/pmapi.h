@@ -42,11 +42,18 @@
  * Note: add new members to this structure only at the end.
  * The position of elements in this structure is an ABI.
  */
+struct _DIR_;
+struct dirent;
+
 struct com32_pmapi {
     void *(*lmalloc)(size_t);
     void (*lfree)(void *);
 
     size_t (*read_file)(uint16_t *, void *, size_t);
+
+    struct _DIR_ *(*opendir)(const char *);
+    struct dirent *(*readdir)(struct _DIR_ *);
+    int (*closedir)(struct _DIR_ *);
 };
 
 #endif /* _SYSLINUX_PMAPI_H */

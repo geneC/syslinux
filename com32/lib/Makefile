@@ -31,7 +31,7 @@ LIBOBJS = \
 	\
 	dprintf.o vdprintf.o						\
 	\
-	opendir.o readdir.o closedir.o getcwd.o chdir.o fdopendir.o	\
+	sys/readdir.o getcwd.o chdir.o fdopendir.o			\
 	\
 	libgcc/__ashldi3.o libgcc/__udivdi3.o				\
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\

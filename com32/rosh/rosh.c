@@ -451,7 +451,6 @@ void rosh_dir_arg(const char *ifilstr, const char *pwdstr)
 // inchar = fgetc(stdin);
 // fgets(instr, ROSH_CMD_SZ, stdin);
 #endif /* DO_DEBUG */
-		    free(de);
 		    de = readdir(d);
 // if(filepos>15){      de = NULL;      printf("Force Break\n");}
 		}

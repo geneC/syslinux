@@ -19,11 +19,8 @@ struct dirent {
     char d_name[NAME_MAX + 1];
 };
 
-struct file;
-
-typedef struct {
-    struct file *dd_dir;
-} DIR;
+struct _DIR_;
+typedef struct _DIR_ DIR;
 
 #define DIR_REC_LEN(name) (12 + strlen(name) + 1 + 3) & ~3
 

@@ -23,4 +23,8 @@ const struct com32_pmapi pm_api_vector =
     .lfree	= free,		 /* Free low memory */
 
     .read_file	= pmapi_read_file,
+
+    .opendir	= opendir,
+    .readdir	= readdir,
+    .closedir	= closedir,
 };

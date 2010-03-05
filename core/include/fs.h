@@ -6,6 +6,7 @@
 #include <string.h>
 #include <com32.h>
 #include <stdio.h>
+#include <sys/dirent.h>
 #include "core.h"
 #include "disk.h"
 
@@ -209,6 +210,11 @@ size_t pmapi_read_file(uint16_t *handle, void *buf, size_t sectors);
 void pm_realpath(com32sys_t *regs);
 size_t realpath(char *dst, const char *src, size_t bufsize);
 int chdir(const char *src);
+
+/* readdir.c */
+DIR *opendir(const char *pathname);
+struct dirent *readdir(DIR *dir);
+int closedir(DIR *dir);
 
 /*
  * Generic functions that filesystem drivers may choose to use
