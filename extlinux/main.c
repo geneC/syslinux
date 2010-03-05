@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -45,7 +45,12 @@ typedef uint64_t u64;
 #include <linux/hdreg.h>	/* Hard disk geometry */
 #define statfs _kernel_statfs	/* HACK to deal with broken 2.4 distros */
 #include <linux/fs.h>		/* FIGETBSZ, FIBMAP */
+#include <linux/msdos_fs.h>	/* FAT_IOCTL_SET_ATTRIBUTES */
+#ifndef FAT_IOCTL_SET_ATTRIBUTES
+# define FAT_IOCTL_SET_ATTRIBUTES _IOW('r', 0x11, uint32_t)
+#endif
 #undef statfs
+#undef SECTOR_SIZE		/* Garbage from <linux/msdos_fs.h> */
 
 #include "ext2_fs.h"
 #include "btrfs.h"
@@ -61,10 +66,12 @@ typedef uint64_t u64;
 
 /* Global option handling */
 /* Global fs_type for handling fat, ext2/3/4 and btrfs */
-#define EXT2 1
-#define BTRFS 2
-#define VFAT 3
-int fs_type;
+static enum filesystem {
+    NONE,
+    EXT2,
+    BTRFS,
+    VFAT,
+} fs_type;
 
 const char *program;
 
@@ -225,6 +232,67 @@ ssize_t xpwrite(int fd, const void *buf, size_t count, off_t offset)
     }
 
     return done;
+}
+
+/*
+ * Set and clear file attributes
+ */
+static void clear_attributes(int fd)
+{
+    struct stat st;
+
+    if (!fstat(fd, &st)) {
+	switch (fs_type) {
+	case EXT2:
+	{
+	    int flags;
+
+	    if (!ioctl(fd, EXT2_IOC_GETFLAGS, &flags)) {
+		flags &= ~EXT2_IMMUTABLE_FL;
+		ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
+	    }
+	    break;
+	}
+	case VFAT:
+	{
+	    uint32_t attr = 0x00; /* Clear all attributes */
+	    ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
+	    break;
+	}
+	default:
+	    break;
+	}
+	fchmod(fd, st.st_mode | S_IWUSR);
+    }
+}
+
+static void set_attributes(int fd)
+{
+    struct stat st;
+
+    if (!fstat(fd, &st)) {
+	fchmod(fd, st.st_mode & (S_IRUSR | S_IRGRP | S_IROTH));
+	switch (fs_type) {
+	case EXT2:
+	{
+	    int flags;
+
+	    if (st.st_uid == 0 && !ioctl(fd, EXT2_IOC_GETFLAGS, &flags)) {
+		flags |= EXT2_IMMUTABLE_FL;
+		ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
+	    }
+	    break;
+	}
+	case VFAT:
+	{
+	    uint32_t attr = 0x07; /* Hidden+System+Readonly */
+	    ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
+	    break;
+	}
+	default:
+	    break;
+	}
+    }
 }
 
 /*
@@ -589,7 +657,6 @@ int write_adv(const char *path, int devfd)
     int fd = -1;
     struct stat st, xst;
     int err = 0;
-    int flags, nflags;
 
     if (fs_type == BTRFS) { /* btrfs "extlinux.sys" is in 64k blank area */
 	if (xpwrite(devfd, syslinux_adv, 2 * ADV_SIZE,
@@ -623,13 +690,7 @@ int write_adv(const char *path, int devfd)
 	err = syslinux_validate_adv(advtmp) ? -2 : 0;
 	if (!err) {
 	    /* Got a good one, write our own ADV here */
-	    if (!ioctl(fd, EXT2_IOC_GETFLAGS, &flags)) {
-		nflags = flags & ~EXT2_IMMUTABLE_FL;
-		if (nflags != flags)
-		    ioctl(fd, EXT2_IOC_SETFLAGS, &nflags);
-	    }
-	    if (!(st.st_mode & S_IWUSR))
-		fchmod(fd, st.st_mode | S_IWUSR);
+	    clear_attributes(fd);
 
 	    /* Need to re-open read-write */
 	    close(fd);
@@ -648,12 +709,7 @@ int write_adv(const char *path, int devfd)
 	    }
 
 	    sync();
-
-	    if (!(st.st_mode & S_IWUSR))
-		fchmod(fd, st.st_mode);
-
-	    if (nflags != flags)
-		ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
+	    set_attributes(fd);
 	}
     }
 
@@ -751,8 +807,7 @@ int install_bootblock(int fd, const char *device)
 int ext2_fat_install_file(const char *path, int devfd, struct stat *rst)
 {
     char *file;
-    int fd = -1, dirfd = -1, flags;
-    struct stat st;
+    int fd = -1, dirfd = -1;
     int modbytes;
 
     asprintf(&file, "%s%sextlinux.sys",
@@ -774,15 +829,8 @@ int ext2_fat_install_file(const char *path, int devfd, struct stat *rst)
 	    perror(file);
 	    goto bail;
 	}
-    } else if (fs_type == EXT2) {
-	/* If file exist, remove the immutable flag and set u+w mode */
-	if (!ioctl(fd, EXT2_IOC_GETFLAGS, &flags)) {
-	    flags &= ~EXT2_IMMUTABLE_FL;
-	    ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
-	}
-	if (!fstat(fd, &st)) {
-	    fchmod(fd, st.st_mode | S_IWUSR);
-	}
+    } else {
+	clear_attributes(fd);
     }
     close(fd);
 
@@ -813,13 +861,7 @@ int ext2_fat_install_file(const char *path, int devfd, struct stat *rst)
 
     /* Attempt to set immutable flag and remove all write access */
     /* Only set immutable flag if file is owned by root */
-    if (!fstat(fd, &st)) {
-	fchmod(fd, st.st_mode & (S_IRUSR | S_IRGRP | S_IROTH));
-	if (st.st_uid == 0 && !ioctl(fd, EXT2_IOC_GETFLAGS, &flags)) {
-	    flags |= EXT2_IMMUTABLE_FL;
-	    ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
-	}
-    }
+    set_attributes(fd);
 
     if (fstat(fd, rst)) {
 	perror(file);
