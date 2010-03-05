@@ -323,7 +323,7 @@ static bool vfat_match_longname(const char *str, const uint16_t *match,
     unsigned char c;
     uint16_t cp;
 
-    while (len) {
+    while (len--) {
 	cp = *match++;
 	c = *str++;
 	if (cp != codepage.uni[0][c] && cp != codepage.uni[1][c])
@@ -336,7 +336,7 @@ static bool vfat_match_longname(const char *str, const uint16_t *match,
 	return false;
 
     /* Any padding entries must be FFFF */
-    while (len)
+    while (len--)
 	if (*match++ != 0xffff)
 	    return false;
 
