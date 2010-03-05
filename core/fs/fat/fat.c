@@ -1,3 +1,4 @@
+#include <dprintf.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/dirent.h>
@@ -320,11 +321,12 @@ static void mangle_dos_name(char *mangle_buf, const char *src)
 static bool vfat_match_longname(const char *str, const uint16_t *match,
 				int len)
 {
-    unsigned char c;
+    unsigned char c = -1;	/* Nonzero: we have not yet seen NUL */
     uint16_t cp;
 
-    while (len--) {
-	cp = *match++;
+    while (len && (cp = *match)) {
+	match++;
+	len--;
 	c = *str++;
 	if (cp != codepage.uni[0][c] && cp != codepage.uni[1][c])
 	    return false;
@@ -332,7 +334,12 @@ static bool vfat_match_longname(const char *str, const uint16_t *match,
 	    break;
     }
 
-    if (c)
+    /*
+     * If the filename is an exact multiple of 13, we have not yet
+     * consumed the final null byte... make sure the next thing in the
+     * pattern string really is a null byte.
+     */
+    if (c && *str)
 	return false;
 
     /* Any padding entries must be FFFF */
