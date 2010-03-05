@@ -690,7 +690,6 @@ static void usage(void)
 int main(int argc, char *argv[])
 {
     char *mbr, *p;
-    void *boot_sector = NULL;
     struct part_entry *partinfo;
     struct syslinux_rm_regs regs;
     char *drivename, *partition;
@@ -850,7 +849,6 @@ int main(int argc, char *argv[])
 	/* Boot the MBR */
 
 	partinfo = NULL;
-	boot_sector = mbr;
     } else if (whichpart <= 4) {
 	/* Boot a primary partition */
 
@@ -950,10 +948,11 @@ int main(int argc, char *argv[])
 	ndata++;
     }
 
-    if (partinfo && (!opt.loadfile || data[0].base >= 0x7c00 + SECTOR)) {
+    if (!opt.loadfile || data[0].base >= 0x7c00 + SECTOR) {
 	/* Actually read the boot sector */
-	/* Pick the first buffer that isn't already in use */
-	if (!(data[ndata].data = read_sector(partinfo->start_lba))) {
+	if (!partinfo) {
+	    data[ndata].data = mbr;
+	} else if (!(data[ndata].data = read_sector(partinfo->start_lba))) {
 	    error("Cannot read boot sector\n");
 	    goto bail;
 	}
@@ -972,7 +971,7 @@ int main(int argc, char *argv[])
 	 * the string "cmdcons\0" to memory location 0000:7C03.
 	 * Memory location 0000:7C00 contains the bootsector of the partition.
 	 */
-	if (opt.cmldr) {
+	if (partinfo && opt.cmldr) {
 	    memcpy((char *)data[ndata].data+3, cmldr_signature,
 		   sizeof cmldr_signature);
 	}
