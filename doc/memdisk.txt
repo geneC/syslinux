@@ -139,6 +139,7 @@ h) Some systems without a floppy drive have been known to have
    doesn't work, you can use the option:
 
    nopass	Hide all real drives of the same type (floppy or hard disk)
+   nopassany    Hide all real drives (floppy and hard disk)
 
 
 Some interesting things to note:
