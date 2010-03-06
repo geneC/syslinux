@@ -3,11 +3,27 @@
 #include <string.h>
 #include <sys/dirent.h>
 #include <minmax.h>
-#include <cache.h>
-#include <core.h>
-#include <disk.h>
-#include <fs.h>
+#include "cache.h"
+#include "core.h"
+#include "disk.h"
+#include "fs.h"
 #include "ext2_fs.h"
+
+/*
+ * Convert an ext2 file type to the global values
+ */
+static enum inode_mode ext2_cvt_type(unsigned int d_file_type)
+{
+    static const enum inode_mode inode_type[] = {
+	I_UNKNOWN, I_FILE, I_DIR, I_CHR,
+	I_BLK, I_FIFO, I_SOCK, I_SYMLINK,
+    };
+
+    if (d_file_type > sizeof inode_type / sizeof *inode_type)
+	return I_UNKNOWN;
+    else
+	return inode_type[d_file_type];
+}
 
 /*
  * get the group's descriptor of group_num
@@ -251,7 +267,7 @@ static int ext2_readdir(struct file *file, struct dirent *dirent)
     dirent->d_ino = de->d_inode;
     dirent->d_off = file->offset;
     dirent->d_reclen = offsetof(struct dirent, d_name) + de->d_name_len + 1;
-    dirent->d_type = de->d_file_type;
+    dirent->d_type = ext2_cvt_type(de->d_file_type);
     memcpy(dirent->d_name, de->d_name, de->d_name_len);
     dirent->d_name[de->d_name_len] = '\0';
 
