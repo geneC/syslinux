@@ -25,19 +25,13 @@ DIR *opendir(const char *path)
 struct dirent *readdir(DIR *dir)
 {
     static struct dirent buf;
-    struct dirent *de = NULL;
     struct file *dd_dir = (struct file *)dir;
+    int rv = -1;
     
     if (dd_dir)
-	de = dd_dir->fs->fs_ops->readdir(dd_dir);
-    
-    if (de) {
-	memcpy(&buf, de, sizeof *de);
-	free(de);
-	return &buf;
-    } else {
-	return NULL;
-    }
+	rv = dd_dir->fs->fs_ops->readdir(dd_dir, &buf);
+
+    return rv < 0 ? NULL : &buf;
 }
 
 /*

@@ -68,12 +68,23 @@ struct fs_ops {
     int	     (*readlink)(struct inode *, char *);
 
     /* the _dir_ stuff */
-    struct dirent * (*readdir)(struct file *);
+    int	     (*readdir)(struct file *, struct dirent *);
 
     int      (*next_extent)(struct inode *, uint32_t);
 };
 
-enum inode_mode {I_FILE, I_DIR, I_SYMLINK};
+/* XXX: merge this with enum dirent_types */
+enum inode_mode {
+    I_UNKNOWN	=  0,
+    I_FIFO	=  1,
+    I_CHR	=  2,
+    I_DIR	=  4,
+    I_BLK	=  6,
+    I_FILE	=  8,
+    I_SYMLINK	= 10,
+    I_SOCK	= 12,
+    I_WHT	= 14,
+};
 
 /*
  * Extent structure: contains the mapping of some chunk of a file

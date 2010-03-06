@@ -233,36 +233,31 @@ static int ext2_readlink(struct inode *inode, char *buf)
 /*
  * Read one directory entry at a time
  */
-static struct dirent *ext2_readdir(struct file *file)
+static int ext2_readdir(struct file *file, struct dirent *dirent)
 {
     struct fs_info *fs = file->fs;
     struct inode *inode = file->inode;
-    struct dirent *dirent;
     const struct ext2_dir_entry *de;
     const char *data;
     block_t index = file->offset >> fs->block_shift;
 
     if (file->offset >= inode->size)
-	return NULL;		/* End of file */
+	return -1;		/* End of file */
 
     data = ext2_get_cache(inode, index);
     de = (const struct ext2_dir_entry *)
 	(data + (file->offset & (BLOCK_SIZE(fs) - 1)));
 
-    if (!(dirent = malloc(sizeof(*dirent)))) {
-	malloc_error("dirent structure in ext2_readdir");
-	return NULL;
-    }
     dirent->d_ino = de->d_inode;
     dirent->d_off = file->offset;
-    dirent->d_reclen = de->d_rec_len;
+    dirent->d_reclen = offsetof(struct dirent, d_name) + de->d_name_len + 1;
     dirent->d_type = de->d_file_type;
     memcpy(dirent->d_name, de->d_name, de->d_name_len);
     dirent->d_name[de->d_name_len] = '\0';
 
     file->offset += de->d_rec_len;  /* Update for next reading */
 
-    return dirent;
+    return 0;
 }
 
 /*

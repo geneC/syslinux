@@ -574,10 +574,9 @@ static struct inode *vfat_iget(const char *dname, struct inode *parent)
     return vfat_find_entry(dname, parent);
 }
 
-static struct dirent * vfat_readdir(struct file *file)
+static int vfat_readdir(struct file *file, struct dirent *dirent)
 {
     struct fs_info *fs = file->fs;
-    struct dirent *dirent;
     const struct fat_dir_entry *de;
     const char *data;
     const struct fat_long_name_entry *long_de;
@@ -586,12 +585,13 @@ static struct dirent * vfat_readdir(struct file *file)
 
     uint16_t long_name[261];	/* == 20*13 + 1 (to guarantee null) */
     char filename[261];
+    int name_len = 0;
 
     uint8_t vfat_init, vfat_next, vfat_csum;
     uint8_t id;
     int entries_left;
     int checksum;
-    int long_entry = 0;
+    bool long_entry = false;
     int sec_off = file->offset & ((1 << fs->sector_shift) - 1);
 
     data = get_cache(fs->fs_dev, sector);
@@ -601,9 +601,9 @@ static struct dirent * vfat_readdir(struct file *file)
     vfat_next = vfat_csum = 0xff;
 
     while (1) {
-	while(entries_left--) {
+	while (entries_left--) {
 	    if (de->name[0] == 0)
-		return NULL;
+		return -1;	/* End of directory */
 	    if ((uint8_t)de->name[0] == 0xe5)
 		goto invalid;
 
@@ -626,8 +626,7 @@ static struct dirent * vfat_readdir(struct file *file)
 		    /* ZERO the long_name buffer */
 		    memset(long_name, 0, sizeof long_name);
 		} else {
-		    if (long_de->checksum != vfat_csum ||
-			id != vfat_next)
+		    if (long_de->checksum != vfat_csum || id != vfat_next)
 			goto invalid;
 		}
 
@@ -637,15 +636,12 @@ static struct dirent * vfat_readdir(struct file *file)
 		copy_long_chunk(long_name + id*13, de);
 
 		if (id == 0) {
-		    int longlen =
-			vfat_cvt_longname(filename, long_name);
-		    if (longlen > 0 && longlen < sizeof(dirent->d_name))
-			long_entry = 1;
+		    name_len = vfat_cvt_longname(filename, long_name);
+		    if (name_len > 0 && name_len < sizeof(dirent->d_name))
+			long_entry = true;
 		}
 
-		de++;
-		file->offset += sizeof(struct fat_dir_entry);
-		continue;     /* Try the next entry */
+		goto next;
 	    } else {
 		/*
 		 * It's a short entry
@@ -653,11 +649,8 @@ static struct dirent * vfat_readdir(struct file *file)
 		if (de->attr & 0x08) /* ignore volume labels */
 		    goto invalid;
 
-		if (long_entry == 1) {
-		    /* Got a long entry */
-		    checksum = get_checksum(de->name);
-		    if (checksum == vfat_csum)
-			goto got;
+		if (long_entry && get_checksum(de->name) == vfat_csum) {
+		   /* Got a long entry */
 		} else {
 		    /* Use the shortname */
 		    int i;
@@ -684,12 +677,14 @@ static struct dirent * vfat_readdir(struct file *file)
 			}
 		    }
 		    *p = '\0';
-
-		    goto got;
+		    name_len = p - filename;
 		}
+		goto got;	/* Got something one way or the other */
 	    }
 
 	invalid:
+	    long_entry = false;
+	next:
 	    de++;
 	    file->offset += sizeof(struct fat_dir_entry);
 	}
@@ -697,25 +692,22 @@ static struct dirent * vfat_readdir(struct file *file)
 	/* Try with the next sector */
 	sector = next_sector(file);
 	if (!sector)
-	    return NULL;
+	    return -1;
 	de = get_cache(fs->fs_dev, sector);
 	entries_left = 1 << (fs->sector_shift - 5);
     }
 
 got:
-    if (!(dirent = malloc(sizeof(*dirent)))) {
-	malloc_error("dirent structure in vfat_readdir");
-	return NULL;
-    }
+    name_len++;			/* Include final null */
     dirent->d_ino = de->first_cluster_low | (de->first_cluster_high << 16);
     dirent->d_off = file->offset;
-    dirent->d_reclen = 0;
+    dirent->d_reclen = offsetof(struct dirent, d_name) + name_len;
     dirent->d_type = get_inode_mode(de->attr);
-    strcpy(dirent->d_name, filename);
+    memcpy(dirent->d_name, filename, name_len);
 
     file->offset += sizeof(*de);  /* Update for next reading */
 
-    return dirent;
+    return 0;
 }
 
 /* Load the config file, return 1 if failed, or 0 */

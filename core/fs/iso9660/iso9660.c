@@ -235,12 +235,11 @@ static struct inode *iso_iget(const char *dname, struct inode *parent)
     return iso_get_inode(parent->fs, de);
 }
 
-static struct dirent *iso_readdir(struct file *file)
+static int iso_readdir(struct file *file, struct dirent *dirent)
 {
     struct fs_info *fs = file->fs;
     struct inode *inode = file->inode;
     const struct iso_dir_entry *de;
-    struct dirent *dirent;
     const char *data = NULL;
     
     while (1) {
@@ -249,7 +248,7 @@ static struct dirent *iso_readdir(struct file *file)
 	if (!data) {
 	    uint32_t i = file->offset >> BLOCK_SHIFT(fs);
 	    if (i >= inode->blocks)
-		return NULL;
+		return -1;
 	    data = get_cache(fs->fs_dev, PVT(inode)->lba + i);
 	}
 	de = (const struct iso_dir_entry *)(data + offset);
@@ -263,20 +262,15 @@ static struct dirent *iso_readdir(struct file *file)
 	break;
     }
     
-    if (!(dirent = malloc(sizeof(*dirent)))) {
-	malloc_error("dirent structure in iso_readdir");
-	return NULL;
-    }
-    
     dirent->d_ino = 0;           /* Inode number is invalid to ISO fs */
     dirent->d_off = file->offset;
     dirent->d_type = get_inode_mode(de->flags);
-    dirent->d_reclen = iso_convert_name(dirent->d_name,
-					de->name, de->name_len);
+    dirent->d_reclen = offsetof(struct dirent, d_name) + 1 +
+	iso_convert_name(dirent->d_name, de->name, de->name_len);
 
     file->offset += de->length;  /* Update for next reading */
     
-    return dirent;
+    return 0;
 }
 
 /* Load the config file, return 1 if failed, or 0 */
