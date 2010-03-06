@@ -320,6 +320,16 @@ AX=0006h [2.08] Open file
 	In 3.70 or later, EAX can contain -1 indicating that the file
 	length is unknown.
 
+	32-BIT VERSION:
+
+	int cs_pm->open_file(const char *filename, struct com32_filedata *data)
+
+	filename - null-terminated filename
+	data	 - pointer to a file data buffer
+
+	Returns the file handle, or -1 on failure.
+	The file data buffer contains block size and file size.
+
 
 AX=0007h [2.08] Read file
 
@@ -372,6 +382,12 @@ AX=0008h [2.08] Close file
 
 	WARNING: Calling this function with an invalid file handle
 	will probably crash the system.
+
+	32-BIT VERSION:
+
+	void cs_pm->close_file(uint16_t handle)
+
+	handle	- file handle to close
 
 
 AX=0009h [2.00] Call PXE Stack [PXELINUX ONLY]

@@ -52,10 +52,8 @@ const struct input_dev __file_dev = {
 
 int open(const char *pathname, int flags, ...)
 {
-    com32sys_t regs;
-    int fd;
+    int fd, handle;
     struct file_info *fp;
-    char *lm_pathname;
 
     fd = opendev(&__file_dev, NULL, flags);
 
@@ -64,31 +62,10 @@ int open(const char *pathname, int flags, ...)
 
     fp = &__file_info[fd];
 
-    lm_pathname = lstrdup(pathname);
-    if (!lm_pathname)
+    handle = __com32.cs_pm->open_file(pathname, &fp->i.fd);
+    if (handle < 0)
 	return -1;
 
-    regs.eax.w[0] = 0x0006;
-    regs.esi.w[0] = OFFS(lm_pathname);
-    regs.es = SEG(lm_pathname);
-
-    __com32.cs_intcall(0x22, &regs, &regs);
-
-    lfree(lm_pathname);
-
-    if ((regs.eflags.l & EFLAGS_CF) || regs.esi.w[0] == 0) {
-	close(fd);
-	errno = ENOENT;
-	return -1;
-    }
-
-    {
-	uint16_t blklg2;
-	asm("bsrw %1,%0" : "=r" (blklg2) : "rm" (regs.ecx.w[0]));
-	fp->i.blocklg2 = blklg2;
-    }
-    fp->i.length = regs.eax.l;
-    fp->i.filedes = regs.esi.w[0];
     fp->i.offset = 0;
     fp->i.nbytes = 0;
 

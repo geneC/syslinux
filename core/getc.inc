@@ -83,7 +83,7 @@ openfd:
 .ret:		ret
 
 .stack_full:
-		pm_call close_file
+		pm_call pm_close_file
 		xor ax,ax		; ZF <- 1
 		pop bx
 		ret
@@ -178,7 +178,7 @@ close:
 		push si
 		mov bx,[CurrentGetC]
 		mov si,[bx+gc_file]
-		pm_call close_file
+		pm_call pm_close_file
 		add bx,getc_file_size
 		mov [CurrentGetC],bx
 		pop si

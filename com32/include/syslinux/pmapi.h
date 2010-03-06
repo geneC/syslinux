@@ -45,11 +45,19 @@
 struct _DIR_;
 struct dirent;
 
+struct com32_filedata {
+    size_t size;		/* File size */
+    int blocklg2;		/* log2(block size) */
+    uint16_t handle;		/* File handle */
+};
+
 struct com32_pmapi {
     void *(*lmalloc)(size_t);
     void (*lfree)(void *);
 
+    int (*open_file)(const char *, struct com32_filedata *);
     size_t (*read_file)(uint16_t *, void *, size_t);
+    void (*close_file)(uint16_t);
 
     struct _DIR_ *(*opendir)(const char *);
     struct dirent *(*readdir)(struct _DIR_ *);

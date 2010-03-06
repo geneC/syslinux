@@ -39,6 +39,7 @@
 #include <sys/types.h>
 #include <dev.h>
 #include <fcntl.h>
+#include <syslinux/pmapi.h>
 
 /* Device structure; contains the relevant operations */
 
@@ -87,11 +88,8 @@ struct file_info {
 
     /* Structure used for input blocking */
     struct {
-	int blocklg2;		/* Blocksize log 2 */
+	struct com32_filedata fd;
 	size_t offset;		/* Current file offset */
-	size_t length;		/* Total file length */
-	uint16_t filedes;	/* File descriptor */
-	uint16_t _filler;	/* Unused */
 	size_t nbytes;		/* Number of bytes available in buffer */
 	char *datap;		/* Current data pointer */
 	void *pvt;		/* Private pointer for driver */

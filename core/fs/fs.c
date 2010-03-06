@@ -293,15 +293,57 @@ err_no_close:
     return -1;
 }
 
-void close_file(com32sys_t *regs)
+int open_file(const char *name, struct com32_filedata *filedata)
 {
-    uint16_t handle = regs->esi.w[0];
+    int rv;
+    struct file *file;
+    char mangled_name[FILENAME_MAX];
+
+    mangle_name(mangled_name, name);
+    rv = searchdir(mangled_name);
+
+    if (rv >= 0) {
+	file = handle_to_file(rv);
+	filedata->size		= file->file_len;
+	filedata->blocklg2	= SECTOR_SHIFT(file->fs);
+	filedata->handle	= rv;
+    }
+    return rv;
+}
+
+void pm_open_file(com32sys_t *regs)
+{
+    int rv;
+    struct file *file;
+    const char *name = MK_PTR(regs->es, regs->esi.w[0]);
+    char mangled_name[FILENAME_MAX];
+
+    mangle_name(mangled_name, name);
+    rv = searchdir(mangled_name);
+    if (rv < 0) {
+	regs->eflags.l |= EFLAGS_CF;
+    } else {
+	file = handle_to_file(rv);
+	regs->eflags.l &= ~EFLAGS_CF;
+	regs->eax.l = file->file_len;
+	regs->ecx.w[0] = SECTOR_SIZE(file->fs);
+	regs->esi.w[0] = rv;
+    }
+}
+
+void close_file(uint16_t handle)
+{
     struct file *file;
 
     if (handle) {
 	file = handle_to_file(handle);
 	_close_file(file);
     }
+}
+
+void pm_close_file(com32sys_t *regs)
+{
+    close_file(regs->esi.w[0]);
 }
 
 /*

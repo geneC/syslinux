@@ -63,7 +63,7 @@
 
 ; Looks like a COMBOOT image but too large
 comboot_too_large:
-		pm_call close_file
+		pm_call pm_close_file
 		mov si,err_comlarge
 		call writestr
 		jmp enter_command
@@ -517,18 +517,7 @@ comapi_textmode:
 ; INT 22h AX=0006h	Open file
 ;
 comapi_open:
-		push ds
-		mov ds,P_ES
-		mov si,P_SI
-		mov di,InitRD
-		pm_call pm_mangle_name
-		pop ds
-		pm_call pm_searchdir
-		jz comapi_err
-		mov P_EAX,eax
-		mov P_CX,SECTOR_SIZE
-		mov P_SI,si
-		clc
+		pm_call pm_open_file
 		ret
 
 ;
@@ -551,7 +540,7 @@ comapi_read:
 ;
 comapi_close:
 		mov si,P_SI
-		pm_call close_file
+		pm_call pm_close_file
 		clc
 		ret
 

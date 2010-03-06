@@ -42,8 +42,8 @@ int __file_get_block(struct file_info *fp)
 {
     ssize_t bytes_read;
 
-    bytes_read = __com32.cs_pm->read_file(&fp->i.filedes, fp->i.buf,
-					  MAXBLOCK >> fp->i.blocklg2);
+    bytes_read = __com32.cs_pm->read_file(&fp->i.fd.handle, fp->i.buf,
+					  MAXBLOCK >> fp->i.fd.blocklg2);
     if (!bytes_read) {
 	errno = EIO;
 	return -1;
@@ -62,13 +62,13 @@ ssize_t __file_read(struct file_info * fp, void *buf, size_t count)
 
     while (count) {
 	if (fp->i.nbytes == 0) {
-	    if (fp->i.offset >= fp->i.length || !fp->i.filedes)
+	    if (fp->i.offset >= fp->i.fd.size || !fp->i.fd.handle)
 		return n;	/* As good as it gets... */
 
 	    if (count > MAXBLOCK) {
 		/* Large transfer: copy directly, without buffering */
-		ncopy = __com32.cs_pm->read_file(&fp->i.filedes, bufp,
-						 count >> fp->i.blocklg2);
+		ncopy = __com32.cs_pm->read_file(&fp->i.fd.handle, bufp,
+						 count >> fp->i.fd.blocklg2);
 		if (!ncopy) {
 		    errno = EIO;
 		    return n ? n : -1;

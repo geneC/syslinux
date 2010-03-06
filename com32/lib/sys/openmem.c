@@ -52,9 +52,9 @@ int openmem(const void *base, size_t len, int flags)
 
     fp = &__file_info[fd];
 
-    fp->i.length  = fp->i.nbytes = len;
+    fp->i.fd.size  = fp->i.nbytes = len;
     fp->i.datap   = (void *)base;
-    fp->i.filedes = 0;		/* No actual file */
+    fp->i.fd.handle = 0;		/* No actual file */
     fp->i.offset  = 0;
 
     return fd;
