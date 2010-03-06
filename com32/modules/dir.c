@@ -147,12 +147,9 @@ nomem:
 
 int main(int argc, char *argv[])
 {
+    int rv;
+
     openconsole(&dev_rawcon_r, &dev_stdcon_w);
-    
-    if (argc != 2) {
-	printf("Usage: dir directory\n");
-	return 0;
-    }
     
     if (getscreensize(1, &rows, &cols)) {
 	/* Unknown screen size? */
@@ -160,6 +157,15 @@ int main(int argc, char *argv[])
 	cols = 80;
     }
 
-    return display_directory(argv[1]);
+    if (argc < 2)
+	rv = display_directory(".");
+    else if (argc == 2)
+	rv = display_directory(argv[1]);
+    else {
+	printf("Usage: dir directory\n");
+	rv = 1;
+    }
+
+    return rv ? 1 : 0;
 }
   
