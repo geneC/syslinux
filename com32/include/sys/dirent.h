@@ -19,9 +19,19 @@ struct dirent {
     char d_name[NAME_MAX + 1];
 };
 
+enum dirent_types {
+    DT_UNKNOWN	=  0,
+    DT_FIFO	=  1,
+    DT_CHR	=  2,
+    DT_DIR	=  4,
+    DT_BLK	=  6,
+    DT_REG	=  8,
+    DT_LNK	= 10,
+    DT_SOCK	= 12,
+    DT_WHT	= 14,
+};
+
 struct _DIR_;
 typedef struct _DIR_ DIR;
-
-#define DIR_REC_LEN(name) (12 + strlen(name) + 1 + 3) & ~3
 
 #endif /* sys/dirent.h */
