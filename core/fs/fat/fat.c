@@ -324,22 +324,20 @@ static bool vfat_match_longname(const char *str, const uint16_t *match,
     unsigned char c = -1;	/* Nonzero: we have not yet seen NUL */
     uint16_t cp;
 
-    while (len && (cp = *match)) {
-	match++;
+    dprintf("Matching: %s\n", str);
+
+    while (len) {
+	cp = *match++;
 	len--;
+	if (!cp)
+	    break;
 	c = *str++;
 	if (cp != codepage.uni[0][c] && cp != codepage.uni[1][c])
-	    return false;
-	if (!c)
-	    break;
+	    return false;	/* Also handles c == '\0' */
     }
 
-    /*
-     * If the filename is an exact multiple of 13, we have not yet
-     * consumed the final null byte... make sure the next thing in the
-     * pattern string really is a null byte.
-     */
-    if (c && *str)
+    /* This should have been the end of the matching string */
+    if (*str)
 	return false;
 
     /* Any padding entries must be FFFF */
