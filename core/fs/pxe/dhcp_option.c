@@ -10,7 +10,7 @@ int over_load;
 uint8_t uuid_type;
 char uuid[17];
 
-void parse_dhcp_options(void *, int, int);
+static void parse_dhcp_options(void *, int, uint8_t);
 
 static void subnet_mask(void *data, int opt_len)
 {
@@ -176,20 +176,16 @@ static struct dhcp_options dhcp_opts[] = {
  * filter  contains the minimum value for the option to recognize
  * -- this is used to restrict parsing to PXELINUX-specific options only.
  */  
-void parse_dhcp_options(void *option, int size, int filter)
+static void parse_dhcp_options(void *option, int size, uint8_t opt_filter)
 {
     uint8_t opt_num;
     uint8_t opt_len;
-    uint8_t opt_filter = filter == 208 ? 208 : 0;
     int opt_entries = sizeof(dhcp_opts) / sizeof(dhcp_opts[0]);
     int i = 0;
     char *p = option;
     struct dhcp_options *opt;
     
-    if (opt_filter)
-        printf("***NOTE!:*** we hit a pxelinux-specific options\n");
-    
-    while (size --) {
+    while (size--) {
         opt_num = *p++;
 
         if (!size)

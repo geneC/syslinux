@@ -152,22 +152,24 @@ struct bootp_t {
     uint8_t  options[1260]; /* Vendor options */
 } __attribute__ ((packed));
 
-struct open_file_t {
+/*
+ * Our inode private information -- this includes the packet buffer!
+ */
+struct pxe_pvt_inode {
     uint16_t tftp_localport;   /* Local port number  (0=not in us)*/
     uint16_t tftp_remoteport;  /* Remote port number */
     uint32_t tftp_remoteip;    /* Remote IP address */
     uint32_t tftp_filepos;     /* bytes downloaded (includeing buffer) */
-    uint32_t tftp_filesize;    /* Total file size(*) */
     uint32_t tftp_blksize;     /* Block size for this connection(*) */
     uint16_t tftp_bytesleft;   /* Unclaimed data bytes */
     uint16_t tftp_lastpkt;     /* Sequence number of last packet (NBO) */
     char    *tftp_dataptr;     /* Pointer to available data */
     uint8_t  tftp_goteof;      /* 1 if the EOF packet received */
     uint8_t  tftp_unused[3];   /* Currently unused */
-    /* These values are preinitialized and not zeroed on close */
-    uint16_t tftp_nextport;    /* Next port number for this slot (HBO) */
     char     tftp_pktbuf[PKTBUF_SIZE];
 } __attribute__ ((packed));
+
+#define PVT(i) ((struct pxe_pvt_inode *)((i)->pvt))
 
 /*
  * Variable externs
@@ -220,7 +222,6 @@ int pxe_call(int, void *);
 
 /* dhcp_options.c */
 void parse_dhcp(int);
-void parse_dhcp_options(void *, int, int);
 
 /* dnsresolv.c */
 int dns_mangle(char **, const char *);

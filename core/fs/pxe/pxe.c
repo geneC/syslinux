@@ -25,17 +25,22 @@ char boot_file[256];		   /* From DHCP */
 char path_prefix[256];		   /* From DHCP */
 char dot_quad_buf[16];
 
-static struct open_file_t Files[MAX_OPEN];
 static bool has_gpxe;
 static uint32_t gpxe_funcs;
 static uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
 int have_uuid = 0;
 
+/* Port number bitmap - port numbers 49152 (0xc000) to 57343 (0xefff) */
+#define PORT_NUMBER_BASE	49152
+#define PORT_NUMBER_COUNT	8192 /* Power of 2, please */
+static uint32_t port_number_bitmap[PORT_NUMBER_COUNT/32];
+static uint16_t first_port_number /* = 0 */;
+
 /* Common receive buffer */
 static __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
 
 const uint8_t TimeoutTable[] = {
-    1, 2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18, 21, 26, 31, 37, 44,
+    2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18, 21, 26, 31, 37, 44,
     53, 64, 77, 92, 110, 132, 159, 191, 229, 255, 255, 255, 255, 0
 };
 
@@ -43,81 +48,87 @@ struct tftp_options {
     const char *str_ptr;        /* string pointer */
     size_t      offset;		/* offset into socket structre */
 };
+
+#define IFIELD(x)	offsetof(struct inode, x)
+#define PFIELD(x)	(offsetof(struct inode, pvt) + \
+			 offsetof(struct pxe_pvt_inode, x))
+
 static const struct tftp_options tftp_options[] =
 {
-    { "tsize",   offsetof(struct open_file_t, tftp_filesize) },
-    { "blksize", offsetof(struct open_file_t, tftp_blksize) },
+    { "tsize",   IFIELD(size) },
+    { "blksize", PFIELD(tftp_blksize) },
 };
 static const int tftp_nopts = sizeof tftp_options / sizeof tftp_options[0];
 
-static void tftp_error(struct open_file_t *file, uint16_t errnum,
+static void tftp_error(struct inode *file, uint16_t errnum,
 		       const char *errstr);
 
 /*
- * Initialize the Files structure
+ * Bitmap functions
  */
-static void files_init(void)
+static bool test_bit(const uint32_t *bitmap, int32_t index)
 {
-    int i;
-    struct open_file_t *socket = Files;
-    uint16_t nextport = 49152;
+    uint8_t st;
+    asm("btl %2,%1 ; setc %0" : "=qm" (st) : "m" (*bitmap), "r" (index));
+    return st;
+}
 
-    for (i = 0; i < MAX_OPEN; i++) {
-	socket->tftp_nextport = nextport;
-	nextport++;
-	socket++;
-    }
+static void set_bit(uint32_t *bitmap, int32_t index)
+{
+    asm volatile("btsl %1,%0" : "+m" (*bitmap) : "r" (index) : "memory");
+}
+
+static void clr_bit(uint32_t *bitmap, int32_t index)
+{
+    asm volatile("btcl %1,%0" : "+m" (*bitmap) : "r" (index) : "memory");
 }
 
 /*
- * Allocate a local UDP port structure.
- * return the socket pointer if success, or null if failure
- *
+ * Allocate a local UDP port structure and assign it a local port number.
+ * Return the inode pointer if success, or null if failure
  */
-static struct open_file_t *allocate_socket(void)
+static struct inode *allocate_socket(struct fs_info *fs)
 {
-    int i;
-    struct open_file_t *socket = Files;
-    uint16_t nextport;
+    struct inode *inode = alloc_inode(fs, 0, sizeof(struct pxe_pvt_inode));
 
-    for (i = 0; i < MAX_OPEN; i++) {
-        if (!socket->tftp_localport)
-	    break;
-        socket++;
+    if (!inode) {
+	malloc_error("socket structure");
+    } else {
+	struct pxe_pvt_inode *socket = PVT(inode);
+	uint16_t port;
+
+	do {
+	    port = first_port_number++;
+	    first_port_number &= PORT_NUMBER_COUNT - 1;
+	} while (test_bit(port_number_bitmap, port));
+
+	set_bit(port_number_bitmap, port);
+	socket->tftp_localport = htons(port + PORT_NUMBER_BASE);
     }
 
-    if (i == MAX_OPEN)
-	return NULL;
-
-    /*
-     * Allocate a socket number. Socket numbers are made guaranteed
-     * unique by including the socket slot number; add a counter value
-     * to keep the numbers from being likely to get immediately
-     * reused.  The mask enforces wraparound to the range 49152-57343.
-     */
-    nextport = socket->tftp_nextport;
-    socket->tftp_nextport = (nextport + (1 << MAX_OPEN_LG2)) & 0xdfff;
-    socket->tftp_localport = htons(nextport); /* Socket now in use */
-    return socket;
+    return inode;
 }
 
-/*
- * free socket in _file_.
- */
-static void free_socket(struct open_file_t *file)
+static void free_socket(struct inode *inode)
 {
-    /* tftp_nextport and tftp_pktbuf are not cleared */
-    memset(file, 0, offsetof(struct open_file_t, tftp_nextport));
+    struct pxe_pvt_inode *socket = PVT(inode);
+
+    clr_bit(port_number_bitmap,
+	    ntohs(socket->tftp_localport) - PORT_NUMBER_BASE);
+    free_inode(inode);
 }
 
 static void pxe_close_file(struct file *file)
 {
-    struct open_file_t *open_file = file->open_file;
+    struct inode *inode = file->inode;
+    struct pxe_pvt_inode *socket = PVT(inode);
 
-    if (open_file->tftp_localport && !open_file->tftp_goteof)
-	tftp_error(open_file, 0, "No error, file close");
+    /* XXX: handle gPXE close */
 
-    free_socket(open_file);
+    if (socket->tftp_localport && !socket->tftp_goteof)
+	tftp_error(inode, 0, "No error, file close");
+
+    free_socket(inode);
 }
 
 /**
@@ -280,11 +291,11 @@ int pxe_call(int opcode, void *data)
 /**
  * Send an ERROR packet.  This is used to terminate a connection.
  *
- * @file:	TFTP file pointer
+ * @inode:	Inode structure
  * @errnum:	Error number (network byte order)
  * @errstr:	Error string (included in packet)
  */
-static void tftp_error(struct open_file_t *file, uint16_t errnum,
+static void tftp_error(struct inode *inode, uint16_t errnum,
 		       const char *errstr)
 {
     static __lowmem struct {
@@ -294,15 +305,16 @@ static void tftp_error(struct open_file_t *file, uint16_t errnum,
     } __packed err_buf;
     static __lowmem struct s_PXENV_UDP_WRITE udp_write;
     int len = min(strlen(errstr), sizeof(err_buf.err_msg)-1);
+    struct pxe_pvt_inode *socket = PVT(inode);
 
     err_buf.err_op  = TFTP_ERROR;
     err_buf.err_num = errnum;
     memcpy(err_buf.err_msg, errstr, len);
     err_buf.err_msg[len] = '\0';
 
-    udp_write.src_port    = file->tftp_localport;
-    udp_write.dst_port    = file->tftp_remoteport;
-    udp_write.ip          = file->tftp_remoteip;
+    udp_write.src_port    = socket->tftp_localport;
+    udp_write.dst_port    = socket->tftp_remoteport;
+    udp_write.ip          = socket->tftp_remoteip;
     udp_write.gw          = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
     udp_write.buffer      = FAR_PTR(&err_buf);
     udp_write.buffer_size = 4 + len + 1;
@@ -315,22 +327,23 @@ static void tftp_error(struct open_file_t *file, uint16_t errnum,
 /**
  * Send ACK packet. This is a common operation and so is worth canning.
  *
- * @param: file,    TFTP block pointer
+ * @param: inode,   Inode pointer
  * @param: ack_num, Packet # to ack (network byte order)
  *
  */
-static void ack_packet(struct open_file_t *file, uint16_t ack_num)
+static void ack_packet(struct inode *inode, uint16_t ack_num)
 {
     int err;
     static __lowmem uint16_t ack_packet_buf[2];
     static __lowmem struct s_PXENV_UDP_WRITE udp_write;
+    struct pxe_pvt_inode *socket = PVT(inode);
 
     /* Packet number to ack */
     ack_packet_buf[0]     = TFTP_ACK;
     ack_packet_buf[1]     = ack_num;
-    udp_write.src_port    = file->tftp_localport;
-    udp_write.dst_port    = file->tftp_remoteport;
-    udp_write.ip          = file->tftp_remoteip;
+    udp_write.src_port    = socket->tftp_localport;
+    udp_write.dst_port    = socket->tftp_remoteport;
+    udp_write.ip          = socket->tftp_remoteip;
     udp_write.gw          = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
     udp_write.buffer      = FAR_PTR(ack_packet_buf);
     udp_write.buffer_size = 4;
@@ -421,16 +434,17 @@ static enum pxe_path_type pxe_path_type(const char *str)
 
 /**
  * Get a fresh packet from a gPXE socket
- * @param: file -> socket structure
+ * @param: inode -> Inode pointer
  *
  */
-static void get_packet_gpxe(struct open_file_t *file)
+static void get_packet_gpxe(struct inode *inode)
 {
+    struct pxe_pvt_inode *socket = PVT(inode);
     static __lowmem struct s_PXENV_FILE_READ file_read;
     int err;
 
     while (1) {
-        file_read.FileHandle  = file->tftp_remoteport;
+        file_read.FileHandle  = socket->tftp_remoteport;
         file_read.Buffer      = FAR_PTR(packet_buf);
         file_read.BufferSize  = PKTBUF_SIZE;
         err = pxe_call(PXENV_FILE_READ, &file_read);
@@ -441,21 +455,21 @@ static void get_packet_gpxe(struct open_file_t *file)
 	    kaboom();
     }
 
-    memcpy(file->tftp_pktbuf, packet_buf, file_read.BufferSize);
+    memcpy(socket->tftp_pktbuf, packet_buf, file_read.BufferSize);
 
-    file->tftp_dataptr   = file->tftp_pktbuf;
-    file->tftp_bytesleft = file_read.BufferSize;
-    file->tftp_filepos  += file_read.BufferSize;
+    socket->tftp_dataptr   = socket->tftp_pktbuf;
+    socket->tftp_bytesleft = file_read.BufferSize;
+    socket->tftp_filepos  += file_read.BufferSize;
 
-    if (file->tftp_bytesleft == 0)
-        file->tftp_filesize = file->tftp_filepos;
+    if (socket->tftp_bytesleft == 0)
+        inode->size = socket->tftp_filepos;
 
     /* if we're done here, close the file */
-    if (file->tftp_filesize > file->tftp_filepos)
+    if (inode->size > socket->tftp_filepos)
         return;
 
     /* Got EOF, close it */
-    file->tftp_goteof = 1;
+    socket->tftp_goteof = 1;
     pxe_call(PXENV_FILE_CLOSE, &file_read);
 }
 #endif /* GPXE */
@@ -480,7 +494,7 @@ static void pxe_mangle_name(char *dst, const char *src)
  * Get a fresh packet if the buffer is drained, and we haven't hit
  * EOF yet.  The buffer should be filled immediately after draining!
  */
-static void fill_buffer(struct open_file_t *file)
+static void fill_buffer(struct inode *inode)
 {
     int err;
     int last_pkt;
@@ -490,13 +504,14 @@ static void fill_buffer(struct open_file_t *file)
     uint32_t oldtime;
     void *data = NULL;
     static __lowmem struct s_PXENV_UDP_READ udp_read;
+    struct pxe_pvt_inode *socket = PVT(inode);
 
-    if (file->tftp_bytesleft || file->tftp_goteof)
+    if (socket->tftp_bytesleft || socket->tftp_goteof)
         return;
 
 #if GPXE
-    if (file->tftp_localport == 0xffff) {
-        get_packet_gpxe(file);
+    if (socket->tftp_localport == 0xffff) {
+        get_packet_gpxe(inode);
         return;
     }
 #endif
@@ -510,15 +525,15 @@ static void fill_buffer(struct open_file_t *file)
     oldtime = jiffies();
 
  ack_again:
-    ack_packet(file, file->tftp_lastpkt);
+    ack_packet(inode, socket->tftp_lastpkt);
 
     while (timeout) {
         udp_read.buffer      = FAR_PTR(packet_buf);
         udp_read.buffer_size = PKTBUF_SIZE;
-        udp_read.src_ip      = file->tftp_remoteip;
+        udp_read.src_ip      = socket->tftp_remoteip;
         udp_read.dest_ip     = MyIP;
-        udp_read.s_port      = file->tftp_remoteport;
-        udp_read.d_port      = file->tftp_localport;
+        udp_read.s_port      = socket->tftp_remoteport;
+        udp_read.d_port      = socket->tftp_localport;
         err = pxe_call(PXENV_UDP_READ, &udp_read);
         if (err) {
 	    uint32_t now = jiffies();
@@ -547,7 +562,7 @@ static void fill_buffer(struct open_file_t *file)
     if (timeout == 0)
 	kaboom();
 
-    last_pkt = file->tftp_lastpkt;
+    last_pkt = socket->tftp_lastpkt;
     last_pkt = ntohs(last_pkt);       /* Host byte order */
     last_pkt++;
     last_pkt = htons(last_pkt);       /* Network byte order */
@@ -565,19 +580,19 @@ static void fill_buffer(struct open_file_t *file)
     }
 
     /* It's the packet we want.  We're also EOF if the size < blocksize */
-    file->tftp_lastpkt = last_pkt;    /* Update last packet number */
+    socket->tftp_lastpkt = last_pkt;    /* Update last packet number */
     buffersize = udp_read.buffer_size - 4;  /* Skip TFTP header */
-    memcpy(file->tftp_pktbuf, packet_buf + 4, buffersize);
-    file->tftp_dataptr = file->tftp_pktbuf;
-    file->tftp_filepos += buffersize;
-    file->tftp_bytesleft = buffersize;
-    if (buffersize < file->tftp_blksize) {
+    memcpy(socket->tftp_pktbuf, packet_buf + 4, buffersize);
+    socket->tftp_dataptr = socket->tftp_pktbuf;
+    socket->tftp_filepos += buffersize;
+    socket->tftp_bytesleft = buffersize;
+    if (buffersize < socket->tftp_blksize) {
         /* it's the last block, ACK packet immediately */
-        ack_packet(file, *(uint16_t *)(data + 2));
+        ack_packet(inode, *(uint16_t *)(data + 2));
 
         /* Make sure we know we are at end of file */
-        file->tftp_filesize = file->tftp_filepos;
-        file->tftp_goteof   = 1;
+        inode->size 		= socket->tftp_filepos;
+        socket->tftp_goteof	= 1;
     }
 }
 
@@ -594,36 +609,37 @@ static void fill_buffer(struct open_file_t *file)
  * @return: the bytes read
  *
  */
-static uint32_t pxe_getfssec(struct file *gfile, char *buf,
+static uint32_t pxe_getfssec(struct file *file, char *buf,
 			     int blocks, bool *have_more)
 {
-    struct open_file_t *file = gfile->open_file;
+    struct inode *inode = file->inode;
+    struct pxe_pvt_inode *socket = PVT(inode);
     int count = blocks;
     int chunk;
     int bytes_read = 0;
 
     count <<= TFTP_BLOCKSIZE_LG2;
     while (count) {
-        fill_buffer(file);         /* If we have no 'fresh' buffer, get it */
-        if (!file->tftp_bytesleft)
+        fill_buffer(inode); /* If we have no 'fresh' buffer, get it */
+        if (!socket->tftp_bytesleft)
             break;
 
         chunk = count;
-        if (chunk > file->tftp_bytesleft)
-            chunk = file->tftp_bytesleft;
-        file->tftp_bytesleft -= chunk;
-        memcpy(buf, file->tftp_dataptr, chunk);
-	file->tftp_dataptr += chunk;
+        if (chunk > socket->tftp_bytesleft)
+            chunk = socket->tftp_bytesleft;
+        socket->tftp_bytesleft -= chunk;
+        memcpy(buf, socket->tftp_dataptr, chunk);
+	socket->tftp_dataptr += chunk;
         buf += chunk;
         bytes_read += chunk;
         count -= chunk;
     }
 
 
-    if (file->tftp_bytesleft || (file->tftp_filepos < file->tftp_filesize)) {
-	fill_buffer(file);
+    if (socket->tftp_bytesleft || (socket->tftp_filepos < inode->size)) {
+	fill_buffer(inode);
         *have_more = 1;
-    } else if (file->tftp_goteof) {
+    } else if (socket->tftp_goteof) {
         /*
          * The socket is closed and the buffer drained; the caller will
 	 * call close_file and therefore free the socket.
@@ -646,12 +662,13 @@ static uint32_t pxe_getfssec(struct file *gfile, char *buf,
 static void pxe_searchdir(const char *filename, struct file *file)
 {
     struct fs_info *fs = file->fs;
+    struct inode *inode;
+    struct pxe_pvt_inode *socket;
     char *buf;
     const char *np;
     char *p;
     char *options;
     char *data;
-    struct open_file_t *open_file;
     static __lowmem struct s_PXENV_UDP_WRITE udp_write;
     static __lowmem struct s_PXENV_UDP_READ  udp_read;
     static __lowmem struct s_PXENV_FILE_OPEN file_open;
@@ -673,8 +690,7 @@ static void pxe_searchdir(const char *filename, struct file *file)
     char fullpath[2*FILENAME_MAX];
     uint16_t server_port = TFTP_PORT;  /* TFTP server port */
 
-    file->file_len = 0;
-    file->open_file = NULL;
+    inode = file->inode = NULL;
 	
     buf = rrq_packet_buf;
     *(uint16_t *)buf = TFTP_RRQ;  /* TFTP opcode */
@@ -745,9 +761,10 @@ static void pxe_searchdir(const char *filename, struct file *file)
     memcpy(buf, rrq_tail, sizeof rrq_tail);
     buf += sizeof rrq_tail;
 
-    open_file = allocate_socket();
-    if (!open_file)
+    inode = allocate_socket(fs);
+    if (!inode)
 	return;			/* Allocation failure */
+    socket = PVT(inode);
 
     timeout_ptr = TimeoutTable;   /* Reset timeout */
     timeout = *timeout_ptr;
@@ -763,9 +780,9 @@ sendreq:
 	    if (err)
 		goto done;
 	    
-	    open_file->tftp_localport = -1;
-	    open_file->tftp_remoteport = file_open.FileHandle;
-	    open_file->tftp_filesize = -1;
+	    socket->tftp_localport = -1;
+	    socket->tftp_remoteport = file_open.FileHandle;
+	    inode->size = -1;
 	    goto done;
 	} else {
 	    static bool already = false;
@@ -778,8 +795,8 @@ sendreq:
     }
 #endif /* GPXE */
 
-    open_file->tftp_remoteip = ip;
-    tid = open_file->tftp_localport;   /* TID(local port No) */
+    socket->tftp_remoteip = ip;
+    tid = socket->tftp_localport;   /* TID(local port No) */
     udp_write.buffer    = FAR_PTR(rrq_packet_buf);
     udp_write.ip        = ip;
     udp_write.gw        = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
@@ -806,16 +823,16 @@ wait_pkt:
         }
 
         /* Make sure the packet actually came from the server */
-        if (udp_read.src_ip == open_file->tftp_remoteip)
+        if (udp_read.src_ip == socket->tftp_remoteip)
             break;
     }
 
-    open_file->tftp_remoteport = udp_read.s_port;
+    socket->tftp_remoteport = udp_read.s_port;
 
     /* filesize <- -1 == unknown */
-    open_file->tftp_filesize = -1;
+    inode->size = -1;
     /* Default blksize unless blksize option negotiated */
-    open_file->tftp_blksize = TFTP_BLOCKSIZE;
+    socket->tftp_blksize = TFTP_BLOCKSIZE;
     buffersize = udp_read.buffer_size - 2;  /* bytes after opcode */
     if (buffersize < 0)
         goto failure;                     /* Garbled reply */
@@ -826,7 +843,7 @@ wait_pkt:
     opcode = *(uint16_t *)packet_buf;
     switch (opcode) {
     case TFTP_ERROR:
-        open_file->tftp_filesize = 0;
+        inode->size = 0;
         break;			/* ERROR reply; don't try again */
 
     case TFTP_DATA:
@@ -848,7 +865,7 @@ wait_pkt:
         data += 2;
         if (blk_num != htons(1))
             goto failure;
-        open_file->tftp_lastpkt = blk_num;
+        socket->tftp_lastpkt = blk_num;
         if (buffersize > TFTP_BLOCKSIZE)
             goto err_reply;  /* Corrupt */
         else if (buffersize < TFTP_BLOCKSIZE) {
@@ -857,14 +874,14 @@ wait_pkt:
              * We know the filesize, but we also want to
              * ack the packet and set the EOF flag.
              */
-            open_file->tftp_filesize = buffersize;
-            open_file->tftp_goteof = 1;
-            ack_packet(open_file, blk_num);
+            inode->size = buffersize;
+            socket->tftp_goteof = 1;
+            ack_packet(inode, blk_num);
         }
 
-        open_file->tftp_bytesleft = buffersize;
-        open_file->tftp_dataptr = open_file->tftp_pktbuf;
-        memcpy(open_file->tftp_pktbuf, data, buffersize);
+        socket->tftp_bytesleft = buffersize;
+        socket->tftp_dataptr = socket->tftp_pktbuf;
+        memcpy(socket->tftp_pktbuf, data, buffersize);
 	break;
 
     case TFTP_OACK:
@@ -921,7 +938,7 @@ wait_pkt:
 				   no idea what it means ...*/
 
             /* get the address of the filed that we want to write on */
-            opdata_ptr = (uint32_t *)((char *)open_file + tftp_opt->offset);
+            opdata_ptr = (uint32_t *)((char *)inode + tftp_opt->offset);
 	    opdata = 0;
 
             /* do convert a number-string to decimal number, just like atoi */
@@ -944,17 +961,16 @@ wait_pkt:
     }
 
 done:
-    if (!open_file->tftp_filesize) {
-        free_socket(open_file);
+    if (!inode->size) {
+        free_socket(inode);
 	return;
     }
-    file->open_file = (void *)open_file;
-    file->file_len  = open_file->tftp_filesize;
+    file->inode = inode;
     return;
 
 err_reply:
     /* Build the TFTP error packet */
-    tftp_error(open_file, TFTP_EOPTNEG, "TFTP protocol error");
+    tftp_error(inode, TFTP_EOPTNEG, "TFTP protocol error");
     printf("TFTP server sent an incomprehesible reply\n");
     kaboom();
 
@@ -1502,9 +1518,6 @@ static int pxe_fs_init(struct fs_info *fs)
     /* This block size is actually arbitrary... */
     fs->sector_shift = fs->block_shift = TFTP_BLOCKSIZE_LG2;
     fs->sector_size  = fs->block_size  = 1 << TFTP_BLOCKSIZE_LG2;
-
-    /* Initialize the Files structure */
-    files_init();
 
     /* Find the PXE stack */
     if (pxe_init(false))

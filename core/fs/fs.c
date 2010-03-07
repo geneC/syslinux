@@ -150,7 +150,7 @@ void pm_searchdir(com32sys_t *regs)
 	regs->eflags.l |= EFLAGS_ZF;
     } else {
 	regs->esi.w[0]  = rv;
-	regs->eax.l     = handle_to_file(rv)->file_len;
+	regs->eax.l     = handle_to_file(rv)->inode->size;
 	regs->eflags.l &= ~EFLAGS_ZF;
     }
 }
@@ -172,7 +172,7 @@ int searchdir(const char *name)
     if (file->fs->fs_ops->searchdir) {
 	file->fs->fs_ops->searchdir(name, file);
 
-	if (file->open_file)
+	if (file->inode)
 	    return file_to_handle(file);
 	else
 	    goto err;
@@ -274,7 +274,6 @@ int searchdir(const char *name)
 
     file->inode  = inode;
     file->offset = 0;
-    file->file_len  = inode->size;
 
     dprintf("File %s -> %p (inode %p) len %u\n", name, file,
 	    inode, inode->size);
@@ -304,7 +303,7 @@ int open_file(const char *name, struct com32_filedata *filedata)
 
     if (rv >= 0) {
 	file = handle_to_file(rv);
-	filedata->size		= file->file_len;
+	filedata->size		= file->inode->size;
 	filedata->blocklg2	= SECTOR_SHIFT(file->fs);
 	filedata->handle	= rv;
     }
@@ -325,7 +324,7 @@ void pm_open_file(com32sys_t *regs)
     } else {
 	file = handle_to_file(rv);
 	regs->eflags.l &= ~EFLAGS_CF;
-	regs->eax.l = file->file_len;
+	regs->eax.l = file->inode->size;
 	regs->ecx.w[0] = SECTOR_SIZE(file->fs);
 	regs->esi.w[0] = rv;
     }

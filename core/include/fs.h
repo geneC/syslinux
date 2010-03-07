@@ -122,25 +122,11 @@ struct inode {
     char         pvt[0]; /* Private filesystem data */
 };
 
-struct open_file_t;
-
 struct file {
     struct fs_info *fs;
-    uint32_t file_len;
-    union {
-	/* For the new universal-path_lookup */
-	struct {
-	    struct inode *inode;        /* The file-specific information */
-	    uint32_t offset;            /* for next read */
-	};
-
-	/* For the old searchdir method */
-	struct {
-	    struct open_file_t *open_file;/* The fs-specific open file struct */
-	};
-    };
+    uint32_t offset;            /* for next read */
+    struct inode *inode;        /* The file-specific information */
 };
-
 
 enum dev_type {CHS, EDD};
 
