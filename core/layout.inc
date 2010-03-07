@@ -27,7 +27,7 @@ BSS_START	equ 0800h
 TEXT_START	equ 7C00h
 
 ;
-; Stack layout
+; 16-bit stack layout
 ;
 ; PXELINUX: There are apparently some AMI BIOSes in the field which
 ; put their BEV stack somewhere below 7C00h (and therefore don't
@@ -50,10 +50,19 @@ STACK_BASE	equ STACK_TOP - STACK_LEN
 LATEBSS_START	equ 0B800h
 
 ;
+; 32-bit stack layout
+;
+		global STACK32_LEN
+STACK32_LEN	equ 64*1024
+
+		section	.stack		nobits write align=4096
+		resb STACK32_LEN
+
+;
 ; The various sections and their relationship
 ;
 		; Use .earlybss for things that MUST be in low memory.
-		section .earlybss	nobits
+		section .earlybss	nobits write
 		section .config		write progbits align=4
 		section .replacestub	exec write progbits align=16
 		section .gentextnr	exec write nobits align=16

@@ -346,14 +346,12 @@ SECTIONS
 	__bss_len = __bss_end - __bss_start;
 	__bss_dwords = (__bss_len + 3) >> 2;
 
-	. = ALIGN(65536);
-
 	/* XXX: This stack should be unified with the COM32 stack */
 	__stack_vma = .;
 	__stack_lma = .;	/* Dummy */
 	.stack (NOLOAD) : AT(__stack_lma) {
 		__stack_start = .;
-		. += STACK32_LEN;
+		*(.stack)
 		__stack_end = .;
 	}
 	__stack_len = __stack_end - __stack_start;
