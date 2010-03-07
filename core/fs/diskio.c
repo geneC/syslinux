@@ -302,13 +302,15 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
 
 
 /* 
- * initialize the device structure 
+ * Initialize the device structure.
+ *
+ * NOTE: the disk cache needs to be revamped to support multiple devices...
  */
 struct device * device_init(uint8_t devno, bool cdrom, sector_t part_start,
                             uint16_t bsHeads, uint16_t bsSecPerTrack)
 {
     static struct device dev;
-    static char diskcache[128*1024] __aligned(4096);
+    static __hugebss char diskcache[128*1024];
 
     dev.disk = disk_init(devno, cdrom, part_start, bsHeads, bsSecPerTrack);
         
