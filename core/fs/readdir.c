@@ -28,8 +28,11 @@ struct dirent *readdir(DIR *dir)
     struct file *dd_dir = (struct file *)dir;
     int rv = -1;
     
-    if (dd_dir)
-	rv = dd_dir->fs->fs_ops->readdir(dd_dir, &buf);
+    if (dd_dir) {
+        if (dd_dir->fs->fs_ops->readdir) {
+	    rv = dd_dir->fs->fs_ops->readdir(dd_dir, &buf);
+        }
+    }
 
     return rv < 0 ? NULL : &buf;
 }
