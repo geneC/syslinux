@@ -5,7 +5,7 @@
 
 struct free_arena_header __malloc_head[NHEAP];
 
-static char main_heap[65536] __aligned(16);
+static char main_heap[128 << 10] __aligned(16);
 extern char __lowmem_heap[];
 
 void mem_init(void)
