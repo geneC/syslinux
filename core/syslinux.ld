@@ -31,7 +31,7 @@ SECTIONS
 	}
 
 	/* "Early" sections (before the load) */
-	. = 0x0800;
+	. = 0x1000;
 
 	.earlybss : {
 		__earlybss_start = .;
