@@ -191,6 +191,11 @@ uint32_t dns_resolv(const char *name)
     struct dnsrr *rr;
     static __lowmem struct s_PXENV_UDP_WRITE udp_write;
     static __lowmem struct s_PXENV_UDP_READ udp_read;
+    uint16_t local_port;
+    uint32_t result = 0;
+
+    /* Get a local port number */
+    local_port = get_port();
 
     /* First, fill the DNS header struct */
     hd1->id++;                      /* New query ID */
@@ -225,7 +230,7 @@ uint32_t dns_resolv(const char *name)
         udp_write.status      = 0;
         udp_write.ip          = srv;
         udp_write.gw          = ((srv ^ MyIP) & net_mask) ? gate_way : 0;
-        udp_write.src_port    = DNS_LOCAL_PORT;
+        udp_write.src_port    = local_port;
         udp_write.dst_port    = DNS_PORT;
         udp_write.buffer_size = p - DNSSendBuf;
         udp_write.buffer      = FAR_PTR(DNSSendBuf);
@@ -239,7 +244,7 @@ uint32_t dns_resolv(const char *name)
             udp_read.src_ip      = srv;
             udp_read.dest_ip     = MyIP;
             udp_read.s_port      = DNS_PORT;
-            udp_read.d_port      = DNS_LOCAL_PORT;
+            udp_read.d_port      = local_port;
             udp_read.buffer_size = DNS_MAX_PACKET;
             udp_read.buffer      = FAR_PTR(DNSRecvBuf);
             err = pxe_call(PXENV_UDP_READ, &udp_read);
@@ -254,7 +259,7 @@ uint32_t dns_resolv(const char *name)
 		/* time out */
 		timeout = *timeout_ptr++;
 		if (!timeout)
-		    return 0;     /* All time ticks run out */
+		    goto done;	/* All time ticks run out */
 		else 
 		    goto again;
 	    }
@@ -280,8 +285,10 @@ uint32_t dns_resolv(const char *name)
             if (same && ntohs(rr->class) == CLASS_IN) {
 		switch (ntohs(rr->type)) {
 		case TYPE_A:
-		    if (rd_len == 4)
-			return *(uint32_t *)rr->rdata;
+		    if (rd_len == 4) {
+			result = *(uint32_t *)rr->rdata;
+			goto done;
+		    }
 		    break;
 		case TYPE_CNAME:
 		    dns_copylabel(DNSSendBuf + sizeof(struct dnshdr),
@@ -327,7 +334,10 @@ uint32_t dns_resolv(const char *name)
 	continue;
     }
 
-    return 0;
+done:
+    free_port(local_port);	/* Return port number to the free pool */
+
+    return result;
 }
     
     

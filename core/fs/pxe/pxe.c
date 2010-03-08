@@ -30,12 +30,6 @@ static uint32_t gpxe_funcs;
 static uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
 bool have_uuid = false;
 
-/* Port number bitmap - port numbers 49152 (0xc000) to 57343 (0xefff) */
-#define PORT_NUMBER_BASE	49152
-#define PORT_NUMBER_COUNT	8192 /* Power of 2, please */
-static uint32_t port_number_bitmap[PORT_NUMBER_COUNT/32];
-static uint16_t first_port_number /* = 0 */;
-
 /* Common receive buffer */
 static __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
 
@@ -64,26 +58,6 @@ static void tftp_error(struct inode *file, uint16_t errnum,
 		       const char *errstr);
 
 /*
- * Bitmap functions
- */
-static bool test_bit(const uint32_t *bitmap, int32_t index)
-{
-    uint8_t st;
-    asm("btl %2,%1 ; setc %0" : "=qm" (st) : "m" (*bitmap), "r" (index));
-    return st;
-}
-
-static void set_bit(uint32_t *bitmap, int32_t index)
-{
-    asm volatile("btsl %1,%0" : "+m" (*bitmap) : "r" (index) : "memory");
-}
-
-static void clr_bit(uint32_t *bitmap, int32_t index)
-{
-    asm volatile("btcl %1,%0" : "+m" (*bitmap) : "r" (index) : "memory");
-}
-
-/*
  * Allocate a local UDP port structure and assign it a local port number.
  * Return the inode pointer if success, or null if failure
  */
@@ -95,15 +69,7 @@ static struct inode *allocate_socket(struct fs_info *fs)
 	malloc_error("socket structure");
     } else {
 	struct pxe_pvt_inode *socket = PVT(inode);
-	uint16_t port;
-
-	do {
-	    port = first_port_number++;
-	    first_port_number &= PORT_NUMBER_COUNT - 1;
-	} while (test_bit(port_number_bitmap, port));
-
-	set_bit(port_number_bitmap, port);
-	socket->tftp_localport = htons(port + PORT_NUMBER_BASE);
+	socket->tftp_localport = get_port();
     }
 
     return inode;
@@ -113,20 +79,36 @@ static void free_socket(struct inode *inode)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
 
-    clr_bit(port_number_bitmap,
-	    ntohs(socket->tftp_localport) - PORT_NUMBER_BASE);
+    free_port(socket->tftp_localport);
     free_inode(inode);
 }
+
+#if GPXE
+static void gpxe_close_file(struct inode *inode)
+{
+    struct pxe_pvt_inode *socket = PVT(inode);
+    static __lowmem struct s_PXENV_FILE_CLOSE file_close;
+
+    file_close.FileHandle = socket->tftp_remoteport;
+    pxe_call(PXENV_FILE_CLOSE, &file_close);
+}
+#endif
 
 static void pxe_close_file(struct file *file)
 {
     struct inode *inode = file->inode;
     struct pxe_pvt_inode *socket = PVT(inode);
 
-    /* XXX: handle gPXE close */
-
-    if (socket->tftp_localport && !socket->tftp_goteof)
-	tftp_error(inode, 0, "No error, file close");
+    if (!socket->tftp_goteof) {
+#if GPXE
+	if (socket->tftp_localport == 0xffff) {
+	    gpxe_close_file(inode);
+	} else
+#endif
+	if (socket->tftp_localport != 0) {
+	    tftp_error(inode, 0, "No error, file close");
+	}
+    }
 
     free_socket(inode);
 }
@@ -470,7 +452,7 @@ static void get_packet_gpxe(struct inode *inode)
 
     /* Got EOF, close it */
     socket->tftp_goteof = 1;
-    pxe_call(PXENV_FILE_CLOSE, &file_read);
+    gpxe_close_file(inode);
 }
 #endif /* GPXE */
 

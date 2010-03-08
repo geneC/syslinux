@@ -403,6 +403,11 @@ typedef struct s_PXENV_FILE_OPEN {
     uint32_t Reserved;
 } __packed t_PXENV_FILE_OPEN;
 
+typedef struct s_PXENV_FILE_CLOSE {
+    pxenv_status_t Status;
+    uint16_t FileHandle;
+} __packed t_PXENV_FILE_CLOSE;
+
 typedef struct s_PXENV_GET_FILE_SIZE {
     pxenv_status_t Status;
     uint16_t FileHandle;

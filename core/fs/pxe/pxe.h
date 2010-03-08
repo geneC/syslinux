@@ -76,8 +76,6 @@ static inline int hexval(char c)
 /* Defines for DNS */
 #define DNS_PORT	htons(53)		/* Default DNS port */
 #define DNS_MAX_PACKET	512			/* Defined by protocol */
-/* All local DNS queries come from this port */
-#define DNS_LOCAL_PORT	htons(60053) 
 #define DNS_MAX_SERVERS 4			/* Max no of DNS servers */
 
 
@@ -230,5 +228,9 @@ uint32_t dns_resolv(const char *);
 /* idle.c */
 void pxe_idle_init(void);
 void pxe_idle_cleanup(void);
+
+/* socknum.c */
+uint16_t get_port(void);
+void free_port(uint16_t port);
 
 #endif /* pxe.h */
