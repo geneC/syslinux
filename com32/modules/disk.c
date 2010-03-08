@@ -33,7 +33,7 @@ int main(int argc __attribute__ (( unused )),
 		err = get_drive_parameters(d);
 
 		/* Do not print output when drive does not exists */
-		if (err == -1)
+		if (err == -1 || !d->cbios)
 			continue;
 
 		if (err) {
