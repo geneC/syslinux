@@ -113,11 +113,10 @@ static void bootfile_name(void *data, int opt_len)
 static void uuid_client_identifier(void *data, int opt_len)
 {
     int type = *(uint8_t *)data;
-    if (opt_len != 17 ||
-        (type | have_uuid))
+    if (opt_len != 17 || type != 0 || have_uuid)
         return;
 
-    have_uuid = 1;
+    have_uuid = true;
     uuid_type = type;
     memcpy(uuid, data+1, 16);
     uuid[16] = 0;

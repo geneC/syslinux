@@ -28,7 +28,7 @@ char dot_quad_buf[16];
 static bool has_gpxe;
 static uint32_t gpxe_funcs;
 static uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
-int have_uuid = 0;
+bool have_uuid = false;
 
 /* Port number bitmap - port numbers 49152 (0xc000) to 57343 (0xefff) */
 #define PORT_NUMBER_BASE	49152

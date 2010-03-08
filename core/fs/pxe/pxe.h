@@ -204,7 +204,7 @@ extern uint8_t KeepPXE;
 
 extern far_ptr_t InitStack;
 
-extern int have_uuid;
+extern bool have_uuid;
 extern uint8_t uuid_type;
 extern char uuid[];
 
