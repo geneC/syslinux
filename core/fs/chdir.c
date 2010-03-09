@@ -43,7 +43,7 @@ int chdir(const char *src)
 	return rv;
 
     file = handle_to_file(rv);
-    if (file->inode->mode != I_DIR) {
+    if (file->inode->mode != DT_DIR) {
 	_close_file(file);
 	return -1;
     }

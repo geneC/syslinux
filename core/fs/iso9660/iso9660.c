@@ -187,9 +187,9 @@ iso_find_entry(const char *dname, struct inode *inode)
 static inline int get_inode_mode(uint8_t flags)
 {
     if (flags & 0x02)
-	return I_DIR;
+	return DT_DIR;
     else
-	return I_FILE;
+	return DT_REG;
 }
 
 static struct inode *iso_get_inode(struct fs_info *fs,

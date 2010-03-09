@@ -426,9 +426,9 @@ static inline sector_t first_sector(struct fs_info *fs,
 static inline int get_inode_mode(uint8_t attr)
 {
     if (attr == FAT_ATTR_DIRECTORY)
-	return I_DIR;
+	return DT_DIR;
     else
-	return I_FILE;
+	return DT_REG;
 }
 
 
@@ -564,7 +564,7 @@ static struct inode *vfat_iget_root(struct fs_info *fs)
     PVT(inode)->start_cluster = FAT_SB(fs)->root_cluster;
     inode->size = root_size ? root_size << fs->sector_shift : ~0;
     PVT(inode)->start = PVT(inode)->here = FAT_SB(fs)->root;
-    inode->mode = I_DIR;
+    inode->mode = DT_DIR;
 
     return inode;
 }

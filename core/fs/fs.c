@@ -210,7 +210,7 @@ int searchdir(const char *name)
 		inode = this_fs->fs_ops->iget(part, parent);
 		if (!inode)
 		    goto err;
-		if (inode->mode == I_SYMLINK) {
+		if (inode->mode == DT_LNK) {
 		    char *linkbuf, *q;
 		    int name_len = echar ? strlen(p) : 0;
 		    int total_len = inode->size + name_len + 2;
@@ -255,7 +255,7 @@ int searchdir(const char *name)
 		if (!echar)
 		    break;
 
-		if (inode->mode != I_DIR)
+		if (inode->mode != DT_DIR)
 		    goto err;
 
 		parent = inode;

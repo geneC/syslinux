@@ -12,15 +12,15 @@
 /*
  * Convert an ext2 file type to the global values
  */
-static enum inode_mode ext2_cvt_type(unsigned int d_file_type)
+static enum dirent_type ext2_cvt_type(unsigned int d_file_type)
 {
-    static const enum inode_mode inode_type[] = {
-	I_UNKNOWN, I_FILE, I_DIR, I_CHR,
-	I_BLK, I_FIFO, I_SOCK, I_SYMLINK,
+    static const enum dirent_type inode_type[] = {
+	DT_UNKNOWN, DT_REG, DT_DIR, DT_CHR,
+	DT_BLK, DT_FIFO, DT_SOCK, DT_LNK,
     };
 
     if (d_file_type > sizeof inode_type / sizeof *inode_type)
-	return I_UNKNOWN;
+	return DT_UNKNOWN;
     else
 	return inode_type[d_file_type];
 }
@@ -144,21 +144,9 @@ ext2_get_inode(struct fs_info *fs, int inr)
 	(data + block_off * EXT2_SB(fs)->s_inode_size);
 }
 
-static inline int get_inode_mode(int mode)
-{
-    mode >>= S_IFSHIFT;
-    if (mode == T_IFDIR)
-	mode = I_DIR;
-    else if (mode == T_IFLNK)
-	mode = I_SYMLINK;
-    else
-	mode = I_FILE; /* we treat others as FILE */
-    return mode;
-}
-
 static void fill_inode(struct inode *inode, const struct ext2_inode *e_inode)
 {
-    inode->mode    = get_inode_mode(e_inode->i_mode);
+    inode->mode    = IFTODT(e_inode->i_mode);
     inode->size    = e_inode->i_size;
     inode->atime   = e_inode->i_atime;
     inode->ctime   = e_inode->i_ctime;
@@ -167,8 +155,7 @@ static void fill_inode(struct inode *inode, const struct ext2_inode *e_inode)
     inode->blocks  = e_inode->i_blocks;
     inode->flags   = e_inode->i_flags;
     inode->file_acl = e_inode->i_file_acl;
-    memcpy(PVT(inode)->i_block, e_inode->i_block,
-	   EXT2_N_BLOCKS * sizeof(uint32_t *));
+    memcpy(PVT(inode)->i_block, e_inode->i_block, sizeof PVT(inode)->i_block);
 }
 
 static struct inode *ext2_iget_by_inr(struct fs_info *fs, uint32_t inr)
