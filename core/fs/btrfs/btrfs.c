@@ -17,7 +17,7 @@
 #include <core.h>
 #include <disk.h>
 #include <fs.h>
-#include <sys/stat.h>
+#include <dirent.h>
 #include "btrfs.h"
 
 /* compare function used for bin_search */
@@ -424,15 +424,6 @@ static inline u64 btrfs_name_hash(const char *name, int len)
 	return btrfs_crc32c((u32)~1, name, len);
 }
 
-static inline int get_inode_mode(int mode)
-{
-	if (S_ISLNK(mode))
-		return I_SYMLINK;
-	if (S_ISDIR(mode))
-		return  I_DIR;
-	return I_FILE;
-}
-
 static struct inode *btrfs_iget_by_inr(struct fs_info *fs, u64 inr)
 {
 	struct inode *inode;
@@ -455,9 +446,9 @@ static struct inode *btrfs_iget_by_inr(struct fs_info *fs, u64 inr)
 		return NULL;
 	inode->ino = inr;
 	inode->size = inode_item.size;
-	inode->mode = get_inode_mode(inode_item.mode);
+	inode->mode = IFTODT(inode_item.mode);
 
-	if (inode->mode == I_FILE || inode->mode == I_SYMLINK) {
+	if (inode->mode == DT_REG || inode->mode == DT_LNK) {
 		struct btrfs_file_extent_item extent_item;
 		u64 offset;
 
@@ -511,6 +502,44 @@ static int btrfs_readlink(struct inode *inode, char *buf)
 	btrfs_read(inode->fs, buf, logical_physical(PVT(inode)->offset), inode->size);
 	buf[inode->size] = '\0';
 	return inode->size;
+}
+
+static int btrfs_readdir(struct file *file, struct dirent *dirent)
+{
+	struct fs_info *fs = file->fs;
+	struct inode *inode = file->inode;
+	struct btrfs_disk_key search_key;
+	struct btrfs_path path;
+	struct btrfs_dir_item *dir_item;
+	int ret;
+
+	/*
+	 * we use file->offset to store last search key.offset, will will search
+	 * key that lower that offset, 0 means first search and we will search
+         * -1UL, which is the biggest possible key
+         */
+	search_key.objectid = inode->ino;
+	search_key.type = BTRFS_DIR_ITEM_KEY;
+	search_key.offset = file->offset - 1;
+	clear_path(&path);
+	ret = search_tree(fs, fs_tree, &search_key, &path);
+
+	if (ret) {
+		if (btrfs_comp_keys_type(&search_key, &path.item.key))
+			return -1;
+	}
+
+	dir_item = (struct btrfs_dir_item *)path.data;
+	file->offset = path.item.key.offset;
+	dirent->d_ino = dir_item->location.objectid;
+	dirent->d_off = file->offset;
+	dirent->d_reclen = offsetof(struct dirent, d_name)
+		+ dir_item->name_len + 1;
+	dirent->d_type = IFTODT(dir_item->type);
+	memcpy(dirent->d_name, dir_item + 1, dir_item->name_len);
+	dirent->d_name[dir_item->name_len] = '\0';
+
+	return 0;
 }
 
 static int btrfs_next_extent(struct inode *inode, uint32_t lstart)
@@ -662,5 +691,6 @@ const struct fs_ops btrfs_fs_ops = {
     .close_file    = generic_close_file,
     .mangle_name   = generic_mangle_name,
     .next_extent   = btrfs_next_extent,
+    .readdir       = btrfs_readdir,
     .load_config   = generic_load_config
 };
