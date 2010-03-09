@@ -106,7 +106,10 @@ struct mdi {
 MEMDISK_PACKED_PREFIX
 struct mBFT {
     struct acpi_description_header acpi;
-    struct safe_hook *safe_hook;	/* "Safe hook" physical address */
+    union {
+	struct safe_hook *ptr;
+	uint32_t phys_addr;
+    } safe_hook;		/* "Safe hook" physical address */
     struct mdi mdi;
 } MEMDISK_PACKED_POSTFIX;
 

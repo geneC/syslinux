@@ -1132,7 +1132,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     hptr->safe_hook.mBFT.ptr->acpi.signature[1] = 'B';
     hptr->safe_hook.mBFT.ptr->acpi.signature[2] = 'F';
     hptr->safe_hook.mBFT.ptr->acpi.signature[3] = 'T';
-    hptr->safe_hook.mBFT.ptr->safe_hook = &hptr->safe_hook;
+    hptr->safe_hook.mBFT.ptr->safe_hook.ptr = &hptr->safe_hook;
     hptr->safe_hook.mBFT.ptr->acpi.checksum =
 	-checksum_buf(hptr->safe_hook.mBFT.ptr,
 		      hptr->safe_hook.mBFT.ptr->acpi.length);
