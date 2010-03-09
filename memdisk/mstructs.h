@@ -27,6 +27,9 @@ typedef union {
     uint32_t uint32;
 } real_addr_t;
 
+/* Forward declaration */
+struct mBFT;
+
 MEMDISK_PACKED_PREFIX
 struct safe_hook {
     uint8_t jump[3];		/* Max. three bytes for jump */
@@ -49,18 +52,6 @@ struct memdisk_header {
     uint16_t iret_offs;
     struct safe_hook safe_hook;
 };
-
-/* Requirement for struct acpi_description_header */
-#include "../memdisk/acpi.h"
-
-MEMDISK_PACKED_PREFIX
-struct mBFT {
-    struct acpi_description_header acpi;
-    struct safe_hook *safe_hook;	/* "Safe hook" physical address */
-    /* An mBFT is 70 bytes in total */
-    uint8_t _pad[70 - (sizeof(struct acpi_description_header) +
-		       sizeof(uint32_t))];
-} MEMDISK_PACKED_POSTFIX;
 
 MEMDISK_PACKED_PREFIX
 /* EDD disk parameter table */
@@ -107,6 +98,16 @@ struct mdi {
     uint8_t _pad1;
 
     uint16_t dpt_ptr;
+} MEMDISK_PACKED_POSTFIX;
+
+/* Requirement for struct acpi_description_header */
+#include "../memdisk/acpi.h"
+
+MEMDISK_PACKED_PREFIX
+struct mBFT {
+    struct acpi_description_header acpi;
+    struct safe_hook *safe_hook;	/* "Safe hook" physical address */
+    struct mdi mdi;
 } MEMDISK_PACKED_POSTFIX;
 
 MEMDISK_PACKED_PREFIX
