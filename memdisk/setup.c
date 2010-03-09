@@ -14,11 +14,9 @@
  * ----------------------------------------------------------------------- */
 
 #include <stdint.h>
-#include "acpi.h"
 #include "bda.h"
 #include "dskprobe.h"
 #include "e820.h"
-#include "eltorito.h"
 #include "conio.h"
 #include "version.h"
 #include "memdisk.h"
@@ -48,18 +46,6 @@ struct memdisk_header {
     uint16_t total_size;
     uint16_t iret_offs;
 };
-
-struct safe_hook {
-    uint8_t jump[3];		/* Max. three bytes for jump */
-    uint8_t signature[8];	/* "$INT13SF" */
-    uint8_t vendor[8];		/* "MEMDISK " */
-    uint32_t old_hook;		/* SEG:OFF for previous INT 13h hook */
-    uint32_t flags;		/* "Safe hook" flags */
-    /* The next field is a MEMDISK extension to the "safe hook" structure */
-    uint32_t mBFT;		/* Offset from hook to the mBFT; refilled
-				 * by setup() with the physical address
-				 */
-} __attribute__((packed));
 
 /* The Disk Parameter Table may be required */
 typedef union {
@@ -94,78 +80,8 @@ typedef union {
     } fd;
 } dpt_t;
 
-/* EDD disk parameter table */
-struct edd_dpt {
-    uint16_t len;		/* Length of table */
-    uint16_t flags;		/* Information flags */
-    uint32_t c;			/* Physical cylinders (count!) */
-    uint32_t h;			/* Physical heads (count!) */
-    uint32_t s;			/* Physical sectors/track (count!) */
-    uint64_t sectors;		/* Total sectors */
-    uint16_t bytespersec;	/* Bytes/sector */
-    uint16_t dpte_off, dpte_seg;	/* DPTE pointer */
-    uint16_t dpikey;		/* Device Path Info magic */
-    uint8_t  dpilen;		/* Device Path Info length */
-    uint8_t  res1;		/* Reserved */
-    uint16_t res2;		/* Reserved */
-    uint8_t  bustype[4];	/* Host bus type */
-    uint8_t  inttype[8];	/* Interface type */
-    uint64_t intpath;		/* Interface path */
-    uint64_t devpath[2];	/* Device path (double QuadWord!) */
-    uint8_t  res3;		/* Reserved */
-    uint8_t  chksum;		/* DPI checksum */
-} __attribute__((packed));
-
-struct mBFT {
-    struct acpi_description_header acpi;
-    uint32_t safe_hook;		/* "Safe hook" physical address */
-} __attribute__((packed));
-
-struct patch_area {
-    uint32_t diskbuf;
-    uint32_t disksize;
-    uint16_t cmdline_off, cmdline_seg;
-
-    uint32_t oldint13;
-    uint32_t oldint15;
-
-    uint16_t olddosmem;
-    uint8_t bootloaderid;
-    uint8_t _pad1;
-
-    uint16_t dpt_ptr;
-    /* End of the official MemDisk_Info */
-    uint8_t driveshiftlimit;	/* Do not shift drives above this region */
-    uint8_t _pad2;		/* Pad to DWORD */
-    uint16_t _pad3;		/* Pad to QWORD */
-
-    uint16_t memint1588;
-
-    uint16_t cylinders;
-    uint16_t heads;
-    uint32_t sectors;
-
-    uint32_t mem1mb;
-    uint32_t mem16mb;
-
-    uint8_t driveno;
-    uint8_t drivetype;
-    uint8_t drivecnt;
-    uint8_t configflags;
-
-#define CONFIG_READONLY	0x01
-#define CONFIG_RAW	0x02
-#define CONFIG_SAFEINT	0x04
-#define CONFIG_BIGRAW	0x08	/* MUST be 8! */
-#define CONFIG_MODEMASK	0x0e
-
-    uint16_t mystack;
-    uint16_t statusptr;
-
-    dpt_t dpt;
-    struct edd_dpt edd_dpt;
-    struct edd4_cd_pkt cd_pkt; /* Only really in a memdisk_iso_* hook */
-} __attribute__((packed));
+/* Pull in structures common to MEMDISK and MDISKCHK.COM */
+#include "mstructs.h"
 
 /* An EDD disk packet */
 struct edd_dsk_pkt {
@@ -176,6 +92,13 @@ struct edd_dsk_pkt {
     uint64_t start;		/* LBA to start from  */
     uint64_t buf64;		/* 64-bit buf pointer */
 } __attribute__ ((packed));
+
+/* Change to 1 for El Torito debugging */
+#define DBG_ELTORITO 0
+
+#if DBG_ELTORITO
+extern void eltorito_dump(uint32_t);
+#endif
 
 /*
  * Routine to seek for a command-line item and return a pointer
@@ -454,7 +377,7 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
     hd_geometry.offset = offset;
 
     if ((p = getcmditem("iso")) != CMD_NOTFOUND) {
-#ifdef DBG_ELTORITO
+#if DBG_ELTORITO
 	eltorito_dump(where);
 #endif
 	struct edd4_bvd *bvd = (struct edd4_bvd *)(where + 17 * 2048);
@@ -1306,3 +1229,4 @@ void setup(const struct real_mode_args *rm_args_ptr)
     shdr->esdi = pnp_install_check();
     shdr->edx = geometry->driveno;
 }
+
