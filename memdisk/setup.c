@@ -39,39 +39,6 @@ extern const char _binary_memdisk_iso_2048_bin_start[];
 extern const char _binary_memdisk_iso_2048_bin_end[];
 extern const char _binary_memdisk_iso_2048_bin_size[];
 
-/* The Disk Parameter Table may be required */
-typedef union {
-    struct hd_dpt {
-	uint16_t max_cyl;	/* Max cylinder */
-	uint8_t max_head;	/* Max head */
-	uint8_t junk1[5];	/* Obsolete junk, leave at zero */
-	uint8_t ctrl;		/* Control byte */
-	uint8_t junk2[7];	/* More obsolete junk */
-    } hd;
-    struct fd_dpt {
-	uint8_t specify1;	/* "First specify byte" */
-	uint8_t specify2;	/* "Second specify byte" */
-	uint8_t delay;		/* Delay until motor turn off */
-	uint8_t sectors;	/* Sectors/track */
-
-	uint8_t bps;		/* Bytes/sector (02h = 512) */
-	uint8_t isgap;		/* Length of intersector gap */
-	uint8_t dlen;		/* Data length (0FFh) */
-	uint8_t fgap;		/* Formatting gap */
-
-	uint8_t ffill;		/* Format fill byte */
-	uint8_t settle;		/* Head settle time (ms) */
-	uint8_t mstart;		/* Motor start time */
-	uint8_t maxtrack;	/* Maximum track number */
-
-	uint8_t rate;		/* Data transfer rate */
-	uint8_t cmos;		/* CMOS type */
-	uint8_t pad[2];
-
-	uint32_t old_fd_dpt;	/* Extension: pointer to old INT 1Eh */
-    } fd;
-} dpt_t;
-
 /* Pull in structures common to MEMDISK and MDISKCHK.COM */
 #include "mstructs.h"
 
