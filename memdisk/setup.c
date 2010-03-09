@@ -1032,8 +1032,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
     /* Anything beyond the end is for the stack */
     pptr->mystack = (uint16_t) (stddosmem - driveraddr);
 
-    pptr->oldint13 = rdz_32(BIOS_INT13);
-    pptr->oldint15 = rdz_32(BIOS_INT15);
+    pptr->oldint13.uint32 = rdz_32(BIOS_INT13);
+    pptr->oldint15.uint32 = rdz_32(BIOS_INT15);
 
     /* Adjust the E820 table: if there are null ranges (type 0)
        at the end, change them to type end of list (-1).
@@ -1048,7 +1048,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	bios_drives = 0;
 	pptr->drivecnt = 0;
 	no_bpt = 1;
-	pptr->oldint13 = driverptr + hptr->iret_offs;
+	pptr->oldint13.uint32 = driverptr + hptr->iret_offs;
 	wrz_8(BIOS_EQUIP, rdz_8(BIOS_EQUIP) & ~0xc1);
 	wrz_8(BIOS_HD_COUNT, 0);
     } else if (getcmditem("nopass") != CMD_NOTFOUND) {
@@ -1097,7 +1097,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     }
 
     /* Note the previous INT 13h hook in the "safe hook" structure */
-    safe_hook->old_hook = pptr->oldint13;
+    safe_hook->old_hook.uint32 = pptr->oldint13.uint32;
 
     /* Add ourselves to the drive count */
     pptr->drivecnt++;
@@ -1114,8 +1114,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	pptr->driveshiftlimit);
 
     /* Pointer to the command line */
-    pptr->cmdline_off = bin_size + (nranges + 1) * sizeof(ranges[0]);
-    pptr->cmdline_seg = driverseg;
+    pptr->cmdline.seg_off.offset = bin_size + (nranges + 1) * sizeof(ranges[0]);
+    pptr->cmdline.seg_off.segment = driverseg;
 
     /* Copy driver followed by E820 table followed by command line */
     {
@@ -1134,7 +1134,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
     }
 
     /* Re-fill the "safe hook" mBFT field with the physical address */
-    safe_hook->mBFT += (uint32_t)hptr;
+    safe_hook->mBFT.ptr =
+        (struct mBFT *)(((const char *)hptr) + safe_hook->mBFT.offset);
 
     /* Update various BIOS magic data areas (gotta love this shit) */
 
@@ -1170,16 +1171,13 @@ void setup(const struct real_mode_args *rm_args_ptr)
     }
 
     /* Complete the mBFT */
-    {
-	struct mBFT *mBFT = (struct mBFT *)safe_hook->mBFT;
-
-	mBFT->acpi.signature[0] = 'm';	/* "mBFT" */
-	mBFT->acpi.signature[1] = 'B';
-	mBFT->acpi.signature[2] = 'F';
-	mBFT->acpi.signature[3] = 'T';
-	mBFT->safe_hook = (uint32_t)safe_hook;
-	mBFT->acpi.checksum = -checksum_buf(mBFT, mBFT->acpi.length);
-    }
+    safe_hook->mBFT.ptr->acpi.signature[0] = 'm';	/* "mBFT" */
+    safe_hook->mBFT.ptr->acpi.signature[1] = 'B';
+    safe_hook->mBFT.ptr->acpi.signature[2] = 'F';
+    safe_hook->mBFT.ptr->acpi.signature[3] = 'T';
+    safe_hook->mBFT.ptr->safe_hook = safe_hook;
+    safe_hook->mBFT.ptr->acpi.checksum =
+	-checksum_buf(safe_hook->mBFT.ptr, safe_hook->mBFT.ptr->acpi.length);
 
     /* Install the interrupt handlers */
     printf("old: int13 = %08x  int15 = %08x  int1e = %08x\n",

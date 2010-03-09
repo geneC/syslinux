@@ -15,17 +15,30 @@
 
 /* These structures are common to MEMDISK and MDISKCHK.COM */
 
+#include <stdint.h>
+
+struct seg_off {
+    uint16_t offset;
+    uint16_t segment;
+};
+
+typedef union {
+    struct seg_off seg_off;
+    uint32_t uint32;
+} real_addr_t;
+
 MEMDISK_PACKED_PREFIX
 struct safe_hook {
     uint8_t jump[3];		/* Max. three bytes for jump */
     uint8_t signature[8];	/* "$INT13SF" */
     uint8_t vendor[8];		/* "MEMDISK " */
-    uint32_t old_hook;		/* SEG:OFF for previous INT 13h hook */
+    real_addr_t old_hook;	/* SEG:OFF for previous INT 13h hook */
     uint32_t flags;		/* "Safe hook" flags */
     /* The next field is a MEMDISK extension to the "safe hook" structure */
-    uint32_t mBFT;		/* Offset from hook to the mBFT; refilled
-				 * by setup() with the physical address
-				 */
+    union {
+	uint32_t offset;	/* Offset from hook to the mBFT; refilled */
+	struct mBFT *ptr;	/* by setup() with the physical address */
+    } mBFT;
 } MEMDISK_PACKED_POSTFIX;
 
 /* Requirement for struct acpi_description_header */
@@ -34,7 +47,10 @@ struct safe_hook {
 MEMDISK_PACKED_PREFIX
 struct mBFT {
     struct acpi_description_header acpi;
-    uint32_t safe_hook;		/* "Safe hook" physical address */
+    struct safe_hook *safe_hook;	/* "Safe hook" physical address */
+    /* An mBFT is 70 bytes in total */
+    uint8_t _pad[70 - (sizeof(struct acpi_description_header) +
+		       sizeof(uint32_t))];
 } MEMDISK_PACKED_POSTFIX;
 
 MEMDISK_PACKED_PREFIX
@@ -47,7 +63,7 @@ struct edd_dpt {
     uint32_t s;			/* Physical sectors/track (count!) */
     uint64_t sectors;		/* Total sectors */
     uint16_t bytespersec;	/* Bytes/sector */
-    uint16_t dpte_off, dpte_seg;	/* DPTE pointer */
+    real_addr_t dpte;		/* DPTE pointer */
     uint16_t dpikey;		/* Device Path Info magic */
     uint8_t  dpilen;		/* Device Path Info length */
     uint8_t  res1;		/* Reserved */
@@ -67,10 +83,10 @@ MEMDISK_PACKED_PREFIX
 struct patch_area {
     uint32_t diskbuf;
     uint32_t disksize;
-    uint16_t cmdline_off, cmdline_seg;
+    real_addr_t cmdline;
 
-    uint32_t oldint13;
-    uint32_t oldint15;
+    real_addr_t oldint13;
+    real_addr_t oldint15;
 
     uint16_t olddosmem;
     uint8_t bootloaderid;
@@ -107,6 +123,5 @@ struct patch_area {
 
     dpt_t dpt;
     struct edd_dpt edd_dpt;
-    struct edd4_cd_pkt cd_pkt; /* Only really in a memdisk_iso_* hook */
+    struct edd4_cd_pkt cd_pkt;	/* Only really in a memdisk_iso_* hook */
 } MEMDISK_PACKED_POSTFIX;
-
