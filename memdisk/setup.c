@@ -39,14 +39,6 @@ extern const char _binary_memdisk_iso_2048_bin_start[];
 extern const char _binary_memdisk_iso_2048_bin_end[];
 extern const char _binary_memdisk_iso_2048_bin_size[];
 
-struct memdisk_header {
-    uint16_t int13_offs;
-    uint16_t int15_offs;
-    uint16_t patch_offs;
-    uint16_t total_size;
-    uint16_t iret_offs;
-};
-
 /* The Disk Parameter Table may be required */
 typedef union {
     struct hd_dpt {
@@ -758,7 +750,6 @@ void setup(const struct real_mode_args *rm_args_ptr)
     unsigned int bin_size;
     char *memdisk_hook;
     struct memdisk_header *hptr;
-    struct safe_hook *safe_hook;
     struct patch_area *pptr;
     uint16_t driverseg;
     uint32_t driverptr, driveraddr;
@@ -842,7 +833,6 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     /* Figure out where it needs to go */
     hptr = (struct memdisk_header *)memdisk_hook;
-    safe_hook = (struct safe_hook *)(memdisk_hook + hptr->int13_offs);
     pptr = (struct patch_area *)(memdisk_hook + hptr->patch_offs);
 
     dosmem_k = rdz_16(BIOS_BASEMEM);
@@ -1096,9 +1086,6 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	}
     }
 
-    /* Note the previous INT 13h hook in the "safe hook" structure */
-    safe_hook->old_hook.uint32 = pptr->oldint13.uint32;
-
     /* Add ourselves to the drive count */
     pptr->drivecnt++;
 
@@ -1123,7 +1110,6 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
 	/* Adjust these pointers to point to the installed image */
 	/* Careful about the order here... the image isn't copied yet! */
-	safe_hook = (struct safe_hook *)(dpp + hptr->int13_offs);
 	pptr = (struct patch_area *)(dpp + hptr->patch_offs);
 	hptr = (struct memdisk_header *)dpp;
 
@@ -1133,9 +1119,12 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	dpp = mempcpy(dpp, shdr->cmdline, cmdline_len);
     }
 
+    /* Note the previous INT 13h hook in the "safe hook" structure */
+    hptr->safe_hook.old_hook.uint32 = pptr->oldint13.uint32;
+
     /* Re-fill the "safe hook" mBFT field with the physical address */
-    safe_hook->mBFT.ptr =
-        (struct mBFT *)(((const char *)hptr) + safe_hook->mBFT.offset);
+    hptr->safe_hook.mBFT.ptr =
+        (struct mBFT *)(((const char *)hptr) + hptr->safe_hook.mBFT.offset);
 
     /* Update various BIOS magic data areas (gotta love this shit) */
 
@@ -1171,13 +1160,14 @@ void setup(const struct real_mode_args *rm_args_ptr)
     }
 
     /* Complete the mBFT */
-    safe_hook->mBFT.ptr->acpi.signature[0] = 'm';	/* "mBFT" */
-    safe_hook->mBFT.ptr->acpi.signature[1] = 'B';
-    safe_hook->mBFT.ptr->acpi.signature[2] = 'F';
-    safe_hook->mBFT.ptr->acpi.signature[3] = 'T';
-    safe_hook->mBFT.ptr->safe_hook = safe_hook;
-    safe_hook->mBFT.ptr->acpi.checksum =
-	-checksum_buf(safe_hook->mBFT.ptr, safe_hook->mBFT.ptr->acpi.length);
+    hptr->safe_hook.mBFT.ptr->acpi.signature[0] = 'm';	/* "mBFT" */
+    hptr->safe_hook.mBFT.ptr->acpi.signature[1] = 'B';
+    hptr->safe_hook.mBFT.ptr->acpi.signature[2] = 'F';
+    hptr->safe_hook.mBFT.ptr->acpi.signature[3] = 'T';
+    hptr->safe_hook.mBFT.ptr->safe_hook = &hptr->safe_hook;
+    hptr->safe_hook.mBFT.ptr->acpi.checksum =
+	-checksum_buf(hptr->safe_hook.mBFT.ptr,
+		      hptr->safe_hook.mBFT.ptr->acpi.length);
 
     /* Install the interrupt handlers */
     printf("old: int13 = %08x  int15 = %08x  int1e = %08x\n",

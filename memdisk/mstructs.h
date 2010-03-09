@@ -41,6 +41,15 @@ struct safe_hook {
     } mBFT;
 } MEMDISK_PACKED_POSTFIX;
 
+struct memdisk_header {
+    uint16_t int13_offs;
+    uint16_t int15_offs;
+    uint16_t patch_offs;
+    uint16_t total_size;
+    uint16_t iret_offs;
+    struct safe_hook safe_hook;
+};
+
 /* Requirement for struct acpi_description_header */
 #include "../memdisk/acpi.h"
 
