@@ -88,8 +88,13 @@ struct edd_dpt {
 /* Requirement for struct edd4_cd_pkt */
 #include "../memdisk/eltorito.h"
 
+/* Official MEMDISK Info structure ("MDI") */
 MEMDISK_PACKED_PREFIX
-struct patch_area {
+struct mdi {
+    const uint16_t bytes;
+    const uint8_t version_minor;
+    const uint8_t version_major;
+
     uint32_t diskbuf;
     uint32_t disksize;
     real_addr_t cmdline;
@@ -102,7 +107,12 @@ struct patch_area {
     uint8_t _pad1;
 
     uint16_t dpt_ptr;
-    /* End of the official MemDisk_Info */
+} MEMDISK_PACKED_POSTFIX;
+
+MEMDISK_PACKED_PREFIX
+struct patch_area {
+    struct mdi mdi;
+
     uint8_t driveshiftlimit;	/* Do not shift drives above this region */
     uint8_t _pad2;		/* Pad to DWORD */
     uint16_t _pad3;		/* Pad to QWORD */

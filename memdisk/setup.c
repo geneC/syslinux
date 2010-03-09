@@ -836,7 +836,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     pptr = (struct patch_area *)(memdisk_hook + hptr->patch_offs);
 
     dosmem_k = rdz_16(BIOS_BASEMEM);
-    pptr->olddosmem = dosmem_k;
+    pptr->mdi.olddosmem = dosmem_k;
     stddosmem = dosmem_k << 10;
     /* If INT 15 E820 and INT 12 disagree, go with the most conservative */
     if (stddosmem > dos_mem)
@@ -847,11 +847,11 @@ void setup(const struct real_mode_args *rm_args_ptr)
     pptr->cylinders = geometry->c;	/* Possible precision loss */
     pptr->heads = geometry->h;
     pptr->sectors = geometry->s;
-    pptr->disksize = geometry->sectors;
-    pptr->diskbuf = ramdisk_image + geometry->offset;
+    pptr->mdi.disksize = geometry->sectors;
+    pptr->mdi.diskbuf = ramdisk_image + geometry->offset;
     pptr->statusptr = (geometry->driveno & 0x80) ? 0x474 : 0x441;
 
-    pptr->bootloaderid = shdr->type_of_loader;
+    pptr->mdi.bootloaderid = shdr->type_of_loader;
 
     pptr->configflags = CONFIG_SAFEINT;	/* Default */
     /* Set config flags */
@@ -953,7 +953,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	    pptr->edd_dpt.flags |= 0x0014;
 	}
 
-	pptr->edd_dpt.devpath[0] = pptr->diskbuf;
+	pptr->edd_dpt.devpath[0] = pptr->mdi.diskbuf;
 	pptr->edd_dpt.chksum = -checksum_buf(&pptr->edd_dpt.dpikey, 73 - 30);
     }
 
@@ -1022,8 +1022,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
     /* Anything beyond the end is for the stack */
     pptr->mystack = (uint16_t) (stddosmem - driveraddr);
 
-    pptr->oldint13.uint32 = rdz_32(BIOS_INT13);
-    pptr->oldint15.uint32 = rdz_32(BIOS_INT15);
+    pptr->mdi.oldint13.uint32 = rdz_32(BIOS_INT13);
+    pptr->mdi.oldint15.uint32 = rdz_32(BIOS_INT15);
 
     /* Adjust the E820 table: if there are null ranges (type 0)
        at the end, change them to type end of list (-1).
@@ -1038,7 +1038,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	bios_drives = 0;
 	pptr->drivecnt = 0;
 	no_bpt = 1;
-	pptr->oldint13.uint32 = driverptr + hptr->iret_offs;
+	pptr->mdi.oldint13.uint32 = driverptr + hptr->iret_offs;
 	wrz_8(BIOS_EQUIP, rdz_8(BIOS_EQUIP) & ~0xc1);
 	wrz_8(BIOS_HD_COUNT, 0);
     } else if (getcmditem("nopass") != CMD_NOTFOUND) {
@@ -1101,8 +1101,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	pptr->driveshiftlimit);
 
     /* Pointer to the command line */
-    pptr->cmdline.seg_off.offset = bin_size + (nranges + 1) * sizeof(ranges[0]);
-    pptr->cmdline.seg_off.segment = driverseg;
+    pptr->mdi.cmdline.seg_off.offset = bin_size + (nranges + 1) * sizeof(ranges[0]);
+    pptr->mdi.cmdline.seg_off.segment = driverseg;
 
     /* Copy driver followed by E820 table followed by command line */
     {
@@ -1120,7 +1120,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     }
 
     /* Note the previous INT 13h hook in the "safe hook" structure */
-    hptr->safe_hook.old_hook.uint32 = pptr->oldint13.uint32;
+    hptr->safe_hook.old_hook.uint32 = pptr->mdi.oldint13.uint32;
 
     /* Re-fill the "safe hook" mBFT field with the physical address */
     hptr->safe_hook.mBFT.ptr =
@@ -1155,7 +1155,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	if (getcmditem("dpt") != CMD_NOTFOUND ||
 	    ((nflop == 1 || no_bpt) && getcmditem("nodpt") == CMD_NOTFOUND)) {
 	    /* Do install a replacement DPT into INT 1Eh */
-	    pptr->dpt_ptr = hptr->patch_offs + offsetof(struct patch_area, dpt);
+	    pptr->mdi.dpt_ptr =
+		hptr->patch_offs + offsetof(struct patch_area, dpt);
 	}
     }
 
@@ -1175,8 +1176,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     wrz_32(BIOS_INT13, driverptr + hptr->int13_offs);
     wrz_32(BIOS_INT15, driverptr + hptr->int15_offs);
-    if (pptr->dpt_ptr)
-	wrz_32(BIOS_INT1E, driverptr + pptr->dpt_ptr);
+    if (pptr->mdi.dpt_ptr)
+	wrz_32(BIOS_INT1E, driverptr + pptr->mdi.dpt_ptr);
 
     printf("new: int13 = %08x  int15 = %08x  int1e = %08x\n",
 	   rdz_32(BIOS_INT13), rdz_32(BIOS_INT15), rdz_32(BIOS_INT1E));
@@ -1202,7 +1203,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
     /* Reboot into the new "disk" */
     puts("Loading boot sector... ");
 
-    memcpy((void *)boot_base, (char *)pptr->diskbuf + geometry->boot_lba * 512,
+    memcpy((void *)boot_base,
+	   (char *)pptr->mdi.diskbuf + geometry->boot_lba * 512,
 	   boot_len);
 
     if (getcmditem("pause") != CMD_NOTFOUND) {
