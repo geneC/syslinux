@@ -1,3 +1,4 @@
+#include <dprintf.h>
 #include <stdio.h>
 #include <string.h>
 #include <core.h>
@@ -13,7 +14,7 @@ int generic_load_config(void)
     chdir(CurrentDirName);
     realpath(ConfigName, "extlinux.conf", FILENAME_MAX);
 
-    printf("config = %s\n", ConfigName);
+    dprintf("Config = %s\n", ConfigName);
 
     memset(&regs, 0, sizeof regs);
     regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
