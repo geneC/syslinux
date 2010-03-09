@@ -1,8 +1,9 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2001-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
- *   Portions copyright 2009 Shao Miller [El Torito code, mBFT, safe hook]
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+ *   Portions copyright 2009-2010 Shao Miller
+ *				  [El Torito code, mBFT, "safe hook"]
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -1212,18 +1213,6 @@ void setup(const struct real_mode_args *rm_args_ptr)
     /* Re-fill the "safe hook" mBFT field with the physical address */
     safe_hook->mBFT += (uint32_t)hptr;
 
-    /* Complete the mBFT */
-    {
-	struct mBFT *mBFT = (struct mBFT *)safe_hook->mBFT;
-
-	mBFT->acpi.signature[0] = 'm';	/* "mBFT" */
-	mBFT->acpi.signature[1] = 'B';
-	mBFT->acpi.signature[2] = 'F';
-	mBFT->acpi.signature[3] = 'T';
-	mBFT->safe_hook = (uint32_t)safe_hook;
-	mBFT->acpi.checksum = -checksum_buf(mBFT, mBFT->acpi.length);
-    }
-
     /* Update various BIOS magic data areas (gotta love this shit) */
 
     if (geometry->driveno & 0x80) {
@@ -1255,6 +1244,18 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	    /* Do install a replacement DPT into INT 1Eh */
 	    pptr->dpt_ptr = hptr->patch_offs + offsetof(struct patch_area, dpt);
 	}
+    }
+
+    /* Complete the mBFT */
+    {
+	struct mBFT *mBFT = (struct mBFT *)safe_hook->mBFT;
+
+	mBFT->acpi.signature[0] = 'm';	/* "mBFT" */
+	mBFT->acpi.signature[1] = 'B';
+	mBFT->acpi.signature[2] = 'F';
+	mBFT->acpi.signature[3] = 'T';
+	mBFT->safe_hook = (uint32_t)safe_hook;
+	mBFT->acpi.checksum = -checksum_buf(mBFT, mBFT->acpi.length);
     }
 
     /* Install the interrupt handlers */
