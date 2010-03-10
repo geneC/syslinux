@@ -423,12 +423,9 @@ static inline sector_t first_sector(struct fs_info *fs,
     return sector;
 }
 
-static inline int get_inode_mode(uint8_t attr)
+static inline enum dirent_type get_inode_mode(uint8_t attr)
 {
-    if (attr == FAT_ATTR_DIRECTORY)
-	return DT_DIR;
-    else
-	return DT_REG;
+    return (attr & FAT_ATTR_DIRECTORY) ? DT_DIR : DT_REG;
 }
 
 
@@ -590,7 +587,6 @@ static int vfat_readdir(struct file *file, struct dirent *dirent)
     uint8_t vfat_init, vfat_next, vfat_csum;
     uint8_t id;
     int entries_left;
-    int checksum;
     bool long_entry = false;
     int sec_off = file->offset & ((1 << fs->sector_shift) - 1);
 
