@@ -71,10 +71,11 @@ static int display_directory(const char *dirname)
     struct dirent *de;
     struct dirent **dex = NULL;
     size_t n_dex = 0, n_de = 0;
-    size_t i, j;
-    unsigned int nrows, ncols;
+    size_t i, j, k;
+    size_t nrows, ncols, perpage;
+    size_t endpage;
     int maxlen = 0;
-    int pos, tpos, colwidth, pagerow;
+    int pos, tpos, colwidth;
 
     dir = opendir(dirname);
     if (!dir) {
@@ -115,24 +116,29 @@ static int display_directory(const char *dirname)
     ncols = min(ncols, n_de);
     ncols = max(ncols, 1U);
     colwidth = (cols + 2)/ncols;
-    nrows = (n_de + ncols - 1) / ncols;
+    perpage = ncols * (rows - 1);
 
-    pagerow = 1;		/* Need one row for the cursor */
-    for (i = 0; i < nrows; i++) {
-	pos = tpos = 0;
-	for (j = i; j < n_de; j += nrows) {
-	    pos += printf("%*s%-5s %s",
-			  (tpos - pos), "",
-			  type_str(dex[j]->d_type),
-			  dex[j]->d_name);
-	    tpos += colwidth;
+    for (i = 0; i < n_de; i += perpage) {
+	/* Rows on this page */
+	endpage = min(i+perpage, n_de);
+	nrows = ((endpage-i) + ncols - 1)/ncols;
+
+	for (j = 0; j < nrows; j++) {
+	    pos = tpos = 0;
+	    for (k = i+j; k < endpage; k += nrows) {
+		pos += printf("%*s%-5s %s",
+			      (tpos - pos), "",
+			      type_str(dex[k]->d_type),
+			      dex[k]->d_name);
+		tpos += colwidth;
+	    }
+	    printf("\n");
 	}
-	printf("\n");
-	pagerow++;
-	if (pagerow >= rows) {
-	    get_key(stdin, 0);
-	    pagerow = 1;
-	}
+
+	if (endpage >= n_de)
+	    break;
+
+	get_key(stdin, 0);
     }
 
     free_dirents(dex, n_de);
