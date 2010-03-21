@@ -2872,7 +2872,7 @@ tftpprefix_msg	db 'TFTP prefix: ', 0
 localboot_msg	db 'Booting from local disk...', CR, LF, 0
 trying_msg	db 'Trying to load: ', 0
 default_str	db 'default', 0
-syslinux_banner	db CR, LF, 'PXELINUX ', VERSION_STR, ' ', DATE_STR, ' ', 0
+syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', DATE_STR, ' ', 0
 cfgprefix	db 'pxelinux.cfg/'		; No final null!
 cfgprefix_len	equ ($-cfgprefix)
 
