@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -50,6 +50,7 @@
 #include <syslinux/loadfile.h>
 #include <syslinux/movebits.h>
 #include <syslinux/bootpm.h>
+#include <syslinux/config.h>
 
 #include "mb_header.h"
 #include "mb_info.h"
@@ -91,6 +92,9 @@ void mboot_apm(void);
 
 /* solaris.c */
 void mboot_solaris_dhcp_hack(void);
+
+/* syslinux.c */
+void mboot_syslinux_info(void);
 
 /* initvesa.c */
 void set_graphics_mode(const struct multiboot_header *mbh,
