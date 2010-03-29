@@ -37,13 +37,14 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <syslinux/align.h>
+#include <com32.h>
 
 extern char _end[];		/* Symbol created by linker */
 void *__mem_end = &_end;	/* Global variable for use by malloc() */
 
 int __parse_argv(char ***argv, const char *str)
 {
-    char argv0[] = "";
+    char dummy_argv0[] = "";
     char *mem = __mem_end;
     const char *p = str;
     char *q = mem;
@@ -77,7 +78,7 @@ int __parse_argv(char ***argv, const char *str)
     /* Now create argv */
     arg = (char **)ALIGN_UP_FOR(q, char *);
     *argv = arg;
-    *arg++ = argv0;		/* argv[0] */
+    *arg++ = __com32.cs_name ? __com32.cs_name : dummy_argv0; /* argv[0] */
 
     q--;			/* Point q to final null */
     if (mem < q)
