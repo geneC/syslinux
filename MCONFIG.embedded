@@ -16,12 +16,14 @@
 
 include $(topdir)/MCONFIG
 
-GCCOPT    := $(call gcc_ok,-m32,) \
-	     $(call gcc_ok,-ffreestanding,) \
-	     $(call gcc_ok,-fno-stack-protector,) \
-	     $(call gcc_ok,-falign-functions=0,-malign-functions=0) \
-	     $(call gcc_ok,-falign-jumps=0,-malign-jumps=0) \
-	     $(call gcc_ok,-falign-loops=0,-malign-loops=0) \
+GCCOPT    := $(call gcc_ok,-m32,)					\
+	     $(call gcc_ok,-ffreestanding,)				\
+	     $(call gcc_ok,-fno-stack-protector,)			\
+	     $(call gcc_ok,-falign-functions=0,-malign-functions=0)	\
+	     $(call gcc_ok,-falign-jumps=0,-malign-jumps=0)		\
+	     $(call gcc_ok,-falign-loops=0,-malign-loops=0)		\
+	     $(call gcc_ok,-mpreferred-stack-boundary=2,)		\
+	     $(call gcc_ok,-mincoming-stack-boundary=2,)		\
 	     -march=i386 -Os -fomit-frame-pointer -mregparm=3 -DREGPARM=3 \
 	     -msoft-float
 
