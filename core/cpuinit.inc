@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2010 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -38,6 +39,53 @@ dosram_k	equ (real_mode_seg+0x1000) >> 6	; Minimum DOS memory (K)
 		jmp kaboom
 enough_ram:
 skip_checks:
+
+;
+; Detect old versions Xen HVM and disable halt
+; Xen HVM older than version 3.3 might be using vmxassist, which breaks
+; if HLT is executed in real mode.
+;
+; Note: in Syslinux 4, we should probably just execute the HLT in
+; protected mode instead.
+;
+check_xen:
+		pushfd
+		pushfd
+		pop eax
+		mov edx,eax
+		xor eax,(1 << 21)		; ID flag
+		push eax
+		popfd
+		pushfd
+		pop eax
+		popfd
+		xor eax,edx
+		jz .not_xen			; No CPUID
+
+		xor ebx,ebx
+		xor ecx,ecx
+		xor edx,edx
+		mov eax,0x40000000
+		cpuid
+		cmp ebx,"XenV"
+		jne .not_xen
+		cmp ecx,"MMXe"
+		jne .not_xen
+		cmp edx,"nVMM"
+		jne .not_xen
+
+		; We're on Xen...
+		mov eax,0x40000001
+		cpuid
+		call writehex8
+		call crlf
+		cmp eax,0x00030003
+		jae .not_xen			; Xen >= 3.3, not affected
+
+		; We may be using vmxassist, so disable HLT
+		mov byte [ForceNoHalt],1
+
+.not_xen:
 
 		section .data
 err_noram	db 'It appears your computer has less than '
