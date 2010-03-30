@@ -449,9 +449,9 @@ comapi_get_version:
 
 		mov P_ES,ds
 		; ES:SI -> version banner
-		mov P_SI,syslinux_banner
+		mov P_SI,syslinux_banner + 2	; Skip leading CR LF
 		; ES:DI -> copyright string
-		mov P_DI,copyright_str
+		mov P_DI,copyright_str + 1	; Skip leading space
 
 comapi_nop:
 		clc
