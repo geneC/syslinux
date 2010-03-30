@@ -474,9 +474,8 @@ bootsignature	dw kaboom.again-bootsec
 LDLINUX_SYS	equ ($-$$)+TEXT_START
 ldlinux_sys:
 
-syslinux_banner	db 0Dh, 0Ah
-		db MY_NAME, ' ', VERSION_STR, ' ', DATE_STR, ' ', 0
-		db 0Dh, 0Ah, 1Ah	; EOF if we "type" this in DOS
+syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', DATE_STR, ' ', 0
+		db CR, LF, 1Ah	; EOF if we "type" this in DOS
 
 		alignz 8
 ldlinux_magic	dd LDLINUX_MAGIC

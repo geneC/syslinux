@@ -5,6 +5,15 @@ to all derivatives.
 Changes in 3.86:
 	* chain.c32: fix chainloading the MBR of a hard disk (broken
 	  in 3.85).
+	* mboot.c32: report the boot loader name in the information
+	  structure.
+	* com32: set argv[0] in a com32 module.
+	* core: add a workaround for a bug in Xen HVM older than
+	  version 3.3: disable halt on those platforms.
+	* Fix problems where certain operations in com32 modules would
+	  cause the core to believe the system was idle.
+	* MEMDISK: fix MBR detection when used with a DOSEMU header or
+	  an offset.
 
 Changes in 3.85:
 	* gPXELINUX: updated to gPXE 1.0.0.  gPXELINUX can now do NBP

@@ -262,6 +262,10 @@ AX=0001h [2.00]	Get Version
 	This API call returns the Syslinux version and API
 	information.
 
+	Note: before version 3.86, the version string had a leading CR LF
+	and the copyright string had a leading space.  The strings might
+	still contain trailing CR and/or LF.
+
 
 AX=0002h [2.01] Write String
 

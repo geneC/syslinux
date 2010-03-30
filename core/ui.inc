@@ -545,6 +545,7 @@ getchar_timeout:
 		push word [__jiffies]
 		call pollchar
 		jnz .got_char
+		call do_idle
 		pop ax
 		cmp ax,[__jiffies]		; Has the timer advanced?
 		je .loop
