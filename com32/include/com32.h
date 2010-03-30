@@ -97,12 +97,13 @@ struct com32_pmapi;
 extern struct com32_sys_args {
     uint32_t cs_sysargs;
     char *cs_cmdline;
-    void __cdecl(*cs_intcall) (uint8_t, const com32sys_t *, com32sys_t *);
+    void __cdecl (*cs_intcall)(uint8_t, const com32sys_t *, com32sys_t *);
     void *cs_bounce;
     uint32_t cs_bounce_size;
-    void __cdecl(*cs_farcall) (uint32_t, const com32sys_t *, com32sys_t *);
-    int __cdecl(*cs_cfarcall) (uint32_t, const void *, uint32_t);
+    void __cdecl (*cs_farcall)(uint32_t, const com32sys_t *, com32sys_t *);
+    int __cdecl (*cs_cfarcall)(uint32_t, const void *, uint32_t);
     uint32_t cs_memsize;
+    const char *cs_name;
     const struct com32_pmapi *cs_pm;
 } __com32;
 

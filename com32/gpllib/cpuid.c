@@ -232,8 +232,10 @@ void generic_identify(struct cpuinfo_x86 *c)
 	}
 	break;
     case X86_VENDOR_INTEL:
-	cpuid(0x4, &eax, &ebx, &ecx, &edx);
-	c->x86_num_cores = ((eax & 0xfc000000) >> 26) + 1;
+	if (c->cpuid_level >= 0x00000004) {
+	    cpuid(0x4, &eax, &ebx, &ecx, &edx);
+	    c->x86_num_cores = ((eax & 0xfc000000) >> 26) + 1;
+	}
 	break;
     default:
 	c->x86_num_cores = 1;

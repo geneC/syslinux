@@ -19,6 +19,8 @@
 ;; Not used by plain kernel due to BOOT_IMAGE= etc.
 ;;
 
+		section .text16
+
 ;
 ; Assumes DS == CS
 ;

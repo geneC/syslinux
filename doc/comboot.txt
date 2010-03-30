@@ -82,7 +82,7 @@ The following arguments are passed to the program on the stack:
 
  Address  Size	Meaning
  [ESP]    dword Return (termination) address
- [ESP+4]  dword	Number of additional arguments (currently 7)
+ [ESP+4]  dword	Number of additional arguments (currently 8)
  [ESP+8]  dword	Pointer to the command line arguments (null-terminated string)
  [ESP+12] dword Pointer to INT call helper function
  [ESP+16] dword Pointer to low memory bounce buffer
@@ -90,7 +90,8 @@ The following arguments are passed to the program on the stack:
  [ESP+24] dword Pointer to FAR call helper function (new in 2.05)
  [ESP+28] dword Pointer to CDECL helper function (new in 3.54)
  [ESP+32] dword Amount of memory controlled by the Syslinux core (new in 3.74)
- [ESP+36] dword	Pointer to protected-mode functions (new in 4.00)
+ [ESP+36] dword Pointer to the filename of the com32 module (new in 3.86)
+ [ESP+40] dword	Pointer to protected-mode functions (new in 4.00)
 
 The libcom32 startup code loads this into a structure named __com32,
 defined in <com32.h>:
@@ -104,7 +105,8 @@ extern struct com32_sys_args {
     void __cdecl(*cs_farcall)(uint32_t, const com32sys_t *, com32sys_t *);
     int __cdecl(*cs_cfarcall)(uint32_t, const void *, uint32_t);
     uint32_t cs_memsize;
-    struct com32_pmapi *cs_pm;
+    const char *cs_name;
+    const struct com32_pmapi *cs_pm;
 } __com32;
 
 The intcall helper function can be used to issue BIOS or Syslinux API

@@ -47,6 +47,10 @@ is_com32_image:
 		sub cx,si
 		fs rep movsb
 
+		mov si,KernelName
+		mov di,Com32Name
+		call strcpy
+
 		call comboot_setup_api	; Set up the COMBOOT-style API
 
 		mov edi,com32_entry	; Load address
@@ -85,6 +89,7 @@ com32_start:
 		; Set up the calling stack frame
 
 		push dword pm_api_vector
+		push dword Com32Name		; Module filename
 		push dword [HighMemSize]	; Memory managed by Syslinux
 		push dword core_cfarcall	; Cfarcall entry point
 		push dword core_farcall		; Farcall entry point
@@ -92,7 +97,7 @@ com32_start:
 		push dword core_real_mode	; Bounce buffer address
 		push dword core_intcall		; Intcall entry point
 		push dword command_line		; Command line pointer
-		push dword 8			; Argument count
+		push dword 9			; Argument count
 		sti				; Interrupts OK now
 		call com32_entry		; Run the program...
 		; ... on return, fall through to com32_exit ...
@@ -123,7 +128,7 @@ not_com32r_msg	db ': not a COM32R image', CR, LF, 0
 __entry_esp:
 		dd 0				; Dummy to avoid _exit issues
 __com32:
-		dd 8				; Argument count
+		dd 9				; Argument count
 		dd 0				; No command line
 		dd core_intcall			; Intcall entry point
 		dd 0				; Bounce buffer address
@@ -131,4 +136,10 @@ __com32:
 		dd core_farcall			; Farcall entry point
 		dd core_cfarcall		; Cfarcall entry point
 HighMemSize	dd 0				; End of memory pointer (bytes)
+		dd 0				; No module name
 		dd pm_api_vector		; Protected mode functions
+
+		section .uibss
+Com32Name	resb FILENAME_MAX
+
+		section .text16

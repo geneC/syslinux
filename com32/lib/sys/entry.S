@@ -30,7 +30,7 @@
  */
 
 /* Number of arguments in our version of the entry structure */
-#define COM32_ARGS 8
+#define COM32_ARGS 9
 
 		.section ".init","ax"
 		.globl _start
