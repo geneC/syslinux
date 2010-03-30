@@ -40,7 +40,7 @@ timer_irq:
 		jmp 0:0
 BIOS_timer_next	equ $-4
 
-		section .bss16
-		alignb 4
+		section .data16
+		alignz 4
 		global __jiffies
-__jiffies	resd 1			; The actual timer variable
+__jiffies	dd 0			; The actual timer variable

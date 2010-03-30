@@ -70,13 +70,12 @@ do_idle:
 .ret:		ret
 
 		section .data16
-		alignz 2
+		alignz 4
+		global _IdleTimer
+_IdleTimer	dd 0
 		global NoHalt
 NoHalt		dw 0
 
 hlt_err		db 'ERROR: idle with IF=0', CR, LF, 0 
 
-		section .bss16
-		global _IdleTimer
-		alignb 4
-_IdleTimer	resd 1
+		section .text16
