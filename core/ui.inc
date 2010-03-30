@@ -544,6 +544,7 @@ getchar_timeout:
 		push word [BIOS_timer]
 		call pollchar
 		jnz .got_char
+		call do_idle
 		pop ax
 		cmp ax,[BIOS_timer]		; Has the timer advanced?
 		je .loop

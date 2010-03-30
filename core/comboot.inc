@@ -507,6 +507,7 @@ comapi_textmode:
 ; INT 22h AX=0006h	Open file
 ;
 comapi_open:
+		call reset_idle
 		push ds
 		mov ds,P_ES
 		mov si,P_SI
@@ -525,6 +526,7 @@ comapi_open:
 ; INT 22h AX=0007h	Read file
 ;
 comapi_read:
+		call reset_idle
 		mov es,P_ES
 		mov bx,P_BX
 		mov si,P_SI
@@ -829,6 +831,7 @@ comapi_userfont:
 ;
 %if IS_SYSLINUX || IS_ISOLINUX || IS_EXTLINUX
 comapi_readdisk:
+		call reset_idle
 		mov esi,P_ESI		; Enforce ESI == EDI == 0, these
 		or esi,P_EDI		; are reserved for future expansion
 		jnz .err
@@ -896,6 +899,7 @@ comapi_getcwd:
 ;
 %if IS_SYSLINUX
 comapi_opendir:
+		call reset_idle
 		push ds
 		mov ds,P_ES
 		mov si,P_SI
@@ -922,6 +926,7 @@ comapi_opendir	equ comapi_err
 ;
 %if IS_SYSLINUX
 comapi_readdir:
+		call reset_idle
 		mov es,P_ES
 		mov di,P_DI
 		mov si,P_SI
