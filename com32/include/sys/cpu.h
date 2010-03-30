@@ -105,7 +105,10 @@ static inline void cpu_relax(void)
     asm volatile ("rep ; nop");
 }
 
-/* These are local cli/sti; not SMP-safe!!! */
+static inline void hlt(void)
+{
+    asm volatile ("hlt");
+}
 
 static inline void cli(void)
 {

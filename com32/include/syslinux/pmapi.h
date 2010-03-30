@@ -62,6 +62,9 @@ struct com32_pmapi {
     struct _DIR_ *(*opendir)(const char *);
     struct dirent *(*readdir)(struct _DIR_ *);
     int (*closedir)(struct _DIR_ *);
+
+    void (*idle)(void);
+    void (*reset_idle)(void);
 };
 
 #endif /* _SYSLINUX_PMAPI_H */

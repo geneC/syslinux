@@ -19,7 +19,7 @@
 #include <sys/cpu.h>
 #include "pxe.h"
 
-static void pxe_idle_poll(void)
+static int pxe_idle_poll(void)
 {
     static __lowmem char junk_pkt[PKTBUF_SIZE];
     static __lowmem t_PXENV_UDP_READ read_buf;
@@ -34,6 +34,8 @@ static void pxe_idle_poll(void)
     read_buf.buffer  = FAR_PTR(junk_pkt);
 
     pxe_call(PXENV_UDP_READ, &read_buf);
+
+    return 0;
 }
 
 static uint32_t pxe_detect_nic_type(void)

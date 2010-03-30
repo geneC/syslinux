@@ -29,4 +29,7 @@ const struct com32_pmapi pm_api_vector =
     .opendir	= opendir,
     .readdir	= readdir,
     .closedir	= closedir,
+
+    .idle	= __idle,
+    .reset_idle	= reset_idle,
 };

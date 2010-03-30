@@ -21,11 +21,13 @@ extern void getlinsec(void);
 /* getc.inc */
 extern void core_open(void);
 
-/* idle.inc */
-extern void (*idle_hook_func)(void);
-
 /* hello.c */
 extern void myputs(const char*);
+
+/* idle.c */
+extern int (*idle_hook_func)(void);
+extern void __idle(void);
+extern void reset_idle(void);
 
 /* mem/malloc.c, mem/free.c, mem/init.c */
 extern void *malloc(size_t);

@@ -1,7 +1,7 @@
 ;; -*- fundamental -*- ---------------------------------------------------
 ;;
 ;;   Copyright 2008 H. Peter Anvin - All Rights Reserved
-;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -12,12 +12,12 @@
 ;; -----------------------------------------------------------------------
 
 		section .text16
-TICKS_TO_IDLE	equ 4
+TICKS_TO_IDLE	equ 4		; Also in idle.c
 
 reset_idle:
 		push eax
 		mov eax,[cs:__jiffies]
-		mov [cs:IdleTimer],eax
+		mov [cs:_IdleTimer],eax
 		pop eax
 		sti		; Guard against BIOS/PXE brokenness...
 		ret
@@ -54,19 +54,15 @@ do_idle:
 		pop si
 		sti
 .ok:
+		; Don't spend time jumping to PM unless we're actually idle...
+
 		mov eax,[__jiffies]
-		sub eax,[IdleTimer]
+		sub eax,[_IdleTimer]
 		cmp eax,TICKS_TO_IDLE
 		jb .done
-		
-		mov eax,[idle_hook_func]
-		and eax,eax
-		jz .no_idle_hook
-		pm_call eax
-.no_idle_hook:
-		cmp word [NoHalt],0
-		jne .done
-		hlt
+
+		extern __idle
+		pm_call __idle
 .done:
 		pop es
 		pop ds
@@ -74,13 +70,13 @@ do_idle:
 .ret:		ret
 
 		section .data16
-		alignz 4
-		global idle_hook_func
-idle_hook_func	dd 0
+		alignz 2
+		global NoHalt
 NoHalt		dw 0
 
 hlt_err		db 'ERROR: idle with IF=0', CR, LF, 0 
 
 		section .bss16
+		global _IdleTimer
 		alignb 4
-IdleTimer	resd 1
+_IdleTimer	resd 1
