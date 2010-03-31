@@ -77,8 +77,6 @@ check_xen:
 		; We're on Xen...
 		mov eax,0x40000001
 		cpuid
-		call writehex8
-		call crlf
 		cmp eax,0x00030003
 		jae .not_xen			; Xen >= 3.3, not affected
 
