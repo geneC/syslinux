@@ -60,6 +60,7 @@ check_xen:
 		pop eax
 		popfd
 		xor eax,edx
+		and eax,(1 << 21)
 		jz .not_xen			; No CPUID
 
 		xor ebx,ebx
