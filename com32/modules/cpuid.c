@@ -52,9 +52,9 @@ int main(int argc, char *argv[])
     cpuid_count(leaf, counter, &eax, &ebx, &ecx, &edx);
 
     dump_reg("eax", eax);
-    dump_reg("eax", ebx);
-    dump_reg("eax", ecx);
-    dump_reg("eax", edx);
+    dump_reg("ebx", ebx);
+    dump_reg("ecx", ecx);
+    dump_reg("edx", edx);
 
     return 0;
 }
