@@ -14,6 +14,7 @@ Changes in 3.86:
 	  cause the core to believe the system was idle.
 	* MEMDISK: fix MBR detection when used with a DOSEMU header or
 	  an offset.
+	* MEMDISK: generate the mBFT checksum correctly.
 
 Changes in 3.85:
 	* gPXELINUX: updated to gPXE 1.0.0.  gPXELINUX can now do NBP
