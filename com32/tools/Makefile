@@ -25,6 +25,6 @@ tidy dist clean spotless:
 	rm -f *.o *.a .*.d
 	rm -f */*.o */*.a */.*.d
 
-installer:
+install installer:
 
 -include .*.d */.*.d
