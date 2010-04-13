@@ -321,19 +321,19 @@ int read_config_file(void)
     if(*t) *t++ = 0;
     t = skip_spaces(t);
 
-    if(!strcmp(s, "timeout")) {
+    if(!strcasecmp(s, "timeout")) {
       timeout = atoi(t);
       continue;
     }
 
-    if(!strcmp(s, "default")) {
+    if(!strcasecmp(s, "default")) {
       menu_default->label = strdup(t);
       u = strlen(t);
       if(u > label_size) label_size = u;
       continue;
     }
 
-    if(!strcmp(s, "label")) {
+    if(!strcasecmp(s, "label")) {
       menu_ptr = *menu_next = calloc(1, sizeof **menu_next);
       menu_next = &menu_ptr->next;
       menu_idx++;
@@ -343,45 +343,45 @@ int read_config_file(void)
       continue;
     }
 
-    if(!strcmp(s, "kernel") && menu_ptr) {
+    if(!strcasecmp(s, "kernel") && menu_ptr) {
       menu_ptr->kernel = strdup(t);
       continue;
     }
 
-    if(!strcmp(s, "linux") && menu_ptr) {
+    if(!strcasecmp(s, "linux") && menu_ptr) {
       menu_ptr->linux = strdup(t);
       continue;
     }
 
-    if(!strcmp(s, "localboot") && menu_ptr) {
+    if(!strcasecmp(s, "localboot") && menu_ptr) {
       menu_ptr->localboot = strdup(t);
       continue;
     }
 
-    if(!strcmp(s, "initrd") && menu_ptr) {
+    if(!strcasecmp(s, "initrd") && menu_ptr) {
       menu_ptr->initrd = strdup(t);
       continue;
     }
 
-    if(!strcmp(s, "append")) {
+    if(!strcasecmp(s, "append")) {
       (menu_ptr ?: menu_default)->append = strdup(t);
       u = strlen(t);
       if(u > append_size) append_size = u;
       continue;
     }
 
-    if(!strcmp(s, "ipappend")) {
+    if(!strcasecmp(s, "ipappend")) {
       (menu_ptr ?: menu_default)->ipappend = strdup(t);
       continue;
     }
 
-    if(!strcmp(s, "menu") && menu_ptr) {
+    if(!strcasecmp(s, "menu") && menu_ptr) {
       s = skip_spaces(t);
       t = skip_nonspaces(s);
       if(*t) *t++ = 0;
       t = skip_spaces(t);
 
-      if(!strcmp(s, "label")) {
+      if(!strcasecmp(s, "label")) {
         menu_ptr->label = strdup(t);
         u = strlen(t);
         if(u > label_size) label_size = u;
