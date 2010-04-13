@@ -709,6 +709,8 @@ void boot(int index)
   char *arg;
   menu_t *menu_ptr;
   int label_len;
+  unsigned u, ipapp;
+  const struct syslinux_ipappend_strings *ipappend;
 
   for(menu_ptr = menu; menu_ptr; menu_ptr = menu_ptr->next, index--) {
     if(!index) break;
@@ -729,6 +731,16 @@ void boot(int index)
   }
 
   arg = skip_spaces(arg);
+
+  // handle IPAPPEND
+  if(menu_ptr->ipappend && (ipapp = atoi(menu_ptr->ipappend))) {
+    ipappend = syslinux_ipappend_strings();
+    for(u = 0; u < ipappend->count; u++) {
+      if((ipapp & (1 << u)) && ipappend->ptr[u]) {
+        sprintf(arg + strlen(arg), " %s", ipappend->ptr[u]);
+      }
+    }
+  }
 
   boot_entry(menu_ptr, arg);
 }
