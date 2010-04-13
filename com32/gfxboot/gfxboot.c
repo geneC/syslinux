@@ -848,6 +848,8 @@ void boot_entry(menu_t *menu_ptr, char *arg)
 
   __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_DONE], &r, &r);
 
+  gfx_done();
+
   syslinux_boot_linux(kernel, kernel_size, initrd, arg);
 }
 
