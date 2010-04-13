@@ -165,7 +165,7 @@ void gfx_done(void);
 int gfx_input(void);
 ssize_t save_read(int fd, void *buf, size_t size);
 void *load_one(char *file, ssize_t *file_size);
-void boot(void);
+void boot(int index);
 void boot_entry(menu_t *menu_ptr, char *arg);
 
 
@@ -234,7 +234,7 @@ int main(int argc, char **argv)
     }
 
     // does not return if it succeeds
-    boot();
+    boot(menu_index);
   }
 
   if(argc > 2) show_message(argv[2]);
@@ -373,6 +373,20 @@ int read_config_file(void)
     if(!strcmp(s, "ipappend")) {
       (menu_ptr ?: menu_default)->ipappend = strdup(t);
       continue;
+    }
+
+    if(!strcmp(s, "menu") && menu_ptr) {
+      s = skip_spaces(t);
+      t = skip_nonspaces(s);
+      if(*t) *t++ = 0;
+      t = skip_spaces(t);
+
+      if(!strcmp(s, "label")) {
+        menu_ptr->label = strdup(t);
+        u = strlen(t);
+        if(u > label_size) label_size = u;
+        continue;
+      }
     }
   }
 
@@ -686,20 +700,35 @@ void *load_one(char *file, ssize_t *file_size)
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// Locate menu entry and boot.
+// Boot menu entry.
 //
-void boot(void)
+// cmdline can optionally start with label string.
+//
+void boot(int index)
 {
-  char *label, *arg, *s;
+  char *arg;
   menu_t *menu_ptr;
+  int label_len;
 
-  label = skip_spaces(cmdline);
-  arg = skip_spaces(s = skip_nonspaces(label));
-  *s = 0;
-
-  for(menu_ptr = menu; menu_ptr; menu_ptr = menu_ptr->next) {
-    if(menu_ptr->label && !strcmp(menu_ptr->label, label)) break;
+  for(menu_ptr = menu; menu_ptr; menu_ptr = menu_ptr->next, index--) {
+    if(!index) break;
   }
+
+  // invalid index or menu entry
+  if(!menu_ptr || !menu_ptr->label) return;
+
+  arg = skip_spaces(cmdline);
+  label_len = strlen(menu_ptr->label);
+
+  // if it does not start with label string, skip first word
+  if(strncmp(arg, menu_ptr->label, label_len)) {
+    arg = skip_nonspaces(arg);
+  }
+  else {
+    arg += label_len;
+  }
+
+  arg = skip_spaces(arg);
 
   boot_entry(menu_ptr, arg);
 }
