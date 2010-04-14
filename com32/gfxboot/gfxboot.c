@@ -766,7 +766,7 @@ void boot_entry(menu_t *menu_ptr, char *arg)
 
   if(menu_ptr->localboot) {
     gfx_done();
-    syslinux_local_boot(atoi(arg));
+    syslinux_local_boot(strtol(menu_ptr->localboot, NULL, 0));
 
     return;
   }
