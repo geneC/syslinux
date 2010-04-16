@@ -118,6 +118,7 @@ typedef struct menu_s {
   struct menu_s *next;
   char *label;
   char *kernel;
+  char *alt_kernel;
   char *linux;
   char *localboot;
   char *initrd;
@@ -149,6 +150,9 @@ char cmdline[MAX_CMDLINE_LEN];
 void *save_buf;
 unsigned save_buf_size;
 
+// progress bar is visible
+unsigned progress_active;
+
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void show_message(char *file);
@@ -163,6 +167,10 @@ int gfx_init(char *file);
 int gfx_menu_init(void);
 void gfx_done(void);
 int gfx_input(void);
+void gfx_infobox(int type, char *str1, char *str2);
+void gfx_progress_init(ssize_t kernel_size, char *label);
+void gfx_progress_update(ssize_t size);
+void gfx_progress_done(void);
 ssize_t save_read(int fd, void *buf, size_t size);
 void *load_one(char *file, ssize_t *file_size);
 void boot(int index);
@@ -486,6 +494,8 @@ int gfx_init(char *file)
   void *lowmem = lowmem_buf;
   unsigned lowmem_size = lowmem_buf_size;
 
+  progress_active = 0;
+
   printf("Loading %s...\n", file);
   if(loadfile(file, &archive, &archive_size)) return 1;
 
@@ -603,6 +613,8 @@ void gfx_done(void)
 {
   com32sys_t r;
 
+  gfx_progress_done();
+
   __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_DONE], &r, &r);
 }
 
@@ -631,6 +643,61 @@ int gfx_input(void)
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void gfx_infobox(int type, char *str1, char *str2)
+{
+  com32sys_t r;
+
+  r.eax.l = type;
+  r.esi.l = (uint32_t) str1;
+  r.edi.l = (uint32_t) str2;
+  __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_INFOBOX_INIT], &r, &r);
+  r.edi.l = r.eax.l = 0;
+  __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_INPUT], &r, &r);
+  __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_INFOBOX_DONE], &r, &r);
+}
+
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void gfx_progress_init(ssize_t kernel_size, char *label)
+{
+  com32sys_t r;
+
+  if(!progress_active) {
+    r.eax.l = kernel_size >> gfx_config.sector_shift;		// in sectors
+    r.esi.l = (uint32_t) label;
+    __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_INIT], &r, &r);
+  }
+
+  progress_active = 1;
+}
+
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void gfx_progress_update(ssize_t advance)
+{
+  com32sys_t r;
+
+  if(progress_active) {
+    r.eax.l = advance >> gfx_config.sector_shift;		// in sectors
+    __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_UPDATE], &r, &r);
+  }
+}
+
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void gfx_progress_done(void)
+{
+  com32sys_t r;
+
+  if(progress_active) {
+    __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_DONE], &r, &r);
+  }
+
+  progress_active = 0;
+}
+
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Like read(2) but preserve bounce buffer.
 //
 ssize_t save_read(int fd, void *buf, size_t size)
@@ -652,14 +719,16 @@ void *load_one(char *file, ssize_t *file_size)
 {
   int fd;
   void *buf = NULL;
+  char *str;
   struct stat sbuf;
   ssize_t size = 0, cur, i;
-  com32sys_t r;
 
   *file_size = 0;
 
   if((fd = open(file, O_RDONLY)) == -1) {
-    printf("%s: file not found\n", file);
+    asprintf(&str, "%s: file not found", file);
+    gfx_infobox(0, str, NULL);
+    free(str);
     return buf;
   }
 
@@ -671,23 +740,26 @@ void *load_one(char *file, ssize_t *file_size)
     buf = malloc(size);
     for(i = 1, cur = 0 ; cur < size && i > 0; cur += i) {
       i = save_read(fd, buf + cur, CHUNK_SIZE);
-      r.eax.l = i >> gfx_config.sector_shift;
-      __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_UPDATE], &r, &r);
+      if(i == -1) break;
+      gfx_progress_update(i);
     }
   }
   else {
     do {
       buf = realloc(buf, size + CHUNK_SIZE);
       i = save_read(fd, buf + size, CHUNK_SIZE);
+      if(i == -1) break;
       size += i;
-      r.eax.l = i >> gfx_config.sector_shift;
-      __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_UPDATE], &r, &r);
+      gfx_progress_update(i);
     } while(i > 0);
   }
 
   close(fd);
 
   if(i == -1) {
+    asprintf(&str, "%s: read error @ %d", file, size);
+    gfx_infobox(0, str, NULL);
+    free(str);
     free(buf);
     buf = NULL;
     size = 0;
@@ -706,10 +778,10 @@ void *load_one(char *file, ssize_t *file_size)
 //
 void boot(int index)
 {
-  char *arg;
+  char *arg, *alt_kernel;
   menu_t *menu_ptr;
-  int label_len;
-  unsigned u, ipapp;
+  int i, label_len;
+  unsigned ipapp;
   const struct syslinux_ipappend_strings *ipappend;
 
   for(menu_ptr = menu; menu_ptr; menu_ptr = menu_ptr->next, index--) {
@@ -722,9 +794,12 @@ void boot(int index)
   arg = skip_spaces(cmdline);
   label_len = strlen(menu_ptr->label);
 
-  // if it does not start with label string, skip first word
+  // if it does not start with label string, assume first word is kernel name
   if(strncmp(arg, menu_ptr->label, label_len)) {
+    alt_kernel = arg;
     arg = skip_nonspaces(arg);
+    if(*arg) *arg++ = 0;
+    if(*alt_kernel) menu_ptr->alt_kernel = alt_kernel;
   }
   else {
     arg += label_len;
@@ -735,14 +810,16 @@ void boot(int index)
   // handle IPAPPEND
   if(menu_ptr->ipappend && (ipapp = atoi(menu_ptr->ipappend))) {
     ipappend = syslinux_ipappend_strings();
-    for(u = 0; u < ipappend->count; u++) {
-      if((ipapp & (1 << u)) && ipappend->ptr[u]) {
-        sprintf(arg + strlen(arg), " %s", ipappend->ptr[u]);
+    for(i = 0; i < ipappend->count; i++) {
+      if((ipapp & (1 << i)) && ipappend->ptr[i]) {
+        sprintf(arg + strlen(arg), " %s", ipappend->ptr[i]);
       }
     }
   }
 
   boot_entry(menu_ptr, arg);
+
+  gfx_progress_done();
 }
 
 
@@ -759,7 +836,6 @@ void boot_entry(menu_t *menu_ptr, char *arg)
   char *file, *cmd_buf;
   int fd;
   struct stat sbuf;
-  com32sys_t r;
   char *s, *s0, *t, *initrd_arg;
 
   if(!menu_ptr) return;
@@ -771,7 +847,8 @@ void boot_entry(menu_t *menu_ptr, char *arg)
     return;
   }
 
-  file = menu_ptr->kernel;
+  file = menu_ptr->alt_kernel;
+  if(!file) file = menu_ptr->kernel;
   if(!file) file = menu_ptr->linux;
   if(!file) {
     gfx_done();
@@ -782,21 +859,18 @@ void boot_entry(menu_t *menu_ptr, char *arg)
 
   // first, load kernel
 
-  r.eax.l = 0;		// kernel size in sectors
+  kernel_size = 0;
 
   if((fd = open(file, O_RDONLY)) >= 0) {
-    if(!fstat(fd, &sbuf) && S_ISREG(sbuf.st_mode)) r.eax.l = sbuf.st_size >> gfx_config.sector_shift;
+    if(!fstat(fd, &sbuf) && S_ISREG(sbuf.st_mode)) kernel_size = sbuf.st_size;
     close(fd);
   }
 
-  r.esi.l = (uint32_t) file;
-  __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_INIT], &r, &r);
+  gfx_progress_init(kernel_size, file);
 
   kernel = load_one(file, &kernel_size);
 
   if(!kernel) {
-    gfx_done();
-    printf("%s: read error\n", file);
     return;
   }
 
@@ -845,8 +919,6 @@ void boot_entry(menu_t *menu_ptr, char *arg)
   }
 
   free(s0);
-
-  __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_DONE], &r, &r);
 
   gfx_done();
 
