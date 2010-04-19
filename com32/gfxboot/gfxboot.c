@@ -116,14 +116,15 @@ typedef struct __attribute__ ((packed)) {
 // menu description
 typedef struct menu_s {
   struct menu_s *next;
-  char *label;
-  char *kernel;
-  char *alt_kernel;
-  char *linux;
-  char *localboot;
-  char *initrd;
-  char *append;
-  char *ipappend;
+  char *label;		// config entry name
+  char *menu_label;	// text to show in boot menu
+  char *kernel;		// name of program to load
+  char *alt_kernel;	// alternative name in case user has replaced it
+  char *linux;		// de facto an alias for 'kernel'
+  char *localboot;	// boot from local disk
+  char *initrd;		// initrd as separate line (instead of as part of 'append')
+  char *append;		// kernel args
+  char *ipappend;	// append special pxelinux args (see doc)
 } menu_t;
 
 
@@ -345,7 +346,7 @@ int read_config_file(void)
       menu_ptr = *menu_next = calloc(1, sizeof **menu_next);
       menu_next = &menu_ptr->next;
       menu_idx++;
-      menu_ptr->label = strdup(t);
+      menu_ptr->label = menu_ptr->menu_label = strdup(t);
       u = strlen(t);
       if(u > label_size) label_size = u;
       continue;
@@ -390,7 +391,7 @@ int read_config_file(void)
       t = skip_spaces(t);
 
       if(!strcasecmp(s, "label")) {
-        menu_ptr->label = strdup(t);
+        menu_ptr->menu_label = strdup(t);
         u = strlen(t);
         if(u > label_size) label_size = u;
         continue;
@@ -404,15 +405,22 @@ int read_config_file(void)
   label_size++;
   append_size++;
 
+  // ensure we have a default entry
+  if(!menu_default->label) menu_default->label = menu->label;
+
+  if(menu_default->label) {
+    for(menu_ptr = menu; menu_ptr; menu_ptr = menu_ptr->next) {
+      if(!strcmp(menu_default->label, menu_ptr->label)) {
+        menu_default->menu_label = menu_ptr->menu_label;
+        break;
+      }
+    }
+  }
+
   gfx_menu.entries = menu_idx;
   gfx_menu.label_size = label_size;
   gfx_menu.arg_size = append_size;
-
-  gfx_menu.default_entry = menu_default->label;
-  if(!gfx_menu.default_entry && menu) {
-    gfx_menu.default_entry = menu->label;
-  }
-
+  gfx_menu.default_entry = menu_default->menu_label;
   gfx_menu.label_list = calloc(menu_idx, label_size);
   gfx_menu.arg_list = calloc(menu_idx, append_size);
 
@@ -420,7 +428,7 @@ int read_config_file(void)
     if(!menu_ptr->append) menu_ptr->append = menu_default->append;
     if(!menu_ptr->ipappend) menu_ptr->ipappend = menu_default->ipappend;
 
-    if(menu_ptr->label) strcpy(gfx_menu.label_list + u * label_size, menu_ptr->label);
+    if(menu_ptr->menu_label) strcpy(gfx_menu.label_list + u * label_size, menu_ptr->menu_label);
     if(menu_ptr->append) strcpy(gfx_menu.arg_list + u * append_size, menu_ptr->append);
   }
 
@@ -789,13 +797,13 @@ void boot(int index)
   }
 
   // invalid index or menu entry
-  if(!menu_ptr || !menu_ptr->label) return;
+  if(!menu_ptr || !menu_ptr->menu_label) return;
 
   arg = skip_spaces(cmdline);
-  label_len = strlen(menu_ptr->label);
+  label_len = strlen(menu_ptr->menu_label);
 
   // if it does not start with label string, assume first word is kernel name
-  if(strncmp(arg, menu_ptr->label, label_len)) {
+  if(strncmp(arg, menu_ptr->menu_label, label_len)) {
     alt_kernel = arg;
     arg = skip_nonspaces(arg);
     if(*arg) *arg++ = 0;
