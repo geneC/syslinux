@@ -441,7 +441,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     int i, dw, nptrs;
     uint32_t csum;
     int secptroffset, diroffset, dirlen, subvoloffset, subvollen;
-    char *dirpath, *subpath;
+    char *dirpath, *subpath, *xdirpath, *xsubpath;
 
     dirpath = realpath(dir, NULL);
     if (!dirpath || stat(dir, &dirst)) {
@@ -457,10 +457,17 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     }
 
     subpath = strchr(dirpath, '\0');
-    while (--subpath >= dirpath) {
+    for (;;) {
 	if (*subpath == '/') {
-	    *subpath = '\0';
-	    if (lstat(dirpath, &xdst) || dirst.st_dev != xdst.st_dev) {
+	    if (subpath > dirpath) {
+		*subpath = '\0';
+		xsubpath = subpath+1;
+		xdirpath = dirpath;
+	    } else {
+		xsubpath = subpath;
+		xdirpath = "/";
+	    }
+	    if (lstat(xdirpath, &xdst) || dirst.st_dev != xdst.st_dev) {
 		subpath = strchr(subpath+1, '/');
 		if (!subpath)
 		    subpath = "/"; /* It's the root of the filesystem */
@@ -468,6 +475,11 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
 	    }
 	    *subpath = '/';
 	}
+
+	if (subpath == dirpath)
+	    break;
+
+	subpath--;
     }
 
     /* Now subpath should contain the path relative to the fs base */
