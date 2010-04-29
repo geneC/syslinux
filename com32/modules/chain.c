@@ -982,7 +982,7 @@ int main(int argc, char *argv[])
 	 * possibly other boot loaders which use the same format.
 	 */
 	if (partinfo && opt.sethidden) {
-	    *((uint32_t *)(char *)data[ndata].data + 28) =
+	    *(uint32_t *)((char *)data[ndata].data + 28) =
 		partinfo->start_lba;
 	}
 

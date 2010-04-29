@@ -116,13 +116,15 @@ typedef struct __attribute__ ((packed)) {
 // menu description
 typedef struct menu_s {
   struct menu_s *next;
-  char *label;
-  char *kernel;
-  char *linux;
-  char *localboot;
-  char *initrd;
-  char *append;
-  char *ipappend;
+  char *label;		// config entry name
+  char *menu_label;	// text to show in boot menu
+  char *kernel;		// name of program to load
+  char *alt_kernel;	// alternative name in case user has replaced it
+  char *linux;		// de facto an alias for 'kernel'
+  char *localboot;	// boot from local disk
+  char *initrd;		// initrd as separate line (instead of as part of 'append')
+  char *append;		// kernel args
+  char *ipappend;	// append special pxelinux args (see doc)
 } menu_t;
 
 
@@ -149,6 +151,9 @@ char cmdline[MAX_CMDLINE_LEN];
 void *save_buf;
 unsigned save_buf_size;
 
+// progress bar is visible
+unsigned progress_active;
+
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void show_message(char *file);
@@ -163,9 +168,13 @@ int gfx_init(char *file);
 int gfx_menu_init(void);
 void gfx_done(void);
 int gfx_input(void);
+void gfx_infobox(int type, char *str1, char *str2);
+void gfx_progress_init(ssize_t kernel_size, char *label);
+void gfx_progress_update(ssize_t size);
+void gfx_progress_done(void);
 ssize_t save_read(int fd, void *buf, size_t size);
 void *load_one(char *file, ssize_t *file_size);
-void boot(void);
+void boot(int index);
 void boot_entry(menu_t *menu_ptr, char *arg);
 
 
@@ -234,7 +243,7 @@ int main(int argc, char **argv)
     }
 
     // does not return if it succeeds
-    boot();
+    boot(menu_index);
   }
 
   if(argc > 2) show_message(argv[2]);
@@ -321,58 +330,72 @@ int read_config_file(void)
     if(*t) *t++ = 0;
     t = skip_spaces(t);
 
-    if(!strcmp(s, "timeout")) {
+    if(!strcasecmp(s, "timeout")) {
       timeout = atoi(t);
       continue;
     }
 
-    if(!strcmp(s, "default")) {
+    if(!strcasecmp(s, "default")) {
       menu_default->label = strdup(t);
       u = strlen(t);
       if(u > label_size) label_size = u;
       continue;
     }
 
-    if(!strcmp(s, "label")) {
+    if(!strcasecmp(s, "label")) {
       menu_ptr = *menu_next = calloc(1, sizeof **menu_next);
       menu_next = &menu_ptr->next;
       menu_idx++;
-      menu_ptr->label = strdup(t);
+      menu_ptr->label = menu_ptr->menu_label = strdup(t);
       u = strlen(t);
       if(u > label_size) label_size = u;
       continue;
     }
 
-    if(!strcmp(s, "kernel") && menu_ptr) {
+    if(!strcasecmp(s, "kernel") && menu_ptr) {
       menu_ptr->kernel = strdup(t);
       continue;
     }
 
-    if(!strcmp(s, "linux") && menu_ptr) {
+    if(!strcasecmp(s, "linux") && menu_ptr) {
       menu_ptr->linux = strdup(t);
       continue;
     }
 
-    if(!strcmp(s, "localboot") && menu_ptr) {
+    if(!strcasecmp(s, "localboot") && menu_ptr) {
       menu_ptr->localboot = strdup(t);
       continue;
     }
 
-    if(!strcmp(s, "initrd") && menu_ptr) {
+    if(!strcasecmp(s, "initrd") && menu_ptr) {
       menu_ptr->initrd = strdup(t);
       continue;
     }
 
-    if(!strcmp(s, "append")) {
+    if(!strcasecmp(s, "append")) {
       (menu_ptr ?: menu_default)->append = strdup(t);
       u = strlen(t);
       if(u > append_size) append_size = u;
       continue;
     }
 
-    if(!strcmp(s, "ipappend")) {
+    if(!strcasecmp(s, "ipappend")) {
       (menu_ptr ?: menu_default)->ipappend = strdup(t);
       continue;
+    }
+
+    if(!strcasecmp(s, "menu") && menu_ptr) {
+      s = skip_spaces(t);
+      t = skip_nonspaces(s);
+      if(*t) *t++ = 0;
+      t = skip_spaces(t);
+
+      if(!strcasecmp(s, "label")) {
+        menu_ptr->menu_label = strdup(t);
+        u = strlen(t);
+        if(u > label_size) label_size = u;
+        continue;
+      }
     }
   }
 
@@ -382,15 +405,22 @@ int read_config_file(void)
   label_size++;
   append_size++;
 
+  // ensure we have a default entry
+  if(!menu_default->label) menu_default->label = menu->label;
+
+  if(menu_default->label) {
+    for(menu_ptr = menu; menu_ptr; menu_ptr = menu_ptr->next) {
+      if(!strcmp(menu_default->label, menu_ptr->label)) {
+        menu_default->menu_label = menu_ptr->menu_label;
+        break;
+      }
+    }
+  }
+
   gfx_menu.entries = menu_idx;
   gfx_menu.label_size = label_size;
   gfx_menu.arg_size = append_size;
-
-  gfx_menu.default_entry = menu_default->label;
-  if(!gfx_menu.default_entry && menu) {
-    gfx_menu.default_entry = menu->label;
-  }
-
+  gfx_menu.default_entry = menu_default->menu_label;
   gfx_menu.label_list = calloc(menu_idx, label_size);
   gfx_menu.arg_list = calloc(menu_idx, append_size);
 
@@ -398,7 +428,7 @@ int read_config_file(void)
     if(!menu_ptr->append) menu_ptr->append = menu_default->append;
     if(!menu_ptr->ipappend) menu_ptr->ipappend = menu_default->ipappend;
 
-    if(menu_ptr->label) strcpy(gfx_menu.label_list + u * label_size, menu_ptr->label);
+    if(menu_ptr->menu_label) strcpy(gfx_menu.label_list + u * label_size, menu_ptr->menu_label);
     if(menu_ptr->append) strcpy(gfx_menu.arg_list + u * append_size, menu_ptr->append);
   }
 
@@ -471,6 +501,8 @@ int gfx_init(char *file)
   com32sys_t r;
   void *lowmem = lowmem_buf;
   unsigned lowmem_size = lowmem_buf_size;
+
+  progress_active = 0;
 
   printf("Loading %s...\n", file);
   if(loadfile(file, &archive, &archive_size)) return 1;
@@ -589,6 +621,8 @@ void gfx_done(void)
 {
   com32sys_t r;
 
+  gfx_progress_done();
+
   __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_DONE], &r, &r);
 }
 
@@ -617,6 +651,61 @@ int gfx_input(void)
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void gfx_infobox(int type, char *str1, char *str2)
+{
+  com32sys_t r;
+
+  r.eax.l = type;
+  r.esi.l = (uint32_t) str1;
+  r.edi.l = (uint32_t) str2;
+  __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_INFOBOX_INIT], &r, &r);
+  r.edi.l = r.eax.l = 0;
+  __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_INPUT], &r, &r);
+  __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_INFOBOX_DONE], &r, &r);
+}
+
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void gfx_progress_init(ssize_t kernel_size, char *label)
+{
+  com32sys_t r;
+
+  if(!progress_active) {
+    r.eax.l = kernel_size >> gfx_config.sector_shift;		// in sectors
+    r.esi.l = (uint32_t) label;
+    __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_INIT], &r, &r);
+  }
+
+  progress_active = 1;
+}
+
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void gfx_progress_update(ssize_t advance)
+{
+  com32sys_t r;
+
+  if(progress_active) {
+    r.eax.l = advance >> gfx_config.sector_shift;		// in sectors
+    __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_UPDATE], &r, &r);
+  }
+}
+
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void gfx_progress_done(void)
+{
+  com32sys_t r;
+
+  if(progress_active) {
+    __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_DONE], &r, &r);
+  }
+
+  progress_active = 0;
+}
+
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Like read(2) but preserve bounce buffer.
 //
 ssize_t save_read(int fd, void *buf, size_t size)
@@ -638,14 +727,16 @@ void *load_one(char *file, ssize_t *file_size)
 {
   int fd;
   void *buf = NULL;
+  char *str;
   struct stat sbuf;
   ssize_t size = 0, cur, i;
-  com32sys_t r;
 
   *file_size = 0;
 
   if((fd = open(file, O_RDONLY)) == -1) {
-    printf("%s: file not found\n", file);
+    asprintf(&str, "%s: file not found", file);
+    gfx_infobox(0, str, NULL);
+    free(str);
     return buf;
   }
 
@@ -657,23 +748,26 @@ void *load_one(char *file, ssize_t *file_size)
     buf = malloc(size);
     for(i = 1, cur = 0 ; cur < size && i > 0; cur += i) {
       i = save_read(fd, buf + cur, CHUNK_SIZE);
-      r.eax.l = i >> gfx_config.sector_shift;
-      __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_UPDATE], &r, &r);
+      if(i == -1) break;
+      gfx_progress_update(i);
     }
   }
   else {
     do {
       buf = realloc(buf, size + CHUNK_SIZE);
       i = save_read(fd, buf + size, CHUNK_SIZE);
+      if(i == -1) break;
       size += i;
-      r.eax.l = i >> gfx_config.sector_shift;
-      __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_UPDATE], &r, &r);
+      gfx_progress_update(i);
     } while(i > 0);
   }
 
   close(fd);
 
   if(i == -1) {
+    asprintf(&str, "%s: read error @ %d", file, size);
+    gfx_infobox(0, str, NULL);
+    free(str);
     free(buf);
     buf = NULL;
     size = 0;
@@ -686,22 +780,54 @@ void *load_one(char *file, ssize_t *file_size)
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// Locate menu entry and boot.
+// Boot menu entry.
 //
-void boot(void)
+// cmdline can optionally start with label string.
+//
+void boot(int index)
 {
-  char *label, *arg, *s;
+  char *arg, *alt_kernel;
   menu_t *menu_ptr;
+  int i, label_len;
+  unsigned ipapp;
+  const struct syslinux_ipappend_strings *ipappend;
 
-  label = skip_spaces(cmdline);
-  arg = skip_spaces(s = skip_nonspaces(label));
-  *s = 0;
+  for(menu_ptr = menu; menu_ptr; menu_ptr = menu_ptr->next, index--) {
+    if(!index) break;
+  }
 
-  for(menu_ptr = menu; menu_ptr; menu_ptr = menu_ptr->next) {
-    if(menu_ptr->label && !strcmp(menu_ptr->label, label)) break;
+  // invalid index or menu entry
+  if(!menu_ptr || !menu_ptr->menu_label) return;
+
+  arg = skip_spaces(cmdline);
+  label_len = strlen(menu_ptr->menu_label);
+
+  // if it does not start with label string, assume first word is kernel name
+  if(strncmp(arg, menu_ptr->menu_label, label_len)) {
+    alt_kernel = arg;
+    arg = skip_nonspaces(arg);
+    if(*arg) *arg++ = 0;
+    if(*alt_kernel) menu_ptr->alt_kernel = alt_kernel;
+  }
+  else {
+    arg += label_len;
+  }
+
+  arg = skip_spaces(arg);
+
+  // handle IPAPPEND
+  if(menu_ptr->ipappend && (ipapp = atoi(menu_ptr->ipappend))) {
+    ipappend = syslinux_ipappend_strings();
+    for(i = 0; i < ipappend->count; i++) {
+      if((ipapp & (1 << i)) && ipappend->ptr[i]) {
+        sprintf(arg + strlen(arg), " %s", ipappend->ptr[i]);
+      }
+    }
   }
 
   boot_entry(menu_ptr, arg);
+
+  gfx_progress_done();
 }
 
 
@@ -718,19 +844,19 @@ void boot_entry(menu_t *menu_ptr, char *arg)
   char *file, *cmd_buf;
   int fd;
   struct stat sbuf;
-  com32sys_t r;
   char *s, *s0, *t, *initrd_arg;
 
   if(!menu_ptr) return;
 
   if(menu_ptr->localboot) {
     gfx_done();
-    syslinux_local_boot(atoi(arg));
+    syslinux_local_boot(strtol(menu_ptr->localboot, NULL, 0));
 
     return;
   }
 
-  file = menu_ptr->kernel;
+  file = menu_ptr->alt_kernel;
+  if(!file) file = menu_ptr->kernel;
   if(!file) file = menu_ptr->linux;
   if(!file) {
     gfx_done();
@@ -741,21 +867,18 @@ void boot_entry(menu_t *menu_ptr, char *arg)
 
   // first, load kernel
 
-  r.eax.l = 0;		// kernel size in sectors
+  kernel_size = 0;
 
   if((fd = open(file, O_RDONLY)) >= 0) {
-    if(!fstat(fd, &sbuf) && S_ISREG(sbuf.st_mode)) r.eax.l = sbuf.st_size >> gfx_config.sector_shift;
+    if(!fstat(fd, &sbuf) && S_ISREG(sbuf.st_mode)) kernel_size = sbuf.st_size;
     close(fd);
   }
 
-  r.esi.l = (uint32_t) file;
-  __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_INIT], &r, &r);
+  gfx_progress_init(kernel_size, file);
 
   kernel = load_one(file, &kernel_size);
 
   if(!kernel) {
-    gfx_done();
-    printf("%s: read error\n", file);
     return;
   }
 
@@ -805,7 +928,7 @@ void boot_entry(menu_t *menu_ptr, char *arg)
 
   free(s0);
 
-  __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_DONE], &r, &r);
+  gfx_done();
 
   syslinux_boot_linux(kernel, kernel_size, initrd, arg);
 }
