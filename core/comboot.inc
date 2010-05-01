@@ -517,7 +517,12 @@ comapi_textmode:
 ; INT 22h AX=0006h	Open file
 ;
 comapi_open:
+		mov es,P_ES
+		mov si,P_SI
 		pm_call pm_open_file
+		mov P_EAX,eax
+		mov P_CX,cx
+		mov P_SI,si
 		ret
 
 ;
