@@ -73,7 +73,7 @@ extern struct syslinux_pm_regs regs;
 extern struct my_options {
     bool solaris;
     bool aout;
-} opt;
+} opt, set;
 
 /* map.c */
 #define MAP_HIGH	1
@@ -91,6 +91,7 @@ void mboot_make_memmap(void);
 void mboot_apm(void);
 
 /* solaris.c */
+bool kernel_is_solaris(const Elf32_Ehdr *);
 void mboot_solaris_dhcp_hack(void);
 
 /* syslinux.c */
