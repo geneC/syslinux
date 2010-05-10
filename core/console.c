@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 
-
 void myputchar(int c)
 {
     static com32sys_t ireg;
@@ -20,11 +19,4 @@ void myputs(const char *str)
 {
     while (*str)
 	myputchar(*str++);
-}
-
-void hello(void)
-{
-    static char hello_str[] = "Hello, World!";
-
-    printf("%s from (%s)\n", hello_str, __FILE__);  /* testing */
 }

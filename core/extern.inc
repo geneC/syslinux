@@ -9,9 +9,6 @@
 	; rllpack.c
 	extern rllpack, rllunpack
 
-	; hello.c
-	extern hello
-
 	; fs.c
 	extern fs_init, pm_searchdir, getfssec, pm_mangle_name, load_config
         extern pm_open_file, pm_close_file

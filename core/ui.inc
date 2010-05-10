@@ -45,9 +45,6 @@ no_config_file:
 
 .no_bootonce:
 
-		; *** TEST HACK ***
-		pm_call hello
-
 ;
 ; Check whether or not we are supposed to display the boot prompt.
 ;
