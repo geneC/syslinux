@@ -36,7 +36,7 @@
 
 struct multiboot_info mbinfo;
 struct syslinux_pm_regs regs;
-struct my_options opt;
+struct my_options opt, set;
 
 struct module_data {
     void *data;
@@ -161,11 +161,21 @@ int main(int argc, char *argv[])
     argv++;
 
     while (*argv) {
-	if (!strcmp(*argv, "-solaris"))
-	    opt.solaris = true;
-	else if (!strcmp(*argv, "-aout"))
-	    opt.aout = true;
-	else
+	bool v = true;
+	const char *p = *argv;
+
+	if (!memcmp(p, "-no", 3)) {
+	    v = false;
+	    p += 3;
+	}
+
+	if (!strcmp(p, "-solaris")) {
+	    opt.solaris = v;
+	    set.solaris = true;
+	} else if (!strcmp(p, "-aout")) {
+	    opt.aout = v;
+	    set.aout = true;
+	} else
 	    break;
 	argv++;
     }

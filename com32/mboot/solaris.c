@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -35,12 +35,21 @@
 
 #include "mboot.h"
 #include <syslinux/pxe.h>
+#include <syslinux/config.h>
+
+bool kernel_is_solaris(const Elf32_Ehdr *eh)
+{
+    return eh->e_ident[EI_OSABI] == 6;	/* ABI == Solaris */
+}
 
 void mboot_solaris_dhcp_hack(void)
 {
     void *dhcpdata;
     size_t dhcplen;
 
+    if (syslinux_derivative_info()->c.filesystem != SYSLINUX_FS_PXELINUX)
+	return;
+    
     if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK, &dhcpdata, &dhcplen)) {
 	mbinfo.drives_addr = map_data(dhcpdata, dhcplen, 4, 0);
 	if (mbinfo.drives_addr) {
