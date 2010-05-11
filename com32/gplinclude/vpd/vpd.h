@@ -25,7 +25,7 @@ typedef struct {
     char bios_release_date[9];
     char default_flash_filename[13];
     char bios_version[255];
-    char base_address[6];
+    char base_address[16];
     bool filled;
 } s_vpd;
 

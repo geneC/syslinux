@@ -64,7 +64,7 @@ int vpd_decode(s_vpd * vpd)
     for (q = p; q < p + 0x10000; q += 4) {
 	memcpy(buf, q, 5);
 	if (memcmp(buf, "\252\125VPD", 5) == 0) {
-	    snprintf(&vpd->base_address, 5, "%X", q);
+	    snprintf(vpd->base_address, sizeof(vpd->base_address), "%p", q);
 	    if (q[5] < 0x30)
 		return -ENOVPDTABLE;
 

@@ -43,7 +43,7 @@ void main_show_vpd(int argc __unused, char **argv __unused,
 	return;
     }
 
-    more_printf("VPD present at address : 0x%s\n", hardware->vpd.base_address);
+    more_printf("VPD present at address : %s\n", hardware->vpd.base_address);
     if (strlen(hardware->vpd.bios_build_id) > 0)
 	more_printf("Bios Build ID                 : %s\n",
 		    hardware->vpd.bios_build_id);
