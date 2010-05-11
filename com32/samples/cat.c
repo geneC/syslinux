@@ -15,13 +15,18 @@ int main(int argc, char *argv[])
 	printf("argv[%d] = %p = \"%s\"\n", i, argv[i], argv[i]);
 
     if (argc < 2) {
-	fprintf(stderr, "Missing file name!\n");
-	exit(1);
+	fprintf(stderr, "Usage: cat.c32 filename\n");
+	return 1;
     }
 
     printf("File = %s\n", argv[1]);
 
     f = fopen(argv[1], "r");
+    if (!f) {
+	fprintf(stderr, "File name \"%s\" does not exist.\n", argv[1]);
+	return 1;
+    }
+
     while ((ch = getc(f)) != EOF)
 	putchar(ch);
 
