@@ -19,26 +19,6 @@ struct cpuid_info {
     struct cpuid_data data;
 };
 
-static bool has_eflag(uint32_t flag)
-{
-	uint32_t f0, f1;
-
-	asm("pushfl ; "
-	    "pushfl ; "
-	    "popl %0 ; "
-	    "movl %0,%1 ; "
-	    "xorl %2,%1 ; "
-	    "pushl %1 ; "
-	    "popfl ; "
-	    "pushfl ; "
-	    "popl %1 ; "
-	    "popfl"
-	    : "=&r" (f0), "=&r" (f1)
-	    : "ri" (flag));
-
-	return !!((f0^f1) & flag);
-}
-
 static void get_cpuid(uint32_t eax, uint32_t ecx, struct cpuid_data *data)
 {
     asm("pushl %%ebx ; cpuid ; movl %%ebx,%1 ; popl %%ebx"
@@ -59,7 +39,7 @@ void dump_cpuid(struct backend *be)
     struct cpuid_data invalid_leaf;
     struct cpuid_data data;
 
-    if (!has_eflag(EFLAGS_ID))
+    if (!cpu_has_eflag(EFLAGS_ID))
 	return;
 
     printf("Dumping CPUID... ");
