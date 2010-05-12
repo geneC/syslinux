@@ -25,11 +25,11 @@
 #include "syslinux.h"
 #include "syslxint.h"
 
-#define sbs ((struct boot_sector *)syslinux_bootsect)
-
 void syslinux_make_bootsect(void *bs)
 {
     struct boot_sector *bootsect = bs;
+    const struct boot_sector *sbs =
+	(const struct boot_sector *)syslinux_bootsect;
 
     memcpy(&bootsect->bsHead, &sbs->bsHead, bsHeadLen);
     memcpy(&bootsect->bsCode, &sbs->bsCode, bsCodeLen);
@@ -234,6 +234,7 @@ int syslinux_patch(const uint32_t * sectors, int nsectors,
     int nsect = (syslinux_ldlinux_len + 511) >> 9;
     uint32_t csum;
     int i, dw, nptrs, rv;
+    struct boot_sector *sbs = (struct boot_sector *)syslinux_bootsect;
 
     if (nsectors < nsect)
 	return -1;

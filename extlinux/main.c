@@ -1014,6 +1014,8 @@ static const char *find_device(const char *mtab_file, dev_t dev)
 		    done = true;
 		    break;
 		}
+	case NONE:
+	    break;
 	}
 	if (done) {
 		devname = strdup(mnt->mnt_fsname);

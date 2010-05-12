@@ -329,7 +329,7 @@ int main(int argc, char *argv[])
     char mntname[128];
     char *ldlinux_name, **argp, *opt;
     const char *subdir = NULL;
-    uint32_t *sectors;
+    uint32_t *sectors = NULL;
     int ldlinux_sectors;
     int nsectors = 0;
     const char *errmsg;
