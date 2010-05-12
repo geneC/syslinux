@@ -75,7 +75,6 @@ static int boot_sdi(void *ptr, size_t len)
     struct syslinux_memmap *mmap = NULL, *amap = NULL;
     struct syslinux_rm_regs regs;
     struct syslinux_movelist *ml = NULL;
-    char *boot_blob;
 
     /* **** Basic sanity checking **** */
     if (hdr->Signature != SDI_SIGNATURE) {
