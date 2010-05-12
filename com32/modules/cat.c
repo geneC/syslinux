@@ -6,7 +6,6 @@ int main(int argc, char *argv[])
 {
     FILE *f;
     int ch;
-    int i;
 
     openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
