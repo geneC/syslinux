@@ -311,13 +311,13 @@ static const char sha512_salt_prefix[] = "$6$";
 static const char sha512_rounds_prefix[] = "rounds=";
 
 /* Maximum salt string length.  */
-#define SALT_LEN_MAX 16
+#define SALT_LEN_MAX 16U
 /* Default number of rounds if not explicitly specified.  */
-#define ROUNDS_DEFAULT 5000
+#define ROUNDS_DEFAULT 5000UL
 /* Minimum number of rounds.  */
-#define ROUNDS_MIN 1000
+#define ROUNDS_MIN 1000UL
 /* Maximum number of rounds.  */
-#define ROUNDS_MAX 999999999
+#define ROUNDS_MAX 999999999UL
 
 /* Table with characters for base64 transformation.  */
 static const char b64t[64] =
@@ -443,7 +443,7 @@ static char *sha512_crypt_r(const char *key, const char *salt, char *buffer,
     sha512_init_ctx(&alt_ctx);
 
     /* For every character in the password add the entire password.  */
-    for (cnt = 0; cnt < 16 + alt_result[0]; ++cnt)
+    for (cnt = 0; cnt < (size_t)16 + alt_result[0]; ++cnt)
 	sha512_process_bytes(salt, salt_len, &alt_ctx);
 
     /* Finish the digest.  */
