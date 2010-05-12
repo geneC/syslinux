@@ -17,6 +17,7 @@
  */
 
 #include <com32.h>
+#include <syslinux/boot.h>
 
 int main(void)
 {

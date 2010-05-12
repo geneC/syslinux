@@ -78,7 +78,7 @@ int __parse_argv(char ***argv, const char *str)
     /* Now create argv */
     arg = (char **)ALIGN_UP_FOR(q, char *);
     *argv = arg;
-    *arg++ = __com32.cs_name ? __com32.cs_name : dummy_argv0; /* argv[0] */
+    *arg++ = __com32.cs_name ? (char *)__com32.cs_name : dummy_argv0; /* argv[0] */
 
     q--;			/* Point q to final null */
     if (mem < q)

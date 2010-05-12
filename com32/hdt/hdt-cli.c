@@ -779,7 +779,7 @@ void start_auto_mode(struct s_hardware *hardware)
     more_printf("\n");
 }
 
-void print_history(void)
+void print_history(int argc, char **argv, struct s_hardware * hardware)
 {
     reset_more_printf();
     for (int i = 1; i <= MAX_HISTORY_SIZE; i++) {

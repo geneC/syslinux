@@ -160,7 +160,7 @@ void start_auto_mode(struct s_hardware *hardware);
 void main_show(char *item, struct s_hardware *hardware);
 
 #define CLI_HISTORY "history"
-void print_history(void);
+void print_history(int argc, char **argv, struct s_hardware * hardware);
 
 // DMI STUFF
 #define CLI_DMI_BASE_BOARD "base_board"
