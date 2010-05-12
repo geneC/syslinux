@@ -42,7 +42,6 @@ void syslinux_run_kernel_image(const char *filename, const char *cmdline,
     static com32sys_t ireg;
     char *bbfilename = NULL;
     char *bbcmdline  = NULL;
-    int bytes;
 
     bbfilename = lstrdup(filename);
     if (!bbfilename)
