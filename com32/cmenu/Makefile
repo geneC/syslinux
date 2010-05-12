@@ -39,21 +39,6 @@ MENUS = $(CMENUS) $(IMENUS)
 %.c: %.menu adv_menu.tpl
 	python menugen.py --input=$< --output=$@ --template=adv_menu.tpl
 
-.PRECIOUS: %.o
-%.o: %.S
-	$(CC) $(MAKEDEPS) $(SFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.o
-%.o: %.c %.h
-	$(CC) $(MAKEDEPS) $(CFLAGS) -c -o $@ $<
-
-.PRECIOUS: %.elf
-%.elf: %.o libmenu/libmenu.a $(LIBS)
-	$(LD) $(LDFLAGS) -o $@ $^
-
-%.c32: %.elf
-	$(OBJCOPY) -O binary $< $@
-
 all: menus
 
 libmenu/libmenu.a: $(LIBMENU)
