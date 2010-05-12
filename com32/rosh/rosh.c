@@ -514,6 +514,8 @@ void rosh_more_buf(char *buf, int buflen, int rows, int cols)
     int inc;
     int i, numln;		/* Index, Number of lines */
 
+    (void)cols;
+
     bufpos = 0;
     bufp = buf + bufpos;
     bufeol = bufp;
